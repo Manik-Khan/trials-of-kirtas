@@ -345,21 +345,34 @@ function positionTooltip(el, hasPortrait) {
   tooltip.style.top  = top  + 'px';
 }
 
-// Attach NPC events
-document.querySelectorAll('.npc-link').forEach(el => {
-  el.addEventListener('mouseenter', () => showNpcTooltip(el));
-  el.addEventListener('mouseleave', hideTooltip);
-  el.addEventListener('focus', () => showNpcTooltip(el));
-  el.addEventListener('blur', hideTooltip);
-});
+// ── Attach tooltip events to a container (or whole document) ──
+// Call attachTooltips() on page load, or pass a specific element
+// to attach events to dynamically injected content.
+function attachTooltips(root) {
+  const scope = root || document;
 
-// Attach location events
-document.querySelectorAll('.location-link').forEach(el => {
-  el.addEventListener('mouseenter', () => showLocationTooltip(el));
-  el.addEventListener('mouseleave', hideTooltip);
-  el.addEventListener('focus', () => showLocationTooltip(el));
-  el.addEventListener('blur', hideTooltip);
-});
+  scope.querySelectorAll('.npc-link').forEach(el => {
+    // Avoid double-attaching
+    if (el.dataset.tooltipBound) return;
+    el.dataset.tooltipBound = '1';
+    el.addEventListener('mouseenter', () => showNpcTooltip(el));
+    el.addEventListener('mouseleave', hideTooltip);
+    el.addEventListener('focus',      () => showNpcTooltip(el));
+    el.addEventListener('blur',       hideTooltip);
+  });
+
+  scope.querySelectorAll('.location-link').forEach(el => {
+    if (el.dataset.tooltipBound) return;
+    el.dataset.tooltipBound = '1';
+    el.addEventListener('mouseenter', () => showLocationTooltip(el));
+    el.addEventListener('mouseleave', hideTooltip);
+    el.addEventListener('focus',      () => showLocationTooltip(el));
+    el.addEventListener('blur',       hideTooltip);
+  });
+}
+
+// Initial page attachment
+attachTooltips();
 
 // Keep tooltip open when hovering over it
 tooltip.addEventListener('mouseenter', () => clearTimeout(hideTimeout));

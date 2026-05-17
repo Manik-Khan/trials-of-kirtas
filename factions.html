@@ -6,6 +6,7 @@
   <title>Factions — The Trials of Kirtas</title>
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link href="https://fonts.googleapis.com/css2?family=Cinzel+Decorative:wght@400;700&family=Cinzel:wght@400;600&family=Crimson+Pro:ital,wght@0,300;0,400;1,300;1,400&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="tooltips.css">
   <link rel="stylesheet" href="theme.css">
   <style>
     :root {
@@ -429,7 +430,7 @@
       <div class="faction-body">
         <div class="faction-name">Kings Army of Kirtas</div>
         <div class="faction-alias">The Wolven</div>
-        <p class="faction-summary">Tyrus holds the capital and claims the throne by right of succession. His forces — depleted, mercenary-reliant — dream of one final campaign to end the war.</p>
+        <p class="faction-summary"><span class="npc-link" data-npc="tyrus">Tyrus</span> holds the <span class="location-link" data-location="capital">capital</span> and claims the throne by right of succession. His forces — depleted, mercenary-reliant — dream of one final campaign to end the war.</p>
         <span class="faction-read-more">Read more →</span>
       </div>
     </div>
@@ -442,10 +443,8 @@
       </div>
       <div class="faction-body">
         <div class="faction-name">Alliance to Restore Kirtas</div>
-        <div class="faction-alias">
-          <span class="npc-link" data-npc="darius">Darius</span>' Forces — The Blue Jackets</div>
-        <p class="faction-summary">
-          <span class="npc-link" data-npc="darius">Darius</span> and <span class="npc-link" data-npc="lord reykoldt">Lord Reykoldt</span> fight on in the Long Hills, sustained by iron will and a cause — the restoration of the rightful heir, who has not been seen in years.</p>
+        <div class="faction-alias"><span class="npc-link" data-npc="darius">Darius</span>' Forces — The Blue Jackets</div>
+        <p class="faction-summary"><span class="npc-link" data-npc="darius">Darius</span> and <span class="npc-link" data-npc="reykoldt">Lord Reykoldt</span> fight on in the <span class="location-link" data-location="longhills">Long Hills</span>, sustained by iron will and a cause — the restoration of the rightful heir, who has not been seen in years.</p>
         <span class="faction-read-more">Read more →</span>
       </div>
     </div>
@@ -468,7 +467,7 @@
       <div class="faction-body">
         <div class="faction-name">Numiorian Military</div>
         <div class="faction-alias">Vassal-state turned sovereign</div>
-        <p class="faction-summary">Once conscripts of Kirtas, now an independent army swelling with nationalist pride. King Eneos II watches the north, sensing opportunity in the chaos.</p>
+        <p class="faction-summary">Once conscripts of Kirtas, now an independent army swelling with nationalist pride. <span class="npc-link" data-npc="eneos">King Eneos II</span> watches the north, sensing opportunity in the chaos.</p>
         <span class="faction-read-more">Read more →</span>
       </div>
     </div>
@@ -482,7 +481,7 @@
       <div class="faction-body">
         <div class="faction-name">The Red Eagles</div>
         <div class="faction-alias">Numior's Special Forces</div>
-        <p class="faction-summary">Elite scouts and special forces operating along Kirtas's southern border — assessing the mountains, seeking invasion routes, serving King Eneos's ambitions.</p>
+        <p class="faction-summary">Elite scouts and special forces operating along Kirtas's southern border — assessing the mountains, seeking invasion routes, serving <span class="npc-link" data-npc="eneos">King Eneos</span>'s ambitions.</p>
         <span class="faction-read-more">Read more →</span>
       </div>
     </div>
@@ -505,7 +504,7 @@
       <div class="faction-body">
         <div class="faction-name">The Band of the Rook</div>
         <div class="faction-alias">Fallen Honor</div>
-        <p class="faction-summary">Once the continent's most illustrious mercenary regiment, the Rook was gutted at Ryol's Creek. What remains is a band of thugs under the brutal Rhadig of Koria.</p>
+        <p class="faction-summary">Once the continent's most illustrious mercenary regiment, the Rook was gutted at Ryol's Creek. What remains is a band of thugs under the brutal <span class="npc-link" data-npc="rhadig">Rhadig of Koria</span>.</p>
         <span class="faction-read-more">Read more →</span>
       </div>
     </div>
@@ -519,7 +518,7 @@
       <div class="faction-body">
         <div class="faction-name">The Stags</div>
         <div class="faction-alias">Lucius Solci's Regiment</div>
-        <p class="faction-summary">A newer mercenary force led by the former Dalarian general Lucius Solci. Hired by Numior, the Stags remain fresh and disciplined — and hungry for glory.</p>
+        <p class="faction-summary">A newer mercenary force led by the former Dalarian general <span class="npc-link" data-npc="solci">Lucius Solci</span>. Hired by <span class="location-link" data-location="numior">Numior</span>, the Stags remain fresh and disciplined — and hungry for glory.</p>
         <span class="faction-read-more">Read more →</span>
       </div>
     </div>
@@ -533,7 +532,7 @@
       <div class="faction-body">
         <div class="faction-name">The Verdaaners</div>
         <div class="faction-alias">Northern Mercenaries</div>
-        <p class="faction-summary">Hardened fighters from the Northern Realms, currently hired by the Tiersgard Burghers. They bring warbears to the field — and a reputation for ferocity.</p>
+        <p class="faction-summary">Hardened fighters from the Northern Realms, currently hired by the <span class="location-link" data-location="tiersgard">Tiersgard</span> Burghers. They bring warbears to the field — and a reputation for ferocity.</p>
         <span class="faction-read-more">Read more →</span>
       </div>
     </div>
@@ -547,7 +546,7 @@
       <div class="faction-body">
         <div class="faction-name">The Threshers</div>
         <div class="faction-alias">Kirtas's Most Powerful Crime Syndicate</div>
-        <p class="faction-summary">Born as a farmer's collective, now the dominant criminal power in Kirtas. The Threshers control trade through Tiersgard and have shown — strangely — more concern for the common people than either king.</p>
+        <p class="faction-summary">Born as a farmer's collective, now the dominant criminal power in Kirtas. The Threshers control trade through <span class="location-link" data-location="tiersgard">Tiersgard</span> and have shown — strangely — more concern for the common people than either king.</p>
         <span class="faction-read-more">Read more →</span>
       </div>
     </div>
@@ -581,15 +580,15 @@
         alias: "The Wolven",
         img: "img/factions/wolven.png",
         text: `<p>Tyrus has never doubted his legitimacy as ruler of Kirtas. He sees the opposition as rebellious traitors who have sullied the memory of his brother and ruined their glorious kingdom. The disastrous civil war has made him a crueler and more paranoid man than he otherwise might have been, but he still seeks to follow the "enlightened" and just policies of his brother, excusing his despotic and at times reckless actions as desperate measures for desperate times.</p>
-        <p>Secure in the Kingdom's capital, he feels that his advantage over Darius is greater than it has ever been and that only one final push would be necessary to defeat him and finally bring the war to an end. He is eager to turn his attention to other matters, domestic and foreign.</p>
-        <p>However, before he can eliminate Darius, Tyrus must gather more men. Most of his army has been destroyed, with a few veteran regiments guarding the capital and surrounding area. Untested troops have been sent out in a half-hearted attempt to regain control of the kingdom and collect taxes, but this has resulted in losses to bandits, hobgoblins and other unsavory sorts. The king desperately seeks competent forces and continues to hire what mercenaries he can, mostly on credit as the royal coffers stand nearly empty.</p>`
+        <p>Secure in the Kingdom's capital, he feels that his advantage over <span class="npc-link" data-npc="darius">Darius</span> is greater than it has ever been and that only one final push would be necessary to defeat him and finally bring the war to an end. He is eager to turn his attention to other matters, domestic and foreign.</p>
+        <p>However, before he can eliminate <span class="npc-link" data-npc="darius">Darius</span>, Tyrus must gather more men. Most of his army has been destroyed, with a few veteran regiments guarding the capital and surrounding area. Untested troops have been sent out in a half-hearted attempt to regain control of the kingdom and collect taxes, but this has resulted in losses to bandits, hobgoblins and other unsavory sorts. The king desperately seeks competent forces and continues to hire what mercenaries he can, mostly on credit as the royal coffers stand nearly empty.</p>`
       },
       bluejackets: {
         name: "Alliance to Restore Kirtas",
         alias: "Darius' Forces — The Blue Jackets",
         img: "img/factions/bluejackets.png",
-        text: `<p>Darius and what remains of his army remain encamped in the Long Hills. Although they still claim to fight for the young prince, he has not been seen in years. The former King's Council who joined with Darius in his rebellion have either been killed or fled, with the exception of Lord Reykoldt, Duke of Yevennia, the former king's closest advisor.</p>
-        <p>These two exceptional men have managed to hold together the hardened remnants of their forces through iron will and skillful strategies. But 20 years of civil war have taken their toll. Both men have lost their families, their holdings and more. All that remains to them and their forces is the struggle against the hated Tyrus and the chance to restore their beloved kingdom to its former glory.</p>`
+        text: `<p><span class="npc-link" data-npc="darius">Darius</span> and what remains of his army remain encamped in the <span class="location-link" data-location="longhills">Long Hills</span>. Although they still claim to fight for the young prince, he has not been seen in years. The former King's Council who joined with Darius in his rebellion have either been killed or fled, with the exception of <span class="npc-link" data-npc="reykoldt">Lord Reykoldt</span>, Duke of <span class="location-link" data-location="yevennia">Yevennia</span>, the former king's closest advisor.</p>
+        <p>These two exceptional men have managed to hold together the hardened remnants of their forces through iron will and skillful strategies. But 20 years of civil war have taken their toll. Both men have lost their families, their holdings and more. All that remains to them and their forces is the struggle against the hated <span class="npc-link" data-npc="tyrus">Tyrus</span> and the chance to restore their beloved kingdom to its former glory.</p>`
       },
       numior: {
         name: "Numiorian Military",
@@ -597,34 +596,34 @@
         img: "img/factions/numior.png",
         text: `<p>As a vassal state of Kirtas, Numior's armed forces were essentially an extension of the larger kingdom's military. Regiments were conscripted and used to fight on other frontiers, while Numior itself was garrisoned by troops from other lands. As Kirtas began to split in civil war, the Numiorian regiments were some of the first to be destroyed in the early fighting. Survivors made their way back to their homeland as order broke down.</p>
         <p>These veterans formed the backbone of the newly independent Numior state's military. While it is a new force, it has been well served by the veterans of the civil war. As Numior comes into its own as an independent state the populace has been swept up by nationalism and enthusiasm. The result is scores of young men signing up for military service eager for glory and the chance to stake their country's claim on its ancient borders.</p>
-        <p>More hawkish elements of the political class have begun to advocate an aggressive campaign to create a foothold in Kirtas while it is distracted in turmoil. So far this enthusiasm has not spread to the officer corps of the armed forces, who are veterans under no illusions about the true capabilities of their enthusiastic yet untested forces. However, these aggressive policies have begun to draw the interest of the young king Eneos II.</p>`
+        <p>More hawkish elements of the political class have begun to advocate an aggressive campaign to create a foothold in Kirtas while it is distracted in turmoil. So far this enthusiasm has not spread to the officer corps of the armed forces, who are veterans under no illusions about the true capabilities of their enthusiastic yet untested forces. However, these aggressive policies have begun to draw the interest of the young king <span class="npc-link" data-npc="eneos">Eneos II</span>.</p>`
       },
       redeagles: {
         name: "The Red Eagles",
         alias: "Numior's Advanced Scouts & Special Forces",
         img: "img/factions/redeagles.png",
         text: `<p>The Red Eagles are the advanced scouts and special forces of Numior's military. The Eagles operate much more independently than the regular forces, their commanders given broad orders and entrusted to carry them out largely as they see fit.</p>
-        <p>King Eneos II is a strong supporter of the Eagles, and currently has them deployed along the northern border with Kirtas, assessing the threat from the mountains and seeking a possible invasion route into the beleaguered kingdom.</p>`
+        <p><span class="npc-link" data-npc="eneos">King Eneos II</span> is a strong supporter of the Eagles, and currently has them deployed along the northern border with Kirtas, assessing the threat from the mountains and seeking a possible invasion route into the beleaguered kingdom.</p>`
       },
       rook: {
         name: "The Band of the Rook",
         alias: "Fallen Honor",
         img: "img/factions/rook.png",
         text: `<p>The Band of the Rook is one of the oldest and most illustrious mercenary regiments on the continent. Founded over two centuries ago by Ligurian Nobles, the organization was known for its honorable conduct, its commitment to fulfilling a contract and above all, its capabilities in combat. The Banner of Three Rooks was a feared sight on the battlefield.</p>
-        <p>The regiment was almost totally destroyed during the Battle of Ryol's Creek, during the early years of the civil war. The survivors were reorganized by the few remaining officers and continued to fight, but the ranks have been diluted and the organization is now led by Rhadig of Koria, a brutal and unscrupulous man who has turned the Band into a group of thugs and bandits no better than most other mercenary regiments in the region.</p>`
+        <p>The regiment was almost totally destroyed during the Battle of Ryol's Creek, during the early years of the civil war. The survivors were reorganized by the few remaining officers and continued to fight, but the ranks have been diluted and the organization is now led by <span class="npc-link" data-npc="rhadig">Rhadig of Koria</span>, a brutal and unscrupulous man who has turned the Band into a group of thugs and bandits no better than most other mercenary regiments in the region.</p>`
       },
       stags: {
         name: "The Stags",
         alias: "Lucius Solci's Regiment",
         img: "img/factions/stags.png",
         text: `<p>The Stags are a mercenary regiment formed by Lucius Solci, a former general turned adventurer. A newer organization, the Stags have not been depleted by the fighting of the civil war, though they have veterans of the fighting in their ranks.</p>
-        <p>Solci is a former general in the Dalarian military and a skillful tactician. Seeing that the Kirtas War of Succession would decimate his regiment, he has hired his force to King Eneos of Numior, who sits on a stable throne and represents a reliable source of income. Knowing there could be fighting to come as Numior seeks to expand north, Solci is confident that his forces will be able to win fortune and glory on the field.</p>`
+        <p>Solci is a former general in the Dalarian military and a skillful tactician. Seeing that the Kirtas War of Succession would decimate his regiment, he has hired his force to <span class="npc-link" data-npc="eneos">King Eneos</span> of <span class="location-link" data-location="numior">Numior</span>, who sits on a stable throne and represents a reliable source of income. Knowing there could be fighting to come as Numior seeks to expand north, Solci is confident that his forces will be able to win fortune and glory on the field.</p>`
       },
       verdaaners: {
         name: "The Verdaaners",
         alias: "Mercenaries of the Northern Realms",
         img: "img/factions/verdaaners.png",
-        text: `<p>The Verdaaners are a mercenary regiment from the Northern Realms. Drawn to Kirtas during the call for fighting men, they have fought and bled for a number of years of war. Most recently, they have been hired by the Tiersgard Burghers to keep watch on the Southern approaches to the city. These lands have been plagued by undead and rumors of Numior's expansion.</p>
+        text: `<p>The Verdaaners are a mercenary regiment from the Northern Realms. Drawn to Kirtas during the call for fighting men, they have fought and bled for a number of years of war. Most recently, they have been hired by the <span class="location-link" data-location="tiersgard">Tiersgard</span> Burghers to keep watch on the Southern approaches to the city. These lands have been plagued by undead and rumors of Numior's expansion.</p>
         <p>The Verdaaners have been known to fight alongside warbears from their homeland, mighty beasts that rampage through the battlefield spreading terror among their foes.</p>`
       },
       threshers: {
@@ -632,7 +631,7 @@
         alias: "Kirtas's Most Powerful Crime Syndicate",
         img: "img/factions/threshers.png",
         text: `<p>The Threshers are the most powerful crime syndicate working in Kirtas. The organization had humble beginnings as a farmer's collective in the countryside outside Yevenna, formed in order to give support to members facing failed crops or other disasters. The success led to investment and other protection activities which, over time, became extra-legal.</p>
-        <p>Centuries later, the focus is now no longer agricultural, although the group's symbol — interlocked heads of grain — is a reminder of its beginnings. The Threshers have a strong presence in Tiersgard, controlling a good deal of trade and black market goods that move through the kingdom. They also run more brutal crime rackets: drugs, gambling, protection.</p>
+        <p>Centuries later, the focus is now no longer agricultural, although the group's symbol — interlocked heads of grain — is a reminder of its beginnings. The Threshers have a strong presence in <span class="location-link" data-location="tiersgard">Tiersgard</span>, controlling a good deal of trade and black market goods that move through the kingdom. They also run more brutal crime rackets: drugs, gambling, protection.</p>
         <p>The civil war has been a blessing and a curse. Less official interference has allowed for increasingly bold actions, and weapons smuggling has brought hefty profits. On the other hand, the vast loss of life has decimated some areas that previously were hubs of commerce.</p>
         <p>The syndicate has also played to its folk-image as a savior to the poor, providing aid and support for some of the more downtrodden during the civil war — food supplies, housing help, and even evacuations. Though an outlaw and sometimes brutal group, The Threshers have unquestionably shown greater concern for the populace of Kirtas than either Tyrus's or Darius's forces.</p>`
       }
@@ -649,6 +648,8 @@
       img.alt = f.name + ' heraldry';
       document.getElementById('modal-overlay').classList.add('open');
       document.body.style.overflow = 'hidden';
+      // Attach tooltip events to the newly injected modal content
+      attachTooltips(document.getElementById('modal'));
     }
 
     function closeModal() {
@@ -666,5 +667,6 @@
   </script>
 
   <script src="nav.js"></script>
+  <script src="tooltips.js"></script>
 </body>
 </html>
