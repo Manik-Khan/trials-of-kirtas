@@ -12,6 +12,8 @@
   transition: color 0.2s, border-color 0.2s;
 }
 
+.npc-link strong { color: inherit; }
+
 .npc-link:hover,
 .npc-link:focus {
   color: #e8c85a;
@@ -26,6 +28,8 @@
   cursor: default;
   transition: color 0.2s, border-color 0.2s;
 }
+
+.location-link strong { color: inherit; }
 
 .location-link:hover,
 .location-link:focus {
