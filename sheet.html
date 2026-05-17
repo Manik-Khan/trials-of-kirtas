@@ -1,0 +1,1474 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Character Sheet — The Trials of Kirtas</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=Cinzel+Decorative:wght@400;700&family=Cinzel:wght@400;600&family=Crimson+Pro:ital,wght@0,300;0,400;0,600;1,300;1,400&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="theme.css">
+  <script src="characters.js"></script>
+  <style>
+    /* ── Sheet-specific styles (layout, not colors — colors come from theme.css) ── */
+
+    nav, .sheet-tabs, .sheet-body, footer {
+      transition: background 0.3s, border-color 0.3s, color 0.3s;
+    }
+
+    /* ── Sheet tabs ── */
+    .sheet-tabs {
+      display: flex;
+      background: rgba(0,0,0,0.5);
+      border-bottom: 1px solid var(--gold-dim);
+      padding: 0 1.25rem;
+      overflow-x: auto;
+      scrollbar-width: none;
+    }
+    .sheet-tabs::-webkit-scrollbar { display: none; }
+
+    .tab-btn {
+      font-family: var(--font-title);
+      font-size: 0.62rem;
+      letter-spacing: 0.2em;
+      text-transform: uppercase;
+      color: var(--muted);
+      background: none;
+      border: none;
+      border-bottom: 2px solid transparent;
+      padding: 0.7rem 1rem;
+      cursor: pointer;
+      transition: color 0.2s, border-color 0.2s;
+      white-space: nowrap;
+    }
+    .tab-btn:hover { color: var(--aged); }
+    .tab-btn.active { color: var(--gold-light); border-bottom-color: var(--gold); }
+
+    /* ── Sheet body ── */
+    .sheet-body {
+      max-width: 1320px;
+      margin: 0 auto;
+      padding: 1.25rem 1.25rem 8rem;
+    }
+
+    .tab-panel { display: none; }
+    .tab-panel.active { display: block; }
+
+    /* ── Shared section ── */
+    .s-section {
+      background: var(--section-bg);
+      border: 1px solid var(--section-border);
+      padding: 0.8rem 1rem;
+      margin-bottom: 0.8rem;
+    }
+    .s-section:last-child { margin-bottom: 0; }
+
+    .s-title {
+      font-family: var(--font-title);
+      font-size: 0.52rem;
+      letter-spacing: 0.4em;
+      color: var(--gold);
+      text-transform: uppercase;
+      border-bottom: 1px solid var(--gold-dim);
+      padding-bottom: 0.3rem;
+      margin-bottom: 0.7rem;
+    }
+
+    /* ── CORE TAB — 3 columns ── */
+    .core-layout {
+      display: grid;
+      grid-template-columns: 195px 1fr 1fr;
+      gap: 1rem;
+      align-items: start;
+    }
+
+    /* Left column */
+    .left-col { display: flex; flex-direction: column; gap: 0.8rem; }
+
+    .portrait-frame {
+      width: 100%;
+      aspect-ratio: 3/4;
+      overflow: hidden;
+      border: 1px solid var(--gold-dim);
+      background: rgba(0,0,0,0.4);
+    }
+    .portrait-frame img {
+      width: 100%; height: 100%;
+      object-fit: cover; object-position: top center;
+    }
+
+    .char-identity { text-align: center; }
+    .char-name {
+      font-family: var(--font-display);
+      font-size: 0.9rem;
+      color: var(--parchment);
+      line-height: 1.3;
+    }
+    .char-class {
+      font-family: var(--font-title);
+      font-size: 0.52rem;
+      letter-spacing: 0.15em;
+      color: var(--gold);
+      text-transform: uppercase;
+      margin-top: 0.2rem;
+    }
+    .char-detail {
+      font-size: 0.78rem;
+      font-style: italic;
+      color: var(--muted);
+      margin-top: 0.1rem;
+    }
+
+    .pill-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 0.3rem;
+    }
+    .pill {
+      background: rgba(0,0,0,0.3);
+      border: 1px solid var(--gold-dim);
+      padding: 0.3rem 0.4rem;
+      text-align: center;
+    }
+    .pill.full { grid-column: span 2; cursor: pointer; }
+    .pill.full:hover { background: rgba(184,149,42,0.08); }
+    .pill-label {
+      font-family: var(--font-title);
+      font-size: 0.44rem;
+      letter-spacing: 0.2em;
+      color: var(--muted);
+      text-transform: uppercase;
+      display: block;
+    }
+    .pill-value {
+      font-family: var(--font-title);
+      font-size: 0.8rem;
+      color: var(--parchment2);
+    }
+
+    /* Saves in left col */
+    .save-row {
+      display: flex; align-items: center; gap: 0.4rem;
+      padding: 0.16rem 0.25rem;
+      cursor: pointer; transition: background 0.15s;
+    }
+    .save-row:hover { background: rgba(184,149,42,0.06); }
+    .save-name  { font-size: 0.78rem; color: var(--parchment2); flex: 1; }
+    .save-bonus { font-family: var(--font-title); font-size: 0.72rem; color: var(--gold-light); min-width: 1.8rem; text-align: right; }
+
+    /* Prof dot */
+    .dot {
+      width: 9px; height: 9px;
+      border-radius: 50%;
+      border: 1px solid var(--muted);
+      flex-shrink: 0;
+    }
+    .dot.full      { background: var(--prof-color); border-color: var(--prof-color); }
+    .dot.half      { background: var(--half-color); border-color: var(--half-color); }
+    .dot.expertise { background: var(--exp-color);  border-color: var(--exp-color); }
+
+    /* Middle column */
+    .mid-col { display: flex; flex-direction: column; gap: 0.8rem; }
+
+    /* Ability score grid */
+    .ability-grid {
+      display: grid;
+      grid-template-columns: repeat(6, 1fr);
+      gap: 0.4rem;
+    }
+    .ability-box {
+      text-align: center;
+      background: rgba(0,0,0,0.25);
+      border: 1px solid var(--gold-dim);
+      padding: 0.4rem 0.2rem;
+      cursor: pointer;
+      transition: border-color 0.2s, background 0.2s;
+    }
+    .ability-box:hover { border-color: rgba(184,149,42,0.45); background: rgba(184,149,42,0.06); }
+    .ability-label {
+      font-family: var(--font-title);
+      font-size: 0.44rem; letter-spacing: 0.18em;
+      color: var(--muted); text-transform: uppercase;
+      display: block; margin-bottom: 0.1rem;
+    }
+    .ability-score {
+      font-family: var(--font-title);
+      font-size: 1.5rem; color: var(--parchment);
+      line-height: 1; display: block;
+    }
+    .ability-mod {
+      font-family: var(--font-title);
+      font-size: 0.7rem; color: var(--gold-light);
+      display: block; margin-top: 0.1rem;
+      border-top: 1px solid var(--gold-dim); padding-top: 0.1rem;
+    }
+
+    /* Combat stats */
+    .combat-grid {
+      display: grid;
+      grid-template-columns: repeat(4, 1fr);
+      gap: 0.4rem;
+    }
+    .c-stat {
+      text-align: center;
+      background: rgba(0,0,0,0.25);
+      border: 1px solid var(--gold-dim);
+      padding: 0.4rem 0.2rem;
+    }
+    .c-stat.clickable { cursor: pointer; transition: border-color 0.2s, background 0.2s; }
+    .c-stat.clickable:hover { border-color: rgba(184,149,42,0.4); background: rgba(184,149,42,0.06); }
+    .c-label {
+      font-family: var(--font-title);
+      font-size: 0.42rem; letter-spacing: 0.12em;
+      color: var(--muted); text-transform: uppercase;
+      display: block; margin-bottom: 0.12rem;
+    }
+    .c-value {
+      font-family: var(--font-title);
+      font-size: 1.1rem; color: var(--parchment);
+    }
+
+    /* HP tracker */
+    .hp-wrap {
+      display: flex; align-items: center;
+      justify-content: center; gap: 0.3rem; margin-top: 0.1rem;
+    }
+    .hp-btn {
+      width: 18px; height: 18px;
+      background: rgba(0,0,0,0.4);
+      border: 1px solid var(--gold-dim);
+      color: var(--aged); font-size: 0.85rem;
+      cursor: pointer; display: flex;
+      align-items: center; justify-content: center;
+      transition: background 0.15s; font-family: var(--font-title); line-height: 1;
+    }
+    .hp-btn:hover { background: rgba(184,149,42,0.15); }
+    .hp-current { font-family: var(--font-title); font-size: 1.1rem; color: var(--hp-good); }
+    .hp-sep     { color: var(--muted); font-size: 0.85rem; }
+    .hp-max     { font-family: var(--font-title); font-size: 0.85rem; color: var(--aged); }
+
+    /* Resource pips */
+    .resource-row {
+      display: flex; align-items: center;
+      gap: 0.5rem; flex-wrap: wrap;
+      margin-top: 0.3rem;
+    }
+    .resource-label {
+      font-family: var(--font-title);
+      font-size: 0.48rem; letter-spacing: 0.15em;
+      color: var(--muted); text-transform: uppercase;
+      flex-shrink: 0;
+    }
+    .pip {
+      width: 14px; height: 14px;
+      border-radius: 50%;
+      border: 1px solid var(--gold-dim);
+      background: transparent;
+      cursor: pointer; transition: background 0.15s, border-color 0.15s;
+      flex-shrink: 0;
+    }
+    .pip.used { background: var(--gold); border-color: var(--gold); }
+    .pip:hover { border-color: var(--gold-mid); }
+
+    /* Quick actions */
+    .action-header {
+      display: grid;
+      grid-template-columns: 1fr 2.5rem 5.5rem 2rem;
+      gap: 0.4rem; padding: 0 0.4rem 0.3rem;
+    }
+    .action-col-label {
+      font-family: var(--font-title);
+      font-size: 0.44rem; letter-spacing: 0.2em;
+      color: var(--muted); text-transform: uppercase;
+    }
+    .action-slot {
+      display: grid;
+      grid-template-columns: 1fr 2.5rem 5.5rem 2rem;
+      gap: 0.4rem; align-items: center;
+      background: rgba(0,0,0,0.2);
+      border: 1px solid var(--gold-dim);
+      padding: 0.35rem 0.4rem;
+      margin-bottom: 0.35rem;
+      transition: border-color 0.2s;
+    }
+    .action-slot:last-child { margin-bottom: 0; }
+    .action-slot:focus-within { border-color: rgba(184,149,42,0.3); }
+    .action-select {
+      background: transparent; border: none;
+      color: var(--parchment2);
+      font-family: var(--font-body);
+      font-size: 0.85rem; cursor: pointer; outline: none;
+      width: 100%; appearance: none; -webkit-appearance: none;
+    }
+    .action-select option,
+    .action-select optgroup { background: var(--ink); color: var(--parchment2); }
+    .action-hit { font-family: var(--font-title); font-size: 0.7rem; color: var(--gold-light); text-align: center; }
+    .action-dmg { font-size: 0.72rem; color: var(--parchment2); text-align: center; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+    .action-roll-btn {
+      background: rgba(184,149,42,0.1);
+      border: 1px solid rgba(184,149,42,0.2);
+      color: var(--gold); font-size: 0.85rem;
+      cursor: pointer; padding: 0.15rem 0.3rem;
+      transition: background 0.15s, border-color 0.15s; line-height: 1;
+    }
+    .action-roll-btn:hover { background: rgba(184,149,42,0.22); border-color: var(--gold); }
+    .action-roll-btn:disabled { opacity: 0.2; cursor: default; }
+
+    /* Right column — skills */
+    .right-col { display: flex; flex-direction: column; }
+    .skill-row {
+      display: flex; align-items: center; gap: 0.38rem;
+      padding: 0.14rem 0.25rem; cursor: pointer;
+      transition: background 0.15s;
+      border-bottom: 1px solid rgba(255,255,255,0.03);
+    }
+    .skill-row:hover { background: rgba(184,149,42,0.06); }
+    .skill-name  { font-size: 0.76rem; color: var(--parchment2); flex: 1; }
+    .skill-attr  { font-size: 0.62rem; color: var(--muted); }
+    .skill-bonus { font-family: var(--font-title); font-size: 0.7rem; color: var(--gold-light); min-width: 1.8rem; text-align: right; }
+
+    /* ── COMBAT TAB ── */
+    .combat-layout {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 1rem;
+    }
+
+    /* Full attack table */
+    .atk-table { width: 100%; border-collapse: collapse; font-size: 0.85rem; }
+    .atk-table th {
+      font-family: var(--font-title);
+      font-size: 0.48rem; letter-spacing: 0.2em;
+      color: var(--muted); text-transform: uppercase;
+      text-align: left; padding: 0.3rem 0.5rem;
+      border-bottom: 1px solid var(--gold-dim);
+    }
+    .atk-table td {
+      padding: 0.35rem 0.5rem;
+      color: var(--parchment2);
+      border-bottom: 1px solid rgba(255,255,255,0.03);
+      vertical-align: middle;
+    }
+    .atk-table tr:hover td { background: rgba(184,149,42,0.04); }
+    .atk-roll-btn {
+      background: rgba(184,149,42,0.1);
+      border: 1px solid rgba(184,149,42,0.2);
+      color: var(--gold); font-size: 0.75rem;
+      cursor: pointer; padding: 0.1rem 0.3rem;
+      transition: background 0.15s; line-height: 1;
+    }
+    .atk-roll-btn:hover { background: rgba(184,149,42,0.22); }
+    .atk-roll-btn:disabled { opacity: 0.2; cursor: default; }
+
+    /* Death saves */
+    .death-saves {
+      display: flex; gap: 1rem; margin-top: 0.5rem;
+    }
+    .death-group { display: flex; flex-direction: column; gap: 0.3rem; }
+    .death-label {
+      font-family: var(--font-title);
+      font-size: 0.5rem; letter-spacing: 0.2em;
+      color: var(--muted); text-transform: uppercase;
+    }
+    .death-pips { display: flex; gap: 0.35rem; }
+    .death-pip {
+      width: 16px; height: 16px; border-radius: 50%;
+      border: 1px solid var(--gold-dim);
+      cursor: pointer; transition: background 0.15s;
+    }
+    .death-pip.success.used { background: var(--hp-good); border-color: var(--hp-good); }
+    .death-pip.failure.used { background: var(--hp-bad);  border-color: var(--hp-bad); }
+
+    /* Conditions */
+    .conditions-grid {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 0.3rem;
+    }
+    .condition-btn {
+      font-family: var(--font-title);
+      font-size: 0.5rem; letter-spacing: 0.1em;
+      text-transform: uppercase;
+      padding: 0.25rem 0.4rem;
+      border: 1px solid var(--gold-dim);
+      background: transparent; color: var(--muted);
+      cursor: pointer; transition: all 0.15s; text-align: center;
+    }
+    .condition-btn.active {
+      background: rgba(122,31,31,0.25);
+      border-color: var(--blood); color: #e08080;
+    }
+    .condition-btn:hover { border-color: var(--gold-mid); color: var(--aged); }
+
+    /* ── SPELLS TAB ── */
+    .spell-header {
+      display: grid;
+      grid-template-columns: 1fr auto auto auto auto;
+      gap: 0.5rem; padding: 0.2rem 0.5rem 0.3rem;
+      border-bottom: 1px solid var(--gold-dim);
+      margin-bottom: 0.3rem;
+    }
+    .spell-col-label {
+      font-family: var(--font-title);
+      font-size: 0.44rem; letter-spacing: 0.18em;
+      color: var(--muted); text-transform: uppercase;
+    }
+    .spell-row {
+      display: grid;
+      grid-template-columns: 1fr auto auto auto auto;
+      gap: 0.5rem; align-items: center;
+      padding: 0.3rem 0.5rem;
+      border-bottom: 1px solid rgba(255,255,255,0.03);
+      transition: background 0.15s;
+    }
+    .spell-row:hover { background: rgba(184,149,42,0.04); }
+    .spell-name { font-size: 0.85rem; color: var(--parchment2); }
+    .spell-tag {
+      font-family: var(--font-title);
+      font-size: 0.44rem; letter-spacing: 0.12em;
+      text-transform: uppercase; padding: 0.1rem 0.3rem;
+      border: 1px solid var(--gold-dim); color: var(--muted);
+    }
+    .spell-tag.conc { border-color: rgba(120,150,220,0.3); color: #8096dc; }
+    .spell-tag.ritual { border-color: rgba(90,154,106,0.3); color: #5a9a6a; }
+    .spell-time { font-size: 0.72rem; color: var(--muted); white-space: nowrap; }
+    .spell-range { font-size: 0.72rem; color: var(--muted); }
+    .spell-roll-btn {
+      background: rgba(184,149,42,0.1);
+      border: 1px solid rgba(184,149,42,0.2);
+      color: var(--gold); font-size: 0.72rem;
+      cursor: pointer; padding: 0.1rem 0.25rem;
+      transition: background 0.15s; line-height: 1;
+      white-space: nowrap;
+    }
+    .spell-roll-btn:hover { background: rgba(184,149,42,0.22); }
+    .spell-roll-btn:disabled { opacity: 0.2; cursor: default; }
+
+    /* Slot pips */
+    .slot-pips { display: flex; gap: 0.25rem; flex-wrap: wrap; }
+    .slot-pip {
+      width: 12px; height: 12px; border-radius: 50%;
+      border: 1px solid var(--gold-dim);
+      cursor: pointer; transition: background 0.15s;
+      flex-shrink: 0;
+    }
+    .slot-pip.used { background: var(--gold); border-color: var(--gold); }
+
+    /* ── FEATURES TAB ── */
+    .feature-card {
+      background: rgba(0,0,0,0.15);
+      border-left: 2px solid var(--gold-dim);
+      padding: 0.6rem 0.85rem;
+      margin-bottom: 0.5rem;
+      transition: border-color 0.2s;
+    }
+    .feature-card:hover { border-left-color: var(--gold); }
+    .feature-name {
+      font-family: var(--font-title);
+      font-size: 0.75rem; letter-spacing: 0.08em;
+      color: var(--gold-light); margin-bottom: 0.15rem;
+    }
+    .feature-source {
+      font-size: 0.68rem; font-style: italic;
+      color: var(--muted); margin-bottom: 0.35rem;
+    }
+    .feature-desc { font-size: 0.85rem; color: var(--parchment2); line-height: 1.6; }
+
+    /* ── EQUIPMENT TAB ── */
+    .equip-layout {
+      display: grid;
+      grid-template-columns: 2fr 1fr;
+      gap: 1rem;
+    }
+    .inv-table { width: 100%; border-collapse: collapse; font-size: 0.85rem; }
+    .inv-table th {
+      font-family: var(--font-title);
+      font-size: 0.48rem; letter-spacing: 0.2em;
+      color: var(--muted); text-transform: uppercase;
+      text-align: left; padding: 0.3rem 0.5rem;
+      border-bottom: 1px solid var(--gold-dim);
+    }
+    .inv-table td {
+      padding: 0.3rem 0.5rem; color: var(--parchment2);
+      border-bottom: 1px solid rgba(255,255,255,0.03);
+    }
+    .inv-table tr:hover td { background: rgba(184,149,42,0.04); }
+
+    .currency-grid {
+      display: grid;
+      grid-template-columns: repeat(5, 1fr);
+      gap: 0.4rem; margin-top: 0.5rem;
+    }
+    .coin-box {
+      text-align: center;
+      background: rgba(0,0,0,0.25);
+      border: 1px solid var(--gold-dim);
+      padding: 0.4rem 0.2rem;
+    }
+    .coin-label {
+      font-family: var(--font-title);
+      font-size: 0.48rem; letter-spacing: 0.2em;
+      color: var(--muted); text-transform: uppercase; display: block;
+    }
+    .coin-value { font-family: var(--font-title); font-size: 1rem; color: var(--gold-light); }
+
+    /* ── BIO TAB ── */
+    .bio-layout {
+      display: grid;
+      grid-template-columns: 200px 1fr;
+      gap: 1rem;
+    }
+    .bio-portrait {
+      width: 100%; aspect-ratio: 3/4;
+      overflow: hidden; border: 1px solid var(--gold-dim);
+    }
+    .bio-portrait img { width: 100%; height: 100%; object-fit: cover; object-position: top; }
+    .bio-fields { display: flex; flex-direction: column; gap: 0.8rem; }
+    .bio-field-label {
+      font-family: var(--font-title);
+      font-size: 0.5rem; letter-spacing: 0.3em;
+      color: var(--gold); text-transform: uppercase;
+      display: block; margin-bottom: 0.3rem;
+    }
+    .bio-text {
+      font-size: 0.92rem; color: var(--parchment2);
+      line-height: 1.7; font-style: italic;
+      padding: 0.5rem 0.75rem;
+      background: rgba(0,0,0,0.15);
+      border-left: 2px solid var(--gold-dim);
+      min-height: 2.5rem;
+    }
+    .bio-text.empty { color: var(--muted); font-style: italic; }
+
+    .appear-grid {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 0.4rem;
+    }
+
+    /* ── ROLLER PANEL ── */
+    .roller-panel {
+      position: fixed;
+      bottom: 1rem; right: 1rem;
+      width: 295px;
+      background: linear-gradient(160deg, rgba(42,28,14,0.98) 0%, rgba(10,8,5,0.99) 100%);
+      border: 1px solid rgba(184,149,42,0.35);
+      box-shadow: 0 8px 40px rgba(0,0,0,0.7);
+      z-index: 200;
+      transition: background 0.3s;
+    }
+    .roller-header {
+      display: flex; align-items: center; justify-content: space-between;
+      padding: 0.45rem 0.7rem;
+      border-bottom: 1px solid var(--gold-dim);
+      cursor: pointer; user-select: none;
+    }
+    .roller-title {
+      font-family: var(--font-title);
+      font-size: 0.56rem; letter-spacing: 0.25em;
+      color: var(--gold); text-transform: uppercase;
+    }
+    .roller-chevron { color: var(--muted); font-size: 0.65rem; transition: transform 0.2s; }
+    .roller-panel.collapsed .roller-chevron { transform: rotate(180deg); }
+    .roller-panel.collapsed .roller-toggles,
+    .roller-panel.collapsed .roll-history { display: none; }
+
+    .roller-toggles {
+      display: flex; gap: 0.3rem; flex-wrap: wrap;
+      padding: 0.45rem 0.7rem;
+      border-bottom: 1px solid var(--gold-dim);
+    }
+    .tog-btn {
+      font-family: var(--font-title);
+      font-size: 0.48rem; letter-spacing: 0.1em;
+      text-transform: uppercase;
+      padding: 0.16rem 0.4rem;
+      border: 1px solid var(--gold-dim);
+      background: transparent; color: var(--muted);
+      cursor: pointer; transition: all 0.2s; white-space: nowrap;
+    }
+    .tog-btn.on  { background: rgba(184,149,42,0.15); border-color: var(--gold); color: var(--gold-light); }
+    .tog-btn.adv.on { background: rgba(90,154,106,0.15); border-color: #5a9a6a; color: #5a9a6a; }
+    .tog-btn.dis.on { background: rgba(154,90,90,0.15); border-color: #9a5a5a; color: #9a5a5a; }
+    .tog-btn.clr { border-color: rgba(107,93,74,0.3); margin-left: auto; }
+
+    .roll-history {
+      max-height: 260px; overflow-y: auto;
+      padding: 0.45rem 0.7rem;
+      display: flex; flex-direction: column; gap: 0.35rem;
+    }
+    .roll-history::-webkit-scrollbar { width: 3px; }
+    .roll-history::-webkit-scrollbar-thumb { background: var(--gold-dim); }
+
+    .roll-entry {
+      border-bottom: 1px solid rgba(255,255,255,0.04);
+      padding-bottom: 0.35rem;
+      animation: slideIn 0.18s ease;
+    }
+    .roll-entry:last-child { border-bottom: none; }
+    .roll-ename { font-family: var(--font-title); font-size: 0.54rem; letter-spacing: 0.12em; color: var(--muted); text-transform: uppercase; }
+    .roll-emain { font-size: 0.95rem; color: var(--parchment); line-height: 1.4; }
+    .roll-total { font-family: var(--font-title); font-size: 1.15rem; color: var(--gold-light); }
+    .roll-crit   { color: var(--crit-color); font-family: var(--font-title); font-size: 0.6rem; letter-spacing: 0.15em; margin-left: 0.25rem; }
+    .roll-fumble { color: var(--hp-bad); font-family: var(--font-title); font-size: 0.6rem; letter-spacing: 0.15em; margin-left: 0.25rem; }
+    .roll-kept   { color: var(--gold-light); font-weight: 600; }
+    .roll-dropped{ color: var(--muted); text-decoration: line-through; }
+    .roll-detail { font-size: 0.72rem; color: var(--muted); display: block; margin-top: 0.05rem; }
+    .roll-dmgline{ font-size: 0.82rem; color: var(--parchment2); margin-top: 0.1rem; }
+    .roll-empty  { font-style: italic; color: var(--muted); font-size: 0.8rem; text-align: center; padding: 0.75rem 0; }
+
+    @keyframes slideIn {
+      from { opacity: 0; transform: translateY(-4px); }
+      to   { opacity: 1; transform: translateY(0); }
+    }
+
+    /* ── Not found ── */
+    .not-found {
+      text-align: center; padding: 4rem 2rem;
+      color: var(--muted); font-style: italic;
+    }
+    .not-found h2 { font-family: var(--font-display); font-size: 1.5rem; color: var(--parchment); margin-bottom: 1rem; }
+
+    footer {
+      text-align: center; padding: 2rem;
+      font-family: var(--font-title); font-size: 0.58rem;
+      letter-spacing: 0.3em; color: var(--muted); text-transform: uppercase;
+      border-top: 1px solid var(--gold-dim);
+    }
+
+    @media (max-width: 1000px) {
+      .core-layout { grid-template-columns: 180px 1fr; }
+      .right-col { display: none; }
+      .combat-layout { grid-template-columns: 1fr; }
+      .bio-layout { grid-template-columns: 1fr; }
+      .equip-layout { grid-template-columns: 1fr; }
+    }
+    @media (max-width: 600px) {
+      .core-layout { grid-template-columns: 1fr; }
+      .ability-grid { grid-template-columns: repeat(3, 1fr); }
+      .combat-grid  { grid-template-columns: repeat(2, 1fr); }
+      .roller-panel { width: calc(100vw - 2rem); right: 1rem; }
+    }
+  </style>
+</head>
+<body>
+
+<!-- Nav injected by nav.js -->
+<div id="nav-root"></div>
+
+<!-- Sheet tabs -->
+<div class="sheet-tabs" id="sheet-tabs">
+  <button class="tab-btn active" onclick="switchTab('core',this)">Core</button>
+  <button class="tab-btn" onclick="switchTab('combat',this)">Combat</button>
+  <button class="tab-btn" onclick="switchTab('spells',this)">Spells</button>
+  <button class="tab-btn" onclick="switchTab('features',this)">Features</button>
+  <button class="tab-btn" onclick="switchTab('equipment',this)">Equipment</button>
+  <button class="tab-btn" onclick="switchTab('bio',this)">Bio</button>
+</div>
+
+<!-- Sheet body -->
+<div class="sheet-body" id="sheet-body">
+  <div class="not-found" id="loading">
+    <h2>Loading sheet…</h2>
+  </div>
+</div>
+
+<footer id="site-footer"></footer>
+
+<!-- Roller panel -->
+<div class="roller-panel" id="roller-panel">
+  <div class="roller-header" onclick="toggleRoller()">
+    <span class="roller-title">🎲 Roll Log</span>
+    <span class="roller-chevron">▲</span>
+  </div>
+  <div class="roller-toggles">
+    <button class="tog-btn adv" id="tog-adv"      onclick="toggleAdv()">Adv</button>
+    <button class="tog-btn dis" id="tog-dis"      onclick="toggleDis()">Dis</button>
+    <button class="tog-btn"     id="tog-bless"    onclick="toggleBuff('bless','tog-bless')">Bless</button>
+    <button class="tog-btn"     id="tog-guidance" onclick="toggleBuff('guidance','tog-guidance')">Guidance</button>
+    <button class="tog-btn clr"                   onclick="clearHistory()">Clear</button>
+  </div>
+  <div class="roll-history" id="roll-history">
+    <div class="roll-empty">Click any stat, skill, save, or action to roll.</div>
+  </div>
+</div>
+
+<script src="nav.js"></script>
+<script>
+// ══════════════════════════════════════════════════════════
+// INIT — load character from URL param
+// ══════════════════════════════════════════════════════════
+const params = new URLSearchParams(window.location.search);
+const charKey = params.get('character') || 'tyros';
+const C = CHARACTERS[charKey];
+
+if (!C) {
+  document.getElementById('sheet-body').innerHTML = `
+    <div class="not-found">
+      <h2>Character Not Found</h2>
+      <p>No character with key "${charKey}" exists in characters.js.</p>
+      <p style="margin-top:1rem"><a href="party.html" style="color:var(--gold)">← Back to Party</a></p>
+    </div>`;
+  document.getElementById('loading').remove();
+} else {
+  document.title = `${C.name} — The Trials of Kirtas`;
+  document.getElementById('site-footer').textContent =
+    `The Trials of Kirtas · ${C.name} · ${C.classLabel}`;
+  initSheet();
+}
+
+// ══════════════════════════════════════════════════════════
+// ROLLER STATE
+// ══════════════════════════════════════════════════════════
+const RS = { advantage: false, disadvantage: false, bless: false, guidance: false };
+let rollHistory = [];
+let rollerCollapsed = false;
+
+// ── Dice ──
+const d = sides => Math.floor(Math.random() * sides) + 1;
+
+function rollD20() {
+  const r1 = d(20), r2 = d(20);
+  let kept, dropped;
+  if (RS.advantage)     { kept = Math.max(r1,r2); dropped = Math.min(r1,r2); }
+  else if (RS.disadvantage) { kept = Math.min(r1,r2); dropped = Math.max(r1,r2); }
+  else { kept = r1; dropped = r2; }
+  return { kept, dropped, isCrit: kept===20, isFumble: kept===1,
+           label: RS.advantage ? 'adv' : RS.disadvantage ? 'dis' : null };
+}
+
+function fmtD20(roll) {
+  if (RS.advantage || RS.disadvantage)
+    return `[<span class="roll-kept">${roll.kept}</span> <span class="roll-dropped">${roll.dropped}</span>]`;
+  return `[<span class="roll-kept">${roll.kept}</span>]`;
+}
+
+function rollDice(diceStr, mod=0) {
+  const m = diceStr.match(/(\d+)d(\d+)/);
+  if (!m) return { rolls:[0], total: mod };
+  const rolls = Array.from({length:parseInt(m[1])}, () => d(parseInt(m[2])));
+  return { rolls, total: rolls.reduce((a,b)=>a+b,0) + mod };
+}
+
+function blessBonus()    { if (!RS.bless)    return {val:0,str:''}; const b=d(4); return {val:b,str:` +${b}🙏`}; }
+function guidanceBonus() { if (!RS.guidance) return {val:0,str:''}; const g=d(4); return {val:g,str:` +${g}✦`}; }
+
+function modStr(n) { return n >= 0 ? `+${n}` : `${n}`; }
+
+// ── Roll functions ──
+function rollAbility(name, mod) {
+  const roll = rollD20(), guide = guidanceBonus();
+  const total = roll.kept + mod + guide.val;
+  const flag = roll.isCrit ? '<span class="roll-crit">★ NAT 20</span>' : roll.isFumble ? '<span class="roll-fumble">✗ NAT 1</span>' : '';
+  addHistory({ name:`${name} Check`,
+    main:`${fmtD20(roll)} ${modStr(mod)}${guide.str} = <span class="roll-total">${total}</span> ${flag}`,
+    detail:`d20:${roll.kept}${roll.label?` (${roll.label})`:''}${guide.val?`, guidance +${guide.val}`:''}` });
+}
+
+function rollSave(name, mod) {
+  const roll = rollD20(), bless = blessBonus();
+  const total = roll.kept + mod + bless.val;
+  const flag = roll.isCrit ? '<span class="roll-crit">★ NAT 20</span>' : roll.isFumble ? '<span class="roll-fumble">✗ NAT 1</span>' : '';
+  addHistory({ name,
+    main:`${fmtD20(roll)} ${modStr(mod)}${bless.str} = <span class="roll-total">${total}</span> ${flag}`,
+    detail:`d20:${roll.kept}${roll.label?` (${roll.label})`:''}${bless.val?`, bless +${bless.val}`:''}` });
+}
+
+function rollSkill(name, mod) {
+  // Jack of All Trades: if character has it and skill is 'half', bonus is already in the data
+  const roll = rollD20(), guide = guidanceBonus();
+  const total = roll.kept + mod + guide.val;
+  const flag = roll.isCrit ? '<span class="roll-crit">★ NAT 20</span>' : roll.isFumble ? '<span class="roll-fumble">✗ NAT 1</span>' : '';
+  addHistory({ name,
+    main:`${fmtD20(roll)} ${modStr(mod)}${guide.str} = <span class="roll-total">${total}</span> ${flag}`,
+    detail:`d20:${roll.kept}${roll.label?` (${roll.label})`:''}${guide.val?`, guidance +${guide.val}`:''}` });
+}
+
+function rollInit() {
+  const mod = C.combat.initiative;
+  const roll = rollD20();
+  const total = roll.kept + mod;
+  addHistory({ name:'Initiative',
+    main:`${fmtD20(roll)} ${modStr(mod)} = <span class="roll-total">${total}</span>`,
+    detail:`d20:${roll.kept}${roll.label?` (${roll.label})`:''}`});
+}
+
+function rollAction(action) {
+  if (!action || action.type === 'utility') return;
+  if (action.type === 'damage-only') {
+    if (!action.dmgDice) { addHistory({name:action.label, main:'No dice to roll', detail: action.note||''}); return; }
+    const dmg = rollDice(action.dmgDice, action.dmgMod||0);
+    addHistory({ name:action.label,
+      main:`Dmg: [${dmg.rolls.join('][')}]${action.dmgMod?` ${modStr(action.dmgMod)}`:''} = <span class="roll-total">${dmg.total}</span>`,
+      detail:`${action.dmgDice}${action.dmgMod?` ${modStr(action.dmgMod)}`:''} ${action.dmgType}` });
+    return;
+  }
+  // Attack
+  const roll = rollD20(), bless = blessBonus();
+  const total = roll.kept + action.hitMod + bless.val;
+  const isCrit = roll.isCrit;
+  const dicStr = isCrit ? action.critDice : action.dmgDice;
+  const dmg = rollDice(dicStr, action.dmgMod||0);
+  const critStr = isCrit ? '<span class="roll-crit">★ CRIT</span>' : roll.isFumble ? '<span class="roll-fumble">✗ MISS</span>' : '';
+  addHistory({ name:action.label,
+    main:`${fmtD20(roll)} ${modStr(action.hitMod)}${bless.str} = <span class="roll-total">${total}</span> ${critStr}`,
+    detail:`d20:${roll.kept}${roll.label?` (${roll.label})`:''} ${action.note||''}`,
+    dmg:`${isCrit?'★ Crit dmg':'Dmg'}: [${dmg.rolls.join('][')}]${action.dmgMod?` ${modStr(action.dmgMod)}`:''} = <strong>${dmg.total}</strong> ${action.dmgType}` });
+}
+
+// ── History ──
+function addHistory(entry) {
+  rollHistory.unshift(entry);
+  if (rollHistory.length > 25) rollHistory.pop();
+  renderHistory();
+  if (rollerCollapsed) toggleRoller();
+}
+
+function renderHistory() {
+  const el = document.getElementById('roll-history');
+  if (!rollHistory.length) {
+    el.innerHTML = '<div class="roll-empty">Click any stat, skill, save, or action to roll.</div>';
+    return;
+  }
+  el.innerHTML = rollHistory.map(e => `
+    <div class="roll-entry">
+      <div class="roll-ename">${e.name}</div>
+      <div class="roll-emain">${e.main}</div>
+      ${e.dmg ? `<div class="roll-dmgline">${e.dmg}</div>` : ''}
+      <span class="roll-detail">${e.detail}</span>
+    </div>`).join('');
+}
+
+function clearHistory() { rollHistory = []; renderHistory(); }
+function toggleRoller() {
+  rollerCollapsed = !rollerCollapsed;
+  document.getElementById('roller-panel').classList.toggle('collapsed', rollerCollapsed);
+}
+function toggleAdv() { RS.advantage = !RS.advantage; if (RS.advantage) RS.disadvantage=false; updateToggles(); }
+function toggleDis() { RS.disadvantage = !RS.disadvantage; if (RS.disadvantage) RS.advantage=false; updateToggles(); }
+function toggleBuff(k, id) { RS[k]=!RS[k]; document.getElementById(id).classList.toggle('on',RS[k]); }
+function updateToggles() {
+  document.getElementById('tog-adv').classList.toggle('on',RS.advantage);
+  document.getElementById('tog-dis').classList.toggle('on',RS.disadvantage);
+}
+
+// ══════════════════════════════════════════════════════════
+// TAB SWITCHING
+// ══════════════════════════════════════════════════════════
+function switchTab(id, btn) {
+  document.querySelectorAll('.tab-panel').forEach(p=>p.classList.remove('active'));
+  document.querySelectorAll('.tab-btn').forEach(b=>b.classList.remove('active'));
+  document.getElementById('tab-'+id).classList.add('active');
+  btn.classList.add('active');
+}
+
+// ══════════════════════════════════════════════════════════
+// QUICK ACTION SLOTS
+// ══════════════════════════════════════════════════════════
+const SLOTS_KEY = `kirtas-slots-${charKey}`;
+let slots = (() => {
+  try { const s = localStorage.getItem(SLOTS_KEY); if(s) return JSON.parse(s); } catch(e) {}
+  return (C.defaultSlots || ['empty','empty','empty','empty']).slice(0,4);
+})();
+
+function saveSlots() { try { localStorage.setItem(SLOTS_KEY, JSON.stringify(slots)); } catch(e) {} }
+
+function getAction(id) {
+  if (!id || id === 'empty') return null;
+  return (C.actions || []).find(a => a.id === id) || null;
+}
+
+function buildActionDropdown(selectedId) {
+  const actions = C.actions || [];
+  const groups = { 'attack': [], 'attack-cantrip': [], 'damage-only': [], 'utility': [] };
+  const groupLabels = { 'attack':'── Attacks ──', 'attack-cantrip':'── Cantrips ──', 'damage-only':'── Other Rolls ──', 'utility':'── Utility ──' };
+  actions.forEach(a => { if(groups[a.type]) groups[a.type].push(a); });
+  let html = `<option value="empty">— Select —</option>`;
+  for (const [type, acts] of Object.entries(groups)) {
+    if (!acts.length) continue;
+    html += `<optgroup label="${groupLabels[type]}">`;
+    acts.forEach(a => {
+      html += `<option value="${a.id}"${a.id===selectedId?' selected':''}>${a.label}</option>`;
+    });
+    html += `</optgroup>`;
+  }
+  return html;
+}
+
+function renderQuickActions() {
+  const container = document.getElementById('quick-actions');
+  if (!container) return;
+  container.innerHTML = slots.map((slotId, i) => {
+    const a = getAction(slotId);
+    const canRoll = a && a.type !== 'utility';
+    const hit = a ? (a.hitMod !== undefined ? modStr(a.hitMod) : '—') : '';
+    const dmg = a ? `${a.dmgDice||''}${a.dmgMod?` ${modStr(a.dmgMod)}`:''} ${a.dmgType||a.note||''}`.trim() : '';
+    return `
+      <div class="action-slot">
+        <select class="action-select" onchange="slotChange(${i},this.value)">
+          ${buildActionDropdown(slotId)}
+        </select>
+        <span class="action-hit" id="ahit-${i}">${hit}</span>
+        <span class="action-dmg" id="admg-${i}">${dmg}</span>
+        <button class="action-roll-btn" onclick="rollSlot(${i})" ${!canRoll?'disabled':''}>🎲</button>
+      </div>`;
+  }).join('');
+}
+
+function slotChange(i, newId) {
+  slots[i] = newId;
+  saveSlots();
+  const a = getAction(newId);
+  const canRoll = a && a.type !== 'utility';
+  document.getElementById(`ahit-${i}`).textContent = a ? (a.hitMod!==undefined?modStr(a.hitMod):'—') : '';
+  document.getElementById(`admg-${i}`).textContent = a ? `${a.dmgDice||''}${a.dmgMod?` ${modStr(a.dmgMod)}`:''} ${a.dmgType||a.note||''}`.trim() : '';
+  document.querySelectorAll('.action-roll-btn')[i].disabled = !canRoll;
+}
+
+function rollSlot(i) { rollAction(getAction(slots[i])); }
+
+// ══════════════════════════════════════════════════════════
+// RESOURCE PIPS (HP, spell slots, ki, etc.)
+// ══════════════════════════════════════════════════════════
+const pipState = {};
+
+function initPips(key, max, used=0) {
+  pipState[key] = used;
+  return renderPips(key, max);
+}
+
+function renderPips(key, max) {
+  return Array.from({length:max}, (_,i) => `
+    <div class="pip${i < pipState[key] ? ' used':''}"
+         onclick="togglePip('${key}',${i},${max})"></div>`).join('');
+}
+
+function togglePip(key, idx, max) {
+  pipState[key] = (idx < pipState[key]) ? idx : idx + 1;
+  document.getElementById(`pips-${key}`).innerHTML = renderPips(key, max);
+}
+
+// Death saves
+const deathSaves = { success: 0, failure: 0 };
+function toggleDeathSave(type, idx) {
+  deathSaves[type] = idx < deathSaves[type] ? idx : idx+1;
+  renderDeathSaves();
+}
+function renderDeathSaves() {
+  ['success','failure'].forEach(type => {
+    const el = document.getElementById(`death-${type}`);
+    if (!el) return;
+    el.innerHTML = [0,1,2].map(i =>
+      `<div class="death-pip ${type}${i < deathSaves[type]?' used':''}"
+            onclick="toggleDeathSave('${type}',${i})"></div>`).join('');
+  });
+}
+
+// ══════════════════════════════════════════════════════════
+// HP TRACKER
+// ══════════════════════════════════════════════════════════
+let currentHP = C ? C.combat.hp : 0;
+const maxHP   = C ? C.combat.hpMax : 0;
+
+function changeHP(delta) {
+  currentHP = Math.max(0, Math.min(maxHP, currentHP + delta));
+  const el = document.getElementById('hp-current');
+  if (!el) return;
+  el.textContent = currentHP;
+  el.style.color = currentHP <= 0 ? 'var(--hp-bad)' : currentHP < maxHP*0.5 ? 'var(--hp-warn)' : 'var(--hp-good)';
+}
+
+// Inspiration toggle
+let hasInspiration = C ? C.inspiration : false;
+function toggleInspiration() {
+  hasInspiration = !hasInspiration;
+  const el = document.getElementById('inspiration-val');
+  if (el) el.textContent = hasInspiration ? '✦ Yes' : '— No';
+}
+
+// ══════════════════════════════════════════════════════════
+// BUILD SHEET
+// ══════════════════════════════════════════════════════════
+function initSheet() {
+  const body = document.getElementById('sheet-body');
+  body.innerHTML = `
+    ${buildCoreTab()}
+    ${buildCombatTab()}
+    ${buildSpellsTab()}
+    ${buildFeaturesTab()}
+    ${buildEquipmentTab()}
+    ${buildBioTab()}
+  `;
+  document.getElementById('loading')?.remove();
+
+  // Init dynamic bits
+  renderQuickActions();
+  renderDeathSaves();
+
+  // Init spell slot pips
+  const cf = C.classFeatures || {};
+  const slots = cf.spellSlots || cf.pactSlots ? {} : {};
+  if (cf.pactSlots) {
+    pipState['pact'] = 0;
+    document.getElementById('pips-pact') && (document.getElementById('pips-pact').innerHTML = renderPips('pact', cf.pactSlots.max));
+  }
+  if (cf.spellSlots) {
+    Object.entries(cf.spellSlots).forEach(([lvl, s]) => {
+      pipState[`slot${lvl}`] = 0;
+      const el = document.getElementById(`pips-slot${lvl}`);
+      if (el) el.innerHTML = renderPips(`slot${lvl}`, s.max);
+    });
+  }
+  if (cf.sorcererSlots) {
+    Object.entries(cf.sorcererSlots).forEach(([lvl, s]) => {
+      pipState[`sorc${lvl}`] = 0;
+      const el = document.getElementById(`pips-sorc${lvl}`);
+      if (el) el.innerHTML = renderPips(`sorc${lvl}`, s.max);
+    });
+  }
+}
+
+// ── CORE TAB ──
+function buildCoreTab() {
+  const a = C.abilities;
+  const cf = C.classFeatures || {};
+
+  // Resource pips HTML
+  let resourceHTML = '';
+  if (cf.pactSlots) {
+    pipState['pact'] = 0;
+    resourceHTML += `<div class="resource-row"><span class="resource-label">Pact Slots</span><div class="slot-pips" id="pips-pact">${renderPips('pact', cf.pactSlots.max)}</div></div>`;
+  }
+  if (cf.sorcererSlots) {
+    Object.entries(cf.sorcererSlots).forEach(([lvl, s]) => {
+      pipState[`sorc${lvl}`] = 0;
+      resourceHTML += `<div class="resource-row"><span class="resource-label">Sorc Slots Lvl ${lvl}</span><div class="slot-pips" id="pips-sorc${lvl}">${renderPips(`sorc${lvl}`, s.max)}</div></div>`;
+    });
+  }
+  if (cf.bardicInspiration) {
+    pipState['bardi'] = 0;
+    resourceHTML += `<div class="resource-row"><span class="resource-label">Bardic Inspiration (${cf.bardicInspirationDie||'d6'})</span><div class="slot-pips" id="pips-bardi">${renderPips('bardi', cf.bardicInspiration.max)}</div></div>`;
+  }
+  if (cf.kiPoints) {
+    pipState['ki'] = 0;
+    resourceHTML += `<div class="resource-row"><span class="resource-label">Ki Points</span><div class="slot-pips" id="pips-ki">${renderPips('ki', cf.kiPoints.max)}</div></div>`;
+  }
+  if (cf.actionSurge) {
+    pipState['as'] = 0;
+    resourceHTML += `<div class="resource-row"><span class="resource-label">Action Surge</span><div class="slot-pips" id="pips-as">${renderPips('as', cf.actionSurge.max)}</div></div>`;
+  }
+  if (cf.secondWind) {
+    pipState['sw'] = 0;
+    resourceHTML += `<div class="resource-row"><span class="resource-label">Second Wind</span><div class="slot-pips" id="pips-sw">${renderPips('sw', cf.secondWind.max)}</div></div>`;
+  }
+  if (cf.spellSlots) {
+    Object.entries(cf.spellSlots).forEach(([lvl, s]) => {
+      pipState[`slot${lvl}`] = 0;
+      resourceHTML += `<div class="resource-row"><span class="resource-label">Spell Slots Lvl ${lvl}</span><div class="slot-pips" id="pips-slot${lvl}">${renderPips(`slot${lvl}`, s.max)}</div></div>`;
+    });
+  }
+
+  return `
+  <div class="tab-panel active" id="tab-core">
+    <div class="core-layout">
+
+      <!-- LEFT -->
+      <div class="left-col">
+        <div class="portrait-frame">
+          <img src="${C.portrait}" alt="${C.name}" onerror="this.style.display='none'">
+        </div>
+        <div class="char-identity">
+          <div class="char-name">${C.name}</div>
+          <div class="char-class">${C.classLabel}</div>
+          <div class="char-detail">${C.subclass} · ${C.race}</div>
+          <div class="char-detail">${C.background} · ${C.alignment}</div>
+        </div>
+        <div class="pill-grid">
+          <div class="pill"><span class="pill-label">Level</span><span class="pill-value">${C.level}</span></div>
+          <div class="pill"><span class="pill-label">XP</span><span class="pill-value">${C.xp}</span></div>
+          <div class="pill"><span class="pill-label">Prof</span><span class="pill-value">${modStr(C.proficiencyBonus)}</span></div>
+          <div class="pill"><span class="pill-label">Passive Perc</span><span class="pill-value">${C.passivePerception}</span></div>
+          <div class="pill full" onclick="toggleInspiration()">
+            <span class="pill-label">Inspiration</span>
+            <span class="pill-value" id="inspiration-val">${C.inspiration ? '✦ Yes' : '— No'}</span>
+          </div>
+        </div>
+
+        <!-- Saving throws -->
+        <div class="s-section">
+          <div class="s-title">Saving Throws</div>
+          ${['str','dex','con','int','wis','cha'].map(k => {
+            const s = C.saves[k];
+            const labels = {str:'Strength',dex:'Dexterity',con:'Constitution',int:'Intelligence',wis:'Wisdom',cha:'Charisma'};
+            return `<div class="save-row" onclick="rollSave('${labels[k]} Save',${s.bonus})">
+              <div class="dot${s.proficient?' full':''}"></div>
+              <span class="save-name">${labels[k]}</span>
+              <span class="save-bonus">${modStr(s.bonus)}</span>
+            </div>`;
+          }).join('')}
+        </div>
+
+        <!-- Resources -->
+        ${resourceHTML ? `<div class="s-section"><div class="s-title">Resources</div>${resourceHTML}</div>` : ''}
+      </div>
+
+      <!-- MIDDLE -->
+      <div class="mid-col">
+        <!-- Ability Scores -->
+        <div class="s-section">
+          <div class="s-title">Ability Scores</div>
+          <div class="ability-grid">
+            ${[['str','STR'],['dex','DEX'],['con','CON'],['int','INT'],['wis','WIS'],['cha','CHA']].map(([k,lbl]) => `
+              <div class="ability-box" onclick="rollAbility('${lbl}',${a[k].mod})">
+                <span class="ability-label">${lbl}</span>
+                <span class="ability-score">${a[k].score}</span>
+                <span class="ability-mod">${modStr(a[k].mod)}</span>
+              </div>`).join('')}
+          </div>
+        </div>
+
+        <!-- Combat -->
+        <div class="s-section">
+          <div class="s-title">Combat</div>
+          <div class="combat-grid">
+            <div class="c-stat"><span class="c-label">AC</span><span class="c-value">${C.combat.ac}</span></div>
+            <div class="c-stat" style="grid-column:span 2">
+              <span class="c-label">Hit Points</span>
+              <div class="hp-wrap">
+                <button class="hp-btn" onclick="changeHP(-1)">−</button>
+                <span class="hp-current" id="hp-current">${C.combat.hp}</span>
+                <span class="hp-sep">/</span>
+                <span class="hp-max">${C.combat.hpMax}</span>
+                <button class="hp-btn" onclick="changeHP(1)">+</button>
+              </div>
+            </div>
+            <div class="c-stat clickable" onclick="rollInit()"><span class="c-label">Initiative</span><span class="c-value">${modStr(C.combat.initiative)}</span></div>
+            <div class="c-stat"><span class="c-label">Speed</span><span class="c-value">${C.combat.speed}ft</span></div>
+            <div class="c-stat"><span class="c-label">Hit Dice</span><span class="c-value" style="font-size:0.85rem">${C.combat.hitDice}</span></div>
+            <div class="c-stat"><span class="c-label">Spell DC</span><span class="c-value">${C.combat.spellSaveDC||'—'}</span></div>
+            <div class="c-stat"><span class="c-label">Spell Atk</span><span class="c-value">${C.combat.spellAttackBonus ? modStr(C.combat.spellAttackBonus) : '—'}</span></div>
+          </div>
+        </div>
+
+        <!-- Quick Actions -->
+        <div class="s-section">
+          <div class="s-title">Quick Actions</div>
+          <div class="action-header">
+            <span class="action-col-label">Action</span>
+            <span class="action-col-label" style="text-align:center">Hit</span>
+            <span class="action-col-label" style="text-align:center">Damage</span>
+            <span></span>
+          </div>
+          <div id="quick-actions"></div>
+        </div>
+      </div>
+
+      <!-- RIGHT: Skills -->
+      <div class="right-col">
+        <div class="s-section" style="margin-bottom:0">
+          <div class="s-title">
+            Skills
+            <span style="float:right;font-size:0.44rem;letter-spacing:0.08em;color:var(--muted)">
+              <span style="color:var(--prof-color)">●</span> Prof &nbsp;
+              <span style="color:var(--half-color)">●</span> Half &nbsp;
+              <span style="color:var(--exp-color)">●</span> Exp
+            </span>
+          </div>
+          ${C.skills.map(s => `
+            <div class="skill-row" onclick="rollSkill('${s.name}',${s.bonus})">
+              <div class="dot${s.prof==='full'?' full':s.prof==='half'?' half':s.prof==='expertise'?' expertise':''}"></div>
+              <span class="skill-name">${s.name}</span>
+              <span class="skill-attr">(${s.attr})</span>
+              <span class="skill-bonus">${modStr(s.bonus)}</span>
+            </div>`).join('')}
+        </div>
+      </div>
+
+    </div>
+  </div>`;
+}
+
+// ── COMBAT TAB ──
+function buildCombatTab() {
+  const actions = C.actions || [];
+
+  return `
+  <div class="tab-panel" id="tab-combat">
+    <div class="combat-layout">
+      <div>
+        <!-- All Attacks -->
+        <div class="s-section">
+          <div class="s-title">Attacks &amp; Spells</div>
+          <table class="atk-table">
+            <thead><tr>
+              <th>Name</th><th>Type</th><th>Hit</th><th>Damage</th><th></th>
+            </tr></thead>
+            <tbody>
+              ${actions.filter(a=>a.type!=='utility').map(a => {
+                const canRoll = true;
+                const hit = a.hitMod !== undefined ? modStr(a.hitMod) : '—';
+                const dmg = a.dmgDice ? `${a.dmgDice}${a.dmgMod?` ${modStr(a.dmgMod)}`:''} ${a.dmgType}` : a.dmgType || '—';
+                return `<tr>
+                  <td>${a.label}</td>
+                  <td><span style="font-family:var(--font-title);font-size:0.55rem;color:var(--muted)">${a.type.replace('-',' ')}</span></td>
+                  <td style="font-family:var(--font-title);color:var(--gold-light)">${hit}</td>
+                  <td>${dmg}</td>
+                  <td><button class="atk-roll-btn" onclick="rollAction(${JSON.stringify(a).replace(/"/g,"'")})">🎲</button></td>
+                </tr>`;
+              }).join('')}
+            </tbody>
+          </table>
+        </div>
+
+        <!-- Utility -->
+        <div class="s-section">
+          <div class="s-title">Utility &amp; Reactions</div>
+          ${actions.filter(a=>a.type==='utility').map(a=>`
+            <div class="feature-card">
+              <div class="feature-name">${a.label}</div>
+              <div class="feature-desc">${a.note||''}</div>
+            </div>`).join('') || '<div style="color:var(--muted);font-style:italic;font-size:0.85rem">None listed.</div>'}
+        </div>
+      </div>
+
+      <div>
+        <!-- Death Saves -->
+        <div class="s-section">
+          <div class="s-title">Death Saving Throws</div>
+          <div class="death-saves">
+            <div class="death-group">
+              <div class="death-label">Successes</div>
+              <div class="death-pips" id="death-success"></div>
+            </div>
+            <div class="death-group">
+              <div class="death-label">Failures</div>
+              <div class="death-pips" id="death-failure"></div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Conditions -->
+        <div class="s-section">
+          <div class="s-title">Conditions</div>
+          <div class="conditions-grid">
+            ${['Blinded','Charmed','Deafened','Exhaustion','Frightened','Grappled',
+               'Incapacitated','Invisible','Paralyzed','Petrified','Poisoned',
+               'Prone','Restrained','Stunned','Unconscious'].map(c=>
+              `<button class="condition-btn" onclick="this.classList.toggle('active')">${c}</button>`
+            ).join('')}
+          </div>
+        </div>
+
+        <!-- Proficiencies summary -->
+        <div class="s-section">
+          <div class="s-title">Proficiencies</div>
+          ${Object.entries(C.proficiencies).filter(([k,v])=>v).map(([k,v])=>`
+            <div style="margin-bottom:0.4rem">
+              <span style="font-family:var(--font-title);font-size:0.5rem;letter-spacing:0.2em;color:var(--muted);text-transform:uppercase">${k}</span><br>
+              <span style="font-size:0.85rem;color:var(--parchment2)">${v}</span>
+            </div>`).join('')}
+        </div>
+      </div>
+    </div>
+  </div>`;
+}
+
+// ── SPELLS TAB ──
+function buildSpellsTab() {
+  const spells = C.spells || {};
+  const cf = C.classFeatures || {};
+  const levelOrder = ['cantrip','1','2','3','4','5','6','7','8','9'];
+  const levelLabels = {cantrip:'Cantrips','1':'Level 1','2':'Level 2','3':'Level 3','4':'Level 4','5':'Level 5','6':'Level 6','7':'Level 7','8':'Level 8','9':'Level 9'};
+
+  if (!Object.keys(spells).length) {
+    return `<div class="tab-panel" id="tab-spells">
+      <div class="s-section" style="text-align:center;padding:3rem;color:var(--muted);font-style:italic">No spells listed.</div>
+    </div>`;
+  }
+
+  // Spell save DC & attack
+  let castingHeader = '';
+  if (C.combat.spellSaveDC) {
+    castingHeader = `
+      <div class="s-section">
+        <div class="s-title">Spellcasting</div>
+        <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:0.5rem">
+          <div class="c-stat"><span class="c-label">Spell Save DC</span><span class="c-value">${C.combat.spellSaveDC}</span></div>
+          <div class="c-stat"><span class="c-label">Spell Attack</span><span class="c-value">${modStr(C.combat.spellAttackBonus)}</span></div>
+          <div class="c-stat"><span class="c-label">Spell Slots</span>
+            <div style="margin-top:0.2rem">
+              ${cf.pactSlots ? `<div class="resource-row" style="justify-content:center"><span class="resource-label" style="margin-right:0.3rem">Pact</span><div class="slot-pips" id="pips-pact2">${renderPips('pact',cf.pactSlots.max)}</div></div>` : ''}
+              ${cf.spellSlots ? Object.entries(cf.spellSlots).map(([lvl,s])=>`<div class="resource-row" style="justify-content:center"><span class="resource-label" style="margin-right:0.3rem">Lvl ${lvl}</span><div class="slot-pips" id="pips-slot${lvl}2">${renderPips(`slot${lvl}`,s.max)}</div></div>`).join('') : ''}
+            </div>
+          </div>
+        </div>
+      </div>`;
+  }
+
+  const spellBlocks = levelOrder.filter(l => spells[l]?.length).map(level => {
+    const levelSpells = spells[level];
+    return `
+      <div class="s-section">
+        <div class="s-title">${levelLabels[level]}</div>
+        <div class="spell-header">
+          <span class="spell-col-label">Spell</span>
+          <span class="spell-col-label">Tags</span>
+          <span class="spell-col-label">Casting Time</span>
+          <span class="spell-col-label">Range</span>
+          <span></span>
+        </div>
+        ${levelSpells.map(spell => {
+          // Find matching action for roll button
+          const matchAction = (C.actions||[]).find(a =>
+            a.label.toLowerCase().replace(/[^a-z]/g,'') === spell.name.toLowerCase().replace(/[^a-z]/g,'')
+          );
+          const canRoll = matchAction && matchAction.type !== 'utility';
+          return `
+          <div class="spell-row">
+            <span class="spell-name">${spell.name}</span>
+            <span>
+              ${spell.concentration ? '<span class="spell-tag conc">C</span> ' : ''}
+              ${spell.ritual ? '<span class="spell-tag ritual">R</span>' : ''}
+            </span>
+            <span class="spell-time">${spell.castingTime}</span>
+            <span class="spell-range">${spell.range}</span>
+            <button class="spell-roll-btn" ${!canRoll?'disabled':''} onclick="${canRoll?`rollAction(${JSON.stringify(matchAction).replace(/"/g,"'")})`:''}" title="${canRoll?'Roll this spell':'No roll'}">
+              ${canRoll ? '🎲' : '📖'}
+            </button>
+          </div>`;
+        }).join('')}
+      </div>`;
+  }).join('');
+
+  return `<div class="tab-panel" id="tab-spells">${castingHeader}${spellBlocks}</div>`;
+}
+
+// ── FEATURES TAB ──
+function buildFeaturesTab() {
+  const features = C.features || [];
+  if (!features.length) return `<div class="tab-panel" id="tab-features"><div class="s-section" style="text-align:center;padding:3rem;color:var(--muted);font-style:italic">No features listed.</div></div>`;
+
+  // Group by source
+  const groups = {};
+  features.forEach(f => {
+    const src = f.source || 'Other';
+    if (!groups[src]) groups[src] = [];
+    groups[src].push(f);
+  });
+
+  return `
+  <div class="tab-panel" id="tab-features">
+    ${Object.entries(groups).map(([src, feats]) => `
+      <div class="s-section">
+        <div class="s-title">${src}</div>
+        ${feats.map(f => `
+          <div class="feature-card">
+            <div class="feature-name">${f.name}</div>
+            ${f.desc ? `<div class="feature-desc">${f.desc}</div>` : '<div class="feature-desc" style="color:var(--muted);font-style:italic">Description not yet added.</div>'}
+          </div>`).join('')}
+      </div>`).join('')}
+  </div>`;
+}
+
+// ── EQUIPMENT TAB ──
+function buildEquipmentTab() {
+  const inv = C.inventory || [];
+  const cur = C.currency || {};
+  return `
+  <div class="tab-panel" id="tab-equipment">
+    <div class="equip-layout">
+      <div>
+        <div class="s-section">
+          <div class="s-title">Inventory <span style="float:right;font-family:var(--font-title);font-size:0.5rem;color:var(--muted)">${C.totalWeight||0} lbs total</span></div>
+          <table class="inv-table">
+            <thead><tr><th>Item</th><th>Weight</th><th>Properties</th></tr></thead>
+            <tbody>
+              ${inv.map(item => `<tr>
+                <td>${item.name}</td>
+                <td>${item.weight} lbs</td>
+                <td style="color:var(--muted)">${item.properties||'—'}</td>
+              </tr>`).join('')}
+            </tbody>
+          </table>
+        </div>
+      </div>
+      <div>
+        <div class="s-section">
+          <div class="s-title">Currency</div>
+          <div class="currency-grid">
+            ${[['cp','Copper'],['sp','Silver'],['ep','Electrum'],['gp','Gold'],['pp','Platinum']].map(([k,lbl])=>`
+              <div class="coin-box">
+                <span class="coin-label">${lbl}</span>
+                <span class="coin-value">${cur[k]||0}</span>
+              </div>`).join('')}
+          </div>
+        </div>
+        <div class="s-section">
+          <div class="s-title">Proficiencies</div>
+          ${Object.entries(C.proficiencies).filter(([k,v])=>v).map(([k,v])=>`
+            <div style="margin-bottom:0.5rem">
+              <span style="font-family:var(--font-title);font-size:0.5rem;letter-spacing:0.2em;color:var(--muted);text-transform:uppercase;display:block;margin-bottom:0.15rem">${k}</span>
+              <span style="font-size:0.85rem;color:var(--parchment2)">${v}</span>
+            </div>`).join('')}
+        </div>
+      </div>
+    </div>
+  </div>`;
+}
+
+// ── BIO TAB ──
+function buildBioTab() {
+  const bio = C.bio || {};
+  const app = C.appearance || {};
+
+  const bioFields = [
+    ['personality','Personality Traits'],
+    ['ideals','Ideals'],
+    ['bonds','Bonds'],
+    ['flaws','Flaws'],
+  ];
+
+  return `
+  <div class="tab-panel" id="tab-bio">
+    <div class="bio-layout">
+      <div>
+        <div class="bio-portrait">
+          <img src="${C.portrait}" alt="${C.name}" onerror="this.style.display='none'">
+        </div>
+        <div class="s-section" style="margin-top:0.8rem">
+          <div class="s-title">Appearance</div>
+          <div class="appear-grid">
+            ${[['age','Age'],['height','Height'],['weight','Weight'],['eyes','Eyes'],['hair','Hair'],['skin','Skin']].map(([k,lbl])=>`
+              <div class="pill">
+                <span class="pill-label">${lbl}</span>
+                <span class="pill-value" style="font-size:0.72rem">${app[k]||'—'}</span>
+              </div>`).join('')}
+          </div>
+        </div>
+      </div>
+      <div class="bio-fields">
+        <div class="s-section">
+          <div class="s-title">Background — ${C.background||'Unknown'}</div>
+          <div style="font-size:0.85rem;color:var(--parchment2)">
+            ${C.alignment ? `<span style="font-family:var(--font-title);font-size:0.5rem;letter-spacing:0.2em;color:var(--muted);text-transform:uppercase">Alignment</span><br><span>${C.alignment}</span>` : ''}
+          </div>
+        </div>
+        ${bioFields.map(([k,lbl]) => `
+          <div class="s-section">
+            <span class="bio-field-label">${lbl}</span>
+            <div class="bio-text${!bio[k]?' empty':''}">
+              ${bio[k] || 'Not yet written.'}
+            </div>
+          </div>`).join('')}
+        ${bio.backstory ? `
+          <div class="s-section">
+            <span class="bio-field-label">Backstory</span>
+            <div class="bio-text">${bio.backstory}</div>
+          </div>` : ''}
+      </div>
+    </div>
+  </div>`;
+}
+</script>
+
+</body>
+</html>
