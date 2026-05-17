@@ -695,24 +695,42 @@
 <script src="nav.js"></script>
 <script>
 // ══════════════════════════════════════════════════════════
-// INIT — load character from URL param
+// INIT — runs after all scripts and DOM are ready
 // ══════════════════════════════════════════════════════════
-const params = new URLSearchParams(window.location.search);
+const params  = new URLSearchParams(window.location.search);
 const charKey = params.get('character') || 'tyros';
+
+// Safety check — characters.js must be loaded
+if (typeof CHARACTERS === 'undefined') {
+  document.getElementById('sheet-body').innerHTML = `
+    <div class="not-found">
+      <h2>characters.js not found</h2>
+      <p>Make sure characters.js is uploaded to the same folder as sheet.html.</p>
+      <p style="margin-top:1rem"><a href="party.html" style="color:var(--gold)">← Back to Party</a></p>
+    </div>`;
+  document.getElementById('loading')?.remove();
+  throw new Error('characters.js not loaded');
+}
+
 const C = CHARACTERS[charKey];
 
 if (!C) {
   document.getElementById('sheet-body').innerHTML = `
     <div class="not-found">
       <h2>Character Not Found</h2>
-      <p>No character with key "${charKey}" exists in characters.js.</p>
+      <p>No character with the key <strong>"${charKey}"</strong> exists in characters.js.</p>
+      <p style="margin-top:0.5rem;color:var(--muted);font-size:0.85rem">
+        Available: ${Object.keys(CHARACTERS).join(', ')}
+      </p>
       <p style="margin-top:1rem"><a href="party.html" style="color:var(--gold)">← Back to Party</a></p>
     </div>`;
-  document.getElementById('loading').remove();
+  document.getElementById('loading')?.remove();
 } else {
   document.title = `${C.name} — The Trials of Kirtas`;
   document.getElementById('site-footer').textContent =
     `The Trials of Kirtas · ${C.name} · ${C.classLabel}`;
+  // initSheet is defined below — safe to call here since
+  // this entire script block executes after parsing is complete
   initSheet();
 }
 
