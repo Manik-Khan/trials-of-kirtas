@@ -319,24 +319,30 @@ function hideTooltip() {
 
 function positionTooltip(el, hasPortrait) {
   const rect = el.getBoundingClientRect();
-  const ttWidth = 280;
+  const ttWidth  = 280;
   const ttHeight = hasPortrait ? 320 : 220;
-  const margin = 12;
+  const margin   = 12;
 
-  let left = rect.left + window.scrollX;
-  let top = rect.bottom + window.scrollY + margin;
+  // Use viewport coordinates (no scrollY) since tooltip is position:fixed
+  let left = rect.left;
+  let top  = rect.bottom + margin;
 
+  // Prevent overflow off right edge
   if (left + ttWidth > window.innerWidth - margin) {
     left = window.innerWidth - ttWidth - margin;
   }
+  // Prevent overflow off left edge
   if (left < margin) left = margin;
 
-  if (rect.bottom + ttHeight > window.innerHeight) {
-    top = rect.top + window.scrollY - ttHeight - margin;
+  // If too close to bottom of viewport, show above instead
+  if (rect.bottom + ttHeight + margin > window.innerHeight) {
+    top = rect.top - ttHeight - margin;
   }
+  // Prevent going above viewport
+  if (top < margin) top = margin;
 
   tooltip.style.left = left + 'px';
-  tooltip.style.top = top + 'px';
+  tooltip.style.top  = top  + 'px';
 }
 
 // Attach NPC events

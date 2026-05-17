@@ -1,9 +1,10 @@
 /* ============================================================
-   tooltips.css — NPC Hover Tooltip Styles
+   tooltips.css — Tooltip Styles
    The Trials of Kirtas
+   Covers: NPC links, Location links, Portrait images
    ============================================================ */
 
-/* ── Highlighted name in text ── */
+/* ── NPC highlighted name ── */
 .npc-link {
   color: #d4ac3a;
   border-bottom: 1px dotted rgba(212, 172, 58, 0.4);
@@ -18,9 +19,24 @@
   outline: none;
 }
 
-/* ── Tooltip card ── */
-#npc-tooltip {
-  position: absolute;
+/* ── Location highlighted name ── */
+.location-link {
+  color: #8ab4c9;
+  border-bottom: 1px dotted rgba(138, 180, 201, 0.4);
+  cursor: default;
+  transition: color 0.2s, border-color 0.2s;
+}
+
+.location-link:hover,
+.location-link:focus {
+  color: #aad0e8;
+  border-bottom-color: rgba(170, 208, 232, 0.7);
+  outline: none;
+}
+
+/* ── Shared tooltip card ── */
+#kirtas-tooltip {
+  position: fixed;
   z-index: 1000;
   width: 280px;
   background: linear-gradient(160deg, #2d2010 0%, #160f08 100%);
@@ -35,14 +51,14 @@
   transition: opacity 0.18s ease, transform 0.18s ease;
 }
 
-#npc-tooltip.visible {
+#kirtas-tooltip.visible {
   opacity: 1;
   transform: translateY(0);
   pointer-events: auto;
 }
 
 /* Top accent line */
-#npc-tooltip::before {
+#kirtas-tooltip::before {
   content: '';
   position: absolute;
   top: 0;
@@ -52,6 +68,37 @@
   background: linear-gradient(90deg, transparent, rgba(184, 149, 42, 0.6), transparent);
 }
 
+/* Location tooltip gets a blue accent instead */
+#kirtas-tooltip.tt-location {
+  border-color: rgba(138, 180, 201, 0.35);
+}
+
+#kirtas-tooltip.tt-location::before {
+  background: linear-gradient(90deg, transparent, rgba(138, 180, 201, 0.5), transparent);
+}
+
+/* ── Portrait image ── */
+.tt-portrait {
+  width: 100%;
+  height: 140px;
+  object-fit: cover;
+  object-position: top center;
+  display: block;
+  margin: -1rem -1.25rem 0.75rem;
+  width: calc(100% + 2.5rem);
+  border-bottom: 1px solid rgba(184, 149, 42, 0.15);
+}
+
+/* ── Location icon ── */
+.tt-location-icon {
+  font-size: 1rem;
+  color: #8ab4c9;
+  opacity: 0.6;
+  margin-bottom: 0.35rem;
+  line-height: 1;
+}
+
+/* ── Shared text styles ── */
 .tt-name {
   font-family: 'Cinzel', serif;
   font-size: 0.85rem;
@@ -69,7 +116,7 @@
   line-height: 1.4;
 }
 
-/* Status badge */
+/* ── Status badges ── */
 .tt-status {
   display: inline-block;
   font-family: 'Cinzel', serif;
@@ -81,11 +128,22 @@
   margin-bottom: 0.75rem;
 }
 
+/* NPC statuses */
 .tt-status--alive   { color: #5a9a6a; border-color: rgba(90, 154, 106, 0.35); }
 .tt-status--dead    { color: #9a5a5a; border-color: rgba(154, 90, 90, 0.35); }
 .tt-status--unknown { color: #6b5d4a; border-color: rgba(107, 93, 74, 0.35); }
 .tt-status--hostile { color: #9a6a5a; border-color: rgba(154, 106, 90, 0.35); }
 
+/* Location statuses */
+.tt-status--loc-neutral   { color: #c9b48a; border-color: rgba(201, 180, 138, 0.35); }
+.tt-status--loc-wolven    { color: #6a9a6a; border-color: rgba(106, 154, 106, 0.35); }
+.tt-status--loc-bluejacks { color: #6a8aaa; border-color: rgba(106, 138, 170, 0.35); }
+.tt-status--loc-contested { color: #aa8a5a; border-color: rgba(170, 138, 90, 0.35); }
+.tt-status--loc-dangerous { color: #9a5a5a; border-color: rgba(154, 90, 90, 0.35); }
+.tt-status--loc-foreign   { color: #8a6aaa; border-color: rgba(138, 106, 170, 0.35); }
+.tt-status--loc-unknown   { color: #6b5d4a; border-color: rgba(107, 93, 74, 0.35); }
+
+/* ── Description text ── */
 .tt-desc {
   font-family: 'Crimson Pro', Georgia, serif;
   font-size: 0.88rem;
