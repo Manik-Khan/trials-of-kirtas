@@ -1,0 +1,502 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>The Trials of Kirtas</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=Cinzel+Decorative:wght@400;700&family=Cinzel:wght@400;600&family=Crimson+Pro:ital,wght@0,300;0,400;1,300;1,400&display=swap" rel="stylesheet">
+  <style>
+    :root {
+      --ink:        #1a1410;
+      --parchment:  #f0e6ce;
+      --parchment2: #e8d9b8;
+      --aged:       #c9b48a;
+      --blood:      #7a1f1f;
+      --gold:       #b8952a;
+      --gold-light: #d4ac3a;
+      --navy:       #1c2a3a;
+      --smoke:      #3a3228;
+      --muted:      #6b5d4a;
+    }
+
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    html { scroll-behavior: smooth; }
+
+    body {
+      background-color: var(--ink);
+      color: var(--parchment);
+      font-family: 'Crimson Pro', Georgia, serif;
+      font-size: 18px;
+      line-height: 1.7;
+      min-height: 100vh;
+      overflow-x: hidden;
+    }
+
+    /* ── Noise texture overlay ── */
+    body::before {
+      content: '';
+      position: fixed;
+      inset: 0;
+      background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noise'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noise)' opacity='0.04'/%3E%3C/svg%3E");
+      pointer-events: none;
+      z-index: 9999;
+      opacity: 0.4;
+    }
+
+    /* ── Hero ── */
+    .hero {
+      position: relative;
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      text-align: center;
+      padding: 4rem 2rem;
+      background:
+        radial-gradient(ellipse 80% 60% at 50% 40%, #2a1a0e 0%, transparent 70%),
+        radial-gradient(ellipse 100% 80% at 50% 100%, #0d0a07 0%, transparent 60%),
+        linear-gradient(180deg, #0d0a07 0%, #1a1008 40%, #0d0a07 100%);
+    }
+
+    .hero::before {
+      content: '';
+      position: absolute;
+      inset: 0;
+      background:
+        radial-gradient(circle at 20% 50%, rgba(122,31,31,0.08) 0%, transparent 50%),
+        radial-gradient(circle at 80% 50%, rgba(28,42,58,0.12) 0%, transparent 50%);
+      pointer-events: none;
+    }
+
+    /* Decorative horizontal rule */
+    .rule {
+      display: flex;
+      align-items: center;
+      gap: 1rem;
+      width: 100%;
+      max-width: 600px;
+      margin: 1.5rem auto;
+    }
+    .rule::before, .rule::after {
+      content: '';
+      flex: 1;
+      height: 1px;
+      background: linear-gradient(90deg, transparent, var(--gold), transparent);
+    }
+    .rule-diamond {
+      width: 6px;
+      height: 6px;
+      background: var(--gold);
+      transform: rotate(45deg);
+      flex-shrink: 0;
+    }
+
+    .hero-eyebrow {
+      font-family: 'Cinzel', serif;
+      font-size: 0.75rem;
+      letter-spacing: 0.4em;
+      color: var(--gold);
+      text-transform: uppercase;
+      opacity: 0.8;
+      animation: fadeUp 1s ease both;
+    }
+
+    .hero-title {
+      font-family: 'Cinzel Decorative', serif;
+      font-size: clamp(2.4rem, 6vw, 5rem);
+      font-weight: 700;
+      color: var(--parchment);
+      line-height: 1.15;
+      text-shadow: 0 2px 40px rgba(184,149,42,0.3), 0 0 80px rgba(122,31,31,0.2);
+      margin: 0.5rem 0;
+      animation: fadeUp 1s 0.2s ease both;
+    }
+
+    .hero-subtitle {
+      font-family: 'Cinzel', serif;
+      font-size: clamp(0.85rem, 2vw, 1.1rem);
+      letter-spacing: 0.2em;
+      color: var(--aged);
+      text-transform: uppercase;
+      animation: fadeUp 1s 0.4s ease both;
+    }
+
+    .hero-lore {
+      max-width: 640px;
+      margin: 2rem auto 0;
+      font-size: 1.1rem;
+      font-style: italic;
+      color: var(--parchment2);
+      opacity: 0.85;
+      line-height: 1.9;
+      animation: fadeUp 1s 0.6s ease both;
+    }
+
+    .hero-lore strong {
+      font-style: normal;
+      color: var(--gold-light);
+      font-weight: 400;
+    }
+
+    .scroll-hint {
+      position: absolute;
+      bottom: 2rem;
+      left: 50%;
+      transform: translateX(-50%);
+      font-family: 'Cinzel', serif;
+      font-size: 0.65rem;
+      letter-spacing: 0.3em;
+      color: var(--muted);
+      text-transform: uppercase;
+      animation: pulse 2s ease-in-out infinite;
+    }
+
+    /* ── Navigation ── */
+    nav {
+      position: sticky;
+      top: 0;
+      z-index: 100;
+      background: rgba(13, 10, 7, 0.92);
+      backdrop-filter: blur(12px);
+      border-bottom: 1px solid rgba(184,149,42,0.2);
+      padding: 0 2rem;
+    }
+
+    .nav-inner {
+      max-width: 1100px;
+      margin: 0 auto;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      height: 56px;
+    }
+
+    .nav-brand {
+      font-family: 'Cinzel', serif;
+      font-size: 0.8rem;
+      letter-spacing: 0.2em;
+      color: var(--gold);
+      text-decoration: none;
+      text-transform: uppercase;
+    }
+
+    .nav-links {
+      display: flex;
+      gap: 2rem;
+      list-style: none;
+    }
+
+    .nav-links a {
+      font-family: 'Cinzel', serif;
+      font-size: 0.72rem;
+      letter-spacing: 0.15em;
+      color: var(--aged);
+      text-decoration: none;
+      text-transform: uppercase;
+      transition: color 0.2s;
+      position: relative;
+    }
+
+    .nav-links a::after {
+      content: '';
+      position: absolute;
+      bottom: -3px;
+      left: 0;
+      width: 0;
+      height: 1px;
+      background: var(--gold);
+      transition: width 0.2s;
+    }
+
+    .nav-links a:hover { color: var(--gold-light); }
+    .nav-links a:hover::after { width: 100%; }
+
+    /* ── Section layout ── */
+    section {
+      max-width: 1100px;
+      margin: 0 auto;
+      padding: 5rem 2rem;
+    }
+
+    .section-header {
+      text-align: center;
+      margin-bottom: 3rem;
+    }
+
+    .section-label {
+      font-family: 'Cinzel', serif;
+      font-size: 0.7rem;
+      letter-spacing: 0.4em;
+      color: var(--gold);
+      text-transform: uppercase;
+      opacity: 0.7;
+      display: block;
+      margin-bottom: 0.5rem;
+    }
+
+    .section-title {
+      font-family: 'Cinzel Decorative', serif;
+      font-size: clamp(1.6rem, 3vw, 2.4rem);
+      color: var(--parchment);
+      font-weight: 400;
+    }
+
+    /* ── Hub cards ── */
+    .hub-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+      gap: 1.5rem;
+    }
+
+    .hub-card {
+      position: relative;
+      display: block;
+      text-decoration: none;
+      background: linear-gradient(135deg, rgba(42,30,16,0.8) 0%, rgba(26,20,10,0.9) 100%);
+      border: 1px solid rgba(184,149,42,0.15);
+      padding: 2rem;
+      transition: border-color 0.3s, transform 0.3s, box-shadow 0.3s;
+      overflow: hidden;
+    }
+
+    .hub-card::before {
+      content: '';
+      position: absolute;
+      inset: 0;
+      background: radial-gradient(circle at 30% 50%, rgba(184,149,42,0.05) 0%, transparent 60%);
+      opacity: 0;
+      transition: opacity 0.3s;
+    }
+
+    .hub-card:hover {
+      border-color: rgba(184,149,42,0.4);
+      transform: translateY(-3px);
+      box-shadow: 0 8px 32px rgba(0,0,0,0.4), 0 0 0 1px rgba(184,149,42,0.1);
+    }
+
+    .hub-card:hover::before { opacity: 1; }
+
+    .hub-card-glyph {
+      font-size: 2rem;
+      margin-bottom: 1rem;
+      display: block;
+      opacity: 0.7;
+    }
+
+    .hub-card-title {
+      font-family: 'Cinzel', serif;
+      font-size: 1rem;
+      letter-spacing: 0.1em;
+      color: var(--gold-light);
+      text-transform: uppercase;
+      margin-bottom: 0.5rem;
+    }
+
+    .hub-card-desc {
+      font-size: 0.95rem;
+      color: var(--aged);
+      line-height: 1.6;
+      font-style: italic;
+    }
+
+    .hub-card-arrow {
+      position: absolute;
+      bottom: 1.5rem;
+      right: 1.5rem;
+      font-size: 1rem;
+      color: var(--gold);
+      opacity: 0;
+      transform: translateX(-6px);
+      transition: opacity 0.3s, transform 0.3s;
+    }
+
+    .hub-card:hover .hub-card-arrow {
+      opacity: 1;
+      transform: translateX(0);
+    }
+
+    /* ── State of the realm ── */
+    .realm-block {
+      background: linear-gradient(135deg, rgba(28,42,58,0.3) 0%, rgba(13,10,7,0.5) 100%);
+      border-left: 3px solid var(--blood);
+      padding: 2rem 2.5rem;
+      margin: 3rem 0;
+      position: relative;
+    }
+
+    .realm-block::before {
+      content: '"';
+      position: absolute;
+      top: -0.5rem;
+      left: 1.5rem;
+      font-family: 'Cinzel Decorative', serif;
+      font-size: 4rem;
+      color: var(--blood);
+      opacity: 0.3;
+      line-height: 1;
+    }
+
+    .realm-block p {
+      font-style: italic;
+      font-size: 1.05rem;
+      color: var(--parchment2);
+      line-height: 1.9;
+    }
+
+    /* ── Divider ── */
+    .divider {
+      border: none;
+      height: 1px;
+      background: linear-gradient(90deg, transparent, rgba(184,149,42,0.3), transparent);
+      margin: 0;
+    }
+
+    /* ── Footer ── */
+    footer {
+      text-align: center;
+      padding: 3rem 2rem;
+      border-top: 1px solid rgba(184,149,42,0.1);
+      font-family: 'Cinzel', serif;
+      font-size: 0.65rem;
+      letter-spacing: 0.3em;
+      color: var(--muted);
+      text-transform: uppercase;
+    }
+
+    /* ── Animations ── */
+    @keyframes fadeUp {
+      from { opacity: 0; transform: translateY(20px); }
+      to   { opacity: 1; transform: translateY(0); }
+    }
+
+    @keyframes pulse {
+      0%, 100% { opacity: 0.3; }
+      50%       { opacity: 0.8; }
+    }
+
+    /* ── Responsive ── */
+    @media (max-width: 600px) {
+      .nav-links { gap: 1rem; }
+      .nav-links a { font-size: 0.65rem; }
+      .hub-grid { grid-template-columns: 1fr; }
+    }
+  </style>
+</head>
+<body>
+
+  <!-- Navigation -->
+  <nav>
+    <div class="nav-inner">
+      <a href="index.html" class="nav-brand">Kirtas</a>
+      <ul class="nav-links">
+        <li><a href="party.html">Party</a></li>
+        <li><a href="factions.html">Factions</a></li>
+        <li><a href="chronicle.html">Chronicle</a></li>
+        <li><a href="npcs.html">NPCs</a></li>
+        <li><a href="world.html">World</a></li>
+        <li><a href="lore.html">Lore</a></li>
+      </ul>
+    </div>
+  </nav>
+
+  <!-- Hero -->
+  <div class="hero">
+    <p class="hero-eyebrow">A Campaign Chronicle</p>
+    <div class="rule"><div class="rule-diamond"></div></div>
+    <h1 class="hero-title">The Trials<br>of Kirtas</h1>
+    <div class="rule"><div class="rule-diamond"></div></div>
+    <p class="hero-subtitle">The War of Succession &nbsp;·&nbsp; Year 20</p>
+    <p class="hero-lore">
+      Once the jewel of the Western Kingdoms, <strong>Kirtas</strong> lies fractured —
+      twenty years of civil war have bled the land dry. Two claimants vie for a throne
+      while the missing <strong>heir</strong> haunts every whispered conversation.
+      The dead walk unchecked. And to the south, <strong>Numior</strong> sharpens its ambitions.
+    </p>
+    <p class="scroll-hint">↓ &nbsp; Enter the Chronicle &nbsp; ↓</p>
+  </div>
+
+  <hr class="divider">
+
+  <!-- Hub Navigation -->
+  <section>
+    <div class="section-header">
+      <span class="section-label">Navigate</span>
+      <h2 class="section-title">The Archive</h2>
+    </div>
+    <div class="hub-grid">
+
+      <a href="party.html" class="hub-card">
+        <span class="hub-card-glyph">⚔</span>
+        <div class="hub-card-title">The Party</div>
+        <p class="hub-card-desc">Character sheets, abilities, and backgrounds for the adventurers at the heart of the chronicle.</p>
+        <span class="hub-card-arrow">→</span>
+      </a>
+
+      <a href="factions.html" class="hub-card">
+        <span class="hub-card-glyph">🛡</span>
+        <div class="hub-card-title">Factions</div>
+        <p class="hub-card-desc">The powers that shape Kirtas — royal armies, mercenary bands, and the criminal underworld.</p>
+        <span class="hub-card-arrow">→</span>
+      </a>
+
+      <a href="chronicle.html" class="hub-card">
+        <span class="hub-card-glyph">📜</span>
+        <div class="hub-card-title">Chronicle</div>
+        <p class="hub-card-desc">Session-by-session accounts of the party's journey through the fractured kingdom.</p>
+        <span class="hub-card-arrow">→</span>
+      </a>
+
+      <a href="npcs.html" class="hub-card">
+        <span class="hub-card-glyph">👤</span>
+        <div class="hub-card-title">People of Kirtas</div>
+        <p class="hub-card-desc">Allies, enemies, and those caught in between — the faces behind the war.</p>
+        <span class="hub-card-arrow">→</span>
+      </a>
+
+      <a href="world.html" class="hub-card">
+        <span class="hub-card-glyph">🗺</span>
+        <div class="hub-card-title">The World</div>
+        <p class="hub-card-desc">Cities, towns, and contested territories — the geography of a kingdom at war.</p>
+        <span class="hub-card-arrow">→</span>
+      </a>
+
+      <a href="lore.html" class="hub-card">
+        <span class="hub-card-glyph">📖</span>
+        <div class="hub-card-title">Lore</div>
+        <p class="hub-card-desc">The history of the Ranec dynasty, the succession crisis, and the world before the war.</p>
+        <span class="hub-card-arrow">→</span>
+      </a>
+
+    </div>
+  </section>
+
+  <hr class="divider">
+
+  <!-- State of the Realm -->
+  <section>
+    <div class="section-header">
+      <span class="section-label">Current Affairs</span>
+      <h2 class="section-title">State of the Realm</h2>
+    </div>
+
+    <div class="realm-block">
+      <p>
+        Tyrus holds the capital and believes final victory is within reach — if only he can raise enough men.
+        Darius and Lord Reykoldt endure in the Long Hills, fighting still in the name of a prince no one has seen in years.
+        Tiersgard remains neutral, its merchants grown rich on the tools of war.
+        And the dead walk where armies once marched.
+      </p>
+    </div>
+  </section>
+
+  <hr class="divider">
+
+  <footer>
+    <p>The Trials of Kirtas &nbsp;·&nbsp; A D&amp;D 5e Campaign &nbsp;·&nbsp; Session 0</p>
+  </footer>
+
+</body>
+</html>

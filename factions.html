@@ -1,0 +1,678 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Factions — The Trials of Kirtas</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=Cinzel+Decorative:wght@400;700&family=Cinzel:wght@400;600&family=Crimson+Pro:ital,wght@0,300;0,400;1,300;1,400&display=swap" rel="stylesheet">
+  <style>
+    :root {
+      --ink:        #1a1410;
+      --parchment:  #f0e6ce;
+      --parchment2: #e8d9b8;
+      --aged:       #c9b48a;
+      --blood:      #7a1f1f;
+      --gold:       #b8952a;
+      --gold-light: #d4ac3a;
+      --navy:       #1c2a3a;
+      --smoke:      #3a3228;
+      --muted:      #6b5d4a;
+    }
+
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body {
+      background-color: var(--ink);
+      color: var(--parchment);
+      font-family: 'Crimson Pro', Georgia, serif;
+      font-size: 18px;
+      line-height: 1.7;
+      min-height: 100vh;
+      overflow-x: hidden;
+    }
+
+    body::before {
+      content: '';
+      position: fixed;
+      inset: 0;
+      background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noise'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noise)' opacity='0.04'/%3E%3C/svg%3E");
+      pointer-events: none;
+      z-index: 9999;
+      opacity: 0.4;
+    }
+
+    /* ── Nav ── */
+    nav {
+      position: sticky;
+      top: 0;
+      z-index: 100;
+      background: rgba(13, 10, 7, 0.92);
+      backdrop-filter: blur(12px);
+      border-bottom: 1px solid rgba(184,149,42,0.2);
+      padding: 0 2rem;
+    }
+    .nav-inner {
+      max-width: 1100px;
+      margin: 0 auto;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      height: 56px;
+    }
+    .nav-brand {
+      font-family: 'Cinzel', serif;
+      font-size: 0.8rem;
+      letter-spacing: 0.2em;
+      color: var(--gold);
+      text-decoration: none;
+      text-transform: uppercase;
+    }
+    .nav-links {
+      display: flex;
+      gap: 2rem;
+      list-style: none;
+    }
+    .nav-links a {
+      font-family: 'Cinzel', serif;
+      font-size: 0.72rem;
+      letter-spacing: 0.15em;
+      color: var(--aged);
+      text-decoration: none;
+      text-transform: uppercase;
+      transition: color 0.2s;
+      position: relative;
+    }
+    .nav-links a::after {
+      content: '';
+      position: absolute;
+      bottom: -3px; left: 0;
+      width: 0; height: 1px;
+      background: var(--gold);
+      transition: width 0.2s;
+    }
+    .nav-links a:hover { color: var(--gold-light); }
+    .nav-links a:hover::after { width: 100%; }
+    .nav-links a.active { color: var(--gold-light); }
+    .nav-links a.active::after { width: 100%; }
+
+    /* ── Page header ── */
+    .page-header {
+      text-align: center;
+      padding: 5rem 2rem 3rem;
+      background: radial-gradient(ellipse 80% 60% at 50% 0%, rgba(42,20,10,0.8) 0%, transparent 70%);
+    }
+    .page-eyebrow {
+      font-family: 'Cinzel', serif;
+      font-size: 0.7rem;
+      letter-spacing: 0.4em;
+      color: var(--gold);
+      text-transform: uppercase;
+      opacity: 0.7;
+    }
+    .page-title {
+      font-family: 'Cinzel Decorative', serif;
+      font-size: clamp(2rem, 5vw, 3.5rem);
+      color: var(--parchment);
+      margin: 0.75rem 0 0.5rem;
+      font-weight: 400;
+    }
+    .page-subtitle {
+      font-style: italic;
+      color: var(--aged);
+      font-size: 1rem;
+      max-width: 560px;
+      margin: 0 auto;
+    }
+
+    .rule {
+      display: flex;
+      align-items: center;
+      gap: 1rem;
+      max-width: 400px;
+      margin: 1.5rem auto;
+    }
+    .rule::before, .rule::after {
+      content: '';
+      flex: 1;
+      height: 1px;
+      background: linear-gradient(90deg, transparent, var(--gold), transparent);
+    }
+    .rule-diamond {
+      width: 6px; height: 6px;
+      background: var(--gold);
+      transform: rotate(45deg);
+      flex-shrink: 0;
+    }
+
+    /* ── Category headers ── */
+    .category-section {
+      max-width: 1100px;
+      margin: 0 auto;
+      padding: 3rem 2rem 1rem;
+    }
+    .category-label {
+      font-family: 'Cinzel', serif;
+      font-size: 0.65rem;
+      letter-spacing: 0.5em;
+      color: var(--muted);
+      text-transform: uppercase;
+      border-bottom: 1px solid rgba(184,149,42,0.15);
+      padding-bottom: 0.5rem;
+      margin-bottom: 1.5rem;
+    }
+
+    /* ── Faction grid ── */
+    .faction-grid {
+      max-width: 1100px;
+      margin: 0 auto;
+      padding: 0 2rem 2rem;
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+      gap: 1.5rem;
+    }
+
+    /* ── Faction card ── */
+    .faction-card {
+      background: linear-gradient(160deg, rgba(42,30,16,0.7) 0%, rgba(20,15,8,0.9) 100%);
+      border: 1px solid rgba(184,149,42,0.12);
+      cursor: pointer;
+      transition: border-color 0.3s, transform 0.3s, box-shadow 0.3s;
+      overflow: hidden;
+      position: relative;
+    }
+
+    .faction-card:hover {
+      border-color: rgba(184,149,42,0.35);
+      transform: translateY(-2px);
+      box-shadow: 0 8px 32px rgba(0,0,0,0.5);
+    }
+
+    .faction-card.active {
+      border-color: var(--gold);
+      box-shadow: 0 0 0 1px rgba(184,149,42,0.3), 0 8px 40px rgba(0,0,0,0.6);
+    }
+
+    /* Heraldry image area */
+    .faction-heraldry {
+      width: 100%;
+      height: 200px;
+      background: rgba(10,8,5,0.6);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      overflow: hidden;
+      position: relative;
+      border-bottom: 1px solid rgba(184,149,42,0.1);
+    }
+
+    .faction-heraldry img {
+      max-height: 160px;
+      max-width: 160px;
+      object-fit: contain;
+      filter: drop-shadow(0 4px 16px rgba(0,0,0,0.6));
+      transition: transform 0.4s ease;
+    }
+
+    .faction-card:hover .faction-heraldry img {
+      transform: scale(1.05);
+    }
+
+    /* Placeholder when no image */
+    .heraldry-placeholder {
+      width: 120px;
+      height: 120px;
+      border: 2px solid rgba(184,149,42,0.2);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 3rem;
+      opacity: 0.3;
+    }
+
+    .faction-body {
+      padding: 1.25rem 1.5rem 1.5rem;
+    }
+
+    .faction-name {
+      font-family: 'Cinzel', serif;
+      font-size: 0.95rem;
+      letter-spacing: 0.08em;
+      color: var(--gold-light);
+      text-transform: uppercase;
+      margin-bottom: 0.15rem;
+    }
+
+    .faction-alias {
+      font-size: 0.85rem;
+      font-style: italic;
+      color: var(--muted);
+      margin-bottom: 0.75rem;
+    }
+
+    .faction-summary {
+      font-size: 0.95rem;
+      color: var(--parchment2);
+      line-height: 1.65;
+      opacity: 0.85;
+    }
+
+    .faction-read-more {
+      display: inline-block;
+      margin-top: 0.75rem;
+      font-family: 'Cinzel', serif;
+      font-size: 0.65rem;
+      letter-spacing: 0.2em;
+      color: var(--gold);
+      text-transform: uppercase;
+      opacity: 0.7;
+      transition: opacity 0.2s;
+    }
+    .faction-card:hover .faction-read-more { opacity: 1; }
+
+    /* ── Modal ── */
+    .modal-overlay {
+      display: none;
+      position: fixed;
+      inset: 0;
+      background: rgba(10,8,5,0.85);
+      backdrop-filter: blur(6px);
+      z-index: 500;
+      align-items: center;
+      justify-content: center;
+      padding: 2rem;
+    }
+
+    .modal-overlay.open {
+      display: flex;
+      animation: fadeIn 0.3s ease;
+    }
+
+    .modal {
+      background: linear-gradient(160deg, #2a1e10 0%, #140f08 100%);
+      border: 1px solid rgba(184,149,42,0.3);
+      max-width: 700px;
+      width: 100%;
+      max-height: 85vh;
+      overflow-y: auto;
+      position: relative;
+      box-shadow: 0 24px 80px rgba(0,0,0,0.8);
+      animation: slideUp 0.3s ease;
+    }
+
+    .modal-heraldry {
+      width: 100%;
+      height: 220px;
+      background: rgba(10,8,5,0.5);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      border-bottom: 1px solid rgba(184,149,42,0.15);
+    }
+
+    .modal-heraldry img {
+      max-height: 180px;
+      max-width: 180px;
+      object-fit: contain;
+      filter: drop-shadow(0 4px 24px rgba(0,0,0,0.8));
+    }
+
+    .modal-content {
+      padding: 2rem 2.5rem 3rem;
+    }
+
+    .modal-name {
+      font-family: 'Cinzel Decorative', serif;
+      font-size: 1.6rem;
+      color: var(--parchment);
+      margin-bottom: 0.25rem;
+    }
+
+    .modal-alias {
+      font-style: italic;
+      color: var(--gold);
+      font-size: 0.95rem;
+      margin-bottom: 1.5rem;
+    }
+
+    .modal-text {
+      font-size: 1rem;
+      color: var(--parchment2);
+      line-height: 1.9;
+    }
+
+    .modal-text p + p {
+      margin-top: 1rem;
+    }
+
+    .modal-close {
+      position: absolute;
+      top: 1rem;
+      right: 1.25rem;
+      background: none;
+      border: none;
+      color: var(--muted);
+      font-size: 1.5rem;
+      cursor: pointer;
+      line-height: 1;
+      transition: color 0.2s;
+      z-index: 10;
+    }
+    .modal-close:hover { color: var(--gold); }
+
+    /* Scrollbar */
+    .modal::-webkit-scrollbar { width: 4px; }
+    .modal::-webkit-scrollbar-track { background: transparent; }
+    .modal::-webkit-scrollbar-thumb { background: rgba(184,149,42,0.3); }
+
+    /* ── Divider ── */
+    .divider {
+      border: none;
+      height: 1px;
+      background: linear-gradient(90deg, transparent, rgba(184,149,42,0.3), transparent);
+    }
+
+    footer {
+      text-align: center;
+      padding: 3rem 2rem;
+      border-top: 1px solid rgba(184,149,42,0.1);
+      font-family: 'Cinzel', serif;
+      font-size: 0.65rem;
+      letter-spacing: 0.3em;
+      color: var(--muted);
+      text-transform: uppercase;
+    }
+
+    @keyframes fadeIn {
+      from { opacity: 0; } to { opacity: 1; }
+    }
+    @keyframes slideUp {
+      from { opacity: 0; transform: translateY(20px); }
+      to   { opacity: 1; transform: translateY(0); }
+    }
+
+    @media (max-width: 600px) {
+      .nav-links { gap: 1rem; }
+      .nav-links a { font-size: 0.62rem; }
+      .faction-grid { grid-template-columns: 1fr; }
+      .modal-content { padding: 1.5rem; }
+    }
+  </style>
+</head>
+<body>
+
+  <nav>
+    <div class="nav-inner">
+      <a href="index.html" class="nav-brand">Kirtas</a>
+      <ul class="nav-links">
+        <li><a href="party.html">Party</a></li>
+        <li><a href="factions.html" class="active">Factions</a></li>
+        <li><a href="chronicle.html">Chronicle</a></li>
+        <li><a href="npcs.html">NPCs</a></li>
+        <li><a href="world.html">World</a></li>
+        <li><a href="lore.html">Lore</a></li>
+      </ul>
+    </div>
+  </nav>
+
+  <div class="page-header">
+    <p class="page-eyebrow">Powers of the Realm</p>
+    <div class="rule"><div class="rule-diamond"></div></div>
+    <h1 class="page-title">Factions</h1>
+    <div class="rule"><div class="rule-diamond"></div></div>
+    <p class="page-subtitle">The armies, alliances, and shadowed organizations that vie for power in a kingdom torn apart.</p>
+  </div>
+
+  <!-- Royal Factions -->
+  <div class="category-section">
+    <div class="category-label">Royal Factions — The War of Succession</div>
+  </div>
+
+  <div class="faction-grid">
+
+    <div class="faction-card" onclick="openModal('wolven')">
+      <div class="faction-heraldry">
+        <!-- Replace src with: img/factions/wolven.png -->
+        <img src="img/factions/wolven.png" alt="The Wolven heraldry"
+             onerror="this.style.display='none'; this.nextElementSibling.style.display='flex'">
+        <div class="heraldry-placeholder" style="display:none">🐺</div>
+      </div>
+      <div class="faction-body">
+        <div class="faction-name">Kings Army of Kirtas</div>
+        <div class="faction-alias">The Wolven</div>
+        <p class="faction-summary">Tyrus holds the capital and claims the throne by right of succession. His forces — depleted, mercenary-reliant — dream of one final campaign to end the war.</p>
+        <span class="faction-read-more">Read more →</span>
+      </div>
+    </div>
+
+    <div class="faction-card" onclick="openModal('bluejackets')">
+      <div class="faction-heraldry">
+        <img src="img/factions/bluejackets.png" alt="Blue Jackets heraldry"
+             onerror="this.style.display='none'; this.nextElementSibling.style.display='flex'">
+        <div class="heraldry-placeholder" style="display:none">🦁</div>
+      </div>
+      <div class="faction-body">
+        <div class="faction-name">Alliance to Restore Kirtas</div>
+        <div class="faction-alias">Darius' Forces — The Blue Jackets</div>
+        <p class="faction-summary">Darius and Lord Reykoldt fight on in the Long Hills, sustained by iron will and a cause — the restoration of the rightful heir, who has not been seen in years.</p>
+        <span class="faction-read-more">Read more →</span>
+      </div>
+    </div>
+
+  </div>
+
+  <!-- Foreign Powers -->
+  <div class="category-section">
+    <div class="category-label">Foreign Powers</div>
+  </div>
+
+  <div class="faction-grid">
+
+    <div class="faction-card" onclick="openModal('numior')">
+      <div class="faction-heraldry">
+        <img src="img/factions/numior.png" alt="Numiorian Military heraldry"
+             onerror="this.style.display='none'; this.nextElementSibling.style.display='flex'">
+        <div class="heraldry-placeholder" style="display:none">🦅</div>
+      </div>
+      <div class="faction-body">
+        <div class="faction-name">Numiorian Military</div>
+        <div class="faction-alias">Vassal-state turned sovereign</div>
+        <p class="faction-summary">Once conscripts of Kirtas, now an independent army swelling with nationalist pride. King Eneos II watches the north, sensing opportunity in the chaos.</p>
+        <span class="faction-read-more">Read more →</span>
+      </div>
+    </div>
+
+    <div class="faction-card" onclick="openModal('redeagles')">
+      <div class="faction-heraldry">
+        <img src="img/factions/redeagles.png" alt="Red Eagles heraldry"
+             onerror="this.style.display='none'; this.nextElementSibling.style.display='flex'">
+        <div class="heraldry-placeholder" style="display:none">🦅</div>
+      </div>
+      <div class="faction-body">
+        <div class="faction-name">The Red Eagles</div>
+        <div class="faction-alias">Numior's Special Forces</div>
+        <p class="faction-summary">Elite scouts and special forces operating along Kirtas's southern border — assessing the mountains, seeking invasion routes, serving King Eneos's ambitions.</p>
+        <span class="faction-read-more">Read more →</span>
+      </div>
+    </div>
+
+  </div>
+
+  <!-- Mercenaries -->
+  <div class="category-section">
+    <div class="category-label">Mercenaries &amp; Neutral Groups</div>
+  </div>
+
+  <div class="faction-grid">
+
+    <div class="faction-card" onclick="openModal('rook')">
+      <div class="faction-heraldry">
+        <img src="img/factions/rook.png" alt="Band of the Rook heraldry"
+             onerror="this.style.display='none'; this.nextElementSibling.style.display='flex'">
+        <div class="heraldry-placeholder" style="display:none">🐦</div>
+      </div>
+      <div class="faction-body">
+        <div class="faction-name">The Band of the Rook</div>
+        <div class="faction-alias">Fallen Honor</div>
+        <p class="faction-summary">Once the continent's most illustrious mercenary regiment, the Rook was gutted at Ryol's Creek. What remains is a band of thugs under the brutal Rhadig of Koria.</p>
+        <span class="faction-read-more">Read more →</span>
+      </div>
+    </div>
+
+    <div class="faction-card" onclick="openModal('stags')">
+      <div class="faction-heraldry">
+        <img src="img/factions/stags.png" alt="The Stags heraldry"
+             onerror="this.style.display='none'; this.nextElementSibling.style.display='flex'">
+        <div class="heraldry-placeholder" style="display:none">🦌</div>
+      </div>
+      <div class="faction-body">
+        <div class="faction-name">The Stags</div>
+        <div class="faction-alias">Lucius Solci's Regiment</div>
+        <p class="faction-summary">A newer mercenary force led by the former Dalarian general Lucius Solci. Hired by Numior, the Stags remain fresh and disciplined — and hungry for glory.</p>
+        <span class="faction-read-more">Read more →</span>
+      </div>
+    </div>
+
+    <div class="faction-card" onclick="openModal('verdaaners')">
+      <div class="faction-heraldry">
+        <img src="img/factions/verdaaners.png" alt="Verdaaners heraldry"
+             onerror="this.style.display='none'; this.nextElementSibling.style.display='flex'">
+        <div class="heraldry-placeholder" style="display:none">🐻</div>
+      </div>
+      <div class="faction-body">
+        <div class="faction-name">The Verdaaners</div>
+        <div class="faction-alias">Northern Mercenaries</div>
+        <p class="faction-summary">Hardened fighters from the Northern Realms, currently hired by the Tiersgard Burghers. They bring warbears to the field — and a reputation for ferocity.</p>
+        <span class="faction-read-more">Read more →</span>
+      </div>
+    </div>
+
+    <div class="faction-card" onclick="openModal('threshers')">
+      <div class="faction-heraldry">
+        <img src="img/factions/threshers.png" alt="The Threshers heraldry"
+             onerror="this.style.display='none'; this.nextElementSibling.style.display='flex'">
+        <div class="heraldry-placeholder" style="display:none">🌾</div>
+      </div>
+      <div class="faction-body">
+        <div class="faction-name">The Threshers</div>
+        <div class="faction-alias">Kirtas's Most Powerful Crime Syndicate</div>
+        <p class="faction-summary">Born as a farmer's collective, now the dominant criminal power in Kirtas. The Threshers control trade through Tiersgard and have shown — strangely — more concern for the common people than either king.</p>
+        <span class="faction-read-more">Read more →</span>
+      </div>
+    </div>
+
+  </div>
+
+  <hr class="divider" style="margin-top:3rem">
+  <footer>
+    <p>The Trials of Kirtas &nbsp;·&nbsp; Factions of the Realm</p>
+  </footer>
+
+  <!-- ── Modals ── -->
+  <div class="modal-overlay" id="modal-overlay" onclick="closeModalOnOverlay(event)">
+    <div class="modal" id="modal">
+      <button class="modal-close" onclick="closeModal()">✕</button>
+      <div class="modal-heraldry">
+        <img id="modal-img" src="" alt="">
+      </div>
+      <div class="modal-content">
+        <div class="modal-name" id="modal-name"></div>
+        <div class="modal-alias" id="modal-alias"></div>
+        <div class="modal-text" id="modal-text"></div>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    const factions = {
+      wolven: {
+        name: "Kings Army of Kirtas",
+        alias: "The Wolven",
+        img: "img/factions/wolven.png",
+        text: `<p>Tyrus has never doubted his legitimacy as ruler of Kirtas. He sees the opposition as rebellious traitors who have sullied the memory of his brother and ruined their glorious kingdom. The disastrous civil war has made him a crueler and more paranoid man than he otherwise might have been, but he still seeks to follow the "enlightened" and just policies of his brother, excusing his despotic and at times reckless actions as desperate measures for desperate times.</p>
+        <p>Secure in the Kingdom's capital, he feels that his advantage over Darius is greater than it has ever been and that only one final push would be necessary to defeat him and finally bring the war to an end. He is eager to turn his attention to other matters, domestic and foreign.</p>
+        <p>However, before he can eliminate Darius, Tyrus must gather more men. Most of his army has been destroyed, with a few veteran regiments guarding the capital and surrounding area. Untested troops have been sent out in a half-hearted attempt to regain control of the kingdom and collect taxes, but this has resulted in losses to bandits, hobgoblins and other unsavory sorts. The king desperately seeks competent forces and continues to hire what mercenaries he can, mostly on credit as the royal coffers stand nearly empty.</p>`
+      },
+      bluejackets: {
+        name: "Alliance to Restore Kirtas",
+        alias: "Darius' Forces — The Blue Jackets",
+        img: "img/factions/bluejackets.png",
+        text: `<p>Darius and what remains of his army remain encamped in the Long Hills. Although they still claim to fight for the young prince, he has not been seen in years. The former King's Council who joined with Darius in his rebellion have either been killed or fled, with the exception of Lord Reykoldt, Duke of Yevennia, the former king's closest advisor.</p>
+        <p>These two exceptional men have managed to hold together the hardened remnants of their forces through iron will and skillful strategies. But 20 years of civil war have taken their toll. Both men have lost their families, their holdings and more. All that remains to them and their forces is the struggle against the hated Tyrus and the chance to restore their beloved kingdom to its former glory.</p>`
+      },
+      numior: {
+        name: "Numiorian Military",
+        alias: "Vassal-state turned sovereign power",
+        img: "img/factions/numior.png",
+        text: `<p>As a vassal state of Kirtas, Numior's armed forces were essentially an extension of the larger kingdom's military. Regiments were conscripted and used to fight on other frontiers, while Numior itself was garrisoned by troops from other lands. As Kirtas began to split in civil war, the Numiorian regiments were some of the first to be destroyed in the early fighting. Survivors made their way back to their homeland as order broke down.</p>
+        <p>These veterans formed the backbone of the newly independent Numior state's military. While it is a new force, it has been well served by the veterans of the civil war. As Numior comes into its own as an independent state the populace has been swept up by nationalism and enthusiasm. The result is scores of young men signing up for military service eager for glory and the chance to stake their country's claim on its ancient borders.</p>
+        <p>More hawkish elements of the political class have begun to advocate an aggressive campaign to create a foothold in Kirtas while it is distracted in turmoil. So far this enthusiasm has not spread to the officer corps of the armed forces, who are veterans under no illusions about the true capabilities of their enthusiastic yet untested forces. However, these aggressive policies have begun to draw the interest of the young king Eneos II.</p>`
+      },
+      redeagles: {
+        name: "The Red Eagles",
+        alias: "Numior's Advanced Scouts & Special Forces",
+        img: "img/factions/redeagles.png",
+        text: `<p>The Red Eagles are the advanced scouts and special forces of Numior's military. The Eagles operate much more independently than the regular forces, their commanders given broad orders and entrusted to carry them out largely as they see fit.</p>
+        <p>King Eneos II is a strong supporter of the Eagles, and currently has them deployed along the northern border with Kirtas, assessing the threat from the mountains and seeking a possible invasion route into the beleaguered kingdom.</p>`
+      },
+      rook: {
+        name: "The Band of the Rook",
+        alias: "Fallen Honor",
+        img: "img/factions/rook.png",
+        text: `<p>The Band of the Rook is one of the oldest and most illustrious mercenary regiments on the continent. Founded over two centuries ago by Ligurian Nobles, the organization was known for its honorable conduct, its commitment to fulfilling a contract and above all, its capabilities in combat. The Banner of Three Rooks was a feared sight on the battlefield.</p>
+        <p>The regiment was almost totally destroyed during the Battle of Ryol's Creek, during the early years of the civil war. The survivors were reorganized by the few remaining officers and continued to fight, but the ranks have been diluted and the organization is now led by Rhadig of Koria, a brutal and unscrupulous man who has turned the Band into a group of thugs and bandits no better than most other mercenary regiments in the region.</p>`
+      },
+      stags: {
+        name: "The Stags",
+        alias: "Lucius Solci's Regiment",
+        img: "img/factions/stags.png",
+        text: `<p>The Stags are a mercenary regiment formed by Lucius Solci, a former general turned adventurer. A newer organization, the Stags have not been depleted by the fighting of the civil war, though they have veterans of the fighting in their ranks.</p>
+        <p>Solci is a former general in the Dalarian military and a skillful tactician. Seeing that the Kirtas War of Succession would decimate his regiment, he has hired his force to King Eneos of Numior, who sits on a stable throne and represents a reliable source of income. Knowing there could be fighting to come as Numior seeks to expand north, Solci is confident that his forces will be able to win fortune and glory on the field.</p>`
+      },
+      verdaaners: {
+        name: "The Verdaaners",
+        alias: "Mercenaries of the Northern Realms",
+        img: "img/factions/verdaaners.png",
+        text: `<p>The Verdaaners are a mercenary regiment from the Northern Realms. Drawn to Kirtas during the call for fighting men, they have fought and bled for a number of years of war. Most recently, they have been hired by the Tiersgard Burghers to keep watch on the Southern approaches to the city. These lands have been plagued by undead and rumors of Numior's expansion.</p>
+        <p>The Verdaaners have been known to fight alongside warbears from their homeland, mighty beasts that rampage through the battlefield spreading terror among their foes.</p>`
+      },
+      threshers: {
+        name: "The Threshers",
+        alias: "Kirtas's Most Powerful Crime Syndicate",
+        img: "img/factions/threshers.png",
+        text: `<p>The Threshers are the most powerful crime syndicate working in Kirtas. The organization had humble beginnings as a farmer's collective in the countryside outside Yevenna, formed in order to give support to members facing failed crops or other disasters. The success led to investment and other protection activities which, over time, became extra-legal.</p>
+        <p>Centuries later, the focus is now no longer agricultural, although the group's symbol — interlocked heads of grain — is a reminder of its beginnings. The Threshers have a strong presence in Tiersgard, controlling a good deal of trade and black market goods that move through the kingdom. They also run more brutal crime rackets: drugs, gambling, protection.</p>
+        <p>The civil war has been a blessing and a curse. Less official interference has allowed for increasingly bold actions, and weapons smuggling has brought hefty profits. On the other hand, the vast loss of life has decimated some areas that previously were hubs of commerce.</p>
+        <p>The syndicate has also played to its folk-image as a savior to the poor, providing aid and support for some of the more downtrodden during the civil war — food supplies, housing help, and even evacuations. Though an outlaw and sometimes brutal group, The Threshers have unquestionably shown greater concern for the populace of Kirtas than either Tyrus's or Darius's forces.</p>`
+      }
+    };
+
+    function openModal(id) {
+      const f = factions[id];
+      if (!f) return;
+      document.getElementById('modal-name').textContent = f.name;
+      document.getElementById('modal-alias').textContent = f.alias;
+      document.getElementById('modal-text').innerHTML = f.text;
+      const img = document.getElementById('modal-img');
+      img.src = f.img;
+      img.alt = f.name + ' heraldry';
+      document.getElementById('modal-overlay').classList.add('open');
+      document.body.style.overflow = 'hidden';
+    }
+
+    function closeModal() {
+      document.getElementById('modal-overlay').classList.remove('open');
+      document.body.style.overflow = '';
+    }
+
+    function closeModalOnOverlay(e) {
+      if (e.target === document.getElementById('modal-overlay')) closeModal();
+    }
+
+    document.addEventListener('keydown', e => {
+      if (e.key === 'Escape') closeModal();
+    });
+  </script>
+
+</body>
+</html>
