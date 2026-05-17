@@ -6,6 +6,7 @@
   <title>Lore — The Trials of Kirtas</title>
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link href="https://fonts.googleapis.com/css2?family=Cinzel+Decorative:wght@400;700&family=Cinzel:wght@400;600&family=Crimson+Pro:ital,wght@0,300;0,400;1,300;1,400&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="tooltips.css">
   <style>
     :root {
       --ink:        #1a1410;
@@ -283,7 +284,7 @@
     <div class="lore-section opening">
       <div class="lore-section-title">The Kingdom of Kirtas</div>
       <p>
-        <strong>Kirtas</strong>, the jewel of the Western Kingdoms. Occupying a fertile valley between the
+        <strong>Kirtas</strong>, the jewel of the Western Kingdoms.  Occupying a fertile valley between the
         <strong>Kharak Mountains</strong> to the South-East and the <strong>Long Hills</strong> to its North and West,
         for centuries this human kingdom was the dominant force in the region. To the North-East lay the great
         Elven forest <strong>Ilora</strong>, whose finely crafted goods flowed into Kirtas, traded in exchange
@@ -311,21 +312,21 @@
     <div class="lore-section">
       <div class="lore-section-title">The Succession Crisis</div>
       <p>
-        The previous king, <strong>Aluin Ranec III</strong>, had assumed the throne as a young man and ruled
-        vigorously for decades. Unable to produce a male heir, his younger brother <strong>Tyrus</strong> was
+        The previous king, <span class="npc-link" data-npc="aluin"><strong>Aluin Ranec III</strong></span>, had assumed the throne as a young man and ruled
+        vigorously for decades. Unable to produce a male heir, his younger brother <span class="npc-link" data-npc="tyrus"><strong>Tyrus</strong></span> was
         named his successor. However, shortly before the king's death of pox, one of his concubines unexpectedly
         became pregnant.
       </p>
       <p>
-        Just two months after Tyrus's ascension, a prince with a direct claim to the throne was born to the concubine.
-        Crisis gripped the land as the king's council and his most senior general, <strong>Darius</strong>, supported
-        the young prince. Tyrus refused to abdicate and with his supporters marched on <strong>Yevennia</strong>
+        Just two months after <span class="npc-link" data-npc="tyrus">Tyrus</span>'s ascension, a <span class="npc-link" data-npc="prince">prince</span> with a direct claim to the throne was born to the concubine.
+        Crisis gripped the land as the king's council and his most senior general, <span class="npc-link" data-npc="darius"><strong>Darius</strong></span>, supported
+        the young prince. <span class="npc-link" data-npc="tyrus">Tyrus</span> refused to abdicate and with his supporters marched on <strong>Yevennia</strong>
         where the prince and his supporters were based. War descended on Kirtas.
       </p>
 
       <div class="lore-callout">
-        <p>The young prince has not been seen for years. Many whisper that he died at the hands of an assassin —
-        that Darius and the council seek to rule in his name and so hide his death.</p>
+        <p>The young <span class="npc-link" data-npc="prince">prince</span> has not been seen for years. Many whisper that he died at the hands of an assassin —
+        that <span class="npc-link" data-npc="darius">Darius</span> and the council seek to rule in his name and so hide his death.</p>
       </div>
     </div>
 
@@ -372,9 +373,9 @@
       </p>
       <p>
         Today, the remnants of each side still skirmish and make attempts to hold their territory against
-        encroachment, but grand offensive campaigns are increasingly rare. <strong>Tyrus</strong> and his forces
-        still hold the capital and dream of unifying the kingdom under his banner. <strong>Darius</strong> and
-        <strong>Lord Reykoldt</strong> are encamped somewhere in the Long Hills with what forces they still control.
+        encroachment, but grand offensive campaigns are increasingly rare. <span class="npc-link" data-npc="tyrus"><strong>Tyrus</strong></span> and his forces
+        still hold the capital and dream of unifying the kingdom under his banner. <span class="npc-link" data-npc="darius"><strong>Darius</strong></span> and
+        <span class="npc-link" data-npc="reykoldt"><strong>Lord Reykoldt</strong></span> are encamped somewhere in the Long Hills with what forces they still control.
       </p>
       <p>
         And to the south, on the other side of the Kharak range, the kingdom of <strong>Numior</strong> — once
@@ -390,5 +391,6 @@
     <p>The Trials of Kirtas &nbsp;·&nbsp; History &amp; Lore</p>
   </footer>
 
+  <script src="tooltips.js"></script>
 </body>
 </html>
