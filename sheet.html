@@ -697,6 +697,13 @@
 // ══════════════════════════════════════════════════════════
 // INIT — runs after all scripts and DOM are ready
 // ══════════════════════════════════════════════════════════
+// State — declared first so all functions can access them
+const RS         = { advantage: false, disadvantage: false, bless: false, guidance: false };
+const pipState   = {};
+const deathSaves = { success: 0, failure: 0 };
+let rollHistory     = [];
+let rollerCollapsed = false;
+
 const params  = new URLSearchParams(window.location.search);
 const charKey = params.get('character') || 'tyros';
 
@@ -729,17 +736,25 @@ if (!C) {
   document.title = `${C.name} — The Trials of Kirtas`;
   document.getElementById('site-footer').textContent =
     `The Trials of Kirtas · ${C.name} · ${C.classLabel}`;
-  // initSheet is defined below — safe to call here since
-  // this entire script block executes after parsing is complete
   initSheet();
 }
+
+// C-dependent state — safe here because initSheet() only runs if C exists
+// and these are used only inside functions called by initSheet
+const SLOTS_KEY    = `kirtas-slots-${charKey}`;
+let slots = (() => {
+  if (!C) return ['empty','empty','empty','empty'];
+  try { const s = localStorage.getItem(SLOTS_KEY); if(s) return JSON.parse(s); } catch(e) {}
+  return (C.defaultSlots || ['empty','empty','empty','empty']).slice(0,4);
+})();
+let currentHP      = C ? C.combat.hp    : 0;
+const maxHP        = C ? C.combat.hpMax : 0;
+let hasInspiration = C ? C.inspiration  : false;
 
 // ══════════════════════════════════════════════════════════
 // ROLLER STATE
 // ══════════════════════════════════════════════════════════
-const RS = { advantage: false, disadvantage: false, bless: false, guidance: false };
-let rollHistory = [];
-let rollerCollapsed = false;
+
 
 // ── Dice ──
 const d = sides => Math.floor(Math.random() * sides) + 1;
@@ -882,11 +897,6 @@ function switchTab(id, btn) {
 // ══════════════════════════════════════════════════════════
 // QUICK ACTION SLOTS
 // ══════════════════════════════════════════════════════════
-const SLOTS_KEY = `kirtas-slots-${charKey}`;
-let slots = (() => {
-  try { const s = localStorage.getItem(SLOTS_KEY); if(s) return JSON.parse(s); } catch(e) {}
-  return (C.defaultSlots || ['empty','empty','empty','empty']).slice(0,4);
-})();
 
 function saveSlots() { try { localStorage.setItem(SLOTS_KEY, JSON.stringify(slots)); } catch(e) {} }
 
@@ -947,7 +957,6 @@ function rollSlot(i) { rollAction(getAction(slots[i])); }
 // ══════════════════════════════════════════════════════════
 // RESOURCE PIPS (HP, spell slots, ki, etc.)
 // ══════════════════════════════════════════════════════════
-const pipState = {};
 
 function initPips(key, max, used=0) {
   pipState[key] = used;
@@ -966,7 +975,6 @@ function togglePip(key, idx, max) {
 }
 
 // Death saves
-const deathSaves = { success: 0, failure: 0 };
 function toggleDeathSave(type, idx) {
   deathSaves[type] = idx < deathSaves[type] ? idx : idx+1;
   renderDeathSaves();
@@ -984,8 +992,6 @@ function renderDeathSaves() {
 // ══════════════════════════════════════════════════════════
 // HP TRACKER
 // ══════════════════════════════════════════════════════════
-let currentHP = C ? C.combat.hp : 0;
-const maxHP   = C ? C.combat.hpMax : 0;
 
 function changeHP(delta) {
   currentHP = Math.max(0, Math.min(maxHP, currentHP + delta));
@@ -996,7 +1002,6 @@ function changeHP(delta) {
 }
 
 // Inspiration toggle
-let hasInspiration = C ? C.inspiration : false;
 function toggleInspiration() {
   hasInspiration = !hasInspiration;
   const el = document.getElementById('inspiration-val');
