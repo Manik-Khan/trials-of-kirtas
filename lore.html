@@ -6,6 +6,7 @@
   <title>Lore — The Trials of Kirtas</title>
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link href="https://fonts.googleapis.com/css2?family=Cinzel+Decorative:wght@400;700&family=Cinzel:wght@400;600&family=Crimson+Pro:ital,wght@0,300;0,400;1,300;1,400&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="theme.css">
   <link rel="stylesheet" href="tooltips.css">
   <style>
     :root {
@@ -256,19 +257,7 @@
 </head>
 <body>
 
-  <nav>
-    <div class="nav-inner">
-      <a href="index.html" class="nav-brand">Kirtas</a>
-      <ul class="nav-links">
-        <li><a href="party.html">Party</a></li>
-        <li><a href="factions.html">Factions</a></li>
-        <li><a href="chronicle.html">Chronicle</a></li>
-        <li><a href="npcs.html">NPCs</a></li>
-        <li><a href="world.html">World</a></li>
-        <li><a href="lore.html" class="active">Lore</a></li>
-      </ul>
-    </div>
-  </nav>
+  <div id="nav-root"></div>
 
   <div class="page-header">
     <p class="page-eyebrow">History &amp; Background</p>
@@ -284,15 +273,15 @@
     <div class="lore-section opening">
       <div class="lore-section-title">The Kingdom of Kirtas</div>
       <p>
-        <strong>Kirtas</strong>, the jewel of the Western Kingdoms.  Occupying a fertile valley between the
-        <strong>Kharak Mountains</strong> to the South-East and the <strong>Long Hills</strong> to its North and West,
+        <strong>Kirtas</strong>, the jewel of the Western Kingdoms. Occupying a fertile valley between the
+        <span class="location-link" data-location="kharak"><strong>Kharak Mountains</strong></span> to the South-East and the <span class="location-link" data-location="longhills"><strong>Long Hills</strong></span> to its North and West,
         for centuries this human kingdom was the dominant force in the region. To the North-East lay the great
-        Elven forest <strong>Ilora</strong>, whose finely crafted goods flowed into Kirtas, traded in exchange
+        Elven forest <span class="location-link" data-location="ilora"><strong>Ilora</strong></span>, whose finely crafted goods flowed into Kirtas, traded in exchange
         for the kingdom's renowned farmed produce, livestock, fine wines and cheeses.
       </p>
       <p>
         The Elven goods and other valuables would travel down the <strong>Kir River</strong> to the coast of the
-        <strong>Andan Sea</strong> and the great city of <strong>Tiersgard</strong>, and from there to parts far
+        <strong>Andan Sea</strong> and the great city of <span class="location-link" data-location="tiersgard"><strong>Tiersgard</strong></span>, and from there to parts far
         and wide, bringing in vast wealth.
       </p>
       <p>
@@ -320,7 +309,7 @@
       <p>
         Just two months after <span class="npc-link" data-npc="tyrus">Tyrus</span>'s ascension, a <span class="npc-link" data-npc="prince">prince</span> with a direct claim to the throne was born to the concubine.
         Crisis gripped the land as the king's council and his most senior general, <span class="npc-link" data-npc="darius"><strong>Darius</strong></span>, supported
-        the young prince. <span class="npc-link" data-npc="tyrus">Tyrus</span> refused to abdicate and with his supporters marched on <strong>Yevennia</strong>
+        the young prince. <span class="npc-link" data-npc="tyrus">Tyrus</span> refused to abdicate and with his supporters marched on <span class="location-link" data-location="yevennia"><strong>Yevennia</strong></span>
         where the prince and his supporters were based. War descended on Kirtas.
       </p>
 
@@ -350,7 +339,7 @@
         plague large swaths of the kingdom.
       </p>
       <p>
-        Seeing the devastation and folly wrought on their border, the <strong>Elves of Ilora</strong> have withdrawn
+        Seeing the devastation and folly wrought on their border, the <span class="location-link" data-location="ilora"><strong>Elves of Ilora</strong></span> have withdrawn
         to their woodland realm and keep a vigilant watch there, severing contact with the outside world. Those that
         stray near seldom return.
       </p>
@@ -367,18 +356,18 @@
         weapons and food. Other areas have been given over fully to Orcs, goblins and other foulness.
       </p>
       <p>
-        Only <strong>Tiersgard</strong>, the coastal trade city, retains a semblance of its former glory — its
+        Only <span class="location-link" data-location="tiersgard"><strong>Tiersgard</strong></span>, the coastal trade city, retains a semblance of its former glory — its
         merchants still making tidy profits by importing the tools of war. The city remains ostensibly neutral,
         but agents from each side operate within its walls, seeking information and advantage.
       </p>
       <p>
         Today, the remnants of each side still skirmish and make attempts to hold their territory against
         encroachment, but grand offensive campaigns are increasingly rare. <span class="npc-link" data-npc="tyrus"><strong>Tyrus</strong></span> and his forces
-        still hold the capital and dream of unifying the kingdom under his banner. <span class="npc-link" data-npc="darius"><strong>Darius</strong></span> and
-        <span class="npc-link" data-npc="reykoldt"><strong>Lord Reykoldt</strong></span> are encamped somewhere in the Long Hills with what forces they still control.
+        still hold the <span class="location-link" data-location="capital">capital</span> and dream of unifying the kingdom under his banner. <span class="npc-link" data-npc="darius"><strong>Darius</strong></span> and
+        <span class="npc-link" data-npc="reykoldt"><strong>Lord Reykoldt</strong></span> are encamped somewhere in the <span class="location-link" data-location="longhills">Long Hills</span> with what forces they still control.
       </p>
       <p>
-        And to the south, on the other side of the Kharak range, the kingdom of <strong>Numior</strong> — once
+        And to the south, on the other side of the <span class="location-link" data-location="kharak">Kharak range</span>, the kingdom of <span class="location-link" data-location="numior"><strong>Numior</strong></span> — once
         vassals of Kirtas — are hiring mercenaries of their own, perhaps seeing the opportunity to claim land and
         treasure from those who ruled them for so long.
       </p>
@@ -392,5 +381,6 @@
   </footer>
 
   <script src="tooltips.js"></script>
+  <script src="nav.js"></script>
 </body>
 </html>

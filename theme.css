@@ -1,0 +1,276 @@
+/* ============================================================
+   theme.css — Global Design Tokens
+   The Trials of Kirtas
+   ============================================================
+
+   HOW TO ADD A NEW THEME:
+   1. Copy the :root block below
+   2. Change the selector to [data-theme="yourthemename"]
+   3. Update the variable values
+   4. Add a new entry to the THEMES array in nav.js:
+      { id: 'yourthemename', label: 'Your Theme', color: '#hexcolor' }
+   That's it — the entire site updates automatically.
+
+   CURRENT THEMES:
+   - parchment (default) — warm medieval gold and ink
+   - elysian              — cool blue-violet arcane
+   - disco                — burnt orange noir
+
+   ============================================================ */
+
+
+/* ── Default: Parchment ── */
+:root {
+  /* Backgrounds */
+  --ink:          #1a1410;
+  --ink-deep:     #0d0a07;
+  --smoke:        #2a2018;
+
+  /* Text */
+  --parchment:    #f0e6ce;
+  --parchment2:   #e8d9b8;
+  --aged:         #c9b48a;
+  --muted:        #6b5d4a;
+
+  /* Accent */
+  --gold:         #b8952a;
+  --gold-light:   #d4ac3a;
+  --gold-dim:     rgba(184,149,42,0.15);
+  --gold-mid:     rgba(184,149,42,0.3);
+
+  /* Semantic */
+  --blood:        #7a1f1f;
+  --prof-color:   #4a7a5a;
+  --half-color:   #4a6a8a;
+  --exp-color:    #b8952a;
+  --crit-color:   #c8a020;
+  --hp-good:      #5a9a6a;
+  --hp-warn:      #c8a020;
+  --hp-bad:       #9a5a5a;
+
+  /* Typography */
+  --font-display: 'Cinzel Decorative', serif;
+  --font-title:   'Cinzel', serif;
+  --font-body:    'Crimson Pro', Georgia, serif;
+
+  /* Nav */
+  --nav-bg:       rgba(13,10,7,0.95);
+  --nav-border:   rgba(184,149,42,0.2);
+
+  /* Texture — SVG noise overlay opacity */
+  --noise-opacity: 0.4;
+
+  /* Section backgrounds */
+  --section-bg:   linear-gradient(160deg, rgba(42,30,16,0.5) 0%, rgba(20,15,8,0.7) 100%);
+  --section-border: rgba(184,149,42,0.15);
+}
+
+
+/* ── Theme: Elysian ── */
+[data-theme="elysian"] {
+  --ink:          #1a1c2a;
+  --ink-deep:     #13151f;
+  --smoke:        #1e2135;
+
+  --parchment:    #dde4f0;
+  --parchment2:   #c8d4e8;
+  --aged:         #8a9ac0;
+  --muted:        #4a5270;
+
+  --gold:         #8096dc;
+  --gold-light:   #a0b4f0;
+  --gold-dim:     rgba(120,150,220,0.15);
+  --gold-mid:     rgba(120,150,220,0.3);
+
+  --blood:        #6a3a7a;
+  --prof-color:   #5a7aaa;
+  --half-color:   #6a5a9a;
+  --exp-color:    #8096dc;
+  --crit-color:   #a0c0f0;
+  --hp-good:      #5a8aaa;
+  --hp-warn:      #8096dc;
+  --hp-bad:       #8a5a7a;
+
+  --font-display: 'IM Fell English', serif;
+  --font-title:   'Cinzel', serif;
+  --font-body:    'Crimson Pro', Georgia, serif;
+
+  --nav-bg:       rgba(13,15,25,0.95);
+  --nav-border:   rgba(120,150,220,0.2);
+
+  --noise-opacity: 0.3;
+
+  --section-bg:   linear-gradient(160deg, rgba(30,33,53,0.6) 0%, rgba(13,15,25,0.8) 100%);
+  --section-border: rgba(120,150,220,0.15);
+}
+
+
+/* ── Theme: Disco Elysium ── */
+[data-theme="disco"] {
+  --ink:          #0f0e12;
+  --ink-deep:     #0a090d;
+  --smoke:        #16141a;
+
+  --parchment:    #e8dfc8;
+  --parchment2:   #c8bfa8;
+  --aged:         #a89da8;
+  --muted:        #6b6070;
+
+  --gold:         #c8622a;
+  --gold-light:   #e07840;
+  --gold-dim:     rgba(200,98,42,0.15);
+  --gold-mid:     rgba(200,98,42,0.3);
+
+  --blood:        #8a2a1a;
+  --prof-color:   #c8622a;
+  --half-color:   #8a5a7a;
+  --exp-color:    #c8622a;
+  --crit-color:   #e8a020;
+  --hp-good:      #5a8a5a;
+  --hp-warn:      #c8a020;
+  --hp-bad:       #9a3a2a;
+
+  --font-display: 'Bebas Neue', sans-serif;
+  --font-title:   'Raleway', sans-serif;
+  --font-body:    'Raleway', sans-serif;
+
+  --nav-bg:       rgba(10,9,13,0.98);
+  --nav-border:   rgba(200,98,42,0.3);
+
+  --noise-opacity: 0.5;
+
+  --section-bg:   linear-gradient(160deg, rgba(22,20,26,0.8) 0%, rgba(10,9,13,0.9) 100%);
+  --section-border: rgba(200,98,42,0.2);
+}
+
+
+/* ── ADD NEW THEMES BELOW THIS LINE ──
+   Copy this block and fill in your values:
+
+[data-theme="mythemename"] {
+  --ink:          #000000;
+  --ink-deep:     #000000;
+  --smoke:        #000000;
+  --parchment:    #ffffff;
+  --parchment2:   #ffffff;
+  --aged:         #aaaaaa;
+  --muted:        #666666;
+  --gold:         #aaaaaa;
+  --gold-light:   #cccccc;
+  --gold-dim:     rgba(170,170,170,0.15);
+  --gold-mid:     rgba(170,170,170,0.3);
+  --blood:        #aa0000;
+  --prof-color:   #005500;
+  --half-color:   #000055;
+  --exp-color:    #aaaa00;
+  --crit-color:   #ffaa00;
+  --hp-good:      #005500;
+  --hp-warn:      #aaaa00;
+  --hp-bad:       #aa0000;
+  --font-display: 'Cinzel Decorative', serif;
+  --font-title:   'Cinzel', serif;
+  --font-body:    'Crimson Pro', Georgia, serif;
+  --nav-bg:       rgba(0,0,0,0.95);
+  --nav-border:   rgba(170,170,170,0.2);
+  --noise-opacity: 0.4;
+  --section-bg:   linear-gradient(160deg, rgba(20,20,20,0.5) 0%, rgba(10,10,10,0.7) 100%);
+  --section-border: rgba(170,170,170,0.15);
+}
+
+══════════════════════════════════════════════ */
+
+
+/* ============================================================
+   GLOBAL BASE STYLES
+   Applied to every page regardless of theme.
+   Only structural/layout rules here — no hardcoded colors.
+   ============================================================ */
+
+*, *::before, *::after {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+}
+
+html { scroll-behavior: smooth; }
+
+body {
+  background-color: var(--ink);
+  color: var(--parchment);
+  font-family: var(--font-body);
+  font-size: 17px;
+  line-height: 1.7;
+  min-height: 100vh;
+  overflow-x: hidden;
+  transition: background-color 0.3s ease, color 0.3s ease;
+}
+
+/* Noise texture overlay — opacity controlled by theme */
+body::before {
+  content: '';
+  position: fixed;
+  inset: 0;
+  background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noise'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noise)' opacity='0.06'/%3E%3C/svg%3E");
+  pointer-events: none;
+  z-index: 9999;
+  opacity: var(--noise-opacity);
+  transition: opacity 0.3s ease;
+}
+
+/* Shared divider */
+.site-divider {
+  border: none;
+  height: 1px;
+  background: linear-gradient(90deg, transparent, var(--gold-mid), transparent);
+  margin: 0;
+}
+
+/* Shared decorative rule with diamond */
+.rule {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  max-width: 400px;
+  margin: 1.5rem auto;
+}
+.rule::before, .rule::after {
+  content: '';
+  flex: 1;
+  height: 1px;
+  background: linear-gradient(90deg, transparent, var(--gold), transparent);
+}
+.rule-diamond {
+  width: 6px;
+  height: 6px;
+  background: var(--gold);
+  transform: rotate(45deg);
+  flex-shrink: 0;
+}
+
+/* Shared section block */
+.sheet-section {
+  background: var(--section-bg);
+  border: 1px solid var(--section-border);
+  padding: 0.85rem 1rem;
+  margin-bottom: 0.85rem;
+  transition: background 0.3s ease, border-color 0.3s ease;
+}
+.sheet-section:last-child { margin-bottom: 0; }
+
+.section-title {
+  font-family: var(--font-title);
+  font-size: 0.54rem;
+  letter-spacing: 0.4em;
+  color: var(--gold);
+  text-transform: uppercase;
+  border-bottom: 1px solid var(--gold-dim);
+  padding-bottom: 0.35rem;
+  margin-bottom: 0.75rem;
+}
+
+/* Smooth theme transitions */
+nav, footer, .sheet-section, .stat-pill, .combat-stat,
+.ability-box, .prof-row, .skill-row, .save-row,
+.action-slot, .roller-panel, .toggle-btn {
+  transition: background 0.3s ease, border-color 0.3s ease, color 0.3s ease;
+}
