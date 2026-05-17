@@ -697,12 +697,18 @@
 // ══════════════════════════════════════════════════════════
 // INIT — runs after all scripts and DOM are ready
 // ══════════════════════════════════════════════════════════
-// State — declared first so all functions can access them
+// ── All state declared here so every function can access them ──
 const RS         = { advantage: false, disadvantage: false, bless: false, guidance: false };
 const pipState   = {};
 const deathSaves = { success: 0, failure: 0 };
 let rollHistory     = [];
 let rollerCollapsed = false;
+// C-dependent — values set after C is resolved below
+let currentHP      = 0;
+let maxHPVal       = 0;
+let hasInspiration = false;
+let slots          = ['empty','empty','empty','empty'];
+let SLOTS_KEY      = 'kirtas-slots-default';
 
 const params  = new URLSearchParams(window.location.search);
 const charKey = params.get('character') || 'tyros';
@@ -733,23 +739,24 @@ if (!C) {
     </div>`;
   document.getElementById('loading')?.remove();
 } else {
+  // Initialise C-dependent state now that C is confirmed
+  currentHP      = C.combat.hp;
+  maxHPVal       = C.combat.hpMax;
+  hasInspiration = C.inspiration;
+  SLOTS_KEY      = `kirtas-slots-${charKey}`;
+  try {
+    const saved = localStorage.getItem(SLOTS_KEY);
+    slots = saved ? JSON.parse(saved) : (C.defaultSlots || ['empty','empty','empty','empty']).slice(0,4);
+  } catch(e) {
+    slots = (C.defaultSlots || ['empty','empty','empty','empty']).slice(0,4);
+  }
   document.title = `${C.name} — The Trials of Kirtas`;
   document.getElementById('site-footer').textContent =
     `The Trials of Kirtas · ${C.name} · ${C.classLabel}`;
   initSheet();
 }
 
-// C-dependent state — safe here because initSheet() only runs if C exists
-// and these are used only inside functions called by initSheet
-const SLOTS_KEY    = `kirtas-slots-${charKey}`;
-let slots = (() => {
-  if (!C) return ['empty','empty','empty','empty'];
-  try { const s = localStorage.getItem(SLOTS_KEY); if(s) return JSON.parse(s); } catch(e) {}
-  return (C.defaultSlots || ['empty','empty','empty','empty']).slice(0,4);
-})();
-let currentHP      = C ? C.combat.hp    : 0;
-const maxHP        = C ? C.combat.hpMax : 0;
-let hasInspiration = C ? C.inspiration  : false;
+
 
 // ══════════════════════════════════════════════════════════
 // ROLLER STATE
@@ -825,6 +832,11 @@ function rollInit() {
     detail:`d20:${roll.kept}${roll.label?` (${roll.label})`:''}`});
 }
 
+function rollActionById(id) {
+  const action = (C.actions || []).find(a => a.id === id);
+  if (action) rollAction(action);
+}
+
 function rollAction(action) {
   if (!action || action.type === 'utility') return;
   if (action.type === 'damage-only') {
@@ -898,7 +910,7 @@ function switchTab(id, btn) {
 // QUICK ACTION SLOTS
 // ══════════════════════════════════════════════════════════
 
-function saveSlots() { try { localStorage.setItem(SLOTS_KEY, JSON.stringify(slots)); } catch(e) {} }
+function saveSlots() { try { if(SLOTS_KEY) localStorage.setItem(SLOTS_KEY, JSON.stringify(slots)); } catch(e) {} }
 
 function getAction(id) {
   if (!id || id === 'empty') return null;
@@ -994,11 +1006,11 @@ function renderDeathSaves() {
 // ══════════════════════════════════════════════════════════
 
 function changeHP(delta) {
-  currentHP = Math.max(0, Math.min(maxHP, currentHP + delta));
+  currentHP = Math.max(0, Math.min(maxHPVal, currentHP + delta));
   const el = document.getElementById('hp-current');
   if (!el) return;
   el.textContent = currentHP;
-  el.style.color = currentHP <= 0 ? 'var(--hp-bad)' : currentHP < maxHP*0.5 ? 'var(--hp-warn)' : 'var(--hp-good)';
+  el.style.color = currentHP <= 0 ? 'var(--hp-bad)' : currentHP < maxHPVal*0.5 ? 'var(--hp-warn)' : 'var(--hp-good)';
 }
 
 // Inspiration toggle
@@ -1235,7 +1247,7 @@ function buildCombatTab() {
                   <td><span style="font-family:var(--font-title);font-size:0.55rem;color:var(--muted)">${a.type.replace('-',' ')}</span></td>
                   <td style="font-family:var(--font-title);color:var(--gold-light)">${hit}</td>
                   <td>${dmg}</td>
-                  <td><button class="atk-roll-btn" onclick="rollAction(${JSON.stringify(a).replace(/"/g,"'")})">🎲</button></td>
+                  <td><button class="atk-roll-btn" onclick="rollActionById('${a.id}')">🎲</button></td>
                 </tr>`;
               }).join('')}
             </tbody>
@@ -1354,7 +1366,7 @@ function buildSpellsTab() {
             </span>
             <span class="spell-time">${spell.castingTime}</span>
             <span class="spell-range">${spell.range}</span>
-            <button class="spell-roll-btn" ${!canRoll?'disabled':''} onclick="${canRoll?`rollAction(${JSON.stringify(matchAction).replace(/"/g,"'")})`:''}" title="${canRoll?'Roll this spell':'No roll'}">
+            <button class="spell-roll-btn" ${!canRoll?'disabled':''} onclick="${canRoll?`rollActionById('${matchAction.id}')`:''}" title="${canRoll?'Roll this spell':'No roll'}">
               ${canRoll ? '🎲' : '📖'}
             </button>
           </div>`;
