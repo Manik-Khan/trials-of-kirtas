@@ -1,0 +1,394 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Lore — The Trials of Kirtas</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=Cinzel+Decorative:wght@400;700&family=Cinzel:wght@400;600&family=Crimson+Pro:ital,wght@0,300;0,400;1,300;1,400&display=swap" rel="stylesheet">
+  <style>
+    :root {
+      --ink:        #1a1410;
+      --parchment:  #f0e6ce;
+      --parchment2: #e8d9b8;
+      --aged:       #c9b48a;
+      --blood:      #7a1f1f;
+      --gold:       #b8952a;
+      --gold-light: #d4ac3a;
+      --navy:       #1c2a3a;
+      --smoke:      #3a3228;
+      --muted:      #6b5d4a;
+    }
+
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    html { scroll-behavior: smooth; }
+
+    body {
+      background-color: var(--ink);
+      color: var(--parchment);
+      font-family: 'Crimson Pro', Georgia, serif;
+      font-size: 18px;
+      line-height: 1.8;
+      min-height: 100vh;
+      overflow-x: hidden;
+    }
+
+    body::before {
+      content: '';
+      position: fixed;
+      inset: 0;
+      background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noise'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noise)' opacity='0.04'/%3E%3C/svg%3E");
+      pointer-events: none;
+      z-index: 9999;
+      opacity: 0.4;
+    }
+
+    nav {
+      position: sticky;
+      top: 0;
+      z-index: 100;
+      background: rgba(13, 10, 7, 0.92);
+      backdrop-filter: blur(12px);
+      border-bottom: 1px solid rgba(184,149,42,0.2);
+      padding: 0 2rem;
+    }
+    .nav-inner {
+      max-width: 1100px;
+      margin: 0 auto;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      height: 56px;
+    }
+    .nav-brand {
+      font-family: 'Cinzel', serif;
+      font-size: 0.8rem;
+      letter-spacing: 0.2em;
+      color: var(--gold);
+      text-decoration: none;
+      text-transform: uppercase;
+    }
+    .nav-links {
+      display: flex;
+      gap: 2rem;
+      list-style: none;
+    }
+    .nav-links a {
+      font-family: 'Cinzel', serif;
+      font-size: 0.72rem;
+      letter-spacing: 0.15em;
+      color: var(--aged);
+      text-decoration: none;
+      text-transform: uppercase;
+      transition: color 0.2s;
+      position: relative;
+    }
+    .nav-links a::after {
+      content: '';
+      position: absolute;
+      bottom: -3px; left: 0;
+      width: 0; height: 1px;
+      background: var(--gold);
+      transition: width 0.2s;
+    }
+    .nav-links a:hover { color: var(--gold-light); }
+    .nav-links a:hover::after { width: 100%; }
+    .nav-links a.active { color: var(--gold-light); }
+    .nav-links a.active::after { width: 100%; }
+
+    .page-header {
+      text-align: center;
+      padding: 5rem 2rem 3rem;
+      background: radial-gradient(ellipse 80% 60% at 50% 0%, rgba(42,20,10,0.8) 0%, transparent 70%);
+    }
+    .page-eyebrow {
+      font-family: 'Cinzel', serif;
+      font-size: 0.7rem;
+      letter-spacing: 0.4em;
+      color: var(--gold);
+      text-transform: uppercase;
+      opacity: 0.7;
+    }
+    .page-title {
+      font-family: 'Cinzel Decorative', serif;
+      font-size: clamp(2rem, 5vw, 3.5rem);
+      color: var(--parchment);
+      margin: 0.75rem 0 0.5rem;
+      font-weight: 400;
+    }
+    .page-subtitle {
+      font-style: italic;
+      color: var(--aged);
+      font-size: 1rem;
+      max-width: 560px;
+      margin: 0 auto;
+    }
+
+    .rule {
+      display: flex;
+      align-items: center;
+      gap: 1rem;
+      max-width: 400px;
+      margin: 1.5rem auto;
+    }
+    .rule::before, .rule::after {
+      content: '';
+      flex: 1;
+      height: 1px;
+      background: linear-gradient(90deg, transparent, var(--gold), transparent);
+    }
+    .rule-diamond {
+      width: 6px; height: 6px;
+      background: var(--gold);
+      transform: rotate(45deg);
+      flex-shrink: 0;
+    }
+
+    /* ── Lore content ── */
+    .lore-container {
+      max-width: 780px;
+      margin: 0 auto;
+      padding: 4rem 2rem 6rem;
+    }
+
+    .lore-section {
+      margin-bottom: 4rem;
+    }
+
+    .lore-section-title {
+      font-family: 'Cinzel', serif;
+      font-size: 1.1rem;
+      letter-spacing: 0.12em;
+      color: var(--gold-light);
+      text-transform: uppercase;
+      margin-bottom: 1.5rem;
+      padding-bottom: 0.5rem;
+      border-bottom: 1px solid rgba(184,149,42,0.2);
+    }
+
+    .lore-section p {
+      color: var(--parchment2);
+      margin-bottom: 1.2rem;
+      font-size: 1.05rem;
+    }
+
+    .lore-section p:last-child {
+      margin-bottom: 0;
+    }
+
+    /* Drop cap for opening paragraph */
+    .lore-section.opening p:first-child::first-letter {
+      font-family: 'Cinzel Decorative', serif;
+      font-size: 4.5rem;
+      float: left;
+      line-height: 0.8;
+      margin: 0.1em 0.1em 0 0;
+      color: var(--gold);
+    }
+
+    /* Callout block */
+    .lore-callout {
+      background: linear-gradient(135deg, rgba(28,42,58,0.3) 0%, rgba(13,10,7,0.5) 100%);
+      border-left: 3px solid var(--blood);
+      padding: 1.5rem 2rem;
+      margin: 2rem 0;
+    }
+
+    .lore-callout p {
+      font-style: italic;
+      font-size: 1rem !important;
+      color: var(--parchment2);
+      margin: 0 !important;
+      opacity: 0.9;
+    }
+
+    /* Key terms */
+    .lore-section strong {
+      color: var(--gold-light);
+      font-weight: 400;
+    }
+
+    /* Section divider */
+    .lore-divider {
+      display: flex;
+      align-items: center;
+      gap: 1rem;
+      margin: 3rem 0;
+    }
+    .lore-divider::before, .lore-divider::after {
+      content: '';
+      flex: 1;
+      height: 1px;
+      background: linear-gradient(90deg, transparent, rgba(184,149,42,0.25), transparent);
+    }
+    .lore-divider-symbol {
+      font-family: 'Cinzel', serif;
+      font-size: 0.7rem;
+      color: var(--muted);
+      letter-spacing: 0.3em;
+      text-transform: uppercase;
+    }
+
+    .divider {
+      border: none;
+      height: 1px;
+      background: linear-gradient(90deg, transparent, rgba(184,149,42,0.3), transparent);
+    }
+
+    footer {
+      text-align: center;
+      padding: 3rem 2rem;
+      border-top: 1px solid rgba(184,149,42,0.1);
+      font-family: 'Cinzel', serif;
+      font-size: 0.65rem;
+      letter-spacing: 0.3em;
+      color: var(--muted);
+      text-transform: uppercase;
+    }
+
+    @media (max-width: 600px) {
+      .nav-links { gap: 1rem; }
+      .nav-links a { font-size: 0.62rem; }
+      .lore-container { padding: 2rem 1.25rem 4rem; }
+    }
+  </style>
+</head>
+<body>
+
+  <nav>
+    <div class="nav-inner">
+      <a href="index.html" class="nav-brand">Kirtas</a>
+      <ul class="nav-links">
+        <li><a href="party.html">Party</a></li>
+        <li><a href="factions.html">Factions</a></li>
+        <li><a href="chronicle.html">Chronicle</a></li>
+        <li><a href="npcs.html">NPCs</a></li>
+        <li><a href="world.html">World</a></li>
+        <li><a href="lore.html" class="active">Lore</a></li>
+      </ul>
+    </div>
+  </nav>
+
+  <div class="page-header">
+    <p class="page-eyebrow">History &amp; Background</p>
+    <div class="rule"><div class="rule-diamond"></div></div>
+    <h1 class="page-title">The Trials of Kirtas</h1>
+    <div class="rule"><div class="rule-diamond"></div></div>
+    <p class="page-subtitle">A kingdom's rise, a dynasty's fracture, and twenty years of war that left a realm in ashes.</p>
+  </div>
+
+  <div class="lore-container">
+
+    <!-- The Kingdom -->
+    <div class="lore-section opening">
+      <div class="lore-section-title">The Kingdom of Kirtas</div>
+      <p>
+        <strong>Kirtas</strong>, the jewel of the Western Kingdoms. Occupying a fertile valley between the
+        <strong>Kharak Mountains</strong> to the South-East and the <strong>Long Hills</strong> to its North and West,
+        for centuries this human kingdom was the dominant force in the region. To the North-East lay the great
+        Elven forest <strong>Ilora</strong>, whose finely crafted goods flowed into Kirtas, traded in exchange
+        for the kingdom's renowned farmed produce, livestock, fine wines and cheeses.
+      </p>
+      <p>
+        The Elven goods and other valuables would travel down the <strong>Kir River</strong> to the coast of the
+        <strong>Andan Sea</strong> and the great city of <strong>Tiersgard</strong>, and from there to parts far
+        and wide, bringing in vast wealth.
+      </p>
+      <p>
+        Friendship with the Elves brought great opportunities to the kingdom, whose artisans learned to create fine
+        jewelry and crafts from their elder allies. So too did the Wizard's colleges benefit, acquiring great learning,
+        coveted scrolls and ancient books through trade with lands both distant and near. This arcane knowledge and
+        craft were put to use by the kingdom to project its power. The Kirtian Military was a powerful force which
+        brought the surrounding realms into vassalage while pushing Orcs, Goblins and other monstrosities out of the
+        land. Thus the dominance of the <strong>Ranec Dynasty</strong>, kings of Kirtas, was maintained for centuries
+        while the land grew ever more prosperous.
+      </p>
+    </div>
+
+    <div class="lore-divider"><span class="lore-divider-symbol">✦</span></div>
+
+    <!-- The Succession Crisis -->
+    <div class="lore-section">
+      <div class="lore-section-title">The Succession Crisis</div>
+      <p>
+        The previous king, <strong>Aluin Ranec III</strong>, had assumed the throne as a young man and ruled
+        vigorously for decades. Unable to produce a male heir, his younger brother <strong>Tyrus</strong> was
+        named his successor. However, shortly before the king's death of pox, one of his concubines unexpectedly
+        became pregnant.
+      </p>
+      <p>
+        Just two months after Tyrus's ascension, a prince with a direct claim to the throne was born to the concubine.
+        Crisis gripped the land as the king's council and his most senior general, <strong>Darius</strong>, supported
+        the young prince. Tyrus refused to abdicate and with his supporters marched on <strong>Yevennia</strong>
+        where the prince and his supporters were based. War descended on Kirtas.
+      </p>
+
+      <div class="lore-callout">
+        <p>The young prince has not been seen for years. Many whisper that he died at the hands of an assassin —
+        that Darius and the council seek to rule in his name and so hide his death.</p>
+      </div>
+    </div>
+
+    <div class="lore-divider"><span class="lore-divider-symbol">✦</span></div>
+
+    <!-- The War -->
+    <div class="lore-section">
+      <div class="lore-section-title">Twenty Years of War</div>
+      <p>
+        The ensuing decades of conflict have ravaged the once rich land and its populace. With loyalties divided,
+        the mighty armies of Kirtas were split apart and bled dry. The kingdom's coffers were bankrupted to hire
+        armies of mercenaries. These hardened bands plundered and pillaged the land when it suited them, bringing
+        ever more misery and desperation to the citizens.
+      </p>
+      <p>
+        With no men to fill them, the border watches lapsed and foul creatures were drawn to the bloodshed and misery
+        like flies to a feast. Armies of vicious <strong>Hobgoblins and Orcs</strong> poured in from the mountains
+        to raid what wealth and plunder they could find. Increasingly desperate to put a decisive end to the conflict,
+        wizards from each side turned to forbidden knowledge and began raising the dead from the battlefield with
+        <strong>foul necromancy</strong>. Many of these abominations escaped the control of their masters and now
+        plague large swaths of the kingdom.
+      </p>
+      <p>
+        Seeing the devastation and folly wrought on their border, the <strong>Elves of Ilora</strong> have withdrawn
+        to their woodland realm and keep a vigilant watch there, severing contact with the outside world. Those that
+        stray near seldom return.
+      </p>
+    </div>
+
+    <div class="lore-divider"><span class="lore-divider-symbol">✦</span></div>
+
+    <!-- The World Today -->
+    <div class="lore-section">
+      <div class="lore-section-title">The World Today</div>
+      <p>
+        All this Kirtas was. Today, the kingdom is a husk of its former self. Within the fractured kingdom some
+        cities and towns have managed to escape the worst of the devastation by organizing militias, stockpiling
+        weapons and food. Other areas have been given over fully to Orcs, goblins and other foulness.
+      </p>
+      <p>
+        Only <strong>Tiersgard</strong>, the coastal trade city, retains a semblance of its former glory — its
+        merchants still making tidy profits by importing the tools of war. The city remains ostensibly neutral,
+        but agents from each side operate within its walls, seeking information and advantage.
+      </p>
+      <p>
+        Today, the remnants of each side still skirmish and make attempts to hold their territory against
+        encroachment, but grand offensive campaigns are increasingly rare. <strong>Tyrus</strong> and his forces
+        still hold the capital and dream of unifying the kingdom under his banner. <strong>Darius</strong> and
+        <strong>Lord Reykoldt</strong> are encamped somewhere in the Long Hills with what forces they still control.
+      </p>
+      <p>
+        And to the south, on the other side of the Kharak range, the kingdom of <strong>Numior</strong> — once
+        vassals of Kirtas — are hiring mercenaries of their own, perhaps seeing the opportunity to claim land and
+        treasure from those who ruled them for so long.
+      </p>
+    </div>
+
+  </div>
+
+  <hr class="divider">
+  <footer>
+    <p>The Trials of Kirtas &nbsp;·&nbsp; History &amp; Lore</p>
+  </footer>
+
+</body>
+</html>

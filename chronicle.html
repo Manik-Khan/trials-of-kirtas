@@ -1,0 +1,397 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Chronicle — The Trials of Kirtas</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=Cinzel+Decorative:wght@400;700&family=Cinzel:wght@400;600&family=Crimson+Pro:ital,wght@0,300;0,400;1,300;1,400&display=swap" rel="stylesheet">
+  <style>
+    :root {
+      --ink:        #1a1410;
+      --parchment:  #f0e6ce;
+      --parchment2: #e8d9b8;
+      --aged:       #c9b48a;
+      --blood:      #7a1f1f;
+      --gold:       #b8952a;
+      --gold-light: #d4ac3a;
+      --navy:       #1c2a3a;
+      --smoke:      #3a3228;
+      --muted:      #6b5d4a;
+    }
+
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    html { scroll-behavior: smooth; }
+
+    body {
+      background-color: var(--ink);
+      color: var(--parchment);
+      font-family: 'Crimson Pro', Georgia, serif;
+      font-size: 18px;
+      line-height: 1.8;
+      min-height: 100vh;
+      overflow-x: hidden;
+    }
+
+    body::before {
+      content: '';
+      position: fixed;
+      inset: 0;
+      background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noise'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noise)' opacity='0.04'/%3E%3C/svg%3E");
+      pointer-events: none;
+      z-index: 9999;
+      opacity: 0.4;
+    }
+
+    nav {
+      position: sticky;
+      top: 0;
+      z-index: 100;
+      background: rgba(13, 10, 7, 0.92);
+      backdrop-filter: blur(12px);
+      border-bottom: 1px solid rgba(184,149,42,0.2);
+      padding: 0 2rem;
+    }
+    .nav-inner {
+      max-width: 1100px;
+      margin: 0 auto;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      height: 56px;
+    }
+    .nav-brand {
+      font-family: 'Cinzel', serif;
+      font-size: 0.8rem;
+      letter-spacing: 0.2em;
+      color: var(--gold);
+      text-decoration: none;
+      text-transform: uppercase;
+    }
+    .nav-links {
+      display: flex;
+      gap: 2rem;
+      list-style: none;
+    }
+    .nav-links a {
+      font-family: 'Cinzel', serif;
+      font-size: 0.72rem;
+      letter-spacing: 0.15em;
+      color: var(--aged);
+      text-decoration: none;
+      text-transform: uppercase;
+      transition: color 0.2s;
+      position: relative;
+    }
+    .nav-links a::after {
+      content: '';
+      position: absolute;
+      bottom: -3px; left: 0;
+      width: 0; height: 1px;
+      background: var(--gold);
+      transition: width 0.2s;
+    }
+    .nav-links a:hover { color: var(--gold-light); }
+    .nav-links a:hover::after { width: 100%; }
+    .nav-links a.active { color: var(--gold-light); }
+    .nav-links a.active::after { width: 100%; }
+
+    .page-header {
+      text-align: center;
+      padding: 5rem 2rem 3rem;
+      background: radial-gradient(ellipse 80% 60% at 50% 0%, rgba(42,20,10,0.8) 0%, transparent 70%);
+    }
+    .page-eyebrow {
+      font-family: 'Cinzel', serif;
+      font-size: 0.7rem;
+      letter-spacing: 0.4em;
+      color: var(--gold);
+      text-transform: uppercase;
+      opacity: 0.7;
+    }
+    .page-title {
+      font-family: 'Cinzel Decorative', serif;
+      font-size: clamp(2rem, 5vw, 3.5rem);
+      color: var(--parchment);
+      margin: 0.75rem 0 0.5rem;
+      font-weight: 400;
+    }
+    .page-subtitle {
+      font-style: italic;
+      color: var(--aged);
+      font-size: 1rem;
+      max-width: 560px;
+      margin: 0 auto;
+    }
+
+    .rule {
+      display: flex;
+      align-items: center;
+      gap: 1rem;
+      max-width: 400px;
+      margin: 1.5rem auto;
+    }
+    .rule::before, .rule::after {
+      content: '';
+      flex: 1;
+      height: 1px;
+      background: linear-gradient(90deg, transparent, var(--gold), transparent);
+    }
+    .rule-diamond {
+      width: 6px; height: 6px;
+      background: var(--gold);
+      transform: rotate(45deg);
+      flex-shrink: 0;
+    }
+
+    /* ── Chronicle layout ── */
+    .chronicle-container {
+      max-width: 820px;
+      margin: 0 auto;
+      padding: 4rem 2rem 6rem;
+    }
+
+    /* ── Session entry ── */
+    .session {
+      position: relative;
+      margin-bottom: 4rem;
+      padding-left: 2.5rem;
+      border-left: 1px solid rgba(184,149,42,0.2);
+    }
+
+    /* Timeline dot */
+    .session::before {
+      content: '';
+      position: absolute;
+      left: -5px;
+      top: 0.6rem;
+      width: 9px;
+      height: 9px;
+      background: var(--gold);
+      transform: rotate(45deg);
+      flex-shrink: 0;
+    }
+
+    .session-meta {
+      display: flex;
+      align-items: baseline;
+      gap: 1rem;
+      margin-bottom: 0.5rem;
+      flex-wrap: wrap;
+    }
+
+    .session-number {
+      font-family: 'Cinzel', serif;
+      font-size: 0.65rem;
+      letter-spacing: 0.35em;
+      color: var(--gold);
+      text-transform: uppercase;
+    }
+
+    .session-date {
+      font-family: 'Cinzel', serif;
+      font-size: 0.65rem;
+      letter-spacing: 0.2em;
+      color: var(--muted);
+      text-transform: uppercase;
+    }
+
+    .session-title {
+      font-family: 'Cinzel Decorative', serif;
+      font-size: 1.5rem;
+      color: var(--parchment);
+      font-weight: 400;
+      margin-bottom: 0.5rem;
+      line-height: 1.3;
+    }
+
+    .session-location {
+      font-style: italic;
+      font-size: 0.9rem;
+      color: var(--muted);
+      margin-bottom: 1.25rem;
+    }
+
+    .session-body p {
+      color: var(--parchment2);
+      margin-bottom: 1rem;
+      font-size: 1.02rem;
+    }
+
+    .session-body p:last-child { margin-bottom: 0; }
+
+    /* Notable events tags */
+    .session-tags {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 0.5rem;
+      margin-top: 1.25rem;
+    }
+
+    .session-tag {
+      font-family: 'Cinzel', serif;
+      font-size: 0.6rem;
+      letter-spacing: 0.2em;
+      text-transform: uppercase;
+      padding: 0.2rem 0.65rem;
+      border: 1px solid rgba(184,149,42,0.2);
+      color: var(--muted);
+    }
+
+    /* ── Empty state ── */
+    .empty-state {
+      text-align: center;
+      padding: 4rem 2rem;
+      border: 1px dashed rgba(184,149,42,0.15);
+    }
+
+    .empty-state-glyph {
+      font-size: 2.5rem;
+      opacity: 0.3;
+      margin-bottom: 1rem;
+    }
+
+    .empty-state-title {
+      font-family: 'Cinzel', serif;
+      font-size: 0.85rem;
+      letter-spacing: 0.2em;
+      color: var(--muted);
+      text-transform: uppercase;
+      margin-bottom: 0.5rem;
+    }
+
+    .empty-state-text {
+      font-style: italic;
+      color: var(--muted);
+      font-size: 0.95rem;
+      opacity: 0.7;
+    }
+
+    /* ── How to add entries (editor note) ── */
+    .editor-note {
+      background: rgba(28,42,58,0.2);
+      border: 1px solid rgba(184,149,42,0.1);
+      padding: 1.5rem 2rem;
+      margin-bottom: 3rem;
+      font-size: 0.85rem;
+      color: var(--muted);
+      font-style: italic;
+    }
+
+    .editor-note strong {
+      font-style: normal;
+      color: var(--aged);
+      font-weight: 400;
+    }
+
+    .divider {
+      border: none;
+      height: 1px;
+      background: linear-gradient(90deg, transparent, rgba(184,149,42,0.3), transparent);
+    }
+
+    footer {
+      text-align: center;
+      padding: 3rem 2rem;
+      border-top: 1px solid rgba(184,149,42,0.1);
+      font-family: 'Cinzel', serif;
+      font-size: 0.65rem;
+      letter-spacing: 0.3em;
+      color: var(--muted);
+      text-transform: uppercase;
+    }
+
+    @media (max-width: 600px) {
+      .nav-links { gap: 1rem; }
+      .nav-links a { font-size: 0.62rem; }
+      .chronicle-container { padding: 2rem 1.25rem 4rem; }
+      .session { padding-left: 1.5rem; }
+    }
+  </style>
+</head>
+<body>
+
+  <nav>
+    <div class="nav-inner">
+      <a href="index.html" class="nav-brand">Kirtas</a>
+      <ul class="nav-links">
+        <li><a href="party.html">Party</a></li>
+        <li><a href="factions.html">Factions</a></li>
+        <li><a href="chronicle.html" class="active">Chronicle</a></li>
+        <li><a href="npcs.html">NPCs</a></li>
+        <li><a href="world.html">World</a></li>
+        <li><a href="lore.html">Lore</a></li>
+      </ul>
+    </div>
+  </nav>
+
+  <div class="page-header">
+    <p class="page-eyebrow">Session Journal</p>
+    <div class="rule"><div class="rule-diamond"></div></div>
+    <h1 class="page-title">The Chronicle</h1>
+    <div class="rule"><div class="rule-diamond"></div></div>
+    <p class="page-subtitle">A record of the party's deeds, discoveries, and decisions — newest sessions first.</p>
+  </div>
+
+  <div class="chronicle-container">
+
+    <!-- ADD NEW SESSIONS AT THE TOP, ABOVE THIS LINE -->
+    <!-- Copy the session template below and paste it here -->
+
+    <!-- ═══════════════════════════════════════════════
+         SESSION TEMPLATE — copy this block for each new session:
+
+    <div class="session">
+      <div class="session-meta">
+        <span class="session-number">Session 00</span>
+        <span class="session-date">Month Day, Year</span>
+      </div>
+      <div class="session-title">Title of the Session</div>
+      <div class="session-location">📍 Location Name</div>
+      <div class="session-body">
+        <p>Write the session summary here. Multiple paragraphs are fine.</p>
+        <p>Continue the story...</p>
+      </div>
+      <div class="session-tags">
+        <span class="session-tag">Tag One</span>
+        <span class="session-tag">Tag Two</span>
+      </div>
+    </div>
+
+    ═══════════════════════════════════════════════ -->
+
+    <!-- SESSION 0 -->
+    <div class="session">
+      <div class="session-meta">
+        <span class="session-number">Session 0</span>
+        <span class="session-date">The Beginning</span>
+      </div>
+      <div class="session-title">The World Before</div>
+      <div class="session-location">📍 Tiersgard</div>
+      <div class="session-body">
+        <p>The party convened for the first time, drawing together from separate corners of a fractured world. Kirtas bleeds. The throne is contested. The dead walk roads that armies once marched. And somewhere in the Long Hills, a general fights for a prince no one has seen in years.</p>
+        <p>The chronicle begins here.</p>
+      </div>
+      <div class="session-tags">
+        <span class="session-tag">Session Zero</span>
+        <span class="session-tag">Tiersgard</span>
+        <span class="session-tag">Party Assembly</span>
+      </div>
+    </div>
+
+    <!-- Empty state — remove this block once sessions are added -->
+    <div class="empty-state" id="empty-state" style="display:none">
+      <div class="empty-state-glyph">📜</div>
+      <div class="empty-state-title">The Pages Are Blank</div>
+      <p class="empty-state-text">The chronicle awaits its first entry.</p>
+    </div>
+
+  </div>
+
+  <hr class="divider">
+  <footer>
+    <p>The Trials of Kirtas &nbsp;·&nbsp; Session Chronicle</p>
+  </footer>
+
+</body>
+</html>
