@@ -815,7 +815,7 @@
 
   <!-- Drawer -->
   <div class="c-drawer collapsed" id="c-drawer">
-    <div class="c-drawer-tab" onclick="toggleDrawer()">
+    <div class="c-drawer-tab" onclick="typeof toggleDrawer==='function'&&toggleDrawer()">
       <div class="c-drawer-tab-left">
         <div class="c-drawer-id-dot" id="drawer-dot"></div>
         <span class="c-drawer-id-name" id="drawer-name">Guest</span>
@@ -1522,4 +1522,92 @@ async function submitEntry() {
   const text       = rawHTML.replace(/<p><br><\/p>/g,'').trim();
 
   if (!sessionNum && sessionNum !== 0) { setDrawerStatus('Please enter a session number.','error'); return; }
-  if (!text || 
+  if (!text || text === '<p></p>') { setDrawerStatus('Please write something before submitting.','error'); return; }
+
+  const tagMatches = rawHTML.match(/#([a-zA-Z0-9_-]+)/g)||[];
+  const tags = [...new Set(tagMatches.map(t=>t.slice(1).toLowerCase()))];
+  const cleanHTML = rawHTML.replace(/#[a-zA-Z0-9_-]+ ?/g,'');
+  const title    = document.getElementById('d-title').value.trim();
+  const location = document.getElementById('d-location').value.trim();
+
+  const entry = {
+    id:           editingEntryId || Date.now().toString(),
+    session:      sessionNum,
+    ...(title    && { sessionTitle: title }),
+    ...(location && { location }),
+    author:       currentIdentity.name,
+    character:    currentIdentity.character,
+    color:        currentIdentity.color,
+    timestamp:    editingEntryId ? (allEntries.find(e=>e.id===editingEntryId)?.timestamp||new Date().toISOString()) : new Date().toISOString(),
+    text:         cleanHTML,
+    ...(tags.length && { tags }),
+  };
+
+  setDrawerStatus('Submitting…','loading');
+  document.getElementById('drawer-submit').disabled = true;
+
+  try {
+    if (editingEntryId) {
+      allEntries = allEntries.map(e=>e.id===editingEntryId?entry:e);
+    } else {
+      allEntries = [entry, ...allEntries];
+    }
+    const res  = await fetch(FUNCTION_URL, {
+      method:  'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body:    JSON.stringify(entry),
+    });
+    const data = await res.json();
+    if (!res.ok) throw new Error(data.error||`HTTP ${res.status}`);
+    editingEntryId = null;
+    clearDraft();
+    setDrawerStatus('Entry added — visible to everyone shortly.','success');
+    renderSidebar();
+    renderEntries();
+    setTimeout(()=>{ const el=document.getElementById(`entry-${entry.id}`); if(el)el.scrollIntoView({behavior:'smooth',block:'center'}); },100);
+  } catch(e) {
+    setDrawerStatus(`Failed: ${e.message}`,'error');
+    if (!editingEntryId) allEntries = allEntries.filter(x=>x.id!==entry.id);
+  } finally {
+    document.getElementById('drawer-submit').disabled = false;
+  }
+}
+
+async function writeChronicle(message) {
+  const res = await fetch(FUNCTION_URL, {
+    method:  'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body:    JSON.stringify({ _replaceAll: true, entries: allEntries, message }),
+  });
+  if (!res.ok) throw new Error(`HTTP ${res.status}`);
+}
+
+function setDrawerStatus(msg, type) {
+  const el = document.getElementById('drawer-status');
+  if (el) { el.textContent = msg; el.className = `c-drawer-status ${type}`; }
+}
+
+// ══════════════════════════════════════════════════════════
+// INIT
+// ══════════════════════════════════════════════════════════
+document.addEventListener('DOMContentLoaded', () => {
+  loadIdentity();
+  updateDrawerIdentity();
+  if (currentIdentity?.playerId === 'dm') document.getElementById('dm-session-ctrl').style.display = 'block';
+  initQuill();
+  loadChronicle();
+
+  // Close inline dropdown on outside click
+  document.addEventListener('click', e => {
+    if (!document.getElementById('inline-dropdown').contains(e.target)) hideInlineDropdown();
+  });
+
+  // Save draft on field input
+  ['d-session','d-title','d-location'].forEach(id => {
+    const el = document.getElementById(id);
+    if (el) el.addEventListener('input', saveDraft);
+  });
+});
+</script>
+</body>
+</html>
