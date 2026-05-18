@@ -7,6 +7,7 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link href="https://fonts.googleapis.com/css2?family=Cinzel+Decorative:wght@400;700&family=Cinzel:wght@400;600&family=Crimson+Pro:ital,wght@0,300;0,400;0,600;1,300;1,400&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="theme.css">
+  <link rel="stylesheet" href="tooltips.css">
   <link href="https://cdnjs.cloudflare.com/ajax/libs/quill/1.3.7/quill.snow.css" rel="stylesheet">
   <style>
     *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
@@ -918,6 +919,9 @@ let inlineMode      = null; // 'mention' | 'tag'
 let inlineQuery     = '';
 let inlineFocusIdx  = 0;
 let inlineRange     = null;
+// mentionMap: tracks inserted mentions by name for reliable tagging at submit/tag-extract time
+// format: { 'Darius': { type: 'npc', key: 'darius' }, 'Tiersgard': { type: 'location', key: 'tiersgard' } }
+let mentionMap      = {};
 
 // ══════════════════════════════════════════════════════════
 // IDENTITY
@@ -1018,6 +1022,7 @@ function clearDraft() {
   document.getElementById('d-title').value    = '';
   document.getElementById('d-location').value = '';
   if (quill) quill.setContents([]);
+  mentionMap = {}; // reset mention tracking for next entry
 }
 
 // ══════════════════════════════════════════════════════════
@@ -1197,11 +1202,14 @@ function insertMention(type, key, name) {
   quill.formatText(insertIdx + name.length, 1, { color: false, bold: false });
   quill.setSelection(insertIdx + name.length + 1, 0);
 
+  // Register mention in the reliable map (source of truth for tooltip key resolution)
+  mentionMap[name] = { type, key };
+
   // After insert: clear active color format so subsequent typing is normal
   setTimeout(() => {
     const afterIdx = insertIdx + name.length;
 
-    // Insert a zero-width non-breaking space with no color to break the format chain
+    // Insert a space with no color to break the format chain
     quill.insertText(afterIdx, ' ', { color: false, bold: false, italic: false, background: false });
 
     // Clear Quill's active format state — this is the key fix
@@ -1212,12 +1220,14 @@ function insertMention(type, key, name) {
     // Move cursor after the space
     quill.setSelection(afterIdx + 1, 0);
 
-    // Tag the exact span in the DOM
+    // Best-effort: tag the span in the DOM using mentionMap as source of truth
     const spans = quill.root.querySelectorAll('span[style*="color"]');
     spans.forEach(span => {
-      if (span.textContent.trim() === name && !span.dataset.mentionType) {
-        span.dataset.mentionType = type;
-        span.dataset.mentionKey  = key;
+      const spanText = span.textContent.trim();
+      const mapEntry = mentionMap[spanText];
+      if (mapEntry && !span.dataset.mentionType) {
+        span.dataset.mentionType = mapEntry.type;
+        span.dataset.mentionKey  = mapEntry.key;
       }
     });
   }, 20);
@@ -1489,14 +1499,72 @@ function renderEntry(e) {
 }
 
 function processEntryHTML(html) {
-  // Convert data-mention-type/key attributes to proper npc-link/location-link spans
-  return html
+  // Pass 1: Convert spans that were correctly tagged with data-mention-* attributes
+  let out = html
     .replace(/<span([^>]*?)data-mention-type="npc"([^>]*?)data-mention-key="([^"]*)"([^>]*?)>(.*?)<\/span>/g,
       '<span class="npc-link" data-npc="$3"$1$2$4>$5</span>')
     .replace(/<span([^>]*?)data-mention-type="location"([^>]*?)data-mention-key="([^"]*)"([^>]*?)>(.*?)<\/span>/g,
       '<span class="location-link" data-location="$3"$1$2$4>$5</span>')
     .replace(/<span([^>]*?)data-mention-type="npc-unresolved"([^>]*?)data-mention-key="([^"]*)"([^>]*?)>(.*?)<\/span>/g,
       '<span class="npc-unresolved" title="Not yet in tooltips.js — add $3 to define"$1$2$4>$5</span>');
+
+  // Pass 2: Color-fallback — repair old entries where DOM tagging failed.
+  // Any span colored exactly #d4ac3a (NPC gold) or #8ab4c9 (location blue) that isn't
+  // already an npc-link / location-link is a mention whose attributes didn't get saved.
+  // We resolve it by matching the span's text against all known NPC/location display names.
+
+  // Build name→key lookup from live data (falls back to hardcoded list if tooltips.js not loaded)
+  const npcNameMap = typeof NPC_DATA !== 'undefined'
+    ? Object.fromEntries(Object.entries(NPC_DATA).map(([k, v]) => [v.name, k]))
+    : {
+        'Tyros Darkstar': 'tyros', 'Caim': 'caim', 'Líadan Luchóg': 'liadan',
+        'Vesperian Vale': 'vesperian', 'Tyrus Ranec': 'tyrus', 'General Darius': 'darius',
+        'Lord Reykoldt': 'reykoldt', 'The Young Prince': 'prince', 'Aluin Ranec III': 'aluin',
+        'King Eneos II': 'eneos', 'Rhadig of Koria': 'rhadig', 'Lucius Solci': 'solci'
+      };
+  // Also cover the short dropdown display names from getMentionNpcs() fallback list
+  const dropdownNpcMap = {
+    'Darius': 'darius', 'Tyrus': 'tyrus', 'Lord Reykoldt': 'reykoldt',
+    'King Eneos': 'eneos', 'Rhadig': 'rhadig', 'Lucius Solci': 'solci',
+    'The Prince': 'prince', 'Aluin': 'aluin',
+    'Tyros Darkstar': 'tyros', 'Caim': 'caim', 'Líadan Luchóg': 'liadan', 'Vesperian Vale': 'vesperian'
+  };
+  const npcMap = Object.assign({}, npcNameMap, dropdownNpcMap);
+
+  const locNameMap = typeof LOCATION_DATA !== 'undefined'
+    ? Object.fromEntries(Object.entries(LOCATION_DATA).map(([k, v]) => [v.name, k]))
+    : {
+        'Tiersgard': 'tiersgard', 'The Capital': 'capital', 'Yevennia': 'yevennia',
+        'The Long Hills': 'longhills', 'The Kharak Mountains': 'kharak',
+        'Ilora': 'ilora', 'Numior': 'numior'
+      };
+  const dropdownLocMap = {
+    'Long Hills': 'longhills', 'Kharak': 'kharak', 'Capital': 'capital'
+  };
+  const locMap = Object.assign({}, locNameMap, dropdownLocMap);
+
+  // Replace untagged gold NPC spans
+  out = out.replace(/<span([^>]*?style="[^"]*color:\s*#d4ac3a[^"]*"[^>]*)>(.*?)<\/span>/gi,
+    (match, attrs, text) => {
+      // Skip if already converted (has npc-link class or data-npc)
+      if (/class="npc-link"/.test(attrs) || /data-npc=/.test(attrs)) return match;
+      const trimmed = text.trim();
+      const key = npcMap[trimmed];
+      if (key) return `<span class="npc-link" data-npc="${key}">${text}</span>`;
+      return match; // unknown name — leave as-is
+    });
+
+  // Replace untagged blue location spans
+  out = out.replace(/<span([^>]*?style="[^"]*color:\s*#8ab4c9[^"]*"[^>]*)>(.*?)<\/span>/gi,
+    (match, attrs, text) => {
+      if (/class="location-link"/.test(attrs) || /data-location=/.test(attrs)) return match;
+      const trimmed = text.trim();
+      const key = locMap[trimmed];
+      if (key) return `<span class="location-link" data-location="${key}">${text}</span>`;
+      return match;
+    });
+
+  return out;
 }
 
 function renderFilterBar() {
@@ -1576,6 +1644,19 @@ async function deleteEntry(id) {
 // ══════════════════════════════════════════════════════════
 async function submitEntry() {
   if (!currentIdentity) { openModal(); return; }
+
+  // Apply mentionMap to any spans that weren't tagged by the DOM tagger
+  // (catches cases where Quill re-rendered before the setTimeout ran)
+  if (quill) {
+    quill.root.querySelectorAll('span[style*="color"]').forEach(span => {
+      const spanText = span.textContent.trim();
+      const mapEntry = mentionMap[spanText];
+      if (mapEntry && !span.dataset.mentionType) {
+        span.dataset.mentionType = mapEntry.type;
+        span.dataset.mentionKey  = mapEntry.key;
+      }
+    });
+  }
 
   const sessionNum = parseInt(document.getElementById('d-session').value);
   const rawHTML    = quill ? quill.root.innerHTML : '';

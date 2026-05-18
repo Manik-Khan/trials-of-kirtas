@@ -327,11 +327,6 @@ function positionTooltip(el) {
   let left = rect.left;
   let top  = rect.bottom + margin;
 
-  console.log('[tooltip] el rect:', JSON.stringify({top: rect.top, bottom: rect.bottom, left: rect.left}));
-  console.log('[tooltip] tt size:', ttWidth, 'x', ttHeight);
-  console.log('[tooltip] viewport:', window.innerWidth, 'x', window.innerHeight);
-  console.log('[tooltip] initial top:', top, '| would overflow?', top + ttHeight + margin > window.innerHeight);
-
   // Prevent overflow off right edge
   if (left + ttWidth > window.innerWidth - margin) {
     left = window.innerWidth - ttWidth - margin;
@@ -341,11 +336,8 @@ function positionTooltip(el) {
   // If tooltip would overflow bottom of viewport, flip above the link
   if (top + ttHeight + margin > window.innerHeight) {
     top = rect.top - ttHeight - margin;
-    console.log('[tooltip] flipped above, new top:', top);
   }
   if (top < margin) top = margin;
-
-  console.log('[tooltip] final position: left=' + left + ' top=' + top);
 
   tooltip.style.left = left + 'px';
   tooltip.style.top  = top  + 'px';
