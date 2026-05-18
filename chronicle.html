@@ -1142,12 +1142,33 @@ function showInlineDropdown() {
     dd.innerHTML = html;
   }
 
-  // Position dropdown near cursor
+  // Position dropdown — above cursor if near bottom of viewport
   const bounds = quill.getBounds(quill.getSelection()?.index||0);
   const editorRect = document.getElementById('quill-editor').getBoundingClientRect();
   dd.style.display = 'block';
-  dd.style.left = (editorRect.left + bounds.left) + 'px';
-  dd.style.top  = (editorRect.top  + bounds.bottom + 4) + 'px';
+
+  const ddHeight = Math.min(dd.scrollHeight, 200);
+  const spaceBelow = window.innerHeight - (editorRect.top + bounds.bottom + 4);
+  const spaceAbove = editorRect.top + bounds.top - 4;
+
+  let left = editorRect.left + bounds.left;
+  let top;
+
+  if (spaceBelow < ddHeight && spaceAbove > ddHeight) {
+    // Show above cursor
+    top = editorRect.top + bounds.top - ddHeight - 4;
+  } else {
+    // Show below cursor
+    top = editorRect.top + bounds.bottom + 4;
+  }
+
+  // Keep within viewport horizontally
+  const ddWidth = 200;
+  if (left + ddWidth > window.innerWidth - 8) left = window.innerWidth - ddWidth - 8;
+  if (left < 8) left = 8;
+
+  dd.style.left = left + 'px';
+  dd.style.top  = top  + 'px';
 
   updateInlineFocus(dd.querySelectorAll('.inline-dropdown-item'));
 }
@@ -1176,18 +1197,25 @@ function insertMention(type, key, name) {
   quill.formatText(insertIdx + name.length, 1, { color: false, bold: false });
   quill.setSelection(insertIdx + name.length + 1, 0);
 
-  // Insert a space after the mention with NO formatting to break the color
+  // After insert: clear active color format so subsequent typing is normal
   setTimeout(() => {
     const afterIdx = insertIdx + name.length;
-    // Remove all formatting from this point forward
-    quill.removeFormat(afterIdx, 1);
-    quill.formatText(afterIdx, quill.getLength() - afterIdx, { color: false, bold: false, italic: false });
+
+    // Insert a zero-width non-breaking space with no color to break the format chain
+    quill.insertText(afterIdx, ' ', { color: false, bold: false, italic: false, background: false });
+
+    // Clear Quill's active format state — this is the key fix
+    quill.format('color', false);
+    quill.format('bold', false);
+    quill.format('italic', false);
+
+    // Move cursor after the space
     quill.setSelection(afterIdx + 1, 0);
 
     // Tag the exact span in the DOM
     const spans = quill.root.querySelectorAll('span[style*="color"]');
     spans.forEach(span => {
-      if (span.textContent === name && !span.dataset.mentionType) {
+      if (span.textContent.trim() === name && !span.dataset.mentionType) {
         span.dataset.mentionType = type;
         span.dataset.mentionKey  = key;
       }
@@ -1361,7 +1389,7 @@ function renderSidebar() {
   // Tags
   const allTags = [...new Set(allEntries.flatMap(e=>(e.tags||[]).map(t=>t.toLowerCase())))].sort();
   document.getElementById('tag-list').innerHTML = allTags.map(t=>`
-    <button class="c-tag-btn${activeFilters.tags.includes(t)?' active':''}" onclick="filterByTag('${t}')">${t}</button>`
+    <button class="c-tag-btn${activeFilters.tags.includes(t.toLowerCase())?' active':''}" onclick="filterByTag('${t}')">${t}</button>`
   ).join('');
 }
 
@@ -1492,7 +1520,7 @@ function renderFilterBar() {
 // ══════════════════════════════════════════════════════════
 function filterBySession(n) { activeFilters.session = n; renderSidebar(); renderEntries(); if(n!==null){const el=document.getElementById(`session-block-${n}`);if(el)el.scrollIntoView({behavior:'smooth'});} }
 function filterByAuthor(a)  { activeFilters.author  = activeFilters.author===a?null:a; renderSidebar(); renderEntries(); }
-function filterByTag(t)     { const tl=t.toLowerCase(); if(!activeFilters.tags.includes(tl))activeFilters.tags.push(tl); renderSidebar(); renderEntries(); }
+function filterByTag(t)     { const tl=t.toLowerCase(); if(activeFilters.tags.includes(tl)){activeFilters.tags=activeFilters.tags.filter(x=>x!==tl);}else{activeFilters.tags.push(tl);} renderSidebar(); renderEntries(); }
 function removeTagFilter(t) { activeFilters.tags=activeFilters.tags.filter(x=>x!==t); renderSidebar(); renderEntries(); }
 function clearSearch()      { activeFilters.search=''; document.getElementById('c-search').value=''; renderEntries(); }
 function clearAllFilters()  { activeFilters={session:null,author:null,tags:[],search:''}; document.getElementById('c-search').value=''; renderSidebar(); renderEntries(); }
