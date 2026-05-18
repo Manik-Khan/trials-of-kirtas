@@ -421,7 +421,8 @@
     /* NPC and location links in entries */
     .c-entry-text .npc-link { color: var(--gold-light); border-bottom: 1px dotted var(--gold-dim); cursor: default; }
     .c-entry-text .location-link { color: #8ab4c9; border-bottom: 1px dotted rgba(138,180,201,0.4); cursor: default; }
-    .c-entry-text .npc-unresolved { color: var(--aged); border-bottom: 2px dotted var(--muted); cursor: default; title: 'Not yet in tooltips.js'; }
+    .c-entry-text .npc-unresolved { color: var(--aged); border-bottom: 2px dotted var(--muted); cursor: default; }
+    .c-entry-text .location-unresolved { color: #7a9aaa; border-bottom: 2px dotted rgba(122,154,170,0.4); cursor: default; }
 
     .c-entry-tags {
       display: flex;
@@ -1180,7 +1181,10 @@ function showInlineDropdown() {
       // No known match — offer to insert as unresolved mention
       if (inlineQuery.length > 0) {
         const display = inlineQuery.charAt(0).toUpperCase() + inlineQuery.slice(1);
-        dd.innerHTML = `<div class="inline-dropdown-item" onclick="insertUnresolvedMention('${inlineQuery}','${display}')"><span class="inline-dropdown-icon">❓</span><span class="inline-dropdown-name">${display} <em style="color:var(--muted)">(unresolved)</em></span></div>`;
+        dd.innerHTML = `
+          <div class="inline-dropdown-section">Unknown — add as:</div>
+          <div class="inline-dropdown-item" onclick="insertUnresolvedMention('npc','${inlineQuery}','${display}')"><span class="inline-dropdown-icon">👤</span><span class="inline-dropdown-name">${display} <em style="color:var(--muted)">(unresolved NPC)</em></span></div>
+          <div class="inline-dropdown-item" onclick="insertUnresolvedMention('location','${inlineQuery}','${display}')"><span class="inline-dropdown-icon">📍</span><span class="inline-dropdown-name">${display} <em style="color:var(--muted)">(unresolved location)</em></span></div>`;
         dd.style.display = 'block';
         const bounds = quill.getBounds(quill.getSelection()?.index||0);
         const editorRect = document.getElementById('quill-editor').getBoundingClientRect();
@@ -1299,17 +1303,20 @@ function insertMention(type, key, name) {
   }, 20);
 }
 
-function insertUnresolvedMention(key, name) {
+function insertUnresolvedMention(type, key, name) {
   if (!inlineRange) return;
   const insertIdx = inlineRange.index;
   const deleteLen = inlineRange.length;
   hideInlineDropdown();
 
+  const color     = type === 'location' ? '#7a9aaa' : '#c9b48a';
+  const mentionType = type === 'location' ? 'location-unresolved' : 'npc-unresolved';
+
   quill.deleteText(insertIdx, deleteLen);
-  quill.insertText(insertIdx, name, { color: '#c9b48a', bold: false });
+  quill.insertText(insertIdx, name, { color, bold: false });
   quill.formatText(insertIdx + name.length, 1, { color: false, bold: false });
 
-  mentionMap[name] = { type: 'npc-unresolved', key };
+  mentionMap[name] = { type: mentionType, key };
 
   setTimeout(() => {
     const afterIdx = insertIdx + name.length;
@@ -1636,7 +1643,9 @@ function processEntryHTML(html) {
     .replace(/<span([^>]*?)data-mention-type="location"([^>]*?)data-mention-key="([^"]*)"([^>]*?)>(.*?)<\/span>/g,
       '<span class="location-link" data-location="$3"$1$2$4>$5</span>')
     .replace(/<span([^>]*?)data-mention-type="npc-unresolved"([^>]*?)data-mention-key="([^"]*)"([^>]*?)>(.*?)<\/span>/g,
-      '<span class="npc-unresolved" title="Not yet in tooltips.js — add $3 to define"$1$2$4>$5</span>');
+      '<span class="npc-unresolved" title="Not yet in tooltips.js — add $3 to define"$1$2$4>$5</span>')
+    .replace(/<span([^>]*?)data-mention-type="location-unresolved"([^>]*?)data-mention-key="([^"]*)"([^>]*?)>(.*?)<\/span>/g,
+      '<span class="location-unresolved" title="Not yet in tooltips.js — add $3 to define"$1$2$4>$5</span>');
 
   // Pass 2: Color-fallback — repair old entries where DOM tagging failed.
   // Any span colored exactly #d4ac3a (NPC gold) or #8ab4c9 (location blue) that isn't
@@ -1694,12 +1703,20 @@ function processEntryHTML(html) {
       return match;
     });
 
-  // Replace untagged unresolved mention spans (color #c9b48a — aged gold used only for unresolved)
+  // Replace untagged unresolved NPC spans (color #c9b48a — aged gold, only used for unresolved NPCs)
   out = out.replace(/<span([^>]*?style="[^"]*color:\s*#c9b48a[^"]*"[^>]*)>(.*?)<\/span>/gi,
     (match, attrs, text) => {
       if (/class="npc-unresolved"/.test(attrs)) return match;
       const key = text.trim().toLowerCase().replace(/[^a-z0-9]/g, '_').replace(/_+/g, '_').replace(/^_|_$/g, '');
       return `<span class="npc-unresolved" title="Not in tooltips.js — add '${key}' to define">${text}</span>`;
+    });
+
+  // Replace untagged unresolved location spans (color #7a9aaa — muted slate-blue, only used for unresolved locations)
+  out = out.replace(/<span([^>]*?style="[^"]*color:\s*#7a9aaa[^"]*"[^>]*)>(.*?)<\/span>/gi,
+    (match, attrs, text) => {
+      if (/class="location-unresolved"/.test(attrs)) return match;
+      const key = text.trim().toLowerCase().replace(/[^a-z0-9]/g, '_').replace(/_+/g, '_').replace(/^_|_$/g, '');
+      return `<span class="location-unresolved" title="Not in tooltips.js — add '${key}' to define">${text}</span>`;
     });
 
   return out;
@@ -1804,22 +1821,25 @@ async function submitEntry() {
   if (!text || text === '<p></p>') { setDrawerStatus('Please write something before submitting.','error'); return; }
 
   // Extract #hashtags — always lowercase for consistent filtering
-  const tagMatches = rawHTML.match(/#([a-zA-Z0-9_-]+)/g)||[];
-  const hashTags = tagMatches.map(t=>t.slice(1).toLowerCase().trim());
+  const tagMatches = rawHTML.match(/#([a-zA-Z][a-zA-Z0-9_-]*)/g)||[];
+  const hashTags = tagMatches
+    .map(t => t.slice(1).toLowerCase().trim())
+    .filter(t => !/^[0-9a-f]{3}$|^[0-9a-f]{6}$/i.test(t)); // exclude hex color codes
 
-  // Extract NPC and location mentions as tags too
+  // Extract resolved NPC and location mentions as tags (skip unresolved — not confirmed entries)
   const mentionTags = [];
   if (quill) {
     quill.root.querySelectorAll('[data-mention-type]').forEach(span => {
-      const mkey = span.dataset.mentionKey;
-      if (mkey && !mentionTags.includes(mkey.toLowerCase())) {
+      const mtype = span.dataset.mentionType;
+      const mkey  = span.dataset.mentionKey;
+      if (mkey && mtype !== 'npc-unresolved' && mtype !== 'location-unresolved' && !mentionTags.includes(mkey.toLowerCase())) {
         mentionTags.push(mkey.toLowerCase());
       }
     });
   }
 
   const tags = [...new Set([...hashTags, ...mentionTags])];
-  const cleanHTML = rawHTML.replace(/#[a-zA-Z0-9_-]+ ?/g,'');
+  const cleanHTML = rawHTML.replace(/#[a-zA-Z][a-zA-Z0-9_-]* ?/g,'');
   const title    = document.getElementById('d-title').value.trim();
   const location = document.getElementById('d-location').value.trim();
 
