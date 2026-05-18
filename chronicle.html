@@ -5,383 +5,848 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Chronicle — The Trials of Kirtas</title>
   <link rel="preconnect" href="https://fonts.googleapis.com">
-  <link href="https://fonts.googleapis.com/css2?family=Cinzel+Decorative:wght@400;700&family=Cinzel:wght@400;600&family=Crimson+Pro:ital,wght@0,300;0,400;1,300;1,400&display=swap" rel="stylesheet">
+  <link href="https://fonts.googleapis.com/css2?family=Cinzel+Decorative:wght@400;700&family=Cinzel:wght@400;600&family=Crimson+Pro:ital,wght@0,300;0,400;0,600;1,300;1,400&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="theme.css">
   <style>
-    :root {
-      --ink:        #1a1410;
-      --parchment:  #f0e6ce;
-      --parchment2: #e8d9b8;
-      --aged:       #c9b48a;
-      --blood:      #7a1f1f;
-      --gold:       #b8952a;
-      --gold-light: #d4ac3a;
-      --navy:       #1c2a3a;
-      --smoke:      #3a3228;
-      --muted:      #6b5d4a;
-    }
-
     *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
     html { scroll-behavior: smooth; }
-
     body {
       background-color: var(--ink);
       color: var(--parchment);
-      font-family: 'Crimson Pro', Georgia, serif;
+      font-family: var(--font-body);
       font-size: 18px;
       line-height: 1.8;
       min-height: 100vh;
-      overflow-x: hidden;
     }
 
-    body::before {
-      content: '';
-      position: fixed;
-      inset: 0;
-      background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noise'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noise)' opacity='0.04'/%3E%3C/svg%3E");
-      pointer-events: none;
-      z-index: 9999;
-      opacity: 0.4;
-    }
-
-    nav {
-      position: sticky;
-      top: 0;
-      z-index: 100;
-      background: rgba(13, 10, 7, 0.92);
-      backdrop-filter: blur(12px);
-      border-bottom: 1px solid rgba(184,149,42,0.2);
-      padding: 0 2rem;
-    }
-    .nav-inner {
-      max-width: 1100px;
-      margin: 0 auto;
-      display: flex;
-      align-items: center;
-      justify-content: space-between;
-      height: 56px;
-    }
-    .nav-brand {
-      font-family: 'Cinzel', serif;
-      font-size: 0.8rem;
-      letter-spacing: 0.2em;
-      color: var(--gold);
-      text-decoration: none;
-      text-transform: uppercase;
-    }
-    .nav-links {
-      display: flex;
-      gap: 2rem;
-      list-style: none;
-    }
-    .nav-links a {
-      font-family: 'Cinzel', serif;
-      font-size: 0.72rem;
-      letter-spacing: 0.15em;
-      color: var(--aged);
-      text-decoration: none;
-      text-transform: uppercase;
-      transition: color 0.2s;
-      position: relative;
-    }
-    .nav-links a::after {
-      content: '';
-      position: absolute;
-      bottom: -3px; left: 0;
-      width: 0; height: 1px;
-      background: var(--gold);
-      transition: width 0.2s;
-    }
-    .nav-links a:hover { color: var(--gold-light); }
-    .nav-links a:hover::after { width: 100%; }
-    .nav-links a.active { color: var(--gold-light); }
-    .nav-links a.active::after { width: 100%; }
-
+    /* ── Page header ── */
     .page-header {
       text-align: center;
-      padding: 5rem 2rem 3rem;
-      background: radial-gradient(ellipse 80% 60% at 50% 0%, rgba(42,20,10,0.8) 0%, transparent 70%);
+      padding: 3.5rem 2rem 2rem;
+      border-bottom: 1px solid var(--gold-dim);
     }
     .page-eyebrow {
-      font-family: 'Cinzel', serif;
-      font-size: 0.7rem;
-      letter-spacing: 0.4em;
+      font-family: var(--font-title);
+      font-size: 0.65rem;
+      letter-spacing: 0.5em;
       color: var(--gold);
       text-transform: uppercase;
-      opacity: 0.7;
+      margin-bottom: 1rem;
     }
     .page-title {
-      font-family: 'Cinzel Decorative', serif;
-      font-size: clamp(2rem, 5vw, 3.5rem);
+      font-family: var(--font-display);
+      font-size: 2.5rem;
       color: var(--parchment);
-      margin: 0.75rem 0 0.5rem;
       font-weight: 400;
+      margin-bottom: 0.75rem;
     }
     .page-subtitle {
       font-style: italic;
-      color: var(--aged);
+      color: var(--muted);
       font-size: 1rem;
-      max-width: 560px;
+      max-width: 550px;
       margin: 0 auto;
     }
+    .rule { display: flex; align-items: center; gap: 1rem; max-width: 200px; margin: 0.75rem auto; }
+    .rule::before, .rule::after { content: ''; flex: 1; height: 1px; background: linear-gradient(90deg, transparent, var(--gold), transparent); }
+    .rule-diamond { width: 6px; height: 6px; background: var(--gold); transform: rotate(45deg); flex-shrink: 0; }
 
-    .rule {
+    /* ── Layout ── */
+    .chronicle-container {
+      max-width: 800px;
+      margin: 0 auto;
+      padding: 3rem 2rem 6rem;
+    }
+
+    /* ── Identity bar ── */
+    .identity-bar {
       display: flex;
       align-items: center;
-      gap: 1rem;
-      max-width: 400px;
-      margin: 1.5rem auto;
+      justify-content: space-between;
+      padding: 0.6rem 1rem;
+      background: rgba(0,0,0,0.2);
+      border: 1px solid var(--gold-dim);
+      margin-bottom: 2rem;
+      font-family: var(--font-title);
+      font-size: 0.55rem;
+      letter-spacing: 0.2em;
+      text-transform: uppercase;
     }
-    .rule::before, .rule::after {
-      content: '';
-      flex: 1;
-      height: 1px;
-      background: linear-gradient(90deg, transparent, var(--gold), transparent);
+    .identity-bar-left { display: flex; align-items: center; gap: 0.6rem; }
+    .identity-dot { width: 10px; height: 10px; border-radius: 50%; flex-shrink: 0; }
+    .identity-name { color: var(--parchment2); }
+    .identity-change {
+      color: var(--muted);
+      cursor: pointer;
+      text-decoration: none;
+      border-bottom: 1px dotted var(--muted);
+      transition: color 0.15s;
+      background: none;
+      border-top: none;
+      border-left: none;
+      border-right: none;
+      font-family: var(--font-title);
+      font-size: 0.52rem;
+      letter-spacing: 0.2em;
+      text-transform: uppercase;
+      padding: 0;
     }
-    .rule-diamond {
-      width: 6px; height: 6px;
-      background: var(--gold);
-      transform: rotate(45deg);
-      flex-shrink: 0;
-    }
+    .identity-change:hover { color: var(--gold-light); }
 
-    /* ── Chronicle layout ── */
-    .chronicle-container {
-      max-width: 820px;
-      margin: 0 auto;
-      padding: 4rem 2rem 6rem;
+    /* ── Write panel ── */
+    .write-panel {
+      background: linear-gradient(160deg, rgba(42,30,16,0.4) 0%, rgba(20,15,8,0.6) 100%);
+      border: 1px solid var(--gold-dim);
+      padding: 1.25rem 1.5rem;
+      margin-bottom: 3rem;
     }
-
-    /* ── Session entry ── */
-    .session {
-      position: relative;
-      margin-bottom: 4rem;
-      padding-left: 2.5rem;
-      border-left: 1px solid rgba(184,149,42,0.2);
-    }
-
-    /* Timeline dot */
-    .session::before {
-      content: '';
-      position: absolute;
-      left: -5px;
-      top: 0.6rem;
-      width: 9px;
-      height: 9px;
-      background: var(--gold);
-      transform: rotate(45deg);
-      flex-shrink: 0;
-    }
-
-    .session-meta {
-      display: flex;
-      align-items: baseline;
-      gap: 1rem;
-      margin-bottom: 0.5rem;
-      flex-wrap: wrap;
-    }
-
-    .session-number {
-      font-family: 'Cinzel', serif;
-      font-size: 0.65rem;
+    .write-panel-title {
+      font-family: var(--font-title);
+      font-size: 0.52rem;
       letter-spacing: 0.35em;
       color: var(--gold);
       text-transform: uppercase;
+      margin-bottom: 1rem;
+      border-bottom: 1px solid var(--gold-dim);
+      padding-bottom: 0.4rem;
     }
-
-    .session-date {
-      font-family: 'Cinzel', serif;
-      font-size: 0.65rem;
+    .write-fields {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 0.75rem;
+      margin-bottom: 0.75rem;
+    }
+    .write-field label {
+      font-family: var(--font-title);
+      font-size: 0.48rem;
       letter-spacing: 0.2em;
       color: var(--muted);
       text-transform: uppercase;
+      display: block;
+      margin-bottom: 0.3rem;
     }
-
-    .session-title {
-      font-family: 'Cinzel Decorative', serif;
-      font-size: 1.5rem;
-      color: var(--parchment);
-      font-weight: 400;
-      margin-bottom: 0.5rem;
-      line-height: 1.3;
-    }
-
-    .session-location {
-      font-style: italic;
-      font-size: 0.9rem;
-      color: var(--muted);
-      margin-bottom: 1.25rem;
-    }
-
-    .session-body p {
+    .write-input {
+      width: 100%;
+      background: rgba(0,0,0,0.3);
+      border: 1px solid var(--gold-dim);
       color: var(--parchment2);
-      margin-bottom: 1rem;
-      font-size: 1.02rem;
+      font-family: var(--font-body);
+      font-size: 0.9rem;
+      padding: 0.4rem 0.6rem;
+      outline: none;
+      transition: border-color 0.15s;
     }
-
-    .session-body p:last-child { margin-bottom: 0; }
-
-    /* Notable events tags */
-    .session-tags {
-      display: flex;
-      flex-wrap: wrap;
-      gap: 0.5rem;
-      margin-top: 1.25rem;
-    }
-
-    .session-tag {
-      font-family: 'Cinzel', serif;
-      font-size: 0.6rem;
-      letter-spacing: 0.2em;
-      text-transform: uppercase;
-      padding: 0.2rem 0.65rem;
-      border: 1px solid rgba(184,149,42,0.2);
-      color: var(--muted);
-    }
-
-    /* ── Empty state ── */
-    .empty-state {
-      text-align: center;
-      padding: 4rem 2rem;
-      border: 1px dashed rgba(184,149,42,0.15);
-    }
-
-    .empty-state-glyph {
-      font-size: 2.5rem;
-      opacity: 0.3;
-      margin-bottom: 1rem;
-    }
-
-    .empty-state-title {
-      font-family: 'Cinzel', serif;
-      font-size: 0.85rem;
-      letter-spacing: 0.2em;
-      color: var(--muted);
-      text-transform: uppercase;
-      margin-bottom: 0.5rem;
-    }
-
-    .empty-state-text {
-      font-style: italic;
-      color: var(--muted);
+    .write-input:focus { border-color: var(--gold-mid); }
+    .write-input::placeholder { color: var(--muted); }
+    .write-textarea {
+      width: 100%;
+      background: rgba(0,0,0,0.3);
+      border: 1px solid var(--gold-dim);
+      color: var(--parchment2);
+      font-family: var(--font-body);
       font-size: 0.95rem;
-      opacity: 0.7;
+      line-height: 1.7;
+      padding: 0.6rem 0.75rem;
+      outline: none;
+      resize: vertical;
+      min-height: 120px;
+      transition: border-color 0.15s;
+      margin-bottom: 0.75rem;
     }
-
-    /* ── How to add entries (editor note) ── */
-    .editor-note {
-      background: rgba(28,42,58,0.2);
-      border: 1px solid rgba(184,149,42,0.1);
-      padding: 1.5rem 2rem;
-      margin-bottom: 3rem;
-      font-size: 0.85rem;
+    .write-textarea:focus { border-color: var(--gold-mid); }
+    .write-textarea::placeholder { color: var(--muted); font-style: italic; }
+    .write-footer {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 1rem;
+    }
+    .write-hint {
+      font-size: 0.78rem;
       color: var(--muted);
       font-style: italic;
     }
-
-    .editor-note strong {
-      font-style: normal;
-      color: var(--aged);
-      font-weight: 400;
+    .write-submit {
+      font-family: var(--font-title);
+      font-size: 0.52rem;
+      letter-spacing: 0.25em;
+      text-transform: uppercase;
+      padding: 0.45rem 1.25rem;
+      background: rgba(184,149,42,0.12);
+      border: 1px solid var(--gold);
+      color: var(--gold-light);
+      cursor: pointer;
+      transition: background 0.2s;
     }
+    .write-submit:hover { background: rgba(184,149,42,0.22); }
+    .write-submit:disabled { opacity: 0.4; cursor: default; }
+    .write-status {
+      font-family: var(--font-title);
+      font-size: 0.52rem;
+      letter-spacing: 0.15em;
+      text-transform: uppercase;
+      padding: 0.35rem 0.75rem;
+      display: none;
+    }
+    .write-status.visible { display: block; }
+    .write-status.submitting { color: var(--muted); }
+    .write-status.success { color: var(--hp-good); }
+    .write-status.error { color: var(--hp-bad); }
 
-    .divider {
-      border: none;
+    /* ── Session divider ── */
+    .session-divider {
+      display: flex;
+      align-items: center;
+      gap: 1rem;
+      margin: 2.5rem 0 2rem;
+    }
+    .session-divider::before, .session-divider::after {
+      content: '';
+      flex: 1;
       height: 1px;
       background: linear-gradient(90deg, transparent, rgba(184,149,42,0.3), transparent);
     }
+    .session-divider-label {
+      font-family: var(--font-title);
+      font-size: 0.58rem;
+      letter-spacing: 0.35em;
+      color: var(--gold);
+      text-transform: uppercase;
+      white-space: nowrap;
+      flex-shrink: 0;
+    }
+
+    /* ── Entries ── */
+    .entry {
+      display: flex;
+      gap: 1rem;
+      margin-bottom: 1.75rem;
+      animation: fadeIn 0.3s ease;
+    }
+    @keyframes fadeIn { from { opacity:0; transform:translateY(-4px); } to { opacity:1; transform:translateY(0); } }
+
+    .entry-bar {
+      width: 3px;
+      flex-shrink: 0;
+      border-radius: 2px;
+      margin-top: 0.25rem;
+    }
+    .entry-body { flex: 1; }
+    .entry-header {
+      display: flex;
+      align-items: baseline;
+      gap: 0.75rem;
+      margin-bottom: 0.35rem;
+      flex-wrap: wrap;
+    }
+    .entry-author {
+      font-family: var(--font-title);
+      font-size: 0.58rem;
+      letter-spacing: 0.15em;
+      text-transform: uppercase;
+      font-weight: 600;
+    }
+    .entry-character {
+      font-family: var(--font-title);
+      font-size: 0.5rem;
+      letter-spacing: 0.12em;
+      text-transform: uppercase;
+      color: var(--muted);
+    }
+    .entry-time {
+      font-size: 0.72rem;
+      color: var(--muted);
+      font-style: italic;
+      margin-left: auto;
+    }
+    .entry-text {
+      font-size: 0.98rem;
+      color: var(--parchment2);
+      line-height: 1.8;
+    }
+    .entry-text p { margin-bottom: 0.5rem; }
+    .entry-text p:last-child { margin-bottom: 0; }
+    .entry-tags {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 0.4rem;
+      margin-top: 0.75rem;
+    }
+    .entry-tag {
+      font-family: var(--font-title);
+      font-size: 0.44rem;
+      letter-spacing: 0.18em;
+      text-transform: uppercase;
+      padding: 0.15rem 0.5rem;
+      border: 1px solid var(--gold-dim);
+      color: var(--muted);
+    }
+
+    /* ── Loading state ── */
+    .chronicle-loading {
+      text-align: center;
+      padding: 3rem;
+      color: var(--muted);
+      font-style: italic;
+    }
+    .chronicle-spinner {
+      width: 24px; height: 24px;
+      border: 2px solid var(--gold-dim);
+      border-top-color: var(--gold);
+      border-radius: 50%;
+      animation: spin 0.8s linear infinite;
+      margin: 0 auto 0.75rem;
+    }
+    @keyframes spin { to { transform: rotate(360deg); } }
+
+    /* ── Identity modal ── */
+    .id-modal-backdrop {
+      position: fixed;
+      inset: 0;
+      background: rgba(0,0,0,0.75);
+      z-index: 300;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      backdrop-filter: blur(4px);
+    }
+    .id-modal-backdrop.hidden { display: none; }
+    .id-modal {
+      background: linear-gradient(160deg, #2a1e10 0%, #0d0a07 100%);
+      border: 1px solid var(--gold-dim);
+      padding: 2rem 2.5rem;
+      max-width: 420px;
+      width: 90%;
+      box-shadow: 0 20px 60px rgba(0,0,0,0.8);
+    }
+    .id-modal-title {
+      font-family: var(--font-display);
+      font-size: 1.2rem;
+      color: var(--parchment);
+      margin-bottom: 0.25rem;
+    }
+    .id-modal-sub {
+      font-size: 0.85rem;
+      color: var(--muted);
+      font-style: italic;
+      margin-bottom: 1.5rem;
+    }
+    .id-modal-label {
+      font-family: var(--font-title);
+      font-size: 0.5rem;
+      letter-spacing: 0.3em;
+      color: var(--gold);
+      text-transform: uppercase;
+      display: block;
+      margin-bottom: 0.6rem;
+    }
+    .id-players {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 0.5rem;
+      margin-bottom: 1.5rem;
+    }
+    .id-player-btn {
+      display: flex;
+      align-items: center;
+      gap: 0.6rem;
+      padding: 0.5rem 0.75rem;
+      background: rgba(0,0,0,0.3);
+      border: 1px solid var(--gold-dim);
+      cursor: pointer;
+      transition: all 0.15s;
+      text-align: left;
+    }
+    .id-player-btn:hover { background: rgba(184,149,42,0.08); border-color: var(--gold-mid); }
+    .id-player-btn.selected { border-color: var(--gold); background: rgba(184,149,42,0.12); }
+    .id-player-dot { width: 10px; height: 10px; border-radius: 50%; flex-shrink: 0; }
+    .id-player-info { display: flex; flex-direction: column; gap: 0.05rem; }
+    .id-player-name {
+      font-family: var(--font-title);
+      font-size: 0.6rem;
+      letter-spacing: 0.12em;
+      text-transform: uppercase;
+      color: var(--parchment2);
+    }
+    .id-player-char {
+      font-size: 0.72rem;
+      color: var(--muted);
+      font-style: italic;
+    }
+    .id-color-row {
+      display: flex;
+      align-items: center;
+      gap: 0.75rem;
+      margin-bottom: 1.5rem;
+    }
+    .id-color-preview {
+      width: 28px; height: 28px;
+      border-radius: 50%;
+      border: 2px solid rgba(255,255,255,0.2);
+      flex-shrink: 0;
+    }
+    .id-color-input {
+      width: 40px; height: 28px;
+      border: 1px solid var(--gold-dim);
+      background: rgba(0,0,0,0.3);
+      cursor: pointer;
+      padding: 0;
+    }
+    .id-color-hint {
+      font-size: 0.78rem;
+      color: var(--muted);
+      font-style: italic;
+    }
+    .id-confirm {
+      width: 100%;
+      font-family: var(--font-title);
+      font-size: 0.55rem;
+      letter-spacing: 0.3em;
+      text-transform: uppercase;
+      padding: 0.6rem;
+      background: rgba(184,149,42,0.12);
+      border: 1px solid var(--gold);
+      color: var(--gold-light);
+      cursor: pointer;
+      transition: background 0.2s;
+    }
+    .id-confirm:hover { background: rgba(184,149,42,0.22); }
+    .id-confirm:disabled { opacity: 0.35; cursor: default; }
 
     footer {
       text-align: center;
       padding: 3rem 2rem;
-      border-top: 1px solid rgba(184,149,42,0.1);
-      font-family: 'Cinzel', serif;
-      font-size: 0.65rem;
+      border-top: 1px solid var(--gold-dim);
+      font-family: var(--font-title);
+      font-size: 0.58rem;
       letter-spacing: 0.3em;
       color: var(--muted);
       text-transform: uppercase;
     }
 
     @media (max-width: 600px) {
-      .nav-links { gap: 1rem; }
-      .nav-links a { font-size: 0.62rem; }
+      .write-fields { grid-template-columns: 1fr; }
+      .id-players { grid-template-columns: 1fr; }
       .chronicle-container { padding: 2rem 1.25rem 4rem; }
-      .session { padding-left: 1.5rem; }
     }
   </style>
 </head>
 <body>
 
-  <div id="nav-root"></div>
+<div id="nav-root"></div>
 
-  <div class="page-header">
-    <p class="page-eyebrow">Session Journal</p>
-    <div class="rule"><div class="rule-diamond"></div></div>
-    <h1 class="page-title">The Chronicle</h1>
-    <div class="rule"><div class="rule-diamond"></div></div>
-    <p class="page-subtitle">A record of the party's deeds, discoveries, and decisions — newest sessions first.</p>
+<!-- ── Identity modal ── -->
+<div class="id-modal-backdrop hidden" id="id-modal">
+  <div class="id-modal">
+    <div class="id-modal-title">Who Are You?</div>
+    <div class="id-modal-sub">Your identity is saved to this device. Pick once, change anytime.</div>
+
+    <span class="id-modal-label">Select your identity</span>
+    <div class="id-players" id="id-players">
+      <!-- Rendered by JS -->
+    </div>
+
+    <span class="id-modal-label">Your color</span>
+    <div class="id-color-row">
+      <div class="id-color-preview" id="id-color-preview"></div>
+      <input type="color" class="id-color-input" id="id-color-input" oninput="updateColorPreview(this.value)">
+      <span class="id-color-hint">Optional — customize your entry color</span>
+    </div>
+
+    <button class="id-confirm" id="id-confirm" onclick="confirmIdentity()" disabled>Confirm Identity</button>
+  </div>
+</div>
+
+<!-- ── Page ── -->
+<div class="page-header">
+  <p class="page-eyebrow">Session Journal</p>
+  <div class="rule"><div class="rule-diamond"></div></div>
+  <h1 class="page-title">The Chronicle</h1>
+  <div class="rule"><div class="rule-diamond"></div></div>
+  <p class="page-subtitle">A record of the party's deeds, discoveries, and decisions.</p>
+</div>
+
+<div class="chronicle-container">
+
+  <!-- Identity bar -->
+  <div class="identity-bar" id="identity-bar" style="display:none">
+    <div class="identity-bar-left">
+      <div class="identity-dot" id="id-bar-dot"></div>
+      <span class="identity-name" id="id-bar-name"></span>
+    </div>
+    <button class="identity-change" onclick="openModal()">Switch Identity</button>
   </div>
 
-  <div class="chronicle-container">
-
-    <!-- ADD NEW SESSIONS AT THE TOP, ABOVE THIS LINE -->
-    <!-- Copy the session template below and paste it here -->
-
-    <!-- ═══════════════════════════════════════════════
-         SESSION TEMPLATE — copy this block for each new session:
-
-    <div class="session">
-      <div class="session-meta">
-        <span class="session-number">Session 00</span>
-        <span class="session-date">Month Day, Year</span>
+  <!-- Write panel -->
+  <div class="write-panel" id="write-panel" style="display:none">
+    <div class="write-panel-title">Add to the Chronicle</div>
+    <div class="write-fields">
+      <div class="write-field">
+        <label>Session Number</label>
+        <input type="number" class="write-input" id="entry-session" placeholder="e.g. 4" min="0">
       </div>
-      <div class="session-title">Title of the Session</div>
-      <div class="session-location">📍 Location Name</div>
-      <div class="session-body">
-        <p>Write the session summary here. Multiple paragraphs are fine.</p>
-        <p>Continue the story...</p>
+      <div class="write-field">
+        <label>Session Title <span style="color:var(--muted);font-style:italic">(optional)</span></label>
+        <input type="text" class="write-input" id="entry-title" placeholder="e.g. The Ambush at Longhills">
       </div>
-      <div class="session-tags">
-        <span class="session-tag">Tag One</span>
-        <span class="session-tag">Tag Two</span>
+      <div class="write-field">
+        <label>Location <span style="color:var(--muted);font-style:italic">(optional)</span></label>
+        <input type="text" class="write-input" id="entry-location" placeholder="e.g. Tiersgard">
+      </div>
+      <div class="write-field">
+        <label>Tags <span style="color:var(--muted);font-style:italic">(comma separated, optional)</span></label>
+        <input type="text" class="write-input" id="entry-tags" placeholder="e.g. Combat, Revelation">
       </div>
     </div>
-
-    ═══════════════════════════════════════════════ -->
-
-    <!-- SESSION 0 -->
-    <div class="session">
-      <div class="session-meta">
-        <span class="session-number">Session 0</span>
-        <span class="session-date">The Beginning</span>
-      </div>
-      <div class="session-title">The World Before</div>
-      <div class="session-location">📍 Tiersgard</div>
-      <div class="session-body">
-        <p>The party convened for the first time, drawing together from separate corners of a fractured world. Kirtas bleeds. The throne is contested. The dead walk roads that armies once marched. And somewhere in the Long Hills, a general fights for a prince no one has seen in years.</p>
-        <p>The chronicle begins here.</p>
-      </div>
-      <div class="session-tags">
-        <span class="session-tag">Session Zero</span>
-        <span class="session-tag">Tiersgard</span>
-        <span class="session-tag">Party Assembly</span>
-      </div>
+    <textarea class="write-textarea" id="entry-text" placeholder="Write your account of what happened. Use a blank line to separate paragraphs."></textarea>
+    <div class="write-footer">
+      <div class="write-status" id="write-status"></div>
+      <button class="write-submit" id="write-submit" onclick="submitEntry()">Submit Entry</button>
     </div>
-
-    <!-- Empty state — remove this block once sessions are added -->
-    <div class="empty-state" id="empty-state" style="display:none">
-      <div class="empty-state-glyph">📜</div>
-      <div class="empty-state-title">The Pages Are Blank</div>
-      <p class="empty-state-text">The chronicle awaits its first entry.</p>
-    </div>
-
   </div>
 
-  <hr class="divider">
-  <footer>
-    <p>The Trials of Kirtas &nbsp;·&nbsp; Session Chronicle</p>
-  </footer>
+  <!-- Chronicle entries -->
+  <div id="chronicle-entries">
+    <div class="chronicle-loading">
+      <div class="chronicle-spinner"></div>
+      Loading the chronicle…
+    </div>
+  </div>
 
-  <script src="nav.js"></script>
+</div>
+
+<footer>The Trials of Kirtas &nbsp;·&nbsp; Session Chronicle</footer>
+
+<script src="nav.js"></script>
+<script>
+// ══════════════════════════════════════════════════════════
+// CONFIG — replace PASTE_YOUR_TOKEN_HERE with your token
+// ══════════════════════════════════════════════════════════
+const GITHUB_TOKEN = 'PASTE_YOUR_TOKEN_HERE';
+const GITHUB_OWNER = 'Manik-Khan';
+const GITHUB_REPO  = 'trials-of-kirtas';
+const DATA_FILE    = 'data/chronicle.json';
+const BRANCH       = 'main';
+
+// ══════════════════════════════════════════════════════════
+// PLAYER IDENTITIES
+// Add or change players here. Color is the default —
+// each player can override it when they pick their identity.
+// ══════════════════════════════════════════════════════════
+const PLAYERS = [
+  { id: 'dm',        name: 'DM',        character: 'Narrator',  color: '#b8952a' },
+  { id: 'tyros',     name: 'Tyros',     character: 'Warlock',   color: '#c05060' },
+  { id: 'liadan',    name: 'Líadan',    character: 'Bard',      color: '#5a9a6a' },
+  { id: 'caim',      name: 'Caim',      character: 'Monk',      color: '#8060c0' },
+  { id: 'vesperian', name: 'Vesperian', character: 'Fighter',   color: '#5a9aaa' },
+];
+
+// ══════════════════════════════════════════════════════════
+// IDENTITY STATE
+// ══════════════════════════════════════════════════════════
+const ID_KEY = 'kirtas-chronicle-identity';
+let currentIdentity = null;
+let pendingPlayer   = null;
+
+function loadIdentity() {
+  try {
+    const saved = localStorage.getItem(ID_KEY);
+    if (saved) currentIdentity = JSON.parse(saved);
+  } catch(e) {}
+}
+
+function saveIdentity(identity) {
+  currentIdentity = identity;
+  try { localStorage.setItem(ID_KEY, JSON.stringify(identity)); } catch(e) {}
+}
+
+function getPlayer(id) {
+  return PLAYERS.find(p => p.id === id);
+}
+
+// ── Modal ──
+function openModal() {
+  pendingPlayer = currentIdentity?.playerId || null;
+  renderPlayerButtons();
+  if (pendingPlayer) {
+    const player = getPlayer(pendingPlayer);
+    if (player) {
+      updateColorPreview(currentIdentity?.color || player.color);
+      document.getElementById('id-color-input').value = currentIdentity?.color || player.color;
+    }
+  }
+  document.getElementById('id-modal').classList.remove('hidden');
+  updateConfirmBtn();
+}
+
+function closeModal() {
+  document.getElementById('id-modal').classList.add('hidden');
+}
+
+function renderPlayerButtons() {
+  const wrap = document.getElementById('id-players');
+  wrap.innerHTML = PLAYERS.map(p => `
+    <button class="id-player-btn${pendingPlayer===p.id?' selected':''}"
+            onclick="selectPlayer('${p.id}')">
+      <div class="id-player-dot" style="background:${p.color}"></div>
+      <div class="id-player-info">
+        <span class="id-player-name">${p.name}</span>
+        <span class="id-player-char">${p.character}</span>
+      </div>
+    </button>`).join('');
+}
+
+function selectPlayer(id) {
+  pendingPlayer = id;
+  renderPlayerButtons();
+  const player = getPlayer(id);
+  const color  = currentIdentity?.playerId === id
+    ? currentIdentity.color
+    : player.color;
+  updateColorPreview(color);
+  document.getElementById('id-color-input').value = color;
+  updateConfirmBtn();
+}
+
+function updateColorPreview(color) {
+  document.getElementById('id-color-preview').style.background = color;
+}
+
+function updateConfirmBtn() {
+  document.getElementById('id-confirm').disabled = !pendingPlayer;
+}
+
+function confirmIdentity() {
+  if (!pendingPlayer) return;
+  const player = getPlayer(pendingPlayer);
+  const color  = document.getElementById('id-color-input').value;
+  saveIdentity({ playerId: pendingPlayer, name: player.name, character: player.character, color });
+  closeModal();
+  renderIdentityBar();
+  showWritePanel();
+}
+
+function renderIdentityBar() {
+  if (!currentIdentity) return;
+  document.getElementById('id-bar-dot').style.background = currentIdentity.color;
+  document.getElementById('id-bar-name').textContent =
+    `${currentIdentity.name}${currentIdentity.character !== 'Narrator' ? ' · ' + currentIdentity.character : ''}`;
+  document.getElementById('id-bar-name').style.color = currentIdentity.color;
+  document.getElementById('identity-bar').style.display = 'flex';
+}
+
+function showWritePanel() {
+  if (currentIdentity) {
+    document.getElementById('write-panel').style.display = 'block';
+  }
+}
+
+// ══════════════════════════════════════════════════════════
+// LOAD CHRONICLE
+// ══════════════════════════════════════════════════════════
+let allEntries = [];
+let fileSHA    = null;
+
+async function loadChronicle() {
+  const url = `https://api.github.com/repos/${GITHUB_OWNER}/${GITHUB_REPO}/contents/${DATA_FILE}?ref=${BRANCH}`;
+  try {
+    const res = await fetch(url, {
+      headers: {
+        'Authorization': `Bearer ${GITHUB_TOKEN}`,
+        'Accept': 'application/vnd.github.v3+json',
+      }
+    });
+    if (!res.ok) throw new Error(`GitHub API ${res.status}`);
+    const data = await res.json();
+    fileSHA   = data.sha;
+    allEntries = JSON.parse(atob(data.content.replace(/\n/g,'')));
+    renderChronicle();
+  } catch(e) {
+    document.getElementById('chronicle-entries').innerHTML =
+      `<div class="chronicle-loading" style="color:var(--blood)">
+        Could not load chronicle.<br>
+        <small style="font-style:italic">${e.message}</small>
+      </div>`;
+  }
+}
+
+// ══════════════════════════════════════════════════════════
+// RENDER
+// ══════════════════════════════════════════════════════════
+function renderChronicle() {
+  const container = document.getElementById('chronicle-entries');
+  if (!allEntries.length) {
+    container.innerHTML = `<div class="chronicle-loading">The chronicle awaits its first entry.</div>`;
+    return;
+  }
+
+  // Sort newest first, group by session
+  const sorted  = [...allEntries].sort((a,b) => b.session - a.session || new Date(b.timestamp) - new Date(a.timestamp));
+  const sessions = {};
+  sorted.forEach(e => {
+    const key = e.session;
+    if (!sessions[key]) sessions[key] = [];
+    sessions[key].push(e);
+  });
+
+  let html = '';
+  Object.keys(sessions)
+    .sort((a,b) => b - a)
+    .forEach(sessionNum => {
+      const entries  = sessions[sessionNum];
+      const firstEntry = entries.find(e => e.sessionTitle) || entries[0];
+      const title    = firstEntry.sessionTitle || '';
+      const location = firstEntry.location     || '';
+
+      html += `<div class="session-divider">
+        <span class="session-divider-label">
+          Session ${sessionNum}${title ? ' — ' + title : ''}${location ? ' · ' + location : ''}
+        </span>
+      </div>`;
+
+      entries.forEach(entry => {
+        const color = entry.color || '#b8952a';
+        const date  = new Date(entry.timestamp).toLocaleDateString('en-US', {month:'short', day:'numeric', year:'numeric'});
+        const paragraphs = (entry.text || '').split(/\n\n+/).map(p => `<p>${p.replace(/\n/g,'<br>')}</p>`).join('');
+        const tags = (entry.tags || []).map(t => `<span class="entry-tag">${t}</span>`).join('');
+
+        html += `
+          <div class="entry">
+            <div class="entry-bar" style="background:${color}"></div>
+            <div class="entry-body">
+              <div class="entry-header">
+                <span class="entry-author" style="color:${color}">${entry.author || entry.character}</span>
+                ${entry.character && entry.character !== entry.author && entry.character !== 'Narrator'
+                  ? `<span class="entry-character">${entry.character}</span>` : ''}
+                <span class="entry-time">${date}</span>
+              </div>
+              <div class="entry-text">${paragraphs}</div>
+              ${tags ? `<div class="entry-tags">${tags}</div>` : ''}
+            </div>
+          </div>`;
+      });
+    });
+
+  container.innerHTML = html;
+}
+
+// ══════════════════════════════════════════════════════════
+// SUBMIT ENTRY
+// ══════════════════════════════════════════════════════════
+async function submitEntry() {
+  if (!currentIdentity) return;
+
+  const sessionNum = parseInt(document.getElementById('entry-session').value);
+  const text       = document.getElementById('entry-text').value.trim();
+
+  if (!sessionNum && sessionNum !== 0) {
+    setStatus('Please enter a session number.', 'error'); return;
+  }
+  if (!text) {
+    setStatus('Please write something before submitting.', 'error'); return;
+  }
+
+  const title    = document.getElementById('entry-title').value.trim();
+  const location = document.getElementById('entry-location').value.trim();
+  const tagsRaw  = document.getElementById('entry-tags').value.trim();
+  const tags     = tagsRaw ? tagsRaw.split(',').map(t => t.trim()).filter(Boolean) : [];
+
+  const newEntry = {
+    id:           Date.now().toString(),
+    session:      sessionNum,
+    sessionTitle: title    || undefined,
+    location:     location || undefined,
+    author:       currentIdentity.name,
+    character:    currentIdentity.character,
+    color:        currentIdentity.color,
+    timestamp:    new Date().toISOString(),
+    text,
+    tags: tags.length ? tags : undefined,
+  };
+
+  // Clean undefined fields
+  Object.keys(newEntry).forEach(k => newEntry[k] === undefined && delete newEntry[k]);
+
+  setStatus('Submitting…', 'submitting');
+  document.getElementById('write-submit').disabled = true;
+
+  // Fetch latest SHA before writing
+  try {
+    const shaRes = await fetch(
+      `https://api.github.com/repos/${GITHUB_OWNER}/${GITHUB_REPO}/contents/${DATA_FILE}?ref=${BRANCH}`,
+      { headers: { 'Authorization': `Bearer ${GITHUB_TOKEN}`, 'Accept': 'application/vnd.github.v3+json' } }
+    );
+    const shaData = await shaRes.json();
+    fileSHA = shaData.sha;
+    const existing = JSON.parse(atob(shaData.content.replace(/\n/g,'')));
+    const updated  = [newEntry, ...existing];
+
+    // Write back
+    const writeRes = await fetch(
+      `https://api.github.com/repos/${GITHUB_OWNER}/${GITHUB_REPO}/contents/${DATA_FILE}`,
+      {
+        method: 'PUT',
+        headers: {
+          'Authorization': `Bearer ${GITHUB_TOKEN}`,
+          'Accept': 'application/vnd.github.v3+json',
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          message: `Chronicle: ${currentIdentity.name} — Session ${sessionNum}`,
+          content: btoa(unescape(encodeURIComponent(JSON.stringify(updated, null, 2)))),
+          sha: fileSHA,
+          branch: BRANCH,
+        })
+      }
+    );
+
+    if (!writeRes.ok) {
+      const err = await writeRes.json();
+      throw new Error(err.message || `HTTP ${writeRes.status}`);
+    }
+
+    // Update local state
+    allEntries = updated;
+    fileSHA    = (await writeRes.json()).content.sha;
+
+    // Clear form
+    document.getElementById('entry-session').value  = '';
+    document.getElementById('entry-title').value    = '';
+    document.getElementById('entry-location').value = '';
+    document.getElementById('entry-tags').value     = '';
+    document.getElementById('entry-text').value     = '';
+
+    setStatus('Entry added — changes will appear for everyone within ~60 seconds.', 'success');
+    renderChronicle();
+
+  } catch(e) {
+    setStatus(`Failed: ${e.message}`, 'error');
+  } finally {
+    document.getElementById('write-submit').disabled = false;
+  }
+}
+
+function setStatus(msg, type) {
+  const el = document.getElementById('write-status');
+  el.textContent = msg;
+  el.className   = `write-status visible ${type}`;
+}
+
+// ══════════════════════════════════════════════════════════
+// INIT
+// ══════════════════════════════════════════════════════════
+loadIdentity();
+
+if (!currentIdentity) {
+  // First visit — show modal after a short delay
+  setTimeout(openModal, 600);
+} else {
+  renderIdentityBar();
+  showWritePanel();
+}
+
+loadChronicle();
+</script>
+
 </body>
 </html>
