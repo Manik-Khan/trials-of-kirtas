@@ -1,6 +1,25 @@
 {
   "entries": [
     {
+      "id": "1779139118262",
+      "session": 0,
+      "author": "Vesperian",
+      "character": "Fighter",
+      "color": "#5a9aaa",
+      "timestamp": "2026-05-18T21:18:38.262Z",
+      "text": "<p>Double checking the fixes. We talked about <span style=\"color: rgb(212, 172, 58);\" data-mention-type=\"npc\" data-mention-key=\"prince\">The Young Prince</span> and the town of <span style=\"color: rgb(138, 180, 201);\" data-mention-type=\"location\" data-mention-key=\"yevennia\">Yevennia</span> . Did this work? I am not sure. Let's see. <span style=\"color: rgb(212, 172, 58);\" data-mention-type=\"npc\" data-mention-key=\"reykoldt\">Lord Reykoldt</span>  and <span style=\"color: rgb(138, 180, 201);\" data-mention-type=\"location\" data-mention-key=\"longhills\">The Long Hills</span> . </p><p><br></p><p>What about our characters? <span style=\"color: rgb(212, 172, 58);\" data-mention-type=\"npc\" data-mention-key=\"tyros\">Tyros Darkstar</span> <span style=\"color: rgb(212, 172, 58);\" data-mention-type=\"npc\" data-mention-key=\"caim\">Caim</span> <span style=\"color: rgb(212, 172, 58);\" data-mention-type=\"npc\" data-mention-key=\"liadan\">Líadan Luchóg</span> <span style=\"color: rgb(212, 172, 58);\" data-mention-type=\"npc\" data-mention-key=\"vesperian\">Vesperian Vale</span> </p><p><br></p><p><br></p><p><br></p><p><br></p><p><br></p><p><br></p><p><br></p><p><br></p>",
+      "tags": [
+        "prince",
+        "yevennia",
+        "reykoldt",
+        "longhills",
+        "tyros",
+        "caim",
+        "liadan",
+        "vesperian"
+      ]
+    },
+    {
       "id": "1779086759727",
       "session": 0,
       "author": "Líadan",
