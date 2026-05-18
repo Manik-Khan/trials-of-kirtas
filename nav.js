@@ -53,6 +53,15 @@ const STORAGE_KEY = 'kirtas-theme';
 const DEFAULT_THEME = 'parchment';
 
 
+// ── Characters for the sheet switcher ──
+// Add new characters here when the party grows
+const CHARACTERS_NAV = [
+  { key: 'tyros',     label: 'Tyros' },
+  { key: 'caim',      label: 'Caim' },
+  { key: 'liadan',    label: 'Líadan' },
+  { key: 'vesperian', label: 'Vesperian' },
+];
+
 // ── Determine active page from URL ──
 function getActivePath() {
   const parts = window.location.pathname.split('/');
@@ -84,13 +93,26 @@ function applyTheme(themeId) {
 
 // ── Build nav HTML ──
 function buildNav() {
-  const activePath = getActivePath();
+  const activePath   = getActivePath();
   const currentTheme = getSavedTheme();
+  const isSheet      = activePath === 'sheet.html';
+  const activeChar   = isSheet ? (new URLSearchParams(window.location.search)).get('character') || '' : '';
 
   const navLinks = PAGES.map(page => {
     const isActive = activePath === page.path;
     return `<a href="${page.path}" class="nav-link${isActive ? ' active' : ''}">${page.label}</a>`;
   }).join('');
+
+  // Character switcher — only rendered on sheet.html
+  const charSwitcher = isSheet ? `
+    <div class="nav-char-switcher">
+      <span class="nav-char-divider">|</span>
+      ${CHARACTERS_NAV.map(c => `
+        <a href="sheet.html?character=${c.key}"
+           class="nav-char-link${c.key === activeChar ? ' active' : ''}">
+          ${c.label}
+        </a>`).join('')}
+    </div>` : '';
 
   const themeOptions = THEMES.map(theme => `
     <div class="theme-option${currentTheme === theme.id ? ' active' : ''}"
@@ -107,6 +129,7 @@ function buildNav() {
       <a href="index.html" class="nav-brand">Kirtas</a>
       <div class="nav-links">
         ${navLinks}
+        ${charSwitcher}
       </div>
       <div class="nav-theme-wrap" id="nav-theme-wrap">
         <button class="nav-theme-btn"
@@ -296,15 +319,46 @@ function injectNavStyles() {
       transition: opacity 0.15s;
     }
 
-    /* Mobile nav */
+    /* Character switcher — sheet.html only */
+    .nav-char-switcher {
+      display: flex;
+      align-items: center;
+      gap: 0.75rem;
+      margin-left: 0.5rem;
+    }
+    .nav-char-divider {
+      color: var(--nav-border);
+      font-size: 0.9rem;
+      user-select: none;
+    }
+    .nav-char-link {
+      font-family: var(--font-title);
+      font-size: 0.62rem;
+      letter-spacing: 0.12em;
+      text-transform: uppercase;
+      color: var(--muted);
+      text-decoration: none;
+      transition: color 0.2s;
+      white-space: nowrap;
+    }
+    .nav-char-link:hover { color: var(--aged); }
+    .nav-char-link.active {
+      color: var(--gold-light);
+      border-bottom: 1px solid var(--gold);
+      padding-bottom: 1px;
+    }
+
     @media (max-width: 700px) {
       .nav-links { gap: 1rem; }
       .nav-link { font-size: 0.58rem; }
+      .nav-char-switcher { gap: 0.5rem; }
+      .nav-char-link { font-size: 0.52rem; }
     }
     @media (max-width: 520px) {
       #site-nav { padding: 0 1rem; }
       .nav-links { gap: 0.75rem; }
       .nav-link { font-size: 0.52rem; letter-spacing: 0.08em; }
+      .nav-char-divider { display: none; }
     }
   `;
   document.head.appendChild(style);
