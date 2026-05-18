@@ -1,18 +1,6 @@
 {
   "entries": [
     {
-      "id": "1779124772183",
-      "session": 0,
-      "author": "Vesperian",
-      "character": "Fighter",
-      "color": "#5a9aaa",
-      "timestamp": "2026-05-18T17:19:32.183Z",
-      "text": "<p>Testing these functions. We are looking to find <span style=\"color: rgb(212, 172, 58);\">The Young Prince​.  Now much text is still yellow.</span></p><p><br></p><p><span style=\"color: rgb(212, 172, 58);\">What about a location. </span><span style=\"color: \" data-mention-type=\"location\" data-mention-key=\"tiersgard\">Tiersgard</span><span style=\"color: rgb(212, 172, 58);\">. </span></p><p><br></p><p><br></p>",
-      "tags": [
-        "8ab4c9"
-      ]
-    },
-    {
       "id": "1779086759727",
       "session": 0,
       "author": "Líadan",
