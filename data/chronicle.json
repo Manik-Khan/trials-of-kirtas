@@ -1,6 +1,19 @@
 {
   "entries": [
     {
+      "id": "1779138508104",
+      "session": 0,
+      "author": "Vesperian",
+      "character": "Fighter",
+      "color": "#5a9aaa",
+      "timestamp": "2026-05-18T21:08:28.104Z",
+      "text": "<p>Adding a new entry. Testing the fonts and what not. </p><p><br></p><p><span style=\"color: rgb(212, 172, 58);\" data-mention-type=\"npc\" data-mention-key=\"prince\">The Young Prince</span> What!!! It worked. Amazing. We are going to <span style=\"color: rgb(138, 180, 201);\" data-mention-type=\"location\" data-mention-key=\"yevennia\">Yevennia</span> and I am all set I think. </p><p><br></p><p><br></p>",
+      "tags": [
+        "prince",
+        "yevennia"
+      ]
+    },
+    {
       "id": "1779086759727",
       "session": 0,
       "author": "Líadan",
