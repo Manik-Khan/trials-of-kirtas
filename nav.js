@@ -27,12 +27,13 @@
 // ── Navigation pages ──
 // Add new pages here. 'path' matches the HTML filename.
 const PAGES = [
-  { label: 'Party',     path: 'party.html' },
-  { label: 'Factions',  path: 'factions.html' },
-  { label: 'Chronicle', path: 'chronicle.html' },
-  { label: 'NPCs',      path: 'npcs.html' },
-  { label: 'World',     path: 'world.html' },
-  { label: 'Lore',      path: 'lore.html' },
+  { label: 'Party',       path: 'party.html' },
+  { label: 'Factions',   path: 'factions.html' },
+  { label: 'Chronicle',  path: 'chronicle.html' },
+  { label: 'NPCs',       path: 'npcs.html' },
+  { label: 'World',      path: 'world.html' },
+  { label: 'Lore',       path: 'lore.html' },
+  { label: 'Compendium', path: 'compendium.html' },
 ];
 
 
