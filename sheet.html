@@ -575,18 +575,29 @@
       z-index: 200;
       transition: background 0.3s;
     }
+    /* Collapsed: shrink to a compact pill button */
+    .roller-panel.collapsed {
+      width: auto;
+      border: 1px solid rgba(184,149,42,0.25);
+      box-shadow: 0 4px 20px rgba(0,0,0,0.5);
+    }
     .roller-header {
       display: flex; align-items: center; justify-content: space-between;
       padding: 0.45rem 0.7rem;
       border-bottom: 1px solid var(--gold-dim);
       cursor: pointer; user-select: none;
+      white-space: nowrap;
+    }
+    .roller-panel.collapsed .roller-header {
+      border-bottom: none;
+      padding: 0.4rem 0.65rem;
     }
     .roller-title {
       font-family: var(--font-title);
       font-size: 0.56rem; letter-spacing: 0.25em;
       color: var(--gold); text-transform: uppercase;
     }
-    .roller-chevron { color: var(--muted); font-size: 0.65rem; transition: transform 0.2s; }
+    .roller-chevron { color: var(--muted); font-size: 0.65rem; transition: transform 0.2s; margin-left: 0.5rem; }
     .roller-panel.collapsed .roller-chevron { transform: rotate(180deg); }
     .roller-panel.collapsed .roller-toggles,
     .roller-panel.collapsed .roll-history { display: none; }
@@ -1025,7 +1036,7 @@ const RS         = { advantage: false, disadvantage: false, bless: false, guidan
 const pipState   = {};
 const deathSaves = { success: 0, failure: 0 };
 let rollHistory     = [];
-let rollerCollapsed = false;
+let rollerCollapsed = true;
 // C-dependent — values set after C is resolved below
 let currentHP      = 0;
 let maxHPVal       = 0;
@@ -1211,6 +1222,9 @@ function toggleRoller() {
   rollerCollapsed = !rollerCollapsed;
   document.getElementById('roller-panel').classList.toggle('collapsed', rollerCollapsed);
 }
+
+// Apply initial collapsed state
+document.getElementById('roller-panel').classList.add('collapsed');
 function toggleAdv() { RS.advantage = !RS.advantage; if (RS.advantage) RS.disadvantage=false; updateToggles(); }
 function toggleDis() { RS.disadvantage = !RS.disadvantage; if (RS.disadvantage) RS.advantage=false; updateToggles(); }
 function toggleBuff(k, id) { RS[k]=!RS[k]; document.getElementById(id).classList.toggle('on',RS[k]); }
