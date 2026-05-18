@@ -667,6 +667,282 @@
       .combat-grid  { grid-template-columns: repeat(2, 1fr); }
       .roller-panel { width: calc(100vw - 2rem); right: 1rem; }
     }
+
+    /* ── Compendium tab button ── */
+    .comp-tab-btn {
+      margin-left: auto;
+      color: var(--muted) !important;
+      border-bottom: 2px solid transparent !important;
+    }
+    .comp-tab-btn.open { color: var(--gold-light) !important; border-bottom-color: var(--gold) !important; }
+    .comp-tab-btn:hover { color: var(--aged) !important; }
+
+    /* ── Compendium slide panel ── */
+    .comp-panel {
+      position: fixed;
+      top: 52px;
+      right: 0;
+      bottom: 0;
+      width: 420px;
+      max-width: 95vw;
+      background: linear-gradient(160deg, #1e1610 0%, #0d0a07 100%);
+      border-left: 1px solid var(--gold-dim);
+      z-index: 150;
+      display: flex;
+      flex-direction: column;
+      transform: translateX(100%);
+      transition: transform 0.28s cubic-bezier(0.4,0,0.2,1);
+      box-shadow: -8px 0 40px rgba(0,0,0,0.6);
+    }
+    .comp-panel.open { transform: translateX(0); }
+
+    .comp-panel-backdrop {
+      position: fixed;
+      inset: 52px 0 0 0;
+      background: rgba(0,0,0,0.4);
+      z-index: 149;
+      opacity: 0;
+      pointer-events: none;
+      transition: opacity 0.28s;
+    }
+    .comp-panel-backdrop.open { opacity: 1; pointer-events: auto; }
+
+    .comp-panel-header {
+      flex-shrink: 0;
+      border-bottom: 1px solid var(--gold-dim);
+    }
+    .comp-panel-cats {
+      display: grid;
+      grid-template-columns: repeat(4,1fr);
+      border-bottom: 1px solid var(--gold-dim);
+    }
+    .comp-panel-cat {
+      font-family: var(--font-title);
+      font-size: 0.5rem;
+      letter-spacing: 0.18em;
+      text-transform: uppercase;
+      color: var(--muted);
+      background: none;
+      border: none;
+      border-bottom: 2px solid transparent;
+      padding: 0.55rem 0.3rem;
+      cursor: pointer;
+      transition: color 0.15s, border-color 0.15s;
+    }
+    .comp-panel-cat:hover { color: var(--aged); }
+    .comp-panel-cat.active { color: var(--gold-light); border-bottom-color: var(--gold); }
+
+    .comp-panel-search-row {
+      display: flex;
+      align-items: center;
+      gap: 0.4rem;
+      padding: 0.5rem 0.75rem;
+    }
+    .comp-panel-search-icon { color: var(--muted); font-size: 0.9rem; flex-shrink: 0; }
+    .comp-panel-search {
+      flex: 1;
+      background: transparent;
+      border: none;
+      outline: none;
+      color: var(--parchment2);
+      font-family: var(--font-title);
+      font-size: 0.72rem;
+      letter-spacing: 0.06em;
+    }
+    .comp-panel-search::placeholder { color: var(--muted); }
+    .comp-panel-close {
+      background: none;
+      border: none;
+      color: var(--muted);
+      font-size: 0.85rem;
+      cursor: pointer;
+      padding: 0.15rem 0.25rem;
+      transition: color 0.15s;
+      flex-shrink: 0;
+    }
+    .comp-panel-close:hover { color: var(--gold-light); }
+
+    .comp-panel-filters {
+      display: flex;
+      gap: 0.3rem;
+      flex-wrap: wrap;
+      padding: 0 0.75rem 0.5rem;
+      min-height: 0;
+    }
+    .comp-panel-filter-btn {
+      font-family: var(--font-title);
+      font-size: 0.42rem;
+      letter-spacing: 0.12em;
+      text-transform: uppercase;
+      padding: 0.12rem 0.35rem;
+      border: 1px solid var(--gold-dim);
+      background: transparent;
+      color: var(--muted);
+      cursor: pointer;
+      transition: all 0.15s;
+    }
+    .comp-panel-filter-btn:hover { color: var(--aged); border-color: var(--gold-mid); }
+    .comp-panel-filter-btn.active { background: var(--gold-dim); border-color: var(--gold); color: var(--gold-light); }
+
+    /* List + detail split */
+    .comp-panel-body {
+      flex: 1;
+      display: grid;
+      grid-template-rows: 1fr 1fr;
+      overflow: hidden;
+    }
+    .comp-panel-list {
+      overflow-y: auto;
+      border-bottom: 1px solid var(--gold-dim);
+    }
+    .comp-panel-list::-webkit-scrollbar { width: 3px; }
+    .comp-panel-list::-webkit-scrollbar-thumb { background: var(--gold-dim); }
+
+    .comp-panel-item {
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+      padding: 0.38rem 0.75rem;
+      cursor: pointer;
+      border-bottom: 1px solid rgba(255,255,255,0.02);
+      transition: background 0.12s;
+    }
+    .comp-panel-item:hover { background: rgba(184,149,42,0.05); }
+    .comp-panel-item.active { background: rgba(184,149,42,0.1); }
+    .comp-panel-item-name {
+      font-size: 0.8rem;
+      color: var(--parchment2);
+      flex: 1;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+    .comp-panel-item.active .comp-panel-item-name { color: var(--parchment); }
+    .comp-panel-item-tag {
+      font-family: var(--font-title);
+      font-size: 0.42rem;
+      letter-spacing: 0.1em;
+      text-transform: uppercase;
+      color: var(--muted);
+      flex-shrink: 0;
+    }
+    .comp-panel-item.active .comp-panel-item-tag { color: var(--gold); }
+
+    .comp-panel-state {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      height: 80px;
+      color: var(--muted);
+      font-style: italic;
+      font-size: 0.8rem;
+      gap: 0.5rem;
+    }
+    .comp-panel-spinner {
+      width: 16px; height: 16px;
+      border: 2px solid var(--gold-dim);
+      border-top-color: var(--gold);
+      border-radius: 50%;
+      animation: spin 0.8s linear infinite;
+      flex-shrink: 0;
+    }
+
+    .comp-panel-detail {
+      overflow-y: auto;
+      padding: 0.85rem 1rem;
+      font-size: 0.82rem;
+    }
+    .comp-panel-detail::-webkit-scrollbar { width: 3px; }
+    .comp-panel-detail::-webkit-scrollbar-thumb { background: var(--gold-dim); }
+    .comp-panel-empty {
+      color: var(--muted);
+      font-style: italic;
+      font-size: 0.8rem;
+      padding: 1rem 0;
+    }
+    .cpd-name {
+      font-family: var(--font-title);
+      font-size: 0.88rem;
+      color: var(--parchment);
+      margin-bottom: 0.15rem;
+    }
+    .cpd-meta {
+      font-family: var(--font-title);
+      font-size: 0.46rem;
+      letter-spacing: 0.2em;
+      color: var(--gold);
+      text-transform: uppercase;
+      margin-bottom: 0.6rem;
+    }
+    .cpd-stats {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 0.3rem;
+      margin-bottom: 0.6rem;
+    }
+    .cpd-stat {
+      background: rgba(0,0,0,0.2);
+      border: 1px solid var(--gold-dim);
+      padding: 0.3rem 0.45rem;
+    }
+    .cpd-stat-label {
+      font-family: var(--font-title);
+      font-size: 0.4rem;
+      letter-spacing: 0.18em;
+      color: var(--muted);
+      text-transform: uppercase;
+      display: block;
+      margin-bottom: 0.1rem;
+    }
+    .cpd-stat-val { font-size: 0.78rem; color: var(--parchment2); }
+    .cpd-rule { border: none; height: 1px; background: linear-gradient(90deg, var(--gold-dim), transparent); margin: 0.6rem 0; }
+    .cpd-body { font-size: 0.82rem; color: var(--parchment2); line-height: 1.75; }
+    .cpd-body p { margin-bottom: 0.5rem; }
+    .cpd-body p:last-child { margin-bottom: 0; }
+    .cpd-body ul { padding-left: 1.2rem; margin-bottom: 0.5rem; }
+    .cpd-body ul li { margin-bottom: 0.2rem; }
+    .cpd-section-title {
+      font-family: var(--font-title);
+      font-size: 0.46rem;
+      letter-spacing: 0.25em;
+      color: var(--gold);
+      text-transform: uppercase;
+      margin: 0.7rem 0 0.35rem;
+      border-bottom: 1px solid var(--gold-dim);
+      padding-bottom: 0.25rem;
+    }
+    .cpd-trait-name {
+      font-family: var(--font-title);
+      font-size: 0.72rem;
+      color: var(--gold-light);
+      font-style: italic;
+    }
+    .cpd-ability-strip {
+      display: grid;
+      grid-template-columns: repeat(6,1fr);
+      gap: 0.3rem;
+      margin-bottom: 0.6rem;
+    }
+    .cpd-ability-cell {
+      text-align: center;
+      background: rgba(0,0,0,0.2);
+      border: 1px solid var(--gold-dim);
+      padding: 0.3rem 0.1rem;
+    }
+    .cpd-ability-label {
+      font-family: var(--font-title);
+      font-size: 0.38rem;
+      letter-spacing: 0.12em;
+      color: var(--muted);
+      text-transform: uppercase;
+      display: block;
+    }
+    .cpd-ability-score { font-family: var(--font-title); font-size: 0.88rem; color: var(--parchment); }
+    .cpd-ability-mod   { font-family: var(--font-title); font-size: 0.58rem; color: var(--gold-light); display: block; }
+
+    @media (max-width: 600px) {
+      .comp-panel { width: 100vw; }
+    }
   </style>
 </head>
 <body>
@@ -682,6 +958,7 @@
   <button class="tab-btn" onclick="switchTab('features',this)">Features</button>
   <button class="tab-btn" onclick="switchTab('equipment',this)">Equipment</button>
   <button class="tab-btn" onclick="switchTab('bio',this)">Bio</button>
+  <button class="tab-btn comp-tab-btn" id="comp-tab-btn" onclick="toggleCompendium()" title="Open Compendium">📖 Compendium</button>
 </div>
 
 <!-- Sheet body -->
@@ -692,6 +969,33 @@
 </div>
 
 <footer id="site-footer"></footer>
+
+<!-- Compendium panel -->
+<div class="comp-panel" id="comp-panel">
+  <div class="comp-panel-header">
+    <div class="comp-panel-cats">
+      <button class="comp-panel-cat active" onclick="setCompCat('spells',this)">Spells</button>
+      <button class="comp-panel-cat" onclick="setCompCat('monsters',this)">Monsters</button>
+      <button class="comp-panel-cat" onclick="setCompCat('conditions',this)">Conditions</button>
+      <button class="comp-panel-cat" onclick="setCompCat('items',this)">Items</button>
+    </div>
+    <div class="comp-panel-search-row">
+      <span class="comp-panel-search-icon">⌕</span>
+      <input class="comp-panel-search" id="comp-panel-search" placeholder="Search…" oninput="compFilterList()">
+      <button class="comp-panel-close" onclick="toggleCompendium()">✕</button>
+    </div>
+    <div class="comp-panel-filters" id="comp-panel-filters"></div>
+  </div>
+  <div class="comp-panel-body">
+    <div class="comp-panel-list" id="comp-panel-list">
+      <div class="comp-panel-state">Select a category to begin.</div>
+    </div>
+    <div class="comp-panel-detail" id="comp-panel-detail">
+      <div class="comp-panel-empty">Select an entry to view details.</div>
+    </div>
+  </div>
+</div>
+<div class="comp-panel-backdrop" id="comp-backdrop" onclick="toggleCompendium()"></div>
 
 <!-- Roller panel -->
 <div class="roller-panel" id="roller-panel">
@@ -1629,6 +1933,306 @@ function buildBioTab() {
       </div>
     </div>
   </div>`;
+}
+
+// ══════════════════════════════════════════════════════════
+// COMPENDIUM PANEL
+// ══════════════════════════════════════════════════════════
+const COMP_BASE = 'https://raw.githubusercontent.com/5etools-mirror-3/5etools-2014-src/main/data';
+
+const COMP_SOURCES = {
+  spells:     { label: "Player's Handbook", file: 'spells/spells-phb.json' },
+  monsters:   { label: 'Monster Manual',    file: 'bestiary/bestiary-mm.json' },
+  conditions: { label: 'All Conditions',    file: 'conditionsdiseases.json' },
+  items:      { label: "Dungeon Master's Guide", file: 'items.json' },
+};
+
+const COMP_SPELL_FILTERS = [
+  { label:'All', val:null }, { label:'Cantrip', val:0 },
+  { label:'1', val:1 }, { label:'2', val:2 }, { label:'3', val:3 },
+  { label:'4', val:4 }, { label:'5', val:5 }, { label:'6+', val:6 },
+];
+const COMP_CR_FILTERS = [
+  { label:'All', val:null }, { label:'0–½', val:'low' },
+  { label:'1–4', val:'mid' }, { label:'5–10', val:'high' }, { label:'11+', val:'deadly' },
+];
+
+let compOpen       = false;
+let compCat        = 'spells';
+let compAllEntries = [];
+let compFiltered   = [];
+let compFilter     = null;
+let compCache      = {};
+
+// ── Toggle panel ──
+function toggleCompendium() {
+  compOpen = !compOpen;
+  document.getElementById('comp-panel').classList.toggle('open', compOpen);
+  document.getElementById('comp-backdrop').classList.toggle('open', compOpen);
+  document.getElementById('comp-tab-btn').classList.toggle('open', compOpen);
+  if (compOpen && !compAllEntries.length) compLoadSource();
+}
+
+// ── Category ──
+function setCompCat(cat, btn) {
+  compCat    = cat;
+  compFilter = null;
+  compAllEntries = [];
+  compFiltered   = [];
+  document.getElementById('comp-panel-search').value = '';
+  document.querySelectorAll('.comp-panel-cat').forEach(b => b.classList.remove('active'));
+  btn.classList.add('active');
+  buildCompFilters();
+  compLoadSource();
+}
+
+function buildCompFilters() {
+  const wrap = document.getElementById('comp-panel-filters');
+  if (compCat === 'spells') {
+    wrap.innerHTML = COMP_SPELL_FILTERS.map(f =>
+      `<button class="comp-panel-filter-btn${f.val===null?' active':''}" onclick="setCompFilter(this,'${f.val}')">${f.label}</button>`
+    ).join('');
+  } else if (compCat === 'monsters') {
+    wrap.innerHTML = COMP_CR_FILTERS.map(f =>
+      `<button class="comp-panel-filter-btn${f.val===null?' active':''}" onclick="setCompFilter(this,'${f.val}')">${f.label}</button>`
+    ).join('');
+  } else {
+    wrap.innerHTML = '';
+  }
+}
+
+function setCompFilter(btn, val) {
+  compFilter = val === 'null' ? null : val;
+  document.querySelectorAll('.comp-panel-filter-btn').forEach(b => b.classList.remove('active'));
+  btn.classList.add('active');
+  compFilterList();
+}
+
+// ── Load data ──
+async function compLoadSource() {
+  const src = COMP_SOURCES[compCat];
+  const url = `${COMP_BASE}/${src.file}`;
+  setCompListState('<div class="comp-panel-spinner"></div> Loading…');
+
+  try {
+    if (!compCache[url]) {
+      const res = await fetch(url);
+      if (!res.ok) throw new Error(`HTTP ${res.status}`);
+      compCache[url] = await res.json();
+    }
+    compAllEntries = compParseData(compCache[url], compCat);
+    compFilterList();
+  } catch(e) {
+    setCompListState(`Failed to load. ${e.message}`);
+  }
+}
+
+function setCompListState(html) {
+  document.getElementById('comp-panel-list').innerHTML =
+    `<div class="comp-panel-state">${html}</div>`;
+}
+
+// ── Parse ──
+function compParseData(data, cat) {
+  if (cat === 'spells')
+    return (data.spell || []).map(s => ({ raw:s, name:s.name, tag: s.level===0?'Cantrip':`Lv ${s.level}`, level:s.level }));
+  if (cat === 'monsters')
+    return (data.monster || []).map(m => ({ raw:m, name:m.name, tag:`CR ${compFormatCR(m.cr)}`, cr:compParseCR(m.cr) }));
+  if (cat === 'conditions')
+    return [...(data.condition||[]),...(data.disease||[])].map(c => ({ raw:c, name:c.name, tag:c.disease?'Disease':'Condition' }));
+  if (cat === 'items')
+    return (data.item||[]).map(i => ({ raw:i, name:i.name, tag:i.rarity||i.type||'Item' }));
+  return [];
+}
+
+// ── Filter & render list ──
+function compFilterList() {
+  const q = (document.getElementById('comp-panel-search').value||'').toLowerCase().trim();
+  compFiltered = compAllEntries.filter(e => {
+    if (!e.name.toLowerCase().includes(q)) return false;
+    if (compCat === 'spells' && compFilter !== null) {
+      const lvl = parseInt(compFilter);
+      return compFilter === '6' ? e.level >= 6 : e.level === lvl;
+    }
+    if (compCat === 'monsters' && compFilter !== null) {
+      const cr = e.cr;
+      if (compFilter === 'low')    return cr <= 0.5;
+      if (compFilter === 'mid')    return cr >= 1 && cr <= 4;
+      if (compFilter === 'high')   return cr >= 5 && cr <= 10;
+      if (compFilter === 'deadly') return cr >= 11;
+    }
+    return true;
+  });
+
+  const list = document.getElementById('comp-panel-list');
+  if (!compFiltered.length) {
+    list.innerHTML = '<div class="comp-panel-state">No results.</div>';
+    return;
+  }
+  list.innerHTML = compFiltered.slice(0, 200).map((e, i) =>
+    `<div class="comp-panel-item" onclick="compSelectEntry(${i})" id="cp-item-${i}">
+      <span class="comp-panel-item-name">${e.name}</span>
+      <span class="comp-panel-item-tag">${e.tag}</span>
+    </div>`
+  ).join('');
+}
+
+// ── Select entry ──
+function compSelectEntry(i) {
+  document.querySelectorAll('.comp-panel-item').forEach(el => el.classList.remove('active'));
+  const el = document.getElementById(`cp-item-${i}`);
+  if (el) { el.classList.add('active'); el.scrollIntoView({ block:'nearest' }); }
+  const entry = compFiltered[i];
+  if (!entry) return;
+  const detail = document.getElementById('comp-panel-detail');
+  if (compCat === 'spells')     detail.innerHTML = compRenderSpell(entry.raw);
+  if (compCat === 'monsters')   detail.innerHTML = compRenderMonster(entry.raw);
+  if (compCat === 'conditions') detail.innerHTML = compRenderCondition(entry.raw);
+  if (compCat === 'items')      detail.innerHTML = compRenderItem(entry.raw);
+}
+
+// ── Renderers ──
+function compCleanText(str) {
+  return (str||'')
+    .replace(/\{@b ([^}]+)\}/g,'<strong>$1</strong>')
+    .replace(/\{@i ([^}]+)\}/g,'<em>$1</em>')
+    .replace(/\{@spell ([^}]+)\}/g,'<span style="color:var(--gold-light)">$1</span>')
+    .replace(/\{@creature ([^}]+)\}/g,'<span style="color:var(--gold-light)">$1</span>')
+    .replace(/\{@condition ([^}]+)\}/g,'<em>$1</em>')
+    .replace(/\{@damage ([^}]+)\}/g,'$1').replace(/\{@dice ([^}]+)\}/g,'$1')
+    .replace(/\{@hit ([^}]+)\}/g,'+$1').replace(/\{@dc ([^}]+)\}/g,'DC $1')
+    .replace(/\{@[a-z]+ ([^|}]+)[^}]*\}/g,'$1').replace(/\{@[^}]+\}/g,'');
+}
+
+function compRenderEntries(entries) {
+  if (!entries) return '';
+  return entries.map(e => {
+    if (typeof e === 'string') return `<p>${compCleanText(e)}</p>`;
+    if (e.type === 'entries') return `<p><strong>${e.name||''}</strong></p>${compRenderEntries(e.entries)}`;
+    if (e.type === 'list')    return `<ul>${(e.items||[]).map(i=>`<li>${typeof i==='string'?compCleanText(i):compRenderEntries(i.entries||[])}</li>`).join('')}</ul>`;
+    if (typeof e === 'object' && e.entries) return compRenderEntries(e.entries);
+    return '';
+  }).join('');
+}
+
+function compRenderSpell(s) {
+  const level  = s.level===0 ? 'Cantrip' : `${s.level}${['th','st','nd','rd'][s.level]||'th'}-level`;
+  const schools = {A:'Abjuration',C:'Conjuration',D:'Divination',E:'Enchantment',V:'Evocation',I:'Illusion',N:'Necromancy',T:'Transmutation'};
+  const ritual = s.meta?.ritual ? ' · Ritual' : '';
+  const conc   = s.duration?.some(d=>d.concentration) ? ' · Concentration' : '';
+  const time   = s.time?.map(t=>`${t.number} ${t.unit}`).join(' or ') || '—';
+  const range  = compFormatRange(s.range);
+  const comp   = compFormatComp(s.components);
+  const dur    = s.duration?.map(d=>compFormatDur(d)).join(' or ') || '—';
+  const classes= (s.classes?.fromClassList||[]).map(c=>c.name).join(', ') || '—';
+  const body   = compRenderEntries(s.entries||[]);
+  const higher = s.entriesHigherLevel ? `<div class="cpd-section-title">At Higher Levels</div><div class="cpd-body">${compRenderEntries(s.entriesHigherLevel)}</div>` : '';
+  return `<div class="cpd-name">${s.name}</div>
+    <div class="cpd-meta">${level} ${schools[s.school]||''}${ritual}${conc}</div>
+    <div class="cpd-stats">
+      <div class="cpd-stat"><span class="cpd-stat-label">Casting Time</span><span class="cpd-stat-val">${time}</span></div>
+      <div class="cpd-stat"><span class="cpd-stat-label">Range</span><span class="cpd-stat-val">${range}</span></div>
+      <div class="cpd-stat"><span class="cpd-stat-label">Components</span><span class="cpd-stat-val">${comp}</span></div>
+      <div class="cpd-stat"><span class="cpd-stat-label">Duration</span><span class="cpd-stat-val">${dur}</span></div>
+      <div class="cpd-stat"><span class="cpd-stat-label">Classes</span><span class="cpd-stat-val">${classes}</span></div>
+    </div>
+    <hr class="cpd-rule">
+    <div class="cpd-body">${body}</div>${higher}`;
+}
+
+function compRenderMonster(m) {
+  const cr   = `CR ${compFormatCR(m.cr)}`;
+  const type = [m.size, m.type?.type||m.type].filter(Boolean).join(' ');
+  const ac   = Array.isArray(m.ac) ? m.ac.map(a=>typeof a==='object'?a.ac:a).join(', ') : m.ac||'—';
+  const hp   = m.hp ? `${m.hp.average} (${m.hp.formula})` : '—';
+  const spd  = compFormatSpeed(m.speed);
+  const saves= m.save ? Object.entries(m.save).map(([k,v])=>`${k.toUpperCase()} ${v}`).join(', ') : '—';
+  const strip= ['str','dex','con','int','wis','cha'].map(a=>{
+    const sc=m[a]||10, mod=Math.floor((sc-10)/2);
+    return `<div class="cpd-ability-cell"><span class="cpd-ability-label">${a.toUpperCase()}</span><span class="cpd-ability-score">${sc}</span><span class="cpd-ability-mod">${mod>=0?'+':''}${mod}</span></div>`;
+  }).join('');
+  const traits  = compRenderTraits(m.trait||[],'Traits');
+  const actions = compRenderTraits(m.action||[],'Actions');
+  const react   = compRenderTraits(m.reaction||[],'Reactions');
+  const leg     = compRenderTraits(m.legendary||[],'Legendary Actions');
+  return `<div class="cpd-name">${m.name}</div>
+    <div class="cpd-meta">${type} · ${cr}</div>
+    <div class="cpd-stats">
+      <div class="cpd-stat"><span class="cpd-stat-label">AC</span><span class="cpd-stat-val">${ac}</span></div>
+      <div class="cpd-stat"><span class="cpd-stat-label">HP</span><span class="cpd-stat-val">${hp}</span></div>
+      <div class="cpd-stat"><span class="cpd-stat-label">Speed</span><span class="cpd-stat-val">${spd}</span></div>
+      ${saves!=='—'?`<div class="cpd-stat"><span class="cpd-stat-label">Saves</span><span class="cpd-stat-val">${saves}</span></div>`:''}
+    </div>
+    <hr class="cpd-rule">
+    <div class="cpd-ability-strip">${strip}</div>
+    ${traits}${actions}${react}${leg}`;
+}
+
+function compRenderCondition(c) {
+  return `<div class="cpd-name">${c.name}</div>
+    <div class="cpd-meta">${c.disease?'Disease':'Condition'}</div>
+    <hr class="cpd-rule">
+    <div class="cpd-body">${compRenderEntries(c.entries||[])}</div>`;
+}
+
+function compRenderItem(item) {
+  const rarity = item.rarity||'Common';
+  const attune = item.reqAttune ? ` · Requires Attunement` : '';
+  const body   = compRenderEntries(item.entries||[]);
+  return `<div class="cpd-name">${item.name}</div>
+    <div class="cpd-meta">${rarity}${attune}</div>
+    <hr class="cpd-rule">
+    <div class="cpd-body">${body||'<em style="color:var(--muted)">No description available.</em>'}</div>`;
+}
+
+function compRenderTraits(traits, heading) {
+  if (!traits.length) return '';
+  return `<div class="cpd-section-title">${heading}</div>
+    ${traits.map(t=>`<p><span class="cpd-trait-name">${t.name}.</span> <span class="cpd-body" style="display:inline">${compRenderEntries(t.entries||[]).replace(/<\/?p>/g,' ')}</span></p>`).join('')}`;
+}
+
+// ── Format helpers ──
+function compFormatRange(r) {
+  if (!r) return '—';
+  if (r.type==='point') {
+    if (!r.distance||r.distance.type==='self') return 'Self';
+    if (r.distance.type==='touch') return 'Touch';
+    return `${r.distance.amount} ${r.distance.type}`;
+  }
+  if (r.type==='radius') return `Self (${r.distance?.amount}-${r.distance?.type} radius)`;
+  return r.type||'—';
+}
+function compFormatComp(c) {
+  if (!c) return '—';
+  const p=[];
+  if(c.v)p.push('V'); if(c.s)p.push('S');
+  if(c.m)p.push(`M (${typeof c.m==='string'?c.m:c.m.text||'material'})`);
+  return p.join(', ')||'—';
+}
+function compFormatDur(d) {
+  if (!d) return '—';
+  if (d.type==='instant') return 'Instantaneous';
+  if (d.type==='permanent') return 'Until dispelled';
+  const conc = d.concentration ? 'Conc, up to ' : '';
+  if (d.duration) return `${conc}${d.duration.amount} ${d.duration.type}`;
+  return d.type||'—';
+}
+function compFormatSpeed(spd) {
+  if (!spd) return '—';
+  if (typeof spd==='number') return `${spd} ft.`;
+  return Object.entries(spd).map(([k,v])=>{
+    const n = typeof v==='object'?v.number:v;
+    return k==='walk'?`${n} ft.`:`${k} ${n} ft.`;
+  }).join(', ');
+}
+function compFormatCR(cr) {
+  if (!cr) return '—';
+  return typeof cr==='object' ? cr.cr||'—' : cr;
+}
+function compParseCR(cr) {
+  const s=compFormatCR(cr);
+  if(s==='1/8')return 0.125; if(s==='1/4')return 0.25; if(s==='1/2')return 0.5;
+  return parseFloat(s)||0;
 }
 </script>
 
