@@ -321,27 +321,31 @@ function positionTooltip(el) {
   const margin = 12;
   const rect = el.getBoundingClientRect();
 
-  // Tooltip has content but .visible not yet added, so opacity:0 but fully laid out.
-  // Force the browser to calculate its size by reading offsetHeight.
   const ttWidth  = tooltip.offsetWidth  || 280;
   const ttHeight = tooltip.offsetHeight || 220;
 
   let left = rect.left;
   let top  = rect.bottom + margin;
 
+  console.log('[tooltip] el rect:', JSON.stringify({top: rect.top, bottom: rect.bottom, left: rect.left}));
+  console.log('[tooltip] tt size:', ttWidth, 'x', ttHeight);
+  console.log('[tooltip] viewport:', window.innerWidth, 'x', window.innerHeight);
+  console.log('[tooltip] initial top:', top, '| would overflow?', top + ttHeight + margin > window.innerHeight);
+
   // Prevent overflow off right edge
   if (left + ttWidth > window.innerWidth - margin) {
     left = window.innerWidth - ttWidth - margin;
   }
-  // Prevent overflow off left edge
   if (left < margin) left = margin;
 
   // If tooltip would overflow bottom of viewport, flip above the link
   if (top + ttHeight + margin > window.innerHeight) {
     top = rect.top - ttHeight - margin;
+    console.log('[tooltip] flipped above, new top:', top);
   }
-  // Final clamp: never go above viewport
   if (top < margin) top = margin;
+
+  console.log('[tooltip] final position: left=' + left + ' top=' + top);
 
   tooltip.style.left = left + 'px';
   tooltip.style.top  = top  + 'px';
