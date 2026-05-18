@@ -1,5 +1,14 @@
 [
   {
+    "id": "1779086717842",
+    "session": 0,
+    "author": "Vesperian",
+    "character": "Fighter",
+    "color": "#567881",
+    "timestamp": "2026-05-18T06:45:17.842Z",
+    "text": "I'm testing to make sure the identities are working here. Let's see. The chronicles begin."
+  },
+  {
     "id": "session-0-legacy",
     "session": 0,
     "sessionTitle": "The World Before",
@@ -9,6 +18,10 @@
     "color": "#b8952a",
     "timestamp": "2025-01-01T00:00:00",
     "text": "The party convened for the first time, drawing together from separate corners of a fractured world. Kirtas bleeds. The throne is contested. The dead walk roads that armies once marched. And somewhere in the Long Hills, a general fights for a prince no one has seen in years.\n\nThe chronicle begins here.",
-    "tags": ["Session Zero", "Tiersgard", "Party Assembly"]
+    "tags": [
+      "Session Zero",
+      "Tiersgard",
+      "Party Assembly"
+    ]
   }
 ]
