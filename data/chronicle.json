@@ -1,22 +1,6 @@
 {
   "entries": [
     {
-      "id": "1779126752889",
-      "session": 0,
-      "author": "Vesperian",
-      "character": "Fighter",
-      "color": "#5a9aaa",
-      "timestamp": "2026-05-18T17:52:32.889Z",
-      "text": "<p>Testing. <span style=\"color: rgb(212, 172, 58);\" data-mention-type=\"npc\" data-mention-key=\"prince\">The Young Prince. hjhh</span></p><p><br></p><p>It was gold, but no longer. <span style=\"color: rgb(138, 180, 201);\" data-mention-type=\"location\" data-mention-key=\"tiersgard\">Tiersgard dfdf</span></p><p><span style=\"color: rgb(138, 180, 201);\">dfdf. df</span></p><p><br></p><p>After a while it turned white again, but was blue for a bit. </p><p><br></p><p><span style=\"color: rgb(212, 172, 58);\" data-mention-type=\"npc\" data-mention-key=\"tyros\">Tyros Darkstar</span></p><p><span style=\"color: rgb(212, 172, 58);\" data-mention-type=\"npc\" data-mention-key=\"reykoldt\">Lord Reykoldt</span></p><p><span style=\"color: rgb(138, 180, 201);\" data-mention-type=\"location\" data-mention-key=\"yevennia\">Yevennia</span></p><p>@</p>",
-      "tags": [
-        "prince",
-        "tiersgard",
-        "tyros",
-        "reykoldt",
-        "yevennia"
-      ]
-    },
-    {
       "id": "1779086759727",
       "session": 0,
       "author": "Líadan",
