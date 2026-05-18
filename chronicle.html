@@ -1099,7 +1099,11 @@ function handleInlineKeydown(e) {
   else if (e.key === 'ArrowUp') { e.preventDefault(); inlineFocusIdx = Math.max(inlineFocusIdx-1, 0); updateInlineFocus(items); }
   else if (e.key === 'Tab' || e.key === 'Enter') {
     const focused = items[inlineFocusIdx];
-    if (focused) { e.preventDefault(); focused.click(); }
+    if (focused) {
+      e.preventDefault();
+      e.stopPropagation();
+      focused.click();
+    }
   }
   else if (e.key === 'Escape') { hideInlineDropdown(); }
 }
@@ -1172,8 +1176,15 @@ function insertMention(type, key, name) {
   quill.formatText(insertIdx + name.length, 1, { color: false, bold: false });
   quill.setSelection(insertIdx + name.length + 1, 0);
 
-  // Tag the exact span in the DOM after Quill finishes its update
+  // Insert a space after the mention with NO formatting to break the color
   setTimeout(() => {
+    const afterIdx = insertIdx + name.length;
+    // Remove all formatting from this point forward
+    quill.removeFormat(afterIdx, 1);
+    quill.formatText(afterIdx, quill.getLength() - afterIdx, { color: false, bold: false, italic: false });
+    quill.setSelection(afterIdx + 1, 0);
+
+    // Tag the exact span in the DOM
     const spans = quill.root.querySelectorAll('span[style*="color"]');
     spans.forEach(span => {
       if (span.textContent === name && !span.dataset.mentionType) {
@@ -1181,7 +1192,7 @@ function insertMention(type, key, name) {
         span.dataset.mentionKey  = key;
       }
     });
-  }, 10);
+  }, 20);
 }
 
 function insertTag(tag) {
@@ -1348,7 +1359,7 @@ function renderSidebar() {
   }).join('');
 
   // Tags
-  const allTags = [...new Set(allEntries.flatMap(e=>e.tags||[]))].sort();
+  const allTags = [...new Set(allEntries.flatMap(e=>(e.tags||[]).map(t=>t.toLowerCase())))].sort();
   document.getElementById('tag-list').innerHTML = allTags.map(t=>`
     <button class="c-tag-btn${activeFilters.tags.includes(t)?' active':''}" onclick="filterByTag('${t}')">${t}</button>`
   ).join('');
@@ -1367,7 +1378,7 @@ function renderEntries() {
   const { session, author, tags, search } = activeFilters;
   if (session !== null) entries = entries.filter(e=>e.session==session);
   if (author)           entries = entries.filter(e=>e.author===author);
-  if (tags.length)      entries = entries.filter(e=>tags.every(t=>(e.tags||[]).includes(t)));
+  if (tags.length)      entries = entries.filter(e=>tags.every(t=>(e.tags||[]).map(x=>x.toLowerCase()).includes(t.toLowerCase())));
   if (search)           entries = entries.filter(e=>{
     const q = search.toLowerCase();
     return (e.text||'').toLowerCase().includes(q) ||
@@ -1481,7 +1492,7 @@ function renderFilterBar() {
 // ══════════════════════════════════════════════════════════
 function filterBySession(n) { activeFilters.session = n; renderSidebar(); renderEntries(); if(n!==null){const el=document.getElementById(`session-block-${n}`);if(el)el.scrollIntoView({behavior:'smooth'});} }
 function filterByAuthor(a)  { activeFilters.author  = activeFilters.author===a?null:a; renderSidebar(); renderEntries(); }
-function filterByTag(t)     { if(!activeFilters.tags.includes(t))activeFilters.tags.push(t); renderSidebar(); renderEntries(); }
+function filterByTag(t)     { const tl=t.toLowerCase(); if(!activeFilters.tags.includes(tl))activeFilters.tags.push(tl); renderSidebar(); renderEntries(); }
 function removeTagFilter(t) { activeFilters.tags=activeFilters.tags.filter(x=>x!==t); renderSidebar(); renderEntries(); }
 function clearSearch()      { activeFilters.search=''; document.getElementById('c-search').value=''; renderEntries(); }
 function clearAllFilters()  { activeFilters={session:null,author:null,tags:[],search:''}; document.getElementById('c-search').value=''; renderSidebar(); renderEntries(); }
@@ -1545,17 +1556,18 @@ async function submitEntry() {
   if (!sessionNum && sessionNum !== 0) { setDrawerStatus('Please enter a session number.','error'); return; }
   if (!text || text === '<p></p>') { setDrawerStatus('Please write something before submitting.','error'); return; }
 
-  // Extract #hashtags
+  // Extract #hashtags — always lowercase for consistent filtering
   const tagMatches = rawHTML.match(/#([a-zA-Z0-9_-]+)/g)||[];
-  const hashTags = tagMatches.map(t=>t.slice(1).toLowerCase());
+  const hashTags = tagMatches.map(t=>t.slice(1).toLowerCase().trim());
 
   // Extract NPC and location mentions as tags too
   const mentionTags = [];
   if (quill) {
     quill.root.querySelectorAll('[data-mention-type]').forEach(span => {
-      const mtype = span.dataset.mentionType;
-      const mkey  = span.dataset.mentionKey;
-      if (mkey && !mentionTags.includes(mkey)) mentionTags.push(mkey);
+      const mkey = span.dataset.mentionKey;
+      if (mkey && !mentionTags.includes(mkey.toLowerCase())) {
+        mentionTags.push(mkey.toLowerCase());
+      }
     });
   }
 
