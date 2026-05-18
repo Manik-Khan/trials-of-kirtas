@@ -1503,12 +1503,27 @@ function editEntry(id) {
   setDrawerStatus(`Editing entry from ${new Date(entry.timestamp).toLocaleDateString()}`, 'loading');
 }
 
-function deleteEntry(id) {
+async function deleteEntry(id) {
   if (!confirm('Delete this entry? This cannot be undone.')) return;
+  const backup = [...allEntries];
   allEntries = allEntries.filter(e=>e.id!==id);
-  writeChronicle(`Chronicle: deleted entry ${id}`)
-    .then(()=>{ renderSidebar(); renderEntries(); })
-    .catch(e=>alert('Delete failed: '+e.message));
+  renderSidebar();
+  renderEntries();
+  try {
+    const res = await fetch(FUNCTION_URL, {
+      method:  'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body:    JSON.stringify({ _replaceAll: true, entries: allEntries, message: `Chronicle: deleted entry ${id}` }),
+    });
+    const data = await res.json();
+    if (!res.ok) throw new Error(data.error || `HTTP ${res.status}`);
+  } catch(e) {
+    // Revert on failure
+    allEntries = backup;
+    renderSidebar();
+    renderEntries();
+    alert('Delete failed: ' + e.message);
+  }
 }
 
 // ══════════════════════════════════════════════════════════

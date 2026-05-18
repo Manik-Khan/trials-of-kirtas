@@ -93,8 +93,9 @@ exports.handler = async (event) => {
         return respond(200, { success: true });
       }
 
-      // Bulk replace (for edit/delete)
-      if (body._replaceAll) {
+      // Bulk replace (for edit/delete) — must check before field validation
+      if (body._replaceAll === true) {
+        if (!Array.isArray(body.entries)) return respond(400, { error: 'entries must be an array' });
         store.entries = body.entries;
         await writeFile(store, sha, body.message || 'Chronicle: update');
         return respond(200, { success: true });
