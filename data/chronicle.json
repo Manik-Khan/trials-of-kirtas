@@ -17,22 +17,6 @@
       "color": "#5a9a6a",
       "timestamp": "2026-05-18T06:45:59.727Z",
       "text": "Bish, I'm a mouse. I just say \"squeak\"."
-    },
-    {
-      "id": "session-0-legacy",
-      "session": 0,
-      "sessionTitle": "The World Before",
-      "location": "Tiersgard",
-      "author": "DM",
-      "character": "DM",
-      "color": "#b8952a",
-      "timestamp": "2025-01-01T00:00:00",
-      "text": "The party convened for the first time, drawing together from separate corners of a fractured world. Kirtas bleeds. The throne is contested. The dead walk roads that armies once marched. And somewhere in the Long Hills, a general fights for a prince no one has seen in years.\n\nThe chronicle begins here.",
-      "tags": [
-        "Session Zero",
-        "Tiersgard",
-        "Party Assembly"
-      ]
     }
   ],
   "config": {}
