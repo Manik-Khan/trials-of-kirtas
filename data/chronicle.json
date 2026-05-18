@@ -1,19 +1,6 @@
 {
   "entries": [
     {
-      "id": "1779125764607",
-      "session": 0,
-      "author": "Vesperian",
-      "character": "Fighter",
-      "color": "#5a9aaa",
-      "timestamp": "2026-05-18T17:36:04.607Z",
-      "text": "<p>Retesting the @ abilities. <span style=\"color: rgb(212, 172, 58);\" data-mention-type=\"npc\" data-mention-key=\"prince\">The Young Prince. </span></p><p><br></p><p><span style=\"color: rgb(212, 172, 58);\">Text is still gold. </span><span style=\"color: rgb(138, 180, 201);\" data-mention-type=\"location\" data-mention-key=\"tiersgard\">Tiersgard</span></p><p><br></p><p>Text is still gold. Although now it's fine. Because I entered twice?</p><p><br></p>",
-      "tags": [
-        "prince",
-        "tiersgard"
-      ]
-    },
-    {
       "id": "1779086759727",
       "session": 0,
       "author": "Líadan",
