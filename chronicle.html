@@ -622,6 +622,7 @@ function confirmIdentity() {
   closeModal();
   renderIdentityBar();
   showWritePanel();
+  unlockWritePanel();
 }
 
 function renderIdentityBar() {
@@ -792,6 +793,37 @@ async function submitEntry() {
   }
 }
 
+function lockWritePanel() {
+  const panel = document.getElementById('write-panel');
+  // Overlay the write panel with a prompt to identify
+  const overlay = document.createElement('div');
+  overlay.id = 'write-lock-overlay';
+  overlay.style.cssText = `
+    position:absolute; inset:0;
+    background:rgba(10,8,5,0.75);
+    display:flex; align-items:center; justify-content:center;
+    backdrop-filter:blur(2px);
+    cursor:pointer;
+  `;
+  overlay.innerHTML = `
+    <div style="text-align:center">
+      <div style="font-family:var(--font-title);font-size:0.52rem;letter-spacing:0.3em;color:var(--gold);text-transform:uppercase;margin-bottom:0.5rem">
+        Identify yourself to add an entry
+      </div>
+      <button onclick="openModal()" style="font-family:var(--font-title);font-size:0.52rem;letter-spacing:0.25em;text-transform:uppercase;padding:0.4rem 1.25rem;background:rgba(184,149,42,0.12);border:1px solid var(--gold);color:var(--gold-light);cursor:pointer;">
+        Choose Identity
+      </button>
+    </div>`;
+  panel.style.position = 'relative';
+  panel.appendChild(overlay);
+}
+
+function unlockWritePanel() {
+  const overlay = document.getElementById('write-lock-overlay');
+  if (overlay) overlay.remove();
+  delete document.getElementById('write-panel').dataset.locked;
+}
+
 function setStatus(msg, type) {
   const el = document.getElementById('write-status');
   el.textContent = msg;
@@ -803,12 +835,22 @@ function setStatus(msg, type) {
 // ══════════════════════════════════════════════════════════
 loadIdentity();
 
-if (!currentIdentity) {
-  // First visit — show modal after a short delay
-  setTimeout(openModal, 600);
-} else {
+// Always show the chronicle immediately — no login required to read
+// Identity is only needed to write an entry
+if (currentIdentity) {
   renderIdentityBar();
   showWritePanel();
+} else {
+  // Show a subtle "add your voice" prompt instead of forcing identity
+  document.getElementById('identity-bar').style.display = 'flex';
+  document.getElementById('id-bar-dot').style.background = 'var(--muted)';
+  document.getElementById('id-bar-name').textContent = 'Reading as guest';
+  document.getElementById('id-bar-name').style.color = 'var(--muted)';
+  // Show write panel in locked state
+  document.getElementById('write-panel').style.display = 'block';
+  document.getElementById('write-panel').dataset.locked = 'true';
+  // Disable all inputs until identity is set
+  lockWritePanel();
 }
 
 loadChronicle();
