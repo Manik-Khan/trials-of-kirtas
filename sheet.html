@@ -228,23 +228,42 @@
     }
 
     /* HP tracker */
-    .hp-wrap {
-      display: flex; align-items: center;
-      justify-content: center; gap: 0.3rem; margin-top: 0.1rem;
-    }
+    .hp-bar-row { display: flex; align-items: center; gap: 0.45rem; margin-top: 0.2rem; }
+    .hp-bar-track { flex: 1; height: 12px; background: rgba(0,0,0,0.45); border: 1px solid rgba(255,255,255,0.05); overflow: hidden; display: flex; }
+    .hp-bar-seg { height: 100%; transition: width 0.3s ease, background 0.4s ease; }
     .hp-btn {
-      width: 18px; height: 18px;
+      width: 22px; height: 22px;
       background: rgba(0,0,0,0.4);
       border: 1px solid var(--gold-dim);
-      color: var(--aged); font-size: 0.85rem;
+      color: var(--aged); font-size: 0.9rem;
       cursor: pointer; display: flex;
       align-items: center; justify-content: center;
       transition: background 0.15s; font-family: var(--font-title); line-height: 1;
+      flex-shrink: 0;
     }
     .hp-btn:hover { background: rgba(184,149,42,0.15); }
-    .hp-current { font-family: var(--font-title); font-size: 1.1rem; color: var(--hp-good); }
-    .hp-sep     { color: var(--muted); font-size: 0.85rem; }
-    .hp-max     { font-family: var(--font-title); font-size: 0.85rem; color: var(--aged); }
+    .hp-btn:active { transform: scale(0.92); }
+    .hp-nums { display: flex; align-items: baseline; gap: 0.2rem; flex-shrink: 0; }
+    .hp-current { font-family: var(--font-title); font-size: 1.3rem; line-height: 1; transition: color 0.4s; }
+    .hp-sep     { color: var(--muted); font-size: 0.8rem; }
+    .hp-max-val { font-family: var(--font-title); font-size: 0.78rem; color: var(--aged); }
+    .hp-status  { font-family: var(--font-title); font-size: 0.44rem; letter-spacing: 0.18em; text-transform: uppercase; padding: 0.1rem 0.3rem; border: 1px solid; flex-shrink: 0; transition: all 0.3s; }
+    .hp-legend  { display: flex; gap: 0.65rem; margin-top: 0.3rem; padding-left: 28px; }
+    .hp-legend-item { display: flex; align-items: center; gap: 0.25rem; font-family: var(--font-title); font-size: 0.42rem; letter-spacing: 0.12em; text-transform: uppercase; }
+    .hp-legend-dot  { width: 7px; height: 7px; border-radius: 50%; flex-shrink: 0; }
+    .hp-adj-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 0.4rem 0.75rem; margin-top: 0.6rem; }
+    .hp-adj-row  { display: flex; align-items: center; gap: 0.3rem; }
+    .hp-adj-label { font-family: var(--font-title); font-size: 0.44rem; letter-spacing: 0.15em; text-transform: uppercase; flex-shrink: 0; min-width: 52px; }
+    .hp-adj-btn  { width: 18px; height: 18px; background: rgba(0,0,0,0.35); border: 1px solid var(--gold-dim); color: var(--aged); font-size: 0.8rem; cursor: pointer; display: flex; align-items: center; justify-content: center; transition: background 0.15s; font-family: var(--font-title); line-height: 1; flex-shrink: 0; }
+    .hp-adj-btn:hover { background: rgba(184,149,42,0.15); }
+    .hp-adj-val  { font-family: var(--font-title); font-size: 0.8rem; min-width: 1.5ch; text-align: center; }
+    .hp-rest-row { display: flex; justify-content: center; align-items: center; gap: 1.5rem; margin-top: 0.6rem; }
+    .hp-rest-btn { width: 30px; height: 30px; background: rgba(184,149,42,0.06); border: 1px solid var(--gold-dim); cursor: pointer; display: flex; align-items: center; justify-content: center; transition: background 0.2s, border-color 0.2s; position: relative; flex-shrink: 0; }
+    .hp-rest-btn:hover { background: rgba(184,149,42,0.14); border-color: var(--gold-mid); }
+    .hp-rest-btn:active { transform: scale(0.92); }
+    .hp-rest-btn svg { width: 15px; height: 15px; }
+    .hp-rest-btn .hp-tip { position: absolute; bottom: calc(100% + 6px); left: 50%; transform: translateX(-50%); background: var(--ink-deep); border: 1px solid var(--gold-dim); color: var(--aged); font-family: var(--font-title); font-size: 0.44rem; letter-spacing: 0.15em; text-transform: uppercase; padding: 0.15rem 0.4rem; white-space: nowrap; opacity: 0; pointer-events: none; transition: opacity 0.15s 0.5s; }
+    .hp-rest-btn:hover .hp-tip { opacity: 1; }
 
     /* Resource pips */
     .resource-row {
@@ -1005,13 +1024,78 @@ function renderDeathSaves() {
 // HP TRACKER
 // ══════════════════════════════════════════════════════════
 
-function changeHP(delta) {
-  currentHP = Math.max(0, Math.min(maxHPVal, currentHP + delta));
-  const el = document.getElementById('hp-current');
-  if (!el) return;
-  el.textContent = currentHP;
-  el.style.color = currentHP <= 0 ? 'var(--hp-bad)' : currentHP < maxHPVal*0.5 ? 'var(--hp-warn)' : 'var(--hp-good)';
+// HP tracker state
+let hpTemp  = 0;
+let hpBonus = 0;
+
+function renderHP() {
+  const max     = maxHPVal;
+  const bonus   = hpBonus;
+  const temp    = hpTemp;
+  const cur     = currentHP;
+  const effMax  = max + bonus;
+  const total   = effMax + temp;
+  const ratio   = max > 0 ? cur / max : 0;
+
+  const COL_FULL  = '#5a9a6a';
+  const COL_BLOOD = '#d4821a';
+  const COL_CRIT  = '#c8432a';
+  const COL_DEAD  = '#7a1f1f';
+
+  let barCol, numCol, statusText;
+  if (cur <= 0)          { barCol = COL_DEAD;  numCol = COL_DEAD;  statusText = 'Unconscious'; }
+  else if (ratio < 0.2)  { barCol = COL_CRIT;  numCol = COL_CRIT;  statusText = 'Critical'; }
+  else if (ratio < 0.5)  { barCol = COL_BLOOD; numCol = COL_BLOOD; statusText = 'Bloodied'; }
+  else                   { barCol = COL_FULL;  numCol = COL_FULL;  statusText = ''; }
+
+  const toW = hp => (total > 0 ? (hp / total * 100) : 0).toFixed(2) + '%';
+
+  const bMain  = document.getElementById('hp-bar-main');
+  const bTemp  = document.getElementById('hp-bar-temp');
+  const bBonus = document.getElementById('hp-bar-bonus');
+  if (bMain)  { bMain.style.width = toW(cur);   bMain.style.background = barCol; }
+  if (bTemp)  { bTemp.style.width = toW(temp); }
+  if (bBonus) { bBonus.style.width = toW(bonus); }
+
+  const elCur = document.getElementById('hp-current');
+  if (elCur)  { elCur.textContent = cur; elCur.style.color = numCol; }
+
+  const elMax = document.getElementById('hp-max-disp');
+  if (elMax)  elMax.textContent = effMax;
+
+  const elTag = document.getElementById('hp-status');
+  if (elTag) {
+    if (statusText) {
+      elTag.textContent = statusText;
+      elTag.style.color = barCol;
+      elTag.style.borderColor = barCol;
+      elTag.style.background = barCol + '22';
+      elTag.style.opacity = '1';
+    } else {
+      elTag.style.opacity = '0';
+    }
+  }
+
+  const elTemp  = document.getElementById('hp-val-temp');
+  const elBonus = document.getElementById('hp-val-bonus');
+  const elMaxV  = document.getElementById('hp-val-max');
+  if (elTemp)  elTemp.textContent  = temp;
+  if (elBonus) elBonus.textContent = bonus;
+  if (elMaxV)  elMaxV.textContent  = max;
 }
+
+function changeHP(delta) {
+  const effMax = maxHPVal + hpBonus;
+  currentHP = Math.max(0, Math.min(effMax, currentHP + delta));
+  renderHP();
+}
+
+function adjHPTemp(d)  { hpTemp  = Math.max(0, Math.min(99, hpTemp  + d)); renderHP(); }
+function adjHPBonus(d) { hpBonus = Math.max(0, Math.min(99, hpBonus + d)); renderHP(); }
+function adjHPMax(d)   { maxHPVal = Math.max(1, maxHPVal + d); currentHP = Math.min(currentHP, maxHPVal + hpBonus); renderHP(); }
+
+function hpLongRest()  { currentHP = maxHPVal + hpBonus; hpTemp = 0; renderHP(); }
+function hpShortRest() { renderHP(); }
 
 // Inspiration toggle
 function toggleInspiration() {
@@ -1168,12 +1252,55 @@ function buildCoreTab() {
             <div class="c-stat"><span class="c-label">AC</span><span class="c-value">${C.combat.ac}</span></div>
             <div class="c-stat" style="grid-column:span 2">
               <span class="c-label">Hit Points</span>
-              <div class="hp-wrap">
+              <div class="hp-bar-row">
                 <button class="hp-btn" onclick="changeHP(-1)">−</button>
-                <span class="hp-current" id="hp-current">${C.combat.hp}</span>
-                <span class="hp-sep">/</span>
-                <span class="hp-max">${C.combat.hpMax}</span>
+                <div class="hp-bar-track">
+                  <div class="hp-bar-seg" id="hp-bar-main" style="width:100%;background:#5a9a6a"></div>
+                  <div class="hp-bar-seg" id="hp-bar-temp" style="width:0%;background:#b8952a"></div>
+                  <div class="hp-bar-seg" id="hp-bar-bonus" style="width:0%;background:#5a9aaa"></div>
+                </div>
                 <button class="hp-btn" onclick="changeHP(1)">+</button>
+                <div class="hp-nums">
+                  <span class="hp-current" id="hp-current" style="color:#5a9a6a">${C.combat.hp}</span>
+                  <span class="hp-sep">/</span>
+                  <span class="hp-max-val" id="hp-max-disp">${C.combat.hpMax}</span>
+                </div>
+                <span class="hp-status" id="hp-status" style="opacity:0"></span>
+              </div>
+              <div class="hp-legend">
+                <div class="hp-legend-item"><div class="hp-legend-dot" style="background:#c8432a"></div><span style="color:#c8432a">Critical</span></div>
+                <div class="hp-legend-item"><div class="hp-legend-dot" style="background:#d4821a"></div><span style="color:#d4821a">Bloodied</span></div>
+                <div class="hp-legend-item"><div class="hp-legend-dot" style="background:#5a9a6a"></div><span style="color:#5a9a6a">Full</span></div>
+              </div>
+              <div class="hp-adj-grid">
+                <div class="hp-adj-row">
+                  <span class="hp-adj-label" style="color:#b8952a">Temp HP</span>
+                  <button class="hp-adj-btn" onclick="adjHPTemp(-1)">−</button>
+                  <span class="hp-adj-val" id="hp-val-temp" style="color:#b8952a">0</span>
+                  <button class="hp-adj-btn" onclick="adjHPTemp(1)">+</button>
+                </div>
+                <div class="hp-adj-row">
+                  <span class="hp-adj-label" style="color:#5a9aaa">Bonus Max</span>
+                  <button class="hp-adj-btn" onclick="adjHPBonus(-1)">−</button>
+                  <span class="hp-adj-val" id="hp-val-bonus" style="color:#5a9aaa">0</span>
+                  <button class="hp-adj-btn" onclick="adjHPBonus(1)">+</button>
+                </div>
+                <div class="hp-adj-row">
+                  <span class="hp-adj-label" style="color:var(--muted)">Max HP</span>
+                  <button class="hp-adj-btn" onclick="adjHPMax(-1)">−</button>
+                  <span class="hp-adj-val" id="hp-val-max" style="color:var(--muted)">${C.combat.hpMax}</span>
+                  <button class="hp-adj-btn" onclick="adjHPMax(1)">+</button>
+                </div>
+                <div class="hp-rest-row" style="margin-top:0;justify-content:flex-end;padding-right:0.1rem">
+                  <button class="hp-rest-btn" onclick="hpShortRest()">
+                    <svg viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M13 8A5 5 0 0 1 6 3.5a5 5 0 1 0 7 4.5z" fill="#b8952a" opacity="0.85"/></svg>
+                    <span class="hp-tip">Short Rest</span>
+                  </button>
+                  <button class="hp-rest-btn" onclick="hpLongRest()">
+                    <svg viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg"><circle cx="8" cy="8" r="5" fill="#b8952a" opacity="0.85"/></svg>
+                    <span class="hp-tip">Long Rest</span>
+                  </button>
+                </div>
               </div>
             </div>
             <div class="c-stat clickable" onclick="rollInit()"><span class="c-label">Initiative</span><span class="c-value">${modStr(C.combat.initiative)}</span></div>
