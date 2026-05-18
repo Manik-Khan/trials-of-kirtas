@@ -140,12 +140,47 @@
     }
 
     /* Tag views */
+    .c-tag-search {
+      font-family: var(--font-body);
+      font-size: 0.75rem;
+      background: rgba(0,0,0,0.3);
+      border: 1px solid var(--gold-dim);
+      color: var(--parchment);
+      padding: 0.25rem 0.5rem;
+      width: calc(100% - 1.2rem);
+      margin: 0 0.6rem 0.5rem;
+      outline: none;
+      transition: border-color 0.15s;
+    }
+    .c-tag-search:focus { border-color: var(--gold-mid); }
+    .c-tag-search::placeholder { color: var(--muted); }
     .c-tag-list {
       display: flex;
       flex-wrap: wrap;
       gap: 0.3rem;
       padding: 0 0.6rem 0.75rem;
     }
+    .c-tag-group { width: 100%; }
+    .c-tag-group-label {
+      font-family: var(--font-title);
+      font-size: 0.38rem;
+      letter-spacing: 0.18em;
+      text-transform: uppercase;
+      color: var(--muted);
+      padding: 0.4rem 0 0.25rem;
+      width: 100%;
+      display: flex;
+      align-items: center;
+      gap: 0.4rem;
+    }
+    .c-tag-group-label::after {
+      content: '';
+      flex: 1;
+      height: 1px;
+      background: var(--gold-dim);
+      opacity: 0.4;
+    }
+    .c-tag-group-tags { display: flex; flex-wrap: wrap; gap: 0.3rem; margin-bottom: 0.35rem; }
     .c-tag-btn {
       font-family: var(--font-title);
       font-size: 0.42rem;
@@ -160,6 +195,22 @@
     }
     .c-tag-btn:hover { color: var(--aged); border-color: var(--gold-mid); }
     .c-tag-btn.active { background: var(--gold-dim); border-color: var(--gold); color: var(--gold-light); }
+    /* NPC tags — gold tint */
+    .c-tag-btn.tag-npc { border-color: rgba(212,172,58,0.3); color: rgba(212,172,58,0.7); }
+    .c-tag-btn.tag-npc:hover { color: #d4ac3a; border-color: rgba(212,172,58,0.7); }
+    .c-tag-btn.tag-npc.active { background: rgba(212,172,58,0.15); border-color: #d4ac3a; color: #d4ac3a; }
+    /* Location tags — steel blue tint */
+    .c-tag-btn.tag-location { border-color: rgba(138,180,201,0.3); color: rgba(138,180,201,0.7); }
+    .c-tag-btn.tag-location:hover { color: #8ab4c9; border-color: rgba(138,180,201,0.7); }
+    .c-tag-btn.tag-location.active { background: rgba(138,180,201,0.12); border-color: #8ab4c9; color: #8ab4c9; }
+    /* Story tags — sage green */
+    .c-tag-btn.tag-story { border-color: rgba(122,154,106,0.3); color: rgba(122,154,106,0.7); }
+    .c-tag-btn.tag-story:hover { color: #7a9a6a; border-color: rgba(122,154,106,0.7); }
+    .c-tag-btn.tag-story.active { background: rgba(122,154,106,0.12); border-color: #7a9a6a; color: #7a9a6a; }
+    /* Unresolved mention tags — dimmer gold with dashed border */
+    .c-tag-btn.tag-unresolved { border-style: dashed; border-color: rgba(201,180,138,0.25); color: rgba(201,180,138,0.45); }
+    .c-tag-btn.tag-unresolved:hover { color: #c9b48a; border-color: rgba(201,180,138,0.6); }
+    .c-tag-btn.tag-unresolved.active { background: rgba(201,180,138,0.08); border-color: #c9b48a; color: #c9b48a; }
 
     /* DM session control */
     .c-session-ctrl {
@@ -791,6 +842,7 @@
       <div class="c-author-filters" id="author-filters"></div>
 
       <span class="c-sidebar-section-label">Tags</span>
+      <input class="c-tag-search" id="tag-search" placeholder="Search tags…" oninput="renderSidebar()" autocomplete="off">
       <div class="c-tag-list" id="tag-list"></div>
     </div>
 
@@ -1124,7 +1176,21 @@ function showInlineDropdown() {
   if (inlineMode === 'mention') {
     const npcs  = getKnownNPCs().filter(n=>n.name.toLowerCase().includes(inlineQuery)||n.key.includes(inlineQuery));
     const locs  = getKnownLocations().filter(l=>l.name.toLowerCase().includes(inlineQuery)||l.key.includes(inlineQuery));
-    if (!npcs.length && !locs.length) { hideInlineDropdown(); return; }
+    if (!npcs.length && !locs.length) {
+      // No known match — offer to insert as unresolved mention
+      if (inlineQuery.length > 0) {
+        const display = inlineQuery.charAt(0).toUpperCase() + inlineQuery.slice(1);
+        dd.innerHTML = `<div class="inline-dropdown-item" onclick="insertUnresolvedMention('${inlineQuery}','${display}')"><span class="inline-dropdown-icon">❓</span><span class="inline-dropdown-name">${display} <em style="color:var(--muted)">(unresolved)</em></span></div>`;
+        dd.style.display = 'block';
+        const bounds = quill.getBounds(quill.getSelection()?.index||0);
+        const editorRect = document.getElementById('quill-editor').getBoundingClientRect();
+        dd.style.left = (editorRect.left + bounds.left) + 'px';
+        dd.style.top  = (editorRect.top + bounds.bottom + 4) + 'px';
+      } else {
+        hideInlineDropdown();
+      }
+      return;
+    }
     let html = '';
     if (npcs.length) {
       html += `<div class="inline-dropdown-section">NPCs</div>`;
@@ -1223,6 +1289,36 @@ function insertMention(type, key, name) {
     // Best-effort: tag the span in the DOM using mentionMap as source of truth
     const spans = quill.root.querySelectorAll('span[style*="color"]');
     spans.forEach(span => {
+      const spanText = span.textContent.trim();
+      const mapEntry = mentionMap[spanText];
+      if (mapEntry && !span.dataset.mentionType) {
+        span.dataset.mentionType = mapEntry.type;
+        span.dataset.mentionKey  = mapEntry.key;
+      }
+    });
+  }, 20);
+}
+
+function insertUnresolvedMention(key, name) {
+  if (!inlineRange) return;
+  const insertIdx = inlineRange.index;
+  const deleteLen = inlineRange.length;
+  hideInlineDropdown();
+
+  quill.deleteText(insertIdx, deleteLen);
+  quill.insertText(insertIdx, name, { color: '#c9b48a', bold: false });
+  quill.formatText(insertIdx + name.length, 1, { color: false, bold: false });
+
+  mentionMap[name] = { type: 'npc-unresolved', key };
+
+  setTimeout(() => {
+    const afterIdx = insertIdx + name.length;
+    quill.insertText(afterIdx, ' ', { color: false, bold: false, italic: false });
+    quill.format('color', false);
+    quill.format('bold', false);
+    quill.setSelection(afterIdx + 1, 0);
+
+    quill.root.querySelectorAll('span[style*="color"]').forEach(span => {
       const spanText = span.textContent.trim();
       const mapEntry = mentionMap[spanText];
       if (mapEntry && !span.dataset.mentionType) {
@@ -1396,11 +1492,45 @@ function renderSidebar() {
     </button>`;
   }).join('');
 
-  // Tags
-  const allTags = [...new Set(allEntries.flatMap(e=>(e.tags||[]).map(t=>t.toLowerCase())))].sort();
-  document.getElementById('tag-list').innerHTML = allTags.map(t=>`
-    <button class="c-tag-btn${activeFilters.tags.includes(t.toLowerCase())?' active':''}" onclick="filterByTag('${t}')">${t}</button>`
-  ).join('');
+  // Tags — grouped by NPC / Location / Story, with search filter
+  const npcKeys  = typeof NPC_DATA      !== 'undefined' ? Object.keys(NPC_DATA)      : [];
+  const locKeys  = typeof LOCATION_DATA !== 'undefined' ? Object.keys(LOCATION_DATA) : [];
+  const tagSearch = (document.getElementById('tag-search')?.value || '').toLowerCase().trim();
+
+  const allTags = [...new Set(allEntries.flatMap(e => (e.tags || []).map(t => t.toLowerCase())))].sort();
+  const filteredTags = tagSearch ? allTags.filter(t => t.includes(tagSearch)) : allTags;
+
+  const npcTags      = filteredTags.filter(t => npcKeys.includes(t));
+  const locationTags = filteredTags.filter(t => locKeys.includes(t));
+  const storyTags    = filteredTags.filter(t => !npcKeys.includes(t) && !locKeys.includes(t));
+
+  function tagBtn(t, cls) {
+    const active = activeFilters.tags.includes(t) ? ' active' : '';
+    return `<button class="c-tag-btn ${cls}${active}" onclick="filterByTag('${t}')">${t}</button>`;
+  }
+
+  let tagHTML = '';
+  if (npcTags.length) {
+    tagHTML += `<div class="c-tag-group">
+      <div class="c-tag-group-label">NPCs</div>
+      <div class="c-tag-group-tags">${npcTags.map(t => tagBtn(t, 'tag-npc')).join('')}</div>
+    </div>`;
+  }
+  if (locationTags.length) {
+    tagHTML += `<div class="c-tag-group">
+      <div class="c-tag-group-label">Locations</div>
+      <div class="c-tag-group-tags">${locationTags.map(t => tagBtn(t, 'tag-location')).join('')}</div>
+    </div>`;
+  }
+  if (storyTags.length) {
+    tagHTML += `<div class="c-tag-group">
+      <div class="c-tag-group-label">Story</div>
+      <div class="c-tag-group-tags">${storyTags.map(t => tagBtn(t, 'tag-story')).join('')}</div>
+    </div>`;
+  }
+  if (!tagHTML) tagHTML = `<span style="font-family:var(--font-body);font-size:0.75rem;color:var(--muted);padding:0.25rem 0">${tagSearch ? 'No matching tags.' : 'No tags yet.'}</span>`;
+
+  document.getElementById('tag-list').innerHTML = tagHTML;
 }
 
 // ══════════════════════════════════════════════════════════
@@ -1562,6 +1692,14 @@ function processEntryHTML(html) {
       const key = locMap[trimmed];
       if (key) return `<span class="location-link" data-location="${key}">${text}</span>`;
       return match;
+    });
+
+  // Replace untagged unresolved mention spans (color #c9b48a — aged gold used only for unresolved)
+  out = out.replace(/<span([^>]*?style="[^"]*color:\s*#c9b48a[^"]*"[^>]*)>(.*?)<\/span>/gi,
+    (match, attrs, text) => {
+      if (/class="npc-unresolved"/.test(attrs)) return match;
+      const key = text.trim().toLowerCase().replace(/[^a-z0-9]/g, '_').replace(/_+/g, '_').replace(/^_|_$/g, '');
+      return `<span class="npc-unresolved" title="Not in tooltips.js — add '${key}' to define">${text}</span>`;
     });
 
   return out;
