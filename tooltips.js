@@ -286,7 +286,7 @@ function showNpcTooltip(el) {
   `;
 
   tooltip.classList.add('visible');
-  positionTooltip(el, npc.portrait);
+  positionTooltip(el);
 }
 
 function showLocationTooltip(el) {
@@ -308,7 +308,7 @@ function showLocationTooltip(el) {
   `;
 
   tooltip.classList.add('visible');
-  positionTooltip(el, false);
+  positionTooltip(el);
 }
 
 function hideTooltip() {
@@ -317,32 +317,37 @@ function hideTooltip() {
   }, 120);
 }
 
-function positionTooltip(el, hasPortrait) {
-  const rect = el.getBoundingClientRect();
-  const ttWidth  = 280;
-  const ttHeight = hasPortrait ? 320 : 220;
-  const margin   = 12;
+function positionTooltip(el) {
+  const margin = 12;
 
-  // Use viewport coordinates (no scrollY) since tooltip is position:fixed
-  let left = rect.left;
-  let top  = rect.bottom + margin;
+  // Use requestAnimationFrame so the tooltip has been painted and we can measure its actual size
+  requestAnimationFrame(() => {
+    const rect     = el.getBoundingClientRect();
+    const ttRect   = tooltip.getBoundingClientRect();
+    const ttWidth  = ttRect.width  || 280;
+    const ttHeight = ttRect.height || 220;
 
-  // Prevent overflow off right edge
-  if (left + ttWidth > window.innerWidth - margin) {
-    left = window.innerWidth - ttWidth - margin;
-  }
-  // Prevent overflow off left edge
-  if (left < margin) left = margin;
+    // Start below the link, left-aligned to it
+    let left = rect.left;
+    let top  = rect.bottom + margin;
 
-  // If too close to bottom of viewport, show above instead
-  if (rect.bottom + ttHeight + margin > window.innerHeight) {
-    top = rect.top - ttHeight - margin;
-  }
-  // Prevent going above viewport
-  if (top < margin) top = margin;
+    // Prevent overflow off right edge
+    if (left + ttWidth > window.innerWidth - margin) {
+      left = window.innerWidth - ttWidth - margin;
+    }
+    // Prevent overflow off left edge
+    if (left < margin) left = margin;
 
-  tooltip.style.left = left + 'px';
-  tooltip.style.top  = top  + 'px';
+    // If tooltip would overflow bottom of viewport, flip above the link instead
+    if (top + ttHeight + margin > window.innerHeight) {
+      top = rect.top - ttHeight - margin;
+    }
+    // Final clamp: never go above viewport
+    if (top < margin) top = margin;
+
+    tooltip.style.left = left + 'px';
+    tooltip.style.top  = top  + 'px';
+  });
 }
 
 // ── Attach tooltip events to a container (or whole document) ──
