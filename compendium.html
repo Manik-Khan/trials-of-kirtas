@@ -8,58 +8,80 @@
   <link href="https://fonts.googleapis.com/css2?family=Cinzel+Decorative:wght@400;700&family=Cinzel:wght@400;600&family=Crimson+Pro:ital,wght@0,300;0,400;0,600;1,300;1,400&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="theme.css">
   <style>
-    /* ── Layout ── */
     .comp-layout {
       display: grid;
-      grid-template-columns: 260px 1fr;
-      grid-template-rows: auto 1fr;
+      grid-template-columns: 280px 1fr;
       height: calc(100vh - 52px);
-      max-height: calc(100vh - 52px);
       overflow: hidden;
     }
-
-    /* ── Left sidebar ── */
     .comp-sidebar {
-      grid-row: 1 / 3;
       display: flex;
       flex-direction: column;
       border-right: 1px solid var(--gold-dim);
       background: rgba(0,0,0,0.2);
       overflow: hidden;
     }
-
-    /* Category selector */
-    .comp-cats {
-      display: grid;
-      grid-template-columns: 1fr 1fr;
-      border-bottom: 1px solid var(--gold-dim);
-      flex-shrink: 0;
+    .comp-cat-group { flex-shrink: 0; border-bottom: 1px solid var(--gold-dim); }
+    .comp-cat-group-label {
+      font-family: var(--font-title);
+      font-size: 0.42rem;
+      letter-spacing: 0.35em;
+      color: var(--muted);
+      text-transform: uppercase;
+      padding: 0.35rem 0.75rem 0.2rem;
+      display: block;
     }
+    .comp-cat-row { display: flex; flex-wrap: wrap; padding: 0 0.4rem 0.4rem; gap: 0.25rem; }
     .comp-cat {
       font-family: var(--font-title);
-      font-size: 0.52rem;
-      letter-spacing: 0.2em;
+      font-size: 0.48rem;
+      letter-spacing: 0.15em;
       text-transform: uppercase;
       color: var(--muted);
-      text-align: center;
-      padding: 0.6rem 0.4rem;
+      padding: 0.22rem 0.5rem;
       cursor: pointer;
-      border-bottom: 2px solid transparent;
-      transition: color 0.15s, border-color 0.15s;
+      border: 1px solid transparent;
       background: none;
-      border-top: none;
-      border-left: none;
-      border-right: none;
+      transition: color 0.15s, border-color 0.15s, background 0.15s;
+      white-space: nowrap;
     }
-    .comp-cat:hover { color: var(--aged); }
-    .comp-cat.active { color: var(--gold-light); border-bottom-color: var(--gold); }
+    .comp-cat:hover { color: var(--aged); border-color: var(--gold-dim); }
+    .comp-cat.active { color: var(--gold-light); border-color: var(--gold); background: var(--gold-dim); }
 
-    /* Search */
+    .comp-source-wrap {
+      padding: 0.4rem 0.75rem;
+      border-bottom: 1px solid var(--gold-dim);
+      flex-shrink: 0;
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+    }
+    .comp-source-label {
+      font-family: var(--font-title);
+      font-size: 0.44rem;
+      letter-spacing: 0.2em;
+      color: var(--muted);
+      text-transform: uppercase;
+      flex-shrink: 0;
+    }
+    .comp-source-select {
+      flex: 1;
+      font-family: var(--font-title);
+      font-size: 0.52rem;
+      background: rgba(0,0,0,0.3);
+      border: 1px solid var(--gold-dim);
+      color: var(--aged);
+      padding: 0.2rem 0.4rem;
+      cursor: pointer;
+      outline: none;
+    }
+    .comp-source-select option { background: var(--ink); }
+
     .comp-search-wrap {
       display: flex;
       align-items: center;
       gap: 0.5rem;
-      padding: 0.6rem 0.75rem;
+      padding: 0.5rem 0.75rem;
       border-bottom: 1px solid var(--gold-dim);
       flex-shrink: 0;
     }
@@ -76,21 +98,21 @@
     }
     .comp-search::placeholder { color: var(--muted); }
 
-    /* Sub-filter (spell level, CR, etc.) */
     .comp-filter {
       display: flex;
-      gap: 0.35rem;
-      padding: 0.4rem 0.75rem;
+      gap: 0.3rem;
+      padding: 0.35rem 0.75rem;
       border-bottom: 1px solid var(--gold-dim);
       flex-wrap: wrap;
       flex-shrink: 0;
     }
+    .comp-filter:empty { display: none; padding: 0; border: none; }
     .filter-btn {
       font-family: var(--font-title);
-      font-size: 0.44rem;
+      font-size: 0.42rem;
       letter-spacing: 0.12em;
       text-transform: uppercase;
-      padding: 0.15rem 0.4rem;
+      padding: 0.12rem 0.35rem;
       border: 1px solid var(--gold-dim);
       background: transparent;
       color: var(--muted);
@@ -100,12 +122,7 @@
     .filter-btn:hover { color: var(--aged); border-color: var(--gold-mid); }
     .filter-btn.active { background: var(--gold-dim); border-color: var(--gold); color: var(--gold-light); }
 
-    /* Results list */
-    .comp-list {
-      flex: 1;
-      overflow-y: auto;
-      padding: 0.25rem 0;
-    }
+    .comp-list { flex: 1; overflow-y: auto; padding: 0.25rem 0; }
     .comp-list::-webkit-scrollbar { width: 3px; }
     .comp-list::-webkit-scrollbar-thumb { background: var(--gold-dim); }
 
@@ -113,780 +130,496 @@
       display: flex;
       align-items: center;
       gap: 0.5rem;
-      padding: 0.4rem 0.75rem;
+      padding: 0.38rem 0.75rem;
       cursor: pointer;
       border-bottom: 1px solid rgba(255,255,255,0.02);
       transition: background 0.12s;
     }
     .comp-item:hover { background: rgba(184,149,42,0.05); }
     .comp-item.active { background: rgba(184,149,42,0.1); }
-    .comp-item-name {
-      font-size: 0.82rem;
-      color: var(--parchment2);
-      flex: 1;
-      white-space: nowrap;
-      overflow: hidden;
-      text-overflow: ellipsis;
-    }
+    .comp-item-name { font-size: 0.82rem; color: var(--parchment2); flex: 1; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
     .comp-item.active .comp-item-name { color: var(--parchment); }
-    .comp-item-tag {
-      font-family: var(--font-title);
-      font-size: 0.44rem;
-      letter-spacing: 0.1em;
-      text-transform: uppercase;
-      color: var(--muted);
-      flex-shrink: 0;
-    }
+    .comp-item-tag { font-family: var(--font-title); font-size: 0.42rem; letter-spacing: 0.1em; text-transform: uppercase; color: var(--muted); flex-shrink: 0; }
     .comp-item.active .comp-item-tag { color: var(--gold); }
 
-    /* Loading / empty states */
-    .comp-state {
-      display: flex;
-      flex-direction: column;
-      align-items: center;
-      justify-content: center;
-      height: 120px;
-      color: var(--muted);
-      font-style: italic;
-      font-size: 0.82rem;
-      gap: 0.5rem;
-    }
-    .comp-spinner {
-      width: 20px; height: 20px;
-      border: 2px solid var(--gold-dim);
-      border-top-color: var(--gold);
-      border-radius: 50%;
-      animation: spin 0.8s linear infinite;
-    }
+    .comp-state { display: flex; align-items: center; justify-content: center; height: 100px; color: var(--muted); font-style: italic; font-size: 0.82rem; gap: 0.5rem; flex-direction: column; }
+    .comp-spinner { width: 20px; height: 20px; border: 2px solid var(--gold-dim); border-top-color: var(--gold); border-radius: 50%; animation: spin 0.8s linear infinite; }
     @keyframes spin { to { transform: rotate(360deg); } }
 
-    /* ── Detail pane (right) ── */
-    .comp-detail {
-      overflow-y: auto;
-      padding: 1.5rem 2rem;
-      background: linear-gradient(160deg, rgba(42,30,16,0.3) 0%, rgba(10,8,5,0.5) 100%);
-    }
-    .comp-detail::-webkit-scrollbar { width: 4px; }
-    .comp-detail::-webkit-scrollbar-thumb { background: var(--gold-dim); }
-
-    .detail-empty {
-      display: flex;
-      flex-direction: column;
-      align-items: center;
-      justify-content: center;
-      height: 100%;
-      color: var(--muted);
-      font-style: italic;
-      text-align: center;
-      gap: 0.75rem;
-    }
-    .detail-empty-icon { font-size: 2.5rem; opacity: 0.3; }
-    .detail-empty-text { font-size: 0.88rem; }
-
-    .detail-name {
-      font-family: var(--font-display);
-      font-size: 1.5rem;
-      color: var(--parchment);
-      margin-bottom: 0.25rem;
-      line-height: 1.2;
-    }
-    .detail-meta {
-      font-family: var(--font-title);
-      font-size: 0.52rem;
-      letter-spacing: 0.25em;
-      color: var(--gold);
-      text-transform: uppercase;
-      margin-bottom: 1rem;
-    }
-
-    .detail-rule { border: none; height: 1px; background: linear-gradient(90deg, var(--gold-dim), transparent); margin: 1rem 0; }
-
-    .detail-stats {
-      display: grid;
-      grid-template-columns: repeat(auto-fill, minmax(140px, 1fr));
-      gap: 0.5rem;
-      margin-bottom: 1rem;
-    }
-    .detail-stat {
-      background: rgba(0,0,0,0.2);
-      border: 1px solid var(--gold-dim);
-      padding: 0.4rem 0.6rem;
-    }
-    .detail-stat-label {
-      font-family: var(--font-title);
-      font-size: 0.44rem;
-      letter-spacing: 0.2em;
-      color: var(--muted);
-      text-transform: uppercase;
-      display: block;
-      margin-bottom: 0.15rem;
-    }
-    .detail-stat-val {
-      font-size: 0.88rem;
-      color: var(--parchment2);
-    }
-
-    .detail-section-title {
-      font-family: var(--font-title);
-      font-size: 0.52rem;
-      letter-spacing: 0.3em;
-      color: var(--gold);
-      text-transform: uppercase;
-      margin: 1rem 0 0.5rem;
-      border-bottom: 1px solid var(--gold-dim);
-      padding-bottom: 0.3rem;
-    }
-
-    .detail-body {
-      font-size: 0.95rem;
-      color: var(--parchment2);
-      line-height: 1.8;
-    }
-    .detail-body p { margin-bottom: 0.75rem; }
-    .detail-body p:last-child { margin-bottom: 0; }
-
-    /* Monster specific */
-    .ability-strip {
-      display: grid;
-      grid-template-columns: repeat(6, 1fr);
-      gap: 0.4rem;
-      margin-bottom: 1rem;
-    }
-    .ability-cell {
-      text-align: center;
-      background: rgba(0,0,0,0.2);
-      border: 1px solid var(--gold-dim);
-      padding: 0.4rem 0.2rem;
-    }
-    .ability-cell-label {
-      font-family: var(--font-title);
-      font-size: 0.44rem;
-      letter-spacing: 0.15em;
-      color: var(--muted);
-      text-transform: uppercase;
-      display: block;
-    }
-    .ability-cell-score {
-      font-family: var(--font-title);
-      font-size: 1rem;
-      color: var(--parchment);
-    }
-    .ability-cell-mod {
-      font-family: var(--font-title);
-      font-size: 0.65rem;
-      color: var(--gold-light);
-      display: block;
-    }
-
-    .trait-block {
-      margin-bottom: 0.75rem;
-    }
-    .trait-name {
-      font-family: var(--font-title);
-      font-size: 0.78rem;
-      color: var(--gold-light);
-      font-style: italic;
-    }
-    .trait-body {
-      font-size: 0.9rem;
-      color: var(--parchment2);
-      line-height: 1.7;
-      margin-top: 0.15rem;
-    }
-
-    .source-note {
-      font-size: 0.72rem;
-      color: var(--muted);
-      font-style: italic;
-      margin-top: 1.5rem;
-      padding-top: 0.75rem;
-      border-top: 1px solid var(--gold-dim);
-    }
-
-    /* Character switcher in header area */
-    .comp-header {
-      grid-column: 2;
+    .comp-detail-wrap { display: flex; flex-direction: column; overflow: hidden; }
+    .comp-detail-header {
       display: flex;
       align-items: center;
       justify-content: space-between;
-      padding: 0.6rem 1.5rem;
+      padding: 0.55rem 1.5rem;
       border-bottom: 1px solid var(--gold-dim);
       background: rgba(0,0,0,0.15);
       flex-shrink: 0;
     }
-    .comp-header-title {
-      font-family: var(--font-title);
-      font-size: 0.58rem;
-      letter-spacing: 0.3em;
-      color: var(--muted);
-      text-transform: uppercase;
-    }
-    .comp-source-select {
-      font-family: var(--font-title);
-      font-size: 0.52rem;
-      letter-spacing: 0.1em;
-      background: rgba(0,0,0,0.3);
-      border: 1px solid var(--gold-dim);
-      color: var(--aged);
-      padding: 0.2rem 0.5rem;
-      cursor: pointer;
-      outline: none;
-    }
-    .comp-source-select option { background: var(--ink); }
+    .comp-detail-count { font-family: var(--font-title); font-size: 0.52rem; letter-spacing: 0.25em; color: var(--muted); text-transform: uppercase; }
+    .comp-detail-link { font-family: var(--font-title); font-size: 0.48rem; letter-spacing: 0.15em; color: var(--muted); text-transform: uppercase; text-decoration: none; border: 1px solid var(--gold-dim); padding: 0.15rem 0.45rem; transition: all 0.15s; }
+    .comp-detail-link:hover { color: var(--gold-light); border-color: var(--gold); }
 
-    footer {
-      grid-column: 1 / 3;
-      text-align: center;
-      padding: 1rem;
-      font-family: var(--font-title);
-      font-size: 0.52rem;
-      letter-spacing: 0.25em;
-      color: var(--muted);
-      text-transform: uppercase;
-      border-top: 1px solid var(--gold-dim);
-      flex-shrink: 0;
-    }
+    .comp-detail { flex: 1; overflow-y: auto; padding: 1.5rem 2rem; }
+    .comp-detail::-webkit-scrollbar { width: 4px; }
+    .comp-detail::-webkit-scrollbar-thumb { background: var(--gold-dim); }
 
-    @media (max-width: 700px) {
-      .comp-layout { grid-template-columns: 1fr; grid-template-rows: auto auto 1fr; height: auto; }
-      .comp-sidebar { grid-row: auto; max-height: 40vh; border-right: none; border-bottom: 1px solid var(--gold-dim); }
-      .comp-header { grid-column: 1; }
-      .comp-detail { min-height: 60vh; }
+    .detail-empty { display: flex; flex-direction: column; align-items: center; justify-content: center; height: 100%; color: var(--muted); font-style: italic; text-align: center; gap: 0.75rem; }
+    .detail-empty-icon { font-size: 2.5rem; opacity: 0.3; }
+
+    .detail-name { font-family: var(--font-display); font-size: 1.6rem; color: var(--parchment); margin-bottom: 0.25rem; line-height: 1.2; }
+    .detail-meta { font-family: var(--font-title); font-size: 0.52rem; letter-spacing: 0.25em; color: var(--gold); text-transform: uppercase; margin-bottom: 1rem; }
+    .detail-rule { border: none; height: 1px; background: linear-gradient(90deg, var(--gold-dim), transparent); margin: 1rem 0; }
+
+    .detail-stats { display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 0.5rem; margin-bottom: 1rem; }
+    .detail-stat { background: rgba(0,0,0,0.2); border: 1px solid var(--gold-dim); padding: 0.4rem 0.6rem; }
+    .detail-stat-label { font-family: var(--font-title); font-size: 0.44rem; letter-spacing: 0.2em; color: var(--muted); text-transform: uppercase; display: block; margin-bottom: 0.12rem; }
+    .detail-stat-val { font-size: 0.88rem; color: var(--parchment2); }
+
+    .detail-section { margin-top: 1rem; }
+    .detail-section-title { font-family: var(--font-title); font-size: 0.52rem; letter-spacing: 0.3em; color: var(--gold); text-transform: uppercase; border-bottom: 1px solid var(--gold-dim); padding-bottom: 0.3rem; margin-bottom: 0.6rem; }
+
+    .detail-body { font-size: 0.95rem; color: var(--parchment2); line-height: 1.8; }
+    .detail-body p { margin-bottom: 0.65rem; }
+    .detail-body p:last-child { margin-bottom: 0; }
+    .detail-body ul { padding-left: 1.4rem; margin-bottom: 0.65rem; }
+    .detail-body li { margin-bottom: 0.25rem; }
+    .detail-body table { width:100%; border-collapse:collapse; margin:0.5rem 0; }
+    .detail-body th { font-family:var(--font-title);font-size:0.48rem;letter-spacing:0.18em;color:var(--muted);text-transform:uppercase;text-align:left;padding:0.3rem 0.5rem;border-bottom:1px solid var(--gold-dim); }
+    .detail-body td { padding:0.25rem 0.5rem;font-size:0.85rem;color:var(--parchment2);border-bottom:1px solid rgba(255,255,255,0.03); }
+
+    .trait-block { margin-bottom: 0.85rem; }
+    .trait-name { font-family: var(--font-title); font-size: 0.78rem; color: var(--gold-light); font-style: italic; }
+    .trait-body { font-size: 0.9rem; color: var(--parchment2); line-height: 1.7; margin-top: 0.2rem; }
+
+    .ability-strip { display: grid; grid-template-columns: repeat(6,1fr); gap: 0.4rem; margin-bottom: 1rem; }
+    .ability-cell { text-align: center; background: rgba(0,0,0,0.2); border: 1px solid var(--gold-dim); padding: 0.4rem 0.2rem; }
+    .ability-cell-label { font-family:var(--font-title);font-size:0.44rem;letter-spacing:0.15em;color:var(--muted);text-transform:uppercase;display:block; }
+    .ability-cell-score { font-family:var(--font-title);font-size:1rem;color:var(--parchment);display:block; }
+    .ability-cell-mod   { font-family:var(--font-title);font-size:0.65rem;color:var(--gold-light);display:block; }
+
+    .source-note { font-size: 0.72rem; color: var(--muted); font-style: italic; margin-top: 1.5rem; padding-top: 0.75rem; border-top: 1px solid var(--gold-dim); }
+
+    footer { text-align: center; padding: 1rem; font-family: var(--font-title); font-size: 0.52rem; letter-spacing: 0.25em; color: var(--muted); text-transform: uppercase; border-top: 1px solid var(--gold-dim); }
+
+    @media (max-width: 768px) {
+      .comp-layout { grid-template-columns: 1fr; height: auto; }
+      .comp-sidebar { max-height: 45vh; border-right: none; border-bottom: 1px solid var(--gold-dim); }
+      .comp-detail-wrap { min-height: 60vh; }
       .ability-strip { grid-template-columns: repeat(3,1fr); }
+      .detail-stats { grid-template-columns: 1fr 1fr; }
     }
   </style>
 </head>
 <body>
-
 <div id="nav-root"></div>
 
 <div class="comp-layout">
-
-  <!-- Left sidebar -->
   <div class="comp-sidebar">
-    <!-- Category tabs -->
-    <div class="comp-cats">
-      <button class="comp-cat active" onclick="setCat('spells',this)">Spells</button>
-      <button class="comp-cat" onclick="setCat('monsters',this)">Monsters</button>
-      <button class="comp-cat" onclick="setCat('conditions',this)">Conditions</button>
-      <button class="comp-cat" onclick="setCat('items',this)">Items</button>
+
+    <div class="comp-cat-group">
+      <span class="comp-cat-group-label">During Play</span>
+      <div class="comp-cat-row">
+        <button class="comp-cat active" onclick="setCat('spells',this)">Spells</button>
+        <button class="comp-cat" onclick="setCat('monsters',this)">Monsters</button>
+        <button class="comp-cat" onclick="setCat('conditions',this)">Conditions</button>
+        <button class="comp-cat" onclick="setCat('items',this)">Items</button>
+        <button class="comp-cat" onclick="setCat('rules',this)">Rules</button>
+      </div>
     </div>
 
-    <!-- Search -->
+    <div class="comp-cat-group">
+      <span class="comp-cat-group-label">Character Building</span>
+      <div class="comp-cat-row">
+        <button class="comp-cat" onclick="setCat('races',this)">Races</button>
+        <button class="comp-cat" onclick="setCat('classes',this)">Classes</button>
+        <button class="comp-cat" onclick="setCat('backgrounds',this)">Backgrounds</button>
+        <button class="comp-cat" onclick="setCat('feats',this)">Feats</button>
+      </div>
+    </div>
+
+    <div class="comp-source-wrap" id="source-wrap">
+      <span class="comp-source-label">Source</span>
+      <select class="comp-source-select" id="source-select" onchange="loadSource()"></select>
+    </div>
+
     <div class="comp-search-wrap">
       <span class="comp-search-icon">⌕</span>
-      <input class="comp-search" id="comp-search" placeholder="Search…" oninput="filterList()">
+      <input class="comp-search" id="comp-search" placeholder="Search spells…" oninput="filterList()">
     </div>
 
-    <!-- Sub-filters (rendered per category) -->
     <div class="comp-filter" id="comp-filter"></div>
 
-    <!-- Results -->
     <div class="comp-list" id="comp-list">
-      <div class="comp-state">
-        <div class="comp-spinner"></div>
-        <span>Loading…</span>
+      <div class="comp-state"><div class="comp-spinner"></div><span>Loading…</span></div>
+    </div>
+  </div>
+
+  <div class="comp-detail-wrap">
+    <div class="comp-detail-header">
+      <span class="comp-detail-count" id="detail-count">—</span>
+      <a href="https://2014.5e.tools" target="_blank" class="comp-detail-link">Open 5etools ↗</a>
+    </div>
+    <div class="comp-detail" id="comp-detail">
+      <div class="detail-empty">
+        <div class="detail-empty-icon">📖</div>
+        <div>Select an entry from the list to view its details.</div>
       </div>
     </div>
   </div>
-
-  <!-- Header row (right) -->
-  <div class="comp-header">
-    <span class="comp-header-title" id="detail-count">Select an entry</span>
-    <select class="comp-source-select" id="source-select" onchange="loadSource()">
-      <!-- Options injected per category -->
-    </select>
-  </div>
-
-  <!-- Detail pane (right) -->
-  <div class="comp-detail" id="comp-detail">
-    <div class="detail-empty">
-      <div class="detail-empty-icon">📖</div>
-      <div class="detail-empty-text">Select an entry from the list to view its details.</div>
-    </div>
-  </div>
-
 </div>
 
-<footer>The Trials of Kirtas &nbsp;·&nbsp; Compendium &nbsp;·&nbsp; Data from 5etools (2014 rules)</footer>
+<footer>The Trials of Kirtas &nbsp;·&nbsp; Compendium &nbsp;·&nbsp; Data sourced from 5etools (2014 rules)</footer>
 
 <script src="nav.js"></script>
 <script>
-
-// ══════════════════════════════════════════════════════════
-// DATA SOURCES
-// ══════════════════════════════════════════════════════════
 const BASE = 'https://raw.githubusercontent.com/5etools-mirror-3/5etools-2014-src/main/data';
 
 const SOURCES = {
-  spells: [
-    { label: 'Player\'s Handbook',     file: 'spells/spells-phb.json' },
-    { label: 'Xanathar\'s Guide',      file: 'spells/spells-xge.json' },
-    { label: 'Tasha\'s Cauldron',      file: 'spells/spells-tcoe.json' },
-    { label: 'Sword Coast',            file: 'spells/spells-scag.json' },
-  ],
-  monsters: [
-    { label: 'Monster Manual',         file: 'bestiary/bestiary-mm.json' },
-    { label: 'Volo\'s Guide',          file: 'bestiary/bestiary-vgm.json' },
-    { label: 'Mordenkainen\'s',        file: 'bestiary/bestiary-mtf.json' },
-  ],
-  conditions: [
-    { label: 'All Conditions',         file: 'conditionsdiseases.json' },
-  ],
-  items: [
-    { label: 'Dungeon Master\'s Guide',file: 'items.json' },
-    { label: 'Magic Items',            file: 'magicvariants.json' },
-  ],
+  spells:      [ {label:"Player's Handbook",file:'spells/spells-phb.json'}, {label:"Xanathar's Guide",file:'spells/spells-xge.json'}, {label:"Tasha's Cauldron",file:'spells/spells-tcoe.json'}, {label:"Sword Coast AG",file:'spells/spells-scag.json'} ],
+  monsters:    [ {label:'Monster Manual',file:'bestiary/bestiary-mm.json'}, {label:"Volo's Guide",file:'bestiary/bestiary-vgm.json'}, {label:"Mordenkainen's",file:'bestiary/bestiary-mtf.json'}, {label:'DMG',file:'bestiary/bestiary-dmg.json'} ],
+  conditions:  [ {label:'All Conditions & Diseases',file:'conditionsdiseases.json'} ],
+  items:       [ {label:'All Items',file:'items.json'}, {label:'Magic Variants',file:'magicvariants.json'} ],
+  rules:       [ {label:'All Rules',file:'rules.json'} ],
+  races:       [ {label:'All Races',file:'races.json'} ],
+  classes:     [ {label:'Barbarian',file:'class/class-barbarian.json'},{label:'Bard',file:'class/class-bard.json'},{label:'Cleric',file:'class/class-cleric.json'},{label:'Druid',file:'class/class-druid.json'},{label:'Fighter',file:'class/class-fighter.json'},{label:'Monk',file:'class/class-monk.json'},{label:'Paladin',file:'class/class-paladin.json'},{label:'Ranger',file:'class/class-ranger.json'},{label:'Rogue',file:'class/class-rogue.json'},{label:'Sorcerer',file:'class/class-sorcerer.json'},{label:'Warlock',file:'class/class-warlock.json'},{label:'Wizard',file:'class/class-wizard.json'} ],
+  backgrounds: [ {label:'All Backgrounds',file:'backgrounds.json'} ],
+  feats:       [ {label:'All Feats',file:'feats.json'} ],
 };
 
-// ── Spell level filters ──
-const SPELL_LEVEL_FILTERS = [
-  { label:'All', val: null },
-  { label:'Cantrip', val: 0 },
-  { label:'1', val: 1 }, { label:'2', val: 2 }, { label:'3', val: 3 },
-  { label:'4', val: 4 }, { label:'5', val: 5 }, { label:'6+', val: 6 },
-];
+const SPELL_FILTERS = [ {label:'All',val:null},{label:'Cantrip',val:0},{label:'1',val:1},{label:'2',val:2},{label:'3',val:3},{label:'4',val:4},{label:'5',val:5},{label:'6+',val:6} ];
+const CR_FILTERS    = [ {label:'All',val:null},{label:'0–½',val:'low'},{label:'1–4',val:'mid'},{label:'5–10',val:'high'},{label:'11+',val:'deadly'} ];
+const ITEM_FILTERS  = [ {label:'All',val:null},{label:'Weapon',val:'weapon'},{label:'Armor',val:'armor'},{label:'Wondrous',val:'wondrous'},{label:'Rod/Staff/Wand',val:'rsw'},{label:'Ring/Scroll/Potion',val:'rsp'} ];
 
-// ── Monster CR filters ──
-const CR_FILTERS = [
-  { label:'All', val: null },
-  { label:'0–½', val:'low' }, { label:'1–4', val:'mid' },
-  { label:'5–10', val:'high' }, { label:'11+', val:'deadly' },
-];
+let currentCat='spells', allEntries=[], filtered=[], activeFilter=null, cache={};
 
-// ══════════════════════════════════════════════════════════
-// STATE
-// ══════════════════════════════════════════════════════════
-let currentCat    = 'spells';
-let allEntries    = [];
-let filteredEntries = [];
-let activeFilter  = null;
-let cache         = {};
+// ── Init ──
+buildSourceSelect(); buildFilters(); loadSource();
 
-// ══════════════════════════════════════════════════════════
-// INIT
-// ══════════════════════════════════════════════════════════
-setCat('spells', document.querySelector('.comp-cat.active'));
-
-// ══════════════════════════════════════════════════════════
-// CATEGORY SWITCHING
-// ══════════════════════════════════════════════════════════
 function setCat(cat, btn) {
-  currentCat = cat;
-  activeFilter = null;
-  document.getElementById('comp-search').value = '';
-  document.querySelectorAll('.comp-cat').forEach(b => b.classList.remove('active'));
+  currentCat=cat; activeFilter=null; allEntries=[]; filtered=[];
+  document.getElementById('comp-search').value='';
+  document.getElementById('comp-search').placeholder=`Search ${cat}…`;
+  document.querySelectorAll('.comp-cat').forEach(b=>b.classList.remove('active'));
   btn.classList.add('active');
-  document.getElementById('comp-search').placeholder = `Search ${cat}…`;
-  buildSourceSelect();
-  buildFilters();
-  loadSource();
+  document.getElementById('source-wrap').style.display = SOURCES[cat].length<=1?'none':'flex';
+  buildSourceSelect(); buildFilters(); loadSource();
 }
 
 function buildSourceSelect() {
-  const sel = document.getElementById('source-select');
-  sel.innerHTML = SOURCES[currentCat].map((s,i) =>
-    `<option value="${i}">${s.label}</option>`).join('');
+  document.getElementById('source-select').innerHTML =
+    SOURCES[currentCat].map((s,i)=>`<option value="${i}">${s.label}</option>`).join('');
 }
 
 function buildFilters() {
   const wrap = document.getElementById('comp-filter');
-  if (currentCat === 'spells') {
-    wrap.innerHTML = SPELL_LEVEL_FILTERS.map(f =>
-      `<button class="filter-btn${f.val===null?' active':''}" onclick="setFilter(this,'${f.val}')">${f.label}</button>`
-    ).join('');
-  } else if (currentCat === 'monsters') {
-    wrap.innerHTML = CR_FILTERS.map(f =>
-      `<button class="filter-btn${f.val===null?' active':''}" onclick="setFilter(this,'${f.val}')">${f.label}</button>`
-    ).join('');
-  } else {
-    wrap.innerHTML = '';
-  }
+  const maps = { spells: SPELL_FILTERS, monsters: CR_FILTERS, items: ITEM_FILTERS };
+  const filters = maps[currentCat];
+  wrap.innerHTML = filters ? filters.map(f=>
+    `<button class="filter-btn${f.val===null?' active':''}" onclick="setFilter(this,'${f.val}')">${f.label}</button>`
+  ).join('') : '';
 }
 
 function setFilter(btn, val) {
-  activeFilter = val === 'null' ? null : val;
-  document.querySelectorAll('.filter-btn').forEach(b => b.classList.remove('active'));
+  activeFilter = val==='null'?null:val;
+  document.querySelectorAll('.filter-btn').forEach(b=>b.classList.remove('active'));
   btn.classList.add('active');
   filterList();
 }
 
-// ══════════════════════════════════════════════════════════
-// DATA LOADING
-// ══════════════════════════════════════════════════════════
 async function loadSource() {
-  const idx  = parseInt(document.getElementById('source-select').value) || 0;
-  const src  = SOURCES[currentCat][idx];
-  const url  = `${BASE}/${src.file}`;
-  const key  = url;
-
-  setListLoading();
-
+  const idx = parseInt(document.getElementById('source-select').value)||0;
+  const src = SOURCES[currentCat][idx];
+  if (!src) return;
+  const url = `${BASE}/${src.file}`;
+  setListState('<div class="comp-spinner"></div><span>Loading…</span>');
   try {
-    if (!cache[key]) {
+    if (!cache[url]) {
       const res = await fetch(url);
       if (!res.ok) throw new Error(`HTTP ${res.status}`);
-      cache[key] = await res.json();
+      cache[url] = await res.json();
     }
-    const data = cache[key];
-    allEntries = parseData(data, currentCat);
+    allEntries = parseData(cache[url], currentCat);
     filterList();
   } catch(e) {
-    document.getElementById('comp-list').innerHTML =
-      `<div class="comp-state" style="color:var(--blood)">Failed to load.<br><small>${e.message}</small><br><small>Check your connection.</small></div>`;
+    setListState(`<span style="color:var(--blood)">Failed to load.<br><small>${e.message}</small></span>`);
   }
 }
 
-// ══════════════════════════════════════════════════════════
-// DATA PARSING — normalise 5etools JSON into flat entries
-// ══════════════════════════════════════════════════════════
+function setListState(html) {
+  document.getElementById('comp-list').innerHTML=`<div class="comp-state">${html}</div>`;
+  document.getElementById('detail-count').textContent='—';
+}
+
 function parseData(data, cat) {
-  if (cat === 'spells') {
-    return (data.spell || []).map(s => ({
-      raw:   s,
-      name:  s.name,
-      tag:   s.level === 0 ? 'Cantrip' : `Lv ${s.level}`,
-      level: s.level,
-    }));
+  switch(cat) {
+    case 'spells':      return (data.spell||[]).map(s=>({raw:s,name:s.name,tag:s.level===0?'Cantrip':`Lv ${s.level}`,level:s.level}));
+    case 'monsters':    return (data.monster||[]).map(m=>({raw:m,name:m.name,tag:`CR ${fmtCR(m.cr)}`,cr:parseCR(m.cr)}));
+    case 'conditions':  return [...(data.condition||[]),...(data.disease||[])].map(c=>({raw:c,name:c.name,tag:c.disease?'Disease':'Condition'}));
+    case 'items':       return (data.item||[]).map(i=>({raw:i,name:i.name,tag:i.rarity||'Item',itype:classifyItem(i)}));
+    case 'rules':       return [...(data.rule||[]),...(data.entry||[])].map(r=>({raw:r,name:r.name,tag:'Rule'}));
+    case 'races': {
+      const out=[];
+      (data.race||[]).forEach(r=>{
+        out.push({raw:r,name:r.name,tag:r.source||'PHB'});
+        (r.subraces||[]).forEach(sr=>out.push({raw:{...r,...sr,_parentName:r.name},name:`${r.name}: ${sr.name}`,tag:'Subrace'}));
+      });
+      return out;
+    }
+    case 'classes':     return (data.class||[]).map(c=>({raw:c,name:c.name,tag:'Class'}));
+    case 'backgrounds': return (data.background||[]).map(b=>({raw:b,name:b.name,tag:b.source||'PHB'}));
+    case 'feats':       return (data.feat||[]).map(f=>({raw:f,name:f.name,tag:f.prerequisite?'Prereq':'—'}));
+    default: return [];
   }
-  if (cat === 'monsters') {
-    return (data.monster || []).map(m => ({
-      raw:  m,
-      name: m.name,
-      tag:  `CR ${formatCR(m.cr)}`,
-      cr:   parseCR(m.cr),
-    }));
-  }
-  if (cat === 'conditions') {
-    const entries = [
-      ...(data.condition || []),
-      ...(data.disease   || []),
-    ];
-    return entries.map(c => ({
-      raw:  c,
-      name: c.name,
-      tag:  c.disease ? 'Disease' : 'Condition',
-    }));
-  }
-  if (cat === 'items') {
-    return (data.item || data.variant || []).map(i => ({
-      raw:  i,
-      name: i.name,
-      tag:  i.rarity || i.type || 'Item',
-    }));
-  }
-  return [];
 }
 
-// ══════════════════════════════════════════════════════════
-// FILTERING & RENDERING LIST
-// ══════════════════════════════════════════════════════════
+function classifyItem(i) {
+  if (i.weapon||i.weaponCategory) return 'weapon';
+  if (i.armor||i.armorCategory)   return 'armor';
+  if (i.wondrous) return 'wondrous';
+  const t=i.type||'';
+  if (['RD','ST','WD'].includes(t)) return 'rsw';
+  if (['RG','SC','P'].includes(t))  return 'rsp';
+  return 'other';
+}
+
 function filterList() {
-  const q = document.getElementById('comp-search').value.toLowerCase().trim();
-
-  filteredEntries = allEntries.filter(e => {
-    const nameMatch = e.name.toLowerCase().includes(q);
-    if (!nameMatch) return false;
-
-    if (currentCat === 'spells' && activeFilter !== null) {
-      const lvl = parseInt(activeFilter);
-      if (activeFilter === '6') return e.level >= 6;
-      return e.level === lvl;
+  const q=(document.getElementById('comp-search').value||'').toLowerCase().trim();
+  filtered = allEntries.filter(e=>{
+    if (!e.name.toLowerCase().includes(q)) return false;
+    if (currentCat==='spells'&&activeFilter!==null)
+      return activeFilter==='6'?e.level>=6:e.level===parseInt(activeFilter);
+    if (currentCat==='monsters'&&activeFilter!==null) {
+      const cr=e.cr;
+      if (activeFilter==='low')    return cr<=0.5;
+      if (activeFilter==='mid')    return cr>=1&&cr<=4;
+      if (activeFilter==='high')   return cr>=5&&cr<=10;
+      if (activeFilter==='deadly') return cr>=11;
     }
-    if (currentCat === 'monsters' && activeFilter !== null) {
-      const cr = e.cr;
-      if (activeFilter === 'low')    return cr <= 0.5;
-      if (activeFilter === 'mid')    return cr >= 1 && cr <= 4;
-      if (activeFilter === 'high')   return cr >= 5 && cr <= 10;
-      if (activeFilter === 'deadly') return cr >= 11;
-    }
+    if (currentCat==='items'&&activeFilter!==null) return e.itype===activeFilter;
     return true;
   });
-
-  document.getElementById('detail-count').textContent =
-    `${filteredEntries.length} ${currentCat}`;
-
-  const list = document.getElementById('comp-list');
-  if (!filteredEntries.length) {
-    list.innerHTML = '<div class="comp-state">No results.</div>';
-    return;
-  }
-
-  list.innerHTML = filteredEntries.slice(0, 200).map((e, i) =>
-    `<div class="comp-item" onclick="selectEntry(${i})" id="item-${i}">
+  document.getElementById('detail-count').textContent=`${filtered.length} ${currentCat}`;
+  const list=document.getElementById('comp-list');
+  if (!filtered.length) { list.innerHTML='<div class="comp-state">No results.</div>'; return; }
+  list.innerHTML=filtered.slice(0,300).map((e,i)=>`
+    <div class="comp-item" onclick="selectEntry(${i})" id="item-${i}">
       <span class="comp-item-name">${e.name}</span>
       <span class="comp-item-tag">${e.tag}</span>
-    </div>`
-  ).join('');
+    </div>`).join('');
 }
 
-function setListLoading() {
-  document.getElementById('comp-list').innerHTML =
-    `<div class="comp-state"><div class="comp-spinner"></div><span>Loading…</span></div>`;
-  document.getElementById('comp-detail').innerHTML =
-    `<div class="detail-empty"><div class="detail-empty-icon">📖</div><div class="detail-empty-text">Select an entry from the list to view its details.</div></div>`;
-}
-
-// ══════════════════════════════════════════════════════════
-// ENTRY SELECTION & DETAIL RENDERING
-// ══════════════════════════════════════════════════════════
 function selectEntry(i) {
-  document.querySelectorAll('.comp-item').forEach(el => el.classList.remove('active'));
-  const el = document.getElementById(`item-${i}`);
-  if (el) el.classList.add('active');
-  const entry = filteredEntries[i];
-  if (!entry) return;
-
-  const detail = document.getElementById('comp-detail');
-  if (currentCat === 'spells')     detail.innerHTML = renderSpell(entry.raw);
-  if (currentCat === 'monsters')   detail.innerHTML = renderMonster(entry.raw);
-  if (currentCat === 'conditions') detail.innerHTML = renderCondition(entry.raw);
-  if (currentCat === 'items')      detail.innerHTML = renderItem(entry.raw);
+  document.querySelectorAll('.comp-item').forEach(el=>el.classList.remove('active'));
+  const el=document.getElementById(`item-${i}`);
+  if (el){el.classList.add('active');el.scrollIntoView({block:'nearest'});}
+  const entry=filtered[i]; if(!entry)return;
+  const detail=document.getElementById('comp-detail');
+  const r={spells:renderSpell,monsters:renderMonster,conditions:renderCondition,items:renderItem,rules:renderRule,races:renderRace,classes:renderClass,backgrounds:renderBackground,feats:renderFeat};
+  detail.innerHTML=(r[currentCat]||renderRule)(entry.raw);
+  detail.scrollTop=0;
 }
 
-// ── Spell renderer ──
+// ── Renderers ──
 function renderSpell(s) {
-  const level  = s.level === 0 ? 'Cantrip' : `${ordinal(s.level)}-level`;
-  const school = s.school ? schoolName(s.school) : '';
-  const ritual = s.meta?.ritual ? ' · Ritual' : '';
-  const conc   = s.duration?.some(d => d.concentration) ? ' · Concentration' : '';
-  const time   = s.time?.map(t => `${t.number} ${t.unit}`).join(' or ') || '—';
-  const range  = formatRange(s.range);
-  const comp   = formatComponents(s.components);
-  const dur    = s.duration?.map(d => formatDuration(d)).join(' or ') || '—';
-  const classes = (s.classes?.fromClassList || []).map(c => c.name).join(', ') || '—';
-  const body   = renderEntries(s.entries || []);
-  const higher = s.entriesHigherLevel ? `<div class="detail-section-title">At Higher Levels</div><div class="detail-body">${renderEntries(s.entriesHigherLevel)}</div>` : '';
-
-  return `
-    <div class="detail-name">${s.name}</div>
-    <div class="detail-meta">${level} ${school}${ritual}${conc}</div>
-    <hr class="detail-rule">
+  const lvl=s.level===0?'Cantrip':`${s.level}${['th','st','nd','rd'][s.level]||'th'}-level`;
+  const sch={A:'Abjuration',C:'Conjuration',D:'Divination',E:'Enchantment',V:'Evocation',I:'Illusion',N:'Necromancy',T:'Transmutation'};
+  const ritual=s.meta?.ritual?' · Ritual':''; const conc=s.duration?.some(d=>d.concentration)?' · Concentration':'';
+  const time=s.time?.map(t=>`${t.number} ${t.unit}`).join(' or ')||'—';
+  const classes=(s.classes?.fromClassList||[]).map(c=>c.name).join(', ')||'—';
+  const body=renderEntries(s.entries||[]);
+  const higher=s.entriesHigherLevel?`<div class="detail-section"><div class="detail-section-title">At Higher Levels</div><div class="detail-body">${renderEntries(s.entriesHigherLevel)}</div></div>`:'';
+  return `<div class="detail-name">${s.name}</div><div class="detail-meta">${lvl} ${sch[s.school]||''}${ritual}${conc}</div><hr class="detail-rule">
     <div class="detail-stats">
       <div class="detail-stat"><span class="detail-stat-label">Casting Time</span><span class="detail-stat-val">${time}</span></div>
-      <div class="detail-stat"><span class="detail-stat-label">Range</span><span class="detail-stat-val">${range}</span></div>
-      <div class="detail-stat"><span class="detail-stat-label">Components</span><span class="detail-stat-val">${comp}</span></div>
-      <div class="detail-stat"><span class="detail-stat-label">Duration</span><span class="detail-stat-val">${dur}</span></div>
+      <div class="detail-stat"><span class="detail-stat-label">Range</span><span class="detail-stat-val">${fmtRange(s.range)}</span></div>
+      <div class="detail-stat"><span class="detail-stat-label">Components</span><span class="detail-stat-val">${fmtComp(s.components)}</span></div>
+      <div class="detail-stat"><span class="detail-stat-label">Duration</span><span class="detail-stat-val">${s.duration?.map(d=>fmtDur(d)).join(' or ')||'—'}</span></div>
       <div class="detail-stat"><span class="detail-stat-label">Classes</span><span class="detail-stat-val">${classes}</span></div>
-      <div class="detail-stat"><span class="detail-stat-label">Source</span><span class="detail-stat-val">${s.source || '—'}</span></div>
-    </div>
-    <hr class="detail-rule">
-    <div class="detail-body">${body}</div>
-    ${higher}`;
+      <div class="detail-stat"><span class="detail-stat-label">Source</span><span class="detail-stat-val">${s.source||'—'} p.${s.page||'—'}</span></div>
+    </div><hr class="detail-rule"><div class="detail-body">${body}</div>${higher}`;
 }
 
-// ── Monster renderer ──
 function renderMonster(m) {
-  const cr   = `CR ${formatCR(m.cr)}`;
-  const type = [m.size, m.type?.type || m.type, m.alignment?.map?.(a=>a)?.join(' ') || ''].filter(Boolean).join(' ');
-  const ac   = Array.isArray(m.ac) ? m.ac.map(a => typeof a === 'object' ? `${a.ac}${a.from?' ('+a.from.join(', ')+')':''}` : a).join(', ') : m.ac || '—';
-  const hp   = m.hp ? `${m.hp.average} (${m.hp.formula})` : '—';
-  const speed = formatSpeed(m.speed);
-  const saves = m.save ? Object.entries(m.save).map(([k,v]) => `${k.toUpperCase()} ${v}`).join(', ') : '—';
-  const skills = m.skill ? Object.entries(m.skill).map(([k,v]) => `${k} ${v}`).join(', ') : '—';
-  const senses = m.senses?.join(', ') || '—';
-  const langs  = m.languages || '—';
-  const immune = m.immune?.map(i => typeof i === 'object' ? i.immune?.join(', ') : i).join(', ') || '—';
-  const resist = m.resist?.map(r => typeof r === 'object' ? r.resist?.join(', ') : r).join(', ') || '—';
-
-  const abilityStrip = ['str','dex','con','int','wis','cha'].map(attr => {
-    const score = m[attr] || 10;
-    const mod   = Math.floor((score - 10) / 2);
-    return `<div class="ability-cell">
-      <span class="ability-cell-label">${attr.toUpperCase()}</span>
-      <span class="ability-cell-score">${score}</span>
-      <span class="ability-cell-mod">${mod >= 0 ? '+' : ''}${mod}</span>
-    </div>`;
-  }).join('');
-
-  const traits  = renderTraits(m.trait   || [], 'Traits');
-  const actions = renderTraits(m.action  || [], 'Actions');
-  const bonus   = renderTraits(m.bonus   || [], 'Bonus Actions');
-  const react   = renderTraits(m.reaction|| [], 'Reactions');
-  const leg     = renderTraits(m.legendary|| [], 'Legendary Actions');
-
-  return `
-    <div class="detail-name">${m.name}</div>
-    <div class="detail-meta">${type} · ${cr}</div>
-    <hr class="detail-rule">
+  const type=[m.size,typeof m.type==='object'?m.type.type:m.type].filter(Boolean).join(' ');
+  const ac=Array.isArray(m.ac)?m.ac.map(a=>typeof a==='object'?`${a.ac}${a.from?' ('+a.from.join(', ')+')':''}`:`${a}`).join(', '):`${m.ac||'—'}`;
+  const hp=m.hp?`${m.hp.average} (${m.hp.formula})`:'—';
+  const saves=m.save?Object.entries(m.save).map(([k,v])=>`${k.toUpperCase()} ${v}`).join(', '):'—';
+  const skills=m.skill?Object.entries(m.skill).map(([k,v])=>`${k} ${v}`).join(', '):'—';
+  const imm=m.immune?m.immune.map(i=>typeof i==='object'?i.immune?.join(', '):i).filter(Boolean).join(', '):'—';
+  const res=m.resist?m.resist.map(r=>typeof r==='object'?r.resist?.join(', '):r).filter(Boolean).join(', '):'—';
+  const strip=['str','dex','con','int','wis','cha'].map(a=>{const sc=m[a]||10,mod=Math.floor((sc-10)/2);return`<div class="ability-cell"><span class="ability-cell-label">${a.toUpperCase()}</span><span class="ability-cell-score">${sc}</span><span class="ability-cell-mod">${mod>=0?'+':''}${mod}</span></div>`;}).join('');
+  return `<div class="detail-name">${m.name}</div><div class="detail-meta">${type} · CR ${fmtCR(m.cr)}</div><hr class="detail-rule">
     <div class="detail-stats">
       <div class="detail-stat"><span class="detail-stat-label">AC</span><span class="detail-stat-val">${ac}</span></div>
       <div class="detail-stat"><span class="detail-stat-label">HP</span><span class="detail-stat-val">${hp}</span></div>
-      <div class="detail-stat"><span class="detail-stat-label">Speed</span><span class="detail-stat-val">${speed}</span></div>
-      ${saves !== '—' ? `<div class="detail-stat"><span class="detail-stat-label">Saving Throws</span><span class="detail-stat-val">${saves}</span></div>` : ''}
-      ${skills !== '—' ? `<div class="detail-stat"><span class="detail-stat-label">Skills</span><span class="detail-stat-val">${skills}</span></div>` : ''}
-      ${immune !== '—' ? `<div class="detail-stat"><span class="detail-stat-label">Immunities</span><span class="detail-stat-val">${immune}</span></div>` : ''}
-      ${resist !== '—' ? `<div class="detail-stat"><span class="detail-stat-label">Resistances</span><span class="detail-stat-val">${resist}</span></div>` : ''}
-      <div class="detail-stat"><span class="detail-stat-label">Senses</span><span class="detail-stat-val">${senses}</span></div>
-      <div class="detail-stat"><span class="detail-stat-label">Languages</span><span class="detail-stat-val">${langs}</span></div>
-    </div>
-    <hr class="detail-rule">
-    <div class="ability-strip">${abilityStrip}</div>
-    ${traits}${actions}${bonus}${react}${leg}
-    <div class="source-note">Source: ${m.source || 'Unknown'}, p. ${m.page || '—'}</div>`;
+      <div class="detail-stat"><span class="detail-stat-label">Speed</span><span class="detail-stat-val">${fmtSpeed(m.speed)}</span></div>
+      ${saves!=='—'?`<div class="detail-stat"><span class="detail-stat-label">Saving Throws</span><span class="detail-stat-val">${saves}</span></div>`:''}
+      ${skills!=='—'?`<div class="detail-stat"><span class="detail-stat-label">Skills</span><span class="detail-stat-val">${skills}</span></div>`:''}
+      ${imm!=='—'?`<div class="detail-stat"><span class="detail-stat-label">Immunities</span><span class="detail-stat-val">${imm}</span></div>`:''}
+      ${res!=='—'?`<div class="detail-stat"><span class="detail-stat-label">Resistances</span><span class="detail-stat-val">${res}</span></div>`:''}
+      <div class="detail-stat"><span class="detail-stat-label">Senses</span><span class="detail-stat-val">${(m.senses||[]).join(', ')||'—'}</span></div>
+      <div class="detail-stat"><span class="detail-stat-label">Languages</span><span class="detail-stat-val">${m.languages||'—'}</span></div>
+    </div><hr class="detail-rule">
+    <div class="ability-strip">${strip}</div>
+    ${renderTraits(m.trait||[],'Traits')}${renderTraits(m.action||[],'Actions')}${renderTraits(m.bonus||[],'Bonus Actions')}${renderTraits(m.reaction||[],'Reactions')}${renderTraits(m.legendary||[],'Legendary Actions')}
+    <div class="source-note">Source: ${m.source||'MM'}, p.${m.page||'—'}</div>`;
 }
 
-// ── Condition renderer ──
 function renderCondition(c) {
-  const body = renderEntries(c.entries || []);
-  return `
-    <div class="detail-name">${c.name}</div>
-    <div class="detail-meta">${c.disease ? 'Disease' : 'Condition'}</div>
-    <hr class="detail-rule">
-    <div class="detail-body">${body}</div>
-    <div class="source-note">Source: ${c.source || 'PHB'}</div>`;
+  return `<div class="detail-name">${c.name}</div><div class="detail-meta">${c.disease?'Disease':'Condition'}</div><hr class="detail-rule"><div class="detail-body">${renderEntries(c.entries||[])}</div>`;
 }
 
-// ── Item renderer ──
 function renderItem(item) {
-  const rarity  = item.rarity  || 'Common';
-  const type    = item.type    || '';
-  const attune  = item.reqAttune ? ` · Requires Attunement${typeof item.reqAttune === 'string' ? ' ('+item.reqAttune+')' : ''}` : '';
-  const weight  = item.weight  ? `${item.weight} lb.` : '—';
-  const value   = item.value   ? `${(item.value/100).toFixed(0)} gp` : '—';
-  const body    = renderEntries(item.entries || item._copy?.entries || []);
-
-  return `
-    <div class="detail-name">${item.name}</div>
-    <div class="detail-meta">${[type, rarity].filter(Boolean).join(' · ')}${attune}</div>
-    <hr class="detail-rule">
+  const rarity=item.rarity||'Common';
+  const type=item.weaponCategory||item.armorType||item.type||'';
+  const attune=item.reqAttune?` · Requires Attunement${typeof item.reqAttune==='string'?' ('+item.reqAttune+')':''}` :'';
+  return `<div class="detail-name">${item.name}</div><div class="detail-meta">${[type,rarity].filter(Boolean).join(' · ')}${attune}</div><hr class="detail-rule">
     <div class="detail-stats">
-      <div class="detail-stat"><span class="detail-stat-label">Weight</span><span class="detail-stat-val">${weight}</span></div>
-      <div class="detail-stat"><span class="detail-stat-label">Value</span><span class="detail-stat-val">${value}</span></div>
-    </div>
-    <hr class="detail-rule">
-    <div class="detail-body">${body || '<em style="color:var(--muted)">No description available.</em>'}</div>
-    <div class="source-note">Source: ${item.source || '—'}</div>`;
+      ${item.weight?`<div class="detail-stat"><span class="detail-stat-label">Weight</span><span class="detail-stat-val">${item.weight} lb.</span></div>`:''}
+      ${item.value?`<div class="detail-stat"><span class="detail-stat-label">Value</span><span class="detail-stat-val">${Math.floor(item.value/100)} gp</span></div>`:''}
+      ${item.ac?`<div class="detail-stat"><span class="detail-stat-label">AC</span><span class="detail-stat-val">${item.ac}</span></div>`:''}
+      ${item.dmg1?`<div class="detail-stat"><span class="detail-stat-label">Damage</span><span class="detail-stat-val">${item.dmg1} ${item.dmgType||''}</span></div>`:''}
+      ${item.property?.length?`<div class="detail-stat"><span class="detail-stat-label">Properties</span><span class="detail-stat-val">${item.property.join(', ')}</span></div>`:''}
+    </div><hr class="detail-rule">
+    <div class="detail-body">${renderEntries(item.entries||[])||'<em style="color:var(--muted)">No description available.</em>'}</div>
+    <div class="source-note">Source: ${item.source||'—'}</div>`;
 }
 
-// ══════════════════════════════════════════════════════════
-// TRAIT BLOCK HELPER
-// ══════════════════════════════════════════════════════════
+function renderRule(r) {
+  return `<div class="detail-name">${r.name}</div><div class="detail-meta">Rule Reference</div><hr class="detail-rule"><div class="detail-body">${renderEntries(r.entries||r.entry||[])}</div>`;
+}
+
+function renderRace(r) {
+  const asi=(r.ability||[]).map(a=>Object.entries(a).map(([k,v])=>`${k.toUpperCase()} ${v>=0?'+':''}${v}`).join(', ')).join('; ')||'—';
+  const size=Array.isArray(r.size)?r.size.join(', '):r.size||'Medium';
+  const speed=typeof r.speed==='object'?`${r.speed.walk||30} ft.`:`${r.speed||30} ft.`;
+  const dv=r.darkvision?`${r.darkvision} ft.`:'None';
+  return `<div class="detail-name">${r.name}</div><div class="detail-meta">${r._parentName?'Subrace · ':'Race · '}${r.source||'PHB'}</div><hr class="detail-rule">
+    <div class="detail-stats">
+      <div class="detail-stat"><span class="detail-stat-label">Ability Score Increase</span><span class="detail-stat-val">${asi}</span></div>
+      <div class="detail-stat"><span class="detail-stat-label">Size</span><span class="detail-stat-val">${size}</span></div>
+      <div class="detail-stat"><span class="detail-stat-label">Speed</span><span class="detail-stat-val">${speed}</span></div>
+      <div class="detail-stat"><span class="detail-stat-label">Darkvision</span><span class="detail-stat-val">${dv}</span></div>
+    </div><hr class="detail-rule">
+    <div class="detail-body">${renderEntries(r.entries||r.trait||[])}</div>
+    <div class="source-note">Source: ${r.source||'PHB'}, p.${r.page||'—'}</div>`;
+}
+
+function renderClass(c) {
+  const hd=c.hd?`d${c.hd.faces}`:'—';
+  const saves=(c.proficiency||[]).map(p=>p.toUpperCase()).join(', ')||'—';
+  const armor=(c.startingProficiencies?.armor||[]).join(', ')||'None';
+  const weapons=(c.startingProficiencies?.weapons||[]).join(', ')||'None';
+  const tools=(c.startingProficiencies?.tools||[]).join(', ')||'None';
+  const skillsProf=c.startingProficiencies?.skills;
+  const skillsStr=skillsProf?`Choose ${skillsProf.choose?.count||2} from ${(skillsProf.choose?.from||[]).join(', ')}`:'—';
+  const subclasses=(c.subclasses||[]).map(sc=>`<li><strong>${sc.name}</strong></li>`).join('');
+  const features=(c.classFeatures||[]).map((f,i)=>{
+    const names=Array.isArray(f)?f.map(x=>typeof x==='string'?x:(x.name||'')).filter(Boolean):[];
+    return names.length?`<tr><td style="font-family:var(--font-title);font-size:0.65rem;color:var(--gold-light)">${i+1}</td><td>${names.join(', ')}</td></tr>`:'';
+  }).join('');
+  return `<div class="detail-name">${c.name}</div><div class="detail-meta">Class · ${c.source||'PHB'}</div><hr class="detail-rule">
+    <div class="detail-stats">
+      <div class="detail-stat"><span class="detail-stat-label">Hit Die</span><span class="detail-stat-val">${hd}</span></div>
+      <div class="detail-stat"><span class="detail-stat-label">Saving Throws</span><span class="detail-stat-val">${saves}</span></div>
+      <div class="detail-stat"><span class="detail-stat-label">Armor</span><span class="detail-stat-val">${armor}</span></div>
+      <div class="detail-stat"><span class="detail-stat-label">Weapons</span><span class="detail-stat-val">${weapons}</span></div>
+      ${tools!=='None'?`<div class="detail-stat"><span class="detail-stat-label">Tools</span><span class="detail-stat-val">${tools}</span></div>`:''}
+      <div class="detail-stat"><span class="detail-stat-label">Skills</span><span class="detail-stat-val">${skillsStr}</span></div>
+    </div>
+    ${features?`<div class="detail-section"><div class="detail-section-title">Features by Level</div><div class="detail-body"><table><thead><tr><th>Lvl</th><th>Features</th></tr></thead><tbody>${features}</tbody></table></div></div>`:''}
+    ${subclasses?`<div class="detail-section"><div class="detail-section-title">${c.subclassTitle||'Subclass'} Options</div><div class="detail-body"><ul>${subclasses}</ul></div></div>`:''}
+    <div class="source-note">Source: ${c.source||'PHB'}</div>`;
+}
+
+function renderBackground(b) {
+  const skills=(b.skillProficiencies||[]).map(sp=>Object.keys(sp).filter(k=>sp[k]).join(', ')).join('; ')||'—';
+  const langs=(b.languageProficiencies||[]).map(lp=>{const f=Object.keys(lp).filter(k=>k!=='anyStandard'&&lp[k]===true);const a=lp.anyStandard?`any ${lp.anyStandard}`:'';return[...f,a].filter(Boolean).join(', ');}).join('; ')||'—';
+  const tools=(b.toolProficiencies||[]).map(tp=>Object.keys(tp).filter(k=>tp[k]).join(', ')).join('; ')||'—';
+  const equip=b.entries?.find(e=>e.name==='Equipment');
+  const feature=b.entries?.find(e=>e.name&&e.name!=='Equipment'&&e.name!=='Specialty'&&e.name!=='Suggested Characteristics');
+  return `<div class="detail-name">${b.name}</div><div class="detail-meta">Background · ${b.source||'PHB'}</div><hr class="detail-rule">
+    <div class="detail-stats">
+      <div class="detail-stat"><span class="detail-stat-label">Skill Proficiencies</span><span class="detail-stat-val">${skills}</span></div>
+      ${langs!=='—'?`<div class="detail-stat"><span class="detail-stat-label">Languages</span><span class="detail-stat-val">${langs}</span></div>`:''}
+      ${tools!=='—'?`<div class="detail-stat"><span class="detail-stat-label">Tool Proficiencies</span><span class="detail-stat-val">${tools}</span></div>`:''}
+    </div>
+    ${equip?`<div class="detail-section"><div class="detail-section-title">Starting Equipment</div><div class="detail-body">${renderEntries(equip.entries||[])}</div></div>`:''}
+    ${feature?`<div class="detail-section"><div class="detail-section-title">Feature: ${feature.name}</div><div class="detail-body">${renderEntries(feature.entries||[])}</div></div>`:''}
+    <div class="source-note">Source: ${b.source||'PHB'}, p.${b.page||'—'}</div>`;
+}
+
+function renderFeat(f) {
+  const prereq=f.prerequisite?f.prerequisite.map(p=>{
+    if(p.level)return`Level ${p.level.level}`;
+    if(p.ability)return Object.entries(p.ability[0]).map(([k,v])=>`${k.toUpperCase()} ${v}+`).join(', ');
+    if(p.race)return p.race.map(r=>`${r.name}${r.subrace?' ('+r.subrace+')':''}`).join(' or ');
+    if(p.spellcasting)return'Spellcasting ability';
+    return'Special';
+  }).join('; '):'None';
+  const asi=(f.ability||[]).map(a=>Object.entries(a).map(([k,v])=>`${k.toUpperCase()} +${v}`).join(', ')).join('; ');
+  return `<div class="detail-name">${f.name}</div><div class="detail-meta">Feat · ${f.source||'PHB'}</div><hr class="detail-rule">
+    <div class="detail-stats">
+      <div class="detail-stat"><span class="detail-stat-label">Prerequisite</span><span class="detail-stat-val">${prereq}</span></div>
+      ${asi?`<div class="detail-stat"><span class="detail-stat-label">Ability Score</span><span class="detail-stat-val">${asi}</span></div>`:''}
+      <div class="detail-stat"><span class="detail-stat-label">Source</span><span class="detail-stat-val">${f.source||'PHB'} p.${f.page||'—'}</span></div>
+    </div><hr class="detail-rule">
+    <div class="detail-body">${renderEntries(f.entries||[])}</div>`;
+}
+
+// ── Shared helpers ──
 function renderTraits(traits, heading) {
   if (!traits.length) return '';
-  return `
-    <div class="detail-section-title">${heading}</div>
-    ${traits.map(t => `
-      <div class="trait-block">
-        <span class="trait-name">${t.name}${t.entries && typeof t.entries[0] === 'string' && t.entries[0].startsWith('.') ? '' : '.'}</span>
-        <div class="trait-body">${renderEntries(t.entries || [])}</div>
-      </div>`).join('')}`;
+  return `<div class="detail-section"><div class="detail-section-title">${heading}</div>
+    ${traits.map(t=>`<div class="trait-block"><span class="trait-name">${t.name}.</span><div class="trait-body">${renderEntries(t.entries||[]).replace(/<p>/g,'').replace(/<\/p>/g,' ')}</div></div>`).join('')}
+  </div>`;
 }
 
-// ══════════════════════════════════════════════════════════
-// ENTRY RENDERER — handles 5etools nested entry format
-// ══════════════════════════════════════════════════════════
 function renderEntries(entries) {
   if (!entries) return '';
-  return entries.map(e => {
-    if (typeof e === 'string') return `<p>${cleanText(e)}</p>`;
-    if (e.type === 'entries') return `<p><strong>${e.name || ''}</strong></p>${renderEntries(e.entries)}`;
-    if (e.type === 'list')    return `<ul>${(e.items||[]).map(i => `<li>${typeof i === 'string' ? cleanText(i) : renderEntries(i.entries||[])}</li>`).join('')}</ul>`;
-    if (e.type === 'table')   return renderTable(e);
-    if (e.type === 'quote')   return `<blockquote style="border-left:2px solid var(--gold-dim);padding-left:0.75rem;color:var(--muted);font-style:italic;margin:0.5rem 0">${renderEntries(e.entries)}</blockquote>`;
-    if (typeof e === 'object' && e.entries) return renderEntries(e.entries);
+  return entries.map(e=>{
+    if (typeof e==='string') return `<p>${cleanText(e)}</p>`;
+    if (e.type==='entries')  return `${e.name?`<p><strong>${e.name}</strong></p>`:''}${renderEntries(e.entries||[])}`;
+    if (e.type==='list')     return `<ul>${(e.items||[]).map(i=>`<li>${typeof i==='string'?cleanText(i):renderEntries(i.entries||[]).replace(/<\/?p>/g,'')}</li>`).join('')}</ul>`;
+    if (e.type==='table')    return renderTable(e);
+    if (e.type==='quote')    return `<blockquote style="border-left:2px solid var(--gold-dim);padding-left:0.75rem;color:var(--muted);font-style:italic;margin:0.5rem 0">${renderEntries(e.entries||[])}</blockquote>`;
+    if (e.type==='inset'||e.type==='insetReadaloud') return `<div style="border:1px solid var(--gold-dim);padding:0.6rem 0.85rem;margin:0.5rem 0;background:rgba(0,0,0,0.15)">${e.name?`<div style="font-family:var(--font-title);font-size:0.5rem;letter-spacing:0.2em;color:var(--gold);text-transform:uppercase;margin-bottom:0.35rem">${e.name}</div>`:''}${renderEntries(e.entries||[])}</div>`;
+    if (typeof e==='object'&&e.entries) return renderEntries(e.entries);
     return '';
   }).join('');
 }
 
 function renderTable(t) {
-  const head = t.colLabels ? `<tr>${t.colLabels.map(l=>`<th style="font-family:var(--font-title);font-size:0.5rem;letter-spacing:0.2em;color:var(--muted);text-transform:uppercase;padding:0.3rem 0.5rem;border-bottom:1px solid var(--gold-dim)">${l}</th>`).join('')}</tr>` : '';
-  const rows = (t.rows||[]).map(row => `<tr>${row.map(cell=>`<td style="padding:0.25rem 0.5rem;font-size:0.85rem;color:var(--parchment2);border-bottom:1px solid rgba(255,255,255,0.03)">${typeof cell==='string'?cleanText(cell):cell?.roll?`${cell.roll.min}–${cell.roll.max}`:JSON.stringify(cell)}</td>`).join('')}</tr>`).join('');
-  return `<table style="width:100%;border-collapse:collapse;margin:0.5rem 0"><thead>${head}</thead><tbody>${rows}</tbody></table>`;
+  const head=t.colLabels?`<tr>${t.colLabels.map(l=>`<th>${l}</th>`).join('')}</tr>`:'';
+  const rows=(t.rows||[]).map(row=>`<tr>${row.map(cell=>`<td>${typeof cell==='string'?cleanText(cell):cell?.roll?`${cell.roll.min}–${cell.roll.max}`:''}</td>`).join('')}</tr>`).join('');
+  return `<table><thead>${head}</thead><tbody>${rows}</tbody></table>`;
 }
 
-// ══════════════════════════════════════════════════════════
-// FORMAT HELPERS
-// ══════════════════════════════════════════════════════════
 function cleanText(str) {
-  return (str || '')
-    .replace(/\{@b ([^}]+)\}/g, '<strong>$1</strong>')
-    .replace(/\{@i ([^}]+)\}/g, '<em>$1</em>')
-    .replace(/\{@spell ([^}]+)\}/g, '<span style="color:var(--gold-light)">$1</span>')
-    .replace(/\{@creature ([^}]+)\}/g, '<span style="color:var(--gold-light)">$1</span>')
-    .replace(/\{@condition ([^}]+)\}/g, '<em>$1</em>')
-    .replace(/\{@damage ([^}]+)\}/g, '$1')
-    .replace(/\{@dice ([^}]+)\}/g, '$1')
-    .replace(/\{@hit ([^}]+)\}/g, '+$1')
-    .replace(/\{@dc ([^}]+)\}/g, 'DC $1')
-    .replace(/\{@action ([^}]+)\}/g, '$1')
-    .replace(/\{@item ([^}|]+)[^}]*\}/g, '$1')
-    .replace(/\{@skill ([^}]+)\}/g, '$1')
-    .replace(/\{@sense ([^}]+)\}/g, '$1')
-    .replace(/\{@[a-z]+ ([^|}]+)[^}]*\}/g, '$1')
-    .replace(/\{@[^}]+\}/g, '');
+  return (str||'')
+    .replace(/\{@b ([^}]+)\}/g,'<strong>$1</strong>')
+    .replace(/\{@i ([^}]+)\}/g,'<em>$1</em>')
+    .replace(/\{@spell ([^|}]+)[^}]*\}/g,'<span style="color:var(--gold-light)">$1</span>')
+    .replace(/\{@creature ([^|}]+)[^}]*\}/g,'<span style="color:var(--gold-light)">$1</span>')
+    .replace(/\{@item ([^|}]+)[^}]*\}/g,'<span style="color:var(--gold-light)">$1</span>')
+    .replace(/\{@condition ([^|}]+)[^}]*\}/g,'<em>$1</em>')
+    .replace(/\{@recharge ([^}]+)\}/g,'(Recharge $1–6)')
+    .replace(/\{@hit ([^}]+)\}/g,'+$1')
+    .replace(/\{@dc ([^}]+)\}/g,'DC $1')
+    .replace(/\{@damage ([^}]+)\}/g,'$1')
+    .replace(/\{@dice ([^}]+)\}/g,'$1')
+    .replace(/\{@[a-z]+ ([^|}]+)[^}]*\}/g,'$1')
+    .replace(/\{@[^}]+\}/g,'')
+    .replace(/\u2014/g,'—').replace(/\u2013/g,'–');
 }
 
-function schoolName(s) {
-  const map = {A:'Abjuration',C:'Conjuration',D:'Divination',E:'Enchantment',V:'Evocation',I:'Illusion',N:'Necromancy',T:'Transmutation',P:'Psionic'};
-  return map[s] || s;
-}
-
-function ordinal(n) {
-  const s = ['th','st','nd','rd'], v = n % 100;
-  return n + (s[(v-20)%10] || s[v] || s[0]);
-}
-
-function formatRange(r) {
-  if (!r) return '—';
-  if (r.type === 'special') return 'Special';
-  if (r.type === 'point') {
-    if (!r.distance) return 'Self';
-    if (r.distance.type === 'self') return 'Self';
-    if (r.distance.type === 'touch') return 'Touch';
-    if (r.distance.type === 'sight') return 'Sight';
-    return `${r.distance.amount} ${r.distance.type}`;
-  }
-  if (r.type === 'radius') return `Self (${r.distance?.amount}-${r.distance?.type} radius)`;
-  if (r.type === 'cone')   return `Self (${r.distance?.amount}-${r.distance?.type} cone)`;
-  if (r.type === 'line')   return `Self (${r.distance?.amount}-${r.distance?.type} line)`;
-  return r.type || '—';
-}
-
-function formatComponents(c) {
-  if (!c) return '—';
-  const parts = [];
-  if (c.v) parts.push('V');
-  if (c.s) parts.push('S');
-  if (c.m) parts.push(`M (${typeof c.m === 'string' ? c.m : c.m.text || 'material'})`);
-  if (c.r) parts.push('R');
-  return parts.join(', ') || '—';
-}
-
-function formatDuration(d) {
-  if (!d) return '—';
-  if (d.type === 'instant')   return 'Instantaneous';
-  if (d.type === 'permanent') return 'Until dispelled';
-  if (d.type === 'special')   return 'Special';
-  const conc = d.concentration ? 'Concentration, up to ' : '';
-  if (d.duration) return `${conc}${d.duration.amount} ${d.duration.type}`;
-  return d.type || '—';
-}
-
-function formatSpeed(spd) {
-  if (!spd) return '—';
-  if (typeof spd === 'number') return `${spd} ft.`;
-  return Object.entries(spd).map(([k,v]) => {
-    if (k === 'walk') return `${typeof v === 'object' ? v.number : v} ft.`;
-    return `${k} ${typeof v === 'object' ? v.number : v} ft.`;
-  }).join(', ');
-}
-
-function formatCR(cr) {
-  if (!cr) return '—';
-  if (typeof cr === 'object') return cr.cr || '—';
-  return cr;
-}
-
-function parseCR(cr) {
-  const s = formatCR(cr);
-  if (s === '1/8') return 0.125;
-  if (s === '1/4') return 0.25;
-  if (s === '1/2') return 0.5;
-  return parseFloat(s) || 0;
-}
-
+function fmtCR(cr)  { if(!cr)return'—'; return typeof cr==='object'?cr.cr||'—':cr; }
+function parseCR(cr){ const s=fmtCR(cr); if(s==='1/8')return 0.125;if(s==='1/4')return 0.25;if(s==='1/2')return 0.5;return parseFloat(s)||0; }
+function fmtRange(r){ if(!r)return'—';if(r.type==='point'){if(!r.distance||r.distance.type==='self')return'Self';if(r.distance.type==='touch')return'Touch';return`${r.distance.amount} ${r.distance.type}`;}if(r.type==='radius')return`Self (${r.distance?.amount}-${r.distance?.type} radius)`;return r.type||'—'; }
+function fmtComp(c) { if(!c)return'—';const p=[];if(c.v)p.push('V');if(c.s)p.push('S');if(c.m)p.push(`M (${typeof c.m==='string'?c.m:c.m.text||'material'})`);return p.join(', ')||'—'; }
+function fmtDur(d)  { if(!d)return'—';if(d.type==='instant')return'Instantaneous';if(d.type==='permanent')return'Until dispelled';const c=d.concentration?'Conc, up to ':'';if(d.duration)return`${c}${d.duration.amount} ${d.duration.type}`;return d.type||'—'; }
+function fmtSpeed(s){ if(!s)return'—';if(typeof s==='number')return`${s} ft.`;return Object.entries(s).map(([k,v])=>{const n=typeof v==='object'?v.number:v;return k==='walk'?`${n} ft.`:`${k} ${n} ft.`;}).join(', '); }
 </script>
-
 </body>
 </html>
