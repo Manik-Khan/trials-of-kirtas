@@ -29,7 +29,7 @@ const CHARACTERS = {
 
     name:         'Tyros Darkstar',
     classLabel:   'Warlock 2 / Sorcerer 1',
-    subclass:     'The Hexblade',
+    subclass:     'Shadow | The Hexblade',
     level:        3,
     race:         'Astral Elf',
     background:   'Captain',
@@ -292,7 +292,7 @@ const CHARACTERS = {
     race:         'Tiefling',
     background:   '',
     alignment:    '',
-    xp:           0,
+    xp:           900,
     portrait:     'img/portraits/caim.png',
 
     appearance: {
@@ -658,7 +658,7 @@ const CHARACTERS = {
     race:         'Shadar-kai',
     background:   'Dimir Operative',
     alignment:    'Neutral',
-    xp:           0,
+    xp:           900,
     portrait:     'img/portraits/vesperian.jpg',
 
     appearance: {
