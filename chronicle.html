@@ -1157,25 +1157,31 @@ function hideInlineDropdown() {
 
 function insertMention(type, key, name) {
   if (!inlineRange) return;
-  quill.deleteText(inlineRange.index, inlineRange.length);
-  const cls   = type === 'npc' ? 'npc-link' : 'location-link';
-  const attr  = type === 'npc' ? 'data-npc' : 'data-location';
-  // Insert as styled text — Quill doesn't support arbitrary HTML spans natively
-  // We store a placeholder and post-process on submit
-  const placeholder = `[${type}:${key}:${name}]`;
-  quill.insertText(inlineRange.index, name, { 'color': type==='npc'?'#d4ac3a':'#8ab4c9', 'bold': false });
-  // Store mention metadata in the text delta as a custom attribute via a comment tag
-  quill.insertText(inlineRange.index + name.length, `\u200B`, {}); // zero-width space as separator
-  // We'll encode mentions in a data attribute on submit
+  const insertIdx = inlineRange.index;
+  const deleteLen = inlineRange.length;
   hideInlineDropdown();
-  // Tag for post-processing
-  const sel = quill.getSelection();
-  // Mark with special format — we'll use a simple replacement on submit
-  const content = quill.root.innerHTML;
-  quill.root.innerHTML = content.replace(
-    new RegExp(`>${escapeRegex(name)}</span>`),
-    ` data-mention-type="${type}" data-mention-key="${key}">${name}</span>`
-  );
+
+  // Delete the @query text first
+  quill.deleteText(insertIdx, deleteLen);
+
+  // Insert the name with color — no other formatting
+  const color = type === 'npc' ? '#d4ac3a' : '#8ab4c9';
+  quill.insertText(insertIdx, name, { color, bold: false });
+
+  // Immediately reset formatting after the name so text returns to normal
+  quill.formatText(insertIdx + name.length, 1, { color: false, bold: false });
+  quill.setSelection(insertIdx + name.length + 1, 0);
+
+  // Tag the exact span in the DOM after Quill finishes its update
+  setTimeout(() => {
+    const spans = quill.root.querySelectorAll('span[style*="color"]');
+    spans.forEach(span => {
+      if (span.textContent === name && !span.dataset.mentionType) {
+        span.dataset.mentionType = type;
+        span.dataset.mentionKey  = key;
+      }
+    });
+  }, 10);
 }
 
 function insertTag(tag) {
@@ -1539,8 +1545,21 @@ async function submitEntry() {
   if (!sessionNum && sessionNum !== 0) { setDrawerStatus('Please enter a session number.','error'); return; }
   if (!text || text === '<p></p>') { setDrawerStatus('Please write something before submitting.','error'); return; }
 
+  // Extract #hashtags
   const tagMatches = rawHTML.match(/#([a-zA-Z0-9_-]+)/g)||[];
-  const tags = [...new Set(tagMatches.map(t=>t.slice(1).toLowerCase()))];
+  const hashTags = tagMatches.map(t=>t.slice(1).toLowerCase());
+
+  // Extract NPC and location mentions as tags too
+  const mentionTags = [];
+  if (quill) {
+    quill.root.querySelectorAll('[data-mention-type]').forEach(span => {
+      const mtype = span.dataset.mentionType;
+      const mkey  = span.dataset.mentionKey;
+      if (mkey && !mentionTags.includes(mkey)) mentionTags.push(mkey);
+    });
+  }
+
+  const tags = [...new Set([...hashTags, ...mentionTags])];
   const cleanHTML = rawHTML.replace(/#[a-zA-Z0-9_-]+ ?/g,'');
   const title    = document.getElementById('d-title').value.trim();
   const location = document.getElementById('d-location').value.trim();
