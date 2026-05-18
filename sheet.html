@@ -251,17 +251,17 @@
     .hp-legend  { display: flex; gap: 0.65rem; margin-top: 0.3rem; padding-left: 28px; }
     .hp-legend-item { display: flex; align-items: center; gap: 0.25rem; font-family: var(--font-title); font-size: 0.42rem; letter-spacing: 0.12em; text-transform: uppercase; }
     .hp-legend-dot  { width: 7px; height: 7px; border-radius: 50%; flex-shrink: 0; }
-    .hp-adj-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 0.4rem 0.75rem; margin-top: 0.6rem; }
-    .hp-adj-row  { display: flex; align-items: center; gap: 0.3rem; }
-    .hp-adj-label { font-family: var(--font-title); font-size: 0.44rem; letter-spacing: 0.15em; text-transform: uppercase; flex-shrink: 0; min-width: 52px; }
-    .hp-adj-btn  { width: 18px; height: 18px; background: rgba(0,0,0,0.35); border: 1px solid var(--gold-dim); color: var(--aged); font-size: 0.8rem; cursor: pointer; display: flex; align-items: center; justify-content: center; transition: background 0.15s; font-family: var(--font-title); line-height: 1; flex-shrink: 0; }
+    .hp-adj-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 0.4rem 0.5rem; margin-top: 0.6rem; min-width: 0; }
+    .hp-adj-row  { display: flex; align-items: center; gap: 0.3rem; min-width: 0; }
+    .hp-adj-label { font-family: var(--font-title); font-size: 0.44rem; letter-spacing: 0.12em; text-transform: uppercase; flex-shrink: 0; min-width: 46px; }
+    .hp-adj-btn  { width: 17px; height: 17px; background: rgba(0,0,0,0.35); border: 1px solid var(--gold-dim); color: var(--aged); font-size: 0.78rem; cursor: pointer; display: flex; align-items: center; justify-content: center; transition: background 0.15s; font-family: var(--font-title); line-height: 1; flex-shrink: 0; }
     .hp-adj-btn:hover { background: rgba(184,149,42,0.15); }
-    .hp-adj-val  { font-family: var(--font-title); font-size: 0.8rem; min-width: 1.5ch; text-align: center; }
-    .hp-rest-row { display: flex; justify-content: center; align-items: center; gap: 1.5rem; margin-top: 0.6rem; }
-    .hp-rest-btn { width: 30px; height: 30px; background: rgba(184,149,42,0.06); border: 1px solid var(--gold-dim); cursor: pointer; display: flex; align-items: center; justify-content: center; transition: background 0.2s, border-color 0.2s; position: relative; flex-shrink: 0; }
+    .hp-adj-val  { font-family: var(--font-title); font-size: 0.78rem; min-width: 1.4ch; text-align: center; }
+    .hp-rest-row { display: flex; justify-content: center; align-items: center; gap: 0.6rem; }
+    .hp-rest-btn { width: 28px; height: 28px; background: rgba(184,149,42,0.06); border: 1px solid var(--gold-dim); cursor: pointer; display: flex; align-items: center; justify-content: center; transition: background 0.2s, border-color 0.2s; position: relative; flex-shrink: 0; }
     .hp-rest-btn:hover { background: rgba(184,149,42,0.14); border-color: var(--gold-mid); }
     .hp-rest-btn:active { transform: scale(0.92); }
-    .hp-rest-btn svg { width: 15px; height: 15px; }
+    .hp-rest-btn svg { width: 14px; height: 14px; }
     .hp-rest-btn .hp-tip { position: absolute; bottom: calc(100% + 6px); left: 50%; transform: translateX(-50%); background: var(--ink-deep); border: 1px solid var(--gold-dim); color: var(--aged); font-family: var(--font-title); font-size: 0.44rem; letter-spacing: 0.15em; text-transform: uppercase; padding: 0.15rem 0.4rem; white-space: nowrap; opacity: 0; pointer-events: none; transition: opacity 0.15s 0.5s; }
     .hp-rest-btn:hover .hp-tip { opacity: 1; }
 
@@ -1291,7 +1291,7 @@ function buildCoreTab() {
                   <span class="hp-adj-val" id="hp-val-max" style="color:var(--muted)">${C.combat.hpMax}</span>
                   <button class="hp-adj-btn" onclick="adjHPMax(1)">+</button>
                 </div>
-                <div class="hp-rest-row" style="margin-top:0;justify-content:flex-end;padding-right:0.1rem">
+                <div class="hp-rest-row">
                   <button class="hp-rest-btn" onclick="hpShortRest()">
                     <svg viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M13 8A5 5 0 0 1 6 3.5a5 5 0 1 0 7 4.5z" fill="#b8952a" opacity="0.85"/></svg>
                     <span class="hp-tip">Short Rest</span>
