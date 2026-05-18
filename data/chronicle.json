@@ -1,19 +1,6 @@
 {
   "entries": [
     {
-      "id": "1779144089726",
-      "session": 0,
-      "author": "Vesperian",
-      "character": "Fighter",
-      "color": "#5a9aaa",
-      "timestamp": "2026-05-18T22:41:29.726Z",
-      "text": "<p>@<span style=\"color: ; text-decoration: underline dotted\" data-mention-type=\"npc-unresolved\" data-mention-key=\"someone\">someone</span> is going @<span style=\"color: rgb(138, 180, 201);\">somewhere</span></p>",
-      "tags": [
-        "c9b48a",
-        "someone"
-      ]
-    },
-    {
       "id": "1779086759727",
       "session": 0,
       "author": "Líadan",
