@@ -575,11 +575,13 @@
       z-index: 200;
       transition: background 0.3s;
     }
-    /* Collapsed: shrink to a compact pill button */
+    /* Collapsed: tiny floating icon button */
     .roller-panel.collapsed {
-      width: auto;
+      width: 36px;
+      height: 36px;
       border: 1px solid rgba(184,149,42,0.25);
       box-shadow: 0 4px 20px rgba(0,0,0,0.5);
+      overflow: hidden;
     }
     .roller-header {
       display: flex; align-items: center; justify-content: space-between;
@@ -590,15 +592,28 @@
     }
     .roller-panel.collapsed .roller-header {
       border-bottom: none;
-      padding: 0.4rem 0.65rem;
+      padding: 0;
+      width: 36px;
+      height: 36px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
     }
     .roller-title {
       font-family: var(--font-title);
       font-size: 0.56rem; letter-spacing: 0.25em;
       color: var(--gold); text-transform: uppercase;
     }
-    .roller-chevron { color: var(--muted); font-size: 0.65rem; transition: transform 0.2s; margin-left: 0.5rem; }
-    .roller-panel.collapsed .roller-chevron { transform: rotate(180deg); }
+    /* Hide title and chevron when collapsed — show only the dice emoji */
+    .roller-panel.collapsed .roller-title { display: none; }
+    .roller-panel.collapsed .roller-chevron { display: none; }
+    .roller-title-icon {
+      font-size: 1.1rem;
+      display: none;
+      line-height: 1;
+    }
+    .roller-panel.collapsed .roller-title-icon { display: block; }
+    .roller-chevron { color: var(--muted); font-size: 0.65rem; transition: transform 0.2s; }
     .roller-panel.collapsed .roller-toggles,
     .roller-panel.collapsed .roll-history { display: none; }
 
@@ -1011,6 +1026,7 @@
 <!-- Roller panel -->
 <div class="roller-panel" id="roller-panel">
   <div class="roller-header" onclick="toggleRoller()">
+    <span class="roller-title-icon">🎲</span>
     <span class="roller-title">🎲 Roll Log</span>
     <span class="roller-chevron">▲</span>
   </div>
@@ -1984,6 +2000,15 @@ function toggleCompendium() {
   document.getElementById('comp-panel').classList.toggle('open', compOpen);
   document.getElementById('comp-backdrop').classList.toggle('open', compOpen);
   document.getElementById('comp-tab-btn').classList.toggle('open', compOpen);
+  // Move roller to bottom-left when compendium is open to avoid overlap
+  const roller = document.getElementById('roller-panel');
+  if (compOpen) {
+    roller.style.right = 'auto';
+    roller.style.left  = '1rem';
+  } else {
+    roller.style.left  = 'auto';
+    roller.style.right = '1rem';
+  }
   if (compOpen && !compAllEntries.length) compLoadSource();
 }
 
