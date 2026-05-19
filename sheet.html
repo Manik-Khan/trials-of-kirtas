@@ -2154,7 +2154,7 @@ function csUpdateSyncUI(status) {
 
 // ── Item search via Netlify function (bypasses CORS) ──
 let _itemSearchTimer = null;
-let _expandedItem    = null;
+let _itemSearchResults = []; // store results by index to avoid onclick JSON encoding issues
 
 function csSearchItems(query) {
   clearTimeout(_itemSearchTimer);
@@ -2175,9 +2175,8 @@ function csSearchItems(query) {
         resultsEl.innerHTML = '<div class="cs-item-empty">No items found.</div>';
         return;
       }
-      resultsEl.innerHTML = json.items.map((item, i) =>
-        csRenderItemResult(item, i)
-      ).join('');
+      _itemSearchResults = json.items;
+      resultsEl.innerHTML = json.items.map((item, i) => csRenderItemResult(item, i)).join('');
     } catch(e) {
       resultsEl.innerHTML = `<div class="cs-item-empty">Search failed: ${e.message}</div>`;
     }
@@ -2200,7 +2199,7 @@ function csRarityColor(rarity) {
 }
 
 function csRenderItemResult(item, i) {
-  const color = csRarityColor(item.rarity);
+  const color  = csRarityColor(item.rarity);
   const rarity = item.rarity !== 'None' ? item.rarity : '';
   return `<div class="cs-item-result-wrap" id="cs-iresult-${i}">
     <button class="cs-item-result" onclick="csToggleItemDetail(${i})">
@@ -2212,9 +2211,15 @@ function csRenderItemResult(item, i) {
     </button>
     <div class="cs-item-detail hidden" id="cs-idetail-${i}">
       ${csRenderItemDetail(item)}
-      <button class="cs-item-add-btn" onclick='csAddItemFromSearch(${JSON.stringify(JSON.stringify(item))})'>+ Add to Inventory</button>
+      <button class="cs-item-add-btn" onclick="csAddItemByIndex(${i})">+ Add to Inventory</button>
     </div>
   </div>`;
+}
+
+function csAddItemByIndex(i) {
+  const item = _itemSearchResults[i];
+  if (!item) return;
+  csAddItemFromSearch(item);
 }
 
 function csRenderItemDetail(item) {
@@ -2238,8 +2243,7 @@ function csToggleItemDetail(i) {
   if (isHidden) detail.classList.remove('hidden');
 }
 
-function csAddItemFromSearch(itemJson) {
-  const item = JSON.parse(itemJson);
+function csAddItemFromSearch(item) {
   const inv  = (_currentInv || []).map(i => ({ ...i }));
   const existing = inv.findIndex(i => i.name === item.name);
   if (existing >= 0) {
@@ -2531,6 +2535,8 @@ function compFilterList() {
   ).join('');
 }
 
+let _compItemResults = []; // store compendium item results by index
+
 async function compSearchItems(q) {
   try {
     const res  = await fetch(`/.netlify/functions/items?q=${encodeURIComponent(q)}&limit=50`);
@@ -2538,6 +2544,7 @@ async function compSearchItems(q) {
     if (!res.ok) throw new Error(json.error || 'Search failed');
     if (!json.items.length) { setCompListState('No items found.'); return; }
 
+    _compItemResults = json.items;
     compFiltered = json.items.map(i => ({ raw: i, name: i.name, tag: i.rarity !== 'None' ? i.rarity : (i.typeText || 'Item') }));
 
     const list = document.getElementById('comp-panel-list');
@@ -2564,7 +2571,7 @@ function compSelectEntry(i) {
   if (compCat === 'spells')     detail.innerHTML = compRenderSpell(entry.raw);
   if (compCat === 'monsters')   detail.innerHTML = compRenderMonster(entry.raw);
   if (compCat === 'conditions') detail.innerHTML = compRenderCondition(entry.raw);
-  if (compCat === 'items')      detail.innerHTML = compRenderItem(entry.raw);
+  if (compCat === 'items')      detail.innerHTML = compRenderItem(entry.raw, i);
 }
 
 // ── Renderers ──
@@ -2651,16 +2658,20 @@ function compRenderCondition(c) {
     <div class="cpd-body">${compRenderEntries(c.entries||[])}</div>`;
 }
 
-function compRenderItem(item) {
-  // item here is the raw summarised object from the Netlify function
-  const color   = csRarityColor(item.rarity || 'None');
-  const detail  = csRenderItemDetail(item);
-  const addJson = JSON.stringify(JSON.stringify(item));
+function compRenderItem(item, idx) {
+  const color  = csRarityColor(item.rarity || 'None');
+  const detail = csRenderItemDetail(item);
   return `<div class="cpd-name">${escapeHtml(item.name)}</div>
     <div class="cpd-meta" style="color:${color}">${escapeHtml(item.rarity||'')}</div>
     <hr class="cpd-rule">
     ${detail}
-    <button class="cs-item-add-btn" style="margin-top:1rem;width:100%" onclick='csAddItemFromSearch(${addJson})'>+ Add to Inventory</button>`;
+    <button class="cs-item-add-btn" style="margin-top:1rem;width:100%" onclick="csAddCompItem(${idx})">+ Add to Inventory</button>`;
+}
+
+function csAddCompItem(idx) {
+  const item = _compItemResults[idx];
+  if (!item) return;
+  csAddItemFromSearch(item);
 }
 
 function compRenderTraits(traits, heading) {
