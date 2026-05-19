@@ -1,0 +1,1926 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Chronicle — The Trials of Kirtas</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=Cinzel+Decorative:wght@400;700&family=Cinzel:wght@400;600&family=Crimson+Pro:ital,wght@0,300;0,400;0,600;1,300;1,400&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="theme.css">
+  <link rel="stylesheet" href="tooltips.css">
+  <link href="https://cdnjs.cloudflare.com/ajax/libs/quill/1.3.7/quill.snow.css" rel="stylesheet">
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    html { scroll-behavior: smooth; }
+    body { background: var(--ink); color: var(--parchment); font-family: var(--font-body); font-size: 17px; line-height: 1.7; min-height: 100vh; overflow-x: hidden; }
+
+    /* ── Layout ── */
+    .chronicle-layout {
+      display: grid;
+      grid-template-columns: 240px 1fr;
+      grid-template-rows: 1fr auto;
+      height: calc(100vh - 52px);
+      overflow: hidden;
+    }
+
+    /* ── Sidebar ── */
+    .c-sidebar {
+      grid-row: 1 / 3;
+      display: flex;
+      flex-direction: column;
+      border-right: 1px solid var(--gold-dim);
+      background: rgba(0,0,0,0.2);
+      overflow: hidden;
+    }
+
+    .c-sidebar-header {
+      padding: 1rem 1rem 0.75rem;
+      border-bottom: 1px solid var(--gold-dim);
+      flex-shrink: 0;
+    }
+    .c-sidebar-title {
+      font-family: var(--font-display);
+      font-size: 1rem;
+      color: var(--parchment);
+      margin-bottom: 0.15rem;
+    }
+    .c-sidebar-sub {
+      font-size: 0.72rem;
+      color: var(--muted);
+      font-style: italic;
+    }
+
+    /* Search */
+    .c-search-wrap {
+      display: flex;
+      align-items: center;
+      gap: 0.4rem;
+      padding: 0.5rem 0.75rem;
+      border-bottom: 1px solid var(--gold-dim);
+      flex-shrink: 0;
+    }
+    .c-search-icon { color: var(--muted); font-size: 0.85rem; flex-shrink: 0; }
+    .c-search {
+      flex: 1;
+      background: transparent;
+      border: none;
+      outline: none;
+      color: var(--parchment2);
+      font-family: var(--font-title);
+      font-size: 0.65rem;
+      letter-spacing: 0.06em;
+    }
+    .c-search::placeholder { color: var(--muted); }
+
+    /* Sidebar sections */
+    .c-sidebar-scroll { flex: 1; overflow-y: auto; }
+    .c-sidebar-scroll::-webkit-scrollbar { width: 3px; }
+    .c-sidebar-scroll::-webkit-scrollbar-thumb { background: var(--gold-dim); }
+
+    .c-sidebar-section-label {
+      font-family: var(--font-title);
+      font-size: 0.44rem;
+      letter-spacing: 0.35em;
+      color: var(--muted);
+      text-transform: uppercase;
+      padding: 0.75rem 0.75rem 0.3rem;
+      display: block;
+    }
+
+    /* Session list */
+    .c-session-item {
+      display: flex;
+      flex-direction: column;
+      padding: 0.45rem 0.75rem;
+      cursor: pointer;
+      border-left: 2px solid transparent;
+      transition: background 0.12s, border-color 0.12s;
+      border-bottom: 1px solid rgba(255,255,255,0.02);
+    }
+    .c-session-item:hover { background: rgba(184,149,42,0.05); }
+    .c-session-item.active { border-left-color: var(--gold); background: rgba(184,149,42,0.08); }
+    .c-session-num {
+      font-family: var(--font-title);
+      font-size: 0.48rem;
+      letter-spacing: 0.2em;
+      color: var(--gold);
+      text-transform: uppercase;
+    }
+    .c-session-name { font-size: 0.8rem; color: var(--parchment2); margin-top: 0.05rem; }
+    .c-session-meta { font-size: 0.65rem; color: var(--muted); font-style: italic; margin-top: 0.05rem; }
+
+    /* Author filters */
+    .c-author-filters {
+      display: flex;
+      flex-direction: column;
+      gap: 0.15rem;
+      padding: 0 0.5rem 0.5rem;
+    }
+    .c-author-btn {
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+      padding: 0.3rem 0.5rem;
+      cursor: pointer;
+      border: 1px solid transparent;
+      background: none;
+      transition: background 0.12s, border-color 0.12s;
+      border-radius: 2px;
+      text-align: left;
+    }
+    .c-author-btn:hover { background: rgba(184,149,42,0.05); }
+    .c-author-btn.active { border-color: var(--gold-dim); background: rgba(184,149,42,0.08); }
+    .c-author-dot { width: 9px; height: 9px; border-radius: 50%; flex-shrink: 0; }
+    .c-author-name {
+      font-family: var(--font-title);
+      font-size: 0.52rem;
+      letter-spacing: 0.12em;
+      text-transform: uppercase;
+      color: var(--parchment2);
+    }
+
+    /* Tag views */
+    .c-tag-search {
+      font-family: var(--font-body);
+      font-size: 0.75rem;
+      background: rgba(0,0,0,0.3);
+      border: 1px solid var(--gold-dim);
+      color: var(--parchment);
+      padding: 0.25rem 0.5rem;
+      width: calc(100% - 1.2rem);
+      margin: 0 0.6rem 0.5rem;
+      outline: none;
+      transition: border-color 0.15s;
+    }
+    .c-tag-search:focus { border-color: var(--gold-mid); }
+    .c-tag-search::placeholder { color: var(--muted); }
+    .c-tag-list {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 0.3rem;
+      padding: 0 0.6rem 0.75rem;
+    }
+    .c-tag-group { width: 100%; }
+    .c-tag-group-label {
+      font-family: var(--font-title);
+      font-size: 0.38rem;
+      letter-spacing: 0.18em;
+      text-transform: uppercase;
+      color: var(--muted);
+      padding: 0.4rem 0 0.25rem;
+      width: 100%;
+      display: flex;
+      align-items: center;
+      gap: 0.4rem;
+    }
+    .c-tag-group-label::after {
+      content: '';
+      flex: 1;
+      height: 1px;
+      background: var(--gold-dim);
+      opacity: 0.4;
+    }
+    .c-tag-group-tags { display: flex; flex-wrap: wrap; gap: 0.3rem; margin-bottom: 0.35rem; }
+    .c-tag-btn {
+      font-family: var(--font-title);
+      font-size: 0.42rem;
+      letter-spacing: 0.1em;
+      text-transform: uppercase;
+      padding: 0.15rem 0.45rem;
+      border: 1px solid var(--gold-dim);
+      background: transparent;
+      color: var(--muted);
+      cursor: pointer;
+      transition: all 0.12s;
+    }
+    .c-tag-btn:hover { color: var(--aged); border-color: var(--gold-mid); }
+    .c-tag-btn.active { background: var(--gold-dim); border-color: var(--gold); color: var(--gold-light); }
+    /* NPC tags — gold tint */
+    .c-tag-btn.tag-npc { border-color: rgba(212,172,58,0.3); color: rgba(212,172,58,0.7); }
+    .c-tag-btn.tag-npc:hover { color: #d4ac3a; border-color: rgba(212,172,58,0.7); }
+    .c-tag-btn.tag-npc.active { background: rgba(212,172,58,0.15); border-color: #d4ac3a; color: #d4ac3a; }
+    /* Location tags — steel blue tint */
+    .c-tag-btn.tag-location { border-color: rgba(138,180,201,0.3); color: rgba(138,180,201,0.7); }
+    .c-tag-btn.tag-location:hover { color: #8ab4c9; border-color: rgba(138,180,201,0.7); }
+    .c-tag-btn.tag-location.active { background: rgba(138,180,201,0.12); border-color: #8ab4c9; color: #8ab4c9; }
+    /* Story tags — sage green */
+    .c-tag-btn.tag-story { border-color: rgba(122,154,106,0.3); color: rgba(122,154,106,0.7); }
+    .c-tag-btn.tag-story:hover { color: #7a9a6a; border-color: rgba(122,154,106,0.7); }
+    .c-tag-btn.tag-story.active { background: rgba(122,154,106,0.12); border-color: #7a9a6a; color: #7a9a6a; }
+    /* Unresolved mention tags — dimmer gold with dashed border */
+    .c-tag-btn.tag-unresolved { border-style: dashed; border-color: rgba(201,180,138,0.25); color: rgba(201,180,138,0.45); }
+    .c-tag-btn.tag-unresolved:hover { color: #c9b48a; border-color: rgba(201,180,138,0.6); }
+    .c-tag-btn.tag-unresolved.active { background: rgba(201,180,138,0.08); border-color: #c9b48a; color: #c9b48a; }
+
+    /* DM session control */
+    .c-session-ctrl {
+      padding: 0.6rem 0.75rem;
+      border-top: 1px solid var(--gold-dim);
+      flex-shrink: 0;
+      background: rgba(0,0,0,0.2);
+    }
+    .c-session-ctrl-label {
+      font-family: var(--font-title);
+      font-size: 0.44rem;
+      letter-spacing: 0.2em;
+      color: var(--muted);
+      text-transform: uppercase;
+      display: block;
+      margin-bottom: 0.3rem;
+    }
+    .c-session-ctrl-row { display: flex; align-items: center; gap: 0.4rem; }
+    .c-session-ctrl-val {
+      font-family: var(--font-title);
+      font-size: 0.9rem;
+      color: var(--gold-light);
+      flex: 1;
+    }
+    .c-session-bump {
+      font-family: var(--font-title);
+      font-size: 0.44rem;
+      letter-spacing: 0.12em;
+      text-transform: uppercase;
+      padding: 0.2rem 0.5rem;
+      border: 1px solid var(--gold-dim);
+      background: transparent;
+      color: var(--muted);
+      cursor: pointer;
+      transition: all 0.15s;
+    }
+    .c-session-bump:hover { border-color: var(--gold); color: var(--gold-light); background: var(--gold-dim); }
+
+    /* ── Main content ── */
+    .c-main {
+      overflow-y: auto;
+      padding: 1.5rem 2rem 2rem;
+      background: linear-gradient(160deg, rgba(42,30,16,0.2) 0%, rgba(10,8,5,0.4) 100%);
+    }
+    .c-main::-webkit-scrollbar { width: 4px; }
+    .c-main::-webkit-scrollbar-thumb { background: var(--gold-dim); }
+
+    /* Active filter bar */
+    .c-filter-bar {
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+      margin-bottom: 1.5rem;
+      flex-wrap: wrap;
+    }
+    .c-filter-bar-label {
+      font-family: var(--font-title);
+      font-size: 0.48rem;
+      letter-spacing: 0.2em;
+      color: var(--muted);
+      text-transform: uppercase;
+    }
+    .c-active-filter {
+      display: flex;
+      align-items: center;
+      gap: 0.3rem;
+      font-family: var(--font-title);
+      font-size: 0.48rem;
+      letter-spacing: 0.12em;
+      text-transform: uppercase;
+      padding: 0.15rem 0.5rem;
+      background: var(--gold-dim);
+      border: 1px solid var(--gold);
+      color: var(--gold-light);
+    }
+    .c-filter-clear {
+      color: var(--muted);
+      cursor: pointer;
+      font-size: 0.65rem;
+      background: none;
+      border: none;
+      padding: 0;
+      transition: color 0.15s;
+    }
+    .c-filter-clear:hover { color: var(--gold-light); }
+    .c-clear-all {
+      font-family: var(--font-title);
+      font-size: 0.44rem;
+      letter-spacing: 0.15em;
+      text-transform: uppercase;
+      color: var(--muted);
+      cursor: pointer;
+      background: none;
+      border: none;
+      padding: 0.15rem 0.4rem;
+      transition: color 0.15s;
+      border: 1px solid transparent;
+    }
+    .c-clear-all:hover { color: var(--gold-light); border-color: var(--gold-dim); }
+
+    /* Session blocks */
+    .c-session-block { margin-bottom: 2.5rem; }
+    .c-session-divider {
+      display: flex;
+      align-items: center;
+      gap: 0.75rem;
+      margin-bottom: 1.25rem;
+    }
+    .c-session-divider::before {
+      content: '';
+      flex: 0 0 20px;
+      height: 1px;
+      background: var(--gold-dim);
+    }
+    .c-session-divider::after {
+      content: '';
+      flex: 1;
+      height: 1px;
+      background: linear-gradient(90deg, var(--gold-dim), transparent);
+    }
+    .c-session-heading {
+      flex-shrink: 0;
+      display: flex;
+      flex-direction: column;
+      gap: 0.1rem;
+    }
+    .c-session-heading-num {
+      font-family: var(--font-title);
+      font-size: 0.5rem;
+      letter-spacing: 0.3em;
+      color: var(--gold);
+      text-transform: uppercase;
+    }
+    .c-session-heading-title {
+      font-family: var(--font-title);
+      font-size: 0.72rem;
+      color: var(--parchment2);
+      letter-spacing: 0.05em;
+    }
+    .c-session-heading-meta {
+      font-size: 0.65rem;
+      color: var(--muted);
+      font-style: italic;
+    }
+
+    /* Entries */
+    .c-entry {
+      display: flex;
+      gap: 0.85rem;
+      margin-bottom: 1.5rem;
+      animation: fadeIn 0.25s ease;
+      position: relative;
+    }
+    @keyframes fadeIn { from { opacity:0; transform:translateY(-3px); } to { opacity:1; transform:translateY(0); } }
+    .c-entry.filtered-out { display: none; }
+
+    .c-entry-bar {
+      width: 3px;
+      flex-shrink: 0;
+      border-radius: 2px;
+      margin-top: 0.25rem;
+      align-self: stretch;
+    }
+    .c-entry-body { flex: 1; min-width: 0; }
+    .c-entry-header {
+      display: flex;
+      align-items: baseline;
+      gap: 0.6rem;
+      margin-bottom: 0.35rem;
+      flex-wrap: wrap;
+    }
+    .c-entry-author {
+      font-family: var(--font-title);
+      font-size: 0.55rem;
+      letter-spacing: 0.15em;
+      text-transform: uppercase;
+      font-weight: 600;
+    }
+    .c-entry-character {
+      font-family: var(--font-title);
+      font-size: 0.48rem;
+      letter-spacing: 0.1em;
+      text-transform: uppercase;
+      color: var(--muted);
+    }
+    .c-entry-time {
+      font-size: 0.7rem;
+      color: var(--muted);
+      font-style: italic;
+      margin-left: auto;
+    }
+    .c-entry-text {
+      font-size: 0.95rem;
+      color: var(--parchment2);
+      line-height: 1.8;
+    }
+    /* Quill content styles */
+    .c-entry-text p { margin-bottom: 0.5rem; }
+    .c-entry-text p:last-child { margin-bottom: 0; }
+    .c-entry-text ul, .c-entry-text ol { padding-left: 1.4rem; margin-bottom: 0.5rem; }
+    .c-entry-text li { margin-bottom: 0.2rem; }
+    .c-entry-text h2 { font-family: var(--font-title); font-size: 0.9rem; color: var(--gold-light); letter-spacing: 0.1em; margin: 0.75rem 0 0.4rem; }
+    .c-entry-text h3 { font-family: var(--font-title); font-size: 0.8rem; color: var(--aged); letter-spacing: 0.08em; margin: 0.6rem 0 0.35rem; }
+    .c-entry-text blockquote { border-left: 2px solid var(--gold-dim); padding-left: 0.75rem; color: var(--muted); font-style: italic; margin: 0.5rem 0; }
+    .c-entry-text hr { border: none; height: 1px; background: var(--gold-dim); margin: 0.75rem 0; }
+    .c-entry-text img { max-width: 100%; border: 1px solid var(--gold-dim); margin: 0.5rem 0; }
+    .c-entry-text strong { color: var(--parchment); }
+    /* NPC and location links in entries */
+    .c-entry-text .npc-link { color: var(--gold-light); border-bottom: 1px dotted var(--gold-dim); cursor: default; }
+    .c-entry-text .location-link { color: #8ab4c9; border-bottom: 1px dotted rgba(138,180,201,0.4); cursor: default; }
+    .c-entry-text .npc-unresolved { color: var(--aged); border-bottom: 2px dotted var(--muted); cursor: default; }
+    .c-entry-text .location-unresolved { color: #7a9aaa; border-bottom: 2px dotted rgba(122,154,170,0.4); cursor: default; }
+
+    .c-entry-tags {
+      display: flex;
+      gap: 0.35rem;
+      margin-top: 0.6rem;
+      flex-wrap: wrap;
+    }
+    .c-entry-tag {
+      font-family: var(--font-title);
+      font-size: 0.42rem;
+      letter-spacing: 0.12em;
+      text-transform: uppercase;
+      padding: 0.12rem 0.4rem;
+      border: 1px solid var(--gold-dim);
+      color: var(--muted);
+      cursor: pointer;
+      transition: all 0.12s;
+    }
+    .c-entry-tag:hover { border-color: var(--gold); color: var(--gold-light); }
+
+    /* Entry menu */
+    .c-entry-menu-wrap { position: relative; margin-left: auto; flex-shrink: 0; }
+    .c-entry-menu-btn {
+      background: none;
+      border: none;
+      color: var(--muted);
+      cursor: pointer;
+      font-size: 0.85rem;
+      padding: 0.1rem 0.25rem;
+      opacity: 0;
+      transition: opacity 0.15s, color 0.15s;
+    }
+    .c-entry:hover .c-entry-menu-btn { opacity: 1; }
+    .c-entry-menu-btn:hover { color: var(--gold-light); }
+    .c-entry-dropdown {
+      position: absolute;
+      right: 0;
+      top: 100%;
+      background: var(--ink-deep);
+      border: 1px solid var(--gold-dim);
+      min-width: 100px;
+      z-index: 50;
+      display: none;
+    }
+    .c-entry-dropdown.open { display: block; }
+    .c-entry-dropdown-item {
+      display: block;
+      width: 100%;
+      padding: 0.35rem 0.65rem;
+      font-family: var(--font-title);
+      font-size: 0.48rem;
+      letter-spacing: 0.15em;
+      text-transform: uppercase;
+      color: var(--muted);
+      background: none;
+      border: none;
+      cursor: pointer;
+      text-align: left;
+      transition: background 0.12s, color 0.12s;
+    }
+    .c-entry-dropdown-item:hover { background: var(--gold-dim); color: var(--gold-light); }
+    .c-entry-dropdown-item.danger:hover { background: rgba(122,31,31,0.2); color: #e08080; }
+
+    /* Empty state */
+    .c-empty {
+      text-align: center;
+      padding: 4rem 2rem;
+      color: var(--muted);
+      font-style: italic;
+    }
+    .c-empty-icon { font-size: 2rem; opacity: 0.3; margin-bottom: 0.75rem; }
+
+    /* Loading */
+    .c-loading { text-align: center; padding: 3rem; color: var(--muted); font-style: italic; }
+    .c-spinner { width: 22px; height: 22px; border: 2px solid var(--gold-dim); border-top-color: var(--gold); border-radius: 50%; animation: spin 0.8s linear infinite; margin: 0 auto 0.75rem; }
+    @keyframes spin { to { transform: rotate(360deg); } }
+
+    /* ── Drawer ── */
+    .c-drawer {
+      border-top: 1px solid var(--gold-dim);
+      background: linear-gradient(180deg, rgba(20,15,8,0.95) 0%, rgba(10,8,5,0.98) 100%);
+      display: flex;
+      flex-direction: column;
+      max-height: 520px;
+      transition: max-height 0.25s ease;
+    }
+    .c-drawer.collapsed { max-height: 48px; }
+
+    .c-drawer-tab {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 0.55rem 1.25rem;
+      cursor: pointer;
+      user-select: none;
+      flex-shrink: 0;
+      border-bottom: 1px solid transparent;
+      transition: background 0.15s;
+    }
+    .c-drawer.collapsed .c-drawer-tab { border-bottom-color: transparent; }
+    .c-drawer:not(.collapsed) .c-drawer-tab { border-bottom-color: var(--gold-dim); }
+    .c-drawer-tab:hover { background: rgba(184,149,42,0.04); }
+
+    .c-drawer-tab-left { display: flex; align-items: center; gap: 0.6rem; }
+    .c-drawer-id-dot { width: 10px; height: 10px; border-radius: 50%; flex-shrink: 0; background: var(--muted); }
+    .c-drawer-id-name {
+      font-family: var(--font-title);
+      font-size: 0.55rem;
+      letter-spacing: 0.15em;
+      text-transform: uppercase;
+      color: var(--muted);
+    }
+    .c-drawer-hint {
+      font-size: 0.8rem;
+      color: var(--muted);
+      font-style: italic;
+    }
+    .c-drawer-chevron {
+      font-family: var(--font-title);
+      font-size: 0.52rem;
+      letter-spacing: 0.2em;
+      color: var(--muted);
+      transition: transform 0.2s;
+    }
+    .c-drawer.collapsed .c-drawer-chevron { transform: rotate(180deg); }
+
+    .c-drawer-body {
+      flex: 1;
+      overflow: hidden;
+      display: flex;
+      flex-direction: column;
+      padding: 0.85rem 1.25rem 1rem;
+      gap: 0.6rem;
+    }
+    .c-drawer.collapsed .c-drawer-body { display: none; }
+
+    .c-drawer-fields {
+      display: grid;
+      grid-template-columns: 80px 1fr 1fr;
+      gap: 0.5rem;
+    }
+    .c-drawer-field label {
+      font-family: var(--font-title);
+      font-size: 0.44rem;
+      letter-spacing: 0.2em;
+      color: var(--muted);
+      text-transform: uppercase;
+      display: block;
+      margin-bottom: 0.25rem;
+    }
+    .c-drawer-input {
+      width: 100%;
+      background: rgba(0,0,0,0.3);
+      border: 1px solid var(--gold-dim);
+      color: var(--parchment2);
+      font-family: var(--font-body);
+      font-size: 0.85rem;
+      padding: 0.3rem 0.5rem;
+      outline: none;
+      transition: border-color 0.15s;
+    }
+    .c-drawer-input:focus { border-color: var(--gold-mid); }
+    .c-drawer-input::placeholder { color: var(--muted); }
+
+    /* Quill editor in drawer */
+    .c-editor-wrap { flex: 1; display: flex; flex-direction: column; min-height: 0; }
+    .c-editor-wrap .ql-toolbar {
+      background: rgba(0,0,0,0.2);
+      border: 1px solid var(--gold-dim) !important;
+      border-bottom: none !important;
+      padding: 4px 6px;
+    }
+    .c-editor-wrap .ql-container {
+      border: 1px solid var(--gold-dim) !important;
+      background: rgba(0,0,0,0.2);
+      font-family: var(--font-body) !important;
+      font-size: 0.95rem !important;
+      color: var(--parchment2) !important;
+      min-height: 100px;
+      max-height: 180px;
+      overflow-y: auto;
+    }
+    .c-editor-wrap .ql-editor { color: var(--parchment2) !important; line-height: 1.7 !important; }
+    .c-editor-wrap .ql-editor.ql-blank::before { color: var(--muted) !important; font-style: italic !important; }
+    .c-editor-wrap .ql-snow .ql-stroke { stroke: var(--muted) !important; }
+    .c-editor-wrap .ql-snow .ql-fill { fill: var(--muted) !important; }
+    .c-editor-wrap .ql-snow.ql-toolbar button:hover .ql-stroke { stroke: var(--gold-light) !important; }
+    .c-editor-wrap .ql-snow.ql-toolbar button.ql-active .ql-stroke { stroke: var(--gold-light) !important; }
+
+    .c-drawer-footer {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 0.75rem;
+    }
+    .c-drawer-status {
+      font-family: var(--font-title);
+      font-size: 0.48rem;
+      letter-spacing: 0.12em;
+      text-transform: uppercase;
+      flex: 1;
+    }
+    .c-drawer-status.success { color: var(--hp-good); }
+    .c-drawer-status.error   { color: var(--hp-bad); }
+    .c-drawer-status.loading { color: var(--muted); }
+
+    .c-drawer-actions { display: flex; gap: 0.5rem; align-items: center; flex-shrink: 0; }
+    .c-drawer-switch {
+      font-family: var(--font-title);
+      font-size: 0.44rem;
+      letter-spacing: 0.15em;
+      text-transform: uppercase;
+      color: var(--muted);
+      background: none;
+      border: 1px solid var(--gold-dim);
+      padding: 0.25rem 0.6rem;
+      cursor: pointer;
+      transition: all 0.15s;
+    }
+    .c-drawer-switch:hover { color: var(--aged); border-color: var(--gold-mid); }
+    .c-drawer-submit {
+      font-family: var(--font-title);
+      font-size: 0.5rem;
+      letter-spacing: 0.25em;
+      text-transform: uppercase;
+      padding: 0.35rem 1.1rem;
+      background: rgba(184,149,42,0.12);
+      border: 1px solid var(--gold);
+      color: var(--gold-light);
+      cursor: pointer;
+      transition: background 0.15s;
+    }
+    .c-drawer-submit:hover { background: rgba(184,149,42,0.22); }
+    .c-drawer-submit:disabled { opacity: 0.35; cursor: default; }
+
+    /* ── Inline editor mentions/tags dropdown ── */
+    .inline-dropdown {
+      position: fixed;
+      background: var(--ink-deep);
+      border: 1px solid var(--gold-dim);
+      min-width: 180px;
+      max-height: 200px;
+      overflow-y: auto;
+      z-index: 500;
+      box-shadow: 0 8px 30px rgba(0,0,0,0.6);
+    }
+    .inline-dropdown::-webkit-scrollbar { width: 3px; }
+    .inline-dropdown::-webkit-scrollbar-thumb { background: var(--gold-dim); }
+    .inline-dropdown-section {
+      font-family: var(--font-title);
+      font-size: 0.42rem;
+      letter-spacing: 0.3em;
+      color: var(--muted);
+      text-transform: uppercase;
+      padding: 0.4rem 0.6rem 0.2rem;
+      border-bottom: 1px solid var(--gold-dim);
+    }
+    .inline-dropdown-item {
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+      padding: 0.35rem 0.6rem;
+      cursor: pointer;
+      transition: background 0.1s;
+      border-bottom: 1px solid rgba(255,255,255,0.02);
+    }
+    .inline-dropdown-item:hover, .inline-dropdown-item.focused { background: rgba(184,149,42,0.1); }
+    .inline-dropdown-icon { font-size: 0.75rem; flex-shrink: 0; }
+    .inline-dropdown-name { font-size: 0.82rem; color: var(--parchment2); flex: 1; }
+    .inline-dropdown-type {
+      font-family: var(--font-title);
+      font-size: 0.42rem;
+      letter-spacing: 0.1em;
+      text-transform: uppercase;
+      color: var(--muted);
+    }
+
+    /* ── Floating selection toolbar ── */
+    .selection-toolbar {
+      position: fixed;
+      background: var(--ink-deep);
+      border: 1px solid var(--gold-dim);
+      display: flex;
+      gap: 0;
+      z-index: 500;
+      box-shadow: 0 4px 20px rgba(0,0,0,0.5);
+      display: none;
+    }
+    .sel-btn {
+      font-family: var(--font-title);
+      font-size: 0.48rem;
+      letter-spacing: 0.12em;
+      text-transform: uppercase;
+      padding: 0.3rem 0.6rem;
+      background: none;
+      border: none;
+      border-right: 1px solid var(--gold-dim);
+      color: var(--muted);
+      cursor: pointer;
+      transition: background 0.12s, color 0.12s;
+      white-space: nowrap;
+    }
+    .sel-btn:last-child { border-right: none; }
+    .sel-btn:hover { background: var(--gold-dim); color: var(--gold-light); }
+    .sel-btn.npc { color: var(--gold); }
+    .sel-btn.npc:hover { background: rgba(184,149,42,0.15); color: var(--gold-light); }
+    .sel-btn.loc { color: #8ab4c9; }
+    .sel-btn.loc:hover { background: rgba(138,180,201,0.12); color: #aad0e8; }
+
+    /* ── Identity modal ── */
+    .id-backdrop { position: fixed; inset: 0; background: rgba(0,0,0,0.75); z-index: 300; display: flex; align-items: center; justify-content: center; backdrop-filter: blur(4px); }
+    .id-backdrop.hidden { display: none; }
+    .id-modal { background: linear-gradient(160deg, #2a1e10 0%, #0d0a07 100%); border: 1px solid var(--gold-dim); padding: 2rem 2.25rem; max-width: 400px; width: 90%; box-shadow: 0 20px 60px rgba(0,0,0,0.8); }
+    .id-modal-title { font-family: var(--font-display); font-size: 1.1rem; color: var(--parchment); margin-bottom: 0.25rem; }
+    .id-modal-sub { font-size: 0.82rem; color: var(--muted); font-style: italic; margin-bottom: 1.25rem; }
+    .id-modal-label { font-family: var(--font-title); font-size: 0.48rem; letter-spacing: 0.3em; color: var(--gold); text-transform: uppercase; display: block; margin-bottom: 0.5rem; }
+    .id-players { display: grid; grid-template-columns: 1fr 1fr; gap: 0.4rem; margin-bottom: 1.25rem; }
+    .id-player-btn { display: flex; align-items: center; gap: 0.5rem; padding: 0.45rem 0.65rem; background: rgba(0,0,0,0.3); border: 1px solid var(--gold-dim); cursor: pointer; transition: all 0.15s; }
+    .id-player-btn:hover { background: rgba(184,149,42,0.08); border-color: var(--gold-mid); }
+    .id-player-btn.selected { border-color: var(--gold); background: rgba(184,149,42,0.12); }
+    .id-dot { width: 10px; height: 10px; border-radius: 50%; flex-shrink: 0; }
+    .id-info { display: flex; flex-direction: column; gap: 0.05rem; }
+    .id-name { font-family: var(--font-title); font-size: 0.58rem; letter-spacing: 0.1em; text-transform: uppercase; color: var(--parchment2); }
+    .id-char { font-size: 0.7rem; color: var(--muted); font-style: italic; }
+    .id-color-row { display: flex; align-items: center; gap: 0.65rem; margin-bottom: 1.25rem; }
+    .id-color-preview { width: 26px; height: 26px; border-radius: 50%; border: 2px solid rgba(255,255,255,0.15); flex-shrink: 0; }
+    .id-color-input { width: 38px; height: 26px; border: 1px solid var(--gold-dim); background: rgba(0,0,0,0.3); cursor: pointer; padding: 0; }
+    .id-color-hint { font-size: 0.75rem; color: var(--muted); font-style: italic; }
+    .id-confirm { width: 100%; font-family: var(--font-title); font-size: 0.52rem; letter-spacing: 0.28em; text-transform: uppercase; padding: 0.55rem; background: rgba(184,149,42,0.12); border: 1px solid var(--gold); color: var(--gold-light); cursor: pointer; transition: background 0.15s; }
+    .id-confirm:hover { background: rgba(184,149,42,0.22); }
+    .id-confirm:disabled { opacity: 0.35; cursor: default; }
+
+    /* ── Session prompt modal ── */
+    .session-prompt-backdrop { position: fixed; inset: 0; background: rgba(0,0,0,0.7); z-index: 400; display: flex; align-items: center; justify-content: center; backdrop-filter: blur(4px); }
+    .session-prompt-backdrop.hidden { display: none; }
+    .session-prompt { background: linear-gradient(160deg, #2a1e10 0%, #0d0a07 100%); border: 1px solid var(--gold-dim); padding: 1.75rem 2rem; max-width: 360px; width: 90%; text-align: center; box-shadow: 0 20px 60px rgba(0,0,0,0.8); }
+    .session-prompt-title { font-family: var(--font-display); font-size: 1rem; color: var(--parchment); margin-bottom: 0.5rem; }
+    .session-prompt-body { font-size: 0.88rem; color: var(--muted); font-style: italic; margin-bottom: 1.25rem; line-height: 1.6; }
+    .session-prompt-btns { display: flex; gap: 0.6rem; justify-content: center; }
+    .session-prompt-btn { font-family: var(--font-title); font-size: 0.48rem; letter-spacing: 0.18em; text-transform: uppercase; padding: 0.4rem 0.9rem; cursor: pointer; transition: all 0.15s; }
+    .session-prompt-btn.primary { background: rgba(184,149,42,0.12); border: 1px solid var(--gold); color: var(--gold-light); }
+    .session-prompt-btn.primary:hover { background: rgba(184,149,42,0.22); }
+    .session-prompt-btn.secondary { background: transparent; border: 1px solid var(--gold-dim); color: var(--muted); }
+    .session-prompt-btn.secondary:hover { border-color: var(--gold-mid); color: var(--aged); }
+
+    @media (max-width: 768px) {
+      .chronicle-layout { grid-template-columns: 1fr; grid-template-rows: auto 1fr auto; height: auto; }
+      .c-sidebar { grid-row: auto; max-height: 220px; border-right: none; border-bottom: 1px solid var(--gold-dim); }
+      .c-main { min-height: 60vh; }
+    }
+  </style>
+</head>
+<body>
+<div id="nav-root"></div>
+
+<!-- Identity modal -->
+<div class="id-backdrop hidden" id="id-modal">
+  <div class="id-modal">
+    <div class="id-modal-title">Who Are You?</div>
+    <div class="id-modal-sub">Your identity is saved to this device. Pick once, change anytime.</div>
+    <span class="id-modal-label">Select your identity</span>
+    <div class="id-players" id="id-players"></div>
+    <span class="id-modal-label">Your color</span>
+    <div class="id-color-row">
+      <div class="id-color-preview" id="id-color-preview"></div>
+      <input type="color" class="id-color-input" id="id-color-input" oninput="updateColorPreview(this.value)">
+      <span class="id-color-hint">Customize your entry color</span>
+    </div>
+    <button class="id-confirm" id="id-confirm" onclick="confirmIdentity()" disabled>Confirm</button>
+  </div>
+</div>
+
+<!-- Session prompt -->
+<div class="session-prompt-backdrop hidden" id="session-prompt">
+  <div class="session-prompt">
+    <div class="session-prompt-title">New Session?</div>
+    <div class="session-prompt-body" id="session-prompt-body"></div>
+    <div class="session-prompt-btns">
+      <button class="session-prompt-btn primary" id="session-prompt-yes">Start New Session</button>
+      <button class="session-prompt-btn secondary" onclick="dismissSessionPrompt()">Stay on Current</button>
+    </div>
+  </div>
+</div>
+
+<!-- Inline dropdown (@ and #) -->
+<div class="inline-dropdown" id="inline-dropdown"></div>
+
+<!-- Selection toolbar -->
+<div class="selection-toolbar" id="sel-toolbar">
+  <button class="sel-btn npc" onclick="wrapSelection('npc')">👤 NPC</button>
+  <button class="sel-btn loc" onclick="wrapSelection('location')">📍 Location</button>
+  <button class="sel-btn" onclick="wrapSelection('bold')"><strong>B</strong></button>
+  <button class="sel-btn" onclick="wrapSelection('italic')"><em>I</em></button>
+</div>
+
+<!-- Layout -->
+<div class="chronicle-layout">
+
+  <!-- Sidebar -->
+  <div class="c-sidebar">
+    <div class="c-sidebar-header">
+      <div class="c-sidebar-title">Chronicle</div>
+      <div class="c-sidebar-sub">The Trials of Kirtas</div>
+    </div>
+
+    <div class="c-search-wrap">
+      <span class="c-search-icon">⌕</span>
+      <input class="c-search" id="c-search" placeholder="Search entries…" oninput="applyFilters()">
+    </div>
+
+    <div class="c-sidebar-scroll">
+      <span class="c-sidebar-section-label">Sessions</span>
+      <div id="session-list">
+        <div class="c-loading" style="height:60px"><div class="c-spinner" style="width:16px;height:16px;margin-bottom:0.4rem"></div></div>
+      </div>
+
+      <span class="c-sidebar-section-label">Authors</span>
+      <div class="c-author-filters" id="author-filters"></div>
+
+      <span class="c-sidebar-section-label">Tags</span>
+      <input class="c-tag-search" id="tag-search" placeholder="Search tags…" oninput="renderSidebar()" autocomplete="off">
+      <div class="c-tag-list" id="tag-list"></div>
+    </div>
+
+    <!-- DM session control (shown only when identity is DM) -->
+    <div class="c-session-ctrl" id="dm-session-ctrl" style="display:none">
+      <span class="c-session-ctrl-label">Current Session</span>
+      <div class="c-session-ctrl-row">
+        <span class="c-session-ctrl-val" id="dm-session-val">—</span>
+        <button class="c-session-bump" onclick="bumpSession()">Next Session →</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Main content -->
+  <div class="c-main" id="c-main">
+    <div class="c-loading" id="c-loading">
+      <div class="c-spinner"></div>
+      Loading the chronicle…
+    </div>
+    <div id="c-filter-bar" class="c-filter-bar" style="display:none"></div>
+    <div id="c-entries"></div>
+  </div>
+
+  <!-- Drawer -->
+  <div class="c-drawer collapsed" id="c-drawer">
+    <div class="c-drawer-tab" onclick="typeof toggleDrawer==='function'&&toggleDrawer()">
+      <div class="c-drawer-tab-left">
+        <div class="c-drawer-id-dot" id="drawer-dot"></div>
+        <span class="c-drawer-id-name" id="drawer-name">Guest</span>
+        <span class="c-drawer-hint" id="drawer-hint">Add to the chronicle…</span>
+      </div>
+      <span class="c-drawer-chevron">▲</span>
+    </div>
+    <div class="c-drawer-body">
+      <div class="c-drawer-fields">
+        <div class="c-drawer-field">
+          <label>Session</label>
+          <input type="number" class="c-drawer-input" id="d-session" placeholder="4" min="0">
+        </div>
+        <div class="c-drawer-field">
+          <label>Title <span style="color:var(--muted)">(optional)</span></label>
+          <input type="text" class="c-drawer-input" id="d-title" placeholder="The Ambush…">
+        </div>
+        <div class="c-drawer-field">
+          <label>Location <span style="color:var(--muted)">(optional)</span></label>
+          <input type="text" class="c-drawer-input" id="d-location" placeholder="Tiersgard…">
+        </div>
+      </div>
+      <div class="c-editor-wrap">
+        <div id="quill-editor"></div>
+      </div>
+      <div class="c-drawer-footer">
+        <span class="c-drawer-status" id="drawer-status"></span>
+        <div class="c-drawer-actions">
+          <button class="c-drawer-switch" onclick="openModal()">Switch Identity</button>
+          <button class="c-drawer-submit" id="drawer-submit" onclick="submitEntry()">Submit Entry</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+</div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/quill/1.3.7/quill.min.js"></script>
+<script src="tooltips.js"></script>
+<script src="nav.js"></script>
+<script>
+// ══════════════════════════════════════════════════════════
+// CONFIG
+// ══════════════════════════════════════════════════════════
+const FUNCTION_URL = '/.netlify/functions/chronicle';
+
+const PLAYERS = [
+  { id:'dm',        name:'DM',        character:'Narrator', color:'#b8952a' },
+  { id:'tyros',     name:'Tyros',     character:'Warlock',  color:'#c05060' },
+  { id:'liadan',    name:'Líadan',    character:'Bard',     color:'#5a9a6a' },
+  { id:'caim',      name:'Caim',      character:'Monk',     color:'#8060c0' },
+  { id:'vesperian', name:'Vesperian', character:'Fighter',  color:'#5a9aaa' },
+];
+
+// Known NPCs and locations pulled from tooltips.js data
+// These populate the @ mention dropdown
+function getKnownNPCs() {
+  if (typeof NPC_DATA !== 'undefined') return Object.keys(NPC_DATA).map(k => ({ key:k, name:NPC_DATA[k].name||k, type:'npc' }));
+  return [
+    {key:'darius',    name:'Darius',       type:'npc'},
+    {key:'tyrus',     name:'Tyrus',        type:'npc'},
+    {key:'reykoldt',  name:'Lord Reykoldt',type:'npc'},
+    {key:'eneos',     name:'King Eneos',   type:'npc'},
+    {key:'rhadig',    name:'Rhadig',       type:'npc'},
+    {key:'solci',     name:'Lucius Solci', type:'npc'},
+    {key:'prince',    name:'The Prince',   type:'npc'},
+    {key:'aluin',     name:'Aluin',        type:'npc'},
+  ];
+}
+function getKnownLocations() {
+  if (typeof LOCATION_DATA !== 'undefined') return Object.keys(LOCATION_DATA).map(k => ({ key:k, name:LOCATION_DATA[k].name||k, type:'location' }));
+  return [
+    {key:'tiersgard', name:'Tiersgard',  type:'location'},
+    {key:'capital',   name:'The Capital',type:'location'},
+    {key:'yevennia',  name:'Yevennia',   type:'location'},
+    {key:'longhills', name:'Long Hills', type:'location'},
+    {key:'kharak',    name:'Kharak',     type:'location'},
+    {key:'ilora',     name:'Ilora',      type:'location'},
+    {key:'numior',    name:'Numior',     type:'location'},
+  ];
+}
+
+// ══════════════════════════════════════════════════════════
+// STATE
+// ══════════════════════════════════════════════════════════
+const ID_KEY      = 'kirtas-chronicle-identity';
+const DRAFT_KEY   = 'kirtas-chronicle-draft';
+let currentIdentity = null;
+let pendingPlayer   = null;
+let allEntries      = [];
+let fileSHA         = null;
+let currentSession  = 1;
+let activeFilters   = { session: null, author: null, tags: [], search: '' };
+let drawerOpen      = false;
+let quill           = null;
+let editingEntryId  = null;
+
+// Inline dropdown state
+let inlineMode      = null; // 'mention' | 'tag'
+let inlineQuery     = '';
+let inlineFocusIdx  = 0;
+let inlineRange     = null;
+// mentionMap: tracks inserted mentions by name for reliable tagging at submit/tag-extract time
+// format: { 'Darius': { type: 'npc', key: 'darius' }, 'Tiersgard': { type: 'location', key: 'tiersgard' } }
+let mentionMap      = {};
+
+// ══════════════════════════════════════════════════════════
+// IDENTITY
+// ══════════════════════════════════════════════════════════
+function loadIdentity() {
+  try { const s = localStorage.getItem(ID_KEY); if(s) currentIdentity = JSON.parse(s); } catch(e) {}
+}
+function saveIdentity(id) {
+  currentIdentity = id;
+  try { localStorage.setItem(ID_KEY, JSON.stringify(id)); } catch(e) {}
+}
+function getPlayer(id) { return PLAYERS.find(p=>p.id===id); }
+
+function openModal() {
+  pendingPlayer = currentIdentity?.playerId || null;
+  renderPlayerBtns();
+  if (pendingPlayer) {
+    const p = getPlayer(pendingPlayer);
+    const c = currentIdentity?.color || p?.color;
+    updateColorPreview(c);
+    document.getElementById('id-color-input').value = c;
+  }
+  document.getElementById('id-modal').classList.remove('hidden');
+  updateConfirmBtn();
+}
+function renderPlayerBtns() {
+  document.getElementById('id-players').innerHTML = PLAYERS.map(p=>`
+    <button class="id-player-btn${pendingPlayer===p.id?' selected':''}" onclick="selectPlayer('${p.id}')">
+      <div class="id-dot" style="background:${p.color}"></div>
+      <div class="id-info"><span class="id-name">${p.name}</span><span class="id-char">${p.character}</span></div>
+    </button>`).join('');
+}
+function selectPlayer(id) {
+  pendingPlayer = id;
+  renderPlayerBtns();
+  const p = getPlayer(id);
+  const c = currentIdentity?.playerId===id ? currentIdentity.color : p.color;
+  updateColorPreview(c);
+  document.getElementById('id-color-input').value = c;
+  updateConfirmBtn();
+}
+function updateColorPreview(c) { document.getElementById('id-color-preview').style.background = c; }
+function updateConfirmBtn() { document.getElementById('id-confirm').disabled = !pendingPlayer; }
+function confirmIdentity() {
+  if (!pendingPlayer) return;
+  const p = getPlayer(pendingPlayer);
+  const c = document.getElementById('id-color-input').value;
+  saveIdentity({ playerId:pendingPlayer, name:p.name, character:p.character, color:c });
+  document.getElementById('id-modal').classList.add('hidden');
+  updateDrawerIdentity();
+  if (currentIdentity.playerId === 'dm') document.getElementById('dm-session-ctrl').style.display = 'block';
+}
+
+function updateDrawerIdentity() {
+  if (!currentIdentity) return;
+  document.getElementById('drawer-dot').style.background = currentIdentity.color;
+  document.getElementById('drawer-name').textContent = currentIdentity.name;
+  document.getElementById('drawer-name').style.color = currentIdentity.color;
+  document.getElementById('drawer-hint').textContent = 'Add to the chronicle…';
+}
+
+// ══════════════════════════════════════════════════════════
+// DRAWER
+// ══════════════════════════════════════════════════════════
+function toggleDrawer() {
+  if (!currentIdentity) { openModal(); return; }
+  drawerOpen = !drawerOpen;
+  document.getElementById('c-drawer').classList.toggle('collapsed', !drawerOpen);
+  if (drawerOpen && quill) {
+    setTimeout(()=>quill.focus(), 250);
+    restoreDraft();
+  }
+}
+
+function restoreDraft() {
+  try {
+    const draft = JSON.parse(localStorage.getItem(DRAFT_KEY)||'{}');
+    if (draft.session) document.getElementById('d-session').value = draft.session;
+    if (draft.title)   document.getElementById('d-title').value   = draft.title;
+    if (draft.location)document.getElementById('d-location').value= draft.location;
+    if (draft.content && quill) quill.root.innerHTML = draft.content;
+  } catch(e) {}
+}
+
+function saveDraft() {
+  try {
+    localStorage.setItem(DRAFT_KEY, JSON.stringify({
+      session:  document.getElementById('d-session').value,
+      title:    document.getElementById('d-title').value,
+      location: document.getElementById('d-location').value,
+      content:  quill ? quill.root.innerHTML : '',
+    }));
+  } catch(e) {}
+}
+
+function clearDraft() {
+  try { localStorage.removeItem(DRAFT_KEY); } catch(e) {}
+  document.getElementById('d-title').value    = '';
+  document.getElementById('d-location').value = '';
+  if (quill) quill.setContents([]);
+  mentionMap = {}; // reset mention tracking for next entry
+}
+
+// ══════════════════════════════════════════════════════════
+// QUILL INIT
+// ══════════════════════════════════════════════════════════
+function initQuill() {
+  quill = new Quill('#quill-editor', {
+    theme: 'snow',
+    placeholder: 'Write what happened… Use @ to mention NPCs/locations, # to add tags',
+    modules: {
+      toolbar: [
+        ['bold','italic','strike'],
+        [{ header: 2 },{ header: 3 }],
+        [{ list:'ordered' },{ list:'bullet' }],
+        ['blockquote','image'],
+        ['clean'],
+      ]
+    }
+  });
+
+  // Override image button to use URL prompt
+  quill.getModule('toolbar').addHandler('image', () => {
+    const url = prompt('Paste an image URL (Google Drive, Imgur, or any direct link):');
+    if (url && url.trim()) {
+      const range = quill.getSelection();
+      quill.insertEmbed(range ? range.index : 0, 'image', url.trim());
+    }
+  });
+
+  // Auto-fill session
+  document.getElementById('d-session').value = currentSession;
+
+  // Save draft on change
+  quill.on('text-change', () => {
+    saveDraft();
+    handleInlineInput();
+  });
+
+  // Handle @ and # keydown for dropdown navigation
+  quill.root.addEventListener('keydown', handleInlineKeydown);
+
+  // Selection toolbar
+  quill.on('selection-change', handleSelectionChange);
+}
+
+// ══════════════════════════════════════════════════════════
+// INLINE @ MENTION AND # TAG
+// ══════════════════════════════════════════════════════════
+function handleInlineInput() {
+  const sel = quill.getSelection();
+  if (!sel) return;
+  const text = quill.getText(0, sel.index);
+  const atIdx  = text.lastIndexOf('@');
+  const hashIdx= text.lastIndexOf('#');
+  const spaceAfterAt   = atIdx  >= 0 ? text.slice(atIdx+1).includes(' ')  : true;
+  const spaceAfterHash = hashIdx >= 0 ? text.slice(hashIdx+1).includes(' '): true;
+
+  if (atIdx > hashIdx && !spaceAfterAt) {
+    inlineMode  = 'mention';
+    inlineQuery = text.slice(atIdx+1).toLowerCase();
+    inlineRange = { index: atIdx, length: sel.index - atIdx };
+    showInlineDropdown();
+  } else if (hashIdx > atIdx && !spaceAfterHash) {
+    inlineMode  = 'tag';
+    inlineQuery = text.slice(hashIdx+1).toLowerCase();
+    inlineRange = { index: hashIdx, length: sel.index - hashIdx };
+    showInlineDropdown();
+  } else {
+    hideInlineDropdown();
+  }
+}
+
+function handleInlineKeydown(e) {
+  const dd = document.getElementById('inline-dropdown');
+  if (dd.style.display === 'none' || !dd.children.length) return;
+  const items = dd.querySelectorAll('.inline-dropdown-item');
+  if (!items.length) return;
+  if (e.key === 'ArrowDown') { e.preventDefault(); inlineFocusIdx = Math.min(inlineFocusIdx+1, items.length-1); updateInlineFocus(items); }
+  else if (e.key === 'ArrowUp') { e.preventDefault(); inlineFocusIdx = Math.max(inlineFocusIdx-1, 0); updateInlineFocus(items); }
+  else if (e.key === 'Tab' || e.key === 'Enter') {
+    const focused = items[inlineFocusIdx];
+    if (focused) {
+      e.preventDefault();
+      e.stopPropagation();
+      focused.click();
+    }
+  }
+  else if (e.key === 'Escape') { hideInlineDropdown(); }
+}
+
+function updateInlineFocus(items) {
+  items.forEach((el,i)=>el.classList.toggle('focused', i===inlineFocusIdx));
+}
+
+function showInlineDropdown() {
+  const dd = document.getElementById('inline-dropdown');
+  inlineFocusIdx = 0;
+
+  if (inlineMode === 'mention') {
+    const npcs  = getKnownNPCs().filter(n=>n.name.toLowerCase().includes(inlineQuery)||n.key.includes(inlineQuery));
+    const locs  = getKnownLocations().filter(l=>l.name.toLowerCase().includes(inlineQuery)||l.key.includes(inlineQuery));
+    if (!npcs.length && !locs.length) {
+      // No known match — offer to insert as unresolved mention
+      if (inlineQuery.length > 0) {
+        const display = inlineQuery.charAt(0).toUpperCase() + inlineQuery.slice(1);
+        dd.innerHTML = `
+          <div class="inline-dropdown-section">Unknown — add as:</div>
+          <div class="inline-dropdown-item" onclick="insertUnresolvedMention('npc','${inlineQuery}','${display}')"><span class="inline-dropdown-icon">👤</span><span class="inline-dropdown-name">${display} <em style="color:var(--muted)">(unresolved NPC)</em></span></div>
+          <div class="inline-dropdown-item" onclick="insertUnresolvedMention('location','${inlineQuery}','${display}')"><span class="inline-dropdown-icon">📍</span><span class="inline-dropdown-name">${display} <em style="color:var(--muted)">(unresolved location)</em></span></div>`;
+        dd.style.display = 'block';
+        const bounds = quill.getBounds(quill.getSelection()?.index||0);
+        const editorRect = document.getElementById('quill-editor').getBoundingClientRect();
+        dd.style.left = (editorRect.left + bounds.left) + 'px';
+        dd.style.top  = (editorRect.top + bounds.bottom + 4) + 'px';
+      } else {
+        hideInlineDropdown();
+      }
+      return;
+    }
+    let html = '';
+    if (npcs.length) {
+      html += `<div class="inline-dropdown-section">NPCs</div>`;
+      html += npcs.slice(0,5).map(n=>`<div class="inline-dropdown-item" onclick="insertMention('npc','${n.key}','${n.name}')"><span class="inline-dropdown-icon">👤</span><span class="inline-dropdown-name">${n.name}</span><span class="inline-dropdown-type">NPC</span></div>`).join('');
+    }
+    if (locs.length) {
+      html += `<div class="inline-dropdown-section">Locations</div>`;
+      html += locs.slice(0,5).map(l=>`<div class="inline-dropdown-item" onclick="insertMention('location','${l.key}','${l.name}')"><span class="inline-dropdown-icon">📍</span><span class="inline-dropdown-name">${l.name}</span><span class="inline-dropdown-type">Location</span></div>`).join('');
+    }
+    dd.innerHTML = html;
+  } else {
+    // Tag autocomplete from existing tags
+    const existingTags = [...new Set(allEntries.flatMap(e=>e.tags||[]))];
+    const matches = inlineQuery ? existingTags.filter(t=>t.toLowerCase().includes(inlineQuery)) : existingTags.slice(0,8);
+    if (!matches.length && !inlineQuery) { hideInlineDropdown(); return; }
+    let html = matches.slice(0,8).map(t=>`<div class="inline-dropdown-item" onclick="insertTag('${t}')"><span class="inline-dropdown-icon">#</span><span class="inline-dropdown-name">${t}</span></div>`).join('');
+    if (inlineQuery && !matches.find(t=>t===inlineQuery)) {
+      html = `<div class="inline-dropdown-item" onclick="insertTag('${inlineQuery}')"><span class="inline-dropdown-icon">#</span><span class="inline-dropdown-name">${inlineQuery} <em style="color:var(--muted)">(new)</em></span></div>` + html;
+    }
+    dd.innerHTML = html;
+  }
+
+  // Position dropdown — above cursor if near bottom of viewport
+  const bounds = quill.getBounds(quill.getSelection()?.index||0);
+  const editorRect = document.getElementById('quill-editor').getBoundingClientRect();
+  dd.style.display = 'block';
+
+  const ddHeight = Math.min(dd.scrollHeight, 200);
+  const spaceBelow = window.innerHeight - (editorRect.top + bounds.bottom + 4);
+  const spaceAbove = editorRect.top + bounds.top - 4;
+
+  let left = editorRect.left + bounds.left;
+  let top;
+
+  if (spaceBelow < ddHeight && spaceAbove > ddHeight) {
+    // Show above cursor
+    top = editorRect.top + bounds.top - ddHeight - 4;
+  } else {
+    // Show below cursor
+    top = editorRect.top + bounds.bottom + 4;
+  }
+
+  // Keep within viewport horizontally
+  const ddWidth = 200;
+  if (left + ddWidth > window.innerWidth - 8) left = window.innerWidth - ddWidth - 8;
+  if (left < 8) left = 8;
+
+  dd.style.left = left + 'px';
+  dd.style.top  = top  + 'px';
+
+  updateInlineFocus(dd.querySelectorAll('.inline-dropdown-item'));
+}
+
+function hideInlineDropdown() {
+  const dd = document.getElementById('inline-dropdown');
+  dd.style.display = 'none';
+  inlineMode = null;
+  inlineRange = null;
+}
+
+function insertMention(type, key, name) {
+  if (!inlineRange) return;
+  const insertIdx = inlineRange.index;
+  const deleteLen = inlineRange.length;
+  hideInlineDropdown();
+
+  // Delete the @query text first
+  quill.deleteText(insertIdx, deleteLen);
+
+  // Insert the name with color — no other formatting
+  const color = type === 'npc' ? '#d4ac3a' : '#8ab4c9';
+  quill.insertText(insertIdx, name, { color, bold: false });
+
+  // Immediately reset formatting after the name so text returns to normal
+  quill.formatText(insertIdx + name.length, 1, { color: false, bold: false });
+  quill.setSelection(insertIdx + name.length + 1, 0);
+
+  // Register mention in the reliable map (source of truth for tooltip key resolution)
+  mentionMap[name] = { type, key };
+
+  // After insert: clear active color format so subsequent typing is normal
+  setTimeout(() => {
+    const afterIdx = insertIdx + name.length;
+
+    // Insert a space with no color to break the format chain
+    quill.insertText(afterIdx, ' ', { color: false, bold: false, italic: false, background: false });
+
+    // Clear Quill's active format state — this is the key fix
+    quill.format('color', false);
+    quill.format('bold', false);
+    quill.format('italic', false);
+
+    // Move cursor after the space
+    quill.setSelection(afterIdx + 1, 0);
+
+    // Best-effort: tag the span in the DOM using mentionMap as source of truth
+    const spans = quill.root.querySelectorAll('span[style*="color"]');
+    spans.forEach(span => {
+      const spanText = span.textContent.trim();
+      const mapEntry = mentionMap[spanText];
+      if (mapEntry && !span.dataset.mentionType) {
+        span.dataset.mentionType = mapEntry.type;
+        span.dataset.mentionKey  = mapEntry.key;
+      }
+    });
+  }, 20);
+}
+
+function insertUnresolvedMention(type, key, name) {
+  if (!inlineRange) return;
+  const insertIdx = inlineRange.index;
+  const deleteLen = inlineRange.length;
+  hideInlineDropdown();
+
+  const color     = type === 'location' ? '#7a9aaa' : '#c9b48a';
+  const mentionType = type === 'location' ? 'location-unresolved' : 'npc-unresolved';
+
+  quill.deleteText(insertIdx, deleteLen);
+  quill.insertText(insertIdx, name, { color, bold: false });
+  quill.formatText(insertIdx + name.length, 1, { color: false, bold: false });
+
+  mentionMap[name] = { type: mentionType, key };
+
+  setTimeout(() => {
+    const afterIdx = insertIdx + name.length;
+    quill.insertText(afterIdx, ' ', { color: false, bold: false, italic: false });
+    quill.format('color', false);
+    quill.format('bold', false);
+    quill.setSelection(afterIdx + 1, 0);
+
+    quill.root.querySelectorAll('span[style*="color"]').forEach(span => {
+      const spanText = span.textContent.trim();
+      const mapEntry = mentionMap[spanText];
+      if (mapEntry && !span.dataset.mentionType) {
+        span.dataset.mentionType = mapEntry.type;
+        span.dataset.mentionKey  = mapEntry.key;
+      }
+    });
+  }, 20);
+}
+
+function insertTag(tag) {
+  if (!inlineRange) return;
+  quill.deleteText(inlineRange.index, inlineRange.length);
+  quill.insertText(inlineRange.index, `#${tag} `, { 'color': 'var(--gold)', 'bold': false });
+  hideInlineDropdown();
+}
+
+function escapeRegex(s) { return s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'); }
+
+// ══════════════════════════════════════════════════════════
+// SELECTION TOOLBAR
+// ══════════════════════════════════════════════════════════
+function handleSelectionChange(range) {
+  const tb = document.getElementById('sel-toolbar');
+  if (!range || range.length === 0) { tb.style.display = 'none'; return; }
+  const bounds = quill.getBounds(range.index, range.length);
+  const edRect  = document.getElementById('quill-editor').getBoundingClientRect();
+  tb.style.display = 'flex';
+  tb.style.left = (edRect.left + bounds.left) + 'px';
+  tb.style.top  = (edRect.top  + bounds.top - 38) + 'px';
+}
+
+function wrapSelection(type) {
+  const range = quill.getSelection();
+  if (!range || !range.length) return;
+  const text = quill.getText(range.index, range.length);
+  if (type === 'bold')   { quill.formatText(range.index, range.length, 'bold', true); }
+  else if (type === 'italic') { quill.formatText(range.index, range.length, 'italic', true); }
+  else if (type === 'npc') {
+    const key = text.toLowerCase().replace(/[^a-z0-9]/g,'_').replace(/_+/g,'_').replace(/^_|_$/g,'');
+    const known = getKnownNPCs().find(n=>n.name.toLowerCase()===text.toLowerCase());
+    quill.formatText(range.index, range.length, 'color', '#d4ac3a');
+    if (!known) {
+      // Flag as unresolved
+      quill.root.innerHTML = quill.root.innerHTML.replace(
+        new RegExp(`style="color: rgb[^"]*">${escapeRegex(text)}</span>`),
+        `style="color: #c9b48a; text-decoration: underline dotted" data-mention-type="npc-unresolved" data-mention-key="${key}">${text}</span>`
+      );
+    } else {
+      quill.root.innerHTML = quill.root.innerHTML.replace(
+        new RegExp(`style="color: rgb[^"]*">${escapeRegex(text)}</span>`),
+        `style="color: #d4ac3a" data-mention-type="npc" data-mention-key="${known.key}">${text}</span>`
+      );
+    }
+  }
+  else if (type === 'location') {
+    const known = getKnownLocations().find(l=>l.name.toLowerCase()===text.toLowerCase());
+    quill.formatText(range.index, range.length, 'color', '#8ab4c9');
+    if (known) {
+      quill.root.innerHTML = quill.root.innerHTML.replace(
+        new RegExp(`style="color: rgb[^"]*">${escapeRegex(text)}</span>`),
+        `style="color: #8ab4c9" data-mention-type="location" data-mention-key="${known.key}">${text}</span>`
+      );
+    }
+  }
+  document.getElementById('sel-toolbar').style.display = 'none';
+}
+
+// ══════════════════════════════════════════════════════════
+// LOAD CHRONICLE
+// ══════════════════════════════════════════════════════════
+async function loadChronicle() {
+  try {
+    const res  = await fetch(FUNCTION_URL);
+    if (!res.ok) throw new Error(`Function ${res.status}`);
+    const data = await res.json();
+    fileSHA    = data.sha;
+    allEntries = data.entries || [];
+    // Get currentSession from entries config or derive from max session
+    if (data.config?.currentSession) currentSession = data.config.currentSession;
+    else currentSession = Math.max(0, ...allEntries.map(e=>e.session||0));
+    document.getElementById('d-session').value = currentSession;
+    document.getElementById('dm-session-val').textContent = `Session ${currentSession}`;
+    checkSessionPrompt();
+    renderSidebar();
+    renderEntries();
+  } catch(e) {
+    document.getElementById('c-loading').innerHTML =
+      `<div style="color:var(--blood)">Could not load chronicle.<br><small style="color:var(--muted);font-style:italic">${e.message}</small></div>`;
+  }
+}
+
+// ══════════════════════════════════════════════════════════
+// SESSION PROMPT (auto-detect new session after 20+ hours)
+// ══════════════════════════════════════════════════════════
+function checkSessionPrompt() {
+  if (!currentIdentity) return;
+  if (!allEntries.length) return;
+  const lastEntry = allEntries.reduce((a,b)=>new Date(a.timestamp)>new Date(b.timestamp)?a:b);
+  const hoursSince = (Date.now() - new Date(lastEntry.timestamp)) / 1000 / 60 / 60;
+  if (hoursSince < 20) return;
+  const nextSession = currentSession + 1;
+  document.getElementById('session-prompt-body').textContent =
+    `It's been ${Math.round(hoursSince)} hours since the last entry. Start Session ${nextSession}?`;
+  document.getElementById('session-prompt-yes').onclick = () => {
+    bumpSessionTo(nextSession);
+    dismissSessionPrompt();
+  };
+  document.getElementById('session-prompt').classList.remove('hidden');
+}
+
+function dismissSessionPrompt() {
+  document.getElementById('session-prompt').classList.add('hidden');
+}
+
+async function bumpSession() {
+  const next = currentSession + 1;
+  if (!confirm(`Start Session ${next}? This updates for everyone.`)) return;
+  bumpSessionTo(next);
+}
+
+async function bumpSessionTo(n) {
+  currentSession = n;
+  document.getElementById('d-session').value = n;
+  document.getElementById('dm-session-val').textContent = `Session ${n}`;
+  // Write config to chronicle.json via function
+  try {
+    await fetch(FUNCTION_URL + '?action=config', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ configUpdate: { currentSession: n } }),
+    });
+  } catch(e) { console.warn('Could not save session config', e); }
+}
+
+// ══════════════════════════════════════════════════════════
+// SIDEBAR RENDERING
+// ══════════════════════════════════════════════════════════
+function renderSidebar() {
+  // Sessions
+  const sessions = {};
+  allEntries.forEach(e => {
+    if (!sessions[e.session]) sessions[e.session] = { entries:[], title:'', startTime:null };
+    sessions[e.session].entries.push(e);
+    if (e.sessionTitle) sessions[e.session].title = e.sessionTitle;
+    const t = new Date(e.timestamp);
+    if (!sessions[e.session].startTime || t < new Date(sessions[e.session].startTime)) sessions[e.session].startTime = e.timestamp;
+  });
+  const sessionNums = Object.keys(sessions).sort((a,b)=>b-a);
+
+  document.getElementById('session-list').innerHTML = sessionNums.map(n=>{
+    const s    = sessions[n];
+    const date = s.startTime ? new Date(s.startTime).toLocaleDateString('en-US',{month:'short',day:'numeric'}) : '';
+    return `<div class="c-session-item${activeFilters.session==n?' active':''}" onclick="filterBySession(${n})">
+      <span class="c-session-num">Session ${n}</span>
+      <span class="c-session-name">${s.title||'—'}</span>
+      <span class="c-session-meta">${s.entries.length} entr${s.entries.length===1?'y':'ies'}${date?' · '+date:''}</span>
+    </div>`;
+  }).join('') + `<div class="c-session-item${activeFilters.session===null?' active':''}" style="border-top:1px solid var(--gold-dim)" onclick="filterBySession(null)">
+    <span class="c-session-num" style="color:var(--muted)">All Sessions</span>
+  </div>`;
+
+  // Authors
+  document.getElementById('author-filters').innerHTML = PLAYERS.map(p=>{
+    const count = allEntries.filter(e=>e.author===p.name).length;
+    if (!count) return '';
+    return `<button class="c-author-btn${activeFilters.author===p.name?' active':''}" onclick="filterByAuthor('${p.name}')">
+      <div class="c-author-dot" style="background:${p.color}"></div>
+      <span class="c-author-name" style="color:${p.color}">${p.name}</span>
+      <span style="font-family:var(--font-title);font-size:0.42rem;color:var(--muted);margin-left:auto">${count}</span>
+    </button>`;
+  }).join('');
+
+  // Tags — grouped by NPC / Location / Story, with search filter
+  const npcKeys  = typeof NPC_DATA      !== 'undefined' ? Object.keys(NPC_DATA)      : [];
+  const locKeys  = typeof LOCATION_DATA !== 'undefined' ? Object.keys(LOCATION_DATA) : [];
+  const tagSearch = (document.getElementById('tag-search')?.value || '').toLowerCase().trim();
+
+  const allTags = [...new Set(allEntries.flatMap(e => (e.tags || []).map(t => t.toLowerCase())))].sort();
+  const filteredTags = tagSearch ? allTags.filter(t => t.includes(tagSearch)) : allTags;
+
+  const npcTags      = filteredTags.filter(t => npcKeys.includes(t));
+  const locationTags = filteredTags.filter(t => locKeys.includes(t));
+  const storyTags    = filteredTags.filter(t => !npcKeys.includes(t) && !locKeys.includes(t));
+
+  function tagBtn(t, cls) {
+    const active = activeFilters.tags.includes(t) ? ' active' : '';
+    return `<button class="c-tag-btn ${cls}${active}" onclick="filterByTag('${t}')">${t}</button>`;
+  }
+
+  let tagHTML = '';
+  if (npcTags.length) {
+    tagHTML += `<div class="c-tag-group">
+      <div class="c-tag-group-label">NPCs</div>
+      <div class="c-tag-group-tags">${npcTags.map(t => tagBtn(t, 'tag-npc')).join('')}</div>
+    </div>`;
+  }
+  if (locationTags.length) {
+    tagHTML += `<div class="c-tag-group">
+      <div class="c-tag-group-label">Locations</div>
+      <div class="c-tag-group-tags">${locationTags.map(t => tagBtn(t, 'tag-location')).join('')}</div>
+    </div>`;
+  }
+  if (storyTags.length) {
+    tagHTML += `<div class="c-tag-group">
+      <div class="c-tag-group-label">Story</div>
+      <div class="c-tag-group-tags">${storyTags.map(t => tagBtn(t, 'tag-story')).join('')}</div>
+    </div>`;
+  }
+  if (!tagHTML) tagHTML = `<span style="font-family:var(--font-body);font-size:0.75rem;color:var(--muted);padding:0.25rem 0">${tagSearch ? 'No matching tags.' : 'No tags yet.'}</span>`;
+
+  document.getElementById('tag-list').innerHTML = tagHTML;
+}
+
+// ══════════════════════════════════════════════════════════
+// ENTRY RENDERING
+// ══════════════════════════════════════════════════════════
+function renderEntries() {
+  document.getElementById('c-loading').style.display = 'none';
+  const container = document.getElementById('c-entries');
+
+  let entries = [...allEntries];
+
+  // Apply filters
+  const { session, author, tags, search } = activeFilters;
+  if (session !== null) entries = entries.filter(e=>e.session==session);
+  if (author)           entries = entries.filter(e=>e.author===author);
+  if (tags.length)      entries = entries.filter(e=>tags.every(t=>(e.tags||[]).map(x=>x.toLowerCase()).includes(t.toLowerCase())));
+  if (search)           entries = entries.filter(e=>{
+    const q = search.toLowerCase();
+    return (e.text||'').toLowerCase().includes(q) ||
+           (e.author||'').toLowerCase().includes(q) ||
+           (e.sessionTitle||'').toLowerCase().includes(q) ||
+           (e.tags||[]).some(t=>t.toLowerCase().includes(q));
+  });
+
+  // Update filter bar
+  renderFilterBar();
+
+  if (!entries.length) {
+    container.innerHTML = `<div class="c-empty"><div class="c-empty-icon">📜</div>No entries match the current filters.</div>`;
+    return;
+  }
+
+  // Group by session, sort newest first
+  entries.sort((a,b)=>b.session-a.session||new Date(b.timestamp)-new Date(a.timestamp));
+  const sessions = {};
+  entries.forEach(e=>{
+    if (!sessions[e.session]) sessions[e.session]=[];
+    sessions[e.session].push(e);
+  });
+
+  container.innerHTML = Object.keys(sessions).sort((a,b)=>b-a).map(sn=>{
+    const sesEntries = sessions[sn];
+    const title = sesEntries.find(e=>e.sessionTitle)?.sessionTitle||'';
+    const loc   = sesEntries.find(e=>e.location)?.location||'';
+    const start = sesEntries.map(e=>new Date(e.timestamp)).sort((a,b)=>a-b)[0];
+    const startStr = start ? start.toLocaleDateString('en-US',{weekday:'short',month:'short',day:'numeric',year:'numeric'}) : '';
+    return `
+      <div class="c-session-block" id="session-block-${sn}">
+        <div class="c-session-divider">
+          <div class="c-session-heading">
+            <span class="c-session-heading-num">Session ${sn}</span>
+            ${title?`<span class="c-session-heading-title">${title}</span>`:''}
+            <span class="c-session-heading-meta">${[loc,startStr].filter(Boolean).join(' · ')}</span>
+          </div>
+        </div>
+        ${sesEntries.map(e=>renderEntry(e)).join('')}
+      </div>`;
+  }).join('');
+
+  // Reattach tooltips to rendered content
+  if (typeof attachTooltips === 'function') attachTooltips(container);
+}
+
+function renderEntry(e) {
+  const color  = e.color || '#b8952a';
+  const date   = new Date(e.timestamp).toLocaleDateString('en-US',{month:'short',day:'numeric',year:'numeric'});
+  const time   = new Date(e.timestamp).toLocaleTimeString('en-US',{hour:'numeric',minute:'2-digit'});
+  const tags   = (e.tags||[]).map(t=>`<span class="c-entry-tag" onclick="filterByTag('${t}')">${t}</span>`).join('');
+  const isOwn  = currentIdentity && currentIdentity.name === e.author;
+  const menu   = isOwn ? `
+    <div class="c-entry-menu-wrap">
+      <button class="c-entry-menu-btn" onclick="toggleEntryMenu('${e.id}',event)">⋯</button>
+      <div class="c-entry-dropdown" id="menu-${e.id}">
+        <button class="c-entry-dropdown-item" onclick="editEntry('${e.id}')">Edit</button>
+        <button class="c-entry-dropdown-item danger" onclick="deleteEntry('${e.id}')">Delete</button>
+      </div>
+    </div>` : '';
+
+  // Post-process HTML to convert data-mention attributes to proper tooltip spans
+  let html = processEntryHTML(e.text||'');
+
+  return `
+    <div class="c-entry" id="entry-${e.id}">
+      <div class="c-entry-bar" style="background:${color}"></div>
+      <div class="c-entry-body">
+        <div class="c-entry-header">
+          <span class="c-entry-author" style="color:${color}">${e.author}</span>
+          ${e.character&&e.character!==e.author&&e.character!=='Narrator'?`<span class="c-entry-character">${e.character}</span>`:''}
+          <span class="c-entry-time">${date} · ${time}</span>
+          ${menu}
+        </div>
+        <div class="c-entry-text">${html}</div>
+        ${tags?`<div class="c-entry-tags">${tags}</div>`:''}
+      </div>
+    </div>`;
+}
+
+function processEntryHTML(html) {
+  // Pass 1: Convert spans that were correctly tagged with data-mention-* attributes
+  let out = html
+    .replace(/<span([^>]*?)data-mention-type="npc"([^>]*?)data-mention-key="([^"]*)"([^>]*?)>(.*?)<\/span>/g,
+      '<span class="npc-link" data-npc="$3"$1$2$4>$5</span>')
+    .replace(/<span([^>]*?)data-mention-type="location"([^>]*?)data-mention-key="([^"]*)"([^>]*?)>(.*?)<\/span>/g,
+      '<span class="location-link" data-location="$3"$1$2$4>$5</span>')
+    .replace(/<span([^>]*?)data-mention-type="npc-unresolved"([^>]*?)data-mention-key="([^"]*)"([^>]*?)>(.*?)<\/span>/g,
+      '<span class="npc-unresolved" title="Not yet in tooltips.js — add $3 to define"$1$2$4>$5</span>')
+    .replace(/<span([^>]*?)data-mention-type="location-unresolved"([^>]*?)data-mention-key="([^"]*)"([^>]*?)>(.*?)<\/span>/g,
+      '<span class="location-unresolved" title="Not yet in tooltips.js — add $3 to define"$1$2$4>$5</span>');
+
+  // Pass 2: Color-fallback — repair old entries where DOM tagging failed.
+  // Any span colored exactly #d4ac3a (NPC gold) or #8ab4c9 (location blue) that isn't
+  // already an npc-link / location-link is a mention whose attributes didn't get saved.
+  // We resolve it by matching the span's text against all known NPC/location display names.
+
+  // Build name→key lookup from live data (falls back to hardcoded list if tooltips.js not loaded)
+  const npcNameMap = typeof NPC_DATA !== 'undefined'
+    ? Object.fromEntries(Object.entries(NPC_DATA).map(([k, v]) => [v.name, k]))
+    : {
+        'Tyros Darkstar': 'tyros', 'Caim': 'caim', 'Líadan Luchóg': 'liadan',
+        'Vesperian Vale': 'vesperian', 'Tyrus Ranec': 'tyrus', 'General Darius': 'darius',
+        'Lord Reykoldt': 'reykoldt', 'The Young Prince': 'prince', 'Aluin Ranec III': 'aluin',
+        'King Eneos II': 'eneos', 'Rhadig of Koria': 'rhadig', 'Lucius Solci': 'solci'
+      };
+  // Also cover the short dropdown display names from getMentionNpcs() fallback list
+  const dropdownNpcMap = {
+    'Darius': 'darius', 'Tyrus': 'tyrus', 'Lord Reykoldt': 'reykoldt',
+    'King Eneos': 'eneos', 'Rhadig': 'rhadig', 'Lucius Solci': 'solci',
+    'The Prince': 'prince', 'Aluin': 'aluin',
+    'Tyros Darkstar': 'tyros', 'Caim': 'caim', 'Líadan Luchóg': 'liadan', 'Vesperian Vale': 'vesperian'
+  };
+  const npcMap = Object.assign({}, npcNameMap, dropdownNpcMap);
+
+  const locNameMap = typeof LOCATION_DATA !== 'undefined'
+    ? Object.fromEntries(Object.entries(LOCATION_DATA).map(([k, v]) => [v.name, k]))
+    : {
+        'Tiersgard': 'tiersgard', 'The Capital': 'capital', 'Yevennia': 'yevennia',
+        'The Long Hills': 'longhills', 'The Kharak Mountains': 'kharak',
+        'Ilora': 'ilora', 'Numior': 'numior'
+      };
+  const dropdownLocMap = {
+    'Long Hills': 'longhills', 'Kharak': 'kharak', 'Capital': 'capital'
+  };
+  const locMap = Object.assign({}, locNameMap, dropdownLocMap);
+
+  // Replace untagged gold NPC spans
+  out = out.replace(/<span([^>]*?style="[^"]*color:\s*#d4ac3a[^"]*"[^>]*)>(.*?)<\/span>/gi,
+    (match, attrs, text) => {
+      // Skip if already converted (has npc-link class or data-npc)
+      if (/class="npc-link"/.test(attrs) || /data-npc=/.test(attrs)) return match;
+      const trimmed = text.trim();
+      const key = npcMap[trimmed];
+      if (key) return `<span class="npc-link" data-npc="${key}">${text}</span>`;
+      return match; // unknown name — leave as-is
+    });
+
+  // Replace untagged blue location spans
+  out = out.replace(/<span([^>]*?style="[^"]*color:\s*#8ab4c9[^"]*"[^>]*)>(.*?)<\/span>/gi,
+    (match, attrs, text) => {
+      if (/class="location-link"/.test(attrs) || /data-location=/.test(attrs)) return match;
+      const trimmed = text.trim();
+      const key = locMap[trimmed];
+      if (key) return `<span class="location-link" data-location="${key}">${text}</span>`;
+      return match;
+    });
+
+  // Replace untagged unresolved NPC spans (color #c9b48a — aged gold, only used for unresolved NPCs)
+  out = out.replace(/<span([^>]*?style="[^"]*color:\s*#c9b48a[^"]*"[^>]*)>(.*?)<\/span>/gi,
+    (match, attrs, text) => {
+      if (/class="npc-unresolved"/.test(attrs)) return match;
+      const key = text.trim().toLowerCase().replace(/[^a-z0-9]/g, '_').replace(/_+/g, '_').replace(/^_|_$/g, '');
+      return `<span class="npc-unresolved" title="Not in tooltips.js — add '${key}' to define">${text}</span>`;
+    });
+
+  // Replace untagged unresolved location spans (color #7a9aaa — muted slate-blue, only used for unresolved locations)
+  out = out.replace(/<span([^>]*?style="[^"]*color:\s*#7a9aaa[^"]*"[^>]*)>(.*?)<\/span>/gi,
+    (match, attrs, text) => {
+      if (/class="location-unresolved"/.test(attrs)) return match;
+      const key = text.trim().toLowerCase().replace(/[^a-z0-9]/g, '_').replace(/_+/g, '_').replace(/^_|_$/g, '');
+      return `<span class="location-unresolved" title="Not in tooltips.js — add '${key}' to define">${text}</span>`;
+    });
+
+  return out;
+}
+
+function renderFilterBar() {
+  const bar = document.getElementById('c-filter-bar');
+  const { session, author, tags, search } = activeFilters;
+  const chips = [];
+  if (session!==null) chips.push(`<span class="c-active-filter">Session ${session} <button class="c-filter-clear" onclick="filterBySession(null)">✕</button></span>`);
+  if (author) chips.push(`<span class="c-active-filter">${author} <button class="c-filter-clear" onclick="filterByAuthor(null)">✕</button></span>`);
+  tags.forEach(t=>chips.push(`<span class="c-active-filter">#${t} <button class="c-filter-clear" onclick="removeTagFilter('${t}')">✕</button></span>`));
+  if (search) chips.push(`<span class="c-active-filter">"${search}" <button class="c-filter-clear" onclick="clearSearch()">✕</button></span>`);
+  if (chips.length) {
+    bar.style.display = 'flex';
+    bar.innerHTML = `<span class="c-filter-bar-label">Showing:</span>${chips.join('')}<button class="c-clear-all" onclick="clearAllFilters()">Clear all</button>`;
+  } else {
+    bar.style.display = 'none';
+  }
+}
+
+// ══════════════════════════════════════════════════════════
+// FILTERS
+// ══════════════════════════════════════════════════════════
+function filterBySession(n) { activeFilters.session = n; renderSidebar(); renderEntries(); if(n!==null){const el=document.getElementById(`session-block-${n}`);if(el)el.scrollIntoView({behavior:'smooth'});} }
+function filterByAuthor(a)  { activeFilters.author  = activeFilters.author===a?null:a; renderSidebar(); renderEntries(); }
+function filterByTag(t)     { const tl=t.toLowerCase(); if(activeFilters.tags.includes(tl)){activeFilters.tags=activeFilters.tags.filter(x=>x!==tl);}else{activeFilters.tags.push(tl);} renderSidebar(); renderEntries(); }
+function removeTagFilter(t) { activeFilters.tags=activeFilters.tags.filter(x=>x!==t); renderSidebar(); renderEntries(); }
+function clearSearch()      { activeFilters.search=''; document.getElementById('c-search').value=''; renderEntries(); }
+function clearAllFilters()  { activeFilters={session:null,author:null,tags:[],search:''}; document.getElementById('c-search').value=''; renderSidebar(); renderEntries(); }
+function applyFilters()     { activeFilters.search=document.getElementById('c-search').value.trim(); renderEntries(); }
+
+// ══════════════════════════════════════════════════════════
+// ENTRY MENU
+// ══════════════════════════════════════════════════════════
+function toggleEntryMenu(id, e) {
+  e.stopPropagation();
+  document.querySelectorAll('.c-entry-dropdown').forEach(d=>{if(d.id!==`menu-${id}`)d.classList.remove('open');});
+  document.getElementById(`menu-${id}`).classList.toggle('open');
+}
+document.addEventListener('click', ()=>document.querySelectorAll('.c-entry-dropdown').forEach(d=>d.classList.remove('open')));
+
+function editEntry(id) {
+  const entry = allEntries.find(e=>e.id===id);
+  if (!entry) return;
+  editingEntryId = id;
+  document.getElementById('d-session').value  = entry.session||'';
+  document.getElementById('d-title').value    = entry.sessionTitle||'';
+  document.getElementById('d-location').value = entry.location||'';
+  if (quill) quill.root.innerHTML = entry.text||'';
+  if (!drawerOpen) toggleDrawer();
+  setDrawerStatus(`Editing entry from ${new Date(entry.timestamp).toLocaleDateString()}`, 'loading');
+}
+
+async function deleteEntry(id) {
+  if (!confirm('Delete this entry? This cannot be undone.')) return;
+  const backup = [...allEntries];
+  allEntries = allEntries.filter(e=>e.id!==id);
+  renderSidebar();
+  renderEntries();
+  try {
+    const res = await fetch(FUNCTION_URL, {
+      method:  'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body:    JSON.stringify({ _replaceAll: true, entries: allEntries, message: `Chronicle: deleted entry ${id}` }),
+    });
+    const data = await res.json();
+    if (!res.ok) throw new Error(data.error || `HTTP ${res.status}`);
+  } catch(e) {
+    // Revert on failure
+    allEntries = backup;
+    renderSidebar();
+    renderEntries();
+    alert('Delete failed: ' + e.message);
+  }
+}
+
+// ══════════════════════════════════════════════════════════
+// SUBMIT
+// ══════════════════════════════════════════════════════════
+async function submitEntry() {
+  if (!currentIdentity) { openModal(); return; }
+
+  // Apply mentionMap to any spans that weren't tagged by the DOM tagger
+  // (catches cases where Quill re-rendered before the setTimeout ran)
+  if (quill) {
+    quill.root.querySelectorAll('span[style*="color"]').forEach(span => {
+      const spanText = span.textContent.trim();
+      const mapEntry = mentionMap[spanText];
+      if (mapEntry && !span.dataset.mentionType) {
+        span.dataset.mentionType = mapEntry.type;
+        span.dataset.mentionKey  = mapEntry.key;
+      }
+    });
+  }
+
+  const sessionNum = parseInt(document.getElementById('d-session').value);
+  const rawHTML    = quill ? quill.root.innerHTML : '';
+  const text       = rawHTML.replace(/<p><br><\/p>/g,'').trim();
+
+  if (!sessionNum && sessionNum !== 0) { setDrawerStatus('Please enter a session number.','error'); return; }
+  if (!text || text === '<p></p>') { setDrawerStatus('Please write something before submitting.','error'); return; }
+
+  // Extract #hashtags — always lowercase for consistent filtering
+  const tagMatches = rawHTML.match(/#([a-zA-Z][a-zA-Z0-9_-]*)/g)||[];
+  const hashTags = tagMatches
+    .map(t => t.slice(1).toLowerCase().trim())
+    .filter(t => !/^[0-9a-f]{3}$|^[0-9a-f]{6}$/i.test(t)); // exclude hex color codes
+
+  // Extract resolved NPC and location mentions as tags (skip unresolved — not confirmed entries)
+  const mentionTags = [];
+  if (quill) {
+    quill.root.querySelectorAll('[data-mention-type]').forEach(span => {
+      const mtype = span.dataset.mentionType;
+      const mkey  = span.dataset.mentionKey;
+      if (mkey && mtype !== 'npc-unresolved' && mtype !== 'location-unresolved' && !mentionTags.includes(mkey.toLowerCase())) {
+        mentionTags.push(mkey.toLowerCase());
+      }
+    });
+  }
+
+  const tags = [...new Set([...hashTags, ...mentionTags])];
+  const cleanHTML = rawHTML.replace(/#[a-zA-Z][a-zA-Z0-9_-]* ?/g,'');
+  const title    = document.getElementById('d-title').value.trim();
+  const location = document.getElementById('d-location').value.trim();
+
+  const entry = {
+    id:           editingEntryId || Date.now().toString(),
+    session:      sessionNum,
+    ...(title    && { sessionTitle: title }),
+    ...(location && { location }),
+    author:       currentIdentity.name,
+    character:    currentIdentity.character,
+    color:        currentIdentity.color,
+    timestamp:    editingEntryId ? (allEntries.find(e=>e.id===editingEntryId)?.timestamp||new Date().toISOString()) : new Date().toISOString(),
+    text:         cleanHTML,
+    ...(tags.length && { tags }),
+  };
+
+  setDrawerStatus('Submitting…','loading');
+  document.getElementById('drawer-submit').disabled = true;
+
+  try {
+    if (editingEntryId) {
+      allEntries = allEntries.map(e=>e.id===editingEntryId?entry:e);
+    } else {
+      allEntries = [entry, ...allEntries];
+    }
+    const res  = await fetch(FUNCTION_URL, {
+      method:  'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body:    JSON.stringify(entry),
+    });
+    const data = await res.json();
+    if (!res.ok) throw new Error(data.error||`HTTP ${res.status}`);
+    editingEntryId = null;
+    clearDraft();
+    setDrawerStatus('Entry added — visible to everyone shortly.','success');
+    renderSidebar();
+    renderEntries();
+    setTimeout(()=>{ const el=document.getElementById(`entry-${entry.id}`); if(el)el.scrollIntoView({behavior:'smooth',block:'center'}); },100);
+  } catch(e) {
+    setDrawerStatus(`Failed: ${e.message}`,'error');
+    if (!editingEntryId) allEntries = allEntries.filter(x=>x.id!==entry.id);
+  } finally {
+    document.getElementById('drawer-submit').disabled = false;
+  }
+}
+
+async function writeChronicle(message) {
+  const res = await fetch(FUNCTION_URL, {
+    method:  'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body:    JSON.stringify({ _replaceAll: true, entries: allEntries, message }),
+  });
+  if (!res.ok) throw new Error(`HTTP ${res.status}`);
+}
+
+function setDrawerStatus(msg, type) {
+  const el = document.getElementById('drawer-status');
+  if (el) { el.textContent = msg; el.className = `c-drawer-status ${type}`; }
+}
+
+// ══════════════════════════════════════════════════════════
+// INIT
+// ══════════════════════════════════════════════════════════
+document.addEventListener('DOMContentLoaded', () => {
+  loadIdentity();
+  updateDrawerIdentity();
+  if (currentIdentity?.playerId === 'dm') document.getElementById('dm-session-ctrl').style.display = 'block';
+  initQuill();
+  loadChronicle();
+
+  // Close inline dropdown on outside click
+  document.addEventListener('click', e => {
+    if (!document.getElementById('inline-dropdown').contains(e.target)) hideInlineDropdown();
+  });
+
+  // Save draft on field input
+  ['d-session','d-title','d-location'].forEach(id => {
+    const el = document.getElementById(id);
+    if (el) el.addEventListener('input', saveDraft);
+  });
+});
+</script>
+</body>
+</html>
