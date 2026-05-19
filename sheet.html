@@ -1926,7 +1926,7 @@ function buildEquipmentTab() {
   <div class="tab-panel" id="tab-equipment">
     <div class="cs-sync-bar">
       <div class="cs-sync-dot" id="cs-sync-dot"></div>
-      <span id="cs-sync-label">Loading…</span>
+      <span id="cs-sync-label">Up to date</span>
     </div>
     <div class="equip-layout" style="padding:0.75rem 1rem">
       <div>
@@ -2030,7 +2030,7 @@ function buildBioTab() {
   <div class="tab-panel" id="tab-bio">
     <div class="cs-sync-bar">
       <div class="cs-sync-dot" id="cs-sync-dot-bio"></div>
-      <span id="cs-sync-label-bio">Loading…</span>
+      <span id="cs-sync-label-bio">Up to date</span>
     </div>
     <div class="bio-layout" style="padding:0.75rem 1rem">
       <div>
@@ -2086,14 +2086,25 @@ if (typeof CharacterStore !== 'undefined' && charKey) {
   CharacterStore.onUpdate(({ type, status }) => {
     if (type === 'status') {
       csUpdateSyncUI(status);
-      if (status === 'idle' && !window._csFirstLoadDone) {
-        window._csFirstLoadDone = true;
-        csRebuildEquipmentTab();
-        csRebuildBioTab();
-      }
+    }
+    // Rebuild editable tabs on first successful load — triggered by either
+    // the 'idle' status event or the 'data' event that fires right after load
+    if ((type === 'data' || (type === 'status' && status === 'idle')) && !window._csFirstLoadDone) {
+      window._csFirstLoadDone = true;
+      csRebuildEquipmentTab();
+      csRebuildBioTab();
     }
   });
   CharacterStore.load(charKey);
+  // Fallback: if load never completes (network error, store not defined, etc.),
+  // rebuild tabs after 5s using whatever data is available (static fallback)
+  setTimeout(() => {
+    if (!window._csFirstLoadDone) {
+      window._csFirstLoadDone = true;
+      csRebuildEquipmentTab();
+      csRebuildBioTab();
+    }
+  }, 5000);
   window.addEventListener('beforeunload', () => CharacterStore.flush());
 }
 
