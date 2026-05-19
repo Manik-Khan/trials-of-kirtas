@@ -494,42 +494,393 @@
     .feature-desc { font-size: 0.85rem; color: var(--parchment2); line-height: 1.6; }
 
     /* ── EQUIPMENT TAB ── */
+    /* ── EQUIPMENT TAB — split panel layout ── */
     .equip-layout {
       display: grid;
-      grid-template-columns: 2fr 1fr;
+      grid-template-columns: 1fr 300px;
+      grid-template-rows: 1fr auto;
+      height: calc(100% - 2rem);
+      min-height: 420px;
+      gap: 0;
+    }
+    .equip-left {
+      border-right: 1px solid var(--gold-dim);
+      overflow-y: auto;
+      padding: 0.75rem 0.85rem;
+      display: flex;
+      flex-direction: column;
+      gap: 0;
+    }
+    .equip-right {
+      overflow-y: auto;
+      padding: 0.85rem 0.9rem;
+      background: rgba(0,0,0,0.12);
+    }
+    .equip-footer {
+      grid-column: 1 / -1;
+      border-top: 1px solid var(--gold-dim);
+      background: rgba(0,0,0,0.2);
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 0.4rem 0.85rem;
       gap: 1rem;
     }
-    .inv-table { width: 100%; border-collapse: collapse; font-size: 0.85rem; }
-    .inv-table th {
+    /* Carry weight */
+    .equip-carry {
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+      flex: 1;
+    }
+    .equip-carry-face {
+      font-size: 1.1rem;
+      line-height: 1;
+      flex-shrink: 0;
+    }
+    .equip-carry-text {
       font-family: var(--font-title);
-      font-size: 0.48rem; letter-spacing: 0.2em;
-      color: var(--muted); text-transform: uppercase;
-      text-align: left; padding: 0.3rem 0.5rem;
-      border-bottom: 1px solid var(--gold-dim);
+      font-size: 0.42rem;
+      letter-spacing: 0.1em;
+      color: var(--muted);
+      white-space: nowrap;
     }
-    .inv-table td {
-      padding: 0.3rem 0.5rem; color: var(--parchment2);
-      border-bottom: 1px solid rgba(255,255,255,0.03);
-    }
-    .inv-table tr:hover td { background: rgba(184,149,42,0.04); }
-
-    .currency-grid {
-      display: grid;
-      grid-template-columns: repeat(5, 1fr);
-      gap: 0.4rem; margin-top: 0.5rem;
-    }
-    .coin-box {
-      text-align: center;
-      background: rgba(0,0,0,0.25);
+    .equip-carry-bar-wrap {
+      flex: 1;
+      height: 4px;
+      background: rgba(255,255,255,0.06);
       border: 1px solid var(--gold-dim);
-      padding: 0.4rem 0.2rem;
+      min-width: 60px;
+      max-width: 120px;
     }
-    .coin-label {
+    .equip-carry-bar {
+      height: 100%;
+      transition: width 0.3s, background 0.3s;
+    }
+    /* Currency footer */
+    .equip-currency {
+      display: flex;
+      align-items: center;
+      gap: 0.75rem;
+    }
+    .equip-coin {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 0.1rem;
+    }
+    .equip-coin-label {
       font-family: var(--font-title);
-      font-size: 0.48rem; letter-spacing: 0.2em;
-      color: var(--muted); text-transform: uppercase; display: block;
+      font-size: 0.35rem;
+      letter-spacing: 0.15em;
+      text-transform: uppercase;
     }
-    .coin-value { font-family: var(--font-title); font-size: 1rem; color: var(--gold-light); }
+    .equip-coin-input {
+      width: 44px;
+      text-align: center;
+      background: transparent;
+      border: none;
+      border-bottom: 1px solid var(--gold-dim);
+      font-family: var(--font-title);
+      font-size: 0.78rem;
+      outline: none;
+      padding: 0 2px;
+    }
+    .equip-coin-input:focus { border-bottom-color: var(--gold-mid); }
+    .equip-coin.cp .equip-coin-label { color: #a0704a; }
+    .equip-coin.cp .equip-coin-input { color: #c09070; }
+    .equip-coin.sp .equip-coin-label { color: #909090; }
+    .equip-coin.sp .equip-coin-input { color: #b8b8b8; }
+    .equip-coin.ep .equip-coin-label { color: #8a9a7a; }
+    .equip-coin.ep .equip-coin-input { color: #aabaa0; }
+    .equip-coin.gp .equip-coin-label { color: var(--gold); }
+    .equip-coin.gp .equip-coin-input { color: var(--gold-light); }
+    .equip-coin.pp .equip-coin-label { color: #8ab4cc; }
+    .equip-coin.pp .equip-coin-input { color: #aad4ec; }
+    /* Inventory list */
+    .equip-inv-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding-bottom: 0.4rem;
+      border-bottom: 1px solid var(--gold-dim);
+      margin-bottom: 0.4rem;
+    }
+    .equip-inv-title {
+      font-family: var(--font-title);
+      font-size: 0.45rem;
+      letter-spacing: 0.14em;
+      text-transform: uppercase;
+      color: var(--muted);
+    }
+    .equip-inv-count {
+      font-family: var(--font-title);
+      font-size: 0.4rem;
+      letter-spacing: 0.1em;
+      color: var(--muted);
+    }
+    .equip-item-row {
+      display: flex;
+      align-items: center;
+      gap: 0.4rem;
+      padding: 0.35rem 0.3rem;
+      border-bottom: 1px solid rgba(184,149,42,0.07);
+      cursor: pointer;
+      transition: background 0.1s;
+    }
+    .equip-item-row:hover { background: rgba(184,149,42,0.05); }
+    .equip-item-row.selected { background: rgba(184,149,42,0.1); border-left: 2px solid var(--gold-mid); padding-left: 0.1rem; }
+    .equip-item-row.expanded { background: rgba(184,149,42,0.07); }
+    .equip-item-expand {
+      font-size: 0.6rem;
+      color: var(--muted);
+      width: 12px;
+      flex-shrink: 0;
+      transition: transform 0.15s;
+      font-family: var(--font-title);
+    }
+    .equip-item-expand.open { transform: rotate(90deg); }
+    .equip-item-name-wrap { flex: 1; min-width: 0; }
+    .equip-item-name {
+      font-family: var(--font-body);
+      font-size: 0.88rem;
+      color: var(--parchment);
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+    .equip-item-sub {
+      font-size: 0.7rem;
+      color: var(--muted);
+      font-style: italic;
+    }
+    .equip-item-qty-wrap {
+      display: flex;
+      align-items: center;
+      gap: 0.2rem;
+    }
+    .equip-item-qty {
+      width: 36px;
+      text-align: center;
+      background: rgba(0,0,0,0.2);
+      border: 1px solid var(--gold-dim);
+      color: var(--parchment);
+      font-family: var(--font-title);
+      font-size: 0.78rem;
+      padding: 0.1rem 0.2rem;
+      outline: none;
+    }
+    .equip-item-wt {
+      font-size: 0.7rem;
+      color: var(--muted);
+      min-width: 36px;
+      text-align: right;
+    }
+    .equip-item-btn {
+      width: 20px; height: 20px;
+      background: transparent;
+      border: 1px solid transparent;
+      color: var(--muted);
+      cursor: pointer;
+      font-size: 0.7rem;
+      display: flex; align-items: center; justify-content: center;
+      flex-shrink: 0;
+      transition: all 0.12s;
+      padding: 0;
+    }
+    .equip-item-btn:hover { color: var(--aged); border-color: var(--gold-dim); }
+    .equip-item-btn.del:hover { color: #c05060; border-color: rgba(192,80,96,0.3); }
+    /* Container contents */
+    .equip-container-contents {
+      display: none;
+      background: rgba(0,0,0,0.15);
+      border-left: 2px solid var(--gold-dim);
+      margin-left: 1rem;
+    }
+    .equip-container-contents.open { display: block; }
+    .equip-container-item {
+      display: flex;
+      align-items: center;
+      gap: 0.4rem;
+      padding: 0.25rem 0.5rem;
+      border-bottom: 1px solid rgba(184,149,42,0.05);
+      font-size: 0.8rem;
+      color: var(--muted);
+    }
+    .equip-container-item::before { content: '—'; margin-right: 0.2rem; color: var(--gold-dim); }
+    /* Right panel */
+    .equip-panel-title {
+      font-family: var(--font-title);
+      font-size: 0.45rem;
+      letter-spacing: 0.14em;
+      text-transform: uppercase;
+      color: var(--muted);
+      border-bottom: 1px solid var(--gold-dim);
+      padding-bottom: 0.4rem;
+      margin-bottom: 0.75rem;
+    }
+    .equip-panel-item-name {
+      font-family: var(--font-title);
+      font-size: 0.88rem;
+      color: var(--parchment);
+      margin-bottom: 0.15rem;
+    }
+    .equip-panel-item-type {
+      font-family: var(--font-title);
+      font-size: 0.42rem;
+      letter-spacing: 0.15em;
+      text-transform: uppercase;
+      color: var(--muted);
+      margin-bottom: 0.5rem;
+    }
+    .equip-panel-rarity {
+      display: inline-block;
+      font-family: var(--font-title);
+      font-size: 0.38rem;
+      letter-spacing: 0.12em;
+      text-transform: uppercase;
+      padding: 0.1rem 0.4rem;
+      border: 1px solid;
+      margin-bottom: 0.6rem;
+    }
+    .equip-panel-stat {
+      display: flex;
+      justify-content: space-between;
+      font-size: 0.78rem;
+      padding: 0.3rem 0;
+      border-bottom: 1px solid rgba(184,149,42,0.07);
+      color: var(--muted);
+    }
+    .equip-panel-stat span:last-child { color: var(--parchment2); }
+    .equip-panel-desc {
+      font-size: 0.78rem;
+      color: var(--parchment2);
+      line-height: 1.7;
+      font-style: italic;
+      margin-top: 0.6rem;
+    }
+    .equip-panel-desc p { margin-bottom: 0.3rem; }
+    .equip-panel-section {
+      font-family: var(--font-title);
+      font-size: 0.38rem;
+      letter-spacing: 0.15em;
+      text-transform: uppercase;
+      color: var(--gold-dim);
+      margin: 0.6rem 0 0.3rem;
+    }
+    .equip-prof-item {
+      font-size: 0.78rem;
+      color: var(--parchment2);
+      padding: 0.2rem 0;
+      border-bottom: 1px solid rgba(184,149,42,0.05);
+    }
+    .equip-prof-cat {
+      font-family: var(--font-title);
+      font-size: 0.35rem;
+      letter-spacing: 0.15em;
+      text-transform: uppercase;
+      color: var(--muted);
+      margin-top: 0.5rem;
+      margin-bottom: 0.15rem;
+    }
+    /* Search in right panel */
+    .equip-search-input {
+      width: 100%;
+      background: rgba(0,0,0,0.3);
+      border: 1px solid var(--gold-dim);
+      color: var(--parchment);
+      font-family: var(--font-body);
+      font-size: 0.82rem;
+      padding: 0.3rem 0.5rem;
+      outline: none;
+      margin-bottom: 0.5rem;
+      display: block;
+    }
+    .equip-search-input:focus { border-color: var(--gold-mid); }
+    .equip-search-input::placeholder { color: var(--muted); }
+    .equip-search-results { display: flex; flex-direction: column; gap: 0.2rem; max-height: 260px; overflow-y: auto; }
+    /* Edit mode inline */
+    .equip-edit-field {
+      width: 100%;
+      background: rgba(0,0,0,0.3);
+      border: 1px solid var(--gold-dim);
+      color: var(--parchment);
+      font-family: var(--font-body);
+      font-size: 0.82rem;
+      padding: 0.25rem 0.4rem;
+      outline: none;
+      margin-bottom: 0.4rem;
+      display: block;
+    }
+    .equip-edit-field:focus { border-color: var(--gold-mid); }
+    .equip-edit-label {
+      font-family: var(--font-title);
+      font-size: 0.38rem;
+      letter-spacing: 0.12em;
+      text-transform: uppercase;
+      color: var(--muted);
+      display: block;
+      margin-bottom: 0.15rem;
+    }
+    .equip-edit-row { margin-bottom: 0.5rem; }
+    .equip-edit-actions { display: flex; gap: 0.4rem; margin-top: 0.6rem; flex-wrap: wrap; }
+    .equip-edit-btn {
+      font-family: var(--font-title);
+      font-size: 0.38rem;
+      letter-spacing: 0.1em;
+      text-transform: uppercase;
+      padding: 0.25rem 0.6rem;
+      border: 1px solid var(--gold-dim);
+      background: transparent;
+      color: var(--muted);
+      cursor: pointer;
+      transition: all 0.12s;
+    }
+    .equip-edit-btn:hover { color: var(--aged); border-color: var(--gold-mid); }
+    .equip-edit-btn.primary { border-color: var(--gold-mid); color: var(--gold); background: rgba(184,149,42,0.08); }
+    .equip-edit-btn.primary:hover { background: rgba(184,149,42,0.18); }
+    .equip-edit-btn.danger { border-color: rgba(192,80,96,0.4); color: #c05060; }
+    .equip-edit-btn.danger:hover { background: rgba(192,80,96,0.1); }
+    .equip-notes-area {
+      width: 100%;
+      background: rgba(0,0,0,0.2);
+      border: 1px solid var(--gold-dim);
+      color: var(--parchment2);
+      font-family: var(--font-body);
+      font-size: 0.82rem;
+      padding: 0.4rem 0.5rem;
+      resize: vertical;
+      outline: none;
+      min-height: 80px;
+      margin-top: 0.3rem;
+    }
+    .equip-notes-area:focus { border-color: var(--gold-mid); }
+    .equip-notes-area::placeholder { color: var(--muted); font-style: italic; }
+    /* Sync bar */
+    .cs-sync-bar { display:flex; align-items:center; gap:0.5rem; font-family:var(--font-title); font-size:0.42rem; letter-spacing:0.12em; text-transform:uppercase; color:var(--muted); padding:0.3rem 0.75rem; border-bottom:1px solid var(--gold-dim); background:rgba(0,0,0,0.15); }
+    .cs-sync-dot { width:6px; height:6px; border-radius:50%; background:var(--muted); flex-shrink:0; transition:background 0.3s; }
+    .cs-sync-dot.saving  { background:#c9b48a; }
+    .cs-sync-dot.saved   { background:#5a9a6a; }
+    .cs-sync-dot.error   { background:#c05060; }
+    .cs-sync-dot.loading { background:#5a9aaa; }
+    /* item search result styles (shared with compendium) */
+    .cs-item-result-wrap { border: 1px solid var(--gold-dim); margin-bottom: 0.25rem; }
+    .cs-item-result { display:flex; flex-direction:column; gap:0.1rem; padding:0.3rem 0.45rem; background:transparent; color:var(--parchment); font-family:var(--font-body); font-size:0.8rem; cursor:pointer; transition:all 0.1s; text-align:left; width:100%; border:none; }
+    .cs-item-result:hover { background:rgba(184,149,42,0.08); }
+    .cs-item-result-main { display:flex; align-items:center; gap:0.4rem; }
+    .cs-item-result-name { flex:1; }
+    .cs-item-result-rarity { font-family:var(--font-title); font-size:0.35rem; letter-spacing:0.12em; text-transform:uppercase; padding:0.08rem 0.25rem; border:1px solid; flex-shrink:0; }
+    .cs-item-result-meta { font-size:0.7rem; color:var(--muted); font-style:italic; }
+    .cs-item-detail { padding:0.5rem 0.6rem; background:rgba(0,0,0,0.2); border-top:1px solid var(--gold-dim); }
+    .cs-item-detail.hidden { display:none; }
+    .cs-idet-stats { display:grid; grid-template-columns:1fr 1fr; gap:0.2rem 0.4rem; margin-bottom:0.4rem; }
+    .cs-idet-row { display:flex; flex-direction:column; }
+    .cs-idet-label { font-family:var(--font-title); font-size:0.35rem; letter-spacing:0.12em; text-transform:uppercase; color:var(--muted); }
+    .cs-idet-desc { font-size:0.75rem; color:var(--parchment2); line-height:1.6; margin-top:0.35rem; }
+    .cs-idet-desc p { margin-bottom:0.25rem; }
+    .cs-item-add-btn { font-family:var(--font-title); font-size:0.38rem; letter-spacing:0.1em; text-transform:uppercase; padding:0.25rem 0.7rem; border:1px solid var(--gold-dim); background:rgba(184,149,42,0.08); color:var(--gold); cursor:pointer; transition:all 0.12s; margin-top:0.4rem; display:block; }
+    .cs-item-add-btn:hover { background:rgba(184,149,42,0.18); border-color:var(--gold); }
+    .cs-item-empty { font-size:0.78rem; color:var(--muted); font-style:italic; padding:0.3rem 0.4rem; }
 
     /* ── BIO TAB ── */
     .bio-layout {
@@ -747,6 +1098,7 @@
       .combat-layout { grid-template-columns: 1fr; }
       .bio-layout { grid-template-columns: 1fr; }
       .equip-layout { grid-template-columns: 1fr; }
+      .equip-right { border-right: none; border-top: 1px solid var(--gold-dim); }
     }
     @media (max-width: 600px) {
       .core-layout { grid-template-columns: 1fr; }
@@ -1936,18 +2288,51 @@ function buildFeaturesTab() {
 // All edit functions (qty, delete, add) operate on this directly.
 function buildEquipmentTab() {
   const live = CharacterStore.get() || {};
-  // Use live inventory only if it has items; otherwise fall back to static data
   const inv   = (live.inventory && live.inventory.length > 0) ? live.inventory : (C.inventory || []);
-  // Use live currency only if any coin is non-zero; otherwise fall back to static
   const cur   = (live.currency && Object.values(live.currency).some(v => v > 0)) ? live.currency : (C.currency || {});
   const notes = live.notes || '';
-
-  // Keep tracked copies in sync with what's rendered
   _currentInv = inv.map(i => ({ ...i }));
   _currentCur = { ...cur };
 
+  const strScore   = C.abilities?.str || 10;
+  const carryMax   = strScore * 15;
   const totalWeight = inv.reduce((sum, item) => sum + ((parseFloat(item.weight)||0) * (parseInt(item.qty)||1)), 0);
-  const weightStr   = totalWeight > 0 ? totalWeight.toFixed(1) + ' lb' : '—';
+  const carryPct   = Math.min(totalWeight / carryMax, 1);
+  const carryFace  = carryPct >= 1 ? '😭' : carryPct >= 0.9 ? '😟' : carryPct >= 0.75 ? '😐' : '😄';
+  const barColor   = carryPct >= 1 ? '#c05060' : carryPct >= 0.9 ? '#c9824a' : carryPct >= 0.75 ? '#c9b44a' : '#5a9a6a';
+  const barPct     = Math.round(carryPct * 100);
+
+  const invRows = inv.map((item, i) => {
+    const hasContents = item.contents && item.contents.length > 0;
+    const expandBtn = hasContents
+      ? `<span class="equip-item-expand" id="equip-exp-${i}">▶</span>`
+      : `<span class="equip-item-expand" style="opacity:0">▶</span>`;
+    const contentsHtml = hasContents ? `
+      <div class="equip-container-contents" id="equip-cont-${i}">
+        ${item.contents.map(c => `<div class="equip-container-item">${escapeHtml(c)}</div>`).join('')}
+      </div>` : '';
+    return `
+      <div>
+        <div class="equip-item-row" id="equip-row-${i}" onclick="csSelectItem(${i}, event)">
+          ${expandBtn}
+          <div class="equip-item-name-wrap">
+            <div class="equip-item-name">${escapeHtml(item.name)}</div>
+            ${item.detail ? `<div class="equip-item-sub">${escapeHtml(item.detail)}</div>` : ''}
+          </div>
+          <input class="equip-item-qty" type="number" min="0"
+            value="${item.qty||1}"
+            onchange="csUpdateQty(${i}, this.value)"
+            onclick="event.stopPropagation()"
+            aria-label="Qty">
+          <span class="equip-item-wt">${item.weight ? item.weight + ' lb' : '—'}</span>
+          <button class="equip-item-btn" onclick="event.stopPropagation();csMoveItem(${i},-1)" title="Move up">↑</button>
+          <button class="equip-item-btn" onclick="event.stopPropagation();csMoveItem(${i},1)" title="Move down">↓</button>
+          <button class="equip-item-btn" onclick="event.stopPropagation();csEditItem(${i})" title="Edit">✎</button>
+          <button class="equip-item-btn del" onclick="event.stopPropagation();csDeleteItem(${i})" title="Remove">✕</button>
+        </div>
+        ${contentsHtml}
+      </div>`;
+  }).join('');
 
   return `
   <div class="tab-panel" id="tab-equipment">
@@ -1955,88 +2340,129 @@ function buildEquipmentTab() {
       <div class="cs-sync-dot" id="cs-sync-dot"></div>
       <span id="cs-sync-label">Up to date</span>
     </div>
-    <div class="equip-layout" style="padding:0.75rem 1rem">
-      <div>
-        <span class="cs-section-label">Inventory</span>
-        <div class="cs-inv-header">
-          <span style="font-size:0.78rem;color:var(--muted)">${inv.length} item${inv.length!==1?'s':''}</span>
-          <button class="cs-add-btn" onclick="csToggleItemSearch()" id="cs-add-toggle">+ Add Item</button>
+    <div class="equip-layout">
+      <div class="equip-left">
+        <div class="equip-inv-header">
+          <span class="equip-inv-title">Inventory</span>
+          <span class="equip-inv-count">${inv.length} item${inv.length!==1?'s':''}</span>
         </div>
-
-        <div class="cs-item-search-wrap hidden" id="cs-item-search-wrap">
-          <input class="cs-item-search" id="cs-item-search-input"
-            placeholder="Search 5etools… e.g. Shortsword, Potion of Healing"
-            oninput="csSearchItems(this.value)"
-            autocomplete="off">
-          <div class="cs-item-results" id="cs-item-results">
-            <div class="cs-item-empty">Start typing to search items…</div>
+        ${inv.length === 0
+          ? `<div style="color:var(--muted);font-style:italic;font-size:0.82rem;padding:0.5rem 0">No items yet — search in the panel to the right.</div>`
+          : invRows}
+        <div style="margin-top:auto;padding-top:0.75rem">
+          <div class="equip-panel-section">Session Notes</div>
+          <textarea class="equip-notes-area" id="cs-notes"
+            placeholder="Ki points remaining, loot leads, reminders for next session…"
+            oninput="csNotesChanged()">${escapeHtml(notes)}</textarea>
+        </div>
+      </div>
+      <div class="equip-right" id="equip-right-panel">
+        ${csRightPanelDefault()}
+      </div>
+      <div class="equip-footer">
+        <div class="equip-carry">
+          <span class="equip-carry-face">${carryFace}</span>
+          <span class="equip-carry-text">${totalWeight.toFixed(1)} / ${carryMax} lb</span>
+          <div class="equip-carry-bar-wrap">
+            <div class="equip-carry-bar" style="width:${barPct}%;background:${barColor}"></div>
           </div>
         </div>
-
-        ${inv.length === 0 ? `
-          <div style="color:var(--muted);font-style:italic;font-size:0.85rem;padding:0.5rem 0 1rem">No items. Use + Add Item to search the compendium.</div>
-        ` : `
-          <table class="cs-inv-table">
-            <thead><tr>
-              <th>Item</th>
-              <th class="right" style="width:50px">Qty</th>
-              <th class="right" style="width:55px">Weight</th>
-              <th style="width:28px"></th>
-            </tr></thead>
-            <tbody>
-              ${inv.map((item, i) => `
-                <tr>
-                  <td>
-                    <div class="cs-inv-name">${escapeHtml(item.name)}</div>
-                    ${item.detail ? `<div class="cs-inv-detail">${escapeHtml(item.detail)}</div>` : ''}
-                  </td>
-                  <td>
-                    <input class="cs-inv-qty-input" type="number" min="0"
-                      value="${item.qty||1}"
-                      onchange="csUpdateQty(${i}, this.value)"
-                      aria-label="Quantity for ${escapeHtml(item.name)}">
-                  </td>
-                  <td class="cs-inv-wt">${item.weight ? item.weight + ' lb' : '—'}</td>
-                  <td>
-                    <button class="cs-inv-del" onclick="csDeleteItem(${i})" aria-label="Remove ${escapeHtml(item.name)}">✕</button>
-                  </td>
-                </tr>`).join('')}
-            </tbody>
-          </table>
-          <div class="cs-weight-bar">Total weight <span>${weightStr}</span></div>
-        `}
-
-        <span class="cs-section-label" style="margin-top:0.5rem">Session Notes</span>
-        <textarea class="cs-notes-area" id="cs-notes"
-          placeholder="Ki points remaining, loot leads, reminders for next session…"
-          oninput="csNotesChanged()">${escapeHtml(notes)}</textarea>
-      </div>
-
-      <div>
-        <span class="cs-section-label">Currency</span>
-        <div class="cs-currency-row">
-          ${[['pp','Platinum'],['gp','Gold'],['ep','Electrum'],['sp','Silver'],['cp','Copper']].map(([k,lbl]) => `
-            <div class="cs-currency-box ${k}">
-              <div class="cs-currency-label">${lbl}</div>
-              <input class="cs-currency-input" type="number" min="0"
+        <div class="equip-currency">
+          ${[['pp','PP'],['gp','GP'],['ep','EP'],['sp','SP'],['cp','CP']].map(([k,lbl]) => `
+            <div class="equip-coin ${k}">
+              <span class="equip-coin-label">${lbl}</span>
+              <input class="equip-coin-input" type="number" min="0"
                 value="${cur[k]||0}"
                 id="cs-cur-${k}"
                 onchange="csUpdateCurrency()"
                 aria-label="${lbl}">
             </div>`).join('')}
         </div>
-
-        <div class="s-section">
-          <div class="s-title">Proficiencies</div>
-          ${Object.entries(C.proficiencies||{}).filter(([,v])=>v).map(([k,v])=>`
-            <div style="margin-bottom:0.5rem">
-              <span style="font-family:var(--font-title);font-size:0.5rem;letter-spacing:0.2em;color:var(--muted);text-transform:uppercase;display:block;margin-bottom:0.15rem">${k}</span>
-              <span style="font-size:0.85rem;color:var(--parchment2)">${v}</span>
-            </div>`).join('')}
-        </div>
       </div>
     </div>
   </div>`;
+}
+
+function csRightPanelDefault() {
+  const profs = C.proficiencies || {};
+  const profHtml = Object.entries(profs).filter(([,v])=>v).map(([k,v]) => `
+    <div class="equip-prof-cat">${escapeHtml(k)}</div>
+    <div class="equip-prof-item">${escapeHtml(v)}</div>
+  `).join('');
+  return `
+    <div class="equip-panel-title">Add Item</div>
+    <input class="equip-search-input" id="equip-search-input"
+      placeholder="Search items… e.g. Longsword"
+      oninput="csSearchItems(this.value)"
+      autocomplete="off">
+    <div class="equip-search-results" id="cs-item-results">
+      <div class="cs-item-empty">Type to search all 5etools items…</div>
+    </div>
+    ${profHtml ? `
+      <div class="equip-panel-title" style="margin-top:1rem">Proficiencies</div>
+      ${profHtml}
+    ` : ''}`;
+}
+
+function csRightPanelItem(idx) {
+  const item = _currentInv[idx];
+  if (!item) return csRightPanelDefault();
+  const color = csRarityColor(item.rarity || 'None');
+  const rarity = item.rarity && item.rarity !== 'None'
+    ? `<span class="equip-panel-rarity" style="color:${color};border-color:${color}">${escapeHtml(item.rarity)}</span>`
+    : '';
+  const stats = [];
+  if (item.dmg1 && item.dmgType) stats.push(['Damage', `${item.dmg1} ${item.dmgType}`]);
+  if (item.ac !== undefined && item.ac !== null) stats.push(['AC', item.ac]);
+  if (item.weight) stats.push(['Weight', `${item.weight} lb`]);
+  if (item.reqAttune) stats.push(['Attunement', item.reqAttune]);
+  if (item.source) stats.push(['Source', item.source]);
+  const statsHtml = stats.map(([k,v]) =>
+    `<div class="equip-panel-stat"><span>${escapeHtml(k)}</span><span>${escapeHtml(String(v))}</span></div>`
+  ).join('');
+  const entries = item.entries || [];
+  const desc = entries.length
+    ? `<div class="equip-panel-desc">${entries.map(e => typeof e === 'string' ? `<p>${escapeHtml(e)}</p>` : '').join('')}</div>`
+    : '';
+  return `
+    <div class="equip-panel-title">Item Detail</div>
+    <div class="equip-panel-item-name">${escapeHtml(item.name)}</div>
+    ${item.detail ? `<div class="equip-panel-item-type">${escapeHtml(item.detail)}</div>` : ''}
+    ${rarity}
+    ${statsHtml}
+    ${desc}`;
+}
+
+function csRightPanelEdit(idx) {
+  const item = _currentInv[idx];
+  if (!item) return csRightPanelDefault();
+  const attackStats = ['STR','DEX','CHA','INT','WIS','CON'];
+  const currentStat = item.attackStat || '';
+  return `
+    <div class="equip-panel-title">Edit Item</div>
+    <div class="equip-edit-row">
+      <span class="equip-edit-label">Name</span>
+      <input class="equip-edit-field" id="edit-name" value="${escapeHtml(item.name)}">
+    </div>
+    <div class="equip-edit-row">
+      <span class="equip-edit-label">Detail / stats</span>
+      <input class="equip-edit-field" id="edit-detail" value="${escapeHtml(item.detail||'')}" placeholder="e.g. martial · 1d8 S · 3 lb">
+    </div>
+    <div class="equip-edit-row">
+      <span class="equip-edit-label">Attack stat override</span>
+      <select class="equip-edit-field" id="edit-attackstat" style="font-family:var(--font-title);font-size:0.75rem">
+        <option value="">— default (STR/DEX) —</option>
+        ${attackStats.map(s => `<option value="${s}"${currentStat===s?' selected':''}>${s}</option>`).join('')}
+      </select>
+    </div>
+    <div class="equip-edit-row">
+      <span class="equip-edit-label">Notes</span>
+      <textarea class="equip-edit-field" id="edit-notes" rows="2" style="resize:vertical">${escapeHtml(item.notes||'')}</textarea>
+    </div>
+    <div class="equip-edit-actions">
+      <button class="equip-edit-btn primary" onclick="csSaveItemEdit(${idx})">Save</button>
+      <button class="equip-edit-btn" onclick="csSelectItem(${idx}, null)">Cancel</button>
+    </div>`;
 }
 
 // ── BIO TAB ──
@@ -2249,12 +2675,16 @@ function csAddItemFromSearch(item) {
   if (existing >= 0) {
     inv[existing] = { ...inv[existing], qty: (inv[existing].qty||1) + 1 };
   } else {
-    inv.push({ name: item.name, detail: item.detail || null, qty: 1, weight: item.weight || null });
+    inv.push({ name: item.name, detail: item.detail || null, qty: 1, weight: item.weight || null,
+      dmg1: item.dmg1 || null, dmgType: item.dmgType || null, ac: item.ac || null,
+      reqAttune: item.reqAttune || null, entries: item.entries || [], rarity: item.rarity || null });
   }
   _currentInv = inv;
   CharacterStore.save({ inventory: inv }, charKey);
-  csCloseItemSearch();
   csRebuildEquipmentTab();
+  // Select the newly added item
+  const newIdx = inv.findIndex(i => i.name === item.name);
+  if (newIdx >= 0) setTimeout(() => csSelectItem(newIdx, null), 50);
 }
 
 // Add item from 5etools result
@@ -2275,8 +2705,79 @@ function csAddItem(itemJson) {
   csRebuildEquipmentTab();
 }
 
-// Update item quantity — 0 deletes
+// Update item quantity — 0 removes the item
 function csUpdateQty(idx, val) {
+  if (!_currentInv || _currentInv[idx] === undefined) return;
+  const inv = _currentInv.map(i => ({ ...i }));
+  const qty = parseInt(val);
+  if (isNaN(qty) || qty <= 0) { inv.splice(idx, 1); _selectedItemIdx = null; }
+  else { inv[idx] = { ...inv[idx], qty }; }
+  _currentInv = inv;
+  CharacterStore.save({ inventory: inv }, charKey);
+  csRebuildEquipmentTab();
+}
+
+// ── Selected item state ──
+let _selectedItemIdx = null;
+
+// Select item — show detail in right panel
+function csSelectItem(idx, event) {
+  if (event && event.target.closest('.equip-item-btn, .equip-item-qty')) return;
+  // Toggle container expansion if it has contents
+  const item = _currentInv[idx];
+  if (item && item.contents && item.contents.length > 0) {
+    const cont = document.getElementById(`equip-cont-${idx}`);
+    const exp  = document.getElementById(`equip-exp-${idx}`);
+    if (cont) cont.classList.toggle('open');
+    if (exp)  exp.classList.toggle('open');
+  }
+  // Highlight row
+  document.querySelectorAll('.equip-item-row').forEach(r => r.classList.remove('selected'));
+  const row = document.getElementById(`equip-row-${idx}`);
+  if (row) row.classList.add('selected');
+  _selectedItemIdx = idx;
+  const panel = document.getElementById('equip-right-panel');
+  if (panel) panel.innerHTML = csRightPanelItem(idx);
+}
+
+// Edit item — show edit form in right panel
+function csEditItem(idx) {
+  _selectedItemIdx = idx;
+  document.querySelectorAll('.equip-item-row').forEach(r => r.classList.remove('selected'));
+  const row = document.getElementById(`equip-row-${idx}`);
+  if (row) row.classList.add('selected');
+  const panel = document.getElementById('equip-right-panel');
+  if (panel) panel.innerHTML = csRightPanelEdit(idx);
+  setTimeout(() => document.getElementById('edit-name')?.focus(), 50);
+}
+
+// Save item edits
+function csSaveItemEdit(idx) {
+  const name       = document.getElementById('edit-name')?.value.trim();
+  const detail     = document.getElementById('edit-detail')?.value.trim();
+  const attackStat = document.getElementById('edit-attackstat')?.value;
+  const notes      = document.getElementById('edit-notes')?.value.trim();
+  if (!name) return;
+  const inv = _currentInv.map(i => ({ ...i }));
+  inv[idx] = { ...inv[idx], name, detail: detail || null, attackStat: attackStat || null, notes: notes || null };
+  _currentInv = inv;
+  CharacterStore.save({ inventory: inv }, charKey);
+  csRebuildEquipmentTab();
+  // Re-select the item after rebuild
+  setTimeout(() => csSelectItem(idx, null), 50);
+}
+
+// Move item up or down
+function csMoveItem(idx, dir) {
+  const inv    = _currentInv.map(i => ({ ...i }));
+  const newIdx = idx + dir;
+  if (newIdx < 0 || newIdx >= inv.length) return;
+  [inv[idx], inv[newIdx]] = [inv[newIdx], inv[idx]];
+  _currentInv = inv;
+  CharacterStore.save({ inventory: inv }, charKey);
+  csRebuildEquipmentTab();
+  setTimeout(() => csSelectItem(newIdx, null), 50);
+}
   if (!_currentInv || !_currentInv[idx]) return;
   const inv = _currentInv.map(i => ({ ...i }));
   const qty = parseInt(val);
@@ -2291,6 +2792,7 @@ function csDeleteItem(idx) {
   const inv = _currentInv.map(i => ({ ...i }));
   inv.splice(idx, 1);
   _currentInv = inv;
+  _selectedItemIdx = null;
   CharacterStore.save({ inventory: inv }, charKey);
   csRebuildEquipmentTab();
 }
@@ -2306,12 +2808,12 @@ function csUpdateCurrency() {
   CharacterStore.save({ currency }, charKey);
 }
 
-// ── Re-render helpers — safe tab replacement that preserves active state ──
+// csCloseItemSearch — resets search results, called after adding an item
 function csCloseItemSearch() {
-  const input   = document.getElementById('cs-item-search-input');
+  const input   = document.getElementById('equip-search-input');
   const results = document.getElementById('cs-item-results');
   if (input)   input.value = '';
-  if (results) results.innerHTML = '<div class="cs-item-empty">Start typing to search items…</div>';
+  if (results) results.innerHTML = '<div class="cs-item-empty">Type to search all 5etools items…</div>';
 }
 
 function csRebuildEquipmentTab() {
@@ -2335,15 +2837,6 @@ function csRebuildBioTab() {
 }
 
 // Toggle item search drawer
-function csToggleItemSearch() {
-  const wrap = document.getElementById('cs-item-search-wrap');
-  const btn  = document.getElementById('cs-add-toggle');
-  if (!wrap) return;
-  wrap.classList.toggle('hidden');
-  btn.textContent = wrap.classList.contains('hidden') ? '+ Add Item' : '— Cancel';
-  if (!wrap.classList.contains('hidden')) document.getElementById('cs-item-search-input')?.focus();
-}
-
 // Notes — debounced save
 let _notesTimer = null;
 function csNotesChanged() {
