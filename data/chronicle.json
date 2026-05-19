@@ -19,5 +19,7 @@
       "text": "Bish, I'm a mouse. I just say \"squeak\"."
     }
   ],
-  "config": {}
+  "config": {
+    "currentSession": 1
+  }
 }
