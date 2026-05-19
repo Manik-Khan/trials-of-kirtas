@@ -21,6 +21,12 @@
       "name": "Shield",
       "weight": 6,
       "properties": "+2 AC"
+    },
+    {
+      "name": "Shortsword",
+      "detail": "martial · 1d6 P · 2 lb",
+      "qty": 1,
+      "weight": 2
     }
   ],
   "currency": {
@@ -38,5 +44,5 @@
     "flaws": "",
     "backstory": ""
   },
-  "lastUpdated": "2026-05-19T07:24:56.727Z"
+  "lastUpdated": "2026-05-19T16:00:00.444Z"
 }
