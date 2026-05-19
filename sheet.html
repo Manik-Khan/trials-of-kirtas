@@ -9,7 +9,6 @@
   <link rel="stylesheet" href="theme.css">
   <script src="characters.js"></script>
   <script src="character-store.js"></script>
-  <style>
     /* ── Sheet-specific styles (layout, not colors — colors come from theme.css) ── */
 
     nav, .sheet-tabs, .sheet-body, footer {
@@ -2079,11 +2078,21 @@ function escapeHtml(str) {
 }
 
 // Init — load this character's live data from GitHub via Netlify function
+// NOTE: onUpdate is subscribed BEFORE load() so we catch the completion event
+// and re-render equipment/bio tabs with live data. Without this, those tabs
+// build during initSheet() before the async load finishes and show empty data.
 if (typeof CharacterStore !== 'undefined' && charKey) {
-  CharacterStore.load(charKey);
   CharacterStore.onUpdate(({ type, status }) => {
-    if (type === 'status') csUpdateSyncUI(status);
+    if (type === 'status') {
+      csUpdateSyncUI(status);
+      if (status === 'idle' && !window._csFirstLoadDone) {
+        window._csFirstLoadDone = true;
+        csRebuildEquipmentTab();
+        csRebuildBioTab();
+      }
+    }
   });
+  CharacterStore.load(charKey);
   window.addEventListener('beforeunload', () => CharacterStore.flush());
 }
 
@@ -2109,9 +2118,9 @@ let _itemsCache = null;
 async function csLoadItems() {
   if (_itemsCache) return _itemsCache;
   try {
-    const res  = await fetch('https://raw.githubusercontent.com/5etools-mirror-3/5etools-2014-src/main/data/items.json');
+    const res  = await fetch('https://raw.githubusercontent.com/5etools-mirror-3/5etools-2014-src/main/data/items-base.json');
     const json = await res.json();
-    _itemsCache = (json.item || []).filter(i => i.name && i.type);
+    _itemsCache = (json.item || []).filter(i => i.name);
     return _itemsCache;
   } catch(e) { console.error('[cs] items fetch failed', e); return []; }
 }
@@ -2152,12 +2161,8 @@ function csAddItem(itemJson) {
     inv.push({ name: item.name, detail: detail || null, qty: 1, weight: item.weight || null });
   }
   CharacterStore.save({ inventory: inv }, currentIdentity?.name || charKey);
-  document.getElementById('cs-item-search-input').value = '';
-  document.getElementById('cs-item-results').innerHTML = '<div class="cs-item-empty">Start typing to search items…</div>';
-  // Re-render equipment tab to show new item
-  const panel = document.getElementById('tab-equipment');
-  if (panel) panel.outerHTML = buildEquipmentTab();
-  document.getElementById('tab-equipment').classList.add('active');
+  csCloseItemSearch();
+  csRebuildEquipmentTab();
 }
 
 // Update item quantity — 0 deletes
@@ -2176,9 +2181,7 @@ function csDeleteItem(idx) {
   const inv  = [...(live.inventory || [])];
   inv.splice(idx, 1);
   CharacterStore.save({ inventory: inv }, currentIdentity?.name || charKey);
-  const panel = document.getElementById('tab-equipment');
-  if (panel) panel.outerHTML = buildEquipmentTab();
-  document.getElementById('tab-equipment').classList.add('active');
+  csRebuildEquipmentTab();
 }
 
 // Update currency
@@ -2189,6 +2192,34 @@ function csUpdateCurrency() {
     currency[c] = el ? parseInt(el.value)||0 : 0;
   });
   CharacterStore.save({ currency }, currentIdentity?.name || charKey);
+}
+
+// ── Re-render helpers — safe tab replacement that preserves active state ──
+function csCloseItemSearch() {
+  const input   = document.getElementById('cs-item-search-input');
+  const results = document.getElementById('cs-item-results');
+  if (input)   input.value = '';
+  if (results) results.innerHTML = '<div class="cs-item-empty">Start typing to search items…</div>';
+}
+
+function csRebuildEquipmentTab() {
+  const panel = document.getElementById('tab-equipment');
+  if (!panel) return;
+  const wasActive = panel.classList.contains('active');
+  panel.insertAdjacentHTML('afterend', buildEquipmentTab());
+  panel.remove();
+  const newPanel = document.getElementById('tab-equipment');
+  if (wasActive && newPanel) newPanel.classList.add('active');
+}
+
+function csRebuildBioTab() {
+  const panel = document.getElementById('tab-bio');
+  if (!panel) return;
+  const wasActive = panel.classList.contains('active');
+  panel.insertAdjacentHTML('afterend', buildBioTab());
+  panel.remove();
+  const newPanel = document.getElementById('tab-bio');
+  if (wasActive && newPanel) newPanel.classList.add('active');
 }
 
 // Toggle item search drawer
