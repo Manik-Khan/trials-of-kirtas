@@ -2513,18 +2513,39 @@ function csAccordionContent(item, i, editMode = false) {
       </div>`;
   }
   const stats = [];
-  if (item.dmg1 && item.dmgType) stats.push(["Damage", `${item.dmg1} ${item.dmgType}`]);
+  if (item.price)  stats.push(["Price", item.price]);
+  if (item.dmg1 && item.dmgType) stats.push(["Damage", `${item.dmg1} ${item.dmgType}${item.dmg2 ? ` / ${item.dmg2} (two-handed)` : ''}`]);
+  if (item.range)  stats.push(["Range", `${item.range} ft.`]);
   if (item.ac !== undefined && item.ac !== null) stats.push(["AC", item.ac]);
+  if (item.strength) stats.push(["Str required", item.strength]);
+  if (item.stealth)  stats.push(["Stealth", "Disadvantage"]);
   if (item.weight) stats.push(["Weight", `${item.weight} lb`]);
   if (item.reqAttune) stats.push(["Attunement", item.reqAttune]);
   if (item.attackStat) stats.push(["Attack stat", item.attackStat]);
-  if (item.source) stats.push(["Source", item.source]);
+  if (item.sourceFull || item.source) stats.push(["Source", item.sourceFull || item.source]);
   const statsHtml = stats.map(([k,v]) =>
     `<div class="equip-acc-stat"><span>${escapeHtml(k)}</span><span>${escapeHtml(String(v))}</span></div>`
   ).join("");
+
+  // Weapon category / type line
+  const catLine = (item.weaponCat || item.typeLabel)
+    ? `<div style="font-size:0.75rem;color:var(--muted);font-style:italic;margin-bottom:0.4rem">${escapeHtml(item.weaponCat || item.typeLabel)}</div>`
+    : "";
+
+  // Properties with descriptions
+  const props = item.properties || [];
+  const propsHtml = props.length ? `
+    <div style="margin-top:0.4rem;margin-bottom:0.3rem">
+      ${props.map(p => `
+        <div style="margin-bottom:0.35rem">
+          <span style="font-family:var(--font-title);font-size:0.75rem;color:var(--gold-light)">${escapeHtml(p.name || p)}</span>
+          ${p.desc ? `<div style="font-size:0.72rem;color:var(--muted);margin-top:0.1rem">${escapeHtml(p.desc)}</div>` : ""}
+        </div>`).join("")}
+    </div>` : "";
+
   const entries = item.entries || [];
   const desc = entries.length
-    ? `<div class="equip-acc-desc">${entries.map(e => typeof e === "string" ? `<p>${escapeHtml(e)}</p>` : "").join("")}</div>`
+    ? `<div class="equip-acc-desc">${entries.map(e => `<p>${escapeHtml(e)}</p>`).join("")}</div>`
     : "";
   const contents = item.contents && item.contents.length > 0
     ? `<div class="equip-acc-stat" style="flex-direction:column;align-items:flex-start;gap:0.2rem">
@@ -2532,7 +2553,7 @@ function csAccordionContent(item, i, editMode = false) {
         <span style="color:var(--parchment2);font-size:0.78rem">${item.contents.map(c => escapeHtml(c)).join(", ")}</span>
        </div>` : "";
   return `
-    ${statsHtml}${contents}${desc}
+    ${catLine}${statsHtml}${contents}${propsHtml}${desc}
     <div class="equip-acc-actions">
       <button class="equip-acc-btn primary" onclick="csEditItem(${i})">\u270E Edit</button>
       <button class="equip-acc-btn" onclick="event.stopPropagation();csMoveItem(${i},-1)">\u2191 Up</button>
@@ -2723,15 +2744,35 @@ function csAddItemByIndex(i) {
 }
 
 function csRenderItemDetail(item) {
-  const attune  = item.reqAttune ? `<div class="cs-idet-row"><span class="cs-idet-label">Attunement</span><span>${escapeHtml(item.reqAttune)}</span></div>` : '';
-  const weight  = item.weight    ? `<div class="cs-idet-row"><span class="cs-idet-label">Weight</span><span>${item.weight} lb</span></div>` : '';
-  const dmg     = item.dmg1 && item.dmgType ? `<div class="cs-idet-row"><span class="cs-idet-label">Damage</span><span>${escapeHtml(item.dmg1)} ${escapeHtml(item.dmgType)}</span></div>` : '';
-  const ac      = item.ac !== null ? `<div class="cs-idet-row"><span class="cs-idet-label">AC</span><span>${item.ac}</span></div>` : '';
-  const source  = item.source    ? `<div class="cs-idet-row"><span class="cs-idet-label">Source</span><span>${escapeHtml(item.source)}</span></div>` : '';
-  const entries = item.entries && item.entries.length
-    ? `<div class="cs-idet-desc">${item.entries.map(e => typeof e === 'string' ? `<p>${escapeHtml(e)}</p>` : '').join('')}</div>`
+  const catLine = (item.weaponCat || item.typeLabel)
+    ? `<div style="font-size:0.75rem;color:var(--muted);font-style:italic;margin-bottom:0.35rem">${escapeHtml(item.weaponCat || item.typeLabel)}</div>`
     : '';
-  return `<div class="cs-idet-stats">${dmg}${ac}${weight}${attune}${source}</div>${entries}`;
+  const rows = [];
+  if (item.price)    rows.push(['Price', item.price]);
+  if (item.dmg1 && item.dmgType) rows.push(['Damage', `${item.dmg1} ${item.dmgType}${item.dmg2 ? ` / ${item.dmg2}` : ''}`]);
+  if (item.range)    rows.push(['Range', `${item.range} ft.`]);
+  if (item.ac !== null && item.ac !== undefined) rows.push(['AC', item.ac]);
+  if (item.strength) rows.push(['Str required', item.strength]);
+  if (item.stealth)  rows.push(['Stealth', 'Disadvantage']);
+  if (item.weight)   rows.push(['Weight', `${item.weight} lb`]);
+  if (item.reqAttune) rows.push(['Attunement', item.reqAttune]);
+  if (item.sourceFull || item.source) rows.push(['Source', item.sourceFull || item.source]);
+  const statsHtml = `<div class="cs-idet-stats">${rows.map(([k,v]) =>
+    `<div class="cs-idet-row"><span class="cs-idet-label">${escapeHtml(k)}</span><span>${escapeHtml(String(v))}</span></div>`
+  ).join('')}</div>`;
+  const props = item.properties || [];
+  const propsHtml = props.length
+    ? `<div style="margin:0.3rem 0">${props.map(p =>
+        `<div style="margin-bottom:0.25rem">
+          <span style="font-family:var(--font-title);font-size:0.72rem;color:var(--gold-light)">${escapeHtml(p.name || p)}</span>
+          ${p.desc ? `<div style="font-size:0.7rem;color:var(--muted)">${escapeHtml(p.desc)}</div>` : ''}
+        </div>`).join('')}</div>`
+    : '';
+  const entries = item.entries || [];
+  const desc = entries.length
+    ? `<div class="cs-idet-desc">${entries.map(e => `<p>${escapeHtml(e)}</p>`).join('')}</div>`
+    : '';
+  return `${catLine}${statsHtml}${propsHtml}${desc}`;
 }
 
 function csToggleItemDetail(i) {
