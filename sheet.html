@@ -497,24 +497,25 @@
     /* ── EQUIPMENT TAB — split panel layout ── */
     .equip-layout {
       display: grid;
-      grid-template-columns: 1fr 300px;
+      grid-template-columns: 1fr 1fr;
       grid-template-rows: 1fr auto;
-      height: calc(100% - 2rem);
       min-height: 420px;
       gap: 0;
     }
     .equip-left {
-      border-right: 1px solid var(--gold-dim);
+      border-right: 2px solid var(--gold-dim);
       overflow-y: auto;
       padding: 0.75rem 0.85rem;
       display: flex;
       flex-direction: column;
       gap: 0;
+      background: rgba(0,0,0,0.08);
     }
     .equip-right {
       overflow-y: auto;
       padding: 0.85rem 0.9rem;
-      background: rgba(0,0,0,0.12);
+      background: rgba(0,0,0,0.18);
+      border-left: 1px solid rgba(184,149,42,0.15);
     }
     .equip-footer {
       grid-column: 1 / -1;
@@ -690,8 +691,88 @@
     }
     .equip-item-btn:hover { color: var(--aged); border-color: var(--gold-dim); }
     .equip-item-btn.del:hover { color: #c05060; border-color: rgba(192,80,96,0.3); }
-    /* Container contents */
-    .equip-container-contents {
+    /* Accordion item detail */
+    .equip-item-accordion {
+      display: none;
+      background: rgba(0,0,0,0.2);
+      border-left: 2px solid var(--gold-mid);
+      margin: 0 0 0.15rem 1.2rem;
+      padding: 0.6rem 0.75rem;
+    }
+    .equip-item-accordion.open { display: block; }
+    .equip-acc-stat {
+      display: flex;
+      justify-content: space-between;
+      font-size: 0.78rem;
+      padding: 0.25rem 0;
+      border-bottom: 1px solid rgba(184,149,42,0.07);
+      color: var(--muted);
+    }
+    .equip-acc-stat span:last-child { color: var(--parchment2); }
+    .equip-acc-desc {
+      font-size: 0.75rem;
+      color: var(--parchment2);
+      line-height: 1.6;
+      font-style: italic;
+      margin-top: 0.4rem;
+    }
+    .equip-acc-desc p { margin-bottom: 0.25rem; }
+    .equip-acc-actions {
+      display: flex;
+      gap: 0.4rem;
+      margin-top: 0.5rem;
+      flex-wrap: wrap;
+    }
+    .equip-acc-btn {
+      font-family: var(--font-title);
+      font-size: 0.35rem;
+      letter-spacing: 0.1em;
+      text-transform: uppercase;
+      padding: 0.2rem 0.5rem;
+      border: 1px solid var(--gold-dim);
+      background: transparent;
+      color: var(--muted);
+      cursor: pointer;
+      transition: all 0.12s;
+    }
+    .equip-acc-btn:hover { color: var(--aged); border-color: var(--gold-mid); }
+    .equip-acc-btn.primary { border-color: var(--gold-mid); color: var(--gold); background: rgba(184,149,42,0.08); }
+    .equip-acc-btn.primary:hover { background: rgba(184,149,42,0.18); }
+    .equip-acc-btn.danger { border-color: rgba(192,80,96,0.4); color: #c05060; }
+    .equip-acc-btn.danger:hover { background: rgba(192,80,96,0.1); }
+    /* Edit fields inside accordion */
+    .equip-acc-edit { margin-top: 0.5rem; }
+    .equip-acc-field-label {
+      font-family: var(--font-title);
+      font-size: 0.35rem;
+      letter-spacing: 0.12em;
+      text-transform: uppercase;
+      color: var(--muted);
+      display: block;
+      margin-bottom: 0.1rem;
+      margin-top: 0.35rem;
+    }
+    .equip-acc-field {
+      width: 100%;
+      background: rgba(0,0,0,0.3);
+      border: 1px solid var(--gold-dim);
+      color: var(--parchment);
+      font-family: var(--font-body);
+      font-size: 0.8rem;
+      padding: 0.2rem 0.4rem;
+      outline: none;
+    }
+    .equip-acc-field:focus { border-color: var(--gold-mid); }
+    .equip-acc-select {
+      width: 100%;
+      background: rgba(0,0,0,0.3);
+      border: 1px solid var(--gold-dim);
+      color: var(--parchment);
+      font-family: var(--font-title);
+      font-size: 0.72rem;
+      padding: 0.2rem 0.4rem;
+      outline: none;
+    }
       display: none;
       background: rgba(0,0,0,0.15);
       border-left: 2px solid var(--gold-dim);
@@ -1098,7 +1179,7 @@
       .combat-layout { grid-template-columns: 1fr; }
       .bio-layout { grid-template-columns: 1fr; }
       .equip-layout { grid-template-columns: 1fr; }
-      .equip-right { border-right: none; border-top: 1px solid var(--gold-dim); }
+      .equip-right { border-left: none; border-top: 2px solid var(--gold-dim); }
     }
     @media (max-width: 600px) {
       .core-layout { grid-template-columns: 1fr; }
@@ -2307,45 +2388,36 @@ function buildEquipmentTab() {
   _currentInv = inv.map(i => ({ ...i }));
   _currentCur = { ...cur };
 
-  const strScore   = C.abilities?.str || 10;
-  const carryMax   = strScore * 15;
+  const strScore    = C.abilities?.str || 10;
+  const carryMax    = strScore * 15;
   const totalWeight = inv.reduce((sum, item) => sum + ((parseFloat(item.weight)||0) * (parseInt(item.qty)||1)), 0);
-  const carryPct   = Math.min(totalWeight / carryMax, 1);
-  const carryFace  = carryPct >= 1 ? '😭' : carryPct >= 0.9 ? '😟' : carryPct >= 0.75 ? '😐' : '😄';
-  const barColor   = carryPct >= 1 ? '#c05060' : carryPct >= 0.9 ? '#c9824a' : carryPct >= 0.75 ? '#c9b44a' : '#5a9a6a';
-  const barPct     = Math.round(carryPct * 100);
+  const carryPct    = carryMax > 0 ? Math.min(totalWeight / carryMax, 1) : 0;
+  const carryFace   = carryPct >= 1 ? "\u{1F62D}" : carryPct >= 0.9 ? "\u{1F61F}" : carryPct >= 0.75 ? "\u{1F610}" : "\u{1F604}";
+  const barColor    = carryPct >= 1 ? "#c05060" : carryPct >= 0.9 ? "#c9824a" : carryPct >= 0.75 ? "#c9b44a" : "#5a9a6a";
+  const barPct      = Math.round(carryPct * 100);
 
   const invRows = inv.map((item, i) => {
-    const hasContents = item.contents && item.contents.length > 0;
-    const expandBtn = hasContents
-      ? `<span class="equip-item-expand" id="equip-exp-${i}">▶</span>`
-      : `<span class="equip-item-expand" style="opacity:0">▶</span>`;
-    const contentsHtml = hasContents ? `
-      <div class="equip-container-contents" id="equip-cont-${i}">
-        ${item.contents.map(c => `<div class="equip-container-item">${escapeHtml(c)}</div>`).join('')}
-      </div>` : '';
     return `
-      <div>
-        <div class="equip-item-row" id="equip-row-${i}" onclick="csSelectItem(${i}, event)">
-          ${expandBtn}
+      <div class="equip-item-wrap" id="equip-wrap-${i}">
+        <div class="equip-item-row" id="equip-row-${i}" onclick="csToggleAccordion(${i}, event)">
+          <span class="equip-item-expand" id="equip-exp-${i}">\u25B6</span>
           <div class="equip-item-name-wrap">
             <div class="equip-item-name">${escapeHtml(item.name)}</div>
-            ${item.detail ? `<div class="equip-item-sub">${escapeHtml(item.detail)}</div>` : ''}
+            ${item.detail ? `<div class="equip-item-sub">${escapeHtml(item.detail)}</div>` : ""}
           </div>
           <input class="equip-item-qty" type="number" min="0"
             value="${item.qty||1}"
             onchange="csUpdateQty(${i}, this.value)"
             onclick="event.stopPropagation()"
             aria-label="Qty">
-          <span class="equip-item-wt">${item.weight ? item.weight + ' lb' : '—'}</span>
-          <button class="equip-item-btn" onclick="event.stopPropagation();csMoveItem(${i},-1)" title="Move up">↑</button>
-          <button class="equip-item-btn" onclick="event.stopPropagation();csMoveItem(${i},1)" title="Move down">↓</button>
-          <button class="equip-item-btn" onclick="event.stopPropagation();csEditItem(${i})" title="Edit">✎</button>
-          <button class="equip-item-btn del" onclick="event.stopPropagation();csDeleteItem(${i})" title="Remove">✕</button>
+          <span class="equip-item-wt">${item.weight ? item.weight + " lb" : "\u2014"}</span>
+          <button class="equip-item-btn del" onclick="event.stopPropagation();csDeleteItem(${i})" title="Remove">\u2715</button>
         </div>
-        ${contentsHtml}
+        <div class="equip-item-accordion" id="equip-acc-${i}">
+          ${csAccordionContent(item, i)}
+        </div>
       </div>`;
-  }).join('');
+  }).join("");
 
   return `
   <div class="tab-panel" id="tab-equipment">
@@ -2357,15 +2429,15 @@ function buildEquipmentTab() {
       <div class="equip-left">
         <div class="equip-inv-header">
           <span class="equip-inv-title">Inventory</span>
-          <span class="equip-inv-count">${inv.length} item${inv.length!==1?'s':''}</span>
+          <span class="equip-inv-count">${inv.length} item${inv.length!==1?"s":""}</span>
         </div>
         ${inv.length === 0
-          ? `<div style="color:var(--muted);font-style:italic;font-size:0.82rem;padding:0.5rem 0">No items yet — search in the panel to the right.</div>`
+          ? `<div style="color:var(--muted);font-style:italic;font-size:0.82rem;padding:0.5rem 0">No items yet \u2014 search in the panel to the right.</div>`
           : invRows}
         <div style="margin-top:auto;padding-top:0.75rem">
           <div class="equip-panel-section">Session Notes</div>
           <textarea class="equip-notes-area" id="cs-notes"
-            placeholder="Ki points remaining, loot leads, reminders for next session…"
+            placeholder="Ki points remaining, loot leads, reminders for next session\u2026"
             oninput="csNotesChanged()">${escapeHtml(notes)}</textarea>
         </div>
       </div>
@@ -2381,7 +2453,7 @@ function buildEquipmentTab() {
           </div>
         </div>
         <div class="equip-currency">
-          ${[['pp','PP'],['gp','GP'],['ep','EP'],['sp','SP'],['cp','CP']].map(([k,lbl]) => `
+          ${[["pp","PP"],["gp","GP"],["ep","EP"],["sp","SP"],["cp","CP"]].map(([k,lbl]) => `
             <div class="equip-coin ${k}">
               <span class="equip-coin-label">${lbl}</span>
               <input class="equip-coin-input" type="number" min="0"
@@ -2389,7 +2461,7 @@ function buildEquipmentTab() {
                 id="cs-cur-${k}"
                 onchange="csUpdateCurrency()"
                 aria-label="${lbl}">
-            </div>`).join('')}
+            </div>`).join("")}
         </div>
       </div>
     </div>
@@ -2401,82 +2473,74 @@ function csRightPanelDefault() {
   const profHtml = Object.entries(profs).filter(([,v])=>v).map(([k,v]) => `
     <div class="equip-prof-cat">${escapeHtml(k)}</div>
     <div class="equip-prof-item">${escapeHtml(v)}</div>
-  `).join('');
+  `).join("");
   return `
     <div class="equip-panel-title">Add Item</div>
     <input class="equip-search-input" id="equip-search-input"
-      placeholder="Search items… e.g. Longsword"
+      placeholder="Search items\u2026 e.g. Longsword"
       oninput="csSearchItems(this.value)"
       autocomplete="off">
     <div class="equip-search-results" id="cs-item-results">
-      <div class="cs-item-empty">Type to search all 5etools items…</div>
+      <div class="cs-item-empty">Type to search all 5etools items\u2026</div>
     </div>
     ${profHtml ? `
       <div class="equip-panel-title" style="margin-top:1rem">Proficiencies</div>
       ${profHtml}
-    ` : ''}`;
+    ` : ""}`;
 }
 
-function csRightPanelItem(idx) {
-  const item = _currentInv[idx];
-  if (!item) return csRightPanelDefault();
-  const color = csRarityColor(item.rarity || 'None');
-  const rarity = item.rarity && item.rarity !== 'None'
-    ? `<span class="equip-panel-rarity" style="color:${color};border-color:${color}">${escapeHtml(item.rarity)}</span>`
-    : '';
+function csAccordionContent(item, i, editMode = false) {
+  if (editMode) {
+    const attackStats = ["STR","DEX","CHA","INT","WIS","CON"];
+    const currentStat = item.attackStat || "";
+    return `
+      <div class="equip-acc-edit">
+        <span class="equip-acc-field-label">Name</span>
+        <input class="equip-acc-field" id="acc-edit-name-${i}" value="${escapeHtml(item.name)}">
+        <span class="equip-acc-field-label">Detail / stats</span>
+        <input class="equip-acc-field" id="acc-edit-detail-${i}" value="${escapeHtml(item.detail||"")}" placeholder="e.g. martial \u00B7 1d8 S \u00B7 3 lb">
+        <span class="equip-acc-field-label">Attack stat override</span>
+        <select class="equip-acc-select" id="acc-edit-stat-${i}">
+          <option value="">\u2014 default (STR/DEX) \u2014</option>
+          ${attackStats.map(s => `<option value="${s}"${currentStat===s?" selected":""}>${s}</option>`).join("")}
+        </select>
+        <span class="equip-acc-field-label">Notes</span>
+        <textarea class="equip-acc-field" id="acc-edit-notes-${i}" rows="2" style="resize:vertical">${escapeHtml(item.notes||"")}</textarea>
+      </div>
+      <div class="equip-acc-actions">
+        <button class="equip-acc-btn primary" onclick="csSaveItemEdit(${i})">Save</button>
+        <button class="equip-acc-btn" onclick="csToggleAccordion(${i}, null)">Cancel</button>
+      </div>`;
+  }
   const stats = [];
-  if (item.dmg1 && item.dmgType) stats.push(['Damage', `${item.dmg1} ${item.dmgType}`]);
-  if (item.ac !== undefined && item.ac !== null) stats.push(['AC', item.ac]);
-  if (item.weight) stats.push(['Weight', `${item.weight} lb`]);
-  if (item.reqAttune) stats.push(['Attunement', item.reqAttune]);
-  if (item.source) stats.push(['Source', item.source]);
+  if (item.dmg1 && item.dmgType) stats.push(["Damage", `${item.dmg1} ${item.dmgType}`]);
+  if (item.ac !== undefined && item.ac !== null) stats.push(["AC", item.ac]);
+  if (item.weight) stats.push(["Weight", `${item.weight} lb`]);
+  if (item.reqAttune) stats.push(["Attunement", item.reqAttune]);
+  if (item.attackStat) stats.push(["Attack stat", item.attackStat]);
+  if (item.source) stats.push(["Source", item.source]);
   const statsHtml = stats.map(([k,v]) =>
-    `<div class="equip-panel-stat"><span>${escapeHtml(k)}</span><span>${escapeHtml(String(v))}</span></div>`
-  ).join('');
+    `<div class="equip-acc-stat"><span>${escapeHtml(k)}</span><span>${escapeHtml(String(v))}</span></div>`
+  ).join("");
   const entries = item.entries || [];
   const desc = entries.length
-    ? `<div class="equip-panel-desc">${entries.map(e => typeof e === 'string' ? `<p>${escapeHtml(e)}</p>` : '').join('')}</div>`
-    : '';
+    ? `<div class="equip-acc-desc">${entries.map(e => typeof e === "string" ? `<p>${escapeHtml(e)}</p>` : "").join("")}</div>`
+    : "";
+  const contents = item.contents && item.contents.length > 0
+    ? `<div class="equip-acc-stat" style="flex-direction:column;align-items:flex-start;gap:0.2rem">
+        <span style="font-family:var(--font-title);font-size:0.35rem;letter-spacing:0.12em;text-transform:uppercase;color:var(--muted)">Contents</span>
+        <span style="color:var(--parchment2);font-size:0.78rem">${item.contents.map(c => escapeHtml(c)).join(", ")}</span>
+       </div>` : "";
   return `
-    <div class="equip-panel-title">Item Detail</div>
-    <div class="equip-panel-item-name">${escapeHtml(item.name)}</div>
-    ${item.detail ? `<div class="equip-panel-item-type">${escapeHtml(item.detail)}</div>` : ''}
-    ${rarity}
-    ${statsHtml}
-    ${desc}`;
-}
-
-function csRightPanelEdit(idx) {
-  const item = _currentInv[idx];
-  if (!item) return csRightPanelDefault();
-  const attackStats = ['STR','DEX','CHA','INT','WIS','CON'];
-  const currentStat = item.attackStat || '';
-  return `
-    <div class="equip-panel-title">Edit Item</div>
-    <div class="equip-edit-row">
-      <span class="equip-edit-label">Name</span>
-      <input class="equip-edit-field" id="edit-name" value="${escapeHtml(item.name)}">
-    </div>
-    <div class="equip-edit-row">
-      <span class="equip-edit-label">Detail / stats</span>
-      <input class="equip-edit-field" id="edit-detail" value="${escapeHtml(item.detail||'')}" placeholder="e.g. martial · 1d8 S · 3 lb">
-    </div>
-    <div class="equip-edit-row">
-      <span class="equip-edit-label">Attack stat override</span>
-      <select class="equip-edit-field" id="edit-attackstat" style="font-family:var(--font-title);font-size:0.75rem">
-        <option value="">— default (STR/DEX) —</option>
-        ${attackStats.map(s => `<option value="${s}"${currentStat===s?' selected':''}>${s}</option>`).join('')}
-      </select>
-    </div>
-    <div class="equip-edit-row">
-      <span class="equip-edit-label">Notes</span>
-      <textarea class="equip-edit-field" id="edit-notes" rows="2" style="resize:vertical">${escapeHtml(item.notes||'')}</textarea>
-    </div>
-    <div class="equip-edit-actions">
-      <button class="equip-edit-btn primary" onclick="csSaveItemEdit(${idx})">Save</button>
-      <button class="equip-edit-btn" onclick="csSelectItem(${idx}, null)">Cancel</button>
+    ${statsHtml}${contents}${desc}
+    <div class="equip-acc-actions">
+      <button class="equip-acc-btn primary" onclick="csEditItem(${i})">\u270E Edit</button>
+      <button class="equip-acc-btn" onclick="event.stopPropagation();csMoveItem(${i},-1)">\u2191 Up</button>
+      <button class="equip-acc-btn" onclick="event.stopPropagation();csMoveItem(${i},1)">\u2193 Down</button>
+      <button class="equip-acc-btn danger" onclick="csDeleteItem(${i})">\u2715 Remove</button>
     </div>`;
 }
+
 
 // ── BIO TAB ──
 function buildBioTab() {
@@ -2692,9 +2756,8 @@ function csAddItemFromSearch(item) {
   _currentInv = inv;
   CharacterStore.save({ inventory: inv }, charKey);
   csRebuildEquipmentTab();
-  // Select the newly added item
   const newIdx = inv.findIndex(i => i.name === item.name);
-  if (newIdx >= 0) setTimeout(() => csSelectItem(newIdx, null), 50);
+  if (newIdx >= 0) setTimeout(() => csToggleAccordion(newIdx, null), 50);
 }
 
 // Add item from 5etools result
@@ -2727,51 +2790,57 @@ function csUpdateQty(idx, val) {
   csRebuildEquipmentTab();
 }
 
-// Select item — show detail in right panel
-function csSelectItem(idx, event) {
+// Toggle accordion open/closed
+function csToggleAccordion(idx, event) {
   if (event && event.target.closest('.equip-item-btn, .equip-item-qty')) return;
-  // Toggle container expansion if it has contents
-  const item = _currentInv[idx];
-  if (item && item.contents && item.contents.length > 0) {
-    const cont = document.getElementById(`equip-cont-${idx}`);
-    const exp  = document.getElementById(`equip-exp-${idx}`);
-    if (cont) cont.classList.toggle('open');
-    if (exp)  exp.classList.toggle('open');
-  }
-  // Highlight row
-  document.querySelectorAll('.equip-item-row').forEach(r => r.classList.remove('selected'));
+  const acc = document.getElementById(`equip-acc-${idx}`);
+  const exp = document.getElementById(`equip-exp-${idx}`);
   const row = document.getElementById(`equip-row-${idx}`);
-  if (row) row.classList.add('selected');
-  _selectedItemIdx = idx;
-  const panel = document.getElementById('equip-right-panel');
-  if (panel) panel.innerHTML = csRightPanelItem(idx);
+  if (!acc) return;
+  const isOpen = acc.classList.contains('open');
+  // Close all accordions
+  document.querySelectorAll('.equip-item-accordion').forEach(a => a.classList.remove('open'));
+  document.querySelectorAll('.equip-item-expand').forEach(e => e.classList.remove('open'));
+  document.querySelectorAll('.equip-item-row').forEach(r => r.classList.remove('selected'));
+  if (!isOpen) {
+    acc.classList.add('open');
+    if (exp) exp.classList.add('open');
+    if (row) row.classList.add('selected');
+  }
 }
 
-// Edit item — show edit form in right panel
+// Edit item — switch accordion to edit mode
 function csEditItem(idx) {
-  _selectedItemIdx = idx;
-  document.querySelectorAll('.equip-item-row').forEach(r => r.classList.remove('selected'));
-  const row = document.getElementById(`equip-row-${idx}`);
-  if (row) row.classList.add('selected');
-  const panel = document.getElementById('equip-right-panel');
-  if (panel) panel.innerHTML = csRightPanelEdit(idx);
-  setTimeout(() => document.getElementById('edit-name')?.focus(), 50);
+  const item = _currentInv[idx];
+  if (!item) return;
+  const acc = document.getElementById(`equip-acc-${idx}`);
+  if (!acc) return;
+  acc.innerHTML = csAccordionContent(item, idx, true);
+  acc.classList.add('open');
+  setTimeout(() => document.getElementById(`acc-edit-name-${idx}`)?.focus(), 50);
 }
 
 // Save item edits
 function csSaveItemEdit(idx) {
-  const name       = document.getElementById('edit-name')?.value.trim();
-  const detail     = document.getElementById('edit-detail')?.value.trim();
-  const attackStat = document.getElementById('edit-attackstat')?.value;
-  const notes      = document.getElementById('edit-notes')?.value.trim();
+  const name       = document.getElementById(`acc-edit-name-${idx}`)?.value.trim();
+  const detail     = document.getElementById(`acc-edit-detail-${idx}`)?.value.trim();
+  const attackStat = document.getElementById(`acc-edit-stat-${idx}`)?.value;
+  const notes      = document.getElementById(`acc-edit-notes-${idx}`)?.value.trim();
   if (!name) return;
   const inv = _currentInv.map(i => ({ ...i }));
   inv[idx] = { ...inv[idx], name, detail: detail || null, attackStat: attackStat || null, notes: notes || null };
   _currentInv = inv;
   CharacterStore.save({ inventory: inv }, charKey);
-  csRebuildEquipmentTab();
-  // Re-select the item after rebuild
-  setTimeout(() => csSelectItem(idx, null), 50);
+  // Switch accordion back to detail view without full rebuild
+  const acc = document.getElementById(`equip-acc-${idx}`);
+  if (acc) {
+    acc.innerHTML = csAccordionContent(inv[idx], idx);
+    // Update the name shown on the row
+    const nameEl = document.querySelector(`#equip-row-${idx} .equip-item-name`);
+    if (nameEl) nameEl.textContent = inv[idx].name;
+    const subEl = document.querySelector(`#equip-row-${idx} .equip-item-sub`);
+    if (subEl) subEl.textContent = inv[idx].detail || '';
+  }
 }
 
 // Move item up or down
@@ -2783,7 +2852,7 @@ function csMoveItem(idx, dir) {
   _currentInv = inv;
   CharacterStore.save({ inventory: inv }, charKey);
   csRebuildEquipmentTab();
-  setTimeout(() => csSelectItem(newIdx, null), 50);
+  setTimeout(() => csToggleAccordion(newIdx, null), 50);
 }
 
 // Update item quantity — 0 removes the item
