@@ -38,31 +38,38 @@ async function fetchJson(url) {
 async function loadAllItems() {
   if (_cache) return _cache;
 
-  const results = await Promise.allSettled(SOURCES.map(fetchJson));
+  // Load sequentially so items-base.json always populates first.
+  // Parallel loading (Promise.allSettled) doesn't guarantee order of resolution,
+  // meaning items.json could win deduplication and hide base items like "Longsword".
+  const baseItems = [];
+  const magicItems = [];
 
-  const all = [];
-  let loaded = 0;
-  for (const result of results) {
-    if (result.status === 'fulfilled') {
-      const items = result.value.item || result.value.items || [];
-      all.push(...items.filter(i => i.name));
-      loaded++;
-    } else {
-      console.error('[items] source failed:', result.reason?.message);
-    }
+  try {
+    const base = await fetchJson(SOURCES[0]);
+    baseItems.push(...(base.item || base.items || []).filter(i => i.name));
+    console.log(`[items] base: ${baseItems.length} items`);
+  } catch(e) {
+    console.error('[items] base source failed:', e.message);
   }
 
-  if (loaded === 0) throw new Error('All item sources failed to load');
+  try {
+    const magic = await fetchJson(SOURCES[1]);
+    magicItems.push(...(magic.item || magic.items || []).filter(i => i.name));
+    console.log(`[items] magic: ${magicItems.length} items`);
+  } catch(e) {
+    console.error('[items] magic source failed:', e.message);
+  }
 
-  // Deduplicate by name — first occurrence wins (items-base takes priority)
-  const seen = new Set();
-  _cache = all.filter(i => {
-    if (seen.has(i.name)) return false;
-    seen.add(i.name);
-    return true;
-  });
+  if (baseItems.length === 0 && magicItems.length === 0) {
+    throw new Error('All item sources failed to load');
+  }
 
-  console.log(`[items] loaded ${_cache.length} items from ${loaded} sources`);
+  // Base items first, then magic items that don't share a name with a base item
+  const baseNames = new Set(baseItems.map(i => i.name));
+  const uniqueMagic = magicItems.filter(i => !baseNames.has(i.name));
+
+  _cache = [...baseItems, ...uniqueMagic];
+  console.log(`[items] total: ${_cache.length} items (${baseItems.length} base + ${uniqueMagic.length} magic)`);
   return _cache;
 }
 
