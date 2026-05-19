@@ -19,6 +19,8 @@ const respond = (statusCode, body) => ({
 
 const BASE = 'https://raw.githubusercontent.com/5etools-mirror-3/5etools-2014-src/main/data';
 
+// Try multiple sources — first successful fetch wins for each slot
+// items-base.json has mundane gear; items.json has magic items
 const SOURCES = [
   `${BASE}/items-base.json`,
   `${BASE}/items.json`,
@@ -27,27 +29,32 @@ const SOURCES = [
 // Module-level cache — persists across warm function invocations
 let _cache = null;
 
+async function fetchJson(url) {
+  const res = await fetch(url);
+  if (!res.ok) throw new Error(`HTTP ${res.status}`);
+  return res.json();
+}
+
 async function loadAllItems() {
   if (_cache) return _cache;
 
-  const results = await Promise.allSettled(
-    SOURCES.map(url =>
-      fetch(url).then(r => {
-        if (!r.ok) throw new Error(`HTTP ${r.status} for ${url}`);
-        return r.json();
-      })
-    )
-  );
+  const results = await Promise.allSettled(SOURCES.map(fetchJson));
 
   const all = [];
+  let loaded = 0;
   for (const result of results) {
     if (result.status === 'fulfilled') {
-      const items = result.value.item || [];
+      const items = result.value.item || result.value.items || [];
       all.push(...items.filter(i => i.name));
+      loaded++;
+    } else {
+      console.error('[items] source failed:', result.reason?.message);
     }
   }
 
-  // Deduplicate by name — items-base takes priority over items.json
+  if (loaded === 0) throw new Error('All item sources failed to load');
+
+  // Deduplicate by name — first occurrence wins (items-base takes priority)
   const seen = new Set();
   _cache = all.filter(i => {
     if (seen.has(i.name)) return false;
@@ -55,24 +62,24 @@ async function loadAllItems() {
     return true;
   });
 
+  console.log(`[items] loaded ${_cache.length} items from ${loaded} sources`);
   return _cache;
 }
 
-// Normalise rarity to a consistent string
 function normaliseRarity(item) {
   if (!item.rarity || item.rarity === 'none') return 'None';
-  const r = item.rarity.toLowerCase();
-  if (r === 'common')    return 'Common';
-  if (r === 'uncommon')  return 'Uncommon';
-  if (r === 'rare')      return 'Rare';
-  if (r === 'very rare') return 'Very Rare';
-  if (r === 'legendary') return 'Legendary';
-  if (r === 'artifact')  return 'Artifact';
-  if (r === 'varies')    return 'Varies';
-  return item.rarity;
+  const map = {
+    'common':    'Common',
+    'uncommon':  'Uncommon',
+    'rare':      'Rare',
+    'very rare': 'Very Rare',
+    'legendary': 'Legendary',
+    'artifact':  'Artifact',
+    'varies':    'Varies',
+  };
+  return map[item.rarity.toLowerCase()] || item.rarity;
 }
 
-// Build a clean summary object for each item
 function summarise(item) {
   const dmg    = item.dmg1 && item.dmgType ? `${item.dmg1} ${item.dmgType}` : null;
   const detail = [
@@ -92,7 +99,9 @@ function summarise(item) {
     dmg1:      item.dmg1     || null,
     dmgType:   item.dmgType  || null,
     ac:        item.ac       !== undefined ? item.ac : null,
-    reqAttune: item.reqAttune ? (typeof item.reqAttune === 'string' ? item.reqAttune : 'Requires Attunement') : null,
+    reqAttune: item.reqAttune
+      ? (typeof item.reqAttune === 'string' ? item.reqAttune : 'Requires Attunement')
+      : null,
     properties: item.property || [],
     entries:   item.entries   || [],
     source:    item.source    || null,
@@ -119,7 +128,7 @@ exports.handler = async (event) => {
 
     return respond(200, { items: matches, total: matches.length, query: q });
   } catch (e) {
-    console.error('[items] error:', e);
+    console.error('[items] handler error:', e);
     return respond(500, { error: e.message });
   }
 };
