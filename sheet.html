@@ -1915,9 +1915,11 @@ function buildFeaturesTab() {
 // ── EQUIPMENT TAB ──
 function buildEquipmentTab() {
   const live = CharacterStore.get() || {};
-  const inv  = live.inventory  !== undefined ? live.inventory  : (C.inventory  || []);
-  const cur  = live.currency   !== undefined ? live.currency   : (C.currency   || {});
-  const notes = live.notes     || '';
+  // Use live inventory only if it has items; otherwise fall back to static data
+  const inv   = (live.inventory && live.inventory.length > 0) ? live.inventory : (C.inventory || []);
+  // Use live currency only if the file has been saved before (sha exists); otherwise static
+  const cur   = (live.currency && Object.values(live.currency).some(v => v > 0)) ? live.currency : (C.currency || {});
+  const notes = live.notes || '';
 
   const totalWeight = inv.reduce((sum, item) => sum + ((parseFloat(item.weight)||0) * (parseInt(item.qty)||1)), 0);
   const weightStr   = totalWeight > 0 ? totalWeight.toFixed(1) + ' lb' : '—';
@@ -2130,7 +2132,12 @@ let _itemsCache = null;
 async function csLoadItems() {
   if (_itemsCache) return _itemsCache;
   try {
-    const res  = await fetch('https://raw.githubusercontent.com/5etools-mirror-3/5etools-2014-src/main/data/items-base.json');
+    const BASE = 'https://raw.githubusercontent.com/5etools-mirror-3/5etools-2014-src/main/data';
+    // items-base.json has all standard equipment; items.json has magic/DMG items
+    // Try base first, fall back to the magic items file if unavailable
+    let res = await fetch(`${BASE}/items-base.json`);
+    if (!res.ok) res = await fetch(`${BASE}/items.json`);
+    if (!res.ok) throw new Error(`HTTP ${res.status}`);
     const json = await res.json();
     _itemsCache = (json.item || []).filter(i => i.name);
     return _itemsCache;
