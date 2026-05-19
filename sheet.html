@@ -595,9 +595,23 @@
     .cs-item-search:focus { border-color:var(--gold-mid); }
     .cs-item-search::placeholder { color:var(--muted); }
     .cs-item-results { max-height:180px; overflow-y:auto; display:flex; flex-direction:column; gap:0.25rem; }
-    .cs-item-result { display:flex; justify-content:space-between; align-items:center; padding:0.35rem 0.5rem; border:1px solid var(--gold-dim); background:transparent; color:var(--parchment); font-family:var(--font-body); font-size:0.82rem; cursor:pointer; transition:all 0.1s; text-align:left; width:100%; }
-    .cs-item-result:hover { background:rgba(184,149,42,0.08); border-color:var(--gold-mid); }
+    .cs-item-result-wrap { border: 1px solid var(--gold-dim); margin-bottom: 0.3rem; }
+    .cs-item-result { display:flex; flex-direction:column; gap:0.15rem; padding:0.35rem 0.5rem; background:transparent; color:var(--parchment); font-family:var(--font-body); font-size:0.82rem; cursor:pointer; transition:all 0.1s; text-align:left; width:100%; border:none; }
+    .cs-item-result:hover { background:rgba(184,149,42,0.08); }
+    .cs-item-result-main { display:flex; align-items:center; gap:0.5rem; }
+    .cs-item-result-name { flex:1; }
+    .cs-item-result-rarity { font-family:var(--font-title); font-size:0.38rem; letter-spacing:0.12em; text-transform:uppercase; padding:0.1rem 0.3rem; border:1px solid; flex-shrink:0; }
     .cs-item-result-meta { font-size:0.72rem; color:var(--muted); font-style:italic; }
+    .cs-item-detail { padding:0.6rem 0.75rem; background:rgba(0,0,0,0.2); border-top:1px solid var(--gold-dim); }
+    .cs-item-detail.hidden { display:none; }
+    .cs-idet-stats { display:grid; grid-template-columns:1fr 1fr; gap:0.25rem 0.5rem; margin-bottom:0.5rem; }
+    .cs-idet-row { display:flex; flex-direction:column; }
+    .cs-idet-label { font-family:var(--font-title); font-size:0.38rem; letter-spacing:0.12em; text-transform:uppercase; color:var(--muted); }
+    .cs-idet-desc { font-size:0.78rem; color:var(--parchment2); line-height:1.6; margin-top:0.4rem; }
+    .cs-idet-desc p { margin-bottom:0.3rem; }
+    .cs-item-add-btn { font-family:var(--font-title); font-size:0.42rem; letter-spacing:0.1em; text-transform:uppercase; padding:0.3rem 0.8rem; border:1px solid var(--gold-dim); background:rgba(184,149,42,0.08); color:var(--gold); cursor:pointer; transition:all 0.12s; margin-top:0.5rem; display:block; }
+    .cs-item-add-btn:hover { background:rgba(184,149,42,0.18); border-color:var(--gold); }
+
     .cs-item-empty { font-size:0.8rem; color:var(--muted); font-style:italic; padding:0.3rem 0.5rem; }
     .cs-notes-area { width:100%; min-height:100px; background:rgba(0,0,0,0.2); border:1px solid var(--gold-dim); color:var(--parchment); font-family:var(--font-body); font-size:0.9rem; line-height:1.65; padding:0.6rem 0.75rem; outline:none; resize:vertical; transition:border-color 0.15s; }
     .cs-notes-area:focus { border-color:var(--gold-mid); }
@@ -2138,43 +2152,105 @@ function csUpdateSyncUI(status) {
   });
 }
 
-// Cached 5etools item data
-let _itemsCache = null;
-async function csLoadItems() {
-  if (_itemsCache) return _itemsCache;
-  try {
-    const BASE = 'https://raw.githubusercontent.com/5etools-mirror-3/5etools-2014-src/main/data';
-    // items-base.json has all standard equipment; items.json has magic/DMG items
-    // Try base first, fall back to the magic items file if unavailable
-    let res = await fetch(`${BASE}/items-base.json`);
-    if (!res.ok) res = await fetch(`${BASE}/items.json`);
-    if (!res.ok) throw new Error(`HTTP ${res.status}`);
-    const json = await res.json();
-    _itemsCache = (json.item || []).filter(i => i.name);
-    return _itemsCache;
-  } catch(e) { console.error('[cs] items fetch failed', e); return []; }
-}
+// ── Item search via Netlify function (bypasses CORS) ──
+let _itemSearchTimer = null;
+let _expandedItem    = null;
 
-// Item search
-async function csSearchItems(query) {
+function csSearchItems(query) {
+  clearTimeout(_itemSearchTimer);
   const resultsEl = document.getElementById('cs-item-results');
   if (!resultsEl) return;
-  const q = query.trim().toLowerCase();
-  if (!q) { resultsEl.innerHTML = '<div class="cs-item-empty">Start typing to search items…</div>'; return; }
+  const q = query.trim();
+  if (q.length < 2) {
+    resultsEl.innerHTML = '<div class="cs-item-empty">Type at least 2 characters to search…</div>';
+    return;
+  }
   resultsEl.innerHTML = '<div class="cs-item-empty">Searching…</div>';
-  const items   = await csLoadItems();
-  const matches = items.filter(i => i.name.toLowerCase().includes(q)).slice(0, 12);
-  if (!matches.length) { resultsEl.innerHTML = '<div class="cs-item-empty">No items found.</div>'; return; }
-  resultsEl.innerHTML = matches.map(i => {
-    const rarity = i.rarity && i.rarity !== 'none' ? ' · ' + i.rarity : '';
-    const weight = i.weight ? ' · ' + i.weight + ' lb' : '';
-    const dmg    = i.dmg1 && i.dmgType ? i.dmg1 + ' ' + i.dmgType : '';
-    const detail = [i.weaponCategory, dmg, i.ac ? 'AC ' + i.ac : ''].filter(Boolean).join(' · ');
-    return `<button class="cs-item-result" onclick='csAddItem(${JSON.stringify(JSON.stringify(i))})'>
-      <span>${escapeHtml(i.name)}</span>
-      <span class="cs-item-result-meta">${escapeHtml(detail + rarity + weight)}</span>
-    </button>`;
-  }).join('');
+  _itemSearchTimer = setTimeout(async () => {
+    try {
+      const res  = await fetch(`/.netlify/functions/items?q=${encodeURIComponent(q)}`);
+      const json = await res.json();
+      if (!res.ok) throw new Error(json.error || 'Search failed');
+      if (!json.items.length) {
+        resultsEl.innerHTML = '<div class="cs-item-empty">No items found.</div>';
+        return;
+      }
+      resultsEl.innerHTML = json.items.map((item, i) =>
+        csRenderItemResult(item, i)
+      ).join('');
+    } catch(e) {
+      resultsEl.innerHTML = `<div class="cs-item-empty">Search failed: ${e.message}</div>`;
+    }
+  }, 350);
+}
+
+const RARITY_COLORS = {
+  'None':      '#9a9a9a',
+  'Common':    '#9a9a9a',
+  'Uncommon':  '#4a9a4a',
+  'Rare':      '#4a6aaa',
+  'Very Rare': '#7a4aaa',
+  'Legendary': '#b8952a',
+  'Artifact':  '#c8432a',
+  'Varies':    '#9a9a9a',
+};
+
+function csRarityColor(rarity) {
+  return RARITY_COLORS[rarity] || '#9a9a9a';
+}
+
+function csRenderItemResult(item, i) {
+  const color = csRarityColor(item.rarity);
+  const rarity = item.rarity !== 'None' ? item.rarity : '';
+  return `<div class="cs-item-result-wrap" id="cs-iresult-${i}">
+    <button class="cs-item-result" onclick="csToggleItemDetail(${i})">
+      <div class="cs-item-result-main">
+        <span class="cs-item-result-name">${escapeHtml(item.name)}</span>
+        ${rarity ? `<span class="cs-item-result-rarity" style="color:${color};border-color:${color}">${rarity}</span>` : ''}
+      </div>
+      ${item.detail ? `<span class="cs-item-result-meta">${escapeHtml(item.detail)}</span>` : ''}
+    </button>
+    <div class="cs-item-detail hidden" id="cs-idetail-${i}">
+      ${csRenderItemDetail(item)}
+      <button class="cs-item-add-btn" onclick='csAddItemFromSearch(${JSON.stringify(JSON.stringify(item))})'>+ Add to Inventory</button>
+    </div>
+  </div>`;
+}
+
+function csRenderItemDetail(item) {
+  const attune  = item.reqAttune ? `<div class="cs-idet-row"><span class="cs-idet-label">Attunement</span><span>${escapeHtml(item.reqAttune)}</span></div>` : '';
+  const weight  = item.weight    ? `<div class="cs-idet-row"><span class="cs-idet-label">Weight</span><span>${item.weight} lb</span></div>` : '';
+  const dmg     = item.dmg1 && item.dmgType ? `<div class="cs-idet-row"><span class="cs-idet-label">Damage</span><span>${escapeHtml(item.dmg1)} ${escapeHtml(item.dmgType)}</span></div>` : '';
+  const ac      = item.ac !== null ? `<div class="cs-idet-row"><span class="cs-idet-label">AC</span><span>${item.ac}</span></div>` : '';
+  const source  = item.source    ? `<div class="cs-idet-row"><span class="cs-idet-label">Source</span><span>${escapeHtml(item.source)}</span></div>` : '';
+  const entries = item.entries && item.entries.length
+    ? `<div class="cs-idet-desc">${item.entries.map(e => typeof e === 'string' ? `<p>${escapeHtml(e)}</p>` : '').join('')}</div>`
+    : '';
+  return `<div class="cs-idet-stats">${dmg}${ac}${weight}${attune}${source}</div>${entries}`;
+}
+
+function csToggleItemDetail(i) {
+  const detail = document.getElementById(`cs-idetail-${i}`);
+  if (!detail) return;
+  const isHidden = detail.classList.contains('hidden');
+  // Close any other open detail
+  document.querySelectorAll('.cs-item-detail').forEach(el => el.classList.add('hidden'));
+  if (isHidden) detail.classList.remove('hidden');
+}
+
+function csAddItemFromSearch(itemJson) {
+  const item = JSON.parse(itemJson);
+  const inv  = (_currentInv || []).map(i => ({ ...i }));
+  const existing = inv.findIndex(i => i.name === item.name);
+  if (existing >= 0) {
+    inv[existing] = { ...inv[existing], qty: (inv[existing].qty||1) + 1 };
+  } else {
+    inv.push({ name: item.name, detail: item.detail || null, qty: 1, weight: item.weight || null });
+  }
+  _currentInv = inv;
+  CharacterStore.save({ inventory: inv }, charKey);
+  csCloseItemSearch();
+  csRebuildEquipmentTab();
 }
 
 // Add item from 5etools result
@@ -2290,7 +2366,7 @@ const COMP_SOURCES = {
   spells:     { label: "Player's Handbook", file: 'spells/spells-phb.json' },
   monsters:   { label: 'Monster Manual',    file: 'bestiary/bestiary-mm.json' },
   conditions: { label: 'All Conditions',    file: 'conditionsdiseases.json' },
-  items:      { label: "Dungeon Master's Guide", file: 'items.json' },
+  items:      { label: 'All Items',         netlify: true },
 };
 
 const COMP_SPELL_FILTERS = [
@@ -2366,6 +2442,15 @@ function setCompFilter(btn, val) {
 // ── Load data ──
 async function compLoadSource() {
   const src = COMP_SOURCES[compCat];
+
+  // Items use the Netlify proxy — search-driven, not bulk load
+  if (src.netlify) {
+    compAllEntries = [];
+    compFiltered   = [];
+    setCompListState('Type in the search box to find items…');
+    return;
+  }
+
   const url = `${COMP_BASE}/${src.file}`;
   setCompListState('<div class="comp-panel-spinner"></div> Loading…');
 
@@ -2401,7 +2486,21 @@ function compParseData(data, cat) {
 }
 
 // ── Filter & render list ──
+let _compItemTimer = null;
 function compFilterList() {
+  // Items use live search via Netlify function
+  if (compCat === 'items') {
+    const q = (document.getElementById('comp-panel-search').value||'').trim();
+    clearTimeout(_compItemTimer);
+    if (q.length < 2) {
+      setCompListState('Type at least 2 characters to search items…');
+      return;
+    }
+    setCompListState('<div class="comp-panel-spinner"></div> Searching…');
+    _compItemTimer = setTimeout(() => compSearchItems(q), 350);
+    return;
+  }
+
   const q = (document.getElementById('comp-panel-search').value||'').toLowerCase().trim();
   compFiltered = compAllEntries.filter(e => {
     if (!e.name.toLowerCase().includes(q)) return false;
@@ -2430,6 +2529,28 @@ function compFilterList() {
       <span class="comp-panel-item-tag">${e.tag}</span>
     </div>`
   ).join('');
+}
+
+async function compSearchItems(q) {
+  try {
+    const res  = await fetch(`/.netlify/functions/items?q=${encodeURIComponent(q)}&limit=50`);
+    const json = await res.json();
+    if (!res.ok) throw new Error(json.error || 'Search failed');
+    if (!json.items.length) { setCompListState('No items found.'); return; }
+
+    compFiltered = json.items.map(i => ({ raw: i, name: i.name, tag: i.rarity !== 'None' ? i.rarity : (i.typeText || 'Item') }));
+
+    const list = document.getElementById('comp-panel-list');
+    list.innerHTML = compFiltered.map((e, i) => {
+      const color = csRarityColor(e.raw.rarity);
+      return `<div class="comp-panel-item" onclick="compSelectEntry(${i})" id="cp-item-${i}">
+        <span class="comp-panel-item-name">${escapeHtml(e.name)}</span>
+        <span class="comp-panel-item-tag" style="color:${color};border-color:${color}40">${escapeHtml(e.tag)}</span>
+      </div>`;
+    }).join('');
+  } catch(e) {
+    setCompListState(`Search failed: ${e.message}`);
+  }
 }
 
 // ── Select entry ──
@@ -2531,13 +2652,15 @@ function compRenderCondition(c) {
 }
 
 function compRenderItem(item) {
-  const rarity = item.rarity||'Common';
-  const attune = item.reqAttune ? ` · Requires Attunement` : '';
-  const body   = compRenderEntries(item.entries||[]);
-  return `<div class="cpd-name">${item.name}</div>
-    <div class="cpd-meta">${rarity}${attune}</div>
+  // item here is the raw summarised object from the Netlify function
+  const color   = csRarityColor(item.rarity || 'None');
+  const detail  = csRenderItemDetail(item);
+  const addJson = JSON.stringify(JSON.stringify(item));
+  return `<div class="cpd-name">${escapeHtml(item.name)}</div>
+    <div class="cpd-meta" style="color:${color}">${escapeHtml(item.rarity||'')}</div>
     <hr class="cpd-rule">
-    <div class="cpd-body">${body||'<em style="color:var(--muted)">No description available.</em>'}</div>`;
+    ${detail}
+    <button class="cs-item-add-btn" style="margin-top:1rem;width:100%" onclick='csAddItemFromSearch(${addJson})'>+ Add to Inventory</button>`;
 }
 
 function compRenderTraits(traits, heading) {
