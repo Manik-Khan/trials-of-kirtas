@@ -1913,13 +1913,23 @@ function buildFeaturesTab() {
 }
 
 // ── EQUIPMENT TAB ──
+// _currentInv tracks whatever inventory is currently displayed —
+// either live data from the store or static fallback from characters.js.
+// All edit functions (qty, delete, add) operate on this directly.
+let _currentInv = null;
+let _currentCur = null;
+
 function buildEquipmentTab() {
   const live = CharacterStore.get() || {};
   // Use live inventory only if it has items; otherwise fall back to static data
   const inv   = (live.inventory && live.inventory.length > 0) ? live.inventory : (C.inventory || []);
-  // Use live currency only if the file has been saved before (sha exists); otherwise static
+  // Use live currency only if any coin is non-zero; otherwise fall back to static
   const cur   = (live.currency && Object.values(live.currency).some(v => v > 0)) ? live.currency : (C.currency || {});
   const notes = live.notes || '';
+
+  // Keep tracked copies in sync with what's rendered
+  _currentInv = inv.map(i => ({ ...i }));
+  _currentCur = { ...cur };
 
   const totalWeight = inv.reduce((sum, item) => sum + ((parseFloat(item.weight)||0) * (parseInt(item.qty)||1)), 0);
   const weightStr   = totalWeight > 0 ? totalWeight.toFixed(1) + ' lb' : '—';
@@ -2169,8 +2179,7 @@ async function csSearchItems(query) {
 // Add item from 5etools result
 function csAddItem(itemJson) {
   const item = JSON.parse(itemJson);
-  const live = CharacterStore.get() || {};
-  const inv  = [...(live.inventory || [])];
+  const inv  = (_currentInv || []).map(i => ({ ...i }));
   const existing = inv.findIndex(i => i.name === item.name);
   if (existing >= 0) {
     inv[existing] = { ...inv[existing], qty: (inv[existing].qty||1) + 1 };
@@ -2179,27 +2188,29 @@ function csAddItem(itemJson) {
     const detail = [item.weaponCategory, dmg, item.ac ? 'AC ' + item.ac : ''].filter(Boolean).join(' · ');
     inv.push({ name: item.name, detail: detail || null, qty: 1, weight: item.weight || null });
   }
-  CharacterStore.save({ inventory: inv }, currentIdentity?.name || charKey);
+  _currentInv = inv;
+  CharacterStore.save({ inventory: inv }, charKey);
   csCloseItemSearch();
   csRebuildEquipmentTab();
 }
 
 // Update item quantity — 0 deletes
 function csUpdateQty(idx, val) {
-  const live = CharacterStore.get() || {};
-  const inv  = [...(live.inventory || [])];
-  if (!inv[idx]) return;
+  if (!_currentInv || !_currentInv[idx]) return;
+  const inv = _currentInv.map(i => ({ ...i }));
   const qty = parseInt(val);
   if (qty <= 0) { inv.splice(idx, 1); } else { inv[idx] = { ...inv[idx], qty }; }
-  CharacterStore.save({ inventory: inv }, currentIdentity?.name || charKey);
+  _currentInv = inv;
+  CharacterStore.save({ inventory: inv }, charKey);
 }
 
 // Delete item
 function csDeleteItem(idx) {
-  const live = CharacterStore.get() || {};
-  const inv  = [...(live.inventory || [])];
+  if (!_currentInv) return;
+  const inv = _currentInv.map(i => ({ ...i }));
   inv.splice(idx, 1);
-  CharacterStore.save({ inventory: inv }, currentIdentity?.name || charKey);
+  _currentInv = inv;
+  CharacterStore.save({ inventory: inv }, charKey);
   csRebuildEquipmentTab();
 }
 
@@ -2208,9 +2219,10 @@ function csUpdateCurrency() {
   const currency = {};
   ['pp','gp','ep','sp','cp'].forEach(c => {
     const el = document.getElementById('cs-cur-' + c);
-    currency[c] = el ? parseInt(el.value)||0 : 0;
+    currency[c] = el ? parseInt(el.value)||0 : (_currentCur?.[c] || 0);
   });
-  CharacterStore.save({ currency }, currentIdentity?.name || charKey);
+  _currentCur = currency;
+  CharacterStore.save({ currency }, charKey);
 }
 
 // ── Re-render helpers — safe tab replacement that preserves active state ──
@@ -2257,7 +2269,7 @@ function csNotesChanged() {
   clearTimeout(_notesTimer);
   _notesTimer = setTimeout(() => {
     const val = document.getElementById('cs-notes')?.value || '';
-    CharacterStore.save({ notes: val }, currentIdentity?.name || charKey);
+    CharacterStore.save({ notes: val }, charKey);
   }, 800);
 }
 
@@ -2266,7 +2278,7 @@ const _bioTimers = {};
 function csBioChanged(field, value) {
   clearTimeout(_bioTimers[field]);
   _bioTimers[field] = setTimeout(() => {
-    CharacterStore.save({ bio: { [field]: value } }, currentIdentity?.name || charKey);
+    CharacterStore.save({ bio: { [field]: value } }, charKey);
   }, 800);
 }
 
