@@ -3,7 +3,7 @@
   "inventory": [],
   "currency": {
     "pp": 0,
-    "gp": 0,
+    "gp": 2,
     "ep": 0,
     "sp": 0,
     "cp": 0
@@ -16,5 +16,5 @@
     "flaws": "",
     "backstory": ""
   },
-  "lastUpdated": "2026-05-19T07:21:52.252Z"
+  "lastUpdated": "2026-05-19T07:21:55.853Z"
 }
