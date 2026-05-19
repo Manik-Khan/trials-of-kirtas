@@ -1106,6 +1106,10 @@ let maxHPVal       = 0;
 let hasInspiration = false;
 let slots          = ['empty','empty','empty','empty'];
 let SLOTS_KEY      = 'kirtas-slots-default';
+// Equipment tab state — tracks displayed inventory and currency
+// Must be declared here (not near buildEquipmentTab) to avoid temporal dead zone
+let _currentInv  = null;
+let _currentCur  = null;
 
 const params  = new URLSearchParams(window.location.search);
 const charKey = params.get('character') || 'tyros';
@@ -1916,9 +1920,6 @@ function buildFeaturesTab() {
 // _currentInv tracks whatever inventory is currently displayed —
 // either live data from the store or static fallback from characters.js.
 // All edit functions (qty, delete, add) operate on this directly.
-let _currentInv = null;
-let _currentCur = null;
-
 function buildEquipmentTab() {
   const live = CharacterStore.get() || {};
   // Use live inventory only if it has items; otherwise fall back to static data
