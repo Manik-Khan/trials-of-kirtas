@@ -1,0 +1,20 @@
+{
+  "key": "tyros",
+  "inventory": [],
+  "currency": {
+    "pp": 0,
+    "gp": 3,
+    "ep": 0,
+    "sp": 0,
+    "cp": 0
+  },
+  "notes": "",
+  "bio": {
+    "personality": "",
+    "ideals": "",
+    "bonds": "",
+    "flaws": "",
+    "backstory": ""
+  },
+  "lastUpdated": "2026-05-19T06:52:13.016Z"
+}
