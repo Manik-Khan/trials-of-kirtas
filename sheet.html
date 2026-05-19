@@ -1474,8 +1474,21 @@ let slots          = ['empty','empty','empty','empty'];
 let SLOTS_KEY      = 'kirtas-slots-default';
 // Equipment tab state — tracks displayed inventory and currency
 // Must be declared here (not near buildEquipmentTab) to avoid temporal dead zone
-let _currentInv  = null;
-let _currentCur  = null;
+let _currentInv      = null;
+let _currentCur      = null;
+let _selectedItemIdx = null;
+let _itemSearchTimer = null;
+let _itemSearchResults = [];
+let _notesTimer      = null;
+let _compItemTimer   = null;
+let _compItemResults = [];
+const _bioTimers     = {};
+let compOpen         = false;
+let compCat          = 'spells';
+let compAllEntries   = [];
+let compFiltered     = [];
+let compFilter       = null;
+let compCache        = {};
 
 const params  = new URLSearchParams(window.location.search);
 const charKey = params.get('character') || 'tyros';
@@ -2579,9 +2592,6 @@ function csUpdateSyncUI(status) {
 }
 
 // ── Item search via Netlify function (bypasses CORS) ──
-let _itemSearchTimer = null;
-let _itemSearchResults = []; // store results by index to avoid onclick JSON encoding issues
-
 function csSearchItems(query) {
   clearTimeout(_itemSearchTimer);
   const resultsEl = document.getElementById('cs-item-results');
@@ -2717,9 +2727,6 @@ function csUpdateQty(idx, val) {
   csRebuildEquipmentTab();
 }
 
-// ── Selected item state ──
-let _selectedItemIdx = null;
-
 // Select item — show detail in right panel
 function csSelectItem(idx, event) {
   if (event && event.target.closest('.equip-item-btn, .equip-item-qty')) return;
@@ -2778,6 +2785,9 @@ function csMoveItem(idx, dir) {
   csRebuildEquipmentTab();
   setTimeout(() => csSelectItem(newIdx, null), 50);
 }
+
+// Update item quantity — 0 removes the item
+function csUpdateQty(idx, val) {
   if (!_currentInv || !_currentInv[idx]) return;
   const inv = _currentInv.map(i => ({ ...i }));
   const qty = parseInt(val);
@@ -2838,7 +2848,6 @@ function csRebuildBioTab() {
 
 // Toggle item search drawer
 // Notes — debounced save
-let _notesTimer = null;
 function csNotesChanged() {
   clearTimeout(_notesTimer);
   _notesTimer = setTimeout(() => {
@@ -2848,7 +2857,6 @@ function csNotesChanged() {
 }
 
 // Bio fields — debounced save per field
-const _bioTimers = {};
 function csBioChanged(field, value) {
   clearTimeout(_bioTimers[field]);
   _bioTimers[field] = setTimeout(() => {
@@ -2876,12 +2884,6 @@ const COMP_CR_FILTERS = [
   { label:'1–4', val:'mid' }, { label:'5–10', val:'high' }, { label:'11+', val:'deadly' },
 ];
 
-let compOpen       = false;
-let compCat        = 'spells';
-let compAllEntries = [];
-let compFiltered   = [];
-let compFilter     = null;
-let compCache      = {};
 
 // ── Toggle panel ──
 function toggleCompendium() {
@@ -2983,7 +2985,6 @@ function compParseData(data, cat) {
 }
 
 // ── Filter & render list ──
-let _compItemTimer = null;
 function compFilterList() {
   // Items use live search via Netlify function
   if (compCat === 'items') {
@@ -3028,7 +3029,6 @@ function compFilterList() {
   ).join('');
 }
 
-let _compItemResults = []; // store compendium item results by index
 
 async function compSearchItems(q) {
   try {
