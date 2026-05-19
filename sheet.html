@@ -2168,7 +2168,7 @@ function csSearchItems(query) {
   resultsEl.innerHTML = '<div class="cs-item-empty">Searching…</div>';
   _itemSearchTimer = setTimeout(async () => {
     try {
-      const res  = await fetch(`/.netlify/functions/items?q=${encodeURIComponent(q)}`);
+      const res  = await fetch(`/.netlify/functions/items2?q=${encodeURIComponent(q)}`);
       const json = await res.json();
       if (!res.ok) throw new Error(json.error || 'Search failed');
       if (!json.items.length) {
@@ -2539,7 +2539,7 @@ let _compItemResults = []; // store compendium item results by index
 
 async function compSearchItems(q) {
   try {
-    const res  = await fetch(`/.netlify/functions/items?q=${encodeURIComponent(q)}&limit=50`);
+    const res  = await fetch(`/.netlify/functions/items2?q=${encodeURIComponent(q)}&limit=50`);
     const json = await res.json();
     if (!res.ok) throw new Error(json.error || 'Search failed');
     if (!json.items.length) { setCompListState('No items found.'); return; }
