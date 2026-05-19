@@ -46,8 +46,7 @@ async function loadAllItems() {
 
   try {
     const base = await fetchJson(SOURCES[0]);
-    console.log('[items] base keys:', Object.keys(base).join(', '));
-    baseItems.push(...(base.item || base.items || base.baseitem || base.baseItem || []).filter(i => i.name));
+    baseItems.push(...(base.baseitem || base.item || base.items || []).filter(i => i.name));
     console.log(`[items] base: ${baseItems.length} items`);
   } catch(e) {
     console.error('[items] base source failed:', e.message);
