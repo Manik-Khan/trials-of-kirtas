@@ -2,6 +2,32 @@
   "key": "vesperian",
   "inventory": [
     {
+      "name": "Longsword",
+      "rarity": "None",
+      "type": "M",
+      "typeLabel": "Melee Weapon",
+      "weaponCat": "martial weapon, melee weapon",
+      "detail": "martial weapon · 1d8 S · 3 lb",
+      "price": "15 gp",
+      "weight": 3,
+      "dmg1": "1d8",
+      "dmg2": "1d10",
+      "dmgType": "S",
+      "range": null,
+      "ac": null,
+      "strength": null,
+      "stealth": null,
+      "reqAttune": null,
+      "properties": "Versatile (1d10), Bonded",
+      "entries": [],
+      "contents": null,
+      "source": "PHB",
+      "sourceFull": "PHB p149",
+      "page": 149,
+      "_enriched": true,
+      "alias": null
+    },
+    {
       "name": "Explorer's Pack",
       "rarity": "None",
       "type": "G",
@@ -37,32 +63,6 @@
       "source": "PHB",
       "sourceFull": "PHB p151",
       "page": 151,
-      "_enriched": true,
-      "alias": null
-    },
-    {
-      "name": "Longsword",
-      "rarity": "None",
-      "type": "M",
-      "typeLabel": "Melee Weapon",
-      "weaponCat": "martial weapon, melee weapon",
-      "detail": "martial weapon · 1d8 S · 3 lb",
-      "price": "15 gp",
-      "weight": 3,
-      "dmg1": "1d8",
-      "dmg2": "1d10",
-      "dmgType": "S",
-      "range": null,
-      "ac": null,
-      "strength": null,
-      "stealth": null,
-      "reqAttune": null,
-      "properties": "Versatile (1d10), Bonded",
-      "entries": [],
-      "contents": null,
-      "source": "PHB",
-      "sourceFull": "PHB p149",
-      "page": 149,
       "_enriched": true,
       "alias": null
     },
@@ -138,5 +138,5 @@
     "flaws": "",
     "backstory": ""
   },
-  "lastUpdated": "2026-05-20T19:02:43.488Z"
+  "lastUpdated": "2026-05-20T19:03:17.842Z"
 }
