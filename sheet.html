@@ -973,7 +973,60 @@
     .equip-edit-btn.primary:hover { background: rgba(184,149,42,0.18); }
     .equip-edit-btn.danger { border-color: rgba(192,80,96,0.4); color: #c05060; }
     .equip-edit-btn.danger:hover { background: rgba(192,80,96,0.1); }
-    .equip-notes-area {
+    .equip-right-tabs {
+      display: flex;
+      border-bottom: 1px solid var(--gold-dim);
+      margin-bottom: 0.6rem;
+      gap: 0;
+    }
+    .equip-right-tab {
+      font-family: var(--font-title);
+      font-size: 0.4rem;
+      letter-spacing: 0.14em;
+      text-transform: uppercase;
+      padding: 0.4rem 0.8rem;
+      background: transparent;
+      border: none;
+      border-bottom: 2px solid transparent;
+      color: var(--muted);
+      cursor: pointer;
+      transition: all 0.15s;
+      margin-bottom: -1px;
+    }
+    .equip-right-tab:hover { color: var(--aged); }
+    .equip-right-tab.active { color: var(--gold); border-bottom-color: var(--gold); }
+    .equip-right-tab:disabled { opacity: 0.35; cursor: default; }
+    .equip-right-body { overflow-y: auto; }
+    /* Proficiencies accordion below left panel */
+    .equip-prof-accordion {
+      grid-column: 1 / 2;
+      border-top: 1px solid var(--gold-dim);
+      background: rgba(0,0,0,0.15);
+    }
+    .equip-prof-toggle {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 0.4rem 0.85rem;
+      cursor: pointer;
+      font-family: var(--font-title);
+      font-size: 0.4rem;
+      letter-spacing: 0.14em;
+      text-transform: uppercase;
+      color: var(--muted);
+      transition: color 0.15s;
+      user-select: none;
+    }
+    .equip-prof-toggle:hover { color: var(--aged); }
+    .equip-prof-toggle-arrow { transition: transform 0.2s; font-size: 0.5rem; }
+    .equip-prof-toggle-arrow.open { transform: rotate(90deg); }
+    .equip-prof-body {
+      display: none;
+      padding: 0.5rem 0.85rem 0.75rem;
+      column-count: 2;
+      column-gap: 1rem;
+    }
+    .equip-prof-body.open { display: block; }
       width: 100%;
       background: rgba(0,0,0,0.2);
       border: 1px solid var(--gold-dim);
@@ -1609,6 +1662,7 @@ let SLOTS_KEY      = 'kirtas-slots-default';
 let _currentInv      = null;
 let _currentCur      = null;
 let _selectedItemIdx = null;
+let _rightTab        = 'search';
 let _itemSearchTimer = null;
 let _itemSearchResults = [];
 let _notesTimer      = null;
@@ -2527,34 +2581,94 @@ function buildEquipmentTab() {
         </div>
       </div>
     </div>
+    ${csBuildProfAccordion()}
   </div>`;
 }
 
+// ── Right panel tab state ──
+
+function csSetRightTab(tab) {
+  _rightTab = tab;
+  const body = document.getElementById('equip-right-body');
+  const searchBtn = document.querySelector('.equip-right-tab:first-child');
+  const detailBtn = document.getElementById('equip-tab-detail');
+  if (!body) return;
+  if (tab === 'search') {
+    document.querySelectorAll('.equip-item-row').forEach(r => r.classList.remove('selected'));
+    _selectedItemIdx = null;
+    body.innerHTML = csRightPanelSearch();
+    if (searchBtn) searchBtn.classList.add('active');
+    if (detailBtn) { detailBtn.classList.remove('active'); detailBtn.disabled = true; }
+  } else if (tab === 'detail' && _selectedItemIdx !== null) {
+    if (searchBtn) searchBtn.classList.remove('active');
+    if (detailBtn) { detailBtn.classList.add('active'); detailBtn.disabled = false; }
+    body.innerHTML = csRightPanelDetailHtml(_currentInv[_selectedItemIdx]);
+  }
+}
+
 function csRightPanelDefault() {
-  const profs = C.proficiencies || {};
-  const profHtml = Object.entries(profs).filter(([,v])=>v).map(([k,v]) => `
-    <div class="equip-prof-cat">${escapeHtml(k)}</div>
-    <div class="equip-prof-item">${escapeHtml(v)}</div>
-  `).join("");
+  _rightTab = 'search';
   return `
-    <div class="equip-panel-title">Add Item</div>
+    <div class="equip-right-tabs">
+      <button class="equip-right-tab active" onclick="csSetRightTab('search')">&#128269; Search</button>
+      <button class="equip-right-tab" onclick="csSetRightTab('detail')" id="equip-tab-detail" disabled>Detail</button>
+    </div>
+    <div class="equip-right-body" id="equip-right-body">
+      ${csRightPanelSearch()}
+    </div>`;
+}
+
+function csBuildProfAccordion() {
+  const profs = C.proficiencies || {};
+  const entries = Object.entries(profs).filter(([,v])=>v);
+  if (!entries.length) return '';
+  const rows = entries.map(([k,v]) => `
+    <div style="break-inside:avoid;margin-bottom:0.5rem">
+      <div class="equip-prof-cat">${escapeHtml(k)}</div>
+      <div class="equip-prof-item">${escapeHtml(v)}</div>
+    </div>`).join('');
+  return `
+    <div class="equip-prof-accordion">
+      <div class="equip-prof-toggle" onclick="csToggleProfAccordion(this)">
+        <span>Proficiencies</span>
+        <span class="equip-prof-toggle-arrow">&#9654;</span>
+      </div>
+      <div class="equip-prof-body">${rows}</div>
+    </div>`;
+}
+
+function csToggleProfAccordion(btn) {
+  const body  = btn.parentElement.querySelector('.equip-prof-body');
+  const arrow = btn.querySelector('.equip-prof-toggle-arrow');
+  body.classList.toggle('open');
+  arrow.classList.toggle('open');
+}
+
+
+function csRightPanelSearch() {
+  return `
     <input class="equip-search-input" id="equip-search-input"
-      placeholder="Search items\u2026 e.g. Longsword"
+      placeholder="Search items… e.g. Longsword"
       oninput="csSearchItems(this.value)"
       autocomplete="off">
     <div class="equip-search-results" id="cs-item-results">
-      <div class="cs-item-empty">Type to search all 5etools items\u2026</div>
-    </div>
-    ${profHtml ? `
-      <div class="equip-panel-title" style="margin-top:1rem">Proficiencies</div>
-      ${profHtml}
-    ` : ""}`;
+      <div class="cs-item-empty">Type to search all 5etools items…</div>
+    </div>`;
 }
+
 
 function csAccordionContent(item, i, editMode = false) {
   if (editMode) {
     const attackStats = ["STR","DEX","CHA","INT","WIS","CON"];
-    const currentStat = item.attackStat || "";
+    const dmgTypeOpts = [
+      ['S','Slashing'],['P','Piercing'],['B','Bludgeoning'],
+      ['R','Radiant'],['N','Necrotic'],['T','Thunder'],
+      ['F','Fire'],['C','Cold'],['L','Lightning'],
+      ['A','Acid'],['PS','Poison'],['Psy','Psychic'],['For','Force'],
+    ];
+    const currentStat    = item.attackStat || "";
+    const currentDmgType = item.dmgType    || "";
+    const currentXType   = item.extraDmg?.type || "";
     const contents = Array.isArray(item.contents) ? item.contents : [];
     const contentsHtml = contents.map((c, ci) => {
       const name = typeof c === 'string' ? c : c.name;
@@ -2567,18 +2681,48 @@ function csAccordionContent(item, i, editMode = false) {
     }).join('');
     return `
       <div class="equip-acc-edit">
-        <span class="equip-acc-field-label">Name</span>
+        <span class="equip-acc-field-label">Display name</span>
         <input class="equip-acc-field" id="acc-edit-name-${i}" value="${escapeHtml(item.name)}">
-        <span class="equip-acc-field-label">Detail / stats</span>
-        <input class="equip-acc-field" id="acc-edit-detail-${i}" value="${escapeHtml(item.detail||"")}" placeholder="e.g. martial \u00B7 1d8 S \u00B7 3 lb">
-        <span class="equip-acc-field-label">Attack stat override</span>
-        <select class="equip-acc-select" id="acc-edit-stat-${i}">
-          <option value="">\u2014 default (STR/DEX) \u2014</option>
-          ${attackStats.map(s => `<option value="${s}"${currentStat===s?" selected":""}>${s}</option>`).join("")}
-        </select>
-        <span class="equip-acc-field-label">Notes</span>
-        <textarea class="equip-acc-field" id="acc-edit-notes-${i}" rows="2" style="resize:vertical">${escapeHtml(item.notes||"")}</textarea>
-        <span class="equip-acc-field-label" style="margin-top:0.6rem">Container Contents</span>
+        <span class="equip-acc-field-label">5etools alias (for enrichment lookup)</span>
+        <input class="equip-acc-field" id="acc-edit-alias-${i}" value="${escapeHtml(item.alias||'')}" placeholder="e.g. Longsword">
+        <span class="equip-acc-field-label">Detail line</span>
+        <input class="equip-acc-field" id="acc-edit-detail-${i}" value="${escapeHtml(item.detail||'')}" placeholder="e.g. martial \u00B7 1d8 S \u00B7 3 lb">
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:0.4rem;margin-top:0.3rem">
+          <div>
+            <span class="equip-acc-field-label">Damage type override</span>
+            <select class="equip-acc-select" id="acc-edit-dmgtype-${i}">
+              <option value="">\u2014 keep base \u2014</option>
+              ${dmgTypeOpts.map(([v,l])=>`<option value="${v}"${currentDmgType===v?' selected':''}>${l}</option>`).join('')}
+            </select>
+          </div>
+          <div>
+            <span class="equip-acc-field-label">Attack stat override</span>
+            <select class="equip-acc-select" id="acc-edit-stat-${i}">
+              <option value="">\u2014 default \u2014</option>
+              ${attackStats.map(s=>`<option value="${s}"${currentStat===s?' selected':''}>${s}</option>`).join('')}
+            </select>
+          </div>
+          <div>
+            <span class="equip-acc-field-label">Damage bonus (e.g. +1)</span>
+            <input class="equip-acc-field" id="acc-edit-dmgbonus-${i}" value="${escapeHtml(item.dmgBonus||'')}" placeholder="+1">
+          </div>
+          <div>
+            <span class="equip-acc-field-label">Extra dmg dice (e.g. 1d6)</span>
+            <input class="equip-acc-field" id="acc-edit-xdice-${i}" value="${escapeHtml(item.extraDmg?.dice||'')}" placeholder="1d6">
+          </div>
+          <div>
+            <span class="equip-acc-field-label">Extra dmg type</span>
+            <select class="equip-acc-select" id="acc-edit-xtype-${i}">
+              <option value="">\u2014 none \u2014</option>
+              ${dmgTypeOpts.map(([v,l])=>`<option value="${v}"${currentXType===v?' selected':''}>${l}</option>`).join('')}
+            </select>
+          </div>
+        </div>
+        <span class="equip-acc-field-label" style="margin-top:0.4rem">Flavor text</span>
+        <textarea class="equip-acc-field" id="acc-edit-flavor-${i}" rows="2" style="resize:vertical" placeholder="Custom description or lore…">${escapeHtml(item.flavor||'')}</textarea>
+        <span class="equip-acc-field-label">Session notes</span>
+        <textarea class="equip-acc-field" id="acc-edit-notes-${i}" rows="2" style="resize:vertical">${escapeHtml(item.notes||'')}</textarea>
+        <span class="equip-acc-field-label" style="margin-top:0.5rem">Container contents</span>
         <div id="equip-cont-edit-list-${i}">${contentsHtml}</div>
         <button class="equip-acc-btn" style="margin-top:0.3rem;width:100%" onclick="csAddContainerItem(${i})">+ Add item to container</button>
       </div>
@@ -2724,6 +2868,8 @@ if (typeof CharacterStore !== 'undefined' && charKey) {
       window._csFirstLoadDone = true;
       csRebuildEquipmentTab();
       csRebuildBioTab();
+      // Enrich inventory in background after first load
+      setTimeout(csEnrichInventory, 500);
     }
   });
   CharacterStore.load(charKey);
@@ -2734,6 +2880,7 @@ if (typeof CharacterStore !== 'undefined' && charKey) {
       window._csFirstLoadDone = true;
       csRebuildEquipmentTab();
       csRebuildBioTab();
+      setTimeout(csEnrichInventory, 500);
     }
   }, 5000);
   window.addEventListener('beforeunload', () => CharacterStore.flush());
@@ -2977,18 +3124,127 @@ function csEditItem(idx) {
   setTimeout(() => document.getElementById(`acc-edit-name-${idx}`)?.focus(), 50);
 }
 
-// Move item — preserves edit state on the moved item
+// Move item — swaps DOM nodes directly, no full rebuild, edit state persists
 function csMoveItem(idx, dir) {
   const inv    = _currentInv.map(i => ({ ...i }));
   const newIdx = idx + dir;
   if (newIdx < 0 || newIdx >= inv.length) return;
+
+  // Swap in data
   [inv[idx], inv[newIdx]] = [inv[newIdx], inv[idx]];
   _currentInv = inv;
   CharacterStore.save({ inventory: inv }, charKey);
-  csRebuildEquipmentTab();
-  // Reopen edit mode on the moved item so arrows stay visible
-  setTimeout(() => csEditItem(newIdx), 50);
+
+  // Swap DOM nodes without full rebuild
+  const wrapA = document.getElementById(`equip-wrap-${idx}`);
+  const wrapB = document.getElementById(`equip-wrap-${newIdx}`);
+  if (!wrapA || !wrapB) { csRebuildEquipmentTab(); return; }
+
+  // Swap all internal IDs on both wraps
+  const swapIds = (el, from, to) => {
+    el.querySelectorAll('[id]').forEach(node => {
+      node.id = node.id.replace(new RegExp(`-${from}(-|$)`), `-${to}$1`);
+    });
+    el.querySelectorAll('[onclick]').forEach(node => {
+      node.setAttribute('onclick', node.getAttribute('onclick').replace(new RegExp(`\\b${from}\\b`), to));
+    });
+    if (el.id) el.id = el.id.replace(new RegExp(`-${from}$`), `-${to}`);
+  };
+
+  // Clone, re-id, swap
+  const cloneA = wrapA.cloneNode(true);
+  const cloneB = wrapB.cloneNode(true);
+  swapIds(cloneA, idx, 9999);
+  swapIds(cloneB, newIdx, idx);
+  swapIds(cloneA, 9999, newIdx);
+
+  wrapA.parentNode.insertBefore(cloneB, wrapA);
+  wrapA.parentNode.insertBefore(cloneA, cloneB.nextSibling);
+  wrapA.remove();
+  wrapB.remove();
+
+  // Re-bind move button onclick with correct new indices
+  const newRowA = document.getElementById(`equip-row-${newIdx}`);
+  const newRowB = document.getElementById(`equip-row-${idx}`);
+  if (newRowA) {
+    const btns = newRowA.querySelectorAll('.equip-item-move-btn');
+    if (btns[0]) btns[0].setAttribute('onclick', `event.stopPropagation();csMoveItem(${newIdx},-1)`);
+    if (btns[1]) btns[1].setAttribute('onclick', `event.stopPropagation();csMoveItem(${newIdx},1)`);
+  }
+  if (newRowB) {
+    const btns = newRowB.querySelectorAll('.equip-item-move-btn');
+    if (btns[0]) btns[0].setAttribute('onclick', `event.stopPropagation();csMoveItem(${idx},-1)`);
+    if (btns[1]) btns[1].setAttribute('onclick', `event.stopPropagation();csMoveItem(${idx},1)`);
+  }
 }
+
+// ── Background enrichment ──
+// Fetches 5etools data for all inventory items that don't have it yet
+async function csEnrichInventory() {
+  if (!_currentInv || !_currentInv.length) return;
+  const toEnrich = _currentInv.filter(item => !item._enriched && item.name);
+  if (!toEnrich.length) return;
+
+  for (const item of toEnrich) {
+    const query = item.alias || item.name;
+    try {
+      const res  = await fetch(`/.netlify/functions/items2?q=${encodeURIComponent(query)}&limit=10`);
+      const json = await res.json();
+      if (!json.items || !json.items.length) continue;
+      // Find exact name match first, then alias match, then first result
+      const match = json.items.find(i => i.name.toLowerCase() === item.name.toLowerCase())
+        || json.items.find(i => i.name.toLowerCase() === query.toLowerCase())
+        || json.items[0];
+      if (!match) continue;
+      // Merge 5etools data into item, preserving any custom overrides
+      const idx = _currentInv.indexOf(item);
+      if (idx < 0) continue;
+      _currentInv[idx] = {
+        ...match,          // base 5etools data
+        ..._currentInv[idx], // custom overrides take precedence
+        _enriched: true,
+        alias: item.alias || (_currentInv[idx].name !== match.name ? match.name : null),
+      };
+    } catch(e) {
+      console.warn('[enrich] failed for', item.name, e.message);
+    }
+  }
+  // If current detail panel is showing, refresh it with enriched data
+  if (_selectedItemIdx !== null && _rightTab === 'detail') {
+    csShowItemDetail(_selectedItemIdx);
+  }
+}
+
+// Enrich a single item on demand (called when clicking an unenriched item)
+async function csEnrichItem(idx) {
+  const item = _currentInv[idx];
+  if (!item || item._enriched) return;
+  const query = item.alias || item.name;
+  try {
+    const res  = await fetch(`/.netlify/functions/items2?q=${encodeURIComponent(query)}&limit=10`);
+    const json = await res.json();
+    if (!json.items || !json.items.length) return;
+    const match = json.items.find(i => i.name.toLowerCase() === item.name.toLowerCase())
+      || json.items.find(i => i.name.toLowerCase() === query.toLowerCase())
+      || json.items[0];
+    if (!match) return;
+    _currentInv[idx] = {
+      ...match,
+      ..._currentInv[idx],
+      _enriched: true,
+      alias: item.alias || (item.name !== match.name ? match.name : null),
+    };
+    // Refresh detail panel
+    if (_selectedItemIdx === idx && _rightTab === 'detail') {
+      const body = document.getElementById('equip-right-body');
+      if (body) body.innerHTML = csRightPanelDetailHtml(_currentInv[idx]);
+    }
+  } catch(e) {
+    console.warn('[enrich] failed for', item.name, e.message);
+  }
+}
+
+
 
 // Close edit mode — remove move arrows, close accordion
 function csCloseEdit(idx) {
@@ -3003,78 +3259,94 @@ function csCloseEdit(idx) {
 }
 
 // Show item detail in right panel when row is clicked
-function csShowItemDetail(idx) {
-  // Highlight selected row
-  document.querySelectorAll('.equip-item-row').forEach(r => r.classList.remove('selected'));
-  const row = document.getElementById(`equip-row-${idx}`);
-  if (row) row.classList.add('selected');
-  _selectedItemIdx = idx;
-
-  // Update right panel with item detail
-  const panel = document.getElementById('equip-right-panel');
-  if (!panel) return;
-  const item = _currentInv[idx];
-  if (!item) return;
-
-  const color   = csRarityColor(item.rarity || 'None');
-  const rarity  = item.rarity && item.rarity !== 'None'
-    ? `<span class="equip-panel-rarity" style="color:${color};border-color:${color}">${escapeHtml(item.rarity)}</span><br>`
+// Rich detail renderer for right panel
+function csRightPanelDetailHtml(item) {
+  if (!item) return '<div class="cs-item-empty">No item selected.</div>';
+  const color  = csRarityColor(item.rarity || 'None');
+  const rarity = item.rarity && item.rarity !== 'None'
+    ? `<span class="equip-panel-rarity" style="color:${color};border-color:${color}">${escapeHtml(item.rarity)}</span>`
     : '';
   const catLine = (item.weaponCat || item.typeLabel)
     ? `<div class="equip-panel-item-type">${escapeHtml(item.weaponCat || item.typeLabel)}</div>`
     : '';
-
   const rows = [];
   if (item.price)   rows.push(['Price',   item.price]);
-  if (item.dmg1 && item.dmgType) rows.push(['Damage', `${item.dmg1} ${item.dmgType}${item.dmg2 ? ` / ${item.dmg2}` : ''}`]);
+  if (item.dmgBonus) rows.push(['Bonus',  item.dmgBonus]);
+  if (item.dmg1 && item.dmgType) {
+    const dmgType = DMG_TYPES[item.dmgType] || item.dmgType;
+    rows.push(['Damage', `${item.dmg1} ${dmgType}${item.dmg2 ? ` / ${item.dmg2}` : ''}`]);
+  }
+  if (item.extraDmg) rows.push(['Extra dmg', `${item.extraDmg.dice} ${DMG_TYPES[item.extraDmg.type]||item.extraDmg.type}`]);
   if (item.range)   rows.push(['Range',   `${item.range} ft.`]);
   if (item.ac !== undefined && item.ac !== null) rows.push(['AC', item.ac]);
   if (item.strength) rows.push(['Str req', item.strength]);
   if (item.stealth)  rows.push(['Stealth', 'Disadvantage']);
   if (item.weight)  rows.push(['Weight',  `${item.weight} lb`]);
   if (item.reqAttune) rows.push(['Attune', item.reqAttune]);
-  if (item.attackStat) rows.push(['Attack stat', item.attackStat]);
+  if (item.attackStat) rows.push(['Attack', item.attackStat]);
+  if (item.alias)   rows.push(['Base item', item.alias]);
   if (item.sourceFull || item.source) rows.push(['Source', item.sourceFull || item.source]);
   const statsHtml = rows.map(([k,v]) =>
     `<div class="equip-panel-stat"><span>${escapeHtml(k)}</span><span>${escapeHtml(String(v))}</span></div>`
   ).join('');
-
   const props = Array.isArray(item.properties) ? item.properties : [];
   const propsHtml = props.length ? `
-    <div class="equip-panel-section" style="margin-top:0.5rem">Properties</div>
+    <div class="equip-panel-section">Properties</div>
     ${props.map(p => `
-      <div style="margin-bottom:0.4rem">
+      <div style="margin-bottom:0.35rem">
         <span style="font-family:var(--font-title);font-size:0.75rem;color:var(--gold-light)">${escapeHtml(p.name||p)}</span>
         ${p.desc ? `<div style="font-size:0.72rem;color:var(--muted);margin-top:0.1rem">${escapeHtml(p.desc)}</div>` : ''}
       </div>`).join('')}` : '';
-
   const entries = Array.isArray(item.entries) ? item.entries : [];
   const desc = entries.length
-    ? `<div class="equip-panel-desc">${entries.map(e=>`<p>${escapeHtml(e)}</p>`).join('')}</div>`
-    : '';
-
-  const contents = Array.isArray(item.contents) && item.contents.length
-    ? `<div class="equip-panel-section" style="margin-top:0.5rem">Contents</div>
-       <div class="equip-container-list">
-         ${item.contents.map(c=>`
-           <div class="equip-container-item">
-             <span class="equip-container-item-name">${escapeHtml(typeof c==='string'?c:c.name)}</span>
-             ${typeof c==='object'&&c.qty>1?`<span class="equip-container-item-qty">\u00D7${c.qty}</span>`:''}
-           </div>`).join('')}
-       </div>` : '';
-
+    ? `<div class="equip-panel-desc">${entries.map(e=>`<p>${escapeHtml(e)}</p>`).join('')}</div>` : '';
+  const flavor = item.flavor
+    ? `<div class="equip-panel-section">Flavor</div><div style="font-size:0.78rem;color:var(--aged);font-style:italic">${escapeHtml(item.flavor)}</div>` : '';
   const notes = item.notes
-    ? `<div class="equip-panel-section" style="margin-top:0.5rem">Notes</div>
-       <div style="font-size:0.78rem;color:var(--parchment2);font-style:italic">${escapeHtml(item.notes)}</div>`
-    : '';
-
-  panel.innerHTML = `
-    <div class="equip-panel-title">Item Detail</div>
+    ? `<div class="equip-panel-section">Notes</div><div style="font-size:0.78rem;color:var(--parchment2);font-style:italic">${escapeHtml(item.notes)}</div>` : '';
+  const contents = Array.isArray(item.contents) && item.contents.length
+    ? `<div class="equip-panel-section">Contents</div>
+       <div class="equip-container-list">${item.contents.map(c=>`
+         <div class="equip-container-item">
+           <span class="equip-container-item-name">${escapeHtml(typeof c==='string'?c:c.name)}</span>
+           ${typeof c==='object'&&c.qty>1?`<span class="equip-container-item-qty">x${c.qty}</span>`:''}
+         </div>`).join('')}</div>` : '';
+  return `
     <div class="equip-panel-item-name">${escapeHtml(item.name)}</div>
     ${catLine}${rarity}
-    ${statsHtml}
-    ${contents}${propsHtml}${desc}${notes}`;
+    ${statsHtml}${contents}${propsHtml}${desc}${flavor}${notes}`;
 }
+
+// Damage type display names
+const DMG_TYPES = {
+  S:'Slashing', P:'Piercing', B:'Bludgeoning',
+  R:'Radiant', N:'Necrotic', T:'Thunder',
+  F:'Fire', C:'Cold', L:'Lightning',
+  A:'Acid', PS:'Poison', Psy:'Psychic', For:'Force',
+};
+
+// Show item detail — switches right panel to Detail tab
+function csShowItemDetail(idx) {
+  document.querySelectorAll('.equip-item-row').forEach(r => r.classList.remove('selected'));
+  const row = document.getElementById(`equip-row-${idx}`);
+  if (row) row.classList.add('selected');
+  _selectedItemIdx = idx;
+  _rightTab = 'detail';
+
+  // Enable and activate Detail tab
+  const detailBtn = document.getElementById('equip-tab-detail');
+  const searchBtn = document.querySelector('.equip-right-tab:first-child');
+  if (detailBtn) { detailBtn.disabled = false; detailBtn.classList.add('active'); }
+  if (searchBtn) searchBtn.classList.remove('active');
+
+  const body = document.getElementById('equip-right-body');
+  const item = _currentInv[idx];
+  if (body && item) body.innerHTML = csRightPanelDetailHtml(item);
+
+  // If item needs enrichment, fetch it
+  if (item && !item._enriched) csEnrichItem(idx);
+}
+
 
 // Add empty row to container contents in edit mode
 function csAddContainerItem(idx) {
@@ -3101,12 +3373,17 @@ function csRemoveContainerItem(idx, ci) {
 // Save item edits including container contents
 function csSaveItemEdit(idx) {
   const name       = document.getElementById(`acc-edit-name-${idx}`)?.value.trim();
+  const alias      = document.getElementById(`acc-edit-alias-${idx}`)?.value.trim();
   const detail     = document.getElementById(`acc-edit-detail-${idx}`)?.value.trim();
   const attackStat = document.getElementById(`acc-edit-stat-${idx}`)?.value;
+  const dmgType    = document.getElementById(`acc-edit-dmgtype-${idx}`)?.value;
+  const dmgBonus   = document.getElementById(`acc-edit-dmgbonus-${idx}`)?.value.trim();
+  const xDice      = document.getElementById(`acc-edit-xdice-${idx}`)?.value.trim();
+  const xType      = document.getElementById(`acc-edit-xtype-${idx}`)?.value;
+  const flavor     = document.getElementById(`acc-edit-flavor-${idx}`)?.value.trim();
   const notes      = document.getElementById(`acc-edit-notes-${idx}`)?.value.trim();
   if (!name) return;
 
-  // Collect container contents from edit fields
   const contList = document.getElementById(`equip-cont-edit-list-${idx}`);
   const contents = [];
   if (contList) {
@@ -3122,31 +3399,30 @@ function csSaveItemEdit(idx) {
 
   const inv = _currentInv.map(i => ({ ...i }));
   inv[idx] = {
-    ...inv[idx], name,
+    ...inv[idx],
+    name,
+    alias:      alias      || null,
     detail:     detail     || null,
     attackStat: attackStat || null,
+    dmgType:    dmgType    || inv[idx].dmgType || null,
+    dmgBonus:   dmgBonus   || null,
+    extraDmg:   (xDice && xType) ? { dice: xDice, type: xType } : null,
+    flavor:     flavor     || null,
     notes:      notes      || null,
     contents:   contents.length ? contents : (inv[idx].contents || null),
+    _enriched:  false, // re-enrich with new alias if changed
   };
   _currentInv = inv;
   CharacterStore.save({ inventory: inv }, charKey);
   csCloseEdit(idx);
+  // Re-enrich if alias changed, then show detail
+  csEnrichItem(idx).then(() => {
+    setTimeout(() => csShowItemDetail(idx), 50);
+  });
   const nameEl = document.querySelector(`#equip-row-${idx} .equip-item-name`);
   if (nameEl) nameEl.textContent = inv[idx].name;
-  // Show updated detail in right panel
-  setTimeout(() => csShowItemDetail(idx), 50);
 }
 
-// Move item up or down
-function csMoveItem(idx, dir) {
-  const inv    = _currentInv.map(i => ({ ...i }));
-  const newIdx = idx + dir;
-  if (newIdx < 0 || newIdx >= inv.length) return;
-  [inv[idx], inv[newIdx]] = [inv[newIdx], inv[idx]];
-  _currentInv = inv;
-  CharacterStore.save({ inventory: inv }, charKey);
-  csRebuildEquipmentTab();
-}
 
 // Update item quantity — 0 removes the item
 function csUpdateQty(idx, val) {
