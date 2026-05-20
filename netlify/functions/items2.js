@@ -138,13 +138,33 @@ function normaliseRarity(item) {
   return map[item.rarity.toLowerCase()] || item.rarity;
 }
 
-function formatPrice(value) {
-  if (!value) return null;
-  // value is { quantity, denomination }
-  if (typeof value === 'object' && value.quantity !== undefined) {
-    return `${value.quantity} ${value.denomination || 'gp'}`;
+function formatPrice(item) {
+  // 5etools stores price as { quantity, denomination } on the item
+  // OR as item.value in copper pieces for base items
+  if (item.value !== undefined && item.value !== null) {
+    // value is in copper pieces
+    const cp = item.value;
+    if (cp >= 1000 && cp % 1000 === 0) return `${cp / 1000} pp`;
+    if (cp >= 100  && cp % 100  === 0) return `${cp / 100} gp`;
+    if (cp >= 10   && cp % 10   === 0) return `${cp / 10} sp`;
+    if (cp >= 100) {
+      const gp = Math.floor(cp / 100);
+      const rem = cp % 100;
+      if (rem === 0) return `${gp} gp`;
+      const sp = Math.floor(rem / 10);
+      const rcp = rem % 10;
+      const parts = [`${gp} gp`];
+      if (sp)  parts.push(`${sp} sp`);
+      if (rcp) parts.push(`${rcp} cp`);
+      return parts.join(', ');
+    }
+    return `${cp} cp`;
   }
-  return String(value);
+  // Some magic items use { quantity, denomination } directly
+  if (item.price && typeof item.price === 'object') {
+    return `${item.price.quantity} ${item.price.denomination || 'gp'}`;
+  }
+  return null;
 }
 
 function formatSource(item) {
@@ -219,7 +239,7 @@ function flattenEntries(entries) {
 
 function summarise(item, propMap) {
   const props      = resolveProperties(item, propMap);
-  const price      = formatPrice(item.value);
+  const price      = formatPrice(item);
   const sourceStr  = formatSource(item);
   const weaponCat  = buildWeaponCategory(item);
   const typeLabel  = TYPE_LABELS[item.type] || item.typeText || null;
