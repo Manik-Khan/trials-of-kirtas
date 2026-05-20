@@ -1,6 +1,17 @@
 {
   "entries": [
     {
+      "id": "1779242512034",
+      "session": 0,
+      "sessionTitle": "Starting location",
+      "location": "Numior",
+      "author": "DM",
+      "character": "Narrator",
+      "color": "#b8952a",
+      "timestamp": "2026-05-20T02:01:52.034Z",
+      "text": "<p><span style=\"color: rgb(122, 154, 170);\" data-mention-type=\"location-unresolved\" data-mention-key=\"mortain\">Mortain</span> <span style=\"background-color: transparent; color: rgb(0, 0, 0);\">Locations:</span></p><p><br></p><p><span style=\"background-color: transparent; color: rgb(0, 0, 0);\">Mortain - The most significant settlement in Northern Numior, Mortain was for many years an administrative center due to its proximity to Kirtas via the mountain passes and, more circuitously, the Coast Road. With the coming of the civil war and corresponding withdrawal of Kirtasian military and administrative personnel the town fell into rapid decline and irrelevancy.&nbsp; This state of affairs perpetuated for over a decade and the rolling plains and woodlands extending from the town north to the Kharak range returned mostly to a state of wilderness.&nbsp; Smallholder farms surrounding the immediate area of the town supported a local market, a few artisans and a sense of independence, hardihood and overall pride in self-reliance among the populace.</span></p><p><br></p><p><span style=\"background-color: transparent; color: rgb(0, 0, 0);\">As the war dragged on Mortain began to grow in prominence again in conjunction with the rise of mercenary bands.&nbsp; As the last stop for groups headed into the beleaguered kingdom the town became an ad-hoc military depot and outfitting center. Those aspiring to fight from throughout Numior would make their way individually, in small groups or even as whole companies to Mortain to prepare for the journey over the mountains and glory beyond.&nbsp; Farmers and artisans grew prosperous providing supplies and equipment to these groups and the farmland expanded into large areas around the town. While Northern Numior remains remains a backwater with the decline of trade and civilian travel to Kirtas, Mortain stands out as a relatively cosmopolitan and prosperous settlement that has been fortunate to reap the benefits of a comfortably distant catastrophe.</span></p><p><br></p><p><br></p>"
+    },
+    {
       "id": "1779230526054",
       "session": 1,
       "author": "Vesperian",
