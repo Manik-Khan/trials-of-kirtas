@@ -2,7 +2,7 @@
   "key": "vesperian",
   "inventory": [
     {
-      "name": "Shield",
+      "name": "Ryn's Protection",
       "rarity": "None",
       "type": "S",
       "typeLabel": "Shield",
@@ -27,7 +27,12 @@
       "sourceFull": "PHB p144",
       "page": 144,
       "_enriched": true,
-      "alias": null
+      "alias": "Shield",
+      "attackStat": null,
+      "dmgBonus": null,
+      "extraDmg": null,
+      "flavor": "The Shadowfell Shield.",
+      "notes": null
     },
     {
       "name": "Scale Mail",
@@ -124,28 +129,32 @@
     },
     {
       "name": "Backpack",
+      "rarity": "None",
+      "type": "G",
+      "typeLabel": "Adventuring Gear",
+      "weaponCat": "Adventuring Gear",
       "detail": "Adventuring Gear · 5 lb",
-      "qty": 1,
+      "price": "2 gp",
       "weight": 5,
       "dmg1": null,
       "dmg2": null,
       "dmgType": null,
-      "ac": null,
       "range": null,
-      "price": "2 gp",
+      "ac": null,
+      "strength": null,
+      "stealth": null,
       "reqAttune": null,
       "properties": [],
       "entries": [
         "A backpack can hold one cubic foot or 30 pounds of gear. You can also strap items, such as a bedroll or a coil of rope, to the outside of a backpack."
       ],
-      "rarity": "None",
-      "weaponCat": "Adventuring Gear",
-      "typeLabel": "Adventuring Gear",
-      "sourceFull": "PHB p153",
+      "contents": null,
       "source": "PHB",
-      "strength": null,
-      "stealth": null,
-      "contents": null
+      "sourceFull": "PHB p153",
+      "page": 153,
+      "qty": 1,
+      "_enriched": true,
+      "alias": null
     }
   ],
   "currency": {
@@ -163,5 +172,5 @@
     "flaws": "",
     "backstory": ""
   },
-  "lastUpdated": "2026-05-20T15:51:13.131Z"
+  "lastUpdated": "2026-05-20T15:53:01.796Z"
 }
