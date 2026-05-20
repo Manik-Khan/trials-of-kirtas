@@ -274,6 +274,9 @@ function summarise(item, propMap) {
       : null,
     properties:  props,                // [{ abbr, name, desc }]
     entries:     flattenEntries(item.entries || []),
+    contents:    item.packContents     // for adventuring packs
+      ? item.packContents.map(c => c.special || (c.item ? `${c.item}${c.quantity > 1 ? ` ×${c.quantity}` : ''}` : null)).filter(Boolean)
+      : null,
     source:      item.source   || null,
     sourceFull:  sourceStr,            // "PHB'14 p149"
     page:        item.page     || null,
