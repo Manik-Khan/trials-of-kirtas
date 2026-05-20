@@ -2,25 +2,128 @@
   "key": "tyros",
   "inventory": [
     {
-      "name": "Scale Mail",
-      "weight": 45,
-      "properties": "Stealth Disadvantage, AC 14"
+      "name": "Longsword",
+      "rarity": "None",
+      "type": "M",
+      "typeLabel": "Melee Weapon",
+      "weaponCat": "martial weapon, melee weapon",
+      "detail": "martial weapon · 1d8 S · 3 lb",
+      "price": "15 gp",
+      "weight": 3,
+      "dmg1": "1d8",
+      "dmg2": "1d10",
+      "dmgType": "S",
+      "range": null,
+      "ac": null,
+      "strength": null,
+      "stealth": null,
+      "reqAttune": null,
+      "properties": "Versatile (1d10)",
+      "entries": [],
+      "contents": null,
+      "source": "PHB",
+      "sourceFull": "PHB p149",
+      "page": 149,
+      "qty": 1,
+      "_enriched": true,
+      "alias": null
     },
     {
-      "name": "Longsword",
-      "weight": 3,
-      "properties": "Versatile (1d10)",
-      "qty": 1
+      "name": "Scale Mail",
+      "rarity": "None",
+      "type": "MA",
+      "typeLabel": "Medium Armor",
+      "weaponCat": "Medium Armor",
+      "detail": "Medium Armor · AC 14 · 45 lb",
+      "price": "5 pp",
+      "weight": 45,
+      "dmg1": null,
+      "dmg2": null,
+      "dmgType": null,
+      "range": null,
+      "ac": 14,
+      "strength": null,
+      "stealth": true,
+      "reqAttune": null,
+      "properties": "Stealth Disadvantage, AC 14",
+      "entries": [
+        "This armor consists of a coat and leggings (and perhaps a separate skirt) of leather covered with overlapping pieces of metal, much like the scales of a fish. The suit includes gauntlets."
+      ],
+      "contents": null,
+      "source": "PHB",
+      "sourceFull": "PHB p144",
+      "page": 144,
+      "_enriched": true,
+      "alias": null
     },
     {
       "name": "Dungeoneer's Pack",
+      "rarity": "None",
+      "type": "G",
+      "typeLabel": "Adventuring Gear",
+      "weaponCat": "Adventuring Gear",
+      "detail": "Adventuring Gear · 61.5 lb",
+      "price": "12 gp",
       "weight": 0,
-      "properties": "Adventuring Gear"
+      "dmg1": null,
+      "dmg2": null,
+      "dmgType": null,
+      "range": null,
+      "ac": null,
+      "strength": null,
+      "stealth": null,
+      "reqAttune": null,
+      "properties": "Adventuring Gear",
+      "entries": [
+        "Includes:",
+        "a backpack",
+        "a crowbar",
+        "a hammer",
+        "10 pitons",
+        "10 torches",
+        "a tinderbox",
+        "10 days of rations",
+        "a waterskin",
+        "50 feet of hempen rope"
+      ],
+      "contents": [
+        "Piton ×10",
+        "Torch ×10",
+        "Rations (1 day) ×10"
+      ],
+      "source": "PHB",
+      "sourceFull": "PHB p151",
+      "page": 151,
+      "_enriched": true,
+      "alias": null
     },
     {
       "name": "Shield",
+      "rarity": "None",
+      "type": "S",
+      "typeLabel": "Shield",
+      "weaponCat": "Shield",
+      "detail": "Shield · AC 2 · 6 lb",
+      "price": "1 pp",
       "weight": 6,
-      "properties": "+2 AC"
+      "dmg1": null,
+      "dmg2": null,
+      "dmgType": null,
+      "range": null,
+      "ac": 2,
+      "strength": null,
+      "stealth": null,
+      "reqAttune": null,
+      "properties": "+2 AC",
+      "entries": [
+        "A shield is made from wood or metal and is carried in one hand. Wielding a shield increases your Armor Class by 2. You can benefit from only one shield at a time."
+      ],
+      "contents": null,
+      "source": "PHB",
+      "sourceFull": "PHB p144",
+      "page": 144,
+      "_enriched": true,
+      "alias": null
     }
   ],
   "currency": {
@@ -38,5 +141,5 @@
     "flaws": "",
     "backstory": ""
   },
-  "lastUpdated": "2026-05-20T05:15:07.984Z"
+  "lastUpdated": "2026-05-20T21:12:04.184Z"
 }
