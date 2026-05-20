@@ -1,6 +1,18 @@
 {
   "entries": [
     {
+      "id": "1779249489224",
+      "session": 1,
+      "author": "Tyros",
+      "character": "Warlock",
+      "color": "#c05060",
+      "timestamp": "2026-05-20T03:58:09.224Z",
+      "text": "<p>A little history of Caim: </p><p><br></p><p>Caim joined a monastic order with all that's been going on. Spent a couple decades learning about  healing and then also for putting those that are a very wounded out of out of their misery as well. It's also a part of that about mercy so I would imagine if we're in Mortain now these the kingdom of <span style=\"color: #8ab4c9\" data-mention-type=\"location\" data-mention-key=\"numior\">Numior</span> or I guess there's rumbling that like they are meaning to potentially move towards like an attack you know they're like take advantage of the fact that <span style=\"color: rgb(138, 180, 201);\">Kirtas</span> is every weekend so whether there is like a battle force coming or like kind of like to see what's going on I've been sent to the mountain pass to investigate</p>",
+      "tags": [
+        "numior"
+      ]
+    },
+    {
       "id": "1779248224581",
       "session": 1,
       "location": "Mortain",
