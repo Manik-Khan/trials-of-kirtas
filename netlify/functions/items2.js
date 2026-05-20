@@ -212,29 +212,55 @@ function resolveProperties(item, propMap) {
   });
 }
 
+// Strip 5etools inline tags: {@item backpack|phb} → "backpack", {@item Torch|phb|Torches} → "Torches"
+function stripTags(str) {
+  if (!str || typeof str !== 'string') return str;
+  return str
+    // {@tag text|source|display} → display or text
+    .replace(/\{@\w+\s+([^|}]+?)(?:\|[^|}]*?)?(?:\|([^}]+?))?\}/g, (_, text, display) => display || text)
+    .replace(/\{@[^}]+\}/g, '') // remove any remaining tags
+    .replace(/\s+/g, ' ')
+    .trim();
+}
+
 function flattenEntries(entries) {
   // Recursively flatten 5etools entry objects to plain text strings
   if (!entries || !entries.length) return [];
   const result = [];
   for (const e of entries) {
     if (typeof e === 'string') {
-      result.push(e);
+      const cleaned = stripTags(e);
+      if (cleaned) result.push(cleaned);
     } else if (e && typeof e === 'object') {
       if (e.type === 'entries' && e.entries) {
-        if (e.name) result.push(`**${e.name}.** `);
+        if (e.name) result.push(stripTags(e.name) + ':');
         result.push(...flattenEntries(e.entries));
       } else if (e.type === 'list' && e.items) {
         result.push(...flattenEntries(e.items));
+      } else if (e.type === 'item' && e.name && e.entry) {
+        result.push(`${stripTags(e.name)}: ${stripTags(e.entry)}`);
       } else if (e.type === 'table') {
-        // Skip tables for now
+        // Skip tables
       } else if (e.entries) {
         result.push(...flattenEntries(e.entries));
       } else if (e.entry) {
-        result.push(e.entry);
+        result.push(stripTags(e.entry));
       }
     }
   }
   return result;
+}
+
+// Also clean packContents item names
+function cleanPackItem(c) {
+  if (!c) return null;
+  if (c.special) return stripTags(c.special);
+  if (c.item) {
+    const name = c.item.split('|')[0]; // "backpack|phb" → "backpack"
+    const display = name.charAt(0).toUpperCase() + name.slice(1);
+    return c.quantity > 1 ? `${display} ×${c.quantity}` : display;
+  }
+  return null;
 }
 
 function summarise(item, propMap) {
@@ -274,8 +300,8 @@ function summarise(item, propMap) {
       : null,
     properties:  props,                // [{ abbr, name, desc }]
     entries:     flattenEntries(item.entries || []),
-    contents:    item.packContents     // for adventuring packs
-      ? item.packContents.map(c => c.special || (c.item ? `${c.item}${c.quantity > 1 ? ` ×${c.quantity}` : ''}` : null)).filter(Boolean)
+    contents:    item.packContents
+      ? item.packContents.map(cleanPackItem).filter(Boolean)
       : null,
     source:      item.source   || null,
     sourceFull:  sourceStr,            // "PHB'14 p149"
