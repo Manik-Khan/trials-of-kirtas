@@ -3,1001 +3,815 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>World — The Trials of Kirtas</title>
+  <title>The World — The Trials of Kirtas</title>
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link href="https://fonts.googleapis.com/css2?family=Cinzel+Decorative:wght@400;700&family=Cinzel:wght@400;600&family=Crimson+Pro:ital,wght@0,300;0,400;0,600;1,300;1,400&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="theme.css">
   <style>
-
-    /* ── Reset & base ── */
     *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
-
-    body {
-      background: var(--ink);
-      color: var(--parchment);
-      font-family: var(--font-body);
-      height: 100vh;
-      overflow: hidden;
-      display: flex;
-      flex-direction: column;
-    }
-
-    /* ── Top nav (matches site nav) ── */
-    .world-nav {
-      display: flex;
-      align-items: center;
-      justify-content: space-between;
-      padding: 0 1.25rem;
-      height: 48px;
-      background: rgba(0,0,0,0.7);
-      border-bottom: 1px solid var(--gold-dim);
-      flex-shrink: 0;
-      z-index: 10;
-    }
-    .world-nav-brand {
-      font-family: var(--font-display, var(--font-title));
-      font-size: 0.72rem;
-      letter-spacing: 0.25em;
-      text-transform: uppercase;
-      color: var(--gold);
-    }
-    .world-nav-links {
-      display: flex;
-      gap: 0.2rem;
-    }
-    .world-nav-link {
-      font-family: var(--font-title);
-      font-size: 0.52rem;
-      letter-spacing: 0.18em;
-      text-transform: uppercase;
-      color: var(--muted);
-      text-decoration: none;
-      padding: 0.3rem 0.65rem;
-      border-bottom: 2px solid transparent;
-      transition: color 0.2s, border-color 0.2s;
-    }
-    .world-nav-link:hover { color: var(--aged); }
-    .world-nav-link.active { color: var(--gold-light); border-bottom-color: var(--gold); }
-
-    /* ── Main layout: left rail + map + right panel ── */
-    .world-layout {
-      display: flex;
-      flex: 1;
-      overflow: hidden;
-      position: relative;
-    }
-
-    /* ── Left icon rail ── */
-    .world-rail {
-      width: 56px;
-      background: rgba(0,0,0,0.75);
-      border-right: 1px solid var(--gold-dim);
-      display: flex;
-      flex-direction: column;
-      align-items: center;
-      padding: 0.75rem 0;
-      gap: 0.25rem;
-      z-index: 5;
-      flex-shrink: 0;
-    }
-    .rail-btn {
-      width: 40px;
-      height: 40px;
-      background: transparent;
-      border: 1px solid transparent;
-      color: var(--muted);
-      cursor: pointer;
-      display: flex;
-      flex-direction: column;
-      align-items: center;
-      justify-content: center;
-      gap: 0.15rem;
-      transition: color 0.15s, border-color 0.15s, background 0.15s;
-      position: relative;
-    }
-    .rail-btn:hover {
-      color: var(--aged);
-      border-color: var(--gold-dim);
-      background: rgba(184,149,42,0.06);
-    }
-    .rail-btn.active {
-      color: var(--gold-light);
-      border-color: var(--gold-mid);
-      background: rgba(184,149,42,0.12);
-    }
-    .rail-btn svg {
-      width: 18px;
-      height: 18px;
-      flex-shrink: 0;
-    }
-    .rail-label {
-      font-family: var(--font-title);
-      font-size: 0.3rem;
-      letter-spacing: 0.15em;
-      text-transform: uppercase;
-      line-height: 1;
-    }
-    .rail-divider {
-      width: 28px;
-      height: 1px;
-      background: var(--gold-dim);
-      margin: 0.25rem 0;
-      flex-shrink: 0;
-    }
-
-    /* ── Map container ── */
-    .world-map-wrap {
-      flex: 1;
-      position: relative;
-      overflow: hidden;
-      cursor: default;
-    }
-    .world-map-img {
-      position: absolute;
-      inset: 0;
-      width: 100%;
-      height: 100%;
-      object-fit: cover;
-      object-position: center;
-      user-select: none;
-      -webkit-user-drag: none;
-    }
-
-    /* Map vignette */
-    .world-map-wrap::after {
-      content: '';
-      position: absolute;
-      inset: 0;
-      pointer-events: none;
-      background:
-        radial-gradient(ellipse at center, transparent 55%, rgba(0,0,0,0.45) 100%);
-      z-index: 1;
-    }
-
-    /* ── Pins layer ── */
-    .pins-layer {
-      position: absolute;
-      inset: 0;
-      z-index: 2;
-      pointer-events: none;
-    }
-
-    /* Individual pin */
-    .map-pin {
-      position: absolute;
-      transform: translate(-50%, -50%);
-      pointer-events: all;
-      cursor: pointer;
-    }
-
-    /* Pin type colors */
-    .map-pin[data-type="city"]      { --pin-color: #b8952a; --pin-ring: rgba(184,149,42,0.35); }
-    .map-pin[data-type="town"]      { --pin-color: #8ab4cc; --pin-ring: rgba(138,180,204,0.35); }
-    .map-pin[data-type="ruin"]      { --pin-color: #c05060; --pin-ring: rgba(192,80,96,0.35); }
-    .map-pin[data-type="wilderness"]{ --pin-color: #5a9a6a; --pin-ring: rgba(90,154,106,0.35); }
-    .map-pin[data-type="landmark"] { --pin-color: #c9a46a; --pin-ring: rgba(201,164,106,0.35); }
-
-    .pin-pulse {
-      position: absolute;
-      inset: -8px;
-      border-radius: 50%;
-      border: 1.5px solid var(--pin-color);
-      opacity: 0;
-      animation: pinPulse 2.4s ease-out infinite;
-    }
-    .pin-pulse:nth-child(2) { animation-delay: 0.8s; }
-    .pin-pulse:nth-child(3) { animation-delay: 1.6s; }
-
-    @keyframes pinPulse {
-      0%   { transform: scale(0.5); opacity: 0.7; }
-      100% { transform: scale(2.2); opacity: 0; }
-    }
-
-    .pin-dot {
-      width: 10px;
-      height: 10px;
-      border-radius: 50%;
-      background: var(--pin-color);
-      border: 2px solid rgba(0,0,0,0.5);
-      box-shadow: 0 0 6px var(--pin-color), 0 0 12px var(--pin-ring);
-      position: relative;
-      z-index: 1;
-      transition: transform 0.15s, box-shadow 0.15s;
-    }
-
-    .map-pin:hover .pin-dot,
-    .map-pin.active .pin-dot {
-      transform: scale(1.4);
-      box-shadow: 0 0 10px var(--pin-color), 0 0 22px var(--pin-ring);
-    }
-
-    .map-pin.active .pin-pulse {
-      border-width: 2px;
-    }
-
-    /* Pin label */
-    .pin-label {
-      position: absolute;
-      top: calc(100% + 6px);
-      left: 50%;
-      transform: translateX(-50%);
-      font-family: var(--font-title);
-      font-size: 0.45rem;
-      letter-spacing: 0.12em;
-      text-transform: uppercase;
-      color: var(--parchment);
-      white-space: nowrap;
-      text-shadow: 0 1px 4px rgba(0,0,0,0.9), 0 0 8px rgba(0,0,0,0.8);
-      pointer-events: none;
-      opacity: 0.85;
-    }
-
-    /* ── Right detail panel ── */
-    .world-panel {
-      width: 320px;
-      flex-shrink: 0;
-      background: rgba(12,9,6,0.92);
-      border-left: 1px solid var(--gold-dim);
-      display: flex;
-      flex-direction: column;
-      z-index: 5;
-      transform: translateX(100%);
-      transition: transform 0.3s cubic-bezier(0.22,1,0.36,1);
-      position: relative;
-    }
-    .world-panel.open {
-      transform: translateX(0);
-    }
-
-    /* Subtle panel texture */
-    .world-panel::before {
-      content: '';
-      position: absolute;
-      inset: 0;
-      pointer-events: none;
-      background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='200' height='200'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.75' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)' opacity='0.025'/%3E%3C/svg%3E");
-      opacity: 0.6;
-    }
-
-    .panel-header {
-      padding: 1rem 1rem 0.6rem;
-      border-bottom: 1px solid var(--gold-dim);
-      flex-shrink: 0;
-      position: relative;
-    }
-    .panel-close {
-      position: absolute;
-      top: 0.7rem;
-      right: 0.7rem;
-      width: 22px;
-      height: 22px;
-      background: transparent;
-      border: 1px solid transparent;
-      color: var(--muted);
-      font-size: 0.8rem;
-      cursor: pointer;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      transition: color 0.15s, border-color 0.15s;
-    }
+    body { background: var(--ink); color: var(--parchment); font-family: var(--font-body); height: 100vh; overflow: hidden; display: flex; flex-direction: column; }
+    .world-header { height: 36px; display: flex; align-items: center; justify-content: center; background: rgba(0,0,0,0.6); border-bottom: 1px solid var(--gold-dim); flex-shrink: 0; gap: 0.6rem; }
+    .world-header-diamond { color: var(--gold); font-size: 0.55rem; opacity: 0.8; }
+    .world-header-title { font-family: var(--font-title); font-size: 0.52rem; letter-spacing: 0.4em; text-transform: uppercase; color: var(--gold-light); }
+    .world-layout { display: flex; flex: 1; overflow: hidden; position: relative; }
+    .world-rail { width: 52px; background: rgba(0,0,0,0.72); border-right: 1px solid var(--gold-dim); display: flex; flex-direction: column; align-items: center; padding: 0.6rem 0; gap: 0.2rem; z-index: 5; flex-shrink: 0; }
+    .rail-btn { width: 38px; height: 38px; background: transparent; border: 1px solid transparent; color: var(--muted); cursor: pointer; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 0.12rem; transition: color 0.15s, border-color 0.15s, background 0.15s; }
+    .rail-btn:hover { color: var(--aged); border-color: var(--gold-dim); background: rgba(184,149,42,0.06); }
+    .rail-btn.active { color: var(--gold-light); border-color: var(--gold-mid); background: rgba(184,149,42,0.12); }
+    .rail-btn svg { width: 16px; height: 16px; flex-shrink: 0; }
+    .rail-label { font-family: var(--font-title); font-size: 0.28rem; letter-spacing: 0.12em; text-transform: uppercase; line-height: 1; }
+    .rail-divider { width: 26px; height: 1px; background: var(--gold-dim); margin: 0.2rem 0; flex-shrink: 0; opacity: 0.5; }
+    .world-map-wrap { flex: 1; position: relative; overflow: hidden; }
+    .world-map-wrap.placing { cursor: crosshair; }
+    .world-map-img { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; object-position: center; user-select: none; -webkit-user-drag: none; pointer-events: none; }
+    .world-map-wrap::after { content: ''; position: absolute; inset: 0; pointer-events: none; background: radial-gradient(ellipse at center, transparent 55%, rgba(0,0,0,0.4) 100%); z-index: 1; }
+    .place-hint { display: none; position: absolute; top: 0.75rem; left: 50%; transform: translateX(-50%); z-index: 20; background: rgba(0,0,0,0.82); border: 1px solid var(--gold-mid); color: var(--gold-light); font-family: var(--font-title); font-size: 0.48rem; letter-spacing: 0.18em; text-transform: uppercase; padding: 0.35rem 0.9rem; white-space: nowrap; pointer-events: none; }
+    .world-map-wrap.placing .place-hint { display: block; }
+    .pins-layer { position: absolute; inset: 0; z-index: 2; pointer-events: none; }
+    .canon-pin { position: absolute; transform: translate(-50%,-50%); pointer-events: all; cursor: pointer; display: flex; flex-direction: column; align-items: center; }
+    .canon-pin-icon { width: 14px; height: 14px; flex-shrink: 0; filter: drop-shadow(0 0 4px currentColor); transition: transform 0.15s, filter 0.15s; }
+    .canon-pin:hover .canon-pin-icon, .canon-pin.active .canon-pin-icon { transform: scale(1.4); filter: drop-shadow(0 0 8px currentColor) drop-shadow(0 0 14px currentColor); }
+    .canon-pin-label { margin-top: 4px; font-family: var(--font-title); font-size: 0.4rem; letter-spacing: 0.1em; text-transform: uppercase; color: var(--parchment); white-space: nowrap; text-shadow: 0 1px 4px rgba(0,0,0,0.95), 0 0 8px rgba(0,0,0,0.8); pointer-events: none; opacity: 0.9; }
+    .player-pin { position: absolute; transform: translate(-50%,-50%); pointer-events: all; cursor: pointer; display: flex; flex-direction: column; align-items: center; }
+    .player-pin-dot { width: 10px; height: 10px; border-radius: 50%; border: 2px solid rgba(0,0,0,0.4); position: relative; z-index: 1; transition: transform 0.15s; box-shadow: 0 0 5px currentColor, 0 0 10px currentColor; }
+    .player-pin:hover .player-pin-dot, .player-pin.active .player-pin-dot { transform: scale(1.4); }
+    .player-pin-pulse { position: absolute; top: 50%; left: 50%; width: 10px; height: 10px; border-radius: 50%; border: 1px solid currentColor; transform: translate(-50%,-50%); animation: playerPulse 2.2s ease-out infinite; pointer-events: none; }
+    .player-pin-pulse:nth-child(2) { animation-delay: 0.7s; }
+    @keyframes playerPulse { 0% { transform: translate(-50%,-50%) scale(0.6); opacity: 0.8; } 100% { transform: translate(-50%,-50%) scale(2.6); opacity: 0; } }
+    .player-pin-label { margin-top: 4px; font-family: var(--font-title); font-size: 0.38rem; letter-spacing: 0.08em; text-transform: uppercase; color: var(--aged); white-space: nowrap; text-shadow: 0 1px 4px rgba(0,0,0,0.95); pointer-events: none; opacity: 0.8; }
+    .pin-palette { position: fixed; z-index: 30; background: rgba(10,8,5,0.96); border: 1px solid var(--gold-dim); padding: 0.5rem; display: none; flex-direction: column; gap: 0.2rem; min-width: 140px; box-shadow: 0 4px 24px rgba(0,0,0,0.7); }
+    .pin-palette.open { display: flex; }
+    .pin-palette-title { font-family: var(--font-title); font-size: 0.38rem; letter-spacing: 0.25em; text-transform: uppercase; color: var(--gold-dim); border-bottom: 1px solid var(--gold-dim); padding-bottom: 0.3rem; margin-bottom: 0.2rem; }
+    .pin-palette-item { display: flex; align-items: center; gap: 0.5rem; padding: 0.3rem 0.4rem; cursor: pointer; border: 1px solid transparent; transition: background 0.12s, border-color 0.12s; }
+    .pin-palette-item:hover { background: rgba(184,149,42,0.08); border-color: var(--gold-dim); }
+    .pin-palette-dot { width: 10px; height: 10px; border-radius: 50%; flex-shrink: 0; }
+    .pin-palette-name { font-family: var(--font-title); font-size: 0.44rem; letter-spacing: 0.1em; text-transform: uppercase; color: var(--parchment2); }
+    .pin-palette-cancel { margin-top: 0.2rem; font-family: var(--font-title); font-size: 0.38rem; letter-spacing: 0.15em; text-transform: uppercase; color: var(--muted); cursor: pointer; text-align: center; padding: 0.2rem; border-top: 1px solid var(--gold-dim); transition: color 0.12s; }
+    .pin-palette-cancel:hover { color: var(--aged); }
+    .world-panel { width: 300px; flex-shrink: 0; background: rgba(10,8,5,0.94); border-left: 1px solid var(--gold-dim); display: flex; flex-direction: column; z-index: 5; transform: translateX(100%); transition: transform 0.3s cubic-bezier(0.22,1,0.36,1); position: absolute; top: 0; right: 0; bottom: 0; }
+    .world-panel.open { transform: translateX(0); }
+    .world-panel::before { content: ''; position: absolute; inset: 0; pointer-events: none; background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='200' height='200'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.75' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)' opacity='0.025'/%3E%3C/svg%3E"); opacity: 0.5; }
+    .panel-header { padding: 0.85rem 1rem 0.65rem; border-bottom: 1px solid var(--gold-dim); flex-shrink: 0; position: relative; }
+    .panel-close { position: absolute; top: 0.65rem; right: 0.65rem; width: 22px; height: 22px; background: transparent; border: 1px solid transparent; color: var(--muted); font-size: 0.75rem; cursor: pointer; display: flex; align-items: center; justify-content: center; transition: color 0.15s, border-color 0.15s; }
     .panel-close:hover { color: var(--aged); border-color: var(--gold-dim); }
-
-    .panel-type-tag {
-      font-family: var(--font-title);
-      font-size: 0.38rem;
-      letter-spacing: 0.25em;
-      text-transform: uppercase;
-      margin-bottom: 0.3rem;
-    }
-    .panel-name {
-      font-family: var(--font-title);
-      font-size: 1.05rem;
-      color: var(--parchment);
-      line-height: 1.2;
-    }
-    .panel-region {
-      font-size: 0.72rem;
-      color: var(--muted);
-      font-style: italic;
-      margin-top: 0.15rem;
-    }
-
-    .panel-body {
-      flex: 1;
-      overflow-y: auto;
-      padding: 0.8rem 1rem;
-      scrollbar-width: thin;
-      scrollbar-color: var(--gold-dim) transparent;
-    }
-    .panel-body::-webkit-scrollbar { width: 4px; }
-    .panel-body::-webkit-scrollbar-track { background: transparent; }
+    .panel-eyebrow { font-family: var(--font-title); font-size: 0.36rem; letter-spacing: 0.28em; text-transform: uppercase; margin-bottom: 0.25rem; display: flex; align-items: center; gap: 0.4rem; }
+    .panel-status-badge { font-family: var(--font-title); font-size: 0.34rem; letter-spacing: 0.15em; text-transform: uppercase; padding: 0.1rem 0.35rem; border: 1px solid; }
+    .panel-name { font-family: var(--font-title); font-size: 1rem; color: var(--parchment); line-height: 1.2; }
+    .panel-subtitle { font-size: 0.72rem; color: var(--muted); font-style: italic; margin-top: 0.15rem; }
+    .panel-body { flex: 1; overflow-y: auto; padding: 0.8rem 1rem; scrollbar-width: thin; scrollbar-color: var(--gold-dim) transparent; position: relative; }
+    .panel-body::-webkit-scrollbar { width: 3px; }
     .panel-body::-webkit-scrollbar-thumb { background: var(--gold-dim); }
-
-    .panel-section-title {
-      font-family: var(--font-title);
-      font-size: 0.38rem;
-      letter-spacing: 0.3em;
-      text-transform: uppercase;
-      color: var(--gold-dim);
-      border-bottom: 1px solid var(--gold-dim);
-      padding-bottom: 0.2rem;
-      margin-bottom: 0.5rem;
-      margin-top: 0.8rem;
-    }
-    .panel-section-title:first-child { margin-top: 0; }
-
-    .panel-desc {
-      font-size: 0.85rem;
-      color: var(--parchment2);
-      line-height: 1.7;
-    }
-
-    .panel-tag-row {
-      display: flex;
-      flex-wrap: wrap;
-      gap: 0.3rem;
-      margin-top: 0.4rem;
-    }
-    .panel-tag {
-      font-family: var(--font-title);
-      font-size: 0.38rem;
-      letter-spacing: 0.15em;
-      text-transform: uppercase;
-      padding: 0.18rem 0.45rem;
-      border: 1px solid var(--gold-dim);
-      color: var(--aged);
-    }
-
-    .panel-stat-row {
-      display: flex;
-      justify-content: space-between;
-      align-items: baseline;
-      padding: 0.3rem 0;
-      border-bottom: 1px solid rgba(184,149,42,0.07);
-      font-size: 0.78rem;
-    }
-    .panel-stat-row:last-child { border-bottom: none; }
-    .panel-stat-label { color: var(--muted); }
-    .panel-stat-val   { color: var(--parchment2); text-align: right; }
-
-    /* Notable list */
-    .panel-notable-item {
-      display: flex;
-      align-items: flex-start;
-      gap: 0.5rem;
-      padding: 0.35rem 0;
-      border-bottom: 1px solid rgba(184,149,42,0.06);
-      font-size: 0.8rem;
-    }
-    .panel-notable-item:last-child { border-bottom: none; }
-    .panel-notable-bullet {
-      color: var(--gold-dim);
-      flex-shrink: 0;
-      margin-top: 0.1rem;
-    }
-    .panel-notable-name { color: var(--parchment); font-style: italic; }
-    .panel-notable-role { color: var(--muted); font-size: 0.72rem; margin-top: 0.05rem; }
-
-    /* ── Location list panel (when a category is selected from rail) ── */
-    .world-list-panel {
-      width: 240px;
-      flex-shrink: 0;
-      background: rgba(12,9,6,0.92);
-      border-left: 1px solid var(--gold-dim);
-      display: flex;
-      flex-direction: column;
-      z-index: 4;
-      transform: translateX(100%);
-      transition: transform 0.28s cubic-bezier(0.22,1,0.36,1);
-      position: absolute;
-      top: 0; right: 0; bottom: 0;
-    }
-    /* list panel shifts left when detail panel is open */
-    .world-list-panel.open {
-      transform: translateX(0);
-    }
-
-    .list-panel-header {
-      padding: 0.8rem 1rem;
-      border-bottom: 1px solid var(--gold-dim);
-      display: flex;
-      align-items: center;
-      justify-content: space-between;
-      flex-shrink: 0;
-    }
-    .list-panel-title {
-      font-family: var(--font-title);
-      font-size: 0.52rem;
-      letter-spacing: 0.25em;
-      text-transform: uppercase;
-      color: var(--gold);
-    }
-    .list-panel-close {
-      width: 22px; height: 22px;
-      background: transparent; border: 1px solid transparent;
-      color: var(--muted); font-size: 0.8rem;
-      cursor: pointer; display: flex; align-items: center; justify-content: center;
-      transition: color 0.15s, border-color 0.15s;
-    }
-    .list-panel-close:hover { color: var(--aged); border-color: var(--gold-dim); }
-
-    .list-panel-body {
-      flex: 1;
-      overflow-y: auto;
-      scrollbar-width: thin;
-      scrollbar-color: var(--gold-dim) transparent;
-    }
-    .list-panel-body::-webkit-scrollbar { width: 4px; }
-    .list-panel-body::-webkit-scrollbar-thumb { background: var(--gold-dim); }
-
-    .location-list-item {
-      display: flex;
-      align-items: center;
-      gap: 0.55rem;
-      padding: 0.6rem 1rem;
-      border-bottom: 1px solid rgba(184,149,42,0.06);
-      cursor: pointer;
-      transition: background 0.12s;
-    }
-    .location-list-item:hover { background: rgba(184,149,42,0.07); }
-    .location-list-item.active { background: rgba(184,149,42,0.12); }
-
-    .lli-dot {
-      width: 8px; height: 8px;
-      border-radius: 50%;
-      flex-shrink: 0;
-    }
-    .lli-name {
-      font-family: var(--font-body);
-      font-size: 0.88rem;
-      color: var(--parchment);
-    }
-    .lli-type {
-      font-family: var(--font-title);
-      font-size: 0.36rem;
-      letter-spacing: 0.12em;
-      text-transform: uppercase;
-      color: var(--muted);
-      margin-top: 0.08rem;
-    }
-
-    /* ── Filter chips ── */
-    .filter-bar {
-      padding: 0.5rem 1rem;
-      border-bottom: 1px solid var(--gold-dim);
-      display: flex;
-      gap: 0.3rem;
-      flex-wrap: wrap;
-      flex-shrink: 0;
-    }
-    .filter-chip {
-      font-family: var(--font-title);
-      font-size: 0.36rem;
-      letter-spacing: 0.12em;
-      text-transform: uppercase;
-      padding: 0.18rem 0.45rem;
-      border: 1px solid var(--gold-dim);
-      background: transparent;
-      color: var(--muted);
-      cursor: pointer;
-      transition: all 0.12s;
-    }
-    .filter-chip:hover { color: var(--aged); border-color: var(--gold-mid); }
-    .filter-chip.active { color: var(--gold); border-color: var(--gold); background: rgba(184,149,42,0.1); }
-
-    /* ── Empty state ── */
-    .panel-empty {
-      display: flex;
-      flex-direction: column;
-      align-items: center;
-      justify-content: center;
-      height: 100%;
-      gap: 0.6rem;
-      padding: 2rem;
-      text-align: center;
-    }
-    .panel-empty-icon {
-      font-size: 1.8rem;
-      opacity: 0.25;
-    }
-    .panel-empty-text {
-      font-family: var(--font-title);
-      font-size: 0.48rem;
-      letter-spacing: 0.2em;
-      text-transform: uppercase;
-      color: var(--muted);
-    }
-
-    /* ── Lightbox (keep from previous world.html) ── */
-    .lightbox {
-      position: fixed;
-      inset: 0;
-      background: rgba(0,0,0,0.88);
-      z-index: 100;
-      display: none;
-      align-items: center;
-      justify-content: center;
-      cursor: zoom-out;
-    }
+    .panel-section { font-family: var(--font-title); font-size: 0.36rem; letter-spacing: 0.3em; text-transform: uppercase; color: var(--gold-dim); border-bottom: 1px solid var(--gold-dim); padding-bottom: 0.18rem; margin: 0.75rem 0 0.45rem; }
+    .panel-section:first-child { margin-top: 0; }
+    .panel-desc { font-size: 0.85rem; color: var(--parchment2); line-height: 1.75; }
+    .panel-pin-who { display: flex; align-items: center; gap: 0.3rem; font-family: var(--font-title); font-size: 0.42rem; letter-spacing: 0.12em; text-transform: uppercase; color: var(--aged); }
+    .panel-pin-who-dot { width: 7px; height: 7px; border-radius: 50%; flex-shrink: 0; }
+    .panel-pin-note { font-size: 0.85rem; color: var(--parchment2); line-height: 1.7; font-style: italic; margin-top: 0.3rem; }
+    .panel-pin-delete { margin-top: 1rem; font-family: var(--font-title); font-size: 0.38rem; letter-spacing: 0.15em; text-transform: uppercase; padding: 0.25rem 0.6rem; border: 1px solid rgba(192,80,96,0.3); background: transparent; color: rgba(192,80,96,0.7); cursor: pointer; transition: all 0.12s; }
+    .panel-pin-delete:hover { border-color: #c05060; color: #c05060; background: rgba(192,80,96,0.08); }
+    .marks-panel { width: 220px; flex-shrink: 0; background: rgba(10,8,5,0.94); border-left: 1px solid var(--gold-dim); display: flex; flex-direction: column; z-index: 4; position: absolute; top: 0; right: 0; bottom: 0; transform: translateX(100%); transition: transform 0.28s cubic-bezier(0.22,1,0.36,1); }
+    .marks-panel.open { transform: translateX(0); }
+    .marks-panel.behind { right: 300px; }
+    .marks-header { padding: 0.75rem 0.85rem; border-bottom: 1px solid var(--gold-dim); flex-shrink: 0; display: flex; align-items: center; justify-content: space-between; }
+    .marks-title { font-family: var(--font-title); font-size: 0.48rem; letter-spacing: 0.25em; text-transform: uppercase; color: var(--gold); }
+    .marks-close { width: 20px; height: 20px; background: transparent; border: 1px solid transparent; color: var(--muted); font-size: 0.75rem; cursor: pointer; display: flex; align-items: center; justify-content: center; transition: color 0.15s, border-color 0.15s; }
+    .marks-close:hover { color: var(--aged); border-color: var(--gold-dim); }
+    .marks-filter-row { display: flex; flex-wrap: wrap; gap: 0.25rem; padding: 0.5rem 0.85rem; border-bottom: 1px solid var(--gold-dim); flex-shrink: 0; }
+    .marks-filter-chip { font-family: var(--font-title); font-size: 0.34rem; letter-spacing: 0.1em; text-transform: uppercase; padding: 0.14rem 0.38rem; border: 1px solid var(--gold-dim); background: transparent; color: var(--muted); cursor: pointer; transition: all 0.12s; display: flex; align-items: center; gap: 0.25rem; }
+    .marks-filter-chip:hover { color: var(--aged); border-color: var(--gold-mid); }
+    .marks-filter-chip.active { color: var(--gold); border-color: var(--gold); background: rgba(184,149,42,0.1); }
+    .marks-filter-dot { width: 6px; height: 6px; border-radius: 50%; flex-shrink: 0; }
+    .marks-list { flex: 1; overflow-y: auto; scrollbar-width: thin; scrollbar-color: var(--gold-dim) transparent; }
+    .marks-list::-webkit-scrollbar { width: 3px; }
+    .marks-list::-webkit-scrollbar-thumb { background: var(--gold-dim); }
+    .marks-item { display: flex; align-items: flex-start; gap: 0.5rem; padding: 0.55rem 0.85rem; border-bottom: 1px solid rgba(184,149,42,0.05); cursor: pointer; transition: background 0.12s; }
+    .marks-item:hover { background: rgba(184,149,42,0.06); }
+    .marks-item.active { background: rgba(184,149,42,0.1); }
+    .marks-item-dot { width: 8px; height: 8px; border-radius: 50%; flex-shrink: 0; margin-top: 0.2rem; }
+    .marks-item-body { flex: 1; min-width: 0; }
+    .marks-item-type { font-family: var(--font-title); font-size: 0.38rem; letter-spacing: 0.12em; text-transform: uppercase; color: var(--muted); }
+    .marks-item-note { font-size: 0.78rem; color: var(--parchment2); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; margin-top: 0.05rem; }
+    .marks-item-who { font-size: 0.65rem; color: var(--muted); font-style: italic; margin-top: 0.05rem; }
+    .marks-empty { padding: 2rem 1rem; text-align: center; color: var(--muted); font-style: italic; font-size: 0.82rem; }
+    .marks-footer { padding: 0.5rem 0.85rem; border-top: 1px solid var(--gold-dim); flex-shrink: 0; }
+    .marks-place-btn { width: 100%; font-family: var(--font-title); font-size: 0.42rem; letter-spacing: 0.15em; text-transform: uppercase; padding: 0.35rem; border: 1px solid var(--gold-mid); background: rgba(184,149,42,0.08); color: var(--gold); cursor: pointer; transition: all 0.15s; }
+    .marks-place-btn:hover { background: rgba(184,149,42,0.18); border-color: var(--gold); }
+    .panel-note-input { width: 100%; background: rgba(0,0,0,0.3); border: 1px solid var(--gold-dim); color: var(--parchment); font-family: var(--font-body); font-size: 0.85rem; padding: 0.4rem 0.6rem; outline: none; resize: vertical; min-height: 60px; transition: border-color 0.15s; margin-top: 0.4rem; }
+    .panel-note-input:focus { border-color: var(--gold-mid); }
+    .panel-note-input::placeholder { color: var(--muted); }
+    .panel-save-btn { margin-top: 0.5rem; font-family: var(--font-title); font-size: 0.4rem; letter-spacing: 0.15em; text-transform: uppercase; padding: 0.3rem 0.7rem; border: 1px solid var(--gold-mid); background: rgba(184,149,42,0.1); color: var(--gold); cursor: pointer; transition: all 0.15s; }
+    .panel-save-btn:hover { background: rgba(184,149,42,0.2); }
+    .panel-cancel-btn { margin-top: 0.5rem; margin-left: 0.4rem; font-family: var(--font-title); font-size: 0.4rem; letter-spacing: 0.15em; text-transform: uppercase; padding: 0.3rem 0.7rem; border: 1px solid var(--gold-dim); background: transparent; color: var(--muted); cursor: pointer; transition: all 0.15s; }
+    .panel-cancel-btn:hover { color: var(--aged); border-color: var(--gold-mid); }
+    .marks-identity { padding: 0.4rem 0.85rem; border-top: 1px solid var(--gold-dim); display: flex; align-items: center; gap: 0.4rem; flex-shrink: 0; }
+    .marks-identity-dot { width: 8px; height: 8px; border-radius: 50%; flex-shrink: 0; }
+    .marks-identity-name { font-family: var(--font-title); font-size: 0.4rem; letter-spacing: 0.12em; text-transform: uppercase; color: var(--muted); flex: 1; }
+    .marks-identity-switch { font-family: var(--font-title); font-size: 0.36rem; letter-spacing: 0.1em; text-transform: uppercase; color: var(--muted); cursor: pointer; background: none; border: 1px solid transparent; padding: 0.1rem 0.3rem; transition: all 0.12s; }
+    .marks-identity-switch:hover { color: var(--aged); border-color: var(--gold-dim); }
+    .id-modal-backdrop { position: fixed; inset: 0; background: rgba(0,0,0,0.7); z-index: 50; display: flex; align-items: center; justify-content: center; }
+    .id-modal-backdrop.hidden { display: none; }
+    .id-modal { background: rgba(14,11,7,0.98); border: 1px solid var(--gold-dim); padding: 1.25rem 1.5rem; width: 300px; }
+    .id-modal-title { font-family: var(--font-title); font-size: 0.52rem; letter-spacing: 0.3em; text-transform: uppercase; color: var(--gold); border-bottom: 1px solid var(--gold-dim); padding-bottom: 0.5rem; margin-bottom: 0.75rem; }
+    .id-players { display: flex; flex-direction: column; gap: 0.3rem; }
+    .id-player-btn { display: flex; align-items: center; gap: 0.6rem; padding: 0.45rem 0.6rem; border: 1px solid var(--gold-dim); background: transparent; cursor: pointer; transition: background 0.12s, border-color 0.12s; text-align: left; width: 100%; }
+    .id-player-btn:hover { background: rgba(184,149,42,0.06); }
+    .id-player-btn.selected { border-color: var(--gold); background: rgba(184,149,42,0.1); }
+    .id-dot { width: 10px; height: 10px; border-radius: 50%; flex-shrink: 0; }
+    .id-info { display: flex; flex-direction: column; }
+    .id-name { font-family: var(--font-title); font-size: 0.52rem; letter-spacing: 0.1em; text-transform: uppercase; color: var(--parchment2); }
+    .id-char { font-size: 0.7rem; color: var(--muted); font-style: italic; }
+    .id-modal-footer { margin-top: 0.75rem; display: flex; justify-content: flex-end; gap: 0.5rem; }
+    .id-cancel-btn { font-family: var(--font-title); font-size: 0.42rem; letter-spacing: 0.15em; text-transform: uppercase; padding: 0.3rem 0.7rem; border: 1px solid var(--gold-dim); background: transparent; color: var(--muted); cursor: pointer; }
+    .id-cancel-btn:hover { color: var(--aged); }
+    .id-confirm-btn { font-family: var(--font-title); font-size: 0.42rem; letter-spacing: 0.15em; text-transform: uppercase; padding: 0.3rem 0.7rem; border: 1px solid var(--gold-mid); background: rgba(184,149,42,0.1); color: var(--gold); cursor: pointer; transition: all 0.15s; }
+    .id-confirm-btn:hover { background: rgba(184,149,42,0.22); }
+    .id-confirm-btn:disabled { opacity: 0.35; cursor: default; }
+    .lightbox { position: fixed; inset: 0; background: rgba(0,0,0,0.9); z-index: 100; display: none; align-items: center; justify-content: center; cursor: zoom-out; }
     .lightbox.open { display: flex; }
-    .lightbox img {
-      max-width: 95vw;
-      max-height: 95vh;
-      object-fit: contain;
-      border: 1px solid var(--gold-dim);
-    }
-
-    /* ── Type color helpers ── */
-    .type-city       { color: #b8952a; }
-    .type-town       { color: #8ab4cc; }
-    .type-ruin       { color: #c05060; }
-    .type-wilderness { color: #5a9a6a; }
-    .type-landmark   { color: #c9a46a; }
-    .bg-city       { background: #b8952a; }
-    .bg-town       { background: #8ab4cc; }
-    .bg-ruin       { background: #c05060; }
-    .bg-wilderness { background: #5a9a6a; }
-    .bg-landmark   { background: #c9a46a; }
-
+    .lightbox img { max-width: 95vw; max-height: 95vh; object-fit: contain; border: 1px solid var(--gold-dim); }
+    .status-neutral   { color: #b8952a; border-color: rgba(184,149,42,0.4); }
+    .status-wolven    { color: #c05060; border-color: rgba(192,80,96,0.4); }
+    .status-bluejacks { color: #5a9aaa; border-color: rgba(90,154,170,0.4); }
+    .status-contested { color: #c9824a; border-color: rgba(201,130,74,0.4); }
+    .status-dangerous { color: #8a4a4a; border-color: rgba(138,74,74,0.4); }
+    .status-foreign   { color: #7a9a6a; border-color: rgba(122,154,106,0.4); }
+    .status-unknown   { color: var(--muted); border-color: rgba(107,93,74,0.4); }
   </style>
 </head>
 <body>
 
-  <!-- ── Nav ── -->
-  <nav class="world-nav">
-    <span class="world-nav-brand">The Trials of Kirtas</span>
-    <div class="world-nav-links">
-      <a class="world-nav-link" href="index.html">Home</a>
-      <a class="world-nav-link" href="party.html">Party</a>
-      <a class="world-nav-link" href="chronicle.html">Chronicle</a>
-      <a class="world-nav-link" href="lore.html">Lore</a>
-      <a class="world-nav-link" href="factions.html">Factions</a>
-      <a class="world-nav-link active" href="world.html">World</a>
-      <a class="world-nav-link" href="compendium.html">Compendium</a>
-    </div>
-  </nav>
+  <div id="nav-root"></div>
 
-  <!-- ── Main layout ── -->
-  <div class="world-layout">
+  <div class="world-header">
+    <span class="world-header-diamond">◆</span>
+    <span class="world-header-title">The World</span>
+    <span class="world-header-diamond">◆</span>
+  </div>
 
-    <!-- Left icon rail -->
-    <aside class="world-rail" id="world-rail">
+  <div class="world-layout" id="world-layout">
 
-      <!-- All locations -->
-      <button class="rail-btn active" id="rail-all" onclick="railSelect('all')" title="All Locations">
-        <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.5">
-          <circle cx="10" cy="10" r="7"/>
-          <path d="M10 3v14M3 10h14" stroke-width="1"/>
-          <path d="M4.5 5.5 Q10 8 15.5 5.5M4.5 14.5 Q10 12 15.5 14.5"/>
-        </svg>
+    <aside class="world-rail">
+      <button class="rail-btn active" id="rail-all" onclick="railFilter('all')" title="All Locations">
+        <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.4"><circle cx="10" cy="10" r="7"/><path d="M10 3v14M3.5 7h13M3.5 13h13" stroke-width="1"/></svg>
         <span class="rail-label">All</span>
       </button>
-
       <div class="rail-divider"></div>
-
-      <!-- Cities -->
-      <button class="rail-btn" id="rail-city" onclick="railSelect('city')" title="Cities">
-        <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.5">
-          <rect x="7" y="10" width="6" height="8"/>
-          <rect x="3" y="13" width="4" height="5"/>
-          <rect x="13" y="13" width="4" height="5"/>
-          <path d="M7 10V7l3-3 3 3v3"/>
-          <rect x="9" y="14" width="2" height="4"/>
-        </svg>
-        <span class="rail-label">Cities</span>
+      <button class="rail-btn" id="rail-neutral" onclick="railFilter('neutral')" title="Neutral">
+        <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.4"><rect x="4" y="4" width="12" height="12" rx="1"/><path d="M7 10h6M10 7v6" stroke-width="1.2"/></svg>
+        <span class="rail-label">Neutral</span>
       </button>
-
-      <!-- Towns -->
-      <button class="rail-btn" id="rail-town" onclick="railSelect('town')" title="Towns">
-        <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.5">
-          <rect x="5" y="11" width="10" height="7"/>
-          <path d="M5 11 L10 6 L15 11"/>
-          <rect x="8" y="14" width="4" height="4"/>
-        </svg>
-        <span class="rail-label">Towns</span>
+      <button class="rail-btn" id="rail-wolven" onclick="railFilter('wolven')" title="Wolven-Held">
+        <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.4"><polygon points="10,3 17,7 17,13 10,17 3,13 3,7"/><path d="M10 7v6M7 9l3-2 3 2" stroke-width="1.1"/></svg>
+        <span class="rail-label">Wolven</span>
       </button>
-
-      <!-- Ruins -->
-      <button class="rail-btn" id="rail-ruin" onclick="railSelect('ruin')" title="Ruins">
-        <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.5">
-          <path d="M4 17h12M6 17V9l-2 2M14 17V9l2 2M8 17v-5h4v5"/>
-          <path d="M6 9V7h2M14 9V7h-2M9 12h2"/>
-          <path d="M4 7l2-3h2M16 7l-2-3h-2"/>
-        </svg>
-        <span class="rail-label">Ruins</span>
+      <button class="rail-btn" id="rail-bluejacks" onclick="railFilter('bluejacks')" title="Blue Jackets">
+        <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.4"><path d="M5 17V8l5-5 5 5v9"/><rect x="8" y="12" width="4" height="5"/><path d="M5 11h10" stroke-width="1"/></svg>
+        <span class="rail-label">Blue J.</span>
       </button>
-
-      <!-- Wilderness -->
-      <button class="rail-btn" id="rail-wilderness" onclick="railSelect('wilderness')" title="Wilderness">
-        <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.5">
-          <path d="M10 3 L6 10h3L5 17h10L11 10h3z"/>
-        </svg>
-        <span class="rail-label">Wild</span>
+      <button class="rail-btn" id="rail-contested" onclick="railFilter('contested')" title="Contested">
+        <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.4"><path d="M10 3l7 14H3z"/><path d="M10 9v4M10 14.5v.5" stroke-width="1.2"/></svg>
+        <span class="rail-label">War</span>
       </button>
-
-      <!-- Landmarks -->
-      <button class="rail-btn" id="rail-landmark" onclick="railSelect('landmark')" title="Landmarks">
-        <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.5">
-          <path d="M10 2 L10 17"/>
-          <path d="M10 4 L16 7 L10 10"/>
-        </svg>
+      <button class="rail-btn" id="rail-dangerous" onclick="railFilter('dangerous')" title="Dangerous">
+        <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.4"><circle cx="10" cy="10" r="7"/><path d="M10 6v5M10 13.5v.5" stroke-width="1.5"/></svg>
+        <span class="rail-label">Danger</span>
+      </button>
+      <button class="rail-btn" id="rail-foreign" onclick="railFilter('foreign')" title="Foreign Powers">
+        <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.4"><circle cx="10" cy="10" r="7"/><circle cx="10" cy="10" r="3"/></svg>
+        <span class="rail-label">Foreign</span>
+      </button>
+      <div class="rail-divider"></div>
+      <button class="rail-btn" id="rail-marks" onclick="toggleMarksPanel()" title="Player Marks">
+        <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.4"><circle cx="10" cy="8" r="4"/><path d="M10 12v6"/><path d="M7 17h6" stroke-width="1"/></svg>
         <span class="rail-label">Marks</span>
       </button>
-
       <div class="rail-divider"></div>
-
-      <!-- Full map toggle -->
       <button class="rail-btn" onclick="openLightbox()" title="Full Map">
-        <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.5">
-          <rect x="2" y="4" width="16" height="12" rx="1"/>
-          <path d="M2 8h16M6 4v12"/>
-        </svg>
+        <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.4"><path d="M3 5l4-2 6 2 4-2v12l-4 2-6-2-4 2V5z"/><path d="M7 3v12M13 5v12" stroke-width="1"/></svg>
         <span class="rail-label">Full</span>
       </button>
-
     </aside>
 
-    <!-- Map area -->
-    <div class="world-map-wrap" id="map-wrap">
-      <img
-        src="img/maps/kirtas.jpeg"
-        alt="Map of Kirtas"
-        class="world-map-img"
-        id="map-img"
-        draggable="false"
-        onerror="this.style.background='rgba(30,20,10,0.8)';this.alt='Map not found — place kirtas.jpeg in img/maps/'">
-
-      <!-- SVG pins layer — positions are % of image dimensions -->
-      <div class="pins-layer" id="pins-layer">
-        <!-- Pins are rendered by JS -->
-      </div>
+    <div class="world-map-wrap" id="map-wrap" onclick="handleMapClick(event)">
+      <img src="img/maps/kirtas.jpeg" alt="Map of Kirtas" class="world-map-img" id="map-img" draggable="false">
+      <div class="place-hint">Click the map to place pin — Esc to cancel</div>
+      <div class="pins-layer" id="pins-layer"></div>
     </div>
 
-    <!-- Right detail panel -->
     <aside class="world-panel" id="world-panel">
       <div class="panel-header">
-        <button class="panel-close" onclick="closePanel()" title="Close">✕</button>
-        <div class="panel-type-tag" id="panel-type-tag"></div>
-        <div class="panel-name" id="panel-name">—</div>
-        <div class="panel-region" id="panel-region"></div>
-      </div>
-      <div class="panel-body" id="panel-body">
-        <div class="panel-empty">
-          <div class="panel-empty-icon">⚑</div>
-          <div class="panel-empty-text">Select a location</div>
+        <button class="panel-close" onclick="closePanel()">✕</button>
+        <div class="panel-eyebrow">
+          <span id="panel-type-label"></span>
+          <span class="panel-status-badge" id="panel-status-badge"></span>
         </div>
+        <div class="panel-name" id="panel-name">—</div>
+        <div class="panel-subtitle" id="panel-subtitle"></div>
+      </div>
+      <div class="panel-body" id="panel-body"></div>
+    </aside>
+
+    <aside class="marks-panel" id="marks-panel">
+      <div class="marks-header">
+        <span class="marks-title">Marks</span>
+        <button class="marks-close" onclick="toggleMarksPanel()">✕</button>
+      </div>
+      <div class="marks-filter-row" id="marks-filter-row"></div>
+      <div class="marks-list" id="marks-list"><div class="marks-empty">No marks placed yet.</div></div>
+      <div class="marks-footer">
+        <button class="marks-place-btn" id="marks-place-btn" onclick="startPlacing()">+ Place a Mark</button>
+      </div>
+      <div class="marks-identity" id="marks-identity-bar">
+        <div class="marks-identity-dot" id="marks-id-dot"></div>
+        <span class="marks-identity-name" id="marks-id-name">Not identified</span>
+        <button class="marks-identity-switch" onclick="openIdentityModal()">Switch</button>
       </div>
     </aside>
 
   </div>
 
-  <!-- Lightbox -->
+  <div class="pin-palette" id="pin-palette">
+    <div class="pin-palette-title">Pin Type</div>
+    <div class="pin-palette-cancel" onclick="cancelPlacing()">Cancel</div>
+  </div>
+
+  <div class="id-modal-backdrop hidden" id="id-modal">
+    <div class="id-modal">
+      <div class="id-modal-title">Who are you?</div>
+      <div class="id-players" id="id-players"></div>
+      <div class="id-modal-footer">
+        <button class="id-cancel-btn" onclick="closeIdentityModal()">Cancel</button>
+        <button class="id-confirm-btn" id="id-confirm" onclick="confirmIdentity()" disabled>Confirm</button>
+      </div>
+    </div>
+  </div>
+
   <div class="lightbox" id="lightbox" onclick="closeLightbox()">
     <img src="img/maps/kirtas.jpeg" alt="Map of Kirtas — full resolution">
   </div>
 
+<script src="nav.js"></script>
+<script src="tooltips.js"></script>
 <script>
-// ══════════════════════════════════════════════════════════
-// LOCATION DATA
-// ══════════════════════════════════════════════════════════
-// Coordinates are percentage (x%, y%) of the map image dimensions.
-// Adjust these to match your actual kirtas.jpeg map.
-// type: "city" | "town" | "ruin" | "wilderness" | "landmark"
-//
-// To calibrate: open kirtas.jpeg, find the location in pixels,
-// divide by image width/height and multiply by 100.
-// ──────────────────────────────────────────────────────────
 
-const LOCATIONS = [
-  {
-    key: 'ilora',
-    name: 'Ilora',
-    type: 'city',
-    region: 'Northern Kirtas',
-    x: 62, y: 14,
-    desc: 'The jewel of northern Kirtas — a sprawling trade city built where the Teleros River meets the highland road. Its streets are wide and its markets loud.',
-    details: [
-      ['Population', 'Approx. 12,000'],
-      ['Government', 'Council of Merchants'],
-      ['Notable', 'Grand Market, River Gate'],
-    ],
-    tags: ['Trade Hub', 'River City', 'Neutral Ground'],
-    notables: [
-      { name: 'Guildmaster Hareth', role: 'Head of the Merchant Council' },
-    ],
-  },
-  {
-    key: 'caer-veth',
-    name: "Caer Veth",
-    type: 'city',
-    region: 'Central Kirtas',
-    x: 38, y: 32,
-    desc: 'A fortified city of ancient stone, Caer Veth has stood for centuries as the military heart of the realm. Its walls have never been breached.',
-    details: [
-      ['Population', 'Approx. 8,000'],
-      ['Government', 'Lord Commander'],
-      ['Notable', 'The Iron Keep, War College'],
-    ],
-    tags: ['Fortified', 'Military', 'Old City'],
-    notables: [
-      { name: 'Lord Commander Daveth', role: 'Commander of the garrison' },
-    ],
-  },
-  {
-    key: 'thornhaven',
-    name: 'Thornhaven',
-    type: 'town',
-    region: 'Eastern Reaches',
-    x: 72, y: 44,
-    desc: 'A prosperous market town at the crossroads of three trade routes. The locals are guarded but fair, and the inn is always full.',
-    details: [
-      ['Population', 'Approx. 2,400'],
-      ['Government', 'Elected Mayor'],
-      ['Notable', 'The Thorn & Thistle Inn'],
-    ],
-    tags: ['Trade Crossroads', 'Farmland'],
-    notables: [
-      { name: 'Mayor Oswyn', role: 'Elected mayor, 3rd term' },
-    ],
-  },
-  {
-    key: 'ashford',
-    name: 'Ashford',
-    type: 'town',
-    region: 'Western Marches',
-    x: 22, y: 52,
-    desc: 'A mill town sitting astride the River Ash. Once prosperous, recent flooding has strained its people and depleted its granaries.',
-    details: [
-      ['Population', 'Approx. 1,800'],
-      ['Government', 'Town elder council'],
-      ['Notable', 'Old Ash Mill, River Ford'],
-    ],
-    tags: ['Mill Town', 'Struggling'],
-    notables: [],
-  },
-  {
-    key: 'greyspire',
-    name: 'Greyspire',
-    type: 'ruin',
-    region: 'The Shattered Heights',
-    x: 55, y: 26,
-    desc: 'The crumbling spire of a pre-Collapse wizard tower. Local shepherds avoid it after dark. Strange lights have been reported near its base.',
-    details: [
-      ['Era', 'Pre-Collapse (~600 years)'],
-      ['Status', 'Abandoned, partially collapsed'],
-      ['Danger', 'Unknown — possibly moderate'],
-    ],
-    tags: ['Arcane Ruin', 'Unexplored', 'Dangerous'],
-    notables: [],
-  },
-  {
-    key: 'the-barrow-fields',
-    name: 'The Barrow Fields',
-    type: 'ruin',
-    region: 'Northern Plains',
-    x: 30, y: 18,
-    desc: 'An ancient burial ground stretching across several square miles. The barrows are old — older than any current kingdom. Grave robbers rarely return.',
-    details: [
-      ['Era', 'Unknown — pre-human'],
-      ['Status', 'Active (undead reported)'],
-      ['Danger', 'High'],
-    ],
-    tags: ['Burial Ground', 'Undead', 'Forbidden'],
-    notables: [],
-  },
-  {
-    key: 'the-verdant-reach',
-    name: 'The Verdant Reach',
-    type: 'wilderness',
-    region: 'Western Forest',
-    x: 14, y: 38,
-    desc: 'A vast forest of ancient oaks that predates all settlement in the region. The druids who tend it do not welcome visitors, but those who respect the old ways are sometimes guided through.',
-    details: [
-      ['Size', 'Several hundred square miles'],
-      ['Inhabitants', 'Druids, fey, forest creatures'],
-      ['Danger', 'Moderate (if disrespectful)'],
-    ],
-    tags: ['Ancient Forest', 'Druidic', 'Fey-touched'],
-    notables: [
-      { name: 'The Greenkeeper', role: 'Druidic warden (rarely seen)' },
-    ],
-  },
-  {
-    key: 'stoneback-ridge',
-    name: 'Stoneback Ridge',
-    type: 'wilderness',
-    region: 'Eastern Mountains',
-    x: 80, y: 62,
-    desc: "A ridge of jagged peaks that forms the eastern border of known Kirtas. The passes are treacherous, and something large has been hunting in the foothills.",
-    details: [
-      ['Terrain', 'Alpine — passes at 8,000 ft'],
-      ['Inhabitants', 'Giants, wyverns (rumoured)'],
-      ['Danger', 'Very High'],
-    ],
-    tags: ['Mountains', 'Border', 'Unexplored Passes'],
-    notables: [],
-  },
-  {
-    key: 'the-sunken-temple',
-    name: 'The Sunken Temple',
-    type: 'landmark',
-    region: 'The Kir Marshes',
-    x: 48, y: 68,
-    desc: 'Half-submerged in the marshes, this temple to a forgotten god still exerts a pull on those sensitive to such things. Its lower levels are permanently flooded.',
-    details: [
-      ['Faith', 'Unknown deity'],
-      ['Status', 'Partially submerged'],
-      ['Danger', 'Moderate'],
-    ],
-    tags: ['Religious Site', 'Submerged', 'Mystery'],
-    notables: [],
-  },
-  {
-    key: 'waystone-crossing',
-    name: 'Waystone Crossing',
-    type: 'landmark',
-    region: 'Central Plains',
-    x: 50, y: 47,
-    desc: 'An ancient waystone stands at the crossroads here, carved with runes in a script no living scholar has fully deciphered. Travellers leave offerings at its base.',
-    details: [
-      ['Type', 'Waystone (arcane marker)'],
-      ['Age', 'Unknown'],
-      ['Function', 'Possibly teleportation anchor'],
-    ],
-    tags: ['Arcane', 'Ancient', 'Crossroads'],
-    notables: [],
-  },
+// ══════════════════════════════════════════════════════════
+// CANON LOCATION DATA
+// Coordinates: x/y as percentage of map image dimensions.
+// TO CALIBRATE: open kirtas.jpeg in any image editor,
+//   hover over the location, note pixel X and Y, then:
+//   x = (pixelX / imageWidth)  * 100
+//   y = (pixelY / imageHeight) * 100
+// These are placeholder estimates — adjust to match your map.
+// ══════════════════════════════════════════════════════════
+
+const CANON_LOCATIONS = [
+  { key: 'tiersgard',  x: 28, y: 72, shape: 'square'    }, // Coastal city
+  { key: 'capital',    x: 50, y: 40, shape: 'square'    }, // Royal seat
+  { key: 'yevennia',   x: 38, y: 35, shape: 'diamond'   }, // Duchy
+  { key: 'longhills',  x: 32, y: 22, shape: 'diamond'   }, // Highland region
+  { key: 'kharak',     x: 65, y: 68, shape: 'triangle'  }, // Mountain range
+  { key: 'ilora',      x: 72, y: 18, shape: 'doublering'}, // Elven forest
+  { key: 'numior',     x: 55, y: 85, shape: 'crossring' }, // Foreign kingdom
+];
+
+const STATUS_COLORS = {
+  neutral:   '#b8952a',
+  wolven:    '#c05060',
+  bluejacks: '#5a9aaa',
+  contested: '#c9824a',
+  dangerous: '#8a4a4a',
+  foreign:   '#7a9a6a',
+  unknown:   '#6b5d4a',
+};
+
+const STATUS_LABELS = {
+  neutral:   'Neutral',
+  wolven:    'Wolven-Held',
+  bluejacks: 'Blue Jackets',
+  contested: 'Contested',
+  dangerous: 'Dangerous',
+  foreign:   'Foreign Power',
+  unknown:   'Uncharted',
+};
+
+const PIN_TYPES = [
+  { id: 'monster',  label: 'Monster',  color: '#c05060' },
+  { id: 'landmark', label: 'Landmark', color: '#b8952a' },
+  { id: 'treasure', label: 'Treasure', color: '#d4ac3a' },
+  { id: 'revisit',  label: 'Revisit',  color: '#8ab4cc' },
+  { id: 'note',     label: 'Note',     color: '#9a9a9a' },
+  { id: 'danger',   label: 'Danger',   color: '#c9824a' },
+];
+
+const PLAYERS = [
+  { id:'dm',        name:'DM',        character:'Narrator', color:'#b8952a' },
+  { id:'tyros',     name:'Tyros',     character:'Warlock',  color:'#c05060' },
+  { id:'liadan',    name:'Líadan',    character:'Bard',     color:'#5a9a6a' },
+  { id:'caim',      name:'Caim',      character:'Monk',     color:'#8060c0' },
+  { id:'vesperian', name:'Vesperian', character:'Fighter',  color:'#5a9aaa' },
 ];
 
 // ══════════════════════════════════════════════════════════
 // STATE
 // ══════════════════════════════════════════════════════════
-let activeFilter   = 'all';   // current rail selection
-let selectedKey    = null;    // currently selected location key
-let panelOpen      = false;
+const ID_KEY   = 'kirtas-chronicle-identity'; // shared with chronicle
+const PINS_URL = '/.netlify/functions/map-pins';
 
-// Type display names and colors
-const TYPE_META = {
-  city:       { label: 'City',       color: '#b8952a' },
-  town:       { label: 'Town',       color: '#8ab4cc' },
-  ruin:       { label: 'Ruin',       color: '#c05060' },
-  wilderness: { label: 'Wilderness', color: '#5a9a6a' },
-  landmark:   { label: 'Landmark',   color: '#c9a46a' },
-};
+let currentIdentity  = null;
+let playerPins       = [];
+let activeRailFilter = 'all';
+let marksPanelOpen   = false;
+let detailPanelOpen  = false;
+let selectedKey      = null;
+let placingMode      = false;
+let pendingPinType   = null;
+let pendingPlayer    = null;
+let marksTypeFilter  = null;
+
+// ══════════════════════════════════════════════════════════
+// IDENTITY
+// ══════════════════════════════════════════════════════════
+function loadIdentity() {
+  try { const s = localStorage.getItem(ID_KEY); if (s) currentIdentity = JSON.parse(s); } catch(e) {}
+  updateIdentityBar();
+}
+
+function saveIdentity(id) {
+  currentIdentity = id;
+  try { localStorage.setItem(ID_KEY, JSON.stringify(id)); } catch(e) {}
+  updateIdentityBar();
+}
+
+function updateIdentityBar() {
+  const dot  = document.getElementById('marks-id-dot');
+  const name = document.getElementById('marks-id-name');
+  if (!dot || !name) return;
+  if (currentIdentity) {
+    dot.style.background  = currentIdentity.color;
+    name.textContent      = currentIdentity.name + ' · ' + currentIdentity.character;
+    name.style.color      = currentIdentity.color;
+  } else {
+    dot.style.background  = 'var(--muted)';
+    name.textContent      = 'Not identified';
+    name.style.color      = 'var(--muted)';
+  }
+}
+
+function openIdentityModal() {
+  pendingPlayer = currentIdentity?.playerId || null;
+  renderIdentityPlayers();
+  document.getElementById('id-modal').classList.remove('hidden');
+  document.getElementById('id-confirm').disabled = !pendingPlayer;
+}
+
+function closeIdentityModal() {
+  document.getElementById('id-modal').classList.add('hidden');
+}
+
+function renderIdentityPlayers() {
+  document.getElementById('id-players').innerHTML = PLAYERS.map(p => `
+    <button class="id-player-btn${pendingPlayer===p.id?' selected':''}" onclick="selectIdentityPlayer('${p.id}')">
+      <div class="id-dot" style="background:${p.color}"></div>
+      <div class="id-info">
+        <span class="id-name">${p.name}</span>
+        <span class="id-char">${p.character}</span>
+      </div>
+    </button>`).join('');
+}
+
+function selectIdentityPlayer(id) {
+  pendingPlayer = id;
+  renderIdentityPlayers();
+  document.getElementById('id-confirm').disabled = false;
+}
+
+function confirmIdentity() {
+  const p = PLAYERS.find(x => x.id === pendingPlayer);
+  if (!p) return;
+  saveIdentity({ playerId: p.id, name: p.name, character: p.character, color: p.color });
+  closeIdentityModal();
+}
+
+// ══════════════════════════════════════════════════════════
+// LOAD / SAVE PINS
+// ══════════════════════════════════════════════════════════
+async function loadPins() {
+  try {
+    const res = await fetch(PINS_URL);
+    if (!res.ok) throw new Error(`HTTP ${res.status}`);
+    const data = await res.json();
+    playerPins = data.pins || [];
+  } catch(e) {
+    console.warn('[map-pins] load failed:', e.message);
+    playerPins = [];
+  }
+  renderPins();
+  renderMarksList();
+}
+
+async function savePins() {
+  try {
+    const res = await fetch(PINS_URL, {
+      method:  'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body:    JSON.stringify({
+        pins:    playerPins,
+        message: `Map: pins updated by ${currentIdentity?.name || 'unknown'}`,
+      }),
+    });
+    if (!res.ok) throw new Error(`HTTP ${res.status}`);
+  } catch(e) {
+    console.error('[map-pins] save failed:', e.message);
+    alert('Failed to save pin: ' + e.message);
+  }
+}
+
+// ══════════════════════════════════════════════════════════
+// CANON PIN SVG SHAPES
+// ══════════════════════════════════════════════════════════
+function canonPinSvg(shape, color) {
+  const s = `stroke="rgba(0,0,0,0.5)" stroke-width="1"`;
+  switch(shape) {
+    case 'square':
+      return `<svg class="canon-pin-icon" viewBox="0 0 14 14" fill="${color}" ${s}><rect x="1" y="1" width="12" height="12"/></svg>`;
+    case 'diamond':
+      return `<svg class="canon-pin-icon" viewBox="0 0 14 14" fill="${color}" ${s}><polygon points="7,1 13,7 7,13 1,7"/></svg>`;
+    case 'triangle':
+      return `<svg class="canon-pin-icon" viewBox="0 0 14 14" fill="${color}" ${s}><polygon points="7,1 13,13 1,13"/></svg>`;
+    case 'doublering':
+      return `<svg class="canon-pin-icon" viewBox="0 0 14 14" fill="none" stroke="${color}" stroke-width="1.5"><circle cx="7" cy="7" r="6"/><circle cx="7" cy="7" r="3"/></svg>`;
+    case 'crossring':
+      return `<svg class="canon-pin-icon" viewBox="0 0 14 14" fill="none" stroke="${color}" stroke-width="1.5"><circle cx="7" cy="7" r="6"/><path d="M7 2v10M2 7h10" stroke-width="1.2"/></svg>`;
+    default:
+      return `<svg class="canon-pin-icon" viewBox="0 0 14 14" fill="${color}" ${s}><circle cx="7" cy="7" r="6"/></svg>`;
+  }
+}
 
 // ══════════════════════════════════════════════════════════
 // RENDER PINS
 // ══════════════════════════════════════════════════════════
 function renderPins() {
   const layer = document.getElementById('pins-layer');
-  layer.innerHTML = LOCATIONS.map(loc => {
-    const visible = activeFilter === 'all' || activeFilter === loc.type;
-    const isActive = loc.key === selectedKey;
-    return `
-      <div class="map-pin${isActive ? ' active' : ''}"
-           data-type="${loc.type}"
-           data-key="${loc.key}"
-           style="left:${loc.x}%;top:${loc.y}%;display:${visible?'block':'none'}"
-           onclick="selectLocation('${loc.key}')"
-           title="${loc.name}">
-        <div class="pin-pulse"></div>
-        <div class="pin-pulse"></div>
-        <div class="pin-pulse"></div>
-        <div class="pin-dot"></div>
-        <div class="pin-label">${loc.name}</div>
-      </div>`;
+
+  const canonHTML = CANON_LOCATIONS.map(loc => {
+    const data = LOCATION_DATA[loc.key];
+    if (!data) return '';
+    const color   = STATUS_COLORS[data.status] || '#9a9a9a';
+    const visible = activeRailFilter === 'all' || activeRailFilter === data.status;
+    const isActive = selectedKey === `canon-${loc.key}`;
+    return `<div class="canon-pin${isActive?' active':''}"
+      data-id="canon-${loc.key}"
+      style="left:${loc.x}%;top:${loc.y}%;display:${visible?'block':'none'}"
+      onclick="selectCanonLocation(event,'${loc.key}')"
+      title="${data.name}">
+      ${canonPinSvg(loc.shape, color)}
+      <div class="canon-pin-label">${data.name}</div>
+    </div>`;
   }).join('');
+
+  const playerHTML = playerPins.map(pin => {
+    const pt      = PIN_TYPES.find(t => t.id === pin.type) || PIN_TYPES[4];
+    const isActive = selectedKey === `player-${pin.id}`;
+    const visible  = marksTypeFilter === null || marksTypeFilter === pin.type;
+    return `<div class="player-pin${isActive?' active':''}"
+      data-id="player-${pin.id}"
+      style="left:${pin.x}%;top:${pin.y}%;color:${pt.color};display:${visible?'flex':'none'}"
+      onclick="selectPlayerPin(event,'${pin.id}')"
+      title="${pt.label}${pin.note?': '+pin.note:''}">
+      <div style="position:relative">
+        <div class="player-pin-pulse" style="color:${pt.color}"></div>
+        <div class="player-pin-pulse" style="color:${pt.color}"></div>
+        <div class="player-pin-dot" style="background:${pt.color}"></div>
+      </div>
+      <div class="player-pin-label">${pt.label}</div>
+    </div>`;
+  }).join('');
+
+  layer.innerHTML = canonHTML + playerHTML;
 }
 
 // ══════════════════════════════════════════════════════════
-// RAIL SELECTION
+// RAIL FILTER
 // ══════════════════════════════════════════════════════════
-function railSelect(filter) {
-  activeFilter = filter;
-
-  // Update rail button states
-  document.querySelectorAll('.rail-btn').forEach(b => b.classList.remove('active'));
+function railFilter(filter) {
+  activeRailFilter = filter;
+  document.querySelectorAll('.rail-btn[id^="rail-"]').forEach(b => b.classList.remove('active'));
   const btn = document.getElementById(`rail-${filter}`);
   if (btn) btn.classList.add('active');
-
-  // Re-render pins with filter
   renderPins();
 }
 
 // ══════════════════════════════════════════════════════════
-// LOCATION SELECTION
+// CANON LOCATION DETAIL
 // ══════════════════════════════════════════════════════════
-function selectLocation(key) {
-  const loc = LOCATIONS.find(l => l.key === key);
+function selectCanonLocation(event, key) {
+  event.stopPropagation();
+  const loc = LOCATION_DATA[key];
   if (!loc) return;
+  selectedKey = `canon-${key}`;
+  renderPins();
 
-  selectedKey = key;
-  renderPins(); // re-render to update active state
+  const color = STATUS_COLORS[loc.status] || '#9a9a9a';
+  const label = STATUS_LABELS[loc.status] || loc.status;
 
-  // Fill panel
-  const meta = TYPE_META[loc.type] || { label: loc.type, color: '#9a9a9a' };
+  document.getElementById('panel-type-label').textContent = 'Location';
+  document.getElementById('panel-type-label').style.color = color;
 
-  const typeTag = document.getElementById('panel-type-tag');
-  typeTag.textContent = meta.label;
-  typeTag.style.color = meta.color;
+  const badge = document.getElementById('panel-status-badge');
+  badge.textContent = label;
+  badge.className   = `panel-status-badge status-${loc.status}`;
+  badge.style.color = '';
+  badge.style.borderColor = '';
 
-  document.getElementById('panel-name').textContent = loc.name;
-  document.getElementById('panel-region').textContent = loc.region || '';
+  document.getElementById('panel-name').textContent     = loc.name;
+  document.getElementById('panel-subtitle').textContent = loc.type;
 
-  // Build body HTML
-  let html = '';
+  document.getElementById('panel-body').innerHTML = `
+    <div class="panel-section">About</div>
+    <div class="panel-desc">${escapeHtml(loc.desc)}</div>
+  `;
 
-  // Description
-  html += `<div class="panel-section-title">About</div>`;
-  html += `<div class="panel-desc">${loc.desc}</div>`;
-
-  // Tags
-  if (loc.tags && loc.tags.length) {
-    html += `<div class="panel-tag-row">`;
-    html += loc.tags.map(t => `<span class="panel-tag">${t}</span>`).join('');
-    html += `</div>`;
-  }
-
-  // Details
-  if (loc.details && loc.details.length) {
-    html += `<div class="panel-section-title">Details</div>`;
-    html += loc.details.map(([k, v]) =>
-      `<div class="panel-stat-row">
-        <span class="panel-stat-label">${k}</span>
-        <span class="panel-stat-val">${v}</span>
-      </div>`
-    ).join('');
-  }
-
-  // Notable NPCs
-  if (loc.notables && loc.notables.length) {
-    html += `<div class="panel-section-title">Notable People</div>`;
-    html += loc.notables.map(n => `
-      <div class="panel-notable-item">
-        <span class="panel-notable-bullet">◆</span>
-        <div>
-          <div class="panel-notable-name">${n.name}</div>
-          <div class="panel-notable-role">${n.role}</div>
-        </div>
-      </div>`).join('');
-  }
-
-  document.getElementById('panel-body').innerHTML = html;
-
-  // Open panel
   openPanel();
 }
 
+// ══════════════════════════════════════════════════════════
+// PLAYER PIN DETAIL
+// ══════════════════════════════════════════════════════════
+function selectPlayerPin(event, pinId) {
+  event.stopPropagation();
+  const pin = playerPins.find(p => p.id === pinId);
+  if (!pin) return;
+  const pt = PIN_TYPES.find(t => t.id === pin.type) || PIN_TYPES[4];
+  selectedKey = `player-${pinId}`;
+  renderPins();
+  renderMarksList();
+
+  document.getElementById('panel-type-label').textContent = 'Mark';
+  document.getElementById('panel-type-label').style.color = pt.color;
+
+  const badge = document.getElementById('panel-status-badge');
+  badge.textContent       = pt.label;
+  badge.className         = 'panel-status-badge';
+  badge.style.color       = pt.color;
+  badge.style.borderColor = pt.color + '66';
+
+  document.getElementById('panel-name').textContent     = pt.label;
+  document.getElementById('panel-subtitle').textContent = `Placed by ${escapeHtml(pin.placedBy)}`;
+
+  const canDelete = currentIdentity &&
+    (currentIdentity.playerId === pin.playerId || currentIdentity.playerId === 'dm');
+
+  document.getElementById('panel-body').innerHTML = `
+    <div class="panel-section">Note</div>
+    ${pin.note
+      ? `<div class="panel-pin-note">${escapeHtml(pin.note)}</div>`
+      : `<div class="panel-pin-note" style="color:var(--muted)">No note added.</div>`}
+    <div class="panel-section">Placed by</div>
+    <div class="panel-pin-who">
+      <div class="panel-pin-who-dot" style="background:${escapeHtml(pin.color||pt.color)}"></div>
+      ${escapeHtml(pin.placedBy)} &middot; ${escapeHtml(pin.character)} &middot;
+      ${new Date(pin.timestamp).toLocaleDateString('en-US',{month:'short',day:'numeric',year:'numeric'})}
+    </div>
+    ${canDelete ? `<br><button class="panel-pin-delete" onclick="deletePin('${escapeHtml(pinId)}')">Delete Mark</button>` : ''}
+  `;
+
+  openPanel();
+}
+
+// ══════════════════════════════════════════════════════════
+// PLACING MODE
+// ══════════════════════════════════════════════════════════
+function startPlacing() {
+  if (!currentIdentity) { openIdentityModal(); return; }
+
+  const palette = document.getElementById('pin-palette');
+  const btn     = document.getElementById('marks-place-btn');
+  const rect    = btn.getBoundingClientRect();
+
+  // Position palette above the button
+  palette.style.bottom = (window.innerHeight - rect.top + 6) + 'px';
+  palette.style.right  = (window.innerWidth - rect.right) + 'px';
+  palette.style.left   = 'auto';
+  palette.style.top    = 'auto';
+
+  // Build items (clear old ones first)
+  const title  = palette.querySelector('.pin-palette-title');
+  const cancel = palette.querySelector('.pin-palette-cancel');
+  Array.from(palette.children).forEach(c => { if (c !== title && c !== cancel) c.remove(); });
+
+  PIN_TYPES.forEach(pt => {
+    const item = document.createElement('div');
+    item.className = 'pin-palette-item';
+    item.innerHTML = `<div class="pin-palette-dot" style="background:${pt.color}"></div><span class="pin-palette-name">${pt.label}</span>`;
+    item.onclick = () => choosePinType(pt.id);
+    title.insertAdjacentElement('afterend', item);
+  });
+
+  palette.classList.add('open');
+}
+
+function choosePinType(typeId) {
+  pendingPinType = typeId;
+  document.getElementById('pin-palette').classList.remove('open');
+  placingMode = true;
+  document.getElementById('map-wrap').classList.add('placing');
+}
+
+function cancelPlacing() {
+  placingMode    = false;
+  pendingPinType = null;
+  document.getElementById('pin-palette').classList.remove('open');
+  document.getElementById('map-wrap').classList.remove('placing');
+}
+
+// ══════════════════════════════════════════════════════════
+// MAP CLICK
+// ══════════════════════════════════════════════════════════
+function handleMapClick(event) {
+  if (event.target.closest('.canon-pin') || event.target.closest('.player-pin')) return;
+
+  if (!placingMode) {
+    selectedKey = null;
+    closePanel();
+    renderPins();
+    return;
+  }
+
+  if (!currentIdentity || !pendingPinType) { cancelPlacing(); return; }
+
+  const wrap = document.getElementById('map-wrap');
+  const rect = wrap.getBoundingClientRect();
+  const x = ((event.clientX - rect.left) / rect.width)  * 100;
+  const y = ((event.clientY - rect.top)  / rect.height) * 100;
+
+  showPinNoteForm(x, y, pendingPinType);
+  cancelPlacing();
+}
+
+function showPinNoteForm(x, y, typeId) {
+  const pt = PIN_TYPES.find(t => t.id === typeId) || PIN_TYPES[4];
+
+  document.getElementById('panel-type-label').textContent = 'New Mark';
+  document.getElementById('panel-type-label').style.color = pt.color;
+
+  const badge = document.getElementById('panel-status-badge');
+  badge.textContent       = pt.label;
+  badge.className         = 'panel-status-badge';
+  badge.style.color       = pt.color;
+  badge.style.borderColor = pt.color + '66';
+
+  document.getElementById('panel-name').textContent     = 'Add a note';
+  document.getElementById('panel-subtitle').textContent = `Placing ${pt.label} pin`;
+
+  document.getElementById('panel-body').innerHTML = `
+    <textarea class="panel-note-input" id="new-pin-note"
+      placeholder="Optional note… e.g. 'Ogre camp, northwest of the ford'"></textarea>
+    <br>
+    <button class="panel-save-btn" onclick="confirmPin(${x.toFixed(2)}, ${y.toFixed(2)}, '${typeId}')">Save Mark</button>
+    <button class="panel-cancel-btn" onclick="closePanel()">Cancel</button>
+  `;
+  openPanel();
+  setTimeout(() => document.getElementById('new-pin-note')?.focus(), 80);
+}
+
+async function confirmPin(x, y, typeId) {
+  if (!currentIdentity) return;
+  const note = document.getElementById('new-pin-note')?.value.trim() || '';
+  const pin  = {
+    id:        Date.now().toString(),
+    type:      typeId,
+    x:         Math.round(x * 100) / 100,
+    y:         Math.round(y * 100) / 100,
+    note,
+    playerId:  currentIdentity.playerId,
+    placedBy:  currentIdentity.name,
+    character: currentIdentity.character,
+    color:     currentIdentity.color,
+    timestamp: new Date().toISOString(),
+  };
+  playerPins = [pin, ...playerPins];
+  renderPins();
+  renderMarksList();
+  await savePins();
+  selectPlayerPin({ stopPropagation: () => {} }, pin.id);
+}
+
+async function deletePin(pinId) {
+  if (!confirm('Remove this mark?')) return;
+  playerPins  = playerPins.filter(p => p.id !== pinId);
+  selectedKey = null;
+  closePanel();
+  renderPins();
+  renderMarksList();
+  await savePins();
+}
+
+// ══════════════════════════════════════════════════════════
+// MARKS PANEL
+// ══════════════════════════════════════════════════════════
+function toggleMarksPanel() {
+  marksPanelOpen = !marksPanelOpen;
+  const panel = document.getElementById('marks-panel');
+  panel.classList.toggle('open', marksPanelOpen);
+  panel.classList.toggle('behind', marksPanelOpen && detailPanelOpen);
+  document.getElementById('rail-marks').classList.toggle('active', marksPanelOpen);
+}
+
+function renderMarksList() {
+  const filterRow = document.getElementById('marks-filter-row');
+  const allChip   = `<button class="marks-filter-chip${marksTypeFilter===null?' active':''}" onclick="setMarksFilter(null)">All</button>`;
+  const typeChips = PIN_TYPES.map(pt =>
+    `<button class="marks-filter-chip${marksTypeFilter===pt.id?' active':''}" onclick="setMarksFilter('${pt.id}')">
+      <div class="marks-filter-dot" style="background:${pt.color}"></div>${pt.label}
+    </button>`).join('');
+  filterRow.innerHTML = allChip + typeChips;
+
+  const list     = document.getElementById('marks-list');
+  const filtered = marksTypeFilter ? playerPins.filter(p => p.type === marksTypeFilter) : playerPins;
+
+  if (!filtered.length) {
+    list.innerHTML = '<div class="marks-empty">No marks yet.</div>';
+    return;
+  }
+  list.innerHTML = filtered.map(pin => {
+    const pt      = PIN_TYPES.find(t => t.id === pin.type) || PIN_TYPES[4];
+    const isActive = selectedKey === `player-${pin.id}`;
+    return `<div class="marks-item${isActive?' active':''}" onclick="selectPlayerPin({stopPropagation:()=>{}}, '${pin.id}')">
+      <div class="marks-item-dot" style="background:${pt.color}"></div>
+      <div class="marks-item-body">
+        <div class="marks-item-type">${pt.label}</div>
+        <div class="marks-item-note">${pin.note ? escapeHtml(pin.note) : '(no note)'}</div>
+        <div class="marks-item-who">${escapeHtml(pin.placedBy)} &middot; ${escapeHtml(pin.character)}</div>
+      </div>
+    </div>`;
+  }).join('');
+}
+
+function setMarksFilter(typeId) {
+  marksTypeFilter = typeId;
+  renderMarksList();
+  renderPins();
+}
+
+// ══════════════════════════════════════════════════════════
+// PANEL OPEN / CLOSE
+// ══════════════════════════════════════════════════════════
 function openPanel() {
-  panelOpen = true;
+  detailPanelOpen = true;
   document.getElementById('world-panel').classList.add('open');
+  if (marksPanelOpen) document.getElementById('marks-panel').classList.add('behind');
 }
 
 function closePanel() {
-  panelOpen = false;
-  selectedKey = null;
+  detailPanelOpen = false;
+  selectedKey     = null;
   document.getElementById('world-panel').classList.remove('open');
+  document.getElementById('marks-panel').classList.remove('behind');
   renderPins();
+  renderMarksList();
 }
 
 // ══════════════════════════════════════════════════════════
 // LIGHTBOX
 // ══════════════════════════════════════════════════════════
-function openLightbox() {
-  document.getElementById('lightbox').classList.add('open');
+function openLightbox()  { document.getElementById('lightbox').classList.add('open'); }
+function closeLightbox() { document.getElementById('lightbox').classList.remove('open'); }
+
+// ══════════════════════════════════════════════════════════
+// UTILS
+// ══════════════════════════════════════════════════════════
+function escapeHtml(str) {
+  return String(str||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
 }
-function closeLightbox() {
-  document.getElementById('lightbox').classList.remove('open');
-}
+
+// ══════════════════════════════════════════════════════════
+// KEYBOARD
+// ══════════════════════════════════════════════════════════
 document.addEventListener('keydown', e => {
-  if (e.key === 'Escape') { closeLightbox(); closePanel(); }
+  if (e.key === 'Escape') {
+    if (placingMode) { cancelPlacing(); return; }
+    if (!document.getElementById('id-modal').classList.contains('hidden')) { closeIdentityModal(); return; }
+    closeLightbox();
+    closePanel();
+  }
+});
+
+document.addEventListener('click', e => {
+  const palette = document.getElementById('pin-palette');
+  if (palette.classList.contains('open') &&
+      !palette.contains(e.target) &&
+      !e.target.closest('#marks-place-btn')) {
+    palette.classList.remove('open');
+  }
 });
 
 // ══════════════════════════════════════════════════════════
 // INIT
 // ══════════════════════════════════════════════════════════
+loadIdentity();
 renderPins();
+loadPins();
+
 </script>
 </body>
 </html>
