@@ -2,45 +2,6 @@
   "key": "vesperian",
   "inventory": [
     {
-      "name": "Explorer's Pack",
-      "rarity": "None",
-      "type": "G",
-      "typeLabel": "Adventuring Gear",
-      "weaponCat": "Adventuring Gear",
-      "detail": "Adventuring Gear · 59 lb",
-      "price": "1 pp",
-      "weight": 0,
-      "dmg1": null,
-      "dmg2": null,
-      "dmgType": null,
-      "range": null,
-      "ac": null,
-      "strength": null,
-      "stealth": null,
-      "reqAttune": null,
-      "properties": "Adventuring Gear",
-      "entries": [
-        "Includes:",
-        "a {@item backpack|phb}",
-        "a {@item bedroll|phb}",
-        "a {@item mess kit|phb}",
-        "a {@item tinderbox|phb}",
-        "10 {@item torch|phb|torches}",
-        "10 days of {@item Rations (1 day)|phb|rations}",
-        "a {@item waterskin|phb}",
-        "{@item Hempen Rope (50 feet)|phb|50 feet of hempen rope}"
-      ],
-      "contents": [
-        "torch|phb ×10",
-        "rations (1 day)|phb ×10"
-      ],
-      "source": "PHB",
-      "sourceFull": "PHB p151",
-      "page": 151,
-      "_enriched": true,
-      "alias": null
-    },
-    {
       "name": "Scale Mail",
       "rarity": "None",
       "type": "MA",
@@ -121,6 +82,45 @@
       "page": 149,
       "_enriched": true,
       "alias": null
+    },
+    {
+      "name": "Explorer's Pack",
+      "rarity": "None",
+      "type": "G",
+      "typeLabel": "Adventuring Gear",
+      "weaponCat": "Adventuring Gear",
+      "detail": "Adventuring Gear · 59 lb",
+      "price": "1 pp",
+      "weight": 0,
+      "dmg1": null,
+      "dmg2": null,
+      "dmgType": null,
+      "range": null,
+      "ac": null,
+      "strength": null,
+      "stealth": null,
+      "reqAttune": null,
+      "properties": "Adventuring Gear",
+      "entries": [
+        "Includes:",
+        "a {@item backpack|phb}",
+        "a {@item bedroll|phb}",
+        "a {@item mess kit|phb}",
+        "a {@item tinderbox|phb}",
+        "10 {@item torch|phb|torches}",
+        "10 days of {@item Rations (1 day)|phb|rations}",
+        "a {@item waterskin|phb}",
+        "{@item Hempen Rope (50 feet)|phb|50 feet of hempen rope}"
+      ],
+      "contents": [
+        "torch|phb ×10",
+        "rations (1 day)|phb ×10"
+      ],
+      "source": "PHB",
+      "sourceFull": "PHB p151",
+      "page": 151,
+      "_enriched": true,
+      "alias": null
     }
   ],
   "currency": {
@@ -138,5 +138,5 @@
     "flaws": "",
     "backstory": ""
   },
-  "lastUpdated": "2026-05-20T18:50:25.963Z"
+  "lastUpdated": "2026-05-20T18:50:27.851Z"
 }
