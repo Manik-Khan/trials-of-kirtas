@@ -636,25 +636,24 @@
     }
     .equip-item-row:hover { background: rgba(184,149,42,0.05); }
     .equip-item-row.editing { background: rgba(184,149,42,0.08); border-left: 2px solid var(--gold-mid); padding-left: 0.1rem; }
-    .equip-item-move {
-      display: flex;
-      flex-direction: column;
-      gap: 1px;
+    /* Drag handle */
+    .equip-drag-handle {
+      cursor: grab;
+      color: var(--gold-dim);
+      font-size: 0.85rem;
+      padding: 0 0.25rem;
       flex-shrink: 0;
-    }
-    .equip-item-move-btn {
-      width: 16px; height: 14px;
-      background: transparent;
-      border: 1px solid var(--gold-dim);
-      color: var(--muted);
-      cursor: pointer;
-      font-size: 0.5rem;
-      display: flex; align-items: center; justify-content: center;
-      padding: 0;
-      transition: all 0.1s;
+      user-select: none;
+      touch-action: none;
       line-height: 1;
+      opacity: 0.4;
+      transition: opacity 0.15s;
     }
-    .equip-item-move-btn:hover { color: var(--aged); border-color: var(--gold-mid); }
+    .equip-drag-handle:hover { opacity: 1; color: var(--gold-mid); }
+    .equip-drag-handle:active { cursor: grabbing; }
+    .equip-item-wrap.drag-over { border-top: 2px solid var(--gold); }
+    .equip-item-wrap.drag-over-below { border-bottom: 2px solid var(--gold); }
+    .equip-item-wrap.dragging { opacity: 0.4; }
     .equip-item-expand {
       font-size: 0.6rem;
       color: var(--muted);
@@ -1663,6 +1662,9 @@ let _currentInv      = null;
 let _currentCur      = null;
 let _selectedItemIdx = null;
 let _rightTab        = 'search';
+let _dragIdx         = null;
+let _touchTimer      = null;
+let _touchDragging   = false;
 let _itemSearchTimer = null;
 let _itemSearchResults = [];
 let _notesTimer      = null;
@@ -2513,12 +2515,19 @@ function buildEquipmentTab() {
     const statLine = inlineStats.length
       ? `<div class="equip-item-sub">${escapeHtml(inlineStats.join(' · '))}</div>`
       : '';
-    const isContainer = Array.isArray(item.contents) && item.contents.length > 0;
-    const containerIcon = isContainer ? `<span class="equip-item-expand" id="equip-exp-${i}">▶</span>` : `<span class="equip-item-expand" style="opacity:0">▶</span>`;
     return `
-      <div class="equip-item-wrap" id="equip-wrap-${i}">
+      <div class="equip-item-wrap" id="equip-wrap-${i}"
+        draggable="true"
+        ondragstart="csDragStart(event, ${i})"
+        ondragover="csDragOver(event, ${i})"
+        ondragleave="csDragLeave(event)"
+        ondrop="csDrop(event, ${i})"
+        ondragend="csDragEnd(event)">
         <div class="equip-item-row" id="equip-row-${i}" onclick="csShowItemDetail(${i})">
-          ${containerIcon}
+          <span class="equip-drag-handle"
+            title="Drag to reorder"
+            ontouchstart="csTouchDragStart(event, ${i})"
+            onclick="event.stopPropagation()">&#8942;&#8942;</span>
           <div class="equip-item-name-wrap" style="flex:1;min-width:0">
             <div class="equip-item-name">${escapeHtml(item.name)}</div>
             ${statLine}
@@ -2550,8 +2559,12 @@ function buildEquipmentTab() {
         ${inv.length === 0
           ? `<div style="color:var(--muted);font-style:italic;font-size:0.82rem;padding:0.5rem 0">No items yet \u2014 search in the panel to the right.</div>`
           : invRows}
-        <div style="margin-top:auto;padding-top:0.75rem">
+        <div style="padding-top:0.6rem;margin-top:0.6rem;border-top:1px solid var(--gold-dim)">
           <div class="equip-panel-section">Session Notes</div>
+          <textarea class="equip-notes-area" id="cs-notes"
+            placeholder="Ki points remaining, loot leads, reminders for next session…"
+            oninput="csNotesChanged()">${escapeHtml(notes)}</textarea>
+        </div>
           <textarea class="equip-notes-area" id="cs-notes"
             placeholder="Ki points remaining, loot leads, reminders for next session\u2026"
             oninput="csNotesChanged()">${escapeHtml(notes)}</textarea>
@@ -2780,8 +2793,8 @@ function csAccordionContent(item, i, editMode = false) {
     ${catLine}${statsHtml}${contents}${propsHtml}${desc}
     <div class="equip-acc-actions">
       <button class="equip-acc-btn primary" onclick="csEditItem(${i})">\u270E Edit</button>
-      <button class="equip-acc-btn" onclick="csMoveItem(${i},-1)">\u2191 Up</button>
-      <button class="equip-acc-btn" onclick="csMoveItem(${i},1)">\u2193 Down</button>
+      <button class="equip-acc-btn" onclick="csReorderItem(${i}, ${i}-1 >= 0 ? ${i}-1 : 0)">\u2191 Up</button>
+      <button class="equip-acc-btn" onclick="csReorderItem(${i}, ${i}+1)">\u2193 Down</button>
       <button class="equip-acc-btn danger" onclick="csDeleteItem(${i})">\u2715 Remove</button>
     </div>`;
 }
@@ -3087,7 +3100,7 @@ function csUpdateQty(idx, val) {
   csRebuildEquipmentTab();
 }
 
-// Edit item — opens accordion with edit form + move arrows, right panel stays
+// Edit item — opens accordion with edit form
 function csEditItem(idx) {
   const item = _currentInv[idx];
   if (!item) return;
@@ -3097,25 +3110,12 @@ function csEditItem(idx) {
     if (a.id !== `equip-acc-${idx}`) { a.classList.remove('open'); a.innerHTML = ''; }
   });
   document.querySelectorAll('.equip-item-row.editing').forEach(r => {
-    if (r.id !== `equip-row-${idx}`) {
-      r.classList.remove('editing');
-      r.querySelector('.equip-item-move')?.remove();
-    }
+    if (r.id !== `equip-row-${idx}`) r.classList.remove('editing');
   });
 
-  // Mark row as editing and insert move arrows
   const row = document.getElementById(`equip-row-${idx}`);
-  if (row && !row.querySelector('.equip-item-move')) {
-    row.classList.add('editing');
-    const mover = document.createElement('div');
-    mover.className = 'equip-item-move';
-    mover.innerHTML = `
-      <button class="equip-item-move-btn" onclick="event.stopPropagation();csMoveItem(${idx},-1)" title="Move up">\u25B2</button>
-      <button class="equip-item-move-btn" onclick="event.stopPropagation();csMoveItem(${idx},1)" title="Move down">\u25BC</button>`;
-    row.insertBefore(mover, row.firstChild);
-  }
+  if (row) row.classList.add('editing');
 
-  // Open accordion with edit form
   const acc = document.getElementById(`equip-acc-${idx}`);
   if (acc) {
     acc.innerHTML = csAccordionContent(item, idx, true);
@@ -3124,59 +3124,120 @@ function csEditItem(idx) {
   setTimeout(() => document.getElementById(`acc-edit-name-${idx}`)?.focus(), 50);
 }
 
-// Move item — swaps DOM nodes directly, no full rebuild, edit state persists
-function csMoveItem(idx, dir) {
-  const inv    = _currentInv.map(i => ({ ...i }));
-  const newIdx = idx + dir;
-  if (newIdx < 0 || newIdx >= inv.length) return;
+// ── Drag and Drop reordering ──
 
-  // Swap in data
-  [inv[idx], inv[newIdx]] = [inv[newIdx], inv[idx]];
+function csDragStart(event, idx) {
+  _dragIdx = idx;
+  event.dataTransfer.effectAllowed = 'move';
+  // Small delay so the drag image renders before we fade
+  setTimeout(() => {
+    const el = document.getElementById(`equip-wrap-${idx}`);
+    if (el) el.classList.add('dragging');
+  }, 0);
+}
+
+function csDragOver(event, idx) {
+  event.preventDefault();
+  event.dataTransfer.dropEffect = 'move';
+  if (_dragIdx === null || _dragIdx === idx) return;
+  document.querySelectorAll('.equip-item-wrap').forEach(el => {
+    el.classList.remove('drag-over', 'drag-over-below');
+  });
+  const el = document.getElementById(`equip-wrap-${idx}`);
+  if (el) el.classList.add(_dragIdx < idx ? 'drag-over-below' : 'drag-over');
+}
+
+function csDragLeave(event) {
+  const el = event.currentTarget;
+  if (el) { el.classList.remove('drag-over', 'drag-over-below'); }
+}
+
+function csDrop(event, toIdx) {
+  event.preventDefault();
+  document.querySelectorAll('.equip-item-wrap').forEach(el => {
+    el.classList.remove('drag-over', 'drag-over-below', 'dragging');
+  });
+  if (_dragIdx === null || _dragIdx === toIdx) { _dragIdx = null; return; }
+  csReorderItem(_dragIdx, toIdx);
+  _dragIdx = null;
+}
+
+function csDragEnd(event) {
+  _dragIdx = null;
+  document.querySelectorAll('.equip-item-wrap').forEach(el => {
+    el.classList.remove('drag-over', 'drag-over-below', 'dragging');
+  });
+}
+
+// Touch drag — long press (600ms) activates drag mode
+function csTouchDragStart(event, idx) {
+  event.stopPropagation();
+  clearTimeout(_touchTimer);
+  _touchTimer = setTimeout(() => {
+    _touchDragging = true;
+    _dragIdx = idx;
+    const el = document.getElementById(`equip-wrap-${idx}`);
+    if (el) el.classList.add('dragging');
+    // Bind touchmove and touchend to document
+    document.addEventListener('touchmove', csTouchMove, { passive: false });
+    document.addEventListener('touchend', csTouchEnd);
+  }, 600);
+}
+
+function csTouchMove(event) {
+  if (!_touchDragging) return;
+  event.preventDefault();
+  const touch = event.touches[0];
+  const el = document.elementFromPoint(touch.clientX, touch.clientY);
+  const wrap = el?.closest('.equip-item-wrap');
+  if (!wrap) return;
+  const toIdx = parseInt(wrap.id.replace('equip-wrap-', ''));
+  if (isNaN(toIdx) || toIdx === _dragIdx) return;
+  document.querySelectorAll('.equip-item-wrap').forEach(e => {
+    e.classList.remove('drag-over', 'drag-over-below');
+  });
+  wrap.classList.add(_dragIdx < toIdx ? 'drag-over-below' : 'drag-over');
+}
+
+function csTouchEnd(event) {
+  clearTimeout(_touchTimer);
+  document.removeEventListener('touchmove', csTouchMove);
+  document.removeEventListener('touchend', csTouchEnd);
+  if (!_touchDragging) return;
+  _touchDragging = false;
+  const touch = event.changedTouches[0];
+  const el = document.elementFromPoint(touch.clientX, touch.clientY);
+  const wrap = el?.closest('.equip-item-wrap');
+  document.querySelectorAll('.equip-item-wrap').forEach(e => {
+    e.classList.remove('drag-over', 'drag-over-below', 'dragging');
+  });
+  if (wrap) {
+    const toIdx = parseInt(wrap.id.replace('equip-wrap-', ''));
+    if (!isNaN(toIdx) && toIdx !== _dragIdx) csReorderItem(_dragIdx, toIdx);
+  }
+  _dragIdx = null;
+}
+
+// The actual reorder logic — moves item from fromIdx to toIdx
+function csReorderItem(fromIdx, toIdx) {
+  const inv = _currentInv.map(i => ({ ...i }));
+  const [moved] = inv.splice(fromIdx, 1);
+  inv.splice(toIdx, 0, moved);
   _currentInv = inv;
   CharacterStore.save({ inventory: inv }, charKey);
-
-  // Swap DOM nodes without full rebuild
-  const wrapA = document.getElementById(`equip-wrap-${idx}`);
-  const wrapB = document.getElementById(`equip-wrap-${newIdx}`);
-  if (!wrapA || !wrapB) { csRebuildEquipmentTab(); return; }
-
-  // Swap all internal IDs on both wraps
-  const swapIds = (el, from, to) => {
-    el.querySelectorAll('[id]').forEach(node => {
-      node.id = node.id.replace(new RegExp(`-${from}(-|$)`), `-${to}$1`);
-    });
-    el.querySelectorAll('[onclick]').forEach(node => {
-      node.setAttribute('onclick', node.getAttribute('onclick').replace(new RegExp(`\\b${from}\\b`), to));
-    });
-    if (el.id) el.id = el.id.replace(new RegExp(`-${from}$`), `-${to}`);
-  };
-
-  // Clone, re-id, swap
-  const cloneA = wrapA.cloneNode(true);
-  const cloneB = wrapB.cloneNode(true);
-  swapIds(cloneA, idx, 9999);
-  swapIds(cloneB, newIdx, idx);
-  swapIds(cloneA, 9999, newIdx);
-
-  wrapA.parentNode.insertBefore(cloneB, wrapA);
-  wrapA.parentNode.insertBefore(cloneA, cloneB.nextSibling);
-  wrapA.remove();
-  wrapB.remove();
-
-  // Re-bind move button onclick with correct new indices
-  const newRowA = document.getElementById(`equip-row-${newIdx}`);
-  const newRowB = document.getElementById(`equip-row-${idx}`);
-  if (newRowA) {
-    const btns = newRowA.querySelectorAll('.equip-item-move-btn');
-    if (btns[0]) btns[0].setAttribute('onclick', `event.stopPropagation();csMoveItem(${newIdx},-1)`);
-    if (btns[1]) btns[1].setAttribute('onclick', `event.stopPropagation();csMoveItem(${newIdx},1)`);
+  // Update selected index if it moved
+  if (_selectedItemIdx === fromIdx) _selectedItemIdx = toIdx;
+  else if (_selectedItemIdx !== null) {
+    if (fromIdx < _selectedItemIdx && toIdx >= _selectedItemIdx) _selectedItemIdx--;
+    else if (fromIdx > _selectedItemIdx && toIdx <= _selectedItemIdx) _selectedItemIdx++;
   }
-  if (newRowB) {
-    const btns = newRowB.querySelectorAll('.equip-item-move-btn');
-    if (btns[0]) btns[0].setAttribute('onclick', `event.stopPropagation();csMoveItem(${idx},-1)`);
-    if (btns[1]) btns[1].setAttribute('onclick', `event.stopPropagation();csMoveItem(${idx},1)`);
+  csRebuildEquipmentTab();
+  // Restore selection if any
+  if (_selectedItemIdx !== null) {
+    setTimeout(() => csShowItemDetail(_selectedItemIdx), 50);
   }
 }
+
 
 // ── Background enrichment ──
 // Fetches 5etools data for all inventory items that don't have it yet
@@ -3246,14 +3307,10 @@ async function csEnrichItem(idx) {
 
 
 
-// Close edit mode — remove move arrows, close accordion
+// Close edit mode
 function csCloseEdit(idx) {
   const row = document.getElementById(`equip-row-${idx}`);
-  if (row) {
-    row.classList.remove('editing');
-    const mover = row.querySelector('.equip-item-move');
-    if (mover) mover.remove();
-  }
+  if (row) row.classList.remove('editing');
   const acc = document.getElementById(`equip-acc-${idx}`);
   if (acc) { acc.classList.remove('open'); acc.innerHTML = ''; }
 }
