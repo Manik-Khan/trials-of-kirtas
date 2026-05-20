@@ -509,18 +509,24 @@
       display: flex;
       flex-direction: column;
       gap: 0;
-      background: rgba(0,0,0,0.08);
+      background:
+        url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='200' height='200'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.75' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)' opacity='0.03'/%3E%3C/svg%3E"),
+        linear-gradient(160deg, rgba(30,20,10,0.7) 0%, rgba(18,12,6,0.85) 100%);
+      box-shadow: inset 2px 0 8px rgba(0,0,0,0.3), inset -1px 0 0 rgba(184,149,42,0.05);
     }
     .equip-right {
       overflow-y: auto;
       padding: 0.85rem 0.9rem;
-      background: rgba(0,0,0,0.18);
-      border-left: 1px solid rgba(184,149,42,0.15);
+      background:
+        url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='200' height='200'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.65' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)' opacity='0.025'/%3E%3C/svg%3E"),
+        linear-gradient(160deg, rgba(22,14,6,0.9) 0%, rgba(14,9,4,0.95) 100%);
+      box-shadow: inset -2px 0 8px rgba(0,0,0,0.3), inset 1px 0 0 rgba(184,149,42,0.05);
     }
     .equip-footer {
       grid-column: 1 / -1;
       border-top: 1px solid var(--gold-dim);
-      background: rgba(0,0,0,0.2);
+      background: rgba(0,0,0,0.35);
+      box-shadow: inset 0 1px 0 rgba(184,149,42,0.08);
       display: flex;
       align-items: center;
       justify-content: space-between;
@@ -2454,10 +2460,10 @@ function buildEquipmentTab() {
       ? `<div class="equip-item-sub">${escapeHtml(inlineStats.join(' · '))}</div>`
       : '';
     const isContainer = Array.isArray(item.contents) && item.contents.length > 0;
-    const containerIcon = isContainer ? `<span class="equip-item-expand" id="equip-exp-${i}">▶</span>` : '';
+    const containerIcon = isContainer ? `<span class="equip-item-expand" id="equip-exp-${i}">▶</span>` : `<span class="equip-item-expand" style="opacity:0">▶</span>`;
     return `
       <div class="equip-item-wrap" id="equip-wrap-${i}">
-        <div class="equip-item-row" id="equip-row-${i}" onclick="csToggleDetail(${i}, event)">
+        <div class="equip-item-row" id="equip-row-${i}" onclick="csShowItemDetail(${i})">
           ${containerIcon}
           <div class="equip-item-name-wrap" style="flex:1;min-width:0">
             <div class="equip-item-name">${escapeHtml(item.name)}</div>
@@ -2901,7 +2907,7 @@ function csAddItemFromSearch(item) {
   CharacterStore.save({ inventory: inv }, charKey);
   csRebuildEquipmentTab();
   const newIdx = inv.findIndex(i => i.name === item.name);
-  if (newIdx >= 0) setTimeout(() => csToggleDetail(newIdx, null), 50);
+  if (newIdx >= 0) setTimeout(() => csShowItemDetail(newIdx), 50);
 }
 
 // Add item from 5etools result
@@ -2934,33 +2940,54 @@ function csUpdateQty(idx, val) {
   csRebuildEquipmentTab();
 }
 
-// Edit item — shows move arrows on left of row, edit form in accordion
+// Edit item — opens accordion with edit form + move arrows, right panel stays
 function csEditItem(idx) {
   const item = _currentInv[idx];
   if (!item) return;
 
-  // Mark row as editing
-  document.querySelectorAll('.equip-item-row').forEach(r => r.classList.remove('editing'));
-  const row = document.getElementById(`equip-row-${idx}`);
-  if (row) row.classList.add('editing');
+  // Close any other open accordions
+  document.querySelectorAll('.equip-item-accordion.open').forEach(a => {
+    if (a.id !== `equip-acc-${idx}`) { a.classList.remove('open'); a.innerHTML = ''; }
+  });
+  document.querySelectorAll('.equip-item-row.editing').forEach(r => {
+    if (r.id !== `equip-row-${idx}`) {
+      r.classList.remove('editing');
+      r.querySelector('.equip-item-move')?.remove();
+    }
+  });
 
-  // Insert move arrows to the left of the row
-  const existingMover = row?.querySelector('.equip-item-move');
-  if (!existingMover && row) {
+  // Mark row as editing and insert move arrows
+  const row = document.getElementById(`equip-row-${idx}`);
+  if (row && !row.querySelector('.equip-item-move')) {
+    row.classList.add('editing');
     const mover = document.createElement('div');
     mover.className = 'equip-item-move';
     mover.innerHTML = `
-      <button class="equip-item-move-btn" onclick="csMoveItem(${idx},-1)" title="Move up">▲</button>
-      <button class="equip-item-move-btn" onclick="csMoveItem(${idx},1)" title="Move down">▼</button>`;
+      <button class="equip-item-move-btn" onclick="event.stopPropagation();csMoveItem(${idx},-1)" title="Move up">\u25B2</button>
+      <button class="equip-item-move-btn" onclick="event.stopPropagation();csMoveItem(${idx},1)" title="Move down">\u25BC</button>`;
     row.insertBefore(mover, row.firstChild);
   }
 
-  // Show edit form in accordion
+  // Open accordion with edit form
   const acc = document.getElementById(`equip-acc-${idx}`);
-  if (!acc) return;
-  acc.innerHTML = csAccordionContent(item, idx, true);
-  acc.classList.add('open');
+  if (acc) {
+    acc.innerHTML = csAccordionContent(item, idx, true);
+    acc.classList.add('open');
+  }
   setTimeout(() => document.getElementById(`acc-edit-name-${idx}`)?.focus(), 50);
+}
+
+// Move item — preserves edit state on the moved item
+function csMoveItem(idx, dir) {
+  const inv    = _currentInv.map(i => ({ ...i }));
+  const newIdx = idx + dir;
+  if (newIdx < 0 || newIdx >= inv.length) return;
+  [inv[idx], inv[newIdx]] = [inv[newIdx], inv[idx]];
+  _currentInv = inv;
+  CharacterStore.save({ inventory: inv }, charKey);
+  csRebuildEquipmentTab();
+  // Reopen edit mode on the moved item so arrows stay visible
+  setTimeout(() => csEditItem(newIdx), 50);
 }
 
 // Close edit mode — remove move arrows, close accordion
@@ -2975,35 +3002,78 @@ function csCloseEdit(idx) {
   if (acc) { acc.classList.remove('open'); acc.innerHTML = ''; }
 }
 
-// Toggle detail accordion (click on row)
-function csToggleDetail(idx, event) {
-  if (event && event.target.closest('.equip-item-btn, .equip-item-qty, .equip-item-move')) return;
-  const acc = document.getElementById(`equip-acc-${idx}`);
-  const exp = document.getElementById(`equip-exp-${idx}`);
+// Show item detail in right panel when row is clicked
+function csShowItemDetail(idx) {
+  // Highlight selected row
+  document.querySelectorAll('.equip-item-row').forEach(r => r.classList.remove('selected'));
   const row = document.getElementById(`equip-row-${idx}`);
-  if (!acc) return;
-  const isOpen = acc.classList.contains('open');
-  // Close all other accordions
-  document.querySelectorAll('.equip-item-accordion.open').forEach(a => {
-    if (a.id !== `equip-acc-${idx}`) { a.classList.remove('open'); a.innerHTML = ''; }
-  });
-  document.querySelectorAll('.equip-item-row.selected').forEach(r => {
-    if (r.id !== `equip-row-${idx}`) r.classList.remove('selected');
-  });
-  document.querySelectorAll('.equip-item-expand.open').forEach(e => {
-    if (e.id !== `equip-exp-${idx}`) e.classList.remove('open');
-  });
-  if (isOpen) {
-    acc.classList.remove('open');
-    acc.innerHTML = '';
-    if (exp) exp.classList.remove('open');
-    if (row) row.classList.remove('selected');
-  } else {
-    acc.innerHTML = csAccordionContent(_currentInv[idx], idx);
-    acc.classList.add('open');
-    if (exp) exp.classList.add('open');
-    if (row) row.classList.add('selected');
-  }
+  if (row) row.classList.add('selected');
+  _selectedItemIdx = idx;
+
+  // Update right panel with item detail
+  const panel = document.getElementById('equip-right-panel');
+  if (!panel) return;
+  const item = _currentInv[idx];
+  if (!item) return;
+
+  const color   = csRarityColor(item.rarity || 'None');
+  const rarity  = item.rarity && item.rarity !== 'None'
+    ? `<span class="equip-panel-rarity" style="color:${color};border-color:${color}">${escapeHtml(item.rarity)}</span><br>`
+    : '';
+  const catLine = (item.weaponCat || item.typeLabel)
+    ? `<div class="equip-panel-item-type">${escapeHtml(item.weaponCat || item.typeLabel)}</div>`
+    : '';
+
+  const rows = [];
+  if (item.price)   rows.push(['Price',   item.price]);
+  if (item.dmg1 && item.dmgType) rows.push(['Damage', `${item.dmg1} ${item.dmgType}${item.dmg2 ? ` / ${item.dmg2}` : ''}`]);
+  if (item.range)   rows.push(['Range',   `${item.range} ft.`]);
+  if (item.ac !== undefined && item.ac !== null) rows.push(['AC', item.ac]);
+  if (item.strength) rows.push(['Str req', item.strength]);
+  if (item.stealth)  rows.push(['Stealth', 'Disadvantage']);
+  if (item.weight)  rows.push(['Weight',  `${item.weight} lb`]);
+  if (item.reqAttune) rows.push(['Attune', item.reqAttune]);
+  if (item.attackStat) rows.push(['Attack stat', item.attackStat]);
+  if (item.sourceFull || item.source) rows.push(['Source', item.sourceFull || item.source]);
+  const statsHtml = rows.map(([k,v]) =>
+    `<div class="equip-panel-stat"><span>${escapeHtml(k)}</span><span>${escapeHtml(String(v))}</span></div>`
+  ).join('');
+
+  const props = Array.isArray(item.properties) ? item.properties : [];
+  const propsHtml = props.length ? `
+    <div class="equip-panel-section" style="margin-top:0.5rem">Properties</div>
+    ${props.map(p => `
+      <div style="margin-bottom:0.4rem">
+        <span style="font-family:var(--font-title);font-size:0.75rem;color:var(--gold-light)">${escapeHtml(p.name||p)}</span>
+        ${p.desc ? `<div style="font-size:0.72rem;color:var(--muted);margin-top:0.1rem">${escapeHtml(p.desc)}</div>` : ''}
+      </div>`).join('')}` : '';
+
+  const entries = Array.isArray(item.entries) ? item.entries : [];
+  const desc = entries.length
+    ? `<div class="equip-panel-desc">${entries.map(e=>`<p>${escapeHtml(e)}</p>`).join('')}</div>`
+    : '';
+
+  const contents = Array.isArray(item.contents) && item.contents.length
+    ? `<div class="equip-panel-section" style="margin-top:0.5rem">Contents</div>
+       <div class="equip-container-list">
+         ${item.contents.map(c=>`
+           <div class="equip-container-item">
+             <span class="equip-container-item-name">${escapeHtml(typeof c==='string'?c:c.name)}</span>
+             ${typeof c==='object'&&c.qty>1?`<span class="equip-container-item-qty">\u00D7${c.qty}</span>`:''}
+           </div>`).join('')}
+       </div>` : '';
+
+  const notes = item.notes
+    ? `<div class="equip-panel-section" style="margin-top:0.5rem">Notes</div>
+       <div style="font-size:0.78rem;color:var(--parchment2);font-style:italic">${escapeHtml(item.notes)}</div>`
+    : '';
+
+  panel.innerHTML = `
+    <div class="equip-panel-title">Item Detail</div>
+    <div class="equip-panel-item-name">${escapeHtml(item.name)}</div>
+    ${catLine}${rarity}
+    ${statsHtml}
+    ${contents}${propsHtml}${desc}${notes}`;
 }
 
 // Add empty row to container contents in edit mode
@@ -3063,6 +3133,8 @@ function csSaveItemEdit(idx) {
   csCloseEdit(idx);
   const nameEl = document.querySelector(`#equip-row-${idx} .equip-item-name`);
   if (nameEl) nameEl.textContent = inv[idx].name;
+  // Show updated detail in right panel
+  setTimeout(() => csShowItemDetail(idx), 50);
 }
 
 // Move item up or down
@@ -3095,6 +3167,9 @@ function csDeleteItem(idx) {
   _selectedItemIdx = null;
   CharacterStore.save({ inventory: inv }, charKey);
   csRebuildEquipmentTab();
+  // Reset right panel to search/default
+  const panel = document.getElementById('equip-right-panel');
+  if (panel) panel.innerHTML = csRightPanelDefault();
 }
 
 // Update currency
