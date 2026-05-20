@@ -1,0 +1,41 @@
+{
+  "key": "vesperian",
+  "inventory": [
+    {
+      "name": "Shield",
+      "weight": 6,
+      "properties": "+2 AC"
+    },
+    {
+      "name": "Scale Mail",
+      "weight": 45,
+      "properties": "Stealth Disadvantage, AC 14"
+    },
+    {
+      "name": "Longsword",
+      "weight": 3,
+      "properties": "Versatile (1d10), Bonded"
+    },
+    {
+      "name": "Explorer's Pack",
+      "weight": 0,
+      "properties": "Adventuring Gear"
+    }
+  ],
+  "currency": {
+    "pp": 0,
+    "gp": 0,
+    "ep": 0,
+    "sp": 0,
+    "cp": 0
+  },
+  "notes": "",
+  "bio": {
+    "personality": "",
+    "ideals": "",
+    "bonds": "",
+    "flaws": "",
+    "backstory": ""
+  },
+  "lastUpdated": "2026-05-20T15:23:23.003Z"
+}
