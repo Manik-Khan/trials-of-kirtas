@@ -2533,7 +2533,7 @@ function csAccordionContent(item, i, editMode = false) {
     : "";
 
   // Properties with descriptions
-  const props = item.properties || [];
+  const props = Array.isArray(item.properties) ? item.properties : [];
   const propsHtml = props.length ? `
     <div style="margin-top:0.4rem;margin-bottom:0.3rem">
       ${props.map(p => `
@@ -2543,7 +2543,7 @@ function csAccordionContent(item, i, editMode = false) {
         </div>`).join("")}
     </div>` : "";
 
-  const entries = item.entries || [];
+  const entries = Array.isArray(item.entries) ? item.entries : [];
   const desc = entries.length
     ? `<div class="equip-acc-desc">${entries.map(e => `<p>${escapeHtml(e)}</p>`).join("")}</div>`
     : "";
@@ -2760,7 +2760,7 @@ function csRenderItemDetail(item) {
   const statsHtml = `<div class="cs-idet-stats">${rows.map(([k,v]) =>
     `<div class="cs-idet-row"><span class="cs-idet-label">${escapeHtml(k)}</span><span>${escapeHtml(String(v))}</span></div>`
   ).join('')}</div>`;
-  const props = item.properties || [];
+  const props = Array.isArray(item.properties) ? item.properties : [];
   const propsHtml = props.length
     ? `<div style="margin:0.3rem 0">${props.map(p =>
         `<div style="margin-bottom:0.25rem">
@@ -2768,7 +2768,7 @@ function csRenderItemDetail(item) {
           ${p.desc ? `<div style="font-size:0.7rem;color:var(--muted)">${escapeHtml(p.desc)}</div>` : ''}
         </div>`).join('')}</div>`
     : '';
-  const entries = item.entries || [];
+  const entries = Array.isArray(item.entries) ? item.entries : [];
   const desc = entries.length
     ? `<div class="cs-idet-desc">${entries.map(e => `<p>${escapeHtml(e)}</p>`).join('')}</div>`
     : '';
