@@ -1,6 +1,15 @@
 {
   "entries": [
     {
+      "id": "1779254809614",
+      "session": 1,
+      "author": "DM",
+      "character": "Narrator",
+      "color": "#b8952a",
+      "timestamp": "2026-05-20T05:26:49.614Z",
+      "text": "<p><span style=\"color: rgb(122, 154, 170);\" data-mention-type=\"location-unresolved\" data-mention-key=\"goldleaftavern\">Goldleaftavern</span> <span class=\"ql-cursor\">﻿</span><img src=\"https://i.imgur.com/X5TAJK0.png\"></p>"
+    },
+    {
       "id": "1779252558767",
       "session": 1,
       "author": "DM",
