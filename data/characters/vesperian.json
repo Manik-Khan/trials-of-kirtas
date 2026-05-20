@@ -28,6 +28,34 @@
       "alias": null
     },
     {
+      "name": "Shield",
+      "rarity": "None",
+      "type": "S",
+      "typeLabel": "Shield",
+      "weaponCat": "Shield",
+      "detail": "Shield · AC 2 · 6 lb",
+      "price": "1 pp",
+      "weight": 6,
+      "dmg1": null,
+      "dmg2": null,
+      "dmgType": null,
+      "range": null,
+      "ac": 2,
+      "strength": null,
+      "stealth": null,
+      "reqAttune": null,
+      "properties": "+2 AC",
+      "entries": [
+        "A shield is made from wood or metal and is carried in one hand. Wielding a shield increases your Armor Class by 2. You can benefit from only one shield at a time."
+      ],
+      "contents": null,
+      "source": "PHB",
+      "sourceFull": "PHB p144",
+      "page": 144,
+      "_enriched": true,
+      "alias": null
+    },
+    {
       "name": "Explorer's Pack",
       "rarity": "None",
       "type": "G",
@@ -93,34 +121,6 @@
       "page": 144,
       "_enriched": true,
       "alias": null
-    },
-    {
-      "name": "Shield",
-      "rarity": "None",
-      "type": "S",
-      "typeLabel": "Shield",
-      "weaponCat": "Shield",
-      "detail": "Shield · AC 2 · 6 lb",
-      "price": "1 pp",
-      "weight": 6,
-      "dmg1": null,
-      "dmg2": null,
-      "dmgType": null,
-      "range": null,
-      "ac": 2,
-      "strength": null,
-      "stealth": null,
-      "reqAttune": null,
-      "properties": "+2 AC",
-      "entries": [
-        "A shield is made from wood or metal and is carried in one hand. Wielding a shield increases your Armor Class by 2. You can benefit from only one shield at a time."
-      ],
-      "contents": null,
-      "source": "PHB",
-      "sourceFull": "PHB p144",
-      "page": 144,
-      "_enriched": true,
-      "alias": null
     }
   ],
   "currency": {
@@ -138,5 +138,5 @@
     "flaws": "",
     "backstory": ""
   },
-  "lastUpdated": "2026-05-20T19:03:21.135Z"
+  "lastUpdated": "2026-05-20T19:03:24.141Z"
 }
