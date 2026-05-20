@@ -626,12 +626,29 @@
       gap: 0.4rem;
       padding: 0.35rem 0.3rem;
       border-bottom: 1px solid rgba(184,149,42,0.07);
-      cursor: pointer;
       transition: background 0.1s;
     }
     .equip-item-row:hover { background: rgba(184,149,42,0.05); }
-    .equip-item-row.selected { background: rgba(184,149,42,0.1); border-left: 2px solid var(--gold-mid); padding-left: 0.1rem; }
-    .equip-item-row.expanded { background: rgba(184,149,42,0.07); }
+    .equip-item-row.editing { background: rgba(184,149,42,0.08); border-left: 2px solid var(--gold-mid); padding-left: 0.1rem; }
+    .equip-item-move {
+      display: flex;
+      flex-direction: column;
+      gap: 1px;
+      flex-shrink: 0;
+    }
+    .equip-item-move-btn {
+      width: 16px; height: 14px;
+      background: transparent;
+      border: 1px solid var(--gold-dim);
+      color: var(--muted);
+      cursor: pointer;
+      font-size: 0.5rem;
+      display: flex; align-items: center; justify-content: center;
+      padding: 0;
+      transition: all 0.1s;
+      line-height: 1;
+    }
+    .equip-item-move-btn:hover { color: var(--aged); border-color: var(--gold-mid); }
     .equip-item-expand {
       font-size: 0.6rem;
       color: var(--muted);
@@ -2397,27 +2414,35 @@ function buildEquipmentTab() {
   const barPct      = Math.round(carryPct * 100);
 
   const invRows = inv.map((item, i) => {
+    const inlineStats = [
+      item.dmg1 && item.dmgType ? `${item.dmg1} ${item.dmgType}` : null,
+      Array.isArray(item.properties) && item.properties.length
+        ? item.properties.map(p => p.name || p).join(', ')
+        : null,
+      item.weight ? `${item.weight} lb` : null,
+      (!item.dmg1 && !(Array.isArray(item.properties) && item.properties.length) && item.detail) ? item.detail : null,
+    ].filter(Boolean);
+    const statLine = inlineStats.length
+      ? `<div class="equip-item-sub">${escapeHtml(inlineStats.join(' · '))}</div>`
+      : '';
     return `
       <div class="equip-item-wrap" id="equip-wrap-${i}">
-        <div class="equip-item-row" id="equip-row-${i}" onclick="csToggleAccordion(${i}, event)">
-          <span class="equip-item-expand" id="equip-exp-${i}">\u25B6</span>
-          <div class="equip-item-name-wrap">
+        <div class="equip-item-row" id="equip-row-${i}">
+          <div class="equip-item-name-wrap" style="flex:1;min-width:0">
             <div class="equip-item-name">${escapeHtml(item.name)}</div>
-            ${item.detail ? `<div class="equip-item-sub">${escapeHtml(item.detail)}</div>` : ""}
+            ${statLine}
           </div>
           <input class="equip-item-qty" type="number" min="0"
             value="${item.qty||1}"
             onchange="csUpdateQty(${i}, this.value)"
-            onclick="event.stopPropagation()"
             aria-label="Qty">
-          <span class="equip-item-wt">${item.weight ? item.weight + " lb" : "\u2014"}</span>
-          <button class="equip-item-btn del" onclick="event.stopPropagation();csDeleteItem(${i})" title="Remove">\u2715</button>
+          <span class="equip-item-wt">${item.weight ? item.weight + ' lb' : '—'}</span>
+          <button class="equip-item-btn" onclick="csEditItem(${i})" title="Edit">✎</button>
+          <button class="equip-item-btn del" onclick="csDeleteItem(${i})" title="Remove">✕</button>
         </div>
-        <div class="equip-item-accordion" id="equip-acc-${i}">
-          ${csAccordionContent(item, i)}
-        </div>
+        <div class="equip-item-accordion" id="equip-acc-${i}"></div>
       </div>`;
-  }).join("");
+  }).join('');
 
   return `
   <div class="tab-panel" id="tab-equipment">
@@ -2509,7 +2534,7 @@ function csAccordionContent(item, i, editMode = false) {
       </div>
       <div class="equip-acc-actions">
         <button class="equip-acc-btn primary" onclick="csSaveItemEdit(${i})">Save</button>
-        <button class="equip-acc-btn" onclick="csToggleAccordion(${i}, null)">Cancel</button>
+        <button class="equip-acc-btn" onclick="csCloseEdit(${i})">Cancel</button>
       </div>`;
   }
   const stats = [];
@@ -2798,7 +2823,7 @@ function csAddItemFromSearch(item) {
   CharacterStore.save({ inventory: inv }, charKey);
   csRebuildEquipmentTab();
   const newIdx = inv.findIndex(i => i.name === item.name);
-  if (newIdx >= 0) setTimeout(() => csToggleAccordion(newIdx, null), 50);
+  if (newIdx >= 0) setTimeout(() => csEditItem(newIdx), 50);
 }
 
 // Add item from 5etools result
@@ -2831,34 +2856,45 @@ function csUpdateQty(idx, val) {
   csRebuildEquipmentTab();
 }
 
-// Toggle accordion open/closed
-function csToggleAccordion(idx, event) {
-  if (event && event.target.closest('.equip-item-btn, .equip-item-qty')) return;
-  const acc = document.getElementById(`equip-acc-${idx}`);
-  const exp = document.getElementById(`equip-exp-${idx}`);
-  const row = document.getElementById(`equip-row-${idx}`);
-  if (!acc) return;
-  const isOpen = acc.classList.contains('open');
-  // Close all accordions
-  document.querySelectorAll('.equip-item-accordion').forEach(a => a.classList.remove('open'));
-  document.querySelectorAll('.equip-item-expand').forEach(e => e.classList.remove('open'));
-  document.querySelectorAll('.equip-item-row').forEach(r => r.classList.remove('selected'));
-  if (!isOpen) {
-    acc.classList.add('open');
-    if (exp) exp.classList.add('open');
-    if (row) row.classList.add('selected');
-  }
-}
-
-// Edit item — switch accordion to edit mode
+// Edit item — shows move arrows on left of row, edit form in accordion
 function csEditItem(idx) {
   const item = _currentInv[idx];
   if (!item) return;
+
+  // Mark row as editing
+  document.querySelectorAll('.equip-item-row').forEach(r => r.classList.remove('editing'));
+  const row = document.getElementById(`equip-row-${idx}`);
+  if (row) row.classList.add('editing');
+
+  // Insert move arrows to the left of the row
+  const existingMover = row?.querySelector('.equip-item-move');
+  if (!existingMover && row) {
+    const mover = document.createElement('div');
+    mover.className = 'equip-item-move';
+    mover.innerHTML = `
+      <button class="equip-item-move-btn" onclick="csMoveItem(${idx},-1)" title="Move up">▲</button>
+      <button class="equip-item-move-btn" onclick="csMoveItem(${idx},1)" title="Move down">▼</button>`;
+    row.insertBefore(mover, row.firstChild);
+  }
+
+  // Show edit form in accordion
   const acc = document.getElementById(`equip-acc-${idx}`);
   if (!acc) return;
   acc.innerHTML = csAccordionContent(item, idx, true);
   acc.classList.add('open');
   setTimeout(() => document.getElementById(`acc-edit-name-${idx}`)?.focus(), 50);
+}
+
+// Close edit mode — remove move arrows, close accordion
+function csCloseEdit(idx) {
+  const row = document.getElementById(`equip-row-${idx}`);
+  if (row) {
+    row.classList.remove('editing');
+    const mover = row.querySelector('.equip-item-move');
+    if (mover) mover.remove();
+  }
+  const acc = document.getElementById(`equip-acc-${idx}`);
+  if (acc) { acc.classList.remove('open'); acc.innerHTML = ''; }
 }
 
 // Save item edits
@@ -2872,16 +2908,11 @@ function csSaveItemEdit(idx) {
   inv[idx] = { ...inv[idx], name, detail: detail || null, attackStat: attackStat || null, notes: notes || null };
   _currentInv = inv;
   CharacterStore.save({ inventory: inv }, charKey);
-  // Switch accordion back to detail view without full rebuild
-  const acc = document.getElementById(`equip-acc-${idx}`);
-  if (acc) {
-    acc.innerHTML = csAccordionContent(inv[idx], idx);
-    // Update the name shown on the row
-    const nameEl = document.querySelector(`#equip-row-${idx} .equip-item-name`);
-    if (nameEl) nameEl.textContent = inv[idx].name;
-    const subEl = document.querySelector(`#equip-row-${idx} .equip-item-sub`);
-    if (subEl) subEl.textContent = inv[idx].detail || '';
-  }
+  // Switch accordion back to closed, update row inline
+  csCloseEdit(idx);
+  // Update name/stat line on row without full rebuild
+  const nameEl = document.querySelector(`#equip-row-${idx} .equip-item-name`);
+  if (nameEl) nameEl.textContent = inv[idx].name;
 }
 
 // Move item up or down
@@ -2893,7 +2924,6 @@ function csMoveItem(idx, dir) {
   _currentInv = inv;
   CharacterStore.save({ inventory: inv }, charKey);
   csRebuildEquipmentTab();
-  setTimeout(() => csToggleAccordion(newIdx, null), 50);
 }
 
 // Update item quantity — 0 removes the item
