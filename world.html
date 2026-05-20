@@ -33,7 +33,68 @@
     .rule::before,.rule::after{content:'';flex:1;height:1px;background:linear-gradient(90deg,transparent,var(--gold),transparent);}
     .rule-diamond{width:6px;height:6px;background:var(--gold);transform:rotate(45deg);flex-shrink:0;}
 
-    .container{max-width:1100px;margin:0 auto;padding:4rem 2rem 6rem;}
+    .map-section {
+      max-width: 1100px;
+      margin: 0 auto;
+      padding: 0 2rem 3rem;
+    }
+    .map-wrap {
+      position: relative;
+      border: 1px solid rgba(184,149,42,0.25);
+      box-shadow:
+        0 0 0 1px rgba(184,149,42,0.08),
+        0 8px 40px rgba(0,0,0,0.6),
+        inset 0 0 60px rgba(0,0,0,0.3);
+      background: #0d0a07;
+      overflow: hidden;
+    }
+    .map-img {
+      width: 100%;
+      display: block;
+      opacity: 0.92;
+      transition: opacity 0.3s;
+      cursor: zoom-in;
+    }
+    .map-img:hover { opacity: 1; }
+    .map-img.zoomed { cursor: zoom-out; }
+    .map-caption {
+      position: absolute;
+      bottom: 0; left: 0; right: 0;
+      padding: 1.5rem 1.5rem 1rem;
+      background: linear-gradient(transparent, rgba(13,10,7,0.85));
+      display: flex;
+      align-items: flex-end;
+      justify-content: center;
+    }
+    .map-eyebrow {
+      font-family: 'Cinzel', serif;
+      font-size: 0.65rem;
+      letter-spacing: 0.4em;
+      color: var(--gold);
+      text-transform: uppercase;
+      opacity: 0.8;
+    }
+    /* Lightbox overlay */
+    .map-overlay {
+      display: none;
+      position: fixed;
+      inset: 0;
+      background: rgba(0,0,0,0.92);
+      z-index: 9000;
+      align-items: center;
+      justify-content: center;
+      cursor: zoom-out;
+    }
+    .map-overlay.open { display: flex; }
+    .map-overlay img {
+      max-width: 95vw;
+      max-height: 95vh;
+      object-fit: contain;
+      border: 1px solid rgba(184,149,42,0.2);
+      box-shadow: 0 0 60px rgba(0,0,0,0.8);
+    }
+
+    .container { max-width: 1100px; margin: 0 auto; padding: 4rem 2rem 6rem; }
 
     .category-label{font-family:'Cinzel',serif;font-size:0.65rem;letter-spacing:0.5em;color:var(--muted);text-transform:uppercase;border-bottom:1px solid rgba(184,149,42,0.15);padding-bottom:0.5rem;margin-bottom:1.5rem;}
 
@@ -75,6 +136,15 @@
     <h1 class="page-title">The World</h1>
     <div class="rule"><div class="rule-diamond"></div></div>
     <p class="page-subtitle">Cities, territories, and contested lands — the geography of a kingdom at war with itself.</p>
+  </div>
+
+  <div class="map-section">
+    <div class="map-wrap">
+      <img src="img/maps/kirtas.jpeg" alt="Map of Kirtas" class="map-img" id="map-img">
+      <div class="map-caption">
+        <span class="map-eyebrow">The Kingdom of Kirtas</span>
+      </div>
+    </div>
   </div>
 
   <div class="container">
@@ -148,6 +218,25 @@
 
   <hr class="divider">
   <footer><p>The Trials of Kirtas &nbsp;·&nbsp; The World</p></footer>
+  <!-- Map lightbox -->
+  <div class="map-overlay" id="map-overlay" onclick="closeMapOverlay()">
+    <img src="img/maps/kirtas.jpeg" alt="Map of Kirtas — full size">
+  </div>
+
   <script src="nav.js"></script>
-</body>
+  <script>
+    const mapImg     = document.getElementById('map-img');
+    const mapOverlay = document.getElementById('map-overlay');
+    mapImg.addEventListener('click', () => {
+      mapOverlay.classList.add('open');
+      document.body.style.overflow = 'hidden';
+    });
+    function closeMapOverlay() {
+      mapOverlay.classList.remove('open');
+      document.body.style.overflow = '';
+    }
+    document.addEventListener('keydown', e => {
+      if (e.key === 'Escape') closeMapOverlay();
+    });
+  </script>
 </html>

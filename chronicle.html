@@ -418,6 +418,10 @@
     .c-entry-text hr { border: none; height: 1px; background: var(--gold-dim); margin: 0.75rem 0; }
     .c-entry-text img { max-width: 100%; border: 1px solid var(--gold-dim); margin: 0.5rem 0; }
     .c-entry-text strong { color: var(--parchment); }
+    /* Strip Quill Snow's inline black color — spans should inherit theme color unless they're mention links */
+    .c-entry-text span:not(.npc-link):not(.location-link):not(.npc-unresolved):not(.location-unresolved) {
+      color: inherit !important;
+    }
     /* NPC and location links in entries */
     .c-entry-text .npc-link { color: var(--gold-light); border-bottom: 1px dotted var(--gold-dim); cursor: default; }
     .c-entry-text .location-link { color: #8ab4c9; border-bottom: 1px dotted rgba(138,180,201,0.4); cursor: default; }
@@ -1606,7 +1610,7 @@ function renderEntry(e) {
   const date   = new Date(e.timestamp).toLocaleDateString('en-US',{month:'short',day:'numeric',year:'numeric'});
   const time   = new Date(e.timestamp).toLocaleTimeString('en-US',{hour:'numeric',minute:'2-digit'});
   const tags   = (e.tags||[]).map(t=>`<span class="c-entry-tag" onclick="filterByTag('${t}')">${t}</span>`).join('');
-  const isOwn  = currentIdentity && currentIdentity.name === e.author;
+  const isOwn  = currentIdentity && (currentIdentity.name === e.author || currentIdentity.playerId === 'dm');
   const menu   = isOwn ? `
     <div class="c-entry-menu-wrap">
       <button class="c-entry-menu-btn" onclick="toggleEntryMenu('${e.id}',event)">⋯</button>
@@ -1636,6 +1640,18 @@ function renderEntry(e) {
 }
 
 function processEntryHTML(html) {
+  // Pre-pass: strip Quill Snow's default black color — these are artifacts of the
+  // editor theme, not intentional formatting. Any span with color #000000 or
+  // rgb(0,0,0) / rgb(0, 0, 0) is Quill noise; remove the style attribute entirely.
+  html = html.replace(/<span([^>]*?)style="([^"]*?)"([^>]*?)>/gi, (match, pre, style, post) => {
+    const cleaned = style
+      .replace(/color\s*:\s*rgb\(\s*0\s*,\s*0\s*,\s*0\s*\)\s*;?/gi, '')
+      .replace(/color\s*:\s*#000000\s*;?/gi, '')
+      .replace(/color\s*:\s*#000\s*;?/gi, '')
+      .trim().replace(/;$/, '');
+    if (!cleaned) return `<span${pre}${post}>`;
+    return `<span${pre} style="${cleaned}"${post}>`;
+  });
   // Pass 1: Convert spans that were correctly tagged with data-mention-* attributes
   let out = html
     .replace(/<span([^>]*?)data-mention-type="npc"([^>]*?)data-mention-key="([^"]*)"([^>]*?)>(.*?)<\/span>/g,
