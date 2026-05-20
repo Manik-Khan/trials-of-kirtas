@@ -1,6 +1,20 @@
 {
   "entries": [
     {
+      "id": "1779255077369",
+      "session": 1,
+      "author": "Vesperian",
+      "character": "Fighter",
+      "color": "#5a9aaa",
+      "timestamp": "2026-05-20T05:31:17.369Z",
+      "text": "<p>We are in the tavern called <span style=\"color: rgb(122, 154, 170);\" data-mention-type=\"location-unresolved\" data-mention-key=\"goldleaf\">Goldleaf</span> </p><p><br></p><p><span style=\"color: rgb(212, 172, 58);\" data-mention-type=\"npc\" data-mention-key=\"caim\">Caim</span> managed to talk his way inside. <span style=\"color: rgb(212, 172, 58);\" data-mention-type=\"npc\" data-mention-key=\"liadan\">Líadan Luchóg</span> managed to sneak in. Cosmere and <span style=\"color: rgb(212, 172, 58);\" data-mention-type=\"npc\" data-mention-key=\"vesperian\">Vesperian Vale</span> were already inside. </p><p><br></p><p><br></p><p><br></p><p><br></p>",
+      "tags": [
+        "caim",
+        "liadan",
+        "vesperian"
+      ]
+    },
+    {
       "id": "1779254809614",
       "session": 1,
       "author": "DM",
