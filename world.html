@@ -3,240 +3,1001 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>The World — The Trials of Kirtas</title>
+  <title>World — The Trials of Kirtas</title>
   <link rel="preconnect" href="https://fonts.googleapis.com">
-  <link href="https://fonts.googleapis.com/css2?family=Cinzel+Decorative:wght@400;700&family=Cinzel:wght@400;600&family=Crimson+Pro:ital,wght@0,300;0,400;1,300;1,400&display=swap" rel="stylesheet">
+  <link href="https://fonts.googleapis.com/css2?family=Cinzel+Decorative:wght@400;700&family=Cinzel:wght@400;600&family=Crimson+Pro:ital,wght@0,300;0,400;0,600;1,300;1,400&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="theme.css">
   <style>
-    :root {
-      --ink:#1a1410;--parchment:#f0e6ce;--parchment2:#e8d9b8;--aged:#c9b48a;
-      --blood:#7a1f1f;--gold:#b8952a;--gold-light:#d4ac3a;--muted:#6b5d4a;
-    }
-    *,*::before,*::after{box-sizing:border-box;margin:0;padding:0;}
-    body{background-color:var(--ink);color:var(--parchment);font-family:'Crimson Pro',Georgia,serif;font-size:18px;line-height:1.8;min-height:100vh;}
-    body::before{content:'';position:fixed;inset:0;background-image:url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noise'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noise)' opacity='0.04'/%3E%3C/svg%3E");pointer-events:none;z-index:9999;opacity:0.4;}
-    nav{position:sticky;top:0;z-index:100;background:rgba(13,10,7,0.92);backdrop-filter:blur(12px);border-bottom:1px solid rgba(184,149,42,0.2);padding:0 2rem;}
-    .nav-inner{max-width:1100px;margin:0 auto;display:flex;align-items:center;justify-content:space-between;height:56px;}
-    .nav-brand{font-family:'Cinzel',serif;font-size:0.8rem;letter-spacing:0.2em;color:var(--gold);text-decoration:none;text-transform:uppercase;}
-    .nav-links{display:flex;gap:2rem;list-style:none;}
-    .nav-links a{font-family:'Cinzel',serif;font-size:0.72rem;letter-spacing:0.15em;color:var(--aged);text-decoration:none;text-transform:uppercase;transition:color 0.2s;position:relative;}
-    .nav-links a::after{content:'';position:absolute;bottom:-3px;left:0;width:0;height:1px;background:var(--gold);transition:width 0.2s;}
-    .nav-links a:hover{color:var(--gold-light);}
-    .nav-links a:hover::after{width:100%;}
-    .nav-links a.active{color:var(--gold-light);}
-    .nav-links a.active::after{width:100%;}
-    .page-header{text-align:center;padding:5rem 2rem 3rem;background:radial-gradient(ellipse 80% 60% at 50% 0%,rgba(42,20,10,0.8) 0%,transparent 70%);}
-    .page-eyebrow{font-family:'Cinzel',serif;font-size:0.7rem;letter-spacing:0.4em;color:var(--gold);text-transform:uppercase;opacity:0.7;}
-    .page-title{font-family:'Cinzel Decorative',serif;font-size:clamp(2rem,5vw,3.5rem);color:var(--parchment);margin:0.75rem 0 0.5rem;font-weight:400;}
-    .page-subtitle{font-style:italic;color:var(--aged);font-size:1rem;max-width:560px;margin:0 auto;}
-    .rule{display:flex;align-items:center;gap:1rem;max-width:400px;margin:1.5rem auto;}
-    .rule::before,.rule::after{content:'';flex:1;height:1px;background:linear-gradient(90deg,transparent,var(--gold),transparent);}
-    .rule-diamond{width:6px;height:6px;background:var(--gold);transform:rotate(45deg);flex-shrink:0;}
 
-    .map-section {
-      max-width: 1100px;
-      margin: 0 auto;
-      padding: 0 2rem 3rem;
-    }
-    .map-wrap {
-      position: relative;
-      border: 1px solid rgba(184,149,42,0.25);
-      box-shadow:
-        0 0 0 1px rgba(184,149,42,0.08),
-        0 8px 40px rgba(0,0,0,0.6),
-        inset 0 0 60px rgba(0,0,0,0.3);
-      background: #0d0a07;
+    /* ── Reset & base ── */
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body {
+      background: var(--ink);
+      color: var(--parchment);
+      font-family: var(--font-body);
+      height: 100vh;
       overflow: hidden;
-    }
-    .map-img {
-      width: 100%;
-      display: block;
-      opacity: 0.92;
-      transition: opacity 0.3s;
-      cursor: zoom-in;
-    }
-    .map-img:hover { opacity: 1; }
-    .map-img.zoomed { cursor: zoom-out; }
-    .map-caption {
-      position: absolute;
-      bottom: 0; left: 0; right: 0;
-      padding: 1.5rem 1.5rem 1rem;
-      background: linear-gradient(transparent, rgba(13,10,7,0.85));
       display: flex;
-      align-items: flex-end;
-      justify-content: center;
+      flex-direction: column;
     }
-    .map-eyebrow {
-      font-family: 'Cinzel', serif;
-      font-size: 0.65rem;
-      letter-spacing: 0.4em;
-      color: var(--gold);
+
+    /* ── Top nav (matches site nav) ── */
+    .world-nav {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 0 1.25rem;
+      height: 48px;
+      background: rgba(0,0,0,0.7);
+      border-bottom: 1px solid var(--gold-dim);
+      flex-shrink: 0;
+      z-index: 10;
+    }
+    .world-nav-brand {
+      font-family: var(--font-display, var(--font-title));
+      font-size: 0.72rem;
+      letter-spacing: 0.25em;
       text-transform: uppercase;
-      opacity: 0.8;
+      color: var(--gold);
     }
-    /* Lightbox overlay */
-    .map-overlay {
-      display: none;
+    .world-nav-links {
+      display: flex;
+      gap: 0.2rem;
+    }
+    .world-nav-link {
+      font-family: var(--font-title);
+      font-size: 0.52rem;
+      letter-spacing: 0.18em;
+      text-transform: uppercase;
+      color: var(--muted);
+      text-decoration: none;
+      padding: 0.3rem 0.65rem;
+      border-bottom: 2px solid transparent;
+      transition: color 0.2s, border-color 0.2s;
+    }
+    .world-nav-link:hover { color: var(--aged); }
+    .world-nav-link.active { color: var(--gold-light); border-bottom-color: var(--gold); }
+
+    /* ── Main layout: left rail + map + right panel ── */
+    .world-layout {
+      display: flex;
+      flex: 1;
+      overflow: hidden;
+      position: relative;
+    }
+
+    /* ── Left icon rail ── */
+    .world-rail {
+      width: 56px;
+      background: rgba(0,0,0,0.75);
+      border-right: 1px solid var(--gold-dim);
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      padding: 0.75rem 0;
+      gap: 0.25rem;
+      z-index: 5;
+      flex-shrink: 0;
+    }
+    .rail-btn {
+      width: 40px;
+      height: 40px;
+      background: transparent;
+      border: 1px solid transparent;
+      color: var(--muted);
+      cursor: pointer;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      gap: 0.15rem;
+      transition: color 0.15s, border-color 0.15s, background 0.15s;
+      position: relative;
+    }
+    .rail-btn:hover {
+      color: var(--aged);
+      border-color: var(--gold-dim);
+      background: rgba(184,149,42,0.06);
+    }
+    .rail-btn.active {
+      color: var(--gold-light);
+      border-color: var(--gold-mid);
+      background: rgba(184,149,42,0.12);
+    }
+    .rail-btn svg {
+      width: 18px;
+      height: 18px;
+      flex-shrink: 0;
+    }
+    .rail-label {
+      font-family: var(--font-title);
+      font-size: 0.3rem;
+      letter-spacing: 0.15em;
+      text-transform: uppercase;
+      line-height: 1;
+    }
+    .rail-divider {
+      width: 28px;
+      height: 1px;
+      background: var(--gold-dim);
+      margin: 0.25rem 0;
+      flex-shrink: 0;
+    }
+
+    /* ── Map container ── */
+    .world-map-wrap {
+      flex: 1;
+      position: relative;
+      overflow: hidden;
+      cursor: default;
+    }
+    .world-map-img {
+      position: absolute;
+      inset: 0;
+      width: 100%;
+      height: 100%;
+      object-fit: cover;
+      object-position: center;
+      user-select: none;
+      -webkit-user-drag: none;
+    }
+
+    /* Map vignette */
+    .world-map-wrap::after {
+      content: '';
+      position: absolute;
+      inset: 0;
+      pointer-events: none;
+      background:
+        radial-gradient(ellipse at center, transparent 55%, rgba(0,0,0,0.45) 100%);
+      z-index: 1;
+    }
+
+    /* ── Pins layer ── */
+    .pins-layer {
+      position: absolute;
+      inset: 0;
+      z-index: 2;
+      pointer-events: none;
+    }
+
+    /* Individual pin */
+    .map-pin {
+      position: absolute;
+      transform: translate(-50%, -50%);
+      pointer-events: all;
+      cursor: pointer;
+    }
+
+    /* Pin type colors */
+    .map-pin[data-type="city"]      { --pin-color: #b8952a; --pin-ring: rgba(184,149,42,0.35); }
+    .map-pin[data-type="town"]      { --pin-color: #8ab4cc; --pin-ring: rgba(138,180,204,0.35); }
+    .map-pin[data-type="ruin"]      { --pin-color: #c05060; --pin-ring: rgba(192,80,96,0.35); }
+    .map-pin[data-type="wilderness"]{ --pin-color: #5a9a6a; --pin-ring: rgba(90,154,106,0.35); }
+    .map-pin[data-type="landmark"] { --pin-color: #c9a46a; --pin-ring: rgba(201,164,106,0.35); }
+
+    .pin-pulse {
+      position: absolute;
+      inset: -8px;
+      border-radius: 50%;
+      border: 1.5px solid var(--pin-color);
+      opacity: 0;
+      animation: pinPulse 2.4s ease-out infinite;
+    }
+    .pin-pulse:nth-child(2) { animation-delay: 0.8s; }
+    .pin-pulse:nth-child(3) { animation-delay: 1.6s; }
+
+    @keyframes pinPulse {
+      0%   { transform: scale(0.5); opacity: 0.7; }
+      100% { transform: scale(2.2); opacity: 0; }
+    }
+
+    .pin-dot {
+      width: 10px;
+      height: 10px;
+      border-radius: 50%;
+      background: var(--pin-color);
+      border: 2px solid rgba(0,0,0,0.5);
+      box-shadow: 0 0 6px var(--pin-color), 0 0 12px var(--pin-ring);
+      position: relative;
+      z-index: 1;
+      transition: transform 0.15s, box-shadow 0.15s;
+    }
+
+    .map-pin:hover .pin-dot,
+    .map-pin.active .pin-dot {
+      transform: scale(1.4);
+      box-shadow: 0 0 10px var(--pin-color), 0 0 22px var(--pin-ring);
+    }
+
+    .map-pin.active .pin-pulse {
+      border-width: 2px;
+    }
+
+    /* Pin label */
+    .pin-label {
+      position: absolute;
+      top: calc(100% + 6px);
+      left: 50%;
+      transform: translateX(-50%);
+      font-family: var(--font-title);
+      font-size: 0.45rem;
+      letter-spacing: 0.12em;
+      text-transform: uppercase;
+      color: var(--parchment);
+      white-space: nowrap;
+      text-shadow: 0 1px 4px rgba(0,0,0,0.9), 0 0 8px rgba(0,0,0,0.8);
+      pointer-events: none;
+      opacity: 0.85;
+    }
+
+    /* ── Right detail panel ── */
+    .world-panel {
+      width: 320px;
+      flex-shrink: 0;
+      background: rgba(12,9,6,0.92);
+      border-left: 1px solid var(--gold-dim);
+      display: flex;
+      flex-direction: column;
+      z-index: 5;
+      transform: translateX(100%);
+      transition: transform 0.3s cubic-bezier(0.22,1,0.36,1);
+      position: relative;
+    }
+    .world-panel.open {
+      transform: translateX(0);
+    }
+
+    /* Subtle panel texture */
+    .world-panel::before {
+      content: '';
+      position: absolute;
+      inset: 0;
+      pointer-events: none;
+      background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='200' height='200'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.75' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)' opacity='0.025'/%3E%3C/svg%3E");
+      opacity: 0.6;
+    }
+
+    .panel-header {
+      padding: 1rem 1rem 0.6rem;
+      border-bottom: 1px solid var(--gold-dim);
+      flex-shrink: 0;
+      position: relative;
+    }
+    .panel-close {
+      position: absolute;
+      top: 0.7rem;
+      right: 0.7rem;
+      width: 22px;
+      height: 22px;
+      background: transparent;
+      border: 1px solid transparent;
+      color: var(--muted);
+      font-size: 0.8rem;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      transition: color 0.15s, border-color 0.15s;
+    }
+    .panel-close:hover { color: var(--aged); border-color: var(--gold-dim); }
+
+    .panel-type-tag {
+      font-family: var(--font-title);
+      font-size: 0.38rem;
+      letter-spacing: 0.25em;
+      text-transform: uppercase;
+      margin-bottom: 0.3rem;
+    }
+    .panel-name {
+      font-family: var(--font-title);
+      font-size: 1.05rem;
+      color: var(--parchment);
+      line-height: 1.2;
+    }
+    .panel-region {
+      font-size: 0.72rem;
+      color: var(--muted);
+      font-style: italic;
+      margin-top: 0.15rem;
+    }
+
+    .panel-body {
+      flex: 1;
+      overflow-y: auto;
+      padding: 0.8rem 1rem;
+      scrollbar-width: thin;
+      scrollbar-color: var(--gold-dim) transparent;
+    }
+    .panel-body::-webkit-scrollbar { width: 4px; }
+    .panel-body::-webkit-scrollbar-track { background: transparent; }
+    .panel-body::-webkit-scrollbar-thumb { background: var(--gold-dim); }
+
+    .panel-section-title {
+      font-family: var(--font-title);
+      font-size: 0.38rem;
+      letter-spacing: 0.3em;
+      text-transform: uppercase;
+      color: var(--gold-dim);
+      border-bottom: 1px solid var(--gold-dim);
+      padding-bottom: 0.2rem;
+      margin-bottom: 0.5rem;
+      margin-top: 0.8rem;
+    }
+    .panel-section-title:first-child { margin-top: 0; }
+
+    .panel-desc {
+      font-size: 0.85rem;
+      color: var(--parchment2);
+      line-height: 1.7;
+    }
+
+    .panel-tag-row {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 0.3rem;
+      margin-top: 0.4rem;
+    }
+    .panel-tag {
+      font-family: var(--font-title);
+      font-size: 0.38rem;
+      letter-spacing: 0.15em;
+      text-transform: uppercase;
+      padding: 0.18rem 0.45rem;
+      border: 1px solid var(--gold-dim);
+      color: var(--aged);
+    }
+
+    .panel-stat-row {
+      display: flex;
+      justify-content: space-between;
+      align-items: baseline;
+      padding: 0.3rem 0;
+      border-bottom: 1px solid rgba(184,149,42,0.07);
+      font-size: 0.78rem;
+    }
+    .panel-stat-row:last-child { border-bottom: none; }
+    .panel-stat-label { color: var(--muted); }
+    .panel-stat-val   { color: var(--parchment2); text-align: right; }
+
+    /* Notable list */
+    .panel-notable-item {
+      display: flex;
+      align-items: flex-start;
+      gap: 0.5rem;
+      padding: 0.35rem 0;
+      border-bottom: 1px solid rgba(184,149,42,0.06);
+      font-size: 0.8rem;
+    }
+    .panel-notable-item:last-child { border-bottom: none; }
+    .panel-notable-bullet {
+      color: var(--gold-dim);
+      flex-shrink: 0;
+      margin-top: 0.1rem;
+    }
+    .panel-notable-name { color: var(--parchment); font-style: italic; }
+    .panel-notable-role { color: var(--muted); font-size: 0.72rem; margin-top: 0.05rem; }
+
+    /* ── Location list panel (when a category is selected from rail) ── */
+    .world-list-panel {
+      width: 240px;
+      flex-shrink: 0;
+      background: rgba(12,9,6,0.92);
+      border-left: 1px solid var(--gold-dim);
+      display: flex;
+      flex-direction: column;
+      z-index: 4;
+      transform: translateX(100%);
+      transition: transform 0.28s cubic-bezier(0.22,1,0.36,1);
+      position: absolute;
+      top: 0; right: 0; bottom: 0;
+    }
+    /* list panel shifts left when detail panel is open */
+    .world-list-panel.open {
+      transform: translateX(0);
+    }
+
+    .list-panel-header {
+      padding: 0.8rem 1rem;
+      border-bottom: 1px solid var(--gold-dim);
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      flex-shrink: 0;
+    }
+    .list-panel-title {
+      font-family: var(--font-title);
+      font-size: 0.52rem;
+      letter-spacing: 0.25em;
+      text-transform: uppercase;
+      color: var(--gold);
+    }
+    .list-panel-close {
+      width: 22px; height: 22px;
+      background: transparent; border: 1px solid transparent;
+      color: var(--muted); font-size: 0.8rem;
+      cursor: pointer; display: flex; align-items: center; justify-content: center;
+      transition: color 0.15s, border-color 0.15s;
+    }
+    .list-panel-close:hover { color: var(--aged); border-color: var(--gold-dim); }
+
+    .list-panel-body {
+      flex: 1;
+      overflow-y: auto;
+      scrollbar-width: thin;
+      scrollbar-color: var(--gold-dim) transparent;
+    }
+    .list-panel-body::-webkit-scrollbar { width: 4px; }
+    .list-panel-body::-webkit-scrollbar-thumb { background: var(--gold-dim); }
+
+    .location-list-item {
+      display: flex;
+      align-items: center;
+      gap: 0.55rem;
+      padding: 0.6rem 1rem;
+      border-bottom: 1px solid rgba(184,149,42,0.06);
+      cursor: pointer;
+      transition: background 0.12s;
+    }
+    .location-list-item:hover { background: rgba(184,149,42,0.07); }
+    .location-list-item.active { background: rgba(184,149,42,0.12); }
+
+    .lli-dot {
+      width: 8px; height: 8px;
+      border-radius: 50%;
+      flex-shrink: 0;
+    }
+    .lli-name {
+      font-family: var(--font-body);
+      font-size: 0.88rem;
+      color: var(--parchment);
+    }
+    .lli-type {
+      font-family: var(--font-title);
+      font-size: 0.36rem;
+      letter-spacing: 0.12em;
+      text-transform: uppercase;
+      color: var(--muted);
+      margin-top: 0.08rem;
+    }
+
+    /* ── Filter chips ── */
+    .filter-bar {
+      padding: 0.5rem 1rem;
+      border-bottom: 1px solid var(--gold-dim);
+      display: flex;
+      gap: 0.3rem;
+      flex-wrap: wrap;
+      flex-shrink: 0;
+    }
+    .filter-chip {
+      font-family: var(--font-title);
+      font-size: 0.36rem;
+      letter-spacing: 0.12em;
+      text-transform: uppercase;
+      padding: 0.18rem 0.45rem;
+      border: 1px solid var(--gold-dim);
+      background: transparent;
+      color: var(--muted);
+      cursor: pointer;
+      transition: all 0.12s;
+    }
+    .filter-chip:hover { color: var(--aged); border-color: var(--gold-mid); }
+    .filter-chip.active { color: var(--gold); border-color: var(--gold); background: rgba(184,149,42,0.1); }
+
+    /* ── Empty state ── */
+    .panel-empty {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      height: 100%;
+      gap: 0.6rem;
+      padding: 2rem;
+      text-align: center;
+    }
+    .panel-empty-icon {
+      font-size: 1.8rem;
+      opacity: 0.25;
+    }
+    .panel-empty-text {
+      font-family: var(--font-title);
+      font-size: 0.48rem;
+      letter-spacing: 0.2em;
+      text-transform: uppercase;
+      color: var(--muted);
+    }
+
+    /* ── Lightbox (keep from previous world.html) ── */
+    .lightbox {
       position: fixed;
       inset: 0;
-      background: rgba(0,0,0,0.92);
-      z-index: 9000;
+      background: rgba(0,0,0,0.88);
+      z-index: 100;
+      display: none;
       align-items: center;
       justify-content: center;
       cursor: zoom-out;
     }
-    .map-overlay.open { display: flex; }
-    .map-overlay img {
+    .lightbox.open { display: flex; }
+    .lightbox img {
       max-width: 95vw;
       max-height: 95vh;
       object-fit: contain;
-      border: 1px solid rgba(184,149,42,0.2);
-      box-shadow: 0 0 60px rgba(0,0,0,0.8);
+      border: 1px solid var(--gold-dim);
     }
 
-    .container { max-width: 1100px; margin: 0 auto; padding: 4rem 2rem 6rem; }
+    /* ── Type color helpers ── */
+    .type-city       { color: #b8952a; }
+    .type-town       { color: #8ab4cc; }
+    .type-ruin       { color: #c05060; }
+    .type-wilderness { color: #5a9a6a; }
+    .type-landmark   { color: #c9a46a; }
+    .bg-city       { background: #b8952a; }
+    .bg-town       { background: #8ab4cc; }
+    .bg-ruin       { background: #c05060; }
+    .bg-wilderness { background: #5a9a6a; }
+    .bg-landmark   { background: #c9a46a; }
 
-    .category-label{font-family:'Cinzel',serif;font-size:0.65rem;letter-spacing:0.5em;color:var(--muted);text-transform:uppercase;border-bottom:1px solid rgba(184,149,42,0.15);padding-bottom:0.5rem;margin-bottom:1.5rem;}
-
-    .location-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(280px,1fr));gap:1.25rem;margin-bottom:3rem;}
-
-    .location-card{
-      background:linear-gradient(160deg,rgba(42,30,16,0.7) 0%,rgba(20,15,8,0.9) 100%);
-      border:1px solid rgba(184,149,42,0.12);
-      padding:1.5rem;
-      transition:border-color 0.3s,transform 0.3s;
-    }
-    .location-card:hover{border-color:rgba(184,149,42,0.35);transform:translateY(-2px);}
-
-    .location-name{font-family:'Cinzel',serif;font-size:0.95rem;letter-spacing:0.08em;color:var(--gold-light);margin-bottom:0.15rem;}
-    .location-type{font-size:0.82rem;font-style:italic;color:var(--muted);margin-bottom:0.75rem;}
-    .location-desc{font-size:0.92rem;color:var(--parchment2);line-height:1.65;}
-
-    .location-status{
-      display:inline-block;margin-top:0.75rem;
-      font-family:'Cinzel',serif;font-size:0.58rem;letter-spacing:0.2em;
-      text-transform:uppercase;padding:0.15rem 0.5rem;border:1px solid;
-    }
-    .status-neutral{color:var(--aged);border-color:rgba(201,180,138,0.3);}
-    .status-contested{color:#9a7a5a;border-color:rgba(154,122,90,0.3);}
-    .status-fallen{color:#9a5a5a;border-color:rgba(154,90,90,0.3);}
-    .status-safe{color:#5a9a6a;border-color:rgba(90,154,106,0.3);}
-
-    .divider{border:none;height:1px;background:linear-gradient(90deg,transparent,rgba(184,149,42,0.3),transparent);}
-    footer{text-align:center;padding:3rem 2rem;border-top:1px solid rgba(184,149,42,0.1);font-family:'Cinzel',serif;font-size:0.65rem;letter-spacing:0.3em;color:var(--muted);text-transform:uppercase;}
-    @media(max-width:600px){.nav-links{gap:1rem;}.nav-links a{font-size:0.62rem;}.location-grid{grid-template-columns:1fr;}}
   </style>
 </head>
 <body>
-  <div id="nav-root"></div>
 
-  <div class="page-header">
-    <p class="page-eyebrow">Geography &amp; Locations</p>
-    <div class="rule"><div class="rule-diamond"></div></div>
-    <h1 class="page-title">The World</h1>
-    <div class="rule"><div class="rule-diamond"></div></div>
-    <p class="page-subtitle">Cities, territories, and contested lands — the geography of a kingdom at war with itself.</p>
-  </div>
+  <!-- ── Nav ── -->
+  <nav class="world-nav">
+    <span class="world-nav-brand">The Trials of Kirtas</span>
+    <div class="world-nav-links">
+      <a class="world-nav-link" href="index.html">Home</a>
+      <a class="world-nav-link" href="party.html">Party</a>
+      <a class="world-nav-link" href="chronicle.html">Chronicle</a>
+      <a class="world-nav-link" href="lore.html">Lore</a>
+      <a class="world-nav-link" href="factions.html">Factions</a>
+      <a class="world-nav-link active" href="world.html">World</a>
+      <a class="world-nav-link" href="compendium.html">Compendium</a>
+    </div>
+  </nav>
 
-  <div class="map-section">
-    <div class="map-wrap">
-      <img src="img/maps/kirtas.jpeg" alt="Map of Kirtas" class="map-img" id="map-img">
-      <div class="map-caption">
-        <span class="map-eyebrow">The Kingdom of Kirtas</span>
+  <!-- ── Main layout ── -->
+  <div class="world-layout">
+
+    <!-- Left icon rail -->
+    <aside class="world-rail" id="world-rail">
+
+      <!-- All locations -->
+      <button class="rail-btn active" id="rail-all" onclick="railSelect('all')" title="All Locations">
+        <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.5">
+          <circle cx="10" cy="10" r="7"/>
+          <path d="M10 3v14M3 10h14" stroke-width="1"/>
+          <path d="M4.5 5.5 Q10 8 15.5 5.5M4.5 14.5 Q10 12 15.5 14.5"/>
+        </svg>
+        <span class="rail-label">All</span>
+      </button>
+
+      <div class="rail-divider"></div>
+
+      <!-- Cities -->
+      <button class="rail-btn" id="rail-city" onclick="railSelect('city')" title="Cities">
+        <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.5">
+          <rect x="7" y="10" width="6" height="8"/>
+          <rect x="3" y="13" width="4" height="5"/>
+          <rect x="13" y="13" width="4" height="5"/>
+          <path d="M7 10V7l3-3 3 3v3"/>
+          <rect x="9" y="14" width="2" height="4"/>
+        </svg>
+        <span class="rail-label">Cities</span>
+      </button>
+
+      <!-- Towns -->
+      <button class="rail-btn" id="rail-town" onclick="railSelect('town')" title="Towns">
+        <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.5">
+          <rect x="5" y="11" width="10" height="7"/>
+          <path d="M5 11 L10 6 L15 11"/>
+          <rect x="8" y="14" width="4" height="4"/>
+        </svg>
+        <span class="rail-label">Towns</span>
+      </button>
+
+      <!-- Ruins -->
+      <button class="rail-btn" id="rail-ruin" onclick="railSelect('ruin')" title="Ruins">
+        <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.5">
+          <path d="M4 17h12M6 17V9l-2 2M14 17V9l2 2M8 17v-5h4v5"/>
+          <path d="M6 9V7h2M14 9V7h-2M9 12h2"/>
+          <path d="M4 7l2-3h2M16 7l-2-3h-2"/>
+        </svg>
+        <span class="rail-label">Ruins</span>
+      </button>
+
+      <!-- Wilderness -->
+      <button class="rail-btn" id="rail-wilderness" onclick="railSelect('wilderness')" title="Wilderness">
+        <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.5">
+          <path d="M10 3 L6 10h3L5 17h10L11 10h3z"/>
+        </svg>
+        <span class="rail-label">Wild</span>
+      </button>
+
+      <!-- Landmarks -->
+      <button class="rail-btn" id="rail-landmark" onclick="railSelect('landmark')" title="Landmarks">
+        <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.5">
+          <path d="M10 2 L10 17"/>
+          <path d="M10 4 L16 7 L10 10"/>
+        </svg>
+        <span class="rail-label">Marks</span>
+      </button>
+
+      <div class="rail-divider"></div>
+
+      <!-- Full map toggle -->
+      <button class="rail-btn" onclick="openLightbox()" title="Full Map">
+        <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.5">
+          <rect x="2" y="4" width="16" height="12" rx="1"/>
+          <path d="M2 8h16M6 4v12"/>
+        </svg>
+        <span class="rail-label">Full</span>
+      </button>
+
+    </aside>
+
+    <!-- Map area -->
+    <div class="world-map-wrap" id="map-wrap">
+      <img
+        src="img/maps/kirtas.jpeg"
+        alt="Map of Kirtas"
+        class="world-map-img"
+        id="map-img"
+        draggable="false"
+        onerror="this.style.background='rgba(30,20,10,0.8)';this.alt='Map not found — place kirtas.jpeg in img/maps/'">
+
+      <!-- SVG pins layer — positions are % of image dimensions -->
+      <div class="pins-layer" id="pins-layer">
+        <!-- Pins are rendered by JS -->
       </div>
     </div>
-  </div>
 
-  <div class="container">
-
-    <!-- Cities -->
-    <div class="category-label">Cities &amp; Towns</div>
-    <div class="location-grid">
-
-      <div class="location-card">
-        <div class="location-name">Tiersgard</div>
-        <div class="location-type">Coastal Trade City · The Andan Sea</div>
-        <p class="location-desc">The only city that retains a semblance of its former glory. Merchants grow rich on the tools of war while agents from both sides operate in its streets. Ostensibly neutral.</p>
-        <span class="location-status status-neutral">Neutral</span>
+    <!-- Right detail panel -->
+    <aside class="world-panel" id="world-panel">
+      <div class="panel-header">
+        <button class="panel-close" onclick="closePanel()" title="Close">✕</button>
+        <div class="panel-type-tag" id="panel-type-tag"></div>
+        <div class="panel-name" id="panel-name">—</div>
+        <div class="panel-region" id="panel-region"></div>
       </div>
-
-      <div class="location-card">
-        <div class="location-name">The Capital</div>
-        <div class="location-type">Royal Seat · Kirtas</div>
-        <p class="location-desc">Held by Tyrus and his remaining veteran regiments. The seat of Kirtian power for generations, now garrisoned by a king increasingly desperate for men and coin.</p>
-        <span class="location-status status-contested">Tyrus-Held</span>
+      <div class="panel-body" id="panel-body">
+        <div class="panel-empty">
+          <div class="panel-empty-icon">⚑</div>
+          <div class="panel-empty-text">Select a location</div>
+        </div>
       </div>
-
-      <div class="location-card">
-        <div class="location-name">Yevennia</div>
-        <div class="location-type">Duchy · Kirtas</div>
-        <p class="location-desc">Home of Lord Reykoldt, Duke of Yevennia, where Darius and the King's Council first rallied in support of the young prince. The seat of the original rebellion.</p>
-        <span class="location-status status-contested">Contested</span>
-      </div>
-
-    </div>
-
-    <!-- Regions -->
-    <div class="category-label">Regions &amp; Territories</div>
-    <div class="location-grid">
-
-      <div class="location-card">
-        <div class="location-name">The Long Hills</div>
-        <div class="location-type">Highland Region · Northern Kirtas</div>
-        <p class="location-desc">Where Darius and Lord Reykoldt have encamped with the remnants of their forces. Remote, defensible, and slowly becoming a legend in its own right.</p>
-        <span class="location-status status-contested">Blue Jackets Territory</span>
-      </div>
-
-      <div class="location-card">
-        <div class="location-name">The Kharak Mountains</div>
-        <div class="location-type">Mountain Range · South-East Kirtas</div>
-        <p class="location-desc">A natural barrier between Kirtas and the kingdom of Numior. Orc and Goblin warbands pour from the passes as the border watches have collapsed.</p>
-        <span class="location-status status-fallen">Dangerous</span>
-      </div>
-
-      <div class="location-card">
-        <div class="location-name">Ilora</div>
-        <div class="location-type">Elven Forest · North-East</div>
-        <p class="location-desc">The great Elven forest, whose inhabitants have withdrawn entirely from the outside world. Those who stray near the treeline seldom return.</p>
-        <span class="location-status status-fallen">Closed — Enter at Your Peril</span>
-      </div>
-
-      <div class="location-card">
-        <div class="location-name">Numior</div>
-        <div class="location-type">Kingdom · South of the Kharak Range</div>
-        <p class="location-desc">Once a vassal state of Kirtas, now an independent kingdom growing in confidence and military ambition. King Eneos II watches the north with hungry eyes.</p>
-        <span class="location-status status-neutral">Foreign Power</span>
-      </div>
-
-    </div>
-
-    <div style="margin-top:2rem;padding:1.5rem 2rem;border:1px dashed rgba(184,149,42,0.1);font-style:italic;color:var(--muted);font-size:0.9rem;text-align:center;">
-      New locations will be added here as the party explores the world.
-    </div>
+    </aside>
 
   </div>
 
-  <hr class="divider">
-  <footer><p>The Trials of Kirtas &nbsp;·&nbsp; The World</p></footer>
-  <!-- Map lightbox -->
-  <div class="map-overlay" id="map-overlay" onclick="closeMapOverlay()">
-    <img src="img/maps/kirtas.jpeg" alt="Map of Kirtas — full size">
+  <!-- Lightbox -->
+  <div class="lightbox" id="lightbox" onclick="closeLightbox()">
+    <img src="img/maps/kirtas.jpeg" alt="Map of Kirtas — full resolution">
   </div>
 
-  <script src="nav.js"></script>
-  <script>
-    const mapImg     = document.getElementById('map-img');
-    const mapOverlay = document.getElementById('map-overlay');
-    mapImg.addEventListener('click', () => {
-      mapOverlay.classList.add('open');
-      document.body.style.overflow = 'hidden';
-    });
-    function closeMapOverlay() {
-      mapOverlay.classList.remove('open');
-      document.body.style.overflow = '';
-    }
-    document.addEventListener('keydown', e => {
-      if (e.key === 'Escape') closeMapOverlay();
-    });
-  </script>
+<script>
+// ══════════════════════════════════════════════════════════
+// LOCATION DATA
+// ══════════════════════════════════════════════════════════
+// Coordinates are percentage (x%, y%) of the map image dimensions.
+// Adjust these to match your actual kirtas.jpeg map.
+// type: "city" | "town" | "ruin" | "wilderness" | "landmark"
+//
+// To calibrate: open kirtas.jpeg, find the location in pixels,
+// divide by image width/height and multiply by 100.
+// ──────────────────────────────────────────────────────────
+
+const LOCATIONS = [
+  {
+    key: 'ilora',
+    name: 'Ilora',
+    type: 'city',
+    region: 'Northern Kirtas',
+    x: 62, y: 14,
+    desc: 'The jewel of northern Kirtas — a sprawling trade city built where the Teleros River meets the highland road. Its streets are wide and its markets loud.',
+    details: [
+      ['Population', 'Approx. 12,000'],
+      ['Government', 'Council of Merchants'],
+      ['Notable', 'Grand Market, River Gate'],
+    ],
+    tags: ['Trade Hub', 'River City', 'Neutral Ground'],
+    notables: [
+      { name: 'Guildmaster Hareth', role: 'Head of the Merchant Council' },
+    ],
+  },
+  {
+    key: 'caer-veth',
+    name: "Caer Veth",
+    type: 'city',
+    region: 'Central Kirtas',
+    x: 38, y: 32,
+    desc: 'A fortified city of ancient stone, Caer Veth has stood for centuries as the military heart of the realm. Its walls have never been breached.',
+    details: [
+      ['Population', 'Approx. 8,000'],
+      ['Government', 'Lord Commander'],
+      ['Notable', 'The Iron Keep, War College'],
+    ],
+    tags: ['Fortified', 'Military', 'Old City'],
+    notables: [
+      { name: 'Lord Commander Daveth', role: 'Commander of the garrison' },
+    ],
+  },
+  {
+    key: 'thornhaven',
+    name: 'Thornhaven',
+    type: 'town',
+    region: 'Eastern Reaches',
+    x: 72, y: 44,
+    desc: 'A prosperous market town at the crossroads of three trade routes. The locals are guarded but fair, and the inn is always full.',
+    details: [
+      ['Population', 'Approx. 2,400'],
+      ['Government', 'Elected Mayor'],
+      ['Notable', 'The Thorn & Thistle Inn'],
+    ],
+    tags: ['Trade Crossroads', 'Farmland'],
+    notables: [
+      { name: 'Mayor Oswyn', role: 'Elected mayor, 3rd term' },
+    ],
+  },
+  {
+    key: 'ashford',
+    name: 'Ashford',
+    type: 'town',
+    region: 'Western Marches',
+    x: 22, y: 52,
+    desc: 'A mill town sitting astride the River Ash. Once prosperous, recent flooding has strained its people and depleted its granaries.',
+    details: [
+      ['Population', 'Approx. 1,800'],
+      ['Government', 'Town elder council'],
+      ['Notable', 'Old Ash Mill, River Ford'],
+    ],
+    tags: ['Mill Town', 'Struggling'],
+    notables: [],
+  },
+  {
+    key: 'greyspire',
+    name: 'Greyspire',
+    type: 'ruin',
+    region: 'The Shattered Heights',
+    x: 55, y: 26,
+    desc: 'The crumbling spire of a pre-Collapse wizard tower. Local shepherds avoid it after dark. Strange lights have been reported near its base.',
+    details: [
+      ['Era', 'Pre-Collapse (~600 years)'],
+      ['Status', 'Abandoned, partially collapsed'],
+      ['Danger', 'Unknown — possibly moderate'],
+    ],
+    tags: ['Arcane Ruin', 'Unexplored', 'Dangerous'],
+    notables: [],
+  },
+  {
+    key: 'the-barrow-fields',
+    name: 'The Barrow Fields',
+    type: 'ruin',
+    region: 'Northern Plains',
+    x: 30, y: 18,
+    desc: 'An ancient burial ground stretching across several square miles. The barrows are old — older than any current kingdom. Grave robbers rarely return.',
+    details: [
+      ['Era', 'Unknown — pre-human'],
+      ['Status', 'Active (undead reported)'],
+      ['Danger', 'High'],
+    ],
+    tags: ['Burial Ground', 'Undead', 'Forbidden'],
+    notables: [],
+  },
+  {
+    key: 'the-verdant-reach',
+    name: 'The Verdant Reach',
+    type: 'wilderness',
+    region: 'Western Forest',
+    x: 14, y: 38,
+    desc: 'A vast forest of ancient oaks that predates all settlement in the region. The druids who tend it do not welcome visitors, but those who respect the old ways are sometimes guided through.',
+    details: [
+      ['Size', 'Several hundred square miles'],
+      ['Inhabitants', 'Druids, fey, forest creatures'],
+      ['Danger', 'Moderate (if disrespectful)'],
+    ],
+    tags: ['Ancient Forest', 'Druidic', 'Fey-touched'],
+    notables: [
+      { name: 'The Greenkeeper', role: 'Druidic warden (rarely seen)' },
+    ],
+  },
+  {
+    key: 'stoneback-ridge',
+    name: 'Stoneback Ridge',
+    type: 'wilderness',
+    region: 'Eastern Mountains',
+    x: 80, y: 62,
+    desc: "A ridge of jagged peaks that forms the eastern border of known Kirtas. The passes are treacherous, and something large has been hunting in the foothills.",
+    details: [
+      ['Terrain', 'Alpine — passes at 8,000 ft'],
+      ['Inhabitants', 'Giants, wyverns (rumoured)'],
+      ['Danger', 'Very High'],
+    ],
+    tags: ['Mountains', 'Border', 'Unexplored Passes'],
+    notables: [],
+  },
+  {
+    key: 'the-sunken-temple',
+    name: 'The Sunken Temple',
+    type: 'landmark',
+    region: 'The Kir Marshes',
+    x: 48, y: 68,
+    desc: 'Half-submerged in the marshes, this temple to a forgotten god still exerts a pull on those sensitive to such things. Its lower levels are permanently flooded.',
+    details: [
+      ['Faith', 'Unknown deity'],
+      ['Status', 'Partially submerged'],
+      ['Danger', 'Moderate'],
+    ],
+    tags: ['Religious Site', 'Submerged', 'Mystery'],
+    notables: [],
+  },
+  {
+    key: 'waystone-crossing',
+    name: 'Waystone Crossing',
+    type: 'landmark',
+    region: 'Central Plains',
+    x: 50, y: 47,
+    desc: 'An ancient waystone stands at the crossroads here, carved with runes in a script no living scholar has fully deciphered. Travellers leave offerings at its base.',
+    details: [
+      ['Type', 'Waystone (arcane marker)'],
+      ['Age', 'Unknown'],
+      ['Function', 'Possibly teleportation anchor'],
+    ],
+    tags: ['Arcane', 'Ancient', 'Crossroads'],
+    notables: [],
+  },
+];
+
+// ══════════════════════════════════════════════════════════
+// STATE
+// ══════════════════════════════════════════════════════════
+let activeFilter   = 'all';   // current rail selection
+let selectedKey    = null;    // currently selected location key
+let panelOpen      = false;
+
+// Type display names and colors
+const TYPE_META = {
+  city:       { label: 'City',       color: '#b8952a' },
+  town:       { label: 'Town',       color: '#8ab4cc' },
+  ruin:       { label: 'Ruin',       color: '#c05060' },
+  wilderness: { label: 'Wilderness', color: '#5a9a6a' },
+  landmark:   { label: 'Landmark',   color: '#c9a46a' },
+};
+
+// ══════════════════════════════════════════════════════════
+// RENDER PINS
+// ══════════════════════════════════════════════════════════
+function renderPins() {
+  const layer = document.getElementById('pins-layer');
+  layer.innerHTML = LOCATIONS.map(loc => {
+    const visible = activeFilter === 'all' || activeFilter === loc.type;
+    const isActive = loc.key === selectedKey;
+    return `
+      <div class="map-pin${isActive ? ' active' : ''}"
+           data-type="${loc.type}"
+           data-key="${loc.key}"
+           style="left:${loc.x}%;top:${loc.y}%;display:${visible?'block':'none'}"
+           onclick="selectLocation('${loc.key}')"
+           title="${loc.name}">
+        <div class="pin-pulse"></div>
+        <div class="pin-pulse"></div>
+        <div class="pin-pulse"></div>
+        <div class="pin-dot"></div>
+        <div class="pin-label">${loc.name}</div>
+      </div>`;
+  }).join('');
+}
+
+// ══════════════════════════════════════════════════════════
+// RAIL SELECTION
+// ══════════════════════════════════════════════════════════
+function railSelect(filter) {
+  activeFilter = filter;
+
+  // Update rail button states
+  document.querySelectorAll('.rail-btn').forEach(b => b.classList.remove('active'));
+  const btn = document.getElementById(`rail-${filter}`);
+  if (btn) btn.classList.add('active');
+
+  // Re-render pins with filter
+  renderPins();
+}
+
+// ══════════════════════════════════════════════════════════
+// LOCATION SELECTION
+// ══════════════════════════════════════════════════════════
+function selectLocation(key) {
+  const loc = LOCATIONS.find(l => l.key === key);
+  if (!loc) return;
+
+  selectedKey = key;
+  renderPins(); // re-render to update active state
+
+  // Fill panel
+  const meta = TYPE_META[loc.type] || { label: loc.type, color: '#9a9a9a' };
+
+  const typeTag = document.getElementById('panel-type-tag');
+  typeTag.textContent = meta.label;
+  typeTag.style.color = meta.color;
+
+  document.getElementById('panel-name').textContent = loc.name;
+  document.getElementById('panel-region').textContent = loc.region || '';
+
+  // Build body HTML
+  let html = '';
+
+  // Description
+  html += `<div class="panel-section-title">About</div>`;
+  html += `<div class="panel-desc">${loc.desc}</div>`;
+
+  // Tags
+  if (loc.tags && loc.tags.length) {
+    html += `<div class="panel-tag-row">`;
+    html += loc.tags.map(t => `<span class="panel-tag">${t}</span>`).join('');
+    html += `</div>`;
+  }
+
+  // Details
+  if (loc.details && loc.details.length) {
+    html += `<div class="panel-section-title">Details</div>`;
+    html += loc.details.map(([k, v]) =>
+      `<div class="panel-stat-row">
+        <span class="panel-stat-label">${k}</span>
+        <span class="panel-stat-val">${v}</span>
+      </div>`
+    ).join('');
+  }
+
+  // Notable NPCs
+  if (loc.notables && loc.notables.length) {
+    html += `<div class="panel-section-title">Notable People</div>`;
+    html += loc.notables.map(n => `
+      <div class="panel-notable-item">
+        <span class="panel-notable-bullet">◆</span>
+        <div>
+          <div class="panel-notable-name">${n.name}</div>
+          <div class="panel-notable-role">${n.role}</div>
+        </div>
+      </div>`).join('');
+  }
+
+  document.getElementById('panel-body').innerHTML = html;
+
+  // Open panel
+  openPanel();
+}
+
+function openPanel() {
+  panelOpen = true;
+  document.getElementById('world-panel').classList.add('open');
+}
+
+function closePanel() {
+  panelOpen = false;
+  selectedKey = null;
+  document.getElementById('world-panel').classList.remove('open');
+  renderPins();
+}
+
+// ══════════════════════════════════════════════════════════
+// LIGHTBOX
+// ══════════════════════════════════════════════════════════
+function openLightbox() {
+  document.getElementById('lightbox').classList.add('open');
+}
+function closeLightbox() {
+  document.getElementById('lightbox').classList.remove('open');
+}
+document.addEventListener('keydown', e => {
+  if (e.key === 'Escape') { closeLightbox(); closePanel(); }
+});
+
+// ══════════════════════════════════════════════════════════
+// INIT
+// ══════════════════════════════════════════════════════════
+renderPins();
+</script>
+</body>
 </html>
