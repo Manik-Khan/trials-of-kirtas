@@ -2,15 +2,15 @@
   "key": "tyros",
   "inventory": [
     {
-      "name": "Scale Mail",
-      "weight": 45,
-      "properties": "Stealth Disadvantage, AC 14"
-    },
-    {
       "name": "Longsword",
       "weight": 3,
       "properties": "Versatile (1d10)",
       "qty": 1
+    },
+    {
+      "name": "Scale Mail",
+      "weight": 45,
+      "properties": "Stealth Disadvantage, AC 14"
     },
     {
       "name": "Dungeoneer's Pack",
@@ -38,5 +38,5 @@
     "flaws": "",
     "backstory": ""
   },
-  "lastUpdated": "2026-05-20T05:14:36.341Z"
+  "lastUpdated": "2026-05-20T05:14:59.969Z"
 }
