@@ -3,23 +3,149 @@
   "inventory": [
     {
       "name": "Shield",
+      "rarity": "None",
+      "type": "S",
+      "typeLabel": "Shield",
+      "weaponCat": "Shield",
+      "detail": "Shield · AC 2 · 6 lb",
+      "price": "1 pp",
       "weight": 6,
-      "properties": "+2 AC"
+      "dmg1": null,
+      "dmg2": null,
+      "dmgType": null,
+      "range": null,
+      "ac": 2,
+      "strength": null,
+      "stealth": null,
+      "reqAttune": null,
+      "properties": "+2 AC",
+      "entries": [
+        "A shield is made from wood or metal and is carried in one hand. Wielding a shield increases your Armor Class by 2. You can benefit from only one shield at a time."
+      ],
+      "contents": null,
+      "source": "PHB",
+      "sourceFull": "PHB p144",
+      "page": 144,
+      "_enriched": true,
+      "alias": null
     },
     {
       "name": "Scale Mail",
+      "rarity": "None",
+      "type": "MA",
+      "typeLabel": "Medium Armor",
+      "weaponCat": "Medium Armor",
+      "detail": "Medium Armor · AC 14 · 45 lb",
+      "price": "5 pp",
       "weight": 45,
-      "properties": "Stealth Disadvantage, AC 14"
+      "dmg1": null,
+      "dmg2": null,
+      "dmgType": null,
+      "range": null,
+      "ac": 14,
+      "strength": null,
+      "stealth": true,
+      "reqAttune": null,
+      "properties": "Stealth Disadvantage, AC 14",
+      "entries": [
+        "This armor consists of a coat and leggings (and perhaps a separate skirt) of leather covered with overlapping pieces of metal, much like the scales of a fish. The suit includes gauntlets."
+      ],
+      "contents": null,
+      "source": "PHB",
+      "sourceFull": "PHB p144",
+      "page": 144,
+      "_enriched": true,
+      "alias": null
     },
     {
       "name": "Longsword",
+      "rarity": "None",
+      "type": "M",
+      "typeLabel": "Melee Weapon",
+      "weaponCat": "martial weapon, melee weapon",
+      "detail": "martial weapon · 1d8 S · 3 lb",
+      "price": "15 gp",
       "weight": 3,
-      "properties": "Versatile (1d10), Bonded"
+      "dmg1": "1d8",
+      "dmg2": "1d10",
+      "dmgType": "S",
+      "range": null,
+      "ac": null,
+      "strength": null,
+      "stealth": null,
+      "reqAttune": null,
+      "properties": "Versatile (1d10), Bonded",
+      "entries": [],
+      "contents": null,
+      "source": "PHB",
+      "sourceFull": "PHB p149",
+      "page": 149,
+      "_enriched": true,
+      "alias": null
     },
     {
       "name": "Explorer's Pack",
+      "rarity": "None",
+      "type": "G",
+      "typeLabel": "Adventuring Gear",
+      "weaponCat": "Adventuring Gear",
+      "detail": "Adventuring Gear · 59 lb",
+      "price": "1 pp",
       "weight": 0,
-      "properties": "Adventuring Gear"
+      "dmg1": null,
+      "dmg2": null,
+      "dmgType": null,
+      "range": null,
+      "ac": null,
+      "strength": null,
+      "stealth": null,
+      "reqAttune": null,
+      "properties": "Adventuring Gear",
+      "entries": [
+        "Includes:",
+        "a {@item backpack|phb}",
+        "a {@item bedroll|phb}",
+        "a {@item mess kit|phb}",
+        "a {@item tinderbox|phb}",
+        "10 {@item torch|phb|torches}",
+        "10 days of {@item Rations (1 day)|phb|rations}",
+        "a {@item waterskin|phb}",
+        "{@item Hempen Rope (50 feet)|phb|50 feet of hempen rope}"
+      ],
+      "contents": [
+        "torch|phb ×10",
+        "rations (1 day)|phb ×10"
+      ],
+      "source": "PHB",
+      "sourceFull": "PHB p151",
+      "page": 151,
+      "_enriched": true,
+      "alias": null
+    },
+    {
+      "name": "Backpack",
+      "detail": "Adventuring Gear · 5 lb",
+      "qty": 1,
+      "weight": 5,
+      "dmg1": null,
+      "dmg2": null,
+      "dmgType": null,
+      "ac": null,
+      "range": null,
+      "price": "2 gp",
+      "reqAttune": null,
+      "properties": [],
+      "entries": [
+        "A backpack can hold one cubic foot or 30 pounds of gear. You can also strap items, such as a bedroll or a coil of rope, to the outside of a backpack."
+      ],
+      "rarity": "None",
+      "weaponCat": "Adventuring Gear",
+      "typeLabel": "Adventuring Gear",
+      "sourceFull": "PHB p153",
+      "source": "PHB",
+      "strength": null,
+      "stealth": null,
+      "contents": null
     }
   ],
   "currency": {
@@ -37,5 +163,5 @@
     "flaws": "",
     "backstory": ""
   },
-  "lastUpdated": "2026-05-20T15:23:23.003Z"
+  "lastUpdated": "2026-05-20T15:51:13.131Z"
 }
