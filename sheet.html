@@ -757,8 +757,36 @@
     .equip-acc-btn.primary:hover { background: rgba(184,149,42,0.18); }
     .equip-acc-btn.danger { border-color: rgba(192,80,96,0.4); color: #c05060; }
     .equip-acc-btn.danger:hover { background: rgba(192,80,96,0.1); }
-    /* Edit fields inside accordion */
-    .equip-acc-edit { margin-top: 0.5rem; }
+    .equip-container-list {
+      margin: 0.2rem 0 0.4rem;
+      border-left: 2px solid var(--gold-dim);
+      padding-left: 0.6rem;
+    }
+    .equip-container-item {
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+      padding: 0.2rem 0;
+      border-bottom: 1px solid rgba(184,149,42,0.05);
+      font-size: 0.78rem;
+    }
+    .equip-container-item::before { content: '—'; color: var(--gold-dim); flex-shrink: 0; }
+    .equip-container-item-name { color: var(--parchment2); }
+    .equip-container-item-qty { color: var(--muted); font-size: 0.72rem; }
+    .equip-acc-section {
+      font-family: var(--font-title);
+      font-size: 0.35rem;
+      letter-spacing: 0.15em;
+      text-transform: uppercase;
+      color: var(--gold-dim);
+      margin: 0.5rem 0 0.25rem;
+    }
+    .equip-cont-edit-row {
+      display: flex;
+      align-items: center;
+      gap: 0.3rem;
+      margin-bottom: 0.25rem;
+    }
     .equip-acc-field-label {
       font-family: var(--font-title);
       font-size: 0.35rem;
@@ -2425,9 +2453,12 @@ function buildEquipmentTab() {
     const statLine = inlineStats.length
       ? `<div class="equip-item-sub">${escapeHtml(inlineStats.join(' · '))}</div>`
       : '';
+    const isContainer = Array.isArray(item.contents) && item.contents.length > 0;
+    const containerIcon = isContainer ? `<span class="equip-item-expand" id="equip-exp-${i}">▶</span>` : '';
     return `
       <div class="equip-item-wrap" id="equip-wrap-${i}">
-        <div class="equip-item-row" id="equip-row-${i}">
+        <div class="equip-item-row" id="equip-row-${i}" onclick="csToggleDetail(${i}, event)">
+          ${containerIcon}
           <div class="equip-item-name-wrap" style="flex:1;min-width:0">
             <div class="equip-item-name">${escapeHtml(item.name)}</div>
             ${statLine}
@@ -2435,10 +2466,10 @@ function buildEquipmentTab() {
           <input class="equip-item-qty" type="number" min="0"
             value="${item.qty||1}"
             onchange="csUpdateQty(${i}, this.value)"
+            onclick="event.stopPropagation()"
             aria-label="Qty">
           <span class="equip-item-wt">${item.weight ? item.weight + ' lb' : '—'}</span>
-          <button class="equip-item-btn" onclick="csEditItem(${i})" title="Edit">✎</button>
-          <button class="equip-item-btn del" onclick="csDeleteItem(${i})" title="Remove">✕</button>
+          <button class="equip-item-btn" onclick="event.stopPropagation();csEditItem(${i})" title="Edit">✎</button>
         </div>
         <div class="equip-item-accordion" id="equip-acc-${i}"></div>
       </div>`;
@@ -2518,6 +2549,16 @@ function csAccordionContent(item, i, editMode = false) {
   if (editMode) {
     const attackStats = ["STR","DEX","CHA","INT","WIS","CON"];
     const currentStat = item.attackStat || "";
+    const contents = Array.isArray(item.contents) ? item.contents : [];
+    const contentsHtml = contents.map((c, ci) => {
+      const name = typeof c === 'string' ? c : c.name;
+      const qty  = typeof c === 'object' ? (c.qty || 1) : 1;
+      return `<div class="equip-cont-edit-row" id="equip-cont-edit-${i}-${ci}">
+        <input class="equip-acc-field" style="flex:1" value="${escapeHtml(name)}" id="cont-name-${i}-${ci}">
+        <input class="equip-acc-field" style="width:40px;text-align:center" type="number" min="1" value="${qty}" id="cont-qty-${i}-${ci}">
+        <button class="equip-acc-btn danger" style="padding:0.15rem 0.4rem" onclick="csRemoveContainerItem(${i},${ci})">\u2715</button>
+      </div>`;
+    }).join('');
     return `
       <div class="equip-acc-edit">
         <span class="equip-acc-field-label">Name</span>
@@ -2531,10 +2572,14 @@ function csAccordionContent(item, i, editMode = false) {
         </select>
         <span class="equip-acc-field-label">Notes</span>
         <textarea class="equip-acc-field" id="acc-edit-notes-${i}" rows="2" style="resize:vertical">${escapeHtml(item.notes||"")}</textarea>
+        <span class="equip-acc-field-label" style="margin-top:0.6rem">Container Contents</span>
+        <div id="equip-cont-edit-list-${i}">${contentsHtml}</div>
+        <button class="equip-acc-btn" style="margin-top:0.3rem;width:100%" onclick="csAddContainerItem(${i})">+ Add item to container</button>
       </div>
       <div class="equip-acc-actions">
         <button class="equip-acc-btn primary" onclick="csSaveItemEdit(${i})">Save</button>
         <button class="equip-acc-btn" onclick="csCloseEdit(${i})">Cancel</button>
+        <button class="equip-acc-btn danger" onclick="csDeleteItem(${i})" style="margin-left:auto">\u2715 Delete</button>
       </div>`;
   }
   const stats = [];
@@ -2572,17 +2617,21 @@ function csAccordionContent(item, i, editMode = false) {
   const desc = entries.length
     ? `<div class="equip-acc-desc">${entries.map(e => `<p>${escapeHtml(e)}</p>`).join("")}</div>`
     : "";
-  const contents = item.contents && item.contents.length > 0
-    ? `<div class="equip-acc-stat" style="flex-direction:column;align-items:flex-start;gap:0.2rem">
-        <span style="font-family:var(--font-title);font-size:0.35rem;letter-spacing:0.12em;text-transform:uppercase;color:var(--muted)">Contents</span>
-        <span style="color:var(--parchment2);font-size:0.78rem">${item.contents.map(c => escapeHtml(c)).join(", ")}</span>
-       </div>` : "";
+  const contents = Array.isArray(item.contents) && item.contents.length > 0
+    ? `<div class="equip-acc-section">Contents</div>
+       <div class="equip-container-list" id="equip-cont-${i}">
+         ${item.contents.map((c, ci) => `
+           <div class="equip-container-item">
+             <span class="equip-container-item-name">${escapeHtml(typeof c === 'string' ? c : c.name)}</span>
+             ${typeof c === 'object' && c.qty > 1 ? `<span class="equip-container-item-qty">×${c.qty}</span>` : ''}
+           </div>`).join('')}
+       </div>` : '';
   return `
     ${catLine}${statsHtml}${contents}${propsHtml}${desc}
     <div class="equip-acc-actions">
       <button class="equip-acc-btn primary" onclick="csEditItem(${i})">\u270E Edit</button>
-      <button class="equip-acc-btn" onclick="event.stopPropagation();csMoveItem(${i},-1)">\u2191 Up</button>
-      <button class="equip-acc-btn" onclick="event.stopPropagation();csMoveItem(${i},1)">\u2193 Down</button>
+      <button class="equip-acc-btn" onclick="csMoveItem(${i},-1)">\u2191 Up</button>
+      <button class="equip-acc-btn" onclick="csMoveItem(${i},1)">\u2193 Down</button>
       <button class="equip-acc-btn danger" onclick="csDeleteItem(${i})">\u2715 Remove</button>
     </div>`;
 }
@@ -2810,20 +2859,49 @@ function csToggleItemDetail(i) {
 }
 
 function csAddItemFromSearch(item) {
-  const inv  = (_currentInv || []).map(i => ({ ...i }));
+  const inv      = (_currentInv || []).map(i => ({ ...i }));
   const existing = inv.findIndex(i => i.name === item.name);
   if (existing >= 0) {
     inv[existing] = { ...inv[existing], qty: (inv[existing].qty||1) + 1 };
   } else {
-    inv.push({ name: item.name, detail: item.detail || null, qty: 1, weight: item.weight || null,
-      dmg1: item.dmg1 || null, dmgType: item.dmgType || null, ac: item.ac || null,
-      reqAttune: item.reqAttune || null, entries: item.entries || [], rarity: item.rarity || null });
+    // Auto-populate container contents from 5etools entries if it looks like a pack/kit
+    let contents = null;
+    if (Array.isArray(item.contents) && item.contents.length > 0) {
+      contents = item.contents;
+    } else if (Array.isArray(item.entries) && item.entries.length > 0) {
+      // Try to extract contents from description entries (packs list their contents)
+      const contentLine = item.entries.find(e => typeof e === 'string' && e.toLowerCase().includes('contains'));
+      if (contentLine) contents = [contentLine];
+    }
+    inv.push({
+      name:       item.name,
+      detail:     item.detail     || null,
+      qty:        1,
+      weight:     item.weight     || null,
+      dmg1:       item.dmg1       || null,
+      dmg2:       item.dmg2       || null,
+      dmgType:    item.dmgType    || null,
+      ac:         item.ac         || null,
+      range:      item.range      || null,
+      price:      item.price      || null,
+      reqAttune:  item.reqAttune  || null,
+      properties: item.properties || [],
+      entries:    item.entries    || [],
+      rarity:     item.rarity     || null,
+      weaponCat:  item.weaponCat  || null,
+      typeLabel:  item.typeLabel  || null,
+      sourceFull: item.sourceFull || null,
+      source:     item.source     || null,
+      strength:   item.strength   || null,
+      stealth:    item.stealth    || null,
+      contents,
+    });
   }
   _currentInv = inv;
   CharacterStore.save({ inventory: inv }, charKey);
   csRebuildEquipmentTab();
   const newIdx = inv.findIndex(i => i.name === item.name);
-  if (newIdx >= 0) setTimeout(() => csEditItem(newIdx), 50);
+  if (newIdx >= 0) setTimeout(() => csToggleDetail(newIdx, null), 50);
 }
 
 // Add item from 5etools result
@@ -2897,20 +2975,92 @@ function csCloseEdit(idx) {
   if (acc) { acc.classList.remove('open'); acc.innerHTML = ''; }
 }
 
-// Save item edits
+// Toggle detail accordion (click on row)
+function csToggleDetail(idx, event) {
+  if (event && event.target.closest('.equip-item-btn, .equip-item-qty, .equip-item-move')) return;
+  const acc = document.getElementById(`equip-acc-${idx}`);
+  const exp = document.getElementById(`equip-exp-${idx}`);
+  const row = document.getElementById(`equip-row-${idx}`);
+  if (!acc) return;
+  const isOpen = acc.classList.contains('open');
+  // Close all other accordions
+  document.querySelectorAll('.equip-item-accordion.open').forEach(a => {
+    if (a.id !== `equip-acc-${idx}`) { a.classList.remove('open'); a.innerHTML = ''; }
+  });
+  document.querySelectorAll('.equip-item-row.selected').forEach(r => {
+    if (r.id !== `equip-row-${idx}`) r.classList.remove('selected');
+  });
+  document.querySelectorAll('.equip-item-expand.open').forEach(e => {
+    if (e.id !== `equip-exp-${idx}`) e.classList.remove('open');
+  });
+  if (isOpen) {
+    acc.classList.remove('open');
+    acc.innerHTML = '';
+    if (exp) exp.classList.remove('open');
+    if (row) row.classList.remove('selected');
+  } else {
+    acc.innerHTML = csAccordionContent(_currentInv[idx], idx);
+    acc.classList.add('open');
+    if (exp) exp.classList.add('open');
+    if (row) row.classList.add('selected');
+  }
+}
+
+// Add empty row to container contents in edit mode
+function csAddContainerItem(idx) {
+  const list = document.getElementById(`equip-cont-edit-list-${idx}`);
+  if (!list) return;
+  const ci = list.querySelectorAll('.equip-cont-edit-row').length;
+  const row = document.createElement('div');
+  row.className = 'equip-cont-edit-row';
+  row.id = `equip-cont-edit-${idx}-${ci}`;
+  row.innerHTML = `
+    <input class="equip-acc-field" style="flex:1" placeholder="Item name" id="cont-name-${idx}-${ci}">
+    <input class="equip-acc-field" style="width:40px;text-align:center" type="number" min="1" value="1" id="cont-qty-${idx}-${ci}">
+    <button class="equip-acc-btn danger" style="padding:0.15rem 0.4rem" onclick="csRemoveContainerItem(${idx},${ci})">\u2715</button>`;
+  list.appendChild(row);
+  row.querySelector('input')?.focus();
+}
+
+// Remove a container item row in edit mode
+function csRemoveContainerItem(idx, ci) {
+  const row = document.getElementById(`equip-cont-edit-${idx}-${ci}`);
+  if (row) row.remove();
+}
+
+// Save item edits including container contents
 function csSaveItemEdit(idx) {
   const name       = document.getElementById(`acc-edit-name-${idx}`)?.value.trim();
   const detail     = document.getElementById(`acc-edit-detail-${idx}`)?.value.trim();
   const attackStat = document.getElementById(`acc-edit-stat-${idx}`)?.value;
   const notes      = document.getElementById(`acc-edit-notes-${idx}`)?.value.trim();
   if (!name) return;
+
+  // Collect container contents from edit fields
+  const contList = document.getElementById(`equip-cont-edit-list-${idx}`);
+  const contents = [];
+  if (contList) {
+    contList.querySelectorAll('.equip-cont-edit-row').forEach((row, ci) => {
+      const nameEl = row.querySelector(`#cont-name-${idx}-${ci}`);
+      const qtyEl  = row.querySelector(`#cont-qty-${idx}-${ci}`);
+      if (nameEl && nameEl.value.trim()) {
+        const qty = parseInt(qtyEl?.value) || 1;
+        contents.push(qty > 1 ? { name: nameEl.value.trim(), qty } : nameEl.value.trim());
+      }
+    });
+  }
+
   const inv = _currentInv.map(i => ({ ...i }));
-  inv[idx] = { ...inv[idx], name, detail: detail || null, attackStat: attackStat || null, notes: notes || null };
+  inv[idx] = {
+    ...inv[idx], name,
+    detail:     detail     || null,
+    attackStat: attackStat || null,
+    notes:      notes      || null,
+    contents:   contents.length ? contents : (inv[idx].contents || null),
+  };
   _currentInv = inv;
   CharacterStore.save({ inventory: inv }, charKey);
-  // Switch accordion back to closed, update row inline
   csCloseEdit(idx);
-  // Update name/stat line on row without full rebuild
   const nameEl = document.querySelector(`#equip-row-${idx} .equip-item-name`);
   if (nameEl) nameEl.textContent = inv[idx].name;
 }
