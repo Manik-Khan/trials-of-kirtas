@@ -1,6 +1,18 @@
 {
   "entries": [
     {
+      "id": "1779251100776",
+      "session": 1,
+      "author": "DM",
+      "character": "Narrator",
+      "color": "#b8952a",
+      "timestamp": "2026-05-20T04:25:00.776Z",
+      "text": "<p>Kirtas is a grey-zone. Not a huge amount of information. </p><p><br></p><p><span style=\"color: rgb(138, 180, 201);\" data-mention-type=\"location\" data-mention-key=\"tiersgard\">Tiersgard</span> has trade with military forces, and water trade. However, land trading is not really happening. </p><p><br></p>",
+      "tags": [
+        "tiersgard"
+      ]
+    },
+    {
       "id": "1779249489224",
       "session": 1,
       "author": "Tyros",
