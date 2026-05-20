@@ -28,6 +28,34 @@
       "alias": null
     },
     {
+      "name": "Scale Mail",
+      "rarity": "None",
+      "type": "MA",
+      "typeLabel": "Medium Armor",
+      "weaponCat": "Medium Armor",
+      "detail": "Medium Armor · AC 14 · 45 lb",
+      "price": "5 pp",
+      "weight": 45,
+      "dmg1": null,
+      "dmg2": null,
+      "dmgType": null,
+      "range": null,
+      "ac": 14,
+      "strength": null,
+      "stealth": true,
+      "reqAttune": null,
+      "properties": "Stealth Disadvantage, AC 14",
+      "entries": [
+        "This armor consists of a coat and leggings (and perhaps a separate skirt) of leather covered with overlapping pieces of metal, much like the scales of a fish. The suit includes gauntlets."
+      ],
+      "contents": null,
+      "source": "PHB",
+      "sourceFull": "PHB p144",
+      "page": 144,
+      "_enriched": true,
+      "alias": null
+    },
+    {
       "name": "Explorer's Pack",
       "rarity": "None",
       "type": "G",
@@ -63,34 +91,6 @@
       "source": "PHB",
       "sourceFull": "PHB p151",
       "page": 151,
-      "_enriched": true,
-      "alias": null
-    },
-    {
-      "name": "Scale Mail",
-      "rarity": "None",
-      "type": "MA",
-      "typeLabel": "Medium Armor",
-      "weaponCat": "Medium Armor",
-      "detail": "Medium Armor · AC 14 · 45 lb",
-      "price": "5 pp",
-      "weight": 45,
-      "dmg1": null,
-      "dmg2": null,
-      "dmgType": null,
-      "range": null,
-      "ac": 14,
-      "strength": null,
-      "stealth": true,
-      "reqAttune": null,
-      "properties": "Stealth Disadvantage, AC 14",
-      "entries": [
-        "This armor consists of a coat and leggings (and perhaps a separate skirt) of leather covered with overlapping pieces of metal, much like the scales of a fish. The suit includes gauntlets."
-      ],
-      "contents": null,
-      "source": "PHB",
-      "sourceFull": "PHB p144",
-      "page": 144,
       "_enriched": true,
       "alias": null
     },
@@ -138,5 +138,5 @@
     "flaws": "",
     "backstory": ""
   },
-  "lastUpdated": "2026-05-20T19:03:17.842Z"
+  "lastUpdated": "2026-05-20T19:03:19.749Z"
 }
