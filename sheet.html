@@ -646,7 +646,7 @@
       user-select: none;
       touch-action: none;
       line-height: 1;
-      opacity: 0.4;
+      opacity: 0.55;
       transition: opacity 0.15s;
     }
     .equip-drag-handle:hover { opacity: 1; color: var(--gold-mid); }
@@ -2495,7 +2495,7 @@ function buildEquipmentTab() {
   _currentInv = inv.map(i => ({ ...i }));
   _currentCur = { ...cur };
 
-  const strScore    = C.abilities?.str || 10;
+  const strScore    = C.abilities?.str?.score || C.abilityScores?.str || 10;
   const carryMax    = strScore * 15;
   const totalWeight = inv.reduce((sum, item) => sum + ((parseFloat(item.weight)||0) * (parseInt(item.qty)||1)), 0);
   const carryPct    = carryMax > 0 ? Math.min(totalWeight / carryMax, 1) : 0;
@@ -2527,7 +2527,7 @@ function buildEquipmentTab() {
           <span class="equip-drag-handle"
             title="Drag to reorder"
             ontouchstart="csTouchDragStart(event, ${i})"
-            onclick="event.stopPropagation()">&#8942;&#8942;</span>
+            onclick="event.stopPropagation()">&#8801;&#8801;</span>
           <div class="equip-item-name-wrap" style="flex:1;min-width:0">
             <div class="equip-item-name">${escapeHtml(item.name)}</div>
             ${statLine}
@@ -2563,10 +2563,6 @@ function buildEquipmentTab() {
           <div class="equip-panel-section">Session Notes</div>
           <textarea class="equip-notes-area" id="cs-notes"
             placeholder="Ki points remaining, loot leads, reminders for next session…"
-            oninput="csNotesChanged()">${escapeHtml(notes)}</textarea>
-        </div>
-          <textarea class="equip-notes-area" id="cs-notes"
-            placeholder="Ki points remaining, loot leads, reminders for next session\u2026"
             oninput="csNotesChanged()">${escapeHtml(notes)}</textarea>
         </div>
       </div>
