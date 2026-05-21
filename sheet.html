@@ -57,10 +57,15 @@
       padding: 1.25rem 1.25rem 8rem;
       /* Safe area inset for iPhone notch/home bar */
       padding-bottom: calc(8rem + env(safe-area-inset-bottom));
+      /* Solid background so scrolling content never shows through sticky bars */
+      background: var(--ink, #1a1410);
     }
 
     .tab-panel { display: none; }
     .tab-panel.active { display: block; }
+
+    /* Ensure first content never sits flush against the tab bar edge */
+    .tab-panel.active > *:first-child { margin-top: 0; }
 
     /* ── Shared section ── */
     .s-section {

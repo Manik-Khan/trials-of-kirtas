@@ -180,9 +180,9 @@ function injectNavStyles() {
       position: sticky;
       top: 0;
       z-index: 100;
-      background: var(--nav-bg);
-      backdrop-filter: blur(12px);
-      -webkit-backdrop-filter: blur(12px);
+      /* Fully opaque — prevents content bleeding through on scroll.
+         index.html overrides this to transparent via its own #site-nav rule. */
+      background: var(--ink-deep, #0d0a07);
       border-bottom: 1px solid var(--nav-border);
       padding: 0 1.5rem;
       display: flex;
