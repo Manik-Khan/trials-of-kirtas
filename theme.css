@@ -201,7 +201,8 @@ body {
   font-size: 17px;
   line-height: 1.7;
   min-height: 100vh;
-  overflow-x: hidden;
+  /* overflow-x: clip instead of hidden — 'hidden' breaks position:sticky in Safari */
+  overflow-x: clip;
   transition: background-color 0.3s ease, color 0.3s ease;
 }
 

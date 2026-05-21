@@ -22,13 +22,13 @@
     /* ── Sheet tabs ── */
     .sheet-tabs {
       display: flex;
-      background: var(--ink-deep, #0d0a07); /* fully opaque — prevents portrait bleeding through */
+      background: var(--ink, #1a1410); /* matches sheet-body background exactly */
       border-bottom: 1px solid var(--gold-dim);
       padding: 0 1.25rem;
       overflow-x: auto;
       scrollbar-width: none;
       position: sticky;
-      top: 52px;   /* sits flush under the 52px nav */
+      top: 52px;
       z-index: 90;
     }
     .sheet-tabs::-webkit-scrollbar { display: none; }
@@ -54,7 +54,7 @@
     .sheet-body {
       max-width: 1320px;
       margin: 0 auto;
-      padding: 1.25rem 1.25rem 8rem;
+      padding: 1.5rem 1.25rem 8rem;
       /* Safe area inset for iPhone notch/home bar */
       padding-bottom: calc(8rem + env(safe-area-inset-bottom));
       /* Solid background so scrolling content never shows through sticky bars */
