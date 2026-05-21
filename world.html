@@ -131,6 +131,26 @@
     .lightbox { position: fixed; inset: 0; background: rgba(0,0,0,0.9); z-index: 100; display: none; align-items: center; justify-content: center; cursor: zoom-out; }
     .lightbox.open { display: flex; }
     .lightbox img { max-width: 95vw; max-height: 95vh; object-fit: contain; border: 1px solid var(--gold-dim); }
+    /* Canon pin pulse — subtle, constant */
+    .canon-pin-pulse {
+      position: absolute;
+      top: 50%; left: 50%;
+      width: 14px; height: 14px;
+      border-radius: 50%;
+      border: 1px solid currentColor;
+      transform: translate(-50%, -50%);
+      animation: canonPulse 3s ease-out infinite;
+      pointer-events: none;
+      opacity: 0;
+    }
+    .canon-pin-pulse:nth-child(2) { animation-delay: 1s; }
+    .canon-pin-pulse:nth-child(3) { animation-delay: 2s; }
+    @keyframes canonPulse {
+      0%   { transform: translate(-50%,-50%) scale(0.6); opacity: 0.6; }
+      100% { transform: translate(-50%,-50%) scale(2.8); opacity: 0; }
+    }
+    .canon-pin-wrap { position: relative; display: flex; align-items: center; justify-content: center; }
+
     .status-neutral   { color: #b8952a; border-color: rgba(184,149,42,0.4); }
     .status-wolven    { color: #c05060; border-color: rgba(192,80,96,0.4); }
     .status-bluejacks { color: #5a9aaa; border-color: rgba(90,154,170,0.4); }
@@ -138,7 +158,71 @@
     .status-dangerous { color: #8a4a4a; border-color: rgba(138,74,74,0.4); }
     .status-foreign   { color: #7a9a6a; border-color: rgba(122,154,106,0.4); }
     .status-unknown   { color: var(--muted); border-color: rgba(107,93,74,0.4); }
-  </style>
+
+    /* ── HiDPI / Retina scaling ── */
+    /* Applies on screens with devicePixelRatio ≥ 2 (Retina Macs, most phones) */
+    /* Normal 1080p monitors are unaffected */
+    @media (min-resolution: 2dppx) {
+      .world-header       { height: 48px; }
+      .world-header-title { font-size: 0.72rem; letter-spacing: 0.35em; }
+      .world-header-diamond { font-size: 0.75rem; }
+
+      .world-rail         { width: 72px; padding: 0.8rem 0; gap: 0.3rem; }
+      .rail-btn           { width: 54px; height: 54px; gap: 0.18rem; }
+      .rail-btn svg       { width: 22px; height: 22px; }
+      .rail-label         { font-size: 0.42rem; letter-spacing: 0.1em; }
+      .rail-divider       { width: 36px; margin: 0.3rem 0; }
+
+      .world-panel        { width: 400px; }
+      .panel-name         { font-size: 1.3rem; }
+      .panel-subtitle     { font-size: 0.95rem; }
+      .panel-eyebrow      { font-size: 0.52rem; }
+      .panel-status-badge { font-size: 0.48rem; padding: 0.14rem 0.5rem; }
+      .panel-section      { font-size: 0.52rem; }
+      .panel-desc         { font-size: 1.05rem; line-height: 1.8; }
+      .panel-close        { width: 30px; height: 30px; font-size: 1rem; }
+      .panel-pin-who      { font-size: 0.58rem; }
+      .panel-pin-note     { font-size: 1rem; }
+      .panel-pin-delete   { font-size: 0.52rem; padding: 0.35rem 0.85rem; }
+      .panel-save-btn, .panel-cancel-btn { font-size: 0.56rem; padding: 0.4rem 1rem; }
+      .panel-note-input   { font-size: 1rem; }
+
+      .marks-panel        { width: 300px; }
+      .marks-title        { font-size: 0.66rem; }
+      .marks-filter-chip  { font-size: 0.48rem; padding: 0.2rem 0.55rem; }
+      .marks-filter-dot   { width: 8px; height: 8px; }
+      .marks-item-type    { font-size: 0.52rem; }
+      .marks-item-note    { font-size: 1rem; }
+      .marks-item-who     { font-size: 0.85rem; }
+      .marks-item-dot     { width: 10px; height: 10px; }
+      .marks-place-btn    { font-size: 0.58rem; padding: 0.5rem; }
+      .marks-identity-name { font-size: 0.55rem; }
+      .marks-identity-switch { font-size: 0.5rem; }
+      .marks-identity-dot { width: 10px; height: 10px; }
+
+      .pin-palette-name   { font-size: 0.6rem; }
+      .pin-palette-title  { font-size: 0.52rem; }
+      .pin-palette-cancel { font-size: 0.52rem; }
+      .pin-palette-dot    { width: 12px; height: 12px; }
+
+      .place-hint         { font-size: 0.66rem; padding: 0.5rem 1.2rem; }
+
+      .canon-pin-icon     { width: 18px; height: 18px; }
+      .canon-pin-label    { font-size: 0.55rem; margin-top: 5px; }
+      .canon-pin-pulse    { width: 18px; height: 18px; }
+      .player-pin-dot     { width: 13px; height: 13px; }
+      .player-pin-pulse   { width: 13px; height: 13px; }
+      .player-pin-label   { font-size: 0.52rem; }
+
+      .id-modal           { width: 400px; padding: 1.6rem 2rem; }
+      .id-modal-title     { font-size: 0.7rem; }
+      .id-name            { font-size: 0.7rem; }
+      .id-char            { font-size: 0.9rem; }
+      .id-dot             { width: 14px; height: 14px; }
+      .id-confirm-btn, .id-cancel-btn { font-size: 0.58rem; padding: 0.4rem 1rem; }
+
+      .marks-panel.behind { right: 400px; }
+    }
 </head>
 <body>
 
@@ -516,10 +600,15 @@ function renderPins() {
     const isActive = selectedKey === `canon-${loc.key}`;
     return `<div class="canon-pin${isActive?' active':''}"
       data-id="canon-${loc.key}"
-      style="left:${loc.x}%;top:${loc.y}%;display:${visible?'block':'none'}"
+      style="left:${loc.x}%;top:${loc.y}%;display:${visible?'block':'none'};color:${color}"
       onclick="selectCanonLocation(event,'${loc.key}')"
       title="${data.name}">
-      ${canonPinSvg(loc.shape, color)}
+      <div class="canon-pin-wrap">
+        <div class="canon-pin-pulse" style="color:${color}"></div>
+        <div class="canon-pin-pulse" style="color:${color}"></div>
+        <div class="canon-pin-pulse" style="color:${color}"></div>
+        ${canonPinSvg(loc.shape, color)}
+      </div>
       <div class="canon-pin-label">${data.name}</div>
     </div>`;
   }).join('');
