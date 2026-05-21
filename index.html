@@ -234,10 +234,39 @@
     }
     @keyframes pulseTravel { to { stroke-dashoffset: -60; } }
 
+    /* ── Touch feedback: highlight on first tap ── */
+    .hex-wrap.touch-active .hex-body  { filter: brightness(1.35); }
+    .hex-wrap.touch-active .hex-label { color: var(--gold-hi); }
+
     /* ── Responsive ── */
-    @media (max-width: 520px) {
-      .hex-stage { width: 320px; height: 320px; transform: scale(0.82); }
-      .site-title { font-size: 1rem; }
+    @media (max-width: 600px) {
+      .site-header  { margin-bottom: 1rem; }
+      .site-title   { font-size: clamp(0.9rem, 4.5vw, 1.2rem); }
+
+      /* Scale stage to fit phone viewport */
+      .hex-stage {
+        width: 300px; height: 300px;
+        transform: scale(0.78);
+        transform-origin: center center;
+        margin-bottom: -2.5rem;
+      }
+
+      /* Move description above the ring — below is cut off on small screens */
+      .desc-readout {
+        bottom: auto;
+        top: -2.8rem;
+        font-size: 12px;
+      }
+
+      .page-hint { font-size: 0.46rem; letter-spacing: 0.2em; }
+
+      /* On the index, the radial IS the nav — hide links to reduce clutter */
+      #site-nav .nav-links { display: none; }
+    }
+
+    @media (max-width: 380px) {
+      .hex-stage    { transform: scale(0.64); margin-bottom: -4.5rem; }
+      .site-title   { font-size: 0.85rem; }
     }
 
   </style>
@@ -261,7 +290,7 @@
       <div class="desc-readout" id="desc-readout"></div>
     </div>
 
-    <p class="page-hint">Hover to explore &nbsp;·&nbsp; Click to enter</p>
+    <p class="page-hint" id="page-hint">Hover to explore &nbsp;·&nbsp; Click to enter</p>
   </div>
 
   <script>
@@ -480,6 +509,7 @@
     function buildMain() {
       stage.querySelectorAll('.hex-wrap, .sub-overlay').forEach(e => e.remove());
       clearConn();
+      clearTouchActive();
 
       NODES.forEach(node => {
         const pos = hexPos(node.angle, R);
@@ -496,6 +526,7 @@
           if (node.hasSubring) buildSub();
           else window.location.href = node.href;
         });
+        bindTouch(wrap, pos, node);
 
         stage.insertBefore(wrap, connSvg.nextSibling);
       });
@@ -511,6 +542,7 @@
         e.style.transition = 'opacity 0.2s';
       });
       clearConn();
+      clearTouchActive();
 
       const ov = document.createElement('div');
       ov.className = 'sub-overlay visible';
@@ -526,6 +558,7 @@
         });
         wrap.addEventListener('mouseleave', () => { descEl.textContent = ''; clearConn(); });
         wrap.addEventListener('click', () => { window.location.href = ch.href; });
+        bindTouch(wrap, pos, ch);
         ov.appendChild(wrap);
       });
 
@@ -551,17 +584,21 @@
       bWrap.appendChild(bBody);
       bWrap.appendChild(makeOutline(66, 66, 0.35));
 
-      bWrap.addEventListener('mouseenter', () => { descEl.textContent = 'Return to main menu'; });
-      bWrap.addEventListener('mouseleave', () => { descEl.textContent = ''; clearConn(); });
-      bWrap.addEventListener('click', () => {
+      function doBack() {
         ov.remove();
         clearConn();
+        clearTouchActive();
         descEl.textContent = '';
         stage.querySelectorAll('.hex-wrap').forEach(e => {
           e.style.opacity = '';
           e.style.pointerEvents = '';
         });
-      });
+      }
+
+      bWrap.addEventListener('mouseenter', () => { descEl.textContent = 'Return to main menu'; });
+      bWrap.addEventListener('mouseleave', () => { descEl.textContent = ''; clearConn(); });
+      bWrap.addEventListener('click', doBack);
+      bWrap.addEventListener('touchstart', e => { e.preventDefault(); doBack(); }, { passive: false });
 
       ov.appendChild(bWrap);
       stage.insertBefore(ov, stage.querySelector('.desc-readout'));
@@ -618,10 +655,59 @@
       }
     }
 
+    // ── Mobile detection & hint text ──
+    const isTouchDevice = () => window.matchMedia('(hover: none)').matches;
+
+    function updateHint() {
+      const hint = document.getElementById('page-hint');
+      if (!hint) return;
+      hint.textContent = isTouchDevice()
+        ? 'Tap to reveal · Tap again to enter'
+        : 'Hover to explore · Click to enter';
+    }
+
+    // ── Touch interaction state ──
+    // On touch devices: first tap = show desc + line, second tap = navigate
+    // Tapping a different hex clears the first and starts fresh
+    let _touchActive = null; // currently highlighted hex wrap el
+    let _touchNav    = null; // pending href for second tap
+
+    function clearTouchActive() {
+      if (_touchActive) {
+        _touchActive.classList.remove('touch-active');
+        _touchActive = null;
+        _touchNav    = null;
+        descEl.textContent = '';
+        clearConn();
+      }
+    }
+
+    // Attach touch events to a hex node element
+    function bindTouch(wrap, pos, node) {
+      wrap.addEventListener('touchstart', e => {
+        e.preventDefault(); // prevent ghost mouse events
+        if (_touchActive === wrap) {
+          // Second tap on same hex → navigate
+          clearTouchActive();
+          if (node.hasSubring) { buildSub(); return; }
+          window.location.href = node.href;
+        } else {
+          // First tap → highlight and show info
+          clearTouchActive();
+          _touchActive = wrap;
+          _touchNav    = node.href;
+          wrap.classList.add('touch-active');
+          descEl.textContent = node.desc;
+          drawConn(pos.x, pos.y, LINE[node.id] || LINE[node.id.replace('char_','')]);
+        }
+      }, { passive: false });
+    }
+
     // ── Load Tabler icons then init ──
     function init() {
       paintBackground();
       buildMain();
+      updateHint();
     }
 
     if (!document.querySelector('link[href*="tabler-icons"]')) {
