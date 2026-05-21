@@ -12,6 +12,9 @@
   <style>
     /* ── Sheet-specific styles (layout, not colors — colors come from theme.css) ── */
 
+    /* On sheet.html, scroll targets must clear both the nav (52px) and tab bar (~36px) */
+    html { scroll-padding-top: 90px; }
+
     nav, .sheet-tabs, .sheet-body, footer {
       transition: background 0.3s, border-color 0.3s, color 0.3s;
     }
@@ -19,7 +22,7 @@
     /* ── Sheet tabs ── */
     .sheet-tabs {
       display: flex;
-      background: rgba(0,0,0,0.5);
+      background: var(--ink-deep, #0d0a07); /* fully opaque — prevents portrait bleeding through */
       border-bottom: 1px solid var(--gold-dim);
       padding: 0 1.25rem;
       overflow-x: auto;
@@ -27,8 +30,6 @@
       position: sticky;
       top: 52px;   /* sits flush under the 52px nav */
       z-index: 90;
-      backdrop-filter: blur(8px);
-      -webkit-backdrop-filter: blur(8px);
     }
     .sheet-tabs::-webkit-scrollbar { display: none; }
 
