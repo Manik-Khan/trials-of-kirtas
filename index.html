@@ -239,34 +239,14 @@
     .hex-wrap.touch-active .hex-label { color: var(--gold-hi); }
 
     /* ── Responsive ── */
+    /* Stage width/height and ring radius are set dynamically by JS based on viewport.
+       No CSS transform scaling — avoids coord-space mismatch with JS positions. */
     @media (max-width: 600px) {
-      .site-header  { margin-bottom: 1rem; }
-      .site-title   { font-size: clamp(0.9rem, 4.5vw, 1.2rem); }
-
-      /* Scale stage to fit phone viewport */
-      .hex-stage {
-        width: 300px; height: 300px;
-        transform: scale(0.78);
-        transform-origin: center center;
-        margin-bottom: -2.5rem;
-      }
-
-      /* Move description above the ring — below is cut off on small screens */
-      .desc-readout {
-        bottom: auto;
-        top: -2.8rem;
-        font-size: 12px;
-      }
-
-      .page-hint { font-size: 0.46rem; letter-spacing: 0.2em; }
-
-      /* On the index, the radial IS the nav — hide links to reduce clutter */
+      .site-header { margin-bottom: 0.6rem; }
+      .site-title  { font-size: clamp(0.85rem, 4.5vw, 1.15rem); }
+      .page-hint   { font-size: 0.44rem; letter-spacing: 0.18em; }
+      .desc-readout { bottom: auto; top: -2.6rem; font-size: 11px; }
       #site-nav .nav-links { display: none; }
-    }
-
-    @media (max-width: 380px) {
-      .hex-stage    { transform: scale(0.64); margin-bottom: -4.5rem; }
-      .site-title   { font-size: 0.85rem; }
     }
 
   </style>
@@ -294,8 +274,31 @@
   </div>
 
   <script>
-    // ── Constants ──
-    const HW = 78, HH = 78, CX = 210, CY = 210, R = 132, CHAR_R = 116;
+    // ── Dynamic sizing based on viewport ──
+    // All positions are recalculated on init and resize.
+    // This avoids CSS transform scaling which breaks coordinate alignment.
+    const BASE_STAGE = 420; // design-reference stage size
+
+    function getLayout() {
+      const vw = window.innerWidth;
+      const vh = window.innerHeight;
+      // Available height minus nav (~52px) and header (~100px) and hint (~40px)
+      const available = Math.min(vw, vh - 192);
+      // Cap at base size, scale down for small screens with some padding
+      const stageSize = Math.min(BASE_STAGE, available - 20);
+      const scale     = stageSize / BASE_STAGE;
+      return {
+        stageSize,
+        HW:     Math.round(78  * scale),
+        HH:     Math.round(78  * scale),
+        CX:     Math.round(210 * scale),
+        CY:     Math.round(210 * scale),
+        R:      Math.round(132 * scale),
+        CHAR_R: Math.round(116 * scale),
+        CW:     Math.round(92  * scale),  // center hex width
+        BW:     Math.round(66  * scale),  // back hex width
+      };
+    }
 
     const FILLS = {
       party:      '#7a4e18',
@@ -344,9 +347,9 @@
     const NS      = 'http://www.w3.org/2000/svg';
     let pulseTimer = null;
 
-    function hexPos(angleDeg, r) {
+    function hexPos(angleDeg, r, cx, cy) {
       const rad = (angleDeg - 90) * Math.PI / 180;
-      return { x: CX + r * Math.cos(rad), y: CY + r * Math.sin(rad) };
+      return { x: cx + r * Math.cos(rad), y: cy + r * Math.sin(rad) };
     }
 
     function svgEl(tag, attrs) {
@@ -407,6 +410,7 @@
 
     function drawConn(tx, ty, color) {
       clearConn();
+      const { CX, CY } = getLayout();
       const dx = tx - CX, dy = ty - CY;
       const dist = Math.sqrt(dx * dx + dy * dy);
 
@@ -464,11 +468,11 @@
     }
 
     // ── Center crest ──
-    function makeCenterHex() {
-      const w = 92, h = 92;
+    function makeCenterHex(layout) {
+      const w = layout.CW, h = layout.CW;
       const wrap = document.createElement('div');
       wrap.className = 'hex-wrap';
-      wrap.style.cssText = `left:${CX}px;top:${CY}px;width:${w}px;height:${h}px;cursor:default;`;
+      wrap.style.cssText = `left:${layout.CX}px;top:${layout.CY}px;width:${w}px;height:${h}px;cursor:default;`;
 
       const body = document.createElement('div');
       body.className = 'hex-body';
@@ -507,12 +511,20 @@
 
     // ── Build main ring ──
     function buildMain() {
+      const layout = getLayout();
+      const { HW, HH, CX, CY, R } = layout;
+
+      // Resize stage and SVG viewBox to match computed size
+      stage.style.width  = layout.stageSize + 'px';
+      stage.style.height = layout.stageSize + 'px';
+      connSvg.setAttribute('viewBox', `0 0 ${layout.stageSize} ${layout.stageSize}`);
+
       stage.querySelectorAll('.hex-wrap, .sub-overlay').forEach(e => e.remove());
       clearConn();
       clearTouchActive();
 
       NODES.forEach(node => {
-        const pos = hexPos(node.angle, R);
+        const pos = hexPos(node.angle, R, CX, CY);
         const wrap = makeHex(node, HW, HH);
         wrap.style.left = pos.x + 'px';
         wrap.style.top  = pos.y + 'px';
@@ -531,11 +543,13 @@
         stage.insertBefore(wrap, connSvg.nextSibling);
       });
 
-      stage.insertBefore(makeCenterHex(), connSvg.nextSibling);
+      stage.insertBefore(makeCenterHex(layout), connSvg.nextSibling);
     }
 
     // ── Build character sub-ring ──
     function buildSub() {
+      const layout = getLayout();
+      const { HW, HH, CX, CY, CHAR_R, BW } = layout;
       stage.querySelectorAll('.hex-wrap').forEach(e => {
         e.style.opacity = '0.08';
         e.style.pointerEvents = 'none';
@@ -548,7 +562,7 @@
       ov.className = 'sub-overlay visible';
 
       CHARS.forEach(ch => {
-        const pos = hexPos(ch.angle, CHAR_R);
+        const pos = hexPos(ch.angle, CHAR_R, CX, CY);
         const wrap = makeHex(ch, HW, HH);
         wrap.style.cssText += `position:absolute;left:${pos.x}px;top:${pos.y}px;animation:hexFadeIn 0.22s ease forwards;`;
 
@@ -565,11 +579,11 @@
       // Back button at center
       const bWrap = document.createElement('div');
       bWrap.className = 'hex-wrap';
-      bWrap.style.cssText = `position:absolute;left:${CX}px;top:${CY}px;width:66px;height:66px;animation:hexFadeIn 0.22s ease forwards;`;
+      bWrap.style.cssText = `position:absolute;left:${CX}px;top:${CY}px;width:${BW}px;height:${BW}px;animation:hexFadeIn 0.22s ease forwards;`;
 
       const bBody = document.createElement('div');
       bBody.className = 'hex-body';
-      bBody.style.cssText = `width:66px;height:66px;background:${FILLS.back};`;
+      bBody.style.cssText = `width:${BW}px;height:${BW}px;background:${FILLS.back};`;
 
       const bIc = document.createElement('i');
       bIc.className = 'ti ti-arrow-left hex-icon';
@@ -582,7 +596,7 @@
 
       bBody.appendChild(bIc); bBody.appendChild(bLbl);
       bWrap.appendChild(bBody);
-      bWrap.appendChild(makeOutline(66, 66, 0.35));
+      bWrap.appendChild(makeOutline(BW, BW, 0.35));
 
       function doBack() {
         ov.remove();
@@ -720,7 +734,13 @@
       init();
     }
 
-    window.addEventListener('resize', paintBackground);
+    // Redraw everything on resize so hex positions stay correct
+    let _resizeTimer = null;
+    window.addEventListener('resize', () => {
+      paintBackground();
+      clearTimeout(_resizeTimer);
+      _resizeTimer = setTimeout(() => buildMain(), 120);
+    });
   </script>
 
   <script src="nav.js"></script>
