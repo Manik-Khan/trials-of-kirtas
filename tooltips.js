@@ -218,6 +218,13 @@ const LOCATION_DATA = {
     type: 'Kingdom — South of the Kharak Range',
     status: 'foreign',
     desc: 'Once a vassal state of Kirtas, now an independent kingdom growing in confidence and military ambition. King Eneos II watches the north with hungry eyes.'
+  },
+
+  mortaine: {
+    name: 'Mortaine',
+    type: 'Town — Northern Numior',
+    status: 'foreign',
+    desc: 'The most significant settlement in Northern Numior, Mortaine was for many years an administrative center due to its proximity to Kirtas via the mountain passes and, more circuitously, the Coast Road. With the coming of the civil war and corresponding withdrawal of Kirtasian military and administrative personnel the town fell into rapid decline and irrelevancy. This state of affairs perpetuated for over a decade and the rolling plains and woodlands extending from the town north to the Kharak range returned mostly to a state of wilderness. Smallholder farms surrounding the immediate area of the town supported a local market, a few artisans and a sense of independence, hardihood and overall pride in self-reliance among the populace. As the war dragged on Mortaine began to grow in prominence again in conjunction with the rise of mercenary bands. As the last stop for groups headed into the beleaguered kingdom the town became an ad-hoc military depot and outfitting center. Those aspiring to fight from throughout Numior would make their way individually, in small groups or even as whole companies to Mortaine to prepare for the journey over the mountains and glory beyond. Farmers and artisans grew prosperous providing supplies and equipment to these groups and the farmland expanded into large areas around the town. While Northern Numior remains a backwater with the decline of trade and civilian travel to Kirtas, Mortaine stands out as a relatively cosmopolitan and prosperous settlement that has been fortunate to reap the benefits of a comfortably distant catastrophe.'
   }
 
   // ── ADD NEW LOCATIONS ABOVE THIS LINE ──

@@ -23,8 +23,10 @@
     .rail-divider { width: 26px; height: 1px; background: var(--gold-dim); margin: 0.2rem 0; flex-shrink: 0; opacity: 0.5; }
     .world-map-wrap { flex: 1; position: relative; overflow: hidden; }
     .world-map-wrap.placing { cursor: crosshair; }
-    .world-map-img { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; object-position: center; user-select: none; -webkit-user-drag: none; pointer-events: none; }
-    .world-map-wrap::after { content: ''; position: absolute; inset: 0; pointer-events: none; background: radial-gradient(ellipse at center, transparent 55%, rgba(0,0,0,0.4) 100%); z-index: 1; }
+    /* Map canvas — transformed for pan/zoom */
+    .map-canvas { position: absolute; inset: 0; transform-origin: 0 0; will-change: transform; }
+    .world-map-img { display: block; width: 100%; height: 100%; object-fit: cover; user-select: none; -webkit-user-drag: none; pointer-events: none; }
+    .world-map-wrap::after { content: ''; position: absolute; inset: 0; pointer-events: none; background: radial-gradient(ellipse at center, transparent 55%, rgba(0,0,0,0.4) 100%); z-index: 3; }
     .place-hint { display: none; position: absolute; top: 0.75rem; left: 50%; transform: translateX(-50%); z-index: 20; background: rgba(0,0,0,0.82); border: 1px solid var(--gold-mid); color: var(--gold-light); font-family: var(--font-title); font-size: 0.48rem; letter-spacing: 0.18em; text-transform: uppercase; padding: 0.35rem 0.9rem; white-space: nowrap; pointer-events: none; }
     .world-map-wrap.placing .place-hint { display: block; }
     .pins-layer { position: absolute; inset: 0; z-index: 2; pointer-events: none; }
@@ -156,27 +158,31 @@
         <span class="rail-label">All</span>
       </button>
       <div class="rail-divider"></div>
-      <button class="rail-btn" id="rail-neutral" onclick="railFilter('neutral')" title="Neutral">
-        <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.4"><rect x="4" y="4" width="12" height="12" rx="1"/><path d="M7 10h6M10 7v6" stroke-width="1.2"/></svg>
-        <span class="rail-label">Neutral</span>
+      <button class="rail-btn" id="rail-city" onclick="railFilter('city')" title="Cities">
+        <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.4"><rect x="6" y="9" width="8" height="8"/><path d="M6 9V7l4-4 4 4v2"/><rect x="9" y="13" width="2" height="4"/><rect x="3" y="12" width="3" height="5"/><rect x="14" y="12" width="3" height="5"/></svg>
+        <span class="rail-label">Cities</span>
       </button>
-      <button class="rail-btn" id="rail-wolven" onclick="railFilter('wolven')" title="Wolven-Held">
-        <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.4"><polygon points="10,3 17,7 17,13 10,17 3,13 3,7"/><path d="M10 7v6M7 9l3-2 3 2" stroke-width="1.1"/></svg>
-        <span class="rail-label">Wolven</span>
+      <button class="rail-btn" id="rail-town" onclick="railFilter('town')" title="Towns">
+        <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.4"><rect x="5" y="10" width="10" height="7"/><path d="M5 10L10 5l5 5"/><rect x="8" y="13" width="4" height="4"/></svg>
+        <span class="rail-label">Towns</span>
       </button>
-      <button class="rail-btn" id="rail-bluejacks" onclick="railFilter('bluejacks')" title="Blue Jackets">
-        <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.4"><path d="M5 17V8l5-5 5 5v9"/><rect x="8" y="12" width="4" height="5"/><path d="M5 11h10" stroke-width="1"/></svg>
-        <span class="rail-label">Blue J.</span>
+      <button class="rail-btn" id="rail-fort" onclick="railFilter('fort')" title="Forts">
+        <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.4"><rect x="4" y="7" width="12" height="10"/><path d="M4 7V4h3v3M13 7V4h3v3M8 7V4h4v3"/><rect x="8" y="12" width="4" height="5"/></svg>
+        <span class="rail-label">Forts</span>
       </button>
-      <button class="rail-btn" id="rail-contested" onclick="railFilter('contested')" title="Contested">
-        <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.4"><path d="M10 3l7 14H3z"/><path d="M10 9v4M10 14.5v.5" stroke-width="1.2"/></svg>
-        <span class="rail-label">War</span>
+      <button class="rail-btn" id="rail-ruin" onclick="railFilter('ruin')" title="Ruins">
+        <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.4"><path d="M4 17h12M6 17V9L4 11M14 17V9l2 2M8 17v-4h4v4"/><path d="M6 9V7h2M14 9V7h-2"/></svg>
+        <span class="rail-label">Ruins</span>
       </button>
-      <button class="rail-btn" id="rail-dangerous" onclick="railFilter('dangerous')" title="Dangerous">
-        <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.4"><circle cx="10" cy="10" r="7"/><path d="M10 6v5M10 13.5v.5" stroke-width="1.5"/></svg>
-        <span class="rail-label">Danger</span>
+      <button class="rail-btn" id="rail-region" onclick="railFilter('region')" title="Regions">
+        <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.4"><polygon points="10,3 17,7 17,13 10,17 3,13 3,7"/></svg>
+        <span class="rail-label">Regions</span>
       </button>
-      <button class="rail-btn" id="rail-foreign" onclick="railFilter('foreign')" title="Foreign Powers">
+      <button class="rail-btn" id="rail-wilderness" onclick="railFilter('wilderness')" title="Wilderness">
+        <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.4"><path d="M10 3L6 10h3L5 17h10l-4-7h3z"/></svg>
+        <span class="rail-label">Wild</span>
+      </button>
+      <button class="rail-btn" id="rail-foreign" onclick="railFilter('foreign')" title="Foreign">
         <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.4"><circle cx="10" cy="10" r="7"/><circle cx="10" cy="10" r="3"/></svg>
         <span class="rail-label">Foreign</span>
       </button>
@@ -192,10 +198,12 @@
       </button>
     </aside>
 
-    <div class="world-map-wrap" id="map-wrap" onclick="handleMapClick(event)">
-      <img src="img/maps/kirtas.jpeg" alt="Map of Kirtas" class="world-map-img" id="map-img" draggable="false">
+    <div class="world-map-wrap" id="map-wrap">
+      <div class="map-canvas" id="map-canvas">
+        <img src="img/maps/kirtas.jpeg" alt="Map of Kirtas" class="world-map-img" id="map-img" draggable="false">
+        <div class="pins-layer" id="pins-layer"></div>
+      </div>
       <div class="place-hint">Click the map to place pin — Esc to cancel</div>
-      <div class="pins-layer" id="pins-layer"></div>
     </div>
 
     <aside class="world-panel" id="world-panel">
@@ -264,14 +272,25 @@
 // These are placeholder estimates — adjust to match your map.
 // ══════════════════════════════════════════════════════════
 
+// category drives rail filtering. shape drives the pin icon.
+// Category options: 'city' | 'town' | 'fort' | 'ruin' | 'region' | 'wilderness' | 'foreign'
+// Shape options:    'square' | 'diamond' | 'triangle' | 'doublering' | 'crossring'
+//
+// TO CALIBRATE COORDINATES: open kirtas.jpeg in any image editor,
+//   hover over the location, note pixel X and Y, then:
+//   x = (pixelX / imageWidth)  * 100
+//   y = (pixelY / imageHeight) * 100
+// These are placeholder estimates — adjust to match your map.
+
 const CANON_LOCATIONS = [
-  { key: 'tiersgard',  x: 28, y: 72, shape: 'square'    }, // Coastal city
-  { key: 'capital',    x: 50, y: 40, shape: 'square'    }, // Royal seat
-  { key: 'yevennia',   x: 38, y: 35, shape: 'diamond'   }, // Duchy
-  { key: 'longhills',  x: 32, y: 22, shape: 'diamond'   }, // Highland region
-  { key: 'kharak',     x: 65, y: 68, shape: 'triangle'  }, // Mountain range
-  { key: 'ilora',      x: 72, y: 18, shape: 'doublering'}, // Elven forest
-  { key: 'numior',     x: 55, y: 85, shape: 'crossring' }, // Foreign kingdom
+  { key: 'tiersgard',  x: 28, y: 72, category: 'city',      shape: 'square'     }, // Coastal city
+  { key: 'capital',    x: 50, y: 40, category: 'city',      shape: 'square'     }, // Royal seat
+  { key: 'yevennia',   x: 38, y: 35, category: 'region',    shape: 'diamond'    }, // Duchy
+  { key: 'longhills',  x: 32, y: 22, category: 'region',    shape: 'diamond'    }, // Highland region
+  { key: 'kharak',     x: 65, y: 68, category: 'wilderness', shape: 'triangle'  }, // Mountain range
+  { key: 'ilora',      x: 72, y: 18, category: 'wilderness', shape: 'doublering'}, // Elven forest
+  { key: 'numior',     x: 55, y: 85, category: 'foreign',   shape: 'crossring'  }, // Foreign kingdom
+  { key: 'mortaine',   x: 58, y: 90, category: 'foreign',   shape: 'square'     }, // Foreign town — adjust x/y to map
 ];
 
 const STATUS_COLORS = {
@@ -292,6 +311,16 @@ const STATUS_LABELS = {
   dangerous: 'Dangerous',
   foreign:   'Foreign Power',
   unknown:   'Uncharted',
+};
+
+const CATEGORY_LABELS = {
+  city:       'City',
+  town:       'Town',
+  fort:       'Fort',
+  ruin:       'Ruin',
+  region:     'Region',
+  wilderness: 'Wilderness',
+  foreign:    'Foreign',
 };
 
 const PIN_TYPES = [
@@ -327,6 +356,18 @@ let placingMode      = false;
 let pendingPinType   = null;
 let pendingPlayer    = null;
 let marksTypeFilter  = null;
+
+// Pan/zoom state
+let mapScale   = 1;
+let mapX       = 0;
+let mapY       = 0;
+let isPanning  = false;
+let panStartX  = 0;
+let panStartY  = 0;
+let panOriginX = 0;
+let panOriginY = 0;
+const MIN_SCALE = 0.5;
+const MAX_SCALE = 4;
 
 // ══════════════════════════════════════════════════════════
 // IDENTITY
@@ -457,7 +498,7 @@ function renderPins() {
     const data = LOCATION_DATA[loc.key];
     if (!data) return '';
     const color   = STATUS_COLORS[data.status] || '#9a9a9a';
-    const visible = activeRailFilter === 'all' || activeRailFilter === data.status;
+    const visible = activeRailFilter === 'all' || activeRailFilter === loc.category;
     const isActive = selectedKey === `canon-${loc.key}`;
     return `<div class="canon-pin${isActive?' active':''}"
       data-id="canon-${loc.key}"
@@ -514,7 +555,10 @@ function selectCanonLocation(event, key) {
   const color = STATUS_COLORS[loc.status] || '#9a9a9a';
   const label = STATUS_LABELS[loc.status] || loc.status;
 
-  document.getElementById('panel-type-label').textContent = 'Location';
+  const canon  = CANON_LOCATIONS.find(l => l.key === key);
+  const catLabel = canon ? CATEGORY_LABELS[canon.category] || canon.category : 'Location';
+
+  document.getElementById('panel-type-label').textContent = catLabel;
   document.getElementById('panel-type-label').style.color = color;
 
   const badge = document.getElementById('panel-status-badge');
@@ -625,10 +669,133 @@ function cancelPlacing() {
 }
 
 // ══════════════════════════════════════════════════════════
-// MAP CLICK
+// PAN / ZOOM
 // ══════════════════════════════════════════════════════════
-function handleMapClick(event) {
-  if (event.target.closest('.canon-pin') || event.target.closest('.player-pin')) return;
+function applyTransform() {
+  document.getElementById('map-canvas').style.transform =
+    `translate(${mapX}px, ${mapY}px) scale(${mapScale})`;
+}
+
+function clampTransform(wrap) {
+  const w = wrap.clientWidth;
+  const h = wrap.clientHeight;
+  // Don't let the map drift so far that the viewport shows nothing
+  const maxX =  w * 0.8;
+  const minX = -w * mapScale * 0.8;
+  const maxY =  h * 0.8;
+  const minY = -h * mapScale * 0.8;
+  mapX = Math.min(maxX, Math.max(minX, mapX));
+  mapY = Math.min(maxY, Math.max(minY, mapY));
+}
+
+function initPanZoom() {
+  const wrap = document.getElementById('map-wrap');
+
+  // Mouse wheel — zoom toward cursor
+  wrap.addEventListener('wheel', e => {
+    e.preventDefault();
+    const rect   = wrap.getBoundingClientRect();
+    const cx     = e.clientX - rect.left;
+    const cy     = e.clientY - rect.top;
+    const delta  = e.deltaY > 0 ? 0.85 : 1.18;
+    const newScale = Math.min(MAX_SCALE, Math.max(MIN_SCALE, mapScale * delta));
+    // Adjust pan so zoom is centered on cursor
+    mapX = cx - (cx - mapX) * (newScale / mapScale);
+    mapY = cy - (cy - mapY) * (newScale / mapScale);
+    mapScale = newScale;
+    clampTransform(wrap);
+    applyTransform();
+  }, { passive: false });
+
+  // Mouse drag to pan
+  wrap.addEventListener('mousedown', e => {
+    // Only pan with left button, not on pins
+    if (e.button !== 0) return;
+    if (e.target.closest('.canon-pin') || e.target.closest('.player-pin')) return;
+    isPanning  = true;
+    panStartX  = e.clientX;
+    panStartY  = e.clientY;
+    panOriginX = mapX;
+    panOriginY = mapY;
+    wrap.style.cursor = 'grabbing';
+  });
+
+  window.addEventListener('mousemove', e => {
+    if (!isPanning) return;
+    mapX = panOriginX + (e.clientX - panStartX);
+    mapY = panOriginY + (e.clientY - panStartY);
+    clampTransform(wrap);
+    applyTransform();
+  });
+
+  window.addEventListener('mouseup', e => {
+    if (!isPanning) return;
+    isPanning = false;
+    wrap.style.cursor = placingMode ? 'crosshair' : '';
+    // Treat as click only if mouse barely moved (not a drag)
+    const dx = Math.abs(e.clientX - panStartX);
+    const dy = Math.abs(e.clientY - panStartY);
+    if (dx < 4 && dy < 4) handleMapClick(e);
+  });
+
+  // Touch pan
+  let lastTouchDist = null;
+  let touchPanStart = null;
+
+  wrap.addEventListener('touchstart', e => {
+    if (e.touches.length === 1) {
+      const t = e.touches[0];
+      isPanning  = true;
+      panStartX  = t.clientX;
+      panStartY  = t.clientY;
+      panOriginX = mapX;
+      panOriginY = mapY;
+    } else if (e.touches.length === 2) {
+      isPanning = false;
+      const dx = e.touches[0].clientX - e.touches[1].clientX;
+      const dy = e.touches[0].clientY - e.touches[1].clientY;
+      lastTouchDist = Math.hypot(dx, dy);
+    }
+  }, { passive: true });
+
+  wrap.addEventListener('touchmove', e => {
+    e.preventDefault();
+    if (e.touches.length === 1 && isPanning) {
+      const t = e.touches[0];
+      mapX = panOriginX + (t.clientX - panStartX);
+      mapY = panOriginY + (t.clientY - panStartY);
+      clampTransform(wrap);
+      applyTransform();
+    } else if (e.touches.length === 2 && lastTouchDist !== null) {
+      const dx   = e.touches[0].clientX - e.touches[1].clientX;
+      const dy   = e.touches[0].clientY - e.touches[1].clientY;
+      const dist = Math.hypot(dx, dy);
+      const mid  = { x: (e.touches[0].clientX + e.touches[1].clientX) / 2, y: (e.touches[0].clientY + e.touches[1].clientY) / 2 };
+      const rect = wrap.getBoundingClientRect();
+      const cx   = mid.x - rect.left;
+      const cy   = mid.y - rect.top;
+      const newScale = Math.min(MAX_SCALE, Math.max(MIN_SCALE, mapScale * (dist / lastTouchDist)));
+      mapX = cx - (cx - mapX) * (newScale / mapScale);
+      mapY = cy - (cy - mapY) * (newScale / mapScale);
+      mapScale = newScale;
+      lastTouchDist = dist;
+      clampTransform(wrap);
+      applyTransform();
+    }
+  }, { passive: false });
+
+  wrap.addEventListener('touchend', () => {
+    isPanning     = false;
+    lastTouchDist = null;
+  });
+}
+
+// ══════════════════════════════════════════════════════════
+// MAP CLICK — place pin or deselect
+// coords must account for current pan/zoom transform
+// ══════════════════════════════════════════════════════════
+function handleMapClick(e) {
+  if (e.target.closest('.canon-pin') || e.target.closest('.player-pin')) return;
 
   if (!placingMode) {
     selectedKey = null;
@@ -639,10 +806,13 @@ function handleMapClick(event) {
 
   if (!currentIdentity || !pendingPinType) { cancelPlacing(); return; }
 
-  const wrap = document.getElementById('map-wrap');
-  const rect = wrap.getBoundingClientRect();
-  const x = ((event.clientX - rect.left) / rect.width)  * 100;
-  const y = ((event.clientY - rect.top)  / rect.height) * 100;
+  const wrap   = document.getElementById('map-wrap');
+  const rect   = wrap.getBoundingClientRect();
+  // Convert screen coords to map-canvas percentage, accounting for pan/zoom
+  const canvasX = (e.clientX - rect.left - mapX) / mapScale;
+  const canvasY = (e.clientY - rect.top  - mapY) / mapScale;
+  const x = (canvasX / wrap.clientWidth)  * 100;
+  const y = (canvasY / wrap.clientHeight) * 100;
 
   showPinNoteForm(x, y, pendingPinType);
   cancelPlacing();
@@ -811,6 +981,7 @@ document.addEventListener('click', e => {
 loadIdentity();
 renderPins();
 loadPins();
+initPanZoom();
 
 </script>
 </body>
