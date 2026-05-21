@@ -291,6 +291,40 @@
 
       .marks-panel.behind { right: 400px; }
     }
+
+    /* ── Mobile: phone-sized screens ── */
+    @media (max-width: 600px) {
+      /* Rail: slightly narrower, still usable with thumb */
+      .world-rail { width: 44px; padding: 0.4rem 0; gap: 0.15rem; }
+      .rail-btn   { width: 34px; height: 34px; }
+      .rail-btn svg { width: 14px; height: 14px; }
+
+      /* Location drawer: full width on mobile instead of 200px overlay */
+      .loc-drawer {
+        left: 44px;
+        width: calc(100vw - 44px);
+        transform: translateX(calc(-100vw));
+      }
+      .loc-drawer.open { transform: translateX(0); }
+
+      /* Detail panel: full width */
+      .detail-panel { width: 100vw; right: 0; }
+
+      /* Marks panel: full width */
+      .marks-panel { width: calc(100vw - 44px); }
+
+      /* Pin labels: slightly smaller */
+      .pin-label { font-size: 0.28rem; }
+
+      /* Edit banner: smaller text */
+      .edit-banner { font-size: 0.5rem; padding: 0.25rem 0.5rem; top: 44px; }
+
+      /* Place hint */
+      .place-hint { font-size: 0.48rem; }
+
+      /* Identity modal: full width */
+      .id-modal { width: calc(100vw - 2rem); padding: 1rem 1.25rem; }
+    }
   </style>
 </head>
 <body>

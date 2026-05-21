@@ -56,7 +56,7 @@ const DEFAULT_THEME = 'parchment';
 // ── Characters for the sheet switcher ──
 // Add new characters here when the party grows
 const CHARACTERS_NAV = [
-  { key: 'tyros',     label: 'Cosmere' },
+  { key: 'tyros',     label: 'Tyros' },
   { key: 'caim',      label: 'Caim' },
   { key: 'liadan',    label: 'Líadan' },
   { key: 'vesperian', label: 'Vesperian' },
@@ -173,12 +173,16 @@ function injectNavStyles() {
   const style = document.createElement('style');
   style.id = 'nav-styles';
   style.textContent = `
+    /* Prevent sticky nav from overlapping scroll targets */
+    html { scroll-padding-top: 52px; }
+
     #site-nav {
       position: sticky;
       top: 0;
       z-index: 100;
       background: var(--nav-bg);
       backdrop-filter: blur(12px);
+      -webkit-backdrop-filter: blur(12px);
       border-bottom: 1px solid var(--nav-border);
       padding: 0 1.5rem;
       display: flex;
@@ -349,16 +353,29 @@ function injectNavStyles() {
     }
 
     @media (max-width: 700px) {
-      .nav-links { gap: 1rem; }
-      .nav-link { font-size: 0.58rem; }
-      .nav-char-switcher { gap: 0.5rem; }
-      .nav-char-link { font-size: 0.52rem; }
+      .nav-links { gap: 0.85rem; }
+      .nav-link { font-size: 0.56rem; }
+      .nav-char-switcher { gap: 0.4rem; }
+      .nav-char-link { font-size: 0.5rem; }
     }
     @media (max-width: 520px) {
-      #site-nav { padding: 0 1rem; }
-      .nav-links { gap: 0.75rem; }
-      .nav-link { font-size: 0.52rem; letter-spacing: 0.08em; }
+      #site-nav { padding: 0 0.85rem; }
+      /* Allow nav links to scroll horizontally rather than wrapping or overflowing */
+      .nav-links {
+        gap: 0.65rem;
+        overflow-x: auto;
+        scrollbar-width: none;
+        -webkit-overflow-scrolling: touch;
+        /* Fade edges to hint scrollability */
+        -webkit-mask-image: linear-gradient(to right, transparent 0%, black 5%, black 95%, transparent 100%);
+        mask-image: linear-gradient(to right, transparent 0%, black 5%, black 95%, transparent 100%);
+      }
+      .nav-links::-webkit-scrollbar { display: none; }
+      .nav-link { font-size: 0.5rem; letter-spacing: 0.07em; white-space: nowrap; flex-shrink: 0; }
       .nav-char-divider { display: none; }
+      .nav-char-link { font-size: 0.48rem; flex-shrink: 0; }
+      /* Safe area bottom padding for iPhone notch on sticky elements */
+      .nav-theme-wrap { flex-shrink: 0; }
     }
   `;
   document.head.appendChild(style);

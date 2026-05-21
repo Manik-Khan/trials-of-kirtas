@@ -777,6 +777,45 @@
       .c-sidebar { grid-row: auto; max-height: 220px; border-right: none; border-bottom: 1px solid var(--gold-dim); }
       .c-main { min-height: 60vh; }
     }
+
+    @media (max-width: 600px) {
+      /* Sidebar collapses tighter */
+      .c-sidebar { max-height: 160px; padding: 0.6rem; }
+
+      /* Entry cards: reduce padding */
+      .c-entry { padding: 0.75rem 0.85rem; }
+      .c-entry-header { flex-wrap: wrap; gap: 0.3rem; }
+      .c-entry-meta { font-size: 0.7rem; }
+
+      /* Quill toolbar: allow wrap so it doesn't overflow */
+      .c-editor-wrap .ql-toolbar {
+        flex-wrap: wrap !important;
+        padding: 4px !important;
+      }
+      .c-editor-wrap .ql-toolbar .ql-formats {
+        margin-right: 4px !important;
+      }
+
+      /* Post button row */
+      .c-post-row { flex-direction: column; gap: 0.5rem; }
+      .c-post-row > * { width: 100%; }
+
+      /* Session/author filter bar: scrollable row */
+      .c-filter-bar {
+        flex-wrap: nowrap;
+        overflow-x: auto;
+        scrollbar-width: none;
+        padding-bottom: 0.25rem;
+        -webkit-overflow-scrolling: touch;
+      }
+      .c-filter-bar::-webkit-scrollbar { display: none; }
+
+      /* Search input: full width */
+      .c-search-input { width: 100% !important; }
+
+      /* Safe area bottom for editor drawer */
+      .c-editor-wrap { padding-bottom: env(safe-area-inset-bottom); }
+    }
   </style>
 </head>
 <body>

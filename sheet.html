@@ -24,6 +24,11 @@
       padding: 0 1.25rem;
       overflow-x: auto;
       scrollbar-width: none;
+      position: sticky;
+      top: 52px;   /* sits flush under the 52px nav */
+      z-index: 90;
+      backdrop-filter: blur(8px);
+      -webkit-backdrop-filter: blur(8px);
     }
     .sheet-tabs::-webkit-scrollbar { display: none; }
 
@@ -49,6 +54,8 @@
       max-width: 1320px;
       margin: 0 auto;
       padding: 1.25rem 1.25rem 8rem;
+      /* Safe area inset for iPhone notch/home bar */
+      padding-bottom: calc(8rem + env(safe-area-inset-bottom));
     }
 
     .tab-panel { display: none; }
@@ -1285,10 +1292,44 @@
       .equip-right { border-left: none; border-top: 2px solid var(--gold-dim); }
     }
     @media (max-width: 600px) {
-      .core-layout { grid-template-columns: 1fr; }
+      .core-layout  { grid-template-columns: 1fr; }
       .ability-grid { grid-template-columns: repeat(3, 1fr); }
       .combat-grid  { grid-template-columns: repeat(2, 1fr); }
       .roller-panel { width: calc(100vw - 2rem); right: 1rem; }
+
+      /* Sheet body padding tighter on mobile */
+      .sheet-body { padding: 0.85rem 0.85rem calc(6rem + env(safe-area-inset-bottom)); }
+
+      /* Tab buttons slightly smaller */
+      .tab-btn { font-size: 0.55rem; padding: 0.65rem 0.75rem; letter-spacing: 0.12em; }
+
+      /* Action slots: 2 columns instead of 4 */
+      .actions-grid { grid-template-columns: repeat(2, 1fr) !important; }
+
+      /* Spell slot grid: 2 cols */
+      .slot-pips-row { flex-wrap: wrap; gap: 0.3rem; }
+
+      /* Equipment: single column already handled at 1000px, just tighten padding */
+      .equip-left, .equip-right { padding: 0.65rem; }
+      .equip-footer { flex-direction: column; gap: 0.4rem; }
+      .equip-footer > * { width: 100%; }
+
+      /* Skills/saves: tighter rows */
+      .skill-row, .save-row { font-size: 0.78rem; }
+
+      /* Proficiencies accordion */
+      .equip-prof-header { font-size: 0.52rem; }
+
+      /* HP adjustment grid: full width */
+      .hp-adj-grid { grid-template-columns: 1fr 1fr; }
+
+      /* Roller panel: full width, from bottom */
+      .roller-panel {
+        width: 100vw;
+        right: 0;
+        bottom: env(safe-area-inset-bottom);
+        border-radius: 0;
+      }
     }
 
     /* ── Compendium tab button ── */
