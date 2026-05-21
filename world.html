@@ -992,9 +992,14 @@ loadIdentity();
 renderPins();
 loadPins();
 initPanZoom();
-// Fit map once image has loaded (need dimensions to be ready)
-const _mapImg = document.getElementById('map-img');
-if (_mapImg.complete) { fitMap(); } else { _mapImg.addEventListener('load', fitMap); }
+// Defer fitMap until after nav.js has injected and the browser has laid out
+// Two rAF frames ensures we're past any nav reflow
+requestAnimationFrame(() => requestAnimationFrame(() => {
+  fitMap();
+  // Also re-fit if the image hasn't loaded yet
+  const img = document.getElementById('map-img');
+  if (!img.complete) img.addEventListener('load', fitMap);
+}));
 window.addEventListener('resize', fitMap);
 
 </script>
