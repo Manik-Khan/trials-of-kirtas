@@ -21,13 +21,13 @@
 const CHARACTERS = {
 
   // ════════════════════════════════════════════════════════
-  // TYROS DARKSTAR
+  // COSMERE RUNESTAR
   // Warlock 2 / Sorcerer 1 — The Hexblade — Astral Elf
   // Last updated: Session 0
   // ════════════════════════════════════════════════════════
   tyros: {
 
-    name:         'Tyros Darkstar',
+    name:         'Cosmere Runestar',
     classLabel:   'Warlock 2 / Sorcerer 1',
     subclass:     'Shadow | The Hexblade',
     level:        3,
