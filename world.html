@@ -454,14 +454,21 @@
 // These are placeholder estimates — adjust to match your map.
 
 const CANON_LOCATIONS = [
-  { key: 'tiersgard',  x: 28, y: 72, category: 'city',      shape: 'square'     }, // Coastal city
-  { key: 'capital',    x: 50, y: 40, category: 'city',      shape: 'square'     }, // Royal seat
-  { key: 'yevennia',   x: 38, y: 35, category: 'region',    shape: 'diamond'    }, // Duchy
-  { key: 'longhills',  x: 32, y: 22, category: 'region',    shape: 'diamond'    }, // Highland region
-  { key: 'kharak',     x: 65, y: 68, category: 'wilderness', shape: 'triangle'  }, // Mountain range
-  { key: 'ilora',      x: 72, y: 18, category: 'wilderness', shape: 'doublering'}, // Elven forest
-  { key: 'numior',     x: 55, y: 85, category: 'foreign',   shape: 'crossring'  }, // Foreign kingdom
-  { key: 'mortaine',   x: 58, y: 90, category: 'foreign',   shape: 'square'     }, // Foreign town — adjust x/y to map
+  // ── Calibrated coordinates (x/y as % of 4791×3055) ──
+  { key: 'tiersgard',    x: 28.39, y: 70.93, category: 'city',       shape: 'square'    },
+  { key: 'ithildun',     x: 59.18, y: 34.60, category: 'city',       shape: 'square'    },
+  { key: 'yevennia',     x: 35.17, y: 41.11, category: 'region',     shape: 'diamond'   },
+  { key: 'longhills',    x: 27.72, y: 29.66, category: 'region',     shape: 'diamond'   },
+  { key: 'brettos',      x: 48.95, y: 25.63, category: 'town',       shape: 'square'    },
+  { key: 'teleroskeep',  x: 38.22, y: 11.07, category: 'fort',       shape: 'square'    },
+  { key: 'duntalor',     x: 53.94, y: 70.77, category: 'fort',       shape: 'square'    },
+  { key: 'ironhold',     x: 80.11, y: 49.07, category: 'fort',       shape: 'square'    },
+  { key: 'kharak',       x: 69.01, y: 73.72, category: 'wilderness', shape: 'triangle'  },
+  { key: 'ilora',        x: 48.72, y: 12.73, category: 'wilderness', shape: 'doublering'},
+  { key: 'wildwood',     x: 12.11, y:  6.29, category: 'wilderness', shape: 'doublering'},
+  { key: 'barrowwastes', x:  8.29, y: 31.36, category: 'wilderness', shape: 'doublering'},
+  { key: 'ruinsofloem',  x: 77.33, y: 18.99, category: 'ruin',       shape: 'triangle'  },
+  { key: 'mortaine',     x: 93.11, y: 92.70, category: 'foreign',    shape: 'square'    },
 ];
 
 const STATUS_COLORS = {
