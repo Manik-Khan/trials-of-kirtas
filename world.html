@@ -131,7 +131,15 @@
     .lightbox { position: fixed; inset: 0; background: rgba(0,0,0,0.9); z-index: 100; display: none; align-items: center; justify-content: center; cursor: zoom-out; }
     .lightbox.open { display: flex; }
     .lightbox img { max-width: 95vw; max-height: 95vh; object-fit: contain; border: 1px solid var(--gold-dim); }
-    /* Canon pin pulse — subtle, constant */
+    /* Edit mode */
+    .edit-banner { display: none; position: absolute; top: 0.75rem; left: 50%; transform: translateX(-50%); z-index: 20; background: rgba(184,149,42,0.15); border: 1px solid var(--gold-mid); color: var(--gold-light); font-family: var(--font-title); font-size: 0.48rem; letter-spacing: 0.18em; text-transform: uppercase; padding: 0.35rem 0.9rem; white-space: nowrap; pointer-events: none; }
+    .world-map-wrap.edit-mode .edit-banner { display: block; }
+    .world-map-wrap.edit-mode .player-pin { cursor: grab; }
+    .world-map-wrap.edit-mode .player-pin.dragging { cursor: grabbing; }
+    .rail-btn.edit-active { color: var(--gold-light) !important; border-color: var(--gold) !important; background: rgba(184,149,42,0.18) !important; }
+    @media (min-resolution: 2dppx) {
+      .edit-banner { font-size: 0.66rem; padding: 0.5rem 1.2rem; }
+    }
     .canon-pin-pulse {
       position: absolute;
       top: 50%; left: 50%;
@@ -281,6 +289,14 @@
         <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.4"><path d="M3 5l4-2 6 2 4-2v12l-4 2-6-2-4 2V5z"/><path d="M7 3v12M13 5v12" stroke-width="1"/></svg>
         <span class="rail-label">Full</span>
       </button>
+      <div class="rail-divider"></div>
+      <button class="rail-btn" id="rail-edit" onclick="toggleEditMode()" title="Edit Marks">
+        <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.4">
+          <path d="M14 3l3 3-9 9-4 1 1-4 9-9z"/>
+          <path d="M12 5l3 3" stroke-width="1.2"/>
+        </svg>
+        <span class="rail-label">Edit</span>
+      </button>
     </aside>
 
     <div class="world-map-wrap" id="map-wrap">
@@ -289,6 +305,7 @@
         <div class="pins-layer" id="pins-layer"></div>
       </div>
       <div class="place-hint">Click the map to place pin — Esc to cancel</div>
+      <div class="edit-banner">Edit mode — drag marks to reposition</div>
     </div>
 
     <aside class="world-panel" id="world-panel">
@@ -441,21 +458,18 @@ let placingMode      = false;
 let pendingPinType   = null;
 let pendingPlayer    = null;
 let marksTypeFilter  = null;
+let editMode         = false;
 
 // Pan/zoom state
-let mapScale   = 1;
-let mapX       = 0;
-let mapY       = 0;
-let isPanning  = false;
-let panStartX  = 0;
-let panStartY  = 0;
-let panOriginX = 0;
-let panOriginY = 0;
+let mapScale    = 1;
+let mapX        = 0;
+let mapY        = 0;
+let isPanning   = false;
 const MAP_W     = 4791;
 const MAP_H     = 3055;
 const MIN_SCALE = 0.2;
 const MAX_SCALE = 4;
-const ZOOM_STEP = 0.04; // gentle — fraction of current scale per scroll tick
+const ZOOM_STEP = 0.04;
 
 // Fit the full map into the viewport on load
 function fitMap() {
@@ -773,7 +787,7 @@ function cancelPlacing() {
 }
 
 // ══════════════════════════════════════════════════════════
-// PAN / ZOOM
+// PAN / ZOOM / PIN DRAG — unified pointer system
 // ══════════════════════════════════════════════════════════
 function applyTransform() {
   document.getElementById('map-canvas').style.transform =
@@ -785,7 +799,6 @@ function clampTransform(wrap) {
   const wh = wrap.clientHeight;
   const scaledW = MAP_W * mapScale;
   const scaledH = MAP_H * mapScale;
-  // Keep at least 20% of the map visible in each direction
   const margin = 0.2;
   mapX = Math.min(ww * margin, Math.max(ww - scaledW + ww * (margin - 1), mapX));
   mapY = Math.min(wh * margin, Math.max(wh - scaledH + wh * (margin - 1), mapY));
@@ -794,7 +807,7 @@ function clampTransform(wrap) {
 function initPanZoom() {
   const wrap = document.getElementById('map-wrap');
 
-  // Mouse wheel — zoom toward cursor
+  // ── Wheel zoom ──
   wrap.addEventListener('wheel', e => {
     e.preventDefault();
     const rect     = wrap.getBoundingClientRect();
@@ -809,49 +822,135 @@ function initPanZoom() {
     applyTransform();
   }, { passive: false });
 
-  // Mouse drag to pan
+  // ── Mouse: pan + pin drag ──
+  let pointerMode   = null; // 'pan' | 'drag-pin'
+  let mouseDownTime = 0;
+  let mouseDownX    = 0;
+  let mouseDownY    = 0;
+  let panOriginX    = 0;
+  let panOriginY    = 0;
+  let dragPin       = null;
+
   wrap.addEventListener('mousedown', e => {
-    // Only pan with left button, not on pins
     if (e.button !== 0) return;
-    if (e.target.closest('.canon-pin') || e.target.closest('.player-pin')) return;
-    isPanning  = true;
-    panStartX  = e.clientX;
-    panStartY  = e.clientY;
-    panOriginX = mapX;
-    panOriginY = mapY;
+    mouseDownTime = Date.now();
+    mouseDownX    = e.clientX;
+    mouseDownY    = e.clientY;
+
+    // Check for player pin drag in edit mode
+    const pinEl = e.target.closest('.player-pin');
+    if (editMode && pinEl) {
+      const pinId = pinEl.dataset.id?.replace('player-', '');
+      const pin   = playerPins.find(p => p.id === pinId);
+      if (!pin) return;
+      // Block non-DM from dragging DM pins
+      if (pin.playerId === 'dm' && currentIdentity?.playerId !== 'dm') return;
+      pointerMode = 'drag-pin';
+      dragPin = { pin, el: pinEl, origX: pin.x, origY: pin.y,
+                  startClientX: e.clientX, startClientY: e.clientY,
+                  currentX: pin.x, currentY: pin.y };
+      pinEl.classList.add('dragging');
+      e.stopPropagation();
+      return;
+    }
+
+    // Otherwise pan
+    pointerMode = 'pan';
+    panOriginX  = mapX;
+    panOriginY  = mapY;
     wrap.style.cursor = 'grabbing';
   });
 
   window.addEventListener('mousemove', e => {
-    if (!isPanning) return;
-    mapX = panOriginX + (e.clientX - panStartX);
-    mapY = panOriginY + (e.clientY - panStartY);
-    clampTransform(wrap);
-    applyTransform();
+    if (pointerMode === 'pan') {
+      mapX = panOriginX + (e.clientX - mouseDownX);
+      mapY = panOriginY + (e.clientY - mouseDownY);
+      clampTransform(wrap);
+      applyTransform();
+    }
+    if (pointerMode === 'drag-pin' && dragPin) {
+      const dx = e.clientX - dragPin.startClientX;
+      const dy = e.clientY - dragPin.startClientY;
+      if (Math.abs(dx) < 5 && Math.abs(dy) < 5) return;
+      dragPin.currentX = dragPin.origX + (dx / mapScale / MAP_W * 100);
+      dragPin.currentY = dragPin.origY + (dy / mapScale / MAP_H * 100);
+      dragPin.el.style.left = `${Math.max(0, Math.min(100, dragPin.currentX))}%`;
+      dragPin.el.style.top  = `${Math.max(0, Math.min(100, dragPin.currentY))}%`;
+    }
   });
 
   window.addEventListener('mouseup', e => {
-    if (!isPanning) return;
-    isPanning = false;
-    wrap.style.cursor = placingMode ? 'crosshair' : '';
-    // Treat as click only if mouse barely moved (not a drag)
-    const dx = Math.abs(e.clientX - panStartX);
-    const dy = Math.abs(e.clientY - panStartY);
-    if (dx < 4 && dy < 4) handleMapClick(e);
+    if (!pointerMode) return;
+    const elapsed  = Date.now() - mouseDownTime;
+    const dx       = Math.abs(e.clientX - mouseDownX);
+    const dy       = Math.abs(e.clientY - mouseDownY);
+    const wasClick = elapsed < 200 && dx < 6 && dy < 6;
+
+    if (pointerMode === 'pan') {
+      wrap.style.cursor = placingMode ? 'crosshair' : '';
+      if (wasClick) handleMapClick(e);
+    }
+
+    if (pointerMode === 'drag-pin' && dragPin) {
+      dragPin.el.classList.remove('dragging');
+
+      if (wasClick) {
+        // Treat as select
+        const pinId = dragPin.pin.id;
+        dragPin = null; pointerMode = null;
+        selectPlayerPin({ stopPropagation: () => {} }, pinId);
+        return;
+      }
+
+      // Commit or confirm the move
+      const isOwn = currentIdentity?.playerId === dragPin.pin.playerId;
+      const isDM  = currentIdentity?.playerId === 'dm';
+      const newX  = Math.round(dragPin.currentX * 100) / 100;
+      const newY  = Math.round(dragPin.currentY * 100) / 100;
+
+      const doMove = async () => {
+        dragPin.pin.x = newX;
+        dragPin.pin.y = newY;
+        renderPins();
+        renderMarksList();
+        await savePins();
+      };
+      const doCancel = () => {
+        dragPin.el.style.left = `${dragPin.origX}%`;
+        dragPin.el.style.top  = `${dragPin.origY}%`;
+      };
+
+      if (isOwn || isDM) {
+        doMove();
+      } else {
+        const pt  = PIN_TYPES.find(t => t.id === dragPin.pin.type) || PIN_TYPES[4];
+        if (confirm(`You're moving ${dragPin.pin.placedBy}'s ${pt.label} mark. Are you sure?`)) {
+          doMove();
+        } else {
+          doCancel();
+        }
+      }
+      dragPin = null;
+    }
+
+    pointerMode = null;
   });
 
-  // Touch pan
-  let lastTouchDist = null;
-  let touchPanStart = null;
+  // ── Touch pan + pinch zoom ──
+  let lastTouchDist  = null;
+  let touchPanStartX = 0;
+  let touchPanStartY = 0;
+  let touchOriginX   = 0;
+  let touchOriginY   = 0;
 
   wrap.addEventListener('touchstart', e => {
     if (e.touches.length === 1) {
       const t = e.touches[0];
-      isPanning  = true;
-      panStartX  = t.clientX;
-      panStartY  = t.clientY;
-      panOriginX = mapX;
-      panOriginY = mapY;
+      isPanning      = true;
+      touchPanStartX = t.clientX;
+      touchPanStartY = t.clientY;
+      touchOriginX   = mapX;
+      touchOriginY   = mapY;
     } else if (e.touches.length === 2) {
       isPanning = false;
       const dx = e.touches[0].clientX - e.touches[1].clientX;
@@ -864,15 +963,16 @@ function initPanZoom() {
     e.preventDefault();
     if (e.touches.length === 1 && isPanning) {
       const t = e.touches[0];
-      mapX = panOriginX + (t.clientX - panStartX);
-      mapY = panOriginY + (t.clientY - panStartY);
+      mapX = touchOriginX + (t.clientX - touchPanStartX);
+      mapY = touchOriginY + (t.clientY - touchPanStartY);
       clampTransform(wrap);
       applyTransform();
     } else if (e.touches.length === 2 && lastTouchDist !== null) {
       const dx   = e.touches[0].clientX - e.touches[1].clientX;
       const dy   = e.touches[0].clientY - e.touches[1].clientY;
       const dist = Math.hypot(dx, dy);
-      const mid  = { x: (e.touches[0].clientX + e.touches[1].clientX) / 2, y: (e.touches[0].clientY + e.touches[1].clientY) / 2 };
+      const mid  = { x: (e.touches[0].clientX + e.touches[1].clientX) / 2,
+                     y: (e.touches[0].clientY + e.touches[1].clientY) / 2 };
       const rect = wrap.getBoundingClientRect();
       const cx   = mid.x - rect.left;
       const cy   = mid.y - rect.top;
@@ -893,8 +993,16 @@ function initPanZoom() {
 }
 
 // ══════════════════════════════════════════════════════════
-// MAP CLICK — place pin or deselect
-// coords must account for current pan/zoom transform
+// EDIT MODE
+// ══════════════════════════════════════════════════════════
+function toggleEditMode() {
+  editMode = !editMode;
+  document.getElementById('map-wrap').classList.toggle('edit-mode', editMode);
+  document.getElementById('rail-edit').classList.toggle('edit-active', editMode);
+}
+
+// ══════════════════════════════════════════════════════════
+// MAP CLICK — place pin or deselect (called from mouseup)
 // ══════════════════════════════════════════════════════════
 function handleMapClick(e) {
   if (e.target.closest('.canon-pin') || e.target.closest('.player-pin')) return;
@@ -908,7 +1016,8 @@ function handleMapClick(e) {
 
   if (!currentIdentity || !pendingPinType) { cancelPlacing(); return; }
 
-  // Convert screen coords to map percentage, accounting for pan/zoom
+  const wrap    = document.getElementById('map-wrap');
+  const rect    = wrap.getBoundingClientRect();
   const canvasX = (e.clientX - rect.left - mapX) / mapScale;
   const canvasY = (e.clientY - rect.top  - mapY) / mapScale;
   const x = (canvasX / MAP_W) * 100;
