@@ -132,7 +132,7 @@
     .lightbox.open { display: flex; }
     .lightbox img { max-width: 95vw; max-height: 95vh; object-fit: contain; border: 1px solid var(--gold-dim); }
     /* Edit mode */
-    .edit-banner { display: none; position: absolute; top: 0.75rem; left: 50%; transform: translateX(-50%); z-index: 20; background: rgba(184,149,42,0.15); border: 1px solid var(--gold-mid); color: var(--gold-light); font-family: var(--font-title); font-size: 0.48rem; letter-spacing: 0.18em; text-transform: uppercase; padding: 0.35rem 0.9rem; white-space: nowrap; pointer-events: none; }
+    .edit-banner { display: none; position: absolute; top: 0.75rem; left: 50%; transform: translateX(-50%); z-index: 20; background: rgba(184,149,42,0.55); border: 1px solid var(--gold); color: #fff; font-family: var(--font-title); font-size: 0.48rem; letter-spacing: 0.18em; text-transform: uppercase; padding: 0.35rem 0.9rem; white-space: nowrap; pointer-events: none; box-shadow: 0 2px 12px rgba(0,0,0,0.5); }
     .world-map-wrap.edit-mode .edit-banner { display: block; }
     .world-map-wrap.edit-mode .player-pin { cursor: grab; }
     .world-map-wrap.edit-mode .player-pin.dragging { cursor: grabbing; }
@@ -140,24 +140,80 @@
     @media (min-resolution: 2dppx) {
       .edit-banner { font-size: 0.66rem; padding: 0.5rem 1.2rem; }
     }
+
+    /* Canon pin — larger, outlined for visibility */
+    .canon-pin-icon { width: 20px; height: 20px; flex-shrink: 0; filter: drop-shadow(0 0 3px rgba(0,0,0,0.9)) drop-shadow(0 1px 6px rgba(0,0,0,0.7)); transition: transform 0.15s, filter 0.15s; }
+    .canon-pin:hover .canon-pin-icon, .canon-pin.active .canon-pin-icon { transform: scale(1.35); filter: drop-shadow(0 0 6px currentColor) drop-shadow(0 0 12px currentColor) drop-shadow(0 0 3px rgba(0,0,0,0.9)); }
     .canon-pin-pulse {
       position: absolute;
       top: 50%; left: 50%;
-      width: 14px; height: 14px;
+      width: 20px; height: 20px;
       border-radius: 50%;
-      border: 1px solid currentColor;
+      border: 1.5px solid currentColor;
       transform: translate(-50%, -50%);
-      animation: canonPulse 3s ease-out infinite;
+      animation: canonPulse 2.4s ease-out infinite;
       pointer-events: none;
       opacity: 0;
     }
-    .canon-pin-pulse:nth-child(2) { animation-delay: 1s; }
-    .canon-pin-pulse:nth-child(3) { animation-delay: 2s; }
+    .canon-pin-pulse:nth-child(2) { animation-delay: 0.8s; }
+    .canon-pin-pulse:nth-child(3) { animation-delay: 1.6s; }
     @keyframes canonPulse {
-      0%   { transform: translate(-50%,-50%) scale(0.6); opacity: 0.6; }
-      100% { transform: translate(-50%,-50%) scale(2.8); opacity: 0; }
+      0%   { transform: translate(-50%,-50%) scale(0.5); opacity: 0.8; }
+      100% { transform: translate(-50%,-50%) scale(3.5); opacity: 0; }
     }
     .canon-pin-wrap { position: relative; display: flex; align-items: center; justify-content: center; }
+
+    /* Player pin — larger, outlined */
+    .player-pin-dot { width: 13px; height: 13px; border-radius: 50%; border: 2px solid rgba(0,0,0,0.6); position: relative; z-index: 1; transition: transform 0.15s; box-shadow: 0 0 0 1.5px rgba(255,255,255,0.25), 0 0 6px currentColor, 0 0 12px currentColor; }
+    .player-pin:hover .player-pin-dot, .player-pin.active .player-pin-dot { transform: scale(1.4); }
+    .player-pin-pulse { position: absolute; top: 50%; left: 50%; width: 13px; height: 13px; border-radius: 50%; border: 1.5px solid currentColor; transform: translate(-50%,-50%); animation: playerPulse 2s ease-out infinite; pointer-events: none; }
+    .player-pin-pulse:nth-child(2) { animation-delay: 0.65s; }
+    @keyframes playerPulse {
+      0%   { transform: translate(-50%,-50%) scale(0.5); opacity: 0.9; }
+      100% { transform: translate(-50%,-50%) scale(3); opacity: 0; }
+    }
+
+    /* Location drawer — slides out from rail over the map */
+    .loc-drawer {
+      position: absolute;
+      left: 52px; top: 0; bottom: 0;
+      width: 200px;
+      background: rgba(10,8,5,0.95);
+      border-right: 1px solid var(--gold-dim);
+      z-index: 6;
+      display: flex;
+      flex-direction: column;
+      transform: translateX(-100%);
+      transition: transform 0.25s cubic-bezier(0.22,1,0.36,1);
+      pointer-events: none;
+    }
+    .loc-drawer.open { transform: translateX(0); pointer-events: all; }
+    .loc-drawer-header {
+      padding: 0.6rem 0.75rem;
+      border-bottom: 1px solid var(--gold-dim);
+      display: flex; align-items: center; justify-content: space-between;
+      flex-shrink: 0;
+    }
+    .loc-drawer-title { font-family: var(--font-title); font-size: 0.44rem; letter-spacing: 0.25em; text-transform: uppercase; color: var(--gold); }
+    .loc-drawer-close { width: 18px; height: 18px; background: transparent; border: none; color: var(--muted); font-size: 0.7rem; cursor: pointer; display: flex; align-items: center; justify-content: center; transition: color 0.12s; }
+    .loc-drawer-close:hover { color: var(--aged); }
+    .loc-drawer-list { flex: 1; overflow-y: auto; scrollbar-width: thin; scrollbar-color: var(--gold-dim) transparent; }
+    .loc-drawer-list::-webkit-scrollbar { width: 3px; }
+    .loc-drawer-list::-webkit-scrollbar-thumb { background: var(--gold-dim); }
+    .loc-drawer-item {
+      display: flex; align-items: center; gap: 0.5rem;
+      padding: 0.5rem 0.75rem;
+      border-bottom: 1px solid rgba(184,149,42,0.06);
+      cursor: pointer;
+      transition: background 0.12s;
+    }
+    .loc-drawer-item:hover { background: rgba(184,149,42,0.08); }
+    .loc-drawer-item:last-child { border-bottom: none; }
+    .loc-drawer-icon { width: 12px; height: 12px; flex-shrink: 0; }
+    .loc-drawer-name { font-family: var(--font-body); font-size: 0.82rem; color: var(--parchment2); }
+
+    /* map-canvas transition for smooth zoom-to */
+    .map-canvas.animating { transition: transform 0.55s cubic-bezier(0.4,0,0.2,1); }
 
     .status-neutral   { color: #b8952a; border-color: rgba(184,149,42,0.4); }
     .status-wolven    { color: #c05060; border-color: rgba(192,80,96,0.4); }
@@ -215,12 +271,16 @@
 
       .place-hint         { font-size: 0.66rem; padding: 0.5rem 1.2rem; }
 
-      .canon-pin-icon     { width: 18px; height: 18px; }
+      .canon-pin-icon     { width: 26px; height: 26px; }
       .canon-pin-label    { font-size: 0.55rem; margin-top: 5px; }
-      .canon-pin-pulse    { width: 18px; height: 18px; }
-      .player-pin-dot     { width: 13px; height: 13px; }
-      .player-pin-pulse   { width: 13px; height: 13px; }
+      .canon-pin-pulse    { width: 26px; height: 26px; }
+      .player-pin-dot     { width: 17px; height: 17px; }
+      .player-pin-pulse   { width: 17px; height: 17px; }
       .player-pin-label   { font-size: 0.52rem; }
+      .loc-drawer         { left: 72px; width: 240px; }
+      .loc-drawer-title   { font-size: 0.6rem; }
+      .loc-drawer-name    { font-size: 1rem; }
+      .loc-drawer-icon    { width: 16px; height: 16px; }
 
       .id-modal           { width: 400px; padding: 1.6rem 2rem; }
       .id-modal-title     { font-size: 0.7rem; }
@@ -251,31 +311,31 @@
         <span class="rail-label">All</span>
       </button>
       <div class="rail-divider"></div>
-      <button class="rail-btn" id="rail-city" onclick="railFilter('city')" title="Cities">
+      <button class="rail-btn" id="rail-city" onclick="openLocDrawer('city')" title="Cities">
         <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.4"><rect x="6" y="9" width="8" height="8"/><path d="M6 9V7l4-4 4 4v2"/><rect x="9" y="13" width="2" height="4"/><rect x="3" y="12" width="3" height="5"/><rect x="14" y="12" width="3" height="5"/></svg>
         <span class="rail-label">Cities</span>
       </button>
-      <button class="rail-btn" id="rail-town" onclick="railFilter('town')" title="Towns">
+      <button class="rail-btn" id="rail-town" onclick="openLocDrawer('town')" title="Towns">
         <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.4"><rect x="5" y="10" width="10" height="7"/><path d="M5 10L10 5l5 5"/><rect x="8" y="13" width="4" height="4"/></svg>
         <span class="rail-label">Towns</span>
       </button>
-      <button class="rail-btn" id="rail-fort" onclick="railFilter('fort')" title="Forts">
+      <button class="rail-btn" id="rail-fort" onclick="openLocDrawer('fort')" title="Forts">
         <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.4"><rect x="4" y="7" width="12" height="10"/><path d="M4 7V4h3v3M13 7V4h3v3M8 7V4h4v3"/><rect x="8" y="12" width="4" height="5"/></svg>
         <span class="rail-label">Forts</span>
       </button>
-      <button class="rail-btn" id="rail-ruin" onclick="railFilter('ruin')" title="Ruins">
+      <button class="rail-btn" id="rail-ruin" onclick="openLocDrawer('ruin')" title="Ruins">
         <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.4"><path d="M4 17h12M6 17V9L4 11M14 17V9l2 2M8 17v-4h4v4"/><path d="M6 9V7h2M14 9V7h-2"/></svg>
         <span class="rail-label">Ruins</span>
       </button>
-      <button class="rail-btn" id="rail-region" onclick="railFilter('region')" title="Regions">
+      <button class="rail-btn" id="rail-region" onclick="openLocDrawer('region')" title="Regions">
         <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.4"><polygon points="10,3 17,7 17,13 10,17 3,13 3,7"/></svg>
         <span class="rail-label">Regions</span>
       </button>
-      <button class="rail-btn" id="rail-wilderness" onclick="railFilter('wilderness')" title="Wilderness">
+      <button class="rail-btn" id="rail-wilderness" onclick="openLocDrawer('wilderness')" title="Wilderness">
         <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.4"><path d="M10 3L6 10h3L5 17h10l-4-7h3z"/></svg>
         <span class="rail-label">Wild</span>
       </button>
-      <button class="rail-btn" id="rail-foreign" onclick="railFilter('foreign')" title="Foreign">
+      <button class="rail-btn" id="rail-foreign" onclick="openLocDrawer('foreign')" title="Foreign">
         <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.4"><circle cx="10" cy="10" r="7"/><circle cx="10" cy="10" r="3"/></svg>
         <span class="rail-label">Foreign</span>
       </button>
@@ -298,6 +358,15 @@
         <span class="rail-label">Edit</span>
       </button>
     </aside>
+
+    <!-- Location drawer — slides over map from rail -->
+    <div class="loc-drawer" id="loc-drawer">
+      <div class="loc-drawer-header">
+        <span class="loc-drawer-title" id="loc-drawer-title">Locations</span>
+        <button class="loc-drawer-close" onclick="closeLocDrawer()">✕</button>
+      </div>
+      <div class="loc-drawer-list" id="loc-drawer-list"></div>
+    </div>
 
     <div class="world-map-wrap" id="map-wrap">
       <div class="map-canvas" id="map-canvas">
@@ -430,7 +499,7 @@ const PIN_TYPES = [
   { id: 'landmark', label: 'Landmark', color: '#b8952a' },
   { id: 'treasure', label: 'Treasure', color: '#d4ac3a' },
   { id: 'revisit',  label: 'Revisit',  color: '#8ab4cc' },
-  { id: 'note',     label: 'Note',     color: '#9a9a9a' },
+  { id: 'note',     label: 'Note',     color: '#e8e0d0' },
   { id: 'danger',   label: 'Danger',   color: '#c9824a' },
 ];
 
@@ -1170,6 +1239,7 @@ document.addEventListener('keydown', e => {
   if (e.key === 'Escape') {
     if (placingMode) { cancelPlacing(); return; }
     if (!document.getElementById('id-modal').classList.contains('hidden')) { closeIdentityModal(); return; }
+    if (activeDrawerCat) { closeLocDrawer(); return; }
     closeLightbox();
     closePanel();
   }
@@ -1183,6 +1253,93 @@ document.addEventListener('click', e => {
     palette.classList.remove('open');
   }
 });
+
+// ══════════════════════════════════════════════════════════
+// LOCATION DRAWER
+// ══════════════════════════════════════════════════════════
+let activeDrawerCat = null;
+
+function openLocDrawer(cat) {
+  const drawer = document.getElementById('loc-drawer');
+
+  // Toggle closed if same category clicked again
+  if (activeDrawerCat === cat && drawer.classList.contains('open')) {
+    closeLocDrawer();
+    return;
+  }
+
+  activeDrawerCat = cat;
+
+  // Update title
+  document.getElementById('loc-drawer-title').textContent =
+    CATEGORY_LABELS[cat] || cat;
+
+  // Filter and render locations for this category
+  const locs = CANON_LOCATIONS.filter(l => l.category === cat);
+  const list = document.getElementById('loc-drawer-list');
+
+  if (!locs.length) {
+    list.innerHTML = `<div style="padding:1rem 0.75rem;color:var(--muted);font-style:italic;font-size:0.82rem">None recorded yet.</div>`;
+  } else {
+    list.innerHTML = locs.map(loc => {
+      const data  = LOCATION_DATA[loc.key];
+      if (!data) return '';
+      const color = STATUS_COLORS[data.status] || '#9a9a9a';
+      return `<div class="loc-drawer-item" onclick="zoomToLocation('${loc.key}')">
+        ${canonPinSvg(loc.shape, color).replace('class="canon-pin-icon"', 'class="loc-drawer-icon"')}
+        <span class="loc-drawer-name">${data.name}</span>
+      </div>`;
+    }).join('');
+  }
+
+  // Highlight rail button
+  document.querySelectorAll('.rail-btn[id^="rail-"]').forEach(b => b.classList.remove('active'));
+  const btn = document.getElementById(`rail-${cat}`);
+  if (btn) btn.classList.add('active');
+
+  drawer.classList.add('open');
+}
+
+function closeLocDrawer() {
+  activeDrawerCat = null;
+  document.getElementById('loc-drawer').classList.remove('open');
+  // Restore All as active
+  document.querySelectorAll('.rail-btn[id^="rail-"]').forEach(b => b.classList.remove('active'));
+  document.getElementById('rail-all')?.classList.add('active');
+}
+
+function zoomToLocation(key) {
+  const loc  = CANON_LOCATIONS.find(l => l.key === key);
+  if (!loc) return;
+
+  const wrap    = document.getElementById('map-wrap');
+  const canvas  = document.getElementById('map-canvas');
+  const ww      = wrap.clientWidth;
+  const wh      = wrap.clientHeight;
+  const TARGET_SCALE = 2.2;
+
+  // Pin position in canvas pixels
+  const pinCanvasX = (loc.x / 100) * MAP_W;
+  const pinCanvasY = (loc.y / 100) * MAP_H;
+
+  // Target transform: center the pin in the viewport at TARGET_SCALE
+  const newX = ww / 2 - pinCanvasX * TARGET_SCALE;
+  const newY = wh / 2 - pinCanvasY * TARGET_SCALE;
+
+  // Animate via CSS transition
+  canvas.classList.add('animating');
+  mapScale = TARGET_SCALE;
+  mapX     = newX;
+  mapY     = newY;
+  clampTransform(wrap);
+  applyTransform();
+
+  // Remove transition class after animation completes
+  setTimeout(() => canvas.classList.remove('animating'), 600);
+
+  // Also select the location to open its detail panel
+  selectCanonLocation({ stopPropagation: () => {} }, key);
+}
 
 // ══════════════════════════════════════════════════════════
 // INIT
