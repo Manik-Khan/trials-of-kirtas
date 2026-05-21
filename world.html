@@ -23,9 +23,9 @@
     .rail-divider { width: 26px; height: 1px; background: var(--gold-dim); margin: 0.2rem 0; flex-shrink: 0; opacity: 0.5; }
     .world-map-wrap { flex: 1; position: relative; overflow: hidden; }
     .world-map-wrap.placing { cursor: crosshair; }
-    /* Map canvas — transformed for pan/zoom */
-    .map-canvas { position: absolute; inset: 0; transform-origin: 0 0; will-change: transform; }
-    .world-map-img { display: block; width: 100%; height: 100%; object-fit: contain; user-select: none; -webkit-user-drag: none; pointer-events: none; }
+    /* Map canvas — fixed at actual map dimensions, scaled via transform */
+    .map-canvas { position: absolute; top: 0; left: 0; width: 4791px; height: 3055px; transform-origin: 0 0; will-change: transform; }
+    .world-map-img { display: block; width: 4791px; height: 3055px; user-select: none; -webkit-user-drag: none; pointer-events: none; }
     .world-map-wrap::after { content: ''; position: absolute; inset: 0; pointer-events: none; background: radial-gradient(ellipse at center, transparent 55%, rgba(0,0,0,0.4) 100%); z-index: 3; }
     .place-hint { display: none; position: absolute; top: 0.75rem; left: 50%; transform: translateX(-50%); z-index: 20; background: rgba(0,0,0,0.82); border: 1px solid var(--gold-mid); color: var(--gold-light); font-family: var(--font-title); font-size: 0.48rem; letter-spacing: 0.18em; text-transform: uppercase; padding: 0.35rem 0.9rem; white-space: nowrap; pointer-events: none; }
     .world-map-wrap.placing .place-hint { display: block; }
@@ -372,16 +372,14 @@ const MIN_SCALE = 0.2;
 const MAX_SCALE = 4;
 const ZOOM_STEP = 0.04; // gentle — fraction of current scale per scroll tick
 
-// Fit the map fully into the viewport on first load
+// Fit the full map into the viewport on load
 function fitMap() {
-  const wrap  = document.getElementById('map-wrap');
-  const ww    = wrap.clientWidth;
-  const wh    = wrap.clientHeight;
-  // Scale to fit whole map, respecting both dimensions
-  mapScale = Math.min(ww / MAP_W, wh / MAP_H);
-  // Center it
-  mapX = (ww - MAP_W * mapScale) / 2;
-  mapY = (wh - MAP_H * mapScale) / 2;
+  const wrap = document.getElementById('map-wrap');
+  const ww   = wrap.clientWidth;
+  const wh   = wrap.clientHeight;
+  mapScale   = Math.min(ww / MAP_W, wh / MAP_H);
+  mapX       = (ww - MAP_W * mapScale) / 2;
+  mapY       = (wh - MAP_H * mapScale) / 2;
   applyTransform();
 }
 
@@ -821,15 +819,10 @@ function handleMapClick(e) {
   if (!currentIdentity || !pendingPinType) { cancelPlacing(); return; }
 
   // Convert screen coords to map percentage, accounting for pan/zoom
-  // Pins are % of the actual map image dimensions (MAP_W x MAP_H)
   const canvasX = (e.clientX - rect.left - mapX) / mapScale;
   const canvasY = (e.clientY - rect.top  - mapY) / mapScale;
-  // canvas at scale=1 is wrap.clientWidth x wrap.clientHeight (contain)
-  // but we want % of the image — use the same basis as pin rendering
-  const imgRenderedW = wrap.clientWidth;
-  const imgRenderedH = wrap.clientHeight;
-  const x = (canvasX / imgRenderedW)  * 100;
-  const y = (canvasY / imgRenderedH) * 100;
+  const x = (canvasX / MAP_W) * 100;
+  const y = (canvasY / MAP_H) * 100;
 
   showPinNoteForm(x, y, pendingPinType);
   cancelPlacing();
