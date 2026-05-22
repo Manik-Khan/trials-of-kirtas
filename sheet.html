@@ -59,20 +59,6 @@
         align-items: stretch;
         z-index: 200;
       }
-      /* Creates a massive solid backdrop anchor layer spanning down far past visual view limit constraints.
-         Anchoring from bottom:0 ensures Safari's dynamic chrome resize calculations do not lift the canvas edge. */
-      .sheet-bottom-bar::after {
-        content: '';
-        position: absolute;
-        bottom: 0;
-        left: 0;
-        right: 0;
-        height: 150vh;
-        background: var(--ink-deep);
-        z-index: -1;
-        pointer-events: none;
-      }
-
       .sheet-bar-btn {
         flex: 1;
         display: flex;

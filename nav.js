@@ -174,7 +174,8 @@ function injectNavStyles() {
   style.id = 'nav-styles';
   style.textContent = `
     /* Prevent sticky nav from overlapping scroll targets */
-    html { scroll-padding-top: 52px; }
+    /* overscroll-behavior: none prevents Safari elastic bounce from exposing gaps behind fixed elements */
+    html { scroll-padding-top: 52px; overscroll-behavior: none; }
 
     #site-nav {
       position: sticky;
