@@ -56,7 +56,7 @@ const DEFAULT_THEME = 'parchment';
 // ── Characters for the sheet switcher ──
 // Add new characters here when the party grows
 const CHARACTERS_NAV = [
-  { key: 'tyros',     label: 'Tyros' },
+  { key: 'tyros',     label: 'Cosmere' },
   { key: 'caim',      label: 'Caim' },
   { key: 'liadan',    label: 'Líadan' },
   { key: 'vesperian', label: 'Vesperian' },
