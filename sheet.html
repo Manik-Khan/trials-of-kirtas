@@ -43,14 +43,16 @@
         overflow: hidden;
         display: flex;
         flex-direction: column;
+        /* Override nav.js body { padding-top: 52px } — clearance handled by sheet-body instead */
+        padding-top: 0 !important;
       }
 
-      /* Sheet body becomes the scroll container instead of body */
+      /* Sheet body: scroll container. padding-top clears the fixed site nav. */
       .sheet-body {
         flex: 1;
         overflow-y: auto;
         -webkit-overflow-scrolling: touch;
-        /* No padding-bottom needed for bar clearance — bar is in normal flow */
+        padding-top: 52px;
         padding-bottom: 1rem !important;
         min-height: 0;
       }
