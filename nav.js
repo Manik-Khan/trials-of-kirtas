@@ -187,7 +187,23 @@ function injectNavStyles() {
       align-items: center;
       justify-content: space-between;
       height: 52px;
-      transition: background 0.3s ease, border-color 0.3s ease;
+      transition: background 0.3s ease, border-color 0.3s ease, transform 0.35s ease-out, opacity 0.35s ease-out;
+    }
+
+    /* Mobile: fixed so translateY hides it cleanly above the viewport with no gap.
+       Body padding-top compensates so content starts below the nav. */
+    @media (max-width: 600px) {
+      body { padding-top: 52px; }
+      #site-nav {
+        position: fixed;
+        top: 0;
+        left: 0;
+        right: 0;
+      }
+      #site-nav.nav-hidden {
+        transform: translateY(-100%);
+        opacity: 0;
+      }
     }
 
     .nav-brand {
@@ -397,3 +413,22 @@ function mountNav() {
 injectNavStyles();
 applyTheme(getSavedTheme());
 mountNav();
+
+// ── Mobile: hide nav on scroll down, reveal on scroll up ──
+// Runs on every page since nav.js is sitewide.
+if (window.innerWidth <= 600) {
+  let lastY   = window.scrollY;
+  let ticking = false;
+  window.addEventListener('scroll', () => {
+    if (!ticking) {
+      requestAnimationFrame(() => {
+        const nav      = document.getElementById('site-nav');
+        const currentY = window.scrollY;
+        if (nav) nav.classList.toggle('nav-hidden', currentY > lastY && currentY > 60);
+        lastY   = currentY;
+        ticking = false;
+      });
+      ticking = true;
+    }
+  }, { passive: true });
+}
