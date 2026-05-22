@@ -45,7 +45,7 @@
         bottom: calc(64px + env(safe-area-inset-bottom)) !important;
       }
 
-      /* Bottom bar */
+      /* Bottom bar layout optimized to isolate Safari layout viewport shifts */
       .sheet-bottom-bar {
         position: fixed;
         bottom: 0;
@@ -59,15 +59,18 @@
         align-items: stretch;
         z-index: 200;
       }
-      /* Extends a solid block far downward to catch Safari rubber-band bounces */
+      /* Creates a massive solid backdrop anchor layer spanning down far past visual view limit constraints.
+         Anchoring from bottom:0 ensures Safari's dynamic chrome resize calculations do not lift the canvas edge. */
       .sheet-bottom-bar::after {
         content: '';
         position: absolute;
-        top: 100%;
+        bottom: 0;
         left: 0;
         right: 0;
-        height: 100vh;
+        height: 150vh;
         background: var(--ink-deep);
+        z-index: -1;
+        pointer-events: none;
       }
 
       .sheet-bar-btn {

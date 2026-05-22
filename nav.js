@@ -190,20 +190,29 @@ function injectNavStyles() {
       transition: background 0.3s ease, border-color 0.3s ease, transform 0.35s ease-out, opacity 0.35s ease-out;
     }
 
-    /* Mobile: sticky handles Safari elastic overscroll gracefully without viewport bleed.
-       top: -52px on nav-hidden pulls it fully out of layout bounds. */
+    /* Mobile: Fixed positioning prevents sticky layout jumping during Safari chrome resizing.
+       The ::before pseudo-element acts as a shield, extending infinitely upward to mask overscroll bleed. */
     @media (max-width: 600px) {
-      body { padding-top: 0; }
+      body { padding-top: 52px; }
       #site-nav {
-        position: sticky;
+        position: fixed;
         top: 0;
         left: 0;
         right: 0;
       }
+      #site-nav::before {
+        content: '';
+        position: absolute;
+        bottom: 100%;
+        left: 0;
+        right: 0;
+        height: 100vh;
+        background: var(--nav-bg);
+        pointer-events: none;
+      }
       #site-nav.nav-hidden {
         transform: translateY(-100%);
         opacity: 0;
-        top: -52px;
       }
     }
 
