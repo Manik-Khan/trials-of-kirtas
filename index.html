@@ -27,6 +27,7 @@
 
     html, body {
       height: 100%;
+      height: 100dvh;
       overflow: hidden;
       background: var(--ink);
       color: var(--paper);
@@ -43,6 +44,7 @@
     .page {
       width: 100vw;
       height: 100vh;
+      height: 100dvh;
       display: flex;
       flex-direction: column;
       align-items: center;
@@ -128,8 +130,8 @@
     /* Arc label text — curves along rim of each slice */
     .slice-label {
       font-family: 'Cinzel', serif;
-      font-size: 11px;
-      letter-spacing: 0.18em;
+      font-size: 11px; /* overridden by JS per wheel size */
+      letter-spacing: 0.12em;
       text-transform: uppercase;
       fill: rgba(240,216,120,0);
       stroke: rgba(0,0,0,0);
@@ -290,12 +292,12 @@
     const CDN = 'https://res.cloudinary.com/df0tgoiyb/image/upload/kirtas/icons';
 
     const NODES = [
-      { id: 'party',      label: 'Party',      img: `${CDN}/party.png`,      imgOffset: { x: 0,     y: -0.30 }, imgScale: 0.7, desc: 'The adventurers of Kirtas',   href: 'party.html',      hasSubring: true, angle: -90 },
-      { id: 'chronicle',  label: 'Chronicle',  img: `${CDN}/chronicle.jpg`,  imgOffset: { x: 0.20,  y: -0.30 }, desc: 'Session records & entries',   href: 'chronicle.html',  angle: -30 },
+      { id: 'party',      label: 'Party',      img: `${CDN}/party.png`,      imgOffset: { x: 0,     y: -0.24 }, imgScale: 0.7, desc: 'The adventurers of Kirtas',   href: 'party.html',      hasSubring: true, angle: -90 },
+      { id: 'chronicle',  label: 'Chronicle',  img: `${CDN}/chronicle.jpg`,  imgOffset: { x: 0.05,  y: 0     }, desc: 'Session records & entries',   href: 'chronicle.html',  angle: -30 },
       { id: 'world',      label: 'World',      img: `${CDN}/world.png`,      imgOffset: { x: 0.15,  y: 0.05  }, desc: 'The living map of the realm', href: 'world.html',      angle: 30  },
-      { id: 'compendium', label: 'Compendium', img: `${CDN}/compendium.png`, imgOffset: { x: 0,     y: 0.28  }, imgScale: 0.9, desc: 'Spells, items & creatures',   href: 'compendium.html', angle: 90  },
-      { id: 'factions',   label: 'Factions',   img: `${CDN}/factions.jpg`,   imgOffset: { x: -0.3,  y:  0.07 }, imgScale: 0.8, desc: 'Powers shaping the age',     href: 'factions.html',   angle: 150 },
-      { id: 'lore',       label: 'Lore',       img: `${CDN}/lore.png`,       imgOffset: { x: -0.30, y: -0.10 }, desc: 'History, myth & the arcane', href: 'lore.html',       angle: 210 },
+      { id: 'compendium', label: 'Compendium', img: `${CDN}/compendium.png`, imgOffset: { x: 0,     y: 0.08  }, imScale: 0.9, desc: 'Spells, items & creatures',   href: 'compendium.html', angle: 90  },
+      { id: 'factions',   label: 'Factions',   img: `${CDN}/factions.jpg`,   imgOffset: { x: -0.3,  y: -0.00 }, imgScale: 0.8, desc: 'Powers shaping the age',     href: 'factions.html',   angle: 150 },
+      { id: 'lore',       label: 'Lore',       img: `${CDN}/lore.png`,       imgOffset: { x: -0.30, y: -0.0  }, desc: 'History, myth & the arcane', href: 'lore.html',       angle: 210 },
     ];
 
     const CHARS = [
@@ -313,7 +315,9 @@
     function getLayout() {
       const vw = window.innerWidth;
       const vh = window.innerHeight;
-      const available = Math.min(vw, vh - 210);
+      // On mobile the header is smaller and nav is hidden — use less padding
+      const vPad = vw <= 600 ? 140 : 210;
+      const available = Math.min(vw, vh - vPad);
       const size = Math.min(BASE, available - 16);
       const scale = size / BASE;
       return {
@@ -480,8 +484,9 @@
           'clip-path': `url(#${clipId})`,
         });
 
-        // ── Arc label text — curved along slice ──
-        const labelText = svgEl('text', { class: 'slice-label' });
+        // ── Arc label text — curved along slice, font scales with wheel ──
+        const labelFontSize = Math.max(7, Math.round(size * 0.028));
+        const labelText = svgEl('text', { class: 'slice-label', 'font-size': labelFontSize });
         const tp = svgEl('textPath', {
           href:           `#${arcId}`,
           startOffset:    '50%',
