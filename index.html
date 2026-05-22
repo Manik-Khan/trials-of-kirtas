@@ -108,48 +108,42 @@
       flex-shrink: 0;
     }
 
-    /* The SVG wheel itself */
     #wheel-svg {
       display: block;
-      overflow: visible;
-      cursor: pointer;
+      /* overflow hidden so scaling slices are clipped by the outer ring mask */
+      overflow: hidden;
     }
 
-    /* Each slice group — transform-origin set per-slice via JS */
+    /* Slice groups: scale from wheel center on hover */
     .slice-group {
       transform-box: fill-box;
       transition: transform 0.22s cubic-bezier(0.34,1.56,0.64,1), filter 0.22s ease;
-      filter: brightness(0.82) saturate(0.9);
+      filter: brightness(0.78) saturate(0.85);
     }
     .slice-group:hover,
     .slice-group.touch-active {
-      filter: brightness(1.15) saturate(1.1);
+      filter: brightness(1.18) saturate(1.12);
     }
 
-    /* Divider lines between slices */
-    .slice-divider {
-      pointer-events: none;
-    }
-
-    /* ── Hover label — appears outside the wheel on hover ── */
-    .wheel-label {
-      position: absolute;
-      pointer-events: none;
-      font-family: var(--font-nav);
-      font-size: clamp(0.55rem, 1.4vw, 0.75rem);
-      letter-spacing: 0.28em;
+    /* Arc label text inside SVG — always within the wheel, never off-screen */
+    .slice-label {
+      font-family: 'Cinzel', serif;
+      font-size: 11px;
+      letter-spacing: 0.18em;
       text-transform: uppercase;
-      color: var(--gold-hi);
-      text-shadow: 0 0 12px rgba(201,168,76,0.7), 1px 1px 0 rgba(0,0,0,0.9);
-      white-space: nowrap;
-      opacity: 0;
-      transition: opacity 0.18s ease;
-      transform: translate(-50%, -50%);
-      z-index: 10;
+      fill: rgba(255,255,255,0);
+      text-shadow: none;
+      transition: fill 0.18s ease;
+      pointer-events: none;
+      dominant-baseline: middle;
     }
-    .wheel-label.visible { opacity: 1; }
+    /* Activated via JS class on the group */
+    .slice-group.label-visible .slice-label,
+    .slice-group:hover .slice-label {
+      fill: rgba(240,216,120,0.95);
+    }
 
-    /* ── Description readout below wheel ── */
+    /* ── Description readout ── */
     .desc-readout {
       position: relative;
       z-index: 3;
@@ -158,7 +152,7 @@
       font-size: 13px;
       color: var(--muted);
       text-align: center;
-      margin-top: 0.9rem;
+      margin-top: 1.8rem;
       min-height: 1.4em;
       pointer-events: none;
       text-shadow: 1px 1px 0 rgba(0,0,0,0.9);
@@ -188,14 +182,13 @@
     #site-nav .nav-link { opacity: 0.5; }
     #site-nav .nav-link:hover { opacity: 1; }
 
-    /* ── Sub-ring overlay (character sheet links) ── */
+    /* ── Sub-ring overlay ── */
     .sub-overlay {
       position: absolute; inset: 0;
       display: none; z-index: 4;
     }
     .sub-overlay.visible { display: block; }
 
-    /* Hex nodes for sub-ring */
     .hex-wrap {
       position: absolute;
       transform: translate(-50%, -50%);
@@ -222,28 +215,18 @@
       background: linear-gradient(165deg, rgba(255,255,255,0.2) 0%, rgba(255,255,255,0.04) 38%, transparent 60%);
       pointer-events: none; z-index: 2;
     }
-    .hex-outline-svg {
-      position: absolute; top: 0; left: 0;
-      pointer-events: none; z-index: 3;
-    }
+    .hex-outline-svg { position: absolute; top: 0; left: 0; pointer-events: none; z-index: 3; }
     .hex-icon-sub {
-      font-size: 22px; line-height: 1;
-      color: rgba(255,255,255,0.88);
-      position: relative; z-index: 2;
-      text-shadow: 1px 1px 0 rgba(0,0,0,0.8);
+      font-size: 22px; line-height: 1; color: rgba(255,255,255,0.88);
+      position: relative; z-index: 2; text-shadow: 1px 1px 0 rgba(0,0,0,0.8);
     }
     .hex-label-sub {
-      font-family: var(--font-nav);
-      font-size: 8px; letter-spacing: 0.14em;
-      text-transform: uppercase;
-      color: rgba(255,255,255,0.72);
-      position: relative; z-index: 2;
-      text-align: center; line-height: 1;
-      text-shadow: 1px 1px 0 rgba(0,0,0,0.9);
-      transition: color 0.18s;
+      font-family: var(--font-nav); font-size: 8px; letter-spacing: 0.14em;
+      text-transform: uppercase; color: rgba(255,255,255,0.72);
+      position: relative; z-index: 2; text-align: center; line-height: 1;
+      text-shadow: 1px 1px 0 rgba(0,0,0,0.9); transition: color 0.18s;
     }
 
-    /* ── Animations ── */
     @keyframes fadeDown {
       from { opacity: 0; transform: translateY(-16px); }
       to   { opacity: 1; transform: translateY(0); }
@@ -266,7 +249,7 @@
       .site-title  { font-size: clamp(0.85rem, 4.5vw, 1.15rem); }
       .page-hint   { font-size: 0.44rem; letter-spacing: 0.18em; }
       #site-nav .nav-links { display: none; }
-      .desc-readout { margin-top: 0.5rem; font-size: 11px; }
+      .desc-readout { margin-top: 1rem; font-size: 11px; }
     }
   </style>
 </head>
@@ -284,9 +267,6 @@
       <p class="site-sub">Campaign Compendium</p>
     </header>
 
-    <!-- Wheel label (outside the SVG, positioned by JS) -->
-    <div class="wheel-label" id="wheel-label"></div>
-
     <div class="wheel-stage" id="wheel-stage">
       <svg id="wheel-svg" xmlns="http://www.w3.org/2000/svg"></svg>
     </div>
@@ -299,16 +279,19 @@
   <script>
     // ─────────────────────────────────────────────
     // DATA
+    // imgOffset: {x, y} shifts the image as a fraction of wheel size
+    //   x: positive = right, negative = left
+    //   y: positive = down,  negative = up
     // ─────────────────────────────────────────────
     const CDN = 'https://res.cloudinary.com/df0tgoiyb/image/upload/kirtas/icons';
 
     const NODES = [
-      { id: 'party',      label: 'Party',      img: `${CDN}/party.png`,      desc: 'The adventurers of Kirtas',   href: 'party.html',      hasSubring: true, angle: -90 },
-      { id: 'chronicle',  label: 'Chronicle',  img: `${CDN}/chronicle.jpg`,  desc: 'Session records & entries',   href: 'chronicle.html',  angle: -30 },
-      { id: 'world',      label: 'World',      img: `${CDN}/world.png`,      desc: 'The living map of the realm', href: 'world.html',      angle: 30  },
-      { id: 'compendium', label: 'Compendium', img: `${CDN}/compendium.png`, desc: 'Spells, items & creatures',   href: 'compendium.html', angle: 90  },
-      { id: 'factions',   label: 'Factions',   img: `${CDN}/factions.jpg`,   desc: 'Powers shaping the age',     href: 'factions.html',   angle: 150 },
-      { id: 'lore',       label: 'Lore',       img: `${CDN}/lore.png`,       desc: 'History, myth & the arcane', href: 'lore.html',       angle: 210 },
+      { id: 'party',      label: 'Party',      img: `${CDN}/party.png`,      imgOffset: { x: 0,     y: -0.3  }, desc: 'The adventurers of Kirtas',   href: 'party.html',      hasSubring: true, angle: -90 },
+      { id: 'chronicle',  label: 'Chronicle',  img: `${CDN}/chronicle.jpg`,  imgOffset: { x: 0,     y: 0     }, desc: 'Session records & entries',   href: 'chronicle.html',  angle: -30 },
+      { id: 'world',      label: 'World',      img: `${CDN}/world.png`,      imgOffset: { x: 0,     y: 0     }, desc: 'The living map of the realm', href: 'world.html',      angle: 30  },
+      { id: 'compendium', label: 'Compendium', img: `${CDN}/compendium.png`, imgOffset: { x: 0,     y: 0.15  }, desc: 'Spells, items & creatures',   href: 'compendium.html', angle: 90  },
+      { id: 'factions',   label: 'Factions',   img: `${CDN}/factions.jpg`,   imgOffset: { x: -0.3,  y: -0.3  }, desc: 'Powers shaping the age',     href: 'factions.html',   angle: 150 },
+      { id: 'lore',       label: 'Lore',       img: `${CDN}/lore.png`,       imgOffset: { x: -0.2,  y: 0     }, desc: 'History, myth & the arcane', href: 'lore.html',       angle: 210 },
     ];
 
     const CHARS = [
@@ -334,9 +317,8 @@
         scale,
         cx:     size / 2,
         cy:     size / 2,
-        R:      size / 2,          // outer radius of wheel
-        rInner: size * 0.155,      // center cutout radius
-        rLabel: size * 0.56,       // radius where label anchor sits
+        R:      size / 2,
+        rInner: size * 0.155,
         HW:     Math.round(78  * scale),
         HH:     Math.round(78  * scale),
         CHAR_R: Math.round(116 * scale),
@@ -360,7 +342,6 @@
       return { x: cx + r * Math.cos(rad), y: cy + r * Math.sin(rad) };
     }
 
-    // Build SVG path for a pie wedge (startAngle → endAngle)
     function wedgePath(cx, cy, rInner, rOuter, startDeg, endDeg) {
       const s1 = polarToXY(startDeg, rOuter, cx, cy);
       const e1 = polarToXY(endDeg,   rOuter, cx, cy);
@@ -376,38 +357,37 @@
       ].join(' ');
     }
 
+    // Arc path used for textPath — sits near outer edge of slice
+    function arcPath(id, cx, cy, r, startDeg, endDeg) {
+      // Always draw left-to-right so text reads correctly
+      // For slices in bottom half (startDeg > 90 effectively), we reverse
+      const mid = (startDeg + endDeg) / 2;
+      const sweep = (mid > 90 && mid < 270) ? 0 : 1;
+      let a = startDeg, b = endDeg;
+      if (sweep === 0) { a = endDeg; b = startDeg; } // reverse for bottom half
+      const p1 = polarToXY(a, r, cx, cy);
+      const p2 = polarToXY(b, r, cx, cy);
+      return `M ${p1.x} ${p1.y} A ${r} ${r} 0 0 ${sweep === 0 ? 0 : 1} ${p2.x} ${p2.y}`;
+    }
+
     // ─────────────────────────────────────────────
     // BUILD WHEEL
     // ─────────────────────────────────────────────
-    const svg      = document.getElementById('wheel-svg');
-    const stage    = document.getElementById('wheel-stage');
-    const descEl   = document.getElementById('desc-readout');
-    const labelEl  = document.getElementById('wheel-label');
+    const svg   = document.getElementById('wheel-svg');
+    const stage = document.getElementById('wheel-stage');
+    const descEl = document.getElementById('desc-readout');
 
     let _touchActive = null;
     function clearTouchActive() {
       if (_touchActive) {
         _touchActive.classList.remove('touch-active');
+        _touchActive.style.transform = '';
         _touchActive = null;
         descEl.textContent = '';
-        labelEl.classList.remove('visible');
       }
     }
 
-    function showLabel(node, layout) {
-      // Position label outside the wheel at the midpoint angle of this slice
-      const midAngle = node.angle; // each node.angle is already the midpoint
-      const pos = polarToXY(midAngle, layout.rLabel, layout.cx, layout.cy);
-      // Convert SVG coords to page coords
-      const stageRect = stage.getBoundingClientRect();
-      labelEl.textContent = node.label;
-      labelEl.style.left = (stageRect.left + pos.x) + 'px';
-      labelEl.style.top  = (stageRect.top  + pos.y) + 'px';
-      labelEl.classList.add('visible');
-    }
-
     function buildWheel() {
-      // Clear previous
       while (svg.firstChild) svg.removeChild(svg.firstChild);
       stage.querySelectorAll('.sub-overlay').forEach(e => e.remove());
 
@@ -417,88 +397,118 @@
       svg.setAttribute('width',   size);
       svg.setAttribute('height',  size);
       svg.setAttribute('viewBox', `0 0 ${size} ${size}`);
+      // overflow hidden so scaled slices are clipped by the circular mask
+      svg.style.overflow = 'hidden';
 
       const defs = svgEl('defs', {}, svg);
 
-      // Gap between slices (degrees): creates a thin dark line effect
-      const GAP = 0.8;
+      // ── Circular mask for the whole wheel — clips scaled slices at the edge ──
+      const maskId = 'wheel-mask';
+      const mask = svgEl('clipPath', { id: maskId }, defs);
+      svgEl('circle', { cx, cy, r: R }, mask);
+
+      // ── Master group clipped to circle ──
+      const wheelGroup = svgEl('g', { 'clip-path': `url(#${maskId})` }, svg);
+
+      const GAP   = 0.8;
       const SLICE = 360 / NODES.length; // 60°
 
-      NODES.forEach((node, i) => {
-        const midAngle  = node.angle;            // center of slice
-        const startDeg  = midAngle - SLICE / 2 + GAP;
-        const endDeg    = midAngle + SLICE / 2 - GAP;
+      // Label text radius — inside the slice, near outer edge
+      const rText = R * 0.72;
 
-        // ── clipPath for this slice ──
+      NODES.forEach((node) => {
+        const midAngle = node.angle;
+        const startDeg = midAngle - SLICE / 2 + GAP;
+        const endDeg   = midAngle + SLICE / 2 - GAP;
+        const off      = node.imgOffset || { x: 0, y: 0 };
+
+        // ── clipPath for image ──
         const clipId = `clip-${node.id}`;
         const clip   = svgEl('clipPath', { id: clipId }, defs);
         svgEl('path', { d: wedgePath(cx, cy, rInner, R, startDeg, endDeg) }, clip);
 
-        // ── image fill pattern — image fills entire SVG area, clipped to wedge ──
+        // ── Arc path for textPath label (inside defs) ──
+        const arcId = `arc-${node.id}`;
+        svgEl('path', {
+          id: arcId,
+          d:  arcPath(arcId, cx, cy, rText, startDeg, endDeg),
+          fill: 'none',
+        }, defs);
+
+        // ── Image — offset applied via translate ──
         const imgEl = svgEl('image', {
-          href:              node.img,
-          x:                 0,
-          y:                 0,
-          width:             size,
-          height:            size,
+          href:                node.img,
+          x:                   off.x * size,
+          y:                   off.y * size,
+          width:               size,
+          height:              size,
           preserveAspectRatio: 'xMidYMid slice',
-          'clip-path':       `url(#${clipId})`,
+          'clip-path':         `url(#${clipId})`,
         });
 
-        // ── Dark overlay on image for depth ──
+        // ── Dark overlay ──
         const overlayPath = svgEl('path', {
-          d:            wedgePath(cx, cy, rInner, R, startDeg, endDeg),
-          fill:         'rgba(0,0,0,0.28)',
-          'clip-path':  `url(#${clipId})`,
+          d:           wedgePath(cx, cy, rInner, R, startDeg, endDeg),
+          fill:        'rgba(0,0,0,0.3)',
+          'clip-path': `url(#${clipId})`,
         });
 
-        // ── Clickable wedge (transparent, on top for events) ──
+        // ── Arc label text — curved along slice ──
+        const labelText = svgEl('text', { class: 'slice-label' });
+        const tp = svgEl('textPath', {
+          href:           `#${arcId}`,
+          startOffset:    '50%',
+          'text-anchor':  'middle',
+        });
+        tp.textContent = node.label;
+        labelText.appendChild(tp);
+
+        // ── Hit area ──
         const hitPath = svgEl('path', {
-          d:       wedgePath(cx, cy, rInner, R, startDeg, endDeg),
-          fill:    'transparent',
-          stroke:  'none',
-          style:   'cursor:pointer',
+          d:     wedgePath(cx, cy, rInner, R, startDeg, endDeg),
+          fill:  'transparent',
+          stroke: 'none',
+          style: 'cursor:pointer',
         });
 
-        // ── Group for transform (scale outward on hover) ──
+        // ── Group ──
         const group = svgEl('g', { class: 'slice-group' });
-
-        // Transform origin = center of the wheel so scale pushes outward
         group.style.transformOrigin = `${cx}px ${cy}px`;
 
         group.appendChild(imgEl);
         group.appendChild(overlayPath);
+        group.appendChild(labelText);
         group.appendChild(hitPath);
-        svg.appendChild(group);
+        wheelGroup.appendChild(group);
 
-        // ── Gold divider line at start edge of each slice ──
+        // ── Gold divider line ──
         const edgePt1 = polarToXY(midAngle - SLICE / 2, rInner, cx, cy);
         const edgePt2 = polarToXY(midAngle - SLICE / 2, R,      cx, cy);
         svgEl('line', {
           x1: edgePt1.x, y1: edgePt1.y,
           x2: edgePt2.x, y2: edgePt2.y,
-          stroke:         'rgba(201,168,76,0.45)',
-          'stroke-width': '1.5',
-          class:          'slice-divider',
-        }, svg);
+          stroke: 'rgba(201,168,76,0.45)', 'stroke-width': '1.5',
+          'pointer-events': 'none',
+        }, wheelGroup);
 
-        // ── Mouse events ──
-        group.addEventListener('mouseenter', () => {
+        // ── Events ──
+        function onEnter() {
           group.style.transform = 'scale(1.06)';
+          group.classList.add('label-visible');
           descEl.textContent = node.desc;
-          showLabel(node, layout);
-        });
-        group.addEventListener('mouseleave', () => {
+        }
+        function onLeave() {
           group.style.transform = '';
+          group.classList.remove('label-visible');
           descEl.textContent = '';
-          labelEl.classList.remove('visible');
-        });
+        }
+
+        group.addEventListener('mouseenter', onEnter);
+        group.addEventListener('mouseleave', onLeave);
         group.addEventListener('click', () => {
           if (node.hasSubring) buildSub(layout);
           else window.location.href = node.href;
         });
-
-        // ── Touch events ──
         group.addEventListener('touchstart', e => {
           e.preventDefault();
           if (_touchActive === group) {
@@ -510,26 +520,24 @@
             _touchActive = group;
             group.classList.add('touch-active');
             group.style.transform = 'scale(1.06)';
+            group.classList.add('label-visible');
             descEl.textContent = node.desc;
-            showLabel(node, layout);
           }
         }, { passive: false });
       });
 
-      // ── Gold outer ring ──
+      // ── Gold outer ring (above the mask group, not clipped) ──
       svgEl('circle', {
         cx, cy, r: R - 1,
-        fill:           'none',
-        stroke:         'rgba(201,168,76,0.55)',
-        'stroke-width': '1.5',
+        fill: 'none', stroke: 'rgba(201,168,76,0.6)', 'stroke-width': '2',
+        'pointer-events': 'none',
       }, svg);
 
-      // ── Inner ring border ──
+      // ── Inner ring ──
       svgEl('circle', {
         cx, cy, r: rInner,
-        fill:           FILLS.center,
-        stroke:         'rgba(201,168,76,0.7)',
-        'stroke-width': '1.5',
+        fill: FILLS.center, stroke: 'rgba(201,168,76,0.7)', 'stroke-width': '1.5',
+        'pointer-events': 'none',
       }, svg);
 
       // ── Center crest ──
@@ -539,17 +547,11 @@
     // ─────────────────────────────────────────────
     // CENTER CREST
     // ─────────────────────────────────────────────
-    const FILLS = {
-      center: '#2a1c08',
-      back:   '#1a1208',
-    };
+    const FILLS = { center: '#2a1c08', back: '#1a1208' };
 
     function buildCrest(cx, cy, r) {
-      // The crest group — not interactive, sits above everything
       const g = svgEl('g', { style: 'pointer-events:none' }, svg);
-      // Scale the original 90x90 crest to fit rInner*2
-      const d = r * 2;
-      const sc = d / 90;
+      const sc = (r * 2) / 90;
       g.setAttribute('transform', `translate(${cx - r}, ${cy - r}) scale(${sc})`);
       g.innerHTML = `
         <defs>
@@ -574,7 +576,7 @@
     }
 
     // ─────────────────────────────────────────────
-    // CHARACTER SUB-RING (hex tiles, unchanged)
+    // CHARACTER SUB-RING
     // ─────────────────────────────────────────────
     function hexPos(angleDeg, r, cx, cy) {
       const rad = (angleDeg - 90) * Math.PI / 180;
@@ -587,10 +589,9 @@
       s.setAttribute('width', w); s.setAttribute('height', h);
       s.setAttribute('viewBox', `0 0 ${w} ${h}`);
       s.classList.add('hex-outline-svg');
-      const ink  = svgEl('polygon', { points: pts, fill: 'none', stroke: 'rgba(0,0,0,0.9)', 'stroke-width': '6', 'stroke-linejoin': 'miter' });
-      const gold = svgEl('polygon', { points: pts, fill: 'none', stroke: `rgba(201,168,76,${goldOpacity})`, 'stroke-width': '2.5' });
-      const hi   = svgEl('polygon', { points: pts, fill: 'none', stroke: 'rgba(255,230,120,0.15)', 'stroke-width': '1' });
-      s.appendChild(ink); s.appendChild(gold); s.appendChild(hi);
+      s.appendChild(svgEl('polygon', { points: pts, fill: 'none', stroke: 'rgba(0,0,0,0.9)', 'stroke-width': '6', 'stroke-linejoin': 'miter' }));
+      s.appendChild(svgEl('polygon', { points: pts, fill: 'none', stroke: `rgba(201,168,76,${goldOpacity})`, 'stroke-width': '2.5' }));
+      s.appendChild(svgEl('polygon', { points: pts, fill: 'none', stroke: 'rgba(255,230,120,0.15)', 'stroke-width': '1' }));
       return s;
     }
 
@@ -598,19 +599,15 @@
       const wrap = document.createElement('div');
       wrap.className = 'hex-wrap';
       wrap.style.cssText = `width:${w}px;height:${h}px;`;
-
       const body = document.createElement('div');
       body.className = 'hex-body';
       body.style.cssText = `width:${w}px;height:${h}px;background:${node.fill};`;
-
       const ic = document.createElement('i');
       ic.className = `ti ${node.icon} hex-icon-sub`;
       ic.setAttribute('aria-hidden', 'true');
-
       const lbl = document.createElement('span');
       lbl.className = 'hex-label-sub';
       lbl.textContent = node.label;
-
       body.appendChild(ic); body.appendChild(lbl);
       wrap.appendChild(body);
       wrap.appendChild(makeOutline(w, h));
@@ -619,71 +616,50 @@
 
     function buildSub(layout) {
       const { size, HW, HH, cx, cy, CHAR_R, BW } = layout;
-
-      // Dim the wheel
       svg.style.opacity = '0.08';
       svg.style.pointerEvents = 'none';
       svg.style.transition = 'opacity 0.2s';
       clearTouchActive();
-      labelEl.classList.remove('visible');
 
       const ov = document.createElement('div');
       ov.className = 'sub-overlay visible';
       ov.style.cssText = `width:${size}px;height:${size}px;position:absolute;top:0;left:0;`;
 
-      let _subTouchActive = null;
-
+      let _subTouch = null;
       CHARS.forEach(ch => {
         const pos  = hexPos(ch.angle, CHAR_R, cx, cy);
         const wrap = makeHexNode(ch, HW, HH);
         wrap.style.cssText += `position:absolute;left:${pos.x}px;top:${pos.y}px;animation:hexFadeIn 0.22s ease forwards;`;
-
         wrap.addEventListener('mouseenter', () => { descEl.textContent = ch.desc; });
         wrap.addEventListener('mouseleave', () => { descEl.textContent = ''; });
         wrap.addEventListener('click', () => { window.location.href = ch.href; });
         wrap.addEventListener('touchstart', e => {
           e.preventDefault();
-          if (_subTouchActive === wrap) {
-            window.location.href = ch.href;
-          } else {
-            if (_subTouchActive) _subTouchActive.classList.remove('touch-active');
-            _subTouchActive = wrap;
-            wrap.classList.add('touch-active');
+          if (_subTouch === wrap) { window.location.href = ch.href; }
+          else {
+            if (_subTouch) _subTouch.classList.remove('touch-active');
+            _subTouch = wrap; wrap.classList.add('touch-active');
             descEl.textContent = ch.desc;
           }
         }, { passive: false });
-
         ov.appendChild(wrap);
       });
 
-      // Back hex at center
       const bWrap = document.createElement('div');
       bWrap.className = 'hex-wrap';
       bWrap.style.cssText = `position:absolute;left:${cx}px;top:${cy}px;width:${BW}px;height:${BW}px;animation:hexFadeIn 0.22s ease forwards;`;
       const bBody = document.createElement('div');
       bBody.className = 'hex-body';
       bBody.style.cssText = `width:${BW}px;height:${BW}px;background:${FILLS.back};`;
-      const bIc = document.createElement('i');
-      bIc.className = 'ti ti-arrow-left hex-icon-sub';
-      bIc.style.fontSize = '16px';
-      const bLbl = document.createElement('span');
-      bLbl.className = 'hex-label-sub';
-      bLbl.textContent = 'Back';
+      const bIc = document.createElement('i'); bIc.className = 'ti ti-arrow-left hex-icon-sub'; bIc.style.fontSize = '16px';
+      const bLbl = document.createElement('span'); bLbl.className = 'hex-label-sub'; bLbl.textContent = 'Back';
       bBody.appendChild(bIc); bBody.appendChild(bLbl);
-      bWrap.appendChild(bBody);
-      bWrap.appendChild(makeOutline(BW, BW, 0.35));
-
-      function doBack() {
-        ov.remove();
-        svg.style.opacity = '';
-        svg.style.pointerEvents = '';
-        descEl.textContent = '';
-      }
+      bWrap.appendChild(bBody); bWrap.appendChild(makeOutline(BW, BW, 0.35));
+      function doBack() { ov.remove(); svg.style.opacity = ''; svg.style.pointerEvents = ''; descEl.textContent = ''; }
       bWrap.addEventListener('mouseenter', () => { descEl.textContent = 'Return to main menu'; });
       bWrap.addEventListener('mouseleave', () => { descEl.textContent = ''; });
       bWrap.addEventListener('click', doBack);
       bWrap.addEventListener('touchstart', e => { e.preventDefault(); doBack(); }, { passive: false });
-
       ov.appendChild(bWrap);
       stage.appendChild(ov);
     }
@@ -693,80 +669,54 @@
     // ─────────────────────────────────────────────
     function paintBackground() {
       const canvas = document.getElementById('bg-canvas');
-      canvas.width  = window.innerWidth;
-      canvas.height = window.innerHeight;
+      canvas.width = window.innerWidth; canvas.height = window.innerHeight;
       const ctx = canvas.getContext('2d');
       const W = canvas.width, H = canvas.height;
-
-      const base = ctx.createRadialGradient(W/2, H/2, 0, W/2, H/2, Math.max(W,H)*0.65);
-      base.addColorStop(0,    '#2e1a08');
-      base.addColorStop(0.35, '#1c1006');
-      base.addColorStop(0.7,  '#100a04');
-      base.addColorStop(1,    '#080502');
-      ctx.fillStyle = base; ctx.fillRect(0, 0, W, H);
-
-      const g2 = ctx.createRadialGradient(W*0.15, H*0.18, 0, W*0.15, H*0.18, W*0.4);
-      g2.addColorStop(0, 'rgba(40,60,140,0.14)'); g2.addColorStop(1, 'transparent');
-      ctx.fillStyle = g2; ctx.fillRect(0, 0, W, H);
-
-      const g3 = ctx.createRadialGradient(W*0.85, H*0.82, 0, W*0.85, H*0.82, W*0.35);
-      g3.addColorStop(0, 'rgba(140,70,20,0.12)'); g3.addColorStop(1, 'transparent');
-      ctx.fillStyle = g3; ctx.fillRect(0, 0, W, H);
-
-      for (let i = 0; i < 280; i++) {
-        const x = Math.random()*W, y = Math.random()*H;
-        const bright = Math.random();
-        const sz = bright > 0.94 ? 1.5 : bright > 0.72 ? 1 : 0.5;
-        const alpha = Math.random()*0.45+0.06;
-        ctx.fillStyle = `rgba(${220+Math.random()*20|0},${200+Math.random()*15|0},${155+Math.random()*20|0},${alpha})`;
-        ctx.fillRect(Math.round(x), Math.round(y), sz, sz);
+      const base = ctx.createRadialGradient(W/2,H/2,0,W/2,H/2,Math.max(W,H)*0.65);
+      base.addColorStop(0,'#2e1a08'); base.addColorStop(0.35,'#1c1006');
+      base.addColorStop(0.7,'#100a04'); base.addColorStop(1,'#080502');
+      ctx.fillStyle = base; ctx.fillRect(0,0,W,H);
+      const g2 = ctx.createRadialGradient(W*0.15,H*0.18,0,W*0.15,H*0.18,W*0.4);
+      g2.addColorStop(0,'rgba(40,60,140,0.14)'); g2.addColorStop(1,'transparent');
+      ctx.fillStyle = g2; ctx.fillRect(0,0,W,H);
+      const g3 = ctx.createRadialGradient(W*0.85,H*0.82,0,W*0.85,H*0.82,W*0.35);
+      g3.addColorStop(0,'rgba(140,70,20,0.12)'); g3.addColorStop(1,'transparent');
+      ctx.fillStyle = g3; ctx.fillRect(0,0,W,H);
+      for (let i=0;i<280;i++) {
+        const x=Math.random()*W,y=Math.random()*H,bright=Math.random();
+        const sz=bright>0.94?1.5:bright>0.72?1:0.5,alpha=Math.random()*0.45+0.06;
+        ctx.fillStyle=`rgba(${220+Math.random()*20|0},${200+Math.random()*15|0},${155+Math.random()*20|0},${alpha})`;
+        ctx.fillRect(Math.round(x),Math.round(y),sz,sz);
       }
-    }
-
-    // ─────────────────────────────────────────────
-    // HINT TEXT
-    // ─────────────────────────────────────────────
-    const isTouchDevice = () => window.matchMedia('(hover: none)').matches;
-    function updateHint() {
-      const hint = document.getElementById('page-hint');
-      if (!hint) return;
-      hint.textContent = isTouchDevice()
-        ? 'Tap to reveal · Tap again to enter'
-        : 'Hover to explore · Click to enter';
     }
 
     // ─────────────────────────────────────────────
     // INIT
     // ─────────────────────────────────────────────
-    function init() {
-      paintBackground();
-      buildWheel();
-      updateHint();
+    const isTouchDevice = () => window.matchMedia('(hover: none)').matches;
+    function updateHint() {
+      const hint = document.getElementById('page-hint');
+      if (hint) hint.textContent = isTouchDevice() ? 'Tap to reveal · Tap again to enter' : 'Hover to explore · Click to enter';
     }
 
-    // Load Tabler icons for the character sub-ring
+    function init() { paintBackground(); buildWheel(); updateHint(); }
+
     if (!document.querySelector('link[href*="tabler-icons"]')) {
       const link = document.createElement('link');
       link.rel = 'stylesheet';
       link.href = 'https://cdn.jsdelivr.net/npm/@tabler/icons-webfont@latest/tabler-icons.min.css';
       document.head.appendChild(link);
       link.onload = init;
-    } else {
-      init();
-    }
+    } else { init(); }
 
-    let _resizeTimer = null;
+    let _rt = null;
     window.addEventListener('resize', () => {
       paintBackground();
-      clearTimeout(_resizeTimer);
-      _resizeTimer = setTimeout(() => {
-        buildWheel();
-        labelEl.classList.remove('visible');
-      }, 120);
+      clearTimeout(_rt);
+      _rt = setTimeout(() => buildWheel(), 120);
     });
   </script>
 
   <script src="nav.js"></script>
-
 </body>
 </html>
