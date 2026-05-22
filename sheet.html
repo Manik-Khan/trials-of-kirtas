@@ -56,6 +56,7 @@
         padding: 0.5rem 0;
         gap: 0.15rem;
         z-index: 150;
+        overflow: hidden;
         transition: top 0.35s ease-out;
       }
       /* When nav is hidden, rail stretches to fill from top */
@@ -99,7 +100,7 @@
         margin: 0.2rem 0;
       }
 
-      /* Character switcher button — at bottom of rail */
+      /* Character switcher button — pinned near bottom of tab list */
       .sheet-rail-char-btn {
         width: 40px;
         height: 46px;
@@ -114,7 +115,6 @@
         gap: 3px;
         transition: color 0.15s, border-color 0.15s;
         flex-shrink: 0;
-        margin-top: auto;
       }
       .sheet-rail-char-btn:hover { color: var(--aged); border-color: var(--gold-dim); }
       .sheet-rail-char-btn svg { width: 16px; height: 16px; }
@@ -1455,8 +1455,11 @@
       .combat-grid  { grid-template-columns: repeat(2, 1fr); }
       .roller-panel { width: calc(100vw - 2rem); right: 1rem; }
 
-      /* Sheet body padding tighter on mobile */
-      .sheet-body { padding: 0.85rem 0.85rem calc(6rem + env(safe-area-inset-bottom)); }
+      /* Sheet body padding tighter on mobile — margin-left clears the fixed rail */
+      .sheet-body { padding: 0.85rem 0.85rem calc(6rem + env(safe-area-inset-bottom)); margin-left: 48px; }
+
+      /* Footer also needs to clear the rail */
+      #site-footer { margin-left: 48px; }
 
       /* Tab buttons slightly smaller */
       .tab-btn { font-size: 0.55rem; padding: 0.65rem 0.75rem; letter-spacing: 0.12em; }
