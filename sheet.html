@@ -55,9 +55,9 @@
         min-height: 0;
       }
 
-      /* Roller floats above the bottom bar — bar height is 56px + safe area */
+      /* Roller floats above the bottom bar — bar height is 46px + safe area */
       .roller-panel {
-        bottom: calc(64px + env(safe-area-inset-bottom)) !important;
+        bottom: calc(54px + env(safe-area-inset-bottom)) !important;
       }
 
       /* Bottom bar: static flex child of body — never fixed, never bleeds.
@@ -65,7 +65,7 @@
       .sheet-bottom-bar {
         position: relative;
         flex-shrink: 0;
-        height: calc(56px + env(safe-area-inset-bottom));
+        height: calc(46px + env(safe-area-inset-bottom));
         padding-bottom: env(safe-area-inset-bottom);
         background: var(--ink-deep);
         border-top: 1px solid var(--gold-dim);
@@ -100,43 +100,18 @@
         background: var(--gold);
         border-radius: 0 0 2px 2px;
       }
-      .sheet-bar-btn svg { width: 17px; height: 17px; flex-shrink: 0; }
+      .sheet-bar-btn svg { width: 14px; height: 14px; flex-shrink: 0; }
       .sheet-bar-label {
         font-family: var(--font-title);
-        font-size: 0.27rem;
+        font-size: 0.24rem;
         letter-spacing: 0.08em;
         text-transform: uppercase;
         line-height: 1;
       }
 
-      /* Character popover — rises above the Party button.
-         position: absolute inside the bar (which is position: relative) so it
-         anchors to the bar itself, not the viewport. */
-      .sheet-char-popover {
-        position: absolute;
-        left: 0;
-        bottom: 100%;
-        background: var(--ink-deep);
-        border: 1px solid var(--gold-dim);
-        border-bottom: none;
-        border-radius: 0 8px 0 0;
-        padding: 10px 8px;
-        display: flex;
-        flex-direction: column;
-        align-items: center;
-        gap: 10px;
-        opacity: 0;
-        pointer-events: none;
-        transform: translateY(8px);
-        transition: opacity 0.2s ease, transform 0.2s ease;
-        z-index: 210;
-        min-width: calc(100% / 7 + 8px);
-      }
-      .sheet-char-popover.open {
-        opacity: 1;
-        pointer-events: all;
-        transform: translateY(0);
-      }
+      /* Character popover — opens upward from Party button, overlays sheet content.
+         position: absolute inside the bar (position: relative), bottom: 100% puts it
+         flush above the bar. */
       .sheet-char-link {
         display: flex;
         flex-direction: column;
@@ -166,10 +141,56 @@
       }
     }
 
-    /* Desktop: hide bottom bar and popover */
+    /* Desktop: hide bottom bar */
     @media (min-width: 601px) {
       .sheet-bottom-bar { display: none; }
       .sheet-char-popover { display: none; }
+    }
+
+    /* Character switcher overlay — outside media query so it always applies */
+    .sheet-char-popover {
+      position: fixed;
+      inset: 0;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      background: rgba(0,0,0,0.6);
+      opacity: 0;
+      pointer-events: none;
+      transition: opacity 0.2s ease;
+      z-index: 300;
+    }
+    .sheet-char-popover.open {
+      opacity: 1;
+      pointer-events: all;
+    }
+    .sheet-char-card {
+      background: var(--ink-deep);
+      border: 1px solid var(--gold-dim);
+      border-radius: 8px;
+      padding: 1rem 1.5rem;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 0.5rem;
+      transform: scale(0.94);
+      transition: transform 0.2s ease;
+    }
+    .sheet-char-popover.open .sheet-char-card {
+      transform: scale(1);
+    }
+    .sheet-char-card-title {
+      font-family: var(--font-title);
+      font-size: 0.45rem;
+      letter-spacing: 0.3em;
+      text-transform: uppercase;
+      color: var(--muted);
+      margin-bottom: 0.25rem;
+    }
+    .sheet-char-roster {
+      display: flex;
+      flex-direction: row;
+      gap: 1.25rem;
     }
 
     .tab-btn {
@@ -1765,6 +1786,14 @@
   <button class="tab-btn comp-tab-btn" id="comp-tab-btn" onclick="toggleCompendium()" title="Open Compendium">📖 Compendium</button>
 </div>
 
+
+
+<!-- Sheet body -->
+<div class="sheet-body" id="sheet-body">
+  <div class="not-found" id="loading">
+    <h2>Loading sheet…</h2>
+  </div>
+</div>
 <!-- Mobile bottom bar (Party first so it's far from the dice roller) -->
 <nav class="sheet-bottom-bar" id="sheet-bottom-bar">
   <button class="sheet-bar-btn" id="sheet-char-btn" onclick="toggleCharPopover(event)" title="Switch character">
@@ -1795,16 +1824,11 @@
     <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.4"><path d="M6 4h8l2 3v9H4V7z"/><path d="M8 10h4M8 13h2"/></svg>
     <span class="sheet-bar-label">Bio</span>
   </button>
-  <!-- Popover lives inside bar so position:absolute anchors to it, not viewport -->
-  <div class="sheet-char-popover" id="sheet-char-popover"></div>
 </nav>
 
-<!-- Sheet body -->
-<div class="sheet-body" id="sheet-body">
-  <div class="not-found" id="loading">
-    <h2>Loading sheet…</h2>
-  </div>
-</div>
+<!-- Character switcher overlay (fixed, centered) -->
+<div class="sheet-char-popover" id="sheet-char-popover"></div>
+
 
 <footer id="site-footer"></footer>
 
@@ -4130,9 +4154,8 @@ function compParseCR(cr) {
   return parseFloat(s)||0;
 }
 
-// ── Mobile: character popover above Party button ──
+// ── Character switcher — centered overlay (mobile) ──
 (function() {
-  if (window.innerWidth > 600) return;
   const popover = document.getElementById('sheet-char-popover');
   if (!popover) return;
   const chars = [
@@ -4142,7 +4165,15 @@ function compParseCR(cr) {
     { key: 'vesperian', label: 'Vesp',    portrait: 'img/portraits/vesperian.jpg' },
   ];
   const current = (new URLSearchParams(window.location.search)).get('character') || 'tyros';
-  chars.filter(c => c.key !== current).forEach(c => {
+  const others = chars.filter(c => c.key !== current);
+
+  // Build card inside overlay
+  const card = document.createElement('div');
+  card.className = 'sheet-char-card';
+  card.innerHTML = '<div class="sheet-char-card-title">Switch Character</div><div class="sheet-char-roster"></div>';
+  const roster = card.querySelector('.sheet-char-roster');
+
+  others.forEach(c => {
     const a = document.createElement('a');
     a.href = `sheet.html?character=${c.key}`;
     a.className = 'sheet-char-link';
@@ -4150,10 +4181,13 @@ function compParseCR(cr) {
       <img class="sheet-char-portrait" src="${c.portrait}" alt="${c.label}" onerror="this.style.opacity='0.3'">
       <span class="sheet-char-name">${c.label}</span>
     `;
-    popover.appendChild(a);
+    roster.appendChild(a);
   });
-  document.addEventListener('click', e => {
-    if (!e.target.closest('#sheet-char-popover') && !e.target.closest('#sheet-char-btn')) {
+  popover.appendChild(card);
+
+  // Tap backdrop (outside card) to close
+  popover.addEventListener('click', e => {
+    if (!e.target.closest('.sheet-char-card')) {
       popover.classList.remove('open');
     }
   });
