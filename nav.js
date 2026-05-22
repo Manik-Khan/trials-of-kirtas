@@ -174,8 +174,7 @@ function injectNavStyles() {
   style.id = 'nav-styles';
   style.textContent = `
     /* Prevent sticky nav from overlapping scroll targets */
-    /* overscroll-behavior: none prevents Safari elastic bounce from exposing gaps behind fixed elements */
-    html { scroll-padding-top: 52px; overscroll-behavior: none; }
+    html { scroll-padding-top: 52px; }
 
     #site-nav {
       position: sticky;
@@ -391,9 +390,13 @@ function injectNavStyles() {
         overflow-x: auto;
         scrollbar-width: none;
         -webkit-overflow-scrolling: touch;
-        /* Fade edges to hint scrollability */
-        -webkit-mask-image: linear-gradient(to right, transparent 0%, black 5%, black 95%, transparent 100%);
-        mask-image: linear-gradient(to right, transparent 0%, black 5%, black 95%, transparent 100%);
+        /* flex: 1 + min-width: 0 allows the links container to shrink and actually scroll
+           rather than overflowing behind the theme button */
+        flex: 1;
+        min-width: 0;
+        /* Fade right edge before the theme button */
+        -webkit-mask-image: linear-gradient(to right, transparent 0%, black 5%, black 88%, transparent 100%);
+        mask-image: linear-gradient(to right, transparent 0%, black 5%, black 88%, transparent 100%);
       }
       .nav-links::-webkit-scrollbar { display: none; }
       .nav-link { font-size: 0.5rem; letter-spacing: 0.07em; white-space: nowrap; flex-shrink: 0; }
