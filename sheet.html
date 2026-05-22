@@ -27,6 +27,20 @@
       position: sticky;
       top: 52px;   /* sits flush under the 52px nav */
       z-index: 90;
+      transition: transform 0.25s ease;
+    }
+
+    /* Mobile scroll-hide: nav and tab bar slide up together when scrolling down */
+    @media (max-width: 600px) {
+      #site-nav {
+        transition: transform 0.25s ease, background 0.3s ease, border-color 0.3s ease;
+      }
+      #site-nav.nav-hidden {
+        transform: translateY(-100%);
+      }
+      .sheet-tabs.tabs-hidden {
+        transform: translateY(-52px); /* pulls up by nav height so no gap appears */
+      }
     }
     .sheet-tabs::-webkit-scrollbar { display: none; }
 
@@ -3949,6 +3963,28 @@ function compParseCR(cr) {
   if(s==='1/8')return 0.125; if(s==='1/4')return 0.25; if(s==='1/2')return 0.5;
   return parseFloat(s)||0;
 }
+
+// ── Mobile: hide nav + tab bar on scroll down, reveal on scroll up ──
+(function() {
+  if (window.innerWidth > 600) return;
+  let lastY = 0;
+  let ticking = false;
+  window.addEventListener('scroll', () => {
+    if (!ticking) {
+      requestAnimationFrame(() => {
+        const nav  = document.getElementById('site-nav');
+        const tabs = document.getElementById('sheet-tabs');
+        const currentY = window.scrollY;
+        const scrolledDown = currentY > lastY && currentY > 60;
+        if (nav)  nav.classList.toggle('nav-hidden',  scrolledDown);
+        if (tabs) tabs.classList.toggle('tabs-hidden', scrolledDown);
+        lastY = currentY;
+        ticking = false;
+      });
+      ticking = true;
+    }
+  }, { passive: true });
+})();
 </script>
 
 </body>

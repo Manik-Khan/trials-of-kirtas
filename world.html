@@ -1371,7 +1371,7 @@ function zoomToLocation(key) {
   const canvas  = document.getElementById('map-canvas');
   const ww      = wrap.clientWidth;
   const wh      = wrap.clientHeight;
-  const TARGET_SCALE = 1.25;
+  const TARGET_SCALE = 1.1;
 
   // Pin position in canvas pixels
   const pinCanvasX = (loc.x / 100) * MAP_W;
@@ -1392,8 +1392,11 @@ function zoomToLocation(key) {
   // Remove transition class after animation completes
   setTimeout(() => canvas.classList.remove('animating'), 600);
 
-  // Also select the location to open its detail panel
-  selectCanonLocation({ stopPropagation: () => {} }, key);
+  // On mobile: just zoom to the pin — user taps it to open the detail sheet
+  // On desktop: open the detail panel automatically as before
+  if (window.innerWidth > 600) {
+    selectCanonLocation({ stopPropagation: () => {} }, key);
+  }
 }
 
 // ══════════════════════════════════════════════════════════
