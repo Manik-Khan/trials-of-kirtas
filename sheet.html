@@ -59,6 +59,16 @@
         align-items: stretch;
         z-index: 200;
       }
+      /* Fills the gap between the bar and the bottom of the screen on iOS */
+      .sheet-bottom-bar::after {
+        content: '';
+        position: absolute;
+        bottom: calc(-1 * env(safe-area-inset-bottom));
+        left: 0;
+        right: 0;
+        height: env(safe-area-inset-bottom);
+        background: var(--ink-deep);
+      }
 
       .sheet-bar-btn {
         flex: 1;
