@@ -125,22 +125,26 @@
       filter: brightness(1.18) saturate(1.12);
     }
 
-    /* Arc label text inside SVG — always within the wheel, never off-screen */
+    /* Arc label text — curves along rim of each slice */
     .slice-label {
       font-family: 'Cinzel', serif;
       font-size: 11px;
       letter-spacing: 0.18em;
       text-transform: uppercase;
-      fill: rgba(255,255,255,0);
-      text-shadow: none;
-      transition: fill 0.18s ease;
+      fill: rgba(240,216,120,0);
+      stroke: rgba(0,0,0,0);
+      stroke-width: 3px;
+      stroke-linejoin: round;
+      paint-order: stroke fill;
+      transition: fill 0.18s ease, stroke 0.18s ease;
       pointer-events: none;
-      dominant-baseline: middle;
     }
-    /* Activated via JS class on the group */
     .slice-group.label-visible .slice-label,
     .slice-group:hover .slice-label {
-      fill: rgba(240,216,120,0.95);
+      fill: rgba(240,216,120,0.97);
+      stroke: rgba(0,0,0,0.85);
+    }
+      stroke: rgba(0,0,0,0.85);
     }
 
     /* ── Description readout ── */
@@ -287,11 +291,11 @@
 
     const NODES = [
       { id: 'party',      label: 'Party',      img: `${CDN}/party.png`,      imgOffset: { x: 0,     y: -0.3  }, desc: 'The adventurers of Kirtas',   href: 'party.html',      hasSubring: true, angle: -90 },
-      { id: 'chronicle',  label: 'Chronicle',  img: `${CDN}/chronicle.jpg`,  imgOffset: { x: 0,     y: 0     }, desc: 'Session records & entries',   href: 'chronicle.html',  angle: -30 },
-      { id: 'world',      label: 'World',      img: `${CDN}/world.png`,      imgOffset: { x: 0,     y: 0     }, desc: 'The living map of the realm', href: 'world.html',      angle: 30  },
+      { id: 'chronicle',  label: 'Chronicle',  img: `${CDN}/chronicle.jpg`,  imgOffset: { x: 0.15,  y: 0     }, desc: 'Session records & entries',   href: 'chronicle.html',  angle: -30 },
+      { id: 'world',      label: 'World',      img: `${CDN}/world.png`,      imgOffset: { x: 0.1,   y: 0     }, desc: 'The living map of the realm', href: 'world.html',      angle: 30  },
       { id: 'compendium', label: 'Compendium', img: `${CDN}/compendium.png`, imgOffset: { x: 0,     y: 0.15  }, desc: 'Spells, items & creatures',   href: 'compendium.html', angle: 90  },
-      { id: 'factions',   label: 'Factions',   img: `${CDN}/factions.jpg`,   imgOffset: { x: -0.3,  y: -0.3  }, desc: 'Powers shaping the age',     href: 'factions.html',   angle: 150 },
-      { id: 'lore',       label: 'Lore',       img: `${CDN}/lore.png`,       imgOffset: { x: -0.2,  y: 0     }, desc: 'History, myth & the arcane', href: 'lore.html',       angle: 210 },
+      { id: 'factions',   label: 'Factions',   img: `${CDN}/factions.jpg`,   imgOffset: { x: -0.3,  y: -0.1  }, desc: 'Powers shaping the age',     href: 'factions.html',   angle: 150 },
+      { id: 'lore',       label: 'Lore',       img: `${CDN}/lore.png`,       imgOffset: { x: -0.35, y: -0.05 }, desc: 'History, myth & the arcane', href: 'lore.html',       angle: 210 },
     ];
 
     const CHARS = [
@@ -357,17 +361,29 @@
       ].join(' ');
     }
 
-    // Arc path used for textPath — sits near outer edge of slice
-    function arcPath(id, cx, cy, r, startDeg, endDeg) {
-      // Always draw left-to-right so text reads correctly
-      // For slices in bottom half (startDeg > 90 effectively), we reverse
+    // Arc path for textPath labels.
+    // Key rules:
+    //   - Text reads left-to-right when the arc goes clockwise (sweep=1)
+    //   - For bottom-half slices the outer arc runs right-to-left, so we
+    //     draw a COUNTER-clockwise arc instead (sweep=0, endpoints swapped)
+    //     which makes the text sit on top of the arc and read correctly.
+    //   - r is placed just inside the outer edge so text sits on the rim.
+    function arcPath(cx, cy, r, startDeg, endDeg) {
       const mid = (startDeg + endDeg) / 2;
-      const sweep = (mid > 90 && mid < 270) ? 0 : 1;
-      let a = startDeg, b = endDeg;
-      if (sweep === 0) { a = endDeg; b = startDeg; } // reverse for bottom half
+      // Bottom half: mid angle between 60° and 240° (roughly) — text would
+      // be upside-down on a CW arc, so flip to CCW.
+      const bottomHalf = mid > 60 && mid < 240;
+      let a, b, sweep;
+      if (bottomHalf) {
+        // CCW arc: swap endpoints, sweep=0
+        a = endDeg; b = startDeg; sweep = 0;
+      } else {
+        // CW arc: normal order, sweep=1
+        a = startDeg; b = endDeg; sweep = 1;
+      }
       const p1 = polarToXY(a, r, cx, cy);
       const p2 = polarToXY(b, r, cx, cy);
-      return `M ${p1.x} ${p1.y} A ${r} ${r} 0 0 ${sweep === 0 ? 0 : 1} ${p2.x} ${p2.y}`;
+      return `M ${p1.x} ${p1.y} A ${r} ${r} 0 0 ${sweep} ${p2.x} ${p2.y}`;
     }
 
     // ─────────────────────────────────────────────
@@ -413,8 +429,8 @@
       const GAP   = 0.8;
       const SLICE = 360 / NODES.length; // 60°
 
-      // Label text radius — inside the slice, near outer edge
-      const rText = R * 0.72;
+      // Label text radius — near the outer rim
+      const rText = R * 0.88;
 
       NODES.forEach((node) => {
         const midAngle = node.angle;
@@ -431,7 +447,7 @@
         const arcId = `arc-${node.id}`;
         svgEl('path', {
           id: arcId,
-          d:  arcPath(arcId, cx, cy, rText, startDeg, endDeg),
+          d:  arcPath(cx, cy, rText, startDeg, endDeg),
           fill: 'none',
         }, defs);
 
