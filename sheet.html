@@ -35,9 +35,23 @@
       /* Hide the horizontal tab bar */
       .sheet-tabs { display: none; }
 
-      /* Pad content so it doesn't hide behind the bar */
+      /* Body fills the viewport exactly and never scrolls —
+         this prevents Safari elastic bounce from exposing gaps behind fixed elements.
+         100dvh tracks the visual viewport so no gap appears when Safari chrome hides. */
+      body {
+        height: 100dvh;
+        overflow: hidden;
+        display: flex;
+        flex-direction: column;
+      }
+
+      /* Sheet body becomes the scroll container instead of body */
       .sheet-body {
+        flex: 1;
+        overflow-y: auto;
+        -webkit-overflow-scrolling: touch;
         padding-bottom: calc(64px + env(safe-area-inset-bottom)) !important;
+        min-height: 0;
       }
 
       /* Push the roller above the bottom bar */
@@ -1421,8 +1435,8 @@
       .combat-grid  { grid-template-columns: repeat(2, 1fr); }
       .roller-panel { width: calc(100vw - 2rem); right: 1rem; }
 
-      /* Sheet body padding tighter on mobile */
-      .sheet-body { padding: 0.85rem 0.85rem calc(6rem + env(safe-area-inset-bottom)); }
+      /* Sheet body: tighter horizontal padding on mobile (vertical handled above) */
+      .sheet-body { padding-left: 0.85rem; padding-right: 0.85rem; padding-top: 0.85rem; }
 
       /* Tab buttons slightly smaller */
       .tab-btn { font-size: 0.55rem; padding: 0.65rem 0.75rem; letter-spacing: 0.12em; }
