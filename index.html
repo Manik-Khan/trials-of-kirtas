@@ -114,7 +114,7 @@
       overflow: hidden;
     }
 
-    /* Slice groups: scale from wheel center on hover */
+    /* Slice groups:  from wheel center on hover */
     .slice-group {
       transform-box: fill-box;
       transition: transform 0.22s cubic-bezier(0.34,1.56,0.64,1), filter 0.22s ease;
@@ -200,7 +200,7 @@
       transition: transform 0.18s ease;
       filter: drop-shadow(1px 3px 6px rgba(0,0,0,0.65));
     }
-    .hex-wrap:hover { transform: translate(-50%, -50%) scale(1.1); }
+    .hex-wrap:hover { transform: translate(-50%, -50%) (1.1); }
     .hex-wrap:hover .hex-body { filter: brightness(1.25); }
     .hex-wrap:hover .hex-label-sub { color: var(--gold-hi); }
     .hex-wrap.touch-active .hex-body { filter: brightness(1.35); }
@@ -290,7 +290,7 @@
     const CDN = 'https://res.cloudinary.com/df0tgoiyb/image/upload/kirtas/icons';
 
     const NODES = [
-      { id: 'party',      label: 'Party',      img: `${CDN}/party.png`,      imgOffset: { x: 0,     y: -0.15 }, imgScale: 1.2, desc: 'The adventurers of Kirtas',   href: 'party.html',      hasSubring: true, angle: -90 },
+      { id: 'party',      label: 'Party',      img: `${CDN}/party.png`,      imgOffset: { x: 0,     y: -0.15 }, imgScale: 0.8, desc: 'The adventurers of Kirtas',   href: 'party.html',      hasSubring: true, angle: -90 },
       { id: 'chronicle',  label: 'Chronicle',  img: `${CDN}/chronicle.jpg`,  imgOffset: { x: 0.15,  y: 0     }, desc: 'Session records & entries',   href: 'chronicle.html',  angle: -30 },
       { id: 'world',      label: 'World',      img: `${CDN}/world.png`,      imgOffset: { x: 0.15,  y: 0.05  }, desc: 'The living map of the realm', href: 'world.html',      angle: 30  },
       { id: 'compendium', label: 'Compendium', img: `${CDN}/compendium.png`, imgOffset: { x: 0,     y: 0.22  }, desc: 'Spells, items & creatures',   href: 'compendium.html', angle: 90  },
