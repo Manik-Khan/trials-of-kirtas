@@ -292,12 +292,12 @@
     const CDN = 'https://res.cloudinary.com/df0tgoiyb/image/upload/kirtas/icons';
 
     const NODES = [
-      { id: 'party',      label: 'Party',      img: `${CDN}/party.png`,      imgOffset: { x: 0,     y: -0.24 }, mobileOffset: { x: 0,     y: -0.16 }, imgScale: 0.7, desc: 'The adventurers of Kirtas',   href: 'party.html',      hasSubring: true, angle: -90 },
-      { id: 'chronicle',  label: 'Chronicle',  img: `${CDN}/chronicle.jpg`,  imgOffset: { x: 0.05,  y: 0     }, mobileOffset: { x: 0.03,  y: 0     },               desc: 'Session records & entries',   href: 'chronicle.html',  angle: -30 },
-      { id: 'world',      label: 'World',      img: `${CDN}/world.png`,      imgOffset: { x: 0.15,  y: 0.05  }, mobileOffset: { x: 0.10,  y: 0.03  },               desc: 'The living map of the realm', href: 'world.html',      angle: 30  },
-      { id: 'compendium', label: 'Compendium', img: `${CDN}/compendium.png`, imgOffset: { x: 0,     y: 0.08  }, mobileOffset: { x: 0,     y: 0.05  }, imgScale: 0.9, desc: 'Spells, items & creatures',   href: 'compendium.html', angle: 90  },
-      { id: 'factions',   label: 'Factions',   img: `${CDN}/factions.jpg`,   imgOffset: { x: -0.3,  y: -0.00 }, mobileOffset: { x: -0.20, y: 0     }, imgScale: 0.8, desc: 'Powers shaping the age',     href: 'factions.html',   angle: 150 },
-      { id: 'lore',       label: 'Lore',       img: `${CDN}/lore.png`,       imgOffset: { x: -0.30, y: -0.0  }, mobileOffset: { x: -0.20, y: 0     },               desc: 'History, myth & the arcane', href: 'lore.html',       angle: 210 },
+      { id: 'party',      label: 'Party',      img: `${CDN}/party.png`,      imgOffset: { x: 0,     y: -0.24 }, imgScale: 0.7, desc: 'The adventurers of Kirtas',   href: 'party.html',      hasSubring: true, angle: -90 },
+      { id: 'chronicle',  label: 'Chronicle',  img: `${CDN}/chronicle.jpg`,  imgOffset: { x: 0.05,  y: 0     },               desc: 'Session records & entries',   href: 'chronicle.html',  angle: -30 },
+      { id: 'world',      label: 'World',      img: `${CDN}/world.png`,      imgOffset: { x: 0.15,  y: 0.05  },               desc: 'The living map of the realm', href: 'world.html',      angle: 30  },
+      { id: 'compendium', label: 'Compendium', img: `${CDN}/compendium.png`, imgOffset: { x: 0,     y: 0.08  }, imgScale: 0.9, desc: 'Spells, items & creatures',   href: 'compendium.html', angle: 90  },
+      { id: 'factions',   label: 'Factions',   img: `${CDN}/factions.jpg`,   imgOffset: { x: -0.3,  y: -0.00 }, imgScale: 0.8, desc: 'Powers shaping the age',     href: 'factions.html',   angle: 150 },
+      { id: 'lore',       label: 'Lore',       img: `${CDN}/lore.png`,       imgOffset: { x: -0.30, y: -0.0  },               desc: 'History, myth & the arcane', href: 'lore.html',       angle: 210 },
     ];
 
     const CHARS = [
@@ -443,8 +443,7 @@
         const midAngle = node.angle;
         const startDeg = midAngle - SLICE / 2 + GAP;
         const endDeg   = midAngle + SLICE / 2 - GAP;
-        const isMobile = window.innerWidth <= 600;
-        const off      = (isMobile && node.mobileOffset) ? node.mobileOffset : (node.imgOffset || { x: 0, y: 0 });
+        const off      = node.imgOffset || { x: 0, y: 0 };
 
         // ── clipPath for image ──
         const clipId = `clip-${node.id}`;
