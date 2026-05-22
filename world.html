@@ -307,8 +307,20 @@
       }
       .loc-drawer.open { transform: translateX(0); }
 
-      /* Detail panel: full width */
-      .detail-panel { width: 100vw; right: 0; }
+      /* Detail panel: bottom sheet on mobile */
+      .world-panel {
+        width: 100vw;
+        height: 62vh;
+        top: auto;
+        right: 0;
+        left: 0;
+        bottom: 0;
+        border-left: none;
+        border-top: 1px solid var(--gold-dim);
+        transform: translateY(100%);
+        border-radius: 12px 12px 0 0;
+      }
+      .world-panel.open { transform: translateY(0); }
 
       /* Marks panel: full width */
       .marks-panel { width: calc(100vw - 44px); }
@@ -778,6 +790,8 @@ function selectCanonLocation(event, key) {
   const loc = LOCATION_DATA[key];
   if (!loc) return;
   selectedKey = `canon-${key}`;
+  // On mobile, close the drawer so the bottom sheet has the full screen
+  if (window.innerWidth <= 600) closeLocDrawer();
   renderPins();
 
   const color = STATUS_COLORS[loc.status] || '#9a9a9a';
