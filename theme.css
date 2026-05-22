@@ -54,7 +54,7 @@
   --font-body:    'Crimson Pro', Georgia, serif;
 
   /* Nav */
-  --nav-bg:       #0d0a07;
+  --nav-bg:       rgba(13,10,7,0.95);
   --nav-border:   rgba(184,149,42,0.2);
 
   /* Texture — SVG noise overlay opacity */
@@ -95,7 +95,7 @@
   --font-title:   'Cinzel', serif;
   --font-body:    'Crimson Pro', Georgia, serif;
 
-  --nav-bg:       #0d0f19;
+  --nav-bg:       rgba(13,15,25,0.95);
   --nav-border:   rgba(120,150,220,0.2);
 
   --noise-opacity: 0.3;
@@ -134,7 +134,7 @@
   --font-title:   'Raleway', sans-serif;
   --font-body:    'Raleway', sans-serif;
 
-  --nav-bg:       #0a090d;
+  --nav-bg:       rgba(10,9,13,0.98);
   --nav-border:   rgba(200,98,42,0.3);
 
   --noise-opacity: 0.5;
@@ -192,7 +192,7 @@
   padding: 0;
 }
 
-html { scroll-behavior: smooth; }
+html { scroll-behavior: smooth; background-color: var(--ink-deep); }
 
 body {
   background-color: var(--ink);
