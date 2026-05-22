@@ -99,6 +99,40 @@
         flex-shrink: 0;
       }
 
+      /* Character portrait buttons in rail */
+      .sheet-rail-char {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        gap: 0.1rem;
+        width: 38px;
+        margin: 0 3px;
+        padding: 0.3rem 0;
+        background: transparent;
+        border: 1px solid transparent;
+        cursor: pointer;
+        transition: border-color 0.15s, background 0.15s;
+        text-decoration: none;
+      }
+      .sheet-rail-char:hover { border-color: var(--gold-dim); background: rgba(184,149,42,0.06); }
+      .sheet-rail-char-portrait {
+        width: 26px;
+        height: 26px;
+        border-radius: 50%;
+        object-fit: cover;
+        object-position: top center;
+        border: 1px solid var(--gold-dim);
+        display: block;
+      }
+      .sheet-rail-char-label {
+        font-family: var(--font-title);
+        font-size: 0.24rem;
+        letter-spacing: 0.08em;
+        text-transform: uppercase;
+        color: var(--muted);
+        line-height: 1;
+      }
+
       /* Sheet body fills the remaining width */
       .sheet-body { flex: 1; min-width: 0; padding: 0.75rem 0.75rem calc(4rem + env(safe-area-inset-bottom)); }
     }
@@ -1369,12 +1403,13 @@
       .equip-right { border-left: none; border-top: 2px solid var(--gold-dim); }
     }
     @media (max-width: 600px) {
-      /* Hide nav bar on scroll down */
+      /* Hide nav bar on scroll down — slide up and fade together */
       #site-nav {
-        transition: transform 0.25s ease, background 0.3s ease, border-color 0.3s ease;
+        transition: transform 0.35s ease-out, opacity 0.35s ease-out, background 0.3s ease, border-color 0.3s ease;
       }
       #site-nav.nav-hidden {
         transform: translateY(-100%);
+        opacity: 0;
       }
 
       .core-layout  { grid-template-columns: 1fr; }
@@ -1737,6 +1772,10 @@
     <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.4"><path d="M6 4h8l2 3v9H4V7z"/><path d="M8 10h4M8 13h2"/></svg>
     <span class="sheet-rail-label">Bio</span>
   </button>
+
+  <!-- Character switcher — injected by JS, excludes current character -->
+  <div class="sheet-rail-divider" style="margin-top:auto"></div>
+  <div id="sheet-rail-chars"></div>
 </nav>
 
 <!-- Sheet body -->
@@ -4071,7 +4110,29 @@ function compParseCR(cr) {
   return parseFloat(s)||0;
 }
 
-// ── Mobile: hide nav bar on scroll down, reveal on scroll up ──
+// ── Mobile rail: populate character switcher ──
+(function() {
+  const container = document.getElementById('sheet-rail-chars');
+  if (!container) return;
+  const chars = [
+    { key: 'tyros',     label: 'Cosmere', portrait: 'img/portraits/tyros.png' },
+    { key: 'caim',      label: 'Caim',    portrait: 'img/portraits/caim.png' },
+    { key: 'liadan',    label: 'Líadan',  portrait: 'img/portraits/liadan.png' },
+    { key: 'vesperian', label: 'Vesp',    portrait: 'img/portraits/vesperian.jpg' },
+  ];
+  const current = (new URLSearchParams(window.location.search)).get('character') || 'tyros';
+  chars.filter(c => c.key !== current).forEach(c => {
+    const a = document.createElement('a');
+    a.href = `sheet.html?character=${c.key}`;
+    a.className = 'sheet-rail-char';
+    a.title = c.label;
+    a.innerHTML = `
+      <img class="sheet-rail-char-portrait" src="${c.portrait}" alt="${c.label}" onerror="this.style.opacity='0.3'">
+      <span class="sheet-rail-char-label">${c.label}</span>
+    `;
+    container.appendChild(a);
+  });
+})();
 (function() {
   if (window.innerWidth > 600) return;
   let lastY = 0;

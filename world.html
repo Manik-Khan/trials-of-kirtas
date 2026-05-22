@@ -1422,6 +1422,9 @@ function zoomToLocation(key) {
   // Remove transition class after animation completes
   setTimeout(() => canvas.classList.remove('animating'), 600);
 
+  // Always close the drawer so the map is clear
+  closeLocDrawer();
+
   // On mobile: just zoom to the pin — user taps it to open the detail sheet
   // On desktop: open the detail panel automatically as before
   if (window.innerWidth > 600) {
