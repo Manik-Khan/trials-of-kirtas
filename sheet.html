@@ -25,24 +25,89 @@
       overflow-x: auto;
       scrollbar-width: none;
       position: sticky;
-      top: 52px;   /* sits flush under the 52px nav */
+      top: 52px;
       z-index: 90;
-      transition: transform 0.25s ease;
-    }
-
-    /* Mobile scroll-hide: nav and tab bar slide up together when scrolling down */
-    @media (max-width: 600px) {
-      #site-nav {
-        transition: transform 0.25s ease, background 0.3s ease, border-color 0.3s ease;
-      }
-      #site-nav.nav-hidden {
-        transform: translateY(-100%);
-      }
-      .sheet-tabs.tabs-hidden {
-        transform: translateY(-52px); /* pulls up by nav height so no gap appears */
-      }
     }
     .sheet-tabs::-webkit-scrollbar { display: none; }
+
+    /* ── Mobile: tabs move to a left rail, content fills remaining width ── */
+    @media (max-width: 600px) {
+      /* Overall layout: rail on left, content on right */
+      .sheet-page-wrap {
+        display: flex;
+        align-items: stretch;
+        min-height: calc(100vh - 52px);
+      }
+
+      /* Hide the horizontal tab bar */
+      .sheet-tabs { display: none; }
+
+      /* Left rail */
+      .sheet-rail {
+        display: flex;
+        flex-direction: column;
+        width: 44px;
+        background: rgba(0,0,0,0.72);
+        border-right: 1px solid var(--gold-dim);
+        flex-shrink: 0;
+        padding: 0.4rem 0;
+        gap: 0.1rem;
+        position: sticky;
+        top: 52px;
+        height: calc(100vh - 52px);
+        overflow-y: auto;
+        scrollbar-width: none;
+        z-index: 80;
+      }
+      .sheet-rail::-webkit-scrollbar { display: none; }
+
+      .sheet-rail-btn {
+        width: 38px;
+        height: 44px;
+        margin: 0 3px;
+        background: transparent;
+        border: 1px solid transparent;
+        color: var(--muted);
+        cursor: pointer;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        gap: 0.1rem;
+        transition: color 0.15s, border-color 0.15s, background 0.15s;
+      }
+      .sheet-rail-btn:hover { color: var(--aged); border-color: var(--gold-dim); }
+      .sheet-rail-btn.active {
+        color: var(--gold-light);
+        border-color: var(--gold-mid);
+        background: rgba(184,149,42,0.1);
+      }
+      .sheet-rail-btn svg { width: 15px; height: 15px; flex-shrink: 0; }
+      .sheet-rail-label {
+        font-family: var(--font-title);
+        font-size: 0.26rem;
+        letter-spacing: 0.1em;
+        text-transform: uppercase;
+        line-height: 1;
+      }
+      .sheet-rail-divider {
+        width: 26px;
+        height: 1px;
+        background: var(--gold-dim);
+        margin: 0.2rem auto;
+        opacity: 0.5;
+        flex-shrink: 0;
+      }
+
+      /* Sheet body fills the remaining width */
+      .sheet-body { flex: 1; min-width: 0; padding: 0.75rem 0.75rem calc(4rem + env(safe-area-inset-bottom)); }
+    }
+
+    /* Desktop: hide the rail (it's injected by JS on mobile only) */
+    @media (min-width: 601px) {
+      .sheet-rail { display: none; }
+      .sheet-page-wrap { display: contents; }
+    }
 
     .tab-btn {
       font-family: var(--font-title);
@@ -1637,12 +1702,42 @@
   <button class="tab-btn comp-tab-btn" id="comp-tab-btn" onclick="toggleCompendium()" title="Open Compendium">📖 Compendium</button>
 </div>
 
+<!-- Mobile left rail (hidden on desktop via CSS) -->
+<div class="sheet-page-wrap" id="sheet-page-wrap">
+<nav class="sheet-rail" id="sheet-rail" aria-label="Sheet sections">
+  <button class="sheet-rail-btn active" data-tab="core" onclick="switchTab('core',this)" title="Core">
+    <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.4"><circle cx="10" cy="7" r="3"/><path d="M4 17c0-3.3 2.7-6 6-6s6 2.7 6 6"/></svg>
+    <span class="sheet-rail-label">Core</span>
+  </button>
+  <button class="sheet-rail-btn" data-tab="combat" onclick="switchTab('combat',this)" title="Combat">
+    <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.4"><path d="M4 4l12 12M16 4L4 16"/><circle cx="10" cy="10" r="3"/></svg>
+    <span class="sheet-rail-label">Combat</span>
+  </button>
+  <button class="sheet-rail-btn" data-tab="spells" onclick="switchTab('spells',this)" title="Spells">
+    <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.4"><path d="M10 3l1.5 4.5H16l-3.7 2.7 1.4 4.3L10 12l-3.7 2.5 1.4-4.3L4 7.5h4.5z"/></svg>
+    <span class="sheet-rail-label">Spells</span>
+  </button>
+  <button class="sheet-rail-btn" data-tab="features" onclick="switchTab('features',this)" title="Features">
+    <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.4"><rect x="4" y="4" width="12" height="12" rx="1"/><path d="M7 8h6M7 11h4"/></svg>
+    <span class="sheet-rail-label">Feats</span>
+  </button>
+  <button class="sheet-rail-btn" data-tab="equipment" onclick="switchTab('equipment',this)" title="Equipment">
+    <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.4"><path d="M6 4h8v3H6zM4 7h12v9H4z"/><path d="M8 13h4"/></svg>
+    <span class="sheet-rail-label">Equip</span>
+  </button>
+  <button class="sheet-rail-btn" data-tab="bio" onclick="switchTab('bio',this)" title="Bio">
+    <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.4"><path d="M6 4h8l2 3v9H4V7z"/><path d="M8 10h4M8 13h2"/></svg>
+    <span class="sheet-rail-label">Bio</span>
+  </button>
+</nav>
+
 <!-- Sheet body -->
 <div class="sheet-body" id="sheet-body">
   <div class="not-found" id="loading">
     <h2>Loading sheet…</h2>
   </div>
 </div>
+</div><!-- end sheet-page-wrap -->
 
 <footer id="site-footer"></footer>
 
@@ -1927,7 +2022,11 @@ function switchTab(id, btn) {
   document.querySelectorAll('.tab-panel').forEach(p=>p.classList.remove('active'));
   document.querySelectorAll('.tab-btn').forEach(b=>b.classList.remove('active'));
   document.getElementById('tab-'+id).classList.add('active');
-  btn.classList.add('active');
+  if (btn) btn.classList.add('active');
+  // Sync mobile rail buttons
+  document.querySelectorAll('.sheet-rail-btn').forEach(b => {
+    b.classList.toggle('active', b.dataset.tab === id);
+  });
 }
 
 // ══════════════════════════════════════════════════════════
@@ -3963,28 +4062,6 @@ function compParseCR(cr) {
   if(s==='1/8')return 0.125; if(s==='1/4')return 0.25; if(s==='1/2')return 0.5;
   return parseFloat(s)||0;
 }
-
-// ── Mobile: hide nav + tab bar on scroll down, reveal on scroll up ──
-(function() {
-  if (window.innerWidth > 600) return;
-  let lastY = 0;
-  let ticking = false;
-  window.addEventListener('scroll', () => {
-    if (!ticking) {
-      requestAnimationFrame(() => {
-        const nav  = document.getElementById('site-nav');
-        const tabs = document.getElementById('sheet-tabs');
-        const currentY = window.scrollY;
-        const scrolledDown = currentY > lastY && currentY > 60;
-        if (nav)  nav.classList.toggle('nav-hidden',  scrolledDown);
-        if (tabs) tabs.classList.toggle('tabs-hidden', scrolledDown);
-        lastY = currentY;
-        ticking = false;
-      });
-      ticking = true;
-    }
-  }, { passive: true });
-})();
 </script>
 
 </body>
