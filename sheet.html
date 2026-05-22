@@ -50,21 +50,21 @@
         flex: 1;
         overflow-y: auto;
         -webkit-overflow-scrolling: touch;
-        padding-bottom: calc(64px + env(safe-area-inset-bottom)) !important;
+        /* No padding-bottom needed for bar clearance — bar is in normal flow */
+        padding-bottom: 1rem !important;
         min-height: 0;
       }
 
-      /* Push the roller above the bottom bar */
+      /* Roller floats above the bottom bar — bar height is 56px + safe area */
       .roller-panel {
         bottom: calc(64px + env(safe-area-inset-bottom)) !important;
       }
 
-      /* Bottom bar layout optimized to isolate Safari layout viewport shifts */
+      /* Bottom bar: static flex child of body — never fixed, never bleeds.
+         Sits at the bottom of the 100dvh flex column naturally. */
       .sheet-bottom-bar {
-        position: fixed;
-        bottom: 0;
-        left: 0;
-        right: 0;
+        position: relative;
+        flex-shrink: 0;
         height: calc(56px + env(safe-area-inset-bottom));
         padding-bottom: env(safe-area-inset-bottom);
         background: var(--ink-deep);
@@ -109,11 +109,13 @@
         line-height: 1;
       }
 
-      /* Character popover — rises above the Party button */
+      /* Character popover — rises above the Party button.
+         position: absolute inside the bar (which is position: relative) so it
+         anchors to the bar itself, not the viewport. */
       .sheet-char-popover {
-        position: fixed;
+        position: absolute;
         left: 0;
-        bottom: calc(56px + env(safe-area-inset-bottom));
+        bottom: 100%;
         background: var(--ink-deep);
         border: 1px solid var(--gold-dim);
         border-bottom: none;
@@ -1793,10 +1795,9 @@
     <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.4"><path d="M6 4h8l2 3v9H4V7z"/><path d="M8 10h4M8 13h2"/></svg>
     <span class="sheet-bar-label">Bio</span>
   </button>
+  <!-- Popover lives inside bar so position:absolute anchors to it, not viewport -->
+  <div class="sheet-char-popover" id="sheet-char-popover"></div>
 </nav>
-
-<!-- Character popover (populated by JS) -->
-<div class="sheet-char-popover" id="sheet-char-popover"></div>
 
 <!-- Sheet body -->
 <div class="sheet-body" id="sheet-body">
