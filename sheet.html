@@ -1779,34 +1779,36 @@
         left: 0;
         top: 50%;
         transform: translateY(-50%);
-        width: 18px;
-        height: 64px;
-        background: var(--ink-deep);
-        border: 1px solid var(--gold-dim);
+        width: 32px;
+        height: 88px;
+        background: var(--smoke);
+        border: 1px solid var(--gold-mid);
         border-left: none;
-        border-radius: 0 6px 6px 0;
+        border-radius: 0 10px 10px 0;
         display: flex;
         flex-direction: column;
         align-items: center;
         justify-content: center;
-        gap: 3px;
+        gap: 4px;
         cursor: pointer;
-        z-index: 250;
+        z-index: 9999;
         transition: background 0.2s, border-color 0.2s;
         -webkit-tap-highlight-color: transparent;
+        touch-action: manipulation;
+        user-select: none;
       }
       .sheet-drawer-tab:active { background: var(--smoke); }
       .sheet-drawer-chevron {
         color: var(--gold);
-        font-size: 0.6rem;
+        font-size: 0.85rem;
         line-height: 1;
       }
       .sheet-drawer-label {
         font-family: var(--font-title);
-        font-size: 0.28rem;
-        letter-spacing: 0.12em;
+        font-size: 0.36rem;
+        letter-spacing: 0.1em;
         text-transform: uppercase;
-        color: var(--muted);
+        color: var(--gold);
         writing-mode: vertical-rl;
         text-orientation: mixed;
         transform: rotate(180deg);
