@@ -59,14 +59,14 @@
         align-items: stretch;
         z-index: 200;
       }
-      /* Fills the gap between the bar and the bottom of the screen on iOS */
+      /* Extends a solid block far downward to catch Safari rubber-band bounces */
       .sheet-bottom-bar::after {
         content: '';
         position: absolute;
-        bottom: calc(-1 * env(safe-area-inset-bottom));
+        top: 100%;
         left: 0;
         right: 0;
-        height: env(safe-area-inset-bottom);
+        height: 100vh;
         background: var(--ink-deep);
       }
 

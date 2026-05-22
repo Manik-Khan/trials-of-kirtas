@@ -190,12 +190,12 @@ function injectNavStyles() {
       transition: background 0.3s ease, border-color 0.3s ease, transform 0.35s ease-out, opacity 0.35s ease-out;
     }
 
-    /* Mobile: fixed so translateY hides it cleanly above the viewport with no gap.
-       Body padding-top compensates so content starts below the nav. */
+    /* Mobile: sticky handles Safari elastic overscroll gracefully without viewport bleed.
+       top: -52px on nav-hidden pulls it fully out of layout bounds. */
     @media (max-width: 600px) {
-      body { padding-top: 52px; }
+      body { padding-top: 0; }
       #site-nav {
-        position: fixed;
+        position: sticky;
         top: 0;
         left: 0;
         right: 0;
@@ -203,6 +203,7 @@ function injectNavStyles() {
       #site-nav.nav-hidden {
         transform: translateY(-100%);
         opacity: 0;
+        top: -52px;
       }
     }
 
