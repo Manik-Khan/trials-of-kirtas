@@ -1369,6 +1369,14 @@
       .equip-right { border-left: none; border-top: 2px solid var(--gold-dim); }
     }
     @media (max-width: 600px) {
+      /* Hide nav bar on scroll down */
+      #site-nav {
+        transition: transform 0.25s ease, background 0.3s ease, border-color 0.3s ease;
+      }
+      #site-nav.nav-hidden {
+        transform: translateY(-100%);
+      }
+
       .core-layout  { grid-template-columns: 1fr; }
       .ability-grid { grid-template-columns: repeat(3, 1fr); }
       .combat-grid  { grid-template-columns: repeat(2, 1fr); }
@@ -4062,6 +4070,25 @@ function compParseCR(cr) {
   if(s==='1/8')return 0.125; if(s==='1/4')return 0.25; if(s==='1/2')return 0.5;
   return parseFloat(s)||0;
 }
+
+// ── Mobile: hide nav bar on scroll down, reveal on scroll up ──
+(function() {
+  if (window.innerWidth > 600) return;
+  let lastY = 0;
+  let ticking = false;
+  window.addEventListener('scroll', () => {
+    if (!ticking) {
+      requestAnimationFrame(() => {
+        const nav = document.getElementById('site-nav');
+        const currentY = window.scrollY;
+        if (nav) nav.classList.toggle('nav-hidden', currentY > lastY && currentY > 60);
+        lastY = currentY;
+        ticking = false;
+      });
+      ticking = true;
+    }
+  }, { passive: true });
+})();
 </script>
 
 </body>
