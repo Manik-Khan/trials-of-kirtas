@@ -292,10 +292,10 @@
     const NODES = [
       { id: 'party',      label: 'Party',      img: `${CDN}/party.png`,      imgOffset: { x: 0,     y: -0.3  }, desc: 'The adventurers of Kirtas',   href: 'party.html',      hasSubring: true, angle: -90 },
       { id: 'chronicle',  label: 'Chronicle',  img: `${CDN}/chronicle.jpg`,  imgOffset: { x: 0.15,  y: 0     }, desc: 'Session records & entries',   href: 'chronicle.html',  angle: -30 },
-      { id: 'world',      label: 'World',      img: `${CDN}/world.png`,      imgOffset: { x: 0.1,   y: 0     }, desc: 'The living map of the realm', href: 'world.html',      angle: 30  },
-      { id: 'compendium', label: 'Compendium', img: `${CDN}/compendium.png`, imgOffset: { x: 0,     y: 0.15  }, desc: 'Spells, items & creatures',   href: 'compendium.html', angle: 90  },
-      { id: 'factions',   label: 'Factions',   img: `${CDN}/factions.jpg`,   imgOffset: { x: -0.3,  y: -0.1  }, desc: 'Powers shaping the age',     href: 'factions.html',   angle: 150 },
-      { id: 'lore',       label: 'Lore',       img: `${CDN}/lore.png`,       imgOffset: { x: -0.35, y: -0.05 }, desc: 'History, myth & the arcane', href: 'lore.html',       angle: 210 },
+      { id: 'world',      label: 'World',      img: `${CDN}/world.png`,      imgOffset: { x: 0.15,  y: 0.05  }, desc: 'The living map of the realm', href: 'world.html',      angle: 30  },
+      { id: 'compendium', label: 'Compendium', img: `${CDN}/compendium.png`, imgOffset: { x: 0,     y: 0.22  }, desc: 'Spells, items & creatures',   href: 'compendium.html', angle: 90  },
+      { id: 'factions',   label: 'Factions',   img: `${CDN}/factions.jpg`,   imgOffset: { x: -0.3,  y: -0.04 }, desc: 'Powers shaping the age',     href: 'factions.html',   angle: 150 },
+      { id: 'lore',       label: 'Lore',       img: `${CDN}/lore.png`,       imgOffset: { x: -0.25, y: -0.1  }, desc: 'History, myth & the arcane', href: 'lore.html',       angle: 210 },
     ];
 
     const CHARS = [
@@ -362,23 +362,18 @@
     }
 
     // Arc path for textPath labels.
-    // Key rules:
-    //   - Text reads left-to-right when the arc goes clockwise (sweep=1)
-    //   - For bottom-half slices the outer arc runs right-to-left, so we
-    //     draw a COUNTER-clockwise arc instead (sweep=0, endpoints swapped)
-    //     which makes the text sit on top of the arc and read correctly.
-    //   - r is placed just inside the outer edge so text sits on the rim.
+    // SVG coords: 0deg=right, 90deg=DOWN. Text on a CW arc (sweep=1) reads
+    // left-to-right only when the arc traverses the TOP half of the circle.
+    // Top half = normalized mid angle outside 0..180 (i.e. 180..360).
+    // Slices with mid in 0..180 (world, compendium, factions) need a CCW arc
+    // (swap endpoints, sweep=0) so text reads correctly.
     function arcPath(cx, cy, r, startDeg, endDeg) {
-      const mid = (startDeg + endDeg) / 2;
-      // Bottom half: mid angle between 60° and 240° (roughly) — text would
-      // be upside-down on a CW arc, so flip to CCW.
-      const bottomHalf = mid > 60 && mid < 240;
+      const mid = ((startDeg + endDeg) / 2 + 360) % 360; // normalize 0-360
+      const needsCCW = mid > 0 && mid < 180;
       let a, b, sweep;
-      if (bottomHalf) {
-        // CCW arc: swap endpoints, sweep=0
+      if (needsCCW) {
         a = endDeg; b = startDeg; sweep = 0;
       } else {
-        // CW arc: normal order, sweep=1
         a = startDeg; b = endDeg; sweep = 1;
       }
       const p1 = polarToXY(a, r, cx, cy);
@@ -430,7 +425,7 @@
       const SLICE = 360 / NODES.length; // 60°
 
       // Label text radius — near the outer rim
-      const rText = R * 0.88;
+      const rText = R * 0.92;
 
       NODES.forEach((node) => {
         const midAngle = node.angle;
