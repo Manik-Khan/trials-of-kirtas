@@ -16,7 +16,7 @@
       transition: background 0.3s, border-color 0.3s, color 0.3s;
     }
 
-    /* ── Sheet tabs ── */
+    /* ── Sheet tabs (desktop) ── */
     .sheet-tabs {
       display: flex;
       background: var(--ink);
@@ -30,86 +30,124 @@
     }
     .sheet-tabs::-webkit-scrollbar { display: none; }
 
-    /* ── Mobile: bottom tab bar ── */
+    /* ── Mobile: left rail replaces tab bar ── */
     @media (max-width: 600px) {
-      /* Hide the horizontal tab bar — bottom bar replaces it */
       .sheet-tabs { display: none; }
 
-      /* Extra bottom padding so content doesn't hide behind the bar */
-      .sheet-body { padding-bottom: calc(72px + env(safe-area-inset-bottom)) !important; }
-
-      /* ── Bottom bar ── */
-      .sheet-bottom-bar {
-        position: fixed;
-        bottom: 0;
-        left: 0;
-        right: 0;
-        height: calc(56px + env(safe-area-inset-bottom));
-        padding-bottom: env(safe-area-inset-bottom);
-        background: var(--ink-deep);
-        border-top: 1px solid var(--gold-dim);
+      /* Page layout: rail on left, content fills right */
+      body { display: flex; flex-direction: column; }
+      .sheet-page-wrap {
         display: flex;
-        align-items: stretch;
-        z-index: 200;
+        flex: 1;
       }
 
-      .sheet-bar-btn {
-        flex: 1;
+      /* Rail — fixed to viewport, never overflows */
+      .sheet-rail {
+        position: fixed;
+        left: 0;
+        top: 52px;
+        bottom: 0;
+        width: 48px;
+        background: var(--ink-deep);
+        border-right: 1px solid var(--gold-dim);
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        padding: 0.5rem 0;
+        gap: 0.15rem;
+        z-index: 150;
+        transition: top 0.35s ease-out;
+      }
+      /* When nav is hidden, rail stretches to fill from top */
+      body.nav-hidden-state .sheet-rail { top: 0; }
+
+      .sheet-rail-btn {
+        width: 40px;
+        height: 46px;
+        background: transparent;
+        border: 1px solid transparent;
+        color: var(--muted);
+        cursor: pointer;
         display: flex;
         flex-direction: column;
         align-items: center;
         justify-content: center;
         gap: 3px;
+        transition: color 0.15s, border-color 0.15s, background 0.15s;
+        flex-shrink: 0;
+      }
+      .sheet-rail-btn:hover  { color: var(--aged); border-color: var(--gold-dim); }
+      .sheet-rail-btn.active {
+        color: var(--gold-light);
+        border-color: var(--gold-mid);
+        background: rgba(184,149,42,0.1);
+      }
+      .sheet-rail-btn svg { width: 16px; height: 16px; flex-shrink: 0; }
+      .sheet-rail-label {
+        font-family: var(--font-title);
+        font-size: 0.27rem;
+        letter-spacing: 0.08em;
+        text-transform: uppercase;
+        line-height: 1;
+      }
+      .sheet-rail-divider {
+        width: 28px;
+        height: 1px;
+        background: var(--gold-dim);
+        opacity: 0.5;
+        flex-shrink: 0;
+        margin: 0.2rem 0;
+      }
+
+      /* Character switcher button — at bottom of rail */
+      .sheet-rail-char-btn {
+        width: 40px;
+        height: 46px;
         background: transparent;
-        border: none;
+        border: 1px solid transparent;
         color: var(--muted);
         cursor: pointer;
-        transition: color 0.15s, background 0.15s;
-        padding: 0;
-        position: relative;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        gap: 3px;
+        transition: color 0.15s, border-color 0.15s;
+        flex-shrink: 0;
+        margin-top: auto;
       }
-      .sheet-bar-btn:hover { color: var(--aged); }
-      .sheet-bar-btn.active { color: var(--gold-light); }
-      .sheet-bar-btn.active::after {
-        content: '';
-        position: absolute;
-        top: 0; left: 15%; right: 15%;
-        height: 2px;
-        background: var(--gold);
-      }
-      .sheet-bar-btn svg { width: 18px; height: 18px; flex-shrink: 0; }
-      .sheet-bar-label {
+      .sheet-rail-char-btn:hover { color: var(--aged); border-color: var(--gold-dim); }
+      .sheet-rail-char-btn svg { width: 16px; height: 16px; }
+      .sheet-rail-char-btn-label {
         font-family: var(--font-title);
-        font-size: 0.28rem;
-        letter-spacing: 0.1em;
+        font-size: 0.27rem;
+        letter-spacing: 0.08em;
         text-transform: uppercase;
         line-height: 1;
       }
 
-      /* Character popover — arc of portraits above the switcher button */
+      /* Character popover — expands to the right of the rail */
       .sheet-char-popover {
         position: fixed;
-        bottom: calc(64px + env(safe-area-inset-bottom));
-        right: 0;
-        display: flex;
-        flex-direction: column;
-        align-items: center;
-        gap: 8px;
-        padding: 10px;
+        left: 52px;
+        bottom: 60px;
         background: var(--ink-deep);
         border: 1px solid var(--gold-dim);
-        border-radius: 8px 8px 0 0;
+        border-radius: 0 6px 6px 0;
+        padding: 8px 6px;
+        display: flex;
+        flex-direction: column;
+        gap: 10px;
         opacity: 0;
         pointer-events: none;
-        transform: translateY(12px);
+        transform: translateX(-8px);
         transition: opacity 0.2s ease, transform 0.2s ease;
-        z-index: 210;
-        width: calc(100% / 7 + 20px);
+        z-index: 160;
       }
       .sheet-char-popover.open {
         opacity: 1;
         pointer-events: all;
-        transform: translateY(0);
+        transform: translateX(0);
       }
       .sheet-char-link {
         display: flex;
@@ -119,30 +157,37 @@
         text-decoration: none;
       }
       .sheet-char-portrait {
-        width: 38px;
-        height: 38px;
+        width: 36px;
+        height: 36px;
         border-radius: 50%;
         object-fit: cover;
         object-position: top center;
         border: 2px solid var(--gold-dim);
-        transition: border-color 0.15s;
         display: block;
+        transition: border-color 0.15s;
       }
       .sheet-char-link:hover .sheet-char-portrait { border-color: var(--gold); }
       .sheet-char-name {
         font-family: var(--font-title);
-        font-size: 0.28rem;
+        font-size: 0.27rem;
         letter-spacing: 0.08em;
         text-transform: uppercase;
         color: var(--muted);
         line-height: 1;
       }
+
+      /* Sheet body: offset by rail width */
+      .sheet-body {
+        margin-left: 48px;
+        padding: 0.75rem 0.75rem calc(2rem + env(safe-area-inset-bottom));
+        flex: 1;
+        min-width: 0;
+      }
     }
 
-    /* Desktop: hide the bottom bar entirely */
     @media (min-width: 601px) {
-      .sheet-bottom-bar { display: none; }
-      .sheet-char-popover { display: none; }
+      .sheet-rail, .sheet-char-popover { display: none; }
+      .sheet-page-wrap { display: contents; }
     }
 
     .tab-btn {
@@ -1727,7 +1772,45 @@
 <!-- Nav injected by nav.js -->
 <div id="nav-root"></div>
 
-<!-- Sheet tabs -->
+<div class="sheet-page-wrap" id="sheet-page-wrap">
+
+<!-- Mobile left rail -->
+<nav class="sheet-rail" id="sheet-rail">
+  <button class="sheet-rail-btn active" data-tab="core" onclick="switchTab('core',this)" title="Core">
+    <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.4"><circle cx="10" cy="7" r="3"/><path d="M4 17c0-3.3 2.7-6 6-6s6 2.7 6 6"/></svg>
+    <span class="sheet-rail-label">Core</span>
+  </button>
+  <button class="sheet-rail-btn" data-tab="combat" onclick="switchTab('combat',this)" title="Combat">
+    <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.4"><path d="M5 5l10 10M15 5L5 15"/><circle cx="10" cy="10" r="2.5"/></svg>
+    <span class="sheet-rail-label">Combat</span>
+  </button>
+  <button class="sheet-rail-btn" data-tab="spells" onclick="switchTab('spells',this)" title="Spells">
+    <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.4"><path d="M10 3l1.5 4.5H16l-3.7 2.7 1.4 4.3L10 12l-3.7 2.5 1.4-4.3L4 7.5h4.5z"/></svg>
+    <span class="sheet-rail-label">Spells</span>
+  </button>
+  <button class="sheet-rail-btn" data-tab="features" onclick="switchTab('features',this)" title="Features">
+    <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.4"><rect x="4" y="4" width="12" height="12" rx="1"/><path d="M7 8h6M7 11h4"/></svg>
+    <span class="sheet-rail-label">Feats</span>
+  </button>
+  <button class="sheet-rail-btn" data-tab="equipment" onclick="switchTab('equipment',this)" title="Equipment">
+    <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.4"><path d="M6 4h8v3H6zM4 7h12v9H4z"/><path d="M8 13h4"/></svg>
+    <span class="sheet-rail-label">Equip</span>
+  </button>
+  <button class="sheet-rail-btn" data-tab="bio" onclick="switchTab('bio',this)" title="Bio">
+    <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.4"><path d="M6 4h8l2 3v9H4V7z"/><path d="M8 10h4M8 13h2"/></svg>
+    <span class="sheet-rail-label">Bio</span>
+  </button>
+  <div class="sheet-rail-divider"></div>
+  <button class="sheet-rail-char-btn" id="sheet-char-btn" onclick="toggleCharPopover(event)" title="Switch character">
+    <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.4"><circle cx="7" cy="7" r="2.5"/><circle cx="13" cy="7" r="2.5"/><path d="M2 17c0-2.8 2.2-5 5-5M11 12c2.8 0 5 2.2 5 5"/></svg>
+    <span class="sheet-rail-char-btn-label">Party</span>
+  </button>
+</nav>
+
+<!-- Character popover (populated by JS) -->
+<div class="sheet-char-popover" id="sheet-char-popover"></div>
+
+<!-- Sheet tabs (desktop only) -->
 <div class="sheet-tabs" id="sheet-tabs">
   <button class="tab-btn active" onclick="switchTab('core',this)">Core</button>
   <button class="tab-btn" onclick="switchTab('combat',this)">Combat</button>
@@ -1738,48 +1821,14 @@
   <button class="tab-btn comp-tab-btn" id="comp-tab-btn" onclick="toggleCompendium()" title="Open Compendium">📖 Compendium</button>
 </div>
 
-<!-- Mobile bottom tab bar (hidden on desktop via CSS) -->
-<nav class="sheet-bottom-bar" id="sheet-bottom-bar" aria-label="Sheet sections">
-  <button class="sheet-bar-btn active" data-tab="core" onclick="switchTab('core',this)" title="Core">
-    <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.4"><circle cx="10" cy="7" r="3"/><path d="M4 17c0-3.3 2.7-6 6-6s6 2.7 6 6"/></svg>
-    <span class="sheet-bar-label">Core</span>
-  </button>
-  <button class="sheet-bar-btn" data-tab="combat" onclick="switchTab('combat',this)" title="Combat">
-    <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.4"><path d="M4 4l12 12M16 4L4 16"/><circle cx="10" cy="10" r="3"/></svg>
-    <span class="sheet-bar-label">Combat</span>
-  </button>
-  <button class="sheet-bar-btn" data-tab="spells" onclick="switchTab('spells',this)" title="Spells">
-    <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.4"><path d="M10 3l1.5 4.5H16l-3.7 2.7 1.4 4.3L10 12l-3.7 2.5 1.4-4.3L4 7.5h4.5z"/></svg>
-    <span class="sheet-bar-label">Spells</span>
-  </button>
-  <button class="sheet-bar-btn" data-tab="features" onclick="switchTab('features',this)" title="Features">
-    <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.4"><rect x="4" y="4" width="12" height="12" rx="1"/><path d="M7 8h6M7 11h4"/></svg>
-    <span class="sheet-bar-label">Feats</span>
-  </button>
-  <button class="sheet-bar-btn" data-tab="equipment" onclick="switchTab('equipment',this)" title="Equipment">
-    <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.4"><path d="M6 4h8v3H6zM4 7h12v9H4z"/><path d="M8 13h4"/></svg>
-    <span class="sheet-bar-label">Equip</span>
-  </button>
-  <button class="sheet-bar-btn" data-tab="bio" onclick="switchTab('bio',this)" title="Bio">
-    <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.4"><path d="M6 4h8l2 3v9H4V7z"/><path d="M8 10h4M8 13h2"/></svg>
-    <span class="sheet-bar-label">Bio</span>
-  </button>
-  <!-- Character switcher — portrait pops up above -->
-  <button class="sheet-bar-btn" id="sheet-char-btn" onclick="toggleCharPopover(event)" title="Switch character">
-    <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.4"><circle cx="7" cy="7" r="2.5"/><circle cx="13" cy="7" r="2.5"/><path d="M2 17c0-2.8 2.2-5 5-5M11 12c2.8 0 5 2.2 5 5"/></svg>
-    <span class="sheet-bar-label">Party</span>
-  </button>
-</nav>
-
-<!-- Character popover (populated by JS) -->
-<div class="sheet-char-popover" id="sheet-char-popover"></div>
-
 <!-- Sheet body -->
 <div class="sheet-body" id="sheet-body">
   <div class="not-found" id="loading">
     <h2>Loading sheet…</h2>
   </div>
 </div>
+
+</div><!-- end sheet-page-wrap -->
 
 <footer id="site-footer"></footer>
 
@@ -2061,12 +2110,12 @@ function updateToggles() {
 // TAB SWITCHING
 // ══════════════════════════════════════════════════════════
 function switchTab(id, btn) {
-  document.querySelectorAll('.tab-panel').forEach(p=>p.classList.remove('active'));
-  document.querySelectorAll('.tab-btn').forEach(b=>b.classList.remove('active'));
+  document.querySelectorAll('.tab-panel').forEach(p => p.classList.remove('active'));
+  document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
   document.getElementById('tab-'+id).classList.add('active');
   if (btn) btn.classList.add('active');
-  // Sync mobile bottom bar buttons
-  document.querySelectorAll('.sheet-bar-btn[data-tab]').forEach(b => {
+  // Sync mobile rail
+  document.querySelectorAll('.sheet-rail-btn[data-tab]').forEach(b => {
     b.classList.toggle('active', b.dataset.tab === id);
   });
 }
@@ -4105,16 +4154,11 @@ function compParseCR(cr) {
   return parseFloat(s)||0;
 }
 
-// ── Mobile bottom bar: sync active state ──
-// switchTab already handles .tab-btn; this keeps the bottom bar in sync too.
-const _origSwitchTab = switchTab;
-// (switchTab is defined above and already syncs .sheet-bar-btn via data-tab)
-
-// ── Mobile bottom bar: character popover ──
+// ── Mobile rail: character popover ──
 (function() {
+  if (window.innerWidth > 600) return;
   const popover = document.getElementById('sheet-char-popover');
   if (!popover) return;
-
   const chars = [
     { key: 'tyros',     label: 'Cosmere', portrait: 'img/portraits/tyros.png' },
     { key: 'caim',      label: 'Caim',    portrait: 'img/portraits/caim.png' },
@@ -4122,8 +4166,6 @@ const _origSwitchTab = switchTab;
     { key: 'vesperian', label: 'Vesp',    portrait: 'img/portraits/vesperian.jpg' },
   ];
   const current = (new URLSearchParams(window.location.search)).get('character') || 'tyros';
-
-  // Populate with other characters
   chars.filter(c => c.key !== current).forEach(c => {
     const a = document.createElement('a');
     a.href = `sheet.html?character=${c.key}`;
@@ -4134,8 +4176,7 @@ const _origSwitchTab = switchTab;
     `;
     popover.appendChild(a);
   });
-
-  // Close popover when tapping outside
+  // Close on outside tap
   document.addEventListener('click', e => {
     if (!e.target.closest('#sheet-char-popover') && !e.target.closest('#sheet-char-btn')) {
       popover.classList.remove('open');
@@ -4147,6 +4188,23 @@ function toggleCharPopover(e) {
   e.stopPropagation();
   document.getElementById('sheet-char-popover')?.classList.toggle('open');
 }
+
+// ── Mobile rail: track nav visibility so rail fills from top when nav hides ──
+(function() {
+  if (window.innerWidth > 600) return;
+  const observer = new MutationObserver(() => {
+    const navHidden = document.getElementById('site-nav')?.classList.contains('nav-hidden');
+    document.body.classList.toggle('nav-hidden-state', !!navHidden);
+  });
+  // Wait for nav.js to inject the nav, then observe
+  const check = setInterval(() => {
+    const nav = document.getElementById('site-nav');
+    if (nav) {
+      clearInterval(check);
+      observer.observe(nav, { attributes: true, attributeFilter: ['class'] });
+    }
+  }, 50);
+})();
 </script>
 
 </body>
