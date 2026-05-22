@@ -162,6 +162,21 @@
       text-shadow: 1px 1px 0 rgba(0,0,0,0.8);
     }
 
+    .hex-icon-img {
+      width: 38px;
+      height: 38px;
+      object-fit: contain;
+      object-position: center;
+      position: relative; z-index: 2;
+      pointer-events: none;
+      user-select: none;
+      transition: filter 0.18s;
+    }
+    .hex-wrap:hover .hex-icon-img,
+    .hex-wrap.touch-active .hex-icon-img {
+      filter: brightness(1.15) drop-shadow(0 0 6px rgba(201,168,76,0.5));
+    }
+
     .hex-label {
       font-family: var(--font-nav);
       font-size: 8px; letter-spacing: 0.14em;
@@ -324,13 +339,15 @@
       vesperian:  '#38a8d8',
     };
 
+    const CDN = 'https://res.cloudinary.com/df0tgoiyb/image/upload/kirtas/icons';
+
     const NODES = [
-      { id: 'party',      label: 'Party',      icon: 'ti-users',   fill: FILLS.party,      desc: 'The adventurers of Kirtas',    href: 'party.html',      hasSubring: true, angle: -90 },
-      { id: 'chronicle',  label: 'Chronicle',  icon: 'ti-book',    fill: FILLS.chronicle,  desc: 'Session records & entries',    href: 'chronicle.html',  angle: -30 },
-      { id: 'world',      label: 'World',      icon: 'ti-map-2',   fill: FILLS.world,      desc: 'The living map of the realm',  href: 'world.html',      angle: 30 },
-      { id: 'compendium', label: 'Compendium', icon: 'ti-archive', fill: FILLS.compendium, desc: 'Spells, items & creatures',    href: 'compendium.html', angle: 90 },
-      { id: 'factions',   label: 'Factions',   icon: 'ti-flag-3',  fill: FILLS.factions,   desc: 'Powers shaping the age',      href: 'factions.html',   angle: 150 },
-      { id: 'lore',       label: 'Lore',       icon: 'ti-feather', fill: FILLS.lore,       desc: 'History, myth & the arcane',  href: 'lore.html',       angle: 210 },
+      { id: 'party',      label: 'Party',      iconUrl: `${CDN}/party.png`,      fill: FILLS.party,      desc: 'The adventurers of Kirtas',    href: 'party.html',      hasSubring: true, angle: -90 },
+      { id: 'chronicle',  label: 'Chronicle',  iconUrl: `${CDN}/chronicle.jpg`,  fill: FILLS.chronicle,  desc: 'Session records & entries',    href: 'chronicle.html',  angle: -30 },
+      { id: 'world',      label: 'World',      iconUrl: `${CDN}/world.png`,      fill: FILLS.world,      desc: 'The living map of the realm',  href: 'world.html',      angle: 30 },
+      { id: 'compendium', label: 'Compendium', iconUrl: `${CDN}/compendium.png`, fill: FILLS.compendium, desc: 'Spells, items & creatures',    href: 'compendium.html', angle: 90 },
+      { id: 'factions',   label: 'Factions',   iconUrl: `${CDN}/factions.jpg`,   fill: FILLS.factions,   desc: 'Powers shaping the age',      href: 'factions.html',   angle: 150 },
+      { id: 'lore',       label: 'Lore',       iconUrl: `${CDN}/lore.png`,       fill: FILLS.lore,       desc: 'History, myth & the arcane',  href: 'lore.html',       angle: 210 },
     ];
 
     const CHARS = [
@@ -387,9 +404,18 @@
       body.className = 'hex-body';
       body.style.cssText = `width:${w}px;height:${h}px;background:${node.fill};`;
 
-      const ic = document.createElement('i');
-      ic.className = `ti ${node.icon} hex-icon`;
-      ic.setAttribute('aria-hidden', 'true');
+      let ic;
+      if (node.iconUrl) {
+        ic = document.createElement('img');
+        ic.src = node.iconUrl;
+        ic.alt = node.label;
+        ic.className = 'hex-icon hex-icon-img';
+        ic.draggable = false;
+      } else {
+        ic = document.createElement('i');
+        ic.className = `ti ${node.icon} hex-icon`;
+        ic.setAttribute('aria-hidden', 'true');
+      }
 
       const lbl = document.createElement('span');
       lbl.className = 'hex-label';
