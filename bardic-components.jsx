@@ -59,8 +59,12 @@ function MoodPad({ mood, shape, iconStyle, active, paused, channelAccent, onClic
   function handleTouchEnd(e) {
     clearTimeout(longPressTimer.current);
     if (!didLongPress.current) {
-      // Short tap → play. e.preventDefault() stops Safari's
-      // synthetic mouse click that would otherwise fire ~300ms later.
+      // Short tap → play.
+      // Call resumeAll() HERE, synchronously, before onClick() hands off
+      // to React. iOS only permits audio.play() within the native gesture
+      // call stack — React's synthetic event dispatch is too late.
+      window.BardicAudio.resumeAll();
+      // e.preventDefault() stops Safari's synthetic mouse click (~300ms later).
       e.preventDefault();
       onClick();
     }

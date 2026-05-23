@@ -114,7 +114,17 @@
     return {
       gain:  fakeGain,
       audio,
-      start: () => { audio.play().catch(() => {}); },
+      start: () => {
+        // Attempt play immediately, then retry at 100/300/600ms.
+        // On iOS the audio session upgrade from the silent-MP3 unlock
+        // may not have fully propagated by the time this runs via React.
+        // The retries catch it once the session is ready.
+        const attempt = () => audio.play().catch(() => {});
+        attempt();
+        [100, 300, 600].forEach(ms => setTimeout(() => {
+          if (audio.paused && audio.src) attempt();
+        }, ms));
+      },
       stop:  (when = 0) => {
         setTimeout(() => {
           try { audio.pause(); audio.src = ''; } catch (e) {}
@@ -388,5 +398,17 @@
     playSfx,
     analyser,
     getVizData() { analyser.getByteFrequencyData(_vizData); return _vizData; },
+
+    // iOS requires audio.play() to be called synchronously within a native
+    // user gesture event stack. React's synthetic events dispatch too late.
+    // Call this at the top of a native touchend handler (before React's
+    // onClick fires) to ensure play() runs inside the gesture window.
+    resumeAll() {
+      if (ctx.state === 'suspended') ctx.resume();
+      _allChannels.forEach(ch => {
+        const a = ch._currentAudio();
+        if (a && a.src && a.paused) a.play().catch(() => {});
+      });
+    },
   };
 })();
