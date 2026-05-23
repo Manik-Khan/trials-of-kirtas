@@ -79,6 +79,11 @@
     audio.volume  = 0;
     audio.src     = url;
 
+    // iOS Safari discards or refuses to play Audio objects that aren't
+    // attached to the DOM. Appending hidden keeps them alive and playable.
+    audio.style.display = 'none';
+    document.body.appendChild(audio);
+
     if (onEnd) audio.addEventListener('ended', onEnd, { once: false });
 
     // Skip createMediaElementSource — Dropbox blocks CORS at the Web Audio
@@ -127,7 +132,11 @@
       },
       stop:  (when = 0) => {
         setTimeout(() => {
-          try { audio.pause(); audio.src = ''; } catch (e) {}
+          try {
+            audio.pause();
+            audio.src = '';
+            if (audio.parentNode) audio.parentNode.removeChild(audio);
+          } catch (e) {}
         }, (when + 0.4) * 1000);
       },
     };
