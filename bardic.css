@@ -1415,3 +1415,55 @@ html, body {
   transition: opacity 0.15s;
 }
 .mood-pad:hover .mood-pad__actions { opacity: 1; }
+
+/* ── Scenes ── */
+.bottom-row__scenes {
+  background: linear-gradient(180deg, rgba(22,15,8,0.6) 0%, rgba(12,8,4,0.7) 100%);
+  border: 1px solid var(--strip-border);
+  padding: 1rem 1rem 1.2rem;
+  position: relative;
+}
+.bottom-row__scenes::before, .bottom-row__scenes::after {
+  content: ''; position: absolute; width: 14px; height: 14px;
+  border: 1px solid var(--gold, #c9a84c); opacity: 0.5;
+}
+.bottom-row__scenes::before { top: -1px; left: -1px; border-right: none; border-bottom: none; }
+.bottom-row__scenes::after  { bottom: -1px; right: -1px; border-left: none; border-top: none; }
+
+.scenes__empty {
+  font-family: var(--font-body, serif);
+  font-style: italic;
+  font-size: 0.75rem;
+  color: var(--muted, #8a7050);
+  padding: 0.5rem 0 0.75rem;
+}
+.scenes__grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+  gap: 0.6rem;
+}
+
+/* Bottom row now 2-column on wide screens */
+.bottom-row {
+  display: grid;
+  grid-template-columns: auto 1fr;
+  gap: 1.2rem;
+  padding: 1.2rem 1.6rem 0;
+}
+
+/* ── Mood pad paused state ── */
+.mood-pad.is-paused .mood-pad__bg {
+  opacity: 0.5;
+}
+.mood-pad.is-paused .mood-pad__inner {
+  opacity: 0.6;
+}
+.codex__active-dot--paused {
+  background: rgba(201,168,76,0.35) !important;
+  animation: none;
+  border: 1px solid rgba(201,168,76,0.5);
+}
+
+@media (max-width: 1100px) {
+  .bottom-row { grid-template-columns: 1fr; }
+}

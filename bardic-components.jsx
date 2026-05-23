@@ -21,7 +21,7 @@ const MOOD_EMOJI = {
 // Long-press (or list icon) opens the track panel.
 // Single click plays on selected channel.
 // ============================================================
-function MoodPad({ mood, shape, iconStyle, active, channelAccent, onClick, onOpenPanel, onEdit, size = 92 }) {
+function MoodPad({ mood, shape, iconStyle, active, paused, channelAccent, onClick, onOpenPanel, onEdit, size = 92 }) {
   const fontSize = size < 78 ? 9 : 10;
   const iconSize = size < 78 ? 18 : 24;
 
@@ -31,9 +31,9 @@ function MoodPad({ mood, shape, iconStyle, active, channelAccent, onClick, onOpe
     : 'inset(0 round 4px)';
 
   return (
-    <div className={`mood-pad mood-pad--${shape} ${active ? 'is-active' : ''}`}
+    <div className={`mood-pad mood-pad--${shape} ${active ? 'is-active' : ''} ${paused ? 'is-paused' : ''}`}
          style={{ width: size, height: size, '--mood-color': mood.color, '--accent': channelAccent }}
-         title={mood.label}>
+         title={mood.label + (paused ? ' · Paused' : '')}>
       <div className="mood-pad__click-area" onClick={onClick}>
         <div className="mood-pad__bg"   style={{ clipPath: clip }}/>
         <div className="mood-pad__glow" style={{ clipPath: clip }}/>
@@ -580,9 +580,53 @@ function TimerOverlay({ open, onClose }) {
   );
 }
 
+// ============================================================
+// SaveSceneOverlay — seal current channel state as a scene
+// ============================================================
+function SaveSceneOverlay({ open, onSave, onClose }) {
+  const [label, setLabel] = React.useState('');
+  const [desc,  setDesc]  = React.useState('');
+
+  React.useEffect(() => {
+    if (open) { setLabel(''); setDesc(''); }
+  }, [open]);
+
+  if (!open) return null;
+  return (
+    <div className="overlay" onClick={onClose}>
+      <div className="overlay__card" onClick={e => e.stopPropagation()}>
+        <div className="overlay__title">Seal Scene</div>
+        <p className="overlay__body">
+          Save the current channel arrangement as a one-click scene recall.
+        </p>
+        <div className="overlay__field">
+          <label>Scene name</label>
+          <input className="overlay__input" autoFocus value={label}
+                 onChange={e => setLabel(e.target.value)}
+                 placeholder="e.g. Cave Battle, Wizard Tower, Last Stand"/>
+        </div>
+        <div className="overlay__field">
+          <label>Flavour note (optional)</label>
+          <input className="overlay__input" value={desc}
+                 onChange={e => setDesc(e.target.value)}
+                 placeholder="A line for your future self"/>
+        </div>
+        <div className="overlay__row">
+          <button className="pill pill--primary"
+                  disabled={!label.trim()}
+                  onClick={() => { onSave(label.trim(), desc.trim()); }}>
+            <i className="ti ti-stamp"/> Seal
+          </button>
+          <button className="pill" onClick={onClose}>Cancel</button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 Object.assign(window, {
   MoodPad, VerticalFader, MiniMeter, PlaybackModeBar,
   ChannelStrip, TrackPanel, MoodEditorOverlay,
-  RuneVisualizer, ParticleBg, TimerOverlay,
+  SaveSceneOverlay, RuneVisualizer, ParticleBg, TimerOverlay,
   fmtTime, clamp,
 });

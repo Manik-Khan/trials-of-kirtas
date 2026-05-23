@@ -170,6 +170,21 @@
       setTimeout(() => c.stop(), fadeSec * 1000 + 60);
       current = null;
       _track  = null;
+      _paused = false;
+    }
+
+    let _paused = false;
+
+    function pauseTrack() {
+      if (!current || _paused) return;
+      const a = _currentAudio();
+      if (a) { a.pause(); _paused = true; }
+    }
+
+    function resumeTrack() {
+      if (!current || !_paused) return;
+      const a = _currentAudio();
+      if (a) { a.play().catch(() => {}); _paused = false; }
     }
 
     // Get the active audio element if current voice is a URL track
@@ -205,13 +220,17 @@
       out,
       playTrack,
       stopTrack,
+      pauseTrack,
+      resumeTrack,
       setVolume,
       setMuted,
       onTrackEnd,
+      _currentAudio,
       get track()    { return _track; },
       get volume()   { return _volume; },
       get muted()    { return _muted; },
-      get isPlaying(){ return !!current; },
+      get paused()   { return _paused; },
+      get isPlaying(){ return !!current && !_paused; },
     };
   }
 
