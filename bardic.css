@@ -1471,6 +1471,21 @@ html, body {
 .progress-bar__track:hover .progress-bar__thumb {
   width: 10px; height: 10px;
 }
+.progress-bar__skip {
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 20px; height: 20px;
+  background: none;
+  border: none;
+  color: var(--muted, #8a7050);
+  cursor: pointer;
+  padding: 0;
+  font-size: 0.75rem;
+  transition: color 0.15s;
+}
+.progress-bar__skip:hover { color: var(--gold, #c9a84c); }
 
 /* ── Group badge ── */
 .channel-strip__group-wrap {

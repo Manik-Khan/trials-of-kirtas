@@ -135,18 +135,21 @@ function VerticalFader({ value, onChange, accent, muted }) {
   const ref = useRef(null);
   const v = clamp(value, 0, 1);
 
-  function handlePoint(e) {
+  // Shared position → value calculator
+  function posToValue(clientY) {
     if (!ref.current) return;
     const r  = ref.current.getBoundingClientRect();
-    const y  = (e.touches?.[0]?.clientY ?? e.clientY) - r.top;
+    const y  = clientY - r.top;
     const nv = 1 - clamp(y / r.height, 0, 1);
     onChange(nv);
   }
 
-  function onDown(e) {
+  // ── Desktop: pointer events ──────────────────────────────────
+  function onPointerDown(e) {
+    if (e.pointerType === 'touch') return; // handled by touch branch
     e.preventDefault();
-    handlePoint(e);
-    const move = ev => handlePoint(ev);
+    posToValue(e.clientY);
+    const move = ev => posToValue(ev.clientY);
     const up   = () => {
       window.removeEventListener('pointermove', move);
       window.removeEventListener('pointerup',   up);
@@ -155,8 +158,32 @@ function VerticalFader({ value, onChange, accent, muted }) {
     window.addEventListener('pointerup',   up);
   }
 
+  // ── Mobile: native touch events attached via ref ──────────────
+  // Attached imperatively because iOS Safari has unreliable pointer
+  // events on vertical drag targets — same pattern as MoodPad.
+  useEffect(() => {
+    const el = ref.current;
+    if (!el) return;
+
+    function onTouchStart(e) {
+      e.preventDefault(); // prevent scroll while dragging fader
+      if (e.touches[0]) posToValue(e.touches[0].clientY);
+    }
+    function onTouchMove(e) {
+      e.preventDefault();
+      if (e.touches[0]) posToValue(e.touches[0].clientY);
+    }
+
+    el.addEventListener('touchstart', onTouchStart, { passive: false });
+    el.addEventListener('touchmove',  onTouchMove,  { passive: false });
+    return () => {
+      el.removeEventListener('touchstart', onTouchStart);
+      el.removeEventListener('touchmove',  onTouchMove);
+    };
+  }); // re-attach on every render so posToValue closure is always fresh
+
   return (
-    <div className={`fader ${muted ? 'is-muted' : ''}`} ref={ref} onPointerDown={onDown}>
+    <div className={`fader ${muted ? 'is-muted' : ''}`} ref={ref} onPointerDown={onPointerDown}>
       <div className="fader__track">
         {[0,1,2,3,4,5,6,7,8].map(i => (
           <div key={i} className="fader__tick" style={{ bottom: `${i * 12}%` }}/>
@@ -233,7 +260,7 @@ function PlaybackModeBar({ mode, onChange, accent }) {
 // ============================================================
 // ProgressBar — scrubable playback position for a channel
 // ============================================================
-function ProgressBar({ chId, accent }) {
+function ProgressBar({ chId, accent, onPrev, onNext }) {
   const [pos,      setPos]      = useState(0);   // 0–1
   const [elapsed,  setElapsed]  = useState(0);   // seconds
   const [duration, setDuration] = useState(0);   // seconds
@@ -301,12 +328,22 @@ function ProgressBar({ chId, accent }) {
 
   return (
     <div className="progress-bar">
+      {onPrev && (
+        <button className="progress-bar__skip" onClick={onPrev} title="Previous / Restart">
+          <i className="ti ti-player-skip-back"/>
+        </button>
+      )}
       <span className="progress-bar__time">{fmt(elapsed)}</span>
       <div className="progress-bar__track" ref={barRef} onPointerDown={onDown}>
         <div className="progress-bar__fill" style={{ width: `${pos * 100}%`, background: accent }}/>
         <div className="progress-bar__thumb" style={{ left: `${pos * 100}%`, borderColor: accent }}/>
       </div>
       <span className="progress-bar__time progress-bar__time--right">{fmt(duration)}</span>
+      {onNext && (
+        <button className="progress-bar__skip" onClick={onNext} title="Next track">
+          <i className="ti ti-player-skip-forward"/>
+        </button>
+      )}
     </div>
   );
 }
@@ -354,7 +391,7 @@ function GroupBadge({ linkGroup, accent, onGroupChange, onLinkModeChange }) {
 // ============================================================
 // ChannelStrip
 // ============================================================
-function ChannelStrip({ ch, state, onVol, onMute, onStop, onMode, onOpenPanel, accent, density, moodLabel, linkGroup, onGroupChange, onLinkModeChange }) {
+function ChannelStrip({ ch, state, onVol, onMute, onStop, onMode, onOpenPanel, accent, density, moodLabel, linkGroup, onGroupChange, onLinkModeChange, onPrev, onNext }) {
   const isPlaying = !!state.track;
 
   return (
@@ -398,7 +435,7 @@ function ChannelStrip({ ch, state, onVol, onMute, onStop, onMode, onOpenPanel, a
       </div>
 
       {/* Progress bar — shown when playing */}
-      {isPlaying && <ProgressBar chId={ch.id} accent={accent}/>}
+      {isPlaying && <ProgressBar chId={ch.id} accent={accent} onPrev={onPrev} onNext={onNext}/>}
 
       {/* Playback mode */}
       <PlaybackModeBar mode={state.mode} onChange={onMode} accent={accent}/>

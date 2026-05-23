@@ -180,12 +180,14 @@
           voice.gain.gain.linearRampToValueAtTime(1, ctx.currentTime + Math.max(0.05, fadeSec));
         }, fadeSec * 1000);
       } else {
-        // No current track — start immediately and fade in.
+        // No current track — start immediately and fade in to the channel's
+        // current effective volume (respects the fader position, not always 1).
         voice.start();
         const t = ctx.currentTime;
+        const target = Math.max(0, Math.min(1, _muted ? 0 : _volume * getMasterVol()));
         voice.gain.gain.cancelScheduledValues(t);
         voice.gain.gain.setValueAtTime(0, t);
-        voice.gain.gain.linearRampToValueAtTime(1, t + Math.max(0.05, fadeSec));
+        voice.gain.gain.linearRampToValueAtTime(target, t + Math.max(0.05, fadeSec));
       }
 
       current = voice;
