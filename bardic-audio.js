@@ -41,10 +41,10 @@
   // Resume AudioContext on first interaction (browser policy)
   function resume() {
     if (ctx.state === 'suspended') ctx.resume();
-    window.removeEventListener('pointerdown', resume);
+    window.removeEventListener('touchstart', resume);
     window.removeEventListener('keydown', resume);
   }
-  window.addEventListener('pointerdown', resume);
+  window.addEventListener('touchstart', resume);
   window.addEventListener('keydown', resume);
 
   // ── iOS audio session unlock ─────────────────────────────────
