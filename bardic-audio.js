@@ -58,34 +58,49 @@
   function makeUrlTrack(url, loop, onEnd) {
     const audio = new Audio();
     audio.preload = 'auto';
-    audio.loop        = !!loop;
-    audio.src         = url;
+    audio.loop    = !!loop;
+    audio.volume  = 0;
+    audio.src     = url;
 
-    // onEnd fires when the track reaches its natural end
-    // (only relevant for non-looping modes)
     if (onEnd) audio.addEventListener('ended', onEnd, { once: false });
 
-    let src;
-    try {
-      src = ctx.createMediaElementSource(audio);
-    } catch (e) {
-      // createMediaElementSource can only be called once per element;
-      // guard against double-construction on hot reload
-      console.warn('bardic-audio: createMediaElementSource failed', e);
-    }
-    const g = ctx.createGain();
-    g.gain.value = 0;
-    if (src) src.connect(g);
+    // Skip createMediaElementSource — Dropbox blocks CORS at the Web Audio
+    // level even without crossOrigin set. Control volume directly on the
+    // audio element instead via a fake gain shim.
+    const fakeGain = {
+      gain: {
+        value: 0,
+        cancelScheduledValues() {},
+        setValueAtTime(v) {
+          const clamped = Math.max(0, Math.min(1, v));
+          audio.volume = clamped;
+          this.value = clamped;
+        },
+        linearRampToValueAtTime(v) {
+          const target = Math.max(0, Math.min(1, v));
+          this.value = target;
+          const start = audio.volume;
+          const diff  = target - start;
+          const steps = 20;
+          let step = 0;
+          const timer = setInterval(() => {
+            step++;
+            audio.volume = Math.max(0, Math.min(1, start + diff * (step / steps)));
+            if (step >= steps) clearInterval(timer);
+          }, 50);
+        },
+      },
+      connect() {},
+      disconnect() {},
+    };
 
     return {
-      gain:  g,
+      gain:  fakeGain,
       audio,
       start: () => { audio.play().catch(() => {}); },
       stop:  (when = 0) => {
         setTimeout(() => {
           try { audio.pause(); audio.src = ''; } catch (e) {}
-          try { if (src) src.disconnect(); } catch (e) {}
-          try { g.disconnect(); } catch (e) {}
         }, (when + 0.4) * 1000);
       },
     };
