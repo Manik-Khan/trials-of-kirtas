@@ -170,6 +170,21 @@ function App() {
     window.BardicAudio.setMasterVolume(masterMuted ? 0 : masterVol);
   }, [masterVol, masterMuted]);
 
+  // ── Fader link groups (session-only, not auto-saved) ──
+  // { music: { group: 1, mode: 'inverse' }, ambience: { group: 1, mode: 'inverse' }, ... }
+  // group: null = unlinked. mode: 'parallel' | 'inverse'
+  const [linkGroups, setLinkGroups] = useState(() =>
+    Object.fromEntries(ALL_CHANNELS.map(c => [c.id, { group: null, mode: 'inverse' }]))
+  );
+
+  function setChannelGroup(chId, group) {
+    setLinkGroups(prev => ({ ...prev, [chId]: { ...prev[chId], group } }));
+  }
+
+  function setChannelLinkMode(chId, mode) {
+    setLinkGroups(prev => ({ ...prev, [chId]: { ...prev[chId], mode } }));
+  }
+
   // ============================================================
   // CHANNEL ACTIONS
   // ============================================================
@@ -217,9 +232,36 @@ function App() {
   }, [chStates, castMoodOnChannel]);
 
   const setVolume = useCallback((chId, v) => {
+    // Apply to the moved channel directly
     enginesRef.current[chId]?.setVolume(v);
-    setChStates(s => ({ ...s, [chId]: { ...s[chId], volume: v } }));
-  }, []);
+
+    // Check if this channel belongs to a link group
+    const link = linkGroups[chId];
+    if (!link?.group) {
+      setChStates(s => ({ ...s, [chId]: { ...s[chId], volume: v } }));
+      return;
+    }
+
+    // Find all other channels in the same group
+    const peers = ALL_CHANNELS.filter(c =>
+      c.id !== chId && linkGroups[c.id]?.group === link.group
+    );
+
+    setChStates(s => {
+      const delta = v - s[chId].volume;
+      const next = { ...s, [chId]: { ...s[chId], volume: v } };
+      peers.forEach(peer => {
+        const peerLink = linkGroups[peer.id];
+        const peerVol  = s[peer.id].volume;
+        const newVol   = peerLink.mode === 'inverse'
+          ? Math.max(0, Math.min(1, peerVol - delta))
+          : Math.max(0, Math.min(1, peerVol + delta));
+        next[peer.id] = { ...s[peer.id], volume: newVol };
+        enginesRef.current[peer.id]?.setVolume(newVol);
+      });
+      return next;
+    });
+  }, [linkGroups]);
 
   const setMute = useCallback((chId) => {
     setChStates(s => {
@@ -248,16 +290,36 @@ function App() {
         castMoodOnChannel(moodId, chId);
       }
     });
+    // Restore group assignments if the scene has them
+    if (scene.groups) {
+      setLinkGroups(prev => {
+        const next = { ...prev };
+        Object.entries(scene.groups).forEach(([chId, g]) => {
+          next[chId] = { ...prev[chId], ...g };
+        });
+        return next;
+      });
+    }
   }, [channels, castMoodOnChannel, stopChannel]);
 
   const saveCurrentAsScene = useCallback((label, desc) => {
-    const slots = Object.fromEntries(ALL_CHANNELS.map(c => [c.id, chStates[c.id].moodId || null]));
-    const scene = { id: uid(), label, desc, slots, sealColor: '#c9a84c' };
+    const slots  = Object.fromEntries(ALL_CHANNELS.map(c => [c.id, chStates[c.id].moodId || null]));
+    // Only persist group assignments that are actually set
+    const groups = Object.fromEntries(
+      ALL_CHANNELS
+        .filter(c => linkGroups[c.id]?.group !== null)
+        .map(c => [c.id, { group: linkGroups[c.id].group, mode: linkGroups[c.id].mode }])
+    );
+    const scene = {
+      id: uid(), label, desc, slots,
+      ...(Object.keys(groups).length > 0 ? { groups } : {}),
+      sealColor: '#c9a84c',
+    };
     const newLib = { ...library, scenes: [...(library.scenes || []), scene] };
     updateLibrary(newLib);
     setActiveSceneId(scene.id);
     setSceneEditor(null);
-  }, [chStates, library]);
+  }, [chStates, linkGroups, library]);
 
   const deleteScene = useCallback((sceneId) => {
     const newLib = { ...library, scenes: (library.scenes || []).filter(s => s.id !== sceneId) };
@@ -414,6 +476,9 @@ function App() {
                   moodLabel={chStates[ch.id].moodId
                     ? library.moods.find(m => m.id === chStates[ch.id].moodId)?.label
                     : null}
+                  linkGroup={linkGroups[ch.id]}
+                  onGroupChange={group => setChannelGroup(ch.id, group)}
+                  onLinkModeChange={mode => setChannelLinkMode(ch.id, mode)}
                   onVol={v    => setVolume(ch.id, v)}
                   onMute={()  => setMute(ch.id)}
                   onStop={()  => stopChannel(ch.id)}

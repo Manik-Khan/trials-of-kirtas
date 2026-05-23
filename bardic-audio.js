@@ -72,12 +72,13 @@
   // Google Drive does not). Playback still works via <audio>;
   // only Web Audio buffer decode is blocked without CORS.
   // ============================================================
-  function makeUrlTrack(url, loop, onEnd) {
+  function makeUrlTrack(url, loop, onEnd, chId) {
     const audio = new Audio();
     audio.preload = 'auto';
     audio.loop    = !!loop;
     audio.volume  = 0;
     audio.src     = url;
+    if (chId) audio.dataset.ch = chId;
 
     // iOS Safari discards or refuses to play Audio objects that aren't
     // attached to the DOM. Appending hidden keeps them alive and playable.
@@ -161,20 +162,30 @@
     // ── Internal: build a voice and crossfade to it ──────────
     function _crossfadeTo(voice, fadeSec) {
       voice.gain.connect(out);
-      voice.start();
-
-      const t = ctx.currentTime;
-      voice.gain.gain.cancelScheduledValues(t);
-      voice.gain.gain.setValueAtTime(0, t);
-      voice.gain.gain.linearRampToValueAtTime(1, t + Math.max(0.05, fadeSec));
 
       if (current) {
+        // Fade out the old track, then start the new one after it finishes.
         const prev = current;
+        const t = ctx.currentTime;
         prev.gain.gain.cancelScheduledValues(t);
         prev.gain.gain.setValueAtTime(prev.gain.gain.value, t);
         prev.gain.gain.linearRampToValueAtTime(0, t + Math.max(0.05, fadeSec));
         clearTimeout(pendingFade);
         pendingFade = setTimeout(() => prev.stop(), fadeSec * 1000 + 60);
+
+        // New track starts after fade-out completes, then fades in.
+        setTimeout(() => {
+          voice.start();
+          voice.gain.gain.setValueAtTime(0, ctx.currentTime);
+          voice.gain.gain.linearRampToValueAtTime(1, ctx.currentTime + Math.max(0.05, fadeSec));
+        }, fadeSec * 1000);
+      } else {
+        // No current track — start immediately and fade in.
+        voice.start();
+        const t = ctx.currentTime;
+        voice.gain.gain.cancelScheduledValues(t);
+        voice.gain.gain.setValueAtTime(0, t);
+        voice.gain.gain.linearRampToValueAtTime(1, t + Math.max(0.05, fadeSec));
       }
 
       current = voice;
@@ -192,7 +203,7 @@
         ? () => _onTrackEnd(id, track, mode)
         : null;
 
-      const voice = makeUrlTrack(track.url, loops, onEnd);
+      const voice = makeUrlTrack(track.url, loops, onEnd, id);
       _crossfadeTo(voice, fadeSec);
       _track = track;
     }

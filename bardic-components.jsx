@@ -231,9 +231,130 @@ function PlaybackModeBar({ mode, onChange, accent }) {
 }
 
 // ============================================================
+// ProgressBar — scrubable playback position for a channel
+// ============================================================
+function ProgressBar({ chId, accent }) {
+  const [pos,      setPos]      = useState(0);   // 0–1
+  const [elapsed,  setElapsed]  = useState(0);   // seconds
+  const [duration, setDuration] = useState(0);   // seconds
+  const [dragging, setDragging] = useState(false);
+  const barRef  = useRef(null);
+  const rafRef  = useRef(null);
+
+  // Poll the audio element for current time
+  useEffect(() => {
+    const tick = () => {
+      if (dragging) { rafRef.current = requestAnimationFrame(tick); return; }
+      // Find the audio element for this channel by src presence
+      const audios = Array.from(document.querySelectorAll('audio'));
+      // Pick the one that's playing or has a src (channels only have 1 at a time)
+      // We identify by data-ch attribute set in makeUrlTrack
+      const el = audios.find(a => a.dataset.ch === chId);
+      if (el && el.duration && !isNaN(el.duration)) {
+        const d = el.duration;
+        const t = el.currentTime;
+        setDuration(d);
+        setElapsed(t);
+        setPos(t / d);
+      } else {
+        setPos(0); setElapsed(0); setDuration(0);
+      }
+      rafRef.current = requestAnimationFrame(tick);
+    };
+    rafRef.current = requestAnimationFrame(tick);
+    return () => cancelAnimationFrame(rafRef.current);
+  }, [chId, dragging]);
+
+  function scrubTo(e) {
+    if (!barRef.current) return;
+    const r  = barRef.current.getBoundingClientRect();
+    const x  = (e.touches?.[0]?.clientX ?? e.clientX) - r.left;
+    const p  = Math.max(0, Math.min(1, x / r.width));
+    setPos(p);
+    // Write to audio element
+    const el = Array.from(document.querySelectorAll('audio')).find(a => a.dataset.ch === chId);
+    if (el && el.duration && !isNaN(el.duration)) {
+      el.currentTime = p * el.duration;
+      setElapsed(el.currentTime);
+    }
+  }
+
+  function onDown(e) {
+    e.stopPropagation();
+    setDragging(true);
+    scrubTo(e);
+    const move = ev => scrubTo(ev);
+    const up   = () => {
+      setDragging(false);
+      window.removeEventListener('pointermove', move);
+      window.removeEventListener('pointerup',   up);
+    };
+    window.addEventListener('pointermove', move);
+    window.addEventListener('pointerup',   up);
+  }
+
+  function fmt(s) {
+    if (!s || isNaN(s)) return '0:00';
+    const m = Math.floor(s / 60), ss = Math.floor(s % 60);
+    return `${m}:${ss.toString().padStart(2, '0')}`;
+  }
+
+  return (
+    <div className="progress-bar">
+      <span className="progress-bar__time">{fmt(elapsed)}</span>
+      <div className="progress-bar__track" ref={barRef} onPointerDown={onDown}>
+        <div className="progress-bar__fill" style={{ width: `${pos * 100}%`, background: accent }}/>
+        <div className="progress-bar__thumb" style={{ left: `${pos * 100}%`, borderColor: accent }}/>
+      </div>
+      <span className="progress-bar__time progress-bar__time--right">{fmt(duration)}</span>
+    </div>
+  );
+}
+
+// ============================================================
+// GroupBadge — group assignment + mode toggle for a channel strip
+// ============================================================
+function GroupBadge({ linkGroup, accent, onGroupChange, onLinkModeChange }) {
+  const { group, mode } = linkGroup;
+  const groups = [null, 1, 2, 3, 4];
+
+  function cycleGroup() {
+    const idx  = groups.indexOf(group);
+    const next = groups[(idx + 1) % groups.length];
+    onGroupChange(next);
+  }
+
+  function toggleMode() {
+    onLinkModeChange(mode === 'inverse' ? 'parallel' : 'inverse');
+  }
+
+  return (
+    <div className="group-badge">
+      <button
+        className={`group-badge__btn ${group !== null ? 'is-linked' : ''}`}
+        style={group !== null ? { '--gb-accent': accent } : {}}
+        onClick={e => { e.stopPropagation(); cycleGroup(); }}
+        title={group !== null ? `Group ${group} · click to change` : 'No group · click to assign'}>
+        <i className="ti ti-link"/>
+        <span>{group !== null ? group : '·'}</span>
+      </button>
+      {group !== null && (
+        <button
+          className="group-badge__mode"
+          style={{ '--gb-accent': accent }}
+          onClick={e => { e.stopPropagation(); toggleMode(); }}
+          title={mode === 'inverse' ? 'Inverse (↕ one up, others down)' : 'Parallel (↕ all together)'}>
+          {mode === 'inverse' ? '↕' : '⇕'}
+        </button>
+      )}
+    </div>
+  );
+}
+
+// ============================================================
 // ChannelStrip
 // ============================================================
-function ChannelStrip({ ch, state, onVol, onMute, onStop, onMode, onOpenPanel, accent, density, moodLabel }) {
+function ChannelStrip({ ch, state, onVol, onMute, onStop, onMode, onOpenPanel, accent, density, moodLabel, linkGroup, onGroupChange, onLinkModeChange }) {
   const isPlaying = !!state.track;
 
   return (
@@ -276,6 +397,9 @@ function ChannelStrip({ ch, state, onVol, onMute, onStop, onMode, onOpenPanel, a
         )}
       </div>
 
+      {/* Progress bar — shown when playing */}
+      {isPlaying && <ProgressBar chId={ch.id} accent={accent}/>}
+
       {/* Playback mode */}
       <PlaybackModeBar mode={state.mode} onChange={onMode} accent={accent}/>
 
@@ -297,6 +421,17 @@ function ChannelStrip({ ch, state, onVol, onMute, onStop, onMode, onOpenPanel, a
                 disabled={!isPlaying}>
           <i className="ti ti-player-stop"/>
         </button>
+        {/* Group link badge — spans remaining columns */}
+        <div className="channel-strip__group-wrap" onClick={e => e.stopPropagation()}>
+          {linkGroup && (
+            <GroupBadge
+              linkGroup={linkGroup}
+              accent={accent}
+              onGroupChange={onGroupChange}
+              onLinkModeChange={onLinkModeChange}
+            />
+          )}
+        </div>
       </div>
     </div>
   );
@@ -326,8 +461,47 @@ function TrackPanel({ open, mood, chState, chAccent, onClose, onPlayTrack, onAdd
     setAdding(false);
   }
 
-  // Drag-to-reorder
-  function onDragStart(e, i) { setDragIdx(i); e.dataTransfer.effectAllowed = 'move'; }
+function TrackRow({ track, index, isCurrent, isDropTarget, chAccent, onPlay, onDelete, onDragStart, onDragOver, onDrop, onDragEnd }) {
+  const [confirmDelete, setConfirmDelete] = useState(false);
+
+  return (
+    <div className={`track-row ${isCurrent ? 'is-current' : ''} ${isDropTarget ? 'is-drop-target' : ''}`}
+         draggable
+         onDragStart={onDragStart}
+         onDragOver={onDragOver}
+         onDrop={onDrop}
+         onDragEnd={onDragEnd}>
+      <div className="track-row__drag"><i className="ti ti-grip-vertical"/></div>
+      <div className="track-row__num">{index + 1}</div>
+      <div className="track-row__info" onClick={onPlay}>
+        <div className="track-row__title">{track.title}</div>
+        {track.artist && <div className="track-row__artist">{track.artist}</div>}
+      </div>
+      {isCurrent && (
+        <div className="track-row__playing" style={{ color: chAccent }}>
+          <i className="ti ti-volume"/>
+        </div>
+      )}
+      <button className="track-row__play" onClick={onPlay} title="Play">
+        <i className="ti ti-player-play"/>
+      </button>
+      {confirmDelete ? (
+        <>
+          <button className="track-row__confirm-del" onClick={onDelete} title="Confirm remove">
+            <i className="ti ti-check"/>
+          </button>
+          <button className="track-row__cancel-del" onClick={() => setConfirmDelete(false)} title="Keep">
+            <i className="ti ti-x"/>
+          </button>
+        </>
+      ) : (
+        <button className="track-row__del" onClick={() => setConfirmDelete(true)} title="Remove">
+          <i className="ti ti-trash"/>
+        </button>
+      )}
+    </div>
+  );
+}
   function onDragOver(e, i)  { e.preventDefault(); setDropIdx(i); }
   function onDrop(e, i) {
     e.preventDefault();
@@ -366,36 +540,22 @@ function TrackPanel({ open, mood, chState, chAccent, onClose, onPlayTrack, onAdd
             </div>
           )}
 
-          {mood?.tracks?.map((track, i) => {
-            const isCurrent = chState?.track?.id === track.id;
-            return (
-              <div key={track.id}
-                   className={`track-row ${isCurrent ? 'is-current' : ''} ${dropIdx === i ? 'is-drop-target' : ''}`}
-                   draggable
-                   onDragStart={e => onDragStart(e, i)}
-                   onDragOver={e  => onDragOver(e, i)}
-                   onDrop={e      => onDrop(e, i)}
-                   onDragEnd={onDragEnd}>
-                <div className="track-row__drag"><i className="ti ti-grip-vertical"/></div>
-                <div className="track-row__num">{i + 1}</div>
-                <div className="track-row__info" onClick={() => onPlayTrack(track, i)}>
-                  <div className="track-row__title">{track.title}</div>
-                  {track.artist && <div className="track-row__artist">{track.artist}</div>}
-                </div>
-                {isCurrent && (
-                  <div className="track-row__playing" style={{ color: chAccent }}>
-                    <i className="ti ti-volume"/>
-                  </div>
-                )}
-                <button className="track-row__play" onClick={() => onPlayTrack(track, i)} title="Play">
-                  <i className="ti ti-player-play"/>
-                </button>
-                <button className="track-row__del" onClick={() => onDeleteTrack(track.id)} title="Remove">
-                  <i className="ti ti-x"/>
-                </button>
-              </div>
-            );
-          })}
+          {mood?.tracks?.map((track, i) => (
+            <TrackRow
+              key={track.id}
+              track={track}
+              index={i}
+              isCurrent={chState?.track?.id === track.id}
+              isDropTarget={dropIdx === i}
+              chAccent={chAccent}
+              onPlay={() => onPlayTrack(track, i)}
+              onDelete={() => onDeleteTrack(track.id)}
+              onDragStart={e => onDragStart(e, i)}
+              onDragOver={e  => onDragOver(e, i)}
+              onDrop={e      => onDrop(e, i)}
+              onDragEnd={onDragEnd}
+            />
+          ))}
         </div>
 
         {/* Add track form */}

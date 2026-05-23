@@ -383,8 +383,9 @@ html, body {
 
 .channel-strip__controls {
   display: grid;
-  grid-template-columns: repeat(4, 1fr);
+  grid-template-columns: 1fr 1fr 1fr 1fr;
   gap: 4px;
+  align-items: center;
 }
 .ch-btn {
   background: rgba(0,0,0,0.5);
@@ -1275,6 +1276,30 @@ html, body {
 }
 .track-row__del:hover { color: #c85a3a; border-color: rgba(200,90,58,0.4); background: rgba(200,90,58,0.08); }
 
+.track-row__confirm-del {
+  width: 22px; height: 22px;
+  background: rgba(180,60,40,0.7);
+  border: 1px solid rgba(200,80,60,0.6);
+  color: #f0c0b0;
+  cursor: pointer; flex-shrink: 0;
+  display: flex; align-items: center; justify-content: center;
+  font-size: 0.65rem;
+  transition: all 0.12s;
+}
+.track-row__confirm-del:hover { background: rgba(200,70,50,0.9); }
+
+.track-row__cancel-del {
+  width: 22px; height: 22px;
+  background: transparent;
+  border: 1px solid rgba(201,168,76,0.25);
+  color: var(--muted, #8a7050);
+  cursor: pointer; flex-shrink: 0;
+  display: flex; align-items: center; justify-content: center;
+  font-size: 0.65rem;
+  transition: all 0.12s;
+}
+.track-row__cancel-del:hover { color: var(--gold-light, #f0d878); border-color: rgba(201,168,76,0.5); }
+
 /* Add form */
 .track-panel__add-form {
   padding: 0.85rem 1rem;
@@ -1397,6 +1422,105 @@ html, body {
   .track-panel__drawer { width: 100vw; max-width: 100vw; }
   .bench__strips { grid-template-columns: repeat(2, 1fr); }
 }
+
+/* ── Progress bar ── */
+.progress-bar {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+  padding: 0.3rem 0.5rem 0.4rem;
+  background: rgba(0,0,0,0.25);
+  border-top: 1px solid rgba(201,168,76,0.08);
+  border-bottom: 1px solid rgba(201,168,76,0.08);
+  margin-bottom: 0.4rem;
+}
+.progress-bar__time {
+  font-family: var(--font-title, 'Cinzel', serif);
+  font-size: 0.5rem;
+  letter-spacing: 0.05em;
+  color: var(--muted, #8a7050);
+  flex-shrink: 0;
+  width: 26px;
+  text-align: right;
+}
+.progress-bar__time--right { text-align: left; }
+.progress-bar__track {
+  flex: 1;
+  height: 4px;
+  background: rgba(201,168,76,0.12);
+  border: 1px solid rgba(201,168,76,0.15);
+  position: relative;
+  cursor: pointer;
+  touch-action: none;
+}
+.progress-bar__fill {
+  position: absolute;
+  left: 0; top: 0; bottom: 0;
+  opacity: 0.7;
+  transition: width 0.1s linear;
+}
+.progress-bar__thumb {
+  position: absolute;
+  top: 50%;
+  transform: translate(-50%, -50%) rotate(45deg);
+  width: 8px; height: 8px;
+  background: var(--bench-bg, #0c0905);
+  border: 1px solid currentColor;
+  transition: left 0.1s linear;
+}
+.progress-bar__track:hover .progress-bar__thumb {
+  width: 10px; height: 10px;
+}
+
+/* ── Group badge ── */
+.channel-strip__group-wrap {
+  grid-column: span 2;
+  display: flex;
+  justify-content: flex-end;
+}
+.group-badge {
+  display: flex;
+  align-items: center;
+  gap: 2px;
+}
+.group-badge__btn {
+  display: flex;
+  align-items: center;
+  gap: 3px;
+  height: 26px;
+  padding: 0 6px;
+  background: rgba(0,0,0,0.4);
+  border: 1px solid rgba(201,168,76,0.15);
+  color: rgba(138,112,80,0.5);
+  font-family: var(--font-title, serif);
+  font-size: 0.6rem;
+  cursor: pointer;
+  transition: all 0.15s;
+}
+.group-badge__btn .ti { font-size: 0.7rem; }
+.group-badge__btn:hover {
+  color: var(--gold, #c9a84c);
+  border-color: rgba(201,168,76,0.4);
+}
+.group-badge__btn.is-linked {
+  color: var(--gb-accent, #c9a84c);
+  border-color: var(--gb-accent, #c9a84c);
+  background: rgba(201,168,76,0.1);
+  box-shadow: 0 0 6px rgba(201,168,76,0.15);
+}
+.group-badge__mode {
+  height: 26px;
+  width: 22px;
+  background: rgba(0,0,0,0.4);
+  border: 1px solid var(--gb-accent, #c9a84c);
+  color: var(--gb-accent, #c9a84c);
+  font-size: 0.75rem;
+  cursor: pointer;
+  display: flex; align-items: center; justify-content: center;
+  transition: all 0.15s;
+  opacity: 0.8;
+}
+.group-badge__mode:hover { opacity: 1; background: rgba(201,168,76,0.12); }
 
 /* ── MoodPad click area fix ── */
 .mood-pad { position: relative; }
