@@ -39,7 +39,14 @@
       "sigil": "ti-map",
       "color": "#3a6a3a",
       "id": "mpispsuxilfr",
-      "tracks": []
+      "tracks": [
+        {
+          "url": "https://www.dropbox.com/scl/fi/cz7n4nb5hqto90em9cbmm/FFXIV-OST-The-Black-Shroud.mp3?rlkey=j2jia6w3usd6qh2kfgapo609s&st=hnia9vnn&raw=1",
+          "title": "The Black Shroud",
+          "artist": "FFXIV",
+          "id": "mpisq7ks9owd"
+        }
+      ]
     }
   ],
   "scenes": []
