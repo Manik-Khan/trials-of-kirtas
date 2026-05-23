@@ -30,43 +30,32 @@ function MoodPad({ mood, shape, iconStyle, active, channelAccent, onClick, onOpe
     : shape === 'circle' ? 'circle(50% at 50% 50%)'
     : 'inset(0 round 4px)';
 
-  // Long-press to open panel
-  const pressTimer = useRef(null);
-  function onPointerDown(e) {
-    pressTimer.current = setTimeout(() => { onOpenPanel(); }, 500);
-  }
-  function onPointerUp(e) { clearTimeout(pressTimer.current); }
-  function onPointerLeave(e) { clearTimeout(pressTimer.current); }
-
   return (
     <div className={`mood-pad mood-pad--${shape} ${active ? 'is-active' : ''}`}
          style={{ width: size, height: size, '--mood-color': mood.color, '--accent': channelAccent }}
-         title={`${mood.label}${mood.tracks?.length ? ` · ${mood.tracks.length} track${mood.tracks.length !== 1 ? 's' : ''}` : ' · no tracks'}`}
-         onClick={onClick}
-         onPointerDown={onPointerDown}
-         onPointerUp={onPointerUp}
-         onPointerLeave={onPointerLeave}>
-      <div className="mood-pad__bg"    style={{ clipPath: clip }}/>
-      <div className="mood-pad__glow"  style={{ clipPath: clip }}/>
-      <div className="mood-pad__inner">
-        {iconStyle === 'tabler' && <i className={`ti ${mood.sigil || 'ti-music'} mood-pad__icon`} style={{ fontSize: iconSize }}/>}
-        {iconStyle === 'emoji'  && <span className="mood-pad__icon" style={{ fontSize: iconSize }}>{MOOD_EMOJI[mood.id] || '✦'}</span>}
-        {iconStyle === 'typo'   && <span className="mood-pad__typo" style={{ fontSize: iconSize * 0.7 }}>{mood.label[0]}</span>}
-        <div className="mood-pad__label" style={{ fontSize }}>{mood.label}</div>
-        {mood.tracks?.length > 0 && (
-          <div className="mood-pad__count">{mood.tracks.length}</div>
+         title={mood.label}>
+      <div className="mood-pad__click-area" onClick={onClick}>
+        <div className="mood-pad__bg"   style={{ clipPath: clip }}/>
+        <div className="mood-pad__glow" style={{ clipPath: clip }}/>
+        <div className="mood-pad__inner">
+          {iconStyle === 'tabler' && <i className={`ti ${mood.sigil || 'ti-music'} mood-pad__icon`} style={{ fontSize: iconSize }}/>}
+          {iconStyle === 'emoji'  && <span className="mood-pad__icon" style={{ fontSize: iconSize }}>{MOOD_EMOJI[mood.id] || '✦'}</span>}
+          {iconStyle === 'typo'   && <span className="mood-pad__typo" style={{ fontSize: iconSize * 0.7 }}>{mood.label[0]}</span>}
+          <div className="mood-pad__label" style={{ fontSize }}>{mood.label}</div>
+          {mood.tracks?.length > 0 && (
+            <div className="mood-pad__count">{mood.tracks.length}</div>
+          )}
+        </div>
+        {shape === 'hex' && (
+          <svg className="mood-pad__stroke" width={size} height={size} viewBox={`0 0 ${size} ${size}`}>
+            <polygon points={`${size/2},0 ${size},${size*.25} ${size},${size*.75} ${size/2},${size} 0,${size*.75} 0,${size*.25}`}
+                     fill="none" stroke="rgba(0,0,0,0.85)" strokeWidth="6"/>
+            <polygon points={`${size/2},0 ${size},${size*.25} ${size},${size*.75} ${size/2},${size} 0,${size*.75} 0,${size*.25}`}
+                     fill="none" stroke="rgba(201,168,76,0.55)" strokeWidth="1.5"/>
+          </svg>
         )}
       </div>
-      {shape === 'hex' && (
-        <svg className="mood-pad__stroke" width={size} height={size} viewBox={`0 0 ${size} ${size}`}>
-          <polygon points={`${size/2},0 ${size},${size*.25} ${size},${size*.75} ${size/2},${size} 0,${size*.75} 0,${size*.25}`}
-                   fill="none" stroke="rgba(0,0,0,0.85)" strokeWidth="6"/>
-          <polygon points={`${size/2},0 ${size},${size*.25} ${size},${size*.75} ${size/2},${size} 0,${size*.75} 0,${size*.25}`}
-                   fill="none" stroke="rgba(201,168,76,0.55)" strokeWidth="1.5"/>
-        </svg>
-      )}
-      {/* Quick actions — appear on hover */}
-      <div className="mood-pad__actions" onClick={e => e.stopPropagation()}>
+      <div className="mood-pad__actions">
         <button className="mood-pad__action-btn" onClick={onOpenPanel} title="View tracks">
           <i className="ti ti-list"/>
         </button>
