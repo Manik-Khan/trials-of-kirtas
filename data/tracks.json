@@ -15,18 +15,5 @@
       ]
     }
   ],
-  "scenes": [
-    {
-      "id": "mpi452axtym5",
-      "label": "The Tavern",
-      "desc": "",
-      "slots": {
-        "music": "mpi2a0isoaee",
-        "ambience": null,
-        "sfx": null,
-        "weather": null
-      },
-      "sealColor": "#c9a84c"
-    }
-  ]
+  "scenes": []
 }
