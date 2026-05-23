@@ -318,7 +318,10 @@ function TrackPanel({ open, mood, chState, chAccent, onClose, onPlayTrack, onAdd
 
   function submitAdd() {
     if (!newUrl.trim() || !newTitle.trim()) return;
-    onAddTrack({ url: newUrl.trim(), title: newTitle.trim(), artist: newArtist.trim() });
+    // Dropbox dl=1 links serve as attachments — iOS Safari won't stream them.
+    // raw=1 serves inline and works on all platforms.
+    const url = newUrl.trim().replace(/([?&])dl=1(&|$)/, '$1raw=1$2');
+    onAddTrack({ url, title: newTitle.trim(), artist: newArtist.trim() });
     setNewUrl(''); setNewTitle(''); setNewArtist('');
     setAdding(false);
   }
