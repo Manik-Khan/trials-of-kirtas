@@ -109,7 +109,8 @@
   // ============================================================
   // CHANNEL — owns A/B voices, crossfades between them
   // ============================================================
-  function makeChannel(id) {
+  function makeChannel(id, getMasterVol) {
+    getMasterVol = getMasterVol || (() => 1);
     const out = ctx.createGain();
     out.gain.value = 0.7;
     out.connect(master);
@@ -171,14 +172,29 @@
       _track  = null;
     }
 
+    // Get the active audio element if current voice is a URL track
+    function _currentAudio() {
+      return (current && current.audio) ? current.audio : null;
+    }
+
     function setVolume(v) {
       _volume = v;
-      if (!_muted) out.gain.linearRampToValueAtTime(v, ctx.currentTime + 0.05);
+      if (!_muted) {
+        const effective = v * getMasterVol();
+        out.gain.linearRampToValueAtTime(effective, ctx.currentTime + 0.05);
+        // Also set directly on audio element for URL tracks
+        const a = _currentAudio();
+        if (a) a.volume = Math.max(0, Math.min(1, effective));
+      }
     }
 
     function setMuted(m) {
       _muted = m;
-      out.gain.linearRampToValueAtTime(m ? 0 : _volume, ctx.currentTime + 0.05);
+      const effective = m ? 0 : _volume * getMasterVol();
+      out.gain.linearRampToValueAtTime(effective, ctx.currentTime + 0.05);
+      // Also set directly on audio element for URL tracks
+      const a = _currentAudio();
+      if (a) a.volume = Math.max(0, Math.min(1, effective));
     }
 
     // Register the app-level callback for track-end events
@@ -316,11 +332,23 @@
   // ============================================================
   // PUBLIC API
   // ============================================================
+  let _masterVol = 0.8;
+  const _allChannels = [];
+
   window.BardicAudio = {
     ctx,
     master,
-    setMasterVolume: (v) => master.gain.linearRampToValueAtTime(v, ctx.currentTime + 0.05),
-    makeChannel,
+    setMasterVolume: (v) => {
+      _masterVol = v;
+      master.gain.linearRampToValueAtTime(v, ctx.currentTime + 0.05);
+      // Push new master volume to all URL track audio elements
+      _allChannels.forEach(ch => { if (!ch.muted) ch.setVolume(ch.volume); });
+    },
+    makeChannel: (id) => {
+      const ch = makeChannel(id, () => _masterVol);
+      _allChannels.push(ch);
+      return ch;
+    },
     playSfx,
     analyser,
     getVizData() { analyser.getByteFrequencyData(_vizData); return _vizData; },
