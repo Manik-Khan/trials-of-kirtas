@@ -1,3 +1,11 @@
 {
-  "moods": []
+  "moods": [
+    {
+      "label": "Taverns",
+      "sigil": "ti-music",
+      "color": "#6a3a5a",
+      "id": "mpi2a0isoaee",
+      "tracks": []
+    }
+  ]
 }
