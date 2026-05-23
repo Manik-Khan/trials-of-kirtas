@@ -57,8 +57,7 @@
   // ============================================================
   function makeUrlTrack(url, loop, onEnd) {
     const audio = new Audio();
-    audio.crossOrigin = 'anonymous';
-    audio.preload     = 'auto';
+    audio.preload = 'auto';
     audio.loop        = !!loop;
     audio.src         = url;
 
