@@ -38,7 +38,7 @@
   comp.connect(analyser);
   const _vizData = new Uint8Array(analyser.frequencyBinCount);
 
-  // Resume on first interaction (browser policy)
+  // Resume AudioContext on first interaction (browser policy)
   function resume() {
     if (ctx.state === 'suspended') ctx.resume();
     window.removeEventListener('pointerdown', resume);
@@ -46,6 +46,23 @@
   }
   window.addEventListener('pointerdown', resume);
   window.addEventListener('keydown', resume);
+
+  // ── iOS audio session unlock ─────────────────────────────────
+  // iOS starts <audio> in the "ambient" session category, which
+  // respects the hardware silent switch and pauses on screen lock.
+  // Playing any <audio> element from a direct user gesture upgrades
+  // the session to "media" category, bypassing the silent switch.
+  // This silent MP3 (base64, ~70 bytes decoded) does exactly that.
+  // One-shot: fires on first pointerdown anywhere, then removes itself.
+  const _silentMp3 = 'data:audio/mpeg;base64,SUQzBAAAAAAAI1RTU0UAAAAPAAADTGF2ZjU4LjI5LjEwMAAAAAAAAAAAAAAA//tQAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAWGluZwAAAA8AAAACAAACcQCAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICA//////////////////////////////////////////////////////////////////8AAAAATGF2YzU4LjU0AAAAAAAAAAAAAAAAJAAAAAAAAAAAAnHvBMgAAAAAAAAAAAAAAAAAAAAA//tQxAADwAABpAAAACAAADSAAAAETEFNRTMuMTAwVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVU=';
+
+  function _iosAudioUnlock() {
+    const sil = new Audio(_silentMp3);
+    sil.volume = 0.001;
+    sil.play().catch(() => {});
+    window.removeEventListener('touchstart', _iosAudioUnlock, true);
+  }
+  window.addEventListener('touchstart', _iosAudioUnlock, true);
 
   // ============================================================
   // URL TRACK (HTML5 Audio → Web Audio)

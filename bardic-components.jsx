@@ -18,23 +18,77 @@ const MOOD_EMOJI = {
 
 // ============================================================
 // MoodPad — single mood tile
-// Long-press (or list icon) opens the track panel.
-// Single click plays on selected channel.
+//
+// Interaction model diverges by input type:
+//   Desktop (mouse): single click plays, hover reveals list/edit buttons.
+//   Mobile (touch):  single tap plays, 500ms long press opens track panel.
+//                    Hover-reveal action buttons are suppressed on touch.
+//
+// Touch detection is done inside the component via useRef so it
+// runs at render time — module-level detection via `ontouchstart`
+// is unreliable on iOS Safari when Babel evaluates the script.
 // ============================================================
 function MoodPad({ mood, shape, iconStyle, active, paused, channelAccent, onClick, onOpenPanel, onEdit, size = 92 }) {
   const fontSize = size < 78 ? 9 : 10;
   const iconSize = size < 78 ? 18 : 24;
+  const longPressTimer = useRef(null);
+  const didLongPress   = useRef(false);
+
+  // Detect at render time, not module parse time.
+  const isTouch = useRef(
+    typeof window !== 'undefined' &&
+    (('ontouchstart' in window) || (navigator.maxTouchPoints > 0))
+  );
 
   const clip = shape === 'hex'
     ? 'polygon(50% 0%, 100% 25%, 100% 75%, 50% 100%, 0% 75%, 0% 25%)'
     : shape === 'circle' ? 'circle(50% at 50% 50%)'
     : 'inset(0 round 4px)';
 
+  // ── Touch handlers ───────────────────────────────────────────
+  // Always attached — they no-op on desktop because touchstart
+  // never fires there, so there's no branching risk.
+  function handleTouchStart(e) {
+    didLongPress.current = false;
+    longPressTimer.current = setTimeout(() => {
+      didLongPress.current = true;
+      onOpenPanel();
+    }, 500);
+  }
+
+  function handleTouchEnd(e) {
+    clearTimeout(longPressTimer.current);
+    if (!didLongPress.current) {
+      // Short tap → play. e.preventDefault() stops Safari's
+      // synthetic mouse click that would otherwise fire ~300ms later.
+      e.preventDefault();
+      onClick();
+    }
+  }
+
+  function handleTouchMove() {
+    // Finger drifted — user is scrolling, cancel long press.
+    clearTimeout(longPressTimer.current);
+  }
+
+  // ── Mouse click (desktop only) ───────────────────────────────
+  // On touch devices the synthetic click fires after touchend;
+  // since we call e.preventDefault() in handleTouchEnd it never
+  // reaches here — but we guard anyway for safety.
+  function handleClick(e) {
+    if (isTouch.current) return;
+    onClick();
+  }
+
   return (
-    <div className={`mood-pad mood-pad--${shape} ${active ? 'is-active' : ''} ${paused ? 'is-paused' : ''}`}
+    <div className={`mood-pad mood-pad--${shape} ${active ? 'is-active' : ''} ${paused ? 'is-paused' : ''} ${isTouch.current ? 'is-touch' : ''}`}
          style={{ width: size, height: size, '--mood-color': mood.color, '--accent': channelAccent }}
          title={mood.label + (paused ? ' · Paused' : '')}>
-      <div className="mood-pad__click-area" onClick={onClick}>
+      <div className="mood-pad__click-area"
+           onClick={handleClick}
+           onTouchStart={handleTouchStart}
+           onTouchEnd={handleTouchEnd}
+           onTouchMove={handleTouchMove}>
         <div className="mood-pad__bg"   style={{ clipPath: clip }}/>
         <div className="mood-pad__glow" style={{ clipPath: clip }}/>
         <div className="mood-pad__inner">
@@ -55,14 +109,17 @@ function MoodPad({ mood, shape, iconStyle, active, paused, channelAccent, onClic
           </svg>
         )}
       </div>
-      <div className="mood-pad__actions">
-        <button className="mood-pad__action-btn" onClick={onOpenPanel} title="View tracks">
-          <i className="ti ti-list"/>
-        </button>
-        <button className="mood-pad__action-btn" onClick={onEdit} title="Edit mood">
-          <i className="ti ti-pencil"/>
-        </button>
-      </div>
+      {/* Action buttons: desktop hover only — not rendered on touch */}
+      {!isTouch.current && (
+        <div className="mood-pad__actions">
+          <button className="mood-pad__action-btn" onClick={onOpenPanel} title="View tracks">
+            <i className="ti ti-list"/>
+          </button>
+          <button className="mood-pad__action-btn" onClick={onEdit} title="Edit mood">
+            <i className="ti ti-pencil"/>
+          </button>
+        </div>
+      )}
     </div>
   );
 }
