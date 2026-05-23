@@ -1,0 +1,542 @@
+// ============================================================
+// bardic-app.jsx — The Bardic Console
+// ============================================================
+
+const { useState, useEffect, useRef, useMemo, useCallback, useReducer } = React;
+
+// ── Channel definitions (static) ──
+const ALL_CHANNELS = [
+  { id:'music',    label:'Music',    role:'Score · the soul of the scene',    sigil:'ti-music',      accent:'#c9a84c' },
+  { id:'ambience', label:'Ambience', role:'Place · what the room sounds like', sigil:'ti-wind',       accent:'#6a8a4a' },
+  { id:'sfx',      label:'SFX',      role:'Moment · one-shots and stings',    sigil:'ti-bolt',       accent:'#a76a2a' },
+  { id:'weather',  label:'Weather',  role:'Sky · rain, wind, distant thunder', sigil:'ti-cloud-rain', accent:'#5a8aaa' },
+];
+
+const PLAYBACK_MODES = ['loop', 'sequence', 'shuffle', 'single'];
+
+// ── Tweak defaults ──
+const TWEAK_DEFAULTS = /*EDITMODE-BEGIN*/{
+  "density":      "comfortable",
+  "padShape":     "hex",
+  "showViz":      true,
+  "showParticles":true,
+  "channelCount": 4,
+  "iconStyle":    "tabler",
+  "accent":       "#c9a84c",
+  "crossfade":    2
+}/*EDITMODE-END*/;
+
+// ── API helpers ──
+const API = {
+  async getTracks() {
+    const res = await fetch('/.netlify/functions/tracks');
+    if (!res.ok) throw new Error('Failed to load library');
+    return res.json(); // { moods: [...] }
+  },
+  async saveTracks(library) {
+    const res = await fetch('/.netlify/functions/tracks', {
+      method:  'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body:    JSON.stringify(library),
+    });
+    if (!res.ok) throw new Error('Failed to save library');
+    return res.json();
+  },
+};
+
+// ── Unique ID helper ──
+function uid() { return Date.now().toString(36) + Math.random().toString(36).slice(2, 6); }
+
+// ============================================================
+// App
+// ============================================================
+function App() {
+  const [t, setTweak] = useTweaks(TWEAK_DEFAULTS);
+  const { SFX_PADS } = window.BardicData;
+
+  const channels = ALL_CHANNELS.slice(0, t.channelCount);
+  const channelById = Object.fromEntries(ALL_CHANNELS.map(c => [c.id, c]));
+
+  // ── Library state ──────────────────────────────────────────
+  const [library, setLibrary]     = useState({ moods: [] }); // { moods: [...] }
+  const [libLoading, setLibLoading] = useState(true);
+  const [libError, setLibError]   = useState(null);
+  const [libSaving, setLibSaving] = useState(false);
+
+  // Load library on mount
+  useEffect(() => {
+    API.getTracks()
+      .then(data => { setLibrary(data); setLibLoading(false); })
+      .catch(e  => { setLibError(e.message); setLibLoading(false); });
+  }, []);
+
+  // Persist library to GitHub whenever it changes (debounced)
+  const saveTimer = useRef(null);
+  const pendingLibrary = useRef(null);
+
+  function scheduleLibrarySave(lib) {
+    pendingLibrary.current = lib;
+    clearTimeout(saveTimer.current);
+    saveTimer.current = setTimeout(async () => {
+      setLibSaving(true);
+      try { await API.saveTracks(pendingLibrary.current); }
+      catch (e) { console.error('Library save failed:', e); }
+      finally { setLibSaving(false); }
+    }, 1200);
+  }
+
+  function updateLibrary(newLib) {
+    setLibrary(newLib);
+    scheduleLibrarySave(newLib);
+  }
+
+  // ── Channel state ──────────────────────────────────────────
+  const [chStates, setChStates] = useState(() => Object.fromEntries(
+    ALL_CHANNELS.map(c => [c.id, {
+      volume:   c.id === 'music' ? 0.7 : c.id === 'ambience' ? 0.5 : 0.45,
+      muted:    false,
+      mode:     'loop',      // loop | sequence | shuffle | single
+      moodId:   null,        // which mood is loaded
+      trackIdx: null,        // index of current track within mood
+      track:    null,        // { title, url, artist, id }
+    }])
+  ));
+
+  // ── Audio engines ──────────────────────────────────────────
+  const enginesRef = useRef({});
+  useEffect(() => {
+    ALL_CHANNELS.forEach(c => {
+      if (!enginesRef.current[c.id]) {
+        const eng = window.BardicAudio.makeChannel(c.id);
+        eng.setVolume(c.id === 'music' ? 0.7 : c.id === 'ambience' ? 0.5 : 0.45);
+        enginesRef.current[c.id] = eng;
+      }
+    });
+  }, []);
+
+  // ── Auto-advance callback (registered once, reads refs) ────
+  // When a track ends in sequence/shuffle/single mode, this fires.
+  const chStatesRef = useRef(chStates);
+  useEffect(() => { chStatesRef.current = chStates; }, [chStates]);
+  const libraryRef = useRef(library);
+  useEffect(() => { libraryRef.current = library; }, [library]);
+
+  useEffect(() => {
+    ALL_CHANNELS.forEach(c => {
+      const eng = enginesRef.current[c.id];
+      if (!eng) return;
+      eng.onTrackEnd((chId, endedTrack, mode) => {
+        const cs   = chStatesRef.current[chId];
+        const lib  = libraryRef.current;
+        const mood = lib.moods.find(m => m.id === cs.moodId);
+        if (!mood || !mood.tracks.length) return;
+
+        if (mode === 'single') {
+          // Stop — nothing more to do
+          setChStates(s => ({ ...s, [chId]: { ...s[chId], track: null, trackIdx: null } }));
+          return;
+        }
+
+        let nextIdx;
+        if (mode === 'sequence') {
+          nextIdx = ((cs.trackIdx ?? 0) + 1) % mood.tracks.length;
+        } else { // shuffle
+          const others = mood.tracks.map((_,i) => i).filter(i => i !== cs.trackIdx);
+          nextIdx = others.length
+            ? others[Math.floor(Math.random() * others.length)]
+            : 0;
+        }
+
+        const nextTrack = mood.tracks[nextIdx];
+        enginesRef.current[chId]?.playTrack(nextTrack, crossfadeRef.current, mode);
+        setChStates(s => ({ ...s, [chId]: { ...s[chId], track: nextTrack, trackIdx: nextIdx } }));
+      });
+    });
+  }, []); // eslint-disable-line
+
+  // ── Crossfade (keep ref for callback closure) ──────────────
+  const crossfade = t.crossfade ?? 2;
+  const crossfadeRef = useRef(crossfade);
+  useEffect(() => { crossfadeRef.current = crossfade; }, [crossfade]);
+
+  // ── Selected channel for mood pad casts ───────────────────
+  const [selectedCh, setSelectedCh] = useState('music');
+
+  // ── Panel state ────────────────────────────────────────────
+  // trackPanel: null | { moodId, fromChannel }
+  // moodEditor: null | { mood } (null mood = new)
+  const [trackPanel, setTrackPanel] = useState(null);
+  const [moodEditor, setMoodEditor] = useState(null);
+  const [overlay, setOverlay]       = useState(null); // 'timer' | 'listen' | 'url'
+
+  // ── Master volume ──────────────────────────────────────────
+  const [masterVol, setMasterVol] = useState(0.85);
+  const [masterMuted, setMasterMuted] = useState(false);
+  useEffect(() => {
+    window.BardicAudio.setMasterVolume(masterMuted ? 0 : masterVol);
+  }, [masterVol, masterMuted]);
+
+  // ============================================================
+  // CHANNEL ACTIONS
+  // ============================================================
+  const playTrackOnChannel = useCallback((track, trackIdx, moodId, chId) => {
+    const mode = chStates[chId].mode;
+    enginesRef.current[chId]?.playTrack(track, crossfadeRef.current, mode);
+    setChStates(s => ({ ...s, [chId]: { ...s[chId], track, trackIdx, moodId } }));
+  }, [chStates]);
+
+  // Cast a mood onto a channel — picks first track (or shuffle)
+  const castMoodOnChannel = useCallback((moodId, chId) => {
+    const mood = library.moods.find(m => m.id === moodId);
+    if (!mood || !mood.tracks.length) return;
+    const mode = chStates[chId].mode;
+    let idx = 0;
+    if (mode === 'shuffle') idx = Math.floor(Math.random() * mood.tracks.length);
+    const track = mood.tracks[idx];
+    enginesRef.current[chId]?.playTrack(track, crossfadeRef.current, mode);
+    setChStates(s => ({ ...s, [chId]: { ...s[chId], track, trackIdx: idx, moodId } }));
+  }, [library, chStates]);
+
+  const stopChannel = useCallback((chId) => {
+    enginesRef.current[chId]?.stopTrack(crossfadeRef.current);
+    setChStates(s => ({ ...s, [chId]: { ...s[chId], track: null, trackIdx: null, moodId: null } }));
+  }, []);
+
+  const setVolume = useCallback((chId, v) => {
+    enginesRef.current[chId]?.setVolume(v);
+    setChStates(s => ({ ...s, [chId]: { ...s[chId], volume: v } }));
+  }, []);
+
+  const setMute = useCallback((chId) => {
+    setChStates(s => {
+      const next = !s[chId].muted;
+      enginesRef.current[chId]?.setMuted(next);
+      return { ...s, [chId]: { ...s[chId], muted: next } };
+    });
+  }, []);
+
+  const setMode = useCallback((chId, mode) => {
+    setChStates(s => ({ ...s, [chId]: { ...s[chId], mode } }));
+    // If playing, restart current track with new mode so loop flag updates
+    const cs = chStates[chId];
+    if (cs.track) {
+      enginesRef.current[chId]?.playTrack(cs.track, 0.5, mode);
+    }
+  }, [chStates]);
+
+  // ============================================================
+  // LIBRARY MUTATIONS
+  // ============================================================
+  const addMood = useCallback((mood) => {
+    const newLib = { ...library, moods: [...library.moods, { ...mood, id: uid(), tracks: [] }] };
+    updateLibrary(newLib);
+  }, [library]);
+
+  const updateMood = useCallback((moodId, patch) => {
+    const newLib = {
+      ...library,
+      moods: library.moods.map(m => m.id === moodId ? { ...m, ...patch } : m),
+    };
+    updateLibrary(newLib);
+  }, [library]);
+
+  const deleteMood = useCallback((moodId) => {
+    const newLib = { ...library, moods: library.moods.filter(m => m.id !== moodId) };
+    updateLibrary(newLib);
+    // Stop any channel playing this mood
+    ALL_CHANNELS.forEach(c => {
+      if (chStates[c.id].moodId === moodId) stopChannel(c.id);
+    });
+  }, [library, chStates, stopChannel]);
+
+  const addTrack = useCallback((moodId, track) => {
+    const newLib = {
+      ...library,
+      moods: library.moods.map(m =>
+        m.id === moodId
+          ? { ...m, tracks: [...m.tracks, { ...track, id: uid() }] }
+          : m
+      ),
+    };
+    updateLibrary(newLib);
+  }, [library]);
+
+  const deleteTrack = useCallback((moodId, trackId) => {
+    const newLib = {
+      ...library,
+      moods: library.moods.map(m =>
+        m.id === moodId
+          ? { ...m, tracks: m.tracks.filter(t => t.id !== trackId) }
+          : m
+      ),
+    };
+    updateLibrary(newLib);
+  }, [library]);
+
+  const moveTrack = useCallback((moodId, fromIdx, toIdx) => {
+    const mood = library.moods.find(m => m.id === moodId);
+    if (!mood) return;
+    const tracks = [...mood.tracks];
+    const [moved] = tracks.splice(fromIdx, 1);
+    tracks.splice(toIdx, 0, moved);
+    updateLibrary({
+      ...library,
+      moods: library.moods.map(m => m.id === moodId ? { ...m, tracks } : m),
+    });
+  }, [library]);
+
+  // ============================================================
+  // KEYBOARD SHORTCUTS
+  // ============================================================
+  useEffect(() => {
+    const onKey = (e) => {
+      if (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA') return;
+      if (e.code === 'Space') { e.preventDefault(); setMasterMuted(m => !m); return; }
+      if (e.key === 'Escape') { setTrackPanel(null); setMoodEditor(null); setOverlay(null); return; }
+      const n = parseInt(e.key);
+      if (n >= 1 && n <= 9) {
+        const mood = library.moods[n - 1];
+        if (mood) castMoodOnChannel(mood.id, selectedCh);
+      }
+    };
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+  }, [library, selectedCh, castMoodOnChannel]);
+
+  // ============================================================
+  // RENDER
+  // ============================================================
+  const panelMood = trackPanel ? library.moods.find(m => m.id === trackPanel.moodId) : null;
+
+  return (
+    <div className={`bardic density-${t.density}`}>
+      <ParticleBg visible={t.showParticles} />
+
+      {/* HEADER */}
+      <header className="bardic-header">
+        <div className="bardic-header__left">
+          <div className="bardic-header__title">The Bardic Console</div>
+          <div className="bardic-header__sub">Trials of Kirtas · Sound Engine</div>
+        </div>
+        <div className="bardic-header__center">
+          {/* Now-playing scene label — shows active mood on selected channel */}
+          <div className="now-scene">
+            <div className="now-scene__label">Now Casting</div>
+            <div className="now-scene__name">
+              {chStates[selectedCh]?.moodId
+                ? (library.moods.find(m => m.id === chStates[selectedCh].moodId)?.label || '—')
+                : '— Silence —'}
+            </div>
+          </div>
+        </div>
+        <div className="bardic-header__right">
+          <div className="master-vol">
+            <button className="header-btn" onClick={() => setMasterMuted(m => !m)}
+                    title={masterMuted ? 'Unmute' : 'Mute all'}>
+              <i className={`ti ${masterMuted ? 'ti-volume-off' : 'ti-volume'}`}/>
+            </button>
+            <input type="range" className="master-vol__slider" min={0} max={1} step={0.01}
+                   value={masterMuted ? 0 : masterVol}
+                   onChange={e => { setMasterMuted(false); setMasterVol(+e.target.value); }}/>
+            <div className="master-vol__readout">{Math.round((masterMuted ? 0 : masterVol) * 100)}</div>
+          </div>
+          <button className="header-btn" onClick={() => setOverlay('timer')} title="Hourglass">
+            <i className="ti ti-hourglass"/>
+          </button>
+          <button className="header-btn" onClick={() => setMoodEditor({ mood: null })} title="Add mood / playlist">
+            <i className="ti ti-plus"/>
+          </button>
+          {libSaving && <span className="save-indicator"><i className="ti ti-loader-2 spin"/> Saving…</span>}
+          {libError  && <span className="save-indicator error" title={libError}><i className="ti ti-alert-circle"/> Error</span>}
+        </div>
+      </header>
+
+      {/* MAIN: Channel Console + Mood Codex */}
+      <main className="bench">
+        {/* LEFT: Channel strips */}
+        <section className="bench__console">
+          <div className="bench__section-head">
+            <i className="ti ti-sliders"/>
+            <span>Channels</span>
+            <div className="bench__section-sub">
+              Selected: <strong style={{ color: channelById[selectedCh]?.accent }}>
+                {channelById[selectedCh]?.label}
+              </strong>
+              <span className="hint"> · click strip to select</span>
+            </div>
+          </div>
+          <div className="bench__strips" style={{ '--strip-cols': channels.length }}>
+            {channels.map(ch => (
+              <div key={ch.id}
+                   className={`bench__strip-wrap ${selectedCh === ch.id ? 'is-selected' : ''}`}
+                   onClick={() => setSelectedCh(ch.id)}>
+                <ChannelStrip
+                  ch={ch}
+                  state={chStates[ch.id]}
+                  accent={ch.accent}
+                  density={t.density}
+                  moodLabel={chStates[ch.id].moodId
+                    ? library.moods.find(m => m.id === chStates[ch.id].moodId)?.label
+                    : null}
+                  onVol={(v)   => setVolume(ch.id, v)}
+                  onMute={()  => setMute(ch.id)}
+                  onStop={()  => stopChannel(ch.id)}
+                  onMode={(m) => setMode(ch.id, m)}
+                  onOpenPanel={() => {
+                    if (chStates[ch.id].moodId) {
+                      setTrackPanel({ moodId: chStates[ch.id].moodId, fromChannel: ch.id });
+                    }
+                  }}
+                />
+                <div className="bench__select-marker"/>
+              </div>
+            ))}
+          </div>
+        </section>
+
+        {/* RIGHT: Mood Codex */}
+        <section className="bench__codex">
+          <div className="bench__section-head">
+            <i className="ti ti-playlist"/>
+            <span>Mood Codex</span>
+            <div className="bench__section-sub">
+              Cast onto <strong style={{ color: channelById[selectedCh]?.accent }}>
+                {channelById[selectedCh]?.label}
+              </strong>
+              <span className="hint"> · keys 1–9 quick-cast</span>
+            </div>
+            <button className="head-add" onClick={() => setMoodEditor({ mood: null })}>
+              <i className="ti ti-plus"/> New mood
+            </button>
+          </div>
+
+          {libLoading && (
+            <div className="codex__empty">
+              <i className="ti ti-loader-2 spin"/> Loading library…
+            </div>
+          )}
+
+          {!libLoading && library.moods.length === 0 && (
+            <div className="codex__empty">
+              <div className="codex__empty-icon"><i className="ti ti-music-off"/></div>
+              <div className="codex__empty-text">No moods yet.</div>
+              <div className="codex__empty-sub">
+                Hit <strong>New mood</strong> to create your first playlist.
+              </div>
+            </div>
+          )}
+
+          {!libLoading && library.moods.length > 0 && (
+            <div className="codex__grid">
+              <RuneVisualizer visible={t.showViz}/>
+              {library.moods.map((m, i) => {
+                const activeCh = channels.find(c => chStates[c.id].moodId === m.id);
+                return (
+                  <div key={m.id} className="codex__pad-wrap" style={{ '--idx': i }}>
+                    <MoodPad
+                      mood={m}
+                      shape={t.padShape}
+                      iconStyle={t.iconStyle}
+                      active={!!activeCh}
+                      channelAccent={activeCh?.accent || channelById[selectedCh]?.accent}
+                      size={t.density === 'compact' ? 78 : t.density === 'cozy' ? 110 : 92}
+                      trackCount={m.tracks.length}
+                      onClick={()      => castMoodOnChannel(m.id, selectedCh)}
+                      onOpenPanel={()  => setTrackPanel({ moodId: m.id, fromChannel: selectedCh })}
+                      onEdit={()       => setMoodEditor({ mood: m })}
+                    />
+                    {i < 9 && <div className="codex__keycap">{i + 1}</div>}
+                    {activeCh && (
+                      <div className="codex__active-dot" style={{ background: activeCh.accent }}/>
+                    )}
+                  </div>
+                );
+              })}
+            </div>
+          )}
+        </section>
+      </main>
+
+      {/* BOTTOM ROW: SFX Runestones */}
+      <section className="bottom-row">
+        <div className="bottom-row__sfx">
+          <div className="bench__section-head">
+            <i className="ti ti-music"/>
+            <span>SFX Runestones</span>
+            <div className="bench__section-sub">Tap to strike · one-shots</div>
+          </div>
+          <div className="sfx-grid">
+            {SFX_PADS.map(s => (
+              <button key={s.id} className="sfx-stone"
+                      onClick={() => window.BardicAudio.playSfx(s.id)} title={s.desc}>
+                <div className="sfx-stone__inner">
+                  <i className={`ti ${s.icon}`}/>
+                  <span>{s.label}</span>
+                </div>
+              </button>
+            ))}
+          </div>
+        </div>
+      </section>
+
+      <footer className="bardic-foot">
+        <div className="bardic-foot__hint">
+          <kbd>Space</kbd> mute all ·
+          <kbd>1–9</kbd> quick-cast onto selected channel ·
+          <kbd>Esc</kbd> close panels
+        </div>
+      </footer>
+
+      {/* ── TRACK PANEL (slide-in) ── */}
+      <TrackPanel
+        open={!!trackPanel}
+        mood={panelMood}
+        chState={trackPanel ? chStates[trackPanel.fromChannel] : null}
+        chAccent={trackPanel ? channelById[trackPanel.fromChannel]?.accent : null}
+        onClose={() => setTrackPanel(null)}
+        onPlayTrack={(track, idx) => {
+          if (trackPanel) playTrackOnChannel(track, idx, panelMood.id, trackPanel.fromChannel);
+        }}
+        onAddTrack={(track) => { if (trackPanel) addTrack(trackPanel.moodId, track); }}
+        onDeleteTrack={(trackId) => { if (trackPanel) deleteTrack(trackPanel.moodId, trackId); }}
+        onMoveTrack={(fromIdx, toIdx) => { if (trackPanel) moveTrack(trackPanel.moodId, fromIdx, toIdx); }}
+      />
+
+      {/* ── MOOD EDITOR OVERLAY ── */}
+      <MoodEditorOverlay
+        open={!!moodEditor}
+        mood={moodEditor?.mood}
+        onSave={(data) => {
+          if (moodEditor?.mood) updateMood(moodEditor.mood.id, data);
+          else addMood(data);
+          setMoodEditor(null);
+        }}
+        onDelete={() => {
+          if (moodEditor?.mood) deleteMood(moodEditor.mood.id);
+          setMoodEditor(null);
+        }}
+        onClose={() => setMoodEditor(null)}
+      />
+
+      {/* ── TIMER OVERLAY ── */}
+      <TimerOverlay open={overlay === 'timer'} onClose={() => setOverlay(null)}/>
+
+      {/* ── TWEAKS PANEL ── */}
+      <TweaksPanel>
+        <TweakSection label="Layout"/>
+        <TweakRadio label="Density"   value={t.density}      options={['compact','comfortable','cozy']} onChange={v => setTweak('density', v)}/>
+        <TweakRadio label="Channels"  value={t.channelCount} options={[2,3,4]}                          onChange={v => setTweak('channelCount', v)}/>
+        <TweakSection label="Mood pads"/>
+        <TweakRadio label="Shape"     value={t.padShape}     options={['hex','square','circle']}         onChange={v => setTweak('padShape', v)}/>
+        <TweakRadio label="Icons"     value={t.iconStyle}    options={['tabler','emoji','typo']}         onChange={v => setTweak('iconStyle', v)}/>
+        <TweakSection label="Atmosphere"/>
+        <TweakToggle label="Rune visualizer" value={t.showViz}        onChange={v => setTweak('showViz', v)}/>
+        <TweakToggle label="Candle motes"    value={t.showParticles}  onChange={v => setTweak('showParticles', v)}/>
+        <TweakSection label="Audio"/>
+        <TweakSlider label="Crossfade" value={t.crossfade} min={0} max={15} step={1} unit="s" onChange={v => setTweak('crossfade', v)}/>
+      </TweaksPanel>
+    </div>
+  );
+}
+
+ReactDOM.createRoot(document.getElementById('app-root')).render(<App/>);
