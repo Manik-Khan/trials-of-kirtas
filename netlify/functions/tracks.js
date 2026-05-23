@@ -30,9 +30,9 @@ exports.handler = async (event) => {
     return { statusCode: 204, headers, body: '' };
   }
 
-  const token = process.env.NETLIFY_TOKEN;
+  const token = process.env.GITHUB_TOKEN;
   if (!token) {
-    return { statusCode: 500, headers, body: JSON.stringify({ error: 'NETLIFY_TOKEN not set' }) };
+    return { statusCode: 500, headers, body: JSON.stringify({ error: 'GITHUB_TOKEN not set' }) };
   }
 
   const ghHeaders = {
