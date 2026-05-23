@@ -34,6 +34,7 @@ const PAGES = [
   { label: 'World',      path: 'world.html' },
   { label: 'Lore',       path: 'lore.html' },
   { label: 'Compendium', path: 'compendium.html' },
+  { label: 'Console',    path: 'The Bardic Console.html' },
 ];
 
 
