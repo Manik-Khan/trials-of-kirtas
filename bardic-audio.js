@@ -90,28 +90,42 @@
     // Skip createMediaElementSource — Dropbox blocks CORS at the Web Audio
     // level even without crossOrigin set. Control volume directly on the
     // audio element instead via a fake gain shim.
+    let _rampTimer = null; // track active interval so it can be cancelled
+
     const fakeGain = {
       gain: {
         value: 0,
-        cancelScheduledValues() {},
+        cancelScheduledValues() {
+          if (_rampTimer) { clearInterval(_rampTimer); _rampTimer = null; }
+        },
         setValueAtTime(v) {
+          if (_rampTimer) { clearInterval(_rampTimer); _rampTimer = null; }
           const clamped = Math.max(0, Math.min(1, v));
           audio.volume = clamped;
           this.value = clamped;
         },
         linearRampToValueAtTime(v) {
+          if (_rampTimer) { clearInterval(_rampTimer); _rampTimer = null; }
           const target = Math.max(0, Math.min(1, v));
           this.value = target;
           const start = audio.volume;
           const diff  = target - start;
           const steps = 20;
           let step = 0;
-          const timer = setInterval(() => {
+          _rampTimer = setInterval(() => {
             step++;
             audio.volume = Math.max(0, Math.min(1, start + diff * (step / steps)));
-            if (step >= steps) clearInterval(timer);
+            if (step >= steps) { clearInterval(_rampTimer); _rampTimer = null; }
           }, 50);
         },
+      },
+      // Cancel any in-progress ramp and set volume immediately.
+      // Called by setVolume/setMuted so a fader move mid-fade takes effect now.
+      setImmediate(v) {
+        if (_rampTimer) { clearInterval(_rampTimer); _rampTimer = null; }
+        const clamped = Math.max(0, Math.min(1, v));
+        audio.volume = clamped;
+        this.gain.value = clamped;
       },
       connect() {},
       disconnect() {},
@@ -244,21 +258,22 @@
     function setVolume(v) {
       _volume = v;
       if (!_muted) {
-        const effective = v * getMasterVol();
+        const effective = Math.max(0, Math.min(1, v * getMasterVol()));
+        // Web Audio node path (desktop / Cloudinary)
         out.gain.linearRampToValueAtTime(effective, ctx.currentTime + 0.05);
-        // Also set directly on audio element for URL tracks
-        const a = _currentAudio();
-        if (a) a.volume = Math.max(0, Math.min(1, effective));
+        // Direct audio element path (iOS / Dropbox) — cancel any in-progress
+        // fade ramp so the fader move takes effect immediately.
+        if (current?.setImmediate) current.setImmediate(effective);
+        else if (current?.audio)   current.audio.volume = effective;
       }
     }
 
     function setMuted(m) {
       _muted = m;
-      const effective = m ? 0 : _volume * getMasterVol();
+      const effective = Math.max(0, Math.min(1, m ? 0 : _volume * getMasterVol()));
       out.gain.linearRampToValueAtTime(effective, ctx.currentTime + 0.05);
-      // Also set directly on audio element for URL tracks
-      const a = _currentAudio();
-      if (a) a.volume = Math.max(0, Math.min(1, effective));
+      if (current?.setImmediate) current.setImmediate(effective);
+      else if (current?.audio)   current.audio.volume = effective;
     }
 
     // Register the app-level callback for track-end events
