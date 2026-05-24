@@ -281,6 +281,13 @@
           "id": "mpjfjbiiohdp"
         }
       ]
+    },
+    {
+      "label": "Eerie",
+      "sigil": "ti-skull",
+      "color": "#3a3a4a",
+      "id": "mpjfjpcjbzw1",
+      "tracks": []
     }
   ],
   "scenes": []
