@@ -173,6 +173,13 @@
           "id": "mpj03xrl6zzi"
         }
       ]
+    },
+    {
+      "label": "Towns",
+      "sigil": "ti-building-castle",
+      "color": "#3a6a8a",
+      "id": "mpj3ke8b3qgp",
+      "tracks": []
     }
   ],
   "scenes": []
