@@ -477,7 +477,7 @@ function ChannelStrip({ ch, state, onVol, onMute, onStop, onMode, onOpenPanel, a
 // ============================================================
 // TrackPanel — slide-in panel showing tracks for a mood
 // ============================================================
-function TrackPanel({ open, mood, chState, chAccent, onClose, onPlayTrack, onAddTrack, onDeleteTrack, onMoveTrack }) {
+function TrackPanel({ open, mood, chState, chAccent, onClose, onPlayTrack, onAddTrack, onDeleteTrack, onUpdateTrack, onMoveTrack }) {
   const [adding, setAdding]   = useState(false);
   const [newUrl, setNewUrl]   = useState('');
   const [newTitle, setNewTitle] = useState('');
@@ -498,8 +498,57 @@ function TrackPanel({ open, mood, chState, chAccent, onClose, onPlayTrack, onAdd
     setAdding(false);
   }
 
-function TrackRow({ track, index, isCurrent, isDropTarget, chAccent, onPlay, onDelete, onDragStart, onDragOver, onDrop, onDragEnd }) {
+function TrackRow({ track, index, isCurrent, isDropTarget, chAccent, onPlay, onDelete, onUpdate, onDragStart, onDragOver, onDrop, onDragEnd }) {
   const [confirmDelete, setConfirmDelete] = useState(false);
+  const [editing,       setEditing]       = useState(false);
+  const [editTitle,     setEditTitle]     = useState('');
+  const [editArtist,    setEditArtist]    = useState('');
+  const [editUrl,       setEditUrl]       = useState('');
+
+  function startEdit() {
+    setEditTitle(track.title);
+    setEditArtist(track.artist || '');
+    setEditUrl(track.url);
+    setEditing(true);
+    setConfirmDelete(false);
+  }
+
+  function submitEdit() {
+    if (!editTitle.trim() || !editUrl.trim()) return;
+    const url = editUrl.trim().replace(/([?&])dl=1(&|$)/, '$1raw=1$2');
+    onUpdate({ title: editTitle.trim(), artist: editArtist.trim(), url });
+    setEditing(false);
+  }
+
+  function cancelEdit() { setEditing(false); }
+
+  if (editing) {
+    return (
+      <div className="track-row track-row--editing">
+        <div className="track-row__edit-fields">
+          <input className="track-panel__input" value={editTitle}
+                 onChange={e => setEditTitle(e.target.value)}
+                 placeholder="Title" autoFocus/>
+          <input className="track-panel__input" value={editArtist}
+                 onChange={e => setEditArtist(e.target.value)}
+                 placeholder="Artist (optional)"/>
+          <input className="track-panel__input" value={editUrl}
+                 onChange={e => setEditUrl(e.target.value)}
+                 placeholder="URL"/>
+        </div>
+        <div className="track-row__edit-actions">
+          <button className="pill pill--primary pill--xs"
+                  disabled={!editTitle.trim() || !editUrl.trim()}
+                  onClick={submitEdit}>
+            <i className="ti ti-check"/> Save
+          </button>
+          <button className="pill pill--xs" onClick={cancelEdit}>
+            Cancel
+          </button>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className={`track-row ${isCurrent ? 'is-current' : ''} ${isDropTarget ? 'is-drop-target' : ''}`}
@@ -521,6 +570,9 @@ function TrackRow({ track, index, isCurrent, isDropTarget, chAccent, onPlay, onD
       )}
       <button className="track-row__play" onClick={onPlay} title="Play">
         <i className="ti ti-player-play"/>
+      </button>
+      <button className="track-row__edit" onClick={startEdit} title="Edit">
+        <i className="ti ti-pencil"/>
       </button>
       {confirmDelete ? (
         <>
@@ -587,6 +639,7 @@ function TrackRow({ track, index, isCurrent, isDropTarget, chAccent, onPlay, onD
               chAccent={chAccent}
               onPlay={() => onPlayTrack(track, i)}
               onDelete={() => onDeleteTrack(track.id)}
+              onUpdate={fields => onUpdateTrack(track.id, fields)}
               onDragStart={e => onDragStart(e, i)}
               onDragOver={e  => onDragOver(e, i)}
               onDrop={e      => onDrop(e, i)}

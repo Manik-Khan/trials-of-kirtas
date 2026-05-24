@@ -1299,6 +1299,38 @@ html, body {
 }
 .track-row__cancel-del:hover { color: var(--gold-light, #f0d878); border-color: rgba(201,168,76,0.5); }
 
+.track-row__edit {
+  flex-shrink: 0;
+  width: 26px; height: 26px;
+  background: none;
+  border: 1px solid rgba(201,168,76,0.2);
+  color: var(--muted, #8a7050);
+  cursor: pointer;
+  display: flex; align-items: center; justify-content: center;
+  font-size: 0.75rem;
+  transition: all 0.12s;
+}
+.track-row__edit:hover { color: var(--gold-light, #f0d878); border-color: rgba(201,168,76,0.5); }
+
+.track-row--editing {
+  flex-direction: column;
+  align-items: stretch;
+  padding: 0.6rem 0.75rem;
+  gap: 0.4rem;
+  background: rgba(0,0,0,0.25);
+  border-bottom: 1px solid rgba(201,168,76,0.15);
+}
+.track-row__edit-fields {
+  display: flex; flex-direction: column; gap: 0.35rem;
+}
+.track-row__edit-actions {
+  display: flex; gap: 0.4rem; justify-content: flex-end;
+}
+.pill--xs {
+  padding: 0.2rem 0.6rem;
+  font-size: 0.7rem;
+}
+
 /* Add form */
 .track-panel__add-form {
   padding: 0.85rem 1rem;

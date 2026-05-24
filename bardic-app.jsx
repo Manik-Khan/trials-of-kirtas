@@ -451,6 +451,15 @@ function App() {
     });
   }, [library]);
 
+  const updateTrack = useCallback((moodId, trackId, fields) => {
+    updateLibrary({
+      ...library,
+      moods: library.moods.map(m => m.id === moodId
+        ? { ...m, tracks: m.tracks.map(t => t.id === trackId ? { ...t, ...fields } : t) }
+        : m),
+    });
+  }, [library]);
+
   const moveTrack = useCallback((moodId, fromIdx, toIdx) => {
     const mood = library.moods.find(m => m.id === moodId);
     if (!mood) return;
@@ -753,6 +762,7 @@ function App() {
         }}
         onAddTrack={track      => { if (trackPanel) addTrack(trackPanel.moodId, track); }}
         onDeleteTrack={trackId => { if (trackPanel) deleteTrack(trackPanel.moodId, trackId); }}
+        onUpdateTrack={(trackId, fields) => { if (trackPanel) updateTrack(trackPanel.moodId, trackId, fields); }}
         onMoveTrack={(fi, ti)  => { if (trackPanel) moveTrack(trackPanel.moodId, fi, ti); }}
       />
 
