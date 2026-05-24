@@ -189,7 +189,7 @@
   function makeChannel(id, getMasterVol) {
     getMasterVol = getMasterVol || (() => 1);
     const out = ctx.createGain();
-    out.gain.value = 0.7;
+    out.gain.value = 0; // set correctly by first eng.setVolume() call from app
     out.connect(master);
 
     let current     = null;
@@ -307,6 +307,9 @@
       _volume = v;
       if (!_muted) {
         const effective = v * getMasterVol();
+        // Set directly first (safe regardless of AudioContext clock state),
+        // then schedule a short ramp for smooth fader movement during playback.
+        out.gain.value = effective;
         out.gain.linearRampToValueAtTime(effective, ctx.currentTime + 0.05);
         const a = _currentAudio();
         if (a) a.volume = Math.max(0, Math.min(1, effective));
@@ -316,6 +319,7 @@
     function setMuted(m) {
       _muted = m;
       const effective = m ? 0 : _volume * getMasterVol();
+      out.gain.value = effective;
       out.gain.linearRampToValueAtTime(effective, ctx.currentTime + 0.05);
       const a = _currentAudio();
       if (a) a.volume = Math.max(0, Math.min(1, effective));
