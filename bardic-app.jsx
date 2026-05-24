@@ -204,11 +204,13 @@ function App() {
   // CHANNEL ACTIONS
   // ============================================================
   const playTrackOnChannel = useCallback((track, trackIdx, moodId, chId) => {
-    const mode = chStates[chId].mode;
-    enginesRef.current[chId]?.playTrack(track, crossfadeRef.current, mode);
+    const mode = chStatesRef.current[chId].mode;
+    // Use instant switch (0s fade) for manual track selection in the panel —
+    // avoids voice stacking when the user clicks tracks quickly.
+    enginesRef.current[chId]?.playTrack(track, 0, mode);
     setChStates(s => ({ ...s, [chId]: { ...s[chId], track, trackIdx, moodId, paused: false } }));
     setActiveSceneId(null);
-  }, [chStates]);
+  }, []);
 
   const castMoodOnChannel = useCallback((moodId, chId) => {
     const mood = library.moods.find(m => m.id === moodId);
@@ -230,7 +232,7 @@ function App() {
 
   // Toggle mood on its channel — pause if playing, resume if paused, start if not playing
   const toggleMoodOnChannel = useCallback((moodId, chId) => {
-    const cs  = chStates[chId];
+    const cs  = chStatesRef.current[chId]; // use ref to avoid stale closure on rapid taps
     const eng = enginesRef.current[chId];
     if (cs.moodId === moodId) {
       // This mood is on this channel
@@ -244,7 +246,7 @@ function App() {
     } else {
       castMoodOnChannel(moodId, chId);
     }
-  }, [chStates, castMoodOnChannel]);
+  }, [castMoodOnChannel]);
 
   const setVolume = useCallback((chId, v) => {
     // Apply to the moved channel directly
@@ -364,6 +366,11 @@ function App() {
   // True if at least one channel has a track and is not paused
   const anyPlaying = ALL_CHANNELS.some(c => chStates[c.id].track && !chStates[c.id].paused);
 
+  // Ref so the keydown handler always calls the latest toggleGlobalPause
+  // without needing it in the useEffect dependency array.
+  const toggleGlobalPauseRef = useRef(toggleGlobalPause);
+  useEffect(() => { toggleGlobalPauseRef.current = toggleGlobalPause; }, [toggleGlobalPause]);
+
   // ============================================================
   // SCENE ACTIONS
   // ============================================================
@@ -461,7 +468,7 @@ function App() {
   useEffect(() => {
     const onKey = (e) => {
       if (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA') return;
-      if (e.code === 'Space') { e.preventDefault(); toggleGlobalPause(); return; }
+      if (e.code === 'Space') { e.preventDefault(); e.stopPropagation(); toggleGlobalPauseRef.current(); return; }
       if (e.key === 'Escape') { setTrackPanel(null); setMoodEditor(null); setSceneEditor(null); setOverlay(null); return; }
       const n = parseInt(e.key);
       if (n >= 1 && n <= 9) {
@@ -478,8 +485,8 @@ function App() {
         }
       }
     };
-    window.addEventListener('keydown', onKey);
-    return () => window.removeEventListener('keydown', onKey);
+    window.addEventListener('keydown', onKey, { capture: true });
+    return () => window.removeEventListener('keydown', onKey, { capture: true });
   }, [library, selectedCh, chStates, toggleMoodOnChannel, castMoodOnChannel]);
 
   // ============================================================

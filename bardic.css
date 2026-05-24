@@ -447,8 +447,7 @@ html, body {
   position: absolute;
   bottom: 0; left: 0; right: 0;
   background: var(--gold, #c9a84c);
-  opacity: 0.55;
-  transition: height 0.05s linear;
+  transition: height 0.05s linear, opacity 0.05s linear;
 }
 .fader__tick {
   position: absolute;
@@ -487,7 +486,7 @@ html, body {
   letter-spacing: 0.1em;
   color: var(--muted, #8a7050);
 }
-.fader.is-muted .fader__fill { opacity: 0.15; }
+.fader.is-muted .fader__fill { opacity: 0.12 !important; }
 
 /* ============================================================
    MOOD CODEX

@@ -188,7 +188,7 @@ function VerticalFader({ value, onChange, accent, muted }) {
         {[0,1,2,3,4,5,6,7,8].map(i => (
           <div key={i} className="fader__tick" style={{ bottom: `${i * 12}%` }}/>
         ))}
-        <div className="fader__fill" style={{ height: `${v * 100}%`, background: accent }}/>
+        <div className="fader__fill" style={{ height: `${v * 100}%`, background: accent, opacity: 0.25 + v * 0.6 }}/>
       </div>
       <div className="fader__knob" style={{ bottom: `calc(${v * 100}% - 12px)`, borderColor: accent }}>
         <div className="fader__knob-rune" style={{ color: accent }}>⚜</div>
