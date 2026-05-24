@@ -79,22 +79,17 @@
   // back to the fakeGain shim — volume still works on desktop where
   // audio.volume IS respected; iOS will get system volume only.
   // ============================================================
-  // isProxied: true when the URL is already routed through our CORS proxy.
-  // Only proxied URLs are safe to route through createMediaElementSource —
-  // setting crossOrigin on a non-CORS source causes iOS Safari to refuse
-  // to play the element entirely (tainted canvas / CORS block).
+  // isProxied: true only when the URL is routed through our Netlify CORS proxy.
+  // Only then is it safe to set crossOrigin and use createMediaElementSource.
+  // Setting crossOrigin on a non-CORS URL causes iOS Safari to block the
+  // element entirely — not just Web Audio, but playback too.
   function makeUrlTrack(url, loop, onEnd, chId, isProxied) {
     const audio = new Audio();
     audio.preload = 'auto';
     audio.loop    = !!loop;
     audio.volume  = 0;
-
-    // Only set crossOrigin when we know the URL has CORS headers (proxy path).
-    // On a non-CORS source, crossOrigin='anonymous' causes iOS Safari to
-    // block the element entirely — no fallback, just silence.
     if (isProxied) audio.crossOrigin = 'anonymous';
-
-    audio.src = url;
+    audio.src     = url;
     if (chId) audio.dataset.ch = chId;
 
     // iOS Safari discards or refuses to play Audio objects that aren't
@@ -104,11 +99,10 @@
 
     if (onEnd) audio.addEventListener('ended', onEnd, { once: false });
 
-    // ── Real Web Audio routing (proxied/CORS URLs only) ──────────
-    // createMediaElementSource requires crossOrigin='anonymous' AND
-    // CORS headers on the response. We only attempt this when both
-    // are guaranteed — i.e. the URL went through our proxy function.
-    // On iOS this is the only working volume-control path.
+    // ── Real Web Audio GainNode (proxied URLs only) ──────────────
+    // createMediaElementSource requires crossOrigin='anonymous' AND a
+    // CORS response. Both are guaranteed only when isProxied is true.
+    // On iOS this is the only working per-channel volume control path.
     let realGain = null;
     if (isProxied) {
       try {
@@ -298,9 +292,10 @@
       _volume = v;
       if (!_muted) {
         const effective = Math.max(0, Math.min(1, v * getMasterVol()));
-        // Real Web Audio GainNode (CORS/proxy path) — works on all platforms
-        // including iOS. fakeGain.setImmediate fallback for non-CORS desktop.
-        if (current && current.gain && current.gain.gain && current.gain.gain.setValueAtTime) {
+        // For real GainNode (proxied/CORS path), set directly on the node.
+        // For fakeGain (non-proxied), set via setImmediate which cancels any
+        // in-progress ramp and writes audio.volume immediately.
+        if (current && current.gain && current.gain.gain instanceof AudioParam) {
           current.gain.gain.cancelScheduledValues(ctx.currentTime);
           current.gain.gain.setValueAtTime(effective, ctx.currentTime);
         } else if (current && current.gain && current.gain.setImmediate) {
@@ -312,7 +307,7 @@
     function setMuted(m) {
       _muted = m;
       const effective = Math.max(0, Math.min(1, m ? 0 : _volume * getMasterVol()));
-      if (current && current.gain && current.gain.gain && current.gain.gain.setValueAtTime) {
+      if (current && current.gain && current.gain.gain instanceof AudioParam) {
         current.gain.gain.cancelScheduledValues(ctx.currentTime);
         current.gain.gain.setValueAtTime(effective, ctx.currentTime);
       } else if (current && current.gain && current.gain.setImmediate) {
