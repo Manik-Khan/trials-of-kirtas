@@ -215,16 +215,28 @@
 
         setTimeout(() => {
           voice.start();
-          voice.gain.gain.setValueAtTime(0, ctx.currentTime);
-          voice.gain.gain.linearRampToValueAtTime(1, ctx.currentTime + Math.max(0.05, fadeSec));
+          // Re-read ctx.currentTime here — the audio clock may have advanced
+          // significantly if the context was suspended. Use setValueAtTime to
+          // anchor at 0, then ramp to 1 over a short fixed window rather than
+          // relying on a ramp scheduled before the delay.
+          const now = ctx.currentTime;
+          const ramp = Math.max(0.05, Math.min(fadeSec, 1.5));
+          voice.gain.gain.cancelScheduledValues(now);
+          voice.gain.gain.setValueAtTime(0, now);
+          voice.gain.gain.linearRampToValueAtTime(1, now + ramp);
+          // Re-apply channel volume so out.gain reflects current state.
+          setVolume(_volume);
         }, fadeSec * 1000);
       } else {
         // No current track — start immediately and fade in.
         voice.start();
         const t = ctx.currentTime;
+        const ramp = Math.max(0.05, Math.min(fadeSec, 1.5));
         voice.gain.gain.cancelScheduledValues(t);
         voice.gain.gain.setValueAtTime(0, t);
-        voice.gain.gain.linearRampToValueAtTime(1, t + Math.max(0.05, fadeSec));
+        voice.gain.gain.linearRampToValueAtTime(1, t + ramp);
+        // Re-apply channel volume so out.gain reflects current state.
+        setVolume(_volume);
       }
 
       current = voice;
@@ -237,12 +249,8 @@
 
       // Resume AudioContext if suspended (browser autoplay policy).
       // No-op if already running; guards both desktop click and iOS tap paths.
-      // After resuming, re-apply the channel volume — scheduled GainNode ramps
-      // queued while the context was suspended may resolve incorrectly (often 0)
-      // because the audio clock was paused. Calling setVolume after resume
-      // reschedules the ramp against a running clock.
       if (ctx.state === 'suspended') {
-        ctx.resume().then(() => { setVolume(_volume); }).catch(() => {});
+        ctx.resume().catch(() => {});
       }
 
       // Route Dropbox links through the CORS proxy so createMediaElementSource
