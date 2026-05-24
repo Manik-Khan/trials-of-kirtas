@@ -242,7 +242,7 @@
 
       // Route Dropbox links through the CORS proxy so createMediaElementSource
       // works and we get real Web Audio GainNode volume control (iOS needs this).
-      const proxiedUrl = BardicAudio._proxyUrl(track.url);
+      const proxiedUrl = _proxyUrl(track.url);
       const isProxied  = proxiedUrl !== track.url;
 
       const loops = mode === 'loop';
