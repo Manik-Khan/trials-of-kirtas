@@ -44,6 +44,21 @@ const API = {
 
 function uid() { return Date.now().toString(36) + Math.random().toString(36).slice(2, 6); }
 
+// ── Audio URL proxy helper ──
+// Routes Dropbox shared links through our Netlify function, which
+// resolves the redirect chain server-side and returns a 302 to the
+// final dropboxusercontent.com URL with CORS headers added.
+// This allows createMediaElementSource → Web Audio graph routing,
+// giving us real GainNode volume control that works on iOS.
+// Non-Dropbox URLs (Cloudinary, etc.) are passed through unchanged.
+function proxyAudioUrl(url) {
+  if (!url) return url;
+  if (url.includes('dropbox.com') || url.includes('dropboxusercontent.com')) {
+    return `/.netlify/functions/audio-proxy?url=${encodeURIComponent(url)}`;
+  }
+  return url;
+}
+
 // ============================================================
 // App
 // ============================================================
@@ -277,45 +292,6 @@ function App() {
     if (cs.track) enginesRef.current[chId]?.playTrack(cs.track, 0.5, mode);
   }, [chStates]);
 
-  // Prev: if elapsed > 3s restart current track; if ≤ 3s go to previous in playlist
-  const prevTrack = useCallback((chId) => {
-    const cs   = chStates[chId];
-    const eng  = enginesRef.current[chId];
-    if (!cs.track || !eng) return;
-    const audio = eng._currentAudio();
-    const elapsed = audio ? audio.currentTime : 0;
-    if (elapsed > 3) {
-      // Restart current track
-      if (audio) audio.currentTime = 0;
-      return;
-    }
-    const mood = library.moods.find(m => m.id === cs.moodId);
-    if (!mood || !mood.tracks.length) return;
-    const prevIdx = ((cs.trackIdx ?? 0) - 1 + mood.tracks.length) % mood.tracks.length;
-    const prevTrk = mood.tracks[prevIdx];
-    eng.playTrack(prevTrk, crossfadeRef.current, cs.mode);
-    setChStates(s => ({ ...s, [chId]: { ...s[chId], track: prevTrk, trackIdx: prevIdx, paused: false } }));
-  }, [chStates, library]);
-
-  // Next: advance to next track in playlist (wraps)
-  const nextTrack = useCallback((chId) => {
-    const cs  = chStates[chId];
-    const eng = enginesRef.current[chId];
-    if (!cs.track || !eng) return;
-    const mood = library.moods.find(m => m.id === cs.moodId);
-    if (!mood || !mood.tracks.length) return;
-    let nextIdx;
-    if (cs.mode === 'shuffle') {
-      const others = mood.tracks.map((_,i) => i).filter(i => i !== cs.trackIdx);
-      nextIdx = others.length ? others[Math.floor(Math.random() * others.length)] : 0;
-    } else {
-      nextIdx = ((cs.trackIdx ?? 0) + 1) % mood.tracks.length;
-    }
-    const nextTrk = mood.tracks[nextIdx];
-    eng.playTrack(nextTrk, crossfadeRef.current, cs.mode);
-    setChStates(s => ({ ...s, [chId]: { ...s[chId], track: nextTrk, trackIdx: nextIdx, paused: false } }));
-  }, [chStates, library]);
-
   // ============================================================
   // SCENE ACTIONS
   // ============================================================
@@ -522,8 +498,6 @@ function App() {
                   onMute={()  => setMute(ch.id)}
                   onStop={()  => stopChannel(ch.id)}
                   onMode={m   => setMode(ch.id, m)}
-                  onPrev={()  => prevTrack(ch.id)}
-                  onNext={()  => nextTrack(ch.id)}
                   onOpenPanel={() => {
                     if (chStates[ch.id].moodId)
                       setTrackPanel({ moodId: chStates[ch.id].moodId, fromChannel: ch.id });

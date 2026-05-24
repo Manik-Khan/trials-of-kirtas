@@ -67,17 +67,25 @@
   // ============================================================
   // URL TRACK (HTML5 Audio → Web Audio)
   // ============================================================
-  // crossOrigin='anonymous' is set but will silently fail on
-  // servers that don't send CORS headers (Dropbox dl links work,
-  // Google Drive does not). Playback still works via <audio>;
-  // only Web Audio buffer decode is blocked without CORS.
+  // URLs routed through our audio-proxy function carry CORS headers,
+  // allowing createMediaElementSource → real Web Audio GainNode.
+  // This is the only volume-control path that works on iOS Safari,
+  // which ignores audio.volume set via JavaScript.
+  //
+  // For non-proxied URLs that already send CORS (e.g. Cloudinary),
+  // crossOrigin='anonymous' + createMediaElementSource also works.
+  //
+  // If CORS is unavailable (createMediaElementSource throws), we fall
+  // back to the fakeGain shim — volume still works on desktop where
+  // audio.volume IS respected; iOS will get system volume only.
   // ============================================================
   function makeUrlTrack(url, loop, onEnd, chId) {
     const audio = new Audio();
-    audio.preload = 'auto';
-    audio.loop    = !!loop;
-    audio.volume  = 0;
-    audio.src     = url;
+    audio.preload     = 'auto';
+    audio.loop        = !!loop;
+    audio.crossOrigin = 'anonymous'; // required for createMediaElementSource
+    audio.volume      = 0;
+    audio.src         = url;
     if (chId) audio.dataset.ch = chId;
 
     // iOS Safari discards or refuses to play Audio objects that aren't
@@ -87,11 +95,26 @@
 
     if (onEnd) audio.addEventListener('ended', onEnd, { once: false });
 
-    // Skip createMediaElementSource — Dropbox blocks CORS at the Web Audio
-    // level even without crossOrigin set. Control volume directly on the
-    // audio element instead via a fake gain shim.
-    let _rampTimer = null; // track active interval so it can be cancelled
+    // ── Attempt real Web Audio routing (CORS path) ───────────────
+    // createMediaElementSource requires CORS headers on the audio URL.
+    // Our proxy guarantees this for Dropbox links. For other URLs it
+    // may throw — we catch and fall back to fakeGain.
+    let realGain = null;
+    try {
+      const source = ctx.createMediaElementSource(audio);
+      realGain = ctx.createGain();
+      realGain.gain.value = 0;
+      source.connect(realGain);
+      // realGain is connected to the channel out node by _crossfadeTo
+    } catch (e) {
+      realGain = null; // CORS unavailable — fall through to fakeGain
+    }
 
+    // ── fakeGain shim (fallback for non-CORS URLs) ───────────────
+    // Useful on desktop where audio.volume is settable.
+    // On iOS, audio.volume cannot be set via JS so this is a no-op
+    // there — but playback still works at system volume.
+    let _rampTimer = null;
     const fakeGain = {
       gain: {
         value: 0,
@@ -119,8 +142,6 @@
           }, 50);
         },
       },
-      // Cancel any in-progress ramp and set volume immediately.
-      // Called by setVolume/setMuted so a fader move mid-fade takes effect now.
       setImmediate(v) {
         if (_rampTimer) { clearInterval(_rampTimer); _rampTimer = null; }
         const clamped = Math.max(0, Math.min(1, v));
@@ -131,8 +152,10 @@
       disconnect() {},
     };
 
+    const activeGain = realGain || fakeGain;
+
     return {
-      gain:  fakeGain,
+      gain:  activeGain,
       audio,
       start: () => {
         // Attempt play immediately, then retry at 100/300/600ms.
@@ -177,6 +200,10 @@
     function _crossfadeTo(voice, fadeSec) {
       voice.gain.connect(out);
 
+      // Target volume for the incoming track: the channel's current
+      // effective level. Fade to 1 was wrong — it ignored the fader.
+      const target = Math.max(0, Math.min(1, _muted ? 0 : _volume * getMasterVol()));
+
       if (current) {
         // Fade out the old track, then start the new one after it finishes.
         const prev = current;
@@ -187,18 +214,16 @@
         clearTimeout(pendingFade);
         pendingFade = setTimeout(() => prev.stop(), fadeSec * 1000 + 60);
 
-        // New track starts after fade-out completes, then fades in.
+        // New track starts after fade-out completes, then fades in to target.
         setTimeout(() => {
           voice.start();
           voice.gain.gain.setValueAtTime(0, ctx.currentTime);
-          voice.gain.gain.linearRampToValueAtTime(1, ctx.currentTime + Math.max(0.05, fadeSec));
+          voice.gain.gain.linearRampToValueAtTime(target, ctx.currentTime + Math.max(0.05, fadeSec));
         }, fadeSec * 1000);
       } else {
-        // No current track — start immediately and fade in to the channel's
-        // current effective volume (respects the fader position, not always 1).
+        // No current track — start immediately and fade in to target volume.
         voice.start();
         const t = ctx.currentTime;
-        const target = Math.max(0, Math.min(1, _muted ? 0 : _volume * getMasterVol()));
         voice.gain.gain.cancelScheduledValues(t);
         voice.gain.gain.setValueAtTime(0, t);
         voice.gain.gain.linearRampToValueAtTime(target, t + Math.max(0.05, fadeSec));
@@ -212,6 +237,11 @@
     function playTrack(track, fadeSec = 2, mode = 'loop') {
       if (!track?.url) return;
 
+      // Route Dropbox links through the CORS proxy so createMediaElementSource
+      // works and we get real Web Audio GainNode volume control (iOS needs this).
+      const proxiedUrl = BardicAudio._proxyUrl(track.url);
+      const proxiedTrack = proxiedUrl !== track.url ? { ...track, url: proxiedUrl } : track;
+
       const loops = mode === 'loop';
 
       // onEnd fires for sequence / shuffle / single
@@ -219,7 +249,7 @@
         ? () => _onTrackEnd(id, track, mode)
         : null;
 
-      const voice = makeUrlTrack(track.url, loops, onEnd, id);
+      const voice = makeUrlTrack(proxiedTrack.url, loops, onEnd, id);
       _crossfadeTo(voice, fadeSec);
       _track = track;
     }
@@ -259,21 +289,26 @@
       _volume = v;
       if (!_muted) {
         const effective = Math.max(0, Math.min(1, v * getMasterVol()));
-        // Web Audio node path (desktop / Cloudinary)
-        out.gain.linearRampToValueAtTime(effective, ctx.currentTime + 0.05);
-        // Direct audio element path (iOS / Dropbox) — cancel any in-progress
-        // fade ramp so the fader move takes effect immediately.
-        if (current?.setImmediate) current.setImmediate(effective);
-        else if (current?.audio)   current.audio.volume = effective;
+        // Real Web Audio GainNode (CORS/proxy path) — works on all platforms
+        // including iOS. fakeGain.setImmediate fallback for non-CORS desktop.
+        if (current && current.gain && current.gain.gain && current.gain.gain.setValueAtTime) {
+          current.gain.gain.cancelScheduledValues(ctx.currentTime);
+          current.gain.gain.setValueAtTime(effective, ctx.currentTime);
+        } else if (current && current.gain && current.gain.setImmediate) {
+          current.gain.setImmediate(effective);
+        }
       }
     }
 
     function setMuted(m) {
       _muted = m;
       const effective = Math.max(0, Math.min(1, m ? 0 : _volume * getMasterVol()));
-      out.gain.linearRampToValueAtTime(effective, ctx.currentTime + 0.05);
-      if (current?.setImmediate) current.setImmediate(effective);
-      else if (current?.audio)   current.audio.volume = effective;
+      if (current && current.gain && current.gain.gain && current.gain.gain.setValueAtTime) {
+        current.gain.gain.cancelScheduledValues(ctx.currentTime);
+        current.gain.gain.setValueAtTime(effective, ctx.currentTime);
+      } else if (current && current.gain && current.gain.setImmediate) {
+        current.gain.setImmediate(effective);
+      }
     }
 
     // Register the app-level callback for track-end events
@@ -418,9 +453,20 @@
   let _masterVol = 0.8;
   const _allChannels = [];
 
+  // Proxy helper — exposed so bardic-app.jsx can rewrite URLs for
+  // the ProgressBar's audio element lookup (which searches by data-ch).
+  function _proxyUrl(url) {
+    if (!url) return url;
+    if (url.includes('dropbox.com') || url.includes('dropboxusercontent.com')) {
+      return `/.netlify/functions/audio-proxy?url=${encodeURIComponent(url)}`;
+    }
+    return url;
+  }
+
   window.BardicAudio = {
     ctx,
     master,
+    _proxyUrl,
     setMasterVolume: (v) => {
       _masterVol = v;
       master.gain.linearRampToValueAtTime(v, ctx.currentTime + 0.05);
