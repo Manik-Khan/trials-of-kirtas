@@ -889,8 +889,26 @@ function SaveSceneOverlay({ open, onSave, onClose }) {
 // Shown only on mobile (CSS hides on desktop — desktop uses Space bar).
 // anyPlaying: true if at least one channel is playing and not paused.
 function GlobalPauseButton({ anyPlaying, onToggle }) {
+  const ref = useRef(null);
+
+  useEffect(() => {
+    const el = ref.current;
+    if (!el) return;
+    function onTouchEnd(e) {
+      // Call resumeAll() synchronously here — same pattern as MoodPad.
+      // iOS only permits audio.play() within the native gesture call stack;
+      // React's onClick fires too late.
+      e.preventDefault();
+      window.BardicAudio.resumeAll();
+      onToggle();
+    }
+    el.addEventListener('touchend', onTouchEnd, { passive: false });
+    return () => el.removeEventListener('touchend', onTouchEnd);
+  }, [onToggle]);
+
   return (
     <button
+      ref={ref}
       className={`global-pause-btn ${anyPlaying ? 'global-pause-btn--playing' : 'global-pause-btn--paused'}`}
       onClick={onToggle}
       aria-label={anyPlaying ? 'Pause all' : 'Resume all'}

@@ -235,6 +235,10 @@
     function playTrack(track, fadeSec = 2, mode = 'loop') {
       if (!track?.url) return;
 
+      // Resume AudioContext if suspended (browser autoplay policy).
+      // No-op if already running; guards both desktop click and iOS tap paths.
+      if (ctx.state === 'suspended') ctx.resume();
+
       // Route Dropbox links through the CORS proxy so createMediaElementSource
       // works and we get real Web Audio GainNode volume control (iOS needs this).
       const proxiedUrl = _proxyUrl(track.url);
@@ -482,11 +486,17 @@
     // Call this at the top of a native touchend handler (before React's
     // onClick fires) to ensure play() runs inside the gesture window.
     resumeAll() {
-      if (ctx.state === 'suspended') ctx.resume();
-      _allChannels.forEach(ch => {
-        const a = ch._currentAudio();
-        if (a && a.src && a.paused) a.play().catch(() => {});
-      });
+      const doPlay = () => {
+        _allChannels.forEach(ch => {
+          const a = ch._currentAudio();
+          if (a && a.src && a.paused) a.play().catch(() => {});
+        });
+      };
+      if (ctx.state === 'suspended') {
+        ctx.resume().then(doPlay).catch(() => {});
+      } else {
+        doPlay();
+      }
     },
   };
 })();
