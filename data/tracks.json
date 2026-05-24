@@ -213,7 +213,14 @@
       "sigil": "ti-crown",
       "color": "#5a1a2a",
       "id": "mpj03j5wpeep",
-      "tracks": []
+      "tracks": [
+        {
+          "url": "https://res.cloudinary.com/df0tgoiyb/video/upload/v1779601041/Seirei_no_Moribito_OST_-_Karu_320_kbps_cbj3wy.mp3",
+          "title": "Karu",
+          "artist": "Seirei No Moribito",
+          "id": "mpjfg91ojaih"
+        }
+      ]
     },
     {
       "label": "Towns",
