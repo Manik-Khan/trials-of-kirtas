@@ -200,7 +200,6 @@
 
     // ── Internal: build a voice and crossfade to it ──────────
     function _crossfadeTo(voice, fadeSec) {
-      console.log('[bardic] _crossfadeTo', { ctxState: ctx.state, ctxTime: ctx.currentTime, fadeSec, outGain: out.gain.value, _volume });
       voice.gain.connect(out);
 
       if (current) {
@@ -215,7 +214,6 @@
         setTimeout(() => {
           const now = ctx.currentTime;
           const ramp = Math.max(0.05, Math.min(fadeSec, 1.5));
-          console.log('[bardic] crossfade-in (current existed)', { ctxState: ctx.state, now, ramp, outGain: out.gain.value });
           voice.gain.gain.cancelScheduledValues(now);
           voice.gain.gain.setValueAtTime(0, now);
           voice.gain.gain.linearRampToValueAtTime(1, now + ramp);
@@ -225,12 +223,10 @@
         voice.start();
         const t = ctx.currentTime;
         const ramp = Math.max(0.05, Math.min(fadeSec, 1.5));
-        console.log('[bardic] crossfade-in (no current)', { ctxState: ctx.state, t, ramp, voiceGainBefore: voice.gain.gain.value, outGain: out.gain.value });
         voice.gain.gain.cancelScheduledValues(t);
         voice.gain.gain.setValueAtTime(0, t);
         voice.gain.gain.linearRampToValueAtTime(1, t + ramp);
         setVolume(_volume);
-        console.log('[bardic] after setVolume', { outGain: out.gain.value, effective: _volume * getMasterVol() });
       }
 
       current = voice;
@@ -240,7 +236,6 @@
     // mode: 'loop' | 'sequence' | 'shuffle' | 'single'
     function playTrack(track, fadeSec = 2, mode = 'loop') {
       if (!track?.url) return;
-      console.log('[bardic] playTrack', { id, ctxState: ctx.state, ctxTime: ctx.currentTime, fadeSec, url: track.url.slice(-40) });
 
       const proxiedUrl = _proxyUrl(track.url);
       const isProxied  = proxiedUrl !== track.url
@@ -264,9 +259,8 @@
       voice.audio.play().catch(() => {});
 
       if (ctx.state === 'suspended') {
-        console.log('[bardic] ctx suspended — awaiting resume before crossfade');
         ctx.resume()
-          .then(() => { console.log('[bardic] ctx resumed, state now:', ctx.state, 'time:', ctx.currentTime); _crossfadeTo(voice, fadeSec); })
+          .then(() => _crossfadeTo(voice, fadeSec))
           .catch(() => _crossfadeTo(voice, fadeSec));
       } else {
         _crossfadeTo(voice, fadeSec);
