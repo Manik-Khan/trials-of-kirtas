@@ -201,10 +201,10 @@
 
     // ── Internal: build a voice and crossfade to it ──────────
     function _crossfadeTo(voice, fadeSec) {
+      console.log('[bardic] _crossfadeTo', { ctxState: ctx.state, ctxTime: ctx.currentTime, fadeSec, outGain: out.gain.value, _volume });
       voice.gain.connect(out);
 
       if (current) {
-        // Fade out old track, start new one after fade completes.
         const prev = current;
         const t = ctx.currentTime;
         prev.gain.gain.cancelScheduledValues(t);
@@ -214,29 +214,24 @@
         pendingFade = setTimeout(() => prev.stop(), fadeSec * 1000 + 60);
 
         setTimeout(() => {
-          voice.start();
-          // Re-read ctx.currentTime here — the audio clock may have advanced
-          // significantly if the context was suspended. Use setValueAtTime to
-          // anchor at 0, then ramp to 1 over a short fixed window rather than
-          // relying on a ramp scheduled before the delay.
           const now = ctx.currentTime;
           const ramp = Math.max(0.05, Math.min(fadeSec, 1.5));
+          console.log('[bardic] crossfade-in (current existed)', { ctxState: ctx.state, now, ramp, outGain: out.gain.value });
           voice.gain.gain.cancelScheduledValues(now);
           voice.gain.gain.setValueAtTime(0, now);
           voice.gain.gain.linearRampToValueAtTime(1, now + ramp);
-          // Re-apply channel volume so out.gain reflects current state.
           setVolume(_volume);
         }, fadeSec * 1000);
       } else {
-        // No current track — start immediately and fade in.
         voice.start();
         const t = ctx.currentTime;
         const ramp = Math.max(0.05, Math.min(fadeSec, 1.5));
+        console.log('[bardic] crossfade-in (no current)', { ctxState: ctx.state, t, ramp, voiceGainBefore: voice.gain.gain.value, outGain: out.gain.value });
         voice.gain.gain.cancelScheduledValues(t);
         voice.gain.gain.setValueAtTime(0, t);
         voice.gain.gain.linearRampToValueAtTime(1, t + ramp);
-        // Re-apply channel volume so out.gain reflects current state.
         setVolume(_volume);
+        console.log('[bardic] after setVolume', { outGain: out.gain.value, effective: _volume * getMasterVol() });
       }
 
       current = voice;
@@ -246,6 +241,7 @@
     // mode: 'loop' | 'sequence' | 'shuffle' | 'single'
     function playTrack(track, fadeSec = 2, mode = 'loop') {
       if (!track?.url) return;
+      console.log('[bardic] playTrack', { id, ctxState: ctx.state, ctxTime: ctx.currentTime, fadeSec, url: track.url.slice(-40) });
 
       const proxiedUrl = _proxyUrl(track.url);
       const isProxied  = proxiedUrl !== track.url
@@ -259,14 +255,11 @@
       const voice = makeUrlTrack(proxiedUrl, loops, onEnd, id, isProxied);
       _track = track;
 
-      // Resume AudioContext before scheduling any GainNode ramps.
-      // ctx.resume() is async — ramps scheduled against a suspended clock
-      // resolve incorrectly (often 0). Awaiting ensures the audio clock is
-      // running before _crossfadeTo schedules anything.
       if (ctx.state === 'suspended') {
+        console.log('[bardic] ctx suspended — awaiting resume before crossfade');
         ctx.resume()
-          .then(() => _crossfadeTo(voice, fadeSec))
-          .catch(() => _crossfadeTo(voice, fadeSec)); // attempt playback even on error
+          .then(() => { console.log('[bardic] ctx resumed, state now:', ctx.state, 'time:', ctx.currentTime); _crossfadeTo(voice, fadeSec); })
+          .catch(() => _crossfadeTo(voice, fadeSec));
       } else {
         _crossfadeTo(voice, fadeSec);
       }
