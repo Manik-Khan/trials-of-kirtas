@@ -238,7 +238,12 @@
       // Route Dropbox links through the CORS proxy so createMediaElementSource
       // works and we get real Web Audio GainNode volume control (iOS needs this).
       const proxiedUrl = _proxyUrl(track.url);
-      const isProxied  = proxiedUrl !== track.url;
+      // isProxied gates crossOrigin='anonymous' + createMediaElementSource.
+      // True for Dropbox URLs (routed through our proxy) and Cloudinary URLs
+      // (which serve native CORS headers, so no proxy needed but same Web Audio
+      // path applies — this is the only volume control that works on iOS).
+      const isProxied  = proxiedUrl !== track.url
+        || track.url.includes('res.cloudinary.com');
 
       const loops = mode === 'loop';
 
