@@ -247,32 +247,29 @@
     function playTrack(track, fadeSec = 2, mode = 'loop') {
       if (!track?.url) return;
 
-      // Resume AudioContext if suspended (browser autoplay policy).
-      // No-op if already running; guards both desktop click and iOS tap paths.
-      if (ctx.state === 'suspended') {
-        ctx.resume().catch(() => {});
-      }
-
-      // Route Dropbox links through the CORS proxy so createMediaElementSource
-      // works and we get real Web Audio GainNode volume control (iOS needs this).
       const proxiedUrl = _proxyUrl(track.url);
-      // isProxied gates crossOrigin='anonymous' + createMediaElementSource.
-      // True for Dropbox URLs (routed through our proxy) and Cloudinary URLs
-      // (which serve native CORS headers, so no proxy needed but same Web Audio
-      // path applies — this is the only volume control that works on iOS).
       const isProxied  = proxiedUrl !== track.url
         || track.url.includes('res.cloudinary.com');
 
       const loops = mode === 'loop';
-
-      // onEnd fires for sequence / shuffle / single
       const onEnd = (mode !== 'loop' && _onTrackEnd)
         ? () => _onTrackEnd(id, track, mode)
         : null;
 
       const voice = makeUrlTrack(proxiedUrl, loops, onEnd, id, isProxied);
-      _crossfadeTo(voice, fadeSec);
       _track = track;
+
+      // Resume AudioContext before scheduling any GainNode ramps.
+      // ctx.resume() is async — ramps scheduled against a suspended clock
+      // resolve incorrectly (often 0). Awaiting ensures the audio clock is
+      // running before _crossfadeTo schedules anything.
+      if (ctx.state === 'suspended') {
+        ctx.resume()
+          .then(() => _crossfadeTo(voice, fadeSec))
+          .catch(() => _crossfadeTo(voice, fadeSec)); // attempt playback even on error
+      } else {
+        _crossfadeTo(voice, fadeSec);
+      }
     }
 
     function stopTrack(fadeSec = 2) {
