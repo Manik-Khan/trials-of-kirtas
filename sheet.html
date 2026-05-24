@@ -37,12 +37,12 @@
 
       /* Sheet body: pad bottom to clear fixed bar + Safari chrome */
       .sheet-body {
-        padding-bottom: calc(56px + env(safe-area-inset-bottom)) !important;
+        padding-bottom: calc(68px + env(safe-area-inset-bottom)) !important;
       }
 
       /* Roller floats above the bottom bar */
       .roller-panel {
-        bottom: calc(54px + env(safe-area-inset-bottom)) !important;
+        bottom: calc(66px + env(safe-area-inset-bottom)) !important;
       }
 
       /* Bottom bar: fixed at bottom, above Safari chrome via safe-area-inset-bottom */
@@ -51,7 +51,7 @@
         bottom: 0;
         left: 0;
         right: 0;
-        height: calc(46px + env(safe-area-inset-bottom));
+        height: calc(58px + env(safe-area-inset-bottom));
         padding-bottom: env(safe-area-inset-bottom);
         background: var(--ink-deep);
         border-top: 1px solid var(--gold-dim);
@@ -59,8 +59,11 @@
         align-items: stretch;
         z-index: 200;
       }
-      .sheet-bar-btn {
-        flex: 1;
+
+      /* Party button — pinned left, fixed width, separated by divider */
+      .sheet-bar-party {
+        flex-shrink: 0;
+        width: 60px;
         display: flex;
         flex-direction: column;
         align-items: center;
@@ -68,11 +71,44 @@
         gap: 3px;
         background: transparent;
         border: none;
+        border-right: 1px solid var(--gold-dim);
+        color: var(--muted);
+        cursor: pointer;
+        transition: color 0.15s;
+        padding: 0;
+        -webkit-tap-highlight-color: transparent;
+      }
+      .sheet-bar-party:active { color: var(--gold-light); }
+      .sheet-bar-party svg { width: 16px; height: 16px; flex-shrink: 0; }
+
+      /* Scrollable tab strip */
+      .sheet-bar-tabs {
+        flex: 1;
+        display: flex;
+        align-items: stretch;
+        overflow-x: auto;
+        scroll-snap-type: x mandatory;
+        -webkit-overflow-scrolling: touch;
+        scrollbar-width: none;
+      }
+      .sheet-bar-tabs::-webkit-scrollbar { display: none; }
+
+      .sheet-bar-btn {
+        flex-shrink: 0;
+        width: 72px;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        gap: 4px;
+        background: transparent;
+        border: none;
         color: var(--muted);
         cursor: pointer;
         transition: color 0.15s;
         padding: 0;
         position: relative;
+        scroll-snap-align: start;
         -webkit-tap-highlight-color: transparent;
       }
       .sheet-bar-btn.active { color: var(--gold-light); }
@@ -86,10 +122,10 @@
         background: var(--gold);
         border-radius: 0 0 2px 2px;
       }
-      .sheet-bar-btn svg { width: 14px; height: 14px; flex-shrink: 0; }
+      .sheet-bar-btn svg { width: 16px; height: 16px; flex-shrink: 0; }
       .sheet-bar-label {
         font-family: var(--font-title);
-        font-size: 0.24rem;
+        font-size: 0.28rem;
         letter-spacing: 0.08em;
         text-transform: uppercase;
         line-height: 1;
@@ -106,8 +142,8 @@
         text-decoration: none;
       }
       .sheet-char-portrait {
-        width: 38px;
-        height: 38px;
+        width: 80px;
+        height: 80px;
         border-radius: 50%;
         object-fit: cover;
         object-position: top center;
@@ -1784,34 +1820,36 @@
 </div>
 <!-- Mobile bottom bar (Party first so it's far from the dice roller) -->
 <nav class="sheet-bottom-bar" id="sheet-bottom-bar">
-  <button class="sheet-bar-btn" id="sheet-char-btn" onclick="toggleCharPopover(event)" title="Switch character">
+  <button class="sheet-bar-party" id="sheet-char-btn" onclick="toggleCharPopover(event)" title="Switch character">
     <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.4"><circle cx="7" cy="7" r="2.5"/><circle cx="13" cy="7" r="2.5"/><path d="M2 17c0-2.8 2.2-5 5-5M11 12c2.8 0 5 2.2 5 5"/></svg>
     <span class="sheet-bar-label">Party</span>
   </button>
-  <button class="sheet-bar-btn active" data-tab="core" onclick="switchTab('core',this)">
-    <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.4"><circle cx="10" cy="7" r="3"/><path d="M4 17c0-3.3 2.7-6 6-6s6 2.7 6 6"/></svg>
-    <span class="sheet-bar-label">Core</span>
-  </button>
-  <button class="sheet-bar-btn" data-tab="combat" onclick="switchTab('combat',this)">
-    <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.4"><path d="M5 5l10 10M15 5L5 15"/><circle cx="10" cy="10" r="2.5"/></svg>
-    <span class="sheet-bar-label">Combat</span>
-  </button>
-  <button class="sheet-bar-btn" data-tab="spells" onclick="switchTab('spells',this)">
-    <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.4"><path d="M10 3l1.5 4.5H16l-3.7 2.7 1.4 4.3L10 12l-3.7 2.5 1.4-4.3L4 7.5h4.5z"/></svg>
-    <span class="sheet-bar-label">Spells</span>
-  </button>
-  <button class="sheet-bar-btn" data-tab="features" onclick="switchTab('features',this)">
-    <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.4"><rect x="4" y="4" width="12" height="12" rx="1"/><path d="M7 8h6M7 11h4"/></svg>
-    <span class="sheet-bar-label">Feats</span>
-  </button>
-  <button class="sheet-bar-btn" data-tab="equipment" onclick="switchTab('equipment',this)">
-    <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.4"><path d="M6 4h8v3H6zM4 7h12v9H4z"/><path d="M8 13h4"/></svg>
-    <span class="sheet-bar-label">Equip</span>
-  </button>
-  <button class="sheet-bar-btn" data-tab="bio" onclick="switchTab('bio',this)">
-    <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.4"><path d="M6 4h8l2 3v9H4V7z"/><path d="M8 10h4M8 13h2"/></svg>
-    <span class="sheet-bar-label">Bio</span>
-  </button>
+  <div class="sheet-bar-tabs">
+    <button class="sheet-bar-btn active" data-tab="core" onclick="switchTab('core',this)">
+      <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.4"><circle cx="10" cy="7" r="3"/><path d="M4 17c0-3.3 2.7-6 6-6s6 2.7 6 6"/></svg>
+      <span class="sheet-bar-label">Core</span>
+    </button>
+    <button class="sheet-bar-btn" data-tab="combat" onclick="switchTab('combat',this)">
+      <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.4"><path d="M5 5l10 10M15 5L5 15"/><circle cx="10" cy="10" r="2.5"/></svg>
+      <span class="sheet-bar-label">Combat</span>
+    </button>
+    <button class="sheet-bar-btn" data-tab="spells" onclick="switchTab('spells',this)">
+      <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.4"><path d="M10 3l1.5 4.5H16l-3.7 2.7 1.4 4.3L10 12l-3.7 2.5 1.4-4.3L4 7.5h4.5z"/></svg>
+      <span class="sheet-bar-label">Spells</span>
+    </button>
+    <button class="sheet-bar-btn" data-tab="features" onclick="switchTab('features',this)">
+      <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.4"><rect x="4" y="4" width="12" height="12" rx="1"/><path d="M7 8h6M7 11h4"/></svg>
+      <span class="sheet-bar-label">Feats</span>
+    </button>
+    <button class="sheet-bar-btn" data-tab="equipment" onclick="switchTab('equipment',this)">
+      <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.4"><path d="M6 4h8v3H6zM4 7h12v9H4z"/><path d="M8 13h4"/></svg>
+      <span class="sheet-bar-label">Equip</span>
+    </button>
+    <button class="sheet-bar-btn" data-tab="bio" onclick="switchTab('bio',this)">
+      <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.4"><path d="M6 4h8l2 3v9H4V7z"/><path d="M8 10h4M8 13h2"/></svg>
+      <span class="sheet-bar-label">Bio</span>
+    </button>
+  </div>
 </nav>
 
 <!-- Character switcher overlay (fixed, centered) -->
