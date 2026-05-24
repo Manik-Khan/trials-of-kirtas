@@ -79,13 +79,22 @@
   // back to the fakeGain shim — volume still works on desktop where
   // audio.volume IS respected; iOS will get system volume only.
   // ============================================================
-  function makeUrlTrack(url, loop, onEnd, chId) {
+  // isProxied: true when the URL is already routed through our CORS proxy.
+  // Only proxied URLs are safe to route through createMediaElementSource —
+  // setting crossOrigin on a non-CORS source causes iOS Safari to refuse
+  // to play the element entirely (tainted canvas / CORS block).
+  function makeUrlTrack(url, loop, onEnd, chId, isProxied) {
     const audio = new Audio();
-    audio.preload     = 'auto';
-    audio.loop        = !!loop;
-    audio.crossOrigin = 'anonymous'; // required for createMediaElementSource
-    audio.volume      = 0;
-    audio.src         = url;
+    audio.preload = 'auto';
+    audio.loop    = !!loop;
+    audio.volume  = 0;
+
+    // Only set crossOrigin when we know the URL has CORS headers (proxy path).
+    // On a non-CORS source, crossOrigin='anonymous' causes iOS Safari to
+    // block the element entirely — no fallback, just silence.
+    if (isProxied) audio.crossOrigin = 'anonymous';
+
+    audio.src = url;
     if (chId) audio.dataset.ch = chId;
 
     // iOS Safari discards or refuses to play Audio objects that aren't
@@ -95,25 +104,25 @@
 
     if (onEnd) audio.addEventListener('ended', onEnd, { once: false });
 
-    // ── Attempt real Web Audio routing (CORS path) ───────────────
-    // createMediaElementSource requires CORS headers on the audio URL.
-    // Our proxy guarantees this for Dropbox links. For other URLs it
-    // may throw — we catch and fall back to fakeGain.
+    // ── Real Web Audio routing (proxied/CORS URLs only) ──────────
+    // createMediaElementSource requires crossOrigin='anonymous' AND
+    // CORS headers on the response. We only attempt this when both
+    // are guaranteed — i.e. the URL went through our proxy function.
+    // On iOS this is the only working volume-control path.
     let realGain = null;
-    try {
-      const source = ctx.createMediaElementSource(audio);
-      realGain = ctx.createGain();
-      realGain.gain.value = 0;
-      source.connect(realGain);
-      // realGain is connected to the channel out node by _crossfadeTo
-    } catch (e) {
-      realGain = null; // CORS unavailable — fall through to fakeGain
+    if (isProxied) {
+      try {
+        const source = ctx.createMediaElementSource(audio);
+        realGain = ctx.createGain();
+        realGain.gain.value = 0;
+        source.connect(realGain);
+      } catch (e) {
+        realGain = null;
+      }
     }
 
-    // ── fakeGain shim (fallback for non-CORS URLs) ───────────────
-    // Useful on desktop where audio.volume is settable.
-    // On iOS, audio.volume cannot be set via JS so this is a no-op
-    // there — but playback still works at system volume.
+    // ── fakeGain shim (non-proxied URLs, desktop fallback) ───────
+    // Controls audio.volume directly. Works on desktop; iOS ignores it.
     let _rampTimer = null;
     const fakeGain = {
       gain: {
@@ -240,7 +249,7 @@
       // Route Dropbox links through the CORS proxy so createMediaElementSource
       // works and we get real Web Audio GainNode volume control (iOS needs this).
       const proxiedUrl = BardicAudio._proxyUrl(track.url);
-      const proxiedTrack = proxiedUrl !== track.url ? { ...track, url: proxiedUrl } : track;
+      const isProxied  = proxiedUrl !== track.url;
 
       const loops = mode === 'loop';
 
@@ -249,7 +258,7 @@
         ? () => _onTrackEnd(id, track, mode)
         : null;
 
-      const voice = makeUrlTrack(proxiedTrack.url, loops, onEnd, id);
+      const voice = makeUrlTrack(proxiedUrl, loops, onEnd, id, isProxied);
       _crossfadeTo(voice, fadeSec);
       _track = track;
     }
