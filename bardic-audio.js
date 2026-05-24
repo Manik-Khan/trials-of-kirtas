@@ -237,7 +237,13 @@
 
       // Resume AudioContext if suspended (browser autoplay policy).
       // No-op if already running; guards both desktop click and iOS tap paths.
-      if (ctx.state === 'suspended') ctx.resume();
+      // After resuming, re-apply the channel volume — scheduled GainNode ramps
+      // queued while the context was suspended may resolve incorrectly (often 0)
+      // because the audio clock was paused. Calling setVolume after resume
+      // reschedules the ramp against a running clock.
+      if (ctx.state === 'suspended') {
+        ctx.resume().then(() => { setVolume(_volume); }).catch(() => {});
+      }
 
       // Route Dropbox links through the CORS proxy so createMediaElementSource
       // works and we get real Web Audio GainNode volume control (iOS needs this).
