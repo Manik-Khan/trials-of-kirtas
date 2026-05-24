@@ -161,12 +161,11 @@
       gain:  activeGain,
       audio,
       start: () => {
-        // Attempt play immediately, then retry at 100/300/600ms.
-        // On iOS the audio session upgrade from the silent-MP3 unlock
-        // may not have fully propagated by the time this runs via React.
-        // The retries catch it once the session is ready.
+        // play() is called directly by playTrack() synchronously within the
+        // user gesture stack. This start() call handles the crossfade timing
+        // only — play() retries here catch cases where the session wasn't
+        // ready yet (iOS mainly).
         const attempt = () => audio.play().catch(() => {});
-        attempt();
         [100, 300, 600].forEach(ms => setTimeout(() => {
           if (audio.paused && audio.src) attempt();
         }, ms));
@@ -254,6 +253,15 @@
 
       const voice = makeUrlTrack(proxiedUrl, loops, onEnd, id, isProxied);
       _track = track;
+
+      // audio.play() MUST be called synchronously within the user gesture call
+      // stack — browsers block it if called after an async gap (e.g. inside
+      // ctx.resume().then(...)). So we call play() immediately here, then
+      // separately await ctx.resume() before scheduling GainNode ramps.
+      // Set volume before play so it's audible immediately (not silent during
+      // the async ctx.resume() gap).
+      voice.audio.volume = Math.max(0, Math.min(1, _volume * getMasterVol()));
+      voice.audio.play().catch(() => {});
 
       if (ctx.state === 'suspended') {
         console.log('[bardic] ctx suspended — awaiting resume before crossfade');
