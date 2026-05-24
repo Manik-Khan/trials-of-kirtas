@@ -5,7 +5,14 @@
       "sigil": "ti-music",
       "color": "#6a3a5a",
       "id": "mpi2a0isoaee",
-      "tracks": []
+      "tracks": [
+        {
+          "url": "https://res.cloudinary.com/df0tgoiyb/video/upload/v1779601343/Out_of_the_Cold_nyk2ms.mp3",
+          "title": "Out in the Cold",
+          "artist": "Skyrim",
+          "id": "mpjctjcwskkj"
+        }
+      ]
     },
     {
       "label": "Battle",
