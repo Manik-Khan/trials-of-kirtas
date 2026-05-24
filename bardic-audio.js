@@ -203,12 +203,8 @@
     function _crossfadeTo(voice, fadeSec) {
       voice.gain.connect(out);
 
-      // Target volume for the incoming track: the channel's current
-      // effective level. Fade to 1 was wrong — it ignored the fader.
-      const target = Math.max(0, Math.min(1, _muted ? 0 : _volume * getMasterVol()));
-
       if (current) {
-        // Fade out the old track, then start the new one after it finishes.
+        // Fade out old track, start new one after fade completes.
         const prev = current;
         const t = ctx.currentTime;
         prev.gain.gain.cancelScheduledValues(t);
@@ -217,19 +213,18 @@
         clearTimeout(pendingFade);
         pendingFade = setTimeout(() => prev.stop(), fadeSec * 1000 + 60);
 
-        // New track starts after fade-out completes, then fades in to target.
         setTimeout(() => {
           voice.start();
           voice.gain.gain.setValueAtTime(0, ctx.currentTime);
-          voice.gain.gain.linearRampToValueAtTime(target, ctx.currentTime + Math.max(0.05, fadeSec));
+          voice.gain.gain.linearRampToValueAtTime(1, ctx.currentTime + Math.max(0.05, fadeSec));
         }, fadeSec * 1000);
       } else {
-        // No current track — start immediately and fade in to target volume.
+        // No current track — start immediately and fade in.
         voice.start();
         const t = ctx.currentTime;
         voice.gain.gain.cancelScheduledValues(t);
         voice.gain.gain.setValueAtTime(0, t);
-        voice.gain.gain.linearRampToValueAtTime(target, t + Math.max(0.05, fadeSec));
+        voice.gain.gain.linearRampToValueAtTime(1, t + Math.max(0.05, fadeSec));
       }
 
       current = voice;
@@ -291,28 +286,19 @@
     function setVolume(v) {
       _volume = v;
       if (!_muted) {
-        const effective = Math.max(0, Math.min(1, v * getMasterVol()));
-        // For real GainNode (proxied/CORS path), set directly on the node.
-        // For fakeGain (non-proxied), set via setImmediate which cancels any
-        // in-progress ramp and writes audio.volume immediately.
-        if (current && current.gain && current.gain.gain instanceof AudioParam) {
-          current.gain.gain.cancelScheduledValues(ctx.currentTime);
-          current.gain.gain.setValueAtTime(effective, ctx.currentTime);
-        } else if (current && current.gain && current.gain.setImmediate) {
-          current.gain.setImmediate(effective);
-        }
+        const effective = v * getMasterVol();
+        out.gain.linearRampToValueAtTime(effective, ctx.currentTime + 0.05);
+        const a = _currentAudio();
+        if (a) a.volume = Math.max(0, Math.min(1, effective));
       }
     }
 
     function setMuted(m) {
       _muted = m;
-      const effective = Math.max(0, Math.min(1, m ? 0 : _volume * getMasterVol()));
-      if (current && current.gain && current.gain.gain instanceof AudioParam) {
-        current.gain.gain.cancelScheduledValues(ctx.currentTime);
-        current.gain.gain.setValueAtTime(effective, ctx.currentTime);
-      } else if (current && current.gain && current.gain.setImmediate) {
-        current.gain.setImmediate(effective);
-      }
+      const effective = m ? 0 : _volume * getMasterVol();
+      out.gain.linearRampToValueAtTime(effective, ctx.currentTime + 0.05);
+      const a = _currentAudio();
+      if (a) a.volume = Math.max(0, Math.min(1, effective));
     }
 
     // Register the app-level callback for track-end events
