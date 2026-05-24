@@ -110,7 +110,7 @@ function App() {
       volume:   c.id === 'music' ? 0.7 : c.id === 'ambience' ? 0.5 : 0.45,
       muted:    false,
       paused:   false,
-      mode:     'loop',
+      mode:     'shuffle',
       moodId:   null,
       trackIdx: null,
       track:    null,
@@ -330,6 +330,40 @@ function App() {
     setChStates(s => ({ ...s, [chId]: { ...s[chId], track: nextTrk, trackIdx: nextIdx, paused: false } }));
   }, [chStates, library]);
 
+  // Global pause/resume — pauses all playing channels, or resumes all paused ones.
+  // Space bar and the mobile floating button both call this.
+  const toggleGlobalPause = useCallback(() => {
+    const anyPlaying = ALL_CHANNELS.some(c => chStates[c.id].track && !chStates[c.id].paused);
+    if (anyPlaying) {
+      // Pause everything that's playing
+      ALL_CHANNELS.forEach(c => {
+        if (chStates[c.id].track && !chStates[c.id].paused) {
+          enginesRef.current[c.id]?.pauseTrack();
+        }
+      });
+      setChStates(s => {
+        const next = { ...s };
+        ALL_CHANNELS.forEach(c => { if (s[c.id].track && !s[c.id].paused) next[c.id] = { ...s[c.id], paused: true }; });
+        return next;
+      });
+    } else {
+      // Resume everything that's paused (don't touch stopped channels)
+      ALL_CHANNELS.forEach(c => {
+        if (chStates[c.id].track && chStates[c.id].paused) {
+          enginesRef.current[c.id]?.resumeTrack();
+        }
+      });
+      setChStates(s => {
+        const next = { ...s };
+        ALL_CHANNELS.forEach(c => { if (s[c.id].track && s[c.id].paused) next[c.id] = { ...s[c.id], paused: false }; });
+        return next;
+      });
+    }
+  }, [chStates]);
+
+  // True if at least one channel has a track and is not paused
+  const anyPlaying = ALL_CHANNELS.some(c => chStates[c.id].track && !chStates[c.id].paused);
+
   // ============================================================
   // SCENE ACTIONS
   // ============================================================
@@ -427,7 +461,7 @@ function App() {
   useEffect(() => {
     const onKey = (e) => {
       if (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA') return;
-      if (e.code === 'Space') { e.preventDefault(); setMasterMuted(m => !m); return; }
+      if (e.code === 'Space') { e.preventDefault(); toggleGlobalPause(); return; }
       if (e.key === 'Escape') { setTrackPanel(null); setMoodEditor(null); setSceneEditor(null); setOverlay(null); return; }
       const n = parseInt(e.key);
       if (n >= 1 && n <= 9) {
@@ -694,7 +728,7 @@ function App() {
 
       <footer className="bardic-foot">
         <div className="bardic-foot__hint">
-          <kbd>Space</kbd> mute all ·
+          <kbd>Space</kbd> pause/resume all ·
           <kbd>1–9</kbd> toggle mood (pause/resume/start) ·
           <kbd>Esc</kbd> close panels
         </div>
@@ -752,6 +786,9 @@ function App() {
         <TweakSection label="Audio"/>
         <TweakSlider label="Crossfade" value={t.crossfade} min={0} max={15} step={1} unit="s" onChange={v => setTweak('crossfade', v)}/>
       </TweaksPanel>
+      {/* GLOBAL PAUSE — mobile floating button */}
+      <GlobalPauseButton anyPlaying={anyPlaying} onToggle={toggleGlobalPause}/>
+
     </div>
   );
 }

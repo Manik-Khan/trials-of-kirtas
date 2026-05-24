@@ -885,9 +885,24 @@ function SaveSceneOverlay({ open, onSave, onClose }) {
   );
 }
 
+// ── Global Pause/Resume button (mobile floating action button) ──
+// Shown only on mobile (CSS hides on desktop — desktop uses Space bar).
+// anyPlaying: true if at least one channel is playing and not paused.
+function GlobalPauseButton({ anyPlaying, onToggle }) {
+  return (
+    <button
+      className={`global-pause-btn ${anyPlaying ? 'global-pause-btn--playing' : 'global-pause-btn--paused'}`}
+      onClick={onToggle}
+      aria-label={anyPlaying ? 'Pause all' : 'Resume all'}
+    >
+      <i className={`ti ${anyPlaying ? 'ti-player-pause' : 'ti-player-play'}`}/>
+    </button>
+  );
+}
+
 Object.assign(window, {
   MoodPad, VerticalFader, MiniMeter, PlaybackModeBar,
   ChannelStrip, TrackPanel, MoodEditorOverlay,
   SaveSceneOverlay, RuneVisualizer, ParticleBg, TimerOverlay,
-  fmtTime, clamp,
+  GlobalPauseButton, fmtTime, clamp,
 });

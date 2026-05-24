@@ -1624,3 +1624,42 @@ html, body {
 @media (max-width: 1100px) {
   .bottom-row { grid-template-columns: 1fr; }
 }
+
+/* ── Global pause/resume floating button (mobile only) ── */
+.global-pause-btn {
+  display: none; /* hidden on desktop — use Space bar */
+}
+
+@media (max-width: 720px) {
+  .global-pause-btn {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    position: fixed;
+    bottom: calc(1.25rem + env(safe-area-inset-bottom));
+    right: 1.25rem;
+    width: 48px;
+    height: 48px;
+    border-radius: 50%;
+    border: 1px solid rgba(201,168,76,0.4);
+    background: rgba(13,10,7,0.88);
+    color: var(--gold, #c9a84c);
+    font-size: 1.2rem;
+    cursor: pointer;
+    z-index: 120;
+    backdrop-filter: blur(6px);
+    -webkit-backdrop-filter: blur(6px);
+    box-shadow: 0 2px 12px rgba(0,0,0,0.5);
+    transition: background 0.15s, border-color 0.15s, transform 0.1s;
+  }
+  .global-pause-btn:active {
+    transform: scale(0.92);
+  }
+  .global-pause-btn--playing {
+    border-color: rgba(201,168,76,0.6);
+  }
+  .global-pause-btn--paused {
+    border-color: rgba(201,168,76,0.25);
+    color: var(--gold-dim, #a08840);
+  }
+}
