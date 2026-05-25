@@ -1330,8 +1330,23 @@ function showInlineDropdown() {
         dd.style.display = 'block';
         const bounds = quill.getBounds(quill.getSelection()?.index||0);
         const editorRect = document.getElementById('quill-editor').getBoundingClientRect();
-        dd.style.left = (editorRect.left + bounds.left) + 'px';
-        dd.style.top  = (editorRect.top + bounds.bottom + 4) + 'px';
+        const cursorBottom = editorRect.top + bounds.bottom;
+        const cursorTop    = editorRect.top + bounds.top;
+        const spaceBelow   = window.innerHeight - cursorBottom - 8;
+        const DD_MAX_HEIGHT = 200;
+        let ddLeft = editorRect.left + bounds.left;
+        let ddTop;
+        if (spaceBelow < DD_MAX_HEIGHT) {
+          ddTop = cursorTop - DD_MAX_HEIGHT - 4;
+          dd.style.maxHeight = Math.min(cursorTop - 8, DD_MAX_HEIGHT) + 'px';
+        } else {
+          ddTop = cursorBottom + 4;
+          dd.style.maxHeight = Math.min(spaceBelow, DD_MAX_HEIGHT) + 'px';
+        }
+        if (ddLeft + 200 > window.innerWidth - 8) ddLeft = window.innerWidth - 208;
+        if (ddLeft < 8) ddLeft = 8;
+        dd.style.left = ddLeft + 'px';
+        dd.style.top  = ddTop  + 'px';
       } else {
         hideInlineDropdown();
       }
@@ -1364,19 +1379,21 @@ function showInlineDropdown() {
   const editorRect = document.getElementById('quill-editor').getBoundingClientRect();
   dd.style.display = 'block';
 
-  const ddHeight = Math.min(dd.scrollHeight, 200);
-  const spaceBelow = window.innerHeight - (editorRect.top + bounds.bottom + 4);
-  const spaceAbove = editorRect.top + bounds.top - 4;
+  const DD_MAX_HEIGHT = 200;
+  const cursorBottom = editorRect.top + bounds.bottom;
+  const cursorTop    = editorRect.top + bounds.top;
+  const spaceBelow   = window.innerHeight - cursorBottom - 8;
+  const spaceAbove   = cursorTop - 8;
 
   let left = editorRect.left + bounds.left;
   let top;
 
-  if (spaceBelow < ddHeight && spaceAbove > ddHeight) {
-    // Show above cursor
-    top = editorRect.top + bounds.top - ddHeight - 4;
+  if (spaceBelow < DD_MAX_HEIGHT) {
+    top = cursorTop - DD_MAX_HEIGHT - 4;
+    dd.style.maxHeight = Math.min(spaceAbove, DD_MAX_HEIGHT) + 'px';
   } else {
-    // Show below cursor
-    top = editorRect.top + bounds.bottom + 4;
+    top = cursorBottom + 4;
+    dd.style.maxHeight = Math.min(spaceBelow, DD_MAX_HEIGHT) + 'px';
   }
 
   // Keep within viewport horizontally
