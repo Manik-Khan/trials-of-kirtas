@@ -1330,23 +1330,8 @@ function showInlineDropdown() {
         dd.style.display = 'block';
         const bounds = quill.getBounds(quill.getSelection()?.index||0);
         const editorRect = document.getElementById('quill-editor').getBoundingClientRect();
-        const cursorBottom = editorRect.top + bounds.bottom;
-        const cursorTop    = editorRect.top + bounds.top;
-        const spaceBelow   = window.innerHeight - cursorBottom - 8;
-        const DD_MAX_HEIGHT = 200;
-        let ddLeft = editorRect.left + bounds.left;
-        let ddTop;
-        if (spaceBelow < DD_MAX_HEIGHT) {
-          ddTop = cursorTop - DD_MAX_HEIGHT - 4;
-          dd.style.maxHeight = Math.min(cursorTop - 8, DD_MAX_HEIGHT) + 'px';
-        } else {
-          ddTop = cursorBottom + 4;
-          dd.style.maxHeight = Math.min(spaceBelow, DD_MAX_HEIGHT) + 'px';
-        }
-        if (ddLeft + 200 > window.innerWidth - 8) ddLeft = window.innerWidth - 208;
-        if (ddLeft < 8) ddLeft = 8;
-        dd.style.left = ddLeft + 'px';
-        dd.style.top  = ddTop  + 'px';
+        dd.style.left = (editorRect.left + bounds.left) + 'px';
+        dd.style.top  = (editorRect.top + bounds.bottom + 4) + 'px';
       } else {
         hideInlineDropdown();
       }
@@ -1379,23 +1364,19 @@ function showInlineDropdown() {
   const editorRect = document.getElementById('quill-editor').getBoundingClientRect();
   dd.style.display = 'block';
 
-  const DD_MAX_HEIGHT = 200;
-  const cursorBottom = editorRect.top + bounds.bottom;
-  const cursorTop    = editorRect.top + bounds.top;
-  const spaceBelow   = window.innerHeight - cursorBottom - 8;
-  const spaceAbove   = cursorTop - 8;
+  const ddHeight = Math.min(dd.scrollHeight, 200);
+  const spaceBelow = window.innerHeight - (editorRect.top + bounds.bottom + 4);
+  const spaceAbove = editorRect.top + bounds.top - 4;
 
   let left = editorRect.left + bounds.left;
   let top;
 
-  if (spaceBelow < DD_MAX_HEIGHT) {
-    // Not enough room below — show above cursor
-    top = cursorTop - DD_MAX_HEIGHT - 4;
-    dd.style.maxHeight = Math.min(spaceAbove, DD_MAX_HEIGHT) + 'px';
+  if (spaceBelow < ddHeight && spaceAbove > ddHeight) {
+    // Show above cursor
+    top = editorRect.top + bounds.top - ddHeight - 4;
   } else {
     // Show below cursor
-    top = cursorBottom + 4;
-    dd.style.maxHeight = Math.min(spaceBelow, DD_MAX_HEIGHT) + 'px';
+    top = editorRect.top + bounds.bottom + 4;
   }
 
   // Keep within viewport horizontally
@@ -1530,7 +1511,6 @@ function wrapSelection(type) {
     const known = getKnownNPCs().find(n=>n.name.toLowerCase()===text.toLowerCase());
     quill.formatText(range.index, range.length, 'color', '#d4ac3a');
     if (!known) {
-      // Flag as unresolved
       quill.root.innerHTML = quill.root.innerHTML.replace(
         new RegExp(`style="color: rgb[^"]*">${escapeRegex(text)}</span>`),
         `style="color: #c9b48a; text-decoration: underline dotted" data-mention-type="npc-unresolved" data-mention-key="${key}">${text}</span>`
@@ -1543,15 +1523,29 @@ function wrapSelection(type) {
     }
   }
   else if (type === 'location') {
+    const key = text.toLowerCase().replace(/[^a-z0-9]/g,'_').replace(/_+/g,'_').replace(/^_|_$/g,'');
     const known = getKnownLocations().find(l=>l.name.toLowerCase()===text.toLowerCase());
-    quill.formatText(range.index, range.length, 'color', '#8ab4c9');
+    quill.formatText(range.index, range.length, 'color', known ? '#8ab4c9' : '#7a9aaa');
     if (known) {
       quill.root.innerHTML = quill.root.innerHTML.replace(
         new RegExp(`style="color: rgb[^"]*">${escapeRegex(text)}</span>`),
         `style="color: #8ab4c9" data-mention-type="location" data-mention-key="${known.key}">${text}</span>`
       );
+    } else {
+      quill.root.innerHTML = quill.root.innerHTML.replace(
+        new RegExp(`style="color: rgb[^"]*">${escapeRegex(text)}</span>`),
+        `style="color: #7a9aaa; text-decoration: underline dotted" data-mention-type="location-unresolved" data-mention-key="${key}">${text}</span>`
+      );
     }
   }
+
+  // Reset color at cursor position after the selection so subsequent typing is normal
+  const endIdx = range.index + range.length;
+  quill.setSelection(endIdx, 0);
+  quill.format('color', false);
+  quill.format('bold', false);
+  quill.format('italic', false);
+
   document.getElementById('sel-toolbar').style.display = 'none';
 }
 
