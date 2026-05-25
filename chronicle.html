@@ -1775,7 +1775,7 @@ function renderEntry(e) {
 
   // Portrait — use character key from portraits folder if available
   const PORTRAIT_VERSIONS = { cosmere: 'v1779732163', liadan: 'v1779732202', vesperian: 'v1779732221', caim: 'v1779732259' };
-  const firstName = (e.character || e.author || '').split(' ')[0].toLowerCase();
+  const firstName = (e.author || '').split(' ')[0].toLowerCase();
   const version = PORTRAIT_VERSIONS[firstName];
   const portraitSrc = version
     ? `https://res.cloudinary.com/df0tgoiyb/image/upload/${version}/kirtas/portraits/${firstName}.png`
