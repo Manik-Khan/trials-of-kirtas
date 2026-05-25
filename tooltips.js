@@ -37,7 +37,7 @@ const NPC_DATA = {
 
   // ── Party Members ──
 
-  tyros: {
+  cosmere: {
     name: 'Cosmere Runestar',
     role: 'Warlock (The Hexblade) · Level 3 · Astral Elf',
     status: 'alive',
