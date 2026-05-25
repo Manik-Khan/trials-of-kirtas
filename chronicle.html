@@ -1557,13 +1557,16 @@ function wrapSelection(type) {
   }
 
   // Reset color at cursor position after the selection so subsequent typing is normal
+  // Must use setTimeout — the innerHTML replacement above causes Quill to lose internal
+  // state, so synchronous format calls have no effect until the next tick
   const endIdx = range.index + range.length;
-  quill.setSelection(endIdx, 0);
-  quill.format('color', false);
-  quill.format('bold', false);
-  quill.format('italic', false);
-
   document.getElementById('sel-toolbar').style.display = 'none';
+  setTimeout(() => {
+    quill.setSelection(endIdx, 0);
+    quill.format('color', false);
+    quill.format('bold', false);
+    quill.format('italic', false);
+  }, 20);
 }
 
 // ══════════════════════════════════════════════════════════
