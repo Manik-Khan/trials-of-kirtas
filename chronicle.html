@@ -1279,25 +1279,56 @@ function initQuill() {
 // ══════════════════════════════════════════════════════════
 // INLINE @ MENTION AND # TAG
 // ══════════════════════════════════════════════════════════
+const MENTION_TERMINATORS = new Set(['.', ',', '!', '?', ')', ']', ':', ';']);
+
 function handleInlineInput() {
   const sel = quill.getSelection();
   if (!sel) return;
   const text = quill.getText(0, sel.index);
-  const atIdx  = text.lastIndexOf('@');
-  const hashIdx= text.lastIndexOf('#');
-  const spaceAfterAt   = atIdx  >= 0 ? text.slice(atIdx+1).includes(' ')  : true;
-  const spaceAfterHash = hashIdx >= 0 ? text.slice(hashIdx+1).includes(' '): true;
+  const atIdx   = text.lastIndexOf('@');
+  const hashIdx = text.lastIndexOf('#');
 
-  if (atIdx > hashIdx && !spaceAfterAt) {
+  // Check if last character typed is a terminator while in mention mode
+  const lastChar = text.slice(-1);
+  if (inlineMode === 'mention' && MENTION_TERMINATORS.has(lastChar)) {
+    // Auto-confirm top item if dropdown is open, then close
+    const dd = document.getElementById('inline-dropdown');
+    const topItem = dd.querySelector('.inline-dropdown-item');
+    if (topItem && dd.style.display !== 'none') {
+      // Remove the terminator character before confirming
+      quill.deleteText(sel.index - 1, 1);
+      topItem.click();
+      // Re-insert the terminator after the mention (color-free)
+      setTimeout(() => {
+        const newSel = quill.getSelection();
+        if (newSel) {
+          quill.insertText(newSel.index, lastChar, { color: false });
+          quill.setSelection(newSel.index + 1, 0);
+        }
+      }, 30);
+    } else {
+      hideInlineDropdown();
+    }
+    return;
+  }
+
+  // Space no longer terminates — only explicit confirm (Tab/Enter/click) or terminator chars do
+  if (atIdx > hashIdx && atIdx >= 0) {
     inlineMode  = 'mention';
-    inlineQuery = text.slice(atIdx+1).toLowerCase();
+    inlineQuery = text.slice(atIdx + 1).toLowerCase();
     inlineRange = { index: atIdx, length: sel.index - atIdx };
     showInlineDropdown();
-  } else if (hashIdx > atIdx && !spaceAfterHash) {
-    inlineMode  = 'tag';
-    inlineQuery = text.slice(hashIdx+1).toLowerCase();
-    inlineRange = { index: hashIdx, length: sel.index - hashIdx };
-    showInlineDropdown();
+  } else if (hashIdx > atIdx && hashIdx >= 0) {
+    // Tags still terminate on space (tag names are single words)
+    const spaceAfterHash = text.slice(hashIdx + 1).includes(' ');
+    if (!spaceAfterHash) {
+      inlineMode  = 'tag';
+      inlineQuery = text.slice(hashIdx + 1).toLowerCase();
+      inlineRange = { index: hashIdx, length: sel.index - hashIdx };
+      showInlineDropdown();
+    } else {
+      hideInlineDropdown();
+    }
   } else {
     hideInlineDropdown();
   }
@@ -1436,33 +1467,22 @@ function insertMention(type, key, name) {
   // Delete the @query text first
   quill.deleteText(insertIdx, deleteLen);
 
-  // Insert the name with color — no other formatting
+  // Insert the name with color
   const color = type === 'npc' ? '#d4ac3a' : '#8ab4c9';
   quill.insertText(insertIdx, name, { color, bold: false });
 
-  // Immediately reset formatting after the name so text returns to normal
-  quill.formatText(insertIdx + name.length, 1, { color: false, bold: false });
-  quill.setSelection(insertIdx + name.length + 1, 0);
-
-  // Register mention in the reliable map (source of truth for tooltip key resolution)
+  // Register mention in the reliable map
   mentionMap[name] = { type, key };
 
-  // After insert: clear active color format so subsequent typing is normal
+  // Reset format state after insert — no auto-space, text-change handler clears color
   setTimeout(() => {
     const afterIdx = insertIdx + name.length;
-
-    // Insert a space with no color to break the format chain
-    quill.insertText(afterIdx, ' ', { color: false, bold: false, italic: false, background: false });
-
-    // Clear Quill's active format state — this is the key fix
+    quill.setSelection(afterIdx, 0);
     quill.format('color', false);
     quill.format('bold', false);
     quill.format('italic', false);
 
-    // Move cursor after the space
-    quill.setSelection(afterIdx + 1, 0);
-
-    // Best-effort: tag the span in the DOM using mentionMap as source of truth
+    // Tag the span with data attributes
     const spans = quill.root.querySelectorAll('span[style*="color"]');
     spans.forEach(span => {
       const spanText = span.textContent.trim();
@@ -1481,21 +1501,21 @@ function insertUnresolvedMention(type, key, name) {
   const deleteLen = inlineRange.length;
   hideInlineDropdown();
 
-  const color     = type === 'location' ? '#7a9aaa' : '#c9b48a';
+  const color       = type === 'location' ? '#7a9aaa' : '#c9b48a';
   const mentionType = type === 'location' ? 'location-unresolved' : 'npc-unresolved';
 
   quill.deleteText(insertIdx, deleteLen);
   quill.insertText(insertIdx, name, { color, bold: false });
-  quill.formatText(insertIdx + name.length, 1, { color: false, bold: false });
 
   mentionMap[name] = { type: mentionType, key };
 
+  // Reset format state — no auto-space, text-change handler clears color
   setTimeout(() => {
     const afterIdx = insertIdx + name.length;
-    quill.insertText(afterIdx, ' ', { color: false, bold: false, italic: false });
+    quill.setSelection(afterIdx, 0);
     quill.format('color', false);
     quill.format('bold', false);
-    quill.setSelection(afterIdx + 1, 0);
+    quill.format('italic', false);
 
     quill.root.querySelectorAll('span[style*="color"]').forEach(span => {
       const spanText = span.textContent.trim();
