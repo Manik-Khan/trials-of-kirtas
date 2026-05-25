@@ -17,6 +17,7 @@ const BASE_URL = `https://api.github.com/repos/${GITHUB_OWNER}/${GITHUB_REPO}/co
 // Empty library — created on first POST if the file doesn't exist yet
 const EMPTY_LIBRARY = {
   moods: [],
+  sonus: [],
 };
 
 exports.handler = async (event) => {
