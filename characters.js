@@ -25,7 +25,7 @@ const CHARACTERS = {
   // Warlock 2 / Sorcerer 1 — The Hexblade — Astral Elf
   // Last updated: Session 0
   // ════════════════════════════════════════════════════════
-  tyros: {
+  cosmere: {
 
     name:         'Cosmere Runestar',
     classLabel:   'Warlock 2 / Sorcerer 1',
@@ -35,7 +35,7 @@ const CHARACTERS = {
     background:   'Captain',
     alignment:    'Chaotic Good',
     xp:           900,
-    portrait:     'img/portraits/tyros.png',
+    portrait:     'img/portraits/cosmere.png',
 
     appearance: {
       age:    '112',
@@ -274,7 +274,7 @@ const CHARACTERS = {
       backstory:   '',
     },
 
-  }, // end tyros
+  }, // end cosmere
 
 
   // ════════════════════════════════════════════════════════
