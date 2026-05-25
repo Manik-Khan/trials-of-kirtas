@@ -971,9 +971,207 @@ function GlobalPauseButton({ anyPlaying, onToggle }) {
   );
 }
 
+
+// ============================================================
+// SonusEditorOverlay — create or edit a sonus portal
+// ============================================================
+function SonusEditorOverlay({ open, portal, onSave, onDelete, onClose }) {
+  const { SIGIL_OPTIONS, COLOR_OPTIONS } = window.BardicData;
+  const isNew = !portal;
+
+  const [label,  setLabel]  = useState('');
+  const [url,    setUrl]    = useState('');
+  const [sigil,  setSigil]  = useState('ti-ripple');
+  const [color,  setColor]  = useState('#3a6a8a');
+  const [confirmDelete, setConfirmDelete] = useState(false);
+
+  useEffect(() => {
+    if (open) {
+      setLabel(portal?.label || '');
+      setUrl(portal?.url || '');
+      setSigil(portal?.sigil || 'ti-ripple');
+      setColor(portal?.color || '#3a6a8a');
+      setConfirmDelete(false);
+    }
+  }, [open, portal]);
+
+  if (!open) return null;
+
+  function extractVideoId(raw) {
+    try {
+      const u = new URL(raw.trim());
+      if (u.hostname.includes('youtu.be')) return u.pathname.slice(1);
+      return u.searchParams.get('v') || '';
+    } catch { return ''; }
+  }
+
+  const videoId = extractVideoId(url);
+  const valid = label.trim() && url.trim() && videoId;
+
+  return (
+    <div className="overlay" onClick={onClose}>
+      <div className="overlay__card" onClick={e => e.stopPropagation()}>
+        <div className="overlay__title">{isNew ? 'New Portal' : 'Edit Portal'}</div>
+
+        <div className="overlay__field">
+          <label>Name</label>
+          <input className="overlay__input" autoFocus value={label}
+                 onChange={e => setLabel(e.target.value)}
+                 placeholder="e.g. Tavern Ambience, Rain on Stone"/>
+        </div>
+
+        <div className="overlay__field">
+          <label>YouTube URL</label>
+          <input className="overlay__input" value={url}
+                 onChange={e => setUrl(e.target.value)}
+                 placeholder="https://youtube.com/watch?v=..."/>
+          {url && !videoId && (
+            <div className="overlay__hint overlay__hint--warn">
+              <i className="ti ti-alert-circle"/> Couldn't extract a video ID — check the URL
+            </div>
+          )}
+          {videoId && (
+            <div className="overlay__hint">
+              <i className="ti ti-check"/> Video ID: {videoId}
+            </div>
+          )}
+        </div>
+
+        <div className="overlay__field">
+          <label>Icon</label>
+          <div className="sigil-grid">
+            {SIGIL_OPTIONS.map(s => (
+              <button key={s} className={`sigil-btn ${sigil === s ? 'is-on' : ''}`} onClick={() => setSigil(s)}>
+                <i className={`ti ${s}`}/>
+              </button>
+            ))}
+          </div>
+        </div>
+
+        <div className="overlay__field">
+          <label>Color</label>
+          <div className="color-grid">
+            {COLOR_OPTIONS.map(c => (
+              <button key={c} className={`color-swatch ${color === c ? 'is-on' : ''}`}
+                      style={{ background: c }} onClick={() => setColor(c)}/>
+            ))}
+          </div>
+        </div>
+
+        <div className="overlay__row">
+          <button className="pill pill--primary" disabled={!valid}
+                  onClick={() => onSave({ label: label.trim(), url: url.trim(), sigil, color })}>
+            <i className="ti ti-check"/> {isNew ? 'Create' : 'Save'}
+          </button>
+          <button className="pill" onClick={onClose}>Cancel</button>
+          {!isNew && (
+            confirmDelete ? (
+              <>
+                <button className="pill pill--danger" onClick={onDelete}>Confirm delete</button>
+                <button className="pill" onClick={() => setConfirmDelete(false)}>Keep</button>
+              </>
+            ) : (
+              <button className="pill pill--danger-ghost" onClick={() => setConfirmDelete(true)}>
+                <i className="ti ti-trash"/> Delete
+              </button>
+            )
+          )}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// ============================================================
+// SonusPanel — side drawer listing saved portals
+// ============================================================
+function SonusPanel({ open, portals, chStates, channels, selectedCh, channelById,
+                      onClose, onCast, onAdd, onEdit }) {
+  return (
+    <div className={`track-panel ${open ? 'is-open' : ''}`}>
+      <div className="track-panel__backdrop" onClick={onClose}/>
+      <div className="track-panel__drawer">
+
+        <div className="track-panel__head" style={{ '--panel-accent': '#3a6a8a' }}>
+          <div className="track-panel__mood-swatch" style={{ background: '#3a6a8a' }}>
+            <i className="ti ti-ripple"/>
+          </div>
+          <div className="track-panel__mood-info">
+            <div className="track-panel__mood-name">Sonus Portals</div>
+            <div className="track-panel__mood-count">
+              Cast onto <strong style={{ color: channelById[selectedCh]?.accent }}>
+                {channelById[selectedCh]?.label}
+              </strong>
+            </div>
+          </div>
+          <button className="track-panel__close" onClick={onClose}><i className="ti ti-x"/></button>
+        </div>
+
+        <div className="track-panel__list">
+          {portals.length === 0 && (
+            <div className="track-panel__empty">
+              <i className="ti ti-ripple"/>
+              <div>No portals yet.</div>
+              <button className="pill pill--primary" onClick={onAdd}>
+                <i className="ti ti-plus"/> Add first portal
+              </button>
+            </div>
+          )}
+
+          {portals.map(portal => {
+            const activeCh = channels.find(c =>
+              chStates[c.id].sourceType === 'sonus' && chStates[c.id].moodId === portal.id
+            );
+            const isActiveOnSelected = chStates[selectedCh]?.sourceType === 'sonus' &&
+                                       chStates[selectedCh]?.moodId === portal.id;
+            return (
+              <div key={portal.id}
+                   className={`track-row ${isActiveOnSelected ? 'is-current' : ''}`}>
+                <div style={{ background: portal.color || '#3a6a8a', flexShrink: 0,
+                              width: 32, height: 32, borderRadius: 6,
+                              display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                  <i className={`ti ${portal.sigil || 'ti-ripple'}`}
+                     style={{ color: '#fff', fontSize: 14 }}/>
+                </div>
+                <div className="track-row__info" style={{ flex: 1 }}
+                     onClick={() => onCast(portal.id, selectedCh)}>
+                  <div className="track-row__title">{portal.label}</div>
+                  {activeCh && (
+                    <div className="track-row__artist" style={{ color: activeCh.accent }}>
+                      Playing on {activeCh.label}
+                    </div>
+                  )}
+                </div>
+                {isActiveOnSelected && (
+                  <div className="track-row__playing" style={{ color: channelById[selectedCh]?.accent }}>
+                    <i className="ti ti-volume"/>
+                  </div>
+                )}
+                <button className="track-row__play" onClick={() => onCast(portal.id, selectedCh)}
+                        title="Cast onto selected channel">
+                  <i className="ti ti-player-play"/>
+                </button>
+                <button className="track-row__edit" onClick={() => onEdit(portal)} title="Edit">
+                  <i className="ti ti-pencil"/>
+                </button>
+              </div>
+            );
+          })}
+        </div>
+
+        <div className="track-panel__footer">
+          <button className="pill pill--primary" onClick={onAdd}>
+            <i className="ti ti-plus"/> Add portal
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 Object.assign(window, {
   MoodPad, VerticalFader, MiniMeter, PlaybackModeBar,
   ChannelStrip, TrackPanel, MoodEditorOverlay,
   SaveSceneOverlay, RuneVisualizer, ParticleBg, TimerOverlay,
-  GlobalPauseButton, fmtTime, clamp,
+  GlobalPauseButton, SonusPanel, SonusEditorOverlay, fmtTime, clamp,
 });

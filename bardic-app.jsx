@@ -64,13 +64,13 @@ function proxyAudioUrl(url) {
 // ============================================================
 function App() {
   const [t, setTweak] = useTweaks(TWEAK_DEFAULTS);
-  const { SFX_PADS } = window.BardicData;
+
 
   const channels = ALL_CHANNELS.slice(0, t.channelCount);
   const channelById = Object.fromEntries(ALL_CHANNELS.map(c => [c.id, c]));
 
   // ── Library state ──
-  const [library, setLibrary]       = useState({ moods: [], scenes: [] });
+  const [library, setLibrary]       = useState({ moods: [], scenes: [], sonus: [] });
   const [libLoading, setLibLoading] = useState(true);
   const [libError, setLibError]     = useState(null);
   const [libSaving, setLibSaving]   = useState(false);
@@ -79,7 +79,7 @@ function App() {
     API.getTracks()
       .then(data => {
         // Ensure scenes array exists for older data files
-        setLibrary({ moods: [], scenes: [], ...data });
+        setLibrary({ moods: [], scenes: [], sonus: [], ...data });
         setLibLoading(false);
       })
       .catch(e => { setLibError(e.message); setLibLoading(false); });
@@ -114,6 +114,7 @@ function App() {
       moodId:   null,
       trackIdx: null,
       track:    null,
+      sourceType: null,  // 'mood' | 'sonus' | null
     }])
   ));
 
@@ -127,6 +128,16 @@ function App() {
         enginesRef.current[c.id] = eng;
       }
     });
+  }, []);
+
+  // ── YouTube IFrame API ──
+  const ytPlayersRef = useRef({});  // { chId: YT.Player }
+
+  useEffect(() => {
+    if (window.YT) return; // already loaded
+    const tag = document.createElement('script');
+    tag.src = 'https://www.youtube.com/iframe_api';
+    document.head.appendChild(tag);
   }, []);
 
   // ── Auto-advance refs ──
@@ -173,10 +184,12 @@ function App() {
   const [activeSceneId, setActiveSceneId] = useState(null);
 
   // ── Panel / overlay state ──
-  const [trackPanel,  setTrackPanel]  = useState(null);
-  const [moodEditor,  setMoodEditor]  = useState(null);
-  const [sceneEditor, setSceneEditor] = useState(null); // null | { scene } (null scene = save current)
-  const [overlay,     setOverlay]     = useState(null);
+  const [trackPanel,   setTrackPanel]  = useState(null);
+  const [moodEditor,   setMoodEditor]  = useState(null);
+  const [sceneEditor,  setSceneEditor] = useState(null);
+  const [sonusPanel,   setSonusPanel]  = useState(false);
+  const [sonusEditor,  setSonusEditor] = useState(null); // null | { portal } (null portal = new)
+  const [overlay,      setOverlay]     = useState(null);
 
   // ── Master volume ──
   const [masterVol,   setMasterVol]   = useState(0.85);
@@ -226,22 +239,109 @@ function App() {
 
   const stopChannel = useCallback((chId) => {
     enginesRef.current[chId]?.stopTrack(crossfadeRef.current);
-    setChStates(s => ({ ...s, [chId]: { ...s[chId], track: null, trackIdx: null, moodId: null, paused: false } }));
+    // Destroy any active YouTube player on this channel
+    if (ytPlayersRef.current[chId]) {
+      try { ytPlayersRef.current[chId].destroy(); } catch(e) {}
+      delete ytPlayersRef.current[chId];
+    }
+    setChStates(s => ({ ...s, [chId]: { ...s[chId], track: null, trackIdx: null, moodId: null, paused: false, sourceType: null } }));
     setActiveSceneId(null);
   }, []);
 
-  // Toggle mood on its channel — pause if playing, resume if paused, start if not playing
+  // Cast a Sonus portal onto a channel — replaces any mood or YT player
+  const castSonusOnChannel = useCallback((portalId, chId) => {
+    const portal = libraryRef.current.sonus?.find(p => p.id === portalId);
+    if (!portal) return;
+
+    // Stop any Cloudinary track on this channel
+    enginesRef.current[chId]?.stopTrack(0);
+
+    // Destroy existing YT player on this channel if any
+    if (ytPlayersRef.current[chId]) {
+      try { ytPlayersRef.current[chId].destroy(); } catch(e) {}
+      delete ytPlayersRef.current[chId];
+    }
+
+    // Extract video ID
+    function extractVideoId(raw) {
+      try {
+        const u = new URL(raw.trim());
+        if (u.hostname.includes('youtu.be')) return u.pathname.slice(1);
+        return u.searchParams.get('v') || '';
+      } catch { return ''; }
+    }
+    const videoId = extractVideoId(portal.url);
+    if (!videoId) return;
+
+    // Create a hidden container div for this channel's YT player
+    const containerId = `yt-player-${chId}`;
+    let container = document.getElementById(containerId);
+    if (!container) {
+      container = document.createElement('div');
+      container.id = containerId;
+      container.style.cssText = 'position:fixed;bottom:0;right:0;width:320px;height:180px;z-index:0;pointer-events:none;opacity:0;';
+      document.body.appendChild(container);
+    }
+
+    const vol = chStatesRef.current[chId]?.volume ?? 0.5;
+
+    const createPlayer = () => {
+      ytPlayersRef.current[chId] = new window.YT.Player(containerId, {
+        videoId,
+        playerVars: { autoplay: 1, loop: 1, playlist: videoId, playsinline: 1, controls: 1 },
+        events: {
+          onReady: (e) => {
+            e.target.setVolume(Math.round(vol * 100));
+            e.target.playVideo();
+            // Make container briefly visible so browser allows autoplay,
+            // then hide it again (still compliant — player is rendered, just off-screen)
+            container.style.opacity = '0';
+          },
+        },
+      });
+    };
+
+    if (window.YT && window.YT.Player) {
+      createPlayer();
+    } else {
+      // Queue until API is ready
+      const prev = window.onYouTubeIframeAPIReady;
+      window.onYouTubeIframeAPIReady = () => {
+        if (prev) prev();
+        createPlayer();
+      };
+    }
+
+    setChStates(s => ({ ...s, [chId]: { ...s[chId], track: { title: portal.label, artist: 'YouTube' },
+      trackIdx: null, moodId: portalId, paused: false, sourceType: 'sonus' } }));
+    setActiveSceneId(null);
+  }, []);
+
+  // Toggle mood on its channel:
+  //   - Not playing anywhere → cast onto channel
+  //   - Playing and paused  → resume
+  //   - Playing and active  → next track (double-press to skip)
   const toggleMoodOnChannel = useCallback((moodId, chId) => {
-    const cs  = chStatesRef.current[chId]; // use ref to avoid stale closure on rapid taps
+    const cs  = chStatesRef.current[chId];
     const eng = enginesRef.current[chId];
-    if (cs.moodId === moodId) {
-      // This mood is on this channel
+    if (cs.moodId === moodId && cs.sourceType !== 'sonus') {
       if (cs.paused) {
         eng?.resumeTrack();
         setChStates(s => ({ ...s, [chId]: { ...s[chId], paused: false } }));
       } else {
-        eng?.pauseTrack();
-        setChStates(s => ({ ...s, [chId]: { ...s[chId], paused: true } }));
+        // Double-press while playing → next track
+        const mood = libraryRef.current.moods.find(m => m.id === moodId);
+        if (!mood || !mood.tracks.length) return;
+        let nextIdx;
+        if (cs.mode === 'shuffle') {
+          const others = mood.tracks.map((_,i) => i).filter(i => i !== cs.trackIdx);
+          nextIdx = others.length ? others[Math.floor(Math.random() * others.length)] : 0;
+        } else {
+          nextIdx = ((cs.trackIdx ?? 0) + 1) % mood.tracks.length;
+        }
+        const nextTrack = mood.tracks[nextIdx];
+        eng?.playTrack(nextTrack, crossfadeRef.current, cs.mode);
+        setChStates(s => ({ ...s, [chId]: { ...s[chId], track: nextTrack, trackIdx: nextIdx, paused: false } }));
       }
     } else {
       castMoodOnChannel(moodId, chId);
@@ -251,6 +351,8 @@ function App() {
   const setVolume = useCallback((chId, v) => {
     // Apply to the moved channel directly
     enginesRef.current[chId]?.setVolume(v);
+    // Also push to YouTube player if one is active on this channel
+    ytPlayersRef.current[chId]?.setVolume(Math.round(v * 100));
 
     // Check if this channel belongs to a link group
     const link = linkGroups[chId];
@@ -337,10 +439,13 @@ function App() {
   const toggleGlobalPause = useCallback(() => {
     const anyPlaying = ALL_CHANNELS.some(c => chStates[c.id].track && !chStates[c.id].paused);
     if (anyPlaying) {
-      // Pause everything that's playing
       ALL_CHANNELS.forEach(c => {
         if (chStates[c.id].track && !chStates[c.id].paused) {
-          enginesRef.current[c.id]?.pauseTrack();
+          if (chStates[c.id].sourceType === 'sonus') {
+            ytPlayersRef.current[c.id]?.pauseVideo();
+          } else {
+            enginesRef.current[c.id]?.pauseTrack();
+          }
         }
       });
       setChStates(s => {
@@ -349,10 +454,13 @@ function App() {
         return next;
       });
     } else {
-      // Resume everything that's paused (don't touch stopped channels)
       ALL_CHANNELS.forEach(c => {
         if (chStates[c.id].track && chStates[c.id].paused) {
-          enginesRef.current[c.id]?.resumeTrack();
+          if (chStates[c.id].sourceType === 'sonus') {
+            ytPlayersRef.current[c.id]?.playVideo();
+          } else {
+            enginesRef.current[c.id]?.resumeTrack();
+          }
         }
       });
       setChStates(s => {
@@ -381,7 +489,14 @@ function App() {
       if (!moodId) {
         stopChannel(chId);
       } else {
-        castMoodOnChannel(moodId, chId);
+        // Check if this slot is a sonus portal or a mood
+        const sonusPortals = libraryRef.current.sonus || [];
+        const isPortal = sonusPortals.some(p => p.id === moodId);
+        if (isPortal) {
+          castSonusOnChannel(moodId, chId);
+        } else {
+          castMoodOnChannel(moodId, chId);
+        }
       }
     });
     // Restore group assignments if the scene has them
@@ -460,6 +575,27 @@ function App() {
     });
   }, [library]);
 
+  // ── Sonus CRUD ──
+  const addSonus = useCallback((portal) => {
+    const sonus = [...(library.sonus || []), { ...portal, id: uid() }];
+    updateLibrary({ ...library, sonus });
+  }, [library]);
+
+  const updateSonus = useCallback((portalId, patch) => {
+    const sonus = (library.sonus || []).map(p => p.id === portalId ? { ...p, ...patch } : p);
+    updateLibrary({ ...library, sonus });
+  }, [library]);
+
+  const deleteSonus = useCallback((portalId) => {
+    const sonus = (library.sonus || []).filter(p => p.id !== portalId);
+    updateLibrary({ ...library, sonus });
+    ALL_CHANNELS.forEach(c => {
+      if (chStates[c.id].sourceType === 'sonus' && chStates[c.id].moodId === portalId) {
+        stopChannel(c.id);
+      }
+    });
+  }, [library, chStates, stopChannel]);
+
   const moveTrack = useCallback((moodId, fromIdx, toIdx) => {
     const mood = library.moods.find(m => m.id === moodId);
     if (!mood) return;
@@ -478,7 +614,7 @@ function App() {
     const onKey = (e) => {
       if (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA') return;
       if (e.code === 'Space') { e.preventDefault(); e.stopPropagation(); toggleGlobalPauseRef.current(); return; }
-      if (e.key === 'Escape') { setTrackPanel(null); setMoodEditor(null); setSceneEditor(null); setOverlay(null); return; }
+      if (e.key === 'Escape') { setTrackPanel(null); setMoodEditor(null); setSceneEditor(null); setSonusPanel(false); setSonusEditor(null); setOverlay(null); return; }
       const n = parseInt(e.key);
       if (n >= 1 && n <= 9) {
         const mood = library.moods[n - 1];
@@ -668,24 +804,52 @@ function App() {
         </section>
       </main>
 
-      {/* BOTTOM ROW: SFX + Scenes */}
+      {/* BOTTOM ROW: Sonus + Scenes */}
       <section className="bottom-row">
         <div className="bottom-row__sfx">
           <div className="bench__section-head">
-            <i className="ti ti-music"/>
-            <span>SFX Runestones</span>
-            <div className="bench__section-sub">Tap to strike · one-shots</div>
+            <i className="ti ti-ripple"/>
+            <span>Sonus Portals</span>
+            <div className="bench__section-sub">
+              Cast onto <strong style={{ color: channelById[selectedCh]?.accent }}>
+                {channelById[selectedCh]?.label}
+              </strong>
+            </div>
+            <button className="head-add" onClick={() => setSonusPanel(true)}>
+              <i className="ti ti-player-play"/> Open Sonus
+            </button>
           </div>
           <div className="sfx-grid">
-            {SFX_PADS.map(s => (
-              <button key={s.id} className="sfx-stone"
-                      onClick={() => window.BardicAudio.playSfx(s.id)} title={s.desc}>
-                <div className="sfx-stone__inner">
-                  <i className={`ti ${s.icon}`}/>
-                  <span>{s.label}</span>
+            {(library.sonus || []).map(portal => {
+              const activeCh = channels.find(c =>
+                chStates[c.id].sourceType === 'sonus' && chStates[c.id].moodId === portal.id
+              );
+              return (
+                <button key={portal.id}
+                        className={`sfx-stone ${activeCh ? 'is-active' : ''}`}
+                        style={{ '--mood-color': portal.color || '#3a6a8a' }}
+                        onClick={() => castSonusOnChannel(portal.id, selectedCh)}
+                        title={activeCh ? `Playing on ${activeCh.label}` : `Cast onto ${channelById[selectedCh]?.label}`}>
+                  <div className="sfx-stone__inner">
+                    <i className={`ti ${portal.sigil || 'ti-ripple'}`}
+                       style={{ color: activeCh ? (portal.color || '#3a6a8a') : undefined }}/>
+                    <span>{portal.label}</span>
+                  </div>
+                  {activeCh && (
+                    <div style={{ position: 'absolute', top: 4, right: 4,
+                                  width: 6, height: 6, borderRadius: '50%',
+                                  background: activeCh.accent }}/>
+                  )}
+                </button>
+              );
+            })}
+            {(library.sonus || []).length === 0 && (
+              <div className="codex__empty" style={{ gridColumn: '1/-1', padding: '1rem' }}>
+                <div className="codex__empty-sub">
+                  No portals yet — hit <strong>Open Sonus</strong> to add one.
                 </div>
-              </button>
-            ))}
+              </div>
+            )}
           </div>
         </div>
 
@@ -784,6 +948,34 @@ function App() {
         open={!!sceneEditor}
         onSave={saveCurrentAsScene}
         onClose={() => setSceneEditor(null)}
+      />
+
+      {/* SONUS PANEL */}
+      <SonusPanel
+        open={sonusPanel}
+        portals={library.sonus || []}
+        chStates={chStates}
+        channels={channels}
+        selectedCh={selectedCh}
+        channelById={channelById}
+        onClose={() => setSonusPanel(false)}
+        onCast={(portalId, chId) => { castSonusOnChannel(portalId, chId); setSonusPanel(false); }}
+        onAdd={() => { setSonusPanel(false); setSonusEditor({ portal: null }); }}
+        onEdit={(portal) => { setSonusPanel(false); setSonusEditor({ portal }); }}
+      />
+
+      {/* SONUS EDITOR */}
+      <SonusEditorOverlay
+        open={!!sonusEditor}
+        portal={sonusEditor?.portal}
+        onSave={data => {
+          if (sonusEditor?.portal) updateSonus(sonusEditor.portal.id, data);
+          else addSonus(data);
+          setSonusEditor(null);
+          setSonusPanel(true);
+        }}
+        onDelete={() => { if (sonusEditor?.portal) deleteSonus(sonusEditor.portal.id); setSonusEditor(null); }}
+        onClose={() => { setSonusEditor(null); setSonusPanel(true); }}
       />
 
       {/* TIMER */}
