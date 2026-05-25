@@ -1330,8 +1330,23 @@ function showInlineDropdown() {
         dd.style.display = 'block';
         const bounds = quill.getBounds(quill.getSelection()?.index||0);
         const editorRect = document.getElementById('quill-editor').getBoundingClientRect();
-        dd.style.left = (editorRect.left + bounds.left) + 'px';
-        dd.style.top  = (editorRect.top + bounds.bottom + 4) + 'px';
+        const cursorBottom = editorRect.top + bounds.bottom;
+        const cursorTop    = editorRect.top + bounds.top;
+        const spaceBelow   = window.innerHeight - cursorBottom - 8;
+        const DD_MAX_HEIGHT = 200;
+        let ddLeft = editorRect.left + bounds.left;
+        let ddTop;
+        if (spaceBelow < DD_MAX_HEIGHT) {
+          ddTop = cursorTop - DD_MAX_HEIGHT - 4;
+          dd.style.maxHeight = Math.min(cursorTop - 8, DD_MAX_HEIGHT) + 'px';
+        } else {
+          ddTop = cursorBottom + 4;
+          dd.style.maxHeight = Math.min(spaceBelow, DD_MAX_HEIGHT) + 'px';
+        }
+        if (ddLeft + 200 > window.innerWidth - 8) ddLeft = window.innerWidth - 208;
+        if (ddLeft < 8) ddLeft = 8;
+        dd.style.left = ddLeft + 'px';
+        dd.style.top  = ddTop  + 'px';
       } else {
         hideInlineDropdown();
       }
@@ -1364,19 +1379,23 @@ function showInlineDropdown() {
   const editorRect = document.getElementById('quill-editor').getBoundingClientRect();
   dd.style.display = 'block';
 
-  const ddHeight = Math.min(dd.scrollHeight, 200);
-  const spaceBelow = window.innerHeight - (editorRect.top + bounds.bottom + 4);
-  const spaceAbove = editorRect.top + bounds.top - 4;
+  const DD_MAX_HEIGHT = 200;
+  const cursorBottom = editorRect.top + bounds.bottom;
+  const cursorTop    = editorRect.top + bounds.top;
+  const spaceBelow   = window.innerHeight - cursorBottom - 8;
+  const spaceAbove   = cursorTop - 8;
 
   let left = editorRect.left + bounds.left;
   let top;
 
-  if (spaceBelow < ddHeight && spaceAbove > ddHeight) {
-    // Show above cursor
-    top = editorRect.top + bounds.top - ddHeight - 4;
+  if (spaceBelow < DD_MAX_HEIGHT) {
+    // Not enough room below — show above cursor
+    top = cursorTop - DD_MAX_HEIGHT - 4;
+    dd.style.maxHeight = Math.min(spaceAbove, DD_MAX_HEIGHT) + 'px';
   } else {
     // Show below cursor
-    top = editorRect.top + bounds.bottom + 4;
+    top = cursorBottom + 4;
+    dd.style.maxHeight = Math.min(spaceBelow, DD_MAX_HEIGHT) + 'px';
   }
 
   // Keep within viewport horizontally
@@ -1406,26 +1425,33 @@ function insertMention(type, key, name) {
   // Delete the @query text first
   quill.deleteText(insertIdx, deleteLen);
 
-  // Insert the name with color
+  // Insert the name with color — no other formatting
   const color = type === 'npc' ? '#d4ac3a' : '#8ab4c9';
   quill.insertText(insertIdx, name, { color, bold: false });
 
-  // Insert a trailing space with all formats explicitly cleared
-  const afterIdx = insertIdx + name.length;
-  quill.insertText(afterIdx, ' ', { color: false, bold: false, italic: false, background: false });
+  // Immediately reset formatting after the name so text returns to normal
+  quill.formatText(insertIdx + name.length, 1, { color: false, bold: false });
+  quill.setSelection(insertIdx + name.length + 1, 0);
 
-  // Move cursor to after the space, then remove all active formats
-  quill.setSelection(afterIdx + 1, 0);
-  quill.removeFormat(afterIdx + 1, 0);
-  quill.format('color', false);
-  quill.format('bold', false);
-  quill.format('italic', false);
-
-  // Register mention in the reliable map
+  // Register mention in the reliable map (source of truth for tooltip key resolution)
   mentionMap[name] = { type, key };
 
-  // Tag the span in the DOM using mentionMap as source of truth
+  // After insert: clear active color format so subsequent typing is normal
   setTimeout(() => {
+    const afterIdx = insertIdx + name.length;
+
+    // Insert a space with no color to break the format chain
+    quill.insertText(afterIdx, ' ', { color: false, bold: false, italic: false, background: false });
+
+    // Clear Quill's active format state — this is the key fix
+    quill.format('color', false);
+    quill.format('bold', false);
+    quill.format('italic', false);
+
+    // Move cursor after the space
+    quill.setSelection(afterIdx + 1, 0);
+
+    // Best-effort: tag the span in the DOM using mentionMap as source of truth
     const spans = quill.root.querySelectorAll('span[style*="color"]');
     spans.forEach(span => {
       const spanText = span.textContent.trim();
@@ -1449,21 +1475,17 @@ function insertUnresolvedMention(type, key, name) {
 
   quill.deleteText(insertIdx, deleteLen);
   quill.insertText(insertIdx, name, { color, bold: false });
-
-  // Insert a trailing space with all formats explicitly cleared
-  const afterIdx = insertIdx + name.length;
-  quill.insertText(afterIdx, ' ', { color: false, bold: false, italic: false, background: false });
-
-  // Move cursor to after the space, then remove all active formats
-  quill.setSelection(afterIdx + 1, 0);
-  quill.removeFormat(afterIdx + 1, 0);
-  quill.format('color', false);
-  quill.format('bold', false);
-  quill.format('italic', false);
+  quill.formatText(insertIdx + name.length, 1, { color: false, bold: false });
 
   mentionMap[name] = { type: mentionType, key };
 
   setTimeout(() => {
+    const afterIdx = insertIdx + name.length;
+    quill.insertText(afterIdx, ' ', { color: false, bold: false, italic: false });
+    quill.format('color', false);
+    quill.format('bold', false);
+    quill.setSelection(afterIdx + 1, 0);
+
     quill.root.querySelectorAll('span[style*="color"]').forEach(span => {
       const spanText = span.textContent.trim();
       const mapEntry = mentionMap[spanText];
