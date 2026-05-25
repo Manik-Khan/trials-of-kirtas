@@ -1087,6 +1087,9 @@ function SonusEditorOverlay({ open, portal, onSave, onDelete, onClose }) {
 // ============================================================
 function SonusPanel({ open, portals, chStates, channels, selectedCh, channelById,
                       onClose, onCast, onAdd, onEdit }) {
+  // Channels that currently have an active sonus portal
+  const activeChannels = channels.filter(c => chStates[c.id].sourceType === 'sonus' && chStates[c.id].track);
+
   return (
     <div className={`track-panel ${open ? 'is-open' : ''}`}>
       <div className="track-panel__backdrop" onClick={onClose}/>
@@ -1106,6 +1109,42 @@ function SonusPanel({ open, portals, chStates, channels, selectedCh, channelById
           </div>
           <button className="track-panel__close" onClick={onClose}><i className="ti ti-x"/></button>
         </div>
+
+        {/* Permanent iframe containers — one per channel, always in DOM.
+            YT players target these by ID. Visible here when panel is open,
+            off-screen when panel is closed (panel itself slides away).
+            iOS native controls (including volume) work here. */}
+        {channels.map(ch => {
+          const isActive = chStates[ch.id].sourceType === 'sonus' && chStates[ch.id].track;
+          return (
+            <div key={ch.id} style={{
+              display: isActive ? 'block' : 'none',
+              padding: '0 0 8px 0',
+            }}>
+              <div style={{
+                padding: '4px 12px 2px',
+                fontSize: 10,
+                textTransform: 'uppercase',
+                letterSpacing: '0.06em',
+                color: ch.accent,
+                opacity: 0.8,
+              }}>
+                <i className={`ti ${ch.sigil}`}/> {ch.label}
+                {chStates[ch.id].moodId && (() => {
+                  const portal = portals.find(p => p.id === chStates[ch.id].moodId);
+                  return portal ? <span style={{ opacity: 0.6 }}> · {portal.label}</span> : null;
+                })()}
+              </div>
+              {/* This div is the YT player target — ID must match castSonusOnChannel */}
+              <div id={`yt-player-${ch.id}`} style={{
+                width: '100%',
+                aspectRatio: '16/9',
+                background: '#000',
+                pointerEvents: 'auto',
+              }}/>
+            </div>
+          );
+        })}
 
         <div className="track-panel__list">
           {portals.length === 0 && (

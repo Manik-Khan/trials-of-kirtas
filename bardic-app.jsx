@@ -256,10 +256,20 @@ function App() {
     // Stop any Cloudinary track on this channel
     enginesRef.current[chId]?.stopTrack(0);
 
-    // Destroy existing YT player on this channel if any
+    // Destroy existing YT player on this channel if any.
+    // After destroy(), YT leaves the iframe in the DOM — we reset the
+    // container back to an empty div so the next YT.Player() call gets
+    // a clean target (otherwise it may re-use the stale iframe).
     if (ytPlayersRef.current[chId]) {
       try { ytPlayersRef.current[chId].destroy(); } catch(e) {}
       delete ytPlayersRef.current[chId];
+      const old = document.getElementById(`yt-player-${chId}`);
+      if (old) {
+        const fresh = document.createElement('div');
+        fresh.id = `yt-player-${chId}`;
+        fresh.style.cssText = 'width:100%;aspect-ratio:16/9;background:#000;pointer-events:auto;';
+        old.parentNode.replaceChild(fresh, old);
+      }
     }
 
     // Extract video ID
@@ -273,42 +283,28 @@ function App() {
     const videoId = extractVideoId(portal.url);
     if (!videoId) return;
 
-    // Create a hidden container div for this channel's YT player
+    // Target the permanent container rendered inside SonusPanel.
+    // It's always in the DOM — we never create/move it here.
+    // When the panel is open the iframe is visible with native controls
+    // (including iOS volume). When closed the panel is off-screen.
     const containerId = `yt-player-${chId}`;
-    let container = document.getElementById(containerId);
-    if (!container) {
-      container = document.createElement('div');
-      container.id = containerId;
-      container.style.cssText = 'position:fixed;bottom:0;right:0;width:320px;height:180px;z-index:0;pointer-events:none;opacity:0;';
-      document.body.appendChild(container);
-    }
 
     const vol = chStatesRef.current[chId]?.volume ?? 0.5;
 
     const createPlayer = () => {
-      // Briefly make container visible — iOS requires the player to be
-      // in the visible viewport at the moment playVideo() is called.
-      // We move it off-screen via transform rather than opacity/display
-      // so it's technically "visible" to the browser but out of the way.
-      container.style.cssText = 'position:fixed;bottom:0;right:0;width:320px;height:180px;z-index:0;pointer-events:none;transform:translateY(200%);';
-
       ytPlayersRef.current[chId] = new window.YT.Player(containerId, {
         videoId,
         playerVars: { autoplay: 1, loop: 1, playlist: videoId, playsinline: 1, controls: 1 },
         events: {
           onReady: (e) => {
             e.target.setVolume(Math.round(vol * 100));
-            // playVideo() here catches desktop and cases where onReady
-            // fires within the gesture (fast connections).
             e.target.playVideo();
           },
         },
       });
-
-      // Call playVideo() synchronously too — this is the key iOS fix.
-      // YT.Player queues commands before the player is ready, so this
-      // call executes once the player initialises, but it's issued
-      // while we're still inside the touch gesture call stack.
+      // Call playVideo() synchronously — key iOS fix.
+      // YT.Player queues commands before ready, so this fires
+      // once initialised but is issued within the touch gesture.
       try { ytPlayersRef.current[chId].playVideo(); } catch(e) {}
     };
 
