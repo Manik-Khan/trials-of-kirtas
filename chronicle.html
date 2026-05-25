@@ -1112,6 +1112,7 @@ let editingEntryId  = null;
 // Inline dropdown state
 let inlineMode      = null; // 'mention' | 'tag'
 let inlineQuery     = '';
+let inlineRawQuery  = '';
 let inlineFocusIdx  = 0;
 let inlineRange     = null;
 // mentionMap: tracks inserted mentions by name for reliable tagging at submit/tag-extract time
@@ -1316,6 +1317,7 @@ function handleInlineInput() {
   if (atIdx > hashIdx && atIdx >= 0) {
     inlineMode  = 'mention';
     inlineQuery = text.slice(atIdx + 1).toLowerCase();
+    inlineRawQuery = text.slice(atIdx + 1);
     inlineRange = { index: atIdx, length: sel.index - atIdx };
     showInlineDropdown();
   } else if (hashIdx > atIdx && hashIdx >= 0) {
@@ -1366,7 +1368,7 @@ function showInlineDropdown() {
     if (!npcs.length && !locs.length) {
       // No known match — offer to insert as unresolved mention
       if (inlineQuery.length > 0) {
-        const display = inlineQuery.charAt(0).toUpperCase() + inlineQuery.slice(1);
+        const display = inlineRawQuery.charAt(0).toUpperCase() + inlineRawQuery.slice(1);
         dd.innerHTML = `
           <div class="inline-dropdown-section">Unknown — add as:</div>
           <div class="inline-dropdown-item" onclick="insertUnresolvedMention('npc','${inlineQuery}','${display}')"><span class="inline-dropdown-icon">👤</span><span class="inline-dropdown-name">${display} <em style="color:var(--muted)">(unresolved NPC)</em></span></div>
