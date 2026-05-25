@@ -1251,9 +1251,22 @@ function initQuill() {
   document.getElementById('d-session').value = currentSession;
 
   // Save draft on change
-  quill.on('text-change', () => {
+  quill.on('text-change', (delta, old, source) => {
     saveDraft();
     handleInlineInput();
+
+    // If the current format still has a mention color active after typing,
+    // clear it so subsequent characters don't inherit the color
+    if (source === 'user') {
+      const sel = quill.getSelection();
+      if (sel) {
+        const fmt = quill.getFormat(sel.index, 0);
+        const mentionColors = ['#d4ac3a','#8ab4c9','#c9b48a','#7a9aaa'];
+        if (fmt.color && mentionColors.includes(fmt.color.toLowerCase())) {
+          quill.format('color', false);
+        }
+      }
+    }
   });
 
   // Handle @ and # keydown for dropdown navigation
