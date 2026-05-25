@@ -286,19 +286,30 @@ function App() {
     const vol = chStatesRef.current[chId]?.volume ?? 0.5;
 
     const createPlayer = () => {
+      // Briefly make container visible — iOS requires the player to be
+      // in the visible viewport at the moment playVideo() is called.
+      // We move it off-screen via transform rather than opacity/display
+      // so it's technically "visible" to the browser but out of the way.
+      container.style.cssText = 'position:fixed;bottom:0;right:0;width:320px;height:180px;z-index:0;pointer-events:none;transform:translateY(200%);';
+
       ytPlayersRef.current[chId] = new window.YT.Player(containerId, {
         videoId,
         playerVars: { autoplay: 1, loop: 1, playlist: videoId, playsinline: 1, controls: 1 },
         events: {
           onReady: (e) => {
             e.target.setVolume(Math.round(vol * 100));
+            // playVideo() here catches desktop and cases where onReady
+            // fires within the gesture (fast connections).
             e.target.playVideo();
-            // Make container briefly visible so browser allows autoplay,
-            // then hide it again (still compliant — player is rendered, just off-screen)
-            container.style.opacity = '0';
           },
         },
       });
+
+      // Call playVideo() synchronously too — this is the key iOS fix.
+      // YT.Player queues commands before the player is ready, so this
+      // call executes once the player initialises, but it's issued
+      // while we're still inside the touch gesture call stack.
+      try { ytPlayersRef.current[chId].playVideo(); } catch(e) {}
     };
 
     if (window.YT && window.YT.Player) {
@@ -829,6 +840,11 @@ function App() {
                         className={`sfx-stone ${activeCh ? 'is-active' : ''}`}
                         style={{ '--mood-color': portal.color || '#3a6a8a' }}
                         onClick={() => castSonusOnChannel(portal.id, selectedCh)}
+                        onTouchEnd={e => {
+                          e.preventDefault();
+                          window.BardicAudio.resumeAll();
+                          castSonusOnChannel(portal.id, selectedCh);
+                        }}
                         title={activeCh ? `Playing on ${activeCh.label}` : `Cast onto ${channelById[selectedCh]?.label}`}>
                   <div className="sfx-stone__inner">
                     <i className={`ti ${portal.sigil || 'ti-ripple'}`}

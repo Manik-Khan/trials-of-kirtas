@@ -1134,7 +1134,8 @@ function SonusPanel({ open, portals, chStates, channels, selectedCh, channelById
                      style={{ color: '#fff', fontSize: 14 }}/>
                 </div>
                 <div className="track-row__info" style={{ flex: 1 }}
-                     onClick={() => onCast(portal.id, selectedCh)}>
+                     onClick={() => onCast(portal.id, selectedCh)}
+                     onTouchEnd={e => { e.preventDefault(); window.BardicAudio.resumeAll(); onCast(portal.id, selectedCh); }}>
                   <div className="track-row__title">{portal.label}</div>
                   {activeCh && (
                     <div className="track-row__artist" style={{ color: activeCh.accent }}>
@@ -1147,7 +1148,9 @@ function SonusPanel({ open, portals, chStates, channels, selectedCh, channelById
                     <i className="ti ti-volume"/>
                   </div>
                 )}
-                <button className="track-row__play" onClick={() => onCast(portal.id, selectedCh)}
+                <button className="track-row__play"
+                        onClick={() => onCast(portal.id, selectedCh)}
+                        onTouchEnd={e => { e.preventDefault(); window.BardicAudio.resumeAll(); onCast(portal.id, selectedCh); }}
                         title="Cast onto selected channel">
                   <i className="ti ti-player-play"/>
                 </button>
