@@ -273,10 +273,14 @@ function ProgressBar({ chId, accent, onPrev, onNext }) {
     const tick = () => {
       if (dragging) { rafRef.current = requestAnimationFrame(tick); return; }
       // Find the audio element for this channel by src presence
-      const audios = Array.from(document.querySelectorAll('audio'));
-      // Pick the one that's playing or has a src (channels only have 1 at a time)
-      // We identify by data-ch attribute set in makeUrlTrack
-      const el = audios.find(a => a.dataset.ch === chId);
+      const audios = Array.from(document.querySelectorAll('audio'))
+        .filter(a => a.dataset.ch === chId);
+      // During crossfade there may be two elements for the same channel.
+      // Prefer the one that is actively playing (not ended, not paused).
+      // Fall back to whichever has a src if none is actively playing.
+      const el = audios.find(a => !a.paused && !a.ended && a.currentTime > 0)
+              || audios.find(a => a.src && !a.ended)
+              || audios[0];
       if (el && el.duration && !isNaN(el.duration)) {
         const d = el.duration;
         const t = el.currentTime;
@@ -299,7 +303,10 @@ function ProgressBar({ chId, accent, onPrev, onNext }) {
     const p  = Math.max(0, Math.min(1, x / r.width));
     setPos(p);
     // Write to audio element
-    const el = Array.from(document.querySelectorAll('audio')).find(a => a.dataset.ch === chId);
+    const audios = Array.from(document.querySelectorAll('audio')).filter(a => a.dataset.ch === chId);
+    const el = audios.find(a => !a.paused && !a.ended && a.currentTime > 0)
+            || audios.find(a => a.src && !a.ended)
+            || audios[0];
     if (el && el.duration && !isNaN(el.duration)) {
       el.currentTime = p * el.duration;
       setElapsed(el.currentTime);
