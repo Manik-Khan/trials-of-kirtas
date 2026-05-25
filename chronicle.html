@@ -1406,33 +1406,26 @@ function insertMention(type, key, name) {
   // Delete the @query text first
   quill.deleteText(insertIdx, deleteLen);
 
-  // Insert the name with color — no other formatting
+  // Insert the name with color
   const color = type === 'npc' ? '#d4ac3a' : '#8ab4c9';
   quill.insertText(insertIdx, name, { color, bold: false });
 
-  // Immediately reset formatting after the name so text returns to normal
-  quill.formatText(insertIdx + name.length, 1, { color: false, bold: false });
-  quill.setSelection(insertIdx + name.length + 1, 0);
+  // Insert a trailing space with all formats explicitly cleared
+  const afterIdx = insertIdx + name.length;
+  quill.insertText(afterIdx, ' ', { color: false, bold: false, italic: false, background: false });
 
-  // Register mention in the reliable map (source of truth for tooltip key resolution)
+  // Move cursor to after the space, then remove all active formats
+  quill.setSelection(afterIdx + 1, 0);
+  quill.removeFormat(afterIdx + 1, 0);
+  quill.format('color', false);
+  quill.format('bold', false);
+  quill.format('italic', false);
+
+  // Register mention in the reliable map
   mentionMap[name] = { type, key };
 
-  // After insert: clear active color format so subsequent typing is normal
+  // Tag the span in the DOM using mentionMap as source of truth
   setTimeout(() => {
-    const afterIdx = insertIdx + name.length;
-
-    // Insert a space with no color to break the format chain
-    quill.insertText(afterIdx, ' ', { color: false, bold: false, italic: false, background: false });
-
-    // Clear Quill's active format state — this is the key fix
-    quill.format('color', false);
-    quill.format('bold', false);
-    quill.format('italic', false);
-
-    // Move cursor after the space
-    quill.setSelection(afterIdx + 1, 0);
-
-    // Best-effort: tag the span in the DOM using mentionMap as source of truth
     const spans = quill.root.querySelectorAll('span[style*="color"]');
     spans.forEach(span => {
       const spanText = span.textContent.trim();
@@ -1456,17 +1449,21 @@ function insertUnresolvedMention(type, key, name) {
 
   quill.deleteText(insertIdx, deleteLen);
   quill.insertText(insertIdx, name, { color, bold: false });
-  quill.formatText(insertIdx + name.length, 1, { color: false, bold: false });
+
+  // Insert a trailing space with all formats explicitly cleared
+  const afterIdx = insertIdx + name.length;
+  quill.insertText(afterIdx, ' ', { color: false, bold: false, italic: false, background: false });
+
+  // Move cursor to after the space, then remove all active formats
+  quill.setSelection(afterIdx + 1, 0);
+  quill.removeFormat(afterIdx + 1, 0);
+  quill.format('color', false);
+  quill.format('bold', false);
+  quill.format('italic', false);
 
   mentionMap[name] = { type: mentionType, key };
 
   setTimeout(() => {
-    const afterIdx = insertIdx + name.length;
-    quill.insertText(afterIdx, ' ', { color: false, bold: false, italic: false });
-    quill.format('color', false);
-    quill.format('bold', false);
-    quill.setSelection(afterIdx + 1, 0);
-
     quill.root.querySelectorAll('span[style*="color"]').forEach(span => {
       const spanText = span.textContent.trim();
       const mapEntry = mentionMap[spanText];
