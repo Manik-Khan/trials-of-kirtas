@@ -1521,52 +1521,49 @@ function wrapSelection(type) {
   const range = quill.getSelection();
   if (!range || !range.length) return;
   const text = quill.getText(range.index, range.length);
-  if (type === 'bold')   { quill.formatText(range.index, range.length, 'bold', true); }
-  else if (type === 'italic') { quill.formatText(range.index, range.length, 'italic', true); }
-  else if (type === 'npc') {
-    const key = text.toLowerCase().replace(/[^a-z0-9]/g,'_').replace(/_+/g,'_').replace(/^_|_$/g,'');
+  const endIdx = range.index + range.length;
+
+  if (type === 'bold')   { quill.formatText(range.index, range.length, 'bold', true); return; }
+  if (type === 'italic') { quill.formatText(range.index, range.length, 'italic', true); return; }
+
+  let color, mentionType, mentionKey;
+
+  if (type === 'npc') {
     const known = getKnownNPCs().find(n=>n.name.toLowerCase()===text.toLowerCase());
-    quill.formatText(range.index, range.length, 'color', '#d4ac3a');
-    if (!known) {
-      quill.root.innerHTML = quill.root.innerHTML.replace(
-        new RegExp(`style="color: rgb[^"]*">${escapeRegex(text)}</span>`),
-        `style="color: #c9b48a; text-decoration: underline dotted" data-mention-type="npc-unresolved" data-mention-key="${key}">${text}</span>`
-      );
-    } else {
-      quill.root.innerHTML = quill.root.innerHTML.replace(
-        new RegExp(`style="color: rgb[^"]*">${escapeRegex(text)}</span>`),
-        `style="color: #d4ac3a" data-mention-type="npc" data-mention-key="${known.key}">${text}</span>`
-      );
-    }
-  }
-  else if (type === 'location') {
-    const key = text.toLowerCase().replace(/[^a-z0-9]/g,'_').replace(/_+/g,'_').replace(/^_|_$/g,'');
+    mentionKey  = known ? known.key : text.toLowerCase().replace(/[^a-z0-9]/g,'_').replace(/_+/g,'_').replace(/^_|_$/g,'');
+    mentionType = known ? 'npc' : 'npc-unresolved';
+    color       = known ? '#d4ac3a' : '#c9b48a';
+  } else if (type === 'location') {
     const known = getKnownLocations().find(l=>l.name.toLowerCase()===text.toLowerCase());
-    quill.formatText(range.index, range.length, 'color', known ? '#8ab4c9' : '#7a9aaa');
-    if (known) {
-      quill.root.innerHTML = quill.root.innerHTML.replace(
-        new RegExp(`style="color: rgb[^"]*">${escapeRegex(text)}</span>`),
-        `style="color: #8ab4c9" data-mention-type="location" data-mention-key="${known.key}">${text}</span>`
-      );
-    } else {
-      quill.root.innerHTML = quill.root.innerHTML.replace(
-        new RegExp(`style="color: rgb[^"]*">${escapeRegex(text)}</span>`),
-        `style="color: #7a9aaa; text-decoration: underline dotted" data-mention-type="location-unresolved" data-mention-key="${key}">${text}</span>`
-      );
-    }
+    mentionKey  = known ? known.key : text.toLowerCase().replace(/[^a-z0-9]/g,'_').replace(/_+/g,'_').replace(/^_|_$/g,'');
+    mentionType = known ? 'location' : 'location-unresolved';
+    color       = known ? '#8ab4c9' : '#7a9aaa';
   }
 
-  // Reset color at cursor position after the selection so subsequent typing is normal
-  // Must use setTimeout — the innerHTML replacement above causes Quill to lose internal
-  // state, so synchronous format calls have no effect until the next tick
-  const endIdx = range.index + range.length;
-  document.getElementById('sel-toolbar').style.display = 'none';
+  // Apply color via Quill API — no innerHTML touching
+  quill.formatText(range.index, range.length, 'color', color);
+
+  // Tag the span with data attributes via targeted DOM query after Quill renders
   setTimeout(() => {
+    const spans = quill.root.querySelectorAll(`span[style*="color"]`);
+    spans.forEach(span => {
+      if (span.textContent === text && !span.dataset.mentionType) {
+        span.dataset.mentionType = mentionType;
+        span.dataset.mentionKey  = mentionKey;
+        if (mentionType.includes('unresolved')) {
+          span.style.textDecoration = 'underline dotted';
+        }
+      }
+    });
+
+    // Reset cursor format so subsequent typing is normal
     quill.setSelection(endIdx, 0);
     quill.format('color', false);
     quill.format('bold', false);
     quill.format('italic', false);
   }, 20);
+
+  document.getElementById('sel-toolbar').style.display = 'none';
 }
 
 // ══════════════════════════════════════════════════════════
