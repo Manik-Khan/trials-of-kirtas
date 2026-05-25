@@ -499,7 +499,104 @@
     .c-entry-text h3 { font-family: var(--font-title); font-size: 0.8rem; color: var(--aged); letter-spacing: 0.08em; margin: 0.6rem 0 0.35rem; }
     .c-entry-text blockquote { border-left: 2px solid var(--gold); padding: 0.3rem 0.75rem; color: var(--gold-light); font-style: italic; margin: 0.5rem 0; background: rgba(184,149,42,0.05); }
     .c-entry-text hr { border: none; height: 1px; background: var(--gold-dim); margin: 0.75rem 0; }
-    .c-entry-text img { max-width: 100%; border: 1px solid var(--gold-dim); margin: 0.5rem auto; display: block; }
+    .c-entry-text img {
+      display: block;
+      max-width: min(100%, 520px);
+      width: auto;
+      height: auto;
+      border: 1px solid var(--gold-dim);
+      margin: 1rem auto;
+      border-radius: 2px;
+      cursor: zoom-in;
+      transition: border-color 0.15s, opacity 0.15s;
+    }
+    .c-entry-text img:hover { border-color: var(--gold); opacity: 0.92; }
+    /* Paragraph containing only an image — remove default p margins */
+    .c-entry-text p:has(> img:only-child) {
+      margin-bottom: 0;
+      text-align: center;
+      position: relative;
+    }
+    /* Caption: em tag immediately after an image paragraph */
+    .c-entry-text p:has(> img:only-child) + p > em:only-child {
+      display: block;
+      text-align: center;
+      font-size: 0.78rem;
+      color: var(--muted);
+      font-style: italic;
+      margin-top: -0.5rem;
+      margin-bottom: 0.75rem;
+      letter-spacing: 0.02em;
+    }
+    /* Image hover toolbar (tag stub — wired up later) */
+    .img-toolbar {
+      position: absolute;
+      top: 6px;
+      right: 6px;
+      display: none;
+      gap: 4px;
+      z-index: 10;
+    }
+    .c-entry-text p:has(> img:only-child):hover .img-toolbar { display: flex; }
+    .img-toolbar-btn {
+      background: rgba(14,12,10,0.85);
+      border: 1px solid var(--gold-dim);
+      color: var(--muted);
+      font-size: 0.65rem;
+      font-family: var(--font-title);
+      letter-spacing: 0.1em;
+      text-transform: uppercase;
+      padding: 3px 7px;
+      cursor: pointer;
+      transition: color 0.12s, border-color 0.12s;
+      backdrop-filter: blur(4px);
+    }
+    .img-toolbar-btn:hover { color: var(--gold-light); border-color: var(--gold); }
+
+    /* Lightbox */
+    .lightbox-overlay {
+      position: fixed;
+      inset: 0;
+      background: rgba(0,0,0,0.92);
+      z-index: 1000;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      opacity: 0;
+      pointer-events: none;
+      transition: opacity 0.2s ease;
+      cursor: zoom-out;
+    }
+    .lightbox-overlay.open {
+      opacity: 1;
+      pointer-events: all;
+    }
+    .lightbox-img {
+      max-width: 90vw;
+      max-height: 88vh;
+      width: auto;
+      height: auto;
+      border: 1px solid var(--gold-dim);
+      border-radius: 2px;
+      box-shadow: 0 8px 40px rgba(0,0,0,0.8);
+      transform: scale(0.96);
+      transition: transform 0.2s ease;
+      cursor: default;
+    }
+    .lightbox-overlay.open .lightbox-img { transform: scale(1); }
+    .lightbox-close {
+      position: absolute;
+      top: 16px;
+      right: 20px;
+      background: none;
+      border: none;
+      color: var(--muted);
+      font-size: 1.5rem;
+      cursor: pointer;
+      line-height: 1;
+      transition: color 0.15s;
+    }
+    .lightbox-close:hover { color: var(--parchment); }
     .c-entry-text strong { color: var(--parchment); }
     .c-entry-text span:not(.npc-link):not(.location-link):not(.npc-unresolved):not(.location-unresolved) { color: inherit !important; }
     .c-entry-text .npc-link { color: var(--gold-light); border-bottom: 1px dotted var(--gold-dim); cursor: default; }
@@ -1602,8 +1699,46 @@ function wrapSelection(type) {
 }
 
 // ══════════════════════════════════════════════════════════
-// LOAD CHRONICLE
+// LIGHTBOX
 // ══════════════════════════════════════════════════════════
+function openLightbox(src) {
+  const overlay = document.getElementById('lightbox');
+  const img     = document.getElementById('lightbox-img');
+  img.src = src;
+  overlay.classList.add('open');
+  document.addEventListener('keydown', lightboxKeyHandler);
+}
+
+function closeLightbox() {
+  const overlay = document.getElementById('lightbox');
+  overlay.classList.remove('open');
+  setTimeout(() => { document.getElementById('lightbox-img').src = ''; }, 200);
+  document.removeEventListener('keydown', lightboxKeyHandler);
+}
+
+function lightboxKeyHandler(e) {
+  if (e.key === 'Escape') closeLightbox();
+}
+
+// ══════════════════════════════════════════════════════════
+// IMAGE TOOLBAR (tag stub — wired up when tagging is built)
+// ══════════════════════════════════════════════════════════
+function injectImageToolbars(container) {
+  container.querySelectorAll('.c-entry-text p').forEach(p => {
+    const img = p.querySelector('img');
+    if (!img || p.querySelector('.img-toolbar')) return;
+    const toolbar = document.createElement('div');
+    toolbar.className = 'img-toolbar';
+    toolbar.innerHTML = `<button class="img-toolbar-btn" onclick="tagImage('${img.src}',event)" title="Tag this image to an NPC or location">🏷 Tag</button>`;
+    p.appendChild(toolbar);
+  });
+}
+
+function tagImage(src, e) {
+  e.stopPropagation();
+  // Stub — tagging workflow wired up in a future session
+  console.log('Tag image:', src);
+}
 async function loadChronicle() {
   try {
     const res  = await fetch(FUNCTION_URL);
@@ -2166,7 +2301,26 @@ document.addEventListener('DOMContentLoaded', () => {
     const el = document.getElementById(id);
     if (el) el.addEventListener('input', saveDraft);
   });
+
+  // Lightbox — delegate clicks on entry images
+  document.getElementById('c-entries').addEventListener('click', e => {
+    const img = e.target.closest('.c-entry-text img');
+    if (img) openLightbox(img.src);
+  });
+
+  // Inject tag toolbar into image paragraphs after render
+  // Called after renderEntries — uses MutationObserver to catch dynamic renders
+  const entriesEl = document.getElementById('c-entries');
+  new MutationObserver(() => injectImageToolbars(entriesEl))
+    .observe(entriesEl, { childList: true, subtree: true });
 });
 </script>
+
+<!-- Lightbox -->
+<div class="lightbox-overlay" id="lightbox" onclick="closeLightbox()">
+  <button class="lightbox-close" onclick="closeLightbox()" title="Close">✕</button>
+  <img class="lightbox-img" id="lightbox-img" src="" alt="" onclick="event.stopPropagation()">
+</div>
+
 </body>
 </html>
