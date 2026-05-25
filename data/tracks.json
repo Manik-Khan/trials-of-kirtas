@@ -369,5 +369,14 @@
       ]
     }
   ],
-  "scenes": []
+  "scenes": [],
+  "sonus": [
+    {
+      "label": "Tavern Ambience",
+      "url": "https://www.youtube.com/watch?v=KecVJnJcSI4",
+      "sigil": "ti-beer",
+      "color": "#5a8a4a",
+      "id": "mploxufdov3p"
+    }
+  ]
 }
