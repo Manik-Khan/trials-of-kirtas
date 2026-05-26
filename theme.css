@@ -144,6 +144,105 @@
 }
 
 
+/* ── Theme: Phantom (Day) ── */
+/*
+   FONT NOTE: Phantom uses 'Barlow Condensed' which is not loaded by default.
+   Add the following import to nav.js (or a shared <link> in each page <head>):
+   https://fonts.googleapis.com/css2?family=Barlow+Condensed:ital,wght@0,400;0,700;0,900;1,700;1,900&display=swap
+*/
+[data-theme="phantom"] {
+  /* Backgrounds — cream/off-white print ground */
+  --ink:          #e8e3da;
+  --ink-deep:     #f0ece4;
+  --smoke:        #ddd8cf;
+
+  /* Text — near-black ink on cream */
+  --parchment:    #1a1a1a;
+  --parchment2:   #2a2a2a;
+  --aged:         #555555;
+  --muted:        #999999;
+
+  /* Accent — singular red, no gold */
+  --gold:         #c0001a;
+  --gold-light:   #e0001f;
+  --gold-dim:     rgba(192,0,26,0.12);
+  --gold-mid:     rgba(192,0,26,0.25);
+
+  /* Semantic */
+  --blood:        #c0001a;
+  --prof-color:   #3a7a50;
+  --half-color:   #2a6a8a;
+  --exp-color:    #c0001a;
+  --crit-color:   #c0001a;
+  --hp-good:      #3a7a50;
+  --hp-warn:      #a07800;
+  --hp-bad:       #c0001a;
+
+  /* Typography — condensed ink press voice */
+  --font-display: 'Barlow Condensed', sans-serif;
+  --font-title:   'Barlow Condensed', sans-serif;
+  --font-body:    'Barlow Condensed', sans-serif;
+
+  /* Nav — inverted: dark bar on light page */
+  --nav-bg:       rgba(26,26,26,0.98);
+  --nav-border:   rgba(192,0,26,0.35);
+
+  /* Texture — lighter on cream ground */
+  --noise-opacity: 0.15;
+
+  /* Section backgrounds */
+  --section-bg:   linear-gradient(160deg, rgba(26,26,26,0.06) 0%, rgba(26,26,26,0.1) 100%);
+  --section-border: rgba(26,26,26,0.15);
+}
+
+
+/* ── Theme: Phantom Night (Ink) ── */
+[data-theme="phantom-night"] {
+  /* Backgrounds — scorched warm black */
+  --ink:          #111009;
+  --ink-deep:     #0a0905;
+  --smoke:        #1c1a13;
+
+  /* Text — warm cream on dark */
+  --parchment:    #f0ece4;
+  --parchment2:   #e4dfd6;
+  --aged:         #888070;
+  --muted:        #504840;
+
+  /* Accent — same red, now glows against dark */
+  --gold:         #c0001a;
+  --gold-light:   #e0001f;
+  --gold-dim:     rgba(192,0,26,0.15);
+  --gold-mid:     rgba(192,0,26,0.3);
+
+  /* Semantic */
+  --blood:        #c0001a;
+  --prof-color:   #3a7a50;
+  --half-color:   #2a6a8a;
+  --exp-color:    #c0001a;
+  --crit-color:   #c0001a;
+  --hp-good:      #3a7a50;
+  --hp-warn:      #a07800;
+  --hp-bad:       #c0001a;
+
+  /* Typography — same condensed voice */
+  --font-display: 'Barlow Condensed', sans-serif;
+  --font-title:   'Barlow Condensed', sans-serif;
+  --font-body:    'Barlow Condensed', sans-serif;
+
+  /* Nav — near-black, red active state pops hard */
+  --nav-bg:       rgba(10,9,5,0.98);
+  --nav-border:   rgba(192,0,26,0.35);
+
+  /* Texture — subtle on dark ground */
+  --noise-opacity: 0.25;
+
+  /* Section backgrounds */
+  --section-bg:   linear-gradient(160deg, rgba(28,26,19,0.8) 0%, rgba(10,9,5,0.9) 100%);
+  --section-border: rgba(192,0,26,0.15);
+}
+
+
 /* ── ADD NEW THEMES BELOW THIS LINE ──
    Copy this block and fill in your values:
 
