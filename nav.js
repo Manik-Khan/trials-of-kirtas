@@ -43,11 +43,11 @@ const PAGES = [
 // 'id' must match the [data-theme="id"] selector in theme.css.
 // 'color' is the swatch dot color shown in the dropdown.
 const THEMES = [
-  { id: 'parchment', label: 'Parchment', color: '#b8952a' },
-  { id: 'elysian',   label: 'Elysian',   color: '#8096dc' },
-  { id: 'disco',         label: 'Disco',          color: '#c8622a' },
-  { id: 'phantom',       label: 'Phantom',        color: '#c0001a' },
-  { id: 'phantom-night', label: 'Phantom Night',  color: '#111009' },
+  { id: 'parchment',     label: 'Parchment',     color: '#b8952a' },
+  { id: 'elysian',       label: 'Elysian',       color: '#8096dc' },
+  { id: 'disco',         label: 'Disco',         color: '#c8622a' },
+  { id: 'phantom',       label: 'Phantom',       color: '#c0001a' },
+  { id: 'phantom-night', label: 'Phantom Night', color: '#111009' },
   // Add new themes here:
   // { id: 'mytheme', label: 'My Theme', color: '#hexcolor' },
 ];
@@ -86,14 +86,25 @@ function applyTheme(themeId) {
   document.documentElement.setAttribute('data-theme', id);
   try { localStorage.setItem(STORAGE_KEY, id); } catch(e) {}
 
-  // Load Barlow Condensed only for phantom themes — lazy, not on every page load
+  // Lazy-load Phantom fonts only when needed
   if (id === 'phantom' || id === 'phantom-night') {
     if (!document.getElementById('font-barlow')) {
-      const link = document.createElement('link');
-      link.id   = 'font-barlow';
-      link.rel  = 'stylesheet';
-      link.href = 'https://fonts.googleapis.com/css2?family=Barlow+Condensed:ital,wght@0,400;0,700;0,900;1,700;1,900&display=swap';
-      document.head.appendChild(link);
+      const l = document.createElement('link');
+      l.id = 'font-barlow'; l.rel = 'stylesheet';
+      l.href = 'https://fonts.googleapis.com/css2?family=Barlow+Condensed:ital,wght@0,400;0,700;0,900;1,700;1,900&display=swap';
+      document.head.appendChild(l);
+    }
+    if (!document.getElementById('font-eb-garamond')) {
+      const l = document.createElement('link');
+      l.id = 'font-eb-garamond'; l.rel = 'stylesheet';
+      l.href = 'https://fonts.googleapis.com/css2?family=EB+Garamond:ital,wght@0,400;0,500;1,400;1,500&display=swap';
+      document.head.appendChild(l);
+    }
+    if (!document.getElementById('font-source-serif')) {
+      const l = document.createElement('link');
+      l.id = 'font-source-serif'; l.rel = 'stylesheet';
+      l.href = 'https://fonts.googleapis.com/css2?family=Source+Serif+4:ital,wght@0,400;1,400&display=swap';
+      document.head.appendChild(l);
     }
   }
 

@@ -52,10 +52,15 @@
   --font-display: 'Cinzel Decorative', serif;
   --font-title:   'Cinzel', serif;
   --font-body:    'Crimson Pro', Georgia, serif;
+  --font-card:    'Crimson Pro', Georgia, serif;
 
   /* Nav */
   --nav-bg:       rgba(13,10,7,0.95);
   --nav-border:   rgba(184,149,42,0.2);
+
+  /* Chronicle bubbles */
+  --bubble-bg:       var(--ink-deep);
+  --bubble-bg-right: #16141e;
 
   /* Texture — SVG noise overlay opacity */
   --noise-opacity: 0.4;
@@ -178,10 +183,11 @@
   --hp-warn:      #a07800;
   --hp-bad:       #c0001a;
 
-  /* Typography — condensed ink press voice */
+  /* Typography — condensed headers, readable body */
   --font-display: 'Barlow Condensed', sans-serif;
   --font-title:   'Barlow Condensed', sans-serif;
-  --font-body:    'Barlow Condensed', sans-serif;
+  --font-body:    'EB Garamond', Georgia, serif;
+  --font-card:    'Source Serif 4', Georgia, serif;
 
   /* Nav — inverted: dark bar on light page */
   --nav-bg:       rgba(26,26,26,0.98);
@@ -193,6 +199,10 @@
   /* Section backgrounds */
   --section-bg:   linear-gradient(160deg, rgba(26,26,26,0.06) 0%, rgba(26,26,26,0.1) 100%);
   --section-border: rgba(26,26,26,0.15);
+
+  /* Chronicle bubbles — dark cards on cream ground */
+  --bubble-bg:       #1a1a1a;
+  --bubble-bg-right: #111009;
 }
 
 
@@ -228,7 +238,8 @@
   /* Typography — same condensed voice */
   --font-display: 'Barlow Condensed', sans-serif;
   --font-title:   'Barlow Condensed', sans-serif;
-  --font-body:    'Barlow Condensed', sans-serif;
+  --font-body:    'EB Garamond', Georgia, serif;
+  --font-card:    'Source Serif 4', Georgia, serif;
 
   /* Nav — near-black, red active state pops hard */
   --nav-bg:       rgba(10,9,5,0.98);
@@ -240,6 +251,10 @@
   /* Section backgrounds */
   --section-bg:   linear-gradient(160deg, rgba(28,26,19,0.8) 0%, rgba(10,9,5,0.9) 100%);
   --section-border: rgba(192,0,26,0.15);
+
+  /* Chronicle bubbles */
+  --bubble-bg:       #1c1a13;
+  --bubble-bg-right: #16140e;
 }
 
 

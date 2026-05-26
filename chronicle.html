@@ -435,7 +435,7 @@
 
     /* The bubble itself */
     .c-entry-bubble {
-      background: var(--ink-deep);
+      background: var(--bubble-bg, var(--ink-deep));
       border: 1.5px solid var(--bubble-color, var(--gold-dim));
       border-radius: 0 12px 12px 12px;
       padding: 10px 14px;
@@ -444,7 +444,7 @@
     }
     .c-entry-right .c-entry-bubble {
       border-radius: 12px 0 12px 12px;
-      background: #16141e;
+      background: var(--bubble-bg-right, #16141e);
     }
     /* color accent strip */
     .c-entry-bubble::before {
