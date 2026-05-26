@@ -1234,7 +1234,7 @@
     /* Sync bar */
     .cs-sync-bar { display:flex; align-items:center; gap:0.5rem; font-family:var(--font-title); font-size:0.42rem; letter-spacing:0.12em; text-transform:uppercase; color:var(--muted); padding:0.3rem 0.75rem; border-bottom:1px solid var(--gold-dim); background:rgba(0,0,0,0.15); }
     .cs-sync-dot { width:6px; height:6px; border-radius:50%; background:var(--muted); flex-shrink:0; transition:background 0.3s; }
-    .cs-sync-dot.saving  { background:#c9b48a; }
+    .cs-sync-dot.saving  { background:var(--aged); }
     .cs-sync-dot.saved   { background:#5a9a6a; }
     .cs-sync-dot.error   { background:#c05060; }
     .cs-sync-dot.loading { background:#5a9aaa; }
@@ -1288,7 +1288,7 @@
     /* ── CharacterStore — editable equipment + bio + notes ── */
     .cs-sync-bar { display:flex; align-items:center; gap:0.5rem; font-family:var(--font-title); font-size:0.42rem; letter-spacing:0.12em; text-transform:uppercase; color:var(--muted); padding:0.3rem 0.75rem; border-bottom:1px solid var(--gold-dim); background:rgba(0,0,0,0.15); }
     .cs-sync-dot { width:6px; height:6px; border-radius:50%; background:var(--muted); flex-shrink:0; transition:background 0.3s; }
-    .cs-sync-dot.saving  { background:#c9b48a; }
+    .cs-sync-dot.saving  { background:var(--aged); }
     .cs-sync-dot.saved   { background:#5a9a6a; }
     .cs-sync-dot.error   { background:#c05060; }
     .cs-sync-dot.loading { background:#5a9aaa; }
@@ -1533,7 +1533,7 @@
       bottom: 0;
       width: 420px;
       max-width: 95vw;
-      background: linear-gradient(160deg, #1e1610 0%, #0d0a07 100%);
+      background: var(--section-bg);
       border-left: 1px solid var(--gold-dim);
       z-index: 150;
       display: flex;
@@ -2261,7 +2261,7 @@ function renderHP() {
   const COL_FULL  = '#5a9a6a';
   const COL_BLOOD = '#d4821a';
   const COL_CRIT  = '#c8432a';
-  const COL_DEAD  = '#7a1f1f';
+  const COL_DEAD  = 'var(--blood)';
 
   let barCol, numCol, statusText;
   if (cur <= 0)          { barCol = COL_DEAD;  numCol = COL_DEAD;  statusText = 'Unconscious'; }
@@ -2477,7 +2477,7 @@ function buildCoreTab() {
                 <button class="hp-btn" onclick="changeHP(-1)">−</button>
                 <div class="hp-bar-track">
                   <div class="hp-bar-seg" id="hp-bar-main" style="width:100%;background:#5a9a6a"></div>
-                  <div class="hp-bar-seg" id="hp-bar-temp" style="width:0%;background:#b8952a"></div>
+                  <div class="hp-bar-seg" id="hp-bar-temp" style="width:0%;background:var(--gold)"></div>
                   <div class="hp-bar-seg" id="hp-bar-bonus" style="width:0%;background:#5a9aaa"></div>
                 </div>
                 <button class="hp-btn" onclick="changeHP(1)">+</button>
@@ -2495,9 +2495,9 @@ function buildCoreTab() {
               </div>
               <div class="hp-adj-grid">
                 <div class="hp-adj-row">
-                  <span class="hp-adj-label" style="color:#b8952a">Temp HP</span>
+                  <span class="hp-adj-label" style="color:var(--gold)">Temp HP</span>
                   <button class="hp-adj-btn" onclick="adjHPTemp(-1)">−</button>
-                  <span class="hp-adj-val" id="hp-val-temp" style="color:#b8952a">0</span>
+                  <span class="hp-adj-val" id="hp-val-temp" style="color:var(--gold)">0</span>
                   <button class="hp-adj-btn" onclick="adjHPTemp(1)">+</button>
                 </div>
                 <div class="hp-adj-row">

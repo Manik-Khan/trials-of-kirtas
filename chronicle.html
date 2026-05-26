@@ -197,8 +197,8 @@
     .c-tag-btn.active { background: var(--gold-dim); border-color: var(--gold); color: var(--gold-light); }
     /* NPC tags — gold tint */
     .c-tag-btn.tag-npc { border-color: rgba(212,172,58,0.3); color: rgba(212,172,58,0.7); }
-    .c-tag-btn.tag-npc:hover { color: #d4ac3a; border-color: rgba(212,172,58,0.7); }
-    .c-tag-btn.tag-npc.active { background: rgba(212,172,58,0.15); border-color: #d4ac3a; color: #d4ac3a; }
+    .c-tag-btn.tag-npc:hover { color: var(--gold-light); border-color: var(--gold-mid); }
+    .c-tag-btn.tag-npc.active { background: var(--gold-dim); border-color: var(--gold); color: var(--gold); }
     /* Location tags — steel blue tint */
     .c-tag-btn.tag-location { border-color: rgba(138,180,201,0.3); color: rgba(138,180,201,0.7); }
     .c-tag-btn.tag-location:hover { color: #8ab4c9; border-color: rgba(138,180,201,0.7); }
@@ -209,8 +209,8 @@
     .c-tag-btn.tag-story.active { background: rgba(122,154,106,0.12); border-color: #7a9a6a; color: #7a9a6a; }
     /* Unresolved mention tags — dimmer gold with dashed border */
     .c-tag-btn.tag-unresolved { border-style: dashed; border-color: rgba(201,180,138,0.25); color: rgba(201,180,138,0.45); }
-    .c-tag-btn.tag-unresolved:hover { color: #c9b48a; border-color: rgba(201,180,138,0.6); }
-    .c-tag-btn.tag-unresolved.active { background: rgba(201,180,138,0.08); border-color: #c9b48a; color: #c9b48a; }
+    .c-tag-btn.tag-unresolved:hover { color: var(--aged); border-color: var(--gold-dim); }
+    .c-tag-btn.tag-unresolved.active { background: var(--gold-dim); border-color: var(--aged); color: var(--aged); }
 
     /* DM session control */
     .c-session-ctrl {
@@ -936,7 +936,7 @@
     /* ── Identity modal ── */
     .id-backdrop { position: fixed; inset: 0; background: rgba(0,0,0,0.75); z-index: 300; display: flex; align-items: center; justify-content: center; backdrop-filter: blur(4px); }
     .id-backdrop.hidden { display: none; }
-    .id-modal { background: linear-gradient(160deg, #2a1e10 0%, #0d0a07 100%); border: 1px solid var(--gold-dim); padding: 2rem 2.25rem; max-width: 400px; width: 90%; box-shadow: 0 20px 60px rgba(0,0,0,0.8); }
+    .id-modal { background: var(--section-bg); border: 1px solid var(--gold-dim); padding: 2rem 2.25rem; max-width: 400px; width: 90%; box-shadow: 0 20px 60px rgba(0,0,0,0.8); }
     .id-modal-title { font-family: var(--font-display); font-size: 1.1rem; color: var(--parchment); margin-bottom: 0.25rem; }
     .id-modal-sub { font-size: 0.82rem; color: var(--muted); font-style: italic; margin-bottom: 1.25rem; }
     .id-modal-label { font-family: var(--font-title); font-size: 0.48rem; letter-spacing: 0.3em; color: var(--gold); text-transform: uppercase; display: block; margin-bottom: 0.5rem; }
@@ -959,7 +959,7 @@
     /* ── Session prompt modal ── */
     .session-prompt-backdrop { position: fixed; inset: 0; background: rgba(0,0,0,0.7); z-index: 400; display: flex; align-items: center; justify-content: center; backdrop-filter: blur(4px); }
     .session-prompt-backdrop.hidden { display: none; }
-    .session-prompt { background: linear-gradient(160deg, #2a1e10 0%, #0d0a07 100%); border: 1px solid var(--gold-dim); padding: 1.75rem 2rem; max-width: 360px; width: 90%; text-align: center; box-shadow: 0 20px 60px rgba(0,0,0,0.8); }
+    .session-prompt { background: var(--section-bg); border: 1px solid var(--gold-dim); padding: 1.75rem 2rem; max-width: 360px; width: 90%; text-align: center; box-shadow: 0 20px 60px rgba(0,0,0,0.8); }
     .session-prompt-title { font-family: var(--font-display); font-size: 1rem; color: var(--parchment); margin-bottom: 0.5rem; }
     .session-prompt-body { font-size: 0.88rem; color: var(--muted); font-style: italic; margin-bottom: 1.25rem; line-height: 1.6; }
     .session-prompt-btns { display: flex; gap: 0.6rem; justify-content: center; }
@@ -1157,7 +1157,7 @@
 const FUNCTION_URL = '/.netlify/functions/chronicle';
 
 const PLAYERS = [
-  { id:'dm',        name:'DM',        character:'Narrator', color:'#b8952a' },
+  { id:'dm',        name:'DM',        character:'Narrator', color:'var(--gold)' },
   { id:'cosmere',   name:'Cosmere',     character:'Warlock',  color:'#c05060' },
   { id:'liadan',    name:'Líadan',    character:'Bard',     color:'#5a9a6a' },
   { id:'caim',      name:'Caim',      character:'Monk',     color:'#8060c0' },
