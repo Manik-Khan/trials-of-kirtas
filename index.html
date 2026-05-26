@@ -11,18 +11,12 @@
     *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
 
     :root {
-      --gold:       #c9a84c;
-      --gold-hi:    #f0d878;
-      --gold-dim:   #7a5e20;
-      --gold-line:  #c8a030;
-      --gold-mid:   rgba(201,168,76,0.3);
-      --ink:        #0d0a06;
-      --paper:      #e8d8b0;
-      --muted:      #8a7050;
-      --aged:       #5a4828;
-      --font-title: 'Cinzel Decorative', serif;
-      --font-nav:   'Cinzel', serif;
-      --font-body:  'Crimson Pro', serif;
+      /* Local aliases — map index.html's own var names to theme.css tokens
+         so this page responds correctly to all themes including Phantom */
+      --gold-hi:   var(--gold-light);
+      --gold-line: var(--gold);
+      --paper:     var(--parchment);
+      --font-nav:  var(--font-title);
     }
 
     html, body {
