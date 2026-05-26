@@ -104,15 +104,6 @@
       "text": "<p>First session. Testing from mobile. </p>"
     },
     {
-      "id": "1779145892852",
-      "session": 0,
-      "author": "Vesperian",
-      "character": "Fighter",
-      "color": "#5a9aaa",
-      "timestamp": "2026-05-18T23:11:32.852Z",
-      "text": "<p><span style=\"color: rgb(201, 180, 138);\" data-mention-type=\"npc-unresolved\" data-mention-key=\"someone\">Someone</span> <span style=\"color: rgb(122, 154, 170);\" data-mention-type=\"location-unresolved\" data-mention-key=\"somewhere\">Somewhere</span> </p><p><br></p>"
-    },
-    {
       "id": "1779086759727",
       "session": 0,
       "author": "Líadan",
