@@ -201,6 +201,18 @@
       object-fit: contain;
       filter: drop-shadow(0 4px 16px rgba(0,0,0,0.6));
       transition: transform 0.4s ease;
+      position: relative;
+      z-index: 1;
+    }
+
+    .faction-heraldry-dots {
+      position: absolute;
+      inset: 0;
+      background-image: radial-gradient(circle, rgba(0,0,0,0.3) 1px, transparent 1px);
+      background-size: 4px 4px;
+      z-index: 2;
+      mix-blend-mode: multiply;
+      pointer-events: none;
     }
 
     .faction-card:hover .faction-heraldry img {
@@ -224,10 +236,11 @@
     }
 
     .faction-name {
-      font-family: 'Cinzel', serif;
+      font-family: var(--font-display);
       font-size: 0.95rem;
+      font-weight: 700;
       letter-spacing: 0.08em;
-      color: var(--gold-light);
+      color: #f0ece4;
       text-transform: uppercase;
       margin-bottom: 0.15rem;
     }
@@ -241,20 +254,20 @@
 
     .faction-summary {
       font-size: 0.95rem;
-      color: var(--parchment2);
+      color: #b8952a;
       line-height: 1.65;
-      opacity: 0.85;
+      opacity: 0.9;
     }
 
     .faction-read-more {
       display: inline-block;
       margin-top: 0.75rem;
-      font-family: 'Cinzel', serif;
+      font-family: var(--font-title);
       font-size: 0.65rem;
       letter-spacing: 0.2em;
-      color: var(--gold);
+      color: #f0ece4;
       text-transform: uppercase;
-      opacity: 0.7;
+      opacity: 0.5;
       transition: opacity 0.2s;
     }
     .faction-card:hover .faction-read-more { opacity: 1; }
@@ -412,6 +425,7 @@
         <!-- Replace src with: img/factions/wolven.png -->
         <img src="img/factions/wolven.png" alt="The Wolven heraldry"
              onerror="this.style.display='none'; this.nextElementSibling.style.display='flex'">
+        <div class="faction-heraldry-dots"></div>
         <div class="heraldry-placeholder" style="display:none">🐺</div>
       </div>
       <div class="faction-body">
@@ -426,6 +440,7 @@
       <div class="faction-heraldry">
         <img src="img/factions/bluejackets.png" alt="Blue Jackets heraldry"
              onerror="this.style.display='none'; this.nextElementSibling.style.display='flex'">
+        <div class="faction-heraldry-dots"></div>
         <div class="heraldry-placeholder" style="display:none">🦁</div>
       </div>
       <div class="faction-body">
@@ -449,6 +464,7 @@
       <div class="faction-heraldry">
         <img src="img/factions/numior.png" alt="Numiorian Military heraldry"
              onerror="this.style.display='none'; this.nextElementSibling.style.display='flex'">
+        <div class="faction-heraldry-dots"></div>
         <div class="heraldry-placeholder" style="display:none">🦅</div>
       </div>
       <div class="faction-body">
@@ -463,6 +479,7 @@
       <div class="faction-heraldry">
         <img src="img/factions/redeagles.png" alt="Red Eagles heraldry"
              onerror="this.style.display='none'; this.nextElementSibling.style.display='flex'">
+        <div class="faction-heraldry-dots"></div>
         <div class="heraldry-placeholder" style="display:none">🦅</div>
       </div>
       <div class="faction-body">
@@ -486,6 +503,7 @@
       <div class="faction-heraldry">
         <img src="img/factions/rook.png" alt="Band of the Rook heraldry"
              onerror="this.style.display='none'; this.nextElementSibling.style.display='flex'">
+        <div class="faction-heraldry-dots"></div>
         <div class="heraldry-placeholder" style="display:none">🐦</div>
       </div>
       <div class="faction-body">
@@ -500,6 +518,7 @@
       <div class="faction-heraldry">
         <img src="img/factions/stags.png" alt="The Stags heraldry"
              onerror="this.style.display='none'; this.nextElementSibling.style.display='flex'">
+        <div class="faction-heraldry-dots"></div>
         <div class="heraldry-placeholder" style="display:none">🦌</div>
       </div>
       <div class="faction-body">
@@ -514,6 +533,7 @@
       <div class="faction-heraldry">
         <img src="img/factions/verdaaners.png" alt="Verdaaners heraldry"
              onerror="this.style.display='none'; this.nextElementSibling.style.display='flex'">
+        <div class="faction-heraldry-dots"></div>
         <div class="heraldry-placeholder" style="display:none">🐻</div>
       </div>
       <div class="faction-body">
@@ -528,6 +548,7 @@
       <div class="faction-heraldry">
         <img src="img/factions/threshers.png" alt="The Threshers heraldry"
              onerror="this.style.display='none'; this.nextElementSibling.style.display='flex'">
+        <div class="faction-heraldry-dots"></div>
         <div class="heraldry-placeholder" style="display:none">🌾</div>
       </div>
       <div class="faction-body">
