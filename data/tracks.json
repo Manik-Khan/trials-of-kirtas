@@ -369,7 +369,20 @@
       ]
     }
   ],
-  "scenes": [],
+  "scenes": [
+    {
+      "id": "mpmcw8med85p",
+      "label": "Tavern with Ambience",
+      "desc": "Fancy an ale?",
+      "slots": {
+        "music": "mpi2a0isoaee",
+        "ambience": null,
+        "sfx": "mploxufdov3p",
+        "weather": null
+      },
+      "sealColor": "#c9a84c"
+    }
+  ],
   "sonus": [
     {
       "label": "Tavern Ambience",
