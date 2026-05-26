@@ -74,15 +74,15 @@
     }
 
     .character-card {
-      background: var(--ink-deep);
-      border: 1px solid var(--gold-dim);
+      background: #1a1a1a;
+      border: 1px solid rgba(26,26,26,0.15);
       padding: 2rem;
       transition: border-color 0.3s, transform 0.3s;
       cursor: pointer;
     }
 
     .character-card:hover {
-      border-color: var(--gold-mid);
+      border-color: rgba(192,0,26,0.35);
       transform: translateY(-2px);
     }
 
@@ -94,7 +94,7 @@
 
     .character-card.empty:hover {
       transform: none;
-      border-color: var(--gold-dim);
+      border-color: rgba(26,26,26,0.15);
     }
 
     .char-name {
@@ -167,7 +167,7 @@
     }
     .modal-overlay.open { display: flex; animation: fadeIn 0.3s ease; }
     .modal {
-      background: var(--section-bg);
+      background: linear-gradient(160deg, #2a2018 0%, #0d0a07 100%);
       border: 1px solid var(--gold-mid);
       max-width: 860px;
       width: 100%;

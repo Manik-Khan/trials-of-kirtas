@@ -69,6 +69,12 @@
     .npc-card {
       position: relative;
       cursor: pointer;
+      border: 1px solid rgba(26,26,26,0.15);
+      transition: border-color 0.3s, transform 0.3s;
+    }
+    .npc-card:hover {
+      border-color: rgba(192,0,26,0.35);
+      transform: translateY(-2px);
     }
 
     .portrait-zone {
@@ -78,13 +84,13 @@
       display: flex;
       align-items: flex-end;
       justify-content: center;
-      background: var(--ink-deep);
+      background: #1a1a1a;
       margin-bottom: -2px;
     }
 
     .portrait-bg {
       position: absolute; inset: 0;
-      background: linear-gradient(160deg, var(--smoke) 0%, var(--ink) 55%, var(--ink-deep) 100%);
+      background: linear-gradient(160deg, #2a2018 0%, #1a1410 55%, #0d0a07 100%);
     }
 
     .portrait-dots {
@@ -146,7 +152,7 @@
       filter: grayscale(80%) brightness(0.7);
     }
 
-    /* ── Text block — flat dark, no brushstroke ── */
+    /* ── Text block — always dark, pops off any theme ground ── */
     .brush-wrap {
       position: relative;
       width: 100%;
@@ -154,9 +160,11 @@
     }
 
     .card-text {
-      background: var(--ink-deep);
+      background: #1a1a1a;
       padding: 18px 16px 20px;
       position: relative;
+      border: 1px solid rgba(255,255,255,0.07);
+      border-top: none;
     }
 
     /* rough separator between portrait and text */

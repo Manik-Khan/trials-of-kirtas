@@ -183,8 +183,8 @@
   --hp-warn:      #a07800;
   --hp-bad:       #c0001a;
 
-  /* Typography — condensed headers, readable body */
-  --font-display: 'Barlow Condensed', sans-serif;
+  /* Typography — Cinzel for hero titles, Barlow for UI, EB Garamond for body */
+  --font-display: 'Cinzel', serif;
   --font-title:   'Barlow Condensed', sans-serif;
   --font-body:    'EB Garamond', Georgia, serif;
   --font-card:    'Source Serif 4', Georgia, serif;
@@ -235,8 +235,8 @@
   --hp-warn:      #a07800;
   --hp-bad:       #c0001a;
 
-  /* Typography — same condensed voice */
-  --font-display: 'Barlow Condensed', sans-serif;
+  /* Typography — same voice as Phantom day */
+  --font-display: 'Cinzel', serif;
   --font-title:   'Barlow Condensed', sans-serif;
   --font-body:    'EB Garamond', Georgia, serif;
   --font-card:    'Source Serif 4', Georgia, serif;
