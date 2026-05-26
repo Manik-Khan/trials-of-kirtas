@@ -13,7 +13,7 @@
     body {
       background-color: var(--ink);
       color: var(--parchment);
-      font-family: 'Crimson Pro', Georgia, serif;
+      font-family: var(--font-body);
       font-size: 18px;
       line-height: 1.8;
       min-height: 100vh;
@@ -38,9 +38,9 @@
       max-width: 1100px; margin: 0 auto;
       display: flex; align-items: center; justify-content: space-between; height: 56px;
     }
-    .nav-brand { font-family: 'Cinzel', serif; font-size: 0.8rem; letter-spacing: 0.2em; color: var(--gold); text-decoration: none; text-transform: uppercase; }
+    .nav-brand { font-family: var(--font-title); font-size: 0.8rem; letter-spacing: 0.2em; color: var(--gold); text-decoration: none; text-transform: uppercase; }
     .nav-links { display: flex; gap: 2rem; list-style: none; }
-    .nav-links a { font-family: 'Cinzel', serif; font-size: 0.72rem; letter-spacing: 0.15em; color: var(--aged); text-decoration: none; text-transform: uppercase; transition: color 0.2s; position: relative; }
+    .nav-links a { font-family: var(--font-title); font-size: 0.72rem; letter-spacing: 0.15em; color: var(--aged); text-decoration: none; text-transform: uppercase; transition: color 0.2s; position: relative; }
     .nav-links a::after { content: ''; position: absolute; bottom: -3px; left: 0; width: 0; height: 1px; background: var(--gold); transition: width 0.2s; }
     .nav-links a:hover { color: var(--gold-light); }
     .nav-links a:hover::after { width: 100%; }
@@ -52,8 +52,8 @@
       padding: 5rem 2rem 3rem;
       background: radial-gradient(ellipse 80% 60% at 50% 0%, rgba(42,20,10,0.8) 0%, transparent 70%);
     }
-    .page-eyebrow { font-family: 'Cinzel', serif; font-size: 0.7rem; letter-spacing: 0.4em; color: var(--gold); text-transform: uppercase; opacity: 0.7; }
-    .page-title { font-family: 'Cinzel Decorative', serif; font-size: clamp(2rem,5vw,3.5rem); color: var(--parchment); margin: 0.75rem 0 0.5rem; font-weight: 400; }
+    .page-eyebrow { font-family: var(--font-title); font-size: 0.7rem; letter-spacing: 0.4em; color: var(--gold); text-transform: uppercase; opacity: 0.7; }
+    .page-title { font-family: var(--font-display); font-size: clamp(2rem,5vw,3.5rem); color: var(--parchment); margin: 0.75rem 0 0.5rem; font-weight: 400; }
     .page-subtitle { font-style: italic; color: var(--aged); font-size: 1rem; max-width: 560px; margin: 0 auto; }
     .rule { display: flex; align-items: center; gap: 1rem; max-width: 400px; margin: 1.5rem auto; }
     .rule::before, .rule::after { content: ''; flex: 1; height: 1px; background: linear-gradient(90deg, transparent, var(--gold), transparent); }
@@ -74,15 +74,15 @@
     }
 
     .character-card {
-      background: linear-gradient(160deg, rgba(42,30,16,0.7) 0%, rgba(20,15,8,0.9) 100%);
-      border: 1px solid rgba(184,149,42,0.15);
+      background: var(--ink-deep);
+      border: 1px solid var(--gold-dim);
       padding: 2rem;
       transition: border-color 0.3s, transform 0.3s;
       cursor: pointer;
     }
 
     .character-card:hover {
-      border-color: rgba(184,149,42,0.4);
+      border-color: var(--gold-mid);
       transform: translateY(-2px);
     }
 
@@ -94,11 +94,11 @@
 
     .character-card.empty:hover {
       transform: none;
-      border-color: rgba(184,149,42,0.15);
+      border-color: var(--gold-dim);
     }
 
     .char-name {
-      font-family: 'Cinzel', serif;
+      font-family: var(--font-title);
       font-size: 1.1rem;
       letter-spacing: 0.08em;
       color: var(--gold-light);
@@ -126,7 +126,7 @@
     }
 
     .char-stat-label {
-      font-family: 'Cinzel', serif;
+      font-family: var(--font-title);
       font-size: 0.55rem;
       letter-spacing: 0.2em;
       color: var(--muted);
@@ -135,13 +135,13 @@
     }
 
     .char-stat-value {
-      font-family: 'Cinzel', serif;
+      font-family: var(--font-title);
       font-size: 1rem;
       color: var(--parchment);
     }
 
     .char-expand {
-      font-family: 'Cinzel', serif;
+      font-family: var(--font-title);
       font-size: 0.62rem;
       letter-spacing: 0.2em;
       color: var(--gold);
@@ -167,8 +167,8 @@
     }
     .modal-overlay.open { display: flex; animation: fadeIn 0.3s ease; }
     .modal {
-      background: linear-gradient(160deg, #2a1e10 0%, #140f08 100%);
-      border: 1px solid rgba(184,149,42,0.3);
+      background: var(--section-bg);
+      border: 1px solid var(--gold-mid);
       max-width: 860px;
       width: 100%;
       position: relative;
@@ -188,7 +188,7 @@
 
     /* Sheet sections inside modal */
     .sheet-name {
-      font-family: 'Cinzel Decorative', serif;
+      font-family: var(--font-display);
       font-size: 2rem;
       color: var(--parchment);
       margin-bottom: 0.25rem;
@@ -203,7 +203,7 @@
       margin-bottom: 2rem;
     }
     .sheet-section-title {
-      font-family: 'Cinzel', serif;
+      font-family: var(--font-title);
       font-size: 0.65rem;
       letter-spacing: 0.4em;
       color: var(--gold);
@@ -223,7 +223,7 @@
       text-align: center;
     }
     .sheet-stat-label {
-      font-family: 'Cinzel', serif;
+      font-family: var(--font-title);
       font-size: 0.55rem;
       letter-spacing: 0.2em;
       color: var(--muted);
@@ -232,7 +232,7 @@
       margin-bottom: 0.2rem;
     }
     .sheet-stat-value {
-      font-family: 'Cinzel', serif;
+      font-family: var(--font-title);
       font-size: 1.1rem;
       color: var(--parchment);
     }
@@ -242,7 +242,7 @@
       font-size: 0.95rem;
     }
     .sheet-table th {
-      font-family: 'Cinzel', serif;
+      font-family: var(--font-title);
       font-size: 0.6rem;
       letter-spacing: 0.2em;
       color: var(--muted);
@@ -261,7 +261,7 @@
     @keyframes slideUp { from { opacity: 0; transform: translateY(20px); } to { opacity: 1; transform: translateY(0); } }
 
     .divider { border: none; height: 1px; background: linear-gradient(90deg, transparent, rgba(184,149,42,0.3), transparent); }
-    footer { text-align: center; padding: 3rem 2rem; border-top: 1px solid rgba(184,149,42,0.1); font-family: 'Cinzel', serif; font-size: 0.65rem; letter-spacing: 0.3em; color: var(--muted); text-transform: uppercase; }
+    footer { text-align: center; padding: 3rem 2rem; border-top: 1px solid rgba(184,149,42,0.1); font-family: var(--font-title); font-size: 0.65rem; letter-spacing: 0.3em; color: var(--muted); text-transform: uppercase; }
 
     @media (max-width: 600px) {
       .party-grid { grid-template-columns: 1fr; }
@@ -453,7 +453,7 @@
 
       const spellBlocks = Object.entries(c.spells).map(([level, spells]) =>
         `<div style="margin-bottom:1rem">
-          <div style="font-family:'Cinzel',serif;font-size:0.65rem;letter-spacing:0.2em;color:var(--muted);text-transform:uppercase;margin-bottom:0.4rem">${level}</div>
+          <div style="font-family:var(--font-title);font-size:0.65rem;letter-spacing:0.2em;color:var(--muted);text-transform:uppercase;margin-bottom:0.4rem">${level}</div>
           <div style="color:var(--parchment2);font-size:0.95rem">${spells.join(' &nbsp;·&nbsp; ')}</div>
         </div>`
       ).join('');
@@ -475,7 +475,7 @@
       ).join('');
 
       const profLines = Object.entries(c.proficiencies).map(([k, v]) =>
-        `<tr><td style="color:var(--muted);font-family:'Cinzel',serif;font-size:0.7rem;letter-spacing:0.1em;text-transform:uppercase;padding-right:1rem">${k}</td><td style="color:var(--parchment2)">${v}</td></tr>`
+        `<tr><td style="color:var(--muted);font-family:var(--font-title);font-size:0.7rem;letter-spacing:0.1em;text-transform:uppercase;padding-right:1rem">${k}</td><td style="color:var(--parchment2)">${v}</td></tr>`
       ).join('');
 
       const currencyStats = Object.entries(c.currency).map(([k, v]) =>
