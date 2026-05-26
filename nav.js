@@ -45,7 +45,9 @@ const PAGES = [
 const THEMES = [
   { id: 'parchment', label: 'Parchment', color: '#b8952a' },
   { id: 'elysian',   label: 'Elysian',   color: '#8096dc' },
-  { id: 'disco',     label: 'Disco',     color: '#c8622a' },
+  { id: 'disco',         label: 'Disco',          color: '#c8622a' },
+  { id: 'phantom',       label: 'Phantom',        color: '#c0001a' },
+  { id: 'phantom-night', label: 'Phantom Night',  color: '#111009' },
   // Add new themes here:
   // { id: 'mytheme', label: 'My Theme', color: '#hexcolor' },
 ];
@@ -83,6 +85,18 @@ function applyTheme(themeId) {
   const id = valid ? themeId : DEFAULT_THEME;
   document.documentElement.setAttribute('data-theme', id);
   try { localStorage.setItem(STORAGE_KEY, id); } catch(e) {}
+
+  // Load Barlow Condensed only for phantom themes — lazy, not on every page load
+  if (id === 'phantom' || id === 'phantom-night') {
+    if (!document.getElementById('font-barlow')) {
+      const link = document.createElement('link');
+      link.id   = 'font-barlow';
+      link.rel  = 'stylesheet';
+      link.href = 'https://fonts.googleapis.com/css2?family=Barlow+Condensed:ital,wght@0,400;0,700;0,900;1,700;1,900&display=swap';
+      document.head.appendChild(link);
+    }
+  }
+
   // Update dropdown UI if it exists
   document.querySelectorAll('.theme-option').forEach(el => {
     const isActive = el.dataset.theme === id;
