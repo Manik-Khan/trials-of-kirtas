@@ -76,9 +76,12 @@
     .character-card {
       background: #1a1a1a;
       border: 1px solid rgba(26,26,26,0.15);
-      padding: 2rem;
+      padding: 0;
       transition: border-color 0.3s, transform 0.3s;
       cursor: pointer;
+      overflow: hidden;
+      display: flex;
+      flex-direction: column;
     }
 
     .character-card:hover {
@@ -97,37 +100,46 @@
       border-color: rgba(26,26,26,0.15);
     }
 
+    /* Text block below portrait */
+    .char-text {
+      padding: 16px 16px 18px;
+      position: relative;
+    }
+
     .char-name {
       font-family: var(--font-title);
-      font-size: 1.1rem;
-      letter-spacing: 0.08em;
+      font-size: 20px;
+      font-weight: 700;
+      letter-spacing: 0.04em;
       color: #f0ece4;
-      margin-bottom: 0.25rem;
+      margin: 0 0 3px;
+      line-height: 1.1;
     }
 
     .char-class {
-      font-size: 0.88rem;
+      font-family: var(--font-card);
+      font-size: 12px;
       font-style: italic;
       color: #b8952a;
-      margin-bottom: 1rem;
+      margin-bottom: 12px;
     }
 
     .char-stats {
       display: grid;
-      grid-template-columns: repeat(3, 1fr);
-      gap: 0.5rem;
-      margin-bottom: 1rem;
+      grid-template-columns: repeat(4, 1fr);
+      gap: 2px;
+      margin-bottom: 0;
     }
 
     .char-stat {
       text-align: center;
       background: rgba(0,0,0,0.35);
-      padding: 0.4rem 0.25rem;
+      padding: 6px 4px;
     }
 
     .char-stat-label {
       font-family: var(--font-title);
-      font-size: 0.55rem;
+      font-size: 8px;
       letter-spacing: 0.2em;
       color: rgba(255,255,255,0.35);
       text-transform: uppercase;
@@ -136,18 +148,21 @@
 
     .char-stat-value {
       font-family: var(--font-title);
-      font-size: 1rem;
+      font-size: 16px;
+      font-weight: 700;
       color: #f0ece4;
     }
 
     .char-expand {
       font-family: var(--font-title);
-      font-size: 0.62rem;
+      font-size: 8px;
       letter-spacing: 0.2em;
       color: #b8952a;
       text-transform: uppercase;
       opacity: 0;
       transition: opacity 0.2s;
+      margin-top: 10px;
+      display: block;
     }
 
     .character-card:hover .char-expand { opacity: 1; }
@@ -155,11 +170,11 @@
     /* ── Portrait zone — matches NPC card treatment ── */
     .char-portrait-zone {
       position: relative;
-      width: calc(100% + 4rem);
-      margin: 0.75rem -2rem 0.75rem;
-      height: 220px;
+      width: 100%;
+      height: 300px;
       overflow: hidden;
       background: #0d0a07;
+      flex-shrink: 0;
     }
     .char-portrait-bg {
       position: absolute; inset: 0;
@@ -182,25 +197,12 @@
     .char-portrait-fade {
       position: absolute; inset: 0;
       background: linear-gradient(to top,
-        rgba(13,10,7,0.92) 0%,
-        rgba(13,10,7,0.2) 45%,
-        transparent 65%);
+        color-mix(in srgb, #0d0a07 65%, transparent) 0%,
+        color-mix(in srgb, #0d0a07 15%, transparent) 40%,
+        transparent 62%);
       z-index: 2; pointer-events: none;
     }
-    /* Líadan circle portrait variant */
-    .char-portrait-zone.circle {
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      background: #0d0a07;
-    }
-    .char-portrait-zone.circle .char-portrait-img {
-      width: 180px; height: 180px;
-      border-radius: 50%;
-      object-fit: cover;
-      position: relative;
-      inset: auto;
-    }
+    /* Circle variant removed — Líadan now uses full frame */
 
     /* ── Full sheet modal ── */
     .modal-overlay {
@@ -357,76 +359,86 @@
 
       <!-- CHARACTER CARD: COSMERE -->
       <div class="character-card" onclick="window.location='sheet.html?character=cosmere'">
-        <div class="char-name">Cosmere Runestar</div>
-        <div class="char-class">Warlock 2 / Sorcerer 1 · Astral Elf</div>
         <div class="char-portrait-zone">
           <div class="char-portrait-bg"></div>
           <img class="char-portrait-img" src="img/portraits/cosmere.png" alt="Cosmere Runestar">
           <div class="char-portrait-dots"></div>
           <div class="char-portrait-fade"></div>
         </div>
-        <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:0.3rem;margin-bottom:0.6rem">
-          <div class="char-stat"><span class="char-stat-label">AC</span><span class="char-stat-value">18</span></div>
-          <div class="char-stat"><span class="char-stat-label">HP</span><span class="char-stat-value">20</span></div>
-          <div class="char-stat"><span class="char-stat-label">Init</span><span class="char-stat-value">+2</span></div>
-          <div class="char-stat"><span class="char-stat-label">Perc</span><span class="char-stat-value">12</span></div>
+        <div class="char-text">
+          <div class="char-name">Cosmere Runestar</div>
+          <div class="char-class">Warlock 2 / Sorcerer 1 · Astral Elf</div>
+          <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:2px;">
+            <div class="char-stat"><span class="char-stat-label">AC</span><span class="char-stat-value">18</span></div>
+            <div class="char-stat"><span class="char-stat-label">HP</span><span class="char-stat-value">20</span></div>
+            <div class="char-stat"><span class="char-stat-label">Init</span><span class="char-stat-value">+2</span></div>
+            <div class="char-stat"><span class="char-stat-label">Perc</span><span class="char-stat-value">12</span></div>
+          </div>
+          <div class="char-expand">View full sheet →</div>
         </div>
-        <div class="char-expand">View full sheet →</div>
       </div>
 
       <!-- CHARACTER CARD: CAIM -->
       <div class="character-card" onclick="window.location='sheet.html?character=caim'">
-        <div class="char-name">Caim</div>
-        <div class="char-class">Monk (Way of Mercy) · Tiefling</div>
         <div class="char-portrait-zone">
           <div class="char-portrait-bg"></div>
           <img class="char-portrait-img" src="img/portraits/caim.png" alt="Caim">
           <div class="char-portrait-dots"></div>
           <div class="char-portrait-fade"></div>
         </div>
-        <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:0.3rem;margin-bottom:0.6rem">
-          <div class="char-stat"><span class="char-stat-label">AC</span><span class="char-stat-value">—</span></div>
-          <div class="char-stat"><span class="char-stat-label">HP</span><span class="char-stat-value">—</span></div>
-          <div class="char-stat"><span class="char-stat-label">Init</span><span class="char-stat-value">—</span></div>
-          <div class="char-stat"><span class="char-stat-label">Perc</span><span class="char-stat-value">—</span></div>
+        <div class="char-text">
+          <div class="char-name">Caim</div>
+          <div class="char-class">Monk (Way of Mercy) · Tiefling</div>
+          <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:2px;">
+            <div class="char-stat"><span class="char-stat-label">AC</span><span class="char-stat-value">—</span></div>
+            <div class="char-stat"><span class="char-stat-label">HP</span><span class="char-stat-value">—</span></div>
+            <div class="char-stat"><span class="char-stat-label">Init</span><span class="char-stat-value">—</span></div>
+            <div class="char-stat"><span class="char-stat-label">Perc</span><span class="char-stat-value">—</span></div>
+          </div>
+          <div class="char-expand">View full sheet →</div>
         </div>
-        <div class="char-expand">View full sheet →</div>
       </div>
 
       <!-- CHARACTER CARD: LÍADAN -->
       <div class="character-card" onclick="window.location='sheet.html?character=liadan'">
-        <div class="char-name">Líadan Luchóg</div>
-        <div class="char-class">Bard (College of Creation) · Mouseling</div>
-        <div class="char-portrait-zone circle">
-          <img class="char-portrait-img" src="https://res.cloudinary.com/df0tgoiyb/image/upload/v1779732202/kirtas/portraits/liadan.png" alt="Líadan">
+        <div class="char-portrait-zone">
+          <div class="char-portrait-bg"></div>
+          <img class="char-portrait-img" src="img/portraits/liadan.png" alt="Líadan">
           <div class="char-portrait-dots"></div>
+          <div class="char-portrait-fade"></div>
         </div>
-        <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:0.3rem;margin-bottom:0.6rem">
-          <div class="char-stat"><span class="char-stat-label">AC</span><span class="char-stat-value">12</span></div>
-          <div class="char-stat"><span class="char-stat-label">HP</span><span class="char-stat-value">19</span></div>
-          <div class="char-stat"><span class="char-stat-label">Init</span><span class="char-stat-value">+2</span></div>
-          <div class="char-stat"><span class="char-stat-label">Perc</span><span class="char-stat-value">14</span></div>
+        <div class="char-text">
+          <div class="char-name">Líadan Luchóg</div>
+          <div class="char-class">Bard (College of Creation) · Mouseling</div>
+          <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:2px;">
+            <div class="char-stat"><span class="char-stat-label">AC</span><span class="char-stat-value">12</span></div>
+            <div class="char-stat"><span class="char-stat-label">HP</span><span class="char-stat-value">19</span></div>
+            <div class="char-stat"><span class="char-stat-label">Init</span><span class="char-stat-value">+2</span></div>
+            <div class="char-stat"><span class="char-stat-label">Perc</span><span class="char-stat-value">14</span></div>
+          </div>
+          <div class="char-expand">View full sheet →</div>
         </div>
-        <div class="char-expand">View full sheet →</div>
       </div>
 
       <!-- CHARACTER CARD: VESPERIAN -->
       <div class="character-card" onclick="window.location='sheet.html?character=vesperian'">
-        <div class="char-name">Vesperian Vale</div>
-        <div class="char-class">Fighter (Eldritch Knight) · Shadar-kai</div>
         <div class="char-portrait-zone">
           <div class="char-portrait-bg"></div>
-          <img class="char-portrait-img" src="https://res.cloudinary.com/df0tgoiyb/image/upload/v1779732221/kirtas/portraits/vesperian.png" alt="Vesperian Vale">
+          <img class="char-portrait-img" src="img/portraits/vesperian.jpg" alt="Vesperian Vale">
           <div class="char-portrait-dots"></div>
           <div class="char-portrait-fade"></div>
         </div>
-        <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:0.3rem;margin-bottom:0.6rem">
-          <div class="char-stat"><span class="char-stat-label">AC</span><span class="char-stat-value">18</span></div>
-          <div class="char-stat"><span class="char-stat-label">HP</span><span class="char-stat-value">31</span></div>
-          <div class="char-stat"><span class="char-stat-label">Init</span><span class="char-stat-value">+4</span></div>
-          <div class="char-stat"><span class="char-stat-label">Perc</span><span class="char-stat-value">13</span></div>
+        <div class="char-text">
+          <div class="char-name">Vesperian Vale</div>
+          <div class="char-class">Fighter (Eldritch Knight) · Shadar-kai</div>
+          <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:2px;">
+            <div class="char-stat"><span class="char-stat-label">AC</span><span class="char-stat-value">18</span></div>
+            <div class="char-stat"><span class="char-stat-label">HP</span><span class="char-stat-value">31</span></div>
+            <div class="char-stat"><span class="char-stat-label">Init</span><span class="char-stat-value">+4</span></div>
+            <div class="char-stat"><span class="char-stat-label">Perc</span><span class="char-stat-value">13</span></div>
+          </div>
+          <div class="char-expand">View full sheet →</div>
         </div>
-        <div class="char-expand">View full sheet →</div>
       </div>
 
     </div>
