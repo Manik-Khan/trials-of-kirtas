@@ -37,7 +37,7 @@
       "page": 149,
       "qty": 1,
       "equipped": true,
-      "_enriched": false,
+      "_enriched": true,
       "alias": null,
       "attackStat": null,
       "dmgBonus": null,
@@ -82,7 +82,12 @@
       "qty": 10,
       "equipped": false,
       "_enriched": true,
-      "alias": null
+      "alias": null,
+      "attackStat": null,
+      "dmgBonus": null,
+      "extraDmg": null,
+      "flavor": null,
+      "notes": null
     },
     {
       "name": "Common Clothes",
@@ -187,5 +192,5 @@
     "flaws": "",
     "backstory": ""
   },
-  "lastUpdated": "2026-05-27T05:04:41.902Z"
+  "lastUpdated": "2026-05-27T05:04:56.063Z"
 }
