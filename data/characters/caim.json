@@ -1,0 +1,191 @@
+{
+  "key": "caim",
+  "inventory": [
+    {
+      "name": "Shortsword",
+      "rarity": "None",
+      "type": "M",
+      "typeLabel": "Melee Weapon",
+      "weaponCat": "martial weapon, melee weapon",
+      "detail": "martial weapon · 1d6 P · 2 lb",
+      "price": "1 pp",
+      "weight": 2,
+      "dmg1": "1d6",
+      "dmg2": null,
+      "dmgType": "P",
+      "range": null,
+      "ac": null,
+      "strength": null,
+      "stealth": null,
+      "reqAttune": null,
+      "properties": [
+        {
+          "abbr": "F",
+          "name": "Finesse",
+          "desc": "When making an attack with a finesse weapon, you use your choice of your Strength or Dexterity modifier for the attack and damage rolls. You must use the same modifier for both rolls."
+        },
+        {
+          "abbr": "L",
+          "name": "Light",
+          "desc": "A light weapon is small and easy to handle, making it ideal for use when fighting with two weapons."
+        }
+      ],
+      "entries": [],
+      "contents": null,
+      "source": "PHB",
+      "sourceFull": "PHB p149",
+      "page": 149,
+      "qty": 1,
+      "equipped": true,
+      "_enriched": false,
+      "alias": null,
+      "attackStat": null,
+      "dmgBonus": null,
+      "extraDmg": null,
+      "flavor": null,
+      "notes": null
+    },
+    {
+      "name": "Dart",
+      "rarity": "None",
+      "type": "R",
+      "typeLabel": "Ranged Weapon",
+      "weaponCat": "simple weapon, ranged weapon",
+      "detail": "simple weapon · 1d4 P · 0.25 lb",
+      "price": "5 cp",
+      "weight": 10,
+      "dmg1": "1d4",
+      "dmg2": null,
+      "dmgType": "P",
+      "range": "20/60",
+      "ac": null,
+      "strength": null,
+      "stealth": null,
+      "reqAttune": null,
+      "properties": [
+        {
+          "abbr": "F",
+          "name": "Finesse",
+          "desc": "When making an attack with a finesse weapon, you use your choice of your Strength or Dexterity modifier for the attack and damage rolls. You must use the same modifier for both rolls."
+        },
+        {
+          "abbr": "T",
+          "name": "Thrown (20/60 ft.)",
+          "desc": "If a weapon has the thrown property, you can throw the weapon to make a ranged attack. If the weapon is a melee weapon, you use the same ability modifier for that attack roll and damage roll that you would use for a melee attack with the weapon. For example, if you throw a handaxe, you use your Strength, but if you throw a dagger, you can use either your Strength or your Dexterity, since the dagger has the finesse property."
+        }
+      ],
+      "entries": [],
+      "contents": null,
+      "source": "PHB",
+      "sourceFull": "PHB p149",
+      "page": 149,
+      "qty": 10,
+      "equipped": false,
+      "_enriched": true,
+      "alias": null
+    },
+    {
+      "name": "Common Clothes",
+      "rarity": "None",
+      "type": "G",
+      "typeLabel": "Adventuring Gear",
+      "weaponCat": "Adventuring Gear",
+      "detail": "Adventuring Gear · 3 lb",
+      "price": "5 sp",
+      "weight": 3,
+      "dmg1": null,
+      "dmg2": null,
+      "dmgType": null,
+      "range": null,
+      "ac": null,
+      "strength": null,
+      "stealth": null,
+      "reqAttune": null,
+      "properties": [],
+      "entries": [],
+      "contents": null,
+      "source": "PHB",
+      "sourceFull": "PHB p150",
+      "page": 150,
+      "qty": 1,
+      "equipped": true,
+      "_enriched": true,
+      "alias": null
+    },
+    {
+      "name": "Explorer's Pack",
+      "rarity": "None",
+      "type": "G",
+      "typeLabel": "Adventuring Gear",
+      "weaponCat": "Adventuring Gear",
+      "detail": "Adventuring Gear · 59 lb",
+      "price": "1 pp",
+      "weight": 0,
+      "dmg1": null,
+      "dmg2": null,
+      "dmgType": null,
+      "range": null,
+      "ac": null,
+      "strength": null,
+      "stealth": null,
+      "reqAttune": null,
+      "properties": [],
+      "entries": [
+        "Includes:",
+        "a backpack",
+        "a bedroll",
+        "a mess kit",
+        "a tinderbox",
+        "10 torches",
+        "10 days of rations",
+        "a waterskin",
+        "50 feet of hempen rope"
+      ],
+      "contents": [
+        "Torch ×10",
+        "Rations (1 day) ×10"
+      ],
+      "source": "PHB",
+      "sourceFull": "PHB p151",
+      "page": 151,
+      "qty": 1,
+      "equipped": false,
+      "_enriched": true,
+      "alias": null
+    },
+    {
+      "name": "Pet Mouse",
+      "qty": 1,
+      "weight": 0,
+      "equipped": false
+    },
+    {
+      "name": "Small Knife",
+      "qty": 1,
+      "weight": 0,
+      "equipped": false
+    },
+    {
+      "name": "Token to remember your parents by",
+      "qty": 1,
+      "weight": 0,
+      "equipped": false
+    }
+  ],
+  "currency": {
+    "pp": 0,
+    "gp": 0,
+    "ep": 0,
+    "sp": 0,
+    "cp": 0
+  },
+  "notes": "",
+  "bio": {
+    "personality": "",
+    "ideals": "",
+    "bonds": "",
+    "flaws": "",
+    "backstory": ""
+  },
+  "lastUpdated": "2026-05-27T05:04:41.902Z"
+}
