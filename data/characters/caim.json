@@ -81,7 +81,7 @@
       "page": 149,
       "qty": 10,
       "equipped": false,
-      "_enriched": true,
+      "_enriched": false,
       "alias": null,
       "attackStat": null,
       "dmgBonus": null,
@@ -192,5 +192,5 @@
     "flaws": "",
     "backstory": ""
   },
-  "lastUpdated": "2026-05-27T05:04:56.063Z"
+  "lastUpdated": "2026-05-27T05:05:49.836Z"
 }
