@@ -425,6 +425,13 @@
       "sigil": "ti-map",
       "color": "#3a5a6a",
       "id": "mpnkje522am2"
+    },
+    {
+      "label": "Woods Ambience",
+      "url": "https://www.youtube.com/watch?v=kgq21eM26nY",
+      "sigil": "ti-campfire",
+      "color": "#3a6a3a",
+      "id": "mpnkzcb1iocm"
     }
   ]
 }
