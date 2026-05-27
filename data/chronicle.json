@@ -1,6 +1,19 @@
 {
   "entries": [
     {
+      "id": "1779858824312",
+      "session": 2,
+      "author": "Vesperian",
+      "character": "Fighter",
+      "color": "#5a9aaa",
+      "timestamp": "2026-05-27T05:13:44.312Z",
+      "text": "<p>We make it to a darker forest about 2 days into our travels. The military is split on staying in the forest or getting to the outskirts. <span style=\"color: rgb(212, 172, 58);\" data-mention-type=\"npc\" data-mention-key=\"cosmere\">Cosmere Runestar</span> tried to talk to the commander, but he was a racist and would not listen. <span style=\"color: rgb(212, 172, 58);\" data-mention-type=\"npc\" data-mention-key=\"liadan\">Líadan Luchóg</span> is trying to persuade them by scaring them with a ghost story.</p><p><br></p><blockquote><span style=\"color: rgb(212, 172, 58);\" data-mention-type=\"npc\" data-mention-key=\"cosmere\">Cosmere Runestar</span> Felt some negative kind of energy nearby.</blockquote><p><br></p><p>We get ambushed by a battalion of Gobbos. First combat!!! </p>",
+      "tags": [
+        "cosmere",
+        "liadan"
+      ]
+    },
+    {
       "id": "1779855677601",
       "session": 2,
       "sessionTitle": "The Journey Into Kirtas",
