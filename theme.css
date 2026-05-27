@@ -156,10 +156,10 @@
    https://fonts.googleapis.com/css2?family=Barlow+Condensed:ital,wght@0,400;0,700;0,900;1,700;1,900&display=swap
 */
 [data-theme="phantom"] {
-  /* Backgrounds — cream/off-white print ground */
-  --ink:          #e8e3da;
+  /* Backgrounds — black page ground, cream surface for cards/sidebar/bubbles */
+  --ink:          #111009;
   --ink-deep:     #f0ece4;
-  --smoke:        #ddd8cf;
+  --smoke:        #1c1a13;
 
   /* Text — near-black ink on cream */
   --parchment:    #1a1a1a;
