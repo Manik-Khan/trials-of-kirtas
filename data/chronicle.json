@@ -1,6 +1,20 @@
 {
   "entries": [
     {
+      "id": "1779855677601",
+      "session": 2,
+      "sessionTitle": "The Journey Into Kirtas",
+      "location": "Mortain",
+      "author": "Vesperian",
+      "character": "Fighter",
+      "color": "#5a9aaa",
+      "timestamp": "2026-05-27T04:21:17.601Z",
+      "text": "<p>We take off with a contingent of travelers and military officers that <span style=\"color: rgb(212, 172, 58);\" data-mention-type=\"npc\" data-mention-key=\"caim\">Caim</span> is associated with. We have a few days travel to the waypoint.</p><p><br></p><p><span style=\"color: rgb(122, 154, 170);\" data-mention-type=\"location-unresolved\" data-mention-key=\"verens watch\">Verens Watch</span> was once upon a time a major trade checkpoint and way-station. It has fallen into disrepair as trade has waned due to political strife.</p>",
+      "tags": [
+        "caim"
+      ]
+    },
+    {
       "id": "1779256819783",
       "session": 1,
       "author": "Vesperian",
