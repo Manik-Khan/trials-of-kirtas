@@ -645,6 +645,7 @@
   // ── Battle toggle ──
   function toggleBattle() {
     battleOn=!battleOn;
+    try { localStorage.setItem('kirtas-battle-on', battleOn); } catch(e) {}
     const btn=document.getElementById('battle-btn');
     if(btn) btn.classList.toggle('on',battleOn);
     const tog=document.getElementById('bm-toggle');
@@ -702,7 +703,8 @@
     s.id='battle-styles';
     s.textContent=`
       /* ── Desktop nav button ── */
-      #battle-btn { width:28px; height:28px; display:flex; align-items:center; justify-content:center; background:transparent; border:1px solid rgba(192,0,26,0.4); color:#c0001a; font-size:0.85rem; cursor:pointer; transition:background 0.15s,border-color 0.15s; margin-right:4px; flex-shrink:0; padding:0; }
+      #nav-theme-wrap { display:flex; align-items:center; gap:4px; }
+      #battle-btn { width:28px; height:28px; display:flex; align-items:center; justify-content:center; background:transparent; border:1px solid rgba(192,0,26,0.4); color:#c0001a; font-size:0.85rem; cursor:pointer; transition:background 0.15s,border-color 0.15s; flex-shrink:0; padding:0; }
       #battle-btn:hover { background:rgba(192,0,26,0.12); border-color:#c0001a; }
       #battle-btn.on { background:#c0001a; color:#f0ece4; border-color:#c0001a; }
       @media (max-width:600px) { #battle-btn { display:none !important; } }
@@ -980,8 +982,27 @@
   injectStyles();
   try{const saved=localStorage.getItem(CHAR_STORAGE_KEY);if(saved&&CHARACTERS[saved])activeKey=saved;}catch(e){}
 
+  // Silent resume — if battle was active on a previous page, restore without flash
+  let resumeBattle = false;
+  try { resumeBattle = localStorage.getItem('kirtas-battle-on') === 'true'; } catch(e) {}
+
   function init() {
     injectNav();
+    if (resumeBattle) {
+      battleOn = true;
+      initSession(activeKey);
+      mountHud();
+      syncLayouts();
+      renderAll();
+      document.getElementById('battle-mq')?.classList.add('show');
+      const btn = document.getElementById('battle-btn');
+      if (btn) btn.classList.add('on');
+      const tog = document.getElementById('bm-toggle');
+      if (tog) tog.classList.add('on');
+      const row = document.getElementById('bm-toggle-row');
+      if (row) row.classList.add('on');
+      document.getElementById('battle-hud')?.classList.add('show');
+    }
     let lastMobile=isMobile();
     window.addEventListener('resize',()=>{
       const nowMobile=isMobile();
