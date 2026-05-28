@@ -470,6 +470,13 @@
           "id": "mpl121z5ysb7"
         }
       ]
+    },
+    {
+      "label": "+ Battle",
+      "sigil": "ti-sword",
+      "color": "#8a2a2a",
+      "id": "mpp5t7oh1v6h",
+      "tracks": []
     }
   ],
   "scenes": [
