@@ -613,7 +613,7 @@
       const themeWrap=document.getElementById('nav-theme-wrap');
       if(!themeWrap) return;
       const btn=document.createElement('button');
-      btn.id='battle-btn'; btn.title='Battle mode'; btn.textContent='⚔ BATTLE';
+      btn.id='battle-btn'; btn.title='Battle mode'; btn.textContent='BATTLE';
       btn.addEventListener('click',toggleBattle);
       const themeBtn=themeWrap.querySelector('.nav-theme-btn');
       themeWrap.insertBefore(btn, themeBtn);
@@ -705,7 +705,7 @@
     s.textContent=`
       /* ── Desktop nav button ── */
       #nav-theme-wrap { display:flex; align-items:center; gap:4px; }
-      #battle-btn { height:28px; display:flex; align-items:center; justify-content:center; background:transparent; border:1px solid rgba(192,0,26,0.4); color:#c0001a; font-size:0.6rem; letter-spacing:0.12em; font-family:var(--font-title,inherit); cursor:pointer; transition:background 0.15s,border-color 0.15s; flex-shrink:0; padding:0 7px; }
+      #battle-btn { height:28px; display:flex; align-items:center; justify-content:center; background:transparent; border:1px solid rgba(192,0,26,0.4); color:#c0001a; font-size:0.6rem; letter-spacing:0.12em; text-transform:uppercase; font-family:var(--font-title,inherit); cursor:pointer; transition:background 0.15s,border-color 0.15s; flex-shrink:0; padding:0 7px; white-space:nowrap; }
       #battle-btn:hover { background:rgba(192,0,26,0.12); border-color:#c0001a; }
       #battle-btn.on { background:#c0001a; color:#f0ece4; border-color:#c0001a; }
       @media (max-width:600px) { #battle-btn { display:none !important; } }
