@@ -2224,6 +2224,7 @@ function renderPips(key, max) {
 function togglePip(key, idx, max) {
   pipState[key] = (idx < pipState[key]) ? idx : idx + 1;
   document.getElementById(`pips-${key}`).innerHTML = renderPips(key, max);
+  saveCombat();
 }
 
 // Death saves
@@ -2309,13 +2310,21 @@ function changeHP(delta) {
   const effMax = maxHPVal + hpBonus;
   currentHP = Math.max(0, Math.min(effMax, currentHP + delta));
   renderHP();
+  saveCombat();
 }
 
-function adjHPTemp(d)  { hpTemp  = Math.max(0, Math.min(99, hpTemp  + d)); renderHP(); }
-function adjHPBonus(d) { hpBonus = Math.max(0, Math.min(99, hpBonus + d)); renderHP(); }
+function adjHPTemp(d)  { hpTemp  = Math.max(0, Math.min(99, hpTemp  + d)); renderHP(); saveCombat(); }
+function adjHPBonus(d) { hpBonus = Math.max(0, Math.min(99, hpBonus + d)); renderHP(); saveCombat(); }
 function adjHPMax(d)   { maxHPVal = Math.max(1, maxHPVal + d); currentHP = Math.min(currentHP, maxHPVal + hpBonus); renderHP(); }
 
-function hpLongRest()  { currentHP = maxHPVal + hpBonus; hpTemp = 0; renderHP(); }
+function hpLongRest() {
+  currentHP = maxHPVal + hpBonus;
+  hpTemp = 0;
+  // Reset all pip state
+  Object.keys(pipState).forEach(k => { pipState[k] = 0; });
+  renderHP();
+  saveCombat();
+}
 function hpShortRest() { renderHP(); }
 
 // Inspiration toggle
@@ -3146,6 +3155,39 @@ if (typeof CharacterStore !== 'undefined' && charKey) {
       window._csFirstLoadDone = true;
       csRebuildEquipmentTab();
       csRebuildBioTab();
+      // Seed combat state from DB if present
+      const d = CharacterStore.get();
+      if (d && d.combat) {
+        if (d.combat.hp     !== null && d.combat.hp     !== undefined) { currentHP  = d.combat.hp;     renderHP(); }
+        if (d.combat.hpTemp !== undefined) { hpTemp  = d.combat.hpTemp;  renderHP(); }
+        if (d.combat.hpBonus !== undefined) { hpBonus = d.combat.hpBonus; renderHP(); }
+        if (d.combat.pipState && typeof d.combat.pipState === 'object') {
+          // Translate DB keys back to sheet keys and restore pip state
+          Object.entries(d.combat.pipState).forEach(([dbKey, used]) => {
+            const sheetKey = dbKeyToSheet(dbKey);
+            if (sheetKey) {
+              pipState[sheetKey] = used;
+              const el = document.getElementById(`pips-${sheetKey}`);
+              // Find max for this pip key from classFeatures
+              const cf = C.classFeatures || {};
+              let max = 0;
+              if (sheetKey === 'pact')  max = cf.pactSlots?.max || 0;
+              else if (sheetKey === 'bardi') max = cf.bardicInspiration?.max || 0;
+              else if (sheetKey === 'ki')    max = cf.kiPoints?.max || 0;
+              else if (sheetKey === 'as')    max = cf.actionSurge?.max || 0;
+              else if (sheetKey === 'sw')    max = cf.secondWind?.max || 0;
+              else if (sheetKey.startsWith('slot')) {
+                const lvl = sheetKey.replace('slot', '');
+                max = cf.spellSlots?.[lvl]?.max || 0;
+              } else if (sheetKey.startsWith('sorc')) {
+                const lvl = sheetKey.replace('sorc', '');
+                max = cf.sorcererSlots?.[lvl]?.max || 0;
+              }
+              if (el && max) el.innerHTML = renderPips(sheetKey, max);
+            }
+          });
+        }
+      }
       // Enrich inventory in background after first load
       setTimeout(csEnrichInventory, 500);
     }
@@ -3162,6 +3204,47 @@ if (typeof CharacterStore !== 'undefined' && charKey) {
     }
   }, 5000);
   window.addEventListener('beforeunload', () => CharacterStore.flush());
+}
+
+// ── Combat state persistence helpers ──
+
+// Translate sheet pip keys → DB keys
+function sheetKeyToDb(key) {
+  if (key === 'pact')  return 'pactSlots';
+  if (key === 'bardi') return 'bardicInspiration';
+  if (key === 'ki')    return 'kiPoints';
+  if (key === 'as')    return 'actionSurge';
+  if (key === 'sw')    return 'secondWind';
+  if (key.startsWith('slot')) return 'spell_' + key.replace('slot', '');
+  if (key.startsWith('sorc')) return 'sorc_'  + key.replace('sorc', '');
+  return key;
+}
+
+// Translate DB keys → sheet keys
+function dbKeyToSheet(key) {
+  if (key === 'pactSlots')         return 'pact';
+  if (key === 'bardicInspiration') return 'bardi';
+  if (key === 'kiPoints')          return 'ki';
+  if (key === 'actionSurge')       return 'as';
+  if (key === 'secondWind')        return 'sw';
+  if (key.startsWith('spell_')) return 'slot' + key.replace('spell_', '');
+  if (key.startsWith('sorc_'))  return 'sorc' + key.replace('sorc_', '');
+  return null;
+}
+
+// Build pipState in DB key format and save combat state
+function saveCombat() {
+  if (typeof CharacterStore === 'undefined') return;
+  const dbPipState = {};
+  Object.entries(pipState).forEach(([sheetKey, used]) => {
+    dbPipState[sheetKeyToDb(sheetKey)] = used;
+  });
+  CharacterStore.save({ combat: {
+    hp:       currentHP,
+    hpTemp:   hpTemp,
+    hpBonus:  hpBonus,
+    pipState: dbPipState,
+  }});
 }
 
 // Sync status indicator — updates the dot + label on Equipment and Bio tabs

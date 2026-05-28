@@ -121,6 +121,7 @@ const CharacterStore = (() => {
       currency: { pp: 0, gp: 0, ep: 0, sp: 0, cp: 0 },
       notes: '',
       bio: { personality: '', ideals: '', bonds: '', flaws: '', backstory: '' },
+      combat: { hp: null, hpTemp: 0, hpBonus: 0, pipState: {} },
       lastUpdated: null,
     };
   }

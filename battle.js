@@ -656,6 +656,7 @@
     if(battleOn) {
       mountHud();
       initSession(activeKey);
+      loadCombatFromDb(activeKey);
       const cry=CRIES[Math.floor(Math.random()*CRIES.length)];
       ['bf-txt','bm-txt','bm-txt2'].forEach(id=>{const el=document.getElementById(id);if(el)el.textContent=cry;});
       document.getElementById('battle-flash')?.classList.add('show');
@@ -949,6 +950,7 @@
       const r=getResources(activeKey).find(r=>r.key===resKey);
       if(r) showToast(`${r.label} used → ${r.cur}/${r.max}`,col());
       addRollHistory({name,main:`Cast`,detail:`${time} · ${range}`});
+      saveCombatState(activeKey);
       closePanelFn(); renderAll();
     },
     adjHp: (dir)=>{
@@ -960,11 +962,13 @@
       const ht=document.getElementById('b-orbHpTag'); if(ht){ht.textContent=`${s.hp}/${ch.combat.hpMax}`;ht.style.color=hpCol;}
       const dh=document.getElementById('b-dCharHp'); if(dh){dh.textContent=`${s.hp}/${ch.combat.hpMax} hp`;dh.style.color=hpCol;}
       showToast(`${dir>0?'+':''}${dir*amt} HP → ${s.hp}/${ch.combat.hpMax}`,dir>0?'#5a9a6a':'#c0001a');
+      saveCombatState(activeKey);
     },
     toggleCond: (cd)=>{ const arr=getConditions(activeKey); const i=arr.indexOf(cd); i>=0?arr.splice(i,1):arr.push(cd); openPanelFn('hp'); },
     openResDetail: (key)=>{ openPanel='res-detail'; resDetailKey=key; openPanelFn('res-detail'); },
     changeRes: (resKey,amt)=>{
       if(amt<0) spendRes(activeKey,resKey,1); else restoreRes(activeKey,resKey,1);
+      saveCombatState(activeKey);
       renderAll(); openPanel='res-detail'; resDetailKey=resKey;
       const p=_panelTarget(); renderPanelInto(p); if(p) p.classList.add('show');
     },
@@ -978,8 +982,90 @@
     clearHistory: ()=>{ rollHistory=[]; renderRollHistory(); },
   };
 
-  // ── Init ──
-  injectStyles();
+  // ── Combat state persistence ──
+  // On sheet.html: CharacterStore is available — use it (shares debounce + SHA management)
+  // On other pages: POST directly to the Netlify function
+
+  const BATTLE_FUNCTION_URL = '/.netlify/functions/character';
+  let _battleSaveTimer = null;
+
+  // Translate HUD resource keys → DB pipState keys (HUD keys already match DB)
+  function hudResKeyToDb(resKey) {
+    if (resKey.startsWith('spell_') || resKey.startsWith('sorc_')) return resKey;
+    return resKey; // pactSlots, kiPoints, actionSurge, secondWind, bardicInspiration all match
+  }
+
+  // Build pipState object from current SESSION for a character
+  function buildDbPipState(key) {
+    const s  = SESSION[key];
+    const cf = CHARACTERS[key].classFeatures || {};
+    const ps = {};
+    if (cf.spellSlots)    Object.keys(cf.spellSlots).forEach(lvl    => { ps[`spell_${lvl}`] = (cf.spellSlots[lvl].max   - (s.spellSlots?.[lvl]?.current    ?? cf.spellSlots[lvl].max));   });
+    if (cf.sorcererSlots) Object.keys(cf.sorcererSlots).forEach(lvl => { ps[`sorc_${lvl}`]  = (cf.sorcererSlots[lvl].max - (s.sorcererSlots?.[lvl]?.current ?? cf.sorcererSlots[lvl].max)); });
+    if (cf.pactSlots)         ps.pactSlots         = cf.pactSlots.max         - (s.pactSlots?.current         ?? cf.pactSlots.max);
+    if (cf.kiPoints)          ps.kiPoints          = cf.kiPoints.max          - (s.kiPoints?.current          ?? cf.kiPoints.max);
+    if (cf.actionSurge)       ps.actionSurge       = cf.actionSurge.max       - (s.actionSurge?.current       ?? cf.actionSurge.max);
+    if (cf.secondWind)        ps.secondWind        = cf.secondWind.max        - (s.secondWind?.current        ?? cf.secondWind.max);
+    if (cf.bardicInspiration) ps.bardicInspiration = cf.bardicInspiration.max - (s.bardicInspiration?.current ?? cf.bardicInspiration.max);
+    return ps;
+  }
+
+  function saveCombatState(key) {
+    initSession(key);
+    const s       = SESSION[key];
+    const combat  = { hp: s.hp, hpTemp: s.hpTemp || 0, hpBonus: s.hpBonus || 0, pipState: buildDbPipState(key) };
+
+    // Use CharacterStore if available (sheet.html) — it manages SHA and debounce
+    if (typeof CharacterStore !== 'undefined' && CharacterStore.get()?.key === key) {
+      CharacterStore.save({ combat });
+      return;
+    }
+    // Otherwise debounce a direct POST
+    clearTimeout(_battleSaveTimer);
+    _battleSaveTimer = setTimeout(async () => {
+      try {
+        await fetch(`${BATTLE_FUNCTION_URL}?character=${key}`, {
+          method:  'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body:    JSON.stringify({ combat }),
+        });
+      } catch(e) { console.warn('[battle] save error:', e); }
+    }, 1200);
+  }
+
+  // Seed SESSION from DB combat state — called after initSession builds defaults
+  function seedSessionFromDb(key, dbCombat) {
+    if (!dbCombat) return;
+    const s  = SESSION[key];
+    const cf = CHARACTERS[key].classFeatures || {};
+    if (dbCombat.hp     !== null && dbCombat.hp     !== undefined) s.hp     = dbCombat.hp;
+    if (dbCombat.hpTemp  !== undefined) s.hpTemp  = dbCombat.hpTemp;
+    if (dbCombat.hpBonus !== undefined) s.hpBonus = dbCombat.hpBonus;
+    const ps = dbCombat.pipState || {};
+    // Convert used-count back to current (remaining = max - used)
+    if (cf.spellSlots)    Object.keys(cf.spellSlots).forEach(lvl    => { if (ps[`spell_${lvl}`] !== undefined && s.spellSlots?.[lvl])    s.spellSlots[lvl].current    = Math.max(0, cf.spellSlots[lvl].max    - ps[`spell_${lvl}`]); });
+    if (cf.sorcererSlots) Object.keys(cf.sorcererSlots).forEach(lvl => { if (ps[`sorc_${lvl}`]  !== undefined && s.sorcererSlots?.[lvl]) s.sorcererSlots[lvl].current = Math.max(0, cf.sorcererSlots[lvl].max - ps[`sorc_${lvl}`]);  });
+    if (cf.pactSlots         && ps.pactSlots         !== undefined) s.pactSlots.current         = Math.max(0, cf.pactSlots.max         - ps.pactSlots);
+    if (cf.kiPoints          && ps.kiPoints          !== undefined) s.kiPoints.current          = Math.max(0, cf.kiPoints.max          - ps.kiPoints);
+    if (cf.actionSurge       && ps.actionSurge       !== undefined) s.actionSurge.current       = Math.max(0, cf.actionSurge.max       - ps.actionSurge);
+    if (cf.secondWind        && ps.secondWind        !== undefined) s.secondWind.current        = Math.max(0, cf.secondWind.max        - ps.secondWind);
+    if (cf.bardicInspiration && ps.bardicInspiration !== undefined) s.bardicInspiration.current = Math.max(0, cf.bardicInspiration.max - ps.bardicInspiration);
+  }
+
+  // Load combat state from DB for a character, seed SESSION, then re-render
+  async function loadCombatFromDb(key) {
+    // If CharacterStore already has data (sheet.html), use it directly
+    if (typeof CharacterStore !== 'undefined') {
+      const d = CharacterStore.get();
+      if (d && d.key === key) { seedSessionFromDb(key, d.combat); renderAll(); return; }
+      // CharacterStore exists but may be loading a different character — fall through to direct fetch
+    }
+    try {
+      const res  = await fetch(`${BATTLE_FUNCTION_URL}?character=${key}`);
+      const json = await res.json();
+      if (json.data?.combat) { seedSessionFromDb(key, json.data.combat); renderAll(); }
+    } catch(e) { console.warn('[battle] load error:', e); }
+  }
   try{const saved=localStorage.getItem(CHAR_STORAGE_KEY);if(saved&&CHARACTERS[saved])activeKey=saved;}catch(e){}
 
   // Silent resume — if battle was active on a previous page, restore without flash
@@ -991,6 +1077,7 @@
     if (resumeBattle) {
       battleOn = true;
       initSession(activeKey);
+      loadCombatFromDb(activeKey);
       mountHud();
       syncLayouts();
       renderAll();
