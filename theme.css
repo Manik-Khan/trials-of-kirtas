@@ -312,7 +312,7 @@ body {
   background-color: var(--ink);
   color: var(--parchment);
   font-family: var(--font-body);
-  font-size: 17px;
+  font-size: 18px;
   line-height: 1.7;
   min-height: 100vh;
   /* overflow-x: clip instead of hidden — 'hidden' breaks position:sticky in Safari */
