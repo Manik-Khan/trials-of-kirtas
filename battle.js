@@ -615,7 +615,8 @@
       const btn=document.createElement('button');
       btn.id='battle-btn'; btn.title='Battle mode'; btn.innerHTML='⚔';
       btn.addEventListener('click',toggleBattle);
-      nav.insertBefore(btn, themeWrap);
+      const themeBtn=themeWrap.querySelector('.nav-theme-btn');
+      themeWrap.insertBefore(btn, themeBtn);
     } else {
       if(document.getElementById('battle-mobile-section')) return;
       const dropdown=document.getElementById('theme-dropdown');
