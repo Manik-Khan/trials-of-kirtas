@@ -476,7 +476,14 @@
       "sigil": "ti-sword",
       "color": "#8a2a2a",
       "id": "mpp5t7oh1v6h",
-      "tracks": []
+      "tracks": [
+        {
+          "url": "https://res.cloudinary.com/df0tgoiyb/video/upload/v1779590663/Blinded_by_Light_Final_Fantasy_XIII_Battle_Theme_ze2hhf.mp3",
+          "title": "Blinded by the Light",
+          "artist": "FFXIII",
+          "id": "mpp5u1canwx8"
+        }
+      ]
     }
   ],
   "scenes": [
