@@ -1145,6 +1145,7 @@
     dropConcentration: ()=>{
       const s=SESSION[activeKey];
       if(s) s.concentration=null;
+      saveCombatState(activeKey);
       renderTurnOrbs();
       renderAll();
     },
@@ -1207,8 +1208,14 @@
 
   function saveCombatState(key) {
     initSession(key);
-    const s       = SESSION[key];
-    const combat  = { hp: s.hp, hpTemp: s.hpTemp || 0, hpBonus: s.hpBonus || 0, pipState: buildDbPipState(key) };
+    const s      = SESSION[key];
+    const combat = {
+      hp:            s.hp,
+      hpTemp:        s.hpTemp  || 0,
+      hpBonus:       s.hpBonus || 0,
+      pipState:      buildDbPipState(key),
+      concentration: s.concentration || null,
+    };
 
     // Use CharacterStore if available (sheet.html) — it manages SHA and debounce
     if (typeof CharacterStore !== 'undefined' && CharacterStore.get()?.key === key) {
@@ -1245,6 +1252,8 @@
     if (cf.actionSurge       && ps.actionSurge       !== undefined) s.actionSurge.current       = Math.max(0, cf.actionSurge.max       - ps.actionSurge);
     if (cf.secondWind        && ps.secondWind        !== undefined) s.secondWind.current        = Math.max(0, cf.secondWind.max        - ps.secondWind);
     if (cf.bardicInspiration && ps.bardicInspiration !== undefined) s.bardicInspiration.current = Math.max(0, cf.bardicInspiration.max - ps.bardicInspiration);
+    // Restore concentration
+    if (dbCombat.concentration !== undefined) s.concentration = dbCombat.concentration || null;
   }
 
   // Load combat state from DB for a character, seed SESSION, then re-render
