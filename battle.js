@@ -54,7 +54,15 @@
   function initSession(key) {
     if (SESSION[key]) return;
     const cf = CHARACTERS[key].classFeatures || {};
-    const s = { hp: CHARACTERS[key].combat.hp };
+    const s = {
+      hp: CHARACTERS[key].combat.hp,
+      // Turn economy
+      actionUsed:   false,
+      bonusUsed:    false,
+      reactionUsed: false,
+      // Concentration
+      concentration: null, // null or { name, duration }
+    };
     for (const [k, v] of Object.entries(cf)) {
       if (v && typeof v.current !== 'undefined') {
         s[k] = { current: v.current, max: v.max };
@@ -373,7 +381,7 @@
         html+=`<div class="b-spell-lbl">Level ${lvl} <span style="color:${color};margin-left:4px">${r?r.cur:'?'} left</span></div>`;
         html+=ls.map(s=>{
           const a=(ch.actions||[]).find(a=>a.label&&a.label.toLowerCase()===s.name.toLowerCase());
-          return a?aRow(a,color):`<div class="b-aitem${r&&r.cur>0?'':' empty'}" onclick="window.__battle.castSpell('${rk}','${s.name}','${s.castingTime||''}','${s.range||''}')"><span class="b-ai-name">${s.name}${s.ritual?'<span class="b-ai-tag b-tag-ritual">R</span>':''}</span><span class="b-ai-dmg">${s.castingTime||''} · ${s.range||''}</span><span class="b-ai-roll">d</span></div>`;
+          return a?aRow(a,color):`<div class="b-aitem${r&&r.cur>0?'':' empty'}" onclick="window.__battle.castSpell('${rk}','${s.name}','${s.castingTime||''}','${s.range||''}',${!!s.concentration})"><span class="b-ai-name">${s.name}${s.ritual?'<span class="b-ai-tag b-tag-ritual">R</span>':''}${s.concentration?'<span class="b-ai-tag b-tag-conc">C</span>':''}</span><span class="b-ai-dmg">${s.castingTime||''} · ${s.range||''}</span><span class="b-ai-roll">d</span></div>`;
         }).join('');
       }
       p.innerHTML=html;
@@ -467,6 +475,7 @@
         <button class="b-dact-btn" id="b-dSpl" onclick="window.__battle.openPanel('spl')"><span class="b-dact-ico" id="b-dSplIco">✦</span><span class="b-dact-lbl">Spells</span></button>
         <button class="b-dact-btn" id="b-dHp"  onclick="window.__battle.openPanel('hp')"><span class="b-dact-ico" style="color:#5a9a6a">♡</span><span class="b-dact-lbl">Info</span></button>
         <button class="b-dact-btn" id="b-dRes" onclick="window.__battle.openPanel('res')"><span class="b-dact-ico" id="b-dResIco">◎</span><span class="b-dact-lbl">Resources</span></button>
+        <button class="b-dact-btn b-end-turn" id="b-dEnd" onclick="window.__battle.endTurn()"><span class="b-dact-ico" style="color:#b8952a">⟳</span><span class="b-dact-lbl" style="color:#b8952a">End Turn</span></button>
       </div>
     </div>`;
   }
@@ -555,6 +564,7 @@
 
   function renderAll() {
     if(isMobile()) renderMobileOrb(); else renderDesktopBar();
+    renderTurnOrbs();
   }
 
   // ── Mount HUD ──
@@ -881,6 +891,39 @@
       .b-tag-spell   { background:rgba(157,78,221,0.12); color:#9d4edd; }
       .b-tag-ki      { background:rgba(192,0,26,0.12);   color:#c0001a; }
       .b-tag-ritual  { background:rgba(184,149,42,0.12); color:#b8952a; }
+      .b-tag-conc    { background:rgba(138,43,226,0.15); color:#9d4edd; }
+
+      /* ── Turn economy — used indicator on action/bonus buttons ── */
+      .b-dact-btn.turn-used .b-dact-ico { opacity:0.25; }
+      .b-dact-btn.turn-used .b-dact-lbl { opacity:0.25; }
+      .b-dact-btn.turn-used::after { content:'✓'; position:absolute; top:4px; right:5px; font-size:8px; color:#5a9a6a; }
+      .b-dact-btn { position:relative; }
+
+      /* ── End Turn button ── */
+      .b-end-turn { border-left:1px solid #2a2a3a !important; }
+      .b-end-turn:hover .b-dact-ico, .b-end-turn:hover .b-dact-lbl { opacity:1 !important; }
+
+      /* ── Concentration halo ── */
+      .b-orb-portrait.concentrating { box-shadow:0 0 0 2px #9d4edd, 0 0 12px 3px rgba(157,78,221,0.5); border-radius:50%; }
+      .b-dbar-portrait.concentrating { box-shadow:0 0 0 2px #9d4edd, 0 0 8px 2px rgba(157,78,221,0.4); border-radius:50%; }
+      #b-conc-label { display:flex; align-items:center; gap:5px; padding:3px 8px; background:rgba(157,78,221,0.1); border:1px solid rgba(157,78,221,0.3); cursor:pointer; transition:background 0.15s; margin-left:auto; }
+      #b-conc-label:hover { background:rgba(157,78,221,0.2); }
+      .b-conc-ico { color:#9d4edd; font-size:10px; }
+      .b-conc-name { font-size:10px; color:#c8a8f0; letter-spacing:0.05em; }
+      .b-conc-drop { font-size:9px; color:#555; margin-left:3px; }
+
+      /* ── Modal ── */
+      #b-conc-modal, #b-endturn-modal { position:absolute; inset:0; background:rgba(0,0,0,0.7); display:flex; align-items:center; justify-content:center; z-index:50; }
+      .b-modal-box { background:#0d0d14; border:1px solid #2a2a3a; padding:20px 24px; max-width:280px; width:90%; }
+      .b-modal-title { font-family:var(--font-title,inherit); font-size:0.65rem; letter-spacing:0.2em; text-transform:uppercase; color:#b8952a; margin-bottom:10px; }
+      .b-modal-body { font-size:12px; color:#aaa; line-height:1.6; margin-bottom:16px; }
+      .b-modal-body strong { color:#e0d8c8; }
+      .b-modal-btns { display:flex; gap:8px; justify-content:flex-end; }
+      .b-modal-btn { padding:6px 14px; font-size:11px; letter-spacing:0.08em; text-transform:uppercase; cursor:pointer; border:1px solid; transition:background 0.15s; }
+      .b-modal-btn.cancel  { background:transparent; border-color:#2a2a3a; color:#666; }
+      .b-modal-btn.confirm { background:rgba(192,0,26,0.1); border-color:#c0001a55; color:#c0001a; }
+      .b-modal-btn.cancel:hover  { background:#1a1a28; }
+      .b-modal-btn.confirm:hover { background:rgba(192,0,26,0.2); }
       .b-spell-lbl { font-size:10px; letter-spacing:0.2em; text-transform:uppercase; color:#333; padding:6px 11px 3px; border-bottom:1px solid #0f0f1a; }
       .b-hp-panel { padding:12px; display:flex; flex-direction:column; gap:9px; }
       .b-hp-track-row { display:flex; align-items:center; gap:7px; }
@@ -921,6 +964,102 @@
     document.head.appendChild(s);
   }
 
+  // ── Turn economy & concentration helpers ──
+
+  function _docast(resKey,name,time,range,isConc) {
+    spendRes(activeKey,resKey,1);
+    const r=getResources(activeKey).find(r=>r.key===resKey);
+    if(r) showToast(`${r.label} used → ${r.cur}/${r.max}`,col());
+    addRollHistory({name,main:'Cast',detail:`${time} · ${range}`});
+    // Track action economy — most spells are actions, bonus action spells detected by castingTime
+    const s=SESSION[activeKey];
+    if(s) {
+      if(time && time.toLowerCase().includes('bonus')) s.bonusUsed=true;
+      else s.actionUsed=true;
+      // Set concentration
+      if(isConc) s.concentration={name,duration:''};
+    }
+    renderTurnOrbs();
+    saveCombatState(activeKey);
+    closePanelFn(); renderAll();
+  }
+
+  function _doEndTurn() {
+    const s=SESSION[activeKey];
+    if(s) { s.actionUsed=false; s.bonusUsed=false; s.reactionUsed=false; }
+    // Increment round in marquee
+    const mq=document.getElementById('battle-mq');
+    if(mq) {
+      const spans=[...mq.querySelectorAll('.bm-txt')];
+      spans.forEach(sp=>{
+        if(sp.textContent.match(/^Round \d+$/)) {
+          const n=parseInt(sp.textContent.replace('Round ',''))||1;
+          sp.textContent=`Round ${n+1}`;
+        }
+      });
+    }
+    renderTurnOrbs();
+    showToast('Turn ended — new round!','#b8952a');
+  }
+
+  function renderTurnOrbs() {
+    const s=SESSION[activeKey];
+    if(!s) return;
+    // Desktop orb dots on action buttons
+    ['Act','Bon'].forEach((lbl,i)=>{
+      const used = i===0 ? s.actionUsed : s.bonusUsed;
+      const btn  = document.getElementById(`b-d${lbl}`);
+      if(btn) btn.classList.toggle('turn-used', used);
+    });
+    // Concentration halo on orb portrait
+    const orb=document.getElementById('b-orbBtn');
+    if(orb) orb.classList.toggle('concentrating', !!s.concentration);
+    const dport=document.getElementById('b-dPortrait');
+    if(dport) dport.classList.toggle('concentrating', !!s.concentration);
+    // Concentration label in desktop bar
+    let concEl=document.getElementById('b-conc-label');
+    if(s.concentration) {
+      if(!concEl) {
+        concEl=document.createElement('div');
+        concEl.id='b-conc-label';
+        concEl.onclick=()=>window.__battle.dropConcentration();
+        document.getElementById('b-dchar-chip')?.after(concEl);
+      }
+      concEl.innerHTML=`<span class="b-conc-ico">◉</span><span class="b-conc-name">${s.concentration.name}</span><span class="b-conc-drop" title="Drop concentration">✕</span>`;
+    } else if(concEl) { concEl.remove(); }
+  }
+
+  function showConcModal(currentSpell, newSpell, resKey, time, range) {
+    document.getElementById('b-conc-modal')?.remove();
+    const m=document.createElement('div'); m.id='b-conc-modal';
+    m.innerHTML=`
+      <div class="b-modal-box">
+        <div class="b-modal-title">Concentration</div>
+        <div class="b-modal-body">Currently concentrating on <strong>${currentSpell}</strong>.<br>Cast <strong>${newSpell}</strong> and drop concentration?</div>
+        <div class="b-modal-btns">
+          <button class="b-modal-btn cancel" onclick="window.__battle.cancelCast()">Cancel</button>
+          <button class="b-modal-btn confirm" onclick="window.__battle.confirmCast('${resKey}','${newSpell}','${time}','${range}',true)">Cast & Drop</button>
+        </div>
+      </div>`;
+    document.getElementById('battle-hud').appendChild(m);
+  }
+
+  function showEndTurnModal(unusedAction, unusedBonus) {
+    document.getElementById('b-endturn-modal')?.remove();
+    const unused=[unusedAction&&'Action',unusedBonus&&'Bonus Action'].filter(Boolean).join(' and ');
+    const m=document.createElement('div'); m.id='b-endturn-modal';
+    m.innerHTML=`
+      <div class="b-modal-box">
+        <div class="b-modal-title">End Turn?</div>
+        <div class="b-modal-body">You still have your <strong>${unused}</strong> available.</div>
+        <div class="b-modal-btns">
+          <button class="b-modal-btn cancel" onclick="window.__battle.cancelEndTurn()">Go Back</button>
+          <button class="b-modal-btn confirm" onclick="window.__battle.confirmEndTurn()">End Turn</button>
+        </div>
+      </div>`;
+    document.getElementById('battle-hud').appendChild(m);
+  }
+
   // ── Public API ──
   window.__battle = {
     openPanel:     openPanelFn,
@@ -930,15 +1069,56 @@
     toggleCharPick,
     toggleRoller,
     switchSet: (i)=>{ activeSet=i; openPanelFn(openPanel); },
-    doActionById: (charKey,id)=>{ const a=(CHARACTERS[charKey].actions||[]).find(a=>a.id===id); if(a) doAction(a); },
+    doActionById: (charKey,id)=>{
+      const a=(CHARACTERS[charKey].actions||[]).find(a=>a.id===id);
+      if(a) {
+        // Track turn economy
+        const s=SESSION[charKey];
+        if(s) {
+          if(a.cost==='bonus') s.bonusUsed=true;
+          else s.actionUsed=true;
+        }
+        renderTurnOrbs();
+        doAction(a);
+      }
+    },
     doSpellByName: (name)=>{ addRollHistory({name,main:'—',detail:'Cantrip — no slot used'}); closePanelFn(); },
-    castSpell: (resKey,name,time,range)=>{
-      spendRes(activeKey,resKey,1);
-      const r=getResources(activeKey).find(r=>r.key===resKey);
-      if(r) showToast(`${r.label} used → ${r.cur}/${r.max}`,col());
-      addRollHistory({name,main:`Cast`,detail:`${time} · ${range}`});
-      saveCombatState(activeKey);
-      closePanelFn(); renderAll();
+    castSpell: (resKey,name,time,range,isConc)=>{
+      const s=SESSION[activeKey];
+      // Concentration check
+      if(isConc && s && s.concentration) {
+        showConcModal(s.concentration.name, name, resKey, time, range);
+        return;
+      }
+      _docast(resKey,name,time,range,isConc);
+    },
+    confirmCast: (resKey,name,time,range,isConc)=>{
+      document.getElementById('b-conc-modal')?.remove();
+      _docast(resKey,name,time,range,isConc);
+    },
+    cancelCast: ()=>{ document.getElementById('b-conc-modal')?.remove(); },
+    endTurn: ()=>{
+      const s=SESSION[activeKey];
+      if(!s) return;
+      // Check for unused action/bonus
+      const unusedAction = !s.actionUsed;
+      const unusedBonus  = !s.bonusUsed;
+      if(unusedAction || unusedBonus) {
+        showEndTurnModal(unusedAction, unusedBonus);
+        return;
+      }
+      _doEndTurn();
+    },
+    confirmEndTurn: ()=>{
+      document.getElementById('b-endturn-modal')?.remove();
+      _doEndTurn();
+    },
+    cancelEndTurn: ()=>{ document.getElementById('b-endturn-modal')?.remove(); },
+    dropConcentration: ()=>{
+      const s=SESSION[activeKey];
+      if(s) s.concentration=null;
+      renderTurnOrbs();
+      renderAll();
     },
     adjHp: (dir)=>{
       const ch=C(), s=S();
@@ -1062,6 +1242,19 @@
   function init() {
     injectStyles();
     injectNav();
+
+    // Real-time sync from sheet.html — CharacterStore notifies on every save
+    if (typeof CharacterStore !== 'undefined') {
+      CharacterStore.onUpdate(({ type, data }) => {
+        if (type !== 'data' || !data?.combat) return;
+        const s = SESSION[activeKey];
+        if (!s) return;
+        if (data.combat.hp      !== null && data.combat.hp !== undefined) s.hp      = data.combat.hp;
+        if (data.combat.hpTemp  !== undefined) s.hpTemp  = data.combat.hpTemp;
+        if (data.combat.hpBonus !== undefined) s.hpBonus = data.combat.hpBonus;
+        if (battleOn) renderAll();
+      });
+    }
     if (resumeBattle) {
       battleOn = true;
       initSession(activeKey);
