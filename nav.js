@@ -158,6 +158,7 @@ function buildNav() {
         ${charSwitcher}
       </div>
       <div class="nav-theme-wrap" id="nav-theme-wrap">
+        <button id="battle-btn" title="Toggle battle mode">BATTLE</button>
         <button class="nav-theme-btn"
                 onclick="toggleThemeDropdown(event)"
                 title="Change theme"
@@ -283,6 +284,34 @@ function injectNavStyles() {
     .nav-link:hover::after { width: 100%; }
     .nav-link.active { color: var(--gold-light); }
     .nav-link.active::after { width: 100%; }
+
+    /* Battle button */
+    #nav-theme-wrap {
+      display: flex;
+      align-items: center;
+      gap: 4px;
+    }
+    #battle-btn {
+      height: 28px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      background: transparent;
+      border: 1px solid rgba(192,0,26,0.4);
+      color: #c0001a;
+      font-size: 0.6rem;
+      letter-spacing: 0.12em;
+      text-transform: uppercase;
+      font-family: var(--font-title, inherit);
+      cursor: pointer;
+      transition: background 0.15s, border-color 0.15s;
+      flex-shrink: 0;
+      padding: 0 7px;
+      white-space: nowrap;
+    }
+    #battle-btn:hover { background: rgba(192,0,26,0.12); border-color: #c0001a; }
+    #battle-btn.on    { background: #c0001a; color: #f0ece4; border-color: #c0001a; }
+    @media (max-width: 600px) { #battle-btn { display: none !important; } }
 
     /* Theme switcher */
     .nav-theme-wrap {

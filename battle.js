@@ -603,21 +603,16 @@
     if(roller && battleOn) roller.classList.add('show');
   }
 
-  // ── Nav injection ──
+  // ── Nav wiring ──
+  // Button is rendered by nav.js — just attach the click listener
   function injectNav() {
-    const nav=document.getElementById('site-nav');
-    if(!nav) return;
+    const btn = document.getElementById('battle-btn');
+    if (!btn || btn._wired) return;
+    btn._wired = true;
+    btn.addEventListener('click', toggleBattle);
+    if (battleOn) btn.classList.add('on');
 
-    if(!isMobile()) {
-      if(document.getElementById('battle-btn')) return;
-      const themeWrap=document.getElementById('nav-theme-wrap');
-      if(!themeWrap) return;
-      const btn=document.createElement('button');
-      btn.id='battle-btn'; btn.title='Battle mode'; btn.textContent='BATTLE';
-      btn.addEventListener('click',toggleBattle);
-      const themeBtn=themeWrap.querySelector('.nav-theme-btn');
-      themeWrap.insertBefore(btn, themeBtn);
-    } else {
+    if (isMobile()) {
       if(document.getElementById('battle-mobile-section')) return;
       const dropdown=document.getElementById('theme-dropdown');
       if(!dropdown) return;
@@ -703,12 +698,7 @@
     const s=document.createElement('style');
     s.id='battle-styles';
     s.textContent=`
-      /* ── Desktop nav button ── */
-      #nav-theme-wrap { display:flex; align-items:center; gap:4px; }
-      #battle-btn { height:28px; display:flex; align-items:center; justify-content:center; background:transparent; border:1px solid rgba(192,0,26,0.4); color:#c0001a; font-size:0.6rem; letter-spacing:0.12em; text-transform:uppercase; font-family:var(--font-title,inherit); cursor:pointer; transition:background 0.15s,border-color 0.15s; flex-shrink:0; padding:0 7px; white-space:nowrap; }
-      #battle-btn:hover { background:rgba(192,0,26,0.12); border-color:#c0001a; }
-      #battle-btn.on { background:#c0001a; color:#f0ece4; border-color:#c0001a; }
-      @media (max-width:600px) { #battle-btn { display:none !important; } }
+      /* ── Desktop nav button — styles live in nav.js ── */
 
       /* ── Mobile battle section in theme dropdown ── */
       .bm-section-lbl { font-family:var(--font-title); font-size:0.55rem; letter-spacing:0.35em; color:var(--muted); text-transform:uppercase; padding:0.5rem 0.75rem 0.3rem; }
