@@ -158,7 +158,7 @@ function buildNav() {
         ${charSwitcher}
       </div>
       <div class="nav-theme-wrap" id="nav-theme-wrap">
-        <button id="battle-btn" title="Toggle battle mode" onclick="window.__battle&&window.__battle.toggleBattle()">⚔ BATTLE</button>
+        <button id="battle-btn" title="Toggle battle mode" onclick="window.__battle&&window.__battle.toggleBattle()">⚔</button>
         <button class="nav-theme-btn"
                 onclick="toggleThemeDropdown(event)"
                 title="Change theme"
