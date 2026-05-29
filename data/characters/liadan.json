@@ -386,15 +386,15 @@
     "flaws": "",
     "backstory": ""
   },
-  "lastUpdated": "2026-05-29T06:48:01.650Z",
+  "lastUpdated": "2026-05-29T06:48:09.039Z",
   "combat": {
     "hp": 17,
     "hpTemp": 0,
     "hpBonus": 0,
     "pipState": {
-      "bardicInspiration": 0,
       "spell_1": 0,
-      "spell_2": 0
+      "spell_2": 0,
+      "bardicInspiration": 0
     }
   }
 }
