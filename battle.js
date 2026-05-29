@@ -371,7 +371,7 @@
         html+=`<div class="b-spell-lbl">Cantrips</div>`;
         html+=cantrips.map(s=>{
           const a=(ch.actions||[]).find(a=>a.label&&a.label.toLowerCase()===s.name.toLowerCase());
-          return a?aRow(a,color):`<div class="b-aitem" onclick="window.__battle.doSpellByName('${s.name}')"><span class="b-ai-name">${s.name}<span class="b-ai-tag b-tag-cantrip">cantrip</span></span><span class="b-ai-dmg">${s.castingTime||''} · ${s.range||''}</span><span class="b-ai-roll">d</span></div>`;
+          return a?aRow(a,color):`<div class="b-aitem" onclick="window.__battle.doSpellByName('${s.name}','${s.castingTime||''}',${!!s.concentration})"><span class="b-ai-name">${s.name}<span class="b-ai-tag b-tag-cantrip">cantrip</span>${s.concentration?'<span class="b-ai-tag b-tag-conc">C</span>':''}</span><span class="b-ai-dmg">${s.castingTime||''} · ${s.range||''}</span><span class="b-ai-roll">d</span></div>`;
         }).join('');
       }
       for (let lvl=1;lvl<=9;lvl++) {
@@ -1082,7 +1082,23 @@
         doAction(a);
       }
     },
-    doSpellByName: (name)=>{ addRollHistory({name,main:'—',detail:'Cantrip — no slot used'}); closePanelFn(); },
+    doSpellByName: (name,time,isConc)=>{
+      const s=SESSION[activeKey];
+      // Concentration check
+      if(isConc && s && s.concentration) {
+        showConcModal(s.concentration.name, name, null, time, '');
+        return;
+      }
+      // Track action economy
+      if(s) {
+        if(time && time.toLowerCase().includes('bonus')) s.bonusUsed=true;
+        else s.actionUsed=true;
+        if(isConc) s.concentration={name,duration:''};
+      }
+      addRollHistory({name,main:'—',detail:'Cantrip — no slot used'});
+      renderTurnOrbs();
+      closePanelFn();
+    },
     castSpell: (resKey,name,time,range,isConc)=>{
       const s=SESSION[activeKey];
       // Concentration check
@@ -1094,7 +1110,19 @@
     },
     confirmCast: (resKey,name,time,range,isConc)=>{
       document.getElementById('b-conc-modal')?.remove();
-      _docast(resKey,name,time,range,isConc);
+      if(resKey && resKey !== 'null') _docast(resKey,name,time,range,isConc);
+      else {
+        // Cantrip — no slot, just track concentration and action
+        const s=SESSION[activeKey];
+        if(s) {
+          if(time && time.toLowerCase().includes('bonus')) s.bonusUsed=true;
+          else s.actionUsed=true;
+          if(isConc) s.concentration={name,duration:''};
+        }
+        addRollHistory({name,main:'—',detail:'Cantrip — no slot used'});
+        renderTurnOrbs();
+        closePanelFn();
+      }
     },
     cancelCast: ()=>{ document.getElementById('b-conc-modal')?.remove(); },
     endTurn: ()=>{
