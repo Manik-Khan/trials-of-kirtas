@@ -79,6 +79,12 @@ function defaultData(key) {
       flaws: '',
       backstory: '',
     },
+    combat: {
+      hp: null,
+      hpTemp: 0,
+      hpBonus: 0,
+      pipState: {},
+    },
     lastUpdated: null,
   };
 }
@@ -119,6 +125,7 @@ exports.handler = async (event) => {
       if (body.currency   !== undefined) updated.currency   = body.currency;
       if (body.notes      !== undefined) updated.notes      = body.notes;
       if (body.bio        !== undefined) updated.bio        = { ...updated.bio, ...body.bio };
+      if (body.combat     !== undefined) updated.combat     = { ...(updated.combat || {}), ...body.combat };
       updated.lastUpdated = new Date().toISOString();
 
       const authorLabel = body._author || key;
