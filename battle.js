@@ -607,10 +607,7 @@
   // Button is rendered by nav.js — just attach the click listener
   function injectNav() {
     const btn = document.getElementById('battle-btn');
-    if (!btn || btn._wired) return;
-    btn._wired = true;
-    btn.addEventListener('click', toggleBattle);
-    if (battleOn) btn.classList.add('on');
+    if (btn && battleOn) btn.classList.add('on');
 
     if (isMobile()) {
       if(document.getElementById('battle-mobile-section')) return;
