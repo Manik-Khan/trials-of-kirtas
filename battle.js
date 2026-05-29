@@ -1060,6 +1060,7 @@
   try { resumeBattle = localStorage.getItem('kirtas-battle-on') === 'true'; } catch(e) {}
 
   function init() {
+    injectStyles();
     injectNav();
     if (resumeBattle) {
       battleOn = true;
