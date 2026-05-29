@@ -386,12 +386,19 @@
     "flaws": "",
     "backstory": ""
   },
-  "lastUpdated": "2026-05-29T06:58:44.241Z",
+  "lastUpdated": "2026-05-29T07:00:46.412Z",
   "combat": {
-    "hp": 99,
+    "hp": 18,
     "hpTemp": 0,
     "hpBonus": 0,
-    "pipState": {},
-    "concentration": null
+    "pipState": {
+      "spell_1": 0,
+      "spell_2": 0,
+      "bardicInspiration": 0
+    },
+    "concentration": {
+      "name": "Guidance",
+      "duration": ""
+    }
   }
 }
