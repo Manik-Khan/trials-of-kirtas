@@ -303,6 +303,9 @@ function summarise(item, propMap) {
     contents:    item.packContents
       ? item.packContents.map(cleanPackItem).filter(Boolean)
       : null,
+    // Raw structured pack contents, passed through so the inventory can auto-explode
+    // a pack into real child items with quantities. (contents above stays for display.)
+    packContents: item.packContents || null,
     source:      item.source   || null,
     sourceFull:  sourceStr,            // "PHB'14 p149"
     page:        item.page     || null,
