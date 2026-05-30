@@ -113,7 +113,7 @@
       "source": "PHB",
       "sourceFull": "PHB p150",
       "page": 150,
-      "qty": 2,
+      "qty": 1,
       "equipped": true,
       "_enriched": true,
       "alias": null
@@ -193,5 +193,5 @@
     "flaws": "",
     "backstory": ""
   },
-  "lastUpdated": "2026-05-30T21:00:03.045Z"
+  "lastUpdated": "2026-05-30T21:00:06.566Z"
 }
