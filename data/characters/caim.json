@@ -219,14 +219,6 @@
       "icon": null,
       "containerId": null,
       "_enriched": false
-    },
-    {
-      "name": "Tinderbox",
-      "qty": 1,
-      "weight": null,
-      "icon": null,
-      "containerId": null,
-      "_enriched": false
     }
   ],
   "currency": {
@@ -244,5 +236,5 @@
     "flaws": "",
     "backstory": ""
   },
-  "lastUpdated": "2026-05-30T21:03:58.236Z"
+  "lastUpdated": "2026-05-30T21:04:01.580Z"
 }
