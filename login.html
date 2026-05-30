@@ -133,9 +133,9 @@
 
     <!-- STAGE 2: code -->
     <div id="stage-code" class="hidden">
-      <label for="code">6-digit code</label>
+      <label for="code">8-digit code</label>
       <input id="code" type="text" inputmode="numeric" autocomplete="one-time-code"
-             maxlength="6" placeholder="······">
+             maxlength="8" placeholder="········">
       <p id="msg-code" class="msg"></p>
       <button id="verify-btn">Verify &amp; sign in</button>
       <button id="back-btn" class="link-btn">Use a different email</button>
@@ -211,7 +211,7 @@
     // --- STAGE 2: verify the code ---
     async function verifyCode() {
       const token = codeInput.value.trim();
-      if (token.length < 6) { setMsg(msgCode, 'Enter the 6-digit code.', 'error'); return; }
+      if (token.length < 8) { setMsg(msgCode, 'Enter the 8-digit code.', 'error'); return; }
 
       verifyBtn.disabled = true;
       setMsg(msgCode, 'Verifying…', 'info');
