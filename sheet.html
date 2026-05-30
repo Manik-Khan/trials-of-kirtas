@@ -9,6 +9,7 @@
   <link rel="stylesheet" href="theme.css">
   <script src="characters.js"></script>
   <script src="character-store.js"></script>
+  <script src="item-icons.js"></script>
   <style>
     /* ── Sheet-specific styles (layout, not colors — colors come from theme.css) ── */
 
@@ -844,6 +845,118 @@
     .equip-item-wrap.drag-over { border-top: 2px solid var(--gold); }
     .equip-item-wrap.drag-over-below { border-bottom: 2px solid var(--gold); }
     .equip-item-wrap.dragging { opacity: 0.4; }
+
+    /* ── Inventory v2: icons, grid, bags, breadcrumb, picker ── */
+
+    /* Expand-in-place (list view) */
+    .equip-item-wrap.is-open > .equip-item-row { background: rgba(184,149,42,0.12); border-left: 2px solid var(--gold); }
+    .equip-item-expand { font-size: 1rem; line-height: 1; color: var(--gold-dim); flex-shrink: 0; padding: 0 0.2rem; transition: transform 0.15s; }
+    .equip-item-expand.open { transform: rotate(90deg); color: var(--gold-mid); }
+    .equip-bag-children {
+      margin: 0 0 0.3rem 0.55rem;
+      border-left: 2px solid var(--gold-dim);
+      padding-left: 0.3rem;
+      background: rgba(0,0,0,0.12);
+    }
+    .equip-bag-children .equip-item-row { padding-left: 0.4rem; }
+    .equip-bag-empty { font-size: 0.74rem; color: var(--muted); font-style: italic; padding: 0.4rem 0.5rem; }
+
+    /* Lock button + states */
+    .equip-lock-btn { filter: grayscale(0.4); opacity: 0.5; }
+    .equip-lock-btn:hover { opacity: 1; }
+    .equip-lock-btn.locked { opacity: 0.95; filter: none; }
+    .equip-item-wrap.is-locked > .equip-item-row { background: rgba(122,39,24,0.08); }
+    .equip-item-wrap.is-locked .equip-drag-handle { opacity: 0.2; cursor: not-allowed; }
+    .equip-tile.is-locked { border-color: var(--blood); }
+    .equip-tile-lock {
+      position: absolute; top: 2px; left: 2px; width: 18px; height: 18px;
+      background: transparent; border: none; cursor: pointer; font-size: 0.62rem;
+      opacity: 0; transition: opacity 0.12s;
+    }
+    .equip-tile:hover .equip-tile-lock, .equip-tile.is-locked .equip-tile-lock { opacity: 0.85; }
+
+    /* Drag-into-container highlight */
+    .equip-item-wrap.is-bag.drag-into > .equip-item-row,
+    .equip-tile.is-bag.drag-into { outline: 2px dashed var(--gold); outline-offset: -2px; background: rgba(184,149,42,0.2); }
+    .equip-breadcrumb.drag-into { background: rgba(184,149,42,0.18); border-radius: 4px; }
+    .equip-crumb-hint { font-size: 0.66rem; color: var(--gold-dim); font-style: italic; margin-left: auto; opacity: 0; transition: opacity 0.15s; }
+    .equip-breadcrumb:hover .equip-crumb-hint, .equip-breadcrumb.drag-into .equip-crumb-hint { opacity: 1; }
+
+    /* Transient lock notice */
+    .equip-lock-notice {
+      position: fixed; left: 50%; bottom: 1.2rem; transform: translateX(-50%) translateY(1rem);
+      background: var(--ink-deep); border: 1px solid var(--blood); color: var(--parchment);
+      font-family: var(--font-body); font-size: 0.82rem; padding: 0.5rem 0.9rem; border-radius: 5px;
+      box-shadow: 0 4px 16px rgba(0,0,0,0.5); opacity: 0; pointer-events: none; transition: opacity 0.2s, transform 0.2s;
+      z-index: 9999; max-width: 84vw; text-align: center;
+    }
+    .equip-lock-notice.show { opacity: 1; transform: translateX(-50%) translateY(0); }
+
+    .equip-inv-tools { display: flex; align-items: center; gap: 0.5rem; }
+    .equip-view-toggle { display: flex; border: 1px solid var(--gold-dim); border-radius: 3px; overflow: hidden; }
+    .equip-view-btn {
+      background: transparent; border: none; color: var(--muted);
+      cursor: pointer; font-size: 0.85rem; line-height: 1;
+      padding: 0.2rem 0.4rem; transition: background 0.1s, color 0.1s;
+    }
+    .equip-view-btn + .equip-view-btn { border-left: 1px solid var(--gold-dim); }
+    .equip-view-btn:hover { color: var(--aged); }
+    .equip-view-btn.on { background: rgba(184,149,42,0.18); color: var(--gold-light); }
+
+    .equip-item-glyph {
+      flex-shrink: 0; width: 22px; height: 22px;
+      display: flex; align-items: center; justify-content: center;
+      color: var(--gold); opacity: 0.92;
+    }
+    .equip-item-wrap.is-bag .equip-item-glyph { color: var(--gold-light); }
+    .equip-bag-chevron { color: var(--gold-dim); font-size: 1rem; line-height: 1; flex-shrink: 0; padding: 0 0.2rem; }
+
+    .equip-breadcrumb {
+      display: flex; align-items: center; gap: 0.35rem;
+      font-size: 0.78rem; padding: 0.25rem 0.1rem 0.4rem; flex-wrap: wrap;
+    }
+    .equip-crumb { background: none; border: none; padding: 0; cursor: pointer; color: var(--gold-light); font-size: 0.78rem; }
+    .equip-crumb.cur { color: var(--muted); cursor: default; }
+    .equip-crumb-sep { color: var(--gold-dim); }
+
+    /* Grid view */
+    .equip-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(78px, 1fr)); gap: 0.5rem; padding: 0.3rem 0; }
+    .equip-tile {
+      position: relative; display: flex; flex-direction: column; align-items: center; gap: 0.25rem;
+      padding: 0.55rem 0.3rem 0.4rem; border: 1px solid var(--gold-dim); border-radius: 4px;
+      background: rgba(0,0,0,0.15); cursor: pointer; transition: background 0.12s, border-color 0.12s;
+    }
+    .equip-tile:hover { background: rgba(184,149,42,0.08); border-color: var(--gold-mid); }
+    .equip-tile.is-bag { background: rgba(184,149,42,0.06); }
+    .equip-tile-icon { width: 36px; height: 36px; display: flex; align-items: center; justify-content: center; color: var(--gold); }
+    .equip-tile.is-bag .equip-tile-icon { color: var(--gold-light); }
+    .equip-tile-name {
+      font-family: var(--font-body); font-size: 0.72rem; color: var(--parchment);
+      text-align: center; line-height: 1.15; max-height: 2.3em; overflow: hidden;
+    }
+    .equip-tile-meta { font-size: 0.62rem; color: var(--muted); text-align: center; }
+    .equip-tile-edit {
+      position: absolute; top: 2px; right: 2px; width: 18px; height: 18px;
+      background: transparent; border: none; color: var(--muted); cursor: pointer;
+      font-size: 0.62rem; opacity: 0; transition: opacity 0.12s;
+    }
+    .equip-tile:hover .equip-tile-edit { opacity: 0.7; }
+    .equip-tile-edit:hover { opacity: 1; color: var(--gold-light); }
+
+    /* Icon picker (edit accordion) */
+    .equip-icon-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(34px, 1fr)); gap: 0.3rem; margin-top: 0.3rem; }
+    .equip-icon-cell {
+      aspect-ratio: 1; display: flex; align-items: center; justify-content: center;
+      border: 1px solid var(--gold-dim); border-radius: 3px; background: rgba(0,0,0,0.2);
+      color: var(--muted); cursor: pointer; transition: color 0.1s, border-color 0.1s, background 0.1s;
+    }
+    .equip-icon-cell:hover { color: var(--aged); border-color: var(--gold-mid); }
+    .equip-icon-cell.sel { color: var(--gold-light); border-color: var(--gold); background: rgba(184,149,42,0.15); }
+    .equip-acc-flags { display: flex; flex-direction: column; gap: 0.25rem; margin-top: 0.5rem; }
+    .equip-acc-check { display: flex; align-items: center; gap: 0.4rem; font-size: 0.78rem; color: var(--aged); cursor: pointer; }
+    .equip-acc-check input { accent-color: var(--gold); }
+    .equip-icon-credit { font-size: 0.6rem; color: var(--gold-dim); text-align: center; padding: 0.5rem 0 0.2rem; opacity: 0.7; }
+
     .equip-item-expand {
       font-size: 0.6rem;
       color: var(--muted);
@@ -1936,6 +2049,9 @@ let _itemSearchResults = [];
 let _notesTimer      = null;
 let _compItemTimer   = null;
 let _compItemResults = [];
+let _invView         = 'list';  // 'list' | 'grid'
+let _openBagId       = null;     // grid view: id of the bag drilled into (one layer deep)
+let _expandedBags    = new Set();// list view: ids of bags expanded in place
 const _bioTimers     = {};
 let compOpen         = false;
 let compCat          = 'spells';
@@ -2763,6 +2879,231 @@ function buildFeaturesTab() {
 }
 
 // ── EQUIPMENT TAB ──
+// ── Inventory: icons, list/grid views, and containers ──
+function csNewContainerId() {
+  return 'bag_' + Date.now().toString(36) + Math.random().toString(36).slice(2, 6);
+}
+function csInvIcon(item, size) {
+  return window.ItemIcons ? ItemIcons.iconSvg(ItemIcons.iconFor(item), size || 20) : '';
+}
+function csChildCount(bagId) {
+  return (_currentInv || []).filter(it => it.containerId === bagId).length;
+}
+function csToggleInvView(v) { _invView = v; csRebuildEquipmentTab(); }
+function csOpenBag(id)      { _openBagId = id; _selectedItemIdx = null; csRebuildEquipmentTab(); }
+function csCloseBag()       { _openBagId = null; csRebuildEquipmentTab(); }
+function csEditFromTile(i)  { _invView = 'list'; csRebuildEquipmentTab(); setTimeout(() => csEditItem(i), 40); }
+
+// In list view, tapping a bag expands it in place rather than navigating (set of open bag ids).
+function csToggleExpand(id) {
+  if (_expandedBags.has(id)) _expandedBags.delete(id);
+  else _expandedBags.add(id);
+  csRebuildEquipmentTab();
+}
+
+// Find a bag object by its container id.
+function csBagById(id) { return (_currentInv || []).find(it => it.isContainer && it.id === id) || null; }
+
+// Walk from an item up through its parent bags to the top level.
+// Returns an array of ancestor bag objects [immediate parent, ..., outermost]. Cycle-safe.
+function csAncestors(item) {
+  const out = [];
+  const seen = new Set();
+  let cur = item;
+  while (cur && cur.containerId) {
+    if (seen.has(cur.containerId)) break; // cycle guard
+    seen.add(cur.containerId);
+    const bag = csBagById(cur.containerId);
+    if (!bag) break;
+    out.push(bag);
+    cur = bag;
+  }
+  return out;
+}
+
+// Is `maybeBag` the same as, or an ancestor-side relative of, `bagId`'s subtree?
+// Used to forbid dropping a bag into itself or into one of its own descendants.
+function csIsDescendantOf(candidateBagId, ancestorItem) {
+  // True if candidateBagId is ancestorItem itself or nested anywhere inside it.
+  if (!candidateBagId || !ancestorItem || !ancestorItem.id) return false;
+  if (candidateBagId === ancestorItem.id) return true;
+  const target = csBagById(candidateBagId);
+  if (!target) return false;
+  return csAncestors(target).some(a => a.id === ancestorItem.id);
+}
+
+// Direct children of a bag id.
+function csChildrenOf(bagId) {
+  return (_currentInv || []).map((it, i) => i).filter(i => (_currentInv[i].containerId || null) === (bagId || null));
+}
+
+// An item is movement-locked if it is itself locked, or sits anywhere inside a locked (sealed) bag.
+function csIsMoveLocked(item) {
+  if (!item) return false;
+  if (item.locked) return true;
+  return csAncestors(item).some(b => b.locked);
+}
+
+// Toggle the lock on an item or bag.
+function csToggleLock(i) {
+  if (!_currentInv || !_currentInv[i]) return;
+  const inv = _currentInv.map(x => ({ ...x }));
+  inv[i] = { ...inv[i], locked: !inv[i].locked };
+  _currentInv = inv;
+  CharacterStore.save({ inventory: inv }, charKey);
+  csRebuildEquipmentTab();
+}
+
+// List-view row (handles both normal items and bags)
+function csInvRow(item, i) {
+  const isBag    = !!item.isContainer;
+  const count    = isBag ? csChildCount(item.id) : 0;
+  const expanded = isBag && item.id && _expandedBags.has(item.id);
+  const locked   = !!item.locked;
+  const inlineStats = [
+    item.dmg1 && item.dmgType ? `${item.dmg1} ${item.dmgType}` : null,
+    Array.isArray(item.properties) && item.properties.length ? item.properties.map(p => p.name || p).join(', ') : null,
+    item.weight ? `${item.weight} lb` : null,
+    (!item.dmg1 && !(Array.isArray(item.properties) && item.properties.length) && item.detail) ? item.detail : null,
+  ].filter(Boolean);
+  const sub = isBag
+    ? `<div class="equip-item-sub">${count} item${count !== 1 ? 's' : ''}${item.extradimensional ? ' \u00b7 extradimensional' : ''}${locked ? ' \u00b7 sealed' : ''}</div>`
+    : (inlineStats.length ? `<div class="equip-item-sub">${escapeHtml(inlineStats.join(' \u00b7 '))}</div>` : '');
+  const rowClick = isBag ? `onclick="csToggleExpand('${item.id}')"` : `onclick="csShowItemDetail(${i})"`;
+  const tail = isBag
+    ? `<span class="equip-item-expand${expanded ? ' open' : ''}" aria-hidden="true">\u203A</span>`
+    : `<input class="equip-item-qty" type="number" min="0" value="${item.qty||1}" onchange="csUpdateQty(${i}, this.value)" onclick="event.stopPropagation()" aria-label="Qty">
+       <span class="equip-item-wt">${item.weight ? item.weight + ' lb' : '\u2014'}</span>`;
+  const lockBtn = `<button class="equip-item-btn equip-lock-btn${locked ? ' locked' : ''}" onclick="event.stopPropagation();csToggleLock(${i})" title="${locked ? 'Locked \u2014 tap to unlock' : 'Lock'}" aria-label="${locked ? 'Unlock' : 'Lock'} ${escapeHtml(item.name)}">${locked ? '\uD83D\uDD12' : '\uD83D\uDD13'}</button>`;
+  // Bags accept drops (move item in). Sealed bags don't, and aren't draggable themselves.
+  const dragAttrs = locked
+    ? ''
+    : `draggable="true" ondragstart="csDragStart(event, ${i})" ondragend="csDragEnd(event)"`;
+  const dropAttrs = (isBag && !locked)
+    ? `ondragover="csBagDragOver(event, '${item.id}')" ondragleave="csBagDragLeave(event)" ondrop="csBagDrop(event, '${item.id}')"`
+    : `ondragover="csDragOver(event, ${i})" ondragleave="csDragLeave(event)" ondrop="csDrop(event, ${i})"`;
+  return `
+    <div class="equip-item-wrap${isBag ? ' is-bag' : ''}${locked ? ' is-locked' : ''}${expanded ? ' is-open' : ''}" id="equip-wrap-${i}"
+      ${dragAttrs} ${dropAttrs}>
+      <div class="equip-item-row" id="equip-row-${i}" ${rowClick}>
+        <span class="equip-drag-handle" title="${locked ? 'Locked' : 'Drag to move'}"
+          ontouchstart="${locked ? '' : `csTouchDragStart(event, ${i})`}" onclick="event.stopPropagation()">&#8801;&#8801;</span>
+        <span class="equip-item-glyph">${csInvIcon(item, 20)}</span>
+        <div class="equip-item-name-wrap" style="flex:1;min-width:0">
+          <div class="equip-item-name">${escapeHtml(item.name)}</div>
+          ${sub}
+        </div>
+        ${tail}
+        ${lockBtn}
+        <button class="equip-item-btn" onclick="event.stopPropagation();csEditItem(${i})" title="Edit">\u270E</button>
+      </div>
+      <div class="equip-item-accordion" id="equip-acc-${i}"></div>
+    </div>`;
+}
+
+// Grid-view tile
+function csInvTile(item, i) {
+  const isBag  = !!item.isContainer;
+  const count  = isBag ? csChildCount(item.id) : 0;
+  const locked = !!item.locked;
+  const meta   = isBag
+    ? `${count} item${count !== 1 ? 's' : ''}`
+    : `\u00d7${item.qty||1}${item.weight ? '  \u00b7  ' + item.weight + ' lb' : ''}`;
+  const tap = isBag ? `csOpenBag('${item.id}')` : `csShowItemDetail(${i})`;
+  const dragAttrs = locked ? '' : `draggable="true" ondragstart="csTileDragStart(event, ${i})" ondragend="csTileDragEnd(event)"`;
+  const dropAttrs = (isBag && !locked) ? `ondragover="csBagDragOver(event, '${item.id}')" ondragleave="csBagDragLeave(event)" ondrop="csBagDrop(event, '${item.id}')"` : '';
+  return `
+    <div class="equip-tile${isBag ? ' is-bag' : ''}${locked ? ' is-locked' : ''}" data-idx="${i}" ${dragAttrs} ${dropAttrs} onclick="${tap}">
+      <button class="equip-tile-lock${locked ? ' locked' : ''}" title="${locked ? 'Locked \u2014 tap to unlock' : 'Lock'}" onclick="event.stopPropagation();csToggleLock(${i})">${locked ? '\uD83D\uDD12' : '\uD83D\uDD13'}</button>
+      <button class="equip-tile-edit" title="Edit" aria-label="Edit ${escapeHtml(item.name)}" onclick="event.stopPropagation();csEditFromTile(${i})">\u270E</button>
+      <div class="equip-tile-icon">${csInvIcon(item, 34)}</div>
+      <div class="equip-tile-name">${escapeHtml(item.name)}</div>
+      <div class="equip-tile-meta">${isBag ? `<span class="equip-bag-chevron" aria-hidden="true">\u203A</span> ` : ''}${meta}</div>
+    </div>`;
+}
+
+// Icon picker (used inside the edit accordion)
+function csPickIcon(i, id) {
+  const hid = document.getElementById('acc-edit-icon-' + i);
+  if (hid) hid.value = id;
+  document.querySelectorAll('#acc-icon-grid-' + i + ' .equip-icon-cell')
+    .forEach(c => c.classList.toggle('sel', c.getAttribute('data-icon') === id));
+}
+function csPickIconCat(i, cat) {
+  const grid = document.getElementById('acc-icon-grid-' + i);
+  if (!grid || !window.ItemIcons) return;
+  const c = ItemIcons.CATEGORIES.find(x => x.id === cat);
+  if (!c) return;
+  const cur = document.getElementById('acc-edit-icon-' + i)?.value || '';
+  grid.innerHTML = c.icons.map(id =>
+    `<button type="button" class="equip-icon-cell${id === cur ? ' sel' : ''}" data-icon="${id}" title="${id.replace(/-/g,' ')}" onclick="csPickIcon(${i},'${id}')">${ItemIcons.iconSvg(id, 22)}</button>`
+  ).join('');
+}
+
+// Move an item (or a bag) into another bag, or back toward the top level.
+// Nesting is now unlimited, but a bag may never be dropped into itself or its own descendants.
+function csMoveItemToBag(i, bagId) {
+  if (!_currentInv || !_currentInv[i]) return;
+  const item = _currentInv[i];
+  bagId = bagId || null;
+  if ((item.containerId || null) === bagId) return; // no-op
+  // Locked item, or sitting anywhere inside a sealed bag → can't move.
+  if (item.locked) { csLockNotice(`${item.name} is locked and can't be moved.`); return; }
+  const sealedAncestor = csAncestors(item).find(b => b.locked);
+  if (sealedAncestor) { csLockNotice(`${sealedAncestor.name} is sealed \u2014 unlock it to move items.`); return; }
+  const toBag = bagId ? csBagById(bagId) : null;
+  if (toBag && toBag.locked) { csLockNotice(`${toBag.name} is sealed \u2014 unlock it to add items.`); return; }
+  // A bag can't go into itself or any of its own descendants (would orphan/cycle the tree).
+  if (item.isContainer && item.id && toBag && csIsDescendantOf(bagId, item)) {
+    csLockNotice(`Can't put ${item.name} inside itself.`); return;
+  }
+  const inv = _currentInv.map(x => ({ ...x }));
+  inv[i] = { ...inv[i], containerId: bagId };
+  _currentInv = inv;
+  CharacterStore.save({ inventory: inv }, charKey);
+  csRebuildEquipmentTab();
+}
+
+// Brief inline notice (no dependency on a toast system).
+function csLockNotice(msg) {
+  let el = document.getElementById('equip-lock-notice');
+  if (!el) {
+    el = document.createElement('div');
+    el.id = 'equip-lock-notice';
+    el.className = 'equip-lock-notice';
+    document.body.appendChild(el);
+  }
+  el.textContent = msg;
+  el.classList.add('show');
+  clearTimeout(csLockNotice._t);
+  csLockNotice._t = setTimeout(() => el.classList.remove('show'), 2600);
+}
+
+// Heuristic: does this newly-added item read like a container? (item 6)
+// Conservative — matches common container nouns in the name or type, not every "bag of X".
+function csLooksLikeContainer(item) {
+  if (!item) return false;
+  const n = (item.name || '').toLowerCase();
+  const t = (item.typeLabel || item.type || '').toString().toLowerCase();
+  const s = n + ' ' + t;
+  // Strong container words. "bag of holding"/"handy haversack" included (they're containers too).
+  if (/\b(backpack|haversack|knapsack|rucksack|satchel|pouch|sack|chest|coffer|barrel|crate|basket|case|quiver|bandolier|bag|pack|saddlebag|lockbox|strongbox)\b/.test(s)) {
+    // Exclude obvious false positives where the word isn't the item itself.
+    if (/bagpipe|bag pipe|sandbag|airbag|punching bag|bean bag/.test(s)) return false;
+    return true;
+  }
+  return false;
+}
+
+// Parse one 5etools packContents entry into { name, qty }
+function csTitleCase(s) { return (s || '').replace(/\b\w/g, c => c.toUpperCase()); }
+function csParsePackEntry(e) {
+  if (typeof e === 'string')      return { name: csTitleCase(e.split('|')[0]), qty: 1 };
+  if (e && e.item)                return { name: csTitleCase(String(e.item).split('|')[0]), qty: e.quantity || 1 };
+  if (e && e.special)             return { name: csTitleCase(e.special), qty: e.quantity || 1 };
+  return null;
+}
+
 // _currentInv tracks whatever inventory is currently displayed —
 // either live data from the store or static fallback from characters.js.
 // All edit functions (qty, delete, add) operate on this directly.
@@ -2776,52 +3117,58 @@ function buildEquipmentTab() {
 
   const strScore    = C.abilities?.str?.score || C.abilityScores?.str || 10;
   const carryMax    = strScore * 15;
-  const totalWeight = inv.reduce((sum, item) => sum + ((parseFloat(item.weight)||0) * (parseInt(item.qty)||1)), 0);
+  // Lookup of container items by id.
+  const bagById = {};
+  inv.forEach(it => { if (it.isContainer && it.id) bagById[it.id] = it; });
+  if (_openBagId && !bagById[_openBagId]) _openBagId = null; // bag was deleted while open
+  // Sum weight, walking each item's full ancestor chain — if ANY ancestor is an
+  // extradimensional bag (bag of holding), the item's weight doesn't count. Cycle-safe.
+  const totalWeight = inv.reduce((sum, item) => {
+    let cur = item, hops = 0, weightless = false, seen = new Set();
+    while (cur && cur.containerId && hops++ < 64) {
+      if (seen.has(cur.containerId)) break;
+      seen.add(cur.containerId);
+      const parent = bagById[cur.containerId];
+      if (!parent) break;
+      if (parent.extradimensional) { weightless = true; break; }
+      cur = parent;
+    }
+    if (weightless) return sum;
+    return sum + ((parseFloat(item.weight)||0) * (parseInt(item.qty)||1));
+  }, 0);
   const carryPct    = carryMax > 0 ? Math.min(totalWeight / carryMax, 1) : 0;
   const carryFace   = carryPct >= 1 ? "\u{1F62D}" : carryPct >= 0.9 ? "\u{1F61F}" : carryPct >= 0.75 ? "\u{1F610}" : "\u{1F604}";
   const barColor    = carryPct >= 1 ? "#c05060" : carryPct >= 0.9 ? "#c9824a" : carryPct >= 0.75 ? "#c9b44a" : "#5a9a6a";
   const barPct      = Math.round(carryPct * 100);
 
-  const invRows = inv.map((item, i) => {
-    const inlineStats = [
-      item.dmg1 && item.dmgType ? `${item.dmg1} ${item.dmgType}` : null,
-      Array.isArray(item.properties) && item.properties.length
-        ? item.properties.map(p => p.name || p).join(', ')
-        : null,
-      item.weight ? `${item.weight} lb` : null,
-      (!item.dmg1 && !(Array.isArray(item.properties) && item.properties.length) && item.detail) ? item.detail : null,
-    ].filter(Boolean);
-    const statLine = inlineStats.length
-      ? `<div class="equip-item-sub">${escapeHtml(inlineStats.join(' · '))}</div>`
-      : '';
-    return `
-      <div class="equip-item-wrap" id="equip-wrap-${i}"
-        draggable="true"
-        ondragstart="csDragStart(event, ${i})"
-        ondragover="csDragOver(event, ${i})"
-        ondragleave="csDragLeave(event)"
-        ondrop="csDrop(event, ${i})"
-        ondragend="csDragEnd(event)">
-        <div class="equip-item-row" id="equip-row-${i}" onclick="csShowItemDetail(${i})">
-          <span class="equip-drag-handle"
-            title="Drag to reorder"
-            ontouchstart="csTouchDragStart(event, ${i})"
-            onclick="event.stopPropagation()">&#8801;&#8801;</span>
-          <div class="equip-item-name-wrap" style="flex:1;min-width:0">
-            <div class="equip-item-name">${escapeHtml(item.name)}</div>
-            ${statLine}
-          </div>
-          <input class="equip-item-qty" type="number" min="0"
-            value="${item.qty||1}"
-            onchange="csUpdateQty(${i}, this.value)"
-            onclick="event.stopPropagation()"
-            aria-label="Qty">
-          <span class="equip-item-wt">${item.weight ? item.weight + ' lb' : '—'}</span>
-          <button class="equip-item-btn" onclick="event.stopPropagation();csEditItem(${i})" title="Edit">✎</button>
-        </div>
-        <div class="equip-item-accordion" id="equip-acc-${i}"></div>
-      </div>`;
-  }).join('');
+  // Show only items at the current level: top-level items, or the open bag's contents.
+  const openBag     = _openBagId ? bagById[_openBagId] : null;
+  let invRows;
+  if (_invView === 'grid') {
+    const visibleIdx = inv.map((it, i) => i).filter(i => ((inv[i].containerId || null) === (_openBagId || null)));
+    invRows = `<div class="equip-grid" ondragover="csGridRootOver(event)" ondrop="csGridRootDrop(event)">${visibleIdx.map(i => csInvTile(inv[i], i)).join('')}</div>`;
+  } else {
+    // List view: render the tree, expanding open bags in place — cascading to any depth.
+    // No deep indentation; nested contents get a left accent rail and the open bag's row is highlighted.
+    const renderLevel = (parentId, depth, seen) => {
+      if (depth > 64) return ''; // safety against a cycle
+      const idxs = inv.map((it, j) => j).filter(j => (inv[j].containerId || null) === (parentId || null));
+      return idxs.map(j => {
+        let html = csInvRow(inv[j], j);
+        const it = inv[j];
+        if (it.isContainer && it.id && _expandedBags.has(it.id) && !seen.has(it.id)) {
+          const nextSeen = new Set(seen); nextSeen.add(it.id);
+          const kids = inv.map((x, k) => k).filter(k => inv[k].containerId === it.id);
+          html += `<div class="equip-bag-children" data-bag="${it.id}">`
+            + (kids.length ? renderLevel(it.id, depth + 1, nextSeen)
+                           : `<div class="equip-bag-empty">Empty \u2014 drag an item here, or use \u201CStored in\u201D when editing.</div>`)
+            + `</div>`;
+        }
+        return html;
+      }).join('');
+    };
+    invRows = renderLevel(null, 0, new Set());
+  }
 
   return `
   <div class="tab-panel" id="tab-equipment">
@@ -2833,8 +3180,27 @@ function buildEquipmentTab() {
       <div class="equip-left">
         <div class="equip-inv-header">
           <span class="equip-inv-title">Inventory</span>
-          <span class="equip-inv-count">${inv.length} item${inv.length!==1?"s":""}</span>
+          <div class="equip-inv-tools">
+            <span class="equip-inv-count">${inv.length} item${inv.length!==1?"s":""}</span>
+            <div class="equip-view-toggle" role="group" aria-label="Inventory view">
+              <button class="equip-view-btn${_invView==='list'?' on':''}" title="List view" aria-label="List view" onclick="csToggleInvView('list')">&#9776;</button>
+              <button class="equip-view-btn${_invView==='grid'?' on':''}" title="Grid view" aria-label="Grid view" onclick="csToggleInvView('grid')">&#9783;</button>
+            </div>
+          </div>
         </div>
+        ${openBag ? (() => {
+          // Build the full trail from Carried down to the open bag.
+          const trail = [openBag, ...csAncestors(openBag)].reverse(); // outermost → openBag
+          const crumbs = [`<button class="equip-crumb" onclick="csCloseBag()" ondragover="csCrumbOver(event,'')" ondragleave="csCrumbLeave(event)" ondrop="csCrumbDrop(event,'')">Carried</button>`];
+          trail.forEach((b, k) => {
+            const isLast = k === trail.length - 1;
+            crumbs.push(`<span class="equip-crumb-sep">\u203A</span>`);
+            crumbs.push(isLast
+              ? `<span class="equip-crumb cur">${escapeHtml(b.name)}</span>`
+              : `<button class="equip-crumb" onclick="csOpenBag('${b.id}')" ondragover="csCrumbOver(event,'${b.id}')" ondragleave="csCrumbLeave(event)" ondrop="csCrumbDrop(event,'${b.id}')">${escapeHtml(b.name)}</button>`);
+          });
+          return `<div class="equip-breadcrumb">${crumbs.join('')}<span class="equip-crumb-hint">drop on a level to move there</span></div>`;
+        })() : ''}
         ${inv.length === 0
           ? `<div style="color:var(--muted);font-style:italic;font-size:0.82rem;padding:0.5rem 0">No items yet \u2014 search in the panel to the right.</div>`
           : invRows}
@@ -2844,6 +3210,7 @@ function buildEquipmentTab() {
             placeholder="Ki points remaining, loot leads, reminders for next session…"
             oninput="csNotesChanged()">${escapeHtml(notes)}</textarea>
         </div>
+        <div class="equip-icon-credit">Item glyphs by Lorc, Delapouite &amp; contributors \u2014 game-icons.net (CC BY 3.0)</div>
       </div>
       <div class="equip-right" id="equip-right-panel">
         ${csRightPanelDefault()}
@@ -2967,6 +3334,18 @@ function csAccordionContent(item, i, editMode = false) {
         <button class="equip-acc-btn danger" style="padding:0.15rem 0.4rem" onclick="csRemoveContainerItem(${i},${ci})">\u2715</button>
       </div>`;
     }).join('');
+    // Inventory v2: icon picker + container controls
+    const _cats     = window.ItemIcons ? ItemIcons.CATEGORIES : [];
+    const _detected = window.ItemIcons ? ItemIcons.detectCategory(item) : 'misc';
+    const _startCat = (item.icon && _cats.find(c => c.icons.includes(item.icon))?.id) || _detected;
+    const _catOpts  = _cats.map(c => `<option value="${c.id}"${c.id === _startCat ? ' selected' : ''}>${c.label}</option>`).join('');
+    const _bags     = (_currentInv || []).filter(it => it.isContainer && it.id && it !== item);
+    const _moveCtl  = item.isContainer ? '' : `
+        <span class="equip-acc-field-label" style="margin-top:0.4rem">Stored in</span>
+        <select class="equip-acc-select" onchange="csMoveItemToBag(${i}, this.value)">
+          <option value=""${!item.containerId ? ' selected' : ''}>Carried (top level)</option>
+          ${_bags.map(b => `<option value="${b.id}"${item.containerId === b.id ? ' selected' : ''}>${escapeHtml(b.name)}</option>`).join('')}
+        </select>`;
     return `
       <div class="equip-acc-edit">
         <span class="equip-acc-field-label">Display name</span>
@@ -2975,6 +3354,16 @@ function csAccordionContent(item, i, editMode = false) {
         <input class="equip-acc-field" id="acc-edit-alias-${i}" value="${escapeHtml(item.alias||'')}" placeholder="e.g. Longsword">
         <span class="equip-acc-field-label">Detail line</span>
         <input class="equip-acc-field" id="acc-edit-detail-${i}" value="${escapeHtml(item.detail||'')}" placeholder="e.g. martial \u00B7 1d8 S \u00B7 3 lb">
+        <span class="equip-acc-field-label" style="margin-top:0.4rem">Icon</span>
+        <input type="hidden" id="acc-edit-icon-${i}" value="${escapeHtml(item.icon||'')}">
+        <select class="equip-acc-select" id="acc-icon-cat-${i}" onchange="csPickIconCat(${i}, this.value)">${_catOpts}</select>
+        <div class="equip-icon-grid" id="acc-icon-grid-${i}"></div>
+        <div class="equip-acc-flags">
+          <label class="equip-acc-check"><input type="checkbox" id="acc-edit-container-${i}"${item.isContainer ? ' checked' : ''}> This is a container (bag)</label>
+          <label class="equip-acc-check"><input type="checkbox" id="acc-edit-extra-${i}"${item.extradimensional ? ' checked' : ''}> Bag of holding \u2014 contents weightless</label>
+          <label class="equip-acc-check"><input type="checkbox" id="acc-edit-locked-${i}"${item.locked ? ' checked' : ''}> Lock \u2014 ${item.isContainer ? 'seal this bag (nothing moves in/out, can\u2019t delete)' : 'pin in place (can\u2019t move or delete)'}</label>
+        </div>
+        ${_moveCtl}
         <div style="display:grid;grid-template-columns:1fr 1fr;gap:0.4rem;margin-top:0.3rem">
           <div>
             <span class="equip-acc-field-label">Damage type override</span>
@@ -3379,20 +3768,26 @@ function csAddItemFromSearch(item) {
   if (existing >= 0) {
     inv[existing] = { ...inv[existing], qty: (inv[existing].qty||1) + 1 };
   } else {
-    // Auto-populate container contents from 5etools entries if it looks like a pack/kit
+    // A pack ships a structured packContents list — explode it into a real bag.
+    const isPack = Array.isArray(item.packContents) && item.packContents.length > 0;
+    // Auto-detect bag-like items as containers (item 6). New items only; never retroactive.
+    const looksLikeBag = csLooksLikeContainer(item);
+    const isContainer  = isPack || looksLikeBag;
+    // Auto-populate the legacy text contents field too (left intact for older items).
     let contents = null;
     if (Array.isArray(item.contents) && item.contents.length > 0) {
       contents = item.contents;
     } else if (Array.isArray(item.entries) && item.entries.length > 0) {
-      // Try to extract contents from description entries (packs list their contents)
       const contentLine = item.entries.find(e => typeof e === 'string' && e.toLowerCase().includes('contains'));
       if (contentLine) contents = [contentLine];
     }
+    const bagId = isContainer ? csNewContainerId() : null;
     inv.push({
       name:       item.name,
       detail:     item.detail     || null,
       qty:        1,
-      weight:     item.weight     || null,
+      // A pack's listed weight is the sum of its contents; zero it so we don't double-count.
+      weight:     isPack ? 0 : (item.weight || null),
       dmg1:       item.dmg1       || null,
       dmg2:       item.dmg2       || null,
       dmgType:    item.dmgType    || null,
@@ -3410,11 +3805,27 @@ function csAddItemFromSearch(item) {
       strength:   item.strength   || null,
       stealth:    item.stealth    || null,
       contents,
+      // Inventory v2 fields:
+      icon:           null,
+      isContainer,
+      extradimensional: false,
+      locked:         false,
+      id:             bagId,
+      // New items drop into whatever bag is currently open (grid), else top level.
+      containerId:    _openBagId || null,
     });
+    if (isPack) {
+      // Add each listed item as a lightweight child; the enrich pass fills in its weight/type.
+      item.packContents.forEach(e => {
+        const p = csParsePackEntry(e);
+        if (p && p.name) inv.push({ name: p.name, qty: p.qty, weight: null, icon: null, containerId: bagId, _enriched: false });
+      });
+    }
   }
   _currentInv = inv;
   CharacterStore.save({ inventory: inv }, charKey);
   csRebuildEquipmentTab();
+  setTimeout(csEnrichInventory, 300); // enrich any freshly-added pack children
   const newIdx = inv.findIndex(i => i.name === item.name);
   if (newIdx >= 0) setTimeout(() => csShowItemDetail(newIdx), 50);
 }
@@ -3469,6 +3880,8 @@ function csEditItem(idx) {
   if (acc) {
     acc.innerHTML = csAccordionContent(item, idx, true);
     acc.classList.add('open');
+    const catSel = document.getElementById(`acc-icon-cat-${idx}`);
+    if (catSel) csPickIconCat(idx, catSel.value);
   }
   setTimeout(() => document.getElementById(`acc-edit-name-${idx}`)?.focus(), 50);
 }
@@ -3538,13 +3951,21 @@ function csTouchMove(event) {
   event.preventDefault();
   const touch = event.touches[0];
   const el = document.elementFromPoint(touch.clientX, touch.clientY);
+  document.querySelectorAll('.equip-item-wrap').forEach(e => e.classList.remove('drag-over', 'drag-over-below'));
+  document.querySelectorAll('.drag-into').forEach(e => e.classList.remove('drag-into'));
+  // Over a bag (and dragged item isn't itself a bag) → highlight as "drop into".
+  const bagWrap = el?.closest('.equip-item-wrap.is-bag');
+  const dragged = _currentInv[_dragIdx];
+  if (bagWrap && dragged && !dragged.isContainer) {
+    const bIdx = parseInt(bagWrap.id.replace('equip-wrap-', ''));
+    const bag = _currentInv[bIdx];
+    if (bag && !bag.locked && dragged.containerId !== bag.id) { bagWrap.classList.add('drag-into'); return; }
+  }
+  // Otherwise treat as reorder within the same level.
   const wrap = el?.closest('.equip-item-wrap');
   if (!wrap) return;
   const toIdx = parseInt(wrap.id.replace('equip-wrap-', ''));
   if (isNaN(toIdx) || toIdx === _dragIdx) return;
-  document.querySelectorAll('.equip-item-wrap').forEach(e => {
-    e.classList.remove('drag-over', 'drag-over-below');
-  });
   wrap.classList.add(_dragIdx < toIdx ? 'drag-over-below' : 'drag-over');
 }
 
@@ -3556,35 +3977,147 @@ function csTouchEnd(event) {
   _touchDragging = false;
   const touch = event.changedTouches[0];
   const el = document.elementFromPoint(touch.clientX, touch.clientY);
+  document.querySelectorAll('.equip-item-wrap').forEach(e => e.classList.remove('drag-over', 'drag-over-below', 'dragging'));
+  document.querySelectorAll('.drag-into').forEach(e => e.classList.remove('drag-into'));
+  const fromIdx = _dragIdx;
+  _dragIdx = null;
+  if (fromIdx === null) return;
+  const dragged = _currentInv[fromIdx];
+  // Dropped onto a bag → move into it.
+  const bagWrap = el?.closest('.equip-item-wrap.is-bag');
+  if (bagWrap && dragged && !dragged.isContainer) {
+    const bIdx = parseInt(bagWrap.id.replace('equip-wrap-', ''));
+    const bag = _currentInv[bIdx];
+    if (bag && !bag.locked && dragged.containerId !== bag.id) { csMoveItemToBag(fromIdx, bag.id); return; }
+  }
+  // Dropped onto a normal row → reorder within same level.
   const wrap = el?.closest('.equip-item-wrap');
-  document.querySelectorAll('.equip-item-wrap').forEach(e => {
-    e.classList.remove('drag-over', 'drag-over-below', 'dragging');
-  });
   if (wrap) {
     const toIdx = parseInt(wrap.id.replace('equip-wrap-', ''));
-    if (!isNaN(toIdx) && toIdx !== _dragIdx) csReorderItem(_dragIdx, toIdx);
+    if (!isNaN(toIdx) && toIdx !== fromIdx) csReorderItem(fromIdx, toIdx);
   }
-  _dragIdx = null;
 }
 
-// The actual reorder logic — moves item from fromIdx to toIdx
+// Reorder, and/or move between levels. Dropping an item on a row in a different container
+// moves it into that container (at that position). Same-container drops just reorder.
 function csReorderItem(fromIdx, toIdx) {
   const inv = _currentInv.map(i => ({ ...i }));
-  const [moved] = inv.splice(fromIdx, 1);
-  inv.splice(toIdx, 0, moved);
+  const moving = inv[fromIdx], target = inv[toIdx];
+  if (!moving || !target) return;
+  const fromC = moving.containerId || null;
+  const toC   = target.containerId || null;
+  if (fromC !== toC) {
+    // Cross-level move: respect the same guards as csMoveItemToBag.
+    if (moving.locked) { csLockNotice(`${moving.name} is locked and can't be moved.`); return; }
+    const sealed = csAncestors(moving).find(b => b.locked);
+    if (sealed) { csLockNotice(`${sealed.name} is sealed \u2014 unlock it to move items.`); return; }
+    if (toC) {
+      const toBag = csBagById(toC);
+      if (toBag && toBag.locked) { csLockNotice(`${toBag.name} is sealed.`); return; }
+      if (moving.isContainer && csIsDescendantOf(toC, moving)) { csLockNotice(`Can't put ${moving.name} inside itself.`); return; }
+    }
+    moving.containerId = toC;
+  }
+  // Reorder within the (possibly new) shared level.
+  const [m] = inv.splice(fromIdx, 1);
+  const newTargetIdx = inv.indexOf(target);
+  inv.splice(newTargetIdx, 0, m);
   _currentInv = inv;
   CharacterStore.save({ inventory: inv }, charKey);
-  // Update selected index if it moved
-  if (_selectedItemIdx === fromIdx) _selectedItemIdx = toIdx;
-  else if (_selectedItemIdx !== null) {
-    if (fromIdx < _selectedItemIdx && toIdx >= _selectedItemIdx) _selectedItemIdx--;
-    else if (fromIdx > _selectedItemIdx && toIdx <= _selectedItemIdx) _selectedItemIdx++;
-  }
+  _selectedItemIdx = null;
   csRebuildEquipmentTab();
-  // Restore selection if any
-  if (_selectedItemIdx !== null) {
-    setTimeout(() => csShowItemDetail(_selectedItemIdx), 50);
+}
+
+// ── Drag-to-container (move an item into / out of a bag) ──
+
+// True if the dragged item may be dropped into bagId.
+function csCanDropInto(dragged, bagId) {
+  if (!dragged) return false;
+  const bag = csBagById(bagId);
+  if (!bag || bag.locked) return false;
+  if ((dragged.containerId || null) === bagId) return false; // already there
+  // A bag can't go into itself or its own descendants.
+  if (dragged.isContainer && dragged.id && csIsDescendantOf(bagId, dragged)) return false;
+  return true;
+}
+
+// Dragging an item onto a bag row/tile.
+function csBagDragOver(event, bagId) {
+  if (_dragIdx === null) return;
+  if (!csCanDropInto(_currentInv[_dragIdx], bagId)) return;
+  event.preventDefault();
+  event.stopPropagation();
+  event.dataTransfer.dropEffect = 'move';
+  event.currentTarget.classList.add('drag-into');
+}
+function csBagDragLeave(event) { event.currentTarget.classList.remove('drag-into'); }
+function csBagDrop(event, bagId) {
+  event.preventDefault();
+  event.stopPropagation();
+  document.querySelectorAll('.drag-into').forEach(e => e.classList.remove('drag-into'));
+  if (_dragIdx === null) return;
+  const idx = _dragIdx; _dragIdx = null;
+  if (!csCanDropInto(_currentInv[idx], bagId)) return; // invalid target → no-op (fixes fall-through)
+  csMoveItemToBag(idx, bagId);
+}
+
+// Dragging onto empty grid space. In grid view we're inside _openBagId; dropping on the
+// background moves the item OUT one level (to the open bag's parent), not all the way to top.
+function csGridRootOver(event) {
+  if (_dragIdx === null) return;
+  const dragged = _currentInv[_dragIdx];
+  // Only meaningful if the dragged item is currently inside the open bag.
+  if (!dragged || (dragged.containerId || null) !== (_openBagId || null)) {
+    // It's not at this level (e.g. dropping where it already is) — let bag targets handle it.
+    if (!_openBagId) return;
   }
+  if (!_openBagId) return; // at top level there's no "out"
+  event.preventDefault();
+  event.dataTransfer.dropEffect = 'move';
+}
+function csGridRootDrop(event) {
+  if (_dragIdx === null) return;
+  const idx = _dragIdx;
+  const dragged = _currentInv[idx];
+  _dragIdx = null;
+  if (!dragged || !_openBagId) return;
+  // Move out one level: to the open bag's parent.
+  const openBag = csBagById(_openBagId);
+  const parentId = openBag ? (openBag.containerId || null) : null;
+  if ((dragged.containerId || null) === parentId) return; // no-op
+  csMoveItemToBag(idx, parentId);
+}
+
+// Breadcrumb drop target: drop an item on any crumb to move it to that level.
+// targetId === '' means the "Carried" (top) level; otherwise an ancestor bag id.
+function csCrumbOver(event, targetId) {
+  if (_dragIdx === null) return;
+  const dragged = _currentInv[_dragIdx];
+  const dest = targetId || null;
+  if (!dragged || (dragged.containerId || null) === dest) return;
+  if (dest && !csCanDropInto(dragged, dest)) return;
+  event.preventDefault();
+  event.dataTransfer.dropEffect = 'move';
+  event.currentTarget.classList.add('drag-into');
+}
+function csCrumbLeave(event) { event.currentTarget.classList.remove('drag-into'); }
+function csCrumbDrop(event, targetId) {
+  event.preventDefault();
+  event.currentTarget.classList.remove('drag-into');
+  if (_dragIdx === null) return;
+  const idx = _dragIdx; _dragIdx = null;
+  csMoveItemToBag(idx, targetId || null);
+}
+
+// Grid tile drag (desktop). Reuses _dragIdx so bag drop targets work uniformly.
+function csTileDragStart(event, idx) {
+  _dragIdx = idx;
+  event.dataTransfer.effectAllowed = 'move';
+  event.stopPropagation();
+}
+function csTileDragEnd(event) {
+  _dragIdx = null;
+  document.querySelectorAll('.drag-into').forEach(e => e.classList.remove('drag-into'));
 }
 
 
@@ -3804,6 +4337,12 @@ function csSaveItemEdit(idx) {
   }
 
   const inv = _currentInv.map(i => ({ ...i }));
+  const icon         = document.getElementById(`acc-edit-icon-${idx}`)?.value || null;
+  const isContainer  = !!document.getElementById(`acc-edit-container-${idx}`)?.checked;
+  const extradimensional = !!document.getElementById(`acc-edit-extra-${idx}`)?.checked;
+  const locked       = !!document.getElementById(`acc-edit-locked-${idx}`)?.checked;
+  // A container needs a stable id so items can point at it.
+  const containerId  = isContainer ? (inv[idx].id || csNewContainerId()) : null;
   inv[idx] = {
     ...inv[idx],
     name,
@@ -3816,6 +4355,11 @@ function csSaveItemEdit(idx) {
     flavor:     flavor     || null,
     notes:      notes      || null,
     contents:   contents.length ? contents : (inv[idx].contents || null),
+    icon:       icon       || null,
+    isContainer,
+    extradimensional: isContainer ? extradimensional : false,
+    locked,
+    id:         isContainer ? containerId : (inv[idx].id || null),
     _enriched:  false, // re-enrich with new alias if changed
   };
   _currentInv = inv;
@@ -3844,6 +4388,20 @@ function csUpdateQty(idx, val) {
 function csDeleteItem(idx) {
   if (!_currentInv) return;
   const inv = _currentInv.map(i => ({ ...i }));
+  const removed = inv[idx];
+  if (!removed) return;
+  // A locked item can't be deleted.
+  if (removed.locked) { csLockNotice(`${removed.name} is locked. Unlock it first.`); return; }
+  // A bag can't be deleted while sealed, or while it holds any locked item.
+  if (removed.isContainer && removed.id) {
+    if (removed.locked) { csLockNotice(`${removed.name} is sealed. Unlock it before deleting.`); return; }
+    const lockedChild = inv.find(it => it.containerId === removed.id && it.locked);
+    if (lockedChild) { csLockNotice(`${removed.name} holds a locked item (${lockedChild.name}) and can't be deleted.`); return; }
+    // Spill its contents back to the top level so they aren't orphaned.
+    inv.forEach(it => { if (it.containerId === removed.id) it.containerId = null; });
+    if (_openBagId === removed.id) _openBagId = null;
+    _expandedBags.delete(removed.id);
+  }
   inv.splice(idx, 1);
   _currentInv = inv;
   _selectedItemIdx = null;
