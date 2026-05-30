@@ -76,12 +76,13 @@
       ],
       "entries": [],
       "contents": null,
+      "packContents": null,
       "source": "PHB",
       "sourceFull": "PHB p149",
       "page": 149,
       "qty": 10,
       "equipped": false,
-      "_enriched": false,
+      "_enriched": true,
       "alias": null,
       "attackStat": null,
       "dmgBonus": null,
@@ -112,7 +113,7 @@
       "source": "PHB",
       "sourceFull": "PHB p150",
       "page": 150,
-      "qty": 1,
+      "qty": 2,
       "equipped": true,
       "_enriched": true,
       "alias": null
@@ -192,5 +193,5 @@
     "flaws": "",
     "backstory": ""
   },
-  "lastUpdated": "2026-05-27T05:05:49.836Z"
+  "lastUpdated": "2026-05-30T21:00:03.045Z"
 }
