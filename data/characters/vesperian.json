@@ -138,15 +138,16 @@
     "flaws": "",
     "backstory": ""
   },
-  "lastUpdated": "2026-05-29T06:20:48.974Z",
+  "lastUpdated": "2026-05-30T18:46:31.732Z",
   "combat": {
-    "hp": 24,
+    "hp": 20,
     "hpTemp": 0,
     "hpBonus": 0,
     "pipState": {
+      "spell_1": 0,
       "actionSurge": 0,
-      "secondWind": 0,
-      "spell_1": 0
-    }
+      "secondWind": 0
+    },
+    "concentration": null
   }
 }
