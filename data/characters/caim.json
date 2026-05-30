@@ -151,36 +151,6 @@
       "icon": null,
       "containerId": null,
       "_enriched": false
-    },
-    {
-      "name": "Hammer",
-      "rarity": "None",
-      "type": "G",
-      "typeLabel": "Adventuring Gear",
-      "weaponCat": "Adventuring Gear",
-      "detail": "Adventuring Gear · 3 lb",
-      "price": "1 gp",
-      "weight": null,
-      "dmg1": null,
-      "dmg2": null,
-      "dmgType": null,
-      "range": null,
-      "ac": null,
-      "strength": null,
-      "stealth": null,
-      "reqAttune": null,
-      "properties": [],
-      "entries": [],
-      "contents": null,
-      "packContents": null,
-      "source": "PHB",
-      "sourceFull": "PHB p150",
-      "page": 150,
-      "qty": 1,
-      "icon": null,
-      "containerId": null,
-      "_enriched": true,
-      "alias": null
     }
   ],
   "currency": {
@@ -198,5 +168,5 @@
     "flaws": "",
     "backstory": ""
   },
-  "lastUpdated": "2026-05-30T21:04:10.890Z"
+  "lastUpdated": "2026-05-30T21:04:13.502Z"
 }
