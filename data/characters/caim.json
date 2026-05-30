@@ -243,14 +243,6 @@
       "icon": null,
       "containerId": null,
       "_enriched": false
-    },
-    {
-      "name": "Hempen Rope (50 Feet)",
-      "qty": 1,
-      "weight": null,
-      "icon": null,
-      "containerId": null,
-      "_enriched": false
     }
   ],
   "currency": {
@@ -268,5 +260,5 @@
     "flaws": "",
     "backstory": ""
   },
-  "lastUpdated": "2026-05-30T21:03:39.306Z"
+  "lastUpdated": "2026-05-30T21:03:53.618Z"
 }
