@@ -320,7 +320,7 @@
     if(/wand|staff|quarterstaff|\brod\b|scepter|sceptre/.test(s)) return 'staff';
     if(/potion|\boil\b|elixir|flask|vial|draught/.test(s)) return 'potion';
     if(/scroll|spellbook|spell book|\bbook\b|\btome\b|grimoire/.test(s)) return 'scroll';
-    if(/shield|armor|armour|helm|\bplate\b|chain mail|chainmail|breastplate|cuirass|gauntlet|greaves|pauldron|bracers|leather armor/.test(s)) return 'armor';
+    if(/shield|armor|armour|helm|\bplate\b|chain mail|chainmail|\bmail\b|breastplate|cuirass|gauntlet|greaves|pauldron|bracers|\bhide\b|\bscale\b|splint|brigandine|padded/.test(s)) return 'armor';
     if(/torch|lantern|candle|\blamp\b/.test(s)) return 'light';
     if(/\bchest\b|barrel|crate|\bjar\b|\burn\b|flagon|cask|coffer|pouch|\bsack\b/.test(s)) return 'container';
     if(/ration|\bfood\b|waterskin|\bmeat\b|bread|cheese|\bale\b|\bwine\b|fruit|\bherb/.test(s)) return 'food';
