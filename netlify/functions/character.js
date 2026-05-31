@@ -26,12 +26,14 @@ const respond = (statusCode, body) => ({
 });
 
 // Each character has its own file: data/characters/caim.json etc.
+// KEY_FILE maps a key to its data filename where the two differ (e.g. during a key rename).
+const KEY_FILE = { cosmere: 'tyros' }; // cosmere data lives in tyros.json until the file is renamed
 function filePath(key) {
-  return `data/characters/${key}.json`;
+  return `data/characters/${KEY_FILE[key] || key}.json`;
 }
 
 // Valid character keys — guards against path traversal
-const VALID_KEYS = ['tyros', 'caim', 'liadan', 'vesperian'];
+const VALID_KEYS = ['cosmere', 'caim', 'liadan', 'vesperian'];
 
 async function fetchCharacterFile(key) {
   const res = await fetch(
