@@ -2068,7 +2068,7 @@ let compFilter       = null;
 let compCache        = {};
 
 const params  = new URLSearchParams(window.location.search);
-const charKey = params.get('character') || 'tyros';
+const charKey = params.get('character') || 'cosmere';
 
 // Safety check — characters.js must be loaded
 if (typeof CHARACTERS === 'undefined') {
@@ -4914,12 +4914,12 @@ function compParseCR(cr) {
   const popover = document.getElementById('sheet-char-popover');
   if (!popover) return;
   const chars = [
-    { key: 'tyros',     label: 'Cosmere', portrait: 'https://res.cloudinary.com/df0tgoiyb/image/upload/v1779833033/kirtas/characters/cosmere.png' },
+    { key: 'cosmere',     label: 'Cosmere', portrait: 'https://res.cloudinary.com/df0tgoiyb/image/upload/v1779833033/kirtas/characters/cosmere.png' },
     { key: 'caim',      label: 'Caim',    portrait: 'https://res.cloudinary.com/df0tgoiyb/image/upload/v1779833008/kirtas/characters/caim.png' },
     { key: 'liadan',    label: 'Líadan',  portrait: 'https://res.cloudinary.com/df0tgoiyb/image/upload/v1779732202/kirtas/portraits/liadan.png' },
     { key: 'vesperian', label: 'Vesperian',    portrait: 'https://res.cloudinary.com/df0tgoiyb/image/upload/v1779833079/kirtas/characters/vesperian.png' },
   ];
-  const current = (new URLSearchParams(window.location.search)).get('character') || 'tyros';
+  const current = (new URLSearchParams(window.location.search)).get('character') || 'cosmere';
   const others = chars.filter(c => c.key !== current);
 
   // Build card inside overlay
