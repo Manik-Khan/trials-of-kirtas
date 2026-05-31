@@ -164,7 +164,7 @@
       "page": 153,
       "qty": 1,
       "icon": null,
-      "containerId": null,
+      "containerId": "bag_mpsu9vj49g8x",
       "_enriched": true,
       "alias": null
     },
@@ -500,5 +500,5 @@
     "flaws": "",
     "backstory": ""
   },
-  "lastUpdated": "2026-05-31T17:14:36.029Z"
+  "lastUpdated": "2026-05-31T17:14:51.172Z"
 }
