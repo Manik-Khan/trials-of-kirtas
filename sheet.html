@@ -824,8 +824,9 @@
       padding: 0.35rem 0.3rem;
       border-bottom: 1px solid rgba(184,149,42,0.07);
       transition: background 0.1s;
+      -webkit-touch-callout: none; -webkit-user-select: none; user-select: none;
     }
-    .equip-item-row:hover { background: rgba(184,149,42,0.05); }
+    @media (hover: hover) { .equip-item-row:hover { background: rgba(184,149,42,0.05); } }
     .equip-item-row.editing { background: rgba(184,149,42,0.08); border-left: 2px solid var(--gold-mid); padding-left: 0.1rem; }
     /* Drag handle */
     .equip-drag-handle {
@@ -845,6 +846,7 @@
     .equip-item-wrap.drag-over { border-top: 2px solid var(--gold); }
     .equip-item-wrap.drag-over-below { border-bottom: 2px solid var(--gold); }
     .equip-item-wrap.dragging { opacity: 0.4; }
+    .equip-tile.dragging { opacity: 0.4; }
 
     /* ── Inventory v2: icons, grid, bags, breadcrumb, picker ── */
 
@@ -873,7 +875,8 @@
       background: transparent; border: none; cursor: pointer; font-size: 0.62rem;
       opacity: 0; transition: opacity 0.12s;
     }
-    .equip-tile:hover .equip-tile-lock, .equip-tile.is-locked .equip-tile-lock { opacity: 0.85; }
+    .equip-tile.is-locked .equip-tile-lock { opacity: 0.85; }
+    @media (hover: hover) { .equip-tile:hover .equip-tile-lock { opacity: 0.85; } }
 
     /* Drag-into-container highlight */
     .equip-item-wrap.is-bag.drag-into > .equip-item-row,
@@ -925,8 +928,9 @@
       position: relative; display: flex; flex-direction: column; align-items: center; gap: 0.25rem;
       padding: 0.55rem 0.3rem 0.4rem; border: 1px solid var(--gold-dim); border-radius: 4px;
       background: rgba(0,0,0,0.15); cursor: pointer; transition: background 0.12s, border-color 0.12s;
+      -webkit-touch-callout: none; -webkit-user-select: none; user-select: none;
     }
-    .equip-tile:hover { background: rgba(184,149,42,0.08); border-color: var(--gold-mid); }
+    @media (hover: hover) { .equip-tile:hover { background: rgba(184,149,42,0.08); border-color: var(--gold-mid); } }
     .equip-tile.is-bag { background: rgba(184,149,42,0.06); }
     .equip-tile-icon { width: 36px; height: 36px; display: flex; align-items: center; justify-content: center; color: var(--gold); }
     .equip-tile.is-bag .equip-tile-icon { color: var(--gold-light); }
@@ -940,7 +944,9 @@
       background: transparent; border: none; color: var(--muted); cursor: pointer;
       font-size: 0.62rem; opacity: 0; transition: opacity 0.12s;
     }
-    .equip-tile:hover .equip-tile-edit { opacity: 0.7; }
+    @media (hover: hover) { .equip-tile:hover .equip-tile-edit { opacity: 0.7; } }
+    /* Touch devices get no :hover, so surface the tile lock/edit buttons by default. */
+    @media (hover: none) { .equip-tile-lock, .equip-tile-edit { opacity: 0.6; } }
     .equip-tile-edit:hover { opacity: 1; color: var(--gold-light); }
 
     /* Icon picker (edit accordion) */
@@ -2044,6 +2050,7 @@ let _rightTab        = 'search';
 let _dragIdx         = null;
 let _touchTimer      = null;
 let _touchDragging   = false;
+let _touchStartXY    = null;
 let _itemSearchTimer = null;
 let _itemSearchResults = [];
 let _notesTimer      = null;
@@ -2985,9 +2992,9 @@ function csInvRow(item, i) {
   return `
     <div class="equip-item-wrap${isBag ? ' is-bag' : ''}${locked ? ' is-locked' : ''}${expanded ? ' is-open' : ''}" id="equip-wrap-${i}"
       ${dragAttrs} ${dropAttrs}>
-      <div class="equip-item-row" id="equip-row-${i}" ${rowClick}>
+      <div class="equip-item-row" id="equip-row-${i}" ${rowClick} ontouchstart="${locked ? '' : `csTouchHold(event, ${i})`}">
         <span class="equip-drag-handle" title="${locked ? 'Locked' : 'Drag to move'}"
-          ontouchstart="${locked ? '' : `csTouchDragStart(event, ${i})`}" onclick="event.stopPropagation()">&#8801;&#8801;</span>
+          onclick="event.stopPropagation()">&#8801;&#8801;</span>
         <span class="equip-item-glyph">${csInvIcon(item, 20)}</span>
         <div class="equip-item-name-wrap" style="flex:1;min-width:0">
           <div class="equip-item-name">${escapeHtml(item.name)}</div>
@@ -3013,7 +3020,7 @@ function csInvTile(item, i) {
   const dragAttrs = locked ? '' : `draggable="true" ondragstart="csTileDragStart(event, ${i})" ondragend="csTileDragEnd(event)"`;
   const dropAttrs = (isBag && !locked) ? `ondragover="csBagDragOver(event, '${item.id}')" ondragleave="csBagDragLeave(event)" ondrop="csBagDrop(event, '${item.id}')"` : '';
   return `
-    <div class="equip-tile${isBag ? ' is-bag' : ''}${locked ? ' is-locked' : ''}" data-idx="${i}" ${dragAttrs} ${dropAttrs} onclick="${tap}">
+    <div class="equip-tile${isBag ? ' is-bag' : ''}${locked ? ' is-locked' : ''}" data-idx="${i}" ${dragAttrs} ${dropAttrs} onclick="${tap}" ontouchstart="${locked ? '' : `csTouchHold(event, ${i})`}">
       <button class="equip-tile-lock${locked ? ' locked' : ''}" title="${locked ? 'Locked \u2014 tap to unlock' : 'Lock'}" onclick="event.stopPropagation();csToggleLock(${i})">${locked ? '\uD83D\uDD12' : '\uD83D\uDD13'}</button>
       <button class="equip-tile-edit" title="Edit" aria-label="Edit ${escapeHtml(item.name)}" onclick="event.stopPropagation();csEditFromTile(${i})">\u270E</button>
       <div class="equip-tile-icon">${csInvIcon(item, 34)}</div>
@@ -3191,13 +3198,13 @@ function buildEquipmentTab() {
         ${openBag ? (() => {
           // Build the full trail from Carried down to the open bag.
           const trail = [openBag, ...csAncestors(openBag)].reverse(); // outermost → openBag
-          const crumbs = [`<button class="equip-crumb" onclick="csCloseBag()" ondragover="csCrumbOver(event,'')" ondragleave="csCrumbLeave(event)" ondrop="csCrumbDrop(event,'')">Carried</button>`];
+          const crumbs = [`<button class="equip-crumb" data-crumb-id="" onclick="csCloseBag()" ondragover="csCrumbOver(event,'')" ondragleave="csCrumbLeave(event)" ondrop="csCrumbDrop(event,'')">Carried</button>`];
           trail.forEach((b, k) => {
             const isLast = k === trail.length - 1;
             crumbs.push(`<span class="equip-crumb-sep">\u203A</span>`);
             crumbs.push(isLast
               ? `<span class="equip-crumb cur">${escapeHtml(b.name)}</span>`
-              : `<button class="equip-crumb" onclick="csOpenBag('${b.id}')" ondragover="csCrumbOver(event,'${b.id}')" ondragleave="csCrumbLeave(event)" ondrop="csCrumbDrop(event,'${b.id}')">${escapeHtml(b.name)}</button>`);
+              : `<button class="equip-crumb" data-crumb-id="${b.id}" onclick="csOpenBag('${b.id}')" ondragover="csCrumbOver(event,'${b.id}')" ondragleave="csCrumbLeave(event)" ondrop="csCrumbDrop(event,'${b.id}')">${escapeHtml(b.name)}</button>`);
           });
           return `<div class="equip-breadcrumb">${crumbs.join('')}<span class="equip-crumb-hint">drop on a level to move there</span></div>`;
         })() : ''}
@@ -3931,71 +3938,151 @@ function csDragEnd(event) {
   });
 }
 
-// Touch drag — long press (600ms) activates drag mode
-function csTouchDragStart(event, idx) {
-  event.stopPropagation();
+// ── Touch drag (mobile) ──
+// Long-press (~450ms) on a row or tile picks it up; a plain tap falls straight through
+// to the element's onclick (open detail / drill into a bag). Works in both list and grid,
+// and reuses the same move logic as mouse DnD (csCanDropInto / csReorderItem /
+// csMoveItemToBag), so all guards and lock notices behave identically.
+const CS_HOLD_MS   = 450;  // long-press duration to enter drag mode
+const CS_HOLD_SLOP = 10;   // px of finger travel that cancels a pending pickup (= a scroll)
+
+function csTouchHold(event, idx) {
+  // Ignore multi-touch and presses that begin on an interactive control (qty/lock/edit).
+  if (!event.touches || event.touches.length !== 1) return;
+  if (event.target.closest('input, button')) return;
+  const item = _currentInv && _currentInv[idx];
+  if (!item || item.locked) return;          // locked items don't move
+  const t = event.touches[0];
+  _touchStartXY  = { x: t.clientX, y: t.clientY };
+  _touchDragging = false;
   clearTimeout(_touchTimer);
   _touchTimer = setTimeout(() => {
     _touchDragging = true;
     _dragIdx = idx;
-    const el = document.getElementById(`equip-wrap-${idx}`);
+    const el = document.getElementById(`equip-wrap-${idx}`)
+            || document.querySelector(`.equip-tile[data-idx="${idx}"]`);
     if (el) el.classList.add('dragging');
-    // Bind touchmove and touchend to document
-    document.addEventListener('touchmove', csTouchMove, { passive: false });
-    document.addEventListener('touchend', csTouchEnd);
-  }, 600);
+    if (navigator.vibrate) { try { navigator.vibrate(15); } catch (e) {} }
+  }, CS_HOLD_MS);
+  document.addEventListener('touchmove', csTouchMove, { passive: false });
+  document.addEventListener('touchend', csTouchEnd);
+  document.addEventListener('touchcancel', csTouchEnd);
 }
 
-function csTouchMove(event) {
-  if (!_touchDragging) return;
-  event.preventDefault();
-  const touch = event.touches[0];
-  const el = document.elementFromPoint(touch.clientX, touch.clientY);
-  document.querySelectorAll('.equip-item-wrap').forEach(e => e.classList.remove('drag-over', 'drag-over-below'));
-  document.querySelectorAll('.drag-into').forEach(e => e.classList.remove('drag-into'));
-  // Over a bag (and dragged item isn't itself a bag) → highlight as "drop into".
-  const bagWrap = el?.closest('.equip-item-wrap.is-bag');
-  const dragged = _currentInv[_dragIdx];
-  if (bagWrap && dragged && !dragged.isContainer) {
-    const bIdx = parseInt(bagWrap.id.replace('equip-wrap-', ''));
-    const bag = _currentInv[bIdx];
-    if (bag && !bag.locked && dragged.containerId !== bag.id) { bagWrap.classList.add('drag-into'); return; }
-  }
-  // Otherwise treat as reorder within the same level.
-  const wrap = el?.closest('.equip-item-wrap');
-  if (!wrap) return;
-  const toIdx = parseInt(wrap.id.replace('equip-wrap-', ''));
-  if (isNaN(toIdx) || toIdx === _dragIdx) return;
-  wrap.classList.add(_dragIdx < toIdx ? 'drag-over-below' : 'drag-over');
-}
-
-function csTouchEnd(event) {
+function csTouchTeardown() {
   clearTimeout(_touchTimer);
   document.removeEventListener('touchmove', csTouchMove);
   document.removeEventListener('touchend', csTouchEnd);
-  if (!_touchDragging) return;
-  _touchDragging = false;
-  const touch = event.changedTouches[0];
-  const el = document.elementFromPoint(touch.clientX, touch.clientY);
-  document.querySelectorAll('.equip-item-wrap').forEach(e => e.classList.remove('drag-over', 'drag-over-below', 'dragging'));
+  document.removeEventListener('touchcancel', csTouchEnd);
+  _touchStartXY = null;
+}
+
+function csClearTouchHints() {
+  document.querySelectorAll('.equip-item-wrap').forEach(e => e.classList.remove('drag-over', 'drag-over-below'));
   document.querySelectorAll('.drag-into').forEach(e => e.classList.remove('drag-into'));
-  const fromIdx = _dragIdx;
-  _dragIdx = null;
-  if (fromIdx === null) return;
-  const dragged = _currentInv[fromIdx];
-  // Dropped onto a bag → move into it.
-  const bagWrap = el?.closest('.equip-item-wrap.is-bag');
-  if (bagWrap && dragged && !dragged.isContainer) {
-    const bIdx = parseInt(bagWrap.id.replace('equip-wrap-', ''));
-    const bag = _currentInv[bIdx];
-    if (bag && !bag.locked && dragged.containerId !== bag.id) { csMoveItemToBag(fromIdx, bag.id); return; }
+}
+
+// Index from either a list wrap (id="equip-wrap-N") or a grid tile (data-idx="N").
+function csIdxFromEl(el) {
+  if (!el) return NaN;
+  if (el.id && el.id.indexOf('equip-wrap-') === 0) return parseInt(el.id.replace('equip-wrap-', ''));
+  if (el.dataset && el.dataset.idx !== undefined) return parseInt(el.dataset.idx);
+  return NaN;
+}
+
+function csTouchMove(event) {
+  const t = event.touches[0];
+  if (!t) return;
+  if (!_touchDragging) {
+    // Still in the long-press window: real movement means a scroll, so cancel the
+    // pending pickup and let the page scroll untouched.
+    if (_touchStartXY) {
+      const dx = Math.abs(t.clientX - _touchStartXY.x);
+      const dy = Math.abs(t.clientY - _touchStartXY.y);
+      if (dx > CS_HOLD_SLOP || dy > CS_HOLD_SLOP) csTouchTeardown();
+    }
+    return;
   }
-  // Dropped onto a normal row → reorder within same level.
-  const wrap = el?.closest('.equip-item-wrap');
+  // Drag active: own the gesture so the page doesn't scroll underneath the finger.
+  event.preventDefault();
+  csClearTouchHints();
+  const dragged = _currentInv[_dragIdx];
+  if (!dragged) return;
+  const el = document.elementFromPoint(t.clientX, t.clientY);
+  if (!el) return;
+  // 1) Breadcrumb level (the grid "move out" affordance).
+  const crumb = el.closest('.equip-crumb[data-crumb-id]');
+  if (crumb) {
+    const dest = crumb.getAttribute('data-crumb-id') || null;
+    if ((dragged.containerId || null) !== dest && (!dest || csCanDropInto(dragged, dest))) {
+      crumb.closest('.equip-breadcrumb')?.classList.add('drag-into');
+    }
+    return;
+  }
+  // 2) A bag (list wrap or grid tile) → "drop into".
+  const bagEl = el.closest('.equip-item-wrap.is-bag, .equip-tile.is-bag');
+  if (bagEl) {
+    const bag = _currentInv[csIdxFromEl(bagEl)];
+    if (bag && bag.id && csCanDropInto(dragged, bag.id)) { bagEl.classList.add('drag-into'); return; }
+  }
+  // 3) A normal list row → reorder hint.
+  const wrap = el.closest('.equip-item-wrap');
   if (wrap) {
-    const toIdx = parseInt(wrap.id.replace('equip-wrap-', ''));
-    if (!isNaN(toIdx) && toIdx !== fromIdx) csReorderItem(fromIdx, toIdx);
+    const toIdx = csIdxFromEl(wrap);
+    if (!isNaN(toIdx) && toIdx !== _dragIdx) wrap.classList.add(_dragIdx < toIdx ? 'drag-over-below' : 'drag-over');
   }
+}
+
+function csTouchEnd(event) {
+  const wasDragging = _touchDragging;
+  const fromIdx = _dragIdx;
+  csTouchTeardown();
+  _touchDragging = false;
+  _dragIdx = null;
+  if (!wasDragging) return;          // it was a tap → let the element's onclick run
+  csSuppressNextClick();             // it was a drag → don't let the synthesised click open it
+  document.querySelectorAll('.dragging').forEach(e => e.classList.remove('dragging'));
+  csClearTouchHints();
+  const t = event.changedTouches && event.changedTouches[0];
+  if (fromIdx === null || !t) return;
+  const dragged = _currentInv[fromIdx];
+  if (!dragged) return;
+  const el = document.elementFromPoint(t.clientX, t.clientY);
+  if (!el) return;
+  // Breadcrumb → move to that level.
+  const crumb = el.closest('.equip-crumb[data-crumb-id]');
+  if (crumb) {
+    const dest = crumb.getAttribute('data-crumb-id') || null;
+    if ((dragged.containerId || null) !== dest) csMoveItemToBag(fromIdx, dest);
+    return;
+  }
+  // Onto a bag → move in.
+  const bagEl = el.closest('.equip-item-wrap.is-bag, .equip-tile.is-bag');
+  if (bagEl) {
+    const bag = _currentInv[csIdxFromEl(bagEl)];
+    if (bag && bag.id && csCanDropInto(dragged, bag.id)) { csMoveItemToBag(fromIdx, bag.id); return; }
+  }
+  // Onto a normal list row → reorder within the level.
+  const wrap = el.closest('.equip-item-wrap');
+  if (wrap) {
+    const toIdx = csIdxFromEl(wrap);
+    if (!isNaN(toIdx) && toIdx !== fromIdx) csReorderItem(fromIdx, toIdx);
+    return;
+  }
+  // Dropped on empty grid space while drilled into a bag → move out one level.
+  if (_invView === 'grid' && _openBagId) {
+    const openBag = csBagById(_openBagId);
+    const parentId = openBag ? (openBag.containerId || null) : null;
+    if ((dragged.containerId || null) !== parentId) csMoveItemToBag(fromIdx, parentId);
+  }
+}
+
+// Swallow the single click the browser synthesises after a touch-drag, so finishing a
+// drag never also opens the detail panel or drills into a bag.
+function csSuppressNextClick() {
+  const kill = (e) => { e.stopPropagation(); e.preventDefault(); document.removeEventListener('click', kill, true); };
+  document.addEventListener('click', kill, true);
+  setTimeout(() => document.removeEventListener('click', kill, true), 700);
 }
 
 // Reorder, and/or move between levels. Dropping an item on a row in a different container
