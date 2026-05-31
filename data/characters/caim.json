@@ -259,7 +259,16 @@
       "icon": null,
       "containerId": "bag_mpsu9vj49g8x",
       "_enriched": true,
-      "alias": null
+      "alias": null,
+      "attackStat": null,
+      "dmgBonus": null,
+      "extraDmg": null,
+      "flavor": null,
+      "notes": null,
+      "isContainer": true,
+      "extradimensional": false,
+      "locked": false,
+      "id": "bag_mpu1juy34vqj"
     },
     {
       "name": "Mess Kit",
@@ -469,5 +478,5 @@
     "flaws": "",
     "backstory": ""
   },
-  "lastUpdated": "2026-05-31T17:15:47.780Z"
+  "lastUpdated": "2026-05-31T17:16:01.412Z"
 }
