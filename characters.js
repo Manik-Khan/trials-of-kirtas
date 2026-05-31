@@ -25,7 +25,7 @@ const CHARACTERS = {
   // Warlock 2 / Sorcerer 1 — The Hexblade — Astral Elf
   // Last updated: Session 0
   // ════════════════════════════════════════════════════════
-  cosmere: {
+  tyros: {
 
     name:         'Cosmere Runestar',
     classLabel:   'Warlock 2 / Sorcerer 1',
@@ -274,7 +274,7 @@ const CHARACTERS = {
       backstory:   '',
     },
 
-  }, // end cosmere
+  }, // end tyros
 
 
   // ════════════════════════════════════════════════════════
