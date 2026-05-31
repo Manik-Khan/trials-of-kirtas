@@ -57,47 +57,6 @@
       "alias": null
     },
     {
-      "name": "Dungeoneer's Pack",
-      "rarity": "None",
-      "type": "G",
-      "typeLabel": "Adventuring Gear",
-      "weaponCat": "Adventuring Gear",
-      "detail": "Adventuring Gear · 61.5 lb",
-      "price": "12 gp",
-      "weight": 0,
-      "dmg1": null,
-      "dmg2": null,
-      "dmgType": null,
-      "range": null,
-      "ac": null,
-      "strength": null,
-      "stealth": null,
-      "reqAttune": null,
-      "properties": "Adventuring Gear",
-      "entries": [
-        "Includes:",
-        "a backpack",
-        "a crowbar",
-        "a hammer",
-        "10 pitons",
-        "10 torches",
-        "a tinderbox",
-        "10 days of rations",
-        "a waterskin",
-        "50 feet of hempen rope"
-      ],
-      "contents": [
-        "Piton ×10",
-        "Torch ×10",
-        "Rations (1 day) ×10"
-      ],
-      "source": "PHB",
-      "sourceFull": "PHB p151",
-      "page": 151,
-      "_enriched": true,
-      "alias": null
-    },
-    {
       "name": "Shield",
       "rarity": "None",
       "type": "S",
@@ -141,5 +100,5 @@
     "flaws": "",
     "backstory": ""
   },
-  "lastUpdated": "2026-05-22T22:56:20.141Z"
+  "lastUpdated": "2026-05-31T18:47:28.316Z"
 }
