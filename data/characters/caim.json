@@ -43,7 +43,8 @@
       "dmgBonus": null,
       "extraDmg": null,
       "flavor": null,
-      "notes": null
+      "notes": null,
+      "locked": true
     },
     {
       "name": "Dart",
@@ -500,5 +501,5 @@
     "flaws": "",
     "backstory": ""
   },
-  "lastUpdated": "2026-05-31T17:14:51.172Z"
+  "lastUpdated": "2026-05-31T17:15:25.722Z"
 }
