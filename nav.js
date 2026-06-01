@@ -471,10 +471,17 @@ function mountNav() {
   const mount = document.getElementById('nav-root');
   if (mount) {
     mount.outerHTML = buildNav();
-    return;
+  } else {
+    // Fallback: prepend to body
+    document.body.insertAdjacentHTML('afterbegin', buildNav());
   }
-  // Fallback: prepend to body
-  document.body.insertAdjacentHTML('afterbegin', buildNav());
+  // ── nav:ready ──
+  // The nav DOM (incl. #theme-dropdown and #battle-btn) now exists. Because the
+  // session gate makes the mount async, consumers can't rely on DOMContentLoaded
+  // — they listen for this signal instead. battle.js uses it to inject its
+  // mobile battle section into the theme dropdown; future nav-dependent widgets
+  // (e.g. the My Character menu) can wait on it too. Fires on every mount path.
+  document.dispatchEvent(new CustomEvent('nav:ready'));
 }
 
 

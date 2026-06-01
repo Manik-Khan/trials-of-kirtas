@@ -1315,7 +1315,13 @@
     });
   }
 
-  if(document.getElementById('site-nav')) init();
-  else document.addEventListener('DOMContentLoaded',init);
+  // Boot once the nav exists. nav.js mounts the nav asynchronously (after the
+  // session check), so #theme-dropdown isn't present at DOMContentLoaded — we
+  // wait for nav.js's 'nav:ready' signal instead. The guard ensures init() runs
+  // exactly once (it binds listeners that must not double-subscribe).
+  let _battleBooted = false;
+  function bootBattle(){ if(_battleBooted) return; _battleBooted = true; init(); }
+  if (document.getElementById('site-nav')) bootBattle();
+  else document.addEventListener('nav:ready', bootBattle, { once: true });
 
 })();
