@@ -27,7 +27,7 @@ const respond = (statusCode, body) => ({
 
 // Each character has its own file: data/characters/caim.json etc.
 // KEY_FILE maps a key to its data filename where the two differ (e.g. during a key rename).
-const KEY_FILE = { cosmere: 'tyros' }; // cosmere data lives in tyros.json until the file is renamed
+const KEY_FILE = {}; // cosmere data file renamed to cosmere.json (2026-06-01) — no alias needed
 function filePath(key) {
   return `data/characters/${KEY_FILE[key] || key}.json`;
 }
