@@ -82,6 +82,112 @@
       "page": 144,
       "_enriched": true,
       "alias": null
+    },
+    {
+      "name": "Explorer's Pack",
+      "detail": "Adventuring Gear · 59 lb",
+      "qty": 1,
+      "weight": 0,
+      "dmg1": null,
+      "dmg2": null,
+      "dmgType": null,
+      "ac": null,
+      "range": null,
+      "price": "1 pp",
+      "reqAttune": null,
+      "properties": [],
+      "entries": [
+        "Includes:",
+        "a backpack",
+        "a bedroll",
+        "a mess kit",
+        "a tinderbox",
+        "10 torches",
+        "10 days of rations",
+        "a waterskin",
+        "50 feet of hempen rope"
+      ],
+      "rarity": "None",
+      "weaponCat": "Adventuring Gear",
+      "typeLabel": "Adventuring Gear",
+      "sourceFull": "PHB p151",
+      "source": "PHB",
+      "strength": null,
+      "stealth": null,
+      "contents": [
+        "Torch ×10",
+        "Rations (1 day) ×10"
+      ],
+      "icon": null,
+      "isContainer": true,
+      "extradimensional": false,
+      "locked": false,
+      "id": "bag_mpvstetc34br",
+      "containerId": null
+    },
+    {
+      "name": "Backpack",
+      "qty": 1,
+      "weight": null,
+      "icon": null,
+      "containerId": "bag_mpvstetc34br",
+      "_enriched": false
+    },
+    {
+      "name": "Bedroll",
+      "qty": 1,
+      "weight": null,
+      "icon": null,
+      "containerId": "bag_mpvstetc34br",
+      "_enriched": false
+    },
+    {
+      "name": "Mess Kit",
+      "qty": 1,
+      "weight": null,
+      "icon": null,
+      "containerId": "bag_mpvstetc34br",
+      "_enriched": false
+    },
+    {
+      "name": "Tinderbox",
+      "qty": 1,
+      "weight": null,
+      "icon": null,
+      "containerId": "bag_mpvstetc34br",
+      "_enriched": false
+    },
+    {
+      "name": "Torch",
+      "qty": 10,
+      "weight": null,
+      "icon": null,
+      "containerId": "bag_mpvstetc34br",
+      "_enriched": false
+    },
+    {
+      "name": "Rations (1 Day)",
+      "qty": 10,
+      "weight": null,
+      "icon": null,
+      "containerId": "bag_mpvstetc34br",
+      "_enriched": false
+    },
+    {
+      "name": "Waterskin",
+      "qty": 1,
+      "weight": null,
+      "icon": null,
+      "containerId": "bag_mpvstetc34br",
+      "_enriched": false
+    },
+    {
+      "name": "Hempen Rope (50 Feet)",
+      "qty": 1,
+      "weight": null,
+      "icon": null,
+      "containerId": "bag_mpvstetc34br",
+      "_enriched": false
     }
   ],
   "currency": {
@@ -99,7 +205,7 @@
     "flaws": "",
     "backstory": ""
   },
-  "lastUpdated": "2026-06-01T22:46:51.174Z",
+  "lastUpdated": "2026-06-01T22:47:03.049Z",
   "combat": {
     "hp": 24,
     "hpTemp": 0,
