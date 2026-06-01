@@ -500,29 +500,64 @@ applyTheme(getSavedTheme());
     return;
   }
 
-  // Load Supabase client if not already present (login.html loads it too,
-  // but other pages don't — so we inject the script tag and wait for it).
-  if (typeof supabase === 'undefined') {
-    await new Promise((resolve, reject) => {
-      const s = document.createElement('script');
-      s.src = 'https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2';
-      s.onload  = resolve;
-      s.onerror = reject;
-      document.head.appendChild(s);
-    });
+  // ── Auth gate veil ──
+  // Cover the already-rendered page with a themed spinner while we verify the
+  // session, so an unauthenticated visitor never sees a flash of protected
+  // content before the redirect fires. Only runs on gated pages (login.html
+  // returned above). Removed on success; left up on the redirect path since
+  // the page navigates away anyway. Uses theme vars so it matches the theme
+  // that already applied.
+  const veilStyle = document.createElement('style');
+  veilStyle.textContent =
+    '.nav-auth-spinner{width:38px;height:38px;border-radius:50%;' +
+    'border:3px solid var(--gold-dim,rgba(184,149,42,.15));' +
+    'border-top-color:var(--gold,#b8952a);' +
+    'animation:nav-auth-spin .7s linear infinite}' +
+    '@keyframes nav-auth-spin{to{transform:rotate(360deg)}}';
+  document.head.appendChild(veilStyle);
+  const authVeil = document.createElement('div');
+  authVeil.innerHTML = '<div class="nav-auth-spinner"></div>';
+  authVeil.style.cssText =
+    'position:fixed;inset:0;z-index:9999;display:flex;align-items:center;' +
+    'justify-content:center;background:var(--ink,#1a1410);' +
+    'transition:opacity .2s ease;';
+  (document.body || document.documentElement).appendChild(authVeil);
+  function dropVeil() {
+    authVeil.style.opacity = '0';
+    setTimeout(() => authVeil.remove(), 200);
   }
 
-  const sb = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
-  const { data } = await sb.auth.getSession();
+  try {
+    // Load Supabase client if not already present (login.html loads it too,
+    // but other pages don't — so we inject the script tag and wait for it).
+    if (typeof supabase === 'undefined') {
+      await new Promise((resolve, reject) => {
+        const s = document.createElement('script');
+        s.src = 'https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2';
+        s.onload  = resolve;
+        s.onerror = reject;
+        document.head.appendChild(s);
+      });
+    }
 
-  if (!data.session) {
-    // No valid session — send to login.
+    const sb = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+    const { data } = await sb.auth.getSession();
+
+    if (!data.session) {
+      // No valid session — send to login. Leave the veil up; we're leaving.
+      window.location.href = LOGIN_PAGE;
+      return;
+    }
+
+    // Authenticated — mount nav, then fade the veil to reveal the page.
+    mountNav();
+    dropVeil();
+  } catch (e) {
+    // Couldn't verify the session (e.g. the Supabase client failed to load).
+    // Fail closed: redirect to login rather than hang on the spinner or risk
+    // exposing the page.
     window.location.href = LOGIN_PAGE;
-    return; // stop here; don't mount nav on a page about to redirect
   }
-
-  // Authenticated — mount nav as normal.
-  mountNav();
 })();
 
 // ── Mobile: hide nav on scroll down, reveal on scroll up ──
