@@ -479,9 +479,51 @@ function mountNav() {
 
 
 // ── Init ──
+// Theme applies immediately so the page never flickers to the wrong colours.
+// Nav mount waits for the session check (~200ms) so unauthenticated users are
+// redirected before the nav renders — no flash-then-kick.
 injectNavStyles();
 applyTheme(getSavedTheme());
-mountNav();
+
+(async function initNav() {
+  // Supabase config — scoped locally so these can never collide with
+  // constants future pages may declare (e.g. world.html for the battle map).
+  // Publishable key is safe to expose by design; RLS guards the data.
+  const SUPABASE_URL = 'https://cfthwspwpcfamgbfqzuq.supabase.co';
+  const SUPABASE_KEY = 'sb_publishable_12KUwzDbVvcar0zjh2KE6g_6IRBfmMJ';
+  const LOGIN_PAGE   = 'login.html';
+
+  // login.html manages its own auth flow — skip the check there.
+  const currentPage = getActivePath();
+  if (currentPage === LOGIN_PAGE) {
+    mountNav();
+    return;
+  }
+
+  // Load Supabase client if not already present (login.html loads it too,
+  // but other pages don't — so we inject the script tag and wait for it).
+  if (typeof supabase === 'undefined') {
+    await new Promise((resolve, reject) => {
+      const s = document.createElement('script');
+      s.src = 'https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2';
+      s.onload  = resolve;
+      s.onerror = reject;
+      document.head.appendChild(s);
+    });
+  }
+
+  const sb = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+  const { data } = await sb.auth.getSession();
+
+  if (!data.session) {
+    // No valid session — send to login.
+    window.location.href = LOGIN_PAGE;
+    return; // stop here; don't mount nav on a page about to redirect
+  }
+
+  // Authenticated — mount nav as normal.
+  mountNav();
+})();
 
 // ── Mobile: hide nav on scroll down, reveal on scroll up ──
 // Runs on every page since nav.js is sitewide.
