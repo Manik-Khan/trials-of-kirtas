@@ -1,6 +1,6 @@
 # Trials of Kirtas — CONTEXT
 
-State-carrying doc for picking up in a fresh conversation. Last updated end of the **auth-spinner + permissions-model + combat-schema session (2026-05-31, later)**.
+State-carrying doc for picking up in a fresh conversation. Last updated end of the **auth-spinner + permissions-model + combat-schema session (2026-05-31, late night)** — schema now RUN + verified in Supabase, spinner committed.
 
 > **Correction (this session):** a previous version of this doc described a "pending bundle" of files as built-but-not-committed. That was stale — a check against GitHub `main` confirmed the whole bundle (`nav.js`, `sheet.html`, `item-icons.js`, `character.js`, `world.html`) is already live. The "Pending commits" framing below has been corrected. Don't trust "pending/uncommitted" claims without checking `main` first.
 
@@ -37,7 +37,7 @@ Also: canonical source is the GitHub repo (`main`), not the live Netlify site. D
 
 Added a Supabase session gate to `nav.js`. Since `nav.js` loads on every page, every page is now gated. **Live in `main` and tested:** logged-in browser hitting `login.html` bounces to `index` ✓; fresh browser deep-linking to a protected page (`party.html`) is kicked to `login` ✓; no redirect loop ✓ (the previously-unverified risk is now cleared).
 
-**Auth-gate spinner (this session) — delivered, NOT yet committed.** The fresh-browser test showed a brief flash of the protected page before the redirect (the page paints, then the async session check runs and yanks it). Fixed by adding a themed full-screen "veil" + spinner in `nav.js`: on gated pages it covers the already-rendered content while the session check runs, fades out on success, stays up on the redirect path. Also wraps the check in a try/catch that **fails closed** (redirects to login if the Supabase client can't load, rather than hanging on a spinner). Veil uses theme vars (`--ink`, `--gold`) so it matches the active theme. Scoped to one hunk in `nav.js`; nothing else touched. **TODO: commit the updated `nav.js`.** (Cosmetic only — leaving it uncommitted just means the flash persists.)
+**Auth-gate spinner (this session) — COMMITTED + live in `main`** (verified: `nav-auth-spinner` / `authVeil` / `dropVeil` present in `nav.js`). The fresh-browser test had shown a brief flash of the protected page before the redirect (page paints, then the async session check runs and yanks it). Fixed with a themed full-screen "veil" + spinner in `nav.js`: on gated pages it covers the already-rendered content while the session check runs, fades out on success, stays up on the redirect path. The check is wrapped in a try/catch that **fails closed** (redirects to login if the Supabase client can't load, rather than hanging on a spinner). Veil uses theme vars (`--ink`, `--gold`). Real-device feel (fade timing 200ms, spinner size) not yet eyeballed live — tweak if it bugs you.
 
 **How it works:**
 - Theme applies immediately (no colour flicker).
@@ -93,7 +93,7 @@ Verified against GitHub `main`: the entire former "pending bundle" is **already 
 | `world.html` | cosmere token id | ✓ in `main` |
 | `characters.js` | `cosmere:` key | ✓ in `main` |
 
-**Only outstanding push:** the auth-gate **spinner** edit to `nav.js` (this session) — see Route protection. One file, one hunk, cosmetic.
+**All pushed.** The former bundle plus this session's spinner edit to `nav.js` are all in `main`. `schema_v1.sql` is also committed to the repo (16.8 KB, repo root) as the durable record of the DB structure. Nothing outstanding to push.
 
 ---
 
@@ -143,8 +143,8 @@ On `sheet.html` specifically: editing HP **via the sheet** updates the HUD ✓, 
 - **Site URL:** `https://trials-of-kirtas.netlify.app` — SET and confirmed.
 
 ### Users
-- `thebraveruby@gmail.com` (DM / owner) — added, login confirmed end-to-end.
-- The four players: **NOT yet added.** Each needs Authentication → Users → Add user.
+- `thebraveruby@gmail.com` (overseer / owner) — in Auth, login confirmed end-to-end, AND seeded into `profiles` as `role = 'overseer'` (2026-05-31).
+- The four players: **NOT yet added to Auth**, NOT yet seeded into `profiles`. Each needs Authentication → Users → Add user, then a profile row (player block in `schema_v1.sql`).
 
 ---
 
@@ -170,10 +170,10 @@ On `sheet.html` specifically: editing HP **via the sheet** updates the HUD ✓, 
 
 In order:
 
-1. ~~Deploy + test route protection~~ ✓ DONE + verified live. **Remaining:** commit the spinner edit to `nav.js` (cosmetic).
-2. **Run `schema_v1.sql`** in the Supabase SQL editor (structural migration — tables, RLS, trigger, realtime). Watch the realtime `DO` block on first run.
-3. **Add the four player accounts** in Supabase Auth (Authentication → Users → Add user), then **seed `profiles`** (uncomment the seed block at the bottom of `schema_v1.sql`, fill player emails). Overseer row for `thebraveruby@gmail.com` seeds too.
-4. **Client wiring for roles/views** — read the logged-in user's profile (role + character_key); default players into their character's seat; add the overseer/dm "view-as" switch (client lens).
+1. ~~Deploy + test route protection~~ ✓ DONE + verified live. ~~Commit spinner edit~~ ✓ committed to `main`.
+2. ~~Run `schema_v1.sql`~~ ✓ DONE + verified (RLS true on all 3 tables). ~~Seed overseer row~~ ✓ done.
+3. **← NEXT: add the four player accounts** in Supabase Auth (Authentication → Users → Add user), then **seed their `profiles`** (uncomment the player block at the bottom of `schema_v1.sql`, fill real emails, run it). That finishes the identity layer.
+4. **Client wiring for roles/views** (first app code on the new schema) — read the logged-in user's profile (role + character_key); default players into their character's seat; add the overseer/dm "view-as" switch (client lens, no schema).
 5. Read sync (staff writes, players watch live via Supabase Realtime).
 6. Write sync (players move own token; HUD writes own hp/conditions — column guard already allows this).
 7. Flush combat result → GitHub (durable record).
@@ -182,9 +182,11 @@ In order:
 
 **Future-proofing principle:** identity and security-bearing columns can't be cheaply retrofitted — get them right in v1. Position fields (`x`/`y`/`map_ref`) are NOT security-bearing; per this session's decision they're **included now** (cheap, saves a migration) but stay loose/nullable until the map layer wires them up.
 
-### Schema + RLS v1 — BUILT (`schema_v1.sql`, 2026-05-31), pending run in Supabase
+### Schema + RLS v1 — RUN + VERIFIED in Supabase (2026-05-31)
 
-Written as one re-runnable script for the Supabase SQL editor. NOT yet run against the DB (no live test from the build session — Supabase will surface any error on first run; watch the realtime `DO` block).
+`schema_v1.sql` was run in the Supabase SQL editor — "Success, no rows returned" (correct for a DDL script). **Verified live:** `select tablename, rowsecurity from pg_tables where schemaname='public'` returned all three tables with `rowsecurity = true`. The file is committed to the repo (root) as the source of truth. Re-runnable (idempotent), so safe to run again if ever needed.
+
+**Seeded so far:** ONLY the overseer row — `thebraveruby@gmail.com` → `role = 'overseer'` (upserted; the auth user already existed). `profiles` has exactly one row. The four players are NOT yet in Auth and NOT seeded. Tables are otherwise empty.
 
 **Permissions model — RESOLVED (2026-05-31).** Three concepts, kept separate:
 - **Authority (who CAN do what)** — three global roles on `profiles.role`: **`overseer`** (site owner / admin — full DB visibility so it can fix things; the ONLY role that can assign roles), **`dm`** (runs combat, sees all combatants + fog), **`player`** (plays one character; sees only non-hidden tokens + their own).
