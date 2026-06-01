@@ -59,10 +59,10 @@ const DEFAULT_THEME = 'parchment';
 // ── Characters for the sheet switcher ──
 // Add new characters here when the party grows
 const CHARACTERS_NAV = [
-  { key: 'cosmere',     label: 'Cosmere' },
-  { key: 'caim',      label: 'Caim' },
-  { key: 'liadan',    label: 'Líadan' },
-  { key: 'vesperian', label: 'Vesperian' },
+  { key: 'cosmere',     label: 'Cosmere',   full: 'Cosmere Runestar' },
+  { key: 'caim',      label: 'Caim',    full: 'Caim' },
+  { key: 'liadan',    label: 'Líadan',  full: 'Líadan Luchóg' },
+  { key: 'vesperian', label: 'Vesperian', full: 'Vesperian Vale' },
 ];
 
 // ── Determine active page from URL ──
@@ -126,7 +126,14 @@ function buildNav() {
 
   const navLinks = PAGES.map(page => {
     const isActive = activePath === page.path;
-    return `<a href="${page.path}" class="nav-link${isActive ? ' active' : ''}">${page.label}</a>`;
+    const link = `<a href="${page.path}" class="nav-link${isActive ? ' active' : ''}">${page.label}</a>`;
+    // Party gets a caret that opens the "Your Character" menu. The caret starts
+    // hidden and is revealed by populateCharMenu() only if the signed-in user
+    // has a character (players + the overseer-as-Vesperian); the DM never sees it.
+    if (page.path === 'party.html') {
+      return `<span class="nav-party-item">${link}<button class="nav-party-caret" id="nav-party-caret" type="button" onclick="toggleCharMenu(event)" aria-label="Jump to your character" hidden>▾</button></span>`;
+    }
+    return link;
   }).join('');
 
   // Character switcher — only rendered on sheet.html
@@ -168,6 +175,14 @@ function buildNav() {
           ${themeOptions}
         </div>
       </div>
+      <!-- "Your Character" menu — opened by the Party caret. Lives at nav level
+           (not inside .nav-links) and is position:fixed, JS-placed on open, so
+           the mobile horizontal-scroll/mask on .nav-links can't clip it. Body is
+           filled by populateCharMenu() once window.__tok resolves. -->
+      <div class="char-menu" id="char-menu">
+        <div class="char-menu-label">Your Character</div>
+        <div id="char-menu-body"></div>
+      </div>
     </nav>
   `;
 }
@@ -190,7 +205,61 @@ document.addEventListener('click', () => {
     const dropdown = document.getElementById('theme-dropdown');
     if (dropdown) dropdown.classList.remove('open');
   }
+  if (charMenuOpen) closeCharMenu();
 });
+
+
+// ── "Your Character" menu ──
+// Opened by the Party caret. The menu is position:fixed and placed under the
+// caret on open (so the scrolling/masked .nav-links can't clip it). It mirrors
+// the theme dropdown's open/close + outside-click behaviour.
+let charMenuOpen = false;
+
+function closeCharMenu() {
+  charMenuOpen = false;
+  document.getElementById('char-menu')?.classList.remove('open');
+}
+
+function toggleCharMenu(e) {
+  e.stopPropagation();
+  const menu  = document.getElementById('char-menu');
+  const caret = document.getElementById('nav-party-caret');
+  if (!menu || !caret) return;
+  charMenuOpen = !charMenuOpen;
+  if (charMenuOpen) {
+    // Place under the caret, clamped so a ~156px menu stays on-screen.
+    const r = caret.getBoundingClientRect();
+    menu.style.top  = (r.bottom + 6) + 'px';
+    menu.style.left = Math.max(8, Math.min(r.left - 4, window.innerWidth - 168)) + 'px';
+    menu.classList.add('open');
+  } else {
+    menu.classList.remove('open');
+  }
+}
+
+// A fixed menu would drift if the page or nav row scrolls — close it instead.
+window.addEventListener('scroll', () => { if (charMenuOpen) closeCharMenu(); }, true);
+
+// Fill the menu with the signed-in user's character and reveal the caret.
+// Players → their character; the overseer → Vesperian; the DM (no character_key)
+// → caret stays hidden. Runs after mountNav(), awaiting the 4a identity promise.
+async function populateCharMenu() {
+  try {
+    const me = (window.__tok && window.__tok.ready) ? await window.__tok.ready : null;
+    if (!me || !me.characterKey) return;            // DM / unprovisioned → no caret
+    const c = CHARACTERS_NAV.find(x => x.key === me.characterKey);
+    if (!c) return;
+    const body = document.getElementById('char-menu-body');
+    if (body) {
+      body.innerHTML =
+        `<a class="char-menu-row" href="sheet.html?character=${c.key}">` +
+        `<span class="char-menu-name">${c.full || c.label}</span>` +
+        `<span class="char-menu-go">→</span></a>`;
+    }
+    const caret = document.getElementById('nav-party-caret');
+    if (caret) caret.hidden = false;
+  } catch (e) { /* leave the caret hidden */ }
+}
 
 
 // ── Inject nav styles ──
@@ -402,6 +471,72 @@ function injectNavStyles() {
       transition: opacity 0.15s;
     }
 
+    /* ── "Your Character" menu (Party caret) ── */
+    .nav-party-item {
+      display: inline-flex;
+      align-items: center;
+      gap: 1px;
+      flex-shrink: 0;
+    }
+    .nav-party-caret {
+      background: none;
+      border: none;
+      color: var(--muted);
+      cursor: pointer;
+      font-size: 0.6rem;
+      line-height: 1;
+      padding: 2px 1px;
+      transition: color 0.2s, transform 0.2s;
+    }
+    .nav-party-caret:hover { color: var(--gold-light); }
+    .char-menu {
+      position: fixed;
+      top: 0;
+      left: 0;
+      min-width: 156px;
+      background: var(--nav-bg);
+      border: 1px solid var(--nav-border);
+      opacity: 0;
+      pointer-events: none;
+      transform: translateY(-6px);
+      transition: opacity 0.18s ease, transform 0.18s ease;
+      z-index: 200;
+    }
+    .char-menu.open {
+      opacity: 1;
+      pointer-events: auto;
+      transform: translateY(0);
+    }
+    .char-menu-label {
+      font-family: var(--font-title);
+      font-size: 0.48rem;
+      letter-spacing: 0.35em;
+      color: var(--muted);
+      text-transform: uppercase;
+      padding: 0.5rem 0.75rem 0.3rem;
+      border-bottom: 1px solid var(--gold-dim);
+      margin-bottom: 0.25rem;
+    }
+    .char-menu-row {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 0.75rem;
+      padding: 0.45rem 0.75rem;
+      text-decoration: none;
+      transition: background 0.15s;
+    }
+    .char-menu-row:hover { background: var(--gold-dim); }
+    .char-menu-name {
+      font-family: var(--font-title);
+      font-size: 0.6rem;
+      letter-spacing: 0.1em;
+      text-transform: uppercase;
+      color: var(--aged);
+    }
+    .char-menu-row:hover .char-menu-name { color: var(--gold-light); }
+    .char-menu-go { color: var(--gold); font-size: 0.7rem; }
+
     /* Character switcher — sheet.html only */
     .nav-char-switcher {
       display: flex;
@@ -597,6 +732,7 @@ applyTheme(getSavedTheme());
 
     // Authenticated — mount nav, then fade the veil to reveal the page.
     mountNav();
+    populateCharMenu();   // reveals the Party caret + fills it once __tok resolves
     dropVeil();
   } catch (e) {
     // Couldn't verify the session (e.g. the Supabase client failed to load).
