@@ -549,6 +549,45 @@ applyTheme(getSavedTheme());
       return;
     }
 
+    // ── Identity (whoami) ──
+    // Expose the logged-in user's identity for downstream pages (role-aware
+    // views, seat-defaulting, combat). nav.js already authenticated above and
+    // holds the session, so we reuse it — no second client, no extra getSession.
+    // The profile fetch runs in the BACKGROUND: it does NOT gate the veil, so
+    // perceived load time is unchanged. Consumers do `await window.__tok.ready`.
+    //   window.__tok.session : the raw Supabase session (token + user)
+    //   window.__tok.ready   : promise → profile object, or null. Never rejects.
+    //   window.__tok.profile : undefined until ready resolves, then object|null
+    // profile shape: { userId, email, role, characterKey }
+    //   role         : 'overseer' | 'dm' | 'player'
+    //   characterKey : 'cosmere' | 'caim' | 'liadan' | 'vesperian' | null
+    // A null profile means authenticated-but-no-profiles-row (unprovisioned) OR
+    // the lookup failed; 4a does not distinguish these — consumers decide in 4b.
+    window.__tok = window.__tok || {};
+    window.__tok.session = data.session;
+    window.__tok.profile = undefined; // resolves to object|null via .ready
+    window.__tok.ready = (async () => {
+      const userId = data.session.user.id;
+      const email  = data.session.user.email;
+      let profile = null;
+      try {
+        const { data: row } = await sb
+          .from('profiles')
+          .select('role, character_key')
+          .eq('user_id', userId)
+          .maybeSingle();
+        if (row) {
+          profile = { userId, email, role: row.role, characterKey: row.character_key };
+        }
+      } catch (e) {
+        // Session valid but the profile lookup failed. Resolve null rather than
+        // reject, so consumers can always `await` without a try/catch.
+        profile = null;
+      }
+      window.__tok.profile = profile;
+      return profile;
+    })();
+
     // Authenticated — mount nav, then fade the veil to reveal the page.
     mountNav();
     dropVeil();
