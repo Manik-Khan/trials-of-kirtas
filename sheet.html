@@ -2067,6 +2067,33 @@ let compFiltered     = [];
 let compFilter       = null;
 let compCache        = {};
 
+// ── Seat-defaulting (4b) ──
+// If the URL names no character, redirect the viewer to their OWN seat once
+// identity resolves: players → their character, you (overseer) → Vesperian,
+// the DM (no character_key) → the 'cosmere' fallback. Every in-app link already
+// carries ?character=, so this fires ONLY on a bare/typed URL — the normal
+// navigation paths are untouched. We redirect (not render-then-swap) so no one
+// sees the wrong sheet first; the page's #loading state stays up during the
+// brief wait. Identity comes from nav.js's window.__tok (resolved async, and
+// possibly after this script runs), so we poll briefly for it, then halt this
+// script via throw — same pattern as the characters.js guard below — since
+// we're navigating away.
+if (!new URLSearchParams(window.location.search).get('character')) {
+  (async () => {
+    let key = 'cosmere';                          // fallback (DM / failsafe)
+    try {
+      const start = Date.now();
+      while (!(window.__tok && window.__tok.ready) && Date.now() - start < 3000) {
+        await new Promise(r => setTimeout(r, 50));
+      }
+      const me = (window.__tok && window.__tok.ready) ? await window.__tok.ready : null;
+      if (me && me.characterKey) key = me.characterKey;
+    } catch (e) { /* fall back to default */ }
+    window.location.replace(`sheet.html?character=${key}`);
+  })();
+  throw new Error('seat-redirect — deferring to identity');
+}
+
 const params  = new URLSearchParams(window.location.search);
 const charKey = params.get('character') || 'cosmere';
 
