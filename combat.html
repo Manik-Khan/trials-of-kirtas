@@ -1,0 +1,493 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="parchment">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+  <title>Combat — The Trials of Kirtas</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Cinzel+Decorative:wght@700&family=Cinzel:wght@400;600&family=Crimson+Pro:ital,wght@0,400;0,600;1,400&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="theme.css">
+  <style>
+    /* ── page-scoped; relies on theme.css variables ── */
+    html, body { height: 100%; }
+    body {
+      display: flex;
+      flex-direction: column;
+      height: 100vh;
+      overflow: hidden;                 /* the stage scrolls, not the page */
+      background: var(--ink-deep);
+    }
+    /* On mobile nav.js makes the nav position:fixed and adds body padding-top:52px,
+       which pushes our flex content (bar + stage) below the bar automatically —
+       so no extra offset is needed here. */
+
+    /* ── encounter header strip (under the nav) ── */
+    .combat-bar {
+      flex-shrink: 0;
+      height: 40px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 0.9rem;
+      background: rgba(0,0,0,0.55);
+      border-bottom: 1px solid var(--gold-dim);
+    }
+    .combat-name {
+      font-family: var(--font-title);
+      font-size: 0.6rem;
+      letter-spacing: 0.32em;
+      text-transform: uppercase;
+      color: var(--gold-light);
+    }
+    .combat-round {
+      font-family: var(--font-title);
+      font-size: 0.52rem;
+      letter-spacing: 0.18em;
+      text-transform: uppercase;
+      color: var(--muted);
+    }
+    .combat-round b { color: var(--aged); font-weight: 600; }
+
+    /* ── the board stage ── */
+    .stage {
+      flex: 1;
+      position: relative;
+      overflow: auto;                   /* pan when the board exceeds the viewport */
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      background:
+        radial-gradient(circle at 50% 40%, rgba(184,149,42,0.04), transparent 70%),
+        var(--ink-deep);
+      -webkit-overflow-scrolling: touch;
+    }
+
+    .board {
+      position: relative;
+      flex-shrink: 0;                   /* keep its computed size inside the flex stage */
+      box-shadow: 0 10px 40px rgba(0,0,0,0.6);
+      background: var(--smoke);         /* shows through until/if the map loads */
+      outline: 1px solid var(--gold-dim);
+    }
+    .board-map {
+      display: block;
+      width: 100%;
+      height: 100%;
+      user-select: none;
+      -webkit-user-drag: none;
+    }
+    .board-map.missing { opacity: 0; }  /* hide the broken-image glyph; grid still proves the math */
+
+    /* grid overlay — viewBox is in NATIVE map coords, so it scales perfectly
+       with the board no matter the rendered size. */
+    .board-grid {
+      position: absolute;
+      inset: 0;
+      width: 100%;
+      height: 100%;
+      pointer-events: none;
+    }
+
+    /* tokens — positioned in %, so they ride the board through any resize */
+    .board-tokens { position: absolute; inset: 0; pointer-events: none; }
+    .token {
+      position: absolute;
+      transform: translate(-50%, -50%);
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 2px;
+      container-type: inline-size;      /* lets the initial size relative to the disc */
+    }
+    .token-disc {
+      width: 100%;
+      aspect-ratio: 1 / 1;
+      border-radius: 50%;
+      overflow: hidden;
+      border: 2px solid var(--ring, #fff);
+      box-shadow: 0 1px 4px rgba(0,0,0,0.7);
+      background: var(--ring, #555);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      box-sizing: border-box;
+    }
+    .token-disc img { width: 100%; height: 100%; object-fit: cover; }
+    .token-initial {
+      font-family: var(--font-title);
+      font-weight: 600;
+      color: #fff;
+      line-height: 1;
+      font-size: 50cqw;                 /* half the disc width */
+    }
+    .token-name {
+      font-family: var(--font-title);
+      font-size: 0.5rem;
+      letter-spacing: 0.04em;
+      color: var(--parchment);
+      white-space: nowrap;
+      text-shadow: 0 1px 3px #000, 0 0 4px #000;
+      max-width: 140px;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+    /* concealment badges — DM view only */
+    .token.is-hidden { opacity: 0.5; }
+    .token-badge {
+      position: absolute;
+      top: -4px; right: -4px;
+      font-size: 0.55rem;
+      line-height: 1;
+      background: var(--ink-deep);
+      border: 1px solid var(--gold-mid);
+      border-radius: 50%;
+      width: 14px; height: 14px;
+      display: flex; align-items: center; justify-content: center;
+      color: var(--gold-light);
+    }
+    /* the ??? a *player* sees for a teased token */
+    .token-disc.mystery {
+      background: repeating-linear-gradient(45deg, #2a2620, #2a2620 4px, #1c1a16 4px, #1c1a16 8px);
+      border-color: var(--muted);
+    }
+
+    /* ── grid controls panel ── */
+    .grid-controls {
+      position: absolute;
+      top: 10px; right: 10px;
+      z-index: 20;
+      background: var(--nav-bg);
+      border: 1px solid var(--nav-border);
+      padding: 0.5rem 0.6rem;
+      min-width: 156px;
+      font-family: var(--font-title);
+    }
+    .grid-controls h4 {
+      font-size: 0.46rem;
+      letter-spacing: 0.32em;
+      text-transform: uppercase;
+      color: var(--muted);
+      border-bottom: 1px solid var(--gold-dim);
+      padding-bottom: 0.3rem;
+      margin-bottom: 0.5rem;
+      font-weight: 600;
+    }
+    .gc-row { display: flex; align-items: center; justify-content: space-between; gap: 0.5rem; margin-bottom: 0.45rem; }
+    .gc-row:last-child { margin-bottom: 0; }
+    .gc-row label {
+      font-size: 0.5rem;
+      letter-spacing: 0.14em;
+      text-transform: uppercase;
+      color: var(--aged);
+    }
+    .gc-row input[type=range] { width: 78px; accent-color: var(--gold); }
+    .gc-row select {
+      background: var(--ink); color: var(--parchment2);
+      border: 1px solid var(--section-border); border-radius: 4px;
+      font-family: var(--font-title); font-size: 0.5rem; letter-spacing: 0.1em;
+      text-transform: uppercase; padding: 2px 4px;
+    }
+    .gc-row input[type=color] {
+      width: 26px; height: 18px; padding: 0; border: 1px solid var(--section-border);
+      background: var(--ink); border-radius: 4px; cursor: pointer;
+    }
+    .grid-controls.collapsed .gc-body { display: none; }
+    .gc-toggle { cursor: pointer; float: right; color: var(--muted); }
+
+    /* ── status / empty states ── */
+    .stage-msg {
+      position: absolute;
+      inset: 0;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      gap: 0.6rem;
+      text-align: center;
+      padding: 2rem;
+      color: var(--muted);
+    }
+    .stage-msg h2 {
+      font-family: var(--font-display);
+      font-size: 1.1rem;
+      color: var(--gold);
+      font-weight: 700;
+    }
+    .stage-msg p { font-family: var(--font-body); font-size: 0.95rem; max-width: 360px; }
+    .spinner {
+      width: 34px; height: 34px; border-radius: 50%;
+      border: 3px solid var(--gold-dim); border-top-color: var(--gold);
+      animation: spin 0.7s linear infinite;
+    }
+    @keyframes spin { to { transform: rotate(360deg); } }
+  </style>
+</head>
+<body>
+
+  <div id="nav-root"></div>
+
+  <div class="combat-bar" id="combat-bar" style="display:none">
+    <span class="combat-name" id="combat-name">—</span>
+    <span class="combat-round">Round <b id="combat-round">1</b></span>
+  </div>
+
+  <div class="stage" id="stage">
+    <div class="stage-msg" id="stage-msg">
+      <div class="spinner"></div>
+      <p>Loading the battlefield…</p>
+    </div>
+  </div>
+
+  <script src="nav.js"></script>
+  <script>
+  (function () {
+    'use strict';
+
+    // ── config ──
+    const CLOUDINARY_CLOUD = 'df0tgoiyb';           // same cloud as the portraits
+    const MAP_DISPLAY_W     = 2048;                 // Cloudinary width cap (decoded ≈ 24MB, not 163MB)
+    const MANIFEST_URL      = 'maps/manifest.json';
+
+    // party portraits + ring colours (mirrors battle.js — kept in sync manually for now)
+    const PORTRAITS = {
+      cosmere:   'https://res.cloudinary.com/df0tgoiyb/image/upload/v1779833033/kirtas/characters/cosmere.png',
+      caim:      'https://res.cloudinary.com/df0tgoiyb/image/upload/v1779833008/kirtas/characters/caim.png',
+      liadan:    'https://res.cloudinary.com/df0tgoiyb/image/upload/v1779732202/kirtas/portraits/liadan.png',
+      vesperian: 'https://res.cloudinary.com/df0tgoiyb/image/upload/v1779833079/kirtas/characters/vesperian.png',
+    };
+    const CHAR_COLOR = { cosmere: '#9d4edd', caim: '#c0001a', liadan: '#1d9e75', vesperian: '#b8952a' };
+    const ENEMY_COLOR = '#a23b2d';
+
+    function mapUrl(publicId) {
+      return `https://res.cloudinary.com/${CLOUDINARY_CLOUD}/image/upload/`
+           + `w_${MAP_DISPLAY_W},q_auto,f_auto/${publicId}.jpg`;
+    }
+
+    // ── wait for nav.js: it confirms the session, exposes window.__tok.sb, then
+    //    fires nav:ready. If we registered too late and it already fired, the
+    //    presence of __tok.sb tells us we can go. ──
+    function whenReady(cb) {
+      if (window.__tok && window.__tok.sb) { cb(); return; }
+      document.addEventListener('nav:ready', function once() {
+        document.removeEventListener('nav:ready', once);
+        cb();
+      });
+    }
+
+    const stage   = document.getElementById('stage');
+    const msgEl    = document.getElementById('stage-msg');
+    const barEl    = document.getElementById('combat-bar');
+
+    function showMsg(title, body, withSpinner) {
+      msgEl.innerHTML =
+        (withSpinner ? '<div class="spinner"></div>' : '') +
+        (title ? `<h2>${title}</h2>` : '') +
+        (body  ? `<p>${body}</p>`   : '');
+      msgEl.style.display = 'flex';
+    }
+    function hideMsg() { msgEl.style.display = 'none'; }
+
+    // ── grid state (seeded from the manifest, adjustable via the controls) ──
+    let GRID = { style: 'lines', color: '#ffffff', opacity: 0.32 };
+    let META = null;     // manifest entry for the active map
+    let boardEl = null;
+
+    // Build the grid SVG markup. viewBox is NATIVE map coords so it scales with
+    // the board automatically. Uses a <pattern> tile = one cell, offset by the
+    // origin — a handful of elements regardless of grid size.
+    function gridSvg(meta) {
+      const W = meta.cols * meta.cellPx;
+      const H = meta.rows * meta.cellPx;
+      const sw = Math.max(2, Math.round(meta.cellPx * 0.018)); // stroke ~ scales with cell
+      const cp = meta.cellPx;
+      let tile;
+      if (GRID.style === 'dots') {
+        const r = Math.max(2, Math.round(cp * 0.045));
+        tile = `<circle cx="0" cy="0" r="${r}" fill="${GRID.color}"/>`
+             + `<circle cx="${cp}" cy="0" r="${r}" fill="${GRID.color}"/>`
+             + `<circle cx="0" cy="${cp}" r="${r}" fill="${GRID.color}"/>`
+             + `<circle cx="${cp}" cy="${cp}" r="${r}" fill="${GRID.color}"/>`;
+      } else { // lines
+        tile = `<path d="M ${cp} 0 L 0 0 0 ${cp}" fill="none" `
+             + `stroke="${GRID.color}" stroke-width="${sw}"/>`;
+      }
+      const opacity = (GRID.style === 'none') ? 0 : GRID.opacity;
+      return `
+        <svg class="board-grid" viewBox="0 0 ${W} ${H}" preserveAspectRatio="none"
+             xmlns="http://www.w3.org/2000/svg">
+          <defs>
+            <pattern id="cell" width="${cp}" height="${cp}" patternUnits="userSpaceOnUse"
+                     patternTransform="translate(${meta.originX} ${meta.originY})">
+              ${tile}
+            </pattern>
+          </defs>
+          <rect x="0" y="0" width="${W}" height="${H}" fill="url(#cell)" opacity="${opacity}"/>
+        </svg>`;
+    }
+
+    function redrawGrid() {
+      if (!boardEl || !META) return;
+      const old = boardEl.querySelector('.board-grid');
+      if (old) old.remove();
+      // insert grid just above the map, below the tokens
+      const tokens = boardEl.querySelector('.board-tokens');
+      tokens.insertAdjacentHTML('beforebegin', gridSvg(META));
+    }
+
+    // ── token rendering ──
+    // `me` is the viewer's profile (role drives whether teased tokens are shown
+    // as ??? ). Players never receive `hidden` rows at all (RLS), so any hidden
+    // row reaching us means we're staff.
+    function tokenHtml(c, meta, isStaff) {
+      const W = meta.cols * meta.cellPx;
+      const H = meta.rows * meta.cellPx;
+      // cell-centre in native px → percentage of the board
+      const cx = ((meta.originX + (c.x + 0.5) * meta.cellPx) / W) * 100;
+      const cy = ((meta.originY + (c.y + 0.5) * meta.cellPx) / H) * 100;
+      const sizePct = (meta.cellPx / W) * 100;           // one cell wide
+
+      const teasedForPlayer = c.tease && !isStaff;       // player sees the veil
+      const isParty = c.side === 'party';
+      const ring = isParty ? (CHAR_COLOR[c.source_key] || '#888') : ENEMY_COLOR;
+
+      let disc;
+      if (teasedForPlayer) {
+        disc = `<div class="token-disc mystery"><span class="token-initial">?</span></div>`;
+      } else if (isParty && PORTRAITS[c.source_key]) {
+        disc = `<div class="token-disc" style="--ring:${ring}"><img src="${PORTRAITS[c.source_key]}" alt="" draggable="false"></div>`;
+      } else {
+        const initial = (c.name || '?').trim().charAt(0).toUpperCase();
+        disc = `<div class="token-disc" style="--ring:${ring}"><span class="token-initial">${initial}</span></div>`;
+      }
+
+      // DM-only concealment badges (never rendered for players)
+      let badge = '';
+      if (isStaff && c.hidden) badge = `<span class="token-badge" title="Hidden from players">∅</span>`;
+      else if (isStaff && c.tease) badge = `<span class="token-badge" title="Teased (players see ???)">?</span>`;
+
+      const label = teasedForPlayer ? '???' : (c.name || '');
+      const cls = 'token' + (isStaff && c.hidden ? ' is-hidden' : '');
+
+      return `
+        <div class="${cls}" style="left:${cx}%; top:${cy}%; width:${sizePct}%">
+          ${disc}${badge}
+          <span class="token-name">${label}</span>
+        </div>`;
+    }
+
+    // ── fit the board into the stage, preserving the map's aspect ratio ──
+    function fitBoard(meta) {
+      const aspect = (meta.cols * meta.cellPx) / (meta.rows * meta.cellPx);
+      const availW = stage.clientWidth;
+      const availH = stage.clientHeight;
+      let w = availW, h = w / aspect;
+      if (h > availH) { h = availH; w = h * aspect; }
+      boardEl.style.width  = Math.floor(w) + 'px';
+      boardEl.style.height = Math.floor(h) + 'px';
+    }
+
+    // ── main ──
+    whenReady(async function () {
+      const sb = window.__tok.sb;
+      const me = window.__tok.ready ? await window.__tok.ready : null;
+      const isStaff = !!(me && (me.role === 'overseer' || me.role === 'dm'));
+
+      let manifest;
+      try {
+        manifest = await (await fetch(MANIFEST_URL)).json();
+      } catch (e) {
+        showMsg('Map manifest missing', 'Could not load maps/manifest.json.', false);
+        return;
+      }
+
+      // active encounter (RLS: all authenticated can read)
+      const { data: enc, error: encErr } = await sb
+        .from('encounters').select('*').eq('status', 'active').maybeSingle();
+      if (encErr) { showMsg('Could not load the encounter', encErr.message, false); return; }
+      if (!enc)   { showMsg('No active encounter', 'When the DM starts a fight, the battlefield appears here.', false); return; }
+
+      META = manifest[enc.map_ref];
+      if (!META) { showMsg('Unknown map', `No manifest entry for "${enc.map_ref}".`, false); return; }
+      if (META.grid) GRID = Object.assign(GRID, META.grid);
+
+      // combatants (RLS auto-filters: players never receive hidden rows)
+      const { data: combs, error: cErr } = await sb
+        .from('combatants').select('*').eq('encounter_id', enc.id);
+      if (cErr) { showMsg('Could not load combatants', cErr.message, false); return; }
+
+      // header
+      document.getElementById('combat-name').textContent  = enc.name || 'Encounter';
+      document.getElementById('combat-round').textContent = enc.round ?? 1;
+      barEl.style.display = 'flex';
+
+      // build the board
+      hideMsg();
+      boardEl = document.createElement('div');
+      boardEl.className = 'board';
+      const tokensHtml = (combs || []).map(c => tokenHtml(c, META, isStaff)).join('');
+      boardEl.innerHTML =
+        `<img class="board-map" alt="${enc.map_ref}" src="${mapUrl(META.publicId)}"
+              onerror="this.classList.add('missing')">
+         ${gridSvg(META)}
+         <div class="board-tokens">${tokensHtml}</div>`;
+      stage.appendChild(boardEl);
+      fitBoard(META);
+
+      // grid controls (demonstrates the opacity / style / colour answer live)
+      buildGridControls();
+
+      // keep the board fitted on resize/orientation change (grid + tokens are
+      // %/viewBox-based, so only the board's px size needs recomputing)
+      let rt;
+      window.addEventListener('resize', () => {
+        clearTimeout(rt);
+        rt = setTimeout(() => { if (boardEl && META) fitBoard(META); }, 120);
+      });
+    });
+
+    // ── grid controls panel ──
+    function buildGridControls() {
+      const panel = document.createElement('div');
+      panel.className = 'grid-controls';
+      panel.innerHTML = `
+        <h4>Grid <span class="gc-toggle" id="gc-toggle">▾</span></h4>
+        <div class="gc-body">
+          <div class="gc-row">
+            <label for="gc-style">Style</label>
+            <select id="gc-style">
+              <option value="lines">Lines</option>
+              <option value="dots">Dots</option>
+              <option value="none">Off</option>
+            </select>
+          </div>
+          <div class="gc-row">
+            <label for="gc-opacity">Opacity</label>
+            <input type="range" id="gc-opacity" min="0" max="1" step="0.02">
+          </div>
+          <div class="gc-row">
+            <label for="gc-color">Colour</label>
+            <input type="color" id="gc-color">
+          </div>
+        </div>`;
+      stage.appendChild(panel);
+
+      const styleSel = panel.querySelector('#gc-style');
+      const opac     = panel.querySelector('#gc-opacity');
+      const color    = panel.querySelector('#gc-color');
+      styleSel.value = GRID.style;
+      opac.value     = GRID.opacity;
+      color.value    = GRID.color;
+
+      styleSel.addEventListener('change', () => { GRID.style = styleSel.value; redrawGrid(); });
+      opac.addEventListener('input',      () => { GRID.opacity = parseFloat(opac.value); redrawGrid(); });
+      color.addEventListener('input',     () => { GRID.color = color.value; redrawGrid(); });
+      panel.querySelector('#gc-toggle').addEventListener('click', () => {
+        panel.classList.toggle('collapsed');
+        panel.querySelector('#gc-toggle').textContent = panel.classList.contains('collapsed') ? '▸' : '▾';
+      });
+    }
+  })();
+  </script>
+</body>
+</html>

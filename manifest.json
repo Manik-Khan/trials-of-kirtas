@@ -1,0 +1,17 @@
+{
+  "_README": "Grid calibration + display defaults per map, keyed by the encounter's map_ref. NUMBERS ARE NATIVE (full-resolution) — combat.html computes scale = renderedWidth / (cols*cellPx), so the SAME entry works whether a desktop loads full-res or a phone loads a downscaled Cloudinary copy. cols*cellPx and rows*cellPx must equal the native image dimensions. The heavy image lives in Cloudinary (publicId); only this tiny config lives in git.",
+
+  "G_BridgeTown_Original_Day": {
+    "publicId": "kirtas/maps/G_BridgeTown_Original_Day",
+    "cols": 39,
+    "rows": 56,
+    "cellPx": 140,
+    "originX": 0,
+    "originY": 0,
+    "grid": {
+      "style": "lines",
+      "color": "#ffffff",
+      "opacity": 0.32
+    }
+  }
+}

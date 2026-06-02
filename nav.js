@@ -707,6 +707,11 @@ applyTheme(getSavedTheme());
     // the lookup failed; 4a does not distinguish these — consumers decide in 4b.
     window.__tok = window.__tok || {};
     window.__tok.session = data.session;
+    // Expose the already-authenticated client so other pages (e.g. combat.html)
+    // can read/subscribe WITHOUT creating a second supabase client — a second
+    // client on the same page triggers the "Multiple GoTrueClient instances"
+    // warning and splits auth/realtime state. Reuse this one.
+    window.__tok.sb = sb;
     window.__tok.profile = undefined; // resolves to object|null via .ready
     window.__tok.ready = (async () => {
       const userId = data.session.user.id;
