@@ -216,14 +216,38 @@ In order:
 3. ~~Client wiring: read identity (4a whoami)~~ ✓ · ~~seat-defaulting~~ ✓ · ~~My Character menu~~ ✓ (2026-06-01).
 4. **Sheet redesign (planned, parked).** A full visual redesign of the character sheet is on the roadmap. Seat-defaulting is redesign-proof; **edit-gating is deliberately deferred until this lands** (it attaches to the edit controls that will be rebuilt). Do edit-gating *after* the redesign so it's wired once.
 5. **Edit-gating** (after the redesign): sheet editable only when the open character is yours, staff edit anyone (client-side UX per the permissions note).
-6. **view-as switch** for overseer/dm (client lens; belongs with the combat page).
-7. **Read sync** (staff writes, players watch live via Supabase Realtime).
-8. **Write sync** (players move own token; HUD writes own hp/conditions — trigger already allows).
-9. **Flush combat result → GitHub** (durable record).
-10. **Combat/map page** (`combat.html` — map image + square grid + tokens + fog).
-11. (Later) Overseer settings UI for role assignment. (Later/if needed) multi-campaign migration.
+6. **view-as switch** for overseer/dm (client lens; belongs with the combat page). *Partly covered:* combat.html already renders role-aware (DM sees all + concealment badges; players get RLS-filtered rows + ??? for teased). A full DM "preview as player X" toggle is still pending.
+7. ~~**Read sync**~~ ✓ **DONE 2026-06-02** — players watch live via Supabase Realtime (`combatants` + `encounters` added to the `supabase_realtime` publication via `enable_realtime.sql`).
+8. ~~**Write sync** (players move own token)~~ ✓ **DONE 2026-06-02** — drag-to-move + arrow-key nudge write `x`/`y`; optimistic with revert. HUD hp/conditions write still pending (the trigger already allows it).
+9. **Flush combat result → GitHub** (durable record). Still pending.
+10. ~~**Combat/map page** (`combat.html`)~~ ✓ **BUILT 2026-06-02** — map (Cloudinary, native-coord grid), square grid projected from `maps/manifest.json`, tokens (cutout/circle, per-character style, dot fallback), drag/pan/pinch-zoom, selection + click-to-name, three-state visibility live. **Fog still pending.**
+11. (Later) Overseer settings UI for role assignment + **token-ownership assignment** (the "grant players access to tokens" idea — staff UI writing `combatants.owner`, retiring manual SQL). (Later/if needed) multi-campaign migration.
+
+**Next up (agreed this session):**
+- **Right-click / long-press context menu** — role-aware per-token menu. Player editing *their own* token = personal view options (token style; possibly base/ring colour). Staff = those plus authority (per-token size, ownership assignment, hidden/tease toggles). *Open decision before building:* is a token's base/ring **colour** and **size** personal (per-viewer, local) or shared (in the DB, everyone sees)? Leaning: style = personal; size + colour = shared/DM-owned. **Awaiting user call.**
+- **Persistence for panel settings** — grid appearance → store on the `encounter` row (DM-owned, synced to all); per-character token style → persist per character so a player's choice sticks. Currently both are live-but-unsaved (reset on reload).
+- **Measurement / ruler** (drag A→B, distance in ft, 5e diagonal) — local first, then broadcastable.
+- **Auras** — radius + colour *attached to a combatant* (a small additive column; moves + syncs with the token for free).
+- **Drawn shapes** (rect/circle/cone/freehand; movable, deletable) — biggest lift; own `drawings` table + realtime. Decision when we start: separate table vs JSON on encounter (leaning table).
 
 **Future-proofing principle:** identity/security columns can't be cheaply retrofitted — got them right in v1. Position fields (`x`/`y`/`map_ref`) are not security-bearing; included now (cheap) but stay loose/nullable until the map layer wires them.
+
+---
+
+## Commit status (2026-06-02) — combat page build
+
+New files (commit to `main`):
+- **`combat.html`** — the combat/map page. Reads active encounter + combatants via the shared client (`window.__tok.sb`). Map from Cloudinary (`w_2048,q_auto,f_auto` transform — native-coord grid math, resolution-independent). Square grid projected from `maps/manifest.json` via SVG `<pattern>`. Tokens: dedicated art (`kirtas/tokens/<key>.png`) → portrait → dot-initial fallback; **per-character circle/cutout** via `TOKEN_STYLE`; selection (gold glow + name), click-to-name. **Drag-to-move + arrow-key nudge** (snap-to-cell, optimistic write to Supabase). **Zoom/pan** (wheel, pinch, +/−/FIT bar) — own transform model, not browser zoom. **Realtime**: moves sync to every client. Three-state visibility live (DM sees all + `∅`/`?` badges; players RLS-filtered + `???`). Startup steps wrapped in `safely()` so one failure can't blank the panel. Display panel (top-right): Grid (global) · per-character Token style · view size/ring.
+- **`maps/manifest.json`** — grid calibration + cosmetics per `map_ref`. Bridgetown: 140px cell, 39×56, origin 0,0, `publicId: kirtas/maps/G_BridgeTown_Original_Day`. **Native numbers; renderer scales.**
+- **`schema_delta_combat.sql`** — additive: `combatants.dex` (init tiebreak), `.source_key` (→ bestiary/character ref), `.tease` (cosmetic concealment); column-guard extended to pin the three for players. **Run in Supabase.** ✓ confirmed applied.
+- **`enable_realtime.sql`** — adds `combatants` + `encounters` to the `supabase_realtime` publication (Realtime won't broadcast otherwise). ✓ confirmed applied.
+
+Edited (commit):
+- **`nav.js`** — two additive changes: (1) exposes the authenticated client as `window.__tok.sb` so combat reuses it (no 2nd GoTrueClient); (2) **profile fetch now selects `id`** and includes it in the profile object — `{ id, userId, email, role, characterKey }`. **This was the fix** for "players can't move their own token": `combat.html`'s `canMove()` compares `combatant.owner === ME.id`, and `id` was previously absent, so every player-move failed the check silently (staff passed via `is_staff`). DB ownership was correct all along.
+
+Test scaffolding (SQL, not repo): `make_test_token.sql` (a throwaway `testdummy` combatant owned by a test profile — no real data touched; the robust way to test player moves), `diagnose_state.sql` (read-only state dump). Superseded/discarded: `attach_test_account.sql` v1–v3 (reassigning a real character collided with the one-per-character index + `character_key` check; abandoned for the dummy-token approach). The visibility/permission model verified end-to-end via a `thebraveruby+test@gmail.com` plus-alias account.
+
+**The big lesson (for next session):** profiles are **not auto-created on sign-in** — they're seeded by hand. A signed-in user with no `profiles` row has a null `my_profile_id()` and all writes are denied. This + the missing `id` field were the two causes of the "can't move" saga. Both resolved.
 
 ---
 
@@ -260,7 +284,11 @@ Discarded mid-session: an early wrong fix that un-hid the ⚔ battle button on m
 - **`items2.js` is read-only** (5etools proxy). All saves go through `character.js` → GitHub.
 - `cosmere` is the character key everywhere; data file is `cosmere.json` (renamed from `tyros.json` 2026-06-01, alias removed).
 - **Battle on mobile lives in the ◐ theme dropdown** (via `battle.js` injection); the ⚔ button is desktop-only by design.
-- **`window.__tok`** is the front-end identity object (set by `nav.js`); **`nav:ready`** is the "nav is mounted" signal nav-dependent scripts wait on.
+- **`window.__tok`** is the front-end identity object (set by `nav.js`); **`nav:ready`** is the "nav is mounted" signal nav-dependent scripts wait on. Shape: `{ id, userId, email, role, characterKey }` + `.sb` (shared client), `.session`, `.ready` (promise).
+- **Profiles are NOT auto-created on login** — seeded by hand. No `profiles` row → `my_profile_id()` is null → all writes denied. Provision a profile (and, for moving, set `combatants.owner` = that profile id) before expecting writes.
+- **Token ownership = `combatants.owner` → `profiles.id`** (the PROFILE id, not the auth-user id). Player move allowed when `owner = my_profile_id()`; staff move anything via `is_staff()`.
+- **Map grid is resolution-independent**: `maps/manifest.json` holds NATIVE numbers (cellPx/cols/rows/origin); `combat.html` scales by `renderedWidth/nativeWidth`, so one manifest works at any display size. Heavy map images live in Cloudinary, the tiny manifest in git.
+- **Three-state token visibility**: `hidden` (RLS drops the row — server-secure surprise) vs `tease` (row sent, client draws `???` — lightweight, devtools-crackable by design) vs neither (visible). `hidden` = security; `tease` = cosmetic.
 - **Owner (`thebraveruby`) is overseer AND plays Vesperian; `hagakuredisc` is the dedicated DM.**
 - All sheet edit-gating is client-side UX, **not** server-enforced (the GitHub write path has no per-user auth).
 - DNS subdomains are free/independent. `tok.manikkhan.com` (email) ≠ `manikkhan.com` (website).
