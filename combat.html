@@ -105,7 +105,6 @@
       aspect-ratio: 1 / 1;
       border-radius: 50%;
       overflow: hidden;
-      border: 2px solid var(--ring, #fff);
       box-shadow: 0 1px 4px rgba(0,0,0,0.7);
       background: var(--ring, #555);
       display: flex;
@@ -113,7 +112,38 @@
       justify-content: center;
       box-sizing: border-box;
     }
+    .token-disc.ring { border: 2px solid var(--ring, #fff); }
     .token-disc img { width: 100%; height: 100%; object-fit: cover; }
+
+    /* cutout mode — transparent PNG placed as-is (no circular crop) */
+    .token-cutout {
+      width: 100%;
+      position: relative;
+      display: flex;
+      align-items: flex-end;
+      justify-content: center;
+    }
+    .token-cutimg {
+      position: relative;
+      z-index: 1;
+      width: 100%;
+      height: auto;
+      max-height: 165cqw;               /* clamp tall figures to ~1.65 cells */
+      object-fit: contain;
+      filter: drop-shadow(0 2px 3px rgba(0,0,0,0.85));
+      display: block;
+    }
+    .token-base {                        /* colored ground ellipse = team identity */
+      position: absolute;
+      bottom: 3%; left: 50%;
+      transform: translateX(-50%);
+      width: 72%; height: 18%;
+      border-radius: 50%;
+      background: var(--ring, #888);
+      opacity: 0.5;
+      filter: blur(1px);
+      z-index: 0;
+    }
     .token-initial {
       font-family: var(--font-title);
       font-weight: 600;
@@ -149,7 +179,14 @@
     /* the ??? a *player* sees for a teased token */
     .token-disc.mystery {
       background: repeating-linear-gradient(45deg, #2a2620, #2a2620 4px, #1c1a16 4px, #1c1a16 8px);
-      border-color: var(--muted);
+      border: 2px solid var(--muted);
+    }
+    /* thin divider + checkbox accent in the controls panel */
+    .gc-sep { height: 1px; background: var(--gold-dim); margin: 0.5rem 0; }
+    .gc-row input[type=checkbox] { accent-color: var(--gold); width: 14px; height: 14px; }
+    .gc-sub {
+      font-size: 0.44rem; letter-spacing: 0.3em; text-transform: uppercase;
+      color: var(--muted); margin: 0 0 0.4rem;
     }
 
     /* ── grid controls panel ── */
@@ -259,6 +296,18 @@
     const CHAR_COLOR = { cosmere: '#9d4edd', caim: '#c0001a', liadan: '#1d9e75', vesperian: '#b8952a' };
     const ENEMY_COLOR = '#a23b2d';
 
+    // Dedicated battle tokens (transparent cutout PNGs) keyed by character key.
+    // Preferred over PORTRAITS when present; the renderer falls back
+    // portrait → dot-initial. Versionless + transform = same form as the map
+    // (proven on this account); w_400 keeps tokens light and f_auto preserves
+    // PNG transparency while serving WebP/AVIF where supported.
+    const TOKENS = {
+      cosmere:   'https://res.cloudinary.com/df0tgoiyb/image/upload/w_400,q_auto,f_auto/kirtas/tokens/cosmere.png',
+      caim:      'https://res.cloudinary.com/df0tgoiyb/image/upload/w_400,q_auto,f_auto/kirtas/tokens/caim.png',
+      liadan:    'https://res.cloudinary.com/df0tgoiyb/image/upload/w_400,q_auto,f_auto/kirtas/tokens/liadan.png',
+      vesperian: 'https://res.cloudinary.com/df0tgoiyb/image/upload/w_400,q_auto,f_auto/kirtas/tokens/vesperian.png',
+    };
+
     function mapUrl(publicId) {
       return `https://res.cloudinary.com/${CLOUDINARY_CLOUD}/image/upload/`
            + `w_${MAP_DISPLAY_W},q_auto,f_auto/${publicId}.jpg`;
@@ -290,8 +339,14 @@
 
     // ── grid state (seeded from the manifest, adjustable via the controls) ──
     let GRID = { style: 'lines', color: '#ffffff', opacity: 0.32 };
+    // ── token display state (adjustable via the controls) ──
+    //   style: 'cutout' = place the PNG as-is | 'circle' = crop into a framed disc
+    //   size : multiplier on the 1-cell footprint    ring: show ring (circle) / base (cutout)
+    let TOKEN = { style: 'cutout', size: 1, ring: true };
     let META = null;     // manifest entry for the active map
     let boardEl = null;
+    let COMBS = [];      // cached combatant rows, for re-rendering on control changes
+    let IS_STAFF = false;
 
     // Build the grid SVG markup. viewBox is NATIVE map coords so it scales with
     // the board automatically. Uses a <pattern> tile = one cell, offset by the
@@ -345,20 +400,25 @@
       // cell-centre in native px → percentage of the board
       const cx = ((meta.originX + (c.x + 0.5) * meta.cellPx) / W) * 100;
       const cy = ((meta.originY + (c.y + 0.5) * meta.cellPx) / H) * 100;
-      const sizePct = (meta.cellPx / W) * 100;           // one cell wide
+      const sizePct = (meta.cellPx / W) * 100 * TOKEN.size;   // one cell × size multiplier
 
       const teasedForPlayer = c.tease && !isStaff;       // player sees the veil
       const isParty = c.side === 'party';
       const ring = isParty ? (CHAR_COLOR[c.source_key] || '#888') : ENEMY_COLOR;
+      // dedicated token first, then portrait, then nothing (→ dot-initial)
+      const img = TOKENS[c.source_key] || (isParty ? PORTRAITS[c.source_key] : null);
 
       let disc;
       if (teasedForPlayer) {
         disc = `<div class="token-disc mystery"><span class="token-initial">?</span></div>`;
-      } else if (isParty && PORTRAITS[c.source_key]) {
-        disc = `<div class="token-disc" style="--ring:${ring}"><img src="${PORTRAITS[c.source_key]}" alt="" draggable="false"></div>`;
-      } else {
+      } else if (img && TOKEN.style === 'cutout') {
+        const base = TOKEN.ring ? `<div class="token-base" style="--ring:${ring}"></div>` : '';
+        disc = `<div class="token-cutout">${base}<img class="token-cutimg" src="${img}" alt="" draggable="false"></div>`;
+      } else if (img) {  // circle mode — crop into a framed disc
+        disc = `<div class="token-disc${TOKEN.ring ? ' ring' : ''}" style="--ring:${ring}"><img src="${img}" alt="" draggable="false"></div>`;
+      } else {           // no art → coloured dot with initial
         const initial = (c.name || '?').trim().charAt(0).toUpperCase();
-        disc = `<div class="token-disc" style="--ring:${ring}"><span class="token-initial">${initial}</span></div>`;
+        disc = `<div class="token-disc ring" style="--ring:${ring}"><span class="token-initial">${initial}</span></div>`;
       }
 
       // DM-only concealment badges (never rendered for players)
@@ -374,6 +434,13 @@
           ${disc}${badge}
           <span class="token-name">${label}</span>
         </div>`;
+    }
+
+    // Re-render just the token layer (after a display-control change).
+    function renderTokens() {
+      if (!boardEl || !META) return;
+      const layer = boardEl.querySelector('.board-tokens');
+      if (layer) layer.innerHTML = COMBS.map(c => tokenHtml(c, META, IS_STAFF)).join('');
     }
 
     // ── fit the board into the stage, preserving the map's aspect ratio ──
@@ -423,9 +490,11 @@
 
       // build the board
       hideMsg();
+      COMBS = combs || [];
+      IS_STAFF = isStaff;
       boardEl = document.createElement('div');
       boardEl.className = 'board';
-      const tokensHtml = (combs || []).map(c => tokenHtml(c, META, isStaff)).join('');
+      const tokensHtml = COMBS.map(c => tokenHtml(c, META, IS_STAFF)).join('');
       boardEl.innerHTML =
         `<img class="board-map" alt="${enc.map_ref}" src="${mapUrl(META.publicId)}"
               onerror="this.classList.add('missing')">
@@ -451,8 +520,9 @@
       const panel = document.createElement('div');
       panel.className = 'grid-controls';
       panel.innerHTML = `
-        <h4>Grid <span class="gc-toggle" id="gc-toggle">▾</span></h4>
+        <h4>Display <span class="gc-toggle" id="gc-toggle">▾</span></h4>
         <div class="gc-body">
+          <p class="gc-sub">Grid</p>
           <div class="gc-row">
             <label for="gc-style">Style</label>
             <select id="gc-style">
@@ -469,6 +539,23 @@
             <label for="gc-color">Colour</label>
             <input type="color" id="gc-color">
           </div>
+          <div class="gc-sep"></div>
+          <p class="gc-sub">Tokens</p>
+          <div class="gc-row">
+            <label for="gc-tstyle">Style</label>
+            <select id="gc-tstyle">
+              <option value="cutout">Cutout</option>
+              <option value="circle">Circle</option>
+            </select>
+          </div>
+          <div class="gc-row">
+            <label for="gc-tsize">Size</label>
+            <input type="range" id="gc-tsize" min="0.6" max="1.8" step="0.05">
+          </div>
+          <div class="gc-row">
+            <label for="gc-tring">Ring / base</label>
+            <input type="checkbox" id="gc-tring">
+          </div>
         </div>`;
       stage.appendChild(panel);
 
@@ -482,6 +569,18 @@
       styleSel.addEventListener('change', () => { GRID.style = styleSel.value; redrawGrid(); });
       opac.addEventListener('input',      () => { GRID.opacity = parseFloat(opac.value); redrawGrid(); });
       color.addEventListener('input',     () => { GRID.color = color.value; redrawGrid(); });
+
+      const tstyle = panel.querySelector('#gc-tstyle');
+      const tsize  = panel.querySelector('#gc-tsize');
+      const tring  = panel.querySelector('#gc-tring');
+      tstyle.value   = TOKEN.style;
+      tsize.value    = TOKEN.size;
+      tring.checked  = TOKEN.ring;
+
+      tstyle.addEventListener('change', () => { TOKEN.style = tstyle.value; renderTokens(); });
+      tsize.addEventListener('input',   () => { TOKEN.size = parseFloat(tsize.value); renderTokens(); });
+      tring.addEventListener('change',  () => { TOKEN.ring = tring.checked; renderTokens(); });
+
       panel.querySelector('#gc-toggle').addEventListener('click', () => {
         panel.classList.toggle('collapsed');
         panel.querySelector('#gc-toggle').textContent = panel.classList.contains('collapsed') ? '▸' : '▾';
