@@ -201,6 +201,95 @@
     .token.dragging { opacity: 0.85; cursor: grabbing; }
     .token.no-move { cursor: default; }
 
+    /* ── movement measurement (shown only while a token is being dragged) ──
+       Lives in its own SVG layer in NATIVE map coords (like the grid), so it
+       scales with the board and rides the zoom/pan transform for free. */
+    .measure-layer {
+      position: absolute; inset: 0;
+      width: 100%; height: 100%;
+      pointer-events: none;
+      overflow: visible;                 /* let the label show near board edges */
+    }
+    .measure-cell {                      /* the tile you started from, left lit */
+      fill: var(--gold-light); fill-opacity: 0.16;
+      stroke: var(--gold-light); stroke-opacity: 0.55;
+    }
+    .measure-line { stroke: var(--gold-light); stroke-linecap: round; fill: none; }
+    .measure-label {
+      fill: var(--gold-light);
+      paint-order: stroke;               /* dark halo under the glyphs = legible on any map */
+      stroke: rgba(10,8,5,0.92); stroke-linejoin: round;
+      font-family: var(--font-title); font-weight: 600;
+      text-anchor: middle; dominant-baseline: middle;
+    }
+    .measure-line.over  { stroke: #e2574c; }   /* soft "past your speed" cue — never blocks */
+    .measure-label.over { fill: #e2574c; }
+
+    /* ── condition badges (cluster under a token) ── */
+    .token-conds {
+      position: absolute;
+      left: 50%; bottom: -6%;
+      transform: translateX(-50%);
+      display: flex; gap: 6cqw;
+      pointer-events: none;
+      z-index: 40;
+    }
+    .cond-badge {
+      width: 26cqw; height: 26cqw;
+      min-width: 9px; min-height: 9px;
+      border-radius: 50%;
+      background: var(--c, #888);
+      border: 1px solid rgba(0,0,0,0.55);
+      box-shadow: 0 1px 2px rgba(0,0,0,0.6);
+      color: #fff;
+      display: flex; align-items: center; justify-content: center;
+    }
+    .cond-badge svg { width: 70%; height: 70%; fill: currentColor; stroke: none; display: block; }
+    .cond-badge.more {
+      background: var(--ink-deep); color: var(--gold-light);
+      font-family: var(--font-title); font-size: 16cqw; font-weight: 600;
+    }
+
+    /* ── per-token context menu (right-click / long-press) ── */
+    .ctx-menu {
+      position: fixed; z-index: 200;
+      min-width: 188px; max-height: 70vh; overflow-y: auto;
+      background: var(--nav-bg);
+      border: 1px solid var(--nav-border);
+      border-radius: 6px;
+      box-shadow: 0 8px 30px rgba(0,0,0,0.6);
+      padding: 0.45rem 0;
+      font-family: var(--font-title);
+    }
+    .ctx-head {
+      font-size: 0.46rem; letter-spacing: 0.26em; text-transform: uppercase;
+      color: var(--gold-light); padding: 0.2rem 0.7rem 0.4rem;
+      border-bottom: 1px solid var(--gold-dim); margin-bottom: 0.35rem;
+      white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+    }
+    .ctx-sub {
+      font-size: 0.4rem; letter-spacing: 0.22em; text-transform: uppercase;
+      color: var(--muted); padding: 0.15rem 0.7rem 0.25rem;
+    }
+    .ctx-cond {
+      display: flex; align-items: center; gap: 0.55rem;
+      padding: 0.32rem 0.7rem; cursor: pointer; user-select: none;
+    }
+    .ctx-cond:hover { background: var(--gold-dim); }
+    .ctx-chip {
+      width: 18px; height: 18px; flex-shrink: 0;
+      border-radius: 50%;
+      background: var(--c, #888); color: #fff;
+      display: flex; align-items: center; justify-content: center;
+      opacity: 0.32; filter: grayscale(0.55);
+    }
+    .ctx-chip svg { width: 70%; height: 70%; fill: currentColor; stroke: none; }
+    .ctx-cond.active .ctx-chip { opacity: 1; filter: none; }
+    .ctx-label { font-size: 0.62rem; letter-spacing: 0.06em; color: var(--muted); flex: 1; }
+    .ctx-cond.active .ctx-label { color: var(--parchment); }
+    .ctx-check { font-size: 0.7rem; color: var(--gold-light); opacity: 0; }
+    .ctx-cond.active .ctx-check { opacity: 1; }
+
     /* zoom toolbar */
     .zoom-bar {
       position: absolute;
@@ -373,6 +462,29 @@
       vesperian: 'https://res.cloudinary.com/df0tgoiyb/image/upload/w_400,q_auto,f_auto/kirtas/tokens/vesperian.png',
     };
 
+    // Base walking speed (ft) per character, for the movement-measurement tint.
+    // Mirrors CHARACTERS[key].combat.speed in characters.js — kept in sync manually,
+    // same as PORTRAITS / CHAR_COLOR / TOKENS above. A missing key = no tint (fine
+    // for enemies and any future token). The tint is a soft cue, never a gate.
+    const SPEED = { cosmere: 30, caim: 40, liadan: 20, vesperian: 30 };
+
+    // The eight conditions the HUD already uses — same label strings, so board
+    // and HUD share one vocabulary (and the later merge onto this column is a
+    // no-op). Each carries a colour + a small inline-SVG glyph (original art,
+    // swappable for game-icons later). Stored on combatants.conditions as an
+    // array of these names, e.g. ["Poisoned","Prone"].
+    const COND = [
+      { name: 'Poisoned',      color: '#5a9a6a', icon: '<path d="M12 3 C12 3 6 11 6 15 a6 6 0 0 0 12 0 C18 11 12 3 12 3Z"/>' },
+      { name: 'Frightened',    color: '#9d6bd0', icon: '<path d="M5 12 a7 7 0 0 1 14 0 v8 l-2.3-2 -2.3 2 -2.4-2 -2.3 2 -2.4-2 z"/>' },
+      { name: 'Paralyzed',     color: '#d4b020', icon: '<path d="M13 2 L5 13 h5 l-2 9 9-13 h-5 z"/>' },
+      { name: 'Prone',         color: '#a0763d', icon: '<path d="M12 21 l-7-8 h4 V4 h6 v9 h4 z"/>' },
+      { name: 'Stunned',       color: '#e08a2a', icon: '<path fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" d="M12 7 a5 5 0 1 1 -5 5 a3 3 0 1 0 3 -3"/>' },
+      { name: 'Concentration', color: '#4a90c0', icon: '<circle cx="12" cy="12" r="8" fill="none" stroke="currentColor" stroke-width="2.4"/><circle cx="12" cy="12" r="2.6"/>' },
+      { name: 'Blinded',       color: '#8a8d95', icon: '<path fill="none" stroke="currentColor" stroke-width="2.2" d="M3 12 s3.5-5 9-5 9 5 9 5"/><circle cx="12" cy="12.5" r="2.2"/><line x1="4" y1="5" x2="20" y2="20" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"/>' },
+      { name: 'Deafened',      color: '#6f7682', icon: '<path d="M4 9 h3 l4-4 v14 l-4-4 H4 z"/><line x1="14" y1="6" x2="20" y2="18" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"/>' },
+    ];
+    const COND_BY = Object.fromEntries(COND.map(c => [c.name, c]));
+
     function mapUrl(publicId) {
       return `https://res.cloudinary.com/${CLOUDINARY_CLOUD}/image/upload/`
            + `w_${MAP_DISPLAY_W},q_auto,f_auto/${publicId}.jpg`;
@@ -417,6 +529,7 @@
     let ENC = null;      // active encounter row
     let SELECTED = null; // selected combatant id
     let dragId = null;   // combatant id currently being dragged
+    let dragOrigin = null; // {col,row} the drag started from — anchors the measurement
     let zoom = 1, panX = 0, panY = 0;   // board transform (zoom/pan)
     const MINZ = 0.25, MAXZ = 8;
 
@@ -511,6 +624,7 @@
         <div class="${cls}" data-id="${c.id}" style="left:${cx}%; top:${cy}%; width:${sizePct}%">
           ${disc}${badge}
           <span class="token-name">${label}</span>
+          ${teasedForPlayer ? '' : condBadgesHtml(c)}
         </div>`;
     }
 
@@ -573,6 +687,48 @@
         y: ((META.originY + (row + 0.5) * META.cellPx) / H) * 100,
       };
     }
+    // ── movement measurement overlay ──
+    // An empty SVG layer in native map coords; populated during a drag, cleared on end.
+    function measureSvg(meta) {
+      const W = meta.cols * meta.cellPx, H = meta.rows * meta.cellPx;
+      return `<svg class="measure-layer" viewBox="0 0 ${W} ${H}" preserveAspectRatio="none"
+                   xmlns="http://www.w3.org/2000/svg"></svg>`;
+    }
+    function cellCenterNative(col, row) {
+      return {
+        x: META.originX + (col + 0.5) * META.cellPx,
+        y: META.originY + (row + 0.5) * META.cellPx,
+      };
+    }
+    // Draw origin-tile highlight + a line to the current cell + a running ft label.
+    // Distance = Chebyshev cells × 5 (diagonals count 5 ft — PHB default, table-confirmed).
+    function showMeasure(oCol, oRow, cCol, cRow, sourceKey) {
+      const svg = boardEl && boardEl.querySelector('.measure-layer'); if (!svg) return;
+      const cp   = META.cellPx;
+      const cells = Math.max(Math.abs(cCol - oCol), Math.abs(cRow - oRow));
+      const feet  = cells * 5;
+      const o = cellCenterNative(oCol, oRow);
+      const p = cellCenterNative(cCol, cRow);
+      const speed = SPEED[sourceKey];
+      const over  = (speed != null) && (feet > speed);
+      const oc    = over ? ' over' : '';
+      const lw    = Math.max(2, cp * 0.07);
+      const fs    = Math.max(11, cp * 0.5);
+      // label sits just above the moving end; flip below if it would clear the top edge
+      let ly = p.y - cp * 0.62;
+      if (ly < META.originY + cp * 0.5) ly = p.y + cp * 0.72;
+      svg.innerHTML =
+        `<rect class="measure-cell" x="${META.originX + oCol * cp}" y="${META.originY + oRow * cp}"
+               width="${cp}" height="${cp}"/>`
+      + (feet > 0
+          ? `<line class="measure-line${oc}" x1="${o.x}" y1="${o.y}" x2="${p.x}" y2="${p.y}" stroke-width="${lw}"/>`
+          + `<text class="measure-label${oc}" x="${p.x}" y="${ly}" font-size="${fs}" stroke-width="${fs * 0.16}">${feet} ft</text>`
+          : '');
+    }
+    function clearMeasure() {
+      const svg = boardEl && boardEl.querySelector('.measure-layer'); if (svg) svg.innerHTML = '';
+    }
+
     function tokenEl(id) { return boardEl && boardEl.querySelector(`.token[data-id="${id}"]`); }
     function updateTokenPos(c) {
       const el = tokenEl(c.id); if (!el) return;
@@ -603,15 +759,107 @@
       if (error) { c.x = px; c.y = py; updateTokenPos(c); console.error('move failed:', error.message); }
     }
 
+    // ── conditions: badge cluster + write + per-token context menu ──
+
+    // Build the little condition-badge cluster under a token from its array.
+    function condBadgesHtml(c) {
+      const list = Array.isArray(c.conditions) ? c.conditions : [];
+      if (!list.length) return '';
+      const MAX = 4;
+      const shown = list.slice(0, MAX);
+      const extra = list.length - shown.length;
+      const chips = shown.map(n => {
+        const d = COND_BY[n]; if (!d) return '';
+        return `<span class="cond-badge" style="--c:${d.color}" title="${n}">`
+             + `<svg viewBox="0 0 24 24" aria-hidden="true">${d.icon}</svg></span>`;
+      }).join('');
+      const more = extra > 0
+        ? `<span class="cond-badge more" title="${list.slice(MAX).join(', ')}">+${extra}</span>` : '';
+      return `<span class="token-conds">${chips}${more}</span>`;
+    }
+
+    // Re-render only a token's condition cluster (after a local toggle or a
+    // realtime change) — avoids a full token rebuild that would drop drag state.
+    function updateTokenConditions(c) {
+      const el = tokenEl(c.id); if (!el) return;
+      const old = el.querySelector('.token-conds'); if (old) old.remove();
+      if (c.tease && !IS_STAFF) return;            // respect the player veil
+      const html = condBadgesHtml(c);
+      if (html) el.insertAdjacentHTML('beforeend', html);
+    }
+
+    // Toggle a condition on a combatant: optimistic local update + Supabase
+    // write (revert on error). Open model — RLS lets any player write
+    // conditions on any visible token; the guard trigger blocks everything else.
+    async function toggleCondition(id, name) {
+      const c = COMBS.find(k => k.id === id); if (!c) return false;
+      const cur = Array.isArray(c.conditions) ? c.conditions.slice() : [];
+      const i = cur.indexOf(name);
+      if (i >= 0) cur.splice(i, 1); else cur.push(name);
+      const prev = c.conditions;
+      c.conditions = cur;
+      updateTokenConditions(c);
+      const { error } = await SB.from('combatants').update({ conditions: cur }).eq('id', id);
+      if (error) { c.conditions = prev; updateTokenConditions(c); console.error('condition write failed:', error.message); return false; }
+      return true;
+    }
+
+    // ── context menu (conditions for now; built to grow staff actions later) ──
+    let ctxEl = null;
+    function closeCtxMenu() {
+      if (ctxEl) { ctxEl.remove(); ctxEl = null; }
+      document.removeEventListener('pointerdown', ctxOutside, true);
+      window.removeEventListener('scroll', closeCtxMenu, true);
+      window.removeEventListener('resize', closeCtxMenu);
+    }
+    function ctxOutside(e) { if (ctxEl && !ctxEl.contains(e.target)) closeCtxMenu(); }
+    function placeCtxMenu(sx, sy) {            // fixed, clamped to the viewport
+      const r = ctxEl.getBoundingClientRect();
+      let x = sx, y = sy;
+      if (x + r.width  > window.innerWidth  - 8) x = window.innerWidth  - r.width  - 8;
+      if (y + r.height > window.innerHeight - 8) y = window.innerHeight - r.height - 8;
+      ctxEl.style.left = Math.max(8, x) + 'px';
+      ctxEl.style.top  = Math.max(8, y) + 'px';
+    }
+    function openCtxMenu(c, sx, sy) {
+      closeCtxMenu();
+      if (!c) return;
+      const active = Array.isArray(c.conditions) ? c.conditions : [];
+      const rows = COND.map(d => `
+        <div class="ctx-cond${active.includes(d.name) ? ' active' : ''}" data-cond="${d.name}">
+          <span class="ctx-chip" style="--c:${d.color}"><svg viewBox="0 0 24 24" aria-hidden="true">${d.icon}</svg></span>
+          <span class="ctx-label">${d.name}</span>
+          <span class="ctx-check">✓</span>
+        </div>`).join('');
+      ctxEl = document.createElement('div');
+      ctxEl.className = 'ctx-menu';
+      ctxEl.innerHTML = `<div class="ctx-head">${c.name || 'Token'}</div>
+        <div class="ctx-sub">Conditions</div>${rows}`;
+      document.body.appendChild(ctxEl);
+      placeCtxMenu(sx, sy);
+      // toggles — menu stays open so several can be set in a row
+      ctxEl.querySelectorAll('.ctx-cond').forEach(rowEl => {
+        rowEl.addEventListener('click', async () => {
+          if (await toggleCondition(c.id, rowEl.dataset.cond)) rowEl.classList.toggle('active');
+        });
+      });
+      // dismissal (added next tick so the opening press doesn't self-close it)
+      setTimeout(() => document.addEventListener('pointerdown', ctxOutside, true), 0);
+      window.addEventListener('scroll', closeCtxMenu, true);
+      window.addEventListener('resize', closeCtxMenu);
+    }
+
     // ── pointer (mouse + touch): drag tokens, pan, pinch-zoom, tap-select ──
     function initInteractions() {
       const pointers = new Map();
       let mode = null, dragCell = null, moved = false;
       let start = { x: 0, y: 0 }, last = { x: 0, y: 0 }, tapId = null, pinch = null;
+      let lpTimer = null, longPressed = false, downX = 0, downY = 0;   // long-press → context menu
       const dist = (a, b) => Math.hypot(a.x - b.x, a.y - b.y);
       const mid  = (a, b) => ({ x: (a.x + b.x) / 2, y: (a.y + b.y) / 2 });
 
       stage.addEventListener('pointerdown', (e) => {
+        if (e.button > 0) return;                 // right/middle mouse → handled by contextmenu
         // never let board pan/drag steal interactions meant for the UI panels
         if (e.target.closest('.grid-controls, .zoom-bar')) return;
         stage.setPointerCapture(e.pointerId);
@@ -621,8 +869,10 @@
           if (mode === 'drag' && dragId != null) {       // abort an in-progress drag
             const c = COMBS.find(k => k.id === dragId); if (c) updateTokenPos(c);
             const el = tokenEl(dragId); if (el) el.classList.remove('dragging');
+            clearMeasure(); dragOrigin = null;
           }
           dragId = null; mode = 'pinch';
+          clearTimeout(lpTimer); lpTimer = null; longPressed = false;
           const p = [...pointers.values()]; const m = mid(p[0], p[1]);
           pinch = { dist: dist(p[0], p[1]), x: m.x, y: m.y };
           return;
@@ -634,7 +884,18 @@
         tapId = tokEl ? tokEl.dataset.id : null;
         if (tokEl) {
           const c = COMBS.find(k => k.id === tapId);
-          if (c && canMove(c)) { mode = 'drag'; dragId = tapId; } else { mode = 'tap'; }
+          longPressed = false; downX = e.clientX; downY = e.clientY;
+          if (e.pointerType !== 'mouse') {            // touch/pen: hold to open the menu
+            clearTimeout(lpTimer);
+            lpTimer = setTimeout(() => {
+              lpTimer = null; longPressed = true;
+              const el = tokenEl(tapId); if (el) el.classList.remove('dragging');
+              clearMeasure(); dragOrigin = null;
+              selectToken(tapId);
+              openCtxMenu(c, downX, downY);
+            }, 500);
+          }
+          if (c && canMove(c)) { mode = 'drag'; dragId = tapId; dragOrigin = { col: c.x, row: c.y }; } else { mode = 'tap'; }
         } else { mode = 'pan'; }
       });
 
@@ -654,13 +915,17 @@
         }
 
         const dx = e.clientX - last.x, dy = e.clientY - last.y;
-        if (!moved && Math.hypot(e.clientX - start.x, e.clientY - start.y) > 4) moved = true;
+        if (!moved && Math.hypot(e.clientX - start.x, e.clientY - start.y) > 4) { moved = true; clearTimeout(lpTimer); lpTimer = null; }
 
         if (mode === 'drag' && dragId != null && moved) {
           const { col, row } = screenToCell(e.clientX, e.clientY);
           const p = cellCenterPct(col, row); const el = tokenEl(dragId);
           if (el) { el.style.left = p.x + '%'; el.style.top = p.y + '%'; el.classList.add('dragging'); }
           dragCell = { col, row };
+          if (dragOrigin) {
+            const dc = COMBS.find(k => k.id === dragId);
+            showMeasure(dragOrigin.col, dragOrigin.row, col, row, dc && dc.source_key);
+          }
         } else if (mode === 'pan' && moved) {
           panX += dx; panY += dy; applyTransform();
         }
@@ -670,19 +935,33 @@
       function endPointer(e) {
         if (!pointers.has(e.pointerId)) return;
         pointers.delete(e.pointerId);
+        clearTimeout(lpTimer); lpTimer = null;
         if (mode === 'pinch') { if (pointers.size < 2) { mode = pointers.size === 1 ? 'pan' : null; pinch = null; } return; }
 
-        if (!moved) {                                    // tap → (de)select
+        if (longPressed) {                               // menu already opened; no select/move
+          longPressed = false;
+        } else if (!moved) {                             // tap → (de)select
           if (tapId) selectToken(tapId); else deselect();
         } else if (mode === 'drag' && dragId != null && dragCell) {
           const el = tokenEl(dragId); if (el) el.classList.remove('dragging');
+          clearMeasure();
           moveCombatant(dragId, dragCell.col, dragCell.row);
           selectToken(dragId);
         }
-        if (pointers.size === 0) { mode = null; dragId = null; dragCell = null; }
+        if (pointers.size === 0) { mode = null; dragId = null; dragCell = null; dragOrigin = null; }
       }
       stage.addEventListener('pointerup', endPointer);
       stage.addEventListener('pointercancel', endPointer);
+
+      // desktop right-click → context menu
+      stage.addEventListener('contextmenu', (e) => {
+        const tokEl = e.target.closest('.token');
+        if (!tokEl) return;
+        e.preventDefault();
+        const c = COMBS.find(k => k.id === tokEl.dataset.id);
+        selectToken(tokEl.dataset.id);
+        openCtxMenu(c, e.clientX, e.clientY);
+      });
 
       stage.addEventListener('wheel', (e) => {
         e.preventDefault();
@@ -714,6 +993,7 @@
             const c = COMBS.find(k => k.id === row.id); if (!c) return;
             c.x = row.x; c.y = row.y; c.hp = row.hp; c.conditions = row.conditions;
             updateTokenPos(c);
+            updateTokenConditions(c);
           })
         .subscribe();
     }
@@ -778,7 +1058,8 @@
         `<img class="board-map" alt="${enc.map_ref}" draggable="false" src="${mapUrl(META.publicId)}"
               onerror="this.classList.add('missing')">
          ${gridSvg(META)}
-         <div class="board-tokens">${tokensHtml}</div>`;
+         <div class="board-tokens">${tokensHtml}</div>
+         ${measureSvg(META)}`;
       stage.appendChild(boardEl);
       fitBoard(META);
 
