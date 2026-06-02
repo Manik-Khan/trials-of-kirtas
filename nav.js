@@ -700,7 +700,7 @@ applyTheme(getSavedTheme());
     //   window.__tok.session : the raw Supabase session (token + user)
     //   window.__tok.ready   : promise → profile object, or null. Never rejects.
     //   window.__tok.profile : undefined until ready resolves, then object|null
-    // profile shape: { userId, email, role, characterKey }
+    // profile shape: { id, userId, email, role, characterKey }
     //   role         : 'overseer' | 'dm' | 'player'
     //   characterKey : 'cosmere' | 'caim' | 'liadan' | 'vesperian' | null
     // A null profile means authenticated-but-no-profiles-row (unprovisioned) OR
@@ -720,11 +720,11 @@ applyTheme(getSavedTheme());
       try {
         const { data: row } = await sb
           .from('profiles')
-          .select('role, character_key')
+          .select('id, role, character_key')
           .eq('user_id', userId)
           .maybeSingle();
         if (row) {
-          profile = { userId, email, role: row.role, characterKey: row.character_key };
+          profile = { id: row.id, userId, email, role: row.role, characterKey: row.character_key };
         }
       } catch (e) {
         // Session valid but the profile lookup failed. Resolve null rather than
