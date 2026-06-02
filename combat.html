@@ -53,19 +53,18 @@
     .stage {
       flex: 1;
       position: relative;
-      overflow: auto;                   /* pan when the board exceeds the viewport */
-      display: flex;
-      align-items: center;
-      justify-content: center;
+      overflow: hidden;                 /* we manage zoom/pan ourselves via transform */
       background:
         radial-gradient(circle at 50% 40%, rgba(184,149,42,0.04), transparent 70%),
         var(--ink-deep);
-      -webkit-overflow-scrolling: touch;
+      touch-action: none;               /* we handle pinch/pan; stop the browser hijacking it */
     }
 
     .board {
-      position: relative;
-      flex-shrink: 0;                   /* keep its computed size inside the flex stage */
+      position: absolute;
+      top: 0; left: 0;
+      transform-origin: 0 0;            /* zoom/pan via translate()+scale() from here */
+      will-change: transform;
       box-shadow: 0 10px 40px rgba(0,0,0,0.6);
       background: var(--smoke);         /* shows through until/if the map loads */
       outline: 1px solid var(--gold-dim);
@@ -157,20 +156,19 @@
       top: 102%;                          /* just below the square; doesn't shift the disc */
       left: 50%;
       transform: translateX(-50%);
-      display: none;                      /* revealed on click (.token.show-name) */
+      display: none;                      /* revealed when the token is selected */
       font-family: var(--font-title);
-      font-size: 11px;                    /* fixed + readable regardless of board scale */
+      font-size: clamp(5px, 28cqw, 15px); /* scales with the token, capped so it's never huge */
       letter-spacing: 0.04em;
       color: var(--parchment);
       white-space: nowrap;
       background: rgba(10,8,5,0.88);
       border: 1px solid var(--gold-dim);
-      padding: 1px 6px;
-      border-radius: 3px;
+      padding: 0.12em 0.5em;
+      border-radius: 0.25em;
       pointer-events: none;
       z-index: 50;
     }
-    .token.show-name .token-name { display: block; }
     /* concealment badges — DM view only */
     .token.is-hidden { opacity: 0.5; }
     .token-badge {
@@ -190,6 +188,40 @@
       background: repeating-linear-gradient(45deg, #2a2620, #2a2620 4px, #1c1a16 4px, #1c1a16 8px);
       border: 2px solid var(--muted);
     }
+
+    /* selection + drag feedback */
+    .token.selected { z-index: 30; }
+    .token.selected .token-disc,
+    .token.selected .token-cutout {
+      filter: drop-shadow(0 0 2px var(--gold-light)) drop-shadow(0 0 5px var(--gold));
+    }
+    .token.selected .token-name { display: block; }   /* selecting reveals the name */
+    .token.dragging { opacity: 0.85; cursor: grabbing; }
+    .token.no-move { cursor: default; }
+
+    /* zoom toolbar */
+    .zoom-bar {
+      position: absolute;
+      bottom: 12px; right: 12px;
+      z-index: 20;
+      display: flex;
+      flex-direction: column;
+      gap: 4px;
+    }
+    .zoom-bar button {
+      width: 30px; height: 30px;
+      background: var(--nav-bg);
+      border: 1px solid var(--nav-border);
+      color: var(--gold-light);
+      font-family: var(--font-title);
+      font-size: 0.9rem;
+      line-height: 1;
+      cursor: pointer;
+      display: flex; align-items: center; justify-content: center;
+    }
+    .zoom-bar button:hover { background: var(--gold-dim); }
+    .zoom-bar button.fit { font-size: 0.5rem; letter-spacing: 0.06em; }
+
     /* thin divider + checkbox accent in the controls panel */
     .gc-sep { height: 1px; background: var(--gold-dim); margin: 0.5rem 0; }
     .gc-row input[type=checkbox] { accent-color: var(--gold); width: 14px; height: 14px; }
@@ -305,6 +337,19 @@
     const CHAR_COLOR = { cosmere: '#9d4edd', caim: '#c0001a', liadan: '#1d9e75', vesperian: '#b8952a' };
     const ENEMY_COLOR = '#a23b2d';
 
+    // Per-character render style for the token art, since it depends on the art:
+    //   'circle' = crop into a framed disc (for art composed for a round frame)
+    //   'cutout' = place the transparent PNG as-is (for a standing figure)
+    // Overrides the global Style control per token. Anything not listed (e.g.
+    // enemies, until the bestiary sets their own) falls back to the global default.
+    // >>> Confirm these match the actual art you uploaded. <<<
+    const TOKEN_STYLE = {
+      cosmere:   'circle',
+      caim:      'cutout',
+      liadan:    'cutout',
+      vesperian: 'circle',
+    };
+
     // Dedicated battle tokens (transparent cutout PNGs) keyed by character key.
     // Preferred over PORTRAITS when present; the renderer falls back
     // portrait → dot-initial. Versionless + transform = same form as the map
@@ -356,6 +401,13 @@
     let boardEl = null;
     let COMBS = [];      // cached combatant rows, for re-rendering on control changes
     let IS_STAFF = false;
+    let ME = null;       // viewer profile { role, characterKey, ... }
+    let SB = null;       // shared supabase client (from nav.js)
+    let ENC = null;      // active encounter row
+    let SELECTED = null; // selected combatant id
+    let dragId = null;   // combatant id currently being dragged
+    let zoom = 1, panX = 0, panY = 0;   // board transform (zoom/pan)
+    const MINZ = 0.25, MAXZ = 8;
 
     // Build the grid SVG markup. viewBox is NATIVE map coords so it scales with
     // the board automatically. Uses a <pattern> tile = one cell, offset by the
@@ -416,11 +468,13 @@
       const ring = isParty ? (CHAR_COLOR[c.source_key] || '#888') : ENEMY_COLOR;
       // dedicated token first, then portrait, then nothing (→ dot-initial)
       const img = TOKENS[c.source_key] || (isParty ? PORTRAITS[c.source_key] : null);
+      // per-character art style wins; global control is the fallback default
+      const style = TOKEN_STYLE[c.source_key] || TOKEN.style;
 
       let disc;
       if (teasedForPlayer) {
         disc = `<div class="token-disc mystery"><span class="token-initial">?</span></div>`;
-      } else if (img && TOKEN.style === 'cutout') {
+      } else if (img && style === 'cutout') {
         const base = TOKEN.ring ? `<div class="token-base" style="--ring:${ring}"></div>` : '';
         disc = `<div class="token-cutout">${base}<img class="token-cutimg" src="${img}" alt="" draggable="false"></div>`;
       } else if (img) {  // circle mode — crop into a framed disc
@@ -436,10 +490,14 @@
       else if (isStaff && c.tease) badge = `<span class="token-badge" title="Teased (players see ???)">?</span>`;
 
       const label = teasedForPlayer ? '???' : (c.name || '');
-      const cls = 'token' + (isStaff && c.hidden ? ' is-hidden' : '');
+      const movable = canMove(c);
+      const cls = 'token'
+        + (isStaff && c.hidden ? ' is-hidden' : '')
+        + (movable ? '' : ' no-move')
+        + (c.id === SELECTED ? ' selected' : '');
 
       return `
-        <div class="${cls}" style="left:${cx}%; top:${cy}%; width:${sizePct}%">
+        <div class="${cls}" data-id="${c.id}" style="left:${cx}%; top:${cy}%; width:${sizePct}%">
           ${disc}${badge}
           <span class="token-name">${label}</span>
         </div>`;
@@ -459,14 +517,212 @@
       const availH = stage.clientHeight;
       let w = availW, h = w / aspect;
       if (h > availH) { h = availH; w = h * aspect; }
-      boardEl.style.width  = Math.floor(w) + 'px';
-      boardEl.style.height = Math.floor(h) + 'px';
+      w = Math.floor(w); h = Math.floor(h);
+      boardEl.style.width  = w + 'px';
+      boardEl.style.height = h + 'px';
+      // reset to "fit": zoom 1, board centred in the stage
+      zoom = 1;
+      panX = Math.round((availW - w) / 2);
+      panY = Math.round((availH - h) / 2);
+      applyTransform();
+    }
+
+    // ── board transform (zoom/pan) ──
+    function applyTransform() {
+      if (boardEl) boardEl.style.transform = `translate(${panX}px, ${panY}px) scale(${zoom})`;
+    }
+    const clampZ = z => Math.max(MINZ, Math.min(MAXZ, z));
+    function zoomAt(factor, sx, sy) {        // sx,sy = stage-local point to keep fixed
+      const z2 = clampZ(zoom * factor);
+      if (z2 === zoom) return;
+      const bx = (sx - panX) / zoom, by = (sy - panY) / zoom;
+      zoom = z2;
+      panX = sx - bx * zoom;
+      panY = sy - by * zoom;
+      applyTransform();
+    }
+
+    // ── coordinate helpers ──
+    function screenToCell(clientX, clientY) {
+      const rect = stage.getBoundingClientRect();
+      const bx = (clientX - rect.left - panX) / zoom;   // board-local px (base size)
+      const by = (clientY - rect.top  - panY) / zoom;
+      const W = META.cols * META.cellPx, H = META.rows * META.cellPx;
+      const fx = bx / boardEl.offsetWidth, fy = by / boardEl.offsetHeight;
+      let col = Math.floor((fx * W - META.originX) / META.cellPx);
+      let row = Math.floor((fy * H - META.originY) / META.cellPx);
+      col = Math.max(0, Math.min(META.cols - 1, col));
+      row = Math.max(0, Math.min(META.rows - 1, row));
+      return { col, row };
+    }
+    function cellCenterPct(col, row) {
+      const W = META.cols * META.cellPx, H = META.rows * META.cellPx;
+      return {
+        x: ((META.originX + (col + 0.5) * META.cellPx) / W) * 100,
+        y: ((META.originY + (row + 0.5) * META.cellPx) / H) * 100,
+      };
+    }
+    function tokenEl(id) { return boardEl && boardEl.querySelector(`.token[data-id="${id}"]`); }
+    function updateTokenPos(c) {
+      const el = tokenEl(c.id); if (!el) return;
+      const p = cellCenterPct(c.x, c.y);
+      el.style.left = p.x + '%'; el.style.top = p.y + '%';
+    }
+    function canMove(c) {
+      return IS_STAFF || !!(ME && ME.id && c.owner && c.owner === ME.id);
+    }
+
+    // ── selection ──
+    function selectToken(id) {
+      SELECTED = id;
+      boardEl.querySelectorAll('.token.selected').forEach(t => t.classList.remove('selected'));
+      const el = tokenEl(id); if (el) el.classList.add('selected');
+    }
+    function deselect() {
+      SELECTED = null;
+      boardEl.querySelectorAll('.token.selected').forEach(t => t.classList.remove('selected'));
+    }
+
+    // ── write a move to Supabase (optimistic; reverts on error) ──
+    async function moveCombatant(id, col, row) {
+      const c = COMBS.find(k => k.id === id); if (!c) return;
+      const px = c.x, py = c.y;
+      c.x = col; c.y = row; updateTokenPos(c);
+      const { error } = await SB.from('combatants').update({ x: col, y: row }).eq('id', id);
+      if (error) { c.x = px; c.y = py; updateTokenPos(c); console.error('move failed:', error.message); }
+    }
+
+    // ── pointer (mouse + touch): drag tokens, pan, pinch-zoom, tap-select ──
+    function initInteractions() {
+      const pointers = new Map();
+      let mode = null, dragCell = null, moved = false;
+      let start = { x: 0, y: 0 }, last = { x: 0, y: 0 }, tapId = null, pinch = null;
+      const dist = (a, b) => Math.hypot(a.x - b.x, a.y - b.y);
+      const mid  = (a, b) => ({ x: (a.x + b.x) / 2, y: (a.y + b.y) / 2 });
+
+      stage.addEventListener('pointerdown', (e) => {
+        stage.setPointerCapture(e.pointerId);
+        pointers.set(e.pointerId, { x: e.clientX, y: e.clientY });
+
+        if (pointers.size === 2) {                       // second finger → pinch
+          if (mode === 'drag' && dragId != null) {       // abort an in-progress drag
+            const c = COMBS.find(k => k.id === dragId); if (c) updateTokenPos(c);
+            const el = tokenEl(dragId); if (el) el.classList.remove('dragging');
+          }
+          dragId = null; mode = 'pinch';
+          const p = [...pointers.values()]; const m = mid(p[0], p[1]);
+          pinch = { dist: dist(p[0], p[1]), x: m.x, y: m.y };
+          return;
+        }
+        if (pointers.size !== 1) return;
+
+        start = last = { x: e.clientX, y: e.clientY }; moved = false;
+        const tokEl = e.target.closest('.token');
+        tapId = tokEl ? tokEl.dataset.id : null;
+        if (tokEl) {
+          const c = COMBS.find(k => k.id === tapId);
+          if (c && canMove(c)) { mode = 'drag'; dragId = tapId; } else { mode = 'tap'; }
+        } else { mode = 'pan'; }
+      });
+
+      stage.addEventListener('pointermove', (e) => {
+        if (!pointers.has(e.pointerId)) return;
+        pointers.set(e.pointerId, { x: e.clientX, y: e.clientY });
+        const rect = stage.getBoundingClientRect();
+
+        if (mode === 'pinch' && pointers.size >= 2) {
+          const p = [...pointers.values()]; const d = dist(p[0], p[1]); const m = mid(p[0], p[1]);
+          if (pinch && pinch.dist > 0) {
+            zoomAt(d / pinch.dist, m.x - rect.left, m.y - rect.top);
+            panX += (m.x - pinch.x); panY += (m.y - pinch.y); applyTransform();
+          }
+          pinch = { dist: d, x: m.x, y: m.y };
+          return;
+        }
+
+        const dx = e.clientX - last.x, dy = e.clientY - last.y;
+        if (!moved && Math.hypot(e.clientX - start.x, e.clientY - start.y) > 4) moved = true;
+
+        if (mode === 'drag' && dragId != null && moved) {
+          const { col, row } = screenToCell(e.clientX, e.clientY);
+          const p = cellCenterPct(col, row); const el = tokenEl(dragId);
+          if (el) { el.style.left = p.x + '%'; el.style.top = p.y + '%'; el.classList.add('dragging'); }
+          dragCell = { col, row };
+        } else if (mode === 'pan' && moved) {
+          panX += dx; panY += dy; applyTransform();
+        }
+        last = { x: e.clientX, y: e.clientY };
+      });
+
+      function endPointer(e) {
+        if (!pointers.has(e.pointerId)) return;
+        pointers.delete(e.pointerId);
+        if (mode === 'pinch') { if (pointers.size < 2) { mode = pointers.size === 1 ? 'pan' : null; pinch = null; } return; }
+
+        if (!moved) {                                    // tap → (de)select
+          if (tapId) selectToken(tapId); else deselect();
+        } else if (mode === 'drag' && dragId != null && dragCell) {
+          const el = tokenEl(dragId); if (el) el.classList.remove('dragging');
+          moveCombatant(dragId, dragCell.col, dragCell.row);
+          selectToken(dragId);
+        }
+        if (pointers.size === 0) { mode = null; dragId = null; dragCell = null; }
+      }
+      stage.addEventListener('pointerup', endPointer);
+      stage.addEventListener('pointercancel', endPointer);
+
+      stage.addEventListener('wheel', (e) => {
+        e.preventDefault();
+        const rect = stage.getBoundingClientRect();
+        zoomAt(e.deltaY < 0 ? 1.1 : 1 / 1.1, e.clientX - rect.left, e.clientY - rect.top);
+      }, { passive: false });
+
+      // arrow keys nudge the selected token one cell
+      window.addEventListener('keydown', (e) => {
+        if (!SELECTED) return;
+        const D = { ArrowUp:[0,-1], ArrowDown:[0,1], ArrowLeft:[-1,0], ArrowRight:[1,0] }[e.key];
+        if (!D) return;
+        const c = COMBS.find(k => k.id === SELECTED); if (!c || !canMove(c)) return;
+        e.preventDefault();
+        const col = Math.max(0, Math.min(META.cols - 1, c.x + D[0]));
+        const row = Math.max(0, Math.min(META.rows - 1, c.y + D[1]));
+        if (col !== c.x || row !== c.y) moveCombatant(SELECTED, col, row);
+      });
+    }
+
+    // ── realtime: a move on any client updates every other board live ──
+    function initRealtime() {
+      if (!SB || !ENC) return;
+      SB.channel('combat-' + ENC.id)
+        .on('postgres_changes',
+          { event: 'UPDATE', schema: 'public', table: 'combatants', filter: 'encounter_id=eq.' + ENC.id },
+          ({ new: row }) => {
+            if (!row || row.id === dragId) return;       // ignore the echo of my own drag
+            const c = COMBS.find(k => k.id === row.id); if (!c) return;
+            c.x = row.x; c.y = row.y; c.hp = row.hp; c.conditions = row.conditions;
+            updateTokenPos(c);
+          })
+        .subscribe();
+    }
+
+    // ── zoom toolbar ──
+    function buildZoomBar() {
+      const bar = document.createElement('div');
+      bar.className = 'zoom-bar';
+      bar.innerHTML = `<button id="z-in" title="Zoom in">+</button>
+                       <button id="z-out" title="Zoom out">−</button>
+                       <button id="z-fit" class="fit" title="Fit to screen">FIT</button>`;
+      stage.appendChild(bar);
+      const c = () => ({ x: stage.clientWidth / 2, y: stage.clientHeight / 2 });
+      bar.querySelector('#z-in').onclick  = () => { const m = c(); zoomAt(1.25, m.x, m.y); };
+      bar.querySelector('#z-out').onclick = () => { const m = c(); zoomAt(1 / 1.25, m.x, m.y); };
+      bar.querySelector('#z-fit').onclick = () => fitBoard(META);
     }
 
     // ── main ──
     whenReady(async function () {
-      const sb = window.__tok.sb;
-      const me = window.__tok.ready ? await window.__tok.ready : null;
+      const sb = window.__tok.sb;  SB = sb;
+      const me = window.__tok.ready ? await window.__tok.ready : null;  ME = me;
       const isStaff = !!(me && (me.role === 'overseer' || me.role === 'dm'));
 
       let manifest;
@@ -482,6 +738,7 @@
         .from('encounters').select('*').eq('status', 'active').maybeSingle();
       if (encErr) { showMsg('Could not load the encounter', encErr.message, false); return; }
       if (!enc)   { showMsg('No active encounter', 'When the DM starts a fight, the battlefield appears here.', false); return; }
+      ENC = enc;
 
       META = manifest[enc.map_ref];
       if (!META) { showMsg('Unknown map', `No manifest entry for "${enc.map_ref}".`, false); return; }
@@ -512,14 +769,10 @@
       stage.appendChild(boardEl);
       fitBoard(META);
 
-      // click a token → reveal just its name (clears others); click the map → clear all
-      boardEl.addEventListener('click', (e) => {
-        const tok = e.target.closest('.token');
-        document.querySelectorAll('.token.show-name').forEach(t => {
-          if (t !== tok) t.classList.remove('show-name');
-        });
-        if (tok) tok.classList.toggle('show-name');
-      });
+      // wire interactions (drag / pan / pinch / keys), realtime sync, zoom UI
+      initInteractions();
+      initRealtime();
+      buildZoomBar();
 
       // grid controls (demonstrates the opacity / style / colour answer live)
       buildGridControls();
