@@ -228,7 +228,14 @@
     .gc-sub {
       font-size: 0.44rem; letter-spacing: 0.3em; text-transform: uppercase;
       color: var(--muted); margin: 0 0 0.4rem;
+      display: flex; align-items: center; justify-content: space-between;
     }
+    .gc-tag {
+      font-size: 0.4rem; letter-spacing: 0.12em; text-transform: uppercase;
+      color: var(--ink-deep); background: var(--gold-mid);
+      padding: 1px 5px; border-radius: 3px; font-weight: 600;
+    }
+    .gc-empty { font-size: 0.5rem; color: var(--muted); margin: 0 0 0.3rem; }
 
     /* ── grid controls panel ── */
     .grid-controls {
@@ -239,6 +246,8 @@
       border: 1px solid var(--nav-border);
       padding: 0.5rem 0.6rem;
       min-width: 156px;
+      max-height: calc(100% - 20px);
+      overflow-y: auto;
       font-family: var(--font-title);
     }
     .grid-controls h4 {
@@ -601,6 +610,8 @@
       const mid  = (a, b) => ({ x: (a.x + b.x) / 2, y: (a.y + b.y) / 2 });
 
       stage.addEventListener('pointerdown', (e) => {
+        // never let board pan/drag steal interactions meant for the UI panels
+        if (e.target.closest('.grid-controls, .zoom-bar')) return;
         stage.setPointerCapture(e.pointerId);
         pointers.set(e.pointerId, { x: e.clientX, y: e.clientY });
 
@@ -790,10 +801,25 @@
     function buildGridControls() {
       const panel = document.createElement('div');
       panel.className = 'grid-controls';
+
+      // a circle/cutout selector per party character present in the encounter
+      const partyRows = COMBS
+        .filter(c => c.side === 'party' && c.source_key)
+        .map(c => {
+          const cur = TOKEN_STYLE[c.source_key] || TOKEN.style;
+          return `<div class="gc-row">
+              <label title="${c.name}">${(c.name || c.source_key).split(' ')[0]}</label>
+              <select data-char="${c.source_key}" class="gc-cstyle">
+                <option value="cutout"${cur === 'cutout' ? ' selected' : ''}>Cutout</option>
+                <option value="circle"${cur === 'circle' ? ' selected' : ''}>Circle</option>
+              </select>
+            </div>`;
+        }).join('');
+
       panel.innerHTML = `
         <h4>Display <span class="gc-toggle" id="gc-toggle">▾</span></h4>
         <div class="gc-body">
-          <p class="gc-sub">Grid</p>
+          <p class="gc-sub">Grid <span class="gc-tag">global</span></p>
           <div class="gc-row">
             <label for="gc-style">Style</label>
             <select id="gc-style">
@@ -811,14 +837,10 @@
             <input type="color" id="gc-color">
           </div>
           <div class="gc-sep"></div>
-          <p class="gc-sub">Tokens</p>
-          <div class="gc-row">
-            <label for="gc-tstyle">Style</label>
-            <select id="gc-tstyle">
-              <option value="cutout">Cutout</option>
-              <option value="circle">Circle</option>
-            </select>
-          </div>
+          <p class="gc-sub">Token style <span class="gc-tag">per character</span></p>
+          ${partyRows || '<p class="gc-empty">No party tokens.</p>'}
+          <div class="gc-sep"></div>
+          <p class="gc-sub">Tokens <span class="gc-tag">view</span></p>
           <div class="gc-row">
             <label for="gc-tsize">Size</label>
             <input type="range" id="gc-tsize" min="0.6" max="1.8" step="0.05">
@@ -841,14 +863,18 @@
       opac.addEventListener('input',      () => { GRID.opacity = parseFloat(opac.value); redrawGrid(); });
       color.addEventListener('input',     () => { GRID.color = color.value; redrawGrid(); });
 
-      const tstyle = panel.querySelector('#gc-tstyle');
+      // per-character token style → updates TOKEN_STYLE and re-renders
+      panel.querySelectorAll('.gc-cstyle').forEach(sel => {
+        sel.addEventListener('change', () => {
+          TOKEN_STYLE[sel.dataset.char] = sel.value;
+          renderTokens();
+        });
+      });
+
       const tsize  = panel.querySelector('#gc-tsize');
       const tring  = panel.querySelector('#gc-tring');
-      tstyle.value   = TOKEN.style;
       tsize.value    = TOKEN.size;
       tring.checked  = TOKEN.ring;
-
-      tstyle.addEventListener('change', () => { TOKEN.style = tstyle.value; renderTokens(); });
       tsize.addEventListener('input',   () => { TOKEN.size = parseFloat(tsize.value); renderTokens(); });
       tring.addEventListener('change',  () => { TOKEN.ring = tring.checked; renderTokens(); });
 
