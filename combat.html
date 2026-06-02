@@ -75,6 +75,8 @@
       height: 100%;
       user-select: none;
       -webkit-user-drag: none;
+      -webkit-touch-callout: none;
+      pointer-events: none;             /* map is backdrop; pan is handled on the stage */
     }
     .board-map.missing { opacity: 0; }  /* hide the broken-image glyph; grid still proves the math */
 
@@ -773,7 +775,7 @@
       boardEl.className = 'board';
       const tokensHtml = COMBS.map(c => tokenHtml(c, META, IS_STAFF)).join('');
       boardEl.innerHTML =
-        `<img class="board-map" alt="${enc.map_ref}" src="${mapUrl(META.publicId)}"
+        `<img class="board-map" alt="${enc.map_ref}" draggable="false" src="${mapUrl(META.publicId)}"
               onerror="this.classList.add('missing')">
          ${gridSvg(META)}
          <div class="board-tokens">${tokensHtml}</div>`;
