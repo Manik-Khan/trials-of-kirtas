@@ -925,7 +925,11 @@
         if (e.button > 0) return;                 // right/middle mouse → handled by contextmenu
         // never let board pan/drag steal interactions meant for the UI panels
         if (e.target.closest('.grid-controls, .zoom-bar')) return;
-        stage.setPointerCapture(e.pointerId);
+        // self-heal: the first finger of a fresh gesture clears any pointer left
+        // stranded by a dropped up/cancel (iOS capture quirk) — otherwise a stale
+        // entry makes the next single touch read as a 2-finger pinch.
+        if (e.isPrimary) { pointers.clear(); mode = null; pinch = null; }
+        try { stage.setPointerCapture(e.pointerId); } catch (_) {}
         pointers.set(e.pointerId, { x: e.clientX, y: e.clientY });
 
         if (pointers.size === 2) {                       // second finger → pinch
@@ -954,6 +958,7 @@
               lpTimer = null; longPressed = true;
               const el = tokenEl(tapId); if (el) el.classList.remove('dragging');
               clearMeasure(); dragOrigin = null;
+              mode = 'menu'; dragId = null; dragCell = null;   // menu open → disarm drag (no ghost-follow, no half-move)
               selectToken(tapId);
               openCtxMenu(c, downX, downY);
             }, 500);
@@ -998,6 +1003,7 @@
       function endPointer(e) {
         if (!pointers.has(e.pointerId)) return;
         pointers.delete(e.pointerId);
+        try { stage.releasePointerCapture(e.pointerId); } catch (_) {}
         clearTimeout(lpTimer); lpTimer = null;
         if (mode === 'pinch') { if (pointers.size < 2) { mode = pointers.size === 1 ? 'pan' : null; pinch = null; } return; }
 
@@ -1015,6 +1021,7 @@
       }
       stage.addEventListener('pointerup', endPointer);
       stage.addEventListener('pointercancel', endPointer);
+      stage.addEventListener('lostpointercapture', endPointer);   // capture yanked → clean the pointer too
 
       // desktop right-click → context menu
       stage.addEventListener('contextmenu', (e) => {
