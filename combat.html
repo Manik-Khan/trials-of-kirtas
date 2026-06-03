@@ -299,6 +299,20 @@
     }
     .ctx-tab:hover { color: var(--parchment); }
     .ctx-tab.active { color: var(--gold-light); border-bottom-color: var(--gold-light); }
+    /* size selector (Manage tab) */
+    .ctx-sizes {
+      display: grid; grid-template-columns: repeat(3, 1fr); gap: 0.2rem;
+      padding: 0.15rem 0.6rem 0.35rem;
+    }
+    .ctx-size {
+      background: none; cursor: pointer;
+      border: 1px solid var(--gold-dim); border-radius: 4px;
+      font-family: var(--font-title);
+      font-size: 0.4rem; letter-spacing: 0.08em; text-transform: uppercase;
+      color: var(--muted); padding: 0.32rem 0.2rem;
+    }
+    .ctx-size:hover { color: var(--parchment); border-color: var(--gold-light); }
+    .ctx-size.active { color: var(--ink-deep); background: var(--gold-light); border-color: var(--gold-light); }
     .ctx-cond {
       display: flex; align-items: center; gap: 0.55rem;
       padding: 0.32rem 0.7rem; cursor: pointer; user-select: none;
@@ -548,6 +562,12 @@
     //   style: 'cutout' = place the PNG as-is | 'circle' = crop into a framed disc
     //   size : multiplier on the 1-cell footprint    ring: show ring (circle) / base (cutout)
     let TOKEN = { style: 'cutout', size: 1, ring: true };
+    // Per-creature size (DM authority, shared in the DB). Multiplies the viewer's
+    // TOKEN.size. v1 = visual scale only, centred on the cell; multi-cell footprint
+    // occupancy is a deliberate later pass.
+    const SIZE_MUL   = { tiny: 0.5, small: 0.85, medium: 1, large: 2, huge: 3, gargantuan: 4 };
+    const SIZE_ORDER = ['tiny', 'small', 'medium', 'large', 'huge', 'gargantuan'];
+    const SIZE_LABEL = { tiny: 'Tiny', small: 'Small', medium: 'Medium', large: 'Large', huge: 'Huge', gargantuan: 'Garg' };
     let META = null;     // manifest entry for the active map
     let boardEl = null;
     let COMBS = [];      // cached combatant rows, for re-rendering on control changes
@@ -613,7 +633,7 @@
       // cell-centre in native px → percentage of the board
       const cx = ((meta.originX + (c.x + 0.5) * meta.cellPx) / W) * 100;
       const cy = ((meta.originY + (c.y + 0.5) * meta.cellPx) / H) * 100;
-      const sizePct = (meta.cellPx / W) * 100 * TOKEN.size;   // one cell × size multiplier
+      const sizePct = (meta.cellPx / W) * 100 * TOKEN.size * (SIZE_MUL[c.size] || 1);   // one cell × viewer multiplier × creature size
 
       const teasedForPlayer = c.tease && !isStaff;       // player sees the veil
       const isParty = c.side === 'party';
@@ -763,6 +783,13 @@
       const p = cellCenterPct(c.x, c.y);
       el.style.left = p.x + '%'; el.style.top = p.y + '%';
     }
+    // Re-apply only a token's width after a size change (local or realtime) —
+    // mirrors the sizePct math in tokenHtml; avoids a rebuild that drops drag state.
+    function updateTokenSize(c) {
+      const el = tokenEl(c.id); if (!el || !META) return;
+      const W = META.cols * META.cellPx;
+      el.style.width = ((META.cellPx / W) * 100 * TOKEN.size * (SIZE_MUL[c.size] || 1)) + '%';
+    }
     function canMove(c) {
       return IS_STAFF || !!(ME && ME.id && c.owner && c.owner === ME.id);
     }
@@ -785,6 +812,16 @@
       c.x = col; c.y = row; updateTokenPos(c);
       const { error } = await SB.from('combatants').update({ x: col, y: row }).eq('id', id);
       if (error) { c.x = px; c.y = py; updateTokenPos(c); console.error('move failed:', error.message); }
+    }
+
+    // ── write a creature's size to Supabase (staff-only; optimistic, reverts) ──
+    async function setSize(id, size) {
+      const c = COMBS.find(k => k.id === id); if (!c) return false;
+      const prev = c.size;
+      c.size = size; updateTokenSize(c);
+      const { error } = await SB.from('combatants').update({ size }).eq('id', id);
+      if (error) { c.size = prev; updateTokenSize(c); console.error('size write failed:', error.message); return false; }
+      return true;
     }
 
     // ── conditions: badge cluster + write + per-token context menu ──
@@ -860,6 +897,15 @@
         </div>`).join('');
     }
 
+    // Body builder for the Manage tab (staff only) — per-creature size.
+    function manageTabBody(c) {
+      const cur = c.size || 'medium';
+      return `<div class="ctx-sub">Size</div>
+        <div class="ctx-sizes">` + SIZE_ORDER.map(s =>
+          `<button class="ctx-size${s === cur ? ' active' : ''}" data-size="${s}">${SIZE_LABEL[s]}</button>`
+        ).join('') + `</div>`;
+    }
+
     function openCtxMenu(c, sx, sy) {
       closeCtxMenu();
       if (!c) return;
@@ -868,9 +914,9 @@
       // staff actions = size/colour/hidden/tease, shared). Gate role-aware tabs
       // with `show: () => …` (e.g. IS_STAFF). Order here = display order.
       const tabs = [
-        { id: 'conds', label: 'Conditions', body: () => condTabBody(c) },
-        // { id: 'style',  label: 'Style',  body: () => styleTabBody(c) },
-        // { id: 'manage', label: 'Manage', show: () => IS_STAFF, body: () => manageTabBody(c) },
+        { id: 'conds',  label: 'Conditions', body: () => condTabBody(c) },
+        { id: 'manage', label: 'Manage', show: () => IS_STAFF, body: () => manageTabBody(c) },
+        // { id: 'style', label: 'Style', body: () => styleTabBody(c) },   // personal/per-profile — later pass
       ];
       const visible = tabs.filter(t => !t.show || t.show());
       let activeId = visible[0].id;
@@ -902,6 +948,12 @@
         ctxEl.querySelectorAll('.ctx-cond').forEach(rowEl =>
           rowEl.addEventListener('click', async () => {
             if (await toggleCondition(c.id, rowEl.dataset.cond)) rowEl.classList.toggle('active');
+          }));
+        // Size buttons (Manage tab, staff) — single-select; menu stays open.
+        ctxEl.querySelectorAll('.ctx-size').forEach(b =>
+          b.addEventListener('click', async () => {
+            if (await setSize(c.id, b.dataset.size))
+              ctxEl.querySelectorAll('.ctx-size').forEach(x => x.classList.toggle('active', x === b));
           }));
       }
 
@@ -1061,9 +1113,10 @@
           ({ new: row }) => {
             if (!row || row.id === dragId) return;       // ignore the echo of my own drag
             const c = COMBS.find(k => k.id === row.id); if (!c) return;
-            c.x = row.x; c.y = row.y; c.hp = row.hp; c.conditions = row.conditions;
+            c.x = row.x; c.y = row.y; c.hp = row.hp; c.conditions = row.conditions; c.size = row.size;
             updateTokenPos(c);
             updateTokenConditions(c);
+            updateTokenSize(c);
           })
         .subscribe();
     }
