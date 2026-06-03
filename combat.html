@@ -58,6 +58,8 @@
         radial-gradient(circle at 50% 40%, rgba(184,149,42,0.04), transparent 70%),
         var(--ink-deep);
       touch-action: none;               /* we handle pinch/pan; stop the browser hijacking it */
+      user-select: none;                /* panning the map must not text-select token labels */
+      -webkit-user-select: none;
     }
 
     .board {
