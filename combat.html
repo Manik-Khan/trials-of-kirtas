@@ -102,6 +102,15 @@
       pointer-events: auto;                /* clickable, though the layer is none */
       cursor: pointer;
     }
+    /* iOS: a token is an interactive control, not a saveable picture — kill the
+       native long-press callout (Save/Copy/Share) + drag so the hold opens our
+       menu instead of the system sheet. (.board-map already does this for the map.) */
+    .token, .token img {
+      -webkit-touch-callout: none;
+      -webkit-user-select: none;
+      user-select: none;
+      -webkit-user-drag: none;
+    }
     .token-disc {
       width: 100%;
       height: 100%;
@@ -273,6 +282,23 @@
       font-size: 0.4rem; letter-spacing: 0.22em; text-transform: uppercase;
       color: var(--muted); padding: 0.15rem 0.7rem 0.25rem;
     }
+    /* tab bar — only rendered when 2+ tabs exist; a single tab uses .ctx-sub above */
+    .ctx-tabs {
+      display: flex; gap: 0.15rem;
+      padding: 0 0.5rem 0.35rem;
+      border-bottom: 1px solid var(--gold-dim);
+      margin-bottom: 0.35rem;
+    }
+    .ctx-tab {
+      flex: 1;
+      background: none; border: 0; cursor: pointer;
+      font-family: var(--font-title);
+      font-size: 0.4rem; letter-spacing: 0.18em; text-transform: uppercase;
+      color: var(--muted); padding: 0.3rem 0.25rem;
+      border-bottom: 2px solid transparent;
+    }
+    .ctx-tab:hover { color: var(--parchment); }
+    .ctx-tab.active { color: var(--gold-light); border-bottom-color: var(--gold-light); }
     .ctx-cond {
       display: flex; align-items: center; gap: 0.55rem;
       padding: 0.32rem 0.7rem; cursor: pointer; user-select: none;
@@ -823,28 +849,63 @@
       ctxEl.style.left = Math.max(8, x) + 'px';
       ctxEl.style.top  = Math.max(8, y) + 'px';
     }
-    function openCtxMenu(c, sx, sy) {
-      closeCtxMenu();
-      if (!c) return;
+    // Body builder for the Conditions tab — the toggle rows.
+    function condTabBody(c) {
       const active = Array.isArray(c.conditions) ? c.conditions : [];
-      const rows = COND.map(d => `
+      return COND.map(d => `
         <div class="ctx-cond${active.includes(d.name) ? ' active' : ''}" data-cond="${d.name}">
           <span class="ctx-chip" style="--c:${d.color}"><svg viewBox="0 0 24 24" aria-hidden="true">${d.icon}</svg></span>
           <span class="ctx-label">${d.name}</span>
           <span class="ctx-check">✓</span>
         </div>`).join('');
+    }
+
+    function openCtxMenu(c, sx, sy) {
+      closeCtxMenu();
+      if (!c) return;
+
+      // Tab registry. Add future tabs here (Token style = personal/per-profile;
+      // staff actions = size/colour/hidden/tease, shared). Gate role-aware tabs
+      // with `show: () => …` (e.g. IS_STAFF). Order here = display order.
+      const tabs = [
+        { id: 'conds', label: 'Conditions', body: () => condTabBody(c) },
+        // { id: 'style',  label: 'Style',  body: () => styleTabBody(c) },
+        // { id: 'manage', label: 'Manage', show: () => IS_STAFF, body: () => manageTabBody(c) },
+      ];
+      const visible = tabs.filter(t => !t.show || t.show());
+      let activeId = visible[0].id;
+
       ctxEl = document.createElement('div');
       ctxEl.className = 'ctx-menu';
-      ctxEl.innerHTML = `<div class="ctx-head">${c.name || 'Token'}</div>
-        <div class="ctx-sub">Conditions</div>${rows}`;
       document.body.appendChild(ctxEl);
-      placeCtxMenu(sx, sy);
-      // toggles — menu stays open so several can be set in a row
-      ctxEl.querySelectorAll('.ctx-cond').forEach(rowEl => {
-        rowEl.addEventListener('click', async () => {
-          if (await toggleCondition(c.id, rowEl.dataset.cond)) rowEl.classList.toggle('active');
-        });
-      });
+
+      function render() {
+        // One visible tab → plain sub-label (unchanged look). Two+ → a tab bar.
+        const header = visible.length > 1
+          ? `<div class="ctx-tabs">` + visible.map(t =>
+              `<button class="ctx-tab${t.id === activeId ? ' active' : ''}" data-tab="${t.id}">${t.label}</button>`
+            ).join('') + `</div>`
+          : `<div class="ctx-sub">${visible[0].label}</div>`;
+        const active = visible.find(t => t.id === activeId);
+        ctxEl.innerHTML =
+          `<div class="ctx-head">${c.name || 'Token'}</div>` +
+          header +
+          `<div class="ctx-body">${active.body()}</div>`;
+        wire();
+        placeCtxMenu(sx, sy);
+      }
+
+      function wire() {
+        ctxEl.querySelectorAll('.ctx-tab').forEach(b =>
+          b.addEventListener('click', () => { activeId = b.dataset.tab; render(); }));
+        // Conditions toggles — menu stays open so several can be set in a row.
+        ctxEl.querySelectorAll('.ctx-cond').forEach(rowEl =>
+          rowEl.addEventListener('click', async () => {
+            if (await toggleCondition(c.id, rowEl.dataset.cond)) rowEl.classList.toggle('active');
+          }));
+      }
+
+      render();
       // dismissal (added next tick so the opening press doesn't self-close it)
       setTimeout(() => document.addEventListener('pointerdown', ctxOutside, true), 0);
       window.addEventListener('scroll', closeCtxMenu, true);
