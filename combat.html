@@ -435,6 +435,28 @@
     .gc-btn.on   { background: var(--gold); color: var(--ink-deep); border-color: var(--gold); }
     .gc-fog-brush, .gc-fog-bulk { gap: 0.3rem; }
     .stage.fog-edit { cursor: crosshair; }
+    /* ── left tool rail + contextual options (DM) ── */
+    .tool-rail {
+      position: absolute; top: 10px; left: 10px; z-index: 20;
+      display: flex; flex-direction: column; gap: 0.25rem;
+      background: var(--nav-bg); border: 1px solid var(--nav-border); padding: 0.3rem;
+    }
+    .tool-btn {
+      width: 34px; height: 34px; display: flex; align-items: center; justify-content: center;
+      background: transparent; border: 1px solid transparent; border-radius: 4px;
+      color: var(--muted); cursor: pointer; transition: color .15s, border-color .15s, background .15s;
+    }
+    .tool-btn svg { width: 18px; height: 18px; fill: currentColor; }
+    .tool-btn:hover { color: var(--parchment); border-color: var(--gold-dim); }
+    .tool-btn.active { color: var(--ink-deep); background: var(--gold); border-color: var(--gold); }
+    .tool-options {
+      position: absolute; top: 10px; left: 58px; z-index: 19;
+      min-width: 150px; background: var(--nav-bg); border: 1px solid var(--nav-border);
+      padding: 0.5rem 0.6rem; font-family: var(--font-title);
+      transform: translateX(-8px); opacity: 0; pointer-events: none;
+      transition: transform .2s ease, opacity .2s ease;
+    }
+    .tool-options.open { transform: translateX(0); opacity: 1; pointer-events: auto; }
 
     /* ── status / empty states ── */
     .stage-msg {
@@ -1093,7 +1115,7 @@
       stage.addEventListener('pointerdown', (e) => {
         if (e.button > 0) return;                 // right/middle mouse → handled by contextmenu
         // never let board pan/drag steal interactions meant for the UI panels
-        if (e.target.closest('.grid-controls, .zoom-bar')) return;
+        if (e.target.closest('.grid-controls, .zoom-bar, .tool-rail, .tool-options')) return;
         if (FOG.editing && IS_STAFF) {                 // fog paint mode → paint cells, skip token/pan logic
           try { stage.setPointerCapture(e.pointerId); } catch (_) {}
           fogPainting = true;
@@ -1329,6 +1351,7 @@
 
       // grid controls (demonstrates the opacity / style / colour answer live)
       buildGridControls();
+      buildToolRail();
 
       // keep the board fitted on resize/orientation change (grid + tokens are
       // %/viewBox-based, so only the board's px size needs recomputing)
@@ -1357,27 +1380,6 @@
               </select>
             </div>`;
         }).join('');
-
-      // fog of war controls — DM only (writes are staff-gated by RLS regardless)
-      const fogControls = IS_STAFF ? `
-          <div class="gc-sep"></div>
-          <p class="gc-sub">Fog of war <span class="gc-tag">DM</span></p>
-          <div class="gc-row">
-            <label for="gc-fog-edit">Paint fog</label>
-            <input type="checkbox" id="gc-fog-edit">
-          </div>
-          <div class="gc-row gc-fog-brush">
-            <button class="gc-btn on" id="gc-fog-reveal">Reveal</button>
-            <button class="gc-btn" id="gc-fog-hide">Hide</button>
-          </div>
-          <div class="gc-row">
-            <label for="gc-fog-size">Brush</label>
-            <input type="range" id="gc-fog-size" min="0" max="4" step="1">
-          </div>
-          <div class="gc-row gc-fog-bulk">
-            <button class="gc-btn" id="gc-fog-all">Reveal all</button>
-            <button class="gc-btn" id="gc-fog-none">Hide all</button>
-          </div>` : '';
 
       panel.innerHTML = `
         <h4>Display <span class="gc-toggle" id="gc-toggle">▾</span></h4>
@@ -1412,7 +1414,6 @@
             <label for="gc-tring">Ring / base</label>
             <input type="checkbox" id="gc-tring">
           </div>
-          ${fogControls}
         </div>`;
       stage.appendChild(panel);
 
@@ -1442,27 +1443,62 @@
       tsize.addEventListener('input',   () => { TOKEN.size = parseFloat(tsize.value); renderTokens(); });
       tring.addEventListener('change',  () => { TOKEN.ring = tring.checked; renderTokens(); });
 
-      if (IS_STAFF) {
-        const fEdit = panel.querySelector('#gc-fog-edit');
-        const fRev  = panel.querySelector('#gc-fog-reveal');
-        const fHide = panel.querySelector('#gc-fog-hide');
-        fEdit.addEventListener('change', () => {
-          FOG.editing = fEdit.checked;
-          stage.classList.toggle('fog-edit', FOG.editing);
-        });
-        fRev.addEventListener('click',  () => { FOG.brush = 'reveal'; fRev.classList.add('on');  fHide.classList.remove('on'); });
-        fHide.addEventListener('click', () => { FOG.brush = 'hide';   fHide.classList.add('on'); fRev.classList.remove('on'); });
-        const fSize = panel.querySelector('#gc-fog-size');
-        fSize.value = FOG.size;
-        fSize.addEventListener('input', () => { FOG.size = parseInt(fSize.value, 10); });
-        panel.querySelector('#gc-fog-all').addEventListener('click',  revealAllFog);
-        panel.querySelector('#gc-fog-none').addEventListener('click', hideAllFog);
-      }
-
       panel.querySelector('#gc-toggle').addEventListener('click', () => {
         panel.classList.toggle('collapsed');
         panel.querySelector('#gc-toggle').textContent = panel.classList.contains('collapsed') ? '▸' : '▾';
       });
+    }
+
+    // ── left tool rail (DM) — Select / Pencil(reveal) / Eraser(hide), with a
+    // contextual options slide-out. Future drawing tools (shapes, spell
+    // templates) slot in as more rail buttons, each opening their own options. ──
+    const TOOL_ICON = {
+      select: '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 3v15l4-4 3 6 2-1-3-6h5z"/></svg>',
+      pencil: '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 20h4L19 9l-4-4L4 16zm13-17 4 4-2 2-4-4z"/></svg>',
+      eraser: '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 15l7-7 7 7-4 4H7zm4 6h12v1.6H7z"/></svg>',
+    };
+    function buildToolRail() {
+      if (!IS_STAFF) return;
+      const rail = document.createElement('div');
+      rail.className = 'tool-rail';
+      rail.innerHTML = `
+        <button class="tool-btn active" data-tool="select" title="Select / move tokens">${TOOL_ICON.select}</button>
+        <button class="tool-btn" data-tool="reveal" title="Reveal fog">${TOOL_ICON.pencil}</button>
+        <button class="tool-btn" data-tool="hide"   title="Hide fog">${TOOL_ICON.eraser}</button>`;
+      stage.appendChild(rail);
+
+      const opts = document.createElement('div');
+      opts.className = 'tool-options';
+      opts.innerHTML = `
+        <p class="gc-sub">Fog brush <span class="gc-tag">DM</span></p>
+        <div class="gc-row">
+          <label for="tr-size">Brush</label>
+          <input type="range" id="tr-size" min="0" max="4" step="1">
+        </div>
+        <div class="gc-row gc-fog-bulk">
+          <button class="gc-btn" id="tr-all">Reveal all</button>
+          <button class="gc-btn" id="tr-none">Hide all</button>
+        </div>`;
+      stage.appendChild(opts);
+
+      const sizeInput = opts.querySelector('#tr-size');
+      sizeInput.value = FOG.size;
+      sizeInput.addEventListener('input', () => { FOG.size = parseInt(sizeInput.value, 10); });
+      opts.querySelector('#tr-all').addEventListener('click', revealAllFog);
+      opts.querySelector('#tr-none').addEventListener('click', hideAllFog);
+
+      // tool selection replaces the old "paint fog" checkbox: pencil → reveal,
+      // eraser → hide, select → painting off. Pencil & eraser share the fog options.
+      function setTool(t) {
+        rail.querySelectorAll('.tool-btn').forEach(b => b.classList.toggle('active', b.dataset.tool === t));
+        const painting = (t === 'reveal' || t === 'hide');
+        FOG.editing = painting;
+        if (painting) FOG.brush = t;
+        stage.classList.toggle('fog-edit', painting);
+        opts.classList.toggle('open', painting);
+      }
+      rail.querySelectorAll('.tool-btn').forEach(b =>
+        b.addEventListener('click', () => setTool(b.dataset.tool)));
     }
   })();
   </script>
