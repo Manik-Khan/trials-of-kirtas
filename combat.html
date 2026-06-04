@@ -1381,6 +1381,7 @@
         .on('postgres_changes',
           { event: 'UPDATE', schema: 'public', table: 'combatants', filter: 'encounter_id=eq.' + ENC.id },
           ({ new: row }) => {
+            console.log('[rt] combatants event', row && row.id);
             if (!row || row.id === dragId) return;       // ignore the echo of my own drag
             const c = COMBS.find(k => k.id === row.id); if (!c) return;
             c.x = row.x; c.y = row.y; c.hp = row.hp; c.conditions = row.conditions; c.size = row.size;
@@ -1392,6 +1393,7 @@
         .on('postgres_changes',
           { event: 'UPDATE', schema: 'public', table: 'encounters', filter: 'id=eq.' + ENC.id },
           ({ new: row }) => {
+            console.log('[rt] encounters event');
             if (!row) return;
             ENC.revealed_cells = row.revealed_cells || [];
             loadFog(); redrawFog(); renderTokens();      // fog moved → re-veil + re-evaluate token visibility
@@ -1399,13 +1401,14 @@
         .on('postgres_changes',
           { event: '*', schema: 'public', table: 'drawings', filter: 'encounter_id=eq.' + ENC.id },
           (payload) => {
+            console.log('[rt] drawings event', payload.eventType);
             const { eventType, new: row, old } = payload;
             if (eventType === 'INSERT')      { if (!DRAWINGS.some(d => d.id === row.id)) DRAWINGS.push(row); }
             else if (eventType === 'UPDATE') { const i = DRAWINGS.findIndex(d => d.id === row.id); if (i >= 0) DRAWINGS[i] = row; }
             else if (eventType === 'DELETE') { DRAWINGS = DRAWINGS.filter(d => d.id !== (old && old.id)); }
             redrawDrawings();
           })
-        .subscribe();
+        .subscribe((status, err) => console.log('[rt] combat channel:', status, err || ''));
     }
 
     // ── zoom toolbar ──
@@ -1614,8 +1617,8 @@
         { id: 'cone',   icon: TOOL_ICON.cone,   title: 'Cone' },
       ];
       if (IS_STAFF) tools.push(
-        { id: 'reveal', icon: TOOL_ICON.pencil, title: 'Reveal fog' },
-        { id: 'hide',   icon: TOOL_ICON.eraser, title: 'Hide fog' },
+        { id: 'hide',   icon: TOOL_ICON.pencil, title: 'Draw fog (hide map)' },
+        { id: 'reveal', icon: TOOL_ICON.eraser, title: 'Erase fog (reveal map)' },
       );
       rail.innerHTML = tools.map((t, i) =>
         `<button class="tool-btn${i === 0 ? ' active' : ''}" data-tool="${t.id}" title="${t.title}">${t.icon}</button>`).join('');
