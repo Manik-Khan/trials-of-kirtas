@@ -100,6 +100,11 @@
       height: 100%;
       pointer-events: none;
     }
+    /* drawings (shapes / spell templates) — below fog, below tokens */
+    .board-draw { position: absolute; inset: 0; width: 100%; height: 100%; pointer-events: none; }
+    .draw-del { pointer-events: auto; cursor: pointer; display: none; }
+    .board.tool-select .draw-del { display: inline; }
+    .tr-hint { font-size: 0.42rem; line-height: 1.5; color: var(--muted); margin: 0.45rem 0 0; text-transform: none; letter-spacing: 0.02em; }
 
     /* tokens — positioned in %, so they ride the board through any resize */
     .board-tokens { position: absolute; inset: 0; pointer-events: none; }
@@ -654,6 +659,13 @@
     function tokenVisible(c) {
       return IS_STAFF || isRevealed(c.x, c.y) || !!(ME && ME.id && c.owner === ME.id);
     }
+
+    // ── drawings (shapes & spell templates) state ──
+    let TOOL = 'select';                 // active tool: select | circle | cone | reveal | hide
+    const DRAW = { color: '#c0703c' };   // current draw colour (per user, change anytime)
+    let DRAWINGS = [];                   // rows from the drawings table
+    let drawPreview = null;              // in-progress shape while placing
+    const canEditDrawing = (d) => IS_STAFF || !!(ME && ME.id && d.owner === ME.id);
     let SELECTED = null; // selected combatant id
     let dragId = null;   // combatant id currently being dragged
     let dragOrigin = null; // {col,row} the drag started from — anchors the measurement
@@ -779,6 +791,64 @@
       redrawFog(); renderTokens(); flushFog();
     }
     function hideAllFog() { FOG.cells = new Set(); redrawFog(); renderTokens(); flushFog(); }
+
+    // ── drawings render + create/delete ──
+    // geometry is in board cell coords: circle {cx,cy,r}, cone {ox,oy,angle,len}.
+    function shapeSvg(d, meta, editable, preview) {
+      const g = d.geometry || {}, cp = meta.cellPx, ox0 = meta.originX, oy0 = meta.originY;
+      const sw = Math.max(1, cp * 0.06);
+      let body = '', hx = 0, hy = 0;
+      if (d.kind === 'circle') {
+        const cx = ox0 + (g.cx + 0.5) * cp, cy = oy0 + (g.cy + 0.5) * cp, r = (g.r || 1) * cp;
+        body = `<circle cx="${cx}" cy="${cy}" r="${r}" fill="${d.color}" fill-opacity="0.22" stroke="${d.color}" stroke-opacity="0.9" stroke-width="${sw}"/>`;
+        hx = cx; hy = cy;
+      } else if (d.kind === 'cone') {
+        const ox = ox0 + (g.ox + 0.5) * cp, oy = oy0 + (g.oy + 0.5) * cp;
+        const L = (g.len || 1) * cp, a = g.angle || 0;
+        const fx = ox + Math.cos(a) * L, fy = oy + Math.sin(a) * L;
+        const px = -Math.sin(a), py = Math.cos(a);
+        body = `<polygon points="${ox},${oy} ${fx + px*L/2},${fy + py*L/2} ${fx - px*L/2},${fy - py*L/2}" fill="${d.color}" fill-opacity="0.22" stroke="${d.color}" stroke-opacity="0.9" stroke-width="${sw}"/>`;
+        hx = ox; hy = oy;
+      }
+      let handle = '';
+      if (editable && !preview && d.id) {
+        const hr = cp * 0.3, k = cp * 0.12;
+        handle = `<g class="draw-del" data-id="${d.id}">
+          <circle cx="${hx}" cy="${hy}" r="${hr}" fill="#1a1a1a" stroke="${d.color}" stroke-width="${sw}"/>
+          <path d="M${hx-k},${hy-k} L${hx+k},${hy+k} M${hx+k},${hy-k} L${hx-k},${hy+k}" stroke="#fff" stroke-width="${Math.max(1, cp*0.04)}" stroke-linecap="round"/>
+        </g>`;
+      }
+      return body + handle;
+    }
+    function drawSvg(meta) {
+      const W = meta.cols * meta.cellPx, H = meta.rows * meta.cellPx;
+      const shapes = DRAWINGS.map(d => shapeSvg(d, meta, canEditDrawing(d), false)).join('');
+      const prev = drawPreview ? shapeSvg(drawPreview, meta, false, true) : '';
+      return `<svg class="board-draw" viewBox="0 0 ${W} ${H}" preserveAspectRatio="none" xmlns="http://www.w3.org/2000/svg">${shapes}${prev}</svg>`;
+    }
+    function redrawDrawings() {
+      if (!boardEl || !META) return;
+      const old = boardEl.querySelector('.board-draw');
+      if (old) old.remove();
+      // below fog (fog hides shapes in the dark) and below tokens
+      const anchor = boardEl.querySelector('.board-fog') || boardEl.querySelector('.board-tokens');
+      if (anchor) anchor.insertAdjacentHTML('beforebegin', drawSvg(META));
+    }
+    async function createDrawing(kind, geometry) {
+      if (!SB || !ENC) return;
+      const row = { encounter_id: ENC.id, owner: ME ? ME.id : null, kind, geometry, color: DRAW.color };
+      const { data, error } = await SB.from('drawings').insert(row).select().single();
+      if (error) { console.error('draw insert failed:', error.message); return; }
+      if (!DRAWINGS.some(d => d.id === data.id)) DRAWINGS.push(data);
+      redrawDrawings();
+    }
+    async function deleteDrawing(id) {
+      const prev = DRAWINGS;
+      DRAWINGS = DRAWINGS.filter(d => d.id !== id);
+      redrawDrawings();
+      const { error } = await SB.from('drawings').delete().eq('id', id);
+      if (error) { console.error('draw delete failed:', error.message); DRAWINGS = prev; redrawDrawings(); }
+    }
 
     // ── token rendering ──
     // `me` is the viewer's profile (role drives whether teased tokens are shown
@@ -1128,18 +1198,30 @@
       let start = { x: 0, y: 0 }, last = { x: 0, y: 0 }, tapId = null, pinch = null;
       let lpTimer = null, longPressed = false, downX = 0, downY = 0;   // long-press → context menu
       let fogPainting = false;                                         // DM fog brush stroke in progress
+      let drawing = false, drawOX = 0, drawOY = 0;                      // shape placement in progress
       const dist = (a, b) => Math.hypot(a.x - b.x, a.y - b.y);
       const mid  = (a, b) => ({ x: (a.x + b.x) / 2, y: (a.y + b.y) / 2 });
 
       stage.addEventListener('pointerdown', (e) => {
         if (e.button > 0) return;                 // right/middle mouse → handled by contextmenu
         // never let board pan/drag steal interactions meant for the UI panels
-        if (e.target.closest('.grid-controls, .zoom-bar, .tool-rail, .tool-options, .gc-backdrop, .display-tab')) return;
+        if (e.target.closest('.grid-controls, .zoom-bar, .tool-rail, .tool-options, .gc-backdrop, .display-tab, .draw-del')) return;
         if (FOG.editing && IS_STAFF) {                 // fog paint mode → paint cells, skip token/pan logic
           try { stage.setPointerCapture(e.pointerId); } catch (_) {}
           fogPainting = true;
           const cell = screenToCell(e.clientX, e.clientY);
           paintCell(cell.col, cell.row);
+          return;
+        }
+        if (TOOL === 'circle' || TOOL === 'cone') {    // shape placement → skip token/pan logic
+          try { stage.setPointerCapture(e.pointerId); } catch (_) {}
+          drawing = true;
+          const c = screenToCell(e.clientX, e.clientY);
+          drawOX = c.col; drawOY = c.row;
+          drawPreview = (TOOL === 'circle')
+            ? { kind: 'circle', color: DRAW.color, geometry: { cx: drawOX, cy: drawOY, r: 1 } }
+            : { kind: 'cone',   color: DRAW.color, geometry: { ox: drawOX, oy: drawOY, angle: 0, len: 1 } };
+          redrawDrawings();
           return;
         }
         // self-heal: the first finger of a fresh gesture clears any pointer left
@@ -1186,6 +1268,16 @@
 
       stage.addEventListener('pointermove', (e) => {
         if (fogPainting) { const cell = screenToCell(e.clientX, e.clientY); paintCell(cell.col, cell.row); return; }
+        if (drawing) {
+          const c = screenToCell(e.clientX, e.clientY);
+          const dx = c.col - drawOX, dy = c.row - drawOY;
+          const dist = Math.max(1, Math.round(Math.hypot(dx, dy)));
+          drawPreview = (TOOL === 'circle')
+            ? { kind: 'circle', color: DRAW.color, geometry: { cx: drawOX, cy: drawOY, r: dist } }
+            : { kind: 'cone',   color: DRAW.color, geometry: { ox: drawOX, oy: drawOY, angle: Math.atan2(dy, dx), len: dist } };
+          redrawDrawings();
+          return;
+        }
         if (!pointers.has(e.pointerId)) return;
         pointers.set(e.pointerId, { x: e.clientX, y: e.clientY });
         const rect = stage.getBoundingClientRect();
@@ -1220,6 +1312,13 @@
 
       function endPointer(e) {
         if (fogPainting) { fogPainting = false; try { stage.releasePointerCapture(e.pointerId); } catch (_) {} flushFog(); return; }
+        if (drawing) {
+          drawing = false;
+          try { stage.releasePointerCapture(e.pointerId); } catch (_) {}
+          const p = drawPreview; drawPreview = null;
+          if (p) createDrawing(p.kind, p.geometry); else redrawDrawings();
+          return;
+        }
         if (!pointers.has(e.pointerId)) return;
         pointers.delete(e.pointerId);
         try { stage.releasePointerCapture(e.pointerId); } catch (_) {}
@@ -1241,6 +1340,10 @@
       stage.addEventListener('pointerup', endPointer);
       stage.addEventListener('pointercancel', endPointer);
       stage.addEventListener('lostpointercapture', endPointer);   // capture yanked → clean the pointer too
+      stage.addEventListener('click', (e) => {                    // ✕ handle on a drawing → remove it
+        const del = e.target.closest('.draw-del');
+        if (del) { e.stopPropagation(); deleteDrawing(del.dataset.id); }
+      });
 
       // desktop right-click → context menu
       stage.addEventListener('contextmenu', (e) => {
@@ -1292,6 +1395,15 @@
             if (!row) return;
             ENC.revealed_cells = row.revealed_cells || [];
             loadFog(); redrawFog(); renderTokens();      // fog moved → re-veil + re-evaluate token visibility
+          })
+        .on('postgres_changes',
+          { event: '*', schema: 'public', table: 'drawings', filter: 'encounter_id=eq.' + ENC.id },
+          (payload) => {
+            const { eventType, new: row, old } = payload;
+            if (eventType === 'INSERT')      { if (!DRAWINGS.some(d => d.id === row.id)) DRAWINGS.push(row); }
+            else if (eventType === 'UPDATE') { const i = DRAWINGS.findIndex(d => d.id === row.id); if (i >= 0) DRAWINGS[i] = row; }
+            else if (eventType === 'DELETE') { DRAWINGS = DRAWINGS.filter(d => d.id !== (old && old.id)); }
+            redrawDrawings();
           })
         .subscribe();
     }
@@ -1349,6 +1461,8 @@
       // build the board
       hideMsg();
       COMBS = combs || [];
+      const { data: draws } = await sb.from('drawings').select('*').eq('encounter_id', enc.id);
+      DRAWINGS = draws || [];
       IS_STAFF = isStaff;
       boardEl = document.createElement('div');
       boardEl.className = 'board';
@@ -1357,6 +1471,7 @@
         `<img class="board-map" alt="${enc.map_ref}" draggable="false" src="${mapUrl(META.publicId)}"
               onerror="this.classList.add('missing')">
          ${gridSvg(META)}
+         ${drawSvg(META)}
          ${fogSvg(META)}
          <div class="board-tokens">${tokensHtml}</div>
          ${measureSvg(META)}`;
@@ -1485,51 +1600,70 @@
     // templates) slot in as more rail buttons, each opening their own options. ──
     const TOOL_ICON = {
       select: '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 3v15l4-4 3 6 2-1-3-6h5z"/></svg>',
+      circle: '<svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="8" fill="none" stroke="currentColor" stroke-width="2"/></svg>',
+      cone:   '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3 L21 21 L3 21 Z" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"/></svg>',
       pencil: '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 20h4L19 9l-4-4L4 16zm13-17 4 4-2 2-4-4z"/></svg>',
       eraser: '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 15l7-7 7 7-4 4H7zm4 6h12v1.6H7z"/></svg>',
     };
     function buildToolRail() {
-      if (!IS_STAFF) return;
       const rail = document.createElement('div');
       rail.className = 'tool-rail';
-      rail.innerHTML = `
-        <button class="tool-btn active" data-tool="select" title="Select / move tokens">${TOOL_ICON.select}</button>
-        <button class="tool-btn" data-tool="reveal" title="Reveal fog">${TOOL_ICON.pencil}</button>
-        <button class="tool-btn" data-tool="hide"   title="Hide fog">${TOOL_ICON.eraser}</button>`;
+      const tools = [
+        { id: 'select', icon: TOOL_ICON.select, title: 'Select / move' },
+        { id: 'circle', icon: TOOL_ICON.circle, title: 'Circle / radius' },
+        { id: 'cone',   icon: TOOL_ICON.cone,   title: 'Cone' },
+      ];
+      if (IS_STAFF) tools.push(
+        { id: 'reveal', icon: TOOL_ICON.pencil, title: 'Reveal fog' },
+        { id: 'hide',   icon: TOOL_ICON.eraser, title: 'Hide fog' },
+      );
+      rail.innerHTML = tools.map((t, i) =>
+        `<button class="tool-btn${i === 0 ? ' active' : ''}" data-tool="${t.id}" title="${t.title}">${t.icon}</button>`).join('');
       stage.appendChild(rail);
 
       const opts = document.createElement('div');
       opts.className = 'tool-options';
-      opts.innerHTML = `
-        <p class="gc-sub">Fog brush <span class="gc-tag">DM</span></p>
-        <div class="gc-row">
-          <label for="tr-size">Brush</label>
-          <input type="range" id="tr-size" min="0" max="4" step="1">
-        </div>
-        <div class="gc-row gc-fog-bulk">
-          <button class="gc-btn" id="tr-all">Reveal all</button>
-          <button class="gc-btn" id="tr-none">Hide all</button>
-        </div>`;
       stage.appendChild(opts);
 
-      const sizeInput = opts.querySelector('#tr-size');
-      sizeInput.value = FOG.size;
-      sizeInput.addEventListener('input', () => { FOG.size = parseInt(sizeInput.value, 10); });
-      opts.querySelector('#tr-all').addEventListener('click', revealAllFog);
-      opts.querySelector('#tr-none').addEventListener('click', hideAllFog);
+      function fogOpts() {
+        opts.innerHTML = `
+          <p class="gc-sub">Fog brush <span class="gc-tag">DM</span></p>
+          <div class="gc-row"><label for="tr-size">Brush</label>
+            <input type="range" id="tr-size" min="0" max="4" step="1"></div>
+          <div class="gc-row gc-fog-bulk">
+            <button class="gc-btn" id="tr-all">Reveal all</button>
+            <button class="gc-btn" id="tr-none">Hide all</button>
+          </div>`;
+        const s = opts.querySelector('#tr-size'); s.value = FOG.size;
+        s.addEventListener('input', () => { FOG.size = parseInt(s.value, 10); });
+        opts.querySelector('#tr-all').addEventListener('click', revealAllFog);
+        opts.querySelector('#tr-none').addEventListener('click', hideAllFog);
+      }
+      function drawOpts() {
+        opts.innerHTML = `
+          <p class="gc-sub">Colour</p>
+          <div class="gc-row"><label for="tr-color">Pick</label>
+            <input type="color" id="tr-color" value="${DRAW.color}"></div>
+          <p class="tr-hint">Tap &amp; drag the map to place. Use Select to remove yours.</p>`;
+        opts.querySelector('#tr-color').addEventListener('input', e => { DRAW.color = e.target.value; });
+      }
 
-      // tool selection replaces the old "paint fog" checkbox: pencil → reveal,
-      // eraser → hide, select → painting off. Pencil & eraser share the fog options.
       function setTool(t) {
+        TOOL = t;
         rail.querySelectorAll('.tool-btn').forEach(b => b.classList.toggle('active', b.dataset.tool === t));
-        const painting = (t === 'reveal' || t === 'hide');
-        FOG.editing = painting;
-        if (painting) FOG.brush = t;
-        stage.classList.toggle('fog-edit', painting);
-        opts.classList.toggle('open', painting);
+        const fog = (t === 'reveal' || t === 'hide');
+        const draw = (t === 'circle' || t === 'cone');
+        FOG.editing = fog;
+        if (fog) FOG.brush = t;
+        stage.classList.toggle('fog-edit', fog || draw);   // crosshair for paint + draw
+        if (boardEl) boardEl.classList.toggle('tool-select', t === 'select');  // reveals delete handles
+        if (fog)       { fogOpts();  opts.classList.add('open'); }
+        else if (draw) { drawOpts(); opts.classList.add('open'); }
+        else           { opts.classList.remove('open'); }
       }
       rail.querySelectorAll('.tool-btn').forEach(b =>
         b.addEventListener('click', () => setTool(b.dataset.tool)));
+      setTool('select');
     }
   })();
   </script>
