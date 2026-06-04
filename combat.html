@@ -91,6 +91,15 @@
       height: 100%;
       pointer-events: none;
     }
+    /* fog of war — native-coord SVG over the grid, below tokens; painting is
+       handled on the stage pointer handler, so the layer itself ignores pointers */
+    .board-fog {
+      position: absolute;
+      inset: 0;
+      width: 100%;
+      height: 100%;
+      pointer-events: none;
+    }
 
     /* tokens — positioned in %, so they ride the board through any resize */
     .board-tokens { position: absolute; inset: 0; pointer-events: none; }
@@ -414,6 +423,18 @@
     }
     .grid-controls.collapsed .gc-body { display: none; }
     .gc-toggle { cursor: pointer; float: right; color: var(--muted); }
+    /* fog controls */
+    .gc-btn {
+      flex: 1; cursor: pointer;
+      background: var(--ink); color: var(--parchment2);
+      border: 1px solid var(--section-border); border-radius: 4px;
+      font-family: var(--font-title); font-size: 0.46rem; letter-spacing: 0.1em;
+      text-transform: uppercase; padding: 4px 4px;
+    }
+    .gc-btn:hover { border-color: var(--gold-light); color: var(--parchment); }
+    .gc-btn.on   { background: var(--gold); color: var(--ink-deep); border-color: var(--gold); }
+    .gc-fog-brush, .gc-fog-bulk { gap: 0.3rem; }
+    .stage.fog-edit { cursor: crosshair; }
 
     /* ── status / empty states ── */
     .stage-msg {
@@ -575,6 +596,23 @@
     let ME = null;       // viewer profile { role, characterKey, ... }
     let SB = null;       // shared supabase client (from nav.js)
     let ENC = null;      // active encounter row
+
+    // ── fog of war state ──
+    // FOG.cells = Set of "x,y" revealed-cell keys (fast lookup). Source of truth
+    // is encounters.revealed_cells (a JSON array of [x,y]); we mirror it locally.
+    const FOG = { editing: false, brush: 'reveal', cells: new Set() };
+    const fogKey = (x, y) => x + ',' + y;
+    const isRevealed = (x, y) => FOG.cells.has(fogKey(x, y));
+    function loadFog() {
+      const arr = (ENC && Array.isArray(ENC.revealed_cells)) ? ENC.revealed_cells : [];
+      FOG.cells = new Set(arr.map(p => fogKey(p[0], p[1])));
+    }
+    function fogArray() { return [...FOG.cells].map(k => k.split(',').map(Number)); }
+    // A token shows for a player only where the fog is lifted (or it's their own
+    // token, or they're staff) — the cheap, client-side concealment tier.
+    function tokenVisible(c) {
+      return IS_STAFF || isRevealed(c.x, c.y) || !!(ME && ME.id && c.owner === ME.id);
+    }
     let SELECTED = null; // selected combatant id
     let dragId = null;   // combatant id currently being dragged
     let dragOrigin = null; // {col,row} the drag started from — anchors the measurement
@@ -622,6 +660,69 @@
       const tokens = boardEl.querySelector('.board-tokens');
       tokens.insertAdjacentHTML('beforebegin', gridSvg(META));
     }
+
+    // ── fog render + paint ──
+    // SVG mask: a full-board veil with revealed cells punched out. Hole count =
+    // revealed cells; a fully-revealed board renders no veil at all.
+    function fogSvg(meta) {
+      const W = meta.cols * meta.cellPx, H = meta.rows * meta.cellPx;
+      if (FOG.cells.size >= meta.cols * meta.rows) return '';   // fully revealed → no veil
+      const holes = [...FOG.cells].map(k => {
+        const [x, y] = k.split(',').map(Number);
+        return `<rect x="${meta.originX + x * meta.cellPx}" y="${meta.originY + y * meta.cellPx}" width="${meta.cellPx}" height="${meta.cellPx}" fill="black"/>`;
+      }).join('');
+      const op = IS_STAFF ? 0.45 : 0.985;   // DM: translucent shroud (sees through); player: solid cover
+      return `
+        <svg class="board-fog" viewBox="0 0 ${W} ${H}" preserveAspectRatio="none" xmlns="http://www.w3.org/2000/svg">
+          <defs>
+            <mask id="fogmask" maskUnits="userSpaceOnUse" x="0" y="0" width="${W}" height="${H}">
+              <rect x="0" y="0" width="${W}" height="${H}" fill="white"/>
+              ${holes}
+            </mask>
+          </defs>
+          <rect x="0" y="0" width="${W}" height="${H}" fill="#06060c" opacity="${op}" mask="url(#fogmask)"/>
+        </svg>`;
+    }
+    function redrawFog() {
+      if (!boardEl || !META) return;
+      const old = boardEl.querySelector('.board-fog');
+      if (old) old.remove();
+      const html = fogSvg(META);
+      if (!html) return;
+      // fog sits above the grid, below the tokens (revealed tokens render over it)
+      const tokens = boardEl.querySelector('.board-tokens');
+      if (tokens) tokens.insertAdjacentHTML('beforebegin', html);
+    }
+    // Add/remove just one token's element to match its current fog visibility —
+    // used when a token moves into or out of the light (avoids a full rebuild).
+    function reconcileTokenVisibility(c) {
+      if (!boardEl) return;
+      const el = tokenEl(c.id), show = tokenVisible(c);
+      if (show && !el) {
+        const layer = boardEl.querySelector('.board-tokens');
+        if (layer) layer.insertAdjacentHTML('beforeend', tokenHtml(c, META, IS_STAFF));
+      } else if (!show && el) { el.remove(); }
+    }
+    // Toggle one cell under the brush; only redraw on an actual change.
+    function paintCell(col, row) {
+      const k = fogKey(col, row), had = FOG.cells.has(k);
+      if (FOG.brush === 'reveal') { if (had) return; FOG.cells.add(k); }
+      else                        { if (!had) return; FOG.cells.delete(k); }
+      redrawFog();
+    }
+    async function flushFog() {
+      if (!SB || !ENC) return;
+      const cells = fogArray();
+      ENC.revealed_cells = cells;
+      const { error } = await SB.from('encounters').update({ revealed_cells: cells }).eq('id', ENC.id);
+      if (error) console.error('fog write failed:', error.message);
+    }
+    function revealAllFog() {
+      FOG.cells = new Set();
+      for (let y = 0; y < META.rows; y++) for (let x = 0; x < META.cols; x++) FOG.cells.add(fogKey(x, y));
+      redrawFog(); renderTokens(); flushFog();
+    }
+    function hideAllFog() { FOG.cells = new Set(); redrawFog(); renderTokens(); flushFog(); }
 
     // ── token rendering ──
     // `me` is the viewer's profile (role drives whether teased tokens are shown
@@ -680,7 +781,7 @@
     function renderTokens() {
       if (!boardEl || !META) return;
       const layer = boardEl.querySelector('.board-tokens');
-      if (layer) layer.innerHTML = COMBS.map(c => tokenHtml(c, META, IS_STAFF)).join('');
+      if (layer) layer.innerHTML = COMBS.filter(tokenVisible).map(c => tokenHtml(c, META, IS_STAFF)).join('');
     }
 
     // ── fit the board into the stage, preserving the map's aspect ratio ──
@@ -970,6 +1071,7 @@
       let mode = null, dragCell = null, moved = false;
       let start = { x: 0, y: 0 }, last = { x: 0, y: 0 }, tapId = null, pinch = null;
       let lpTimer = null, longPressed = false, downX = 0, downY = 0;   // long-press → context menu
+      let fogPainting = false;                                         // DM fog brush stroke in progress
       const dist = (a, b) => Math.hypot(a.x - b.x, a.y - b.y);
       const mid  = (a, b) => ({ x: (a.x + b.x) / 2, y: (a.y + b.y) / 2 });
 
@@ -977,6 +1079,13 @@
         if (e.button > 0) return;                 // right/middle mouse → handled by contextmenu
         // never let board pan/drag steal interactions meant for the UI panels
         if (e.target.closest('.grid-controls, .zoom-bar')) return;
+        if (FOG.editing && IS_STAFF) {                 // fog paint mode → paint cells, skip token/pan logic
+          try { stage.setPointerCapture(e.pointerId); } catch (_) {}
+          fogPainting = true;
+          const cell = screenToCell(e.clientX, e.clientY);
+          paintCell(cell.col, cell.row);
+          return;
+        }
         // self-heal: the first finger of a fresh gesture clears any pointer left
         // stranded by a dropped up/cancel (iOS capture quirk) — otherwise a stale
         // entry makes the next single touch read as a 2-finger pinch.
@@ -1020,6 +1129,7 @@
       });
 
       stage.addEventListener('pointermove', (e) => {
+        if (fogPainting) { const cell = screenToCell(e.clientX, e.clientY); paintCell(cell.col, cell.row); return; }
         if (!pointers.has(e.pointerId)) return;
         pointers.set(e.pointerId, { x: e.clientX, y: e.clientY });
         const rect = stage.getBoundingClientRect();
@@ -1053,6 +1163,7 @@
       });
 
       function endPointer(e) {
+        if (fogPainting) { fogPainting = false; try { stage.releasePointerCapture(e.pointerId); } catch (_) {} flushFog(); return; }
         if (!pointers.has(e.pointerId)) return;
         pointers.delete(e.pointerId);
         try { stage.releasePointerCapture(e.pointerId); } catch (_) {}
@@ -1117,6 +1228,14 @@
             updateTokenPos(c);
             updateTokenConditions(c);
             updateTokenSize(c);
+            reconcileTokenVisibility(c);                 // moved into / out of the light?
+          })
+        .on('postgres_changes',
+          { event: 'UPDATE', schema: 'public', table: 'encounters', filter: 'id=eq.' + ENC.id },
+          ({ new: row }) => {
+            if (!row) return;
+            ENC.revealed_cells = row.revealed_cells || [];
+            loadFog(); redrawFog(); renderTokens();      // fog moved → re-veil + re-evaluate token visibility
           })
         .subscribe();
     }
@@ -1155,6 +1274,7 @@
       if (encErr) { showMsg('Could not load the encounter', encErr.message, false); return; }
       if (!enc)   { showMsg('No active encounter', 'When the DM starts a fight, the battlefield appears here.', false); return; }
       ENC = enc;
+      loadFog();          // mirror encounters.revealed_cells into FOG.cells
 
       META = manifest[enc.map_ref];
       if (!META) { showMsg('Unknown map', `No manifest entry for "${enc.map_ref}".`, false); return; }
@@ -1176,11 +1296,12 @@
       IS_STAFF = isStaff;
       boardEl = document.createElement('div');
       boardEl.className = 'board';
-      const tokensHtml = COMBS.map(c => tokenHtml(c, META, IS_STAFF)).join('');
+      const tokensHtml = COMBS.filter(tokenVisible).map(c => tokenHtml(c, META, IS_STAFF)).join('');
       boardEl.innerHTML =
         `<img class="board-map" alt="${enc.map_ref}" draggable="false" src="${mapUrl(META.publicId)}"
               onerror="this.classList.add('missing')">
          ${gridSvg(META)}
+         ${fogSvg(META)}
          <div class="board-tokens">${tokensHtml}</div>
          ${measureSvg(META)}`;
       stage.appendChild(boardEl);
@@ -1222,6 +1343,23 @@
             </div>`;
         }).join('');
 
+      // fog of war controls — DM only (writes are staff-gated by RLS regardless)
+      const fogControls = IS_STAFF ? `
+          <div class="gc-sep"></div>
+          <p class="gc-sub">Fog of war <span class="gc-tag">DM</span></p>
+          <div class="gc-row">
+            <label for="gc-fog-edit">Paint fog</label>
+            <input type="checkbox" id="gc-fog-edit">
+          </div>
+          <div class="gc-row gc-fog-brush">
+            <button class="gc-btn on" id="gc-fog-reveal">Reveal</button>
+            <button class="gc-btn" id="gc-fog-hide">Hide</button>
+          </div>
+          <div class="gc-row gc-fog-bulk">
+            <button class="gc-btn" id="gc-fog-all">Reveal all</button>
+            <button class="gc-btn" id="gc-fog-none">Hide all</button>
+          </div>` : '';
+
       panel.innerHTML = `
         <h4>Display <span class="gc-toggle" id="gc-toggle">▾</span></h4>
         <div class="gc-body">
@@ -1255,6 +1393,7 @@
             <label for="gc-tring">Ring / base</label>
             <input type="checkbox" id="gc-tring">
           </div>
+          ${fogControls}
         </div>`;
       stage.appendChild(panel);
 
@@ -1283,6 +1422,20 @@
       tring.checked  = TOKEN.ring;
       tsize.addEventListener('input',   () => { TOKEN.size = parseFloat(tsize.value); renderTokens(); });
       tring.addEventListener('change',  () => { TOKEN.ring = tring.checked; renderTokens(); });
+
+      if (IS_STAFF) {
+        const fEdit = panel.querySelector('#gc-fog-edit');
+        const fRev  = panel.querySelector('#gc-fog-reveal');
+        const fHide = panel.querySelector('#gc-fog-hide');
+        fEdit.addEventListener('change', () => {
+          FOG.editing = fEdit.checked;
+          stage.classList.toggle('fog-edit', FOG.editing);
+        });
+        fRev.addEventListener('click',  () => { FOG.brush = 'reveal'; fRev.classList.add('on');  fHide.classList.remove('on'); });
+        fHide.addEventListener('click', () => { FOG.brush = 'hide';   fHide.classList.add('on'); fRev.classList.remove('on'); });
+        panel.querySelector('#gc-fog-all').addEventListener('click',  revealAllFog);
+        panel.querySelector('#gc-fog-none').addEventListener('click', hideAllFog);
+      }
 
       panel.querySelector('#gc-toggle').addEventListener('click', () => {
         panel.classList.toggle('collapsed');
