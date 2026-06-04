@@ -600,7 +600,7 @@
     // ── fog of war state ──
     // FOG.cells = Set of "x,y" revealed-cell keys (fast lookup). Source of truth
     // is encounters.revealed_cells (a JSON array of [x,y]); we mirror it locally.
-    const FOG = { editing: false, brush: 'reveal', cells: new Set() };
+    const FOG = { editing: false, brush: 'reveal', size: 1, cells: new Set() };
     const fogKey = (x, y) => x + ',' + y;
     const isRevealed = (x, y) => FOG.cells.has(fogKey(x, y));
     function loadFog() {
@@ -672,12 +672,16 @@
         return `<rect x="${meta.originX + x * meta.cellPx}" y="${meta.originY + y * meta.cellPx}" width="${meta.cellPx}" height="${meta.cellPx}" fill="black"/>`;
       }).join('');
       const op = IS_STAFF ? 0.45 : 0.985;   // DM: translucent shroud (sees through); player: solid cover
+      const feather = Math.max(2, meta.cellPx * 0.38);   // soft edge width, in map units
       return `
         <svg class="board-fog" viewBox="0 0 ${W} ${H}" preserveAspectRatio="none" xmlns="http://www.w3.org/2000/svg">
           <defs>
+            <filter id="fogfeather" filterUnits="userSpaceOnUse" x="0" y="0" width="${W}" height="${H}">
+              <feGaussianBlur stdDeviation="${feather}"/>
+            </filter>
             <mask id="fogmask" maskUnits="userSpaceOnUse" x="0" y="0" width="${W}" height="${H}">
               <rect x="0" y="0" width="${W}" height="${H}" fill="white"/>
-              ${holes}
+              <g filter="url(#fogfeather)">${holes}</g>
             </mask>
           </defs>
           <rect x="0" y="0" width="${W}" height="${H}" fill="#06060c" opacity="${op}" mask="url(#fogmask)"/>
@@ -704,11 +708,22 @@
       } else if (!show && el) { el.remove(); }
     }
     // Toggle one cell under the brush; only redraw on an actual change.
+    // Paint the round brush footprint (radius FOG.size cells) under the cursor;
+    // only redraw if at least one cell actually changed.
     function paintCell(col, row) {
-      const k = fogKey(col, row), had = FOG.cells.has(k);
-      if (FOG.brush === 'reveal') { if (had) return; FOG.cells.add(k); }
-      else                        { if (!had) return; FOG.cells.delete(k); }
-      redrawFog();
+      const r = FOG.size, reveal = FOG.brush === 'reveal', lim = (r + 0.5) * (r + 0.5);
+      let changed = false;
+      for (let dy = -r; dy <= r; dy++) {
+        for (let dx = -r; dx <= r; dx++) {
+          if (dx * dx + dy * dy > lim) continue;                 // round, not square
+          const x = col + dx, y = row + dy;
+          if (x < 0 || y < 0 || x >= META.cols || y >= META.rows) continue;
+          const k = fogKey(x, y), had = FOG.cells.has(k);
+          if (reveal) { if (!had) { FOG.cells.add(k); changed = true; } }
+          else        { if (had)  { FOG.cells.delete(k); changed = true; } }
+        }
+      }
+      if (changed) redrawFog();
     }
     async function flushFog() {
       if (!SB || !ENC) return;
@@ -1355,6 +1370,10 @@
             <button class="gc-btn on" id="gc-fog-reveal">Reveal</button>
             <button class="gc-btn" id="gc-fog-hide">Hide</button>
           </div>
+          <div class="gc-row">
+            <label for="gc-fog-size">Brush</label>
+            <input type="range" id="gc-fog-size" min="0" max="4" step="1">
+          </div>
           <div class="gc-row gc-fog-bulk">
             <button class="gc-btn" id="gc-fog-all">Reveal all</button>
             <button class="gc-btn" id="gc-fog-none">Hide all</button>
@@ -1433,6 +1452,9 @@
         });
         fRev.addEventListener('click',  () => { FOG.brush = 'reveal'; fRev.classList.add('on');  fHide.classList.remove('on'); });
         fHide.addEventListener('click', () => { FOG.brush = 'hide';   fHide.classList.add('on'); fRev.classList.remove('on'); });
+        const fSize = panel.querySelector('#gc-fog-size');
+        fSize.value = FOG.size;
+        fSize.addEventListener('input', () => { FOG.size = parseInt(fSize.value, 10); });
         panel.querySelector('#gc-fog-all').addEventListener('click',  revealAllFog);
         panel.querySelector('#gc-fog-none').addEventListener('click', hideAllFog);
       }
