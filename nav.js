@@ -691,6 +691,17 @@ applyTheme(getSavedTheme());
       return;
     }
 
+    // Authenticate the REALTIME socket. Without this the socket connects with
+    // the publishable key (anon-equivalent); our postgres_changes policies are
+    // scoped `to authenticated`, so an anon socket receives NO events — live
+    // sync silently dies while REST reads (which carry the JWT) still work, so
+    // a refresh shows the data. Push the user's access token onto realtime here,
+    // before any page subscribes to a channel. Re-applied on token refresh below.
+    sb.realtime.setAuth(data.session.access_token);
+    sb.auth.onAuthStateChange((_evt, session) => {
+      if (session) sb.realtime.setAuth(session.access_token);
+    });
+
     // ── Identity (whoami) ──
     // Expose the logged-in user's identity for downstream pages (role-aware
     // views, seat-defaulting, combat). nav.js already authenticated above and
