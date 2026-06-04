@@ -380,18 +380,37 @@
     .gc-empty { font-size: 0.5rem; color: var(--muted); margin: 0 0 0.3rem; }
 
     /* ── grid controls panel ── */
+    /* Display is a right slide-out drawer (compendium pattern), opened by a tab */
     .grid-controls {
       position: absolute;
-      top: 10px; right: 10px;
-      z-index: 20;
+      top: 0; right: 0; bottom: 0;
+      z-index: 22;
+      width: 240px; max-width: 90vw;
       background: var(--nav-bg);
-      border: 1px solid var(--nav-border);
-      padding: 0.5rem 0.6rem;
-      min-width: 156px;
-      max-height: calc(100% - 20px);
+      border-left: 1px solid var(--nav-border);
+      padding: 0.6rem 0.7rem;
       overflow-y: auto;
       font-family: var(--font-title);
+      transform: translateX(100%);
+      transition: transform 0.28s cubic-bezier(0.4,0,0.2,1);
+      box-shadow: -8px 0 40px rgba(0,0,0,0.5);
     }
+    .grid-controls.open { transform: translateX(0); }
+    .gc-backdrop {
+      position: absolute; inset: 0; z-index: 21;
+      background: rgba(0,0,0,0.35);
+      opacity: 0; pointer-events: none; transition: opacity 0.28s;
+    }
+    .gc-backdrop.open { opacity: 1; pointer-events: auto; }
+    .display-tab {
+      position: absolute; top: 10px; right: 10px; z-index: 18;
+      background: var(--nav-bg); border: 1px solid var(--nav-border);
+      color: var(--muted); cursor: pointer;
+      font-family: var(--font-title); font-size: 0.5rem; letter-spacing: 0.14em;
+      text-transform: uppercase; padding: 0.4rem 0.65rem;
+      transition: color 0.15s, border-color 0.15s;
+    }
+    .display-tab:hover { color: var(--parchment); border-color: var(--gold-dim); }
     .grid-controls h4 {
       font-size: 0.46rem;
       letter-spacing: 0.32em;
@@ -1115,7 +1134,7 @@
       stage.addEventListener('pointerdown', (e) => {
         if (e.button > 0) return;                 // right/middle mouse → handled by contextmenu
         // never let board pan/drag steal interactions meant for the UI panels
-        if (e.target.closest('.grid-controls, .zoom-bar, .tool-rail, .tool-options')) return;
+        if (e.target.closest('.grid-controls, .zoom-bar, .tool-rail, .tool-options, .gc-backdrop, .display-tab')) return;
         if (FOG.editing && IS_STAFF) {                 // fog paint mode → paint cells, skip token/pan logic
           try { stage.setPointerCapture(e.pointerId); } catch (_) {}
           fogPainting = true;
@@ -1382,7 +1401,7 @@
         }).join('');
 
       panel.innerHTML = `
-        <h4>Display <span class="gc-toggle" id="gc-toggle">▾</span></h4>
+        <h4>Display <span class="gc-toggle" id="gc-close">✕</span></h4>
         <div class="gc-body">
           <p class="gc-sub">Grid <span class="gc-tag">global</span></p>
           <div class="gc-row">
@@ -1443,10 +1462,22 @@
       tsize.addEventListener('input',   () => { TOKEN.size = parseFloat(tsize.value); renderTokens(); });
       tring.addEventListener('change',  () => { TOKEN.ring = tring.checked; renderTokens(); });
 
-      panel.querySelector('#gc-toggle').addEventListener('click', () => {
-        panel.classList.toggle('collapsed');
-        panel.querySelector('#gc-toggle').textContent = panel.classList.contains('collapsed') ? '▸' : '▾';
-      });
+      // drawer open/close (compendium-style): a tab opens it, ✕ or backdrop closes
+      const backdrop = document.createElement('div');
+      backdrop.className = 'gc-backdrop';
+      stage.appendChild(backdrop);
+      const tab = document.createElement('button');
+      tab.className = 'display-tab';
+      tab.innerHTML = '⚙ Display';
+      stage.appendChild(tab);
+      function setDisplay(open) {
+        panel.classList.toggle('open', open);
+        backdrop.classList.toggle('open', open);
+        tab.style.display = open ? 'none' : '';
+      }
+      tab.addEventListener('click', () => setDisplay(true));
+      backdrop.addEventListener('click', () => setDisplay(false));
+      panel.querySelector('#gc-close').addEventListener('click', () => setDisplay(false));
     }
 
     // ── left tool rail (DM) — Select / Pencil(reveal) / Eraser(hide), with a
