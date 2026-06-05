@@ -216,9 +216,9 @@
     "flaws": "",
     "backstory": ""
   },
-  "lastUpdated": "2026-06-05T12:32:13.476Z",
+  "lastUpdated": "2026-06-05T12:32:15.680Z",
   "combat": {
-    "hp": 17,
+    "hp": 20,
     "hpTemp": 0,
     "hpBonus": 0,
     "pipState": {
