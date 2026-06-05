@@ -216,14 +216,14 @@
     "flaws": "",
     "backstory": ""
   },
-  "lastUpdated": "2026-06-05T12:32:15.680Z",
+  "lastUpdated": "2026-06-05T12:32:26.861Z",
   "combat": {
-    "hp": 20,
+    "hp": 19,
     "hpTemp": 0,
     "hpBonus": 0,
     "pipState": {
-      "pactSlots": 0,
-      "sorc_1": 0
+      "sorc_1": 0,
+      "pactSlots": 0
     },
     "concentration": null
   }
