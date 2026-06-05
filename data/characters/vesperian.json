@@ -84,48 +84,6 @@
       "alias": null
     },
     {
-      "name": "Explorer's Pack",
-      "detail": "Adventuring Gear · 59 lb",
-      "qty": 1,
-      "weight": 0,
-      "dmg1": null,
-      "dmg2": null,
-      "dmgType": null,
-      "ac": null,
-      "range": null,
-      "price": "1 pp",
-      "reqAttune": null,
-      "properties": [],
-      "entries": [
-        "Includes:",
-        "a backpack",
-        "a bedroll",
-        "a mess kit",
-        "a tinderbox",
-        "10 torches",
-        "10 days of rations",
-        "a waterskin",
-        "50 feet of hempen rope"
-      ],
-      "rarity": "None",
-      "weaponCat": "Adventuring Gear",
-      "typeLabel": "Adventuring Gear",
-      "sourceFull": "PHB p151",
-      "source": "PHB",
-      "strength": null,
-      "stealth": null,
-      "contents": [
-        "Torch ×10",
-        "Rations (1 day) ×10"
-      ],
-      "icon": null,
-      "isContainer": true,
-      "extradimensional": false,
-      "locked": false,
-      "id": "bag_mpvstetc34br",
-      "containerId": null
-    },
-    {
       "name": "Backpack",
       "rarity": "None",
       "type": "G",
@@ -284,7 +242,7 @@
     "flaws": "",
     "backstory": ""
   },
-  "lastUpdated": "2026-06-05T12:26:18.910Z",
+  "lastUpdated": "2026-06-05T12:26:25.642Z",
   "combat": {
     "hp": 24,
     "hpTemp": 0,
