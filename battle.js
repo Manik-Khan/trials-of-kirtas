@@ -1185,6 +1185,60 @@
   const BATTLE_FUNCTION_URL = '/.netlify/functions/character';
   let _battleSaveTimer = null;
 
+  // ── Persistence backend ──────────────────────────────────────────────
+  // battle.js talks to a single `backend` for loading, saving, and live
+  // external changes to a character's COMBAT state. The default below is the
+  // existing sheet / Netlify-function behavior, unchanged. Other pages may
+  // swap in an alternate via window.__battle.useBackend() — e.g. combat.html
+  // will point this at the Supabase `combatants` row.
+  const sheetBackend = {
+    // Resolve the durable combat object for `key`, or null.
+    async load(key) {
+      if (typeof CharacterStore !== 'undefined') {
+        const d = CharacterStore.get();
+        if (d && d.key === key) return d.combat || null;
+        // CharacterStore holds a different character — fall through to a fetch.
+      }
+      try {
+        const res  = await fetch(`${BATTLE_FUNCTION_URL}?character=${key}`);
+        const json = await res.json();
+        return json.data?.combat || null;
+      } catch (e) { console.warn('[battle] load error:', e); return null; }
+    },
+    // Persist the given combat object for `key`.
+    save(key, combat) {
+      // CharacterStore (sheet.html) manages SHA + debounce itself.
+      if (typeof CharacterStore !== 'undefined' && CharacterStore.get()?.key === key) {
+        CharacterStore.save({ combat });
+        return;
+      }
+      // Otherwise debounce a direct POST.
+      clearTimeout(_battleSaveTimer);
+      _battleSaveTimer = setTimeout(async () => {
+        try {
+          await fetch(`${BATTLE_FUNCTION_URL}?character=${key}`, {
+            method:  'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body:    JSON.stringify({ combat }),
+          });
+        } catch (e) { console.warn('[battle] save error:', e); }
+      }, 1200);
+    },
+    // Report external changes as onChange({ key, combat }).
+    subscribe(onChange) {
+      if (typeof CharacterStore === 'undefined') return;
+      CharacterStore.onUpdate(({ type, data }) => {
+        if (type !== 'data' || !data?.combat) return;
+        onChange({ key: activeKey, combat: data.combat });
+      });
+    },
+  };
+
+  // The active backend. Pages swap it via window.__battle.useBackend(); the
+  // default keeps every existing page on the sheet/Netlify path, unchanged.
+  let backend = sheetBackend;
+  window.__battle.useBackend = (b) => { backend = b || sheetBackend; };
+
   // Translate HUD resource keys → DB pipState keys (HUD keys already match DB)
   function hudResKeyToDb(resKey) {
     if (resKey.startsWith('spell_') || resKey.startsWith('sorc_')) return resKey;
@@ -1216,23 +1270,7 @@
       pipState:      buildDbPipState(key),
       concentration: s.concentration || null,
     };
-
-    // Use CharacterStore if available (sheet.html) — it manages SHA and debounce
-    if (typeof CharacterStore !== 'undefined' && CharacterStore.get()?.key === key) {
-      CharacterStore.save({ combat });
-      return;
-    }
-    // Otherwise debounce a direct POST
-    clearTimeout(_battleSaveTimer);
-    _battleSaveTimer = setTimeout(async () => {
-      try {
-        await fetch(`${BATTLE_FUNCTION_URL}?character=${key}`, {
-          method:  'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body:    JSON.stringify({ combat }),
-        });
-      } catch(e) { console.warn('[battle] save error:', e); }
-    }, 1200);
+    backend.save(key, combat);
   }
 
   // Seed SESSION from DB combat state — called after initSession builds defaults
@@ -1256,19 +1294,10 @@
     if (dbCombat.concentration !== undefined) s.concentration = dbCombat.concentration || null;
   }
 
-  // Load combat state from DB for a character, seed SESSION, then re-render
+  // Load combat state for a character, seed SESSION, then re-render.
   async function loadCombatFromDb(key) {
-    // If CharacterStore already has data (sheet.html), use it directly
-    if (typeof CharacterStore !== 'undefined') {
-      const d = CharacterStore.get();
-      if (d && d.key === key) { seedSessionFromDb(key, d.combat); renderAll(); return; }
-      // CharacterStore exists but may be loading a different character — fall through to direct fetch
-    }
-    try {
-      const res  = await fetch(`${BATTLE_FUNCTION_URL}?character=${key}`);
-      const json = await res.json();
-      if (json.data?.combat) { seedSessionFromDb(key, json.data.combat); renderAll(); }
-    } catch(e) { console.warn('[battle] load error:', e); }
+    const combat = await backend.load(key);
+    if (combat) { seedSessionFromDb(key, combat); renderAll(); }
   }
   try{const saved=localStorage.getItem(CHAR_STORAGE_KEY);if(saved&&CHARACTERS[saved])activeKey=saved;}catch(e){}
 
@@ -1280,18 +1309,15 @@
     injectStyles();
     injectNav();
 
-    // Real-time sync from sheet.html — CharacterStore notifies on every save
-    if (typeof CharacterStore !== 'undefined') {
-      CharacterStore.onUpdate(({ type, data }) => {
-        if (type !== 'data' || !data?.combat) return;
-        const s = SESSION[activeKey];
-        if (!s) return;
-        if (data.combat.hp      !== null && data.combat.hp !== undefined) s.hp      = data.combat.hp;
-        if (data.combat.hpTemp  !== undefined) s.hpTemp  = data.combat.hpTemp;
-        if (data.combat.hpBonus !== undefined) s.hpBonus = data.combat.hpBonus;
-        if (battleOn) renderAll();
-      });
-    }
+    // Real-time sync — the backend reports external changes to combat state.
+    backend.subscribe(({ key, combat }) => {
+      const s = SESSION[key];
+      if (!s) return;
+      if (combat.hp     !== null && combat.hp !== undefined) s.hp     = combat.hp;
+      if (combat.hpTemp  !== undefined) s.hpTemp  = combat.hpTemp;
+      if (combat.hpBonus !== undefined) s.hpBonus = combat.hpBonus;
+      if (battleOn) renderAll();
+    });
     if (resumeBattle) {
       battleOn = true;
       initSession(activeKey);
