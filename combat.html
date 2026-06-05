@@ -538,6 +538,8 @@
   </div>
 
   <script src="nav.js"></script>
+  <script src="characters.js"></script>
+  <script src="battle.js"></script>
   <script>
   (function () {
     'use strict';
@@ -1609,6 +1611,34 @@
       // grid controls (demonstrates the opacity / style / colour answer live)
       buildGridControls();
       buildToolRail();
+
+      // ── HUD ↔ combat bridge (3a: the HUD reads this viewer's own token, live) ──
+      // battle.js is backend-agnostic; here we hand it a Supabase combatants
+      // backend so the HUD reflects the same row as the token. Read + live-in
+      // this step — HUD→row writes arrive in 3b (save is a stub for now).
+      if (window.__battle && ME && ME.characterKey) {
+        window.__battle.setChar(ME.characterKey);
+        window.__battle.useBackend({
+          async load() {
+            const { data } = await SB.from('combatants')
+              .select('id, hp, max_hp')
+              .eq('encounter_id', ENC.id).eq('owner', ME.id).maybeSingle();
+            return data ? { hp: data.hp } : null;
+          },
+          save() { /* 3b — HUD→row writes not wired yet */ },
+          subscribe(onChange) {
+            SB.channel('hud-' + ENC.id)
+              .on('postgres_changes',
+                { event: 'UPDATE', schema: 'public', table: 'combatants',
+                  filter: 'encounter_id=eq.' + ENC.id },
+                ({ new: row }) => {
+                  if (row && row.owner === ME.id)
+                    onChange({ key: ME.characterKey, combat: { hp: row.hp } });
+                })
+              .subscribe();
+          },
+        });
+      }
 
       // keep the board fitted on resize/orientation change (grid + tokens are
       // %/viewBox-based, so only the board's px size needs recomputing)

@@ -1237,7 +1237,24 @@
   // The active backend. Pages swap it via window.__battle.useBackend(); the
   // default keeps every existing page on the sheet/Netlify path, unchanged.
   let backend = sheetBackend;
-  window.__battle.useBackend = (b) => { backend = b || sheetBackend; };
+
+  // Apply an external combat change into SESSION + re-render. Shared by the
+  // init subscription and by any re-subscribe after a backend swap.
+  function applyCombatChange({ key, combat }) {
+    const s = SESSION[key];
+    if (!s) return;
+    if (combat.hp     !== null && combat.hp !== undefined) s.hp     = combat.hp;
+    if (combat.hpTemp  !== undefined) s.hpTemp  = combat.hpTemp;
+    if (combat.hpBonus !== undefined) s.hpBonus = combat.hpBonus;
+    if (battleOn) renderAll();
+  }
+  function bindRealtime() { backend.subscribe(applyCombatChange); }
+
+  window.__battle.useBackend = (b) => {
+    backend = b || sheetBackend;
+    bindRealtime();                              // subscription follows the swap
+    if (battleOn) loadCombatFromDb(activeKey);   // re-read from the new source
+  };
 
   // Translate HUD resource keys → DB pipState keys (HUD keys already match DB)
   function hudResKeyToDb(resKey) {
@@ -1310,14 +1327,7 @@
     injectNav();
 
     // Real-time sync — the backend reports external changes to combat state.
-    backend.subscribe(({ key, combat }) => {
-      const s = SESSION[key];
-      if (!s) return;
-      if (combat.hp     !== null && combat.hp !== undefined) s.hp     = combat.hp;
-      if (combat.hpTemp  !== undefined) s.hpTemp  = combat.hpTemp;
-      if (combat.hpBonus !== undefined) s.hpBonus = combat.hpBonus;
-      if (battleOn) renderAll();
-    });
+    bindRealtime();
     if (resumeBattle) {
       battleOn = true;
       initSession(activeKey);
