@@ -484,6 +484,14 @@
     .tool-subrow { display: flex; gap: 0.25rem; margin-bottom: 0.5rem; }
     .tool-subrow .tool-btn { width: 30px; height: 30px; border-color: var(--nav-border); }
     .tool-subrow .tool-btn svg { width: 16px; height: 16px; }
+    .rt-cursors { position: absolute; inset: 0; z-index: 18; pointer-events: none; overflow: hidden; }
+    .rt-cursor { position: absolute; top: 0; left: 0; will-change: transform; transition: transform .05s linear; }
+    .rt-cursor .rt-arrow { width: 20px; height: 20px; display: block; fill: var(--cc, #c0703c);
+      filter: drop-shadow(0 1px 1px rgba(0,0,0,.55)); }
+    .rt-cursor .rt-label { position: absolute; left: 15px; top: 13px; white-space: nowrap;
+      font-family: var(--font-title); font-size: 0.68rem; line-height: 1; color: #fff;
+      background: var(--cc, #c0703c); padding: 2px 6px; border-radius: 3px;
+      box-shadow: 0 1px 2px rgba(0,0,0,.4); }
 
     /* ── status / empty states ── */
     .stage-msg {
@@ -673,6 +681,13 @@
     let dragId = null;   // combatant id currently being dragged
     let dragOrigin = null; // {col,row} the drag started from — anchors the measurement
     let zoom = 1, panX = 0, panY = 0;   // board transform (zoom/pan)
+
+    // live cursors (ephemeral; realtime broadcast + presence, never persisted)
+    let RT = null;                      // the realtime channel
+    let cursorLayer = null;             // overlay holding other people's cursors
+    let MY_ID = null, MY_NAME = '';     // this viewer's cursor identity
+    let lastCursorSent = 0;             // broadcast throttle
+    const CURSORS = new Map();          // id → { name, color, tool, col, row, seen, el }
     const MINZ = 0.25, MAXZ = 8;
 
     // Build the grid SVG markup. viewBox is NATIVE map coords so it scales with
@@ -942,6 +957,7 @@
     // ── board transform (zoom/pan) ──
     function applyTransform() {
       if (boardEl) boardEl.style.transform = `translate(${panX}px, ${panY}px) scale(${zoom})`;
+      renderCursors();
     }
     const clampZ = z => Math.max(MINZ, Math.min(MAXZ, z));
     function zoomAt(factor, sx, sy) {        // sx,sy = stage-local point to keep fixed
@@ -984,6 +1000,62 @@
         y: ((META.originY + (row + 0.5) * META.cellPx) / H) * 100,
       };
     }
+
+    // ── live cursors ──
+    const TOOL_GLYPH = { circle: '○', cone: '△', rect: '▢', pen: '✎', hide: '▦', reveal: '☀' };
+    function cellToScreen(col, row) {     // fractional cell coords → stage-local px (inverse of screenToCellF)
+      const W = META.cols * META.cellPx, H = META.rows * META.cellPx;
+      const fx = (col * META.cellPx + META.originX) / W;
+      const fy = (row * META.cellPx + META.originY) / H;
+      return { x: fx * boardEl.offsetWidth * zoom + panX, y: fy * boardEl.offsetHeight * zoom + panY };
+    }
+    function ensureCursorLayer() {
+      if (cursorLayer || !stage) return;
+      cursorLayer = document.createElement('div');
+      cursorLayer.className = 'rt-cursors';
+      stage.appendChild(cursorLayer);
+    }
+    function makeCursorEl() {
+      const el = document.createElement('div');
+      el.className = 'rt-cursor';
+      el.innerHTML = '<svg class="rt-arrow" viewBox="0 0 24 24" aria-hidden="true"><path d="M3 2l16 7-6.4 1.8L9 19z"/></svg><span class="rt-label"></span>';
+      return el;
+    }
+    function paintCursor(cur) {
+      cur.el.style.setProperty('--cc', cur.color || '#c0703c');
+      const glyph = TOOL_GLYPH[cur.tool] ? ' ' + TOOL_GLYPH[cur.tool] : '';
+      cur.el.querySelector('.rt-label').textContent = (cur.name || '?') + glyph;
+    }
+    function positionCursor(cur) {
+      if (!META || !boardEl) return;
+      const p = cellToScreen(cur.col, cur.row);
+      cur.el.style.transform = `translate(${p.x}px, ${p.y}px)`;
+    }
+    function renderCursors() { CURSORS.forEach(positionCursor); }
+    function removeCursor(id) { const c = CURSORS.get(id); if (c) { c.el.remove(); CURSORS.delete(id); } }
+    function onCursor(p) {
+      if (!p || p.id === MY_ID) return;            // never draw my own
+      if (p.staff && !IS_STAFF) return;            // staff cursors hidden from players
+      ensureCursorLayer();
+      let cur = CURSORS.get(p.id);
+      if (!cur) { cur = { el: makeCursorEl() }; CURSORS.set(p.id, cur); cursorLayer.appendChild(cur.el); }
+      cur.name = p.name; cur.color = p.color; cur.tool = p.tool;
+      cur.col = p.col; cur.row = p.row; cur.seen = performance.now();
+      paintCursor(cur); positionCursor(cur);
+    }
+    function sendCursor(clientX, clientY) {
+      if (!RT || !META) return;
+      const now = performance.now();
+      if (now - lastCursorSent < 50) return;        // ~20/sec
+      lastCursorSent = now;
+      const f = screenToCellF(clientX, clientY);
+      RT.send({ type: 'broadcast', event: 'cursor',
+        payload: { id: MY_ID, name: MY_NAME, color: DRAW.color, tool: TOOL, staff: IS_STAFF, col: f.col, row: f.row } });
+    }
+    setInterval(() => {                             // sweep cursors that went silent (dropped without a clean leave)
+      const now = performance.now();
+      CURSORS.forEach((c, id) => { if (now - (c.seen || 0) > 12000) removeCursor(id); });
+    }, 5000);
     // ── movement measurement overlay ──
     // An empty SVG layer in native map coords; populated during a drag, cleared on end.
     function measureSvg(meta) {
@@ -1297,6 +1369,7 @@
       });
 
       stage.addEventListener('pointermove', (e) => {
+        sendCursor(e.clientX, e.clientY);
         if (fogPainting) { const cell = screenToCell(e.clientX, e.clientY); paintCell(cell.col, cell.row); return; }
         if (drawing) {
           if (TOOL === 'pen') {
@@ -1418,8 +1491,13 @@
     // ── realtime: a move on any client updates every other board live ──
     function initRealtime() {
       if (!SB || !ENC) return;
-      SB.channel('combat-' + ENC.id)
-        .on('postgres_changes',
+      MY_ID = (ME && ME.id) || ('anon-' + Math.random().toString(36).slice(2));
+      MY_NAME = (ME && ME.characterKey)
+        ? ME.characterKey.charAt(0).toUpperCase() + ME.characterKey.slice(1)
+        : 'DM';
+      ensureCursorLayer();
+      RT = SB.channel('combat-' + ENC.id, { config: { presence: { key: MY_ID } } });
+      RT.on('postgres_changes',
           { event: 'UPDATE', schema: 'public', table: 'combatants', filter: 'encounter_id=eq.' + ENC.id },
           ({ new: row }) => {
             if (!row || row.id === dragId) return;       // ignore the echo of my own drag
@@ -1446,7 +1524,10 @@
             else if (eventType === 'DELETE') { DRAWINGS = DRAWINGS.filter(d => d.id !== (old && old.id)); }
             redrawDrawings();
           })
-        .subscribe();
+        .on('broadcast', { event: 'cursor' }, ({ payload }) => onCursor(payload))
+        .on('presence', { event: 'leave' }, ({ leftPresences }) =>
+          (leftPresences || []).forEach(pr => pr && pr.id && removeCursor(pr.id)))
+        .subscribe((status) => { if (status === 'SUBSCRIBED') RT.track({ id: MY_ID }); });
     }
 
     // ── zoom toolbar ──
