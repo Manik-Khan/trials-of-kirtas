@@ -485,7 +485,7 @@
     .tool-subrow .tool-btn { width: 30px; height: 30px; border-color: var(--nav-border); }
     .tool-subrow .tool-btn svg { width: 16px; height: 16px; }
     .rt-cursors { position: absolute; inset: 0; z-index: 18; pointer-events: none; overflow: hidden; }
-    .rt-cursor { position: absolute; top: 0; left: 0; will-change: transform; transition: transform .05s linear; }
+    .rt-cursor { position: absolute; top: 0; left: 0; transform-origin: 0 0; will-change: transform; transition: transform .05s linear; }
     .rt-cursor .rt-arrow { width: 20px; height: 20px; display: block; fill: var(--cc, #c0703c);
       filter: drop-shadow(0 1px 1px rgba(0,0,0,.55)); }
     .rt-cursor .rt-label { position: absolute; left: 15px; top: 13px; white-space: nowrap;
@@ -1029,7 +1029,8 @@
     function positionCursor(cur) {
       if (!META || !boardEl) return;
       const p = cellToScreen(cur.col, cur.row);
-      cur.el.style.transform = `translate(${p.x}px, ${p.y}px)`;
+      const s = Math.max(0.5, Math.min(1, zoom));   // shrink when zoomed out; constant when zoomed in
+      cur.el.style.transform = `translate(${p.x}px, ${p.y}px) scale(${s})`;
     }
     function renderCursors() { CURSORS.forEach(positionCursor); }
     function removeCursor(id) { const c = CURSORS.get(id); if (c) { c.el.remove(); CURSORS.delete(id); } }
