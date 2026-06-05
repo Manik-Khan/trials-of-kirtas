@@ -481,6 +481,9 @@
       transition: transform .2s ease, opacity .2s ease;
     }
     .tool-options.open { transform: translateX(0); opacity: 1; pointer-events: auto; }
+    .tool-subrow { display: flex; gap: 0.25rem; margin-bottom: 0.5rem; }
+    .tool-subrow .tool-btn { width: 30px; height: 30px; border-color: var(--nav-border); }
+    .tool-subrow .tool-btn svg { width: 16px; height: 16px; }
 
     /* ── status / empty states ── */
     .stage-msg {
@@ -1608,62 +1611,108 @@
     function buildToolRail() {
       const rail = document.createElement('div');
       rail.className = 'tool-rail';
-      const tools = [
-        { id: 'select', icon: TOOL_ICON.select, title: 'Select / move' },
-        { id: 'circle', icon: TOOL_ICON.circle, title: 'Circle / radius' },
-        { id: 'cone',   icon: TOOL_ICON.cone,   title: 'Cone' },
+
+      // Tools collapse into groups. A group is ONE rail button showing its
+      // currently-active member's icon; clicking it opens the slide-out with the
+      // member icons in a row plus that group's options. Adding a shape later
+      // (rectangle / line / freehand) = one more entry in `members`.
+      const groups = [
+        { id: 'select', kind: 'single', icon: TOOL_ICON.select, title: 'Select / move' },
+        { id: 'shapes', kind: 'group', opts: 'draw', title: 'Shapes', members: [
+            { id: 'circle', icon: TOOL_ICON.circle, title: 'Circle / radius' },
+            { id: 'cone',   icon: TOOL_ICON.cone,   title: 'Cone' },
+          ] },
       ];
-      if (IS_STAFF) tools.push(
-        { id: 'hide',   icon: TOOL_ICON.pencil, title: 'Draw fog (hide map)' },
-        { id: 'reveal', icon: TOOL_ICON.eraser, title: 'Erase fog (reveal map)' },
-      );
-      rail.innerHTML = tools.map((t, i) =>
-        `<button class="tool-btn${i === 0 ? ' active' : ''}" data-tool="${t.id}" title="${t.title}">${t.icon}</button>`).join('');
-      stage.appendChild(rail);
+      if (IS_STAFF) groups.push(
+        { id: 'fog', kind: 'group', opts: 'fog', title: 'Fog', members: [
+            { id: 'hide',   icon: TOOL_ICON.pencil, title: 'Draw fog (hide map)' },
+            { id: 'reveal', icon: TOOL_ICON.eraser, title: 'Erase fog (reveal map)' },
+          ] });
+
+      // remembered per-group selection → drives each rail button's icon
+      const lastMember = {};
+      groups.forEach(g => { if (g.kind === 'group') lastMember[g.id] = g.members[0].id; });
 
       const opts = document.createElement('div');
       opts.className = 'tool-options';
-      stage.appendChild(opts);
 
-      function fogOpts() {
-        opts.innerHTML = `
+      function railIcon(g) {
+        return g.kind === 'single' ? g.icon
+          : g.members.find(m => m.id === lastMember[g.id]).icon;
+      }
+      function renderRail() {
+        rail.innerHTML = groups.map(g =>
+          `<button class="tool-btn" data-group="${g.id}" title="${g.title}">${railIcon(g)}</button>`).join('');
+        rail.querySelectorAll('.tool-btn').forEach(b =>
+          b.addEventListener('click', () => onGroup(b.dataset.group)));
+      }
+      function markGroup(id) {
+        rail.querySelectorAll('.tool-btn').forEach(b =>
+          b.classList.toggle('active', b.dataset.group === id));
+      }
+
+      function fogOptsHtml() { return `
           <p class="gc-sub">Fog brush <span class="gc-tag">DM</span></p>
           <div class="gc-row"><label for="tr-size">Brush</label>
             <input type="range" id="tr-size" min="0" max="4" step="1"></div>
           <div class="gc-row gc-fog-bulk">
             <button class="gc-btn" id="tr-all">Reveal all</button>
             <button class="gc-btn" id="tr-none">Hide all</button>
-          </div>`;
-        const s = opts.querySelector('#tr-size'); s.value = FOG.size;
-        s.addEventListener('input', () => { FOG.size = parseInt(s.value, 10); });
-        opts.querySelector('#tr-all').addEventListener('click', revealAllFog);
-        opts.querySelector('#tr-none').addEventListener('click', hideAllFog);
-      }
-      function drawOpts() {
-        opts.innerHTML = `
+          </div>`; }
+      function drawOptsHtml() { return `
           <p class="gc-sub">Colour</p>
           <div class="gc-row"><label for="tr-color">Pick</label>
             <input type="color" id="tr-color" value="${DRAW.color}"></div>
-          <p class="tr-hint">Tap &amp; drag the map to place. Use Select to remove yours.</p>`;
-        opts.querySelector('#tr-color').addEventListener('input', e => { DRAW.color = e.target.value; });
+          <p class="tr-hint">Tap &amp; drag the map to place. Use Select to remove yours.</p>`; }
+      function wireOpts(kind) {
+        if (kind === 'fog') {
+          const s = opts.querySelector('#tr-size'); s.value = FOG.size;
+          s.addEventListener('input', () => { FOG.size = parseInt(s.value, 10); });
+          opts.querySelector('#tr-all').addEventListener('click', revealAllFog);
+          opts.querySelector('#tr-none').addEventListener('click', hideAllFog);
+        } else if (kind === 'draw') {
+          opts.querySelector('#tr-color').addEventListener('input', e => { DRAW.color = e.target.value; });
+        }
+      }
+
+      function openGroup(g) {
+        const row = `<div class="tool-subrow">` + g.members.map(m =>
+          `<button class="tool-btn${m.id === lastMember[g.id] ? ' active' : ''}" data-tool="${m.id}" title="${m.title}">${m.icon}</button>`).join('') + `</div>`;
+        opts.innerHTML = row + (g.opts === 'fog' ? fogOptsHtml() : drawOptsHtml());
+        wireOpts(g.opts);
+        opts.querySelectorAll('.tool-subrow .tool-btn').forEach(b =>
+          b.addEventListener('click', () => {
+            lastMember[g.id] = b.dataset.tool;
+            setTool(b.dataset.tool);
+            opts.querySelectorAll('.tool-subrow .tool-btn').forEach(x =>
+              x.classList.toggle('active', x.dataset.tool === b.dataset.tool));
+            renderRail(); markGroup(g.id);            // rail icon now reflects the pick
+          }));
+        opts.classList.add('open');
+      }
+
+      function onGroup(id) {
+        const g = groups.find(x => x.id === id);
+        if (g.kind === 'single') { setTool(id); opts.classList.remove('open'); markGroup(id); return; }
+        setTool(lastMember[g.id]);                    // group button = its current member
+        markGroup(id);
+        openGroup(g);
       }
 
       function setTool(t) {
         TOOL = t;
-        rail.querySelectorAll('.tool-btn').forEach(b => b.classList.toggle('active', b.dataset.tool === t));
         const fog = (t === 'reveal' || t === 'hide');
         const draw = (t === 'circle' || t === 'cone');
         FOG.editing = fog;
         if (fog) FOG.brush = t;
         stage.classList.toggle('fog-edit', fog || draw);   // crosshair for paint + draw
         if (boardEl) boardEl.classList.toggle('tool-select', t === 'select');  // reveals delete handles
-        if (fog)       { fogOpts();  opts.classList.add('open'); }
-        else if (draw) { drawOpts(); opts.classList.add('open'); }
-        else           { opts.classList.remove('open'); }
       }
-      rail.querySelectorAll('.tool-btn').forEach(b =>
-        b.addEventListener('click', () => setTool(b.dataset.tool)));
-      setTool('select');
+
+      renderRail();
+      stage.appendChild(rail);
+      stage.appendChild(opts);
+      onGroup('select');
     }
   })();
   </script>
