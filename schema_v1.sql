@@ -196,13 +196,16 @@ create policy combatants_player_select on public.combatants
   for select to authenticated
   using (hidden = false or owner = public.my_profile_id());
 
--- Player update: only their own row. WHICH COLUMNS is enforced by the trigger
--- below, not here (RLS can't gate columns conditionally on role).
+-- Player update: ANY party row (shared HUD — players co-manage characters at
+-- the table, e.g. covering for an absent player). Enemies stay staff-only since
+-- they are not side='party'. WHICH COLUMNS a player may change is still enforced
+-- by the trigger below (hp/conditions/x/y only), so opening the row set does NOT
+-- let players touch owner, side, max_hp, or any other structural field.
 drop policy if exists combatants_player_update on public.combatants;
 create policy combatants_player_update on public.combatants
   for update to authenticated
-  using (owner = public.my_profile_id())
-  with check (owner = public.my_profile_id());
+  using (side = 'party')
+  with check (side = 'party');
 
 -- (No player INSERT or DELETE policy — only staff can add/remove tokens.)
 
