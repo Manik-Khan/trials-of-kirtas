@@ -1,0 +1,1874 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="parchment">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+  <title>Combat — The Trials of Kirtas</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Cinzel+Decorative:wght@700&family=Cinzel:wght@400;600&family=Crimson+Pro:ital,wght@0,400;0,600;1,400&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="theme.css">
+  <style>
+    /* ── page-scoped; relies on theme.css variables ── */
+    html, body { height: 100%; }
+    body {
+      display: flex;
+      flex-direction: column;
+      height: 100vh;
+      overflow: hidden;                 /* the stage scrolls, not the page */
+      background: var(--ink-deep);
+    }
+    /* On mobile nav.js makes the nav position:fixed and adds body padding-top:52px,
+       which pushes our flex content (bar + stage) below the bar automatically —
+       so no extra offset is needed here. */
+
+    /* ── encounter header strip (under the nav) ── */
+    .combat-bar {
+      flex-shrink: 0;
+      height: 40px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 0.9rem;
+      background: rgba(0,0,0,0.55);
+      border-bottom: 1px solid var(--gold-dim);
+    }
+    .combat-name {
+      font-family: var(--font-title);
+      font-size: 0.6rem;
+      letter-spacing: 0.32em;
+      text-transform: uppercase;
+      color: var(--gold-light);
+    }
+    .combat-round {
+      font-family: var(--font-title);
+      font-size: 0.52rem;
+      letter-spacing: 0.18em;
+      text-transform: uppercase;
+      color: var(--muted);
+    }
+    .combat-round b { color: var(--aged); font-weight: 600; }
+
+    /* ── the board stage ── */
+    .stage {
+      flex: 1;
+      position: relative;
+      overflow: hidden;                 /* we manage zoom/pan ourselves via transform */
+      background:
+        radial-gradient(circle at 50% 40%, rgba(184,149,42,0.04), transparent 70%),
+        var(--ink-deep);
+      touch-action: none;               /* we handle pinch/pan; stop the browser hijacking it */
+      user-select: none;                /* panning the map must not text-select token labels */
+      -webkit-user-select: none;
+    }
+
+    .board {
+      position: absolute;
+      top: 0; left: 0;
+      transform-origin: 0 0;            /* zoom/pan via translate()+scale() from here */
+      will-change: transform;
+      box-shadow: 0 10px 40px rgba(0,0,0,0.6);
+      background: var(--smoke);         /* shows through until/if the map loads */
+      outline: 1px solid var(--gold-dim);
+    }
+    .board-map {
+      display: block;
+      width: 100%;
+      height: 100%;
+      user-select: none;
+      -webkit-user-drag: none;
+      -webkit-touch-callout: none;
+      pointer-events: none;             /* map is backdrop; pan is handled on the stage */
+    }
+    .board-map.missing { opacity: 0; }  /* hide the broken-image glyph; grid still proves the math */
+
+    /* grid overlay — viewBox is in NATIVE map coords, so it scales perfectly
+       with the board no matter the rendered size. */
+    .board-grid {
+      position: absolute;
+      inset: 0;
+      width: 100%;
+      height: 100%;
+      pointer-events: none;
+    }
+    /* fog of war — native-coord SVG over the grid, below tokens; painting is
+       handled on the stage pointer handler, so the layer itself ignores pointers */
+    .board-fog {
+      position: absolute;
+      inset: 0;
+      width: 100%;
+      height: 100%;
+      pointer-events: none;
+    }
+    /* drawings (shapes / spell templates) — below fog, below tokens */
+    .board-draw { position: absolute; inset: 0; width: 100%; height: 100%; pointer-events: none; }
+    .draw-del { pointer-events: auto; cursor: pointer; display: none; }
+    .board.tool-select .draw-del { display: inline; }
+    .tr-hint { font-size: 0.42rem; line-height: 1.5; color: var(--muted); margin: 0.45rem 0 0; text-transform: none; letter-spacing: 0.02em; }
+
+    /* tokens — positioned in %, so they ride the board through any resize */
+    .board-tokens { position: absolute; inset: 0; pointer-events: none; }
+    .token {
+      position: absolute;
+      transform: translate(-50%, -50%);   /* box centre pinned to the cell centre */
+      aspect-ratio: 1 / 1;                 /* a one-cell square (width set inline) */
+      container-type: inline-size;
+      pointer-events: auto;                /* clickable, though the layer is none */
+      cursor: pointer;
+    }
+    /* iOS: a token is an interactive control, not a saveable picture — kill the
+       native long-press callout (Save/Copy/Share) + drag so the hold opens our
+       menu instead of the system sheet. (.board-map already does this for the map.) */
+    .token, .token img {
+      -webkit-touch-callout: none;
+      -webkit-user-select: none;
+      user-select: none;
+      -webkit-user-drag: none;
+    }
+    .token-disc {
+      width: 100%;
+      height: 100%;
+      border-radius: 50%;
+      overflow: hidden;
+      box-shadow: 0 1px 4px rgba(0,0,0,0.7);
+      background: var(--ring, #555);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      box-sizing: border-box;
+    }
+    .token-disc.ring { border: 2px solid var(--ring, #fff); }
+    .token-disc img { width: 100%; height: 100%; object-fit: cover; }
+
+    /* cutout mode — transparent PNG contained within the cell, standing on the floor */
+    .token-cutout {
+      width: 100%;
+      height: 100%;
+      position: relative;
+      display: flex;
+      align-items: flex-end;
+      justify-content: center;
+    }
+    .token-cutimg {
+      position: relative;
+      z-index: 1;
+      max-width: 100%;
+      max-height: 100%;                    /* fit inside the one-cell square */
+      width: auto;
+      height: auto;
+      object-fit: contain;
+      filter: drop-shadow(0 2px 3px rgba(0,0,0,0.85));
+      display: block;
+    }
+    .token-base {                        /* colored ground ellipse = team identity */
+      position: absolute;
+      bottom: 3%; left: 50%;
+      transform: translateX(-50%);
+      width: 72%; height: 18%;
+      border-radius: 50%;
+      background: var(--ring, #888);
+      opacity: 0.5;
+      filter: blur(1px);
+      z-index: 0;
+    }
+    .token-initial {
+      font-family: var(--font-title);
+      font-weight: 600;
+      color: #fff;
+      line-height: 1;
+      font-size: 50cqw;                 /* half the disc width */
+    }
+    .token-name {
+      position: absolute;
+      top: 102%;                          /* just below the square; doesn't shift the disc */
+      left: 50%;
+      transform: translateX(-50%);
+      display: none;                      /* revealed when the token is selected */
+      font-family: var(--font-title);
+      font-size: clamp(5px, 28cqw, 15px); /* scales with the token, capped so it's never huge */
+      letter-spacing: 0.04em;
+      color: var(--parchment);
+      white-space: nowrap;
+      background: rgba(10,8,5,0.88);
+      border: 1px solid var(--gold-dim);
+      padding: 0.12em 0.5em;
+      border-radius: 0.25em;
+      pointer-events: none;
+      z-index: 50;
+    }
+    /* concealment badges — DM view only */
+    .token.is-hidden { opacity: 0.5; }
+    .token-badge {
+      position: absolute;
+      top: -4px; right: -4px;
+      font-size: 0.55rem;
+      line-height: 1;
+      background: var(--ink-deep);
+      border: 1px solid var(--gold-mid);
+      border-radius: 50%;
+      width: 14px; height: 14px;
+      display: flex; align-items: center; justify-content: center;
+      color: var(--gold-light);
+    }
+    /* the ??? a *player* sees for a teased token */
+    .token-disc.mystery {
+      background: repeating-linear-gradient(45deg, #2a2620, #2a2620 4px, #1c1a16 4px, #1c1a16 8px);
+      border: 2px solid var(--muted);
+    }
+
+    /* selection + drag feedback */
+    .token.selected { z-index: 30; }
+    .token.selected .token-disc,
+    .token.selected .token-cutout {
+      filter: drop-shadow(0 0 2px var(--gold-light)) drop-shadow(0 0 5px var(--gold));
+    }
+    .token.selected .token-name { display: block; }   /* selecting reveals the name */
+    .token.dragging { opacity: 0.85; cursor: grabbing; }
+    .token.no-move { cursor: default; }
+
+    /* ── movement measurement (shown only while a token is being dragged) ──
+       Lives in its own SVG layer in NATIVE map coords (like the grid), so it
+       scales with the board and rides the zoom/pan transform for free. */
+    .measure-layer {
+      position: absolute; inset: 0;
+      width: 100%; height: 100%;
+      pointer-events: none;
+      overflow: visible;                 /* let the label show near board edges */
+    }
+    .measure-cell {                      /* the tile you started from, left lit */
+      fill: var(--gold-light); fill-opacity: 0.16;
+      stroke: var(--gold-light); stroke-opacity: 0.55;
+    }
+    .measure-line { stroke: var(--gold-light); stroke-linecap: round; fill: none; }
+    .measure-label {
+      fill: var(--gold-light);
+      paint-order: stroke;               /* dark halo under the glyphs = legible on any map */
+      stroke: rgba(10,8,5,0.92); stroke-linejoin: round;
+      font-family: var(--font-title); font-weight: 600;
+      text-anchor: middle; dominant-baseline: middle;
+    }
+    .measure-line.over  { stroke: #e2574c; }   /* soft "past your speed" cue — never blocks */
+    .measure-label.over { fill: #e2574c; }
+
+    /* ── condition badges (cluster under a token) ── */
+    .token-conds {
+      position: absolute;
+      left: 50%; bottom: -6%;
+      transform: translateX(-50%);
+      display: flex; gap: 6cqw;
+      pointer-events: none;
+      z-index: 40;
+    }
+    .cond-badge {
+      width: 26cqw; height: 26cqw;
+      min-width: 9px; min-height: 9px;
+      border-radius: 50%;
+      background: var(--c, #888);
+      border: 1px solid rgba(0,0,0,0.55);
+      box-shadow: 0 1px 2px rgba(0,0,0,0.6);
+      color: #fff;
+      display: flex; align-items: center; justify-content: center;
+    }
+    .cond-badge svg { width: 70%; height: 70%; fill: currentColor; stroke: none; display: block; }
+    .cond-badge.more {
+      background: var(--ink-deep); color: var(--gold-light);
+      font-family: var(--font-title); font-size: 16cqw; font-weight: 600;
+    }
+
+    /* ── per-token context menu (right-click / long-press) ── */
+    .ctx-menu {
+      position: fixed; z-index: 200;
+      min-width: 188px; max-height: 70vh; overflow-y: auto;
+      background: var(--nav-bg);
+      border: 1px solid var(--nav-border);
+      border-radius: 6px;
+      box-shadow: 0 8px 30px rgba(0,0,0,0.6);
+      padding: 0.45rem 0;
+      font-family: var(--font-title);
+    }
+    .ctx-head {
+      font-size: 0.46rem; letter-spacing: 0.26em; text-transform: uppercase;
+      color: var(--gold-light); padding: 0.2rem 0.7rem 0.4rem;
+      border-bottom: 1px solid var(--gold-dim); margin-bottom: 0.35rem;
+      white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+    }
+    .ctx-sub {
+      font-size: 0.4rem; letter-spacing: 0.22em; text-transform: uppercase;
+      color: var(--muted); padding: 0.15rem 0.7rem 0.25rem;
+    }
+    /* tab bar — only rendered when 2+ tabs exist; a single tab uses .ctx-sub above */
+    .ctx-tabs {
+      display: flex; gap: 0.15rem;
+      padding: 0 0.5rem 0.35rem;
+      border-bottom: 1px solid var(--gold-dim);
+      margin-bottom: 0.35rem;
+    }
+    .ctx-tab {
+      flex: 1;
+      background: none; border: 0; cursor: pointer;
+      font-family: var(--font-title);
+      font-size: 0.4rem; letter-spacing: 0.18em; text-transform: uppercase;
+      color: var(--muted); padding: 0.3rem 0.25rem;
+      border-bottom: 2px solid transparent;
+    }
+    .ctx-tab:hover { color: var(--parchment); }
+    .ctx-tab.active { color: var(--gold-light); border-bottom-color: var(--gold-light); }
+    /* size selector (Manage tab) */
+    .ctx-sizes {
+      display: grid; grid-template-columns: repeat(3, 1fr); gap: 0.2rem;
+      padding: 0.15rem 0.6rem 0.35rem;
+    }
+    .ctx-size {
+      background: none; cursor: pointer;
+      border: 1px solid var(--gold-dim); border-radius: 4px;
+      font-family: var(--font-title);
+      font-size: 0.4rem; letter-spacing: 0.08em; text-transform: uppercase;
+      color: var(--muted); padding: 0.32rem 0.2rem;
+    }
+    .ctx-size:hover { color: var(--parchment); border-color: var(--gold-light); }
+    .ctx-size.active { color: var(--ink-deep); background: var(--gold-light); border-color: var(--gold-light); }
+    .ctx-cond {
+      display: flex; align-items: center; gap: 0.55rem;
+      padding: 0.32rem 0.7rem; cursor: pointer; user-select: none;
+    }
+    .ctx-cond:hover { background: var(--gold-dim); }
+    .ctx-chip {
+      width: 18px; height: 18px; flex-shrink: 0;
+      border-radius: 50%;
+      background: var(--c, #888); color: #fff;
+      display: flex; align-items: center; justify-content: center;
+      opacity: 0.32; filter: grayscale(0.55);
+    }
+    .ctx-chip svg { width: 70%; height: 70%; fill: currentColor; stroke: none; }
+    .ctx-cond.active .ctx-chip { opacity: 1; filter: none; }
+    .ctx-label { font-size: 0.62rem; letter-spacing: 0.06em; color: var(--muted); flex: 1; }
+    .ctx-cond.active .ctx-label { color: var(--parchment); }
+    .ctx-check { font-size: 0.7rem; color: var(--gold-light); opacity: 0; }
+    .ctx-cond.active .ctx-check { opacity: 1; }
+
+    /* zoom toolbar */
+    .zoom-bar {
+      position: absolute;
+      bottom: 12px; right: 12px;
+      z-index: 20;
+      display: flex;
+      flex-direction: column;
+      gap: 4px;
+    }
+    .zoom-bar button {
+      width: 30px; height: 30px;
+      background: var(--nav-bg);
+      border: 1px solid var(--nav-border);
+      color: var(--gold-light);
+      font-family: var(--font-title);
+      font-size: 0.9rem;
+      line-height: 1;
+      cursor: pointer;
+      display: flex; align-items: center; justify-content: center;
+    }
+    .zoom-bar button:hover { background: var(--gold-dim); }
+    .zoom-bar button.fit { font-size: 0.5rem; letter-spacing: 0.06em; }
+
+    /* thin divider + checkbox accent in the controls panel */
+    .gc-sep { height: 1px; background: var(--gold-dim); margin: 0.5rem 0; }
+    .gc-row input[type=checkbox] { accent-color: var(--gold); width: 14px; height: 14px; }
+    .gc-sub {
+      font-size: 0.44rem; letter-spacing: 0.3em; text-transform: uppercase;
+      color: var(--muted); margin: 0 0 0.4rem;
+      display: flex; align-items: center; justify-content: space-between;
+    }
+    .gc-tag {
+      font-size: 0.4rem; letter-spacing: 0.12em; text-transform: uppercase;
+      color: var(--ink-deep); background: var(--gold-mid);
+      padding: 1px 5px; border-radius: 3px; font-weight: 600;
+    }
+    .gc-empty { font-size: 0.5rem; color: var(--muted); margin: 0 0 0.3rem; }
+
+    /* ── grid controls panel ── */
+    /* Display is a right slide-out drawer (compendium pattern), opened by a tab */
+    .grid-controls {
+      position: absolute;
+      top: 0; right: 0; bottom: 0;
+      z-index: 22;
+      width: 240px; max-width: 90vw;
+      background: var(--nav-bg);
+      border-left: 1px solid var(--nav-border);
+      padding: 0.6rem 0.7rem;
+      overflow-y: auto;
+      font-family: var(--font-title);
+      transform: translateX(100%);
+      transition: transform 0.28s cubic-bezier(0.4,0,0.2,1);
+      box-shadow: -8px 0 40px rgba(0,0,0,0.5);
+    }
+    .grid-controls.open { transform: translateX(0); }
+    .gc-backdrop {
+      position: absolute; inset: 0; z-index: 21;
+      background: rgba(0,0,0,0.35);
+      opacity: 0; pointer-events: none; transition: opacity 0.28s;
+    }
+    .gc-backdrop.open { opacity: 1; pointer-events: auto; }
+    .display-tab {
+      position: absolute; top: 10px; right: 10px; z-index: 18;
+      background: var(--nav-bg); border: 1px solid var(--nav-border);
+      color: var(--muted); cursor: pointer;
+      font-family: var(--font-title); font-size: 0.5rem; letter-spacing: 0.14em;
+      text-transform: uppercase; padding: 0.4rem 0.65rem;
+      transition: color 0.15s, border-color 0.15s;
+    }
+    .display-tab:hover { color: var(--parchment); border-color: var(--gold-dim); }
+    .grid-controls h4 {
+      font-size: 0.46rem;
+      letter-spacing: 0.32em;
+      text-transform: uppercase;
+      color: var(--muted);
+      border-bottom: 1px solid var(--gold-dim);
+      padding-bottom: 0.3rem;
+      margin-bottom: 0.5rem;
+      font-weight: 600;
+    }
+    .gc-row { display: flex; align-items: center; justify-content: space-between; gap: 0.5rem; margin-bottom: 0.45rem; }
+    .gc-row:last-child { margin-bottom: 0; }
+    .gc-row label {
+      font-size: 0.5rem;
+      letter-spacing: 0.14em;
+      text-transform: uppercase;
+      color: var(--aged);
+    }
+    .gc-row input[type=range] { width: 78px; accent-color: var(--gold); }
+    .gc-row select {
+      background: var(--ink); color: var(--parchment2);
+      border: 1px solid var(--section-border); border-radius: 4px;
+      font-family: var(--font-title); font-size: 0.5rem; letter-spacing: 0.1em;
+      text-transform: uppercase; padding: 2px 4px;
+    }
+    .gc-row input[type=color] {
+      width: 26px; height: 18px; padding: 0; border: 1px solid var(--section-border);
+      background: var(--ink); border-radius: 4px; cursor: pointer;
+    }
+    .grid-controls.collapsed .gc-body { display: none; }
+    .gc-toggle { cursor: pointer; float: right; color: var(--muted); }
+    /* fog controls */
+    .gc-btn {
+      flex: 1; cursor: pointer;
+      background: var(--ink); color: var(--parchment2);
+      border: 1px solid var(--section-border); border-radius: 4px;
+      font-family: var(--font-title); font-size: 0.46rem; letter-spacing: 0.1em;
+      text-transform: uppercase; padding: 4px 4px;
+    }
+    .gc-btn:hover { border-color: var(--gold-light); color: var(--parchment); }
+    .gc-btn.on   { background: var(--gold); color: var(--ink-deep); border-color: var(--gold); }
+    .gc-fog-brush, .gc-fog-bulk { gap: 0.3rem; }
+    .stage.fog-edit { cursor: crosshair; }
+    /* ── left tool rail + contextual options (DM) ── */
+    .tool-rail {
+      position: absolute; top: 10px; left: 10px; z-index: 20;
+      display: flex; flex-direction: column; gap: 0.25rem;
+      background: var(--nav-bg); border: 1px solid var(--nav-border); padding: 0.3rem;
+    }
+    .tool-btn {
+      width: 34px; height: 34px; display: flex; align-items: center; justify-content: center;
+      background: transparent; border: 1px solid transparent; border-radius: 4px;
+      color: var(--muted); cursor: pointer; transition: color .15s, border-color .15s, background .15s;
+    }
+    .tool-btn svg { width: 18px; height: 18px; fill: currentColor; }
+    .tool-btn:hover { color: var(--parchment); border-color: var(--gold-dim); }
+    .tool-btn.active { color: var(--ink-deep); background: var(--gold); border-color: var(--gold); }
+    .tool-options {
+      position: absolute; top: 10px; left: 58px; z-index: 19;
+      min-width: 150px; background: var(--nav-bg); border: 1px solid var(--nav-border);
+      padding: 0.5rem 0.6rem; font-family: var(--font-title);
+      transform: translateX(-8px); opacity: 0; pointer-events: none;
+      transition: transform .2s ease, opacity .2s ease;
+    }
+    .tool-options.open { transform: translateX(0); opacity: 1; pointer-events: auto; }
+    .tool-subrow { display: flex; gap: 0.25rem; margin-bottom: 0.5rem; }
+    .tool-subrow .tool-btn { width: 30px; height: 30px; border-color: var(--nav-border); }
+    .tool-subrow .tool-btn svg { width: 16px; height: 16px; }
+    .rt-cursors { position: absolute; inset: 0; z-index: 18; pointer-events: none; overflow: hidden; }
+    .rt-cursor { position: absolute; top: 0; left: 0; transform-origin: 0 0; will-change: transform; transition: transform .05s linear; }
+    .rt-cursor .rt-arrow { width: 20px; height: 20px; display: block; fill: var(--cc, #c0703c);
+      filter: drop-shadow(0 1px 1px rgba(0,0,0,.55)); }
+    .rt-cursor .rt-label { position: absolute; left: 15px; top: 13px; white-space: nowrap;
+      font-family: var(--font-title); font-size: 0.68rem; line-height: 1; color: #fff;
+      background: var(--cc, #c0703c); padding: 2px 6px; border-radius: 3px;
+      box-shadow: 0 1px 2px rgba(0,0,0,.4); }
+
+    /* ── status / empty states ── */
+    .stage-msg {
+      position: absolute;
+      inset: 0;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      gap: 0.6rem;
+      text-align: center;
+      padding: 2rem;
+      color: var(--muted);
+    }
+    .stage-msg h2 {
+      font-family: var(--font-display);
+      font-size: 1.1rem;
+      color: var(--gold);
+      font-weight: 700;
+    }
+    .stage-msg p { font-family: var(--font-body); font-size: 0.95rem; max-width: 360px; }
+    .spinner {
+      width: 34px; height: 34px; border-radius: 50%;
+      border: 3px solid var(--gold-dim); border-top-color: var(--gold);
+      animation: spin 0.7s linear infinite;
+    }
+    @keyframes spin { to { transform: rotate(360deg); } }
+  </style>
+</head>
+<body>
+
+  <div id="nav-root"></div>
+
+  <div class="combat-bar" id="combat-bar" style="display:none">
+    <span class="combat-name" id="combat-name">—</span>
+    <span class="combat-round">Round <b id="combat-round">1</b></span>
+  </div>
+
+  <div class="stage" id="stage">
+    <div class="stage-msg" id="stage-msg">
+      <div class="spinner"></div>
+      <p>Loading the battlefield…</p>
+    </div>
+  </div>
+
+  <script src="nav.js"></script>
+  <script src="characters.js"></script>
+  <script src="battle.js"></script>
+  <script>
+  (function () {
+    'use strict';
+
+    // ── config ──
+    const CLOUDINARY_CLOUD = 'df0tgoiyb';           // same cloud as the portraits
+    const MAP_DISPLAY_W     = 2048;                 // Cloudinary width cap (decoded ≈ 24MB, not 163MB)
+    const MANIFEST_URL      = 'maps/manifest.json';
+
+    // party portraits + ring colours (mirrors battle.js — kept in sync manually for now)
+    const PORTRAITS = {
+      cosmere:   'https://res.cloudinary.com/df0tgoiyb/image/upload/v1779833033/kirtas/characters/cosmere.png',
+      caim:      'https://res.cloudinary.com/df0tgoiyb/image/upload/v1779833008/kirtas/characters/caim.png',
+      liadan:    'https://res.cloudinary.com/df0tgoiyb/image/upload/v1779732202/kirtas/portraits/liadan.png',
+      vesperian: 'https://res.cloudinary.com/df0tgoiyb/image/upload/v1779833079/kirtas/characters/vesperian.png',
+    };
+    const CHAR_COLOR = { cosmere: '#9d4edd', caim: '#c0001a', liadan: '#1d9e75', vesperian: '#b8952a' };
+    const ENEMY_COLOR = '#a23b2d';
+
+    // Per-character render style for the token art, since it depends on the art:
+    //   'circle' = crop into a framed disc (for art composed for a round frame)
+    //   'cutout' = place the transparent PNG as-is (for a standing figure)
+    // Overrides the global Style control per token. Anything not listed (e.g.
+    // enemies, until the bestiary sets their own) falls back to the global default.
+    // >>> Confirm these match the actual art you uploaded. <<<
+    const TOKEN_STYLE = {
+      cosmere:   'circle',
+      caim:      'cutout',
+      liadan:    'cutout',
+      vesperian: 'circle',
+    };
+
+    // Dedicated battle tokens (transparent cutout PNGs) keyed by character key.
+    // Preferred over PORTRAITS when present; the renderer falls back
+    // portrait → dot-initial. Versionless + transform = same form as the map
+    // (proven on this account); w_400 keeps tokens light and f_auto preserves
+    // PNG transparency while serving WebP/AVIF where supported.
+    const TOKENS = {
+      cosmere:   'https://res.cloudinary.com/df0tgoiyb/image/upload/w_400,q_auto,f_auto/kirtas/tokens/cosmere.png',
+      caim:      'https://res.cloudinary.com/df0tgoiyb/image/upload/w_400,q_auto,f_auto/kirtas/tokens/caim.png',
+      liadan:    'https://res.cloudinary.com/df0tgoiyb/image/upload/w_400,q_auto,f_auto/kirtas/tokens/liadan.png',
+      vesperian: 'https://res.cloudinary.com/df0tgoiyb/image/upload/w_400,q_auto,f_auto/kirtas/tokens/vesperian.png',
+    };
+
+    // Base walking speed (ft) per character, for the movement-measurement tint.
+    // Mirrors CHARACTERS[key].combat.speed in characters.js — kept in sync manually,
+    // same as PORTRAITS / CHAR_COLOR / TOKENS above. A missing key = no tint (fine
+    // for enemies and any future token). The tint is a soft cue, never a gate.
+    const SPEED = { cosmere: 30, caim: 40, liadan: 20, vesperian: 30 };
+
+    // The eight conditions the HUD already uses — same label strings, so board
+    // and HUD share one vocabulary (and the later merge onto this column is a
+    // no-op). Each carries a colour + a small inline-SVG glyph (original art,
+    // swappable for game-icons later). Stored on combatants.conditions as an
+    // array of these names, e.g. ["Poisoned","Prone"].
+    const COND = [
+      { name: 'Poisoned',      color: '#5a9a6a', icon: '<path d="M12 3 C12 3 6 11 6 15 a6 6 0 0 0 12 0 C18 11 12 3 12 3Z"/>' },
+      { name: 'Frightened',    color: '#9d6bd0', icon: '<path d="M5 12 a7 7 0 0 1 14 0 v8 l-2.3-2 -2.3 2 -2.4-2 -2.3 2 -2.4-2 z"/>' },
+      { name: 'Paralyzed',     color: '#d4b020', icon: '<path d="M13 2 L5 13 h5 l-2 9 9-13 h-5 z"/>' },
+      { name: 'Prone',         color: '#a0763d', icon: '<path d="M12 21 l-7-8 h4 V4 h6 v9 h4 z"/>' },
+      { name: 'Stunned',       color: '#e08a2a', icon: '<path fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" d="M12 7 a5 5 0 1 1 -5 5 a3 3 0 1 0 3 -3"/>' },
+      { name: 'Concentration', color: '#4a90c0', icon: '<circle cx="12" cy="12" r="8" fill="none" stroke="currentColor" stroke-width="2.4"/><circle cx="12" cy="12" r="2.6"/>' },
+      { name: 'Blinded',       color: '#8a8d95', icon: '<path fill="none" stroke="currentColor" stroke-width="2.2" d="M3 12 s3.5-5 9-5 9 5 9 5"/><circle cx="12" cy="12.5" r="2.2"/><line x1="4" y1="5" x2="20" y2="20" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"/>' },
+      { name: 'Deafened',      color: '#6f7682', icon: '<path d="M4 9 h3 l4-4 v14 l-4-4 H4 z"/><line x1="14" y1="6" x2="20" y2="18" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"/>' },
+    ];
+    const COND_BY = Object.fromEntries(COND.map(c => [c.name, c]));
+
+    function mapUrl(publicId) {
+      return `https://res.cloudinary.com/${CLOUDINARY_CLOUD}/image/upload/`
+           + `w_${MAP_DISPLAY_W},q_auto,f_auto/${publicId}.jpg`;
+    }
+
+    // ── wait for nav.js: it confirms the session, exposes window.__tok.sb, then
+    //    fires nav:ready. If we registered too late and it already fired, the
+    //    presence of __tok.sb tells us we can go. ──
+    function whenReady(cb) {
+      if (window.__tok && window.__tok.sb) { cb(); return; }
+      document.addEventListener('nav:ready', function once() {
+        document.removeEventListener('nav:ready', once);
+        cb();
+      });
+    }
+
+    const stage   = document.getElementById('stage');
+    const msgEl    = document.getElementById('stage-msg');
+    const barEl    = document.getElementById('combat-bar');
+
+    function showMsg(title, body, withSpinner) {
+      msgEl.innerHTML =
+        (withSpinner ? '<div class="spinner"></div>' : '') +
+        (title ? `<h2>${title}</h2>` : '') +
+        (body  ? `<p>${body}</p>`   : '');
+      msgEl.style.display = 'flex';
+    }
+    function hideMsg() { msgEl.style.display = 'none'; }
+
+    // ── grid state (seeded from the manifest, adjustable via the controls) ──
+    let GRID = { style: 'lines', color: '#ffffff', opacity: 0.32 };
+    // ── token display state (adjustable via the controls) ──
+    //   style: 'cutout' = place the PNG as-is | 'circle' = crop into a framed disc
+    //   size : multiplier on the 1-cell footprint    ring: show ring (circle) / base (cutout)
+    let TOKEN = { style: 'cutout', size: 1, ring: true };
+    // Per-creature size (DM authority, shared in the DB). Multiplies the viewer's
+    // TOKEN.size. v1 = visual scale only, centred on the cell; multi-cell footprint
+    // occupancy is a deliberate later pass.
+    const SIZE_MUL   = { tiny: 0.5, small: 0.85, medium: 1, large: 2, huge: 3, gargantuan: 4 };
+    const SIZE_ORDER = ['tiny', 'small', 'medium', 'large', 'huge', 'gargantuan'];
+    const SIZE_LABEL = { tiny: 'Tiny', small: 'Small', medium: 'Medium', large: 'Large', huge: 'Huge', gargantuan: 'Garg' };
+    let META = null;     // manifest entry for the active map
+    let boardEl = null;
+    let COMBS = [];      // cached combatant rows, for re-rendering on control changes
+    let IS_STAFF = false;
+    let ME = null;       // viewer profile { role, characterKey, ... }
+    let SB = null;       // shared supabase client (from nav.js)
+    let ENC = null;      // active encounter row
+
+    // ── fog of war state ──
+    // FOG.cells = Set of "x,y" revealed-cell keys (fast lookup). Source of truth
+    // is encounters.revealed_cells (a JSON array of [x,y]); we mirror it locally.
+    const FOG = { editing: false, brush: 'reveal', size: 1, cells: new Set() };
+    const fogKey = (x, y) => x + ',' + y;
+    const isRevealed = (x, y) => FOG.cells.has(fogKey(x, y));
+    function loadFog() {
+      const arr = (ENC && Array.isArray(ENC.revealed_cells)) ? ENC.revealed_cells : [];
+      FOG.cells = new Set(arr.map(p => fogKey(p[0], p[1])));
+    }
+    function fogArray() { return [...FOG.cells].map(k => k.split(',').map(Number)); }
+    // A token shows for a player only where the fog is lifted (or it's their own
+    // token, or they're staff) — the cheap, client-side concealment tier.
+    function tokenVisible(c) {
+      return IS_STAFF || isRevealed(c.x, c.y) || !!(ME && ME.id && c.owner === ME.id);
+    }
+
+    // ── drawings (shapes & spell templates) state ──
+    let TOOL = 'select';                 // active tool: select | circle | cone | reveal | hide
+    const DRAW = { color: '#c0703c' };   // current draw colour (per user, change anytime)
+    let DRAWINGS = [];                   // rows from the drawings table
+    let drawPreview = null;              // in-progress shape while placing
+    const canEditDrawing = (d) => IS_STAFF || !!(ME && ME.id && d.owner === ME.id);
+    let SELECTED = null; // selected combatant id
+    let dragId = null;   // combatant id currently being dragged
+    let dragOrigin = null; // {col,row} the drag started from — anchors the measurement
+    let zoom = 1, panX = 0, panY = 0;   // board transform (zoom/pan)
+
+    // live cursors (ephemeral; realtime broadcast + presence, never persisted)
+    let RT = null;                      // the realtime channel
+    let cursorLayer = null;             // overlay holding other people's cursors
+    let MY_ID = null, MY_NAME = '';     // this viewer's cursor identity
+    let lastCursorSent = 0;             // broadcast throttle
+    const CURSORS = new Map();          // id → { name, color, tool, col, row, seen, el }
+    const MINZ = 0.25, MAXZ = 8;
+
+    // Build the grid SVG markup. viewBox is NATIVE map coords so it scales with
+    // the board automatically. Uses a <pattern> tile = one cell, offset by the
+    // origin — a handful of elements regardless of grid size.
+    function gridSvg(meta) {
+      const W = meta.cols * meta.cellPx;
+      const H = meta.rows * meta.cellPx;
+      const sw = Math.max(2, Math.round(meta.cellPx * 0.018)); // stroke ~ scales with cell
+      const cp = meta.cellPx;
+      let tile;
+      if (GRID.style === 'dots') {
+        const r = Math.max(2, Math.round(cp * 0.045));
+        tile = `<circle cx="0" cy="0" r="${r}" fill="${GRID.color}"/>`
+             + `<circle cx="${cp}" cy="0" r="${r}" fill="${GRID.color}"/>`
+             + `<circle cx="0" cy="${cp}" r="${r}" fill="${GRID.color}"/>`
+             + `<circle cx="${cp}" cy="${cp}" r="${r}" fill="${GRID.color}"/>`;
+      } else { // lines
+        tile = `<path d="M ${cp} 0 L 0 0 0 ${cp}" fill="none" `
+             + `stroke="${GRID.color}" stroke-width="${sw}"/>`;
+      }
+      const opacity = (GRID.style === 'none') ? 0 : GRID.opacity;
+      return `
+        <svg class="board-grid" viewBox="0 0 ${W} ${H}" preserveAspectRatio="none"
+             xmlns="http://www.w3.org/2000/svg">
+          <defs>
+            <pattern id="cell" width="${cp}" height="${cp}" patternUnits="userSpaceOnUse"
+                     patternTransform="translate(${meta.originX} ${meta.originY})">
+              ${tile}
+            </pattern>
+          </defs>
+          <rect x="0" y="0" width="${W}" height="${H}" fill="url(#cell)" opacity="${opacity}"/>
+        </svg>`;
+    }
+
+    function redrawGrid() {
+      if (!boardEl || !META) return;
+      const old = boardEl.querySelector('.board-grid');
+      if (old) old.remove();
+      // insert grid just above the map, below the tokens
+      const tokens = boardEl.querySelector('.board-tokens');
+      tokens.insertAdjacentHTML('beforebegin', gridSvg(META));
+    }
+
+    // ── fog render + paint ──
+    // SVG mask: a full-board veil with revealed cells punched out. Hole count =
+    // revealed cells; a fully-revealed board renders no veil at all.
+    function fogSvg(meta) {
+      const W = meta.cols * meta.cellPx, H = meta.rows * meta.cellPx;
+      if (FOG.cells.size >= meta.cols * meta.rows) return '';   // fully revealed → no veil
+      const holes = [...FOG.cells].map(k => {
+        const [x, y] = k.split(',').map(Number);
+        return `<rect x="${meta.originX + x * meta.cellPx}" y="${meta.originY + y * meta.cellPx}" width="${meta.cellPx}" height="${meta.cellPx}" fill="black"/>`;
+      }).join('');
+      const op = IS_STAFF ? 0.45 : 0.985;   // DM: translucent shroud (sees through); player: solid cover
+      const feather = Math.max(2, meta.cellPx * 0.38);   // soft edge width, in map units
+      return `
+        <svg class="board-fog" viewBox="0 0 ${W} ${H}" preserveAspectRatio="none" xmlns="http://www.w3.org/2000/svg">
+          <defs>
+            <filter id="fogfeather" filterUnits="userSpaceOnUse" x="0" y="0" width="${W}" height="${H}">
+              <feGaussianBlur stdDeviation="${feather}"/>
+            </filter>
+            <mask id="fogmask" maskUnits="userSpaceOnUse" x="0" y="0" width="${W}" height="${H}">
+              <rect x="0" y="0" width="${W}" height="${H}" fill="white"/>
+              <g filter="url(#fogfeather)">${holes}</g>
+            </mask>
+          </defs>
+          <rect x="0" y="0" width="${W}" height="${H}" fill="#06060c" opacity="${op}" mask="url(#fogmask)"/>
+        </svg>`;
+    }
+    function redrawFog() {
+      if (!boardEl || !META) return;
+      const old = boardEl.querySelector('.board-fog');
+      if (old) old.remove();
+      const html = fogSvg(META);
+      if (!html) return;
+      // fog sits above the grid, below the tokens (revealed tokens render over it)
+      const tokens = boardEl.querySelector('.board-tokens');
+      if (tokens) tokens.insertAdjacentHTML('beforebegin', html);
+    }
+    // Add/remove just one token's element to match its current fog visibility —
+    // used when a token moves into or out of the light (avoids a full rebuild).
+    function reconcileTokenVisibility(c) {
+      if (!boardEl) return;
+      const el = tokenEl(c.id), show = tokenVisible(c);
+      if (show && !el) {
+        const layer = boardEl.querySelector('.board-tokens');
+        if (layer) layer.insertAdjacentHTML('beforeend', tokenHtml(c, META, IS_STAFF));
+      } else if (!show && el) { el.remove(); }
+    }
+    // Toggle one cell under the brush; only redraw on an actual change.
+    // Paint the round brush footprint (radius FOG.size cells) under the cursor;
+    // only redraw if at least one cell actually changed.
+    function paintCell(col, row) {
+      const r = FOG.size, reveal = FOG.brush === 'reveal', lim = (r + 0.5) * (r + 0.5);
+      let changed = false;
+      for (let dy = -r; dy <= r; dy++) {
+        for (let dx = -r; dx <= r; dx++) {
+          if (dx * dx + dy * dy > lim) continue;                 // round, not square
+          const x = col + dx, y = row + dy;
+          if (x < 0 || y < 0 || x >= META.cols || y >= META.rows) continue;
+          const k = fogKey(x, y), had = FOG.cells.has(k);
+          if (reveal) { if (!had) { FOG.cells.add(k); changed = true; } }
+          else        { if (had)  { FOG.cells.delete(k); changed = true; } }
+        }
+      }
+      if (changed) redrawFog();
+    }
+    async function flushFog() {
+      if (!SB || !ENC) return;
+      const cells = fogArray();
+      ENC.revealed_cells = cells;
+      const { error } = await SB.from('encounters').update({ revealed_cells: cells }).eq('id', ENC.id);
+      if (error) console.error('fog write failed:', error.message);
+    }
+    function revealAllFog() {
+      FOG.cells = new Set();
+      for (let y = 0; y < META.rows; y++) for (let x = 0; x < META.cols; x++) FOG.cells.add(fogKey(x, y));
+      redrawFog(); renderTokens(); flushFog();
+    }
+    function hideAllFog() { FOG.cells = new Set(); redrawFog(); renderTokens(); flushFog(); }
+
+    // ── drawings render + create/delete ──
+    // geometry is in board cell coords: circle {cx,cy,r}, cone {ox,oy,angle,len}.
+    function shapeSvg(d, meta, editable, preview) {
+      const g = d.geometry || {}, cp = meta.cellPx, ox0 = meta.originX, oy0 = meta.originY;
+      const sw = Math.max(1, cp * 0.06);
+      let body = '', hx = 0, hy = 0;
+      if (d.kind === 'circle') {
+        const cx = ox0 + (g.cx + 0.5) * cp, cy = oy0 + (g.cy + 0.5) * cp, r = (g.r || 1) * cp;
+        body = `<circle cx="${cx}" cy="${cy}" r="${r}" fill="${d.color}" fill-opacity="0.22" stroke="${d.color}" stroke-opacity="0.9" stroke-width="${sw}"/>`;
+        hx = cx; hy = cy;
+      } else if (d.kind === 'cone') {
+        const ox = ox0 + (g.ox + 0.5) * cp, oy = oy0 + (g.oy + 0.5) * cp;
+        const L = (g.len || 1) * cp, a = g.angle || 0;
+        const fx = ox + Math.cos(a) * L, fy = oy + Math.sin(a) * L;
+        const px = -Math.sin(a), py = Math.cos(a);
+        body = `<polygon points="${ox},${oy} ${fx + px*L/2},${fy + py*L/2} ${fx - px*L/2},${fy - py*L/2}" fill="${d.color}" fill-opacity="0.22" stroke="${d.color}" stroke-opacity="0.9" stroke-width="${sw}"/>`;
+        hx = ox; hy = oy;
+      } else if (d.kind === 'rect') {
+        const x = ox0 + g.x * cp, y = oy0 + g.y * cp, w = (g.w || 1) * cp, h = (g.h || 1) * cp;
+        body = `<rect x="${x}" y="${y}" width="${w}" height="${h}" fill="${d.color}" fill-opacity="0.22" stroke="${d.color}" stroke-opacity="0.9" stroke-width="${sw}"/>`;
+        hx = x + w / 2; hy = y + h / 2;
+      } else if (d.kind === 'pen') {
+        const pts = g.pts || [];
+        const path = pts.map(p => `${ox0 + p[0] * cp},${oy0 + p[1] * cp}`).join(' ');
+        body = `<polyline points="${path}" fill="none" stroke="${d.color}" stroke-opacity="0.9" stroke-width="${sw * 1.4}" stroke-linecap="round" stroke-linejoin="round"/>`;
+        if (pts.length) { hx = ox0 + pts[0][0] * cp; hy = oy0 + pts[0][1] * cp; }
+      }
+      let handle = '';
+      if (editable && !preview && d.id) {
+        const hr = cp * 0.3, k = cp * 0.12;
+        handle = `<g class="draw-del" data-id="${d.id}">
+          <circle cx="${hx}" cy="${hy}" r="${hr}" fill="#1a1a1a" stroke="${d.color}" stroke-width="${sw}"/>
+          <path d="M${hx-k},${hy-k} L${hx+k},${hy+k} M${hx+k},${hy-k} L${hx-k},${hy+k}" stroke="#fff" stroke-width="${Math.max(1, cp*0.04)}" stroke-linecap="round"/>
+        </g>`;
+      }
+      return body + handle;
+    }
+    function drawSvg(meta) {
+      const W = meta.cols * meta.cellPx, H = meta.rows * meta.cellPx;
+      const shapes = DRAWINGS.map(d => shapeSvg(d, meta, canEditDrawing(d), false)).join('');
+      const prev = drawPreview ? shapeSvg(drawPreview, meta, false, true) : '';
+      return `<svg class="board-draw" viewBox="0 0 ${W} ${H}" preserveAspectRatio="none" xmlns="http://www.w3.org/2000/svg">${shapes}${prev}</svg>`;
+    }
+    function redrawDrawings() {
+      if (!boardEl || !META) return;
+      const old = boardEl.querySelector('.board-draw');
+      if (old) old.remove();
+      // below fog (fog hides shapes in the dark) and below tokens
+      const anchor = boardEl.querySelector('.board-fog') || boardEl.querySelector('.board-tokens');
+      if (anchor) anchor.insertAdjacentHTML('beforebegin', drawSvg(META));
+    }
+    async function createDrawing(kind, geometry) {
+      if (!SB || !ENC) return;
+      const row = { encounter_id: ENC.id, owner: ME ? ME.id : null, kind, geometry, color: DRAW.color };
+      const { data, error } = await SB.from('drawings').insert(row).select().single();
+      if (error) { console.error('draw insert failed:', error.message); return; }
+      if (!DRAWINGS.some(d => d.id === data.id)) DRAWINGS.push(data);
+      redrawDrawings();
+    }
+    async function deleteDrawing(id) {
+      const prev = DRAWINGS;
+      DRAWINGS = DRAWINGS.filter(d => d.id !== id);
+      redrawDrawings();
+      const { error } = await SB.from('drawings').delete().eq('id', id);
+      if (error) { console.error('draw delete failed:', error.message); DRAWINGS = prev; redrawDrawings(); }
+    }
+
+    // ── token rendering ──
+    // `me` is the viewer's profile (role drives whether teased tokens are shown
+    // as ??? ). Players never receive `hidden` rows at all (RLS), so any hidden
+    // row reaching us means we're staff.
+    function tokenHtml(c, meta, isStaff) {
+      const W = meta.cols * meta.cellPx;
+      const H = meta.rows * meta.cellPx;
+      // cell-centre in native px → percentage of the board
+      const cx = ((meta.originX + (c.x + 0.5) * meta.cellPx) / W) * 100;
+      const cy = ((meta.originY + (c.y + 0.5) * meta.cellPx) / H) * 100;
+      const sizePct = (meta.cellPx / W) * 100 * TOKEN.size * (SIZE_MUL[c.size] || 1);   // one cell × viewer multiplier × creature size
+
+      const teasedForPlayer = c.tease && !isStaff;       // player sees the veil
+      const isParty = c.side === 'party';
+      const ring = isParty ? (CHAR_COLOR[c.source_key] || '#888') : ENEMY_COLOR;
+      // dedicated token first, then portrait, then nothing (→ dot-initial)
+      const img = TOKENS[c.source_key] || (isParty ? PORTRAITS[c.source_key] : null);
+      // per-character art style wins; global control is the fallback default
+      const style = TOKEN_STYLE[c.source_key] || TOKEN.style;
+
+      let disc;
+      if (teasedForPlayer) {
+        disc = `<div class="token-disc mystery"><span class="token-initial">?</span></div>`;
+      } else if (img && style === 'cutout') {
+        const base = TOKEN.ring ? `<div class="token-base" style="--ring:${ring}"></div>` : '';
+        disc = `<div class="token-cutout">${base}<img class="token-cutimg" src="${img}" alt="" draggable="false"></div>`;
+      } else if (img) {  // circle mode — crop into a framed disc
+        disc = `<div class="token-disc${TOKEN.ring ? ' ring' : ''}" style="--ring:${ring}"><img src="${img}" alt="" draggable="false"></div>`;
+      } else {           // no art → coloured dot with initial
+        const initial = (c.name || '?').trim().charAt(0).toUpperCase();
+        disc = `<div class="token-disc ring" style="--ring:${ring}"><span class="token-initial">${initial}</span></div>`;
+      }
+
+      // DM-only concealment badges (never rendered for players)
+      let badge = '';
+      if (isStaff && c.hidden) badge = `<span class="token-badge" title="Hidden from players">∅</span>`;
+      else if (isStaff && c.tease) badge = `<span class="token-badge" title="Teased (players see ???)">?</span>`;
+
+      const label = teasedForPlayer ? '???' : (c.name || '');
+      const movable = canMove(c);
+      const cls = 'token'
+        + (isStaff && c.hidden ? ' is-hidden' : '')
+        + (movable ? '' : ' no-move')
+        + (c.id === SELECTED ? ' selected' : '');
+
+      return `
+        <div class="${cls}" data-id="${c.id}" style="left:${cx}%; top:${cy}%; width:${sizePct}%">
+          ${disc}${badge}
+          <span class="token-name">${label}</span>
+          ${teasedForPlayer ? '' : condBadgesHtml(c)}
+        </div>`;
+    }
+
+    // Re-render just the token layer (after a display-control change).
+    function renderTokens() {
+      if (!boardEl || !META) return;
+      const layer = boardEl.querySelector('.board-tokens');
+      if (layer) layer.innerHTML = COMBS.filter(tokenVisible).map(c => tokenHtml(c, META, IS_STAFF)).join('');
+    }
+
+    // ── fit the board into the stage, preserving the map's aspect ratio ──
+    function fitBoard(meta) {
+      const aspect = (meta.cols * meta.cellPx) / (meta.rows * meta.cellPx);
+      const availW = stage.clientWidth;
+      const availH = stage.clientHeight;
+      let w = availW, h = w / aspect;
+      if (h > availH) { h = availH; w = h * aspect; }
+      w = Math.floor(w); h = Math.floor(h);
+      boardEl.style.width  = w + 'px';
+      boardEl.style.height = h + 'px';
+      // reset to "fit": zoom 1, board centred in the stage
+      zoom = 1;
+      panX = Math.round((availW - w) / 2);
+      panY = Math.round((availH - h) / 2);
+      applyTransform();
+    }
+
+    // ── board transform (zoom/pan) ──
+    function applyTransform() {
+      if (boardEl) boardEl.style.transform = `translate(${panX}px, ${panY}px) scale(${zoom})`;
+      renderCursors();
+    }
+    const clampZ = z => Math.max(MINZ, Math.min(MAXZ, z));
+    function zoomAt(factor, sx, sy) {        // sx,sy = stage-local point to keep fixed
+      const z2 = clampZ(zoom * factor);
+      if (z2 === zoom) return;
+      const bx = (sx - panX) / zoom, by = (sy - panY) / zoom;
+      zoom = z2;
+      panX = sx - bx * zoom;
+      panY = sy - by * zoom;
+      applyTransform();
+    }
+
+    // ── coordinate helpers ──
+    function screenToCell(clientX, clientY) {
+      const rect = stage.getBoundingClientRect();
+      const bx = (clientX - rect.left - panX) / zoom;   // board-local px (base size)
+      const by = (clientY - rect.top  - panY) / zoom;
+      const W = META.cols * META.cellPx, H = META.rows * META.cellPx;
+      const fx = bx / boardEl.offsetWidth, fy = by / boardEl.offsetHeight;
+      let col = Math.floor((fx * W - META.originX) / META.cellPx);
+      let row = Math.floor((fy * H - META.originY) / META.cellPx);
+      col = Math.max(0, Math.min(META.cols - 1, col));
+      row = Math.max(0, Math.min(META.rows - 1, row));
+      return { col, row };
+    }
+    // fractional cell coords (no snap) — sub-cell precision for freehand pen + live cursors
+    function screenToCellF(clientX, clientY) {
+      const rect = stage.getBoundingClientRect();
+      const bx = (clientX - rect.left - panX) / zoom;
+      const by = (clientY - rect.top  - panY) / zoom;
+      const W = META.cols * META.cellPx, H = META.rows * META.cellPx;
+      const fx = bx / boardEl.offsetWidth, fy = by / boardEl.offsetHeight;
+      return { col: (fx * W - META.originX) / META.cellPx,
+               row: (fy * H - META.originY) / META.cellPx };
+    }
+    function cellCenterPct(col, row) {
+      const W = META.cols * META.cellPx, H = META.rows * META.cellPx;
+      return {
+        x: ((META.originX + (col + 0.5) * META.cellPx) / W) * 100,
+        y: ((META.originY + (row + 0.5) * META.cellPx) / H) * 100,
+      };
+    }
+
+    // ── live cursors ──
+    const TOOL_GLYPH = { circle: '○', cone: '△', rect: '▢', pen: '✎', hide: '▦', reveal: '☀' };
+    function cellToScreen(col, row) {     // fractional cell coords → stage-local px (inverse of screenToCellF)
+      const W = META.cols * META.cellPx, H = META.rows * META.cellPx;
+      const fx = (col * META.cellPx + META.originX) / W;
+      const fy = (row * META.cellPx + META.originY) / H;
+      return { x: fx * boardEl.offsetWidth * zoom + panX, y: fy * boardEl.offsetHeight * zoom + panY };
+    }
+    function ensureCursorLayer() {
+      if (cursorLayer || !stage) return;
+      cursorLayer = document.createElement('div');
+      cursorLayer.className = 'rt-cursors';
+      stage.appendChild(cursorLayer);
+    }
+    function makeCursorEl() {
+      const el = document.createElement('div');
+      el.className = 'rt-cursor';
+      el.innerHTML = '<svg class="rt-arrow" viewBox="0 0 24 24" aria-hidden="true"><path d="M3 2l16 7-6.4 1.8L9 19z"/></svg><span class="rt-label"></span>';
+      return el;
+    }
+    function paintCursor(cur) {
+      cur.el.style.setProperty('--cc', cur.color || '#c0703c');
+      const glyph = TOOL_GLYPH[cur.tool] ? ' ' + TOOL_GLYPH[cur.tool] : '';
+      cur.el.querySelector('.rt-label').textContent = (cur.name || '?') + glyph;
+    }
+    function positionCursor(cur) {
+      if (!META || !boardEl) return;
+      const p = cellToScreen(cur.col, cur.row);
+      const s = Math.max(0.5, Math.min(1, zoom));   // shrink when zoomed out; constant when zoomed in
+      cur.el.style.transform = `translate(${p.x}px, ${p.y}px) scale(${s})`;
+    }
+    function renderCursors() { CURSORS.forEach(positionCursor); }
+    function removeCursor(id) { const c = CURSORS.get(id); if (c) { c.el.remove(); CURSORS.delete(id); } }
+    function onCursor(p) {
+      if (!p || p.id === MY_ID) return;            // never draw my own
+      if (p.staff && !IS_STAFF) return;            // staff cursors hidden from players
+      ensureCursorLayer();
+      let cur = CURSORS.get(p.id);
+      if (!cur) { cur = { el: makeCursorEl() }; CURSORS.set(p.id, cur); cursorLayer.appendChild(cur.el); }
+      cur.name = p.name; cur.color = p.color; cur.tool = p.tool;
+      cur.col = p.col; cur.row = p.row; cur.seen = performance.now();
+      paintCursor(cur); positionCursor(cur);
+    }
+    function sendCursor(clientX, clientY) {
+      if (!RT || !META) return;
+      const now = performance.now();
+      if (now - lastCursorSent < 50) return;        // ~20/sec
+      lastCursorSent = now;
+      const f = screenToCellF(clientX, clientY);
+      RT.send({ type: 'broadcast', event: 'cursor',
+        payload: { id: MY_ID, name: MY_NAME, color: DRAW.color, tool: TOOL, staff: IS_STAFF, col: f.col, row: f.row } });
+    }
+    setInterval(() => {                             // sweep cursors that went silent (dropped without a clean leave)
+      const now = performance.now();
+      CURSORS.forEach((c, id) => { if (now - (c.seen || 0) > 12000) removeCursor(id); });
+    }, 5000);
+    // ── movement measurement overlay ──
+    // An empty SVG layer in native map coords; populated during a drag, cleared on end.
+    function measureSvg(meta) {
+      const W = meta.cols * meta.cellPx, H = meta.rows * meta.cellPx;
+      return `<svg class="measure-layer" viewBox="0 0 ${W} ${H}" preserveAspectRatio="none"
+                   xmlns="http://www.w3.org/2000/svg"></svg>`;
+    }
+    function cellCenterNative(col, row) {
+      return {
+        x: META.originX + (col + 0.5) * META.cellPx,
+        y: META.originY + (row + 0.5) * META.cellPx,
+      };
+    }
+    // Draw origin-tile highlight + a line to the current cell + a running ft label.
+    // Distance = Chebyshev cells × 5 (diagonals count 5 ft — PHB default, table-confirmed).
+    function showMeasure(oCol, oRow, cCol, cRow, sourceKey) {
+      const svg = boardEl && boardEl.querySelector('.measure-layer'); if (!svg) return;
+      const cp   = META.cellPx;
+      const cells = Math.max(Math.abs(cCol - oCol), Math.abs(cRow - oRow));
+      const feet  = cells * 5;
+      const o = cellCenterNative(oCol, oRow);
+      const p = cellCenterNative(cCol, cRow);
+      const speed = SPEED[sourceKey];
+      const over  = (speed != null) && (feet > speed);
+      const oc    = over ? ' over' : '';
+      const lw    = Math.max(2, cp * 0.07);
+      const fs    = Math.max(11, cp * 0.5);
+      // label sits just above the moving end; flip below if it would clear the top edge
+      let ly = p.y - cp * 0.62;
+      if (ly < META.originY + cp * 0.5) ly = p.y + cp * 0.72;
+      svg.innerHTML =
+        `<rect class="measure-cell" x="${META.originX + oCol * cp}" y="${META.originY + oRow * cp}"
+               width="${cp}" height="${cp}"/>`
+      + (feet > 0
+          ? `<line class="measure-line${oc}" x1="${o.x}" y1="${o.y}" x2="${p.x}" y2="${p.y}" stroke-width="${lw}"/>`
+          + `<text class="measure-label${oc}" x="${p.x}" y="${ly}" font-size="${fs}" stroke-width="${fs * 0.16}">${feet} ft</text>`
+          : '');
+    }
+    function clearMeasure() {
+      const svg = boardEl && boardEl.querySelector('.measure-layer'); if (svg) svg.innerHTML = '';
+    }
+
+    function tokenEl(id) { return boardEl && boardEl.querySelector(`.token[data-id="${id}"]`); }
+    function updateTokenPos(c) {
+      const el = tokenEl(c.id); if (!el) return;
+      const p = cellCenterPct(c.x, c.y);
+      el.style.left = p.x + '%'; el.style.top = p.y + '%';
+    }
+    // Re-apply only a token's width after a size change (local or realtime) —
+    // mirrors the sizePct math in tokenHtml; avoids a rebuild that drops drag state.
+    function updateTokenSize(c) {
+      const el = tokenEl(c.id); if (!el || !META) return;
+      const W = META.cols * META.cellPx;
+      el.style.width = ((META.cellPx / W) * 100 * TOKEN.size * (SIZE_MUL[c.size] || 1)) + '%';
+    }
+    function canMove(c) {
+      return IS_STAFF || !!(ME && ME.id && c.owner && c.owner === ME.id);
+    }
+
+    // ── selection ──
+    function selectToken(id) {
+      SELECTED = id;
+      boardEl.querySelectorAll('.token.selected').forEach(t => t.classList.remove('selected'));
+      const el = tokenEl(id); if (el) el.classList.add('selected');
+    }
+    function deselect() {
+      SELECTED = null;
+      boardEl.querySelectorAll('.token.selected').forEach(t => t.classList.remove('selected'));
+    }
+
+    // ── write a move to Supabase (optimistic; reverts on error) ──
+    async function moveCombatant(id, col, row) {
+      const c = COMBS.find(k => k.id === id); if (!c) return;
+      const px = c.x, py = c.y;
+      c.x = col; c.y = row; updateTokenPos(c);
+      const { error } = await SB.from('combatants').update({ x: col, y: row }).eq('id', id);
+      if (error) { c.x = px; c.y = py; updateTokenPos(c); console.error('move failed:', error.message); }
+    }
+
+    // ── write a creature's size to Supabase (staff-only; optimistic, reverts) ──
+    async function setSize(id, size) {
+      const c = COMBS.find(k => k.id === id); if (!c) return false;
+      const prev = c.size;
+      c.size = size; updateTokenSize(c);
+      const { error } = await SB.from('combatants').update({ size }).eq('id', id);
+      if (error) { c.size = prev; updateTokenSize(c); console.error('size write failed:', error.message); return false; }
+      return true;
+    }
+
+    // ── conditions: badge cluster + write + per-token context menu ──
+
+    // Build the little condition-badge cluster under a token from its array.
+    function condBadgesHtml(c) {
+      const list = Array.isArray(c.conditions) ? c.conditions : [];
+      if (!list.length) return '';
+      const MAX = 4;
+      const shown = list.slice(0, MAX);
+      const extra = list.length - shown.length;
+      const chips = shown.map(n => {
+        const d = COND_BY[n]; if (!d) return '';
+        return `<span class="cond-badge" style="--c:${d.color}" title="${n}">`
+             + `<svg viewBox="0 0 24 24" aria-hidden="true">${d.icon}</svg></span>`;
+      }).join('');
+      const more = extra > 0
+        ? `<span class="cond-badge more" title="${list.slice(MAX).join(', ')}">+${extra}</span>` : '';
+      return `<span class="token-conds">${chips}${more}</span>`;
+    }
+
+    // Re-render only a token's condition cluster (after a local toggle or a
+    // realtime change) — avoids a full token rebuild that would drop drag state.
+    function updateTokenConditions(c) {
+      const el = tokenEl(c.id); if (!el) return;
+      const old = el.querySelector('.token-conds'); if (old) old.remove();
+      if (c.tease && !IS_STAFF) return;            // respect the player veil
+      const html = condBadgesHtml(c);
+      if (html) el.insertAdjacentHTML('beforeend', html);
+    }
+
+    // Toggle a condition on a combatant: optimistic local update + Supabase
+    // write (revert on error). Open model — RLS lets any player write
+    // conditions on any visible token; the guard trigger blocks everything else.
+    async function toggleCondition(id, name) {
+      const c = COMBS.find(k => k.id === id); if (!c) return false;
+      const cur = Array.isArray(c.conditions) ? c.conditions.slice() : [];
+      const i = cur.indexOf(name);
+      if (i >= 0) cur.splice(i, 1); else cur.push(name);
+      const prev = c.conditions;
+      c.conditions = cur;
+      updateTokenConditions(c);
+      const { error } = await SB.from('combatants').update({ conditions: cur }).eq('id', id);
+      if (error) { c.conditions = prev; updateTokenConditions(c); console.error('condition write failed:', error.message); return false; }
+      return true;
+    }
+
+    // ── context menu (conditions for now; built to grow staff actions later) ──
+    let ctxEl = null;
+    function closeCtxMenu() {
+      if (ctxEl) { ctxEl.remove(); ctxEl = null; }
+      document.removeEventListener('pointerdown', ctxOutside, true);
+      window.removeEventListener('scroll', closeCtxMenu, true);
+      window.removeEventListener('resize', closeCtxMenu);
+    }
+    function ctxOutside(e) { if (ctxEl && !ctxEl.contains(e.target)) closeCtxMenu(); }
+    function placeCtxMenu(sx, sy) {            // fixed, clamped to the viewport
+      const r = ctxEl.getBoundingClientRect();
+      let x = sx, y = sy;
+      if (x + r.width  > window.innerWidth  - 8) x = window.innerWidth  - r.width  - 8;
+      if (y + r.height > window.innerHeight - 8) y = window.innerHeight - r.height - 8;
+      ctxEl.style.left = Math.max(8, x) + 'px';
+      ctxEl.style.top  = Math.max(8, y) + 'px';
+    }
+    // Body builder for the Conditions tab — the toggle rows.
+    function condTabBody(c) {
+      const active = Array.isArray(c.conditions) ? c.conditions : [];
+      return COND.map(d => `
+        <div class="ctx-cond${active.includes(d.name) ? ' active' : ''}" data-cond="${d.name}">
+          <span class="ctx-chip" style="--c:${d.color}"><svg viewBox="0 0 24 24" aria-hidden="true">${d.icon}</svg></span>
+          <span class="ctx-label">${d.name}</span>
+          <span class="ctx-check">✓</span>
+        </div>`).join('');
+    }
+
+    // Body builder for the Manage tab (staff only) — per-creature size.
+    function manageTabBody(c) {
+      const cur = c.size || 'medium';
+      return `<div class="ctx-sub">Size</div>
+        <div class="ctx-sizes">` + SIZE_ORDER.map(s =>
+          `<button class="ctx-size${s === cur ? ' active' : ''}" data-size="${s}">${SIZE_LABEL[s]}</button>`
+        ).join('') + `</div>`;
+    }
+
+    function openCtxMenu(c, sx, sy) {
+      closeCtxMenu();
+      if (!c) return;
+
+      // Tab registry. Add future tabs here (Token style = personal/per-profile;
+      // staff actions = size/colour/hidden/tease, shared). Gate role-aware tabs
+      // with `show: () => …` (e.g. IS_STAFF). Order here = display order.
+      const tabs = [
+        { id: 'conds',  label: 'Conditions', body: () => condTabBody(c) },
+        { id: 'manage', label: 'Manage', show: () => IS_STAFF, body: () => manageTabBody(c) },
+        // { id: 'style', label: 'Style', body: () => styleTabBody(c) },   // personal/per-profile — later pass
+      ];
+      const visible = tabs.filter(t => !t.show || t.show());
+      let activeId = visible[0].id;
+
+      ctxEl = document.createElement('div');
+      ctxEl.className = 'ctx-menu';
+      document.body.appendChild(ctxEl);
+
+      function render() {
+        // One visible tab → plain sub-label (unchanged look). Two+ → a tab bar.
+        const header = visible.length > 1
+          ? `<div class="ctx-tabs">` + visible.map(t =>
+              `<button class="ctx-tab${t.id === activeId ? ' active' : ''}" data-tab="${t.id}">${t.label}</button>`
+            ).join('') + `</div>`
+          : `<div class="ctx-sub">${visible[0].label}</div>`;
+        const active = visible.find(t => t.id === activeId);
+        ctxEl.innerHTML =
+          `<div class="ctx-head">${c.name || 'Token'}</div>` +
+          header +
+          `<div class="ctx-body">${active.body()}</div>`;
+        wire();
+        placeCtxMenu(sx, sy);
+      }
+
+      function wire() {
+        ctxEl.querySelectorAll('.ctx-tab').forEach(b =>
+          b.addEventListener('click', () => { activeId = b.dataset.tab; render(); }));
+        // Conditions toggles — menu stays open so several can be set in a row.
+        ctxEl.querySelectorAll('.ctx-cond').forEach(rowEl =>
+          rowEl.addEventListener('click', async () => {
+            if (await toggleCondition(c.id, rowEl.dataset.cond)) rowEl.classList.toggle('active');
+          }));
+        // Size buttons (Manage tab, staff) — single-select; menu stays open.
+        ctxEl.querySelectorAll('.ctx-size').forEach(b =>
+          b.addEventListener('click', async () => {
+            if (await setSize(c.id, b.dataset.size))
+              ctxEl.querySelectorAll('.ctx-size').forEach(x => x.classList.toggle('active', x === b));
+          }));
+      }
+
+      render();
+      // dismissal (added next tick so the opening press doesn't self-close it)
+      setTimeout(() => document.addEventListener('pointerdown', ctxOutside, true), 0);
+      window.addEventListener('scroll', closeCtxMenu, true);
+      window.addEventListener('resize', closeCtxMenu);
+    }
+
+    // ── pointer (mouse + touch): drag tokens, pan, pinch-zoom, tap-select ──
+    function initInteractions() {
+      const pointers = new Map();
+      let mode = null, dragCell = null, moved = false;
+      let start = { x: 0, y: 0 }, last = { x: 0, y: 0 }, tapId = null, pinch = null;
+      let lpTimer = null, longPressed = false, downX = 0, downY = 0;   // long-press → context menu
+      let fogPainting = false;                                         // DM fog brush stroke in progress
+      let drawing = false, drawOX = 0, drawOY = 0, drawPts = null;      // shape placement (drawPts = freehand pen points)
+      const dist = (a, b) => Math.hypot(a.x - b.x, a.y - b.y);
+      const mid  = (a, b) => ({ x: (a.x + b.x) / 2, y: (a.y + b.y) / 2 });
+
+      stage.addEventListener('pointerdown', (e) => {
+        if (e.button > 0) return;                 // right/middle mouse → handled by contextmenu
+        // never let board pan/drag steal interactions meant for the UI panels
+        if (e.target.closest('.grid-controls, .zoom-bar, .tool-rail, .tool-options, .gc-backdrop, .display-tab, .draw-del')) return;
+        if (FOG.editing && IS_STAFF) {                 // fog paint mode → paint cells, skip token/pan logic
+          try { stage.setPointerCapture(e.pointerId); } catch (_) {}
+          fogPainting = true;
+          const cell = screenToCell(e.clientX, e.clientY);
+          paintCell(cell.col, cell.row);
+          return;
+        }
+        if (TOOL === 'circle' || TOOL === 'cone' || TOOL === 'rect' || TOOL === 'pen') {  // shape placement → skip token/pan logic
+          try { stage.setPointerCapture(e.pointerId); } catch (_) {}
+          drawing = true;
+          const c = screenToCell(e.clientX, e.clientY);
+          drawOX = c.col; drawOY = c.row;
+          if (TOOL === 'pen') {
+            const f = screenToCellF(e.clientX, e.clientY);
+            drawPts = [[f.col, f.row]];
+            drawPreview = { kind: 'pen', color: DRAW.color, geometry: { pts: drawPts } };
+          } else if (TOOL === 'circle') {
+            drawPreview = { kind: 'circle', color: DRAW.color, geometry: { cx: drawOX, cy: drawOY, r: 1 } };
+          } else if (TOOL === 'cone') {
+            drawPreview = { kind: 'cone', color: DRAW.color, geometry: { ox: drawOX, oy: drawOY, angle: 0, len: 1 } };
+          } else {
+            drawPreview = { kind: 'rect', color: DRAW.color, geometry: { x: drawOX, y: drawOY, w: 1, h: 1 } };
+          }
+          redrawDrawings();
+          return;
+        }
+        // self-heal: the first finger of a fresh gesture clears any pointer left
+        // stranded by a dropped up/cancel (iOS capture quirk) — otherwise a stale
+        // entry makes the next single touch read as a 2-finger pinch.
+        if (e.isPrimary) { pointers.clear(); mode = null; pinch = null; }
+        try { stage.setPointerCapture(e.pointerId); } catch (_) {}
+        pointers.set(e.pointerId, { x: e.clientX, y: e.clientY });
+
+        if (pointers.size === 2) {                       // second finger → pinch
+          if (mode === 'drag' && dragId != null) {       // abort an in-progress drag
+            const c = COMBS.find(k => k.id === dragId); if (c) updateTokenPos(c);
+            const el = tokenEl(dragId); if (el) el.classList.remove('dragging');
+            clearMeasure(); dragOrigin = null;
+          }
+          dragId = null; mode = 'pinch';
+          clearTimeout(lpTimer); lpTimer = null; longPressed = false;
+          const p = [...pointers.values()]; const m = mid(p[0], p[1]);
+          pinch = { dist: dist(p[0], p[1]), x: m.x, y: m.y };
+          return;
+        }
+        if (pointers.size !== 1) return;
+
+        start = last = { x: e.clientX, y: e.clientY }; moved = false;
+        const tokEl = e.target.closest('.token');
+        tapId = tokEl ? tokEl.dataset.id : null;
+        if (tokEl) {
+          const c = COMBS.find(k => k.id === tapId);
+          longPressed = false; downX = e.clientX; downY = e.clientY;
+          if (e.pointerType !== 'mouse') {            // touch/pen: hold to open the menu
+            clearTimeout(lpTimer);
+            lpTimer = setTimeout(() => {
+              lpTimer = null; longPressed = true;
+              const el = tokenEl(tapId); if (el) el.classList.remove('dragging');
+              clearMeasure(); dragOrigin = null;
+              mode = 'menu'; dragId = null; dragCell = null;   // menu open → disarm drag (no ghost-follow, no half-move)
+              selectToken(tapId);
+              openCtxMenu(c, downX, downY);
+            }, 500);
+          }
+          if (c && canMove(c)) { mode = 'drag'; dragId = tapId; dragOrigin = { col: c.x, row: c.y }; } else { mode = 'tap'; }
+        } else { mode = 'pan'; }
+      });
+
+      stage.addEventListener('pointermove', (e) => {
+        sendCursor(e.clientX, e.clientY);
+        if (fogPainting) { const cell = screenToCell(e.clientX, e.clientY); paintCell(cell.col, cell.row); return; }
+        if (drawing) {
+          if (TOOL === 'pen') {
+            const f = screenToCellF(e.clientX, e.clientY);
+            const lp = drawPts[drawPts.length - 1];
+            if (Math.hypot(f.col - lp[0], f.row - lp[1]) > 0.12) drawPts.push([f.col, f.row]);  // sample by distance
+            drawPreview = { kind: 'pen', color: DRAW.color, geometry: { pts: drawPts } };
+          } else {
+            const c = screenToCell(e.clientX, e.clientY);
+            const dx = c.col - drawOX, dy = c.row - drawOY;
+            const dist = Math.max(1, Math.round(Math.hypot(dx, dy)));
+            if (TOOL === 'circle')    drawPreview = { kind: 'circle', color: DRAW.color, geometry: { cx: drawOX, cy: drawOY, r: dist } };
+            else if (TOOL === 'cone') drawPreview = { kind: 'cone',   color: DRAW.color, geometry: { ox: drawOX, oy: drawOY, angle: Math.atan2(dy, dx), len: dist } };
+            else                      drawPreview = { kind: 'rect',   color: DRAW.color,
+                                        geometry: { x: Math.min(drawOX, c.col), y: Math.min(drawOY, c.row),
+                                                    w: Math.abs(c.col - drawOX) + 1, h: Math.abs(c.row - drawOY) + 1 } };
+          }
+          redrawDrawings();
+          return;
+        }
+        if (!pointers.has(e.pointerId)) return;
+        pointers.set(e.pointerId, { x: e.clientX, y: e.clientY });
+        const rect = stage.getBoundingClientRect();
+
+        if (mode === 'pinch' && pointers.size >= 2) {
+          const p = [...pointers.values()]; const d = dist(p[0], p[1]); const m = mid(p[0], p[1]);
+          if (pinch && pinch.dist > 0) {
+            zoomAt(d / pinch.dist, m.x - rect.left, m.y - rect.top);
+            panX += (m.x - pinch.x); panY += (m.y - pinch.y); applyTransform();
+          }
+          pinch = { dist: d, x: m.x, y: m.y };
+          return;
+        }
+
+        const dx = e.clientX - last.x, dy = e.clientY - last.y;
+        if (!moved && Math.hypot(e.clientX - start.x, e.clientY - start.y) > 4) { moved = true; clearTimeout(lpTimer); lpTimer = null; }
+
+        if (mode === 'drag' && dragId != null && moved) {
+          const { col, row } = screenToCell(e.clientX, e.clientY);
+          const p = cellCenterPct(col, row); const el = tokenEl(dragId);
+          if (el) { el.style.left = p.x + '%'; el.style.top = p.y + '%'; el.classList.add('dragging'); }
+          dragCell = { col, row };
+          if (dragOrigin) {
+            const dc = COMBS.find(k => k.id === dragId);
+            showMeasure(dragOrigin.col, dragOrigin.row, col, row, dc && dc.source_key);
+          }
+        } else if (mode === 'pan' && moved) {
+          panX += dx; panY += dy; applyTransform();
+        }
+        last = { x: e.clientX, y: e.clientY };
+      });
+
+      function endPointer(e) {
+        if (fogPainting) { fogPainting = false; try { stage.releasePointerCapture(e.pointerId); } catch (_) {} flushFog(); return; }
+        if (drawing) {
+          drawing = false;
+          try { stage.releasePointerCapture(e.pointerId); } catch (_) {}
+          const p = drawPreview; drawPreview = null;
+          const okPen = !p || p.kind !== 'pen' || (p.geometry.pts && p.geometry.pts.length >= 2);
+          if (p && okPen) createDrawing(p.kind, p.geometry); else redrawDrawings();
+          drawPts = null;
+          return;
+        }
+        if (!pointers.has(e.pointerId)) return;
+        pointers.delete(e.pointerId);
+        try { stage.releasePointerCapture(e.pointerId); } catch (_) {}
+        clearTimeout(lpTimer); lpTimer = null;
+        if (mode === 'pinch') { if (pointers.size < 2) { mode = pointers.size === 1 ? 'pan' : null; pinch = null; } return; }
+
+        if (longPressed) {                               // menu already opened; no select/move
+          longPressed = false;
+        } else if (!moved) {                             // tap → (de)select
+          if (tapId) selectToken(tapId); else deselect();
+        } else if (mode === 'drag' && dragId != null && dragCell) {
+          const el = tokenEl(dragId); if (el) el.classList.remove('dragging');
+          clearMeasure();
+          moveCombatant(dragId, dragCell.col, dragCell.row);
+          selectToken(dragId);
+        }
+        if (pointers.size === 0) { mode = null; dragId = null; dragCell = null; dragOrigin = null; }
+      }
+      stage.addEventListener('pointerup', endPointer);
+      stage.addEventListener('pointercancel', endPointer);
+      stage.addEventListener('lostpointercapture', endPointer);   // capture yanked → clean the pointer too
+      stage.addEventListener('click', (e) => {                    // ✕ handle on a drawing → remove it
+        const del = e.target.closest('.draw-del');
+        if (del) { e.stopPropagation(); deleteDrawing(del.dataset.id); }
+      });
+
+      // desktop right-click → context menu
+      stage.addEventListener('contextmenu', (e) => {
+        const tokEl = e.target.closest('.token');
+        if (!tokEl) return;
+        e.preventDefault();
+        const c = COMBS.find(k => k.id === tokEl.dataset.id);
+        selectToken(tokEl.dataset.id);
+        openCtxMenu(c, e.clientX, e.clientY);
+      });
+
+      stage.addEventListener('wheel', (e) => {
+        e.preventDefault();
+        const rect = stage.getBoundingClientRect();
+        zoomAt(e.deltaY < 0 ? 1.1 : 1 / 1.1, e.clientX - rect.left, e.clientY - rect.top);
+      }, { passive: false });
+
+      // arrow keys nudge the selected token one cell
+      window.addEventListener('keydown', (e) => {
+        if (!SELECTED) return;
+        const D = { ArrowUp:[0,-1], ArrowDown:[0,1], ArrowLeft:[-1,0], ArrowRight:[1,0] }[e.key];
+        if (!D) return;
+        const c = COMBS.find(k => k.id === SELECTED); if (!c || !canMove(c)) return;
+        e.preventDefault();
+        const col = Math.max(0, Math.min(META.cols - 1, c.x + D[0]));
+        const row = Math.max(0, Math.min(META.rows - 1, c.y + D[1]));
+        if (col !== c.x || row !== c.y) moveCombatant(SELECTED, col, row);
+      });
+    }
+
+    // ── realtime: a move on any client updates every other board live ──
+    function initRealtime() {
+      if (!SB || !ENC) return;
+      MY_ID = (ME && ME.id) || ('anon-' + Math.random().toString(36).slice(2));
+      MY_NAME = (ME && ME.characterKey)
+        ? ME.characterKey.charAt(0).toUpperCase() + ME.characterKey.slice(1)
+        : 'DM';
+      ensureCursorLayer();
+      RT = SB.channel('combat-' + ENC.id, { config: { presence: { key: MY_ID } } });
+      RT.on('postgres_changes',
+          { event: 'UPDATE', schema: 'public', table: 'combatants', filter: 'encounter_id=eq.' + ENC.id },
+          ({ new: row }) => {
+            if (!row || row.id === dragId) return;       // ignore the echo of my own drag
+            const c = COMBS.find(k => k.id === row.id); if (!c) return;
+            c.x = row.x; c.y = row.y; c.hp = row.hp; c.conditions = row.conditions; c.size = row.size;
+            updateTokenPos(c);
+            updateTokenConditions(c);
+            updateTokenSize(c);
+            reconcileTokenVisibility(c);                 // moved into / out of the light?
+          })
+        .on('postgres_changes',
+          { event: 'UPDATE', schema: 'public', table: 'encounters', filter: 'id=eq.' + ENC.id },
+          ({ new: row }) => {
+            if (!row) return;
+            ENC.revealed_cells = row.revealed_cells || [];
+            loadFog(); redrawFog(); renderTokens();      // fog moved → re-veil + re-evaluate token visibility
+          })
+        .on('postgres_changes',
+          { event: '*', schema: 'public', table: 'drawings', filter: 'encounter_id=eq.' + ENC.id },
+          (payload) => {
+            const { eventType, new: row, old } = payload;
+            if (eventType === 'INSERT')      { if (!DRAWINGS.some(d => d.id === row.id)) DRAWINGS.push(row); }
+            else if (eventType === 'UPDATE') { const i = DRAWINGS.findIndex(d => d.id === row.id); if (i >= 0) DRAWINGS[i] = row; }
+            else if (eventType === 'DELETE') { DRAWINGS = DRAWINGS.filter(d => d.id !== (old && old.id)); }
+            redrawDrawings();
+          })
+        .on('broadcast', { event: 'cursor' }, ({ payload }) => onCursor(payload))
+        .on('presence', { event: 'leave' }, ({ leftPresences }) =>
+          (leftPresences || []).forEach(pr => pr && pr.id && removeCursor(pr.id)))
+        .subscribe((status) => { if (status === 'SUBSCRIBED') RT.track({ id: MY_ID }); });
+    }
+
+    // ── zoom toolbar ──
+    function buildZoomBar() {
+      const bar = document.createElement('div');
+      bar.className = 'zoom-bar';
+      bar.innerHTML = `<button id="z-in" title="Zoom in">+</button>
+                       <button id="z-out" title="Zoom out">−</button>
+                       <button id="z-fit" class="fit" title="Fit to screen">FIT</button>`;
+      stage.appendChild(bar);
+      const c = () => ({ x: stage.clientWidth / 2, y: stage.clientHeight / 2 });
+      bar.querySelector('#z-in').onclick  = () => { const m = c(); zoomAt(1.25, m.x, m.y); };
+      bar.querySelector('#z-out').onclick = () => { const m = c(); zoomAt(1 / 1.25, m.x, m.y); };
+      bar.querySelector('#z-fit').onclick = () => fitBoard(META);
+    }
+
+    // ── main ──
+    whenReady(async function () {
+      const sb = window.__tok.sb;  SB = sb;
+      const me = window.__tok.ready ? await window.__tok.ready : null;  ME = me;
+      const isStaff = !!(me && (me.role === 'overseer' || me.role === 'dm'));
+
+      let manifest;
+      try {
+        manifest = await (await fetch(MANIFEST_URL)).json();
+      } catch (e) {
+        showMsg('Map manifest missing', 'Could not load maps/manifest.json.', false);
+        return;
+      }
+
+      // active encounter (RLS: all authenticated can read)
+      const { data: enc, error: encErr } = await sb
+        .from('encounters').select('*').eq('status', 'active').maybeSingle();
+      if (encErr) { showMsg('Could not load the encounter', encErr.message, false); return; }
+      if (!enc)   { showMsg('No active encounter', 'When the DM starts a fight, the battlefield appears here.', false); return; }
+      ENC = enc;
+      loadFog();          // mirror encounters.revealed_cells into FOG.cells
+
+      META = manifest[enc.map_ref];
+      if (!META) { showMsg('Unknown map', `No manifest entry for "${enc.map_ref}".`, false); return; }
+      if (META.grid) GRID = Object.assign(GRID, META.grid);
+
+      // combatants (RLS auto-filters: players never receive hidden rows)
+      const { data: combs, error: cErr } = await sb
+        .from('combatants').select('*').eq('encounter_id', enc.id);
+      if (cErr) { showMsg('Could not load combatants', cErr.message, false); return; }
+
+      // header
+      document.getElementById('combat-name').textContent  = enc.name || 'Encounter';
+      document.getElementById('combat-round').textContent = enc.round ?? 1;
+      barEl.style.display = 'flex';
+
+      // build the board
+      hideMsg();
+      COMBS = combs || [];
+      const { data: draws } = await sb.from('drawings').select('*').eq('encounter_id', enc.id);
+      DRAWINGS = draws || [];
+      IS_STAFF = isStaff;
+      boardEl = document.createElement('div');
+      boardEl.className = 'board';
+      const tokensHtml = COMBS.filter(tokenVisible).map(c => tokenHtml(c, META, IS_STAFF)).join('');
+      boardEl.innerHTML =
+        `<img class="board-map" alt="${enc.map_ref}" draggable="false" src="${mapUrl(META.publicId)}"
+              onerror="this.classList.add('missing')">
+         ${gridSvg(META)}
+         ${drawSvg(META)}
+         ${fogSvg(META)}
+         <div class="board-tokens">${tokensHtml}</div>
+         ${measureSvg(META)}`;
+      stage.appendChild(boardEl);
+      fitBoard(META);
+
+      // wire interactions (drag / pan / pinch / keys), realtime sync, zoom UI
+      initInteractions();
+      initRealtime();
+      buildZoomBar();
+
+      // grid controls (demonstrates the opacity / style / colour answer live)
+      buildGridControls();
+      buildToolRail();
+
+      // ── HUD ↔ combat bridge (3a: the HUD reads this viewer's own token, live) ──
+      // battle.js is backend-agnostic; here we hand it a Supabase combatants
+      // backend so the HUD reflects the same row as the token. Read + live-in
+      // this step — HUD→row writes arrive in 3b (save is a stub for now).
+      if (window.__battle && ME && ME.characterKey) {
+        window.__battle.setChar(ME.characterKey);
+        window.__battle.useBackend({
+          async load() {
+            const { data } = await SB.from('combatants')
+              .select('id, hp, max_hp')
+              .eq('encounter_id', ENC.id).eq('owner', ME.id).maybeSingle();
+            return data ? { hp: data.hp } : null;
+          },
+          save() { /* 3b — HUD→row writes not wired yet */ },
+          subscribe(onChange) {
+            SB.channel('hud-' + ENC.id)
+              .on('postgres_changes',
+                { event: 'UPDATE', schema: 'public', table: 'combatants',
+                  filter: 'encounter_id=eq.' + ENC.id },
+                ({ new: row }) => {
+                  if (row && row.owner === ME.id)
+                    onChange({ key: ME.characterKey, combat: { hp: row.hp } });
+                })
+              .subscribe();
+          },
+        });
+      }
+
+      // keep the board fitted on resize/orientation change (grid + tokens are
+      // %/viewBox-based, so only the board's px size needs recomputing)
+      let rt;
+      window.addEventListener('resize', () => {
+        clearTimeout(rt);
+        rt = setTimeout(() => { if (boardEl && META) fitBoard(META); }, 120);
+      });
+    });
+
+    // ── grid controls panel ──
+    function buildGridControls() {
+      const panel = document.createElement('div');
+      panel.className = 'grid-controls';
+
+      // a circle/cutout selector per party character present in the encounter
+      const partyRows = COMBS
+        .filter(c => c.side === 'party' && c.source_key)
+        .map(c => {
+          const cur = TOKEN_STYLE[c.source_key] || TOKEN.style;
+          return `<div class="gc-row">
+              <label title="${c.name}">${(c.name || c.source_key).split(' ')[0]}</label>
+              <select data-char="${c.source_key}" class="gc-cstyle">
+                <option value="cutout"${cur === 'cutout' ? ' selected' : ''}>Cutout</option>
+                <option value="circle"${cur === 'circle' ? ' selected' : ''}>Circle</option>
+              </select>
+            </div>`;
+        }).join('');
+
+      panel.innerHTML = `
+        <h4>Display <span class="gc-toggle" id="gc-close">✕</span></h4>
+        <div class="gc-body">
+          <p class="gc-sub">Grid <span class="gc-tag">global</span></p>
+          <div class="gc-row">
+            <label for="gc-style">Style</label>
+            <select id="gc-style">
+              <option value="lines">Lines</option>
+              <option value="dots">Dots</option>
+              <option value="none">Off</option>
+            </select>
+          </div>
+          <div class="gc-row">
+            <label for="gc-opacity">Opacity</label>
+            <input type="range" id="gc-opacity" min="0" max="1" step="0.02">
+          </div>
+          <div class="gc-row">
+            <label for="gc-color">Colour</label>
+            <input type="color" id="gc-color">
+          </div>
+          <div class="gc-sep"></div>
+          <p class="gc-sub">Token style <span class="gc-tag">per character</span></p>
+          ${partyRows || '<p class="gc-empty">No party tokens.</p>'}
+          <div class="gc-sep"></div>
+          <p class="gc-sub">Tokens <span class="gc-tag">view</span></p>
+          <div class="gc-row">
+            <label for="gc-tsize">Size</label>
+            <input type="range" id="gc-tsize" min="0.6" max="1.8" step="0.05">
+          </div>
+          <div class="gc-row">
+            <label for="gc-tring">Ring / base</label>
+            <input type="checkbox" id="gc-tring">
+          </div>
+        </div>`;
+      stage.appendChild(panel);
+
+      const styleSel = panel.querySelector('#gc-style');
+      const opac     = panel.querySelector('#gc-opacity');
+      const color    = panel.querySelector('#gc-color');
+      styleSel.value = GRID.style;
+      opac.value     = GRID.opacity;
+      color.value    = GRID.color;
+
+      styleSel.addEventListener('change', () => { GRID.style = styleSel.value; redrawGrid(); });
+      opac.addEventListener('input',      () => { GRID.opacity = parseFloat(opac.value); redrawGrid(); });
+      color.addEventListener('input',     () => { GRID.color = color.value; redrawGrid(); });
+
+      // per-character token style → updates TOKEN_STYLE and re-renders
+      panel.querySelectorAll('.gc-cstyle').forEach(sel => {
+        sel.addEventListener('change', () => {
+          TOKEN_STYLE[sel.dataset.char] = sel.value;
+          renderTokens();
+        });
+      });
+
+      const tsize  = panel.querySelector('#gc-tsize');
+      const tring  = panel.querySelector('#gc-tring');
+      tsize.value    = TOKEN.size;
+      tring.checked  = TOKEN.ring;
+      tsize.addEventListener('input',   () => { TOKEN.size = parseFloat(tsize.value); renderTokens(); });
+      tring.addEventListener('change',  () => { TOKEN.ring = tring.checked; renderTokens(); });
+
+      // drawer open/close (compendium-style): a tab opens it, ✕ or backdrop closes
+      const backdrop = document.createElement('div');
+      backdrop.className = 'gc-backdrop';
+      stage.appendChild(backdrop);
+      const tab = document.createElement('button');
+      tab.className = 'display-tab';
+      tab.innerHTML = '⚙ Display';
+      stage.appendChild(tab);
+      function setDisplay(open) {
+        panel.classList.toggle('open', open);
+        backdrop.classList.toggle('open', open);
+        tab.style.display = open ? 'none' : '';
+      }
+      tab.addEventListener('click', () => setDisplay(true));
+      backdrop.addEventListener('click', () => setDisplay(false));
+      panel.querySelector('#gc-close').addEventListener('click', () => setDisplay(false));
+    }
+
+    // ── left tool rail (DM) — Select / Pencil(reveal) / Eraser(hide), with a
+    // contextual options slide-out. Future drawing tools (shapes, spell
+    // templates) slot in as more rail buttons, each opening their own options. ──
+    const TOOL_ICON = {
+      select: '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 3v15l4-4 3 6 2-1-3-6h5z"/></svg>',
+      circle: '<svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="8" fill="none" stroke="currentColor" stroke-width="2"/></svg>',
+      cone:   '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3 L21 21 L3 21 Z" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"/></svg>',
+      pencil: '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 20h4L19 9l-4-4L4 16zm13-17 4 4-2 2-4-4z"/></svg>',
+      eraser: '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 15l7-7 7 7-4 4H7zm4 6h12v1.6H7z"/></svg>',
+      square: '<svg viewBox="0 0 24 24" aria-hidden="true"><rect x="4" y="4" width="16" height="16" rx="1" fill="none" stroke="currentColor" stroke-width="2"/></svg>',
+      pen:    '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 18c2-6 5-6 7-3s4 4 6-1 3-6 5-4" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>',
+    };
+    function buildToolRail() {
+      const rail = document.createElement('div');
+      rail.className = 'tool-rail';
+
+      // Tools collapse into groups. A group is ONE rail button showing its
+      // currently-active member's icon; clicking it opens the slide-out with the
+      // member icons in a row plus that group's options. Adding a shape later
+      // (rectangle / line / freehand) = one more entry in `members`.
+      const groups = [
+        { id: 'select', kind: 'single', icon: TOOL_ICON.select, title: 'Select / move' },
+        { id: 'shapes', kind: 'group', opts: 'draw', title: 'Shapes', members: [
+            { id: 'circle', icon: TOOL_ICON.circle, title: 'Circle / radius' },
+            { id: 'cone',   icon: TOOL_ICON.cone,   title: 'Cone' },
+            { id: 'rect',   icon: TOOL_ICON.square, title: 'Square / rectangle' },
+            { id: 'pen',    icon: TOOL_ICON.pen,    title: 'Free draw' },
+          ] },
+      ];
+      if (IS_STAFF) groups.push(
+        { id: 'fog', kind: 'group', opts: 'fog', title: 'Fog', members: [
+            { id: 'hide',   icon: TOOL_ICON.pencil, title: 'Draw fog (hide map)' },
+            { id: 'reveal', icon: TOOL_ICON.eraser, title: 'Erase fog (reveal map)' },
+          ] });
+
+      // remembered per-group selection → drives each rail button's icon
+      const lastMember = {};
+      groups.forEach(g => { if (g.kind === 'group') lastMember[g.id] = g.members[0].id; });
+
+      const opts = document.createElement('div');
+      opts.className = 'tool-options';
+
+      function railIcon(g) {
+        return g.kind === 'single' ? g.icon
+          : g.members.find(m => m.id === lastMember[g.id]).icon;
+      }
+      function renderRail() {
+        rail.innerHTML = groups.map(g =>
+          `<button class="tool-btn" data-group="${g.id}" title="${g.title}">${railIcon(g)}</button>`).join('');
+        rail.querySelectorAll('.tool-btn').forEach(b =>
+          b.addEventListener('click', () => onGroup(b.dataset.group)));
+      }
+      function markGroup(id) {
+        rail.querySelectorAll('.tool-btn').forEach(b =>
+          b.classList.toggle('active', b.dataset.group === id));
+      }
+
+      function fogOptsHtml() { return `
+          <p class="gc-sub">Fog brush <span class="gc-tag">DM</span></p>
+          <div class="gc-row"><label for="tr-size">Brush</label>
+            <input type="range" id="tr-size" min="0" max="4" step="1"></div>
+          <div class="gc-row gc-fog-bulk">
+            <button class="gc-btn" id="tr-all">Reveal all</button>
+            <button class="gc-btn" id="tr-none">Hide all</button>
+          </div>`; }
+      function drawOptsHtml() { return `
+          <p class="gc-sub">Colour</p>
+          <div class="gc-row"><label for="tr-color">Pick</label>
+            <input type="color" id="tr-color" value="${DRAW.color}"></div>
+          <p class="tr-hint">Tap &amp; drag the map to place. Use Select to remove yours.</p>`; }
+      function wireOpts(kind) {
+        if (kind === 'fog') {
+          const s = opts.querySelector('#tr-size'); s.value = FOG.size;
+          s.addEventListener('input', () => { FOG.size = parseInt(s.value, 10); });
+          opts.querySelector('#tr-all').addEventListener('click', revealAllFog);
+          opts.querySelector('#tr-none').addEventListener('click', hideAllFog);
+        } else if (kind === 'draw') {
+          opts.querySelector('#tr-color').addEventListener('input', e => { DRAW.color = e.target.value; });
+        }
+      }
+
+      function openGroup(g) {
+        const row = `<div class="tool-subrow">` + g.members.map(m =>
+          `<button class="tool-btn${m.id === lastMember[g.id] ? ' active' : ''}" data-tool="${m.id}" title="${m.title}">${m.icon}</button>`).join('') + `</div>`;
+        opts.innerHTML = row + (g.opts === 'fog' ? fogOptsHtml() : drawOptsHtml());
+        wireOpts(g.opts);
+        opts.querySelectorAll('.tool-subrow .tool-btn').forEach(b =>
+          b.addEventListener('click', () => {
+            lastMember[g.id] = b.dataset.tool;
+            setTool(b.dataset.tool);
+            opts.querySelectorAll('.tool-subrow .tool-btn').forEach(x =>
+              x.classList.toggle('active', x.dataset.tool === b.dataset.tool));
+            renderRail(); markGroup(g.id);            // rail icon now reflects the pick
+          }));
+        opts.classList.add('open');
+      }
+
+      function onGroup(id) {
+        const g = groups.find(x => x.id === id);
+        if (g.kind === 'single') { setTool(id); opts.classList.remove('open'); markGroup(id); return; }
+        setTool(lastMember[g.id]);                    // group button = its current member
+        markGroup(id);
+        openGroup(g);
+      }
+
+      function setTool(t) {
+        TOOL = t;
+        const fog = (t === 'reveal' || t === 'hide');
+        const draw = (t === 'circle' || t === 'cone');
+        FOG.editing = fog;
+        if (fog) FOG.brush = t;
+        stage.classList.toggle('fog-edit', fog || draw);   // crosshair for paint + draw
+        if (boardEl) boardEl.classList.toggle('tool-select', t === 'select');  // reveals delete handles
+      }
+
+      renderRail();
+      stage.appendChild(rail);
+      stage.appendChild(opts);
+      onGroup('select');
+    }
+  })();
+  </script>
+</body>
+</html>
