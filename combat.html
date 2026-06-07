@@ -1627,34 +1627,21 @@
         if (ME && ME.characterKey) window.__battle.setChar(ME.characterKey);
         window.__battle.useBackend({
           async load(key) {
-            console.log('[hud] load(', key, ')');
             const c = COMBS.find(x => x.side === 'party' && x.source_key === key);
-            if (!c) {
-              console.warn('[hud] no party token for', key,
-                '— party source_keys present:', COMBS.filter(x => x.side === 'party').map(x => x.source_key));
-              return null;
-            }
-            return { hp: c.hp };
+            return c ? { hp: c.hp } : null;
           },
           async save(key, combat) {
-            console.log('[hud] save(', key, '→ hp', combat.hp, ')');
             if (combat.hp === null || combat.hp === undefined) return;
             const c = COMBS.find(x => x.side === 'party' && x.source_key === key);
-            if (!c) {
-              console.warn('[hud] no party token to save HP for', key,
-                '— party source_keys present:', COMBS.filter(x => x.side === 'party').map(x => x.source_key));
-              return;
-            }
-            const { data, error } = await SB.from('combatants')
-              .update({ hp: combat.hp }).eq('id', c.id).select();
-            console.log('[hud] update id=', c.id, '→ rows:', data, 'err:', error && error.message);
+            if (!c) return;
+            const { error } = await SB.from('combatants').update({ hp: combat.hp }).eq('id', c.id);
+            if (error) console.warn('[hud] HP save failed:', error.message);
           },
           // Live-in piggybacks combat.html's existing realtime channel — a second
           // postgres_changes channel on the same table is unreliable. The
           // combatant UPDATE handler calls HUD_ONCHANGE for party rows.
           subscribe(onChange) { HUD_ONCHANGE = onChange; },
         });
-        console.log('[hud] combatants backend attached; viewer character =', (ME && ME.characterKey) || '(none)');
       }
 
       // keep the board fitted on resize/orientation change (grid + tokens are
