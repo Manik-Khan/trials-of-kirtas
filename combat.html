@@ -1492,6 +1492,8 @@
     }
 
     // ── realtime: a move on any client updates every other board live ──
+    let HUD_ONCHANGE = null;   // HUD live-in callback; invoked from the combatants UPDATE handler
+
     function initRealtime() {
       if (!SB || !ENC) return;
       MY_ID = (ME && ME.id) || ('anon-' + Math.random().toString(36).slice(2));
@@ -1510,6 +1512,8 @@
             updateTokenConditions(c);
             updateTokenSize(c);
             reconcileTokenVisibility(c);                 // moved into / out of the light?
+            if (HUD_ONCHANGE && c.side === 'party' && c.source_key)
+              HUD_ONCHANGE({ key: c.source_key, combat: { hp: row.hp } });
           })
         .on('postgres_changes',
           { event: 'UPDATE', schema: 'public', table: 'encounters', filter: 'id=eq.' + ENC.id },
@@ -1612,32 +1616,45 @@
       buildGridControls();
       buildToolRail();
 
-      // ── HUD ↔ combat bridge (3a: the HUD reads this viewer's own token, live) ──
-      // battle.js is backend-agnostic; here we hand it a Supabase combatants
-      // backend so the HUD reflects the same row as the token. Read + live-in
-      // this step — HUD→row writes arrive in 3b (save is a stub for now).
-      if (window.__battle && ME && ME.characterKey) {
-        window.__battle.setChar(ME.characterKey);
+      // ── HUD ↔ combat bridge (shared: any user drives any party character) ──
+      // battle.js is backend-agnostic; we hand it a Supabase combatants backend
+      // keyed by the *selected* character (source_key), so the HUD's built-in
+      // switcher is the live control. Read, live-in, and write all hit the same
+      // row the token uses. Enemies aren't driven here — they stay on the
+      // on-board context menu. (RLS lets any player write party rows; the column
+      // guard still limits changes to hp/conditions/x,y.)
+      if (window.__battle) {
+        if (ME && ME.characterKey) window.__battle.setChar(ME.characterKey);
         window.__battle.useBackend({
-          async load() {
-            const { data } = await SB.from('combatants')
-              .select('id, hp, max_hp')
-              .eq('encounter_id', ENC.id).eq('owner', ME.id).maybeSingle();
-            return data ? { hp: data.hp } : null;
+          async load(key) {
+            console.log('[hud] load(', key, ')');
+            const c = COMBS.find(x => x.side === 'party' && x.source_key === key);
+            if (!c) {
+              console.warn('[hud] no party token for', key,
+                '— party source_keys present:', COMBS.filter(x => x.side === 'party').map(x => x.source_key));
+              return null;
+            }
+            return { hp: c.hp };
           },
-          save() { /* 3b — HUD→row writes not wired yet */ },
-          subscribe(onChange) {
-            SB.channel('hud-' + ENC.id)
-              .on('postgres_changes',
-                { event: 'UPDATE', schema: 'public', table: 'combatants',
-                  filter: 'encounter_id=eq.' + ENC.id },
-                ({ new: row }) => {
-                  if (row && row.owner === ME.id)
-                    onChange({ key: ME.characterKey, combat: { hp: row.hp } });
-                })
-              .subscribe();
+          async save(key, combat) {
+            console.log('[hud] save(', key, '→ hp', combat.hp, ')');
+            if (combat.hp === null || combat.hp === undefined) return;
+            const c = COMBS.find(x => x.side === 'party' && x.source_key === key);
+            if (!c) {
+              console.warn('[hud] no party token to save HP for', key,
+                '— party source_keys present:', COMBS.filter(x => x.side === 'party').map(x => x.source_key));
+              return;
+            }
+            const { data, error } = await SB.from('combatants')
+              .update({ hp: combat.hp }).eq('id', c.id).select();
+            console.log('[hud] update id=', c.id, '→ rows:', data, 'err:', error && error.message);
           },
+          // Live-in piggybacks combat.html's existing realtime channel — a second
+          // postgres_changes channel on the same table is unreliable. The
+          // combatant UPDATE handler calls HUD_ONCHANGE for party rows.
+          subscribe(onChange) { HUD_ONCHANGE = onChange; },
         });
+        console.log('[hud] combatants backend attached; viewer character =', (ME && ME.characterKey) || '(none)');
       }
 
       // keep the board fitted on resize/orientation change (grid + tokens are
