@@ -1,151 +1,162 @@
 # Trials of Kirtas — Combat Page Context
 
-_Last updated: end of the session that fixed realtime sync end-to-end, consolidated
-the tool rail, added square + free-draw, and shipped live cursors._
+_Last updated: end of the session that added combat to the nav and built the
+HUD↔combat **HP bridge** (steps 1–3) end-to-end — the HUD now shares live HP with
+the map's tokens. Conditions are NOT bridged yet (next: 3c)._
 
 ## Snapshot
 
-`combat.html` is the live battle-map page (vanilla JS/HTML/CSS, Supabase-backed,
-Netlify-hosted at `tok.manikkhan.com`). This session was mostly **debugging why
-nothing synced live**, then building on the now-solid foundation. The realtime
-stack is healthy: tokens, fog, and drawings all sync live across accounts, and
-live cursors are in.
-
-Canonical source = the GitHub repo `main` branch. Always `git clone` / pull
-before editing; never diagnose by curling the live Netlify site. M commits/uploads.
+`combat` is now in the site nav, and the battle HUD (`battle.js`) now runs on
+`combat.html` sharing live state with the map. **HP is fully bridged:** it reads
+on open, writes on adjust, persists across refresh, syncs live across sessions,
+and works for any party character via the HUD's built-in switcher. Conditions are
+the next piece. Canonical = GitHub `main`; clone/pull before editing; M
+commits/uploads; never curl the live site to diagnose.
 
 ## Completed this session
 
-**Realtime was fully broken — three stacked causes, now fixed:**
+**#1 — combat added to the nav.** One entry in `nav.js` `PAGES`
+(`{ label: 'Combat', path: 'combat.html' }`). Nav has no role-gating mechanism and
+every role needs combat, so it's ungated; `combat.html` was already fully wired
+(nav-root, theme.css, nav.js, waits on `window.__tok.sb`) — it was just missing
+from `PAGES`.
 
-1. **Missing table GRANTs on `drawings` (the real headline bug).** The table was
-   created via raw SQL, which (unlike the Supabase Table Editor) does NOT
-   auto-grant table privileges to the API roles. Symptom: `403` +
-   `permission denied for table drawings` on both read and write — a GRANT error
-   that sits *below* RLS, so perfect RLS policies couldn't help. Fix:
-   `grant select, insert, update, delete on public.drawings to anon, authenticated;`
-   (RLS still gates; anon has no policies so is still denied at the policy layer).
-   This is why shapes never crossed accounts even on refresh.
-2. **Realtime socket ran as anon.** `nav.js` created the client and read the
-   session but never pushed the JWT onto the realtime connection, so
-   postgres_changes (policies scoped `to authenticated`) delivered nothing live
-   while REST reads worked — hence "only updates on refresh." Fix in `nav.js`:
-   `sb.realtime.setAuth(session.access_token)` right after the session is
-   confirmed, **plus** re-applying it on `onAuthStateChange` (token rotates ~hourly;
-   without re-applying, the socket silently drops back to anon mid-session).
-3. **Publication membership** confirmed: `combatants`, `encounters`, `drawings`
-   are all in `supabase_realtime`. `drawings` also set to `replica identity full`
-   (so RLS can be evaluated for realtime UPDATE/DELETE).
+**#2 — HUD↔combat bridge, HP loop complete.** Built in increments:
 
-`schema_drawings.sql` regenerated as the corrected canonical: now includes the
-GRANT and the `replica identity full` line so a fresh environment never hits this.
+- **Seam (`battle.js`).** Persistence is now pluggable. `sheetBackend` holds the
+  prior behavior verbatim (CharacterStore-or-fetch to
+  `/.netlify/functions/character`, character-keyed, debounced, SHA-managed) and is
+  the default, so `sheet.html` and every other page are byte-identical in
+  behavior. `window.__battle.useBackend(b)` swaps the backend. The realtime
+  subscription was refactored into `applyCombatChange` + `bindRealtime()` so a
+  backend swap re-subscribes; `useBackend` re-binds realtime **and** re-pulls the
+  active character if the HUD is open (covers the resume flow). `battle.js` is now
+  backend-agnostic and makes zero Supabase calls itself.
+- **Combat backend (`combat.html`).** Loads `characters.js` + `battle.js`, then
+  hands the HUD a Supabase combatants backend. The HUD attaches for **everyone**
+  (no `characterKey` gate — staff included), defaults to the viewer's own
+  character if they have one, and binds to the **selected** character via
+  `source_key` (the HUD switcher is the live control). `load` reads HP from the
+  in-memory `COMBS` array; `save` writes by row **`id`** (robust — not a fragile
+  multi-column match); live-in **piggybacks combat.html's existing
+  `combat-`+ENC.id channel** via a stashed `HUD_ONCHANGE` callback invoked from
+  the combatant-UPDATE handler.
+- **Shared-HUD RLS.** `combatants_player_update` loosened from
+  `owner = my_profile_id()` to `side = 'party'`, so any authenticated user can
+  drive any party character. The `combatants_guard_columns` trigger still pins
+  owner/side/structural fields, so players can still only change hp/conditions/x/y;
+  enemies stay staff-only (not `side='party'`). `owner` is no longer load-bearing.
+  Delta: `schema_delta_shared_hud.sql` (run in Supabase); `schema_v1.sql` updated
+  to match.
 
-**Fog tool icons corrected.** Pencil = **draw fog (hide map)**, eraser =
-**erase fog (reveal map)**. Internal `reveal`/`hide` brush ids and logic unchanged;
-only the icon→intent mapping was swapped.
+Verified live end-to-end: HP reads on open, writes on +/- (update returns the row,
+no error), persists across hard refresh, syncs to other sessions without a
+refresh, and works switching across vesperian / liadan / caim.
 
-**Tool rail consolidated into groups.** Rail is now **Select / Shapes / Fog**
-(Fog staff-only). A group button shows its currently-active member's icon;
-clicking it opens the slide-out (`.tool-options`) with the member icons in a row
-(`.tool-subrow`) plus that group's options — colour picker for Shapes, brush
-size + Reveal-all/Hide-all for Fog. Selecting a member keeps the flyout open and
-updates the rail icon. Adding a tool later = one entry in the group's `members`.
+## Locked data contract (the forks)
 
-**Two new shapes** (both ride the `drawings` table via the `kind` text column —
-no schema change):
-- **Square / rectangle** (`kind: 'rect'`, geometry `{x,y,w,h}`): tap-and-drag,
-  cell-snapped, drags in any direction.
-- **Free draw** (`kind: 'pen'`, geometry `{pts: [[col,row],…]}`): true freehand,
-  NOT grid-snapped, distance-sampled (>0.12 cell) to keep the point list sane,
-  needs ≥2 points to commit. Rendered as an SVG polyline.
-- Added `screenToCellF()` — fractional (un-snapped) cell coords, used by both the
-  pen and the cursors. `shapeSvg` got `rect` + `pen` cases; placement
-  (pointerdown/move/end) generalised to all four shape tools.
+- **Shared:** only `hp` and `conditions` (both already columns on `combatants`).
+  Resources, spell slots, turn economy, concentration stay HUD-local in-memory.
+- **Binding:** by `source_key` (character key: cosmere/caim/liadan/vesperian). The
+  character HUD is for **party characters only**; enemies use the on-board context
+  menu for hp/conditions (any token).
+- **HP truth:** the combatants row is the live truth during combat;
+  `CHARACTERS[key].combat.hpMax` is the seed/clamp. Durable across weeks because
+  every edit hits the Supabase row immediately (an unfinished fight just stays an
+  active encounter). Reconcile-to-sheet-at-encounter-end is deferred (no formal
+  encounter "end" yet).
 
-**Live cursors.** Ephemeral, no DB. Position via Realtime **Broadcast**
-(throttled ~20/sec, board-fractional coords); identity + join/leave via
-**Presence**. Each cursor = a coloured arrow + name + a small tool glyph
-(○ △ ▢ ✎ …). Name = capitalised `characterKey` (`'cosmere'→'Cosmere'`,
-`'vesperian'→'Vesperian'`) or `'DM'` when `characterKey` is null.
-- **Visibility:** staff cursors are **hidden from players** (DM can hover over
-  secret things without telegraphing); player cursors are visible to all; staff
-  see everyone. Filtering is **receive-side** → same "trusted table" tier as fog
-  (a player digging in devtools could find a staff position). Hardening = not
-  broadcasting staff positions to player sockets, which broadcast can't do
-  selectively; deferred.
-- **Geometry:** the cursor overlay (`.rt-cursors`) lives in `stage` (NOT `boardEl`),
-  so it's constant screen-size, not board-scaled. Positions are projected with
-  `cellToScreen()` (the algebraic inverse of `screenToCellF`) and re-projected in
-  `applyTransform()` (covers pan / zoom / fit / resize). Cursor scale is clamped
-  to `[0.5, 1.0]` of zoom (transform-origin at the arrow tip) so labels shrink
-  when zoomed out but stay constant when zoomed in.
-- **Cleanup:** Presence `leave` removes a cursor on tab close; a 5s sweep also
-  drops any cursor idle >12s (covers ungraceful disconnects).
+## Architecture / patterns
 
-## Architecture decisions / patterns
+- **Two stores, bridged client-side.** The character *sheet* lives in a GitHub
+  JSON file behind `/.netlify/functions/character` (character-keyed, slow,
+  SHA-gated, not realtime; stores hp but NOT conditions). The *combatant row*
+  lives in Supabase (per-encounter, realtime, RLS; hp + conditions + x/y). They
+  can't see each other — the browser is the only connector. The bridge links them
+  at chosen moments (seed on create, optional reconcile at end), never via
+  continuous dual-write (two backends of different speed desync).
+- **Backend seam.** `battle.js` talks to one `backend` ({ load, save, subscribe });
+  each page supplies its own. Swapping must re-bind realtime + re-pull (done in
+  `useBackend`).
+- **Realtime: one channel per table.** Reuse combat.html's existing
+  `combat-`+ENC.id channel and feed the HUD from its UPDATE handler. Do NOT open a
+  second `postgres_changes` channel on the same table — it proved unreliable (live
+  updates silently didn't arrive).
+- **Long-term.** Unifying the sheet into Supabase (single source of truth,
+  Foundry-style "linked actor") is the clean end state but a separate, larger
+  project; this seam is its first stone. Combat consuming inventory items
+  (arrows/potions) is the strongest driver for that migration — defer until then.
 
-- **Drawings:** `kind` + `geometry` jsonb + `color` + `owner`. RLS read-all,
-  owner-or-staff write. **Must have table GRANTs to anon+authenticated** (RLS
-  does the gating) — the lesson of this session for any raw-SQL Supabase table.
-- **Realtime checklist** for any synced table: in the `supabase_realtime`
-  publication + the socket authenticated via `setAuth` + `replica identity full`
-  for clean UPDATE/DELETE under RLS.
-- **Cursors:** broadcast (ephemeral) for fast-changing position; presence for
-  membership; receive-side visibility filtering; overlay in `stage`,
-  inverse-projected, NOT parented to the board.
+## Files in play this session
 
-## Files in play
-
-- `combat.html` — tool-rail consolidation, square + free-draw, live cursors,
-  fog-icon fix. (Diagnostic `[rt]` logs were added then removed; build is clean.)
-- `nav.js` — realtime `setAuth` fix (+ refresh re-apply).
-- `schema_drawings.sql` — corrected canonical (GRANT + replica identity).
-- One-time DB actions already RUN in Supabase: the `drawings` grant, publication
-  membership, replica identity. (Re-running `schema_drawings.sql` is idempotent.)
+- `nav.js` — combat added to `PAGES`.
+- `battle.js` — pluggable backend seam (`sheetBackend` default, `useBackend`,
+  `applyCombatChange`/`bindRealtime`). Now backend-agnostic.
+- `combat.html` — loads characters.js + battle.js; combatants backend (load via
+  `COMBS`, save by `id`, live-in via `HUD_ONCHANGE` in the existing channel); HUD
+  attaches for all, binds by `source_key`.
+- `schema_v1.sql` — canonical: player-update policy is now `side = 'party'`.
+- `schema_delta_shared_hud.sql` — idempotent delta (already run in Supabase).
 
 ## Working rules (carry forward)
 
-`git clone`/pull `main` as canonical before editing; discuss & get approval
-before writing code; small incremental changes; never touch unrelated code; flag
+`git clone`/pull `main` as canonical before editing; discuss & get approval before
+writing code; small incremental changes; never touch unrelated code; flag
 uncertainty; never curl the live Netlify site to diagnose; use `var(--font-*)`,
 not hardcoded fonts; card internals hardcoded dark (`#1a1a1a`), page-level
-backgrounds use theme vars. Verify edits with `node --check` on the inline script
-+ brace/paren balance after large changes. Note: the editor's line ranges shift
-after edits — recompute the `<script>`…`</script>` bounds before extracting.
+backgrounds use theme vars. Verify edits with `node --check` (for `.html`, extract
+the inline `<script>`…`</script>` and check that); recompute script bounds after
+edits since line ranges shift.
 
-## Next up / roadmap (this is the new-session scope)
+- **Confirm the file actually landed (NEW — cost us a whole stretch this session).**
+  After committing, verify the file in the repo/deploy is the intended latest:
+  search the committed file on github.com for a known marker string, and/or check
+  a runtime marker in the browser console
+  (`[...document.scripts].some(s => s.textContent.includes('<marker>'))`). Git
+  reporting **"nothing to commit"** means the staged file is *identical* to HEAD —
+  that is a red flag the new content never reached the file (a stale/duplicate
+  download, e.g. Chrome's `combat (1).html` suffix trap, or a re-served stale
+  copy), NOT a successful no-op. When sharing files back, point the share at the
+  freshly edited working file, not a previously-exported copy.
 
-1. **Add the combat page to the main nav** (`nav.js` pages list — small, the
-   natural first move). Profile shape exposed via `window.__tok`:
-   `{ id, userId, email, role, characterKey }`, role ∈
-   `overseer | dm | player`, characterKey ∈ `cosmere | caim | liadan | vesperian | null`.
-2. **HUD ↔ combat bridge** (the big one). `battle.js` is the single-character HUD
-   (HP / conditions / actions / spells / resources) and is NOT loaded on
-   `combat.html`. Goal: bring the HUD onto the combat page sharing the map's
-   state, so a character's HUD HP/conditions = the same Supabase `combatants` row
-   as its token. M's steer: "contain as much as possible in the HUD; it's the
-   bridge." Folds in the parked HUD→sheet write bug.
-3. **Monsters / enemies into an encounter.** Two angles, possibly both: a saved,
-   reusable **enemy library** (a "folder" of presets to add quickly) and/or
-   **quick search through the 5etools JSON** (same data source already used for
-   items) to drop a monster into the encounter.
-4. **Battle map / scene storage.** A library of maps/scenes to pick from when
-   building the combat page (map picker + per-encounter scene selection).
-5. **Parked tools M was keen on:** a **wall / barrier** tool (DM draws walls that
-   block token movement until opened — edge-based, client-side collision matching
-   the fog trust tier, walls carry open/closed state, own table); and **trap /
-   trigger tiles** (region types: tile / area / row / column; hidden from players;
-   on trigger → banner + zoom-to-coordinate; per-trigger **staff toggle**: ON =
-   visible to all + auto-fires, OFF = staff-only marker; arm/disarm + one-shot vs
-   repeatable).
-6. **Deferred:** multi-cell token footprint for Large+ (corner-vs-center anchor
-   decision); token style as personal/per-profile prefs; cursor rate tuning
-   (currently 20/sec) if it ever needs nudging.
+## Next up / roadmap
+
+1. **#2 conditions (3c) — the next piece.** Bring conditions across the seam.
+   Needs: combatants backend load/save/subscribe for `conditions`; a small
+   `battle.js` `toggleCond` persist (it currently saves nothing — conditions are
+   in-memory only today, stored nowhere); and reconciling the HUD's condition
+   vocabulary with combat.html's **eight on-board condition badges** + the existing
+   context-menu conditions writer (~line 1189) so both edit the same
+   `combatants.conditions` array consistently.
+2. **max_hp reconciliation** — the HUD clamps HP to `CHARACTERS[key].combat.hpMax`;
+   `combatants.max_hp` is the row truth. Minor, deferred.
+3. **#3 monsters into an encounter.** Saved **enemy library** and/or **5etools
+   JSON search** to drop a monster in; plus a **DM-only enemy/monster slide panel**
+   (stat block: AC / attacks / saves / abilities, fed by 5etools — same source as
+   items/compendium). Open fork: store a *reference* to the 5etools entry (lean,
+   looked up live) vs a *snapshot* statblock jsonb on the row (survives homebrew
+   edits).
+4. **Battle map / scene storage.** Map picker + per-encounter scene selection.
+5. **Parked tools.** Wall / barrier tool (edge-based client-side collision,
+   open/closed state, own table); trap / trigger tiles (region types tile/area/
+   row/column; hidden from players; on trigger → banner + zoom-to-coordinate;
+   per-trigger staff toggle ON = visible + auto-fire / OFF = staff-only marker;
+   arm/disarm + one-shot vs repeatable).
+6. **Cinematic combat idea (parked).** Suikoden/Fire Emblem-style presentation.
+   Decision: **VTT-with-juice** (sprite animations / floating damage numbers hung
+   off the realtime HP/condition events the bridge already emits) is feasible and
+   additive — the discrete "HP changed" event is the trigger, no Phaser/React
+   needed. A full **SRPG engine** (software adjudicates combat) is a different
+   project and crosses the VTT→game line. Artwork is the bottleneck. The bridge
+   underlies every version, so no bridge work is wasted.
+7. **Deferred.** Resources/slots persistence (new columns/table); reconcile HP to
+   the sheet at encounter end; full sheet→Supabase migration.
 
 ## Character note
 
 In this campaign the character once named **Tyros Darkstar** is now **Cosmere
-Runestar** — same character, new name. Data key `tyros` is preserved across files
-and URLs; only display strings use "Cosmere." `characters.js` uses
-`KEY_FILE = { cosmere: 'tyros' }` to read the existing `tyros.json` transparently.
-(Live-cursor labels derive from `characterKey`, which is `'cosmere'` → "Cosmere".)
+Runestar** — same character, new name. Data key `tyros` is preserved in the sheet
+files/URLs; display strings use "Cosmere." In the combat/token layer the
+character key is **`cosmere`** (CHARACTERS, PORTRAITS, CHAR_COLOR, and combatant
+`source_key` all use `cosmere`, not `tyros`), so HUD binding by `source_key`
+matches `ME.characterKey` cleanly.
