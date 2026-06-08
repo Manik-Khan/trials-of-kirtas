@@ -2160,11 +2160,14 @@
       return Object.entries(s).map(([k, v]) => { const n = typeof v === 'object' ? v.number : v; return k === 'walk' ? `${n} ft.` : `${k} ${n} ft.`; }).join(', ');
     }
     function sbCleanText(str) {
+      const ATK = { mw: 'Melee Weapon', rw: 'Ranged Weapon', ms: 'Melee Spell', rs: 'Ranged Spell', m: 'Melee', r: 'Ranged' };
       return (str || '')
         .replace(/\{@b ([^}]+)\}/g, '<strong>$1</strong>')
         .replace(/\{@i ([^}]+)\}/g, '<em>$1</em>')
         .replace(/\{@(?:spell|creature|item) ([^|}]+)[^}]*\}/g, '<span style="color:var(--gold-light)">$1</span>')
         .replace(/\{@condition ([^|}]+)[^}]*\}/g, '<em>$1</em>')
+        .replace(/\{@atk ([^}]+)\}/g, (_, codes) => codes.split(',').map(c => ATK[c.trim()] || c.trim()).join(' or ') + ' Attack:')
+        .replace(/\{@h\}/g, 'Hit: ')
         .replace(/\{@recharge ([^}]+)\}/g, '(Recharge $1–6)')
         .replace(/\{@hit ([^}]+)\}/g, '+$1')
         .replace(/\{@dc ([^}]+)\}/g, 'DC $1')
@@ -2195,7 +2198,7 @@
     }
     function renderMonster(m) {
       const type = [m.size, typeof m.type === 'object' ? m.type.type : m.type].filter(Boolean).join(' ');
-      const ac = Array.isArray(m.ac) ? m.ac.map(a => typeof a === 'object' ? `${a.ac}${a.from ? ' (' + a.from.join(', ') + ')' : ''}` : `${a}`).join(', ') : `${m.ac || '—'}`;
+      const ac = Array.isArray(m.ac) ? m.ac.map(a => typeof a === 'object' ? `${a.ac}${a.from ? ' (' + a.from.map(sbCleanText).join(', ') + ')' : ''}` : `${a}`).join(', ') : `${m.ac || '—'}`;
       const hp = m.hp ? `${m.hp.average} (${m.hp.formula})` : '—';
       const saves = m.save ? Object.entries(m.save).map(([k, v]) => `${k.toUpperCase()} ${v}`).join(', ') : '—';
       const skills = m.skill ? Object.entries(m.skill).map(([k, v]) => `${k} ${v}`).join(', ') : '—';
