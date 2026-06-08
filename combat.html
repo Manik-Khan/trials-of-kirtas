@@ -374,6 +374,8 @@
     .stage.view-as-player .tool-rail,
     .stage.view-as-player .bestiary-tab,
     .stage.view-as-player .bestiary-panel,
+    .stage.view-as-player .statblock-panel,
+    .stage.view-as-player .sb-backdrop,
     .stage.view-as-player .bst-backdrop { display: none !important; }
 
     /* zoom toolbar */
@@ -548,6 +550,47 @@
     .bst-drop:hover { background: var(--gold); color: var(--ink-deep); border-color: var(--gold); }
     .bst-drop.done { color: var(--aged); border-color: var(--section-border); cursor: default; background: var(--ink); }
     .bst-state { padding: 0.8rem 0.4rem; color: var(--muted); font-size: 0.55rem; text-align: center; line-height: 1.5; }
+    /* ── statblock panel (DM): opened from a token's Manage tab ── */
+    .statblock-panel {
+      position: absolute; top: 0; right: 0; bottom: 0; z-index: 23;
+      width: 360px; max-width: 94vw;
+      background: var(--nav-bg); border-left: 1px solid var(--nav-border);
+      padding: 0.9rem 1rem; box-sizing: border-box; overflow-y: auto;
+      transform: translateX(100%);
+      transition: transform 0.28s cubic-bezier(0.4,0,0.2,1);
+      box-shadow: -8px 0 40px rgba(0,0,0,0.5);
+    }
+    .statblock-panel.open { transform: translateX(0); }
+    .sb-close {
+      position: sticky; top: 0; float: right; cursor: pointer;
+      color: var(--muted); font-family: var(--font-title); font-size: 0.8rem;
+      line-height: 1; padding: 0 0.2rem; z-index: 2;
+    }
+    .sb-close:hover { color: var(--parchment); }
+    /* lifted from compendium's monster detail view, scoped to the panel */
+    .statblock-panel .detail-name { font-family: var(--font-display); font-size: 1.5rem; color: var(--parchment); margin-bottom: 0.25rem; line-height: 1.2; }
+    .statblock-panel .detail-meta { font-family: var(--font-title); font-size: 0.5rem; letter-spacing: 0.22em; color: var(--gold); text-transform: uppercase; margin-bottom: 0.8rem; }
+    .statblock-panel .detail-rule { border: none; height: 1px; background: linear-gradient(90deg, var(--gold-dim), transparent); margin: 0.85rem 0; }
+    .statblock-panel .detail-stats { display: grid; grid-template-columns: 1fr 1fr; gap: 0.45rem; margin-bottom: 0.85rem; }
+    .statblock-panel .detail-stat { background: rgba(0,0,0,0.2); border: 1px solid var(--gold-dim); padding: 0.35rem 0.55rem; }
+    .statblock-panel .detail-stat-label { font-family: var(--font-title); font-size: 0.42rem; letter-spacing: 0.18em; color: var(--muted); text-transform: uppercase; display: block; margin-bottom: 0.12rem; }
+    .statblock-panel .detail-stat-val { font-size: 0.8rem; color: var(--parchment2); }
+    .statblock-panel .detail-section { margin-top: 0.9rem; }
+    .statblock-panel .detail-section-title { font-family: var(--font-title); font-size: 0.5rem; letter-spacing: 0.28em; color: var(--gold); text-transform: uppercase; border-bottom: 1px solid var(--gold-dim); padding-bottom: 0.3rem; margin-bottom: 0.55rem; }
+    .statblock-panel .ability-strip { display: grid; grid-template-columns: repeat(6,1fr); gap: 0.35rem; margin-bottom: 0.85rem; }
+    .statblock-panel .ability-cell { text-align: center; background: rgba(0,0,0,0.2); border: 1px solid var(--gold-dim); padding: 0.35rem 0.15rem; }
+    .statblock-panel .ability-cell-label { font-family: var(--font-title); font-size: 0.42rem; letter-spacing: 0.12em; color: var(--muted); text-transform: uppercase; display: block; }
+    .statblock-panel .ability-cell-score { font-family: var(--font-title); font-size: 0.92rem; color: var(--parchment); display: block; }
+    .statblock-panel .ability-cell-mod   { font-family: var(--font-title); font-size: 0.6rem; color: var(--gold-light); display: block; }
+    .statblock-panel .trait-block { margin-bottom: 0.75rem; }
+    .statblock-panel .trait-name { font-family: var(--font-title); font-size: 0.72rem; color: var(--gold-light); font-style: italic; }
+    .statblock-panel .trait-body { font-size: 0.82rem; color: var(--parchment2); line-height: 1.6; margin-top: 0.2rem; }
+    .statblock-panel .trait-body p { margin: 0.3rem 0; }
+    .statblock-panel .source-note { font-size: 0.66rem; color: var(--muted); font-style: italic; margin-top: 1.2rem; padding-top: 0.6rem; border-top: 1px solid var(--gold-dim); }
+    .statblock-panel table { width: 100%; border-collapse: collapse; margin: 0.5rem 0; font-size: 0.78rem; color: var(--parchment2); }
+    .statblock-panel th, .statblock-panel td { border: 1px solid var(--gold-dim); padding: 0.25rem 0.4rem; text-align: left; }
+    /* monster token art (5etools), layered over the initial fallback */
+    .token-monimg { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; border-radius: 50%; }
     /* ── left tool rail + contextual options (DM) ── */
     .tool-rail {
       position: absolute; top: 10px; left: 10px; z-index: 20;
@@ -994,10 +1037,15 @@
       const img = TOKENS[c.source_key] || (isParty ? PORTRAITS[c.source_key] : null);
       // per-character art style wins; global control is the fallback default
       const style = TOKEN_STYLE[c.source_key] || TOKEN.style;
+      // enemy monster art (5etools), only when no other art applies
+      const monImg = (!isParty && !teasedForPlayer && !img) ? monsterTokenUrl(c) : null;
 
       let disc;
       if (teasedForPlayer) {
         disc = `<div class="token-disc mystery"><span class="token-initial">?</span></div>`;
+      } else if (monImg) {  // enemy: monster token over the initial fallback (onerror → initial)
+        const initial = (c.name || '?').trim().charAt(0).toUpperCase();
+        disc = `<div class="token-disc ring" style="--ring:${ring}"><span class="token-initial">${initial}</span><img class="token-monimg" src="${monImg}" alt="" draggable="false" onerror="this.remove()"></div>`;
       } else if (img && style === 'cutout') {
         const base = TOKEN.ring ? `<div class="token-base" style="--ring:${ring}"></div>` : '';
         disc = `<div class="token-cutout">${base}<img class="token-cutimg" src="${img}" alt="" draggable="false"></div>`;
@@ -1346,6 +1394,7 @@
         ).join('') + `</div>
         <div class="ctx-sub">Visibility</div>
         <button class="ctx-act" data-act="vis">${c.hidden ? '👁 Reveal to players' : '⊘ Hide from players'}</button>
+        ${c.statblock ? `<div class="ctx-sub">Reference</div><button class="ctx-act" data-act="stat">📖 Stat block</button>` : ''}
         <button class="ctx-act ctx-danger" data-act="del">✕ Remove from board</button>`;
     }
 
@@ -1403,6 +1452,8 @@
           b.addEventListener('click', async () => {
             if (b.dataset.act === 'vis') {
               if (await setHidden(c.id, !c.hidden)) render();   // re-render to flip the label
+            } else if (b.dataset.act === 'stat') {
+              openStatblock?.(c); closeCtxMenu();
             } else if (b.dataset.act === 'del') {
               if (b.dataset.confirm) { if (await removeCombatant(c.id)) closeCtxMenu(); }
               else { b.dataset.confirm = '1'; b.textContent = '✕ Confirm remove'; }
@@ -1431,7 +1482,7 @@
       stage.addEventListener('pointerdown', (e) => {
         if (e.button > 0) return;                 // right/middle mouse → handled by contextmenu
         // never let board pan/drag steal interactions meant for the UI panels
-        if (e.target.closest('.grid-controls, .zoom-bar, .tool-rail, .tool-options, .gc-backdrop, .display-tab, .bestiary-tab, .bestiary-panel, .view-toggle, .draw-del')) return;
+        if (e.target.closest('.grid-controls, .zoom-bar, .tool-rail, .tool-options, .gc-backdrop, .display-tab, .bestiary-tab, .bestiary-panel, .view-toggle, .statblock-panel, .draw-del')) return;
         if (FOG.editing && IS_STAFF) {                 // fog paint mode → paint cells, skip token/pan logic
           try { stage.setPointerCapture(e.pointerId); } catch (_) {}
           fogPainting = true;
@@ -1603,7 +1654,7 @@
 
       stage.addEventListener('wheel', (e) => {
         // inside a scrollable UI panel → let it scroll natively, don't zoom
-        if (e.target.closest('.bestiary-panel, .grid-controls, .tool-options')) return;
+        if (e.target.closest('.bestiary-panel, .statblock-panel, .grid-controls, .tool-options')) return;
         e.preventDefault();
         const rect = stage.getBoundingClientRect();
         zoomAt(e.deltaY < 0 ? 1.1 : 1 / 1.1, e.clientX - rect.left, e.clientY - rect.top);
@@ -1777,6 +1828,7 @@
       buildToolRail();
       if (IS_STAFF) buildBestiary();
       if (IS_STAFF) buildViewToggle();
+      if (IS_STAFF) buildStatblockPanel();
 
       // ── HUD ↔ combat bridge (shared: any user drives any party character) ──
       // battle.js is backend-agnostic; we hand it a Supabase combatants backend
@@ -2089,6 +2141,104 @@
       });
       paint();
       stage.appendChild(btn);
+    }
+
+    // ── monster statblock (Phase B) ────────────────────────────────────────
+    // Token art: 5etools serves token webps by source + name. We layer the img
+    // over the initial-disc fallback (onerror removes it → initial shows).
+    function monsterTokenUrl(c) {
+      const m = c.statblock;
+      if (!m || !m.source || !m.name) return null;
+      return `https://5e.tools/img/bestiary/tokens/${m.source}/${encodeURIComponent(m.name)}.webp`;
+    }
+
+    // Statblock renderer — lifted from compendium.html's monster detail view
+    // (uses bstFmtCR for CR; same 5etools entry shape we snapshot on drop).
+    function fmtSpeed(s) {
+      if (!s) return '—';
+      if (typeof s === 'number') return `${s} ft.`;
+      return Object.entries(s).map(([k, v]) => { const n = typeof v === 'object' ? v.number : v; return k === 'walk' ? `${n} ft.` : `${k} ${n} ft.`; }).join(', ');
+    }
+    function sbCleanText(str) {
+      return (str || '')
+        .replace(/\{@b ([^}]+)\}/g, '<strong>$1</strong>')
+        .replace(/\{@i ([^}]+)\}/g, '<em>$1</em>')
+        .replace(/\{@(?:spell|creature|item) ([^|}]+)[^}]*\}/g, '<span style="color:var(--gold-light)">$1</span>')
+        .replace(/\{@condition ([^|}]+)[^}]*\}/g, '<em>$1</em>')
+        .replace(/\{@recharge ([^}]+)\}/g, '(Recharge $1–6)')
+        .replace(/\{@hit ([^}]+)\}/g, '+$1')
+        .replace(/\{@dc ([^}]+)\}/g, 'DC $1')
+        .replace(/\{@(?:damage|dice) ([^}]+)\}/g, '$1')
+        .replace(/\{@[a-z]+ ([^|}]+)[^}]*\}/g, '$1')
+        .replace(/\{@[^}]+\}/g, '');
+    }
+    function sbEntries(entries) {
+      if (!entries) return '';
+      return entries.map(e => {
+        if (typeof e === 'string') return `<p>${sbCleanText(e)}</p>`;
+        if (e.type === 'entries') return `${e.name ? `<p><strong>${e.name}</strong></p>` : ''}${sbEntries(e.entries || [])}`;
+        if (e.type === 'list') return `<ul>${(e.items || []).map(i => `<li>${typeof i === 'string' ? sbCleanText(i) : sbEntries(i.entries || []).replace(/<\/?p>/g, '')}</li>`).join('')}</ul>`;
+        if (e.type === 'table') {
+          const head = e.colLabels ? `<tr>${e.colLabels.map(l => `<th>${sbCleanText(l)}</th>`).join('')}</tr>` : '';
+          const rows = (e.rows || []).map(r => `<tr>${r.map(cell => `<td>${typeof cell === 'string' ? sbCleanText(cell) : cell?.roll ? `${cell.roll.min}–${cell.roll.max}` : ''}</td>`).join('')}</tr>`).join('');
+          return `<table><thead>${head}</thead><tbody>${rows}</tbody></table>`;
+        }
+        if (typeof e === 'object' && e.entries) return sbEntries(e.entries);
+        return '';
+      }).join('');
+    }
+    function sbTraits(traits, heading) {
+      if (!traits || !traits.length) return '';
+      return `<div class="detail-section"><div class="detail-section-title">${heading}</div>
+        ${traits.map(t => `<div class="trait-block"><span class="trait-name">${t.name}.</span><div class="trait-body">${sbEntries(t.entries || [])}</div></div>`).join('')}
+      </div>`;
+    }
+    function renderMonster(m) {
+      const type = [m.size, typeof m.type === 'object' ? m.type.type : m.type].filter(Boolean).join(' ');
+      const ac = Array.isArray(m.ac) ? m.ac.map(a => typeof a === 'object' ? `${a.ac}${a.from ? ' (' + a.from.join(', ') + ')' : ''}` : `${a}`).join(', ') : `${m.ac || '—'}`;
+      const hp = m.hp ? `${m.hp.average} (${m.hp.formula})` : '—';
+      const saves = m.save ? Object.entries(m.save).map(([k, v]) => `${k.toUpperCase()} ${v}`).join(', ') : '—';
+      const skills = m.skill ? Object.entries(m.skill).map(([k, v]) => `${k} ${v}`).join(', ') : '—';
+      const imm = m.immune ? m.immune.map(i => typeof i === 'object' ? i.immune?.join(', ') : i).filter(Boolean).join(', ') : '—';
+      const res = m.resist ? m.resist.map(r => typeof r === 'object' ? r.resist?.join(', ') : r).filter(Boolean).join(', ') : '—';
+      const strip = ['str', 'dex', 'con', 'int', 'wis', 'cha'].map(a => { const sc = m[a] || 10, mod = Math.floor((sc - 10) / 2); return `<div class="ability-cell"><span class="ability-cell-label">${a.toUpperCase()}</span><span class="ability-cell-score">${sc}</span><span class="ability-cell-mod">${mod >= 0 ? '+' : ''}${mod}</span></div>`; }).join('');
+      return `<div class="detail-name">${m.name}</div><div class="detail-meta">${type} · CR ${bstFmtCR(m.cr)}</div><hr class="detail-rule">
+        <div class="detail-stats">
+          <div class="detail-stat"><span class="detail-stat-label">AC</span><span class="detail-stat-val">${ac}</span></div>
+          <div class="detail-stat"><span class="detail-stat-label">HP</span><span class="detail-stat-val">${hp}</span></div>
+          <div class="detail-stat"><span class="detail-stat-label">Speed</span><span class="detail-stat-val">${fmtSpeed(m.speed)}</span></div>
+          ${saves !== '—' ? `<div class="detail-stat"><span class="detail-stat-label">Saving Throws</span><span class="detail-stat-val">${saves}</span></div>` : ''}
+          ${skills !== '—' ? `<div class="detail-stat"><span class="detail-stat-label">Skills</span><span class="detail-stat-val">${skills}</span></div>` : ''}
+          ${imm !== '—' ? `<div class="detail-stat"><span class="detail-stat-label">Immunities</span><span class="detail-stat-val">${imm}</span></div>` : ''}
+          ${res !== '—' ? `<div class="detail-stat"><span class="detail-stat-label">Resistances</span><span class="detail-stat-val">${res}</span></div>` : ''}
+          <div class="detail-stat"><span class="detail-stat-label">Senses</span><span class="detail-stat-val">${(m.senses || []).join(', ') || '—'}</span></div>
+          <div class="detail-stat"><span class="detail-stat-label">Languages</span><span class="detail-stat-val">${m.languages || '—'}</span></div>
+        </div><hr class="detail-rule">
+        <div class="ability-strip">${strip}</div>
+        ${sbTraits(m.trait || [], 'Traits')}${sbTraits(m.action || [], 'Actions')}${sbTraits(m.bonus || [], 'Bonus Actions')}${sbTraits(m.reaction || [], 'Reactions')}${sbTraits(m.legendary || [], 'Legendary Actions')}
+        <div class="source-note">Source: ${m.source || 'MM'}${m.page ? ', p.' + m.page : ''}</div>`;
+    }
+
+    // The on-demand statblock drawer. Opened from a token's Manage tab via the
+    // module-scope openStatblock(c); no permanent tab (DM info, not a fixture).
+    let openStatblock = null;
+    function buildStatblockPanel() {
+      const panel = document.createElement('div');
+      panel.className = 'statblock-panel';
+      stage.appendChild(panel);
+      const backdrop = document.createElement('div');
+      backdrop.className = 'gc-backdrop sb-backdrop';
+      stage.appendChild(backdrop);
+      function close() { panel.classList.remove('open'); backdrop.classList.remove('open'); }
+      backdrop.addEventListener('click', close);
+      openStatblock = (c) => {
+        if (!c || !c.statblock) return;
+        panel.innerHTML = `<span class="sb-close">✕</span>` + renderMonster(c.statblock);
+        panel.querySelector('.sb-close').addEventListener('click', close);
+        panel.scrollTop = 0;
+        panel.classList.add('open');
+        backdrop.classList.add('open');
+      };
     }
 
     // ── left tool rail (DM) — Select / Pencil(reveal) / Eraser(hide), with a
