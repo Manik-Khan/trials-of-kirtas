@@ -345,6 +345,18 @@
     .ctx-cond.active .ctx-label { color: var(--parchment); }
     .ctx-check { font-size: 0.7rem; color: var(--gold-light); opacity: 0; }
     .ctx-cond.active .ctx-check { opacity: 1; }
+    /* action buttons (Manage tab): visibility toggle, remove */
+    .ctx-act {
+      display: block; width: calc(100% - 1.2rem); margin: 0.2rem 0.6rem;
+      background: none; cursor: pointer; text-align: left;
+      border: 1px solid var(--gold-dim); border-radius: 4px;
+      font-family: var(--font-title);
+      font-size: 0.5rem; letter-spacing: 0.08em;
+      color: var(--parchment2); padding: 0.4rem 0.55rem;
+    }
+    .ctx-act:hover { color: var(--parchment); border-color: var(--gold-light); }
+    .ctx-act.ctx-danger { color: var(--blood, #c0001a); border-color: rgba(192,0,26,0.4); }
+    .ctx-act.ctx-danger:hover { color: #fff; background: var(--blood, #c0001a); border-color: var(--blood, #c0001a); }
 
     /* zoom toolbar */
     .zoom-bar {
@@ -1252,6 +1264,25 @@
       return true;
     }
 
+    // Flip a combatant's hidden flag (staff). Optimistic + rollback; re-render so
+    // the staff badge updates and players get the appear/disappear via realtime.
+    async function setHidden(id, hidden) {
+      const c = COMBS.find(k => k.id === id); if (!c) return false;
+      const prev = c.hidden; c.hidden = hidden; renderTokens();
+      const { error } = await SB.from('combatants').update({ hidden }).eq('id', id);
+      if (error) { c.hidden = prev; renderTokens(); console.error('hidden write failed:', error.message); return false; }
+      return true;
+    }
+
+    // Delete a combatant row (staff). Optimistic local removal; the DELETE
+    // realtime echo (idempotent filter) removes it for everyone else.
+    async function removeCombatant(id) {
+      const { error } = await SB.from('combatants').delete().eq('id', id);
+      if (error) { console.error('delete failed:', error.message); return false; }
+      COMBS = COMBS.filter(k => k.id !== id); renderTokens();
+      return true;
+    }
+
     // ── context menu (conditions for now; built to grow staff actions later) ──
     let ctxEl = null;
     function closeCtxMenu() {
@@ -1280,13 +1311,17 @@
         </div>`).join('');
     }
 
-    // Body builder for the Manage tab (staff only) — per-creature size.
+    // Body builder for the Manage tab (staff only) — per-creature size,
+    // visibility (hidden from players), and removal.
     function manageTabBody(c) {
       const cur = c.size || 'medium';
       return `<div class="ctx-sub">Size</div>
         <div class="ctx-sizes">` + SIZE_ORDER.map(s =>
           `<button class="ctx-size${s === cur ? ' active' : ''}" data-size="${s}">${SIZE_LABEL[s]}</button>`
-        ).join('') + `</div>`;
+        ).join('') + `</div>
+        <div class="ctx-sub">Visibility</div>
+        <button class="ctx-act" data-act="vis">${c.hidden ? '👁 Reveal to players' : '⊘ Hide from players'}</button>
+        <button class="ctx-act ctx-danger" data-act="del">✕ Remove from board</button>`;
     }
 
     function openCtxMenu(c, sx, sy) {
@@ -1337,6 +1372,16 @@
           b.addEventListener('click', async () => {
             if (await setSize(c.id, b.dataset.size))
               ctxEl.querySelectorAll('.ctx-size').forEach(x => x.classList.toggle('active', x === b));
+          }));
+        // Visibility + removal (Manage tab, staff).
+        ctxEl.querySelectorAll('.ctx-act').forEach(b =>
+          b.addEventListener('click', async () => {
+            if (b.dataset.act === 'vis') {
+              if (await setHidden(c.id, !c.hidden)) render();   // re-render to flip the label
+            } else if (b.dataset.act === 'del') {
+              if (b.dataset.confirm) { if (await removeCombatant(c.id)) closeCtxMenu(); }
+              else { b.dataset.confirm = '1'; b.textContent = '✕ Confirm remove'; }
+            }
           }));
       }
 
@@ -1567,12 +1612,24 @@
           { event: 'UPDATE', schema: 'public', table: 'combatants', filter: 'encounter_id=eq.' + ENC.id },
           ({ new: row }) => {
             if (!row || row.id === dragId) return;       // ignore the echo of my own drag
-            const c = COMBS.find(k => k.id === row.id); if (!c) return;
-            c.x = row.x; c.y = row.y; c.hp = row.hp; c.conditions = row.conditions; c.size = row.size;
-            updateTokenPos(c);
-            updateTokenConditions(c);
-            updateTokenSize(c);
-            reconcileTokenVisibility(c);                 // moved into / out of the light?
+            const c = COMBS.find(k => k.id === row.id);
+            if (!c) {                                    // row just became visible to us (e.g. DM revealed it)
+              COMBS.push(row); renderTokens(); return;
+            }
+            // a row we can see was re-hidden from us (non-staff, not ours) → drop it
+            if (!IS_STAFF && row.hidden && !(ME && row.owner === ME.id)) {
+              COMBS = COMBS.filter(k => k.id !== row.id); renderTokens(); return;
+            }
+            const hiddenChanged = c.hidden !== row.hidden;
+            c.x = row.x; c.y = row.y; c.hp = row.hp; c.conditions = row.conditions; c.size = row.size; c.hidden = row.hidden;
+            if (hiddenChanged) {
+              renderTokens();                            // staff badge (∅) appears/clears
+            } else {
+              updateTokenPos(c);
+              updateTokenConditions(c);
+              updateTokenSize(c);
+              reconcileTokenVisibility(c);               // moved into / out of the light?
+            }
             if (HUD_ONCHANGE && c.side === 'party' && c.source_key)
               HUD_ONCHANGE({ key: c.source_key, combat: { hp: row.hp, conditions: row.conditions } });
           })
@@ -1931,7 +1988,7 @@
           if (crFilter === 'high')   return e.cr >= 5 && e.cr <= 10;
           if (crFilter === 'deadly') return e.cr >= 11;
           return true;
-        }).slice(0, 250);
+        }).sort((a, b) => a.name.localeCompare(b.name));
         if (!shown.length) { listEl.innerHTML = '<div class="bst-state">No results.</div>'; return; }
         listEl.innerHTML = shown.map((e, i) => `
           <div class="bst-row">
