@@ -358,6 +358,24 @@
     .ctx-act.ctx-danger { color: var(--blood, #c0001a); border-color: rgba(192,0,26,0.4); }
     .ctx-act.ctx-danger:hover { color: #fff; background: var(--blood, #c0001a); border-color: var(--blood, #c0001a); }
 
+    /* staff "view as player" toggle + preview-mode UI suppression */
+    .view-toggle {
+      position: absolute; bottom: 12px; left: 12px; z-index: 20;
+      display: flex; align-items: center; gap: 0.4rem;
+      background: var(--nav-bg); border: 1px solid var(--nav-border);
+      color: var(--muted); cursor: pointer;
+      font-family: var(--font-title); font-size: 0.5rem; letter-spacing: 0.12em;
+      text-transform: uppercase; padding: 0.4rem 0.7rem; border-radius: 5px;
+      transition: color 0.15s, border-color 0.15s, background 0.15s;
+    }
+    .view-toggle:hover { color: var(--parchment); border-color: var(--gold-dim); }
+    .view-toggle.on { background: var(--gold); color: var(--ink-deep); border-color: var(--gold); }
+    .view-toggle svg { width: 13px; height: 13px; fill: currentColor; }
+    .stage.view-as-player .tool-rail,
+    .stage.view-as-player .bestiary-tab,
+    .stage.view-as-player .bestiary-panel,
+    .stage.view-as-player .bst-backdrop { display: none !important; }
+
     /* zoom toolbar */
     .zoom-bar {
       position: absolute;
@@ -723,6 +741,11 @@
     let boardEl = null;
     let COMBS = [];      // cached combatant rows, for re-rendering on control changes
     let IS_STAFF = false;
+    // Staff "view as player" preview (visual only — staff still hold the data).
+    // effectiveStaff() gates VISIBILITY (what's drawn); real IS_STAFF gates
+    // identity/permissions. Toggling re-renders tokens + fog.
+    let VIEW_AS_PLAYER = false;
+    const effectiveStaff = () => IS_STAFF && !VIEW_AS_PLAYER;
     let ME = null;       // viewer profile { role, characterKey, ... }
     let SB = null;       // shared supabase client (from nav.js)
     let ENC = null;      // active encounter row
@@ -741,7 +764,9 @@
     // A token shows for a player only where the fog is lifted (or it's their own
     // token, or they're staff) — the cheap, client-side concealment tier.
     function tokenVisible(c) {
-      return IS_STAFF || isRevealed(c.x, c.y) || !!(ME && ME.id && c.owner === ME.id);
+      // In player-view, staff must explicitly drop hidden enemies they still hold.
+      if (!effectiveStaff() && c.hidden && !(ME && ME.id && c.owner === ME.id)) return false;
+      return effectiveStaff() || isRevealed(c.x, c.y) || !!(ME && ME.id && c.owner === ME.id);
     }
 
     // ── drawings (shapes & spell templates) state ──
@@ -815,7 +840,7 @@
         const [x, y] = k.split(',').map(Number);
         return `<rect x="${meta.originX + x * meta.cellPx}" y="${meta.originY + y * meta.cellPx}" width="${meta.cellPx}" height="${meta.cellPx}" fill="black"/>`;
       }).join('');
-      const op = IS_STAFF ? 0.45 : 0.985;   // DM: translucent shroud (sees through); player: solid cover
+      const op = effectiveStaff() ? 0.45 : 0.985;   // DM: translucent shroud (sees through); player: solid cover
       const feather = Math.max(2, meta.cellPx * 0.38);   // soft edge width, in map units
       return `
         <svg class="board-fog" viewBox="0 0 ${W} ${H}" preserveAspectRatio="none" xmlns="http://www.w3.org/2000/svg">
@@ -848,7 +873,7 @@
       const el = tokenEl(c.id), show = tokenVisible(c);
       if (show && !el) {
         const layer = boardEl.querySelector('.board-tokens');
-        if (layer) layer.insertAdjacentHTML('beforeend', tokenHtml(c, META, IS_STAFF));
+        if (layer) layer.insertAdjacentHTML('beforeend', tokenHtml(c, META, effectiveStaff()));
       } else if (!show && el) { el.remove(); }
     }
     // Toggle one cell under the brush; only redraw on an actual change.
@@ -1007,7 +1032,7 @@
     function renderTokens() {
       if (!boardEl || !META) return;
       const layer = boardEl.querySelector('.board-tokens');
-      if (layer) layer.innerHTML = COMBS.filter(tokenVisible).map(c => tokenHtml(c, META, IS_STAFF)).join('');
+      if (layer) layer.innerHTML = COMBS.filter(tokenVisible).map(c => tokenHtml(c, META, effectiveStaff())).join('');
     }
 
     // ── fit the board into the stage, preserving the map's aspect ratio ──
@@ -1109,7 +1134,7 @@
     function removeCursor(id) { const c = CURSORS.get(id); if (c) { c.el.remove(); CURSORS.delete(id); } }
     function onCursor(p) {
       if (!p || p.id === MY_ID) return;            // never draw my own
-      if (p.staff && !IS_STAFF) return;            // staff cursors hidden from players
+      if (p.staff && !effectiveStaff()) return;            // staff cursors hidden from players
       ensureCursorLayer();
       let cur = CURSORS.get(p.id);
       if (!cur) { cur = { el: makeCursorEl() }; CURSORS.set(p.id, cur); cursorLayer.appendChild(cur.el); }
@@ -1186,7 +1211,7 @@
       el.style.width = ((META.cellPx / W) * 100 * TOKEN.size * (SIZE_MUL[c.size] || 1)) + '%';
     }
     function canMove(c) {
-      return IS_STAFF || !!(ME && ME.id && c.owner && c.owner === ME.id);
+      return effectiveStaff() || !!(ME && ME.id && c.owner && c.owner === ME.id);
     }
 
     // ── selection ──
@@ -1243,7 +1268,7 @@
     function updateTokenConditions(c) {
       const el = tokenEl(c.id); if (!el) return;
       const old = el.querySelector('.token-conds'); if (old) old.remove();
-      if (c.tease && !IS_STAFF) return;            // respect the player veil
+      if (c.tease && !effectiveStaff()) return;            // respect the player veil
       const html = condBadgesHtml(c);
       if (html) el.insertAdjacentHTML('beforeend', html);
     }
@@ -1333,7 +1358,7 @@
       // with `show: () => …` (e.g. IS_STAFF). Order here = display order.
       const tabs = [
         { id: 'conds',  label: 'Conditions', body: () => condTabBody(c) },
-        { id: 'manage', label: 'Manage', show: () => IS_STAFF, body: () => manageTabBody(c) },
+        { id: 'manage', label: 'Manage', show: () => effectiveStaff(), body: () => manageTabBody(c) },
         // { id: 'style', label: 'Style', body: () => styleTabBody(c) },   // personal/per-profile — later pass
       ];
       const visible = tabs.filter(t => !t.show || t.show());
@@ -1406,7 +1431,7 @@
       stage.addEventListener('pointerdown', (e) => {
         if (e.button > 0) return;                 // right/middle mouse → handled by contextmenu
         // never let board pan/drag steal interactions meant for the UI panels
-        if (e.target.closest('.grid-controls, .zoom-bar, .tool-rail, .tool-options, .gc-backdrop, .display-tab, .bestiary-tab, .bestiary-panel, .draw-del')) return;
+        if (e.target.closest('.grid-controls, .zoom-bar, .tool-rail, .tool-options, .gc-backdrop, .display-tab, .bestiary-tab, .bestiary-panel, .view-toggle, .draw-del')) return;
         if (FOG.editing && IS_STAFF) {                 // fog paint mode → paint cells, skip token/pan logic
           try { stage.setPointerCapture(e.pointerId); } catch (_) {}
           fogPainting = true;
@@ -1730,7 +1755,7 @@
       IS_STAFF = isStaff;
       boardEl = document.createElement('div');
       boardEl.className = 'board';
-      const tokensHtml = COMBS.filter(tokenVisible).map(c => tokenHtml(c, META, IS_STAFF)).join('');
+      const tokensHtml = COMBS.filter(tokenVisible).map(c => tokenHtml(c, META, effectiveStaff())).join('');
       boardEl.innerHTML =
         `<img class="board-map" alt="${enc.map_ref}" draggable="false" src="${mapUrl(META.publicId)}"
               onerror="this.classList.add('missing')">
@@ -1751,6 +1776,7 @@
       buildGridControls();
       buildToolRail();
       if (IS_STAFF) buildBestiary();
+      if (IS_STAFF) buildViewToggle();
 
       // ── HUD ↔ combat bridge (shared: any user drives any party character) ──
       // battle.js is backend-agnostic; we hand it a Supabase combatants backend
@@ -1944,7 +1970,7 @@
       stage.appendChild(panel);
 
       const backdrop = document.createElement('div');
-      backdrop.className = 'gc-backdrop';            // reuse the Display backdrop style
+      backdrop.className = 'gc-backdrop bst-backdrop'; // reuse Display backdrop style; tagged for player-view hide
       stage.appendChild(backdrop);
       const tab = document.createElement('button');
       tab.className = 'bestiary-tab';
@@ -2032,6 +2058,37 @@
         if (data && !COMBS.some(k => k.id === data.id)) { COMBS.push(data); renderTokens(); }
         return true;
       }
+    }
+
+    // ── "view as player" toggle (staff only) — flips a visual-only preview:
+    // hidden enemies vanish, fog covers solid, DM panels hide, the context-menu
+    // Manage tab disappears, and moves drop to player permissions. Real role is
+    // unchanged; toggle back to act as DM. ──
+    function buildViewToggle() {
+      const EYE_OPEN  = '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 5C5 5 1 12 1 12s4 7 11 7 11-7 11-7-4-7-11-7zm0 11a4 4 0 110-8 4 4 0 010 8z"/></svg>';
+      const btn = document.createElement('button');
+      btn.className = 'view-toggle';
+      function paint() {
+        btn.classList.toggle('on', VIEW_AS_PLAYER);
+        btn.innerHTML = EYE_OPEN + `<span>${VIEW_AS_PLAYER ? 'Player view' : 'View as player'}</span>`;
+        btn.title = VIEW_AS_PLAYER ? 'Showing what a player sees — click for DM view' : 'Preview what players see';
+      }
+      btn.addEventListener('click', () => {
+        VIEW_AS_PLAYER = !VIEW_AS_PLAYER;
+        stage.classList.toggle('view-as-player', VIEW_AS_PLAYER);
+        if (VIEW_AS_PLAYER) {
+          // leaving DM tooling cleanly: stop fog painting, close DM surfaces
+          FOG.editing = false; stage.classList.remove('fog-edit');
+          document.querySelector('.bestiary-panel')?.classList.remove('open');
+          document.querySelector('.bst-backdrop')?.classList.remove('open');
+          closeCtxMenu();
+        }
+        redrawFog();      // veil opacity (translucent ↔ solid)
+        renderTokens();   // hidden enemies + badges
+        paint();
+      });
+      paint();
+      stage.appendChild(btn);
     }
 
     // ── left tool rail (DM) — Select / Pencil(reveal) / Eraser(hide), with a
