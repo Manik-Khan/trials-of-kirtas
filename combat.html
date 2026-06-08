@@ -459,6 +459,65 @@
     .gc-btn.on   { background: var(--gold); color: var(--ink-deep); border-color: var(--gold); }
     .gc-fog-brush, .gc-fog-bulk { gap: 0.3rem; }
     .stage.fog-edit { cursor: crosshair; }
+    /* ── bestiary picker (DM): right slide-out, same idiom as Display ── */
+    .bestiary-panel {
+      position: absolute; top: 0; right: 0; bottom: 0; z-index: 22;
+      width: 300px; max-width: 92vw;
+      background: var(--nav-bg); border-left: 1px solid var(--nav-border);
+      padding: 0.6rem 0.7rem; box-sizing: border-box;
+      display: flex; flex-direction: column;
+      font-family: var(--font-title);
+      transform: translateX(100%);
+      transition: transform 0.28s cubic-bezier(0.4,0,0.2,1);
+      box-shadow: -8px 0 40px rgba(0,0,0,0.5);
+    }
+    .bestiary-panel.open { transform: translateX(0); }
+    .bestiary-tab {
+      position: absolute; top: 44px; right: 10px; z-index: 18;
+      background: var(--nav-bg); border: 1px solid var(--nav-border);
+      color: var(--muted); cursor: pointer;
+      font-family: var(--font-title); font-size: 0.5rem; letter-spacing: 0.14em;
+      text-transform: uppercase; padding: 0.4rem 0.65rem;
+      transition: color 0.15s, border-color 0.15s;
+    }
+    .bestiary-tab:hover { color: var(--parchment); border-color: var(--gold-dim); }
+    .bestiary-panel h4 {
+      font-size: 0.46rem; letter-spacing: 0.32em; text-transform: uppercase;
+      color: var(--muted); border-bottom: 1px solid var(--gold-dim);
+      padding-bottom: 0.3rem; margin: 0 0 0.5rem; font-weight: 600;
+    }
+    .bst-source, .bst-search {
+      width: 100%; box-sizing: border-box; margin-bottom: 0.45rem;
+      background: var(--ink); color: var(--parchment2);
+      border: 1px solid var(--section-border); border-radius: 4px;
+      font-family: var(--font-title); padding: 4px 6px;
+    }
+    .bst-source { font-size: 0.5rem; letter-spacing: 0.1em; text-transform: uppercase; }
+    .bst-search { font-size: 0.6rem; letter-spacing: 0.05em; }
+    .bst-cr { display: flex; flex-wrap: wrap; gap: 3px; margin-bottom: 0.5rem; }
+    .bst-cr button {
+      cursor: pointer; background: var(--ink); color: var(--parchment2);
+      border: 1px solid var(--section-border); border-radius: 4px;
+      font-family: var(--font-title); font-size: 0.44rem; letter-spacing: 0.08em;
+      text-transform: uppercase; padding: 3px 6px;
+    }
+    .bst-cr button.on { background: var(--gold); color: var(--ink-deep); border-color: var(--gold); }
+    .bst-list { flex: 1; overflow-y: auto; margin: 0 -0.2rem; }
+    .bst-row {
+      display: flex; align-items: center; gap: 0.4rem;
+      padding: 4px 6px; border-bottom: 1px solid var(--section-border);
+    }
+    .bst-row-name { font-size: 0.62rem; color: var(--parchment2); letter-spacing: 0.03em; }
+    .bst-row-cr   { font-size: 0.44rem; color: var(--aged); letter-spacing: 0.1em; text-transform: uppercase; margin-left: auto; }
+    .bst-drop {
+      cursor: pointer; background: var(--ink); color: var(--gold);
+      border: 1px solid var(--gold-dim); border-radius: 4px;
+      font-family: var(--font-title); font-size: 0.44rem; letter-spacing: 0.1em;
+      text-transform: uppercase; padding: 3px 7px; flex: none;
+    }
+    .bst-drop:hover { background: var(--gold); color: var(--ink-deep); border-color: var(--gold); }
+    .bst-drop.done { color: var(--aged); border-color: var(--section-border); cursor: default; background: var(--ink); }
+    .bst-state { padding: 0.8rem 0.4rem; color: var(--muted); font-size: 0.55rem; text-align: center; line-height: 1.5; }
     /* ── left tool rail + contextual options (DM) ── */
     .tool-rail {
       position: absolute; top: 10px; left: 10px; z-index: 20;
@@ -1515,6 +1574,23 @@
             if (HUD_ONCHANGE && c.side === 'party' && c.source_key)
               HUD_ONCHANGE({ key: c.source_key, combat: { hp: row.hp, conditions: row.conditions } });
           })
+        // New / removed combatants (e.g. a DM dropping or clearing an enemy).
+        // Same channel as the UPDATE above — never a second postgres_changes
+        // channel on this table. We keep COMBS in sync and re-render the layer.
+        .on('postgres_changes',
+          { event: 'INSERT', schema: 'public', table: 'combatants', filter: 'encounter_id=eq.' + ENC.id },
+          ({ new: row }) => {
+            if (!row || COMBS.some(k => k.id === row.id)) return;   // dedupe my own drop echo
+            COMBS.push(row);
+            renderTokens();
+          })
+        .on('postgres_changes',
+          { event: 'DELETE', schema: 'public', table: 'combatants', filter: 'encounter_id=eq.' + ENC.id },
+          ({ old }) => {
+            if (!old || !old.id) return;
+            COMBS = COMBS.filter(k => k.id !== old.id);
+            renderTokens();
+          })
         .on('postgres_changes',
           { event: 'UPDATE', schema: 'public', table: 'encounters', filter: 'id=eq.' + ENC.id },
           ({ new: row }) => {
@@ -1615,6 +1691,7 @@
       // grid controls (demonstrates the opacity / style / colour answer live)
       buildGridControls();
       buildToolRail();
+      if (IS_STAFF) buildBestiary();
 
       // ── HUD ↔ combat bridge (shared: any user drives any party character) ──
       // battle.js is backend-agnostic; we hand it a Supabase combatants backend
@@ -1759,6 +1836,143 @@
       tab.addEventListener('click', () => setDisplay(true));
       backdrop.addEventListener('click', () => setDisplay(false));
       panel.querySelector('#gc-close').addEventListener('click', () => setDisplay(false));
+    }
+
+    // ── bestiary picker (DM only) — search the 5etools bestiary and drop a
+    // monster onto the board as a HIDDEN enemy combatant. The full monster JSON
+    // is SNAPSHOT onto combatants.statblock (self-contained, survives homebrew);
+    // hp/max_hp/ac/size are denormalised so the board/HUD never parse jsonb.
+    // Same CDN source as compendium.html. New token appears live via the
+    // combatants INSERT realtime handler. ──
+    const BEST_BASE = 'https://raw.githubusercontent.com/5etools-mirror-3/5etools-2014-src/main/data';
+    const BEST_SOURCES = [
+      { label: 'Monster Manual', file: 'bestiary/bestiary-mm.json' },
+      { label: "Volo's Guide",   file: 'bestiary/bestiary-vgm.json' },
+      { label: "Mordenkainen's", file: 'bestiary/bestiary-mtf.json' },
+      { label: 'DMG',            file: 'bestiary/bestiary-dmg.json' },
+    ];
+    const BEST_CR = [
+      { label: 'All', val: null }, { label: '0–½', val: 'low' }, { label: '1–4', val: 'mid' },
+      { label: '5–10', val: 'high' }, { label: '11+', val: 'deadly' },
+    ];
+    const SIZE_CODE = { T: 'tiny', S: 'small', M: 'medium', L: 'large', H: 'huge', G: 'gargantuan' };
+
+    function bstFmtCR(cr)  { if (cr === 0) return '0'; if (!cr) return '—'; return typeof cr === 'object' ? (cr.cr || '—') : cr; }
+    function bstParseCR(cr){ const s = bstFmtCR(cr); if (s === '1/8') return 0.125; if (s === '1/4') return 0.25; if (s === '1/2') return 0.5; return parseFloat(s) || 0; }
+    function bstAC(ac) {
+      if (typeof ac === 'number') return ac;
+      if (Array.isArray(ac) && ac.length) { const a = ac[0]; return typeof a === 'object' ? (a.ac ?? null) : a; }
+      return null;
+    }
+    function bstSize(sz) { return SIZE_CODE[Array.isArray(sz) ? sz[0] : sz] || 'medium'; }
+
+    function buildBestiary() {
+      const cache = {};
+      let all = [], crFilter = null, srcIdx = 0;
+
+      const panel = document.createElement('div');
+      panel.className = 'bestiary-panel';
+      panel.innerHTML = `
+        <h4>Bestiary <span class="gc-toggle" id="bst-close">✕</span></h4>
+        <select class="bst-source" id="bst-source">
+          ${BEST_SOURCES.map((s, i) => `<option value="${i}">${s.label}</option>`).join('')}
+        </select>
+        <input class="bst-search" id="bst-search" type="text" placeholder="Search monsters…" autocomplete="off">
+        <div class="bst-cr">
+          ${BEST_CR.map(f => `<button data-cr="${f.val}"${f.val === null ? ' class="on"' : ''}>${f.label}</button>`).join('')}
+        </div>
+        <div class="bst-list" id="bst-list"><div class="bst-state">Open to load…</div></div>`;
+      stage.appendChild(panel);
+
+      const backdrop = document.createElement('div');
+      backdrop.className = 'gc-backdrop';            // reuse the Display backdrop style
+      stage.appendChild(backdrop);
+      const tab = document.createElement('button');
+      tab.className = 'bestiary-tab';
+      tab.innerHTML = '☷ Bestiary';
+      stage.appendChild(tab);
+
+      const listEl = panel.querySelector('#bst-list');
+
+      function setOpen(open) {
+        panel.classList.toggle('open', open);
+        backdrop.classList.toggle('open', open);
+        tab.style.display = open ? 'none' : '';
+        if (open && !all.length) loadSrc();
+      }
+      tab.addEventListener('click', () => setOpen(true));
+      backdrop.addEventListener('click', () => setOpen(false));
+      panel.querySelector('#bst-close').addEventListener('click', () => setOpen(false));
+
+      async function loadSrc() {
+        const url = `${BEST_BASE}/${BEST_SOURCES[srcIdx].file}`;
+        listEl.innerHTML = '<div class="bst-state">Loading…</div>';
+        try {
+          if (!cache[url]) {
+            const res = await fetch(url);
+            if (!res.ok) throw new Error('HTTP ' + res.status);
+            cache[url] = await res.json();
+          }
+          all = (cache[url].monster || []).map(m => ({ raw: m, name: m.name, cr: bstParseCR(m.cr) }));
+          renderList();
+        } catch (e) {
+          listEl.innerHTML = `<div class="bst-state">Failed to load.<br><small>${e.message}</small></div>`;
+        }
+      }
+
+      function renderList() {
+        const q = (panel.querySelector('#bst-search').value || '').toLowerCase().trim();
+        const shown = all.filter(e => {
+          if (q && !e.name.toLowerCase().includes(q)) return false;
+          if (crFilter === 'low')    return e.cr <= 0.5;
+          if (crFilter === 'mid')    return e.cr >= 1 && e.cr <= 4;
+          if (crFilter === 'high')   return e.cr >= 5 && e.cr <= 10;
+          if (crFilter === 'deadly') return e.cr >= 11;
+          return true;
+        }).slice(0, 250);
+        if (!shown.length) { listEl.innerHTML = '<div class="bst-state">No results.</div>'; return; }
+        listEl.innerHTML = shown.map((e, i) => `
+          <div class="bst-row">
+            <span class="bst-row-name">${e.name}</span>
+            <span class="bst-row-cr">CR ${bstFmtCR(e.raw.cr)}</span>
+            <button class="bst-drop" data-i="${i}">Drop</button>
+          </div>`).join('');
+        listEl.querySelectorAll('.bst-drop').forEach(btn => {
+          btn.addEventListener('click', async () => {
+            if (btn.classList.contains('done')) return;
+            btn.disabled = true; btn.textContent = '…';
+            const ok = await dropMonster(shown[+btn.dataset.i].raw);
+            btn.textContent = ok ? 'Added' : 'Retry';
+            btn.classList.toggle('done', ok);
+            btn.disabled = false;
+          });
+        });
+      }
+
+      panel.querySelector('#bst-search').addEventListener('input', renderList);
+      panel.querySelector('#bst-source').addEventListener('change', (e) => { srcIdx = +e.target.value; all = []; loadSrc(); });
+      panel.querySelectorAll('.bst-cr button').forEach(b => {
+        b.addEventListener('click', () => {
+          crFilter = b.dataset.cr === 'null' ? null : b.dataset.cr;
+          panel.querySelectorAll('.bst-cr button').forEach(x => x.classList.remove('on'));
+          b.classList.add('on');
+          renderList();
+        });
+      });
+
+      async function dropMonster(m) {
+        const avg = (m.hp && typeof m.hp.average === 'number') ? m.hp.average : 1;
+        const insertRow = {
+          encounter_id: ENC.id, owner: null, name: m.name, side: 'enemy', hidden: true,
+          hp: avg, max_hp: avg, ac: bstAC(m.ac), conditions: [], size: bstSize(m.size),
+          statblock: m, x: Math.floor(META.cols / 2), y: Math.floor(META.rows / 2),
+        };
+        const { data, error } = await SB.from('combatants').insert(insertRow).select().single();
+        if (error) { console.error('[bestiary] drop failed:', error.message); return false; }
+        // Optimistic local add; the INSERT realtime echo dedupes on id.
+        if (data && !COMBS.some(k => k.id === data.id)) { COMBS.push(data); renderTokens(); }
+        return true;
+      }
     }
 
     // ── left tool rail (DM) — Select / Pencil(reveal) / Eraser(hide), with a

@@ -89,6 +89,13 @@ create table if not exists public.combatants (
   conditions   jsonb not null default '[]'::jsonb,
   x            int,                                                      -- loose until map layer
   y            int,
+  -- reconciled from earlier deltas (were live-only; folded in here so a fresh
+  -- install matches the running DB):
+  source_key   text,                                                    -- party binding (character key); null for enemies
+  size         text default 'medium',                                   -- token footprint: tiny|small|medium|large|huge|gargantuan
+  -- added by schema_delta_enemies.sql (#3 Phase A):
+  ac           int,                                                      -- armour class (denormalised for board/HUD)
+  statblock    jsonb,                                                    -- snapshot of the 5etools monster JSON (enemies)
   created_at   timestamptz not null default now()
 );
 
