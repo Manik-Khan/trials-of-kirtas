@@ -1532,6 +1532,8 @@
       });
 
       stage.addEventListener('wheel', (e) => {
+        // inside a scrollable UI panel → let it scroll natively, don't zoom
+        if (e.target.closest('.bestiary-panel, .grid-controls, .tool-options')) return;
         e.preventDefault();
         const rect = stage.getBoundingClientRect();
         zoomAt(e.deltaY < 0 ? 1.1 : 1 / 1.1, e.clientX - rect.left, e.clientY - rect.top);
