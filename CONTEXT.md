@@ -1,162 +1,154 @@
 # Trials of Kirtas — Combat Page Context
 
-_Last updated: end of the session that added combat to the nav and built the
-HUD↔combat **HP bridge** (steps 1–3) end-to-end — the HUD now shares live HP with
-the map's tokens. Conditions are NOT bridged yet (next: 3c)._
+_Last updated: end of the session that bridged **conditions** (3c), built
+**monsters into encounters** (drop / delete / reveal + statblock panel + token
+art), added a staff **player-view** preview, and shipped the **initiative & turn
+tracker** (Phase C1). Next: rollable statblock / monster HUD (C2)._
 
 ## Snapshot
 
-`combat` is now in the site nav, and the battle HUD (`battle.js`) now runs on
-`combat.html` sharing live state with the map. **HP is fully bridged:** it reads
-on open, writes on adjust, persists across refresh, syncs live across sessions,
-and works for any party character via the HUD's built-in switcher. Conditions are
-the next piece. Canonical = GitHub `main`; clone/pull before editing; M
-commits/uploads; never curl the live site to diagnose.
+`combat.html` is now a working VTT: token grid, fog, drawings, live cursors, the
+battle **HUD** sharing live **HP + conditions** with the map, a DM **Bestiary**
+picker that drops 5etools monsters as enemy combatants, per-token **statblock**
+panels, a **view-as-player** preview for staff, and a top **initiative strip**
+(flag-card chips) driving shared turn order. Canonical = GitHub `main`;
+clone/pull before editing; M commits/uploads; never curl the live site.
 
-## Completed this session
+## Completed (this arc, since the HP bridge)
 
-**#1 — combat added to the nav.** One entry in `nav.js` `PAGES`
-(`{ label: 'Combat', path: 'combat.html' }`). Nav has no role-gating mechanism and
-every role needs combat, so it's ungated; `combat.html` was already fully wired
-(nav-root, theme.css, nav.js, waits on `window.__tok.sb`) — it was just missing
-from `PAGES`.
+**3c — conditions bridged.** The HUD's `toggleCond` now persists through a
+dedicated `backend.saveConditions(key, arr)` (combat backend writes the
+`combatants.conditions` jsonb by row id); `battle.js` seeds + applies conditions
+through the existing `combat` payload (load + `applyCombatChange`), and the live
+realtime feed forwards `{ hp, conditions }`. Vocabulary was already matched
+(8 strings, identical order) — board context-menu and HUD edit the same array.
+sheetBackend has no `saveConditions`, so `sheet.html` is byte-identical.
 
-**#2 — HUD↔combat bridge, HP loop complete.** Built in increments:
+**#3 Phase A — drop a monster.** DM-only **Bestiary** drawer (right slide-out,
+reuses compendium's 5etools CDN load + CR parse) searches the bestiary and drops
+a monster as a `hidden` enemy combatant at board centre. New columns `ac` +
+`statblock` (jsonb **snapshot** of the 5etools entry — self-contained, survives
+homebrew). Realtime extended with **INSERT/DELETE** handlers on the existing
+channel so new/removed tokens sync live (combatants + encounters confirmed in the
+`supabase_realtime` publication). Staff context-menu **Manage** tab gained
+**Reveal/Hide** (flips `hidden`) and **Remove** (two-tap). RLS already let staff
+insert/delete; no policy change needed.
 
-- **Seam (`battle.js`).** Persistence is now pluggable. `sheetBackend` holds the
-  prior behavior verbatim (CharacterStore-or-fetch to
-  `/.netlify/functions/character`, character-keyed, debounced, SHA-managed) and is
-  the default, so `sheet.html` and every other page are byte-identical in
-  behavior. `window.__battle.useBackend(b)` swaps the backend. The realtime
-  subscription was refactored into `applyCombatChange` + `bindRealtime()` so a
-  backend swap re-subscribes; `useBackend` re-binds realtime **and** re-pulls the
-  active character if the HUD is open (covers the resume flow). `battle.js` is now
-  backend-agnostic and makes zero Supabase calls itself.
-- **Combat backend (`combat.html`).** Loads `characters.js` + `battle.js`, then
-  hands the HUD a Supabase combatants backend. The HUD attaches for **everyone**
-  (no `characterKey` gate — staff included), defaults to the viewer's own
-  character if they have one, and binds to the **selected** character via
-  `source_key` (the HUD switcher is the live control). `load` reads HP from the
-  in-memory `COMBS` array; `save` writes by row **`id`** (robust — not a fragile
-  multi-column match); live-in **piggybacks combat.html's existing
-  `combat-`+ENC.id channel** via a stashed `HUD_ONCHANGE` callback invoked from
-  the combatant-UPDATE handler.
-- **Shared-HUD RLS.** `combatants_player_update` loosened from
-  `owner = my_profile_id()` to `side = 'party'`, so any authenticated user can
-  drive any party character. The `combatants_guard_columns` trigger still pins
-  owner/side/structural fields, so players can still only change hp/conditions/x/y;
-  enemies stay staff-only (not `side='party'`). `owner` is no longer load-bearing.
-  Delta: `schema_delta_shared_hud.sql` (run in Supabase); `schema_v1.sql` updated
-  to match.
+**#3 Phase B — statblock + art.** Per-token **statblock panel** (right drawer,
+opened from Manage → 📖 Stat block) renders `renderMonster` lifted from
+compendium (AC/HP/speed/saves/skills/immunities/senses/abilities/traits/actions/
+legendary), fed from `c.statblock`. **Monster token art** layered over the
+initial-disc fallback via `monsterTokenUrl(c)` (5e.tools token webp; onerror →
+initial). Fixed the 5etools markup expander: `{@atk}`/`{@h}` now expand
+("Melee Weapon Attack: …"), and the AC `from` clause is run through the cleaner
+("15 (leather armor, shield)").
 
-Verified live end-to-end: HP reads on open, writes on +/- (update returns the row,
-no error), persists across hard refresh, syncs to other sessions without a
-refresh, and works switching across vesperian / liadan / caim.
+**Player view.** Staff-only **eye toggle** (bottom-left) flips a client-side
+`VIEW_AS_PLAYER`. `effectiveStaff() = IS_STAFF && !VIEW_AS_PLAYER` gates all
+*visibility* (tokenVisible + hidden-enemy filter, fog veil opacity, token badges,
+cursors, Manage tab, DM panels via a `.view-as-player` stage class); real
+`IS_STAFF` still gates identity/permission. Visual-only curtain (staff still hold
+the data). Entering preview cancels fog painting and closes DM surfaces.
 
-## Locked data contract (the forks)
+**C1 — initiative & turn tracker.** Top-centre **initiative strip** of
+flag-card chips (lifts `npcs.html`'s `portrait-zone` + per-card `burnt-${seed}`
+grain filter; portrait zone fills with party art / 5e.tools monster token /
+gradient+initial). Active chip enlarges with the gold frame; HP sliver + init
+badge. **Rolling:** token context-menu **⚔ Roll initiative** (`1d20 + DEX` —
+party from `CHARACTERS[key].combat.initiative`, enemy from `statblock.dex`); DM
+**Roll all**; tap-to-edit any init badge (staff anyone, players own/party). **Turn
+pointer:** uses the pre-existing `encounters.active_combatant_id` + `round`; DM
+**Next ▸** advances + wraps round; syncs via the encounters realtime channel.
+Visibility carries from player-view: hidden foes only in the staff strip, and a
+`???` chip shows players when a hidden combatant is active. Strip is empty for
+players until something's seated.
 
-- **Shared:** only `hp` and `conditions` (both already columns on `combatants`).
-  Resources, spell slots, turn economy, concentration stay HUD-local in-memory.
-- **Binding:** by `source_key` (character key: cosmere/caim/liadan/vesperian). The
-  character HUD is for **party characters only**; enemies use the on-board context
-  menu for hp/conditions (any token).
-- **HP truth:** the combatants row is the live truth during combat;
-  `CHARACTERS[key].combat.hpMax` is the seed/clamp. Durable across weeks because
-  every edit hits the Supabase row immediately (an unfinished fight just stays an
-  active encounter). Reconcile-to-sheet-at-encounter-end is deferred (no formal
-  encounter "end" yet).
+## Locked data contract / architecture
 
-## Architecture / patterns
+- **`combatants`** now carries: hp, max_hp, conditions (jsonb), x, y, hidden,
+  initiative, side, source_key, size, **ac**, **statblock** (jsonb snapshot).
+  Shared live across clients: hp + conditions + x/y + hidden + initiative.
+- **Turn state** lives on `encounters` (`active_combatant_id`, `round`) — shared,
+  realtime. **No formal encounter "start/end"** yet (see to-dos #1).
+- **Statblock = snapshot**, not reference (homebrew-safe; no live fetch to
+  render). `ac`/`max_hp`/`size` denormalised so board/HUD never parse jsonb.
+- **Column-guard trigger** now lets players change hp/conditions/x/y/**initiative**
+  on party rows; owner/side/hidden/max_hp/name/encounter_id stay pinned. Enemies
+  stay staff-only (RLS).
+- **Backend seam unchanged:** `battle.js` is backend-agnostic; combat backend
+  supplies load/save/saveConditions/subscribe. One realtime channel per table
+  (never a second `postgres_changes` on `combatants`).
 
-- **Two stores, bridged client-side.** The character *sheet* lives in a GitHub
-  JSON file behind `/.netlify/functions/character` (character-keyed, slow,
-  SHA-gated, not realtime; stores hp but NOT conditions). The *combatant row*
-  lives in Supabase (per-encounter, realtime, RLS; hp + conditions + x/y). They
-  can't see each other — the browser is the only connector. The bridge links them
-  at chosen moments (seed on create, optional reconcile at end), never via
-  continuous dual-write (two backends of different speed desync).
-- **Backend seam.** `battle.js` talks to one `backend` ({ load, save, subscribe });
-  each page supplies its own. Swapping must re-bind realtime + re-pull (done in
-  `useBackend`).
-- **Realtime: one channel per table.** Reuse combat.html's existing
-  `combat-`+ENC.id channel and feed the HUD from its UPDATE handler. Do NOT open a
-  second `postgres_changes` channel on the same table — it proved unreliable (live
-  updates silently didn't arrive).
-- **Long-term.** Unifying the sheet into Supabase (single source of truth,
-  Foundry-style "linked actor") is the clean end state but a separate, larger
-  project; this seam is its first stone. Combat consuming inventory items
-  (arrows/potions) is the strongest driver for that migration — defer until then.
+## Files in play
 
-## Files in play this session
-
-- `nav.js` — combat added to `PAGES`.
-- `battle.js` — pluggable backend seam (`sheetBackend` default, `useBackend`,
-  `applyCombatChange`/`bindRealtime`). Now backend-agnostic.
-- `combat.html` — loads characters.js + battle.js; combatants backend (load via
-  `COMBS`, save by `id`, live-in via `HUD_ONCHANGE` in the existing channel); HUD
-  attaches for all, binds by `source_key`.
-- `schema_v1.sql` — canonical: player-update policy is now `side = 'party'`.
-- `schema_delta_shared_hud.sql` — idempotent delta (already run in Supabase).
+- `combat.html` — bestiary picker, statblock panel + renderer, monster art,
+  player-view, initiative strip + rolling + turn pointer, INSERT/DELETE realtime,
+  context-menu Reveal/Hide/Remove/Roll-initiative.
+- `battle.js` — conditions through the seam (`saveConditions`, seed/apply). HP +
+  conditions bridged; otherwise unchanged.
+- `schema_v1.sql` — reconciled canonical: combatants has source_key/size/ac/
+  statblock; guard trigger allows player `initiative`.
+- Deltas (run in Supabase, **not all committed historically** — repo schema kept
+  lagging; now reconciled into v1): `schema_delta_shared_hud.sql`,
+  `schema_delta_enemies.sql` (ac + statblock), `schema_delta_initiative.sql`
+  (guard trigger only — `active_combatant_id` already existed).
 
 ## Working rules (carry forward)
 
-`git clone`/pull `main` as canonical before editing; discuss & get approval before
-writing code; small incremental changes; never touch unrelated code; flag
-uncertainty; never curl the live Netlify site to diagnose; use `var(--font-*)`,
-not hardcoded fonts; card internals hardcoded dark (`#1a1a1a`), page-level
-backgrounds use theme vars. Verify edits with `node --check` (for `.html`, extract
-the inline `<script>`…`</script>` and check that); recompute script bounds after
-edits since line ranges shift.
+`git clone`/pull `main` as canonical before editing; **discuss & get approval
+before writing code; lock design before implementing**; for UI changes, mock it
+up for approval first (the visualizer is good for this). Small incremental
+changes; never touch unrelated code; flag uncertainty; never curl the live site.
+Use `var(--font-*)`; card internals hardcoded dark, page-level backgrounds use
+theme vars. Verify with `node --check` (for `.html`, extract the inline
+`<script>` and check that); recompute line ranges after each edit. **Confirm the
+file actually landed** ("nothing to commit" = the new content never reached the
+file). M commits/deploys manually; Claude never pushes.
 
-- **Confirm the file actually landed (NEW — cost us a whole stretch this session).**
-  After committing, verify the file in the repo/deploy is the intended latest:
-  search the committed file on github.com for a known marker string, and/or check
-  a runtime marker in the browser console
-  (`[...document.scripts].some(s => s.textContent.includes('<marker>'))`). Git
-  reporting **"nothing to commit"** means the staged file is *identical* to HEAD —
-  that is a red flag the new content never reached the file (a stale/duplicate
-  download, e.g. Chrome's `combat (1).html` suffix trap, or a re-served stale
-  copy), NOT a successful no-op. When sharing files back, point the share at the
-  freshly edited working file, not a previously-exported copy.
+## Open follow-ups / known issues
+
+- **Monster token-art URL unverified.** Chips + tokens derive
+  `5e.tools/img/bestiary/tokens/{source}/{name}.webp` with onerror → initial
+  fallback. If art doesn't appear, the host hotlink-blocks or the path differs —
+  switch to a github img mirror / correct pattern. Statblock panel is unaffected.
+- **Strip top position** may need a `top:` nudge vs the combat header.
+- **Encounter start/end** is informal — relevant to to-do #1 and to deferred
+  HP-reconcile-to-sheet.
 
 ## Next up / roadmap
 
-1. **#2 conditions (3c) — the next piece.** Bring conditions across the seam.
-   Needs: combatants backend load/save/subscribe for `conditions`; a small
-   `battle.js` `toggleCond` persist (it currently saves nothing — conditions are
-   in-memory only today, stored nowhere); and reconciling the HUD's condition
-   vocabulary with combat.html's **eight on-board condition badges** + the existing
-   context-menu conditions writer (~line 1189) so both edit the same
-   `combatants.conditions` array consistently.
-2. **max_hp reconciliation** — the HUD clamps HP to `CHARACTERS[key].combat.hpMax`;
-   `combatants.max_hp` is the row truth. Minor, deferred.
-3. **#3 monsters into an encounter.** Saved **enemy library** and/or **5etools
-   JSON search** to drop a monster in; plus a **DM-only enemy/monster slide panel**
-   (stat block: AC / attacks / saves / abilities, fed by 5etools — same source as
-   items/compendium). Open fork: store a *reference* to the 5etools entry (lean,
-   looked up live) vs a *snapshot* statblock jsonb on the row (survives homebrew
-   edits).
-4. **Battle map / scene storage.** Map picker + per-encounter scene selection.
-5. **Parked tools.** Wall / barrier tool (edge-based client-side collision,
-   open/closed state, own table); trap / trigger tiles (region types tile/area/
-   row/column; hidden from players; on trigger → banner + zoom-to-coordinate;
-   per-trigger staff toggle ON = visible + auto-fire / OFF = staff-only marker;
-   arm/disarm + one-shot vs repeatable).
-6. **Cinematic combat idea (parked).** Suikoden/Fire Emblem-style presentation.
-   Decision: **VTT-with-juice** (sprite animations / floating damage numbers hung
-   off the realtime HP/condition events the bridge already emits) is feasible and
-   additive — the discrete "HP changed" event is the trigger, no Phaser/React
-   needed. A full **SRPG engine** (software adjudicates combat) is a different
-   project and crosses the VTT→game line. Artwork is the bottleneck. The bridge
-   underlies every version, so no bridge work is wasted.
-7. **Deferred.** Resources/slots persistence (new columns/table); reconcile HP to
-   the sheet at encounter end; full sheet→Supabase migration.
+1. **Initiative tracker only in combat / hide toggle.** The strip should appear
+   only when a fight is on (and/or a manual show/hide toggle, useful regardless).
+   Needs a notion of "in combat" — candidate: `encounters.status` or a dedicated
+   flag / the presence of any seated initiative + an explicit start/end.
+2. **Token disposition + menu reorder.** (a) Choose hostile / neutral / friendly
+   per token (right-click toggle) — drives ring colour / strip side / target
+   logic. (b) **Reorder the context menu: Manage becomes the default/first tab,
+   Conditions secondary** (statblocks > conditions in usage). Trivial swap.
+3. **Rollable statblock / DM monster HUD (C2).** Make `{@hit}`/`{@damage}`/`{@dc}`
+   in the statblock clickable to roll (result local, then a shared roll log).
+   **These converge with a per-monster HUD:** clicking an enemy populates a HUD
+   like the character battle HUD but driven by the snapshot statblock (monsters
+   function like characters — AC/HP/attacks/saves). Lean: reuse `battle.js`'s HUD
+   seam with a statblock-backed source rather than a separate widget; rollable
+   attacks live in that HUD. Decision to lock: shared HUD vs DM-local; how much of
+   the character HUD (slots/economy) applies to monsters.
+4. **max_hp reconciliation** — HUD clamps to `CHARACTERS[key].combat.hpMax`;
+   `combatants.max_hp` is row truth. Minor.
+5. **Saved enemy library (#3 Phase C).** Reusable / homebrew monster snapshots to
+   drop without searching 5etools each time.
+6. **Battle map / scene storage.** Map picker + per-encounter scene selection.
+7. **Parked tools.** Walls/barriers (edge collision, own table); trap/trigger
+   tiles (hidden, banner + zoom on fire, arm/disarm, one-shot/repeatable).
+8. **Cinematic combat (parked).** VTT-with-juice: sprite animations / floating
+   damage numbers hung off the realtime HP/condition events the bridge emits.
+9. **Deferred.** Resources/slots persistence; reconcile HP to sheet at encounter
+   end; full sheet→Supabase migration (the strongest driver: combat consuming
+   inventory like arrows/potions).
 
 ## Character note
 
-In this campaign the character once named **Tyros Darkstar** is now **Cosmere
-Runestar** — same character, new name. Data key `tyros` is preserved in the sheet
-files/URLs; display strings use "Cosmere." In the combat/token layer the
-character key is **`cosmere`** (CHARACTERS, PORTRAITS, CHAR_COLOR, and combatant
-`source_key` all use `cosmere`, not `tyros`), so HUD binding by `source_key`
-matches `ME.characterKey` cleanly.
+The character once named **Tyros Darkstar** is now **Cosmere Runestar** — same
+character. Data key `tyros` persists in the sheet files/URLs; the combat/token
+layer uses the key **`cosmere`** everywhere (CHARACTERS, PORTRAITS, CHAR_COLOR,
+combatant `source_key`), so HUD binding by `source_key` matches `ME.characterKey`.
