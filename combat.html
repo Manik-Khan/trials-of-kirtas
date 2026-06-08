@@ -591,6 +591,51 @@
     .statblock-panel th, .statblock-panel td { border: 1px solid var(--gold-dim); padding: 0.25rem 0.4rem; text-align: left; }
     /* monster token art (5etools), layered over the initial fallback */
     .token-monimg { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; border-radius: 50%; }
+    /* ── initiative strip (everyone; staff controls gated) ── */
+    .init-strip {
+      position: absolute; top: 8px; left: 50%; transform: translateX(-50%);
+      z-index: 17; max-width: calc(100% - 210px);
+      display: flex; align-items: stretch; gap: 9px;
+      padding: 8px 9px; border-radius: 9px;
+      background: rgba(16,14,10,0.92); border: 1px solid #5a4a22;
+      box-shadow: 0 6px 24px rgba(0,0,0,0.45);
+    }
+    .init-strip.empty { display: none; }
+    .init-track { display: flex; gap: 8px; align-items: stretch; overflow-x: auto; max-width: 100%; }
+    .init-track::-webkit-scrollbar { height: 5px; }
+    .init-track::-webkit-scrollbar-thumb { background: var(--gold-dim); border-radius: 3px; }
+    .init-chip {
+      position: relative; width: 60px; height: 88px; flex: none; cursor: pointer;
+      border: 1px solid #3a3119; border-radius: 6px; overflow: hidden; background: #1a1510;
+      transition: transform 0.18s, border-color 0.18s;
+    }
+    .init-chip.enemy { border-color: #5a3030; }
+    .init-chip:hover { border-color: var(--gold-dim); }
+    .init-chip.active { border: 2px solid var(--gold); transform: scale(1.06); transform-origin: top; }
+    .init-chip.hidden-foe { border-style: dashed; opacity: 0.8; }
+    .ic-zone { position: absolute; inset: 0; }
+    .ic-bg { position: absolute; inset: 0; background: linear-gradient(160deg,#2a2018 0%,#1a1410 55%,#0d0a07 100%); }
+    .ic-bg.party { background: linear-gradient(160deg,#26303a,#141d24 60%,#0a0f13); }
+    .ic-bg.enemy { background: linear-gradient(160deg,#3a2422,#1f1210 60%,#0d0807); }
+    .ic-art { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; object-position: center top; }
+    .ic-initial { position: absolute; inset: 0; display: flex; align-items: center; justify-content: center; font-family: var(--font-display); font-size: 30px; color: rgba(240,230,207,0.32); }
+    .ic-dots { position: absolute; inset: 0; background-image: radial-gradient(circle, rgba(0,0,0,0.4) 1px, transparent 1px); background-size: 4px 4px; mix-blend-mode: multiply; }
+    .ic-fade { position: absolute; inset: 0; background: linear-gradient(to top,#0d0a07 8%,rgba(13,10,7,0.2) 42%,transparent 62%); }
+    .ic-init { position: absolute; top: 2px; right: 2px; min-width: 17px; height: 17px; padding: 0 3px; box-sizing: border-box; border-radius: 50%; background: #6b5a30; color: #f0e6cf; font-family: var(--font-title); font-size: 10px; display: flex; align-items: center; justify-content: center; z-index: 2; }
+    .init-chip.active .ic-init { background: var(--gold); color: var(--ink-deep); }
+    .ic-plate { position: absolute; bottom: 0; left: 0; right: 0; padding: 2px 3px 4px; text-align: center; z-index: 2; }
+    .ic-name { font-family: var(--font-title); font-size: 10px; color: #e8dcc4; line-height: 1.1; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+    .ic-hp { margin: 2px auto 0; width: 42px; height: 3px; border-radius: 2px; background: #3a2020; overflow: hidden; }
+    .ic-hp > i { display: block; height: 100%; }
+    .ic-edit { width: 38px; box-sizing: border-box; font-size: 11px; text-align: center; padding: 1px; background: var(--ink); color: var(--parchment2); border: 1px solid var(--gold); border-radius: 3px; font-family: var(--font-title); }
+    .init-side { display: flex; flex-direction: column; justify-content: center; align-items: center; gap: 6px; padding-left: 9px; border-left: 1px solid #3a3119; min-width: 62px; }
+    .init-round-l { font-family: var(--font-title); font-size: 9px; letter-spacing: 0.2em; color: var(--muted); }
+    .init-round-n { font-family: var(--font-display); font-size: 18px; color: #f0e6cf; line-height: 1; }
+    .init-btn { background: var(--gold); color: var(--ink-deep); border: none; border-radius: 5px; padding: 5px 9px; font-family: var(--font-title); font-size: 10px; font-weight: 600; letter-spacing: 0.05em; cursor: pointer; white-space: nowrap; }
+    .init-btn.ghost { background: var(--ink); color: var(--gold); border: 1px solid var(--gold-dim); }
+    .init-btn:hover { filter: brightness(1.08); }
+    .init-empty-cta { font-family: var(--font-title); font-size: 10px; letter-spacing: 0.06em; color: var(--muted); padding: 2px 4px; }
+    .stage.view-as-player .init-strip .init-side .init-btn { display: none; }
     /* ── left tool rail + contextual options (DM) ── */
     .tool-rail {
       position: absolute; top: 10px; left: 10px; z-index: 20;
@@ -1341,9 +1386,9 @@
     // the staff badge updates and players get the appear/disappear via realtime.
     async function setHidden(id, hidden) {
       const c = COMBS.find(k => k.id === id); if (!c) return false;
-      const prev = c.hidden; c.hidden = hidden; renderTokens();
+      const prev = c.hidden; c.hidden = hidden; renderTokens(); renderInitStrip();
       const { error } = await SB.from('combatants').update({ hidden }).eq('id', id);
-      if (error) { c.hidden = prev; renderTokens(); console.error('hidden write failed:', error.message); return false; }
+      if (error) { c.hidden = prev; renderTokens(); renderInitStrip(); console.error('hidden write failed:', error.message); return false; }
       return true;
     }
 
@@ -1352,7 +1397,7 @@
     async function removeCombatant(id) {
       const { error } = await SB.from('combatants').delete().eq('id', id);
       if (error) { console.error('delete failed:', error.message); return false; }
-      COMBS = COMBS.filter(k => k.id !== id); renderTokens();
+      COMBS = COMBS.filter(k => k.id !== id); renderTokens(); renderInitStrip();
       return true;
     }
 
@@ -1376,7 +1421,7 @@
     // Body builder for the Conditions tab — the toggle rows.
     function condTabBody(c) {
       const active = Array.isArray(c.conditions) ? c.conditions : [];
-      return COND.map(d => `
+      return `<button class="ctx-act" data-act="rollinit">⚔ Roll initiative</button><div class="ctx-sub">Conditions</div>` + COND.map(d => `
         <div class="ctx-cond${active.includes(d.name) ? ' active' : ''}" data-cond="${d.name}">
           <span class="ctx-chip" style="--c:${d.color}"><svg viewBox="0 0 24 24" aria-hidden="true">${d.icon}</svg></span>
           <span class="ctx-label">${d.name}</span>
@@ -1452,6 +1497,8 @@
           b.addEventListener('click', async () => {
             if (b.dataset.act === 'vis') {
               if (await setHidden(c.id, !c.hidden)) render();   // re-render to flip the label
+            } else if (b.dataset.act === 'rollinit') {
+              rollInitiative(c); closeCtxMenu();
             } else if (b.dataset.act === 'stat') {
               openStatblock?.(c); closeCtxMenu();
             } else if (b.dataset.act === 'del') {
@@ -1482,7 +1529,7 @@
       stage.addEventListener('pointerdown', (e) => {
         if (e.button > 0) return;                 // right/middle mouse → handled by contextmenu
         // never let board pan/drag steal interactions meant for the UI panels
-        if (e.target.closest('.grid-controls, .zoom-bar, .tool-rail, .tool-options, .gc-backdrop, .display-tab, .bestiary-tab, .bestiary-panel, .view-toggle, .statblock-panel, .draw-del')) return;
+        if (e.target.closest('.grid-controls, .zoom-bar, .tool-rail, .tool-options, .gc-backdrop, .display-tab, .bestiary-tab, .bestiary-panel, .view-toggle, .statblock-panel, .init-strip, .draw-del')) return;
         if (FOG.editing && IS_STAFF) {                 // fog paint mode → paint cells, skip token/pan logic
           try { stage.setPointerCapture(e.pointerId); } catch (_) {}
           fogPainting = true;
@@ -1654,7 +1701,7 @@
 
       stage.addEventListener('wheel', (e) => {
         // inside a scrollable UI panel → let it scroll natively, don't zoom
-        if (e.target.closest('.bestiary-panel, .statblock-panel, .grid-controls, .tool-options')) return;
+        if (e.target.closest('.bestiary-panel, .statblock-panel, .init-strip, .grid-controls, .tool-options')) return;
         e.preventDefault();
         const rect = stage.getBoundingClientRect();
         zoomAt(e.deltaY < 0 ? 1.1 : 1 / 1.1, e.clientX - rect.left, e.clientY - rect.top);
@@ -1690,14 +1737,15 @@
             if (!row || row.id === dragId) return;       // ignore the echo of my own drag
             const c = COMBS.find(k => k.id === row.id);
             if (!c) {                                    // row just became visible to us (e.g. DM revealed it)
-              COMBS.push(row); renderTokens(); return;
+              COMBS.push(row); renderTokens(); renderInitStrip(); return;
             }
             // a row we can see was re-hidden from us (non-staff, not ours) → drop it
             if (!IS_STAFF && row.hidden && !(ME && row.owner === ME.id)) {
-              COMBS = COMBS.filter(k => k.id !== row.id); renderTokens(); return;
+              COMBS = COMBS.filter(k => k.id !== row.id); renderTokens(); renderInitStrip(); return;
             }
             const hiddenChanged = c.hidden !== row.hidden;
-            c.x = row.x; c.y = row.y; c.hp = row.hp; c.conditions = row.conditions; c.size = row.size; c.hidden = row.hidden;
+            const initChanged   = c.initiative !== row.initiative;
+            c.x = row.x; c.y = row.y; c.hp = row.hp; c.conditions = row.conditions; c.size = row.size; c.hidden = row.hidden; c.initiative = row.initiative;
             if (hiddenChanged) {
               renderTokens();                            // staff badge (∅) appears/clears
             } else {
@@ -1706,6 +1754,7 @@
               updateTokenSize(c);
               reconcileTokenVisibility(c);               // moved into / out of the light?
             }
+            if (hiddenChanged || initChanged) renderInitStrip();
             if (HUD_ONCHANGE && c.side === 'party' && c.source_key)
               HUD_ONCHANGE({ key: c.source_key, combat: { hp: row.hp, conditions: row.conditions } });
           })
@@ -1718,6 +1767,7 @@
             if (!row || COMBS.some(k => k.id === row.id)) return;   // dedupe my own drop echo
             COMBS.push(row);
             renderTokens();
+            renderInitStrip();
           })
         .on('postgres_changes',
           { event: 'DELETE', schema: 'public', table: 'combatants', filter: 'encounter_id=eq.' + ENC.id },
@@ -1725,13 +1775,18 @@
             if (!old || !old.id) return;
             COMBS = COMBS.filter(k => k.id !== old.id);
             renderTokens();
+            renderInitStrip();
           })
         .on('postgres_changes',
           { event: 'UPDATE', schema: 'public', table: 'encounters', filter: 'id=eq.' + ENC.id },
           ({ new: row }) => {
             if (!row) return;
             ENC.revealed_cells = row.revealed_cells || [];
+            ENC.active_combatant_id = row.active_combatant_id;
+            ENC.round = row.round;
+            document.getElementById('combat-round').textContent = row.round ?? 1;
             loadFog(); redrawFog(); renderTokens();      // fog moved → re-veil + re-evaluate token visibility
+            renderInitStrip();                            // turn pointer / round changed
           })
         .on('postgres_changes',
           { event: '*', schema: 'public', table: 'drawings', filter: 'encounter_id=eq.' + ENC.id },
@@ -1829,6 +1884,7 @@
       if (IS_STAFF) buildBestiary();
       if (IS_STAFF) buildViewToggle();
       if (IS_STAFF) buildStatblockPanel();
+      buildInitStrip();
 
       // ── HUD ↔ combat bridge (shared: any user drives any party character) ──
       // battle.js is backend-agnostic; we hand it a Supabase combatants backend
@@ -2137,6 +2193,7 @@
         }
         redrawFog();      // veil opacity (translucent ↔ solid)
         renderTokens();   // hidden enemies + badges
+        renderInitStrip(); // strip visibility + staff controls
         paint();
       });
       paint();
@@ -2242,6 +2299,174 @@
         panel.classList.add('open');
         backdrop.classList.add('open');
       };
+    }
+
+    // ── initiative & turn tracker (Phase C1) ────────────────────────────────
+    let stripEl = null;
+    const BURNT_SEEDS = [3, 7, 12, 19, 5, 14, 21, 9];
+    function chipSeed(id) {                                  // stable per-combatant grain
+      let h = 0; const s = String(id || '');
+      for (let i = 0; i < s.length; i++) h = (h * 31 + s.charCodeAt(i)) | 0;
+      return BURNT_SEEDS[Math.abs(h) % BURNT_SEEDS.length];
+    }
+    function initOrder() {                                   // full set, highest initiative first
+      return COMBS.filter(c => c.initiative != null)
+        .slice()
+        .sort((a, b) => (b.initiative - a.initiative) || (a.side === 'party' ? -1 : 1) || String(a.name).localeCompare(String(b.name)));
+    }
+    function rollValue(c) {
+      let mod = 0;
+      if (c.side === 'party' && c.source_key && typeof CHARACTERS !== 'undefined' && CHARACTERS[c.source_key]) {
+        const cc = CHARACTERS[c.source_key];
+        mod = (cc.combat && typeof cc.combat.initiative === 'number') ? cc.combat.initiative
+            : (cc.abilities && cc.abilities.dex && cc.abilities.dex.mod) || 0;
+      } else if (c.statblock && typeof c.statblock.dex === 'number') {
+        mod = Math.floor((c.statblock.dex - 10) / 2);
+      }
+      return Math.floor(Math.random() * 20) + 1 + mod;
+    }
+    async function setInitiative(id, val) {
+      const c = COMBS.find(k => k.id === id); if (!c) return false;
+      const prev = c.initiative; c.initiative = val; renderInitStrip();
+      const { error } = await SB.from('combatants').update({ initiative: val }).eq('id', id);
+      if (error) { c.initiative = prev; renderInitStrip(); console.error('[init] write failed:', error.message); return false; }
+      return true;
+    }
+    function rollInitiative(c) { return setInitiative(c.id, rollValue(c)); }
+    async function setActive(id, round) {
+      if (!ENC) return;
+      ENC.active_combatant_id = id; if (round != null) ENC.round = round;
+      document.getElementById('combat-round').textContent = ENC.round ?? 1;
+      renderInitStrip();
+      const patch = { active_combatant_id: id }; if (round != null) patch.round = round;
+      const { error } = await SB.from('encounters').update(patch).eq('id', ENC.id);
+      if (error) console.error('[init] turn write failed:', error.message);
+    }
+    async function advanceTurn() {
+      const order = initOrder(); if (!order.length) return;
+      const i = order.findIndex(c => c.id === (ENC && ENC.active_combatant_id));
+      const next = i < 0 ? 0 : (i + 1) % order.length;
+      let round = (ENC && ENC.round) || 1;
+      if (i >= 0 && next === 0) round++;
+      await setActive(order[next].id, round);
+    }
+    function rollAllInitiative() {
+      COMBS.forEach(c => { c.initiative = rollValue(c); });
+      const top = initOrder()[0];
+      if (ENC) { ENC.active_combatant_id = top ? top.id : null; ENC.round = 1; }
+      document.getElementById('combat-round').textContent = 1;
+      renderInitStrip();
+      COMBS.forEach(c => SB.from('combatants').update({ initiative: c.initiative }).eq('id', c.id)
+        .then(({ error }) => { if (error) console.error('[init] write failed:', error.message); }));
+      if (ENC) SB.from('encounters').update({ active_combatant_id: ENC.active_combatant_id, round: 1 }).eq('id', ENC.id)
+        .then(({ error }) => { if (error) console.error('[init] turn write failed:', error.message); });
+    }
+
+    function chipHtml(c, isActive) {
+      const isParty = c.side === 'party';
+      const art = isParty ? (PORTRAITS[c.source_key] || TOKENS[c.source_key] || '') : (monsterTokenUrl(c) || '');
+      const initial = (c.name || '?').trim().charAt(0).toUpperCase();
+      const seed = chipSeed(c.id);
+      const pct = c.max_hp ? Math.max(0, Math.min(100, Math.round((c.hp / c.max_hp) * 100))) : 100;
+      const hpC = pct > 50 ? '#4a9a52' : pct > 25 ? '#c9a14a' : '#b23b3b';
+      const foe = c.hidden && !isParty;
+      return `<div class="init-chip ${isParty ? 'party' : 'enemy'}${isActive ? ' active' : ''}${foe ? ' hidden-foe' : ''}" data-id="${c.id}">
+        <div class="ic-zone" style="filter:url(#burnt-${seed})">
+          <div class="ic-bg ${isParty ? 'party' : 'enemy'}"></div>
+          ${art ? `<img class="ic-art" src="${art}" alt="" draggable="false" onerror="this.remove()">` : ''}
+          <span class="ic-initial">${initial}</span>
+          <div class="ic-dots"></div>
+          <div class="ic-fade"></div>
+        </div>
+        <span class="ic-init" data-edit="${c.id}">${c.initiative ?? '–'}</span>
+        <div class="ic-plate">
+          <div class="ic-name">${c.name || '?'}</div>
+          <div class="ic-hp"><i style="width:${pct}%;background:${hpC}"></i></div>
+        </div>
+      </div>`;
+    }
+    function mysteryChipHtml() {
+      return `<div class="init-chip enemy active hidden-foe" data-mystery="1">
+        <div class="ic-zone"><div class="ic-bg enemy"></div><span class="ic-initial">?</span><div class="ic-dots"></div><div class="ic-fade"></div></div>
+        <div class="ic-plate"><div class="ic-name" style="font-style:italic;color:#8a7a52">???</div></div>
+      </div>`;
+    }
+
+    function buildInitStrip() {
+      let defs = `<svg width="0" height="0" style="position:absolute;overflow:hidden" aria-hidden="true"><defs>`;
+      BURNT_SEEDS.forEach(seed => {
+        defs += `<filter id="burnt-${seed}" x="-15%" y="-15%" width="130%" height="130%" color-interpolation-filters="sRGB">
+          <feTurbulence type="turbulence" baseFrequency="0.024" numOctaves="3" seed="${seed}" result="turb"/>
+          <feDisplacementMap in="SourceGraphic" in2="turb" scale="1" xChannelSelector="R" yChannelSelector="G" result="warped"/>
+          <feTurbulence type="fractalNoise" baseFrequency="0.68" numOctaves="3" stitchTiles="stitch" result="grain"/>
+          <feColorMatrix type="saturate" values="0" in="grain" result="gGrain"/>
+          <feBlend in="warped" in2="gGrain" mode="overlay" result="final"/>
+          <feComposite in="final" in2="SourceGraphic" operator="in"/></filter>`;
+      });
+      defs += `</defs></svg>`;
+      const holder = document.createElement('div');
+      holder.innerHTML = defs;
+      stage.appendChild(holder.firstChild);
+
+      stripEl = document.createElement('div');
+      stripEl.className = 'init-strip empty';
+      stage.appendChild(stripEl);
+      renderInitStrip();
+    }
+
+    function renderInitStrip() {
+      if (!stripEl) return;
+      const ordered = initOrder();
+      const visible = ordered.filter(tokenVisible);
+      const staff = effectiveStaff();
+      const activeId = ENC && ENC.active_combatant_id;
+      const activeC = COMBS.find(c => c.id === activeId) || null;
+      const activeHiddenToMe = activeC && !tokenVisible(activeC);
+
+      if (!visible.length && !staff) { stripEl.className = 'init-strip empty'; stripEl.innerHTML = ''; return; }
+
+      if (!visible.length && staff) {                       // staff, nothing seated → start CTA
+        stripEl.className = 'init-strip';
+        stripEl.innerHTML = `<span class="init-empty-cta">No initiative yet</span><button class="init-btn ghost" data-roll="all">⚔ Roll all initiative</button>`;
+        wireStrip();
+        return;
+      }
+
+      let chips = '';
+      if (activeHiddenToMe && !staff) chips += mysteryChipHtml();   // someone's acting, unseen
+      chips += visible.map(c => chipHtml(c, c.id === activeId)).join('');
+
+      let side = `<div class="init-side"><div style="text-align:center"><div class="init-round-l">ROUND</div><div class="init-round-n">${(ENC && ENC.round) || 1}</div></div>`;
+      if (staff) side += `<button class="init-btn" data-turn="next">Next ▸</button><button class="init-btn ghost" data-roll="all">↻ Roll all</button>`;
+      side += `</div>`;
+
+      stripEl.className = 'init-strip';
+      stripEl.innerHTML = `<div class="init-track">${chips}</div>${side}`;
+      wireStrip();
+    }
+
+    function wireStrip() {
+      stripEl.querySelectorAll('.init-chip[data-id]').forEach(chip =>
+        chip.addEventListener('click', (e) => {
+          if (e.target.closest('.ic-init') || e.target.closest('.ic-edit')) return;   // editing the number
+          selectToken(chip.dataset.id);
+        }));
+      stripEl.querySelectorAll('.ic-init[data-edit]').forEach(badge =>
+        badge.addEventListener('click', (e) => {
+          e.stopPropagation();
+          const id = badge.dataset.edit;
+          const c = COMBS.find(k => k.id === id); if (!c) return;
+          if (!(effectiveStaff() || c.side === 'party')) return;   // players: party only
+          const inp = document.createElement('input');
+          inp.className = 'ic-edit'; inp.value = c.initiative ?? ''; inp.type = 'number';
+          badge.replaceWith(inp); inp.focus(); inp.select();
+          const commit = () => { const v = parseInt(inp.value, 10); if (!isNaN(v)) setInitiative(id, v); else renderInitStrip(); };
+          inp.addEventListener('keydown', (ev) => { if (ev.key === 'Enter') inp.blur(); if (ev.key === 'Escape') renderInitStrip(); });
+          inp.addEventListener('blur', commit);
+        }));
+      const next = stripEl.querySelector('[data-turn="next"]');
+      if (next) next.addEventListener('click', advanceTurn);
+      stripEl.querySelectorAll('[data-roll="all"]').forEach(b => b.addEventListener('click', rollAllInitiative));
     }
 
     // ── left tool rail (DM) — Select / Pencil(reveal) / Eraser(hide), with a

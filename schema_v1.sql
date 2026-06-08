@@ -239,8 +239,7 @@ begin
   new.side         := old.side;
   new.hidden       := old.hidden;
   new.max_hp       := old.max_hp;
-  new.initiative   := old.initiative;
-  -- Allowed to change: hp, conditions, x, y
+  -- Allowed to change: hp, conditions, x, y, initiative
   return new;
 end;
 $$;
