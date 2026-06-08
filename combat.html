@@ -1513,7 +1513,7 @@
             updateTokenSize(c);
             reconcileTokenVisibility(c);                 // moved into / out of the light?
             if (HUD_ONCHANGE && c.side === 'party' && c.source_key)
-              HUD_ONCHANGE({ key: c.source_key, combat: { hp: row.hp } });
+              HUD_ONCHANGE({ key: c.source_key, combat: { hp: row.hp, conditions: row.conditions } });
           })
         .on('postgres_changes',
           { event: 'UPDATE', schema: 'public', table: 'encounters', filter: 'id=eq.' + ENC.id },
@@ -1628,7 +1628,7 @@
         window.__battle.useBackend({
           async load(key) {
             const c = COMBS.find(x => x.side === 'party' && x.source_key === key);
-            return c ? { hp: c.hp } : null;
+            return c ? { hp: c.hp, conditions: Array.isArray(c.conditions) ? c.conditions : [] } : null;
           },
           async save(key, combat) {
             if (combat.hp === null || combat.hp === undefined) return;
@@ -1636,6 +1636,15 @@
             if (!c) return;
             const { error } = await SB.from('combatants').update({ hp: combat.hp }).eq('id', c.id);
             if (error) console.warn('[hud] HP save failed:', error.message);
+          },
+          // Conditions write through their own verb (not folded into save) so a
+          // HUD condition toggle touches only the conditions column — no hp/slot
+          // churn. The guard trigger allows conditions on party rows.
+          async saveConditions(key, arr) {
+            const c = COMBS.find(x => x.side === 'party' && x.source_key === key);
+            if (!c) return;
+            const { error } = await SB.from('combatants').update({ conditions: arr }).eq('id', c.id);
+            if (error) console.warn('[hud] conditions save failed:', error.message);
           },
           // Live-in piggybacks combat.html's existing realtime channel — a second
           // postgres_changes channel on the same table is unreliable. The

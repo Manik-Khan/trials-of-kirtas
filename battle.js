@@ -1160,7 +1160,7 @@
       showToast(`${dir>0?'+':''}${dir*amt} HP → ${s.hp}/${ch.combat.hpMax}`,dir>0?'#5a9a6a':'#c0001a');
       saveCombatState(activeKey);
     },
-    toggleCond: (cd)=>{ const arr=getConditions(activeKey); const i=arr.indexOf(cd); i>=0?arr.splice(i,1):arr.push(cd); openPanelFn('hp'); },
+    toggleCond: (cd)=>{ const arr=getConditions(activeKey); const i=arr.indexOf(cd); i>=0?arr.splice(i,1):arr.push(cd); openPanelFn('hp'); backend.saveConditions?.(activeKey, arr.slice()); },
     openResDetail: (key)=>{ openPanel='res-detail'; resDetailKey=key; openPanelFn('res-detail'); },
     changeRes: (resKey,amt)=>{
       if(amt<0) spendRes(activeKey,resKey,1); else restoreRes(activeKey,resKey,1);
@@ -1246,6 +1246,7 @@
     if (combat.hp     !== null && combat.hp !== undefined) s.hp     = combat.hp;
     if (combat.hpTemp  !== undefined) s.hpTemp  = combat.hpTemp;
     if (combat.hpBonus !== undefined) s.hpBonus = combat.hpBonus;
+    if (Array.isArray(combat.conditions)) CONDITIONS[key] = combat.conditions.slice();
     if (battleOn) renderAll();
   }
   function bindRealtime() { backend.subscribe(applyCombatChange); }
@@ -1314,7 +1315,11 @@
   // Load combat state for a character, seed SESSION, then re-render.
   async function loadCombatFromDb(key) {
     const combat = await backend.load(key);
-    if (combat) { seedSessionFromDb(key, combat); renderAll(); }
+    if (combat) {
+      seedSessionFromDb(key, combat);
+      if (Array.isArray(combat.conditions)) CONDITIONS[key] = combat.conditions.slice();
+      renderAll();
+    }
   }
   try{const saved=localStorage.getItem(CHAR_STORAGE_KEY);if(saved&&CHARACTERS[saved])activeKey=saved;}catch(e){}
 
