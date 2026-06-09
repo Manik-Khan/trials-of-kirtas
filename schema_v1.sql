@@ -96,6 +96,12 @@ create table if not exists public.combatants (
   -- added by schema_delta_enemies.sql (#3 Phase A):
   ac           int,                                                      -- armour class (denormalised for board/HUD)
   statblock    jsonb,                                                    -- snapshot of the 5etools monster JSON (enemies)
+  -- added by schema_delta_disposition.sql (#2a): friend/foe axis, orthogonal
+  -- to `side`. Drives ring + strip colour and (later) target logic. `side`
+  -- stays the permission/control axis; a token can be side='party'
+  -- (player-controlled) yet disposition='hostile', or staff-run yet 'friendly'.
+  disposition  text not null default 'hostile'                           -- friendly | neutral | hostile (visual + targeting)
+                 check (disposition in ('friendly','neutral','hostile')),
   created_at   timestamptz not null default now()
 );
 
@@ -239,8 +245,8 @@ begin
   new.side         := old.side;
   new.hidden       := old.hidden;
   new.max_hp       := old.max_hp;
-  new.initiative   := old.initiative;
-  -- Allowed to change: hp, conditions, x, y
+  new.disposition  := old.disposition;   -- friend/foe is a staff call, not a player's
+  -- Allowed to change: hp, conditions, x, y, initiative
   return new;
 end;
 $$;
