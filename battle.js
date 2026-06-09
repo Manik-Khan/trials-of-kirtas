@@ -137,6 +137,11 @@
 
   // ── UI State ──
   let battleOn     = false;
+  // Shared turn state, pushed in by the combat page's tracker via setTurn().
+  // round = encounters.round; activeKey = source_key of the active combatant
+  // (or null when it's a monster / nobody's turn). The HUD only reflects this —
+  // it never owns the round.
+  let TURN         = { round: 1, activeKey: null };
   let activeKey    = 'liadan';
   let openPanel    = null;
   let resDetailKey = null;
@@ -985,6 +990,16 @@
   }
 
   function _doEndTurn() {
+    // Shared tracker (combat.html): advancing the turn pointer is the backend's
+    // job — it writes encounters.active_combatant_id + round, and the round only
+    // ticks when the order wraps. The new round/turn flows back via setTurn(),
+    // and economy now resets at turn *start* (see setTurn), not here.
+    if (backend.advanceTurn) {
+      backend.advanceTurn();
+      showToast('Turn ended','#b8952a');
+      return;
+    }
+    // Legacy fallback (sheet.html / no tracker): keep the old local behaviour.
     const s=SESSION[activeKey];
     if(s) { s.actionUsed=false; s.bonusUsed=false; s.reactionUsed=false; }
     // Increment round in marquee
@@ -1128,6 +1143,13 @@
     endTurn: ()=>{
       const s=SESSION[activeKey];
       if(!s) return;
+      // Shared tracker present and it isn't this character's turn → don't let an
+      // off-turn End Turn move the global pointer (no hijacking the order). The
+      // friendly "end it anyway?" confirm is the next commit; for now, block.
+      if (backend.advanceTurn && TURN.activeKey !== activeKey) {
+        showToast("It's not your turn", '#b8952a');
+        return;
+      }
       // Check for unused action/bonus
       const unusedAction = !s.actionUsed;
       const unusedBonus  = !s.bonusUsed;
@@ -1255,6 +1277,30 @@
     backend = b || sheetBackend;
     bindRealtime();                              // subscription follows the swap
     if (battleOn) loadCombatFromDb(activeKey);   // re-read from the new source
+  };
+
+  // ── Shared turn pointer (driven by combat.html's tracker) ────────────────
+  // The encounters row is the single source of truth for round + whose turn it
+  // is. combat.html calls setTurn() on every change; the marquee just reflects
+  // `round`, and a character's action economy resets when it *becomes* active
+  // (turn start) — never on End Turn.
+  function setMarqueeRound(round) {
+    const mq = document.getElementById('battle-mq');
+    if (!mq) return;
+    mq.querySelectorAll('.bm-txt').forEach(sp => {
+      if (/^Round \d+$/.test(sp.textContent)) sp.textContent = `Round ${round}`;
+    });
+  }
+  window.__battle.setTurn = ({ round, activeKey: actKey } = {}) => {
+    const prev = TURN.activeKey;
+    if (round != null) { TURN.round = round; setMarqueeRound(round); }
+    TURN.activeKey = actKey ?? null;
+    // Turn start: when a tracked character becomes active, reset its economy.
+    if (TURN.activeKey && TURN.activeKey !== prev && SESSION[TURN.activeKey]) {
+      const s = SESSION[TURN.activeKey];
+      s.actionUsed = false; s.bonusUsed = false; s.reactionUsed = false;
+      if (battleOn && TURN.activeKey === activeKey) renderTurnOrbs();
+    }
   };
 
   // Translate HUD resource keys → DB pipState keys (HUD keys already match DB)

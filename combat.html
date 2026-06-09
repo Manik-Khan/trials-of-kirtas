@@ -1787,6 +1787,7 @@
             document.getElementById('combat-round').textContent = row.round ?? 1;
             loadFog(); redrawFog(); renderTokens();      // fog moved → re-veil + re-evaluate token visibility
             renderInitStrip();                            // turn pointer / round changed
+            pushTurnToHud();                              // forward round + whose-turn to the HUD
           })
         .on('postgres_changes',
           { event: '*', schema: 'public', table: 'drawings', filter: 'encounter_id=eq.' + ENC.id },
@@ -1916,12 +1917,17 @@
             const { error } = await SB.from('combatants').update({ conditions: arr }).eq('id', c.id);
             if (error) console.warn('[hud] conditions save failed:', error.message);
           },
+          // The HUD's End Turn advances the *shared* tracker rather than faking a
+          // local round: this writes encounters.active_combatant_id + round (round
+          // ticks only on wrap). Calls the page-level advanceTurn() defined below.
+          advanceTurn() { advanceTurn(); },
           // Live-in piggybacks combat.html's existing realtime channel — a second
           // postgres_changes channel on the same table is unreliable. The
           // combatant UPDATE handler calls HUD_ONCHANGE for party rows.
           subscribe(onChange) { HUD_ONCHANGE = onChange; },
         });
       }
+      pushTurnToHud();   // seed HUD round + whose-turn now the backend is wired
 
       // keep the board fitted on resize/orientation change (grid + tokens are
       // %/viewBox-based, so only the board's px size needs recomputing)
@@ -2333,11 +2339,24 @@
       return true;
     }
     function rollInitiative(c) { return setInitiative(c.id, rollValue(c)); }
+    // Resolve the active combatant's player key for the HUD: a party source_key
+    // when it's a PC's turn, else null (monster turn / nobody seated).
+    function activeSourceKey() {
+      if (!ENC || !ENC.active_combatant_id) return null;
+      const c = COMBS.find(x => x.id === ENC.active_combatant_id);
+      return (c && c.side === 'party' && c.source_key) ? c.source_key : null;
+    }
+    // Forward shared round + whose-turn to the HUD (marquee + economy-on-start).
+    function pushTurnToHud() {
+      if (window.__battle && window.__battle.setTurn)
+        window.__battle.setTurn({ round: (ENC && ENC.round) || 1, activeKey: activeSourceKey() });
+    }
     async function setActive(id, round) {
       if (!ENC) return;
       ENC.active_combatant_id = id; if (round != null) ENC.round = round;
       document.getElementById('combat-round').textContent = ENC.round ?? 1;
       renderInitStrip();
+      pushTurnToHud();
       const patch = { active_combatant_id: id }; if (round != null) patch.round = round;
       const { error } = await SB.from('encounters').update(patch).eq('id', ENC.id);
       if (error) console.error('[init] turn write failed:', error.message);
@@ -2356,6 +2375,7 @@
       if (ENC) { ENC.active_combatant_id = top ? top.id : null; ENC.round = 1; }
       document.getElementById('combat-round').textContent = 1;
       renderInitStrip();
+      pushTurnToHud();
       COMBS.forEach(c => SB.from('combatants').update({ initiative: c.initiative }).eq('id', c.id)
         .then(({ error }) => { if (error) console.error('[init] write failed:', error.message); }));
       if (ENC) SB.from('encounters').update({ active_combatant_id: ENC.active_combatant_id, round: 1 }).eq('id', ENC.id)
