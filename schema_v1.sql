@@ -85,7 +85,8 @@ create table if not exists public.combatants (
   hidden       boolean not null default false,
   hp           int,
   max_hp       int,
-  initiative   int,
+  initiative   int,                                                    -- null while a participant hasn't rolled yet
+  in_combat    boolean not null default false,                          -- #1: participant in the active encounter's order (staff-seated). in_combat + null initiative = in the fight, hasn't rolled
   conditions   jsonb not null default '[]'::jsonb,
   x            int,                                                      -- loose until map layer
   y            int,
@@ -246,6 +247,7 @@ begin
   new.hidden       := old.hidden;
   new.max_hp       := old.max_hp;
   new.disposition  := old.disposition;   -- friend/foe is a staff call, not a player's
+  new.in_combat    := old.in_combat;      -- staff seats participants; players still write their own initiative
   -- Allowed to change: hp, conditions, x, y, initiative
   return new;
 end;

@@ -613,6 +613,8 @@
     .init-chip:hover { border-color: var(--gold-dim); }
     .init-chip.active { border: 2px solid var(--gold); transform: scale(1.06); transform-origin: top; }
     .init-chip.hidden-foe { border-style: dashed; opacity: 0.8; }
+    .init-chip.pending { border-style: dashed; border-color: #6a5f48; opacity: 0.62; filter: saturate(0.55); }
+    .init-chip.pending .ic-init { background: #1a1510; color: #8a7a52; border: 1px dashed #6a5f48; }
     .ic-zone { position: absolute; inset: 0; }
     .ic-bg { position: absolute; inset: 0; background: linear-gradient(160deg,#2a2018 0%,#1a1410 55%,#0d0a07 100%); }
     .ic-bg.party { background: linear-gradient(160deg,#26303a,#141d24 60%,#0a0f13); }
@@ -1745,7 +1747,8 @@
             }
             const hiddenChanged = c.hidden !== row.hidden;
             const initChanged   = c.initiative !== row.initiative;
-            c.x = row.x; c.y = row.y; c.hp = row.hp; c.conditions = row.conditions; c.size = row.size; c.hidden = row.hidden; c.initiative = row.initiative;
+            const inCombatChanged = c.in_combat !== row.in_combat;
+            c.x = row.x; c.y = row.y; c.hp = row.hp; c.conditions = row.conditions; c.size = row.size; c.hidden = row.hidden; c.initiative = row.initiative; c.in_combat = row.in_combat;
             if (hiddenChanged) {
               renderTokens();                            // staff badge (∅) appears/clears
             } else {
@@ -1754,7 +1757,7 @@
               updateTokenSize(c);
               reconcileTokenVisibility(c);               // moved into / out of the light?
             }
-            if (hiddenChanged || initChanged) renderInitStrip();
+            if (hiddenChanged || initChanged || inCombatChanged) renderInitStrip();
             if (HUD_ONCHANGE && c.side === 'party' && c.source_key)
               HUD_ONCHANGE({ key: c.source_key, combat: { hp: row.hp, conditions: row.conditions } });
           })
@@ -2315,11 +2318,19 @@
       for (let i = 0; i < s.length; i++) h = (h * 31 + s.charCodeAt(i)) | 0;
       return BURNT_SEEDS[Math.abs(h) % BURNT_SEEDS.length];
     }
-    function initOrder() {                                   // full set, highest initiative first
-      return COMBS.filter(c => c.initiative != null)
-        .slice()
-        .sort((a, b) => (b.initiative - a.initiative) || (a.side === 'party' ? -1 : 1) || String(a.name).localeCompare(String(b.name)));
+    // Participants in the active encounter (in_combat). Rolled combatants sort
+    // by initiative (highest first); pending ones — in the fight, no roll yet —
+    // sit at the tail until their number lands. Drives the strip render.
+    function initRoster() {
+      return COMBS.filter(c => c.in_combat).slice().sort((a, b) => {
+        const ap = a.initiative == null, bp = b.initiative == null;
+        if (ap !== bp) return ap ? 1 : -1;                    // pending → tail
+        return (b.initiative - a.initiative) || (a.side === 'party' ? -1 : 1) || String(a.name).localeCompare(String(b.name));
+      });
     }
+    // The turn cycle steps only through rolled participants; a pending PC has no
+    // slot until they enter a number, then re-sorts in on the next advance.
+    function turnOrder() { return initRoster().filter(c => c.initiative != null); }
     function rollValue(c) {
       let mod = 0;
       if (c.side === 'party' && c.source_key && typeof CHARACTERS !== 'undefined' && CHARACTERS[c.source_key]) {
@@ -2362,21 +2373,28 @@
       if (error) console.error('[init] turn write failed:', error.message);
     }
     async function advanceTurn() {
-      const order = initOrder(); if (!order.length) return;
+      const order = turnOrder(); if (!order.length) return;
       const i = order.findIndex(c => c.id === (ENC && ENC.active_combatant_id));
       const next = i < 0 ? 0 : (i + 1) % order.length;
       let round = (ENC && ENC.round) || 1;
       if (i >= 0 && next === 0) round++;
       await setActive(order[next].id, round);
     }
+    // DM "Roll all": rolls every non-party participant; party PCs are seated as
+    // pending (in_combat, initiative cleared) so their owners enter their own
+    // number. Seats everyone on the board for now — the roster picker (#1) will
+    // later choose who's in_combat before this runs.
     function rollAllInitiative() {
-      COMBS.forEach(c => { c.initiative = rollValue(c); });
-      const top = initOrder()[0];
+      COMBS.forEach(c => {
+        c.in_combat = true;
+        c.initiative = (c.side === 'party') ? null : rollValue(c);
+      });
+      const top = turnOrder()[0];
       if (ENC) { ENC.active_combatant_id = top ? top.id : null; ENC.round = 1; }
       document.getElementById('combat-round').textContent = 1;
       renderInitStrip();
       pushTurnToHud();
-      COMBS.forEach(c => SB.from('combatants').update({ initiative: c.initiative }).eq('id', c.id)
+      COMBS.forEach(c => SB.from('combatants').update({ in_combat: c.in_combat, initiative: c.initiative }).eq('id', c.id)
         .then(({ error }) => { if (error) console.error('[init] write failed:', error.message); }));
       if (ENC) SB.from('encounters').update({ active_combatant_id: ENC.active_combatant_id, round: 1 }).eq('id', ENC.id)
         .then(({ error }) => { if (error) console.error('[init] turn write failed:', error.message); });
@@ -2390,7 +2408,8 @@
       const pct = c.max_hp ? Math.max(0, Math.min(100, Math.round((c.hp / c.max_hp) * 100))) : 100;
       const hpC = pct > 50 ? '#4a9a52' : pct > 25 ? '#c9a14a' : '#b23b3b';
       const foe = c.hidden && !isParty;
-      return `<div class="init-chip ${isParty ? 'party' : 'enemy'}${isActive ? ' active' : ''}${foe ? ' hidden-foe' : ''}" data-id="${c.id}">
+      const pending = c.in_combat && c.initiative == null;          // in the fight, hasn't rolled
+      return `<div class="init-chip ${isParty ? 'party' : 'enemy'}${isActive ? ' active' : ''}${foe ? ' hidden-foe' : ''}${pending ? ' pending' : ''}" data-id="${c.id}">
         <div class="ic-zone" style="filter:url(#burnt-${seed})">
           <div class="ic-bg ${isParty ? 'party' : 'enemy'}"></div>
           ${art ? `<img class="ic-art" src="${art}" alt="" draggable="false" onerror="this.remove()">` : ''}
@@ -2398,7 +2417,7 @@
           <div class="ic-dots"></div>
           <div class="ic-fade"></div>
         </div>
-        <span class="ic-init" data-edit="${c.id}">${c.initiative ?? '–'}</span>
+        <span class="ic-init" data-edit="${c.id}">${pending ? '…' : (c.initiative ?? '–')}</span>
         <div class="ic-plate">
           <div class="ic-name">${c.name || '?'}</div>
           <div class="ic-hp"><i style="width:${pct}%;background:${hpC}"></i></div>
@@ -2436,7 +2455,7 @@
 
     function renderInitStrip() {
       if (!stripEl) return;
-      const ordered = initOrder();
+      const ordered = initRoster();
       const visible = ordered.filter(tokenVisible);
       const staff = effectiveStaff();
       const activeId = ENC && ENC.active_combatant_id;
