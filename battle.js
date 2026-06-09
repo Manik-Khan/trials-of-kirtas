@@ -62,6 +62,9 @@
       reactionUsed: false,
       // Concentration
       concentration: null, // null or { name, duration }
+      // Combat initiative (from combatants row; combatInit null = pending roll)
+      combatInit: null,
+      inCombat: false,
     };
     for (const [k, v] of Object.entries(cf)) {
       if (v && typeof v.current !== 'undefined') {
@@ -352,6 +355,26 @@
       <span class="b-ai-roll">d</span></div>`;
   }
 
+  // ── Combat initiative (HUD) — the Init stat box becomes interactive during
+  // combat: pending → tap to roll/enter, rolled → tap to override. Out of
+  // combat it shows the static modifier as before. ──
+  let INIT_EDITING = false;
+  function initStatBox(ch) {
+    const s = S(), mod = ch.combat.initiative || 0;
+    if (!s.inCombat)
+      return `<div class="b-stat-box"><span class="b-stat-val">${modStr(mod)}</span><span class="b-stat-lbl">Init</span></div>`;
+    if (INIT_EDITING)
+      return `<div class="b-stat-box b-init-edit"><div class="b-init-row"><input id="b-initInput" type="number" value="${s.combatInit ?? ''}" onkeydown="if(event.key==='Enter')window.__battle.commitInit();if(event.key==='Escape')window.__battle.editInit(false)"><button class="b-init-die" title="Roll d20${modStr(mod)}" onclick="window.__battle.rollInit()">🎲</button></div><span class="b-stat-lbl">Init</span></div>`;
+    if (s.combatInit == null)
+      return `<div class="b-stat-box b-init-pending" onclick="window.__battle.editInit(true)"><span class="b-stat-val">🎲</span><span class="b-stat-lbl">Roll init</span></div>`;
+    return `<div class="b-stat-box b-init-rolled" onclick="window.__battle.editInit(true)"><span class="b-stat-val">${s.combatInit}</span><span class="b-stat-lbl">Init</span></div>`;
+  }
+  function commitInitVal(v) {
+    const s = S(); s.combatInit = v; INIT_EDITING = false;
+    backend.setInitiative && backend.setInitiative(activeKey, v);
+    if (battleOn) renderAll();
+  }
+
   function renderPanelInto(p) {
     if (!p||!openPanel) { if(p) p.classList.remove('show'); return; }
     const ch=C(), color=col(), resources=getResources(activeKey);
@@ -403,7 +426,7 @@
         <div class="b-stat-grid">
           <div class="b-stat-box"><span class="b-stat-val">${ch.combat.ac}</span><span class="b-stat-lbl">AC</span></div>
           <div class="b-stat-box"><span class="b-stat-val">${ch.combat.speed}</span><span class="b-stat-lbl">Speed</span></div>
-          <div class="b-stat-box"><span class="b-stat-val">+${ch.combat.initiative}</span><span class="b-stat-lbl">Init</span></div>
+          ${initStatBox(ch)}
         </div>
         <div class="b-sec-lbl">Save Proficiencies</div>
         <div class="b-save-row">${Object.entries(ch.saves||{}).map(([k,v])=>`<span class="b-save-pip ${v.proficient?'prof':'no'}">${k.toUpperCase()}</span>`).join('')}</div>
@@ -557,7 +580,7 @@
     const dh=document.getElementById('b-dCharHp');   if(dh){dh.textContent=`${s.hp}/${ch.combat.hpMax} hp`;dh.style.color=s.hp<=ch.combat.hpMax*0.25?'#c0001a':s.hp<=ch.combat.hpMax*0.5?'#c8a020':'#5a9a6a';}
     const da=document.getElementById('b-dAC');   if(da) da.textContent=ch.combat.ac;
     const ds=document.getElementById('b-dSpd');  if(ds) ds.textContent=ch.combat.speed;
-    const di=document.getElementById('b-dInit'); if(di) di.textContent=`+${ch.combat.initiative}`;
+    const di=document.getElementById('b-dInit'); if(di) di.textContent = s.inCombat ? (s.combatInit==null?'—':String(s.combatInit)) : `+${ch.combat.initiative}`;
     const strip=document.getElementById('b-dres-strip');
     if(strip) strip.innerHTML=resources.map(r=>`<div class="b-dres-chip" onclick="window.__battle.openResDetail('${r.key}')"><span class="b-dres-lbl">${r.label}</span><div class="b-dres-pips">${pipHtml(r)}</div></div>`).join('');
     const si=document.getElementById('b-dSplIco'); if(si) si.style.color=color;
@@ -944,6 +967,17 @@
       .b-stat-box  { background:#111018; border-radius:3px; padding:6px 7px; text-align:center; }
       .b-stat-val  { font-size:18px; font-weight:700; color:#f0ece4; display:block; line-height:1; }
       .b-stat-lbl  { font-size:9px; letter-spacing:0.1em; text-transform:uppercase; color:#444; display:block; margin-top:2px; }
+      .b-init-pending, .b-init-rolled { cursor:pointer; }
+      .b-init-pending { background:#2a2410; outline:1px solid #c9a24a; }
+      .b-init-pending .b-stat-val { color:#e7c66a; font-size:15px; }
+      .b-init-pending .b-stat-lbl, .b-init-edit .b-stat-lbl { color:#9a8341; }
+      .b-init-rolled  { background:#2a2410; }
+      .b-init-rolled .b-stat-val { color:#e7c66a; }
+      .b-init-edit { background:#2a2410; outline:1px solid #c9a24a; padding:4px; }
+      .b-init-row  { display:flex; align-items:center; justify-content:center; gap:3px; }
+      .b-init-row input { width:30px; height:24px; text-align:center; font-size:14px; color:#f0e6cf; background:#15120e; border:1px solid #6b5a30; border-radius:3px; }
+      .b-init-die  { height:24px; width:24px; flex:none; background:#15120e; border:1px solid #6b5a30; border-radius:3px; cursor:pointer; font-size:13px; padding:0; line-height:1; }
+      .b-init-die:hover { border-color:#c9a24a; }
       .b-sec-lbl   { font-size:9px; letter-spacing:0.2em; text-transform:uppercase; color:#333; margin-top:3px; }
       .b-save-row,.b-cond-row { display:flex; flex-wrap:wrap; gap:4px; }
       .b-save-pip { padding:3px 6px; border-radius:3px; font-size:9px; letter-spacing:0.08em; text-transform:uppercase; border:1px solid; }
@@ -1198,6 +1232,9 @@
       updateRollerToggles();
     },
     clearHistory: ()=>{ rollHistory=[]; renderRollHistory(); },
+    editInit: (on)=>{ INIT_EDITING=!!on; if(battleOn) renderAll(); if(on) setTimeout(()=>{const i=document.getElementById('b-initInput'); if(i){i.focus();i.select();}},0); },
+    rollInit: ()=>{ const mod=(C().combat.initiative)||0; commitInitVal(die(20)+mod); },
+    commitInit: ()=>{ const i=document.getElementById('b-initInput'); const v=parseInt(i&&i.value,10); if(!isNaN(v)) commitInitVal(v); else { INIT_EDITING=false; if(battleOn) renderAll(); } },
   };
 
   // ── Combat state persistence ──
@@ -1269,6 +1306,8 @@
     if (combat.hpTemp  !== undefined) s.hpTemp  = combat.hpTemp;
     if (combat.hpBonus !== undefined) s.hpBonus = combat.hpBonus;
     if (Array.isArray(combat.conditions)) CONDITIONS[key] = combat.conditions.slice();
+    if (combat.initiative !== undefined) s.combatInit = combat.initiative;
+    if (combat.in_combat  !== undefined) s.inCombat   = combat.in_combat;
     if (battleOn) renderAll();
   }
   function bindRealtime() { backend.subscribe(applyCombatChange); }
@@ -1356,6 +1395,9 @@
     if (cf.bardicInspiration && ps.bardicInspiration !== undefined) s.bardicInspiration.current = Math.max(0, cf.bardicInspiration.max - ps.bardicInspiration);
     // Restore concentration
     if (dbCombat.concentration !== undefined) s.concentration = dbCombat.concentration || null;
+    // Combat initiative + participant flag
+    if (dbCombat.initiative !== undefined) s.combatInit = dbCombat.initiative;
+    if (dbCombat.in_combat  !== undefined) s.inCombat   = dbCombat.in_combat;
   }
 
   // Load combat state for a character, seed SESSION, then re-render.

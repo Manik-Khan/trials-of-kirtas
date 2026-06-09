@@ -360,7 +360,7 @@
 
     /* staff "view as player" toggle + preview-mode UI suppression */
     .view-toggle {
-      position: absolute; bottom: 12px; left: 12px; z-index: 20;
+      position: absolute; top: 78px; right: 10px; z-index: 20;
       display: flex; align-items: center; gap: 0.4rem;
       background: var(--nav-bg); border: 1px solid var(--nav-border);
       color: var(--muted); cursor: pointer;
@@ -513,6 +513,30 @@
       transition: color 0.15s, border-color 0.15s;
     }
     .bestiary-tab:hover { color: var(--parchment); border-color: var(--gold-dim); }
+    .combat-tab {
+      position: absolute; top: 112px; right: 10px; z-index: 18;
+      background: var(--nav-bg); border: 1px solid var(--nav-border);
+      color: var(--muted); cursor: pointer;
+      font-family: var(--font-title); font-size: 0.5rem; letter-spacing: 0.14em;
+      text-transform: uppercase; padding: 0.4rem 0.65rem;
+      transition: color 0.15s, border-color 0.15s;
+    }
+    .combat-tab:hover { color: var(--parchment); border-color: var(--gold-dim); }
+    .combat-menu {
+      position: absolute; top: 144px; right: 10px; z-index: 19;
+      display: none; flex-direction: column; min-width: 134px;
+      background: var(--nav-bg); border: 1px solid var(--nav-border); border-radius: 4px; padding: 4px;
+    }
+    .combat-menu.open { display: flex; }
+    .combat-menu button {
+      background: transparent; border: none; color: var(--parchment);
+      font-family: var(--font-title); font-size: 0.62rem; letter-spacing: 0.04em;
+      text-align: left; padding: 7px 9px; cursor: pointer; border-radius: 3px;
+    }
+    .combat-menu button:hover:not(:disabled) { background: rgba(184,149,42,0.14); }
+    .combat-menu button:disabled { color: var(--muted); opacity: 0.4; cursor: default; }
+    .stage.view-as-player .combat-tab,
+    .stage.view-as-player .combat-menu { display: none !important; }
     .bestiary-panel h4 {
       font-size: 0.46rem; letter-spacing: 0.32em; text-transform: uppercase;
       color: var(--muted); border-bottom: 1px solid var(--gold-dim);
@@ -1531,7 +1555,7 @@
       stage.addEventListener('pointerdown', (e) => {
         if (e.button > 0) return;                 // right/middle mouse → handled by contextmenu
         // never let board pan/drag steal interactions meant for the UI panels
-        if (e.target.closest('.grid-controls, .zoom-bar, .tool-rail, .tool-options, .gc-backdrop, .display-tab, .bestiary-tab, .bestiary-panel, .view-toggle, .statblock-panel, .init-strip, .draw-del')) return;
+        if (e.target.closest('.grid-controls, .zoom-bar, .tool-rail, .tool-options, .gc-backdrop, .display-tab, .bestiary-tab, .bestiary-panel, .view-toggle, .combat-tab, .combat-menu, .statblock-panel, .init-strip, .draw-del')) return;
         if (FOG.editing && IS_STAFF) {                 // fog paint mode → paint cells, skip token/pan logic
           try { stage.setPointerCapture(e.pointerId); } catch (_) {}
           fogPainting = true;
@@ -1759,7 +1783,7 @@
             }
             if (hiddenChanged || initChanged || inCombatChanged) renderInitStrip();
             if (HUD_ONCHANGE && c.side === 'party' && c.source_key)
-              HUD_ONCHANGE({ key: c.source_key, combat: { hp: row.hp, conditions: row.conditions } });
+              HUD_ONCHANGE({ key: c.source_key, combat: { hp: row.hp, conditions: row.conditions, initiative: row.initiative, in_combat: row.in_combat } });
           })
         // New / removed combatants (e.g. a DM dropping or clearing an enemy).
         // Same channel as the UPDATE above — never a second postgres_changes
@@ -1887,6 +1911,7 @@
       buildToolRail();
       if (IS_STAFF) buildBestiary();
       if (IS_STAFF) buildViewToggle();
+      if (IS_STAFF) buildCombatTab();
       if (IS_STAFF) buildStatblockPanel();
       buildInitStrip();
 
@@ -1902,7 +1927,7 @@
         window.__battle.useBackend({
           async load(key) {
             const c = COMBS.find(x => x.side === 'party' && x.source_key === key);
-            return c ? { hp: c.hp, conditions: Array.isArray(c.conditions) ? c.conditions : [] } : null;
+            return c ? { hp: c.hp, conditions: Array.isArray(c.conditions) ? c.conditions : [], initiative: c.initiative, in_combat: !!c.in_combat } : null;
           },
           async save(key, combat) {
             if (combat.hp === null || combat.hp === undefined) return;
@@ -1919,6 +1944,17 @@
             if (!c) return;
             const { error } = await SB.from('combatants').update({ conditions: arr }).eq('id', c.id);
             if (error) console.warn('[hud] conditions save failed:', error.message);
+          },
+          // Player rolls/enters their own initiative from the HUD; writes the
+          // party row's initiative (the column guard permits it). The optimistic
+          // local update + renderInitStrip re-sorts the map strip immediately.
+          async setInitiative(key, val) {
+            const c = COMBS.find(x => x.side === 'party' && x.source_key === key);
+            if (!c) return;
+            c.initiative = val;
+            renderInitStrip();
+            const { error } = await SB.from('combatants').update({ initiative: val }).eq('id', c.id);
+            if (error) console.warn('[hud] initiative save failed:', error.message);
           },
           // The HUD's End Turn advances the *shared* tracker rather than faking a
           // local round: this writes encounters.active_combatant_id + round (round
@@ -2209,6 +2245,41 @@
       stage.appendChild(btn);
     }
 
+    // ── combat tab (staff) — right-side dropdown to start / re-roll / end
+    // combat. Start is live out of combat; Roll all + End live during. ──
+    function buildCombatTab() {
+      const tab = document.createElement('button');
+      tab.className = 'combat-tab';
+      tab.innerHTML = '⚔ Combat';
+      const menu = document.createElement('div');
+      menu.className = 'combat-menu';
+      menu.innerHTML =
+        `<button data-act="start">▶ Start combat</button>` +
+        `<button data-act="roll">↻ Roll all</button>` +
+        `<button data-act="end">⊗ End combat</button>`;
+      stage.appendChild(tab);
+      stage.appendChild(menu);
+      const close = () => menu.classList.remove('open');
+      tab.addEventListener('click', (e) => { e.stopPropagation(); menu.classList.toggle('open'); paintCombatMenu(); });
+      menu.addEventListener('click', (e) => {
+        const b = e.target.closest('button[data-act]'); if (!b || b.disabled) return;
+        close();
+        if (b.dataset.act === 'start') startCombat();
+        else if (b.dataset.act === 'roll') rollAllInitiative();
+        else if (b.dataset.act === 'end') endCombat();
+      });
+      document.addEventListener('click', (e) => { if (!e.target.closest('.combat-tab, .combat-menu')) close(); });
+      paintCombatMenu();
+    }
+    function paintCombatMenu() {
+      const menu = document.querySelector('.combat-menu'); if (!menu) return;
+      const on = inCombat();
+      const s = menu.querySelector('[data-act="start"]'); if (s) s.disabled = on;
+      const r = menu.querySelector('[data-act="roll"]');  if (r) r.disabled = !on;
+      const e = menu.querySelector('[data-act="end"]');   if (e) e.disabled = !on;
+    }
+    function syncCombatChrome() { paintCombatMenu(); }
+
     // ── monster statblock (Phase B) ────────────────────────────────────────
     // Token art: 5etools serves token webps by source + name. We layer the img
     // over the initial-disc fallback (onerror removes it → initial shows).
@@ -2400,6 +2471,24 @@
         .then(({ error }) => { if (error) console.error('[init] turn write failed:', error.message); });
     }
 
+    // ── combat lifecycle ────────────────────────────────────────────────────
+    // "In combat" = anyone is seated. Start seats + rolls (PCs pending); End
+    // clears everyone and the strip hides again. startCombat() is the seam the
+    // roster picker (#1) will later front instead of rolling the whole board.
+    function inCombat() { return COMBS.some(c => c.in_combat); }
+    function startCombat() { rollAllInitiative(); }
+    function endCombat() {
+      COMBS.forEach(c => { c.in_combat = false; c.initiative = null; });
+      if (ENC) { ENC.active_combatant_id = null; ENC.round = 1; }
+      document.getElementById('combat-round').textContent = 1;
+      renderInitStrip();
+      pushTurnToHud();
+      COMBS.forEach(c => SB.from('combatants').update({ in_combat: false, initiative: null }).eq('id', c.id)
+        .then(({ error }) => { if (error) console.error('[combat] end write failed:', error.message); }));
+      if (ENC) SB.from('encounters').update({ active_combatant_id: null, round: 1 }).eq('id', ENC.id)
+        .then(({ error }) => { if (error) console.error('[combat] end turn write failed:', error.message); });
+    }
+
     function chipHtml(c, isActive) {
       const isParty = c.side === 'party';
       const art = isParty ? (PORTRAITS[c.source_key] || TOKENS[c.source_key] || '') : (monsterTokenUrl(c) || '');
@@ -2455,6 +2544,7 @@
 
     function renderInitStrip() {
       if (!stripEl) return;
+      syncCombatChrome();          // keep the right-side Combat menu in step
       const ordered = initRoster();
       const visible = ordered.filter(tokenVisible);
       const staff = effectiveStaff();
@@ -2462,21 +2552,16 @@
       const activeC = COMBS.find(c => c.id === activeId) || null;
       const activeHiddenToMe = activeC && !tokenVisible(activeC);
 
-      if (!visible.length && !staff) { stripEl.className = 'init-strip empty'; stripEl.innerHTML = ''; return; }
-
-      if (!visible.length && staff) {                       // staff, nothing seated → start CTA
-        stripEl.className = 'init-strip';
-        stripEl.innerHTML = `<span class="init-empty-cta">No initiative yet</span><button class="init-btn ghost" data-roll="all">⚔ Roll all initiative</button>`;
-        wireStrip();
-        return;
-      }
+      // The strip is on the map only during combat — nothing seated → hidden for
+      // everyone (staff start/end combat from the right-side Combat tab).
+      if (!visible.length) { stripEl.className = 'init-strip empty'; stripEl.innerHTML = ''; return; }
 
       let chips = '';
       if (activeHiddenToMe && !staff) chips += mysteryChipHtml();   // someone's acting, unseen
       chips += visible.map(c => chipHtml(c, c.id === activeId)).join('');
 
       let side = `<div class="init-side"><div style="text-align:center"><div class="init-round-l">ROUND</div><div class="init-round-n">${(ENC && ENC.round) || 1}</div></div>`;
-      if (staff) side += `<button class="init-btn" data-turn="next">Next ▸</button><button class="init-btn ghost" data-roll="all">↻ Roll all</button>`;
+      if (staff) side += `<button class="init-btn" data-turn="next">Next ▸</button><button class="init-btn ghost" data-roll="all">↻ Roll all</button><button class="init-btn ghost" data-combat="end">⊗ End</button>`;
       side += `</div>`;
 
       stripEl.className = 'init-strip';
@@ -2506,6 +2591,8 @@
       const next = stripEl.querySelector('[data-turn="next"]');
       if (next) next.addEventListener('click', advanceTurn);
       stripEl.querySelectorAll('[data-roll="all"]').forEach(b => b.addEventListener('click', rollAllInitiative));
+      const endBtn = stripEl.querySelector('[data-combat="end"]');
+      if (endBtn) endBtn.addEventListener('click', endCombat);
     }
 
     // ── left tool rail (DM) — Select / Pencil(reveal) / Eraser(hide), with a
