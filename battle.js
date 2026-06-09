@@ -363,8 +363,8 @@
     if (!s.inCombat)
       return `<div class="b-stat-box"><span class="b-stat-val">${modStr(mod)}</span><span class="b-stat-lbl">Init</span></div>`;
     if (s.combatInit == null)
-      return `<div class="b-stat-box b-init-pending" title="Roll d20${modStr(mod)}" onclick="window.__battle.rollInit()"><span class="b-stat-val">🎲</span><span class="b-stat-lbl">Roll init</span></div>`;
-    return `<div class="b-stat-box b-init-rolled"><span class="b-stat-val">${s.combatInit}</span><span class="b-stat-lbl">Init</span></div>`;
+      return `<div class="b-stat-box b-init-pending" title="Roll initiative (d20${modStr(mod)}) — toggle Adv/Dis first if you have it" onclick="window.__battle.rollInit()"><span class="b-stat-val">🎲</span><span class="b-stat-lbl">Roll init</span></div>`;
+    return `<div class="b-stat-box b-init-rolled" title="Tap to re-roll (uses Adv/Dis if toggled)" onclick="window.__battle.rollInit()"><span class="b-stat-val">${s.combatInit}</span><span class="b-stat-lbl">Init ↻</span></div>`;
   }
   function commitInitVal(v) {
     const s = S(); s.combatInit = v;
@@ -577,7 +577,7 @@
     const dh=document.getElementById('b-dCharHp');   if(dh){dh.textContent=`${s.hp}/${ch.combat.hpMax} hp`;dh.style.color=s.hp<=ch.combat.hpMax*0.25?'#c0001a':s.hp<=ch.combat.hpMax*0.5?'#c8a020':'#5a9a6a';}
     const da=document.getElementById('b-dAC');   if(da) da.textContent=ch.combat.ac;
     const ds=document.getElementById('b-dSpd');  if(ds) ds.textContent=ch.combat.speed;
-    const di=document.getElementById('b-dInit'); if(di) di.textContent = s.inCombat ? (s.combatInit==null?'—':String(s.combatInit)) : `+${ch.combat.initiative}`;
+    const di=document.getElementById('b-dInit'); if(di) di.textContent=`${modStr(ch.combat.initiative||0)}`;
     const strip=document.getElementById('b-dres-strip');
     if(strip) strip.innerHTML=resources.map(r=>`<div class="b-dres-chip" onclick="window.__battle.openResDetail('${r.key}')"><span class="b-dres-lbl">${r.label}</span><div class="b-dres-pips">${pipHtml(r)}</div></div>`).join('');
     const si=document.getElementById('b-dSplIco'); if(si) si.style.color=color;
@@ -967,7 +967,7 @@
       .b-init-pending { background:#2a2410; outline:1px solid #c9a24a; cursor:pointer; }
       .b-init-pending .b-stat-val { color:#e7c66a; font-size:15px; }
       .b-init-pending .b-stat-lbl { color:#9a8341; }
-      .b-init-rolled  { background:#2a2410; }
+      .b-init-rolled  { background:#2a2410; cursor:pointer; }
       .b-init-rolled .b-stat-val { color:#e7c66a; }
       .b-sec-lbl   { font-size:9px; letter-spacing:0.2em; text-transform:uppercase; color:#333; margin-top:3px; }
       .b-save-row,.b-cond-row { display:flex; flex-wrap:wrap; gap:4px; }
@@ -1224,8 +1224,8 @@
     },
     clearHistory: ()=>{ rollHistory=[]; renderRollHistory(); },
     rollInit: ()=>{
-      const mod=(C().combat.initiative)||0, d=die(20), total=d+mod;
-      addRollHistory({ name:'Initiative', main:`[<span class="b-rh-kept">${d}</span>] ${modStr(mod)} = <span class="b-rh-total">${total}</span>`, detail:`d20 ${modStr(mod)} initiative` });
+      const mod=(C().combat.initiative)||0, r=rollD20(), total=r.kept+mod;
+      addRollHistory({ name:'Initiative', main:`${fmtD20(r)} ${modStr(mod)} = <span class="b-rh-total">${total}</span>`, detail:`d20 ${modStr(mod)} initiative${r.label?' — '+r.label:''}` });
       commitInitVal(total);
     },
   };
