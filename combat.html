@@ -345,38 +345,6 @@
     .ctx-cond.active .ctx-label { color: var(--parchment); }
     .ctx-check { font-size: 0.7rem; color: var(--gold-light); opacity: 0; }
     .ctx-cond.active .ctx-check { opacity: 1; }
-    /* action buttons (Manage tab): visibility toggle, remove */
-    .ctx-act {
-      display: block; width: calc(100% - 1.2rem); margin: 0.2rem 0.6rem;
-      background: none; cursor: pointer; text-align: left;
-      border: 1px solid var(--gold-dim); border-radius: 4px;
-      font-family: var(--font-title);
-      font-size: 0.5rem; letter-spacing: 0.08em;
-      color: var(--parchment2); padding: 0.4rem 0.55rem;
-    }
-    .ctx-act:hover { color: var(--parchment); border-color: var(--gold-light); }
-    .ctx-act.ctx-danger { color: var(--blood, #c0001a); border-color: rgba(192,0,26,0.4); }
-    .ctx-act.ctx-danger:hover { color: #fff; background: var(--blood, #c0001a); border-color: var(--blood, #c0001a); }
-
-    /* staff "view as player" toggle + preview-mode UI suppression */
-    .view-toggle {
-      position: absolute; bottom: 12px; left: 12px; z-index: 20;
-      display: flex; align-items: center; gap: 0.4rem;
-      background: var(--nav-bg); border: 1px solid var(--nav-border);
-      color: var(--muted); cursor: pointer;
-      font-family: var(--font-title); font-size: 0.5rem; letter-spacing: 0.12em;
-      text-transform: uppercase; padding: 0.4rem 0.7rem; border-radius: 5px;
-      transition: color 0.15s, border-color 0.15s, background 0.15s;
-    }
-    .view-toggle:hover { color: var(--parchment); border-color: var(--gold-dim); }
-    .view-toggle.on { background: var(--gold); color: var(--ink-deep); border-color: var(--gold); }
-    .view-toggle svg { width: 13px; height: 13px; fill: currentColor; }
-    .stage.view-as-player .tool-rail,
-    .stage.view-as-player .bestiary-tab,
-    .stage.view-as-player .bestiary-panel,
-    .stage.view-as-player .statblock-panel,
-    .stage.view-as-player .sb-backdrop,
-    .stage.view-as-player .bst-backdrop { display: none !important; }
 
     /* zoom toolbar */
     .zoom-bar {
@@ -550,92 +518,6 @@
     .bst-drop:hover { background: var(--gold); color: var(--ink-deep); border-color: var(--gold); }
     .bst-drop.done { color: var(--aged); border-color: var(--section-border); cursor: default; background: var(--ink); }
     .bst-state { padding: 0.8rem 0.4rem; color: var(--muted); font-size: 0.55rem; text-align: center; line-height: 1.5; }
-    /* ── statblock panel (DM): opened from a token's Manage tab ── */
-    .statblock-panel {
-      position: absolute; top: 0; right: 0; bottom: 0; z-index: 23;
-      width: 360px; max-width: 94vw;
-      background: var(--nav-bg); border-left: 1px solid var(--nav-border);
-      padding: 0.9rem 1rem; box-sizing: border-box; overflow-y: auto;
-      transform: translateX(100%);
-      transition: transform 0.28s cubic-bezier(0.4,0,0.2,1);
-      box-shadow: -8px 0 40px rgba(0,0,0,0.5);
-    }
-    .statblock-panel.open { transform: translateX(0); }
-    .sb-close {
-      position: sticky; top: 0; float: right; cursor: pointer;
-      color: var(--muted); font-family: var(--font-title); font-size: 0.8rem;
-      line-height: 1; padding: 0 0.2rem; z-index: 2;
-    }
-    .sb-close:hover { color: var(--parchment); }
-    /* lifted from compendium's monster detail view, scoped to the panel */
-    .statblock-panel .detail-name { font-family: var(--font-display); font-size: 1.5rem; color: var(--parchment); margin-bottom: 0.25rem; line-height: 1.2; }
-    .statblock-panel .detail-meta { font-family: var(--font-title); font-size: 0.5rem; letter-spacing: 0.22em; color: var(--gold); text-transform: uppercase; margin-bottom: 0.8rem; }
-    .statblock-panel .detail-rule { border: none; height: 1px; background: linear-gradient(90deg, var(--gold-dim), transparent); margin: 0.85rem 0; }
-    .statblock-panel .detail-stats { display: grid; grid-template-columns: 1fr 1fr; gap: 0.45rem; margin-bottom: 0.85rem; }
-    .statblock-panel .detail-stat { background: rgba(0,0,0,0.2); border: 1px solid var(--gold-dim); padding: 0.35rem 0.55rem; }
-    .statblock-panel .detail-stat-label { font-family: var(--font-title); font-size: 0.42rem; letter-spacing: 0.18em; color: var(--muted); text-transform: uppercase; display: block; margin-bottom: 0.12rem; }
-    .statblock-panel .detail-stat-val { font-size: 0.8rem; color: var(--parchment2); }
-    .statblock-panel .detail-section { margin-top: 0.9rem; }
-    .statblock-panel .detail-section-title { font-family: var(--font-title); font-size: 0.5rem; letter-spacing: 0.28em; color: var(--gold); text-transform: uppercase; border-bottom: 1px solid var(--gold-dim); padding-bottom: 0.3rem; margin-bottom: 0.55rem; }
-    .statblock-panel .ability-strip { display: grid; grid-template-columns: repeat(6,1fr); gap: 0.35rem; margin-bottom: 0.85rem; }
-    .statblock-panel .ability-cell { text-align: center; background: rgba(0,0,0,0.2); border: 1px solid var(--gold-dim); padding: 0.35rem 0.15rem; }
-    .statblock-panel .ability-cell-label { font-family: var(--font-title); font-size: 0.42rem; letter-spacing: 0.12em; color: var(--muted); text-transform: uppercase; display: block; }
-    .statblock-panel .ability-cell-score { font-family: var(--font-title); font-size: 0.92rem; color: var(--parchment); display: block; }
-    .statblock-panel .ability-cell-mod   { font-family: var(--font-title); font-size: 0.6rem; color: var(--gold-light); display: block; }
-    .statblock-panel .trait-block { margin-bottom: 0.75rem; }
-    .statblock-panel .trait-name { font-family: var(--font-title); font-size: 0.72rem; color: var(--gold-light); font-style: italic; }
-    .statblock-panel .trait-body { font-size: 0.82rem; color: var(--parchment2); line-height: 1.6; margin-top: 0.2rem; }
-    .statblock-panel .trait-body p { margin: 0.3rem 0; }
-    .statblock-panel .source-note { font-size: 0.66rem; color: var(--muted); font-style: italic; margin-top: 1.2rem; padding-top: 0.6rem; border-top: 1px solid var(--gold-dim); }
-    .statblock-panel table { width: 100%; border-collapse: collapse; margin: 0.5rem 0; font-size: 0.78rem; color: var(--parchment2); }
-    .statblock-panel th, .statblock-panel td { border: 1px solid var(--gold-dim); padding: 0.25rem 0.4rem; text-align: left; }
-    /* monster token art (5etools), layered over the initial fallback */
-    .token-monimg { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; border-radius: 50%; }
-    /* ── initiative strip (everyone; staff controls gated) ── */
-    .init-strip {
-      position: absolute; top: 8px; left: 50%; transform: translateX(-50%);
-      z-index: 17; max-width: calc(100% - 210px);
-      display: flex; align-items: stretch; gap: 9px;
-      padding: 8px 9px; border-radius: 9px;
-      background: rgba(16,14,10,0.92); border: 1px solid #5a4a22;
-      box-shadow: 0 6px 24px rgba(0,0,0,0.45);
-    }
-    .init-strip.empty { display: none; }
-    .init-track { display: flex; gap: 8px; align-items: stretch; overflow-x: auto; max-width: 100%; }
-    .init-track::-webkit-scrollbar { height: 5px; }
-    .init-track::-webkit-scrollbar-thumb { background: var(--gold-dim); border-radius: 3px; }
-    .init-chip {
-      position: relative; width: 60px; height: 88px; flex: none; cursor: pointer;
-      border: 1px solid #3a3119; border-radius: 6px; overflow: hidden; background: #1a1510;
-      transition: transform 0.18s, border-color 0.18s;
-    }
-    .init-chip.enemy { border-color: #5a3030; }
-    .init-chip:hover { border-color: var(--gold-dim); }
-    .init-chip.active { border: 2px solid var(--gold); transform: scale(1.06); transform-origin: top; }
-    .init-chip.hidden-foe { border-style: dashed; opacity: 0.8; }
-    .ic-zone { position: absolute; inset: 0; }
-    .ic-bg { position: absolute; inset: 0; background: linear-gradient(160deg,#2a2018 0%,#1a1410 55%,#0d0a07 100%); }
-    .ic-bg.party { background: linear-gradient(160deg,#26303a,#141d24 60%,#0a0f13); }
-    .ic-bg.enemy { background: linear-gradient(160deg,#3a2422,#1f1210 60%,#0d0807); }
-    .ic-art { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; object-position: center top; }
-    .ic-initial { position: absolute; inset: 0; display: flex; align-items: center; justify-content: center; font-family: var(--font-display); font-size: 30px; color: rgba(240,230,207,0.32); }
-    .ic-dots { position: absolute; inset: 0; background-image: radial-gradient(circle, rgba(0,0,0,0.4) 1px, transparent 1px); background-size: 4px 4px; mix-blend-mode: multiply; }
-    .ic-fade { position: absolute; inset: 0; background: linear-gradient(to top,#0d0a07 8%,rgba(13,10,7,0.2) 42%,transparent 62%); }
-    .ic-init { position: absolute; top: 2px; right: 2px; min-width: 17px; height: 17px; padding: 0 3px; box-sizing: border-box; border-radius: 50%; background: #6b5a30; color: #f0e6cf; font-family: var(--font-title); font-size: 10px; display: flex; align-items: center; justify-content: center; z-index: 2; }
-    .init-chip.active .ic-init { background: var(--gold); color: var(--ink-deep); }
-    .ic-plate { position: absolute; bottom: 0; left: 0; right: 0; padding: 2px 3px 4px; text-align: center; z-index: 2; }
-    .ic-name { font-family: var(--font-title); font-size: 10px; color: #e8dcc4; line-height: 1.1; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-    .ic-hp { margin: 2px auto 0; width: 42px; height: 3px; border-radius: 2px; background: #3a2020; overflow: hidden; }
-    .ic-hp > i { display: block; height: 100%; }
-    .ic-edit { width: 38px; box-sizing: border-box; font-size: 11px; text-align: center; padding: 1px; background: var(--ink); color: var(--parchment2); border: 1px solid var(--gold); border-radius: 3px; font-family: var(--font-title); }
-    .init-side { display: flex; flex-direction: column; justify-content: center; align-items: center; gap: 6px; padding-left: 9px; border-left: 1px solid #3a3119; min-width: 62px; }
-    .init-round-l { font-family: var(--font-title); font-size: 9px; letter-spacing: 0.2em; color: var(--muted); }
-    .init-round-n { font-family: var(--font-display); font-size: 18px; color: #f0e6cf; line-height: 1; }
-    .init-btn { background: var(--gold); color: var(--ink-deep); border: none; border-radius: 5px; padding: 5px 9px; font-family: var(--font-title); font-size: 10px; font-weight: 600; letter-spacing: 0.05em; cursor: pointer; white-space: nowrap; }
-    .init-btn.ghost { background: var(--ink); color: var(--gold); border: 1px solid var(--gold-dim); }
-    .init-btn:hover { filter: brightness(1.08); }
-    .init-empty-cta { font-family: var(--font-title); font-size: 10px; letter-spacing: 0.06em; color: var(--muted); padding: 2px 4px; }
-    .stage.view-as-player .init-strip .init-side .init-btn { display: none; }
     /* ── left tool rail + contextual options (DM) ── */
     .tool-rail {
       position: absolute; top: 10px; left: 10px; z-index: 20;
@@ -829,11 +711,6 @@
     let boardEl = null;
     let COMBS = [];      // cached combatant rows, for re-rendering on control changes
     let IS_STAFF = false;
-    // Staff "view as player" preview (visual only — staff still hold the data).
-    // effectiveStaff() gates VISIBILITY (what's drawn); real IS_STAFF gates
-    // identity/permissions. Toggling re-renders tokens + fog.
-    let VIEW_AS_PLAYER = false;
-    const effectiveStaff = () => IS_STAFF && !VIEW_AS_PLAYER;
     let ME = null;       // viewer profile { role, characterKey, ... }
     let SB = null;       // shared supabase client (from nav.js)
     let ENC = null;      // active encounter row
@@ -852,9 +729,7 @@
     // A token shows for a player only where the fog is lifted (or it's their own
     // token, or they're staff) — the cheap, client-side concealment tier.
     function tokenVisible(c) {
-      // In player-view, staff must explicitly drop hidden enemies they still hold.
-      if (!effectiveStaff() && c.hidden && !(ME && ME.id && c.owner === ME.id)) return false;
-      return effectiveStaff() || isRevealed(c.x, c.y) || !!(ME && ME.id && c.owner === ME.id);
+      return IS_STAFF || isRevealed(c.x, c.y) || !!(ME && ME.id && c.owner === ME.id);
     }
 
     // ── drawings (shapes & spell templates) state ──
@@ -928,7 +803,7 @@
         const [x, y] = k.split(',').map(Number);
         return `<rect x="${meta.originX + x * meta.cellPx}" y="${meta.originY + y * meta.cellPx}" width="${meta.cellPx}" height="${meta.cellPx}" fill="black"/>`;
       }).join('');
-      const op = effectiveStaff() ? 0.45 : 0.985;   // DM: translucent shroud (sees through); player: solid cover
+      const op = IS_STAFF ? 0.45 : 0.985;   // DM: translucent shroud (sees through); player: solid cover
       const feather = Math.max(2, meta.cellPx * 0.38);   // soft edge width, in map units
       return `
         <svg class="board-fog" viewBox="0 0 ${W} ${H}" preserveAspectRatio="none" xmlns="http://www.w3.org/2000/svg">
@@ -961,7 +836,7 @@
       const el = tokenEl(c.id), show = tokenVisible(c);
       if (show && !el) {
         const layer = boardEl.querySelector('.board-tokens');
-        if (layer) layer.insertAdjacentHTML('beforeend', tokenHtml(c, META, effectiveStaff()));
+        if (layer) layer.insertAdjacentHTML('beforeend', tokenHtml(c, META, IS_STAFF));
       } else if (!show && el) { el.remove(); }
     }
     // Toggle one cell under the brush; only redraw on an actual change.
@@ -1082,15 +957,10 @@
       const img = TOKENS[c.source_key] || (isParty ? PORTRAITS[c.source_key] : null);
       // per-character art style wins; global control is the fallback default
       const style = TOKEN_STYLE[c.source_key] || TOKEN.style;
-      // enemy monster art (5etools), only when no other art applies
-      const monImg = (!isParty && !teasedForPlayer && !img) ? monsterTokenUrl(c) : null;
 
       let disc;
       if (teasedForPlayer) {
         disc = `<div class="token-disc mystery"><span class="token-initial">?</span></div>`;
-      } else if (monImg) {  // enemy: monster token over the initial fallback (onerror → initial)
-        const initial = (c.name || '?').trim().charAt(0).toUpperCase();
-        disc = `<div class="token-disc ring" style="--ring:${ring}"><span class="token-initial">${initial}</span><img class="token-monimg" src="${monImg}" alt="" draggable="false" onerror="this.remove()"></div>`;
       } else if (img && style === 'cutout') {
         const base = TOKEN.ring ? `<div class="token-base" style="--ring:${ring}"></div>` : '';
         disc = `<div class="token-cutout">${base}<img class="token-cutimg" src="${img}" alt="" draggable="false"></div>`;
@@ -1125,7 +995,7 @@
     function renderTokens() {
       if (!boardEl || !META) return;
       const layer = boardEl.querySelector('.board-tokens');
-      if (layer) layer.innerHTML = COMBS.filter(tokenVisible).map(c => tokenHtml(c, META, effectiveStaff())).join('');
+      if (layer) layer.innerHTML = COMBS.filter(tokenVisible).map(c => tokenHtml(c, META, IS_STAFF)).join('');
     }
 
     // ── fit the board into the stage, preserving the map's aspect ratio ──
@@ -1227,7 +1097,7 @@
     function removeCursor(id) { const c = CURSORS.get(id); if (c) { c.el.remove(); CURSORS.delete(id); } }
     function onCursor(p) {
       if (!p || p.id === MY_ID) return;            // never draw my own
-      if (p.staff && !effectiveStaff()) return;            // staff cursors hidden from players
+      if (p.staff && !IS_STAFF) return;            // staff cursors hidden from players
       ensureCursorLayer();
       let cur = CURSORS.get(p.id);
       if (!cur) { cur = { el: makeCursorEl() }; CURSORS.set(p.id, cur); cursorLayer.appendChild(cur.el); }
@@ -1304,7 +1174,7 @@
       el.style.width = ((META.cellPx / W) * 100 * TOKEN.size * (SIZE_MUL[c.size] || 1)) + '%';
     }
     function canMove(c) {
-      return effectiveStaff() || !!(ME && ME.id && c.owner && c.owner === ME.id);
+      return IS_STAFF || !!(ME && ME.id && c.owner && c.owner === ME.id);
     }
 
     // ── selection ──
@@ -1361,7 +1231,7 @@
     function updateTokenConditions(c) {
       const el = tokenEl(c.id); if (!el) return;
       const old = el.querySelector('.token-conds'); if (old) old.remove();
-      if (c.tease && !effectiveStaff()) return;            // respect the player veil
+      if (c.tease && !IS_STAFF) return;            // respect the player veil
       const html = condBadgesHtml(c);
       if (html) el.insertAdjacentHTML('beforeend', html);
     }
@@ -1379,25 +1249,6 @@
       updateTokenConditions(c);
       const { error } = await SB.from('combatants').update({ conditions: cur }).eq('id', id);
       if (error) { c.conditions = prev; updateTokenConditions(c); console.error('condition write failed:', error.message); return false; }
-      return true;
-    }
-
-    // Flip a combatant's hidden flag (staff). Optimistic + rollback; re-render so
-    // the staff badge updates and players get the appear/disappear via realtime.
-    async function setHidden(id, hidden) {
-      const c = COMBS.find(k => k.id === id); if (!c) return false;
-      const prev = c.hidden; c.hidden = hidden; renderTokens(); renderInitStrip();
-      const { error } = await SB.from('combatants').update({ hidden }).eq('id', id);
-      if (error) { c.hidden = prev; renderTokens(); renderInitStrip(); console.error('hidden write failed:', error.message); return false; }
-      return true;
-    }
-
-    // Delete a combatant row (staff). Optimistic local removal; the DELETE
-    // realtime echo (idempotent filter) removes it for everyone else.
-    async function removeCombatant(id) {
-      const { error } = await SB.from('combatants').delete().eq('id', id);
-      if (error) { console.error('delete failed:', error.message); return false; }
-      COMBS = COMBS.filter(k => k.id !== id); renderTokens(); renderInitStrip();
       return true;
     }
 
@@ -1421,7 +1272,7 @@
     // Body builder for the Conditions tab — the toggle rows.
     function condTabBody(c) {
       const active = Array.isArray(c.conditions) ? c.conditions : [];
-      return `<button class="ctx-act" data-act="rollinit">⚔ Roll initiative</button><div class="ctx-sub">Conditions</div>` + COND.map(d => `
+      return COND.map(d => `
         <div class="ctx-cond${active.includes(d.name) ? ' active' : ''}" data-cond="${d.name}">
           <span class="ctx-chip" style="--c:${d.color}"><svg viewBox="0 0 24 24" aria-hidden="true">${d.icon}</svg></span>
           <span class="ctx-label">${d.name}</span>
@@ -1429,18 +1280,13 @@
         </div>`).join('');
     }
 
-    // Body builder for the Manage tab (staff only) — per-creature size,
-    // visibility (hidden from players), and removal.
+    // Body builder for the Manage tab (staff only) — per-creature size.
     function manageTabBody(c) {
       const cur = c.size || 'medium';
       return `<div class="ctx-sub">Size</div>
         <div class="ctx-sizes">` + SIZE_ORDER.map(s =>
           `<button class="ctx-size${s === cur ? ' active' : ''}" data-size="${s}">${SIZE_LABEL[s]}</button>`
-        ).join('') + `</div>
-        <div class="ctx-sub">Visibility</div>
-        <button class="ctx-act" data-act="vis">${c.hidden ? '👁 Reveal to players' : '⊘ Hide from players'}</button>
-        ${c.statblock ? `<div class="ctx-sub">Reference</div><button class="ctx-act" data-act="stat">📖 Stat block</button>` : ''}
-        <button class="ctx-act ctx-danger" data-act="del">✕ Remove from board</button>`;
+        ).join('') + `</div>`;
     }
 
     function openCtxMenu(c, sx, sy) {
@@ -1452,7 +1298,7 @@
       // with `show: () => …` (e.g. IS_STAFF). Order here = display order.
       const tabs = [
         { id: 'conds',  label: 'Conditions', body: () => condTabBody(c) },
-        { id: 'manage', label: 'Manage', show: () => effectiveStaff(), body: () => manageTabBody(c) },
+        { id: 'manage', label: 'Manage', show: () => IS_STAFF, body: () => manageTabBody(c) },
         // { id: 'style', label: 'Style', body: () => styleTabBody(c) },   // personal/per-profile — later pass
       ];
       const visible = tabs.filter(t => !t.show || t.show());
@@ -1492,20 +1338,6 @@
             if (await setSize(c.id, b.dataset.size))
               ctxEl.querySelectorAll('.ctx-size').forEach(x => x.classList.toggle('active', x === b));
           }));
-        // Visibility + removal (Manage tab, staff).
-        ctxEl.querySelectorAll('.ctx-act').forEach(b =>
-          b.addEventListener('click', async () => {
-            if (b.dataset.act === 'vis') {
-              if (await setHidden(c.id, !c.hidden)) render();   // re-render to flip the label
-            } else if (b.dataset.act === 'rollinit') {
-              rollInitiative(c); closeCtxMenu();
-            } else if (b.dataset.act === 'stat') {
-              openStatblock?.(c); closeCtxMenu();
-            } else if (b.dataset.act === 'del') {
-              if (b.dataset.confirm) { if (await removeCombatant(c.id)) closeCtxMenu(); }
-              else { b.dataset.confirm = '1'; b.textContent = '✕ Confirm remove'; }
-            }
-          }));
       }
 
       render();
@@ -1529,7 +1361,7 @@
       stage.addEventListener('pointerdown', (e) => {
         if (e.button > 0) return;                 // right/middle mouse → handled by contextmenu
         // never let board pan/drag steal interactions meant for the UI panels
-        if (e.target.closest('.grid-controls, .zoom-bar, .tool-rail, .tool-options, .gc-backdrop, .display-tab, .bestiary-tab, .bestiary-panel, .view-toggle, .statblock-panel, .init-strip, .draw-del')) return;
+        if (e.target.closest('.grid-controls, .zoom-bar, .tool-rail, .tool-options, .gc-backdrop, .display-tab, .draw-del')) return;
         if (FOG.editing && IS_STAFF) {                 // fog paint mode → paint cells, skip token/pan logic
           try { stage.setPointerCapture(e.pointerId); } catch (_) {}
           fogPainting = true;
@@ -1700,8 +1532,6 @@
       });
 
       stage.addEventListener('wheel', (e) => {
-        // inside a scrollable UI panel → let it scroll natively, don't zoom
-        if (e.target.closest('.bestiary-panel, .statblock-panel, .init-strip, .grid-controls, .tool-options')) return;
         e.preventDefault();
         const rect = stage.getBoundingClientRect();
         zoomAt(e.deltaY < 0 ? 1.1 : 1 / 1.1, e.clientX - rect.left, e.clientY - rect.top);
@@ -1735,26 +1565,12 @@
           { event: 'UPDATE', schema: 'public', table: 'combatants', filter: 'encounter_id=eq.' + ENC.id },
           ({ new: row }) => {
             if (!row || row.id === dragId) return;       // ignore the echo of my own drag
-            const c = COMBS.find(k => k.id === row.id);
-            if (!c) {                                    // row just became visible to us (e.g. DM revealed it)
-              COMBS.push(row); renderTokens(); renderInitStrip(); return;
-            }
-            // a row we can see was re-hidden from us (non-staff, not ours) → drop it
-            if (!IS_STAFF && row.hidden && !(ME && row.owner === ME.id)) {
-              COMBS = COMBS.filter(k => k.id !== row.id); renderTokens(); renderInitStrip(); return;
-            }
-            const hiddenChanged = c.hidden !== row.hidden;
-            const initChanged   = c.initiative !== row.initiative;
-            c.x = row.x; c.y = row.y; c.hp = row.hp; c.conditions = row.conditions; c.size = row.size; c.hidden = row.hidden; c.initiative = row.initiative;
-            if (hiddenChanged) {
-              renderTokens();                            // staff badge (∅) appears/clears
-            } else {
-              updateTokenPos(c);
-              updateTokenConditions(c);
-              updateTokenSize(c);
-              reconcileTokenVisibility(c);               // moved into / out of the light?
-            }
-            if (hiddenChanged || initChanged) renderInitStrip();
+            const c = COMBS.find(k => k.id === row.id); if (!c) return;
+            c.x = row.x; c.y = row.y; c.hp = row.hp; c.conditions = row.conditions; c.size = row.size;
+            updateTokenPos(c);
+            updateTokenConditions(c);
+            updateTokenSize(c);
+            reconcileTokenVisibility(c);                 // moved into / out of the light?
             if (HUD_ONCHANGE && c.side === 'party' && c.source_key)
               HUD_ONCHANGE({ key: c.source_key, combat: { hp: row.hp, conditions: row.conditions } });
           })
@@ -1767,7 +1583,6 @@
             if (!row || COMBS.some(k => k.id === row.id)) return;   // dedupe my own drop echo
             COMBS.push(row);
             renderTokens();
-            renderInitStrip();
           })
         .on('postgres_changes',
           { event: 'DELETE', schema: 'public', table: 'combatants', filter: 'encounter_id=eq.' + ENC.id },
@@ -1775,18 +1590,13 @@
             if (!old || !old.id) return;
             COMBS = COMBS.filter(k => k.id !== old.id);
             renderTokens();
-            renderInitStrip();
           })
         .on('postgres_changes',
           { event: 'UPDATE', schema: 'public', table: 'encounters', filter: 'id=eq.' + ENC.id },
           ({ new: row }) => {
             if (!row) return;
             ENC.revealed_cells = row.revealed_cells || [];
-            ENC.active_combatant_id = row.active_combatant_id;
-            ENC.round = row.round;
-            document.getElementById('combat-round').textContent = row.round ?? 1;
             loadFog(); redrawFog(); renderTokens();      // fog moved → re-veil + re-evaluate token visibility
-            renderInitStrip();                            // turn pointer / round changed
           })
         .on('postgres_changes',
           { event: '*', schema: 'public', table: 'drawings', filter: 'encounter_id=eq.' + ENC.id },
@@ -1861,7 +1671,7 @@
       IS_STAFF = isStaff;
       boardEl = document.createElement('div');
       boardEl.className = 'board';
-      const tokensHtml = COMBS.filter(tokenVisible).map(c => tokenHtml(c, META, effectiveStaff())).join('');
+      const tokensHtml = COMBS.filter(tokenVisible).map(c => tokenHtml(c, META, IS_STAFF)).join('');
       boardEl.innerHTML =
         `<img class="board-map" alt="${enc.map_ref}" draggable="false" src="${mapUrl(META.publicId)}"
               onerror="this.classList.add('missing')">
@@ -1882,9 +1692,6 @@
       buildGridControls();
       buildToolRail();
       if (IS_STAFF) buildBestiary();
-      if (IS_STAFF) buildViewToggle();
-      if (IS_STAFF) buildStatblockPanel();
-      buildInitStrip();
 
       // ── HUD ↔ combat bridge (shared: any user drives any party character) ──
       // battle.js is backend-agnostic; we hand it a Supabase combatants backend
@@ -2078,7 +1885,7 @@
       stage.appendChild(panel);
 
       const backdrop = document.createElement('div');
-      backdrop.className = 'gc-backdrop bst-backdrop'; // reuse Display backdrop style; tagged for player-view hide
+      backdrop.className = 'gc-backdrop';            // reuse the Display backdrop style
       stage.appendChild(backdrop);
       const tab = document.createElement('button');
       tab.className = 'bestiary-tab';
@@ -2122,7 +1929,7 @@
           if (crFilter === 'high')   return e.cr >= 5 && e.cr <= 10;
           if (crFilter === 'deadly') return e.cr >= 11;
           return true;
-        }).sort((a, b) => a.name.localeCompare(b.name));
+        }).slice(0, 250);
         if (!shown.length) { listEl.innerHTML = '<div class="bst-state">No results.</div>'; return; }
         listEl.innerHTML = shown.map((e, i) => `
           <div class="bst-row">
@@ -2166,307 +1973,6 @@
         if (data && !COMBS.some(k => k.id === data.id)) { COMBS.push(data); renderTokens(); }
         return true;
       }
-    }
-
-    // ── "view as player" toggle (staff only) — flips a visual-only preview:
-    // hidden enemies vanish, fog covers solid, DM panels hide, the context-menu
-    // Manage tab disappears, and moves drop to player permissions. Real role is
-    // unchanged; toggle back to act as DM. ──
-    function buildViewToggle() {
-      const EYE_OPEN  = '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 5C5 5 1 12 1 12s4 7 11 7 11-7 11-7-4-7-11-7zm0 11a4 4 0 110-8 4 4 0 010 8z"/></svg>';
-      const btn = document.createElement('button');
-      btn.className = 'view-toggle';
-      function paint() {
-        btn.classList.toggle('on', VIEW_AS_PLAYER);
-        btn.innerHTML = EYE_OPEN + `<span>${VIEW_AS_PLAYER ? 'Player view' : 'View as player'}</span>`;
-        btn.title = VIEW_AS_PLAYER ? 'Showing what a player sees — click for DM view' : 'Preview what players see';
-      }
-      btn.addEventListener('click', () => {
-        VIEW_AS_PLAYER = !VIEW_AS_PLAYER;
-        stage.classList.toggle('view-as-player', VIEW_AS_PLAYER);
-        if (VIEW_AS_PLAYER) {
-          // leaving DM tooling cleanly: stop fog painting, close DM surfaces
-          FOG.editing = false; stage.classList.remove('fog-edit');
-          document.querySelector('.bestiary-panel')?.classList.remove('open');
-          document.querySelector('.bst-backdrop')?.classList.remove('open');
-          closeCtxMenu();
-        }
-        redrawFog();      // veil opacity (translucent ↔ solid)
-        renderTokens();   // hidden enemies + badges
-        renderInitStrip(); // strip visibility + staff controls
-        paint();
-      });
-      paint();
-      stage.appendChild(btn);
-    }
-
-    // ── monster statblock (Phase B) ────────────────────────────────────────
-    // Token art: 5etools serves token webps by source + name. We layer the img
-    // over the initial-disc fallback (onerror removes it → initial shows).
-    function monsterTokenUrl(c) {
-      const m = c.statblock;
-      if (!m || !m.source || !m.name) return null;
-      return `https://5e.tools/img/bestiary/tokens/${m.source}/${encodeURIComponent(m.name)}.webp`;
-    }
-
-    // Statblock renderer — lifted from compendium.html's monster detail view
-    // (uses bstFmtCR for CR; same 5etools entry shape we snapshot on drop).
-    function fmtSpeed(s) {
-      if (!s) return '—';
-      if (typeof s === 'number') return `${s} ft.`;
-      return Object.entries(s).map(([k, v]) => { const n = typeof v === 'object' ? v.number : v; return k === 'walk' ? `${n} ft.` : `${k} ${n} ft.`; }).join(', ');
-    }
-    function sbCleanText(str) {
-      const ATK = { mw: 'Melee Weapon', rw: 'Ranged Weapon', ms: 'Melee Spell', rs: 'Ranged Spell', m: 'Melee', r: 'Ranged' };
-      return (str || '')
-        .replace(/\{@b ([^}]+)\}/g, '<strong>$1</strong>')
-        .replace(/\{@i ([^}]+)\}/g, '<em>$1</em>')
-        .replace(/\{@(?:spell|creature|item) ([^|}]+)[^}]*\}/g, '<span style="color:var(--gold-light)">$1</span>')
-        .replace(/\{@condition ([^|}]+)[^}]*\}/g, '<em>$1</em>')
-        .replace(/\{@atk ([^}]+)\}/g, (_, codes) => codes.split(',').map(c => ATK[c.trim()] || c.trim()).join(' or ') + ' Attack:')
-        .replace(/\{@h\}/g, 'Hit: ')
-        .replace(/\{@recharge ([^}]+)\}/g, '(Recharge $1–6)')
-        .replace(/\{@hit ([^}]+)\}/g, '+$1')
-        .replace(/\{@dc ([^}]+)\}/g, 'DC $1')
-        .replace(/\{@(?:damage|dice) ([^}]+)\}/g, '$1')
-        .replace(/\{@[a-z]+ ([^|}]+)[^}]*\}/g, '$1')
-        .replace(/\{@[^}]+\}/g, '');
-    }
-    function sbEntries(entries) {
-      if (!entries) return '';
-      return entries.map(e => {
-        if (typeof e === 'string') return `<p>${sbCleanText(e)}</p>`;
-        if (e.type === 'entries') return `${e.name ? `<p><strong>${e.name}</strong></p>` : ''}${sbEntries(e.entries || [])}`;
-        if (e.type === 'list') return `<ul>${(e.items || []).map(i => `<li>${typeof i === 'string' ? sbCleanText(i) : sbEntries(i.entries || []).replace(/<\/?p>/g, '')}</li>`).join('')}</ul>`;
-        if (e.type === 'table') {
-          const head = e.colLabels ? `<tr>${e.colLabels.map(l => `<th>${sbCleanText(l)}</th>`).join('')}</tr>` : '';
-          const rows = (e.rows || []).map(r => `<tr>${r.map(cell => `<td>${typeof cell === 'string' ? sbCleanText(cell) : cell?.roll ? `${cell.roll.min}–${cell.roll.max}` : ''}</td>`).join('')}</tr>`).join('');
-          return `<table><thead>${head}</thead><tbody>${rows}</tbody></table>`;
-        }
-        if (typeof e === 'object' && e.entries) return sbEntries(e.entries);
-        return '';
-      }).join('');
-    }
-    function sbTraits(traits, heading) {
-      if (!traits || !traits.length) return '';
-      return `<div class="detail-section"><div class="detail-section-title">${heading}</div>
-        ${traits.map(t => `<div class="trait-block"><span class="trait-name">${t.name}.</span><div class="trait-body">${sbEntries(t.entries || [])}</div></div>`).join('')}
-      </div>`;
-    }
-    function renderMonster(m) {
-      const type = [m.size, typeof m.type === 'object' ? m.type.type : m.type].filter(Boolean).join(' ');
-      const ac = Array.isArray(m.ac) ? m.ac.map(a => typeof a === 'object' ? `${a.ac}${a.from ? ' (' + a.from.map(sbCleanText).join(', ') + ')' : ''}` : `${a}`).join(', ') : `${m.ac || '—'}`;
-      const hp = m.hp ? `${m.hp.average} (${m.hp.formula})` : '—';
-      const saves = m.save ? Object.entries(m.save).map(([k, v]) => `${k.toUpperCase()} ${v}`).join(', ') : '—';
-      const skills = m.skill ? Object.entries(m.skill).map(([k, v]) => `${k} ${v}`).join(', ') : '—';
-      const imm = m.immune ? m.immune.map(i => typeof i === 'object' ? i.immune?.join(', ') : i).filter(Boolean).join(', ') : '—';
-      const res = m.resist ? m.resist.map(r => typeof r === 'object' ? r.resist?.join(', ') : r).filter(Boolean).join(', ') : '—';
-      const strip = ['str', 'dex', 'con', 'int', 'wis', 'cha'].map(a => { const sc = m[a] || 10, mod = Math.floor((sc - 10) / 2); return `<div class="ability-cell"><span class="ability-cell-label">${a.toUpperCase()}</span><span class="ability-cell-score">${sc}</span><span class="ability-cell-mod">${mod >= 0 ? '+' : ''}${mod}</span></div>`; }).join('');
-      return `<div class="detail-name">${m.name}</div><div class="detail-meta">${type} · CR ${bstFmtCR(m.cr)}</div><hr class="detail-rule">
-        <div class="detail-stats">
-          <div class="detail-stat"><span class="detail-stat-label">AC</span><span class="detail-stat-val">${ac}</span></div>
-          <div class="detail-stat"><span class="detail-stat-label">HP</span><span class="detail-stat-val">${hp}</span></div>
-          <div class="detail-stat"><span class="detail-stat-label">Speed</span><span class="detail-stat-val">${fmtSpeed(m.speed)}</span></div>
-          ${saves !== '—' ? `<div class="detail-stat"><span class="detail-stat-label">Saving Throws</span><span class="detail-stat-val">${saves}</span></div>` : ''}
-          ${skills !== '—' ? `<div class="detail-stat"><span class="detail-stat-label">Skills</span><span class="detail-stat-val">${skills}</span></div>` : ''}
-          ${imm !== '—' ? `<div class="detail-stat"><span class="detail-stat-label">Immunities</span><span class="detail-stat-val">${imm}</span></div>` : ''}
-          ${res !== '—' ? `<div class="detail-stat"><span class="detail-stat-label">Resistances</span><span class="detail-stat-val">${res}</span></div>` : ''}
-          <div class="detail-stat"><span class="detail-stat-label">Senses</span><span class="detail-stat-val">${(m.senses || []).join(', ') || '—'}</span></div>
-          <div class="detail-stat"><span class="detail-stat-label">Languages</span><span class="detail-stat-val">${m.languages || '—'}</span></div>
-        </div><hr class="detail-rule">
-        <div class="ability-strip">${strip}</div>
-        ${sbTraits(m.trait || [], 'Traits')}${sbTraits(m.action || [], 'Actions')}${sbTraits(m.bonus || [], 'Bonus Actions')}${sbTraits(m.reaction || [], 'Reactions')}${sbTraits(m.legendary || [], 'Legendary Actions')}
-        <div class="source-note">Source: ${m.source || 'MM'}${m.page ? ', p.' + m.page : ''}</div>`;
-    }
-
-    // The on-demand statblock drawer. Opened from a token's Manage tab via the
-    // module-scope openStatblock(c); no permanent tab (DM info, not a fixture).
-    let openStatblock = null;
-    function buildStatblockPanel() {
-      const panel = document.createElement('div');
-      panel.className = 'statblock-panel';
-      stage.appendChild(panel);
-      const backdrop = document.createElement('div');
-      backdrop.className = 'gc-backdrop sb-backdrop';
-      stage.appendChild(backdrop);
-      function close() { panel.classList.remove('open'); backdrop.classList.remove('open'); }
-      backdrop.addEventListener('click', close);
-      openStatblock = (c) => {
-        if (!c || !c.statblock) return;
-        panel.innerHTML = `<span class="sb-close">✕</span>` + renderMonster(c.statblock);
-        panel.querySelector('.sb-close').addEventListener('click', close);
-        panel.scrollTop = 0;
-        panel.classList.add('open');
-        backdrop.classList.add('open');
-      };
-    }
-
-    // ── initiative & turn tracker (Phase C1) ────────────────────────────────
-    let stripEl = null;
-    const BURNT_SEEDS = [3, 7, 12, 19, 5, 14, 21, 9];
-    function chipSeed(id) {                                  // stable per-combatant grain
-      let h = 0; const s = String(id || '');
-      for (let i = 0; i < s.length; i++) h = (h * 31 + s.charCodeAt(i)) | 0;
-      return BURNT_SEEDS[Math.abs(h) % BURNT_SEEDS.length];
-    }
-    function initOrder() {                                   // full set, highest initiative first
-      return COMBS.filter(c => c.initiative != null)
-        .slice()
-        .sort((a, b) => (b.initiative - a.initiative) || (a.side === 'party' ? -1 : 1) || String(a.name).localeCompare(String(b.name)));
-    }
-    function rollValue(c) {
-      let mod = 0;
-      if (c.side === 'party' && c.source_key && typeof CHARACTERS !== 'undefined' && CHARACTERS[c.source_key]) {
-        const cc = CHARACTERS[c.source_key];
-        mod = (cc.combat && typeof cc.combat.initiative === 'number') ? cc.combat.initiative
-            : (cc.abilities && cc.abilities.dex && cc.abilities.dex.mod) || 0;
-      } else if (c.statblock && typeof c.statblock.dex === 'number') {
-        mod = Math.floor((c.statblock.dex - 10) / 2);
-      }
-      return Math.floor(Math.random() * 20) + 1 + mod;
-    }
-    async function setInitiative(id, val) {
-      const c = COMBS.find(k => k.id === id); if (!c) return false;
-      const prev = c.initiative; c.initiative = val; renderInitStrip();
-      const { error } = await SB.from('combatants').update({ initiative: val }).eq('id', id);
-      if (error) { c.initiative = prev; renderInitStrip(); console.error('[init] write failed:', error.message); return false; }
-      return true;
-    }
-    function rollInitiative(c) { return setInitiative(c.id, rollValue(c)); }
-    async function setActive(id, round) {
-      if (!ENC) return;
-      ENC.active_combatant_id = id; if (round != null) ENC.round = round;
-      document.getElementById('combat-round').textContent = ENC.round ?? 1;
-      renderInitStrip();
-      const patch = { active_combatant_id: id }; if (round != null) patch.round = round;
-      const { error } = await SB.from('encounters').update(patch).eq('id', ENC.id);
-      if (error) console.error('[init] turn write failed:', error.message);
-    }
-    async function advanceTurn() {
-      const order = initOrder(); if (!order.length) return;
-      const i = order.findIndex(c => c.id === (ENC && ENC.active_combatant_id));
-      const next = i < 0 ? 0 : (i + 1) % order.length;
-      let round = (ENC && ENC.round) || 1;
-      if (i >= 0 && next === 0) round++;
-      await setActive(order[next].id, round);
-    }
-    function rollAllInitiative() {
-      COMBS.forEach(c => { c.initiative = rollValue(c); });
-      const top = initOrder()[0];
-      if (ENC) { ENC.active_combatant_id = top ? top.id : null; ENC.round = 1; }
-      document.getElementById('combat-round').textContent = 1;
-      renderInitStrip();
-      COMBS.forEach(c => SB.from('combatants').update({ initiative: c.initiative }).eq('id', c.id)
-        .then(({ error }) => { if (error) console.error('[init] write failed:', error.message); }));
-      if (ENC) SB.from('encounters').update({ active_combatant_id: ENC.active_combatant_id, round: 1 }).eq('id', ENC.id)
-        .then(({ error }) => { if (error) console.error('[init] turn write failed:', error.message); });
-    }
-
-    function chipHtml(c, isActive) {
-      const isParty = c.side === 'party';
-      const art = isParty ? (PORTRAITS[c.source_key] || TOKENS[c.source_key] || '') : (monsterTokenUrl(c) || '');
-      const initial = (c.name || '?').trim().charAt(0).toUpperCase();
-      const seed = chipSeed(c.id);
-      const pct = c.max_hp ? Math.max(0, Math.min(100, Math.round((c.hp / c.max_hp) * 100))) : 100;
-      const hpC = pct > 50 ? '#4a9a52' : pct > 25 ? '#c9a14a' : '#b23b3b';
-      const foe = c.hidden && !isParty;
-      return `<div class="init-chip ${isParty ? 'party' : 'enemy'}${isActive ? ' active' : ''}${foe ? ' hidden-foe' : ''}" data-id="${c.id}">
-        <div class="ic-zone" style="filter:url(#burnt-${seed})">
-          <div class="ic-bg ${isParty ? 'party' : 'enemy'}"></div>
-          ${art ? `<img class="ic-art" src="${art}" alt="" draggable="false" onerror="this.remove()">` : ''}
-          <span class="ic-initial">${initial}</span>
-          <div class="ic-dots"></div>
-          <div class="ic-fade"></div>
-        </div>
-        <span class="ic-init" data-edit="${c.id}">${c.initiative ?? '–'}</span>
-        <div class="ic-plate">
-          <div class="ic-name">${c.name || '?'}</div>
-          <div class="ic-hp"><i style="width:${pct}%;background:${hpC}"></i></div>
-        </div>
-      </div>`;
-    }
-    function mysteryChipHtml() {
-      return `<div class="init-chip enemy active hidden-foe" data-mystery="1">
-        <div class="ic-zone"><div class="ic-bg enemy"></div><span class="ic-initial">?</span><div class="ic-dots"></div><div class="ic-fade"></div></div>
-        <div class="ic-plate"><div class="ic-name" style="font-style:italic;color:#8a7a52">???</div></div>
-      </div>`;
-    }
-
-    function buildInitStrip() {
-      let defs = `<svg width="0" height="0" style="position:absolute;overflow:hidden" aria-hidden="true"><defs>`;
-      BURNT_SEEDS.forEach(seed => {
-        defs += `<filter id="burnt-${seed}" x="-15%" y="-15%" width="130%" height="130%" color-interpolation-filters="sRGB">
-          <feTurbulence type="turbulence" baseFrequency="0.024" numOctaves="3" seed="${seed}" result="turb"/>
-          <feDisplacementMap in="SourceGraphic" in2="turb" scale="1" xChannelSelector="R" yChannelSelector="G" result="warped"/>
-          <feTurbulence type="fractalNoise" baseFrequency="0.68" numOctaves="3" stitchTiles="stitch" result="grain"/>
-          <feColorMatrix type="saturate" values="0" in="grain" result="gGrain"/>
-          <feBlend in="warped" in2="gGrain" mode="overlay" result="final"/>
-          <feComposite in="final" in2="SourceGraphic" operator="in"/></filter>`;
-      });
-      defs += `</defs></svg>`;
-      const holder = document.createElement('div');
-      holder.innerHTML = defs;
-      stage.appendChild(holder.firstChild);
-
-      stripEl = document.createElement('div');
-      stripEl.className = 'init-strip empty';
-      stage.appendChild(stripEl);
-      renderInitStrip();
-    }
-
-    function renderInitStrip() {
-      if (!stripEl) return;
-      const ordered = initOrder();
-      const visible = ordered.filter(tokenVisible);
-      const staff = effectiveStaff();
-      const activeId = ENC && ENC.active_combatant_id;
-      const activeC = COMBS.find(c => c.id === activeId) || null;
-      const activeHiddenToMe = activeC && !tokenVisible(activeC);
-
-      if (!visible.length && !staff) { stripEl.className = 'init-strip empty'; stripEl.innerHTML = ''; return; }
-
-      if (!visible.length && staff) {                       // staff, nothing seated → start CTA
-        stripEl.className = 'init-strip';
-        stripEl.innerHTML = `<span class="init-empty-cta">No initiative yet</span><button class="init-btn ghost" data-roll="all">⚔ Roll all initiative</button>`;
-        wireStrip();
-        return;
-      }
-
-      let chips = '';
-      if (activeHiddenToMe && !staff) chips += mysteryChipHtml();   // someone's acting, unseen
-      chips += visible.map(c => chipHtml(c, c.id === activeId)).join('');
-
-      let side = `<div class="init-side"><div style="text-align:center"><div class="init-round-l">ROUND</div><div class="init-round-n">${(ENC && ENC.round) || 1}</div></div>`;
-      if (staff) side += `<button class="init-btn" data-turn="next">Next ▸</button><button class="init-btn ghost" data-roll="all">↻ Roll all</button>`;
-      side += `</div>`;
-
-      stripEl.className = 'init-strip';
-      stripEl.innerHTML = `<div class="init-track">${chips}</div>${side}`;
-      wireStrip();
-    }
-
-    function wireStrip() {
-      stripEl.querySelectorAll('.init-chip[data-id]').forEach(chip =>
-        chip.addEventListener('click', (e) => {
-          if (e.target.closest('.ic-init') || e.target.closest('.ic-edit')) return;   // editing the number
-          selectToken(chip.dataset.id);
-        }));
-      stripEl.querySelectorAll('.ic-init[data-edit]').forEach(badge =>
-        badge.addEventListener('click', (e) => {
-          e.stopPropagation();
-          const id = badge.dataset.edit;
-          const c = COMBS.find(k => k.id === id); if (!c) return;
-          if (!(effectiveStaff() || c.side === 'party')) return;   // players: party only
-          const inp = document.createElement('input');
-          inp.className = 'ic-edit'; inp.value = c.initiative ?? ''; inp.type = 'number';
-          badge.replaceWith(inp); inp.focus(); inp.select();
-          const commit = () => { const v = parseInt(inp.value, 10); if (!isNaN(v)) setInitiative(id, v); else renderInitStrip(); };
-          inp.addEventListener('keydown', (ev) => { if (ev.key === 'Enter') inp.blur(); if (ev.key === 'Escape') renderInitStrip(); });
-          inp.addEventListener('blur', commit);
-        }));
-      const next = stripEl.querySelector('[data-turn="next"]');
-      if (next) next.addEventListener('click', advanceTurn);
-      stripEl.querySelectorAll('[data-roll="all"]').forEach(b => b.addEventListener('click', rollAllInitiative));
     }
 
     // ── left tool rail (DM) — Select / Pencil(reveal) / Eraser(hide), with a
