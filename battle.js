@@ -355,22 +355,19 @@
       <span class="b-ai-roll">d</span></div>`;
   }
 
-  // ── Combat initiative (HUD) — the Init stat box becomes interactive during
-  // combat: pending → tap to roll/enter, rolled → tap to override. Out of
-  // combat it shows the static modifier as before. ──
-  let INIT_EDITING = false;
+  // ── Combat initiative (HUD) — roll only. Pending → tap to roll d20+mod (and
+  // log it to the tracker); once rolled it just shows the value. Correcting a
+  // number is done in the combat tracker on the map, not here. ──
   function initStatBox(ch) {
     const s = S(), mod = ch.combat.initiative || 0;
     if (!s.inCombat)
       return `<div class="b-stat-box"><span class="b-stat-val">${modStr(mod)}</span><span class="b-stat-lbl">Init</span></div>`;
-    if (INIT_EDITING)
-      return `<div class="b-stat-box b-init-edit"><div class="b-init-row"><input id="b-initInput" type="number" value="${s.combatInit ?? ''}" onkeydown="if(event.key==='Enter')window.__battle.commitInit();if(event.key==='Escape')window.__battle.editInit(false)"><button class="b-init-die" title="Roll d20${modStr(mod)}" onclick="window.__battle.rollInit()">🎲</button></div><span class="b-stat-lbl">Init</span></div>`;
     if (s.combatInit == null)
-      return `<div class="b-stat-box b-init-pending" onclick="window.__battle.editInit(true)"><span class="b-stat-val">🎲</span><span class="b-stat-lbl">Roll init</span></div>`;
-    return `<div class="b-stat-box b-init-rolled" onclick="window.__battle.editInit(true)"><span class="b-stat-val">${s.combatInit}</span><span class="b-stat-lbl">Init</span></div>`;
+      return `<div class="b-stat-box b-init-pending" title="Roll d20${modStr(mod)}" onclick="window.__battle.rollInit()"><span class="b-stat-val">🎲</span><span class="b-stat-lbl">Roll init</span></div>`;
+    return `<div class="b-stat-box b-init-rolled"><span class="b-stat-val">${s.combatInit}</span><span class="b-stat-lbl">Init</span></div>`;
   }
   function commitInitVal(v) {
-    const s = S(); s.combatInit = v; INIT_EDITING = false;
+    const s = S(); s.combatInit = v;
     backend.setInitiative && backend.setInitiative(activeKey, v);
     if (battleOn) renderAll();
   }
@@ -967,17 +964,11 @@
       .b-stat-box  { background:#111018; border-radius:3px; padding:6px 7px; text-align:center; }
       .b-stat-val  { font-size:18px; font-weight:700; color:#f0ece4; display:block; line-height:1; }
       .b-stat-lbl  { font-size:9px; letter-spacing:0.1em; text-transform:uppercase; color:#444; display:block; margin-top:2px; }
-      .b-init-pending, .b-init-rolled { cursor:pointer; }
-      .b-init-pending { background:#2a2410; outline:1px solid #c9a24a; }
+      .b-init-pending { background:#2a2410; outline:1px solid #c9a24a; cursor:pointer; }
       .b-init-pending .b-stat-val { color:#e7c66a; font-size:15px; }
-      .b-init-pending .b-stat-lbl, .b-init-edit .b-stat-lbl { color:#9a8341; }
+      .b-init-pending .b-stat-lbl { color:#9a8341; }
       .b-init-rolled  { background:#2a2410; }
       .b-init-rolled .b-stat-val { color:#e7c66a; }
-      .b-init-edit { background:#2a2410; outline:1px solid #c9a24a; padding:4px; }
-      .b-init-row  { display:flex; align-items:center; justify-content:center; gap:3px; }
-      .b-init-row input { width:30px; height:24px; text-align:center; font-size:14px; color:#f0e6cf; background:#15120e; border:1px solid #6b5a30; border-radius:3px; }
-      .b-init-die  { height:24px; width:24px; flex:none; background:#15120e; border:1px solid #6b5a30; border-radius:3px; cursor:pointer; font-size:13px; padding:0; line-height:1; }
-      .b-init-die:hover { border-color:#c9a24a; }
       .b-sec-lbl   { font-size:9px; letter-spacing:0.2em; text-transform:uppercase; color:#333; margin-top:3px; }
       .b-save-row,.b-cond-row { display:flex; flex-wrap:wrap; gap:4px; }
       .b-save-pip { padding:3px 6px; border-radius:3px; font-size:9px; letter-spacing:0.08em; text-transform:uppercase; border:1px solid; }
@@ -1232,9 +1223,11 @@
       updateRollerToggles();
     },
     clearHistory: ()=>{ rollHistory=[]; renderRollHistory(); },
-    editInit: (on)=>{ INIT_EDITING=!!on; if(battleOn) renderAll(); if(on) setTimeout(()=>{const i=document.getElementById('b-initInput'); if(i){i.focus();i.select();}},0); },
-    rollInit: ()=>{ const mod=(C().combat.initiative)||0; commitInitVal(die(20)+mod); },
-    commitInit: ()=>{ const i=document.getElementById('b-initInput'); const v=parseInt(i&&i.value,10); if(!isNaN(v)) commitInitVal(v); else { INIT_EDITING=false; if(battleOn) renderAll(); } },
+    rollInit: ()=>{
+      const mod=(C().combat.initiative)||0, d=die(20), total=d+mod;
+      addRollHistory({ name:'Initiative', main:`[<span class="b-rh-kept">${d}</span>] ${modStr(mod)} = <span class="b-rh-total">${total}</span>`, detail:`d20 ${modStr(mod)} initiative` });
+      commitInitVal(total);
+    },
   };
 
   // ── Combat state persistence ──
