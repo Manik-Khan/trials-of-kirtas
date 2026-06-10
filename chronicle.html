@@ -1087,12 +1087,15 @@
       <div class="c-tag-list" id="tag-list"></div>
     </div>
 
-    <!-- DM session control (shown only when identity is DM) -->
+    <!-- Staff session control + archive export -->
     <div class="c-session-ctrl" id="dm-session-ctrl" style="display:none">
       <span class="c-session-ctrl-label">Current Session</span>
       <div class="c-session-ctrl-row">
         <span class="c-session-ctrl-val" id="dm-session-val">—</span>
         <button class="c-session-bump" onclick="bumpSession()">Next Session →</button>
+      </div>
+      <div class="c-session-ctrl-row" style="margin-top:8px">
+        <button class="c-session-bump" id="export-archive-btn" onclick="exportArchive()" title="Regenerate the git-committed chronicle.json from the live feed">Export archive</button>
       </div>
     </div>
   </div>
@@ -1156,7 +1159,43 @@
 // ══════════════════════════════════════════════════════════
 // CONFIG
 // ══════════════════════════════════════════════════════════
-const FUNCTION_URL = '/.netlify/functions/chronicle';
+// ── Phase 2: the chronicle reads/writes the unified Supabase feed. ──
+// The old Netlify chronicle function is retired from this page (kept in the
+// repo for rollback); the export function below regenerates the git-committed
+// chronicle.json archive from the feed on demand.
+const EXPORT_URL = '/.netlify/functions/feed-export';
+let SB = null;        // shared authenticated client (from nav.js)
+let ME = null;        // viewer profile { userId, role, characterKey, ... }
+let IS_STAFF = false;
+
+// nav.js mounts async (session gate) — wait for it like combat.html does.
+function whenReady(cb) {
+  if (window.__tok && window.__tok.sb) { cb(); return; }
+  document.addEventListener('nav:ready', function once() {
+    document.removeEventListener('nav:ready', once);
+    cb();
+  });
+}
+
+// Adapter: a feed row → the legacy entry shape every renderer below expects.
+// _rowId/_authorId ride along for writes and the can-edit check; everything
+// else is exactly what chronicle.json entries looked like.
+function rowToEntry(r) {
+  const m = r.meta || {};
+  return {
+    id: String(r.id), _rowId: r.id, _authorId: r.author_id || null,
+    session: (r.session == null ? 0 : r.session),
+    author: r.actor_name, character: m.character, color: m.color,
+    timestamp: r.created_at, text: r.body,
+    ...(r.tags && r.tags.length && { tags: r.tags }),
+    ...(m.location     && { location: m.location }),
+    ...(m.sessionTitle && { sessionTitle: m.sessionTitle }),
+    ...(r.edited_at    && { edited: true }),
+  };
+}
+function canEditEntry(e) {
+  return IS_STAFF || !!(ME && e._authorId && e._authorId === ME.userId);
+}
 
 const PLAYERS = [
   { id:'dm',        name:'DM',        character:'Narrator', color:'var(--gold)' },
@@ -1202,7 +1241,6 @@ const DRAFT_KEY   = 'kirtas-chronicle-draft';
 let currentIdentity = null;
 let pendingPlayer   = null;
 let allEntries      = [];
-let fileSHA         = null;
 let currentSession  = 1;
 let activeFilters   = { session: null, author: null, tags: [], search: '' };
 let drawerOpen      = false;
@@ -1230,6 +1268,16 @@ function saveIdentity(id) {
   try { localStorage.setItem(ID_KEY, JSON.stringify(id)); } catch(e) {}
 }
 function getPlayer(id) { return PLAYERS.find(p=>p.id===id); }
+// Identity is auth-bound now: non-staff may only post as their own character
+// (profiles.character_key); staff may pick anyone (incl. DM/Narrator). The
+// modal keeps choosing display color; ownership (author_id) comes from auth
+// regardless, so this is display gating on top of RLS truth.
+function allowedPlayers() {
+  if (IS_STAFF) return PLAYERS;
+  return PLAYERS.filter(p => ME && p.id === ME.characterKey);
+}
+function renderPlayerBtns() {
+  document.getElementById('id-players').innerHTML = allowedPlayers().map(p=>`
 
 function openModal() {
   pendingPlayer = currentIdentity?.playerId || null;
@@ -1243,8 +1291,6 @@ function openModal() {
   document.getElementById('id-modal').classList.remove('hidden');
   updateConfirmBtn();
 }
-function renderPlayerBtns() {
-  document.getElementById('id-players').innerHTML = PLAYERS.map(p=>`
     <button class="id-player-btn${pendingPlayer===p.id?' selected':''}" onclick="selectPlayer('${p.id}')">
       <div class="id-dot" style="background:${p.color}"></div>
       <div class="id-info"><span class="id-name">${p.name}</span><span class="id-char">${p.character}</span></div>
@@ -1268,7 +1314,7 @@ function confirmIdentity() {
   saveIdentity({ playerId:pendingPlayer, name:p.name, character:p.character, color:c });
   document.getElementById('id-modal').classList.add('hidden');
   updateDrawerIdentity();
-  if (currentIdentity.playerId === 'dm') document.getElementById('dm-session-ctrl').style.display = 'block';
+  if (IS_STAFF) document.getElementById('dm-session-ctrl').style.display = 'block';
 }
 
 function updateDrawerIdentity() {
@@ -1756,23 +1802,66 @@ function tagImage(src, e) {
 }
 async function loadChronicle() {
   try {
-    const res  = await fetch(FUNCTION_URL);
-    if (!res.ok) throw new Error(`Function ${res.status}`);
-    const data = await res.json();
-    fileSHA    = data.sha;
-    allEntries = data.entries || [];
-    // Get currentSession from entries config or derive from max session
-    if (data.config?.currentSession) currentSession = data.config.currentSession;
-    else currentSession = Math.max(0, ...allEntries.map(e=>e.session||0));
+    if (!SB) throw new Error('No Supabase client');
+    // Chronicle channel only; RLS already hides staff-only rows from players.
+    const [{ data: rows, error: fErr }, { data: camp, error: cErr }] = await Promise.all([
+      SB.from('feed').select('*').eq('channel', 'chronicle').order('created_at', { ascending: false }),
+      SB.from('campaign').select('current_session').eq('id', 1).maybeSingle(),
+    ]);
+    if (fErr) throw new Error(fErr.message);
+    if (cErr) console.warn('Could not load campaign config:', cErr.message);
+    allEntries = (rows || []).map(rowToEntry);
+    currentSession = camp ? camp.current_session
+                          : Math.max(0, ...allEntries.map(e=>e.session||0));
     document.getElementById('d-session').value = currentSession;
     document.getElementById('dm-session-val').textContent = `Session ${currentSession}`;
     checkSessionPrompt();
     renderSidebar();
     renderEntries();
+    initChronicleRealtime();
   } catch(e) {
     document.getElementById('c-loading').innerHTML =
       `<div style="color:var(--blood)">Could not load chronicle.<br><small style="color:var(--muted);font-style:italic">${e.message}</small></div>`;
   }
+}
+
+// ── live (new in Phase 2): entries and session bumps stream in from any page —
+// the combat feed's plain-text posts land here the moment they're typed. ──
+let CHRT = null;
+function initChronicleRealtime() {
+  if (!SB || CHRT) return;
+  CHRT = SB.channel('chronicle-live')
+    .on('postgres_changes',
+      { event: 'INSERT', schema: 'public', table: 'feed', filter: 'channel=eq.chronicle' },
+      ({ new: row }) => {
+        if (!row || allEntries.some(e=>e._rowId === row.id)) return;
+        allEntries = [rowToEntry(row), ...allEntries]
+          .sort((a,b)=>new Date(b.timestamp)-new Date(a.timestamp));
+        renderSidebar(); renderEntries();
+      })
+    .on('postgres_changes',
+      { event: 'UPDATE', schema: 'public', table: 'feed', filter: 'channel=eq.chronicle' },
+      ({ new: row }) => {
+        if (!row) return;
+        const i = allEntries.findIndex(e=>e._rowId === row.id);
+        if (i >= 0) { allEntries[i] = rowToEntry(row); renderSidebar(); renderEntries(); }
+      })
+    .on('postgres_changes',
+      { event: 'DELETE', schema: 'public', table: 'feed' },
+      ({ old }) => {
+        if (!old || old.id == null) return;
+        const n = allEntries.length;
+        allEntries = allEntries.filter(e=>e._rowId !== old.id);
+        if (allEntries.length !== n) { renderSidebar(); renderEntries(); }
+      })
+    .on('postgres_changes',
+      { event: 'UPDATE', schema: 'public', table: 'campaign' },
+      ({ new: row }) => {
+        if (!row) return;
+        currentSession = row.current_session;
+        document.getElementById('dm-session-val').textContent = `Session ${currentSession}`;
+      })
+    .subscribe();
 }
 
 // ══════════════════════════════════════════════════════════
@@ -1808,13 +1897,13 @@ async function bumpSessionTo(n) {
   currentSession = n;
   document.getElementById('d-session').value = n;
   document.getElementById('dm-session-val').textContent = `Session ${n}`;
-  // Write config to chronicle.json via function
+  // Campaign table is live truth; realtime carries the bump to every page.
   try {
-    await fetch(FUNCTION_URL + '?action=config', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ configUpdate: { currentSession: n } }),
-    });
+    if (!SB) throw new Error('No Supabase client');
+    const { error } = await SB.from('campaign')
+      .update({ current_session: n, updated_at: new Date().toISOString() })
+      .eq('id', 1);
+    if (error) throw new Error(error.message);
   } catch(e) { console.warn('Could not save session config', e); }
 }
 
@@ -1963,7 +2052,7 @@ function renderEntry(e) {
   const date   = new Date(e.timestamp).toLocaleDateString('en-US',{month:'short',day:'numeric',year:'numeric'});
   const time   = new Date(e.timestamp).toLocaleTimeString('en-US',{hour:'numeric',minute:'2-digit'});
   const tags   = (e.tags||[]).map(t=>`<span class="c-entry-tag" onclick="filterByTag('${t}')">${t}</span>`).join('');
-  const isOwn  = currentIdentity && (currentIdentity.name === e.author || currentIdentity.playerId === 'dm');
+  const isOwn  = canEditEntry(e);
   const isDM   = !e.author || e.author === 'DM' || e.author === 'Narrator' || e.author === 'Game Master';
   const isRight = currentIdentity && currentIdentity.name === e.author && !isDM;
 
@@ -2169,20 +2258,17 @@ function editEntry(id) {
 
 async function deleteEntry(id) {
   if (!confirm('Delete this entry? This cannot be undone.')) return;
+  const entry  = allEntries.find(e=>e.id===id);
   const backup = [...allEntries];
   allEntries = allEntries.filter(e=>e.id!==id);
   renderSidebar();
   renderEntries();
   try {
-    const res = await fetch(FUNCTION_URL, {
-      method:  'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body:    JSON.stringify({ _replaceAll: true, entries: allEntries, message: `Chronicle: deleted entry ${id}` }),
-    });
-    const data = await res.json();
-    if (!res.ok) throw new Error(data.error || `HTTP ${res.status}`);
+    if (!SB || !entry) throw new Error('Entry not found');
+    const { error } = await SB.from('feed').delete().eq('id', entry._rowId);
+    if (error) throw new Error(error.message);
   } catch(e) {
-    // Revert on failure
+    // Revert on failure (e.g. RLS said no)
     allEntries = backup;
     renderSidebar();
     renderEntries();
@@ -2239,56 +2325,77 @@ async function submitEntry() {
   const title    = document.getElementById('d-title').value.trim();
   const location = document.getElementById('d-location').value.trim();
 
-  const entry = {
-    id:           editingEntryId || Date.now().toString(),
-    session:      sessionNum,
+  const meta = {
+    ...(currentIdentity.character && { character: currentIdentity.character }),
+    ...(currentIdentity.color     && { color: currentIdentity.color }),
     ...(title    && { sessionTitle: title }),
     ...(location && { location }),
-    author:       currentIdentity.name,
-    character:    currentIdentity.character,
-    color:        currentIdentity.color,
-    timestamp:    editingEntryId ? (allEntries.find(e=>e.id===editingEntryId)?.timestamp||new Date().toISOString()) : new Date().toISOString(),
-    text:         cleanHTML,
-    ...(tags.length && { tags }),
   };
+  const actorKey = currentIdentity.playerId === 'dm' ? null : currentIdentity.playerId;
 
   setDrawerStatus('Submitting…','loading');
   document.getElementById('drawer-submit').disabled = true;
 
   try {
+    if (!SB) throw new Error('No Supabase client');
+    let row;
     if (editingEntryId) {
-      allEntries = allEntries.map(e=>e.id===editingEntryId?entry:e);
+      const existing = allEntries.find(e=>e.id===editingEntryId);
+      if (!existing) throw new Error('Entry not found');
+      const { data, error } = await SB.from('feed')
+        .update({ session: sessionNum, body: cleanHTML, tags: tags.length ? tags : null,
+                  meta, edited_at: new Date().toISOString() })
+        .eq('id', existing._rowId).select().single();
+      if (error) throw new Error(error.message);
+      row = data;
+      allEntries = allEntries.map(e=>e.id===editingEntryId?rowToEntry(row):e);
     } else {
-      allEntries = [entry, ...allEntries];
+      // author_id defaults to auth.uid() server-side — ownership is auth truth.
+      const { data, error } = await SB.from('feed')
+        .insert({ channel: 'chronicle', kind: 'message', session: sessionNum,
+                  actor_key: actorKey, actor_name: currentIdentity.name,
+                  body: cleanHTML, tags: tags.length ? tags : null, meta })
+        .select().single();
+      if (error) throw new Error(error.message);
+      row = data;
+      if (!allEntries.some(e=>e._rowId === row.id))   // realtime may have echoed first
+        allEntries = [rowToEntry(row), ...allEntries];
     }
-    const res  = await fetch(FUNCTION_URL, {
-      method:  'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body:    JSON.stringify(entry),
-    });
-    const data = await res.json();
-    if (!res.ok) throw new Error(data.error||`HTTP ${res.status}`);
     editingEntryId = null;
     clearDraft();
     setDrawerStatus('Entry added — visible to everyone shortly.','success');
     renderSidebar();
     renderEntries();
-    setTimeout(()=>{ const el=document.getElementById(`entry-${entry.id}`); if(el)el.scrollIntoView({behavior:'smooth',block:'center'}); },100);
+    setTimeout(()=>{ const el=document.getElementById(`entry-${rowToEntry(row).id}`); if(el)el.scrollIntoView({behavior:'smooth',block:'center'}); },100);
   } catch(e) {
     setDrawerStatus(`Failed: ${e.message}`,'error');
-    if (!editingEntryId) allEntries = allEntries.filter(x=>x.id!==entry.id);
   } finally {
     document.getElementById('drawer-submit').disabled = false;
   }
 }
 
-async function writeChronicle(message) {
-  const res = await fetch(FUNCTION_URL, {
-    method:  'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body:    JSON.stringify({ _replaceAll: true, entries: allEntries, message }),
-  });
-  if (!res.ok) throw new Error(`HTTP ${res.status}`);
+// ── Export the durable archive (staff): regenerate data/chronicle.json from
+// the feed via the feed-export Netlify function. The git-committed JSON stays
+// the version-controlled backstop; Supabase is live truth. ──
+async function exportArchive() {
+  const btn = document.getElementById('export-archive-btn');
+  if (btn) { btn.disabled = true; btn.textContent = 'Exporting…'; }
+  try {
+    const tok = window.__tok?.session?.access_token;
+    if (!tok) throw new Error('Not authenticated');
+    const res  = await fetch(EXPORT_URL, {
+      method:  'POST',
+      headers: { 'Authorization': `Bearer ${tok}` },
+    });
+    const data = await res.json();
+    if (!res.ok) throw new Error(data.error || `HTTP ${res.status}`);
+    if (btn) btn.textContent = `Archived ${data.count} ✓`;
+  } catch(e) {
+    alert('Export failed: ' + e.message);
+    if (btn) btn.textContent = 'Export archive';
+  } finally {
+    if (btn) { btn.disabled = false; setTimeout(()=>{ btn.textContent = 'Export archive'; }, 4000); }
+  }
 }
 
 function setDrawerStatus(msg, type) {
@@ -2299,10 +2406,26 @@ function setDrawerStatus(msg, type) {
 // ══════════════════════════════════════════════════════════
 // INIT
 // ══════════════════════════════════════════════════════════
-document.addEventListener('DOMContentLoaded', () => {
+document.addEventListener('DOMContentLoaded', () => whenReady(async () => {
+  SB = window.__tok.sb;
+  ME = window.__tok.ready ? await window.__tok.ready : null;
+  IS_STAFF = !!(ME && (ME.role === 'overseer' || ME.role === 'dm'));
+
   loadIdentity();
+  // A stale/foreign localStorage identity (pre-auth era, or another seat on a
+  // shared device) gets dropped if this login isn't allowed to claim it.
+  if (currentIdentity && !allowedPlayers().some(p=>p.id === currentIdentity.playerId)) {
+    currentIdentity = null;
+    try { localStorage.removeItem(ID_KEY); } catch(e) {}
+  }
+  // One allowed seat and no identity yet → claim it silently (players never
+  // need the modal; staff still pick).
+  if (!currentIdentity) {
+    const opts = allowedPlayers();
+    if (opts.length === 1) saveIdentity({ playerId: opts[0].id, name: opts[0].name, character: opts[0].character, color: opts[0].color });
+  }
   updateDrawerIdentity();
-  if (currentIdentity?.playerId === 'dm') document.getElementById('dm-session-ctrl').style.display = 'block';
+  if (IS_STAFF) document.getElementById('dm-session-ctrl').style.display = 'block';
   initQuill();
   loadChronicle();
 
@@ -2328,7 +2451,7 @@ document.addEventListener('DOMContentLoaded', () => {
   const entriesEl = document.getElementById('c-entries');
   new MutationObserver(() => injectImageToolbars(entriesEl))
     .observe(entriesEl, { childList: true, subtree: true });
-});
+}));
 </script>
 
 <!-- Lightbox -->
