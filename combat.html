@@ -358,19 +358,60 @@
     .ctx-act.ctx-danger { color: var(--blood, #c0001a); border-color: rgba(192,0,26,0.4); }
     .ctx-act.ctx-danger:hover { color: #fff; background: var(--blood, #c0001a); border-color: var(--blood, #c0001a); }
 
-    /* staff "view as player" toggle + preview-mode UI suppression */
-    .view-toggle {
-      position: absolute; top: 78px; right: 10px; z-index: 20;
-      display: flex; align-items: center; gap: 0.4rem;
-      background: var(--nav-bg); border: 1px solid var(--nav-border);
-      color: var(--muted); cursor: pointer;
-      font-family: var(--font-title); font-size: 0.5rem; letter-spacing: 0.12em;
-      text-transform: uppercase; padding: 0.4rem 0.7rem; border-radius: 5px;
+    /* ── right dock: slim icon rail + one tabbed panel (Feed / Display /
+       Bestiary / Combat). Minimized = rail only; the eye (view-as-player)
+       stays a toggle on the rail, not a panel. ── */
+    .dock-rail {
+      position: absolute; top: 0; right: 0; bottom: 0; z-index: 23;
+      width: 44px; display: flex; flex-direction: column; align-items: center;
+      gap: 5px; padding: 10px 0;
+      background: var(--nav-bg); border-left: 1px solid var(--nav-border);
+    }
+    .dock-btn {
+      position: relative; width: 34px; height: 34px; border-radius: 6px;
+      border: 1px solid transparent; background: none; color: var(--muted);
+      font-size: 15px; cursor: pointer; display: flex; align-items: center; justify-content: center;
       transition: color 0.15s, border-color 0.15s, background 0.15s;
     }
-    .view-toggle:hover { color: var(--parchment); border-color: var(--gold-dim); }
+    .dock-btn:hover { color: var(--parchment); }
+    .dock-btn.active { color: var(--gold-light); border-color: var(--nav-border); background: rgba(184,149,42,0.08); }
+    .dock-btn.active::before { content: ''; position: absolute; left: -6px; top: 7px; bottom: 7px; width: 2px; background: var(--gold); border-radius: 2px; }
+    .dock-btn.unread::after { content: ''; position: absolute; top: 3px; right: 3px; width: 7px; height: 7px; border-radius: 50%; background: var(--blood, #c0001a); }
+    .dock-btn svg { width: 15px; height: 15px; fill: currentColor; }
+    .dock-spacer { flex: 1; }
+    .dock-panel {
+      position: absolute; top: 0; right: 44px; bottom: 88px;   /* bottom clears the battle HUD, as the old feed did */
+      z-index: 22;
+      width: 300px; max-width: calc(100vw - 56px);
+      background: var(--nav-bg); border-left: 1px solid var(--nav-border);
+      border-bottom: 1px solid var(--nav-border);
+      box-shadow: -8px 0 40px rgba(0,0,0,0.5);
+      display: none; flex-direction: column;
+    }
+    .dock-panel.open { display: flex; }
+    .dock-head {
+      display: flex; align-items: center; justify-content: space-between;
+      padding: 9px 12px; border-bottom: 1px solid var(--nav-border); flex: none;
+    }
+    .dock-title { font-family: var(--font-title); font-size: 0.5rem; letter-spacing: 0.18em; text-transform: uppercase; color: var(--gold); }
+    .dock-close { background: none; border: none; color: var(--muted); cursor: pointer; font-size: 12px; padding: 2px 4px; }
+    .dock-close:hover { color: var(--parchment); }
+    .dock-body { flex: 1; min-height: 0; display: flex; }
+    .dock-pane { display: none; flex: 1; min-width: 0; min-height: 0; flex-direction: column; overflow: hidden; }
+    .dock-pane.show { display: flex; }
+    /* combat pane action buttons */
+    .dock-acts { padding: 0.7rem; display: flex; flex-direction: column; gap: 7px; }
+    .dock-act {
+      background: var(--ink); border: 1px solid var(--section-border); border-radius: 5px;
+      color: var(--parchment); cursor: pointer; text-align: left;
+      font-family: var(--font-title); font-size: 0.62rem; letter-spacing: 0.06em;
+      padding: 9px 11px;
+    }
+    .dock-act:hover:not(:disabled) { border-color: var(--gold-light); background: rgba(184,149,42,0.1); }
+    .dock-act:disabled { color: var(--muted); opacity: 0.4; cursor: default; }
+    /* staff "view as player" toggle (rail icon) + preview-mode UI suppression */
     .view-toggle.on { background: var(--gold); color: var(--ink-deep); border-color: var(--gold); }
-    .view-toggle svg { width: 13px; height: 13px; fill: currentColor; }
+    .stage.view-as-player .dock-btn.staff { display: none !important; }
     .stage.view-as-player .tool-rail,
     .stage.view-as-player .bestiary-tab,
     .stage.view-as-player .bestiary-panel,
@@ -381,7 +422,7 @@
     /* zoom toolbar */
     .zoom-bar {
       position: absolute;
-      bottom: 12px; right: 12px;
+      bottom: 12px; right: 56px;   /* clear the dock rail */
       z-index: 20;
       display: flex;
       flex-direction: column;
@@ -419,35 +460,17 @@
     /* ── grid controls panel ── */
     /* Display is a right slide-out drawer (compendium pattern), opened by a tab */
     .grid-controls {
-      position: absolute;
-      top: 0; right: 0; bottom: 0;
-      z-index: 22;
-      width: 240px; max-width: 90vw;
-      background: var(--nav-bg);
-      border-left: 1px solid var(--nav-border);
+      flex: 1; min-height: 0;
       padding: 0.6rem 0.7rem;
       overflow-y: auto;
       font-family: var(--font-title);
-      transform: translateX(100%);
-      transition: transform 0.28s cubic-bezier(0.4,0,0.2,1);
-      box-shadow: -8px 0 40px rgba(0,0,0,0.5);
     }
-    .grid-controls.open { transform: translateX(0); }
     .gc-backdrop {
       position: absolute; inset: 0; z-index: 21;
       background: rgba(0,0,0,0.35);
       opacity: 0; pointer-events: none; transition: opacity 0.28s;
     }
     .gc-backdrop.open { opacity: 1; pointer-events: auto; }
-    .display-tab {
-      position: absolute; top: 10px; right: 10px; z-index: 18;
-      background: var(--nav-bg); border: 1px solid var(--nav-border);
-      color: var(--muted); cursor: pointer;
-      font-family: var(--font-title); font-size: 0.5rem; letter-spacing: 0.14em;
-      text-transform: uppercase; padding: 0.4rem 0.65rem;
-      transition: color 0.15s, border-color 0.15s;
-    }
-    .display-tab:hover { color: var(--parchment); border-color: var(--gold-dim); }
     .grid-controls h4 {
       font-size: 0.46rem;
       letter-spacing: 0.32em;
@@ -491,61 +514,15 @@
     .gc-btn.on   { background: var(--gold); color: var(--ink-deep); border-color: var(--gold); }
     .gc-fog-brush, .gc-fog-bulk { gap: 0.3rem; }
     .stage.fog-edit { cursor: crosshair; }
-    /* ── bestiary picker (DM): right slide-out, same idiom as Display ── */
+    /* ── bestiary picker (DM): lives in the dock's Bestiary pane ── */
     .bestiary-panel {
-      position: absolute; top: 0; right: 0; bottom: 0; z-index: 22;
-      width: 300px; max-width: 92vw;
-      background: var(--nav-bg); border-left: 1px solid var(--nav-border);
+      flex: 1; min-height: 0;
       padding: 0.6rem 0.7rem; box-sizing: border-box;
       display: flex; flex-direction: column;
       font-family: var(--font-title);
-      transform: translateX(100%);
-      transition: transform 0.28s cubic-bezier(0.4,0,0.2,1);
-      box-shadow: -8px 0 40px rgba(0,0,0,0.5);
     }
-    .bestiary-panel.open { transform: translateX(0); }
-    .bestiary-tab {
-      position: absolute; top: 44px; right: 10px; z-index: 18;
-      background: var(--nav-bg); border: 1px solid var(--nav-border);
-      color: var(--muted); cursor: pointer;
-      font-family: var(--font-title); font-size: 0.5rem; letter-spacing: 0.14em;
-      text-transform: uppercase; padding: 0.4rem 0.65rem;
-      transition: color 0.15s, border-color 0.15s;
-    }
-    .bestiary-tab:hover { color: var(--parchment); border-color: var(--gold-dim); }
-    .combat-tab {
-      position: absolute; top: 112px; right: 10px; z-index: 18;
-      background: var(--nav-bg); border: 1px solid var(--nav-border);
-      color: var(--muted); cursor: pointer;
-      font-family: var(--font-title); font-size: 0.5rem; letter-spacing: 0.14em;
-      text-transform: uppercase; padding: 0.4rem 0.65rem;
-      transition: color 0.15s, border-color 0.15s;
-    }
-    .combat-tab:hover { color: var(--parchment); border-color: var(--gold-dim); }
-    .combat-menu {
-      position: absolute; top: 144px; right: 10px; z-index: 19;
-      display: none; flex-direction: column; min-width: 134px;
-      background: var(--nav-bg); border: 1px solid var(--nav-border); border-radius: 4px; padding: 4px;
-    }
-    .combat-menu.open { display: flex; }
-    .combat-menu button {
-      background: transparent; border: none; color: var(--parchment);
-      font-family: var(--font-title); font-size: 0.62rem; letter-spacing: 0.04em;
-      text-align: left; padding: 7px 9px; cursor: pointer; border-radius: 3px;
-    }
-    .combat-menu button:hover:not(:disabled) { background: rgba(184,149,42,0.14); }
-    .combat-menu button:disabled { color: var(--muted); opacity: 0.4; cursor: default; }
-    .stage.view-as-player .combat-tab,
-    .stage.view-as-player .combat-menu { display: none !important; }
-
-    /* ── shared feed (game log) ── */
-    .feed-wrap { position: absolute; top: 150px; right: 12px; bottom: 96px; z-index: 22; width: 320px; max-width: calc(100% - 24px);
-      background: var(--nav-bg); border: 1px solid var(--nav-border); border-radius: 8px; display: flex; flex-direction: column; overflow: hidden; }
-    .feed-wrap.collapsed { bottom: auto; }
-    .feed-wrap.collapsed .feed-tabs, .feed-wrap.collapsed .feed-body, .feed-wrap.collapsed .feed-dice, .feed-wrap.collapsed .feed-input { display: none; }
-    .feed-head { display: flex; align-items: center; justify-content: space-between; padding: 8px 11px; cursor: pointer; border-bottom: 1px solid var(--nav-border); }
-    .feed-title { font-family: var(--font-title); font-size: 0.5rem; letter-spacing: 0.14em; text-transform: uppercase; color: var(--gold); }
-    .feed-collapse { color: var(--muted); font-size: 12px; }
+    /* ── shared feed (game log) — fills the dock's Feed pane ── */
+    .feed-wrap { flex: 1; min-height: 0; display: flex; flex-direction: column; overflow: hidden; }
     .feed-tabs { display: flex; border-bottom: 1px solid var(--nav-border); }
     .feed-tab { flex: 1; text-align: center; padding: 7px 0; font-family: var(--font-title); font-size: 0.46rem; letter-spacing: 0.1em; text-transform: uppercase; color: var(--muted); cursor: pointer; background: transparent; border: none; }
     .feed-tab.on { color: var(--parchment); border-bottom: 2px solid var(--gold); }
@@ -611,8 +588,8 @@
     .bst-state { padding: 0.8rem 0.4rem; color: var(--muted); font-size: 0.55rem; text-align: center; line-height: 1.5; }
     /* ── statblock panel (DM): opened from a token's Manage tab ── */
     .statblock-panel {
-      position: absolute; top: 0; right: 0; bottom: 0; z-index: 23;
-      width: 360px; max-width: 94vw;
+      position: absolute; top: 0; right: 44px; bottom: 0; z-index: 24;   /* clears the dock rail */
+      width: 360px; max-width: calc(94vw - 44px);
       background: var(--nav-bg); border-left: 1px solid var(--nav-border);
       padding: 0.9rem 1rem; box-sizing: border-box; overflow-y: auto;
       transform: translateX(100%);
@@ -703,6 +680,26 @@
       display: flex; flex-direction: column; gap: 0.25rem;
       background: var(--nav-bg); border: 1px solid var(--nav-border); padding: 0.3rem;
     }
+    /* dice tray: ⚄ on the rail expands a count row + die buttons below */
+    .dice-tray { overflow: hidden; max-height: 0; transition: max-height 0.25s ease; }
+    .dice-tray.open { max-height: 430px; }
+    .dice-count {
+      display: grid; grid-template-columns: repeat(4, 1fr); gap: 2px;
+      border-top: 1px solid var(--nav-border); margin-top: 0.25rem; padding: 0.3rem 0 0.2rem;
+    }
+    .dice-count button {
+      padding: 3px 0; background: none; border: 1px solid transparent; border-radius: 3px;
+      font-family: var(--font-title); font-size: 0.52rem; color: var(--muted); cursor: pointer;
+    }
+    .dice-count button:hover { color: var(--parchment); }
+    .dice-count button.on { color: var(--gold-light); border-color: var(--nav-border); background: rgba(184,149,42,0.1); }
+    .dice-die {
+      display: block; width: 34px; margin: 2px auto; padding: 5px 0;
+      background: var(--ink); border: 1px solid var(--section-border); border-radius: 5px;
+      font-family: var(--font-title); font-size: 0.5rem; letter-spacing: 0.05em;
+      color: var(--parchment2); cursor: pointer; text-align: center;
+    }
+    .dice-die:hover { color: var(--gold-light); border-color: var(--gold-light); }
     .tool-btn {
       width: 34px; height: 34px; display: flex; align-items: center; justify-content: center;
       background: transparent; border: 1px solid transparent; border-radius: 4px;
@@ -1590,7 +1587,7 @@
       stage.addEventListener('pointerdown', (e) => {
         if (e.button > 0) return;                 // right/middle mouse → handled by contextmenu
         // never let board pan/drag steal interactions meant for the UI panels
-        if (e.target.closest('.grid-controls, .zoom-bar, .tool-rail, .tool-options, .gc-backdrop, .display-tab, .bestiary-tab, .bestiary-panel, .view-toggle, .combat-tab, .combat-menu, .feed-wrap, .statblock-panel, .init-strip, .draw-del')) return;
+        if (e.target.closest('.zoom-bar, .tool-rail, .tool-options, .gc-backdrop, .dock-rail, .dock-panel, .statblock-panel, .init-strip, .draw-del')) return;
         if (FOG.editing && IS_STAFF) {                 // fog paint mode → paint cells, skip token/pan logic
           try { stage.setPointerCapture(e.pointerId); } catch (_) {}
           fogPainting = true;
@@ -1762,10 +1759,12 @@
 
       stage.addEventListener('wheel', (e) => {
         // inside a scrollable UI panel → let it scroll natively, don't zoom
-        if (e.target.closest('.bestiary-panel, .statblock-panel, .init-strip, .grid-controls, .tool-options')) return;
+        if (e.target.closest('.dock-panel, .dock-rail, .statblock-panel, .init-strip, .tool-options, .tool-rail')) return;
         e.preventDefault();
         const rect = stage.getBoundingClientRect();
-        zoomAt(e.deltaY < 0 ? 1.1 : 1 / 1.1, e.clientX - rect.left, e.clientY - rect.top);
+        // 1.07/tick (was 1.1) — ~30% gentler wheel zoom. Pinch (distance-driven)
+        // and the zoom-bar buttons (deliberate clicks) keep their own rates.
+        zoomAt(e.deltaY < 0 ? 1.07 : 1 / 1.07, e.clientX - rect.left, e.clientY - rect.top);
       }, { passive: false });
 
       // arrow keys nudge the selected token one cell
@@ -1889,9 +1888,12 @@
 
       // ── always-on feed (Phase 2) — the game log lives with or without an
       // active encounter, on its own realtime channel, so the boot bail-outs
-      // below (no manifest / no encounter) no longer take the feed down. ──
+      // below (no manifest / no encounter) no longer take the feed down. The
+      // dock hosts it (and later Display / Bestiary / Combat as they build). ──
       await loadCampaign();
+      buildDock();
       buildFeed();
+      dockOpen('feed');
       initFeedRealtime();
 
       let manifest;
@@ -2022,6 +2024,53 @@
     });
 
     // ── grid controls panel ──
+    // ── right dock — one slim icon rail + one panel, every right-side surface
+    // is a registered pane (Feed / Display / Bestiary / Combat). Minimized =
+    // rail only. The eye (view-as-player) is a rail toggle, not a pane. ──
+    let DOCK = null;
+    function buildDock() {
+      const rail = document.createElement('div');
+      rail.className = 'dock-rail';
+      const spacer = document.createElement('div');
+      spacer.className = 'dock-spacer';
+      rail.appendChild(spacer);
+      const panel = document.createElement('div');
+      panel.className = 'dock-panel';
+      panel.innerHTML = `<div class="dock-head"><span class="dock-title"></span><button class="dock-close" title="Minimize">✕</button></div><div class="dock-body"></div>`;
+      stage.appendChild(rail);
+      stage.appendChild(panel);
+      DOCK = { rail, panel, spacer, body: panel.querySelector('.dock-body'),
+               titleEl: panel.querySelector('.dock-title'), panes: {}, open: null };
+      panel.querySelector('.dock-close').addEventListener('click', () => dockOpen(null));
+    }
+    function dockRegister(id, { icon, title, staff, onOpen }) {
+      const btn = document.createElement('button');
+      btn.className = 'dock-btn' + (staff ? ' staff' : '');
+      btn.title = title;
+      btn.innerHTML = icon;
+      DOCK.rail.insertBefore(btn, DOCK.spacer);
+      const pane = document.createElement('div');
+      pane.className = 'dock-pane';
+      DOCK.body.appendChild(pane);
+      DOCK.panes[id] = { btn, pane, title, onOpen };
+      btn.addEventListener('click', (e) => { e.stopPropagation(); dockOpen(DOCK.open === id ? null : id); });
+      return pane;
+    }
+    function dockOpen(id) {
+      if (id && !DOCK.panes[id]) id = null;
+      DOCK.open = id;
+      DOCK.panel.classList.toggle('open', !!id);
+      Object.entries(DOCK.panes).forEach(([k, p]) => {
+        p.btn.classList.toggle('active', k === id);
+        p.pane.classList.toggle('show', k === id);
+      });
+      if (id) {
+        DOCK.titleEl.textContent = DOCK.panes[id].title;
+        DOCK.panes[id].btn.classList.remove('unread');
+        if (DOCK.panes[id].onOpen) DOCK.panes[id].onOpen();
+      }
+    }
+
     function buildGridControls() {
       const panel = document.createElement('div');
       panel.className = 'grid-controls';
@@ -2041,7 +2090,6 @@
         }).join('');
 
       panel.innerHTML = `
-        <h4>Display <span class="gc-toggle" id="gc-close">✕</span></h4>
         <div class="gc-body">
           <p class="gc-sub">Grid <span class="gc-tag">global</span></p>
           <div class="gc-row">
@@ -2074,7 +2122,7 @@
             <input type="checkbox" id="gc-tring">
           </div>
         </div>`;
-      stage.appendChild(panel);
+      dockRegister('display', { icon: '⚙', title: 'Display' }).appendChild(panel);
 
       const styleSel = panel.querySelector('#gc-style');
       const opac     = panel.querySelector('#gc-opacity');
@@ -2101,23 +2149,6 @@
       tring.checked  = TOKEN.ring;
       tsize.addEventListener('input',   () => { TOKEN.size = parseFloat(tsize.value); renderTokens(); });
       tring.addEventListener('change',  () => { TOKEN.ring = tring.checked; renderTokens(); });
-
-      // drawer open/close (compendium-style): a tab opens it, ✕ or backdrop closes
-      const backdrop = document.createElement('div');
-      backdrop.className = 'gc-backdrop';
-      stage.appendChild(backdrop);
-      const tab = document.createElement('button');
-      tab.className = 'display-tab';
-      tab.innerHTML = '⚙ Display';
-      stage.appendChild(tab);
-      function setDisplay(open) {
-        panel.classList.toggle('open', open);
-        backdrop.classList.toggle('open', open);
-        tab.style.display = open ? 'none' : '';
-      }
-      tab.addEventListener('click', () => setDisplay(true));
-      backdrop.addEventListener('click', () => setDisplay(false));
-      panel.querySelector('#gc-close').addEventListener('click', () => setDisplay(false));
     }
 
     // ── bestiary picker (DM only) — search the 5etools bestiary and drop a
@@ -2155,7 +2186,6 @@
       const panel = document.createElement('div');
       panel.className = 'bestiary-panel';
       panel.innerHTML = `
-        <h4>Bestiary <span class="gc-toggle" id="bst-close">✕</span></h4>
         <select class="bst-source" id="bst-source">
           ${BEST_SOURCES.map((s, i) => `<option value="${i}">${s.label}</option>`).join('')}
         </select>
@@ -2164,27 +2194,10 @@
           ${BEST_CR.map(f => `<button data-cr="${f.val}"${f.val === null ? ' class="on"' : ''}>${f.label}</button>`).join('')}
         </div>
         <div class="bst-list" id="bst-list"><div class="bst-state">Open to load…</div></div>`;
-      stage.appendChild(panel);
-
-      const backdrop = document.createElement('div');
-      backdrop.className = 'gc-backdrop bst-backdrop'; // reuse Display backdrop style; tagged for player-view hide
-      stage.appendChild(backdrop);
-      const tab = document.createElement('button');
-      tab.className = 'bestiary-tab';
-      tab.innerHTML = '☷ Bestiary';
-      stage.appendChild(tab);
+      dockRegister('bestiary', { icon: '☷', title: 'Bestiary', staff: true,
+        onOpen: () => { if (!all.length) loadSrc(); } }).appendChild(panel);
 
       const listEl = panel.querySelector('#bst-list');
-
-      function setOpen(open) {
-        panel.classList.toggle('open', open);
-        backdrop.classList.toggle('open', open);
-        tab.style.display = open ? 'none' : '';
-        if (open && !all.length) loadSrc();
-      }
-      tab.addEventListener('click', () => setOpen(true));
-      backdrop.addEventListener('click', () => setOpen(false));
-      panel.querySelector('#bst-close').addEventListener('click', () => setOpen(false));
 
       async function loadSrc() {
         const url = `${BEST_BASE}/${BEST_SOURCES[srcIdx].file}`;
@@ -2264,10 +2277,10 @@
     function buildViewToggle() {
       const EYE_OPEN  = '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 5C5 5 1 12 1 12s4 7 11 7 11-7 11-7-4-7-11-7zm0 11a4 4 0 110-8 4 4 0 010 8z"/></svg>';
       const btn = document.createElement('button');
-      btn.className = 'view-toggle';
+      btn.className = 'dock-btn view-toggle';
+      btn.innerHTML = EYE_OPEN;
       function paint() {
         btn.classList.toggle('on', VIEW_AS_PLAYER);
-        btn.innerHTML = EYE_OPEN + `<span>${VIEW_AS_PLAYER ? 'Player view' : 'View as player'}</span>`;
         btn.title = VIEW_AS_PLAYER ? 'Showing what a player sees — click for DM view' : 'Preview what players see';
       }
       btn.addEventListener('click', () => {
@@ -2276,8 +2289,7 @@
         if (VIEW_AS_PLAYER) {
           // leaving DM tooling cleanly: stop fog painting, close DM surfaces
           FOG.editing = false; stage.classList.remove('fog-edit');
-          document.querySelector('.bestiary-panel')?.classList.remove('open');
-          document.querySelector('.bst-backdrop')?.classList.remove('open');
+          if (DOCK && DOCK.open && DOCK.panes[DOCK.open].btn.classList.contains('staff')) dockOpen('feed');
           closeCtxMenu();
         }
         redrawFog();      // veil opacity (translucent ↔ solid)
@@ -2286,37 +2298,30 @@
         paint();
       });
       paint();
-      stage.appendChild(btn);
+      DOCK.rail.appendChild(btn);   // below the spacer — pinned to the rail's foot
     }
 
-    // ── combat tab (staff) — right-side dropdown to start / re-roll / end
-    // combat. Start is live out of combat; Roll all + End live during. ──
+    // ── combat pane (staff) — start / re-roll / end live in the dock.
+    // Start is live out of combat; Roll all + End live during. ──
     function buildCombatTab() {
-      const tab = document.createElement('button');
-      tab.className = 'combat-tab';
-      tab.innerHTML = '⚔ Combat';
-      const menu = document.createElement('div');
-      menu.className = 'combat-menu';
-      menu.innerHTML =
-        `<button data-act="start">▶ Start combat</button>` +
-        `<button data-act="roll">↻ Roll all</button>` +
-        `<button data-act="end">⊗ End combat</button>`;
-      stage.appendChild(tab);
-      stage.appendChild(menu);
-      const close = () => menu.classList.remove('open');
-      tab.addEventListener('click', (e) => { e.stopPropagation(); menu.classList.toggle('open'); paintCombatMenu(); });
-      menu.addEventListener('click', (e) => {
+      const pane = dockRegister('combat', { icon: '⚔', title: 'Combat', staff: true });
+      const acts = document.createElement('div');
+      acts.className = 'dock-acts';
+      acts.innerHTML =
+        `<button class="dock-act" data-act="start">▶ &nbsp;Start combat</button>` +
+        `<button class="dock-act" data-act="roll">↻ &nbsp;Roll all initiative</button>` +
+        `<button class="dock-act" data-act="end">⊗ &nbsp;End combat</button>`;
+      pane.appendChild(acts);
+      acts.addEventListener('click', (e) => {
         const b = e.target.closest('button[data-act]'); if (!b || b.disabled) return;
-        close();
         if (b.dataset.act === 'start') startCombat();
         else if (b.dataset.act === 'roll') rollAllInitiative();
         else if (b.dataset.act === 'end') endCombat();
       });
-      document.addEventListener('click', (e) => { if (!e.target.closest('.combat-tab, .combat-menu')) close(); });
       paintCombatMenu();
     }
     function paintCombatMenu() {
-      const menu = document.querySelector('.combat-menu'); if (!menu) return;
+      const menu = DOCK && DOCK.panes.combat ? DOCK.panes.combat.pane : null; if (!menu) return;
       const on = inCombat();
       const s = menu.querySelector('[data-act="start"]'); if (s) s.disabled = on;
       const r = menu.querySelector('[data-act="roll"]');  if (r) r.disabled = !on;
@@ -2375,6 +2380,7 @@
       FEED.push(row);
       if (FEED.length > 250) FEED.shift();
       renderFeed();
+      if (DOCK && DOCK.panes.feed && DOCK.open !== 'feed') DOCK.panes.feed.btn.classList.add('unread');
     }
     function onFeedUpdate(row) {
       if (!row) return;
@@ -2494,12 +2500,11 @@
       const wrap = document.createElement('div');
       wrap.className = 'feed-wrap';
       wrap.innerHTML =
-        `<div class="feed-head"><span class="feed-title">Game feed</span><span class="feed-collapse">▾</span></div>`
-        + `<div class="feed-tabs"><button class="feed-tab" data-tab="combat">⚔ Combat</button><button class="feed-tab" data-tab="chronicle">Chronicle</button><button class="feed-tab on" data-tab="all">All</button></div>`
+        `<div class="feed-tabs"><button class="feed-tab" data-tab="combat">⚔ Combat</button><button class="feed-tab" data-tab="chronicle">Chronicle</button><button class="feed-tab on" data-tab="all">All</button></div>`
         + `<div class="feed-body" id="feed-list"></div>`
         + `<div class="feed-dice">${[4, 6, 8, 10, 12, 20, 100].map(d => `<button class="feed-die" data-die="${d}">d${d}</button>`).join('')}</div>`
         + `<div class="feed-input">${IS_STAFF ? `<button class="feed-hidden-tog" title="Post hidden (DM only)">hide</button>` : ''}<input type="text" maxlength="300" placeholder="/roll 2d20kh1+4 or say something…"></div>`;
-      stage.appendChild(wrap);
+      dockRegister('feed', { icon: '💬', title: 'Game feed' }).appendChild(wrap);
       feedEl = wrap; feedListEl = wrap.querySelector('#feed-list');
       wrap.querySelectorAll('.feed-tab').forEach(b => b.addEventListener('click', (e) => {
         e.stopPropagation();
@@ -2507,10 +2512,6 @@
         wrap.querySelectorAll('.feed-tab').forEach(x => x.classList.toggle('on', x === b));
         renderFeed();
       }));
-      wrap.querySelector('.feed-head').addEventListener('click', () => {
-        const c = wrap.classList.toggle('collapsed');
-        wrap.querySelector('.feed-collapse').textContent = c ? '▸' : '▾';
-      });
       wrap.querySelectorAll('.feed-die').forEach(b => b.addEventListener('click', () => {
         const d = parseInt(b.dataset.die, 10), roll = Math.floor(Math.random() * d) + 1;
         feedInsert({ channel: 'combat', kind: 'roll', formula: `1d${d}`, result: { total: roll }, body: `1d${d} → [<span class="ft-die">${roll}</span>] = <span class="ft-tot">${roll}</span>`, hidden: feedPostHidden && effectiveStaff() });
@@ -2855,6 +2856,10 @@
     function buildToolRail() {
       const rail = document.createElement('div');
       rail.className = 'tool-rail';
+      // groups render into their own container — renderRail() rewrites it on
+      // every pick, so the dice section below must live OUTSIDE it to survive.
+      const groupsEl = document.createElement('div');
+      rail.appendChild(groupsEl);
 
       // Tools collapse into groups. A group is ONE rail button showing its
       // currently-active member's icon; clicking it opens the slide-out with the
@@ -2887,13 +2892,13 @@
           : g.members.find(m => m.id === lastMember[g.id]).icon;
       }
       function renderRail() {
-        rail.innerHTML = groups.map(g =>
+        groupsEl.innerHTML = groups.map(g =>
           `<button class="tool-btn" data-group="${g.id}" title="${g.title}">${railIcon(g)}</button>`).join('');
-        rail.querySelectorAll('.tool-btn').forEach(b =>
+        groupsEl.querySelectorAll('.tool-btn').forEach(b =>
           b.addEventListener('click', () => onGroup(b.dataset.group)));
       }
       function markGroup(id) {
-        rail.querySelectorAll('.tool-btn').forEach(b =>
+        groupsEl.querySelectorAll('.tool-btn').forEach(b =>
           b.classList.toggle('active', b.dataset.group === id));
       }
 
@@ -2954,6 +2959,39 @@
         stage.classList.toggle('fog-edit', fog || draw);   // crosshair for paint + draw
         if (boardEl) boardEl.classList.toggle('tool-select', t === 'select');  // reveals delete handles
       }
+
+      // ── dice tray: ⚄ expands a count row (1–8) + the dice. The count
+      // persists while you stay on the same die and resets to 1 when you
+      // switch dice (locked with M). Rolls post to the feed's combat channel
+      // through the same parser/format as /roll, honoring the hide toggle. ──
+      let diceCount = 1, lastDie = null;
+      const diceBtn = document.createElement('button');
+      diceBtn.className = 'tool-btn';
+      diceBtn.title = 'Dice';
+      diceBtn.textContent = '⚄';
+      const tray = document.createElement('div');
+      tray.className = 'dice-tray';
+      tray.innerHTML =
+        `<div class="dice-count">${[1,2,3,4,5,6,7,8].map(n => `<button data-n="${n}"${n === 1 ? ' class="on"' : ''}>${n}</button>`).join('')}</div>`
+        + [4, 6, 8, 10, 12, 20, 100].map(d => `<button class="dice-die" data-die="${d}">d${d}</button>`).join('');
+      function setDiceCount(n) {
+        diceCount = n;
+        tray.querySelectorAll('.dice-count button').forEach(b => b.classList.toggle('on', parseInt(b.dataset.n, 10) === n));
+      }
+      tray.querySelectorAll('.dice-count button').forEach(b =>
+        b.addEventListener('click', () => setDiceCount(parseInt(b.dataset.n, 10))));
+      tray.querySelectorAll('.dice-die').forEach(b => b.addEventListener('click', () => {
+        const d = parseInt(b.dataset.die, 10);
+        if (lastDie !== null && d !== lastDie) setDiceCount(1);
+        lastDie = d;
+        const parsed = parseDice(`${diceCount}d${d}`);
+        if (parsed) feedInsert({ channel: 'combat', kind: 'roll', formula: parsed.formula,
+          result: { total: parsed.total }, body: diceBody(parsed), hidden: feedPostHidden && effectiveStaff() });
+      }));
+      diceBtn.addEventListener('click', () =>
+        diceBtn.classList.toggle('active', tray.classList.toggle('open')));
+      rail.appendChild(diceBtn);
+      rail.appendChild(tray);
 
       renderRail();
       stage.appendChild(rail);
