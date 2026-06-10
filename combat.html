@@ -522,6 +522,16 @@
       font-family: var(--font-title);
     }
     /* ── shared feed (game log) — fills the dock's Feed pane ── */
+    /* Page-specific override (per house rules, on the page — battle.js stays
+       generic): battle.js anchors its desktop roller + toast bottom-RIGHT,
+       which on this page is the dock's corner. Park them beside the HUD bar
+       (bottom-left, 460px wide) instead. battle.js injects its styles at
+       runtime, after this sheet — hence the !important. Mobile keeps its
+       in-HUD static roller, so desktop-only. */
+    @media (min-width: 601px) {
+      #b-roller.b-roller-desktop { left: 476px !important; right: auto !important; }
+      #b-toast { left: 476px !important; right: auto !important; }
+    }
     .feed-wrap { flex: 1; min-height: 0; display: flex; flex-direction: column; overflow: hidden; }
     .feed-tabs { display: flex; border-bottom: 1px solid var(--nav-border); }
     .feed-tab { flex: 1; text-align: center; padding: 7px 0; font-family: var(--font-title); font-size: 0.46rem; letter-spacing: 0.1em; text-transform: uppercase; color: var(--muted); cursor: pointer; background: transparent; border: none; }
@@ -593,10 +603,15 @@
       background: var(--nav-bg); border-left: 1px solid var(--nav-border);
       padding: 0.9rem 1rem; box-sizing: border-box; overflow-y: auto;
       transform: translateX(100%);
-      transition: transform 0.28s cubic-bezier(0.4,0,0.2,1);
+      /* visibility gate: when closed, translateX(100%) parks this panel exactly
+         over the dock rail (it slides from right:44px) — it must not paint or
+         eat clicks there. The 0s/.28s delay keeps the slide animation intact. */
+      visibility: hidden;
+      transition: transform 0.28s cubic-bezier(0.4,0,0.2,1), visibility 0s 0.28s;
       box-shadow: -8px 0 40px rgba(0,0,0,0.5);
     }
-    .statblock-panel.open { transform: translateX(0); }
+    .statblock-panel.open { transform: translateX(0); visibility: visible;
+      transition: transform 0.28s cubic-bezier(0.4,0,0.2,1), visibility 0s 0s; }
     .sb-close {
       position: sticky; top: 0; float: right; cursor: pointer;
       color: var(--muted); font-family: var(--font-title); font-size: 0.8rem;

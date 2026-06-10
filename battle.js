@@ -243,8 +243,11 @@
     // Show roller if hidden
     const roller = document.getElementById('b-roller');
     if (roller) roller.classList.add('show');
-    // Post into the shared feed (combat channel), if the page wired the seam.
-    if (backend.logRoll) backend.logRoll({ actorKey: activeKey, name: entry.name, main: entry.main, detail: entry.detail, dmg: entry.dmg });
+    // Post into the shared feed (combat channel). The page's backend takes
+    // precedence (combat.html wires a full one); otherwise the lite hook from
+    // feed-bridge.js, if that page loaded it.
+    const logFeed = backend.logRoll || (window.__battle && window.__battle.onLogRoll);
+    if (logFeed) logFeed({ actorKey: activeKey, name: entry.name, main: entry.main, detail: entry.detail, dmg: entry.dmg });
   }
 
   function renderRollHistory() {
