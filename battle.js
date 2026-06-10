@@ -275,6 +275,11 @@
       if (k==='adv')   el.classList.toggle('b-tog-adv-on',  RS.advantage);
       if (k==='dis')   el.classList.toggle('b-tog-dis-on',  RS.disadvantage);
     });
+    // A page may host its own toggle surface (combat.html's feed does) — let
+    // it repaint whenever the state changes, wherever the change came from.
+    if (window.__battle && typeof window.__battle.onRSChange === 'function') {
+      window.__battle.onRSChange({ advantage: RS.advantage, disadvantage: RS.disadvantage, bless: RS.bless, guidance: RS.guidance });
+    }
   }
 
   // ── Action helpers ──
@@ -1227,6 +1232,9 @@
       else RS[key]=!RS[key];
       updateRollerToggles();
     },
+    // Read-only snapshot of the roll-modifier state — lets a page's own toggle
+    // surface (e.g. combat.html's feed) paint and apply the same modifiers.
+    getRS: ()=>({ advantage: RS.advantage, disadvantage: RS.disadvantage, bless: RS.bless, guidance: RS.guidance }),
     clearHistory: ()=>{ rollHistory=[]; renderRollHistory(); },
     rollInit: ()=>{
       const mod=(C().combat.initiative)||0, r=rollD20(), total=r.kept+mod;

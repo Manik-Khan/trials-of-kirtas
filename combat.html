@@ -522,16 +522,27 @@
       font-family: var(--font-title);
     }
     /* ── shared feed (game log) — fills the dock's Feed pane ── */
-    /* Page-specific override (per house rules, on the page — battle.js stays
-       generic): battle.js anchors its desktop roller + toast bottom-RIGHT,
-       which on this page is the dock's corner. Park them beside the HUD bar
-       (bottom-left, 460px wide) instead. battle.js injects its styles at
-       runtime, after this sheet — hence the !important. Mobile keeps its
-       in-HUD static roller, so desktop-only. */
+    /* Page-specific overrides (per house rules, on the page — battle.js stays
+       generic). The HUD's roll-history popup is redundant here: the feed IS
+       the roll record, and its ADV/DIS/BLESS/GUIDE row replaces the roller's
+       toggles (same RS state via the battle.js seam). The toast keeps living
+       beside the HUD, off the dock's corner. battle.js injects its styles at
+       runtime, after this sheet — hence the !important. */
+    #b-roller { display: none !important; }
     @media (min-width: 601px) {
-      #b-roller.b-roller-desktop { left: 476px !important; right: auto !important; }
       #b-toast { left: 476px !important; right: auto !important; }
     }
+    /* feed roll-modifier toggles (drive HUD rolls AND feed dice) */
+    .feed-mods { display: flex; gap: 4px; padding: 6px 10px 0; }
+    .feed-mod {
+      flex: 1; padding: 4px 0; background: var(--ink); border: 1px solid var(--section-border);
+      border-radius: 4px; color: var(--muted); cursor: pointer; text-align: center;
+      font-family: var(--font-title); font-size: 0.46rem; letter-spacing: 0.1em; text-transform: uppercase;
+    }
+    .feed-mod:hover { color: var(--parchment); }
+    .feed-mod.on { color: var(--gold-light); border-color: var(--gold); background: rgba(184,149,42,0.12); }
+    .feed-mod[data-mod="advantage"].on    { color: #5a9a6a; border-color: #5a9a6a; background: rgba(90,154,106,0.12); }
+    .feed-mod[data-mod="disadvantage"].on { color: #c05060; border-color: #c05060; background: rgba(192,80,96,0.12); }
     .feed-wrap { flex: 1; min-height: 0; display: flex; flex-direction: column; overflow: hidden; }
     .feed-tabs { display: flex; border-bottom: 1px solid var(--nav-border); }
     .feed-tab { flex: 1; text-align: center; padding: 7px 0; font-family: var(--font-title); font-size: 0.46rem; letter-spacing: 0.1em; text-transform: uppercase; color: var(--muted); cursor: pointer; background: transparent; border: none; }
@@ -2491,14 +2502,37 @@
       if (!anyDice || consumed !== clean.length) return null;
       return { total, parts, formula: clean };
     }
-    function diceBody(parsed) {
-      const pieces = parsed.parts.map(p => {
+    function dicePieces(parsed) {
+      return parsed.parts.map(p => {
         if (p.flat !== undefined) return (p.flat >= 0 ? '+ ' : '− ') + Math.abs(p.flat);
         const keptCopy = p.kept.slice();
         const shown = p.rolls.map(r => { const i = keptCopy.indexOf(r); if (i >= 0) { keptCopy.splice(i, 1); return `<span class="ft-die">${r}</span>`; } return `<span class="ft-drop">${r}</span>`; }).join(' ');
         return `${p.sign < 0 ? '− ' : ''}[${shown}]`;
       }).join(' ');
-      return `${escapeHtml(parsed.formula)} → ${pieces} = <span class="ft-tot">${parsed.total}</span>`;
+    }
+    function diceBody(parsed) {
+      return `${escapeHtml(parsed.formula)} → ${dicePieces(parsed)} = <span class="ft-tot">${parsed.total}</span>`;
+    }
+    // Button dice (quick row + left tray) honor the feed's ADV/DIS/BLESS/GUIDE
+    // toggles — the same RS state battle.js's HUD rolls read. d20s only:
+    // adv/dis upgrades a SINGLE d20 to 2d20kh1/kl1; bless 🙏 / guidance ✦
+    // each append a d4, spelled out in the breakdown. Typed /roll expressions
+    // stay verbatim (kh/kl and +1d4 are already in the player's hands there).
+    function feedRollWithMods(n, d) {
+      const rs = (window.__battle && window.__battle.getRS) ? window.__battle.getRS() : null;
+      let formula = `${n}d${d}`;
+      if (rs && d === 20 && n === 1 && (rs.advantage || rs.disadvantage)) {
+        formula = rs.advantage ? '2d20kh1' : '2d20kl1';
+      }
+      const parsed = parseDice(formula);
+      if (!parsed) return;
+      let total = parsed.total, extra = '', dbFormula = formula;
+      if (rs && d === 20) {
+        if (rs.bless)    { const b = Math.floor(Math.random() * 4) + 1; total += b; extra += ` + [<span class="ft-die">${b}</span>]🙏`; dbFormula += '+1d4'; }
+        if (rs.guidance) { const g = Math.floor(Math.random() * 4) + 1; total += g; extra += ` + [<span class="ft-die">${g}</span>]✦`; dbFormula += '+1d4'; }
+      }
+      const body = `${escapeHtml(formula)} → ${dicePieces(parsed)}${extra} = <span class="ft-tot">${total}</span>`;
+      feedInsert({ channel: 'combat', kind: 'roll', formula: dbFormula, result: { total }, body, hidden: feedPostHidden && effectiveStaff() });
     }
     function feedSubmit(raw) {
       const t = String(raw || '').trim(); if (!t) return;
@@ -2517,10 +2551,24 @@
       wrap.innerHTML =
         `<div class="feed-tabs"><button class="feed-tab" data-tab="combat">⚔ Combat</button><button class="feed-tab" data-tab="chronicle">Chronicle</button><button class="feed-tab on" data-tab="all">All</button></div>`
         + `<div class="feed-body" id="feed-list"></div>`
+        + `<div class="feed-mods">${[['advantage','Adv'],['disadvantage','Dis'],['bless','Bless'],['guidance','Guide']].map(([k, l]) => `<button class="feed-mod" data-mod="${k}">${l}</button>`).join('')}</div>`
         + `<div class="feed-dice">${[4, 6, 8, 10, 12, 20, 100].map(d => `<button class="feed-die" data-die="${d}">d${d}</button>`).join('')}</div>`
         + `<div class="feed-input">${IS_STAFF ? `<button class="feed-hidden-tog" title="Post hidden (DM only)">hide</button>` : ''}<input type="text" maxlength="300" placeholder="/roll 2d20kh1+4 or say something…"></div>`;
       dockRegister('feed', { icon: '💬', title: 'Game feed' }).appendChild(wrap);
       feedEl = wrap; feedListEl = wrap.querySelector('#feed-list');
+      // The mods row drives battle.js's RS state (same toggles the HUD's
+      // attack/init rolls read); the roller popup is hidden on this page.
+      function paintMods(rs) {
+        if (!rs) return;
+        wrap.querySelectorAll('.feed-mod').forEach(b => b.classList.toggle('on', !!rs[b.dataset.mod]));
+      }
+      wrap.querySelectorAll('.feed-mod').forEach(b => b.addEventListener('click', () => {
+        if (window.__battle && window.__battle.toggleRS) window.__battle.toggleRS(b.dataset.mod);
+        else console.warn('[feed] battle.js seam unavailable — modifier not set');
+      }));
+      window.__battle = window.__battle || {};
+      window.__battle.onRSChange = paintMods;   // repaint on ANY toggle source
+      if (window.__battle.getRS) paintMods(window.__battle.getRS());
       wrap.querySelectorAll('.feed-tab').forEach(b => b.addEventListener('click', (e) => {
         e.stopPropagation();
         feedTab = b.dataset.tab;
@@ -2528,8 +2576,7 @@
         renderFeed();
       }));
       wrap.querySelectorAll('.feed-die').forEach(b => b.addEventListener('click', () => {
-        const d = parseInt(b.dataset.die, 10), roll = Math.floor(Math.random() * d) + 1;
-        feedInsert({ channel: 'combat', kind: 'roll', formula: `1d${d}`, result: { total: roll }, body: `1d${d} → [<span class="ft-die">${roll}</span>] = <span class="ft-tot">${roll}</span>`, hidden: feedPostHidden && effectiveStaff() });
+        feedRollWithMods(1, parseInt(b.dataset.die, 10));
       }));
       const tog = wrap.querySelector('.feed-hidden-tog');
       if (tog) tog.addEventListener('click', (e) => { e.stopPropagation(); feedPostHidden = !feedPostHidden; tog.classList.toggle('on', feedPostHidden); });
@@ -2999,9 +3046,7 @@
         const d = parseInt(b.dataset.die, 10);
         if (lastDie !== null && d !== lastDie) setDiceCount(1);
         lastDie = d;
-        const parsed = parseDice(`${diceCount}d${d}`);
-        if (parsed) feedInsert({ channel: 'combat', kind: 'roll', formula: parsed.formula,
-          result: { total: parsed.total }, body: diceBody(parsed), hidden: feedPostHidden && effectiveStaff() });
+        feedRollWithMods(diceCount, d);
       }));
       diceBtn.addEventListener('click', () =>
         diceBtn.classList.toggle('active', tray.classList.toggle('open')));
