@@ -550,7 +550,40 @@
     .feed-body { flex: 1; padding: 9px 11px; display: flex; flex-direction: column; gap: 11px; overflow-y: auto; scrollbar-width: thin; scrollbar-color: rgba(184,149,42,0.2) transparent; }
     .feed-body::-webkit-scrollbar { width: 3px; }
     .feed-body::-webkit-scrollbar-thumb { background: rgba(184,149,42,0.2); }
-    .feed-row { display: flex; gap: 8px; }
+    .feed-row { display: flex; gap: 8px; position: relative; }
+    .feed-del {
+      position: absolute; top: 0; right: 0; display: none;
+      background: var(--nav-bg); border: 1px solid var(--nav-border); border-radius: 4px;
+      color: var(--muted); cursor: pointer; font-size: 10px; line-height: 1; padding: 3px 5px;
+    }
+    .feed-row:hover .feed-del { display: block; }
+    .feed-del:hover { color: var(--blood); border-color: var(--blood); }
+    /* chronicle images land here via the unified feed — constrain them and
+       open the full image in a lightbox on click (same idiom as chronicle) */
+    .feed-text img {
+      display: block; max-width: 100% !important; max-height: 120px;
+      width: auto !important; height: auto; object-fit: cover;
+      margin: 4px 0; border: 1px solid var(--nav-border); border-radius: 4px;
+      cursor: zoom-in;
+    }
+    .lightbox-overlay {
+      position: fixed; inset: 0; background: rgba(0,0,0,0.92); z-index: 1000;
+      display: flex; align-items: center; justify-content: center;
+      opacity: 0; pointer-events: none; transition: opacity 0.2s ease; cursor: zoom-out;
+    }
+    .lightbox-overlay.open { opacity: 1; pointer-events: all; }
+    .lightbox-img {
+      max-width: 90vw; max-height: 88vh; width: auto; height: auto;
+      border: 1px solid var(--gold-dim); border-radius: 2px;
+      box-shadow: 0 8px 40px rgba(0,0,0,0.8);
+      transform: scale(0.96); transition: transform 0.2s ease; cursor: default;
+    }
+    .lightbox-overlay.open .lightbox-img { transform: scale(1); }
+    .lightbox-close {
+      position: absolute; top: 16px; right: 20px; background: none; border: none;
+      color: var(--muted); font-size: 1.5rem; cursor: pointer; line-height: 1; transition: color 0.15s;
+    }
+    .lightbox-close:hover { color: var(--parchment); }
     .feed-av { flex: none; width: 28px; height: 28px; border-radius: 50%; border: 1.5px solid var(--gold); overflow: hidden; display: flex; align-items: center; justify-content: center; background: var(--ink); }
     .feed-av-i { font-family: var(--font-display); font-size: 13px; color: var(--parchment2); }
     .feed-av-dm { color: var(--gold); font-size: 11px; }
@@ -2382,11 +2415,24 @@
         : (side === 'dm' ? `<span class="feed-av-dm">◆</span>` : `<span class="feed-av-i">${escapeHtml((row.actor_name || '?').trim().charAt(0).toUpperCase())}</span>`);
       return `<div class="feed-av" style="border-color:${ring}">${inner}</div>`;
     }
+    // Mirror the RLS so the ✕ only appears where the delete will succeed:
+    // staff anything; authors their own (non-hidden) chronicle rows.
+    function canDeleteRow(row) {
+      if (IS_STAFF) return true;
+      return !!(ME && ME.userId && row.author_id === ME.userId && row.channel === 'chronicle' && !row.hidden);
+    }
+    async function feedDelete(id) {
+      if (!SB || !confirm('Delete this feed entry? This cannot be undone.')) return;
+      const { error } = await SB.from('feed').delete().eq('id', id);
+      if (error) { alert('Delete failed: ' + error.message); return; }
+      onFeedDelete(id);   // realtime echoes too; onFeedDelete dedupes
+    }
     function feedRowHtml(row) {
       const side = feedSide(row);
       const tag = row.channel === 'chronicle' ? 'chronicle' : (row.kind === 'roll' ? 'roll' : row.kind);
       const hid = row.hidden ? ' · hidden' : '';
-      return `<div class="feed-row">${feedAvatarHtml(row)}<div style="min-width:0">`
+      const del = canDeleteRow(row) ? `<button class="feed-del" data-del="${row.id}" title="Delete">✕</button>` : '';
+      return `<div class="feed-row">${del}${feedAvatarHtml(row)}<div style="min-width:0">`
         + `<div class="feed-meta"><span class="feed-name" style="color:${feedNameColor(side)}">${escapeHtml(row.actor_name)}</span> <span>· ${escapeHtml(tag)}${hid} · ${feedTime(row.created_at)}</span></div>`
         + `<div class="feed-text">${row.body}</div></div></div>`;
     }
@@ -2569,6 +2615,30 @@
       window.__battle = window.__battle || {};
       window.__battle.onRSChange = paintMods;   // repaint on ANY toggle source
       if (window.__battle.getRS) paintMods(window.__battle.getRS());
+      // Delegated: row delete + image lightbox (rows re-render constantly,
+      // so handlers live on the list, not the rows).
+      const lb = document.createElement('div');
+      lb.className = 'lightbox-overlay';
+      lb.innerHTML = `<button class="lightbox-close" title="Close">✕</button><img class="lightbox-img" alt="">`;
+      document.body.appendChild(lb);
+      const lbImg = lb.querySelector('.lightbox-img');
+      function closeLightbox() {
+        lb.classList.remove('open');
+        setTimeout(() => { lbImg.src = ''; }, 200);
+        document.removeEventListener('keydown', lbKey);
+      }
+      function lbKey(e) { if (e.key === 'Escape') closeLightbox(); }
+      lb.addEventListener('click', (e) => { if (e.target !== lbImg) closeLightbox(); });
+      feedListEl.addEventListener('click', (e) => {
+        const del = e.target.closest('.feed-del');
+        if (del) { feedDelete(Number(del.dataset.del)); return; }
+        const img = e.target.closest('.feed-text img');
+        if (img && img.src) {
+          lbImg.src = img.src;
+          lb.classList.add('open');
+          document.addEventListener('keydown', lbKey);
+        }
+      });
       wrap.querySelectorAll('.feed-tab').forEach(b => b.addEventListener('click', (e) => {
         e.stopPropagation();
         feedTab = b.dataset.tab;
