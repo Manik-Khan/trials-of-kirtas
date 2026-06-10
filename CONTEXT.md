@@ -34,6 +34,9 @@ A working context doc for **M** (developer / DM / musician) and **C** (Claude, t
 - **`combat.html`** is the dedicated live battle-map page.
 - **`battle.js`** is the cross-page HUD; it's backend-agnostic and shares state through a **pluggable backend seam** (`window.__battle.useBackend({...})`). `combat.html` hands it a Supabase `combatants`-backed backend (`load`, `save`, `saveConditions`, `setInitiative`, `advanceTurn`, `logRoll`, `subscribe`). The turn/round bridge (`setTurn`/`advanceTurn`/`pushTurnToHud`/`activeSourceKey`) is on `main`.
 - **One active encounter at a time** (`encounters`, uuid PK).
+- **Right dock on `combat.html`:** every right-side surface is a registered pane on a slim icon rail (`buildDock`/`dockRegister`/`dockOpen`) — Feed (all), Display, Bestiary, Combat (staff). View-as-player is a rail toggle, not a pane. Minimized = rail only. Statblock stays a slide-out at `right:44px` with a visibility gate (its closed `translateX(100%)` state would otherwise park over the rail and eat clicks — that bug shipped once; don't reintroduce).
+- **Roll-modifier seam (battle.js, public):** `RS` state (adv/dis/bless/guidance) drives all HUD rolls; `window.__battle.toggleRS(key)` / `getRS()` / `onRSChange(cb)` let a page host its own toggle surface. On `combat.html` the feed's mods row IS that surface and the roller popup is hidden (page-specific CSS); every other page keeps the roller.
+- **Cross-page roll logging:** `feed-bridge.js` (loaded after `battle.js` on all 8 non-combat pages) sets `window.__battle.onLogRoll`, the fallback battle.js uses when the backend lacks `logRoll`. It posts HUD rolls to the feed with session + active-encounter stamps (30s-TTL context cache). `combat.html` never loads it; its full backend wins regardless.
 
 ---
 
@@ -46,34 +49,29 @@ A working context doc for **M** (developer / DM / musician) and **C** (Claude, t
 
 ---
 
-## Deltas to run on the live DB (verify status)
+## Live DB / env state
 
-- `schema_delta_in_combat.sql` — believed run (not in repo).
-- `schema_delta_feed.sql` — the `feed` table + RLS + grants + realtime. Must precede the two below.
-- **NEW — `schema_delta_chronicle_unify.sql`** — feed columns (`author_id` uuid default auth.uid(), `tags text[]`, `meta jsonb`, `edited_at`); replaces the staff-only mutate policies with "authors edit/delete their OWN chronicle-channel rows, never hidden ones; staff anything; combat rolls immutable for players"; creates the one-row `campaign` table (`current_session`) + RLS + grant + realtime.
-- **NEW — `migrate_chronicle.sql`** — one-time import of the 11 `chronicle.json` entries (guarded against re-run via `meta.legacy_id`; aborts if already run). 'Tyros' entries migrate as Cosmere with `meta.legacy_author` preserving the original; `author_id` recovered live via `profiles.character_key` subqueries; DM rows stay `author_id null` (staff edit via `is_staff()` regardless). Also seeds `campaign.current_session = 2` from the JSON config.
-- **Netlify env: add `SUPABASE_SERVICE_ROLE_KEY`** — the new export function needs it (`GITHUB_TOKEN` already exists).
-- **Open question:** confirm whether the `disposition` column was ever actually run on the live DB (it's reconciled into `schema_v1.sql` and ensured by the in_combat delta, but the disposition *feature code* is unbuilt).
+- `schema_delta_feed.sql`, `schema_delta_chronicle_unify.sql`, and `migrate_chronicle.sql` are **run and verified live** (feed streams, migrated chronicle entries with images render in the combat feed).
+- `SUPABASE_SERVICE_ROLE_KEY` should be in Netlify env — **verify the Export archive button has been pressed once successfully** (round-trips `chronicle.json` through the feed-export function).
+- **Open question (still):** confirm the `disposition` column exists on the live DB before building the disposition feature code.
 
----
 
-## Current state (done this session — pending M's commit/deploy + SQL runs)
+## Current state (Phase 2 deployed + combat-page UX round shipped)
 
-**Phase 2 — chronicle unification + durability. All built; nothing run yet.**
+Phase 2 (chronicle unification) is **live and verified**: unified feed table is truth, chronicle.html repointed with realtime, always-on feed channel, session stamping, feed-export backstop. On top of it, this session shipped the combat-page UX round (all committed/deployed and tested by M unless noted):
 
-**1. Always-on feed (`combat.html`).** The feed no longer dies with the encounter: `IS_STAFF`, `loadCampaign()`, `buildFeed()`, and `initFeedRealtime()` are hoisted above the manifest/encounter bail-outs, so the game log lives over the "No active encounter" screen too. The feed moved off the per-encounter channel onto its own `feed-live` channel with INSERT/UPDATE/DELETE handlers (edits and deletions from the chronicle page now land live) plus a `campaign` UPDATE listener. Every `feedInsert` is stamped with `session: CAMPAIGN.current_session`.
+**1. Right dock** (see Architecture). Feed opens by default; unread dot on 💬 when rolls land while minimized; entering player view hides staff icons and falls back to the feed pane. Combat dropdown became proper pane buttons. Zoom bar moved to `right:56px` to clear the rail; dock panel stops 88px short of the bottom to clear the HUD.
 
-**2. Schema (`schema_delta_chronicle_unify.sql`).** See deltas section. Key RLS decision (locked with M): authors mutate their own chronicle rows; combat channel stays immutable for players (replay integrity); `hidden` remains staff-only end to end (players can't insert, edit, or flip it).
+**2. Dice tray** on the left tool rail: ⚄ expands a 1–8 count row + d4–d100. Count persists per die, resets to 1 on die switch. Tray + feed quick dice route through `feedRollWithMods`.
 
-**3. Migration (`migrate_chronicle.sql`).** Generated from the live JSON. Original entry ids preserved in `meta.legacy_id` so the export round-trips them.
+**3. Roll modifiers moved into the feed.** ADV/DIS/BLESS/GUIDE row in the feed drives battle.js `RS` via the seam — one state for HUD attacks/init AND feed button dice. d20s only; adv/dis applies to single-d20 rolls (`2d20kh1/kl1`, dropped die dimmed); bless 🙏 / guidance ✦ append annotated d4s; stored `formula` carries the `+1d4`s. **Typed `/roll` stays verbatim** (deliberate deviation — flagged and accepted). Roller popup hidden on combat page only; toast parked at `left:476px` beside the HUD.
 
-**4. `chronicle.html` repointed at Supabase.** Data layer swapped wholesale; Quill, mentions, tags, filters, and all rendering untouched via a `rowToEntry()` adapter (feed row → legacy entry shape, with `_rowId`/`_authorId` riding along for writes). Load = feed select (chronicle channel) + campaign select; submit = insert (author_id defaults to auth.uid() server-side) or update with `edited_at`; delete = targeted delete; session bump = campaign update. **The chronicle page is now realtime** (`chronicle-live` channel — new capability). Edit/Delete buttons render from `canEditEntry()` (RLS truth: staff or `author_id === ME.userId`), not the localStorage identity. Identity modal is role-gated: non-staff see only their own character (auto-claimed silently if no identity saved); staff pick anyone. Stale/foreign localStorage identities are dropped at boot. Boot wrapped in combat.html's `whenReady` pattern (`nav:ready` fires post-auth with `__tok.sb` set).
+**4. Cross-page rolls** via `feed-bridge.js` (see Architecture) — roll from sheet/world/etc. and it lands in the live feed.
 
-**5. Export backstop (`netlify/functions/feed-export.js` — new).** POST with the caller's bearer token; the function verifies staff via Supabase auth + profiles (service-role key), reads public chronicle rows only (**the repo is public — hidden rows never leave Supabase; dice rolls aren't exported by design**), rebuilds the legacy `chronicle.json` shape (legacy_id round-trip), and commits via the GitHub contents API. Skips the commit when content is unchanged. Triggered from a new staff "Export archive" button in the chronicle's session control. Plain fetch, no npm deps. The legacy `chronicle.js` function is retired from the page but left in the repo for rollback.
+**5. Feed curation + images.** Hover ✕ delete per row (renders only where RLS will allow it: staff anything; authors own non-hidden chronicle rows; combat rolls immutable for players). Realtime DELETE propagates. Chronicle images in the feed constrained (max-height 120px, `!important` to beat Quill inline widths) with the chronicle's exact lightbox.
 
-**Deploy order:** run `schema_delta_chronicle_unify.sql` → run `migrate_chronicle.sql` → add `SUPABASE_SERVICE_ROLE_KEY` to Netlify env → commit/deploy the code. The repo's `CONTEXT.md` was stale (older than the handoff doc); this file supersedes it.
+**Fixes:** feed scroll trap (`.feed-wrap` missing from the wheel-exemption list), wheel zoom 1.1 → 1.07 (~30% gentler; pinch + buttons untouched), statblock visibility gate (the dock-rail click-eating bug).
 
----
 
 ## The big vision (agreed direction)
 
@@ -85,23 +83,14 @@ A **"Discord server within the site"**: one append-only event log, surfaced two 
 
 ## Next steps (phased)
 
-**Phase 2 cleanup (small, optional):**
-- Scheduled export (Netlify scheduled function calling the same path) so the archive refreshes nightly without the button.
-- Retire `netlify/functions/chronicle.js` once the unified store has survived a few sessions.
+**Recommended next: the roster/encounter picker** — the rest of original roadmap item #1 and the biggest gameplay gap: `startCombat()` still seats the whole board. The seam was built for the picker to front it. Includes the out-of-turn confirm modal. (Design: mock first, per house rules.)
 
-**Phase 3 — the replay capstone + compartments.**
-- Log ordered combat **events** (moves, attacks, damage, conditions, turn advances) into the feed event log.
-- Build a **replay scrubber** that steps through an encounter's events and reconstructs the board move-by-move.
-- **Loot-to-fight linking**; story/loot compartments (the `kind` column already reserves `loot`/`image`/`event`).
-- The chronicle-page **"server" browser** (all sessions/channels incl. combat rolls, searchable) — the second surface of the Discord-server vision; the combat-page hub is the first.
+**Then Phase 3 — replay capstone.** Start with **event logging** (moves, attacks, damage, conditions, turn advances → feed `kind:'event'`) as early as possible so data accumulates before the scrubber exists. Then the replay scrubber; loot-to-fight linking; the chronicle-page "server" browser (all sessions/channels, searchable).
 
-**Older pending items (still open):**
-- **Disposition (friend/foe) code** in `combat.html` — column is reconciled/ensured; the friend/foe UI + defaults (reading `disposition` with a `side` fallback) are unbuilt. Confirm the live DB has the column first.
-- **Roster / encounter picker** — the rest of original roadmap item #1. `startCombat()` currently seats the whole board; the picker is the seam to choose participants, plus an out-of-turn confirm modal.
-- **Initiative-chip redesign** to the `npcs.html` flag-card style (portrait-filled cards, `feTurbulence` grain, bottom fade). Chips already use the burnt-grain zone + fade, so this may be partly done — decide if a further redesign is wanted.
-- **Tyros → Cosmere file cleanup** (`tyros.json` rename + `KEY_FILE` alias removal in `characters.js`).
+**Phase 2 cleanup (small, whenever):** scheduled nightly export (Netlify scheduled function); retire `netlify/functions/chronicle.js` after a few stable sessions.
 
----
+**Older pending items:** disposition (friend/foe) feature code (confirm live column first); initiative-chip flag-card redesign (maybe partly done — decide); Tyros → Cosmere file cleanup (`tyros.json` rename + `KEY_FILE` alias removal). Possible nice-to-have flagged: plain-text editing of chat messages from the combat feed panel (full editing lives on chronicle.html).
+
 
 ## Earlier history (background)
 
@@ -113,4 +102,4 @@ A **"Discord server within the site"**: one append-only event log, surfaced two 
 
 ---
 
-*Last updated: end of the session that shipped Phase 2 — chronicle unification (schema delta + migration, chronicle.html repointed at Supabase with realtime, always-on feed channel, session stamping, feed-export archive function + staff button). Pending: M runs the two SQL files, adds SUPABASE_SERVICE_ROLE_KEY to Netlify, commits/deploys. Phase 1 (in_combat, lifecycle controls, HUD init roll, the feed hub) shipped the session before and is summarized under Earlier history.*
+*Last updated: end of the session that deployed Phase 2 and shipped the combat-page UX round — right dock, dice tray, feed roll-modifier row (roller retired on combat page), feed-bridge.js cross-page roll logging, feed delete + image lightbox, plus the scroll/zoom/statblock fixes. Next up: the roster/encounter picker, then Phase 3 event logging.*
