@@ -537,6 +537,41 @@
     .combat-menu button:disabled { color: var(--muted); opacity: 0.4; cursor: default; }
     .stage.view-as-player .combat-tab,
     .stage.view-as-player .combat-menu { display: none !important; }
+
+    /* ── shared feed (game log) ── */
+    .feed-wrap { position: absolute; top: 150px; right: 12px; bottom: 96px; z-index: 22; width: 320px; max-width: calc(100% - 24px);
+      background: var(--nav-bg); border: 1px solid var(--nav-border); border-radius: 8px; display: flex; flex-direction: column; overflow: hidden; }
+    .feed-wrap.collapsed { bottom: auto; }
+    .feed-wrap.collapsed .feed-tabs, .feed-wrap.collapsed .feed-body, .feed-wrap.collapsed .feed-dice, .feed-wrap.collapsed .feed-input { display: none; }
+    .feed-head { display: flex; align-items: center; justify-content: space-between; padding: 8px 11px; cursor: pointer; border-bottom: 1px solid var(--nav-border); }
+    .feed-title { font-family: var(--font-title); font-size: 0.5rem; letter-spacing: 0.14em; text-transform: uppercase; color: var(--gold); }
+    .feed-collapse { color: var(--muted); font-size: 12px; }
+    .feed-tabs { display: flex; border-bottom: 1px solid var(--nav-border); }
+    .feed-tab { flex: 1; text-align: center; padding: 7px 0; font-family: var(--font-title); font-size: 0.46rem; letter-spacing: 0.1em; text-transform: uppercase; color: var(--muted); cursor: pointer; background: transparent; border: none; }
+    .feed-tab.on { color: var(--parchment); border-bottom: 2px solid var(--gold); }
+    .feed-body { flex: 1; padding: 9px 11px; display: flex; flex-direction: column; gap: 11px; overflow-y: auto; scrollbar-width: thin; scrollbar-color: rgba(184,149,42,0.2) transparent; }
+    .feed-body::-webkit-scrollbar { width: 3px; }
+    .feed-body::-webkit-scrollbar-thumb { background: rgba(184,149,42,0.2); }
+    .feed-row { display: flex; gap: 8px; }
+    .feed-av { flex: none; width: 28px; height: 28px; border-radius: 50%; border: 1.5px solid var(--gold); overflow: hidden; display: flex; align-items: center; justify-content: center; background: var(--ink); }
+    .feed-av-i { font-family: var(--font-display); font-size: 13px; color: var(--parchment2); }
+    .feed-av-dm { color: var(--gold); font-size: 11px; }
+    .feed-meta { font-size: 11px; color: var(--muted); }
+    .feed-name { font-weight: 500; }
+    .feed-text { font-size: 13px; color: var(--parchment); margin-top: 1px; word-break: break-word; }
+    .feed-text .ft-tot { color: var(--gold); font-weight: 500; }
+    .feed-text .ft-die { color: var(--parchment2); }
+    .feed-text .ft-drop { color: var(--muted); }
+    .feed-dice { display: flex; flex-wrap: wrap; gap: 4px; padding: 7px 10px; border-top: 1px solid var(--nav-border); }
+    .feed-die { font-size: 11px; color: var(--parchment); border: 1px solid var(--nav-border); background: transparent; border-radius: 4px; padding: 3px 7px; cursor: pointer; font-family: var(--font-title); }
+    .feed-die:hover { border-color: var(--gold-dim); color: var(--gold); }
+    .feed-input { display: flex; align-items: center; gap: 6px; padding: 8px 10px; border-top: 1px solid var(--nav-border); }
+    .feed-input input { flex: 1; min-width: 0; background: var(--ink); border: 1px solid var(--nav-border); border-radius: 5px; color: var(--parchment); font-size: 12px; padding: 6px 9px; }
+    .feed-input input:focus { outline: none; border-color: var(--gold-dim); }
+    .feed-hidden-tog { flex: none; font-size: 10px; letter-spacing: .08em; text-transform: uppercase; color: var(--muted); border: 1px solid var(--nav-border); border-radius: 4px; padding: 5px 6px; cursor: pointer; background: transparent; }
+    .feed-hidden-tog.on { color: var(--gold); border-color: var(--gold); }
+    .feed-empty { font-size: 12px; color: var(--muted); text-align: center; padding: 16px 0; }
+    .stage.view-as-player .feed-hidden-tog { display: none; }
     .bestiary-panel h4 {
       font-size: 0.46rem; letter-spacing: 0.32em; text-transform: uppercase;
       color: var(--muted); border-bottom: 1px solid var(--gold-dim);
@@ -1555,7 +1590,7 @@
       stage.addEventListener('pointerdown', (e) => {
         if (e.button > 0) return;                 // right/middle mouse → handled by contextmenu
         // never let board pan/drag steal interactions meant for the UI panels
-        if (e.target.closest('.grid-controls, .zoom-bar, .tool-rail, .tool-options, .gc-backdrop, .display-tab, .bestiary-tab, .bestiary-panel, .view-toggle, .combat-tab, .combat-menu, .statblock-panel, .init-strip, .draw-del')) return;
+        if (e.target.closest('.grid-controls, .zoom-bar, .tool-rail, .tool-options, .gc-backdrop, .display-tab, .bestiary-tab, .bestiary-panel, .view-toggle, .combat-tab, .combat-menu, .feed-wrap, .statblock-panel, .init-strip, .draw-del')) return;
         if (FOG.editing && IS_STAFF) {                 // fog paint mode → paint cells, skip token/pan logic
           try { stage.setPointerCapture(e.pointerId); } catch (_) {}
           fogPainting = true;
@@ -1825,6 +1860,9 @@
             else if (eventType === 'DELETE') { DRAWINGS = DRAWINGS.filter(d => d.id !== (old && old.id)); }
             redrawDrawings();
           })
+        .on('postgres_changes',
+          { event: 'INSERT', schema: 'public', table: 'feed' },
+          ({ new: row }) => { if (row) onFeedInsert(row); })
         .on('broadcast', { event: 'cursor' }, ({ payload }) => onCursor(payload))
         .on('presence', { event: 'leave' }, ({ leftPresences }) =>
           (leftPresences || []).forEach(pr => pr && pr.id && removeCursor(pr.id)))
@@ -1912,6 +1950,7 @@
       if (IS_STAFF) buildBestiary();
       if (IS_STAFF) buildViewToggle();
       if (IS_STAFF) buildCombatTab();
+      buildFeed();
       if (IS_STAFF) buildStatblockPanel();
       buildInitStrip();
 
@@ -1956,6 +1995,8 @@
             const { error } = await SB.from('combatants').update({ initiative: val }).eq('id', c.id);
             if (error) console.warn('[hud] initiative save failed:', error.message);
           },
+          // HUD rolls (attacks, initiative, spells) post into the combat feed.
+          logRoll(o) { feedLogRoll(o); },
           // The HUD's End Turn advances the *shared* tracker rather than faking a
           // local round: this writes encounters.active_combatant_id + round (round
           // ticks only on wrap). Calls the page-level advanceTurn() defined below.
@@ -2280,6 +2321,162 @@
     }
     function syncCombatChrome() { paintCombatMenu(); }
 
+    // ── shared feed (Phase 1) — realtime game log. One Supabase table, three
+    // tabs. /roll → combat; plain text → chronicle. Foundation for the session
+    // archive / replay (channel + kind carry the future shape). ──
+    let FEED = [], feedEl = null, feedListEl = null, feedTab = 'all', feedPostHidden = false;
+    function escapeHtml(s) { return String(s == null ? '' : s).replace(/[&<>"]/g, c => ({ '&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;' }[c])); }
+    function stripTags(s) { return String(s == null ? '' : s).replace(/<[^>]*>/g, ''); }
+    function feedActor() {
+      const key = (ME && ME.characterKey) || null;
+      const name = (key && typeof CHARACTERS !== 'undefined' && CHARACTERS[key] && CHARACTERS[key].name)
+        || (key ? key.charAt(0).toUpperCase() + key.slice(1) : 'Dungeon Master');
+      return { key, name };
+    }
+    function feedSide(row) {
+      if (!row.actor_key) return 'dm';
+      return (typeof CHARACTERS !== 'undefined' && CHARACTERS[row.actor_key]) ? 'party' : 'enemy';
+    }
+    function feedNameColor(side) { return side === 'party' ? '#8fb0e0' : side === 'enemy' ? '#e0a08f' : 'var(--gold)'; }
+    function feedTime(ts) { try { return new Date(ts).toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' }); } catch (e) { return ''; } }
+    function feedAvatarHtml(row) {
+      const side = feedSide(row);
+      const ring = side === 'party' ? '#4a6aa0' : side === 'enemy' ? '#a05a6a' : 'var(--gold)';
+      const art = row.actor_key ? (PORTRAITS[row.actor_key] || TOKENS[row.actor_key] || '') : '';
+      const inner = art
+        ? `<img src="${art}" alt="" draggable="false" onerror="this.remove()" style="width:100%;height:100%;object-fit:cover;border-radius:50%">`
+        : (side === 'dm' ? `<span class="feed-av-dm">◆</span>` : `<span class="feed-av-i">${escapeHtml((row.actor_name || '?').trim().charAt(0).toUpperCase())}</span>`);
+      return `<div class="feed-av" style="border-color:${ring}">${inner}</div>`;
+    }
+    function feedRowHtml(row) {
+      const side = feedSide(row);
+      const tag = row.channel === 'chronicle' ? 'chronicle' : (row.kind === 'roll' ? 'roll' : row.kind);
+      const hid = row.hidden ? ' · hidden' : '';
+      return `<div class="feed-row">${feedAvatarHtml(row)}<div style="min-width:0">`
+        + `<div class="feed-meta"><span class="feed-name" style="color:${feedNameColor(side)}">${escapeHtml(row.actor_name)}</span> <span>· ${escapeHtml(tag)}${hid} · ${feedTime(row.created_at)}</span></div>`
+        + `<div class="feed-text">${row.body}</div></div></div>`;
+    }
+    function renderFeed() {
+      if (!feedListEl) return;
+      const staff = effectiveStaff();
+      let rows = FEED.filter(r => staff || !r.hidden);
+      if (feedTab !== 'all') rows = rows.filter(r => (r.channel || 'combat') === feedTab);
+      rows = rows.slice().sort((a, b) => new Date(a.created_at) - new Date(b.created_at));
+      feedListEl.innerHTML = rows.length
+        ? rows.map(feedRowHtml).join('')
+        : `<div class="feed-empty">No ${feedTab === 'all' ? '' : feedTab + ' '}entries yet.</div>`;
+      feedListEl.scrollTop = feedListEl.scrollHeight;
+    }
+    function onFeedInsert(row) {
+      if (!row || FEED.some(r => r.id === row.id)) return;
+      FEED.push(row);
+      if (FEED.length > 250) FEED.shift();
+      renderFeed();
+    }
+    async function loadFeed() {
+      if (!SB) return;
+      const { data, error } = await SB.from('feed').select('*').order('created_at', { ascending: false }).limit(120);
+      if (error) { console.warn('[feed] load failed:', error.message); return; }
+      (data || []).forEach(r => { if (!FEED.some(x => x.id === r.id)) FEED.push(r); });
+      renderFeed();
+    }
+    async function feedInsert(partial) {
+      if (!SB) return;
+      const a = feedActor();
+      const row = Object.assign(
+        { actor_key: a.key, actor_name: a.name, channel: 'combat', kind: 'roll', hidden: false, encounter_id: (ENC && ENC.id) || null },
+        partial);
+      const { error } = await SB.from('feed').insert(row);   // realtime echoes it back to everyone (incl. us)
+      if (error) console.warn('[feed] insert failed:', error.message);
+    }
+    // HUD seam: battle.js attack/init rolls land in the combat channel.
+    function feedLogRoll(o) {
+      const body = (o.body != null) ? o.body
+        : `${escapeHtml(stripTags(o.name || 'Roll'))}: ${stripTags(o.main || '')}${o.dmg ? ' · ' + stripTags(o.dmg) : ''}`;
+      const key = (o.actorKey !== undefined) ? o.actorKey : feedActor().key;
+      const name = o.actorName
+        || (key && typeof CHARACTERS !== 'undefined' && CHARACTERS[key] && CHARACTERS[key].name)
+        || (key ? key.charAt(0).toUpperCase() + key.slice(1) : 'Dungeon Master');
+      return feedInsert({ actor_key: key, actor_name: name, channel: 'combat', kind: o.kind || 'roll', formula: o.formula || null, result: o.result || null, body, hidden: !!o.hidden });
+    }
+    // Dice parser: NdM, +K/-K, multiple terms, khN/klN (advantage/disadvantage).
+    function parseDice(expr) {
+      const clean = String(expr || '').trim().replace(/\s+/g, '');
+      if (!clean || !/^[0-9dk hl+\-]+$/i.test(clean)) return null;
+      const re = /([+-]?)(\d*)d(\d+)(k[hl]\d+)?|([+-]?\d+)/gi;
+      let m, total = 0, parts = [], anyDice = false, consumed = 0;
+      while ((m = re.exec(clean)) !== null) {
+        consumed += m[0].length;
+        if (m[3] === undefined) { const f = parseInt(m[5], 10); total += f; parts.push({ flat: f }); continue; }
+        anyDice = true;
+        const sign = m[1] === '-' ? -1 : 1;
+        const n = m[2] ? parseInt(m[2], 10) : 1, sides = parseInt(m[3], 10);
+        if (n < 1 || n > 100 || sides < 2 || sides > 1000) return null;
+        const rolls = Array.from({ length: n }, () => Math.floor(Math.random() * sides) + 1);
+        let kept = rolls.slice();
+        if (m[4]) {
+          const keepN = Math.max(1, parseInt(m[4].slice(2), 10));
+          const sorted = rolls.slice().sort((a, b) => b - a);
+          kept = m[4][1].toLowerCase() === 'h' ? sorted.slice(0, keepN) : sorted.slice(-keepN);
+        }
+        total += kept.reduce((a, b) => a + b, 0) * sign;
+        parts.push({ sides, rolls, kept, sign });
+      }
+      if (!anyDice || consumed !== clean.length) return null;
+      return { total, parts, formula: clean };
+    }
+    function diceBody(parsed) {
+      const pieces = parsed.parts.map(p => {
+        if (p.flat !== undefined) return (p.flat >= 0 ? '+ ' : '− ') + Math.abs(p.flat);
+        const keptCopy = p.kept.slice();
+        const shown = p.rolls.map(r => { const i = keptCopy.indexOf(r); if (i >= 0) { keptCopy.splice(i, 1); return `<span class="ft-die">${r}</span>`; } return `<span class="ft-drop">${r}</span>`; }).join(' ');
+        return `${p.sign < 0 ? '− ' : ''}[${shown}]`;
+      }).join(' ');
+      return `${escapeHtml(parsed.formula)} → ${pieces} = <span class="ft-tot">${parsed.total}</span>`;
+    }
+    function feedSubmit(raw) {
+      const t = String(raw || '').trim(); if (!t) return;
+      const staffHide = feedPostHidden && effectiveStaff();
+      const cmd = t.match(/^\/(roll|r)\s+(.+)$/i);
+      if (cmd) {
+        const parsed = parseDice(cmd[2]);
+        if (parsed) { feedInsert({ channel: 'combat', kind: 'roll', formula: parsed.formula, result: { total: parsed.total }, body: diceBody(parsed), hidden: staffHide }); return; }
+      }
+      feedInsert({ channel: 'chronicle', kind: 'message', body: escapeHtml(t), hidden: staffHide });
+    }
+    function buildFeed() {
+      if (!SB) return;
+      const wrap = document.createElement('div');
+      wrap.className = 'feed-wrap';
+      wrap.innerHTML =
+        `<div class="feed-head"><span class="feed-title">Game feed</span><span class="feed-collapse">▾</span></div>`
+        + `<div class="feed-tabs"><button class="feed-tab" data-tab="combat">⚔ Combat</button><button class="feed-tab" data-tab="chronicle">Chronicle</button><button class="feed-tab on" data-tab="all">All</button></div>`
+        + `<div class="feed-body" id="feed-list"></div>`
+        + `<div class="feed-dice">${[4, 6, 8, 10, 12, 20, 100].map(d => `<button class="feed-die" data-die="${d}">d${d}</button>`).join('')}</div>`
+        + `<div class="feed-input">${IS_STAFF ? `<button class="feed-hidden-tog" title="Post hidden (DM only)">hide</button>` : ''}<input type="text" maxlength="300" placeholder="/roll 2d20kh1+4 or say something…"></div>`;
+      stage.appendChild(wrap);
+      feedEl = wrap; feedListEl = wrap.querySelector('#feed-list');
+      wrap.querySelectorAll('.feed-tab').forEach(b => b.addEventListener('click', (e) => {
+        e.stopPropagation();
+        feedTab = b.dataset.tab;
+        wrap.querySelectorAll('.feed-tab').forEach(x => x.classList.toggle('on', x === b));
+        renderFeed();
+      }));
+      wrap.querySelector('.feed-head').addEventListener('click', () => {
+        const c = wrap.classList.toggle('collapsed');
+        wrap.querySelector('.feed-collapse').textContent = c ? '▸' : '▾';
+      });
+      wrap.querySelectorAll('.feed-die').forEach(b => b.addEventListener('click', () => {
+        const d = parseInt(b.dataset.die, 10), roll = Math.floor(Math.random() * d) + 1;
+        feedInsert({ channel: 'combat', kind: 'roll', formula: `1d${d}`, result: { total: roll }, body: `1d${d} → [<span class="ft-die">${roll}</span>] = <span class="ft-tot">${roll}</span>`, hidden: feedPostHidden && effectiveStaff() });
+      }));
+      const tog = wrap.querySelector('.feed-hidden-tog');
+      if (tog) tog.addEventListener('click', (e) => { e.stopPropagation(); feedPostHidden = !feedPostHidden; tog.classList.toggle('on', feedPostHidden); });
+      const inp = wrap.querySelector('.feed-input input');
+      inp.addEventListener('keydown', (e) => { if (e.key === 'Enter') { e.preventDefault(); feedSubmit(inp.value); inp.value = ''; } });
+      loadFeed();
+    }
+
     // ── monster statblock (Phase B) ────────────────────────────────────────
     // Token art: 5etools serves token webps by source + name. We layer the img
     // over the initial-disc fallback (onerror removes it → initial shows).
@@ -2465,6 +2662,9 @@
       document.getElementById('combat-round').textContent = 1;
       renderInitStrip();
       pushTurnToHud();
+      const npcs = COMBS.filter(c => c.side !== 'party' && c.in_combat && c.initiative != null);
+      if (npcs.length) feedInsert({ actor_key: null, actor_name: 'Dungeon Master', channel: 'combat', kind: 'roll', hidden: true,
+        body: 'Rolled initiative — ' + npcs.map(c => `${escapeHtml(c.name)} <span class="ft-tot">${c.initiative}</span>`).join(', ') });
       COMBS.forEach(c => SB.from('combatants').update({ in_combat: c.in_combat, initiative: c.initiative }).eq('id', c.id)
         .then(({ error }) => { if (error) console.error('[init] write failed:', error.message); }));
       if (ENC) SB.from('encounters').update({ active_combatant_id: ENC.active_combatant_id, round: 1 }).eq('id', ENC.id)

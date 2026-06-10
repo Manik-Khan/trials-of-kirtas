@@ -243,6 +243,8 @@
     // Show roller if hidden
     const roller = document.getElementById('b-roller');
     if (roller) roller.classList.add('show');
+    // Post into the shared feed (combat channel), if the page wired the seam.
+    if (backend.logRoll) backend.logRoll({ actorKey: activeKey, name: entry.name, main: entry.main, detail: entry.detail, dmg: entry.dmg });
   }
 
   function renderRollHistory() {

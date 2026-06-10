@@ -326,3 +326,51 @@ end $$;
 --   on conflict (user_id) do update set role = 'player', character_key = 'vesperian';
 
 -- ============================================================================
+
+-- ============================================================================
+-- feed — the shared game log (Phase 1). Append-only: combat rolls + chronicle.
+-- See schema_delta_feed.sql for the runnable migration + full notes.
+-- ============================================================================
+create table if not exists public.feed (
+  id           bigint generated always as identity primary key,
+  created_at   timestamptz not null default now(),
+  session      int,
+  encounter_id uuid references public.encounters(id) on delete set null,
+  channel      text not null default 'combat'  check (channel in ('combat','chronicle')),
+  kind         text not null default 'roll'    check (kind in ('roll','attack','message','event','loot','image')),
+  actor_key    text,
+  actor_name   text not null,
+  formula      text,
+  result       jsonb,
+  body         text not null,
+  hidden       boolean not null default false
+);
+create index if not exists feed_created   on public.feed (created_at desc);
+create index if not exists feed_encounter on public.feed (encounter_id);
+alter table public.feed replica identity full;
+
+alter table public.feed enable row level security;
+drop policy if exists feed_read on public.feed;
+create policy feed_read on public.feed for select to authenticated
+  using (not hidden or public.is_staff());
+drop policy if exists feed_insert on public.feed;
+create policy feed_insert on public.feed for insert to authenticated
+  with check (not hidden or public.is_staff());
+drop policy if exists feed_staff_update on public.feed;
+create policy feed_staff_update on public.feed for update to authenticated
+  using (public.is_staff()) with check (public.is_staff());
+drop policy if exists feed_staff_delete on public.feed;
+create policy feed_staff_delete on public.feed for delete to authenticated
+  using (public.is_staff());
+
+grant select, insert, update, delete on public.feed to authenticated;
+
+do $$
+begin
+  if not exists (
+    select 1 from pg_publication_tables
+    where pubname = 'supabase_realtime' and schemaname = 'public' and tablename = 'feed'
+  ) then
+    alter publication supabase_realtime add table public.feed;
+  end if;
+end $$;
