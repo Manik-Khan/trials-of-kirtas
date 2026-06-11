@@ -56,7 +56,23 @@ A working context doc for **M** (developer / DM / musician) and **C** (Claude, t
 - **Open question (still):** confirm the `disposition` column exists on the live DB before building the disposition feature code.
 
 
-## Current state (M1+M2: monsters in the HUD — BUILT, awaiting deploy + verification)
+## Current state (token menu + auras + M's bug round — BUILT, awaiting deploy + verification)
+
+M deployed M1+M2 ("working pretty well") and reported via voice-to-text: (1) freshly dropped monsters didn't appear in the roster pane until revealed, defeating hidden ambushes; (2) the HUD's monster driving wasn't reachable anywhere — no picker section showing, no token interaction; (3) wanted the token context menu redesigned: useful info first, conditions demoted to an expander, and the long-discussed **aura** feature. Mid-round M renamed the action: **"Battle HUD"** (not "Drive in HUD") everywhere user-facing.
+
+**Bug 1 (roster pane stale on own drop) — root cause:** `dropMonster` pushed to COMBS + `renderTokens()` but never `renderInitStrip()`, and the realtime INSERT echo dedupes your own drop and returns before its repaints. Fix: drop now calls `renderInitStrip()` (cascades to `paintCombatMenu` + `pushMonstersToHud`). Hidden monsters appear on the bench immediately with the ⊘ eye — seatable without revealing.
+
+**Bug 2 (ENEMIES picker never appearing) — root cause:** `setMonsters` painted into `#b-cpick-enemies`, which only exists after `mountHud()`; on load the push ran first and silently no-opped, and nothing repainted. Fix: render extracted to `renderEnemiesPick()` (battle.js), idempotent, called from setMonsters + end of mountHud + `toggleCharPick` open. Regression-tested with a strict null-until-mounted DOM shim.
+
+**Token → HUD interactions (M3 pulled forward — M expected them):** new public `window.__battle.drive(key)` (turns the HUD on if off, loads the actor, validates via charFor). **Double-click** any party token → that PC in the HUD (everyone — M: tokens are the table's interface, the HUD is the in-combat sheet); staff double-click seated enemy → drives it; benched enemy → opens the statblock. Desktop affordance; the menu item covers touch.
+
+**Token menu redesign (mockup `mockup-token-menu.html`, approved with the rename):** the Conditions/Manage **tabs are gone** — one flat menu: name → info line (hp/AC for party-to-everyone, monsters staff-only; ⊘ hidden; in-the-fight) → 📖 Stat block (staff) → ▶ **Battle HUD** (party: everyone; enemy: staff, seated — benched shows a dimmed "seat them first") → staff Manage (Reveal/Hide, Roll initiative, size buttons) → **Aura expander** → **Conditions expander** (existing icon-chip rows, count badge, stays open for multi-toggle) → Remove (staff, confirm). Old `condTabBody`/`manageTabBody` deleted (dead). **Flagged behavior change:** Roll initiative moved from the everyone-visible tab into staff Manage — players roll via the HUD (their flow); revisit if anyone misses it.
+
+**Auras (new, `schema_delta_aura.sql`):** `combatants.aura jsonb` `{r: 5|10|15|20|30|60, color}`. Rendered as `.token-aura` INSIDE the token element, painted before the disc (paint order, no z-index), sized in % of the token — follows drags, scales with creature size and zoom, hides with hidden tokens, **skipped for teased tokens** (no leak). Realtime: UPDATE merge carries `aura`, aura change re-renders the layer. Permissions: staff any token; **players party tokens only** (Spirit Guardians etc.) — enforced in the **column guard** (delta reproduces the whole guard body + `if old.side <> 'party' then new.aura := old.aura`; keep in sync with schema_v1 if the guard changes). Menu: radius chips, 6 color swatches, Remove aura; optimistic write with rollback. Uses CSS `color-mix` (fine on M's modern browsers).
+
+**Verified:** node --check all; timing-fix regression (registry before mount → paints on open), drive() accept/reject; aura % math sanity (medium+15ft → 700% ring). Found-and-fixed in review: the Remove-aura button's `data-act` wasn't matched by the wiring selector (widened to `[data-act]`). **NOT verified live.**
+
+### Previous round (M1+M2: monsters in the HUD — deployed, working; bugs above were the follow-up)
 
 This session: M chose the combat-page track (chronicle "needs a bit more work" later — M's words; server browser is live and accepted after a sidebar fix, see previous round). Design locked via mockup (`mockup-monster-hud.html`). The agreed arc is **M1 → M2 → M3** (M3 still to build). Files changed: **`monster-actor.js`** (new), **`battle.js`**, **`combat.html`**. Deploy markers: `MONSTER-ACTOR-V1` (monster-actor.js), `setMonsters:` (battle.js), `hudComb` (combat.html).
 
@@ -130,11 +146,11 @@ A **"Discord server within the site"**: one append-only event log, surfaced two 
 
 ## Next steps (phased)
 
-**M1+M2 (monsters in the HUD): BUILT — deploy + verify next.** Checklist:
-1. Commit + deploy `monster-actor.js` (new), `battle.js`, `combat.html`. No schema changes this round.
-2. Verify deployed markers: `MONSTER-ACTOR-V1` (monster-actor.js), `setMonsters:` (battle.js), `hudComb` (combat.html).
-3. Smoke as staff: drop a bestiary monster, seat it, open the HUD picker → ENEMIES section appears with live HP; drive the monster (Action panel shows parsed attacks; rolls land in the feed hidden while the foe is hidden, with real name for staff); HP orb edits write the combatants row + log hidden hp events; ◂ Prev steps the tracker back (round decrements across the wrap, floor 1).
-4. Smoke as player / view-as-player: NO Enemies section, no monster rolls visible while hidden; PC HUD behavior fully unchanged (regression: HP save, conditions, initiative, End Turn, off-turn confirm).
+**Token menu + auras + fixes: BUILT — deploy + verify next.** Checklist:
+1. Run `schema_delta_aura.sql` in the Supabase SQL editor (idempotent; adds `combatants.aura` + replaces the column guard with the aura rule).
+2. Commit + deploy `battle.js`, `combat.html`. Markers: `renderEnemiesPick` (battle.js), `token-aura` + `Battle HUD` (combat.html).
+3. Smoke as staff: drop a monster mid-combat → appears on the roster bench immediately, still hidden (⊘); seat it hidden; HUD picker shows ENEMIES even when opened cold after a reload; double-click tokens (party → HUD; seated enemy → HUD; benched enemy → statblock); right-click → new flat menu (Battle HUD item, aura expander: set 15 ft purple on a token, drag it — ring follows; second browser sees it live; remove aura works); conditions expander toggles with count badge.
+4. Smoke as player: aura controls on party tokens only (set one — guard permits; confirm an enemy token shows NO aura section); no Manage/Stat block/Remove; monster vitals absent from the info line; teased tokens show no aura ring.
 
 **Then M3 — the seamless flow:** turn tracker advances to an NPC → staff HUD auto-loads it (`activeSourceKey` already returns `mon:` keys — the plumbing is in); **token click loads that actor in the HUD** (PCs for everyone — M's explicit ask: tokens are the table's interface and the HUD is the in-combat character sheet — monsters for staff); a "Drive in HUD" context-menu item as the discoverable path. Possible extras: recharge tracking on monster actions, legendary actions.
 
@@ -159,4 +175,4 @@ A **"Discord server within the site"**: one append-only event log, surfaced two 
 
 ---
 
-*Last updated: end of the session that built M1 (monster-actor.js — the 5etools statblock parser + adapter, fully tested) and M2 (monsters as first-class HUD actors: charFor accessor surgery, staff-only Enemies picker section, mon:<uuid> backend routing by row id, hidden-aware event logging, view-as-player honesty) plus the staff ◂ Prev turn-tracker button. Awaiting deploy + live verification. Next: M3 (auto-load on turn, token-click → HUD), then the replay scrubber.*
+*Last updated: end of the round that fixed M's two M2 bugs (stale roster pane on own monster drop; ENEMIES picker painting before the HUD DOM existed), pulled M3's token interactions forward (double-click → Battle HUD via the new drive() API; menu item), and shipped the approved token-menu redesign (flat menu, info line, Battle HUD first, staff manage, Aura + Conditions expanders) with the new combatants.aura system (player-aurable party tokens via guard rule). Awaiting deploy + verification. Remaining M3: auto-load HUD on NPC turn. Then 3B replay scrubber.*
