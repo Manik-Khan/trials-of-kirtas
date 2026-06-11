@@ -948,7 +948,7 @@
       .b-conc-drop { font-size:9px; color:#555; margin-left:3px; }
 
       /* ── Modal ── */
-      #b-conc-modal, #b-endturn-modal { position:absolute; inset:0; background:rgba(0,0,0,0.7); display:flex; align-items:center; justify-content:center; z-index:50; }
+      #b-conc-modal, #b-endturn-modal, #b-offturn-modal { position:absolute; inset:0; background:rgba(0,0,0,0.7); display:flex; align-items:center; justify-content:center; z-index:50; }
       .b-modal-box { background:#0d0d14; border:1px solid #2a2a3a; padding:20px 24px; max-width:280px; width:90%; }
       .b-modal-title { font-family:var(--font-title,inherit); font-size:0.65rem; letter-spacing:0.2em; text-transform:uppercase; color:#b8952a; margin-bottom:10px; }
       .b-modal-body { font-size:12px; color:#aaa; line-height:1.6; margin-bottom:16px; }
@@ -1110,6 +1110,29 @@
     document.getElementById('battle-hud').appendChild(m);
   }
 
+  // Off-turn End Turn confirm: the shared tracker is on someone else (or an
+  // NPC — activeKey null). Confirming advances the SHARED pointer; gated here
+  // because it's a player-reachable global action.
+  function showOffTurnModal() {
+    document.getElementById('b-offturn-modal')?.remove();
+    const k = TURN.activeKey;
+    const nm = k && CHARACTERS[k] && CHARACTERS[k].name;
+    const body = nm
+      ? `It's <strong>${nm}</strong>'s turn — advance the shared tracker anyway?`
+      : `The tracker is on another combatant — advance it anyway?`;
+    const m=document.createElement('div'); m.id='b-offturn-modal';
+    m.innerHTML=`
+      <div class="b-modal-box">
+        <div class="b-modal-title">Not Your Turn</div>
+        <div class="b-modal-body">${body}</div>
+        <div class="b-modal-btns">
+          <button class="b-modal-btn cancel" onclick="window.__battle.cancelOffTurn()">Go Back</button>
+          <button class="b-modal-btn confirm" onclick="window.__battle.confirmOffTurn()">Advance Turn</button>
+        </div>
+      </div>`;
+    document.getElementById('battle-hud').appendChild(m);
+  }
+
   // ── Public API ──
   window.__battle = {
     openPanel:     openPanelFn,
@@ -1178,11 +1201,12 @@
     endTurn: ()=>{
       const s=SESSION[activeKey];
       if(!s) return;
-      // Shared tracker present and it isn't this character's turn → don't let an
-      // off-turn End Turn move the global pointer (no hijacking the order). The
-      // friendly "end it anyway?" confirm is the next commit; for now, block.
+      // Off-turn End Turn: don't silently move the shared pointer — confirm
+      // first. Confirming advances the tracker anyway (the table asked for
+      // it); the own-economy modal is deliberately skipped — that check is
+      // about THIS character's action/bonus, meaningless on someone else's turn.
       if (backend.advanceTurn && TURN.activeKey !== activeKey) {
-        showToast("It's not your turn", '#b8952a');
+        showOffTurnModal();
         return;
       }
       // Check for unused action/bonus
@@ -1199,6 +1223,11 @@
       _doEndTurn();
     },
     cancelEndTurn: ()=>{ document.getElementById('b-endturn-modal')?.remove(); },
+    confirmOffTurn: ()=>{
+      document.getElementById('b-offturn-modal')?.remove();
+      if (backend.advanceTurn) { backend.advanceTurn(); showToast('Turn advanced','#b8952a'); }
+    },
+    cancelOffTurn: ()=>{ document.getElementById('b-offturn-modal')?.remove(); },
     dropConcentration: ()=>{
       const s=SESSION[activeKey];
       if(s) s.concentration=null;

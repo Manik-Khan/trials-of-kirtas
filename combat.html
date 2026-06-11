@@ -409,6 +409,30 @@
     }
     .dock-act:hover:not(:disabled) { border-color: var(--gold-light); background: rgba(184,149,42,0.1); }
     .dock-act:disabled { color: var(--muted); opacity: 0.4; cursor: default; }
+    /* combat pane roster (the picker): out of combat the checkboxes pick the
+       opening fight; during combat the checkbox IS in_combat (joins/removals) */
+    .roster-wrap { flex: 1; min-width: 0; min-height: 0; display: flex; flex-direction: column; }
+    .roster-scroll { flex: 1; min-height: 0; overflow-y: auto; padding: 4px 0 8px; }
+    .roster-grp { display: flex; justify-content: space-between; align-items: baseline; padding: 9px 12px 4px; }
+    .roster-grp-l { font-family: var(--font-title); font-size: 0.42rem; letter-spacing: 0.14em; text-transform: uppercase; color: var(--muted); }
+    .roster-grp-sel { font-size: 0.6rem; color: var(--gold); user-select: none; }
+    .roster-grp-sel span { cursor: pointer; }
+    .roster-grp-sel span:hover { color: var(--gold-light); }
+    .roster-row { display: flex; align-items: center; gap: 8px; padding: 4px 12px; cursor: pointer; user-select: none; }
+    .roster-row:hover { background: var(--gold-dim); }
+    .roster-check { width: 14px; height: 14px; flex: none; border: 1px solid var(--muted); border-radius: 3px; display: flex; align-items: center; justify-content: center; font-size: 9px; color: var(--gold-light); }
+    .roster-row.on .roster-check { border-color: var(--gold); background: rgba(184,149,42,0.18); }
+    .roster-disc { width: 22px; height: 22px; border-radius: 50%; flex: none; overflow: hidden; background: var(--ink); border: 1.5px solid var(--blood); color: var(--aged); display: flex; align-items: center; justify-content: center; font-size: 0.58rem; }
+    .roster-disc.party { border-color: var(--gold); }
+    .roster-disc img { width: 100%; height: 100%; object-fit: cover; }
+    .roster-name { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 0.72rem; color: var(--parchment2); }
+    .roster-row:not(.on) .roster-name { color: var(--muted); }
+    .roster-eye { flex: none; color: var(--muted); font-size: 0.68rem; }
+    .roster-init { flex: none; min-width: 18px; text-align: right; font-size: 0.68rem; color: var(--gold-light); }
+    .roster-init.pending { color: var(--muted); }
+    .roster-count { color: var(--muted); font-size: 0.55rem; }
+    .roster-acts { border-top: 1px solid var(--section-border); }
+    .roster-empty { padding: 10px 12px; font-size: 0.65rem; color: var(--muted); }
     /* staff "view as player" toggle (rail icon) + preview-mode UI suppression */
     .view-toggle.on { background: var(--gold); color: var(--ink-deep); border-color: var(--gold); }
     .stage.view-as-player .dock-btn.staff { display: none !important; }
@@ -1442,6 +1466,11 @@
       c.x = col; c.y = row; updateTokenPos(c);
       const { error } = await SB.from('combatants').update({ x: col, y: row }).eq('id', id);
       if (error) { c.x = px; c.y = py; updateTokenPos(c); console.error('move failed:', error.message); }
+      // Replay: in-combat moves only (pre-fight positions come from the
+      // combat_start snapshot). Hidden foes are only movable by staff, so the
+      // hidden:true insert is always legal here.
+      else if (c.in_combat) logEvent('move', { id: c.id, from: [px, py], to: [col, row] },
+        `${escapeHtml(c.name)} moves`, !!(c.hidden && c.side !== 'party'));
     }
 
     // ── write a creature's size to Supabase (staff-only; optimistic, reverts) ──
@@ -1496,6 +1525,10 @@
       updateTokenConditions(c);
       const { error } = await SB.from('combatants').update({ conditions: cur }).eq('id', id);
       if (error) { c.conditions = prev; updateTokenConditions(c); console.error('condition write failed:', error.message); return false; }
+      // Replay: snapshot of the full array (snapshots re-apply more robustly
+      // than deltas when scrubbing).
+      if (c.in_combat) logEvent('condition', { id: c.id, conditions: cur },
+        `${escapeHtml(c.name)}: ${cur.length ? cur.join(', ') : 'conditions cleared'}`, !!(c.hidden && c.side !== 'party'));
       return true;
     }
 
@@ -2036,8 +2069,11 @@
             if (combat.hp === null || combat.hp === undefined) return;
             const c = COMBS.find(x => x.side === 'party' && x.source_key === key);
             if (!c) return;
+            const prev = c.hp;   // realtime echo updates c.hp after the write
             const { error } = await SB.from('combatants').update({ hp: combat.hp }).eq('id', c.id);
-            if (error) console.warn('[hud] HP save failed:', error.message);
+            if (error) { console.warn('[hud] HP save failed:', error.message); return; }
+            if (c.in_combat && prev !== combat.hp)
+              logEvent('hp', { id: c.id, from: prev, to: combat.hp }, `${escapeHtml(c.name)}: ${prev} → ${combat.hp} HP`);
           },
           // Conditions write through their own verb (not folded into save) so a
           // HUD condition toggle touches only the conditions column — no hp/slot
@@ -2046,7 +2082,9 @@
             const c = COMBS.find(x => x.side === 'party' && x.source_key === key);
             if (!c) return;
             const { error } = await SB.from('combatants').update({ conditions: arr }).eq('id', c.id);
-            if (error) console.warn('[hud] conditions save failed:', error.message);
+            if (error) { console.warn('[hud] conditions save failed:', error.message); return; }
+            if (c.in_combat) logEvent('condition', { id: c.id, conditions: arr },
+              `${escapeHtml(c.name)}: ${arr.length ? arr.join(', ') : 'conditions cleared'}`);
           },
           // Player rolls/enters their own initiative from the HUD; writes the
           // party row's initiative (the column guard permits it). The optimistic
@@ -2057,7 +2095,8 @@
             c.initiative = val;
             renderInitStrip();
             const { error } = await SB.from('combatants').update({ initiative: val }).eq('id', c.id);
-            if (error) console.warn('[hud] initiative save failed:', error.message);
+            if (error) { console.warn('[hud] initiative save failed:', error.message); return; }
+            if (c.in_combat) logEvent('initiative', { id: c.id, value: val }, `${escapeHtml(c.name)} initiative set to ${val}`);
           },
           // HUD rolls (attacks, initiative, spells) post into the combat feed.
           logRoll(o) { feedLogRoll(o); },
@@ -2360,31 +2399,89 @@
       DOCK.rail.appendChild(btn);   // below the spacer — pinned to the rail's foot
     }
 
-    // ── combat pane (staff) — start / re-roll / end live in the dock.
-    // Start is live out of combat; Roll all + End live during. ──
+    // ── combat pane (staff) — the roster picker. Out of combat: checkboxes
+    // pick the opening fight + two start modes. During: the checkbox IS
+    // in_combat — mid-fight joins (second wave) and removals ride the same
+    // rows. PICK_OFF stores DESELECTED ids so newly-dropped monsters default
+    // to checked; it persists across fights (the hermit stays benched). ──
+    let PICK_OFF = new Set();
     function buildCombatTab() {
       const pane = dockRegister('combat', { icon: '⚔', title: 'Combat', staff: true });
-      const acts = document.createElement('div');
-      acts.className = 'dock-acts';
-      acts.innerHTML =
-        `<button class="dock-act" data-act="start">▶ &nbsp;Start combat</button>` +
-        `<button class="dock-act" data-act="roll">↻ &nbsp;Roll all initiative</button>` +
-        `<button class="dock-act" data-act="end">⊗ &nbsp;End combat</button>`;
-      pane.appendChild(acts);
-      acts.addEventListener('click', (e) => {
+      const wrap = document.createElement('div');
+      wrap.className = 'roster-wrap';
+      pane.appendChild(wrap);
+      wrap.addEventListener('click', (e) => {
+        const sel = e.target.closest('[data-grp]');
+        if (sel && !inCombat()) {
+          COMBS.filter(c => (sel.dataset.grp === 'party') === (c.side === 'party'))
+            .forEach(c => sel.dataset.sel === 'all' ? PICK_OFF.delete(c.id) : PICK_OFF.add(c.id));
+          paintCombatMenu(); return;
+        }
+        const row = e.target.closest('.roster-row[data-pick]');
+        if (row) {
+          const id = row.dataset.pick;
+          if (!inCombat()) { PICK_OFF.has(id) ? PICK_OFF.delete(id) : PICK_OFF.add(id); paintCombatMenu(); }
+          else {
+            // During combat only the CHECKBOX seats/unseats — a name click
+            // selects the token (mirrors the strip chips), never ejects anyone.
+            const c = COMBS.find(k => k.id === id); if (!c) return;
+            if (e.target.closest('.roster-check')) { if (c.in_combat) unseatOne(id); else seatOne(id); }
+            else selectToken(id);
+          }
+          return;
+        }
         const b = e.target.closest('button[data-act]'); if (!b || b.disabled) return;
-        if (b.dataset.act === 'start') startCombat();
-        else if (b.dataset.act === 'roll') rollAllInitiative();
-        else if (b.dataset.act === 'end') endCombat();
+        if (b.dataset.act === 'start-roll')      startCombat('roll');
+        else if (b.dataset.act === 'start-auto') startCombat('auto');
+        else if (b.dataset.act === 'reroll')     rollAllInitiative();
+        else if (b.dataset.act === 'end')        endCombat();
       });
       paintCombatMenu();
     }
+    function rosterRowHtml(c, on, showInit) {
+      const isParty = c.side === 'party';
+      const art = isParty ? (PORTRAITS[c.source_key] || TOKENS[c.source_key] || '') : (monsterTokenUrl(c) || '');
+      const initial = (c.name || '?').trim().charAt(0).toUpperCase();
+      const eye = (c.hidden && !isParty) ? `<span class="roster-eye" title="Hidden from players">⊘</span>` : '';
+      let init = '';
+      if (showInit) {
+        const pending = c.initiative == null;
+        init = `<span class="roster-init${pending ? ' pending' : ''}">${pending ? '…' : c.initiative}</span>`;
+      }
+      return `<div class="roster-row${on ? ' on' : ''}" data-pick="${c.id}">
+        <span class="roster-check">${on ? '✓' : ''}</span>
+        <span class="roster-disc${isParty ? ' party' : ''}">${art ? `<img src="${art}" alt="" draggable="false" onerror="this.remove()">` : initial}</span>
+        <span class="roster-name">${escapeHtml(c.name || '?')}</span>${eye}${init}</div>`;
+    }
     function paintCombatMenu() {
-      const menu = DOCK && DOCK.panes.combat ? DOCK.panes.combat.pane : null; if (!menu) return;
-      const on = inCombat();
-      const s = menu.querySelector('[data-act="start"]'); if (s) s.disabled = on;
-      const r = menu.querySelector('[data-act="roll"]');  if (r) r.disabled = !on;
-      const e = menu.querySelector('[data-act="end"]');   if (e) e.disabled = !on;
+      const p = DOCK && DOCK.panes.combat ? DOCK.panes.combat.pane : null; if (!p) return;
+      const wrap = p.querySelector('.roster-wrap'); if (!wrap) return;
+      let scroll = '', acts = '';
+      if (!inCombat()) {
+        const party  = COMBS.filter(c => c.side === 'party');
+        const others = COMBS.filter(c => c.side !== 'party');
+        const picked = COMBS.filter(c => !PICK_OFF.has(c.id)).length;
+        const grp = (label, key, list) => list.length
+          ? `<div class="roster-grp"><span class="roster-grp-l">${label}</span><span class="roster-grp-sel"><span data-grp="${key}" data-sel="all">all</span> · <span data-grp="${key}" data-sel="none">none</span></span></div>`
+            + list.map(c => rosterRowHtml(c, !PICK_OFF.has(c.id), false)).join('')
+          : '';
+        scroll = (grp('Party', 'party', party) + grp('Others', 'others', others))
+          || `<div class="roster-empty">No one on the board yet.</div>`;
+        acts = `<button class="dock-act" data-act="start-roll"${picked ? '' : ' disabled'}>▶ &nbsp;Start — players roll <span class="roster-count">(${picked})</span></button>`
+             + `<button class="dock-act" data-act="start-auto"${picked ? '' : ' disabled'}>⚄ &nbsp;Start — auto-roll everyone</button>`;
+      } else {
+        const seated = initRoster();
+        const bench  = COMBS.filter(c => !c.in_combat);
+        scroll = `<div class="roster-grp"><span class="roster-grp-l">In the fight — round ${(ENC && ENC.round) || 1}</span></div>`
+          + seated.map(c => rosterRowHtml(c, true, true)).join('')
+          + (bench.length
+              ? `<div class="roster-grp"><span class="roster-grp-l">On the board — check to join</span></div>`
+                + bench.map(c => rosterRowHtml(c, false, false)).join('')
+              : '');
+        acts = `<button class="dock-act" data-act="reroll">↻ &nbsp;Re-roll the seated</button>`
+             + `<button class="dock-act" data-act="end">⊗ &nbsp;End combat</button>`;
+      }
+      wrap.innerHTML = `<div class="roster-scroll">${scroll}</div><div class="dock-acts roster-acts">${acts}</div>`;
     }
     function syncCombatChrome() { paintCombatMenu(); }
 
@@ -2448,7 +2545,7 @@
       feedListEl.scrollTop = feedListEl.scrollHeight;
     }
     function onFeedInsert(row) {
-      if (!row || FEED.some(r => r.id === row.id)) return;
+      if (!row || row.kind === 'event' || FEED.some(r => r.id === row.id)) return;   // events: recorded, not shown
       FEED.push(row);
       if (FEED.length > 250) FEED.shift();
       renderFeed();
@@ -2497,7 +2594,9 @@
     }
     async function loadFeed() {
       if (!SB) return;
-      const { data, error } = await SB.from('feed').select('*').order('created_at', { ascending: false }).limit(120);
+      // kind:'event' rows are replay data, not chat — excluded here so the
+      // 120-row budget stays visible content.
+      const { data, error } = await SB.from('feed').select('*').neq('kind', 'event').order('created_at', { ascending: false }).limit(120);
       if (error) { console.warn('[feed] load failed:', error.message); return; }
       (data || []).forEach(r => { if (!FEED.some(x => x.id === r.id)) FEED.push(r); });
       renderFeed();
@@ -2511,6 +2610,22 @@
         partial);
       const { error } = await SB.from('feed').insert(row);   // realtime echoes it back to everyone (incl. us)
       if (error) console.warn('[feed] insert failed:', error.message);
+    }
+    // ── Phase 3 events — structured rows for the replay scrubber. kind:
+    // 'event'; result carries the machine data ({type,...}); body is the human
+    // line. The live feed SKIPS kind:'event' (moves would drown the chat) —
+    // recorded, not displayed. Player-initiated events (moves, HP, turn
+    // advances) must be hidden:false (RLS blocks player hidden inserts);
+    // hidden-foe events come from staff and go hidden:true so nothing leaks.
+    function logEvent(type, data, body, hidden) {
+      return feedInsert({ actor_key: null, actor_name: 'System', channel: 'combat',
+        kind: 'event', result: Object.assign({ type: type }, data), body, hidden: !!hidden });
+    }
+    // Roster snapshot — the replay's opening/closing position.
+    function rosterSnapshot() {
+      return COMBS.filter(c => c.in_combat).map(c => ({
+        id: c.id, key: c.source_key || null, name: c.name, side: c.side,
+        x: c.x, y: c.y, hp: c.hp, max_hp: c.max_hp, initiative: c.initiative }));
     }
     // HUD seam: battle.js attack/init rolls land in the combat channel.
     function feedLogRoll(o) {
@@ -2793,6 +2908,8 @@
       const prev = c.initiative; c.initiative = val; renderInitStrip();
       const { error } = await SB.from('combatants').update({ initiative: val }).eq('id', id);
       if (error) { c.initiative = prev; renderInitStrip(); console.error('[init] write failed:', error.message); return false; }
+      if (c.in_combat) logEvent('initiative', { id: c.id, value: val },
+        `${escapeHtml(c.name)} initiative set to ${val}`, !!(c.hidden && c.side !== 'party'));
       return true;
     }
     function rollInitiative(c) { return setInitiative(c.id, rollValue(c)); }
@@ -2814,6 +2931,12 @@
       document.getElementById('combat-round').textContent = ENC.round ?? 1;
       renderInitStrip();
       pushTurnToHud();
+      // Replay: one public turn event per advance. A hidden foe's name would
+      // leak through the body, so it masks to ??? (players can trigger this
+      // via HUD End Turn, so the row itself must stay hidden:false for RLS).
+      const tc = COMBS.find(x => x.id === id);
+      if (tc) logEvent('turn', { active_id: id, round: ENC.round ?? 1 },
+        `Round ${ENC.round ?? 1} — ${(tc.hidden && tc.side !== 'party') ? '???' : escapeHtml(tc.name)}'s turn`, false);
       const patch = { active_combatant_id: id }; if (round != null) patch.round = round;
       const { error } = await SB.from('encounters').update(patch).eq('id', ENC.id);
       if (error) console.error('[init] turn write failed:', error.message);
@@ -2826,14 +2949,42 @@
       if (i >= 0 && next === 0) round++;
       await setActive(order[next].id, round);
     }
-    // DM "Roll all": rolls every non-party participant; party PCs are seated as
-    // pending (in_combat, initiative cleared) so their owners enter their own
-    // number. Seats everyone on the board for now — the roster picker (#1) will
-    // later choose who's in_combat before this runs.
+    // Re-roll the SEATED only (post-picker semantics — re-seating the whole
+    // board would silently undo the picker): NPCs re-roll, party resets to
+    // pending so owners roll their own again; the bench is untouched. The
+    // order resets to the new top and the round to 1 — this is "redo
+    // initiative", not a mid-round tweak.
     function rollAllInitiative() {
+      const seated = COMBS.filter(c => c.in_combat);
+      if (!seated.length) return;
+      seated.forEach(c => { c.initiative = (c.side === 'party') ? null : rollValue(c); });
+      const top = turnOrder()[0];
+      if (ENC) { ENC.active_combatant_id = top ? top.id : null; ENC.round = 1; }
+      document.getElementById('combat-round').textContent = 1;
+      renderInitStrip();
+      pushTurnToHud();
+      const npcs = seated.filter(c => c.side !== 'party' && c.initiative != null);
+      if (npcs.length) feedInsert({ actor_key: null, actor_name: 'Dungeon Master', channel: 'combat', kind: 'roll', hidden: true,
+        body: 'Rolled initiative — ' + npcs.map(c => `${escapeHtml(c.name)} <span class="ft-tot">${c.initiative}</span>`).join(', ') });
+      seated.forEach(c => SB.from('combatants').update({ in_combat: true, initiative: c.initiative }).eq('id', c.id)
+        .then(({ error }) => { if (error) console.error('[init] write failed:', error.message); }));
+      if (ENC) SB.from('encounters').update({ active_combatant_id: ENC.active_combatant_id, round: 1 }).eq('id', ENC.id)
+        .then(({ error }) => { if (error) console.error('[init] turn write failed:', error.message); });
+    }
+
+    // ── combat lifecycle ────────────────────────────────────────────────────
+    // "In combat" = anyone is seated. Start seats the PICKED rows (everyone
+    // minus PICK_OFF) and benches the rest; End clears everyone and the strip
+    // hides again. mode 'roll': NPCs auto-roll, PCs pend for the one HUD
+    // prompt. mode 'auto': everyone rolls now, no prompts (plain d20+mod —
+    // adv/dis belongs to the players-roll path).
+    function inCombat() { return COMBS.some(c => c.in_combat); }
+    function startCombat(mode) {
+      if (!COMBS.some(c => !PICK_OFF.has(c.id))) return;
       COMBS.forEach(c => {
-        c.in_combat = true;
-        c.initiative = (c.side === 'party') ? null : rollValue(c);
+        const inF = !PICK_OFF.has(c.id);
+        c.in_combat = inF;
+        c.initiative = !inF ? null : (mode !== 'auto' && c.side === 'party') ? null : rollValue(c);
       });
       const top = turnOrder()[0];
       if (ENC) { ENC.active_combatant_id = top ? top.id : null; ENC.round = 1; }
@@ -2843,19 +2994,53 @@
       const npcs = COMBS.filter(c => c.side !== 'party' && c.in_combat && c.initiative != null);
       if (npcs.length) feedInsert({ actor_key: null, actor_name: 'Dungeon Master', channel: 'combat', kind: 'roll', hidden: true,
         body: 'Rolled initiative — ' + npcs.map(c => `${escapeHtml(c.name)} <span class="ft-tot">${c.initiative}</span>`).join(', ') });
+      if (mode === 'auto') {
+        const pcs = COMBS.filter(c => c.side === 'party' && c.in_combat);
+        if (pcs.length) feedInsert({ actor_key: null, actor_name: 'Dungeon Master', channel: 'combat', kind: 'roll', hidden: false,
+          body: 'Rolled initiative — ' + pcs.map(c => `${escapeHtml(c.name)} <span class="ft-tot">${c.initiative}</span>`).join(', ') });
+      }
+      // The opening snapshot — the replay's starting position. hidden:true
+      // because it can contain unrevealed foes (staff-only action, RLS ok).
+      logEvent('combat_start', { round: 1, active_id: ENC ? ENC.active_combatant_id : null, combatants: rosterSnapshot() }, 'Combat started', true);
       COMBS.forEach(c => SB.from('combatants').update({ in_combat: c.in_combat, initiative: c.initiative }).eq('id', c.id)
         .then(({ error }) => { if (error) console.error('[init] write failed:', error.message); }));
       if (ENC) SB.from('encounters').update({ active_combatant_id: ENC.active_combatant_id, round: 1 }).eq('id', ENC.id)
         .then(({ error }) => { if (error) console.error('[init] turn write failed:', error.message); });
     }
-
-    // ── combat lifecycle ────────────────────────────────────────────────────
-    // "In combat" = anyone is seated. Start seats + rolls (PCs pending); End
-    // clears everyone and the strip hides again. startCombat() is the seam the
-    // roster picker (#1) will later front instead of rolling the whole board.
-    function inCombat() { return COMBS.some(c => c.in_combat); }
-    function startCombat() { rollAllInitiative(); }
+    // Mid-fight join (the second wave): an NPC rolls and slots into the order;
+    // a PC seats pending (their HUD prompts). Round + active turn untouched —
+    // initRoster/turnOrder re-sort on their own.
+    async function seatOne(id) {
+      const c = COMBS.find(k => k.id === id); if (!c || c.in_combat) return;
+      c.in_combat = true;
+      c.initiative = (c.side === 'party') ? null : rollValue(c);
+      renderInitStrip();
+      const { error } = await SB.from('combatants').update({ in_combat: true, initiative: c.initiative }).eq('id', id);
+      if (error) { c.in_combat = false; c.initiative = null; renderInitStrip(); console.error('[roster] seat failed:', error.message); return; }
+      if (c.initiative != null) feedInsert({ actor_key: null, actor_name: 'Dungeon Master', channel: 'combat', kind: 'roll', hidden: true,
+        body: `${escapeHtml(c.name)} joins the fight — initiative <span class="ft-tot">${c.initiative}</span>` });
+      logEvent('join', { id: c.id, name: c.name, side: c.side, x: c.x, y: c.y, hp: c.hp, initiative: c.initiative },
+        `${escapeHtml(c.name)} joins the fight`, !!(c.hidden && c.side !== 'party'));
+    }
+    // Pull a combatant from the fight (the token stays on the board). If it's
+    // their turn, advance FIRST so the pointer never dangles on a benched row;
+    // the last one out clears the pointer and the strip hides.
+    async function unseatOne(id) {
+      const c = COMBS.find(k => k.id === id); if (!c || !c.in_combat) return;
+      if (ENC && ENC.active_combatant_id === id) {
+        if (turnOrder().length > 1) await advanceTurn();
+        else await setActive(null, null);
+      }
+      c.in_combat = false; c.initiative = null;
+      renderInitStrip();
+      pushTurnToHud();
+      const { error } = await SB.from('combatants').update({ in_combat: false, initiative: null }).eq('id', id);
+      if (error) { c.in_combat = true; renderInitStrip(); console.error('[roster] unseat failed:', error.message); return; }
+      logEvent('leave', { id: c.id, name: c.name }, `${escapeHtml(c.name)} leaves the fight`, !!(c.hidden && c.side !== 'party'));
+    }
     function endCombat() {
+      // The closing snapshot first, while the roster still exists.
+      logEvent('combat_end', { round: (ENC && ENC.round) || 1, combatants: rosterSnapshot() }, 'Combat ended', true);
       COMBS.forEach(c => { c.in_combat = false; c.initiative = null; });
       if (ENC) { ENC.active_combatant_id = null; ENC.round = 1; }
       document.getElementById('combat-round').textContent = 1;
