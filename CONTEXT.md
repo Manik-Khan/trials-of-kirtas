@@ -45,7 +45,7 @@ A working context doc for **M** (developer / DM / musician) and **C** (Claude, t
 - **Party characters** (source_key): Cosmere Runestar (`cosmere`), Caim, Líadan Luchóg (`liadan`), Vesperian Vale (`vesperian`). *Tyros → Cosmere rename is FULLY complete (verified in-repo): `data/characters/cosmere.json` exists, the `KEY_FILE` alias was removed 2026-06-01. Remaining "tyros" mentions are deliberate or inert — chronicle.html's legacy portrait mapping (old entries authored as Tyros resolve to the cosmere portrait — keep), historical archive data in `chronicle.json`, and the dead `sheet-prototype.html` (delete-someday candidate, M's call).*
 - **User → role/character:** `thebraveruby@gmail.com` → overseer + Vesperian; `hagakuredisc@gmail.com` → DM, no character; `ianakira@gmail.com` → Cosmere; `jayvanmidde@gmail.com` → Caim; `nazanroseaktas@gmail.com` → Líadan.
 - **Initiative modifiers** live in `characters.js` as `CHARACTERS[key].combat.initiative` (e.g. Vesperian +4). NPC init mod = `Math.floor((statblock.dex − 10) / 2)`.
-- **Chronicle** (`chronicle.html`) is its own system: Quill rich-text entries, organized by session with authors/tags/@mentions/images, saved via a **Netlify function that writes `chronicle.json` and commits it** (git-backed, no realtime, no Supabase).
+- **Chronicle** (`chronicle.html`) is the **server browser** (Phase 3A): a Discord-style channel tree (sessions → #chronicle / ⚔ per-encounter / 🎲 table-talk, plus staff-pinned TAG channels), the original long-form reading view as the default "All Entries" landing, paginated combat channels with round dividers + encounter banner, server-side cross-channel search, and staff drag-ordered channels — all over the unified Supabase feed. Quill entries/authors/tags/@mentions/images unchanged. The git-committed `chronicle.json` remains the durable export backstop (nightly + button).
 
 ---
 
@@ -56,7 +56,25 @@ A working context doc for **M** (developer / DM / musician) and **C** (Claude, t
 - **Open question (still):** confirm the `disposition` column exists on the live DB before building the disposition feature code.
 
 
-## Current state (roster picker + events + nightly export shipped)
+## Current state (Phase 3A: chronicle server browser — BUILT, awaiting deploy + verification)
+
+This session built the **chronicle-page server browser** (design locked via interactive mockup, M approved). Files changed: **`schema_delta_campaign_config.sql`** (new), **`feed-render.js`** (new), **`combat.html`** (extraction only), **`chronicle.html`** (the feature). Deploy markers: `FEED-RENDER-V1` (feed-render.js), `SERVER-BROWSER-V1` (chronicle.html).
+
+**1. `feed-render.js` extraction** — the Discord-style feed row renderer (escapeHtml/stripTags/side/nameColor/time/avatarHtml/rowHtml) was lifted out of combat.html into a shared module both pages load. The module **owns the feed avatar art** (single source of truth for the feed look); combat.html's `PORTRAITS`/`TOKENS` remain authoritative for **map tokens** — a separate concern. combat.html keeps `escapeHtml`/`stripTags` as hoisted thin wrappers (used in 31 places) and `renderFeed` uses `FR.rowHtml`. Pages provide the CSS (`feed-row` family); chronicle carries a copy scoped under `#sv-combat`.
+
+**2. Channel tree** (chronicle sidebar, replaces the flat session list): 📖 All Entries (the untouched original reading view, default landing) → TAGS category (staff-pinned tags as channels, e.g. `#loot`) → session categories (collapsible; newest seeded open) each holding `#chronicle`, one `⚔ <encounter-slug>` channel per encounter with feed rows, and `🎲 table-talk` (combat rolls with no encounter_id, via feed-bridge). Counts exclude `kind:'event'`. Built from a **lightweight feed index** (`select id,session,encounter_id,channel,kind,hidden,created_at` — no bodies; cheap at thousands of rows) + an `encounters` fetch for names. Authors/Tags filters + staff session controls unchanged below.
+
+**3. Combat channel pane** — encounter banner (name, date, rounds from `encounters.round`; staff additionally sees combatant count from the hidden `combat_start` snapshot — RLS keeps that staff-only by itself), **ROUND N dividers** woven from visible `turn` events (players get them too: turn events are hidden:false), paginated newest-100 with "↑ LOAD OLDER" (cursor `.lt('created_at', oldest)`, anchor-scroll preserved), hover-✕ delete mirroring RLS, feed images → the chronicle's lightbox. ▶ REPLAY button stubbed disabled — Phase 3B plugs in there.
+
+**4. Server-side search** — debounced 300ms, `ilike` on body (`%`/`_` escaped), events excluded, 50-hit cap, stale-response guard. Scope pills: ALL CHANNELS / THIS CHANNEL (current combat channel, or current session's chronicle, or all chronicle). Hits show session/channel/date + highlighted snippet; clicking a chronicle hit opens that session's entries, a combat hit opens the channel and scroll-highlights the row if it's in the loaded page (deeper rows: channel opens at newest — accepted v1 simplification). The old client-side entry search is superseded; `activeFilters.search` machinery left dormant/harmless.
+
+**5. Shared config (`campaign.config jsonb`, new delta)** — `{ channelOrder: {session: [ids]}, pinnedTags: [] }`. Staff-only by the existing campaign update policy; streams live via the existing campaign realtime membership. **Staff drag-reorders channels** within a session (⋮⋮ grips, HTML5 DnD; non-staff never see grips); unordered channels keep the chronological default (chronicle, encounters by start, table-talk). **Staff pins/unpins tags** via 📌/📍 toggles on the sidebar tag list. `bumpSessionTo` writes only `current_session` so config never clobbers (and vice versa).
+
+**6. Realtime extensions** (same `chronicle-live` channel): combat-channel feed INSERTs update the index/counts and append live to an open channel (events feed the dividers); feed DELETEs prune index + open channel; `encounters` INSERT/UPDATE refresh channel names/rounds live; campaign UPDATE now also syncs `config` (pin/reorder propagate to everyone).
+
+**Verified:** `node --check` on all JS (inline extracted), FeedRender smoke tests (party/DM/enemy/hidden rows, escaping), channel-ordering unit tests (default chronology, config override, event-excluded counts, slugs), round-divider weave test. **NOT yet verified live** — see deploy checklist in Next steps.
+
+### Previous round (roster picker + events + nightly export — all shipped & verified)
 
 Phase 2 (chronicle unification) is **live and verified**, the combat-page UX round before that too (right dock, dice tray, feed roll-modifier row, feed-bridge.js, feed delete + lightbox — details below). The latest session shipped, deployed, and **M verified working**:
 
@@ -95,13 +113,21 @@ A **"Discord server within the site"**: one append-only event log, surfaced two 
 
 ## Next steps (phased)
 
-**Roster picker: DONE. Event logging: DONE (recording since deploy). Nightly export: DONE.**
+**Server browser (3A): BUILT — deploy + verify next.** Deploy checklist:
+1. Run `schema_delta_campaign_config.sql` in the Supabase SQL editor (idempotent).
+2. Commit + deploy `feed-render.js` (new), `combat.html`, `chronicle.html`.
+3. Verify deployed files contain markers: `FEED-RENDER-V1` (feed-render.js, and the comment referencing it in combat.html), `SERVER-BROWSER-V1` (chronicle.html).
+4. Smoke: combat.html feed still renders rolls identically (extraction regression check); chronicle shows the channel tree; open an encounter channel (rows + dividers + banner); search from both scopes; staff: pin a tag, drag-reorder a session's channels, confirm a second browser sees both live.
 
-**Recommended next: Phase 3 proper** — start with the **chronicle-page "server" browser** (all sessions/channels, searchable; mock first per house rules — it deserves a fresh session) or the **replay scrubber** (data is accumulating now; scrubber consumes `kind:'event'` rows + the `combat_start` snapshot). Loot-to-fight linking rides along.
+**Then Phase 3B: the replay scrubber** (M's chosen order: A → B → cleanup). Consumes `kind:'event'` rows + the `combat_start` snapshot; the disabled ▶ REPLAY button on the encounter banner is its mount point. The more fights run before building, the more test data.
 
-**Phase 2 cleanup (small, whenever):** retire `netlify/functions/chronicle.js` after a few stable sessions. Verify post-deploy that the Functions tab shows `feed-export-nightly` with the schedule badge and that one manual test-run logs success (requires `SUPABASE_SERVICE_ROLE_KEY` in Netlify env).
+**Then cleanup:** retire `netlify/functions/chronicle.js` after a few stable sessions; optionally delete the dead `sheet-prototype.html`; `mockup-server-browser.html` (this session's approved mockup) can be deleted from the repo or kept as a design record — M's call.
 
-**Older pending items:** disposition (friend/foe) feature code (confirm the live `disposition` column first); initiative-chip flag-card redesign (maybe partly done — decide); possible nice-to-have: plain-text editing of chat messages from the combat feed panel (full editing lives on chronicle.html); optionally delete the dead `sheet-prototype.html`.
+**`#quests` page** — M flagged it: pinned-tag channels proved the idea; quests graduate to a dedicated page later.
+
+**Phase 2 cleanup (small, whenever):** verify post-deploy that the Functions tab shows `feed-export-nightly` with the schedule badge and that one manual test-run logs success (requires `SUPABASE_SERVICE_ROLE_KEY` in Netlify env).
+
+**Older pending items:** disposition (friend/foe) feature code (confirm the live `disposition` column first); initiative-chip flag-card redesign (maybe partly done — decide); possible nice-to-have: plain-text editing of chat messages from the combat feed panel (full editing lives on chronicle.html).
 
 
 ## Earlier history (background)
@@ -114,4 +140,4 @@ A **"Discord server within the site"**: one append-only event log, surfaced two 
 
 ---
 
-*Last updated: end of the session that shipped the roster/encounter picker (Combat dock pane), the off-turn End Turn confirm, Phase 3 event logging (live and recording), the nightly export schedule (shared export core), the seated-only Roll-all semantics, and verified the Tyros → Cosmere cleanup was already complete (only a stale comment remained — fixed). Next up: the chronicle-page "server" browser or the replay scrubber, mock-first.*
+*Last updated: end of the session that built Phase 3A — the chronicle server browser (channel tree, per-encounter combat channels with round dividers + pagination, pinned tag channels, server-side cross-channel search, staff drag-order + tag pinning via the new `campaign.config`, and the `feed-render.js` extraction shared with combat.html). Awaiting deploy + live verification (checklist in Next steps). Then Phase 3B: the replay scrubber.*

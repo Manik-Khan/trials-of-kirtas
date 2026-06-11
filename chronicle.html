@@ -1013,6 +1013,121 @@
       /* Safe area bottom for editor drawer */
       .c-editor-wrap { padding-bottom: env(safe-area-inset-bottom); }
     }
+    /* ════ Server browser (Phase 3A): channel tree, combat pane, search ════ */
+    .sv-scope { display: flex; gap: 4px; padding: 0 1.1rem 0.5rem; }
+    .sv-scope-pill {
+      font-size: 0.55rem; font-family: var(--font-title); letter-spacing: 0.5px;
+      border: 1px solid var(--nav-border); border-radius: 10px; padding: 2px 8px;
+      color: var(--muted); cursor: pointer; background: none;
+    }
+    .sv-scope-pill.active { color: var(--gold-light); border-color: var(--gold-mid); background: var(--gold-dim); }
+
+    .sv-all {
+      display: flex; align-items: center; gap: 7px; padding: 6px 9px; border-radius: 4px;
+      cursor: pointer; font-family: var(--font-title); font-size: 0.72rem; color: var(--aged); margin-bottom: 2px;
+    }
+    .sv-all:hover { background: var(--gold-dim); }
+    .sv-all.active { background: var(--gold-dim); color: var(--gold-light); }
+    .sv-cat { margin-top: 6px; }
+    .sv-cat-head {
+      display: flex; align-items: center; gap: 6px; padding: 4px 6px; cursor: pointer;
+      font-family: var(--font-title); font-size: 0.6rem; letter-spacing: 1.5px;
+      color: var(--muted); text-transform: uppercase; user-select: none;
+    }
+    .sv-cat-head:hover { color: var(--aged); }
+    .sv-chev { font-size: 0.5rem; transition: transform 0.15s; display: inline-block; }
+    .sv-cat.closed .sv-chev { transform: rotate(-90deg); }
+    .sv-cat.closed .sv-chs { display: none; }
+    .sv-cat-hint { color: var(--gold); opacity: 0.7; font-size: 0.55rem; letter-spacing: 0.5px; text-transform: none; }
+    .sv-ch {
+      display: flex; align-items: center; gap: 6px; padding: 4px 8px 4px 16px;
+      border-radius: 4px; cursor: pointer; font-size: 0.78rem; color: var(--aged);
+      font-family: var(--font-body);
+    }
+    .sv-ch:hover { background: var(--gold-dim); }
+    .sv-ch.active { background: var(--gold-dim); color: var(--parchment); }
+    .sv-ch .sv-hash { color: var(--muted); font-family: var(--font-title); font-size: 0.72rem; flex: none; }
+    .sv-ch.active .sv-hash { color: var(--gold); }
+    .sv-ch-name { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; min-width: 0; }
+    .sv-ch-count { margin-left: auto; font-size: 0.58rem; color: var(--muted); flex: none; }
+    .sv-drag { display: none; color: var(--muted); font-size: 0.55rem; cursor: grab; margin-left: -8px; letter-spacing: -2px; flex: none; }
+    .sv-ch:hover .sv-drag { display: inline; }
+    .sv-ch.dragging { opacity: 0.4; }
+    .sv-ch.drop-above { box-shadow: 0 -2px 0 var(--gold); }
+    .sv-pin {
+      background: none; border: none; cursor: pointer; font-size: 0.6rem; padding: 0 2px;
+      color: var(--muted); opacity: 0; margin-left: 2px;
+    }
+    .c-tag-btn-wrap:hover .sv-pin, .sv-pin.pinned { opacity: 1; }
+    .sv-pin.pinned { color: var(--gold); }
+    .c-tag-btn-wrap { display: inline-flex; align-items: center; }
+
+    .sv-pane-head { border-bottom: 1px solid var(--gold-dim); padding-bottom: 0.6rem; margin-bottom: 1rem; }
+    .sv-pane-title { font-family: var(--font-title); font-size: 1.15rem; color: var(--gold-light); }
+    .sv-pane-title .sv-dim { color: var(--muted); font-size: 0.85rem; }
+    .sv-pane-title .sv-sess { font-size: 0.68rem; color: var(--muted); font-family: var(--font-body); font-style: italic; margin-left: 6px; }
+    .sv-pane-meta { font-size: 0.72rem; color: var(--muted); margin-top: 3px; }
+
+    .sv-banner {
+      border: 1px solid var(--gold-dim); border-radius: 6px; background: rgba(0,0,0,0.25);
+      padding: 0.75rem 1rem; margin-bottom: 1rem; display: flex; align-items: center; gap: 12px;
+    }
+    .sv-banner-ico { font-size: 1.2rem; }
+    .sv-banner-name { font-family: var(--font-title); font-size: 0.95rem; color: var(--parchment2); }
+    .sv-banner-stats { font-size: 0.68rem; color: var(--muted); margin-top: 2px; }
+    .sv-replay {
+      margin-left: auto; font-family: var(--font-title); font-size: 0.62rem; letter-spacing: 1px;
+      border: 1px solid var(--nav-border); border-radius: 4px; padding: 5px 11px;
+      color: var(--muted); cursor: not-allowed; background: none; flex: none;
+    }
+    .sv-load-older {
+      display: block; margin: 0 auto 1rem; font-family: var(--font-title); font-size: 0.62rem;
+      letter-spacing: 1px; border: 1px solid var(--nav-border); background: none;
+      border-radius: 4px; padding: 6px 15px; color: var(--aged); cursor: pointer;
+    }
+    .sv-load-older:hover { border-color: var(--gold-mid); color: var(--gold-light); }
+    .sv-rule {
+      display: flex; align-items: center; gap: 10px; margin: 13px 0;
+      color: var(--muted); font-size: 0.58rem; font-family: var(--font-title); letter-spacing: 1.5px;
+    }
+    .sv-rule::before, .sv-rule::after { content: ''; flex: 1; border-top: 1px solid var(--gold-dim); }
+
+    /* Feed rows inside the combat pane — same classes feed-render.js emits,
+       styles adapted from combat.html so both pages read identically. */
+    #sv-combat .feed-row { display: flex; gap: 8px; position: relative; margin-bottom: 11px; }
+    #sv-combat .feed-row.sv-hit-target { background: var(--gold-dim); border-radius: 4px; }
+    #sv-combat .feed-del {
+      position: absolute; top: 0; right: 0; display: none;
+      background: var(--nav-bg); border: 1px solid var(--nav-border); border-radius: 4px;
+      color: var(--muted); cursor: pointer; font-size: 10px; line-height: 1; padding: 3px 5px;
+    }
+    #sv-combat .feed-row:hover .feed-del { display: block; }
+    #sv-combat .feed-del:hover { color: var(--blood); border-color: var(--blood); }
+    #sv-combat .feed-av { flex: none; width: 28px; height: 28px; border-radius: 50%; border: 1.5px solid var(--gold); overflow: hidden; display: flex; align-items: center; justify-content: center; background: var(--ink); }
+    #sv-combat .feed-av-i { font-family: var(--font-display); font-size: 13px; color: var(--parchment2); }
+    #sv-combat .feed-av-dm { color: var(--gold); font-size: 11px; }
+    #sv-combat .feed-meta { font-size: 11px; color: var(--muted); }
+    #sv-combat .feed-name { font-weight: 500; }
+    #sv-combat .feed-text { font-size: 13px; color: var(--parchment); margin-top: 1px; word-break: break-word; }
+    #sv-combat .feed-text .ft-tot { color: var(--gold); font-weight: 500; }
+    #sv-combat .feed-text .ft-die { color: var(--parchment2); }
+    #sv-combat .feed-text .ft-drop { color: var(--muted); }
+    #sv-combat .feed-text img {
+      display: block; max-width: 100% !important; max-height: 120px;
+      width: auto !important; height: auto; object-fit: cover;
+      margin: 4px 0; border: 1px solid var(--nav-border); border-radius: 4px; cursor: zoom-in;
+    }
+    .sv-empty { color: var(--muted); font-style: italic; font-size: 0.85rem; padding: 1rem 0; }
+
+    .sv-hit {
+      border: 1px solid var(--gold-dim); border-left: 3px solid var(--gold-mid); border-radius: 4px;
+      background: rgba(0,0,0,0.2); padding: 0.65rem 0.85rem; margin-bottom: 0.65rem; cursor: pointer;
+    }
+    .sv-hit:hover { border-color: var(--gold-mid); }
+    .sv-hit-where { display: flex; gap: 8px; align-items: center; font-family: var(--font-title); font-size: 0.58rem; letter-spacing: 1px; color: var(--muted); margin-bottom: 4px; }
+    .sv-hit-ch { color: var(--gold); }
+    .sv-hit-body { font-size: 0.82rem; color: var(--parchment); }
+    .sv-hit-body mark { background: var(--gold-dim); color: var(--gold-light); }
   </style>
 </head>
 <body>
@@ -1070,11 +1185,15 @@
 
     <div class="c-search-wrap">
       <span class="c-search-icon">⌕</span>
-      <input class="c-search" id="c-search" placeholder="Search entries…" oninput="applyFilters()">
+      <input class="c-search" id="c-search" placeholder="Search the record…" oninput="onSearchInput()">
+    </div>
+    <div class="sv-scope" id="sv-scope">
+      <button class="sv-scope-pill active" id="scope-all" onclick="setSearchScope('all')">ALL CHANNELS</button>
+      <button class="sv-scope-pill" id="scope-ch" onclick="setSearchScope('ch')">THIS CHANNEL</button>
     </div>
 
     <div class="c-sidebar-scroll">
-      <span class="c-sidebar-section-label">Sessions</span>
+      <span class="c-sidebar-section-label">Channels</span>
       <div id="session-list">
         <div class="c-loading" style="height:60px"><div class="c-spinner" style="width:16px;height:16px;margin-bottom:0.4rem"></div></div>
       </div>
@@ -1108,6 +1227,26 @@
     </div>
     <div id="c-filter-bar" class="c-filter-bar" style="display:none"></div>
     <div id="c-entries"></div>
+
+    <!-- Server browser: combat channel pane (Phase 3A) -->
+    <div id="sv-combat" style="display:none">
+      <div class="sv-pane-head">
+        <div class="sv-pane-title" id="sv-combat-title"></div>
+        <div class="sv-pane-meta" id="sv-combat-meta"></div>
+      </div>
+      <div id="sv-combat-banner"></div>
+      <button class="sv-load-older" id="sv-load-older" onclick="loadOlderCombat()" style="display:none">↑ LOAD OLDER</button>
+      <div id="sv-combat-rows"></div>
+    </div>
+
+    <!-- Server browser: search results pane -->
+    <div id="sv-search" style="display:none">
+      <div class="sv-pane-head">
+        <div class="sv-pane-title">Results for &ldquo;<span id="sv-search-q"></span>&rdquo;</div>
+        <div class="sv-pane-meta" id="sv-search-meta"></div>
+      </div>
+      <div id="sv-search-hits"></div>
+    </div>
   </div>
 
   <!-- Drawer -->
@@ -1156,6 +1295,7 @@
 <script src="nav.js"></script>
 <script src="battle.js"></script>
 <script src="feed-bridge.js"></script>
+<script src="feed-render.js"></script>
 <script>
 // ══════════════════════════════════════════════════════════
 // CONFIG
@@ -1257,6 +1397,19 @@ let inlineRange     = null;
 // mentionMap: tracks inserted mentions by name for reliable tagging at submit/tag-extract time
 // format: { 'Darius': { type: 'npc', key: 'darius' }, 'Tiersgard': { type: 'location', key: 'tiersgard' } }
 let mentionMap      = {};
+
+// ── Server browser state (Phase 3A) ──
+let feedIndex       = [];    // lightweight projection of every feed row (no body) — tree + counts
+let encounterMap    = {};    // encounter id → { name, round, status, created_at }
+let campaignConfig  = {};    // campaign.config: { channelOrder: {sess:[ids]}, pinnedTags: [] }
+let activeChannel   = null;  // null = reading view | {type:'combat', session, encId|null}
+let combatRows      = [];    // loaded rows for the open combat channel (asc)
+let combatHasOlder  = false; // pagination: more rows exist before combatRows[0]
+let searchScope     = 'all'; // 'all' | 'ch'
+let searchTimer     = null;
+let lastSearchQ     = '';
+let svFR            = null;  // FeedRender instance (created in loadChronicle)
+const COMBAT_PAGE   = 100;   // rows per combat-channel page
 
 // ══════════════════════════════════════════════════════════
 // IDENTITY
@@ -1804,14 +1957,30 @@ function tagImage(src, e) {
 async function loadChronicle() {
   try {
     if (!SB) throw new Error('No Supabase client');
-    // Chronicle channel only; RLS already hides staff-only rows from players.
-    const [{ data: rows, error: fErr }, { data: camp, error: cErr }] = await Promise.all([
+    // Chronicle channel (full rows) + a lightweight index of EVERYTHING for
+    // the channel tree (no body — cheap even at thousands of rows) +
+    // encounters for channel names + campaign for session/config.
+    // RLS already hides staff-only rows from players in all of these.
+    const [{ data: rows, error: fErr }, { data: idx, error: iErr },
+           { data: encs, error: eErr }, { data: camp, error: cErr }] = await Promise.all([
       SB.from('feed').select('*').eq('channel', 'chronicle').order('created_at', { ascending: false }),
-      SB.from('campaign').select('current_session').eq('id', 1).maybeSingle(),
+      SB.from('feed').select('id,session,encounter_id,channel,kind,hidden,created_at'),
+      SB.from('encounters').select('id,name,round,status,created_at'),
+      SB.from('campaign').select('current_session,config').eq('id', 1).maybeSingle(),
     ]);
     if (fErr) throw new Error(fErr.message);
+    if (iErr) console.warn('Could not load feed index:', iErr.message);
+    if (eErr) console.warn('Could not load encounters:', eErr.message);
     if (cErr) console.warn('Could not load campaign config:', cErr.message);
     allEntries = (rows || []).map(rowToEntry);
+    feedIndex = idx || [];
+    encounterMap = {};
+    (encs || []).forEach(e => { encounterMap[e.id] = e; });
+    campaignConfig = (camp && camp.config) || {};
+    svFR = window.FeedRender ? FeedRender.create({
+      characters: typeof CHARACTERS !== 'undefined' ? CHARACTERS : {},
+      canDelete: canDeleteFeedRow,
+    }) : null;
     currentSession = camp ? camp.current_session
                           : Math.max(0, ...allEntries.map(e=>e.session||0));
     document.getElementById('d-session').value = currentSession;
@@ -1848,12 +2017,46 @@ function initChronicleRealtime() {
         if (i >= 0) { allEntries[i] = rowToEntry(row); renderSidebar(); renderEntries(); }
       })
     .on('postgres_changes',
+      { event: 'INSERT', schema: 'public', table: 'feed', filter: 'channel=eq.combat' },
+      ({ new: row }) => {
+        if (!row || feedIndex.some(r => r.id === row.id)) return;
+        feedIndex.push({ id: row.id, session: row.session, encounter_id: row.encounter_id,
+                         channel: row.channel, kind: row.kind, hidden: row.hidden, created_at: row.created_at });
+        // If the row belongs to the open combat channel, surface it live.
+        if (activeChannel && row.session == activeChannel.session
+            && (activeChannel.encId ? row.encounter_id === activeChannel.encId : !row.encounter_id)) {
+          if (row.kind === 'event') {
+            if (row.result && ['turn','combat_start','combat_end'].includes(row.result.type)) {
+              combatEvents.push(row);
+              renderCombatChannel();
+            }
+          } else if (!combatRows.some(r => r.id === row.id)) {
+            combatRows.push(row);
+            renderCombatChannel();
+          }
+        }
+        renderSidebar();   // live channel counts / new channels appearing
+      })
+    .on('postgres_changes',
       { event: 'DELETE', schema: 'public', table: 'feed' },
       ({ old }) => {
         if (!old || old.id == null) return;
         const n = allEntries.length;
         allEntries = allEntries.filter(e=>e._rowId !== old.id);
-        if (allEntries.length !== n) { renderSidebar(); renderEntries(); }
+        const m = feedIndex.length;
+        feedIndex = feedIndex.filter(r => r.id !== old.id);
+        const k = combatRows.length;
+        combatRows = combatRows.filter(r => r.id !== old.id);
+        if (k !== combatRows.length) renderCombatChannel();
+        if (allEntries.length !== n || feedIndex.length !== m) { renderSidebar(); renderEntries(); }
+      })
+    .on('postgres_changes',
+      { event: '*', schema: 'public', table: 'encounters' },
+      ({ new: row }) => {
+        if (!row || !row.id) return;
+        encounterMap[row.id] = row;
+        renderSidebar();   // channel names/rounds update as fights run
+        if (activeChannel && activeChannel.encId === row.id) renderCombatChannel();
       })
     .on('postgres_changes',
       { event: 'UPDATE', schema: 'public', table: 'campaign' },
@@ -1861,6 +2064,8 @@ function initChronicleRealtime() {
         if (!row) return;
         currentSession = row.current_session;
         document.getElementById('dm-session-val').textContent = `Session ${currentSession}`;
+        campaignConfig = row.config || {};
+        renderSidebar();   // pinned tags / channel order shared live
       })
     .subscribe();
 }
@@ -1912,7 +2117,8 @@ async function bumpSessionTo(n) {
 // SIDEBAR RENDERING
 // ══════════════════════════════════════════════════════════
 function renderSidebar() {
-  // Sessions
+  // Sessions (from chronicle entries — titles/dates — plus the feed index,
+  // which knows about sessions that only have combat rows so far)
   const sessions = {};
   allEntries.forEach(e => {
     if (!sessions[e.session]) sessions[e.session] = { entries:[], title:'', startTime:null };
@@ -1921,19 +2127,15 @@ function renderSidebar() {
     const t = new Date(e.timestamp);
     if (!sessions[e.session].startTime || t < new Date(sessions[e.session].startTime)) sessions[e.session].startTime = e.timestamp;
   });
+  feedIndex.forEach(r => {
+    if (r.session == null || r.channel === 'chronicle') return;
+    if (!sessions[r.session]) sessions[r.session] = { entries:[], title:'', startTime:null };
+    if (!sessions[r.session].startTime || new Date(r.created_at) < new Date(sessions[r.session].startTime))
+      sessions[r.session].startTime = r.created_at;
+  });
   const sessionNums = Object.keys(sessions).sort((a,b)=>b-a);
-
-  document.getElementById('session-list').innerHTML = sessionNums.map(n=>{
-    const s    = sessions[n];
-    const date = s.startTime ? new Date(s.startTime).toLocaleDateString('en-US',{month:'short',day:'numeric'}) : '';
-    return `<div class="c-session-item${activeFilters.session==n?' active':''}" onclick="filterBySession(${n})">
-      <span class="c-session-num">Session ${n}</span>
-      <span class="c-session-name">${s.title||'—'}</span>
-      <span class="c-session-meta">${s.entries.length} entr${s.entries.length===1?'y':'ies'}${date?' · '+date:''}</span>
-    </div>`;
-  }).join('') + `<div class="c-session-item${activeFilters.session===null?' active':''}" style="border-top:1px solid var(--gold-dim)" onclick="filterBySession(null)">
-    <span class="c-session-num" style="color:var(--muted)">All Sessions</span>
-  </div>`;
+  document.getElementById('session-list').innerHTML = renderChannelTree(sessions, sessionNums);
+  wireChannelDrag();
 
   // Authors
   document.getElementById('author-filters').innerHTML = PLAYERS.map(p=>{
@@ -1960,7 +2162,11 @@ function renderSidebar() {
 
   function tagBtn(t, cls) {
     const active = activeFilters.tags.includes(t) ? ' active' : '';
-    return `<button class="c-tag-btn ${cls}${active}" onclick="filterByTag('${t}')">${t}</button>`;
+    const pinned = (campaignConfig.pinnedTags || []).includes(t);
+    const pin = IS_STAFF
+      ? `<button class="sv-pin${pinned?' pinned':''}" onclick="togglePinTag('${t}');event.stopPropagation()" title="${pinned?'Unpin from channels':'Pin as a channel'}">${pinned?'📌':'📍'}</button>`
+      : '';
+    return `<span class="c-tag-btn-wrap"><button class="c-tag-btn ${cls}${active}" onclick="filterByTag('${t}')">${t}</button>${pin}</span>`;
   }
 
   let tagHTML = '';
@@ -1985,6 +2191,376 @@ function renderSidebar() {
   if (!tagHTML) tagHTML = `<span style="font-family:var(--font-body);font-size:0.75rem;color:var(--muted);padding:0.25rem 0">${tagSearch ? 'No matching tags.' : 'No tags yet.'}</span>`;
 
   document.getElementById('tag-list').innerHTML = tagHTML;
+}
+
+// ══════════════════════════════════════════════════════════
+// SERVER BROWSER (Phase 3A) — channel tree, combat channels,
+// pinned tag channels, cross-channel search, staff drag-order.
+// SERVER-BROWSER-V1 (deploy marker)
+// ══════════════════════════════════════════════════════════
+const svOpenCats = new Set();
+let svSeeded   = false;
+let combatEvents = [];   // turn/start/end events for the open combat channel
+let svDragEl   = null;
+let svWired    = false;
+
+function svEsc(s) { return String(s == null ? '' : s).replace(/[&<>"]/g, c => ({ '&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;' }[c])); }
+function svSlug(name) { return String(name||'').toLowerCase().replace(/[^a-z0-9]+/g,'-').replace(/^-+|-+$/g,'') || 'encounter'; }
+
+// Channels of one session, ordered: staff drag-order first (campaign config),
+// then the chronological default (chronicle, encounters by start, table-talk).
+function channelsForSession(sess) {
+  const chronCount = allEntries.filter(e => e.session == sess).length;
+  const byEnc = {}; let ttCount = 0;
+  feedIndex.forEach(r => {
+    if (r.session != sess || r.channel !== 'combat' || r.kind === 'event') return;
+    if (r.encounter_id) byEnc[r.encounter_id] = (byEnc[r.encounter_id] || 0) + 1;
+    else ttCount++;
+  });
+  const chans = [{ id:'chronicle', hash:'#', label:'chronicle', count: chronCount, created:'' }];
+  Object.keys(byEnc).forEach(encId => {
+    const enc = encounterMap[encId];
+    chans.push({ id:'enc:'+encId, hash:'⚔', label: svSlug(enc ? enc.name : 'encounter'),
+                 count: byEnc[encId], created: enc ? enc.created_at : '9999' });
+  });
+  if (ttCount) chans.push({ id:'table-talk', hash:'🎲', label:'table-talk', count: ttCount, created:'' });
+  const order = (campaignConfig.channelOrder || {})[sess] || [];
+  chans.sort((a, b) => {
+    const ia = order.indexOf(a.id), ib = order.indexOf(b.id);
+    if (ia >= 0 && ib >= 0) return ia - ib;
+    if (ia >= 0) return -1;
+    if (ib >= 0) return 1;
+    const ra = a.id === 'chronicle' ? 0 : a.id === 'table-talk' ? 2 : 1;
+    const rb = b.id === 'chronicle' ? 0 : b.id === 'table-talk' ? 2 : 1;
+    if (ra !== rb) return ra - rb;
+    return new Date(a.created) - new Date(b.created);
+  });
+  return chans;
+}
+
+function svCat(key, label, hint, inner) {
+  const closed = svOpenCats.has(key) ? '' : ' closed';
+  return `<div class="sv-cat${closed}"><div class="sv-cat-head" onclick="toggleSvCat('${key}')">`
+    + `<span class="sv-chev">▼</span> ${label} ${hint ? `<span class="sv-cat-hint">${hint}</span>` : ''}</div>`
+    + `<div class="sv-chs" data-cat="${key}">${inner}</div></div>`;
+}
+function toggleSvCat(k) { if (svOpenCats.has(k)) svOpenCats.delete(k); else svOpenCats.add(k); renderSidebar(); }
+
+function renderChannelTree(sessions, sessionNums) {
+  if (!svSeeded) {
+    svOpenCats.add('tags');
+    if (sessionNums.length) svOpenCats.add(String(sessionNums[0]));
+    svSeeded = true;
+  }
+  const reading = !activeChannel && activeFilters.session === null && !activeFilters.tags.length;
+  let html = `<div class="sv-all${reading ? ' active' : ''}" onclick="openReadingView()">📖 <span>All Entries</span></div>`;
+
+  const pinned = campaignConfig.pinnedTags || [];
+  if (pinned.length) {
+    html += svCat('tags', 'TAGS', '— pinned', pinned.map(t => {
+      const count = allEntries.filter(e => (e.tags || []).some(x => x.toLowerCase() === t)).length;
+      const active = !activeChannel && activeFilters.tags.length === 1 && activeFilters.tags[0] === t;
+      return `<div class="sv-ch${active ? ' active' : ''}" onclick="openTagChannel('${svEsc(t)}')">`
+        + `<span class="sv-hash">#</span><span class="sv-ch-name">${svEsc(t)}</span><span class="sv-ch-count">${count}</span></div>`;
+    }).join(''));
+  }
+
+  sessionNums.forEach(n => {
+    const s = sessions[n];
+    const date = s.startTime ? new Date(s.startTime).toLocaleDateString('en-US', { month:'short', day:'numeric' }) : '';
+    const hint = [s.title ? '— ' + svEsc(s.title) : '', date].filter(Boolean).join(' · ');
+    const inner = channelsForSession(n).map(c => {
+      let active = false;
+      if (c.id === 'chronicle') active = !activeChannel && activeFilters.session == n;
+      else if (activeChannel && activeChannel.session == n) {
+        active = (c.id === 'table-talk' && !activeChannel.encId)
+              || (activeChannel.encId && c.id === 'enc:' + activeChannel.encId);
+      }
+      const click = c.id === 'chronicle' ? `openChronicleChannel(${n})`
+        : c.id === 'table-talk' ? `openCombatChannel(${n}, null)`
+        : `openCombatChannel(${n}, '${c.id.slice(4)}')`;
+      const drag = IS_STAFF ? `<span class="sv-drag" title="Drag to reorder">⋮⋮</span>` : '';
+      return `<div class="sv-ch${active ? ' active' : ''}" draggable="${IS_STAFF}" data-chid="${c.id}" data-sess="${n}" onclick="${click}">`
+        + `${drag}<span class="sv-hash">${c.hash}</span><span class="sv-ch-name">${c.label}</span><span class="sv-ch-count">${c.count}</span></div>`;
+    }).join('');
+    html += svCat(String(n), `SESSION ${n}`, hint, inner);
+  });
+  return html;
+}
+
+// ── pane switching ──
+function setPane(mode) {  // 'entries' | 'combat' | 'search'
+  document.getElementById('c-entries').style.display = mode === 'entries' ? '' : 'none';
+  document.getElementById('sv-combat').style.display = mode === 'combat' ? '' : 'none';
+  document.getElementById('sv-search').style.display = mode === 'search' ? '' : 'none';
+  if (mode !== 'entries') document.getElementById('c-filter-bar').style.display = 'none';
+}
+function openReadingView() {
+  activeChannel = null;
+  setPane('entries');
+  clearAllFilters();   // resets filters + re-renders sidebar/entries
+}
+function openChronicleChannel(n) {
+  activeChannel = null;
+  activeFilters.tags = []; activeFilters.author = null;
+  setPane('entries');
+  filterBySession(n);
+}
+function openTagChannel(t) {
+  activeChannel = null;
+  activeFilters = { session: null, author: null, tags: [String(t).toLowerCase()], search: '' };
+  setPane('entries');
+  renderSidebar(); renderEntries();
+}
+
+// ── combat channels ──
+function combatQuery() {
+  let q = SB.from('feed').select('*').eq('channel', 'combat').eq('session', activeChannel.session);
+  return activeChannel.encId ? q.eq('encounter_id', activeChannel.encId) : q.is('encounter_id', null);
+}
+async function openCombatChannel(session, encId) {
+  activeChannel = { type: 'combat', session: Number(session), encId: encId || null };
+  combatRows = []; combatEvents = []; combatHasOlder = false;
+  document.getElementById('c-loading').style.display = 'none';
+  setPane('combat');
+  renderSidebar();
+  wireCombatPane();
+  const enc = encId ? encounterMap[encId] : null;
+  const label = encId ? svSlug(enc ? enc.name : 'encounter') : 'table-talk';
+  document.getElementById('sv-combat-title').innerHTML =
+    `<span class="sv-dim">${encId ? '⚔' : '🎲'}</span> ${label}<span class="sv-sess">Session ${session}</span>`;
+  document.getElementById('sv-combat-meta').textContent = 'Loading…';
+  document.getElementById('sv-combat-banner').innerHTML = '';
+  document.getElementById('sv-combat-rows').innerHTML = '';
+  document.getElementById('sv-load-older').style.display = 'none';
+  try {
+    const evQ = activeChannel.encId
+      ? combatQuery().eq('kind', 'event').in('result->>type', ['turn','combat_start','combat_end'])
+          .order('created_at', { ascending: true }).limit(1000)
+      : null;
+    const results = await Promise.all([fetchCombatPage(null), evQ]);
+    if (evQ) {
+      const { data, error } = results[1];
+      if (error) console.warn('[server] events load failed:', error.message);
+      combatEvents = data || [];
+    }
+  } catch (e) { console.warn('[server] channel load failed:', e); }
+  renderCombatChannel();
+}
+async function fetchCombatPage(beforeTs) {
+  let q = combatQuery().neq('kind', 'event').order('created_at', { ascending: false }).limit(COMBAT_PAGE + 1);
+  if (beforeTs) q = q.lt('created_at', beforeTs);
+  const { data, error } = await q;
+  if (error) { console.warn('[server] combat load failed:', error.message); return; }
+  const batch = data || [];
+  combatHasOlder = batch.length > COMBAT_PAGE;
+  combatRows = batch.slice(0, COMBAT_PAGE).reverse().concat(combatRows);
+}
+async function loadOlderCombat() {
+  if (!combatRows.length) return;
+  const anchor = combatRows[0].id;
+  await fetchCombatPage(combatRows[0].created_at);
+  renderCombatChannel();
+  const el = document.querySelector(`#sv-combat-rows [data-rid="${anchor}"]`);
+  if (el) el.scrollIntoView({ block: 'start' });
+}
+function renderCombatChannel() {
+  if (!activeChannel) return;
+  const rowsEl = document.getElementById('sv-combat-rows');
+  if (!svFR) { rowsEl.innerHTML = '<div class="sv-empty">Feed renderer unavailable.</div>'; return; }
+
+  // Banner — name + date + rounds; staff also sees the opening roster size
+  // (combat_start is a hidden row, so RLS keeps it staff-only by itself).
+  const enc = activeChannel.encId ? encounterMap[activeChannel.encId] : null;
+  let banner = '';
+  if (enc) {
+    const start = combatEvents.find(e => e.result && e.result.type === 'combat_start');
+    const nCombatants = start && Array.isArray(start.result.combatants) ? start.result.combatants.length : null;
+    const date = combatRows.length ? new Date(combatRows[0].created_at).toLocaleDateString('en-US', { month:'long', day:'numeric', year:'numeric' }) : '';
+    const stats = [
+      date,
+      `${enc.round || 1} round${(enc.round || 1) === 1 ? '' : 's'}${enc.status === 'active' ? ' · ongoing' : ''}`,
+      nCombatants ? `${nCombatants} combatants` : '',
+    ].filter(Boolean).join(' · ');
+    banner = `<div class="sv-banner"><span class="sv-banner-ico">⚔</span><div>`
+      + `<div class="sv-banner-name">${svEsc(enc.name)}</div>`
+      + `<div class="sv-banner-stats">${stats}</div></div>`
+      + `<button class="sv-replay" title="Combat replay — coming in Phase 3B" disabled>▶ REPLAY</button></div>`;
+  }
+  document.getElementById('sv-combat-banner').innerHTML = banner;
+
+  // Rows with round dividers woven in from the (visible) turn events.
+  if (!combatRows.length) {
+    rowsEl.innerHTML = '<div class="sv-empty">Nothing logged in this channel yet.</div>';
+  } else {
+    const turns = combatEvents.filter(e => e.result && e.result.type === 'turn');
+    let html = '', evIdx = 0, lastRound = 0;
+    combatRows.forEach(r => {
+      while (evIdx < turns.length && new Date(turns[evIdx].created_at) <= new Date(r.created_at)) {
+        const rd = turns[evIdx].result.round;
+        if (rd && rd !== lastRound) { html += `<div class="sv-rule">ROUND ${rd}</div>`; lastRound = rd; }
+        evIdx++;
+      }
+      html += `<div data-rid="${r.id}">${svFR.rowHtml(r)}</div>`;
+    });
+    rowsEl.innerHTML = html;
+  }
+  document.getElementById('sv-load-older').style.display = combatHasOlder ? '' : 'none';
+
+  const total = feedIndex.filter(r =>
+    r.channel === 'combat' && r.kind !== 'event' && r.session == activeChannel.session
+    && (activeChannel.encId ? r.encounter_id === activeChannel.encId : !r.encounter_id)).length;
+  document.getElementById('sv-combat-meta').textContent =
+    `${total} roll${total === 1 ? '' : 's'} & messages` + (combatRows.length < total ? ` · showing latest ${combatRows.length}` : '');
+}
+function canDeleteFeedRow(row) {
+  if (IS_STAFF) return true;
+  return !!(ME && ME.userId && row.author_id === ME.userId && row.channel === 'chronicle' && !row.hidden);
+}
+async function svDeleteFeedRow(id) {
+  if (!SB || !confirm('Delete this feed entry? This cannot be undone.')) return;
+  const { error } = await SB.from('feed').delete().eq('id', id);
+  if (error) { alert('Delete failed: ' + error.message); return; }
+  combatRows = combatRows.filter(r => r.id !== id);
+  feedIndex = feedIndex.filter(r => r.id !== id);
+  renderCombatChannel(); renderSidebar();
+}
+function wireCombatPane() {
+  if (svWired) return;
+  svWired = true;
+  document.getElementById('sv-combat').addEventListener('click', e => {
+    const del = e.target.closest('.feed-del');
+    if (del) { svDeleteFeedRow(del.dataset.del); return; }
+    const img = e.target.closest('.feed-text img');
+    if (img && typeof openLightbox === 'function') openLightbox(img.src);
+  });
+}
+
+// ── cross-channel search (server-side; the feed outgrew the client) ──
+function setSearchScope(s) {
+  searchScope = s;
+  document.getElementById('scope-all').classList.toggle('active', s === 'all');
+  document.getElementById('scope-ch').classList.toggle('active', s === 'ch');
+  const q = document.getElementById('c-search').value.trim();
+  if (q.length >= 2) runServerSearch(q);
+}
+function onSearchInput() {
+  clearTimeout(searchTimer);
+  const q = document.getElementById('c-search').value.trim();
+  if (!q) {
+    lastSearchQ = '';
+    if (activeChannel) setPane('combat');
+    else { setPane('entries'); renderEntries(); }
+    return;
+  }
+  if (q.length < 2) return;
+  searchTimer = setTimeout(() => runServerSearch(q), 300);
+}
+async function runServerSearch(q) {
+  lastSearchQ = q;
+  document.getElementById('c-loading').style.display = 'none';
+  setPane('search');
+  document.getElementById('sv-search-q').textContent = q;
+  document.getElementById('sv-search-meta').textContent = 'Searching…';
+  const pattern = '%' + q.replace(/[\\%_]/g, m => '\\' + m) + '%';
+  let query = SB.from('feed')
+    .select('id,session,encounter_id,channel,kind,hidden,created_at,actor_name,body')
+    .neq('kind', 'event').ilike('body', pattern)
+    .order('created_at', { ascending: false }).limit(50);
+  if (searchScope === 'ch') {
+    if (activeChannel) {
+      query = query.eq('channel', 'combat').eq('session', activeChannel.session);
+      query = activeChannel.encId ? query.eq('encounter_id', activeChannel.encId) : query.is('encounter_id', null);
+    } else if (activeFilters.session !== null) {
+      query = query.eq('channel', 'chronicle').eq('session', activeFilters.session);
+    } else {
+      query = query.eq('channel', 'chronicle');
+    }
+  }
+  const { data, error } = await query;
+  if (q !== lastSearchQ) return;   // a newer search superseded this one
+  if (error) {
+    document.getElementById('sv-search-meta').textContent = 'Search failed: ' + error.message;
+    document.getElementById('sv-search-hits').innerHTML = '';
+    return;
+  }
+  renderSearchHits(q, data || []);
+}
+function renderSearchHits(q, hits) {
+  const channels = new Set(hits.map(h => h.channel === 'chronicle' ? 'c' + h.session : 'b' + (h.encounter_id || 't' + h.session)));
+  document.getElementById('sv-search-meta').textContent =
+    hits.length ? `${hits.length}${hits.length === 50 ? '+' : ''} hit${hits.length === 1 ? '' : 's'} across ${channels.size} channel${channels.size === 1 ? '' : 's'}` : 'No matches.';
+  const rx = new RegExp('(' + q.replace(/[.*+?^${}()|[\]\\]/g, '\\$&') + ')', 'gi');
+  document.getElementById('sv-search-hits').innerHTML = hits.map(h => {
+    const enc = h.encounter_id ? encounterMap[h.encounter_id] : null;
+    const chLabel = h.channel === 'chronicle' ? '# chronicle'
+      : h.encounter_id ? '⚔ ' + svSlug(enc ? enc.name : 'encounter') : '🎲 table-talk';
+    const when = new Date(h.created_at).toLocaleDateString('en-US', { month:'short', day:'numeric' });
+    const text = svEsc(FeedRender.stripTags(h.body)).slice(0, 220).replace(rx, '<mark>$1</mark>');
+    const encArg = h.encounter_id ? `'${h.encounter_id}'` : 'null';
+    return `<div class="sv-hit" onclick="openSearchHit(${h.session}, ${encArg}, '${h.channel}', '${h.id}')">`
+      + `<div class="sv-hit-where">SESSION ${h.session} · <span class="sv-hit-ch">${chLabel}</span> · ${when}${h.hidden ? ' · 🕯 hidden' : ''}</div>`
+      + `<div class="sv-hit-body"><strong>${svEsc(h.actor_name || '')}</strong> — ${text}</div></div>`;
+  }).join('') || '<div class="sv-empty">Nothing in the record matches.</div>';
+}
+function openSearchHit(session, encId, channel, rid) {
+  document.getElementById('c-search').value = '';
+  lastSearchQ = '';
+  if (channel === 'chronicle') { openChronicleChannel(session); return; }
+  openCombatChannel(session, encId).then(() => {
+    const el = document.querySelector(`#sv-combat-rows [data-rid="${rid}"] .feed-row`);
+    if (el) {
+      el.classList.add('sv-hit-target');
+      el.scrollIntoView({ behavior: 'smooth', block: 'center' });
+      setTimeout(() => el.classList.remove('sv-hit-target'), 2500);
+    }
+  });
+}
+
+// ── staff: pin tags as channels + drag channel order (shared via campaign.config) ──
+async function togglePinTag(t) {
+  const tags = (campaignConfig.pinnedTags || []).slice();
+  const i = tags.indexOf(t);
+  if (i >= 0) tags.splice(i, 1); else tags.push(t);
+  campaignConfig = Object.assign({}, campaignConfig, { pinnedTags: tags });
+  renderSidebar();
+  saveCampaignConfig();
+}
+async function saveCampaignConfig() {
+  try {
+    if (!SB) throw new Error('No Supabase client');
+    const { error } = await SB.from('campaign')
+      .update({ config: campaignConfig, updated_at: new Date().toISOString() }).eq('id', 1);
+    if (error) throw new Error(error.message);
+  } catch (e) { console.warn('Could not save campaign config', e); }
+}
+function wireChannelDrag() {
+  if (!IS_STAFF) return;
+  document.querySelectorAll('#session-list .sv-chs').forEach(list => {
+    const sess = list.dataset.cat;
+    if (sess === 'tags') return;
+    list.querySelectorAll('.sv-ch').forEach(ch => {
+      ch.addEventListener('dragstart', () => { svDragEl = ch; ch.classList.add('dragging'); });
+      ch.addEventListener('dragend', () => {
+        ch.classList.remove('dragging'); svDragEl = null;
+        list.querySelectorAll('.sv-ch').forEach(c => c.classList.remove('drop-above'));
+      });
+      ch.addEventListener('dragover', e => {
+        e.preventDefault();
+        if (svDragEl && ch !== svDragEl && svDragEl.parentElement === list) ch.classList.add('drop-above');
+      });
+      ch.addEventListener('dragleave', () => ch.classList.remove('drop-above'));
+      ch.addEventListener('drop', e => {
+        e.preventDefault(); ch.classList.remove('drop-above');
+        if (!svDragEl || ch === svDragEl || svDragEl.parentElement !== list) return;
+        list.insertBefore(svDragEl, ch);
+        campaignConfig = Object.assign({}, campaignConfig);
+        campaignConfig.channelOrder = Object.assign({}, campaignConfig.channelOrder);
+        campaignConfig.channelOrder[sess] = [...list.querySelectorAll('.sv-ch')].map(c => c.dataset.chid);
+        saveCampaignConfig();
+      });
+    });
+  });
 }
 
 // ══════════════════════════════════════════════════════════

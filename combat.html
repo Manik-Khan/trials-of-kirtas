@@ -858,6 +858,7 @@
   <script src="nav.js"></script>
   <script src="characters.js"></script>
   <script src="battle.js"></script>
+  <script src="feed-render.js"></script>
   <script>
   (function () {
     'use strict';
@@ -2489,29 +2490,21 @@
     // tabs. /roll → combat; plain text → chronicle. Foundation for the session
     // archive / replay (channel + kind carry the future shape). ──
     let FEED = [], feedEl = null, feedListEl = null, feedTab = 'all', feedPostHidden = false;
-    function escapeHtml(s) { return String(s == null ? '' : s).replace(/[&<>"]/g, c => ({ '&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;' }[c])); }
-    function stripTags(s) { return String(s == null ? '' : s).replace(/<[^>]*>/g, ''); }
+    // Rendering extracted to feed-render.js (FEED-RENDER-V1) — shared with the
+    // chronicle's server browser so rolls look identical on both pages.
+    // escapeHtml/stripTags remain as hoisted wrappers: used widely above.
+    function escapeHtml(s) { return FeedRender.escapeHtml(s); }
+    function stripTags(s) { return FeedRender.stripTags(s); }
     function feedActor() {
       const key = (ME && ME.characterKey) || null;
       const name = (key && typeof CHARACTERS !== 'undefined' && CHARACTERS[key] && CHARACTERS[key].name)
         || (key ? key.charAt(0).toUpperCase() + key.slice(1) : 'Dungeon Master');
       return { key, name };
     }
-    function feedSide(row) {
-      if (!row.actor_key) return 'dm';
-      return (typeof CHARACTERS !== 'undefined' && CHARACTERS[row.actor_key]) ? 'party' : 'enemy';
-    }
-    function feedNameColor(side) { return side === 'party' ? '#8fb0e0' : side === 'enemy' ? '#e0a08f' : 'var(--gold)'; }
-    function feedTime(ts) { try { return new Date(ts).toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' }); } catch (e) { return ''; } }
-    function feedAvatarHtml(row) {
-      const side = feedSide(row);
-      const ring = side === 'party' ? '#4a6aa0' : side === 'enemy' ? '#a05a6a' : 'var(--gold)';
-      const art = row.actor_key ? (PORTRAITS[row.actor_key] || TOKENS[row.actor_key] || '') : '';
-      const inner = art
-        ? `<img src="${art}" alt="" draggable="false" onerror="this.remove()" style="width:100%;height:100%;object-fit:cover;border-radius:50%">`
-        : (side === 'dm' ? `<span class="feed-av-dm">◆</span>` : `<span class="feed-av-i">${escapeHtml((row.actor_name || '?').trim().charAt(0).toUpperCase())}</span>`);
-      return `<div class="feed-av" style="border-color:${ring}">${inner}</div>`;
-    }
+    const FR = FeedRender.create({
+      characters: typeof CHARACTERS !== 'undefined' ? CHARACTERS : {},
+      canDelete: canDeleteRow,   // hoisted below
+    });
     // Mirror the RLS so the ✕ only appears where the delete will succeed:
     // staff anything; authors their own (non-hidden) chronicle rows.
     function canDeleteRow(row) {
@@ -2524,15 +2517,6 @@
       if (error) { alert('Delete failed: ' + error.message); return; }
       onFeedDelete(id);   // realtime echoes too; onFeedDelete dedupes
     }
-    function feedRowHtml(row) {
-      const side = feedSide(row);
-      const tag = row.channel === 'chronicle' ? 'chronicle' : (row.kind === 'roll' ? 'roll' : row.kind);
-      const hid = row.hidden ? ' · hidden' : '';
-      const del = canDeleteRow(row) ? `<button class="feed-del" data-del="${row.id}" title="Delete">✕</button>` : '';
-      return `<div class="feed-row">${del}${feedAvatarHtml(row)}<div style="min-width:0">`
-        + `<div class="feed-meta"><span class="feed-name" style="color:${feedNameColor(side)}">${escapeHtml(row.actor_name)}</span> <span>· ${escapeHtml(tag)}${hid} · ${feedTime(row.created_at)}</span></div>`
-        + `<div class="feed-text">${row.body}</div></div></div>`;
-    }
     function renderFeed() {
       if (!feedListEl) return;
       const staff = effectiveStaff();
@@ -2540,7 +2524,7 @@
       if (feedTab !== 'all') rows = rows.filter(r => (r.channel || 'combat') === feedTab);
       rows = rows.slice().sort((a, b) => new Date(a.created_at) - new Date(b.created_at));
       feedListEl.innerHTML = rows.length
-        ? rows.map(feedRowHtml).join('')
+        ? rows.map(FR.rowHtml).join('')
         : `<div class="feed-empty">No ${feedTab === 'all' ? '' : feedTab + ' '}entries yet.</div>`;
       feedListEl.scrollTop = feedListEl.scrollHeight;
     }
