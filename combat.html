@@ -292,6 +292,40 @@
       border-bottom: 1px solid var(--gold-dim); margin-bottom: 0.35rem;
       white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
     }
+    /* ── flat token menu (redesign) ── */
+    .ctx-info { font-size: 11px; color: var(--muted, #6b5d4a); padding: 0 12px 7px; border-bottom: 1px solid rgba(184,149,42,0.18); }
+    .ctx-info b { color: #c8a020; font-weight: 600; }
+    .ctx-item { display: flex; align-items: center; gap: 9px; padding: 7px 12px; cursor: pointer; font-size: 13px; color: #e8d9b8; }
+    .ctx-item:hover { background: rgba(184,149,42,0.15); }
+    .ctx-item .ctx-ico, .ctx-exp-head .ctx-ico { width: 16px; text-align: center; flex: none; font-size: 13px; }
+    .ctx-item.ctx-dim { opacity: 0.5; cursor: default; }
+    .ctx-item.ctx-dim:hover { background: none; }
+    .ctx-item.ctx-danger { color: #c07060; }
+    .ctx-item.ctx-danger:hover { background: rgba(192,80,80,0.12); }
+    .ctx-divider { border-top: 1px solid rgba(184,149,42,0.18); margin: 4px 0; }
+    .ctx-exp-head { display: flex; align-items: center; gap: 9px; padding: 7px 12px; cursor: pointer; font-size: 13px; color: #e8d9b8; user-select: none; }
+    .ctx-exp-head:hover { background: rgba(184,149,42,0.15); }
+    .ctx-chev { margin-left: auto; font-size: 9px; color: #6b5d4a; transition: transform 0.15s; }
+    .ctx-exp.open .ctx-chev { transform: rotate(90deg); }
+    .ctx-exp-count { margin-left: auto; font-size: 10px; color: #d4ac3a; background: rgba(184,149,42,0.15); border-radius: 8px; padding: 1px 7px; }
+    .ctx-exp.open .ctx-exp-count, .ctx-exp-head .ctx-exp-count + .ctx-chev { margin-left: 6px; }
+    .ctx-exp-body { display: none; padding: 2px 12px 9px; max-height: 230px; overflow-y: auto; }
+    .ctx-exp.open .ctx-exp-body { display: block; }
+    .ctx-aura-lbl { font-size: 9px; color: #6b5d4a; letter-spacing: 1.5px; margin: 6px 0 3px; }
+    .ctx-aura-row { display: flex; gap: 5px; flex-wrap: wrap; align-items: center; }
+    .ctx-ar { border: 1px solid rgba(184,149,42,0.25); background: none; color: #c9b48a; border-radius: 4px; font-size: 11px; padding: 3px 8px; cursor: pointer; }
+    .ctx-ar:hover { border-color: rgba(184,149,42,0.5); }
+    .ctx-ar.on { border-color: #b8952a; color: #d4ac3a; background: rgba(184,149,42,0.15); }
+    .ctx-ac { width: 17px; height: 17px; border-radius: 50%; cursor: pointer; border: 2px solid transparent; display: inline-block; }
+    .ctx-ac.on { border-color: #f0e6ce; }
+    .ctx-aura-off { margin-top: 7px; font-size: 11px; color: #c07060; cursor: pointer; background: none; border: none; padding: 0; display: block; }
+    /* token aura ring — painted before the disc, scales with the token */
+    .token-aura {
+      position: absolute; left: 50%; top: 50%; transform: translate(-50%, -50%);
+      aspect-ratio: 1 / 1; border-radius: 50%; pointer-events: none;
+      border: 1.5px dashed color-mix(in srgb, var(--ac) 60%, transparent);
+      background: radial-gradient(circle, color-mix(in srgb, var(--ac) 20%, transparent) 0%, color-mix(in srgb, var(--ac) 10%, transparent) 65%, transparent 73%);
+    }
     .ctx-sub {
       font-size: 0.4rem; letter-spacing: 0.22em; text-transform: uppercase;
       color: var(--muted); padding: 0.15rem 0.7rem 0.25rem;
@@ -1250,6 +1284,16 @@
       else if (isStaff && c.tease) badge = `<span class="token-badge" title="Teased (players see ???)">?</span>`;
 
       const label = teasedForPlayer ? '???' : (c.name || '');
+      // Aura ring (combatants.aura {r, color}) — radius measured outward from
+      // the token's edge, 5 ft per cell. Drawn inside the token element so it
+      // follows drags/moves for free; pointer-events:none keeps hits clean.
+      let aura = '';
+      if (c.aura && c.aura.r && !teasedForPlayer) {
+        const cells = SIZE_MUL[c.size] || 1;
+        const pct = ((cells + 2 * (c.aura.r / 5)) / cells) * 100;
+        const col = c.aura.color || '#b8952a';
+        aura = `<div class="token-aura" style="width:${pct}%;--ac:${col}"></div>`;
+      }
       const movable = canMove(c);
       const cls = 'token'
         + (isStaff && c.hidden ? ' is-hidden' : '')
@@ -1258,7 +1302,7 @@
 
       return `
         <div class="${cls}" data-id="${c.id}" style="left:${cx}%; top:${cy}%; width:${sizePct}%">
-          ${disc}${badge}
+          ${aura}${disc}${badge}
           <span class="token-name">${label}</span>
           ${teasedForPlayer ? '' : condBadgesHtml(c)}
         </div>`;
@@ -1571,91 +1615,133 @@
       ctxEl.style.top  = Math.max(8, y) + 'px';
     }
     // Body builder for the Conditions tab — the toggle rows.
-    function condTabBody(c) {
-      const active = Array.isArray(c.conditions) ? c.conditions : [];
-      return `<button class="ctx-act" data-act="rollinit">⚔ Roll initiative</button><div class="ctx-sub">Conditions</div>` + COND.map(d => `
-        <div class="ctx-cond${active.includes(d.name) ? ' active' : ''}" data-cond="${d.name}">
-          <span class="ctx-chip" style="--c:${d.color}"><svg viewBox="0 0 24 24" aria-hidden="true">${d.icon}</svg></span>
-          <span class="ctx-label">${d.name}</span>
-          <span class="ctx-check">✓</span>
-        </div>`).join('');
-    }
 
     // Body builder for the Manage tab (staff only) — per-creature size,
     // visibility (hidden from players), and removal.
-    function manageTabBody(c) {
-      const cur = c.size || 'medium';
-      return `<div class="ctx-sub">Size</div>
-        <div class="ctx-sizes">` + SIZE_ORDER.map(s =>
-          `<button class="ctx-size${s === cur ? ' active' : ''}" data-size="${s}">${SIZE_LABEL[s]}</button>`
-        ).join('') + `</div>
-        <div class="ctx-sub">Visibility</div>
-        <button class="ctx-act" data-act="vis">${c.hidden ? '👁 Reveal to players' : '⊘ Hide from players'}</button>
-        ${c.statblock ? `<div class="ctx-sub">Reference</div><button class="ctx-act" data-act="stat">📖 Stat block</button>` : ''}
-        <button class="ctx-act ctx-danger" data-act="del">✕ Remove from board</button>`;
-    }
 
     function openCtxMenu(c, sx, sy) {
       closeCtxMenu();
       if (!c) return;
 
-      // Tab registry. Add future tabs here (Token style = personal/per-profile;
-      // staff actions = size/colour/hidden/tease, shared). Gate role-aware tabs
-      // with `show: () => …` (e.g. IS_STAFF). Order here = display order.
-      const tabs = [
-        { id: 'conds',  label: 'Conditions', body: () => condTabBody(c) },
-        { id: 'manage', label: 'Manage', show: () => effectiveStaff(), body: () => manageTabBody(c) },
-        // { id: 'style', label: 'Style', body: () => styleTabBody(c) },   // personal/per-profile — later pass
-      ];
-      const visible = tabs.filter(t => !t.show || t.show());
-      let activeId = visible[0].id;
+      // One flat menu (approved mockup): info line, useful actions first,
+      // staff Manage in the middle, Aura + Conditions as collapsed expanders,
+      // Remove last. Expander state lives per menu instance.
+      const exp = { aura: false, conds: false };
+      const staff = () => effectiveStaff();
+
+      function infoLine() {
+        const bits = [];
+        const showVitals = c.side === 'party' || staff();   // monster vitals are DM info
+        if (showVitals) bits.push(`<b>${c.hp ?? '—'}/${c.max_hp ?? '—'}</b> hp`, `AC ${c.ac ?? '—'}`);
+        if (staff() && c.hidden) bits.push('⊘ hidden');
+        if (c.in_combat) bits.push('in the fight');
+        return bits.length ? `<div class="ctx-info">${bits.join(' · ')}</div>` : '<div class="ctx-info"></div>';
+      }
+      function auraBody() {
+        const cur = c.aura || {};
+        const radii = [5, 10, 15, 20, 30, 60];
+        const colors = ['#9d4edd', '#c0001a', '#1d9e75', '#b8952a', '#2d7dd2', '#e8d9b8'];
+        return `<div class="ctx-aura-lbl">RADIUS</div>
+          <div class="ctx-aura-row">${radii.map(r => `<button class="ctx-ar${cur.r === r ? ' on' : ''}" data-aura-r="${r}">${r}</button>`).join('')}</div>
+          <div class="ctx-aura-lbl">COLOR</div>
+          <div class="ctx-aura-row">${colors.map(x => `<span class="ctx-ac${(cur.color || '#b8952a') === x ? ' on' : ''}" data-aura-c="${x}" style="background:${x}"></span>`).join('')}</div>
+          ${cur.r ? `<button class="ctx-aura-off" data-act="aura-off">✕ Remove aura</button>` : ''}`;
+      }
+      function condsBody() {
+        const active = Array.isArray(c.conditions) ? c.conditions : [];
+        return COND.map(d => `
+          <div class="ctx-cond${active.includes(d.name) ? ' active' : ''}" data-cond="${d.name}">
+            <span class="ctx-chip" style="--c:${d.color}"><svg viewBox="0 0 24 24" aria-hidden="true">${d.icon}</svg></span>
+            <span class="ctx-label">${d.name}</span>
+            <span class="ctx-check">✓</span>
+          </div>`).join('');
+      }
+      function expander(id, ico, label, count, body) {
+        return `<div class="ctx-exp${exp[id] ? ' open' : ''}" data-exp="${id}">
+          <div class="ctx-exp-head"><span class="ctx-ico">${ico}</span> ${label}
+            ${count ? `<span class="ctx-exp-count">${count}</span>` : ''}<span class="ctx-chev">▶</span></div>
+          <div class="ctx-exp-body">${exp[id] ? body() : ''}</div>
+        </div>`;
+      }
 
       ctxEl = document.createElement('div');
       ctxEl.className = 'ctx-menu';
       document.body.appendChild(ctxEl);
 
       function render() {
-        // One visible tab → plain sub-label (unchanged look). Two+ → a tab bar.
-        const header = visible.length > 1
-          ? `<div class="ctx-tabs">` + visible.map(t =>
-              `<button class="ctx-tab${t.id === activeId ? ' active' : ''}" data-tab="${t.id}">${t.label}</button>`
-            ).join('') + `</div>`
-          : `<div class="ctx-sub">${visible[0].label}</div>`;
-        const active = visible.find(t => t.id === activeId);
-        ctxEl.innerHTML =
-          `<div class="ctx-head">${c.name || 'Token'}</div>` +
-          header +
-          `<div class="ctx-body">${active.body()}</div>`;
+        const isParty = c.side === 'party';
+        const canAura = staff() || isParty;   // guard mirrors this server-side
+        const nConds = Array.isArray(c.conditions) ? c.conditions.length : 0;
+
+        let top = '';
+        if (staff() && c.statblock) top += `<div class="ctx-item" data-act="stat"><span class="ctx-ico">📖</span> Stat block</div>`;
+        if (isParty && c.source_key) top += `<div class="ctx-item" data-act="drive-pc"><span class="ctx-ico">▶</span> Battle HUD</div>`;
+        else if (!isParty && staff()) top += c.in_combat
+          ? `<div class="ctx-item" data-act="drive"><span class="ctx-ico">▶</span> Battle HUD</div>`
+          : `<div class="ctx-item ctx-dim"><span class="ctx-ico">▶</span> Battle HUD — seat them first</div>`;
+
+        let manage = '';
+        if (staff()) {
+          const cur = c.size || 'medium';
+          manage = `<div class="ctx-divider"></div><div class="ctx-sub">Manage</div>
+            <div class="ctx-item" data-act="vis"><span class="ctx-ico">${c.hidden ? '👁' : '⊘'}</span> ${c.hidden ? 'Reveal to players' : 'Hide from players'}</div>
+            <div class="ctx-item" data-act="rollinit"><span class="ctx-ico">⚔</span> Roll initiative</div>
+            <div class="ctx-sizes">` + SIZE_ORDER.map(z =>
+              `<button class="ctx-size${z === cur ? ' active' : ''}" data-size="${z}">${SIZE_LABEL[z]}</button>`).join('') + `</div>`;
+        }
+
+        const lower = `<div class="ctx-divider"></div>`
+          + (canAura ? expander('aura', '◎', 'Aura', c.aura && c.aura.r ? c.aura.r + ' ft' : '', auraBody) : '')
+          + expander('conds', '⚑', 'Conditions', nConds || '', condsBody)
+          + (staff() ? `<div class="ctx-divider"></div><div class="ctx-item ctx-danger" data-act="del"><span class="ctx-ico">✕</span> Remove from board</div>` : '');
+
+        ctxEl.innerHTML = `<div class="ctx-head">${c.name || 'Token'}</div>` + infoLine() + top + manage + lower;
         wire();
         placeCtxMenu(sx, sy);
       }
 
+      async function setAura(patch) {
+        const next = patch === null ? null : Object.assign({ r: 10, color: '#b8952a' }, c.aura || {}, patch);
+        const prevAura = c.aura;
+        c.aura = next; renderTokens();   // optimistic
+        const { error } = await SB.from('combatants').update({ aura: next }).eq('id', c.id);
+        if (error) { c.aura = prevAura; renderTokens(); console.warn('[aura] save failed:', error.message); return; }
+        render();
+      }
+
       function wire() {
-        ctxEl.querySelectorAll('.ctx-tab').forEach(b =>
-          b.addEventListener('click', () => { activeId = b.dataset.tab; render(); }));
+        ctxEl.querySelectorAll('.ctx-exp-head').forEach(h =>
+          h.addEventListener('click', () => { const id = h.parentElement.dataset.exp; exp[id] = !exp[id]; render(); }));
         // Conditions toggles — menu stays open so several can be set in a row.
         ctxEl.querySelectorAll('.ctx-cond').forEach(rowEl =>
           rowEl.addEventListener('click', async () => {
             if (await toggleCondition(c.id, rowEl.dataset.cond)) rowEl.classList.toggle('active');
           }));
-        // Size buttons (Manage tab, staff) — single-select; menu stays open.
+        ctxEl.querySelectorAll('[data-aura-r]').forEach(b =>
+          b.addEventListener('click', () => setAura({ r: parseInt(b.dataset.auraR, 10) })));
+        ctxEl.querySelectorAll('[data-aura-c]').forEach(b =>
+          b.addEventListener('click', () => setAura({ color: b.dataset.auraC })));
         ctxEl.querySelectorAll('.ctx-size').forEach(b =>
           b.addEventListener('click', async () => {
-            if (await setSize(c.id, b.dataset.size))
-              ctxEl.querySelectorAll('.ctx-size').forEach(x => x.classList.toggle('active', x === b));
+            if (await setSize(c.id, b.dataset.size)) render();
           }));
-        // Visibility + removal (Manage tab, staff).
-        ctxEl.querySelectorAll('.ctx-act').forEach(b =>
+        ctxEl.querySelectorAll('[data-act]').forEach(b =>
           b.addEventListener('click', async () => {
             if (b.dataset.act === 'vis') {
-              if (await setHidden(c.id, !c.hidden)) render();   // re-render to flip the label
+              if (await setHidden(c.id, !c.hidden)) render();
             } else if (b.dataset.act === 'rollinit') {
               rollInitiative(c); closeCtxMenu();
+            } else if (b.dataset.act === 'drive') {
+              window.__battle?.drive?.('mon:' + c.id); closeCtxMenu();
+            } else if (b.dataset.act === 'drive-pc') {
+              window.__battle?.drive?.(c.source_key); closeCtxMenu();
             } else if (b.dataset.act === 'stat') {
               openStatblock?.(c); closeCtxMenu();
+            } else if (b.dataset.act === 'aura-off') {
+              setAura(null);
             } else if (b.dataset.act === 'del') {
               if (b.dataset.confirm) { if (await removeCombatant(c.id)) closeCtxMenu(); }
-              else { b.dataset.confirm = '1'; b.textContent = '✕ Confirm remove'; }
+              else { b.dataset.confirm = '1'; b.innerHTML = '<span class="ctx-ico">✕</span> Confirm remove'; }
             }
           }));
       }
@@ -1841,6 +1927,20 @@
         if (del) { e.stopPropagation(); deleteDrawing(del.dataset.id); }
       });
 
+      // desktop double-click → drive the token's actor in the HUD
+      stage.addEventListener('dblclick', (e) => {
+        const tokEl = e.target.closest('.token');
+        if (!tokEl) return;
+        const c = COMBS.find(k => k.id === tokEl.dataset.id);
+        if (!c) return;
+        if (c.side === 'party' && c.source_key) {
+          window.__battle?.drive?.(c.source_key);
+        } else if (effectiveStaff()) {
+          if (c.in_combat) window.__battle?.drive?.('mon:' + c.id);
+          else openStatblock?.(c);
+        }
+      });
+
       // desktop right-click → context menu
       stage.addEventListener('contextmenu', (e) => {
         const tokEl = e.target.closest('.token');
@@ -1900,8 +2000,9 @@
             const hiddenChanged = c.hidden !== row.hidden;
             const initChanged   = c.initiative !== row.initiative;
             const inCombatChanged = c.in_combat !== row.in_combat;
-            c.x = row.x; c.y = row.y; c.hp = row.hp; c.conditions = row.conditions; c.size = row.size; c.hidden = row.hidden; c.initiative = row.initiative; c.in_combat = row.in_combat;
-            if (hiddenChanged) {
+            const auraChanged = JSON.stringify(c.aura || null) !== JSON.stringify(row.aura || null);
+            c.x = row.x; c.y = row.y; c.hp = row.hp; c.conditions = row.conditions; c.size = row.size; c.hidden = row.hidden; c.initiative = row.initiative; c.in_combat = row.in_combat; c.aura = row.aura;
+            if (hiddenChanged || auraChanged) {
               renderTokens();                            // staff badge (∅) appears/clears
             } else {
               updateTokenPos(c);
@@ -2375,8 +2476,10 @@
         };
         const { data, error } = await SB.from('combatants').insert(insertRow).select().single();
         if (error) { console.error('[bestiary] drop failed:', error.message); return false; }
-        // Optimistic local add; the INSERT realtime echo dedupes on id.
-        if (data && !COMBS.some(k => k.id === data.id)) { COMBS.push(data); renderTokens(); }
+        // Optimistic local add; the INSERT realtime echo dedupes on id — which
+        // means the realtime handler's repaints never run for our own drop, so
+        // repaint here too (roster pane + strip + HUD push all hang off this).
+        if (data && !COMBS.some(k => k.id === data.id)) { COMBS.push(data); renderTokens(); renderInitStrip(); }
         return true;
       }
     }

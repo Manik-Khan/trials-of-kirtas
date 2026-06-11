@@ -641,6 +641,7 @@
     wrap.id='battle-hud-root';
     wrap.innerHTML=buildHudHtml();
     document.body.appendChild(wrap);
+    renderEnemiesPick();   // picker DOM exists now — paint any registered monsters
 
     // Orb hold
     const ob=document.getElementById('b-orbBtn');
@@ -754,9 +755,25 @@
     document.getElementById('b-char-pick')?.classList.remove('open');
   }
 
+  // Paint the picker's ENEMIES sections from the registry. Idempotent and
+  // cheap — called on registry change, on HUD mount, and on picker open, so
+  // the section exists no matter which happened first.
+  function renderEnemiesPick() {
+    const dirHtml = (dot)=>Object.values(MONSTERS).map(m=>{
+      const hp=`${m.combat.hp}/${m.combat.hpMax}`;
+      const dead=m.combat.hp<=0?' b-mon-dead':'';
+      return dot
+        ? `<div class="bm-char-row b-mon-row${dead}" data-key="${m.key}" onclick="window.__battle.setChar('${m.key}')"><div class="bm-char-dot" style="background:${ENEMY_COLOR}"></div><span class="bm-char-name">${m.name}${m.hiddenFoe?' 🕯':''}</span><span class="b-mon-hp">${hp}</span></div>`
+        : `<div class="b-cpick-item b-mon-row${dead}" data-key="${m.key}" onclick="window.__battle.setChar('${m.key}')"><img class="b-cpick-portrait" src="${portraitFor(m.key)}" alt="" style="border-color:${ENEMY_COLOR}"><span class="b-cpick-name" style="color:${ENEMY_COLOR}">${m.name}${m.hiddenFoe?' 🕯':''}</span><span class="b-mon-hp">${hp}</span></div>`;
+    }).join('');
+    const head = Object.keys(MONSTERS).length ? `<div class="b-mon-sect">ENEMIES</div>` : '';
+    const dp=document.getElementById('b-cpick-enemies');  if(dp) dp.innerHTML = head + dirHtml(false);
+    const mp=document.getElementById('bm-char-enemies');  if(mp) mp.innerHTML = head + dirHtml(true);
+  }
   function toggleCharPick() {
     charPickOpen=!charPickOpen;
     document.getElementById('b-char-pick')?.classList.toggle('open',charPickOpen);
+    if (charPickOpen) renderEnemiesPick();
   }
 
   // ── Roller toggle ──
@@ -1316,23 +1333,21 @@
       if (typeof MonsterActor === 'undefined') return;
       Object.keys(MONSTERS).forEach(k=>delete MONSTERS[k]);
       (rows||[]).forEach(r=>{ const m=MonsterActor.toCharacter(r); MONSTERS[m.key]=m; });
-      // Keep registered sessions' hp live (registry rebuild refreshes adapter
-      // snapshots; SESSION sync stays the backend's job via applyCombatChange).
-      const dirHtml = (cls, dot)=>Object.values(MONSTERS).map(m=>{
-        const hp=`${m.combat.hp}/${m.combat.hpMax}`;
-        const dead=m.combat.hp<=0?' b-mon-dead':'';
-        return dot
-          ? `<div class="bm-char-row b-mon-row${dead}" data-key="${m.key}" onclick="window.__battle.setChar('${m.key}')"><div class="bm-char-dot" style="background:${ENEMY_COLOR}"></div><span class="bm-char-name">${m.name}${m.hiddenFoe?' 🕯':''}</span><span class="b-mon-hp">${hp}</span></div>`
-          : `<div class="b-cpick-item b-mon-row${dead}" data-key="${m.key}" onclick="window.__battle.setChar('${m.key}')"><img class="b-cpick-portrait" src="${portraitFor(m.key)}" alt="" style="border-color:${ENEMY_COLOR}"><span class="b-cpick-name" style="color:${ENEMY_COLOR}">${m.name}${m.hiddenFoe?' 🕯':''}</span><span class="b-mon-hp">${hp}</span></div>`;
-      }).join('');
-      const head = Object.keys(MONSTERS).length ? `<div class="b-mon-sect">ENEMIES</div>` : '';
-      const dp=document.getElementById('b-cpick-enemies');  if(dp) dp.innerHTML = head + dirHtml('d', false);
-      const mp=document.getElementById('bm-char-enemies');  if(mp) mp.innerHTML = head + dirHtml('m', true);
+      renderEnemiesPick();
       // Driving a monster that left the fight? Step back to a PC.
       if (isMonKey(activeKey) && !MONSTERS[activeKey]) {
         const fallback = CHAR_KEYS.find(k=>CHARACTERS[k]) || 'liadan';
         setChar(fallback);
       } else if (battleOn) renderAll();
+    },
+    // Token interactions: load any actor into the HUD, turning it on if off.
+    // Party keys work for everyone (shared HUD); mon: keys only resolve where
+    // the page registered monsters (staff). The page decides who may call it.
+    drive: (key)=>{
+      if (!charFor(key)) return false;
+      if (!battleOn) toggleBattle();
+      setChar(key);
+      return true;
     },
   };
 
