@@ -1033,12 +1033,22 @@
       display: flex; align-items: center; gap: 6px; padding: 4px 6px; cursor: pointer;
       font-family: var(--font-title); font-size: 0.6rem; letter-spacing: 1.5px;
       color: var(--muted); text-transform: uppercase; user-select: none;
+      white-space: nowrap; overflow: hidden;
     }
     .sv-cat-head:hover { color: var(--aged); }
-    .sv-chev { font-size: 0.5rem; transition: transform 0.15s; display: inline-block; }
+    .sv-cat-label { flex: none; white-space: nowrap; }
+    .sv-chev { font-size: 0.5rem; transition: transform 0.15s; display: inline-block; flex: none; }
     .sv-cat.closed .sv-chev { transform: rotate(-90deg); }
     .sv-cat.closed .sv-chs { display: none; }
-    .sv-cat-hint { color: var(--gold); opacity: 0.7; font-size: 0.55rem; letter-spacing: 0.5px; text-transform: none; }
+    .sv-cat-hint {
+      color: var(--gold); opacity: 0.7; font-size: 0.55rem; letter-spacing: 0.5px; text-transform: none;
+      flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+    }
+    /* Flat row: a session whose only channel is #chronicle renders as one
+       direct row (old session-list economy) — no category chrome until the
+       session actually grows more channels. */
+    .sv-ch.sv-flat { padding-left: 9px; margin-top: 4px; }
+    .sv-ch.sv-flat .sv-ch-name em { font-style: normal; color: var(--muted); }
     .sv-ch {
       display: flex; align-items: center; gap: 6px; padding: 4px 8px 4px 16px;
       border-radius: 4px; cursor: pointer; font-size: 0.78rem; color: var(--aged);
@@ -2240,8 +2250,8 @@ function channelsForSession(sess) {
 
 function svCat(key, label, hint, inner) {
   const closed = svOpenCats.has(key) ? '' : ' closed';
-  return `<div class="sv-cat${closed}"><div class="sv-cat-head" onclick="toggleSvCat('${key}')">`
-    + `<span class="sv-chev">▼</span> ${label} ${hint ? `<span class="sv-cat-hint">${hint}</span>` : ''}</div>`
+  return `<div class="sv-cat${closed}"><div class="sv-cat-head" onclick="toggleSvCat('${key}')" title="${hint || ''}">`
+    + `<span class="sv-chev">▼</span><span class="sv-cat-label">${label}</span>${hint ? `<span class="sv-cat-hint">${hint}</span>` : ''}</div>`
     + `<div class="sv-chs" data-cat="${key}">${inner}</div></div>`;
 }
 function toggleSvCat(k) { if (svOpenCats.has(k)) svOpenCats.delete(k); else svOpenCats.add(k); renderSidebar(); }
@@ -2268,8 +2278,21 @@ function renderChannelTree(sessions, sessionNums) {
   sessionNums.forEach(n => {
     const s = sessions[n];
     const date = s.startTime ? new Date(s.startTime).toLocaleDateString('en-US', { month:'short', day:'numeric' }) : '';
+    const chans = channelsForSession(n);
+
+    // A session whose only channel is its #chronicle gets ONE flat row —
+    // the category treatment starts when the session actually has multiple
+    // channels (fights, table-talk). Old pre-feed sessions stay lean.
+    if (chans.length === 1 && chans[0].id === 'chronicle') {
+      const active = !activeChannel && activeFilters.session == n;
+      const full = `Session ${n}${s.title ? ' — ' + svEsc(s.title) : ''}${date ? ' · ' + date : ''}`;
+      return void (html += `<div class="sv-ch sv-flat${active ? ' active' : ''}" onclick="openChronicleChannel(${n})" title="${full}">`
+        + `<span class="sv-hash">#</span><span class="sv-ch-name">Session ${n}${s.title ? ` <em>— ${svEsc(s.title)}</em>` : ''}</span>`
+        + `<span class="sv-ch-count">${chans[0].count}</span></div>`);
+    }
+
     const hint = [s.title ? '— ' + svEsc(s.title) : '', date].filter(Boolean).join(' · ');
-    const inner = channelsForSession(n).map(c => {
+    const inner = chans.map(c => {
       let active = false;
       if (c.id === 'chronicle') active = !activeChannel && activeFilters.session == n;
       else if (activeChannel && activeChannel.session == n) {
