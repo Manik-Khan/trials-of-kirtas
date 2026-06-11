@@ -56,7 +56,11 @@ A working context doc for **M** (developer / DM / musician) and **C** (Claude, t
 - **Open question (still):** confirm the `disposition` column exists on the live DB before building the disposition feature code.
 
 
-## Current state (token menu + auras + M's bug round — BUILT, awaiting deploy + verification)
+## Current state (M3 auto-load + token menu + auras — token menu round DEPLOYED & VERIFIED by M; auto-load BUILT, awaiting deploy)
+
+**M3 final piece — NPC-turn auto-load (battle.js, this round):** when the shared tracker lands on an NPC's turn, the staff HUD auto-loads that monster, with a turn toast in enemy red. Lives in `setTurn` (the existing turn-start hook). Guards: only while the HUD is already on (never yanks it open), only on a real turn change (round-only ticks are no-ops), only `mon:` keys that resolve in the registry (player browsers never registered any — untouched), never PC turns (players drive their own; the DM isn't pulled off what they're reading). After the monster's turn the HUD stays put until the next NPC turn or a manual switch — predictable beats clever. Verified under the DOM shim: staff auto-load, player immunity, PC-turn/round-tick no-ops. Marker: `NPC's turn auto-loads` comment in battle.js setTurn. **M3 is now fully complete** (double-click → Battle HUD, menu item, and auto-load all shipped).
+
+### This round's earlier work (deployed & verified by M — "That worked")
 
 M deployed M1+M2 ("working pretty well") and reported via voice-to-text: (1) freshly dropped monsters didn't appear in the roster pane until revealed, defeating hidden ambushes; (2) the HUD's monster driving wasn't reachable anywhere — no picker section showing, no token interaction; (3) wanted the token context menu redesigned: useful info first, conditions demoted to an expander, and the long-discussed **aura** feature. Mid-round M renamed the action: **"Battle HUD"** (not "Drive in HUD") everywhere user-facing.
 
@@ -146,11 +150,9 @@ A **"Discord server within the site"**: one append-only event log, surfaced two 
 
 ## Next steps (phased)
 
-**Token menu + auras + fixes: BUILT — deploy + verify next.** Checklist:
-1. Run `schema_delta_aura.sql` in the Supabase SQL editor (idempotent; adds `combatants.aura` + replaces the column guard with the aura rule).
-2. Commit + deploy `battle.js`, `combat.html`. Markers: `renderEnemiesPick` (battle.js), `token-aura` + `Battle HUD` (combat.html).
-3. Smoke as staff: drop a monster mid-combat → appears on the roster bench immediately, still hidden (⊘); seat it hidden; HUD picker shows ENEMIES even when opened cold after a reload; double-click tokens (party → HUD; seated enemy → HUD; benched enemy → statblock); right-click → new flat menu (Battle HUD item, aura expander: set 15 ft purple on a token, drag it — ring follows; second browser sees it live; remove aura works); conditions expander toggles with count badge.
-4. Smoke as player: aura controls on party tokens only (set one — guard permits; confirm an enemy token shows NO aura section); no Manage/Stat block/Remove; monster vitals absent from the info line; teased tokens show no aura ring.
+**M3 auto-load: BUILT — deploy + verify next.** Checklist: commit + deploy `battle.js` only (no schema changes; marker: the `NPC's turn auto-loads` comment in setTurn). Smoke as staff with the HUD on: advance the tracker onto a seated monster → HUD switches to it with the red toast; advance onto a PC → HUD stays on the monster; player browser: nothing changes on NPC turns. (Token menu + aura round already deployed & verified by M.)
+
+**Then Phase 3B: the replay scrubber** — next major build, mock-first in a fresh session. Mount point: the chronicle's disabled ▶ REPLAY banner button. Data: `kind:'event'` rows (`combat_start` roster snapshot + `turn`/`hp`/`condition`/`initiative`/`move`?/etc. — VERIFY which event types actually exist and whether token moves are logged; if moves aren't evented, the scrubber can't animate positions and the design scopes to a timeline replay instead of a board replay — settle this FIRST). Design questions for M: board replay vs timeline replay vs both; playback controls (scrub bar by event vs by round); whether hidden-foe events stay masked in replay for players or replays are staff/anyone.
 
 **Then M3 — the seamless flow:** turn tracker advances to an NPC → staff HUD auto-loads it (`activeSourceKey` already returns `mon:` keys — the plumbing is in); **token click loads that actor in the HUD** (PCs for everyone — M's explicit ask: tokens are the table's interface and the HUD is the in-combat character sheet — monsters for staff); a "Drive in HUD" context-menu item as the discoverable path. Possible extras: recharge tracking on monster actions, legendary actions.
 
@@ -175,4 +177,4 @@ A **"Discord server within the site"**: one append-only event log, surfaced two 
 
 ---
 
-*Last updated: end of the round that fixed M's two M2 bugs (stale roster pane on own monster drop; ENEMIES picker painting before the HUD DOM existed), pulled M3's token interactions forward (double-click → Battle HUD via the new drive() API; menu item), and shipped the approved token-menu redesign (flat menu, info line, Battle HUD first, staff manage, Aura + Conditions expanders) with the new combatants.aura system (player-aurable party tokens via guard rule). Awaiting deploy + verification. Remaining M3: auto-load HUD on NPC turn. Then 3B replay scrubber.*
+*Last updated: end of the round that completed M3 (NPC-turn HUD auto-load for staff in battle.js setTurn — guarded, no-yank, player-immune, fully shim-tested) after M verified the token menu + aura round live. Deploy battle.js, then Phase 3B: the replay scrubber, mock-first — but first verify whether token moves are evented, since that decides board-replay vs timeline-replay scope.*

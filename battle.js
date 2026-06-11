@@ -1454,6 +1454,19 @@
       s.actionUsed = false; s.bonusUsed = false; s.reactionUsed = false;
       if (battleOn && TURN.activeKey === activeKey) renderTurnOrbs();
     }
+    // M3: an NPC's turn auto-loads that monster for staff. The registry only
+    // exists where the page registered monsters (staff), so player HUDs are
+    // untouched. Fires only while the HUD is already on (never yanks it open),
+    // only on a real turn change, and never for PC turns — players drive their
+    // own, and the DM shouldn't be pulled off whatever they're reading.
+    // After the monster's turn the HUD stays where it is until the next NPC
+    // turn or a manual switch — predictable beats clever.
+    if (battleOn && TURN.activeKey && TURN.activeKey !== prev
+        && isMonKey(TURN.activeKey) && charFor(TURN.activeKey)
+        && activeKey !== TURN.activeKey) {
+      setChar(TURN.activeKey);
+      showToast(`${charFor(TURN.activeKey).name}'s turn`, ENEMY_COLOR);
+    }
   };
 
   // Translate HUD resource keys → DB pipState keys (HUD keys already match DB)
