@@ -56,7 +56,24 @@ A working context doc for **M** (developer / DM / musician) and **C** (Claude, t
 - **Open question (still):** confirm the `disposition` column exists on the live DB before building the disposition feature code.
 
 
-## Current state (Phase 3A: chronicle server browser — BUILT, awaiting deploy + verification)
+## Current state (M1+M2: monsters in the HUD — BUILT, awaiting deploy + verification)
+
+This session: M chose the combat-page track (chronicle "needs a bit more work" later — M's words; server browser is live and accepted after a sidebar fix, see previous round). Design locked via mockup (`mockup-monster-hud.html`). The agreed arc is **M1 → M2 → M3** (M3 still to build). Files changed: **`monster-actor.js`** (new), **`battle.js`**, **`combat.html`**. Deploy markers: `MONSTER-ACTOR-V1` (monster-actor.js), `setMonsters:` (battle.js), `hudComb` (combat.html).
+
+**M1 — `monster-actor.js` (parser + adapter, fully unit-tested).** Turns a combatants row + its 5etools `statblock` into the exact character shape battle.js eats. Parses `{@hit}`/`{@damage}`/`{@dc}`/`{@recharge}`: attacks (hit mod, dice, crit-doubled dice incl. multi-term `2d6+1d4`→`4d6+2d4`, damage type, reach/range note), save effects (`DC 13 DEX · half on success`), versatile weapons (auto second `(2H)` action), rider damage (`+ 2d8 Poison` in the note), multiattack as a utility note, graceful degradation (unparseable → readable note, never broken). Adapter: live row hp/ac beat the statblock, `initiative` = DEX mod, `hiddenFoe` (drives 🕯 + hidden rolls), `art` passthrough, `mon:<uuid>` key helpers.
+
+**M2 — the HUD drives monsters.**
+- **battle.js**: `charFor()/colorFor()/portraitFor()` are now THE actor accessors (all 22 former direct `CHARACTERS/PORTRAITS/CHAR_COLOR` sites routed); `MONSTERS` registry + `window.__battle.setMonsters(rows)` (rebuilt wholesale; falls back to a PC if the driven monster leaves the fight); enemies sections injected into the desktop picker (`#b-cpick-enemies`) and mobile menu (`#bm-char-enemies`) — red rows, live HP, 🕯 hidden, dead dimmed; letter-disc SVG data-URI fallback when token art 404s; Spells button hides for spell-less monsters (desktop + orb); HUD rolls from a monster carry `actorName` + `hidden:hiddenFoe` into logRoll; monster keys never persist to localStorage.
+- **combat.html**: `hudComb(key)` routes the whole backend seam — PCs by `source_key`, `mon:<uuid>` by row id (load/save/saveConditions/setInitiative); hp/condition/initiative **events from hidden foes log hidden:true** (`evHidden`, mirrors leave()); HUD_ONCHANGE now also forwards NPC row changes under `mon:` keys (applyCombatChange's SESSION guard makes it a no-op unless the DM drove that monster); `pushMonstersToHud()` runs inside `renderInitStrip()` (staff-only — **view-as-player passes `[]`**, so the preview is honest and players never receive monster data); `activeSourceKey()` returns `mon:<id>` for NPC turns (HUD off-turn logic recognizes "its" monster; player browsers never registered the key → harmless miss).
+- **Previous-turn button (M's ask)**: `retreatTurn()` — staff correction tool on the init strip (`◂ Prev`, ghost style, left of Next ▸). Walks the order backwards; wrapping decrements the round (floor 1); unknown active → last in order. Goes through `setActive`, so it **logs a normal `turn` event** — replay data stays a plain sequence of truth. Staff-only by design (flagged + accepted).
+
+**Verified:** `node --check` everything; parser suite (goblin/guard/drake/spider/net/multi-term); `hudComb` routing + `retreatTurn` math unit tests; battle.js smoke under a DOM shim (registry, picker render, fallback art, setChar guard, teardown). **NOT verified live** — checklist in Next steps.
+
+**Design notes locked this round:** mockup's centered HUD was an artifact — the real HUD stays in its existing left position, untouched. Enemies list scopes to in-combat monsters only (bench stays in the Bestiary/roster). M3 will make **token clicks load the HUD for PCs too** — M: "tokens are the table's real interface; the HUD is doing the character sheet's job in combat."
+
+### Previous round (Phase 3A: chronicle server browser — deployed; M accepted after a sidebar fix)
+
+Post-deploy M flagged the sidebar as awkward: long real session titles broke the category headers (bare text node in the flex head wrapped mid-label — fixed with a nowrap label span + one-line ellipsized hint, full title on hover), and pre-feed sessions rendered as heavy single-child categories. Fix shipped: **a session whose only channel is #chronicle renders as ONE flat row** (`# Session 2 — Title · count`, opens directly); the category/tree treatment appears automatically once a session gains combat channels. M: chronicle "needs a bit more work" eventually — parked, not specified. Original build details:
 
 This session built the **chronicle-page server browser** (design locked via interactive mockup, M approved). Files changed: **`schema_delta_campaign_config.sql`** (new), **`feed-render.js`** (new), **`combat.html`** (extraction only), **`chronicle.html`** (the feature). Deploy markers: `FEED-RENDER-V1` (feed-render.js), `SERVER-BROWSER-V1` (chronicle.html).
 
@@ -74,7 +91,7 @@ This session built the **chronicle-page server browser** (design locked via inte
 
 **Verified:** `node --check` on all JS (inline extracted), FeedRender smoke tests (party/DM/enemy/hidden rows, escaping), channel-ordering unit tests (default chronology, config override, event-excluded counts, slugs), round-divider weave test. **NOT yet verified live** — see deploy checklist in Next steps.
 
-### Previous round (roster picker + events + nightly export — all shipped & verified)
+#### Earlier round (roster picker + events + nightly export — all shipped & verified)
 
 Phase 2 (chronicle unification) is **live and verified**, the combat-page UX round before that too (right dock, dice tray, feed roll-modifier row, feed-bridge.js, feed delete + lightbox — details below). The latest session shipped, deployed, and **M verified working**:
 
@@ -113,13 +130,15 @@ A **"Discord server within the site"**: one append-only event log, surfaced two 
 
 ## Next steps (phased)
 
-**Server browser (3A): BUILT — deploy + verify next.** Deploy checklist:
-1. Run `schema_delta_campaign_config.sql` in the Supabase SQL editor (idempotent).
-2. Commit + deploy `feed-render.js` (new), `combat.html`, `chronicle.html`.
-3. Verify deployed files contain markers: `FEED-RENDER-V1` (feed-render.js, and the comment referencing it in combat.html), `SERVER-BROWSER-V1` (chronicle.html).
-4. Smoke: combat.html feed still renders rolls identically (extraction regression check); chronicle shows the channel tree; open an encounter channel (rows + dividers + banner); search from both scopes; staff: pin a tag, drag-reorder a session's channels, confirm a second browser sees both live.
+**M1+M2 (monsters in the HUD): BUILT — deploy + verify next.** Checklist:
+1. Commit + deploy `monster-actor.js` (new), `battle.js`, `combat.html`. No schema changes this round.
+2. Verify deployed markers: `MONSTER-ACTOR-V1` (monster-actor.js), `setMonsters:` (battle.js), `hudComb` (combat.html).
+3. Smoke as staff: drop a bestiary monster, seat it, open the HUD picker → ENEMIES section appears with live HP; drive the monster (Action panel shows parsed attacks; rolls land in the feed hidden while the foe is hidden, with real name for staff); HP orb edits write the combatants row + log hidden hp events; ◂ Prev steps the tracker back (round decrements across the wrap, floor 1).
+4. Smoke as player / view-as-player: NO Enemies section, no monster rolls visible while hidden; PC HUD behavior fully unchanged (regression: HP save, conditions, initiative, End Turn, off-turn confirm).
 
-**Then Phase 3B: the replay scrubber** (M's chosen order: A → B → cleanup). Consumes `kind:'event'` rows + the `combat_start` snapshot; the disabled ▶ REPLAY button on the encounter banner is its mount point. The more fights run before building, the more test data.
+**Then M3 — the seamless flow:** turn tracker advances to an NPC → staff HUD auto-loads it (`activeSourceKey` already returns `mon:` keys — the plumbing is in); **token click loads that actor in the HUD** (PCs for everyone — M's explicit ask: tokens are the table's interface and the HUD is the in-combat character sheet — monsters for staff); a "Drive in HUD" context-menu item as the discoverable path. Possible extras: recharge tracking on monster actions, legendary actions.
+
+**Then Phase 3B: the replay scrubber** (chronicle's ▶ REPLAY stub is the mount point). Every HUD-driven monster turn now flows through logRoll/logEvent, so fights are fully recorded — M2 directly feeds 3B's test data. Chronicle itself "needs a bit more work" per M (unspecified — ask when revisiting).
 
 **Then cleanup:** retire `netlify/functions/chronicle.js` after a few stable sessions; optionally delete the dead `sheet-prototype.html`; `mockup-server-browser.html` (this session's approved mockup) can be deleted from the repo or kept as a design record — M's call.
 
@@ -140,4 +159,4 @@ A **"Discord server within the site"**: one append-only event log, surfaced two 
 
 ---
 
-*Last updated: end of the session that built Phase 3A — the chronicle server browser (channel tree, per-encounter combat channels with round dividers + pagination, pinned tag channels, server-side cross-channel search, staff drag-order + tag pinning via the new `campaign.config`, and the `feed-render.js` extraction shared with combat.html). Awaiting deploy + live verification (checklist in Next steps). Then Phase 3B: the replay scrubber.*
+*Last updated: end of the session that built M1 (monster-actor.js — the 5etools statblock parser + adapter, fully tested) and M2 (monsters as first-class HUD actors: charFor accessor surgery, staff-only Enemies picker section, mon:<uuid> backend routing by row id, hidden-aware event logging, view-as-player honesty) plus the staff ◂ Prev turn-tracker button. Awaiting deploy + live verification. Next: M3 (auto-load on turn, token-click → HUD), then the replay scrubber.*

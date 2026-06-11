@@ -857,6 +857,7 @@
 
   <script src="nav.js"></script>
   <script src="characters.js"></script>
+  <script src="monster-actor.js"></script>
   <script src="battle.js"></script>
   <script src="feed-render.js"></script>
   <script>
@@ -1911,6 +1912,8 @@
             if (hiddenChanged || initChanged || inCombatChanged) renderInitStrip();
             if (HUD_ONCHANGE && c.side === 'party' && c.source_key)
               HUD_ONCHANGE({ key: c.source_key, combat: { hp: row.hp, conditions: row.conditions, initiative: row.initiative, in_combat: row.in_combat } });
+            else if (HUD_ONCHANGE && !c.source_key)
+              HUD_ONCHANGE({ key: 'mon:' + c.id, combat: { hp: row.hp, conditions: row.conditions, initiative: row.initiative, in_combat: row.in_combat } });
           })
         // New / removed combatants (e.g. a DM dropping or clearing an enemy).
         // Same channel as the UPDATE above — never a second postgres_changes
@@ -2061,43 +2064,52 @@
       // guard still limits changes to hp/conditions/x,y.)
       if (window.__battle) {
         if (ME && ME.characterKey) window.__battle.setChar(ME.characterKey);
+        // One resolver for both actor families: PC keys bind by source_key,
+        // 'mon:<uuid>' keys (M2 — staff driving monsters) bind by row id.
+        function hudComb(key) {
+          if (window.MonsterActor && MonsterActor.isMonsterKey(key))
+            return COMBS.find(x => x.id === MonsterActor.idFromKey(key));
+          return COMBS.find(x => x.side === 'party' && x.source_key === key);
+        }
+        // Events about a hidden foe must not leak to players.
+        const evHidden = c => !!(c.hidden && c.side !== 'party');
         window.__battle.useBackend({
           async load(key) {
-            const c = COMBS.find(x => x.side === 'party' && x.source_key === key);
+            const c = hudComb(key);
             return c ? { hp: c.hp, conditions: Array.isArray(c.conditions) ? c.conditions : [], initiative: c.initiative, in_combat: !!c.in_combat } : null;
           },
           async save(key, combat) {
             if (combat.hp === null || combat.hp === undefined) return;
-            const c = COMBS.find(x => x.side === 'party' && x.source_key === key);
+            const c = hudComb(key);
             if (!c) return;
             const prev = c.hp;   // realtime echo updates c.hp after the write
             const { error } = await SB.from('combatants').update({ hp: combat.hp }).eq('id', c.id);
             if (error) { console.warn('[hud] HP save failed:', error.message); return; }
             if (c.in_combat && prev !== combat.hp)
-              logEvent('hp', { id: c.id, from: prev, to: combat.hp }, `${escapeHtml(c.name)}: ${prev} → ${combat.hp} HP`);
+              logEvent('hp', { id: c.id, from: prev, to: combat.hp }, `${escapeHtml(c.name)}: ${prev} → ${combat.hp} HP`, evHidden(c));
           },
           // Conditions write through their own verb (not folded into save) so a
           // HUD condition toggle touches only the conditions column — no hp/slot
           // churn. The guard trigger allows conditions on party rows.
           async saveConditions(key, arr) {
-            const c = COMBS.find(x => x.side === 'party' && x.source_key === key);
+            const c = hudComb(key);
             if (!c) return;
             const { error } = await SB.from('combatants').update({ conditions: arr }).eq('id', c.id);
             if (error) { console.warn('[hud] conditions save failed:', error.message); return; }
             if (c.in_combat) logEvent('condition', { id: c.id, conditions: arr },
-              `${escapeHtml(c.name)}: ${arr.length ? arr.join(', ') : 'conditions cleared'}`);
+              `${escapeHtml(c.name)}: ${arr.length ? arr.join(', ') : 'conditions cleared'}`, evHidden(c));
           },
           // Player rolls/enters their own initiative from the HUD; writes the
           // party row's initiative (the column guard permits it). The optimistic
           // local update + renderInitStrip re-sorts the map strip immediately.
           async setInitiative(key, val) {
-            const c = COMBS.find(x => x.side === 'party' && x.source_key === key);
+            const c = hudComb(key);
             if (!c) return;
             c.initiative = val;
             renderInitStrip();
             const { error } = await SB.from('combatants').update({ initiative: val }).eq('id', c.id);
             if (error) { console.warn('[hud] initiative save failed:', error.message); return; }
-            if (c.in_combat) logEvent('initiative', { id: c.id, value: val }, `${escapeHtml(c.name)} initiative set to ${val}`);
+            if (c.in_combat) logEvent('initiative', { id: c.id, value: val }, `${escapeHtml(c.name)} initiative set to ${val}`, evHidden(c));
           },
           // HUD rolls (attacks, initiative, spells) post into the combat feed.
           logRoll(o) { feedLogRoll(o); },
@@ -2902,7 +2914,9 @@
     function activeSourceKey() {
       if (!ENC || !ENC.active_combatant_id) return null;
       const c = COMBS.find(x => x.id === ENC.active_combatant_id);
-      return (c && c.side === 'party' && c.source_key) ? c.source_key : null;
+      if (!c) return null;
+      if (c.side === 'party' && c.source_key) return c.source_key;
+      return 'mon:' + c.id;   // M2: NPC turns address the monster actor key
     }
     // Forward shared round + whose-turn to the HUD (marquee + economy-on-start).
     function pushTurnToHud() {
@@ -2932,6 +2946,16 @@
       let round = (ENC && ENC.round) || 1;
       if (i >= 0 && next === 0) round++;
       await setActive(order[next].id, round);
+    }
+    // Staff correction: step the shared tracker BACK one turn (mis-clicks,
+    // skipped combatants). Wrapping backwards decrements the round, floor 1.
+    async function retreatTurn() {
+      const order = turnOrder(); if (!order.length) return;
+      const i = order.findIndex(c => c.id === (ENC && ENC.active_combatant_id));
+      const prev = i < 0 ? order.length - 1 : (i - 1 + order.length) % order.length;
+      let round = (ENC && ENC.round) || 1;
+      if (i === 0) round = Math.max(1, round - 1);
+      await setActive(order[prev].id, round);
     }
     // Re-roll the SEATED only (post-picker semantics — re-seating the whole
     // board would silently undo the picker): NPCs re-roll, party resets to
@@ -3089,9 +3113,19 @@
       renderInitStrip();
     }
 
+    function pushMonstersToHud() {
+      if (!window.__battle || !window.__battle.setMonsters) return;
+      const staff = effectiveStaff();
+      const rows = staff
+        ? COMBS.filter(c => c.in_combat && c.side !== 'party')
+            .map(c => Object.assign({}, c, { art: monsterTokenUrl(c) }))
+        : [];
+      window.__battle.setMonsters(rows);
+    }
     function renderInitStrip() {
       if (!stripEl) return;
       syncCombatChrome();          // keep the right-side Combat menu in step
+      pushMonstersToHud();         // M2: the HUD picker's Enemies section
       const ordered = initRoster();
       const visible = ordered.filter(tokenVisible);
       const staff = effectiveStaff();
@@ -3108,7 +3142,7 @@
       chips += visible.map(c => chipHtml(c, c.id === activeId)).join('');
 
       let side = `<div class="init-side"><div style="text-align:center"><div class="init-round-l">ROUND</div><div class="init-round-n">${(ENC && ENC.round) || 1}</div></div>`;
-      if (staff) side += `<button class="init-btn" data-turn="next">Next ▸</button><button class="init-btn ghost" data-roll="all">↻ Roll all</button><button class="init-btn ghost" data-combat="end">⊗ End</button>`;
+      if (staff) side += `<button class="init-btn ghost" data-turn="prev" title="Step the tracker back one turn">◂ Prev</button><button class="init-btn" data-turn="next">Next ▸</button><button class="init-btn ghost" data-roll="all">↻ Roll all</button><button class="init-btn ghost" data-combat="end">⊗ End</button>`;
       side += `</div>`;
 
       stripEl.className = 'init-strip';
@@ -3137,6 +3171,8 @@
         }));
       const next = stripEl.querySelector('[data-turn="next"]');
       if (next) next.addEventListener('click', advanceTurn);
+      const prev = stripEl.querySelector('[data-turn="prev"]');
+      if (prev) prev.addEventListener('click', retreatTurn);
       stripEl.querySelectorAll('[data-roll="all"]').forEach(b => b.addEventListener('click', rollAllInitiative));
       const endBtn = stripEl.querySelector('[data-combat="end"]');
       if (endBtn) endBtn.addEventListener('click', endCombat);

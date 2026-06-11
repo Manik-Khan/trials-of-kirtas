@@ -37,6 +37,30 @@
     cosmere: '#9d4edd', caim: '#c0001a', liadan: '#1d9e75', vesperian: '#b8952a',
   };
 
+  // ── Monster actors (M2) — runtime registry of 'mon:<uuid>' actors. ──
+  // combat.html (staff only) calls window.__battle.setMonsters(rows) with the
+  // in-combat enemy combatant rows; monster-actor.js adapts each to the same
+  // shape CHARACTERS values have. charFor()/portraitFor()/colorFor() are THE
+  // actor accessors — PCs resolve from characters.js, monsters from here.
+  // Player sessions never call setMonsters, so the registry (and every
+  // monster-facing UI section) simply doesn't exist for them.
+  const MONSTERS = {};
+  const ENEMY_COLOR = '#c05050';
+  function isMonKey(k) { return typeof k === 'string' && k.indexOf('mon:') === 0; }
+  function charFor(k) { return isMonKey(k) ? MONSTERS[k] : CHARACTERS[k]; }
+  function colorFor(k) { return isMonKey(k) ? ENEMY_COLOR : CHAR_COLOR[k]; }
+  // Letter-disc SVG data URI — the art fallback for monsters without tokens.
+  function letterDiscURI(name, color) {
+    const ltr = (String(name || '?').trim().charAt(0) || '?').toUpperCase();
+    const svg = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64"><rect width="64" height="64" fill="#14100c"/><text x="32" y="42" text-anchor="middle" font-family="serif" font-size="30" fill="${color}">${ltr}</text></svg>`;
+    return 'data:image/svg+xml;utf8,' + encodeURIComponent(svg);
+  }
+  function portraitFor(k) {
+    if (!isMonKey(k)) return PORTRAITS[k] || '';
+    const m = MONSTERS[k];
+    return (m && m.art) || letterDiscURI(m && m.name, ENEMY_COLOR);
+  }
+
   const CHAR_KEYS = ['liadan', 'cosmere', 'caim', 'vesperian'];
 
   const CRIES = [
@@ -53,9 +77,10 @@
 
   function initSession(key) {
     if (SESSION[key]) return;
-    const cf = CHARACTERS[key].classFeatures || {};
+    const ch = charFor(key);
+    const cf = ch.classFeatures || {};
     const s = {
-      hp: CHARACTERS[key].combat.hp,
+      hp: ch.combat.hp,
       // Turn economy
       actionUsed:   false,
       bonusUsed:    false,
@@ -87,9 +112,9 @@
   // ── Resources ──
   function getResources(charKey) {
     initSession(charKey);
-    const cf  = CHARACTERS[charKey].classFeatures || {};
+    const cf  = charFor(charKey).classFeatures || {};
     const s   = SESSION[charKey];
-    const col = CHAR_COLOR[charKey];
+    const col = colorFor(charKey);
     const res = [];
     if (cf.bardicInspiration) res.push({ key:'bardicInspiration', label:'Bardic',    cur:s.bardicInspiration.current, max:s.bardicInspiration.max, color:col, type:'lute' });
     if (cf.spellSlots)   for (const lvl of Object.keys(cf.spellSlots).sort())    res.push({ key:`spell_${lvl}`,  label:`L${lvl} Slot`,  cur:s.spellSlots[lvl].current,   max:s.spellSlots[lvl].max,   color:col, type:'circle' });
@@ -126,7 +151,7 @@
   }
 
   function getSpellsForResource(charKey, resKey) {
-    const ch = CHARACTERS[charKey];
+    const ch = charFor(charKey);
     if (resKey === 'bardicInspiration') return [{ name:'Give Bardic Inspiration', note:'Grant d6 to creature within 60 ft', type:'utility' }];
     if (resKey === 'kiPoints') return (ch.actions||[]).filter(a => a.note && a.note.toLowerCase().includes('ki'));
     if (resKey === 'actionSurge') return [{ name:'Action Surge', note:'Take one additional action this turn', type:'utility' }];
@@ -154,9 +179,9 @@
   let charPickOpen = false;
 
   const isMobile = () => window.innerWidth <= 600;
-  const C  = () => CHARACTERS[activeKey];
+  const C  = () => charFor(activeKey);
   const S  = () => { initSession(activeKey); return SESSION[activeKey]; };
-  const col = () => CHAR_COLOR[activeKey];
+  const col = () => colorFor(activeKey);
 
   // ── SVG icons ──
   const LUTE = `<svg viewBox="0 0 12 12" fill="currentColor"><path d="M8 1C10 1 11 2.5 11 4C11 6 9.5 7.5 8 7.5C7.2 7.5 6.6 7.2 6 6.8L2 10.5C1.6 11 1 10.5 1 10C1 9.5 1.4 9 1.8 8.6L5.5 5C5 4.4 4.5 3.8 4.5 3C4.5 1.8 6 1 8 1Z"/></svg>`;
@@ -247,7 +272,11 @@
     // precedence (combat.html wires a full one); otherwise the lite hook from
     // feed-bridge.js, if that page loaded it.
     const logFeed = backend.logRoll || (window.__battle && window.__battle.onLogRoll);
-    if (logFeed) logFeed({ actorKey: activeKey, name: entry.name, main: entry.main, detail: entry.detail, dmg: entry.dmg });
+    if (logFeed) {
+      const mon = isMonKey(activeKey) ? C() : null;
+      logFeed({ actorKey: activeKey, name: entry.name, main: entry.main, detail: entry.detail, dmg: entry.dmg,
+        actorName: mon ? mon.name : undefined, hidden: mon ? !!mon.hiddenFoe : undefined });
+    }
   }
 
   function renderRollHistory() {
@@ -494,6 +523,7 @@
               <img class="b-cpick-portrait" src="${PORTRAITS[k]}" alt="${CHARACTERS[k].name}">
               <span class="b-cpick-name" style="color:${CHAR_COLOR[k]}">${CHARACTERS[k].name.split(' ')[0]}</span>
             </div>`).join('')}
+          <div id="b-cpick-enemies"></div>
         </div>
         <div class="b-ddivider"></div>
         <div id="b-dstats">
@@ -564,11 +594,11 @@
   function renderMobileOrb() {
     const ch=C(), s=S(), color=col(), resources=getResources(activeKey);
     const po=document.getElementById('b-orbPortrait');
-    if(po){po.src=PORTRAITS[activeKey]||'';po.style.borderColor=color;}
+    if(po){po.src=portraitFor(activeKey);po.style.borderColor=color;}
     const ht=document.getElementById('b-orbHpTag');
     if(ht){ht.textContent=`${s.hp}/${ch.combat.hpMax}`;ht.style.color=s.hp<=ch.combat.hpMax*0.25?'#c0001a':s.hp<=ch.combat.hpMax*0.5?'#c8a020':'#5a9a6a';}
     const ns=document.getElementById('b-nSpl');
-    if(ns){ns.style.borderColor=color;ns.innerHTML=`<span class="b-rn-ico" style="color:${color}">✦</span><span class="b-rn-lbl" style="color:${color}">${ch.subclass&&ch.subclass.toLowerCase().includes('monk')?'Ki':'Spl'}</span>`;}
+    if(ns){ns.style.display=(ch.isMonster && !Object.keys(ch.spells||{}).length && !resources.length)?'none':'';ns.style.borderColor=color;ns.innerHTML=`<span class="b-rn-ico" style="color:${color}">✦</span><span class="b-rn-lbl" style="color:${color}">${ch.subclass&&ch.subclass.toLowerCase().includes('monk')?'Ki':'Spl'}</span>`;}
     const primary=resources[0], secondary=resources[1];
     const co=2*Math.PI*50, ci=2*Math.PI*41;
     const roBg=document.getElementById('b-ro-bg'),ro=document.getElementById('b-ro');
@@ -582,7 +612,7 @@
   // ── Render desktop bar ──
   function renderDesktopBar() {
     const ch=C(), s=S(), color=col(), resources=getResources(activeKey);
-    const dp=document.getElementById('b-dPortrait'); if(dp) dp.src=PORTRAITS[activeKey]||'';
+    const dp=document.getElementById('b-dPortrait'); if(dp) dp.src=portraitFor(activeKey);
     const dn=document.getElementById('b-dCharName'); if(dn){dn.textContent=ch.name;dn.style.color=color;}
     const dh=document.getElementById('b-dCharHp');   if(dh){dh.textContent=`${s.hp}/${ch.combat.hpMax} hp`;dh.style.color=s.hp<=ch.combat.hpMax*0.25?'#c0001a':s.hp<=ch.combat.hpMax*0.5?'#c8a020':'#5a9a6a';}
     const da=document.getElementById('b-dAC');   if(da) da.textContent=ch.combat.ac;
@@ -591,6 +621,8 @@
     const strip=document.getElementById('b-dres-strip');
     if(strip) strip.innerHTML=resources.map(r=>`<div class="b-dres-chip" onclick="window.__battle.openResDetail('${r.key}')"><span class="b-dres-lbl">${r.label}</span><div class="b-dres-pips">${pipHtml(r)}</div></div>`).join('');
     const si=document.getElementById('b-dSplIco'); if(si) si.style.color=color;
+    const sb=document.getElementById('b-dSpl');
+    if(sb) sb.style.display = (ch.isMonster && !Object.keys(ch.spells||{}).length && !resources.length) ? 'none' : '';
     const ri2=document.getElementById('b-dResIco'); if(ri2) ri2.style.color=color;
     // Highlight active char in picker
     document.querySelectorAll('.b-cpick-item').forEach(el=>el.classList.toggle('on',el.dataset.key===activeKey));
@@ -673,6 +705,7 @@
               <div class="bm-char-dot" style="background:${CHAR_COLOR[k]}"></div>
               <span class="bm-char-name">${CHARACTERS[k].name.split(' ')[0]}</span>
             </div>`).join('')}
+          <div id="bm-char-enemies"></div>
         </div>
         <div class="bm-divider"></div>`;
       dropdown.insertBefore(section, dropdown.firstChild);
@@ -710,8 +743,10 @@
 
   // ── Character switch ──
   function setChar(key) {
+    if (!charFor(key)) return;
     activeKey=key; activeSet=0; resIdx=0;
-    try{localStorage.setItem(CHAR_STORAGE_KEY,key);}catch(e){}
+    // Monster keys are per-fight — never persisted across reloads.
+    if (!isMonKey(key)) { try{localStorage.setItem(CHAR_STORAGE_KEY,key);}catch(e){} }
     document.querySelectorAll('.bm-char-row').forEach(r=>r.classList.toggle('on',r.dataset.key===key));
     initSession(key); closePanelFn(); syncLayouts(); renderAll();
     // Close char picker
@@ -842,6 +877,9 @@
       .b-cpick-item.on { border-color:#333; background:#111018; }
       .b-cpick-portrait { width:48px; height:48px; border-radius:50%; object-fit:cover; object-position:center top; }
       .b-cpick-name { font-size:10px; font-weight:700; letter-spacing:0.06em; text-transform:uppercase; }
+      .b-mon-sect { font-size:8px; letter-spacing:2px; color:#6b5d4a; padding:6px 10px 2px; border-top:1px solid rgba(184,149,42,0.18); }
+      .b-mon-row .b-mon-hp { margin-left:auto; font-size:9px; color:#c8a020; padding-left:8px; }
+      .b-mon-row.b-mon-dead { opacity:0.45; }
 
       .b-ddivider { width:1px; height:34px; background:#1a1a28; flex-shrink:0; }
       #b-dstats { display:flex; gap:14px; align-items:center; flex-shrink:0; }
@@ -1116,7 +1154,7 @@
   function showOffTurnModal() {
     document.getElementById('b-offturn-modal')?.remove();
     const k = TURN.activeKey;
-    const nm = k && CHARACTERS[k] && CHARACTERS[k].name;
+    const nm = k && charFor(k) && charFor(k).name;
     const body = nm
       ? `It's <strong>${nm}</strong>'s turn — advance the shared tracker anyway?`
       : `The tracker is on another combatant — advance it anyway?`;
@@ -1143,7 +1181,7 @@
     toggleRoller,
     switchSet: (i)=>{ activeSet=i; openPanelFn(openPanel); },
     doActionById: (charKey,id)=>{
-      const a=(CHARACTERS[charKey].actions||[]).find(a=>a.id===id);
+      const a=((charFor(charKey)||{}).actions||[]).find(a=>a.id===id);
       if(a) {
         // Track turn economy
         const s=SESSION[charKey];
@@ -1270,6 +1308,32 @@
       addRollHistory({ name:'Initiative', main:`${fmtD20(r)} ${modStr(mod)} = <span class="b-rh-total">${total}</span>`, detail:`d20 ${modStr(mod)} initiative${r.label?' — '+r.label:''}` });
       commitInitVal(total);
     },
+    // ── Monsters (M2): the page (staff only) hands in the in-combat enemy
+    // combatant rows (each optionally decorated with .art). The registry is
+    // rebuilt wholesale: monsters leave the picker the moment they leave the
+    // fight. If the DM was driving one that vanished, fall back to a PC. ──
+    setMonsters: (rows)=>{
+      if (typeof MonsterActor === 'undefined') return;
+      Object.keys(MONSTERS).forEach(k=>delete MONSTERS[k]);
+      (rows||[]).forEach(r=>{ const m=MonsterActor.toCharacter(r); MONSTERS[m.key]=m; });
+      // Keep registered sessions' hp live (registry rebuild refreshes adapter
+      // snapshots; SESSION sync stays the backend's job via applyCombatChange).
+      const dirHtml = (cls, dot)=>Object.values(MONSTERS).map(m=>{
+        const hp=`${m.combat.hp}/${m.combat.hpMax}`;
+        const dead=m.combat.hp<=0?' b-mon-dead':'';
+        return dot
+          ? `<div class="bm-char-row b-mon-row${dead}" data-key="${m.key}" onclick="window.__battle.setChar('${m.key}')"><div class="bm-char-dot" style="background:${ENEMY_COLOR}"></div><span class="bm-char-name">${m.name}${m.hiddenFoe?' 🕯':''}</span><span class="b-mon-hp">${hp}</span></div>`
+          : `<div class="b-cpick-item b-mon-row${dead}" data-key="${m.key}" onclick="window.__battle.setChar('${m.key}')"><img class="b-cpick-portrait" src="${portraitFor(m.key)}" alt="" style="border-color:${ENEMY_COLOR}"><span class="b-cpick-name" style="color:${ENEMY_COLOR}">${m.name}${m.hiddenFoe?' 🕯':''}</span><span class="b-mon-hp">${hp}</span></div>`;
+      }).join('');
+      const head = Object.keys(MONSTERS).length ? `<div class="b-mon-sect">ENEMIES</div>` : '';
+      const dp=document.getElementById('b-cpick-enemies');  if(dp) dp.innerHTML = head + dirHtml('d', false);
+      const mp=document.getElementById('bm-char-enemies');  if(mp) mp.innerHTML = head + dirHtml('m', true);
+      // Driving a monster that left the fight? Step back to a PC.
+      if (isMonKey(activeKey) && !MONSTERS[activeKey]) {
+        const fallback = CHAR_KEYS.find(k=>CHARACTERS[k]) || 'liadan';
+        setChar(fallback);
+      } else if (battleOn) renderAll();
+    },
   };
 
   // ── Combat state persistence ──
@@ -1386,7 +1450,7 @@
   // Build pipState object from current SESSION for a character
   function buildDbPipState(key) {
     const s  = SESSION[key];
-    const cf = CHARACTERS[key].classFeatures || {};
+    const cf = (charFor(key) || {}).classFeatures || {};
     const ps = {};
     if (cf.spellSlots)    Object.keys(cf.spellSlots).forEach(lvl    => { ps[`spell_${lvl}`] = (cf.spellSlots[lvl].max   - (s.spellSlots?.[lvl]?.current    ?? cf.spellSlots[lvl].max));   });
     if (cf.sorcererSlots) Object.keys(cf.sorcererSlots).forEach(lvl => { ps[`sorc_${lvl}`]  = (cf.sorcererSlots[lvl].max - (s.sorcererSlots?.[lvl]?.current ?? cf.sorcererSlots[lvl].max)); });
@@ -1415,7 +1479,7 @@
   function seedSessionFromDb(key, dbCombat) {
     if (!dbCombat) return;
     const s  = SESSION[key];
-    const cf = CHARACTERS[key].classFeatures || {};
+    const cf = (charFor(key) || {}).classFeatures || {};
     if (dbCombat.hp     !== null && dbCombat.hp     !== undefined) s.hp     = dbCombat.hp;
     if (dbCombat.hpTemp  !== undefined) s.hpTemp  = dbCombat.hpTemp;
     if (dbCombat.hpBonus !== undefined) s.hpBonus = dbCombat.hpBonus;
