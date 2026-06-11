@@ -274,7 +274,7 @@ const CHARACTERS = {
       backstory:   '',
     },
 
-  }, // end tyros
+  }, // end cosmere
 
 
   // ════════════════════════════════════════════════════════

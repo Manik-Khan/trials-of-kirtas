@@ -42,7 +42,7 @@ A working context doc for **M** (developer / DM / musician) and **C** (Claude, t
 
 ## Key facts
 
-- **Party characters** (source_key): Cosmere Runestar (`cosmere`), Caim, Líadan Luchóg (`liadan`), Vesperian Vale (`vesperian`). *Tyros Darkstar → Cosmere Runestar rename done; cleanup of `tyros.json` → `cosmere` file rename + removing the `KEY_FILE` alias is still a loose end.*
+- **Party characters** (source_key): Cosmere Runestar (`cosmere`), Caim, Líadan Luchóg (`liadan`), Vesperian Vale (`vesperian`). *Tyros → Cosmere rename is FULLY complete (verified in-repo): `data/characters/cosmere.json` exists, the `KEY_FILE` alias was removed 2026-06-01. Remaining "tyros" mentions are deliberate or inert — chronicle.html's legacy portrait mapping (old entries authored as Tyros resolve to the cosmere portrait — keep), historical archive data in `chronicle.json`, and the dead `sheet-prototype.html` (delete-someday candidate, M's call).*
 - **User → role/character:** `thebraveruby@gmail.com` → overseer + Vesperian; `hagakuredisc@gmail.com` → DM, no character; `ianakira@gmail.com` → Cosmere; `jayvanmidde@gmail.com` → Caim; `nazanroseaktas@gmail.com` → Líadan.
 - **Initiative modifiers** live in `characters.js` as `CHARACTERS[key].combat.initiative` (e.g. Vesperian +4). NPC init mod = `Math.floor((statblock.dex − 10) / 2)`.
 - **Chronicle** (`chronicle.html`) is its own system: Quill rich-text entries, organized by session with authors/tags/@mentions/images, saved via a **Netlify function that writes `chronicle.json` and commits it** (git-backed, no realtime, no Supabase).
@@ -56,9 +56,21 @@ A working context doc for **M** (developer / DM / musician) and **C** (Claude, t
 - **Open question (still):** confirm the `disposition` column exists on the live DB before building the disposition feature code.
 
 
-## Current state (Phase 2 deployed + combat-page UX round shipped)
+## Current state (roster picker + events + nightly export shipped)
 
-Phase 2 (chronicle unification) is **live and verified**: unified feed table is truth, chronicle.html repointed with realtime, always-on feed channel, session stamping, feed-export backstop. On top of it, this session shipped the combat-page UX round (all committed/deployed and tested by M unless noted):
+Phase 2 (chronicle unification) is **live and verified**, the combat-page UX round before that too (right dock, dice tray, feed roll-modifier row, feed-bridge.js, feed delete + lightbox — details below). The latest session shipped, deployed, and **M verified working**:
+
+**1. The roster/encounter picker** — the Combat dock pane is now the roster. Out of combat: Party/Others groups with all·none links, everyone checked by default; `PICK_OFF` (a Set of DESELECTED ids, page-local) means new bestiary drops default to checked and the bench persists across fights. Two start modes (locked design): **Start — players roll** (NPCs auto-roll, PCs pend for the one HUD prompt) and **Start — auto-roll everyone** (no prompts; also posts a public party-init feed summary mirroring the hidden NPC one). During combat the same pane shows the fight in initiative order plus an "on the board — check to join" bench: **only the checkbox** seats/unseats (a name click selects the token — anti-misclick); mid-fight joins roll NPCs instantly / seat PCs pending without touching round or turn; unseating the active combatant advances the turn first (note: if they were last in the order, the round ticks via advanceTurn's wrap — accepted side effect). `startCombat(mode)` + `seatOne`/`unseatOne` are the new lifecycle verbs. **`rollAllInitiative` is now seated-only** (re-seating the whole board would undo the picker) — strip + pane both.
+
+**2. Off-turn End Turn confirm (battle.js)** — the hard block is now a `b-modal-box` confirm ("It's **X**'s turn — advance the shared tracker anyway?"; generic wording when the tracker is on an NPC/null). Confirming calls `backend.advanceTurn()` directly, deliberately skipping the own-economy modal. `confirmOffTurn`/`cancelOffTurn` on the public API.
+
+**3. Phase 3 event logging is LIVE** — `kind:'event'` rows, zero schema changes (the check constraint and `result jsonb` were built for this). Conventions: `result` = machine payload `{type, ...}`, `body` = human line, actor = `System`, session + encounter stamped by `feedInsert`. Events: `combat_start`/`combat_end` (full roster snapshots — the replay's opening/closing positions; **hidden:true**, they can contain unrevealed foes), `turn` (public, hidden-foe names mask to `???` in the body — players trigger this via HUD End Turn so the row must be hidden:false under RLS), `move` (in-combat only; hidden foes → hidden:true, always staff-initiated), `hp` (HUD save seam — the only HP write surface today; future NPC HP tools should call `logEvent` the same way), `condition` (full-array snapshots, not deltas — scrub-friendly), `initiative`, `join`/`leave`. The feed UI **skips** events (load query `.neq('kind','event')` + `onFeedInsert` early-return; no unread-dot spam) — recorded, not displayed. Player-visible replay will need hidden snapshot rows handled staff-side (players never receive them under RLS — correct for live play).
+
+**4. Nightly scheduled export** — `netlify/functions/feed-export-nightly.js`, `exports.config = { schedule: '0 10 * * *' }` (≈4am Mountain). The export core was factored into `netlify/functions/lib/export-core.js`, shared by the button (`feed-export.js`, HTTP contract unchanged: CORS/POST/staff-gate/response shapes) and the schedule — no drift. Scheduled fns aren't HTTP-routable, so the nightly path has no auth gate by design. The `unchanged` short-circuit means quiet nights commit nothing. Nightly covers the **chronicle channel only** — `kind:'event'` replay rows stay Supabase-only like dice rolls (a replay-data backstop would be a separate private artifact; repo is public).
+
+**Known minor:** the roster pane fully repaints on every `renderInitStrip` (scroll position resets each turn advance) — fine at party scale, make repaints targeted if fights get huge.
+
+### Previous round (combat-page UX, all live)
 
 **1. Right dock** (see Architecture). Feed opens by default; unread dot on 💬 when rolls land while minimized; entering player view hides staff icons and falls back to the feed pane. Combat dropdown became proper pane buttons. Zoom bar moved to `right:56px` to clear the rail; dock panel stops 88px short of the bottom to clear the HUD.
 
@@ -83,13 +95,13 @@ A **"Discord server within the site"**: one append-only event log, surfaced two 
 
 ## Next steps (phased)
 
-**Recommended next: the roster/encounter picker** — the rest of original roadmap item #1 and the biggest gameplay gap: `startCombat()` still seats the whole board. The seam was built for the picker to front it. Includes the out-of-turn confirm modal. (Design: mock first, per house rules.)
+**Roster picker: DONE. Event logging: DONE (recording since deploy). Nightly export: DONE.**
 
-**Then Phase 3 — replay capstone.** Start with **event logging** (moves, attacks, damage, conditions, turn advances → feed `kind:'event'`) as early as possible so data accumulates before the scrubber exists. Then the replay scrubber; loot-to-fight linking; the chronicle-page "server" browser (all sessions/channels, searchable).
+**Recommended next: Phase 3 proper** — start with the **chronicle-page "server" browser** (all sessions/channels, searchable; mock first per house rules — it deserves a fresh session) or the **replay scrubber** (data is accumulating now; scrubber consumes `kind:'event'` rows + the `combat_start` snapshot). Loot-to-fight linking rides along.
 
-**Phase 2 cleanup (small, whenever):** scheduled nightly export (Netlify scheduled function); retire `netlify/functions/chronicle.js` after a few stable sessions.
+**Phase 2 cleanup (small, whenever):** retire `netlify/functions/chronicle.js` after a few stable sessions. Verify post-deploy that the Functions tab shows `feed-export-nightly` with the schedule badge and that one manual test-run logs success (requires `SUPABASE_SERVICE_ROLE_KEY` in Netlify env).
 
-**Older pending items:** disposition (friend/foe) feature code (confirm live column first); initiative-chip flag-card redesign (maybe partly done — decide); Tyros → Cosmere file cleanup (`tyros.json` rename + `KEY_FILE` alias removal). Possible nice-to-have flagged: plain-text editing of chat messages from the combat feed panel (full editing lives on chronicle.html).
+**Older pending items:** disposition (friend/foe) feature code (confirm the live `disposition` column first); initiative-chip flag-card redesign (maybe partly done — decide); possible nice-to-have: plain-text editing of chat messages from the combat feed panel (full editing lives on chronicle.html); optionally delete the dead `sheet-prototype.html`.
 
 
 ## Earlier history (background)
@@ -102,4 +114,4 @@ A **"Discord server within the site"**: one append-only event log, surfaced two 
 
 ---
 
-*Last updated: end of the session that deployed Phase 2 and shipped the combat-page UX round — right dock, dice tray, feed roll-modifier row (roller retired on combat page), feed-bridge.js cross-page roll logging, feed delete + image lightbox, plus the scroll/zoom/statblock fixes. Next up: the roster/encounter picker, then Phase 3 event logging.*
+*Last updated: end of the session that shipped the roster/encounter picker (Combat dock pane), the off-turn End Turn confirm, Phase 3 event logging (live and recording), the nightly export schedule (shared export core), the seated-only Roll-all semantics, and verified the Tyros → Cosmere cleanup was already complete (only a stale comment remained — fixed). Next up: the chronicle-page "server" browser or the replay scrubber, mock-first.*
