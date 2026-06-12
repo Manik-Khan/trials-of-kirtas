@@ -436,6 +436,12 @@
 
     /* SCENES-V2: scenes pane */
     .scenes-list { flex: 1; overflow-y: auto; padding: .6rem; display: flex; flex-direction: column; gap: .6rem; }
+    .sc-cat { margin: .2rem 0 -.2rem; font-size: .72rem; color: var(--gold); font-variant: small-caps; letter-spacing: .07em; cursor: pointer; user-select: none; }
+    .sc-cat::before { content: '▾ '; color: var(--muted); }
+    .sc-cat.closed::before { content: '▸ '; }
+    .scene-card .sc-acts { display: flex; gap: .25rem; align-items: center; }
+    .scene-card .sc-ico { font-size: .8rem; padding: .15rem .35rem; border-radius: 5px; border: 1px solid transparent; background: transparent; color: var(--muted); cursor: pointer; }
+    .scene-card .sc-ico:hover { border-color: var(--gold-dim); color: var(--gold-light); }
     .scene-card { border: 1px solid var(--gold-dim); border-radius: 8px; overflow: hidden; background: var(--smoke); }
     .scene-card.active { border-color: var(--gold); box-shadow: 0 0 0 1px var(--gold-mid); }
     .scene-card img { width: 100%; aspect-ratio: 4/3; object-fit: cover; object-position: top; display: block; background: #11151c; }
@@ -2146,12 +2152,14 @@
             redrawDrawings();
           })
         .on('postgres_changes',
-          { event: 'UPDATE', schema: 'public', table: 'scenes' },
-          ({ new: row }) => {                                   // SCENES-V2: live recalibration
-            if (!row || row.key !== ENC.map_ref) return;        // only the active map matters
-            META = sceneMeta(row);
-            if (META.grid) GRID = Object.assign(GRID, META.grid);
-            buildBoard();
+          { event: '*', schema: 'public', table: 'scenes' },
+          ({ eventType, new: row }) => {                        // SCENES-V2/V3
+            if (eventType === 'UPDATE' && row && row.key === ENC.map_ref) {
+              META = sceneMeta(row);                            // live recalibration / image swap
+              if (META.grid) GRID = Object.assign(GRID, META.grid);
+              buildBoard();
+            }
+            if (SCENES_UI) loadScenes();                        // keep the pane list fresh (staff only)
           })
         .on('broadcast', { event: 'cursor' }, ({ payload }) => onCursor(payload))
         .on('presence', { event: 'leave' }, ({ leftPresences }) =>
@@ -2167,6 +2175,7 @@
     // Save writes the scenes row and streams to everyone.
     let SCENES = [];
     let SCENES_UI = null;   // { pane, list, cal: {bar, valEl}, } — null for players
+    let SCN_EDIT = null;    // key of the scene being edited in the form, or null
     const CAL = { on: false, span: 5, pend: null, boxEl: null, sx: 0, sy: 0 };
 
     function sceneThumb(publicId) {
@@ -2178,24 +2187,44 @@
       if (error) { console.warn('loadScenes', error); return; }
       SCENES = data || [];
       paintScenesPane();
+      // category autocomplete grows out of use
+      const dl = SCENES_UI && SCENES_UI.pane.querySelector('#sc-cats');
+      if (dl) dl.innerHTML = [...new Set(SCENES.map(s => s.category).filter(Boolean))]
+        .map(c => `<option value="${c}">`).join('');
     }
+
+    const CAT_CLOSED = new Set();   // collapsed category headers (session-local)
 
     function paintScenesPane() {
       if (!SCENES_UI) return;
-      SCENES_UI.list.innerHTML = SCENES.map(s => {
-        const active = s.key === ENC.map_ref;
-        return `<div class="scene-card${active ? ' active' : ''}">
-          <img alt="${s.name || s.key}" loading="lazy" src="${sceneThumb(s.public_id)}"
-               onerror="this.style.display='none'">
-          <div class="sc-meta">
-            <div>
-              <div class="sc-nm">${s.name || s.key}</div>
-              <div class="sc-dims">${s.cols} × ${s.rows} · ${(+s.cell_px).toFixed(s.cell_px % 1 ? 1 : 0)}px cells</div>
+      // group by category; uncategorized last
+      const groups = {};
+      SCENES.forEach(s => { (groups[s.category || ''] ||= []).push(s); });
+      const cats = Object.keys(groups).sort((a, b) =>
+        (a === '') - (b === '') || a.localeCompare(b));
+      SCENES_UI.list.innerHTML = cats.map(cat => {
+        const head = cat || 'Uncategorized';
+        const closed = CAT_CLOSED.has(cat);
+        const cards = closed ? '' : groups[cat].map(s => {
+          const active = s.key === ENC.map_ref;
+          return `<div class="scene-card${active ? ' active' : ''}">
+            <img alt="${s.name || s.key}" loading="lazy" src="${sceneThumb(s.public_id)}"
+                 onerror="this.style.display='none'">
+            <div class="sc-meta">
+              <div>
+                <div class="sc-nm">${s.name || s.key}</div>
+                <div class="sc-dims">${s.cols} × ${s.rows} · ${(+s.cell_px).toFixed(s.cell_px % 1 ? 1 : 0)}px cells</div>
+              </div>
+              <div class="sc-acts">
+                ${active ? '<span class="sc-badge">● Active</span>'
+                         : `<button class="sc-set" data-scene="${s.key}">Set active</button>`}
+                <button class="sc-ico" data-edit="${s.key}" title="Edit scene">✎</button>
+                ${active ? '' : `<button class="sc-ico" data-del="${s.key}" title="Delete scene">🗑</button>`}
+              </div>
             </div>
-            ${active ? '<span class="sc-badge">● Active</span>'
-                     : `<button class="sc-set" data-scene="${s.key}">Set active</button>`}
-          </div>
-        </div>`;
+          </div>`;
+        }).join('');
+        return `<div class="sc-cat${closed ? ' closed' : ''}" data-cat="${cat}">${head}</div>${cards}`;
       }).join('') || '<div class="sr-hint" style="padding:.4rem">No scenes yet — register one below.</div>';
     }
 
@@ -2342,12 +2371,14 @@
         <details class="scene-reg">
           <summary>＋ Register scene</summary>
           <div class="sr-grid">
-            <label class="full">key (unique handle)<input data-sr="key" placeholder="G_SunkenCrypt_Night"></label>
+            <label class="full">key (unique handle — fixed once created)<input data-sr="key" placeholder="G_SunkenCrypt_Night"></label>
             <label class="full">display name<input data-sr="name" placeholder="Sunken Crypt — Night"></label>
+            <label class="full">category<input data-sr="cat" list="sc-cats" placeholder="Battle maps"><datalist id="sc-cats"></datalist></label>
             <label class="full">Cloudinary publicId<input data-sr="pid" placeholder="kirtas/maps/G_SunkenCrypt_Night"></label>
             <label>cell px (guess ok)<input data-sr="cell" type="number" value="140"></label>
             <label>native W×H (blank = auto)<input data-sr="wh" placeholder="5460 x 7840"></label>
             <label class="full"><button class="sr-save" data-sr="save">Save scene</button></label>
+            <label class="full" data-sr="cancelwrap" style="display:none"><button class="sr-save" style="background:transparent" data-sr="canceledit">Cancel edit</button></label>
           </div>
           <div class="sr-hint">Native size is fetched from Cloudinary automatically.
           Cell px can be rough — activate the scene and use Calibrate to lock the
@@ -2366,7 +2397,49 @@
       pane.addEventListener('change', (e) => {
         if (e.target.dataset.cal === 'span') CAL.span = +e.target.value || 1;
       });
+      const fld = (k) => pane.querySelector(`[data-sr="${k}"]`);
+      function editScene(key) {        // enter edit mode: prefill, lock the key
+        const s = SCENES.find(x => x.key === key); if (!s) return;
+        SCN_EDIT = key;
+        fld('key').value = s.key;   fld('key').disabled = true;
+        fld('name').value = s.name || '';
+        fld('cat').value  = s.category || '';
+        fld('pid').value  = s.public_id;
+        fld('wh').value   = (s.native_w && s.native_h) ? `${s.native_w} x ${s.native_h}` : '';
+        fld('save').textContent = 'Update scene';
+        fld('cancelwrap').style.display = '';
+        const det = pane.querySelector('.scene-reg'); det.open = true;
+        det.querySelector('summary').textContent = `✎ Editing ${s.name || s.key}`;
+      }
+      function endEdit() {
+        SCN_EDIT = null;
+        ['key','name','cat','pid','wh'].forEach(k => fld(k).value = '');
+        fld('key').disabled = false;
+        fld('save').textContent = 'Save scene';
+        fld('cancelwrap').style.display = 'none';
+        pane.querySelector('.scene-reg summary').textContent = '＋ Register scene';
+      }
+
       pane.addEventListener('click', async (e) => {
+        const cat = e.target.closest('.sc-cat');
+        if (cat) {
+          const c = cat.dataset.cat;
+          CAT_CLOSED.has(c) ? CAT_CLOSED.delete(c) : CAT_CLOSED.add(c);
+          paintScenesPane(); return;
+        }
+        const ed = e.target.closest('[data-edit]');
+        if (ed) { editScene(ed.dataset.edit); return; }
+        const del = e.target.closest('[data-del]');
+        if (del) {
+          const key = del.dataset.del;
+          if (key === ENC.map_ref) return;   // active scene is undeletable (no button anyway)
+          if (!confirm(`Delete scene "${key}"? Past encounters that fought on it will show "no scenes row" if replayed. The Cloudinary image is not touched.`)) return;
+          const { error } = await SB.from('scenes').delete().eq('key', key);
+          if (error) alert('Could not delete: ' + error.message);
+          if (SCN_EDIT === key) endEdit();
+          loadScenes(); return;
+        }
+        if (e.target.closest('[data-sr="canceledit"]')) { endEdit(); return; }
         const set = e.target.closest('[data-scene]');
         if (set) { setActiveScene(set.dataset.scene); return; }
         const act = e.target.closest('[data-cal]');
@@ -2382,34 +2455,57 @@
         }
         const sr = e.target.closest('[data-sr="save"]');
         if (sr) {
-          const g = (k) => pane.querySelector(`[data-sr="${k}"]`).value.trim();
-          const key = g('key'), name = g('name'), pid = g('pid'), cell = +g('cell') || 140;
+          const g = (k) => fld(k).value.trim();
+          const key = g('key'), name = g('name'), category = g('cat'), pid = g('pid'), cell = +g('cell') || 140;
           const hint = pane.querySelector('.scene-reg .sr-hint');
           if (!key || !pid) { hint.textContent = '⚠ key and publicId are required.'; return; }
-          sr.disabled = true; sr.textContent = 'Saving…';
+          sr.disabled = true; sr.textContent = SCN_EDIT ? 'Updating…' : 'Saving…';
           try {
             // manual "W x H" wins; otherwise ask Cloudinary (fl_getinfo)
-            let w, h;
-            const m = g('wh').match(/(\d+)\s*[x×,\s]\s*(\d+)/i);
-            if (m) { w = +m[1]; h = +m[2]; }
-            else ({ w, h } = await fetchNativeSize(pid).catch(err => {
-              throw new Error('size lookup failed (' + (err.message || err) +
-                ') — check the publicId, or enter native W×H manually');
-            }));
-            const cols = Math.max(1, Math.round(w / cell)), rows = Math.max(1, Math.round(h / cell));
-            const { error } = await SB.from('scenes').insert({
-              key, name, public_id: pid, cell_px: cell, origin_x: 0, origin_y: 0,
-              cols, rows, native_w: w, native_h: h,
-            });
-            if (error) throw error;
-            ['key','name','pid','wh'].forEach(k => pane.querySelector(`[data-sr="${k}"]`).value = '');
-            hint.textContent = '✓ Registered. Set it active to test, then Calibrate.';
+            const sizeOf = async () => {
+              const m = g('wh').match(/(\d+)\s*[x×,\s]\s*(\d+)/i);
+              if (m) return { w: +m[1], h: +m[2] };
+              return fetchNativeSize(pid).catch(err => {
+                throw new Error('size lookup failed (' + (err.message || err) +
+                  ') — check the publicId, or enter native W×H manually');
+              });
+            };
+            if (SCN_EDIT) {
+              // ── update: name/category always; an image swap refetches size
+              //    and rescales cols/rows around the EXISTING cell_px — if the
+              //    new art's grid differs, Calibrate after. The key never moves:
+              //    it is the join handle historical encounters point at. ──
+              const s = SCENES.find(x => x.key === SCN_EDIT);
+              const patch = { name, category };
+              if (s && pid !== s.public_id) {
+                const { w, h } = await sizeOf();
+                Object.assign(patch, {
+                  public_id: pid, native_w: w, native_h: h,
+                  cols: Math.max(1, Math.round(w / s.cell_px)),
+                  rows: Math.max(1, Math.round(h / s.cell_px)),
+                });
+              }
+              const { error } = await SB.from('scenes').update(patch).eq('key', SCN_EDIT);
+              if (error) throw error;
+              hint.textContent = '✓ Updated.';
+              endEdit();
+            } else {
+              const { w, h } = await sizeOf();
+              const cols = Math.max(1, Math.round(w / cell)), rows = Math.max(1, Math.round(h / cell));
+              const { error } = await SB.from('scenes').insert({
+                key, name, category, public_id: pid, cell_px: cell, origin_x: 0, origin_y: 0,
+                cols, rows, native_w: w, native_h: h,
+              });
+              if (error) throw error;
+              ['key','name','cat','pid','wh'].forEach(k => fld(k).value = '');
+              hint.textContent = '✓ Registered. Set it active to test, then Calibrate.';
+            }
             loadScenes();
           } catch (err) {
-            console.error('register scene:', err);
+            console.error('save scene:', err);
             hint.textContent = '⚠ ' + (err.message || err);
           }
-          sr.disabled = false; sr.textContent = 'Save scene';
+          sr.disabled = false; sr.textContent = SCN_EDIT ? 'Update scene' : 'Save scene';
         }
       });
     }
