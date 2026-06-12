@@ -409,15 +409,23 @@
     .dock-panel.open { display: flex; }
     .tab-row { display: flex; align-items: stretch; border-bottom: 1px solid var(--nav-border); flex: none; }
     .dock-tab {
-      flex: 1 1 auto; position: relative; padding: 0.55rem 0.2rem 0.45rem;
+      /* UX-AUDIT-1b (option A): icon over a tiny label — self-naming on touch
+         (no hover on iPad), compact enough for five staff tabs at 320px.
+         min-width:0 + ellipsis means no label can ever push the ✕ off again. */
+      flex: 1 1 0; min-width: 0; position: relative; padding: 0.4rem 0.1rem 0.35rem;
       border: none; background: none; color: var(--muted); font-family: inherit;
-      font-size: 0.72rem; letter-spacing: 0.13em; text-transform: uppercase;
       cursor: pointer; border-bottom: 2px solid transparent;
+      display: flex; flex-direction: column; align-items: center; gap: 0.18rem;
+    }
+    .dock-tab .ic { font-size: 14px; line-height: 1; }
+    .dock-tab .lb {
+      font-size: 0.55rem; letter-spacing: 0.07em; text-transform: uppercase;
+      white-space: nowrap; max-width: 100%; overflow: hidden; text-overflow: ellipsis;
     }
     .dock-tab:hover { color: var(--parchment2); }
     .dock-tab.active { color: var(--gold-light); border-bottom-color: var(--gold); background: rgba(184,149,42,0.06); }
-    .dock-tab.unread::after { content: ''; position: absolute; top: 5px; right: 8px; width: 7px; height: 7px; border-radius: 50%; background: var(--blood, #c0001a); }
-    .tab-corner { display: flex; align-items: center; gap: 2px; padding: 0 4px; border-left: 1px solid var(--nav-border); }
+    .dock-tab.unread::after { content: ''; position: absolute; top: 4px; right: 18%; width: 7px; height: 7px; border-radius: 50%; background: var(--blood, #c0001a); }
+    .tab-corner { display: flex; align-items: center; gap: 2px; padding: 0 4px; border-left: 1px solid var(--nav-border); flex: none; margin-left: auto; }
     .corner-btn {
       width: 26px; height: 26px; border-radius: 6px; border: 1px solid transparent;
       background: none; color: var(--muted); cursor: pointer; font-size: 13px;
@@ -2819,11 +2827,13 @@
       handle.addEventListener('click', () => dockOpen(DOCK.last || 'feed'));
       ticker.addEventListener('click', () => dockOpen('feed'));
     }
-    function dockRegister(id, { icon, title, staff, onOpen }) {
+    function dockRegister(id, { icon, title, staff, onOpen, tab }) {
       const btn = document.createElement('button');
       btn.className = 'dock-tab' + (staff ? ' staff' : '');
-      btn.title = title;
-      btn.textContent = title;        // labeled tabs — icons retired (param kept for call-site stability)
+      btn.title = title;   // full title as the desktop tooltip
+      // option A: icon over a tiny label; `tab` overrides when the title is
+      // too long for a 64px-wide tab (e.g. 'Game feed' → 'Feed')
+      btn.innerHTML = `<span class="ic">${icon}</span><span class="lb">${tab || title}</span>`;
       DOCK.tabRow.insertBefore(btn, DOCK.corner);
       const pane = document.createElement('div');
       pane.className = 'dock-pane';
@@ -3413,7 +3423,7 @@
         + `<div class="feed-mods">${[['advantage','Adv'],['disadvantage','Dis'],['bless','Bless'],['guidance','Guide']].map(([k, l]) => `<button class="feed-mod" data-mod="${k}">${l}</button>`).join('')}</div>`
         + `<div class="feed-dice">${[4, 6, 8, 10, 12, 20, 100].map(d => `<button class="feed-die" data-die="${d}">d${d}</button>`).join('')}</div>`
         + `<div class="feed-input">${IS_STAFF ? `<button class="feed-hidden-tog" title="Post hidden (DM only)">hide</button>` : ''}<input type="text" maxlength="300" placeholder="/roll 2d20kh1+4 or say something…"></div>`;
-      dockRegister('feed', { icon: '💬', title: 'Game feed' }).appendChild(wrap);
+      dockRegister('feed', { icon: '💬', title: 'Game feed', tab: 'Feed' }).appendChild(wrap);
       feedEl = wrap; feedListEl = wrap.querySelector('#feed-list');
       // The mods row drives battle.js's RS state (same toggles the HUD's
       // attack/init rolls read); the roller popup is hidden on this page.
