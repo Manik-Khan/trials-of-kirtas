@@ -901,7 +901,7 @@
     // ── config ──
     const CLOUDINARY_CLOUD = 'df0tgoiyb';           // same cloud as the portraits
     const MAP_DISPLAY_W     = 2048;                 // Cloudinary width cap (decoded ≈ 24MB, not 163MB)
-    const MANIFEST_URL      = 'maps/manifest.json';
+    // SCENES-V1: grid calibration lives in the scenes table (was maps/manifest.json)
 
     // party portraits + ring colours (mirrors battle.js — kept in sync manually for now)
     const PORTRAITS = {
@@ -966,6 +966,15 @@
            + `w_${MAP_DISPLAY_W},q_auto,f_auto/${publicId}.jpg`;
     }
 
+    // SCENES-V1: shape a scenes-table row into the META object the render code
+    // eats. The camelCase names predate the table — adapting here is cheaper
+    // (and safer) than touching every meta.cellPx site below.
+    function sceneMeta(s) {
+      return { publicId: s.public_id, cols: s.cols, rows: s.rows,
+               cellPx: s.cell_px, originX: s.origin_x, originY: s.origin_y,
+               grid: s.grid || null };
+    }
+
     // ── wait for nav.js: it confirms the session, exposes window.__tok.sb, then
     //    fires nav:ready. If we registered too late and it already fired, the
     //    presence of __tok.sb tells us we can go. ──
@@ -990,7 +999,7 @@
     }
     function hideMsg() { msgEl.style.display = 'none'; }
 
-    // ── grid state (seeded from the manifest, adjustable via the controls) ──
+    // ── grid state (seeded from the scenes table, adjustable via the controls) ──
     let GRID = { style: 'lines', color: '#ffffff', opacity: 0.32 };
     // ── token display state (adjustable via the controls) ──
     //   style: 'cutout' = place the PNG as-is | 'circle' = crop into a framed disc
@@ -1002,7 +1011,7 @@
     const SIZE_MUL   = { tiny: 0.5, small: 0.85, medium: 1, large: 2, huge: 3, gargantuan: 4 };
     const SIZE_ORDER = ['tiny', 'small', 'medium', 'large', 'huge', 'gargantuan'];
     const SIZE_LABEL = { tiny: 'Tiny', small: 'Small', medium: 'Medium', large: 'Large', huge: 'Huge', gargantuan: 'Garg' };
-    let META = null;     // manifest entry for the active map
+    let META = null;     // active map's calibration (scenes row via sceneMeta)
     let boardEl = null;
     let COMBS = [];      // cached combatant rows, for re-rendering on control changes
     let IS_STAFF = false;
@@ -2085,21 +2094,13 @@
 
       // ── always-on feed (Phase 2) — the game log lives with or without an
       // active encounter, on its own realtime channel, so the boot bail-outs
-      // below (no manifest / no encounter) no longer take the feed down. The
+      // below (no scene row / no encounter) no longer take the feed down. The
       // dock hosts it (and later Display / Bestiary / Combat as they build). ──
       await loadCampaign();
       buildDock();
       buildFeed();
       dockOpen('feed');
       initFeedRealtime();
-
-      let manifest;
-      try {
-        manifest = await (await fetch(MANIFEST_URL)).json();
-      } catch (e) {
-        showMsg('Map manifest missing', 'Could not load maps/manifest.json.', false);
-        return;
-      }
 
       // active encounter (RLS: all authenticated can read)
       const { data: enc, error: encErr } = await sb
@@ -2109,8 +2110,13 @@
       ENC = enc;
       loadFog();          // mirror encounters.revealed_cells into FOG.cells
 
-      META = manifest[enc.map_ref];
-      if (!META) { showMsg('Unknown map', `No manifest entry for "${enc.map_ref}".`, false); return; }
+      // SCENES-V1: calibration comes from the scenes table; encounters.map_ref
+      // matches scenes.key (same human handle the manifest used).
+      const { data: scn, error: scnErr } = await sb
+        .from('scenes').select('*').eq('key', enc.map_ref).maybeSingle();
+      if (scnErr) { showMsg('Could not load the scene', scnErr.message, false); return; }
+      if (!scn)   { showMsg('Unknown map', `No scenes row with key "${enc.map_ref}".`, false); return; }
+      META = sceneMeta(scn);
       if (META.grid) GRID = Object.assign(GRID, META.grid);
 
       // combatants (RLS auto-filters: players never receive hidden rows)
