@@ -392,44 +392,64 @@
     .ctx-act.ctx-danger { color: var(--blood, #c0001a); border-color: rgba(192,0,26,0.4); }
     .ctx-act.ctx-danger:hover { color: #fff; background: var(--blood, #c0001a); border-color: var(--blood, #c0001a); }
 
-    /* ── right dock: slim icon rail + one tabbed panel (Feed / Display /
-       Bestiary / Combat). Minimized = rail only; the eye (view-as-player)
-       stays a toggle on the rail, not a panel. ── */
-    .dock-rail {
-      position: absolute; top: 0; right: 0; bottom: 0; z-index: 23;
-      width: 44px; display: flex; flex-direction: column; align-items: center;
-      gap: 5px; padding: 10px 0;
-      background: var(--nav-bg); border-left: 1px solid var(--nav-border);
-    }
-    .dock-btn {
-      position: relative; width: 34px; height: 34px; border-radius: 6px;
-      border: 1px solid transparent; background: none; color: var(--muted);
-      font-size: 15px; cursor: pointer; display: flex; align-items: center; justify-content: center;
-      transition: color 0.15s, border-color 0.15s, background 0.15s;
-    }
-    .dock-btn:hover { color: var(--parchment); }
-    .dock-btn.active { color: var(--gold-light); border-color: var(--nav-border); background: rgba(184,149,42,0.08); }
-    .dock-btn.active::before { content: ''; position: absolute; left: -6px; top: 7px; bottom: 7px; width: 2px; background: var(--gold); border-radius: 2px; }
-    .dock-btn.unread::after { content: ''; position: absolute; top: 3px; right: 3px; width: 7px; height: 7px; border-radius: 50%; background: var(--blood, #c0001a); }
-    .dock-btn svg { width: 15px; height: 15px; fill: currentColor; }
-    .dock-spacer { flex: 1; }
+    /* ── right dock (UX-AUDIT-1): labeled tabs on one collapsible panel.
+       Tabs replace the icon rail (Feed / Display / Bestiary / Combat / Scenes,
+       staff tabs absent for players). Eye + minimize live in the tab-row
+       corner. Collapsed = a slim ❮ handle on the right edge. The roll ticker
+       shows whenever the Feed pane isn't visible. ── */
     .dock-panel {
-      position: absolute; top: 0; right: 44px; bottom: 88px;   /* bottom clears the battle HUD, as the old feed did */
+      position: absolute; top: 0; right: 0; bottom: 88px;   /* bottom clears the battle HUD */
       z-index: 22;
-      width: 300px; max-width: calc(100vw - 56px);
+      width: 320px; max-width: calc(100vw - 32px);
       background: var(--nav-bg); border-left: 1px solid var(--nav-border);
       border-bottom: 1px solid var(--nav-border);
       box-shadow: -8px 0 40px rgba(0,0,0,0.5);
       display: none; flex-direction: column;
     }
     .dock-panel.open { display: flex; }
-    .dock-head {
-      display: flex; align-items: center; justify-content: space-between;
-      padding: 9px 12px; border-bottom: 1px solid var(--nav-border); flex: none;
+    .tab-row { display: flex; align-items: stretch; border-bottom: 1px solid var(--nav-border); flex: none; }
+    .dock-tab {
+      flex: 1 1 auto; position: relative; padding: 0.55rem 0.2rem 0.45rem;
+      border: none; background: none; color: var(--muted); font-family: inherit;
+      font-size: 0.72rem; letter-spacing: 0.13em; text-transform: uppercase;
+      cursor: pointer; border-bottom: 2px solid transparent;
     }
-    .dock-title { font-family: var(--font-title); font-size: 0.5rem; letter-spacing: 0.18em; text-transform: uppercase; color: var(--gold); }
-    .dock-close { background: none; border: none; color: var(--muted); cursor: pointer; font-size: 12px; padding: 2px 4px; }
-    .dock-close:hover { color: var(--parchment); }
+    .dock-tab:hover { color: var(--parchment2); }
+    .dock-tab.active { color: var(--gold-light); border-bottom-color: var(--gold); background: rgba(184,149,42,0.06); }
+    .dock-tab.unread::after { content: ''; position: absolute; top: 5px; right: 8px; width: 7px; height: 7px; border-radius: 50%; background: var(--blood, #c0001a); }
+    .tab-corner { display: flex; align-items: center; gap: 2px; padding: 0 4px; border-left: 1px solid var(--nav-border); }
+    .corner-btn {
+      width: 26px; height: 26px; border-radius: 6px; border: 1px solid transparent;
+      background: none; color: var(--muted); cursor: pointer; font-size: 13px;
+      display: flex; align-items: center; justify-content: center; flex: none;
+    }
+    .corner-btn:hover { color: var(--parchment); }
+    .corner-btn svg { width: 15px; height: 15px; fill: currentColor; }
+    .dock-handle {
+      position: absolute; right: 0; top: 50%; transform: translateY(-50%); z-index: 23;
+      width: 26px; padding: 0.6rem 0; border-radius: 8px 0 0 8px;
+      border: 1px solid var(--nav-border); border-right: none;
+      background: var(--nav-bg); color: var(--muted); cursor: pointer;
+      display: none; flex-direction: column; align-items: center; gap: 0.45rem; font-size: 13px;
+    }
+    .dock-handle:hover { color: var(--gold-light); }
+    .dock-handle.show { display: flex; }
+    .dock-handle .dot { width: 8px; height: 8px; border-radius: 50%; background: var(--blood, #c0001a); display: none; }
+    .dock-handle.unread .dot { display: block; }
+    .roll-ticker {
+      position: absolute; right: 8px; bottom: 96px; z-index: 24;
+      display: none; align-items: center; gap: 0.5rem;
+      background: var(--nav-bg); border: 1px solid var(--nav-border); border-radius: 8px;
+      padding: 0.32rem 0.6rem; font-size: 0.76rem; cursor: pointer;
+      box-shadow: 0 4px 18px rgba(0,0,0,0.45);
+      max-width: 330px; white-space: nowrap; overflow: hidden;
+    }
+    .roll-ticker.show { display: flex; }
+    .roll-ticker.floating { right: 36px; }   /* clears the collapsed handle */
+    .roll-ticker .twho { color: var(--gold-light); font-size: 0.7rem; letter-spacing: 0.05em; flex: none; }
+    .roll-ticker .twhat { color: var(--parchment2); overflow: hidden; text-overflow: ellipsis; }
+    .roll-ticker.flash { animation: tflash 0.8s ease; }
+    @keyframes tflash { 0% { border-color: var(--gold-light); box-shadow: 0 0 14px rgba(212,172,58,0.45); } 100% {} }
     .dock-body { flex: 1; min-height: 0; display: flex; }
     .dock-pane { display: none; flex: 1; min-width: 0; min-height: 0; flex-direction: column; overflow: hidden; }
     .dock-pane.show { display: flex; }
@@ -511,7 +531,7 @@
     .roster-empty { padding: 10px 12px; font-size: 0.65rem; color: var(--muted); }
     /* staff "view as player" toggle (rail icon) + preview-mode UI suppression */
     .view-toggle.on { background: var(--gold); color: var(--ink-deep); border-color: var(--gold); }
-    .stage.view-as-player .dock-btn.staff { display: none !important; }
+    .stage.view-as-player .dock-tab.staff { display: none !important; }
     .stage.view-as-player .tool-rail,
     .stage.view-as-player .bestiary-tab,
     .stage.view-as-player .bestiary-panel,
@@ -522,7 +542,7 @@
     /* zoom toolbar */
     .zoom-bar {
       position: absolute;
-      bottom: 12px; right: 56px;   /* clear the dock rail */
+      bottom: 12px; right: 12px;   /* UX-AUDIT-1: the icon rail is gone */
       z-index: 20;
       display: flex;
       flex-direction: column;
@@ -742,14 +762,15 @@
     .bst-state { padding: 0.8rem 0.4rem; color: var(--muted); font-size: 0.55rem; text-align: center; line-height: 1.5; }
     /* ── statblock panel (DM): opened from a token's Manage tab ── */
     .statblock-panel {
-      position: absolute; top: 0; right: 44px; bottom: 0; z-index: 24;   /* clears the dock rail */
-      width: 360px; max-width: calc(94vw - 44px);
+      position: absolute; top: 0; right: 0; bottom: 0; z-index: 24;   /* UX-AUDIT-1: no rail to clear */
+      width: 360px; max-width: 94vw;
       background: var(--nav-bg); border-left: 1px solid var(--nav-border);
       padding: 0.9rem 1rem; box-sizing: border-box; overflow-y: auto;
       transform: translateX(100%);
-      /* visibility gate: when closed, translateX(100%) parks this panel exactly
-         over the dock rail (it slides from right:44px) — it must not paint or
-         eat clicks there. The 0s/.28s delay keeps the slide animation intact. */
+      /* visibility gate: when closed, translateX(100%) parks this panel just
+         off the right edge, exactly where the dock handle and ticker live —
+         it must not paint or eat clicks there (this bug shipped once).
+         The 0s/.28s delay keeps the slide animation intact. */
       visibility: hidden;
       transition: transform 0.28s cubic-bezier(0.4,0,0.2,1), visibility 0s 0.28s;
       box-shadow: -8px 0 40px rgba(0,0,0,0.5);
@@ -1870,7 +1891,7 @@
       stage.addEventListener('pointerdown', (e) => {
         if (e.button > 0) return;                 // right/middle mouse → handled by contextmenu
         // never let board pan/drag steal interactions meant for the UI panels
-        if (e.target.closest('.zoom-bar, .tool-rail, .tool-options, .gc-backdrop, .dock-rail, .dock-panel, .statblock-panel, .init-strip, .draw-del')) return;
+        if (e.target.closest('.zoom-bar, .tool-rail, .tool-options, .gc-backdrop, .dock-panel, .dock-handle, .roll-ticker, .statblock-panel, .init-strip, .draw-del')) return;
         if (FOG.editing && IS_STAFF) {                 // fog paint mode → paint cells, skip token/pan logic
           try { stage.setPointerCapture(e.pointerId); } catch (_) {}
           fogPainting = true;
@@ -2056,7 +2077,7 @@
 
       stage.addEventListener('wheel', (e) => {
         // inside a scrollable UI panel → let it scroll natively, don't zoom
-        if (e.target.closest('.dock-panel, .dock-rail, .statblock-panel, .init-strip, .tool-options, .tool-rail')) return;
+        if (e.target.closest('.dock-panel, .dock-handle, .statblock-panel, .init-strip, .tool-options, .tool-rail')) return;
         e.preventDefault();
         const rect = stage.getBoundingClientRect();
         // 1.07/tick (was 1.1) — ~30% gentler wheel zoom. Pinch (distance-driven)
@@ -2772,46 +2793,84 @@
     // rail only. The eye (view-as-player) is a rail toggle, not a pane. ──
     let DOCK = null;
     function buildDock() {
-      const rail = document.createElement('div');
-      rail.className = 'dock-rail';
-      const spacer = document.createElement('div');
-      spacer.className = 'dock-spacer';
-      rail.appendChild(spacer);
+      // UX-AUDIT-1: labeled tabs replaced the icon rail. The panel owns a
+      // tab-row (tabs insert before the corner, which holds eye + minimize);
+      // collapsed = the ❮ handle; the roll ticker is its own floating strip.
       const panel = document.createElement('div');
       panel.className = 'dock-panel';
-      panel.innerHTML = `<div class="dock-head"><span class="dock-title"></span><button class="dock-close" title="Minimize">✕</button></div><div class="dock-body"></div>`;
-      stage.appendChild(rail);
+      panel.innerHTML = `<div class="tab-row"><div class="tab-corner"><button class="corner-btn dock-close" title="Minimize">✕</button></div></div><div class="dock-body"></div>`;
+      const handle = document.createElement('button');
+      handle.className = 'dock-handle';
+      handle.title = 'Open panel';
+      handle.innerHTML = `<span>❮</span><span class="dot"></span>`;
+      const ticker = document.createElement('div');
+      ticker.className = 'roll-ticker';
+      ticker.title = 'Open the feed';
+      ticker.innerHTML = `<span>🎲</span><span class="twho"></span><span class="twhat"></span>`;
       stage.appendChild(panel);
-      DOCK = { rail, panel, spacer, body: panel.querySelector('.dock-body'),
-               titleEl: panel.querySelector('.dock-title'), panes: {}, open: null };
+      stage.appendChild(handle);
+      stage.appendChild(ticker);
+      DOCK = { panel, handle, ticker,
+               tabRow: panel.querySelector('.tab-row'),
+               corner: panel.querySelector('.tab-corner'),
+               body: panel.querySelector('.dock-body'),
+               panes: {}, open: null, last: 'feed' };
       panel.querySelector('.dock-close').addEventListener('click', () => dockOpen(null));
+      handle.addEventListener('click', () => dockOpen(DOCK.last || 'feed'));
+      ticker.addEventListener('click', () => dockOpen('feed'));
     }
     function dockRegister(id, { icon, title, staff, onOpen }) {
       const btn = document.createElement('button');
-      btn.className = 'dock-btn' + (staff ? ' staff' : '');
+      btn.className = 'dock-tab' + (staff ? ' staff' : '');
       btn.title = title;
-      btn.innerHTML = icon;
-      DOCK.rail.insertBefore(btn, DOCK.spacer);
+      btn.textContent = title;        // labeled tabs — icons retired (param kept for call-site stability)
+      DOCK.tabRow.insertBefore(btn, DOCK.corner);
       const pane = document.createElement('div');
       pane.className = 'dock-pane';
       DOCK.body.appendChild(pane);
       DOCK.panes[id] = { btn, pane, title, onOpen };
-      btn.addEventListener('click', (e) => { e.stopPropagation(); dockOpen(DOCK.open === id ? null : id); });
+      btn.addEventListener('click', (e) => { e.stopPropagation(); dockOpen(id); });
       return pane;
     }
     function dockOpen(id) {
       if (id && !DOCK.panes[id]) id = null;
       DOCK.open = id;
+      if (id) DOCK.last = id;        // the handle reopens to where you were
       DOCK.panel.classList.toggle('open', !!id);
+      DOCK.handle.classList.toggle('show', !id);
       Object.entries(DOCK.panes).forEach(([k, p]) => {
         p.btn.classList.toggle('active', k === id);
         p.pane.classList.toggle('show', k === id);
       });
       if (id) {
-        DOCK.titleEl.textContent = DOCK.panes[id].title;
         DOCK.panes[id].btn.classList.remove('unread');
+        if (id === 'feed') DOCK.handle.classList.remove('unread');
         if (DOCK.panes[id].onOpen) DOCK.panes[id].onOpen();
       }
+      syncTicker();
+    }
+
+    // ── roll ticker: the latest roll, visible whenever the Feed pane isn't
+    // (another tab, or the dock collapsed). Sourced from the shared feed —
+    // logRoll already carries everyone's rolls, and hidden rolls never reach
+    // players under RLS, so masking is inherited for free. Click → feed. ──
+    function syncTicker() {
+      if (!DOCK) return;
+      const feedVisible = DOCK.open === 'feed';
+      DOCK.ticker.classList.toggle('show', !feedVisible && DOCK.ticker.dataset.has === '1');
+      DOCK.ticker.classList.toggle('floating', !DOCK.open);
+    }
+    function tickerUpdate(row, flash) {
+      if (!DOCK || !row) return;
+      const tmp = document.createElement('div');
+      tmp.innerHTML = row.body || '';
+      const text = tmp.textContent.replace(/\s+/g, ' ').trim();   // feed bodies are HTML; ticker is plain text
+      if (!text) return;
+      DOCK.ticker.dataset.has = '1';
+      DOCK.ticker.querySelector('.twho').textContent = (row.actor_name || '').toUpperCase();
+      DOCK.ticker.querySelector('.twhat').textContent = text;
+      syncTicker();
+      if (flash) { DOCK.ticker.classList.remove('flash'); void DOCK.ticker.offsetWidth; DOCK.ticker.classList.add('flash'); }
     }
 
     function buildGridControls() {
@@ -3022,7 +3081,7 @@
     function buildViewToggle() {
       const EYE_OPEN  = '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 5C5 5 1 12 1 12s4 7 11 7 11-7 11-7-4-7-11-7zm0 11a4 4 0 110-8 4 4 0 010 8z"/></svg>';
       const btn = document.createElement('button');
-      btn.className = 'dock-btn view-toggle';
+      btn.className = 'corner-btn view-toggle';
       btn.innerHTML = EYE_OPEN;
       function paint() {
         btn.classList.toggle('on', VIEW_AS_PLAYER);
@@ -3043,7 +3102,7 @@
         paint();
       });
       paint();
-      DOCK.rail.appendChild(btn);   // below the spacer — pinned to the rail's foot
+      DOCK.corner.insertBefore(btn, DOCK.corner.firstChild);   // eye sits left of minimize in the tab corner
     }
 
     // ── combat pane (staff) — the roster picker. Out of combat: checkboxes
@@ -3179,7 +3238,13 @@
       FEED.push(row);
       if (FEED.length > 250) FEED.shift();
       renderFeed();
-      if (DOCK && DOCK.panes.feed && DOCK.open !== 'feed') DOCK.panes.feed.btn.classList.add('unread');
+      if (DOCK && DOCK.panes.feed && DOCK.open !== 'feed') {
+        DOCK.panes.feed.btn.classList.add('unread');
+        if (!DOCK.open) DOCK.handle.classList.add('unread');
+      }
+      // hidden rolls only ever arrive for staff (RLS); view-as-player preview
+      // additionally skips them here so the ticker doesn't leak in preview
+      if (row.kind === 'roll' && (!row.hidden || effectiveStaff())) tickerUpdate(row, true);
     }
     function onFeedUpdate(row) {
       if (!row) return;
@@ -3230,6 +3295,9 @@
       if (error) { console.warn('[feed] load failed:', error.message); return; }
       (data || []).forEach(r => { if (!FEED.some(x => x.id === r.id)) FEED.push(r); });
       renderFeed();
+      // seed the ticker with the newest roll already in the archive (no flash)
+      const seed = (data || []).find(r => r.kind === 'roll' && (!r.hidden || effectiveStaff()));
+      if (seed) tickerUpdate(seed, false);
     }
     async function feedInsert(partial) {
       if (!SB) return;
