@@ -472,6 +472,8 @@
     .cal-bar select { background: var(--ink-deep); border: 1px solid var(--gold-dim); border-radius: 6px; color: var(--parchment); font-family: inherit; font-size: .75rem; padding: .2rem; }
     .cal-bar .cb-save { border-color: var(--gold-mid); background: var(--gold-dim); color: var(--gold-light); }
     .stage.cal-edit { cursor: crosshair; }
+    .stage.cal-edit.cal-pan { cursor: grab; }
+    .cal-bar .cb-tool { padding: .26rem .7rem; }
     .cal-box { position: absolute; border: 2px dashed var(--gold-light); background: rgba(212,172,58,0.12); pointer-events: none; z-index: 40; }
     /* combat pane action buttons */
     .dock-acts { padding: 0.7rem; display: flex; flex-direction: column; gap: 7px; }
@@ -1376,9 +1378,14 @@
     // Safe to call repeatedly: interactions are delegated on #stage, so the
     // old boardEl can simply be replaced.
     function buildBoard() {
+      // Same map image → preserve the current view (calibration previews,
+      // recalibration realtime echoes). A real scene switch fits-to-view.
+      const keep = (boardEl && boardEl.dataset.scene === String(META.publicId))
+                 ? { zoom, panX, panY } : null;
       if (boardEl) boardEl.remove();
       boardEl = document.createElement('div');
       boardEl.className = 'board';
+      boardEl.dataset.scene = META.publicId;
       const tokensHtml = COMBS.filter(tokenVisible).map(c => tokenHtml(c, META, effectiveStaff())).join('');
       boardEl.innerHTML =
         `<img class="board-map" alt="${ENC.map_ref}" draggable="false" src="${mapUrl(META.publicId)}"
@@ -1389,7 +1396,7 @@
          <div class="board-tokens">${tokensHtml}</div>
          ${measureSvg(META)}`;
       stage.appendChild(boardEl);
-      fitBoard(META);
+      fitBoard(META, keep);
     }
 
     // SCENES-V2: the active encounter's map changed (staff picked a new scene).
@@ -1407,7 +1414,7 @@
     }
 
     // ── fit the board into the stage, preserving the map's aspect ratio ──
-    function fitBoard(meta) {      const aspect = (meta.nativeW) / (meta.nativeH);
+    function fitBoard(meta, keep) {      const aspect = (meta.nativeW) / (meta.nativeH);
       const availW = stage.clientWidth;
       const availH = stage.clientHeight;
       let w = availW, h = w / aspect;
@@ -1415,10 +1422,16 @@
       w = Math.floor(w); h = Math.floor(h);
       boardEl.style.width  = w + 'px';
       boardEl.style.height = h + 'px';
-      // reset to "fit": zoom 1, board centred in the stage
-      zoom = 1;
-      panX = Math.round((availW - w) / 2);
-      panY = Math.round((availH - h) / 2);
+      if (keep) {
+        // same scene rebuilt — keep the user's zoom/pan (calibration nudges,
+        // span previews, the post-save echo, another staff window recalibrating)
+        zoom = keep.zoom; panX = keep.panX; panY = keep.panY;
+      } else {
+        // reset to "fit": zoom 1, board centred in the stage
+        zoom = 1;
+        panX = Math.round((availW - w) / 2);
+        panY = Math.round((availH - h) / 2);
+      }
       applyTransform();
     }
 
@@ -2177,7 +2190,7 @@
     let SCENES = [];
     let SCENES_UI = null;   // { pane, list, cal: {bar, valEl}, } — null for players
     let SCN_EDIT = null;    // key of the scene being edited in the form, or null
-    const CAL = { on: false, span: 5, pend: null, boxEl: null, sx: 0, sy: 0 };
+    const CAL = { on: false, span: 5, tool: 'span', space: false, pend: null, boxEl: null, sx: 0, sy: 0 };
 
     function sceneThumb(publicId) {
       return `https://res.cloudinary.com/${CLOUDINARY_CLOUD}/image/upload/w_300,q_auto,f_auto/${publicId}.jpg`;
@@ -2314,16 +2327,26 @@
       CAL.orig = { key: ENC.map_ref, cellPx: META.cellPx, originX: META.originX,
                    originY: META.originY, nativeW: META.nativeW, nativeH: META.nativeH };
       stage.classList.add('cal-edit');
+      calSetTool('span');                  // span-draw is the default each entry
       SCENES_UI.cal.bar.classList.add('on');
       SCENES_UI.cal.valEl.textContent = 'drag a box across a run of full squares…';
     }
     // leave calibration AND discard any unsaved preview
     function calAbort() { calEnd(); switchScene(ENC.map_ref); }
     function calEnd() {
-      CAL.on = false; CAL.pend = null;
-      stage.classList.remove('cal-edit');
+      CAL.on = false; CAL.pend = null; CAL.space = false;
+      stage.classList.remove('cal-edit'); stage.classList.remove('cal-pan');
       if (SCENES_UI) SCENES_UI.cal.bar.classList.remove('on');
       if (CAL.boxEl) { CAL.boxEl.remove(); CAL.boxEl = null; }
+    }
+
+    // ⊞ Span vs ✋ Pan: with pan active the capture listeners step aside and
+    // the pointer falls through to the normal grab/pinch machine untouched.
+    function calSetTool(t) {
+      CAL.tool = t;
+      stage.classList.toggle('cal-pan', t === 'pan' || CAL.space);
+      if (SCENES_UI) SCENES_UI.cal.bar.querySelectorAll('[data-cal^="tool:"]')
+        .forEach(b => b.classList.toggle('on', b.dataset.cal === 'tool:' + t));
     }
 
     // screen → native map px (the board's coordinate space)
@@ -2340,12 +2363,26 @@
       // user switches dock tabs mid-calibration, which trapped the pointer.
       document.addEventListener('keydown', (e) => {
         if (e.key === 'Escape' && CAL.on) calAbort();
+        // hold Space to pan temporarily (desktop nicety; the ✋ chip covers touch)
+        if (e.code === 'Space' && CAL.on && !e.repeat) {
+          const tg = e.target, tag = tg && tg.tagName;
+          if (tag === 'INPUT' || tag === 'TEXTAREA' || (tg && tg.isContentEditable)) return;
+          CAL.space = true; stage.classList.add('cal-pan');
+          e.preventDefault();          // don't activate a focused button / scroll
+        }
+      });
+      document.addEventListener('keyup', (e) => {
+        if (e.code === 'Space' && CAL.space) {
+          CAL.space = false;
+          stage.classList.toggle('cal-pan', CAL.tool === 'pan');
+        }
       });
       stage.addEventListener('pointerdown', (e) => {
         if (!CAL.on || !boardEl) return;
         // pane hidden (user switched dock tabs) → calibration silently ends and
         // this pointer goes to the normal pan/draw machine untouched
         if (!SCENES_UI.pane.offsetParent) { calAbort(); return; }
+        if (CAL.tool === 'pan' || CAL.space) return;   // hand the pointer to the normal pan machine
         e.stopImmediatePropagation(); e.preventDefault();
         const n = calNative(e); CAL.sx = n.x; CAL.sy = n.y;
         if (CAL.boxEl) CAL.boxEl.remove();
@@ -2386,6 +2423,9 @@
       pane.innerHTML = `
         <div class="scenes-list"></div>
         <div class="cal-bar">
+          <div class="cb-row"><span class="cb-lbl">tool</span>
+            <button class="cb-tool on" data-cal="tool:span">⊞ Span</button>
+            <button class="cb-tool" data-cal="tool:pan">✋ Pan</button></div>
           <div class="cb-row"><span class="cb-lbl">span</span>
             <button data-cal="span:1">1</button><button data-cal="span:2">2</button>
             <button class="on" data-cal="span:5">5</button><button data-cal="span:10">10</button>
@@ -2402,7 +2442,8 @@
             <button data-cal="reset">Reset</button>
             <button data-cal="cancel">Cancel</button></div>
           <div class="sr-hint">Esc exits calibration. Reset returns to the values
-          you started from.</div>
+          you started from. ✋ Pan (or hold Space) to move around the map —
+          your zoom stays put while you nudge.</div>
         </div>
         <details class="scene-reg">
           <summary>＋ Register scene</summary>
@@ -2484,6 +2525,7 @@
           else if (v === 'save')    calSave();
           else if (v === 'undo')    calUndo();
           else if (v === 'reset')   { CAL.pend = Object.assign({}, CAL.orig); calPreview(); }
+          else if (v.startsWith('tool:')) calSetTool(v.slice(5));
           else if (v.startsWith('span:')) {
             CAL.span = +v.slice(5) || 1;
             SCENES_UI.cal.bar.querySelectorAll('[data-cal^="span:"]')
