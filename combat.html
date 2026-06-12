@@ -2555,7 +2555,21 @@
           // The HUD's End Turn advances the *shared* tracker rather than faking a
           // local round: this writes encounters.active_combatant_id + round (round
           // ticks only on wrap). Calls the page-level advanceTurn() defined below.
-          advanceTurn() { advanceTurn(); },
+          // Guard (2026-06-11): non-staff may move the pointer only when the
+          // active combatant IS the character their HUD is driving — battle.js
+          // already gates the off-turn path, this backstops it at the seam.
+          advanceTurn(key) {
+            if (!IS_STAFF) {
+              const active = COMBS.find(x => x.id === (ENC && ENC.active_combatant_id));
+              if (!active || !key || hudComb(key) !== active) {
+                console.warn('[hud] off-turn advance blocked (driving', key, ')');
+                return;
+              }
+            }
+            advanceTurn();
+          },
+          // battle.js asks before offering staff-only affordances (off-turn skip).
+          isStaff() { return IS_STAFF; },
           // Live-in piggybacks combat.html's existing realtime channel — a second
           // postgres_changes channel on the same table is unreliable. The
           // combatant UPDATE handler calls HUD_ONCHANGE for party rows.

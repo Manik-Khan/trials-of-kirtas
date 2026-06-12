@@ -1085,7 +1085,7 @@
     // ticks when the order wraps. The new round/turn flows back via setTurn(),
     // and economy now resets at turn *start* (see setTurn), not here.
     if (backend.advanceTurn) {
-      backend.advanceTurn();
+      backend.advanceTurn(activeKey);
       showToast('Turn ended','#b8952a');
       return;
     }
@@ -1256,12 +1256,14 @@
     endTurn: ()=>{
       const s=SESSION[activeKey];
       if(!s) return;
-      // Off-turn End Turn: don't silently move the shared pointer — confirm
-      // first. Confirming advances the tracker anyway (the table asked for
-      // it); the own-economy modal is deliberately skipped — that check is
-      // about THIS character's action/bonus, meaningless on someone else's turn.
+      // Off-turn End Turn: it's not this character's turn. Staff get a confirm
+      // modal (DM convenience — stepping past an absent player); everyone else
+      // gets a toast and the shared pointer DOES NOT move. (Decision 2026-06-11:
+      // live play overturned the old "confirm advances anyway" rule — accidental
+      // turn-skipping beat the niche usefulness.)
       if (backend.advanceTurn && TURN.activeKey !== activeKey) {
-        showOffTurnModal();
+        if (backend.isStaff && backend.isStaff()) showOffTurnModal();
+        else showToast('Not your turn — tracker not moved', '#c95f4a');
         return;
       }
       // Check for unused action/bonus
@@ -1280,7 +1282,7 @@
     cancelEndTurn: ()=>{ document.getElementById('b-endturn-modal')?.remove(); },
     confirmOffTurn: ()=>{
       document.getElementById('b-offturn-modal')?.remove();
-      if (backend.advanceTurn) { backend.advanceTurn(); showToast('Turn advanced','#b8952a'); }
+      if (backend.advanceTurn) { backend.advanceTurn(activeKey); showToast('Turn advanced','#b8952a'); }
     },
     cancelOffTurn: ()=>{ document.getElementById('b-offturn-modal')?.remove(); },
     dropConcentration: ()=>{
