@@ -466,6 +466,7 @@
     .cal-bar .cb-row { display: flex; align-items: center; gap: .4rem; flex-wrap: wrap; }
     .cal-bar .cb-lbl { font-size: .7rem; color: var(--muted); min-width: 4.2rem; }
     .cal-bar button { padding: .2rem .55rem; border-radius: 6px; border: 1px solid var(--gold-dim); background: transparent; color: var(--aged); font-size: .75rem; }
+    .cal-bar button.on { border-color: var(--gold); color: var(--gold-light); background: var(--gold-dim); }
     .cal-bar button:hover { border-color: var(--gold); color: var(--gold-light); }
     .cal-bar .cb-val { font-size: .75rem; color: var(--parchment2); min-width: 5.5rem; }
     .cal-bar select { background: var(--ink-deep); border: 1px solid var(--gold-dim); border-radius: 6px; color: var(--parchment); font-family: inherit; font-size: .75rem; padding: .2rem; }
@@ -2281,20 +2282,43 @@
     async function calSave() {
       const p = CAL.pend; if (!p) { calEnd(); return; }
       const d = calDerived(p);
+      CAL.undo = CAL.orig;                                  // what this save overwrites
       const { error } = await SB.from('scenes').update({
         cell_px: p.cellPx, origin_x: p.originX, origin_y: p.originY, cols: d.cols, rows: d.rows,
       }).eq('key', ENC.map_ref);
-      if (error) alert('Could not save calibration: ' + error.message);
-      else loadScenes();   // refresh card dims; board already previews the result
+      if (error) { alert('Could not save calibration: ' + error.message); CAL.undo = null; }
+      else {
+        loadScenes();   // refresh card dims; board already previews the result
+        const u = SCENES_UI.pane.querySelector('[data-cal="undo"]');
+        if (u) u.style.display = '';
+      }
       calEnd();
+    }
+
+    async function calUndo() {
+      const o = CAL.undo; if (!o) return;
+      const d = calDerived(o);
+      const { error } = await SB.from('scenes').update({
+        cell_px: o.cellPx, origin_x: o.originX, origin_y: o.originY, cols: d.cols, rows: d.rows,
+      }).eq('key', o.key);
+      if (error) { alert('Could not undo: ' + error.message); return; }
+      CAL.undo = null;
+      const u = SCENES_UI.pane.querySelector('[data-cal="undo"]');
+      if (u) u.style.display = 'none';
+      loadScenes();     // board rebuild arrives via the scenes realtime echo
     }
 
     function calBegin() {
       CAL.on = true; CAL.pend = null;
+      // starting point — Reset returns here; a Save records it for Undo
+      CAL.orig = { key: ENC.map_ref, cellPx: META.cellPx, originX: META.originX,
+                   originY: META.originY, nativeW: META.nativeW, nativeH: META.nativeH };
       stage.classList.add('cal-edit');
       SCENES_UI.cal.bar.classList.add('on');
       SCENES_UI.cal.valEl.textContent = 'drag a box across a run of full squares…';
     }
+    // leave calibration AND discard any unsaved preview
+    function calAbort() { calEnd(); switchScene(ENC.map_ref); }
     function calEnd() {
       CAL.on = false; CAL.pend = null;
       stage.classList.remove('cal-edit');
@@ -2312,8 +2336,16 @@
     // Capture-phase listeners: when calibration is armed they own the pointer
     // and stop the normal pan/draw/fog machine from ever seeing it.
     function calWireStage() {
+      // Esc is the always-available exit — the pane's buttons disappear if the
+      // user switches dock tabs mid-calibration, which trapped the pointer.
+      document.addEventListener('keydown', (e) => {
+        if (e.key === 'Escape' && CAL.on) calAbort();
+      });
       stage.addEventListener('pointerdown', (e) => {
         if (!CAL.on || !boardEl) return;
+        // pane hidden (user switched dock tabs) → calibration silently ends and
+        // this pointer goes to the normal pan/draw machine untouched
+        if (!SCENES_UI.pane.offsetParent) { calAbort(); return; }
         e.stopImmediatePropagation(); e.preventDefault();
         const n = calNative(e); CAL.sx = n.x; CAL.sy = n.y;
         if (CAL.boxEl) CAL.boxEl.remove();
@@ -2355,7 +2387,8 @@
         <div class="scenes-list"></div>
         <div class="cal-bar">
           <div class="cb-row"><span class="cb-lbl">span</span>
-            <select data-cal="span"><option>1</option><option>2</option><option selected>5</option><option>10</option></select>
+            <button data-cal="span:1">1</button><button data-cal="span:2">2</button>
+            <button class="on" data-cal="span:5">5</button><button data-cal="span:10">10</button>
             <span class="cb-val"></span></div>
           <div class="cb-row"><span class="cb-lbl">cell px</span>
             <button data-cal="cell:-1">−1</button><button data-cal="cell:-0.1">−.1</button>
@@ -2366,7 +2399,10 @@
             <span class="sr-hint">hold Shift ×10</span></div>
           <div class="cb-row">
             <button class="cb-save" data-cal="save">Save calibration</button>
+            <button data-cal="reset">Reset</button>
             <button data-cal="cancel">Cancel</button></div>
+          <div class="sr-hint">Esc exits calibration. Reset returns to the values
+          you started from.</div>
         </div>
         <details class="scene-reg">
           <summary>＋ Register scene</summary>
@@ -2386,6 +2422,7 @@
         </details>
         <div class="scene-reg" style="border-top:none;padding-top:0">
           <button class="sr-save" data-cal="begin">Calibrate active scene’s grid</button>
+          <button class="sr-save" data-cal="undo" style="display:none;background:transparent;margin-top:.35rem">↩ Undo last calibration save</button>
         </div>`;
       SCENES_UI = {
         pane,
@@ -2394,9 +2431,6 @@
       };
       calWireStage();
 
-      pane.addEventListener('change', (e) => {
-        if (e.target.dataset.cal === 'span') CAL.span = +e.target.value || 1;
-      });
       const fld = (k) => pane.querySelector(`[data-sr="${k}"]`);
       function editScene(key) {        // enter edit mode: prefill, lock the key
         const s = SCENES.find(x => x.key === key); if (!s) return;
@@ -2446,8 +2480,15 @@
         if (act) {
           const v = act.dataset.cal, mul = e.shiftKey ? 10 : 1;
           if (v === 'begin')        calBegin();
-          else if (v === 'cancel')  { calEnd(); switchScene(ENC.map_ref); }   // discard preview
+          else if (v === 'cancel')  calAbort();                              // discard preview
           else if (v === 'save')    calSave();
+          else if (v === 'undo')    calUndo();
+          else if (v === 'reset')   { CAL.pend = Object.assign({}, CAL.orig); calPreview(); }
+          else if (v.startsWith('span:')) {
+            CAL.span = +v.slice(5) || 1;
+            SCENES_UI.cal.bar.querySelectorAll('[data-cal^="span:"]')
+              .forEach(b => b.classList.toggle('on', b === act));
+          }
           else if (v.startsWith('cell:')) calNudge('cellPx', +v.slice(5) * mul);
           else if (v.startsWith('ox:'))   calNudge('originX', +v.slice(3) * mul);
           else if (v.startsWith('oy:'))   calNudge('originY', +v.slice(3) * mul);
