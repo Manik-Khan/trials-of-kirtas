@@ -433,6 +433,39 @@
     .dock-body { flex: 1; min-height: 0; display: flex; }
     .dock-pane { display: none; flex: 1; min-width: 0; min-height: 0; flex-direction: column; overflow: hidden; }
     .dock-pane.show { display: flex; }
+
+    /* SCENES-V2: scenes pane */
+    .scenes-list { flex: 1; overflow-y: auto; padding: .6rem; display: flex; flex-direction: column; gap: .6rem; }
+    .scene-card { border: 1px solid var(--gold-dim); border-radius: 8px; overflow: hidden; background: var(--smoke); }
+    .scene-card.active { border-color: var(--gold); box-shadow: 0 0 0 1px var(--gold-mid); }
+    .scene-card img { width: 100%; aspect-ratio: 4/3; object-fit: cover; object-position: top; display: block; background: #11151c; }
+    .scene-card .sc-meta { padding: .45rem .6rem .55rem; display: flex; align-items: center; justify-content: space-between; gap: .5rem; }
+    .scene-card .sc-nm { font-size: .92rem; color: var(--parchment2); }
+    .scene-card .sc-dims { font-size: .7rem; color: var(--muted); }
+    .scene-card .sc-badge { font-size: .66rem; padding: .14rem .5rem; border-radius: 99px; border: 1px solid var(--gold-mid); color: var(--gold-light); white-space: nowrap; }
+    .scene-card button, .scene-reg button { font-family: inherit; cursor: pointer; }
+    .scene-card .sc-set { font-size: .72rem; padding: .25rem .6rem; border-radius: 6px; border: 1px solid var(--gold-dim); background: transparent; color: var(--aged); }
+    .scene-card .sc-set:hover { border-color: var(--gold); color: var(--gold-light); }
+    .scene-reg { border-top: 1px solid var(--gold-dim); padding: .6rem; }
+    .scene-reg summary { color: var(--gold-light); cursor: pointer; font-size: .88rem; }
+    .scene-reg .sr-grid { display: grid; grid-template-columns: 1fr 1fr; gap: .4rem; margin-top: .5rem; }
+    .scene-reg label { display: flex; flex-direction: column; gap: .18rem; font-size: .68rem; color: var(--muted); }
+    .scene-reg label.full { grid-column: 1 / -1; }
+    .scene-reg input { background: var(--ink-deep); border: 1px solid var(--gold-dim); border-radius: 6px; color: var(--parchment); padding: .32rem .45rem; font-size: .78rem; font-family: inherit; min-width: 0; }
+    .scene-reg .sr-save { margin-top: .55rem; width: 100%; padding: .42rem; border-radius: 7px; border: 1px solid var(--gold-mid); background: var(--gold-dim); color: var(--gold-light); }
+    .scene-reg .sr-hint { font-size: .66rem; color: var(--muted); margin-top: .35rem; line-height: 1.4; }
+    /* calibration */
+    .cal-bar { border-top: 1px solid var(--gold-dim); padding: .6rem; display: none; flex-direction: column; gap: .45rem; }
+    .cal-bar.on { display: flex; }
+    .cal-bar .cb-row { display: flex; align-items: center; gap: .4rem; flex-wrap: wrap; }
+    .cal-bar .cb-lbl { font-size: .7rem; color: var(--muted); min-width: 4.2rem; }
+    .cal-bar button { padding: .2rem .55rem; border-radius: 6px; border: 1px solid var(--gold-dim); background: transparent; color: var(--aged); font-size: .75rem; }
+    .cal-bar button:hover { border-color: var(--gold); color: var(--gold-light); }
+    .cal-bar .cb-val { font-size: .75rem; color: var(--parchment2); min-width: 5.5rem; }
+    .cal-bar select { background: var(--ink-deep); border: 1px solid var(--gold-dim); border-radius: 6px; color: var(--parchment); font-family: inherit; font-size: .75rem; padding: .2rem; }
+    .cal-bar .cb-save { border-color: var(--gold-mid); background: var(--gold-dim); color: var(--gold-light); }
+    .stage.cal-edit { cursor: crosshair; }
+    .cal-box { position: absolute; border: 2px dashed var(--gold-light); background: rgba(212,172,58,0.12); pointer-events: none; z-index: 40; }
     /* combat pane action buttons */
     .dock-acts { padding: 0.7rem; display: flex; flex-direction: column; gap: 7px; }
     .dock-act {
@@ -969,9 +1002,15 @@
     // SCENES-V1: shape a scenes-table row into the META object the render code
     // eats. The camelCase names predate the table — adapting here is cheaper
     // (and safer) than touching every meta.cellPx site below.
+    // SCENES-V2: the board's native coordinate space is the IMAGE's true pixel
+    // size (native_w/native_h), not cols*cellPx — calibrated grids may be
+    // fractional and offset, so the old identity no longer holds. Rows from
+    // before the v2 delta fall back to the old math.
     function sceneMeta(s) {
       return { publicId: s.public_id, cols: s.cols, rows: s.rows,
                cellPx: s.cell_px, originX: s.origin_x, originY: s.origin_y,
+               nativeW: s.native_w || s.cols * s.cell_px,
+               nativeH: s.native_h || s.rows * s.cell_px,
                grid: s.grid || null };
     }
 
@@ -1066,8 +1105,8 @@
     // the board automatically. Uses a <pattern> tile = one cell, offset by the
     // origin — a handful of elements regardless of grid size.
     function gridSvg(meta) {
-      const W = meta.cols * meta.cellPx;
-      const H = meta.rows * meta.cellPx;
+      const W = meta.nativeW;
+      const H = meta.nativeH;
       const sw = Math.max(2, Math.round(meta.cellPx * 0.018)); // stroke ~ scales with cell
       const cp = meta.cellPx;
       let tile;
@@ -1108,7 +1147,7 @@
     // SVG mask: a full-board veil with revealed cells punched out. Hole count =
     // revealed cells; a fully-revealed board renders no veil at all.
     function fogSvg(meta) {
-      const W = meta.cols * meta.cellPx, H = meta.rows * meta.cellPx;
+      const W = meta.nativeW, H = meta.nativeH;
       if (FOG.cells.size >= meta.cols * meta.rows) return '';   // fully revealed → no veil
       const holes = [...FOG.cells].map(k => {
         const [x, y] = k.split(',').map(Number);
@@ -1220,7 +1259,7 @@
       return body + handle;
     }
     function drawSvg(meta) {
-      const W = meta.cols * meta.cellPx, H = meta.rows * meta.cellPx;
+      const W = meta.nativeW, H = meta.nativeH;
       const shapes = DRAWINGS.map(d => shapeSvg(d, meta, canEditDrawing(d), false)).join('');
       const prev = drawPreview ? shapeSvg(drawPreview, meta, false, true) : '';
       return `<svg class="board-draw" viewBox="0 0 ${W} ${H}" preserveAspectRatio="none" xmlns="http://www.w3.org/2000/svg">${shapes}${prev}</svg>`;
@@ -1254,8 +1293,8 @@
     // as ??? ). Players never receive `hidden` rows at all (RLS), so any hidden
     // row reaching us means we're staff.
     function tokenHtml(c, meta, isStaff) {
-      const W = meta.cols * meta.cellPx;
-      const H = meta.rows * meta.cellPx;
+      const W = meta.nativeW;
+      const H = meta.nativeH;
       // cell-centre in native px → percentage of the board
       const cx = ((meta.originX + (c.x + 0.5) * meta.cellPx) / W) * 100;
       const cy = ((meta.originY + (c.y + 0.5) * meta.cellPx) / H) * 100;
@@ -1324,9 +1363,43 @@
       if (layer) layer.innerHTML = COMBS.filter(tokenVisible).map(c => tokenHtml(c, META, effectiveStaff())).join('');
     }
 
+    // ── build (or rebuild) the board from current ENC/META/COMBS/DRAWINGS ──
+    // SCENES-V2: extracted from boot so a live scene switch can re-render.
+    // Safe to call repeatedly: interactions are delegated on #stage, so the
+    // old boardEl can simply be replaced.
+    function buildBoard() {
+      if (boardEl) boardEl.remove();
+      boardEl = document.createElement('div');
+      boardEl.className = 'board';
+      const tokensHtml = COMBS.filter(tokenVisible).map(c => tokenHtml(c, META, effectiveStaff())).join('');
+      boardEl.innerHTML =
+        `<img class="board-map" alt="${ENC.map_ref}" draggable="false" src="${mapUrl(META.publicId)}"
+              onerror="this.classList.add('missing')">
+         ${gridSvg(META)}
+         ${drawSvg(META)}
+         ${fogSvg(META)}
+         <div class="board-tokens">${tokensHtml}</div>
+         ${measureSvg(META)}`;
+      stage.appendChild(boardEl);
+      fitBoard(META);
+    }
+
+    // SCENES-V2: the active encounter's map changed (staff picked a new scene).
+    // Refetch calibration, swap META, rebuild. Fog was cleared by the same
+    // UPDATE that changed map_ref (interim rule until per-scene fog), so
+    // loadFog() has already run in the realtime handler by the time we land.
+    async function switchScene(newKey) {
+      const { data: scn, error } = await SB
+        .from('scenes').select('*').eq('key', newKey).maybeSingle();
+      if (error || !scn) { console.warn('switchScene: no scenes row for', newKey, error); return; }
+      META = sceneMeta(scn);
+      if (META.grid) GRID = Object.assign(GRID, META.grid);
+      buildBoard();
+      paintScenesPane();          // refresh the Active badge if the pane is open
+    }
+
     // ── fit the board into the stage, preserving the map's aspect ratio ──
-    function fitBoard(meta) {
-      const aspect = (meta.cols * meta.cellPx) / (meta.rows * meta.cellPx);
+    function fitBoard(meta) {      const aspect = (meta.nativeW) / (meta.nativeH);
       const availW = stage.clientWidth;
       const availH = stage.clientHeight;
       let w = availW, h = w / aspect;
@@ -1362,7 +1435,7 @@
       const rect = stage.getBoundingClientRect();
       const bx = (clientX - rect.left - panX) / zoom;   // board-local px (base size)
       const by = (clientY - rect.top  - panY) / zoom;
-      const W = META.cols * META.cellPx, H = META.rows * META.cellPx;
+      const W = META.nativeW, H = META.nativeH;
       const fx = bx / boardEl.offsetWidth, fy = by / boardEl.offsetHeight;
       let col = Math.floor((fx * W - META.originX) / META.cellPx);
       let row = Math.floor((fy * H - META.originY) / META.cellPx);
@@ -1375,13 +1448,13 @@
       const rect = stage.getBoundingClientRect();
       const bx = (clientX - rect.left - panX) / zoom;
       const by = (clientY - rect.top  - panY) / zoom;
-      const W = META.cols * META.cellPx, H = META.rows * META.cellPx;
+      const W = META.nativeW, H = META.nativeH;
       const fx = bx / boardEl.offsetWidth, fy = by / boardEl.offsetHeight;
       return { col: (fx * W - META.originX) / META.cellPx,
                row: (fy * H - META.originY) / META.cellPx };
     }
     function cellCenterPct(col, row) {
-      const W = META.cols * META.cellPx, H = META.rows * META.cellPx;
+      const W = META.nativeW, H = META.nativeH;
       return {
         x: ((META.originX + (col + 0.5) * META.cellPx) / W) * 100,
         y: ((META.originY + (row + 0.5) * META.cellPx) / H) * 100,
@@ -1391,7 +1464,7 @@
     // ── live cursors ──
     const TOOL_GLYPH = { circle: '○', cone: '△', rect: '▢', pen: '✎', hide: '▦', reveal: '☀' };
     function cellToScreen(col, row) {     // fractional cell coords → stage-local px (inverse of screenToCellF)
-      const W = META.cols * META.cellPx, H = META.rows * META.cellPx;
+      const W = META.nativeW, H = META.nativeH;
       const fx = (col * META.cellPx + META.originX) / W;
       const fy = (row * META.cellPx + META.originY) / H;
       return { x: fx * boardEl.offsetWidth * zoom + panX, y: fy * boardEl.offsetHeight * zoom + panY };
@@ -1447,7 +1520,7 @@
     // ── movement measurement overlay ──
     // An empty SVG layer in native map coords; populated during a drag, cleared on end.
     function measureSvg(meta) {
-      const W = meta.cols * meta.cellPx, H = meta.rows * meta.cellPx;
+      const W = meta.nativeW, H = meta.nativeH;
       return `<svg class="measure-layer" viewBox="0 0 ${W} ${H}" preserveAspectRatio="none"
                    xmlns="http://www.w3.org/2000/svg"></svg>`;
     }
@@ -1496,7 +1569,7 @@
     // mirrors the sizePct math in tokenHtml; avoids a rebuild that drops drag state.
     function updateTokenSize(c) {
       const el = tokenEl(c.id); if (!el || !META) return;
-      const W = META.cols * META.cellPx;
+      const W = META.nativeW;
       el.style.width = ((META.cellPx / W) * 100 * TOKEN.size * (SIZE_MUL[c.size] || 1)) + '%';
     }
     function canMove(c) {
@@ -2048,10 +2121,13 @@
           { event: 'UPDATE', schema: 'public', table: 'encounters', filter: 'id=eq.' + ENC.id },
           ({ new: row }) => {
             if (!row) return;
+            const mapChanged = row.map_ref !== ENC.map_ref;   // SCENES-V2
+            ENC.map_ref = row.map_ref;
             ENC.revealed_cells = row.revealed_cells || [];
             ENC.active_combatant_id = row.active_combatant_id;
             ENC.round = row.round;
             document.getElementById('combat-round').textContent = row.round ?? 1;
+            if (mapChanged) { loadFog(); switchScene(row.map_ref); return; }  // rebuild covers fog+tokens
             loadFog(); redrawFog(); renderTokens();      // fog moved → re-veil + re-evaluate token visibility
             renderInitStrip();                            // turn pointer / round changed
             pushTurnToHud();                              // forward round + whose-turn to the HUD
@@ -2065,10 +2141,260 @@
             else if (eventType === 'DELETE') { DRAWINGS = DRAWINGS.filter(d => d.id !== (old && old.id)); }
             redrawDrawings();
           })
+        .on('postgres_changes',
+          { event: 'UPDATE', schema: 'public', table: 'scenes' },
+          ({ new: row }) => {                                   // SCENES-V2: live recalibration
+            if (!row || row.key !== ENC.map_ref) return;        // only the active map matters
+            META = sceneMeta(row);
+            if (META.grid) GRID = Object.assign(GRID, META.grid);
+            buildBoard();
+          })
         .on('broadcast', { event: 'cursor' }, ({ payload }) => onCursor(payload))
         .on('presence', { event: 'leave' }, ({ leftPresences }) =>
           (leftPresences || []).forEach(pr => pr && pr.id && removeCursor(pr.id)))
         .subscribe((status) => { if (status === 'SUBSCRIBED') RT.track({ id: MY_ID }); });
+    }
+
+    // ── SCENES-V2: scenes pane — list, switch, register, calibrate ──────────
+    // Staff-only dock pane. "Set active" rewrites the live encounter's map_ref
+    // (clearing fog — interim rule until per-scene fog); realtime does the rest
+    // on every client, ours included. Calibration: drag a box across a run of
+    // N squares (longer runs divide the slop), then nudge origin/cell to taste;
+    // Save writes the scenes row and streams to everyone.
+    let SCENES = [];
+    let SCENES_UI = null;   // { pane, list, cal: {bar, valEl}, } — null for players
+    const CAL = { on: false, span: 5, pend: null, boxEl: null, sx: 0, sy: 0 };
+
+    function sceneThumb(publicId) {
+      return `https://res.cloudinary.com/${CLOUDINARY_CLOUD}/image/upload/w_300,q_auto,f_auto/${publicId}.jpg`;
+    }
+
+    async function loadScenes() {
+      const { data, error } = await SB.from('scenes').select('*').order('created_at');
+      if (error) { console.warn('loadScenes', error); return; }
+      SCENES = data || [];
+      paintScenesPane();
+    }
+
+    function paintScenesPane() {
+      if (!SCENES_UI) return;
+      SCENES_UI.list.innerHTML = SCENES.map(s => {
+        const active = s.key === ENC.map_ref;
+        return `<div class="scene-card${active ? ' active' : ''}">
+          <img alt="${s.name || s.key}" loading="lazy" src="${sceneThumb(s.public_id)}"
+               onerror="this.style.display='none'">
+          <div class="sc-meta">
+            <div>
+              <div class="sc-nm">${s.name || s.key}</div>
+              <div class="sc-dims">${s.cols} × ${s.rows} · ${(+s.cell_px).toFixed(s.cell_px % 1 ? 1 : 0)}px cells</div>
+            </div>
+            ${active ? '<span class="sc-badge">● Active</span>'
+                     : `<button class="sc-set" data-scene="${s.key}">Set active</button>`}
+          </div>
+        </div>`;
+      }).join('') || '<div class="sr-hint" style="padding:.4rem">No scenes yet — register one below.</div>';
+    }
+
+    async function setActiveScene(key) {
+      if (key === ENC.map_ref) return;
+      const seated = COMBS.some(c => c.in_combat);
+      if (seated && !confirm('Combat is seated — tokens keep their grid squares and will need re-placing on the new map. Switch anyway?')) return;
+      // One write: map change + fog reset (old map\u2019s holes must not leak).
+      const { error } = await SB.from('encounters')
+        .update({ map_ref: key, revealed_cells: [] }).eq('id', ENC.id);
+      if (error) alert('Could not switch scene: ' + error.message);
+      // No local mutation — our own UPDATE comes back on the realtime channel
+      // and runs the same switchScene() path every other client runs.
+    }
+
+    // Cloudinary fl_getinfo: returns JSON (not pixels) describing the delivered
+    // asset; with no other transforms width/height are the original dimensions.
+    async function fetchNativeSize(publicId) {
+      const url = `https://res.cloudinary.com/${CLOUDINARY_CLOUD}/image/upload/fl_getinfo/${publicId}.jpg`;
+      const j = await (await fetch(url)).json();
+      const o = j.output || j.input || {};
+      if (!o.width || !o.height) throw new Error('no dimensions in fl_getinfo reply');
+      return { w: o.width, h: o.height };
+    }
+
+    function calDerived(p) {   // cols/rows that fit the calibrated grid
+      return {
+        cols: Math.max(1, Math.round((p.nativeW - p.originX) / p.cellPx)),
+        rows: Math.max(1, Math.round((p.nativeH - p.originY) / p.cellPx)),
+      };
+    }
+
+    function calPreview() {    // apply pending calibration locally + redraw
+      const p = CAL.pend; if (!p) return;
+      const d = calDerived(p);
+      META = Object.assign({}, META, { cellPx: p.cellPx, originX: p.originX, originY: p.originY }, d);
+      buildBoard();
+      SCENES_UI.cal.valEl.textContent =
+        `${p.cellPx.toFixed(1)}px · origin ${Math.round(p.originX)},${Math.round(p.originY)} · ${d.cols}×${d.rows}`;
+    }
+
+    function calNudge(field, delta) {
+      if (!CAL.pend) CAL.pend = { cellPx: META.cellPx, originX: META.originX, originY: META.originY,
+                                  nativeW: META.nativeW, nativeH: META.nativeH };
+      CAL.pend[field] += delta;
+      if (field === 'cellPx') CAL.pend.cellPx = Math.max(4, CAL.pend.cellPx);
+      // keep origins inside one cell — they are phase, not position
+      const c = CAL.pend.cellPx;
+      CAL.pend.originX = ((CAL.pend.originX % c) + c) % c;
+      CAL.pend.originY = ((CAL.pend.originY % c) + c) % c;
+      calPreview();
+    }
+
+    async function calSave() {
+      const p = CAL.pend; if (!p) { calEnd(); return; }
+      const d = calDerived(p);
+      const { error } = await SB.from('scenes').update({
+        cell_px: p.cellPx, origin_x: p.originX, origin_y: p.originY, cols: d.cols, rows: d.rows,
+      }).eq('key', ENC.map_ref);
+      if (error) alert('Could not save calibration: ' + error.message);
+      else loadScenes();   // refresh card dims; board already previews the result
+      calEnd();
+    }
+
+    function calBegin() {
+      CAL.on = true; CAL.pend = null;
+      stage.classList.add('cal-edit');
+      SCENES_UI.cal.bar.classList.add('on');
+      SCENES_UI.cal.valEl.textContent = 'drag a box across a run of full squares…';
+    }
+    function calEnd() {
+      CAL.on = false; CAL.pend = null;
+      stage.classList.remove('cal-edit');
+      if (SCENES_UI) SCENES_UI.cal.bar.classList.remove('on');
+      if (CAL.boxEl) { CAL.boxEl.remove(); CAL.boxEl = null; }
+    }
+
+    // screen → native map px (the board's coordinate space)
+    function calNative(e) {
+      const r = boardEl.getBoundingClientRect();
+      return { x: (e.clientX - r.left) / r.width  * META.nativeW,
+               y: (e.clientY - r.top)  / r.height * META.nativeH };
+    }
+
+    // Capture-phase listeners: when calibration is armed they own the pointer
+    // and stop the normal pan/draw/fog machine from ever seeing it.
+    function calWireStage() {
+      stage.addEventListener('pointerdown', (e) => {
+        if (!CAL.on || !boardEl) return;
+        e.stopImmediatePropagation(); e.preventDefault();
+        const n = calNative(e); CAL.sx = n.x; CAL.sy = n.y;
+        if (CAL.boxEl) CAL.boxEl.remove();
+        CAL.boxEl = document.createElement('div');
+        CAL.boxEl.className = 'cal-box';
+        boardEl.appendChild(CAL.boxEl);
+      }, true);
+      stage.addEventListener('pointermove', (e) => {
+        if (!CAL.on || !CAL.boxEl) return;
+        e.stopImmediatePropagation();
+        const n = calNative(e);
+        const x = Math.min(CAL.sx, n.x), y = Math.min(CAL.sy, n.y);
+        const w = Math.abs(n.x - CAL.sx), h = Math.abs(n.y - CAL.sy);
+        Object.assign(CAL.boxEl.style, {
+          left:  (x / META.nativeW * 100) + '%', top:    (y / META.nativeH * 100) + '%',
+          width: (w / META.nativeW * 100) + '%', height: (h / META.nativeH * 100) + '%',
+        });
+      }, true);
+      stage.addEventListener('pointerup', (e) => {
+        if (!CAL.on || !CAL.boxEl) return;
+        e.stopImmediatePropagation();
+        const n = calNative(e);
+        const x0 = Math.min(CAL.sx, n.x), y0 = Math.min(CAL.sy, n.y);
+        const w = Math.abs(n.x - CAL.sx), h = Math.abs(n.y - CAL.sy);
+        CAL.boxEl.remove(); CAL.boxEl = null;
+        if (w < 8 && h < 8) return;                       // a click, not a box
+        const cell = ((w + h) / 2) / CAL.span;            // squares are square: average both axes
+        CAL.pend = { cellPx: cell,
+                     originX: ((x0 % cell) + cell) % cell,
+                     originY: ((y0 % cell) + cell) % cell,
+                     nativeW: META.nativeW, nativeH: META.nativeH };
+        calPreview();
+      }, true);
+    }
+
+    function buildScenesPane() {
+      const pane = dockRegister('scenes', { icon: '🗺', title: 'Scenes', staff: true, onOpen: loadScenes });
+      pane.innerHTML = `
+        <div class="scenes-list"></div>
+        <div class="cal-bar">
+          <div class="cb-row"><span class="cb-lbl">span</span>
+            <select data-cal="span"><option>1</option><option>2</option><option selected>5</option><option>10</option></select>
+            <span class="cb-val"></span></div>
+          <div class="cb-row"><span class="cb-lbl">cell px</span>
+            <button data-cal="cell:-1">−1</button><button data-cal="cell:-0.1">−.1</button>
+            <button data-cal="cell:0.1">+.1</button><button data-cal="cell:1">+1</button></div>
+          <div class="cb-row"><span class="cb-lbl">origin</span>
+            <button data-cal="ox:-1">←</button><button data-cal="ox:1">→</button>
+            <button data-cal="oy:-1">↑</button><button data-cal="oy:1">↓</button>
+            <span class="sr-hint">hold Shift ×10</span></div>
+          <div class="cb-row">
+            <button class="cb-save" data-cal="save">Save calibration</button>
+            <button data-cal="cancel">Cancel</button></div>
+        </div>
+        <details class="scene-reg">
+          <summary>＋ Register scene</summary>
+          <div class="sr-grid">
+            <label class="full">key (unique handle)<input data-sr="key" placeholder="G_SunkenCrypt_Night"></label>
+            <label class="full">display name<input data-sr="name" placeholder="Sunken Crypt — Night"></label>
+            <label class="full">Cloudinary publicId<input data-sr="pid" placeholder="kirtas/maps/G_SunkenCrypt_Night"></label>
+            <label>cell px (guess ok)<input data-sr="cell" type="number" value="140"></label>
+            <label>&nbsp;<button class="sr-save" data-sr="save">Save scene</button></label>
+          </div>
+          <div class="sr-hint">Native size is fetched from Cloudinary automatically.
+          Cell px can be rough — activate the scene and use Calibrate to lock the
+          grid by eye.</div>
+        </details>
+        <div class="scene-reg" style="border-top:none;padding-top:0">
+          <button class="sr-save" data-cal="begin">Calibrate active scene’s grid</button>
+        </div>`;
+      SCENES_UI = {
+        pane,
+        list:  pane.querySelector('.scenes-list'),
+        cal:   { bar: pane.querySelector('.cal-bar'), valEl: pane.querySelector('.cb-val') },
+      };
+      calWireStage();
+
+      pane.addEventListener('change', (e) => {
+        if (e.target.dataset.cal === 'span') CAL.span = +e.target.value || 1;
+      });
+      pane.addEventListener('click', async (e) => {
+        const set = e.target.closest('[data-scene]');
+        if (set) { setActiveScene(set.dataset.scene); return; }
+        const act = e.target.closest('[data-cal]');
+        if (act) {
+          const v = act.dataset.cal, mul = e.shiftKey ? 10 : 1;
+          if (v === 'begin')        calBegin();
+          else if (v === 'cancel')  { calEnd(); switchScene(ENC.map_ref); }   // discard preview
+          else if (v === 'save')    calSave();
+          else if (v.startsWith('cell:')) calNudge('cellPx', +v.slice(5) * mul);
+          else if (v.startsWith('ox:'))   calNudge('originX', +v.slice(3) * mul);
+          else if (v.startsWith('oy:'))   calNudge('originY', +v.slice(3) * mul);
+          return;
+        }
+        const sr = e.target.closest('[data-sr="save"]');
+        if (sr) {
+          const g = (k) => pane.querySelector(`[data-sr="${k}"]`).value.trim();
+          const key = g('key'), name = g('name'), pid = g('pid'), cell = +g('cell') || 140;
+          if (!key || !pid) { alert('key and publicId are required'); return; }
+          sr.disabled = true; sr.textContent = 'Fetching size…';
+          try {
+            const { w, h } = await fetchNativeSize(pid);
+            const cols = Math.max(1, Math.round(w / cell)), rows = Math.max(1, Math.round(h / cell));
+            const { error } = await SB.from('scenes').insert({
+              key, name, public_id: pid, cell_px: cell, origin_x: 0, origin_y: 0,
+              cols, rows, native_w: w, native_h: h,
+            });
+            if (error) throw error;
+            ['key','name','pid'].forEach(k => pane.querySelector(`[data-sr="${k}"]`).value = '');
+            loadScenes();
+          } catch (err) { alert('Could not register scene: ' + (err.message || err)); }
+          sr.disabled = false; sr.textContent = 'Save scene';
+        }
+      });
     }
 
     // ── zoom toolbar ──
@@ -2134,19 +2460,7 @@
       COMBS = combs || [];
       const { data: draws } = await sb.from('drawings').select('*').eq('encounter_id', enc.id);
       DRAWINGS = draws || [];
-      boardEl = document.createElement('div');
-      boardEl.className = 'board';
-      const tokensHtml = COMBS.filter(tokenVisible).map(c => tokenHtml(c, META, effectiveStaff())).join('');
-      boardEl.innerHTML =
-        `<img class="board-map" alt="${enc.map_ref}" draggable="false" src="${mapUrl(META.publicId)}"
-              onerror="this.classList.add('missing')">
-         ${gridSvg(META)}
-         ${drawSvg(META)}
-         ${fogSvg(META)}
-         <div class="board-tokens">${tokensHtml}</div>
-         ${measureSvg(META)}`;
-      stage.appendChild(boardEl);
-      fitBoard(META);
+      buildBoard();
 
       // wire interactions (drag / pan / pinch / keys), realtime sync, zoom UI
       initInteractions();
@@ -2159,6 +2473,7 @@
       if (IS_STAFF) buildBestiary();
       if (IS_STAFF) buildViewToggle();
       if (IS_STAFF) buildCombatTab();
+      if (IS_STAFF) buildScenesPane();
       if (IS_STAFF) buildStatblockPanel();
       buildInitStrip();
 
