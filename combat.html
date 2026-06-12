@@ -781,6 +781,7 @@
     .init-strip {
       position: absolute; top: 8px; left: 50%; transform: translateX(-50%);
       z-index: 17; max-width: calc(100% - 210px);
+      overflow-x: auto;                       /* crowded fights scroll, never clip */
       display: flex; align-items: stretch; gap: 9px;
       padding: 8px 9px; border-radius: 9px;
       background: rgba(16,14,10,0.92); border: 1px solid #5a4a22;
@@ -2123,7 +2124,10 @@
             if (!row) return;
             const mapChanged = row.map_ref !== ENC.map_ref;   // SCENES-V2
             ENC.map_ref = row.map_ref;
-            ENC.revealed_cells = row.revealed_cells || [];
+            // TOAST guard: an UPDATE that didn't touch revealed_cells omits the
+            // (toasted) jsonb from the realtime payload entirely — adopting the
+            // absence as [] wiped everyone's fog. Adopt only what actually arrived.
+            if (Array.isArray(row.revealed_cells)) ENC.revealed_cells = row.revealed_cells;
             ENC.active_combatant_id = row.active_combatant_id;
             ENC.round = row.round;
             document.getElementById('combat-round').textContent = row.round ?? 1;
@@ -2342,7 +2346,8 @@
             <label class="full">display name<input data-sr="name" placeholder="Sunken Crypt — Night"></label>
             <label class="full">Cloudinary publicId<input data-sr="pid" placeholder="kirtas/maps/G_SunkenCrypt_Night"></label>
             <label>cell px (guess ok)<input data-sr="cell" type="number" value="140"></label>
-            <label>&nbsp;<button class="sr-save" data-sr="save">Save scene</button></label>
+            <label>native W×H (blank = auto)<input data-sr="wh" placeholder="5460 x 7840"></label>
+            <label class="full"><button class="sr-save" data-sr="save">Save scene</button></label>
           </div>
           <div class="sr-hint">Native size is fetched from Cloudinary automatically.
           Cell px can be rough — activate the scene and use Calibrate to lock the
@@ -2379,19 +2384,31 @@
         if (sr) {
           const g = (k) => pane.querySelector(`[data-sr="${k}"]`).value.trim();
           const key = g('key'), name = g('name'), pid = g('pid'), cell = +g('cell') || 140;
-          if (!key || !pid) { alert('key and publicId are required'); return; }
-          sr.disabled = true; sr.textContent = 'Fetching size…';
+          const hint = pane.querySelector('.scene-reg .sr-hint');
+          if (!key || !pid) { hint.textContent = '⚠ key and publicId are required.'; return; }
+          sr.disabled = true; sr.textContent = 'Saving…';
           try {
-            const { w, h } = await fetchNativeSize(pid);
+            // manual "W x H" wins; otherwise ask Cloudinary (fl_getinfo)
+            let w, h;
+            const m = g('wh').match(/(\d+)\s*[x×,\s]\s*(\d+)/i);
+            if (m) { w = +m[1]; h = +m[2]; }
+            else ({ w, h } = await fetchNativeSize(pid).catch(err => {
+              throw new Error('size lookup failed (' + (err.message || err) +
+                ') — check the publicId, or enter native W×H manually');
+            }));
             const cols = Math.max(1, Math.round(w / cell)), rows = Math.max(1, Math.round(h / cell));
             const { error } = await SB.from('scenes').insert({
               key, name, public_id: pid, cell_px: cell, origin_x: 0, origin_y: 0,
               cols, rows, native_w: w, native_h: h,
             });
             if (error) throw error;
-            ['key','name','pid'].forEach(k => pane.querySelector(`[data-sr="${k}"]`).value = '');
+            ['key','name','pid','wh'].forEach(k => pane.querySelector(`[data-sr="${k}"]`).value = '');
+            hint.textContent = '✓ Registered. Set it active to test, then Calibrate.';
             loadScenes();
-          } catch (err) { alert('Could not register scene: ' + (err.message || err)); }
+          } catch (err) {
+            console.error('register scene:', err);
+            hint.textContent = '⚠ ' + (err.message || err);
+          }
           sr.disabled = false; sr.textContent = 'Save scene';
         }
       });
