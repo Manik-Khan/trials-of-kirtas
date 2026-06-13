@@ -2,7 +2,7 @@
 <html lang="en" data-theme="parchment">
 <head>
   <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover, interactive-widget=resizes-content">
   <title>Combat — The Trials of Kirtas</title>
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -15,6 +15,7 @@
       display: flex;
       flex-direction: column;
       height: 100vh;
+      height: 100dvh;   /* MOBILE-TRIAGE: tracks mobile browser chrome; vh above is the fallback */
       overflow: hidden;                 /* the stage scrolls, not the page */
       background: var(--ink-deep);
     }
@@ -458,6 +459,29 @@
     .roll-ticker .twhat { color: var(--parchment2); overflow: hidden; text-overflow: ellipsis; }
     .roll-ticker.flash { animation: tflash 0.8s ease; }
     @keyframes tflash { 0% { border-color: var(--gold-light); box-shadow: 0 0 14px rgba(212,172,58,0.45); } 100% {} }
+    /* MOBILE-TRIAGE: below 640px the dock is a full-screen sheet — a 320px
+       strip floating over a map you can't really use helps nobody; ✕ returns
+       to the board. bottom rides --kb (set from visualViewport) so the feed
+       composer stays above the on-screen keyboard instead of underneath it. */
+    @media (max-width: 640px) {
+      .dock-panel { left: 0; top: 0; width: auto; max-width: none; border-left: none; bottom: var(--kb, 0px); }
+      .roll-ticker { bottom: calc(96px + var(--kb, 0px)); }
+    }
+    /* ── page toast + token info chip (UX-AUDIT-2) ── */
+    .pg-toast {
+      position: fixed; left: 50%; bottom: calc(104px + var(--kb, 0px)); transform: translateX(-50%);
+      z-index: 60; background: var(--nav-bg); border: 1px solid var(--gold-mid); border-radius: 8px;
+      color: var(--parchment2); font-size: 0.8rem; padding: 0.45rem 0.8rem; max-width: min(92vw, 440px);
+      box-shadow: 0 6px 24px rgba(0,0,0,0.5); opacity: 0; transition: opacity 0.25s; pointer-events: none;
+    }
+    .pg-toast.show { opacity: 1; }
+    .tok-chip {
+      position: fixed; z-index: 60; background: var(--nav-bg); border: 1px solid var(--nav-border);
+      border-radius: 8px; padding: 0.4rem 0.6rem; font-size: 0.76rem; color: var(--parchment2);
+      box-shadow: 0 6px 24px rgba(0,0,0,0.5); max-width: 240px; pointer-events: none;
+    }
+    .tok-chip .tc-name { color: var(--gold-light); letter-spacing: 0.04em; }
+    .tok-chip .tc-conds { color: var(--aged); font-size: 0.7rem; margin-top: 0.15rem; }
     .dock-body { flex: 1; min-height: 0; display: flex; }
     .dock-pane { display: none; flex: 1; min-width: 0; min-height: 0; flex-direction: column; overflow: hidden; }
     .dock-pane.show { display: flex; }
@@ -2070,6 +2094,11 @@
         } else if (effectiveStaff()) {
           if (c.in_combat) window.__battle?.drive?.('mon:' + c.id);
           else openStatblock?.(c);
+        } else {
+          // UX-AUDIT-2: a player double-clicking an enemy used to be dead
+          // air — show a read-only chip (name + conditions) instead. Only
+          // visible tokens render for players, so the name can't leak.
+          showTokenChip(c, e.clientX, e.clientY);
         }
       });
 
@@ -2786,6 +2815,10 @@
       }
       pushTurnToHud();   // seed HUD round + whose-turn now the backend is wired
 
+      // UX-AUDIT-2 first-use hint: the board's main verb is undiscoverable
+      if (!IS_STAFF && COMBS.some(c => c.side === 'party'))
+        hintOnce('tok_hint_drive', "Tip — double-click your character's token to drive it in the Battle HUD.");
+
       // keep the board fitted on resize/orientation change (grid + tokens are
       // %/viewBox-based, so only the board's px size needs recomputing)
       let rt;
@@ -2793,6 +2826,22 @@
         clearTimeout(rt);
         rt = setTimeout(() => { if (boardEl && META) fitBoard(META); }, 120);
       });
+      // MOBILE-TRIAGE: iOS never shrinks the layout viewport for the on-screen
+      // keyboard — visualViewport is the only honest signal. --kb is the
+      // overlap in px (0 on desktop); the mobile dock's bottom rides it.
+      if (window.visualViewport) {
+        const vvSync = () => {
+          const vv = window.visualViewport;
+          const kb = Math.max(0, window.innerHeight - vv.height - vv.offsetTop);
+          document.documentElement.style.setProperty('--kb', Math.round(kb) + 'px');
+          // the keyboard shrinks the feed — keep it pinned to the newest message
+          if (kb > 0 && DOCK && DOCK.open === 'feed' && feedListEl)
+            feedListEl.scrollTop = feedListEl.scrollHeight;
+        };
+        window.visualViewport.addEventListener('resize', vvSync);
+        window.visualViewport.addEventListener('scroll', vvSync);
+        vvSync();
+      }
     });
 
     // ── grid controls panel ──
@@ -3049,6 +3098,8 @@
             if (btn.classList.contains('done')) return;
             btn.disabled = true; btn.textContent = '…';
             const ok = await dropMonster(shown[+btn.dataset.i].raw);
+            if (ok) hintOnce('tok_hint_hiddendrop',
+              "Dropped hidden — players can't see it until you use the token's right-click menu → Reveal to players.");
             btn.textContent = ok ? 'Added' : 'Retry';
             btn.classList.toggle('done', ok);
             btn.disabled = false;
@@ -3208,6 +3259,38 @@
     // Rendering extracted to feed-render.js (FEED-RENDER-V1) — shared with the
     // chronicle's server browser so rolls look identical on both pages.
     // escapeHtml/stripTags remain as hoisted wrappers: used widely above.
+    // ── page toast + one-shot hints + token info chip (UX-AUDIT-2).
+    // Top-level on purpose: callers live in different scopes (init wiring,
+    // the dblclick handler, the bestiary pane) — defining these inside any
+    // one of them is a runtime ReferenceError for the others.
+    let PG_TOAST_T = null;
+    function pageToast(msg, ms = 4200) {
+      let el = document.querySelector('.pg-toast');
+      if (!el) { el = document.createElement('div'); el.className = 'pg-toast'; document.body.appendChild(el); }
+      el.textContent = msg;
+      requestAnimationFrame(() => el.classList.add('show'));
+      clearTimeout(PG_TOAST_T);
+      PG_TOAST_T = setTimeout(() => el.classList.remove('show'), ms);
+    }
+    function hintOnce(key, msg) {   // a hint fires once per browser, ever
+      try { if (localStorage.getItem(key)) return; localStorage.setItem(key, '1'); } catch (e) {}
+      pageToast(msg);
+    }
+    function showTokenChip(c, x, y) {
+      document.querySelector('.tok-chip')?.remove();
+      const chip = document.createElement('div');
+      chip.className = 'tok-chip';
+      const conds = (Array.isArray(c.conditions) ? c.conditions : []).join(', ');
+      chip.innerHTML = `<div class="tc-name">${escapeHtml(c.name)}</div>`
+        + `<div class="tc-conds">${conds ? escapeHtml(conds) : 'No conditions'} · DM controls this creature</div>`;
+      document.body.appendChild(chip);
+      const pad = 8, w = chip.offsetWidth, h = chip.offsetHeight;
+      chip.style.left = Math.min(Math.max(pad, x + 12), window.innerWidth - w - pad) + 'px';
+      chip.style.top  = Math.min(Math.max(pad, y - h - 12), window.innerHeight - h - pad) + 'px';
+      const kill = () => { chip.remove(); document.removeEventListener('pointerdown', kill, true); };
+      setTimeout(kill, 2600);
+      document.addEventListener('pointerdown', kill, true);
+    }
     function escapeHtml(s) { return FeedRender.escapeHtml(s); }
     function stripTags(s) { return FeedRender.stripTags(s); }
     function feedActor() {
