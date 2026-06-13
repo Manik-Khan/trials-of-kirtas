@@ -1,6 +1,13 @@
 // netlify/functions/characters-export.js
-// ⚠ TEMP DIAGNOSTIC+FIX BUILD (marker keyauth-3). Decodes the key's role claim
-// and surfaces the PostgREST error so we see exactly why profiles is denied.
+// Character backstop — HTTP path (staff-triggered manual export / future button).
+// The export itself lives in lib/characters-export-core.js, shared with the
+// nightly schedule (characters-export-nightly.js) so the two never drift.
+//
+// Why: Supabase is live truth; the git-committed data/characters/<key>.json is
+// the version-controlled backup. Caller must be staff — we verify the bearer
+// token against Supabase auth and check the profiles role before writing.
+//
+// Env (Netlify): GITHUB_TOKEN + SUPABASE_SERVICE_ROLE_KEY.
 
 const { runCharactersExport, SUPABASE_URL, SERVICE_KEY } = require('./lib/characters-export-core');
 
@@ -10,52 +17,38 @@ const cors = {
   'Access-Control-Allow-Methods': 'POST, OPTIONS',
 };
 const respond = (statusCode, body) => ({
-  statusCode, headers: { ...cors, 'Content-Type': 'application/json' }, body: JSON.stringify(body),
+  statusCode,
+  headers: { ...cors, 'Content-Type': 'application/json' },
+  body: JSON.stringify(body),
 });
 
+// service_role auth headers, robust to both key formats:
+//   • legacy keys are JWTs  → also send Authorization: Bearer
+//   • new sb_secret_ keys   → apikey only (not JWTs; Bearer would be rejected)
 function svcHeaders() {
   const h = { 'apikey': SERVICE_KEY };
   if ((SERVICE_KEY || '').startsWith('eyJ')) h['Authorization'] = `Bearer ${SERVICE_KEY}`;
   return h;
 }
 
-// decode the role claim from the key's JWT payload (safe — role is not a secret)
-function keyRole(k) {
-  try {
-    const seg = (k || '').split('.')[1];
-    if (!seg) return null;
-    const json = Buffer.from(seg.replace(/-/g, '+').replace(/_/g, '/'), 'base64').toString('utf8');
-    return JSON.parse(json).role || null;
-  } catch { return null; }
-}
-
+// caller must be staff (overseer/dm)
 async function verifyStaff(authHeader) {
-  const dbg = { build: 'keyauth-3', keyRole: keyRole(SERVICE_KEY) };
   const token = (authHeader || '').replace(/^Bearer\s+/i, '');
-  dbg.hasToken = !!token;
-  if (!token) return { ok: false, dbg };
-
+  if (!token) return null;
+  // the user's access token IS a JWT, so it belongs on Authorization: Bearer
   const uRes = await fetch(`${SUPABASE_URL}/auth/v1/user`, {
     headers: { 'apikey': SERVICE_KEY, 'Authorization': `Bearer ${token}` },
   });
-  dbg.authUserStatus = uRes.status;
-  if (!uRes.ok) return { ok: false, dbg };
+  if (!uRes.ok) return null;
   const user = await uRes.json();
-  dbg.userId = (user && user.id) ? user.id : null;
-  if (!user || !user.id) return { ok: false, dbg };
-
+  if (!user || !user.id) return null;
   const pRes = await fetch(
     `${SUPABASE_URL}/rest/v1/profiles?user_id=eq.${user.id}&select=role`,
     { headers: svcHeaders() });
-  dbg.profilesStatus = pRes.status;
-  const ptext = await pRes.text();
-  if (!pRes.ok) dbg.profilesError = ptext.slice(0, 300);
-  let rows = null; try { rows = JSON.parse(ptext); } catch {}
-  dbg.profileCount = Array.isArray(rows) ? rows.length : null;
-  const role = Array.isArray(rows) && rows[0] && rows[0].role;
-  dbg.role = role || null;
-
-  return { ok: (role === 'overseer' || role === 'dm'), user, dbg };
+  if (!pRes.ok) return null;
+  const rows = await pRes.json();
+  const role = rows && rows[0] && rows[0].role;
+  return (role === 'overseer' || role === 'dm') ? user : null;
 }
 
 exports.handler = async (event) => {
@@ -64,11 +57,11 @@ exports.handler = async (event) => {
   if (!SERVICE_KEY)                  return respond(500, { error: 'SUPABASE_SERVICE_ROLE_KEY is not configured' });
 
   try {
-    const res = await verifyStaff(event.headers.authorization || event.headers.Authorization);
-    if (!res.ok) return respond(403, { error: 'Staff only', debug: res.dbg });
+    const staff = await verifyStaff(event.headers.authorization || event.headers.Authorization);
+    if (!staff) return respond(403, { error: 'Staff only' });
     const result = await runCharactersExport();
-    return respond(200, { ...result, build: 'keyauth-3' });
+    return respond(200, result);
   } catch (e) {
-    return respond(500, { error: e.message, build: 'keyauth-3' });
+    return respond(500, { error: e.message });
   }
 };
