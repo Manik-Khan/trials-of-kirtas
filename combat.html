@@ -459,11 +459,14 @@
     .roll-ticker .twhat { color: var(--parchment2); overflow: hidden; text-overflow: ellipsis; }
     .roll-ticker.flash { animation: tflash 0.8s ease; }
     @keyframes tflash { 0% { border-color: var(--gold-light); box-shadow: 0 0 14px rgba(212,172,58,0.45); } 100% {} }
-    /* MOBILE-TRIAGE: below 640px the dock is a full-screen sheet — a 320px
+    /* MOBILE-TRIAGE: on phones the dock is a full-screen sheet — a 320px
        strip floating over a map you can't really use helps nobody; ✕ returns
-       to the board. bottom rides --kb (set from visualViewport) so the feed
-       composer stays above the on-screen keyboard instead of underneath it. */
-    @media (max-width: 640px) {
+       to the board. v2: "phone" means narrow OR SHORT — a landscape iPhone is
+       ~900px wide but only ~430px tall, so a width-only breakpoint missed it
+       and left the composer cut off at the screen edge. bottom rides --kb
+       (set from visualViewport) so the feed composer stays above the
+       on-screen keyboard instead of underneath it. */
+    @media (max-width: 640px), (max-height: 500px) {
       .dock-panel { left: 0; top: 0; width: auto; max-width: none; border-left: none; bottom: var(--kb, 0px); }
       .roll-ticker { bottom: calc(96px + var(--kb, 0px)); }
     }
