@@ -1,392 +1,429 @@
 {
   "key": "liadan",
-  "inventory": [
-    {
-      "name": "Dagger",
-      "rarity": "None",
-      "type": "M",
-      "typeLabel": "Melee Weapon",
-      "weaponCat": "simple weapon, melee weapon",
-      "detail": "simple weapon · 1d4 P · 1 lb",
-      "price": "2 gp",
-      "weight": 1,
-      "dmg1": "1d4",
-      "dmg2": null,
-      "dmgType": "P",
-      "range": "20/60",
-      "ac": null,
-      "strength": null,
-      "stealth": null,
-      "reqAttune": null,
-      "properties": "Finesse, Light, Thrown",
-      "entries": [],
-      "contents": null,
-      "source": "PHB",
-      "sourceFull": "PHB p149",
-      "page": 149,
-      "_enriched": true,
-      "alias": null,
-      "qty": 2
+  "structural": {
+    "xp": 900,
+    "name": "Líadan Luchóg",
+    "race": "Mouseling",
+    "level": 4,
+    "saves": {
+      "cha": {
+        "bonus": 4,
+        "proficient": true
+      },
+      "con": {
+        "bonus": 1,
+        "proficient": false
+      },
+      "dex": {
+        "bonus": 3,
+        "proficient": true
+      },
+      "int": {
+        "bonus": 1,
+        "proficient": false
+      },
+      "str": {
+        "bonus": -2,
+        "proficient": false
+      },
+      "wis": {
+        "bonus": 2,
+        "proficient": false
+      }
     },
-    {
-      "name": "Sling",
-      "rarity": "None",
-      "type": "R",
-      "typeLabel": "Ranged Weapon",
-      "weaponCat": "simple weapon, ranged weapon",
-      "detail": "simple weapon · 1d4 B",
-      "price": "1 sp",
-      "weight": 0,
-      "dmg1": "1d4",
-      "dmg2": null,
-      "dmgType": "B",
-      "range": "30/120",
-      "ac": null,
-      "strength": null,
-      "stealth": null,
-      "reqAttune": null,
-      "properties": "Ammunition, Range 30/120",
-      "entries": [],
-      "contents": null,
-      "source": "PHB",
-      "sourceFull": "PHB p149",
-      "page": 149,
-      "_enriched": true,
-      "alias": null
+    "combat": {
+      "ac": 12,
+      "hp": 19,
+      "hpMax": 19,
+      "speed": 20,
+      "hpTemp": 0,
+      "hitDice": "4d8",
+      "initiative": 2,
+      "spellSaveDC": 12,
+      "spellAttackBonus": 4
     },
-    {
-      "name": "Leather Armor",
-      "rarity": "None",
-      "type": "LA",
-      "typeLabel": "Light Armor",
-      "weaponCat": "Light Armor",
-      "detail": "Light Armor · AC 11 · 10 lb",
-      "price": "1 pp",
-      "weight": 10,
-      "dmg1": null,
-      "dmg2": null,
-      "dmgType": null,
-      "range": null,
-      "ac": 11,
-      "strength": null,
-      "stealth": null,
-      "reqAttune": null,
-      "properties": "AC 11 + DEX",
-      "entries": [
-        "The breastplate and shoulder protectors of this armor are made of leather that has been stiffened by being boiled in oil. The rest of the armor is made of softer and more flexible materials."
+    "skills": [
+      {
+        "attr": "DEX",
+        "name": "Acrobatics",
+        "prof": "full",
+        "bonus": 3
+      },
+      {
+        "attr": "WIS",
+        "name": "Animal Handling",
+        "prof": "half",
+        "bonus": 3
+      },
+      {
+        "attr": "INT",
+        "name": "Arcana",
+        "prof": "half",
+        "bonus": 2
+      },
+      {
+        "attr": "STR",
+        "name": "Athletics",
+        "prof": "half",
+        "bonus": -1
+      },
+      {
+        "attr": "CHA",
+        "name": "Deception",
+        "prof": "half",
+        "bonus": 3
+      },
+      {
+        "attr": "INT",
+        "name": "History",
+        "prof": "half",
+        "bonus": 2
+      },
+      {
+        "attr": "WIS",
+        "name": "Insight",
+        "prof": "half",
+        "bonus": 3
+      },
+      {
+        "attr": "CHA",
+        "name": "Intimidation",
+        "prof": "half",
+        "bonus": 3
+      },
+      {
+        "attr": "INT",
+        "name": "Investigation",
+        "prof": "half",
+        "bonus": 2
+      },
+      {
+        "attr": "WIS",
+        "name": "Medicine",
+        "prof": "expertise",
+        "bonus": 6
+      },
+      {
+        "attr": "INT",
+        "name": "Nature",
+        "prof": "half",
+        "bonus": 2
+      },
+      {
+        "attr": "WIS",
+        "name": "Perception",
+        "prof": "full",
+        "bonus": 4
+      },
+      {
+        "attr": "CHA",
+        "name": "Performance",
+        "prof": "expertise",
+        "bonus": 6
+      },
+      {
+        "attr": "CHA",
+        "name": "Persuasion",
+        "prof": "half",
+        "bonus": 3
+      },
+      {
+        "attr": "INT",
+        "name": "Religion",
+        "prof": "half",
+        "bonus": 2
+      },
+      {
+        "attr": "DEX",
+        "name": "Sleight of Hand",
+        "prof": "half",
+        "bonus": 2
+      },
+      {
+        "attr": "DEX",
+        "name": "Stealth",
+        "prof": "half",
+        "bonus": 2
+      },
+      {
+        "attr": "WIS",
+        "name": "Survival",
+        "prof": "half",
+        "bonus": 3
+      }
+    ],
+    "spells": {
+      "1": [
+        {
+          "name": "Cure Wounds",
+          "range": "Touch",
+          "duration": "Instantaneous",
+          "castingTime": "1 action"
+        },
+        {
+          "name": "Healing Word",
+          "range": "60 ft",
+          "duration": "Instantaneous",
+          "castingTime": "1 bonus action"
+        },
+        {
+          "name": "Detect Magic",
+          "range": "Self",
+          "ritual": true,
+          "duration": "Up to 10 min",
+          "castingTime": "1 action",
+          "concentration": true
+        },
+        {
+          "name": "Charm Person",
+          "range": "30 ft",
+          "duration": "1 hour",
+          "castingTime": "1 action"
+        },
+        {
+          "name": "Feather Fall",
+          "range": "60 ft",
+          "duration": "1 minute",
+          "castingTime": "1 reaction"
+        },
+        {
+          "name": "Sanctuary",
+          "range": "30 ft",
+          "duration": "1 minute",
+          "castingTime": "1 bonus action"
+        },
+        {
+          "name": "Bless",
+          "range": "30 ft",
+          "duration": "Up to 1 minute",
+          "castingTime": "1 action",
+          "concentration": true
+        }
       ],
-      "contents": null,
-      "source": "PHB",
-      "sourceFull": "PHB p144",
-      "page": 144,
-      "_enriched": true,
-      "alias": null
-    },
-    {
-      "name": "Flute",
-      "rarity": "None",
-      "type": "INS",
-      "typeLabel": "Instrument",
-      "weaponCat": "Instrument",
-      "detail": "Instrument · 1 lb",
-      "price": "2 gp",
-      "weight": 1,
-      "dmg1": null,
-      "dmg2": null,
-      "dmgType": null,
-      "range": null,
-      "ac": null,
-      "strength": null,
-      "stealth": null,
-      "reqAttune": null,
-      "properties": "Musical Instrument",
-      "entries": [],
-      "contents": null,
-      "source": "PHB",
-      "sourceFull": "PHB p154",
-      "page": 154,
-      "_enriched": true,
-      "alias": null
-    },
-    {
-      "name": "Viol",
-      "rarity": "None",
-      "type": "INS",
-      "typeLabel": "Instrument",
-      "weaponCat": "Instrument",
-      "detail": "Instrument · 1 lb",
-      "price": "3 pp",
-      "weight": 1,
-      "dmg1": null,
-      "dmg2": null,
-      "dmgType": null,
-      "range": null,
-      "ac": null,
-      "strength": null,
-      "stealth": null,
-      "reqAttune": null,
-      "properties": "Musical Instrument",
-      "entries": [],
-      "contents": null,
-      "source": "PHB",
-      "sourceFull": "PHB p154",
-      "page": 154,
-      "_enriched": true,
-      "alias": null
-    },
-    {
-      "name": "Entertainer's Pack",
-      "rarity": "None",
-      "type": "G",
-      "typeLabel": "Adventuring Gear",
-      "weaponCat": "Adventuring Gear",
-      "detail": "Adventuring Gear · 38 lb",
-      "price": "4 pp",
-      "weight": 0,
-      "dmg1": null,
-      "dmg2": null,
-      "dmgType": null,
-      "range": null,
-      "ac": null,
-      "strength": null,
-      "stealth": null,
-      "reqAttune": null,
-      "properties": "Adventuring Gear",
-      "entries": [
-        "Includes:",
-        "a backpack",
-        "a bedroll",
-        "2 costumes",
-        "5 candles",
-        "5 days of rations",
-        "a waterskin",
-        "a disguise kit"
+      "2": [
+        {
+          "name": "Aid",
+          "range": "30 ft",
+          "duration": "8 hours",
+          "castingTime": "1 action"
+        }
       ],
-      "contents": [
-        "Costume clothes ×2",
-        "Candle ×5",
-        "Rations (1 day) ×5"
-      ],
-      "source": "PHB",
-      "sourceFull": "PHB p151",
-      "page": 151,
-      "_enriched": true,
-      "alias": null
+      "cantrip": [
+        {
+          "name": "Prestidigitation",
+          "range": "10 ft",
+          "duration": "Up to 1 hour",
+          "castingTime": "1 action"
+        },
+        {
+          "name": "Vicious Mockery",
+          "range": "60 ft",
+          "duration": "Instantaneous",
+          "castingTime": "1 action"
+        },
+        {
+          "name": "Mage Hand",
+          "range": "30 ft",
+          "duration": "1 minute",
+          "castingTime": "1 action"
+        },
+        {
+          "name": "Guidance",
+          "range": "Touch",
+          "duration": "Up to 1 minute",
+          "castingTime": "1 action",
+          "concentration": true
+        },
+        {
+          "name": "Spare the Dying",
+          "range": "Touch",
+          "duration": "Instantaneous",
+          "castingTime": "1 action"
+        }
+      ]
     },
-    {
-      "name": "Disguise Kit",
-      "rarity": "None",
-      "type": "T",
-      "typeLabel": "Tool",
-      "weaponCat": "Tool",
-      "detail": "Tool · 3 lb",
-      "price": "25 gp",
-      "weight": 3,
-      "dmg1": null,
-      "dmg2": null,
-      "dmgType": null,
-      "range": null,
-      "ac": null,
-      "strength": null,
-      "stealth": null,
-      "reqAttune": null,
-      "properties": "",
-      "entries": [
-        "This pouch of cosmetics, hair dye, and small props lets you create disguises that change your physical appearance. Proficiency with this kit lets you add your proficiency bonus to any ability checks you make to create a visual disguise."
-      ],
-      "contents": null,
-      "source": "PHB",
-      "sourceFull": "PHB p154",
-      "page": 154,
-      "_enriched": true,
-      "alias": null
+    "actions": [
+      {
+        "id": "vicious_mockery",
+        "note": "WIS save DC 12 — on fail: 1d4 psychic dmg + disadv on next attack",
+        "type": "utility",
+        "label": "Vicious Mockery"
+      },
+      {
+        "id": "cure_wounds",
+        "type": "damage-only",
+        "label": "Cure Wounds",
+        "dmgMod": 2,
+        "dmgDice": "1d8",
+        "dmgType": "Healing",
+        "critDice": "2d8"
+      },
+      {
+        "id": "healing_word",
+        "type": "damage-only",
+        "label": "Healing Word",
+        "dmgMod": 2,
+        "dmgDice": "1d4",
+        "dmgType": "Healing",
+        "critDice": "2d4"
+      },
+      {
+        "id": "sling",
+        "type": "attack",
+        "label": "Sling",
+        "dmgMod": 1,
+        "hitMod": 3,
+        "dmgDice": "1d4",
+        "dmgType": "Bludgeoning",
+        "critDice": "2d4"
+      },
+      {
+        "id": "dagger",
+        "type": "attack",
+        "label": "Dagger",
+        "dmgMod": 1,
+        "hitMod": 3,
+        "dmgDice": "1d4",
+        "dmgType": "Piercing",
+        "critDice": "2d4"
+      }
+    ],
+    "features": [
+      {
+        "desc": "Grant a d6 inspiration die to a creature within 60 ft as a bonus action. CHA mod (2) uses per long rest.",
+        "name": "Bardic Inspiration",
+        "source": "Bard"
+      },
+      {
+        "desc": "Add half proficiency bonus (+1) to any ability check not already using proficiency.",
+        "name": "Jack of All Trades",
+        "source": "Bard"
+      },
+      {
+        "desc": "During a short rest, allies regain extra 1d6 HP when spending hit dice.",
+        "name": "Song of Rest",
+        "source": "Bard"
+      },
+      {
+        "desc": "Double proficiency bonus on Performance and Medicine.",
+        "name": "Expertise",
+        "source": "Bard"
+      },
+      {
+        "desc": "When a creature uses Bardic Inspiration for a spell, they can add the die to damage or healing.",
+        "name": "Magical Inspiration",
+        "source": "Bard"
+      },
+      {
+        "desc": "Bardic Inspiration die grants a bonus effect based on how it is used.",
+        "name": "Mote of Potential",
+        "source": "College of Creation"
+      },
+      {
+        "desc": "Create a medium or smaller nonmagical item worth up to 20 × bard level GP. 1/long rest.",
+        "name": "Performance of Creation",
+        "source": "College of Creation"
+      },
+      {
+        "desc": "Healing spells restore additional HP equal to 2 + spell level.",
+        "name": "Disciple of Life",
+        "source": "Life Domain"
+      },
+      {
+        "desc": "Cast bard spells with the ritual tag without expending a spell slot.",
+        "name": "Ritual Casting",
+        "source": "Bard"
+      },
+      {
+        "desc": "Racial feature — details TBD.",
+        "name": "Observant Prey",
+        "source": "Mouseling"
+      },
+      {
+        "desc": "Always find a place to perform, earn modest living, and have local recognition.",
+        "name": "By Popular Demand",
+        "source": "Entertainer"
+      }
+    ],
+    "portrait": "img/portraits/liadan.png",
+    "subclass": "College of Creation",
+    "abilities": {
+      "cha": {
+        "mod": 2,
+        "score": 15
+      },
+      "con": {
+        "mod": 1,
+        "score": 13
+      },
+      "dex": {
+        "mod": 1,
+        "score": 12
+      },
+      "int": {
+        "mod": 1,
+        "score": 12
+      },
+      "str": {
+        "mod": -2,
+        "score": 6
+      },
+      "wis": {
+        "mod": 2,
+        "score": 14
+      }
     },
-    {
-      "name": "Backpack",
-      "rarity": "None",
-      "type": "G",
-      "typeLabel": "Adventuring Gear",
-      "weaponCat": "Adventuring Gear",
-      "detail": "Adventuring Gear · 5 lb",
-      "price": "2 gp",
-      "weight": 5,
-      "dmg1": null,
-      "dmg2": null,
-      "dmgType": null,
-      "range": null,
-      "ac": null,
-      "strength": null,
-      "stealth": null,
-      "reqAttune": null,
-      "properties": "",
-      "entries": [
-        "A backpack can hold one cubic foot or 30 pounds of gear. You can also strap items, such as a bedroll or a coil of rope, to the outside of a backpack."
-      ],
-      "contents": null,
-      "source": "PHB",
-      "sourceFull": "PHB p153",
-      "page": 153,
-      "_enriched": true,
-      "alias": null
+    "alignment": "Chaotic Good",
+    "appearance": {
+      "age": "17",
+      "eyes": "Brown/Black",
+      "hair": "Grey",
+      "skin": "Grey",
+      "height": "3'",
+      "weight": "30 lbs"
     },
-    {
-      "name": "Bedroll",
-      "rarity": "None",
-      "type": "G",
-      "typeLabel": "Adventuring Gear",
-      "weaponCat": "Adventuring Gear",
-      "detail": "Adventuring Gear · 7 lb",
-      "price": "1 gp",
-      "weight": 7,
-      "dmg1": null,
-      "dmg2": null,
-      "dmgType": null,
-      "range": null,
-      "ac": null,
-      "strength": null,
-      "stealth": null,
-      "reqAttune": null,
-      "properties": "",
-      "entries": [],
-      "contents": null,
-      "source": "PHB",
-      "sourceFull": "PHB p150",
-      "page": 150,
-      "_enriched": true,
-      "alias": null
+    "background": "Entertainer (Singer)",
+    "classLabel": "Bard",
+    "inspiration": true,
+    "rollerFlags": {
+      "halfProfBonus": 1,
+      "reliableTalent": false,
+      "jackOfAllTrades": true
     },
-    {
-      "name": "Candle",
-      "rarity": "None",
-      "type": "G",
-      "typeLabel": "Adventuring Gear",
-      "weaponCat": "Adventuring Gear",
-      "detail": "Adventuring Gear",
-      "price": "1 cp",
-      "weight": 0,
-      "dmg1": null,
-      "dmg2": null,
-      "dmgType": null,
-      "range": null,
-      "ac": null,
-      "strength": null,
-      "stealth": null,
-      "reqAttune": null,
-      "properties": "",
-      "entries": [
-        "For 1 hour, a candle sheds bright light in a 5-foot radius and dim light for an additional 5 feet."
-      ],
-      "contents": null,
-      "source": "PHB",
-      "sourceFull": "PHB p151",
-      "page": 151,
-      "_enriched": true,
-      "alias": null
+    "defaultSlots": [
+      "cure_wounds",
+      "healing_word",
+      "sling",
+      "vicious_mockery"
+    ],
+    "classFeatures": {
+      "spellSlots": {
+        "1": {
+          "max": 4,
+          "current": 4
+        },
+        "2": {
+          "max": 2,
+          "current": 2
+        }
+      },
+      "moteOfPotential": true,
+      "bardicInspiration": {
+        "max": 2,
+        "current": 2
+      },
+      "bardicInspirationDie": "d6",
+      "performanceOfCreation": true
     },
-    {
-      "name": "Rations",
-      "rarity": "None",
-      "type": "G",
-      "typeLabel": "Adventuring Gear",
-      "weaponCat": "Adventuring Gear",
-      "detail": "Adventuring Gear · 2 lb",
-      "price": "5 sp",
-      "weight": 2,
-      "dmg1": null,
-      "dmg2": null,
-      "dmgType": null,
-      "range": null,
-      "ac": null,
-      "strength": null,
-      "stealth": null,
-      "reqAttune": null,
-      "properties": "",
-      "entries": [
-        "Rations consist of dry foods suitable for extended travel, including jerky, dried fruit, hardtack, and nuts."
-      ],
-      "contents": null,
-      "source": "PHB",
-      "sourceFull": "PHB p153",
-      "page": 153,
-      "_enriched": true,
-      "alias": "Rations (1 day)"
+    "proficiencies": {
+      "armor": "Light Armor",
+      "tools": "Bagpipes, Disguise Kit, Flute, Lute, Viol",
+      "weapons": "Simple Weapons, Hand Crossbow, Longsword, Rapier, Shortsword",
+      "languages": ""
     },
-    {
-      "name": "Waterskin",
-      "rarity": "None",
-      "type": "G",
-      "typeLabel": "Adventuring Gear",
-      "weaponCat": "Adventuring Gear",
-      "detail": "Adventuring Gear · 5 lb",
-      "price": "2 sp",
-      "weight": 5,
-      "dmg1": null,
-      "dmg2": null,
-      "dmgType": null,
-      "range": null,
-      "ac": null,
-      "strength": null,
-      "stealth": null,
-      "reqAttune": null,
-      "properties": "",
-      "entries": [
-        "A waterskin can hold up to 4 pints of liquid."
-      ],
-      "contents": null,
-      "source": "PHB",
-      "sourceFull": "PHB p153",
-      "page": 153,
-      "_enriched": true,
-      "alias": null
-    },
-    {
-      "name": "Belt Pouch",
-      "weight": 0,
-      "properties": ""
-    },
-    {
-      "name": "Trinket",
-      "rarity": "None",
-      "type": "G",
-      "typeLabel": "Adventuring Gear",
-      "weaponCat": "Adventuring Gear",
-      "detail": "Adventuring Gear",
-      "price": null,
-      "weight": 0,
-      "dmg1": null,
-      "dmg2": null,
-      "dmgType": null,
-      "range": null,
-      "ac": null,
-      "strength": null,
-      "stealth": null,
-      "reqAttune": null,
-      "properties": "",
-      "entries": [],
-      "contents": null,
-      "source": "ERLW",
-      "sourceFull": "ERLW p134",
-      "page": 134,
-      "_enriched": true,
-      "alias": "Aerenal Trinket"
-    }
-  ],
-  "currency": {
-    "pp": 0,
-    "gp": 0,
-    "ep": 0,
-    "sp": 0,
-    "cp": 0
+    "proficiencyBonus": 2,
+    "passivePerception": 14
   },
-  "notes": "",
-  "bio": {
-    "personality": "",
-    "ideals": "",
-    "bonds": "",
-    "flaws": "",
-    "backstory": ""
-  },
-  "lastUpdated": "2026-05-30T18:49:22.267Z",
   "combat": {
     "hp": 19,
     "hpTemp": 0,
@@ -397,5 +434,393 @@
       "bardicInspiration": 0
     },
     "concentration": null
-  }
+  },
+  "inventory": [
+    {
+      "ac": null,
+      "qty": 2,
+      "dmg1": "1d4",
+      "dmg2": null,
+      "name": "Dagger",
+      "page": 149,
+      "type": "M",
+      "alias": null,
+      "price": "2 gp",
+      "range": "20/60",
+      "detail": "simple weapon · 1d4 P · 1 lb",
+      "rarity": "None",
+      "source": "PHB",
+      "weight": 1,
+      "dmgType": "P",
+      "entries": [],
+      "stealth": null,
+      "contents": null,
+      "strength": null,
+      "_enriched": true,
+      "reqAttune": null,
+      "typeLabel": "Melee Weapon",
+      "weaponCat": "simple weapon, melee weapon",
+      "properties": "Finesse, Light, Thrown",
+      "sourceFull": "PHB p149"
+    },
+    {
+      "ac": null,
+      "dmg1": "1d4",
+      "dmg2": null,
+      "name": "Sling",
+      "page": 149,
+      "type": "R",
+      "alias": null,
+      "price": "1 sp",
+      "range": "30/120",
+      "detail": "simple weapon · 1d4 B",
+      "rarity": "None",
+      "source": "PHB",
+      "weight": 0,
+      "dmgType": "B",
+      "entries": [],
+      "stealth": null,
+      "contents": null,
+      "strength": null,
+      "_enriched": true,
+      "reqAttune": null,
+      "typeLabel": "Ranged Weapon",
+      "weaponCat": "simple weapon, ranged weapon",
+      "properties": "Ammunition, Range 30/120",
+      "sourceFull": "PHB p149"
+    },
+    {
+      "ac": 11,
+      "dmg1": null,
+      "dmg2": null,
+      "name": "Leather Armor",
+      "page": 144,
+      "type": "LA",
+      "alias": null,
+      "price": "1 pp",
+      "range": null,
+      "detail": "Light Armor · AC 11 · 10 lb",
+      "rarity": "None",
+      "source": "PHB",
+      "weight": 10,
+      "dmgType": null,
+      "entries": [
+        "The breastplate and shoulder protectors of this armor are made of leather that has been stiffened by being boiled in oil. The rest of the armor is made of softer and more flexible materials."
+      ],
+      "stealth": null,
+      "contents": null,
+      "strength": null,
+      "_enriched": true,
+      "reqAttune": null,
+      "typeLabel": "Light Armor",
+      "weaponCat": "Light Armor",
+      "properties": "AC 11 + DEX",
+      "sourceFull": "PHB p144"
+    },
+    {
+      "ac": null,
+      "dmg1": null,
+      "dmg2": null,
+      "name": "Flute",
+      "page": 154,
+      "type": "INS",
+      "alias": null,
+      "price": "2 gp",
+      "range": null,
+      "detail": "Instrument · 1 lb",
+      "rarity": "None",
+      "source": "PHB",
+      "weight": 1,
+      "dmgType": null,
+      "entries": [],
+      "stealth": null,
+      "contents": null,
+      "strength": null,
+      "_enriched": true,
+      "reqAttune": null,
+      "typeLabel": "Instrument",
+      "weaponCat": "Instrument",
+      "properties": "Musical Instrument",
+      "sourceFull": "PHB p154"
+    },
+    {
+      "ac": null,
+      "dmg1": null,
+      "dmg2": null,
+      "name": "Viol",
+      "page": 154,
+      "type": "INS",
+      "alias": null,
+      "price": "3 pp",
+      "range": null,
+      "detail": "Instrument · 1 lb",
+      "rarity": "None",
+      "source": "PHB",
+      "weight": 1,
+      "dmgType": null,
+      "entries": [],
+      "stealth": null,
+      "contents": null,
+      "strength": null,
+      "_enriched": true,
+      "reqAttune": null,
+      "typeLabel": "Instrument",
+      "weaponCat": "Instrument",
+      "properties": "Musical Instrument",
+      "sourceFull": "PHB p154"
+    },
+    {
+      "ac": null,
+      "dmg1": null,
+      "dmg2": null,
+      "name": "Entertainer's Pack",
+      "page": 151,
+      "type": "G",
+      "alias": null,
+      "price": "4 pp",
+      "range": null,
+      "detail": "Adventuring Gear · 38 lb",
+      "rarity": "None",
+      "source": "PHB",
+      "weight": 0,
+      "dmgType": null,
+      "entries": [
+        "Includes:",
+        "a backpack",
+        "a bedroll",
+        "2 costumes",
+        "5 candles",
+        "5 days of rations",
+        "a waterskin",
+        "a disguise kit"
+      ],
+      "stealth": null,
+      "contents": [
+        "Costume clothes ×2",
+        "Candle ×5",
+        "Rations (1 day) ×5"
+      ],
+      "strength": null,
+      "_enriched": true,
+      "reqAttune": null,
+      "typeLabel": "Adventuring Gear",
+      "weaponCat": "Adventuring Gear",
+      "properties": "Adventuring Gear",
+      "sourceFull": "PHB p151"
+    },
+    {
+      "ac": null,
+      "dmg1": null,
+      "dmg2": null,
+      "name": "Disguise Kit",
+      "page": 154,
+      "type": "T",
+      "alias": null,
+      "price": "25 gp",
+      "range": null,
+      "detail": "Tool · 3 lb",
+      "rarity": "None",
+      "source": "PHB",
+      "weight": 3,
+      "dmgType": null,
+      "entries": [
+        "This pouch of cosmetics, hair dye, and small props lets you create disguises that change your physical appearance. Proficiency with this kit lets you add your proficiency bonus to any ability checks you make to create a visual disguise."
+      ],
+      "stealth": null,
+      "contents": null,
+      "strength": null,
+      "_enriched": true,
+      "reqAttune": null,
+      "typeLabel": "Tool",
+      "weaponCat": "Tool",
+      "properties": "",
+      "sourceFull": "PHB p154"
+    },
+    {
+      "ac": null,
+      "dmg1": null,
+      "dmg2": null,
+      "name": "Backpack",
+      "page": 153,
+      "type": "G",
+      "alias": null,
+      "price": "2 gp",
+      "range": null,
+      "detail": "Adventuring Gear · 5 lb",
+      "rarity": "None",
+      "source": "PHB",
+      "weight": 5,
+      "dmgType": null,
+      "entries": [
+        "A backpack can hold one cubic foot or 30 pounds of gear. You can also strap items, such as a bedroll or a coil of rope, to the outside of a backpack."
+      ],
+      "stealth": null,
+      "contents": null,
+      "strength": null,
+      "_enriched": true,
+      "reqAttune": null,
+      "typeLabel": "Adventuring Gear",
+      "weaponCat": "Adventuring Gear",
+      "properties": "",
+      "sourceFull": "PHB p153"
+    },
+    {
+      "ac": null,
+      "dmg1": null,
+      "dmg2": null,
+      "name": "Bedroll",
+      "page": 150,
+      "type": "G",
+      "alias": null,
+      "price": "1 gp",
+      "range": null,
+      "detail": "Adventuring Gear · 7 lb",
+      "rarity": "None",
+      "source": "PHB",
+      "weight": 7,
+      "dmgType": null,
+      "entries": [],
+      "stealth": null,
+      "contents": null,
+      "strength": null,
+      "_enriched": true,
+      "reqAttune": null,
+      "typeLabel": "Adventuring Gear",
+      "weaponCat": "Adventuring Gear",
+      "properties": "",
+      "sourceFull": "PHB p150"
+    },
+    {
+      "ac": null,
+      "dmg1": null,
+      "dmg2": null,
+      "name": "Candle",
+      "page": 151,
+      "type": "G",
+      "alias": null,
+      "price": "1 cp",
+      "range": null,
+      "detail": "Adventuring Gear",
+      "rarity": "None",
+      "source": "PHB",
+      "weight": 0,
+      "dmgType": null,
+      "entries": [
+        "For 1 hour, a candle sheds bright light in a 5-foot radius and dim light for an additional 5 feet."
+      ],
+      "stealth": null,
+      "contents": null,
+      "strength": null,
+      "_enriched": true,
+      "reqAttune": null,
+      "typeLabel": "Adventuring Gear",
+      "weaponCat": "Adventuring Gear",
+      "properties": "",
+      "sourceFull": "PHB p151"
+    },
+    {
+      "ac": null,
+      "dmg1": null,
+      "dmg2": null,
+      "name": "Rations",
+      "page": 153,
+      "type": "G",
+      "alias": "Rations (1 day)",
+      "price": "5 sp",
+      "range": null,
+      "detail": "Adventuring Gear · 2 lb",
+      "rarity": "None",
+      "source": "PHB",
+      "weight": 2,
+      "dmgType": null,
+      "entries": [
+        "Rations consist of dry foods suitable for extended travel, including jerky, dried fruit, hardtack, and nuts."
+      ],
+      "stealth": null,
+      "contents": null,
+      "strength": null,
+      "_enriched": true,
+      "reqAttune": null,
+      "typeLabel": "Adventuring Gear",
+      "weaponCat": "Adventuring Gear",
+      "properties": "",
+      "sourceFull": "PHB p153"
+    },
+    {
+      "ac": null,
+      "dmg1": null,
+      "dmg2": null,
+      "name": "Waterskin",
+      "page": 153,
+      "type": "G",
+      "alias": null,
+      "price": "2 sp",
+      "range": null,
+      "detail": "Adventuring Gear · 5 lb",
+      "rarity": "None",
+      "source": "PHB",
+      "weight": 5,
+      "dmgType": null,
+      "entries": [
+        "A waterskin can hold up to 4 pints of liquid."
+      ],
+      "stealth": null,
+      "contents": null,
+      "strength": null,
+      "_enriched": true,
+      "reqAttune": null,
+      "typeLabel": "Adventuring Gear",
+      "weaponCat": "Adventuring Gear",
+      "properties": "",
+      "sourceFull": "PHB p153"
+    },
+    {
+      "name": "Belt Pouch",
+      "weight": 0,
+      "properties": ""
+    },
+    {
+      "ac": null,
+      "dmg1": null,
+      "dmg2": null,
+      "name": "Trinket",
+      "page": 134,
+      "type": "G",
+      "alias": "Aerenal Trinket",
+      "price": null,
+      "range": null,
+      "detail": "Adventuring Gear",
+      "rarity": "None",
+      "source": "ERLW",
+      "weight": 0,
+      "dmgType": null,
+      "entries": [],
+      "stealth": null,
+      "contents": null,
+      "strength": null,
+      "_enriched": true,
+      "reqAttune": null,
+      "typeLabel": "Adventuring Gear",
+      "weaponCat": "Adventuring Gear",
+      "properties": "",
+      "sourceFull": "ERLW p134"
+    }
+  ],
+  "equipment": {},
+  "currency": {
+    "cp": 0,
+    "ep": 0,
+    "gp": 0,
+    "pp": 0,
+    "sp": 0
+  },
+  "bio": {
+    "bonds": "",
+    "flaws": "",
+    "ideals": "",
+    "backstory": "",
+    "personality": ""
+  },
+  "notes": "",
+  "lastUpdated": "2026-06-13T15:05:06.513926+00:00"
 }
