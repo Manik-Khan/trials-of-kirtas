@@ -1,388 +1,743 @@
 {
   "key": "vesperian",
-  "inventory": [
-    {
-      "name": "Longsword",
-      "rarity": "None",
-      "type": "M",
-      "typeLabel": "Melee Weapon",
-      "weaponCat": "martial weapon, melee weapon",
-      "detail": "martial weapon · 1d8 S · 3 lb",
-      "price": "15 gp",
-      "weight": 3,
-      "dmg1": "1d8",
-      "dmg2": "1d10",
-      "dmgType": "S",
-      "range": null,
-      "ac": null,
-      "strength": null,
-      "stealth": null,
-      "reqAttune": null,
-      "properties": "Versatile (1d10), Bonded",
-      "entries": [],
-      "contents": null,
-      "packContents": null,
-      "source": "PHB",
-      "sourceFull": "PHB p149",
-      "page": 149,
-      "_enriched": true,
-      "alias": null,
-      "attackStat": "DEX",
-      "dmgBonus": null,
-      "extraDmg": null,
-      "flavor": null,
-      "notes": null,
-      "icon": null,
-      "isContainer": false,
-      "extradimensional": false,
-      "locked": false,
-      "id": null
+  "structural": {
+    "xp": 900,
+    "name": "Vesperian Vale",
+    "race": "Shadar-kai",
+    "level": 3,
+    "saves": {
+      "cha": {
+        "bonus": 0,
+        "proficient": false
+      },
+      "con": {
+        "bonus": 5,
+        "proficient": true
+      },
+      "dex": {
+        "bonus": 4,
+        "proficient": false
+      },
+      "int": {
+        "bonus": 2,
+        "proficient": false
+      },
+      "str": {
+        "bonus": 1,
+        "proficient": true
+      },
+      "wis": {
+        "bonus": 1,
+        "proficient": false
+      }
     },
-    {
-      "name": "Shield",
-      "rarity": "None",
-      "type": "S",
-      "typeLabel": "Shield",
-      "weaponCat": "Shield",
-      "detail": "Shield · AC 2 · 6 lb",
-      "price": "1 pp",
-      "weight": 6,
-      "dmg1": null,
-      "dmg2": null,
-      "dmgType": null,
-      "range": null,
-      "ac": 2,
-      "strength": null,
-      "stealth": null,
-      "reqAttune": null,
-      "properties": "+2 AC",
-      "entries": [
-        "A shield is made from wood or metal and is carried in one hand. Wielding a shield increases your Armor Class by 2. You can benefit from only one shield at a time."
+    "combat": {
+      "ac": 18,
+      "hp": 31,
+      "hpMax": 31,
+      "speed": 30,
+      "hpTemp": 0,
+      "hitDice": "3d10",
+      "initiative": 4,
+      "spellSaveDC": 12,
+      "spellAttackBonus": 4
+    },
+    "skills": [
+      {
+        "attr": "DEX",
+        "name": "Acrobatics",
+        "prof": "full",
+        "bonus": 6
+      },
+      {
+        "attr": "WIS",
+        "name": "Animal Handling",
+        "prof": "none",
+        "bonus": 1
+      },
+      {
+        "attr": "INT",
+        "name": "Arcana",
+        "prof": "full",
+        "bonus": 4
+      },
+      {
+        "attr": "STR",
+        "name": "Athletics",
+        "prof": "none",
+        "bonus": -1
+      },
+      {
+        "attr": "CHA",
+        "name": "Deception",
+        "prof": "none",
+        "bonus": 0
+      },
+      {
+        "attr": "INT",
+        "name": "History",
+        "prof": "full",
+        "bonus": 4
+      },
+      {
+        "attr": "WIS",
+        "name": "Insight",
+        "prof": "none",
+        "bonus": 1
+      },
+      {
+        "attr": "CHA",
+        "name": "Intimidation",
+        "prof": "none",
+        "bonus": 0
+      },
+      {
+        "attr": "INT",
+        "name": "Investigation",
+        "prof": "none",
+        "bonus": 2
+      },
+      {
+        "attr": "WIS",
+        "name": "Medicine",
+        "prof": "none",
+        "bonus": 1
+      },
+      {
+        "attr": "INT",
+        "name": "Nature",
+        "prof": "none",
+        "bonus": 2
+      },
+      {
+        "attr": "WIS",
+        "name": "Perception",
+        "prof": "full",
+        "bonus": 3
+      },
+      {
+        "attr": "CHA",
+        "name": "Performance",
+        "prof": "none",
+        "bonus": 0
+      },
+      {
+        "attr": "CHA",
+        "name": "Persuasion",
+        "prof": "none",
+        "bonus": 0
+      },
+      {
+        "attr": "INT",
+        "name": "Religion",
+        "prof": "none",
+        "bonus": 2
+      },
+      {
+        "attr": "DEX",
+        "name": "Sleight of Hand",
+        "prof": "none",
+        "bonus": 4
+      },
+      {
+        "attr": "DEX",
+        "name": "Stealth",
+        "prof": "full",
+        "bonus": 6
+      },
+      {
+        "attr": "WIS",
+        "name": "Survival",
+        "prof": "none",
+        "bonus": 1
+      }
+    ],
+    "spells": {
+      "1": [
+        {
+          "name": "Shield",
+          "range": "Self",
+          "duration": "1 round",
+          "castingTime": "1 reaction"
+        },
+        {
+          "name": "Find Familiar",
+          "range": "10 ft",
+          "ritual": true,
+          "duration": "Instantaneous",
+          "castingTime": "1 hour"
+        }
       ],
-      "contents": null,
-      "source": "PHB",
-      "sourceFull": "PHB p144",
-      "page": 144,
-      "_enriched": true,
-      "alias": null
+      "cantrip": [
+        {
+          "name": "Minor Illusion",
+          "range": "30 ft",
+          "duration": "1 minute",
+          "castingTime": "1 action"
+        },
+        {
+          "name": "Booming Blade",
+          "range": "Self (5-ft radius)",
+          "duration": "1 round",
+          "castingTime": "1 action"
+        }
+      ]
     },
-    {
-      "name": "Scale Mail",
-      "rarity": "None",
-      "type": "MA",
-      "typeLabel": "Medium Armor",
-      "weaponCat": "Medium Armor",
-      "detail": "Medium Armor · AC 14 · 45 lb",
-      "price": "5 pp",
-      "weight": 45,
-      "dmg1": null,
-      "dmg2": null,
-      "dmgType": null,
-      "range": null,
-      "ac": 14,
-      "strength": null,
-      "stealth": true,
-      "reqAttune": null,
-      "properties": "Stealth Disadvantage, AC 14",
-      "entries": [
-        "This armor consists of a coat and leggings (and perhaps a separate skirt) of leather covered with overlapping pieces of metal, much like the scales of a fish. The suit includes gauntlets."
+    "actions": [
+      {
+        "id": "bb_vesperian",
+        "note": "Secondary 1d8 thunder if target moves before your next turn",
+        "type": "attack-cantrip",
+        "label": "Booming Blade",
+        "dmgMod": 0,
+        "hitMod": 6,
+        "dmgDice": "1d8",
+        "dmgType": "Slashing + Thunder (on move)",
+        "critDice": "2d8"
+      },
+      {
+        "id": "ls_1h",
+        "type": "attack",
+        "label": "Longsword (One-Handed)",
+        "dmgMod": 2,
+        "hitMod": 6,
+        "dmgDice": "1d8",
+        "dmgType": "Slashing",
+        "critDice": "2d8"
+      },
+      {
+        "id": "ls_2h",
+        "type": "attack",
+        "label": "Longsword (Two-Handed)",
+        "dmgMod": 0,
+        "hitMod": 6,
+        "dmgDice": "1d10",
+        "dmgType": "Slashing",
+        "critDice": "2d10"
+      },
+      {
+        "id": "shield_spell",
+        "note": "+5 AC until start of next turn. Reaction when hit.",
+        "type": "utility",
+        "label": "Shield"
+      },
+      {
+        "id": "second_wind",
+        "note": "Bonus action. Recharges on short/long rest.",
+        "type": "damage-only",
+        "label": "Second Wind",
+        "dmgMod": 3,
+        "dmgDice": "1d10",
+        "dmgType": "Healing",
+        "critDice": "2d10"
+      }
+    ],
+    "features": [
+      {
+        "desc": "Bonus action: regain 1d10 + 3 HP. Recharges on short or long rest.",
+        "name": "Second Wind",
+        "source": "Fighter"
+      },
+      {
+        "desc": "Take one additional action on your turn. Recharges on short or long rest.",
+        "name": "Action Surge",
+        "source": "Fighter"
+      },
+      {
+        "desc": "+2 damage when wielding a melee weapon in one hand and no other weapons.",
+        "name": "Dueling",
+        "source": "Fighter"
+      },
+      {
+        "desc": "Bonded to Longsword. Cannot be disarmed. Summon as a bonus action.",
+        "name": "Weapon Bond",
+        "source": "Eldritch Knight"
+      },
+      {
+        "desc": "INT-based spellcasting. 2 level 1 slots. Spell save DC 12, attack +4.",
+        "name": "Spellcasting",
+        "source": "Eldritch Knight"
+      },
+      {
+        "desc": "Teleport up to 30 ft as a bonus action. Resistance to all damage until start of next turn. 1/long rest.",
+        "name": "Blessing of the Raven Queen",
+        "source": "Shadar-kai"
+      },
+      {
+        "desc": "Meditate for 4 hours instead of sleeping. Proficiency in a weapon or tool after each trance.",
+        "name": "Trance",
+        "source": "Shadar-kai"
+      },
+      {
+        "desc": "Background feature — additional spells from the Dimir guild list.",
+        "name": "Guild Spells",
+        "source": "Dimir Operative"
+      }
+    ],
+    "portrait": "img/portraits/vesperian.jpg",
+    "subclass": "Eldritch Knight",
+    "abilities": {
+      "cha": {
+        "mod": 0,
+        "score": 10
+      },
+      "con": {
+        "mod": 3,
+        "score": 16
+      },
+      "dex": {
+        "mod": 4,
+        "score": 18
+      },
+      "int": {
+        "mod": 2,
+        "score": 14
+      },
+      "str": {
+        "mod": -1,
+        "score": 8
+      },
+      "wis": {
+        "mod": 1,
+        "score": 12
+      }
+    },
+    "alignment": "Neutral",
+    "appearance": {
+      "age": "94",
+      "eyes": "Violet",
+      "hair": "Midnight",
+      "skin": "Ashen",
+      "height": "6'1\"",
+      "weight": "180 lbs"
+    },
+    "background": "Dimir Operative",
+    "classLabel": "Fighter",
+    "inspiration": true,
+    "rollerFlags": {
+      "halfProfBonus": 1,
+      "reliableTalent": false,
+      "jackOfAllTrades": false
+    },
+    "defaultSlots": [
+      "bb_vesperian",
+      "ls_1h",
+      "shield_spell",
+      "second_wind"
+    ],
+    "classFeatures": {
+      "secondWind": {
+        "max": 1,
+        "current": 1
+      },
+      "spellSlots": {
+        "1": {
+          "max": 2,
+          "current": 2
+        }
+      },
+      "weaponBond": [
+        "Longsword"
       ],
-      "contents": null,
-      "source": "PHB",
-      "sourceFull": "PHB p144",
-      "page": 144,
-      "_enriched": true,
-      "alias": null
+      "actionSurge": {
+        "max": 1,
+        "current": 1
+      },
+      "fightingStyle": "Dueling"
     },
-    {
-      "name": "Backpack",
-      "rarity": "None",
-      "type": "G",
-      "typeLabel": "Adventuring Gear",
-      "weaponCat": "Adventuring Gear",
-      "detail": "Adventuring Gear · 5 lb",
-      "price": "2 gp",
-      "weight": null,
-      "dmg1": null,
-      "dmg2": null,
-      "dmgType": null,
-      "range": null,
-      "ac": null,
-      "strength": null,
-      "stealth": null,
-      "reqAttune": null,
-      "properties": [],
-      "entries": [
-        "A backpack can hold one cubic foot or 30 pounds of gear. You can also strap items, such as a bedroll or a coil of rope, to the outside of a backpack."
-      ],
-      "contents": null,
-      "packContents": null,
-      "source": "PHB",
-      "sourceFull": "PHB p153",
-      "page": 153,
-      "qty": 1,
-      "icon": null,
-      "containerId": null,
-      "_enriched": true,
-      "alias": null,
-      "attackStat": null,
-      "dmgBonus": null,
-      "extraDmg": null,
-      "flavor": null,
-      "notes": null,
-      "isContainer": true,
-      "extradimensional": false,
-      "locked": false,
-      "id": "bag_mq0wdlivgp5o"
+    "proficiencies": {
+      "armor": "All Armor, Shields",
+      "tools": "Disguise Kit",
+      "weapons": "Simple Weapons, Martial Weapons",
+      "languages": "Common, Elvish, Undercommon"
     },
-    {
-      "name": "Bedroll",
-      "rarity": "None",
-      "type": "G",
-      "typeLabel": "Adventuring Gear",
-      "weaponCat": "Adventuring Gear",
-      "detail": "Adventuring Gear · 7 lb",
-      "price": "1 gp",
-      "weight": null,
-      "dmg1": null,
-      "dmg2": null,
-      "dmgType": null,
-      "range": null,
-      "ac": null,
-      "strength": null,
-      "stealth": null,
-      "reqAttune": null,
-      "properties": [],
-      "entries": [],
-      "contents": null,
-      "packContents": null,
-      "source": "PHB",
-      "sourceFull": "PHB p150",
-      "page": 150,
-      "qty": 1,
-      "icon": null,
-      "containerId": "bag_mq0wdlivgp5o",
-      "_enriched": true,
-      "alias": null
-    },
-    {
-      "name": "Mess Kit",
-      "rarity": "None",
-      "type": "G",
-      "typeLabel": "Adventuring Gear",
-      "weaponCat": "Adventuring Gear",
-      "detail": "Adventuring Gear · 1 lb",
-      "price": "2 sp",
-      "weight": null,
-      "dmg1": null,
-      "dmg2": null,
-      "dmgType": null,
-      "range": null,
-      "ac": null,
-      "strength": null,
-      "stealth": null,
-      "reqAttune": null,
-      "properties": [],
-      "entries": [
-        "This tin box contains a cup and simple cutlery. The box clamps together, and one side can be used as a cooking pan and the other as a plate or shallow bowl."
-      ],
-      "contents": null,
-      "packContents": null,
-      "source": "PHB",
-      "sourceFull": "PHB p152",
-      "page": 152,
-      "qty": 1,
-      "icon": null,
-      "containerId": "bag_mq0wdlivgp5o",
-      "_enriched": true,
-      "alias": null
-    },
-    {
-      "name": "Tinderbox",
-      "rarity": "None",
-      "type": "G",
-      "typeLabel": "Adventuring Gear",
-      "weaponCat": "Adventuring Gear",
-      "detail": "Adventuring Gear · 1 lb",
-      "price": "5 sp",
-      "weight": null,
-      "dmg1": null,
-      "dmg2": null,
-      "dmgType": null,
-      "range": null,
-      "ac": null,
-      "strength": null,
-      "stealth": null,
-      "reqAttune": null,
-      "properties": [],
-      "entries": [
-        "This small container holds flint, fire steel, and tinder (usually dry cloth soaked in light oil) used to kindle a fire. Using it to light a torch—or anything else with abundant, exposed fuel—takes an action. Lighting any other fire takes 1 minute."
-      ],
-      "contents": null,
-      "packContents": null,
-      "source": "PHB",
-      "sourceFull": "PHB p153",
-      "page": 153,
-      "qty": 1,
-      "icon": null,
-      "containerId": "bag_mq0wdlivgp5o",
-      "_enriched": true,
-      "alias": null
-    },
-    {
-      "name": "Torch",
-      "rarity": "None",
-      "type": "G",
-      "typeLabel": "Adventuring Gear",
-      "weaponCat": "Adventuring Gear",
-      "detail": "Adventuring Gear · 1 lb",
-      "price": "1 cp",
-      "weight": null,
-      "dmg1": null,
-      "dmg2": null,
-      "dmgType": null,
-      "range": null,
-      "ac": null,
-      "strength": null,
-      "stealth": null,
-      "reqAttune": null,
-      "properties": [],
-      "entries": [
-        "A torch burns for 1 hour, providing bright light in a 20-foot radius and dim light for an additional 20 feet. If you make a melee attack with a burning torch and hit, it deals 1 fire damage."
-      ],
-      "contents": null,
-      "packContents": null,
-      "source": "PHB",
-      "sourceFull": "PHB p153",
-      "page": 153,
-      "qty": 10,
-      "icon": null,
-      "containerId": "bag_mq0wdlivgp5o",
-      "_enriched": true,
-      "alias": null
-    },
-    {
-      "name": "Rations (1 Day)",
-      "rarity": "None",
-      "type": "G",
-      "typeLabel": "Adventuring Gear",
-      "weaponCat": "Adventuring Gear",
-      "detail": "Adventuring Gear · 2 lb",
-      "price": "5 sp",
-      "weight": null,
-      "dmg1": null,
-      "dmg2": null,
-      "dmgType": null,
-      "range": null,
-      "ac": null,
-      "strength": null,
-      "stealth": null,
-      "reqAttune": null,
-      "properties": [],
-      "entries": [
-        "Rations consist of dry foods suitable for extended travel, including jerky, dried fruit, hardtack, and nuts."
-      ],
-      "contents": null,
-      "packContents": null,
-      "source": "PHB",
-      "sourceFull": "PHB p153",
-      "page": 153,
-      "qty": 10,
-      "icon": null,
-      "containerId": "bag_mq0wdlivgp5o",
-      "_enriched": true,
-      "alias": "Rations (1 day)"
-    },
-    {
-      "name": "Waterskin",
-      "rarity": "None",
-      "type": "G",
-      "typeLabel": "Adventuring Gear",
-      "weaponCat": "Adventuring Gear",
-      "detail": "Adventuring Gear · 5 lb",
-      "price": "2 sp",
-      "weight": null,
-      "dmg1": null,
-      "dmg2": null,
-      "dmgType": null,
-      "range": null,
-      "ac": null,
-      "strength": null,
-      "stealth": null,
-      "reqAttune": null,
-      "properties": [],
-      "entries": [
-        "A waterskin can hold up to 4 pints of liquid."
-      ],
-      "contents": null,
-      "packContents": null,
-      "source": "PHB",
-      "sourceFull": "PHB p153",
-      "page": 153,
-      "qty": 1,
-      "icon": null,
-      "containerId": "bag_mq0wdlivgp5o",
-      "_enriched": true,
-      "alias": null
-    },
-    {
-      "name": "Hempen Rope (50 Feet)",
-      "rarity": "None",
-      "type": "G",
-      "typeLabel": "Adventuring Gear",
-      "weaponCat": "Adventuring Gear",
-      "detail": "Adventuring Gear · 10 lb",
-      "price": "1 gp",
-      "weight": null,
-      "dmg1": null,
-      "dmg2": null,
-      "dmgType": null,
-      "range": null,
-      "ac": null,
-      "strength": null,
-      "stealth": null,
-      "reqAttune": null,
-      "properties": [],
-      "entries": [
-        "Rope, whether made of hemp or silk, has 2 hit points and can be burst with a 17 Strength check."
-      ],
-      "contents": null,
-      "packContents": null,
-      "source": "PHB",
-      "sourceFull": "PHB p153",
-      "page": 153,
-      "qty": 1,
-      "icon": null,
-      "containerId": "bag_mq0wdlivgp5o",
-      "_enriched": true,
-      "alias": "Hempen Rope (50 feet)"
-    }
-  ],
-  "currency": {
-    "pp": 0,
-    "gp": 49,
-    "ep": 0,
-    "sp": 2,
-    "cp": 0
+    "proficiencyBonus": 2,
+    "passivePerception": 13
   },
-  "notes": "What do we think is the most important aspect of our world?",
-  "bio": {
-    "personality": "",
-    "ideals": "",
-    "bonds": "",
-    "flaws": "",
-    "backstory": ""
-  },
-  "lastUpdated": "2026-06-08T05:41:38.937Z",
   "combat": {
     "hp": 24,
     "hpTemp": 0,
     "hpBonus": 0,
     "pipState": {
       "spell_1": 1,
-      "actionSurge": 0,
-      "secondWind": 0
+      "secondWind": 0,
+      "actionSurge": 0
     },
     "concentration": null
-  }
+  },
+  "inventory": [
+    {
+      "ac": null,
+      "id": null,
+      "dmg1": "1d8",
+      "dmg2": "1d10",
+      "icon": null,
+      "name": "Longsword",
+      "page": 149,
+      "type": "M",
+      "alias": null,
+      "notes": null,
+      "price": "15 gp",
+      "range": null,
+      "detail": "martial weapon · 1d8 S · 3 lb",
+      "flavor": null,
+      "locked": false,
+      "rarity": "None",
+      "source": "PHB",
+      "weight": 3,
+      "dmgType": "S",
+      "entries": [],
+      "stealth": null,
+      "contents": null,
+      "dmgBonus": null,
+      "extraDmg": null,
+      "strength": null,
+      "_enriched": true,
+      "reqAttune": null,
+      "typeLabel": "Melee Weapon",
+      "weaponCat": "martial weapon, melee weapon",
+      "attackStat": "DEX",
+      "properties": "Versatile (1d10), Bonded",
+      "sourceFull": "PHB p149",
+      "isContainer": false,
+      "packContents": null,
+      "extradimensional": false
+    },
+    {
+      "ac": 2,
+      "dmg1": null,
+      "dmg2": null,
+      "name": "Shield",
+      "page": 144,
+      "type": "S",
+      "alias": null,
+      "price": "1 pp",
+      "range": null,
+      "detail": "Shield · AC 2 · 6 lb",
+      "rarity": "None",
+      "source": "PHB",
+      "weight": 6,
+      "dmgType": null,
+      "entries": [
+        "A shield is made from wood or metal and is carried in one hand. Wielding a shield increases your Armor Class by 2. You can benefit from only one shield at a time."
+      ],
+      "stealth": null,
+      "contents": null,
+      "strength": null,
+      "_enriched": true,
+      "reqAttune": null,
+      "typeLabel": "Shield",
+      "weaponCat": "Shield",
+      "properties": "+2 AC",
+      "sourceFull": "PHB p144"
+    },
+    {
+      "ac": 14,
+      "dmg1": null,
+      "dmg2": null,
+      "name": "Scale Mail",
+      "page": 144,
+      "type": "MA",
+      "alias": null,
+      "price": "5 pp",
+      "range": null,
+      "detail": "Medium Armor · AC 14 · 45 lb",
+      "rarity": "None",
+      "source": "PHB",
+      "weight": 45,
+      "dmgType": null,
+      "entries": [
+        "This armor consists of a coat and leggings (and perhaps a separate skirt) of leather covered with overlapping pieces of metal, much like the scales of a fish. The suit includes gauntlets."
+      ],
+      "stealth": true,
+      "contents": null,
+      "strength": null,
+      "_enriched": true,
+      "reqAttune": null,
+      "typeLabel": "Medium Armor",
+      "weaponCat": "Medium Armor",
+      "properties": "Stealth Disadvantage, AC 14",
+      "sourceFull": "PHB p144"
+    },
+    {
+      "ac": null,
+      "id": "bag_mq0wdlivgp5o",
+      "qty": 1,
+      "dmg1": null,
+      "dmg2": null,
+      "icon": null,
+      "name": "Backpack",
+      "page": 153,
+      "type": "G",
+      "alias": null,
+      "notes": null,
+      "price": "2 gp",
+      "range": null,
+      "detail": "Adventuring Gear · 5 lb",
+      "flavor": null,
+      "locked": false,
+      "rarity": "None",
+      "source": "PHB",
+      "weight": null,
+      "dmgType": null,
+      "entries": [
+        "A backpack can hold one cubic foot or 30 pounds of gear. You can also strap items, such as a bedroll or a coil of rope, to the outside of a backpack."
+      ],
+      "stealth": null,
+      "contents": null,
+      "dmgBonus": null,
+      "extraDmg": null,
+      "strength": null,
+      "_enriched": true,
+      "reqAttune": null,
+      "typeLabel": "Adventuring Gear",
+      "weaponCat": "Adventuring Gear",
+      "attackStat": null,
+      "properties": [],
+      "sourceFull": "PHB p153",
+      "containerId": null,
+      "isContainer": true,
+      "packContents": null,
+      "extradimensional": false
+    },
+    {
+      "ac": null,
+      "qty": 1,
+      "dmg1": null,
+      "dmg2": null,
+      "icon": null,
+      "name": "Bedroll",
+      "page": 150,
+      "type": "G",
+      "alias": null,
+      "price": "1 gp",
+      "range": null,
+      "detail": "Adventuring Gear · 7 lb",
+      "rarity": "None",
+      "source": "PHB",
+      "weight": null,
+      "dmgType": null,
+      "entries": [],
+      "stealth": null,
+      "contents": null,
+      "strength": null,
+      "_enriched": true,
+      "reqAttune": null,
+      "typeLabel": "Adventuring Gear",
+      "weaponCat": "Adventuring Gear",
+      "properties": [],
+      "sourceFull": "PHB p150",
+      "containerId": "bag_mq0wdlivgp5o",
+      "packContents": null
+    },
+    {
+      "ac": null,
+      "qty": 1,
+      "dmg1": null,
+      "dmg2": null,
+      "icon": null,
+      "name": "Mess Kit",
+      "page": 152,
+      "type": "G",
+      "alias": null,
+      "price": "2 sp",
+      "range": null,
+      "detail": "Adventuring Gear · 1 lb",
+      "rarity": "None",
+      "source": "PHB",
+      "weight": null,
+      "dmgType": null,
+      "entries": [
+        "This tin box contains a cup and simple cutlery. The box clamps together, and one side can be used as a cooking pan and the other as a plate or shallow bowl."
+      ],
+      "stealth": null,
+      "contents": null,
+      "strength": null,
+      "_enriched": true,
+      "reqAttune": null,
+      "typeLabel": "Adventuring Gear",
+      "weaponCat": "Adventuring Gear",
+      "properties": [],
+      "sourceFull": "PHB p152",
+      "containerId": "bag_mq0wdlivgp5o",
+      "packContents": null
+    },
+    {
+      "ac": null,
+      "qty": 1,
+      "dmg1": null,
+      "dmg2": null,
+      "icon": null,
+      "name": "Tinderbox",
+      "page": 153,
+      "type": "G",
+      "alias": null,
+      "price": "5 sp",
+      "range": null,
+      "detail": "Adventuring Gear · 1 lb",
+      "rarity": "None",
+      "source": "PHB",
+      "weight": null,
+      "dmgType": null,
+      "entries": [
+        "This small container holds flint, fire steel, and tinder (usually dry cloth soaked in light oil) used to kindle a fire. Using it to light a torch—or anything else with abundant, exposed fuel—takes an action. Lighting any other fire takes 1 minute."
+      ],
+      "stealth": null,
+      "contents": null,
+      "strength": null,
+      "_enriched": true,
+      "reqAttune": null,
+      "typeLabel": "Adventuring Gear",
+      "weaponCat": "Adventuring Gear",
+      "properties": [],
+      "sourceFull": "PHB p153",
+      "containerId": "bag_mq0wdlivgp5o",
+      "packContents": null
+    },
+    {
+      "ac": null,
+      "qty": 10,
+      "dmg1": null,
+      "dmg2": null,
+      "icon": null,
+      "name": "Torch",
+      "page": 153,
+      "type": "G",
+      "alias": null,
+      "price": "1 cp",
+      "range": null,
+      "detail": "Adventuring Gear · 1 lb",
+      "rarity": "None",
+      "source": "PHB",
+      "weight": null,
+      "dmgType": null,
+      "entries": [
+        "A torch burns for 1 hour, providing bright light in a 20-foot radius and dim light for an additional 20 feet. If you make a melee attack with a burning torch and hit, it deals 1 fire damage."
+      ],
+      "stealth": null,
+      "contents": null,
+      "strength": null,
+      "_enriched": true,
+      "reqAttune": null,
+      "typeLabel": "Adventuring Gear",
+      "weaponCat": "Adventuring Gear",
+      "properties": [],
+      "sourceFull": "PHB p153",
+      "containerId": "bag_mq0wdlivgp5o",
+      "packContents": null
+    },
+    {
+      "ac": null,
+      "qty": 10,
+      "dmg1": null,
+      "dmg2": null,
+      "icon": null,
+      "name": "Rations (1 Day)",
+      "page": 153,
+      "type": "G",
+      "alias": "Rations (1 day)",
+      "price": "5 sp",
+      "range": null,
+      "detail": "Adventuring Gear · 2 lb",
+      "rarity": "None",
+      "source": "PHB",
+      "weight": null,
+      "dmgType": null,
+      "entries": [
+        "Rations consist of dry foods suitable for extended travel, including jerky, dried fruit, hardtack, and nuts."
+      ],
+      "stealth": null,
+      "contents": null,
+      "strength": null,
+      "_enriched": true,
+      "reqAttune": null,
+      "typeLabel": "Adventuring Gear",
+      "weaponCat": "Adventuring Gear",
+      "properties": [],
+      "sourceFull": "PHB p153",
+      "containerId": "bag_mq0wdlivgp5o",
+      "packContents": null
+    },
+    {
+      "ac": null,
+      "qty": 1,
+      "dmg1": null,
+      "dmg2": null,
+      "icon": null,
+      "name": "Waterskin",
+      "page": 153,
+      "type": "G",
+      "alias": null,
+      "price": "2 sp",
+      "range": null,
+      "detail": "Adventuring Gear · 5 lb",
+      "rarity": "None",
+      "source": "PHB",
+      "weight": null,
+      "dmgType": null,
+      "entries": [
+        "A waterskin can hold up to 4 pints of liquid."
+      ],
+      "stealth": null,
+      "contents": null,
+      "strength": null,
+      "_enriched": true,
+      "reqAttune": null,
+      "typeLabel": "Adventuring Gear",
+      "weaponCat": "Adventuring Gear",
+      "properties": [],
+      "sourceFull": "PHB p153",
+      "containerId": "bag_mq0wdlivgp5o",
+      "packContents": null
+    },
+    {
+      "ac": null,
+      "qty": 1,
+      "dmg1": null,
+      "dmg2": null,
+      "icon": null,
+      "name": "Hempen Rope (50 Feet)",
+      "page": 153,
+      "type": "G",
+      "alias": "Hempen Rope (50 feet)",
+      "price": "1 gp",
+      "range": null,
+      "detail": "Adventuring Gear · 10 lb",
+      "rarity": "None",
+      "source": "PHB",
+      "weight": null,
+      "dmgType": null,
+      "entries": [
+        "Rope, whether made of hemp or silk, has 2 hit points and can be burst with a 17 Strength check."
+      ],
+      "stealth": null,
+      "contents": null,
+      "strength": null,
+      "_enriched": true,
+      "reqAttune": null,
+      "typeLabel": "Adventuring Gear",
+      "weaponCat": "Adventuring Gear",
+      "properties": [],
+      "sourceFull": "PHB p153",
+      "containerId": "bag_mq0wdlivgp5o",
+      "packContents": null
+    }
+  ],
+  "equipment": {},
+  "currency": {
+    "cp": 0,
+    "ep": 0,
+    "gp": 49,
+    "pp": 0,
+    "sp": 2
+  },
+  "bio": {
+    "bonds": "",
+    "flaws": "",
+    "ideals": "",
+    "backstory": "",
+    "personality": ""
+  },
+  "notes": "What do we think is the most important aspect of our world?",
+  "lastUpdated": "2026-06-13T15:05:06.513926+00:00"
 }
