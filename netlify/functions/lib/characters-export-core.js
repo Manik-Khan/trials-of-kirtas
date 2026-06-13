@@ -30,6 +30,15 @@ const ghHeaders = {
   'Content-Type':  'application/json',
 };
 
+// service_role auth headers, robust to both key formats:
+//   • legacy keys are JWTs  → also send Authorization: Bearer (PostgREST reads the role from it)
+//   • new sb_secret_ keys   → apikey only (they're not JWTs; Bearer would be rejected → drops to anon)
+function svcHeaders() {
+  const h = { 'apikey': SERVICE_KEY };
+  if ((SERVICE_KEY || '').startsWith('eyJ')) h['Authorization'] = `Bearer ${SERVICE_KEY}`;
+  return h;
+}
+
 // characters row → on-disk JSON shape. Legacy keys preserved for the old sheet;
 // structural + equipment added so the file fully reflects the row. The fixed key
 // order keeps JSON.stringify deterministic, which the "unchanged" check relies on.
@@ -93,10 +102,7 @@ async function runCharactersExport() {
     `${SUPABASE_URL}/rest/v1/characters` +
     `?select=key,structural,vitals,inventory,equipment,currency,bio,notes,updated_at` +
     `&order=key.asc`,
-    // New sb_secret_ keys are NOT JWTs — they go in the apikey header only.
-    // Sending them as Authorization: Bearer gets them rejected as non-JWT and
-    // the request falls back to a role RLS blocks. apikey alone mints service_role.
-    { headers: { 'apikey': SERVICE_KEY } });
+    { headers: svcHeaders() });
   if (!res.ok) throw new Error(`Characters read ${res.status}`);
   const rows = await res.json();
 
