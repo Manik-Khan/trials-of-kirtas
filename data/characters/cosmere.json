@@ -1,102 +1,590 @@
 {
   "key": "cosmere",
+  "structural": {
+    "xp": 900,
+    "name": "Cosmere Runestar",
+    "race": "Astral Elf",
+    "level": 3,
+    "saves": {
+      "cha": {
+        "bonus": 5,
+        "proficient": true
+      },
+      "con": {
+        "bonus": 2,
+        "proficient": false
+      },
+      "dex": {
+        "bonus": 2,
+        "proficient": false
+      },
+      "int": {
+        "bonus": -1,
+        "proficient": false
+      },
+      "str": {
+        "bonus": 1,
+        "proficient": false
+      },
+      "wis": {
+        "bonus": 2,
+        "proficient": true
+      }
+    },
+    "combat": {
+      "ac": 18,
+      "hp": 20,
+      "hpMax": 20,
+      "speed": 30,
+      "hpTemp": 0,
+      "hitDice": "2d8+1d6",
+      "initiative": 2,
+      "spellSaveDC": 13,
+      "spellAttackBonus": 5
+    },
+    "skills": [
+      {
+        "attr": "DEX",
+        "name": "Acrobatics",
+        "prof": "full",
+        "bonus": 4
+      },
+      {
+        "attr": "WIS",
+        "name": "Animal Handling",
+        "prof": "none",
+        "bonus": 0
+      },
+      {
+        "attr": "INT",
+        "name": "Arcana",
+        "prof": "full",
+        "bonus": 1
+      },
+      {
+        "attr": "STR",
+        "name": "Athletics",
+        "prof": "none",
+        "bonus": 1
+      },
+      {
+        "attr": "CHA",
+        "name": "Deception",
+        "prof": "full",
+        "bonus": 5
+      },
+      {
+        "attr": "INT",
+        "name": "History",
+        "prof": "none",
+        "bonus": -1
+      },
+      {
+        "attr": "WIS",
+        "name": "Insight",
+        "prof": "none",
+        "bonus": 0
+      },
+      {
+        "attr": "CHA",
+        "name": "Intimidation",
+        "prof": "none",
+        "bonus": 3
+      },
+      {
+        "attr": "INT",
+        "name": "Investigation",
+        "prof": "none",
+        "bonus": -1
+      },
+      {
+        "attr": "WIS",
+        "name": "Medicine",
+        "prof": "none",
+        "bonus": 0
+      },
+      {
+        "attr": "INT",
+        "name": "Nature",
+        "prof": "none",
+        "bonus": -1
+      },
+      {
+        "attr": "WIS",
+        "name": "Perception",
+        "prof": "full",
+        "bonus": 2
+      },
+      {
+        "attr": "CHA",
+        "name": "Performance",
+        "prof": "none",
+        "bonus": 3
+      },
+      {
+        "attr": "CHA",
+        "name": "Persuasion",
+        "prof": "full",
+        "bonus": 5
+      },
+      {
+        "attr": "INT",
+        "name": "Religion",
+        "prof": "none",
+        "bonus": -1
+      },
+      {
+        "attr": "DEX",
+        "name": "Sleight of Hand",
+        "prof": "none",
+        "bonus": 2
+      },
+      {
+        "attr": "DEX",
+        "name": "Stealth",
+        "prof": "full",
+        "bonus": 4
+      },
+      {
+        "attr": "WIS",
+        "name": "Survival",
+        "prof": "none",
+        "bonus": 0
+      }
+    ],
+    "spells": {
+      "1": [
+        {
+          "name": "Shield",
+          "range": "Self",
+          "duration": "1 round",
+          "castingTime": "1 reaction"
+        },
+        {
+          "name": "Hex",
+          "range": "90 ft",
+          "duration": "Up to 1 hour",
+          "castingTime": "1 bonus action",
+          "concentration": true
+        },
+        {
+          "name": "Charm Person",
+          "range": "30 ft",
+          "duration": "1 hour",
+          "castingTime": "1 action"
+        },
+        {
+          "name": "Detect Magic",
+          "range": "Self",
+          "ritual": true,
+          "duration": "Up to 10 min",
+          "castingTime": "1 action",
+          "concentration": true
+        },
+        {
+          "name": "Absorb Elements",
+          "range": "Self",
+          "duration": "1 round",
+          "castingTime": "1 reaction"
+        }
+      ],
+      "cantrip": [
+        {
+          "name": "Eldritch Blast",
+          "range": "120 ft",
+          "duration": "Instantaneous",
+          "castingTime": "1 action"
+        },
+        {
+          "name": "Booming Blade",
+          "range": "Self (5-ft radius)",
+          "duration": "1 round",
+          "castingTime": "1 action"
+        },
+        {
+          "name": "Green-Flame Blade",
+          "range": "Self (5-ft radius)",
+          "duration": "Instantaneous",
+          "castingTime": "1 action"
+        },
+        {
+          "name": "Minor Illusion",
+          "range": "30 ft",
+          "duration": "1 minute",
+          "castingTime": "1 action"
+        },
+        {
+          "name": "Mage Hand",
+          "range": "30 ft",
+          "duration": "1 minute",
+          "castingTime": "1 action"
+        },
+        {
+          "name": "Mending",
+          "range": "Touch",
+          "duration": "Instantaneous",
+          "castingTime": "1 minute"
+        }
+      ]
+    },
+    "actions": [
+      {
+        "id": "eldritch_blast",
+        "note": "Agonizing Blast: +3 damage (CHA mod)",
+        "type": "attack-cantrip",
+        "label": "Eldritch Blast",
+        "dmgMod": 0,
+        "hitMod": 5,
+        "dmgDice": "1d10",
+        "dmgType": "Force",
+        "critDice": "2d10"
+      },
+      {
+        "id": "hex",
+        "type": "damage-only",
+        "label": "Hex (damage)",
+        "dmgMod": 0,
+        "dmgDice": "1d6",
+        "dmgType": "Necrotic",
+        "critDice": "2d6"
+      },
+      {
+        "id": "longsword",
+        "type": "attack",
+        "label": "Longsword",
+        "dmgMod": 3,
+        "hitMod": 5,
+        "dmgDice": "1d8",
+        "dmgType": "Slashing",
+        "critDice": "2d8"
+      },
+      {
+        "id": "longsword_2h",
+        "type": "attack",
+        "label": "Longsword (Two-Handed)",
+        "dmgMod": 3,
+        "hitMod": 5,
+        "dmgDice": "1d10",
+        "dmgType": "Slashing",
+        "critDice": "2d10"
+      },
+      {
+        "id": "booming_blade",
+        "note": "Secondary 1d8 thunder if target moves before your next turn",
+        "type": "attack-cantrip",
+        "label": "Booming Blade",
+        "dmgMod": 0,
+        "hitMod": 5,
+        "dmgDice": "1d8",
+        "dmgType": "Thunder",
+        "critDice": "2d8"
+      },
+      {
+        "id": "green_flame_blade",
+        "type": "attack-cantrip",
+        "label": "Green-Flame Blade",
+        "dmgMod": 3,
+        "hitMod": 5,
+        "dmgDice": "1d8",
+        "dmgType": "Fire",
+        "critDice": "2d8"
+      },
+      {
+        "id": "absorb_elements",
+        "type": "damage-only",
+        "label": "Absorb Elements",
+        "dmgMod": 0,
+        "dmgDice": "1d6",
+        "dmgType": "Element (see text)",
+        "critDice": "2d6"
+      },
+      {
+        "id": "shield_spell",
+        "note": "+5 AC until start of next turn. Reaction when hit.",
+        "type": "utility",
+        "label": "Shield"
+      },
+      {
+        "id": "charm_person",
+        "note": "WIS save DC 13. 30 ft, 1 hour.",
+        "type": "utility",
+        "label": "Charm Person"
+      },
+      {
+        "id": "detect_magic",
+        "note": "Ritual / Concentration. 10 minutes.",
+        "type": "utility",
+        "label": "Detect Magic"
+      },
+      {
+        "id": "minor_illusion",
+        "note": "30 ft, 1 minute.",
+        "type": "utility",
+        "label": "Minor Illusion"
+      },
+      {
+        "id": "mage_hand",
+        "note": "30 ft, 1 minute.",
+        "type": "utility",
+        "label": "Mage Hand"
+      },
+      {
+        "id": "mending",
+        "note": "Touch, instantaneous.",
+        "type": "utility",
+        "label": "Mending"
+      }
+    ],
+    "features": [
+      {
+        "desc": "Curse a creature within 30 ft as a bonus action. Gain bonus to damage, crit on 19-20, regain HP on kill.",
+        "name": "Hexblade's Curse",
+        "source": "The Hexblade"
+      },
+      {
+        "desc": "Proficiency with medium armor, shields, and martial weapons. Use CHA for attack/damage with one weapon.",
+        "name": "Hex Warrior",
+        "source": "The Hexblade"
+      },
+      {
+        "desc": "Gained two invocations at level 2.",
+        "name": "Eldritch Invocations",
+        "source": "Warlock"
+      },
+      {
+        "desc": "Add CHA modifier (+3) to Eldritch Blast damage.",
+        "name": "Eldritch Invocation: Agonizing Blast",
+        "source": "Warlock"
+      },
+      {
+        "desc": "Push targets 10 ft away on Eldritch Blast hit.",
+        "name": "Eldritch Invocation: Repelling Blast",
+        "source": "Warlock"
+      },
+      {
+        "desc": "Darkvision 120 ft. Can cast Darkness using a spell slot.",
+        "name": "Eyes of the Dark",
+        "source": "Shadow Magic"
+      },
+      {
+        "desc": "When reduced to 0 HP, make CHA save to drop to 1 HP instead.",
+        "name": "Strength of the Grave",
+        "source": "Shadow Magic"
+      },
+      {
+        "desc": "Advantage on saves against being charmed. Cannot be magically put to sleep.",
+        "name": "Fey Ancestry",
+        "source": "Astral Elf"
+      },
+      {
+        "desc": "Teleport up to 30 ft as a bonus action. Uses = proficiency bonus per long rest.",
+        "name": "Starlight Step",
+        "source": "Astral Elf"
+      },
+      {
+        "desc": "Trance for 4 hours instead of sleep. Gain a weapon or tool proficiency each trance.",
+        "name": "Astral Trance",
+        "source": "Astral Elf"
+      },
+      {
+        "desc": "Secure free passage on ships for your party.",
+        "name": "Ship's Passage",
+        "source": "Captain"
+      }
+    ],
+    "portrait": "img/portraits/cosmere.png",
+    "subclass": "Shadow | The Hexblade",
+    "abilities": {
+      "cha": {
+        "mod": 3,
+        "score": 17
+      },
+      "con": {
+        "mod": 2,
+        "score": 14
+      },
+      "dex": {
+        "mod": 2,
+        "score": 14
+      },
+      "int": {
+        "mod": -1,
+        "score": 8
+      },
+      "str": {
+        "mod": 1,
+        "score": 13
+      },
+      "wis": {
+        "mod": 0,
+        "score": 11
+      }
+    },
+    "alignment": "Chaotic Good",
+    "appearance": {
+      "age": "112",
+      "eyes": "Golden",
+      "hair": "Black",
+      "skin": "Tan",
+      "height": "6'2\"",
+      "weight": "195 lbs"
+    },
+    "background": "Captain",
+    "classLabel": "Warlock 2 / Sorcerer 1",
+    "inspiration": true,
+    "rollerFlags": {
+      "halfProfBonus": 1,
+      "reliableTalent": false,
+      "jackOfAllTrades": false
+    },
+    "defaultSlots": [
+      "eldritch_blast",
+      "longsword",
+      "hex",
+      "shield_spell"
+    ],
+    "classFeatures": {
+      "pactSlots": {
+        "max": 1,
+        "level": 1,
+        "current": 1
+      },
+      "sorcererSlots": {
+        "1": {
+          "max": 2,
+          "current": 2
+        }
+      },
+      "sorceryPoints": {
+        "max": 0,
+        "current": 0
+      },
+      "eldritchBlastBeams": {
+        "1": 1,
+        "5": 2,
+        "11": 3,
+        "17": 4
+      }
+    },
+    "proficiencies": {
+      "armor": "Light Armor, Medium Armor, Shields",
+      "tools": "Navigator's Tools, Water Vehicles",
+      "weapons": "Longsword, Martial Weapons, Simple Weapons",
+      "languages": "Common, Elvish"
+    },
+    "proficiencyBonus": 2,
+    "passivePerception": 12
+  },
+  "combat": {
+    "hp": 19,
+    "hpTemp": 0,
+    "hpBonus": 0,
+    "pipState": {
+      "sorc_1": 0,
+      "pactSlots": 0
+    },
+    "concentration": null
+  },
   "inventory": [
     {
-      "name": "Scale Mail",
-      "rarity": "None",
-      "type": "MA",
-      "typeLabel": "Medium Armor",
-      "weaponCat": "Medium Armor",
-      "detail": "Medium Armor · AC 14 · 45 lb",
-      "price": "5 pp",
-      "weight": 45,
+      "ac": 14,
       "dmg1": null,
       "dmg2": null,
-      "dmgType": null,
+      "name": "Scale Mail",
+      "page": 144,
+      "type": "MA",
+      "alias": null,
+      "price": "5 pp",
       "range": null,
-      "ac": 14,
-      "strength": null,
-      "stealth": true,
-      "reqAttune": null,
-      "properties": "Stealth Disadvantage, AC 14",
+      "detail": "Medium Armor · AC 14 · 45 lb",
+      "rarity": "None",
+      "source": "PHB",
+      "weight": 45,
+      "dmgType": null,
       "entries": [
         "This armor consists of a coat and leggings (and perhaps a separate skirt) of leather covered with overlapping pieces of metal, much like the scales of a fish. The suit includes gauntlets."
       ],
+      "stealth": true,
       "contents": null,
-      "source": "PHB",
-      "sourceFull": "PHB p144",
-      "page": 144,
+      "strength": null,
       "_enriched": true,
-      "alias": null
+      "reqAttune": null,
+      "typeLabel": "Medium Armor",
+      "weaponCat": "Medium Armor",
+      "properties": "Stealth Disadvantage, AC 14",
+      "sourceFull": "PHB p144"
     },
     {
-      "name": "Longsword",
-      "rarity": "None",
-      "type": "M",
-      "typeLabel": "Melee Weapon",
-      "weaponCat": "martial weapon, melee weapon",
-      "detail": "martial weapon · 1d8 S · 3 lb",
-      "price": "15 gp",
-      "weight": 3,
+      "ac": null,
+      "qty": 1,
       "dmg1": "1d8",
       "dmg2": "1d10",
-      "dmgType": "S",
-      "range": null,
-      "ac": null,
-      "strength": null,
-      "stealth": null,
-      "reqAttune": null,
-      "properties": "Versatile (1d10)",
-      "entries": [],
-      "contents": null,
-      "source": "PHB",
-      "sourceFull": "PHB p149",
+      "name": "Longsword",
       "page": 149,
-      "qty": 1,
+      "type": "M",
+      "alias": null,
+      "price": "15 gp",
+      "range": null,
+      "detail": "martial weapon · 1d8 S · 3 lb",
+      "rarity": "None",
+      "source": "PHB",
+      "weight": 3,
+      "dmgType": "S",
+      "entries": [],
+      "stealth": null,
+      "contents": null,
+      "strength": null,
       "_enriched": true,
-      "alias": null
+      "reqAttune": null,
+      "typeLabel": "Melee Weapon",
+      "weaponCat": "martial weapon, melee weapon",
+      "properties": "Versatile (1d10)",
+      "sourceFull": "PHB p149"
     },
     {
-      "name": "Shield",
-      "rarity": "None",
-      "type": "S",
-      "typeLabel": "Shield",
-      "weaponCat": "Shield",
-      "detail": "Shield · AC 2 · 6 lb",
-      "price": "1 pp",
-      "weight": 6,
+      "ac": 2,
       "dmg1": null,
       "dmg2": null,
-      "dmgType": null,
+      "name": "Shield",
+      "page": 144,
+      "type": "S",
+      "alias": null,
+      "price": "1 pp",
       "range": null,
-      "ac": 2,
-      "strength": null,
-      "stealth": null,
-      "reqAttune": null,
-      "properties": "+2 AC",
+      "detail": "Shield · AC 2 · 6 lb",
+      "rarity": "None",
+      "source": "PHB",
+      "weight": 6,
+      "dmgType": null,
       "entries": [
         "A shield is made from wood or metal and is carried in one hand. Wielding a shield increases your Armor Class by 2. You can benefit from only one shield at a time."
       ],
+      "stealth": null,
       "contents": null,
-      "source": "PHB",
-      "sourceFull": "PHB p144",
-      "page": 144,
+      "strength": null,
       "_enriched": true,
-      "alias": null
+      "reqAttune": null,
+      "typeLabel": "Shield",
+      "weaponCat": "Shield",
+      "properties": "+2 AC",
+      "sourceFull": "PHB p144"
     },
     {
-      "name": "Dungeoneer's Pack",
-      "detail": "Adventuring Gear · 61.5 lb",
+      "ac": null,
+      "id": "bag_mpu4tmj3vzlg",
       "qty": 1,
-      "weight": 0,
       "dmg1": null,
       "dmg2": null,
-      "dmgType": null,
-      "ac": null,
-      "range": null,
+      "icon": null,
+      "name": "Dungeoneer's Pack",
       "price": "12 gp",
-      "reqAttune": null,
-      "properties": [],
+      "range": null,
+      "detail": "Adventuring Gear · 61.5 lb",
+      "locked": false,
+      "rarity": "None",
+      "source": "PHB",
+      "weight": 0,
+      "dmgType": null,
       "entries": [
         "Includes:",
         "a backpack",
@@ -109,122 +597,110 @@
         "a waterskin",
         "50 feet of hempen rope"
       ],
-      "rarity": "None",
-      "weaponCat": "Adventuring Gear",
-      "typeLabel": "Adventuring Gear",
-      "sourceFull": "PHB p151",
-      "source": "PHB",
-      "strength": null,
       "stealth": null,
       "contents": [
         "Piton ×10",
         "Torch ×10",
         "Rations (1 day) ×10"
       ],
-      "icon": null,
+      "strength": null,
+      "reqAttune": null,
+      "typeLabel": "Adventuring Gear",
+      "weaponCat": "Adventuring Gear",
+      "properties": [],
+      "sourceFull": "PHB p151",
+      "containerId": null,
       "isContainer": true,
-      "extradimensional": false,
-      "locked": false,
-      "id": "bag_mpu4tmj3vzlg",
-      "containerId": null
+      "extradimensional": false
     },
     {
+      "qty": 1,
+      "icon": null,
       "name": "Backpack",
-      "qty": 1,
       "weight": null,
-      "icon": null,
-      "containerId": "bag_mpu4tmj3vzlg",
-      "_enriched": false
+      "_enriched": false,
+      "containerId": "bag_mpu4tmj3vzlg"
     },
     {
+      "qty": 1,
+      "icon": null,
       "name": "Crowbar",
-      "qty": 1,
       "weight": null,
-      "icon": null,
-      "containerId": "bag_mpu4tmj3vzlg",
-      "_enriched": false
+      "_enriched": false,
+      "containerId": "bag_mpu4tmj3vzlg"
     },
     {
+      "qty": 1,
+      "icon": null,
       "name": "Hammer",
-      "qty": 1,
       "weight": null,
-      "icon": null,
-      "containerId": "bag_mpu4tmj3vzlg",
-      "_enriched": false
+      "_enriched": false,
+      "containerId": "bag_mpu4tmj3vzlg"
     },
     {
+      "qty": 10,
+      "icon": null,
       "name": "Piton",
-      "qty": 10,
       "weight": null,
-      "icon": null,
-      "containerId": "bag_mpu4tmj3vzlg",
-      "_enriched": false
+      "_enriched": false,
+      "containerId": "bag_mpu4tmj3vzlg"
     },
     {
+      "qty": 10,
+      "icon": null,
       "name": "Torch",
-      "qty": 10,
       "weight": null,
-      "icon": null,
-      "containerId": "bag_mpu4tmj3vzlg",
-      "_enriched": false
+      "_enriched": false,
+      "containerId": "bag_mpu4tmj3vzlg"
     },
     {
+      "qty": 1,
+      "icon": null,
       "name": "Tinderbox",
-      "qty": 1,
       "weight": null,
-      "icon": null,
-      "containerId": "bag_mpu4tmj3vzlg",
-      "_enriched": false
+      "_enriched": false,
+      "containerId": "bag_mpu4tmj3vzlg"
     },
     {
-      "name": "Rations (1 Day)",
       "qty": 10,
-      "weight": null,
       "icon": null,
-      "containerId": "bag_mpu4tmj3vzlg",
-      "_enriched": false
+      "name": "Rations (1 Day)",
+      "weight": null,
+      "_enriched": false,
+      "containerId": "bag_mpu4tmj3vzlg"
     },
     {
+      "qty": 1,
+      "icon": null,
       "name": "Waterskin",
-      "qty": 1,
       "weight": null,
-      "icon": null,
-      "containerId": "bag_mpu4tmj3vzlg",
-      "_enriched": false
+      "_enriched": false,
+      "containerId": "bag_mpu4tmj3vzlg"
     },
     {
-      "name": "Hempen Rope (50 Feet)",
       "qty": 1,
-      "weight": null,
       "icon": null,
-      "containerId": "bag_mpu4tmj3vzlg",
-      "_enriched": false
+      "name": "Hempen Rope (50 Feet)",
+      "weight": null,
+      "_enriched": false,
+      "containerId": "bag_mpu4tmj3vzlg"
     }
   ],
+  "equipment": {},
   "currency": {
-    "pp": 0,
-    "gp": 0,
+    "cp": 0,
     "ep": 0,
-    "sp": 0,
-    "cp": 0
+    "gp": 0,
+    "pp": 0,
+    "sp": 0
   },
-  "notes": "Type in here...",
   "bio": {
-    "personality": "",
-    "ideals": "",
     "bonds": "",
     "flaws": "",
-    "backstory": ""
+    "ideals": "",
+    "backstory": "",
+    "personality": ""
   },
-  "lastUpdated": "2026-06-05T12:32:26.861Z",
-  "combat": {
-    "hp": 19,
-    "hpTemp": 0,
-    "hpBonus": 0,
-    "pipState": {
-      "sorc_1": 0,
-      "pactSlots": 0
-    },
-    "concentration": null
-  }
+  "notes": "Type in here...",
+  "lastUpdated": "2026-06-13T15:05:06.513926+00:00"
 }
