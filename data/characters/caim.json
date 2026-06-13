@@ -1,201 +1,570 @@
 {
   "key": "caim",
+  "structural": {
+    "xp": 0,
+    "name": "Caim",
+    "race": "Tiefling (Standard)",
+    "_note": "Using 2024 Roll20 sheet — update manually until scraper supports it",
+    "level": 3,
+    "saves": {
+      "cha": {
+        "bonus": 1,
+        "proficient": false
+      },
+      "con": {
+        "bonus": 2,
+        "proficient": false
+      },
+      "dex": {
+        "bonus": 5,
+        "proficient": true
+      },
+      "int": {
+        "bonus": 0,
+        "proficient": false
+      },
+      "str": {
+        "bonus": 4,
+        "proficient": true
+      },
+      "wis": {
+        "bonus": 3,
+        "proficient": false
+      }
+    },
+    "combat": {
+      "ac": 16,
+      "hp": 24,
+      "hpMax": 24,
+      "speed": 40,
+      "hpTemp": 0,
+      "hitDice": "3d8",
+      "initiative": 3,
+      "spellSaveDC": 11,
+      "spellAttackBonus": 0
+    },
+    "skills": [
+      {
+        "attr": "DEX",
+        "name": "Acrobatics",
+        "prof": "full",
+        "bonus": 5
+      },
+      {
+        "attr": "WIS",
+        "name": "Animal Handling",
+        "prof": "none",
+        "bonus": 3
+      },
+      {
+        "attr": "INT",
+        "name": "Arcana",
+        "prof": "none",
+        "bonus": 0
+      },
+      {
+        "attr": "STR",
+        "name": "Athletics",
+        "prof": "full",
+        "bonus": 4
+      },
+      {
+        "attr": "CHA",
+        "name": "Deception",
+        "prof": "none",
+        "bonus": 1
+      },
+      {
+        "attr": "INT",
+        "name": "History",
+        "prof": "none",
+        "bonus": 0
+      },
+      {
+        "attr": "WIS",
+        "name": "Insight",
+        "prof": "full",
+        "bonus": 5
+      },
+      {
+        "attr": "CHA",
+        "name": "Intimidation",
+        "prof": "none",
+        "bonus": 1
+      },
+      {
+        "attr": "INT",
+        "name": "Investigation",
+        "prof": "none",
+        "bonus": 0
+      },
+      {
+        "attr": "WIS",
+        "name": "Medicine",
+        "prof": "full",
+        "bonus": 5
+      },
+      {
+        "attr": "INT",
+        "name": "Nature",
+        "prof": "none",
+        "bonus": 0
+      },
+      {
+        "attr": "WIS",
+        "name": "Perception",
+        "prof": "none",
+        "bonus": 3
+      },
+      {
+        "attr": "CHA",
+        "name": "Performance",
+        "prof": "none",
+        "bonus": 1
+      },
+      {
+        "attr": "CHA",
+        "name": "Persuasion",
+        "prof": "none",
+        "bonus": 1
+      },
+      {
+        "attr": "INT",
+        "name": "Religion",
+        "prof": "none",
+        "bonus": 0
+      },
+      {
+        "attr": "DEX",
+        "name": "Sleight of Hand",
+        "prof": "full",
+        "bonus": 5
+      },
+      {
+        "attr": "DEX",
+        "name": "Stealth",
+        "prof": "full",
+        "bonus": 5
+      },
+      {
+        "attr": "WIS",
+        "name": "Survival",
+        "prof": "none",
+        "bonus": 3
+      }
+    ],
+    "spells": {
+      "level2": [
+        {
+          "desc": "Reaction when damaged. DEX save DC 11 or take 2d10 fire damage (half on save). Range 60 ft.",
+          "name": "Hellish Rebuke",
+          "source": "Tiefling (1/long rest)",
+          "prepared": true
+        }
+      ],
+      "cantrips": [
+        {
+          "desc": "Minor magical effects.",
+          "name": "Thaumaturgy",
+          "source": "Tiefling"
+        }
+      ]
+    },
+    "_manual": true,
+    "actions": [
+      {
+        "id": "unarmed",
+        "note": "Martial Arts — uses DEX",
+        "type": "attack",
+        "label": "Unarmed Strike",
+        "dmgMod": 3,
+        "hitMod": 4,
+        "dmgDice": "1d4",
+        "dmgType": "Bludgeoning",
+        "critDice": "2d4"
+      },
+      {
+        "id": "shortsword",
+        "note": "Finesse — uses DEX",
+        "type": "attack",
+        "label": "Shortsword",
+        "dmgMod": 3,
+        "hitMod": 5,
+        "dmgDice": "1d6",
+        "dmgType": "Piercing",
+        "critDice": "2d6"
+      },
+      {
+        "id": "hand_of_harm",
+        "note": "Costs 1 ki. Use after hitting with unarmed strike.",
+        "type": "damage-only",
+        "label": "Hand of Harm",
+        "dmgMod": 3,
+        "hitMod": 0,
+        "dmgDice": "1d4",
+        "dmgType": "Necrotic",
+        "critDice": "2d4"
+      },
+      {
+        "id": "hand_of_healing",
+        "note": "Costs 1 ki. Touch a creature — restore 1d4+WIS HP.",
+        "type": "damage-only",
+        "label": "Hand of Healing",
+        "dmgMod": 3,
+        "hitMod": 0,
+        "dmgDice": "1d4",
+        "dmgType": "Healing",
+        "critDice": "2d4"
+      }
+    ],
+    "features": [
+      {
+        "desc": "AC = 10 + DEX mod (+3) + WIS mod (+3) = 16 base. Currently 19 — verify if magic item contributing.",
+        "name": "Unarmored Defense",
+        "source": "Monk"
+      },
+      {
+        "desc": "Use DEX for unarmed strikes and monk weapons. Bonus unarmed strike after Attack action.",
+        "name": "Martial Arts",
+        "source": "Monk"
+      },
+      {
+        "desc": "3 ki points per long rest. Powers: Flurry of Blows, Patient Defense, Step of the Wind.",
+        "name": "Ki",
+        "source": "Monk"
+      },
+      {
+        "desc": "Speed +10 ft while unarmored and unshielded.",
+        "name": "Unarmored Movement",
+        "source": "Monk"
+      },
+      {
+        "desc": "Reaction: reduce ranged weapon attack damage by 1d10 + DEX + level. Can catch and throw if reduced to 0.",
+        "name": "Deflect Missiles",
+        "source": "Monk"
+      },
+      {
+        "desc": "Bonus action. Spend 1 ki to make two unarmed strikes immediately after the Attack action.",
+        "name": "Flurry of Blows",
+        "source": "Monk"
+      },
+      {
+        "desc": "Bonus action. Spend 1 ki to Dodge.",
+        "name": "Patient Defense",
+        "source": "Monk"
+      },
+      {
+        "desc": "Bonus action. Spend 1 ki to Disengage or Dash. Jump distance doubled.",
+        "name": "Step of the Wind",
+        "source": "Monk"
+      },
+      {
+        "desc": "Proficient in Insight and Medicine. Proficient with Herbalism Kit.",
+        "name": "Implements of Mercy",
+        "source": "Way of Mercy"
+      },
+      {
+        "desc": "Action. Spend 1 ki to touch a creature and restore 1d4 + WIS mod HP.",
+        "name": "Hand of Healing",
+        "source": "Way of Mercy"
+      },
+      {
+        "desc": "Once per turn when hitting with unarmed strike, spend 1 ki to deal extra 1d4 + WIS mod necrotic damage.",
+        "name": "Hand of Harm",
+        "source": "Way of Mercy"
+      },
+      {
+        "desc": "Mask: Laughing Visage. Worn when using Hand of Healing or Hand of Harm.",
+        "name": "Merciful Mask",
+        "source": "Way of Mercy"
+      },
+      {
+        "desc": "Resistance to fire damage.",
+        "name": "Hellish Resistance",
+        "source": "Tiefling"
+      },
+      {
+        "desc": "Cantrip: Thaumaturgy. Level 3: Hellish Rebuke 1/long rest (DEX save DC 11, 2d10 fire).",
+        "name": "Infernal Legacy",
+        "source": "Tiefling"
+      },
+      {
+        "desc": "60 ft darkvision.",
+        "name": "Darkvision",
+        "source": "Tiefling"
+      },
+      {
+        "desc": "Know secret patterns of cities. Travel between locations in a city at twice normal speed.",
+        "name": "City Secrets",
+        "source": "Urchin"
+      }
+    ],
+    "portrait": "img/portraits/caim.png",
+    "subclass": "Way of Mercy",
+    "abilities": {
+      "cha": {
+        "mod": 1,
+        "score": 13
+      },
+      "con": {
+        "mod": 2,
+        "score": 14
+      },
+      "dex": {
+        "mod": 3,
+        "score": 16
+      },
+      "int": {
+        "mod": 0,
+        "score": 11
+      },
+      "str": {
+        "mod": 2,
+        "score": 14
+      },
+      "wis": {
+        "mod": 3,
+        "score": 16
+      }
+    },
+    "alignment": "Chaotic Good",
+    "appearance": {
+      "age": "20",
+      "eyes": "Gold",
+      "hair": "Obsidian Black",
+      "skin": "Burgundy",
+      "height": "5'9\"",
+      "weight": "135 lbs"
+    },
+    "background": "Urchin",
+    "classLabel": "Monk",
+    "inspiration": false,
+    "rollerFlags": {
+      "reliableTalent": false,
+      "jackOfAllTrades": false
+    },
+    "defaultSlots": [
+      "unarmed",
+      "hand_of_harm",
+      "hand_of_healing",
+      "shortsword"
+    ],
+    "classFeatures": {
+      "kiPoints": {
+        "max": 3,
+        "current": 3
+      },
+      "unarmedHitMod": 4,
+      "martialArtsDie": "d4",
+      "unarmedDmgDice": "1d4"
+    },
+    "proficiencies": {
+      "armor": "None",
+      "tools": "Disguise Kit, Thieves' Tools, Cook's Utensils, Herbalism Kit",
+      "weapons": "Simple Weapons, Shortswords",
+      "languages": "Common, Infernal"
+    },
+    "proficiencyBonus": 2,
+    "passivePerception": 13
+  },
+  "combat": {},
   "inventory": [
     {
-      "name": "Shortsword",
-      "rarity": "None",
-      "type": "M",
-      "typeLabel": "Melee Weapon",
-      "weaponCat": "martial weapon, melee weapon",
-      "detail": "martial weapon · 1d6 P · 2 lb",
-      "price": "1 pp",
-      "weight": 2,
+      "ac": null,
+      "qty": 1,
       "dmg1": "1d6",
       "dmg2": null,
-      "dmgType": "P",
+      "name": "Shortsword",
+      "page": 149,
+      "type": "M",
+      "alias": null,
+      "notes": null,
+      "price": "1 pp",
       "range": null,
-      "ac": null,
-      "strength": null,
+      "detail": "martial weapon · 1d6 P · 2 lb",
+      "flavor": null,
+      "locked": true,
+      "rarity": "None",
+      "source": "PHB",
+      "weight": 2,
+      "dmgType": "P",
+      "entries": [],
       "stealth": null,
+      "contents": null,
+      "dmgBonus": null,
+      "equipped": true,
+      "extraDmg": null,
+      "strength": null,
+      "_enriched": true,
       "reqAttune": null,
+      "typeLabel": "Melee Weapon",
+      "weaponCat": "martial weapon, melee weapon",
+      "attackStat": null,
       "properties": [
         {
           "abbr": "F",
-          "name": "Finesse",
-          "desc": "When making an attack with a finesse weapon, you use your choice of your Strength or Dexterity modifier for the attack and damage rolls. You must use the same modifier for both rolls."
+          "desc": "When making an attack with a finesse weapon, you use your choice of your Strength or Dexterity modifier for the attack and damage rolls. You must use the same modifier for both rolls.",
+          "name": "Finesse"
         },
         {
           "abbr": "L",
-          "name": "Light",
-          "desc": "A light weapon is small and easy to handle, making it ideal for use when fighting with two weapons."
+          "desc": "A light weapon is small and easy to handle, making it ideal for use when fighting with two weapons.",
+          "name": "Light"
         }
       ],
-      "entries": [],
-      "contents": null,
-      "source": "PHB",
-      "sourceFull": "PHB p149",
-      "page": 149,
-      "qty": 1,
-      "equipped": true,
-      "_enriched": true,
-      "alias": null,
-      "attackStat": null,
-      "dmgBonus": null,
-      "extraDmg": null,
-      "flavor": null,
-      "notes": null,
-      "locked": true
+      "sourceFull": "PHB p149"
     },
     {
-      "name": "Dart",
-      "rarity": "None",
-      "type": "R",
-      "typeLabel": "Ranged Weapon",
-      "weaponCat": "simple weapon, ranged weapon",
-      "detail": "simple weapon · 1d4 P · 0.25 lb",
-      "price": "5 cp",
-      "weight": 10,
+      "ac": null,
+      "qty": 10,
       "dmg1": "1d4",
       "dmg2": null,
-      "dmgType": "P",
+      "name": "Dart",
+      "page": 149,
+      "type": "R",
+      "alias": null,
+      "notes": null,
+      "price": "5 cp",
       "range": "20/60",
-      "ac": null,
-      "strength": null,
+      "detail": "simple weapon · 1d4 P · 0.25 lb",
+      "flavor": null,
+      "rarity": "None",
+      "source": "PHB",
+      "weight": 10,
+      "dmgType": "P",
+      "entries": [],
       "stealth": null,
+      "contents": null,
+      "dmgBonus": null,
+      "equipped": false,
+      "extraDmg": null,
+      "strength": null,
+      "_enriched": true,
       "reqAttune": null,
+      "typeLabel": "Ranged Weapon",
+      "weaponCat": "simple weapon, ranged weapon",
+      "attackStat": null,
       "properties": [
         {
           "abbr": "F",
-          "name": "Finesse",
-          "desc": "When making an attack with a finesse weapon, you use your choice of your Strength or Dexterity modifier for the attack and damage rolls. You must use the same modifier for both rolls."
+          "desc": "When making an attack with a finesse weapon, you use your choice of your Strength or Dexterity modifier for the attack and damage rolls. You must use the same modifier for both rolls.",
+          "name": "Finesse"
         },
         {
           "abbr": "T",
-          "name": "Thrown (20/60 ft.)",
-          "desc": "If a weapon has the thrown property, you can throw the weapon to make a ranged attack. If the weapon is a melee weapon, you use the same ability modifier for that attack roll and damage roll that you would use for a melee attack with the weapon. For example, if you throw a handaxe, you use your Strength, but if you throw a dagger, you can use either your Strength or your Dexterity, since the dagger has the finesse property."
+          "desc": "If a weapon has the thrown property, you can throw the weapon to make a ranged attack. If the weapon is a melee weapon, you use the same ability modifier for that attack roll and damage roll that you would use for a melee attack with the weapon. For example, if you throw a handaxe, you use your Strength, but if you throw a dagger, you can use either your Strength or your Dexterity, since the dagger has the finesse property.",
+          "name": "Thrown (20/60 ft.)"
         }
       ],
-      "entries": [],
-      "contents": null,
-      "packContents": null,
-      "source": "PHB",
       "sourceFull": "PHB p149",
-      "page": 149,
-      "qty": 10,
-      "equipped": false,
-      "_enriched": true,
-      "alias": null,
-      "attackStat": null,
-      "dmgBonus": null,
-      "extraDmg": null,
-      "flavor": null,
-      "notes": null
+      "packContents": null
     },
     {
+      "ac": null,
+      "qty": 1,
+      "dmg1": null,
+      "dmg2": null,
       "name": "Common Clothes",
-      "rarity": "None",
-      "type": "G",
-      "typeLabel": "Adventuring Gear",
-      "weaponCat": "Adventuring Gear",
-      "detail": "Adventuring Gear · 3 lb",
-      "price": "5 sp",
-      "weight": 3,
-      "dmg1": null,
-      "dmg2": null,
-      "dmgType": null,
-      "range": null,
-      "ac": null,
-      "strength": null,
-      "stealth": null,
-      "reqAttune": null,
-      "properties": [],
-      "entries": [],
-      "contents": null,
-      "source": "PHB",
-      "sourceFull": "PHB p150",
       "page": 150,
-      "qty": 1,
-      "equipped": true,
-      "_enriched": true,
-      "alias": null
-    },
-    {
-      "name": "Pet Mouse",
-      "qty": 1,
-      "weight": 0,
-      "equipped": false
-    },
-    {
-      "name": "Small Knife",
-      "qty": 1,
-      "weight": 0,
-      "equipped": false
-    },
-    {
-      "name": "Token to remember your parents by",
-      "qty": 1,
-      "weight": 0,
-      "equipped": false
-    },
-    {
-      "name": "Backpack",
-      "rarity": "None",
       "type": "G",
+      "alias": null,
+      "price": "5 sp",
+      "range": null,
+      "detail": "Adventuring Gear · 3 lb",
+      "rarity": "None",
+      "source": "PHB",
+      "weight": 3,
+      "dmgType": null,
+      "entries": [],
+      "stealth": null,
+      "contents": null,
+      "equipped": true,
+      "strength": null,
+      "_enriched": true,
+      "reqAttune": null,
       "typeLabel": "Adventuring Gear",
       "weaponCat": "Adventuring Gear",
-      "detail": "Adventuring Gear · 5 lb",
-      "price": "2 gp",
-      "weight": null,
+      "properties": [],
+      "sourceFull": "PHB p150"
+    },
+    {
+      "qty": 1,
+      "name": "Pet Mouse",
+      "weight": 0,
+      "equipped": false
+    },
+    {
+      "qty": 1,
+      "name": "Small Knife",
+      "weight": 0,
+      "equipped": false
+    },
+    {
+      "qty": 1,
+      "name": "Token to remember your parents by",
+      "weight": 0,
+      "equipped": false
+    },
+    {
+      "ac": null,
+      "id": "bag_mpu1juy34vqj",
+      "qty": 1,
       "dmg1": null,
       "dmg2": null,
-      "dmgType": null,
+      "icon": null,
+      "name": "Backpack",
+      "page": 153,
+      "type": "G",
+      "alias": null,
+      "notes": null,
+      "price": "2 gp",
       "range": null,
-      "ac": null,
-      "strength": null,
-      "stealth": null,
-      "reqAttune": null,
-      "properties": [],
+      "detail": "Adventuring Gear · 5 lb",
+      "flavor": null,
+      "locked": false,
+      "rarity": "None",
+      "source": "PHB",
+      "weight": null,
+      "dmgType": null,
       "entries": [
         "A backpack can hold one cubic foot or 30 pounds of gear. You can also strap items, such as a bedroll or a coil of rope, to the outside of a backpack."
       ],
+      "stealth": null,
       "contents": null,
-      "packContents": null,
-      "source": "PHB",
-      "sourceFull": "PHB p153",
-      "page": 153,
-      "qty": 1,
-      "icon": null,
-      "containerId": null,
-      "_enriched": true,
-      "alias": null,
-      "attackStat": null,
       "dmgBonus": null,
       "extraDmg": null,
-      "flavor": null,
-      "notes": null,
-      "isContainer": true,
-      "extradimensional": false,
-      "locked": false,
-      "id": "bag_mpu1juy34vqj"
-    },
-    {
-      "name": "Explorer's Pack",
-      "rarity": "None",
-      "type": "G",
+      "strength": null,
+      "_enriched": true,
+      "reqAttune": null,
       "typeLabel": "Adventuring Gear",
       "weaponCat": "Adventuring Gear",
-      "detail": "Adventuring Gear · 59 lb",
-      "price": "1 pp",
-      "weight": 0,
+      "attackStat": null,
+      "properties": [],
+      "sourceFull": "PHB p153",
+      "containerId": null,
+      "isContainer": true,
+      "packContents": null,
+      "extradimensional": false
+    },
+    {
+      "ac": null,
+      "id": "bag_mpsu9vj49g8x",
+      "qty": 1,
       "dmg1": null,
       "dmg2": null,
-      "dmgType": null,
+      "icon": null,
+      "name": "Explorer's Pack",
+      "page": 151,
+      "type": "G",
+      "alias": null,
+      "price": "1 pp",
       "range": null,
-      "ac": null,
-      "strength": null,
-      "stealth": null,
-      "reqAttune": null,
-      "properties": [],
+      "detail": "Adventuring Gear · 59 lb",
+      "locked": false,
+      "rarity": "None",
+      "source": "PHB",
+      "weight": 0,
+      "dmgType": null,
       "entries": [
         "Includes:",
         "a backpack",
@@ -207,10 +576,20 @@
         "a waterskin",
         "50 feet of hempen rope"
       ],
+      "stealth": null,
       "contents": [
         "Torch ×10",
         "Rations (1 day) ×10"
       ],
+      "strength": null,
+      "_enriched": true,
+      "reqAttune": null,
+      "typeLabel": "Adventuring Gear",
+      "weaponCat": "Adventuring Gear",
+      "properties": [],
+      "sourceFull": "PHB p151",
+      "containerId": null,
+      "isContainer": true,
       "packContents": [
         "backpack|phb",
         "bedroll|phb",
@@ -227,256 +606,246 @@
         "waterskin|phb",
         "hempen rope (50 feet)|phb"
       ],
-      "source": "PHB",
-      "sourceFull": "PHB p151",
-      "page": 151,
-      "qty": 1,
-      "icon": null,
-      "isContainer": true,
-      "extradimensional": false,
-      "locked": false,
-      "id": "bag_mpsu9vj49g8x",
-      "containerId": null,
-      "_enriched": true,
-      "alias": null
+      "extradimensional": false
     },
     {
+      "ac": null,
+      "qty": 1,
+      "dmg1": null,
+      "dmg2": null,
+      "icon": null,
       "name": "Bedroll",
-      "rarity": "None",
+      "page": 150,
       "type": "G",
+      "alias": null,
+      "price": "1 gp",
+      "range": null,
+      "detail": "Adventuring Gear · 7 lb",
+      "rarity": "None",
+      "source": "PHB",
+      "weight": null,
+      "dmgType": null,
+      "entries": [],
+      "stealth": null,
+      "contents": null,
+      "strength": null,
+      "_enriched": true,
+      "reqAttune": null,
       "typeLabel": "Adventuring Gear",
       "weaponCat": "Adventuring Gear",
-      "detail": "Adventuring Gear · 7 lb",
-      "price": "1 gp",
-      "weight": null,
-      "dmg1": null,
-      "dmg2": null,
-      "dmgType": null,
-      "range": null,
-      "ac": null,
-      "strength": null,
-      "stealth": null,
-      "reqAttune": null,
       "properties": [],
-      "entries": [],
-      "contents": null,
-      "packContents": null,
-      "source": "PHB",
       "sourceFull": "PHB p150",
-      "page": 150,
-      "qty": 1,
-      "icon": null,
       "containerId": "bag_mpsu9vj49g8x",
-      "_enriched": true,
-      "alias": null
+      "packContents": null
     },
     {
-      "name": "Mess Kit",
-      "rarity": "None",
-      "type": "G",
-      "typeLabel": "Adventuring Gear",
-      "weaponCat": "Adventuring Gear",
-      "detail": "Adventuring Gear · 1 lb",
-      "price": "2 sp",
-      "weight": null,
+      "ac": null,
+      "qty": 1,
       "dmg1": null,
       "dmg2": null,
-      "dmgType": null,
+      "icon": null,
+      "name": "Mess Kit",
+      "page": 152,
+      "type": "G",
+      "alias": null,
+      "price": "2 sp",
       "range": null,
-      "ac": null,
-      "strength": null,
-      "stealth": null,
-      "reqAttune": null,
-      "properties": [],
+      "detail": "Adventuring Gear · 1 lb",
+      "rarity": "None",
+      "source": "PHB",
+      "weight": null,
+      "dmgType": null,
       "entries": [
         "This tin box contains a cup and simple cutlery. The box clamps together, and one side can be used as a cooking pan and the other as a plate or shallow bowl."
       ],
+      "stealth": null,
       "contents": null,
-      "packContents": null,
-      "source": "PHB",
-      "sourceFull": "PHB p152",
-      "page": 152,
-      "qty": 1,
-      "icon": null,
-      "containerId": "bag_mpsu9vj49g8x",
+      "strength": null,
       "_enriched": true,
-      "alias": null
-    },
-    {
-      "name": "Tinderbox",
-      "rarity": "None",
-      "type": "G",
+      "reqAttune": null,
       "typeLabel": "Adventuring Gear",
       "weaponCat": "Adventuring Gear",
-      "detail": "Adventuring Gear · 1 lb",
-      "price": "5 sp",
-      "weight": null,
+      "properties": [],
+      "sourceFull": "PHB p152",
+      "containerId": "bag_mpsu9vj49g8x",
+      "packContents": null
+    },
+    {
+      "ac": null,
+      "qty": 1,
       "dmg1": null,
       "dmg2": null,
-      "dmgType": null,
+      "icon": null,
+      "name": "Tinderbox",
+      "page": 153,
+      "type": "G",
+      "alias": null,
+      "price": "5 sp",
       "range": null,
-      "ac": null,
-      "strength": null,
-      "stealth": null,
-      "reqAttune": null,
-      "properties": [],
+      "detail": "Adventuring Gear · 1 lb",
+      "rarity": "None",
+      "source": "PHB",
+      "weight": null,
+      "dmgType": null,
       "entries": [
         "This small container holds flint, fire steel, and tinder (usually dry cloth soaked in light oil) used to kindle a fire. Using it to light a torch—or anything else with abundant, exposed fuel—takes an action. Lighting any other fire takes 1 minute."
       ],
+      "stealth": null,
       "contents": null,
-      "packContents": null,
-      "source": "PHB",
-      "sourceFull": "PHB p153",
-      "page": 153,
-      "qty": 1,
-      "icon": null,
-      "containerId": "bag_mpsu9vj49g8x",
+      "strength": null,
       "_enriched": true,
-      "alias": null
-    },
-    {
-      "name": "Torch",
-      "rarity": "None",
-      "type": "G",
+      "reqAttune": null,
       "typeLabel": "Adventuring Gear",
       "weaponCat": "Adventuring Gear",
-      "detail": "Adventuring Gear · 1 lb",
-      "price": "1 cp",
-      "weight": null,
+      "properties": [],
+      "sourceFull": "PHB p153",
+      "containerId": "bag_mpsu9vj49g8x",
+      "packContents": null
+    },
+    {
+      "ac": null,
+      "qty": 10,
       "dmg1": null,
       "dmg2": null,
-      "dmgType": null,
+      "icon": null,
+      "name": "Torch",
+      "page": 153,
+      "type": "G",
+      "alias": null,
+      "price": "1 cp",
       "range": null,
-      "ac": null,
-      "strength": null,
-      "stealth": null,
-      "reqAttune": null,
-      "properties": [],
+      "detail": "Adventuring Gear · 1 lb",
+      "rarity": "None",
+      "source": "PHB",
+      "weight": null,
+      "dmgType": null,
       "entries": [
         "A torch burns for 1 hour, providing bright light in a 20-foot radius and dim light for an additional 20 feet. If you make a melee attack with a burning torch and hit, it deals 1 fire damage."
       ],
+      "stealth": null,
       "contents": null,
-      "packContents": null,
-      "source": "PHB",
-      "sourceFull": "PHB p153",
-      "page": 153,
-      "qty": 10,
-      "icon": null,
-      "containerId": "bag_mpsu9vj49g8x",
+      "strength": null,
       "_enriched": true,
-      "alias": null
-    },
-    {
-      "name": "Rations (1 Day)",
-      "rarity": "None",
-      "type": "G",
+      "reqAttune": null,
       "typeLabel": "Adventuring Gear",
       "weaponCat": "Adventuring Gear",
-      "detail": "Adventuring Gear · 2 lb",
-      "price": "5 sp",
-      "weight": null,
+      "properties": [],
+      "sourceFull": "PHB p153",
+      "containerId": "bag_mpsu9vj49g8x",
+      "packContents": null
+    },
+    {
+      "ac": null,
+      "qty": 10,
       "dmg1": null,
       "dmg2": null,
-      "dmgType": null,
+      "icon": null,
+      "name": "Rations (1 Day)",
+      "page": 153,
+      "type": "G",
+      "alias": "Rations (1 day)",
+      "price": "5 sp",
       "range": null,
-      "ac": null,
-      "strength": null,
-      "stealth": null,
-      "reqAttune": null,
-      "properties": [],
+      "detail": "Adventuring Gear · 2 lb",
+      "rarity": "None",
+      "source": "PHB",
+      "weight": null,
+      "dmgType": null,
       "entries": [
         "Rations consist of dry foods suitable for extended travel, including jerky, dried fruit, hardtack, and nuts."
       ],
+      "stealth": null,
       "contents": null,
-      "packContents": null,
-      "source": "PHB",
-      "sourceFull": "PHB p153",
-      "page": 153,
-      "qty": 10,
-      "icon": null,
-      "containerId": "bag_mpsu9vj49g8x",
+      "strength": null,
       "_enriched": true,
-      "alias": "Rations (1 day)"
-    },
-    {
-      "name": "Waterskin",
-      "rarity": "None",
-      "type": "G",
+      "reqAttune": null,
       "typeLabel": "Adventuring Gear",
       "weaponCat": "Adventuring Gear",
-      "detail": "Adventuring Gear · 5 lb",
-      "price": "2 sp",
-      "weight": null,
+      "properties": [],
+      "sourceFull": "PHB p153",
+      "containerId": "bag_mpsu9vj49g8x",
+      "packContents": null
+    },
+    {
+      "ac": null,
+      "qty": 1,
       "dmg1": null,
       "dmg2": null,
-      "dmgType": null,
+      "icon": null,
+      "name": "Waterskin",
+      "page": 153,
+      "type": "G",
+      "alias": null,
+      "price": "2 sp",
       "range": null,
-      "ac": null,
-      "strength": null,
-      "stealth": null,
-      "reqAttune": null,
-      "properties": [],
+      "detail": "Adventuring Gear · 5 lb",
+      "rarity": "None",
+      "source": "PHB",
+      "weight": null,
+      "dmgType": null,
       "entries": [
         "A waterskin can hold up to 4 pints of liquid."
       ],
+      "stealth": null,
       "contents": null,
-      "packContents": null,
-      "source": "PHB",
-      "sourceFull": "PHB p153",
-      "page": 153,
-      "qty": 1,
-      "icon": null,
-      "containerId": "bag_mpsu9vj49g8x",
+      "strength": null,
       "_enriched": true,
-      "alias": null
-    },
-    {
-      "name": "Hempen Rope (50 Feet)",
-      "rarity": "None",
-      "type": "G",
+      "reqAttune": null,
       "typeLabel": "Adventuring Gear",
       "weaponCat": "Adventuring Gear",
-      "detail": "Adventuring Gear · 10 lb",
-      "price": "1 gp",
-      "weight": null,
+      "properties": [],
+      "sourceFull": "PHB p153",
+      "containerId": "bag_mpsu9vj49g8x",
+      "packContents": null
+    },
+    {
+      "ac": null,
+      "qty": 1,
       "dmg1": null,
       "dmg2": null,
-      "dmgType": null,
+      "icon": null,
+      "name": "Hempen Rope (50 Feet)",
+      "page": 153,
+      "type": "G",
+      "alias": "Hempen Rope (50 feet)",
+      "price": "1 gp",
       "range": null,
-      "ac": null,
-      "strength": null,
-      "stealth": null,
-      "reqAttune": null,
-      "properties": [],
+      "detail": "Adventuring Gear · 10 lb",
+      "rarity": "None",
+      "source": "PHB",
+      "weight": null,
+      "dmgType": null,
       "entries": [
         "Rope, whether made of hemp or silk, has 2 hit points and can be burst with a 17 Strength check."
       ],
+      "stealth": null,
       "contents": null,
-      "packContents": null,
-      "source": "PHB",
-      "sourceFull": "PHB p153",
-      "page": 153,
-      "qty": 1,
-      "icon": null,
-      "containerId": "bag_mpsu9vj49g8x",
+      "strength": null,
       "_enriched": true,
-      "alias": "Hempen Rope (50 feet)"
+      "reqAttune": null,
+      "typeLabel": "Adventuring Gear",
+      "weaponCat": "Adventuring Gear",
+      "properties": [],
+      "sourceFull": "PHB p153",
+      "containerId": "bag_mpsu9vj49g8x",
+      "packContents": null
     }
   ],
+  "equipment": {},
   "currency": {
-    "pp": 0,
-    "gp": 0,
+    "cp": 0,
     "ep": 0,
-    "sp": 0,
-    "cp": 0
+    "gp": 0,
+    "pp": 0,
+    "sp": 0
   },
-  "notes": "",
   "bio": {
-    "personality": "",
-    "ideals": "",
     "bonds": "",
     "flaws": "",
-    "backstory": ""
+    "ideals": "",
+    "backstory": "",
+    "personality": ""
   },
-  "lastUpdated": "2026-05-31T17:16:24.259Z"
+  "notes": "",
+  "lastUpdated": "2026-06-13T15:05:06.513926+00:00"
 }
