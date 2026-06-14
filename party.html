@@ -23,7 +23,7 @@
       --f-disp:  'Cinzel', serif;
       --f-word:  'Barlow Condensed', sans-serif;
       --f-body:  var(--font-body, 'Crimson Pro', Georgia, serif);
-      position: fixed; inset: 0; top: var(--pm-top, 0);
+      position: fixed; inset: 0; top: var(--pm-top, 52px);
       background: var(--bg); color: var(--fg);
       font-family: var(--f-word);
       overflow: hidden;
@@ -462,7 +462,17 @@
       }
     });
 
+    function setNavOffset() {
+      const nav = document.getElementById('site-nav');
+      const h = nav ? nav.getBoundingClientRect().height : 0;
+      const pm = document.getElementById('pm');
+      if (pm) pm.style.setProperty('--pm-top', (h > 0 && h < 120 ? h : 52) + 'px');
+    }
+    window.addEventListener('nav:ready', setNavOffset);
+    window.addEventListener('resize', setNavOffset);
+
     async function boot() {
+      setNavOffset();
       try {
         const party = await window.CharacterData.loadParty();
         if (!party || !party.length) { $('#pm-status').innerHTML = '<div class="big">No characters found</div>'; return; }
