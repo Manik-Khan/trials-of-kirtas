@@ -526,6 +526,58 @@
     window.addEventListener('nav:ready', setNavOffset);
     window.addEventListener('resize', setNavOffset);
 
+    // ── Vitals write-back: hand battle.js a characters.vitals backend ──
+    // Same seam combat.html uses (window.__battle.useBackend) — battle.js is
+    // backend-agnostic. combat.html points it at the `combatants` row; here we
+    // point it at the durable `characters.vitals` column (via CharacterData), so
+    // HP / temp / resources / concentration edited in the cross-page Battle HUD
+    // (opened from nav's \u2694 button) persist to the same record the sheet reads.
+    // characters.vitals is already the {hp,hpTemp,hpBonus,pipState,concentration}
+    // shape battle.js's combat object expects, so it maps 1:1.
+    function wireVitals() {
+      const sb = window.__tok && window.__tok.sb;
+      if (!sb || !window.__battle || !window.__battle.useBackend) return;
+      let ch = null;
+
+      // Keep the sheet's read-only HP display in step with HUD/realtime edits.
+      const refreshSheetVitals = (key, vitals) => {
+        const m = S.party.find(p => p.key === key);
+        if (!m) return;
+        m.vitals = vitals;
+        paintParty(); // portrait-wall HP bars (no text inputs to disturb)
+        const open = S.party[S.pi] && S.party[S.pi].key === key;
+        if (open && SECTIONS[S.si].id === 'stats') paintSection();
+      };
+
+      window.__battle.useBackend({
+        // durable vitals object for `key` (already in combat shape), or null
+        async load(key) {
+          try { const c = await window.CharacterData.loadCharacter(key); return (c && c.vitals) ? c.vitals : null; }
+          catch (e) { console.warn('[party/vitals] load:', e); return null; }
+        },
+        // persist the whole combat/vitals object to the characters.vitals column
+        async save(key, combat) {
+          try { await window.CharacterData.save(key, { vitals: combat }); }
+          catch (e) { console.warn('[party/vitals] save:', e); }
+        },
+        // live external changes: characters UPDATE \u2192 battle HUD + sheet display
+        subscribe(onChange) {
+          if (ch) { sb.removeChannel(ch); ch = null; }
+          ch = sb.channel('party-vitals')
+            .on('postgres_changes', { event: 'UPDATE', schema: 'public', table: 'characters' },
+              ({ new: row }) => {
+                if (!row || !row.key) return;
+                // TOAST guard: only adopt a real vitals object (Postgres can omit
+                // unchanged large jsonb from the realtime payload).
+                if (!row.vitals || typeof row.vitals !== 'object' || Array.isArray(row.vitals)) return;
+                onChange({ key: row.key, combat: row.vitals }); // \u2192 battle.js SESSION + HUD
+                refreshSheetVitals(row.key, row.vitals);        // \u2192 sheet display
+              })
+            .subscribe();
+        },
+      });
+    }
+
     async function boot() {
       setNavOffset();
       try {
@@ -539,6 +591,7 @@
         S.party = party;
         $('#pm-status').style.display = 'none';
         renderParty();
+        wireVitals(); // route battle.js HP/vitals through characters.vitals
       } catch (err) {
         $('#pm-status').innerHTML = '<div class="big">Could not load the party</div><div>' + esc(err && err.message ? err.message : err) + '</div>';
       }
