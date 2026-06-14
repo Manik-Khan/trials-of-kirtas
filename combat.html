@@ -2758,14 +2758,24 @@
             return c ? { hp: c.hp, conditions: Array.isArray(c.conditions) ? c.conditions : [], initiative: c.initiative, in_combat: !!c.in_combat } : null;
           },
           async save(key, combat) {
-            if (combat.hp === null || combat.hp === undefined) return;
             const c = hudComb(key);
             if (!c) return;
-            const prev = c.hp;   // realtime echo updates c.hp after the write
-            const { error } = await SB.from('combatants').update({ hp: combat.hp }).eq('id', c.id);
-            if (error) { console.warn('[hud] HP save failed:', error.message); return; }
-            if (c.in_combat && prev !== combat.hp)
-              logEvent('hp', { id: c.id, from: prev, to: combat.hp }, `${escapeHtml(c.name)}: ${prev} → ${combat.hp} HP`, evHidden(c));
+            // Live combat HP on the combatant row (drives the map + replay event log).
+            if (combat.hp !== null && combat.hp !== undefined) {
+              const prev = c.hp;   // realtime echo updates c.hp after the write
+              const { error } = await SB.from('combatants').update({ hp: combat.hp }).eq('id', c.id);
+              if (error) { console.warn('[hud] HP save failed:', error.message); }
+              else if (c.in_combat && prev !== combat.hp)
+                logEvent('hp', { id: c.id, from: prev, to: combat.hp }, `${escapeHtml(c.name)}: ${prev} → ${combat.hp} HP`, evHidden(c));
+            }
+            // Durable full vitals (temp HP, max bonus, slots, concentration, hp) live
+            // on the character for PCs — never in combatants — so they survive combat
+            // and a fight that is never formally ended. The mirror trigger keeps
+            // vitals.hp == combatants.hp, so writing hp on both sides is a no-op echo.
+            if (c.side === 'party' && c.source_key) {
+              const { error: vErr } = await SB.from('characters').update({ vitals: combat }).eq('key', c.source_key);
+              if (vErr) console.warn('[hud] vitals save failed:', vErr.message);
+            }
           },
           // Conditions write through their own verb (not folded into save) so a
           // HUD condition toggle touches only the conditions column — no hp/slot

@@ -557,8 +557,10 @@
         },
         // persist the whole combat/vitals object to the characters.vitals column
         async save(key, combat) {
-          try { await window.CharacterData.save(key, { vitals: combat }); }
-          catch (e) { console.warn('[party/vitals] save:', e); }
+          try {
+            await window.CharacterData.save(key, { vitals: combat });
+            refreshSheetVitals(key, combat); // reflect our own edit now (no realtime round-trip)
+          } catch (e) { console.warn('[party/vitals] save:', e); }
         },
         // live external changes: characters UPDATE \u2192 battle HUD + sheet display
         subscribe(onChange) {
@@ -567,11 +569,13 @@
             .on('postgres_changes', { event: 'UPDATE', schema: 'public', table: 'characters' },
               ({ new: row }) => {
                 if (!row || !row.key) return;
+                let v = row.vitals;
+                if (typeof v === 'string') { try { v = JSON.parse(v); } catch (_) { return; } }
                 // TOAST guard: only adopt a real vitals object (Postgres can omit
                 // unchanged large jsonb from the realtime payload).
-                if (!row.vitals || typeof row.vitals !== 'object' || Array.isArray(row.vitals)) return;
-                onChange({ key: row.key, combat: row.vitals }); // \u2192 battle.js SESSION + HUD
-                refreshSheetVitals(row.key, row.vitals);        // \u2192 sheet display
+                if (!v || typeof v !== 'object' || Array.isArray(v)) return;
+                onChange({ key: row.key, combat: v }); // \u2192 battle.js SESSION + HUD
+                refreshSheetVitals(row.key, v);        // \u2192 sheet display
               })
             .subscribe();
         },
