@@ -8,6 +8,11 @@
 // session via window.__tok.ready. RLS lets any authenticated user read every row,
 // so loadParty() returns all four characters.
 //
+// nav.js assembles window.__tok ASYNCHRONOUSLY (it injects the Supabase CDN and
+// awaits getSession before assigning __tok and dispatching 'nav:ready'). A page's
+// DOMContentLoaded can fire BEFORE that completes, so callers must not assume
+// __tok already exists — awaitTok() below waits for it instead of throwing.
+//
 // Shape returned to the UI mirrors the table columns 1:1, plus a convenience
 // `name` pulled from structural:
 //   { key, owner, name, structural, vitals, inventory, equipment,
@@ -18,9 +23,41 @@
 
   const COLS = 'key,owner,structural,vitals,inventory,equipment,currency,bio,notes,updated_at';
 
+  // Wait for nav.js to finish assembling window.__tok. It builds __tok
+  // asynchronously (Supabase CDN load + getSession) and signals completion by
+  // dispatching 'nav:ready' on `document`. We wait for that signal rather than
+  // assume __tok is present — fixes the race where boot() runs at
+  // DOMContentLoaded before the session gate resolves.
+  function awaitTok(timeoutMs = 8000) {
+    if (window.__tok && window.__tok.ready) return Promise.resolve(); // fast path
+    return new Promise((resolve, reject) => {
+      let done = false;
+      const ready  = () => window.__tok && window.__tok.ready;
+      const finish = ok => {
+        if (done) return;
+        done = true;
+        document.removeEventListener('nav:ready', onReady);
+        clearInterval(poll);
+        clearTimeout(timer);
+        ok ? resolve() : reject(new Error('nav.js (__tok) not loaded'));
+      };
+      const onReady = () => { if (ready()) finish(true); };
+      // Correct target: nav.js dispatches on document, not window.
+      document.addEventListener('nav:ready', onReady);
+      // Belt-and-suspenders: covers __tok landing between the fast-path check
+      // and the listener attaching, and any path that sets __tok without a
+      // (re-)dispatch we can hear.
+      const poll = setInterval(() => { if (ready()) finish(true); }, 50);
+      // Bounded: nav.js redirects to login (and never signals) when there's no
+      // session. The page is navigating away in that case, so the rejection is
+      // moot — but we must not hang on the spinner forever.
+      const timer = setTimeout(() => finish(false), timeoutMs);
+    });
+  }
+
   async function client() {
-    // __tok.ready resolves once the session + client are in place (never rejects)
-    if (!window.__tok || !window.__tok.ready) throw new Error('nav.js (__tok) not loaded');
+    await awaitTok();
+    // __tok.ready resolves once the session + profile are in place (never rejects)
     await window.__tok.ready;
     return window.__tok.sb;
   }
@@ -62,8 +99,15 @@
 
   // may the current user EDIT this character? owner of the row, or staff.
   // (the DB guard enforces this server-side too; this just drives the UI.)
+  // Waits for __tok like client() so it doesn't false-negative on a slow load;
+  // returns false (rather than throwing) if nav never settles.
   async function canEdit(charKey) {
-    const me = (window.__tok && window.__tok.ready) ? await window.__tok.ready : null;
+    try {
+      await awaitTok();
+    } catch (e) {
+      return false;
+    }
+    const me = await window.__tok.ready;
     if (!me) return false;
     if (me.role === 'overseer' || me.role === 'dm') return true;
     return me.characterKey === charKey;
