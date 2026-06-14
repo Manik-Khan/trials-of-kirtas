@@ -113,5 +113,39 @@
     return me.characterKey === charKey;
   }
 
-  window.CharacterData = { loadParty, loadCharacter, canEdit };
+
+  // Editable columns (identity cols key/owner/created_at are pinned by the DB
+  // guard trigger; everything else is owner-editable). Whitelisted client-side
+  // so a stray patch fails fast with a clear message instead of a guard reject.
+  const EDITABLE = ['structural', 'vitals', 'inventory', 'equipment', 'currency', 'bio', 'notes'];
+
+  // WRITE-PATH. save(key, patch) updates owner-editable columns on one character.
+  // RLS + characters_guard_columns enforce who-can-write and which-cols server-side;
+  // this is just the UI's write seam. Returns the server-confirmed, shaped row.
+  async function save(key, patch) {
+    if (!key) throw new Error('save: missing character key');
+    if (!patch || typeof patch !== 'object' || Array.isArray(patch)) {
+      throw new Error('save: patch must be an object of column \u2192 value');
+    }
+    const cols = Object.keys(patch);
+    if (!cols.length) return null; // nothing to write
+    const bad = cols.filter(c => !EDITABLE.includes(c));
+    if (bad.length) throw new Error('save: not an editable column: ' + bad.join(', '));
+
+    const sb = await client();
+    const { data, error } = await sb
+      .from('characters')
+      .update(patch)
+      .eq('key', key)
+      .select(COLS);
+    if (error) throw error;
+    // RLS filters unauthorized rows OUT of the result rather than erroring, so an
+    // empty result means the server refused the write (not the owner / not staff).
+    if (!data || !data.length) {
+      throw new Error('Save blocked \u2014 you can only edit your own character.');
+    }
+    return shape(data[0]);
+  }
+
+  window.CharacterData = { loadParty, loadCharacter, canEdit, save };
 })();

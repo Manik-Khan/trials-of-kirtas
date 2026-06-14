@@ -163,6 +163,18 @@
     .story-toggle button { font-family: var(--f-word); font-weight: 600; font-size: 12px; letter-spacing: .18em;
       padding: 6px 16px; background: none; border: none; color: var(--fg-dim); cursor: pointer; }
     .story-toggle button.on { background: var(--accent); color: var(--parchment); }
+    /* Notes editor (write-back) */
+    .notes-edit { width: 100%; min-height: 200px; resize: vertical; box-sizing: border-box;
+      background: transparent; color: var(--fg); border: 1px solid var(--line); border-radius: 2px;
+      padding: 12px 14px; font-family: inherit; font-size: 14px; line-height: 1.6; }
+    .notes-edit:focus { outline: none; border-color: var(--accent); }
+    .notes-bar { display: flex; align-items: center; justify-content: flex-end; gap: 14px; margin-top: 10px; }
+    .notes-status { font-size: 12px; letter-spacing: .06em; color: var(--fg-dim); }
+    .notes-status.ok  { color: var(--accent); }
+    .notes-status.err { color: var(--blood); }
+    .notes-save { font-family: var(--f-word); font-weight: 600; font-size: 12px; letter-spacing: .18em;
+      padding: 8px 18px; background: var(--accent); color: var(--parchment); border: none; cursor: pointer; }
+    .notes-save:disabled { background: transparent; color: var(--fg-dim); border: 1px solid var(--line); cursor: default; }
 
     .switch { position: absolute; top: 14px; right: 22px; z-index: 4; display: flex; align-items: center; gap: 9px; }
     .switch .dot { width: 9px; height: 9px; transform: rotate(45deg); background: rgba(0,0,0,.25); cursor: pointer; border: 1px solid var(--line); padding: 0; }
@@ -383,8 +395,12 @@
         const bioSegs = [['Personality', bio.personality], ['Ideals', bio.ideals], ['Bonds', bio.bonds], ['Flaws', bio.flaws], ['Backstory', bio.backstory]];
         const bioHtml = '<div class="story">' + bioSegs.map(seg =>
           '<div class="seg"><div class="lab">' + seg[0] + '</div><div class="txt ' + (seg[1] ? '' : 'muted') + '">' + (seg[1] ? esc(seg[1]) : '\u2014 not recorded \u2014') + '</div></div>').join('') + '</div>';
-        const notesHtml = '<div class="story"><div class="seg"><div class="txt ' + (notes ? '' : 'muted') + '">' + (notes ? esc(notes) : '\u2014 no notes yet \u2014') + '</div></div>'
-          + '<div style="font-size:12px;letter-spacing:.16em;color:var(--fg-dim);margin-top:14px">EDITING ARRIVES WITH THE WRITE-BACK PASS</div></div>';
+        const draft = (S.notesDraft && S.notesDraft[c.key] != null) ? S.notesDraft[c.key] : notes;
+        const notesHtml = c._canEdit
+          ? '<div class="story"><textarea id="pm-notes" class="notes-edit" placeholder="Write notes\u2026">' + esc(draft) + '</textarea>'
+            + '<div class="notes-bar"><span id="pm-notes-status" class="notes-status"></span>'
+            + '<button id="pm-notes-save" class="notes-save" disabled>SAVE</button></div></div>'
+          : '<div class="story"><div class="seg"><div class="txt ' + (notes ? '' : 'muted') + '">' + (notes ? esc(notes) : '\u2014 no notes yet \u2014') + '</div></div></div>';
         return head('STORY') +
           '<div class="story-toggle"><button data-tab="bio" class="' + (tab === 'bio' ? 'on' : '') + '">BACKGROUND</button><button data-tab="notes" class="' + (tab === 'notes' ? 'on' : '') + '">NOTES</button></div>'
           + (tab === 'bio' ? bioHtml : notesHtml);
@@ -437,10 +453,49 @@
             + '<div class="d-body">' + esc(bits) + (entries ? '<br>' + esc(entries).slice(0, 400) : '') + '</div>');
         }));
       },
-      story(w) {
+      story(w, c) {
         w.querySelectorAll('.story-toggle button').forEach(b => b.addEventListener('click', () => {
           S.storyTab = b.dataset.tab; paintSection();
         }));
+        const ta = w.querySelector('#pm-notes');
+        if (!ta) return; // read-only viewer (not editable) or on the BACKGROUND tab
+        const btn = w.querySelector('#pm-notes-save');
+        const status = w.querySelector('#pm-notes-status');
+        let baseline = c.notes || '';
+        const setDirty = () => {
+          const dirty = ta.value !== baseline;
+          btn.disabled = !dirty;
+          S.notesDraft = S.notesDraft || {};
+          if (dirty) S.notesDraft[c.key] = ta.value; else delete S.notesDraft[c.key];
+          if (status.dataset.state !== 'saving') {
+            status.textContent = dirty ? 'Unsaved changes' : '';
+            status.className = 'notes-status';
+          }
+        };
+        setDirty(); // honour a draft restored after a tab switch
+        ta.addEventListener('input', setDirty);
+        const doSave = async () => {
+          if (btn.disabled) return;
+          const val = ta.value;
+          btn.disabled = true;
+          status.dataset.state = 'saving';
+          status.textContent = 'Saving\u2026'; status.className = 'notes-status';
+          try {
+            const updated = await window.CharacterData.save(c.key, { notes: val });
+            baseline = updated.notes; c.notes = updated.notes; c.updatedAt = updated.updatedAt;
+            if (S.notesDraft) delete S.notesDraft[c.key];
+            status.dataset.state = ''; status.textContent = 'Saved'; status.className = 'notes-status ok';
+          } catch (err) {
+            status.dataset.state = '';
+            status.textContent = (err && err.message) ? err.message : 'Save failed';
+            status.className = 'notes-status err';
+            btn.disabled = false; // allow retry
+          }
+        };
+        btn.addEventListener('click', doSave);
+        ta.addEventListener('keydown', e => {
+          if ((e.metaKey || e.ctrlKey) && e.key === 'Enter') { e.preventDefault(); doSave(); }
+        });
       },
     };
 
@@ -476,6 +531,11 @@
       try {
         const party = await window.CharacterData.loadParty();
         if (!party || !party.length) { $('#pm-status').innerHTML = '<div class="big">No characters found</div>'; return; }
+        // Resolve edit rights once (canEdit awaits the profile); only 4 chars.
+        await Promise.all(party.map(async c => {
+          try { c._canEdit = await window.CharacterData.canEdit(c.key); }
+          catch (e) { c._canEdit = false; }
+        }));
         S.party = party;
         $('#pm-status').style.display = 'none';
         renderParty();
