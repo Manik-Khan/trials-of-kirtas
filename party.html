@@ -175,6 +175,7 @@
     .notes-save { font-family: var(--f-word); font-weight: 600; font-size: 12px; letter-spacing: .18em;
       padding: 8px 18px; background: var(--accent); color: var(--parchment); border: none; cursor: pointer; }
     .notes-save:disabled { background: transparent; color: var(--fg-dim); border: 1px solid var(--line); cursor: default; }
+    #pm-work.focused { box-shadow: inset 2px 0 0 var(--accent); }
 
     .switch { position: absolute; top: 14px; right: 22px; z-index: 4; display: flex; align-items: center; gap: 9px; }
     .switch .dot { width: 9px; height: 9px; transform: rotate(45deg); background: rgba(0,0,0,.25); cursor: pointer; border: 1px solid var(--line); padding: 0; }
@@ -206,8 +207,9 @@
         <div class="detail empty" id="pm-detail">SELECT AN ENTRY TO SEE ITS DETAIL</div>
       </div>
       <div class="prompts">
-        <span class="p"><kbd>&uarr;</kbd><kbd>&darr;</kbd> SECTION</span>
-        <span class="p"><kbd>&larr;</kbd><kbd>&rarr;</kbd> CHARACTER</span>
+        <span class="p"><kbd>&uarr;</kbd><kbd>&darr;</kbd> MOVE</span>
+        <span class="p"><kbd>&rarr;</kbd><kbd>&larr;</kbd> ENTER / BACK</span>
+        <span class="p"><kbd>[</kbd><kbd>]</kbd> CHARACTER</span>
         <span class="p"><kbd>ESC</kbd> PARTY</span>
       </div>
     </section>
@@ -261,7 +263,7 @@
       Survival: 'Track, hunt, navigate the wilds, and read the signs of weather and land.',
     };
 
-    const S = { party: [], pi: 0, si: 0, storyTab: 'bio' };
+    const S = { party: [], pi: 0, si: 0, storyTab: 'bio', focus: 'rail', ci: 0 };
 
     const curHp = c => (c.vitals && c.vitals.hp != null) ? c.vitals.hp : ((c.structural.combat || {}).hp || 0);
     const maxHp = c => ((c.structural.combat || {}).hpMax || 0) + ((c.vitals && c.vitals.hpBonus) || 0);
@@ -299,7 +301,7 @@
     }
 
     function openSheet(i) {
-      S.pi = i; S.si = 0;
+      S.pi = i; S.si = 0; S.focus = 'rail'; S.ci = 0;
       $('#pm-party').classList.remove('on'); $('#pm-sheet').classList.add('on');
       renderSheet();
     }
@@ -317,12 +319,39 @@
         '<button class="word ' + (i === S.si ? 'sel' : '') + '" data-i="' + i + '">' + s.word + '<span class="sub">' + s.sub + '</span></button>').join('');
       $('#pm-words').querySelectorAll('.word').forEach(el => el.addEventListener('click', () => { S.si = +el.dataset.i; paintSection(); }));
       $('#pm-switch').innerHTML = S.party.map((p, i) => '<button class="dot ' + (i === S.pi ? 'sel' : '') + '" data-i="' + i + '" aria-label="' + esc(p.name) + '"></button>').join('');
-      $('#pm-switch').querySelectorAll('.dot').forEach(el => el.addEventListener('click', () => openSheet(+el.dataset.i)));
+      $('#pm-switch').querySelectorAll('.dot').forEach(el => el.addEventListener('click', () => gotoChar(+el.dataset.i)));
       paintSection();
     }
     function clearDetail(msg) { const d = $('#pm-detail'); d.className = 'detail empty'; d.textContent = msg || 'SELECT AN ENTRY TO SEE ITS DETAIL'; }
     function setDetail(html) { const d = $('#pm-detail'); d.className = 'detail'; d.innerHTML = html; }
     function selOne(w, el) { w.querySelectorAll('.lrow,.ab,.citem').forEach(x => x.classList.remove('sel')); if (el) el.classList.add('sel'); }
+    // ── two-level keyboard focus: rail (sections) ↔ content (items) ──
+    function navRows() { return Array.from($('#pm-work').querySelectorAll('.ab, .lrow, .citem')); }
+    function focusRow(i) {
+      const rows = navRows();
+      if (!rows.length) { S.focus = 'rail'; return; }
+      S.ci = ((i % rows.length) + rows.length) % rows.length;
+      rows[S.ci].click();                       // reuse each section's own selOne + setDetail
+      rows[S.ci].scrollIntoView({ block: 'nearest' });
+    }
+    function enterContent() {
+      if (!navRows().length) return;            // nothing to step into (e.g. STORY)
+      S.focus = 'content';
+      $('#pm-work').classList.add('focused');
+      focusRow(0);
+    }
+    function exitContent() {
+      S.focus = 'rail'; S.ci = 0;
+      $('#pm-work').classList.remove('focused');
+      selOne($('#pm-work'), null);
+      clearDetail(SECTIONS[S.si].id === 'story' ? 'STORY READS IN THE PANE ABOVE' : null);
+    }
+    function gotoChar(i) {                       // deliberate character switch, keeps current section
+      const n = S.party.length;
+      S.pi = ((i % n) + n) % n;
+      S.focus = 'rail'; S.ci = 0;
+      renderSheet();
+    }
     function paintSection() {
       document.querySelectorAll('.word').forEach((el, i) => el.classList.toggle('sel', i === S.si));
       const id = SECTIONS[S.si].id, w = $('#pm-work');
@@ -330,6 +359,13 @@
       w.classList.remove('pane-enter'); void w.offsetWidth; w.classList.add('pane-enter');
       clearDetail(id === 'story' ? 'STORY READS IN THE PANE ABOVE' : null);
       if (WIRE[id]) WIRE[id]($('#pm-work'), S.party[S.pi]);
+      // section changes reset S.focus to 'rail' before calling paintSection; if we
+      // were in content (e.g. a realtime repaint), restore the highlighted row.
+      if (S.focus === 'content') {
+        const rows = w.querySelectorAll('.ab, .lrow, .citem');
+        if (rows.length) { w.classList.add('focused'); S.ci = Math.min(S.ci, rows.length - 1); rows[S.ci].click(); rows[S.ci].scrollIntoView({ block: 'nearest' }); }
+        else { S.focus = 'rail'; w.classList.remove('focused'); }
+      } else { w.classList.remove('focused'); }
     }
 
     const head = (title) => '<h2>' + title + '</h2><div class="ruleline"></div>';
@@ -514,11 +550,23 @@
         if (e.key === 'ArrowRight') { S.pi = (S.pi + 1) % S.party.length; paintParty(); e.preventDefault(); }
         if (e.key === 'Enter') openSheet(S.pi);
       } else {
-        if (e.key === 'ArrowUp')   { S.si = (S.si + SECTIONS.length - 1) % SECTIONS.length; paintSection(); e.preventDefault(); }
-        if (e.key === 'ArrowDown') { S.si = (S.si + 1) % SECTIONS.length; paintSection(); e.preventDefault(); }
-        if (e.key === 'ArrowLeft')  { openSheet((S.pi + S.party.length - 1) % S.party.length); e.preventDefault(); }
-        if (e.key === 'ArrowRight') { openSheet((S.pi + 1) % S.party.length); e.preventDefault(); }
-        if (e.key === 'Escape' || e.key === 'Backspace') closeSheet();
+        const k = e.key;
+        // character switch is deliberate now — bracket keys, never the arrows
+        if (k === '[') { gotoChar(S.pi - 1); e.preventDefault(); return; }
+        if (k === ']') { gotoChar(S.pi + 1); e.preventDefault(); return; }
+        if (S.focus === 'content') {
+          if (k === 'ArrowUp')         { focusRow(S.ci - 1); e.preventDefault(); }
+          else if (k === 'ArrowDown')  { focusRow(S.ci + 1); e.preventDefault(); }
+          else if (k === 'ArrowRight') { e.preventDefault(); /* reserved: drill deeper (GEAR) */ }
+          else if (k === 'ArrowLeft' || k === 'Escape' || k === 'Backspace') { exitContent(); e.preventDefault(); }
+          return;
+        }
+        // rail focus
+        if (k === 'ArrowUp')         { S.focus = 'rail'; S.ci = 0; S.si = (S.si + SECTIONS.length - 1) % SECTIONS.length; paintSection(); e.preventDefault(); }
+        else if (k === 'ArrowDown')  { S.focus = 'rail'; S.ci = 0; S.si = (S.si + 1) % SECTIONS.length; paintSection(); e.preventDefault(); }
+        else if (k === 'ArrowRight') { enterContent(); e.preventDefault(); }
+        else if (k === 'Escape' || k === 'Backspace') { closeSheet(); e.preventDefault(); }
+        // ArrowLeft on the rail: intentionally nothing (was the character-switch trap)
       }
     });
 
