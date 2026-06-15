@@ -221,6 +221,7 @@
   <script src="characters.js"></script>
   <script src="nav.js"></script>
   <script src="battle.js"></script>
+  <script src="combatants-backend.js"></script>
   <script src="feed-bridge.js"></script>
   <script>
   /* ============ PARTY MENU app — read-only v1, live data ============ */
@@ -579,60 +580,137 @@
     window.addEventListener('nav:ready', setNavOffset);
     window.addEventListener('resize', setNavOffset);
 
-    // ── Vitals write-back: hand battle.js a characters.vitals backend ──
-    // Same seam combat.html uses (window.__battle.useBackend) — battle.js is
-    // backend-agnostic. combat.html points it at the `combatants` row; here we
-    // point it at the durable `characters.vitals` column (via CharacterData), so
-    // HP / temp / resources / concentration edited in the cross-page Battle HUD
-    // (opened from nav's \u2694 button) persist to the same record the sheet reads.
-    // characters.vitals is already the {hp,hpTemp,hpBonus,pipState,concentration}
-    // shape battle.js's combat object expects, so it maps 1:1.
-    function wireVitals() {
-      const sb = window.__tok && window.__tok.sb;
-      if (!sb || !window.__battle || !window.__battle.useBackend) return;
-      let ch = null;
+    // ── Battle backend: context-aware (resting vitals ↔ live combatant) ──
+    // battle.js is backend-agnostic (window.__battle.useBackend). Out of combat the
+    // HUD drives the durable characters.vitals record; in an active encounter it
+    // drives this PC's combatant row (shared combatants-backend.js — the same writes
+    // the combat map uses), so the player edits in one place and it counts
+    // everywhere. The mirror trigger keeps vitals.hp == combatant.hp regardless.
+    let _sb = null, _myKey = null, _isStaff = false, _mode = null, _combat = null,
+        _dispCh = null, _encCh = null, _vCh = null, _choosing = false;
 
-      // Keep the sheet's read-only HP display in step with HUD/realtime edits.
-      const refreshSheetVitals = (key, vitals) => {
-        const m = S.party.find(p => p.key === key);
-        if (!m) return;
-        m.vitals = vitals;
-        paintParty(); // portrait-wall HP bars (no text inputs to disturb)
-        const open = S.party[S.pi] && S.party[S.pi].key === key;
-        if (open && SECTIONS[S.si].id === 'stats') paintSection();
-      };
+    // Sheet HP display sync — runs ALWAYS, independent of the active backend, off
+    // the characters channel, so the portrait/STATS numbers stay honest in and out
+    // of combat (the mirror trigger feeds vitals.hp here when a combatant changes).
+    function refreshSheetVitals(key, vitals) {
+      const m = S.party.find(p => p.key === key);
+      if (!m) return;
+      m.vitals = vitals;
+      paintParty();
+      const open = S.party[S.pi] && S.party[S.pi].key === key;
+      if (open && SECTIONS[S.si].id === 'stats') paintSection();
+    }
+    function vitalsRow(row) {
+      if (!row || !row.key) return;
+      let v = row.vitals;
+      if (typeof v === 'string') { try { v = JSON.parse(v); } catch (_) { return null; } }
+      if (!v || typeof v !== 'object' || Array.isArray(v)) return null;
+      return v;
+    }
+    function wireSheetDisplaySync() {
+      if (_dispCh) return;
+      _dispCh = _sb.channel('party-display')
+        .on('postgres_changes', { event: 'UPDATE', schema: 'public', table: 'characters' },
+          ({ new: row }) => { const v = vitalsRow(row); if (v) refreshSheetVitals(row.key, v); })
+        .subscribe();
+    }
 
-      window.__battle.useBackend({
-        // durable vitals object for `key` (already in combat shape), or null
+    // Resting backend: the durable characters.vitals record.
+    function makeVitalsBackend() {
+      return {
         async load(key) {
           try { const c = await window.CharacterData.loadCharacter(key); return (c && c.vitals) ? c.vitals : null; }
           catch (e) { console.warn('[party/vitals] load:', e); return null; }
         },
-        // persist the whole combat/vitals object to the characters.vitals column
         async save(key, combat) {
-          try {
-            await window.CharacterData.save(key, { vitals: combat });
-            refreshSheetVitals(key, combat); // reflect our own edit now (no realtime round-trip)
-          } catch (e) { console.warn('[party/vitals] save:', e); }
+          try { await window.CharacterData.save(key, { vitals: combat }); refreshSheetVitals(key, combat); }
+          catch (e) { console.warn('[party/vitals] save:', e); }
         },
-        // live external changes: characters UPDATE \u2192 battle HUD + sheet display
         subscribe(onChange) {
-          if (ch) { sb.removeChannel(ch); ch = null; }
-          ch = sb.channel('party-vitals')
+          if (_vCh) { _sb.removeChannel(_vCh); _vCh = null; }
+          _vCh = _sb.channel('party-vitals')
             .on('postgres_changes', { event: 'UPDATE', schema: 'public', table: 'characters' },
-              ({ new: row }) => {
-                if (!row || !row.key) return;
-                let v = row.vitals;
-                if (typeof v === 'string') { try { v = JSON.parse(v); } catch (_) { return; } }
-                // TOAST guard: only adopt a real vitals object (Postgres can omit
-                // unchanged large jsonb from the realtime payload).
-                if (!v || typeof v !== 'object' || Array.isArray(v)) return;
-                onChange({ key: row.key, combat: v }); // \u2192 battle.js SESSION + HUD
-                refreshSheetVitals(row.key, v);        // \u2192 sheet display
-              })
+              ({ new: row }) => { const v = vitalsRow(row); if (v) onChange({ key: row.key, combat: v }); })
             .subscribe();
         },
+        _teardown() { if (_vCh) { _sb.removeChannel(_vCh); _vCh = null; } },
+      };
+    }
+
+    // Is my PC seated in an active encounter right now? → encounter id, else null.
+    async function myActiveEncounter() {
+      if (!_myKey) return null;
+      const { data: enc } = await _sb.from('encounters').select('id').eq('status', 'active').maybeSingle();
+      if (!enc) return null;
+      const { data: rows } = await _sb.from('combatants').select('id')
+        .eq('encounter_id', enc.id).eq('side', 'party').eq('source_key', _myKey).eq('in_combat', true).limit(1);
+      return (rows && rows.length) ? enc.id : null;
+    }
+
+    // Sheet-side combat backend: owns this PC's combatant cache + one realtime
+    // channel (page glue), and delegates every write to the shared module so the
+    // sheet and the combat map write identically. (No advanceTurn/logEvent on the
+    // sheet yet — End Turn and sheet-driven feed events stay with the map for now.)
+    async function makeSheetCombatBackend(encId) {
+      let cache = {}, ch = null;
+      const { data } = await _sb.from('combatants').select('*').eq('encounter_id', encId).eq('side', 'party');
+      (data || []).forEach(r => { if (r.source_key) cache[r.source_key] = r; });
+      const backend = window.makeCombatantsBackend({
+        sb: _sb,
+        resolve: k => cache[k] || null,
+        isStaff: () => _isStaff,
+        loadVitals: async k => { try { const c = await window.CharacterData.loadCharacter(k); return (c && c.vitals) || {}; } catch (_) { return {}; } },
+        saveVitals: async (k, combat) => { try { await window.CharacterData.save(k, { vitals: combat }); } catch (e) { console.warn('[sheet/vitals]', e); } },
       });
+      ch = _sb.channel('sheet-combatants:' + encId)
+        .on('postgres_changes', { event: '*', schema: 'public', table: 'combatants', filter: 'encounter_id=eq.' + encId },
+          ({ eventType, new: row, old }) => {
+            if (eventType === 'DELETE') { const k = old && old.source_key; if (k && cache[k]) { delete cache[k]; if (_combat === backend) chooseBackend(); } return; }
+            if (!row || row.side !== 'party' || !row.source_key) return;
+            const wasIn = cache[row.source_key] && cache[row.source_key].in_combat;
+            cache[row.source_key] = row;
+            backend._emit({ key: row.source_key, combat: { hp: row.hp, conditions: row.conditions, initiative: row.initiative, in_combat: row.in_combat } });
+            if (wasIn && !row.in_combat && _combat === backend) chooseBackend();
+          })
+        .subscribe();
+      backend._teardown = () => { if (ch) { _sb.removeChannel(ch); ch = null; } };
+      return backend;
+    }
+
+    // Pick (and swap to) the right backend for the current combat context.
+    async function chooseBackend() {
+      if (!_sb || !window.__battle || !window.__battle.useBackend || _choosing) return;
+      _choosing = true;
+      try {
+        const encId = await myActiveEncounter();
+        const want = encId ? 'combat' : 'vitals';
+        if (want === _mode) return;                 // no change → no churn
+        if (_combat) { _combat._teardown(); _combat = null; }
+        if (_vCh) { _sb.removeChannel(_vCh); _vCh = null; }
+        if (want === 'combat' && window.makeCombatantsBackend) {
+          _combat = await makeSheetCombatBackend(encId);
+          window.__battle.useBackend(_combat);
+          _mode = 'combat';
+        } else {
+          window.__battle.useBackend(makeVitalsBackend());
+          _mode = 'vitals';
+        }
+      } catch (e) { console.warn('[party/backend] choose:', e); }
+      finally { _choosing = false; }
+    }
+
+    async function wireBackend() {
+      _sb = window.__tok && window.__tok.sb;
+      if (!_sb || !window.__battle) return;
+      try { const me = await window.__tok.ready; _myKey = me && me.characterKey; _isStaff = !!(me && (me.role === 'dm' || me.role === 'overseer')); } catch (e) {}
+      if (_myKey && window.__battle.setChar) window.__battle.setChar(_myKey);
+      wireSheetDisplaySync();
+      await chooseBackend();
+      if (!_encCh) {                                 // re-evaluate when combat starts/ends
+        _encCh = _sb.channel('party-enc-watch')
+          .on('postgres_changes', { event: '*', schema: 'public', table: 'encounters' }, () => { chooseBackend(); })
+          .subscribe();
+      }
     }
 
     async function boot() {
@@ -648,7 +726,7 @@
         S.party = party;
         $('#pm-status').style.display = 'none';
         renderParty();
-        wireVitals(); // route battle.js HP/vitals through characters.vitals
+        wireBackend(); // resting vitals ↔ live combatant, context-aware
       } catch (err) {
         $('#pm-status').innerHTML = '<div class="big">Could not load the party</div><div>' + esc(err && err.message ? err.message : err) + '</div>';
       }

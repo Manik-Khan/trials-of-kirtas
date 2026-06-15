@@ -992,6 +992,7 @@
   <script src="characters.js"></script>
   <script src="monster-actor.js"></script>
   <script src="battle.js"></script>
+  <script src="combatants-backend.js"></script>
   <script src="feed-render.js"></script>
   <script>
   (function () {
@@ -2752,79 +2753,36 @@
         }
         // Events about a hidden foe must not leak to players.
         const evHidden = c => !!(c.hidden && c.side !== 'party');
-        window.__battle.useBackend({
-          async load(key) {
+        const hudBackend = window.makeCombatantsBackend({
+          sb: SB,
+          resolve: hudComb,
+          esc: escapeHtml,
+          evHidden: evHidden,
+          logEvent: (kind, data, text, hid) => logEvent(kind, data, text, hid),
+          logRoll: (o) => feedLogRoll(o),
+          isStaff: () => IS_STAFF,
+          afterInitiative: () => renderInitStrip(),
+          // Durable full vitals for PCs (temp HP, max bonus, slots, concentration).
+          saveVitals: async (key, combat) => {
             const c = hudComb(key);
-            return c ? { hp: c.hp, conditions: Array.isArray(c.conditions) ? c.conditions : [], initiative: c.initiative, in_combat: !!c.in_combat } : null;
-          },
-          async save(key, combat) {
-            const c = hudComb(key);
-            if (!c) return;
-            // Live combat HP on the combatant row (drives the map + replay event log).
-            if (combat.hp !== null && combat.hp !== undefined) {
-              const prev = c.hp;   // realtime echo updates c.hp after the write
-              const { error } = await SB.from('combatants').update({ hp: combat.hp }).eq('id', c.id);
-              if (error) { console.warn('[hud] HP save failed:', error.message); }
-              else if (c.in_combat && prev !== combat.hp)
-                logEvent('hp', { id: c.id, from: prev, to: combat.hp }, `${escapeHtml(c.name)}: ${prev} → ${combat.hp} HP`, evHidden(c));
-            }
-            // Durable full vitals (temp HP, max bonus, slots, concentration, hp) live
-            // on the character for PCs — never in combatants — so they survive combat
-            // and a fight that is never formally ended. The mirror trigger keeps
-            // vitals.hp == combatants.hp, so writing hp on both sides is a no-op echo.
-            if (c.side === 'party' && c.source_key) {
-              const { error: vErr } = await SB.from('characters').update({ vitals: combat }).eq('key', c.source_key);
-              if (vErr) console.warn('[hud] vitals save failed:', vErr.message);
+            if (c && c.side === 'party' && c.source_key) {
+              const { error } = await SB.from('characters').update({ vitals: combat }).eq('key', c.source_key);
+              if (error) console.warn('[hud] vitals save failed:', error.message);
             }
           },
-          // Conditions write through their own verb (not folded into save) so a
-          // HUD condition toggle touches only the conditions column — no hp/slot
-          // churn. The guard trigger allows conditions on party rows.
-          async saveConditions(key, arr) {
-            const c = hudComb(key);
-            if (!c) return;
-            const { error } = await SB.from('combatants').update({ conditions: arr }).eq('id', c.id);
-            if (error) { console.warn('[hud] conditions save failed:', error.message); return; }
-            if (c.in_combat) logEvent('condition', { id: c.id, conditions: arr },
-              `${escapeHtml(c.name)}: ${arr.length ? arr.join(', ') : 'conditions cleared'}`, evHidden(c));
-          },
-          // Player rolls/enters their own initiative from the HUD; writes the
-          // party row's initiative (the column guard permits it). The optimistic
-          // local update + renderInitStrip re-sorts the map strip immediately.
-          async setInitiative(key, val) {
-            const c = hudComb(key);
-            if (!c) return;
-            c.initiative = val;
-            renderInitStrip();
-            const { error } = await SB.from('combatants').update({ initiative: val }).eq('id', c.id);
-            if (error) { console.warn('[hud] initiative save failed:', error.message); return; }
-            if (c.in_combat) logEvent('initiative', { id: c.id, value: val }, `${escapeHtml(c.name)} initiative set to ${val}`, evHidden(c));
-          },
-          // HUD rolls (attacks, initiative, spells) post into the combat feed.
-          logRoll(o) { feedLogRoll(o); },
-          // The HUD's End Turn advances the *shared* tracker rather than faking a
-          // local round: this writes encounters.active_combatant_id + round (round
-          // ticks only on wrap). Calls the page-level advanceTurn() defined below.
-          // Guard (2026-06-11): non-staff may move the pointer only when the
-          // active combatant IS the character their HUD is driving — battle.js
-          // already gates the off-turn path, this backstops it at the seam.
-          advanceTurn(key) {
+          // End Turn advances the shared tracker; non-staff only on their own turn.
+          advanceTurn: (key) => {
             if (!IS_STAFF) {
               const active = COMBS.find(x => x.id === (ENC && ENC.active_combatant_id));
-              if (!active || !key || hudComb(key) !== active) {
-                console.warn('[hud] off-turn advance blocked (driving', key, ')');
-                return;
-              }
+              if (!active || !key || hudComb(key) !== active) { console.warn('[hud] off-turn advance blocked (driving', key, ')'); return; }
             }
             advanceTurn();
           },
-          // battle.js asks before offering staff-only affordances (off-turn skip).
-          isStaff() { return IS_STAFF; },
-          // Live-in piggybacks combat.html's existing realtime channel — a second
-          // postgres_changes channel on the same table is unreliable. The
-          // combatant UPDATE handler calls HUD_ONCHANGE for party rows.
-          subscribe(onChange) { HUD_ONCHANGE = onChange; },
+          // Keep feeding HUD live-in from combat.html's existing combatants channel
+          // (realtime handler still calls HUD_ONCHANGE — untouched).
+          onSubscribe: (onChange) => { HUD_ONCHANGE = onChange; },
         });
+        window.__battle.useBackend(hudBackend);
       }
       pushTurnToHud();   // seed HUD round + whose-turn now the backend is wired
 
