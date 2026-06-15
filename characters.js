@@ -482,7 +482,7 @@ const CHARACTERS = {
     background:   'Entertainer (Singer)',
     alignment:    'Chaotic Good',
     xp:           900,
-    portrait:     'img/portraits/liadan.png',
+    portrait:     'https://res.cloudinary.com/df0tgoiyb/image/upload/v1779732202/kirtas/portraits/liadan.png',
 
     appearance: {
       age:    '17',

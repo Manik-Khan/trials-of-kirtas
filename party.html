@@ -227,6 +227,9 @@
     const $ = s => document.querySelector(s);
     const esc = s => String(s == null ? '' : s).replace(/[&<>"]/g, c => ({ '&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;' }[c]));
     const sgn = n => (n >= 0 ? '+' : '') + n;
+    // Per-character portrait framing (background-position). Full-body art often
+    // wants a slight downward nudge vs the default 'top center'; tune the value.
+    const PORT_POS = { liadan: 'center 18%' };
 
     const SECTIONS = [
       { id: 'stats',    word: 'STATS',    sub: 'ABILITIES \u00B7 SAVES' },
@@ -273,7 +276,8 @@
         const cmb = c.structural.combat || {};
         const max = maxHp(c), hp = curHp(c), pct = max ? Math.round(100 * hp / max) : 0;
         const portrait = c.structural.portrait
-          ? '<div class="portrait" style="background-image:url(\'' + esc(c.structural.portrait) + '\')"></div>' : '';
+          ? '<div class="portrait" style="background-image:url(\'' + esc(c.structural.portrait) + '\')'
+            + (PORT_POS[c.key] ? ';background-position:' + PORT_POS[c.key] : '') + '"></div>' : '';
         return '<div class="pcard ' + (i === S.pi ? 'sel' : 'dim') + '" data-i="' + i + '" tabindex="0" role="button" aria-label="Open ' + esc(c.name) + '">'
           + portrait + '<div class="initial">' + esc((c.name || '?')[0]) + '</div><div class="wash"></div>'
           + '<div class="badge">' + esc(c.structural.classLabel || '') + '</div><div class="slash"></div>'
@@ -308,6 +312,7 @@
       $('#pm-cls').textContent = classLine(c);
       $('#pm-ghost').textContent = (c.name || '?')[0];
       $('#pm-pbg').style.backgroundImage = c.structural.portrait ? "url('" + c.structural.portrait + "')" : 'none';
+      $('#pm-pbg').style.backgroundPosition = PORT_POS[c.key] || '';
       $('#pm-words').innerHTML = SECTIONS.map((s, i) =>
         '<button class="word ' + (i === S.si ? 'sel' : '') + '" data-i="' + i + '">' + s.word + '<span class="sub">' + s.sub + '</span></button>').join('');
       $('#pm-words').querySelectorAll('.word').forEach(el => el.addEventListener('click', () => { S.si = +el.dataset.i; paintSection(); }));
