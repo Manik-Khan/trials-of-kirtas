@@ -79,6 +79,33 @@
     .hpbar { height: 5px; background: rgba(0,0,0,.3); margin-top: 4px; }
     .hpbar i { display: block; height: 100%; background: var(--fg-dim); }
     .pcard.sel .hpbar i { background: var(--accent); }
+
+    /* HP tracker (ported from sheet.html, wired to characters.vitals) */
+    .pm-hp { margin: 0 0 20px; max-width: 520px; }
+    .pm-hp-row { display: flex; align-items: center; gap: 8px; }
+    .pm-hp-track { flex: 1; height: 14px; background: rgba(0,0,0,.4); border: 1px solid var(--line); overflow: hidden; display: flex; }
+    .pm-hp-seg { height: 100%; transition: width .3s ease, background .4s ease; }
+    .pm-hp-btn { width: 26px; height: 26px; background: var(--field); border: 1px solid var(--line); color: var(--fg-dim); font-size: 16px; cursor: pointer; display: flex; align-items: center; justify-content: center; font-family: var(--f-word); line-height: 1; flex-shrink: 0; transition: background .15s, color .15s; }
+    .pm-hp-btn:hover { background: rgba(184,149,42,.15); color: var(--fg); }
+    .pm-hp-btn:active { transform: scale(.92); }
+    .pm-hp-nums { display: flex; align-items: baseline; gap: 3px; flex-shrink: 0; }
+    .pm-hp-cur { font-family: var(--f-disp); font-size: 22px; line-height: 1; transition: color .3s; }
+    .pm-hp-sep { color: var(--fg-dim); font-size: 13px; }
+    .pm-hp-max { font-family: var(--f-word); font-size: 14px; color: var(--fg-dim); }
+    .pm-hp-status { font-family: var(--f-word); font-size: 9px; letter-spacing: .18em; padding: 2px 5px; border: 1px solid transparent; opacity: 0; transition: opacity .3s; white-space: nowrap; }
+    .pm-hp-legend { display: flex; gap: 12px; flex-wrap: wrap; margin-top: 7px; padding-left: 34px; }
+    .pm-hp-leg { display: flex; align-items: center; gap: 4px; font-family: var(--f-word); font-size: 9px; letter-spacing: .12em; color: var(--fg-dim); }
+    .pm-hp-leg i { width: 8px; height: 8px; border-radius: 50%; display: inline-block; flex-shrink: 0; }
+    .pm-hp-adj { display: grid; grid-template-columns: 1fr 1fr; gap: 8px 18px; margin-top: 13px; max-width: 430px; }
+    .pm-hp-adj-row { display: flex; align-items: center; gap: 6px; }
+    .pm-hp-adj-lbl { font-family: var(--f-word); font-size: 10px; letter-spacing: .14em; flex-shrink: 0; min-width: 64px; }
+    .pm-hp-adj-btn { width: 20px; height: 20px; background: var(--field); border: 1px solid var(--line); color: var(--fg-dim); font-size: 13px; cursor: pointer; display: flex; align-items: center; justify-content: center; font-family: var(--f-word); line-height: 1; flex-shrink: 0; transition: background .15s; }
+    .pm-hp-adj-btn:hover { background: rgba(184,149,42,.15); }
+    .pm-hp-adj-val { font-family: var(--f-disp); font-size: 14px; min-width: 2ch; text-align: center; }
+    .pm-hp-rest { display: flex; align-items: center; gap: 10px; justify-content: flex-end; }
+    .pm-hp-rest-btn { width: 28px; height: 28px; background: rgba(184,149,42,.06); border: 1px solid var(--line); color: var(--gold); cursor: pointer; display: flex; align-items: center; justify-content: center; font-size: 13px; transition: background .2s, border-color .2s; }
+    .pm-hp-rest-btn:hover { background: rgba(184,149,42,.16); border-color: var(--gold); }
+    .pm-hp-rest-btn:active { transform: scale(.92); }
     .stat { text-align: center; line-height: 1; } .stat b { display: block; font-size: 18px; font-weight: 700; }
     .stat span { font-size: 10px; letter-spacing: .2em; color: var(--fg-dim); }
 
@@ -369,6 +396,108 @@
       } else { w.classList.remove('focused'); }
     }
 
+    // ── HP tracker (ported from sheet.html → characters.vitals) ──
+    let _hpSaveTimer = null, _hpPendingStructural = false;
+    function pmHpState(c) {
+      const cmb = c.structural.combat || {}, v = c.vitals || {};
+      const m0 = cmb.hpMax || 0, bonus = v.hpBonus || 0, temp = v.hpTemp || 0;
+      const cur = (v.hp != null) ? v.hp : (cmb.hp != null ? cmb.hp : (m0 + bonus));
+      return { m0, bonus, temp, cur };
+    }
+    function pmHpWidget(c) {
+      const ed = !!c._canEdit;
+      const st = pmHpState(c);
+      const big = (act, sym) => ed ? '<button class="pm-hp-btn" data-hp="' + act + '">' + sym + '</button>' : '';
+      const adj = (lab, key, col) => '<div class="pm-hp-adj-row"><span class="pm-hp-adj-lbl" style="color:' + col + '">' + lab + '</span>'
+        + '<button class="pm-hp-adj-btn" data-hp="' + key + '-">\u2212</button>'
+        + '<span class="pm-hp-adj-val" id="pmhp-' + key + '" style="color:' + col + '">0</span>'
+        + '<button class="pm-hp-adj-btn" data-hp="' + key + '+">+</button></div>';
+      return '<div class="pm-hp">'
+        + '<div class="pm-hp-row">' + big('dmg', '\u2212')
+        + '<div class="pm-hp-track"><div class="pm-hp-seg" id="pmhp-main"></div><div class="pm-hp-seg" id="pmhp-tempbar"></div><div class="pm-hp-seg" id="pmhp-bonusbar"></div></div>'
+        + big('heal', '+')
+        + '<div class="pm-hp-nums"><span class="pm-hp-cur" id="pmhp-cur">' + st.cur + '</span><span class="pm-hp-sep">/</span><span class="pm-hp-max" id="pmhp-effmax">' + (st.m0 + st.bonus) + '</span></div>'
+        + '<span class="pm-hp-status" id="pmhp-status"></span></div>'
+        + '<div class="pm-hp-legend">'
+        +   '<span class="pm-hp-leg"><i style="background:#c8432a"></i>CRITICAL</span>'
+        +   '<span class="pm-hp-leg"><i style="background:#d4821a"></i>BLOODIED</span>'
+        +   '<span class="pm-hp-leg"><i style="background:#5a9a6a"></i>FULL</span>'
+        +   '<span class="pm-hp-leg"><i style="background:var(--gold)"></i>TEMP</span>'
+        +   '<span class="pm-hp-leg"><i style="background:#5a9aaa"></i>MAX+</span></div>'
+        + (ed ? '<div class="pm-hp-adj">'
+            + adj('TEMP HP', 'temp', 'var(--gold)')
+            + adj('BONUS MAX', 'bonus', '#5a9aaa')
+            + adj('MAX HP', 'max', 'var(--fg-dim)')
+            + '<div class="pm-hp-rest"><button class="pm-hp-rest-btn" data-hp="rest-short" title="Short rest">\u263e</button>'
+            + '<button class="pm-hp-rest-btn" data-hp="rest-long" title="Long rest">\u25cf</button></div></div>'
+           : '')
+        + '</div>';
+    }
+    function pmRenderHP(root, c) {
+      if (!root) return;
+      const s = pmHpState(c);
+      const effMax = s.m0 + s.bonus, total = effMax + s.temp, ratio = s.m0 > 0 ? s.cur / s.m0 : 0;
+      let col, status;
+      if (s.cur <= 0) { col = 'var(--blood)'; status = 'UNCONSCIOUS'; }
+      else if (ratio < 0.2) { col = '#c8432a'; status = 'CRITICAL'; }
+      else if (ratio < 0.5) { col = '#d4821a'; status = 'BLOODIED'; }
+      else { col = '#5a9a6a'; status = ''; }
+      const pw = n => (total > 0 ? (n / total * 100) : 0).toFixed(2) + '%';
+      const q = id => root.querySelector('#' + id);
+      let e;
+      if ((e = q('pmhp-main')))     { e.style.width = pw(s.cur);  e.style.background = col; }
+      if ((e = q('pmhp-tempbar')))  e.style.width = pw(s.temp);
+      if ((e = q('pmhp-bonusbar'))) e.style.width = pw(s.bonus);
+      if ((e = q('pmhp-cur')))      { e.textContent = s.cur; e.style.color = col; }
+      if ((e = q('pmhp-effmax')))   e.textContent = effMax;
+      if ((e = q('pmhp-temp')))     e.textContent = s.temp;
+      if ((e = q('pmhp-bonus')))    e.textContent = s.bonus;
+      if ((e = q('pmhp-max')))      e.textContent = s.m0;
+      if ((e = q('pmhp-status'))) {
+        if (status) { e.textContent = status; e.style.color = col; e.style.borderColor = col; e.style.background = col + '22'; e.style.opacity = '1'; }
+        else e.style.opacity = '0';
+      }
+    }
+    function pmHpSave(c, structuralToo) {
+      if (structuralToo) _hpPendingStructural = true;   // sticky: debounce mustn't drop a Max HP edit
+      clearTimeout(_hpSaveTimer);
+      const key = c.key;
+      _hpSaveTimer = setTimeout(async () => {
+        const includeStructural = _hpPendingStructural; _hpPendingStructural = false;
+        try {
+          const patch = { vitals: Object.assign({}, c.vitals) };
+          if (includeStructural) patch.structural = c.structural;
+          const up = await window.CharacterData.save(key, patch);
+          if (up && up.structural) c.structural = up.structural;
+          if (up && up.vitals) { c.vitals = up.vitals; refreshSheetVitals(key, up.vitals); }
+        } catch (err) {
+          if (includeStructural) _hpPendingStructural = true;   // retain for retry
+          console.warn('[party/hp] save:', err);
+          const st = document.querySelector('#pm-work #pmhp-status');
+          if (st) { st.textContent = (err && err.message) ? err.message : 'SAVE FAILED'; st.style.color = 'var(--blood)'; st.style.borderColor = 'var(--blood)'; st.style.background = 'transparent'; st.style.opacity = '1'; }
+        }
+      }, 300);
+    }
+    function wireHp(root, c) {
+      pmRenderHP(root, c);
+      if (!c._canEdit) return;
+      root.addEventListener('click', e => {
+        const b = e.target.closest('[data-hp]'); if (!b) return;
+        const act = b.dataset.hp, s = pmHpState(c);
+        let m0 = s.m0, bonus = s.bonus, temp = s.temp, cur = s.cur, structuralToo = false;
+        c.vitals = c.vitals || {};
+        if (act === 'rest-short') { pmRenderHP(root, c); return; }
+        if (act === 'dmg' || act === 'heal') { const effMax = m0 + bonus; cur = Math.max(0, Math.min(effMax, cur + (act === 'heal' ? 1 : -1))); c.vitals.hp = cur; }
+        else if (act === 'temp-' || act === 'temp+')   { temp = Math.max(0, Math.min(99, temp + (act === 'temp+' ? 1 : -1))); c.vitals.hpTemp = temp; }
+        else if (act === 'bonus-' || act === 'bonus+') { bonus = Math.max(0, Math.min(99, bonus + (act === 'bonus+' ? 1 : -1))); c.vitals.hpBonus = bonus; }
+        else if (act === 'max-' || act === 'max+')     { m0 = Math.max(1, m0 + (act === 'max+' ? 1 : -1)); c.structural.combat = c.structural.combat || {}; c.structural.combat.hpMax = m0; cur = Math.min(cur, m0 + bonus); c.vitals.hp = cur; structuralToo = true; }
+        else if (act === 'rest-long')  { cur = m0 + bonus; c.vitals.hp = cur; c.vitals.hpTemp = 0; c.vitals.pipState = {}; c.vitals.concentration = null; }
+        else return;
+        pmRenderHP(root, c);
+        pmHpSave(c, structuralToo);
+      });
+    }
+
     const head = (title) => '<h2>' + title + '</h2><div class="ruleline"></div>';
 
     const WORK = {
@@ -377,8 +506,8 @@
         const order = ['str','dex','con','int','wis','cha'];
         const vbig = (cls, val, lab) => '<div class="vbig ' + cls + '"><b>' + val + '</b><span>' + lab + '</span></div>';
         return head('STATS') +
+          pmHpWidget(c) +
           '<div class="vrow">'
-          + vbig('accent', curHp(c) + '/' + maxHp(c), 'HIT POINTS')
           + vbig('', cmb.ac != null ? cmb.ac : '\u2014', 'ARMOR CLASS')
           + vbig('', cmb.speed != null ? cmb.speed + 'ft' : '\u2014', 'SPEED')
           + vbig('', cmb.initiative != null ? sgn(cmb.initiative) : '\u2014', 'INITIATIVE')
@@ -458,6 +587,7 @@
           setDetail('<div class="d-head"><span class="d-name">' + k.toUpperCase() + '</span><span class="d-type">SCORE ' + (a.score != null ? a.score : '\u2014') + ' \u00B7 MOD ' + (a.mod != null ? sgn(a.mod) : '\u2014') + '</span>' + (save.proficient ? '<span class="d-tag">SAVE PROF</span>' : '') + '</div>'
             + '<div class="d-body">Saving throw ' + (save.bonus != null ? sgn(save.bonus) : sgn(a.mod || 0)) + '.' + (linked ? ' Skills: ' + esc(linked) + '.' : '') + '</div>');
         }));
+        const _hp = w.querySelector('.pm-hp'); if (_hp) wireHp(_hp, c);
       },
       skills(w, c) {
         const sk = c.structural.skills || [];
