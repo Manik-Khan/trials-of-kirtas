@@ -97,8 +97,10 @@
     return shape((data || [])[0] || null);
   }
 
-  // may the current user EDIT this character? owner of the row, or staff.
-  // (the DB guard enforces this server-side too; this just drives the UI.)
+  // may the current user EDIT this character? ANY party member may edit ANY party
+  // character (shared sheet — covers absent players); staff included. The DB
+  // (characters_party_update policy + characters_guard_columns) enforces this
+  // server-side and pins identity cols; this just drives the UI affordances.
   // Waits for __tok like client() so it doesn't false-negative on a slow load;
   // returns false (rather than throwing) if nav never settles.
   async function canEdit(charKey) {
@@ -109,8 +111,7 @@
     }
     const me = await window.__tok.ready;
     if (!me) return false;
-    if (me.role === 'overseer' || me.role === 'dm') return true;
-    return me.characterKey === charKey;
+    return !!me.role;   // any settled member session (player / dm / overseer)
   }
 
 
