@@ -661,6 +661,8 @@
         isStaff: () => _isStaff,
         loadVitals: async k => { try { const c = await window.CharacterData.loadCharacter(k); return (c && c.vitals) || {}; } catch (_) { return {}; } },
         saveVitals: async (k, combat) => { try { await window.CharacterData.save(k, { vitals: combat }); } catch (e) { console.warn('[sheet/vitals]', e); } },
+        // Player ends their turn from the sheet — same engine the map calls.
+        advanceTurn: () => _sb.rpc('advance_turn', { p_encounter: encId }),
       });
       ch = _sb.channel('sheet-combatants:' + encId)
         .on('postgres_changes', { event: '*', schema: 'public', table: 'combatants', filter: 'encounter_id=eq.' + encId },

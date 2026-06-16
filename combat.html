@@ -3648,7 +3648,9 @@
       return COMBS.filter(c => c.in_combat).slice().sort((a, b) => {
         const ap = a.initiative == null, bp = b.initiative == null;
         if (ap !== bp) return ap ? 1 : -1;                    // pending → tail
-        return (b.initiative - a.initiative) || (a.side === 'party' ? -1 : 1) || String(a.name).localeCompare(String(b.name));
+        return (b.initiative - a.initiative)
+            || ((a.side === 'party' ? 0 : 1) - (b.side === 'party' ? 0 : 1))
+            || String(a.name).localeCompare(String(b.name));
       });
     }
     // The turn cycle steps only through rolled participants; a pending PC has no
@@ -3706,12 +3708,13 @@
       if (error) console.error('[init] turn write failed:', error.message);
     }
     async function advanceTurn() {
-      const order = turnOrder(); if (!order.length) return;
-      const i = order.findIndex(c => c.id === (ENC && ENC.active_combatant_id));
-      const next = i < 0 ? 0 : (i + 1) % order.length;
-      let round = (ENC && ENC.round) || 1;
-      if (i >= 0 && next === 0) round++;
-      await setActive(order[next].id, round);
+      if (!ENC) return;
+      // Single turn engine: advance_turn() computes the next turn from the FULL
+      // roster (server-side) and logs the replay event. Our encounters realtime
+      // echo redraws the strip + HUD — same "echo drives it" pattern as scene
+      // switching — so there is no local mutation here.
+      const { error } = await SB.rpc('advance_turn', { p_encounter: ENC.id });
+      if (error) console.error('[init] advance_turn failed:', error.message);
     }
     // Staff correction: step the shared tracker BACK one turn (mis-clicks,
     // skipped combatants). Wrapping backwards decrements the round, floor 1.
