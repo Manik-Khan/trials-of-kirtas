@@ -367,7 +367,14 @@
     "proficiencyBonus": 2,
     "passivePerception": 13
   },
-  "combat": {},
+  "combat": {
+    "hp": 24,
+    "hpTemp": 0,
+    "hpBonus": 0,
+    "pipState": {
+      "kiPoints": 0
+    }
+  },
   "inventory": [
     {
       "ac": null,
@@ -847,5 +854,5 @@
     "personality": ""
   },
   "notes": "",
-  "lastUpdated": "2026-06-13T15:05:06.513926+00:00"
+  "lastUpdated": "2026-06-17T04:22:11.502Z"
 }
