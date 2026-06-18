@@ -44,6 +44,17 @@
 
     .card{ background:var(--section-bg); border:1px solid var(--section-border); border-radius:10px; overflow:hidden; }
     .gate-empty{ padding:1rem 1.1rem; color:var(--muted); font-style:italic; }
+    .invitebar{ display:flex; gap:.5rem; align-items:center; margin:.25rem 0 .75rem; }
+    .invitebar input{ flex:1 1 auto; max-width:340px; font-family:'Crimson Pro',Georgia,serif; font-size:.95rem; color:var(--parchment);
+      background:var(--ink-deep); border:1px solid var(--section-border); border-radius:8px; padding:.55rem .8rem; }
+    .invitebar input:focus{ outline:none; border-color:var(--gold-mid); }
+    .invitebar button{ font-family:'Cinzel',serif; font-size:.85rem; color:var(--ink-deep); background:var(--gold); border:0;
+      border-radius:8px; padding:.55rem 1rem; cursor:pointer; font-weight:600; }
+    .invitebar button:hover{ background:var(--gold-light); } .invitebar button:disabled{ opacity:.55; cursor:default; }
+    .stag{ font-family:'Cinzel',serif; font-size:.6rem; letter-spacing:.12em; text-transform:uppercase; padding:.18rem .5rem; border-radius:999px; white-space:nowrap; }
+    .stag.invited{ color:var(--gold-light); border:1px solid var(--gold-mid); background:var(--gold-dim); }
+    .stag.arrived{ color:var(--hp-good); border:1px solid rgba(90,154,106,.4); background:rgba(90,154,106,.12); }
+    .stag.requested{ color:var(--aged); border:1px solid var(--section-border); }
 
     .prow{ display:flex; align-items:center; gap:.9rem; padding:.85rem 1.1rem; border-top:1px solid var(--section-border); }
     .prow:first-child{ border-top:0; }
@@ -127,6 +138,11 @@
           <span class="count" id="pcount">—</span>
           <span class="live"><span class="dot"></span>Live</span>
         </div>
+        <div class="invitebar">
+          <input id="invite-email" type="email" placeholder="Invite someone by email…" autocomplete="off" spellcheck="false">
+          <button id="invite-btn">Send invite</button>
+          <span class="save" id="invite-save"></span>
+        </div>
         <div class="card" id="gate"></div>
       </section>
 
@@ -162,6 +178,7 @@
   (function(){
     "use strict";
     const MEMBERS_URL = '/.netlify/functions/members';
+    const INVITE_URL  = '/.netlify/functions/member-invite';
     const CHARS = [
       { key:'cosmere',  name:'Cosmere Runestar' },
       { key:'caim',     name:'Caim' },
@@ -227,21 +244,35 @@
       const pending = ROWS.filter(r => r.pending);
       const members = ROWS.filter(r => !r.pending);
 
-      // gate / pending queue
+      // invite-pending first (M's "invite pending" up top), then arrived, then requested
+      const rank = (r) => r.invitePending ? 0 : (r.role === 'pending' ? 2 : 1);
+      pending.sort((a,b) => rank(a)-rank(b) || (a.email||'').localeCompare(b.email||''));
+
       const gate = $('gate');
-      $('pcount').textContent = pending.length ? (pending.length+' waiting') : 'none';
+      $('pcount').textContent = pending.length ? (pending.length+' at the gate') : 'none';
       if(!pending.length){
-        gate.innerHTML = '<div class="gate-empty">No one waiting. New logins will appear here the moment they arrive.</div>';
+        gate.innerHTML = '<div class="gate-empty">No one waiting. Invite someone above, or new arrivals appear here live.</div>';
       } else {
         gate.innerHTML = pending.map(r => {
           const named = r.username || (r.email ? r.email.split('@')[0] : 'Someone');
-          const isBare = !r.role; // authenticated but never provisioned (no row to dismiss)
+          let tag, meta, resend = '';
+          if(r.invitePending){
+            tag  = '<span class="stag invited">Invite pending</span>';
+            meta = `${esc(r.email||'—')} · invited ${esc(ago(r.invitedAt))}`;
+            resend = `<button class="ghostbtn" data-act="resend" data-uid="${r.userId}" data-email="${esc(r.email||'')}">Resend</button>`;
+          } else if(r.role === 'pending'){
+            tag  = '<span class="stag requested">Requested</span>';
+            meta = `${esc(r.email||'—')} · ${esc(ago(r.lastSignInAt))}`;
+          } else {
+            tag  = '<span class="stag arrived">Arrived</span>';
+            meta = `${esc(r.email||'—')} · signed in ${esc(ago(r.lastSignInAt))}`;
+          }
           return `<div class="prow">
             <div class="who">
               <div class="${avaClass('pending')}">${esc(initial(r))}</div>
               <div style="min-width:0">
-                <div class="nm">${esc(named)}</div>
-                <div class="meta">${esc(r.email||'—')} · ${esc(ago(r.lastSignInAt))}${isBare?' · no request yet':''}</div>
+                <div class="nm">${esc(named)} ${tag}</div>
+                <div class="meta">${meta}</div>
               </div>
             </div>
             <div class="actions">
@@ -249,7 +280,8 @@
                 <button data-act="approve" data-uid="${r.userId}">Approve as</button>
                 <select data-act="approverole" data-uid="${r.userId}"><option>Player</option><option>Narrator</option><option>Overseer</option></select>
               </span>
-              ${isBare ? '' : `<button class="ghostbtn" data-act="dismiss" data-uid="${r.userId}">Dismiss</button>`}
+              ${resend}
+              <button class="ghostbtn" data-act="revoke" data-uid="${r.userId}">Revoke</button>
             </div>
           </div>`;
         }).join('');
@@ -297,12 +329,38 @@
       }
     }
 
-    async function dismiss(uid){
+    async function postInvite(payload){
+      const tok = window.__tok?.session?.access_token;
+      const res = await fetch(INVITE_URL, {
+        method:'POST',
+        headers:{ 'Authorization':'Bearer '+tok, 'Content-Type':'application/json' },
+        body: JSON.stringify(payload),
+      });
+      const data = await res.json().catch(()=>({}));
+      if(!res.ok) throw new Error(data.error || ('HTTP '+res.status));
+      return data;
+    }
+
+    async function sendInvite(email, saveEl){
+      const btn = $('invite-btn');
+      if(btn) btn.disabled = true;
+      if(saveEl){ saveEl.textContent='Sending…'; saveEl.className='save show'; }
       try{
-        const { error } = await SB.from('profiles').delete().eq('user_id', uid);
-        if(error) throw error;
+        await postInvite({ action:'invite', email });
+        if(saveEl) flash(saveEl, true, 'Invite sent');
+        const inp = $('invite-email'); if(inp) inp.value='';
         await loadMembers();
-      }catch(e){ toast((e&&e.message)||'Could not dismiss'); }
+      }catch(e){
+        toast(e.message || 'Invite failed');
+        if(saveEl) flash(saveEl, false, 'Failed');
+      }finally{ if(btn) btn.disabled = false; }
+    }
+
+    async function revoke(uid){
+      try{
+        await postInvite({ action:'revoke', userId: uid });
+        await loadMembers();
+      }catch(e){ toast(e.message || 'Could not revoke'); }
     }
 
     // ── events ──
@@ -323,6 +381,9 @@
     }, true);
     document.addEventListener('click', (e) => {
       const t = e.target;
+      if(t.id==='invite-btn'){
+        const inp=$('invite-email'); sendInvite(((inp&&inp.value)||'').trim(), $('invite-save')); return;
+      }
       const act = t.getAttribute && t.getAttribute('data-act');
       const uid = t.getAttribute && t.getAttribute('data-uid');
 
@@ -331,7 +392,8 @@
         commit(uid, { role: LABEL_TO_DB[sel ? sel.value : 'Player'] || 'player' });
         return;
       }
-      if(act==='dismiss'){ dismiss(uid); return; }
+      if(act==='revoke'){ revoke(uid); return; }
+      if(act==='resend'){ sendInvite(t.getAttribute('data-email'), $('invite-save')); return; }
       if(act==='rmgrant'){
         const r = rowFor(uid); if(!r) return;
         commit(uid, { grants: (r.grants||[]).filter(g => g !== t.getAttribute('data-g')) });
@@ -357,6 +419,13 @@
         return;
       }
       if(!t.closest('#pop')) $('pop').classList.remove('open');
+    });
+
+    document.addEventListener('keydown', (e) => {
+      if(e.target && e.target.id==='invite-email' && e.key==='Enter'){
+        e.preventDefault();
+        sendInvite((e.target.value||'').trim(), $('invite-save'));
+      }
     });
 
     // ── boot ──
