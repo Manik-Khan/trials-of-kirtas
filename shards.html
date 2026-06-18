@@ -1,0 +1,1064 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Soul Shards · Character Forge — Trials of Kirtas</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@500;600;700&family=Barlow+Condensed:wght@400;500;600&family=EB+Garamond:ital,wght@0,400;0,500;1,400&display=swap" rel="stylesheet">
+<style>
+  /* ── Phantom theme (self-contained approximation; the real page rides theme.css) ── */
+  :root{
+    --bg:#f3eee3; --bg-card:#fbf8f1; --bg-sunk:#efe8da;
+    --ink:#18130d; --ink-soft:#5c5347; --ink-faint:#8f8678;
+    --blood:#8a1c1c; --blood-bright:#a82626;
+    --gold:#a9883f; --hp-warn:#cf7a1c;
+    --rule:#ddd3c1; --rule-strong:#c4b89f;
+    --disp:Cinzel,Georgia,serif;
+    --ui:'Barlow Condensed','Arial Narrow',sans-serif;
+    --body:'EB Garamond',Georgia,serif;
+    --rail-w:248px;
+  }
+  *{box-sizing:border-box}
+  html,body{height:100%}
+  body{
+    margin:0; background:var(--bg); color:var(--ink);
+    font-family:var(--body); font-size:17px; line-height:1.5;
+    background-image:radial-gradient(120% 90% at 50% -10%, #f7f2e9 0%, var(--bg) 55%);
+    -webkit-font-smoothing:antialiased;
+  }
+  .app{display:flex; flex-direction:column; min-height:100%}
+
+  /* ── topbar ── */
+  .topbar{
+    display:flex; align-items:center; justify-content:space-between; gap:16px;
+    padding:14px 22px 12px; border-bottom:1px solid var(--rule);
+    background:linear-gradient(180deg,#f6f1e8,rgba(246,241,232,0));
+  }
+  .wordmark{display:flex; align-items:baseline; gap:12px}
+  .wordmark h1{
+    margin:0; font-family:var(--disp); font-weight:700; font-size:25px;
+    letter-spacing:.14em; text-transform:uppercase; color:var(--ink);
+  }
+  .wordmark .em{ color:var(--blood) }
+  .wordmark .tag{
+    font-family:var(--ui); text-transform:uppercase; letter-spacing:.22em;
+    font-size:12px; color:var(--ink-faint); padding-bottom:2px;
+  }
+  .wordmark .ed{
+    font-family:var(--ui); font-size:11px; letter-spacing:.14em; text-transform:uppercase;
+    color:var(--ink-faint); border:1px solid var(--rule-strong); border-radius:2px; padding:1px 6px; margin-left:2px;
+  }
+  .draft{
+    display:inline-flex; align-items:center; gap:8px;
+    font-family:var(--ui); text-transform:uppercase; letter-spacing:.14em;
+    font-size:12.5px; color:var(--ink-soft);
+    border:1px solid var(--rule-strong); border-radius:2px;
+    padding:6px 11px; background:var(--bg-card);
+  }
+  .draft .dot{width:7px; height:7px; border-radius:50%; background:var(--ink-faint); transition:background .2s}
+  .draft.saved .dot{background:#5a9a6a}
+  .draft.saved{color:var(--ink)}
+  @media (prefers-reduced-motion:no-preference){
+    .draft.flash{animation:flash .9s ease}
+    @keyframes flash{0%{border-color:var(--gold)}100%{border-color:var(--rule-strong)}}
+  }
+
+  /* ── shell grid ── */
+  .shell{flex:1; display:grid; grid-template-columns:var(--rail-w) 1fr; min-height:0}
+
+  /* ── rail (the signature: a forging thread of step-nodes) ── */
+  .rail{
+    border-right:1px solid var(--rule); padding:20px 0 8px;
+    display:flex; flex-direction:column; background:linear-gradient(90deg,#f5f0e6,rgba(245,240,230,0))
+  }
+  .rail .eyebrow{
+    font-family:var(--ui); text-transform:uppercase; letter-spacing:.2em;
+    font-size:11.5px; color:var(--ink-faint); padding:0 22px 12px;
+  }
+  .steps{position:relative; list-style:none; margin:0; padding:0 12px}
+  .steps::before{ content:""; position:absolute; left:34px; top:18px; bottom:18px; width:2px; background:var(--rule-strong); }
+  .step{
+    position:relative; display:flex; align-items:center; gap:13px;
+    padding:11px 10px; border-radius:3px; cursor:pointer; color:var(--ink-soft);
+    font-family:var(--ui); font-size:18px; letter-spacing:.02em;
+    border:1px solid transparent; transition:background .15s,color .15s;
+  }
+  .step:hover{background:var(--bg-sunk)}
+  .step .node{
+    position:relative; z-index:1; flex:none; width:23px; height:23px; border-radius:50%;
+    display:grid; place-items:center; background:var(--bg); border:2px solid var(--rule-strong);
+    font-size:12px; font-weight:600; color:var(--ink-faint);
+    transition:background .25s,border-color .25s,color .25s,transform .2s;
+  }
+  .step .lbl{flex:1; line-height:1.1}
+  .step .sub{display:block; font-family:var(--body); font-style:italic; font-size:13px; letter-spacing:0; color:var(--ink-faint); margin-top:1px;}
+  .step.done .node{background:var(--gold); border-color:var(--gold); color:#fff}
+  .step.done{color:var(--ink)}
+  .step.current{background:#fff; border-color:var(--rule-strong); color:var(--ink)}
+  .step.current .node{background:var(--blood); border-color:var(--blood); color:#fff; transform:scale(1.06)}
+  .step.locked,.step.skipped{cursor:not-allowed; color:var(--ink-faint)}
+  .step.locked .node,.step.skipped .node{border-style:dashed; color:var(--ink-faint)}
+  .step.skipped .lbl{text-decoration:line-through; text-decoration-color:var(--rule-strong)}
+  .step:focus-visible{outline:2px solid var(--blood); outline-offset:1px}
+
+  .emerging{margin-top:auto; padding:16px 22px 6px; border-top:1px solid var(--rule)}
+  .emerging .eyebrow{padding:0 0 9px}
+  .emerging .name{font-family:var(--disp); font-weight:600; font-size:19px; color:var(--ink)}
+  .emerging .name.empty{color:var(--ink-faint); font-style:normal}
+  .emerging .meta{font-family:var(--ui); font-size:15px; letter-spacing:.03em; color:var(--ink-soft); margin-top:3px}
+  .emerging .meta b{color:var(--ink); font-weight:600}
+
+  /* ── panel ── */
+  .panel{display:flex; flex-direction:column; min-width:0}
+  .panel-scroll{flex:1; overflow:auto; padding:30px clamp(20px,5vw,56px) 18px}
+  .stephead{border-bottom:1px solid var(--rule); padding-bottom:16px; margin-bottom:24px; max-width:760px}
+  .stephead .kicker{font-family:var(--ui); text-transform:uppercase; letter-spacing:.22em; font-size:12px; color:var(--blood)}
+  .stephead h2{font-family:var(--disp); font-weight:600; font-size:30px; margin:6px 0 7px; letter-spacing:.01em}
+  .stephead p{margin:0; color:var(--ink-soft); max-width:62ch}
+  .body{max-width:760px}
+
+  .ph-note{margin-top:20px; font-family:var(--ui); font-size:15px; letter-spacing:.03em; color:var(--ink-faint); border-left:3px solid var(--rule-strong); padding:4px 0 4px 12px;}
+  .ph-note b{color:var(--blood); font-weight:600}
+  .grid{display:grid; gap:11px}
+  .ability-row{grid-template-columns:repeat(6,1fr)}
+  .abil{background:var(--bg-card); border:1px solid var(--rule); border-radius:3px; text-align:center; padding:12px 6px}
+  .abil .k{font-family:var(--ui); text-transform:uppercase; letter-spacing:.12em; font-size:12px; color:var(--ink-faint)}
+  .abil .v{font-family:var(--disp); font-size:27px; font-weight:600; margin-top:3px}
+  .abil .m{font-family:var(--ui); font-size:14px; color:var(--ink-soft)}
+  .chips{display:flex; flex-wrap:wrap; gap:9px; margin-top:4px}
+  .chip{font-family:var(--ui); font-size:16px; letter-spacing:.03em; padding:8px 14px; background:var(--bg-card); border:1px solid var(--rule-strong); border-radius:2px; cursor:pointer; color:var(--ink); position:relative;}
+  .chip.inert{cursor:default; opacity:.9}
+  .seg{display:inline-flex; border:1px solid var(--rule-strong); border-radius:2px; overflow:hidden}
+  .seg button{font-family:var(--ui); font-size:15px; letter-spacing:.04em; padding:7px 14px; background:var(--bg-card); border:0; border-right:1px solid var(--rule); cursor:pointer; color:var(--ink-soft)}
+  .seg button:last-child{border-right:0}
+  .seg button.on{background:var(--ink); color:var(--bg)}
+  .subhead{font-family:var(--ui); text-transform:uppercase; letter-spacing:.14em; font-size:13px; color:var(--ink-faint); margin:22px 0 10px}
+
+  /* ── browse component (search + source filter + scroll list) ── */
+  .bz-bar{display:flex; align-items:center; gap:12px; flex-wrap:wrap; margin-bottom:10px}
+  .bz-search{flex:1; min-width:180px; font-family:var(--body); font-size:16px; padding:8px 11px; background:var(--bg-card); border:1px solid var(--rule-strong); border-radius:2px; color:var(--ink)}
+  .bz-search:focus{outline:2px solid var(--blood); outline-offset:0}
+  .bz-tog{display:inline-flex; border:1px solid var(--rule-strong); border-radius:2px; overflow:hidden}
+  .bz-tog button{font-family:var(--ui); font-size:14px; letter-spacing:.04em; padding:7px 12px; background:var(--bg-card); border:0; border-right:1px solid var(--rule); cursor:pointer; color:var(--ink-soft)}
+  .bz-tog button:last-child{border-right:0}
+  .bz-tog button.on{background:var(--ink); color:var(--bg)}
+  .bz-count{font-family:var(--ui); font-size:13px; letter-spacing:.06em; color:var(--ink-faint)}
+  .bz-list{list-style:none; margin:0; padding:0; max-height:300px; overflow:auto; border:1px solid var(--rule); border-radius:3px; background:var(--bg-card)}
+  .bz-row{display:flex; align-items:center; justify-content:space-between; gap:10px; padding:9px 13px; border-bottom:1px solid var(--rule); cursor:pointer; font-family:var(--body); font-size:16px; color:var(--ink)}
+  .bz-row:last-child{border-bottom:0}
+  .bz-row:hover{background:var(--bg-sunk)}
+  .bz-row.sel{background:var(--blood); color:#fff}
+  .bz-row:focus-visible{outline:2px solid var(--gold); outline-offset:-2px}
+  .bz-src{font-family:var(--ui); font-size:11.5px; letter-spacing:.08em; color:var(--ink-faint); border:1px solid var(--rule-strong); border-radius:2px; padding:1px 6px; flex:none}
+  .bz-row.sel .bz-src{color:#fff; border-color:rgba(255,255,255,.45)}
+  .bz-empty{padding:14px; text-align:center; color:var(--ink-faint); font-style:italic}
+  .bz-srcwrap{position:relative}
+  .bz-srcbtn{font-family:var(--ui); font-size:14px; letter-spacing:.04em; padding:7px 12px; background:var(--bg-card); border:1px solid var(--rule-strong); border-radius:2px; cursor:pointer; color:var(--ink-soft); white-space:nowrap}
+  .bz-srcbtn:hover{background:var(--bg-sunk)}
+  .bz-srcn{color:var(--ink); font-weight:600}
+  .bz-srcpanel{position:absolute; right:0; top:calc(100% + 5px); z-index:20; width:330px; max-width:84vw; background:var(--bg-card); border:1px solid var(--rule-strong); border-radius:3px; box-shadow:0 8px 26px rgba(20,15,10,.16); padding:10px}
+  .bz-srcpanel[hidden]{display:none}
+  .bz-srcacts{display:flex; gap:6px; margin-bottom:8px; border-bottom:1px solid var(--rule); padding-bottom:9px}
+  .bz-srcacts button{font-family:var(--ui); font-size:12px; letter-spacing:.06em; text-transform:uppercase; padding:5px 10px; background:var(--bg); border:1px solid var(--rule-strong); border-radius:2px; cursor:pointer; color:var(--ink-soft)}
+  .bz-srcacts button:hover{background:var(--bg-sunk); color:var(--ink)}
+  .bz-srcgrid{display:grid; grid-template-columns:repeat(3,1fr); gap:3px 8px; max-height:232px; overflow:auto}
+  .bz-srcopt{display:flex; align-items:center; gap:6px; font-family:var(--ui); font-size:13.5px; letter-spacing:.02em; color:var(--ink); cursor:pointer; padding:2px 0}
+  .bz-srcopt input{width:14px; height:14px; accent-color:var(--blood); flex:none}
+
+  /* caster tag + custom-bg controls */
+  .castertag{font-family:var(--ui); font-size:14px; letter-spacing:.05em; margin-top:14px; max-width:560px}
+  .castertag .pill{display:inline-block; padding:2px 9px; border-radius:2px; font-size:12px; text-transform:uppercase; letter-spacing:.1em; font-weight:600; margin-right:8px}
+  .pill.known{background:#2c5d7a; color:#fff}
+  .pill.prepared{background:#5d3a7a; color:#fff}
+  .pill.none{background:var(--rule-strong); color:var(--ink)}
+  .cust-tog{display:inline-flex; align-items:center; gap:8px; margin-top:14px; font-family:var(--ui); font-size:16px; letter-spacing:.03em; color:var(--ink); cursor:pointer}
+  .cust-tog input{width:16px; height:16px; accent-color:var(--blood)}
+  .chip.skill{cursor:pointer}
+  .chip.skill:hover{background:var(--bg-sunk)}
+  .chip.skill.sel{background:var(--blood); border-color:var(--blood); color:#fff}
+  .chip.skill.sel:hover{background:var(--blood-bright)}
+  .chip.skill.dim{opacity:.38; cursor:not-allowed}
+  .chip.skill.dim:hover{background:var(--bg-card)}
+  .cust-c{font-family:var(--body); font-size:13px; color:var(--ink-soft); margin-left:6px; letter-spacing:0; text-transform:none}
+  .cust-p{font-size:10px; letter-spacing:.12em; background:var(--bg-sunk); color:var(--ink-faint); padding:1px 6px; border-radius:2px; margin-left:6px}
+
+  /* level stepper + locked-subclass note */
+  .lvl{display:flex; align-items:center; gap:10px; flex-wrap:wrap}
+  .lvl-b{font-family:var(--ui); font-size:20px; line-height:1; width:36px; height:36px; border:1px solid var(--ink); background:var(--bg-card); color:var(--ink); border-radius:2px; cursor:pointer}
+  .lvl-b:hover{background:var(--bg-sunk)}
+  .lvl-b:focus-visible{outline:2px solid var(--blood); outline-offset:1px}
+  .lvl-n{font-family:var(--disp); font-weight:600; font-size:26px; min-width:32px; text-align:center}
+  .lvl-hint{font-family:var(--ui); font-size:14px; letter-spacing:.03em; color:var(--ink-faint)}
+  .locked-note{font-family:var(--body); font-size:16px; color:var(--ink-soft); background:var(--bg-sunk); border:1px dashed var(--rule-strong); border-radius:3px; padding:11px 14px; max-width:560px}
+
+  /* editable ability inputs */
+  .abil-in{font-family:var(--disp); font-size:24px; font-weight:600; text-align:center; width:100%; border:0; border-bottom:2px solid var(--rule-strong); background:transparent; color:var(--ink); margin-top:2px; -moz-appearance:textfield}
+  .abil-in:focus{outline:none; border-bottom-color:var(--blood)}
+  .abil-in::-webkit-outer-spin-button,.abil-in::-webkit-inner-spin-button{-webkit-appearance:none; margin:0}
+  .abil-v{display:flex; align-items:center; justify-content:center; gap:7px; margin-top:4px}
+  .abil-n{font-family:var(--disp); font-size:24px; font-weight:600; min-width:30px; text-align:center; color:var(--ink)}
+  .abil-step{font-family:var(--ui); font-size:16px; line-height:1; width:24px; height:24px; border:1px solid var(--rule-strong); background:var(--bg); color:var(--ink-soft); border-radius:2px; cursor:pointer; padding:0}
+  .abil-step:hover{background:var(--bg-sunk); color:var(--ink)}
+  .abil-step:focus-visible{outline:2px solid var(--blood); outline-offset:1px}
+  .pb-pts{font-family:var(--ui); font-size:14px; letter-spacing:.06em; color:var(--ink-soft); margin-left:14px}
+  .pb-pts b{color:var(--blood); font-size:16px}
+  .abil-slot{cursor:pointer}
+  .abil-slot:hover{background:var(--bg-sunk)}
+  .abil-slot.empty{border-style:dashed; border-color:var(--rule-strong)}
+  .abil-slot:focus-visible{outline:2px solid var(--blood); outline-offset:1px}
+  .abil-slot .abil-n{font-family:var(--disp); font-size:27px; font-weight:600; margin-top:3px; color:var(--ink)}
+  .abil-slot.empty .abil-n{color:var(--ink-faint)}
+  .pool{display:flex; flex-wrap:wrap; gap:9px; margin-top:6px}
+  .pool-v{font-family:var(--disp); font-size:19px; font-weight:600; padding:6px 13px; background:var(--bg-card); border:1px solid var(--rule-strong); border-radius:2px; cursor:pointer; color:var(--ink); display:inline-flex; align-items:center; gap:7px}
+  .pool-v:hover{background:var(--bg-sunk)}
+  .pool-v.armed{background:var(--blood); border-color:var(--blood); color:#fff}
+  .pool-v.placed{opacity:.42; text-decoration:line-through}
+  .pool-v.placed:hover{opacity:.7}
+  .pool-at{font-family:var(--ui); font-size:11px; font-weight:500; letter-spacing:.08em; text-decoration:none; color:var(--ink-soft); border:1px solid var(--rule-strong); border-radius:2px; padding:0 5px}
+  .pool-v.armed .pool-at{color:#fff; border-color:rgba(255,255,255,.4)}
+  .cust-selects{display:flex; gap:10px; flex-wrap:wrap; margin-top:4px}
+  .cust-sel{font-family:var(--body); font-size:15px; padding:8px 11px; background:var(--bg-card); border:1px solid var(--rule-strong); border-radius:2px; color:var(--ink); min-width:220px}
+  .cust-sel:focus{outline:2px solid var(--blood); outline-offset:0}
+
+  /* live engine readout */
+  .eng-card{margin-top:18px; background:var(--bg-card); border:1px solid var(--rule); border-left:3px solid var(--gold); border-radius:3px; padding:16px 18px; max-width:640px}
+  .eng-h{font-family:var(--ui); text-transform:uppercase; letter-spacing:.16em; font-size:12px; color:var(--blood); margin-bottom:12px}
+  .eng-line{font-family:var(--ui); font-size:16px; letter-spacing:.02em; color:var(--ink); margin:8px 0}
+  .eng-line b{display:inline-block; min-width:120px; font-size:12px; letter-spacing:.12em; text-transform:uppercase; color:var(--ink-faint); font-weight:600}
+  .eng-bd{font-family:var(--body); font-size:14px; color:var(--ink-faint); margin-left:8px}
+  .eng-pend{color:var(--ink-soft)}
+  .eng-tog{display:inline-flex; border:1px solid var(--rule-strong); border-radius:2px; overflow:hidden; vertical-align:middle; margin-left:4px}
+  .eng-tog button{font-family:var(--ui); font-size:13px; letter-spacing:.04em; padding:4px 10px; background:var(--bg); border:0; border-right:1px solid var(--rule); cursor:pointer; color:var(--ink-soft)}
+  .eng-tog button:last-child{border-right:0}
+  .eng-tog button.on{background:var(--ink); color:var(--bg)}
+  .eng-reroll{font-family:var(--ui); font-size:13px; letter-spacing:.04em; margin-left:8px; background:none; border:0; border-bottom:1px dashed var(--ink-faint); color:var(--ink-soft); cursor:pointer; padding:0}
+  .feats{margin:6px 0 2px}
+  .feat-row{display:flex; flex-wrap:wrap; align-items:center; gap:6px; margin:4px 0}
+  .feat-row .fl{font-family:var(--ui); font-size:12px; letter-spacing:.08em; color:var(--ink-faint); min-width:34px}
+  .feat{font-family:var(--body); font-size:14.5px; padding:2px 9px; border-radius:2px; border:1px solid var(--rule-strong)}
+  .feat.cls{background:var(--bg-sunk); color:var(--ink)}
+  .feat.sub{background:#f3e2e2; border-color:#d8b3b3; color:var(--blood)}
+  .eng-load{font-family:var(--ui); font-size:15px; letter-spacing:.03em; color:var(--ink-faint); margin-top:18px; font-style:italic}
+
+  /* review sheet */
+  .sheet{background:var(--bg-card); border:1px solid var(--rule); border-radius:3px; padding:20px 22px; max-width:560px}
+  .sheet h3{font-family:var(--disp); font-weight:700; font-size:23px; margin:0 0 2px; letter-spacing:.04em}
+  .sheet .sub{font-family:var(--ui); font-size:15px; letter-spacing:.05em; color:var(--ink-soft); margin-bottom:14px}
+  .sheet dl{display:grid; grid-template-columns:auto 1fr; gap:7px 16px; margin:0; font-family:var(--ui); font-size:15px}
+  .sheet dt{color:var(--ink-faint); text-transform:uppercase; letter-spacing:.1em; font-size:12px; align-self:center}
+  .sheet dd{margin:0; color:var(--ink)}
+
+  /* ── footer nav ── */
+  .footer{border-top:1px solid var(--rule); padding:14px clamp(20px,5vw,56px); display:flex; align-items:center; justify-content:space-between; gap:14px; background:#f6f1e8;}
+  .footer .progress{font-family:var(--ui); text-transform:uppercase; letter-spacing:.14em; font-size:12.5px; color:var(--ink-faint)}
+  .btns{display:flex; gap:10px}
+  .btn{font-family:var(--ui); font-size:17px; letter-spacing:.06em; text-transform:uppercase; padding:10px 22px; border-radius:2px; cursor:pointer; border:1px solid var(--ink); background:transparent; color:var(--ink); transition:background .12s,color .12s,opacity .12s;}
+  .btn:hover{background:var(--bg-sunk)}
+  .btn.primary{background:var(--blood); border-color:var(--blood); color:#fff}
+  .btn.primary:hover{background:var(--blood-bright)}
+  .btn[disabled]{opacity:.4; cursor:not-allowed}
+  .btn[disabled]:hover{background:transparent}
+  .btn.primary[disabled]:hover{background:var(--blood)}
+  .btn:focus-visible{outline:2px solid var(--gold); outline-offset:2px}
+
+  .legend{font-family:var(--ui); font-size:13px; letter-spacing:.04em; color:var(--ink-faint); text-align:center; padding:8px 18px 14px;}
+  .legend b{color:var(--ink-soft); font-weight:600}
+
+  /* ── responsive ── */
+  @media (max-width:760px){
+    .shell{grid-template-columns:1fr; grid-template-rows:auto 1fr}
+    .rail{border-right:0; border-bottom:1px solid var(--rule); flex-direction:column}
+    .rail > .eyebrow{display:none}
+    .steps{display:flex; overflow-x:auto; padding:12px 10px; gap:4px}
+    .steps::before{display:none}
+    .step{flex:0 0 auto; flex-direction:column; gap:6px; text-align:center; padding:8px 12px}
+    .step .sub{display:none}
+    .emerging{display:none}
+  }
+
+  /* ── production wiring (nav include + name field + forge preview) ─────────────
+     This page keeps its self-contained Phantom palette; theme.css is intentionally
+     NOT linked (its body rules + noise overlay would fight this page). nav.js styles
+     its bar from CSS vars, so we supply just the ones it reads (Phantom values lifted
+     from theme.css) without pulling in the whole sheet. Consequence for now: the nav
+     theme-switcher is inert on this page — full theme reconciliation is a later pass. */
+  :root{
+    --nav-bg:rgba(13,10,7,0.95); --nav-border:rgba(184,149,42,0.2);
+    --gold-dim:rgba(184,149,42,0.15); --gold-mid:rgba(184,149,42,0.3); --gold-light:#d4ac3a;
+    --aged:#c9b48a; --muted:#6b5d4a; --font-title:'Cinzel',serif;
+  }
+  /* nav.js mounts a fixed 52px #site-nav and adds body{padding-top:52px}. Anchor the
+     forge frame to the viewport below it so the rail + footer stay put and
+     .panel-scroll remains the only scroller (the mock's intended behaviour). */
+  .app{ height:calc(100dvh - 52px); }
+  /* character name — always-visible in the topbar, feeds draft.name */
+  .namefield{
+    flex:1 1 220px; min-width:0; max-width:360px;
+    font-family:var(--disp); font-size:18px; letter-spacing:.02em; color:var(--ink);
+    background:var(--bg-card); border:1px solid var(--rule-strong); border-radius:2px;
+    padding:8px 12px;
+  }
+  .namefield::placeholder{font-family:var(--ui); letter-spacing:.06em; font-size:14px; color:var(--ink-faint); text-transform:none}
+  .namefield:focus{outline:2px solid var(--blood); outline-offset:0}
+  @media (max-width:760px){ .topbar{flex-wrap:wrap} .namefield{order:3; flex-basis:100%; max-width:none} }
+
+  /* forge structural preview (Review step) — assemble + show; no live write (P7) */
+  .fx-card{margin-top:18px; background:var(--bg-card); border:1px solid var(--rule); border-left:3px solid var(--gold); border-radius:3px; padding:16px 18px; max-width:680px}
+  .fx-h{font-family:var(--ui); text-transform:uppercase; letter-spacing:.16em; font-size:12px; color:var(--blood); margin-bottom:4px}
+  .fx-warn{font-family:var(--ui); font-size:13px; letter-spacing:.04em; color:var(--hp-warn); margin-bottom:12px}
+  .fx-warn b{color:var(--hp-warn)}
+  .fx-pre{font-family:ui-monospace,'SFMono-Regular',Menlo,Consolas,monospace; font-size:12.5px; line-height:1.55; color:var(--ink); background:var(--bg-sunk); border:1px solid var(--rule); border-radius:3px; padding:13px 15px; margin:0; max-height:380px; overflow:auto; white-space:pre; tab-size:2}
+  .fx-empty{font-family:var(--ui); font-size:15px; color:var(--ink-faint); font-style:italic; margin-top:18px}
+</style>
+</head>
+<body>
+<!-- shared site nav (theme switcher + party menu). Mounts into #nav-root and gates
+     the page on a Supabase session (nav.js redirects to login when signed out). -->
+<div id="nav-root"></div>
+<script src="nav.js"></script>
+<div class="app">
+
+  <header class="topbar">
+    <div class="wordmark">
+      <h1>Soul<span class="em"> Shards</span></h1>
+      <span class="tag">Character Forge</span>
+      <span class="ed">2014 rules</span>
+    </div>
+    <input id="charName" class="namefield" type="text" placeholder="Name your character…" aria-label="Character name" autocomplete="off" maxlength="48">
+    <span class="draft" id="draft"><span class="dot"></span><span id="draftTxt">Draft saved</span></span>
+  </header>
+
+  <div class="shell">
+    <nav class="rail" aria-label="Build steps">
+      <div class="eyebrow">Forge a soul</div>
+      <ul class="steps" id="rail"></ul>
+      <div class="emerging">
+        <div class="eyebrow">Emerging</div>
+        <div class="name empty" id="emName">Unnamed</div>
+        <div class="meta" id="emMeta">Level 1 · <b>—</b> · <b>—</b></div>
+      </div>
+    </nav>
+
+    <section class="panel">
+      <div class="panel-scroll">
+        <div class="stephead">
+          <div class="kicker" id="kicker">Step 1 of 6</div>
+          <h2 id="title">Abilities</h2>
+          <p id="desc"></p>
+        </div>
+        <div class="body" id="body"></div>
+      </div>
+
+      <footer class="footer">
+        <span class="progress" id="prog"></span>
+        <div class="btns">
+          <button class="btn" id="back">◂ Back</button>
+          <button class="btn primary" id="next">Next ▸</button>
+        </div>
+      </footer>
+      <div class="legend">Flow shell + a <b>live engine readout</b> — the Class step runs the real soul-shards-data + soul-shards-engine against the 2014 data. Live: real ability inputs, browse + filter, level-gated subclass, HP roll/average, provenance-colored features, ASI prompts, spell entitlements, draft persistence. Forging previews the assembled <b>structural</b> — nothing is written to the live game until P7.</div>
+    </section>
+  </div>
+</div>
+
+<!-- engine + data + write-path modules (deployed alongside this page) -->
+<script src="soul-shards-data.js"></script>
+<script src="soul-shards-engine.js"></script>
+<script src="character-data.js"></script>
+<script>
+'use strict';
+
+// Real 2014 option lists, snapshotted via soul-shards-data.js (races.json / backgrounds.json / class index → normalizeClass).
+var DATA = {"generated":"2026-06-18","races":[{"n":"Aarakocra","s":"DMG"},{"n":"Aarakocra","s":"EEPC"},{"n":"Aarakocra","s":"MPMM"},{"n":"Aasimar","s":"DMG"},{"n":"Aasimar","s":"MPMM"},{"n":"Aasimar","s":"VGM"},{"n":"Aetherborn","s":"PSK"},{"n":"Astral Elf","s":"AAG"},{"n":"Autognome","s":"AAG"},{"n":"Aven","s":"PSA"},{"n":"Aven","s":"PSD"},{"n":"Bugbear","s":"ERLW"},{"n":"Bugbear","s":"MPMM"},{"n":"Bugbear","s":"VGM"},{"n":"Bullywug","s":"DMG"},{"n":"Centaur","s":"GGR"},{"n":"Centaur","s":"MOT"},{"n":"Centaur","s":"MPMM"},{"n":"Changeling","s":"ERLW"},{"n":"Changeling","s":"MPMM"},{"n":"Custom Lineage","s":"TCE"},{"n":"Deep Gnome","s":"MPMM"},{"n":"Dhampir","s":"VRGR"},{"n":"Dragonborn","s":"PHB"},{"n":"Dragonborn (Chromatic)","s":"FTD"},{"n":"Dragonborn (Gem)","s":"FTD"},{"n":"Dragonborn (Metallic)","s":"FTD"},{"n":"Duergar","s":"MPMM"},{"n":"Dwarf","s":"PHB"},{"n":"Dwarf (Kaladesh)","s":"PSK"},{"n":"Eladrin","s":"MPMM"},{"n":"Elf","s":"PHB"},{"n":"Elf (Kaladesh)","s":"PSK"},{"n":"Elf (Zendikar)","s":"PSZ"},{"n":"Fairy","s":"MPMM"},{"n":"Fairy","s":"WBtW"},{"n":"Firbolg","s":"MPMM"},{"n":"Firbolg","s":"VGM"},{"n":"Genasi","s":"EEPC"},{"n":"Genasi","s":"MPMM"},{"n":"Giff","s":"AAG"},{"n":"Gith","s":"MTF"},{"n":"Githyanki","s":"MPMM"},{"n":"Githzerai","s":"MPMM"},{"n":"Gnoll","s":"DMG"},{"n":"Gnome","s":"PHB"},{"n":"Gnome (Deep)","s":"DMG"},{"n":"Goblin","s":"DMG"},{"n":"Goblin","s":"ERLW"},{"n":"Goblin","s":"GGR"},{"n":"Goblin","s":"MPMM"},{"n":"Goblin","s":"PSZ"},{"n":"Goblin","s":"VGM"},{"n":"Goblin (Dankwood)","s":"AWM"},{"n":"Goliath","s":"MPMM"},{"n":"Goliath","s":"VGM"},{"n":"Grimlock","s":"DMG"},{"n":"Grung","s":"OGA"},{"n":"Hadozee","s":"AAG"},{"n":"Half-Elf","s":"PHB"},{"n":"Half-Orc","s":"PHB"},{"n":"Halfling","s":"PHB"},{"n":"Harengon","s":"MPMM"},{"n":"Harengon","s":"WBtW"},{"n":"Hexblood","s":"VRGR"},{"n":"Hobgoblin","s":"DMG"},{"n":"Hobgoblin","s":"ERLW"},{"n":"Hobgoblin","s":"MPMM"},{"n":"Hobgoblin","s":"VGM"},{"n":"Human","s":"PHB"},{"n":"Human (Innistrad)","s":"PSI"},{"n":"Human (Ixalan)","s":"PSX"},{"n":"Human (Kaladesh)","s":"PSK"},{"n":"Human (Zendikar)","s":"PSZ"},{"n":"Kalashtar","s":"ERLW"},{"n":"Kender","s":"DSotDQ"},{"n":"Kenku","s":"DMG"},{"n":"Kenku","s":"MPMM"},{"n":"Kenku","s":"VGM"},{"n":"Khenra","s":"PSA"},{"n":"Kobold","s":"DMG"},{"n":"Kobold","s":"MPMM"},{"n":"Kobold","s":"VGM"},{"n":"Kor","s":"PSZ"},{"n":"Kuo-Toa","s":"DMG"},{"n":"Leonin","s":"MOT"},{"n":"Lizardfolk","s":"DMG"},{"n":"Lizardfolk","s":"MPMM"},{"n":"Lizardfolk","s":"VGM"},{"n":"Locathah","s":"LR"},{"n":"Loxodon","s":"GGR"},{"n":"Merfolk","s":"DMG"},{"n":"Merfolk","s":"PSZ"},{"n":"Minotaur","s":"GGR"},{"n":"Minotaur","s":"MOT"},{"n":"Minotaur","s":"MPMM"},{"n":"Minotaur (Amonkhet)","s":"PSA"},{"n":"Naga","s":"PSA"},{"n":"Orc","s":"DMG"},{"n":"Orc","s":"EGW"},{"n":"Orc","s":"ERLW"},{"n":"Orc","s":"MPMM"},{"n":"Orc","s":"VGM"},{"n":"Orc (Ixalan)","s":"PSX"},{"n":"Owlin","s":"SCC"},{"n":"Plasmoid","s":"AAG"},{"n":"Reborn","s":"VRGR"},{"n":"Satyr","s":"MOT"},{"n":"Satyr","s":"MPMM"},{"n":"Sea Elf","s":"MPMM"},{"n":"Shadar-Kai","s":"MPMM"},{"n":"Shifter","s":"ERLW"},{"n":"Shifter","s":"MPMM"},{"n":"Simic Hybrid","s":"GGR"},{"n":"Siren","s":"PSX"},{"n":"Skeleton","s":"DMG"},{"n":"Tabaxi","s":"MPMM"},{"n":"Tabaxi","s":"VGM"},{"n":"Thri-kreen","s":"AAG"},{"n":"Tiefling","s":"PHB"},{"n":"Tortle","s":"MPMM"},{"n":"Tortle","s":"TTP"},{"n":"Triton","s":"MOT"},{"n":"Triton","s":"MPMM"},{"n":"Triton","s":"VGM"},{"n":"Troglodyte","s":"DMG"},{"n":"Vampire","s":"PSZ"},{"n":"Vedalken","s":"GGR"},{"n":"Vedalken","s":"PSK"},{"n":"Verdan","s":"AI"},{"n":"Warforged","s":"ERLW"},{"n":"Yuan-Ti","s":"MPMM"},{"n":"Yuan-ti Pureblood","s":"VGM"},{"n":"Zombie","s":"DMG"}],"backgrounds":[{"n":"Acolyte","s":"PHB"},{"n":"Anthropologist","s":"ToA"},{"n":"Archaeologist","s":"ToA"},{"n":"Astral Drifter","s":"AAG"},{"n":"Athlete","s":"MOT"},{"n":"Augen Trust (Spy)","s":"EGW"},{"n":"Azorius Functionary","s":"GGR"},{"n":"Baldur's Gate Acolyte","s":"BGDIA"},{"n":"Baldur's Gate Charlatan","s":"BGDIA"},{"n":"Baldur's Gate Criminal","s":"BGDIA"},{"n":"Baldur's Gate Entertainer","s":"BGDIA"},{"n":"Baldur's Gate Folk Hero","s":"BGDIA"},{"n":"Baldur's Gate Guild Artisan","s":"BGDIA"},{"n":"Baldur's Gate Hermit","s":"BGDIA"},{"n":"Baldur's Gate Noble","s":"BGDIA"},{"n":"Baldur's Gate Outlander","s":"BGDIA"},{"n":"Baldur's Gate Sage","s":"BGDIA"},{"n":"Baldur's Gate Sailor","s":"BGDIA"},{"n":"Baldur's Gate Soldier","s":"BGDIA"},{"n":"Baldur's Gate Urchin","s":"BGDIA"},{"n":"Boros Legionnaire","s":"GGR"},{"n":"Celebrity Adventurer's Scion","s":"AI"},{"n":"Charlatan","s":"PHB"},{"n":"City Watch","s":"SCAG"},{"n":"Clan Crafter","s":"SCAG"},{"n":"Cloistered Scholar","s":"SCAG"},{"n":"Cobalt Scholar (Sage)","s":"EGW"},{"n":"Courtier","s":"SCAG"},{"n":"Criminal","s":"PHB"},{"n":"Custom Background","s":"PHB"},{"n":"Dimir Operative","s":"GGR"},{"n":"Entertainer","s":"PHB"},{"n":"Faceless","s":"BGDIA"},{"n":"Faction Agent","s":"SCAG"},{"n":"Failed Merchant","s":"AI"},{"n":"Far Traveler","s":"SCAG"},{"n":"Feylost","s":"WBtW"},{"n":"Fisher","s":"GoS"},{"n":"Folk Hero","s":"PHB"},{"n":"Gambler","s":"AI"},{"n":"Gate Warden","s":"SatO"},{"n":"Giant Foundling","s":"BGG"},{"n":"Golgari Agent","s":"GGR"},{"n":"Grinner","s":"EGW"},{"n":"Gruul Anarch","s":"GGR"},{"n":"Guild Artisan","s":"PHB"},{"n":"Haunted One","s":"VRGR"},{"n":"Hermit","s":"PHB"},{"n":"House Agent","s":"ERLW"},{"n":"Inheritor","s":"SCAG"},{"n":"Initiate","s":"PSA"},{"n":"Initiate (Dissenter)","s":"PSA"},{"n":"Inquisitor","s":"PSI"},{"n":"Investigator","s":"VRGR"},{"n":"Izzet Engineer","s":"GGR"},{"n":"Knight of Solamnia","s":"DSotDQ"},{"n":"Knight of the Order","s":"SCAG"},{"n":"Lorehold Student","s":"SCC"},{"n":"Luxonborn (Acolyte)","s":"EGW"},{"n":"Mage of High Sorcery","s":"DSotDQ"},{"n":"Marine","s":"GoS"},{"n":"Mercenary Veteran","s":"SCAG"},{"n":"Myriad Operative (Criminal)","s":"EGW"},{"n":"Noble","s":"PHB"},{"n":"Orzhov Representative","s":"GGR"},{"n":"Outlander","s":"PHB"},{"n":"Plaintiff","s":"AI"},{"n":"Planar Philosopher","s":"SatO"},{"n":"Prismari Student","s":"SCC"},{"n":"Quandrix Student","s":"SCC"},{"n":"Rakdos Cultist","s":"GGR"},{"n":"Revelry Pirate (Sailor)","s":"EGW"},{"n":"Rewarded","s":"BMT"},{"n":"Rival Intern","s":"AI"},{"n":"Ruined","s":"BMT"},{"n":"Rune Carver","s":"BGG"},{"n":"Sage","s":"PHB"},{"n":"Sailor","s":"PHB"},{"n":"Selesnya Initiate","s":"GGR"},{"n":"Shipwright","s":"GoS"},{"n":"Silverquill Student","s":"SCC"},{"n":"Simic Scientist","s":"GGR"},{"n":"Smuggler","s":"GoS"},{"n":"Soldier","s":"PHB"},{"n":"Urban Bounty Hunter","s":"SCAG"},{"n":"Urchin","s":"PHB"},{"n":"Uthgardt Tribe Member","s":"SCAG"},{"n":"Variant City Watch (Investigator)","s":"SCAG"},{"n":"Variant Criminal (Spy)","s":"PHB"},{"n":"Variant Entertainer (Gladiator)","s":"PHB"},{"n":"Variant Guild Artisan (Guild Merchant)","s":"PHB"},{"n":"Variant Noble (Knight)","s":"PHB"},{"n":"Variant Noble (Retainers)","s":"PHB"},{"n":"Variant Sailor (Pirate)","s":"PHB"},{"n":"Vizier","s":"PSA"},{"n":"Vizier (Dissenter)","s":"PSA"},{"n":"Volstrucker Agent","s":"EGW"},{"n":"Waterdhavian Noble","s":"SCAG"},{"n":"Wildspacer","s":"AAG"},{"n":"Witchlight Hand","s":"WBtW"},{"n":"Witherbloom Student","s":"SCC"}],"classes":[{"n":"Artificer","s":"TCE","caster":"artificer","prepared":true,"subTitle":"Artificer Specialist","subAt":3,"subs":[{"n":"Alchemist","s":"TCE"},{"n":"Armorer","s":"TCE"},{"n":"Artillerist","s":"TCE"},{"n":"Battle Smith","s":"TCE"}]},{"n":"Barbarian","s":"PHB","caster":null,"prepared":null,"subTitle":"Primal Path","subAt":3,"subs":[{"n":"Path of the Berserker","s":"PHB"},{"n":"Path of the Totem Warrior","s":"PHB"},{"n":"Path of the Battlerager","s":"SCAG"},{"n":"Path of the Ancestral Guardian","s":"XGE"},{"n":"Path of the Storm Herald","s":"XGE"},{"n":"Path of the Zealot","s":"XGE"},{"n":"Path of the Beast","s":"TCE"},{"n":"Path of Wild Magic","s":"TCE"},{"n":"Path of the Giant","s":"BGG"}]},{"n":"Bard","s":"PHB","caster":"full","prepared":false,"subTitle":"Bard College","subAt":3,"subs":[{"n":"College of Lore","s":"PHB"},{"n":"College of Valor","s":"PHB"},{"n":"College of Glamour","s":"XGE"},{"n":"College of Swords","s":"XGE"},{"n":"College of Whispers","s":"XGE"},{"n":"College of Creation","s":"TCE"},{"n":"College of Eloquence","s":"TCE"},{"n":"College of Spirits","s":"VRGR"}]},{"n":"Cleric","s":"PHB","caster":"full","prepared":true,"subTitle":"Divine Domain","subAt":1,"subs":[{"n":"Knowledge Domain","s":"PHB"},{"n":"Life Domain","s":"PHB"},{"n":"Light Domain","s":"PHB"},{"n":"Nature Domain","s":"PHB"},{"n":"Tempest Domain","s":"PHB"},{"n":"Trickery Domain","s":"PHB"},{"n":"War Domain","s":"PHB"},{"n":"Death Domain","s":"DMG"},{"n":"Arcana Domain","s":"SCAG"},{"n":"Ambition Domain (PSA)","s":"PSA"},{"n":"Knowledge Domain (PSA)","s":"PSA"},{"n":"Solidarity Domain (PSA)","s":"PSA"},{"n":"Strength Domain (PSA)","s":"PSA"},{"n":"Zeal Domain (PSA)","s":"PSA"},{"n":"Forge Domain","s":"XGE"},{"n":"Grave Domain","s":"XGE"},{"n":"Order Domain","s":"TCE"},{"n":"Peace Domain","s":"TCE"},{"n":"Twilight Domain","s":"TCE"}]},{"n":"Druid","s":"PHB","caster":"full","prepared":true,"subTitle":"Druid Circle","subAt":2,"subs":[{"n":"Circle of the Land","s":"PHB"},{"n":"Circle of the Moon","s":"PHB"},{"n":"Circle of Dreams","s":"XGE"},{"n":"Circle of the Shepherd","s":"XGE"},{"n":"Circle of Spores","s":"TCE"},{"n":"Circle of Stars","s":"TCE"},{"n":"Circle of Wildfire","s":"TCE"}]},{"n":"Expert Sidekick","s":"TCE","caster":null,"prepared":null,"subTitle":"Subclass","subAt":null,"subs":[]},{"n":"Fighter","s":"PHB","caster":null,"prepared":null,"subTitle":"Martial Archetype","subAt":3,"subs":[{"n":"Battle Master","s":"PHB"},{"n":"Champion","s":"PHB"},{"n":"Eldritch Knight","s":"PHB"},{"n":"Purple Dragon Knight (Banneret)","s":"SCAG"},{"n":"Arcane Archer","s":"XGE"},{"n":"Cavalier","s":"XGE"},{"n":"Samurai","s":"XGE"},{"n":"Echo Knight","s":"EGW"},{"n":"Psi Warrior","s":"TCE"},{"n":"Rune Knight","s":"TCE"}]},{"n":"Monk","s":"PHB","caster":null,"prepared":null,"subTitle":"Monastic Tradition","subAt":3,"subs":[{"n":"Way of Shadow","s":"PHB"},{"n":"Way of the Four Elements","s":"PHB"},{"n":"Way of the Open Hand","s":"PHB"},{"n":"Way of the Long Death","s":"SCAG"},{"n":"Way of the Drunken Master","s":"XGE"},{"n":"Way of the Kensei","s":"XGE"},{"n":"Way of the Sun Soul","s":"XGE"},{"n":"Way of Mercy","s":"TCE"},{"n":"Way of the Astral Self","s":"TCE"},{"n":"Way of the Ascendant Dragon","s":"FTD"}]},{"n":"Mystic","s":"UATheMysticClass","caster":null,"prepared":null,"subTitle":"Mystic Order","subAt":1,"subs":[{"n":"Order of the Avatar","s":"UATheMysticClass"},{"n":"Order of the Awakened","s":"UATheMysticClass"},{"n":"Order of the Immortal","s":"UATheMysticClass"},{"n":"Order of the Nomad","s":"UATheMysticClass"},{"n":"Order of the Soul Knife","s":"UATheMysticClass"},{"n":"Order of the Wu Jen","s":"UATheMysticClass"}]},{"n":"Paladin","s":"PHB","caster":"1/2","prepared":true,"subTitle":"Sacred Oath","subAt":3,"subs":[{"n":"Oath of Devotion","s":"PHB"},{"n":"Oath of the Ancients","s":"PHB"},{"n":"Oath of Vengeance","s":"PHB"},{"n":"Oathbreaker","s":"DMG"},{"n":"Oath of the Crown","s":"SCAG"},{"n":"Oath of Conquest","s":"XGE"},{"n":"Oath of Redemption","s":"XGE"},{"n":"Oath of Glory","s":"TCE"},{"n":"Oath of the Watchers","s":"TCE"}]},{"n":"Ranger","s":"PHB","caster":"1/2","prepared":false,"subTitle":"Ranger Archetype","subAt":3,"subs":[{"n":"Beast Master","s":"PHB"},{"n":"Hunter","s":"PHB"},{"n":"Gloom Stalker","s":"XGE"},{"n":"Horizon Walker","s":"XGE"},{"n":"Monster Slayer","s":"XGE"},{"n":"Fey Wanderer","s":"TCE"},{"n":"Swarmkeeper","s":"TCE"},{"n":"Drakewarden","s":"FTD"}]},{"n":"Rogue","s":"PHB","caster":null,"prepared":null,"subTitle":"Roguish Archetype","subAt":3,"subs":[{"n":"Arcane Trickster","s":"PHB"},{"n":"Assassin","s":"PHB"},{"n":"Thief","s":"PHB"},{"n":"Inquisitive","s":"XGE"},{"n":"Mastermind","s":"XGE"},{"n":"Scout","s":"XGE"},{"n":"Swashbuckler","s":"XGE"},{"n":"Phantom","s":"TCE"},{"n":"Soulknife","s":"TCE"}]},{"n":"Sorcerer","s":"PHB","caster":"full","prepared":false,"subTitle":"Sorcerous Origin","subAt":1,"subs":[{"n":"Draconic Bloodline","s":"PHB"},{"n":"Wild Magic","s":"PHB"},{"n":"Pyromancer (PSK)","s":"PSK"},{"n":"Divine Soul","s":"XGE"},{"n":"Shadow Magic","s":"XGE"},{"n":"Storm Sorcery","s":"XGE"},{"n":"Aberrant Mind","s":"TCE"},{"n":"Clockwork Soul","s":"TCE"},{"n":"Lunar Sorcery","s":"DSotDQ"}]},{"n":"Spellcaster Sidekick","s":"TCE","caster":"artificer","prepared":false,"subTitle":"Subclass","subAt":null,"subs":[]},{"n":"Warlock","s":"PHB","caster":"pact","prepared":false,"subTitle":"Otherworldly Patron","subAt":1,"subs":[{"n":"The Archfey","s":"PHB"},{"n":"The Fiend","s":"PHB"},{"n":"The Great Old One","s":"PHB"},{"n":"The Undying","s":"SCAG"},{"n":"The Celestial","s":"XGE"},{"n":"The Hexblade","s":"XGE"},{"n":"The Fathomless","s":"TCE"},{"n":"The Genie","s":"TCE"},{"n":"The Undead","s":"VRGR"}]},{"n":"Warrior Sidekick","s":"TCE","caster":null,"prepared":null,"subTitle":"Subclass","subAt":null,"subs":[]},{"n":"Wizard","s":"PHB","caster":"full","prepared":true,"subTitle":"Arcane Tradition","subAt":2,"subs":[{"n":"School of Abjuration","s":"PHB"},{"n":"School of Conjuration","s":"PHB"},{"n":"School of Divination","s":"PHB"},{"n":"School of Enchantment","s":"PHB"},{"n":"School of Evocation","s":"PHB"},{"n":"School of Illusion","s":"PHB"},{"n":"School of Necromancy","s":"PHB"},{"n":"School of Transmutation","s":"PHB"},{"n":"War Magic","s":"XGE"},{"n":"Chronurgy Magic","s":"EGW"},{"n":"Graviturgy Magic","s":"EGW"},{"n":"Bladesinging","s":"TCE"},{"n":"Order of Scribes","s":"TCE"}]}]};
+
+function q(s){ return document.querySelector(s); }
+
+// ── steps ────────────────────────────────────────────────────────────────────
+var STEPS = [
+  { id:'abilities',  name:'Abilities',  desc:'Set the six ability scores. The method (standard array, point buy, or rolled) plus 2014 racial bonuses resolve into the modifiers every later step reads.' },
+  { id:'species',    name:'Species',    desc:'Choose a species. "Species" is a label only — the data is 2014 races.json (134 races + subraces across 28 sources), so the bonuses and traits resolve by 2014 rules.' },
+  { id:'class',      name:'Class',      desc:'Choose a class, then its subclass. Hit die, saves, features, caster type, and the full subclass list load from the proven loadClass() model. The class decides whether you cast at all.' },
+  { id:'background', name:'Background', desc:'Choose a background, or customize one. The 2014 "Customizing a Background" rule lets you swap the two skills, two tools or languages, equipment, and feature.' },
+  { id:'spells',     name:'Spells',     desc:'Pick cantrips and spells. Known casters lock a fixed list; prepared casters choose cantrips and compute a prepared count from level plus casting modifier.', conditional:true },
+  { id:'review',     name:'Review',     desc:'Confirm the assembled sheet. Forging writes the structural block to the characters table — party.html renders it from there.' },
+];
+
+// ── class / caster helpers (caster + prepared come from the snapshot) ──────────
+function chosenClass(){ return DATA.classes.find(function(c){ return draft.cls && c.n === draft.cls.n; }) || null; }
+function isCaster(c){ return !!c && !!c.caster; }
+function casterMode(c){ return isCaster(c) ? (c.prepared ? 'prepared' : 'known') : null; }
+function spellsActive(){ return isCaster(chosenClass()); }
+function activeSteps(){ return STEPS.filter(function(s){ return s.id === 'spells' ? spellsActive() : true; }); }
+
+// ── ability + source helpers ───────────────────────────────────────────────────
+var STD_ARRAY = [15, 14, 13, 12, 10, 8];
+var ABILS = ['str','dex','con','int','wis','cha'];
+function pbCost(score){ return ({ 8:0, 9:1, 10:2, 11:3, 12:4, 13:5, 14:7, 15:9 })[score]; }
+function pbTotal(ab){ return ABILS.reduce(function(s, k){ var c = pbCost(ab[k]); return s + (c == null ? 0 : c); }, 0); }
+function roll4d6(){ var d = [0,0,0,0].map(function(){ return 1 + Math.floor(Math.random() * 6); }); d.sort(function(a, b){ return a - b; }); return d[1] + d[2] + d[3]; }
+function isTestSource(s){ return /^UA/i.test(s); }   // Unearthed Arcana / playtest — off by default
+function excludeClass(n){ return /sidekick/i.test(n); }   // sidekick "classes" aren't player classes (P4 loader does this)
+
+// ability-score assignment: array & rolls are a pool of 6 values placed onto stats
+function abilSlot(stat){ return (draft.slots || []).find(function(s){ return s.stat === stat; }) || null; }
+function deriveAbilities(){ ABILS.forEach(function(k){ var s = abilSlot(k); draft.abilities[k] = s ? s.v : 10; }); }
+function makeSlots(method){
+  if (method === 'array') return STD_ARRAY.map(function(v, i){ return { v:v, stat:ABILS[i] }; });   // pre-assigned in order, reassignable
+  return [0,0,0,0,0,0].map(function(){ return { v:roll4d6(), stat:null }; });                        // rolls start unassigned
+}
+function ensureSlots(){ if (draft.method !== 'pointbuy' && (!draft.slots || draft.slots.length !== 6)){ draft.slots = makeSlots(draft.method); deriveAbilities(); } }
+
+// baked pools for custom-background choices (P5 sources these from the data)
+var TOOLS_LANGS = ['Common','Dwarvish','Elvish','Giant','Gnomish','Goblin','Halfling','Orc','Abyssal','Celestial','Deep Speech','Draconic','Infernal','Primordial','Sylvan','Undercommon',
+  "Thieves' Tools",'Disguise Kit','Forgery Kit','Herbalism Kit',"Navigator's Tools","Poisoner's Kit","Smith's Tools","Cook's Utensils","Carpenter's Tools",'Dice Set','Playing Cards','Lute','Flute','Drum','Vehicles (Land)','Vehicles (Water)'];
+var EQUIP_PACKS = ["Burglar's Pack","Diplomat's Pack","Dungeoneer's Pack","Entertainer's Pack","Explorer's Pack","Priest's Pack","Scholar's Pack"];
+var BG_FEATURES = ['Shelter of the Faithful (Acolyte)','False Identity (Charlatan)','Criminal Contact (Criminal)','By Popular Demand (Entertainer)','Rustic Hospitality (Folk Hero)','Guild Membership (Guild Artisan)','Discovery (Hermit)','Position of Privilege (Noble)','Wanderer (Outlander)','Researcher (Sage)',"Ship's Passage (Sailor)",'Military Rank (Soldier)','City Secrets (Urchin)'];
+
+// ── draft state (persisted; degrades to in-memory if storage is blocked) ───────
+var KEY = 'soulshards.draft.v1';
+function loadDraft(){ try { var j = window.localStorage.getItem(KEY); if (j) return JSON.parse(j); } catch(e){} return null; }
+function saveDraft(){ try { window.localStorage.setItem(KEY, JSON.stringify(draft)); } catch(e){} flashDraft(); }
+var draft = loadDraft() || { stepId:'abilities', name:null, species:null, cls:null, level:1, subclass:null, bg:null, bgCustom:false,
+  method:'array', abilities:{ str:15, dex:14, con:13, int:12, wis:10, cha:8 }, slots:null, armed:null, hp:{ method:'average' },
+  bgSkills:[], bgTools:[], bgPack:null, bgFeature:null };
+if (draft.level == null) draft.level = 1;
+if (!draft.method) draft.method = 'array';
+if (!draft.abilities) draft.abilities = { str:15, dex:14, con:13, int:12, wis:10, cha:8 };
+if (draft.armed === undefined) draft.armed = null;
+if (!draft.hp) draft.hp = { method:'average' };
+if (!draft.bgSkills) draft.bgSkills = [];
+if (!draft.bgTools) draft.bgTools = [];
+if (draft.bgPack === undefined) draft.bgPack = null;
+if (draft.bgFeature === undefined) draft.bgFeature = null;
+ensureSlots();
+
+// ── reusable browse list: search + per-source filter + scroll select ───────────
+// View state (query / source toggles / panel / scroll) is kept per list in `ui`, so a
+// re-render after a pick restores exactly where you were — selecting never resets it.
+// Selection identity is name+source (the data has same-named entries across books).
+var ui = {};
+function renderBrowseInto(host, cfg){
+  if (!host) return;
+  var key = cfg.key || 'list';
+  var allSources = [];
+  cfg.items.forEach(function(it){ if (allSources.indexOf(it.s) === -1) allSources.push(it.s); });
+  allSources.sort();
+  var st = ui[key];
+  if (!st){
+    var on = {};
+    allSources.forEach(function(s){ on[s] = !isTestSource(s); });   // all published on, UA off
+    st = ui[key] = { q:'', sources:on, panel:false, scroll:0 };
+  } else {
+    allSources.forEach(function(s){ if (!(s in st.sources)) st.sources[s] = !isTestSource(s); });
+  }
+  function onCount(){ return allSources.filter(function(s){ return st.sources[s]; }).length; }
+  function esc(x){ return String(x).replace(/"/g, '&quot;'); }
+
+  host.innerHTML =
+    '<div class="bz-bar">' +
+      '<input class="bz-search" type="text" placeholder="Search ' + cfg.items.length + ' options\u2026" aria-label="Search">' +
+      '<div class="bz-srcwrap">' +
+        '<button class="bz-srcbtn" type="button">Sources <span class="bz-srcn">' + onCount() + '/' + allSources.length + '</span> \u25be</button>' +
+        '<div class="bz-srcpanel"' + (st.panel ? '' : ' hidden') + '>' +
+          '<div class="bz-srcacts"><button type="button" data-sa="published">Published</button><button type="button" data-sa="all">All</button><button type="button" data-sa="clear">Clear</button></div>' +
+          '<div class="bz-srcgrid">' +
+            allSources.map(function(s){
+              return '<label class="bz-srcopt"><input type="checkbox" data-src="' + esc(s) + '"' + (st.sources[s] ? ' checked' : '') + '>' + s + (isTestSource(s) ? ' \u00b7 UA' : '') + '</label>';
+            }).join('') +
+          '</div>' +
+        '</div>' +
+      '</div>' +
+      '<span class="bz-count"></span>' +
+    '</div>' +
+    '<ul class="bz-list"></ul>';
+
+  var input = host.querySelector('.bz-search');
+  var listEl = host.querySelector('.bz-list');
+  var countEl = host.querySelector('.bz-count');
+  var srcBtn = host.querySelector('.bz-srcbtn');
+  var srcPanel = host.querySelector('.bz-srcpanel');
+  var srcN = host.querySelector('.bz-srcn');
+  input.value = st.q;
+
+  function paint(){
+    var items = cfg.items.filter(function(it){ return st.sources[it.s] && it.n.toLowerCase().indexOf(st.q) !== -1; });
+    countEl.textContent = items.length + ' of ' + cfg.items.length;
+    srcN.textContent = onCount() + '/' + allSources.length;
+    if (!items.length){ listEl.innerHTML = '<li class="bz-empty">No matches</li>'; return; }
+    listEl.innerHTML = items.map(function(it){
+      var seld = cfg.sel && cfg.sel.n === it.n && cfg.sel.s === it.s;
+      return '<li class="bz-row' + (seld ? ' sel' : '') + '" data-n="' + esc(it.n) + '" data-s="' + esc(it.s) + '" tabindex="0">' +
+        '<span class="bz-n">' + it.n + '</span><span class="bz-src">' + it.s + '</span></li>';
+    }).join('');
+    Array.prototype.forEach.call(listEl.querySelectorAll('[data-n]'), function(li){
+      var item = { n: li.getAttribute('data-n'), s: li.getAttribute('data-s') };
+      li.addEventListener('click', function(){ cfg.onPick(item); });
+      li.addEventListener('keydown', function(e){ if (e.key === 'Enter' || e.key === ' '){ e.preventDefault(); cfg.onPick(item); } });
+    });
+    listEl.scrollTop = st.scroll;   // restore scroll after the rebuild
+  }
+
+  input.addEventListener('input', function(){ st.q = input.value.toLowerCase().trim(); st.scroll = 0; paint(); });
+  srcBtn.addEventListener('click', function(){ st.panel = !st.panel; srcPanel.hidden = !st.panel; });
+  Array.prototype.forEach.call(host.querySelectorAll('[data-src]'), function(cb){
+    cb.addEventListener('change', function(){ st.sources[cb.getAttribute('data-src')] = cb.checked; st.scroll = 0; paint(); });
+  });
+  Array.prototype.forEach.call(host.querySelectorAll('[data-sa]'), function(btn){
+    btn.addEventListener('click', function(){
+      var act = btn.getAttribute('data-sa');
+      allSources.forEach(function(s){ st.sources[s] = act === 'all' ? true : (act === 'clear' ? false : !isTestSource(s)); });
+      Array.prototype.forEach.call(host.querySelectorAll('[data-src]'), function(cb){ cb.checked = !!st.sources[cb.getAttribute('data-src')]; });
+      st.scroll = 0; paint();
+    });
+  });
+  listEl.addEventListener('scroll', function(){ st.scroll = listEl.scrollTop; });
+  paint();
+}
+
+// ── rail ───────────────────────────────────────────────────────────────────
+function railStatus(s){
+  if (s.id === draft.stepId) return 'current';
+  if (s.id === 'spells' && !spellsActive()) return draft.cls ? 'skipped' : 'locked';
+  var act = activeSteps();
+  var ci = act.findIndex(function(x){ return x.id === draft.stepId; });
+  var si = act.findIndex(function(x){ return x.id === s.id; });
+  if (si !== -1 && ci !== -1 && si < ci) return 'done';
+  return '';
+}
+function renderRail(){
+  var ul = q('#rail'); ul.innerHTML = '';
+  STEPS.forEach(function(s, i){
+    var st = railStatus(s);
+    var li = document.createElement('li');
+    li.className = 'step ' + st;
+    li.tabIndex = (st === 'locked' || st === 'skipped') ? -1 : 0;
+    li.setAttribute('role','button');
+    var sub = '';
+    if (s.id === 'spells'){ if (!draft.cls) sub = 'choose a class first'; else if (!spellsActive()) sub = 'not a caster'; }
+    var glyph = (st === 'done') ? '\u2713' : String(i + 1);
+    li.innerHTML = '<span class="node">' + glyph + '</span><span class="lbl">' + s.name + (sub ? '<span class="sub">' + sub + '</span>' : '') + '</span>';
+    if (st !== 'locked' && st !== 'skipped'){
+      li.addEventListener('click', function(){ go(s.id); });
+      li.addEventListener('keydown', function(e){ if (e.key === 'Enter' || e.key === ' '){ e.preventDefault(); go(s.id); } });
+    }
+    ul.appendChild(li);
+  });
+}
+
+function renderEmerging(){
+  var c = chosenClass();
+  var cls = c ? c.n + (draft.subclass ? ' (' + draft.subclass.n + ')' : '') : '\u2014';
+  q('#emMeta').innerHTML = 'Level ' + draft.level + ' · <b>' + ((draft.species && draft.species.n) || '\u2014') + '</b> · <b>' + cls + '</b>';
+}
+
+// ── step bodies ──────────────────────────────────────────────────────────────
+function abilEl(k, v){ var m = Math.floor((v - 10) / 2); return '<div class="abil"><div class="k">' + k + '</div><div class="v">' + v + '</div><div class="m">' + (m >= 0 ? '+' : '') + m + '</div></div>'; }
+function casterTagHTML(c){
+  if (!isCaster(c)) return '<div class="castertag"><span class="pill none">non-caster</span>No spellcasting — the Spells step folds out of the flow.</div>';
+  var mode = casterMode(c);
+  return '<div class="castertag"><span class="pill ' + mode + '">' + mode + '</span>The Spells step is active and runs in ' + mode + ' mode (' + c.caster + ' progression).</div>';
+}
+var SKILLS = ['Acrobatics','Animal Handling','Arcana','Athletics','Deception','History','Insight','Intimidation','Investigation','Medicine','Nature','Perception','Performance','Persuasion','Religion','Sleight of Hand','Stealth','Survival'];
+function customControlsHTML(){
+  var skills = draft.bgSkills || [];
+  var skillChips = SKILLS.map(function(s){
+    var on = skills.indexOf(s) !== -1, full = skills.length >= 2 && !on;
+    return '<span class="chip skill' + (on ? ' sel' : '') + (full ? ' dim' : '') + '" data-skill="' + s + '">' + s + '</span>';
+  }).join('');
+  var tools = draft.bgTools || [];
+  var toolChips = TOOLS_LANGS.map(function(t){
+    var on = tools.indexOf(t) !== -1, full = tools.length >= 2 && !on;
+    return '<span class="chip skill' + (on ? ' sel' : '') + (full ? ' dim' : '') + '" data-tool="' + t.replace(/"/g,'&quot;') + '">' + t + '</span>';
+  }).join('');
+  var packOpts = '<option value="">Choose an equipment pack\u2026</option>' + EQUIP_PACKS.map(function(p){ return '<option' + (draft.bgPack === p ? ' selected' : '') + '>' + p + '</option>'; }).join('');
+  var featOpts = '<option value="">Choose a feature\u2026</option>' + BG_FEATURES.map(function(f){ return '<option' + (draft.bgFeature === f ? ' selected' : '') + '>' + f + '</option>'; }).join('');
+  return '<div class="subhead" style="margin-top:16px">Skills — choose 2 <span class="cust-c">' + skills.length + '/2</span></div>' +
+    '<div class="chips">' + skillChips + '</div>' +
+    '<div class="subhead" style="margin-top:16px">Tools / languages — choose 2 <span class="cust-c">' + tools.length + '/2</span></div>' +
+    '<div class="chips">' + toolChips + '</div>' +
+    '<div class="subhead" style="margin-top:16px">Equipment &amp; feature</div>' +
+    '<div class="cust-selects"><select class="cust-sel" id="bg-pack">' + packOpts + '</select><select class="cust-sel" id="bg-feature">' + featOpts + '</select></div>';
+}
+
+var BODIES = {
+  abilities: function(){
+    ensureSlots();
+    var pb = draft.method === 'pointbuy';
+    var seg = '<div class="seg" role="group" aria-label="Method">' +
+        '<button data-method="array" class="' + (draft.method === 'array' ? 'on' : '') + '">Standard array</button>' +
+        '<button data-method="pointbuy" class="' + (pb ? 'on' : '') + '">Point buy</button>' +
+        '<button data-method="roll" class="' + (draft.method === 'roll' ? 'on' : '') + '">Roll 4d6</button>' +
+      '</div>' +
+      (pb ? '<span class="pb-pts">Points <b id="pbRem">' + (27 - pbTotal(draft.abilities)) + '</b> / 27</span>' : '');
+    var body;
+    if (pb){
+      var boxes = ABILS.map(function(k){
+        var v = draft.abilities[k], m = Math.floor((v - 10) / 2);
+        return '<div class="abil"><div class="k">' + k.toUpperCase() + '</div>' +
+          '<div class="abil-v">' +
+            '<button class="abil-step" data-ab="' + k + '" data-d="-1" aria-label="decrease ' + k.toUpperCase() + '">\u2212</button>' +
+            '<span class="abil-n" data-abn="' + k + '">' + v + '</span>' +
+            '<button class="abil-step" data-ab="' + k + '" data-d="1" aria-label="increase ' + k.toUpperCase() + '">+</button>' +
+          '</div>' +
+          '<div class="m" data-abm="' + k + '">' + (m >= 0 ? '+' : '') + m + '</div></div>';
+      }).join('');
+      body = '<div class="grid ability-row" style="margin-top:16px">' + boxes + '</div>';
+    } else {
+      var slotBoxes = ABILS.map(function(k){
+        var s = abilSlot(k), val = s ? s.v : null, m = val != null ? Math.floor((val - 10) / 2) : null;
+        return '<div class="abil abil-slot' + (val == null ? ' empty' : '') + '" data-stat="' + k + '" tabindex="0">' +
+          '<div class="k">' + k.toUpperCase() + '</div>' +
+          '<div class="abil-n">' + (val != null ? val : '\u2014') + '</div>' +
+          '<div class="m">' + (m != null ? (m >= 0 ? '+' : '') + m : '\u00a0') + '</div></div>';
+      }).join('');
+      var pool = (draft.slots || []).map(function(s, i){
+        return '<span class="pool-v' + (s.stat != null ? ' placed' : '') + (draft.armed === i ? ' armed' : '') + '" data-pool="' + i + '" tabindex="0">' +
+          s.v + (s.stat != null ? '<span class="pool-at">' + s.stat.toUpperCase() + '</span>' : '') + '</span>';
+      }).join('');
+      var hint = draft.armed != null ? 'click a stat to place ' + draft.slots[draft.armed].v : 'click a value, then a stat \u00b7 click a placed value to move it';
+      var reroll = draft.method === 'roll' ? ' <button class="eng-reroll" id="abil-reroll">reroll all</button>' : '';
+      body = '<div class="grid ability-row" style="margin-top:16px">' + slotBoxes + '</div>' +
+        '<div class="subhead" style="margin-top:18px">' + (draft.method === 'roll' ? 'Your rolls' : 'The array') + ' <span class="cust-c">' + hint + '</span>' + reroll + '</div>' +
+        '<div class="pool">' + pool + '</div>';
+    }
+    return seg + body +
+      '<div class="ph-note">Real now — fed to the engine (<b>CON</b> sets HP, the casting ability sizes prepared spells). Array &amp; rolls are <b>assigned</b> to stats — click a value, then a stat; click a placed value to move it. Point buy uses the 27-point budget (8\u201315). P2 adds racial bonuses.</div>';
+  },
+  species: function(){
+    return '<div class="subhead">Species</div><div id="bz-species"></div>' +
+      '<div class="ph-note"><b>P3</b> adds a races.json loader (race[] + subrace[], trait text via the {@tag} parser) on the same pattern as the class loader, and resolves the selected species\u2019 speed, size, and ability increases. List here is the real 2014 set; selecting is a sketch.</div>';
+  },
+  class: function(){
+    var c = chosenClass();
+    if (!c){
+      return '<div class="subhead">Class</div><div id="bz-class"></div>' +
+        '<div class="ph-note"><b>P4</b> loads the full feature timeline from <b>loadClass()</b>, plus a class-<em>list</em> loader off class/index.json (source-filtered, to keep UA / sidekicks out by default).</div>';
+    }
+    var lvlCtrl =
+      '<div class="subhead">Class level</div>' +
+      '<div class="lvl"><button class="lvl-b" data-lv="-1" aria-label="Lower level">\u2212</button>' +
+        '<span class="lvl-n">' + draft.level + '</span>' +
+        '<button class="lvl-b" data-lv="1" aria-label="Raise level">+</button>' +
+        '<span class="lvl-hint">building at level ' + draft.level + ' — grants levels 1\u2013' + draft.level + ' only</span></div>';
+    var unlocked = !c.subAt || draft.level >= c.subAt;
+    var sub;
+    if (unlocked){
+      sub = '<div class="subhead">' + c.subTitle + ' · unlocked at level ' + (c.subAt || 1) + '</div><div id="bz-subclass"></div>' +
+        '<div class="ph-note">' + (c.subs.length || 'No') + ' ' + c.subTitle.toLowerCase() + (c.subs.length === 1 ? '' : 's') +
+        ' — from <b>loadClass().subclasses</b>, source-tagged.</div>';
+    } else {
+      sub = '<div class="subhead">' + c.subTitle + '</div>' +
+        '<div class="locked-note">Chosen at level ' + c.subAt + ' — you\u2019re level ' + draft.level + ', so there\u2019s no ' + c.subTitle.toLowerCase() + ' yet. Raise the level to ' + c.subAt + '+ to choose one.</div>';
+    }
+    return '<div class="subhead">Class</div><div id="bz-class"></div>' + casterTagHTML(c) + lvlCtrl + sub +
+      '<div id="engine-out"></div>' +
+      '<div class="ph-note"><b>P4 + P8</b> a character at level N gets exactly the level 1\u2013N grants — never future ones. The same gate is what the level-up flow walks one step at a time. (Subclass-only casters like Eldritch Knight / Arcane Trickster are a P6 refinement — the base class reads as non-caster.)</div>';
+  },
+  background: function(){
+    var custom = '';
+    if (draft.bg){
+      custom = '<label class="cust-tog"><input type="checkbox" id="bg-customize"' + (draft.bgCustom ? ' checked' : '') + '> <span>Customize this background</span></label>' +
+        (draft.bgCustom ? customControlsHTML() : '');
+    }
+    return '<div class="subhead">Background</div><div id="bz-bg"></div>' + custom +
+      '<div class="ph-note"><b>P5</b> adds a backgrounds.json loader and resolves skill / tool / equipment grants, reconciling overlaps with class and species. The 2014 customization rule (and the data\u2019s own \u201cCustom Background\u201d entry) drives the custom path — pick a background to reveal it.</div>';
+  },
+  spells: function(){
+    var c = chosenClass();
+    if (!isCaster(c)) return '<p>This class doesn\u2019t cast spells, so there\u2019s nothing to choose here.</p>';
+    var mode = casterMode(c);
+    var lead = mode === 'known'
+      ? '<b>' + c.n + '</b> is a <b>known</b> caster. You\u2019ll lock in a fixed set of cantrips and spells known at level 1 — they don\u2019t change day to day.'
+      : '<b>' + c.n + '</b> is a <b>prepared</b> caster. You\u2019ll choose cantrips now; the number you can prepare each day is computed from level plus your casting modifier.';
+    return '<p style="max-width:60ch">' + lead + '</p>' +
+      '<div class="subhead">' + (mode === 'known' ? 'Cantrips · Spells known' : 'Cantrips · Prepared (computed)') + '</div>' +
+      '<div class="chips">' +
+        '<span class="chip inert">Cantrip slot</span><span class="chip inert">Cantrip slot</span>' +
+        '<span class="chip inert">' + (mode === 'known' ? 'Spell known' : 'Prepared') + '</span>' +
+        '<span class="chip inert">' + (mode === 'known' ? 'Spell known' : 'Prepared') + '</span>' +
+      '</div>' +
+      '<div class="ph-note"><b>P6</b> drives the real prep math off <b>loadClassSpellList(name,{sources})</b> with the source allow-list, and this same data feeds the spellbook.</div>';
+  },
+  review: function(){
+    var c = chosenClass();
+    var mode = casterMode(c);
+    var subLine = draft.subclass
+      ? draft.subclass.n
+      : (c && c.subAt && draft.level < c.subAt ? 'locked until level ' + c.subAt : '\u2014');
+    var bgCustom = '';
+    if (draft.bgCustom){
+      var parts = [];
+      if (draft.bgSkills && draft.bgSkills.length) parts.push(draft.bgSkills.join(' + '));
+      if (draft.bgTools && draft.bgTools.length) parts.push(draft.bgTools.join(' + '));
+      if (draft.bgPack) parts.push(draft.bgPack);
+      if (draft.bgFeature) parts.push(draft.bgFeature.replace(/\s*\(.*\)/, ''));
+      bgCustom = ' (custom' + (parts.length ? ': ' + parts.join('; ') : '') + ')';
+    }
+    return '<div class="sheet">' +
+        '<h3>' + (draft.name || 'Unnamed') + '</h3>' +
+        '<div class="sub">Level ' + draft.level + ' ' + ((draft.species && draft.species.n) || '\u2014') + ' ' + (c ? c.n : '\u2014') + (draft.subclass ? ' · ' + draft.subclass.n : '') + '</div>' +
+        '<dl>' +
+          '<dt>Species</dt><dd>' + ((draft.species && draft.species.n) || '\u2014') + '</dd>' +
+          '<dt>Class</dt><dd>' + (c ? c.n + ' ' + draft.level + (isCaster(c) ? ' · ' + mode + ' caster' : ' · non-caster') : '\u2014') + '</dd>' +
+          '<dt>' + (c ? c.subTitle : 'Subclass') + '</dt><dd>' + subLine + '</dd>' +
+          '<dt>Background</dt><dd>' + ((draft.bg && draft.bg.n) || '\u2014') + bgCustom + '</dd>' +
+          '<dt>Spells</dt><dd>' + (spellsActive() ? 'chosen in ' + mode + ' mode' : 'none') + '</dd>' +
+        '</dl>' +
+      '</div>' +
+      '<div id="forge-out"></div>' +
+      '<div class="ph-note"><b>P7</b> derives every remaining computed field (AC, speed, spell DC/attack, species + background grants, spell lists) and <b>writes</b> the assembled <b>structural</b> to the characters table. Right now <b>Forge Character</b> only <b>previews</b> what’s derivable — nothing is written to the live game.</div>';
+  },
+};
+
+// post-render mounts (browse lists manage their own filtering/focus)
+var MOUNT = {
+  abilities: function(){
+    Array.prototype.forEach.call(document.querySelectorAll('[data-method]'), function(btn){
+      btn.addEventListener('click', function(){
+        var meth = btn.getAttribute('data-method');
+        draft.method = meth; draft.armed = null;
+        if (meth === 'pointbuy'){ draft.slots = null; ABILS.forEach(function(k){ draft.abilities[k] = 8; }); }
+        else { draft.slots = makeSlots(meth); deriveAbilities(); }
+        saveDraft(); renderAll();
+      });
+    });
+    if (draft.method === 'pointbuy'){
+      Array.prototype.forEach.call(document.querySelectorAll('.abil-step'), function(btn){
+        btn.addEventListener('click', function(){
+          var k = btn.getAttribute('data-ab'), d = parseInt(btn.getAttribute('data-d'), 10), next = draft.abilities[k] + d;
+          if (next < 8 || next > 15) return;
+          var trial = Object.assign({}, draft.abilities); trial[k] = next;
+          if (pbTotal(trial) > 27) return;
+          draft.abilities[k] = next; saveDraft();
+          var nm = q('[data-abn="' + k + '"]'); if (nm) nm.textContent = next;
+          var md = q('[data-abm="' + k + '"]'); if (md){ var m = Math.floor((next - 10) / 2); md.textContent = (m >= 0 ? '+' : '') + m; }
+          var rem = q('#pbRem'); if (rem) rem.textContent = (27 - pbTotal(draft.abilities));
+        });
+      });
+      return;
+    }
+    // array / roll — assign the pool of six values onto stats
+    Array.prototype.forEach.call(document.querySelectorAll('[data-pool]'), function(el){
+      el.addEventListener('click', function(){
+        var i = parseInt(el.getAttribute('data-pool'), 10), s = draft.slots[i];
+        if (s.stat != null){ s.stat = null; draft.armed = null; }      // free a placed value back to the pool
+        else draft.armed = (draft.armed === i ? null : i);             // arm / disarm an available value
+        deriveAbilities(); saveDraft(); renderAll();
+      });
+    });
+    Array.prototype.forEach.call(document.querySelectorAll('.abil-slot'), function(el){
+      el.addEventListener('click', function(){
+        var stat = el.getAttribute('data-stat'), cur = abilSlot(stat);
+        if (cur) cur.stat = null;                                       // clear this stat
+        else if (draft.armed != null){ draft.slots[draft.armed].stat = stat; draft.armed = null; }   // place the armed value
+        else return;
+        deriveAbilities(); saveDraft(); renderAll();
+      });
+    });
+    var rr = q('#abil-reroll');
+    if (rr) rr.addEventListener('click', function(){ draft.slots = makeSlots('roll'); draft.armed = null; deriveAbilities(); saveDraft(); renderAll(); });
+  },
+  species: function(){
+    renderBrowseInto(q('#bz-species'), { key:'species', items:DATA.races, sel:draft.species,
+      onPick:function(item){ draft.species = item; saveDraft(); renderAll(); } });
+  },
+  class: function(){
+    renderBrowseInto(q('#bz-class'), { key:'class', items:DATA.classes.filter(function(c){ return !excludeClass(c.n); }), sel:draft.cls,
+      onPick:function(item){ draft.cls = item; draft.subclass = null; saveDraft(); renderAll(); } });
+    var c = chosenClass();
+    if (!c) return;
+    Array.prototype.forEach.call(document.querySelectorAll('.lvl-b'), function(b){
+      b.addEventListener('click', function(){
+        var lv = draft.level + parseInt(b.getAttribute('data-lv'), 10);
+        draft.level = Math.max(1, Math.min(20, lv));
+        if (c.subAt && draft.level < c.subAt) draft.subclass = null;   // re-locks below threshold
+        saveDraft(); renderAll();
+      });
+    });
+    var unlocked = !c.subAt || draft.level >= c.subAt;
+    if (unlocked && c.subs.length){
+      renderBrowseInto(q('#bz-subclass'), { key:'subclass', items:c.subs, sel:draft.subclass,
+        onPick:function(item){ draft.subclass = item; saveDraft(); renderAll(); } });
+    }
+    renderEngineOut();
+  },
+  background: function(){
+    renderBrowseInto(q('#bz-bg'), { key:'bg', items:DATA.backgrounds, sel:draft.bg,
+      onPick:function(item){ draft.bg = item; saveDraft(); renderAll(); } });
+    var t = q('#bg-customize');
+    if (t) t.addEventListener('change', function(){ draft.bgCustom = t.checked; saveDraft(); renderAll(); });
+    Array.prototype.forEach.call(document.querySelectorAll('[data-skill]'), function(ch){
+      ch.addEventListener('click', function(){
+        var s = ch.getAttribute('data-skill');
+        var arr = draft.bgSkills || (draft.bgSkills = []);
+        var i = arr.indexOf(s);
+        if (i !== -1) arr.splice(i, 1);
+        else if (arr.length < 2) arr.push(s);
+        saveDraft(); renderAll();
+      });
+    });
+    Array.prototype.forEach.call(document.querySelectorAll('[data-tool]'), function(ch){
+      ch.addEventListener('click', function(){
+        var t2 = ch.getAttribute('data-tool');
+        var arr = draft.bgTools || (draft.bgTools = []);
+        var i = arr.indexOf(t2);
+        if (i !== -1) arr.splice(i, 1);
+        else if (arr.length < 2) arr.push(t2);
+        saveDraft(); renderAll();
+      });
+    });
+    var pk = q('#bg-pack'); if (pk) pk.addEventListener('change', function(){ draft.bgPack = pk.value || null; saveDraft(); });
+    var ft = q('#bg-feature'); if (ft) ft.addEventListener('change', function(){ draft.bgFeature = ft.value || null; saveDraft(); });
+  },
+};
+
+// ── live engine readout: real SoulShardsData.loadClass + SoulShardsEngine.build ──
+function ord(n){ var s = ['th','st','nd','rd'], v = n % 100; return n + (s[(v - 20) % 10] || s[v] || s[0]); }
+var engineReq = 0;
+function renderEngineOut(){
+  var host = q('#engine-out'); if (!host) return;
+  var c = chosenClass(); if (!c){ host.innerHTML = ''; return; }
+  if (typeof SoulShardsData === 'undefined' || typeof SoulShardsEngine === 'undefined'){
+    host.innerHTML = '<div class="eng-load">Engine modules not loaded.</div>'; return;
+  }
+  var my = ++engineReq;
+  host.innerHTML = '<div class="eng-load">Resolving ' + c.n + ' grants from the 2014 data\u2026</div>';
+  SoulShardsData.loadClass(c.n).then(function(model){
+    if (my !== engineReq) return;                       // a newer request superseded this one
+    var sub = (model.subclasses || []).find(function(s){ return draft.subclass && s.name === draft.subclass.n; });
+    var b = SoulShardsEngine.build({
+      classModel: model, level: draft.level, abilities: draft.abilities,
+      subclassShortName: sub ? sub.shortName : null, hp: draft.hp
+    });
+    host.innerHTML = engineCardHTML(b);
+    wireEngineCard(host, b);
+  }).catch(function(err){
+    if (my !== engineReq) return;
+    host.innerHTML = '<div class="eng-load">Couldn\u2019t load ' + c.n + ' (' + ((err && err.message) || 'fetch failed') +
+      ').</div>';
+  });
+}
+function engineCardHTML(b){
+  var hp = b.hp;
+  var bd = hp.byLevel.map(function(x){ return x.gained; }).join(' + ');
+  var tog = '<span class="eng-tog">' +
+      '<button data-hp="average" class="' + (hp.method === 'average' ? 'on' : '') + '">Average</button>' +
+      '<button data-hp="roll" class="' + (hp.method === 'roll' ? 'on' : '') + '">Roll</button></span>' +
+      (hp.method === 'roll' ? '<button class="eng-reroll" data-hp="reroll">reroll</button>' : '');
+  var byLvl = {};
+  b.features.forEach(function(f){ (byLvl[f.level] || (byLvl[f.level] = [])).push(f); });
+  var feats = Object.keys(byLvl).map(Number).sort(function(a, c){ return a - c; }).map(function(L){
+    var items = byLvl[L].map(function(f){ return '<span class="feat ' + (f.originType === 'subclass' ? 'sub' : 'cls') + '">' + f.name + '</span>'; }).join('');
+    return '<div class="feat-row"><span class="fl">L' + L + '</span>' + items + '</div>';
+  }).join('');
+  var sp = b.spellcasting, spLine;
+  if (!sp) spLine = 'Non-caster';
+  else {
+    var slots = sp.slots.map(function(n, i){ return n > 0 ? (ord(i + 1) + '\u00d7' + n) : null; }).filter(Boolean).join(' · ') || '\u2014';
+    var pool = sp.prepared
+      ? ('prepare ' + (sp.preparedCount != null ? sp.preparedCount : '?') + ' (' + (sp.ability || '?').toUpperCase() + '+level)')
+      : ('know ' + sp.spellsKnown);
+    spLine = 'cantrips ' + sp.cantripsKnown + ' · ' + pool + ' · slots ' + slots;
+  }
+  var asi = b.asiLevels.length ? b.asiLevels.join(', ') : 'none yet';
+  var pend = b.pending.length ? b.pending.map(function(p){ return p.label; }).join('; ') : 'nothing — ready to forge';
+  return '<div class="eng-card">' +
+    '<div class="eng-h">Granted at level ' + b.level + ' — live from the engine</div>' +
+    '<div class="eng-line"><b>Hit points</b> ' + hp.max + ' max ' + tog + '<span class="eng-bd">' + bd + '</span></div>' +
+    '<div class="eng-line"><b>Features</b></div><div class="feats">' + feats + '</div>' +
+    '<div class="eng-line"><b>ASI / feat at</b> ' + asi + '</div>' +
+    '<div class="eng-line"><b>Spellcasting</b> ' + spLine + '</div>' +
+    '<div class="eng-line eng-pend"><b>Still to choose</b> ' + pend + '</div>' +
+  '</div>';
+}
+function wireEngineCard(host, b){
+  Array.prototype.forEach.call(host.querySelectorAll('[data-hp]'), function(btn){
+    btn.addEventListener('click', function(){
+      var v = btn.getAttribute('data-hp');
+      if (v === 'average'){ draft.hp = { method:'average' }; }
+      else { var rolls = {}; for (var L = 2; L <= draft.level; L++){ rolls[L] = 1 + Math.floor(Math.random() * b.hd); } draft.hp = { method:'roll', rolls:rolls }; }
+      saveDraft(); renderEngineOut();
+    });
+  });
+}
+
+// ── forge: assemble + PREVIEW the derivable structural (no live write until P7) ──
+// Mirrors renderEngineOut: loads the real class model, runs the engine, then assembles
+// the structural fields we CAN derive now and shows them as JSON with an honest
+// _incomplete[] marker. Nothing is written to the characters table here.
+var forgeReq = 0;
+function escHtml(x){ return String(x).replace(/[&<>]/g, function(ch){ return ch === '&' ? '&amp;' : ch === '<' ? '&lt;' : '&gt;'; }); }
+function abMod(s){ return Math.floor((s - 10) / 2); }
+function buildStructuralPreview(model, b){
+  var lvl = draft.level, ab = draft.abilities, c = chosenClass();
+  var prof = 2 + Math.floor((lvl - 1) / 4);
+  var saveSet = {};
+  (b.savingThrows || []).forEach(function(s){ saveSet[String(s).toLowerCase().slice(0, 3)] = true; });
+  var abilities = {}, saves = {};
+  ['str','dex','con','int','wis','cha'].forEach(function(k){
+    var score = ab[k] != null ? ab[k] : 10, m = abMod(score), p = !!saveSet[k];
+    abilities[k] = { score: score, mod: m };
+    saves[k] = { bonus: m + (p ? prof : 0), proficient: p };
+  });
+  var sp = b.spellcasting;
+  var combat = {
+    ac: null,
+    hp: b.hp.max, hpMax: b.hp.max, hpTemp: 0,
+    speed: null,
+    initiative: abilities.dex.mod,
+    hitDice: 'd' + b.hd,
+    spellSaveDC: null, spellAttackBonus: null,
+  };
+  if (sp && sp.ability && ab[sp.ability] != null){
+    var cm = abMod(ab[sp.ability]);
+    combat.spellSaveDC = 8 + prof + cm;
+    combat.spellAttackBonus = prof + cm;
+  }
+  var structural = {
+    name: draft.name || 'Unnamed',
+    classLabel: c ? c.n : null,
+    subclass: draft.subclass ? draft.subclass.n : null,
+    level: lvl,
+    race: draft.species ? draft.species.n : null,
+    background: draft.bg ? draft.bg.n : null,
+    proficiencyBonus: prof,
+    abilities: abilities,
+    saves: saves,
+    combat: combat,
+    spellcasting: sp ? {
+      ability: sp.ability, progression: sp.progression, prepared: sp.prepared,
+      cantripsKnown: sp.cantripsKnown, spellsKnown: sp.spellsKnown,
+      preparedCount: sp.preparedCount, slots: sp.slots,
+    } : null,
+    features: (b.features || []).map(function(f){ return { name: f.name, source: f.source, level: f.level, origin: f.origin }; }),
+    _incomplete: [
+      'alignment, xp, portrait, appearance — not collected in this flow yet',
+      'combat.ac — needs equipped armor (GEAR, P5+)',
+      'combat.speed — from species (P3, loadRace)',
+      'passivePerception — needs resolved skill proficiencies',
+      'skills[] (18) — needs class + background skill choices',
+      'species traits & ability increases — P3 (loadRace)',
+      'background grants — skills / tools / equipment / feature — P5',
+      'feature descriptions (desc text) — P4',
+      'spell selections — cantrips / known / prepared lists — P6',
+    ],
+  };
+  return structural;
+}
+function forgeCardHTML(structural){
+  return '<div class="fx-card">' +
+    '<div class="fx-h">Assembled structural — preview</div>' +
+    '<div class="fx-warn">Preview only — NOT written to the live characters table (that turns on at P7). The <b>_incomplete</b> list flags every field still to derive.</div>' +
+    '<pre class="fx-pre">' + escHtml(JSON.stringify(structural, null, 2)) + '</pre>' +
+  '</div>';
+}
+function forgePreview(){
+  var host = q('#forge-out'); if (!host) return;
+  var c = chosenClass();
+  if (!c){ host.innerHTML = '<div class="fx-empty">Choose a class first — the engine needs it to assemble hit points, saves, and features.</div>'; return; }
+  if (typeof SoulShardsData === 'undefined' || typeof SoulShardsEngine === 'undefined'){
+    host.innerHTML = '<div class="fx-empty">Engine modules not loaded — can’t assemble the preview.</div>'; return;
+  }
+  var my = ++forgeReq;
+  host.innerHTML = '<div class="fx-empty">Assembling structural from the 2014 data…</div>';
+  SoulShardsData.loadClass(c.n).then(function(model){
+    if (my !== forgeReq) return;
+    var sub = (model.subclasses || []).find(function(s){ return draft.subclass && s.name === draft.subclass.n; });
+    var b = SoulShardsEngine.build({ classModel: model, level: draft.level, abilities: draft.abilities, subclassShortName: sub ? sub.shortName : null, hp: draft.hp });
+    host.innerHTML = forgeCardHTML(buildStructuralPreview(model, b));
+    try { host.scrollIntoView({ behavior: 'smooth', block: 'nearest' }); } catch(e){}
+  }).catch(function(err){
+    if (my !== forgeReq) return;
+    host.innerHTML = '<div class="fx-empty">Couldn’t load ' + c.n + ' (' + ((err && err.message) || 'fetch failed') + ').</div>';
+  });
+}
+
+// ── render current step ──────────────────────────────────────────────────────
+function renderStep(){
+  var s = STEPS.find(function(x){ return x.id === draft.stepId; });
+  var act = activeSteps();
+  var pos = act.findIndex(function(x){ return x.id === s.id; });
+
+  q('#kicker').textContent = 'Step ' + (pos + 1) + ' of ' + act.length;
+  q('#title').textContent = s.name;
+  q('#desc').textContent = s.desc;
+  q('#body').innerHTML = BODIES[s.id]();
+  q('#prog').textContent = s.name + ' — ' + (pos + 1) + '/' + act.length;
+  if (MOUNT[s.id]) MOUNT[s.id]();
+
+  var back = q('#back'), next = q('#next');
+  back.disabled = pos <= 0;
+  if (pos >= act.length - 1){
+    next.textContent = 'Forge Character';
+    next.disabled = false;
+    next.title = 'Assemble + preview the structural block (preview only — not written until P7)';
+  } else {
+    next.textContent = 'Next \u25b8';
+    next.title = '';
+    next.disabled = (s.id === 'class' && !draft.cls);   // per-step requirement demo
+  }
+}
+
+// ── navigation ───────────────────────────────────────────────────────────────
+function go(id){
+  if (id === 'spells' && !spellsActive()) return;
+  draft.stepId = id; saveDraft(); renderAll();
+  var ps = q('.panel-scroll'); if (ps) ps.scrollTop = 0;
+}
+function step(dir){
+  var act = activeSteps();
+  var pos = act.findIndex(function(x){ return x.id === draft.stepId; });
+  var nxt = pos + dir;
+  if (nxt < 0 || nxt >= act.length) return;
+  go(act[nxt].id);
+}
+
+// ── draft pill flash ─────────────────────────────────────────────────────────
+var flashT;
+function flashDraft(){
+  var el = q('#draft'); if (!el) return;
+  el.classList.add('saved','flash');
+  q('#draftTxt').textContent = 'Draft saved';
+  clearTimeout(flashT);
+  flashT = setTimeout(function(){ el.classList.remove('flash'); }, 900);
+}
+
+// ── render all ───────────────────────────────────────────────────────────────
+function renderAll(){
+  if (draft.stepId === 'spells' && !spellsActive()) draft.stepId = 'background';
+  renderRail(); renderEmerging(); renderStep();
+  var em = q('#emName');
+  if (draft.name){ em.textContent = draft.name; em.classList.remove('empty'); }
+}
+
+// ── boot ─────────────────────────────────────────────────────────────────────
+q('#back').addEventListener('click', function(){ step(-1); });
+q('#next').addEventListener('click', function(){
+  var act = activeSteps();
+  var pos = act.findIndex(function(x){ return x.id === draft.stepId; });
+  if (pos >= act.length - 1){ forgePreview(); return; }   // last step: Forge = assemble + preview
+  step(1);
+});
+// character name (topbar) → draft.name, live into the rail's "Emerging" line
+(function(){
+  var nf = q('#charName'); if (!nf) return;
+  nf.value = draft.name || '';
+  nf.addEventListener('input', function(){
+    draft.name = nf.value.trim() || null;
+    saveDraft();
+    var em = q('#emName');
+    if (em){ if (draft.name){ em.textContent = draft.name; em.classList.remove('empty'); } else { em.textContent = 'Unnamed'; em.classList.add('empty'); } }
+  });
+})();
+document.addEventListener('keydown', function(e){
+  if (e.target && /^(INPUT|TEXTAREA|SELECT)$/.test(e.target.tagName)) return;
+  if (e.key === 'ArrowRight') step(1);
+  else if (e.key === 'ArrowLeft') step(-1);
+});
+renderAll();
+if (loadDraft()) flashDraft();
+</script>
+</body>
+</html>
