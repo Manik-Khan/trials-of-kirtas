@@ -89,12 +89,16 @@ function joinUsersProfiles(users, profiles) {
       userId:       u.id,
       email:        u.email || null,
       lastSignInAt: u.last_sign_in_at || null,
+      invitedAt:    u.invited_at || null,
+      confirmedAt:  u.confirmed_at || u.email_confirmed_at || null,
       createdAt:    u.created_at || null,
       username:     p ? (p.username || null) : null,
       role,                                  // null = authenticated but never provisioned
       characterKey: p ? (p.character_key || null) : null,
       grants:       p ? (p.grants || []) : [],
       pending:      !role || role === 'pending',
+      // not yet accepted: invited, never signed in (page shows these as "invite pending")
+      invitePending: !!(u.invited_at && !u.last_sign_in_at),
     };
   });
   rows.sort((a, b) => {
