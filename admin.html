@@ -1,0 +1,395 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Members &amp; Access — The Trials of Kirtas</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=Cinzel+Decorative:wght@400;700&family=Cinzel:wght@400;600&family=Crimson+Pro:ital,wght@0,300;0,400;1,300;1,400&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="theme.css">
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    body{
+      background-color:var(--ink); color:var(--parchment);
+      font-family:'Crimson Pro',Georgia,serif; font-size:18px; line-height:1.6;
+      min-height:100vh; overflow-x:hidden;
+    }
+    body::before{ content:''; position:fixed; inset:0; z-index:9999; pointer-events:none; opacity:.4;
+      background-image:url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)' opacity='0.04'/%3E%3C/svg%3E"); }
+
+    .wrap{ max-width:1040px; margin:0 auto; padding:0 1.25rem 6rem; }
+    .page-header{ text-align:center; padding:4rem 1rem 2rem;
+      background:radial-gradient(ellipse 80% 60% at 50% 0%, rgba(42,20,10,.8) 0%, transparent 70%); }
+    .page-eyebrow{ font-family:'Cinzel',serif; font-size:.7rem; letter-spacing:.4em; color:var(--gold); text-transform:uppercase; opacity:.75; }
+    .page-title{ font-family:'Cinzel Decorative',serif; font-size:clamp(1.9rem,5vw,3rem); color:var(--parchment); margin:.6rem 0 .4rem; font-weight:400; }
+    .page-subtitle{ font-style:italic; color:var(--aged); font-size:1rem; max-width:60ch; margin:0 auto; }
+
+    .topbar{ display:flex; flex-wrap:wrap; gap:.75rem; align-items:center; justify-content:space-between; margin:1.5rem 0 .5rem; }
+    .camps{ display:flex; gap:.5rem; align-items:center; flex-wrap:wrap; }
+    .pill{ font-family:'Cinzel',serif; font-size:.8rem; letter-spacing:.05em; border:1px solid var(--gold-mid);
+      background:var(--gold-dim); color:var(--parchment); padding:.4rem .8rem; border-radius:999px; display:inline-flex; gap:.45rem; align-items:center; }
+    .pill.ghost{ color:var(--muted); border-style:dashed; border-color:var(--section-border); background:none; cursor:not-allowed; }
+    .whoami{ font-family:'Cinzel',serif; font-size:.85rem; color:var(--aged); display:flex; gap:.5rem; align-items:center; }
+    .whoami .badge{ font-size:.62rem; letter-spacing:.14em; text-transform:uppercase; color:var(--ink-deep); background:var(--gold); padding:.25rem .55rem; border-radius:4px; font-weight:700; }
+
+    .rule{ height:1px; background:var(--section-border); margin:1.25rem 0; }
+
+    section{ margin-top:1.75rem; }
+    .sechead{ display:flex; align-items:baseline; gap:.7rem; margin-bottom:.75rem; }
+    .sechead h2{ font-family:'Cinzel',serif; font-weight:600; font-size:1.1rem; color:var(--gold-light); letter-spacing:.03em; }
+    .count{ font-family:'Cinzel',serif; font-size:.8rem; color:var(--muted); }
+    .live{ margin-left:auto; display:inline-flex; align-items:center; gap:.4rem; font-family:'Cinzel',serif; font-size:.66rem; letter-spacing:.16em; text-transform:uppercase; color:var(--gold); }
+    .live .dot{ width:8px; height:8px; border-radius:50%; background:var(--gold); box-shadow:0 0 0 0 var(--gold-mid); animation:pulse 2.4s infinite; }
+    @keyframes pulse{ 0%{box-shadow:0 0 0 0 var(--gold-mid)} 70%{box-shadow:0 0 0 7px transparent} 100%{box-shadow:0 0 0 0 transparent} }
+
+    .card{ background:var(--section-bg); border:1px solid var(--section-border); border-radius:10px; overflow:hidden; }
+    .gate-empty{ padding:1rem 1.1rem; color:var(--muted); font-style:italic; }
+
+    .prow{ display:flex; align-items:center; gap:.9rem; padding:.85rem 1.1rem; border-top:1px solid var(--section-border); }
+    .prow:first-child{ border-top:0; }
+    .who{ display:flex; align-items:center; gap:.75rem; min-width:0; flex:1 1 auto; }
+    .ava{ width:38px; height:38px; border-radius:50%; flex:none; display:grid; place-items:center; font-family:'Cinzel',serif; font-weight:700; color:var(--ink-deep); background:var(--aged); }
+    .ava.r-over{ background:var(--gold); } .ava.r-dm{ background:#b08a52; } .ava.r-play{ background:var(--prof-color); color:#0d0a07; } .ava.r-pend{ background:var(--blood); color:var(--parchment); }
+    .who .nm{ font-family:'Cinzel',serif; font-size:1rem; color:var(--parchment); line-height:1.15; }
+    .who .meta{ font-size:.85rem; color:var(--muted); white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+    .actions{ display:flex; gap:.5rem; align-items:center; flex:none; }
+    .approve{ display:flex; border:1px solid var(--gold); border-radius:7px; overflow:hidden; }
+    .approve button{ font-family:'Cinzel',serif; font-size:.8rem; background:var(--gold); color:var(--ink-deep); border:0; padding:.5rem .75rem; cursor:pointer; font-weight:600; }
+    .approve button:hover{ background:var(--gold-light); }
+    .approve select{ font-family:'Cinzel',serif; font-size:.8rem; border:0; border-left:1px solid rgba(13,10,7,.3); background:var(--gold); color:var(--ink-deep); padding:0 .35rem; cursor:pointer; font-weight:600; }
+    .ghostbtn{ font-family:'Cinzel',serif; font-size:.8rem; color:var(--muted); background:none; border:1px solid var(--section-border); border-radius:7px; padding:.5rem .7rem; cursor:pointer; }
+    .ghostbtn:hover{ color:var(--blood); border-color:var(--blood); }
+
+    .scroll{ overflow-x:auto; }
+    table{ width:100%; border-collapse:collapse; min-width:680px; }
+    thead th{ font-family:'Cinzel',serif; font-weight:600; letter-spacing:.1em; text-transform:uppercase; font-size:.66rem; color:var(--muted); text-align:left; padding:.7rem .85rem; border-bottom:1px solid var(--section-border); }
+    tbody td{ padding:.6rem .85rem; border-top:1px solid var(--section-border); vertical-align:middle; }
+    tbody tr:hover{ background:var(--gold-dim); }
+    .mcell{ display:flex; align-items:center; gap:.7rem; min-width:0; }
+    .uname{ font-family:'Cinzel',serif; font-size:.95rem; color:var(--parchment); background:none; border:1px solid transparent; border-radius:6px; padding:.2rem .4rem; width:100%; max-width:170px; }
+    .uname:hover{ border-color:var(--section-border); } .uname:focus{ outline:none; border-color:var(--gold); background:var(--ink-deep); }
+    .email{ color:var(--aged); font-size:.85rem; }
+    .seen{ font-family:'Cinzel',serif; color:var(--muted); font-size:.78rem; white-space:nowrap; }
+    .seen.now{ color:var(--hp-good); }
+    select.field{ font-family:'Cinzel',serif; font-size:.85rem; color:var(--parchment); background:var(--ink-deep); border:1px solid var(--section-border); border-radius:7px; padding:.4rem .5rem; cursor:pointer; }
+    select.field:hover{ border-color:var(--gold-mid); }
+    select.field:disabled{ opacity:.5; cursor:not-allowed; }
+    select.field.role-over{ color:var(--gold-light); }
+    .grants{ display:flex; flex-wrap:wrap; gap:.35rem; align-items:center; }
+    .grant{ font-family:'Cinzel',serif; font-size:.72rem; letter-spacing:.02em; background:var(--gold-dim); color:var(--gold-light); border:1px solid var(--gold-mid); border-radius:999px; padding:.18rem .5rem; display:inline-flex; gap:.4rem; align-items:center; }
+    .grant .x{ cursor:pointer; color:var(--gold); font-weight:700; } .grant .x:hover{ color:var(--blood); }
+    .addg{ font-family:'Cinzel',serif; color:var(--muted); border:1px dashed var(--section-border); background:none; border-radius:999px; width:22px; height:22px; cursor:pointer; line-height:1; }
+    .addg:hover{ color:var(--gold); border-color:var(--gold-mid); }
+    .lockhint{ font-size:.78rem; color:var(--muted); font-style:italic; }
+    .save{ font-family:'Cinzel',serif; font-size:.66rem; letter-spacing:.1em; text-transform:uppercase; opacity:0; transition:opacity .2s; white-space:nowrap; }
+    .save.show{ opacity:1; } .save.ok{ color:var(--hp-good); } .save.err{ color:var(--blood); }
+
+    .foot{ margin-top:1rem; color:var(--muted); font-size:.85rem; font-style:italic; max-width:74ch; }
+    .foot b{ font-style:normal; color:var(--aged); }
+
+    .pop{ position:fixed; z-index:50; background:var(--smoke); border:1px solid var(--gold-mid); border-radius:9px; box-shadow:0 18px 40px rgba(0,0,0,.6); padding:.35rem; display:none; min-width:180px; }
+    .pop.open{ display:block; }
+    .pop .ph{ font-family:'Cinzel',serif; font-size:.62rem; letter-spacing:.12em; text-transform:uppercase; color:var(--muted); padding:.4rem .6rem .2rem; }
+    .pop button{ display:block; width:100%; text-align:left; font-family:'Cinzel',serif; font-size:.85rem; background:none; border:0; color:var(--parchment); padding:.45rem .6rem; border-radius:6px; cursor:pointer; }
+    .pop button:hover{ background:var(--gold-dim); } .pop button:disabled{ color:var(--muted); cursor:default; }
+
+    .state{ text-align:center; padding:3.5rem 1rem; color:var(--aged); font-style:italic; }
+    .state.err{ color:var(--blood); }
+    .toast{ position:fixed; left:50%; bottom:1.4rem; transform:translateX(-50%); background:var(--smoke); border:1px solid var(--blood); color:var(--parchment); font-size:.9rem; padding:.7rem 1.1rem; border-radius:8px; box-shadow:0 12px 30px rgba(0,0,0,.5); opacity:0; transition:opacity .25s; pointer-events:none; z-index:200; max-width:90vw; }
+    .toast.show{ opacity:1; }
+    @media (prefers-reduced-motion:reduce){ *{ animation:none!important; } }
+    @media (max-width:760px){ .email,.colseen{ display:none; } }
+  </style>
+</head>
+<body>
+  <div id="nav-root"></div>
+
+  <div class="page-header">
+    <div class="page-eyebrow">Site settings</div>
+    <h1 class="page-title">Members &amp; Access</h1>
+    <p class="page-subtitle">Everyone who can reach the table, what they may do, and who waits at the gate. Changes save the moment you make them.</p>
+  </div>
+
+  <div class="wrap">
+    <div id="content" style="display:none">
+      <div class="topbar">
+        <div class="camps">
+          <span class="pill">⚔ Trials of Kirtas</span>
+          <span class="pill ghost" title="Available when the site holds more than one campaign">＋ New campaign</span>
+        </div>
+        <div class="whoami"><span id="me-name">—</span><span class="badge">Overseer</span></div>
+      </div>
+      <div class="rule"></div>
+
+      <section>
+        <div class="sechead">
+          <h2>Waiting at the gate</h2>
+          <span class="count" id="pcount">—</span>
+          <span class="live"><span class="dot"></span>Live</span>
+        </div>
+        <div class="card" id="gate"></div>
+      </section>
+
+      <section>
+        <div class="sechead"><h2>Members</h2><span class="count" id="mcount">—</span></div>
+        <div class="card scroll">
+          <table>
+            <thead><tr>
+              <th>Member</th><th class="email">Email</th><th class="colseen">Last seen</th>
+              <th>Role</th><th>Character</th><th>Grants</th><th></th>
+            </tr></thead>
+            <tbody id="mbody"></tbody>
+          </table>
+        </div>
+        <p class="foot">A new login lands in <b>Waiting at the gate</b> with no powers until you approve it. <b>Grants</b> hand one extra power to a trusted player (e.g. <b>Combat tokens</b>) without making them staff — and do nothing until a feature honors them. Your own Overseer role is locked so you can't shut yourself out.</p>
+      </section>
+    </div>
+
+    <div id="gateblock" class="state" style="display:none">This page is for the Overseer only.</div>
+    <div id="loading" class="state">Summoning the roster…</div>
+  </div>
+
+  <div class="pop" id="pop">
+    <div class="ph">Add a grant</div>
+    <button data-g="Combat tokens">Combat tokens</button>
+    <button data-g="Manage scenes">Manage scenes</button>
+  </div>
+  <div class="toast" id="toast"></div>
+
+  <div id="nav-root-after"></div>
+  <script src="nav.js"></script>
+  <script>
+  (function(){
+    "use strict";
+    const MEMBERS_URL = '/.netlify/functions/members';
+    const CHARS = [
+      { key:'cosmere',  name:'Cosmere Runestar' },
+      { key:'caim',     name:'Caim' },
+      { key:'liadan',   name:'Líadan Luchóg' },
+      { key:'vesperian',name:'Vesperian Vale' },
+    ];
+    const DB_TO_LABEL = { overseer:'Overseer', dm:'Narrator', player:'Player', pending:'Pending' };
+    const LABEL_TO_DB = { Overseer:'overseer', Narrator:'dm', Player:'player', Pending:'pending' };
+
+    let SB = null, ME = null, ROWS = [], popTarget = null;
+
+    const $ = (id) => document.getElementById(id);
+    const esc = (s) => String(s==null?'':s).replace(/[&<>"]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+    const ago = (iso) => {
+      if(!iso) return 'never';
+      const s = Math.max(0,(Date.now()-new Date(iso).getTime())/1000);
+      if(s<90) return 'now';
+      const m=s/60; if(m<90) return Math.round(m)+' min ago';
+      const h=m/60; if(h<36) return Math.round(h)+' h ago';
+      return Math.round(h/24)+' d ago';
+    };
+    const initial = (r) => (r.username || r.email || '?').trim().charAt(0).toUpperCase();
+    const avaClass = (role) => role==='overseer'?'ava r-over':role==='dm'?'ava r-dm':role==='pending'?'ava r-pend':'ava r-play';
+
+    let toastT=null;
+    function toast(msg){ const t=$('toast'); t.textContent=msg; t.classList.add('show'); clearTimeout(toastT); toastT=setTimeout(()=>t.classList.remove('show'),4000); }
+    function flash(el, ok, txt){ if(!el) return; el.textContent = txt || (ok?'Saved':'Failed'); el.className='save show '+(ok?'ok':'err'); setTimeout(()=>el.classList.remove('show'), ok?1100:2600); }
+
+    function whenReady(cb){
+      if(window.__tok && window.__tok.sb){ cb(); return; }
+      document.addEventListener('nav:ready', function once(){ document.removeEventListener('nav:ready', once); cb(); });
+    }
+
+    async function loadMembers(){
+      const tok = window.__tok?.session?.access_token;
+      if(!tok) throw new Error('Not authenticated');
+      const res = await fetch(MEMBERS_URL, { headers:{ Authorization:'Bearer '+tok } });
+      const data = await res.json();
+      if(!res.ok) throw new Error(data.error || ('HTTP '+res.status));
+      ROWS = data.members || [];
+      render();
+    }
+
+    function roleSelect(r){
+      const opts = ['Overseer','Narrator','Player'];
+      const cur = DB_TO_LABEL[r.role] || 'Player';
+      const isSelf = r.userId === ME.userId;
+      const o = opts.map(l => `<option ${l===cur?'selected':''}>${l}</option>`).join('');
+      const lock = isSelf ? 'disabled title="Locked: this is your own account"' : '';
+      return `<select class="field ${r.role==='overseer'?'role-over':''}" data-act="role" data-uid="${r.userId}" ${lock}>${o}</select>`;
+    }
+    function charSelect(r){
+      const none = `<option value="" ${!r.characterKey?'selected':''}>— none —</option>`;
+      const o = CHARS.map(c => `<option value="${c.key}" ${r.characterKey===c.key?'selected':''}>${esc(c.name)}</option>`).join('');
+      return `<select class="field" data-act="char" data-uid="${r.userId}">${none}${o}</select>`;
+    }
+    function grantsCell(r){
+      const chips = (r.grants||[]).map(g => `<span class="grant">${esc(g)} <span class="x" data-act="rmgrant" data-uid="${r.userId}" data-g="${esc(g)}">×</span></span>`).join('');
+      return `<div class="grants">${chips}<button class="addg" data-act="addgrant" data-uid="${r.userId}" title="Add a grant">＋</button></div>`;
+    }
+
+    function render(){
+      const pending = ROWS.filter(r => r.pending);
+      const members = ROWS.filter(r => !r.pending);
+
+      // gate / pending queue
+      const gate = $('gate');
+      $('pcount').textContent = pending.length ? (pending.length+' waiting') : 'none';
+      if(!pending.length){
+        gate.innerHTML = '<div class="gate-empty">No one waiting. New logins will appear here the moment they arrive.</div>';
+      } else {
+        gate.innerHTML = pending.map(r => {
+          const named = r.username || (r.email ? r.email.split('@')[0] : 'Someone');
+          const isBare = !r.role; // authenticated but never provisioned (no row to dismiss)
+          return `<div class="prow">
+            <div class="who">
+              <div class="${avaClass('pending')}">${esc(initial(r))}</div>
+              <div style="min-width:0">
+                <div class="nm">${esc(named)}</div>
+                <div class="meta">${esc(r.email||'—')} · ${esc(ago(r.lastSignInAt))}${isBare?' · no request yet':''}</div>
+              </div>
+            </div>
+            <div class="actions">
+              <span class="approve">
+                <button data-act="approve" data-uid="${r.userId}">Approve as</button>
+                <select data-act="approverole" data-uid="${r.userId}"><option>Player</option><option>Narrator</option><option>Overseer</option></select>
+              </span>
+              ${isBare ? '' : `<button class="ghostbtn" data-act="dismiss" data-uid="${r.userId}">Dismiss</button>`}
+            </div>
+          </div>`;
+        }).join('');
+      }
+
+      // members table
+      $('mcount').textContent = members.length + (members.length===1?' member':' members');
+      $('mbody').innerHTML = members.map(r => `<tr data-uid="${r.userId}">
+        <td><div class="mcell"><div class="${avaClass(r.role)}">${esc(initial(r))}</div>
+          <input class="uname" data-act="uname" data-uid="${r.userId}" value="${esc(r.username||'')}" placeholder="${esc(r.email?r.email.split('@')[0]:'name')}"></div></td>
+        <td class="email">${esc(r.email||'—')}</td>
+        <td class="colseen"><span class="seen ${ago(r.lastSignInAt)==='now'?'now':''}">${esc(ago(r.lastSignInAt))}</span></td>
+        <td>${roleSelect(r)}</td>
+        <td>${r.role==='overseer'&&r.userId===ME.userId ? charSelect(r) : (r.role==='dm'?charSelect(r):charSelect(r))}</td>
+        <td>${grantsCell(r)}</td>
+        <td><span class="save" data-save="${r.userId}"></span></td>
+      </tr>`).join('');
+    }
+
+    function rowFor(uid){ return ROWS.find(r => r.userId===uid); }
+    function saveEl(uid){ return document.querySelector(`[data-save="${uid}"]`) || null; }
+
+    // full-replace write: send the row's current values plus the changed one
+    async function commit(uid, patch, saveTarget){
+      const r = rowFor(uid); if(!r) return;
+      const role = patch.role ?? r.role ?? 'player';
+      const characterKey = ('characterKey' in patch) ? patch.characterKey : (r.characterKey ?? null);
+      const grants = patch.grants ?? r.grants ?? [];
+      const username = ('username' in patch) ? patch.username : (r.username ?? null);
+      const tgt = saveTarget || saveEl(uid);
+      if(tgt){ tgt.textContent='Saving…'; tgt.className='save show'; }
+      try{
+        const { error } = await SB.rpc('set_membership', {
+          p_user_id: uid, p_role: role, p_character_key: characterKey || null,
+          p_grants: grants, p_username: username,
+        });
+        if(error) throw error;
+        await loadMembers();
+        flash(saveEl(uid), true);
+      }catch(e){
+        const msg = (e && (e.message||e.error_description)) || 'Write failed';
+        toast(msg);
+        flash(tgt, false);
+        await loadMembers(); // revert UI to server truth
+      }
+    }
+
+    async function dismiss(uid){
+      try{
+        const { error } = await SB.from('profiles').delete().eq('user_id', uid);
+        if(error) throw error;
+        await loadMembers();
+      }catch(e){ toast((e&&e.message)||'Could not dismiss'); }
+    }
+
+    // ── events ──
+    document.addEventListener('change', (e) => {
+      const t = e.target, uid = t.getAttribute && t.getAttribute('data-uid');
+      const act = t.getAttribute && t.getAttribute('data-act');
+      if(!uid || !act) return;
+      if(act==='role') commit(uid, { role: LABEL_TO_DB[t.value] || 'player' });
+      if(act==='char') commit(uid, { characterKey: t.value || null });
+    });
+    document.addEventListener('blur', (e) => {
+      const t = e.target;
+      if(t.getAttribute && t.getAttribute('data-act')==='uname'){
+        const uid = t.getAttribute('data-uid'); const r = rowFor(uid);
+        const v = t.value.trim();
+        if(r && (r.username||'') !== v) commit(uid, { username: v || null });
+      }
+    }, true);
+    document.addEventListener('click', (e) => {
+      const t = e.target;
+      const act = t.getAttribute && t.getAttribute('data-act');
+      const uid = t.getAttribute && t.getAttribute('data-uid');
+
+      if(act==='approve'){
+        const sel = document.querySelector(`select[data-act="approverole"][data-uid="${uid}"]`);
+        commit(uid, { role: LABEL_TO_DB[sel ? sel.value : 'Player'] || 'player' });
+        return;
+      }
+      if(act==='dismiss'){ dismiss(uid); return; }
+      if(act==='rmgrant'){
+        const r = rowFor(uid); if(!r) return;
+        commit(uid, { grants: (r.grants||[]).filter(g => g !== t.getAttribute('data-g')) });
+        return;
+      }
+      if(act==='addgrant'){
+        popTarget = uid;
+        const rect = t.getBoundingClientRect();
+        const pop = $('pop');
+        pop.style.left = Math.min(rect.left, window.innerWidth-200)+'px';
+        pop.style.top  = (rect.bottom+6)+'px';
+        pop.classList.add('open');
+        e.stopPropagation();
+        return;
+      }
+      const g = t.getAttribute && t.getAttribute('data-g');
+      if(g && t.closest('#pop')){
+        const r = rowFor(popTarget); if(r){
+          const next = Array.from(new Set([...(r.grants||[]), g]));
+          commit(popTarget, { grants: next });
+        }
+        $('pop').classList.remove('open');
+        return;
+      }
+      if(!t.closest('#pop')) $('pop').classList.remove('open');
+    });
+
+    // ── boot ──
+    whenReady(async () => {
+      SB = window.__tok.sb;
+      try{ ME = await window.__tok.ready; }catch(_){ ME = null; }
+      $('loading').style.display='none';
+
+      if(!ME || ME.role !== 'overseer'){
+        $('gateblock').style.display='block';
+        return;
+      }
+      $('me-name').textContent = ME.displayName || 'Overseer';
+      $('content').style.display='block';
+
+      try{ await loadMembers(); }
+      catch(e){
+        $('content').style.display='none';
+        const b=$('gateblock'); b.className='state err'; b.style.display='block';
+        b.textContent = 'Could not load members: '+((e&&e.message)||'unknown error');
+        return;
+      }
+
+      // live: any profiles change (a new pending arrival, a change from another
+      // overseer) re-pulls the list (debounced) so emails fill in from auth.users.
+      let deb=null;
+      SB.channel('admin-profiles')
+        .on('postgres_changes', { event:'*', schema:'public', table:'profiles' }, () => {
+          clearTimeout(deb); deb=setTimeout(() => { loadMembers().catch(()=>{}); }, 450);
+        })
+        .subscribe();
+    });
+  })();
+  </script>
+</body>
+</html>

@@ -712,11 +712,16 @@ applyTheme(getSavedTheme());
     //   window.__tok.session : the raw Supabase session (token + user)
     //   window.__tok.ready   : promise → profile object, or null. Never rejects.
     //   window.__tok.profile : undefined until ready resolves, then object|null
-    // profile shape: { id, userId, email, role, characterKey }
-    //   role         : 'overseer' | 'dm' | 'player'
+    // profile shape: { id, userId, email, role, characterKey, username, grants, displayName }
+    //   role         : 'overseer' | 'dm' | 'player' | 'pending'
     //   characterKey : 'cosmere' | 'caim' | 'liadan' | 'vesperian' | null
-    // A null profile means authenticated-but-no-profiles-row (unprovisioned) OR
-    // the lookup failed; 4a does not distinguish these — consumers decide in 4b.
+    //   username     : the account's own name (overseer-assigned), or null
+    //   grants       : string[] of opt-in extra powers (inert until a feature checks one)
+    //   displayName  : username || email local-part — what to SHOW for this account
+    // A null profile means authenticated-but-no-profiles-row (unprovisioned/guest)
+    // OR the lookup failed; 4a does not distinguish these — consumers decide in 4b.
+    // role 'pending' is a self-provisioned account awaiting overseer approval: it
+    // has a profile (so it shows a name) but is NOT a member (is_member() = false).
     window.__tok = window.__tok || {};
     window.__tok.session = data.session;
     // Expose the already-authenticated client so other pages (e.g. combat.html)
@@ -732,11 +737,19 @@ applyTheme(getSavedTheme());
       try {
         const { data: row } = await sb
           .from('profiles')
-          .select('id, role, character_key')
+          .select('id, role, character_key, username, grants')
           .eq('user_id', userId)
           .maybeSingle();
         if (row) {
-          profile = { id: row.id, userId, email, role: row.role, characterKey: row.character_key };
+          const username = row.username || null;
+          profile = {
+            id: row.id, userId, email,
+            role: row.role,
+            characterKey: row.character_key,
+            username,
+            grants: row.grants || [],
+            displayName: username || (email ? email.split('@')[0] : 'Member'),
+          };
         }
       } catch (e) {
         // Session valid but the profile lookup failed. Resolve null rather than
