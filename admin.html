@@ -174,17 +174,28 @@
 
   <div id="nav-root-after"></div>
   <script src="nav.js"></script>
+  <script src="character-data.js"></script>
   <script>
   (function(){
     "use strict";
     const MEMBERS_URL = '/.netlify/functions/members';
     const INVITE_URL  = '/.netlify/functions/member-invite';
-    const CHARS = [
+    // Character list for the assignment dropdown. Sourced from the characters
+    // table (so a 5th/6th PC or NPC appears automatically once its row exists);
+    // the hardcoded four are a fallback if the load fails.
+    const CHARS_FALLBACK = [
       { key:'cosmere',  name:'Cosmere Runestar' },
       { key:'caim',     name:'Caim' },
       { key:'liadan',   name:'Líadan Luchóg' },
       { key:'vesperian',name:'Vesperian Vale' },
     ];
+    let CHARS = CHARS_FALLBACK.slice();
+    async function loadChars(){
+      try {
+        const party = await window.CharacterData.loadParty();   // [{key,name,structural,…}]
+        if (party && party.length) CHARS = party.map(c => ({ key: c.key, name: c.name || c.key }));
+      } catch(e){ console.warn('[admin] character load failed, using fallback:', (e&&e.message)||e); }
+    }
     const DB_TO_LABEL = { overseer:'Overseer', dm:'Narrator', player:'Player', pending:'Pending' };
     const LABEL_TO_DB = { Overseer:'overseer', Narrator:'dm', Player:'player', Pending:'pending' };
 
@@ -441,6 +452,7 @@
       $('me-name').textContent = ME.displayName || 'Overseer';
       $('content').style.display='block';
 
+      await loadChars();   // table-driven character dropdown (fallback baked in)
       try{ await loadMembers(); }
       catch(e){
         $('content').style.display='none';

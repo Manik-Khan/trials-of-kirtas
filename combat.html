@@ -1035,6 +1035,7 @@
 
   <script src="nav.js"></script>
   <script src="characters.js"></script>
+  <script src="character-data.js"></script>
   <script src="monster-actor.js"></script>
   <script src="battle.js"></script>
   <script src="combatants-backend.js"></script>
@@ -3296,7 +3297,8 @@
     // Saved-monsters shelf state (staff-only). SAVED = the persisted statblocks;
     // SM_FILTER = active tag filter (OR-match); SM_EDIT = id of the row whose
     // inline tag editor is open. CR is never stored — derived from the statblock.
-    let SAVED = [], SM_FILTER = new Set(), SM_EDIT = null;
+    // PARTY = party characters from the table (drives the Party shelf list).
+    let SAVED = [], SM_FILTER = new Set(), SM_EDIT = null, PARTY = [];
     function buildTokensPane() {
       const pane = dockRegister('tokens', { icon: '👥', title: 'Tokens', tab: 'Tokens', staff: true, onOpen: tokensPaneOpen });
       const wrap = document.createElement('div');
@@ -3350,16 +3352,22 @@
     function paintTokensPane() {
       if (!TRAY_UI) return;
       const onBoard = new Set(COMBS.filter(c => c.side === 'party' && c.source_key).map(c => c.source_key));
-      const keys = (typeof CHARACTERS !== 'undefined' && CHARACTERS) ? Object.keys(CHARACTERS) : [];
-      const rows = keys.map(key => {
-        const ch = CHARACTERS[key] || {};
-        const name = ch.name || key;
-        const art = PORTRAITS[key] || (typeof TOKENS !== 'undefined' && TOKENS[key]) || '';
-        const on = onBoard.has(key);
-        const initial = (name || '?').trim().charAt(0).toUpperCase();
-        return `<div class="tray-row${on ? ' on' : ''}" data-key="${key}">
-          <span class="roster-disc party">${art ? `<img src="${art}" alt="" draggable="false" onerror="this.remove()">` : initial}</span>
-          <span class="roster-name">${escapeHtml(name)}</span>
+      // Source the shelf from the characters TABLE (so a 5th/6th PC appears once
+      // its row exists); fall back to the legacy CHARACTERS map if the load is
+      // empty/failed. PORTRAITS still wins for the original four; a new PC uses
+      // its structural.portrait (board token art for new keys is battle.js's job
+      // and falls back to a letter disc until that's table-fed too).
+      const partyList = (PARTY && PARTY.length)
+        ? PARTY.map(c => ({ key: c.key, name: c.name || c.key,
+            art: PORTRAITS[c.key] || (typeof TOKENS !== 'undefined' && TOKENS[c.key]) || (c.structural && c.structural.portrait) || '' }))
+        : Object.keys((typeof CHARACTERS !== 'undefined' && CHARACTERS) || {}).map(key => ({ key, name: (CHARACTERS[key] || {}).name || key,
+            art: PORTRAITS[key] || (typeof TOKENS !== 'undefined' && TOKENS[key]) || '' }));
+      const rows = partyList.map(p => {
+        const on = onBoard.has(p.key);
+        const initial = (p.name || '?').trim().charAt(0).toUpperCase();
+        return `<div class="tray-row${on ? ' on' : ''}" data-key="${p.key}">
+          <span class="roster-disc party">${p.art ? `<img src="${p.art}" alt="" draggable="false" onerror="this.remove()">` : escapeHtml(initial)}</span>
+          <span class="roster-name">${escapeHtml(p.name)}</span>
           <span class="tray-act">${on ? '✓ On board' : '+ Add'}</span></div>`;
       }).join('');
       TRAY_UI.wrap.innerHTML =
@@ -3422,7 +3430,11 @@
     async function addPartyToken(key) {
       if (!ENC || !ENC.id) { pageToast('Open a scene first.'); return; }
       if (COMBS.some(c => c.side === 'party' && c.source_key === key)) return;  // already on board
-      const ch = (typeof CHARACTERS !== 'undefined' && CHARACTERS[key]) || {};
+      // prefer the table row (name + structural.combat.hpMax); fall back to CHARACTERS
+      const pc = (PARTY && PARTY.find(c => c.key === key)) || null;
+      const ch = pc
+        ? { name: pc.name, combat: (pc.structural && pc.structural.combat) || {} }
+        : ((typeof CHARACTERS !== 'undefined' && CHARACTERS[key]) || {});
       const hpMax = (ch.combat && Number.isFinite(ch.combat.hpMax)) ? ch.combat.hpMax : null;
       const row = {
         encounter_id: ENC.id, owner: null, name: ch.name || key, side: 'party', hidden: false,
@@ -3458,11 +3470,18 @@
       if (error) { console.warn('[saved] load failed:', error.message); return; }
       SAVED = data || [];
     }
-    // Paint from cache first (no flash), then refresh from the table and repaint
-    // so a monster another staff member saved appears. Wired to the tab onOpen.
+    // Party characters from the table (CharacterData.loadParty). On failure PARTY
+    // stays empty and paintTokensPane falls back to the legacy CHARACTERS map.
+    async function loadPartyChars() {
+      if (!IS_STAFF || !window.CharacterData) return;
+      try { PARTY = await window.CharacterData.loadParty() || []; }
+      catch (e) { console.warn('[party] load failed:', (e && e.message) || e); PARTY = []; }
+    }
+    // Paint from cache first (no flash), then refresh party + saved from the DB
+    // and repaint (picks up rows another staff member added). Wired to tab onOpen.
     function tokensPaneOpen() {
       paintTokensPane();
-      loadSavedMonsters().then(paintTokensPane);
+      Promise.all([loadPartyChars(), loadSavedMonsters()]).then(paintTokensPane);
     }
     // ★ is ADDITIVE: each press saves a fresh copy (default name = the stat
     // block's name) that you rename on the shelf. Returns true on success so the
