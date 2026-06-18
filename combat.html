@@ -3066,14 +3066,14 @@
           </div>`).join('');
         listEl.querySelectorAll('.bst-drop').forEach(btn => {
           btn.addEventListener('click', async () => {
-            if (btn.classList.contains('done')) return;
             btn.disabled = true; btn.textContent = '…';
             const ok = await dropMonster(shown[+btn.dataset.i].raw);
             if (ok) hintOnce('tok_hint_hiddendrop',
               "Dropped hidden — players can't see it until you use the token's right-click menu → Reveal to players.");
-            btn.textContent = ok ? 'Added' : 'Retry';
-            btn.classList.toggle('done', ok);
+            btn.textContent = ok ? 'Added ✓' : 'Retry';
             btn.disabled = false;
+            // re-arm so you can drop another of the same monster (Goblin ×3, etc.)
+            if (ok) setTimeout(() => { btn.textContent = 'Drop'; }, 1000);
           });
         });
       }
@@ -3091,8 +3091,13 @@
 
       async function dropMonster(m) {
         const avg = (m.hp && typeof m.hp.average === 'number') ? m.hp.average : 1;
+        // number duplicates on the board: Goblin, Goblin 2, Goblin 3 …
+        const base = m.name;
+        const re = new RegExp('^' + base.replace(/[.*+?^${}()|[\]\\]/g, '\\$&') + ' \\d+$');
+        const dupes = COMBS.filter(c => c.side === 'enemy' && (c.name === base || re.test(c.name || ''))).length;
+        const name = dupes ? `${base} ${dupes + 1}` : base;
         const insertRow = {
-          encounter_id: ENC.id, owner: null, name: m.name, side: 'enemy', hidden: true,
+          encounter_id: ENC.id, owner: null, name, side: 'enemy', hidden: true,
           hp: avg, max_hp: avg, ac: bstAC(m.ac), conditions: [], size: bstSize(m.size),
           statblock: m, x: Math.floor(META.cols / 2), y: Math.floor(META.rows / 2),
         };
