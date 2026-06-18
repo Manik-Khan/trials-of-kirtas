@@ -574,6 +574,41 @@
     .tray-row.on .tray-act { color: var(--hp-good); border-color: rgba(90,154,106,0.45); background: rgba(90,154,106,0.12); }
     .tray-row:not(.on) .roster-name { color: var(--muted); }
     .tray-hint { padding: 8px 12px 12px; font-size: 0.6rem; color: var(--muted); font-style: italic; }
+    /* ── saved-monsters shelf (sibling of the Party shelf in the Tokens pane) ── */
+    .tray-row[data-id] { cursor: default; }
+    .tray-row[data-id] .roster-name { color: var(--parchment2); }   /* not muted like un-added party rows */
+    .roster-disc { position: relative; }
+    .roster-disc .disc-art { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; }
+    .cr-grp { font-family: var(--font-title); font-size: 0.46rem; letter-spacing: 0.16em; text-transform: uppercase; color: var(--aged); padding: 7px 12px 3px; opacity: 0.85; border-top: 1px solid var(--section-border); }
+    .cr-grp:first-child { border-top: none; }
+    .tag-filter { display: flex; flex-wrap: wrap; gap: 5px; padding: 6px 12px 8px; }
+    .tchip { font-family: var(--font-title); font-size: 0.5rem; letter-spacing: 0.08em; text-transform: uppercase; cursor: pointer; color: var(--muted); border: 1px solid var(--gold-dim); border-radius: 999px; padding: 2px 8px; }
+    .tchip:hover { color: var(--gold-light); border-color: var(--gold-mid); }
+    .tchip.on { color: var(--ink-deep); background: var(--gold); border-color: var(--gold); }
+    .tray-add { flex: none; font-family: var(--font-title); font-size: 0.58rem; letter-spacing: 0.08em; text-transform: uppercase; color: var(--gold-light); border: 1px solid var(--gold-mid); border-radius: 999px; padding: 2px 9px; cursor: pointer; }
+    .tray-row.flash .tray-add { color: var(--hp-good); border-color: rgba(90,154,106,0.45); background: rgba(90,154,106,0.12); }
+    .tray-edit-btn { flex: none; cursor: pointer; background: none; border: none; color: var(--muted); font-size: 0.8rem; line-height: 1; padding: 2px 3px; }
+    .tray-edit-btn.has { color: var(--gold); }
+    .tray-edit-btn:hover { color: var(--gold-light); }
+    .tray-rm { flex: none; cursor: pointer; background: none; border: none; color: var(--muted); font-size: 0.92rem; line-height: 1; padding: 2px 4px; border-radius: 4px; opacity: 0.55; transition: opacity 0.12s, color 0.12s; }
+    .tray-row:hover .tray-rm { opacity: 1; }              /* touch-safe: visible by default, brighter on hover */
+    .tray-rm:hover { color: var(--blood); }
+    /* row editor: name field + tag editor */
+    .row-edit { padding: 6px 12px 10px; background: rgba(0,0,0,0.18); display: flex; flex-direction: column; gap: 7px; }
+    .re-label { font-family: var(--font-title); font-size: 0.44rem; letter-spacing: 0.14em; text-transform: uppercase; color: var(--muted); }
+    .re-name { background: var(--ink-deep); color: var(--parchment2); border: 1px solid var(--gold-dim); border-radius: 4px; font-family: inherit; font-size: 0.84rem; padding: 4px 7px; }
+    .re-base { font-size: 0.62rem; color: var(--muted); font-style: italic; }
+    .tagwrap { display: flex; flex-wrap: wrap; gap: 5px; align-items: center; }
+    .te-chip { font-size: 0.62rem; color: var(--parchment2); background: var(--gold-dim); border: 1px solid var(--gold-mid); border-radius: 999px; padding: 2px 6px 2px 8px; display: flex; align-items: center; gap: 4px; }
+    .te-chip b { cursor: pointer; color: var(--muted); font-weight: 400; }
+    .te-chip b:hover { color: var(--blood); }
+    .te-input { flex: 1; min-width: 90px; background: var(--ink-deep); color: var(--parchment2); border: 1px solid var(--gold-dim); border-radius: 4px; font-family: inherit; font-size: 0.74rem; padding: 3px 6px; }
+    /* bestiary ★ save-a-copy (additive) + variant count */
+    .bst-save { cursor: pointer; background: none; border: none; color: var(--muted); font-size: 0.95rem; line-height: 1; padding: 2px 4px; flex: none; display: flex; align-items: center; gap: 2px; transition: color 0.12s, transform 0.12s; }
+    .bst-save:hover { color: var(--gold-light); transform: scale(1.15); }
+    .bst-save.on { color: var(--gold-light); }
+    .bst-save.flash { color: var(--hp-good); }
+    .bst-save .ct { font-family: var(--font-title); font-size: 0.5rem; }
     /* staff "view as player" toggle (rail icon) + preview-mode UI suppression */
     .view-toggle.on { background: var(--gold); color: var(--ink-deep); border-color: var(--gold); }
     .stage.view-as-player .dock-tab.staff { display: none !important; }
@@ -3023,6 +3058,31 @@
     }
     function bstSize(sz) { return SIZE_CODE[Array.isArray(sz) ? sz[0] : sz] || 'medium'; }
 
+    // dropMonster hoisted to sibling scope (was nested in buildBestiary) so
+    // BOTH the bestiary list AND the saved-monsters shelf spawn through one path.
+    // nameOverride lets a saved variant ("Sister Garaele") spawn under its custom
+    // name while keeping the base statblock; numbering keys off the shown name.
+    async function dropMonster(m, nameOverride) {
+      const avg = (m.hp && typeof m.hp.average === 'number') ? m.hp.average : 1;
+      // number duplicates on the board: Goblin, Goblin 2, Goblin 3 …
+      const base = (nameOverride && nameOverride.trim()) || m.name;
+      const re = new RegExp('^' + base.replace(/[.*+?^${}()|[\]\\]/g, '\\$&') + ' \\d+$');
+      const dupes = COMBS.filter(c => c.side === 'enemy' && (c.name === base || re.test(c.name || ''))).length;
+      const name = dupes ? `${base} ${dupes + 1}` : base;
+      const insertRow = {
+        encounter_id: ENC.id, owner: null, name, side: 'enemy', hidden: true,
+        hp: avg, max_hp: avg, ac: bstAC(m.ac), conditions: [], size: bstSize(m.size),
+        statblock: m, x: Math.floor(META.cols / 2), y: Math.floor(META.rows / 2),
+      };
+      const { data, error } = await SB.from('combatants').insert(insertRow).select().single();
+      if (error) { console.error('[bestiary] drop failed:', error.message); return false; }
+      // Optimistic local add; the INSERT realtime echo dedupes on id — which
+      // means the realtime handler's repaints never run for our own drop, so
+      // repaint here too (roster pane + strip + HUD push all hang off this).
+      if (data && !COMBS.some(k => k.id === data.id)) { COMBS.push(data); renderTokens(); renderInitStrip(); }
+      return true;
+    }
+
     function buildBestiary() {
       const cache = {};
       let all = [], crFilter = null, srcIdx = 0;
@@ -3070,12 +3130,22 @@
           return true;
         }).sort((a, b) => a.name.localeCompare(b.name));
         if (!shown.length) { listEl.innerHTML = '<div class="bst-state">No results.</div>'; return; }
-        listEl.innerHTML = shown.map((e, i) => `
+        listEl.innerHTML = shown.map((e, i) => {
+          const n = variants(e.name);
+          return `
           <div class="bst-row">
             <span class="bst-row-name">${e.name}</span>
             <span class="bst-row-cr">CR ${bstFmtCR(e.raw.cr)}</span>
+            <button class="bst-save${n ? ' on' : ''}" data-i="${i}" title="Save a copy to the shelf">${n ? '★' : '☆'}${n > 1 ? `<span class="ct">${n}</span>` : ''}</button>
             <button class="bst-drop" data-i="${i}">Drop</button>
-          </div>`).join('');
+          </div>`;
+        }).join('');
+        listEl.querySelectorAll('.bst-save').forEach(btn => {
+          btn.addEventListener('click', async () => {
+            const ok = await saveMonsterCopy(shown[+btn.dataset.i].raw);   // additive: stamps a copy
+            if (ok) { btn.classList.add('flash'); renderList(); }          // renderList bumps the count
+          });
+        });
         listEl.querySelectorAll('.bst-drop').forEach(btn => {
           btn.addEventListener('click', async () => {
             btn.disabled = true; btn.textContent = '…';
@@ -3100,27 +3170,6 @@
           renderList();
         });
       });
-
-      async function dropMonster(m) {
-        const avg = (m.hp && typeof m.hp.average === 'number') ? m.hp.average : 1;
-        // number duplicates on the board: Goblin, Goblin 2, Goblin 3 …
-        const base = m.name;
-        const re = new RegExp('^' + base.replace(/[.*+?^${}()|[\]\\]/g, '\\$&') + ' \\d+$');
-        const dupes = COMBS.filter(c => c.side === 'enemy' && (c.name === base || re.test(c.name || ''))).length;
-        const name = dupes ? `${base} ${dupes + 1}` : base;
-        const insertRow = {
-          encounter_id: ENC.id, owner: null, name, side: 'enemy', hidden: true,
-          hp: avg, max_hp: avg, ac: bstAC(m.ac), conditions: [], size: bstSize(m.size),
-          statblock: m, x: Math.floor(META.cols / 2), y: Math.floor(META.rows / 2),
-        };
-        const { data, error } = await SB.from('combatants').insert(insertRow).select().single();
-        if (error) { console.error('[bestiary] drop failed:', error.message); return false; }
-        // Optimistic local add; the INSERT realtime echo dedupes on id — which
-        // means the realtime handler's repaints never run for our own drop, so
-        // repaint here too (roster pane + strip + HUD push all hang off this).
-        if (data && !COMBS.some(k => k.id === data.id)) { COMBS.push(data); renderTokens(); renderInitStrip(); }
-        return true;
-      }
     }
 
     // ── "view as player" toggle (staff only) — flips a visual-only preview:
@@ -3244,19 +3293,59 @@
     // PC removed from the board can be put back, any time, without re-seeding.
     // v1 = party characters (from CHARACTERS); the Saved-monsters shelf lands next.
     let TRAY_UI = null;
+    // Saved-monsters shelf state (staff-only). SAVED = the persisted statblocks;
+    // SM_FILTER = active tag filter (OR-match); SM_EDIT = id of the row whose
+    // inline tag editor is open. CR is never stored — derived from the statblock.
+    let SAVED = [], SM_FILTER = new Set(), SM_EDIT = null;
     function buildTokensPane() {
-      const pane = dockRegister('tokens', { icon: '👥', title: 'Tokens', tab: 'Tokens', staff: true, onOpen: paintTokensPane });
+      const pane = dockRegister('tokens', { icon: '👥', title: 'Tokens', tab: 'Tokens', staff: true, onOpen: tokensPaneOpen });
       const wrap = document.createElement('div');
       wrap.className = 'tray-wrap';
       pane.appendChild(wrap);
       TRAY_UI = { pane, wrap };
-      wrap.addEventListener('click', (e) => {
-        const row = e.target.closest('.tray-row[data-key]');
-        if (!row) return;
-        if (row.classList.contains('on')) removePartyToken(row.dataset.key);
-        else addPartyToken(row.dataset.key);
+      wrap.addEventListener('click', onTokensClick);
+      wrap.addEventListener('keydown', (e) => {
+        if (e.key !== 'Enter') return;
+        if (e.target.classList.contains('te-input')) {
+          e.preventDefault();
+          const v = e.target.value.trim().toLowerCase();
+          if (v) addTagToSaved(e.target.dataset.tagfor, v);
+          e.target.value = '';
+        } else if (e.target.classList.contains('re-name')) {
+          e.preventDefault();
+          renameSaved(e.target.dataset.namefor, e.target.value, true);   // persist + repaint, editor stays open
+        }
       });
-      paintTokensPane();
+      // commit a rename when focus leaves the name field (tabbing to tags, etc.)
+      wrap.addEventListener('focusout', (e) => {
+        if (e.target.classList && e.target.classList.contains('re-name'))
+          renameSaved(e.target.dataset.namefor, e.target.value, false);
+      });
+      tokensPaneOpen();
+    }
+    // Delegated click for the Tokens pane: party rows AND the saved-monster
+    // shelf (filter chips, in-editor tag chips, +Add / ⌗ / ×) on one listener.
+    function onTokensClick(e) {
+      const chip = e.target.closest('.tchip');            // tag filter
+      if (chip) {
+        if (chip.dataset.all) SM_FILTER.clear();
+        else { const t = chip.dataset.t; SM_FILTER.has(t) ? SM_FILTER.delete(t) : SM_FILTER.add(t); }
+        paintTokensPane(); return;
+      }
+      const rmtag = e.target.closest('[data-rmtag]');     // remove a tag (in the open editor)
+      if (rmtag) { removeTagFromSaved(rmtag.dataset.editid, rmtag.dataset.rmtag); return; }
+      const sm = e.target.closest('.tray-row[data-id]');  // saved-monster row
+      if (sm) {
+        const id = sm.dataset.id;
+        if (e.target.closest('[data-act="rm"]'))  { unsaveMonster(id); return; }
+        if (e.target.closest('[data-act="edit"]')) { SM_EDIT = (SM_EDIT === id ? null : id); paintTokensPane(); return; }
+        if (e.target.closest('.tray-add'))         { spawnSaved(id, sm); return; }
+        return;
+      }
+      const row = e.target.closest('.tray-row[data-key]');  // party row
+      if (!row) return;
+      if (row.classList.contains('on')) removePartyToken(row.dataset.key);
+      else addPartyToken(row.dataset.key);
     }
     function paintTokensPane() {
       if (!TRAY_UI) return;
@@ -3277,7 +3366,58 @@
         `<div class="roster-grp"><span class="roster-grp-l">Party</span></div>`
         + `<div class="tray-list">${rows || '<div class="roster-empty">No party characters found.</div>'}</div>`
         + `<div class="roster-grp"><span class="roster-grp-l">Saved monsters</span></div>`
-        + `<div class="tray-hint">★ Save a monster from the Bestiary to keep it here — coming next.</div>`;
+        + savedShelfHtml();
+      if (SM_EDIT) {
+        const nm = TRAY_UI.wrap.querySelector('.re-name');
+        if (nm) { nm.focus(); nm.setSelectionRange(nm.value.length, nm.value.length); }
+      }
+    }
+    // The saved-monsters shelf: a tag-filter chip row (OR-match) + CR-grouped
+    // rows. Each row: +Add (spawn via dropMonster), ⌗ (inline tag editor; the
+    // glyph lights gold when tagged), × (unsave). CR comes from the statblock.
+    function savedShelfHtml() {
+      if (!SAVED.length)
+        return `<div class="tray-hint">★ Save a monster from the Bestiary to keep it here.</div>`;
+      const tags = [...new Set(SAVED.flatMap(s => Array.isArray(s.tags) ? s.tags : []))].sort();
+      const filterHtml = tags.length
+        ? `<div class="tag-filter"><span class="tchip${SM_FILTER.size ? '' : ' on'}" data-all="1">All</span>`
+          + tags.map(t => `<span class="tchip${SM_FILTER.has(t) ? ' on' : ''}" data-t="${escapeHtml(t)}">${escapeHtml(t)}</span>`).join('')
+          + `</div>`
+        : '';
+      let list = SAVED.slice();
+      if (SM_FILTER.size) list = list.filter(s => (s.tags || []).some(t => SM_FILTER.has(t)));
+      if (!list.length) return filterHtml + `<div class="roster-empty">No saved monsters match that filter.</div>`;
+      list.sort((a, b) => bstParseCR(a.statblock && a.statblock.cr) - bstParseCR(b.statblock && b.statblock.cr)
+        || (a.name || '').localeCompare(b.name || ''));
+      let rowsHtml = '', lastCr = null;
+      list.forEach(s => {
+        const crLabel = bstFmtCR(s.statblock && s.statblock.cr);
+        if (crLabel !== lastCr) { rowsHtml += `<div class="cr-grp">CR ${escapeHtml(String(crLabel))}</div>`; lastCr = crLabel; }
+        const initial = (s.name || '?').trim().charAt(0).toUpperCase();
+        const hasTags = (s.tags || []).length > 0;
+        // token art keys on the ORIGINAL statblock name/source, so a renamed
+        // variant still shows its base's token (layered over the letter fallback).
+        const art = monsterTokenUrl({ statblock: s.statblock });
+        const disc = `${escapeHtml(initial)}${art ? `<img class="disc-art" src="${art}" alt="" draggable="false" onerror="this.remove()">` : ''}`;
+        rowsHtml += `<div class="tray-row" data-id="${s.id}">
+          <span class="roster-disc">${disc}</span>
+          <span class="roster-name">${escapeHtml(s.name || '')}</span>
+          <span class="tray-add">+ Add</span>
+          <button class="tray-edit-btn${hasTags ? ' has' : ''}" data-act="edit" title="Rename & tag">✎</button>
+          <button class="tray-rm" data-act="rm" title="Unsave">×</button></div>`;
+        if (SM_EDIT === s.id) {
+          const base = (s.statblock && s.statblock.name) || '';
+          rowsHtml += `<div class="row-edit">`
+            + `<span class="re-label">Name</span>`
+            + `<input class="re-name" value="${escapeHtml(s.name || '')}" data-namefor="${s.id}" autocomplete="off">`
+            + `<span class="re-base">stat block &amp; token art: ${escapeHtml(base)}</span>`
+            + `<span class="re-label">Tags</span>`
+            + `<div class="tagwrap">`
+            + (s.tags || []).map(t => `<span class="te-chip">${escapeHtml(t)}<b data-editid="${s.id}" data-rmtag="${escapeHtml(t)}" title="Remove tag">×</b></span>`).join('')
+            + `<input class="te-input" placeholder="add tag…" data-tagfor="${s.id}" autocomplete="off"></div></div>`;
+        }
+      });
+      return filterHtml + `<div class="tray-list">${rowsHtml}</div>`;
     }
     async function addPartyToken(key) {
       if (!ENC || !ENC.id) { pageToast('Open a scene first.'); return; }
@@ -3302,6 +3442,88 @@
       if (error) { console.error('[tray] remove failed:', error.message); pageToast('Could not remove that token'); return; }
       COMBS = COMBS.filter(k => k.id !== c.id); renderTokens(); renderInitStrip();
       paintTokensPane(); paintCombatMenu();
+    }
+
+    // ── Saved-monsters shelf data layer (staff-only; RLS enforces server-side).
+    // The shelf persists the FULL statblock plus an editable display name, so one
+    // base stat block can become several named variants ("Sister Garaele" off an
+    // Acolyte). Spawning uses the custom name; stats + token art come from the
+    // shared statblock (whose original name never changes). ───────────────────
+    function variants(baseName) {   // how many saved entries derive from this base
+      return SAVED.filter(s => s.statblock && s.statblock.name === baseName).length;
+    }
+    async function loadSavedMonsters() {
+      if (!IS_STAFF) { SAVED = []; return; }
+      const { data, error } = await SB.from('saved_monsters').select('id,name,statblock,tags').order('name');
+      if (error) { console.warn('[saved] load failed:', error.message); return; }
+      SAVED = data || [];
+    }
+    // Paint from cache first (no flash), then refresh from the table and repaint
+    // so a monster another staff member saved appears. Wired to the tab onOpen.
+    function tokensPaneOpen() {
+      paintTokensPane();
+      loadSavedMonsters().then(paintTokensPane);
+    }
+    // ★ is ADDITIVE: each press saves a fresh copy (default name = the stat
+    // block's name) that you rename on the shelf. Returns true on success so the
+    // bestiary can flash + bump its variant count.
+    async function saveMonsterCopy(statblock) {
+      if (!statblock || !statblock.name) return false;
+      const { data, error } = await SB.from('saved_monsters')
+        .insert({ name: statblock.name, statblock, tags: [] }).select().single();
+      if (error) { console.error('[saved] save failed:', error.message); pageToast('Could not save'); return false; }
+      if (data) SAVED.push(data);
+      paintTokensPane();
+      return true;
+    }
+    async function unsaveMonster(id) {
+      const { error } = await SB.from('saved_monsters').delete().eq('id', id);
+      if (error) { console.error('[saved] unsave failed:', error.message); pageToast('Could not unsave'); return; }
+      SAVED = SAVED.filter(s => s.id !== id);
+      if (SM_EDIT === id) SM_EDIT = null;
+      paintTokensPane();
+    }
+    // Persist a renamed display name (empty → fall back to the stat block's name).
+    async function renameSaved(id, name, repaint) {
+      const s = SAVED.find(x => x.id === id); if (!s) return;
+      const next = (name && name.trim()) || (s.statblock && s.statblock.name) || 'Monster';
+      if (next === s.name) { if (repaint) paintTokensPane(); return; }
+      const prev = s.name; s.name = next;          // optimistic so the row updates at once
+      if (repaint) paintTokensPane();
+      const { error } = await SB.from('saved_monsters').update({ name: next }).eq('id', id);
+      if (error) { console.error('[saved] rename failed:', error.message); pageToast('Could not rename'); s.name = prev; paintTokensPane(); }
+    }
+    // Spawn an instance onto the board under the variant's custom name — same
+    // path as the bestiary Drop (numbering comes free). A scene must be open.
+    async function spawnSaved(id, rowEl) {
+      const s = SAVED.find(x => x.id === id);
+      if (!s || !s.statblock) return;
+      if (!ENC || !ENC.id) { pageToast('Open a scene first.'); return; }
+      const ok = await dropMonster(s.statblock, s.name);
+      const add = rowEl && rowEl.querySelector('.tray-add');
+      if (add) {
+        rowEl.classList.toggle('flash', ok);
+        add.textContent = ok ? 'Added ✓' : 'Retry';
+        setTimeout(() => { rowEl.classList.remove('flash'); const a = rowEl.querySelector('.tray-add'); if (a) a.textContent = '+ Add'; }, 900);
+      }
+    }
+    async function persistTags(id, tags) {
+      const { error } = await SB.from('saved_monsters').update({ tags }).eq('id', id);
+      if (error) { console.error('[saved] tag write failed:', error.message); pageToast('Could not save tags'); return false; }
+      const s = SAVED.find(x => x.id === id); if (s) s.tags = tags;
+      return true;
+    }
+    async function addTagToSaved(id, tag) {
+      const s = SAVED.find(x => x.id === id); if (!s) return;
+      const tags = Array.isArray(s.tags) ? s.tags.slice() : [];
+      if (tags.includes(tag)) return;
+      tags.push(tag);
+      if (await persistTags(id, tags)) paintTokensPane();
+    }
+    async function removeTagFromSaved(id, tag) {
+      const s = SAVED.find(x => x.id === id); if (!s) return;
+      const tags = (s.tags || []).filter(t => t !== tag);
+      if (await persistTags(id, tags)) paintTokensPane();
     }
 
     // ── shared feed (Phase 1) — realtime game log. One Supabase table, three
