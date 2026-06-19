@@ -1,0 +1,109 @@
+/* appearance.css
+   ---------------------------------------------------------------------------
+   Styling for the Appearance settings pane rendered by buildAppearancePanel()
+   in appearance.js. Matches the mock's "Appearance" studio panel.
+
+   USAGE — add class="tok-appearance" to the element you pass as `mount`:
+
+       <div id="apMount" class="tok-appearance"></div>
+       buildAppearancePanel(document.getElementById('apMount'), { supabase, uid });
+
+   Add tok-appearance--float as well to pin it top-right like the mock.
+   Retheme by overriding the --ap-* custom properties below (e.g. set --ap-w
+   wider, or repoint the palette to your theme.css tokens).
+   --------------------------------------------------------------------------- */
+
+.tok-appearance{
+  /* palette — mirrors the sheet's tokens; override freely */
+  --ap-ground:#182826;
+  --ap-cream:#ece2cd;
+  --ap-cream-dim:#c2b99f;
+  --ap-cream-fnt:#8d8675;
+  --ap-gold:#c79a4a;
+  --ap-gold-br:#e7c279;
+  --ap-frame:rgba(199,154,74,.34);
+  --ap-hair:rgba(236,226,205,.13);
+  --ap-w:214px;
+
+  width:var(--ap-w);
+  max-height:calc(100vh - 28px);
+  overflow-y:auto;
+  padding:11px 12px 12px;
+  color:var(--ap-cream);
+  background:rgba(10,18,16,.86);
+  -webkit-backdrop-filter:blur(6px);
+  backdrop-filter:blur(6px);
+  border:1px solid var(--ap-frame);
+  box-shadow:0 16px 40px -20px #000;
+}
+.tok-appearance,
+.tok-appearance *{ box-sizing:border-box; }
+
+/* optional: pin top-right exactly like the mock */
+.tok-appearance--float{ position:fixed; top:14px; right:14px; z-index:200; }
+
+/* header */
+.tok-appearance .tok-ap-h{
+  font-family:"Oswald",sans-serif; font-weight:600; font-size:10.5px;
+  letter-spacing:.16em; text-transform:uppercase; color:var(--ap-gold-br);
+  margin-bottom:9px; padding-bottom:6px; border-bottom:1px solid var(--ap-hair);
+}
+
+/* section labels (Background / Geometry shape / Color / Texture / Geometry / Lens) */
+.tok-appearance .tok-ap-sec{
+  font-family:"Oswald",sans-serif; font-weight:500; font-size:9.5px;
+  letter-spacing:.14em; text-transform:uppercase; color:var(--ap-cream-fnt);
+  margin:2px 0 6px;
+}
+
+/* background swatch grid */
+.tok-appearance .tok-ap-pick{
+  display:grid; grid-template-columns:repeat(3,1fr); gap:6px; margin-bottom:12px;
+}
+.tok-appearance .tok-ap-sw{
+  height:34px; padding:0; cursor:pointer;
+  border:1.5px solid var(--ap-frame);
+  background-size:cover; background-position:center; background-repeat:no-repeat;
+}
+.tok-appearance .tok-ap-sw.on{
+  border-color:var(--ap-gold-br); box-shadow:0 0 0 1px var(--ap-gold-br);
+}
+
+/* shape dropdown */
+.tok-appearance .tok-ap-sel{
+  display:block; width:100%; margin-bottom:9px; padding:5px 6px;
+  font-family:"Oswald",sans-serif; font-size:11px; letter-spacing:.04em;
+  color:var(--ap-cream); background:rgba(8,16,15,.92);
+  border:1px solid var(--ap-frame);
+}
+
+/* slider rows: label text + value span (row 1), range spans full width (row 2) */
+.tok-appearance .tok-ap-row{
+  display:grid; grid-template-columns:1fr auto; align-items:center; gap:1px 8px;
+  margin-bottom:9px;
+  font-family:"Oswald",sans-serif; font-size:10px; letter-spacing:.05em;
+  text-transform:uppercase; color:var(--ap-cream-dim);
+}
+.tok-appearance .tok-ap-row span{ justify-self:end; font-weight:600; color:var(--ap-cream); }
+.tok-appearance .tok-ap-row input[type=range]{
+  grid-column:1 / -1; width:100%; height:16px; margin:3px 0 0;
+  accent-color:var(--ap-gold-br);
+}
+
+/* save / reset */
+.tok-appearance .tok-ap-btns{ display:grid; grid-template-columns:1fr 1fr; gap:7px; margin-top:3px; }
+.tok-appearance .tok-ap-btns button{
+  width:100%; padding:6px; cursor:pointer;
+  font-family:"Oswald",sans-serif; font-size:10px; letter-spacing:.14em; text-transform:uppercase;
+  color:var(--ap-cream-dim); background:transparent; border:1px solid var(--ap-frame);
+}
+.tok-appearance .tok-ap-btns button:hover{ color:var(--ap-cream); border-color:var(--ap-gold-br); }
+.tok-appearance .tok-ap-btns button.tok-ap-primary{
+  color:var(--ap-ground); background:var(--ap-gold-br); border-color:var(--ap-gold-br); font-weight:600;
+}
+.tok-appearance .tok-ap-btns button.tok-ap-primary:hover{
+  color:var(--ap-ground); background:var(--ap-gold); border-color:var(--ap-gold);
+}
+.tok-appearance .tok-ap-btns button.tok-ap-primary.tok-ap-saved{
+  color:var(--ap-ground); background:#55c4c0; border-color:#55c4c0;
+}
