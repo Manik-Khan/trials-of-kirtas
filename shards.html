@@ -398,8 +398,26 @@ var STEPS = [
 
 // ── class / caster helpers (caster + prepared come from the snapshot) ──────────
 function chosenClass(){ return DATA.classes.find(function(c){ return draft.cls && c.n === draft.cls.n; }) || null; }
-function isCaster(c){ return !!c && !!c.caster; }
-function casterMode(c){ return isCaster(c) ? (c.prepared ? 'prepared' : 'known') : null; }
+// The two 2014 subclasses that cast even though their base class doesn't. The data +
+// engine layer is authoritative (it reads casterProgression off the live subclass JSON);
+// this small map is the synchronous mirror the step-gate, caster tag, and review summary
+// read. Level-gated to the subclass-unlock level, matching the engine's subclass gate.
+var SUBCLASS_CASTERS = {
+  'Eldritch Knight':  { progression:'1/3', prepared:false },
+  'Arcane Trickster': { progression:'1/3', prepared:false },
+};
+function subclassCaster(){
+  var c = chosenClass();
+  if (!c || !draft.subclass) return null;
+  if (c.subAt && draft.level < c.subAt) return null;   // subclass not unlocked yet
+  return SUBCLASS_CASTERS[draft.subclass.n] || null;
+}
+function casterProgression(c){ if (c && c.caster) return c.caster; var s = subclassCaster(); return s ? s.progression : null; }
+function isCaster(c){ return !!casterProgression(c); }
+function casterMode(c){
+  if (c && c.caster) return c.prepared ? 'prepared' : 'known';
+  var s = subclassCaster(); return s ? (s.prepared ? 'prepared' : 'known') : null;
+}
 function spellsActive(){ return isCaster(chosenClass()); }
 function activeSteps(){ return STEPS.filter(function(s){ return s.id === 'spells' ? spellsActive() : true; }); }
 
@@ -575,7 +593,7 @@ function abilEl(k, v){ var m = Math.floor((v - 10) / 2); return '<div class="abi
 function casterTagHTML(c){
   if (!isCaster(c)) return '<div class="castertag"><span class="pill none">non-caster</span>No spellcasting — the Spells step folds out of the flow.</div>';
   var mode = casterMode(c);
-  return '<div class="castertag"><span class="pill ' + mode + '">' + mode + '</span>The Spells step is active and runs in ' + mode + ' mode (' + c.caster + ' progression).</div>';
+  return '<div class="castertag"><span class="pill ' + mode + '">' + mode + '</span>The Spells step is active and runs in ' + mode + ' mode (' + casterProgression(c) + ' progression).</div>';
 }
 var SKILLS = ['Acrobatics','Animal Handling','Arcana','Athletics','Deception','History','Insight','Intimidation','Investigation','Medicine','Nature','Perception','Performance','Persuasion','Religion','Sleight of Hand','Stealth','Survival'];
 function customControlsHTML(){
