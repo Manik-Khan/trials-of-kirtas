@@ -182,6 +182,17 @@
   .chip.skill.dim{opacity:.38; cursor:not-allowed}
   .chip.skill.dim:hover{background:var(--bg-card)}
   .cust-c{font-family:var(--body); font-size:13px; color:var(--ink-soft); margin-left:6px; letter-spacing:0; text-transform:none}
+  /* ── species step (P3): ability-impact pills, muted notes, tap-to-read traits ── */
+  .muted{color:var(--ink-faint)}
+  .sp-note{font-weight:400; color:var(--ink-faint); font-size:12px}
+  .sp-abrow{display:flex; flex-wrap:wrap; gap:8px; margin:6px 0 2px}
+  .sp-ab{font:600 13px/1.4 var(--ui); letter-spacing:.02em; background:var(--bg-sunk); border:1px solid var(--rule); border-radius:4px; padding:3px 9px}
+  .sp-ab b{color:var(--gold)}
+  .sp-ab em{font-style:normal; color:var(--ink-faint); margin-left:3px}
+  .trait-chip{cursor:pointer}
+  .trait-body{margin:8px 0 2px; padding:10px 13px; background:var(--bg-sunk); border:1px solid var(--rule); border-radius:4px}
+  .trait-text{font-family:var(--ui); font-size:13px; line-height:1.55; color:var(--ink-soft)}
+  .trait-text + .trait-text{margin-top:6px}
   .cust-p{font-size:10px; letter-spacing:.12em; background:var(--bg-sunk); color:var(--ink-faint); padding:1px 6px; border-radius:2px; margin-left:6px}
 
   /* level stepper + locked-subclass note */
@@ -420,7 +431,7 @@ var BG_FEATURES = ['Shelter of the Faithful (Acolyte)','False Identity (Charlata
 var KEY = 'soulshards.draft.v1';
 function loadDraft(){ try { var j = window.localStorage.getItem(KEY); if (j) return JSON.parse(j); } catch(e){} return null; }
 function saveDraft(){ try { window.localStorage.setItem(KEY, JSON.stringify(draft)); } catch(e){} flashDraft(); }
-var draft = loadDraft() || { stepId:'abilities', name:null, species:null, cls:null, level:1, subclass:null, bg:null, bgCustom:false,
+var draft = loadDraft() || { stepId:'abilities', name:null, species:null, subrace:null, asi:{}, size:null, originMode:'std', useFloating:false, openTrait:null, cls:null, level:1, subclass:null, bg:null, bgCustom:false,
   method:'array', abilities:{ str:15, dex:14, con:13, int:12, wis:10, cha:8 }, slots:null, armed:null, hp:{ method:'average' },
   bgSkills:[], bgTools:[], bgPack:null, bgFeature:null };
 if (draft.level == null) draft.level = 1;
@@ -432,6 +443,12 @@ if (!draft.bgSkills) draft.bgSkills = [];
 if (!draft.bgTools) draft.bgTools = [];
 if (draft.bgPack === undefined) draft.bgPack = null;
 if (draft.bgFeature === undefined) draft.bgFeature = null;
+if (!draft.asi) draft.asi = {};
+if (draft.subrace === undefined) draft.subrace = null;
+if (draft.size === undefined) draft.size = null;
+if (!draft.originMode) draft.originMode = 'std';
+if (draft.useFloating === undefined) draft.useFloating = false;
+if (draft.openTrait === undefined) draft.openTrait = null;
 ensureSlots();
 
 // ── reusable browse list: search + per-source filter + scroll select ───────────
@@ -624,11 +641,12 @@ var BODIES = {
         '<div class="pool">' + pool + '</div>';
     }
     return seg + body +
-      '<div class="ph-note">Real now — fed to the engine (<b>CON</b> sets HP, the casting ability sizes prepared spells). Array &amp; rolls are <b>assigned</b> to stats — click a value, then a stat; click a placed value to move it. Point buy uses the 27-point budget (8\u201315). P2 adds racial bonuses.</div>';
+      '<div class="ph-note">Real now — fed to the engine (<b>CON</b> sets HP, the casting ability sizes prepared spells). Array &amp; rolls are <b>assigned</b> to stats — click a value, then a stat; click a placed value to move it. Point buy uses the 27-point budget (8\u201315). These are your <b>base</b> scores; racial increases layer on at the Species step and flow through to the engine.</div>';
   },
   species: function(){
     return '<div class="subhead">Species</div><div id="bz-species"></div>' +
-      '<div class="ph-note"><b>P3</b> adds a races.json loader (race[] + subrace[], trait text via the {@tag} parser) on the same pattern as the class loader, and resolves the selected species\u2019 speed, size, and ability increases. List here is the real 2014 set; selecting is a sketch.</div>';
+      '<div id="species-out"></div>' +
+      '<div class="ph-note"><b>Species</b> resolves live from <b>races.json</b> via <b>SoulShardsData.loadRace</b> — subrace, ability increases (including the 2014 floating-origin rule), size, speed, senses, and traits. The racial increases layer onto your base scores and feed the engine. Skill / language choices and racial innate spells surface here but reconcile in P5 / P6.</div>';
   },
   class: function(){
     var c = chosenClass();
@@ -654,7 +672,7 @@ var BODIES = {
     }
     return '<div class="subhead">Class</div><div id="bz-class"></div>' + casterTagHTML(c) + lvlCtrl + sub +
       '<div id="engine-out"></div>' +
-      '<div class="ph-note"><b>P4 + P8</b> a character at level N gets exactly the level 1\u2013N grants — never future ones. The same gate is what the level-up flow walks one step at a time. (Subclass-only casters like Eldritch Knight / Arcane Trickster are a P6 refinement — the base class reads as non-caster.)</div>';
+      '<div class="ph-note"><b>P4 + P8</b> a character at level N gets exactly the level 1\u2013N grants — never future ones. The same gate is what the level-up flow walks one step at a time. (Subclass-only casters like Eldritch Knight / Arcane Trickster now resolve their casting from the chosen subclass — cantrips, spells known, and slots appear once the subclass is picked at its level.)</div>';
   },
   background: function(){
     var custom = '';
@@ -762,7 +780,12 @@ var MOUNT = {
   },
   species: function(){
     renderBrowseInto(q('#bz-species'), { key:'species', items:DATA.races, sel:draft.species,
-      onPick:function(item){ draft.species = item; saveDraft(); renderAll(); } });
+      onPick:function(item){
+        draft.species = item; draft.subrace = null; draft.asi = {}; draft.size = null;
+        draft.originMode = 'std'; draft.useFloating = false; draft.openTrait = null;
+        saveDraft(); renderAll();
+      } });
+    SpeciesUI.renderSpeciesOut();
   },
   class: function(){
     renderBrowseInto(q('#bz-class'), { key:'class', items:DATA.classes.filter(function(c){ return !excludeClass(c.n); }), sel:draft.cls,
@@ -814,9 +837,321 @@ var MOUNT = {
   },
 };
 
+
+// ── Species step (P3): resolves races.json via SoulShardsData.loadRace, renders
+// the subrace / ability-score / Tasha's-origin / size pickers + a resolved
+// readout, and exposes the racial ability delta + forge facts to the class step
+// and the forge. Reads/writes the shared `draft`; reuses the page's chip + card CSS.
+var SpeciesUI = (function () {
+  var ABN = { str:'STR', dex:'DEX', con:'CON', int:'INT', wis:'WIS', cha:'CHA' };
+  function sgn(n){ return (n >= 0 ? '+' : '') + n; }
+  var _model = null, _modelKey = null, _req = 0, _traits = [];
+
+  function chosenSubrace(model){
+    if (!model || !model.subraces.length || !draft.subrace) return null;
+    return model.subraces.find(function(s){ return s.label === draft.subrace.n; }) || null;
+  }
+  function subraceRequired(model){ return model && model.subraces.length > 0; }
+
+  // Tasha's "Customizing Your Origin": 60 of 134 races ship with no printed ability
+  // field — those assign +2/+1 or +1/+1/+1 freely. Printed-ASI races can opt in.
+  function dataGrantsASI(model){
+    if (Object.keys(model.abilityBonuses).length) return true;
+    if ((model.abilityChoices || []).length) return true;
+    return (model.subraces || []).some(function(sr){
+      return Object.keys(sr.abilityBonuses || {}).length || (sr.abilityChoices || []).length;
+    });
+  }
+  function isFloatingData(model){ return !dataGrantsASI(model); }
+  function floatingActive(model){ return isFloatingData(model) || draft.useFloating; }
+  function printedActive(model){ return !draft.useFloating && !isFloatingData(model); }
+  function originBonuses(){
+    var b = {};
+    if (draft.originMode === 'three'){
+      (draft.asi.origin3 || []).forEach(function(k){ b[k] = (b[k] || 0) + 1; });
+    } else {
+      var two = (draft.asi.origin2 || [])[0]; if (two) b[two] = (b[two] || 0) + 2;
+      var one = (draft.asi.origin1 || [])[0]; if (one) b[one] = (b[one] || 0) + 1;
+    }
+    return b;
+  }
+  function originComplete(){
+    if (draft.originMode === 'three') return (draft.asi.origin3 || []).length === 3;
+    return (draft.asi.origin2 || []).length === 1 && (draft.asi.origin1 || []).length === 1;
+  }
+  function originOpenLabel(){
+    if (originComplete()) return null;
+    if (draft.originMode === 'three') return 'assign +1 to three abilities: ' + (draft.asi.origin3 || []).length + '/3';
+    var n = ((draft.asi.origin2 || []).length ? 1 : 0) + ((draft.asi.origin1 || []).length ? 1 : 0);
+    return 'assign +2 and +1 (Tasha\u2019s origin): ' + n + '/2';
+  }
+
+  function stripTags(s){ return String(s).replace(/\{@\w+ ([^|}]+)(?:\|[^}]*)?\}/g, '$1').replace(/\{@\w+\}/g, ''); }
+  function entriesToText(entries){
+    var out = [];
+    (entries || []).forEach(function(e){
+      if (typeof e === 'string') out.push(stripTags(e));
+      else if (e && e.type === 'list' && e.items) e.items.forEach(function(it){ out.push('\u2022 ' + stripTags(typeof it === 'string' ? it : (it.entry || it.name || ''))); });
+      else if (e && e.entries) out.push(entriesToText(e.entries));
+      else if (e && e.name && e.entry) out.push(stripTags(e.name) + ': ' + stripTags(e.entry));
+    });
+    return out.filter(Boolean);
+  }
+  function traitTextHTML(t){
+    var paras = entriesToText(t.entries);
+    if (!paras.length) return '<div class="trait-text"><em>(no description text)</em></div>';
+    return paras.map(function(p){ return '<div class="trait-text">' + escHtml(p) + '</div>'; }).join('');
+  }
+
+  function pendingChoices(model){
+    var out = [];
+    (model.abilityChoices || []).forEach(function(ch, i){ out.push({ key:'race'+i, ch:ch, scope:model.name }); });
+    var sr = chosenSubrace(model);
+    if (sr) (sr.abilityChoices || []).forEach(function(ch, i){ out.push({ key:'sub'+i, ch:ch, scope:sr.label }); });
+    return out;
+  }
+  function choiceComplete(pc){ return (draft.asi[pc.key] || []).length >= (pc.ch.kind === 'count' ? pc.ch.count : 1); }
+
+  function combinedBonuses(model){
+    var b = {}; var add = function(k, v){ b[k] = (b[k] || 0) + v; };
+    if (printedActive(model)){
+      Object.keys(model.abilityBonuses).forEach(function(k){ add(k, model.abilityBonuses[k]); });
+      var sr = chosenSubrace(model);
+      if (sr) Object.keys(sr.abilityBonuses).forEach(function(k){ add(k, sr.abilityBonuses[k]); });
+      pendingChoices(model).forEach(function(pc){ (draft.asi[pc.key] || []).forEach(function(k){ add(k, pc.ch.kind === 'amount' ? pc.ch.amount : 1); }); });
+    }
+    if (floatingActive(model)){ var ob = originBonuses(); Object.keys(ob).forEach(function(k){ add(k, ob[k]); }); }
+    return b;
+  }
+  function openItems(model){
+    var open = [];
+    if (subraceRequired(model) && !draft.subrace) open.push('choose a ' + (model.lineage ? 'lineage option' : 'subrace'));
+    if (model.sizeOptions && !draft.size) open.push('choose a size (' + model.sizeOptions.join(' or ') + ')');
+    if (printedActive(model)){
+      pendingChoices(model).forEach(function(pc){
+        if (!choiceComplete(pc)){
+          var need = pc.ch.kind === 'count' ? pc.ch.count : 1;
+          open.push('ability choice (' + pc.scope + '): ' + (draft.asi[pc.key] || []).length + '/' + need + ' chosen');
+        }
+      });
+    }
+    if (floatingActive(model)){ var ol = originOpenLabel(); if (ol) open.push(ol); }
+    return open;
+  }
+
+  function chipRow(items, opts){
+    return '<div class="chips">' + items.map(function(it){
+      return '<span class="chip skill' + (it.on ? ' sel' : '') + (it.dim ? ' dim' : '') + '" data-' + opts.attr + '="' + escHtml(it.key) + '">' + escHtml(it.label) + '</span>';
+    }).join('') + '</div>';
+  }
+  function originBlockHTML(model){
+    var html = '';
+    var why = isFloatingData(model)
+      ? 'This species uses modern floating ability bonuses (no fixed increases are printed).'
+      : 'Custom origin (Tasha\u2019s): you\u2019re reassigning this species\u2019 increases.';
+    html += '<div class="subhead" style="margin-top:14px">Ability Score Increase <span class="sp-note">' + escHtml(why) + '</span></div>';
+    html += chipRow([
+      { label:'+2 / +1', key:'std', on: draft.originMode !== 'three', dim:false },
+      { label:'+1 / +1 / +1', key:'three', on: draft.originMode === 'three', dim:false },
+    ], { attr:'omode' });
+    if (draft.originMode === 'three'){
+      var s3 = draft.asi.origin3 || [];
+      html += '<div class="subhead" style="margin-top:10px">+1 to three different <span class="cust-c">' + s3.length + '/3</span></div>';
+      html += chipRow(ABILS.map(function(k){ return { label: ABN[k], key: 'origin3:' + k, on: s3.indexOf(k) !== -1, dim: s3.length >= 3 && s3.indexOf(k) === -1 }; }), { attr:'asi' });
+    } else {
+      var two = (draft.asi.origin2 || [])[0], one = (draft.asi.origin1 || [])[0];
+      html += '<div class="subhead" style="margin-top:10px">+2 to one <span class="cust-c">' + (two ? ABN[two] : 'choose') + '</span></div>';
+      html += chipRow(ABILS.map(function(k){ return { label: ABN[k], key: 'origin2:' + k, on: two === k, dim: one === k }; }), { attr:'asi' });
+      html += '<div class="subhead" style="margin-top:10px">+1 to a different one <span class="cust-c">' + (one ? ABN[one] : 'choose') + '</span></div>';
+      html += chipRow(ABILS.map(function(k){ return { label: ABN[k], key: 'origin1:' + k, on: one === k, dim: two === k }; }), { attr:'asi' });
+    }
+    return html;
+  }
+  function abilitiesImpactHTML(model){
+    var b = combinedBonuses(model);
+    if (!Object.keys(b).some(function(k){ return b[k]; })) return '<div class="eng-line"><b>Ability increases</b> none yet</div>';
+    var pills = ABILS.filter(function(k){ return b[k]; }).map(function(k){
+      var base = (draft.abilities[k] != null ? draft.abilities[k] : 10), fin = base + b[k];
+      return '<span class="sp-ab">' + ABN[k] + ' ' + base + '\u2192<b>' + fin + '</b> <em>' + sgn(b[k]) + '</em></span>';
+    }).join('');
+    return '<div class="eng-line"><b>Ability increases</b> <span class="sp-note">(layered onto your assigned scores — feeds the engine: CON\u2192HP, casting mod\u2192prepared)</span></div><div class="sp-abrow">' + pills + '</div>';
+  }
+  function openMarkerHTML(model){
+    var open = openItems(model);
+    if (!open.length) return '<div class="eng-line eng-pend"><b>Resolved</b> nothing left to choose for species</div>';
+    return '<div class="eng-line eng-pend"><b>Still to choose</b> ' + escHtml(open.join('; ')) + '</div>';
+  }
+  function speciesCardHTML(model){
+    var html = '';
+    if (model.subraces.length){
+      var srLabel = model.lineage ? 'Lineage' : 'Subrace';
+      var need = subraceRequired(model) && !draft.subrace;
+      html += '<div class="subhead" style="margin-top:14px">' + srLabel + (need ? ' <span class="cust-c">required</span>' : '') + '</div>';
+      html += chipRow(model.subraces.map(function(s){ return { label: s.label, key: s.label, on: draft.subrace && draft.subrace.n === s.label, dim:false }; }), { attr:'subrace' });
+    }
+    if (model.sizeOptions){
+      html += '<div class="subhead" style="margin-top:14px">Size <span class="cust-c">' + (draft.size || 'choose') + '</span></div>';
+      html += chipRow(model.sizeOptions.map(function(s){ return { label: s, key: s, on: draft.size === s, dim:false }; }), { attr:'size' });
+    }
+    if (printedActive(model)){
+      pendingChoices(model).forEach(function(pc){
+        var sel = draft.asi[pc.key] || [];
+        var need = pc.ch.kind === 'count' ? pc.ch.count : 1;
+        var verb = pc.ch.kind === 'amount'
+          ? ('Ability Score Increase — ' + sgn(pc.ch.amount) + ' to one (' + pc.scope + ')')
+          : ('Ability Score Increase — ' + sgn(1) + ' to ' + need + ' different (' + pc.scope + ')');
+        html += '<div class="subhead" style="margin-top:14px">' + verb + ' <span class="cust-c">' + sel.length + '/' + need + '</span></div>';
+        html += chipRow(pc.ch.from.map(function(k){ return { label: ABN[k], key: pc.key + ':' + k, on: sel.indexOf(k) !== -1, dim: sel.length >= need && sel.indexOf(k) === -1 }; }), { attr:'asi' });
+      });
+    }
+    if (dataGrantsASI(model)){
+      html += '<div class="subhead" style="margin-top:14px">Origin <span class="sp-note">optional — Tasha\u2019s custom origin reassigns the printed increases</span></div>';
+      html += chipRow([
+        { label:'Printed increases', key:'printed', on: !draft.useFloating, dim:false },
+        { label:'Custom origin (Tasha\u2019s)', key:'custom', on: draft.useFloating, dim:false },
+      ], { attr:'ufloat' });
+    }
+    if (floatingActive(model)) html += originBlockHTML(model);
+
+    var sz = draft.size || model.size || (model.sizeOptions ? model.sizeOptions.join('/') : '\u2014');
+    var senses = [];
+    if (model.darkvision) senses.push('darkvision ' + model.darkvision + ' ft.');
+    var sr2 = chosenSubrace(model);
+    if (sr2 && sr2.darkvision && (!model.darkvision || sr2.darkvision > model.darkvision)) senses = ['darkvision ' + sr2.darkvision + ' ft.'];
+    var defs = [];
+    (model.resist || []).concat(sr2 ? (sr2.resist || []) : []).forEach(function(d){ defs.push('resist ' + d); });
+    (model.immune || []).forEach(function(d){ defs.push('immune ' + d); });
+    var traits = (model.traits || []).slice();
+    if (sr2) traits = traits.concat(sr2.traits || []);
+    _traits = traits;
+    if (draft.openTrait != null && draft.openTrait >= traits.length) draft.openTrait = null;
+    var langs = model.languages;
+    var langLine = langs.fixed.join(', ') + (langs.anyStandard ? (langs.fixed.length ? ' + ' : '') + langs.anyStandard + ' of choice' : '');
+
+    html += '<div class="eng-card" style="margin-top:16px">' +
+      '<div class="eng-h">Resolved from races.json — live</div>' +
+      '<div class="eng-line"><b>Size</b> ' + escHtml(sz) + ' &nbsp; <b>Speed</b> ' + escHtml(model.speed.label) + '</div>' +
+      (senses.length ? '<div class="eng-line"><b>Senses</b> ' + escHtml(senses.join(' \u00b7 ')) + '</div>' : '') +
+      (defs.length ? '<div class="eng-line"><b>Defenses</b> ' + escHtml(defs.join(' \u00b7 ')) + '</div>' : '') +
+      (langLine ? '<div class="eng-line"><b>Languages</b> ' + escHtml(langLine) + '</div>' : '') +
+      '<div class="eng-line"><b>Traits</b>' + (traits.length ? ' <span class="sp-note">tap a trait to read it</span>' : '') + '</div>' +
+      '<div class="feats"><div class="feat-row">' +
+        (traits.length ? traits.map(function(t, i){ return '<span class="feat cls trait-chip' + (draft.openTrait === i ? ' sel' : '') + '" data-trait="' + i + '">' + escHtml(t.name) + '</span>'; }).join('') : '<span class="muted">none</span>') +
+      '</div></div>' +
+      (draft.openTrait != null && traits[draft.openTrait] ? '<div class="trait-body">' + traitTextHTML(traits[draft.openTrait]) + '</div>' : '') +
+      abilitiesImpactHTML(model) +
+      openMarkerHTML(model) +
+    '</div>';
+    return html;
+  }
+
+  function refresh(){ if (typeof saveDraft === 'function') saveDraft(); renderSpeciesOut(); }
+  function pruneSubChoices(asi){ var out = {}; Object.keys(asi).forEach(function(k){ if (k.indexOf('sub') !== 0) out[k] = asi[k]; }); return out; }
+
+  function renderSpeciesOut(){
+    var host = q('#species-out'); if (!host) return;
+    if (!draft.species){ host.innerHTML = '<div class="fx-empty">Pick a species above to resolve its traits, speed, size, and ability increases.</div>'; return; }
+    if (typeof SoulShardsData === 'undefined' || typeof SoulShardsData.loadRace !== 'function'){ host.innerHTML = '<div class="eng-load">Race loader not available.</div>'; return; }
+    var key = draft.species.n + '|' + draft.species.s;
+    var my = ++_req;
+    if (_modelKey === key && _model){ host.innerHTML = speciesCardHTML(_model); wireSpeciesCard(host); return; }
+    host.innerHTML = '<div class="eng-load">Resolving ' + escHtml(draft.species.n) + ' from the 2014 data\u2026</div>';
+    SoulShardsData.loadRace(draft.species.n, draft.species.s).then(function(model){
+      if (my !== _req) return;
+      _model = model; _modelKey = key;
+      host.innerHTML = speciesCardHTML(model);
+      wireSpeciesCard(host);
+    }).catch(function(err){
+      if (my !== _req) return;
+      host.innerHTML = '<div class="eng-load">Couldn\u2019t load ' + escHtml(draft.species.n) + ' (' + ((err && err.message) || 'fetch failed') + ').</div>';
+    });
+  }
+  function wireSpeciesCard(host){
+    Array.prototype.forEach.call(host.querySelectorAll('[data-subrace]'), function(el){
+      el.addEventListener('click', function(){
+        var v = el.getAttribute('data-subrace');
+        draft.subrace = (draft.subrace && draft.subrace.n === v) ? null : { n:v };
+        draft.asi = pruneSubChoices(draft.asi);
+        draft.openTrait = null;
+        refresh();
+      });
+    });
+    Array.prototype.forEach.call(host.querySelectorAll('[data-size]'), function(el){
+      el.addEventListener('click', function(){ draft.size = el.getAttribute('data-size'); refresh(); });
+    });
+    Array.prototype.forEach.call(host.querySelectorAll('[data-ufloat]'), function(el){
+      el.addEventListener('click', function(){ draft.useFloating = el.getAttribute('data-ufloat') === 'custom'; refresh(); });
+    });
+    Array.prototype.forEach.call(host.querySelectorAll('[data-omode]'), function(el){
+      el.addEventListener('click', function(){
+        draft.originMode = el.getAttribute('data-omode') === 'three' ? 'three' : 'std';
+        delete draft.asi.origin1; delete draft.asi.origin2; delete draft.asi.origin3;
+        refresh();
+      });
+    });
+    Array.prototype.forEach.call(host.querySelectorAll('[data-trait]'), function(el){
+      el.addEventListener('click', function(){
+        var i = parseInt(el.getAttribute('data-trait'), 10);
+        draft.openTrait = (draft.openTrait === i) ? null : i;
+        refresh();
+      });
+    });
+    Array.prototype.forEach.call(host.querySelectorAll('[data-asi]'), function(el){
+      el.addEventListener('click', function(){
+        var parts = el.getAttribute('data-asi').split(':'), keyName = parts[0], abil = parts[1];
+        if (keyName === 'origin3'){
+          var s3 = draft.asi.origin3 || (draft.asi.origin3 = []);
+          var j = s3.indexOf(abil);
+          if (j !== -1) s3.splice(j, 1); else if (s3.length < 3) s3.push(abil);
+          refresh(); return;
+        }
+        if (keyName === 'origin2' || keyName === 'origin1'){
+          var sibling = keyName === 'origin2' ? (draft.asi.origin1 || [])[0] : (draft.asi.origin2 || [])[0];
+          if (abil === sibling) return;
+          if ((draft.asi[keyName] || [])[0] === abil) draft.asi[keyName] = [];
+          else draft.asi[keyName] = [abil];
+          refresh(); return;
+        }
+        var pc = pendingChoices(_model).find(function(p){ return p.key === keyName; });
+        if (!pc) return;
+        var need = pc.ch.kind === 'count' ? pc.ch.count : 1;
+        var sel = draft.asi[keyName] || (draft.asi[keyName] = []);
+        var i = sel.indexOf(abil);
+        if (i !== -1) sel.splice(i, 1);
+        else if (sel.length < need) sel.push(abil);
+        else if (need === 1) { sel.length = 0; sel.push(abil); }
+        refresh();
+      });
+    });
+  }
+  function forgeFacts(model){
+    if (!model) return null;
+    var sr = chosenSubrace(model);
+    var sz = draft.size || model.size || (model.sizeOptions ? model.sizeOptions.join('/') : null);
+    var dv = model.darkvision || 0;
+    if (sr && sr.darkvision && sr.darkvision > dv) dv = sr.darkvision;
+    var traits = (model.traits || []).slice(); if (sr) traits = traits.concat(sr.traits || []);
+    return { speed: model.speed.walk, speedLabel: model.speed.label, size: sz, darkvision: dv || null, traits: traits.map(function(t){ return t.name; }), openCount: openItems(model).length, bonuses: combinedBonuses(model) };
+  }
+  return { renderSpeciesOut: renderSpeciesOut, combinedBonuses: combinedBonuses, forgeFacts: forgeFacts };
+})();
 // ── live engine readout: real SoulShardsData.loadClass + SoulShardsEngine.build ──
 function ord(n){ var s = ['th','st','nd','rd'], v = n % 100; return n + (s[(v - 20) % 10] || s[v] || s[0]); }
 var engineReq = 0;
+// Resolve the chosen species (memoized) so racial ability bonuses reach the engine.
+function raceForBuild(){
+  if (!draft.species || typeof SoulShardsData === 'undefined' || typeof SoulShardsData.loadRace !== 'function') return Promise.resolve(null);
+  return SoulShardsData.loadRace(draft.species.n, draft.species.s).catch(function(){ return null; });
+}
+// base assigned scores + racial increases — the scores the engine actually builds from.
+function effectiveAbilities(race){
+  var eff = {}; ABILS.forEach(function(k){ eff[k] = (draft.abilities[k] != null ? draft.abilities[k] : 10); });
+  if (race && typeof SpeciesUI !== 'undefined'){
+    var bon = SpeciesUI.combinedBonuses(race);
+    Object.keys(bon).forEach(function(k){ eff[k] = (eff[k] || 0) + bon[k]; });
+  }
+  return eff;
+}
 function renderEngineOut(){
   var host = q('#engine-out'); if (!host) return;
   var c = chosenClass(); if (!c){ host.innerHTML = ''; return; }
@@ -825,11 +1160,12 @@ function renderEngineOut(){
   }
   var my = ++engineReq;
   host.innerHTML = '<div class="eng-load">Resolving ' + c.n + ' grants from the 2014 data\u2026</div>';
-  SoulShardsData.loadClass(c.n).then(function(model){
+  Promise.all([SoulShardsData.loadClass(c.n), raceForBuild()]).then(function(res){
     if (my !== engineReq) return;                       // a newer request superseded this one
+    var model = res[0], race = res[1];
     var sub = (model.subclasses || []).find(function(s){ return draft.subclass && s.name === draft.subclass.n; });
     var b = SoulShardsEngine.build({
-      classModel: model, level: draft.level, abilities: draft.abilities,
+      classModel: model, level: draft.level, abilities: effectiveAbilities(race),
       subclassShortName: sub ? sub.shortName : null, hp: draft.hp
     });
     host.innerHTML = engineCardHTML(b);
@@ -891,8 +1227,9 @@ function wireEngineCard(host, b){
 var forgeReq = 0;
 function escHtml(x){ return String(x).replace(/[&<>]/g, function(ch){ return ch === '&' ? '&amp;' : ch === '<' ? '&lt;' : '&gt;'; }); }
 function abMod(s){ return Math.floor((s - 10) / 2); }
-function buildStructuralPreview(model, b){
-  var lvl = draft.level, ab = draft.abilities, c = chosenClass();
+function buildStructuralPreview(model, b, race){
+  var lvl = draft.level, ab = effectiveAbilities(race), c = chosenClass();
+  var facts = (race && typeof SpeciesUI !== 'undefined') ? SpeciesUI.forgeFacts(race) : null;
   var prof = 2 + Math.floor((lvl - 1) / 4);
   var saveSet = {};
   (b.savingThrows || []).forEach(function(s){ saveSet[String(s).toLowerCase().slice(0, 3)] = true; });
@@ -906,7 +1243,7 @@ function buildStructuralPreview(model, b){
   var combat = {
     ac: null,
     hp: b.hp.max, hpMax: b.hp.max, hpTemp: 0,
-    speed: null,
+    speed: facts ? facts.speed : null,
     initiative: abilities.dex.mod,
     hitDice: 'd' + b.hd,
     spellSaveDC: null, spellAttackBonus: null,
@@ -916,34 +1253,41 @@ function buildStructuralPreview(model, b){
     combat.spellSaveDC = 8 + prof + cm;
     combat.spellAttackBonus = prof + cm;
   }
+  var incomplete = [
+    'alignment, xp, portrait, appearance — not collected in this flow yet',
+    'combat.ac — needs equipped armor (GEAR, P5+)',
+    'passivePerception — needs resolved skill proficiencies',
+    'skills[] (18) — needs class + background skill choices',
+    'racial skill / tool / language choices — reconciled at P5',
+    'racial innate spells (additionalSpells) — surfaced at P6',
+    'background grants — skills / tools / equipment / feature — P5',
+    'feature descriptions (desc text) — P4',
+    'spell selections — cantrips / known / prepared lists — P6',
+  ];
+  if (facts && facts.openCount) incomplete.unshift('species choices incomplete — finish subrace / size / ability picks (' + facts.openCount + ' open)');
   var structural = {
     name: draft.name || 'Unnamed',
     classLabel: c ? c.n : null,
     subclass: draft.subclass ? draft.subclass.n : null,
     level: lvl,
     race: draft.species ? draft.species.n : null,
+    subrace: draft.subrace ? draft.subrace.n : null,
+    size: facts ? facts.size : null,
     background: draft.bg ? draft.bg.n : null,
     proficiencyBonus: prof,
     abilities: abilities,
     saves: saves,
     combat: combat,
+    senses: (facts && facts.darkvision) ? { darkvision: facts.darkvision } : null,
+    speciesTraits: facts ? facts.traits : null,
     spellcasting: sp ? {
       ability: sp.ability, progression: sp.progression, prepared: sp.prepared,
+      source: sp.source, spellListClass: sp.spellListClass,
       cantripsKnown: sp.cantripsKnown, spellsKnown: sp.spellsKnown,
       preparedCount: sp.preparedCount, slots: sp.slots,
     } : null,
     features: (b.features || []).map(function(f){ return { name: f.name, source: f.source, level: f.level, origin: f.origin }; }),
-    _incomplete: [
-      'alignment, xp, portrait, appearance — not collected in this flow yet',
-      'combat.ac — needs equipped armor (GEAR, P5+)',
-      'combat.speed — from species (P3, loadRace)',
-      'passivePerception — needs resolved skill proficiencies',
-      'skills[] (18) — needs class + background skill choices',
-      'species traits & ability increases — P3 (loadRace)',
-      'background grants — skills / tools / equipment / feature — P5',
-      'feature descriptions (desc text) — P4',
-      'spell selections — cantrips / known / prepared lists — P6',
-    ],
+    _incomplete: incomplete,
   };
   return structural;
 }
@@ -963,11 +1307,12 @@ function forgePreview(){
   }
   var my = ++forgeReq;
   host.innerHTML = '<div class="fx-empty">Assembling structural from the 2014 data…</div>';
-  SoulShardsData.loadClass(c.n).then(function(model){
+  Promise.all([SoulShardsData.loadClass(c.n), raceForBuild()]).then(function(res){
     if (my !== forgeReq) return;
+    var model = res[0], race = res[1];
     var sub = (model.subclasses || []).find(function(s){ return draft.subclass && s.name === draft.subclass.n; });
-    var b = SoulShardsEngine.build({ classModel: model, level: draft.level, abilities: draft.abilities, subclassShortName: sub ? sub.shortName : null, hp: draft.hp });
-    host.innerHTML = forgeCardHTML(buildStructuralPreview(model, b));
+    var b = SoulShardsEngine.build({ classModel: model, level: draft.level, abilities: effectiveAbilities(race), subclassShortName: sub ? sub.shortName : null, hp: draft.hp });
+    host.innerHTML = forgeCardHTML(buildStructuralPreview(model, b, race));
     try { host.scrollIntoView({ behavior: 'smooth', block: 'nearest' }); } catch(e){}
   }).catch(function(err){
     if (my !== forgeReq) return;

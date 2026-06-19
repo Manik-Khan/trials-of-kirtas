@@ -87,14 +87,20 @@
   // a spells-known count; prepared casters get a prepared-count (ability mod + caster
   // level, min 1). Domain/racial/feat extras are provenance-tagged elsewhere and do
   // NOT count against this pool.
-  function spellEntitlement(model, abilities, level) {
-    var sc = model.spellcasting;
+  function spellEntitlement(model, abilities, level, subclass) {
+    // a casting subclass (Eldritch Knight / Arcane Trickster) overrides the base
+    // class, which for Fighter/Rogue grants no casting at all.
+    var fromSub = subclass && subclass.spellcasting;
+    var sc = fromSub || model.spellcasting;
     if (!sc) return null;
+    var slotsByLevel = (fromSub && subclass.slotsByLevel) || model.slotsByLevel || {};
     var ent = {
       ability: sc.ability,
       progression: sc.progression,
       prepared: sc.prepared,
-      slots: (model.slotsByLevel[level] || []).slice(),
+      source: fromSub ? 'subclass' : 'class',
+      spellListClass: sc.spellListClass || model.name,
+      slots: (slotsByLevel[level] || []).slice(),
       cantripsKnown: sc.cantripsKnown ? (sc.cantripsKnown[level - 1] || 0) : 0,
       spellsKnown: null,
       preparedCount: null,
@@ -135,7 +141,7 @@
     });
 
     var hp = hitPoints(model.hd, conMod, level, opts.hp);
-    var spellcasting = spellEntitlement(model, abilities, level);
+    var spellcasting = spellEntitlement(model, abilities, level, subclass);
 
     // everything the player still has to decide for this level set
     var pending = [];
