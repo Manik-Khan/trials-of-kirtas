@@ -1,0 +1,927 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Character Sheet — Visual Direction v2</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,400;0,600;0,700;0,800;0,900;1,700&family=EB+Garamond:ital,wght@0,400;0,500;0,600;1,400;1,500&family=Oswald:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+<style>
+:root{
+  /* ——— Metaphor dark / high-contrast palette ——— */
+  --ground:    #182826;   /* dark teal-green canvas */
+  --ground-2:  #20393441; 
+  --canvas:    #1c302b;
+  --panel:     rgba(9,18,16,.64);
+  --panel-2:   rgba(6,14,13,.78);
+  --cream:     #ece2cd;   /* worn off-white type */
+  --cream-hi:  #f9f3e6;   /* bright title type */
+  --cream-dim: #c2b99f;
+  --cream-fnt: #8d8675;
+  --parchment: #e7dabe;   /* rare light card */
+  --ink-parch: #241c11;
+  --red:       #cf3b2c;   /* torn-paint swash */
+  --red-br:    #e0584a;
+  --gold:      #c79a4a;
+  --gold-br:   #e7c279;
+  --teal-line: #54a097;
+  /* origin colours (brightened for dark ground) */
+  --o-class:    #e7c279;
+  --o-subclass: #55c4c0;
+  --o-race:     #e0584a;
+  --o-feat:     #ab92dd;
+  --hp-full:    #57b089;
+  --hp-temp:    var(--gold-br);
+  --frame: rgba(199,154,74,.34);
+  --hair:  rgba(236,226,205,.13);
+  --bg-hue:0deg; --bg-sat:1; --ac-hue:0deg; --grain:.09;
+  --bg-blur:0px; --bg-chroma:grayscale(0); --fx-weave:0; --fx-scan:0; --fx-vig:0;
+}
+*{box-sizing:border-box}
+html{-webkit-text-size-adjust:100%}
+body{
+  margin:0;color:var(--cream);
+  font-family:"EB Garamond",Georgia,serif;line-height:1.5;
+  background-color:var(--ground);
+  position:relative;min-height:100vh;overflow-x:hidden;
+}
+/* scraped-canvas grunge + grain */
+body::after{
+  content:"";position:fixed;inset:0;z-index:60;pointer-events:none;mix-blend-mode:overlay;opacity:var(--grain);
+  background-image:url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='130' height='130'><filter id='n'><feTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='2' stitchTiles='stitch'/><feColorMatrix type='saturate' values='0'/></filter><rect width='100%25' height='100%25' filter='url(%23n)'/></svg>");
+}
+
+#bg{position:fixed;inset:0;z-index:0;pointer-events:none;background-position:center;filter:hue-rotate(var(--bg-hue)) saturate(var(--bg-sat)) blur(var(--bg-blur)) var(--bg-chroma)}
+#bgveil{position:fixed;inset:0;z-index:0;pointer-events:none;background:linear-gradient(180deg, rgba(10,20,18,.40), rgba(10,20,18,.22) 33%, rgba(10,20,18,.50)), radial-gradient(125% 105% at 50% 38%, transparent 50%, rgba(7,15,13,.55) 100%)}
+#fxWeave{position:fixed;inset:0;z-index:1;pointer-events:none;mix-blend-mode:overlay;opacity:var(--fx-weave);background-image:url("data:image/webp;base64,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");background-size:220px 220px;background-repeat:repeat}
+#fxScan{position:fixed;inset:0;z-index:1;pointer-events:none;mix-blend-mode:overlay;opacity:var(--fx-scan);background-image:repeating-linear-gradient(0deg, rgba(0,0,0,.6) 0 1px, transparent 1px 3px)}
+#fxVig{position:fixed;inset:0;z-index:1;pointer-events:none;opacity:var(--fx-vig);background:radial-gradient(120% 100% at 50% 45%, transparent 42%, rgba(4,9,8,.96) 100%)}
+#fxGeo{position:fixed;inset:0;z-index:1;pointer-events:none;width:100%;height:100%;mix-blend-mode:screen;opacity:0}
+#studio label.sel{display:block;font-family:"Oswald",sans-serif;font-size:10px;letter-spacing:.05em;text-transform:uppercase;color:var(--cream-dim);margin-bottom:9px}
+#studio select{display:block;width:100%;margin-top:4px;background:rgba(8,16,15,.92);color:var(--cream);border:1px solid var(--frame);font-family:"Oswald",sans-serif;font-size:11px;letter-spacing:.04em;padding:5px 6px}
+#studio label.chk{display:flex;justify-content:space-between;align-items:center;cursor:pointer;margin-bottom:9px}
+#studio label.chk input{accent-color:var(--gold-br);width:auto;margin:0;height:auto}
+#studio{position:fixed;top:14px;right:14px;z-index:200;width:214px;background:rgba(10,18,16,.86);-webkit-backdrop-filter:blur(6px);backdrop-filter:blur(6px);border:1px solid var(--frame);padding:11px 12px 12px;box-shadow:0 16px 40px -20px #000}
+#studio .st-h{font-family:"Oswald",sans-serif;font-weight:600;letter-spacing:.16em;text-transform:uppercase;font-size:10.5px;color:var(--gold-br);margin-bottom:9px;border-bottom:1px solid var(--hair);padding-bottom:6px}
+#studio label{display:grid;grid-template-columns:1fr auto;align-items:center;gap:1px 8px;font-family:"Oswald",sans-serif;font-size:10px;letter-spacing:.05em;text-transform:uppercase;color:var(--cream-dim);margin-bottom:9px}
+#studio label span{justify-self:end;font-weight:600;color:var(--cream)}
+#studio input[type=range]{grid-column:1 / -1;width:100%;accent-color:var(--gold-br);margin:3px 0 0;height:16px}
+#studio button{width:100%;margin-top:2px;background:transparent;border:1px solid var(--frame);color:var(--cream-dim);font-family:"Oswald",sans-serif;font-size:10px;letter-spacing:.14em;text-transform:uppercase;padding:6px;cursor:pointer}
+#studio button:hover{color:var(--cream);border-color:var(--gold-br)}
+#studio{max-height:calc(100vh - 28px);overflow-y:auto}
+#studio .st-sec{font-family:"Oswald",sans-serif;font-weight:500;letter-spacing:.14em;text-transform:uppercase;font-size:9.5px;color:var(--cream-fnt);margin:2px 0 6px}
+#studio .bgpick{display:grid;grid-template-columns:repeat(3,1fr);gap:6px;margin-bottom:12px}
+#studio .bgsw{height:34px;padding:0;border:1.5px solid var(--frame);background-size:cover;background-position:center;background-repeat:no-repeat;cursor:pointer}
+#studio .bgsw.on{border-color:var(--gold-br);box-shadow:0 0 0 1px var(--gold-br)}
+#studio .st-btns{display:grid;grid-template-columns:1fr 1fr;gap:7px;margin-top:3px}
+#studio button.primary{background:var(--gold-br);border-color:var(--gold-br);color:var(--ground);font-weight:600}
+#studio button.primary:hover{background:var(--gold);border-color:var(--gold);color:var(--ground)}
+#studio button.primary.saved{background:var(--o-subclass);border-color:var(--o-subclass);color:var(--ground)}
+#studio .st-note{font-family:"EB Garamond",serif;font-style:italic;font-size:11px;color:var(--cream-fnt);text-align:center;margin-top:9px}
+@media (max-width:880px){#studio{display:none}}
+.defs{position:absolute;width:0;height:0;overflow:hidden}
+
+/* ——— shell ——— */
+.sheet{position:relative;z-index:2;max-width:1220px;margin:24px auto;padding:30px 32px 22px;filter:hue-rotate(var(--ac-hue))}
+.frameline{position:absolute;inset:0;border:1px solid var(--frame);pointer-events:none;z-index:3}
+.frameline::before{content:"";position:absolute;inset:6px;border:1px solid rgba(236,226,205,.08)}
+
+/* giant ghost numeral */
+.ghostnum{position:absolute;top:-18px;right:6px;z-index:1;pointer-events:none;
+  font-family:"Playfair Display",serif;font-weight:900;font-size:230px;line-height:.7;
+  color:transparent;-webkit-text-stroke:2px rgba(231,194,121,.10);letter-spacing:-.04em;font-style:italic}
+
+/* faint margin annotations */
+.annot{position:absolute;z-index:1;pointer-events:none;font-family:"Oswald",sans-serif;font-weight:400;
+  letter-spacing:.42em;text-transform:uppercase;font-size:11px;color:rgba(236,226,205,.16);writing-mode:vertical-rl}
+.annot.l{left:-14px;top:120px} .annot.r{right:-14px;bottom:80px;transform:rotate(180deg)}
+
+.studyflag{position:absolute;top:14px;left:18px;z-index:6;font-family:"Oswald",sans-serif;font-weight:500;
+  font-size:10.5px;letter-spacing:.26em;text-transform:uppercase;color:var(--cream-fnt)}
+
+/* ——— filters reused via class ——— */
+.distress{filter:url(#distress)}
+
+/* swash title — red torn-paint banner behind text */
+.swashwrap{position:relative;display:inline-block}
+.swashwrap::before{content:"";position:absolute;z-index:0;left:-17px;right:-19px;top:12%;bottom:10%;
+  background:var(--red);filter:url(#swash);opacity:1;transform:rotate(-.7deg)}
+.swashwrap>*{position:relative;z-index:2}
+
+/* ——— celestial motif ——— */
+.celestial{position:absolute;z-index:0;pointer-events:none;opacity:.5;mix-blend-mode:screen}
+
+/* ——— masthead ——— */
+.masthead{position:relative;display:flex;gap:30px;align-items:center;padding:8px 2px 20px;z-index:4}
+.portrait{position:relative;flex:0 0 150px;width:150px;height:150px}
+.portrait .ring{position:absolute;inset:-16px;border-radius:50%;border:1px solid rgba(231,194,121,.4)}
+.portrait .ring2{position:absolute;inset:-7px;border-radius:50%;border:1px solid rgba(224,88,74,.45)}
+.portrait .ring3{position:absolute;inset:-26px;border-radius:50%;border:1px dotted rgba(236,226,205,.22)}
+.portrait .frame{position:absolute;inset:0;border-radius:50%;overflow:hidden;
+  box-shadow:0 0 0 2px var(--ground),0 0 0 3px rgba(231,194,121,.5),0 14px 30px -14px #000}
+.portrait svg.por{display:block;width:100%;height:100%}
+
+.titleblock{flex:1 1 auto;min-width:0;position:relative}
+.titleblock>*{position:relative;z-index:1}
+.titleblock::before{content:"";position:absolute;z-index:0;left:-24px;right:-10px;top:-8px;bottom:-8px;pointer-events:none;
+  background:radial-gradient(72% 132% at 26% 52%, rgba(7,14,12,.62), rgba(7,14,12,.30) 46%, transparent 72%)}
+.eyebrow-wrap{display:inline-block;margin:0 0 6px}
+.eyebrow{font-family:"Oswald",sans-serif;font-weight:600;letter-spacing:.24em;text-transform:uppercase;
+  font-size:12.5px;color:var(--cream);margin:0;padding:3px 2px}
+.charname{font-family:"Playfair Display",serif;font-weight:900;font-size:clamp(46px,7.2vw,88px);
+  line-height:.9;letter-spacing:0;color:#fdf8ee;margin:2px 0 12px;text-wrap:balance;
+  text-shadow:0 0 2px rgba(0,0,0,.5),0 2px 7px rgba(0,0,0,.72),0 5px 26px rgba(0,0,0,.6)}
+.charname em{font-style:italic;color:var(--gold-br)}
+.subline{font-family:"Oswald",sans-serif;font-weight:400;letter-spacing:.05em;text-transform:uppercase;
+  font-size:14.5px;color:var(--cream);display:flex;flex-wrap:wrap;gap:5px 12px;align-items:baseline;
+  text-shadow:0 1px 7px rgba(0,0,0,.6)}
+.subline b{color:var(--cream);font-weight:600}
+.subline .sub{color:var(--o-subclass);font-weight:600}
+.subline .dot{color:var(--red-br);font-weight:700}
+
+/* ——— grid ——— */
+.body-grid{display:grid;grid-template-columns:312px 1fr;gap:30px;margin-top:14px;position:relative;z-index:4}
+
+/* megatitle for sections */
+.sectitle{margin:0 0 12px;display:flex;align-items:flex-end;gap:14px}
+.sectitle h2{font-family:"Playfair Display",serif;font-weight:900;font-size:33px;line-height:.9;
+  color:var(--cream-hi);margin:0;letter-spacing:.004em;
+  text-shadow:0 1px 0 rgba(48,10,5,.55), 0 2px 13px rgba(0,0,0,.5)}
+.sectitle .tail{flex:1 1 auto;height:2px;background:linear-gradient(90deg,var(--gold) ,transparent);
+  margin-bottom:7px;filter:url(#rough);opacity:.7}
+.sectitle .hint{font-family:"EB Garamond",serif;font-style:italic;font-size:14px;color:var(--cream-fnt);
+  margin-bottom:5px;white-space:nowrap}
+.block{position:relative;margin-bottom:30px}
+
+/* group panel */
+.panelbox{position:relative;background:var(--panel);border:1px solid var(--hair);padding:15px 16px;
+  box-shadow:inset 0 1px 0 rgba(236,226,205,.05), 0 14px 34px -26px #000}
+.panelbox::after{content:"";position:absolute;left:0;top:0;width:24px;height:24px;
+  border-top:2px solid var(--gold);border-left:2px solid var(--gold);opacity:.55}
+
+/* ——— left medallions ——— */
+.leftcol{display:flex;flex-direction:column;gap:13px;align-self:start}
+.medstack{display:flex;flex-direction:column;gap:13px}
+.med{position:relative;text-align:center;padding:13px 10px 12px;background:var(--panel-2);
+  border:1px solid var(--hair);box-shadow:inset 0 1px 0 rgba(236,226,205,.05)}
+.med .lab{font-family:"Oswald",sans-serif;font-weight:500;letter-spacing:.2em;text-transform:uppercase;
+  font-size:11px;color:var(--cream-dim);margin-bottom:2px}
+.med .big{font-family:"Playfair Display",serif;font-weight:900;font-size:46px;line-height:.96;color:var(--cream)}
+.med .sub{font-family:"EB Garamond",serif;font-size:13px;color:var(--cream-fnt);font-style:italic}
+.med.hot{border-color:rgba(197,57,43,.5)}
+.med.hot .big{color:var(--gold-br)}
+.med.hot::before{content:"";position:absolute;left:0;top:-1px;bottom:-1px;width:3px;background:var(--red)}
+.med-row{display:grid;grid-template-columns:1fr 1fr;gap:13px}
+.med.mini{padding:11px 6px 10px}.med.mini .big{font-size:32px}
+
+.hpmed .big{font-size:38px}
+.hpbar{position:relative;height:17px;margin:9px 2px 4px;overflow:hidden;background:rgba(0,0,0,.32);
+  border:1px solid rgba(236,226,205,.18)}
+.hpfill{position:absolute;inset:0 22% 0 0;background:linear-gradient(90deg,var(--hp-full),#6cc096);filter:url(#rough)}
+.hptemp{position:absolute;top:0;bottom:0;left:78%;right:8%;background:linear-gradient(90deg,var(--gold),var(--gold-br));filter:url(#rough)}
+.hpmeta{display:flex;justify-content:space-between;font-family:"Oswald",sans-serif;font-weight:400;
+  font-size:11px;letter-spacing:.06em;text-transform:uppercase;color:var(--cream-dim)}
+.hpmeta .tmp{color:var(--gold-br)}
+.attune{display:flex;gap:7px;justify-content:center;margin-top:5px}
+.pip{width:12px;height:12px;transform:rotate(45deg);border:1.5px solid var(--gold-br);filter:url(#rough)}
+.pip.on{background:var(--gold-br)}
+/* ——— left-rail dashboard ——— */
+.lblock{position:relative;background:var(--panel);border:1px solid var(--hair);padding:12px 13px}
+.lblock::after{content:"";position:absolute;left:0;top:0;width:18px;height:18px;border-top:2px solid var(--gold);border-left:2px solid var(--gold);opacity:.5}
+.lhead{font-family:"Oswald",sans-serif;font-weight:600;letter-spacing:.16em;text-transform:uppercase;font-size:12px;color:var(--cream);margin-bottom:9px;display:flex;align-items:baseline;gap:8px;border-bottom:1px solid var(--hair);padding-bottom:6px}
+.lhint{font-family:"EB Garamond",serif;font-style:italic;text-transform:none;letter-spacing:0;font-size:12px;color:var(--cream-fnt);margin-left:auto;font-weight:400}
+.lrow{display:flex;justify-content:space-between;align-items:baseline;gap:10px;padding:4px 0;font-family:"Oswald",sans-serif;font-weight:400;letter-spacing:.04em;text-transform:uppercase;font-size:12px;color:var(--cream-dim)}
+.lrow b{color:var(--cream);font-weight:600;text-align:right}
+.lrow b.muted{color:var(--cream-fnt);font-weight:400;font-style:italic;text-transform:none}
+.lrow b.conc-on{color:var(--o-subclass)}
+.insp{width:13px;height:13px;transform:rotate(45deg);border:1.5px solid var(--gold-br);display:inline-block;filter:url(#rough)}
+.trk{display:flex;align-items:center;gap:9px;padding:6px 0;border-bottom:1px solid var(--hair)}
+.trk:last-child{border-bottom:0}
+.trk-n{flex:1 1 auto;font-family:"EB Garamond",serif;font-size:15px;color:var(--cream)}
+.trk-r{font-family:"Oswald",sans-serif;font-weight:400;font-size:9.5px;letter-spacing:.06em;text-transform:uppercase;color:var(--cream-fnt)}
+.trk-p{display:flex;gap:5px}
+.trk-p i{width:13px;height:13px;border-radius:50%;border:1.5px solid var(--gold-br);filter:url(#rough)}
+.trk-p i.on{background:var(--gold-br)}
+.trk.add .trk-n{color:var(--cream-fnt);font-style:italic;font-size:13.5px}
+.lblock.notes{display:flex;flex-direction:column}
+.notepad{height:104px;font-family:"EB Garamond",serif;font-style:italic;font-size:14px;line-height:1.5;color:var(--cream-fnt);
+  background:repeating-linear-gradient(transparent,transparent 27px,var(--hair) 27px,var(--hair) 28px);padding-top:1px}
+
+/* ——— abilities ——— */
+.abil-grid{display:grid;grid-template-columns:repeat(6,1fr);gap:11px}
+.abil{position:relative;text-align:center;padding:12px 4px 13px;background:var(--panel-2);
+  border:1px solid var(--hair);box-shadow:inset 0 1px 0 rgba(236,226,205,.05)}
+.abil .nm{font-family:"Oswald",sans-serif;font-weight:500;letter-spacing:.18em;font-size:12px;
+  text-transform:uppercase;color:var(--cream-dim)}
+.abil .sc{font-family:"Playfair Display",serif;font-weight:900;font-size:36px;line-height:1;color:var(--cream)}
+.abil .md{display:inline-block;margin-top:6px;min-width:40px;padding:1px 0;
+  font-family:"Oswald",sans-serif;font-weight:600;font-size:15px;color:var(--ground);
+  background:var(--gold-br);clip-path:polygon(8% 0,100% 0,92% 100%,0 100%)}
+.abil.neg .md{background:var(--red-br);color:var(--cream)}
+
+.saves{display:grid;grid-template-columns:repeat(6,1fr);gap:9px;margin-top:12px}
+.save{display:flex;align-items:center;gap:7px;justify-content:center;padding:7px 4px;background:var(--panel);
+  border:1px solid var(--hair);font-family:"Oswald",sans-serif;text-transform:uppercase;letter-spacing:.06em}
+.save .sv-n{font-weight:500;font-size:12px;color:var(--cream-dim)}
+.save .sv-v{font-weight:600;font-size:15px;color:var(--cream)}
+.save .dotp{width:9px;height:9px;border-radius:50%;border:1.4px solid var(--o-subclass);flex:0 0 auto}
+.save.prof{border-color:rgba(85,196,192,.45)}
+.save.prof .dotp{background:var(--o-subclass)}
+.save.prof .sv-v{color:var(--o-subclass)}
+
+/* ——— skills ——— */
+.skills{columns:2;column-gap:30px}
+.skill{display:flex;align-items:center;gap:8px;padding:5px 0;break-inside:avoid;border-bottom:1px solid var(--hair)}
+.skill .dotp{width:8px;height:8px;border-radius:50%;border:1.3px solid var(--o-subclass);flex:0 0 auto}
+.skill.prof .dotp{background:var(--o-subclass)}
+.skill .sk-n{flex:1 1 auto;font-family:"EB Garamond",serif;font-size:16px;color:var(--cream-dim)}
+.skill.prof .sk-n{color:var(--cream);font-weight:600}
+.skill .sk-a{font-family:"Oswald",sans-serif;font-weight:400;font-size:10.5px;letter-spacing:.08em;text-transform:uppercase;color:var(--cream-fnt)}
+.skill .sk-v{font-family:"Oswald",sans-serif;font-weight:600;font-size:15px;color:var(--cream);min-width:26px;text-align:right}
+.skill.prof .sk-v{color:var(--o-subclass)}
+.passive{margin-top:11px;font-family:"Oswald",sans-serif;font-weight:400;letter-spacing:.06em;text-transform:uppercase;
+  font-size:12px;color:var(--cream-dim);display:flex;flex-wrap:wrap;gap:8px 18px}
+.passive b{color:var(--cream);font-weight:600}
+
+/* ——— spellcasting ——— */
+.spellhead{display:flex;flex-wrap:wrap;gap:12px;margin-bottom:14px}
+.pool{flex:1 1 150px;padding:11px 13px;background:var(--panel-2);border:1px solid var(--hair);position:relative}
+.pool::before{content:"";position:absolute;left:0;top:0;bottom:0;width:3px;background:var(--gold-br);opacity:.7}
+.pool.s2::before{background:var(--o-subclass)}.pool.dim::before{background:var(--cream-fnt);opacity:.4}
+.pool .p-lab{font-family:"Oswald",sans-serif;font-weight:600;letter-spacing:.1em;text-transform:uppercase;
+  font-size:12px;color:var(--cream);display:flex;justify-content:space-between;align-items:baseline}
+.pool .p-lab .lv{color:var(--gold-br);font-weight:700}
+.pool.s2 .p-lab .lv{color:var(--o-subclass)}
+.pool .p-rec{font-family:"EB Garamond",serif;font-style:italic;font-size:12.5px;color:var(--cream-fnt);margin-top:6px}
+.slots{display:flex;gap:6px;margin-top:8px}
+.slot{width:16px;height:16px;border-radius:50%;border:1.6px solid var(--gold-br);filter:url(#rough)}
+.slot.on{background:var(--gold-br)}
+.slot.teal{border-color:var(--o-subclass)}.slot.teal.on{background:var(--o-subclass)}
+.slot.empty{border-color:var(--cream-fnt);opacity:.55}
+.pool.dim{opacity:.66}
+
+.cast-meta{font-family:"Oswald",sans-serif;font-weight:400;letter-spacing:.06em;text-transform:uppercase;font-size:12px;
+  color:var(--cream-dim);display:flex;flex-wrap:wrap;gap:6px 18px;margin:-2px 2px 13px}
+.cast-meta b{color:var(--cream);font-weight:600}
+
+.legend{display:flex;flex-wrap:wrap;gap:7px 16px;margin:0 2px 15px;
+  font-family:"Oswald",sans-serif;font-weight:400;font-size:11.5px;letter-spacing:.1em;text-transform:uppercase;color:var(--cream-dim)}
+.legend span{display:inline-flex;align-items:center;gap:6px}
+.legend i{width:11px;height:11px;transform:rotate(45deg);display:inline-block;filter:url(#rough)}
+.legend .l-class{background:var(--o-class)}.legend .l-sub{background:var(--o-subclass)}
+.legend .l-race{background:var(--o-race)}.legend .l-feat{background:var(--o-feat)}
+.legend .none{color:var(--cream-fnt);font-style:italic;text-transform:none;letter-spacing:0;font-family:"EB Garamond",serif}
+
+.spell-group{margin-bottom:14px}
+.sg-h{font-family:"Oswald",sans-serif;font-weight:600;letter-spacing:.14em;text-transform:uppercase;
+  font-size:12.5px;color:var(--gold-br);border-bottom:1px solid rgba(231,194,121,.3);padding-bottom:4px;margin-bottom:8px}
+.spell-cols{columns:2;column-gap:24px}
+.spell{display:flex;align-items:center;gap:9px;padding:6px 10px;margin-bottom:6px;break-inside:avoid;
+  background:var(--panel);border-left:3px solid var(--cream-fnt)}
+.spell.o-class{border-left-color:var(--o-class)}.spell.o-sub{border-left-color:var(--o-subclass)}
+.spell.o-race{border-left-color:var(--o-race)}.spell.o-feat{border-left-color:var(--o-feat)}
+.spell .s-n{flex:1 1 auto;font-family:"EB Garamond",serif;font-size:16px;color:var(--cream)}
+.spell .s-tag{font-family:"Oswald",sans-serif;font-size:9.5px;font-weight:600;letter-spacing:.08em;
+  text-transform:uppercase;padding:1.5px 7px;color:var(--ground)}
+.s-tag.t-class{background:var(--o-class)}.s-tag.t-sub{background:var(--o-subclass)}
+.s-tag.t-race{background:var(--o-race);color:var(--cream)}.s-tag.t-feat{background:var(--o-feat);color:var(--cream)}
+.s-tag.t-exp{background:transparent;color:var(--o-subclass);border:1px dashed var(--o-subclass)}
+.spell .s-ct{font-family:"Oswald",sans-serif;font-weight:400;font-size:11px;letter-spacing:.04em;text-transform:uppercase;
+  color:var(--cream-fnt);flex:0 0 auto}
+
+/* detail — the rare light parchment card for contrast */
+.detail{position:relative;margin-top:6px;padding:15px 17px;background:var(--parchment);color:var(--ink-parch);
+  border-left:4px solid var(--o-class);box-shadow:0 16px 34px -22px #000}
+.detail::after{content:"";position:absolute;inset:0;pointer-events:none;mix-blend-mode:multiply;opacity:.07;
+  background-image:url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='90' height='90'><filter id='p'><feTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='2'/><feColorMatrix type='saturate' values='0'/></filter><rect width='100%25' height='100%25' filter='url(%23p)'/></svg>")}
+.detail .d-h{display:flex;align-items:baseline;gap:10px;margin-bottom:7px;position:relative;z-index:1}
+.detail .d-n{font-family:"Playfair Display",serif;font-weight:800;font-size:23px;color:var(--ink-parch)}
+.detail .d-sch{font-family:"EB Garamond",serif;font-style:italic;color:#5a4d35;font-size:14px}
+.detail .d-grid{display:flex;flex-wrap:wrap;gap:4px 22px;margin-bottom:9px;position:relative;z-index:1;
+  font-family:"Oswald",sans-serif;font-weight:400;font-size:12px;letter-spacing:.04em;text-transform:uppercase;color:#5a4d35}
+.detail .d-grid b{color:var(--ink-parch);font-weight:600}
+.detail .d-grid .conc{color:var(--red);font-weight:700}
+.detail .d-body{font-family:"EB Garamond",serif;font-size:15.5px;color:var(--ink-parch);line-height:1.52;position:relative;z-index:1}
+.detail .d-hl{margin-top:7px;font-size:14px;color:#5a4d35;font-style:italic;position:relative;z-index:1}
+.detail .d-hl b{font-style:normal;color:#7a3528;font-family:"Oswald",sans-serif;text-transform:uppercase;letter-spacing:.06em;font-size:12px;font-weight:600}
+
+/* ——— features ——— */
+.feat-cols{columns:2;column-gap:30px}
+.feat{display:flex;gap:11px;padding:9px 0;border-bottom:1px solid var(--hair);break-inside:avoid}
+.feat .f-tag{flex:0 0 auto;align-self:flex-start;margin-top:3px;font-family:"Oswald",sans-serif;
+  font-size:9.5px;font-weight:600;letter-spacing:.06em;text-transform:uppercase;padding:2px 7px;
+  color:var(--ground);min-width:68px;text-align:center}
+.f-tag.t-class{background:var(--o-class)}.f-tag.t-sub{background:var(--o-subclass)}.f-tag.t-race{background:var(--o-race);color:var(--cream)}
+.feat .f-n{font-family:"Playfair Display",serif;font-weight:700;font-size:17px;color:var(--cream);line-height:1.18}
+.feat .f-d{font-family:"EB Garamond",serif;font-size:15px;color:var(--cream-dim);line-height:1.42}
+
+/* ——— equipment + story ——— */
+.es-grid{display:grid;grid-template-columns:1fr 1fr;gap:30px}
+.gitem{display:flex;align-items:center;gap:10px;padding:6px 0;border-bottom:1px solid var(--hair)}
+.gitem .g-ic{flex:0 0 22px;color:var(--gold-br)}
+.gitem .g-n{flex:1 1 auto;font-family:"EB Garamond",serif;font-size:16px;color:var(--cream)}
+.gitem .g-d{font-family:"EB Garamond",serif;font-style:italic;font-size:13px;color:var(--cream-fnt)}
+.gitem .g-q{font-family:"Oswald",sans-serif;font-weight:600;font-size:13px;color:var(--cream-dim)}
+.coinline{display:flex;justify-content:space-between;align-items:center;margin-top:9px}
+.coin{font-family:"Playfair Display",serif;font-weight:800;font-size:20px;color:var(--gold-br)}
+.coin small{font-family:"Oswald",sans-serif;font-weight:500;font-size:12px;letter-spacing:.1em;color:var(--cream-dim)}
+.attune-wrap{display:flex;align-items:center;gap:8px;font-family:"Oswald",sans-serif;font-weight:400;font-size:11px;
+  letter-spacing:.1em;text-transform:uppercase;color:var(--cream-dim)}
+.story-quote{font-family:"EB Garamond",serif;font-style:italic;font-size:17px;line-height:1.62;color:var(--cream);
+  padding:2px 2px 2px 18px;border-left:3px solid var(--red);margin-bottom:14px}
+.traits{display:grid;grid-template-columns:1fr 1fr;gap:9px 22px}
+.trait .t-l{font-family:"Oswald",sans-serif;font-weight:600;letter-spacing:.12em;text-transform:uppercase;
+  font-size:11px;color:var(--o-subclass)}
+.trait .t-t{font-family:"EB Garamond",serif;font-size:15px;color:var(--cream-dim);line-height:1.32}
+
+.footer{display:flex;align-items:center;gap:14px;margin-top:18px}
+.footer .ln{flex:1 1 auto;height:2px;background:linear-gradient(90deg,transparent,var(--gold),transparent);filter:url(#rough);opacity:.6}
+.footer .mk{font-family:"Oswald",sans-serif;font-weight:400;letter-spacing:.26em;text-transform:uppercase;font-size:11px;color:var(--cream-fnt)}
+
+@media (max-width:880px){
+  .body-grid,.es-grid{grid-template-columns:1fr}
+  .masthead{flex-direction:column;text-align:center;align-items:center}
+  .subline{justify-content:center}
+  .abil-grid,.saves{grid-template-columns:repeat(3,1fr)}
+  .skills,.spell-cols,.feat-cols{columns:1}
+  .ghostnum{font-size:150px}
+}
+@media (prefers-reduced-motion:no-preference){
+  .sheet{animation:rise .55s ease both}
+  @keyframes rise{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:none}}
+}
+  /* inspiration glow — portrait lights up when the character is inspired (Phase 1: reflects state; toggle wired in Phase 2) */
+  .portrait .frame{ transition:box-shadow .45s ease; }
+  .portrait.inspired .frame{ box-shadow:0 0 0 2px var(--gold-br), 0 0 26px 5px rgba(231,194,121,.6), 0 0 56px 14px rgba(231,194,121,.28); }
+  .portrait.inspired .ring,.portrait.inspired .ring2,.portrait.inspired .ring3{ border-color:var(--gold-br); opacity:.95; }
+</style>
+  <script src="character-data.js"></script>
+</head>
+<body>
+<div id="bg"></div>
+<div id="bgveil"></div>
+<div id="fxWeave"></div>
+<div id="fxScan"></div>
+<svg id="fxGeo" preserveAspectRatio="none"><rect id="geoRect" width="100%" height="100%" fill="url(#geo-hex)"></rect></svg>
+<div id="fxVig"></div>
+
+<svg class="defs" aria-hidden="true">
+  <defs>
+    <filter id="distress" x="-6%" y="-10%" width="112%" height="124%">
+      <feTurbulence type="fractalNoise" baseFrequency="0.02 0.035" numOctaves="3" seed="3" result="rough"/>
+      <feDisplacementMap in="SourceGraphic" in2="rough" scale="1.6" result="disp"/>
+      <feTurbulence type="fractalNoise" baseFrequency="0.14 0.18" numOctaves="2" seed="9" result="grain"/>
+      <feColorMatrix in="grain" type="matrix" values="0 0 0 0 0  0 0 0 0 0  0 0 0 0 0  0 0 0 -2.6 1.12" result="mask"/>
+      <feComposite in="disp" in2="mask" operator="in"/>
+    </filter>
+    <filter id="swash" x="-25%" y="-60%" width="150%" height="220%">
+      <feTurbulence type="fractalNoise" baseFrequency="0.011 0.03" numOctaves="3" seed="5" result="r"/>
+      <feDisplacementMap in="SourceGraphic" in2="r" scale="17" result="d"/>
+      <feTurbulence type="turbulence" baseFrequency="0.05 0.08" numOctaves="2" seed="2" result="g"/>
+      <feColorMatrix in="g" type="matrix" values="0 0 0 0 0  0 0 0 0 0  0 0 0 0 0  0 0 0 -1.05 1.0" result="ga"/>
+      <feComposite in="d" in2="ga" operator="in"/>
+    </filter>
+    <filter id="rough" x="-15%" y="-40%" width="130%" height="180%">
+      <feTurbulence type="fractalNoise" baseFrequency="0.02 0.05" numOctaves="2" seed="4" result="r"/>
+      <feDisplacementMap in="SourceGraphic" in2="r" scale="4"/>
+    </filter>
+    <filter id="glitch1" x="-4%" y="-4%" width="108%" height="108%" color-interpolation-filters="sRGB">
+      <feColorMatrix in="SourceGraphic" type="matrix" values="1 0 0 0 0  0 0 0 0 0  0 0 0 0 0  0 0 0 1 0" result="r"/>
+      <feOffset in="r" dx="-2" dy="0" result="ro"/>
+      <feColorMatrix in="SourceGraphic" type="matrix" values="0 0 0 0 0  0 1 0 0 0  0 0 0 0 0  0 0 0 1 0" result="g"/>
+      <feColorMatrix in="SourceGraphic" type="matrix" values="0 0 0 0 0  0 0 0 0 0  0 0 1 0 0  0 0 0 1 0" result="b"/>
+      <feOffset in="b" dx="2" dy="0" result="bo"/>
+      <feBlend in="ro" in2="g" mode="screen" result="rg"/>
+      <feBlend in="rg" in2="bo" mode="screen"/>
+    </filter>
+    <filter id="glitch2" x="-4%" y="-4%" width="108%" height="108%" color-interpolation-filters="sRGB">
+      <feTurbulence type="fractalNoise" baseFrequency="0.004 0.22" numOctaves="1" seed="11" result="n"/>
+      <feDisplacementMap in="SourceGraphic" in2="n" scale="8" xChannelSelector="R" yChannelSelector="G" result="d"/>
+      <feColorMatrix in="d" type="matrix" values="1 0 0 0 0  0 0 0 0 0  0 0 0 0 0  0 0 0 1 0" result="r"/>
+      <feOffset in="r" dx="-3.5" dy="0" result="ro"/>
+      <feColorMatrix in="d" type="matrix" values="0 0 0 0 0  0 1 0 0 0  0 0 0 0 0  0 0 0 1 0" result="g"/>
+      <feColorMatrix in="d" type="matrix" values="0 0 0 0 0  0 0 0 0 0  0 0 1 0 0  0 0 0 1 0" result="b"/>
+      <feOffset in="b" dx="3.5" dy="0" result="bo"/>
+      <feBlend in="ro" in2="g" mode="screen" result="rg"/>
+      <feBlend in="rg" in2="bo" mode="screen"/>
+    </filter>
+    <filter id="glitch3" x="-4%" y="-4%" width="108%" height="108%" color-interpolation-filters="sRGB">
+      <feTurbulence type="fractalNoise" baseFrequency="0.004 0.22" numOctaves="1" seed="3" result="n"/>
+      <feDisplacementMap in="SourceGraphic" in2="n" scale="14" xChannelSelector="R" yChannelSelector="G" result="d"/>
+      <feColorMatrix in="d" type="matrix" values="1 0 0 0 0  0 0 0 0 0  0 0 0 0 0  0 0 0 1 0" result="r"/>
+      <feOffset in="r" dx="-6" dy="0" result="ro"/>
+      <feColorMatrix in="d" type="matrix" values="0 0 0 0 0  0 1 0 0 0  0 0 0 0 0  0 0 0 1 0" result="g"/>
+      <feColorMatrix in="d" type="matrix" values="0 0 0 0 0  0 0 0 0 0  0 0 1 0 0  0 0 0 1 0" result="b"/>
+      <feOffset in="b" dx="6" dy="0" result="bo"/>
+      <feBlend in="ro" in2="g" mode="screen" result="rg"/>
+      <feBlend in="rg" in2="bo" mode="screen"/>
+    </filter>
+    <filter id="glitch4" x="-4%" y="-4%" width="108%" height="108%" color-interpolation-filters="sRGB">
+      <feTurbulence type="fractalNoise" baseFrequency="0.004 0.22" numOctaves="1" seed="19" result="n"/>
+      <feDisplacementMap in="SourceGraphic" in2="n" scale="24" xChannelSelector="R" yChannelSelector="G" result="d"/>
+      <feColorMatrix in="d" type="matrix" values="1 0 0 0 0  0 0 0 0 0  0 0 0 0 0  0 0 0 1 0" result="r"/>
+      <feOffset in="r" dx="-9" dy="0" result="ro"/>
+      <feColorMatrix in="d" type="matrix" values="0 0 0 0 0  0 1 0 0 0  0 0 0 0 0  0 0 0 1 0" result="g"/>
+      <feColorMatrix in="d" type="matrix" values="0 0 0 0 0  0 0 0 0 0  0 0 1 0 0  0 0 0 1 0" result="b"/>
+      <feOffset in="b" dx="9" dy="0" result="bo"/>
+      <feBlend in="ro" in2="g" mode="screen" result="rg"/>
+      <feBlend in="rg" in2="bo" mode="screen"/>
+    </filter>
+    <pattern id="geo-hex" patternUnits="userSpaceOnUse" width="46" height="40"><path d="M11.5 1 L34.5 1 L46 20 L34.5 39 L11.5 39 L0 20 Z" fill="none" stroke="rgba(236,226,205,.82)" stroke-width="1.1"/></pattern>
+    <pattern id="geo-triangles" patternUnits="userSpaceOnUse" width="20" height="17.32"><path d="M0 0 L10 17.32 L20 0 M0 17.32 L10 0 L20 17.32 M0 0 H20 M0 17.32 H20" fill="none" stroke="rgba(236,226,205,.82)" stroke-width="1"/></pattern>
+    <pattern id="geo-diamonds" patternUnits="userSpaceOnUse" width="28" height="28"><path d="M14 0 L28 14 L14 28 L0 14 Z" fill="none" stroke="rgba(236,226,205,.82)" stroke-width="1"/></pattern>
+    <pattern id="geo-grid" patternUnits="userSpaceOnUse" width="26" height="26"><path d="M26 0 H0 V26" fill="none" stroke="rgba(236,226,205,.82)" stroke-width="1"/></pattern>
+    <pattern id="geo-dots" patternUnits="userSpaceOnUse" width="22" height="22"><circle cx="11" cy="11" r="1.7" fill="rgba(236,226,205,.82)"/></pattern>
+    <pattern id="geo-rings" patternUnits="userSpaceOnUse" width="30" height="30"><circle cx="15" cy="15" r="9" fill="none" stroke="rgba(236,226,205,.82)" stroke-width="1"/></pattern>
+    <pattern id="geo-crosses" patternUnits="userSpaceOnUse" width="24" height="24"><path d="M12 7 V17 M7 12 H17" fill="none" stroke="rgba(236,226,205,.82)" stroke-width="1"/></pattern>
+  </defs>
+</svg>
+
+<main class="sheet">
+  <div class="frameline"></div>
+  <div class="ghostnum">III</div>
+  
+  <div class="annot l">Astral · Shadow · Pact</div>
+  <div class="annot r">Trials of Kirtas</div>
+
+  <!-- ——— MASTHEAD ——— -->
+  <header class="masthead">
+    <div class="portrait">
+      <span class="ring3"></span><span class="ring"></span><span class="ring2"></span>
+      <div class="frame">
+        <svg class="por" viewBox="0 0 150 150" preserveAspectRatio="xMidYMid slice">
+          <defs>
+            <linearGradient id="splitbg" x1="0" y1="0" x2="1" y2="1">
+              <stop offset="0%" stop-color="#1d4a4d"/>
+              <stop offset="48%" stop-color="#16302e"/>
+              <stop offset="100%" stop-color="#5a221c"/>
+            </linearGradient>
+            <radialGradient id="glow" cx="58%" cy="30%" r="70%">
+              <stop offset="0%" stop-color="#cfe0df" stop-opacity="0.5"/>
+              <stop offset="100%" stop-color="#cfe0df" stop-opacity="0"/>
+            </radialGradient>
+          </defs>
+          <rect width="150" height="150" fill="url(#splitbg)"/>
+          <rect width="150" height="150" fill="url(#glow)"/>
+          <!-- starlit hooded silhouette, looking up -->
+          <g fill="#0e1d1c" opacity="0.94">
+            <path d="M78 34 C58 32 48 50 50 70 C51 82 57 92 68 96 L62 150 L96 150 L92 96
+                     C103 90 106 78 105 66 C103 46 96 36 78 34 Z"/>
+            <path d="M80 30 C56 28 44 48 47 72 C50 56 62 44 80 44 C96 44 104 52 108 66 C110 44 100 30 80 30 Z" opacity="0.8"/>
+          </g>
+          <g fill="#e7c279"><circle cx="74" cy="60" r="2.4"/><circle cx="86" cy="52" r="1.5" opacity="0.8"/><circle cx="64" cy="70" r="1.3" opacity="0.7"/></g>
+          <g stroke="#e0584a" stroke-width="0.7" fill="none" opacity="0.5"><circle cx="75" cy="66" r="40"/><circle cx="75" cy="66" r="54"/></g>
+        </svg>
+      </div>
+    </div>
+
+    <div class="titleblock">
+      <span class="eyebrow-wrap swashwrap"><p class="eyebrow">Trials of Kirtas — Player Dossier</p></span>
+      <h1 class="charname" data-f="name">Cosmere <em>Runestar</em></h1>
+      <div class="subline" data-list="subline">
+        <span><b>Warlock</b> 2 <span class="sub">· The Hexblade</span></span>
+        <span class="dot">✦</span>
+        <span><b>Sorcerer</b> 1 <span class="sub">· Shadow Magic</span></span>
+        <span class="dot">✦</span>
+        <span>Astral Elf</span>
+        <span class="dot">✦</span>
+        <span><b>Level 3</b></span>
+        <span class="dot">✦</span>
+        <span>Neutral Good</span>
+      </div>
+    </div>
+  </header>
+
+  <!-- ——— BODY ——— -->
+  <div class="body-grid">
+
+    <!-- LEFT -->
+    <aside class="leftcol">
+      <div class="medstack">
+        <div class="med-row">
+          <div class="med hot"><div class="lab">Armor Class</div><div class="big" data-f="ac">14</div><div class="sub" data-f="ac-sub">studded leather</div></div>
+          <div class="med"><div class="lab">Initiative</div><div class="big" data-f="initiative">+2</div><div class="sub">dexterity</div></div>
+        </div>
+        <div class="med hpmed hot">
+          <div class="lab">Hit Points</div>
+          <div class="big"><span data-f="hp">18</span> <span style="font-size:23px;color:var(--cream-dim)" data-f="hpMaxBig">/ 23</span></div>
+          <div class="hpbar"><div class="hpfill" data-f="hpfill"></div><div class="hptemp" data-f="hptemp"></div></div>
+          <div class="hpmeta"><span data-f="hpCurrent">Current 18 / 23</span><span class="tmp" data-f="hpTemp">+4 Temp</span></div>
+        </div>
+        <div class="med-row">
+          <div class="med mini"><div class="lab">Speed</div><div class="big"><span data-f="speed">30</span><span style="font-size:15px;color:var(--cream-dim)">ft</span></div></div>
+          <div class="med mini"><div class="lab">Prof.</div><div class="big" data-f="prof">+2</div></div>
+        </div>
+        <div class="med-row">
+          <div class="med mini hot"><div class="lab">Spell DC</div><div class="big" data-f="spellDC">13</div></div>
+          <div class="med mini hot"><div class="lab">Spell Atk</div><div class="big" data-f="spellAtk">+5</div></div>
+        </div>
+        <div class="med"><div class="lab">Hit Dice</div><div class="big" style="font-size:28px" data-f="hitDice">2d8 <span style="color:var(--cream-dim);font-size:21px">+ 1d6</span></div></div>
+        <div class="med"><div class="lab" style="margin-bottom:7px">Attunement</div>
+          <div class="attune"><span class="pip on"></span><span class="pip on"></span><span class="pip"></span></div>
+        </div>
+      </div>
+      <div class="lblock">
+        <div class="lhead">Senses &amp; Lore</div>
+        <div class="lrow"><span>Darkvision</span><b data-f="darkvision">60 ft</b></div>
+        <div class="lrow"><span>Passive Perception</span><b data-f="passivePerception">13</b></div>
+        <div class="lrow"><span>Passive Insight</span><b data-f="passiveInsight">13</b></div>
+        <div class="lrow"><span>Languages</span><b data-f="languages">Common · Elvish · Infernal</b></div>
+      </div>
+      <div class="lblock">
+        <div class="lhead">Resources <span class="lhint">tap to spend</span></div>
+        <div class="trk"><span class="trk-n">Hexblade's Curse</span><span class="trk-r">short rest</span><span class="trk-p"><i class="on"></i></span></div>
+        <div class="trk"><span class="trk-n">Starlight Step</span><span class="trk-r">long rest</span><span class="trk-p"><i class="on"></i><i class="on"></i></span></div>
+        <div class="trk"><span class="trk-n">Strength of the Grave</span><span class="trk-r">long rest</span><span class="trk-p"><i class="on"></i></span></div>
+        <div class="trk add"><span class="trk-n">+ add tracker</span></div>
+      </div>
+      <div class="lblock">
+        <div class="lhead">Status</div>
+        <div class="lrow"><span>Concentration</span><b class="conc-on" data-f="concentration">Hex</b></div>
+        <div class="lrow"><span>Conditions</span><b class="muted" data-f="conditions">none active</b></div>
+        <div class="lrow"><span>Inspiration</span><span class="insp" data-f="inspiration"></span></div>
+      </div>
+      <div class="lblock notes">
+        <div class="lhead">Notes</div>
+        <div class="notepad" data-f="notes">Patron stirs near the rift — ask Vesperian about the star-iron blade. Owe Caim a favour.</div>
+      </div>
+    </aside>
+
+    <!-- RIGHT -->
+    <section class="rightcol">
+
+      <!-- ABILITIES -->
+      <div class="block">
+        <div class="sectitle"><span class="swashwrap"><h2>Abilities</h2></span><span class="tail"></span><span class="hint">Charisma is the soul of this build</span></div>
+        <div class="panelbox">
+          <div class="abil-grid" data-list="abilities">
+            <div class="abil neg"><div class="nm">Str</div><div class="sc">8</div><div class="md">−1</div></div>
+            <div class="abil"><div class="nm">Dex</div><div class="sc">14</div><div class="md">+2</div></div>
+            <div class="abil"><div class="nm">Con</div><div class="sc">14</div><div class="md">+2</div></div>
+            <div class="abil"><div class="nm">Int</div><div class="sc">10</div><div class="md">+0</div></div>
+            <div class="abil"><div class="nm">Wis</div><div class="sc">12</div><div class="md">+1</div></div>
+            <div class="abil"><div class="nm">Cha</div><div class="sc">17</div><div class="md">+3</div></div>
+          </div>
+          <div class="saves" data-list="saves">
+            <div class="save"><span class="dotp"></span><span class="sv-n">Str</span><span class="sv-v">−1</span></div>
+            <div class="save"><span class="dotp"></span><span class="sv-n">Dex</span><span class="sv-v">+2</span></div>
+            <div class="save"><span class="dotp"></span><span class="sv-n">Con</span><span class="sv-v">+2</span></div>
+            <div class="save"><span class="dotp"></span><span class="sv-n">Int</span><span class="sv-v">+0</span></div>
+            <div class="save prof"><span class="dotp"></span><span class="sv-n">Wis</span><span class="sv-v">+3</span></div>
+            <div class="save prof"><span class="dotp"></span><span class="sv-n">Cha</span><span class="sv-v">+5</span></div>
+          </div>
+        </div>
+      </div>
+
+      <!-- SKILLS -->
+      <div class="block">
+        <div class="sectitle"><span class="swashwrap"><h2>Skills</h2></span><span class="tail"></span><span class="hint">● proficient</span></div>
+        <div class="panelbox">
+          <div class="skills" data-list="skills">
+            <div class="skill"><span class="dotp"></span><span class="sk-n">Acrobatics</span><span class="sk-a">Dex</span><span class="sk-v">+2</span></div>
+            <div class="skill"><span class="dotp"></span><span class="sk-n">Animal Handling</span><span class="sk-a">Wis</span><span class="sk-v">+1</span></div>
+            <div class="skill prof"><span class="dotp"></span><span class="sk-n">Arcana</span><span class="sk-a">Int</span><span class="sk-v">+2</span></div>
+            <div class="skill"><span class="dotp"></span><span class="sk-n">Athletics</span><span class="sk-a">Str</span><span class="sk-v">−1</span></div>
+            <div class="skill prof"><span class="dotp"></span><span class="sk-n">Deception</span><span class="sk-a">Cha</span><span class="sk-v">+5</span></div>
+            <div class="skill"><span class="dotp"></span><span class="sk-n">History</span><span class="sk-a">Int</span><span class="sk-v">+0</span></div>
+            <div class="skill prof"><span class="dotp"></span><span class="sk-n">Insight</span><span class="sk-a">Wis</span><span class="sk-v">+3</span></div>
+            <div class="skill prof"><span class="dotp"></span><span class="sk-n">Intimidation</span><span class="sk-a">Cha</span><span class="sk-v">+5</span></div>
+            <div class="skill"><span class="dotp"></span><span class="sk-n">Investigation</span><span class="sk-a">Int</span><span class="sk-v">+0</span></div>
+            <div class="skill"><span class="dotp"></span><span class="sk-n">Medicine</span><span class="sk-a">Wis</span><span class="sk-v">+1</span></div>
+            <div class="skill"><span class="dotp"></span><span class="sk-n">Nature</span><span class="sk-a">Int</span><span class="sk-v">+0</span></div>
+            <div class="skill prof"><span class="dotp"></span><span class="sk-n">Perception</span><span class="sk-a">Wis</span><span class="sk-v">+3</span></div>
+            <div class="skill"><span class="dotp"></span><span class="sk-n">Performance</span><span class="sk-a">Cha</span><span class="sk-v">+3</span></div>
+            <div class="skill prof"><span class="dotp"></span><span class="sk-n">Persuasion</span><span class="sk-a">Cha</span><span class="sk-v">+5</span></div>
+            <div class="skill"><span class="dotp"></span><span class="sk-n">Religion</span><span class="sk-a">Int</span><span class="sk-v">+0</span></div>
+            <div class="skill"><span class="dotp"></span><span class="sk-n">Sleight of Hand</span><span class="sk-a">Dex</span><span class="sk-v">+2</span></div>
+            <div class="skill"><span class="dotp"></span><span class="sk-n">Stealth</span><span class="sk-a">Dex</span><span class="sk-v">+2</span></div>
+            <div class="skill"><span class="dotp"></span><span class="sk-n">Survival</span><span class="sk-a">Wis</span><span class="sk-v">+1</span></div>
+          </div>
+        </div>
+      </div>
+
+      <!-- SPELLCASTING -->
+      <div class="block">
+        <div class="sectitle"><span class="swashwrap"><h2>Spellcasting</h2></span><span class="tail"></span><span class="hint">two pools, one soul</span></div>
+        <div class="panelbox">
+          <div class="spellhead" data-list="pools">
+            <div class="pool"><div class="p-lab"><span>Pact Magic</span><span class="lv">Lvl 1</span></div>
+              <div class="slots"><span class="slot on"></span><span class="slot on"></span></div>
+              <div class="p-rec">2 slots · short rest</div></div>
+            <div class="pool s2"><div class="p-lab"><span>Sorcerer Slots</span><span class="lv">Lvl 1</span></div>
+              <div class="slots"><span class="slot teal on"></span><span class="slot teal on"></span></div>
+              <div class="p-rec">2 slots · long rest</div></div>
+            <div class="pool dim"><div class="p-lab"><span>Sorcery Points</span><span class="lv">0</span></div>
+              <div class="slots"><span class="slot empty"></span></div>
+              <div class="p-rec">unlocks at Sorcerer 2</div></div>
+          </div>
+          <div class="cast-meta">
+            <span>Ability <b data-f="castAbility">Charisma</b></span><span>Save DC <b data-f="castDC">13</b></span><span>Attack <b data-f="castAtk">+5</b></span><span>Type <b data-f="castType">Known</b></span>
+          </div>
+          <div class="legend">
+            <span><i class="l-class"></i>Class</span><span><i class="l-sub"></i>Subclass</span>
+            <span><i class="l-race"></i>Species</span><span><i class="l-feat"></i>Feat</span>
+            <span class="none" data-f="featNote">— no feat spells at this level</span>
+          </div>
+
+          <div data-list="spellGroups">
+          <div class="spell-group">
+            <div class="sg-h">Cantrips · At Will</div>
+            <div class="spell-cols">
+              <div class="spell o-class"><span class="s-n">Eldritch Blast</span><span class="s-tag t-class">Warlock</span><span class="s-ct">1 action</span></div>
+              <div class="spell o-class"><span class="s-n">Booming Blade</span><span class="s-tag t-class">Sorcerer</span><span class="s-ct">1 action</span></div>
+              <div class="spell o-class"><span class="s-n">Minor Illusion</span><span class="s-tag t-class">Sorcerer</span><span class="s-ct">1 action</span></div>
+              <div class="spell o-class"><span class="s-n">Prestidigitation</span><span class="s-tag t-class">Sorcerer</span><span class="s-ct">1 action</span></div>
+              <div class="spell o-race"><span class="s-n">Light</span><span class="s-tag t-race">Astral Fire</span><span class="s-ct">1 action</span></div>
+            </div>
+          </div>
+          <div class="spell-group">
+            <div class="sg-h">1st Level</div>
+            <div class="spell-cols">
+              <div class="spell o-class"><span class="s-n">Hex</span><span class="s-tag t-class">Warlock</span><span class="s-ct">1 bonus</span></div>
+              <div class="spell o-class"><span class="s-n">Armor of Agathys</span><span class="s-tag t-class">Warlock</span><span class="s-ct">1 action</span></div>
+              <div class="spell o-sub"><span class="s-n">Shield</span><span class="s-tag t-exp">Expanded</span><span class="s-ct">1 reaction</span></div>
+              <div class="spell o-class"><span class="s-n">Chromatic Orb</span><span class="s-tag t-class">Sorcerer</span><span class="s-ct">1 action</span></div>
+              <div class="spell o-class"><span class="s-n">Charm Person</span><span class="s-tag t-class">Sorcerer</span><span class="s-ct">1 action</span></div>
+            </div>
+          </div>
+
+          </div><!-- /spellGroups -->
+
+          <div data-list="detail">
+          <div class="detail">
+            <div class="d-h"><span class="d-n">Hex</span><span class="d-sch">1st-level enchantment · Warlock</span></div>
+            <div class="d-grid">
+              <span>Cast <b>1 Bonus Action</b></span><span>Range <b>90 ft</b></span>
+              <span>Components <b>V, S, M</b></span><span>Duration <b class="conc">Concentration, 1 hr</b></span>
+            </div>
+            <p class="d-body">Lay a curse on a creature you can see within range. Your attacks deal an extra 1d6 necrotic damage to it, and it has disadvantage on ability checks made with one ability score of your choice.</p>
+            <p class="d-hl"><b>At higher levels</b> — a 3rd-level slot holds the curse up to 8 hours; 5th level, up to 24 hours.</p>
+          </div>
+          </div><!-- /detail -->
+        </div>
+      </div>
+
+      <!-- FEATURES -->
+      <div class="block">
+        <div class="sectitle"><span class="swashwrap"><h2>Features</h2></span><span class="tail"></span><span class="hint">&amp; traits</span></div>
+        <div class="panelbox">
+          <div class="feat-cols" data-list="features">
+            <div class="feat"><span class="f-tag t-class">Warlock</span><div><div class="f-n">Pact Magic</div><div class="f-d">Spells fueled by short-rest pact slots, all cast at their highest level.</div></div></div>
+            <div class="feat"><span class="f-tag t-sub">Hexblade</span><div><div class="f-n">Hex Warrior</div><div class="f-d">Use Charisma for attack and damage with a bonded weapon.</div></div></div>
+            <div class="feat"><span class="f-tag t-sub">Hexblade</span><div><div class="f-n">Hexblade's Curse</div><div class="f-d">Mark a foe for bonus damage and crit on a 19–20.</div></div></div>
+            <div class="feat"><span class="f-tag t-class">Warlock</span><div><div class="f-n">Eldritch Invocations</div><div class="f-d">Agonizing Blast · Devil's Sight.</div></div></div>
+            <div class="feat"><span class="f-tag t-class">Sorcerer</span><div><div class="f-n">Shadow Magic Origin</div><div class="f-d">Your soul carries a fragment of the Shadowfell.</div></div></div>
+            <div class="feat"><span class="f-tag t-sub">Shadow</span><div><div class="f-n">Strength of the Grave</div><div class="f-d">Drop to 1 HP instead of 0 on a Charisma save.</div></div></div>
+            <div class="feat"><span class="f-tag t-race">Astral Elf</span><div><div class="f-n">Darkvision 60 ft</div><div class="f-d">See in dim light and darkness.</div></div></div>
+            <div class="feat"><span class="f-tag t-race">Astral Elf</span><div><div class="f-n">Fey Ancestry</div><div class="f-d">Advantage against charm; immune to magical sleep.</div></div></div>
+            <div class="feat"><span class="f-tag t-race">Astral Elf</span><div><div class="f-n">Starlight Step</div><div class="f-d">Teleport 30 ft as a bonus action, prof. uses per long rest.</div></div></div>
+          </div>
+        </div>
+      </div>
+
+      <!-- EQUIPMENT + STORY -->
+      <div class="block">
+        <div class="es-grid">
+          <div>
+            <div class="sectitle"><span class="swashwrap"><h2>Equipment</h2></span><span class="tail"></span></div>
+            <div class="panelbox">
+              <div class="gitem"><svg class="g-ic" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><path d="M14 3l-1 6 3 3-5 9-1-7-3-2 4-9z"/></svg><span class="g-n">Rapier</span><span class="g-d">1d8 · finesse</span></div>
+              <div class="gitem"><svg class="g-ic" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><path d="M12 3l7 3v6c0 5-3 7-7 9-4-2-7-4-7-9V6z"/></svg><span class="g-n">Studded Leather</span><span class="g-d">AC 12 + Dex</span></div>
+              <div class="gitem"><svg class="g-ic" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><circle cx="12" cy="12" r="7"/><circle cx="12" cy="12" r="2.5" fill="currentColor"/></svg><span class="g-n">Orb of Shadow</span><span class="g-d">focus · attuned</span></div>
+              <div class="gitem"><svg class="g-ic" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><path d="M6 3h9l4 4v14H6z"/><path d="M9 8h7M9 12h7M9 16h5"/></svg><span class="g-n">Explorer's Pack</span></div>
+              <div class="gitem"><svg class="g-ic" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><path d="M9 3h6v3l2 4v9a2 2 0 01-2 2H9a2 2 0 01-2-2v-9l2-4z"/><path d="M7 13h10"/></svg><span class="g-n">Potion of Healing</span><span class="g-q">×2</span></div>
+              <div class="coinline"><span class="coin">24 <small>gp</small></span>
+                <span class="attune-wrap">Attuned<span class="pip on" style="width:10px;height:10px"></span><span class="pip on" style="width:10px;height:10px"></span><span class="pip" style="width:10px;height:10px"></span></span>
+              </div>
+            </div>
+          </div>
+          <div>
+            <div class="sectitle"><span class="swashwrap"><h2>Story</h2></span><span class="tail"></span></div>
+            <div class="panelbox">
+              <p class="story-quote">She keeps a sliver of midnight folded inside her chest — quiet most days, but it hums when the stars come out, and the blade answers before she does.</p>
+              <div class="traits">
+                <div class="trait"><div class="t-l">Personality</div><div class="t-t">Speaks softly, watches everything.</div></div>
+                <div class="trait"><div class="t-l">Ideal</div><div class="t-t">A debt named is a debt repaid.</div></div>
+                <div class="trait"><div class="t-l">Bond</div><div class="t-t">The patron who saved her still calls.</div></div>
+                <div class="trait"><div class="t-l">Flaw</div><div class="t-t">Trusts the shadow more than people.</div></div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="footer"><span class="mk">Cosmere Runestar</span><div class="ln"></div><span class="mk">Trials of Kirtas</span></div>
+
+    </section>
+  </div>
+</main>
+
+<script src="nav.js"></script>
+<script>
+(function(){
+
+function esc(x){ return String(x==null?'':x).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); }
+function sgn(n){ n=Number(n)||0; return (n>=0?'+':'\u2212')+Math.abs(n); }
+function clamp(n){ return Math.max(0,Math.min(100,n)); }
+function parseSource(src){
+  src=String(src||''); var i=src.indexOf(':');
+  var type=i>=0?src.slice(0,i):'class', label=i>=0?src.slice(i+1):src;
+  var map={ "class":"t-class", subclass:"t-sub", race:"t-race", feat:"t-feat" };
+  return { cls: map[type]||'t-class', label: label };
+}
+function renderSubline(root, s){
+  var box=root.querySelector('[data-list="subline"]'); if(!box) return;
+  var parts=[], classes=s.classes||(s.classLabel?[{name:s.classLabel,level:'',subclass:s.subclass}]:[]);
+  classes.forEach(function(c){
+    var sub=c.subclass?(' <span class="sub">\u00B7 '+esc(c.subclass)+'</span>'):'';
+    parts.push('<span><b>'+esc(c.name)+'</b> '+(c.level!=null?c.level:'')+sub+'</span>');
+  });
+  if(s.race) parts.push('<span>'+esc(s.race)+'</span>');
+  if(s.level!=null) parts.push('<span><b>Level '+s.level+'</b></span>');
+  if(s.alignment) parts.push('<span>'+esc(s.alignment)+'</span>');
+  box.innerHTML=parts.join('<span class="dot">\u2726</span>');
+}
+function renderAbilities(root, ab){
+  var box=root.querySelector('[data-list="abilities"]'); if(!box) return;
+  var order=[['str','Str'],['dex','Dex'],['con','Con'],['int','Int'],['wis','Wis'],['cha','Cha']];
+  box.innerHTML=order.map(function(o){
+    var a=ab[o[0]]||{}, mod=a.mod||0;
+    return '<div class="abil'+(mod<0?' neg':'')+'"><div class="nm">'+o[1]+'</div><div class="sc">'+(a.score!=null?a.score:'')+'</div><div class="md">'+sgn(mod)+'</div></div>';
+  }).join('');
+}
+function renderSaves(root, s){
+  var box=root.querySelector('[data-list="saves"]'); if(!box) return;
+  var sv=s.saves||{}, order=[['str','Str'],['dex','Dex'],['con','Con'],['int','Int'],['wis','Wis'],['cha','Cha']];
+  box.innerHTML=order.map(function(o){
+    var x=sv[o[0]]||{};
+    return '<div class="save'+(x.proficient?' prof':'')+'"><span class="dotp"></span><span class="sv-n">'+o[1]+'</span><span class="sv-v">'+sgn(x.bonus||0)+'</span></div>';
+  }).join('');
+}
+function renderSkills(root, skills){
+  var box=root.querySelector('[data-list="skills"]'); if(!box) return;
+  box.innerHTML=(skills||[]).map(function(sk){
+    var attr=sk.attr?(sk.attr.charAt(0).toUpperCase()+sk.attr.slice(1)):'';
+    return '<div class="skill'+(sk.prof?' prof':'')+'"><span class="dotp"></span><span class="sk-n">'+esc(sk.name)+'</span><span class="sk-a">'+esc(attr)+'</span><span class="sk-v">'+sgn(sk.bonus||0)+'</span></div>';
+  }).join('');
+}
+function renderFeatures(root, feats){
+  var box=root.querySelector('[data-list="features"]'); if(!box) return;
+  box.innerHTML=(feats||[]).map(function(fobj){
+    var p=parseSource(fobj.source);
+    return '<div class="feat"><span class="f-tag '+p.cls+'">'+esc(p.label)+'</span><div><div class="f-n">'+esc(fobj.name)+'</div><div class="f-d">'+esc(fobj.desc)+'</div></div></div>';
+  }).join('');
+}
+function setStatus(root, v){
+  var conc=root.querySelector('[data-f="concentration"]');
+  if(conc){ if(v.concentration){ conc.textContent=v.concentration; conc.className='conc-on'; } else { conc.textContent='none'; conc.className='muted'; } }
+  var cond=root.querySelector('[data-f="conditions"]');
+  if(cond){ var l=v.conditions; if(Array.isArray(l)&&l.length){ cond.textContent=l.join(' \u00B7 '); cond.className=''; } else { cond.textContent='none active'; cond.className='muted'; } }
+  var insp=root.querySelector('[data-f="inspiration"]');
+  if(insp){ insp.style.background = v.inspiration ? 'var(--gold-br)' : ''; }
+}
+function poolHTML(p){
+  p=p||{};
+  var toneCls = p.tone==='subclass'?' s2':(p.tone==='dim'?' dim':'');
+  var max=p.max||0, cur=p.current||0, slots='';
+  for(var i=0;i<max;i++){
+    slots += (i<cur)
+      ? '<span class="slot'+(p.tone==='subclass'?' teal':'')+' on"></span>'
+      : '<span class="slot empty"></span>';
+  }
+  return '<div class="pool'+toneCls+'"><div class="p-lab"><span>'+esc(p.label)+'</span>'
+       + '<span class="lv">'+esc(p.badge)+'</span></div>'
+       + '<div class="slots">'+slots+'</div>'
+       + '<div class="p-rec">'+esc(p.recharge)+'</div></div>';
+}
+function spellHTML(sp){
+  sp=sp||{};
+  var oMap={ "class":"o-class", subclass:"o-sub", race:"o-race", feat:"o-feat", expanded:"o-sub" };
+  var tMap={ "class":"t-class", subclass:"t-sub", race:"t-race", feat:"t-feat", expanded:"t-exp" };
+  var o=sp.origin||'class';
+  return '<div class="spell '+(oMap[o]||'o-class')+'"><span class="s-n">'+esc(sp.name)+'</span>'
+       + '<span class="s-tag '+(tMap[o]||'t-class')+'">'+esc(sp.source)+'</span>'
+       + '<span class="s-ct">'+esc(sp.time)+'</span></div>';
+}
+function groupHTML(g){
+  g=g||{};
+  return '<div class="spell-group"><div class="sg-h">'+esc(g.heading)+'</div>'
+       + '<div class="spell-cols">'+(g.spells||[]).map(spellHTML).join('')+'</div></div>';
+}
+function detailHTML(d){
+  if(!d) return '';
+  var dur = d.concentration ? '<b class="conc">'+esc(d.duration)+'</b>' : '<b>'+esc(d.duration)+'</b>';
+  return '<div class="detail">'
+       + '<div class="d-h"><span class="d-n">'+esc(d.name)+'</span><span class="d-sch">'+esc(d.school)+'</span></div>'
+       + '<div class="d-grid"><span>Cast <b>'+esc(d.cast)+'</b></span><span>Range <b>'+esc(d.range)+'</b></span>'
+       + '<span>Components <b>'+esc(d.components)+'</b></span><span>Duration '+dur+'</span></div>'
+       + '<p class="d-body">'+esc(d.body)+'</p>'
+       + '<p class="d-hl"><b>At higher levels</b> \u2014 '+esc(d.higher)+'</p></div>';
+}
+function renderSpellcasting(root, sc){
+  root=root||document; sc=sc||{};
+  function setF(fld,val){ if(val===undefined||val===null) return; var e=root.querySelector('[data-f="'+fld+'"]'); if(e) e.textContent=val; }
+  var ph=root.querySelector('[data-list="pools"]');       if(ph) ph.innerHTML=(sc.pools||[]).map(poolHTML).join('');
+  setF('castAbility', sc.ability);
+  setF('castDC', sc.saveDC);
+  setF('castAtk', sc.attackBonus!=null?sgn(sc.attackBonus):null);
+  setF('castType', sc.prepared===true?'Prepared':(sc.prepared===false?'Known':sc.castType));
+  setF('featNote', sc.featNote);
+  var gb=root.querySelector('[data-list="spellGroups"]');  if(gb) gb.innerHTML=(sc.groups||[]).map(groupHTML).join('');
+  var db=root.querySelector('[data-list="detail"]');       if(db) db.innerHTML=detailHTML(sc.detail);
+}
+
+function renderSheet(root, char){
+  root=root||document; char=char||{};
+  var s=char.structural||{}, v=char.vitals||{}, cb=s.combat||{}, ab=s.abilities||{};
+  function setF(fld,val){ if(val===undefined||val===null) return; var e=root.querySelector('[data-f="'+fld+'"]'); if(e) e.textContent=val; }
+  function styleF(fld,p,val){ var e=root.querySelector('[data-f="'+fld+'"]'); if(e) e.style[p]=val; }
+  var nm=root.querySelector('[data-f="name"]');
+  if(nm&&s.name){ var ps=String(s.name).trim().split(/\s+/); if(ps.length>1){ var last=ps.pop(); nm.innerHTML=esc(ps.join(' '))+' <em>'+esc(last)+'</em>'; } else nm.textContent=s.name; }
+  renderSubline(root, s);
+  setF('ac', cb.ac);
+  if(cb.acSource!=null) setF('ac-sub', cb.acSource);
+  setF('initiative', sgn(cb.initiative));
+  setF('speed', cb.speed);
+  setF('prof', sgn(s.proficiencyBonus));
+  setF('spellDC', cb.spellSaveDC);
+  setF('spellAtk', sgn(cb.spellAttackBonus));
+  if(cb.hitDice!=null) setF('hitDice', cb.hitDice);
+  var hp=(v.hp!=null?v.hp:cb.hp), hpMax=(cb.hpMax!=null?cb.hpMax:cb.hp), temp=(v.hpTemp!=null?v.hpTemp:0), bonus=(v.hpBonus!=null?v.hpBonus:0), effMax=(hpMax||0)+(bonus||0);
+  setF('hp', hp); setF('hpMaxBig', '/ '+hpMax); setF('hpCurrent', 'Current '+hp+' / '+hpMax);
+  setF('hpTemp', temp>0?('+'+temp+' Temp'):'');
+  if(effMax>0){ styleF('hpfill','width',clamp(hp/effMax*100)+'%'); styleF('hptemp','width',clamp(temp/effMax*100)+'%'); }
+  var senses=cb.senses||s.senses||{};
+  setF('darkvision', senses.darkvision?(senses.darkvision+' ft'):'\u2014');
+  setF('passivePerception', s.passivePerception);
+  setF('passiveInsight', s.passiveInsight);
+  var langs=(s.proficiencies&&s.proficiencies.languages)||s.languages;
+  if(langs!=null) setF('languages', Array.isArray(langs)?langs.join(' \u00B7 '):langs);
+  setStatus(root, v);
+  var notes=(char.notes!=null?char.notes:s.notes);
+  if(notes!=null) setF('notes', notes);
+  renderAbilities(root, ab); renderSaves(root, s); renderSkills(root, s.skills); renderFeatures(root, s.features);
+  renderSpellcasting(root, s.spellcasting||{});
+}
+// ── live data: map a CharacterData row into the renderer's shape, then bind ──
+function normSkills(sk){
+  if(!sk) return [];
+  var arr = Array.isArray(sk) ? sk : Object.keys(sk).map(function(k){ return sk[k]; });
+  return arr.map(function(x){ return { name:x.name, attr:(x.attr||'').toLowerCase(), bonus:x.bonus, prof: !!x.prof && x.prof!=='none' }; });
+}
+function levelInfo(L){
+  L=String(L).toLowerCase();
+  if(L.indexOf('cantrip')===0) return { n:0, heading:'Cantrips \u00B7 At Will' };
+  var m=L.match(/\d+/), n=m?parseInt(m[0],10):0, ord=['','1st','2nd','3rd','4th','5th','6th','7th','8th','9th'];
+  return { n:n, heading:(ord[n]||(n+'th'))+' Level' };
+}
+function buildSpellcasting(s, v){
+  var cb=s.combat||{}, cf=s.classFeatures||{}, pip=(v&&v.pipState)||{};
+  var ability='';
+  if(cb.spellSaveDC!=null && s.proficiencyBonus!=null && s.abilities){
+    var target=cb.spellSaveDC-8-s.proficiencyBonus, names={str:'Strength',dex:'Dexterity',con:'Constitution',int:'Intelligence',wis:'Wisdom',cha:'Charisma'};
+    Object.keys(s.abilities).forEach(function(k){ if(!ability && (s.abilities[k]||{}).mod===target) ability=names[k]||k; });
+  }
+  var pools=[];
+  if(cf.pactSlots){ var pm=cf.pactSlots.max||0, ps=pip.pactSlots||0; pools.push({label:'Pact Magic',badge:'Lvl '+(cf.pactSlots.level||1),tone:'class',max:pm,current:Math.max(0,pm-ps),recharge:pm+' slot'+(pm!==1?'s':'')+' \u00B7 short rest'}); }
+  if(cf.sorcererSlots){ Object.keys(cf.sorcererSlots).forEach(function(L){ var ss=cf.sorcererSlots[L]||{}, m=ss.max||0, sp=pip['sorc_'+L]||0; pools.push({label:'Sorcerer Slots',badge:'Lvl '+L,tone:'subclass',max:m,current:Math.max(0,m-sp),recharge:m+' slot'+(m!==1?'s':'')+' \u00B7 long rest'}); }); }
+  if(cf.spellSlots){ Object.keys(cf.spellSlots).sort(function(a,b){return (parseInt(a,10)||0)-(parseInt(b,10)||0);}).forEach(function(L){ var ss=cf.spellSlots[L]||{}, m=ss.max||0, sp=pip['spell_'+L]||0; if(m>0) pools.push({label:'Spell Slots',badge:'Lvl '+L,tone:'class',max:m,current:Math.max(0,m-sp),recharge:m+' slot'+(m!==1?'s':'')+' \u00B7 long rest'}); }); }
+  if(cf.sorceryPoints){ var sm=cf.sorceryPoints.max||0; pools.push({label:'Sorcery Points',badge:String(cf.sorceryPoints.current||0),tone:'dim',max:sm||1,current:cf.sorceryPoints.current||0,recharge:sm>0?'sorcerer rest':'unlocks at Sorcerer 2'}); }
+  var groups=[], spells=s.spells||{};
+  Object.keys(spells).map(function(L){ return { key:L, info:levelInfo(L) }; }).sort(function(a,b){ return a.info.n-b.info.n; }).forEach(function(o){
+    var arr=spells[o.key]; if(!arr||!arr.length) return;
+    groups.push({ heading:o.info.heading, spells:arr.map(function(sp){ return { name:sp.name, origin:'class', source:'', time:sp.castingTime||'' }; }) });
+  });
+  return { ability:ability, saveDC:cb.spellSaveDC, attackBonus:cb.spellAttackBonus, pools:pools, groups:groups, detail:null, featNote:'\u2014 origin colours arrive when the derive carries provenance' };
+}
+function toRenderShape(cd){
+  cd=cd||{}; var s=Object.assign({}, cd.structural||{}), v=Object.assign({}, cd.vitals||{});
+  s.skills=normSkills(s.skills);
+  if(s.passiveInsight==null){ var ins=s.skills.filter(function(x){return x.name==='Insight';})[0]; if(ins) s.passiveInsight=10+(ins.bonus||0); }
+  if(!s.spellcasting) s.spellcasting=buildSpellcasting(s, v);
+  if(v.inspiration==null && s.inspiration!=null) v.inspiration=s.inspiration;
+  return { structural:s, vitals:v, notes:(cd.notes!=null?cd.notes:s.notes) };
+}
+function applyExtras(cd){
+  var v=cd.vitals||{}, s=cd.structural||{}, insp=(v.inspiration!=null?v.inspiration:s.inspiration);
+  var por=document.querySelector('.portrait'); if(por) por.classList.toggle('inspired', !!insp);
+  var frame=document.querySelector('.portrait .frame');
+  if(frame && s.portrait){ frame.innerHTML='<img src="'+esc(s.portrait)+'" alt="" style="width:100%;height:100%;object-fit:cover;object-position:top center;display:block">'; }
+}
+function showError(msg){ var sub=document.querySelector('[data-list="subline"]'); if(sub) sub.innerHTML='<span style="color:var(--red-br)">'+esc(msg)+'</span>'; }
+function load(){
+  var key=new URLSearchParams(location.search).get('character')||'cosmere';
+  if(typeof CharacterData==='undefined'){ showError('CharacterData not loaded'); return; }
+  CharacterData.loadCharacter(key).then(function(cd){
+    if(!cd){ showError('No character "'+key+'"'); return; }
+    renderSheet(document, toRenderShape(cd));
+    applyExtras(cd);
+  }).catch(function(e){ console.error('[sheet] load:', e); showError((e&&e.message)?e.message:'Could not load character'); });
+}
+window.__sheet = { renderSheet: renderSheet, toRenderShape: toRenderShape, buildSpellcasting: buildSpellcasting, applyExtras: applyExtras };
+if(document.readyState==='loading') document.addEventListener('DOMContentLoaded', load); else load();
+})();
+</script>
+</body>
+</html>
