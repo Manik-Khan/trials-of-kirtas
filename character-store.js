@@ -1,104 +1,151 @@
 // character-store.js
-// Client-side read/write layer for mutable character data.
-// Loaded by sheet.html. Works alongside characters.js (static data).
+// Supabase-backed adapter — Phase 0 of the main-sheet migration.
 //
-// USAGE:
-//   CharacterStore.load('caim')          → fetches from Netlify function
-//   CharacterStore.get()                 → returns current in-memory data
-//   CharacterStore.save(patch)           → merges patch and writes to GitHub
-//   CharacterStore.onUpdate(fn)          → register listener for data changes
+// Keeps the EXACT public surface the old GitHub-JSON store exposed
+// (load / get / save / flush / onUpdate, the in-memory cache, the debounce, and the
+// idle|loading|saving|saved|error status events sheet.html's sync UI is wired to) — but
+// reads and writes now go to Supabase via window.CharacterData, the same live truth
+// party.html and the nightly export already use, instead of data/characters/<key>.json.
 //
-// The store keeps an in-memory copy. UI reads from memory, writes
-// debounce to the server so rapid edits don't spam GitHub.
+// Why: the old path wrote only to the git JSON, which the nightly Supabase->git export
+// then overwrote — so every edit on this sheet had a <24h half-life. Routing through
+// CharacterData puts edits in the source of truth, so they persist (and party.html sees
+// them live).
+//
+// Field mapping (sheet shape  <->  Supabase column):
+//   combat            <->  vitals      — SAME {hp,hpTemp,hpBonus,pipState} shape party.html
+//                                         writes; party's `concentration` is preserved by the
+//                                         merge below (we never blind-overwrite the column).
+//   inventory / currency / notes / bio / equipment / structural   pass through 1:1
+//
+// Partial patches (bio, combat) are deep-merged into the loaded row BEFORE the write,
+// because CharacterData.save replaces a whole column with whatever value it's handed.
+//
+// Requires nav.js (CharacterData waits on window.__tok) and character-data.js — both are
+// loaded by sheet.html ahead of this file. The actual CharacterData calls only run inside
+// load()/save(), which fire after the page (and the session) are up.
 
 const CharacterStore = (() => {
 
-  const FUNCTION_URL = '/.netlify/functions/character';
-  const DEBOUNCE_MS  = 1200; // wait 1.2s after last change before writing
+  const DEBOUNCE_MS = 1200; // wait 1.2s after the last change before writing
 
   let _key       = null;
-  let _data      = null;
-  let _sha       = null;
+  let _data      = null;   // in-memory copy in SHEET shape (combat === vitals)
   let _listeners = [];
   let _debounceTimer = null;
-  let _pendingPatch  = {};
+  let _pendingKeys   = {}; // set of sheet-shape top-level keys awaiting flush
   let _status    = 'idle'; // 'idle' | 'loading' | 'saving' | 'saved' | 'error'
 
-  // ── Status helpers ──
+  // sheet-shape key -> Supabase editable column. Anything not here is not written.
+  const COL = {
+    combat: 'vitals',
+    inventory: 'inventory',
+    currency: 'currency',
+    notes: 'notes',
+    bio: 'bio',
+    equipment: 'equipment',
+    structural: 'structural',
+  };
+
+  // ── Status / notify ──
   function setStatus(s) {
     _status = s;
     _listeners.forEach(fn => fn({ type: 'status', status: s, data: _data }));
   }
-
   function notify() {
     _listeners.forEach(fn => fn({ type: 'data', data: _data, status: _status }));
   }
 
-  // ── Load character data from server ──
+  function _deepMerge(target, source) {
+    const out = { ...(target || {}) };
+    for (const k of Object.keys(source || {})) {
+      if (source[k] !== null && typeof source[k] === 'object' && !Array.isArray(source[k])) {
+        out[k] = _deepMerge(out[k] || {}, source[k]);
+      } else {
+        out[k] = source[k];
+      }
+    }
+    return out;
+  }
+
+  // CharacterData row (has `vitals`) -> sheet shape (has `combat`).
+  function toSheet(row) {
+    if (!row) return _defaultData(_key);
+    return {
+      key:         row.key,
+      structural:  row.structural || {},
+      combat:      row.vitals     || {},   // the sheet reads d.combat
+      inventory:   row.inventory  || [],
+      equipment:   row.equipment  || {},
+      currency:    row.currency   || {},
+      bio:         row.bio        || {},
+      notes:       (row.notes == null ? '' : row.notes),
+      lastUpdated: row.updatedAt  || null,
+    };
+  }
+
+  // ── Load this character's live data from Supabase ──
   async function load(key) {
     _key = key;
     setStatus('loading');
     try {
-      const res  = await fetch(`${FUNCTION_URL}?character=${key}`);
-      const json = await res.json();
-      if (!res.ok) throw new Error(json.error || 'Load failed');
-      _data = json.data;
-      _sha  = json.sha;
+      if (typeof CharacterData === 'undefined') throw new Error('CharacterData not loaded');
+      const row = await CharacterData.loadCharacter(key);
+      _data = toSheet(row);
       setStatus('idle');
       notify();
       return _data;
     } catch (e) {
       console.error('[CharacterStore] load error:', e);
       setStatus('error');
-      // Fall back to defaults so UI still works offline
-      _data = _defaultData(key);
+      _data = _defaultData(key); // keep the UI alive on a transient failure
       notify();
       return _data;
     }
   }
 
-  // ── Get current in-memory data ──
   function get() {
     return _data;
   }
 
-  // ── Save — merges patch into memory immediately, debounces network write ──
-  function save(patch, authorName) {
-    if (!_key) return;
-
-    // Merge patch into in-memory data immediately (optimistic)
-    _data = _deepMerge(_data, patch);
-    _pendingPatch = _deepMerge(_pendingPatch, patch);
-    if (authorName) _pendingPatch._author = authorName;
+  // ── Save — optimistic merge into memory, debounce a Supabase write ──
+  // Second arg (author) is accepted for call-site compatibility but ignored:
+  // Supabase attributes the write via the session/RLS, not a label.
+  function save(patch /*, author */) {
+    if (!_key || !patch) return;
+    _data = _deepMerge(_data || _defaultData(_key), patch);
+    Object.keys(patch).forEach(k => { if (k !== '_author') _pendingKeys[k] = true; });
     notify();
 
-    // Debounce the actual network write
     clearTimeout(_debounceTimer);
     setStatus('saving');
     _debounceTimer = setTimeout(() => _flush(), DEBOUNCE_MS);
   }
 
-  // ── Force immediate write (e.g. on page unload) ──
   function flush() {
     clearTimeout(_debounceTimer);
     return _flush();
   }
 
   async function _flush() {
-    if (!_key || Object.keys(_pendingPatch).length === 0) return;
-    const patch = { ..._pendingPatch };
-    _pendingPatch = {};
+    const keys = Object.keys(_pendingKeys);
+    if (!_key || !keys.length) return;
+    _pendingKeys = {};
+
+    // One Supabase patch: the FULL merged value for each touched key, mapped to its
+    // column (so a partial bio/combat edit never drops sibling fields).
+    const colPatch = {};
+    for (const k of keys) {
+      const col = COL[k];
+      if (!col) continue;              // not an editable column -> skip
+      colPatch[col] = _data[k];
+    }
+    if (!Object.keys(colPatch).length) return;
+
     try {
-      const res  = await fetch(`${FUNCTION_URL}?character=${_key}`, {
-        method:  'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body:    JSON.stringify(patch),
-      });
-      const json = await res.json();
-      if (!res.ok) throw new Error(json.error || 'Save failed');
-      _sha  = json.data ? null : _sha; // SHA rotates on write; re-fetch will get new one
+      if (typeof CharacterData === 'undefined') throw new Error('CharacterData not loaded');
+      await CharacterData.save(_key, colPatch);
       setStatus('saved');
-      // Brief "Saved" flash then back to idle
       setTimeout(() => setStatus('idle'), 2000);
     } catch (e) {
       console.error('[CharacterStore] save error:', e);
@@ -106,17 +153,16 @@ const CharacterStore = (() => {
     }
   }
 
-  // ── Register update listener ──
-  // fn receives { type: 'data'|'status', data, status }
+  // ── Register update listener — fn receives { type:'data'|'status', data, status } ──
   function onUpdate(fn) {
     _listeners.push(fn);
-    return () => { _listeners = _listeners.filter(l => l !== fn); }; // returns unsubscribe fn
+    return () => { _listeners = _listeners.filter(l => l !== fn); };
   }
 
-  // ── Helpers ──
   function _defaultData(key) {
     return {
       key,
+      structural: {},
       inventory: [],
       currency: { pp: 0, gp: 0, ep: 0, sp: 0, cp: 0 },
       notes: '',
@@ -124,18 +170,6 @@ const CharacterStore = (() => {
       combat: { hp: null, hpTemp: 0, hpBonus: 0, pipState: {} },
       lastUpdated: null,
     };
-  }
-
-  function _deepMerge(target, source) {
-    const out = { ...target };
-    for (const k of Object.keys(source)) {
-      if (source[k] !== null && typeof source[k] === 'object' && !Array.isArray(source[k])) {
-        out[k] = _deepMerge(target[k] || {}, source[k]);
-      } else {
-        out[k] = source[k];
-      }
-    }
-    return out;
   }
 
   return { load, get, save, flush, onUpdate };
