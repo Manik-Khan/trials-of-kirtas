@@ -77,6 +77,37 @@
     if (grp) grp.rowsSpellProgression.forEach((row, i) => { out[i + 1] = row.slice(); });
     return out;
   }
+  // Warlock pact magic encodes slots differently: a classTableGroups row carries a
+  // "Spell Slots" count column and a "Slot Level" column (all slots at one level).
+  // Returns the same {level: [l1..l9]} shape as mkSlots, so the engine is agnostic.
+  function stripTag(s) { return String(s).replace(/\{@\w+ ([^|}]+)(?:\|[^}]*)?\}/g, '$1').replace(/\{@\w+\}/g, ''); }
+  function slotLevelOf(cell) {
+    const s = String(cell);
+    const byFilter = s.match(/level=(\d+)/);            // {@filter 3rd|spells|level=3|...}
+    if (byFilter) return +byFilter[1];
+    const byOrd = stripTag(s).match(/(\d+)\s*(?:st|nd|rd|th)/i);
+    return byOrd ? +byOrd[1] : 0;
+  }
+  function mkPactSlots(tableGroups) {
+    const out = {};
+    const labelOf = l => stripTag(l).trim();
+    const grp = (tableGroups || []).find(g => Array.isArray(g.colLabels) && Array.isArray(g.rows)
+      && g.colLabels.some(l => /spell slots/i.test(labelOf(l)))
+      && g.colLabels.some(l => /slot level/i.test(labelOf(l))));
+    if (!grp) return out;
+    const countIdx = grp.colLabels.findIndex(l => /spell slots/i.test(labelOf(l)));
+    const lvlIdx = grp.colLabels.findIndex(l => /slot level/i.test(labelOf(l)));
+    grp.rows.forEach((row, i) => {
+      const count = parseInt(row[countIdx], 10) || 0;
+      const lvl = slotLevelOf(row[lvlIdx]);
+      if (count > 0 && lvl >= 1) {
+        const arr = [0, 0, 0, 0, 0, 0, 0, 0, 0];
+        arr[lvl - 1] = count;
+        out[i + 1] = arr;
+      }
+    });
+    return out;
+  }
   // The 2014 ⅓-casters (Eldritch Knight, Arcane Trickster) pick from the wizard
   // list. Any other casting subclass falls back to its own class's list.
   function subclassSpellList(sc) {
@@ -133,7 +164,7 @@
     // spell slots come straight from the class table; cantrip/spells-known arrays
     // distinguish known casters (Bard/Sorc) from prepared (Wizard/Cleric/Druid).
     const spellcasting = mkSpellcasting(c, c.name);   // base list = the class's own
-    const slotsByLevel = mkSlots(c.classTableGroups);
+    const slotsByLevel = c.casterProgression === 'pact' ? mkPactSlots(c.classTableGroups) : mkSlots(c.classTableGroups);
 
     return {
       name: c.name, source: c.source,
@@ -176,12 +207,72 @@
     const data = {};
     await Promise.all(files.map(async s => { data[s] = await fetchJson(`spells/${idx[s]}`); }));
     const out = [];
+    const withDetail = !!(opts && opts.detail);
     for (const w of want) {
       const f = data[w.spellSource]; if (!f) continue;
       const sp = (f.spell || []).find(x => x.name === w.name && x.source === w.spellSource);
-      if (sp) out.push({ name: sp.name, level: sp.level, school: sp.school, source: sp.source });
+      if (!sp) continue;
+      const item = { name: sp.name, level: sp.level, school: sp.school, source: sp.source };
+      if (withDetail) {
+        item.time = sp.time || null;
+        item.range = sp.range || null;
+        item.components = sp.components || null;
+        item.duration = sp.duration || null;
+        item.ritual = !!(sp.meta && sp.meta.ritual);
+        item.concentration = (sp.duration || []).some(d => d && d.concentration);
+        item.entries = sp.entries || [];
+        item.entriesHigherLevel = sp.entriesHigherLevel || null;
+      }
+      out.push(item);
     }
     out.sort((a, b) => a.level - b.level || a.name.localeCompare(b.name));
+    return out;
+  }
+
+  // Resolve arbitrary spells BY NAME (case-insensitive) -> { name, level, school, source[, time…] }.
+  // Same sources.json / index.json path as loadClassSpellList, but filtered by a name set instead
+  // of a class. Lets the spell picker resolve racial / feat spells that aren't on the character's
+  // own class list (e.g. a Tiefling Wizard's Hellish Rebuke) so they bucket by their real level.
+  async function loadSpellMeta(names, opts) {
+    const wantNames = new Map();                 // lowercased -> kept (first wins)
+    (names || []).forEach(n => { const k = String(n).toLowerCase(); if (!wantNames.has(k)) wantNames.set(k, n); });
+    if (!wantNames.size) return [];
+    const [sources, idx] = await Promise.all([
+      fetchJson('spells/sources.json'),
+      fetchJson('spells/index.json'),
+    ]);
+    const want = [];
+    for (const [spellSource, spells] of Object.entries(sources)) {
+      for (const spellName of Object.keys(spells)) {
+        if (wantNames.has(spellName.toLowerCase())) want.push({ name: spellName, spellSource });
+      }
+    }
+    const files = [...new Set(want.map(w => w.spellSource))].filter(s => idx[s]);
+    const data = {};
+    await Promise.all(files.map(async s => { data[s] = await fetchJson(`spells/${idx[s]}`); }));
+    const out = [];
+    const seen = new Set();
+    const withDetail = !!(opts && opts.detail);
+    for (const w of want) {
+      const key = w.name.toLowerCase();
+      if (seen.has(key)) continue;               // first source carrying the name wins
+      const f = data[w.spellSource]; if (!f) continue;
+      const sp = (f.spell || []).find(x => x.name === w.name && x.source === w.spellSource);
+      if (!sp) continue;
+      seen.add(key);
+      const item = { name: sp.name, level: sp.level, school: sp.school, source: sp.source };
+      if (withDetail) {
+        item.time = sp.time || null;
+        item.range = sp.range || null;
+        item.components = sp.components || null;
+        item.duration = sp.duration || null;
+        item.ritual = !!(sp.meta && sp.meta.ritual);
+        item.concentration = (sp.duration || []).some(d => d && d.concentration);
+        item.entries = sp.entries || [];
+        item.entriesHigherLevel = sp.entriesHigherLevel || null;
+      }
+      out.push(item);
+    }
     return out;
   }
 
@@ -349,7 +440,7 @@
   const API = {
     BASE, fetchJson,
     parseClassFeatureRef, parseSubclassFeatureRef, normalizeClass,
-    loadClass, loadClassSpellList,
+    loadClass, loadClassSpellList, loadSpellMeta,
     loadRace,
     parseAbility, parseSpeed, parseSize, parseLanguages, parseProfChoose,
     collectTraits, applyMod, resolveCopy, normalizeRace, makeLoadRace,

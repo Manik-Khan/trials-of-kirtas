@@ -29,6 +29,7 @@
  *       name, level('cantrip'|1..9), origin('class'|'subclass'|'race'|'feat'|'expanded'),
  *       source, time, detail?
  *     } ],
+ *     spellbook?: [ {name,level,origin,source} ],  // Wizard's owned book — persists distinct from groups
  *     extraPools?: [ {label,badge,tone,current,max,recharge} ],  // class resources (sorcery points, ki…)
  *     detail?: {...}                      // optional expanded card (else first spell carrying a detail)
  *   }
@@ -181,6 +182,14 @@
       detail: detail
     };
     if ('prepared' in meta) sc.prepared = meta.prepared; else sc.castType = meta.castType;
+    // Wizard's owned book — persists DISTINCT from the prepared/castable `groups`: the level-up
+    // flow grows it (+2/level) and the transcribe-into-book flow appends to it. Purely additive —
+    // absent for non-book casters, so the sheet reader is unaffected until it chooses to show it.
+    if (input.spellbook && input.spellbook.length) {
+      sc.spellbook = input.spellbook.map(function (s) {
+        return { name: s.name, level: s.level, origin: s.origin || 'class', source: s.source };
+      });
+    }
     return sc;
   }
 

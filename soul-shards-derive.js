@@ -17,6 +17,7 @@
  *     race?: <loadRace() model>, subraceName?,              // full model -> speed/senses/traits fold in
  *     background?: { name },                                 // grants are P5
  *     spells?: [ {name,level,origin,source,time,detail?} ],  // P6a picker output; empty -> flagged
+ *     spellbook?: [ {name,level,origin,source} ],            // Wizard's owned book (persists distinct from groups)
  *     extraPools?: [...], detail?: {...}, hp?: { method, rolls }
  *   }
  * RETURNS: { structural, _incomplete:[strings] }
@@ -61,7 +62,7 @@
         var sc = b.spellcasting || {};
         return { name: b.className, level: b.level, subclass: b.subclass, progression: sc.progression || null, ability: sc.ability || null, prepared: !!sc.prepared };
       }),
-      spells: input.spells || [], extraPools: input.extraPools || [], detail: input.detail || null
+      spells: input.spells || [], spellbook: input.spellbook || [], extraPools: input.extraPools || [], detail: input.detail || null
     };
     var spellcasting = anyCaster ? SC.deriveSpellcasting(mergeInput) : null;
     var classesArr = SC.deriveClasses(mergeInput);
@@ -121,7 +122,13 @@
     incomplete.push('skills[] (need class / background / race proficiency choices)');
     incomplete.push('proficiencies (armor / weapons / tools / languages \u2014 incl. racial choices)');
     incomplete.push('actions[] (weapon / cantrip attacks \u2014 need equipment)');
-    incomplete.push('racial innate spells (race.additionalSpells) not folded into spellcasting yet');
+    // Racial spells now arrive via the picker's emit (origin:'race') and fold into groups[].
+    // Only flag when the race actually grants spells the picker hasn't captured yet.
+    var raceGrantsSpells = !!(race && race.additionalSpells &&
+      (Array.isArray(race.additionalSpells) ? race.additionalSpells.length : true));
+    var raceSpellsCaptured = (input.spells || []).some(function (s) { return s.origin === 'race'; });
+    if (raceGrantsSpells && !raceSpellsCaptured)
+      incomplete.push('racial spells (race.additionalSpells) \u2014 complete the Spells step to fold them in');
     incomplete.push('appearance + bio (physical description, backstory) not captured here');
     incomplete.push('legacy structural.spells / classFeatures (party.html shape) \u2014 reconcile vs structural.spellcasting');
 
