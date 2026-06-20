@@ -1,0 +1,153 @@
+/* soul-shards-derive.js — assemble `structural` from the engine + the multiclass merge.
+ *
+ * P7's DERIVE (preview half): runs SoulShardsEngine.build() once per class, folds
+ * spellcasting through SoulShardsSpellcasting (the multiclass merge), folds race traits
+ * from a SoulShardsData.loadRace() model, and assembles the `structural` block the sheet
+ * reads — with an honest `_incomplete[]` for everything still un-derivable. NOTHING is
+ * written; CharacterData.save(key,{structural}) is the last, separate P7 step.
+ *
+ * Pure-ish: engine + spellcasting deps injected (2nd arg) or read off window. Attaches to
+ * window.SoulShardsDerive / module.exports.
+ *
+ * INPUT (what the builder hands over):
+ *   {
+ *     name, alignment, portrait, xp?,
+ *     abilities: { str..cha },                              // FINAL scores (post-racial)
+ *     classes: [ { model, level, subclassShortName } ],     // model = SoulShardsData.loadClass()
+ *     race?: <loadRace() model>, subraceName?,              // full model -> speed/senses/traits fold in
+ *     background?: { name },                                 // grants are P5
+ *     spells?: [ {name,level,origin,source,time,detail?} ],  // P6a picker output; empty -> flagged
+ *     extraPools?: [...], detail?: {...}, hp?: { method, rolls }
+ *   }
+ * RETURNS: { structural, _incomplete:[strings] }
+ */
+(function () {
+  'use strict';
+
+  function abilityMod(score) { return Math.floor(((score || 10) - 10) / 2); }
+  function joinEntries(e) {
+    if (typeof e === 'string') return e;
+    if (Array.isArray(e)) return e.filter(function (x) { return typeof x === 'string'; }).join(' ');
+    return '';
+  }
+
+  function deriveStructural(input, deps) {
+    input = input || {}; deps = deps || {};
+    var engine = deps.engine || (typeof window !== 'undefined' && window.SoulShardsEngine);
+    var SC = deps.spellcasting || (typeof window !== 'undefined' && window.SoulShardsSpellcasting);
+    if (!engine || !SC) throw new Error('deriveStructural: { engine, spellcasting } deps required');
+
+    var abilities = input.abilities || {};
+    var classes = input.classes || [];
+    var incomplete = [];
+    var mod = function (k) { return abilityMod(abilities[k]); };
+    var ABIL = ['str', 'dex', 'con', 'int', 'wis', 'cha'];
+
+    // ── per-class engine builds ──
+    var builds = classes.map(function (c) {
+      return engine.build({ classModel: c.model, level: c.level, abilities: abilities, subclassShortName: c.subclassShortName, hp: input.hp });
+    });
+    var totalLevel = classes.reduce(function (n, c) { return n + (c.level || 0); }, 0);
+    var pb = 2 + Math.floor((Math.max(1, totalLevel) - 1) / 4);
+
+    var classLabel = builds.map(function (b) { return b.className + ' ' + b.level; }).join(' / ');
+    var subclassLabel = builds.map(function (b) { return b.subclass; }).filter(Boolean).join(' / ');
+
+    // ── spellcasting via the multiclass merge ──
+    var anyCaster = builds.some(function (b) { return b.spellcasting; });
+    var mergeInput = {
+      totalLevel: totalLevel, abilities: abilities,
+      classes: builds.map(function (b) {
+        var sc = b.spellcasting || {};
+        return { name: b.className, level: b.level, subclass: b.subclass, progression: sc.progression || null, ability: sc.ability || null, prepared: !!sc.prepared };
+      }),
+      spells: input.spells || [], extraPools: input.extraPools || [], detail: input.detail || null
+    };
+    var spellcasting = anyCaster ? SC.deriveSpellcasting(mergeInput) : null;
+    var classesArr = SC.deriveClasses(mergeInput);
+    if (anyCaster && !(input.spells && input.spells.length))
+      incomplete.push('spells (cantrip / known / prepared selections) \u2014 pending the P6a spell picker');
+
+    // ── abilities {score, mod} ──
+    var abilOut = {};
+    ABIL.forEach(function (k) { abilOut[k] = { score: abilities[k] != null ? abilities[k] : null, mod: mod(k) }; });
+
+    // ── saves — 2014 multiclass: saving-throw proficiencies come from the FIRST class only ──
+    var firstSaves = (builds[0] && builds[0].savingThrows) || [];
+    var saveOut = {};
+    ABIL.forEach(function (k) { var prof = firstSaves.indexOf(k) !== -1; saveOut[k] = { bonus: mod(k) + (prof ? pb : 0), proficient: prof }; });
+
+    // ── hit dice — grouped by die size: "2d8 + 1d6" ──
+    var byDie = {};
+    builds.forEach(function (b) { if (b.hd) byDie[b.hd] = (byDie[b.hd] || 0) + b.level; });
+    var hitDice = Object.keys(byDie).sort(function (a, b) { return b - a; }).map(function (d) { return byDie[d] + 'd' + d; }).join(' + ');
+
+    // ── features — class + subclass carry the engine's origin stamp ('class:Name'/'subclass:Name') ──
+    var features = [];
+    builds.forEach(function (b) {
+      (b.features || []).forEach(function (f) {
+        features.push({ name: f.name, source: f.origin, desc: joinEntries(f.entries) });
+      });
+    });
+
+    // ── combat scalars + race/subrace traits (P3 — resolved from races.json by loadRace) ──
+    var combat = { initiative: mod('dex'), hitDice: hitDice };
+    var race = input.race || null;
+    var raceName = race ? race.name : null;
+    if (race && (race.speed || race.darkvision != null || race.traits)) {
+      var sub = (race.subraces || []).filter(function (s) {
+        return input.subraceName && (s.name === input.subraceName || s.label === input.subraceName);
+      })[0] || null;
+      var walk = (sub && sub.speed && sub.speed.walk != null) ? sub.speed.walk
+               : (race.speed && race.speed.walk != null ? race.speed.walk : null);
+      if (walk != null) combat.speed = walk;
+      var dv = (sub && sub.darkvision != null) ? sub.darkvision : (race.darkvision != null ? race.darkvision : null);
+      if (dv != null) combat.senses = { darkvision: dv };
+      (race.traits || []).forEach(function (t) { features.push({ name: t.name, source: 'race:' + raceName, desc: joinEntries(t.entries) }); });
+      if (sub) (sub.traits || []).forEach(function (t) { features.push({ name: t.name, source: 'race:' + raceName, desc: joinEntries(t.entries) }); });
+    } else if (race) {
+      incomplete.push('race traits (speed / senses / traits) \u2014 pass the loadRace model, not just { name }');
+    }
+
+    if (spellcasting && spellcasting.saveDC != null) combat.spellSaveDC = spellcasting.saveDC;
+    if (spellcasting && spellcasting.attackBonus != null) combat.spellAttackBonus = spellcasting.attackBonus;
+
+    // ── honest gaps ──
+    incomplete.push('feature descriptions (P4 \u2014 {@tag} entries markup not yet rendered)');
+    incomplete.push('combat.ac (needs equipped armor \u2014 equipment not modeled in this derive)');
+    incomplete.push('combat.hp / hpMax (multiclass HP needs first-character-level-max handling)');
+    incomplete.push('senses don\u2019t include feature/subclass upgrades (e.g. Shadow Magic darkvision)');
+    incomplete.push('passivePerception / passiveInsight (need the Perception / Insight skill proficiencies)');
+    incomplete.push('skills[] (need class / background / race proficiency choices)');
+    incomplete.push('proficiencies (armor / weapons / tools / languages \u2014 incl. racial choices)');
+    incomplete.push('actions[] (weapon / cantrip attacks \u2014 need equipment)');
+    incomplete.push('racial innate spells (race.additionalSpells) not folded into spellcasting yet');
+    incomplete.push('appearance + bio (physical description, backstory) not captured here');
+    incomplete.push('legacy structural.spells / classFeatures (party.html shape) \u2014 reconcile vs structural.spellcasting');
+
+    var structural = {
+      name: input.name || null,
+      classLabel: classLabel,
+      subclass: subclassLabel || null,
+      classes: classesArr,
+      level: totalLevel,
+      race: raceName,
+      background: input.background ? input.background.name : null,
+      alignment: input.alignment || null,
+      xp: input.xp != null ? input.xp : 0,
+      portrait: input.portrait || null,
+      proficiencyBonus: pb,
+      abilities: abilOut,
+      combat: combat,
+      saves: saveOut,
+      features: features,
+      spellcasting: spellcasting
+    };
+
+    return { structural: structural, _incomplete: incomplete };
+  }
+
+  var API = { deriveStructural };
+  if (typeof window !== 'undefined') window.SoulShardsDerive = API;
+  if (typeof module !== 'undefined' && module.exports) module.exports = API;
+})();

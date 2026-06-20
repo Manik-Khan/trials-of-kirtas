@@ -377,6 +377,8 @@
 <!-- engine + data + write-path modules (deployed alongside this page) -->
 <script src="soul-shards-data.js"></script>
 <script src="soul-shards-engine.js"></script>
+<script src="soul-shards-spellcasting.js"></script>
+<script src="soul-shards-derive.js"></script>
 <script src="character-data.js"></script>
 <script>
 'use strict';
@@ -1245,69 +1247,26 @@ function wireEngineCard(host, b){
 var forgeReq = 0;
 function escHtml(x){ return String(x).replace(/[&<>]/g, function(ch){ return ch === '&' ? '&amp;' : ch === '<' ? '&lt;' : '&gt;'; }); }
 function abMod(s){ return Math.floor((s - 10) / 2); }
-function buildStructuralPreview(model, b, race){
-  var lvl = draft.level, ab = effectiveAbilities(race), c = chosenClass();
-  var facts = (race && typeof SpeciesUI !== 'undefined') ? SpeciesUI.forgeFacts(race) : null;
-  var prof = 2 + Math.floor((lvl - 1) / 4);
-  var saveSet = {};
-  (b.savingThrows || []).forEach(function(s){ saveSet[String(s).toLowerCase().slice(0, 3)] = true; });
-  var abilities = {}, saves = {};
-  ['str','dex','con','int','wis','cha'].forEach(function(k){
-    var score = ab[k] != null ? ab[k] : 10, m = abMod(score), p = !!saveSet[k];
-    abilities[k] = { score: score, mod: m };
-    saves[k] = { bonus: m + (p ? prof : 0), proficient: p };
-  });
-  var sp = b.spellcasting;
-  var combat = {
-    ac: null,
-    hp: b.hp.max, hpMax: b.hp.max, hpTemp: 0,
-    speed: facts ? facts.speed : null,
-    initiative: abilities.dex.mod,
-    hitDice: 'd' + b.hd,
-    spellSaveDC: null, spellAttackBonus: null,
-  };
-  if (sp && sp.ability && ab[sp.ability] != null){
-    var cm = abMod(ab[sp.ability]);
-    combat.spellSaveDC = 8 + prof + cm;
-    combat.spellAttackBonus = prof + cm;
+function buildStructuralPreview(model, race){
+  // P7 derive (preview): hand the chosen class model + level + subclass + race model to
+  // SoulShardsDerive, which runs the engine per class, folds the multiclass spellcasting
+  // merge, and assembles the structural the sheet reads. Spell selections await the P6a
+  // picker, so `spells` is empty here and surfaces under _incomplete. Nothing is written.
+  if (typeof SoulShardsDerive === 'undefined' || typeof SoulShardsSpellcasting === 'undefined'){
+    return { _error: 'Spellcasting / derive modules not loaded.' };
   }
-  var incomplete = [
-    'alignment, xp, portrait, appearance — not collected in this flow yet',
-    'combat.ac — needs equipped armor (GEAR, P5+)',
-    'passivePerception — needs resolved skill proficiencies',
-    'skills[] (18) — needs class + background skill choices',
-    'racial skill / tool / language choices — reconciled at P5',
-    'racial innate spells (additionalSpells) — surfaced at P6',
-    'background grants — skills / tools / equipment / feature — P5',
-    'feature descriptions (desc text) — P4',
-    'spell selections — cantrips / known / prepared lists — P6',
-  ];
-  if (facts && facts.openCount) incomplete.unshift('species choices incomplete — finish subrace / size / ability picks (' + facts.openCount + ' open)');
-  var structural = {
-    name: draft.name || 'Unnamed',
-    classLabel: c ? c.n : null,
-    subclass: draft.subclass ? draft.subclass.n : null,
-    level: lvl,
-    race: draft.species ? draft.species.n : null,
-    subrace: draft.subrace ? draft.subrace.n : null,
-    size: facts ? facts.size : null,
-    background: draft.bg ? draft.bg.n : null,
-    proficiencyBonus: prof,
-    abilities: abilities,
-    saves: saves,
-    combat: combat,
-    senses: (facts && facts.darkvision) ? { darkvision: facts.darkvision } : null,
-    speciesTraits: facts ? facts.traits : null,
-    spellcasting: sp ? {
-      ability: sp.ability, progression: sp.progression, prepared: sp.prepared,
-      source: sp.source, spellListClass: sp.spellListClass,
-      cantripsKnown: sp.cantripsKnown, spellsKnown: sp.spellsKnown,
-      preparedCount: sp.preparedCount, slots: sp.slots,
-    } : null,
-    features: (b.features || []).map(function(f){ return { name: f.name, source: f.source, level: f.level, origin: f.origin }; }),
-    _incomplete: incomplete,
-  };
-  return structural;
+  var sub = (model.subclasses || []).find(function(s){ return draft.subclass && s.name === draft.subclass.n; });
+  var r = SoulShardsDerive.deriveStructural({
+    name: draft.name || 'Unnamed', alignment: null, portrait: null,
+    abilities: effectiveAbilities(race),
+    classes: [ { model: model, level: draft.level, subclassShortName: sub ? sub.shortName : null } ],
+    race: race || null,
+    subraceName: draft.subrace ? draft.subrace.n : null,
+    background: draft.bg ? { name: draft.bg.n } : null,
+    spells: [],
+    hp: draft.hp
+  });
+  return Object.assign({}, r.structural, { _incomplete: r._incomplete });
 }
 function forgeCardHTML(structural){
   return '<div class="fx-card">' +
@@ -1328,9 +1287,7 @@ function forgePreview(){
   Promise.all([SoulShardsData.loadClass(c.n), raceForBuild()]).then(function(res){
     if (my !== forgeReq) return;
     var model = res[0], race = res[1];
-    var sub = (model.subclasses || []).find(function(s){ return draft.subclass && s.name === draft.subclass.n; });
-    var b = SoulShardsEngine.build({ classModel: model, level: draft.level, abilities: effectiveAbilities(race), subclassShortName: sub ? sub.shortName : null, hp: draft.hp });
-    host.innerHTML = forgeCardHTML(buildStructuralPreview(model, b, race));
+    host.innerHTML = forgeCardHTML(buildStructuralPreview(model, race));
     try { host.scrollIntoView({ behavior: 'smooth', block: 'nearest' }); } catch(e){}
   }).catch(function(err){
     if (my !== forgeReq) return;
