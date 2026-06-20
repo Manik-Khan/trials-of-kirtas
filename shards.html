@@ -6,7 +6,7 @@
 <title>Soul Shards · Character Forge — Trials of Kirtas</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@500;600;700&family=Barlow+Condensed:wght@400;500;600&family=EB+Garamond:ital,wght@0,400;0,500;1,400&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@500;600;700&family=Barlow+Condensed:wght@400;500;600&family=EB+Garamond:ital,wght@0,400;0,500;0,600;1,400&family=Playfair+Display:wght@400;700;800;900&family=Oswald:wght@300;400;500;600;700&display=swap" rel="stylesheet">
 <style>
   /* ── Phantom theme (self-contained approximation; the real page rides theme.css) ── */
   :root{
@@ -323,45 +323,134 @@
   .fx-pre{font-family:ui-monospace,'SFMono-Regular',Menlo,Consolas,monospace; font-size:12.5px; line-height:1.55; color:var(--ink); background:var(--bg-sunk); border:1px solid var(--rule); border-radius:3px; padding:13px 15px; margin:0; max-height:380px; overflow:auto; white-space:pre; tab-size:2}
   .fx-empty{font-family:var(--ui); font-size:15px; color:var(--ink-faint); font-style:italic; margin-top:18px}
 
-  /* ── spell picker (P6a): chip grid + provenance borders + tap-to-read detail ── */
-  .sp-bar{display:flex; gap:8px; align-items:center; padding:2px 0 10px; border-bottom:1px solid var(--rule); margin-bottom:8px}
-  .sp-bar label{font-family:var(--ui); text-transform:uppercase; letter-spacing:.1em; font-size:11px; color:var(--ink-faint)}
-  .sp-srch{font-family:var(--body); font-size:15px; padding:5px 10px; border:1px solid var(--rule-strong); border-radius:2px; background:var(--bg-card); color:var(--ink); min-width:170px}
-  .sp-lvl{margin-top:11px}
-  .sp-lvl-h{font-family:var(--ui); text-transform:uppercase; letter-spacing:.1em; font-size:11px; color:var(--ink-faint); margin:0 0 5px}
-  .sp-grid{display:flex; flex-wrap:wrap; gap:8px; margin-top:4px}
-  .sp-chip{display:inline-flex; align-items:stretch; border:1px solid var(--rule-strong); border-radius:2px; overflow:hidden; background:var(--bg-card)}
-  .sp-pick{font-family:var(--body); font-size:15px; padding:5px 10px; cursor:pointer; user-select:none; border-left:3px solid var(--gold); transition:background .12s, color .12s}
-  .sp-pick:hover{background:#f1e7d4}
-  .sp-chip.sel .sp-pick{background:var(--blood); color:#fdf6ec}
-  .sp-chip.dim{opacity:.45}
-  .sp-chip.dim .sp-pick{cursor:default}
-  .sp-chip.dim .sp-pick:hover{background:transparent}
-  .sp-scl{font-family:var(--ui); font-size:10px; letter-spacing:.07em; opacity:.6; margin-left:6px; vertical-align:1px}
-  .sp-pick.o-class{border-left-color:var(--gold)}
-  .sp-pick.o-sub{border-left-color:#2f6b66}
-  .sp-pick.o-race{border-left-color:var(--blood-bright)}
-  .sp-have{font-family:var(--ui); font-size:10px; letter-spacing:.05em; color:var(--blood-bright); align-self:center; padding:0 8px; white-space:nowrap}
-  .sp-info{font-family:var(--body); font-style:italic; font-size:13px; width:24px; border:0; border-left:1px solid var(--rule); background:transparent; color:var(--ink-faint); cursor:pointer}
-  .sp-info:hover{background:#efe6d4; color:var(--blood)}
-  .sp-info.open{background:var(--blood); color:#fdf6ec}
-  .sp-granted{display:inline-flex; align-items:stretch; border:1px dashed var(--rule-strong); border-radius:2px; overflow:hidden; background:var(--bg-sunk)}
-  .sp-granted .sp-pick{cursor:default; border-left:3px solid var(--blood-bright); color:var(--ink-soft)}
-  .sp-granted .sp-pick:hover{background:transparent}
-  .sp-gtag{font-family:var(--ui); font-size:10px; letter-spacing:.06em; color:var(--blood-bright); align-self:center; margin-left:6px; padding-right:8px}
-  .sp-detail{margin:9px 0 4px; padding:11px 14px; background:var(--bg-sunk); border:1px solid var(--rule); border-radius:3px; max-width:640px}
-  .sp-detail-h{font-family:var(--disp); font-size:17px; letter-spacing:.02em; margin-bottom:3px}
-  .sp-detail-h .sp-lvltag{font-family:var(--ui); text-transform:uppercase; letter-spacing:.08em; font-size:11px; color:var(--gold); margin-left:8px}
-  .sp-detail-meta{display:flex; flex-wrap:wrap; gap:4px 18px; margin:6px 0 8px}
-  .sp-detail-meta span{font-family:var(--ui); font-size:12.5px; letter-spacing:.03em; color:var(--ink-soft)}
-  .sp-detail-meta b{color:var(--ink-faint); font-weight:600; text-transform:uppercase; font-size:10.5px; letter-spacing:.08em; margin-right:4px}
-  .sp-detail-body{font-family:var(--body); font-size:15px; line-height:1.5; color:var(--ink)}
-  .sp-detail-body p{margin:0 0 7px}
-  .sp-legend{display:flex; gap:16px; flex-wrap:wrap; margin:10px 0 0; font-family:var(--ui); font-size:12px; letter-spacing:.04em; color:var(--ink-faint)}
-  .sp-legend i{display:inline-block; width:10px; height:10px; border-radius:2px; margin-right:5px; vertical-align:-1px}
-  .sp-sub{font-family:var(--body); font-weight:400; color:var(--ink-faint); font-size:12px; text-transform:none; letter-spacing:0; margin-left:6px}
-  .sp-count{font-family:var(--body); font-size:13px; color:var(--ink-soft); margin-left:6px; letter-spacing:0; text-transform:none}
-  .sp-empty{color:var(--ink-faint); font-style:italic; margin-top:4px}
+  /* ── spell picker (P6a): Metaphor skin, scoped to .sp-stage (a dark island in the Phantom forge) ── */
+  .sp-stage{position:relative; margin:6px 0 6px; padding:16px 16px 20px; color:var(--cream); font-family:var(--body);
+    background:radial-gradient(125% 120% at 50% 0%, #1d322d 0%, #182826 60%, #122019 100%);
+    border:1px solid var(--frame); box-shadow:inset 0 1px 0 rgba(236,226,205,.05), 0 18px 40px -26px #000;
+    --ground:#182826; --panel:rgba(9,18,16,.64); --panel-2:rgba(6,14,13,.78); --panel-sel:rgba(35,26,12,.66);
+    --cream:#ece2cd; --cream-hi:#f9f3e6; --cream-dim:#c2b99f; --cream-fnt:#8d8675;
+    --parchment:#e7dabe; --ink-parch:#241c11; --red:#cf3b2c; --red-br:#e0584a;
+    --gold:#c79a4a; --gold-br:#e7c279;
+    --o-class:#e7c279; --o-subclass:#55c4c0; --o-race:#e0584a; --o-feat:#ab92dd;
+    --frame:rgba(199,154,74,.34); --hair:rgba(236,226,205,.13);
+    --ui:'Oswald',sans-serif; --body:'EB Garamond',Georgia,serif; --disp:'Playfair Display',serif}
+  .sp-stage::after{content:""; position:absolute; inset:0; pointer-events:none; mix-blend-mode:overlay; opacity:.07; background-size:130px 130px;
+    background-image:url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='130' height='130'><filter id='n'><feTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='2' stitchTiles='stitch'/><feColorMatrix type='saturate' values='0'/></filter><rect width='100%25' height='100%25' filter='url(%23n)'/></svg>")}
+  .sp-stage>*{position:relative; z-index:1}
+  .sp-stage .sp-topbar{display:flex; gap:9px; align-items:center; margin-bottom:13px}
+  .sp-stage .sp-topbar label{font-family:var(--ui); text-transform:uppercase; letter-spacing:.12em; font-size:10.5px; color:var(--cream-fnt)}
+  .sp-stage .sp-srch{font-family:var(--body); font-size:15px; padding:5px 11px; border:1px solid var(--frame); background:rgba(8,16,15,.7); color:var(--cream); min-width:210px}
+  .sp-stage .sp-srch::placeholder{color:var(--cream-fnt)}
+  .sp-stage .eng-load{font-family:var(--ui); font-size:14px; letter-spacing:.04em; color:var(--cream-fnt); font-style:italic; margin:6px 0}
+  .sp-stage .muted{color:var(--cream-fnt)}
+  .sp-stage .sp-note{font-family:var(--body); font-style:italic; font-weight:400; color:var(--cream-fnt); font-size:13px; letter-spacing:0; text-transform:none}
+  .sp-stage .subhead{font-family:var(--ui); text-transform:uppercase; letter-spacing:.14em; font-size:12px; color:var(--gold-br); border-bottom:1px solid rgba(231,194,121,.3); padding-bottom:4px; margin:24px 0 9px; display:flex; align-items:baseline; gap:9px}
+
+  /* readout */
+  .sp-stage .readout{position:relative; background:var(--panel); border:1px solid var(--hair); padding:14px 16px 13px; box-shadow:inset 0 1px 0 rgba(236,226,205,.05)}
+  .sp-stage .readout::before{content:""; position:absolute; left:0; top:0; width:22px; height:22px; border-top:2px solid var(--gold); border-left:2px solid var(--gold); opacity:.55}
+  .sp-stage .ro-h{font-family:var(--ui); text-transform:uppercase; letter-spacing:.12em; font-weight:600; font-size:11.5px; color:var(--gold-br); margin:0 0 11px; border-bottom:1px solid var(--hair); padding-bottom:7px}
+  .sp-stage .ro-h .cls{color:var(--cream)}
+  .sp-stage .poolstrip{display:flex; flex-wrap:wrap; gap:10px; margin-bottom:11px}
+  .sp-stage .pool{flex:1 1 150px; padding:10px 12px; background:var(--panel-2); border:1px solid var(--hair); position:relative}
+  .sp-stage .pool::before{content:""; position:absolute; left:0; top:0; bottom:0; width:3px; background:var(--gold-br); opacity:.78}
+  .sp-stage .pool.pact::before{background:var(--o-subclass)}
+  .sp-stage .pool .p-lab{font-family:var(--ui); font-weight:600; letter-spacing:.1em; text-transform:uppercase; font-size:11.5px; color:var(--cream); display:flex; justify-content:space-between; align-items:baseline; gap:8px}
+  .sp-stage .pool .p-lab .n{color:var(--gold-br); font-weight:700; text-transform:none; letter-spacing:.02em}
+  .sp-stage .pool .p-rec{font-family:var(--body); font-style:italic; font-size:12.5px; color:var(--cream-fnt); margin-top:5px}
+  .sp-stage .slots{display:flex; flex-wrap:wrap; gap:5px; margin-top:7px}
+  .sp-stage .slot{width:15px; height:15px; border-radius:50%; border:1.6px solid var(--gold-br); filter:url(#rough)}
+  .sp-stage .slot.on{background:var(--gold-br)}
+  .sp-stage .slot.teal{border-color:var(--o-subclass)}
+  .sp-stage .slot.teal.on{background:var(--o-subclass)}
+  .sp-stage .cast-meta{font-family:var(--ui); font-weight:400; letter-spacing:.06em; text-transform:uppercase; font-size:12px; color:var(--cream-dim); display:flex; flex-wrap:wrap; gap:5px 18px; margin:2px 0 11px}
+  .sp-stage .cast-meta b{color:var(--cream); font-weight:600}
+  .sp-stage .legend{display:flex; flex-wrap:wrap; gap:7px 16px; font-family:var(--ui); font-weight:400; font-size:11.5px; letter-spacing:.1em; text-transform:uppercase; color:var(--cream-dim)}
+  .sp-stage .legend span{display:inline-flex; align-items:center; gap:6px}
+  .sp-stage .legend i{width:11px; height:11px; transform:rotate(45deg); display:inline-block; filter:url(#rough)}
+  .sp-stage .legend .l-class{background:var(--o-class)}
+  .sp-stage .legend .l-sub{background:var(--o-subclass)}
+  .sp-stage .legend .l-race{background:var(--o-race)}
+  .sp-stage .legend .l-flag-c{background:var(--o-subclass); transform:none}
+  .sp-stage .legend .l-flag-r{background:var(--o-feat); transform:none}
+
+  .sp-stage .statusline{background:var(--panel-2); border:1px solid var(--hair); border-left:3px solid var(--red); padding:9px 13px; margin-top:11px; font-family:var(--ui); text-transform:uppercase; letter-spacing:.05em; font-size:12.5px; color:var(--cream-dim)}
+  .sp-stage .statusline.done{border-left-color:var(--o-subclass)}
+  .sp-stage .statusline b{font-size:10.5px; letter-spacing:.14em; color:var(--red-br); font-weight:600; margin-right:8px}
+  .sp-stage .statusline.done b{color:var(--o-subclass)}
+
+  /* level pills */
+  .sp-stage .lvlbar{display:flex; flex-wrap:wrap; gap:6px; margin:20px 0 6px; align-items:center}
+  .sp-stage .lvlbar .lab{font-family:var(--ui); text-transform:uppercase; letter-spacing:.12em; font-size:10.5px; color:var(--cream-fnt); margin-right:4px}
+  .sp-stage .lvltab{font-family:var(--ui); font-weight:500; font-size:13px; letter-spacing:.05em; text-transform:uppercase; min-width:36px; text-align:center; padding:5px 12px; border:1px solid var(--frame); background:transparent; color:var(--cream-dim); cursor:pointer}
+  .sp-stage .lvltab:hover{color:var(--cream); border-color:var(--gold-br)}
+  .sp-stage .lvltab.on{background:var(--gold-br); color:var(--ground); border-color:var(--gold-br); font-weight:600}
+  .sp-stage .lvltab.cantrip{border-color:rgba(231,194,121,.55)}
+  .sp-stage .lvltab .pn{font-family:var(--body); text-transform:none; font-size:11px; margin-left:6px; color:var(--o-subclass); font-style:italic}
+  .sp-stage .lvltab.on .pn{color:var(--ground)}
+
+  .sp-stage .tblhead{display:flex; align-items:baseline; gap:9px; margin:18px 0 7px}
+  .sp-stage .tblhead .t{font-family:var(--disp); font-weight:800; font-size:20px; color:var(--cream-hi); letter-spacing:.01em}
+  .sp-stage .tblhead .c{font-family:var(--ui); font-size:13px; font-weight:500; letter-spacing:.06em; color:var(--gold-br)}
+  .sp-stage .tblhead .s{font-family:var(--body); font-size:13px; color:var(--cream-fnt); font-style:italic; margin-left:auto}
+
+  /* spell table */
+  .sp-stage .sp-tbl{width:100%; border-collapse:separate; border-spacing:0 6px; font-family:var(--body)}
+  .sp-stage .sp-tbl td{padding:0; vertical-align:middle; background:var(--panel-2)}
+  .sp-stage .sp-row{cursor:pointer}
+  .sp-stage .sp-row td{transition:background .1s}
+  .sp-stage .sp-row:hover td{background:rgba(20,34,30,.92)}
+  .sp-stage .sp-row.sel td{background:var(--panel-sel)}
+  .sp-stage .sp-row.sel:hover td{background:rgba(44,33,15,.78)}
+  .sp-stage .sp-row.dim{opacity:.42}
+  .sp-stage .sp-row.dim:hover td{background:var(--panel-2)}
+  .sp-stage .sp-row.have,.sp-stage .sp-row.dim{cursor:default}
+  .sp-stage .sp-tick{width:34px; text-align:center; border-left:3px solid var(--cream-fnt)}
+  .sp-stage .sp-row.o-class .sp-tick{border-left-color:var(--o-class)}
+  .sp-stage .sp-row.o-sub .sp-tick{border-left-color:var(--o-subclass)}
+  .sp-stage .sp-row.o-race .sp-tick{border-left-color:var(--o-race)}
+  .sp-stage .sp-tick .dot{display:inline-block; width:14px; height:14px; border-radius:50%; border:1.6px solid var(--cream-fnt); background:transparent; vertical-align:-2px; filter:url(#rough)}
+  .sp-stage .sp-row:hover .sp-tick .dot{border-color:var(--gold-br)}
+  .sp-stage .sp-row.sel .sp-tick .dot{background:var(--gold-br); border-color:var(--gold-br)}
+  .sp-stage .sp-name{padding:9px 8px 9px 4px !important; position:relative; font-size:16px; color:var(--cream)}
+  .sp-stage .sp-school{font-family:var(--ui); font-size:11.5px; font-weight:400; letter-spacing:.05em; text-transform:uppercase; color:var(--cream-fnt); white-space:nowrap; padding-right:12px !important; width:1%}
+  .sp-stage .sp-flagcell{white-space:nowrap; padding-right:8px !important; width:1%; text-align:right}
+  .sp-stage .flag{display:inline-block; width:19px; height:19px; line-height:18px; text-align:center; font-family:var(--ui); font-size:11px; font-weight:600; margin-left:3px; vertical-align:middle; color:var(--ground)}
+  .sp-stage .flag.c{background:var(--o-subclass)}
+  .sp-stage .flag.r{background:var(--o-feat); color:var(--cream)}
+  .sp-stage .flag.ph{visibility:hidden}
+  .sp-stage .sp-icell{width:30px; text-align:center; padding-right:4px !important}
+  .sp-stage .sp-info{font-family:var(--body); font-style:italic; font-size:13px; width:23px; height:23px; border:1px solid var(--frame); background:transparent; color:var(--cream-fnt); cursor:pointer}
+  .sp-stage .sp-info:hover{border-color:var(--gold-br); color:var(--gold-br)}
+  .sp-stage .sp-info.open{background:var(--gold-br); color:var(--ground); border-color:var(--gold-br)}
+  .sp-stage .gtag{font-family:var(--ui); font-size:9.5px; font-weight:600; letter-spacing:.08em; text-transform:uppercase; color:var(--o-race); margin-left:9px; vertical-align:1px}
+
+  /* hover tooltip */
+  .sp-stage .sp-tip{position:absolute; left:0; top:calc(100% - 1px); z-index:30; width:344px; max-width:78vw; background:rgba(10,19,17,.97); border:1px solid var(--frame); border-top:2px solid var(--gold-br); box-shadow:0 16px 38px -18px #000; padding:10px 12px; display:none; cursor:default}
+  .sp-stage .sp-row:hover .sp-tip{display:block}
+  .sp-stage .sp-tip .h{font-family:var(--disp); font-weight:700; font-size:16px; color:var(--cream-hi); margin-bottom:3px}
+  .sp-stage .sp-tip .h .lv{font-family:var(--ui); text-transform:uppercase; letter-spacing:.07em; font-size:10px; color:var(--gold-br); margin-left:7px; font-weight:600}
+  .sp-stage .sp-tip .meta{font-family:var(--ui); font-size:11.5px; color:var(--cream-dim); letter-spacing:.03em; line-height:1.65; text-transform:uppercase; font-weight:400}
+  .sp-stage .sp-tip .meta b{color:var(--cream-fnt); font-weight:600; font-size:9.5px; letter-spacing:.06em; margin-right:3px}
+  .sp-stage .sp-tip .gist{font-family:var(--body); font-size:13.5px; color:var(--cream); margin-top:6px; line-height:1.45; text-transform:none; letter-spacing:0}
+
+  /* pinned detail — parchment, matches the sheet */
+  .sp-stage .detail{position:relative; margin:8px 0 12px; padding:15px 17px; background:var(--parchment); color:var(--ink-parch); border-left:4px solid var(--o-class); box-shadow:0 16px 34px -22px #000; max-width:680px}
+  .sp-stage .detail.o-sub{border-left-color:var(--o-subclass)}
+  .sp-stage .detail.o-race{border-left-color:var(--o-race)}
+  .sp-stage .detail::after{content:""; position:absolute; inset:0; pointer-events:none; mix-blend-mode:multiply; opacity:.07;
+    background-image:url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='90' height='90'><filter id='p'><feTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='2'/><feColorMatrix type='saturate' values='0'/></filter><rect width='100%25' height='100%25' filter='url(%23p)'/></svg>")}
+  .sp-stage .detail .d-h{display:flex; align-items:baseline; gap:10px; margin-bottom:7px; position:relative; z-index:1; flex-wrap:wrap}
+  .sp-stage .detail .d-n{font-family:var(--disp); font-weight:800; font-size:23px; color:var(--ink-parch)}
+  .sp-stage .detail .d-sch{font-family:var(--body); font-style:italic; color:#5a4d35; font-size:14px}
+  .sp-stage .detail .d-grid{display:flex; flex-wrap:wrap; gap:4px 22px; margin-bottom:9px; position:relative; z-index:1; font-family:var(--ui); font-weight:400; font-size:12px; letter-spacing:.04em; text-transform:uppercase; color:#5a4d35}
+  .sp-stage .detail .d-grid b{color:var(--ink-parch); font-weight:600}
+  .sp-stage .detail .d-grid .conc{color:var(--red); font-weight:700}
+  .sp-stage .detail .d-body{font-family:var(--body); font-size:15.5px; color:var(--ink-parch); line-height:1.52; position:relative; z-index:1}
+  .sp-stage .detail .d-body p{margin:0 0 7px}
+  .sp-stage .detail .d-body p:last-child{margin-bottom:0}
+  .sp-stage .detail .d-hl{margin-top:7px; font-size:14px; color:#5a4d35; font-style:italic}
+  .sp-stage .detail .d-hl b{font-style:normal; color:#7a3528; font-family:var(--ui); text-transform:uppercase; letter-spacing:.06em; font-size:12px; font-weight:600; margin-right:5px}
 </style>
 </head>
 <body>
@@ -369,6 +458,7 @@
      the page on a Supabase session (nav.js redirects to login when signed out). -->
 <div id="nav-root"></div>
 <script src="nav.js"></script>
+<svg class="sp-defs" aria-hidden="true" style="position:absolute;width:0;height:0"><defs><filter id="rough" x="-15%" y="-40%" width="130%" height="180%"><feTurbulence type="fractalNoise" baseFrequency="0.02 0.05" numOctaves="2" seed="4" result="r"/><feDisplacementMap in="SourceGraphic" in2="r" scale="4"/></filter></defs></svg>
 <div class="app">
 
   <header class="topbar">
@@ -750,9 +840,11 @@ var BODIES = {
     if (!isCaster(c)) return '<p>This class doesn\u2019t cast spells, so there\u2019s nothing to choose here.</p>';
     // Static search bar (kept OUT of the re-rendered #sp-out so typing holds focus) + the host the
     // SpellsUI module fills from the live engine build + loadClassSpellList. See SpellsUI below.
-    return '<div class="sp-bar"><label>Search</label>' +
-        '<input class="sp-srch" id="sp-srch" placeholder="filter spells\u2026" autocomplete="off"></div>' +
-      '<div id="sp-out"><div class="eng-load">Resolving entitlement + spell list\u2026</div></div>';
+    return '<div class="sp-stage">' +
+        '<div class="sp-topbar"><label>Search</label>' +
+          '<input class="sp-srch" id="sp-srch" placeholder="filter spells\u2026" autocomplete="off"></div>' +
+        '<div id="sp-out"><div class="eng-load">Resolving entitlement + spell list\u2026</div></div>' +
+      '</div>';
   },
   review: function(){
     var c = chosenClass();
@@ -1199,7 +1291,7 @@ var SpeciesUI = (function () {
 // eng-card / subhead CSS; spell chips use the sp-* classes. The mock's preset/race pickers are
 // gone — class, level, subclass, abilities and race all come from the live draft.
 var SpellsUI = (function () {
-  var _req = 0, _ent = null, _list = [], _detail = {}, _grants = [], _raceModel = null;
+  var _req = 0, _ent = null, _list = [], _detail = {}, _grants = [], _raceModel = null, _lvl = null;
   var _openDetail = null, _query = '';
 
   var SCHOOL = { A:'Abjuration', C:'Conjuration', D:'Divination', E:'Enchantment', V:'Evocation', I:'Illusion', N:'Necromancy', T:'Transmutation', P:'Psionic' };
@@ -1229,21 +1321,22 @@ var SpellsUI = (function () {
   function fmtRange(r){ if(!r) return '\u2014'; if(r.type!=='point'){ var d=r.distance; return r.type.charAt(0).toUpperCase()+r.type.slice(1)+(d&&d.amount?' ('+d.amount+'-'+d.type+')':''); } var d2=r.distance; if(!d2) return 'Special'; if(d2.type==='self') return 'Self'; if(d2.type==='touch') return 'Touch'; if(d2.type==='sight') return 'Sight'; if(d2.type==='unlimited') return 'Unlimited'; return (d2.amount!=null?d2.amount+' ':'')+(d2.type||''); }
   function fmtComp(c){ if(!c) return '\u2014'; var p=[]; if(c.v)p.push('V'); if(c.s)p.push('S'); if(c.m)p.push('M'+(typeof c.m==='string'?' ('+c.m+')':(c.m&&c.m.text?' ('+c.m.text+')':''))); return p.join(', ')||'\u2014'; }
   function fmtDur(d){ if(!d||!d.length) return '\u2014'; var x=d[0]; if(x.type==='instant') return 'Instantaneous'; if(x.type==='permanent') return 'Until dispelled'; if(x.type==='special') return 'Special'; if(x.type==='timed'){ var t=x.duration; return (x.concentration?'Concentration, up to ':'')+t.amount+' '+t.type+(t.amount>1?'s':''); } return 'Special'; }
-  function detailCard(sp){
+  function detailCard(sp, originClass){
     if (!sp) return '';
     var tags = []; if (sp.ritual) tags.push('Ritual'); if (sp.concentration) tags.push('Concentration');
-    var lvlTxt = (sp.level===0 ? 'cantrip' : 'level '+sp.level) + ' \u00b7 ' + (SCHOOL[sp.school]||sp.school||'') + (tags.length ? ' \u00b7 '+tags.join(' \u00b7 ') : '');
+    var sch = (sp.level===0 ? 'cantrip' : 'level '+sp.level) + ' \u00b7 ' + (SCHOOL[sp.school]||sp.school||'') + (tags.length ? ' \u00b7 '+tags.join(' \u00b7 ') : '');
     var body = entriesToText(sp.entries).map(function(p){ return '<p>'+esc(p)+'</p>'; }).join('');
-    var higher = sp.entriesHigherLevel ? '<p><b style="text-transform:none;color:var(--gold)">At Higher Levels.</b> '+esc(entriesToText(sp.entriesHigherLevel[0].entries).join(' '))+'</p>' : '';
-    return '<div class="sp-detail">' +
-      '<div class="sp-detail-h">'+esc(sp.name)+' <span class="sp-lvltag">'+esc(lvlTxt)+'</span></div>' +
-      '<div class="sp-detail-meta">' +
-        '<span><b>Time</b>'+esc(fmtTime(sp.time))+'</span>' +
-        '<span><b>Range</b>'+esc(fmtRange(sp.range))+'</span>' +
-        '<span><b>Comp</b>'+esc(fmtComp(sp.components))+'</span>' +
-        '<span><b>Duration</b>'+esc(fmtDur(sp.duration))+'</span>' +
+    var higher = sp.entriesHigherLevel ? '<p class="d-hl"><b>At higher levels</b>'+esc(entriesToText(sp.entriesHigherLevel[0].entries).join(' '))+'</p>' : '';
+    var oc = originClass || 'o-class';
+    return '<div class="detail '+oc+'">' +
+      '<div class="d-h"><span class="d-n">'+esc(sp.name)+'</span><span class="d-sch">'+esc(sch)+'</span></div>' +
+      '<div class="d-grid">' +
+        '<span>Cast <b>'+esc(fmtTime(sp.time))+'</b></span>' +
+        '<span>Range <b>'+esc(fmtRange(sp.range))+'</b></span>' +
+        '<span>Components <b>'+esc(fmtComp(sp.components))+'</b></span>' +
+        '<span>Duration <b'+(sp.concentration?' class="conc"':'')+'>'+esc(fmtDur(sp.duration))+'</b></span>' +
       '</div>' +
-      '<div class="sp-detail-body">'+body+higher+'</div>' +
+      '<div class="d-body">'+body+higher+'</div>' +
     '</div>';
   }
 
@@ -1338,63 +1431,43 @@ var SpellsUI = (function () {
     });
   }
 
-  // ── render ──
-  function summaryCard(){
+  // ── render (Metaphor skin): one spell level at a time via pills; table rows w/ C/R flags + hover
+  // tip; pinned parchment detail. Same data plumbing — only the markup changed from the chip grid. ──
+  function levelsAvailable(){ var ls = []; if (_ent.cantrips > 0) ls.push(0); for (var L=1; L<=_ent.maxLevel; L++) ls.push(L); return ls; }
+  function primaryAttr(){ return _ent.mode === 'known' ? 'known' : 'prepared'; }
+  function capFor(attr){ return { cantrip:_ent.cantrips, known:_ent.known, prepared:_ent.preparedCount, spellbook:_ent.spellbook }[attr]; }
+  function pickedFor(attr){ return { cantrip:picks().cantrips, known:picks().known, prepared:picks().prepared, spellbook:picks().spellbook }[attr]; }
+
+  function readoutCard(){
     var e = _ent;
-    var slots = (e.slots||[]).map(function(n,i){ return n>0 ? (ORD[i+1].replace(' level','') + '\u00d7' + n) : null; }).filter(Boolean).join('  ') || '\u2014';
-    var poolLine = e.mode === 'known' ? ('know ' + e.known + ' spells')
-      : e.mode === 'spellbook' ? ('spellbook ' + e.spellbook + ' \u00b7 prepare ' + e.preparedCount)
-      : ('prepare ' + e.preparedCount + ' (' + (e.ability||'?').toUpperCase() + ' mod + level)');
-    return '<div class="eng-card">' +
-      '<div class="eng-h">' + esc(e.cls) + ' \u00b7 level ' + e.level + ' \u00b7 ' + (e.ability||'?').toUpperCase() + ' \u00b7 ' + e.mode + ' caster' + (e.pact ? ' \u00b7 pact magic (short rest)' : '') + '</div>' +
-      '<div class="eng-line"><b>Pool</b> ' + e.cantrips + ' cantrips \u00b7 ' + poolLine + (e.viaSub ? ' \u00b7 from the ' + esc(e.listClass) + ' list' : '') + '</div>' +
-      '<div class="eng-line"><b>Slots</b> ' + slots + '</div>' +
-      '<div class="eng-line"><b>Save DC / atk</b> ' + e.saveDC + ' / +' + e.atk + '</div>' +
-      '<div class="sp-legend"><span><i style="background:' + (e.viaSub ? '#2f6b66' : 'var(--gold)') + '"></i>' + (e.viaSub ? 'subclass list' : 'class list') + '</span>' +
-        (_grants.length ? '<span><i style="background:var(--blood-bright)"></i>racial (granted)</span>' : '') + '</div>' +
+    var slotSummary = (e.slots||[]).map(function(n,i){ return n>0 ? (ORD[i+1].replace(' level','') + '\u00d7' + n) : null; }).filter(Boolean).join('  ') || '\u2014';
+    var poolName = e.pact ? 'Pact Magic' : (e.mode === 'known' ? (e.cls + ' Slots') : 'Spell Slots');
+    var rest = e.pact ? 'short rest' : 'long rest';
+    var firstLvl = -1; for (var i=0;i<(e.slots||[]).length;i++){ if (e.slots[i]>0){ firstLvl=i; break; } }
+    var dots = ''; if (firstLvl>=0){ for (var k=0;k<e.slots[firstLvl];k++){ dots += '<span class="slot'+(e.pact?' teal':'')+' on"></span>'; } }
+    var poolLine = e.mode === 'known' ? ('Know ' + e.known + ' spells')
+      : e.mode === 'spellbook' ? ('Spellbook ' + e.spellbook + ' \u00b7 prepare ' + e.preparedCount)
+      : ('Prepare ' + e.preparedCount + ' (' + (e.ability||'?').toUpperCase() + ' mod + level)');
+    if (e.viaSub) poolLine += ' \u00b7 from the ' + e.listClass + ' list';
+    return '<div class="readout">' +
+      '<div class="ro-h"><span class="cls">' + esc(e.cls) + '</span> \u00b7 Level ' + e.level + ' \u00b7 ' + (e.ability||'?').toUpperCase() + ' \u00b7 ' + esc(e.mode) + ' caster' + (e.pact ? ' \u00b7 pact magic' : '') + '</div>' +
+      '<div class="poolstrip">' +
+        '<div class="pool' + (e.pact?' pact':'') + '"><div class="p-lab"><span>' + esc(poolName) + '</span><span class="n">' + esc(slotSummary) + '</span></div>' +
+          '<div class="slots">' + (dots || '<span class="slot"></span>') + '</div>' +
+          '<div class="p-rec">refresh on ' + rest + '</div></div>' +
+        '<div class="pool"><div class="p-lab"><span>Cantrips</span><span class="n">' + e.cantrips + '</span></div>' +
+          '<div class="p-rec">' + esc(poolLine) + '</div></div>' +
+      '</div>' +
+      '<div class="cast-meta"><span>Ability <b>' + (e.ability||'?').toUpperCase() + '</b></span><span>Save DC <b>' + e.saveDC + '</b></span><span>Attack <b>+' + e.atk + '</b></span></div>' +
+      '<div class="legend">' +
+        '<span><i class="' + (e.viaSub?'l-sub':'l-class') + '"></i>' + (e.viaSub?'Subclass list':'Class list') + '</span>' +
+        (_grants.length ? '<span><i class="l-race"></i>Racial</span>' : '') +
+        '<span><i class="l-flag-c"></i>Concentration</span>' +
+        '<span><i class="l-flag-r"></i>Ritual</span>' +
+      '</div>' +
     '</div>';
   }
-  function grantSection(){
-    if (!_grants.length) return '';
-    var items = _grants.map(function(g){
-      var tag = g.kind === 'cantrip' ? 'cantrip' : (g.how === 'innate' ? '1/day' : (g.level ? ORD[g.level].replace(' level','') : 'spell'));
-      var d = (_openDetail && _openDetail.name === g.name && _openDetail.attr === 'grant');
-      var hasDetail = !!_detail[g.name];
-      return '<span class="sp-granted"><span class="sp-pick">' + esc(g.name) + '<span class="sp-gtag">' + tag + '</span></span>' +
-        (hasDetail ? '<button class="sp-info' + (d ? ' open' : '') + '" data-detail="' + esc(g.name) + '" data-dattr="grant">i</button>' : '') + '</span>';
-    }).join('');
-    var open = (_openDetail && _openDetail.attr === 'grant' && _detail[_openDetail.name]) ? detailCard(_detail[_openDetail.name]) : '';
-    return '<div class="subhead">Granted by ' + esc(raceName()) + ' <span class="sp-sub">free \u2014 doesn\u2019t count against your picks</span></div>' +
-      '<div class="sp-grid">' + items + '</div>' + open;
-  }
-  function spellChip(s, o){
-    var d = (_openDetail && _openDetail.name === s.name && _openDetail.attr === o.attr);
-    var info = _detail[s.name] ? '<button class="sp-info' + (d ? ' open' : '') + '" data-detail="' + esc(s.name) + '" data-dattr="' + o.attr + '">i</button>' : '';
-    var scl = '<span class="sp-scl">' + (ABBR[s.school] || s.school || '') + '</span>';
-    if (o.have){
-      return '<span class="sp-chip dim"><span class="sp-pick ' + o.oclass + '">' + esc(s.name) + scl + '</span>' +
-        '<span class="sp-have">' + esc(o.haveTag) + '</span>' + info + '</span>';
-    }
-    return '<span class="sp-chip' + (o.on ? ' sel' : '') + (o.capped ? ' dim' : '') + '">' +
-      '<span class="sp-pick ' + o.oclass + '" data-pick="' + esc(s.name) + '" data-attr="' + o.attr + '">' + esc(s.name) + scl + '</span>' + info + '</span>';
-  }
-  function pickSection(title, sub, pool, picked, cap, attr, oclass, granted){
-    var byLvl = {}; pool.forEach(function(s){ (byLvl[s.level] = byLvl[s.level] || []).push(s); });
-    var rows = '';
-    Object.keys(byLvl).map(Number).sort(function(a,b){ return a-b; }).forEach(function(L){
-      var items = visible(byLvl[L]); if (!items.length) return;
-      var chips = items.map(function(s){
-        var have = granted && granted[s.name.toLowerCase()];
-        var on = picked.indexOf(s.name) !== -1;
-        return spellChip(s, { on:on, capped: !on && picked.length >= cap, have: !!have, haveTag: have || '', oclass:oclass, attr:attr });
-      }).join('');
-      var open = (_openDetail && _openDetail.attr === attr && items.some(function(s){ return s.name === _openDetail.name; })) ? detailCard(_detail[_openDetail.name]) : '';
-      rows += '<div class="sp-lvl"><div class="sp-lvl-h">' + ORD[L] + '</div><div class="sp-grid">' + chips + '</div>' + open + '</div>';
-    });
-    return '<div class="subhead">' + esc(title) + ' <span class="sp-count">' + picked.length + '/' + cap + '</span>' +
-      (sub ? ' <span class="sp-sub">' + esc(sub) + '</span>' : '') + '</div>' + (rows || '<div class="sp-empty">\u2014 none match \u2014</div>');
-  }
-  function openMarkers(){
+  function statusLine(){
     var e = _ent, p = picks(), open = [];
     if (e.cantrips && p.cantrips.length < e.cantrips) open.push('cantrips ' + p.cantrips.length + '/' + e.cantrips);
     if (e.mode === 'known' && p.known.length < e.known) open.push('spells known ' + p.known.length + '/' + e.known);
@@ -1403,39 +1476,130 @@ var SpellsUI = (function () {
       if (p.spellbook.length < e.spellbook) open.push('spellbook ' + p.spellbook.length + '/' + e.spellbook);
       if (p.prepared.length < e.preparedCount) open.push('prepared ' + p.prepared.length + '/' + e.preparedCount);
     }
-    return open.length
-      ? '<div class="eng-line eng-pend"><b>Still to pick</b> ' + esc(open.join('; ')) + '</div>'
-      : '<div class="eng-line eng-pend"><b>Resolved</b> all spells chosen' + (e.pact && e.level >= 11 ? ' (Mystic Arcanum chosen on the sheet)' : '') + '</div>';
+    var note = (e.pact && e.level >= 11) ? ' (Mystic Arcanum chosen on the sheet)' : '';
+    return '<div class="statusline' + (open.length?'':' done') + '"><b>' + (open.length ? 'Still to pick' : 'Resolved') + '</b>' +
+      (open.length ? esc(open.join(' \u00b7 ')) : 'all spells chosen' + note) + '</div>';
+  }
+  function levelBar(){
+    var counts = {}, primary = primaryAttr();
+    pickedFor('cantrip').forEach(function(){ counts[0] = (counts[0]||0) + 1; });
+    pickedFor(primary).forEach(function(n){ var d = _detail[n]; if (d) counts[d.level] = (counts[d.level]||0) + 1; });
+    var tabs = levelsAvailable().map(function(L){
+      var on = _lvl === L, cantrip = L === 0, c = counts[L] || 0;
+      var label = cantrip ? 'Cantrip' : ORD[L].replace(' level','');
+      return '<span class="lvltab' + (on?' on':'') + (cantrip?' cantrip':'') + '" data-lvl="' + L + '">' + label + (c?'<span class="pn">'+c+'</span>':'') + '</span>';
+    }).join('');
+    return '<div class="lvlbar"><span class="lab">Level</span>' + tabs + '</div>';
+  }
+  function tblHead(title, attr, sub){
+    var picked = pickedFor(attr), cap = capFor(attr);
+    return '<div class="tblhead"><span class="t">' + esc(title) + '</span><span class="c">' + picked.length + '/' + cap + '</span>' + (sub ? '<span class="s">' + esc(sub) + '</span>' : '') + '</div>';
+  }
+  function flagsFor(sp){
+    var c = sp && sp.concentration ? '<span class="flag c" title="Concentration">C</span>' : '<span class="flag ph">C</span>';
+    var r = sp && sp.ritual ? '<span class="flag r" title="Ritual">R</span>' : '<span class="flag ph">R</span>';
+    return c + r;
+  }
+  function tipFor(sp){
+    var lvlTxt = sp.level === 0 ? 'Cantrip' : ORD[sp.level];
+    var extra = []; if (sp.concentration) extra.push('Concentration'); if (sp.ritual) extra.push('Ritual');
+    var gist = (entriesToText(sp.entries)[0] || '');
+    if (gist.length > 150) gist = gist.slice(0,147) + '\u2026';
+    return '<div class="sp-tip">' +
+      '<div class="h">' + esc(sp.name) + '<span class="lv">' + esc(lvlTxt) + ' \u00b7 ' + esc(SCHOOL[sp.school]||sp.school||'') + (extra.length ? ' \u00b7 ' + extra.join(' \u00b7 ') : '') + '</span></div>' +
+      '<div class="meta"><b>Time</b>' + esc(fmtTime(sp.time)) + ' &nbsp; <b>Range</b>' + esc(fmtRange(sp.range)) + '<br>' +
+        '<b>Comp</b>' + esc(fmtComp(sp.components)) + ' &nbsp; <b>Dur</b>' + esc(fmtDur(sp.duration)) + '</div>' +
+      (gist ? '<div class="gist">' + esc(gist) + '</div>' : '') +
+    '</div>';
+  }
+  function spellRow(s, o){
+    var dd = _detail[s.name];
+    var d = (_openDetail && _openDetail.name === s.name && _openDetail.attr === o.attr);
+    var info = dd ? '<button class="sp-info' + (d?' open':'') + '" data-detail="' + esc(s.name) + '" data-dattr="' + o.attr + '">i</button>' : '';
+    var cls = 'sp-row ' + o.oclass + (o.on?' sel':'') + (o.have?' have dim':(o.capped?' dim':''));
+    var pa = o.have ? '' : ' data-pick="' + esc(s.name) + '" data-attr="' + o.attr + '"';
+    return '<tr class="' + cls + '"' + pa + '>' +
+        '<td class="sp-tick"><span class="dot"></span></td>' +
+        '<td class="sp-name">' + esc(s.name) + (o.have?'<span class="gtag">'+esc(o.haveTag)+'</span>':'') + (dd?tipFor(s):'') + '</td>' +
+        '<td class="sp-school">' + esc(SCHOOL[s.school]||s.school||'') + '</td>' +
+        '<td class="sp-flagcell">' + flagsFor(s) + '</td>' +
+        '<td class="sp-icell">' + info + '</td>' +
+      '</tr>';
+  }
+  function spellTable(pool, attr, oclass, granted){
+    var items = visible(pool);
+    if (!items.length) return '<div class="muted" style="padding:6px 2px">\u2014 none match \u2014</div>';
+    var picked = pickedFor(attr), cap = capFor(attr);
+    var rows = items.map(function(s){
+      var have = granted && granted[s.name.toLowerCase()];
+      var on = picked.indexOf(s.name) !== -1;
+      return spellRow(s, { on:on, capped: !on && picked.length >= cap, have: !!have, haveTag: have || '', oclass:oclass, attr:attr });
+    }).join('');
+    return '<table class="sp-tbl"><tbody>' + rows + '</tbody></table>';
+  }
+  function grantSection(){
+    if (!_grants.length) return '';
+    var rows = _grants.map(function(g){
+      var sp = _detail[g.name] || null;
+      var tag = g.kind === 'cantrip' ? 'cantrip' : (g.how === 'innate' ? '1/day' : 'known');
+      var d = (_openDetail && _openDetail.name === g.name && _openDetail.attr === 'grant');
+      var info = sp ? '<button class="sp-info' + (d?' open':'') + '" data-detail="' + esc(g.name) + '" data-dattr="grant">i</button>' : '';
+      return '<tr class="sp-row o-race have">' +
+        '<td class="sp-tick"><span class="dot" style="background:var(--o-race);border-color:var(--o-race)"></span></td>' +
+        '<td class="sp-name">' + esc(g.name) + '<span class="gtag">' + tag + '</span>' + (sp?tipFor(sp):'') + '</td>' +
+        '<td class="sp-school">' + esc(sp ? (SCHOOL[sp.school]||sp.school||'') : '') + '</td>' +
+        '<td class="sp-flagcell">' + flagsFor(sp) + '</td>' +
+        '<td class="sp-icell">' + info + '</td>' +
+      '</tr>';
+    }).join('');
+    var open = (_openDetail && _openDetail.attr === 'grant' && _detail[_openDetail.name]) ? detailCard(_detail[_openDetail.name], 'o-race') : '';
+    return '<div class="subhead">Granted by ' + esc(raceName()) + ' <span class="sp-note">free \u2014 doesn\u2019t count against your picks</span></div>' +
+      '<table class="sp-tbl"><tbody>' + rows + '</tbody></table>' + open;
   }
   function render(){
     var host = q('#sp-out'); if (!host) return;
     var e = _ent; if (!e){ host.innerHTML = ''; return; }
+    var levels = levelsAvailable();
+    if (_lvl == null || levels.indexOf(_lvl) < 0) _lvl = levels.length ? levels[0] : 0;
     var oc = e.viaSub ? 'o-sub' : 'o-class';
     var granted = {}; _grants.forEach(function(g){ granted[g.name.toLowerCase()] = (g.kind === 'cantrip' ? 'racial cantrip' : 'racial'); });
-    var cantrips = _list.filter(function(s){ return s.level === 0; });
-    var leveled = _list.filter(function(s){ return s.level >= 1 && s.level <= e.maxLevel; });
-    var html = summaryCard() + grantSection();
-    if (e.cantrips > 0) html += pickSection('Cantrips', null, cantrips, picks().cantrips, e.cantrips, 'cantrip', oc, granted);
-    if (e.mode === 'known'){
-      html += pickSection('Spells Known', 'a fixed set \u2014 locked in, doesn\u2019t change day to day', leveled, picks().known, e.known, 'known', oc, granted);
-    } else if (e.mode === 'prepared'){
-      html += pickSection('Prepared Spells', 'choose from the whole list \u2014 changes after a long rest; your starting loadout', leveled, picks().prepared, e.preparedCount, 'prepared', oc, granted);
-    } else if (e.mode === 'spellbook'){
-      html += pickSection('Spellbook', 'the spells you own \u2014 grows by 2 each level; you prepare from these', leveled, picks().spellbook, e.spellbook, 'spellbook', oc, granted);
-      var book = leveled.filter(function(s){ return picks().spellbook.indexOf(s.name) !== -1; });
-      html += pickSection('Prepared', 'choose from your spellbook (' + book.length + ' available)', book, picks().prepared, e.preparedCount, 'prepared', oc, granted);
+    var html = readoutCard() + statusLine() + levelBar();
+    if (_lvl === 0){
+      var cantrips = _list.filter(function(s){ return s.level === 0; });
+      html += tblHead('Cantrips', 'cantrip', 'at will \u2014 don\u2019t use spell slots');
+      html += spellTable(cantrips, 'cantrip', oc, granted);
+    } else {
+      var atLvl = _list.filter(function(s){ return s.level === _lvl; });
+      if (e.mode === 'known'){
+        html += tblHead(ORD[_lvl] + ' \u2014 Spells Known', 'known', 'a fixed set, locked in');
+        html += spellTable(atLvl, 'known', oc, granted);
+      } else if (e.mode === 'prepared'){
+        html += tblHead(ORD[_lvl] + ' \u2014 Prepared', 'prepared', 'changes after a long rest');
+        html += spellTable(atLvl, 'prepared', oc, granted);
+      } else if (e.mode === 'spellbook'){
+        html += tblHead(ORD[_lvl] + ' \u2014 Spellbook', 'spellbook', 'the spells you own \u2014 grows by 2 / level');
+        html += spellTable(atLvl, 'spellbook', oc, granted);
+        var book = atLvl.filter(function(s){ return picks().spellbook.indexOf(s.name) !== -1; });
+        html += tblHead(ORD[_lvl] + ' \u2014 Prepared', 'prepared', 'from your spellbook (' + book.length + ' at this level)');
+        html += (book.length ? spellTable(book, 'prepared', oc, granted) : '<div class="muted" style="padding:6px 2px">\u2014 add spells to your book above \u2014</div>');
+      }
     }
-    html += '<div class="eng-card">' + openMarkers() + '</div>';
+    if (_openDetail && _openDetail.attr !== 'grant' && _detail[_openDetail.name] && _detail[_openDetail.name].level === _lvl){
+      html += detailCard(_detail[_openDetail.name], oc);
+    }
+    html += grantSection();
     host.innerHTML = html;
     wire();
   }
   function wire(){
-    var caps = { cantrip:_ent.cantrips, known:_ent.known, prepared:_ent.preparedCount, spellbook:_ent.spellbook };
-    var arrs = { cantrip:picks().cantrips, known:picks().known, prepared:picks().prepared, spellbook:picks().spellbook };
-    Array.prototype.forEach.call(document.querySelectorAll('#sp-out .sp-pick[data-pick]'), function(el){
-      el.addEventListener('click', function(){
+    Array.prototype.forEach.call(document.querySelectorAll('#sp-out [data-lvl]'), function(el){
+      el.addEventListener('click', function(){ _lvl = parseInt(el.getAttribute('data-lvl'),10); _openDetail = null; render(); });
+    });
+    Array.prototype.forEach.call(document.querySelectorAll('#sp-out .sp-row[data-pick]'), function(el){
+      el.addEventListener('click', function(ev){
+        if (ev.target.closest('.sp-info')) return;
         var attr = el.getAttribute('data-attr'), name = el.getAttribute('data-pick');
-        toggle(arrs[attr], name, caps[attr]);
+        toggle(pickedFor(attr), name, capFor(attr));
         if (attr === 'spellbook') draft.spells.prepared = picks().prepared.filter(function(n){ return picks().spellbook.indexOf(n) !== -1; });
         saveDraft(); render();
       });
@@ -1450,7 +1614,7 @@ var SpellsUI = (function () {
     });
   }
   function mount(){
-    _openDetail = null;
+    _openDetail = null; _lvl = null;
     var sb = q('#sp-srch');
     if (sb){ sb.value = _query; sb.oninput = function(){ _query = sb.value; if (_ent) render(); }; }
     loadAll();
