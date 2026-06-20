@@ -10,10 +10,10 @@
 // existing client module, on window.__tok.sb) and hands it to renderSheet().
 // renderSheet(root, char) is also exported for direct use / tests.
 //
-// WIRED this pass: identity, combat medallions, HP bar (vitals), abilities,
-// saves, skills, senses, status, features. STILL STATIC (next pass): the
-// Spellcasting block (slot pools + spell lists — couples to Soul Shards P6),
-// Resources trackers (no structural source yet), Equipment + Attunement (GEAR).
+// WIRED: identity, combat medallions, HP bar (vitals), abilities, saves,
+// skills, senses, status, features, spellcasting (slot pools + spell lists).
+// STILL STATIC (next pass): Resources trackers (no structural source yet),
+// Equipment + Attunement (GEAR).
 // ---------------------------------------------------------------------------
 
 function esc(x){ return String(x==null?'':x).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); }
@@ -75,6 +75,65 @@ function setStatus(root, v){
   var insp=root.querySelector('[data-f="inspiration"]');
   if(insp){ insp.style.background = v.inspiration ? 'var(--gold-br)' : ''; }
 }
+// --- Spellcasting block. Reads structural.spellcasting; classes[] is read by
+//     renderSubline() above. Shape (what Soul Shards P6/P7 emits on structural):
+//   structural.spellcasting = {
+//     ability, saveDC, attackBonus, prepared,        // prepared:false -> "Known"
+//     pools:[{ label, badge, tone:'class'|'subclass'|'dim', current, max, recharge }],
+//     groups:[{ heading, spells:[{ name, origin:'class'|'subclass'|'race'|'feat'|'expanded', source, time }] }],
+//     featNote, detail:{ name,school,cast,range,components,duration,concentration,body,higher }|null
+//   }
+function poolHTML(p){
+  p=p||{};
+  var toneCls = p.tone==='subclass'?' s2':(p.tone==='dim'?' dim':'');
+  var max=p.max||0, cur=p.current||0, slots='';
+  for(var i=0;i<max;i++){
+    slots += (i<cur)
+      ? '<span class="slot'+(p.tone==='subclass'?' teal':'')+' on"></span>'
+      : '<span class="slot empty"></span>';
+  }
+  return '<div class="pool'+toneCls+'"><div class="p-lab"><span>'+esc(p.label)+'</span>'
+       + '<span class="lv">'+esc(p.badge)+'</span></div>'
+       + '<div class="slots">'+slots+'</div>'
+       + '<div class="p-rec">'+esc(p.recharge)+'</div></div>';
+}
+function spellHTML(sp){
+  sp=sp||{};
+  var oMap={ "class":"o-class", subclass:"o-sub", race:"o-race", feat:"o-feat", expanded:"o-sub" };
+  var tMap={ "class":"t-class", subclass:"t-sub", race:"t-race", feat:"t-feat", expanded:"t-exp" };
+  var o=sp.origin||'class';
+  return '<div class="spell '+(oMap[o]||'o-class')+'"><span class="s-n">'+esc(sp.name)+'</span>'
+       + '<span class="s-tag '+(tMap[o]||'t-class')+'">'+esc(sp.source)+'</span>'
+       + '<span class="s-ct">'+esc(sp.time)+'</span></div>';
+}
+function groupHTML(g){
+  g=g||{};
+  return '<div class="spell-group"><div class="sg-h">'+esc(g.heading)+'</div>'
+       + '<div class="spell-cols">'+(g.spells||[]).map(spellHTML).join('')+'</div></div>';
+}
+function detailHTML(d){
+  if(!d) return '';
+  var dur = d.concentration ? '<b class="conc">'+esc(d.duration)+'</b>' : '<b>'+esc(d.duration)+'</b>';
+  return '<div class="detail">'
+       + '<div class="d-h"><span class="d-n">'+esc(d.name)+'</span><span class="d-sch">'+esc(d.school)+'</span></div>'
+       + '<div class="d-grid"><span>Cast <b>'+esc(d.cast)+'</b></span><span>Range <b>'+esc(d.range)+'</b></span>'
+       + '<span>Components <b>'+esc(d.components)+'</b></span><span>Duration '+dur+'</span></div>'
+       + '<p class="d-body">'+esc(d.body)+'</p>'
+       + '<p class="d-hl"><b>At higher levels</b> \u2014 '+esc(d.higher)+'</p></div>';
+}
+function renderSpellcasting(root, sc){
+  sc=sc||{};
+  function setF(fld,val){ if(val===undefined||val===null) return; var e=root.querySelector('[data-f="'+fld+'"]'); if(e) e.textContent=val; }
+  var ph=root.querySelector('[data-list="pools"]');       if(ph) ph.innerHTML=(sc.pools||[]).map(poolHTML).join('');
+  setF('castAbility', sc.ability);
+  setF('castDC', sc.saveDC);
+  setF('castAtk', sc.attackBonus!=null?sgn(sc.attackBonus):null);
+  setF('castType', sc.prepared===true?'Prepared':(sc.prepared===false?'Known':sc.castType));
+  setF('featNote', sc.featNote);
+  var gb=root.querySelector('[data-list="spellGroups"]');  if(gb) gb.innerHTML=(sc.groups||[]).map(groupHTML).join('');
+  var db=root.querySelector('[data-list="detail"]');       if(db) db.innerHTML=detailHTML(sc.detail);
+}
+
 function renderSheet(root, char){
   root=root||document; char=char||{};
   var s=char.structural||{}, v=char.vitals||{}, cb=s.combat||{}, ab=s.abilities||{};
@@ -105,6 +164,7 @@ function renderSheet(root, char){
   var notes=(char.notes!=null?char.notes:s.notes);
   if(notes!=null) setF('notes', notes);
   renderAbilities(root, ab); renderSaves(root, s); renderSkills(root, s.skills); renderFeatures(root, s.features);
+  renderSpellcasting(root, s.spellcasting||{});
 }
 var SAMPLE={
   structural:{
@@ -118,7 +178,39 @@ var SAMPLE={
     saves:{ str:{bonus:-1,proficient:false}, dex:{bonus:2,proficient:false}, con:{bonus:2,proficient:false}, int:{bonus:0,proficient:false}, wis:{bonus:3,proficient:true}, cha:{bonus:5,proficient:true} },
     skills:[ {name:'Acrobatics',attr:'dex',bonus:2,prof:false},{name:'Animal Handling',attr:'wis',bonus:1,prof:false},{name:'Arcana',attr:'int',bonus:2,prof:true},{name:'Athletics',attr:'str',bonus:-1,prof:false},{name:'Deception',attr:'cha',bonus:5,prof:true},{name:'History',attr:'int',bonus:0,prof:false},{name:'Insight',attr:'wis',bonus:3,prof:true},{name:'Intimidation',attr:'cha',bonus:5,prof:true},{name:'Investigation',attr:'int',bonus:0,prof:false},{name:'Medicine',attr:'wis',bonus:1,prof:false},{name:'Nature',attr:'int',bonus:0,prof:false},{name:'Perception',attr:'wis',bonus:3,prof:true},{name:'Performance',attr:'cha',bonus:3,prof:false},{name:'Persuasion',attr:'cha',bonus:5,prof:true},{name:'Religion',attr:'int',bonus:0,prof:false},{name:'Sleight of Hand',attr:'dex',bonus:2,prof:false},{name:'Stealth',attr:'dex',bonus:2,prof:false},{name:'Survival',attr:'wis',bonus:1,prof:false} ],
     proficiencies:{ languages:['Common','Elvish','Infernal'] },
-    features:[ {name:'Pact Magic',source:'class:Warlock',desc:'Spells fueled by short-rest pact slots, all cast at their highest level.'},{name:'Hex Warrior',source:'subclass:Hexblade',desc:'Use Charisma for attack and damage with a bonded weapon.'},{name:"Hexblade's Curse",source:'subclass:Hexblade',desc:'Mark a foe for bonus damage and crit on a 19\u201320.'},{name:'Eldritch Invocations',source:'class:Warlock',desc:"Agonizing Blast \u00B7 Devil's Sight."},{name:'Shadow Magic Origin',source:'class:Sorcerer',desc:'Your soul carries a fragment of the Shadowfell.'},{name:'Strength of the Grave',source:'subclass:Shadow',desc:'Drop to 1 HP instead of 0 on a Charisma save.'},{name:'Darkvision 60 ft',source:'race:Astral Elf',desc:'See in dim light and darkness.'},{name:'Fey Ancestry',source:'race:Astral Elf',desc:'Advantage against charm; immune to magical sleep.'},{name:'Starlight Step',source:'race:Astral Elf',desc:'Teleport 30 ft as a bonus action, prof. uses per long rest.'} ]
+    features:[ {name:'Pact Magic',source:'class:Warlock',desc:'Spells fueled by short-rest pact slots, all cast at their highest level.'},{name:'Hex Warrior',source:'subclass:Hexblade',desc:'Use Charisma for attack and damage with a bonded weapon.'},{name:"Hexblade's Curse",source:'subclass:Hexblade',desc:'Mark a foe for bonus damage and crit on a 19\u201320.'},{name:'Eldritch Invocations',source:'class:Warlock',desc:"Agonizing Blast \u00B7 Devil's Sight."},{name:'Shadow Magic Origin',source:'class:Sorcerer',desc:'Your soul carries a fragment of the Shadowfell.'},{name:'Strength of the Grave',source:'subclass:Shadow',desc:'Drop to 1 HP instead of 0 on a Charisma save.'},{name:'Darkvision 60 ft',source:'race:Astral Elf',desc:'See in dim light and darkness.'},{name:'Fey Ancestry',source:'race:Astral Elf',desc:'Advantage against charm; immune to magical sleep.'},{name:'Starlight Step',source:'race:Astral Elf',desc:'Teleport 30 ft as a bonus action, prof. uses per long rest.'} ],
+    spellcasting:{
+      ability:'Charisma', saveDC:13, attackBonus:5, prepared:false,
+      pools:[
+        { label:'Pact Magic',     badge:'Lvl 1', tone:'class',    current:2, max:2, recharge:'2 slots \u00B7 short rest' },
+        { label:'Sorcerer Slots', badge:'Lvl 1', tone:'subclass', current:2, max:2, recharge:'2 slots \u00B7 long rest' },
+        { label:'Sorcery Points', badge:'0',     tone:'dim',      current:0, max:1, recharge:'unlocks at Sorcerer 2' }
+      ],
+      featNote:'\u2014 no feat spells at this level',
+      groups:[
+        { heading:'Cantrips \u00B7 At Will', spells:[
+          { name:'Eldritch Blast',   origin:'class', source:'Warlock',     time:'1 action' },
+          { name:'Booming Blade',    origin:'class', source:'Sorcerer',    time:'1 action' },
+          { name:'Minor Illusion',   origin:'class', source:'Sorcerer',    time:'1 action' },
+          { name:'Prestidigitation', origin:'class', source:'Sorcerer',    time:'1 action' },
+          { name:'Light',            origin:'race',  source:'Astral Fire', time:'1 action' }
+        ]},
+        { heading:'1st Level', spells:[
+          { name:'Hex',              origin:'class',    source:'Warlock',  time:'1 bonus' },
+          { name:'Armor of Agathys', origin:'class',    source:'Warlock',  time:'1 action' },
+          { name:'Shield',           origin:'expanded', source:'Expanded', time:'1 reaction' },
+          { name:'Chromatic Orb',    origin:'class',    source:'Sorcerer', time:'1 action' },
+          { name:'Charm Person',     origin:'class',    source:'Sorcerer', time:'1 action' }
+        ]}
+      ],
+      detail:{
+        name:'Hex', school:'1st-level enchantment \u00B7 Warlock',
+        cast:'1 Bonus Action', range:'90 ft', components:'V, S, M',
+        duration:'Concentration, 1 hr', concentration:true,
+        body:'Lay a curse on a creature you can see within range. Your attacks deal an extra 1d6 necrotic damage to it, and it has disadvantage on ability checks made with one ability score of your choice.',
+        higher:'a 3rd-level slot holds the curse up to 8 hours; 5th level, up to 24 hours.'
+      }
+    }
   },
   vitals:{ hp:18, hpTemp:4, hpBonus:0, concentration:'Hex', conditions:[], inspiration:false },
   notes:'Patron stirs near the rift \u2014 ask Vesperian about the star-iron blade. Owe Caim a favour.'
