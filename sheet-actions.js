@@ -100,10 +100,7 @@ export function wireInspiration({ root, characterData, key } = {}) {
   return { ready };
 }
 
-// Auto-bootstrap in a real page; skipped under Node (the smoke imports + drives manually).
-if (typeof process === 'undefined' && typeof document !== 'undefined') {
-  const k = new URLSearchParams(location.search).get('character') || 'cosmere';
-  const boot = () => wireInspiration({ root: document, characterData: window.CharacterData, key: k });
-  if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', boot);
-  else boot();
-}
+// Page bootstrap removed: sheet-mount.js's mountSheet owns the wiring
+// lifecycle now and calls wireInspiration scoped to its container. Self-booting
+// here too would double-bind the toggle (double-write). The smoke imports
+// wireInspiration and drives it directly, so it is unaffected.

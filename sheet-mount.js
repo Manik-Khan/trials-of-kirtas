@@ -1,0 +1,606 @@
+// sheet-mount.js
+// ---------------------------------------------------------------------------
+// Shared mount for the at-a-glance sheet (the v11 / Metaphor sheet).
+// Holds the sheet's body-markup template + the whole render layer (lifted
+// verbatim from sheet-v2.html's inline boot — already root-scoped) and exposes
+// mountSheet(container, key), so the sheet can render into ANY node: its own
+// page (sheet-v2.html, a thin caller) or floated over another (combat.html).
+//
+// applyExtras + showError are now root-scoped (were the only two document-bound
+// fns). Inspiration is wired by mountSheet, scoped to the container, via
+// sheet-actions.js's wireInspiration — which is why sheet-actions.js no longer
+// self-boots (mountSheet owns that lifecycle; double-binding would double-write).
+//
+// Pure under Node for the smoke: mountSheet takes its CharacterData (defaults to
+// window.CharacterData) and never auto-runs.
+// ---------------------------------------------------------------------------
+
+import { wireInspiration } from './sheet-actions.js';
+
+function esc(x){ return String(x==null?'':x).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); }
+function sgn(n){ n=Number(n)||0; return (n>=0?'+':'\u2212')+Math.abs(n); }
+function clamp(n){ return Math.max(0,Math.min(100,n)); }
+function parseSource(src){
+  src=String(src||''); var i=src.indexOf(':');
+  var type=i>=0?src.slice(0,i):'class', label=i>=0?src.slice(i+1):src;
+  var map={ "class":"t-class", subclass:"t-sub", race:"t-race", feat:"t-feat" };
+  return { cls: map[type]||'t-class', label: label };
+}
+function renderSubline(root, s){
+  var box=root.querySelector('[data-list="subline"]'); if(!box) return;
+  var parts=[], classes=s.classes||(s.classLabel?[{name:s.classLabel,level:'',subclass:s.subclass}]:[]);
+  classes.forEach(function(c){
+    var sub=c.subclass?(' <span class="sub">\u00B7 '+esc(c.subclass)+'</span>'):'';
+    parts.push('<span><b>'+esc(c.name)+'</b> '+(c.level!=null?c.level:'')+sub+'</span>');
+  });
+  if(s.race) parts.push('<span>'+esc(s.race)+'</span>');
+  if(s.level!=null) parts.push('<span><b>Level '+s.level+'</b></span>');
+  if(s.alignment) parts.push('<span>'+esc(s.alignment)+'</span>');
+  box.innerHTML=parts.join('<span class="dot">\u2726</span>');
+}
+function renderAbilities(root, ab){
+  var box=root.querySelector('[data-list="abilities"]'); if(!box) return;
+  var order=[['str','Str'],['dex','Dex'],['con','Con'],['int','Int'],['wis','Wis'],['cha','Cha']];
+  box.innerHTML=order.map(function(o){
+    var a=ab[o[0]]||{}, mod=a.mod||0;
+    return '<div class="abil'+(mod<0?' neg':'')+'"><div class="nm">'+o[1]+'</div><div class="sc">'+(a.score!=null?a.score:'')+'</div><div class="md">'+sgn(mod)+'</div></div>';
+  }).join('');
+}
+function renderSaves(root, s){
+  var box=root.querySelector('[data-list="saves"]'); if(!box) return;
+  var sv=s.saves||{}, order=[['str','Str'],['dex','Dex'],['con','Con'],['int','Int'],['wis','Wis'],['cha','Cha']];
+  box.innerHTML=order.map(function(o){
+    var x=sv[o[0]]||{};
+    return '<div class="save'+(x.proficient?' prof':'')+'"><span class="dotp"></span><span class="sv-n">'+o[1]+'</span><span class="sv-v">'+sgn(x.bonus||0)+'</span></div>';
+  }).join('');
+}
+function renderSkills(root, skills){
+  var box=root.querySelector('[data-list="skills"]'); if(!box) return;
+  box.innerHTML=(skills||[]).map(function(sk){
+    var attr=sk.attr?(sk.attr.charAt(0).toUpperCase()+sk.attr.slice(1)):'';
+    return '<div class="skill'+(sk.prof?' prof':'')+'"><span class="dotp"></span><span class="sk-n">'+esc(sk.name)+'</span><span class="sk-a">'+esc(attr)+'</span><span class="sk-v">'+sgn(sk.bonus||0)+'</span></div>';
+  }).join('');
+}
+function renderFeatures(root, feats){
+  var box=root.querySelector('[data-list="features"]'); if(!box) return;
+  box.innerHTML=(feats||[]).map(function(fobj){
+    var p=parseSource(fobj.source);
+    return '<div class="feat"><span class="f-tag '+p.cls+'">'+esc(p.label)+'</span><div><div class="f-n">'+esc(fobj.name)+'</div><div class="f-d">'+esc(fobj.desc)+'</div></div></div>';
+  }).join('');
+}
+function setStatus(root, v){
+  var conc=root.querySelector('[data-f="concentration"]');
+  if(conc){ if(v.concentration){ conc.textContent=v.concentration; conc.className='conc-on'; } else { conc.textContent='none'; conc.className='muted'; } }
+  var cond=root.querySelector('[data-f="conditions"]');
+  if(cond){ var l=v.conditions; if(Array.isArray(l)&&l.length){ cond.textContent=l.join(' \u00B7 '); cond.className=''; } else { cond.textContent='none active'; cond.className='muted'; } }
+  var insp=root.querySelector('[data-f="inspiration"]');
+  if(insp){ insp.style.background = v.inspiration ? 'var(--gold-br)' : ''; }
+}
+function poolHTML(p){
+  p=p||{};
+  var toneCls = p.tone==='subclass'?' s2':(p.tone==='dim'?' dim':'');
+  var max=p.max||0, cur=p.current||0, slots='';
+  for(var i=0;i<max;i++){
+    slots += (i<cur)
+      ? '<span class="slot'+(p.tone==='subclass'?' teal':'')+' on"></span>'
+      : '<span class="slot empty"></span>';
+  }
+  return '<div class="pool'+toneCls+'"><div class="p-lab"><span>'+esc(p.label)+'</span>'
+       + '<span class="lv">'+esc(p.badge)+'</span></div>'
+       + '<div class="slots">'+slots+'</div>'
+       + '<div class="p-rec">'+esc(p.recharge)+'</div></div>';
+}
+function spellHTML(sp){
+  sp=sp||{};
+  var oMap={ "class":"o-class", subclass:"o-sub", race:"o-race", feat:"o-feat", expanded:"o-sub" };
+  var tMap={ "class":"t-class", subclass:"t-sub", race:"t-race", feat:"t-feat", expanded:"t-exp" };
+  var o=sp.origin||'class';
+  return '<div class="spell '+(oMap[o]||'o-class')+'"><span class="s-n">'+esc(sp.name)+'</span>'
+       + '<span class="s-tag '+(tMap[o]||'t-class')+'">'+esc(sp.source)+'</span>'
+       + '<span class="s-ct">'+esc(sp.time)+'</span></div>';
+}
+function groupHTML(g){
+  g=g||{};
+  return '<div class="spell-group"><div class="sg-h">'+esc(g.heading)+'</div>'
+       + '<div class="spell-cols">'+(g.spells||[]).map(spellHTML).join('')+'</div></div>';
+}
+function detailHTML(d){
+  if(!d) return '';
+  var dur = d.concentration ? '<b class="conc">'+esc(d.duration)+'</b>' : '<b>'+esc(d.duration)+'</b>';
+  return '<div class="detail">'
+       + '<div class="d-h"><span class="d-n">'+esc(d.name)+'</span><span class="d-sch">'+esc(d.school)+'</span></div>'
+       + '<div class="d-grid"><span>Cast <b>'+esc(d.cast)+'</b></span><span>Range <b>'+esc(d.range)+'</b></span>'
+       + '<span>Components <b>'+esc(d.components)+'</b></span><span>Duration '+dur+'</span></div>'
+       + '<p class="d-body">'+esc(d.body)+'</p>'
+       + '<p class="d-hl"><b>At higher levels</b> \u2014 '+esc(d.higher)+'</p></div>';
+}
+function renderSpellcasting(root, sc){
+  root=root||document; sc=sc||{};
+  function setF(fld,val){ if(val===undefined||val===null) return; var e=root.querySelector('[data-f="'+fld+'"]'); if(e) e.textContent=val; }
+  var ph=root.querySelector('[data-list="pools"]');       if(ph) ph.innerHTML=(sc.pools||[]).map(poolHTML).join('');
+  setF('castAbility', sc.ability);
+  setF('castDC', sc.saveDC);
+  setF('castAtk', sc.attackBonus!=null?sgn(sc.attackBonus):null);
+  setF('castType', sc.prepared===true?'Prepared':(sc.prepared===false?'Known':sc.castType));
+  setF('featNote', sc.featNote);
+  var gb=root.querySelector('[data-list="spellGroups"]');  if(gb) gb.innerHTML=(sc.groups||[]).map(groupHTML).join('');
+  var db=root.querySelector('[data-list="detail"]');       if(db) db.innerHTML=detailHTML(sc.detail);
+}
+
+function renderSheet(root, char){
+  root=root||document; char=char||{};
+  var s=char.structural||{}, v=char.vitals||{}, cb=s.combat||{}, ab=s.abilities||{};
+  function setF(fld,val){ if(val===undefined||val===null) return; var e=root.querySelector('[data-f="'+fld+'"]'); if(e) e.textContent=val; }
+  function styleF(fld,p,val){ var e=root.querySelector('[data-f="'+fld+'"]'); if(e) e.style[p]=val; }
+  var nm=root.querySelector('[data-f="name"]');
+  if(nm&&s.name){ var ps=String(s.name).trim().split(/\s+/); if(ps.length>1){ var last=ps.pop(); nm.innerHTML=esc(ps.join(' '))+' <em>'+esc(last)+'</em>'; } else nm.textContent=s.name; }
+  renderSubline(root, s);
+  setF('ac', cb.ac);
+  if(cb.acSource!=null) setF('ac-sub', cb.acSource);
+  setF('initiative', sgn(cb.initiative));
+  setF('speed', cb.speed);
+  setF('prof', sgn(s.proficiencyBonus));
+  setF('spellDC', cb.spellSaveDC);
+  setF('spellAtk', sgn(cb.spellAttackBonus));
+  if(cb.hitDice!=null) setF('hitDice', cb.hitDice);
+  var hp=(v.hp!=null?v.hp:cb.hp), hpMax=(cb.hpMax!=null?cb.hpMax:cb.hp), temp=(v.hpTemp!=null?v.hpTemp:0), bonus=(v.hpBonus!=null?v.hpBonus:0), effMax=(hpMax||0)+(bonus||0);
+  setF('hp', hp); setF('hpMaxBig', '/ '+hpMax); setF('hpCurrent', 'Current '+hp+' / '+hpMax);
+  setF('hpTemp', temp>0?('+'+temp+' Temp'):'');
+  if(effMax>0){ styleF('hpfill','width',clamp(hp/effMax*100)+'%'); styleF('hptemp','width',clamp(temp/effMax*100)+'%'); }
+  var senses=cb.senses||s.senses||{};
+  setF('darkvision', senses.darkvision?(senses.darkvision+' ft'):'\u2014');
+  setF('passivePerception', s.passivePerception);
+  setF('passiveInsight', s.passiveInsight);
+  var langs=(s.proficiencies&&s.proficiencies.languages)||s.languages;
+  if(langs!=null) setF('languages', Array.isArray(langs)?langs.join(' \u00B7 '):langs);
+  setStatus(root, v);
+  var notes=(char.notes!=null?char.notes:s.notes);
+  if(notes!=null) setF('notes', notes);
+  renderAbilities(root, ab); renderSaves(root, s); renderSkills(root, s.skills); renderFeatures(root, s.features);
+  renderSpellcasting(root, s.spellcasting||{});
+}
+// ── live data: map a CharacterData row into the renderer's shape, then bind ──
+function normSkills(sk){
+  if(!sk) return [];
+  var arr = Array.isArray(sk) ? sk : Object.keys(sk).map(function(k){ return sk[k]; });
+  return arr.map(function(x){ return { name:x.name, attr:(x.attr||'').toLowerCase(), bonus:x.bonus, prof: !!x.prof && x.prof!=='none' }; });
+}
+function levelInfo(L){
+  L=String(L).toLowerCase();
+  if(L.indexOf('cantrip')===0) return { n:0, heading:'Cantrips \u00B7 At Will' };
+  var m=L.match(/\d+/), n=m?parseInt(m[0],10):0, ord=['','1st','2nd','3rd','4th','5th','6th','7th','8th','9th'];
+  return { n:n, heading:(ord[n]||(n+'th'))+' Level' };
+}
+function buildSpellcasting(s, v){
+  var cb=s.combat||{}, cf=s.classFeatures||{}, pip=(v&&v.pipState)||{};
+  var ability='';
+  if(cb.spellSaveDC!=null && s.proficiencyBonus!=null && s.abilities){
+    var target=cb.spellSaveDC-8-s.proficiencyBonus, names={str:'Strength',dex:'Dexterity',con:'Constitution',int:'Intelligence',wis:'Wisdom',cha:'Charisma'};
+    Object.keys(s.abilities).forEach(function(k){ if(!ability && (s.abilities[k]||{}).mod===target) ability=names[k]||k; });
+  }
+  var pools=[];
+  if(cf.pactSlots){ var pm=cf.pactSlots.max||0, ps=pip.pactSlots||0; pools.push({label:'Pact Magic',badge:'Lvl '+(cf.pactSlots.level||1),tone:'class',max:pm,current:Math.max(0,pm-ps),recharge:pm+' slot'+(pm!==1?'s':'')+' \u00B7 short rest'}); }
+  if(cf.sorcererSlots){ Object.keys(cf.sorcererSlots).forEach(function(L){ var ss=cf.sorcererSlots[L]||{}, m=ss.max||0, sp=pip['sorc_'+L]||0; pools.push({label:'Sorcerer Slots',badge:'Lvl '+L,tone:'subclass',max:m,current:Math.max(0,m-sp),recharge:m+' slot'+(m!==1?'s':'')+' \u00B7 long rest'}); }); }
+  if(cf.spellSlots){ Object.keys(cf.spellSlots).sort(function(a,b){return (parseInt(a,10)||0)-(parseInt(b,10)||0);}).forEach(function(L){ var ss=cf.spellSlots[L]||{}, m=ss.max||0, sp=pip['spell_'+L]||0; if(m>0) pools.push({label:'Spell Slots',badge:'Lvl '+L,tone:'class',max:m,current:Math.max(0,m-sp),recharge:m+' slot'+(m!==1?'s':'')+' \u00B7 long rest'}); }); }
+  if(cf.sorceryPoints){ var sm=cf.sorceryPoints.max||0; pools.push({label:'Sorcery Points',badge:String(cf.sorceryPoints.current||0),tone:'dim',max:sm||1,current:cf.sorceryPoints.current||0,recharge:sm>0?'sorcerer rest':'unlocks at Sorcerer 2'}); }
+  var groups=[], spells=s.spells||{};
+  Object.keys(spells).map(function(L){ return { key:L, info:levelInfo(L) }; }).sort(function(a,b){ return a.info.n-b.info.n; }).forEach(function(o){
+    var arr=spells[o.key]; if(!arr||!arr.length) return;
+    groups.push({ heading:o.info.heading, spells:arr.map(function(sp){ return { name:sp.name, origin:'class', source:'', time:sp.castingTime||'' }; }) });
+  });
+  return { ability:ability, saveDC:cb.spellSaveDC, attackBonus:cb.spellAttackBonus, pools:pools, groups:groups, detail:null, featNote:'\u2014 origin colours arrive when the derive carries provenance' };
+}
+function toRenderShape(cd){
+  cd=cd||{}; var s=Object.assign({}, cd.structural||{}), v=Object.assign({}, cd.vitals||{});
+  s.skills=normSkills(s.skills);
+  if(s.passiveInsight==null){ var ins=s.skills.filter(function(x){return x.name==='Insight';})[0]; if(ins) s.passiveInsight=10+(ins.bonus||0); }
+  if(!s.spellcasting) s.spellcasting=buildSpellcasting(s, v);
+  if(v.inspiration==null && s.inspiration!=null) v.inspiration=s.inspiration;
+  return { structural:s, vitals:v, notes:(cd.notes!=null?cd.notes:s.notes) };
+}
+function applyExtras(root, cd){
+  var v=cd.vitals||{}, s=cd.structural||{}, insp=(v.inspiration!=null?v.inspiration:s.inspiration);
+  var por=root.querySelector('.portrait'); if(por) por.classList.toggle('inspired', !!insp);
+  var frame=root.querySelector('.portrait .frame');
+  if(frame && s.portrait){ frame.innerHTML='<img src="'+esc(s.portrait)+'" alt="" style="width:100%;height:100%;object-fit:cover;object-position:top center;display:block">'; }
+}
+function showError(root, msg){ var sub=root.querySelector('[data-list="subline"]'); if(sub) sub.innerHTML='<span style="color:var(--red-br)">'+esc(msg)+'</span>'; }
+
+// ── filter defs the sheet markup references (filter:url(#rough) …) ──
+// Injected once per host document, keyed on a real filter id, so a page that already
+// carries the defs (sheet-v2.html's page chrome, or a prior mount) is a no-op.
+var SHEET_DEFS = `<svg class="defs" aria-hidden="true" style="position:absolute;width:0;height:0;overflow:hidden"><defs>
+    <filter id="distress" x="-6%" y="-10%" width="112%" height="124%">
+      <feTurbulence type="fractalNoise" baseFrequency="0.02 0.035" numOctaves="3" seed="3" result="rough"/>
+      <feDisplacementMap in="SourceGraphic" in2="rough" scale="1.6" result="disp"/>
+      <feTurbulence type="fractalNoise" baseFrequency="0.14 0.18" numOctaves="2" seed="9" result="grain"/>
+      <feColorMatrix in="grain" type="matrix" values="0 0 0 0 0  0 0 0 0 0  0 0 0 0 0  0 0 0 -2.6 1.12" result="mask"/>
+      <feComposite in="disp" in2="mask" operator="in"/>
+    </filter>
+    <filter id="swash" x="-25%" y="-60%" width="150%" height="220%">
+      <feTurbulence type="fractalNoise" baseFrequency="0.011 0.03" numOctaves="3" seed="5" result="r"/>
+      <feDisplacementMap in="SourceGraphic" in2="r" scale="17" result="d"/>
+      <feTurbulence type="turbulence" baseFrequency="0.05 0.08" numOctaves="2" seed="2" result="g"/>
+      <feColorMatrix in="g" type="matrix" values="0 0 0 0 0  0 0 0 0 0  0 0 0 0 0  0 0 0 -1.05 1.0" result="ga"/>
+      <feComposite in="d" in2="ga" operator="in"/>
+    </filter>
+    <filter id="rough" x="-15%" y="-40%" width="130%" height="180%">
+      <feTurbulence type="fractalNoise" baseFrequency="0.02 0.05" numOctaves="2" seed="4" result="r"/>
+      <feDisplacementMap in="SourceGraphic" in2="r" scale="4"/>
+    </filter>
+    <filter id="glitch1" x="-4%" y="-4%" width="108%" height="108%" color-interpolation-filters="sRGB">
+      <feColorMatrix in="SourceGraphic" type="matrix" values="1 0 0 0 0  0 0 0 0 0  0 0 0 0 0  0 0 0 1 0" result="r"/>
+      <feOffset in="r" dx="-2" dy="0" result="ro"/>
+      <feColorMatrix in="SourceGraphic" type="matrix" values="0 0 0 0 0  0 1 0 0 0  0 0 0 0 0  0 0 0 1 0" result="g"/>
+      <feColorMatrix in="SourceGraphic" type="matrix" values="0 0 0 0 0  0 0 0 0 0  0 0 1 0 0  0 0 0 1 0" result="b"/>
+      <feOffset in="b" dx="2" dy="0" result="bo"/>
+      <feBlend in="ro" in2="g" mode="screen" result="rg"/>
+      <feBlend in="rg" in2="bo" mode="screen"/>
+    </filter>
+    <filter id="glitch2" x="-4%" y="-4%" width="108%" height="108%" color-interpolation-filters="sRGB">
+      <feTurbulence type="fractalNoise" baseFrequency="0.004 0.22" numOctaves="1" seed="11" result="n"/>
+      <feDisplacementMap in="SourceGraphic" in2="n" scale="8" xChannelSelector="R" yChannelSelector="G" result="d"/>
+      <feColorMatrix in="d" type="matrix" values="1 0 0 0 0  0 0 0 0 0  0 0 0 0 0  0 0 0 1 0" result="r"/>
+      <feOffset in="r" dx="-3.5" dy="0" result="ro"/>
+      <feColorMatrix in="d" type="matrix" values="0 0 0 0 0  0 1 0 0 0  0 0 0 0 0  0 0 0 1 0" result="g"/>
+      <feColorMatrix in="d" type="matrix" values="0 0 0 0 0  0 0 0 0 0  0 0 1 0 0  0 0 0 1 0" result="b"/>
+      <feOffset in="b" dx="3.5" dy="0" result="bo"/>
+      <feBlend in="ro" in2="g" mode="screen" result="rg"/>
+      <feBlend in="rg" in2="bo" mode="screen"/>
+    </filter>
+    <filter id="glitch3" x="-4%" y="-4%" width="108%" height="108%" color-interpolation-filters="sRGB">
+      <feTurbulence type="fractalNoise" baseFrequency="0.004 0.22" numOctaves="1" seed="3" result="n"/>
+      <feDisplacementMap in="SourceGraphic" in2="n" scale="14" xChannelSelector="R" yChannelSelector="G" result="d"/>
+      <feColorMatrix in="d" type="matrix" values="1 0 0 0 0  0 0 0 0 0  0 0 0 0 0  0 0 0 1 0" result="r"/>
+      <feOffset in="r" dx="-6" dy="0" result="ro"/>
+      <feColorMatrix in="d" type="matrix" values="0 0 0 0 0  0 1 0 0 0  0 0 0 0 0  0 0 0 1 0" result="g"/>
+      <feColorMatrix in="d" type="matrix" values="0 0 0 0 0  0 0 0 0 0  0 0 1 0 0  0 0 0 1 0" result="b"/>
+      <feOffset in="b" dx="6" dy="0" result="bo"/>
+      <feBlend in="ro" in2="g" mode="screen" result="rg"/>
+      <feBlend in="rg" in2="bo" mode="screen"/>
+    </filter>
+    <filter id="glitch4" x="-4%" y="-4%" width="108%" height="108%" color-interpolation-filters="sRGB">
+      <feTurbulence type="fractalNoise" baseFrequency="0.004 0.22" numOctaves="1" seed="19" result="n"/>
+      <feDisplacementMap in="SourceGraphic" in2="n" scale="24" xChannelSelector="R" yChannelSelector="G" result="d"/>
+      <feColorMatrix in="d" type="matrix" values="1 0 0 0 0  0 0 0 0 0  0 0 0 0 0  0 0 0 1 0" result="r"/>
+      <feOffset in="r" dx="-9" dy="0" result="ro"/>
+      <feColorMatrix in="d" type="matrix" values="0 0 0 0 0  0 1 0 0 0  0 0 0 0 0  0 0 0 1 0" result="g"/>
+      <feColorMatrix in="d" type="matrix" values="0 0 0 0 0  0 0 0 0 0  0 0 1 0 0  0 0 0 1 0" result="b"/>
+      <feOffset in="b" dx="9" dy="0" result="bo"/>
+      <feBlend in="ro" in2="g" mode="screen" result="rg"/>
+      <feBlend in="rg" in2="bo" mode="screen"/>
+    </filter>
+    <pattern id="geo-hex" patternUnits="userSpaceOnUse" width="46" height="40"><path d="M11.5 1 L34.5 1 L46 20 L34.5 39 L11.5 39 L0 20 Z" fill="none" stroke="rgba(236,226,205,.82)" stroke-width="1.1"/></pattern>
+    <pattern id="geo-triangles" patternUnits="userSpaceOnUse" width="20" height="17.32"><path d="M0 0 L10 17.32 L20 0 M0 17.32 L10 0 L20 17.32 M0 0 H20 M0 17.32 H20" fill="none" stroke="rgba(236,226,205,.82)" stroke-width="1"/></pattern>
+    <pattern id="geo-diamonds" patternUnits="userSpaceOnUse" width="28" height="28"><path d="M14 0 L28 14 L14 28 L0 14 Z" fill="none" stroke="rgba(236,226,205,.82)" stroke-width="1"/></pattern>
+    <pattern id="geo-grid" patternUnits="userSpaceOnUse" width="26" height="26"><path d="M26 0 H0 V26" fill="none" stroke="rgba(236,226,205,.82)" stroke-width="1"/></pattern>
+    <pattern id="geo-dots" patternUnits="userSpaceOnUse" width="22" height="22"><circle cx="11" cy="11" r="1.7" fill="rgba(236,226,205,.82)"/></pattern>
+    <pattern id="geo-rings" patternUnits="userSpaceOnUse" width="30" height="30"><circle cx="15" cy="15" r="9" fill="none" stroke="rgba(236,226,205,.82)" stroke-width="1"/></pattern>
+    <pattern id="geo-crosses" patternUnits="userSpaceOnUse" width="24" height="24"><path d="M12 7 V17 M7 12 H17" fill="none" stroke="rgba(236,226,205,.82)" stroke-width="1"/></pattern>
+  </defs></svg>`;
+function ensureDefs(doc){
+  doc = doc || (typeof document!=='undefined'?document:null); if(!doc) return;
+  if (doc.getElementById('rough')) return;
+  (doc.body || doc.documentElement).insertAdjacentHTML('beforeend', SHEET_DEFS);
+}
+
+// ── the reusable sheet body markup (stamped into the mount container) ──
+var SHEET_TEMPLATE = `<main class="sheet">
+  <div class="frameline"></div>
+  <div class="ghostnum">III</div>
+  
+  <div class="annot l">Astral · Shadow · Pact</div>
+  <div class="annot r">Trials of Kirtas</div>
+
+  <!-- ——— MASTHEAD ——— -->
+  <header class="masthead">
+    <div class="portrait">
+      <span class="ring3"></span><span class="ring"></span><span class="ring2"></span>
+      <div class="frame">
+        <svg class="por" viewBox="0 0 150 150" preserveAspectRatio="xMidYMid slice">
+          <defs>
+            <linearGradient id="splitbg" x1="0" y1="0" x2="1" y2="1">
+              <stop offset="0%" stop-color="#1d4a4d"/>
+              <stop offset="48%" stop-color="#16302e"/>
+              <stop offset="100%" stop-color="#5a221c"/>
+            </linearGradient>
+            <radialGradient id="glow" cx="58%" cy="30%" r="70%">
+              <stop offset="0%" stop-color="#cfe0df" stop-opacity="0.5"/>
+              <stop offset="100%" stop-color="#cfe0df" stop-opacity="0"/>
+            </radialGradient>
+          </defs>
+          <rect width="150" height="150" fill="url(#splitbg)"/>
+          <rect width="150" height="150" fill="url(#glow)"/>
+          <!-- starlit hooded silhouette, looking up -->
+          <g fill="#0e1d1c" opacity="0.94">
+            <path d="M78 34 C58 32 48 50 50 70 C51 82 57 92 68 96 L62 150 L96 150 L92 96
+                     C103 90 106 78 105 66 C103 46 96 36 78 34 Z"/>
+            <path d="M80 30 C56 28 44 48 47 72 C50 56 62 44 80 44 C96 44 104 52 108 66 C110 44 100 30 80 30 Z" opacity="0.8"/>
+          </g>
+          <g fill="#e7c279"><circle cx="74" cy="60" r="2.4"/><circle cx="86" cy="52" r="1.5" opacity="0.8"/><circle cx="64" cy="70" r="1.3" opacity="0.7"/></g>
+          <g stroke="#e0584a" stroke-width="0.7" fill="none" opacity="0.5"><circle cx="75" cy="66" r="40"/><circle cx="75" cy="66" r="54"/></g>
+        </svg>
+      </div>
+    </div>
+
+    <div class="titleblock">
+      <span class="eyebrow-wrap swashwrap"><p class="eyebrow">Trials of Kirtas — Player Dossier</p></span>
+      <h1 class="charname" data-f="name">Cosmere <em>Runestar</em></h1>
+      <div class="subline" data-list="subline">
+        <span><b>Warlock</b> 2 <span class="sub">· The Hexblade</span></span>
+        <span class="dot">✦</span>
+        <span><b>Sorcerer</b> 1 <span class="sub">· Shadow Magic</span></span>
+        <span class="dot">✦</span>
+        <span>Astral Elf</span>
+        <span class="dot">✦</span>
+        <span><b>Level 3</b></span>
+        <span class="dot">✦</span>
+        <span>Neutral Good</span>
+      </div>
+    </div>
+  </header>
+
+  <!-- ——— BODY ——— -->
+  <div class="body-grid">
+
+    <!-- LEFT -->
+    <aside class="leftcol">
+      <div class="medstack">
+        <div class="med-row">
+          <div class="med hot"><div class="lab">Armor Class</div><div class="big" data-f="ac">14</div><div class="sub" data-f="ac-sub">studded leather</div></div>
+          <div class="med"><div class="lab">Initiative</div><div class="big" data-f="initiative">+2</div><div class="sub">dexterity</div></div>
+        </div>
+        <div class="med hpmed hot">
+          <div class="lab">Hit Points</div>
+          <div class="big"><span data-f="hp">18</span> <span style="font-size:23px;color:var(--cream-dim)" data-f="hpMaxBig">/ 23</span></div>
+          <div class="hpbar"><div class="hpfill" data-f="hpfill"></div><div class="hptemp" data-f="hptemp"></div></div>
+          <div class="hpmeta"><span data-f="hpCurrent">Current 18 / 23</span><span class="tmp" data-f="hpTemp">+4 Temp</span></div>
+        </div>
+        <div class="med-row">
+          <div class="med mini"><div class="lab">Speed</div><div class="big"><span data-f="speed">30</span><span style="font-size:15px;color:var(--cream-dim)">ft</span></div></div>
+          <div class="med mini"><div class="lab">Prof.</div><div class="big" data-f="prof">+2</div></div>
+        </div>
+        <div class="med-row">
+          <div class="med mini hot"><div class="lab">Spell DC</div><div class="big" data-f="spellDC">13</div></div>
+          <div class="med mini hot"><div class="lab">Spell Atk</div><div class="big" data-f="spellAtk">+5</div></div>
+        </div>
+        <div class="med"><div class="lab">Hit Dice</div><div class="big" style="font-size:28px" data-f="hitDice">2d8 <span style="color:var(--cream-dim);font-size:21px">+ 1d6</span></div></div>
+        <div class="med cluster">
+          <button class="cc rest" data-rest="short" type="button" aria-label="Short Rest">
+            <span class="ic"><svg viewBox="0 0 22 22" aria-hidden="true"><circle cx="11" cy="11" r="8.4" fill="none" stroke="currentColor" stroke-width="1.4"/><path d="M11 2.6 A8.4 8.4 0 0 1 11 19.4 Z" fill="currentColor"/></svg></span>
+            <span class="cclabel">Short Rest</span>
+          </button>
+          <button class="cc center" id="insp-toggle" type="button" aria-pressed="false" aria-label="Inspiration">
+            <span class="ic"><span class="insp"></span></span>
+            <span class="cclabel">Inspiration</span>
+          </button>
+          <button class="cc rest" data-rest="long" type="button" aria-label="Long Rest">
+            <span class="ic"><svg viewBox="0 0 22 22" aria-hidden="true"><circle cx="11" cy="11" r="8.4" fill="currentColor"/><circle cx="8" cy="8.5" r="1.5" fill="#182826" opacity=".5"/><circle cx="13.5" cy="12.5" r="1.1" fill="#182826" opacity=".5"/></svg></span>
+            <span class="cclabel">Long Rest</span>
+          </button>
+        </div>
+        <div class="insp-stat" id="insp-stat" aria-live="polite"></div>
+      </div>
+      <div class="lblock">
+        <div class="lhead">Senses &amp; Lore</div>
+        <div class="lrow"><span>Darkvision</span><b data-f="darkvision">60 ft</b></div>
+        <div class="lrow"><span>Passive Perception</span><b data-f="passivePerception">13</b></div>
+        <div class="lrow"><span>Passive Insight</span><b data-f="passiveInsight">13</b></div>
+        <div class="lrow"><span>Languages</span><b data-f="languages">Common · Elvish · Infernal</b></div>
+      </div>
+      <div class="lblock">
+        <div class="lhead">Resources <span class="lhint">tap to spend</span></div>
+        <div class="trk"><span class="trk-n">Hexblade's Curse</span><span class="trk-r">short rest</span><span class="trk-p"><i class="on"></i></span></div>
+        <div class="trk"><span class="trk-n">Starlight Step</span><span class="trk-r">long rest</span><span class="trk-p"><i class="on"></i><i class="on"></i></span></div>
+        <div class="trk"><span class="trk-n">Strength of the Grave</span><span class="trk-r">long rest</span><span class="trk-p"><i class="on"></i></span></div>
+        <div class="trk add"><span class="trk-n">+ add tracker</span></div>
+      </div>
+      <div class="lblock">
+        <div class="lhead">Status</div>
+        <div class="lrow"><span>Concentration</span><b class="conc-on" data-f="concentration">Hex</b></div>
+        <div class="lrow"><span>Conditions</span><b class="muted" data-f="conditions">none active</b></div>
+        <div class="lrow"><span>Attunement</span><span class="attune"><span class="pip on"></span><span class="pip on"></span><span class="pip"></span></span></div>
+      </div>
+      <div class="lblock notes">
+        <div class="lhead">Notes</div>
+        <div class="notepad" data-f="notes">Patron stirs near the rift — ask Vesperian about the star-iron blade. Owe Caim a favour.</div>
+      </div>
+    </aside>
+
+    <!-- RIGHT -->
+    <section class="rightcol">
+
+      <!-- ABILITIES -->
+      <div class="block">
+        <div class="sectitle"><span class="swashwrap"><h2>Abilities</h2></span><span class="tail"></span><span class="hint">Charisma is the soul of this build</span></div>
+        <div class="panelbox">
+          <div class="abil-grid" data-list="abilities">
+            <div class="abil neg"><div class="nm">Str</div><div class="sc">8</div><div class="md">−1</div></div>
+            <div class="abil"><div class="nm">Dex</div><div class="sc">14</div><div class="md">+2</div></div>
+            <div class="abil"><div class="nm">Con</div><div class="sc">14</div><div class="md">+2</div></div>
+            <div class="abil"><div class="nm">Int</div><div class="sc">10</div><div class="md">+0</div></div>
+            <div class="abil"><div class="nm">Wis</div><div class="sc">12</div><div class="md">+1</div></div>
+            <div class="abil"><div class="nm">Cha</div><div class="sc">17</div><div class="md">+3</div></div>
+          </div>
+          <div class="saves" data-list="saves">
+            <div class="save"><span class="dotp"></span><span class="sv-n">Str</span><span class="sv-v">−1</span></div>
+            <div class="save"><span class="dotp"></span><span class="sv-n">Dex</span><span class="sv-v">+2</span></div>
+            <div class="save"><span class="dotp"></span><span class="sv-n">Con</span><span class="sv-v">+2</span></div>
+            <div class="save"><span class="dotp"></span><span class="sv-n">Int</span><span class="sv-v">+0</span></div>
+            <div class="save prof"><span class="dotp"></span><span class="sv-n">Wis</span><span class="sv-v">+3</span></div>
+            <div class="save prof"><span class="dotp"></span><span class="sv-n">Cha</span><span class="sv-v">+5</span></div>
+          </div>
+        </div>
+      </div>
+
+      <!-- SKILLS -->
+      <div class="block">
+        <div class="sectitle"><span class="swashwrap"><h2>Skills</h2></span><span class="tail"></span><span class="hint">● proficient</span></div>
+        <div class="panelbox">
+          <div class="skills" data-list="skills">
+            <div class="skill"><span class="dotp"></span><span class="sk-n">Acrobatics</span><span class="sk-a">Dex</span><span class="sk-v">+2</span></div>
+            <div class="skill"><span class="dotp"></span><span class="sk-n">Animal Handling</span><span class="sk-a">Wis</span><span class="sk-v">+1</span></div>
+            <div class="skill prof"><span class="dotp"></span><span class="sk-n">Arcana</span><span class="sk-a">Int</span><span class="sk-v">+2</span></div>
+            <div class="skill"><span class="dotp"></span><span class="sk-n">Athletics</span><span class="sk-a">Str</span><span class="sk-v">−1</span></div>
+            <div class="skill prof"><span class="dotp"></span><span class="sk-n">Deception</span><span class="sk-a">Cha</span><span class="sk-v">+5</span></div>
+            <div class="skill"><span class="dotp"></span><span class="sk-n">History</span><span class="sk-a">Int</span><span class="sk-v">+0</span></div>
+            <div class="skill prof"><span class="dotp"></span><span class="sk-n">Insight</span><span class="sk-a">Wis</span><span class="sk-v">+3</span></div>
+            <div class="skill prof"><span class="dotp"></span><span class="sk-n">Intimidation</span><span class="sk-a">Cha</span><span class="sk-v">+5</span></div>
+            <div class="skill"><span class="dotp"></span><span class="sk-n">Investigation</span><span class="sk-a">Int</span><span class="sk-v">+0</span></div>
+            <div class="skill"><span class="dotp"></span><span class="sk-n">Medicine</span><span class="sk-a">Wis</span><span class="sk-v">+1</span></div>
+            <div class="skill"><span class="dotp"></span><span class="sk-n">Nature</span><span class="sk-a">Int</span><span class="sk-v">+0</span></div>
+            <div class="skill prof"><span class="dotp"></span><span class="sk-n">Perception</span><span class="sk-a">Wis</span><span class="sk-v">+3</span></div>
+            <div class="skill"><span class="dotp"></span><span class="sk-n">Performance</span><span class="sk-a">Cha</span><span class="sk-v">+3</span></div>
+            <div class="skill prof"><span class="dotp"></span><span class="sk-n">Persuasion</span><span class="sk-a">Cha</span><span class="sk-v">+5</span></div>
+            <div class="skill"><span class="dotp"></span><span class="sk-n">Religion</span><span class="sk-a">Int</span><span class="sk-v">+0</span></div>
+            <div class="skill"><span class="dotp"></span><span class="sk-n">Sleight of Hand</span><span class="sk-a">Dex</span><span class="sk-v">+2</span></div>
+            <div class="skill"><span class="dotp"></span><span class="sk-n">Stealth</span><span class="sk-a">Dex</span><span class="sk-v">+2</span></div>
+            <div class="skill"><span class="dotp"></span><span class="sk-n">Survival</span><span class="sk-a">Wis</span><span class="sk-v">+1</span></div>
+          </div>
+        </div>
+      </div>
+
+      <!-- SPELLCASTING -->
+      <div class="block">
+        <div class="sectitle"><span class="swashwrap"><h2>Spellcasting</h2></span><span class="tail"></span><span class="hint">two pools, one soul</span></div>
+        <div class="panelbox">
+          <div class="spellhead" data-list="pools">
+            <div class="pool"><div class="p-lab"><span>Pact Magic</span><span class="lv">Lvl 1</span></div>
+              <div class="slots"><span class="slot on"></span><span class="slot on"></span></div>
+              <div class="p-rec">2 slots · short rest</div></div>
+            <div class="pool s2"><div class="p-lab"><span>Sorcerer Slots</span><span class="lv">Lvl 1</span></div>
+              <div class="slots"><span class="slot teal on"></span><span class="slot teal on"></span></div>
+              <div class="p-rec">2 slots · long rest</div></div>
+            <div class="pool dim"><div class="p-lab"><span>Sorcery Points</span><span class="lv">0</span></div>
+              <div class="slots"><span class="slot empty"></span></div>
+              <div class="p-rec">unlocks at Sorcerer 2</div></div>
+          </div>
+          <div class="cast-meta">
+            <span>Ability <b data-f="castAbility">Charisma</b></span><span>Save DC <b data-f="castDC">13</b></span><span>Attack <b data-f="castAtk">+5</b></span><span>Type <b data-f="castType">Known</b></span>
+          </div>
+          <div class="legend">
+            <span><i class="l-class"></i>Class</span><span><i class="l-sub"></i>Subclass</span>
+            <span><i class="l-race"></i>Species</span><span><i class="l-feat"></i>Feat</span>
+            <span class="none" data-f="featNote">— no feat spells at this level</span>
+          </div>
+
+          <div data-list="spellGroups">
+          <div class="spell-group">
+            <div class="sg-h">Cantrips · At Will</div>
+            <div class="spell-cols">
+              <div class="spell o-class"><span class="s-n">Eldritch Blast</span><span class="s-tag t-class">Warlock</span><span class="s-ct">1 action</span></div>
+              <div class="spell o-class"><span class="s-n">Booming Blade</span><span class="s-tag t-class">Sorcerer</span><span class="s-ct">1 action</span></div>
+              <div class="spell o-class"><span class="s-n">Minor Illusion</span><span class="s-tag t-class">Sorcerer</span><span class="s-ct">1 action</span></div>
+              <div class="spell o-class"><span class="s-n">Prestidigitation</span><span class="s-tag t-class">Sorcerer</span><span class="s-ct">1 action</span></div>
+              <div class="spell o-race"><span class="s-n">Light</span><span class="s-tag t-race">Astral Fire</span><span class="s-ct">1 action</span></div>
+            </div>
+          </div>
+          <div class="spell-group">
+            <div class="sg-h">1st Level</div>
+            <div class="spell-cols">
+              <div class="spell o-class"><span class="s-n">Hex</span><span class="s-tag t-class">Warlock</span><span class="s-ct">1 bonus</span></div>
+              <div class="spell o-class"><span class="s-n">Armor of Agathys</span><span class="s-tag t-class">Warlock</span><span class="s-ct">1 action</span></div>
+              <div class="spell o-sub"><span class="s-n">Shield</span><span class="s-tag t-exp">Expanded</span><span class="s-ct">1 reaction</span></div>
+              <div class="spell o-class"><span class="s-n">Chromatic Orb</span><span class="s-tag t-class">Sorcerer</span><span class="s-ct">1 action</span></div>
+              <div class="spell o-class"><span class="s-n">Charm Person</span><span class="s-tag t-class">Sorcerer</span><span class="s-ct">1 action</span></div>
+            </div>
+          </div>
+
+          </div><!-- /spellGroups -->
+
+          <div data-list="detail">
+          <div class="detail">
+            <div class="d-h"><span class="d-n">Hex</span><span class="d-sch">1st-level enchantment · Warlock</span></div>
+            <div class="d-grid">
+              <span>Cast <b>1 Bonus Action</b></span><span>Range <b>90 ft</b></span>
+              <span>Components <b>V, S, M</b></span><span>Duration <b class="conc">Concentration, 1 hr</b></span>
+            </div>
+            <p class="d-body">Lay a curse on a creature you can see within range. Your attacks deal an extra 1d6 necrotic damage to it, and it has disadvantage on ability checks made with one ability score of your choice.</p>
+            <p class="d-hl"><b>At higher levels</b> — a 3rd-level slot holds the curse up to 8 hours; 5th level, up to 24 hours.</p>
+          </div>
+          </div><!-- /detail -->
+        </div>
+      </div>
+
+      <!-- FEATURES -->
+      <div class="block">
+        <div class="sectitle"><span class="swashwrap"><h2>Features</h2></span><span class="tail"></span><span class="hint">&amp; traits</span></div>
+        <div class="panelbox">
+          <div class="feat-cols" data-list="features">
+            <div class="feat"><span class="f-tag t-class">Warlock</span><div><div class="f-n">Pact Magic</div><div class="f-d">Spells fueled by short-rest pact slots, all cast at their highest level.</div></div></div>
+            <div class="feat"><span class="f-tag t-sub">Hexblade</span><div><div class="f-n">Hex Warrior</div><div class="f-d">Use Charisma for attack and damage with a bonded weapon.</div></div></div>
+            <div class="feat"><span class="f-tag t-sub">Hexblade</span><div><div class="f-n">Hexblade's Curse</div><div class="f-d">Mark a foe for bonus damage and crit on a 19–20.</div></div></div>
+            <div class="feat"><span class="f-tag t-class">Warlock</span><div><div class="f-n">Eldritch Invocations</div><div class="f-d">Agonizing Blast · Devil's Sight.</div></div></div>
+            <div class="feat"><span class="f-tag t-class">Sorcerer</span><div><div class="f-n">Shadow Magic Origin</div><div class="f-d">Your soul carries a fragment of the Shadowfell.</div></div></div>
+            <div class="feat"><span class="f-tag t-sub">Shadow</span><div><div class="f-n">Strength of the Grave</div><div class="f-d">Drop to 1 HP instead of 0 on a Charisma save.</div></div></div>
+            <div class="feat"><span class="f-tag t-race">Astral Elf</span><div><div class="f-n">Darkvision 60 ft</div><div class="f-d">See in dim light and darkness.</div></div></div>
+            <div class="feat"><span class="f-tag t-race">Astral Elf</span><div><div class="f-n">Fey Ancestry</div><div class="f-d">Advantage against charm; immune to magical sleep.</div></div></div>
+            <div class="feat"><span class="f-tag t-race">Astral Elf</span><div><div class="f-n">Starlight Step</div><div class="f-d">Teleport 30 ft as a bonus action, prof. uses per long rest.</div></div></div>
+          </div>
+        </div>
+      </div>
+
+      <!-- EQUIPMENT + STORY -->
+      <div class="block">
+        <div class="es-grid">
+          <div>
+            <div class="sectitle"><span class="swashwrap"><h2>Equipment</h2></span><span class="tail"></span></div>
+            <div class="panelbox">
+              <div class="gitem"><svg class="g-ic" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><path d="M14 3l-1 6 3 3-5 9-1-7-3-2 4-9z"/></svg><span class="g-n">Rapier</span><span class="g-d">1d8 · finesse</span></div>
+              <div class="gitem"><svg class="g-ic" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><path d="M12 3l7 3v6c0 5-3 7-7 9-4-2-7-4-7-9V6z"/></svg><span class="g-n">Studded Leather</span><span class="g-d">AC 12 + Dex</span></div>
+              <div class="gitem"><svg class="g-ic" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><circle cx="12" cy="12" r="7"/><circle cx="12" cy="12" r="2.5" fill="currentColor"/></svg><span class="g-n">Orb of Shadow</span><span class="g-d">focus · attuned</span></div>
+              <div class="gitem"><svg class="g-ic" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><path d="M6 3h9l4 4v14H6z"/><path d="M9 8h7M9 12h7M9 16h5"/></svg><span class="g-n">Explorer's Pack</span></div>
+              <div class="gitem"><svg class="g-ic" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><path d="M9 3h6v3l2 4v9a2 2 0 01-2 2H9a2 2 0 01-2-2v-9l2-4z"/><path d="M7 13h10"/></svg><span class="g-n">Potion of Healing</span><span class="g-q">×2</span></div>
+              <div class="coinline"><span class="coin">24 <small>gp</small></span>
+                <span class="attune-wrap">Attuned<span class="pip on" style="width:10px;height:10px"></span><span class="pip on" style="width:10px;height:10px"></span><span class="pip" style="width:10px;height:10px"></span></span>
+              </div>
+            </div>
+          </div>
+          <div>
+            <div class="sectitle"><span class="swashwrap"><h2>Story</h2></span><span class="tail"></span></div>
+            <div class="panelbox">
+              <p class="story-quote">She keeps a sliver of midnight folded inside her chest — quiet most days, but it hums when the stars come out, and the blade answers before she does.</p>
+              <div class="traits">
+                <div class="trait"><div class="t-l">Personality</div><div class="t-t">Speaks softly, watches everything.</div></div>
+                <div class="trait"><div class="t-l">Ideal</div><div class="t-t">A debt named is a debt repaid.</div></div>
+                <div class="trait"><div class="t-l">Bond</div><div class="t-t">The patron who saved her still calls.</div></div>
+                <div class="trait"><div class="t-l">Flaw</div><div class="t-t">Trusts the shadow more than people.</div></div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="footer"><span class="mk">Cosmere Runestar</span><div class="ln"></div><span class="mk">Trials of Kirtas</span></div>
+
+    </section>
+  </div>
+</main>`;
+
+// ── mountSheet(container, key[, {characterData}]) ──
+// Stamp the template into `container`, render the live row into it, light the
+// portrait, and wire inspiration scoped to THIS container. Pure of any single
+// page: combat.html can float a sheet by calling this with its own node.
+function mountSheet(container, key, opts){
+  opts = opts || {};
+  var CD = opts.characterData || (typeof window!=='undefined' ? window.CharacterData : null);
+  var doc = (container && container.ownerDocument) || (typeof document!=='undefined' ? document : null);
+  ensureDefs(doc);
+  container.innerHTML = SHEET_TEMPLATE;
+  if (!CD) { showError(container, 'CharacterData not loaded'); return { ready: Promise.resolve() }; }
+  var ready = CD.loadCharacter(key).then(function(cd){
+    if(!cd){ showError(container, 'No character "'+key+'"'); return; }
+    renderSheet(container, toRenderShape(cd));
+    applyExtras(container, cd);
+  }).catch(function(e){ console.error('[sheet] mount:', e); showError(container, (e&&e.message)?e.message:'Could not load character'); });
+  // inspiration write-affordance, scoped to this container (sheet-actions.js)
+  try { wireInspiration({ root: container, characterData: CD, key: key }); } catch(_){}
+  return { ready: ready };
+}
+
+if (typeof window !== 'undefined') {
+  window.mountSheet = mountSheet;
+  window.__sheet = { renderSheet: renderSheet, toRenderShape: toRenderShape, buildSpellcasting: buildSpellcasting, applyExtras: applyExtras, mountSheet: mountSheet };
+}
+
+export { mountSheet };
