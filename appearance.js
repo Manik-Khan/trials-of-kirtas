@@ -105,7 +105,7 @@ export async function loadAppearance(supabase, uid){
   applyAppearance(DEFAULT_APPEARANCE);
   if (!supabase || !uid) return DEFAULT_APPEARANCE;
   try {
-    const { data } = await supabase.from('profiles').select('appearance').eq('id', uid).single();
+    const { data } = await supabase.from('profiles').select('appearance').eq('user_id', uid).maybeSingle();
     const a = Object.assign({}, DEFAULT_APPEARANCE, (data && data.appearance) || {});
     applyAppearance(a);
     return a;
