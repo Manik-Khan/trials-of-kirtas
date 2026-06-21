@@ -360,6 +360,28 @@ body::after{
   /* keep the character art true: the accent hue rotates all of .sheet, so
      counter-rotate just the portrait art (rings/lines/text still shift) */
   .portrait img,.portrait svg.por{filter:hue-rotate(calc(-1 * var(--ac-hue)))}
+  /* ── Phase 2: Hit-Dice control cluster — inspiration (centre) + rest moons ── */
+  .med.cluster{padding:0;display:grid;grid-template-columns:1fr 1fr 1fr}
+  .med.cluster .cc{display:flex;flex-direction:column;align-items:center;gap:7px;background:transparent;border:0;border-right:1px solid var(--hair);padding:13px 6px 11px;cursor:pointer;color:var(--cream-dim);font-family:"Oswald",sans-serif;transition:background .15s ease,color .15s ease}
+  .med.cluster .cc:last-child{border-right:0}
+  .med.cluster .cc .ic{height:23px;display:flex;align-items:center;justify-content:center}
+  .med.cluster .cc .ic svg{width:21px;height:21px;color:var(--gold-br)}
+  .med.cluster .cc .cclabel{font-weight:500;letter-spacing:.1em;text-transform:uppercase;font-size:9px;line-height:1.2;text-align:center;min-height:11px;transition:opacity .15s ease,color .15s ease}
+  .med.cluster .cc:hover{color:var(--cream);background:rgba(231,194,121,.05)}
+  .med.cluster .cc:focus-visible{outline:none;box-shadow:inset 0 0 0 1px var(--gold-br)}
+  .med.cluster .cc.center{background:rgba(231,194,121,.05);border-left:1px solid var(--frame);border-right:1px solid var(--frame)}
+  .med.cluster .cc.center .insp{width:15px;height:15px;transition:background .15s ease}
+  .med.cluster .cc.center:hover .insp{box-shadow:0 0 10px 1px rgba(231,194,121,.5)}
+  .med.cluster .cc.center.on{color:var(--cream-hi)} .med.cluster .cc.center.on .insp{background:var(--gold-br)}
+  .med.cluster .cc.center.saving .insp{animation:insp-pulse 1s ease-in-out infinite}
+  @keyframes insp-pulse{0%,100%{opacity:1}50%{opacity:.4}}
+  @media (hover:hover){ .med.cluster .cc.rest .cclabel{opacity:0} .med.cluster .cc.rest:hover .cclabel,.med.cluster .cc.rest:focus-visible .cclabel{opacity:1;color:var(--gold-br)} }
+  @media (hover:none){ .med.cluster .cc.rest .cclabel{opacity:1} }
+  .med.cluster .cc.view-only{cursor:default} .med.cluster .cc.center.view-only{opacity:.85}
+  .insp-stat{min-height:11px;font-family:"Oswald",sans-serif;font-weight:400;font-size:9px;letter-spacing:.1em;text-transform:uppercase;white-space:nowrap;opacity:0;transition:opacity .2s ease;text-align:center;margin-top:-4px}
+  .insp-stat.show{opacity:1}
+  .insp-stat.saving{color:var(--cream-fnt)} .insp-stat.saved{color:var(--gold-br)} .insp-stat.error{color:var(--red-br)} .insp-stat.hint{color:var(--cream-fnt)}
+  @media (prefers-reduced-motion: reduce){ .med.cluster .cc.center.saving .insp{animation:none} }
 </style>
   <script src="character-data.js"></script>
 </head>
@@ -523,9 +545,21 @@ body::after{
           <div class="med mini hot"><div class="lab">Spell Atk</div><div class="big" data-f="spellAtk">+5</div></div>
         </div>
         <div class="med"><div class="lab">Hit Dice</div><div class="big" style="font-size:28px" data-f="hitDice">2d8 <span style="color:var(--cream-dim);font-size:21px">+ 1d6</span></div></div>
-        <div class="med"><div class="lab" style="margin-bottom:7px">Attunement</div>
-          <div class="attune"><span class="pip on"></span><span class="pip on"></span><span class="pip"></span></div>
+        <div class="med cluster">
+          <button class="cc rest" data-rest="short" type="button" aria-label="Short Rest">
+            <span class="ic"><svg viewBox="0 0 22 22" aria-hidden="true"><circle cx="11" cy="11" r="8.4" fill="none" stroke="currentColor" stroke-width="1.4"/><path d="M11 2.6 A8.4 8.4 0 0 1 11 19.4 Z" fill="currentColor"/></svg></span>
+            <span class="cclabel">Short Rest</span>
+          </button>
+          <button class="cc center" id="insp-toggle" type="button" aria-pressed="false" aria-label="Inspiration">
+            <span class="ic"><span class="insp"></span></span>
+            <span class="cclabel">Inspiration</span>
+          </button>
+          <button class="cc rest" data-rest="long" type="button" aria-label="Long Rest">
+            <span class="ic"><svg viewBox="0 0 22 22" aria-hidden="true"><circle cx="11" cy="11" r="8.4" fill="currentColor"/><circle cx="8" cy="8.5" r="1.5" fill="#182826" opacity=".5"/><circle cx="13.5" cy="12.5" r="1.1" fill="#182826" opacity=".5"/></svg></span>
+            <span class="cclabel">Long Rest</span>
+          </button>
         </div>
+        <div class="insp-stat" id="insp-stat" aria-live="polite"></div>
       </div>
       <div class="lblock">
         <div class="lhead">Senses &amp; Lore</div>
@@ -545,7 +579,7 @@ body::after{
         <div class="lhead">Status</div>
         <div class="lrow"><span>Concentration</span><b class="conc-on" data-f="concentration">Hex</b></div>
         <div class="lrow"><span>Conditions</span><b class="muted" data-f="conditions">none active</b></div>
-        <div class="lrow"><span>Inspiration</span><span class="insp" data-f="inspiration"></span></div>
+        <div class="lrow"><span>Attunement</span><span class="attune"><span class="pip on"></span><span class="pip on"></span><span class="pip"></span></span></div>
       </div>
       <div class="lblock notes">
         <div class="lhead">Notes</div>
@@ -928,6 +962,7 @@ window.__sheet = { renderSheet: renderSheet, toRenderShape: toRenderShape, build
 if(document.readyState==='loading') document.addEventListener('DOMContentLoaded', load); else load();
 })();
 </script>
+<script type="module" src="sheet-actions.js"></script>
 <script type="module" src="appearance-boot.js"></script>
 </body>
 </html>
