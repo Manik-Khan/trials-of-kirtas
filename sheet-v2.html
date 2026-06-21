@@ -355,6 +355,8 @@ body::after{
   .portrait .frame{ transition:box-shadow .45s ease; }
   .portrait.inspired .frame{ box-shadow:0 0 0 2px var(--gold-br), 0 0 26px 5px rgba(231,194,121,.6), 0 0 56px 14px rgba(231,194,121,.28); }
   .portrait.inspired .ring,.portrait.inspired .ring2,.portrait.inspired .ring3{ border-color:var(--gold-br); opacity:.95; }
+  /* engine (appearance.js) paints #tok-* layers; hide the mock's inert ones */
+  #bg,#bgveil,#fxWeave,#fxScan,#fxGeo,#fxVig{display:none !important}
 </style>
   <script src="character-data.js"></script>
 </head>
@@ -923,5 +925,6 @@ window.__sheet = { renderSheet: renderSheet, toRenderShape: toRenderShape, build
 if(document.readyState==='loading') document.addEventListener('DOMContentLoaded', load); else load();
 })();
 </script>
+<script type="module" src="appearance-boot.js"></script>
 </body>
 </html>

@@ -31,6 +31,21 @@ const STYLE = `
 #tok-geo{position:fixed;inset:0;z-index:-2;pointer-events:none;width:100%;height:100%;mix-blend-mode:screen;opacity:0}
 #tok-vig{position:fixed;inset:0;z-index:-2;pointer-events:none;opacity:var(--fx-vig);background:radial-gradient(120% 100% at 50% 45%,transparent 42%,rgba(4,9,8,.96) 100%)}
 #tok-grain{position:fixed;inset:0;z-index:9998;pointer-events:none;mix-blend-mode:overlay;opacity:var(--grain);background-image:url("${GRAIN}")}
+.tok-ap-h{font-family:"Oswald",sans-serif;font-weight:600;letter-spacing:.16em;text-transform:uppercase;font-size:11px;color:#e7c279;margin-bottom:10px;padding-bottom:7px;border-bottom:1px solid rgba(231,194,121,.25)}
+.tok-ap-sec{font-family:"Oswald",sans-serif;font-weight:500;letter-spacing:.14em;text-transform:uppercase;font-size:9.5px;color:#9fb3ad;margin:14px 0 7px}
+.tok-ap-pick{display:grid;grid-template-columns:repeat(4,1fr);gap:6px}
+.tok-ap-sw{height:34px;border:1px solid rgba(236,226,205,.18);background-size:cover;background-position:center;cursor:pointer;padding:0;border-radius:0;transition:border-color .15s ease,transform .1s ease}
+.tok-ap-sw:hover{transform:translateY(-1px)}
+.tok-ap-sw.on{border-color:#e7c279;box-shadow:0 0 0 1px #e7c279}
+.tok-ap-sel{display:block;width:100%;margin-top:2px;background:rgba(8,16,15,.92);color:#d8cdb4;border:1px solid rgba(236,226,205,.2);font-family:"Oswald",sans-serif;font-size:11px;letter-spacing:.04em;padding:6px 7px;border-radius:0}
+.tok-ap-row{display:grid;grid-template-columns:1fr auto;align-items:center;gap:2px 10px;font-family:"Oswald",sans-serif;font-size:10px;letter-spacing:.05em;text-transform:uppercase;color:#9fb3ad;margin-bottom:9px}
+.tok-ap-row input[type=range]{grid-column:1 / -1;width:100%;accent-color:#e7c279;height:3px}
+.tok-ap-row span{color:#d8cdb4;font-variant-numeric:tabular-nums}
+.tok-ap-btns{display:flex;gap:8px;margin-top:16px}
+.tok-ap-btns button{flex:1;background:transparent;border:1px solid rgba(236,226,205,.25);color:#d8cdb4;font-family:"Oswald",sans-serif;font-size:10px;letter-spacing:.14em;text-transform:uppercase;padding:8px;cursor:pointer;border-radius:0;transition:background .15s ease,border-color .15s ease,color .15s ease}
+.tok-ap-btns button:hover{border-color:#e7c279;color:#e7c279}
+.tok-ap-primary{background:rgba(231,194,121,.14)!important;border-color:rgba(231,194,121,.5)!important;color:#e7c279!important}
+.tok-ap-saved{background:rgba(231,194,121,.32)!important}
 `;
 
 const DEFS = `<svg id="tok-appearance-defs" aria-hidden="true" style="position:absolute;width:0;height:0;overflow:hidden"><defs><filter id="glitch1" x="-4%" y="-4%" width="108%" height="108%" color-interpolation-filters="sRGB"><feColorMatrix in="SourceGraphic" type="matrix" values="1 0 0 0 0  0 0 0 0 0  0 0 0 0 0  0 0 0 1 0" result="r"/><feOffset in="r" dx="-2" dy="0" result="ro"/><feColorMatrix in="SourceGraphic" type="matrix" values="0 0 0 0 0  0 1 0 0 0  0 0 0 0 0  0 0 0 1 0" result="g"/><feColorMatrix in="SourceGraphic" type="matrix" values="0 0 0 0 0  0 0 0 0 0  0 0 1 0 0  0 0 0 1 0" result="b"/><feOffset in="b" dx="2" dy="0" result="bo"/><feBlend in="ro" in2="g" mode="screen" result="rg"/><feBlend in="rg" in2="bo" mode="screen"/></filter><filter id="glitch2" x="-4%" y="-4%" width="108%" height="108%" color-interpolation-filters="sRGB"><feTurbulence type="fractalNoise" baseFrequency="0.004 0.22" numOctaves="1" seed="11" result="n"/><feDisplacementMap in="SourceGraphic" in2="n" scale="8" xChannelSelector="R" yChannelSelector="G" result="d"/><feColorMatrix in="d" type="matrix" values="1 0 0 0 0  0 0 0 0 0  0 0 0 0 0  0 0 0 1 0" result="r"/><feOffset in="r" dx="-3.5" dy="0" result="ro"/><feColorMatrix in="d" type="matrix" values="0 0 0 0 0  0 1 0 0 0  0 0 0 0 0  0 0 0 1 0" result="g"/><feColorMatrix in="d" type="matrix" values="0 0 0 0 0  0 0 0 0 0  0 0 1 0 0  0 0 0 1 0" result="b"/><feOffset in="b" dx="3.5" dy="0" result="bo"/><feBlend in="ro" in2="g" mode="screen" result="rg"/><feBlend in="rg" in2="bo" mode="screen"/></filter><filter id="glitch3" x="-4%" y="-4%" width="108%" height="108%" color-interpolation-filters="sRGB"><feTurbulence type="fractalNoise" baseFrequency="0.004 0.22" numOctaves="1" seed="3" result="n"/><feDisplacementMap in="SourceGraphic" in2="n" scale="14" xChannelSelector="R" yChannelSelector="G" result="d"/><feColorMatrix in="d" type="matrix" values="1 0 0 0 0  0 0 0 0 0  0 0 0 0 0  0 0 0 1 0" result="r"/><feOffset in="r" dx="-6" dy="0" result="ro"/><feColorMatrix in="d" type="matrix" values="0 0 0 0 0  0 1 0 0 0  0 0 0 0 0  0 0 0 1 0" result="g"/><feColorMatrix in="d" type="matrix" values="0 0 0 0 0  0 0 0 0 0  0 0 1 0 0  0 0 0 1 0" result="b"/><feOffset in="b" dx="6" dy="0" result="bo"/><feBlend in="ro" in2="g" mode="screen" result="rg"/><feBlend in="rg" in2="bo" mode="screen"/></filter><filter id="glitch4" x="-4%" y="-4%" width="108%" height="108%" color-interpolation-filters="sRGB"><feTurbulence type="fractalNoise" baseFrequency="0.004 0.22" numOctaves="1" seed="19" result="n"/><feDisplacementMap in="SourceGraphic" in2="n" scale="24" xChannelSelector="R" yChannelSelector="G" result="d"/><feColorMatrix in="d" type="matrix" values="1 0 0 0 0  0 0 0 0 0  0 0 0 0 0  0 0 0 1 0" result="r"/><feOffset in="r" dx="-9" dy="0" result="ro"/><feColorMatrix in="d" type="matrix" values="0 0 0 0 0  0 1 0 0 0  0 0 0 0 0  0 0 0 1 0" result="g"/><feColorMatrix in="d" type="matrix" values="0 0 0 0 0  0 0 0 0 0  0 0 1 0 0  0 0 0 1 0" result="b"/><feOffset in="b" dx="9" dy="0" result="bo"/><feBlend in="ro" in2="g" mode="screen" result="rg"/><feBlend in="rg" in2="bo" mode="screen"/></filter><pattern id="geo-hex" patternUnits="userSpaceOnUse" width="46" height="40"><path d="M11.5 1 L34.5 1 L46 20 L34.5 39 L11.5 39 L0 20 Z" fill="none" stroke="rgba(236,226,205,.82)" stroke-width="1.1"/></pattern><pattern id="geo-triangles" patternUnits="userSpaceOnUse" width="20" height="17.32"><path d="M0 0 L10 17.32 L20 0 M0 17.32 L10 0 L20 17.32 M0 0 H20 M0 17.32 H20" fill="none" stroke="rgba(236,226,205,.82)" stroke-width="1"/></pattern><pattern id="geo-diamonds" patternUnits="userSpaceOnUse" width="28" height="28"><path d="M14 0 L28 14 L14 28 L0 14 Z" fill="none" stroke="rgba(236,226,205,.82)" stroke-width="1"/></pattern><pattern id="geo-grid" patternUnits="userSpaceOnUse" width="26" height="26"><path d="M26 0 H0 V26" fill="none" stroke="rgba(236,226,205,.82)" stroke-width="1"/></pattern><pattern id="geo-dots" patternUnits="userSpaceOnUse" width="22" height="22"><circle cx="11" cy="11" r="1.7" fill="rgba(236,226,205,.82)"/></pattern><pattern id="geo-rings" patternUnits="userSpaceOnUse" width="30" height="30"><circle cx="15" cy="15" r="9" fill="none" stroke="rgba(236,226,205,.82)" stroke-width="1"/></pattern><pattern id="geo-crosses" patternUnits="userSpaceOnUse" width="24" height="24"><path d="M12 7 V17 M7 12 H17" fill="none" stroke="rgba(236,226,205,.82)" stroke-width="1"/></pattern></defs></svg>`;
@@ -71,7 +86,7 @@ export function applyAppearance(a){
 
   const b = BACKGROUNDS.find(x => x.id === a.bg) || BACKGROUNDS[0];
   if (b.solid){ bgEl.style.backgroundImage = 'none'; bgEl.style.backgroundColor = b.solid; }
-  else { bgEl.style.backgroundImage = `url("${BG_PATH}${b.file}")`; bgEl.style.backgroundColor = 'transparent'; }
+  else { const src = b.url || (BG_PATH + b.file); bgEl.style.backgroundImage = `url("${src}")`; bgEl.style.backgroundColor = 'transparent'; }
 
   const geo = document.getElementById('tok-geo');
   if (a.geoShape && a.geoShape !== 'none'){
@@ -99,9 +114,11 @@ export async function loadAppearance(supabase, uid){
   }
 }
 
-// Persist a look to the player's own profiles row (RLS-guarded).
+// Persist a look. profiles writes are overseer-only, so this goes through the
+// set_my_appearance RPC (SECURITY DEFINER, pinned to auth.uid()) which updates
+// only the caller's own appearance column. `uid` is unused but kept for signature.
 export function saveAppearance(supabase, uid, cfg){
-  return supabase.from('profiles').update({ appearance: cfg }).eq('id', uid);
+  return supabase.rpc('set_my_appearance', { p_appearance: cfg });
 }
 
 // Convenience: mount layers + load the player's look in one call.
@@ -133,7 +150,7 @@ export function buildAppearancePanel(mount, opts){
   BACKGROUNDS.forEach(b => {
     const sw = el('button', { className:'tok-ap-sw', title:b.label });
     if (b.solid) sw.style.background = b.solid;
-    else sw.style.backgroundImage = `url("${BG_PATH}${b.file}")`;
+    else sw.style.backgroundImage = `url("${b.url || (BG_PATH + b.file)}")`;
     if (b.id === cfg.bg) sw.classList.add('on');
     sw.addEventListener('click', () => {
       cfg.bg = b.id;

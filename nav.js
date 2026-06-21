@@ -171,6 +171,11 @@ function buildNav() {
                 onclick="toggleThemeDropdown(event)"
                 title="Change theme"
                 aria-label="Change site theme">◐</button>
+        <button class="nav-appearance-btn"
+                onclick="event.stopPropagation();window.AppearanceUI&&window.AppearanceUI.open()"
+                title="Customize appearance"
+                aria-label="Customize appearance">⚙</button>
+        <div class="appearance-drawer" id="appearance-drawer" aria-label="Appearance settings"></div>
         <div class="theme-dropdown" id="theme-dropdown">
           <div class="theme-dropdown-label">Theme</div>
           ${themeOptions}
@@ -408,6 +413,32 @@ function injectNavStyles() {
       background: rgba(184,149,42,0.2);
       border-color: var(--gold-mid);
     }
+    .nav-appearance-btn {
+      display: none;
+      width: 28px; height: 28px;
+      align-items: center; justify-content: center;
+      background: var(--gold-dim);
+      border: 1px solid var(--gold-dim);
+      color: var(--gold);
+      font-size: 0.92rem;
+      cursor: pointer; padding: 0; line-height: 1;
+      transition: background 0.2s, border-color 0.2s;
+    }
+    html.has-appearance .nav-appearance-btn { display: inline-flex; }
+    .nav-appearance-btn:hover { background: rgba(184,149,42,0.2); border-color: var(--gold-mid); }
+    @media (max-width: 600px) { .nav-appearance-btn { display: none !important; } }
+    .appearance-drawer {
+      position: fixed; top: 56px; right: 14px;
+      width: 300px; max-height: calc(100vh - 72px); overflow-y: auto;
+      background: rgba(10,16,15,0.98);
+      border: 1px solid rgba(231,194,121,0.28);
+      box-shadow: 0 18px 50px rgba(0,0,0,0.55);
+      padding: 16px 16px 18px; z-index: 9999;
+      opacity: 0; visibility: hidden; transform: translateY(-8px); pointer-events: none;
+      transition: opacity 0.16s ease, transform 0.16s ease, visibility 0.16s;
+    }
+    .appearance-drawer:empty { display: none; }
+    .appearance-drawer.open { opacity: 1; visibility: visible; transform: none; pointer-events: auto; }
 
     .theme-dropdown {
       position: absolute;
