@@ -192,10 +192,22 @@ export function buildAppearancePanel(mount, opts){
   const save = el('button', { className:'tok-ap-primary', textContent:'Save' });
   const reset = el('button', { textContent:'Reset' });
   save.addEventListener('click', async () => {
-    if (opts.supabase && opts.uid){ try { await saveAppearance(opts.supabase, opts.uid, cfg); } catch (_) {} }
-    save.textContent = 'Saved \u2713';
-    save.classList.add('tok-ap-saved');
-    setTimeout(() => { save.textContent = 'Save'; save.classList.remove('tok-ap-saved'); }, 1300);
+    if (!opts.supabase || !opts.uid){
+      save.textContent = 'Not signed in';
+      setTimeout(() => { save.textContent = 'Save'; }, 1600);
+      return;
+    }
+    save.textContent = 'Saving\u2026';
+    try {
+      const res = await saveAppearance(opts.supabase, opts.uid, cfg);
+      if (res && res.error) throw res.error;          // .rpc() returns {error}, it doesn't throw
+      save.textContent = 'Saved \u2713';
+      save.classList.add('tok-ap-saved');
+    } catch (e) {
+      console.error('[appearance] save failed:', (e && e.message) || e);
+      save.textContent = 'Save failed';
+    }
+    setTimeout(() => { save.textContent = 'Save'; save.classList.remove('tok-ap-saved'); }, 1600);
   });
   reset.addEventListener('click', () => {
     buildAppearancePanel(mount, Object.assign({}, opts, { current: {} }));

@@ -357,6 +357,9 @@ body::after{
   .portrait.inspired .ring,.portrait.inspired .ring2,.portrait.inspired .ring3{ border-color:var(--gold-br); opacity:.95; }
   /* engine (appearance.js) paints #tok-* layers; hide the mock's inert ones */
   #bg,#bgveil,#fxWeave,#fxScan,#fxGeo,#fxVig{display:none !important}
+  /* keep the character art true: the accent hue rotates all of .sheet, so
+     counter-rotate just the portrait art (rings/lines/text still shift) */
+  .portrait img,.portrait svg.por{filter:hue-rotate(calc(-1 * var(--ac-hue)))}
 </style>
   <script src="character-data.js"></script>
 </head>
