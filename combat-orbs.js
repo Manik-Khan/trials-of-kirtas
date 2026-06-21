@@ -215,8 +215,30 @@
     var opts = avail.length
       ? avail.map(function (id) { var d = defFor(id, ch); return '<button data-add="' + id + '">' + esc(d.label) + '</button>'; }).join('')
       : '<button disabled>all added</button>';
+    // ── custom resources: existing list + the add form ──
+    var RD = window.ResourceDerive && window.ResourceDerive._fn;
+    var cres = (ch && ch.structural && ch.structural.customResources) || [];
+    var cresRows = cres.map(function (cr) {
+      var mx = RD ? RD.resolveMax(cr.max, ch.structural) : ((cr.max && cr.max.value) || cr.max || 0);
+      var rt = RD ? RD.rechargeText(cr.recharge) : (cr.recharge || 'long rest');
+      return '<div class="torb-crow"><span class="torb-sw" style="background:#e7c279"></span>' +
+        '<span class="torb-nm">' + esc(cr.label) + '</span>' +
+        '<span class="torb-cmeta">' + mx + ' \u00B7 ' + esc(rt) + '</span>' +
+        '<button class="torb-cdel" data-cdel="' + esc(cr.id) + '" title="Delete resource">\u2715</button></div>';
+    }).join('');
+    var abilOpts = ['str', 'dex', 'con', 'int', 'wis', 'cha'].map(function (a) { return '<option value="' + a + '">' + a.toUpperCase() + '</option>'; }).join('');
+    var cresBlock = '<div class="torb-cres"><div class="torb-cres-t">Custom resources</div>' + cresRows +
+      '<button class="torb-cres-add" data-cres-toggle>+ New resource</button>' +
+      '<div class="torb-cres-form" hidden>' +
+        '<input type="text" data-cres-name placeholder="Name (e.g. Channel Divinity)" maxlength="40">' +
+        '<div class="torb-cres-row"><select data-cres-mtype><option value="fixed">Fixed</option><option value="pb">Prof. bonus</option><option value="level">Level</option><option value="mod">Ability mod</option></select>' +
+        '<input type="number" data-cres-mfixed min="1" max="20" value="1"><select data-cres-mability hidden>' + abilOpts + '</select></div>' +
+        '<div class="torb-cres-row"><select data-cres-recharge><option value="long">Long rest</option><option value="short">Short rest</option><option value="short-long">Short or long</option></select>' +
+        '<button class="torb-cres-create" data-cres-create>Add</button></div>' +
+      '</div></div>';
     return '<div class="torb-cfg">' + rows +
-      '<button class="torb-add" data-torb-toggle>+ Add orb</button><div class="torb-menu">' + opts + '</div></div>';
+      '<button class="torb-add" data-torb-toggle>+ Add orb</button><div class="torb-menu">' + opts + '</div>' +
+      cresBlock + '</div>';
   }
 
   function wireConfig(rootEl, c, host) {
@@ -255,6 +277,38 @@
     if (toggle) toggle.addEventListener('click', function (e) { e.stopPropagation(); menu.classList.toggle('open'); });
     box.querySelectorAll('[data-add]').forEach(function (b) {
       b.addEventListener('click', function (e) { e.stopPropagation(); loadout.push(b.dataset.add); commit(); });
+    });
+    // ── custom resources ──
+    var cToggle = box.querySelector('[data-cres-toggle]'), cForm = box.querySelector('.torb-cres-form');
+    if (cToggle && cForm) cToggle.addEventListener('click', function (e) { e.stopPropagation(); cForm.hidden = !cForm.hidden; });
+    var mtypeSel = box.querySelector('[data-cres-mtype]');
+    if (mtypeSel) mtypeSel.addEventListener('change', function () {
+      var mf = box.querySelector('[data-cres-mfixed]'), ma = box.querySelector('[data-cres-mability]');
+      if (mf) mf.hidden = mtypeSel.value !== 'fixed';
+      if (ma) ma.hidden = mtypeSel.value !== 'mod';
+    });
+    var cCreate = box.querySelector('[data-cres-create]');
+    if (cCreate) cCreate.addEventListener('click', function (e) {
+      e.stopPropagation(); if (!ch) return;
+      var nmEl = box.querySelector('[data-cres-name]'), name = (nmEl.value || '').trim(); if (!name) { nmEl.focus(); return; }
+      var mt = box.querySelector('[data-cres-mtype]').value, max;
+      if (mt === 'fixed') max = { type: 'fixed', value: Math.max(1, parseInt(box.querySelector('[data-cres-mfixed]').value, 10) || 1) };
+      else if (mt === 'mod') max = { type: 'mod', ability: box.querySelector('[data-cres-mability]').value };
+      else max = { type: mt };
+      var recharge = box.querySelector('[data-cres-recharge]').value;
+      var base = 'cr_' + name.toLowerCase().replace(/[^a-z0-9]+/g, '').slice(0, 24), used = (ch.structural && ch.structural.customResources || []).map(function (x) { return x.id; }), id = base, n = 2;
+      while (used.indexOf(id) !== -1) id = base + '_' + (n++);
+      (ch.structural || (ch.structural = {})).customResources = (ch.structural.customResources || []).concat([{ id: id, label: name, max: max, recharge: recharge }]);
+      if (loadout.indexOf(id) === -1) loadout.push(id);   // surface it as an orb right away
+      commit();
+    });
+    box.querySelectorAll('[data-cdel]').forEach(function (b) {
+      b.addEventListener('click', function (e) {
+        e.stopPropagation(); if (!ch) return; var id = b.dataset.cdel;
+        ch.structural.customResources = (ch.structural.customResources || []).filter(function (x) { return x.id !== id; });
+        var li = loadout.indexOf(id); if (li !== -1) loadout.splice(li, 1);
+        commit();
+      });
     });
   }
 

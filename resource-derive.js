@@ -32,6 +32,20 @@
   function bmCount(L) { return L >= 15 ? 6 : L >= 7 ? 5 : 4; }
   function bmDie(L) { return L >= 18 ? 'd12' : L >= 10 ? 'd10' : 'd8'; }
   function has(s, frag) { return (s || '').toLowerCase().indexOf(frag) !== -1; }
+  function slug(s) { return String(s || '').toLowerCase().replace(/[^a-z0-9]+/g, '').slice(0, 24) || 'res'; }
+  function tagFromLabel(label) { var w = String(label || '').trim().split(/\s+/); return w.length === 1 ? w[0].slice(0, 4) : (w[0][0] + w[w.length - 1][0]).toUpperCase(); }
+  function rechargeText(r) { return r === 'short' ? 'short rest' : r === 'short-long' ? 'short or long rest' : 'long rest'; }
+  // A custom resource's max is a number or a formula token resolved against the sheet,
+  // so a "Proficiency bonus" custom resource tracks level-ups like the derived ones.
+  function resolveMax(m, s) {
+    if (m == null) return 1;
+    if (typeof m === 'number') return Math.max(0, m);
+    if (m.type === 'fixed') return Math.max(0, m.value || 0);
+    if (m.type === 'pb') return profBonus(s);
+    if (m.type === 'level') return s.level || 0;
+    if (m.type === 'mod') return Math.max(0, abilMod(s, m.ability || 'cha'));
+    return 0;
+  }
 
   function derive(structural) {
     structural = structural || {};
@@ -56,12 +70,20 @@
     if (has(structural.race, 'astral elf')) {
       out.push({ id: 'starlightStep', label: 'Starlight Step', tag: 'Step', max: profBonus(structural), die: null, recharge: 'long rest', tone: 'class', source: 'race' });
     }
+
+    // Player-authored resources (homebrew, magic-item charges, anything not in the
+    // tables). Same spec shape as the derived pools — rendered + spent identically.
+    (structural.customResources || []).forEach(function (cr) {
+      if (!cr || !cr.label) return;
+      out.push({ id: cr.id || ('cr_' + slug(cr.label)), label: cr.label, tag: tagFromLabel(cr.label),
+                 max: resolveMax(cr.max, structural), die: null, recharge: rechargeText(cr.recharge), tone: 'class', source: 'custom' });
+    });
     return out;
   }
 
   window.ResourceDerive = {
     derive: derive,
     // exposed for tests / reuse
-    _fn: { bardDie: bardDie, bmCount: bmCount, bmDie: bmDie, profBonus: profBonus, abilMod: abilMod }
+    _fn: { bardDie: bardDie, bmCount: bmCount, bmDie: bmDie, profBonus: profBonus, abilMod: abilMod, resolveMax: resolveMax, tagFromLabel: tagFromLabel, rechargeText: rechargeText, slug: slug }
   };
 })();
