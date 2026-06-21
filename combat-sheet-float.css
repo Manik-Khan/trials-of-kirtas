@@ -117,10 +117,10 @@
   white-space:nowrap; opacity:0; transition:opacity .15s; background:rgba(8,16,15,.7); padding:.08em .3em; border-radius:3px; }
 .torb:hover .lb{ opacity:1; }
 .torb.hp .vl{ color:#57b089; }
-.torb.primary{ width:calc(var(--torb-d,48px) * 1.12); height:calc(var(--torb-d,48px) * 1.12); margin:calc(var(--torb-d,48px) * -0.56); border-color:#e7c279; color:#e7c279;
+.torb.primary{ width:var(--torb-sheet-d,var(--torb-d,48px)); height:var(--torb-sheet-d,var(--torb-d,48px)); margin:calc(var(--torb-sheet-d,var(--torb-d,48px)) / -2); border-color:#e7c279; color:#e7c279;
   background:radial-gradient(circle at 40% 32%,#3a3014,#1a1408);
   box-shadow:0 10px 26px -8px #000, 0 0 0 1px #e7c279, 0 0 18px -4px rgba(231,194,121,.4); }
-.torb.primary .ic{ font-size:1.45em; }
+.torb.primary .ic{ font-size:1.35em; }
 
 /* HP ± stepper popover */
 .torb-pop{ position:absolute; left:0; top:0; z-index:10; transform:translate(-50%,8px) scale(.94); opacity:0; pointer-events:none;
@@ -176,3 +176,10 @@
 .torb-cres-row [data-cres-mability]{ flex:0 0 74px; }
 .torb-cres-create{ flex:0 0 66px; border:1px solid rgba(231,194,121,.5); background:rgba(231,194,121,.13); color:#e7c279; cursor:pointer; border-radius:6px; font-family:"Oswald",sans-serif; font-size:11px; letter-spacing:.06em; text-transform:uppercase; }
 .torb-cres-create:hover{ background:rgba(231,194,121,.22); }
+/* display-size sliders (global — applies to every token) */
+.torb-size{ margin-top:10px; padding-top:9px; border-top:1px solid rgba(236,226,205,.12); }
+.torb-size-t{ font-family:"Oswald",sans-serif; font-size:10px; letter-spacing:.14em; text-transform:uppercase; color:#8d8675; margin-bottom:7px; }
+.torb-size-row{ display:flex; align-items:center; gap:9px; margin-bottom:7px; }
+.torb-size-row label{ flex:0 0 58px; font-family:"Oswald",sans-serif; font-size:10.5px; letter-spacing:.04em; text-transform:uppercase; color:#c2b99f; }
+.torb-size-row input[type=range]{ flex:1 1 auto; accent-color:#e7c279; height:18px; cursor:pointer; }
+.torb-size-v{ flex:0 0 36px; text-align:right; font-family:"Oswald",sans-serif; font-size:11px; color:#e7c279; }

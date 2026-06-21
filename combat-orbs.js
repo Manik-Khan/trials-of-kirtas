@@ -78,6 +78,24 @@
   function spent(ch, id) { var v = (ch && ch.vitals) || {}, p = v.pipState || {}; return p[id] || 0; }
   function curOf(ch, id) { var d = resourceDefs(ch)[id]; if (!d) return [0, 0]; return [Math.max(0, d.max - spent(ch, id)), d.max]; }
 
+  // ── orb display size (global preference; applies to every token) ──
+  var SIZE_DEF = { orb: 0.5, sheet: 1.0 };   // orb = fraction of disc; sheet = multiple of orb
+  var _size = null;                          // in-memory cache — live even if localStorage is blocked
+  function sizePrefs() {
+    if (_size) return _size;
+    _size = { orb: SIZE_DEF.orb, sheet: SIZE_DEF.sheet };
+    try {
+      var raw = (typeof localStorage !== 'undefined') ? localStorage.getItem('tok.orbSize') : null;
+      if (raw) { var p = JSON.parse(raw); _size = { orb: +p.orb || SIZE_DEF.orb, sheet: +p.sheet || SIZE_DEF.sheet }; }
+    } catch (e) {}
+    return _size;
+  }
+  function setSizePref(patch) {
+    _size = Object.assign(sizePrefs(), patch);
+    try { if (typeof localStorage !== 'undefined') localStorage.setItem('tok.orbSize', JSON.stringify(_size)); } catch (e) {}
+    return _size;
+  }
+
   // ====================== rendering ======================
   function bloom(c, tokenEl, host, ch) {
     // only one ring at a time — strip any other token's layer (a new selection,
@@ -91,24 +109,34 @@
     // centre the ring on the disc (not the whole token box, which includes the
     // name + condition badges below). offsetParent is the positioned .token.
     var disc = tokenEl.querySelector('.token-disc, .token-cutout') || tokenEl;
-    var D = disc.offsetWidth || 48;                        // token size → the whole ring scales to it
     layer.style.left = (disc.offsetLeft + disc.offsetWidth / 2) + 'px';
     layer.style.top = (disc.offsetTop + disc.offsetHeight / 2) + 'px';
     var ids = loadoutFor(c, ch).filter(function (id) { return !!defFor(id, ch); });
-    var N = ids.length;
-    var orbD = Math.max(18, Math.min(D * 0.55, 54));       // orb ≈ half the disc, clamped sane
-    layer.style.setProperty('--torb-d', orbD + 'px');
-    var Rmin = D * 0.5 + orbD * 0.5 + Math.max(2, D * 0.06);             // sit just outside the disc edge
-    var Rfit = N > 1 ? (orbD * 1.22) / (2 * Math.sin(Math.PI / N)) : 0;  // …but spread enough not to overlap
-    var R = Math.max(Rmin, Rfit), start = -90;
     ids.forEach(function (id, i) {
-      var ang = (start + i * (360 / N)) * Math.PI / 180;
       var orb = renderOrb(id, c, ch, host);
-      orb.style.left = (Math.cos(ang) * R) + 'px';
-      orb.style.top = (Math.sin(ang) * R) + 'px';
       layer.appendChild(orb);
       (function (o, k) { requestAnimationFrame(function () { setTimeout(function () { o.classList.add('in'); }, k * 28); }); })(orb, i);
     });
+    layoutLayer(layer, disc);
+  }
+
+  // size + place the orbs in a layer, from the disc size and the global size prefs.
+  // Reused for live resize when the size sliders move (no re-render).
+  function layoutLayer(layer, disc) {
+    var D = (disc && disc.offsetWidth) || 48, sp = sizePrefs();
+    var orbD = Math.max(14, Math.min(D * sp.orb, 64));                 // configurable fraction of the disc
+    var sheetD = Math.max(14, Math.min(orbD * sp.sheet, orbD * 1.6));  // sheet orb relative to the others
+    layer.style.setProperty('--torb-d', orbD + 'px');
+    layer.style.setProperty('--torb-sheet-d', sheetD + 'px');
+    var orbs = layer.querySelectorAll('.torb'), N = orbs.length, Rmax = Math.max(orbD, sheetD);
+    var Rmin = D * 0.5 + Rmax * 0.5 + Math.max(2, D * 0.06);             // sit just outside the disc edge
+    var Rfit = N > 1 ? (Rmax * 1.22) / (2 * Math.sin(Math.PI / N)) : 0;  // …but spread enough not to overlap
+    var R = Math.max(Rmin, Rfit), start = -90, i;
+    for (i = 0; i < N; i++) {
+      var ang = (start + i * (360 / N)) * Math.PI / 180;
+      orbs[i].style.left = (Math.cos(ang) * R) + 'px';
+      orbs[i].style.top = (Math.sin(ang) * R) + 'px';
+    }
   }
 
   function renderOrb(id, c, ch, host) {
@@ -251,9 +279,14 @@
         '<div class="torb-cres-row"><select data-cres-recharge><option value="long">Long rest</option><option value="short">Short rest</option><option value="short-long">Short or long</option></select>' +
         '<button class="torb-cres-create" data-cres-create>Add</button></div>' +
       '</div></div>';
+    var sz = sizePrefs();
+    var sizeBlock = '<div class="torb-size"><div class="torb-size-t">Display size</div>' +
+      '<div class="torb-size-row"><label>Orb</label><input type="range" data-size="orb" min="30" max="78" value="' + Math.round(sz.orb * 100) + '"><span class="torb-size-v" data-size-v="orb">' + Math.round(sz.orb * 100) + '%</span></div>' +
+      '<div class="torb-size-row"><label>Sheet</label><input type="range" data-size="sheet" min="70" max="160" value="' + Math.round(sz.sheet * 100) + '"><span class="torb-size-v" data-size-v="sheet">' + Math.round(sz.sheet * 100) + '%</span></div>' +
+      '</div>';
     return '<div class="torb-cfg">' + rows +
       '<button class="torb-add" data-torb-toggle>+ Add orb</button><div class="torb-menu">' + opts + '</div>' +
-      cresBlock + '</div>';
+      cresBlock + sizeBlock + '</div>';
   }
 
   function wireConfig(rootEl, c, host) {
@@ -323,6 +356,17 @@
         ch.structural.customResources = (ch.structural.customResources || []).filter(function (x) { return x.id !== id; });
         var li = loadout.indexOf(id); if (li !== -1) loadout.splice(li, 1);
         commit();
+      });
+    });
+    // ── display-size sliders (global; live-resize the ring without re-rendering) ──
+    box.querySelectorAll('[data-size]').forEach(function (sl) {
+      sl.addEventListener('input', function (e) {
+        e.stopPropagation();
+        var which = sl.dataset.size, val = Math.max(0.1, (+sl.value) / 100);
+        setSizePref(which === 'orb' ? { orb: val } : { sheet: val });
+        var vEl = box.querySelector('[data-size-v="' + which + '"]'); if (vEl) vEl.textContent = sl.value + '%';
+        var tEl = host.tokenEl ? host.tokenEl(c.id) : null, lyr = tEl && tEl.querySelector('.torb-layer');
+        if (lyr) layoutLayer(lyr, tEl.querySelector('.token-disc, .token-cutout') || tEl);
       });
     });
   }
