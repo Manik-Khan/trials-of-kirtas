@@ -126,6 +126,11 @@ function renderSpellcasting(root, sc){
   var gb=root.querySelector('[data-list="spellGroups"]');  if(gb) gb.innerHTML=(sc.groups||[]).map(groupHTML).join('');
   var db=root.querySelector('[data-list="detail"]');       if(db) db.innerHTML=detailHTML(sc.detail);
 }
+function renderResources(root, pools){
+  root=root||document; pools=pools||[];
+  var host=root.querySelector('[data-list="resources"]'); if(host) host.innerHTML=pools.map(poolHTML).join('');
+  var sec=root.querySelector('[data-sec="resources"]');   if(sec) sec.style.display=pools.length?'':'none';
+}
 
 function renderSheet(root, char){
   root=root||document; char=char||{};
@@ -158,6 +163,7 @@ function renderSheet(root, char){
   if(notes!=null) setF('notes', notes);
   renderAbilities(root, ab); renderSaves(root, s); renderSkills(root, s.skills); renderFeatures(root, s.features);
   renderSpellcasting(root, s.spellcasting||{});
+  renderResources(root, s.resources||[]);
 }
 // ── live data: map a CharacterData row into the renderer's shape, then bind ──
 function normSkills(sk){
@@ -190,11 +196,24 @@ function buildSpellcasting(s, v){
   });
   return { ability:ability, saveDC:cb.spellSaveDC, attackBonus:cb.spellAttackBonus, pools:pools, groups:groups, detail:null, featNote:'\u2014 origin colours arrive when the derive carries provenance' };
 }
+// Non-spellcasting resource pools (Ki / Bardic / Superiority / Starlight Step),
+// derived from class/level/abilities/race via ResourceDerive; spent comes from
+// vitals.pipState — same ledger the combat orbs read.
+function buildResources(s, v){
+  var pip=(v&&v.pipState)||{};
+  var specs=(typeof window!=='undefined' && window.ResourceDerive && window.ResourceDerive.derive)?window.ResourceDerive.derive(s):[];
+  return specs.map(function(r){
+    var cur=Math.max(0, r.max-(pip[r.id]||0));
+    return { label:r.label, badge:(r.die||''), tone:r.tone, max:r.max, current:cur,
+             recharge: cur+' of '+r.max+(r.recharge?' \u00B7 '+r.recharge:'') };
+  });
+}
 function toRenderShape(cd){
   cd=cd||{}; var s=Object.assign({}, cd.structural||{}), v=Object.assign({}, cd.vitals||{});
   s.skills=normSkills(s.skills);
   if(s.passiveInsight==null){ var ins=s.skills.filter(function(x){return x.name==='Insight';})[0]; if(ins) s.passiveInsight=10+(ins.bonus||0); }
   if(!s.spellcasting) s.spellcasting=buildSpellcasting(s, v);
+  if(!s.resources) s.resources=buildResources(s, v);
   if(v.inspiration==null && s.inspiration!=null) v.inspiration=s.inspiration;
   return { structural:s, vitals:v, notes:(cd.notes!=null?cd.notes:s.notes) };
 }
@@ -522,6 +541,14 @@ var SHEET_TEMPLATE = `<main class="sheet">
         </div>
       </div>
 
+      <!-- RESOURCES (derived class + racial pools — Ki / Bardic / Superiority / Starlight Step) -->
+      <div class="block" data-sec="resources" style="display:none">
+        <div class="sectitle"><span class="swashwrap"><h2>Resources</h2></span><span class="tail"></span><span class="hint">held in reserve</span></div>
+        <div class="panelbox">
+          <div class="spellhead" data-list="resources"></div>
+        </div>
+      </div>
+
       <!-- FEATURES -->
       <div class="block">
         <div class="sectitle"><span class="swashwrap"><h2>Features</h2></span><span class="tail"></span><span class="hint">&amp; traits</span></div>
@@ -600,7 +627,7 @@ function mountSheet(container, key, opts){
 
 if (typeof window !== 'undefined') {
   window.mountSheet = mountSheet;
-  window.__sheet = { renderSheet: renderSheet, toRenderShape: toRenderShape, buildSpellcasting: buildSpellcasting, applyExtras: applyExtras, mountSheet: mountSheet };
+  window.__sheet = { renderSheet: renderSheet, toRenderShape: toRenderShape, buildSpellcasting: buildSpellcasting, buildResources: buildResources, renderResources: renderResources, applyExtras: applyExtras, mountSheet: mountSheet };
 }
 
 export { mountSheet };

@@ -8,6 +8,9 @@
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Cinzel+Decorative:wght@700&family=Cinzel:wght@400;600&family=Crimson+Pro:ital,wght@0,400;0,600;1,400&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="theme.css">
+  <!-- M2: floating tabbed character sheet over the board -->
+  <link rel="stylesheet" href="sheet-mount.css">
+  <link rel="stylesheet" href="combat-sheet-float.css">
   <style>
     /* ── page-scoped; relies on theme.css variables ── */
     html, body { height: 100%; }
@@ -1036,6 +1039,10 @@
   <script src="nav.js"></script>
   <script src="characters.js"></script>
   <script src="character-data.js"></script>
+  <script type="module" src="sheet-mount.js"></script>
+  <script src="combat-sheet-float.js"></script>
+  <script src="resource-derive.js"></script>
+  <script src="combat-orbs.js"></script>
   <script src="monster-actor.js"></script>
   <script src="battle.js"></script>
   <script src="combatants-backend.js"></script>
@@ -1702,14 +1709,33 @@
     }
 
     // ── selection ──
+    // Host object the token-orbs engine (combat-orbs.js) calls back into for live
+    // data: staff/edit gates, sheet open, the live-HP write (same backend the HUD
+    // uses, so it syncs to all clients), and CharacterData for resource pip state.
+    const ORB_HOST = {
+      staff: () => effectiveStaff(),
+      canEdit: (c) => canMove(c),
+      openSheet: (c) => { if (c.source_key) window.CombatSheets?.open?.(c.source_key, c.name); else openStatblock?.(c); },
+      hpSave: (c, hp) => {
+        const key = c.source_key || ('mon:' + c.id);
+        return (window.__battle && window.__battle.backend && window.__battle.backend.save)
+          ? window.__battle.backend.save(key, { hp })
+          : SB.from('combatants').update({ hp }).eq('id', c.id);
+      },
+      characterData: window.CharacterData,
+      tokenEl: tokenEl
+    };
     function selectToken(id) {
       SELECTED = id;
       boardEl.querySelectorAll('.token.selected').forEach(t => t.classList.remove('selected'));
       const el = tokenEl(id); if (el) el.classList.add('selected');
+      const c = COMBS.find(k => k.id === id);
+      if (c && el && window.CombatOrbs) window.CombatOrbs.show(c, el, ORB_HOST);
     }
     function deselect() {
       SELECTED = null;
       boardEl.querySelectorAll('.token.selected').forEach(t => t.classList.remove('selected'));
+      window.CombatOrbs?.hide?.();
     }
 
     // ── write a move to Supabase (optimistic; reverts on error) ──
@@ -1833,7 +1859,7 @@
       // One flat menu (approved mockup): info line, useful actions first,
       // staff Manage in the middle, Aura + Conditions as collapsed expanders,
       // Remove last. Expander state lives per menu instance.
-      const exp = { aura: false, conds: false };
+      const exp = { aura: false, conds: false, orbs: false };
       const staff = () => effectiveStaff();
 
       function infoLine() {
@@ -1863,6 +1889,7 @@
             <span class="ctx-check">✓</span>
           </div>`).join('');
       }
+      function orbsBody() { return window.CombatOrbs ? window.CombatOrbs.configHtml(c, ORB_HOST) : ''; }
       function expander(id, ico, label, count, body) {
         return `<div class="ctx-exp${exp[id] ? ' open' : ''}" data-exp="${id}">
           <div class="ctx-exp-head"><span class="ctx-ico">${ico}</span> ${label}
@@ -1882,6 +1909,7 @@
 
         let top = '';
         if (staff() && c.statblock) top += `<div class="ctx-item" data-act="stat"><span class="ctx-ico">📖</span> Stat block</div>`;
+        if (isParty && c.source_key) top += `<div class="ctx-item" data-act="open-sheet"><span class="ctx-ico">📋</span> Open sheet</div>`;
         if (isParty && c.source_key) top += `<div class="ctx-item" data-act="drive-pc"><span class="ctx-ico">▶</span> Battle HUD</div>`;
         else if (!isParty && staff()) top += c.in_combat
           ? `<div class="ctx-item" data-act="drive"><span class="ctx-ico">▶</span> Battle HUD</div>`
@@ -1900,6 +1928,7 @@
         const lower = `<div class="ctx-divider"></div>`
           + (canAura ? expander('aura', '◎', 'Aura', c.aura && c.aura.r ? c.aura.r + ' ft' : '', auraBody) : '')
           + expander('conds', '⚑', 'Conditions', nConds || '', condsBody)
+          + ((window.CombatOrbs && isParty && c.source_key) ? expander('orbs', '◉', 'Token Orbs', '', orbsBody) : '')
           + (staff() ? `<div class="ctx-divider"></div><div class="ctx-item ctx-danger" data-act="del"><span class="ctx-ico">✕</span> Remove from board</div>` : '');
 
         ctxEl.innerHTML = `<div class="ctx-head">${c.name || 'Token'}</div>` + infoLine() + top + manage + lower;
@@ -1919,6 +1948,8 @@
       function wire() {
         ctxEl.querySelectorAll('.ctx-exp-head').forEach(h =>
           h.addEventListener('click', () => { const id = h.parentElement.dataset.exp; exp[id] = !exp[id]; render(); }));
+        // Token Orbs config (add / remove / reorder) — engine owns the controls.
+        if (exp.orbs && window.CombatOrbs) window.CombatOrbs.wireConfig(ctxEl, c, ORB_HOST);
         // Conditions toggles — menu stays open so several can be set in a row.
         ctxEl.querySelectorAll('.ctx-cond').forEach(rowEl =>
           rowEl.addEventListener('click', async () => {
@@ -1942,6 +1973,8 @@
               window.__battle?.drive?.('mon:' + c.id); closeCtxMenu();
             } else if (b.dataset.act === 'drive-pc') {
               window.__battle?.drive?.(c.source_key); closeCtxMenu();
+            } else if (b.dataset.act === 'open-sheet') {
+              window.CombatSheets?.open?.(c.source_key, c.name); closeCtxMenu();
             } else if (b.dataset.act === 'stat') {
               openStatblock?.(c); closeCtxMenu();
             } else if (b.dataset.act === 'aura-off') {
@@ -2831,6 +2864,7 @@
           onSubscribe: (onChange) => { HUD_ONCHANGE = onChange; },
         });
         window.__battle.useBackend(hudBackend);
+        window.__battle.backend = hudBackend;   // token-orb HP writes reuse this (combat-orbs.js)
       }
       pushTurnToHud();   // seed HUD round + whose-turn now the backend is wired
 
@@ -3306,6 +3340,12 @@
       pane.appendChild(wrap);
       TRAY_UI = { pane, wrap };
       wrap.addEventListener('click', onTokensClick);
+      wrap.addEventListener('contextmenu', (e) => {        // M2: right-click a party row → open its sheet
+        const row = e.target.closest('.tray-row[data-key]');
+        if (!row) return;
+        e.preventDefault();
+        window.CombatSheets?.open?.(row.dataset.key);
+      });
       wrap.addEventListener('keydown', (e) => {
         if (e.key !== 'Enter') return;
         if (e.target.classList.contains('te-input')) {
