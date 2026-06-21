@@ -80,16 +80,27 @@
 
   // ====================== rendering ======================
   function bloom(c, tokenEl, host, ch) {
+    // only one ring at a time — strip any other token's layer (a new selection,
+    // or a stray ring left behind from a previous one)
+    if (typeof document !== 'undefined') {
+      document.querySelectorAll('.torb-layer').forEach(function (l) { if (l.parentNode !== tokenEl) l.remove(); });
+    }
     var layer = tokenEl.querySelector('.torb-layer');
     if (!layer) { layer = document.createElement('div'); layer.className = 'torb-layer'; tokenEl.appendChild(layer); }
     layerEl = layer; layer.innerHTML = '';
     // centre the ring on the disc (not the whole token box, which includes the
     // name + condition badges below). offsetParent is the positioned .token.
     var disc = tokenEl.querySelector('.token-disc, .token-cutout') || tokenEl;
+    var D = disc.offsetWidth || 48;                        // token size → the whole ring scales to it
     layer.style.left = (disc.offsetLeft + disc.offsetWidth / 2) + 'px';
     layer.style.top = (disc.offsetTop + disc.offsetHeight / 2) + 'px';
     var ids = loadoutFor(c, ch).filter(function (id) { return !!defFor(id, ch); });
-    var N = ids.length, R = 64, start = -90;
+    var N = ids.length;
+    var orbD = Math.max(18, Math.min(D * 0.55, 54));       // orb ≈ half the disc, clamped sane
+    layer.style.setProperty('--torb-d', orbD + 'px');
+    var Rmin = D * 0.5 + orbD * 0.5 + Math.max(2, D * 0.06);             // sit just outside the disc edge
+    var Rfit = N > 1 ? (orbD * 1.22) / (2 * Math.sin(Math.PI / N)) : 0;  // …but spread enough not to overlap
+    var R = Math.max(Rmin, Rfit), start = -90;
     ids.forEach(function (id, i) {
       var ang = (start + i * (360 / N)) * Math.PI / 180;
       var orb = renderOrb(id, c, ch, host);
@@ -191,7 +202,11 @@
     });
   }
   function hide() {
-    if (layerEl) { layerEl.innerHTML = ''; layerEl = null; }
+    if (typeof document !== 'undefined') {
+      var ls = document.querySelectorAll('.torb-layer');
+      for (var i = 0; i < ls.length; i++) ls[i].remove();
+    }
+    layerEl = null;
     if (activeTok) { activeTok.style.zIndex = ''; activeTok = null; }
     closePop();
   }

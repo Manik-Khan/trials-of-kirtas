@@ -99,28 +99,28 @@
    Orbs" expander. Palette matches the float skin above (hardcoded, no vars).
    ============================================================================ */
 .torb-layer{ position:absolute; left:50%; top:50%; width:0; height:0; z-index:5; pointer-events:none; }
-.torb{ position:absolute; left:0; top:0; width:48px; height:48px; margin:-24px; border-radius:50%;
+.torb{ position:absolute; left:0; top:0; width:var(--torb-d,48px); height:var(--torb-d,48px); margin:calc(var(--torb-d,48px) / -2); border-radius:50%;
   display:flex; flex-direction:column; align-items:center; justify-content:center; cursor:pointer; pointer-events:auto;
   background:linear-gradient(180deg,rgba(20,34,31,.97),rgba(9,17,16,.98)); border:1.5px solid rgba(199,154,74,.34);
   box-shadow:0 8px 20px -8px #000, inset 0 1px 0 rgba(255,255,255,.04); color:#ece2cd; text-align:center;
-  font-family:"Oswald","Barlow Condensed",sans-serif; transform:scale(.2); opacity:0;
+  font-family:"Oswald","Barlow Condensed",sans-serif; font-size:calc(var(--torb-d,48px) * 0.28); transform:scale(.2); opacity:0;
   transition:transform .22s cubic-bezier(.2,1.3,.4,1), opacity .18s, border-color .12s; }
 .torb.in{ transform:scale(1); opacity:1; }
 .torb:hover{ border-color:#e7c279; }
-.torb .ic{ font-size:17px; line-height:1; }
-.torb .vl{ font-size:13px; font-weight:600; line-height:1.05; }
-.torb .tag{ font-size:8px; letter-spacing:.06em; text-transform:uppercase; color:#8d8675; line-height:1; margin-bottom:1px; }
-.torb .pips{ display:flex; gap:2px; margin-top:2px; justify-content:center; flex-wrap:wrap; max-width:40px; }
-.torb .pips i{ width:6px; height:6px; border-radius:50%; border:1px solid var(--rc,#e7c279); }
+.torb .ic{ font-size:1.25em; line-height:1; }
+.torb .vl{ font-size:0.95em; font-weight:600; line-height:1.05; }
+.torb .tag{ font-size:0.58em; letter-spacing:.06em; text-transform:uppercase; color:#8d8675; line-height:1; margin-bottom:.05em; }
+.torb .pips{ display:flex; gap:.13em; margin-top:.13em; justify-content:center; flex-wrap:wrap; max-width:calc(var(--torb-d,48px) * 0.82); }
+.torb .pips i{ width:.4em; height:.4em; border-radius:50%; border:1px solid var(--rc,#e7c279); }
 .torb .pips i.on{ background:var(--rc,#e7c279); }
-.torb .lb{ position:absolute; bottom:-15px; font-size:8px; letter-spacing:.08em; text-transform:uppercase; color:#8d8675;
-  white-space:nowrap; opacity:0; transition:opacity .15s; background:rgba(8,16,15,.7); padding:1px 4px; border-radius:3px; }
+.torb .lb{ position:absolute; bottom:calc(var(--torb-d,48px) * -0.34); font-size:0.56em; letter-spacing:.08em; text-transform:uppercase; color:#8d8675;
+  white-space:nowrap; opacity:0; transition:opacity .15s; background:rgba(8,16,15,.7); padding:.08em .3em; border-radius:3px; }
 .torb:hover .lb{ opacity:1; }
 .torb.hp .vl{ color:#57b089; }
-.torb.primary{ width:54px; height:54px; margin:-27px; border-color:#e7c279; color:#e7c279;
+.torb.primary{ width:calc(var(--torb-d,48px) * 1.12); height:calc(var(--torb-d,48px) * 1.12); margin:calc(var(--torb-d,48px) * -0.56); border-color:#e7c279; color:#e7c279;
   background:radial-gradient(circle at 40% 32%,#3a3014,#1a1408);
   box-shadow:0 10px 26px -8px #000, 0 0 0 1px #e7c279, 0 0 18px -4px rgba(231,194,121,.4); }
-.torb.primary .ic{ font-size:20px; }
+.torb.primary .ic{ font-size:1.45em; }
 
 /* HP ± stepper popover */
 .torb-pop{ position:absolute; left:0; top:0; z-index:10; transform:translate(-50%,8px) scale(.94); opacity:0; pointer-events:none;
