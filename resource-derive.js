@@ -81,9 +81,44 @@
     return out;
   }
 
+  // ── Hit dice ──────────────────────────────────────────────────────────────
+  // Derived TOTAL pool (per die size); only SPENT lives in vitals.hitDiceSpent,
+  // exactly like pipState. available = total - spent.
+  // Class hit-die faces — verified against the 5etools 2014 class data:
+  //   d12 Barbarian · d10 Fighter/Paladin/Ranger ·
+  //   d8  Artificer/Bard/Cleric/Druid/Monk/Rogue/Warlock · d6 Sorcerer/Wizard.
+  var CLASS_HD = { barbarian:12, fighter:10, paladin:10, ranger:10,
+    artificer:8, bard:8, cleric:8, druid:8, monk:8, rogue:8, warlock:8,
+    sorcerer:6, wizard:6 };
+  function hdFacesForClass(name){
+    var k = String(name || '').toLowerCase();
+    for (var cls in CLASS_HD) { if (CLASS_HD.hasOwnProperty(cls) && k.indexOf(cls) !== -1) return CLASS_HD[cls]; }
+    return 8;   // unknown / homebrew class → d8 (the modal hit die)
+  }
+  // Returns { pools:[{die,faces,total}], total } aggregated by die size, largest first.
+  // Primary: structural.classes[] (level x class HD). Fallback: parse the canonical
+  // structural.combat.hitDice string ("2d8+1d6") — what the git export carries.
+  function deriveHitDice(structural){
+    structural = structural || {};
+    var byFaces = {};
+    var classes = structural.classes || [];
+    if (Array.isArray(classes) && classes.length){
+      classes.forEach(function (c){ var f = hdFacesForClass(c && c.name), lv = (c && c.level) || 0; if (lv > 0) byFaces[f] = (byFaces[f] || 0) + lv; });
+    }
+    if (!Object.keys(byFaces).length){
+      var str = (structural.combat && structural.combat.hitDice) || structural.hitDice || '';
+      var re = /(\d+)\s*d\s*(\d+)/gi, m;
+      while ((m = re.exec(str))) { var n = +m[1], f = +m[2]; if (n > 0 && f > 0) byFaces[f] = (byFaces[f] || 0) + n; }
+    }
+    var pools = Object.keys(byFaces).map(Number).sort(function (a, b){ return b - a; })
+      .map(function (f){ return { die: 'd' + f, faces: f, total: byFaces[f] }; });
+    return { pools: pools, total: pools.reduce(function (s, p){ return s + p.total; }, 0) };
+  }
+
   window.ResourceDerive = {
     derive: derive,
+    deriveHitDice: deriveHitDice,
     // exposed for tests / reuse
-    _fn: { bardDie: bardDie, bmCount: bmCount, bmDie: bmDie, profBonus: profBonus, abilMod: abilMod, resolveMax: resolveMax, tagFromLabel: tagFromLabel, rechargeText: rechargeText, slug: slug }
+    _fn: { bardDie: bardDie, bmCount: bmCount, bmDie: bmDie, profBonus: profBonus, abilMod: abilMod, resolveMax: resolveMax, tagFromLabel: tagFromLabel, rechargeText: rechargeText, slug: slug, hdFacesForClass: hdFacesForClass }
   };
 })();

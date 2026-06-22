@@ -131,6 +131,22 @@ function renderResources(root, pools){
   var host=root.querySelector('[data-list="resources"]'); if(host) host.innerHTML=pools.map(poolHTML).join('');
   var sec=root.querySelector('[data-sec="resources"]');   if(sec) sec.style.display=pools.length?'':'none';
 }
+// Live hit-dice readout. Derived TOTAL per die size (ResourceDerive.deriveHitDice);
+// SPENT comes from vitals.hitDiceSpent — available = total - spent. Pips when few,
+// a compact avail/total when a die has more than six.
+function renderHitDice(root, s, v){
+  root=root||document; s=s||{}; v=v||{};
+  var host=root.querySelector('[data-list="hitdice"]'); if(!host) return;
+  var hd=(typeof window!=='undefined' && window.ResourceDerive && window.ResourceDerive.deriveHitDice)?window.ResourceDerive.deriveHitDice(s):{pools:[],total:0};
+  var spent=v.hitDiceSpent||{};
+  if(!hd.pools.length){ host.innerHTML='<span class="hd-empty">\u2014</span>'; return; }
+  host.innerHTML=hd.pools.map(function(p){
+    var sp=spent[p.die]||0, avail=Math.max(0,p.total-sp), glyphs;
+    if(p.total>6){ glyphs='<span class="hd-count">'+avail+'/'+p.total+'</span>'; }
+    else { var g=''; for(var i=0;i<p.total;i++){ g+='<i class="hd-pip'+(i<avail?' on':'')+'"></i>'; } glyphs='<span class="hd-pips">'+g+'</span>'; }
+    return '<div class="hd-row"><span class="hd-die">'+esc(p.die)+'</span>'+glyphs+'</div>';
+  }).join('');
+}
 
 function renderSheet(root, char){
   root=root||document; char=char||{};
@@ -147,7 +163,7 @@ function renderSheet(root, char){
   setF('prof', sgn(s.proficiencyBonus));
   setF('spellDC', cb.spellSaveDC);
   setF('spellAtk', sgn(cb.spellAttackBonus));
-  if(cb.hitDice!=null) setF('hitDice', cb.hitDice);
+  renderHitDice(root, s, v);
   var hp=(v.hp!=null?v.hp:cb.hp), hpMax=(cb.hpMax!=null?cb.hpMax:cb.hp), temp=(v.hpTemp!=null?v.hpTemp:0), bonus=(v.hpBonus!=null?v.hpBonus:0), effMax=(hpMax||0)+(bonus||0);
   setF('hp', hp); setF('hpMaxBig', '/ '+hpMax); setF('hpCurrent', 'Current '+hp+' / '+hpMax);
   setF('hpTemp', temp>0?('+'+temp+' Temp'):'');
@@ -383,7 +399,7 @@ var SHEET_TEMPLATE = `<main class="sheet">
           <div class="med mini hot"><div class="lab">Spell DC</div><div class="big" data-f="spellDC">13</div></div>
           <div class="med mini hot"><div class="lab">Spell Atk</div><div class="big" data-f="spellAtk">+5</div></div>
         </div>
-        <div class="med"><div class="lab">Hit Dice</div><div class="big" style="font-size:28px" data-f="hitDice">2d8 <span style="color:var(--cream-dim);font-size:21px">+ 1d6</span></div></div>
+        <div class="med hd" id="hd-med"><div class="lab">Hit Dice</div><div class="hd-body" data-list="hitdice"></div></div>
         <div class="med cluster">
           <button class="cc rest" data-rest="short" type="button" aria-label="Short Rest">
             <span class="ic"><svg viewBox="0 0 22 22" aria-hidden="true"><circle cx="11" cy="11" r="8.4" fill="none" stroke="currentColor" stroke-width="1.4"/><path d="M11 2.6 A8.4 8.4 0 0 1 11 19.4 Z" fill="currentColor"/></svg></span>
@@ -627,7 +643,7 @@ function mountSheet(container, key, opts){
 
 if (typeof window !== 'undefined') {
   window.mountSheet = mountSheet;
-  window.__sheet = { renderSheet: renderSheet, toRenderShape: toRenderShape, buildSpellcasting: buildSpellcasting, buildResources: buildResources, renderResources: renderResources, applyExtras: applyExtras, mountSheet: mountSheet };
+  window.__sheet = { renderSheet: renderSheet, toRenderShape: toRenderShape, buildSpellcasting: buildSpellcasting, buildResources: buildResources, renderResources: renderResources, renderHitDice: renderHitDice, applyExtras: applyExtras, mountSheet: mountSheet };
 }
 
 export { mountSheet };

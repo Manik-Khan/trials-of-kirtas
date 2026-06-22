@@ -336,3 +336,51 @@
   .insp-stat.show{opacity:1}
   .insp-stat.saving{color:var(--cream-fnt)} .insp-stat.saved{color:var(--gold-br)} .insp-stat.error{color:var(--red-br)} .insp-stat.hint{color:var(--cream-fnt)}
   @media (prefers-reduced-motion: reduce){ .med.cluster .cc.center.saving .insp{animation:none} }
+
+  /* ── Phase 2b: live Hit-Dice readout (medallion) ── */
+  .med.hd{padding:11px 8px 11px}
+  .med.hd .hd-body{display:flex;flex-direction:column;align-items:center;gap:5px;margin-top:6px}
+  .med.hd .hd-row{display:flex;align-items:center;gap:8px;justify-content:center}
+  .med.hd .hd-die{font-family:"Oswald",sans-serif;font-weight:600;font-size:14px;letter-spacing:.04em;color:var(--cream);min-width:24px;text-align:right}
+  .med.hd .hd-pips{display:flex;gap:5px;align-items:center}
+  .med.hd .hd-pip{width:11px;height:11px;transform:rotate(45deg);border:1.5px solid var(--gold-br);filter:url(#rough);opacity:.5}
+  .med.hd .hd-pip.on{background:var(--gold-br);opacity:1}
+  .med.hd .hd-count{font-family:"Oswald",sans-serif;font-weight:500;font-size:13px;color:var(--cream-dim);letter-spacing:.05em}
+  .med.hd .hd-empty{color:var(--cream-fnt);font-size:18px}
+  .med.hd.tappable{cursor:pointer;transition:background .15s ease,border-color .15s ease}
+  .med.hd.tappable:hover{background:rgba(231,194,121,.05);border-color:var(--frame)}
+  .med.hd.tappable:focus-visible{outline:none;box-shadow:inset 0 0 0 1px var(--gold-br)}
+
+  /* ── Phase 2b: action popovers (rest confirm + hit-die spend) ──
+     Mounted to <body> so they escape any filtered ancestor; carry their own
+     token values so they render correctly outside .sheet. */
+  .sa-pop{ --gp:#e7c279; --cr:#ece2cd; --crd:#c2b99f; --crf:#8d8675;
+    position:fixed;z-index:1200;min-width:188px;max-width:250px;
+    background:rgba(8,17,15,.97);border:1px solid rgba(199,154,74,.45);
+    box-shadow:0 14px 40px rgba(0,0,0,.55);padding:13px 13px 12px;
+    color:var(--cr);font-family:"Oswald",sans-serif;
+    opacity:0;transform:translateY(-4px);transition:opacity .14s ease,transform .14s ease}
+  .sa-pop.in{opacity:1;transform:translateY(0)}
+  .sa-pop-t{font-family:"Playfair Display",serif;font-weight:900;font-size:16px;color:#f9f3e6;letter-spacing:.01em;margin-bottom:9px}
+  .sa-pop-l{list-style:none;margin:0 0 12px;padding:0;display:flex;flex-direction:column;gap:5px}
+  .sa-pop-l li{font-family:"EB Garamond",serif;font-size:13.5px;color:var(--crd);line-height:1.3;padding-left:13px;position:relative}
+  .sa-pop-l li::before{content:"";position:absolute;left:0;top:7px;width:5px;height:5px;transform:rotate(45deg);background:var(--gp);opacity:.8}
+  .sa-pop-act{display:flex;gap:8px;justify-content:flex-end}
+  .sa-btn{font-family:"Oswald",sans-serif;font-weight:500;font-size:11px;letter-spacing:.12em;text-transform:uppercase;padding:7px 13px;border:1px solid var(--gp);background:transparent;color:var(--gp);cursor:pointer;transition:background .14s ease,color .14s ease,box-shadow .14s ease}
+  .sa-btn.go{background:var(--gp);color:#1a140a}
+  .sa-btn.go:hover{box-shadow:0 0 12px 1px rgba(231,194,121,.45)}
+  .sa-btn.ghost{border-color:rgba(236,226,205,.3);color:var(--crd)}
+  .sa-btn.ghost:hover{color:var(--cr);border-color:var(--crd)}
+  .sa-btn[disabled]{opacity:.32;cursor:default;box-shadow:none}
+  .sa-hd .sa-hd-row{display:grid;grid-template-columns:auto 1fr auto;align-items:center;gap:10px;padding:6px 0;border-bottom:1px solid rgba(236,226,205,.1)}
+  .sa-hd .sa-hd-row:first-of-type{border-top:1px solid rgba(236,226,205,.1)}
+  .sa-hd-die{font-family:"Playfair Display",serif;font-weight:900;font-size:18px;color:var(--cr)}
+  .sa-hd-av{font-family:"Oswald",sans-serif;font-size:11px;letter-spacing:.08em;text-transform:uppercase;color:var(--crf)}
+  .sa-hd .sa-btn{padding:5px 11px}
+  .sa-hd-out{min-height:14px;margin-top:10px;font-family:"Oswald",sans-serif;font-size:12px;letter-spacing:.04em;color:var(--gp);text-align:center}
+  .sa-hd-none{font-family:"EB Garamond",serif;font-style:italic;color:var(--crf);padding:4px 0 8px}
+
+  /* inline Undo in the cluster status line (inside .sheet → inherits tokens) */
+  .insp-stat .sa-undo{font-family:"Oswald",sans-serif;font-weight:600;font-size:9px;letter-spacing:.1em;text-transform:uppercase;background:none;border:0;border-bottom:1px solid var(--gold-br);color:var(--gold-br);cursor:pointer;padding:0 0 1px;margin-left:2px}
+  .insp-stat .sa-undo:hover{color:var(--cream-hi);border-color:var(--cream-hi)}
+  @media (prefers-reduced-motion: reduce){ .sa-pop{transition:none} }
