@@ -303,6 +303,23 @@
 .spell .s-ct{font-family:"Oswald",sans-serif;font-weight:400;font-size:11px;letter-spacing:.04em;text-transform:uppercase;
   color:var(--cream-fnt);flex:0 0 auto}
 
+/* ── spellcasting made live: tap a slot to spend, tap a spell to cast ── */
+.slot{cursor:pointer;transition:transform .08s ease,background .12s ease}
+.slot:hover{transform:scale(1.2)}
+.slot:focus-visible{outline:2px solid var(--cream-hi);outline-offset:2px}
+.spell{cursor:pointer;transition:background .12s ease}
+.spell:hover{background:rgba(231,194,121,.06)}
+.spell:focus-visible{outline:none;background:rgba(231,194,121,.09)}
+.spell.casting{background:rgba(231,194,121,.1)}
+.s-conc{font-family:"Oswald",sans-serif;font-weight:700;font-size:8.5px;letter-spacing:.02em;color:var(--o-subclass);border:1px solid var(--o-subclass);border-radius:2px;padding:0 3px;margin-left:3px;vertical-align:middle}
+.conc-banner{display:flex;align-items:center;gap:9px;border:1px solid var(--o-subclass);background:rgba(85,196,192,.09);padding:8px 12px;margin-bottom:14px}
+.conc-banner .cc-ico{color:var(--o-subclass);font-size:15px;line-height:1}
+.conc-banner .cc-lab{font-family:"Oswald",sans-serif;font-weight:600;letter-spacing:.1em;text-transform:uppercase;font-size:10px;color:var(--cream-fnt)}
+.conc-banner .cc-nm{font-family:"Playfair Display",serif;font-style:italic;font-weight:500;font-size:16px;color:var(--cream-hi)}
+.conc-banner .cc-drop{margin-left:auto;background:transparent;border:1px solid var(--hair);color:var(--cream-dim);font-family:"Oswald",sans-serif;font-weight:600;letter-spacing:.05em;text-transform:uppercase;font-size:9.5px;padding:4px 9px;cursor:pointer;transition:border-color .12s,color .12s}
+.conc-banner .cc-drop:hover{border-color:var(--o-subclass);color:var(--cream-hi)}
+.conc-banner .cc-drop:focus-visible{outline:2px solid var(--cream-hi);outline-offset:1px}
+
 /* detail — the rare light parchment card for contrast */
 .detail{position:relative;margin-top:6px;padding:15px 17px;background:var(--parchment);color:var(--ink-parch);
   border-left:4px solid var(--o-class);box-shadow:0 16px 34px -22px #000}
@@ -431,6 +448,13 @@
   .sa-btn.ghost{border-color:rgba(236,226,205,.3);color:var(--crd)}
   .sa-btn.ghost:hover{color:var(--cr);border-color:var(--crd)}
   .sa-btn[disabled]{opacity:.32;cursor:default;box-shadow:none}
+  .sa-cast .scp-list{display:flex;flex-direction:column;gap:6px;margin:2px 0 0}
+  .sa-cast .scp-btn{display:flex;align-items:center;gap:9px;justify-content:flex-start;text-align:left;width:100%;font-family:"Oswald",sans-serif;font-weight:500;font-size:11px;letter-spacing:.06em;text-transform:uppercase;padding:7px 11px;border:1px solid rgba(236,226,205,.28);background:transparent;color:var(--crd);cursor:pointer;transition:border-color .14s ease,color .14s ease,background .14s ease}
+  .sa-cast .scp-btn:hover{color:var(--cr);border-color:var(--gp);background:rgba(231,194,121,.06)}
+  .sa-cast .scp-dot{width:9px;height:9px;flex:none}
+  .sa-cast .scp-up{margin-left:auto;font-size:9px;font-weight:600;color:var(--gp);letter-spacing:.04em}
+  .sa-cast .scp-cancel{margin-top:9px;width:100%;justify-content:center}
+  .sa-cast .sa-pop-sub{font-family:"EB Garamond",serif;font-style:italic;font-size:12px;color:var(--crf);margin:-4px 0 9px}
   .sa-hd .sa-hd-row{display:grid;grid-template-columns:auto 1fr auto;align-items:center;gap:10px;padding:6px 0;border-bottom:1px solid rgba(236,226,205,.1)}
   .sa-hd .sa-hd-row:first-of-type{border-top:1px solid rgba(236,226,205,.1)}
   .sa-hd-die{font-family:"Playfair Display",serif;font-weight:900;font-size:18px;color:var(--cr)}

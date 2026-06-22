@@ -492,6 +492,79 @@ export function wireInspiration({ root, characterData, key } = {}) {
     root.addEventListener('keydown', onTrkEsc);
   }
 
+  // ── Spellcasting: spend slots, cast spells (player picks level + pool), track
+  // concentration. Slots ride the same vitals.pipState the orbs read (keys
+  // pactSlots / spell_<L> / sorc_<L> / sorcery), max from classFeatures — so the
+  // sheet + orbs stay in lockstep and rests already refill them. Casting posts to
+  // the shared feed via the page's feed-bridge hook (window.__battle.onLogRoll);
+  // it degrades silently if the bridge isn't loaded. Manual slot nudges stay quiet
+  // (often corrections) — only casts and concentration changes hit the feed.
+  function castPools() { var api = sheetApi(); var sc = api.buildSpellcasting ? api.buildSpellcasting(structural, vitals) : { pools: [] }; return sc.pools || []; }
+  function poolByKey(k) { var ps = castPools(); for (var i = 0; i < ps.length; i++) if (ps[i].key === k) return ps[i]; return null; }
+  function castSlots(base) { return castPools().filter(function (p) { return !p.points && p.level >= base && p.level >= 1 && (p.current || 0) > 0; }).sort(function (a, b) { return a.level - b.level; }); }
+  function spellEl(name) { var els = root.querySelectorAll('.spell[data-spell]'); for (var i = 0; i < els.length; i++) if (els[i].getAttribute('data-spell') === name) return els[i]; return null; }
+  function ordn(n) { return ({ 1:'1st',2:'2nd',3:'3rd',4:'4th',5:'5th',6:'6th',7:'7th',8:'8th',9:'9th' })[n] || (n + 'th'); }
+  function poolDot(tone) { return tone === 'subclass' ? '#55c4c0' : '#e7c279'; }
+  function feedPost(name, main) { try { var b = (typeof window !== 'undefined' ? window : globalThis).__battle; if (b && typeof b.onLogRoll === 'function') b.onLogRoll({ actorKey: key, name: name, main: main }); } catch (_) {} }
+
+  function spendSlot(slotKey, i) {
+    if (saving) return;
+    var p = poolByKey(slotKey); if (!p) return;
+    var max = p.max || 0, c = p.current || 0, target = (i + 1 === c) ? i : (i + 1), newCur = Math.max(0, Math.min(max, target)), spent = max - newCur;
+    var prev = vitals, nv = JSON.parse(JSON.stringify(vitals)); nv.pipState = Object.assign({}, nv.pipState || {});
+    if (spent > 0) nv.pipState[slotKey] = spent; else delete nv.pipState[slotKey];
+    vitals = nv; refresh(); persistVitals(prev);   // quiet — no feed line for a manual nudge
+  }
+
+  function doCast(spellName, base, isConc, poolKey) {
+    if (saving) return;
+    var p = null;
+    if (base >= 1) {
+      p = poolKey ? poolByKey(poolKey) : null;
+      if (!p) { var opts = castSlots(base); if (!opts.length) { showStat('hint', 'no ' + ordn(base) + '-level slots', true); return; } if (opts.length === 1) p = opts[0]; else { openCastPicker(spellName, base, isConc); return; } }
+      if (!p || (p.current || 0) <= 0) return;
+    }
+    // replace-guard only once we know we're actually committing the cast
+    if (isConc && vitals.concentration && vitals.concentration.name !== spellName) {
+      var okc = (typeof window !== 'undefined' && window.confirm) ? window.confirm('Concentrating on ' + vitals.concentration.name + '. Cast ' + spellName + ' and drop it?') : true;
+      if (!okc) return;
+    }
+    var nv = JSON.parse(JSON.stringify(vitals)), prev = vitals, main;
+    if (base >= 1) {
+      nv.pipState = Object.assign({}, nv.pipState || {}); nv.pipState[p.key] = (nv.pipState[p.key] || 0) + 1;
+      main = 'cast \u00B7 ' + ordn(p.level) + '-level (' + p.label + ')' + (p.level > base ? ' \u25B2 upcast from ' + ordn(base) : '');
+    } else { main = 'cast \u00B7 cantrip'; }
+    if (isConc) nv.concentration = { name: spellName, duration: '' };
+    vitals = nv; refresh(); persistVitals(prev);
+    feedPost(spellName, main + (isConc ? ' \u00B7 concentration' : ''));
+  }
+
+  function dropConcentration() {
+    if (saving || !vitals.concentration) return;
+    var nm = vitals.concentration.name, prev = vitals, nv = JSON.parse(JSON.stringify(vitals)); nv.concentration = null;
+    vitals = nv; refresh(); persistVitals(prev); feedPost(nm, 'concentration dropped');
+  }
+
+  function openCastPicker(spellName, base, isConc) {
+    if (!doc) return; closePops();
+    var opts = castSlots(base); if (!opts.length) { showStat('hint', 'no ' + ordn(base) + '-level slots', true); return; }
+    var pop = mkPop('sa-cast');
+    var html = '<div class="sa-pop-t">Cast ' + esc(spellName) + '</div><div class="sa-pop-sub">choose a slot \u2014 your call</div><div class="scp-list">';
+    opts.forEach(function (p) { var up = (p.level > base) ? '<span class="scp-up">\u25B2 upcast</span>' : ''; html += '<button class="scp-btn" type="button" data-pk="' + esc(p.key) + '"><span class="scp-dot" style="background:' + poolDot(p.tone) + '"></span>' + ordn(p.level) + '-level \u00B7 ' + esc(p.label) + ' \u00B7 ' + (p.current || 0) + ' left' + up + '</button>'; });
+    html += '</div><button class="sa-btn ghost scp-cancel" type="button" data-pk-cancel>Cancel</button>';
+    pop.innerHTML = html;
+    mountPop(pop, spellEl(spellName));
+    pop.querySelectorAll('[data-pk]').forEach(function (b) { b.addEventListener('click', function (e) { e.stopPropagation(); closePops(); doCast(spellName, base, isConc, b.getAttribute('data-pk')); }); });
+    var cx = pop.querySelector('[data-pk-cancel]'); if (cx) cx.addEventListener('click', function (e) { e.stopPropagation(); closePops(); });
+  }
+
+  function onCastClick(e) {
+    var slot = e.target.closest('[data-slot]'); if (slot) { spendSlot(slot.getAttribute('data-slot'), +slot.getAttribute('data-i')); return; }
+    var drop = e.target.closest('[data-conc-drop]'); if (drop) { dropConcentration(); return; }
+    var sp = e.target.closest('.spell[data-spell]'); if (sp) { doCast(sp.getAttribute('data-spell'), parseInt(sp.getAttribute('data-level'), 10) || 0, sp.getAttribute('data-conc') === '1', null); return; }
+  }
+  function bindSpellcasting(editable) { if (!editable) return; root.addEventListener('click', onCastClick); }
+
   // load state + merge baseline, then gate + bind
   const ready = (async () => {
     let editable = false;
@@ -517,6 +590,7 @@ export function wireInspiration({ root, characterData, key } = {}) {
         hdMed.addEventListener('keydown', (e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); openHdSpend(); } });
       }
       bindTrackers(true);
+      bindSpellcasting(true);
     } else {
       toggle.classList.add('view-only');
       toggle.setAttribute('aria-disabled', 'true');
@@ -524,6 +598,7 @@ export function wireInspiration({ root, characterData, key } = {}) {
         b.addEventListener('click', () => showStat('hint', 'view only', true));
       });
       bindTrackers(false);
+      bindSpellcasting(false);
     }
   })();
 

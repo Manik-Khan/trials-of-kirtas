@@ -79,11 +79,11 @@ function setStatus(root, v){
 function poolHTML(p){
   p=p||{};
   var toneCls = p.tone==='subclass'?' s2':(p.tone==='dim'?' dim':'');
-  var max=p.max||0, cur=p.current||0, slots='';
+  var max=p.max||0, cur=p.current||0, key=esc(p.key||''), slots='';
   for(var i=0;i<max;i++){
     slots += (i<cur)
-      ? '<span class="slot'+(p.tone==='subclass'?' teal':'')+' on"></span>'
-      : '<span class="slot empty"></span>';
+      ? '<span class="slot'+(p.tone==='subclass'?' teal':'')+' on" data-slot="'+key+'" data-i="'+i+'"></span>'
+      : '<span class="slot empty" data-slot="'+key+'" data-i="'+i+'"></span>';
   }
   return '<div class="pool'+toneCls+'"><div class="p-lab"><span>'+esc(p.label)+'</span>'
        + '<span class="lv">'+esc(p.badge)+'</span></div>'
@@ -95,7 +95,7 @@ function spellHTML(sp){
   var oMap={ "class":"o-class", subclass:"o-sub", race:"o-race", feat:"o-feat", expanded:"o-sub" };
   var tMap={ "class":"t-class", subclass:"t-sub", race:"t-race", feat:"t-feat", expanded:"t-exp" };
   var o=sp.origin||'class';
-  return '<div class="spell '+(oMap[o]||'o-class')+'"><span class="s-n">'+esc(sp.name)+'</span>'
+  return '<div class="spell '+(oMap[o]||'o-class')+'" data-spell="'+esc(sp.name)+'" data-level="'+(sp.level!=null?sp.level:0)+'"'+(sp.conc?' data-conc="1"':'')+'><span class="s-n">'+esc(sp.name)+(sp.conc?' <span class="s-conc" title="Concentration">C</span>':'')+'</span>'
        + '<span class="s-tag '+(tMap[o]||'t-class')+'">'+esc(sp.source)+'</span>'
        + '<span class="s-ct">'+esc(sp.time)+'</span></div>';
 }
@@ -125,6 +125,19 @@ function renderSpellcasting(root, sc){
   setF('featNote', sc.featNote);
   var gb=root.querySelector('[data-list="spellGroups"]');  if(gb) gb.innerHTML=(sc.groups||[]).map(groupHTML).join('');
   var db=root.querySelector('[data-list="detail"]');       if(db) db.innerHTML=detailHTML(sc.detail);
+}
+// Concentration banner — driven by vitals.concentration ({name,duration} | null).
+// The cast handler in sheet-actions.js sets it; the drop button clears it.
+function renderConcentration(root, v){
+  root=root||document; v=v||{};
+  var el=root.querySelector('[data-conc-banner]'); if(!el) return;
+  var c=v.concentration;
+  if(c && c.name){
+    el.style.display='';
+    el.innerHTML='<span class="cc-ico">\u25C9</span><span class="cc-lab">Concentrating</span>'
+      + '<span class="cc-nm">'+esc(c.name)+'</span>'
+      + '<button class="cc-drop" type="button" data-conc-drop aria-label="Drop concentration">drop \u2715</button>';
+  } else { el.style.display='none'; el.innerHTML=''; }
 }
 function renderResources(root, pools){
   root=root||document; pools=pools||[];
@@ -230,6 +243,7 @@ function renderSheet(root, char){
   if(notes!=null) setF('notes', notes);
   renderAbilities(root, ab); renderSaves(root, s); renderSkills(root, s.skills); renderFeatures(root, s.features);
   renderSpellcasting(root, s.spellcasting||{});
+  renderConcentration(root, v);
   renderTrackers(root, s, v);
 }
 // ── live data: map a CharacterData row into the renderer's shape, then bind ──
@@ -252,14 +266,14 @@ function buildSpellcasting(s, v){
     Object.keys(s.abilities).forEach(function(k){ if(!ability && (s.abilities[k]||{}).mod===target) ability=names[k]||k; });
   }
   var pools=[];
-  if(cf.pactSlots){ var pm=cf.pactSlots.max||0, ps=pip.pactSlots||0; pools.push({label:'Pact Magic',badge:'Lvl '+(cf.pactSlots.level||1),tone:'class',max:pm,current:Math.max(0,pm-ps),recharge:pm+' slot'+(pm!==1?'s':'')+' \u00B7 short rest'}); }
-  if(cf.sorcererSlots){ Object.keys(cf.sorcererSlots).forEach(function(L){ var ss=cf.sorcererSlots[L]||{}, m=ss.max||0, sp=pip['sorc_'+L]||0; pools.push({label:'Sorcerer Slots',badge:'Lvl '+L,tone:'subclass',max:m,current:Math.max(0,m-sp),recharge:m+' slot'+(m!==1?'s':'')+' \u00B7 long rest'}); }); }
-  if(cf.spellSlots){ Object.keys(cf.spellSlots).sort(function(a,b){return (parseInt(a,10)||0)-(parseInt(b,10)||0);}).forEach(function(L){ var ss=cf.spellSlots[L]||{}, m=ss.max||0, sp=pip['spell_'+L]||0; if(m>0) pools.push({label:'Spell Slots',badge:'Lvl '+L,tone:'class',max:m,current:Math.max(0,m-sp),recharge:m+' slot'+(m!==1?'s':'')+' \u00B7 long rest'}); }); }
-  if(cf.sorceryPoints){ var sm=cf.sorceryPoints.max||0; pools.push({label:'Sorcery Points',badge:String(cf.sorceryPoints.current||0),tone:'dim',max:sm||1,current:cf.sorceryPoints.current||0,recharge:sm>0?'sorcerer rest':'unlocks at Sorcerer 2'}); }
+  if(cf.pactSlots){ var pm=cf.pactSlots.max||0, ps=pip.pactSlots||0, pl=cf.pactSlots.level||1; pools.push({key:'pactSlots',level:pl,label:'Pact Magic',badge:'Lvl '+pl,tone:'class',max:pm,current:Math.max(0,pm-ps),recharge:pm+' slot'+(pm!==1?'s':'')+' \u00B7 short rest'}); }
+  if(cf.sorcererSlots){ Object.keys(cf.sorcererSlots).forEach(function(L){ var ss=cf.sorcererSlots[L]||{}, m=ss.max||0, sp=pip['sorc_'+L]||0; pools.push({key:'sorc_'+L,level:parseInt(L,10)||0,label:'Sorcerer Slots',badge:'Lvl '+L,tone:'subclass',max:m,current:Math.max(0,m-sp),recharge:m+' slot'+(m!==1?'s':'')+' \u00B7 long rest'}); }); }
+  if(cf.spellSlots){ Object.keys(cf.spellSlots).sort(function(a,b){return (parseInt(a,10)||0)-(parseInt(b,10)||0);}).forEach(function(L){ var ss=cf.spellSlots[L]||{}, m=ss.max||0, sp=pip['spell_'+L]||0; if(m>0) pools.push({key:'spell_'+L,level:parseInt(L,10)||0,label:'Spell Slots',badge:'Lvl '+L,tone:'class',max:m,current:Math.max(0,m-sp),recharge:m+' slot'+(m!==1?'s':'')+' \u00B7 long rest'}); }); }
+  if(cf.sorceryPoints){ var sm=cf.sorceryPoints.max||0, sps=pip.sorcery||0; pools.push({key:'sorcery',level:0,points:true,label:'Sorcery Points',badge:String(Math.max(0,sm-sps)),tone:'dim',max:sm,current:Math.max(0,sm-sps),recharge:sm>0?'sorcerer long rest':'unlocks at Sorcerer 2'}); }
   var groups=[], spells=s.spells||{};
   Object.keys(spells).map(function(L){ return { key:L, info:levelInfo(L) }; }).sort(function(a,b){ return a.info.n-b.info.n; }).forEach(function(o){
     var arr=spells[o.key]; if(!arr||!arr.length) return;
-    groups.push({ heading:o.info.heading, spells:arr.map(function(sp){ return { name:sp.name, origin:'class', source:'', time:sp.castingTime||'' }; }) });
+    groups.push({ heading:o.info.heading, level:o.info.n, spells:arr.map(function(sp){ return { name:sp.name, origin:'class', source:'', time:sp.castingTime||'', level:o.info.n, conc:!!sp.concentration, ritual:!!sp.ritual }; }) });
   });
   return { ability:ability, saveDC:cb.spellSaveDC, attackBonus:cb.spellAttackBonus, pools:pools, groups:groups, detail:null, featNote:'\u2014 origin colours arrive when the derive carries provenance' };
 }
@@ -586,17 +600,8 @@ var SHEET_TEMPLATE = `<main class="sheet">
       <div class="block">
         <div class="sectitle"><span class="swashwrap"><h2>Spellcasting</h2></span><span class="tail"></span><span class="hint">two pools, one soul</span></div>
         <div class="panelbox">
-          <div class="spellhead" data-list="pools">
-            <div class="pool"><div class="p-lab"><span>Pact Magic</span><span class="lv">Lvl 1</span></div>
-              <div class="slots"><span class="slot on"></span><span class="slot on"></span></div>
-              <div class="p-rec">2 slots · short rest</div></div>
-            <div class="pool s2"><div class="p-lab"><span>Sorcerer Slots</span><span class="lv">Lvl 1</span></div>
-              <div class="slots"><span class="slot teal on"></span><span class="slot teal on"></span></div>
-              <div class="p-rec">2 slots · long rest</div></div>
-            <div class="pool dim"><div class="p-lab"><span>Sorcery Points</span><span class="lv">0</span></div>
-              <div class="slots"><span class="slot empty"></span></div>
-              <div class="p-rec">unlocks at Sorcerer 2</div></div>
-          </div>
+          <div class="conc-banner" data-conc-banner style="display:none"></div>
+          <div class="spellhead" data-list="pools"></div>
           <div class="cast-meta">
             <span>Ability <b data-f="castAbility">Charisma</b></span><span>Save DC <b data-f="castDC">13</b></span><span>Attack <b data-f="castAtk">+5</b></span><span>Type <b data-f="castType">Known</b></span>
           </div>
@@ -606,29 +611,7 @@ var SHEET_TEMPLATE = `<main class="sheet">
             <span class="none" data-f="featNote">— no feat spells at this level</span>
           </div>
 
-          <div data-list="spellGroups">
-          <div class="spell-group">
-            <div class="sg-h">Cantrips · At Will</div>
-            <div class="spell-cols">
-              <div class="spell o-class"><span class="s-n">Eldritch Blast</span><span class="s-tag t-class">Warlock</span><span class="s-ct">1 action</span></div>
-              <div class="spell o-class"><span class="s-n">Booming Blade</span><span class="s-tag t-class">Sorcerer</span><span class="s-ct">1 action</span></div>
-              <div class="spell o-class"><span class="s-n">Minor Illusion</span><span class="s-tag t-class">Sorcerer</span><span class="s-ct">1 action</span></div>
-              <div class="spell o-class"><span class="s-n">Prestidigitation</span><span class="s-tag t-class">Sorcerer</span><span class="s-ct">1 action</span></div>
-              <div class="spell o-race"><span class="s-n">Light</span><span class="s-tag t-race">Astral Fire</span><span class="s-ct">1 action</span></div>
-            </div>
-          </div>
-          <div class="spell-group">
-            <div class="sg-h">1st Level</div>
-            <div class="spell-cols">
-              <div class="spell o-class"><span class="s-n">Hex</span><span class="s-tag t-class">Warlock</span><span class="s-ct">1 bonus</span></div>
-              <div class="spell o-class"><span class="s-n">Armor of Agathys</span><span class="s-tag t-class">Warlock</span><span class="s-ct">1 action</span></div>
-              <div class="spell o-sub"><span class="s-n">Shield</span><span class="s-tag t-exp">Expanded</span><span class="s-ct">1 reaction</span></div>
-              <div class="spell o-class"><span class="s-n">Chromatic Orb</span><span class="s-tag t-class">Sorcerer</span><span class="s-ct">1 action</span></div>
-              <div class="spell o-class"><span class="s-n">Charm Person</span><span class="s-tag t-class">Sorcerer</span><span class="s-ct">1 action</span></div>
-            </div>
-          </div>
-
-          </div><!-- /spellGroups -->
+          <div data-list="spellGroups"></div>
 
           <div data-list="detail">
           <div class="detail">
@@ -722,7 +705,7 @@ function mountSheet(container, key, opts){
 
 if (typeof window !== 'undefined') {
   window.mountSheet = mountSheet;
-  window.__sheet = { renderSheet: renderSheet, toRenderShape: toRenderShape, buildSpellcasting: buildSpellcasting, buildResources: buildResources, renderResources: renderResources, renderTrackers: renderTrackers, trackerSpecs: trackerSpecs, renderHitDice: renderHitDice, applyExtras: applyExtras, mountSheet: mountSheet };
+  window.__sheet = { renderSheet: renderSheet, toRenderShape: toRenderShape, buildSpellcasting: buildSpellcasting, buildResources: buildResources, renderResources: renderResources, renderTrackers: renderTrackers, trackerSpecs: trackerSpecs, renderConcentration: renderConcentration, renderHitDice: renderHitDice, applyExtras: applyExtras, mountSheet: mountSheet };
 }
 
 export { mountSheet };
