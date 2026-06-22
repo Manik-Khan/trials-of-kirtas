@@ -26,6 +26,8 @@
   var LOADING = {};             // source_key -> in-flight load promise (dedupe)
   var layerEl = null;           // the active .torb-layer (one at a time)
   var activeTok = null;         // token element currently lifted for its orbs
+  var activeC = null;           // its combatant row  — so a realtime row update can re-bloom
+  var activeHost = null;        // its host           —   the open ring in place
   var popEl = null;
 
   // ── static orb kinds (info orbs read the combatant row `c`) ──
@@ -227,6 +229,7 @@
     if (!c || !tokenEl) return;
     if (activeTok && activeTok !== tokenEl) activeTok.style.zIndex = '';
     activeTok = tokenEl; tokenEl.style.zIndex = 200;    // lift above neighbours + HUD (under modals at 1000)
+    activeC = c; activeHost = host;
     var key = c.source_key;
     var ch = key ? CHAR_CACHE[key] : null;
     bloom(c, tokenEl, host, ch);                        // render now with what we have
@@ -241,6 +244,7 @@
     }
     layerEl = null;
     if (activeTok) { activeTok.style.zIndex = ''; activeTok = null; }
+    activeC = null; activeHost = null;
     closePop();
   }
 
@@ -429,6 +433,24 @@
 
   window.CombatOrbs = {
     show: show, hide: hide, configHtml: configHtml, wireConfig: wireConfig,
+    // Ingest an external characters-row change (realtime). If the row's vitals /
+    // structural differ from the cached record we update it and re-bloom the open
+    // ring for that key. A self-echo (orb already wrote the new value optimistically,
+    // so cache === row) compares equal and no-ops — no animation replay, no flicker.
+    applyRow: function (key, row) {
+      if (!key || !row) return;
+      var rec = CHAR_CACHE[key]; if (!rec) return;          // nothing cached → nothing open for it
+      var vNew = JSON.stringify(row.vitals != null ? row.vitals : null);
+      var vOld = JSON.stringify(rec.vitals != null ? rec.vitals : null);
+      var sNew = JSON.stringify(row.structural != null ? row.structural : null);
+      var sOld = JSON.stringify(rec.structural != null ? rec.structural : null);
+      if (vNew === vOld && sNew === sOld) return;            // redundant / self echo → no-op
+      if (row.vitals !== undefined) rec.vitals = row.vitals;
+      if (row.structural !== undefined) rec.structural = row.structural;
+      if (activeTok && activeC && activeC.source_key === key && activeTok.querySelector('.torb-layer')) {
+        bloom(activeC, activeTok, activeHost || {}, rec);    // re-render the live ring from fresh data
+      }
+    },
     _invalidate: function (key) { if (key) delete CHAR_CACHE[key]; else CHAR_CACHE = {}; }
   };
 })();

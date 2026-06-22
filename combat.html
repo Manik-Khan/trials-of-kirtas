@@ -1223,6 +1223,7 @@
 
     // live cursors (ephemeral; realtime broadcast + presence, never persisted)
     let RT = null;                      // the realtime channel
+    let CHARS_RT = null;                // characters-table channel (sheet/orb vitals sync)
     let cursorLayer = null;             // overlay holding other people's cursors
     let MY_ID = null, MY_NAME = '';     // this viewer's cursor identity
     let lastCursorSent = 0;             // broadcast throttle
@@ -2340,6 +2341,26 @@
         .on('presence', { event: 'leave' }, ({ leftPresences }) =>
           (leftPresences || []).forEach(pr => pr && pr.id && removeCursor(pr.id)))
         .subscribe((status) => { if (status === 'SUBSCRIBED') RT.track({ id: MY_ID }); });
+
+      // ── characters-realtime: a vitals / structural change on ANY client refreshes
+      //    the open orb ring + the open floating-sheet tab. Option A: characters is
+      //    the source of truth; HP rides the combatants mirror, but slots / temp-HP /
+      //    concentration live SOLELY here, so they need this stream (party.html has
+      //    the twin 'party-display' sub; combat.html was the one missing it). Separate
+      //    channel — different table from combatants, so no postgres_changes conflict.
+      //    Both handlers self-filter (no-op unless that PC's ring/sheet is open).
+      if (!CHARS_RT) {
+        CHARS_RT = SB.channel('combat-characters')
+          .on('postgres_changes', { event: 'UPDATE', schema: 'public', table: 'characters' },
+            ({ new: row }) => {
+              if (!row || !row.key) return;
+              const parse = (x) => { if (typeof x === 'string') { try { return JSON.parse(x); } catch (_) { return undefined; } } return x; };
+              const norm = { key: row.key, vitals: parse(row.vitals), structural: parse(row.structural) };
+              if (window.CombatOrbs && window.CombatOrbs.applyRow) window.CombatOrbs.applyRow(row.key, norm);
+              if (window.CombatSheets && window.CombatSheets.refresh) window.CombatSheets.refresh(row.key);
+            })
+          .subscribe();
+      }
     }
 
     // ── SCENES-V2: scenes pane — list, switch, register, calibrate ──────────
