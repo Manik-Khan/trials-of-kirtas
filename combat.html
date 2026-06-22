@@ -321,7 +321,7 @@
     .ctx-exp.open .ctx-chev { transform: rotate(90deg); }
     .ctx-exp-count { margin-left: auto; font-size: 10px; color: #d4ac3a; background: rgba(184,149,42,0.15); border-radius: 8px; padding: 1px 7px; }
     .ctx-exp.open .ctx-exp-count, .ctx-exp-head .ctx-exp-count + .ctx-chev { margin-left: 6px; }
-    .ctx-exp-body { display: none; padding: 2px 12px 9px; max-height: 230px; overflow-y: auto; }
+    .ctx-exp-body { display: none; padding: 2px 12px 9px; }
     .ctx-exp.open .ctx-exp-body { display: block; }
     .ctx-aura-lbl { font-size: 9px; color: #6b5d4a; letter-spacing: 1.5px; margin: 6px 0 3px; }
     .ctx-aura-row { display: flex; gap: 5px; flex-wrap: wrap; align-items: center; }
@@ -1918,6 +1918,8 @@
       document.body.appendChild(ctxEl);
       // keep the menu fully on-screen as it grows (expanders, async orb config, forms)
       if (window.ResizeObserver) { ctxRO = new ResizeObserver(() => { if (ctxEl) placeCtxMenu(sx, sy); }); ctxRO.observe(ctxEl); }
+      // wheel over the menu scrolls the menu — never bubbles out to zoom the board
+      ctxEl.addEventListener('wheel', (e) => { e.stopPropagation(); }, { passive: true });
 
       function render() {
         const isParty = c.side === 'party';
