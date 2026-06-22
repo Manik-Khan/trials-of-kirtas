@@ -141,7 +141,12 @@
 
   function renderOrb(id, c, ch, host) {
     var d = defFor(id, ch), orb = document.createElement('div');
-    orb.className = 'torb ' + d.kind + (id === 'sheet' ? ' primary' : '');
+    // NB: 'sheet' as a bare class collides with the .sheet character-sheet-panel
+    // rule in sheet-mount.css (loaded by combat.html), which injects 64px of
+    // padding + a hue-rotate straight into the orb. The sheet orb is styled via
+    // .primary, so don't emit the colliding kind class for it.
+    var kindCls = (d.kind === 'sheet') ? '' : d.kind;
+    orb.className = ('torb ' + kindCls + (id === 'sheet' ? ' primary' : '')).replace(/\s+/g, ' ').trim();
     var body = '';
     if (d.kind === 'sheet') body = '<span class="ic">\uD83D\uDCCB</span>';
     else if (d.kind === 'hp') body = '<span class="vl">' + (c.hp != null ? c.hp : '\u2014') + '</span><span class="tag">/' + (c.max_hp != null ? c.max_hp : '\u2014') + '</span>';
