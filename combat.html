@@ -230,7 +230,11 @@
     .token.selected .token-cutout {
       filter: drop-shadow(0 0 2px var(--gold-light)) drop-shadow(0 0 5px var(--gold));
     }
-    .token.selected .token-name { display: block; }   /* selecting reveals the name */
+    /* Option A — the name and the orb ring are separate modes. Hover an *unselected*
+       token to peek its name; selecting it (opening the orbs) hides the name, so the
+       two never share the lower arc. Touch has no hover and shows nothing here on the
+       board — the long-press context menu names the token instead. */
+    @media (hover: hover) { .token:hover:not(.selected) .token-name { display: block; } }
     .token.dragging { opacity: 0.85; cursor: grabbing; }
     .token.no-move { cursor: default; }
 
