@@ -70,7 +70,11 @@
       position: absolute;
       top: 0; left: 0;
       transform-origin: 0 0;            /* zoom/pan via translate()+scale() from here */
-      will-change: transform;
+      /* NOTE: will-change is toggled *dynamically* in applyTransform(), not set here.
+         A static hint keeps the board cached as one GPU texture rasterised at base size,
+         which scale() then upscales — soft at zoom > 1, snapping sharp only on an
+         incidental repaint. Promoting only during a gesture keeps panning smooth while
+         the resting frame re-rasterises crisp at the current zoom. */
       box-shadow: 0 10px 40px rgba(0,0,0,0.6);
       background: var(--smoke);         /* shows through until/if the map loads */
       outline: 1px solid var(--gold-dim);
@@ -1547,8 +1551,14 @@
     }
 
     // ── board transform (zoom/pan) ──
+    let _wcTimer = null;
     function applyTransform() {
-      if (boardEl) boardEl.style.transform = `translate(${panX}px, ${panY}px) scale(${zoom})`;
+      if (boardEl) {
+        boardEl.style.willChange = 'transform';                       // promote for a smooth gesture
+        boardEl.style.transform = `translate(${panX}px, ${panY}px) scale(${zoom})`;
+        clearTimeout(_wcTimer);
+        _wcTimer = setTimeout(() => { if (boardEl) boardEl.style.willChange = 'auto'; }, 220);  // settled → drop the cache, re-raster crisp at this zoom
+      }
       renderCursors();
     }
     const clampZ = z => Math.max(MINZ, Math.min(MAXZ, z));
