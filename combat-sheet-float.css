@@ -145,6 +145,11 @@
 .torb-mv,.torb-rm{ width:22px; height:22px; border:1px solid transparent; background:none; color:#8d8675; cursor:pointer; border-radius:4px; font-size:12px; line-height:1; }
 .torb-mv:hover{ color:#e7c279; border-color:rgba(199,154,74,.34); }
 .torb-rm:hover{ color:#e0584a; border-color:rgba(224,88,74,.3); }
+.torb-grip{ flex:0 0 auto; width:16px; align-self:stretch; display:flex; align-items:center; justify-content:center;
+  color:#5e5544; cursor:grab; touch-action:none; user-select:none; -webkit-user-select:none; font-size:12px; line-height:1; }
+.torb-grip:hover{ color:#c79a4a; }
+.torb-grip:active{ cursor:grabbing; }
+.torb-cfg .torb-row.dragging{ opacity:.5; background:rgba(231,194,121,.1); }
 .torb-rmpad{ width:22px; }
 .torb-add{ margin-top:8px; width:100%; border:1px dashed rgba(199,154,74,.34); background:rgba(8,16,15,.5); color:#e7c279;
   cursor:pointer; padding:6px; border-radius:6px; font-family:"Oswald",sans-serif; font-size:11px; letter-spacing:.1em; text-transform:uppercase; }

@@ -1845,8 +1845,9 @@
     }
 
     // ── context menu (conditions for now; built to grow staff actions later) ──
-    let ctxEl = null;
+    let ctxEl = null, ctxRO = null;
     function closeCtxMenu() {
+      if (ctxRO) { ctxRO.disconnect(); ctxRO = null; }
       if (ctxEl) { ctxEl.remove(); ctxEl = null; }
       document.removeEventListener('pointerdown', ctxOutside, true);
       window.removeEventListener('scroll', closeCtxMenu, true);
@@ -1915,6 +1916,8 @@
       ctxEl = document.createElement('div');
       ctxEl.className = 'ctx-menu';
       document.body.appendChild(ctxEl);
+      // keep the menu fully on-screen as it grows (expanders, async orb config, forms)
+      if (window.ResizeObserver) { ctxRO = new ResizeObserver(() => { if (ctxEl) placeCtxMenu(sx, sy); }); ctxRO.observe(ctxEl); }
 
       function render() {
         const isParty = c.side === 'party';
@@ -2212,7 +2215,7 @@
 
       stage.addEventListener('wheel', (e) => {
         // inside a scrollable UI panel → let it scroll natively, don't zoom
-        if (e.target.closest('.dock-panel, .dock-handle, .statblock-panel, .init-strip, .tool-options, .tool-rail')) return;
+        if (e.target.closest('.ctx-menu, .dock-panel, .dock-handle, .statblock-panel, .init-strip, .tool-options, .tool-rail')) return;
         e.preventDefault();
         const rect = stage.getBoundingClientRect();
         // 1.07/tick (was 1.1) — ~30% gentler wheel zoom. Pinch (distance-driven)

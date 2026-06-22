@@ -251,11 +251,10 @@
     var rows = loadout.map(function (id, idx) {
       var d = defFor(id, ch); if (!d) return '';
       var rc = d.rc || '#c79a4a';
-      return '<div class="torb-row" data-idx="' + idx + '">' +
+      return '<div class="torb-row" data-idx="' + idx + '" data-id="' + esc(id) + '">' +
+        '<span class="torb-grip" title="Drag to reorder" aria-label="Drag to reorder">\u283F</span>' +
         '<span class="torb-sw" style="background:' + rc + '"></span>' +
         '<span class="torb-nm">' + esc(d.label) + '</span>' +
-        '<button class="torb-mv" data-mv="-1" title="Up">\u25B2</button>' +
-        '<button class="torb-mv" data-mv="1" title="Down">\u25BC</button>' +
         (id === 'sheet' ? '<span class="torb-rmpad"></span>' : '<button class="torb-rm" title="Remove">\u2715</button>') +
         '</div>';
     }).join('');
@@ -317,12 +316,42 @@
       box.outerHTML = configHtml(c, host);
       wireConfig(rootEl, c, host);
     }
-    box.querySelectorAll('.torb-mv').forEach(function (b) {
-      b.addEventListener('click', function (e) {
-        e.stopPropagation(); var i = +b.closest('.torb-row').dataset.idx, j = i + (+b.dataset.mv);
-        if (j < 0 || j >= loadout.length) return; var t = loadout[i]; loadout[i] = loadout[j]; loadout[j] = t; commit();
+    // drag-to-reorder via the grip handle — pointer events so it works with mouse AND touch
+    (function wireDragSort() {
+      var dragging = null;
+      function rowsArr() { return Array.prototype.slice.call(box.querySelectorAll('.torb-row')); }
+      box.querySelectorAll('.torb-grip').forEach(function (grip) {
+        grip.addEventListener('pointerdown', function (e) {
+          e.preventDefault(); e.stopPropagation();
+          dragging = grip.closest('.torb-row'); if (!dragging) return;
+          dragging.classList.add('dragging');
+          try { grip.setPointerCapture(e.pointerId); } catch (_) {}
+          function onMove(ev) {
+            if (!dragging) return;
+            var rows = rowsArr(), y = ev.clientY, placed = false;
+            for (var i = 0; i < rows.length; i++) {
+              var r = rows[i]; if (r === dragging) continue;
+              var rect = r.getBoundingClientRect();
+              if (y < rect.top + rect.height / 2) { box.insertBefore(dragging, r); placed = true; break; }
+            }
+            if (!placed) { var add = box.querySelector('.torb-add'); if (add) box.insertBefore(dragging, add); }
+          }
+          function onUp() {
+            grip.removeEventListener('pointermove', onMove);
+            grip.removeEventListener('pointerup', onUp);
+            grip.removeEventListener('pointercancel', onUp);
+            if (dragging) dragging.classList.remove('dragging');
+            dragging = null;
+            var ids = rowsArr().map(function (r) { return r.dataset.id; });   // adopt the new DOM order
+            loadout.length = 0; Array.prototype.push.apply(loadout, ids);
+            commit();                                                          // persist + re-bloom the ring
+          }
+          grip.addEventListener('pointermove', onMove);
+          grip.addEventListener('pointerup', onUp);
+          grip.addEventListener('pointercancel', onUp);
+        });
       });
-    });
+    })();
     box.querySelectorAll('.torb-rm').forEach(function (b) {
       b.addEventListener('click', function (e) { e.stopPropagation(); loadout.splice(+b.closest('.torb-row').dataset.idx, 1); commit(); });
     });
