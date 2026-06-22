@@ -290,6 +290,208 @@ export function wireInspiration({ root, characterData, key } = {}) {
     } finally { busy(false); }
   }
 
+  // ── Resource trackers (the curated left-rail panel): spend / reorder / remove /
+  // add / edit. Shares THIS hub's structural + vitals so a tracker spend and a rest
+  // never fight over the same row. Pure render lives in sheet-mount.js
+  // (renderTrackers); here we mutate optimistically → refresh() (re-renders the
+  // panel) → save → reconcile, all gated on canEdit, exactly like the rest above.
+  var trkForm = null, trkOrigin = 'custom', trkEditId = null;
+  function sheetApi() { return (typeof window !== 'undefined' ? window : globalThis).__sheet || {}; }
+  function deriveIds(st) { var R = rd(); return (R && R.derive) ? R.derive(st || {}).map(function (s) { return s.id; }) : []; }
+  function orderIdsNow() { return (structural.trackerOrder && structural.trackerOrder.length) ? structural.trackerOrder.slice() : deriveIds(structural); }
+  function specFor(id) { var api = sheetApi(); var list = api.trackerSpecs ? api.trackerSpecs(structural) : []; for (var i = 0; i < list.length; i++) if (list[i].id === id) return list[i]; return null; }
+  function curOf(spec) { return Math.max(0, (spec.max || 0) - (((vitals.pipState || {})[spec.id]) || 0)); }
+  function slugify(s) { return String(s || '').toLowerCase().replace(/[^a-z0-9]+/g, '').slice(0, 18); }
+  function newCustomId(label) { return 'cr_' + (slugify(label) || 'res') + '_' + Math.random().toString(36).slice(2, 6); }
+  function rechargeKey(t) { t = String(t || '').toLowerCase(); if (t.indexOf('short') >= 0 && t.indexOf('long') >= 0) return 'short-long'; if (t.indexOf('short') >= 0) return 'short'; return 'long'; }
+
+  async function persistStructural(prev) {
+    busy(true);
+    try { var saved = await characterData.save(key, { structural: structural }); structural = (saved && saved.structural) ? saved.structural : structural; refresh(); }
+    catch (e) { structural = prev; refresh(); showStat('error', "couldn't save \u00B7 tap to retry", false); }
+    finally { busy(false); }
+  }
+  async function persistVitals(prev) {
+    busy(true);
+    try { var saved = await characterData.save(key, { vitals: vitals }); vitals = (saved && saved.vitals) ? saved.vitals : vitals; refresh(); }
+    catch (e) { vitals = prev; refresh(); showStat('error', "couldn't save \u00B7 tap to retry", false); }
+    finally { busy(false); }
+  }
+
+  function applySpend(id, newCur) {
+    if (saving) return;
+    var spec = specFor(id); if (!spec) return;
+    var max = spec.max || 0; newCur = Math.max(0, Math.min(max, newCur));
+    var prev = vitals;
+    var nv = JSON.parse(JSON.stringify(vitals)); nv.pipState = Object.assign({}, nv.pipState || {});
+    var spent = max - newCur;
+    if (spent > 0) nv.pipState[id] = spent; else delete nv.pipState[id];
+    vitals = nv; refresh(); persistVitals(prev);
+  }
+  function onPip(pip) {
+    var row = pip.closest('.trk[data-tid]'); if (!row) return;
+    var id = row.getAttribute('data-tid'); var spec = specFor(id); if (!spec) return;
+    var i = parseInt(pip.getAttribute('data-tpip'), 10) || 0; var cur = curOf(spec);
+    applySpend(id, (i + 1 === cur) ? i : (i + 1));   // tap the boundary pip to spend one; else fill up to it
+  }
+  function onStep(step) {
+    var row = step.closest('.trk[data-tid]'); if (!row) return;
+    var id = row.getAttribute('data-tid'); var spec = specFor(id); if (!spec) return;
+    applySpend(id, curOf(spec) + (parseInt(step.getAttribute('data-tstep'), 10) || 0));
+  }
+
+  function clearConfirm(host) { if (host) host.querySelectorAll('.trk.confirming').forEach(function (r) { r.classList.remove('confirming'); }); }
+  function openConfirm(row) { if (!row) return; clearConfirm(row.parentNode); row.classList.add('confirming'); }
+  function doRemove(id, isCustom) {
+    if (saving) return;
+    var prev = structural; var ns = JSON.parse(JSON.stringify(structural));
+    ns.trackerOrder = orderIdsNow().filter(function (x) { return x !== id; });
+    if (isCustom) ns.customResources = (ns.customResources || []).filter(function (c) { return c.id !== id; });
+    structural = ns; refresh(); persistStructural(prev);
+  }
+
+  function moveByKey(grip, dir) {
+    if (saving) return;
+    var row = grip.closest('.trk[data-tid]'); if (!row) return;
+    var id = row.getAttribute('data-tid');
+    var ids = Array.prototype.slice.call(row.parentNode.querySelectorAll('.trk[data-tid]')).map(function (r) { return r.getAttribute('data-tid'); });
+    var pos = ids.indexOf(id); if (pos < 0) return; var np = pos + dir; if (np < 0 || np >= ids.length) return;
+    ids.splice(pos, 1); ids.splice(np, 0, id);
+    var prev = structural; var ns = JSON.parse(JSON.stringify(structural)); ns.trackerOrder = ids; structural = ns; refresh();
+    persistStructural(prev).then(function () {
+      var rows = root.querySelectorAll('.trk[data-tid]');
+      for (var i = 0; i < rows.length; i++) if (rows[i].getAttribute('data-tid') === id) { var g = rows[i].querySelector('[data-tgrip]'); if (g) g.focus(); break; }
+    });
+  }
+
+  // pointer drag: lift the row with a transform, show a drop-line, commit ONCE on release
+  function startDrag(e) {
+    if (saving) return;
+    var grip = e.target.closest('[data-tgrip]'); if (!grip) return;
+    var row = grip.closest('.trk[data-tid]'); if (!row) return;
+    var host = row.parentNode; if (!host) return;
+    var d = root.ownerDocument || (typeof document !== 'undefined' ? document : null); if (!d) return;
+    e.preventDefault();
+    var rows = Array.prototype.slice.call(host.querySelectorAll('.trk[data-tid]'));
+    var startY = e.clientY;
+    var L = rows.map(function (r) { var b = r.getBoundingClientRect(); return { top: b.top, mid: b.top + b.height / 2, bot: b.top + b.height }; });
+    var before = rows.map(function (r) { return r.getAttribute('data-tid'); });
+    var id = row.getAttribute('data-tid');
+    var targetIndex = before.indexOf(id);
+    host.classList.add('is-dragging'); row.classList.add('dragging');
+    var line = d.createElement('div'); line.className = 'drop-line'; host.appendChild(line);
+    function placeLine(idx) { var hostTop = host.getBoundingClientRect().top; var y = (idx >= L.length) ? L[L.length - 1].bot - hostTop : L[idx].top - hostTop; line.style.top = y + 'px'; }
+    function onMove(ev) {
+      row.style.transform = 'translateY(' + (ev.clientY - startY) + 'px)';
+      var idx = L.length; for (var i = 0; i < L.length; i++) if (ev.clientY < L[i].mid) { idx = i; break; }
+      targetIndex = idx; placeLine(idx);
+    }
+    function onUp() {
+      d.removeEventListener('pointermove', onMove, true); d.removeEventListener('pointerup', onUp, true);
+      host.classList.remove('is-dragging'); row.classList.remove('dragging'); row.style.transform = '';
+      if (line.parentNode) line.parentNode.removeChild(line);
+      var ids = before.slice(); var from = ids.indexOf(id); if (from < 0) return;
+      var insertAt = targetIndex; ids.splice(from, 1); if (insertAt > from) insertAt--; insertAt = Math.max(0, Math.min(ids.length, insertAt)); ids.splice(insertAt, 0, id);
+      if (ids.join(',') === before.join(',')) return;                 // dropped in place → no write
+      var prev = structural; var ns = JSON.parse(JSON.stringify(structural)); ns.trackerOrder = ids; structural = ns; refresh(); persistStructural(prev);
+    }
+    placeLine(targetIndex);
+    d.addEventListener('pointermove', onMove, true); d.addEventListener('pointerup', onUp, true);
+  }
+
+  // add / edit flyout
+  function trkMaxToken() {
+    var t = trkForm.mtype ? trkForm.mtype.value : 'fixed';
+    if (t === 'fixed') return { type: 'fixed', value: Math.max(1, parseInt(trkForm.mfixed && trkForm.mfixed.value, 10) || 1) };
+    if (t === 'pb') return { type: 'pb' };
+    if (t === 'level') return { type: 'level' };
+    if (t === 'mod') return { type: 'mod', ability: (trkForm.mability && trkForm.mability.value) || 'cha' };
+    return { type: 'fixed', value: 1 };
+  }
+  function setTrkOrigin(o) { trkOrigin = o; if (trkForm && trkForm.origins) trkForm.origins.querySelectorAll('.chip').forEach(function (c) { c.classList.toggle('on', c.getAttribute('data-o') === o); }); }
+  function syncMaxFields() { var t = trkForm.mtype ? trkForm.mtype.value : 'fixed'; if (trkForm.mfixed) trkForm.mfixed.hidden = (t !== 'fixed'); if (trkForm.mability) trkForm.mability.hidden = (t !== 'mod'); }
+  function storedMaxOf(id) { var arr = structural.customResources || []; for (var i = 0; i < arr.length; i++) if (arr[i].id === id) return arr[i].max; return null; }
+  function openForm(mode, spec) {
+    if (!trkForm || !trkForm.box) return;
+    trkEditId = (mode === 'edit' && spec) ? spec.id : null;
+    if (trkForm.name) trkForm.name.value = spec ? (spec.label || '') : '';
+    setTrkOrigin(spec ? (spec.origin || 'custom') : 'custom');
+    var raw = (mode === 'edit' && spec) ? storedMaxOf(spec.id) : null;
+    var tok = (typeof raw === 'number') ? { type: 'fixed', value: raw } : (raw || { type: 'fixed', value: spec ? (spec.max || 1) : 1 });
+    if (trkForm.mtype) trkForm.mtype.value = tok.type || 'fixed';
+    if (trkForm.mfixed) trkForm.mfixed.value = (tok.type === 'fixed') ? (tok.value || 1) : 1;
+    if (trkForm.mability) trkForm.mability.value = (tok.type === 'mod') ? (tok.ability || 'cha') : 'cha';
+    syncMaxFields();
+    if (trkForm.recharge) trkForm.recharge.value = spec ? rechargeKey(spec.recharge) : 'long';
+    if (trkForm.head) trkForm.head.classList.toggle('on', mode === 'edit');
+    if (trkForm.save) trkForm.save.textContent = (mode === 'edit') ? 'Save changes' : 'Add tracker';
+    if (trkForm.addRow) trkForm.addRow.setAttribute('aria-expanded', 'true');
+    trkForm.box.hidden = false;
+    if (trkForm.name) trkForm.name.focus();
+  }
+  function closeForm() { if (trkForm && trkForm.box) trkForm.box.hidden = true; trkEditId = null; if (trkForm && trkForm.addRow) trkForm.addRow.setAttribute('aria-expanded', 'false'); }
+  function toggleForm() { if (trkForm && trkForm.box && trkForm.box.hidden) openForm('add', null); else closeForm(); }
+  function saveForm() {
+    if (saving || !trkForm) return;
+    var label = ((trkForm.name && trkForm.name.value) || '').trim(); if (!label) { if (trkForm.name) trkForm.name.focus(); return; }
+    var tok = trkMaxToken(); var rech = (trkForm.recharge && trkForm.recharge.value) || 'long';
+    var prev = structural; var ns = JSON.parse(JSON.stringify(structural)); ns.customResources = (ns.customResources || []).slice();
+    if (trkEditId) {
+      for (var i = 0; i < ns.customResources.length; i++) if (ns.customResources[i].id === trkEditId) { ns.customResources[i] = Object.assign({}, ns.customResources[i], { label: label, origin: trkOrigin, max: tok, recharge: rech }); break; }
+    } else {
+      var id = newCustomId(label);
+      ns.customResources.push({ id: id, label: label, origin: trkOrigin, max: tok, recharge: rech });
+      var ord = orderIdsNow(); ord.push(id); ns.trackerOrder = ord;
+    }
+    structural = ns; refresh(); closeForm(); persistStructural(prev);
+  }
+
+  function onTrkClick(e) {
+    var t = e.target;
+    var pip = t.closest('[data-tpip]'); if (pip) { onPip(pip); return; }
+    var step = t.closest('[data-tstep]'); if (step) { onStep(step); return; }
+    var del = t.closest('[data-tdel]'); if (del) { openConfirm(del.closest('.trk[data-tid]')); return; }
+    var no = t.closest('[data-tcancel]'); if (no) { var r1 = no.closest('.trk[data-tid]'); if (r1) r1.classList.remove('confirming'); return; }
+    var yes = t.closest('[data-tconfirm]'); if (yes) { doRemove(yes.getAttribute('data-tconfirm'), yes.getAttribute('data-tcustom') === '1'); return; }
+    var ed = t.closest('[data-tedit]'); if (ed) { var sp = specFor(ed.getAttribute('data-tedit')); if (sp) openForm('edit', sp); return; }
+  }
+  function onTrkKey(e) {
+    var pip = e.target.closest('[data-tpip]'); if (pip && (e.key === 'Enter' || e.key === ' ')) { e.preventDefault(); onPip(pip); return; }
+    var grip = e.target.closest('[data-tgrip]'); if (grip && (e.key === 'ArrowUp' || e.key === 'ArrowDown')) { e.preventDefault(); moveByKey(grip, e.key === 'ArrowUp' ? -1 : 1); return; }
+  }
+  function onTrkEsc(e) {
+    if (e.key !== 'Escape') return;
+    var host = root.querySelector('[data-list="trackers"]');
+    if (host) { var c = host.querySelector('.trk.confirming'); if (c) { c.classList.remove('confirming'); return; } }
+    if (trkForm && trkForm.box && !trkForm.box.hidden) closeForm();
+  }
+  function bindTrackers(editable) {
+    var host = root.querySelector('[data-list="trackers"]');
+    trkForm = {
+      box: root.querySelector('[data-trk-form]'), addRow: root.querySelector('[data-trk-add]'),
+      name: root.querySelector('[data-trk-name]'), origins: root.querySelector('[data-trk-origins]'),
+      mtype: root.querySelector('[data-trk-mtype]'), mfixed: root.querySelector('[data-trk-mfixed]'),
+      mability: root.querySelector('[data-trk-mability]'), recharge: root.querySelector('[data-trk-recharge]'),
+      save: root.querySelector('[data-trk-save]'), head: root.querySelector('[data-trk-edithead]'),
+      title: root.querySelector('[data-trk-edittitle]'), cancel: root.querySelector('[data-trk-cancel]')
+    };
+    if (!editable) { if (trkForm.addRow) trkForm.addRow.classList.add('view-only'); return; }
+    if (host) {
+      host.addEventListener('click', onTrkClick);
+      host.addEventListener('keydown', onTrkKey);
+      host.addEventListener('pointerdown', function (e) { if (e.target.closest('[data-tgrip]')) startDrag(e); });
+    }
+    if (trkForm.addRow) {
+      trkForm.addRow.addEventListener('click', toggleForm);
+      trkForm.addRow.addEventListener('keydown', function (e) { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); toggleForm(); } });
+    }
+    if (trkForm.origins) trkForm.origins.addEventListener('click', function (e) { var c = e.target.closest('.chip'); if (c) setTrkOrigin(c.getAttribute('data-o')); });
+    if (trkForm.mtype) trkForm.mtype.addEventListener('change', syncMaxFields);
+    if (trkForm.save) trkForm.save.addEventListener('click', saveForm);
+    if (trkForm.cancel) trkForm.cancel.addEventListener('click', closeForm);
+    root.addEventListener('keydown', onTrkEsc);
+  }
+
   // load state + merge baseline, then gate + bind
   const ready = (async () => {
     let editable = false;
@@ -314,12 +516,14 @@ export function wireInspiration({ root, characterData, key } = {}) {
         hdMed.addEventListener('click', (e) => { e.stopPropagation(); openHdSpend(); });
         hdMed.addEventListener('keydown', (e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); openHdSpend(); } });
       }
+      bindTrackers(true);
     } else {
       toggle.classList.add('view-only');
       toggle.setAttribute('aria-disabled', 'true');
       root.querySelectorAll('[data-rest]').forEach((b) => {
         b.addEventListener('click', () => showStat('hint', 'view only', true));
       });
+      bindTrackers(false);
     }
   })();
 

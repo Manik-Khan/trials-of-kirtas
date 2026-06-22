@@ -69,11 +69,11 @@ const mockCD = { loadCharacter: () => Promise.resolve(clone(ROW)), canEdit: () =
 const container = document.createElement('div'); document.body.appendChild(container);
 mountSheet(container, 'caim', { characterData: mockCD });
 await settle();
-const liveSec = container.querySelector('[data-sec="resources"]');
-ok(!!liveSec && liveSec.style.display !== 'none', 'mounted sheet shows the Resources section for a Monk');
-const kiPool = container.querySelector('[data-list="resources"] .pool');
-ok(!!kiPool && /Ki Points/.test(kiPool.textContent), 'mounted Resources section contains the Ki pool');
-ok(kiPool && kiPool.querySelectorAll('.slot.on').length === 5, 'mounted Ki pool shows 5 of 6 (1 spent)');
+const liveTrk = container.querySelector('[data-list="trackers"]');
+ok(!!liveTrk, 'mounted sheet has the left-rail trackers panel');
+const kiRow = liveTrk && liveTrk.querySelector('.trk[data-tid="ki"]');
+ok(!!kiRow && /Ki Points/.test(kiRow.textContent), 'mounted trackers panel contains the Ki tracker');
+ok(kiRow && kiRow.querySelectorAll('.trk-p i.on').length === 5, 'mounted Ki tracker shows 5 of 6 pips filled (1 spent)');
 
 console.log((fail ? '\u2717' : '\u2713') + ' sheet-resources: ' + pass + ' passed, ' + fail + ' failed');
 process.exit(fail ? 1 : 0);

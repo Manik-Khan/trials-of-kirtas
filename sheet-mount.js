@@ -131,6 +131,57 @@ function renderResources(root, pools){
   var host=root.querySelector('[data-list="resources"]'); if(host) host.innerHTML=pools.map(poolHTML).join('');
   var sec=root.querySelector('[data-sec="resources"]');   if(sec) sec.style.display=pools.length?'':'none';
 }
+// ── Resource trackers: the curated, tap-to-spend, drag-reorder left-rail panel.
+// Pure data render (the interaction layer in sheet-actions.js owns spend / add /
+// edit / remove / drag and re-renders through here). Each tracker's accent keys off
+// its classification (gold class / teal subclass / red race / purple feat / gold
+// weapon / neutral custom). available = derived/custom max − vitals.pipState[id].
+var TRK_ACCENT={ 'class':'var(--o-class)', subclass:'var(--o-subclass)', race:'var(--o-race)', feat:'var(--o-feat)', item:'var(--gold)', custom:'var(--cream-dim)' };
+var TRK_LABEL ={ 'class':'Class', subclass:'Subclass', race:'Race', feat:'Feat', item:'Weapon', custom:'Custom' };
+function trkAccent(o){ return TRK_ACCENT[o]||TRK_ACCENT.custom; }
+function trkLabel(o){ return TRK_LABEL[o]||TRK_LABEL.custom; }
+// The visible, ordered specs for the panel. structural.trackerOrder is the curated
+// set + order once the player has touched it; absent → pre-seed = every derived /
+// custom pool in derive order. A stale id (resource no longer applies) self-heals out.
+function trackerSpecs(structural){
+  var RD=(typeof window!=='undefined' && window.ResourceDerive)?window.ResourceDerive:null;
+  var specs=(RD && RD.derive)?RD.derive(structural||{}):[];
+  var order=structural&&structural.trackerOrder;
+  if(order&&order.length){ var byId={}; specs.forEach(function(s){ byId[s.id]=s; }); return order.map(function(id){ return byId[id]; }).filter(Boolean); }
+  return specs;
+}
+function trkSpend(spec, spent){
+  var cur=Math.max(0,(spec.max||0)-(spent||0)), acc=trkAccent(spec.origin);
+  if((spec.max||0)>6){
+    return '<div class="trk-count" style="--accent:'+acc+'">'
+      +'<button class="step" type="button" data-tstep="-1" aria-label="Spend one">\u2212</button>'
+      +'<span class="num">'+cur+' / '+spec.max+'</span>'
+      +'<button class="step" type="button" data-tstep="1" aria-label="Restore one">+</button></div>';
+  }
+  var out='<div class="trk-p" style="--accent:'+acc+'" role="group" aria-label="'+esc(spec.label)+'">';
+  for(var i=0;i<(spec.max||0);i++){ out+='<i tabindex="0" role="button" data-tpip="'+i+'" class="'+(i<cur?'on':'')+'" aria-label="'+(i<cur?'spend':'restore')+'"></i>'; }
+  return out+'</div>';
+}
+function renderTrackers(root, structural, vitals){
+  root=root||document; structural=structural||{}; vitals=vitals||{};
+  var host=root.querySelector('[data-list="trackers"]'); if(!host) return;
+  var pip=vitals.pipState||{};
+  host.innerHTML=trackerSpecs(structural).map(function(s){
+    var acc=trkAccent(s.origin), spent=pip[s.id]||0;
+    var right=trkSpend(s, spent)
+      +(s.custom?'<button class="trk-e" type="button" data-tedit="'+esc(s.id)+'" aria-label="Edit '+esc(s.label)+'">\u270E</button>':'')
+      +'<button class="trk-x" type="button" data-tdel="'+esc(s.id)+'" data-tcustom="'+(s.custom?1:0)+'" aria-label="Remove '+esc(s.label)+'">\u2715</button>'
+      +'<div class="trk-confirm"><span class="cf-l">delete?</span>'
+        +'<button class="cf-yes" type="button" data-tconfirm="'+esc(s.id)+'" data-tcustom="'+(s.custom?1:0)+'">Delete</button>'
+        +'<button class="cf-no" type="button" data-tcancel>Keep</button></div>';
+    return '<div class="trk" data-tid="'+esc(s.id)+'" style="--accent:'+acc+'">'
+      +'<button class="grip" type="button" data-tgrip aria-label="Reorder '+esc(s.label)+' (arrow keys to move)"></button>'
+      +'<span class="trk-bar"></span>'
+      +'<div class="trk-main"><div class="trk-n">'+esc(s.label)+'</div>'
+      +'<div class="trk-meta"><span class="trk-src">'+esc(trkLabel(s.origin))+'</span> \u00B7 '+esc(s.recharge||'')+'</div></div>'
+      +right+'</div>';
+  }).join('');
+}
 // Live hit-dice readout. Derived TOTAL per die size (ResourceDerive.deriveHitDice);
 // SPENT comes from vitals.hitDiceSpent — available = total - spent. Pips when few,
 // a compact avail/total when a die has more than six.
@@ -179,7 +230,7 @@ function renderSheet(root, char){
   if(notes!=null) setF('notes', notes);
   renderAbilities(root, ab); renderSaves(root, s); renderSkills(root, s.skills); renderFeatures(root, s.features);
   renderSpellcasting(root, s.spellcasting||{});
-  renderResources(root, s.resources||[]);
+  renderTrackers(root, s, v);
 }
 // ── live data: map a CharacterData row into the renderer's shape, then bind ──
 function normSkills(sk){
@@ -425,10 +476,46 @@ var SHEET_TEMPLATE = `<main class="sheet">
       </div>
       <div class="lblock">
         <div class="lhead">Resources <span class="lhint">tap to spend</span></div>
-        <div class="trk"><span class="trk-n">Hexblade's Curse</span><span class="trk-r">short rest</span><span class="trk-p"><i class="on"></i></span></div>
-        <div class="trk"><span class="trk-n">Starlight Step</span><span class="trk-r">long rest</span><span class="trk-p"><i class="on"></i><i class="on"></i></span></div>
-        <div class="trk"><span class="trk-n">Strength of the Grave</span><span class="trk-r">long rest</span><span class="trk-p"><i class="on"></i></span></div>
-        <div class="trk add"><span class="trk-n">+ add tracker</span></div>
+        <div data-list="trackers"></div>
+        <div class="trk add" data-trk-add tabindex="0" role="button" aria-expanded="false"><span class="trk-n">+ add tracker</span></div>
+        <div class="taddbox" data-trk-form hidden>
+          <div class="tedit-head" data-trk-edithead><span class="t" data-trk-edittitle>Edit tracker</span><button class="x" type="button" data-trk-cancel>cancel</button></div>
+          <div class="tform">
+            <label class="tfld" for="trk-name">Name</label>
+            <input class="tinput" id="trk-name" type="text" maxlength="40" placeholder="e.g. Channel Divinity" data-trk-name>
+            <label class="tfld">Classification</label>
+            <div class="chips" data-trk-origins>
+              <button type="button" class="chip" data-o="class" style="--c:var(--o-class)"><i></i>Class</button>
+              <button type="button" class="chip" data-o="subclass" style="--c:var(--o-subclass)"><i></i>Subclass</button>
+              <button type="button" class="chip" data-o="race" style="--c:var(--o-race)"><i></i>Race</button>
+              <button type="button" class="chip" data-o="feat" style="--c:var(--o-feat)"><i></i>Feat</button>
+              <button type="button" class="chip" data-o="item" style="--c:var(--gold)"><i></i>Weapon</button>
+              <button type="button" class="chip on" data-o="custom" style="--c:var(--cream-dim)"><i></i>Custom</button>
+            </div>
+            <label class="tfld">Maximum</label>
+            <div class="tmax">
+              <select class="tsel" data-trk-mtype>
+                <option value="fixed">Fixed number</option>
+                <option value="pb">Proficiency bonus</option>
+                <option value="level">Character level</option>
+                <option value="mod">Ability modifier</option>
+              </select>
+              <input class="tinput" type="number" min="1" max="20" value="1" data-trk-mfixed>
+              <select class="tsel" data-trk-mability hidden>
+                <option value="cha">CHA</option><option value="con">CON</option><option value="wis">WIS</option>
+                <option value="int">INT</option><option value="dex">DEX</option><option value="str">STR</option>
+              </select>
+            </div>
+            <div style="height:10px"></div>
+            <label class="tfld" for="trk-recharge">Recharges on</label>
+            <select class="tsel" id="trk-recharge" data-trk-recharge>
+              <option value="long">Long rest</option>
+              <option value="short">Short rest</option>
+              <option value="short-long">Short or long rest</option>
+            </select>
+            <button class="tbtn" type="button" data-trk-save>Add tracker</button>
+          </div>
+        </div>
       </div>
       <div class="lblock">
         <div class="lhead">Status</div>
@@ -557,14 +644,6 @@ var SHEET_TEMPLATE = `<main class="sheet">
         </div>
       </div>
 
-      <!-- RESOURCES (derived class + racial pools — Ki / Bardic / Superiority / Starlight Step) -->
-      <div class="block" data-sec="resources" style="display:none">
-        <div class="sectitle"><span class="swashwrap"><h2>Resources</h2></span><span class="tail"></span><span class="hint">held in reserve</span></div>
-        <div class="panelbox">
-          <div class="spellhead" data-list="resources"></div>
-        </div>
-      </div>
-
       <!-- FEATURES -->
       <div class="block">
         <div class="sectitle"><span class="swashwrap"><h2>Features</h2></span><span class="tail"></span><span class="hint">&amp; traits</span></div>
@@ -643,7 +722,7 @@ function mountSheet(container, key, opts){
 
 if (typeof window !== 'undefined') {
   window.mountSheet = mountSheet;
-  window.__sheet = { renderSheet: renderSheet, toRenderShape: toRenderShape, buildSpellcasting: buildSpellcasting, buildResources: buildResources, renderResources: renderResources, renderHitDice: renderHitDice, applyExtras: applyExtras, mountSheet: mountSheet };
+  window.__sheet = { renderSheet: renderSheet, toRenderShape: toRenderShape, buildSpellcasting: buildSpellcasting, buildResources: buildResources, renderResources: renderResources, renderTrackers: renderTrackers, trackerSpecs: trackerSpecs, renderHitDice: renderHitDice, applyExtras: applyExtras, mountSheet: mountSheet };
 }
 
 export { mountSheet };

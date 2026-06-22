@@ -47,36 +47,57 @@
     return 0;
   }
 
+  // The build's class list. Prefer structural.classes[]; when it's absent (the git
+  // export / current live rows carry only classLabel + structural.subclass), parse
+  // the label — "Warlock 2 / Sorcerer 1" → [{Warlock 2},{Sorcerer 1}], single-class
+  // "Monk" → level from structural.level. Subclass attaches to the first class
+  // (best-effort; enough for Ki / Bardic / Battle Master / racial pools).
+  function classesFrom(structural) {
+    if (Array.isArray(structural.classes) && structural.classes.length) return structural.classes;
+    var label = String(structural.classLabel || '').trim();
+    if (!label) return [];
+    var sub = structural.subclass || '';
+    var parts = label.split('/').map(function (s) { return s.trim(); }).filter(Boolean);
+    return parts.map(function (p, i) {
+      var m = p.match(/^(.*?)\s+(\d+)\s*$/);
+      var name = m ? m[1].trim() : p;
+      var lv = m ? parseInt(m[2], 10) : (parts.length === 1 ? (structural.level || 0) : 0);
+      return { name: name, level: lv, subclass: (i === 0 ? sub : '') };
+    });
+  }
+
   function derive(structural) {
     structural = structural || {};
-    var classes = structural.classes || [];
+    var classes = classesFrom(structural);
     var out = [];
 
     classes.forEach(function (c) {
       var name = c.name || '', sub = c.subclass || '', L = c.level || 0;
 
       if (has(name, 'monk') && L >= 2) {
-        out.push({ id: 'ki', label: 'Ki Points', tag: 'Ki', max: L, die: null, recharge: 'short rest', tone: 'class', source: 'class' });
+        out.push({ id: 'ki', label: 'Ki Points', tag: 'Ki', max: L, die: null, recharge: 'short rest', tone: 'class', source: 'class', origin: 'class' });
       }
       if (has(name, 'bard')) {
-        out.push({ id: 'bardicInspiration', label: 'Bardic Inspiration', tag: 'Bard', max: Math.max(1, abilMod(structural, 'cha')), die: bardDie(L), recharge: L >= 5 ? 'short or long rest' : 'long rest', tone: 'class', source: 'class' });
+        out.push({ id: 'bardicInspiration', label: 'Bardic Inspiration', tag: 'Bard', max: Math.max(1, abilMod(structural, 'cha')), die: bardDie(L), recharge: L >= 5 ? 'short or long rest' : 'long rest', tone: 'class', source: 'class', origin: 'class' });
       }
       if (has(name, 'fighter') && (has(sub, 'battle master') || has(sub, 'battlemaster')) && L >= 3) {
-        out.push({ id: 'superiorityDice', label: 'Superiority Dice', tag: 'Sup', max: bmCount(L), die: bmDie(L), recharge: 'short or long rest', tone: 'subclass', source: 'subclass' });
+        out.push({ id: 'superiorityDice', label: 'Superiority Dice', tag: 'Sup', max: bmCount(L), die: bmDie(L), recharge: 'short or long rest', tone: 'subclass', source: 'subclass', origin: 'subclass' });
       }
       // Sorcerer / spell slots stay in Spellcasting (static) — not derived here, to avoid duplication.
     });
 
     if (has(structural.race, 'astral elf')) {
-      out.push({ id: 'starlightStep', label: 'Starlight Step', tag: 'Step', max: profBonus(structural), die: null, recharge: 'long rest', tone: 'class', source: 'race' });
+      out.push({ id: 'starlightStep', label: 'Starlight Step', tag: 'Step', max: profBonus(structural), die: null, recharge: 'long rest', tone: 'class', source: 'race', origin: 'race' });
     }
 
     // Player-authored resources (homebrew, magic-item charges, anything not in the
     // tables). Same spec shape as the derived pools — rendered + spent identically.
+    // `origin` is the player's chosen classification; `custom:true` marks it editable.
     (structural.customResources || []).forEach(function (cr) {
       if (!cr || !cr.label) return;
       out.push({ id: cr.id || ('cr_' + slug(cr.label)), label: cr.label, tag: tagFromLabel(cr.label),
-                 max: resolveMax(cr.max, structural), die: null, recharge: rechargeText(cr.recharge), tone: 'class', source: 'custom' });
+                 max: resolveMax(cr.max, structural), die: null, recharge: rechargeText(cr.recharge),
+                 tone: 'class', source: 'custom', origin: (cr.origin || 'custom'), custom: true });
     });
     return out;
   }
@@ -119,6 +140,6 @@
     derive: derive,
     deriveHitDice: deriveHitDice,
     // exposed for tests / reuse
-    _fn: { bardDie: bardDie, bmCount: bmCount, bmDie: bmDie, profBonus: profBonus, abilMod: abilMod, resolveMax: resolveMax, tagFromLabel: tagFromLabel, rechargeText: rechargeText, slug: slug, hdFacesForClass: hdFacesForClass }
+    _fn: { bardDie: bardDie, bmCount: bmCount, bmDie: bmDie, profBonus: profBonus, abilMod: abilMod, resolveMax: resolveMax, tagFromLabel: tagFromLabel, rechargeText: rechargeText, slug: slug, hdFacesForClass: hdFacesForClass, classesFrom: classesFrom }
   };
 })();
