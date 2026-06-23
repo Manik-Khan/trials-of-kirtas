@@ -100,8 +100,8 @@ const spell = (c, name) => { const els = c.querySelectorAll('.spell[data-spell]'
 {
   feedLog = [];
   const { container, saved } = mount(cosmereRow); await settle();
-  fire(spell(container, 'Eldritch Blast'), 'click'); await settle();
-  ok(feedLog.length === 1 && /Eldritch Blast/.test(feedLog[0].body) && /cantrip/.test(feedLog[0].body), 'cantrip posted to feed as a cantrip');
+  fire(spell(container, 'Minor Illusion'), 'click'); await settle();
+  ok(feedLog.length === 1 && /Minor Illusion/.test(feedLog[0].body) && /cantrip/.test(feedLog[0].body), 'utility cantrip posted to feed as a cantrip (no bridge)');
   const v = lastVitals(saved);
   ok(!v || !v.pipState || Object.keys(v.pipState).length === 0, 'cantrip spent no slot');
   ok(!v || !v.concentration, 'cantrip set no concentration');

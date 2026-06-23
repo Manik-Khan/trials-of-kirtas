@@ -568,7 +568,15 @@ export function wireInspiration({ root, characterData, key } = {}) {
     if (base >= 1) {
       nv.pipState = Object.assign({}, nv.pipState || {}); nv.pipState[p.key] = (nv.pipState[p.key] || 0) + 1;
       main = 'cast \u00B7 ' + ordn(p.level) + '-level (' + p.label + ')' + (p.level > base ? ' \u25B2 upcast from ' + ordn(base) : '');
-    } else { main = 'cast \u00B7 cantrip'; }
+    } else {
+      // Damage/attack cantrip that's also a rollable action (Booming Blade,
+      // Eldritch Blast) → roll it, exactly like tapping it in Actions. A utility
+      // match (Minor Illusion) is inert in Actions too, so it falls through to the
+      // cast announcement rather than rolling.
+      var bridged = actionByLabel(spellName);
+      if (bridged && bridged.type !== 'utility') { doRoll(bridged); return; }
+      main = 'cast \u00B7 cantrip';
+    }
     if (isConc) nv.concentration = { name: spellName, duration: '' };
     vitals = nv; refresh(); persistVitals(prev);
     feedPost(spellName, main + (isConc ? ' \u00B7 concentration' : ''));
@@ -607,6 +615,7 @@ export function wireInspiration({ root, characterData, key } = {}) {
   var rollRS = { advantage: false, disadvantage: false, bless: false };
   var rollHist = [];
   function actionById(id) { var as = structural.actions || []; for (var i = 0; i < as.length; i++) if ((as[i].id || as[i].label) === id) return as[i]; return null; }
+  function actionByLabel(name) { var as = structural.actions || [], n = String(name == null ? '' : name).trim().toLowerCase(); if (!n) return null; for (var i = 0; i < as.length; i++) if (String(as[i].label || '').trim().toLowerCase() === n) return as[i]; return null; }
   function deriveAction(a) {
     var api = sheetApi(), m = api.deriveActionMods ? api.deriveActionMods(a, structural) : { hitMod: +a.hitMod || 0, dmgMod: +a.dmgMod || 0 };
     var o = Object.assign({}, a); o.hitMod = m.hitMod; o.dmgMod = m.dmgMod;
