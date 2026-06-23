@@ -126,17 +126,37 @@
 
     var page = document.createElement('div');
     page.className = 'sf-page';
+    var bg = document.createElement('div');        // non-scrolling appearance layer (per-tab)
+    bg.className = 'sf-bg';
+    var scroll = document.createElement('div');     // the sheet scrolls in here, over the bg
+    scroll.className = 'sf-scroll';
+    page.appendChild(bg);
+    page.appendChild(scroll);
     stackEl.appendChild(page);
 
-    tabs[key] = { tab: tab, page: page, name: name || key };
+    tabs[key] = { tab: tab, page: page, scroll: scroll, bg: bg, name: name || key };
     activate(key);
 
     if (window.mountSheet) {
-      try { window.mountSheet(page, key); }
-      catch (e) { page.innerHTML = errHTML('Could not load this sheet.'); console.error('[sheetfloat] mount failed:', e); }
+      try { window.mountSheet(scroll, key); }
+      catch (e) { scroll.innerHTML = errHTML('Could not load this sheet.'); console.error('[sheetfloat] mount failed:', e); }
     } else {
-      page.innerHTML = errHTML('Sheet engine not loaded.');
+      scroll.innerHTML = errHTML('Sheet engine not loaded.');
     }
+    // The sheet's own in-place roll feed duplicates the right-rail feed in the
+    // float AND grows the Actions block, pushing Spellcasting down. Drop the
+    // element outright from this tab — renderActionResult then no-ops on every
+    // roll (it bails when the host is missing), and the standalone sheet, which
+    // has no right rail, keeps its copy untouched. Done in JS so it can't depend
+    // on the stylesheet landing.
+    var arFeed = scroll.querySelector('[data-list="actionResult"], .actionresult');
+    if (arFeed) arFeed.remove();
+    // paint this character's saved look into the tab background — per-character,
+    // read-only (writes stay owner-only via the cog on the standalone sheet).
+    // Lazy-loaded; cosmetic, so any failure is swallowed and never blocks the sheet.
+    import('./appearance-float.js')
+      .then(function (m) { m.loadFloatAppearance(window.__tok && window.__tok.sb, key, page); })
+      .catch(function () {});
     tab.scrollIntoView({ inline: 'nearest', block: 'nearest' });
   }
   function errHTML(msg) { return '<div style="padding:18px;color:#e0584a;font-family:\'EB Garamond\',serif">' + esc(msg) + '</div>'; }
@@ -195,11 +215,11 @@
     // doesn't duplicate handlers. A self-echo repaints identical values = invisible.
     refresh: function (key) {
       var t = tabs[key];
-      if (!t || !window.__sheet || !window.__sheet.renderSheet || !window.CharacterData) return;
+      if (!t || !t.scroll || !window.__sheet || !window.__sheet.renderSheet || !window.CharacterData) return;
       window.CharacterData.loadCharacter(key).then(function (cd) {
         if (!cd || !tabs[key]) return;                       // tab closed while we loaded
         var shape = window.__sheet.toRenderShape ? window.__sheet.toRenderShape(cd) : cd;
-        try { window.__sheet.renderSheet(t.page, shape); }
+        try { window.__sheet.renderSheet(t.scroll, shape); }
         catch (e) { console.warn('[sheetfloat] refresh failed:', e && e.message); }
       }).catch(function () {});
     },
