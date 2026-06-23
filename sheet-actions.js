@@ -565,6 +565,43 @@ export function wireInspiration({ root, characterData, key } = {}) {
   }
   function bindSpellcasting(editable) { if (!editable) return; root.addEventListener('click', onCastClick); }
 
+  // ── Attacks: stateless rolling through the shared DiceEngine. Tap an action →
+  // roll with the live Adv/Dis/Bless toggles → paint the result card + post to the
+  // feed (the same engine the HUD uses, so rows read identically). Toggles consume
+  // after each roll. No save path: a roll mutates nothing on the character.
+  var rollRS = { advantage: false, disadvantage: false, bless: false };
+  var rollHist = [];
+  function actionById(id) { var as = structural.actions || []; for (var i = 0; i < as.length; i++) if ((as[i].id || as[i].label) === id) return as[i]; return null; }
+  function deriveAction(a) {
+    var api = sheetApi(), m = api.deriveActionMods ? api.deriveActionMods(a, structural) : { hitMod: +a.hitMod || 0, dmgMod: +a.dmgMod || 0 };
+    var o = Object.assign({}, a); o.hitMod = m.hitMod; o.dmgMod = m.dmgMod;
+    if (!o.critDice && o.dmgDice) { var mm = String(o.dmgDice).match(/(\d+)d(\d+)/); if (mm) o.critDice = (2 * parseInt(mm[1], 10)) + 'd' + mm[2]; }
+    return o;
+  }
+  function renderRollMods() { root.querySelectorAll('[data-rmod]').forEach(function (b) { b.classList.toggle('on', !!rollRS[b.getAttribute('data-rmod')]); }); }
+  function feedPostRoll(r) { try { var b = (typeof window !== 'undefined' ? window : globalThis).__battle; if (b && typeof b.onLogRoll === 'function') b.onLogRoll({ actorKey: key, name: r.name, main: r.main, detail: r.detail, dmg: r.dmg }); } catch (_) {} }
+  function doRoll(a) {
+    var DE = (typeof window !== 'undefined' ? window : globalThis).DiceEngine;
+    if (!DE) { showStat('hint', 'roll engine offline', true); return; }
+    var r = DE.rollAction(deriveAction(a), { advantage: rollRS.advantage, disadvantage: rollRS.disadvantage, bless: rollRS.bless });
+    rollHist.unshift(r);
+    var api = sheetApi(); if (api.renderActionResult) api.renderActionResult(root, rollHist);
+    feedPostRoll(r);
+    if (a.type !== 'utility') { rollRS.advantage = false; rollRS.disadvantage = false; rollRS.bless = false; renderRollMods(); }   // consume per-roll toggles
+  }
+  function onActionClick(e) {
+    var rm = e.target.closest('[data-rmod]');
+    if (rm) { var k = rm.getAttribute('data-rmod');
+      if (k === 'advantage') { rollRS.advantage = !rollRS.advantage; if (rollRS.advantage) rollRS.disadvantage = false; }
+      else if (k === 'disadvantage') { rollRS.disadvantage = !rollRS.disadvantage; if (rollRS.disadvantage) rollRS.advantage = false; }
+      else rollRS[k] = !rollRS[k];
+      renderRollMods(); return;
+    }
+    var ac = e.target.closest('.act[data-act]'); if (ac) { var a = actionById(ac.getAttribute('data-act')); if (a && a.type !== 'utility') doRoll(a); return; }
+  }
+  function onActionKey(e) { if (e.key !== 'Enter' && e.key !== ' ') return; var ac = e.target.closest('.act[data-act]'); if (ac) { var a = actionById(ac.getAttribute('data-act')); if (a && a.type !== 'utility') { e.preventDefault(); doRoll(a); } } }
+  function bindAttacks(editable) { renderRollMods(); if (!editable) return; root.addEventListener('click', onActionClick); root.addEventListener('keydown', onActionKey); }
+
   // load state + merge baseline, then gate + bind
   const ready = (async () => {
     let editable = false;
@@ -591,6 +628,7 @@ export function wireInspiration({ root, characterData, key } = {}) {
       }
       bindTrackers(true);
       bindSpellcasting(true);
+      bindAttacks(true);
     } else {
       toggle.classList.add('view-only');
       toggle.setAttribute('aria-disabled', 'true');
@@ -599,6 +637,7 @@ export function wireInspiration({ root, characterData, key } = {}) {
       });
       bindTrackers(false);
       bindSpellcasting(false);
+      bindAttacks(false);
     }
   })();
 

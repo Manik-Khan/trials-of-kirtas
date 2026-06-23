@@ -244,6 +244,7 @@ function renderSheet(root, char){
   renderAbilities(root, ab); renderSaves(root, s); renderSkills(root, s.skills); renderFeatures(root, s.features);
   renderSpellcasting(root, s.spellcasting||{});
   renderConcentration(root, v);
+  renderActions(root, s);
   renderTrackers(root, s, v);
 }
 // ── live data: map a CharacterData row into the renderer's shape, then bind ──
@@ -288,6 +289,63 @@ function buildResources(s, v){
     return { label:r.label, badge:(r.die||''), tone:r.tone, max:r.max, current:cur,
              recharge: cur+' of '+r.max+(r.recharge?' \u00B7 '+r.recharge:'') };
   });
+}
+// ── Actions: weapon/cantrip attacks, bonus damage, utility. Hit + damage derive
+// from the chosen ability + proficiency; with no ability set they fall back to a
+// flat hitMod/dmgMod, so existing data keeps working. Rolling is STATELESS — the
+// interaction layer in sheet-actions.js rolls through DiceEngine and posts to the
+// feed; these functions just paint the list and the result cards (the cards are
+// built from the engine's structured fields, not its HUD strings).
+function abilModOf(s, k){ var ab=(s.abilities||{})[k]; return ab && ab.mod!=null ? ab.mod : 0; }
+function deriveActionMods(a, s){
+  a=a||{}; s=s||{}; var prof=s.proficiencyBonus||0, hit, dmg;
+  if(a.ability){ hit=abilModOf(s,a.ability)+(a.proficient?prof:0)+(+a.atkBonus||0); dmg=(a.dmgAbility?abilModOf(s,a.ability):0)+(+a.dmgBonus||0); }
+  else { hit=+a.hitMod||0; dmg=+a.dmgMod||0; }
+  return { hitMod:hit, dmgMod:dmg, abil:a.ability?String(a.ability).toUpperCase():'' };
+}
+function actionGroup(t){ return (t==='attack'||t==='attack-cantrip')?'attack':(t==='damage-only'?'damage':'utility'); }
+function dmgFrag(dice, dmgMod, type){ if(!dice) return ''; return '<b>'+esc(dice)+(dmgMod?(dmgMod>=0?'+':'')+dmgMod:'')+'</b> '+esc(type||''); }
+function actionRowHTML(a, s){
+  a=a||{}; var g=actionGroup(a.type), m=deriveActionMods(a, s), meta;
+  if(g==='utility') meta='<div class="ac-note">'+esc(a.note||'')+'</div>';
+  else if(g==='damage') meta='<div class="ac-meta">'+dmgFrag(a.dmgDice, m.dmgMod, a.dmgType)+'</div>';
+  else meta='<div class="ac-meta">'+(m.abil?'<span class="ac-abil">'+esc(m.abil)+'</span> \u00B7 ':'')+'to hit <b>'+(m.hitMod>=0?'+':'')+m.hitMod+'</b> \u00B7 dmg '+dmgFrag(a.dmgDice, m.dmgMod, a.dmgType)+'</div>';
+  return '<div class="act '+g+'" data-act="'+esc(a.id||a.label||'')+'"'+(g==='utility'?'':' tabindex="0" role="button"')+'>'
+       + '<div class="ac-main"><div class="ac-n">'+esc(a.label||'')+'</div>'+meta+'</div>'
+       + (g==='utility'?'':'<span class="ac-go">roll</span>')+'</div>';
+}
+function renderActions(root, s){
+  root=root||document; s=s||{};
+  var sec=root.querySelector('[data-sec="actions"]'), host=root.querySelector('[data-list="actions"]');
+  var list=s.actions||[];
+  if(sec) sec.style.display = list.length ? '' : 'none';
+  if(!host) return;
+  var groups=[['attack','Attacks'],['damage','Bonus damage'],['utility','Utility']];
+  host.innerHTML = groups.map(function(gp){
+    var rows=list.filter(function(a){ return actionGroup(a.type)===gp[0]; });
+    if(!rows.length) return '';
+    return '<div class="agrp"><div class="agrp-h">'+gp[1]+'</div>'+rows.map(function(a){ return actionRowHTML(a, s); }).join('')+'</div>';
+  }).join('');
+}
+function ordModStr(n){ return n>=0?'+'+n:''+n; }
+function d20CardHTML(d){ d=d||{}; var kept='<span class="rcd-die'+(d.isCrit?' nat20':(d.isFumble?' nat1':''))+'">'+d.kept+'</span>'; return d.twin?kept+'<span class="rcd-die drop">'+d.dropped+'</span>':kept; }
+function actionResultHTML(r, latest){
+  var inner;
+  if(r.kind==='utility') inner='<div class="rcd-n">'+esc(r.name)+'</div><div class="rcd-note">'+esc(r.main||'')+'</div>';
+  else if(r.kind==='damage') inner='<div class="rcd-n">'+esc(r.name)+'</div><div class="rcd-line"><span class="rcd-lab">Damage</span><span class="rcd-expr">['+(r.dmgRolls||[]).join('][')+']'+(r.dmgMod?' '+ordModStr(r.dmgMod):'')+'</span><span class="rcd-tot dmg">'+r.dmgTotal+'</span></div><div class="rcd-type">'+esc(r.dmgType||'')+'</div>';
+  else { var flag=r.isCrit?'<span class="rcd-flag crit">\u2605 Crit</span>':(r.isFumble?'<span class="rcd-flag miss">\u2717 Nat 1</span>':'');
+    inner='<div class="rcd-n">'+esc(r.name)+flag+'</div>'
+      + '<div class="rcd-line"><span class="rcd-lab">To hit</span><span class="rcd-expr">'+d20CardHTML(r.d20)+' '+ordModStr(r.hitMod||0)+(r.bless?' +'+r.bless+'\uD83D\uDE4F':'')+'</span><span class="rcd-tot">'+r.total+'</span></div>'
+      + '<div class="rcd-line"><span class="rcd-lab">'+(r.isCrit?'Crit dmg':'Damage')+'</span><span class="rcd-expr">['+(r.dmgRolls||[]).join('][')+']'+(r.dmgMod?' '+ordModStr(r.dmgMod):'')+'</span><span class="rcd-tot dmg">'+r.dmgTotal+'</span></div>'
+      + '<div class="rcd-type">'+esc(r.dmgType||'')+'</div>';
+  }
+  return '<div class="rcard'+(latest?' latest':'')+'">'+inner+'</div>';
+}
+function renderActionResult(root, hist){
+  root=root||document; var host=root.querySelector('[data-list="actionResult"]'); if(!host) return;
+  hist=hist||[];
+  host.innerHTML = hist.length ? hist.slice(0,4).map(function(r,i){ return actionResultHTML(r, i===0); }).join('')
+    : '<div class="rcard-empty">Tap an action to roll \u2014 the result lands here, and on the feed.</div>';
 }
 function toRenderShape(cd){
   cd=cd||{}; var s=Object.assign({}, cd.structural||{}), v=Object.assign({}, cd.vitals||{});
@@ -596,6 +654,20 @@ var SHEET_TEMPLATE = `<main class="sheet">
         </div>
       </div>
 
+      <!-- ACTIONS -->
+      <div class="block" data-sec="actions">
+        <div class="sectitle"><span class="swashwrap"><h2>Actions</h2></span><span class="tail"></span><span class="hint">tap to roll</span></div>
+        <div class="panelbox">
+          <div class="roll-mods" data-roll-mods>
+            <button class="rmod" type="button" data-rmod="advantage">Advantage</button>
+            <button class="rmod" type="button" data-rmod="disadvantage">Disadvantage</button>
+            <button class="rmod" type="button" data-rmod="bless">Bless</button>
+          </div>
+          <div class="actionlist" data-list="actions"></div>
+          <div class="actionresult" data-list="actionResult"><div class="rcard-empty">Tap an action to roll &mdash; the result lands here, and on the feed.</div></div>
+        </div>
+      </div>
+
       <!-- SPELLCASTING -->
       <div class="block">
         <div class="sectitle"><span class="swashwrap"><h2>Spellcasting</h2></span><span class="tail"></span><span class="hint">two pools, one soul</span></div>
@@ -705,7 +777,7 @@ function mountSheet(container, key, opts){
 
 if (typeof window !== 'undefined') {
   window.mountSheet = mountSheet;
-  window.__sheet = { renderSheet: renderSheet, toRenderShape: toRenderShape, buildSpellcasting: buildSpellcasting, buildResources: buildResources, renderResources: renderResources, renderTrackers: renderTrackers, trackerSpecs: trackerSpecs, renderConcentration: renderConcentration, renderHitDice: renderHitDice, applyExtras: applyExtras, mountSheet: mountSheet };
+  window.__sheet = { renderSheet: renderSheet, toRenderShape: toRenderShape, buildSpellcasting: buildSpellcasting, buildResources: buildResources, renderResources: renderResources, renderTrackers: renderTrackers, trackerSpecs: trackerSpecs, renderConcentration: renderConcentration, renderActions: renderActions, renderActionResult: renderActionResult, deriveActionMods: deriveActionMods, renderHitDice: renderHitDice, applyExtras: applyExtras, mountSheet: mountSheet };
 }
 
 export { mountSheet };

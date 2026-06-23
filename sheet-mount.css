@@ -320,6 +320,56 @@
 .conc-banner .cc-drop:hover{border-color:var(--o-subclass);color:var(--cream-hi)}
 .conc-banner .cc-drop:focus-visible{outline:2px solid var(--cream-hi);outline-offset:1px}
 
+/* ── Actions: tap-to-roll surface (attacks / bonus damage / utility) ── */
+.roll-mods{display:flex; gap:7px; margin-bottom:13px}
+.rmod{flex:1; font-family:"Oswald",sans-serif; font-weight:600; letter-spacing:.07em; text-transform:uppercase; font-size:10px; color:var(--cream-dim); background:transparent; border:1px solid var(--hair); padding:8px 5px; cursor:pointer; transition:border-color .13s,color .13s,background .13s}
+.rmod:hover{border-color:var(--cream-dim); color:var(--cream-hi)}
+.rmod:focus-visible{outline:2px solid var(--cream-hi); outline-offset:1px}
+.rmod[data-rmod="advantage"].on{background:rgba(85,196,192,.16); border-color:var(--o-subclass); color:var(--o-subclass)}
+.rmod[data-rmod="disadvantage"].on{background:rgba(162,59,52,.2); border-color:var(--red-br); color:var(--red-br)}
+.rmod[data-rmod="bless"].on{background:rgba(231,194,121,.16); border-color:var(--gold-br); color:var(--gold-br)}
+
+.agrp{margin-bottom:12px}
+.agrp:last-child{margin-bottom:0}
+.agrp-h{font-family:"Oswald",sans-serif; font-weight:600; letter-spacing:.12em; text-transform:uppercase; font-size:9.5px; color:var(--cream-fnt); margin:0 0 6px}
+.act{display:flex; align-items:center; gap:10px; padding:9px 11px; margin-bottom:6px; background:var(--panel-2); border:1px solid var(--hair); border-left:2px solid var(--acc,var(--gold-br)); cursor:pointer; transition:border-color .12s,background .12s}
+.act:last-child{margin-bottom:0}
+.act.attack{--acc:var(--gold-br)} .act.damage{--acc:var(--o-race)} .act.utility{--acc:var(--cream-fnt); cursor:default}
+.act:hover{border-color:var(--acc,var(--gold-br))} .act.attack:hover,.act.damage:hover{background:#1a2825}
+.act:focus-visible{outline:none; border-color:var(--acc); box-shadow:inset 0 0 0 1px var(--acc)}
+.act:hover .ac-go{color:var(--acc); border-color:var(--acc)}
+.ac-main{flex:1 1 auto; min-width:0}
+.ac-n{font-family:"EB Garamond",serif; font-size:15.5px; color:var(--cream); line-height:1.15}
+.ac-meta{font-family:"Oswald",sans-serif; font-weight:400; font-size:9.5px; letter-spacing:.05em; text-transform:uppercase; color:var(--cream-fnt); margin-top:2px}
+.ac-meta b{color:var(--cream-dim); font-weight:600}
+.ac-meta .ac-abil{color:var(--gold-br); font-weight:600}
+.ac-note{font-family:"EB Garamond",serif; font-style:italic; font-size:12.5px; color:var(--cream-fnt); margin-top:2px}
+.ac-go{flex:none; font-family:"Oswald",sans-serif; font-weight:600; letter-spacing:.06em; text-transform:uppercase; font-size:8.5px; color:var(--cream-fnt); border:1px solid var(--hair); padding:4px 8px}
+
+.actionresult{margin-top:13px; border-top:1px solid var(--hair); padding-top:12px}
+.rcard-empty{font-family:"EB Garamond",serif; font-style:italic; font-size:13px; color:var(--cream-fnt); padding:6px 2px}
+.rcard{background:var(--panel-2); border:1px solid var(--hair); padding:11px 13px; margin-bottom:8px; animation:rcin .2s ease}
+.rcard:last-child{margin-bottom:0}
+@keyframes rcin{from{opacity:0; transform:translateY(-3px)}to{opacity:1; transform:none}}
+.rcard.latest{border-left:2px solid var(--gold-br)}
+.rcard:not(.latest){opacity:.6}
+.rcd-n{font-family:"Playfair Display",serif; font-weight:700; font-size:15px; color:var(--cream-hi); margin-bottom:7px; display:flex; align-items:center; gap:8px}
+.rcard:not(.latest) .rcd-n{font-size:13px; font-weight:500}
+.rcd-flag{font-family:"Oswald",sans-serif; font-weight:700; font-size:9px; letter-spacing:.12em; padding:2px 6px}
+.rcd-flag.crit{color:#1a140a; background:var(--gold-br)}
+.rcd-flag.miss{color:var(--cream-hi); background:var(--red)}
+.rcd-line{display:flex; align-items:baseline; gap:8px; margin-bottom:4px; flex-wrap:wrap}
+.rcd-lab{font-family:"Oswald",sans-serif; font-weight:600; letter-spacing:.07em; text-transform:uppercase; font-size:9px; color:var(--cream-fnt); flex:none; width:44px}
+.rcd-expr{font-family:"EB Garamond",serif; font-size:14px; color:var(--cream-dim)}
+.rcd-die{display:inline-block; min-width:19px; text-align:center; font-family:"Oswald",sans-serif; font-weight:600; font-size:12px; color:var(--cream-hi); border:1px solid var(--hair); padding:1px 4px; margin:0 1px}
+.rcd-die.drop{color:var(--cream-fnt); opacity:.5; text-decoration:line-through; border-color:transparent}
+.rcd-die.nat20{border-color:var(--gold-br); color:var(--gold-br)}
+.rcd-die.nat1{border-color:var(--red-br); color:var(--red-br)}
+.rcd-tot{font-family:"Oswald",sans-serif; font-weight:700; font-size:16px; color:var(--cream-hi); margin-left:auto}
+.rcd-tot.dmg{color:var(--o-race)}
+.rcd-type{font-family:"Oswald",sans-serif; font-weight:400; font-size:9.5px; letter-spacing:.06em; text-transform:uppercase; color:var(--cream-fnt)}
+.rcd-note{font-family:"EB Garamond",serif; font-style:italic; font-size:13.5px; color:var(--cream-dim)}
+
 /* detail — the rare light parchment card for contrast */
 .detail{position:relative;margin-top:6px;padding:15px 17px;background:var(--parchment);color:var(--ink-parch);
   border-left:4px solid var(--o-class);box-shadow:0 16px 34px -22px #000}
