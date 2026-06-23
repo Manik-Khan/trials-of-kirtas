@@ -20,7 +20,7 @@
 (function () {
   'use strict';
 
-  var LS = 'tok.sheetFloat.v1';
+  var LS = 'tok.sheetFloat.v2';   // v2: reset saved geometry so the wider two-column default lands
   var win = null, reopenEl = null, tabsEl = null, stackEl = null;
   var tabs = Object.create(null);   // key -> { tab, page, name }
   var activeKey = null;

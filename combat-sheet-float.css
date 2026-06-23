@@ -12,7 +12,7 @@
 /* ——————————————————————————— window chrome ——————————————————————————— */
 .sheet-float{
   position:fixed; z-index:400;                 /* clears the HUD(150) + tokens, sits below the 1000 modal */
-  top:60px; right:42px; width:480px; height:min(74vh,740px);
+  top:60px; right:42px; width:900px; height:min(80vh,820px);
   display:flex; flex-direction:column;
   background:rgba(7,14,13,.97); border:1px solid rgba(199,154,74,.34);
   border-radius:10px; box-shadow:0 30px 70px -24px #000, 0 0 0 1px rgba(0,0,0,.5);
@@ -51,7 +51,7 @@
 .sf-winbtn.sf-close:hover{ color:#e0584a; background:rgba(224,88,74,.14) }
 
 .sf-stack{ flex:1 1 auto; position:relative; overflow:hidden }
-.sf-page{ position:absolute; inset:0; overflow:auto; overscroll-behavior:contain; display:none }
+.sf-page{ position:absolute; inset:0; overflow:auto; overscroll-behavior:contain; display:none; container-type:inline-size }
 .sf-page.active{ display:block }
 .sf-grip{ position:absolute; right:2px; bottom:2px; width:16px; height:16px; cursor:nwse-resize; z-index:2;
   background:linear-gradient(135deg, transparent 50%, rgba(199,154,74,.34) 50%, rgba(199,154,74,.34) 62%,
@@ -67,7 +67,17 @@
 }
 
 /* ——————————————————— floating skin: re-flow the real sheet ———————————————————
-   Eyeball + tune on a preview deploy. Targets the real sheet-mount.css classes. */
+   The sheet's own two-column layout un-collapses only at an 880px VIEWPORT (an
+   @media in sheet-mount.css), which never fires for a window sitting on a desktop
+   viewport — so without help the float would force the narrow reflow at every size.
+   Instead we drive the reflow off the float's OWN width via @container on .sf-page
+   (which carries container-type:inline-size): a clean single column when narrow,
+   the full two-column v2 sheet at ≥878px — matching the sheet's native 880px
+   threshold. Same window, same mounted sheet; only the layout responds to width.
+   This block targets the real sheet-mount.css classes — tune freely; it never
+   touches combat.html or sheet-mount.js. */
+
+/* — default: clean single column (narrow window) — */
 .sheet-float .sheet{
   max-width:none; margin:0; padding:14px 14px 20px; min-width:0;
 }
@@ -76,22 +86,48 @@
 .sheet-float .masthead{ gap:14px; padding:4px 0 14px; }
 .sheet-float .portrait{ flex:0 0 72px; width:72px; height:72px; }
 .sheet-float .portrait .ring{ inset:-7px } .sheet-float .portrait .ring2{ inset:-3px } .sheet-float .portrait .ring3{ display:none }
-.sheet-float .charname{ font-size:30px; }
+.sheet-float .charname{ font-size:34px; }
 .sheet-float .eyebrow{ font-size:9px; letter-spacing:.18em; }
 .sheet-float .subline{ font-size:11px; }
 .sheet-float .body-grid{ grid-template-columns:1fr; gap:16px; margin-top:10px; }
-.sheet-float .block{ margin-bottom:16px; }
-.sheet-float .sectitle h2{ font-size:22px; }
-.sheet-float .med .big{ font-size:30px; }
-.sheet-float .med.mini .big{ font-size:22px; }
-.sheet-float .hpmed .big{ font-size:26px; }
-.sheet-float .abil-grid{ gap:6px; }
+.sheet-float .block{ margin-bottom:18px; }
+.sheet-float .sectitle h2{ font-size:23px; }
+.sheet-float .med .big{ font-size:32px; }
+.sheet-float .med.mini .big{ font-size:24px; }
+.sheet-float .hpmed .big{ font-size:28px; }
+.sheet-float .abil-grid{ grid-template-columns:repeat(3,1fr); gap:6px; }
 .sheet-float .abil .sc{ font-size:24px; }
 .sheet-float .abil .md{ min-width:32px; }
-.sheet-float .saves{ gap:6px; }
+.sheet-float .saves{ grid-template-columns:repeat(3,1fr); gap:6px; }
+.sheet-float .skills, .sheet-float .spell-cols, .sheet-float .feat-cols{ columns:1; }
 .sheet-float .es-grid{ grid-template-columns:1fr; gap:14px; }
+.sheet-float .traits{ grid-template-columns:1fr; }
 .sheet-float .notepad{ height:auto; min-height:64px; }
 .sheet-float .footer{ margin-top:8px; }
+
+/* — ≥878px container: the full two-column v2 layout — */
+@container (min-width:878px){
+  .sheet-float .sheet{ padding:22px 24px 20px; }
+  .sheet-float .masthead{ gap:28px; padding:6px 2px 18px; }
+  .sheet-float .portrait{ flex:0 0 132px; width:132px; height:132px; }
+  .sheet-float .portrait .ring{ inset:-14px } .sheet-float .portrait .ring2{ inset:-6px } .sheet-float .portrait .ring3{ display:block; inset:-24px }
+  .sheet-float .charname{ font-size:clamp(46px,8cqi,76px); }
+  .sheet-float .eyebrow{ font-size:12px; letter-spacing:.22em; }
+  .sheet-float .subline{ font-size:13.5px; }
+  .sheet-float .body-grid{ grid-template-columns:312px 1fr; gap:30px; margin-top:14px; }
+  .sheet-float .block{ margin-bottom:26px; }
+  .sheet-float .sectitle h2{ font-size:31px; }
+  .sheet-float .med .big{ font-size:44px; }
+  .sheet-float .med.mini .big{ font-size:30px; }
+  .sheet-float .hpmed .big{ font-size:36px; }
+  .sheet-float .abil-grid{ grid-template-columns:repeat(6,1fr); gap:10px; }
+  .sheet-float .abil .sc{ font-size:34px; }
+  .sheet-float .abil .md{ min-width:40px; }
+  .sheet-float .saves{ grid-template-columns:repeat(6,1fr); gap:9px; }
+  .sheet-float .skills, .sheet-float .spell-cols, .sheet-float .feat-cols{ columns:2; }
+  .sheet-float .es-grid{ grid-template-columns:1fr 1fr; gap:30px; }
+  .sheet-float .traits{ grid-template-columns:1fr 1fr; }
+}
 
 /* ============================================================================
    Token orbs (combat-orbs.js) — radial ring that blooms on token select, plus
