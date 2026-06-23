@@ -492,20 +492,55 @@ export function wireInspiration({ root, characterData, key } = {}) {
     root.addEventListener('keydown', onTrkEsc);
   }
 
+  // ── Feed: write rolls/casts straight to the shared `feed` via the authenticated
+  // client (window.__tok.sb) — the same client the sheet already uses to load the
+  // character, and the same insert combat.html's HUD uses. We deliberately do NOT
+  // route through window.__battle.onLogRoll: battle.js's HUD always takes its
+  // backend's logRoll, so that hook is only ever the sheet's path and was never
+  // exercised. Session + active encounter are resolved once and cached 30s.
+  var feedCtx = { session: 0, encId: null, at: 0 };
+  function feedSB() { try { return (window.__tok && window.__tok.sb) || null; } catch (_) { return null; } }
+  function stripTags(s) { return String(s == null ? '' : s).replace(/<[^>]*>/g, ''); }
+  function feedContext(sb) {
+    if (Date.now() - feedCtx.at < 30000) return Promise.resolve(feedCtx);
+    return Promise.all([
+      sb.from('campaign').select('current_session').eq('id', 1).maybeSingle(),
+      sb.from('encounters').select('id').eq('status', 'active').maybeSingle(),
+    ]).then(function (res) {
+      if (res[0] && res[0].data) feedCtx.session = res[0].data.current_session;
+      feedCtx.encId = (res[1] && res[1].data) ? res[1].data.id : null;
+      feedCtx.at = Date.now(); return feedCtx;
+    }).catch(function () { feedCtx.at = Date.now(); return feedCtx; });
+  }
+  function postFeed(o) {
+    var sb = feedSB();
+    if (!sb) { try { console.warn('[sheet-feed] no Supabase client — roll not posted'); } catch (_) {} return; }
+    var actor = (o && o.actorKey) || key || null;
+    var name = (structural && structural.name) || (actor ? actor.charAt(0).toUpperCase() + actor.slice(1) : 'Dungeon Master');
+    var body = stripTags((o && o.name) || 'Roll') + ': ' + stripTags((o && o.main) || '') + (o && o.dmg ? ' \u00B7 ' + stripTags(o.dmg) : '');
+    feedContext(sb).then(function (c) {
+      return sb.from('feed').insert({
+        channel: 'combat', kind: 'roll', actor_key: actor, actor_name: name,
+        body: body, hidden: false, session: c.session, encounter_id: c.encId,
+      });
+    }).then(function (res) {
+      if (res && res.error) { try { console.warn('[sheet-feed] insert failed:', res.error.message); } catch (_) {} }
+    }, function (err) { try { console.warn('[sheet-feed] post failed:', err && err.message); } catch (_) {} });
+  }
+
   // ── Spellcasting: spend slots, cast spells (player picks level + pool), track
   // concentration. Slots ride the same vitals.pipState the orbs read (keys
   // pactSlots / spell_<L> / sorc_<L> / sorcery), max from classFeatures — so the
   // sheet + orbs stay in lockstep and rests already refill them. Casting posts to
-  // the shared feed via the page's feed-bridge hook (window.__battle.onLogRoll);
-  // it degrades silently if the bridge isn't loaded. Manual slot nudges stay quiet
-  // (often corrections) — only casts and concentration changes hit the feed.
+  // the shared feed (postFeed above). Manual slot nudges stay quiet (often
+  // corrections) — only casts and concentration changes hit the feed.
   function castPools() { var api = sheetApi(); var sc = api.buildSpellcasting ? api.buildSpellcasting(structural, vitals) : { pools: [] }; return sc.pools || []; }
   function poolByKey(k) { var ps = castPools(); for (var i = 0; i < ps.length; i++) if (ps[i].key === k) return ps[i]; return null; }
   function castSlots(base) { return castPools().filter(function (p) { return !p.points && p.level >= base && p.level >= 1 && (p.current || 0) > 0; }).sort(function (a, b) { return a.level - b.level; }); }
   function spellEl(name) { var els = root.querySelectorAll('.spell[data-spell]'); for (var i = 0; i < els.length; i++) if (els[i].getAttribute('data-spell') === name) return els[i]; return null; }
   function ordn(n) { return ({ 1:'1st',2:'2nd',3:'3rd',4:'4th',5:'5th',6:'6th',7:'7th',8:'8th',9:'9th' })[n] || (n + 'th'); }
   function poolDot(tone) { return tone === 'subclass' ? '#55c4c0' : '#e7c279'; }
-  function feedPost(name, main) { try { var b = (typeof window !== 'undefined' ? window : globalThis).__battle; if (b && typeof b.onLogRoll === 'function') b.onLogRoll({ actorKey: key, name: name, main: main }); } catch (_) {} }
+  function feedPost(name, main) { postFeed({ actorKey: key, name: name, main: main }); }
 
   function spendSlot(slotKey, i) {
     if (saving) return;
@@ -579,7 +614,7 @@ export function wireInspiration({ root, characterData, key } = {}) {
     return o;
   }
   function renderRollMods() { root.querySelectorAll('[data-rmod]').forEach(function (b) { b.classList.toggle('on', !!rollRS[b.getAttribute('data-rmod')]); }); }
-  function feedPostRoll(r) { try { var b = (typeof window !== 'undefined' ? window : globalThis).__battle; if (b && typeof b.onLogRoll === 'function') b.onLogRoll({ actorKey: key, name: r.name, main: r.main, detail: r.detail, dmg: r.dmg }); } catch (_) {} }
+  function feedPostRoll(r) { postFeed({ actorKey: key, name: r.name, main: r.main, dmg: r.dmg }); }
   function doRoll(a) {
     var DE = (typeof window !== 'undefined' ? window : globalThis).DiceEngine;
     if (!DE) { showStat('hint', 'roll engine offline', true); return; }

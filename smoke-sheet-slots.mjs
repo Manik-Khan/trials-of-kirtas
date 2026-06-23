@@ -16,8 +16,8 @@
 //                  banner; the banner ✕ clears it; casting a new concentration
 //                  spell over an old one confirms ONCE (the commit-time guard),
 //                  not twice.
-//   • FEED       — casts/concentration changes route through window.__battle
-//                  .onLogRoll (the feed-bridge hook); pip nudges do not.
+//   • FEED       — casts/concentration changes post to the feed via window.__tok.sb
+//                  (postFeed inserts into `feed`); pip nudges do not.
 //
 // resource-derive.js is evaluated into the window before the sheet module loads,
 // exactly as the page does it. Each scenario uses its own mount to avoid coupling.
@@ -37,7 +37,13 @@ window.eval(readFileSync(new URL('./resource-derive.js', import.meta.url), 'utf8
 
 // feed sink + confirm stub (reassigned per scenario where needed)
 let feedLog = [];
-window.__battle = { onLogRoll: (o) => feedLog.push(o) };
+const mockSB = {
+  from: () => ({
+    select: () => ({ eq: () => ({ maybeSingle: () => Promise.resolve({ data: null }) }) }),
+    insert: (row) => { feedLog.push(row); return Promise.resolve({ error: null }); },
+  }),
+};
+window.__tok = { sb: mockSB };
 window.confirm = () => true;
 
 const { mountSheet } = await import('./sheet-mount.js');
@@ -95,7 +101,7 @@ const spell = (c, name) => { const els = c.querySelectorAll('.spell[data-spell]'
   feedLog = [];
   const { container, saved } = mount(cosmereRow); await settle();
   fire(spell(container, 'Eldritch Blast'), 'click'); await settle();
-  ok(feedLog.length === 1 && feedLog[0].name === 'Eldritch Blast' && /cantrip/.test(feedLog[0].main), 'cantrip posted to feed as a cantrip');
+  ok(feedLog.length === 1 && /Eldritch Blast/.test(feedLog[0].body) && /cantrip/.test(feedLog[0].body), 'cantrip posted to feed as a cantrip');
   const v = lastVitals(saved);
   ok(!v || !v.pipState || Object.keys(v.pipState).length === 0, 'cantrip spent no slot');
   ok(!v || !v.concentration, 'cantrip set no concentration');
@@ -120,14 +126,14 @@ const spell = (c, name) => { const els = c.querySelectorAll('.spell[data-spell]'
   ok(!document.querySelector('.sa-cast'), 'picker closes after a pick');
   const banner = container.querySelector('[data-conc-banner]');
   ok(banner && banner.style.display !== 'none' && /Hex/.test(banner.textContent), 'concentration banner renders Hex');
-  ok(feedLog.some(f => f.name === 'Hex' && /concentration/.test(f.main)), 'cast posted to feed with concentration note');
+  ok(feedLog.some(f => /Hex/.test(f.body) && /concentration/.test(f.body)), 'cast posted to feed with concentration note');
   // drop via banner ✕
   feedLog = [];
   fire(banner.querySelector('[data-conc-drop]'), 'click'); await settle();
   const v2 = lastVitals(saved);
   ok(v2 && v2.concentration === null, 'banner ✕ cleared concentration');
   ok(container.querySelector('[data-conc-banner]').style.display === 'none', 'banner hidden after drop');
-  ok(feedLog.some(f => f.name === 'Hex' && /dropped/.test(f.main)), 'drop posted to feed');
+  ok(feedLog.some(f => /Hex/.test(f.body) && /dropped/.test(f.body)), 'drop posted to feed');
   cleanup(container);
 }
 
@@ -155,7 +161,7 @@ const spell = (c, name) => { const els = c.querySelectorAll('.spell[data-spell]'
   fire(btns.find(b => b.getAttribute('data-pk') === 'spell_2'), 'click'); await settle();
   const v = lastVitals(saved);
   ok(v && v.pipState && v.pipState.spell_2 === 1 && !v.pipState.spell_1, 'upcast spent spell_2, not spell_1');
-  ok(feedLog.some(f => f.name === 'Cure Wounds' && /upcast/i.test(f.main)), 'feed records the upcast');
+  ok(feedLog.some(f => /Cure Wounds/.test(f.body) && /upcast/i.test(f.body)), 'feed records the upcast');
   cleanup(container);
 }
 

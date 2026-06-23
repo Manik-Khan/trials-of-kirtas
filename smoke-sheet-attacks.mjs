@@ -42,7 +42,13 @@ const rq = (want, sides) => ((want - 1) + 0.5) / sides;
 const setDice = (arr) => { queue = arr.slice(); };
 
 let feedLog = [];
-window.__battle = { onLogRoll: (o) => feedLog.push(o) };
+const mockSB = {
+  from: () => ({
+    select: () => ({ eq: () => ({ maybeSingle: () => Promise.resolve({ data: null }) }) }),
+    insert: (row) => { feedLog.push(row); return Promise.resolve({ error: null }); },
+  }),
+};
+window.__tok = { sb: mockSB };
 
 const { mountSheet } = await import('./sheet-mount.js');
 const S = window.__sheet;
@@ -91,9 +97,10 @@ const C = mount(cosmere); await settle();
   setDice([rq(14, 20), rq(3, 20), rq(6, 8)]);
   const ls = actEl(C, 'longsword'); ok(ls, 'longsword row found'); fire(ls, 'click'); await settle();
   eq(feedLog.length, 1, 'roll: one feed post');
-  eq(feedLog[0].name, 'Longsword', 'roll: feed actor/name');
-  ok(/b-rh-total">19</.test(feedLog[0].main), 'roll: feed main carries engine total (19)');
-  ok(/<strong>9<\/strong>/.test(feedLog[0].dmg), 'roll: feed dmg carries 9');
+  ok(feedLog[0].channel === 'combat' && feedLog[0].kind === 'roll', 'roll: row is a combat roll');
+  ok(/^Longsword:/.test(feedLog[0].body), 'roll: body names the action');
+  ok(/19/.test(feedLog[0].body), 'roll: body carries the to-hit total (19)');
+  ok(/= 9\b/.test(feedLog[0].body), 'roll: body carries the damage (9)');
   const card = C.querySelector('.actionresult .rcard.latest');
   ok(card, 'roll: result card rendered');
   ok(card && /19/.test(card.textContent) && /9/.test(card.textContent), 'roll: card shows hit total + damage');
@@ -109,7 +116,7 @@ const C = mount(cosmere); await settle();
   fire(actEl(C, 'longsword'), 'click'); await settle();
   const card = C.querySelector('.actionresult .rcard.latest');
   ok(card && card.querySelector('.rcd-die.drop'), 'adv: result shows a dropped die');
-  ok(/b-rh-total">22</.test(feedLog[0].main), 'adv: kept the higher die (17+5=22)');
+  ok(/22/.test(feedLog[0].body), 'adv: kept the higher die (17+5=22)');
   ok(!adv.classList.contains('on'), 'adv: toggle consumed after roll');
 }
 
@@ -122,7 +129,7 @@ const C = mount(cosmere); await settle();
   fire(hex, 'click'); await settle();
   const card = C.querySelector('.actionresult .rcard.latest');
   ok(card && /Damage/i.test(card.textContent) && !/To hit/i.test(card.textContent), 'dmg-only: damage line, no to-hit');
-  ok(feedLog.length === 1 && /b-rh-total/.test(feedLog[0].main), 'dmg-only: posted to feed');
+  ok(feedLog.length === 1 && /Dmg/.test(feedLog[0].body), 'dmg-only: posted to feed');
 }
 
 // ── UTILITY is inert ──
