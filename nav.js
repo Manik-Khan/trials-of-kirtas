@@ -651,6 +651,21 @@ function mountNav() {
   document.dispatchEvent(new CustomEvent('nav:ready'));
 }
 
+// ── Mount the universal right rail (Feed / Sheet / Codex / Settings) ──
+// Loaded once on authenticated pages only (this runs after the session check,
+// NOT on login.html, which returns before the authenticated branch). rail.js
+// self-bootstraps its own CSS/fonts/feed-render dep and self-guards against a
+// page that lacks the optional CHARACTERS / battle.js seam, so a single
+// injection here is all any page needs — like the HUD, it rides along.
+function mountRail() {
+  if (document.getElementById('tok-rail-js')) return;   // inject once
+  const s = document.createElement('script');
+  s.id = 'tok-rail-js';
+  s.src = 'rail.js';
+  s.defer = true;
+  document.body.appendChild(s);
+}
+
 
 // ── Init ──
 // Theme applies immediately so the page never flickers to the wrong colours.
@@ -794,6 +809,7 @@ applyTheme(getSavedTheme());
     // Authenticated — mount nav, then fade the veil to reveal the page.
     mountNav();
     populateCharMenu();   // reveals the Party caret + fills it once __tok resolves
+    mountRail();          // the universal right-side rail (Feed/Sheet/…), like the HUD
     dropVeil();
   } catch (e) {
     // Couldn't verify the session (e.g. the Supabase client failed to load).
