@@ -142,6 +142,50 @@ const C = mount(cosmere); await settle();
   eq(C.querySelectorAll('.actionresult .rcard').length, before, 'utility: no new result card');
 }
 
+// ── CHECKS: abilities / saves / skills / initiative all roll ──
+{
+  feedLog = [];
+  const cha = [...C.querySelectorAll('.abil[data-chk]')].find(e => e.getAttribute('data-chk-label') === 'Charisma');
+  ok(cha && cha.getAttribute('data-chk-mod') === '3', 'check: Charisma ability carries +3');
+  setDice([rq(15, 20), rq(2, 20)]);
+  fire(cha, 'click'); await settle();
+  ok(feedLog.length === 1 && /^Charisma: /.test(feedLog[0].body) && /= 18\b/.test(feedLog[0].body), 'check: ability rolls d20+mod (18)');
+  ok(C.querySelector('.actionresult .rcard.latest'), 'check: result card rendered');
+}
+{
+  feedLog = [];
+  const sv = [...C.querySelectorAll('.save[data-chk]')].find(e => e.getAttribute('data-chk-label') === 'Wisdom Save');
+  ok(sv, 'check: Wisdom Save row present');
+  setDice([rq(10, 20), rq(3, 20)]);
+  fire(sv, 'click'); await settle();
+  ok(/^Wisdom Save: /.test(feedLog[0].body), 'check: saving throw rolls');
+}
+{
+  feedLog = [];
+  const sk = [...C.querySelectorAll('.skill[data-chk]')].find(e => /Persuasion/.test(e.textContent));
+  ok(sk, 'check: Persuasion skill row present');
+  setDice([rq(11, 20), rq(4, 20)]);
+  fire(sk, 'click'); await settle();
+  ok(/^Persuasion: /.test(feedLog[0].body), 'check: skill rolls');
+}
+{
+  feedLog = [];
+  const init = C.querySelector('.med.roll-chk');
+  ok(init && init.getAttribute('data-chk') === 'init', 'check: initiative tile is rollable');
+  setDice([rq(17, 20), rq(5, 20)]);
+  fire(init, 'click'); await settle();
+  ok(/^Initiative: /.test(feedLog[0].body), 'check: initiative rolls');
+}
+{
+  feedLog = [];
+  const adv = C.querySelector('[data-rmod="advantage"]'); fire(adv, 'click'); await settle();
+  const cha = [...C.querySelectorAll('.abil[data-chk]')].find(e => e.getAttribute('data-chk-label') === 'Charisma');
+  setDice([rq(6, 20), rq(19, 20)]);   // adv keeps 19, +3 = 22
+  fire(cha, 'click'); await settle();
+  ok(/= 22\b/.test(feedLog[0].body), 'check: advantage keeps the higher die (22)');
+  ok(!adv.classList.contains('on'), 'check: toggle consumed after a check');
+}
+
 // ── BRIDGE: tapping a damage cantrip in the Spellcasting list rolls its action ──
 {
   feedLog = [];

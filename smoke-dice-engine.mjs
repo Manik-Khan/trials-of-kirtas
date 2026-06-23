@@ -110,6 +110,23 @@ eq(DE.modStr(0), '+0', 'modStr(0)');
   ok(!n.twin, 'rollD20 normal: no twin');
 }
 
+// ── rollCheck (ability/save/skill/initiative) ──
+{
+  setDice([rq(14, 20), rq(9, 20)]);
+  const c = DE.rollCheck('Athletics', 5, {});
+  eq(c.total, 19, 'rollCheck d20+mod = 14+5');
+  eq(c.kind, 'check', 'rollCheck kind=check');
+  ok(/b-rh-total">19</.test(c.main) && /\+5/.test(c.main), 'rollCheck main carries mod + total');
+  ok(!/CRIT|MISS/.test(c.main), 'rollCheck main has no crit/miss wording');
+  setDice([rq(3, 20), rq(18, 20), rq(2, 4)]);   // adv keeps 18, bless 2
+  const cb = DE.rollCheck('Wisdom Save', 4, { advantage: true, bless: true });
+  eq(cb.total, 24, 'rollCheck adv+bless = 18+4+2');
+  ok(cb.d20.twin, 'rollCheck adv shows twin die');
+  setDice([rq(20, 20), rq(1, 20)]);
+  const nat = DE.rollCheck('Initiative', 2, {});
+  ok(nat.isCrit && nat.total === 22, 'rollCheck flags nat 20 structurally');
+}
+
 Math.random = real;
 console.log((fail === 0 ? '\u2713' : '\u2717') + ' dice-engine: ' + pass + ' passed, ' + fail + ' failed');
 process.exit(fail === 0 ? 0 : 1);

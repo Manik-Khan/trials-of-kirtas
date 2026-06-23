@@ -370,6 +370,18 @@
 .rcd-type{font-family:"Oswald",sans-serif; font-weight:400; font-size:9.5px; letter-spacing:.06em; text-transform:uppercase; color:var(--cream-fnt)}
 .rcd-note{font-family:"EB Garamond",serif; font-style:italic; font-size:13.5px; color:var(--cream-dim)}
 
+/* ── rollable checks — abilities / saves / skills / initiative all tap to roll ── */
+.abil[data-chk], .save[data-chk], .skill[data-chk], .med.roll-chk{cursor:pointer}
+.abil[data-chk]{transition:border-color .12s,box-shadow .12s}
+.abil[data-chk]:hover{border-color:var(--gold-br); box-shadow:inset 0 0 0 1px rgba(231,194,121,.28)}
+.save[data-chk]{transition:border-color .12s}
+.save[data-chk]:hover{border-color:var(--gold-br)}
+.skill[data-chk]{transition:background .12s}
+.skill[data-chk]:hover{background:var(--panel-2)}
+.med.roll-chk{transition:border-color .12s}
+.med.roll-chk:hover{border-color:var(--gold-br)}
+.abil[data-chk]:focus-visible, .save[data-chk]:focus-visible, .skill[data-chk]:focus-visible, .med.roll-chk:focus-visible{outline:2px solid var(--cream-hi); outline-offset:1px}
+
 /* detail — the rare light parchment card for contrast */
 .detail{position:relative;margin-top:6px;padding:15px 17px;background:var(--parchment);color:var(--ink-parch);
   border-left:4px solid var(--o-class);box-shadow:0 16px 34px -22px #000}

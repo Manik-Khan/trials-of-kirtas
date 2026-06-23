@@ -644,7 +644,23 @@ export function wireInspiration({ root, characterData, key } = {}) {
     var ac = e.target.closest('.act[data-act]'); if (ac) { var a = actionById(ac.getAttribute('data-act')); if (a && a.type !== 'utility') doRoll(a); return; }
   }
   function onActionKey(e) { if (e.key !== 'Enter' && e.key !== ' ') return; var ac = e.target.closest('.act[data-act]'); if (ac) { var a = actionById(ac.getAttribute('data-act')); if (a && a.type !== 'utility') { e.preventDefault(); doRoll(a); } } }
-  function bindAttacks(editable) { renderRollMods(); if (!editable) return; root.addEventListener('click', onActionClick); root.addEventListener('keydown', onActionKey); }
+  // ── Checks: ability checks, saving throws, skills, initiative. Flat d20 + the
+  // shown modifier through the same engine, toggles, result card, and feed as
+  // attacks. Every [data-chk] row on the sheet is rollable.
+  function doCheck(label, mod) {
+    var DE = (typeof window !== 'undefined' ? window : globalThis).DiceEngine;
+    if (!DE) { showStat('hint', 'roll engine offline', true); return; }
+    var r = DE.rollCheck(label, mod, { advantage: rollRS.advantage, disadvantage: rollRS.disadvantage, bless: rollRS.bless });
+    rollHist.unshift(r);
+    var api = sheetApi(); if (api.renderActionResult) api.renderActionResult(root, rollHist);
+    postFeed({ actorKey: key, name: r.name, main: r.main });
+    rollRS.advantage = false; rollRS.disadvantage = false; rollRS.bless = false; renderRollMods();
+  }
+  function chkFrom(el) { return { label: el.getAttribute('data-chk-label') || 'Check', mod: parseInt(el.getAttribute('data-chk-mod'), 10) || 0 }; }
+  function onCheckClick(e) { var el = e.target.closest('[data-chk]'); if (!el) return; var c = chkFrom(el); doCheck(c.label, c.mod); }
+  function onCheckKey(e) { if (e.key !== 'Enter' && e.key !== ' ') return; var el = e.target.closest('[data-chk]'); if (!el) return; e.preventDefault(); var c = chkFrom(el); doCheck(c.label, c.mod); }
+
+  function bindAttacks(editable) { renderRollMods(); if (!editable) return; root.addEventListener('click', onActionClick); root.addEventListener('keydown', onActionKey); root.addEventListener('click', onCheckClick); root.addEventListener('keydown', onCheckKey); }
 
   // load state + merge baseline, then gate + bind
   const ready = (async () => {

@@ -38,12 +38,13 @@ function renderSubline(root, s){
   if(s.alignment) parts.push('<span>'+esc(s.alignment)+'</span>');
   box.innerHTML=parts.join('<span class="dot">\u2726</span>');
 }
+var FULLABIL={str:'Strength',dex:'Dexterity',con:'Constitution',int:'Intelligence',wis:'Wisdom',cha:'Charisma'};
 function renderAbilities(root, ab){
   var box=root.querySelector('[data-list="abilities"]'); if(!box) return;
   var order=[['str','Str'],['dex','Dex'],['con','Con'],['int','Int'],['wis','Wis'],['cha','Cha']];
   box.innerHTML=order.map(function(o){
     var a=ab[o[0]]||{}, mod=a.mod||0;
-    return '<div class="abil'+(mod<0?' neg':'')+'"><div class="nm">'+o[1]+'</div><div class="sc">'+(a.score!=null?a.score:'')+'</div><div class="md">'+sgn(mod)+'</div></div>';
+    return '<div class="abil'+(mod<0?' neg':'')+'" data-chk="ability" data-chk-label="'+FULLABIL[o[0]]+'" data-chk-mod="'+mod+'" tabindex="0" role="button"><div class="nm">'+o[1]+'</div><div class="sc">'+(a.score!=null?a.score:'')+'</div><div class="md">'+sgn(mod)+'</div></div>';
   }).join('');
 }
 function renderSaves(root, s){
@@ -51,14 +52,14 @@ function renderSaves(root, s){
   var sv=s.saves||{}, order=[['str','Str'],['dex','Dex'],['con','Con'],['int','Int'],['wis','Wis'],['cha','Cha']];
   box.innerHTML=order.map(function(o){
     var x=sv[o[0]]||{};
-    return '<div class="save'+(x.proficient?' prof':'')+'"><span class="dotp"></span><span class="sv-n">'+o[1]+'</span><span class="sv-v">'+sgn(x.bonus||0)+'</span></div>';
+    return '<div class="save'+(x.proficient?' prof':'')+'" data-chk="save" data-chk-label="'+FULLABIL[o[0]]+' Save" data-chk-mod="'+(x.bonus||0)+'" tabindex="0" role="button"><span class="dotp"></span><span class="sv-n">'+o[1]+'</span><span class="sv-v">'+sgn(x.bonus||0)+'</span></div>';
   }).join('');
 }
 function renderSkills(root, skills){
   var box=root.querySelector('[data-list="skills"]'); if(!box) return;
   box.innerHTML=(skills||[]).map(function(sk){
     var attr=sk.attr?(sk.attr.charAt(0).toUpperCase()+sk.attr.slice(1)):'';
-    return '<div class="skill'+(sk.prof?' prof':'')+'"><span class="dotp"></span><span class="sk-n">'+esc(sk.name)+'</span><span class="sk-a">'+esc(attr)+'</span><span class="sk-v">'+sgn(sk.bonus||0)+'</span></div>';
+    return '<div class="skill'+(sk.prof?' prof':'')+'" data-chk="skill" data-chk-label="'+esc(sk.name)+'" data-chk-mod="'+(sk.bonus||0)+'" tabindex="0" role="button"><span class="dotp"></span><span class="sk-n">'+esc(sk.name)+'</span><span class="sk-a">'+esc(attr)+'</span><span class="sk-v">'+sgn(sk.bonus||0)+'</span></div>';
   }).join('');
 }
 function renderFeatures(root, feats){
@@ -223,6 +224,7 @@ function renderSheet(root, char){
   setF('ac', cb.ac);
   if(cb.acSource!=null) setF('ac-sub', cb.acSource);
   setF('initiative', sgn(cb.initiative));
+  var initEl=root.querySelector('[data-chk="init"]'); if(initEl) initEl.setAttribute('data-chk-mod', (cb.initiative||0));
   setF('speed', cb.speed);
   setF('prof', sgn(s.proficiencyBonus));
   setF('spellDC', cb.spellSaveDC);
@@ -332,6 +334,7 @@ function d20CardHTML(d){ d=d||{}; var kept='<span class="rcd-die'+(d.isCrit?' na
 function actionResultHTML(r, latest){
   var inner;
   if(r.kind==='utility') inner='<div class="rcd-n">'+esc(r.name)+'</div><div class="rcd-note">'+esc(r.main||'')+'</div>';
+  else if(r.kind==='check') inner='<div class="rcd-n">'+esc(r.name)+'</div><div class="rcd-line"><span class="rcd-lab">Roll</span><span class="rcd-expr">'+d20CardHTML(r.d20)+' '+ordModStr(r.mod||0)+(r.bless?' +'+r.bless+'\uD83D\uDE4F':'')+'</span><span class="rcd-tot">'+r.total+'</span></div>';
   else if(r.kind==='damage') inner='<div class="rcd-n">'+esc(r.name)+'</div><div class="rcd-line"><span class="rcd-lab">Damage</span><span class="rcd-expr">['+(r.dmgRolls||[]).join('][')+']'+(r.dmgMod?' '+ordModStr(r.dmgMod):'')+'</span><span class="rcd-tot dmg">'+r.dmgTotal+'</span></div><div class="rcd-type">'+esc(r.dmgType||'')+'</div>';
   else { var flag=r.isCrit?'<span class="rcd-flag crit">\u2605 Crit</span>':(r.isFumble?'<span class="rcd-flag miss">\u2717 Nat 1</span>':'');
     inner='<div class="rcd-n">'+esc(r.name)+flag+'</div>'
@@ -506,7 +509,7 @@ var SHEET_TEMPLATE = `<main class="sheet">
       <div class="medstack">
         <div class="med-row">
           <div class="med hot"><div class="lab">Armor Class</div><div class="big" data-f="ac">14</div><div class="sub" data-f="ac-sub">studded leather</div></div>
-          <div class="med"><div class="lab">Initiative</div><div class="big" data-f="initiative">+2</div><div class="sub">dexterity</div></div>
+          <div class="med roll-chk" data-chk="init" data-chk-label="Initiative" data-chk-mod="0" tabindex="0" role="button"><div class="lab">Initiative</div><div class="big" data-f="initiative">+2</div><div class="sub">dexterity</div></div>
         </div>
         <div class="med hpmed hot">
           <div class="lab">Hit Points</div>

@@ -87,7 +87,22 @@
              dmg: (isCrit ? '\u2605 Crit dmg' : 'Dmg') + ': [' + dmg.rolls.join('][') + ']' + (action.dmgMod ? ' ' + modStr(action.dmgMod) : '') + ' = <strong>' + dmg.total + '</strong> ' + (action.dmgType || '') };
   }
 
-  var API = { die: die, modStr: modStr, rollD20: rollD20, fmtD20: fmtD20, rollDice: rollDice, bonus: bonus, rollAction: rollAction };
+  // A flat d20 check — ability checks, saving throws, skills, initiative. Same d20
+  // roller + bless as an attack's to-hit, but no damage. Nat 20 / nat 1 are carried
+  // structurally for the die highlight; the feed string stays clean (a check doesn't
+  // auto-succeed, so no CRIT/MISS wording).
+  function rollCheck(label, mod, opts) {
+    opts = opts || {};
+    mod = mod || 0;
+    var roll = rollD20(opts), bless = bonus(opts.bless, '\uD83D\uDE4F');
+    var total = roll.kept + mod + bless.val;
+    return { name: label || 'Check', kind: 'check',
+             d20: roll, mod: mod, bless: bless.val, total: total, isCrit: roll.isCrit, isFumble: roll.isFumble,
+             main: fmtD20(roll) + ' ' + modStr(mod) + bless.str + ' = <span class="b-rh-total">' + total + '</span>',
+             detail: 'd20:' + roll.kept + (roll.label ? ' (' + roll.label + ')' : '') };
+  }
+
+  var API = { die: die, modStr: modStr, rollD20: rollD20, fmtD20: fmtD20, rollDice: rollDice, bonus: bonus, rollAction: rollAction, rollCheck: rollCheck };
   if (typeof module !== 'undefined' && module.exports) module.exports = API;
   if (global) global.DiceEngine = API;
 })(typeof window !== 'undefined' ? window : (typeof globalThis !== 'undefined' ? globalThis : this));
