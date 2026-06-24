@@ -524,11 +524,133 @@
     }).filter(Boolean);
   }
 
+  // ── Feats (feats.json) ──────────────────────────────────────────────────────
+  function loadFeats() {
+    return fetchJson('feats.json').then(d => d.feat || []);
+  }
+
+  function _sameRace(a, b) { a = String(a).toLowerCase(); b = String(b).toLowerCase(); return a === b || a.indexOf(b) !== -1 || b.indexOf(a) !== -1; }
+
+  // human-readable prerequisite summary. prereq is an array; elements are OR'd, the
+  // conditions inside an element are AND'd. Returns '' when there is no prerequisite.
+  function featPrereqText(prereq) {
+    const groups = (prereq || []).map(p => {
+      if (!p) return null;
+      const c = [];
+      if (p.level != null) { const lv = typeof p.level === 'object' ? (p.level.level || p.level) : p.level; c.push('level ' + lv); }
+      if (p.ability) c.push([].concat(p.ability).map(a => Object.keys(a).map(k => k.toUpperCase() + ' ' + a[k]).join(' & ')).join(' or '));
+      if (p.spellcasting || p.spellcasting2020 || p.spellcastingFeature || p.spellcastingPrepared) c.push('the ability to cast at least one spell');
+      if (p.race) c.push([].concat(p.race).map(r => r.name || r).join(' or '));
+      if (p.proficiency) c.push('proficiency with ' + [].concat(p.proficiency).map(x => Object.keys(x).map(k => x[k] === true ? k : x[k]).join('/')).join(', '));
+      if (p.background) c.push([].concat(p.background).map(b => (b.name || b)).join(' or ') + ' background');
+      if (p.other) c.push(p.other);
+      if (p.otherSummary) c.push(p.otherSummary.entry || p.otherSummary);
+      return c.length ? c.join(', ') : null;
+    }).filter(Boolean);
+    return groups.join(' or ');
+  }
+
+  // does a character meet a feat's prerequisite? ctx: { abilities:{str..cha},
+  // level, caster:bool, raceName }. OR across prereq elements, AND within; conditions
+  // we can't verify here (proficiency / background / other) never block.
+  function featMeetsPrereq(feat, ctx) {
+    const pre = feat && feat.prerequisite;
+    if (!pre || !pre.length) return true;
+    ctx = ctx || {}; const ab = ctx.abilities || {};
+    return pre.some(p => {
+      if (!p) return true;
+      if (p.level != null) { const lv = typeof p.level === 'object' ? (p.level.level || p.level) : p.level; if ((ctx.level || 1) < lv) return false; }
+      if (p.ability && !([].concat(p.ability).some(a => Object.keys(a).every(k => (ab[k] || 0) >= a[k])))) return false;
+      if ((p.spellcasting || p.spellcasting2020 || p.spellcastingFeature || p.spellcastingPrepared) && !ctx.caster) return false;
+      if (p.race) { const names = [].concat(p.race).map(r => (r.name || r)); if (ctx.raceName && !names.some(n => _sameRace(n, ctx.raceName))) return false; }
+      return true;
+    });
+  }
+
+  // normalize a feat's half-feat ability bump: null | { fixed:{cha:1} } | { choose:{from:[…],amount:1} }.
+  function featAbilityChoice(feat) {
+    const a = feat && feat.ability;
+    if (!a || !a.length) return null;
+    const first = a[0];
+    if (first.choose) return { choose: { from: first.choose.from || [], amount: first.choose.amount || 1 } };
+    const fixed = {}; Object.keys(first).forEach(k => { if (typeof first[k] === 'number') fixed[k] = first[k]; });
+    return Object.keys(fixed).length ? { fixed } : null;
+  }
+
+  // the full feat list shaped for the picker: source/UA filtered, each carrying its
+  // prereq summary, half-feat ability shape, and an `eligible` flag for this build.
+  function featsForChar(feats, ctx, opts) {
+    opts = opts || {};
+    return (feats || [])
+      .filter(f => opts.includeUA || !isUASource(f.source))
+      .filter(f => !opts.sources || opts.sources.indexOf(f.source) !== -1)
+      .map(f => ({
+        name: f.name, source: f.source,
+        prerequisite: f.prerequisite || null,
+        prereqText: featPrereqText(f.prerequisite),
+        ability: featAbilityChoice(f),
+        eligible: featMeetsPrereq(f, ctx),
+        entries: f.entries || null,
+      }))
+      .sort((a, b) => a.name.localeCompare(b.name));
+  }
+
+  // ── Starting equipment (class.startingEquipment.defaultData + background) ────
+  // Both class and background express gear as an array of groups: { _:[…] } is
+  // always-granted, { a:[…], b:[…], … } is a mutually-exclusive pick. Each entry is
+  // a plain "name|source" ref, a { item, quantity, displayName, containsValue }, a
+  // { equipmentType } category placeholder, or a { special } freeform line.
+  function loadBackgrounds() { return fetchJson('backgrounds.json').then(d => d.background || []); }
+  function backgroundEquipment(list, name, source) {
+    const b = (list || []).find(x => x.name === name && (!source || x.source === source)) || (list || []).find(x => x.name === name);
+    return (b && b.startingEquipment) || [];
+  }
+
+  function _cleanItemName(s) { return String(s).split('|')[0].trim(); }
+  function _equipTypeLabel(t) {
+    const M = {
+      weapon: 'any weapon', weaponMartial: 'any martial weapon', weaponMartialMelee: 'any martial melee weapon',
+      weaponMartialRanged: 'any martial ranged weapon', weaponSimple: 'any simple weapon', weaponSimpleMelee: 'any simple melee weapon',
+      weaponSimpleRanged: 'any simple ranged weapon', armor: 'any armor', instrumentMusical: 'any musical instrument',
+      focusSpellcasting: 'any spellcasting focus', setGaming: 'any gaming set', toolArtisan: "any artisan's tools",
+    };
+    return M[t] || ('any ' + String(t).replace(/([A-Z])/g, ' $1').toLowerCase());
+  }
+  function _resolveItem(spec) {
+    if (typeof spec === 'string') return { name: _cleanItemName(spec), qty: 1 };
+    if (spec.equipmentType) return { name: _equipTypeLabel(spec.equipmentType), qty: spec.quantity || 1, category: spec.equipmentType };
+    if (spec.special) return { name: spec.special, qty: spec.quantity || 1, special: true };
+    if (spec.item) { const r = { name: spec.displayName || _cleanItemName(spec.item), qty: spec.quantity || 1 }; if (spec.containsValue != null) r.value = spec.containsValue; return r; }
+    if (spec.value != null) return { name: 'coins', qty: 1, value: spec.value };
+    return { name: JSON.stringify(spec), qty: 1 };
+  }
+  function _parseEquipGroup(g, source) {
+    if (g._) return { kind: 'fixed', source: source, items: g._.map(_resolveItem) };
+    const keys = Object.keys(g).filter(k => /^[a-z]$/.test(k)).sort();
+    if (keys.length) return { kind: 'choice', source: source, options: keys.map(k => ({ label: k.toUpperCase(), items: [].concat(g[k]).map(_resolveItem) })) };
+    return { kind: 'fixed', source: source, items: [].concat(g).map(_resolveItem) };
+  }
+  // classModel: a loadClass() result; bgEquip: backgroundEquipment(...) (or []).
+  function parseStartingEquipment(classModel, bgEquip) {
+    const se = (classModel && classModel.startingEquipment) || {};
+    const groups = [];
+    (se.defaultData || []).forEach(g => groups.push(_parseEquipGroup(g, 'class')));
+    (bgEquip || []).forEach(g => groups.push(_parseEquipGroup(g, 'background')));
+    const goldM = se.goldAlternative ? String(se.goldAlternative).match(/\{@dice ([^|}]+)/) : null;
+    return {
+      fromBackground: !!se.additionalFromBackground,
+      goldAlternative: goldM ? goldM[1].trim() : (se.goldAlternative ? _cleanItemName(se.goldAlternative) : null),
+      groups: groups,
+    };
+  }
+
   const API = {
     BASE, fetchJson,
     parseClassFeatureRef, parseSubclassFeatureRef, normalizeClass,
     loadClass, loadClassSpellList, loadSpellMeta,
     loadOptionalFeatures, owedFeatureChoices, progressionCountAt, prereqText,
+    loadFeats, featPrereqText, featMeetsPrereq, featAbilityChoice, featsForChar,
+    loadBackgrounds, backgroundEquipment, parseStartingEquipment,
     loadRace,
     parseAbility, parseSpeed, parseSize, parseLanguages, parseProfChoose,
     collectTraits, applyMod, resolveCopy, normalizeRace, makeLoadRace,

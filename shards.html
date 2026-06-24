@@ -262,6 +262,25 @@
   .ch-opt.sel .ch-box{background:var(--blood); border-color:var(--blood)}
   .ch-opt.dim{opacity:.4; cursor:not-allowed}
   .ch-opt.dim:hover{background:var(--bg-card)}
+  /* ── Feats step: slots, ASI picker, feat list (reuses the .ch-* picker styles) ── */
+  .ft-slot{margin-bottom:6px}
+  .ch-src.asi{background:var(--ink-soft)}
+  .ch-src.race{background:var(--blood)}
+  .ft-seg{display:inline-flex; border:1px solid var(--rule-strong); border-radius:2px; overflow:hidden; margin:2px 0 12px}
+  .ft-seg button{font-family:var(--ui); font-size:15px; letter-spacing:.04em; padding:7px 16px; background:var(--bg-card); border:0; border-right:1px solid var(--rule); cursor:pointer; color:var(--ink-soft)}
+  .ft-seg button:last-child{border-right:0}
+  .ft-seg button.on{background:var(--ink); color:var(--bg)}
+  .ft-asi{padding:2px 0 6px}
+  .ft-asimode{margin-bottom:10px}
+  .ft-abs{display:flex; flex-wrap:wrap; gap:7px; margin-bottom:8px}
+  .ft-ab{font-family:var(--ui); font-size:15px; letter-spacing:.05em; width:54px; padding:9px 0; background:var(--bg-card); border:1px solid var(--rule-strong); border-radius:2px; cursor:pointer; color:var(--ink); text-align:center}
+  .ft-ab:hover{background:var(--bg-sunk)}
+  .ft-ab.on{background:var(--blood); border-color:var(--blood); color:#fff}
+  .ft-hint{font-family:var(--body); font-size:14px; color:var(--ink-faint); margin:2px 0 6px}
+  .ft-half{margin-top:10px; padding:11px 13px; background:var(--bg-sunk); border:1px solid var(--rule); border-radius:3px}
+  .ft-srch{width:100%; box-sizing:border-box; font-family:var(--body); font-size:16px; padding:8px 11px; margin-bottom:8px; background:var(--bg-card); border:1px solid var(--rule-strong); border-radius:2px; color:var(--ink)}
+  .ft-list{max-height:340px; overflow:auto; display:flex; flex-direction:column; gap:7px; padding-right:2px}
+
   .eng-tog button.on{background:var(--ink); color:var(--bg)}
   .eng-reroll{font-family:var(--ui); font-size:13px; letter-spacing:.04em; margin-left:8px; background:none; border:0; border-bottom:1px dashed var(--ink-faint); color:var(--ink-soft); cursor:pointer; padding:0}
   .feats{margin:6px 0 2px}
@@ -543,6 +562,7 @@ var STEPS = [
   { id:'species',    name:'Species',    desc:'Choose a species. "Species" is a label only — the data is 2014 races.json (134 races + subraces across 28 sources), so the bonuses and traits resolve by 2014 rules.' },
   { id:'class',      name:'Class',      desc:'Choose a class, then its subclass. Hit die, saves, features, caster type, and the full subclass list load from the proven loadClass() model. The class decides whether you cast at all.' },
   { id:'choices',    name:'Choices',    desc:'Pick the optional features your class and subclass grant — Fighting Style, Maneuvers, Eldritch Invocations, Metamagic, and the like. Only what this build is owed at its level appears here.', conditional:true },
+  { id:'feats',      name:'Feats',      desc:'Spend each Ability Score Improvement on +2/+1 to your abilities or a feat, and pick any feat your race grants at level 1. Only the slots this build has earned appear here.', conditional:true },
   { id:'background', name:'Background', desc:'Choose a background, or customize one. The 2014 "Customizing a Background" rule lets you swap the two skills, two tools or languages, equipment, and feature.' },
   { id:'spells',     name:'Spells',     desc:'Pick cantrips and spells. Known casters lock a fixed list; prepared casters choose cantrips and compute a prepared count from level plus casting modifier.', conditional:true },
   { id:'review',     name:'Review',     desc:'Confirm the assembled sheet. Forging writes the structural block to the characters table — party.html renders it from there.' },
@@ -571,6 +591,31 @@ function casterMode(c){
   var s = subclassCaster(); return s ? (s.prepared ? 'prepared' : 'known') : null;
 }
 function spellsActive(){ return isCaster(chosenClass()); }
+// ── Feats step gate — owed if the race grants a level-1 feat (Variant Human /
+// Custom Lineage) OR the build has at least one ASI level. Both need the loaded
+// model/race, so cache yes/no per build signature and recompute async like the
+// Choices gate. ──
+var _ftOwed = false, _ftSig = null;
+function featsSig(){ return draft.cls ? (draft.cls.n + '|' + draft.level + '|' + (draft.species ? draft.species.n : '') + '|' + (draft.subrace ? draft.subrace.n : '')) : ''; }
+function featsActive(){
+  if (!draft.cls) return false;
+  var sig = featsSig();
+  if (sig !== _ftSig){ _ftSig = sig; _ftOwed = false; computeFeatsOwed(sig); }
+  return _ftOwed;
+}
+function computeFeatsOwed(sig){
+  if (typeof SoulShardsData === 'undefined' || typeof SoulShardsEngine === 'undefined') return;
+  var c = chosenClass(); if (!c) return;
+  Promise.all([ SoulShardsData.loadClass(c.n), raceForBuild() ]).then(function(res){
+    if (featsSig() !== sig) return;
+    var model = res[0], race = res[1];
+    var b = SoulShardsEngine.build({ classModel: model, level: draft.level, abilities: effectiveAbilities(race), subclassShortName: null, hp: draft.hp });
+    var racial = !!(race && race.feats && race.feats.some(function(f){ return f && f.any > 0; }));
+    var owed = ((b.asiLevels || []).length > 0) || racial;
+    if (owed !== _ftOwed){ _ftOwed = owed; if (typeof renderRail === 'function') renderRail(); }
+  }).catch(function(){});
+}
+
 // ── Choices step gate — owed only if the loaded class/subclass grants optional
 // features at this level. That needs the (async) model, so cache a yes/no per build
 // signature: choicesActive() returns the cached answer and, when the signature
@@ -596,7 +641,7 @@ function computeChoicesOwed(sig){
     if (owed !== _chOwed){ _chOwed = owed; if (typeof renderRail === 'function') renderRail(); }
   }).catch(function(){});
 }
-function activeSteps(){ return STEPS.filter(function(s){ return s.id === 'spells' ? spellsActive() : (s.id === 'choices' ? choicesActive() : true); }); }
+function activeSteps(){ return STEPS.filter(function(s){ return s.id === 'spells' ? spellsActive() : (s.id === 'choices' ? choicesActive() : (s.id === 'feats' ? featsActive() : true)); }); }
 
 // ── ability + source helpers ───────────────────────────────────────────────────
 var STD_ARRAY = [15, 14, 13, 12, 10, 8];
@@ -628,7 +673,7 @@ function loadDraft(){ try { var j = window.localStorage.getItem(KEY); if (j) ret
 function saveDraft(){ try { window.localStorage.setItem(KEY, JSON.stringify(draft)); } catch(e){} flashDraft(); }
 var draft = loadDraft() || { stepId:'abilities', name:null, species:null, subrace:null, asi:{}, size:null, originMode:'std', useFloating:false, openTrait:null, cls:null, level:1, subclass:null, bg:null, bgCustom:false,
   method:'array', abilities:{ str:15, dex:14, con:13, int:12, wis:10, cha:8 }, slots:null, armed:null, hp:{ method:'average' },
-  bgSkills:[], bgTools:[], bgPack:null, bgFeature:null, choices:{}, spells:{ cantrips:[], known:[], prepared:[], spellbook:[] } };
+  bgSkills:[], bgTools:[], bgPack:null, bgFeature:null, choices:{}, advancement:{}, spells:{ cantrips:[], known:[], prepared:[], spellbook:[] } };
 if (draft.level == null) draft.level = 1;
 if (!draft.method) draft.method = 'array';
 if (!draft.abilities) draft.abilities = { str:15, dex:14, con:13, int:12, wis:10, cha:8 };
@@ -647,6 +692,7 @@ if (draft.openTrait === undefined) draft.openTrait = null;
 if (!draft.spells || typeof draft.spells !== 'object') draft.spells = { cantrips:[], known:[], prepared:[], spellbook:[] };
 ['cantrips','known','prepared','spellbook'].forEach(function(k){ if (!Array.isArray(draft.spells[k])) draft.spells[k] = []; });
 if (!draft.choices || typeof draft.choices !== 'object') draft.choices = {};
+if (!draft.advancement || typeof draft.advancement !== 'object') draft.advancement = {};
 ensureSlots();
 
 // ── reusable browse list: search + per-source filter + scroll select ───────────
@@ -737,6 +783,7 @@ function railStatus(s){
   if (s.id === draft.stepId) return 'current';
   if (s.id === 'spells' && !spellsActive()) return draft.cls ? 'skipped' : 'locked';
   if (s.id === 'choices' && !choicesActive()) return draft.cls ? 'skipped' : 'locked';
+  if (s.id === 'feats' && !featsActive()) return draft.cls ? 'skipped' : 'locked';
   var act = activeSteps();
   var ci = act.findIndex(function(x){ return x.id === draft.stepId; });
   var si = act.findIndex(function(x){ return x.id === s.id; });
@@ -754,6 +801,7 @@ function renderRail(){
     var sub = '';
     if (s.id === 'spells'){ if (!draft.cls) sub = 'choose a class first'; else if (!spellsActive()) sub = 'not a caster'; }
     if (s.id === 'choices'){ if (!draft.cls) sub = 'choose a class first'; else if (!choicesActive()) sub = 'no extra choices'; }
+    if (s.id === 'feats'){ if (!draft.cls) sub = 'choose a class first'; else if (!featsActive()) sub = 'no feats yet'; }
     var glyph = (st === 'done') ? '\u2713' : String(i + 1);
     li.innerHTML = '<span class="node">' + glyph + '</span><span class="lbl">' + s.name + (sub ? '<span class="sub">' + sub + '</span>' : '') + '</span>';
     if (st !== 'locked' && st !== 'skipped'){
@@ -800,6 +848,11 @@ function customControlsHTML(){
 }
 
 var BODIES = {
+  feats: function(){
+    var c = chosenClass();
+    if (!c) return '<p>Choose a class first — feats and ability improvements depend on your level and race.</p>';
+    return '<div id="ft-out"><div class="eng-load">Resolving feats + ability improvements…</div></div>';
+  },
   choices: function(){
     var c = chosenClass();
     if (!c) return '<p>Choose a class first — your optional-feature choices depend on it.</p>';
@@ -1046,6 +1099,7 @@ var MOUNT = {
   },
   spells: function(){ SpellsUI.mount(); },
   choices: function(){ ChoicesUI.mount(); },
+  feats: function(){ FeatsUI.mount(); },
 };
 
 
@@ -1815,6 +1869,204 @@ var ChoicesUI = (function () {
   return { mount: mount, ensureLoaded: ensureLoaded, choicesForStructural: choicesForStructural };
 })();
 
+// ── Feats step UI — racial level-1 feat (Variant Human / Custom Lineage) + one
+// slot per ASI level. Each ASI slot toggles Ability-Scores vs Feat; the feat picker
+// is eligibility-aware (greys what you don't qualify for) and collects half-feat
+// ability bumps. Picks persist to draft.advancement; the ability bumps flow through
+// effectiveAbilities (so they reach the whole engine), feats fold via derive. ──
+var FeatsUI = (function () {
+  var _freq = 0, _feats = null, _race = null, _asiLevels = null, _q = {};
+
+  function esc(x){ return String(x).replace(/[&<>]/g, function(c){ return c === '&' ? '&amp;' : c === '<' ? '&lt;' : '&gt;'; }); }
+  var ABBR = { str:'STR', dex:'DEX', con:'CON', int:'INT', wis:'WIS', cha:'CHA' };
+  var ABO = ['str','dex','con','int','wis','cha'];
+
+  function adv(){ return draft.advancement || (draft.advancement = {}); }
+  function slot(k){ return adv()[k] || null; }
+  function setSlot(k, v){ if (v == null) delete adv()[k]; else adv()[k] = v; saveDraft(); render(); }
+
+  function racialCount(){ return (_race && _race.feats ? _race.feats : []).reduce(function(n, f){ return n + (f && f.any ? f.any : 0); }, 0); }
+
+  function loadData(){
+    var c = chosenClass();
+    if (!c || typeof SoulShardsData === 'undefined' || typeof SoulShardsEngine === 'undefined'){ _feats = []; _race = null; _asiLevels = []; return Promise.resolve(false); }
+    var my = ++_freq;
+    return Promise.all([ SoulShardsData.loadFeats(), raceForBuild(), SoulShardsData.loadClass(c.n) ]).then(function(res){
+      if (my !== _freq) return false;
+      _feats = res[0] || []; _race = res[1] || null;
+      var model = res[2];
+      var sub = (model.subclasses || []).find(function(s){ return draft.subclass && s.name === draft.subclass.n; });
+      var b = SoulShardsEngine.build({ classModel: model, level: draft.level, abilities: effectiveAbilities(_race), subclassShortName: sub ? sub.shortName : null, hp: draft.hp });
+      _asiLevels = (b.asiLevels || []).slice();
+      reconcile(); return true;
+    });
+  }
+
+  function slotKeys(){
+    var ks = [], rc = racialCount();
+    for (var i = 0; i < rc; i++) ks.push('race' + i);
+    (_asiLevels || []).forEach(function(L){ ks.push('L' + L); });
+    return ks;
+  }
+  function reconcile(){
+    var valid = {}; slotKeys().forEach(function(k){ valid[k] = 1; });
+    Object.keys(adv()).forEach(function(k){ if (!valid[k]) delete adv()[k]; });
+    saveDraft();
+  }
+
+  // total ability increases from every slot — read straight from draft (works before
+  // the catalog loads). Stale higher-than-level ASI slots are ignored defensively.
+  function advancementBonuses(){
+    var b = {}, lvl = draft.level || 1;
+    Object.keys(adv()).forEach(function(k){
+      if (k.charAt(0) === 'L'){ var n = parseInt(k.slice(1), 10); if (n > lvl) return; }
+      var e = adv()[k]; if (!e || !e.abils) return;
+      Object.keys(e.abils).forEach(function(ab){ b[ab] = (b[ab] || 0) + (e.abils[ab] || 0); });
+    });
+    return b;
+  }
+
+  function featsForStructural(){
+    var out = [], byName = {}; (_feats || []).forEach(function(f){ byName[f.name] = f; });
+    Object.keys(adv()).forEach(function(k){
+      var e = adv()[k]; if (!e || e.kind !== 'feat' || !e.name) return;
+      out.push({ name: e.name, entries: byName[e.name] ? byName[e.name].entries : null });
+    });
+    return out;
+  }
+
+  function ctx(){ return { abilities: effectiveAbilities(_race), level: draft.level, caster: (typeof isCaster === 'function' && isCaster(chosenClass())), raceName: (draft.species && draft.species.n) || '' }; }
+  function featList(){ return SoulShardsData.featsForChar(_feats, ctx()); }
+  function descLine(entries){
+    var s = ''; (entries || []).some(function(e){ if (typeof e === 'string'){ s = e; return true; } return false; });
+    s = s.replace(/\{@\w+ ([^|}]+)(\|[^}]*)?\}/g, '$1');
+    if (s.length > 180) s = s.slice(0, 178) + '…';
+    return s;
+  }
+
+  function asiPicker(k){
+    var e = slot(k) || { kind:'asi', mode:'two', abils:{} };
+    var mode = e.mode || 'two', picked = Object.keys(e.abils || {}), need = mode === 'one' ? 1 : 2;
+    var btns = ABO.map(function(ab){ return '<button class="ft-ab' + (picked.indexOf(ab) !== -1 ? ' on' : '') + '" data-k="' + k + '" data-ab="' + ab + '">' + ABBR[ab] + '</button>'; }).join('');
+    return '<div class="ft-asi">' +
+      '<div class="ft-seg ft-asimode"><button class="' + (mode==='one'?'on':'') + '" data-k="' + k + '" data-mode="one">+2 to one</button>' +
+        '<button class="' + (mode==='two'?'on':'') + '" data-k="' + k + '" data-mode="two">+1 to two</button></div>' +
+      '<div class="ft-abs">' + btns + '</div>' +
+      '<div class="ft-hint">' + (mode==='one' ? 'pick one ability (+2)' : 'pick two abilities (+1 each)') + ' · ' + picked.length + '/' + need + ' · capped at 20</div>' +
+    '</div>';
+  }
+
+  function halfFeatSub(k, fObj){
+    var ab = fObj && fObj.ability; if (!ab) return '';
+    if (ab.fixed) return '<div class="ft-half">Also grants ' + Object.keys(ab.fixed).map(function(a){ return '+' + ab.fixed[a] + ' ' + ABBR[a]; }).join(', ') + '</div>';
+    if (ab.choose){
+      var cur = (slot(k) || {}).abils || {}, picked = Object.keys(cur);
+      var btns = ab.choose.from.map(function(a){ return '<button class="ft-ab' + (picked.indexOf(a) !== -1 ? ' on' : '') + '" data-k="' + k + '" data-half="' + a + '">' + ABBR[a] + '</button>'; }).join('');
+      return '<div class="ft-half"><div class="ft-hint">this feat also grants +1 to an ability — choose ' + ab.choose.amount + ':</div><div class="ft-abs">' + btns + '</div></div>';
+    }
+    return '';
+  }
+
+  function featPicker(k){
+    var e = slot(k) || {}, chosen = e.kind === 'feat' ? e.name : null, list = featList();
+    var rows = list.map(function(f){
+      var sel = f.name === chosen, dim = !f.eligible && !sel;
+      var pre = f.prereqText ? '<span class="ch-pre">' + esc(f.prereqText) + '</span>' : '';
+      return '<div class="ch-opt' + (sel ? ' sel' : '') + (dim ? ' dim' : '') + '" data-k="' + k + '" data-feat="' + esc(f.name) + '">' +
+        '<div class="ch-box">●</div><div class="ch-tx"><div class="ch-nm">' + esc(f.name) + pre + '</div>' +
+        (f.entries ? '<div class="ch-ds">' + esc(descLine(f.entries)) + '</div>' : '') + '</div></div>';
+    }).join('');
+    var sub = chosen ? halfFeatSub(k, list.find(function(f){ return f.name === chosen; })) : '';
+    return '<input class="ft-srch" placeholder="filter feats…" data-k="' + k + '" value="' + esc(_q[k] || '') + '">' +
+      '<div class="ft-list">' + rows + '</div>' + sub;
+  }
+
+  function render(){
+    var host = q('#ft-out'); if (!host) return;
+    var keys = slotKeys();
+    if (!keys.length){ host.innerHTML = '<div class="locked-note">No feat or ability-score choices for this build at level ' + draft.level + ' — improvements arrive at 4th level (Fighter also at 6th), and a level-1 feat comes only from Variant Human or Custom Lineage.</div>'; return; }
+    host.innerHTML = keys.map(function(k){
+      var e = slot(k) || {};
+      if (k.indexOf('race') === 0){
+        var rh = '<div class="ch-head"><span class="ch-src race">Race</span> Bonus Feat' + (_race ? ' — ' + esc(_race.name) : '') + '</div>';
+        return '<div class="ft-slot">' + rh + featPicker(k) + '</div>';
+      }
+      var L = k.slice(1), kind = e.kind || null;
+      var head = '<div class="ch-head"><span class="ch-src asi">Level ' + L + '</span> Ability Score Improvement or Feat</div>';
+      var seg = '<div class="ft-seg ft-mode"><button class="' + (kind==='asi'?'on':'') + '" data-k="' + k + '" data-kind="asi">Ability Scores</button>' +
+        '<button class="' + (kind==='feat'?'on':'') + '" data-k="' + k + '" data-kind="feat">Feat</button></div>';
+      var body = kind === 'asi' ? asiPicker(k) : (kind === 'feat' ? featPicker(k) : '<div class="ft-hint">Choose how to spend this improvement.</div>');
+      return '<div class="ft-slot">' + head + seg + body + '</div>';
+    }).join('');
+    reapplyFilters(host); wire(host);
+  }
+
+  function filterList(inp){
+    var query = (inp.value || '').toLowerCase(), list = inp.parentNode.querySelector('.ft-list'); if (!list) return;
+    Array.prototype.forEach.call(list.querySelectorAll('.ch-opt'), function(row){
+      var nm = (row.querySelector('.ch-nm') ? row.querySelector('.ch-nm').textContent : '').toLowerCase();
+      row.style.display = (!query || nm.indexOf(query) !== -1) ? '' : 'none';
+    });
+  }
+  function reapplyFilters(host){ Array.prototype.forEach.call(host.querySelectorAll('.ft-srch'), function(inp){ if (inp.value) filterList(inp); }); }
+
+  function wire(host){
+    Array.prototype.forEach.call(host.querySelectorAll('.ft-mode button'), function(el){
+      el.addEventListener('click', function(){
+        var k = el.getAttribute('data-k'), kind = el.getAttribute('data-kind'), e = slot(k) || {};
+        if (kind === 'asi') setSlot(k, { kind:'asi', mode: e.mode || 'two', abils: e.kind === 'asi' ? (e.abils || {}) : {} });
+        else setSlot(k, { kind:'feat', name: e.kind === 'feat' ? e.name : null, abils: e.kind === 'feat' ? (e.abils || {}) : {} });
+      });
+    });
+    Array.prototype.forEach.call(host.querySelectorAll('.ft-asimode button'), function(el){
+      el.addEventListener('click', function(){ setSlot(el.getAttribute('data-k'), { kind:'asi', mode: el.getAttribute('data-mode'), abils: {} }); });
+    });
+    Array.prototype.forEach.call(host.querySelectorAll('.ft-asi .ft-ab'), function(el){
+      el.addEventListener('click', function(){
+        var k = el.getAttribute('data-k'), ab = el.getAttribute('data-ab'), e = slot(k) || { kind:'asi', mode:'two', abils:{} };
+        var mode = e.mode || 'two', abils = Object.assign({}, e.abils || {}), per = mode === 'one' ? 2 : 1, cap = mode === 'one' ? 1 : 2;
+        if (abils[ab]) delete abils[ab]; else { if (Object.keys(abils).length >= cap) return; abils[ab] = per; }
+        setSlot(k, { kind:'asi', mode: mode, abils: abils });
+      });
+    });
+    Array.prototype.forEach.call(host.querySelectorAll('.ft-list .ch-opt'), function(el){
+      el.addEventListener('click', function(){
+        if (el.classList.contains('dim')) return;
+        var k = el.getAttribute('data-k'), name = el.getAttribute('data-feat'), e = slot(k) || {};
+        if (e.kind === 'feat' && e.name === name){ setSlot(k, { kind:'feat', name: null, abils: {} }); return; }
+        var fObj = featList().find(function(f){ return f.name === name; });
+        var abils = (fObj && fObj.ability && fObj.ability.fixed) ? Object.assign({}, fObj.ability.fixed) : {};
+        setSlot(k, { kind:'feat', name: name, abils: abils });
+      });
+    });
+    Array.prototype.forEach.call(host.querySelectorAll('.ft-half .ft-ab'), function(el){
+      el.addEventListener('click', function(){
+        var k = el.getAttribute('data-k'), ab = el.getAttribute('data-half'), e = slot(k) || {}; if (e.kind !== 'feat') return;
+        var fObj = featList().find(function(f){ return f.name === e.name; });
+        var amount = (fObj && fObj.ability && fObj.ability.choose) ? fObj.ability.choose.amount : 1, abils = Object.assign({}, e.abils || {});
+        if (abils[ab]) delete abils[ab]; else { if (Object.keys(abils).length >= amount) return; abils[ab] = 1; }
+        setSlot(k, { kind:'feat', name: e.name, abils: abils });
+      });
+    });
+    Array.prototype.forEach.call(host.querySelectorAll('.ft-srch'), function(el){
+      el.addEventListener('input', function(){ _q[el.getAttribute('data-k')] = el.value; filterList(el); });
+    });
+  }
+
+  function mount(){
+    var host = q('#ft-out'); if (!host) return;
+    if (!chosenClass()){ host.innerHTML = ''; return; }
+    host.innerHTML = '<div class="eng-load">Resolving feats + ability improvements…</div>';
+    loadData().then(function(){ if (q('#ft-out')) render(); }).catch(function(err){
+      var h = q('#ft-out'); if (h) h.innerHTML = '<div class="eng-load">Couldn’t load feats (' + esc((err && err.message) || 'fetch failed') + ').</div>';
+    });
+  }
+  function ensureLoaded(){ return loadData(); }
+
+  return { mount: mount, ensureLoaded: ensureLoaded, featsForStructural: featsForStructural, advancementBonuses: advancementBonuses };
+})();
+
+
 
 // ── live engine readout: real SoulShardsData.loadClass + SoulShardsEngine.build ──
 function ord(n){ var s = ['th','st','nd','rd'], v = n % 100; return n + (s[(v - 20) % 10] || s[v] || s[0]); }
@@ -1831,6 +2083,11 @@ function effectiveAbilities(race){
     var bon = SpeciesUI.combinedBonuses(race);
     Object.keys(bon).forEach(function(k){ eff[k] = (eff[k] || 0) + bon[k]; });
   }
+  if (typeof FeatsUI !== 'undefined'){
+    var advB = FeatsUI.advancementBonuses();
+    Object.keys(advB).forEach(function(k){ eff[k] = (eff[k] || 0) + advB[k]; });
+  }
+  ABILS.forEach(function(k){ if (eff[k] > 20) eff[k] = 20; });   // 2014 hard cap of 20
   return eff;
 }
 function renderEngineOut(){
@@ -1928,6 +2185,7 @@ function buildStructuralPreview(model, race){
     spells: picked.spells,
     spellbook: picked.spellbook,
     choices: (typeof ChoicesUI !== 'undefined') ? ChoicesUI.choicesForStructural() : [],
+    feats: (typeof FeatsUI !== 'undefined') ? FeatsUI.featsForStructural() : [],
     hp: draft.hp
   });
   return Object.assign({}, r.structural, { _incomplete: r._incomplete });
@@ -1950,7 +2208,8 @@ function forgePreview(){
   host.innerHTML = '<div class="fx-empty">Assembling structural from the 2014 data…</div>';
   var spellsReady = (typeof SpellsUI !== 'undefined' && isCaster(c)) ? SpellsUI.ensureLoaded() : Promise.resolve(true);
   var choicesReady = (typeof ChoicesUI !== 'undefined') ? ChoicesUI.ensureLoaded() : Promise.resolve(true);
-  Promise.all([SoulShardsData.loadClass(c.n), raceForBuild(), spellsReady, choicesReady]).then(function(res){
+  var featsReady = (typeof FeatsUI !== 'undefined') ? FeatsUI.ensureLoaded() : Promise.resolve(true);
+  Promise.all([SoulShardsData.loadClass(c.n), raceForBuild(), spellsReady, choicesReady, featsReady]).then(function(res){
     if (my !== forgeReq) return;
     var model = res[0], race = res[1];
     host.innerHTML = forgeCardHTML(buildStructuralPreview(model, race));
@@ -2022,7 +2281,8 @@ function forgeCommit(){
   fxStatus('busy', 'Assembling the structural\u2026');
   var spellsReady = (typeof SpellsUI !== 'undefined' && isCaster(c)) ? SpellsUI.ensureLoaded() : Promise.resolve(true);
   var choicesReady = (typeof ChoicesUI !== 'undefined') ? ChoicesUI.ensureLoaded() : Promise.resolve(true);
-  Promise.all([SoulShardsData.loadClass(c.n), raceForBuild(), spellsReady, choicesReady]).then(function(res){
+  var featsReady = (typeof FeatsUI !== 'undefined') ? FeatsUI.ensureLoaded() : Promise.resolve(true);
+  Promise.all([SoulShardsData.loadClass(c.n), raceForBuild(), spellsReady, choicesReady, featsReady]).then(function(res){
     var assembled = buildStructuralPreview(res[0], res[1]);
     if (assembled && assembled._error){ fxStatus('err', assembled._error); return; }
     var structural = Object.assign({}, assembled); delete structural._incomplete;
@@ -2080,6 +2340,7 @@ function renderStep(){
 function go(id){
   if (id === 'spells' && !spellsActive()) return;
   if (id === 'choices' && !choicesActive()) return;
+  if (id === 'feats' && !featsActive()) return;
   draft.stepId = id; saveDraft(); renderAll();
   var ps = q('.panel-scroll'); if (ps) ps.scrollTop = 0;
 }
@@ -2103,6 +2364,7 @@ function flashDraft(){
 
 // ── render all ───────────────────────────────────────────────────────────────
 function renderAll(){
+  if (draft.stepId === 'feats' && !featsActive()) draft.stepId = 'background';
   if (draft.stepId === 'choices' && !choicesActive()) draft.stepId = 'background';
   if (draft.stepId === 'spells' && !spellsActive()) draft.stepId = 'background';
   renderRail(); renderEmerging(); renderStep();
