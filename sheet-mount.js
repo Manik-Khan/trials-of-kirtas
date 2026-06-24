@@ -485,7 +485,7 @@ function ensureDefs(doc){
 }
 
 // ── the reusable sheet body markup (stamped into the mount container) ──
-var SHEET_TEMPLATE = `<main class="sheet">
+var SHEET_TEMPLATE = `<main class="tok-sheet sheet">
   <div class="frameline"></div>
   <div class="ghostnum">III</div>
   
