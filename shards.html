@@ -1770,8 +1770,8 @@ function buildStructuralPreview(model, race){
 }
 function forgeCardHTML(structural){
   return '<div class="fx-card">' +
-    '<div class="fx-h">Assembled structural — preview</div>' +
-    '<div class="fx-warn">Preview only — NOT written to the live characters table (that turns on at P7). The <b>_incomplete</b> list flags every field still to derive.</div>' +
+    '<div class="fx-h">Assembled structural \u2014 preview</div>' +
+    '<div class="fx-warn">Preview of exactly what <b>Forge Character</b> writes. The <b>_incomplete</b> list flags fields still to derive (skills, AC, items) \u2014 they fill in as those steps land.</div>' +
     '<pre class="fx-pre">' + escHtml(JSON.stringify(structural, null, 2)) + '</pre>' +
   '</div>';
 }

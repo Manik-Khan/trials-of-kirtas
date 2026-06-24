@@ -1,0 +1,14 @@
+-- schema_delta_characters_key_open.sql
+-- ───────────────────────────────────────────────────────────────────────────
+-- Follow-up to schema_delta_characters_forge.sql.
+--
+-- The characters.key column carries its OWN check constraint (characters_key_check)
+-- pinning it to the four original PCs — the same pattern profiles.character_key had,
+-- but on the characters table itself. The forge's INSERT of a fresh key
+-- (e.g. tester-4f2a) trips it. The table's DDL was never in the repo, so this only
+-- surfaced on the first real forge.
+--
+-- Drop it so new keys are allowed. Creating is still safe — keys are unique
+-- (name slug + random suffix) and every write is otherwise gated as before.
+-- ───────────────────────────────────────────────────────────────────────────
+alter table public.characters drop constraint if exists characters_key_check;
