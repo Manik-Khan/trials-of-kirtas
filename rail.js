@@ -253,10 +253,10 @@
           + '<div class="tr-ico"><button data-rail="collapse" title="Collapse">' + svg('<path d="M10 3 L6 9 L10 15"/>', ' viewBox="0 0 18 18"') + '</button></div>'
         + '</div>'
         + '<div class="tr-tabs">'
-          + '<button class="tr-tab on" data-rail-tab="feed">' + svg('<path d="M3 4h12M3 8h12M3 12h8"/>') + '<span>Feed</span></button>'
-          + '<button class="tr-tab" data-rail-tab="sheet">' + svg('<rect x="4" y="2.5" width="10" height="13"/><path d="M6.5 6h5M6.5 9h5M6.5 12h3"/>') + '<span>Sheet</span></button>'
-          + '<button class="tr-tab future" title="Coming later">' + svg('<path d="M4 3.5h8l2 2v9H4z"/><path d="M4 3.5v11"/>') + '<span>Codex</span></button>'
-          + '<button class="tr-tab future" title="Coming later">' + svg('<circle cx="9" cy="9" r="2.4"/><path d="M9 2.5v2M9 13.5v2M2.5 9h2M13.5 9h2"/>') + '<span>Settings</span></button>'
+          + '<button class="tr-tab on" data-rail-tab="feed" data-order="10">' + svg('<path d="M3 4h12M3 8h12M3 12h8"/>') + '<span>Feed</span></button>'
+          + '<button class="tr-tab" data-rail-tab="sheet" data-order="20">' + svg('<rect x="4" y="2.5" width="10" height="13"/><path d="M6.5 6h5M6.5 9h5M6.5 12h3"/>') + '<span>Sheet</span></button>'
+          + '<button class="tr-tab future" data-order="80" title="Coming later">' + svg('<path d="M4 3.5h8l2 2v9H4z"/><path d="M4 3.5v11"/>') + '<span>Codex</span></button>'
+          + '<button class="tr-tab future" data-order="90" title="Coming later">' + svg('<circle cx="9" cy="9" r="2.4"/><path d="M9 2.5v2M9 13.5v2M2.5 9h2M13.5 9h2"/>') + '<span>Settings</span></button>'
         + '</div>'
         + '<div class="tr-panes">'
           + '<section class="tr-pane on" data-rail-pane="feed">'
@@ -319,12 +319,63 @@
       if (RAIL.open) flagUnread(false);
     }
     function setOpen(v) { RAIL.open = v; applyOpen(); persist(); }
-    function setTab(name) {
-      RAIL.tab = name;
+
+    // ── tabs: built-in (feed/sheet/…) + page-registered contextual ──
+    var contextTabs = {};   // id → spec
+    function applyTab(name) {
       root.querySelectorAll('.tr-tab[data-rail-tab]').forEach(function (t) { t.classList.toggle('on', t.dataset.railTab === name); });
       root.querySelectorAll('.tr-pane[data-rail-pane]').forEach(function (p) { p.classList.toggle('on', p.dataset.railPane === name); });
       if (name === 'feed') { flagUnread(false); renderFeed(); }
+    }
+    function setTab(name) {
+      var prev = RAIL.tab;
+      if (prev !== name && contextTabs[prev] && typeof contextTabs[prev].onHide === 'function') { try { contextTabs[prev].onHide(); } catch (e) {} }
+      RAIL.tab = name;
+      applyTab(name);
+      if (contextTabs[name] && typeof contextTabs[name].onShow === 'function') { try { contextTabs[name].onShow(); } catch (e) {} }
       persist();
+    }
+
+    // Register a page-specific tab. Pages call this once window.TokRail.ready
+    // (or in response to the `tok-rail:ready` event). spec:
+    //   { id, label, icon(svgString), order=50, onMount(paneEl), onShow?(), onHide?() }
+    // The rail owns the tab button, the pane slot, and show/hide; the PAGE owns
+    // the pane's contents (it fills paneEl in onMount). Re-registering an id
+    // replaces it. This is the same seam the combat tabs (Tracker / Bestiary /
+    // Scenes) and the global Compendium will ride on — Marks is just the first.
+    function registerTab(spec) {
+      if (!spec || !spec.id || !root) return null;
+      var id = spec.id;
+      spec.order = (typeof spec.order === 'number') ? spec.order : 50;
+      contextTabs[id] = spec;
+
+      var prevBtn = root.querySelector('.tr-tab[data-rail-tab="' + id + '"]'); if (prevBtn) prevBtn.remove();
+      var prevPane = root.querySelector('.tr-pane[data-rail-pane="' + id + '"]'); if (prevPane) prevPane.remove();
+
+      var tabs = root.querySelector('.tr-tabs');
+      var btn = document.createElement('button');
+      btn.className = 'tr-tab';
+      btn.setAttribute('data-rail-tab', id);
+      btn.setAttribute('data-order', spec.order);
+      btn.innerHTML = (spec.icon || svg('<circle cx="9" cy="9" r="5"/>')) + '<span>' + esc(spec.label || id) + '</span>';
+      var after = Array.prototype.find.call(tabs.children, function (c) { return Number(c.dataset.order || 50) > spec.order; });
+      tabs.insertBefore(btn, after || null);
+      btn.addEventListener('click', function () { setTab(id); });
+
+      var pane = document.createElement('section');
+      pane.className = 'tr-pane';
+      pane.setAttribute('data-rail-pane', id);
+      root.querySelector('.tr-panes').appendChild(pane);
+
+      if (typeof spec.onMount === 'function') { try { spec.onMount(pane); } catch (e) { console.warn('[rail] tab onMount failed:', id, e); } }
+      if (RAIL.tab === id) setTab(id);   // restore a persisted contextual tab on reload
+      return { pane: pane, button: btn };
+    }
+    function unregisterTab(id) {
+      delete contextTabs[id];
+      var b = root.querySelector('.tr-tab[data-rail-tab="' + id + '"]'); if (b) b.remove();
+      var p = root.querySelector('.tr-pane[data-rail-pane="' + id + '"]'); if (p) p.remove();
+      if (RAIL.tab === id) setTab('feed');
     }
 
     function wireShell() {
@@ -396,7 +447,10 @@
       restore();
       buildRail();
       applyOpen();
-      setTab(RAIL.tab);
+      // Built-in panes exist now; a persisted *contextual* tab activates when its
+      // page registers it (below), so just show the feed until then.
+      if (RAIL.tab === 'feed' || RAIL.tab === 'sheet') setTab(RAIL.tab);
+      else applyTab('feed');
       wireShell();
       wireFeed();
       RAIL.built = true;
@@ -410,8 +464,14 @@
         open: function () { setOpen(true); },
         close: function () { setOpen(false); },
         toggle: function () { setOpen(!RAIL.open); },
-        show: function (tab) { if (tab) setTab(tab); setOpen(true); }
+        show: function (tab) { if (tab) setTab(tab); setOpen(true); },
+        registerTab: registerTab,
+        unregisterTab: unregisterTab,
+        ready: true
       };
+      // Pages register their contextual tabs in response to this (or by checking
+      // window.TokRail.ready if they loaded after it fired).
+      document.dispatchEvent(new CustomEvent('tok-rail:ready'));
     });
   }
 })();
