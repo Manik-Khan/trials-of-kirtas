@@ -80,9 +80,11 @@ async function makeRail({ role, characterKey, withBattle = true }) {
   if (withBattle) window.__battle = { getRS: () => ({ advantage: false, disadvantage: false, bless: false, guidance: false }), toggleRS: (m) => toggled.push(m), onRSChange: null };
 
   window.eval(FEED_RENDER_SRC);   // window.FeedRender
+  let readyFired = false;
+  window.document.addEventListener('tok-rail:ready', () => { readyFired = true; });
   window.eval(RAIL_SRC);          // boots; awaits __tok.ready internally
   await settle();
-  return { window, document: window.document, state, toggled, profile };
+  return { window, document: window.document, state, toggled, profile, readyFired: () => readyFired };
 }
 
 // ── Scenario A: player ──────────────────────────────────────────────
@@ -93,7 +95,7 @@ async function makeRail({ role, characterKey, withBattle = true }) {
   ok(!!document.querySelector('.tr-handle'), 'A: reopen handle present (sibling)');
   ok(rail.classList.contains('tr-collapsed'), 'A: defaults collapsed');
   const tabs = rail.querySelectorAll('.tr-tab');
-  ok(tabs.length === 4, 'A: four tabs');
+  ok(tabs.length === 3, 'A: three tabs (Feed + Codex + Settings)');
   ok(rail.querySelector('.tr-tab.on span').textContent === 'Feed', 'A: Feed tab active by default');
   ok(rail.querySelectorAll('.tr-tab.future').length === 2, 'A: Codex + Settings disabled');
   ok(!rail.classList.contains('tr-no-rs'), 'A: RS seam present → mods live');
@@ -153,11 +155,8 @@ async function makeRail({ role, characterKey, withBattle = true }) {
   ok(!rail.classList.contains('tr-collapsed'), 'C: handle click opens the rail');
   ok(handle.classList.contains('tr-open'), 'C: handle tracks open state');
 
-  // tab switch → Sheet pane
-  rail.querySelector('.tr-tab[data-rail-tab="sheet"]').dispatchEvent(new document.defaultView.MouseEvent('click', { bubbles: true }));
-  ok(rail.querySelector('.tr-pane[data-rail-pane="sheet"]').classList.contains('on'), 'C: Sheet tab activates its pane');
-  ok(!rail.querySelector('.tr-pane[data-rail-pane="feed"]').classList.contains('on'), 'C: Feed pane deactivates');
-  // future tab does nothing
+  // (the Sheet tab was removed — sheets open in the float now; tab-switching is
+  // exercised by the registry test in section E.) A future tab does nothing:
   rail.querySelector('.tr-tab.future').dispatchEvent(new document.defaultView.MouseEvent('click', { bubbles: true }));
   ok(!rail.querySelector('.tr-pane[data-rail-pane="codex"]').classList.contains('on'), 'C: disabled tab is inert');
 
@@ -182,6 +181,56 @@ async function makeRail({ role, characterKey, withBattle = true }) {
   const rail = document.getElementById('tok-rail');
   ok(rail.classList.contains('tr-no-rs'), 'D: rail marks tr-no-rs when battle.js seam absent');
   ok(rail.querySelectorAll('[data-rail="feedlist"] .feed-row').length === 2, 'D: feed still renders without battle.js');
+}
+
+// ── Scenario E: the registerTab seam (Marks is the first rider) ─────
+{
+  const { document, readyFired } = await makeRail({ role: 'player', characterKey: 'cosmere' });
+  const win = document.defaultView;
+  const rail = document.getElementById('tok-rail');
+  ok(readyFired(), 'E: tok-rail:ready event fired');
+  ok(win.TokRail && win.TokRail.ready === true, 'E: TokRail.ready exposed');
+  ok(typeof win.TokRail.registerTab === 'function', 'E: registerTab exposed');
+
+  let mountedPane = null, shows = 0, hides = 0;
+  win.TokRail.registerTab({
+    id: 'marks', label: 'Marks', order: 50,
+    icon: '<svg viewBox="0 0 18 18"><circle cx="9" cy="9" r="4"/></svg>',
+    onMount: (pane) => { mountedPane = pane; pane.innerHTML = '<div class="marks-mock">two marks</div>'; },
+    onShow: () => { shows++; }, onHide: () => { hides++; },
+  });
+
+  const markBtn = rail.querySelector('.tr-tab[data-rail-tab="marks"]');
+  ok(!!markBtn && markBtn.querySelector('span').textContent === 'Marks', 'E: Marks tab button added with label');
+  ok(!!mountedPane && rail.querySelector('.tr-pane[data-rail-pane="marks"]') === mountedPane, 'E: onMount received the pane');
+  ok(mountedPane.querySelector('.marks-mock'), 'E: page-supplied content lives in the pane');
+
+  // built-ins untouched: feed/codex/settings all still present (+marks = 4)
+  ok(rail.querySelectorAll('.tr-tab').length === 4, 'E: four tabs total (3 built-in + Marks)');
+  ok(rail.querySelector('.tr-tab[data-rail-tab="feed"]') && rail.querySelectorAll('.tr-tab.future').length === 2, 'E: built-in tabs unaffected');
+
+  // ordering: feed(10) < marks(50) < codex(80)
+  const kids = Array.prototype.slice.call(rail.querySelector('.tr-tabs').children);
+  const iFeed = kids.findIndex(c => c.dataset.railTab === 'feed');
+  const iMarks = kids.findIndex(c => c.dataset.railTab === 'marks');
+  const iCodex = kids.findIndex(c => c.dataset.order === '80');
+  ok(iFeed < iMarks && iMarks < iCodex, 'E: Marks inserts by order (after Feed, before Codex)');
+
+  // switching fires onShow / onHide
+  markBtn.dispatchEvent(new win.MouseEvent('click', { bubbles: true }));
+  ok(rail.querySelector('.tr-pane[data-rail-pane="marks"]').classList.contains('on') && shows === 1, 'E: clicking Marks shows its pane + fires onShow');
+  rail.querySelector('.tr-tab[data-rail-tab="feed"]').dispatchEvent(new win.MouseEvent('click', { bubbles: true }));
+  ok(hides === 1, 'E: leaving Marks fires onHide');
+
+  // re-register replaces (no duplicate tab)
+  win.TokRail.registerTab({ id: 'marks', label: 'Marks', order: 50, onMount: (p) => { p.innerHTML = '<div class="marks-v2">updated</div>'; } });
+  ok(rail.querySelectorAll('.tr-tab[data-rail-tab="marks"]').length === 1, 'E: re-registering an id replaces, no dup');
+  ok(rail.querySelector('.tr-pane[data-rail-pane="marks"] .marks-v2'), 'E: re-register remounts fresh content');
+
+  // unregister removes tab + pane
+  win.TokRail.unregisterTab('marks');
+  ok(!rail.querySelector('.tr-tab[data-rail-tab="marks"]') && !rail.querySelector('.tr-pane[data-rail-pane="marks"]'), 'E: unregisterTab removes the tab + pane');
+  ok(rail.querySelectorAll('.tr-tab').length === 3, 'E: back to three built-in tabs');
 }
 
 console.log(`\nsmoke-rail: ${pass}/${pass + fail} passed${fail ? `  (${fail} FAILED)` : ''}`);

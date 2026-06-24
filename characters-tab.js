@@ -162,7 +162,6 @@
 
   // ── render + refresh ──────────────────────────────────────────────────────
   function render(pane) {
-    pane.classList.add('tr-charpane');
     pane.innerHTML = topHTML() + '<div class="ch-list" data-charlist><div class="ch-empty">Loading roster…</div></div>';
     pane.addEventListener('click', onPaneClick);
     refresh(pane);
@@ -206,7 +205,7 @@
     if (act === 'mark') { e.stopPropagation(); if (key) doMark(key, true); return; }
     if (act === 'restore') { if (key) doMark(key, false); return; }
     if (act === 'delete') { if (key) doDelete(key); return; }
-    if (act === 'open') { if (key) openSheet(key); return; }
+    if (act === 'open') { if (key) { var oc = STATE.chars.filter(function (x) { return x.key === key; })[0]; openSheet(key, oc && oc.name); } return; }
   }
 
   function doMark(key, marked) {
@@ -271,20 +270,22 @@
     setTimeout(function () { document.addEventListener('click', closeMoveOutside, true); }, 0);
   }
 
-  // ── open a character's sheet in the rail's built-in Sheet pane ─────────────
-  function openSheet(key) {
-    var pane = document.querySelector('#tok-rail [data-rail-pane="sheet"]');
-    if (!pane) return;
-    pane.innerHTML = '<div class="tr-sheetbar"><button class="tr-sheetback">‹ Characters</button></div><div class="tr-sheethost"><div class="ch-empty">Opening sheet…</div></div>';
-    pane.querySelector('.tr-sheetback').onclick = function () { if (window.TokRail) window.TokRail.show('characters'); };
-    if (window.TokRail) window.TokRail.show('sheet');
-    ensureSheetDeps().then(function () {
-      var host = pane.querySelector('.tr-sheethost'); if (!host) return;
-      host.innerHTML = '';
-      if (window.mountSheet) window.mountSheet(host, key);
+  // ── open a character's sheet in the floating window — the full-size "mounted
+  // sheet" combat already uses (CombatSheets), not the narrow rail pane. Loads the
+  // float + its CSS + the sheet deps on demand, then CombatSheets.open(key, name).
+  function ensureSheetFloat() {
+    return ensureSheetDeps().then(function () {
+      loadCssOnce('combat-sheet-float.css');
+      if (window.CombatSheets && window.CombatSheets.open) return null;
+      return loadScript('combat-sheet-float.js').then(function () { return waitFor(function () { return !!(window.CombatSheets && window.CombatSheets.open); }, 5000); });
+    });
+  }
+  function openSheet(key, name) {
+    ensureSheetFloat().then(function () {
+      if (window.CombatSheets && window.CombatSheets.open) window.CombatSheets.open(key, name || key);
     }).catch(function (e) {
-      var host = pane.querySelector('.tr-sheethost');
-      if (host) host.innerHTML = '<div class="ch-empty">Couldn’t load the sheet (' + esc((e && e.message) || 'error') + ').</div>';
+      console.warn('[characters] sheet float failed', e);
+      alert('Couldn’t open the sheet (' + ((e && e.message) || 'error') + ').');
     });
   }
 
@@ -293,7 +294,6 @@
     if (document.getElementById('tok-characters-css')) return;
     var s = document.createElement('style'); s.id = 'tok-characters-css';
     s.textContent = [
-      '#tok-rail .tr-charpane{display:flex;flex-direction:column}',
       '#tok-rail .ch-top{padding:11px 13px 10px;border-bottom:1px solid var(--hair);display:flex;gap:7px}',
       '#tok-rail .ch-new{flex:1;display:flex;align-items:center;justify-content:center;gap:7px;padding:9px 0;cursor:pointer;background:rgba(231,194,121,.08);border:1px solid var(--frame);color:var(--gold-br);font-family:"Oswald",sans-serif;letter-spacing:.12em;text-transform:uppercase;font-size:10px}',
       '#tok-rail .ch-new:hover{background:rgba(231,194,121,.16);color:var(--cream-hi)}',
@@ -301,7 +301,7 @@
       '#tok-rail .ch-newfolder{flex:none;display:flex;align-items:center;gap:6px;padding:9px 11px;cursor:pointer;background:transparent;border:1px solid var(--hair);color:var(--cream-fnt);font-family:"Oswald",sans-serif;letter-spacing:.1em;text-transform:uppercase;font-size:10px}',
       '#tok-rail .ch-newfolder:hover{color:var(--cream);border-color:var(--frame)}',
       '#tok-rail .ch-newfolder svg{width:13px;height:13px}',
-      '#tok-rail .ch-list{flex:1 1 auto;overflow-y:auto;padding:5px 9px 16px;scrollbar-width:thin;scrollbar-color:rgba(199,154,74,.25) transparent}',
+      '#tok-rail .ch-list{flex:1 1 auto;min-height:0;overflow-y:auto;padding:5px 9px 16px;scrollbar-width:thin;scrollbar-color:rgba(199,154,74,.25) transparent}',
       '#tok-rail .ch-list::-webkit-scrollbar{width:4px}',
       '#tok-rail .ch-list::-webkit-scrollbar-thumb{background:rgba(199,154,74,.25)}',
       '#tok-rail .ch-empty,#tok-rail .fold-empty{font-family:"EB Garamond",serif;font-style:italic;color:var(--cream-fnt);font-size:13px;padding:10px 8px}',
@@ -343,13 +343,6 @@
       '#tok-rail .ch-tb.del{color:var(--red-br);border-color:rgba(207,59,44,.45)}',
       '#tok-rail .ch-tb.del:hover{background:rgba(207,59,44,.16)}',
       '#tok-rail .ch-staffnote{font-family:"Oswald",sans-serif;font-size:8px;letter-spacing:.1em;text-transform:uppercase;color:var(--cream-fnt);align-self:center}',
-      // sheet pane (host for mountSheet)
-      '#tok-rail .tr-sheetbar{flex:none;padding:8px 12px;border-bottom:1px solid var(--hair)}',
-      '#tok-rail .tr-sheetback{background:transparent;border:none;color:var(--gold-br);font-family:"Oswald",sans-serif;letter-spacing:.1em;text-transform:uppercase;font-size:10px;cursor:pointer;padding:2px 0}',
-      '#tok-rail .tr-sheetback:hover{color:var(--cream-hi)}',
-      '#tok-rail .tr-sheethost{flex:1 1 auto;min-height:0;overflow-y:auto;scrollbar-width:thin;scrollbar-color:rgba(199,154,74,.25) transparent}',
-      '#tok-rail .tr-sheethost::-webkit-scrollbar{width:5px}',
-      '#tok-rail .tr-sheethost::-webkit-scrollbar-thumb{background:rgba(199,154,74,.25)}',
       // move popover (body-level)
       '.ch-menu{position:fixed;z-index:1200;min-width:160px;max-width:180px;background:linear-gradient(180deg,#1b2c2a,#13201e);border:1px solid rgba(199,154,74,.4);box-shadow:0 8px 28px rgba(0,0,0,.5);padding:4px;display:flex;flex-direction:column}',
       '.ch-mi{text-align:left;background:transparent;border:none;color:#ece2cd;font-family:"EB Garamond",serif;font-size:14px;padding:7px 9px;cursor:pointer;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}',

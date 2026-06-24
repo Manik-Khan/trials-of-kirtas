@@ -261,7 +261,6 @@
         + '</div>'
         + '<div class="tr-tabs">'
           + '<button class="tr-tab on" data-rail-tab="feed" data-order="10">' + svg('<path d="M3 4h12M3 8h12M3 12h8"/>') + '<span>Feed</span></button>'
-          + '<button class="tr-tab" data-rail-tab="sheet" data-order="20">' + svg('<rect x="4" y="2.5" width="10" height="13"/><path d="M6.5 6h5M6.5 9h5M6.5 12h3"/>') + '<span>Sheet</span></button>'
           + '<button class="tr-tab future" data-order="80" title="Coming later">' + svg('<path d="M4 3.5h8l2 2v9H4z"/><path d="M4 3.5v11"/>') + '<span>Codex</span></button>'
           + '<button class="tr-tab future" data-order="90" title="Coming later">' + svg('<circle cx="9" cy="9" r="2.4"/><path d="M9 2.5v2M9 13.5v2M2.5 9h2M13.5 9h2"/>') + '<span>Settings</span></button>'
         + '</div>'
@@ -280,11 +279,6 @@
               + '<button class="tr-send" data-rail="dicebtn" title="Roll dice"><svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.3"><rect x="2.5" y="2.5" width="11" height="11" rx="1.5"/><circle cx="5.5" cy="5.5" r=".9" fill="currentColor"/><circle cx="10.5" cy="5.5" r=".9" fill="currentColor"/><circle cx="8" cy="8" r=".9" fill="currentColor"/><circle cx="5.5" cy="10.5" r=".9" fill="currentColor"/><circle cx="10.5" cy="10.5" r=".9" fill="currentColor"/></svg></button>'
               + '<button class="tr-send" data-rail="sendbtn" title="Send"><svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.4"><path d="M2 8l12-5-5 12-2-5z"/></svg></button>'
             + '</div>'
-          + '</section>'
-          + '<section class="tr-pane" data-rail-pane="sheet">'
-            + '<div class="tr-soon">' + svg('<rect x="4" y="2.5" width="10" height="13"/><path d="M6.5 6h5M6.5 9h5M6.5 12h3"/>', ' width="30" height="30"')
-              + '<div class="h">Your character, on call</div>'
-              + '<div class="p">The at-a-glance sheet mounts here next — the same one the standalone page and the combat float use, reflowed to the rail.</div></div>'
           + '</section>'
           + '<section class="tr-pane" data-rail-pane="codex"><div class="tr-soon"><div class="h">Codex</div><div class="p">Lore, rules, and references — coming in a later pass.</div></div></section>'
           + '<section class="tr-pane" data-rail-pane="settings"><div class="tr-soon"><div class="h">Settings</div><div class="p">Appearance and preferences — coming in a later pass.</div></div></section>'
@@ -456,7 +450,7 @@
       applyOpen();
       // Built-in panes exist now; a persisted *contextual* tab activates when its
       // page registers it (below), so just show the feed until then.
-      if (RAIL.tab === 'feed' || RAIL.tab === 'sheet') setTab(RAIL.tab);
+      if (RAIL.tab === 'feed') setTab(RAIL.tab);
       else applyTab('feed');
       wireShell();
       wireFeed();
