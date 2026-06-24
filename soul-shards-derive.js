@@ -93,6 +93,11 @@
 
     // ── combat scalars + race/subrace traits (P3 — resolved from races.json by loadRace) ──
     var combat = { initiative: mod('dex'), hitDice: hitDice };
+    // HP — sum the engine's per-class max (level-1 max HD + CON, then average/rolled
+    // per level). Single-class is exact; multiclass over-counts secondary classes'
+    // first level, since the level-1 max only truly applies to the FIRST character level.
+    var hpMax = builds.reduce(function (n, b) { return n + ((b.hp && b.hp.max) || 0); }, 0);
+    if (hpMax > 0) { combat.hp = hpMax; combat.hpMax = hpMax; }
     var race = input.race || null;
     var raceName = race ? race.name : null;
     if (race && (race.speed || race.darkvision != null || race.traits)) {
@@ -116,7 +121,7 @@
     // ── honest gaps ──
     incomplete.push('feature descriptions (P4 \u2014 {@tag} entries markup not yet rendered)');
     incomplete.push('combat.ac (needs equipped armor \u2014 equipment not modeled in this derive)');
-    incomplete.push('combat.hp / hpMax (multiclass HP needs first-character-level-max handling)');
+    if (classes.length > 1) incomplete.push('multiclass HP slightly over-counts secondary classes\u2019 first level (level-1 max applies only to the first character level)');
     incomplete.push('senses don\u2019t include feature/subclass upgrades (e.g. Shadow Magic darkvision)');
     incomplete.push('passivePerception / passiveInsight (need the Perception / Insight skill proficiencies)');
     incomplete.push('skills[] (need class / background / race proficiency choices)');

@@ -21,7 +21,7 @@
 (function () {
   'use strict';
 
-  const COLS = 'key,owner,structural,vitals,inventory,equipment,currency,bio,notes,updated_at';
+  const COLS = 'key,owner,structural,vitals,inventory,equipment,currency,bio,notes,updated_at,delete_marked';
 
   // Wait for nav.js to finish assembling window.__tok. It builds __tok
   // asynchronously (Supabase CDN load + getSession) and signals completion by
@@ -78,6 +78,7 @@
       bio:        row.bio       || {},
       notes:      row.notes     || '',
       updatedAt:  row.updated_at,
+      deleteMarked: !!row.delete_marked,
     };
   }
 
@@ -148,5 +149,44 @@
     return shape(data[0]);
   }
 
-  window.CharacterData = { loadParty, loadCharacter, canEdit, save };
+  // ── CREATE. Forge a brand-new character via the create_character RPC (anyone
+  // signed in may). The caller supplies a unique key from newKey(); owner is
+  // pinned server-side. Returns the new key. Astronomically-rare key collisions
+  // surface as a unique-violation — callers can regenerate + retry.
+  async function create(key, fields) {
+    if (!key) throw new Error('create: missing character key');
+    fields = fields || {};
+    const sb = await client();
+    const { data, error } = await sb.rpc('create_character', {
+      p_key: key,
+      p_structural: fields.structural || {},
+      p_vitals: fields.vitals || {},
+    });
+    if (error) throw error;
+    return data; // the key
+  }
+
+  // ── SOFT-DELETE (the two-stage trash). markDeletion flags/unflags (any member);
+  // remove is the staff-only hard delete. Both go through SECURITY DEFINER RPCs.
+  async function markDeletion(key, marked) {
+    if (!key) throw new Error('markDeletion: missing character key');
+    const sb = await client();
+    const { error } = await sb.rpc('mark_character_deletion', { p_key: key, p_marked: marked !== false });
+    if (error) throw error;
+  }
+  async function remove(key) {
+    if (!key) throw new Error('remove: missing character key');
+    const sb = await client();
+    const { error } = await sb.rpc('delete_character', { p_key: key });
+    if (error) throw error;
+  }
+
+  // A unique, readable key: name slug + short random suffix, so two same-named
+  // characters never clash and creating one never touches another.
+  function newKey(name) {
+    const slug = String(name || 'character').toLowerCase().replace(/[^a-z0-9]+/g, '').slice(0, 24) || 'character';
+    return slug + '-' + Math.random().toString(16).slice(2, 6);
+  }
+
+  window.CharacterData = { loadParty, loadCharacter, canEdit, save, create, markDeletion, remove, newKey };
 })();

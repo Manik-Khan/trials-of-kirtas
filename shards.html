@@ -872,13 +872,22 @@ var BODIES = {
           '<dt>Spells</dt><dd>' + (spellsActive() ? 'chosen in ' + mode + ' mode' : 'none') + '</dd>' +
         '</dl>' +
       '</div>' +
+      '<div class="fx-target" id="fx-target">' +
+        '<div class="fx-tline">' +
+          '<label class="fx-radio"><input type="radio" name="fxmode" value="new" checked> Create new character</label>' +
+          '<label class="fx-radio"><input type="radio" name="fxmode" value="existing"> Update existing</label>' +
+        '</div>' +
+        '<select id="fx-existing" class="fx-sel" disabled><option value="">\u2014 pick a character \u2014</option></select>' +
+        '<div id="fx-status" class="fx-status"></div>' +
+      '</div>' +
       '<div id="forge-out"></div>' +
-      '<div class="ph-note"><b>P7</b> derives every remaining computed field (AC, speed, spell DC/attack, species + background grants, spell lists) and <b>writes</b> the assembled <b>structural</b> to the characters table. Right now <b>Forge Character</b> only <b>previews</b> what’s derivable — nothing is written to the live game.</div>';
+      '<div class="ph-note"><b>Forge Character</b> derives the assembled <b>structural</b> and <b>writes</b> it to the characters table \u2014 a fresh row, or an update to the character you pick. Fields still listed under <b>_incomplete</b> (skills, AC, items) fill in as those steps land.</div>';
   },
 };
 
 // post-render mounts (browse lists manage their own filtering/focus)
 var MOUNT = {
+  review: function(){ mountReview(); },
   abilities: function(){
     Array.prototype.forEach.call(document.querySelectorAll('[data-method]'), function(btn){
       btn.addEventListener('click', function(){
@@ -1787,6 +1796,94 @@ function forgePreview(){
   });
 }
 
+// ── forge: COMMIT — derive + WRITE the structural to the characters table ──────
+// Reuses buildStructuralPreview's assembly, strips the _incomplete marker, seeds
+// vitals.hp at full, then writes: a NEW row (CharacterData.create, fresh unique
+// key) or an UPDATE onto the picked character (CharacterData.save). The preview
+// JSON still renders above so you see exactly what's written.
+function injectForgeCss(){
+  if (document.getElementById('fx-commit-css')) return;
+  var s = document.createElement('style');
+  s.id = 'fx-commit-css';
+  s.textContent = [
+    '.fx-target{margin-top:18px;padding:14px 16px;border:1px solid var(--rule-strong);background:rgba(0,0,0,.10)}',
+    '.fx-tline{display:flex;gap:18px;flex-wrap:wrap;margin-bottom:10px}',
+    '.fx-radio{font-family:var(--ui);font-size:15px;letter-spacing:.02em;cursor:pointer;display:flex;align-items:center;gap:6px}',
+    '.fx-sel{font-family:var(--ui);font-size:15px;padding:6px 10px;background:var(--paper,#fff);border:1px solid var(--rule-strong);color:var(--ink);max-width:340px}',
+    '.fx-sel:disabled{opacity:.4}',
+    '.fx-status{margin-top:10px;font-family:var(--ui);font-size:15px;min-height:1.2em;letter-spacing:.02em}',
+    '.fx-status.ok{color:#2e7d4f}',
+    '.fx-status.err{color:var(--blood)}',
+    '.fx-status.busy{color:var(--ink-faint)}'
+  ].join('');
+  document.head.appendChild(s);
+}
+function forgeMode(){
+  var radios = document.getElementsByName('fxmode');
+  for (var i = 0; i < radios.length; i++){ if (radios[i].checked) return radios[i].value; }
+  return 'new';
+}
+function fxStatus(kind, msg){
+  var el = q('#fx-status'); if (!el) return;
+  el.className = 'fx-status ' + (kind || '');
+  el.textContent = msg || '';
+}
+function mountReview(){
+  injectForgeCss();
+  forgePreview();                                  // show the assembled structural
+  var radios = document.getElementsByName('fxmode');
+  var sel = q('#fx-existing');
+  function syncMode(){ if (sel) sel.disabled = (forgeMode() !== 'existing'); }
+  Array.prototype.forEach.call(radios, function(r){ r.addEventListener('change', syncMode); });
+  syncMode();
+  if (sel && typeof CharacterData !== 'undefined' && CharacterData.loadParty){
+    CharacterData.loadParty().then(function(list){
+      sel.innerHTML = ['<option value="">\u2014 pick a character \u2014</option>'].concat((list || []).map(function(ch){
+        return '<option value="' + escHtml(ch.key) + '">' + escHtml(ch.name) + (ch.deleteMarked ? ' (marked for deletion)' : '') + '</option>';
+      })).join('');
+    }).catch(function(){ /* leave the default option in place */ });
+  }
+}
+function forgeCommit(){
+  var c = chosenClass();
+  if (!c){ fxStatus('err', 'Choose a class first \u2014 the engine needs it to assemble the sheet.'); return; }
+  if (!draft.name){ fxStatus('err', 'Name your character first (field at the top of the page).'); return; }
+  if (typeof CharacterData === 'undefined'){ fxStatus('err', 'Character data module not loaded.'); return; }
+  var mode = forgeMode();
+  var existingKey = (q('#fx-existing') || {}).value || '';
+  if (mode === 'existing' && !existingKey){ fxStatus('err', 'Pick which character to update.'); return; }
+  if (typeof SoulShardsData === 'undefined' || typeof SoulShardsEngine === 'undefined'){ fxStatus('err', 'Engine modules not loaded.'); return; }
+
+  fxStatus('busy', 'Assembling the structural\u2026');
+  var spellsReady = (typeof SpellsUI !== 'undefined' && isCaster(c)) ? SpellsUI.ensureLoaded() : Promise.resolve(true);
+  Promise.all([SoulShardsData.loadClass(c.n), raceForBuild(), spellsReady]).then(function(res){
+    var assembled = buildStructuralPreview(res[0], res[1]);
+    if (assembled && assembled._error){ fxStatus('err', assembled._error); return; }
+    var structural = Object.assign({}, assembled); delete structural._incomplete;
+    var hpMax = (structural.combat && structural.combat.hpMax) || 0;
+    var vitals = hpMax > 0 ? { hp: hpMax } : {};
+
+    if (mode === 'existing'){
+      fxStatus('busy', 'Updating \u201c' + existingKey + '\u201d\u2026');
+      // structural only — leave the live character's vitals (current HP, spent
+      // resources) untouched; a rebuild shouldn't reset play state mid-campaign.
+      return CharacterData.save(existingKey, { structural: structural }).then(function(row){
+        fxStatus('ok', 'Updated ' + (row && row.name ? row.name : existingKey) + '. The sheet now reads from this build (current HP / resources kept).');
+      });
+    }
+    var key = CharacterData.newKey(draft.name);
+    fxStatus('busy', 'Forging ' + draft.name + '\u2026');
+    return CharacterData.create(key, { structural: structural, vitals: vitals }).catch(function(err){
+      if (err && /duplicate|unique/i.test(err.message || '')){ key = CharacterData.newKey(draft.name); return CharacterData.create(key, { structural: structural, vitals: vitals }); }
+      throw err;
+    }).then(function(){
+      fxStatus('ok', draft.name + ' forged (' + key + '). Assign them to a player in Members & Access.');
+    });
+  }).catch(function(err){
+    fxStatus('err', 'Forge failed: ' + ((err && err.message) || 'unknown error'));
+  });
+}
+
 // ── render current step ──────────────────────────────────────────────────────
 function renderStep(){
   var s = STEPS.find(function(x){ return x.id === draft.stepId; });
@@ -1805,7 +1902,7 @@ function renderStep(){
   if (pos >= act.length - 1){
     next.textContent = 'Forge Character';
     next.disabled = false;
-    next.title = 'Assemble + preview the structural block (preview only — not written until P7)';
+    next.title = 'Derive the structural block and write it to the characters table';
   } else {
     next.textContent = 'Next \u25b8';
     next.title = '';
@@ -1850,7 +1947,7 @@ q('#back').addEventListener('click', function(){ step(-1); });
 q('#next').addEventListener('click', function(){
   var act = activeSteps();
   var pos = act.findIndex(function(x){ return x.id === draft.stepId; });
-  if (pos >= act.length - 1){ forgePreview(); return; }   // last step: Forge = assemble + preview
+  if (pos >= act.length - 1){ forgeCommit(); return; }   // last step: Forge = derive + write
   step(1);
 });
 // character name (topbar) → draft.name, live into the rail's "Emerging" line
