@@ -830,7 +830,41 @@ function selectPlayerPin(event, pinId) {
   event.stopPropagation();
   const pin = playerPins.find(p => p.id === pinId);
   if (!pin) return;
-  renderMarkDetail(pinId, false);   // → rail Marks pane (focuses the pin on the map too)
+  const pt = PIN_TYPES.find(t => t.id === pin.type) || PIN_TYPES[4];
+  selectedKey = `player-${pinId}`;
+  renderPins();
+  renderMarksList();
+
+  document.getElementById('panel-type-label').textContent = 'Mark';
+  document.getElementById('panel-type-label').style.color = pt.color;
+
+  const badge = document.getElementById('panel-status-badge');
+  badge.textContent       = pt.label;
+  badge.className         = 'panel-status-badge';
+  badge.style.color       = pt.color;
+  badge.style.borderColor = pt.color + '66';
+
+  document.getElementById('panel-name').textContent     = pt.label;
+  document.getElementById('panel-subtitle').textContent = `Placed by ${escapeHtml(pin.placedBy)}`;
+
+  const canDelete = currentIdentity &&
+    (currentIdentity.playerId === pin.playerId || currentIdentity.playerId === 'dm');
+
+  document.getElementById('panel-body').innerHTML = `
+    <div class="panel-section">Note</div>
+    ${pin.note
+      ? `<div class="panel-pin-note">${escapeHtml(pin.note)}</div>`
+      : `<div class="panel-pin-note" style="color:var(--muted)">No note added.</div>`}
+    <div class="panel-section">Placed by</div>
+    <div class="panel-pin-who">
+      <div class="panel-pin-who-dot" style="background:${escapeHtml(pin.color||pt.color)}"></div>
+      ${escapeHtml(pin.placedBy)} &middot; ${escapeHtml(pin.character)} &middot;
+      ${new Date(pin.timestamp).toLocaleDateString('en-US',{month:'short',day:'numeric',year:'numeric'})}
+    </div>
+    ${canDelete ? `<br><button class="panel-pin-delete" onclick="deletePin('${escapeHtml(pinId)}')">Delete Mark</button>` : ''}
+  `;
+
+  openPanel();
 }
 
 // ══════════════════════════════════════════════════════════
@@ -870,7 +904,6 @@ function choosePinType(typeId) {
   document.getElementById('pin-palette').classList.remove('open');
   placingMode = true;
   document.getElementById('map-wrap').classList.add('placing');
-  if (window.TokRail) window.TokRail.close();   // free the full map for the placement click
 }
 
 function cancelPlacing() {
@@ -1153,19 +1186,28 @@ function handleMapClick(e) {
 
 function showPinNoteForm(x, y, typeId) {
   const pt = PIN_TYPES.find(t => t.id === typeId) || PIN_TYPES[4];
-  const d  = document.getElementById('marks-detail');
-  if (window.TokRail) window.TokRail.show('marks');
-  if (!d) return;
-  d.innerHTML = `
-    <div class="trm-dhead"><span class="trm-dtype" style="color:${pt.color}">New ${pt.label}</span>
-      <button class="trm-dx" onclick="closeMarkDetail()">✕</button></div>
-    <textarea class="trm-edit" id="new-pin-note" placeholder="Optional note… e.g. 'Ogre camp, NW of the ford'"></textarea>
-    <div class="trm-drow">
-      <button class="trm-save" onclick="confirmPin(${x.toFixed(2)}, ${y.toFixed(2)}, '${typeId}')">Save Mark</button>
-      <button class="trm-cancel" onclick="closeMarkDetail()">Cancel</button>
-    </div>`;
-  d.style.display = 'block';
-  setTimeout(() => { const t = document.getElementById('new-pin-note'); if (t) t.focus(); }, 60);
+
+  document.getElementById('panel-type-label').textContent = 'New Mark';
+  document.getElementById('panel-type-label').style.color = pt.color;
+
+  const badge = document.getElementById('panel-status-badge');
+  badge.textContent       = pt.label;
+  badge.className         = 'panel-status-badge';
+  badge.style.color       = pt.color;
+  badge.style.borderColor = pt.color + '66';
+
+  document.getElementById('panel-name').textContent     = 'Add a note';
+  document.getElementById('panel-subtitle').textContent = `Placing ${pt.label} pin`;
+
+  document.getElementById('panel-body').innerHTML = `
+    <textarea class="panel-note-input" id="new-pin-note"
+      placeholder="Optional note… e.g. 'Ogre camp, northwest of the ford'"></textarea>
+    <br>
+    <button class="panel-save-btn" onclick="confirmPin(${x.toFixed(2)}, ${y.toFixed(2)}, '${typeId}')">Save Mark</button>
+    <button class="panel-cancel-btn" onclick="closePanel()">Cancel</button>
+  `;
+  openPanel();
+  setTimeout(() => document.getElementById('new-pin-note')?.focus(), 80);
 }
 
 async function confirmPin(x, y, typeId) {
@@ -1192,8 +1234,11 @@ async function confirmPin(x, y, typeId) {
 
 async function deletePin(pinId) {
   if (!confirm('Remove this mark?')) return;
-  playerPins = playerPins.filter(p => p.id !== pinId);
-  closeMarkDetail();
+  playerPins  = playerPins.filter(p => p.id !== pinId);
+  selectedKey = null;
+  closePanel();
+  renderPins();
+  renderMarksList();
   await savePins();
 }
 
@@ -1201,7 +1246,12 @@ async function deletePin(pinId) {
 // MARKS PANEL
 // ══════════════════════════════════════════════════════════
 function toggleMarksPanel() {
-  if (window.TokRail) window.TokRail.show('marks');   // Marks now lives in the universal rail
+  marksPanelOpen = !marksPanelOpen;
+  const panel = document.getElementById('marks-panel');
+  panel.classList.toggle('open', marksPanelOpen);
+  panel.classList.toggle('behind', marksPanelOpen && detailPanelOpen);
+  document.getElementById('rail-marks').classList.toggle('active', marksPanelOpen);
+  if (marksPanelOpen && window.TokRail) window.TokRail.close();   // one right-edge surface at a time
 }
 
 function renderMarksList() {
@@ -1241,174 +1291,13 @@ function setMarksFilter(typeId) {
 }
 
 // ══════════════════════════════════════════════════════════
-// MARKS → RAIL
-// The Marks panel lives in the universal right rail as a page-registered
-// tab. The map pins, placement flow, the Netlify map-pins store, and the
-// identity bar are all unchanged — only the PANEL moves. We reparent the
-// existing functional elements (filter row, list, place button, identity
-// bar) into the rail pane so their ids + inline handlers keep working as
-// is, and add an inline master-detail note editor (tap a mark → read/edit
-// its note right there). renderMarksList/updateIdentityBar/startPlacing all
-// target by id, so they don't care that the elements now live in the rail.
-// ══════════════════════════════════════════════════════════
-function injectMarksRailCss() {
-  if (document.getElementById('marks-rail-css')) return;
-  const s = document.createElement('style');
-  s.id = 'marks-rail-css';
-  s.textContent = `
-    #tok-rail .tr-pane[data-rail-pane="marks"]{ display:flex; flex-direction:column; min-height:0; }
-    #tok-rail .tr-pane[data-rail-pane="marks"] .trm-scroll{ flex:1 1 auto; min-height:0; overflow-y:auto; scrollbar-width:thin; scrollbar-color:rgba(199,154,74,.25) transparent; }
-    #tok-rail .tr-pane[data-rail-pane="marks"] .trm-scroll::-webkit-scrollbar{ width:4px; }
-    #tok-rail .tr-pane[data-rail-pane="marks"] .trm-scroll::-webkit-scrollbar-thumb{ background:rgba(199,154,74,.25); }
-    #tok-rail .tr-pane[data-rail-pane="marks"] .marks-filter-row{ display:flex; flex-wrap:wrap; gap:5px; padding:10px 13px 8px; border-bottom:1px solid var(--hair); }
-    #tok-rail .tr-pane[data-rail-pane="marks"] .marks-filter-chip{ font-family:"Oswald",sans-serif; font-size:9px; letter-spacing:.08em; text-transform:uppercase; color:var(--cream-fnt); border:1px solid var(--hair); background:transparent; padding:4px 7px; cursor:pointer; display:flex; align-items:center; gap:5px; }
-    #tok-rail .tr-pane[data-rail-pane="marks"] .marks-filter-chip:hover{ color:var(--cream-dim); border-color:var(--frame); }
-    #tok-rail .tr-pane[data-rail-pane="marks"] .marks-filter-chip.active{ color:var(--gold-br); border-color:var(--gold); background:rgba(231,194,121,.1); }
-    #tok-rail .tr-pane[data-rail-pane="marks"] .marks-filter-dot{ width:7px; height:7px; border-radius:50%; flex:none; }
-    #tok-rail .tr-pane[data-rail-pane="marks"] .marks-list{ padding:4px 0; }
-    #tok-rail .tr-pane[data-rail-pane="marks"] .marks-item{ display:flex; gap:9px; padding:10px 13px; border-bottom:1px solid var(--hair); cursor:pointer; }
-    #tok-rail .tr-pane[data-rail-pane="marks"] .marks-item:hover{ background:rgba(231,194,121,.05); }
-    #tok-rail .tr-pane[data-rail-pane="marks"] .marks-item.active{ background:rgba(231,194,121,.09); }
-    #tok-rail .tr-pane[data-rail-pane="marks"] .marks-item-dot{ width:9px; height:9px; border-radius:50%; margin-top:3px; flex:none; }
-    #tok-rail .tr-pane[data-rail-pane="marks"] .marks-item-body{ min-width:0; flex:1; }
-    #tok-rail .tr-pane[data-rail-pane="marks"] .marks-item-type{ font-family:"Oswald",sans-serif; font-size:9px; letter-spacing:.1em; text-transform:uppercase; color:var(--cream-fnt); }
-    #tok-rail .tr-pane[data-rail-pane="marks"] .marks-item-note{ font-family:"EB Garamond",serif; font-size:14px; color:var(--cream); white-space:nowrap; overflow:hidden; text-overflow:ellipsis; margin-top:1px; }
-    #tok-rail .tr-pane[data-rail-pane="marks"] .marks-item-who{ font-family:"EB Garamond",serif; font-size:11px; font-style:italic; color:var(--cream-fnt); margin-top:2px; }
-    #tok-rail .tr-pane[data-rail-pane="marks"] .marks-empty{ font-family:"EB Garamond",serif; font-style:italic; color:var(--cream-fnt); text-align:center; padding:24px 12px; font-size:13px; }
-    #tok-rail .tr-pane[data-rail-pane="marks"] .trm-detail{ border-top:1px solid var(--frame); padding:12px 13px; background:rgba(7,12,11,.4); max-height:48%; overflow-y:auto; flex:none; }
-    #tok-rail .tr-pane[data-rail-pane="marks"] .trm-dhead{ display:flex; justify-content:space-between; align-items:center; margin-bottom:8px; }
-    #tok-rail .tr-pane[data-rail-pane="marks"] .trm-dtype{ font-family:"Oswald",sans-serif; font-size:11px; letter-spacing:.12em; text-transform:uppercase; font-weight:600; }
-    #tok-rail .tr-pane[data-rail-pane="marks"] .trm-dx{ background:transparent; border:none; color:var(--cream-fnt); cursor:pointer; font-size:13px; line-height:1; }
-    #tok-rail .tr-pane[data-rail-pane="marks"] .trm-dx:hover{ color:var(--cream); }
-    #tok-rail .tr-pane[data-rail-pane="marks"] .trm-note{ font-family:"EB Garamond",serif; font-size:15px; line-height:1.5; color:var(--cream); white-space:pre-wrap; word-break:break-word; }
-    #tok-rail .tr-pane[data-rail-pane="marks"] .trm-note.empty{ color:var(--cream-fnt); font-style:italic; }
-    #tok-rail .tr-pane[data-rail-pane="marks"] .trm-who{ display:flex; align-items:center; gap:6px; font-family:"EB Garamond",serif; font-size:12px; font-style:italic; color:var(--cream-fnt); margin-top:10px; }
-    #tok-rail .tr-pane[data-rail-pane="marks"] .trm-who-dot{ width:8px; height:8px; border-radius:50%; flex:none; }
-    #tok-rail .tr-pane[data-rail-pane="marks"] .trm-edit{ width:100%; box-sizing:border-box; background:rgba(7,12,11,.5); border:1px solid var(--frame); color:var(--cream); font-family:"EB Garamond",serif; font-size:15px; padding:8px 10px; outline:none; resize:vertical; min-height:64px; }
-    #tok-rail .tr-pane[data-rail-pane="marks"] .trm-edit:focus{ border-color:var(--frame-hi); }
-    #tok-rail .tr-pane[data-rail-pane="marks"] .trm-drow{ display:flex; gap:7px; margin-top:10px; align-items:center; }
-    #tok-rail .tr-pane[data-rail-pane="marks"] .trm-drow button{ font-family:"Oswald",sans-serif; font-size:10px; letter-spacing:.1em; text-transform:uppercase; padding:6px 12px; cursor:pointer; border:1px solid var(--frame); background:transparent; }
-    #tok-rail .tr-pane[data-rail-pane="marks"] .trm-save,
-    #tok-rail .tr-pane[data-rail-pane="marks"] .trm-edit-btn{ color:var(--gold-br); border-color:var(--gold); }
-    #tok-rail .tr-pane[data-rail-pane="marks"] .trm-save:hover,
-    #tok-rail .tr-pane[data-rail-pane="marks"] .trm-edit-btn:hover{ background:rgba(231,194,121,.1); }
-    #tok-rail .tr-pane[data-rail-pane="marks"] .trm-cancel{ color:var(--cream-fnt); }
-    #tok-rail .tr-pane[data-rail-pane="marks"] .trm-cancel:hover{ color:var(--cream); }
-    #tok-rail .tr-pane[data-rail-pane="marks"] .trm-del{ color:var(--red-br); border-color:rgba(207,59,44,.5); margin-left:auto; }
-    #tok-rail .tr-pane[data-rail-pane="marks"] .trm-del:hover{ background:rgba(207,59,44,.12); }
-    #tok-rail .tr-pane[data-rail-pane="marks"] .marks-footer{ padding:9px 13px; border-top:1px solid var(--frame); flex:none; }
-    #tok-rail .tr-pane[data-rail-pane="marks"] .marks-place-btn{ width:100%; font-family:"Oswald",sans-serif; font-size:10.5px; letter-spacing:.12em; text-transform:uppercase; color:var(--ground); background:var(--gold-br); border:none; padding:9px 0; cursor:pointer; }
-    #tok-rail .tr-pane[data-rail-pane="marks"] .marks-place-btn:hover{ background:var(--gold); }
-    #tok-rail .tr-pane[data-rail-pane="marks"] .marks-identity{ display:flex; align-items:center; gap:7px; padding:8px 13px; border-top:1px solid var(--hair); flex:none; }
-    #tok-rail .tr-pane[data-rail-pane="marks"] .marks-identity-dot{ width:8px; height:8px; border-radius:50%; flex:none; }
-    #tok-rail .tr-pane[data-rail-pane="marks"] .marks-identity-name{ font-family:"Oswald",sans-serif; font-size:10px; letter-spacing:.06em; color:var(--cream-dim); flex:1; min-width:0; }
-    #tok-rail .tr-pane[data-rail-pane="marks"] .marks-identity-switch{ font-family:"Oswald",sans-serif; font-size:9px; letter-spacing:.1em; text-transform:uppercase; color:var(--cream-fnt); background:transparent; border:1px solid var(--frame); padding:4px 8px; cursor:pointer; }
-    #tok-rail .tr-pane[data-rail-pane="marks"] .marks-identity-switch:hover{ color:var(--gold-br); border-color:var(--gold); }
-  `;
-  document.head.appendChild(s);
-}
-
-function buildMarksPane(pane) {
-  injectMarksRailCss();
-  const scroll = document.createElement('div');
-  scroll.className = 'trm-scroll';
-  const detail = document.createElement('div');
-  detail.id = 'marks-detail';
-  detail.className = 'trm-detail';
-  detail.style.display = 'none';
-
-  // reparent the live elements (ids + inline handlers travel with them)
-  const filter = document.getElementById('marks-filter-row');
-  const list   = document.getElementById('marks-list');
-  const footer = document.querySelector('#marks-panel .marks-footer');
-  const idbar  = document.getElementById('marks-identity-bar');
-  if (filter) scroll.appendChild(filter);
-  if (list)   scroll.appendChild(list);
-  pane.appendChild(scroll);
-  pane.appendChild(detail);
-  if (footer) pane.appendChild(footer);
-  if (idbar)  pane.appendChild(idbar);
-
-  renderMarksList();
-  if (typeof updateIdentityBar === 'function') updateIdentityBar();
-}
-
-function closeMarkDetail() {
-  const d = document.getElementById('marks-detail');
-  if (d) { d.style.display = 'none'; d.innerHTML = ''; }
-  selectedKey = null;
-  renderPins();
-  renderMarksList();
-}
-
-// Master-detail: render a selected mark (or its editor) into the rail pane.
-function renderMarkDetail(pinId, editing) {
-  const pin = playerPins.find(p => p.id === pinId);
-  const d = document.getElementById('marks-detail');
-  if (window.TokRail) window.TokRail.show('marks');
-  if (!pin || !d) return;
-  const pt = PIN_TYPES.find(t => t.id === pin.type) || PIN_TYPES[4];
-  selectedKey = `player-${pinId}`;
-  renderPins();
-  renderMarksList();
-  const canEdit = currentIdentity && (currentIdentity.playerId === pin.playerId || currentIdentity.playerId === 'dm');
-  const when = new Date(pin.timestamp).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
-
-  if (editing && canEdit) {
-    d.innerHTML = `
-      <div class="trm-dhead"><span class="trm-dtype" style="color:${pt.color}">${pt.label}</span>
-        <button class="trm-dx" onclick="renderMarkDetail('${escapeHtml(pinId)}', false)">✕</button></div>
-      <textarea class="trm-edit" id="mark-edit-note" placeholder="Add a note…">${escapeHtml(pin.note || '')}</textarea>
-      <div class="trm-drow">
-        <button class="trm-save" onclick="saveMarkNote('${escapeHtml(pinId)}')">Save</button>
-        <button class="trm-cancel" onclick="renderMarkDetail('${escapeHtml(pinId)}', false)">Cancel</button>
-      </div>`;
-    d.style.display = 'block';
-    setTimeout(() => { const t = document.getElementById('mark-edit-note'); if (t) t.focus(); }, 40);
-    return;
-  }
-
-  d.innerHTML = `
-    <div class="trm-dhead"><span class="trm-dtype" style="color:${pt.color}">${pt.label}</span>
-      <button class="trm-dx" onclick="closeMarkDetail()">✕</button></div>
-    <div class="trm-note${pin.note ? '' : ' empty'}">${pin.note ? escapeHtml(pin.note) : 'No note added.'}</div>
-    <div class="trm-who"><span class="trm-who-dot" style="background:${escapeHtml(pin.color || pt.color)}"></span>
-      ${escapeHtml(pin.placedBy)} &middot; ${escapeHtml(pin.character)} &middot; ${when}</div>
-    ${canEdit ? `<div class="trm-drow">
-      <button class="trm-edit-btn" onclick="renderMarkDetail('${escapeHtml(pinId)}', true)">${pin.note ? 'Edit note' : 'Add note'}</button>
-      <button class="trm-del" onclick="deletePin('${escapeHtml(pinId)}')">Delete</button></div>` : ''}`;
-  d.style.display = 'block';
-}
-
-async function saveMarkNote(pinId) {
-  const pin = playerPins.find(p => p.id === pinId);
-  const ta  = document.getElementById('mark-edit-note');
-  if (!pin || !ta) return;
-  pin.note = ta.value.trim();
-  renderMarkDetail(pinId, false);
-  renderPins();
-  renderMarksList();
-  await savePins();
-}
-
-function registerMarksTab() {
-  if (!window.TokRail || !window.TokRail.registerTab) return;
-  window.TokRail.registerTab({
-    id: 'marks', label: 'Marks', order: 40,
-    icon: '<svg viewBox="0 0 18 18" fill="none" stroke="currentColor" stroke-width="1.3"><path d="M9 16s5.4-4.9 5.4-9A5.4 5.4 0 0 0 9 1.6 5.4 5.4 0 0 0 3.6 7c0 4.1 5.4 9 5.4 9z"/><circle cx="9" cy="7" r="1.9"/></svg>',
-    onMount: buildMarksPane,
-  });
-}
-if (window.TokRail && window.TokRail.ready) registerMarksTab();
-else document.addEventListener('tok-rail:ready', registerMarksTab);
-
-// ══════════════════════════════════════════════════════════
 // PANEL OPEN / CLOSE
 // ══════════════════════════════════════════════════════════
 function openPanel() {
   detailPanelOpen = true;
   document.getElementById('world-panel').classList.add('open');
-  if (window.TokRail) window.TokRail.close();   // location detail uses #world-panel — slide the rail away
+  if (marksPanelOpen) document.getElementById('marks-panel').classList.add('behind');
+  if (window.TokRail) window.TokRail.close();   // slide the rail away so it doesn't overlap world's panel
 }
 
 function closePanel() {
