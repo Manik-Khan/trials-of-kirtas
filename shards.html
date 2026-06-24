@@ -243,6 +243,25 @@
   .eng-tog{display:inline-flex; border:1px solid var(--rule-strong); border-radius:2px; overflow:hidden; vertical-align:middle; margin-left:4px}
   .eng-tog button{font-family:var(--ui); font-size:13px; letter-spacing:.04em; padding:4px 10px; background:var(--bg); border:0; border-right:1px solid var(--rule); cursor:pointer; color:var(--ink-soft)}
   .eng-tog button:last-child{border-right:0}
+  /* ── Choices step: optional-feature picker ── */
+  .ch-head{font-family:var(--ui); text-transform:uppercase; letter-spacing:.14em; font-size:13px; color:var(--ink-faint); margin:26px 0 11px; display:flex; align-items:center; gap:9px}
+  .ch-head:first-child{margin-top:6px}
+  .ch-src{font-size:11px; letter-spacing:.1em; padding:2px 7px; border-radius:2px; color:#fff}
+  .ch-src.class{background:var(--gold)}
+  .ch-src.subclass{background:#2f6f6b}
+  .ch-count{font-family:var(--body); font-size:14px; color:var(--ink-soft); margin-left:auto; letter-spacing:0; text-transform:none}
+  .ch-count.full{color:#2f6f6b; font-weight:600}
+  .ch-opts{display:flex; flex-direction:column; gap:7px}
+  .ch-opt{display:flex; align-items:flex-start; gap:12px; padding:11px 14px; background:var(--bg-card); border:1px solid var(--rule-strong); border-left:3px solid var(--rule-strong); border-radius:2px; cursor:pointer}
+  .ch-opt:hover{background:var(--bg-sunk)}
+  .ch-box{flex:0 0 auto; width:17px; height:17px; margin-top:2px; border:1.5px solid var(--rule-strong); border-radius:2px; display:flex; align-items:center; justify-content:center; color:#fff; font-family:var(--ui); font-size:12px; line-height:1}
+  .ch-nm{font-family:var(--disp); font-weight:600; font-size:16px; color:var(--ink)}
+  .ch-ds{font-family:var(--body); font-size:14px; color:var(--ink-soft); margin-top:2px; line-height:1.34}
+  .ch-pre{font-family:var(--ui); font-size:11px; letter-spacing:.04em; text-transform:uppercase; color:var(--blood); background:var(--bg-sunk); border:1px solid var(--rule); border-radius:2px; padding:1px 6px; margin-left:8px; vertical-align:middle}
+  .ch-opt.sel{background:#fff; border-color:var(--blood); border-left-color:var(--blood)}
+  .ch-opt.sel .ch-box{background:var(--blood); border-color:var(--blood)}
+  .ch-opt.dim{opacity:.4; cursor:not-allowed}
+  .ch-opt.dim:hover{background:var(--bg-card)}
   .eng-tog button.on{background:var(--ink); color:var(--bg)}
   .eng-reroll{font-family:var(--ui); font-size:13px; letter-spacing:.04em; margin-left:8px; background:none; border:0; border-bottom:1px dashed var(--ink-faint); color:var(--ink-soft); cursor:pointer; padding:0}
   .feats{margin:6px 0 2px}
@@ -523,6 +542,7 @@ var STEPS = [
   { id:'abilities',  name:'Abilities',  desc:'Set the six ability scores. The method (standard array, point buy, or rolled) plus 2014 racial bonuses resolve into the modifiers every later step reads.' },
   { id:'species',    name:'Species',    desc:'Choose a species. "Species" is a label only — the data is 2014 races.json (134 races + subraces across 28 sources), so the bonuses and traits resolve by 2014 rules.' },
   { id:'class',      name:'Class',      desc:'Choose a class, then its subclass. Hit die, saves, features, caster type, and the full subclass list load from the proven loadClass() model. The class decides whether you cast at all.' },
+  { id:'choices',    name:'Choices',    desc:'Pick the optional features your class and subclass grant — Fighting Style, Maneuvers, Eldritch Invocations, Metamagic, and the like. Only what this build is owed at its level appears here.', conditional:true },
   { id:'background', name:'Background', desc:'Choose a background, or customize one. The 2014 "Customizing a Background" rule lets you swap the two skills, two tools or languages, equipment, and feature.' },
   { id:'spells',     name:'Spells',     desc:'Pick cantrips and spells. Known casters lock a fixed list; prepared casters choose cantrips and compute a prepared count from level plus casting modifier.', conditional:true },
   { id:'review',     name:'Review',     desc:'Confirm the assembled sheet. Forging writes the structural block to the characters table — party.html renders it from there.' },
@@ -551,7 +571,32 @@ function casterMode(c){
   var s = subclassCaster(); return s ? (s.prepared ? 'prepared' : 'known') : null;
 }
 function spellsActive(){ return isCaster(chosenClass()); }
-function activeSteps(){ return STEPS.filter(function(s){ return s.id === 'spells' ? spellsActive() : true; }); }
+// ── Choices step gate — owed only if the loaded class/subclass grants optional
+// features at this level. That needs the (async) model, so cache a yes/no per build
+// signature: choicesActive() returns the cached answer and, when the signature
+// changes, kicks a recompute (loadClass is memoized → instant after the class step's
+// first load) that flips the flag and refreshes the rail. ──
+var _chOwed = false, _chSig = null;
+function choicesSig(){ return draft.cls ? (draft.cls.n + '|' + (draft.subclass ? draft.subclass.n : '') + '|' + draft.level) : ''; }
+function choicesActive(){
+  if (!draft.cls) return false;
+  var sig = choicesSig();
+  if (sig !== _chSig){ _chSig = sig; _chOwed = false; computeChoicesOwed(sig); }
+  return _chOwed;
+}
+function computeChoicesOwed(sig){
+  if (typeof SoulShardsData === 'undefined' || typeof SoulShardsData.progressionCountAt !== 'function') return;
+  var c = chosenClass(); if (!c) return;
+  SoulShardsData.loadClass(c.n).then(function(model){
+    if (choicesSig() !== sig) return;
+    var sub = (model.subclasses || []).find(function(s){ return draft.subclass && s.name === draft.subclass.n; });
+    var owed = false;
+    (model.optFeatureProg || []).forEach(function(b){ if (SoulShardsData.progressionCountAt(b.progression, draft.level) > 0) owed = true; });
+    if (sub) (sub.optFeatureProg || []).forEach(function(b){ if (SoulShardsData.progressionCountAt(b.progression, draft.level) > 0) owed = true; });
+    if (owed !== _chOwed){ _chOwed = owed; if (typeof renderRail === 'function') renderRail(); }
+  }).catch(function(){});
+}
+function activeSteps(){ return STEPS.filter(function(s){ return s.id === 'spells' ? spellsActive() : (s.id === 'choices' ? choicesActive() : true); }); }
 
 // ── ability + source helpers ───────────────────────────────────────────────────
 var STD_ARRAY = [15, 14, 13, 12, 10, 8];
@@ -583,7 +628,7 @@ function loadDraft(){ try { var j = window.localStorage.getItem(KEY); if (j) ret
 function saveDraft(){ try { window.localStorage.setItem(KEY, JSON.stringify(draft)); } catch(e){} flashDraft(); }
 var draft = loadDraft() || { stepId:'abilities', name:null, species:null, subrace:null, asi:{}, size:null, originMode:'std', useFloating:false, openTrait:null, cls:null, level:1, subclass:null, bg:null, bgCustom:false,
   method:'array', abilities:{ str:15, dex:14, con:13, int:12, wis:10, cha:8 }, slots:null, armed:null, hp:{ method:'average' },
-  bgSkills:[], bgTools:[], bgPack:null, bgFeature:null, spells:{ cantrips:[], known:[], prepared:[], spellbook:[] } };
+  bgSkills:[], bgTools:[], bgPack:null, bgFeature:null, choices:{}, spells:{ cantrips:[], known:[], prepared:[], spellbook:[] } };
 if (draft.level == null) draft.level = 1;
 if (!draft.method) draft.method = 'array';
 if (!draft.abilities) draft.abilities = { str:15, dex:14, con:13, int:12, wis:10, cha:8 };
@@ -601,6 +646,7 @@ if (draft.useFloating === undefined) draft.useFloating = false;
 if (draft.openTrait === undefined) draft.openTrait = null;
 if (!draft.spells || typeof draft.spells !== 'object') draft.spells = { cantrips:[], known:[], prepared:[], spellbook:[] };
 ['cantrips','known','prepared','spellbook'].forEach(function(k){ if (!Array.isArray(draft.spells[k])) draft.spells[k] = []; });
+if (!draft.choices || typeof draft.choices !== 'object') draft.choices = {};
 ensureSlots();
 
 // ── reusable browse list: search + per-source filter + scroll select ───────────
@@ -690,6 +736,7 @@ function renderBrowseInto(host, cfg){
 function railStatus(s){
   if (s.id === draft.stepId) return 'current';
   if (s.id === 'spells' && !spellsActive()) return draft.cls ? 'skipped' : 'locked';
+  if (s.id === 'choices' && !choicesActive()) return draft.cls ? 'skipped' : 'locked';
   var act = activeSteps();
   var ci = act.findIndex(function(x){ return x.id === draft.stepId; });
   var si = act.findIndex(function(x){ return x.id === s.id; });
@@ -706,6 +753,7 @@ function renderRail(){
     li.setAttribute('role','button');
     var sub = '';
     if (s.id === 'spells'){ if (!draft.cls) sub = 'choose a class first'; else if (!spellsActive()) sub = 'not a caster'; }
+    if (s.id === 'choices'){ if (!draft.cls) sub = 'choose a class first'; else if (!choicesActive()) sub = 'no extra choices'; }
     var glyph = (st === 'done') ? '\u2713' : String(i + 1);
     li.innerHTML = '<span class="node">' + glyph + '</span><span class="lbl">' + s.name + (sub ? '<span class="sub">' + sub + '</span>' : '') + '</span>';
     if (st !== 'locked' && st !== 'skipped'){
@@ -752,6 +800,11 @@ function customControlsHTML(){
 }
 
 var BODIES = {
+  choices: function(){
+    var c = chosenClass();
+    if (!c) return '<p>Choose a class first — your optional-feature choices depend on it.</p>';
+    return '<div id="ch-out"><div class="eng-load">Resolving your build’s choices…</div></div>';
+  },
   abilities: function(){
     ensureSlots();
     var pb = draft.method === 'pointbuy';
@@ -992,6 +1045,7 @@ var MOUNT = {
     var ft = q('#bg-feature'); if (ft) ft.addEventListener('change', function(){ draft.bgFeature = ft.value || null; saveDraft(); });
   },
   spells: function(){ SpellsUI.mount(); },
+  choices: function(){ ChoicesUI.mount(); },
 };
 
 
@@ -1653,6 +1707,115 @@ var SpellsUI = (function () {
   return { mount: mount, ensureLoaded: ensureLoaded, spellsForStructural: spellsForStructural };
 })();
 
+// ── Choices step UI — the optional-feature picker (Fighting Style / Maneuvers /
+// Invocations / Metamagic / …). Mounted by MOUNT.choices; mirrors SpellsUI's shape
+// (loadData → render, plus ensureLoaded + …ForStructural for the Forge). Picks
+// persist to draft.choices keyed by group; derive folds them with origin colours. ──
+var ChoicesUI = (function () {
+  var _creq = 0, _groups = null;
+
+  function esc(x){ return String(x).replace(/[&<>]/g, function(c){ return c === '&' ? '&amp;' : c === '<' ? '&lt;' : '&gt;'; }); }
+  function groupKey(g){ return g.origin + '|' + g.name + '|' + (g.featureType || []).join(','); }
+  function picks(){ return draft.choices || (draft.choices = {}); }
+  function sel(g){ var p = picks(), k = groupKey(g); return p[k] || (p[k] = []); }
+
+  // load the owed groups for the current draft (loadClass is memoized); cache + reconcile.
+  function loadData(){
+    var c = chosenClass();
+    if (!c || typeof SoulShardsData === 'undefined' || typeof SoulShardsData.owedFeatureChoices !== 'function'){ _groups = []; return Promise.resolve(false); }
+    var my = ++_creq;
+    return SoulShardsData.loadClass(c.n).then(function(model){
+      if (my !== _creq) return false;
+      var sub = (model.subclasses || []).find(function(s){ return draft.subclass && s.name === draft.subclass.n; });
+      return SoulShardsData.owedFeatureChoices(model, sub ? sub.shortName : null, draft.level, {}).then(function(groups){
+        if (my !== _creq) return false;
+        _groups = groups || []; reconcile(); return true;
+      });
+    });
+  }
+
+  // drop any stored pick that isn't (still) an option of its owed group; trim to count.
+  function reconcile(){
+    var p = picks(), live = {};
+    (_groups || []).forEach(function(g){
+      var names = {}; (g.options || []).forEach(function(o){ names[o.name] = 1; });
+      live[groupKey(g)] = (p[groupKey(g)] || []).filter(function(n){ return names[n]; }).slice(0, g.count);
+    });
+    draft.choices = live; saveDraft();
+  }
+
+  // options already chosen in another group sharing a featureType — no taking one
+  // fighting style twice across two Fighting-Style grants.
+  function takenElsewhere(g){
+    var taken = {};
+    (_groups || []).forEach(function(other){
+      if (other === g) return;
+      if (!(other.featureType || []).some(function(t){ return (g.featureType || []).indexOf(t) !== -1; })) return;
+      sel(other).forEach(function(n){ taken[n] = 1; });
+    });
+    return taken;
+  }
+
+  function descLine(entries){
+    var s = ''; (entries || []).some(function(e){ if (typeof e === 'string'){ s = e; return true; } return false; });
+    s = s.replace(/\{@\w+ ([^|}]+)(\|[^}]*)?\}/g, '$1');
+    if (s.length > 180) s = s.slice(0, 178) + '…';
+    return s;
+  }
+
+  function toggle(gi, name){
+    var g = _groups[gi]; if (!g) return;
+    var arr = sel(g), i = arr.indexOf(name);
+    if (i !== -1) arr.splice(i, 1);
+    else { if (arr.length >= g.count) return; if (takenElsewhere(g)[name]) return; arr.push(name); }
+    saveDraft(); render();
+  }
+
+  function render(){
+    var host = q('#ch-out'); if (!host) return;
+    if (!_groups || !_groups.length){ host.innerHTML = '<div class="locked-note">No optional-feature choices for this build at level ' + draft.level + ' — some classes and subclasses unlock them at higher levels.</div>'; return; }
+    host.innerHTML = _groups.map(function(g, gi){
+      var chosen = sel(g), taken = takenElsewhere(g), full = chosen.length >= g.count, sc = g.origin === 'subclass' ? 'subclass' : 'class';
+      var head = '<div class="ch-head"><span class="ch-src ' + sc + '">' + (g.origin === 'subclass' ? 'Subclass' : 'Class') + '</span> ' + esc(g.name) + ' — choose ' + g.count + '<span class="ch-count' + (full ? ' full' : '') + '">' + chosen.length + ' / ' + g.count + '</span></div>';
+      var rows = (g.options || []).map(function(o){
+        var isSel = chosen.indexOf(o.name) !== -1, blocked = !isSel && (full || taken[o.name]);
+        var pre = o.prereqText ? '<span class="ch-pre">' + esc(o.prereqText) + '</span>' : '';
+        var t = (taken[o.name] && !isSel) ? ' title="already chosen in another grant"' : '';
+        return '<div class="ch-opt' + (isSel ? ' sel' : '') + (blocked ? ' dim' : '') + '" data-g="' + gi + '" data-n="' + esc(o.name) + '"' + t + '>' +
+          '<div class="ch-box">✓</div><div class="ch-tx"><div class="ch-nm">' + esc(o.name) + pre + '</div>' +
+          (o.entries ? '<div class="ch-ds">' + esc(descLine(o.entries)) + '</div>' : '') + '</div></div>';
+      }).join('');
+      return head + '<div class="ch-opts">' + rows + '</div>';
+    }).join('');
+    Array.prototype.forEach.call(host.querySelectorAll('.ch-opt'), function(el){
+      el.addEventListener('click', function(){ if (el.classList.contains('dim')) return; toggle(+el.getAttribute('data-g'), el.getAttribute('data-n')); });
+    });
+  }
+
+  function mount(){
+    var host = q('#ch-out'); if (!host) return;
+    if (!chosenClass()){ host.innerHTML = ''; return; }
+    host.innerHTML = '<div class="eng-load">Resolving your build’s choices…</div>';
+    loadData().then(function(){ if (q('#ch-out')) render(); }).catch(function(err){
+      var h = q('#ch-out'); if (h) h.innerHTML = '<div class="eng-load">Couldn’t load choices (' + esc((err && err.message) || 'fetch failed') + ').</div>';
+    });
+  }
+  function ensureLoaded(){ return loadData(); }
+
+  // emit for the Forge's derive: each picked name → {name, origin, originName, entries}.
+  function choicesForStructural(){
+    var out = [];
+    (_groups || []).forEach(function(g){
+      var byName = {}; (g.options || []).forEach(function(o){ byName[o.name] = o; });
+      sel(g).forEach(function(n){ var o = byName[n]; if (o) out.push({ name: o.name, origin: g.origin, originName: g.originName, source: o.source, entries: o.entries, featureType: o.featureType }); });
+    });
+    return out;
+  }
+
+  return { mount: mount, ensureLoaded: ensureLoaded, choicesForStructural: choicesForStructural };
+})();
+
+
 // ── live engine readout: real SoulShardsData.loadClass + SoulShardsEngine.build ──
 function ord(n){ var s = ['th','st','nd','rd'], v = n % 100; return n + (s[(v - 20) % 10] || s[v] || s[0]); }
 var engineReq = 0;
@@ -1764,6 +1927,7 @@ function buildStructuralPreview(model, race){
     background: draft.bg ? { name: draft.bg.n } : null,
     spells: picked.spells,
     spellbook: picked.spellbook,
+    choices: (typeof ChoicesUI !== 'undefined') ? ChoicesUI.choicesForStructural() : [],
     hp: draft.hp
   });
   return Object.assign({}, r.structural, { _incomplete: r._incomplete });
@@ -1785,7 +1949,8 @@ function forgePreview(){
   var my = ++forgeReq;
   host.innerHTML = '<div class="fx-empty">Assembling structural from the 2014 data…</div>';
   var spellsReady = (typeof SpellsUI !== 'undefined' && isCaster(c)) ? SpellsUI.ensureLoaded() : Promise.resolve(true);
-  Promise.all([SoulShardsData.loadClass(c.n), raceForBuild(), spellsReady]).then(function(res){
+  var choicesReady = (typeof ChoicesUI !== 'undefined') ? ChoicesUI.ensureLoaded() : Promise.resolve(true);
+  Promise.all([SoulShardsData.loadClass(c.n), raceForBuild(), spellsReady, choicesReady]).then(function(res){
     if (my !== forgeReq) return;
     var model = res[0], race = res[1];
     host.innerHTML = forgeCardHTML(buildStructuralPreview(model, race));
@@ -1856,7 +2021,8 @@ function forgeCommit(){
 
   fxStatus('busy', 'Assembling the structural\u2026');
   var spellsReady = (typeof SpellsUI !== 'undefined' && isCaster(c)) ? SpellsUI.ensureLoaded() : Promise.resolve(true);
-  Promise.all([SoulShardsData.loadClass(c.n), raceForBuild(), spellsReady]).then(function(res){
+  var choicesReady = (typeof ChoicesUI !== 'undefined') ? ChoicesUI.ensureLoaded() : Promise.resolve(true);
+  Promise.all([SoulShardsData.loadClass(c.n), raceForBuild(), spellsReady, choicesReady]).then(function(res){
     var assembled = buildStructuralPreview(res[0], res[1]);
     if (assembled && assembled._error){ fxStatus('err', assembled._error); return; }
     var structural = Object.assign({}, assembled); delete structural._incomplete;
@@ -1913,6 +2079,7 @@ function renderStep(){
 // ── navigation ───────────────────────────────────────────────────────────────
 function go(id){
   if (id === 'spells' && !spellsActive()) return;
+  if (id === 'choices' && !choicesActive()) return;
   draft.stepId = id; saveDraft(); renderAll();
   var ps = q('.panel-scroll'); if (ps) ps.scrollTop = 0;
 }
@@ -1936,6 +2103,7 @@ function flashDraft(){
 
 // ── render all ───────────────────────────────────────────────────────────────
 function renderAll(){
+  if (draft.stepId === 'choices' && !choicesActive()) draft.stepId = 'background';
   if (draft.stepId === 'spells' && !spellsActive()) draft.stepId = 'background';
   renderRail(); renderEmerging(); renderStep();
   var em = q('#emName');
