@@ -36,6 +36,20 @@
 
   function isASIFeature(name) { return /^ability score improvement/i.test(name || ''); }
 
+  // optional-feature count owed at a level. `progression` is {level:cumulative} or a
+  // 20-slot, level-indexed array (value = cumulative). Mirrors SoulShardsData's resolver.
+  function ofCountAt(progression, level) {
+    if (!progression) return 0;
+    var L = Math.max(1, level | 0);
+    if (Array.isArray(progression)) return progression[Math.min(L, progression.length) - 1] || 0;
+    var best = 0, bestLv = -1;
+    Object.keys(progression).forEach(function (k) {
+      var lv = parseInt(k, 10);
+      if (lv <= L && lv > bestLv) { bestLv = lv; best = progression[k]; }
+    });
+    return best || 0;
+  }
+
   // ── feature collection (origin-stamped) ─────────────────────────────────────
   // Walks 1..N, taking class features always and subclass features only once the
   // subclass is unlocked AND chosen. Every entry carries where it came from — the
@@ -150,6 +164,16 @@
     if (spellcasting && spellcasting.cantripsKnown) pending.push({ kind: 'cantrips', count: spellcasting.cantripsKnown, label: 'Choose ' + spellcasting.cantripsKnown + ' cantrips' });
     if (spellcasting && spellcasting.spellsKnown) pending.push({ kind: 'spells-known', count: spellcasting.spellsKnown, label: 'Choose ' + spellcasting.spellsKnown + ' spells known' });
     if (spellcasting && spellcasting.preparedCount) pending.push({ kind: 'prepared', count: spellcasting.preparedCount, label: 'Prepare ' + spellcasting.preparedCount + ' from the ' + model.name + ' list' });
+
+    // optional-feature picks (Fighting Style / Maneuvers / Invocations / Metamagic / …)
+    (model.optFeatureProg || []).forEach(function (b) {
+      var n = ofCountAt(b.progression, level);
+      if (n > 0) pending.push({ kind: 'optfeature', name: b.name, featureType: b.featureType || [], count: n, origin: 'class', originName: model.name, level: level });
+    });
+    if (subclass) (subclass.optFeatureProg || []).forEach(function (b) {
+      var n = ofCountAt(b.progression, level);
+      if (n > 0) pending.push({ kind: 'optfeature', name: b.name, featureType: b.featureType || [], count: n, origin: 'subclass', originName: subclass.name, level: level });
+    });
 
     return {
       level: level,

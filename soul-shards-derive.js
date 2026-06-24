@@ -18,6 +18,7 @@
  *     background?: { name },                                 // grants are P5
  *     spells?: [ {name,level,origin,source,time,detail?} ],  // P6a picker output; empty -> flagged
  *     spellbook?: [ {name,level,origin,source} ],            // Wizard's owned book (persists distinct from groups)
+ *     choices?: [ {name, origin:'class'|'subclass', originName, entries?} ], // Choices-step picks (Fighting Style / Maneuvers / Invocations / …)
  *     extraPools?: [...], detail?: {...}, hp?: { method, rolls }
  *   }
  * RETURNS: { structural, _incomplete:[strings] }
@@ -89,6 +90,14 @@
       (b.features || []).forEach(function (f) {
         features.push({ name: f.name, source: f.origin, desc: joinEntries(f.entries) });
       });
+    });
+
+    // ── chosen optional features (Fighting Style / Maneuvers / Invocations / …) ──
+    // The Choices step hands these over already resolved with their origin; stamp
+    // them so the sheet's four-colour provenance lights them (class=gold, sub=teal).
+    (input.choices || []).forEach(function (ch) {
+      var stamp = (ch.origin === 'subclass' ? 'subclass:' : 'class:') + (ch.originName || '');
+      features.push({ name: ch.name, source: stamp, desc: joinEntries(ch.entries) });
     });
 
     // ── combat scalars + race/subrace traits (P3 — resolved from races.json by loadRace) ──
