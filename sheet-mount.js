@@ -213,6 +213,43 @@ function renderHitDice(root, s, v){
   }).join('');
 }
 
+// Equipment, coin, and attunement from the live inventory/currency. An empty
+// inventory shows an empty state (not the old sample gear); attunement pips reflect
+// items flagged attuned (max 3) and are mirrored in the left Status block.
+function renderEquipment(root, inventory, currency){
+  root=root||document;
+  inventory = Array.isArray(inventory) ? inventory : [];
+  currency = currency || {};
+  var attunedN = Math.min(3, inventory.filter(function(it){ return it && it.attuned; }).length);
+  var box = root.querySelector('[data-equip]');
+  if(box){
+    var ic='<svg class="g-ic" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><path d="M6 3h9l4 4v14H6z"/><path d="M9 8h7M9 12h7M9 16h5"/></svg>';
+    var items = inventory.map(function(it){
+      var d = it.detail || it.typeLabel || it.rarity || '';
+      var q = (it.qty && it.qty>1) ? '<span class="g-q">\u00D7'+it.qty+'</span>' : '';
+      return '<div class="gitem">'+ic+'<span class="g-n">'+esc(it.name||'Item')+'</span>'+(d?'<span class="g-d">'+esc(d)+'</span>':'')+q+'</div>';
+    }).join('');
+    if(!items) items='<div class="gitem" style="opacity:.5"><span class="g-n">No equipment yet</span></div>';
+    var coins=[]; ['pp','gp','ep','sp','cp'].forEach(function(k){ if(currency[k]) coins.push('<span class="coin">'+currency[k]+' <small>'+k+'</small></span>'); });
+    var coinStr = coins.join(' ') || '<span class="coin">0 <small>gp</small></span>';
+    var pips=''; for(var i=0;i<3;i++) pips+='<span class="pip'+(i<attunedN?' on':'')+'" style="width:10px;height:10px"></span>';
+    box.innerHTML = items + '<div class="coinline">'+coinStr+'<span class="attune-wrap">Attuned'+pips+'</span></div>';
+  }
+  var la = root.querySelector('[data-attune]');
+  if(la){ var lp=''; for(var j=0;j<3;j++) lp+='<span class="pip'+(j<attunedN?' on':'')+'"></span>'; la.innerHTML = lp; }
+}
+// Story + the four traits from the live bio. Empty fields read as a dash, never
+// sample prose.
+function renderStory(root, bio){
+  root=root||document; bio = bio || {};
+  var q = root.querySelector('[data-f="storyQuote"]');
+  if(q) q.textContent = bio.backstory || bio.appearance || '';
+  function trait(f, val){ var e=root.querySelector('[data-f="'+f+'"]'); if(e) e.textContent = (val && String(val).trim()) ? val : '\u2014'; }
+  trait('bioPersonality', bio.personality);
+  trait('bioIdeals', bio.ideals);
+  trait('bioBonds', bio.bonds);
+  trait('bioFlaws', bio.flaws);
+}
 function renderSheet(root, char){
   root=root||document; char=char||{};
   var s=char.structural||{}, v=char.vitals||{}, cb=s.combat||{}, ab=s.abilities||{};
@@ -248,6 +285,8 @@ function renderSheet(root, char){
   renderConcentration(root, v);
   renderActions(root, s);
   renderTrackers(root, s, v);
+  renderEquipment(root, char.inventory, char.currency);
+  renderStory(root, char.bio);
 }
 // ── live data: map a CharacterData row into the renderer's shape, then bind ──
 function normSkills(sk){
@@ -357,7 +396,7 @@ function toRenderShape(cd){
   if(!s.spellcasting) s.spellcasting=buildSpellcasting(s, v);
   if(!s.resources) s.resources=buildResources(s, v);
   if(v.inspiration==null && s.inspiration!=null) v.inspiration=s.inspiration;
-  return { structural:s, vitals:v, notes:(cd.notes!=null?cd.notes:s.notes) };
+  return { structural:s, vitals:v, notes:(cd.notes!=null?cd.notes:s.notes), inventory:(cd.inventory||[]), currency:(cd.currency||{}), bio:(cd.bio||{}) };
 }
 function applyExtras(root, cd){
   var v=cd.vitals||{}, s=cd.structural||{}, insp=(v.inspiration!=null?v.inspiration:s.inspiration);
@@ -596,11 +635,11 @@ var SHEET_TEMPLATE = `<main class="sheet">
         <div class="lhead">Status</div>
         <div class="lrow"><span>Concentration</span><b class="conc-on" data-f="concentration">Hex</b></div>
         <div class="lrow"><span>Conditions</span><b class="muted" data-f="conditions">none active</b></div>
-        <div class="lrow"><span>Attunement</span><span class="attune"><span class="pip on"></span><span class="pip on"></span><span class="pip"></span></span></div>
+        <div class="lrow"><span>Attunement</span><span class="attune" data-attune><span class="pip"></span><span class="pip"></span><span class="pip"></span></span></div>
       </div>
       <div class="lblock notes">
         <div class="lhead">Notes</div>
-        <div class="notepad" data-f="notes">Patron stirs near the rift — ask Vesperian about the star-iron blade. Owe Caim a favour.</div>
+        <div class="notepad" data-f="notes"></div>
       </div>
     </aside>
 
@@ -725,26 +764,17 @@ var SHEET_TEMPLATE = `<main class="sheet">
         <div class="es-grid">
           <div>
             <div class="sectitle"><span class="swashwrap"><h2>Equipment</h2></span><span class="tail"></span></div>
-            <div class="panelbox">
-              <div class="gitem"><svg class="g-ic" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><path d="M14 3l-1 6 3 3-5 9-1-7-3-2 4-9z"/></svg><span class="g-n">Rapier</span><span class="g-d">1d8 · finesse</span></div>
-              <div class="gitem"><svg class="g-ic" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><path d="M12 3l7 3v6c0 5-3 7-7 9-4-2-7-4-7-9V6z"/></svg><span class="g-n">Studded Leather</span><span class="g-d">AC 12 + Dex</span></div>
-              <div class="gitem"><svg class="g-ic" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><circle cx="12" cy="12" r="7"/><circle cx="12" cy="12" r="2.5" fill="currentColor"/></svg><span class="g-n">Orb of Shadow</span><span class="g-d">focus · attuned</span></div>
-              <div class="gitem"><svg class="g-ic" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><path d="M6 3h9l4 4v14H6z"/><path d="M9 8h7M9 12h7M9 16h5"/></svg><span class="g-n">Explorer's Pack</span></div>
-              <div class="gitem"><svg class="g-ic" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><path d="M9 3h6v3l2 4v9a2 2 0 01-2 2H9a2 2 0 01-2-2v-9l2-4z"/><path d="M7 13h10"/></svg><span class="g-n">Potion of Healing</span><span class="g-q">×2</span></div>
-              <div class="coinline"><span class="coin">24 <small>gp</small></span>
-                <span class="attune-wrap">Attuned<span class="pip on" style="width:10px;height:10px"></span><span class="pip on" style="width:10px;height:10px"></span><span class="pip" style="width:10px;height:10px"></span></span>
-              </div>
-            </div>
+            <div class="panelbox" data-equip></div>
           </div>
           <div>
             <div class="sectitle"><span class="swashwrap"><h2>Story</h2></span><span class="tail"></span></div>
             <div class="panelbox">
-              <p class="story-quote">She keeps a sliver of midnight folded inside her chest — quiet most days, but it hums when the stars come out, and the blade answers before she does.</p>
+              <p class="story-quote" data-f="storyQuote"></p>
               <div class="traits">
-                <div class="trait"><div class="t-l">Personality</div><div class="t-t">Speaks softly, watches everything.</div></div>
-                <div class="trait"><div class="t-l">Ideal</div><div class="t-t">A debt named is a debt repaid.</div></div>
-                <div class="trait"><div class="t-l">Bond</div><div class="t-t">The patron who saved her still calls.</div></div>
-                <div class="trait"><div class="t-l">Flaw</div><div class="t-t">Trusts the shadow more than people.</div></div>
+                <div class="trait"><div class="t-l">Personality</div><div class="t-t" data-f="bioPersonality">\u2014</div></div>
+                <div class="trait"><div class="t-l">Ideals</div><div class="t-t" data-f="bioIdeals">\u2014</div></div>
+                <div class="trait"><div class="t-l">Bonds</div><div class="t-t" data-f="bioBonds">\u2014</div></div>
+                <div class="trait"><div class="t-l">Flaws</div><div class="t-t" data-f="bioFlaws">\u2014</div></div>
               </div>
             </div>
           </div>
@@ -780,7 +810,7 @@ function mountSheet(container, key, opts){
 
 if (typeof window !== 'undefined') {
   window.mountSheet = mountSheet;
-  window.__sheet = { renderSheet: renderSheet, toRenderShape: toRenderShape, buildSpellcasting: buildSpellcasting, buildResources: buildResources, renderResources: renderResources, renderTrackers: renderTrackers, trackerSpecs: trackerSpecs, renderConcentration: renderConcentration, renderActions: renderActions, renderActionResult: renderActionResult, deriveActionMods: deriveActionMods, renderHitDice: renderHitDice, applyExtras: applyExtras, mountSheet: mountSheet };
+  window.__sheet = { renderSheet: renderSheet, toRenderShape: toRenderShape, renderEquipment: renderEquipment, renderStory: renderStory, buildSpellcasting: buildSpellcasting, buildResources: buildResources, renderResources: renderResources, renderTrackers: renderTrackers, trackerSpecs: trackerSpecs, renderConcentration: renderConcentration, renderActions: renderActions, renderActionResult: renderActionResult, deriveActionMods: deriveActionMods, renderHitDice: renderHitDice, applyExtras: applyExtras, mountSheet: mountSheet };
 }
 
 export { mountSheet };
