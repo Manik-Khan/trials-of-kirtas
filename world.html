@@ -931,6 +931,32 @@ function clampTransform(wrap) {
   mapY = Math.min(wh * margin, Math.max(wh - scaledH + wh * (margin - 1), mapY));
 }
 
+// Glide the map so a mark sits dead-center, at the current zoom. pin.x/.y are
+// percentages of the canvas, so the canvas-pixel is (x/100*MAP_W, y/100*MAP_H);
+// to center it we set the translate so that point lands at the viewport middle.
+function focusOnPin(pin) {
+  const wrap = document.getElementById('map-wrap');
+  if (!wrap || !pin) return;
+  const ww = wrap.clientWidth, wh = wrap.clientHeight;
+  const px = (pin.x / 100) * MAP_W;
+  const py = (pin.y / 100) * MAP_H;
+  mapX = ww / 2 - px * mapScale;
+  mapY = wh / 2 - py * mapScale;
+  clampTransform(wrap);
+  const canvas = document.getElementById('map-canvas');
+  canvas.style.transition = 'transform 0.45s cubic-bezier(0.22,1,0.36,1)';
+  applyTransform();
+  clearTimeout(focusOnPin._t);
+  focusOnPin._t = setTimeout(() => { canvas.style.transition = ''; }, 480);  // keep drag/zoom instant afterward
+}
+
+// Marks-list row click: glide to the mark, then open its detail.
+function goToMark(pinId) {
+  const pin = playerPins.find(p => p.id === pinId);
+  if (pin) focusOnPin(pin);
+  selectPlayerPin({ stopPropagation: () => {} }, pinId);
+}
+
 function initPanZoom() {
   const wrap = document.getElementById('map-wrap');
 
@@ -1273,7 +1299,7 @@ function renderMarksList() {
   list.innerHTML = filtered.map(pin => {
     const pt      = PIN_TYPES.find(t => t.id === pin.type) || PIN_TYPES[4];
     const isActive = selectedKey === `player-${pin.id}`;
-    return `<div class="marks-item${isActive?' active':''}" onclick="selectPlayerPin({stopPropagation:()=>{}}, '${pin.id}')">
+    return `<div class="marks-item${isActive?' active':''}" onclick="goToMark('${pin.id}')">
       <div class="marks-item-dot" style="background:${pt.color}"></div>
       <div class="marks-item-body">
         <div class="marks-item-type">${pt.label}</div>
