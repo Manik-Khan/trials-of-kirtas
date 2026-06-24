@@ -46,6 +46,13 @@
     linkOnce('tok-rail-fonts-pre2', { rel: 'preconnect', href: 'https://fonts.gstatic.com', crossorigin: '' });
     linkOnce('tok-rail-fonts', { rel: 'stylesheet', href: 'https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,500;0,700;0,900;1,600&family=EB+Garamond:ital@0;1&family=Oswald:wght@300;400;500;600&display=swap' });
     linkOnce('tok-rail-css', { rel: 'stylesheet', href: 'rail.css' });
+    // Characters roster tab — registers itself against the seam on tok-rail:ready.
+    // Loaded non-blocking (boot doesn't wait on it); it handles either load order.
+    if (!window.__tokCharactersTab && !document.querySelector('script[src$="characters-tab.js"]')) {
+      var ct = document.createElement('script'); ct.src = 'characters-tab.js';
+      ct.onerror = function () { console.warn('[rail] characters-tab.js failed to load'); };
+      document.head.appendChild(ct);
+    }
     if (window.FeedRender) { after(); return; }
     var s = document.createElement('script');
     s.src = 'feed-render.js';

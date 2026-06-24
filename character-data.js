@@ -188,5 +188,22 @@
     return slug + '-' + Math.random().toString(16).slice(2, 6);
   }
 
-  window.CharacterData = { loadParty, loadCharacter, canEdit, save, create, markDeletion, remove, newKey };
+  // ── ROSTER LAYOUT (the Characters tab's folders). One shared JSONB doc:
+  // { folders:[{id,name}], order:[id...], members:{charKey:folderId} }. The row
+  // is the seeded singleton id=1 (schema_delta_roster_layout.sql); party-wide.
+  async function loadLayout() {
+    const sb = await client();
+    const { data, error } = await sb.from('roster_layout').select('layout').eq('id', 1);
+    if (error) throw error;
+    return (data && data[0] && data[0].layout) || {};
+  }
+  async function saveLayout(layout) {
+    const sb = await client();
+    const { error } = await sb.from('roster_layout')
+      .update({ layout: layout || {}, updated_at: new Date().toISOString() })
+      .eq('id', 1);
+    if (error) throw error;
+  }
+
+  window.CharacterData = { loadParty, loadCharacter, canEdit, save, create, markDeletion, remove, newKey, loadLayout, saveLayout };
 })();
