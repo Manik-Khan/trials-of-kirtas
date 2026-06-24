@@ -158,6 +158,7 @@
         featuresByLevel: byLevel,
         spellcasting: mkSpellcasting(sc, subclassSpellList(sc)),
         slotsByLevel: mkSlots(sc.subclassTableGroups),
+        optFeatureProg: sc.optionalfeatureProgression || [],
       };
     });
 
@@ -176,6 +177,7 @@
       startingProficiencies: c.startingProficiencies || {},
       startingEquipment: c.startingEquipment || {},
       multiclassing: c.multiclassing || null,
+      optFeatureProg: c.optionalfeatureProgression || [],
       featuresByLevel, subclasses,
     };
   }
@@ -437,10 +439,96 @@
   }
   const loadRace = makeLoadRace(fetchJson);
 
+  // ── optional-feature choices (Fighting Style / Maneuvers / Invocations / …) ───
+  // 5etools encodes "choose N from a pool" via `optionalfeatureProgression` on the
+  // class or subclass (what + how many, per level) cross-referenced against the
+  // flat optionalfeatures.json catalog (the pool, tagged by `featureType`). Read
+  // generically — no per-class code. `progression` is either {level:count} (the
+  // value = cumulative total unlocked AT that tier) or a 20-slot, level-indexed
+  // array (value = cumulative total known at that level).
+  function isUASource(s) { return /^UA/i.test(s || ''); }
+
+  function progressionCountAt(progression, level) {
+    if (!progression) return 0;
+    const L = Math.max(1, level | 0);
+    if (Array.isArray(progression)) return progression[Math.min(L, progression.length) - 1] || 0;
+    let best = 0, bestLv = -1;
+    Object.keys(progression).forEach(k => {
+      const lv = parseInt(k, 10);
+      if (lv <= L && lv > bestLv) { bestLv = lv; best = progression[k]; }   // highest unlocked tier
+    });
+    return best || 0;
+  }
+
+  function _cleanSpellRef(s) { return String(s).split('#')[0].replace(/\b\w/g, c => c.toUpperCase()); }
+  function _prereqLevel(prereq) {
+    let max = 0;
+    (prereq || []).forEach(p => {
+      if (p && p.level != null) {
+        const lv = typeof p.level === 'object' ? (p.level.level || 0) : p.level;
+        if (lv > max) max = lv;
+      }
+    });
+    return max;
+  }
+  function prereqText(prereq) {
+    const parts = [];
+    (prereq || []).forEach(p => {
+      if (!p) return;
+      if (p.level != null) { const lv = typeof p.level === 'object' ? (p.level.level || p.level) : p.level; parts.push('Level ' + lv + '+'); }
+      if (p.spell)   [].concat(p.spell).forEach(s => parts.push('knows ' + _cleanSpellRef(s)));
+      if (p.pact)    parts.push('Pact of the ' + p.pact);
+      if (p.patron)  parts.push(p.patron + ' patron');
+      if (p.ability) [].concat(p.ability).forEach(a => Object.keys(a).forEach(k => parts.push(k.toUpperCase() + ' ' + a[k] + '+')));
+      if (p.otherFeature || p.optionalfeature) parts.push('requires another option');
+    });
+    return parts.join(' · ');
+  }
+
+  function loadOptionalFeatures() {
+    return fetchJson('optionalfeatures.json').then(d => d.optionalfeature || []);
+  }
+
+  // `model` = a loadClass() result (now carrying optFeatureProg on the model and on
+  // each subclass). Returns the choice-groups this build owes at `level`, each with
+  // candidate options pre-filtered by featureType + source + level prerequisite.
+  // opts: { sources?: string[] (allow-list), includeUA?: bool }.
+  async function owedFeatureChoices(model, subclassShortName, level, opts) {
+    opts = opts || {};
+    const catalog = await loadOptionalFeatures();
+    const L = Math.max(1, level | 0);
+    const blocks = [];
+    (model.optFeatureProg || []).forEach(b => blocks.push({ block: b, origin: 'class', originName: model.name }));
+    const sc = (model.subclasses || []).find(s => s.shortName === subclassShortName);
+    if (sc) (sc.optFeatureProg || []).forEach(b => blocks.push({ block: b, origin: 'subclass', originName: sc.name }));
+
+    return blocks.map(entry => {
+      const b = entry.block;
+      const count = progressionCountAt(b.progression, L);
+      if (count <= 0) return null;
+      const types = b.featureType || [];
+      const options = catalog
+        .filter(f => (f.featureType || []).some(t => types.indexOf(t) !== -1))
+        .filter(f => opts.includeUA || !isUASource(f.source))
+        .filter(f => !opts.sources || opts.sources.indexOf(f.source) !== -1)
+        .filter(f => _prereqLevel(f.prerequisite) <= L)
+        .map(f => ({
+          name: f.name, source: f.source,
+          featureType: f.featureType || [],
+          prerequisite: f.prerequisite || null,
+          prereqText: prereqText(f.prerequisite),
+          entries: f.entries || null,
+        }))
+        .sort((a, b2) => a.name.localeCompare(b2.name));
+      return { name: b.name, featureType: types, count, origin: entry.origin, originName: entry.originName, options };
+    }).filter(Boolean);
+  }
+
   const API = {
     BASE, fetchJson,
     parseClassFeatureRef, parseSubclassFeatureRef, normalizeClass,
     loadClass, loadClassSpellList, loadSpellMeta,
+    loadOptionalFeatures, owedFeatureChoices, progressionCountAt, prereqText,
     loadRace,
     parseAbility, parseSpeed, parseSize, parseLanguages, parseProfChoose,
     collectTraits, applyMod, resolveCopy, normalizeRace, makeLoadRace,
