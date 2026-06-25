@@ -70,10 +70,8 @@ function renderFeatures(root, feats){
   }).join('');
 }
 function setStatus(root, v){
-  var conc=root.querySelector('[data-f="concentration"]');
-  if(conc){ if(v.concentration){ conc.textContent=v.concentration; conc.className='conc-on'; } else { conc.textContent='none'; conc.className='muted'; } }
   var cond=root.querySelector('[data-f="conditions"]');
-  if(cond){ var l=v.conditions; if(Array.isArray(l)&&l.length){ cond.textContent=l.join(' \u00B7 '); cond.className=''; } else { cond.textContent='none active'; cond.className='muted'; } }
+  if(cond){ var l=v.conditions; if(Array.isArray(l)&&l.length){ cond.textContent=l.join(' \u00B7 '); cond.classList.remove('muted'); } else { cond.textContent='none active'; cond.classList.add('muted'); } }
   var insp=root.querySelector('[data-f="inspiration"]');
   if(insp){ insp.style.background = v.inspiration ? 'var(--gold-br)' : ''; }
 }
@@ -131,14 +129,13 @@ function renderSpellcasting(root, sc){
 // The cast handler in sheet-actions.js sets it; the drop button clears it.
 function renderConcentration(root, v){
   root=root||document; v=v||{};
-  var el=root.querySelector('[data-conc-banner]'); if(!el) return;
+  var el=root.querySelector('[data-conc-val]'); if(!el) return;
   var c=v.concentration;
   if(c && c.name){
-    el.style.display='';
-    el.innerHTML='<span class="cc-ico">\u25C9</span><span class="cc-lab">Concentrating</span>'
-      + '<span class="cc-nm">'+esc(c.name)+'</span>'
+    el.classList.remove('muted');
+    el.innerHTML='<span class="cs-dot"></span>'+esc(c.name)
       + '<button class="cc-drop" type="button" data-conc-drop aria-label="Drop concentration">drop \u2715</button>';
-  } else { el.style.display='none'; el.innerHTML=''; }
+  } else { el.classList.add('muted'); el.textContent='none'; }
 }
 function renderResources(root, pools){
   root=root||document; pools=pools||[];
@@ -524,7 +521,7 @@ var SHEET_TEMPLATE = `<main class="tok-sheet sheet">
     </div>
 
     <div class="titleblock">
-      <span class="eyebrow-wrap swashwrap"><p class="eyebrow">Trials of Kirtas — Player Dossier</p></span>
+      <span class="eyebrow-wrap swashwrap"><p class="eyebrow">Trials of Kirtas</p></span>
       <h1 class="charname" data-f="name">Cosmere <em>Runestar</em></h1>
       <div class="subline" data-list="subline">
         <span><b>Warlock</b> 2 <span class="sub">· The Hexblade</span></span>
@@ -539,6 +536,13 @@ var SHEET_TEMPLATE = `<main class="tok-sheet sheet">
       </div>
     </div>
   </header>
+
+  <!-- pinned concentration / conditions strip — visible on every tab -->
+  <div class="conc-strip">
+    <span><span class="cs-lab">Concentration</span><span class="cs-val muted" data-conc-val>none</span></span>
+    <span class="cs-sep"></span>
+    <span><span class="cs-lab">Conditions</span><span class="cs-val muted" data-f="conditions">none active</span></span>
+  </div>
 
   <!-- ——— BODY ——— -->
   <div class="body-grid">
@@ -631,20 +635,20 @@ var SHEET_TEMPLATE = `<main class="tok-sheet sheet">
           </div>
         </div>
       </div>
-      <div class="lblock">
-        <div class="lhead">Status</div>
-        <div class="lrow"><span>Concentration</span><b class="conc-on" data-f="concentration">Hex</b></div>
-        <div class="lrow"><span>Conditions</span><b class="muted" data-f="conditions">none active</b></div>
-        <div class="lrow"><span>Attunement</span><span class="attune" data-attune><span class="pip"></span><span class="pip"></span><span class="pip"></span></span></div>
-      </div>
-      <div class="lblock notes">
-        <div class="lhead">Notes</div>
-        <div class="notepad" data-f="notes"></div>
-      </div>
     </aside>
 
     <!-- RIGHT -->
     <section class="rightcol">
+
+      <nav class="sheet-tabbar" role="tablist">
+        <button class="sheet-tab active" data-tab="overview" role="tab" type="button">Overview</button>
+        <button class="sheet-tab" data-tab="actions" role="tab" type="button">Actions</button>
+        <button class="sheet-tab" data-tab="spells" role="tab" type="button">Spells</button>
+        <button class="sheet-tab" data-tab="inventory" role="tab" type="button">Inventory</button>
+        <button class="sheet-tab" data-tab="features" role="tab" type="button">Features</button>
+        <button class="sheet-tab" data-tab="bio" role="tab" type="button">Bio</button>
+        <button class="sheet-tab" data-tab="notes" role="tab" type="button">Notes</button>
+      </nav>
 
       <!-- ABILITIES -->
       <div class="block">
@@ -710,11 +714,10 @@ var SHEET_TEMPLATE = `<main class="tok-sheet sheet">
         </div>
       </div>
 
-      <!-- SPELLCASTING -->
-      <div class="block">
+      <!-- SPELLCASTING (Spells tab) -->
+      <div class="block" data-sec="spells">
         <div class="sectitle"><span class="swashwrap"><h2>Spellcasting</h2></span><span class="tail"></span><span class="hint">two pools, one soul</span></div>
         <div class="panelbox">
-          <div class="conc-banner" data-conc-banner style="display:none"></div>
           <div class="spellhead" data-list="pools"></div>
           <div class="cast-meta">
             <span>Ability <b data-f="castAbility">Charisma</b></span><span>Save DC <b data-f="castDC">13</b></span><span>Attack <b data-f="castAtk">+5</b></span><span>Type <b data-f="castType">Known</b></span>
@@ -742,7 +745,7 @@ var SHEET_TEMPLATE = `<main class="tok-sheet sheet">
       </div>
 
       <!-- FEATURES -->
-      <div class="block">
+      <div class="block" data-sec="features">
         <div class="sectitle"><span class="swashwrap"><h2>Features</h2></span><span class="tail"></span><span class="hint">&amp; traits</span></div>
         <div class="panelbox">
           <div class="feat-cols" data-list="features">
@@ -759,25 +762,31 @@ var SHEET_TEMPLATE = `<main class="tok-sheet sheet">
         </div>
       </div>
 
-      <!-- EQUIPMENT + STORY -->
-      <div class="block">
-        <div class="es-grid">
-          <div>
-            <div class="sectitle"><span class="swashwrap"><h2>Equipment</h2></span><span class="tail"></span></div>
-            <div class="panelbox" data-equip></div>
+      <!-- INVENTORY -->
+      <div class="block" data-sec="inventory">
+        <div class="sectitle"><span class="swashwrap"><h2>Inventory</h2></span><span class="tail"></span><span class="hint">carried · currency · attunement</span></div>
+        <div class="panelbox" data-equip></div>
+      </div>
+
+      <!-- BIO -->
+      <div class="block" data-sec="bio">
+        <div class="sectitle"><span class="swashwrap"><h2>Story</h2></span><span class="tail"></span></div>
+        <div class="panelbox">
+          <p class="story-quote" data-f="storyQuote"></p>
+          <div class="traits">
+            <div class="trait"><div class="t-l">Personality</div><div class="t-t" data-f="bioPersonality">\u2014</div></div>
+            <div class="trait"><div class="t-l">Ideals</div><div class="t-t" data-f="bioIdeals">\u2014</div></div>
+            <div class="trait"><div class="t-l">Bonds</div><div class="t-t" data-f="bioBonds">\u2014</div></div>
+            <div class="trait"><div class="t-l">Flaws</div><div class="t-t" data-f="bioFlaws">\u2014</div></div>
           </div>
-          <div>
-            <div class="sectitle"><span class="swashwrap"><h2>Story</h2></span><span class="tail"></span></div>
-            <div class="panelbox">
-              <p class="story-quote" data-f="storyQuote"></p>
-              <div class="traits">
-                <div class="trait"><div class="t-l">Personality</div><div class="t-t" data-f="bioPersonality">\u2014</div></div>
-                <div class="trait"><div class="t-l">Ideals</div><div class="t-t" data-f="bioIdeals">\u2014</div></div>
-                <div class="trait"><div class="t-l">Bonds</div><div class="t-t" data-f="bioBonds">\u2014</div></div>
-                <div class="trait"><div class="t-l">Flaws</div><div class="t-t" data-f="bioFlaws">\u2014</div></div>
-              </div>
-            </div>
-          </div>
+        </div>
+      </div>
+
+      <!-- NOTES -->
+      <div class="block" data-sec="notes">
+        <div class="sectitle"><span class="swashwrap"><h2>Notes</h2></span><span class="tail"></span></div>
+        <div class="panelbox">
+          <div class="notepad" data-f="notes"></div>
         </div>
       </div>
 
@@ -791,12 +800,28 @@ var SHEET_TEMPLATE = `<main class="tok-sheet sheet">
 // Stamp the template into `container`, render the live row into it, light the
 // portrait, and wire inspiration scoped to THIS container. Pure of any single
 // page: combat.html can float a sheet by calling this with its own node.
+// Tab bar: Overview shows every section (the master sheet); a focused tab shows
+// only its data-sec section. Abilities/Skills carry no data-sec, so they live in
+// Overview only. The vitals sidebar + strip are outside .rightcol and always show.
+function wireSheetTabs(root){
+  root=root||document;
+  var tabs=root.querySelectorAll('.sheet-tab');
+  var blocks=root.querySelectorAll('.rightcol > .block');
+  if(!tabs.length) return;
+  function activate(id){
+    tabs.forEach(function(t){ t.classList.toggle('active', t.getAttribute('data-tab')===id); });
+    blocks.forEach(function(b){ var sec=b.getAttribute('data-sec'); b.hidden = !(id==='overview' || sec===id); });
+  }
+  tabs.forEach(function(t){ t.addEventListener('click', function(){ activate(t.getAttribute('data-tab')); }); });
+  activate('overview');
+}
 function mountSheet(container, key, opts){
   opts = opts || {};
   var CD = opts.characterData || (typeof window!=='undefined' ? window.CharacterData : null);
   var doc = (container && container.ownerDocument) || (typeof document!=='undefined' ? document : null);
   ensureDefs(doc);
   container.innerHTML = SHEET_TEMPLATE;
+  wireSheetTabs(container);
   if (!CD) { showError(container, 'CharacterData not loaded'); return { ready: Promise.resolve() }; }
   var ready = CD.loadCharacter(key).then(function(cd){
     if(!cd){ showError(container, 'No character "'+key+'"'); return; }
@@ -810,7 +835,7 @@ function mountSheet(container, key, opts){
 
 if (typeof window !== 'undefined') {
   window.mountSheet = mountSheet;
-  window.__sheet = { renderSheet: renderSheet, toRenderShape: toRenderShape, renderEquipment: renderEquipment, renderStory: renderStory, buildSpellcasting: buildSpellcasting, buildResources: buildResources, renderResources: renderResources, renderTrackers: renderTrackers, trackerSpecs: trackerSpecs, renderConcentration: renderConcentration, renderActions: renderActions, renderActionResult: renderActionResult, deriveActionMods: deriveActionMods, renderHitDice: renderHitDice, applyExtras: applyExtras, mountSheet: mountSheet };
+  window.__sheet = { renderSheet: renderSheet, toRenderShape: toRenderShape, renderEquipment: renderEquipment, renderStory: renderStory, wireSheetTabs: wireSheetTabs, buildSpellcasting: buildSpellcasting, buildResources: buildResources, renderResources: renderResources, renderTrackers: renderTrackers, trackerSpecs: trackerSpecs, renderConcentration: renderConcentration, renderActions: renderActions, renderActionResult: renderActionResult, deriveActionMods: deriveActionMods, renderHitDice: renderHitDice, applyExtras: applyExtras, mountSheet: mountSheet };
 }
 
 export { mountSheet };

@@ -541,3 +541,21 @@
   .tok-sheet .insp-stat .sa-undo{font-family:"Oswald",sans-serif;font-weight:600;font-size:9px;letter-spacing:.1em;text-transform:uppercase;background:none;border:0;border-bottom:1px solid var(--gold-br);color:var(--gold-br);cursor:pointer;padding:0 0 1px;margin-left:2px}
   .tok-sheet .insp-stat .sa-undo:hover{color:var(--cream-hi);border-color:var(--cream-hi)}
   @media (prefers-reduced-motion: reduce){ .sa-pop{transition:none} }
+
+/* ── pinned concentration / conditions strip (visible on every tab) ── */
+.tok-sheet .conc-strip{display:flex;gap:26px;align-items:center;flex-wrap:wrap;margin:2px 0 16px;padding:10px 18px;border:1px solid var(--frame);border-left:3px solid var(--gold);background:linear-gradient(90deg, rgba(199,154,74,.13), rgba(199,154,74,.02) 60%, transparent);font-family:"Oswald",sans-serif;font-size:13.5px;letter-spacing:.03em}
+.tok-sheet .conc-strip .cs-lab{color:var(--cream-fnt);text-transform:uppercase;font-size:10px;letter-spacing:.14em;margin-right:8px}
+.tok-sheet .conc-strip .cs-val{color:var(--gold-br);font-weight:600}
+.tok-sheet .conc-strip .cs-val.muted{color:var(--cream-dim);font-weight:400}
+.tok-sheet .conc-strip .cs-dot{width:7px;height:7px;border-radius:50%;background:var(--gold-br);display:inline-block;margin-right:7px;box-shadow:0 0 7px 1px rgba(231,194,121,.6);vertical-align:middle}
+.tok-sheet .conc-strip .cs-sep{width:1px;height:18px;background:var(--frame)}
+.tok-sheet .conc-strip .cc-drop{margin-left:10px;font-family:"Oswald",sans-serif;font-size:10px;letter-spacing:.1em;text-transform:uppercase;color:var(--red-br);background:transparent;border:1px solid rgba(224,88,74,.4);padding:2px 8px;cursor:pointer;border-radius:2px}
+.tok-sheet .conc-strip .cc-drop:hover{background:rgba(224,88,74,.14)}
+
+/* ── in-sheet tab bar (scoped to the sheet root) ── */
+.tok-sheet .sheet-tabbar{display:flex;gap:1px;flex-wrap:wrap;margin:0 0 22px;border-bottom:1px solid var(--frame)}
+.tok-sheet .sheet-tab{font-family:"Oswald",sans-serif;font-weight:500;font-size:12px;letter-spacing:.11em;text-transform:uppercase;color:var(--cream-fnt);background:transparent;border:0;padding:10px 16px 11px;cursor:pointer;position:relative;transition:color .13s}
+.tok-sheet .sheet-tab:hover{color:var(--cream)}
+.tok-sheet .sheet-tab.active{color:var(--gold-br)}
+.tok-sheet .sheet-tab.active::after{content:"";position:absolute;left:8px;right:8px;bottom:-1px;height:2px;background:var(--gold-br);box-shadow:0 0 8px rgba(231,194,121,.5)}
+.tok-sheet .rightcol > .block[hidden]{display:none}
