@@ -280,6 +280,26 @@
   .ft-half{margin-top:10px; padding:11px 13px; background:var(--bg-sunk); border:1px solid var(--rule); border-radius:3px}
   .ft-srch{width:100%; box-sizing:border-box; font-family:var(--body); font-size:16px; padding:8px 11px; margin-bottom:8px; background:var(--bg-card); border:1px solid var(--rule-strong); border-radius:2px; color:var(--ink)}
   .ft-list{max-height:340px; overflow:auto; display:flex; flex-direction:column; gap:7px; padding-right:2px}
+  /* ── Items step: equipment groups, A/B picker, gold ── */
+  .it-mode{margin-bottom:14px}
+  .it-grp{margin-bottom:14px}
+  .it-gl{font-family:var(--ui); font-size:13px; letter-spacing:.08em; text-transform:uppercase; color:var(--ink-faint); margin-bottom:6px}
+  .it-fixed{display:flex; flex-wrap:wrap; gap:6px}
+  .it-chip{font-family:var(--body); font-size:15px; padding:5px 11px; background:var(--bg-sunk); border:1px solid var(--rule); border-radius:2px; color:var(--ink)}
+  .it-opts{display:grid; grid-template-columns:1fr 1fr; gap:9px}
+  .it-opt{display:flex; flex-direction:column; gap:5px; text-align:left; padding:11px 13px; background:var(--bg-card); border:1px solid var(--rule-strong); border-radius:3px; cursor:pointer}
+  .it-opt:hover{background:var(--bg-sunk)}
+  .it-opt.on{border-color:var(--blood); box-shadow:inset 0 0 0 1px var(--blood)}
+  .it-ol{font-family:var(--ui); font-size:13px; letter-spacing:.06em; color:var(--ink-faint)}
+  .it-opt.on .it-ol{color:var(--blood)}
+  .it-oi{font-family:var(--body); font-size:16px; color:var(--ink); line-height:1.25}
+  .it-gold{padding:6px 0}
+  .it-goldamt{font-family:var(--disp); font-size:38px; color:var(--gold); line-height:1}
+  .it-goldamt span{font-size:18px; color:var(--ink-faint)}
+  .it-reroll{margin-top:12px; font-family:var(--ui); font-size:15px; letter-spacing:.04em; padding:8px 18px; background:var(--bg-card); border:1px solid var(--rule-strong); border-radius:2px; cursor:pointer; color:var(--ink)}
+  .it-reroll:hover{background:var(--bg-sunk)}
+  @media (max-width:560px){ .it-opts{grid-template-columns:1fr} }
+
 
   .eng-tog button.on{background:var(--ink); color:var(--bg)}
   .eng-reroll{font-family:var(--ui); font-size:13px; letter-spacing:.04em; margin-left:8px; background:none; border:0; border-bottom:1px dashed var(--ink-faint); color:var(--ink-soft); cursor:pointer; padding:0}
@@ -564,6 +584,7 @@ var STEPS = [
   { id:'choices',    name:'Choices',    desc:'Pick the optional features your class and subclass grant — Fighting Style, Maneuvers, Eldritch Invocations, Metamagic, and the like. Only what this build is owed at its level appears here.', conditional:true },
   { id:'feats',      name:'Feats',      desc:'Spend each Ability Score Improvement on +2/+1 to your abilities or a feat, and pick any feat your race grants at level 1. Only the slots this build has earned appear here.', conditional:true },
   { id:'background', name:'Background', desc:'Choose a background, or customize one. The 2014 "Customizing a Background" rule lets you swap the two skills, two tools or languages, equipment, and feature.' },
+  { id:'items',      name:'Items',      desc:'Take your class and background starting equipment — pick between the either/or bundles, or trade it all for starting gold. The result fills your inventory.' },
   { id:'spells',     name:'Spells',     desc:'Pick cantrips and spells. Known casters lock a fixed list; prepared casters choose cantrips and compute a prepared count from level plus casting modifier.', conditional:true },
   { id:'review',     name:'Review',     desc:'Confirm the assembled sheet. Forging writes the structural block to the characters table — party.html renders it from there.' },
 ];
@@ -673,7 +694,7 @@ function loadDraft(){ try { var j = window.localStorage.getItem(KEY); if (j) ret
 function saveDraft(){ try { window.localStorage.setItem(KEY, JSON.stringify(draft)); } catch(e){} flashDraft(); }
 var draft = loadDraft() || { stepId:'abilities', name:null, species:null, subrace:null, asi:{}, size:null, originMode:'std', useFloating:false, openTrait:null, cls:null, level:1, subclass:null, bg:null, bgCustom:false,
   method:'array', abilities:{ str:15, dex:14, con:13, int:12, wis:10, cha:8 }, slots:null, armed:null, hp:{ method:'average' },
-  bgSkills:[], bgTools:[], bgPack:null, bgFeature:null, choices:{}, advancement:{}, spells:{ cantrips:[], known:[], prepared:[], spellbook:[] } };
+  bgSkills:[], bgTools:[], bgPack:null, bgFeature:null, choices:{}, advancement:{}, equipment:{ mode:'gear', picks:{}, gold:null }, spells:{ cantrips:[], known:[], prepared:[], spellbook:[] } };
 if (draft.level == null) draft.level = 1;
 if (!draft.method) draft.method = 'array';
 if (!draft.abilities) draft.abilities = { str:15, dex:14, con:13, int:12, wis:10, cha:8 };
@@ -693,6 +714,7 @@ if (!draft.spells || typeof draft.spells !== 'object') draft.spells = { cantrips
 ['cantrips','known','prepared','spellbook'].forEach(function(k){ if (!Array.isArray(draft.spells[k])) draft.spells[k] = []; });
 if (!draft.choices || typeof draft.choices !== 'object') draft.choices = {};
 if (!draft.advancement || typeof draft.advancement !== 'object') draft.advancement = {};
+if (!draft.equipment || typeof draft.equipment !== 'object') draft.equipment = { mode:'gear', picks:{}, gold:null };
 ensureSlots();
 
 // ── reusable browse list: search + per-source filter + scroll select ───────────
@@ -848,6 +870,11 @@ function customControlsHTML(){
 }
 
 var BODIES = {
+  items: function(){
+    var c = chosenClass();
+    if (!c) return '<p>Choose a class first — starting equipment depends on your class and background.</p>';
+    return '<div id="it-out"><div class="eng-load">Resolving starting equipment…</div></div>';
+  },
   feats: function(){
     var c = chosenClass();
     if (!c) return '<p>Choose a class first — feats and ability improvements depend on your level and race.</p>';
@@ -1100,6 +1127,7 @@ var MOUNT = {
   spells: function(){ SpellsUI.mount(); },
   choices: function(){ ChoicesUI.mount(); },
   feats: function(){ FeatsUI.mount(); },
+  items: function(){ ItemsUI.mount(); },
 };
 
 
@@ -2065,6 +2093,116 @@ var FeatsUI = (function () {
 
   return { mount: mount, ensureLoaded: ensureLoaded, featsForStructural: featsForStructural, advancementBonuses: advancementBonuses };
 })();
+// ── Items step UI — class + background starting equipment. Every character gets
+// gear, so this is a plain (non-conditional) step. A top toggle takes the gear OR
+// the gold alternative; each either/or group is a segmented pick (defaulting to the
+// first option so the inventory is always complete); fixed lines are just listed.
+// inventoryForCharacter() assembles {inventory, currency} in the sheet's shape; the
+// Forge writes it onto new characters (updates leave a played character's gear). ──
+var ItemsUI = (function () {
+  var _freq = 0, _eq = null;
+
+  function esc(x){ return String(x).replace(/[&<>]/g, function(c){ return c === '&' ? '&amp;' : c === '<' ? '&lt;' : '&gt;'; }); }
+  function eqd(){ return draft.equipment || (draft.equipment = { mode:'gear', picks:{}, gold:null }); }
+
+  function loadData(){
+    var c = chosenClass();
+    if (!c || typeof SoulShardsData === 'undefined'){ _eq = null; return Promise.resolve(false); }
+    var my = ++_freq;
+    var bgP = (draft.bg && draft.bg.n) ? SoulShardsData.loadBackgrounds() : Promise.resolve(null);
+    return Promise.all([ SoulShardsData.loadClass(c.n), bgP ]).then(function(res){
+      if (my !== _freq) return false;
+      var bgEquip = (res[1] && draft.bg) ? SoulShardsData.backgroundEquipment(res[1], draft.bg.n, draft.bg.s) : [];
+      _eq = SoulShardsData.parseStartingEquipment(res[0], bgEquip);
+      reconcile(); return true;
+    });
+  }
+
+  function reconcile(){
+    var picks = eqd().picks, groups = _eq ? _eq.groups : [];
+    Object.keys(picks).forEach(function(k){ var i = +k; if (!groups[i] || groups[i].kind !== 'choice') delete picks[k]; });
+    groups.forEach(function(g, i){ if (g.kind === 'choice' && !picks[i]) picks[i] = g.options[0].label; });
+    saveDraft();
+  }
+
+  function goldDice(){ return (_eq && _eq.goldAlternative || '').match(/(\d+)d(\d+)\s*[×x*]\s*(\d+)/); }
+  function goldAverage(){ var m = goldDice(); return m ? Math.floor(+m[1] * ((+m[2] + 1) / 2) * +m[3]) : 0; }
+  function goldRoll(){ var m = goldDice(); if (!m) return 0; var s = 0; for (var i = 0; i < +m[1]; i++) s += 1 + Math.floor(Math.random() * +m[2]); return s * +m[3]; }
+
+  function itemLine(it){ return esc(it.name) + (it.qty > 1 ? ' \u00d7' + it.qty : ''); }
+
+  // assemble {inventory, currency} from the current picks — for the Forge
+  function inventoryForCharacter(){
+    var inv = [], cur = {};
+    function addCoin(cp){ if (!cp) return; cur.gp = (cur.gp || 0) + Math.floor(cp / 100); cp %= 100; cur.sp = (cur.sp || 0) + Math.floor(cp / 10); cur.cp = (cur.cp || 0) + (cp % 10); }
+    if (!_eq) return { inventory: inv, currency: cur };
+    if (eqd().mode === 'gold'){ cur.gp = (eqd().gold != null ? eqd().gold : goldAverage()); return { inventory: inv, currency: cur }; }
+    _eq.groups.forEach(function(g, i){
+      var items;
+      if (g.kind === 'fixed') items = g.items;
+      else { var p = eqd().picks[i] || g.options[0].label, o = g.options.find(function(o){ return o.label === p; }) || g.options[0]; items = o.items; }
+      items.forEach(function(it){
+        if (it.value != null) addCoin(it.value);
+        inv.push({ name: it.category ? (it.name + ' (your choice)') : it.name, qty: it.qty || 1 });
+      });
+    });
+    return { inventory: inv, currency: cur };
+  }
+
+  function render(){
+    var host = q('#it-out'); if (!host) return;
+    if (!_eq){ host.innerHTML = '<p>Choose a class first — starting equipment depends on your class and background.</p>'; return; }
+    var mode = eqd().mode;
+    var toggle = '<div class="ft-seg it-mode"><button class="' + (mode === 'gear' ? 'on' : '') + '" data-mode="gear">Take Equipment</button>' +
+      (_eq.goldAlternative ? '<button class="' + (mode === 'gold' ? 'on' : '') + '" data-mode="gold">Take Gold (' + esc(_eq.goldAlternative) + ')</button>' : '') + '</div>';
+    var body;
+    if (mode === 'gold'){
+      var amt = eqd().gold != null ? eqd().gold : goldAverage();
+      body = '<div class="it-gold"><div class="it-goldamt">' + amt + ' <span>gp</span></div>' +
+        (goldDice() ? '<button class="it-reroll" type="button">Roll ' + esc(_eq.goldAlternative) + '</button>' : '') +
+        '<div class="ft-hint">Take coin instead of starting gear' + (goldDice() ? ' — average is ' + goldAverage() + ' gp' : '') + '.</div></div>';
+    } else {
+      body = _eq.groups.map(function(g, i){
+        var tag = g.source === 'background' ? 'Background' : 'Class';
+        if (g.kind === 'fixed'){
+          return '<div class="it-grp"><div class="it-gl">' + tag + ' · granted</div><div class="it-fixed">' +
+            g.items.map(function(it){ return '<span class="it-chip">' + itemLine(it) + '</span>'; }).join('') + '</div></div>';
+        }
+        var sel = eqd().picks[i] || g.options[0].label;
+        var opts = g.options.map(function(o){
+          return '<button class="it-opt' + (o.label === sel ? ' on' : '') + '" data-grp="' + i + '" data-opt="' + esc(o.label) + '">' +
+            '<span class="it-ol">' + esc(o.label) + '</span>' + o.items.map(function(it){ return '<span class="it-oi">' + itemLine(it) + '</span>'; }).join('') + '</button>';
+        }).join('');
+        return '<div class="it-grp"><div class="it-gl">' + tag + ' · choose one</div><div class="it-opts">' + opts + '</div></div>';
+      }).join('');
+    }
+    host.innerHTML = toggle + body;
+    wire(host);
+  }
+
+  function wire(host){
+    Array.prototype.forEach.call(host.querySelectorAll('.it-mode button'), function(el){
+      el.addEventListener('click', function(){ eqd().mode = el.getAttribute('data-mode'); if (eqd().mode === 'gold' && eqd().gold == null) eqd().gold = goldAverage(); saveDraft(); render(); });
+    });
+    Array.prototype.forEach.call(host.querySelectorAll('.it-opt'), function(el){
+      el.addEventListener('click', function(){ eqd().picks[+el.getAttribute('data-grp')] = el.getAttribute('data-opt'); saveDraft(); render(); });
+    });
+    var rr = host.querySelector('.it-reroll'); if (rr) rr.addEventListener('click', function(){ eqd().gold = goldRoll(); saveDraft(); render(); });
+  }
+
+  function mount(){
+    var host = q('#it-out'); if (!host) return;
+    if (!chosenClass()){ host.innerHTML = '<p>Choose a class first — starting equipment depends on your class and background.</p>'; return; }
+    host.innerHTML = '<div class="eng-load">Resolving starting equipment…</div>';
+    loadData().then(function(){ if (q('#it-out')) render(); }).catch(function(err){
+      var h = q('#it-out'); if (h) h.innerHTML = '<div class="eng-load">Couldn’t load equipment (' + esc((err && err.message) || 'fetch failed') + ').</div>';
+    });
+  }
+  function ensureLoaded(){ return loadData(); }
+
+  return { mount: mount, ensureLoaded: ensureLoaded, inventoryForCharacter: inventoryForCharacter };
+})();
+
 
 
 
@@ -2282,12 +2420,14 @@ function forgeCommit(){
   var spellsReady = (typeof SpellsUI !== 'undefined' && isCaster(c)) ? SpellsUI.ensureLoaded() : Promise.resolve(true);
   var choicesReady = (typeof ChoicesUI !== 'undefined') ? ChoicesUI.ensureLoaded() : Promise.resolve(true);
   var featsReady = (typeof FeatsUI !== 'undefined') ? FeatsUI.ensureLoaded() : Promise.resolve(true);
-  Promise.all([SoulShardsData.loadClass(c.n), raceForBuild(), spellsReady, choicesReady, featsReady]).then(function(res){
+  var itemsReady = (typeof ItemsUI !== 'undefined') ? ItemsUI.ensureLoaded() : Promise.resolve(true);
+  Promise.all([SoulShardsData.loadClass(c.n), raceForBuild(), spellsReady, choicesReady, featsReady, itemsReady]).then(function(res){
     var assembled = buildStructuralPreview(res[0], res[1]);
     if (assembled && assembled._error){ fxStatus('err', assembled._error); return; }
     var structural = Object.assign({}, assembled); delete structural._incomplete;
     var hpMax = (structural.combat && structural.combat.hpMax) || 0;
     var vitals = hpMax > 0 ? { hp: hpMax } : {};
+    var gear = (typeof ItemsUI !== 'undefined') ? ItemsUI.inventoryForCharacter() : { inventory: [], currency: {} };
 
     if (mode === 'existing'){
       fxStatus('busy', 'Updating \u201c' + existingKey + '\u201d\u2026');
@@ -2299,8 +2439,8 @@ function forgeCommit(){
     }
     var key = CharacterData.newKey(draft.name);
     fxStatus('busy', 'Forging ' + draft.name + '\u2026');
-    return CharacterData.create(key, { structural: structural, vitals: vitals }).catch(function(err){
-      if (err && /duplicate|unique/i.test(err.message || '')){ key = CharacterData.newKey(draft.name); return CharacterData.create(key, { structural: structural, vitals: vitals }); }
+    return CharacterData.create(key, { structural: structural, vitals: vitals, inventory: gear.inventory, currency: gear.currency }).catch(function(err){
+      if (err && /duplicate|unique/i.test(err.message || '')){ key = CharacterData.newKey(draft.name); return CharacterData.create(key, { structural: structural, vitals: vitals, inventory: gear.inventory, currency: gear.currency }); }
       throw err;
     }).then(function(){
       fxStatus('ok', draft.name + ' forged (' + key + '). Assign them to a player in Members & Access.');
