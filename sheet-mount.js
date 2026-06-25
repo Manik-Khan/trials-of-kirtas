@@ -117,12 +117,21 @@ function renderSpellcasting(root, sc){
   root=root||document; sc=sc||{};
   function setF(fld,val){ if(val===undefined||val===null) return; var e=root.querySelector('[data-f="'+fld+'"]'); if(e) e.textContent=val; }
   var ph=root.querySelector('[data-list="pools"]');       if(ph) ph.innerHTML=(sc.pools||[]).map(poolHTML).join('');
-  setF('castAbility', sc.ability);
-  setF('castDC', sc.saveDC);
-  setF('castAtk', sc.attackBonus!=null?sgn(sc.attackBonus):null);
-  setF('castType', sc.prepared===true?'Prepared':(sc.prepared===false?'Known':sc.castType));
+  // A character casts if it has a save DC, any spells, or any spell pools. With none of
+  // those, hide the cast-meta + legend so the template's SAMPLE DC/ability/type don't bleed
+  // through for a martial, and show a plain empty state instead of an empty spell list.
+  var dash='\u2014';
+  var casts=(sc.saveDC!=null)||(sc.groups&&sc.groups.length)||(sc.pools&&sc.pools.length);
+  var meta=root.querySelector('.cast-meta'), leg=root.querySelector('.legend');
+  if(meta) meta.style.display=casts?'':'none';
+  if(leg)  leg.style.display =casts?'':'none';
+  setF('castAbility', sc.ability||dash);
+  setF('castDC', sc.saveDC!=null?sc.saveDC:dash);
+  setF('castAtk', sc.attackBonus!=null?sgn(sc.attackBonus):dash);
+  setF('castType', sc.prepared===true?'Prepared':(sc.prepared===false?'Known':(sc.castType||dash)));
   setF('featNote', sc.featNote);
-  var gb=root.querySelector('[data-list="spellGroups"]');  if(gb) gb.innerHTML=(sc.groups||[]).map(groupHTML).join('');
+  var gb=root.querySelector('[data-list="spellGroups"]');
+  if(gb) gb.innerHTML=casts?(sc.groups||[]).map(groupHTML).join(''):'<p class="spell-none" style="opacity:.55;font-style:italic;margin:10px 2px">This character doesn\u2019t cast spells.</p>';
   var db=root.querySelector('[data-list="detail"]');       if(db) db.innerHTML=detailHTML(sc.detail);
 }
 // Concentration banner — driven by vitals.concentration ({name,duration} | null).
@@ -254,6 +263,7 @@ function renderSheet(root, char){
   function styleF(fld,p,val){ var e=root.querySelector('[data-f="'+fld+'"]'); if(e) e.style[p]=val; }
   var nm=root.querySelector('[data-f="name"]');
   if(nm&&s.name){ var ps=String(s.name).trim().split(/\s+/); if(ps.length>1){ var last=ps.pop(); nm.innerHTML=esc(ps.join(' '))+' <em>'+esc(last)+'</em>'; } else nm.textContent=s.name; }
+  setF('nameFoot', s.name);
   renderSubline(root, s);
   setF('ac', cb.ac);
   if(cb.acSource!=null) setF('ac-sub', cb.acSource);
@@ -261,8 +271,8 @@ function renderSheet(root, char){
   var initEl=root.querySelector('[data-chk="init"]'); if(initEl) initEl.setAttribute('data-chk-mod', (cb.initiative||0));
   setF('speed', cb.speed);
   setF('prof', sgn(s.proficiencyBonus));
-  setF('spellDC', cb.spellSaveDC);
-  setF('spellAtk', sgn(cb.spellAttackBonus));
+  setF('spellDC', cb.spellSaveDC!=null?cb.spellSaveDC:'\u2014');
+  setF('spellAtk', cb.spellAttackBonus!=null?sgn(cb.spellAttackBonus):'\u2014');
   renderHitDice(root, s, v);
   var hp=(v.hp!=null?v.hp:cb.hp), hpMax=(cb.hpMax!=null?cb.hpMax:cb.hp), temp=(v.hpTemp!=null?v.hpTemp:0), bonus=(v.hpBonus!=null?v.hpBonus:0), effMax=(hpMax||0)+(bonus||0);
   setF('hp', hp); setF('hpMaxBig', '/ '+hpMax); setF('hpCurrent', 'Current '+hp+' / '+hpMax);
@@ -716,7 +726,7 @@ var SHEET_TEMPLATE = `<main class="tok-sheet sheet">
 
       <!-- SPELLCASTING (Spells tab) -->
       <div class="block" data-sec="spells">
-        <div class="sectitle"><span class="swashwrap"><h2>Spellcasting</h2></span><span class="tail"></span><span class="hint">two pools, one soul</span></div>
+        <div class="sectitle"><span class="swashwrap"><h2>Spellcasting</h2></span><span class="tail"></span><span class="hint">ability · save · attack</span></div>
         <div class="panelbox">
           <div class="spellhead" data-list="pools"></div>
           <div class="cast-meta">
@@ -790,7 +800,7 @@ var SHEET_TEMPLATE = `<main class="tok-sheet sheet">
         </div>
       </div>
 
-      <div class="footer"><span class="mk">Cosmere Runestar</span><div class="ln"></div><span class="mk">Trials of Kirtas</span></div>
+      <div class="footer"><span class="mk" data-f="nameFoot">Cosmere Runestar</span><div class="ln"></div><span class="mk">Trials of Kirtas</span></div>
 
     </section>
   </div>
