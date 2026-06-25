@@ -1519,6 +1519,21 @@ var SpellsUI = (function () {
     return out;
   }
   function loadGrantsFrom(race){ try { return parseGrants(collectAdditional(race), draft.level); } catch(e){ return []; } }
+  // The ability a race casts its innate spells with — a fixed score (Yuan-Ti Pureblood = Cha)
+  // or a choice (Yuan-Ti MPMM = Int/Wis/Cha). For a choice we default to the highest of the
+  // allowed scores; the sheet's spell editor lets the player change it afterwards.
+  function racialAbility(){
+    var addl = collectAdditional(_raceModel);
+    for (var i = 0; i < addl.length; i++){
+      var a = addl[i].ability;
+      if (typeof a === 'string') return a;
+      if (a && a.choose && a.choose.length){
+        var eff = effectiveAbilities(_raceModel);
+        return a.choose.slice().sort(function(x, y){ return (eff[y] != null ? eff[y] : 10) - (eff[x] != null ? eff[x] : 10); })[0];
+      }
+    }
+    return null;
+  }
 
   // ── entitlement from the live engine build ──
   function entitlementFrom(b, c, race){
@@ -1781,12 +1796,13 @@ var SpellsUI = (function () {
     var lvlOf = function(name){ var dd = _detail[name]; if (!dd) return null; return dd.level === 0 ? 'cantrip' : dd.level; };
     var timeOf = function(name){ var dd = _detail[name]; return dd ? (dd.time || null) : null; };
     var out = [], seen = {};
-    function add(name, og, sourceTag, level, time){ var k = name.toLowerCase(); if (seen[k]) return; seen[k] = 1; out.push({ name:name, level:level, origin:og, source:sourceTag, time:time }); }
+    function add(name, og, sourceTag, level, time, ability){ var k = name.toLowerCase(); if (seen[k]) return; seen[k] = 1; out.push({ name:name, level:level, origin:og, source:sourceTag, time:time, ability:ability || null }); }
     // racial grants FIRST so race attribution wins a collision with a class pick
-    _grants.forEach(function(g){ add(g.name, 'race', raceName(), (g.kind === 'cantrip' || g.level === 0) ? 'cantrip' : (g.level != null ? g.level : null), timeOf(g.name)); });
-    p.cantrips.forEach(function(n){ add(n, origin, src, 'cantrip', timeOf(n)); });
+    var rabil = racialAbility();
+    _grants.forEach(function(g){ add(g.name, 'race', raceName(), (g.kind === 'cantrip' || g.level === 0) ? 'cantrip' : (g.level != null ? g.level : null), timeOf(g.name), rabil); });
+    p.cantrips.forEach(function(n){ add(n, origin, src, 'cantrip', timeOf(n), _ent.ability); });
     var loadout = _ent.mode === 'known' ? p.known : p.prepared;   // the castable list (Wizard prepares FROM the book)
-    loadout.forEach(function(n){ add(n, origin, src, lvlOf(n), timeOf(n)); });
+    loadout.forEach(function(n){ add(n, origin, src, lvlOf(n), timeOf(n), _ent.ability); });
     var book = [];
     if (_ent.mode === 'spellbook') p.spellbook.forEach(function(n){ book.push({ name:n, level:lvlOf(n), origin:'class', source:_ent.cls }); });
     return { spells: out, spellbook: book };
@@ -2320,7 +2336,7 @@ function buildStructuralPreview(model, race){
     return { _error: 'Spellcasting / derive modules not loaded.' };
   }
   var sub = (model.subclasses || []).find(function(s){ return draft.subclass && s.name === draft.subclass.n; });
-  var picked = (typeof SpellsUI !== 'undefined' && isCaster(chosenClass())) ? SpellsUI.spellsForStructural() : { spells: [], spellbook: [] };
+  var picked = (typeof SpellsUI !== 'undefined') ? SpellsUI.spellsForStructural() : { spells: [], spellbook: [] };
   var r = SoulShardsDerive.deriveStructural({
     name: draft.name || 'Unnamed', alignment: null, portrait: null,
     abilities: effectiveAbilities(race),
@@ -2352,7 +2368,7 @@ function forgePreview(){
   }
   var my = ++forgeReq;
   host.innerHTML = '<div class="fx-empty">Assembling structural from the 2014 data…</div>';
-  var spellsReady = (typeof SpellsUI !== 'undefined' && isCaster(c)) ? SpellsUI.ensureLoaded() : Promise.resolve(true);
+  var spellsReady = (typeof SpellsUI !== 'undefined') ? SpellsUI.ensureLoaded() : Promise.resolve(true);
   var choicesReady = (typeof ChoicesUI !== 'undefined') ? ChoicesUI.ensureLoaded() : Promise.resolve(true);
   var featsReady = (typeof FeatsUI !== 'undefined') ? FeatsUI.ensureLoaded() : Promise.resolve(true);
   Promise.all([SoulShardsData.loadClass(c.n), raceForBuild(), spellsReady, choicesReady, featsReady]).then(function(res){
@@ -2425,7 +2441,7 @@ function forgeCommit(){
   if (typeof SoulShardsData === 'undefined' || typeof SoulShardsEngine === 'undefined'){ fxStatus('err', 'Engine modules not loaded.'); return; }
 
   fxStatus('busy', 'Assembling the structural\u2026');
-  var spellsReady = (typeof SpellsUI !== 'undefined' && isCaster(c)) ? SpellsUI.ensureLoaded() : Promise.resolve(true);
+  var spellsReady = (typeof SpellsUI !== 'undefined') ? SpellsUI.ensureLoaded() : Promise.resolve(true);
   var choicesReady = (typeof ChoicesUI !== 'undefined') ? ChoicesUI.ensureLoaded() : Promise.resolve(true);
   var featsReady = (typeof FeatsUI !== 'undefined') ? FeatsUI.ensureLoaded() : Promise.resolve(true);
   var itemsReady = (typeof ItemsUI !== 'undefined') ? ItemsUI.ensureLoaded() : Promise.resolve(true);
