@@ -89,19 +89,33 @@ function poolHTML(p){
        + '<div class="slots">'+slots+'</div>'
        + '<div class="p-rec">'+esc(p.recharge)+'</div></div>';
 }
-function spellHTML(sp){
+// Casting time can arrive as a clean string OR the raw 5etools structure
+// ([{number,unit}]) for spells resolved off the class list (racial grants). Format
+// either; never serialize an object into the row (that printed "[object Object]").
+function fmtCt(t){
+  if(!t) return '';
+  if(typeof t==='string') return t;
+  if(Array.isArray(t)&&t[0]){ var x=t[0]; var u=x.unit==='bonus'?'bonus action':x.unit; return (x.number!=null?x.number+' ':'')+u+((x.number>1&&u)?'s':''); }
+  return '';
+}
+function spellHTML(sp, glvl){
   sp=sp||{};
   var oMap={ "class":"o-class", subclass:"o-sub", race:"o-race", feat:"o-feat", expanded:"o-sub" };
   var tMap={ "class":"t-class", subclass:"t-sub", race:"t-race", feat:"t-feat", expanded:"t-exp" };
   var o=sp.origin||'class';
-  return '<div class="spell '+(oMap[o]||'o-class')+'" data-spell="'+esc(sp.name)+'" data-level="'+(sp.level!=null?sp.level:0)+'"'+(sp.conc?' data-conc="1"':'')+'><span class="s-n">'+esc(sp.name)+(sp.conc?' <span class="s-conc" title="Concentration">C</span>':'')+'</span>'
+  // the cast handler reads data-level; a forged spell may not carry its own level, so fall
+  // back to the group's level (passed by groupHTML) instead of defaulting every spell to 0
+  // (which made leveled spells log as "cantrip").
+  var lvl = sp.level!=null ? sp.level : (glvl!=null ? glvl : 0);
+  return '<div class="spell '+(oMap[o]||'o-class')+'" data-spell="'+esc(sp.name)+'" data-level="'+lvl+'"'+(sp.conc?' data-conc="1"':'')+'><span class="s-n">'+esc(sp.name)+(sp.conc?' <span class="s-conc" title="Concentration">C</span>':'')+'</span>'
        + '<span class="s-tag '+(tMap[o]||'t-class')+'">'+esc(sp.source)+'</span>'
-       + '<span class="s-ct">'+esc(sp.time)+'</span></div>';
+       + '<span class="s-ct">'+esc(fmtCt(sp.time))+'</span></div>';
 }
 function groupHTML(g){
   g=g||{};
+  var glvl = g.level!=null ? g.level : (function(){ var m=/(\d+)/.exec(g.heading||''); return m?+m[0]:0; })();
   return '<div class="spell-group"><div class="sg-h">'+esc(g.heading)+'</div>'
-       + '<div class="spell-cols">'+(g.spells||[]).map(spellHTML).join('')+'</div></div>';
+       + '<div class="spell-cols">'+(g.spells||[]).map(function(sp){ return spellHTML(sp, glvl); }).join('')+'</div></div>';
 }
 function detailHTML(d){
   if(!d) return '';

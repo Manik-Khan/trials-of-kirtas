@@ -154,13 +154,14 @@
     (spells || []).forEach(function (sp) {
       var k = sp.level == null ? 'cantrip' : sp.level;
       (byLevel[k] || (byLevel[k] = [])).push({
-        name: sp.name, origin: sp.origin || 'class', source: sp.source, time: sp.time, ability: sp.ability || null
+        name: sp.name, origin: sp.origin || 'class', source: sp.source, time: sp.time, ability: sp.ability || null,
+        level: (k === 'cantrip' ? 0 : k)   // the cast handler reads this; without it leveled spells logged as cantrip
       });
     });
     var groups = [];
     LEVEL_ORDER.forEach(function (k) {
       if (!byLevel[k]) return;
-      groups.push({ heading: k === 'cantrip' ? 'Cantrips \u00B7 At Will' : ordinal(k) + ' Level', spells: byLevel[k] });
+      groups.push({ heading: k === 'cantrip' ? 'Cantrips \u00B7 At Will' : ordinal(k) + ' Level', level: (k === 'cantrip' ? 0 : k), spells: byLevel[k] });
     });
     return groups;
   }
