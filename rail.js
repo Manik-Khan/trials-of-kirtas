@@ -53,6 +53,13 @@
       ct.onerror = function () { console.warn('[rail] characters-tab.js failed to load'); };
       document.head.appendChild(ct);
     }
+    // Appearance customizer — fills the built-in Settings pane on tok-rail:ready and
+    // routes its live preview onto the floating sheet. ES module; non-blocking.
+    if (!window.AppearanceSettings && !document.querySelector('script[src$="appearance-settings.js"]')) {
+      var ap = document.createElement('script'); ap.type = 'module'; ap.src = 'appearance-settings.js';
+      ap.onerror = function () { console.warn('[rail] appearance-settings.js failed to load'); };
+      document.head.appendChild(ap);
+    }
     if (window.FeedRender) { after(); return; }
     var s = document.createElement('script');
     s.src = 'feed-render.js';

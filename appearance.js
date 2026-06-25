@@ -68,6 +68,12 @@ function ensureLayers(){
 }
 
 // Apply a saved look. Pure DOM/CSS, no network.
+// Shared texture/filter assets consumed by appearance-float.js (the float painter)
+// and any other surface that paints the look. These were defined here but never
+// exported, so the float's import threw (and combat-sheet-float swallowed it) — which
+// is why a floating sheet painted nothing. Exporting them lights the float back up.
+export { DEFS, WEAVE, GRAIN };
+
 export function applyAppearance(a){
   ensureLayers();
   const bgEl = document.getElementById('tok-bg');
@@ -140,6 +146,9 @@ const SLIDERS = [
 export function buildAppearancePanel(mount, opts){
   opts = opts || {};
   const cfg = Object.assign({}, DEFAULT_APPEARANCE, opts.current || {});
+  // Live preview target: the standalone sheet paints the page (#bg/#fx) via applyAppearance;
+  // the rail's Settings copy passes onApply to paint the floating sheet's per-tab layer instead.
+  const apply = (typeof opts.onApply === 'function') ? opts.onApply : applyAppearance;
   const el = (t, p) => Object.assign(document.createElement(t), p || {});
   mount.innerHTML = '';
   mount.appendChild(el('div', { className:'tok-ap-h', textContent:'Appearance' }));
@@ -156,7 +165,7 @@ export function buildAppearancePanel(mount, opts){
       cfg.bg = b.id;
       Array.prototype.forEach.call(pick.children, c => c.classList.remove('on'));
       sw.classList.add('on');
-      applyAppearance(cfg);
+      apply(cfg);
     });
     pick.appendChild(sw);
   });
@@ -167,7 +176,7 @@ export function buildAppearancePanel(mount, opts){
   const sel = el('select', { className:'tok-ap-sel' });
   SHAPES.forEach(sh => sel.appendChild(el('option', { value:sh.id, textContent:sh.label })));
   sel.value = cfg.geoShape;
-  sel.addEventListener('change', () => { cfg.geoShape = sel.value; applyAppearance(cfg); });
+  sel.addEventListener('change', () => { cfg.geoShape = sel.value; apply(cfg); });
   mount.appendChild(sel);
 
   // slider groups
@@ -179,7 +188,7 @@ export function buildAppearancePanel(mount, opts){
       const wrap = el('label', { className:'tok-ap-row' });
       const out = el('span', { textContent: cfg[key] + unit });
       const inp = el('input', { type:'range', min:min, max:max, value: cfg[key] });
-      inp.addEventListener('input', () => { cfg[key] = +inp.value; out.textContent = inp.value + unit; applyAppearance(cfg); });
+      inp.addEventListener('input', () => { cfg[key] = +inp.value; out.textContent = inp.value + unit; apply(cfg); });
       wrap.appendChild(document.createTextNode(label));
       wrap.appendChild(out);
       wrap.appendChild(inp);
@@ -216,6 +225,6 @@ export function buildAppearancePanel(mount, opts){
   btns.appendChild(reset);
   mount.appendChild(btns);
 
-  applyAppearance(cfg);
+  apply(cfg);
   return cfg;
 }
