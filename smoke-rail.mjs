@@ -97,7 +97,7 @@ async function makeRail({ role, characterKey, withBattle = true }) {
   const tabs = rail.querySelectorAll('.tr-tab');
   ok(tabs.length === 3, 'A: three tabs (Feed + Codex + Settings)');
   ok(rail.querySelector('.tr-tab.on span').textContent === 'Feed', 'A: Feed tab active by default');
-  ok(rail.querySelectorAll('.tr-tab.future').length === 2, 'A: Codex + Settings disabled');
+  ok(rail.querySelectorAll('.tr-tab.future').length === 1, 'A: Codex disabled (Settings is a live tab)');
   ok(!rail.classList.contains('tr-no-rs'), 'A: RS seam present → mods live');
   ok(!rail.querySelector('.tr-hide'), 'A: no hide-toggle for a player');
 
@@ -207,7 +207,7 @@ async function makeRail({ role, characterKey, withBattle = true }) {
 
   // built-ins untouched: feed/codex/settings all still present (+marks = 4)
   ok(rail.querySelectorAll('.tr-tab').length === 4, 'E: four tabs total (3 built-in + Marks)');
-  ok(rail.querySelector('.tr-tab[data-rail-tab="feed"]') && rail.querySelectorAll('.tr-tab.future').length === 2, 'E: built-in tabs unaffected');
+  ok(rail.querySelector('.tr-tab[data-rail-tab="feed"]') && rail.querySelectorAll('.tr-tab.future').length === 1, 'E: built-in tabs unaffected');
 
   // ordering: feed(10) < marks(50) < codex(80)
   const kids = Array.prototype.slice.call(rail.querySelector('.tr-tabs').children);

@@ -108,7 +108,7 @@ const spell = (c, name) => { const els = c.querySelectorAll('.spell[data-spell]'
   cleanup(container);
 }
 
-// ── PICKER (2 paying pools) + concentration set + banner + drop ──
+// ── PICKER (2 paying pools) + concentration set + strip + drop ──
 {
   feedLog = [];
   const { container, saved } = mount(cosmereRow); await settle();
@@ -124,15 +124,16 @@ const spell = (c, name) => { const els = c.querySelectorAll('.spell[data-spell]'
   ok(v && v.pipState && v.pipState.pactSlots === 1, 'picking Pact spent pipState.pactSlots');
   ok(v && v.concentration && v.concentration.name === 'Hex', 'concentration set to Hex');
   ok(!document.querySelector('.sa-cast'), 'picker closes after a pick');
-  const banner = container.querySelector('[data-conc-banner]');
-  ok(banner && banner.style.display !== 'none' && /Hex/.test(banner.textContent), 'concentration banner renders Hex');
+  const concVal = container.querySelector('[data-conc-val]');
+  ok(concVal && !concVal.classList.contains('muted') && /Hex/.test(concVal.textContent) && !!concVal.querySelector('[data-conc-drop]'), 'concentration strip renders Hex with a drop control');
   ok(feedLog.some(f => /Hex/.test(f.body) && /concentration/.test(f.body)), 'cast posted to feed with concentration note');
-  // drop via banner ✕
+  // drop via the strip ✕
   feedLog = [];
-  fire(banner.querySelector('[data-conc-drop]'), 'click'); await settle();
+  fire(concVal.querySelector('[data-conc-drop]'), 'click'); await settle();
   const v2 = lastVitals(saved);
-  ok(v2 && v2.concentration === null, 'banner ✕ cleared concentration');
-  ok(container.querySelector('[data-conc-banner]').style.display === 'none', 'banner hidden after drop');
+  ok(v2 && v2.concentration === null, 'drop ✕ cleared concentration');
+  const concVal2 = container.querySelector('[data-conc-val]');
+  ok(concVal2 && concVal2.classList.contains('muted') && /none/i.test(concVal2.textContent) && !concVal2.querySelector('[data-conc-drop]'), 'concentration strip cleared after drop');
   ok(feedLog.some(f => /Hex/.test(f.body) && /dropped/.test(f.body)), 'drop posted to feed');
   cleanup(container);
 }
