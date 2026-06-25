@@ -269,7 +269,7 @@
         + '<div class="tr-tabs">'
           + '<button class="tr-tab on" data-rail-tab="feed" data-order="10">' + svg('<path d="M3 4h12M3 8h12M3 12h8"/>') + '<span>Feed</span></button>'
           + '<button class="tr-tab future" data-order="80" title="Coming later">' + svg('<path d="M4 3.5h8l2 2v9H4z"/><path d="M4 3.5v11"/>') + '<span>Codex</span></button>'
-          + '<button class="tr-tab future" data-order="90" title="Coming later">' + svg('<circle cx="9" cy="9" r="2.4"/><path d="M9 2.5v2M9 13.5v2M2.5 9h2M13.5 9h2"/>') + '<span>Settings</span></button>'
+          + '<button class="tr-tab" data-rail-tab="settings" data-order="90">' + svg('<circle cx="9" cy="9" r="2.4"/><path d="M9 2.5v2M9 13.5v2M2.5 9h2M13.5 9h2"/>') + '<span>Settings</span></button>'
         + '</div>'
         + '<div class="tr-panes">'
           + '<section class="tr-pane on" data-rail-pane="feed">'
