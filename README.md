@@ -1,51 +1,51 @@
-# The Trials of Kirtas — Campaign Site
+# Database migrations — Trials of Kirtas
 
-A static campaign wiki for a D&D 5e game, hosted on GitHub Pages.
+This folder is the version-controlled home for **every schema / RLS / function /
+data change applied to the live Supabase project**. The live database is the
+source of truth today, but it is not reproducible from this repo unless the SQL
+that built it lives here. This folder closes that gap.
 
-## Setup
+## Convention
 
-1. Create a new GitHub repo (e.g. `kirtas` or `trials-of-kirtas`)
-2. Upload all files from this folder into the repo root
-3. Go to **Settings → Pages → Source → Deploy from branch → main → / (root)**
-4. Your site will be live at `https://yourusername.github.io/kirtas`
+- One `.sql` file per change, applied via the Supabase SQL editor.
+- Name them so they sort in apply-order, e.g. `0001_schema_v1.sql`,
+  `0002_feed.sql`, … — or keep the existing descriptive names; just be
+  consistent. Append-only: never rewrite an applied migration; add a new one.
+- Each file starts with a one-line comment: what it does + the date applied.
+- RLS policies and `SECURITY DEFINER` functions are part of the schema — capture
+  them here too, not just table/column DDL. (The project intentionally runs some
+  policies/triggers live-only; capturing them here is what makes a rebuild
+  possible, so prefer committing them.)
 
-## File Structure
+## Status (from the 2026-06-25 repo audit)
 
-```
-/
-├── index.html          Homepage
-├── factions.html       Faction codex
-├── party.html          Character sheets
-├── chronicle.html      Session journal
-├── npcs.html           NPC hub
-├── world.html          Locations
-├── lore.html           Campaign lore
-└── img/
-    └── factions/
-        ├── wolven.png          Kings Army / The Wolven
-        ├── bluejackets.png     Alliance to Restore Kirtas
-        ├── numior.png          Numiorian Military
-        ├── redeagles.png       The Red Eagles
-        ├── rook.png            Band of the Rook
-        ├── stags.png           The Stags
-        ├── verdaaners.png      The Verdaaners
-        └── threshers.png       The Threshers
-```
+**Already committed** (currently at repo root — move them in here when convenient;
+left in place for now to avoid touching anything that might reference them):
 
-## Adding Faction Heraldry Images
+`schema_v1.sql` · `migrate_chronicle.sql` · `schema_delta_appearance.sql` ·
+`schema_delta_characters_key_open.sql` · `schema_delta_chronicle_unify.sql` ·
+`schema_delta_feed.sql` · `schema_delta_members.sql` ·
+`schema_delta_roster_layout.sql` · `schema_delta_scenes.sql` ·
+`schema_delta_scenes_v2.sql`
 
-1. Extract the coat of arms images from the Factions PDF
-2. Save each as a PNG with a transparent or white background
-3. Place them in `/img/factions/` with the filenames above
-4. The site will pick them up automatically — no code changes needed
+**Applied live but NOT in the repo** — these were run against Supabase and
+verified, but the SQL was never committed, so the DB can't be rebuilt without
+them. Paste each from the Supabase dashboard's migration/history (or your local
+copies) into a file here:
 
-If an image is missing, the faction card shows a placeholder emoji instead.
+- `advance_turn.sql` — the `advance_turn()` turn/round engine (SECURITY DEFINER)
+- `characters_party_edit.sql` — party-edit policy/path for `public.characters`
+- `enable_characters_realtime.sql` — realtime publication for `characters`
+- `grant_service_role.sql` — service-role grants
+- `migrate_characters_data.sql` — the hardcoded-JS → `characters` table backfill
+- `schema_delta_aura.sql` — aura column(s)
+- `schema_delta_campaign_config.sql` — campaign config table/columns
+- `schema_delta_characters.sql` — the `public.characters` table
+- `schema_delta_characters_1b.sql` — characters follow-up delta
+- `schema_delta_characters_fk.sql` — characters foreign-key(s)
+- `schema_delta_saved_monsters.sql` — saved-monsters table
+- `schema_delta_vitals_hp_sync.sql` — vitals/HP sync delta
+- `update_liadan_portrait.sql` — one-off data fix (Líadan portrait)
 
-## Updating the Site
-
-- **New session journal entry:** Add a new entry block at the top of `chronicle.html`
-- **New NPC:** Add a card to `npcs.html`
-- **Character sheet update:** Replace the character's section in `party.html`
-- **New location:** Add to `world.html`
-
-All updates: edit the file locally → commit → push → live within seconds.
+Once these are in, a fresh Supabase project can be stood up by applying the
+folder in order — and future audits stop flagging the schema as untracked.
