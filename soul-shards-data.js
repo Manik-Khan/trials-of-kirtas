@@ -428,6 +428,26 @@
       const file = await _loadRacesFile(fetchJson);
       const byKey = new Map();
       for (const r of (file.race || [])) byKey.set((r.name + '|' + r.source).toLowerCase(), r);
+      // Variant Human is not a standalone entry in the 2014 data — synthesize it
+      // from the real Human (PHB) so every field shape comes from the normal
+      // pipeline, then patch the three things that differ: +1 to two abilities of
+      // choice, one skill, and one feat.
+      if (name === 'Variant Human') {
+        const baseH = byKey.get('human|phb');
+        if (baseH) {
+          const vh = normalizeRace(resolveCopy(baseH, byKey), []);
+          vh.name = 'Variant Human';
+          vh.abilityBonuses = {};
+          vh.abilityChoices = [{ kind: 'count', from: ['str', 'dex', 'con', 'int', 'wis', 'cha'], count: 2, amount: 1 }];
+          vh.skillProficiencies = { fixed: [], anyCount: 1, choose: [] };
+          vh.feats = [{ any: 1 }];
+          vh.traits = (vh.traits || []).concat([
+            { name: 'Skills', entries: ['You gain proficiency in one skill of your choice.'] },
+            { name: 'Feat', entries: ['You gain one feat of your choice.'] },
+          ]);
+          return vh;
+        }
+      }
       let entry = source ? byKey.get((name + '|' + source).toLowerCase())
                          : (file.race || []).find(r => r.name === name);
       if (!entry) throw new Error('race not found: ' + name + (source ? ' [' + source + ']' : ''));
