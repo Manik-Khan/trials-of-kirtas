@@ -19,6 +19,7 @@
  *     spells?: [ {name,level,origin,source,time,detail?} ],  // P6a picker output; empty -> flagged
  *     spellbook?: [ {name,level,origin,source} ],            // Wizard's owned book (persists distinct from groups)
  *     choices?: [ {name, origin:'class'|'subclass', originName, entries?} ], // Choices-step picks (Fighting Style / Maneuvers / Invocations / …)
+ *     feats?: [ {name, entries?} ],                          // Feats-step picks (racial grant + ASI-level) — folded under a feat: stamp
  *     extraPools?: [...], detail?: {...}, hp?: { method, rolls }
  *   }
  * RETURNS: { structural, _incomplete:[strings] }
@@ -56,7 +57,11 @@
     var subclassLabel = builds.map(function (b) { return b.subclass; }).filter(Boolean).join(' / ');
 
     // ── spellcasting via the multiclass merge ──
-    var anyCaster = builds.some(function (b) { return b.spellcasting; });
+    // A spellcasting CLASS makes this a caster; so does a race that grants innate spells
+    // (Yuan-Ti, Tiefling, …) on an otherwise non-casting character — those still need a
+    // spellcasting block with their racial ability / DC.
+    var anyCaster = builds.some(function (b) { return b.spellcasting; }) ||
+      (input.spells || []).some(function (s) { return s.origin === 'race'; });
     var mergeInput = {
       totalLevel: totalLevel, abilities: abilities,
       classes: builds.map(function (b) {
@@ -98,6 +103,13 @@
     (input.choices || []).forEach(function (ch) {
       var stamp = (ch.origin === 'subclass' ? 'subclass:' : 'class:') + (ch.originName || '');
       features.push({ name: ch.name, source: stamp, desc: joinEntries(ch.entries) });
+    });
+
+    // ── chosen feats (racial level-1 grant + ASI-level picks) — purple provenance.
+    // Half-feat ability bumps are applied to scores upstream (effectiveAbilities), so
+    // here a feat is just another feature to fold under a feat: stamp. ──
+    (input.feats || []).forEach(function (ft) {
+      features.push({ name: ft.name, source: 'feat:Feat', desc: joinEntries(ft.entries) });
     });
 
     // ── combat scalars + race/subrace traits (P3 — resolved from races.json by loadRace) ──

@@ -112,10 +112,19 @@
   }
 
   // ── cast-meta (ability / DC / attack / Known-Prepared) ──────────────────────
-  function castMeta(classes, totalLevel, abilities) {
+  function castMeta(classes, totalLevel, abilities, racialAbil) {
     var pb = profBonus(totalLevel);
     var casters = classes.filter(function (c) { return c.ability; });
-    if (!casters.length) return { ability: null, saveDC: null, attackBonus: null, prepared: false };
+    if (!casters.length) {
+      // No spellcasting CLASS — but a race can grant innate spellcasting (Yuan-Ti,
+      // Tiefling, Drow, …) with its OWN ability, independent of class. Use it so the
+      // save DC / attack still compute for a non-caster who casts only racial spells.
+      if (racialAbil) {
+        var rmod = abilityMod(abilities[racialAbil]);
+        return { ability: ABILITY_NAME[racialAbil] || racialAbil, saveDC: 8 + pb + rmod, attackBonus: pb + rmod, prepared: false };
+      }
+      return { ability: null, saveDC: null, attackBonus: null, prepared: false };
+    }
 
     var rows = casters.map(function (c) {
       var mod = abilityMod(abilities[c.ability]);
@@ -145,7 +154,7 @@
     (spells || []).forEach(function (sp) {
       var k = sp.level == null ? 'cantrip' : sp.level;
       (byLevel[k] || (byLevel[k] = [])).push({
-        name: sp.name, origin: sp.origin || 'class', source: sp.source, time: sp.time
+        name: sp.name, origin: sp.origin || 'class', source: sp.source, time: sp.time, ability: sp.ability || null
       });
     });
     var groups = [];
@@ -165,7 +174,11 @@
   function deriveSpellcasting(input) {
     input = input || {};
     var classes = input.classes || [];
-    var meta = castMeta(classes, input.totalLevel, input.abilities || {});
+    // racial innate spellcasting carries its ability on the spell entries (origin:'race');
+    // pull the first so castMeta can compute a DC even with no spellcasting class.
+    var racialAbil = null;
+    (input.spells || []).some(function (sp) { if (sp.origin === 'race' && sp.ability) { racialAbil = sp.ability; return true; } return false; });
+    var meta = castMeta(classes, input.totalLevel, input.abilities || {}, racialAbil);
     var groups = bucketSpells(input.spells);
     var detail = input.detail || null;
     if (!detail) {
