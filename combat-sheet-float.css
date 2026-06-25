@@ -51,8 +51,34 @@
 .sf-winbtn.sf-close:hover{ color:#e0584a; background:rgba(224,88,74,.14) }
 
 .sf-stack{ flex:1 1 auto; position:relative; overflow:hidden }
-.sf-page{ position:absolute; inset:0; overflow:auto; overscroll-behavior:contain; display:none; container-type:inline-size }
+.sf-page{ position:absolute; inset:0; overflow:hidden; display:none; container-type:inline-size }
 .sf-page.active{ display:block }
+
+/* ——————————————— per-tab appearance wallpaper (full-bleed, pinned) ———————————————
+   Each tab is a non-scrolling .sf-bg (the wallpaper, pinned to the window) BEHIND a
+   scrolling .sf-scroll (where the v11 sheet mounts) — so the look stays put like a
+   desktop wallpaper while the sheet scrolls over it. The .tok-* layer classes mirror
+   appearance.js's page-level #tok-* stack (same vars + textures) but positioned
+   ABSOLUTE inside .sf-bg, not fixed to the viewport. appearance-float.js stamps the
+   layers into .sf-bg, sets the two texture URLs + the bg image inline, and drives the
+   --bg-* / --fx-* vars. Without this block the layers fall into normal flow and pile
+   up as a band at the top (the "background only paints the top third" symptom). */
+.sf-bg{ position:absolute; inset:0; z-index:0; overflow:hidden; pointer-events:none; }
+.sf-scroll{ position:absolute; inset:0; z-index:1; overflow-y:auto; overflow-x:hidden; overscroll-behavior:contain; }
+.sf-bg .tok-bg{ position:absolute; inset:0; z-index:0; pointer-events:none;
+  background-position:center; background-size:cover; background-repeat:no-repeat;
+  filter:hue-rotate(var(--bg-hue,0deg)) saturate(var(--bg-sat,1)) blur(var(--bg-blur,0px)) var(--bg-chroma,grayscale(0)); }
+.sf-bg .tok-veil{ position:absolute; inset:0; z-index:1; pointer-events:none;
+  background:linear-gradient(180deg,rgba(10,20,18,.40),rgba(10,20,18,.22) 33%,rgba(10,20,18,.50)),
+             radial-gradient(125% 105% at 50% 38%,transparent 50%,rgba(7,15,13,.55) 100%); }
+.sf-bg .tok-weave{ position:absolute; inset:0; z-index:2; pointer-events:none; mix-blend-mode:overlay;
+  opacity:var(--fx-weave,0); background-size:220px 220px; background-repeat:repeat; }
+.sf-bg .tok-scan{ position:absolute; inset:0; z-index:2; pointer-events:none; mix-blend-mode:overlay;
+  opacity:var(--fx-scan,0); background-image:repeating-linear-gradient(0deg,rgba(0,0,0,.6) 0 1px,transparent 1px 3px); }
+.sf-bg .tok-geo{ position:absolute; inset:0; width:100%; height:100%; z-index:3; pointer-events:none; mix-blend-mode:screen; opacity:0; }
+.sf-bg .tok-vig{ position:absolute; inset:0; z-index:4; pointer-events:none;
+  opacity:var(--fx-vig,0); background:radial-gradient(120% 100% at 50% 45%,transparent 42%,rgba(4,9,8,.96) 100%); }
+.sf-bg .tok-grain{ position:absolute; inset:0; z-index:5; pointer-events:none; mix-blend-mode:overlay; opacity:var(--grain,.09); }
 .sf-grip{ position:absolute; right:2px; bottom:2px; width:16px; height:16px; cursor:nwse-resize; z-index:2;
   background:linear-gradient(135deg, transparent 50%, rgba(199,154,74,.34) 50%, rgba(199,154,74,.34) 62%,
     transparent 62%, transparent 74%, rgba(199,154,74,.34) 74%); }
