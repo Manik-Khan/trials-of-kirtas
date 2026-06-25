@@ -44,6 +44,42 @@ const API = {
 
 function uid() { return Date.now().toString(36) + Math.random().toString(36).slice(2, 6); }
 
+// ── Shuffle bag ──────────────────────────────────────────────
+// A "shuffle bag" plays every track in a playlist exactly once, in a
+// random order, before any track repeats — the fix for the same few
+// songs clustering on shuffle. We Fisher–Yates a list of track indices
+// and walk it; when it's exhausted, a fresh bag is built. `avoidFirst`
+// stops a freshly-built bag from opening on the track that just played,
+// which prevents an adjacent repeat at the seam between two bags.
+function makeBag(len, avoidFirst = null) {
+  const bag = Array.from({ length: len }, (_, i) => i);
+  for (let i = len - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [bag[i], bag[j]] = [bag[j], bag[i]];
+  }
+  if (avoidFirst != null && len > 1 && bag[0] === avoidFirst) {
+    const k = 1 + Math.floor(Math.random() * (len - 1));
+    [bag[0], bag[k]] = [bag[k], bag[0]];
+  }
+  return bag;
+}
+
+// Pick the next track index for a channel. Shuffle draws from the bag
+// (rebuilding when empty or when the playlist size changed); every other
+// mode steps forward. Returns the chosen index plus the bag state to
+// persist back onto the channel.
+function drawNext(cs, len) {
+  if (cs.mode !== 'shuffle') {
+    return { idx: ((cs.trackIdx ?? 0) + 1) % len, bag: cs.bag, bagPos: cs.bagPos };
+  }
+  let bag = cs.bag, bagPos = cs.bagPos ?? 0;
+  if (!bag || bagPos >= bag.length || bag.length !== len) {
+    bag = makeBag(len, cs.trackIdx);   // avoid repeating the current track across the seam
+    bagPos = 0;
+  }
+  return { idx: bag[bagPos], bag, bagPos: bagPos + 1 };
+}
+
 // ── Audio URL proxy helper ──
 // Routes Dropbox shared links through our Netlify function, which
 // resolves the redirect chain server-side and returns a 302 to the
@@ -115,6 +151,8 @@ function App() {
       trackIdx: null,
       track:    null,
       sourceType: null,  // 'mood' | 'sonus' | null
+      bag:      null,    // shuffle bag: track indices in play order (null = build on next draw)
+      bagPos:   0,       // how many of the bag have been consumed
     }])
   ));
 
@@ -159,16 +197,16 @@ function App() {
           setChStates(s => ({ ...s, [chId]: { ...s[chId], track: null, trackIdx: null, paused: false } }));
           return;
         }
-        let nextIdx;
+        let nextIdx, nextBag = cs.bag, nextBagPos = cs.bagPos;
         if (mode === 'sequence') {
           nextIdx = ((cs.trackIdx ?? 0) + 1) % mood.tracks.length;
         } else {
-          const others = mood.tracks.map((_,i) => i).filter(i => i !== cs.trackIdx);
-          nextIdx = others.length ? others[Math.floor(Math.random() * others.length)] : 0;
+          const d = drawNext(cs, mood.tracks.length);  // shuffle: full pass before any repeat
+          nextIdx = d.idx; nextBag = d.bag; nextBagPos = d.bagPos;
         }
         const nextTrack = mood.tracks[nextIdx];
         enginesRef.current[chId]?.playTrack(nextTrack, crossfadeRef.current, mode);
-        setChStates(s => ({ ...s, [chId]: { ...s[chId], track: nextTrack, trackIdx: nextIdx, paused: false } }));
+        setChStates(s => ({ ...s, [chId]: { ...s[chId], track: nextTrack, trackIdx: nextIdx, paused: false, bag: nextBag, bagPos: nextBagPos } }));
       });
     });
   }, []); // eslint-disable-line
@@ -221,7 +259,8 @@ function App() {
     // Use instant switch (0s fade) for manual track selection in the panel —
     // avoids voice stacking when the user clicks tracks quickly.
     enginesRef.current[chId]?.playTrack(track, 0, mode);
-    setChStates(s => ({ ...s, [chId]: { ...s[chId], track, trackIdx, moodId, paused: false } }));
+    // Manual pick: drop the bag so the next shuffle rebuilds around this track.
+    setChStates(s => ({ ...s, [chId]: { ...s[chId], track, trackIdx, moodId, paused: false, bag: null, bagPos: 0 } }));
     setActiveSceneId(null);
   }, []);
 
@@ -229,11 +268,15 @@ function App() {
     const mood = library.moods.find(m => m.id === moodId);
     if (!mood || !mood.tracks.length) return;
     const mode = chStates[chId].mode;
-    let idx = 0;
-    if (mode === 'shuffle') idx = Math.floor(Math.random() * mood.tracks.length);
+    let idx = 0, bag = null, bagPos = 0;
+    if (mode === 'shuffle') {
+      bag = makeBag(mood.tracks.length);   // fresh bag for this mood
+      idx = bag[0];
+      bagPos = 1;
+    }
     const track = mood.tracks[idx];
     enginesRef.current[chId]?.playTrack(track, crossfadeRef.current, mode);
-    setChStates(s => ({ ...s, [chId]: { ...s[chId], track, trackIdx: idx, moodId, paused: false } }));
+    setChStates(s => ({ ...s, [chId]: { ...s[chId], track, trackIdx: idx, moodId, paused: false, bag, bagPos } }));
     setActiveSceneId(null);
   }, [library, chStates]);
 
@@ -339,16 +382,10 @@ function App() {
         // Double-press while playing → next track
         const mood = libraryRef.current.moods.find(m => m.id === moodId);
         if (!mood || !mood.tracks.length) return;
-        let nextIdx;
-        if (cs.mode === 'shuffle') {
-          const others = mood.tracks.map((_,i) => i).filter(i => i !== cs.trackIdx);
-          nextIdx = others.length ? others[Math.floor(Math.random() * others.length)] : 0;
-        } else {
-          nextIdx = ((cs.trackIdx ?? 0) + 1) % mood.tracks.length;
-        }
-        const nextTrack = mood.tracks[nextIdx];
+        const d = drawNext(cs, mood.tracks.length);
+        const nextTrack = mood.tracks[d.idx];
         eng?.playTrack(nextTrack, crossfadeRef.current, cs.mode);
-        setChStates(s => ({ ...s, [chId]: { ...s[chId], track: nextTrack, trackIdx: nextIdx, paused: false } }));
+        setChStates(s => ({ ...s, [chId]: { ...s[chId], track: nextTrack, trackIdx: d.idx, paused: false, bag: d.bag, bagPos: d.bagPos } }));
       }
     } else {
       castMoodOnChannel(moodId, chId);
@@ -398,7 +435,8 @@ function App() {
   }, []);
 
   const setMode = useCallback((chId, mode) => {
-    setChStates(s => ({ ...s, [chId]: { ...s[chId], mode } }));
+    // Any mode change clears the bag; a fresh shuffle bag builds lazily on the next advance.
+    setChStates(s => ({ ...s, [chId]: { ...s[chId], mode, bag: null, bagPos: 0 } }));
     const cs = chStates[chId];
     if (cs.track) enginesRef.current[chId]?.playTrack(cs.track, 0.5, mode);
   }, [chStates]);
@@ -419,7 +457,7 @@ function App() {
     const prevIdx = ((cs.trackIdx ?? 0) - 1 + mood.tracks.length) % mood.tracks.length;
     const prevTrk = mood.tracks[prevIdx];
     eng.playTrack(prevTrk, crossfadeRef.current, cs.mode);
-    setChStates(s => ({ ...s, [chId]: { ...s[chId], track: prevTrk, trackIdx: prevIdx, paused: false } }));
+    setChStates(s => ({ ...s, [chId]: { ...s[chId], track: prevTrk, trackIdx: prevIdx, paused: false, bag: null, bagPos: 0 } }));
   }, [chStates, library]);
 
   // Next: advance to next track (respects shuffle mode)
@@ -429,16 +467,10 @@ function App() {
     if (!cs.track || !eng) return;
     const mood = library.moods.find(m => m.id === cs.moodId);
     if (!mood || !mood.tracks.length) return;
-    let nextIdx;
-    if (cs.mode === 'shuffle') {
-      const others = mood.tracks.map((_,i) => i).filter(i => i !== cs.trackIdx);
-      nextIdx = others.length ? others[Math.floor(Math.random() * others.length)] : 0;
-    } else {
-      nextIdx = ((cs.trackIdx ?? 0) + 1) % mood.tracks.length;
-    }
-    const nextTrk = mood.tracks[nextIdx];
+    const d = drawNext(cs, mood.tracks.length);
+    const nextTrk = mood.tracks[d.idx];
     eng.playTrack(nextTrk, crossfadeRef.current, cs.mode);
-    setChStates(s => ({ ...s, [chId]: { ...s[chId], track: nextTrk, trackIdx: nextIdx, paused: false } }));
+    setChStates(s => ({ ...s, [chId]: { ...s[chId], track: nextTrk, trackIdx: d.idx, paused: false, bag: d.bag, bagPos: d.bagPos } }));
   }, [chStates, library]);
 
   // Global pause/resume — pauses all playing channels, or resumes all paused ones.
