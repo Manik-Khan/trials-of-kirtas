@@ -2122,7 +2122,7 @@ var FeatsUI = (function () {
 // the gold alternative; each either/or group is a segmented pick (defaulting to the
 // first option so the inventory is always complete); fixed lines are just listed.
 // inventoryForCharacter() assembles {inventory, currency} in the sheet's shape; the
-// Forge writes it onto new characters (updates leave a played character's gear). ──
+// Forge writes it onto new characters, and on an update fills it only if empty. ──
 var ItemsUI = (function () {
   var _freq = 0, _eq = null;
 
@@ -2430,6 +2430,16 @@ function mountReview(){
     }).catch(function(){ /* leave the default option in place */ });
   }
 }
+// The forge's UPDATE path is FILL-IF-EMPTY for gear: it attaches the assembled
+// starting inventory + coin only when the live character carries neither yet (a
+// fresh build, or a create whose follow-up gear-save failed), and never clobbers
+// a played character's accumulated loot/coin on a race/class rebuild. "Empty" =
+// no items AND no coin in any denomination. Pure so the forge smoke can exercise it.
+function gearIsEmpty(inventory, currency){
+  var inv = Array.isArray(inventory) ? inventory : [];
+  var cur = currency || {};
+  return inv.length === 0 && ['pp','gp','ep','sp','cp'].every(function(k){ return !cur[k]; });
+}
 function forgeCommit(){
   var c = chosenClass();
   if (!c){ fxStatus('err', 'Choose a class first \u2014 the engine needs it to assemble the sheet.'); return; }
@@ -2455,10 +2465,22 @@ function forgeCommit(){
 
     if (mode === 'existing'){
       fxStatus('busy', 'Updating \u201c' + existingKey + '\u201d\u2026');
-      // structural only — leave the live character's vitals (current HP, spent
-      // resources) untouched; a rebuild shouldn't reset play state mid-campaign.
-      return CharacterData.save(existingKey, { structural: structural }).then(function(row){
-        fxStatus('ok', 'Updated ' + (row && row.name ? row.name : existingKey) + '. The sheet now reads from this build (current HP / resources kept).');
+      // structural always; vitals (current HP, spent resources) stay untouched —
+      // a rebuild shouldn't reset play state mid-campaign. Gear is fill-if-empty:
+      // attach the forge's starting inventory + coin only when this character has
+      // none yet; never clobber accumulated loot/coin on a race/class rebuild. A
+      // failed read of the current row degrades safely to a structural-only write.
+      var hasGear = !!((gear.inventory && gear.inventory.length) || (gear.currency && Object.keys(gear.currency).length));
+      return CharacterData.loadCharacter(existingKey).catch(function(){ return null; }).then(function(cur){
+        var filled = !!cur && hasGear && gearIsEmpty(cur.inventory, cur.currency);
+        var patch = { structural: structural };
+        if (filled){ patch.inventory = gear.inventory; patch.currency = gear.currency; }
+        return CharacterData.save(existingKey, patch).then(function(row){
+          var who = (row && row.name) ? row.name : existingKey;
+          fxStatus('ok', filled
+            ? ('Updated ' + who + ' \u2014 starting gear added (inventory was empty). Current HP / resources kept.')
+            : ('Updated ' + who + '. The sheet now reads from this build (current HP / resources / gear kept).'));
+        });
       });
     }
     var key = CharacterData.newKey(draft.name);
