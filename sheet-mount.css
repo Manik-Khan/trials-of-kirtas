@@ -13,10 +13,12 @@
 /* sheet-mount.css */
 /* The v11 / Metaphor at-a-glance sheet, as a loadable stylesheet so any page
    can render a mounted sheet (sheet-v2.html, or floated over combat.html).
-   The design tokens are scoped to .sheet (NOT :root) so the file is fully
-   self-contained AND can't restyle a host page's body. sheet-v2.html keeps its
-   own :root + page chrome inline; on that page these .sheet tokens simply
-   mirror the inherited :root values. */
+   The design tokens are scoped to .tok-sheet (NOT :root) so the file is fully
+   self-contained AND can't restyle a host page's body. The root also carries its
+   own base color/font (below) and the sheet wears ONLY the .tok-sheet class — no
+   generic class name a host could collide with — so it renders identically on any
+   page regardless of the host theme. sheet-v2.html keeps its own :root + page
+   chrome inline; on that page these .tok-sheet tokens mirror the inherited :root values. */
 
 .tok-sheet{
   /* ——— Metaphor dark / high-contrast palette ——— */
@@ -49,7 +51,7 @@
   --bg-blur:0px; --bg-chroma:grayscale(0); --fx-weave:0; --fx-scan:0; --fx-vig:0;
 }
 
-.tok-sheet{position:relative;z-index:2;max-width:1220px;margin:24px auto;padding:30px 32px 22px;filter:hue-rotate(var(--ac-hue))}
+.tok-sheet{position:relative;z-index:2;max-width:1220px;margin:24px auto;padding:30px 32px 22px;color:var(--cream);font-family:"EB Garamond",Georgia,serif;line-height:1.5;filter:hue-rotate(var(--ac-hue))}
 .tok-sheet .frameline{position:absolute;inset:0;border:1px solid var(--frame);pointer-events:none;z-index:3}
 .tok-sheet .frameline::before{content:"";position:absolute;inset:6px;border:1px solid rgba(236,226,205,.08)}
 

@@ -78,7 +78,7 @@
    touches combat.html or sheet-mount.js. */
 
 /* — default: clean single column (narrow window) — */
-.sheet-float .sheet{
+.sheet-float .tok-sheet{
   max-width:none; margin:0; padding:14px 14px 20px; min-width:0;
 }
 .sheet-float .annot, .sheet-float .ghostnum{ display:none; }          /* off-canvas decorations clip in a window */
@@ -107,7 +107,7 @@
 
 /* — ≥878px container: the full two-column v2 layout — */
 @container (min-width:878px){
-  .sheet-float .sheet{ padding:22px 24px 20px; }
+  .sheet-float .tok-sheet{ padding:22px 24px 20px; }
   .sheet-float .masthead{ gap:28px; padding:6px 2px 18px; }
   .sheet-float .portrait{ flex:0 0 132px; width:132px; height:132px; }
   .sheet-float .portrait .ring{ inset:-14px } .sheet-float .portrait .ring2{ inset:-6px } .sheet-float .portrait .ring3{ display:block; inset:-24px }

@@ -63,8 +63,8 @@ export function applyFloatAppearance(pageEl, a) {
   s.setProperty('--fx-vig', a.vig / 100);
 
   // accent hue rotates the sheet's own colours; the sheet declares --ac-hue:0
-  // locally, so set it ON the .sheet element (inline wins) for the hue to take.
-  const sheet = pageEl.querySelector('.sheet');
+  // locally, so set it ON the .tok-sheet root (inline wins) for the hue to take.
+  const sheet = pageEl.querySelector('.tok-sheet');
   if (sheet) sheet.style.setProperty('--ac-hue', a.acHue + 'deg');
 
   const bgEl = bg.querySelector('.tok-bg');

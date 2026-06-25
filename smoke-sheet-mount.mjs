@@ -55,8 +55,8 @@ function mockCD({ canEdit = true } = {}) {
   const h = mountSheet(slot, 'cosmere', { characterData: cd });
   await h.ready; await settle();
 
-  ok(!!slot.querySelector('.sheet'), 'sheet stamped into the container (not document)');
-  ok(dom.window.document.querySelector('.sheet') === slot.querySelector('.sheet'), 'the only .sheet lives inside the container');
+  ok(!!slot.querySelector('.tok-sheet'), 'sheet stamped into the container (not document)');
+  ok(dom.window.document.querySelector('.tok-sheet') === slot.querySelector('.tok-sheet'), 'the only .tok-sheet lives inside the container');
   ok(/Cosmere/.test(slot.querySelector('[data-f="name"]').textContent), 'name rendered');
   ok(/Warlock/.test(slot.querySelector('[data-list="subline"]').textContent) && /Astral Elf/.test(slot.querySelector('[data-list="subline"]').textContent), 'subline classes + race rendered');
   ok(slot.querySelectorAll('[data-list="abilities"] .abil').length === 6, 'six ability tiles');
