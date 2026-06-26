@@ -673,18 +673,22 @@ export function wireInspiration({ root, characterData, key } = {}) {
   // ── Checks: ability checks, saving throws, skills, initiative. Flat d20 + the
   // shown modifier through the same engine, toggles, result card, and feed as
   // attacks. Every [data-chk] row on the sheet is rollable.
-  function doCheck(label, mod) {
+  function doCheck(label, mod, forceDis) {
     var DE = (typeof window !== 'undefined' ? window : globalThis).DiceEngine;
     if (!DE) { showStat('hint', 'roll engine offline', true); return; }
-    var r = DE.rollCheck(label, mod, { advantage: rollRS.advantage, disadvantage: rollRS.disadvantage, bless: rollRS.bless });
+    // A per-row forced disadvantage (e.g. Stealth in stealth-disadvantage armour) ORs
+    // into the manual toggle; advantage + disadvantage cancel to a straight roll (RAW).
+    var adv = rollRS.advantage, dis = rollRS.disadvantage || !!forceDis;
+    if (adv && dis) { adv = false; dis = false; }
+    var r = DE.rollCheck(label, mod, { advantage: adv, disadvantage: dis, bless: rollRS.bless });
     rollHist.unshift(r);
     var api = sheetApi(); if (api.renderActionResult) api.renderActionResult(root, rollHist);
     postFeed({ actorKey: key, name: r.name, main: r.main });
     rollRS.advantage = false; rollRS.disadvantage = false; rollRS.bless = false; renderRollMods();
   }
-  function chkFrom(el) { return { label: el.getAttribute('data-chk-label') || 'Check', mod: parseInt(el.getAttribute('data-chk-mod'), 10) || 0 }; }
-  function onCheckClick(e) { var el = e.target.closest('[data-chk]'); if (!el) return; var c = chkFrom(el); doCheck(c.label, c.mod); }
-  function onCheckKey(e) { if (e.key !== 'Enter' && e.key !== ' ') return; var el = e.target.closest('[data-chk]'); if (!el) return; e.preventDefault(); var c = chkFrom(el); doCheck(c.label, c.mod); }
+  function chkFrom(el) { return { label: el.getAttribute('data-chk-label') || 'Check', mod: parseInt(el.getAttribute('data-chk-mod'), 10) || 0, dis: el.getAttribute('data-chk-dis') === '1' }; }
+  function onCheckClick(e) { var el = e.target.closest('[data-chk]'); if (!el) return; var c = chkFrom(el); doCheck(c.label, c.mod, c.dis); }
+  function onCheckKey(e) { if (e.key !== 'Enter' && e.key !== ' ') return; var el = e.target.closest('[data-chk]'); if (!el) return; e.preventDefault(); var c = chkFrom(el); doCheck(c.label, c.mod, c.dis); }
 
   // ── Action editor ──────────────────────────────────────────────────────────
   // Edit-mode overlay on the Actions section: hide unwanted rows (e.g. stale Roll20

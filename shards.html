@@ -584,6 +584,7 @@
 <script src="soul-shards-data.js"></script>
 <script src="soul-shards-engine.js"></script>
 <script src="soul-shards-spellcasting.js"></script>
+<script src="armor-ac.js"></script>
 <script src="soul-shards-derive.js"></script>
 <script src="character-data.js"></script>
 <script>
@@ -2611,7 +2612,8 @@ function buildStructuralPreview(model, race){
     choices: (typeof ChoicesUI !== 'undefined') ? ChoicesUI.choicesForStructural() : [],
     feats: (typeof FeatsUI !== 'undefined') ? FeatsUI.featsForStructural() : [],
     proficiencies: (typeof ProfUI !== 'undefined') ? ProfUI.proficienciesForStructural() : null,
-    hp: draft.hp
+    hp: draft.hp,
+    inventory: (typeof ItemsUI !== 'undefined') ? ItemsUI.inventoryForCharacter().inventory : []
   });
   return Object.assign({}, r.structural, { _incomplete: r._incomplete });
 }

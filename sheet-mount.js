@@ -60,7 +60,9 @@ function renderSkills(root, skills){
   var box=root.querySelector('[data-list="skills"]'); if(!box) return;
   box.innerHTML=(skills||[]).map(function(sk){
     var attr=sk.attr?(sk.attr.charAt(0).toUpperCase()+sk.attr.slice(1)):'';
-    return '<div class="skill'+(sk.prof?' prof':'')+'" data-chk="skill" data-chk-label="'+esc(sk.name)+'" data-chk-mod="'+(sk.bonus||0)+'" tabindex="0" role="button"><span class="dotp"></span><span class="sk-n">'+esc(sk.name)+'</span><span class="sk-a">'+esc(attr)+'</span><span class="sk-v">'+sgn(sk.bonus||0)+'</span></div>';
+    var disCls=sk.dis?' dis':'', disHook=sk.dis?(' data-chk-dis="1" title="'+esc(sk.disReason||'Disadvantage')+'"'):'';
+    var disBadge=sk.dis?'<span class="sk-dis" aria-label="disadvantage">dis</span>':'';
+    return '<div class="skill'+(sk.prof?' prof':'')+disCls+'" data-chk="skill" data-chk-label="'+esc(sk.name)+'" data-chk-mod="'+(sk.bonus||0)+'"'+disHook+' tabindex="0" role="button"><span class="dotp"></span><span class="sk-n">'+esc(sk.name)+'</span><span class="sk-a">'+esc(attr)+'</span>'+disBadge+'<span class="sk-v">'+sgn(sk.bonus||0)+'</span></div>';
   }).join('');
 }
 function renderFeatures(root, feats){
@@ -282,9 +284,13 @@ function renderSheet(root, char){
   renderSubline(root, s);
   setF('ac', cb.ac);
   if(cb.acSource!=null) setF('ac-sub', cb.acSource);
+  setF('ac-warn', cb.acWarn||'');
+  var acw=root.querySelector('[data-f="ac-warn"]'); if(acw) acw.title=cb.acWarnFull||'';
   setF('initiative', sgn(cb.initiative));
   var initEl=root.querySelector('[data-chk="init"]'); if(initEl) initEl.setAttribute('data-chk-mod', (cb.initiative||0));
   setF('speed', cb.speed);
+  setF('speed-note', cb.speedNote||'');
+  var spn=root.querySelector('[data-f="speed-note"]'); if(spn) spn.title=cb.speedReason||'';
   setF('prof', sgn(s.proficiencyBonus));
   setF('spellDC', cb.spellSaveDC!=null?cb.spellSaveDC:'\u2014');
   setF('spellAtk', cb.spellAttackBonus!=null?sgn(cb.spellAttackBonus):'\u2014');
@@ -482,6 +488,19 @@ function toRenderShape(cd){
   if(s.spellcasting){ var livePools=slotPoolsLive(s, v); s.spellcasting=Object.assign({}, s.spellcasting, { pools:livePools }); }
   if(!s.resources) s.resources=buildResources(s, v);
   if(v.inspiration==null && s.inspiration!=null) v.inspiration=s.inspiration;
+  // ── live Armour Class from worn armour (mirror of weapon attacks: derive from
+  // inventory, sync, no fetch). Clone combat so we never mutate the source
+  // structural and never double-subtract the speed penalty across re-renders. The
+  // worn armour also stamps Stealth disadvantage onto the Stealth skill row. ──
+  var AAC=(typeof window!=='undefined'&&window.ArmorAC)?window.ArmorAC:((typeof globalThis!=='undefined'&&globalThis.ArmorAC)?globalThis.ArmorAC:null);
+  if(AAC){
+    var ac=AAC.deriveAC(cd.inventory||[], s), cbA=Object.assign({}, s.combat||{});
+    cbA.ac=ac.ac; cbA.acSource=ac.source;
+    if(cbA.speed!=null && ac.speedPenalty){ cbA.speed=cbA.speed-ac.speedPenalty; cbA.speedNote='\u2212'+ac.speedPenalty+' ft'; cbA.speedReason=ac.speedReason||''; }
+    if(ac.notProficient){ cbA.acWarn='not proficient'; cbA.acWarnFull=(ac.profReason||'Not proficient')+' \u2014 disadvantage on Str/Dex rolls; can\u2019t cast'; }
+    s.combat=cbA;
+    if(ac.stealthDisadvantage){ s.skills=(s.skills||[]).map(function(sk){ return sk.name==='Stealth'?Object.assign({}, sk, { dis:true, disReason:ac.disReason||((ac.body||'Worn armour')+' \u2014 Stealth disadvantage') }):sk; }); }
+  }
   return { structural:s, vitals:v, notes:(cd.notes!=null?cd.notes:s.notes), inventory:(cd.inventory||[]), currency:(cd.currency||{}), bio:(cd.bio||{}) };
 }
 function applyExtras(root, cd){
@@ -629,6 +648,13 @@ var AE_CSS = `<style id="tok-ae-css">
 .tok-sheet .ae-btn.save{background:#c79a4a;border-color:#c79a4a;color:#241a08}
 .tok-sheet .ae-btn.reset{color:#b9b0a0}.tok-sheet .ae-btn.reset:hover{color:#cf3b2c;border-color:#cf3b2c}
 .tok-sheet .ae-btn.danger{color:#cf3b2c;border-color:rgba(207,59,44,.5)}.tok-sheet .ae-btn.danger:hover{background:rgba(207,59,44,.12)}
+/* armor-AC surfacing: Stealth-disadvantage badge on the skill row, AC non-proficiency warning, speed-penalty note */
+.tok-sheet .skill .sk-dis{font:700 8px/1 'Oswald',sans-serif;letter-spacing:.5px;text-transform:uppercase;color:#cf3b2c;border:1px solid rgba(207,59,44,.55);border-radius:3px;padding:2px 4px}
+.tok-sheet .skill.dis .sk-v{color:#cf3b2c}
+.tok-sheet .sheet-warn{font:600 9px/1.2 'Oswald',sans-serif;letter-spacing:.5px;text-transform:uppercase;color:#cf3b2c;margin-top:3px}
+.tok-sheet .sheet-warn:empty{display:none}
+.tok-sheet .med .spd-note{color:#cf3b2c;font:600 11px/1.1 'Oswald',sans-serif;letter-spacing:.4px}
+.tok-sheet .med .spd-note:empty{display:none}
 </style>`;
 function ensureActionEditorStyle(doc){
   doc = doc || (typeof document!=='undefined'?document:null); if(!doc) return;
@@ -706,7 +732,7 @@ var SHEET_TEMPLATE = `<main class="tok-sheet">
     <aside class="leftcol">
       <div class="medstack">
         <div class="med-row">
-          <div class="med hot"><div class="lab">Armor Class</div><div class="big" data-f="ac">14</div><div class="sub" data-f="ac-sub">studded leather</div></div>
+          <div class="med hot"><div class="lab">Armor Class</div><div class="big" data-f="ac">14</div><div class="sub" data-f="ac-sub">studded leather</div><div class="sheet-warn" data-f="ac-warn"></div></div>
           <div class="med roll-chk" data-chk="init" data-chk-label="Initiative" data-chk-mod="0" tabindex="0" role="button"><div class="lab">Initiative</div><div class="big" data-f="initiative">+2</div><div class="sub">dexterity</div></div>
         </div>
         <div class="med hpmed hot">
@@ -716,7 +742,7 @@ var SHEET_TEMPLATE = `<main class="tok-sheet">
           <div class="hpmeta"><span data-f="hpCurrent">Current 18 / 23</span><span class="tmp" data-f="hpTemp">+4 Temp</span></div>
         </div>
         <div class="med-row">
-          <div class="med mini"><div class="lab">Speed</div><div class="big"><span data-f="speed">30</span><span style="font-size:15px;color:var(--cream-dim)">ft</span></div></div>
+          <div class="med mini"><div class="lab">Speed</div><div class="big"><span data-f="speed">30</span><span style="font-size:15px;color:var(--cream-dim)">ft</span></div><div class="sub spd-note" data-f="speed-note"></div></div>
           <div class="med mini"><div class="lab">Prof.</div><div class="big" data-f="prof">+2</div></div>
         </div>
         <div class="med-row">

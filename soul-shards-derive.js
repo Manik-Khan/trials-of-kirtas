@@ -51,6 +51,7 @@
     var engine = deps.engine || (typeof window !== 'undefined' && window.SoulShardsEngine);
     var SC = deps.spellcasting || (typeof window !== 'undefined' && window.SoulShardsSpellcasting);
     if (!engine || !SC) throw new Error('deriveStructural: { engine, spellcasting } deps required');
+    var AAC = deps.armorAC || (typeof window !== 'undefined' && window.ArmorAC) || null;   // optional — AC derives from input.inventory when both are present
 
     var abilities = input.abilities || {};
     var classes = input.classes || [];
@@ -181,9 +182,21 @@
       armor: (prof.armor || []).slice()
     };
 
+    // ── AC from worn armour — same source the live sheet uses (ArmorAC.deriveAC).
+    // When the Forge passes its assembled inventory, stamp combat.ac / acSource and
+    // apply the heavy-armour speed penalty; otherwise it derives live on the sheet. ──
+    var acFromArmor = (AAC && input.inventory && input.inventory.length)
+      ? AAC.deriveAC(input.inventory, { abilities: abilOut, proficiencies: proficiencies, classLabel: classLabel, combat: combat })
+      : null;
+    if (acFromArmor) {
+      combat.ac = acFromArmor.ac;
+      combat.acSource = acFromArmor.source;
+      if (combat.speed != null && acFromArmor.speedPenalty) combat.speed = combat.speed - acFromArmor.speedPenalty;
+    }
+
     // ── honest gaps ──
     incomplete.push('feature descriptions (P4 \u2014 {@tag} entries markup not yet rendered)');
-    incomplete.push('combat.ac (needs equipped armor \u2014 equipment not modeled in this derive)');
+    if (!acFromArmor) incomplete.push('combat.ac derives live on the sheet from worn armour (no items passed to this derive)');
     if (classes.length > 1) incomplete.push('multiclass HP slightly over-counts secondary classes\u2019 first level (level-1 max applies only to the first character level)');
     incomplete.push('senses don\u2019t include feature/subclass upgrades (e.g. Shadow Magic darkvision)');
     incomplete.push('actions[] holds feature / cantrip attacks only \u2014 weapon attacks derive live on the sheet from carried weapons');
