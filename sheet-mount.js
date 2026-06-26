@@ -239,7 +239,7 @@ function renderHitDice(root, s, v){
 // Equipment, coin, and attunement from the live inventory/currency. An empty
 // inventory shows an empty state (not the old sample gear); attunement pips reflect
 // items flagged attuned (max 3) and are mirrored in the left Status block.
-function renderEquipment(root, inventory, currency){
+function renderEquipment(root, inventory, currency, strScore){
   root=root||document;
   inventory = Array.isArray(inventory) ? inventory : [];
   currency = currency || {};
@@ -277,6 +277,9 @@ function renderEquipment(root, inventory, currency){
   // ── the ONE manifest: every item, worn-first, worn tagged with its slot ──
   var box = root.querySelector('[data-equip]');
   if(box){
+    var GM=(typeof window!=='undefined'&&window.GearManager)?window.GearManager:((typeof globalThis!=='undefined'&&globalThis.GearManager)?globalThis.GearManager:null);
+    if(GM){ GM.render(box,{inventory:inventory,currency:currency,strScore:strScore,ES:ES}); GM.bind(box); }
+    else {
     var order={}; if(ES) ES.SLOTS.forEach(function(s,i){ order[s.key]=i; });
     var rows=inventory.map(function(it,i){ return { it:it, i:i }; });
     if(ES) rows.sort(function(a,b){
@@ -302,6 +305,7 @@ function renderEquipment(root, inventory, currency){
     var coins=[]; ['pp','gp','ep','sp','cp'].forEach(function(k){ if(currency[k]) coins.push('<span class="coin">'+currency[k]+' <small>'+k+'</small></span>'); });
     var coinStr = coins.join(' ') || '<span class="coin">0 <small>gp</small></span>';
     box.innerHTML = items + '<div class="coinline">'+coinStr+'</div>';
+    }
   }
 
   // mirror attunement pips into the left Status block
@@ -360,7 +364,7 @@ function renderSheet(root, char){
   renderConcentration(root, v);
   renderActions(root, s, char.inventory);
   renderTrackers(root, s, v);
-  renderEquipment(root, char.inventory, char.currency);
+  renderEquipment(root, char.inventory, char.currency, (s.abilities&&s.abilities.str&&s.abilities.str.score)||0);
   renderStory(root, char.bio);
 }
 // ── live data: map a CharacterData row into the renderer's shape, then bind ──
@@ -976,7 +980,6 @@ var SHEET_TEMPLATE = `<main class="tok-sheet">
             <button class="rmod" type="button" data-rmod="bless">Bless</button>
           </div>
           <div class="actionlist" data-list="actions"></div>
-          <div class="actionresult" data-list="actionResult"><div class="rcard-empty">Tap an action to roll &mdash; the result lands here, and on the feed.</div></div>
         </div>
       </div>
 
@@ -1098,7 +1101,7 @@ var __depPromise = null;
 function ensureDeps(doc){
   var w = (typeof window!=='undefined') ? window : (typeof globalThis!=='undefined' ? globalThis : null);
   if(!w) return Promise.resolve();
-  if(w.ArmorAC && w.EquipSlots) return Promise.resolve();
+  if(w.ArmorAC && w.EquipSlots && w.GearManager) return Promise.resolve();
   doc = doc || (typeof document!=='undefined' ? document : null);
   if(!doc || !doc.createElement) return Promise.resolve();   // Node/jsdom-no-DOM: deps are eval'd in by the smoke
   if(__depPromise) return __depPromise;
@@ -1117,6 +1120,7 @@ function ensureDeps(doc){
   var jobs = [];
   if(!w.ArmorAC)    jobs.push(loadScript('armor-ac.js'));
   if(!w.EquipSlots) jobs.push(loadScript('equip-slots.js'));
+  if(!w.GearManager) jobs.push(loadScript('gear-manager.js'));
   __depPromise = Promise.all(jobs).then(function(){ return new Promise(function(r){ setTimeout(r, 0); }); });  // let the IIFEs register on window
   return __depPromise;
 }

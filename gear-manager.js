@@ -1,0 +1,328 @@
+// gear-manager.js — the integrated inventory manifest for the v11 sheet.
+//
+// Renders the ONE manifest below the equip paper-doll as the full gear manager:
+// List <-> Grid, worn-first with slot tags, bags that expand in place, and an
+// item DETAIL that expands in place (stats grid + 5etools rules text + flavor).
+// Reads the CharacterData-shaped inventory + currency. The equip/unequip/attune
+// controls keep the existing .eq-pill + data-eq/data-un/data-at contract, so
+// sheet-actions.js still drives them and the .can-edit gate still applies.
+//
+// INCREMENT 1 = render spine + read interactions (view toggle, bag/detail
+// expand). Writes (edit form, lock, editable currency/flavor, drag, 5etools
+// add) arrive in later increments and will hang off the same host.
+//
+// Self-contained: dual-mode export (window/globalThis/module) + self-injected
+// CSS. The sheet self-loads it via sheet-mount.js's ensureDeps; when it is
+// absent, renderEquipment falls back to its flat manifest, so nothing breaks.
+(function () {
+  'use strict';
+
+  var DMG = { B: 'bludgeoning', P: 'piercing', S: 'slashing', A: 'acid', C: 'cold', F: 'fire', O: 'force', L: 'lightning', N: 'necrotic', I: 'poison', Y: 'psychic', R: 'radiant', T: 'thunder' };
+
+  function esc(x) { return String(x == null ? '' : x).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;'); }
+  function num(x) { var n = parseFloat(x); return isNaN(n) ? 0 : n; }
+  function keyOf(it, i) { return (it && it.id) ? ('id:' + it.id) : ('ix:' + i); }
+  function qtyOf(it) { return (it && it.qty && it.qty > 1) ? it.qty : 1; }
+
+  // generic scroll-icon; real per-item icons come later with the edit form
+  var IC = '<svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M6 3h9l4 4v14H6z"/><path d="M9 8h7M9 12h7M9 16h5"/></svg>';
+  var BAGIC = '<svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M8 7V6a4 4 0 018 0v1M4 7h16l-1.4 13H5.4z"/></svg>';
+
+  // ── carry weight: every item counts, bag contents included (they're items) ──
+  function totalWeight(inv) {
+    var w = 0;
+    for (var i = 0; i < inv.length; i++) { var it = inv[i]; if (it) w += num(it.weight) * qtyOf(it); }
+    return Math.round(w * 100) / 100;
+  }
+
+  // ── the expandable DETAIL: stats grid + properties + rules text + flavor ──
+  function statRows(it) {
+    var r = [];
+    if (it.price) r.push(['Price', it.price]);
+    if (it.dmg1 && it.dmgType) r.push(['Damage', it.dmg1 + ' ' + (DMG[it.dmgType] || it.dmgType) + (it.dmg2 ? ' / ' + it.dmg2 : '')]);
+    if (it.dmgBonus) r.push(['Bonus', it.dmgBonus]);
+    if (it.extraDmg && it.extraDmg.dice) r.push(['Extra', it.extraDmg.dice + ' ' + (DMG[it.extraDmg.type] || it.extraDmg.type || '')]);
+    if (it.range) r.push(['Range', it.range + ' ft']);
+    if (it.ac != null) r.push(['AC', it.ac]);
+    if (it.strength) r.push(['Str req', it.strength]);
+    if (it.stealth) r.push(['Stealth', 'Disadvantage']);
+    if (it.weight) r.push(['Weight', it.weight + ' lb']);
+    if (qtyOf(it) > 1) r.push(['Qty', it.qty]);
+    if (it.reqAttune) r.push(['Attune', it.reqAttune === true ? 'required' : it.reqAttune]);
+    if (it.attackStat) r.push(['Attack', it.attackStat]);
+    if (it.alias) r.push(['Base item', it.alias]);
+    if (it.sourceFull || it.source) r.push(['Source', it.sourceFull || it.source]);
+    return r;
+  }
+  function detailHtml(it) {
+    var cat = (it.weaponCat || it.typeLabel) ? '<div class="gm-d-cat">' + esc(it.weaponCat || it.typeLabel) + '</div>' : '';
+    var rar = (it.rarity && it.rarity !== 'None') ? '<div class="gm-d-rar">' + esc(it.rarity) + '</div>' : '';
+    var stats = statRows(it);
+    var statsHtml = stats.length ? '<div class="gm-d-stats">' + stats.map(function (s) {
+      return '<div class="gm-d-stat"><span>' + esc(s[0]) + '</span><span>' + esc(String(s[1])) + '</span></div>';
+    }).join('') + '</div>' : '';
+    var props = Array.isArray(it.properties) ? it.properties : [];
+    var propsHtml = props.length ? '<div class="gm-d-sec">Properties</div>' + props.map(function (p) {
+      var nm = p && p.name ? p.name : p; var desc = p && p.desc ? '<span class="gm-d-pd"> ' + esc(p.desc) + '</span>' : '';
+      return '<div class="gm-d-prop"><b>' + esc(nm) + '.</b>' + desc + '</div>';
+    }).join('') : '';
+    var entries = Array.isArray(it.entries) ? it.entries.filter(function (e) { return typeof e === 'string'; }) : [];
+    var desc = entries.length ? '<div class="gm-d-sec">Description</div><div class="gm-d-desc">' + entries.map(function (e) { return '<p>' + esc(e) + '</p>'; }).join('') + '</div>' : '';
+    var flavor = it.flavor ? '<div class="gm-d-sec">Flavor / Notes</div><div class="gm-d-flavor">' + esc(it.flavor) + '</div>' : '';
+    var notes = it.notes ? '<div class="gm-d-sec">Notes</div><div class="gm-d-flavor">' + esc(it.notes) + '</div>' : '';
+    var body = cat + rar + statsHtml + propsHtml + desc + flavor + notes;
+    if (!body) body = '<div class="gm-d-empty">No further detail.</div>';
+    return '<div class="gm-detail">' + body + '</div>';
+  }
+
+  // ── equip / attune controls — same contract sheet-actions.js already binds ──
+  function controls(it, idx, worn, ES, capFull) {
+    if (!ES) return '';
+    var att = '';
+    if (it.reqAttune) {
+      if (it.attuned) att = '<button class="eq-pill on" data-at="' + idx + '" title="Attuned \u2014 tap to release">\u2726 Attuned</button>';
+      else if (capFull) att = '<button class="eq-pill capped" data-at="' + idx + '" title="Attunement limit reached">\u2726 Attune</button>';
+      else att = '<button class="eq-pill" data-at="' + idx + '">\u2726 Attune</button>';
+    }
+    if (worn) return '<button class="eq-pill x" data-un="' + esc(it.slot) + '">Unequip</button>' + att;
+    var eqp = ES ? ES.canEquip(it) : false;
+    return (eqp ? '<button class="eq-pill" data-eq="' + idx + '">Equip</button>' : '') + att;
+  }
+
+  function slotLabel(ES, key) { var m = ES ? ES.SLOTS.filter(function (x) { return x.key === key; })[0] : null; return m ? m.label : key; }
+
+  // ── a single LIST row (+ its detail / children when open) ──
+  function rowHtml(it, idx, inv, ES, st, capFull) {
+    var isBag = !!it.isContainer, worn = !!it.slot, k = keyOf(it, idx), open = !!st.open[k];
+    var caret = isBag
+      ? '<span class="gm-exp' + (open ? ' open' : '') + '" data-tog="' + esc(k) + '">\u25B8</span>'
+      : '<span class="gm-caret' + (open ? ' open' : '') + '">\u25B8</span>';
+    var star = it.attuned ? '<span class="gm-star">\u2726</span>' : '';
+    var mid = worn
+      ? '<span class="inv-tag">' + esc(slotLabel(ES, it.slot)) + '</span>'
+      : '<span class="gm-d">' + esc(it.detail || it.typeLabel || it.rarity || '') + '</span>';
+    var qty = qtyOf(it) > 1 ? '<span class="gm-q">\u00D7' + it.qty + '</span>' : '';
+    var count = isBag ? '<span class="gm-q">\u00b7 ' + childrenOf(inv, it.id).length + ' items</span>' : '';
+    var ctl = '<span class="gm-ctl">' + controls(it, idx, worn, ES, capFull) + '</span>';
+    var row = '<div class="gm-row' + (worn ? ' worn' : '') + (it.attuned ? ' attuned' : '') + '" data-row="' + esc(k) + '"' + (isBag ? '' : ' data-detail="' + esc(k) + '"') + '>'
+      + '<span class="gm-grip">\u283F</span>' + caret
+      + '<span class="gm-ic">' + (isBag ? BAGIC : IC) + '</span>'
+      + '<span class="gm-n">' + esc(it.name || 'Item') + '</span>' + star + count + qty + mid + ctl + '</div>';
+    var below = '';
+    if (open) {
+      if (isBag) {
+        var kids = childrenOf(inv, it.id);
+        below = '<div class="gm-children">' + (kids.length
+          ? kids.map(function (c) { return rowHtml(c.it, c.i, inv, ES, st, capFull); }).join('')
+          : '<div class="gm-bag-empty">Empty</div>') + '</div>';
+      } else {
+        below = detailHtml(it);
+      }
+    }
+    return '<div class="gm-item">' + row + below + '</div>';
+  }
+
+  function childrenOf(inv, bagId) {
+    var out = [];
+    for (var i = 0; i < inv.length; i++) { if (inv[i] && (inv[i].containerId || null) === (bagId || null)) out.push({ it: inv[i], i: i }); }
+    return out;
+  }
+
+  function listHtml(inv, ES, st, capFull) {
+    var order = {}; if (ES) ES.SLOTS.forEach(function (s, i) { order[s.key] = i; });
+    var top = childrenOf(inv, null);
+    if (ES) top.sort(function (a, b) {
+      var aw = a.it.slot ? 0 : 1, bw = b.it.slot ? 0 : 1;
+      if (aw !== bw) return aw - bw;
+      if (a.it.slot && b.it.slot) return (order[a.it.slot] || 0) - (order[b.it.slot] || 0);
+      return a.i - b.i;
+    });
+    if (!top.length) return '<div class="gm-row" style="opacity:.5"><span class="gm-n">No equipment yet</span></div>';
+    var dividerDone = false, html = '';
+    top.forEach(function (r) {
+      if (ES && !r.it.slot && !dividerDone) { dividerDone = true; html += '<div class="inv-div">Carried</div>'; }
+      html += rowHtml(r.it, r.i, inv, ES, st, capFull);
+    });
+    return html;
+  }
+
+  // ── GRID: tiles, with a full-width detail that drops in under the clicked row ──
+  function gridHtml(inv, ES, st, capFull) {
+    var order = {}; if (ES) ES.SLOTS.forEach(function (s, i) { order[s.key] = i; });
+    var top = childrenOf(inv, null);
+    if (ES) top.sort(function (a, b) {
+      var aw = a.it.slot ? 0 : 1, bw = b.it.slot ? 0 : 1;
+      if (aw !== bw) return aw - bw;
+      if (a.it.slot && b.it.slot) return (order[a.it.slot] || 0) - (order[b.it.slot] || 0);
+      return a.i - b.i;
+    });
+    var COLS = 4, openKey = null;
+    Object.keys(st.open).forEach(function (kk) { if (st.open[kk]) openKey = kk; });
+    var cells = top.map(function (r) {
+      var it = r.it, isBag = !!it.isContainer, k = keyOf(it, r.i), worn = !!it.slot;
+      var tag = worn ? '<span class="gm-ttag">' + esc(slotLabel(ES, it.slot)) + '</span>' : '';
+      var att = it.attuned ? '<span class="gm-tatt">\u2726</span>' : '';
+      var qty = qtyOf(it) > 1 ? '<span class="gm-tqty">\u00D7' + it.qty + '</span>' : '';
+      var meta = isBag ? (childrenOf(inv, it.id).length + ' items') : (it.weaponCat || it.typeLabel || (it.weight ? it.weight + ' lb' : ''));
+      return '<div class="gm-tile' + (worn ? ' worn' : '') + (isBag ? ' bag' : '') + (openKey === k ? ' sel' : '') + '" data-tile="' + esc(k) + '">'
+        + tag + att + qty + '<span class="gm-ti">' + (isBag ? BAGIC : IC) + '</span>'
+        + '<span class="gm-tn">' + esc(it.name || 'Item') + '</span><span class="gm-tm">' + esc(meta) + '</span></div>';
+    });
+    // inject the open item's detail as a full-width row after its grid row
+    if (openKey != null) {
+      var oi = top.map(function (r) { return keyOf(r.it, r.i); }).indexOf(openKey);
+      if (oi >= 0) {
+        var item = top[oi].it;
+        var detail = item.isContainer
+          ? '<div class="gm-children">' + (childrenOf(inv, item.id).length
+              ? childrenOf(inv, item.id).map(function (c) { return rowHtml(c.it, c.i, inv, ES, st, capFull); }).join('')
+              : '<div class="gm-bag-empty">Empty</div>') + '</div>'
+          : detailHtml(item);
+        var endOfRow = (Math.floor(oi / COLS) + 1) * COLS;
+        if (endOfRow > cells.length) endOfRow = cells.length;
+        cells.splice(endOfRow, 0, '<div class="gm-grid-detail">' + detail + '</div>');
+      }
+    }
+    return '<div class="gm-grid">' + cells.join('') + '</div>';
+  }
+
+  function currencyHtml(cur) {
+    var keys = ['pp', 'gp', 'ep', 'sp', 'cp'];
+    return '<div class="gm-currency">' + keys.map(function (k) {
+      return '<div class="gm-coin ' + k + '"><span class="v">' + (cur[k] || 0) + '</span><span class="k">' + k + '</span></div>';
+    }).join('') + '</div>';
+  }
+
+  function render(box, ctx) {
+    if (!box) return;
+    box.__gmCtx = ctx;
+    var st = box.__gmState || (box.__gmState = { view: 'list', open: Object.create(null) });
+    var inv = Array.isArray(ctx.inventory) ? ctx.inventory : [];
+    var cur = ctx.currency || {};
+    var ES = ctx.ES || null;
+    var attunedN = inv.filter(function (it) { return it && it.attuned; }).length;
+    var capFull = attunedN >= 3;
+    var tw = totalWeight(inv);
+    var cap = ctx.strScore ? ctx.strScore * 15 : 0;
+    var pct = cap ? Math.min(100, Math.round((tw / cap) * 100)) : 0;
+    var carryRight = cap ? ('<b>' + tw + '</b> / ' + cap + ' lb') : ('<b>' + tw + '</b> lb');
+    var bar = cap ? '<div class="gm-carry-wrap"><div class="gm-carry-bar" style="width:' + pct + '%"></div></div>' : '';
+    var count = inv.length + ' item' + (inv.length === 1 ? '' : 's') + (attunedN ? ' \u00b7 ' + attunedN + ' attuned' : '');
+
+    box.classList.add('gm');
+    box.innerHTML =
+      '<div class="gm-toolbar">'
+        + '<span class="gm-count">' + count + '</span><span class="gm-sp"></span>'
+        + '<div class="gm-view">'
+          + '<button class="gm-vb' + (st.view === 'list' ? ' on' : '') + '" data-view="list">List</button>'
+          + '<button class="gm-vb' + (st.view === 'grid' ? ' on' : '') + '" data-view="grid">Grid</button>'
+        + '</div>'
+      + '</div>'
+      + '<div class="gm-meta">'
+        + '<div class="gm-carry"><div class="gm-carry-face"><span>Carry</span><span>' + carryRight + '</span></div>' + bar + '</div>'
+        + currencyHtml(cur)
+      + '</div>'
+      + (st.view === 'grid' ? gridHtml(inv, ES, st, capFull) : listHtml(inv, ES, st, capFull));
+  }
+
+  // one-time event delegation: view toggle + bag/detail expand. (Equip lives in
+  // sheet-actions.js; its data-eq/-un/-at handlers fire on the same host.)
+  function bind(box) {
+    if (!box || box.__gmBound) return;
+    box.__gmBound = true;
+    box.addEventListener('click', function (e) {
+      var ctx = box.__gmCtx; if (!ctx) return;
+      var st = box.__gmState;
+      var vb = e.target.closest ? e.target.closest('[data-view]') : null;
+      if (vb && box.contains(vb)) { st.view = vb.getAttribute('data-view'); render(box, ctx); return; }
+      // ignore clicks on the equip/attune pills (sheet-actions owns those)
+      if (e.target.closest && e.target.closest('.eq-pill')) return;
+      var tile = e.target.closest ? e.target.closest('[data-tile]') : null;
+      if (tile && box.contains(tile)) {
+        var tk = tile.getAttribute('data-tile'); var was = !!st.open[tk];
+        st.open = Object.create(null); if (!was) st.open[tk] = true; render(box, ctx); return;
+      }
+      var row = e.target.closest ? e.target.closest('[data-row]') : null;
+      if (row && box.contains(row)) {
+        var rk = row.getAttribute('data-row');
+        // bag rows toggle their subtree; non-bag rows toggle their detail
+        st.open[rk] = !st.open[rk]; render(box, ctx); return;
+      }
+    });
+  }
+
+  // ── self-injected CSS (dark sheet aesthetic; reuses .eq-pill/.inv-tag/.inv-div) ──
+  function injectCss(doc) {
+    doc = doc || (typeof document !== 'undefined' ? document : null); if (!doc || doc.getElementById('tok-gm-css')) return;
+    var s = doc.createElement('style'); s.id = 'tok-gm-css'; s.textContent =
+      '.tok-sheet .gm{display:block}' +
+      '.tok-sheet .gm-toolbar{display:flex;align-items:center;gap:10px;margin:0 0 11px}' +
+      '.tok-sheet .gm-count{font:500 10px/1 "Oswald",sans-serif;letter-spacing:.08em;text-transform:uppercase;color:#8d8675}' +
+      '.tok-sheet .gm-sp{flex:1}' +
+      '.tok-sheet .gm-view{display:flex;border:1px solid rgba(199,154,74,.45);border-radius:3px;overflow:hidden}' +
+      '.tok-sheet .gm-vb{font:500 10px/1 "Oswald",sans-serif;letter-spacing:.1em;text-transform:uppercase;color:#8d8675;background:transparent;border:0;padding:5px 12px;cursor:pointer}' +
+      '.tok-sheet .gm-vb+ .gm-vb{border-left:1px solid rgba(199,154,74,.45)}' +
+      '.tok-sheet .gm-vb:hover{color:#f9f3e6}' +
+      '.tok-sheet .gm-vb.on{background:rgba(199,154,74,.20);color:#e7c279}' +
+      '.tok-sheet .gm-meta{display:flex;align-items:stretch;gap:16px;margin:0 0 12px;flex-wrap:wrap}' +
+      '.tok-sheet .gm-carry{flex:1 1 240px;min-width:200px}' +
+      '.tok-sheet .gm-carry-face{display:flex;justify-content:space-between;font:400 10px/1 "Oswald",sans-serif;letter-spacing:.1em;text-transform:uppercase;color:#8d8675;margin:0 0 5px}' +
+      '.tok-sheet .gm-carry-face b{color:#f9f3e6;font-weight:600}' +
+      '.tok-sheet .gm-carry-wrap{height:6px;border-radius:4px;background:rgba(236,226,205,.10);overflow:hidden}' +
+      '.tok-sheet .gm-carry-bar{height:100%;background:linear-gradient(90deg,#c79a4a,#e7c279);border-radius:4px}' +
+      '.tok-sheet .gm-currency{display:flex;gap:10px;align-items:center}' +
+      '.tok-sheet .gm-coin{display:flex;flex-direction:column;align-items:center;gap:1px}' +
+      '.tok-sheet .gm-coin .v{font-family:"EB Garamond",serif;font-size:16px;color:#f9f3e6}' +
+      '.tok-sheet .gm-coin .k{font:500 8.5px/1 "Oswald",sans-serif;letter-spacing:.1em;text-transform:uppercase;color:#8d8675}' +
+      '.tok-sheet .gm-coin.gp .v{color:#e7c279}.tok-sheet .gm-coin.gp .k{color:#c79a4a}' +
+      '.tok-sheet .gm-row{display:flex;align-items:center;gap:9px;padding:8px 4px;border-bottom:1px solid rgba(236,226,205,.08);cursor:pointer}' +
+      '.tok-sheet .gm-row:hover{background:rgba(199,154,74,.05)}' +
+      '.tok-sheet .gm-grip{width:10px;color:rgba(199,154,74,.22);font-size:12px;flex-shrink:0}' +
+      '.tok-sheet .gm-row:hover .gm-grip{color:rgba(199,154,74,.5)}' +
+      '.tok-sheet .gm-caret,.tok-sheet .gm-exp{width:11px;flex-shrink:0;color:rgba(199,154,74,.55);font-size:11px;transition:transform .15s;display:inline-block}' +
+      '.tok-sheet .gm-caret.open,.tok-sheet .gm-exp.open{transform:rotate(90deg);color:#e7c279}' +
+      '.tok-sheet .gm-ic{width:18px;color:rgba(199,154,74,.5);flex-shrink:0;display:inline-flex}' +
+      '.tok-sheet .gm-n{font-family:"EB Garamond",serif;font-size:16px;color:#f9f3e6}' +
+      '.tok-sheet .gm-row.worn .gm-n{color:#e7c279;font-weight:500}' +
+      '.tok-sheet .gm-star{color:#e7c279;font-size:12px;flex-shrink:0}' +
+      '.tok-sheet .gm-q{font:400 10px/1 "Oswald",sans-serif;letter-spacing:.05em;color:#8d8675;flex-shrink:0}' +
+      '.tok-sheet .gm-d{margin-left:auto;font-family:"EB Garamond",serif;font-style:italic;font-size:12.5px;color:#8d8675;white-space:nowrap}' +
+      '.tok-sheet .gm-row .inv-tag{margin-left:auto}' +
+      '.tok-sheet .gm-ctl{display:inline-flex;gap:5px;flex-shrink:0;margin-left:8px}' +
+      '.tok-sheet .gm-children{padding:1px 0 5px 26px}' +
+      '.tok-sheet .gm-children .gm-item .gm-row{border-bottom:1px solid rgba(236,226,205,.05)}' +
+      '.tok-sheet .gm-bag-empty{font-family:"EB Garamond",serif;font-style:italic;font-size:12.5px;color:#8d8675;padding:5px 6px}' +
+      '.tok-sheet .gm-detail{background:rgba(6,14,13,.5);border-top:1px solid rgba(199,154,74,.3);border-left:2px solid rgba(199,154,74,.4);padding:11px 15px 13px 28px}' +
+      '.tok-sheet .gm-d-cat{font:500 9.5px/1.3 "Oswald",sans-serif;letter-spacing:.12em;text-transform:uppercase;color:#8d8675;margin:0 0 3px}' +
+      '.tok-sheet .gm-d-rar{display:inline-block;font:500 8.5px/1 "Oswald",sans-serif;letter-spacing:.08em;text-transform:uppercase;color:#e7c279;border:1px solid rgba(199,154,74,.5);border-radius:2px;padding:2px 6px;margin:0 0 9px}' +
+      '.tok-sheet .gm-d-stats{display:flex;flex-wrap:wrap;gap:5px 7px;margin:0 0 10px}' +
+      '.tok-sheet .gm-d-stat{display:flex;gap:6px;align-items:baseline;background:rgba(236,226,205,.05);border:1px solid rgba(236,226,205,.10);border-radius:3px;padding:2px 8px}' +
+      '.tok-sheet .gm-d-stat span:first-child{font:500 8.5px/1 "Oswald",sans-serif;letter-spacing:.07em;text-transform:uppercase;color:#8d8675}' +
+      '.tok-sheet .gm-d-stat span:last-child{font-family:"EB Garamond",serif;font-size:14px;color:#f9f3e6}' +
+      '.tok-sheet .gm-d-sec{font:500 9px/1 "Oswald",sans-serif;letter-spacing:.14em;text-transform:uppercase;color:#c79a4a;margin:10px 0 4px}' +
+      '.tok-sheet .gm-d-prop{margin:0 0 3px}.tok-sheet .gm-d-prop b{font:600 11px/1.3 "Oswald",sans-serif;letter-spacing:.03em;color:#e7c279}' +
+      '.tok-sheet .gm-d-pd{font-family:"EB Garamond",serif;font-size:13px;color:#c2b99f}' +
+      '.tok-sheet .gm-d-desc{font-family:"EB Garamond",serif;font-size:14.5px;color:#ece2cd;line-height:1.5}.tok-sheet .gm-d-desc p{margin:0 0 7px}' +
+      '.tok-sheet .gm-d-flavor{font-family:"EB Garamond",serif;font-style:italic;font-size:13.5px;color:#c2b99f;line-height:1.45}' +
+      '.tok-sheet .gm-d-empty{font-family:"EB Garamond",serif;font-style:italic;font-size:13px;color:#8d8675}' +
+      '.tok-sheet .gm-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:9px}' +
+      '.tok-sheet .gm-tile{position:relative;border:1px solid rgba(236,226,205,.13);border-radius:4px;padding:12px 7px 9px;display:flex;flex-direction:column;align-items:center;gap:4px;background:rgba(6,14,13,.5);cursor:pointer;min-height:90px;justify-content:center}' +
+      '.tok-sheet .gm-tile:hover{border-color:rgba(199,154,74,.45);background:rgba(199,154,74,.07)}' +
+      '.tok-sheet .gm-tile.worn{background:linear-gradient(170deg,rgba(199,154,74,.14),rgba(199,154,74,.04));border-color:rgba(199,154,74,.45)}' +
+      '.tok-sheet .gm-tile.sel{border-color:#e7c279;box-shadow:0 0 0 1px #e7c279}' +
+      '.tok-sheet .gm-ti{color:rgba(199,154,74,.7)}.tok-sheet .gm-tile.bag .gm-ti{color:#e7c279}' +
+      '.tok-sheet .gm-tn{font-family:"EB Garamond",serif;font-size:13.5px;line-height:1.1;text-align:center;color:#f9f3e6}' +
+      '.tok-sheet .gm-tm{font:500 8.5px/1.2 "Oswald",sans-serif;letter-spacing:.05em;text-transform:uppercase;color:#8d8675;text-align:center}' +
+      '.tok-sheet .gm-ttag{position:absolute;top:5px;left:5px;font:500 7.5px/1 "Oswald",sans-serif;letter-spacing:.07em;text-transform:uppercase;color:#e7c279;background:rgba(199,154,74,.16);border-radius:2px;padding:1px 4px}' +
+      '.tok-sheet .gm-tatt{position:absolute;top:5px;right:6px;color:#e7c279;font-size:11px}' +
+      '.tok-sheet .gm-tqty{position:absolute;bottom:6px;right:7px;font:500 9px/1 "Oswald",sans-serif;color:#8d8675}' +
+      '.tok-sheet .gm-grid-detail{grid-column:1 / -1;background:rgba(6,14,13,.5);border:1px solid rgba(199,154,74,.4);border-left:2px solid #e7c279;border-radius:4px;padding:4px 6px}' +
+      '.tok-sheet .gm-grid-detail .gm-detail{border:0;padding:9px 12px 11px}';
+    (doc.head || doc.documentElement).appendChild(s);
+  }
+
+  var GM = { render: render, bind: bind, injectCss: injectCss, totalWeight: totalWeight, detailHtml: detailHtml, VERSION: 'gm-1' };
+  if (typeof window !== 'undefined') { window.GearManager = GM; try { injectCss(window.document); } catch (e) {} }
+  if (typeof globalThis !== 'undefined') globalThis.GearManager = GM;
+  if (typeof module !== 'undefined' && module.exports) module.exports = GM;
+})();

@@ -57,7 +57,7 @@
     if (t === 'S') return 'shield';
     if (t === 'RG') return 'ring';
     if (t === 'ST') return 'staff';
-    if (t === 'M' || t === 'R' || it.weaponCat || it.weaponCategory || it.dmg1) return 'weapon';
+    if (t === 'M' || t === 'R' || it.dmg1) return 'weapon';
     if (t === 'W' || t === '') {
       var n = String((it.name) || '').toLowerCase();
       if (/\b(cloak|cape|mantle)\b/.test(n)) return 'cloak';
