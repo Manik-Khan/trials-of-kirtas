@@ -87,6 +87,7 @@
     var pact = pactMagic(warlockLevel);
     if (pact) {
       pools.push({
+        key: 'pactSlots', level: pact.slotLevel,
         label: 'Pact Magic', badge: 'Lvl ' + pact.slotLevel, tone: 'class',
         current: pact.count, max: pact.count, recharge: pact.count + ' slots \u00B7 short rest'
       });
@@ -102,6 +103,7 @@
       for (var i = 0; i < row.length; i++) {
         if (row[i] > 0) {
           pools.push({
+            key: 'spell_' + (i + 1), level: (i + 1),
             label: label, badge: 'Lvl ' + (i + 1), tone: 'subclass',
             current: row[i], max: row[i], recharge: row[i] + ' slots \u00B7 long rest'
           });

@@ -58,7 +58,6 @@ export const WEAPONS = {
   'longbow':         { cat: 'martial', ranged: true,  dmg1: '1d8',  dmgType: 'Piercing', twoHanded: true, range: '150/600' }
   // (Net deals no damage; it produces no attack action.)
 };
-
 function titleCaseName(key) {
   return String(key).split(' ').map(function (w) { return w.charAt(0).toUpperCase() + w.slice(1); }).join(' ');
 }
@@ -86,20 +85,29 @@ function action(id, label, w, dice, ability, proficient) {
   };
 }
 
-export function buildWeaponActions(inventory, structural) {
-  structural = structural || {};
-  var ab = structural.abilities || {};
-  var modOf = function (k) { var a = ab[k]; return a && a.mod != null ? a.mod : 0; };
+function abilModOf(structural, k) { var a = (structural.abilities || {})[k]; return a && a.mod != null ? a.mod : 0; }
+function weaponProfList(structural) {
   // proficiencies.weapons is an array on forged characters but a comma-separated string
   // on legacy/migrated ones — normalize both to a lowercased list.
   var rawW = (structural.proficiencies && structural.proficiencies.weapons) || [];
-  var profList = (Array.isArray(rawW) ? rawW : String(rawW).split(',')).map(function (x) { return String(x).trim().toLowerCase(); }).filter(Boolean);
+  return (Array.isArray(rawW) ? rawW : String(rawW).split(',')).map(function (x) { return String(x).trim().toLowerCase(); }).filter(Boolean);
+}
+// to-hit ability + proficiency for one weapon, shared by weapon attacks and weapon-cantrips.
+function weaponProfile(w, key, structural) {
+  var profList = weaponProfList(structural);
   var hasSimple = profList.some(function (p) { return p === 'simple weapons' || p === 'simple'; });
   var hasMartial = profList.some(function (p) { return p === 'martial weapons' || p === 'martial'; });
-  // class weapon profs are plural ("daggers"), the table keys singular ("dagger"); race
-  // profs are singular. Match either way by also keying the de-pluralized form.
+  // class profs are plural ("daggers"), the table keys singular ("dagger"); race profs are
+  // singular. Match either way by also keying the de-pluralized form.
   var profSet = {}; profList.forEach(function (p) { profSet[p] = 1; profSet[p.replace(/s$/, '')] = 1; });
+  // ranged→Dex; finesse→better of Str/Dex; else Str
+  var ability = w.ranged ? 'dex' : (w.finesse ? (abilModOf(structural, 'dex') >= abilModOf(structural, 'str') ? 'dex' : 'str') : 'str');
+  var proficient = (w.cat === 'simple' && hasSimple) || (w.cat === 'martial' && hasMartial) || !!profSet[key];
+  return { ability: ability, proficient: proficient };
+}
 
+export function buildWeaponActions(inventory, structural) {
+  structural = structural || {};
   var out = [], seen = {};
   (inventory || []).forEach(function (it) {
     var key = normalizeWeaponName(it && it.name);
@@ -107,11 +115,89 @@ export function buildWeaponActions(inventory, structural) {
     if (!w || !w.dmg1 || seen[key]) return;     // unknown / damage-less / already added
     seen[key] = 1;
     var label = titleCaseName(key);
-    // to-hit ability: ranged uses Dex; finesse uses the better of Str/Dex; else Str
-    var ability = w.ranged ? 'dex' : (w.finesse ? (modOf('dex') >= modOf('str') ? 'dex' : 'str') : 'str');
-    var proficient = (w.cat === 'simple' && hasSimple) || (w.cat === 'martial' && hasMartial) || !!profSet[key];
-    out.push(action('wpn-' + key, label, w, w.dmg1, ability, proficient));
-    if (w.versatile && w.dmg2) out.push(action('wpn-' + key + '-2h', label + ' (Two-Handed)', w, w.dmg2, ability, proficient));
+    var pr = weaponProfile(w, key, structural);
+    out.push(action('wpn-' + key, label, w, w.dmg1, pr.ability, pr.proficient));
+    if (w.versatile && w.dmg2) out.push(action('wpn-' + key + '-2h', label + ' (Two-Handed)', w, w.dmg2, pr.ability, pr.proficient));
   });
   return out;
+}
+
+// ── Weapon cantrips (Booming Blade / Green-Flame Blade) ─────────────────────
+// These SCAG cantrips are a melee WEAPON attack with a rider. We surface them as an
+// attack action that rolls the chosen melee weapon (its real to-hit + die + ability
+// damage) — exactly like a hand-built weapon-cantrip action — and carry the rider as a
+// reminder in the damage-type label (the rider is usually conditional, so it's noted,
+// not auto-rolled). Derived LIVE from the carried weapon + known cantrips, same as
+// weapon attacks, so a looted weapon updates them on the next render.
+var WEAPON_CANTRIPS = {
+  'booming blade':     { rider: 'thunder', cond: 'on move' },
+  'green-flame blade': { rider: 'fire',    cond: 'leaps to a 2nd creature' },
+  'green flame blade': { rider: 'fire',    cond: 'leaps to a 2nd creature' }
+};
+// Known cantrip names, lowercased. Forged chars carry them in spellcasting.groups (the
+// level-0 group); legacy chars in spells.cantrip. Read both.
+function knownCantripSet(structural) {
+  var out = {}, sc = structural.spellcasting || {};
+  (sc.groups || []).forEach(function (g) {
+    if ((g.level || 0) === 0 || /cantrip/i.test(g.heading || '')) {
+      (g.spells || []).forEach(function (sp) { if (sp && sp.name) out[String(sp.name).trim().toLowerCase()] = 1; });
+    }
+  });
+  var legacy = (structural.spells && structural.spells.cantrip) || [];
+  legacy.forEach(function (sp) { var nm = (sp && sp.name) || sp; if (nm) out[String(nm).trim().toLowerCase()] = 1; });
+  return out;
+}
+function firstMeleeWeapon(inventory) {
+  var found = null;
+  (inventory || []).some(function (it) {
+    var key = normalizeWeaponName(it && it.name), w = WEAPONS[key];
+    if (w && w.dmg1 && !w.ranged) { found = { key: key, w: w }; return true; }
+    return false;
+  });
+  return found;
+}
+function titleCantrip(cn) { return cn.replace(/\b\w/g, function (c) { return c.toUpperCase(); }); }
+
+export function buildCantripAttacks(inventory, structural) {
+  structural = structural || {};
+  var known = knownCantripSet(structural);
+  var melee = firstMeleeWeapon(inventory);
+  if (!melee) return [];                       // weapon cantrips need a melee weapon in hand
+  var level = structural.level || 0;
+  var pb = structural.proficiencyBonus || 0;
+  var spellMod = ((structural.combat || {}).spellAttackBonus != null) ? (structural.combat.spellAttackBonus - pb) : 0;
+  var pr = weaponProfile(melee.w, melee.key, structural);
+  var wLabel = titleCaseName(melee.key), wType = melee.w.dmgType;
+  var out = [];
+  Object.keys(WEAPON_CANTRIPS).forEach(function (cn) {
+    if (!known[cn]) return;
+    var spec = WEAPON_CANTRIPS[cn], nice = titleCantrip(cn), note;
+    if (spec.rider === 'thunder') {
+      var d8 = level >= 17 ? 3 : level >= 11 ? 2 : level >= 5 ? 1 : 0;   // 2014 scaling 5/11/17
+      note = wType + (d8 ? (' + ' + d8 + 'd8 thunder (' + spec.cond + ')') : ' (booming)');
+    } else {
+      var extra = level >= 5 ? ' + 1d8' : '';
+      note = wType + ' + ' + (spellMod >= 0 ? '+' : '') + spellMod + ' fire' + extra + ' (' + spec.cond + ')';
+    }
+    out.push({
+      id: 'cant-' + cn.replace(/[^a-z]+/g, '') + '-' + melee.key.replace(/\s+/g, ''),
+      type: 'attack', label: nice + ' \u00B7 ' + wLabel,
+      ability: pr.ability, proficient: pr.proficient, atkBonus: 0,
+      dmgAbility: true, dmgBonus: 0, dmgDice: melee.w.dmg1, dmgType: note
+    });
+  });
+  return out;
+}
+
+// ── The ONE action list ─────────────────────────────────────────────────────
+// The renderer (renderActions) and the click handler (sheet-actions.js's allActions)
+// MUST build their list the same way, or a painted row whose id the clicker can't
+// resolve silently no-ops. This is the single source of truth both call. Order:
+// weapon attacks, then weapon-cantrip attacks, then structural.actions (feature /
+// cantrip / manual). When the action editor lands, its overrides apply HERE.
+export function assembleActions(inventory, structural) {
+  structural = structural || {};
+  return buildWeaponActions(inventory, structural)
+    .concat(buildCantripAttacks(inventory, structural))
+    .concat(structural.actions || []);
 }

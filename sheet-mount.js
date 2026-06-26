@@ -16,7 +16,7 @@
 // ---------------------------------------------------------------------------
 
 import { wireInspiration } from './sheet-actions.js';
-import { buildWeaponActions } from './weapon-actions.js';
+import { assembleActions } from './weapon-actions.js';
 
 function esc(x){ return String(x==null?'':x).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); }
 function sgn(n){ n=Number(n)||0; return (n>=0?'+':'\u2212')+Math.abs(n); }
@@ -341,6 +341,26 @@ function buildSpellcasting(s, v){
   });
   return { ability:ability, saveDC:cb.spellSaveDC, attackBonus:cb.spellAttackBonus, pools:pools, groups:groups, detail:null, featNote:'\u2014 origin colours arrive when the derive carries provenance' };
 }
+// level/key of a slot pool, tolerant of older forged data: read the explicit field, else
+// parse "Lvl N" out of the badge, else synthesize the pipState key from the label.
+function poolLevelOf(p){ if(p && p.level!=null) return p.level; var m=/(\d+)/.exec((p&&p.badge)||''); return m?+m[0]:0; }
+function poolKeyOf(p){ if(p && p.key) return p.key; if(p && p.points) return 'sorcery'; if(p && /pact/i.test(p.label||'')) return 'pactSlots'; var L=poolLevelOf(p); return L>0?('spell_'+L):''; }
+// Canonical, LIVE spell-slot pools — keyed into the pipState ledger with `current`
+// recomputed from spent. Prefers the forged structural.spellcasting block's pools
+// (synthesizing key/level for characters forged BEFORE those were stamped, so they get
+// spendable slots with no re-forge), and falls back to the legacy buildSpellcasting
+// shape (Roll20/classFeatures characters). Shared by the display (toRenderShape) and the
+// cast/spend path (sheet-actions castPools) so they can never disagree about what slots
+// exist — the root of the "pips show but tapping a spell says no slots" bug.
+function slotPoolsLive(structural, vitals){
+  var s=structural||{}, v=vitals||{}, pip=v.pipState||{};
+  var raw=(s.spellcasting && Array.isArray(s.spellcasting.pools) && s.spellcasting.pools.length)
+            ? s.spellcasting.pools : ((buildSpellcasting(s, v)||{}).pools||[]);
+  return raw.map(function(p){
+    var key=poolKeyOf(p), max=p.max||0;
+    return Object.assign({}, p, { key:key, level:poolLevelOf(p), current:Math.max(0, max-(pip[key]||0)) });
+  });
+}
 // Non-spellcasting resource pools (Ki / Bardic / Superiority / Starlight Step),
 // derived from class/level/abilities/race via ResourceDerive; spent comes from
 // vitals.pipState — same ledger the combat orbs read.
@@ -380,9 +400,9 @@ function actionRowHTML(a, s){
 function renderActions(root, s, inventory){
   root=root||document; s=s||{};
   var sec=root.querySelector('[data-sec="actions"]'), host=root.querySelector('[data-list="actions"]');
-  // weapon attacks derive live from the carried weapons; structural.actions holds the
-  // rest (feature / cantrip / manual). Weapons lead the attack group.
-  var list=buildWeaponActions(inventory, s).concat(s.actions||[]);
+  // weapon + weapon-cantrip attacks derive live from carried weapons; structural.actions
+  // holds the rest. assembleActions is the single source the click handler shares.
+  var list=assembleActions(inventory, s);
   if(sec) sec.style.display = list.length ? '' : 'none';
   if(!host) return;
   var groups=[['attack','Attacks'],['damage','Bonus damage'],['utility','Utility']];
@@ -418,6 +438,10 @@ function toRenderShape(cd){
   s.skills=normSkills(s.skills);
   if(s.passiveInsight==null){ var ins=s.skills.filter(function(x){return x.name==='Insight';})[0]; if(ins) s.passiveInsight=10+(ins.bonus||0); }
   if(!s.spellcasting) s.spellcasting=buildSpellcasting(s, v);
+  // Replace the display's slot pools with the canonical LIVE set (keyed into the ledger,
+  // current recomputed from spent) so pips deplete + stay spendable — even for characters
+  // forged before pools carried a key. Same helper the cast path uses → they never drift.
+  if(s.spellcasting){ var livePools=slotPoolsLive(s, v); s.spellcasting=Object.assign({}, s.spellcasting, { pools:livePools }); }
   if(!s.resources) s.resources=buildResources(s, v);
   if(v.inspiration==null && s.inspiration!=null) v.inspiration=s.inspiration;
   return { structural:s, vitals:v, notes:(cd.notes!=null?cd.notes:s.notes), inventory:(cd.inventory||[]), currency:(cd.currency||{}), bio:(cd.bio||{}) };
@@ -862,7 +886,7 @@ function mountSheet(container, key, opts){
 
 if (typeof window !== 'undefined') {
   window.mountSheet = mountSheet;
-  window.__sheet = { renderSheet: renderSheet, toRenderShape: toRenderShape, renderEquipment: renderEquipment, renderStory: renderStory, wireSheetTabs: wireSheetTabs, buildSpellcasting: buildSpellcasting, buildResources: buildResources, renderResources: renderResources, renderTrackers: renderTrackers, trackerSpecs: trackerSpecs, renderConcentration: renderConcentration, renderActions: renderActions, renderActionResult: renderActionResult, deriveActionMods: deriveActionMods, renderHitDice: renderHitDice, applyExtras: applyExtras, mountSheet: mountSheet };
+  window.__sheet = { renderSheet: renderSheet, toRenderShape: toRenderShape, renderEquipment: renderEquipment, renderStory: renderStory, wireSheetTabs: wireSheetTabs, buildSpellcasting: buildSpellcasting, slotPoolsLive: slotPoolsLive, buildResources: buildResources, renderResources: renderResources, renderTrackers: renderTrackers, trackerSpecs: trackerSpecs, renderConcentration: renderConcentration, renderActions: renderActions, renderActionResult: renderActionResult, deriveActionMods: deriveActionMods, renderHitDice: renderHitDice, applyExtras: applyExtras, mountSheet: mountSheet };
 }
 
 export { mountSheet };

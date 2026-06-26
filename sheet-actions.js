@@ -28,7 +28,7 @@
 // sheet-mount.js's mountSheet (it calls wireInspiration scoped to its container).
 // ---------------------------------------------------------------------------
 
-import { buildWeaponActions } from './weapon-actions.js';
+import { assembleActions } from './weapon-actions.js';
 
 // ── ResourceDerive resolver (browser global, set by resource-derive.js) ──
 function rd() {
@@ -537,7 +537,16 @@ export function wireInspiration({ root, characterData, key } = {}) {
   // sheet + orbs stay in lockstep and rests already refill them. Casting posts to
   // the shared feed (postFeed above). Manual slot nudges stay quiet (often
   // corrections) — only casts and concentration changes hit the feed.
-  function castPools() { var api = sheetApi(); var sc = api.buildSpellcasting ? api.buildSpellcasting(structural, vitals) : { pools: [] }; return sc.pools || []; }
+  // The cast/spend slot pools. Use the sheet's canonical slotPoolsLive (the SAME pools the
+  // display paints — keyed, live, and resilient to characters forged before pools carried
+  // a key) so tapping a spell finds exactly the slots the pips show. Fall back to the
+  // legacy buildSpellcasting shape only if the helper isn't present.
+  function castPools() {
+    var api = sheetApi();
+    if (api.slotPoolsLive) return api.slotPoolsLive(structural, vitals) || [];
+    var sc = api.buildSpellcasting ? api.buildSpellcasting(structural, vitals) : { pools: [] };
+    return sc.pools || [];
+  }
   function poolByKey(k) { var ps = castPools(); for (var i = 0; i < ps.length; i++) if (ps[i].key === k) return ps[i]; return null; }
   function castSlots(base) { return castPools().filter(function (p) { return !p.points && p.level >= base && p.level >= 1 && (p.current || 0) > 0; }).sort(function (a, b) { return a.level - b.level; }); }
   function spellEl(name) { var els = root.querySelectorAll('.spell[data-spell]'); for (var i = 0; i < els.length; i++) if (els[i].getAttribute('data-spell') === name) return els[i]; return null; }
@@ -617,12 +626,12 @@ export function wireInspiration({ root, characterData, key } = {}) {
   // after each roll. No save path: a roll mutates nothing on the character.
   var rollRS = { advantage: false, disadvantage: false, bless: false };
   var rollHist = [];
-  // The renderer paints buildWeaponActions(inventory).concat(structural.actions); the
-  // click handler must resolve against the SAME list or weapon-derived rows (whose ids
-  // are wpn-*) silently no-op — they aren't in structural.actions. (That was the
-  // quarterstaff-won't-post / dead-duplicate-longsword bug.)
+  // The renderer paints assembleActions(inventory, structural); the click handler must
+  // resolve against the SAME list or weapon-derived rows (ids wpn-* / cant-*) silently
+  // no-op — they aren't in structural.actions. (That was the quarterstaff-won't-post /
+  // dead-duplicate-longsword bug.) assembleActions is the one source of truth.
   function allActions() {
-    try { return buildWeaponActions(inventory, structural).concat(structural.actions || []); }
+    try { return assembleActions(inventory, structural); }
     catch (_) { return structural.actions || []; }
   }
   function actionById(id) { var as = allActions(); for (var i = 0; i < as.length; i++) if ((as[i].id || as[i].label) === id) return as[i]; return null; }

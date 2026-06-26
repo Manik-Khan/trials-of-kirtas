@@ -195,7 +195,30 @@
     if (raceGrantsSpells && !raceSpellsCaptured)
       incomplete.push('racial spells (race.additionalSpells) \u2014 complete the Spells step to fold them in');
     incomplete.push('appearance + bio (physical description, backstory) not captured here');
-    incomplete.push('legacy structural.spells / classFeatures (party.html shape) \u2014 reconcile vs structural.spellcasting');
+    // The SLOT half of the legacy/party.html shape is now reconciled below (classFeatures
+    // mirrors structural.spellcasting's pools into the pipState ledger). The legacy flat
+    // structural.spells[] list stays intentionally absent — the display reads the richer,
+    // provenance-stamped structural.spellcasting.groups instead.
+
+    // ── classFeatures: the legacy spell-slot ledger the rest of the app keys off
+    // (sheet cast/spend via buildSpellcasting, the combat orbs, and rests — all read
+    // structural.classFeatures.{spellSlots,pactSlots} and the vitals.pipState
+    // 'spell_<L>' / 'pactSlots' counters). The Forge writes the rich `spellcasting`
+    // block for DISPLAY; this mirrors just its SLOT pools into the shape those
+    // consumers already expect, so a forged caster can actually spend slots. ──
+    var classFeatures = null;
+    if (spellcasting && Array.isArray(spellcasting.pools)) {
+      var cfSlots = {}, cfPact = null;
+      spellcasting.pools.forEach(function (p) {
+        if (!p || p.points) return;
+        if (p.key === 'pactSlots') cfPact = { max: p.max || 0, level: p.level || 1 };
+        else if (p.key && /^spell_\d+$/.test(p.key) && (p.max || 0) > 0) cfSlots[String(p.level)] = { max: p.max };
+      });
+      var cf = {};
+      if (Object.keys(cfSlots).length) cf.spellSlots = cfSlots;
+      if (cfPact) cf.pactSlots = cfPact;
+      if (Object.keys(cf).length) classFeatures = cf;
+    }
 
     var structural = {
       name: input.name || null,
@@ -217,7 +240,8 @@
       passivePerception: passivePerception,
       passiveInsight: passiveInsight,
       features: features,
-      spellcasting: spellcasting
+      spellcasting: spellcasting,
+      classFeatures: classFeatures
     };
 
     return { structural: structural, _incomplete: incomplete };
