@@ -243,23 +243,70 @@ function renderEquipment(root, inventory, currency){
   root=root||document;
   inventory = Array.isArray(inventory) ? inventory : [];
   currency = currency || {};
-  var attunedN = Math.min(3, inventory.filter(function(it){ return it && it.attuned; }).length);
+  var ES=(typeof window!=='undefined'&&window.EquipSlots)?window.EquipSlots:((typeof globalThis!=='undefined'&&globalThis.EquipSlots)?globalThis.EquipSlots:null);
+  var ATT_MAX=3;
+  var attunedN=Math.min(ATT_MAX, inventory.filter(function(it){ return it && it.attuned; }).length);
+  var capFull=attunedN>=ATT_MAX;
+  var ic='<svg class="g-ic" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><path d="M6 3h9l4 4v14H6z"/><path d="M9 8h7M9 12h7M9 16h5"/></svg>';
+  function pipRow(){ var p=''; for(var i=0;i<ATT_MAX;i++) p+='<span class="pip'+(i<attunedN?' on':'')+'"></span>'; return p; }
+  function slotLabel(key){ var m=ES?ES.SLOTS.filter(function(x){return x.key===key;})[0]:null; return m?m.label:key; }
+  function attuneBtn(it, idx){
+    if(!it.reqAttune) return '';
+    if(it.attuned) return '<button class="eq-pill on" data-at="'+idx+'" title="Attuned \u2014 tap to release">\u2726 Attuned</button>';
+    if(capFull)    return '<button class="eq-pill capped" data-at="'+idx+'" title="Attunement limit (3 of 3) \u2014 release one first">\u2726 Attune</button>';
+    return '<button class="eq-pill" data-at="'+idx+'">\u2726 Attune</button>';
+  }
+
+  // ── the paper-doll (only when EquipSlots is present) ──
+  var slotsBox=root.querySelector('[data-equip-slots]');
+  if(slotsBox){
+    if(ES){
+      slotsBox.innerHTML=ES.SLOTS.map(function(s){
+        var it=null, idx=-1;
+        for(var k=0;k<inventory.length;k++){ if(inventory[k] && inventory[k].slot===s.key){ it=inventory[k]; idx=k; break; } }
+        if(!it) return '<div class="eq-slot empty'+(s.ac?' ac':'')+'" data-slot="'+esc(s.key)+'"><span class="sl-k">'+esc(s.label)+'</span><span class="sl-item">\u2014 empty \u2014</span></div>';
+        var star=it.attuned?'<span class="sl-star">\u2726</span>':'';
+        return '<div class="eq-slot filled'+(s.ac?' ac':'')+'" data-slot="'+esc(s.key)+'"><span class="sl-k">'+esc(s.label)+'</span><span class="sl-item">'+esc(it.name||'Item')+star+'</span><button class="sl-x" data-un="'+esc(s.key)+'" title="Unequip">Unequip</button></div>';
+      }).join('');
+    } else { slotsBox.innerHTML=''; }
+  }
+  // attunement summary row (pips + cap note)
+  var attuneBox=root.querySelector('[data-equip-attune]');
+  if(attuneBox) attuneBox.innerHTML='<span class="cap-note">'+(capFull?'Limit reached':'')+'</span>Attuned <span class="att-pips">'+pipRow()+'</span>';
+
+  // ── the ONE manifest: every item, worn-first, worn tagged with its slot ──
   var box = root.querySelector('[data-equip]');
   if(box){
-    var ic='<svg class="g-ic" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><path d="M6 3h9l4 4v14H6z"/><path d="M9 8h7M9 12h7M9 16h5"/></svg>';
-    var items = inventory.map(function(it){
-      var d = it.detail || it.typeLabel || it.rarity || '';
-      var q = (it.qty && it.qty>1) ? '<span class="g-q">\u00D7'+it.qty+'</span>' : '';
-      return '<div class="gitem">'+ic+'<span class="g-n">'+esc(it.name||'Item')+'</span>'+(d?'<span class="g-d">'+esc(d)+'</span>':'')+q+'</div>';
+    var order={}; if(ES) ES.SLOTS.forEach(function(s,i){ order[s.key]=i; });
+    var rows=inventory.map(function(it,i){ return { it:it, i:i }; });
+    if(ES) rows.sort(function(a,b){
+      var aw=a.it.slot?0:1, bw=b.it.slot?0:1;
+      if(aw!==bw) return aw-bw;
+      if(a.it.slot&&b.it.slot) return (order[a.it.slot]||0)-(order[b.it.slot]||0);
+      return a.i-b.i;
+    });
+    var dividerDone=false;
+    var items=rows.map(function(r){
+      var it=r.it, idx=r.i, worn=!!it.slot, eqp=ES?ES.canEquip(it):false;
+      var lead=(ES && !worn && !dividerDone) ? (dividerDone=true, '<div class="inv-div">Carried</div>') : '';
+      var mid = worn
+        ? '<span class="inv-tag">'+esc(slotLabel(it.slot))+'</span>'
+        : '<span class="g-d">'+esc(it.detail||it.typeLabel||it.rarity||'')+'</span>';
+      var q=(it.qty && it.qty>1) ? '<span class="g-q">\u00D7'+it.qty+'</span>' : '';
+      var ctl = !ES ? '' : (worn
+        ? '<button class="eq-pill x" data-un="'+esc(it.slot)+'">Unequip</button>'+attuneBtn(it,idx)
+        : (eqp?'<button class="eq-pill" data-eq="'+idx+'">Equip</button>':'')+attuneBtn(it,idx));
+      return lead+'<div class="gitem'+(worn?' worn':'')+(it.attuned?' attuned':'')+'">'+ic+'<span class="g-n">'+esc(it.name||'Item')+'</span>'+mid+q+'<span class="g-ctl">'+ctl+'</span></div>';
     }).join('');
     if(!items) items='<div class="gitem" style="opacity:.5"><span class="g-n">No equipment yet</span></div>';
     var coins=[]; ['pp','gp','ep','sp','cp'].forEach(function(k){ if(currency[k]) coins.push('<span class="coin">'+currency[k]+' <small>'+k+'</small></span>'); });
     var coinStr = coins.join(' ') || '<span class="coin">0 <small>gp</small></span>';
-    var pips=''; for(var i=0;i<3;i++) pips+='<span class="pip'+(i<attunedN?' on':'')+'" style="width:10px;height:10px"></span>';
-    box.innerHTML = items + '<div class="coinline">'+coinStr+'<span class="attune-wrap">Attuned'+pips+'</span></div>';
+    box.innerHTML = items + '<div class="coinline">'+coinStr+'</div>';
   }
+
+  // mirror attunement pips into the left Status block
   var la = root.querySelector('[data-attune]');
-  if(la){ var lp=''; for(var j=0;j<3;j++) lp+='<span class="pip'+(j<attunedN?' on':'')+'"></span>'; la.innerHTML = lp; }
+  if(la){ la.innerHTML = pipRow(); }
 }
 // Story + the four traits from the live bio. Empty fields read as a dash, never
 // sample prose.
@@ -488,20 +535,27 @@ function toRenderShape(cd){
   if(s.spellcasting){ var livePools=slotPoolsLive(s, v); s.spellcasting=Object.assign({}, s.spellcasting, { pools:livePools }); }
   if(!s.resources) s.resources=buildResources(s, v);
   if(v.inspiration==null && s.inspiration!=null) v.inspiration=s.inspiration;
-  // ── live Armour Class from worn armour (mirror of weapon attacks: derive from
-  // inventory, sync, no fetch). Clone combat so we never mutate the source
-  // structural and never double-subtract the speed penalty across re-renders. The
-  // worn armour also stamps Stealth disadvantage onto the Stealth skill row. ──
+  // ── Display inventory: assign equipment slots so the paper-doll is populated
+  // even for imported PCs whose items carry no slot yet (deterministic best-fit;
+  // the controller persists this on the first equip change). Then derive live
+  // Armour Class from worn armour — slots win, an un-slotted bag falls back to
+  // "best you own" so AC is unchanged until you equip. Clone combat so we never
+  // mutate the source structural; worn armour also stamps Stealth disadvantage. ──
+  var ESL=(typeof window!=='undefined'&&window.EquipSlots)?window.EquipSlots:((typeof globalThis!=='undefined'&&globalThis.EquipSlots)?globalThis.EquipSlots:null);
   var AAC=(typeof window!=='undefined'&&window.ArmorAC)?window.ArmorAC:((typeof globalThis!=='undefined'&&globalThis.ArmorAC)?globalThis.ArmorAC:null);
+  var inv=cd.inventory||[];
+  if(ESL && inv.length && !inv.some(function(it){return it&&it.slot;}) && inv.some(function(it){return ESL.canEquip(it);})){
+    inv=ESL.backfillSlots(inv, AAC?{ score:function(it){ var i2=AAC.classifyArmor(it); return i2?(i2.base+(i2.magic||0)):0; } }:undefined);
+  }
   if(AAC){
-    var ac=AAC.deriveAC(cd.inventory||[], s), cbA=Object.assign({}, s.combat||{});
+    var ac=AAC.deriveAC(inv, s), cbA=Object.assign({}, s.combat||{});
     cbA.ac=ac.ac; cbA.acSource=ac.source;
     if(cbA.speed!=null && ac.speedPenalty){ cbA.speed=cbA.speed-ac.speedPenalty; cbA.speedNote='\u2212'+ac.speedPenalty+' ft'; cbA.speedReason=ac.speedReason||''; }
     if(ac.notProficient){ cbA.acWarn='not proficient'; cbA.acWarnFull=(ac.profReason||'Not proficient')+' \u2014 disadvantage on Str/Dex rolls; can\u2019t cast'; }
     s.combat=cbA;
     if(ac.stealthDisadvantage){ s.skills=(s.skills||[]).map(function(sk){ return sk.name==='Stealth'?Object.assign({}, sk, { dis:true, disReason:ac.disReason||((ac.body||'Worn armour')+' \u2014 Stealth disadvantage') }):sk; }); }
   }
-  return { structural:s, vitals:v, notes:(cd.notes!=null?cd.notes:s.notes), inventory:(cd.inventory||[]), currency:(cd.currency||{}), bio:(cd.bio||{}) };
+  return { structural:s, vitals:v, notes:(cd.notes!=null?cd.notes:s.notes), inventory:inv, currency:(cd.currency||{}), bio:(cd.bio||{}) };
 }
 function applyExtras(root, cd){
   var v=cd.vitals||{}, s=cd.structural||{}, insp=(v.inspiration!=null?v.inspiration:s.inspiration);
@@ -655,6 +709,37 @@ var AE_CSS = `<style id="tok-ae-css">
 .tok-sheet .sheet-warn:empty{display:none}
 .tok-sheet .med .spd-note{color:#cf3b2c;font:600 11px/1.1 'Oswald',sans-serif;letter-spacing:.4px}
 .tok-sheet .med .spd-note:empty{display:none}
+/* ── equipment: paper-doll + one inventory manifest (equip / attune) ── */
+.tok-sheet .eq-head{display:flex;align-items:center;justify-content:space-between;gap:10px;margin-bottom:11px}
+.tok-sheet [data-equip-attune]{display:flex;align-items:center;gap:8px;font:400 11px/1 'Oswald',sans-serif;letter-spacing:.1em;text-transform:uppercase;color:#c2b99f}
+.tok-sheet [data-equip-attune] .att-pips{display:inline-flex;gap:7px}
+.tok-sheet [data-equip-attune] .pip{width:12px;height:12px;transform:rotate(45deg);border:1.5px solid #e7c279;background:transparent;filter:none;transition:background .15s}
+.tok-sheet [data-equip-attune] .pip.on{background:#e7c279}
+.tok-sheet .cap-note{font:600 9px/1 'Oswald',sans-serif;letter-spacing:.1em;text-transform:uppercase;color:#e7c279;opacity:.85}
+.tok-sheet .cap-note:empty{display:none}
+.tok-sheet .eq-grid{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+.tok-sheet .eq-grid:empty{display:none}
+.tok-sheet .eq-slot{position:relative;border:1px solid rgba(199,154,74,.34);background:rgba(6,14,13,.78);border-radius:3px;padding:9px 11px 10px;min-height:46px;display:flex;flex-direction:column;gap:4px;justify-content:center}
+.tok-sheet .eq-slot .sl-k{font:600 8.5px/1 'Oswald',sans-serif;letter-spacing:.17em;text-transform:uppercase;color:#8d8675}
+.tok-sheet .eq-slot .sl-item{font-family:'EB Garamond',serif;font-size:14.5px;color:#f9f3e6;display:flex;align-items:center;gap:6px;line-height:1.15}
+.tok-sheet .eq-slot .sl-star{color:#e7c279;font-size:12px;line-height:1}
+.tok-sheet .eq-slot.empty{border-style:dashed;border-color:rgba(236,226,205,.13)}
+.tok-sheet .eq-slot.empty .sl-item{color:#8d8675;font-style:italic;opacity:.6;font-size:13px}
+.tok-sheet .eq-slot.ac::after{content:"AC";position:absolute;top:7px;right:9px;font:600 7.5px/1 'Oswald',sans-serif;letter-spacing:.12em;color:#e7c279;opacity:.5}
+.tok-sheet .eq-slot .sl-x{display:none;position:absolute;bottom:7px;right:9px;font:600 8px/1 'Oswald',sans-serif;letter-spacing:.08em;text-transform:uppercase;color:#e0584a;background:none;border:0;cursor:pointer;padding:0}
+.tok-sheet [data-sec="inventory"].can-edit .eq-slot.filled:hover .sl-x,.tok-sheet [data-sec="inventory"].can-edit .eq-slot.filled:focus-within .sl-x{display:block}
+.tok-sheet .gitem.worn .g-n{color:#e7c279;font-weight:500}
+.tok-sheet .gitem.attuned .g-n{color:#e7c279}
+.tok-sheet .inv-tag{font:600 8.5px/1 'Oswald',sans-serif;letter-spacing:.1em;text-transform:uppercase;color:#e7c279;border:1px solid rgba(199,154,74,.5);border-radius:4px;padding:3px 6px;background:rgba(199,154,74,.08)}
+.tok-sheet .inv-div{font:600 8.5px/1 'Oswald',sans-serif;letter-spacing:.18em;text-transform:uppercase;color:#8d8675;opacity:.55;padding:13px 0 7px;margin-top:4px;border-top:1px solid rgba(236,226,205,.13)}
+.tok-sheet .g-ctl{margin-left:auto;display:flex;gap:7px;align-items:center;flex-wrap:wrap;justify-content:flex-end}
+.tok-sheet .eq-pill{display:none;font:600 9px/1 'Oswald',sans-serif;letter-spacing:.08em;text-transform:uppercase;border-radius:999px;padding:5px 11px;cursor:pointer;border:1px solid #c79a4a;background:rgba(199,154,74,.10);color:#e7c279;transition:background .15s,color .15s,opacity .15s}
+.tok-sheet [data-sec="inventory"].can-edit .eq-pill{display:inline-flex;align-items:center;gap:4px}
+.tok-sheet .eq-pill:hover{background:rgba(199,154,74,.22)}
+.tok-sheet .eq-pill.on{background:#c79a4a;color:#241c11;border-color:#c79a4a}
+.tok-sheet .eq-pill.capped{opacity:.32;cursor:not-allowed;border-style:dashed}
+.tok-sheet .eq-pill.x{border-color:rgba(224,88,74,.5);color:#e0584a;background:rgba(207,59,44,.10)}
+.tok-sheet .eq-pill.x:hover{background:rgba(207,59,44,.2)}
 </style>`;
 function ensureActionEditorStyle(doc){
   doc = doc || (typeof document!=='undefined'?document:null); if(!doc) return;
@@ -945,7 +1030,12 @@ var SHEET_TEMPLATE = `<main class="tok-sheet">
 
       <!-- INVENTORY -->
       <div class="block" data-sec="inventory">
-        <div class="sectitle"><span class="swashwrap"><h2>Inventory</h2></span><span class="tail"></span><span class="hint">carried · currency · attunement</span></div>
+        <div class="eq-head">
+          <div class="sectitle" style="margin:0;flex:0 1 auto"><span class="swashwrap"><h2>Equipped</h2></span></div>
+          <span class="attune-wrap" data-equip-attune></span>
+        </div>
+        <div class="eq-grid" data-equip-slots></div>
+        <div class="sectitle" style="margin-top:22px"><span class="swashwrap"><h2>Inventory</h2></span><span class="tail"></span><span class="hint">your whole kit · worn first</span></div>
         <div class="panelbox" data-equip></div>
       </div>
 

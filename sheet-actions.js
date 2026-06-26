@@ -321,6 +321,56 @@ export function wireInspiration({ root, characterData, key } = {}) {
     catch (e) { vitals = prev; refresh(); showStat('error', "couldn't save \u00B7 tap to retry", false); }
     finally { busy(false); }
   }
+  async function persistInventory(prev) {
+    busy(true);
+    try { var saved = await characterData.save(key, { inventory: inventory }); inventory = (saved && saved.inventory) ? saved.inventory : inventory; refresh(); }
+    catch (e) { inventory = prev; refresh(); showStat('error', "couldn't save \u00B7 tap to retry", false); }
+    finally { busy(false); }
+  }
+
+  // ── equipment slots: equip / unequip / attune all write item.slot / item.attuned
+  // on the inventory, then persist. EquipSlots owns the taxonomy + classifier. ──
+  function equipAPI() { return (typeof window !== 'undefined' ? window : globalThis).EquipSlots || null; }
+  function armorAPI() { return (typeof window !== 'undefined' ? window : globalThis).ArmorAC || null; }
+  // First load: if nothing is slotted, assign best-fit slots so the doll is populated.
+  // In-memory only here (matches toRenderShape's display backfill); persisted on the
+  // first explicit equip change, so opening a sheet never writes on its own.
+  function backfillInventory() {
+    var ES = equipAPI(); if (!ES || !inventory.length) return;
+    if (inventory.some(function (it) { return it && it.slot; })) return;
+    if (!inventory.some(function (it) { return ES.canEquip(it); })) return;
+    var AAC = armorAPI();
+    inventory = ES.backfillSlots(inventory, AAC ? { score: function (it) { var i2 = AAC.classifyArmor(it); return i2 ? (i2.base + (i2.magic || 0)) : 0; } } : undefined);
+  }
+  function doEquip(idx) {
+    var ES = equipAPI(); if (!ES) return;
+    var it = inventory[idx]; if (!it) return;
+    var slots = ES.slotsFor(ES.classifyItem(it)); if (!slots.length) return;
+    var target = null;
+    for (var i = 0; i < slots.length; i++) { if (!inventory.filter(function (x) { return x.slot === slots[i]; })[0]) { target = slots[i]; break; } }
+    if (!target) { target = slots[0]; var occ = inventory.filter(function (x) { return x.slot === target; })[0]; if (occ) occ.slot = null; }
+    it.slot = target;
+  }
+  function doUnequip(slotKey) { var w = inventory.filter(function (x) { return x.slot === slotKey; })[0]; if (w) w.slot = null; }
+  function doAttune(idx) {
+    var it = inventory[idx]; if (!it || !it.reqAttune) return;
+    if (it.attuned) { it.attuned = false; return; }
+    if (inventory.filter(function (x) { return x.attuned; }).length < 3) it.attuned = true;
+  }
+  function onEquipClick(e) {
+    var eq = e.target.closest('[data-eq]'), un = e.target.closest('[data-un]'), at = e.target.closest('[data-at]');
+    if (!eq && !un && !at) return;
+    e.stopPropagation();
+    var prev = JSON.parse(JSON.stringify(inventory));
+    if (eq) { if (eq.classList.contains('capped')) return; doEquip(parseInt(eq.getAttribute('data-eq'), 10)); }
+    else if (un) { doUnequip(un.getAttribute('data-un')); }
+    else if (at) { if (at.classList.contains('capped')) return; doAttune(parseInt(at.getAttribute('data-at'), 10)); }
+    refresh(); persistInventory(prev);
+  }
+  function bindEquip() {
+    var sec = root.querySelector('[data-sec="inventory"]'); if (sec) sec.classList.add('can-edit');
+    root.addEventListener('click', onEquipClick);
+  }
 
   function applySpend(id, newCur) {
     if (saving) return;
@@ -853,6 +903,8 @@ export function wireInspiration({ root, characterData, key } = {}) {
       bindSpellcasting(true);
       bindAttacks(true);
       bindActionEditor();
+      backfillInventory();
+      bindEquip();
     } else {
       toggle.classList.add('view-only');
       toggle.setAttribute('aria-disabled', 'true');

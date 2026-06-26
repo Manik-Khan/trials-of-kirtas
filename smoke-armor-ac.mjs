@@ -132,5 +132,30 @@ const C = (over) => Object.assign({ abilities: { str: { score: 10, mod: 0 }, dex
   ok(!(out._incomplete || []).some(s => /combat\.ac/.test(s)), 'derive: no combat.ac gap flagged once inventory is passed');
 }
 
+// ── 11. slot-aware selection: worn body/shield come from item.slot, with the
+//      un-slotted bag still falling back to "best you own" (the shipped behaviour) ──
+{
+  // a slotted Studded Leather (12) is worn even though a stronger Plate sits un-slotted in the bag
+  const r = ArmorAC.deriveAC(
+    [{ name: 'Plate' }, { name: 'Studded Leather', slot: 'ARMOUR' }, { name: 'Shield', type: 'S', ac: 2, slot: 'OFFHAND' }],
+    C({ abilities: { dex: { mod: 2 }, str: { score: 8 } }, proficiencies: { armor: 'All Armor, Shields' } }));
+  eq(r.ac, 16, 'slot wins: Studded Leather(12) + Dex2 + Shield2 = 16 (not the un-slotted Plate)');
+  eq(r.body, 'Studded Leather', 'worn body = the ARMOUR-slotted item');
+}
+{
+  // slots are in use but ARMOUR is empty -> deliberately bare in that slot (shield still worn)
+  const r = ArmorAC.deriveAC(
+    [{ name: 'Plate' }, { name: 'Shield', type: 'S', ac: 2, slot: 'OFFHAND' }],
+    C({ abilities: { dex: { mod: 3 } }, proficiencies: { armor: 'All Armor, Shields' } }));
+  eq(r.ac, 15, 'ARMOUR slot empty + OFF-HAND in use -> 10 + Dex3 + Shield2 = 15');
+  ok(r.body === null, 'no body armour when the ARMOUR slot is empty and slots are in use');
+}
+{
+  // nothing slotted anywhere -> best-in-bag fallback, unchanged from before slots existed
+  const r = ArmorAC.deriveAC([{ name: 'Plate' }, { name: 'Leather' }],
+    C({ abilities: { dex: { mod: 2 } }, proficiencies: { armor: 'All Armor' } }));
+  eq(r.ac, 18, 'no slots anywhere -> fallback to best body (Plate 18) — shipped behaviour preserved');
+}
+
 console.log((fail === 0 ? 'PASS' : 'FAIL') + ' smoke-armor-ac: ' + pass + ' passed, ' + fail + ' failed');
 process.exit(fail === 0 ? 0 : 1);

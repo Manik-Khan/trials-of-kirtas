@@ -17,6 +17,8 @@ function mkRoot() {
   const d = dom.window.document.createElement('div');
   d.innerHTML =
     '<span class="attune" data-attune></span>' +
+    '<span class="attune-wrap" data-equip-attune></span>' +
+    '<div class="eq-grid" data-equip-slots></div>' +
     '<div class="panelbox" data-equip></div>' +
     '<p data-f="storyQuote"></p>' +
     '<div data-f="bioPersonality"></div><div data-f="bioIdeals"></div>' +
@@ -38,7 +40,7 @@ function mkRoot() {
   ok('quantity shown', /\u00D73/.test(root.querySelector('[data-equip]').textContent));
   const coin = root.querySelector('[data-equip] .coinline').textContent;
   ok('coin shows gp + sp', /24/.test(coin) && /sp/.test(coin));
-  ok('2 attuned -> 2 filled pips (equipment)', root.querySelectorAll('[data-equip] .attune-wrap .pip.on').length === 2);
+  ok('2 attuned -> 2 filled pips (equipment)', root.querySelectorAll('[data-equip-attune] .pip.on').length === 2);
   ok('left Status attunement mirrors 2 pips', root.querySelectorAll('[data-attune] .pip.on').length === 2);
   ok('attunement has 3 total pips', root.querySelectorAll('[data-attune] .pip').length === 3);
 }

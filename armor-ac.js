@@ -90,7 +90,7 @@
         str: p.mithral ? 0 : (a.str || 0),
         stealth: p.mithral ? false : !!a.stealth,
         magic: p.magic, mithral: p.mithral,
-        equipped: !!it.equipped
+        equipped: !!it.equipped, slot: it.slot || null
       };
     }
     // not in the table — accept an enriched armour item by its type code
@@ -104,7 +104,7 @@
       str: p.mithral ? 0 : (+it.strength || 0),
       stealth: p.mithral ? false : !!it.stealth,
       magic: 0, mithral: p.mithral,
-      equipped: !!it.equipped
+      equipped: !!it.equipped, slot: it.slot || null
     };
   }
 
@@ -160,8 +160,16 @@
       var info = classifyArmor(it); if (!info) return;
       (info.cat === 'shield' ? shields : bodies).push(info);
     });
-    var body = pickWorn(bodies, 'base');
-    var shield = pickWorn(shields, 'bonus');
+    // Worn armour/shield come from the equipment slots (item.slot) once the
+    // character has slotted anything. An un-slotted bag (imported PCs before the
+    // first equip, pre-backfill) falls back to "best you own" so the live AC is
+    // unchanged until you equip; with slots in use but ARMOUR/OFF-HAND empty, the
+    // wearer is deliberately bare in that slot.
+    var anySlot = inventory.some(function (it) { return it && it.slot; });
+    var body = bodies.filter(function (x) { return x.slot === 'ARMOUR'; })[0]
+            || (anySlot ? null : pickWorn(bodies, 'base'));
+    var shield = shields.filter(function (x) { return x.slot === 'OFFHAND'; })[0]
+            || (anySlot ? null : pickWorn(shields, 'bonus'));
     var prof = armorProf(structural);
 
     var out = {
