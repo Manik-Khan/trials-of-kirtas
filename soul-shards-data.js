@@ -625,6 +625,19 @@
     const b = (list || []).find(x => x.name === name && (!source || x.source === source)) || (list || []).find(x => x.name === name);
     return (b && b.startingEquipment) || [];
   }
+  // skill / language / tool grants a background confers (same parsed shapes as a
+  // race: skills/tools -> {fixed,anyCount,choose}, languages -> {fixed,anyStandard,any}).
+  // The Proficiencies step reads this; the 2014 "Customizing a Background" swap is a
+  // UI-side override, so this returns the background's DEFAULT grants.
+  function backgroundProficiencies(list, name, source) {
+    const b = (list || []).find(x => x.name === name && (!source || x.source === source)) || (list || []).find(x => x.name === name);
+    if (!b) return { skills: { fixed: [], anyCount: 0, choose: [] }, languages: { fixed: [], anyStandard: 0, any: 0 }, tools: { fixed: [], anyCount: 0, choose: [] } };
+    return {
+      skills: parseProfChoose(b.skillProficiencies),
+      languages: parseLanguages(b.languageProficiencies),
+      tools: parseProfChoose(b.toolProficiencies),
+    };
+  }
 
   function _cleanItemName(s) { return String(s).split('|')[0].trim(); }
   function _equipTypeLabel(t) {
@@ -670,7 +683,7 @@
     loadClass, loadClassSpellList, loadSpellMeta,
     loadOptionalFeatures, owedFeatureChoices, progressionCountAt, prereqText,
     loadFeats, featPrereqText, featMeetsPrereq, featAbilityChoice, featsForChar,
-    loadBackgrounds, backgroundEquipment, parseStartingEquipment,
+    loadBackgrounds, backgroundEquipment, backgroundProficiencies, parseStartingEquipment,
     loadRace,
     parseAbility, parseSpeed, parseSize, parseLanguages, parseProfChoose,
     collectTraits, applyMod, resolveCopy, normalizeRace, makeLoadRace,

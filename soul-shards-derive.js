@@ -20,6 +20,7 @@
  *     spellbook?: [ {name,level,origin,source} ],            // Wizard's owned book (persists distinct from groups)
  *     choices?: [ {name, origin:'class'|'subclass', originName, entries?} ], // Choices-step picks (Fighting Style / Maneuvers / Invocations / …)
  *     feats?: [ {name, entries?} ],                          // Feats-step picks (racial grant + ASI-level) — folded under a feat: stamp
+ *     proficiencies?: { skills:[…], expertise?:[…], languages:[…], tools:[…], weapons:[…], armor:[…] }, // resolved NAME lists from the Proficiencies step
  *     extraPools?: [...], detail?: {...}, hp?: { method, rolls }
  *   }
  * RETURNS: { structural, _incomplete:[strings] }
@@ -33,6 +34,17 @@
     if (Array.isArray(e)) return e.filter(function (x) { return typeof x === 'string'; }).join(' ');
     return '';
   }
+
+  // 18 skills → governing ability (2014). Canonical names; the Proficiencies step
+  // normalizes 5etools' lowercase keys to these before handing names over.
+  var SKILL_ABIL = {
+    'Acrobatics': 'dex', 'Animal Handling': 'wis', 'Arcana': 'int', 'Athletics': 'str',
+    'Deception': 'cha', 'History': 'int', 'Insight': 'wis', 'Intimidation': 'cha',
+    'Investigation': 'int', 'Medicine': 'wis', 'Nature': 'int', 'Perception': 'wis',
+    'Performance': 'cha', 'Persuasion': 'cha', 'Religion': 'int', 'Sleight of Hand': 'dex',
+    'Stealth': 'dex', 'Survival': 'wis'
+  };
+  var SKILL_LIST = Object.keys(SKILL_ABIL);
 
   function deriveStructural(input, deps) {
     input = input || {}; deps = deps || {};
@@ -139,14 +151,41 @@
     if (spellcasting && spellcasting.saveDC != null) combat.spellSaveDC = spellcasting.saveDC;
     if (spellcasting && spellcasting.attackBonus != null) combat.spellAttackBonus = spellcasting.attackBonus;
 
+    // ── skills + proficiencies + passives (from the Proficiencies step) ──
+    // input.proficiencies carries resolved NAME lists (granted ∪ chosen) per type.
+    // Skills resolve to the 18-row sheet shape; passive Perception / Insight derive
+    // off those rows. With no proficiency input every skill is at its bare ability
+    // mod (a degenerate but valid build) — the real forge always passes this in.
+    var prof = input.proficiencies || {};
+    var profSkills = prof.skills || [];
+    var profExpert = prof.expertise || [];
+    var inList = function (list, name) { return (list || []).indexOf(name) !== -1; };
+    var skills = SKILL_LIST.map(function (name) {
+      var attr = SKILL_ABIL[name];
+      var p = inList(profSkills, name);
+      var ex = inList(profExpert, name);
+      return { name: name, attr: attr, prof: p, expertise: ex, bonus: mod(attr) + (p ? pb : 0) + (ex ? pb : 0) };
+    });
+    var skillBonus = function (name) {
+      var r = skills.filter(function (s) { return s.name === name; })[0];
+      return r ? r.bonus : mod(SKILL_ABIL[name] || 'wis');
+    };
+    var passivePerception = 10 + skillBonus('Perception');
+    var passiveInsight = 10 + skillBonus('Insight');
+    var proficiencies = {
+      skills: profSkills.slice(),
+      expertise: profExpert.slice(),
+      languages: (prof.languages || []).slice(),
+      tools: (prof.tools || []).slice(),
+      weapons: (prof.weapons || []).slice(),
+      armor: (prof.armor || []).slice()
+    };
+
     // ── honest gaps ──
     incomplete.push('feature descriptions (P4 \u2014 {@tag} entries markup not yet rendered)');
     incomplete.push('combat.ac (needs equipped armor \u2014 equipment not modeled in this derive)');
     if (classes.length > 1) incomplete.push('multiclass HP slightly over-counts secondary classes\u2019 first level (level-1 max applies only to the first character level)');
     incomplete.push('senses don\u2019t include feature/subclass upgrades (e.g. Shadow Magic darkvision)');
-    incomplete.push('passivePerception / passiveInsight (need the Perception / Insight skill proficiencies)');
-    incomplete.push('skills[] (need class / background / race proficiency choices)');
-    incomplete.push('proficiencies (armor / weapons / tools / languages \u2014 incl. racial choices)');
     incomplete.push('actions[] (weapon / cantrip attacks \u2014 need equipment)');
     // Racial spells now arrive via the picker's emit (origin:'race') and fold into groups[].
     // Only flag when the race actually grants spells the picker hasn't captured yet.
@@ -173,6 +212,10 @@
       abilities: abilOut,
       combat: combat,
       saves: saveOut,
+      skills: skills,
+      proficiencies: proficiencies,
+      passivePerception: passivePerception,
+      passiveInsight: passiveInsight,
       features: features,
       spellcasting: spellcasting
     };
