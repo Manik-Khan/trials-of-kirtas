@@ -98,7 +98,7 @@ export function rollHitDie(faces, conMod, rng) {
 function esc(x) { return String(x == null ? '' : x).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;'); }
 function raf(fn) { (typeof requestAnimationFrame !== 'undefined' ? requestAnimationFrame : function (f) { f(); })(fn); }
 
-export function wireInspiration({ root, characterData, key } = {}) {
+export function wireInspiration({ root, characterData, key, depsReady } = {}) {
   root = root || (typeof document !== 'undefined' ? document : null);
   if (!root || !characterData) return null;
 
@@ -903,6 +903,7 @@ export function wireInspiration({ root, characterData, key } = {}) {
       bindSpellcasting(true);
       bindAttacks(true);
       bindActionEditor();
+      try { await (depsReady || Promise.resolve()); } catch (_) {}   // EquipSlots may be self-loading on rail/float hosts
       backfillInventory();
       bindEquip();
     } else {

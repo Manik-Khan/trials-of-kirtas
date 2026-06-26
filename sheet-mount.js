@@ -1086,6 +1086,40 @@ function wireSheetTabs(root){
   tabs.forEach(function(t){ t.addEventListener('click', function(){ activate(t.getAttribute('data-tab')); }); });
   activate('overview');
 }
+// The sheet reads two plain-script helpers off `window`: ArmorAC (live Armour
+// Class) and EquipSlots (the equipment paper-doll). sheet-v2.html loads them
+// statically, but the rail loader (characters-tab.js) and the combat float mount
+// the SAME sheet on pages that don't — so the sheet loads its own deps here and
+// "just works" wherever it's mounted, instead of every host page having to
+// remember the right <script> tags. Idempotent + cached: concurrent mounts share
+// one load, an already-present global short-circuits, a failed/blocked load still
+// resolves (the render degrades to the plain list rather than hanging).
+var __depPromise = null;
+function ensureDeps(doc){
+  var w = (typeof window!=='undefined') ? window : (typeof globalThis!=='undefined' ? globalThis : null);
+  if(!w) return Promise.resolve();
+  if(w.ArmorAC && w.EquipSlots) return Promise.resolve();
+  doc = doc || (typeof document!=='undefined' ? document : null);
+  if(!doc || !doc.createElement) return Promise.resolve();   // Node/jsdom-no-DOM: deps are eval'd in by the smoke
+  if(__depPromise) return __depPromise;
+  function loadScript(src){
+    return new Promise(function(res){
+      var done=false, fin=function(){ if(!done){ done=true; res(); } };
+      try{
+        if(doc.querySelector('script[src="'+src+'"]') || doc.querySelector('script[src$="/'+src+'"]')){ fin(); return; }
+        var s = doc.createElement('script'); s.src = src; s.async = false;
+        s.onload = fin; s.onerror = fin;
+        (doc.head || doc.body || doc.documentElement).appendChild(s);
+        setTimeout(fin, 4000);   // never hang the sheet if the script can't load — degrade to the plain list
+      }catch(_){ fin(); }
+    });
+  }
+  var jobs = [];
+  if(!w.ArmorAC)    jobs.push(loadScript('armor-ac.js'));
+  if(!w.EquipSlots) jobs.push(loadScript('equip-slots.js'));
+  __depPromise = Promise.all(jobs).then(function(){ return new Promise(function(r){ setTimeout(r, 0); }); });  // let the IIFEs register on window
+  return __depPromise;
+}
 function mountSheet(container, key, opts){
   opts = opts || {};
   var CD = opts.characterData || (typeof window!=='undefined' ? window.CharacterData : null);
@@ -1094,13 +1128,15 @@ function mountSheet(container, key, opts){
   container.innerHTML = SHEET_TEMPLATE;
   wireSheetTabs(container);
   if (!CD) { showError(container, 'CharacterData not loaded'); return { ready: Promise.resolve() }; }
-  var ready = CD.loadCharacter(key).then(function(cd){
+  var depsReady = ensureDeps(doc);   // armour-AC + equipment-slots, loaded once, shared with the controller below
+  var ready = depsReady.then(function(){ return CD.loadCharacter(key); }).then(function(cd){
     if(!cd){ showError(container, 'No character "'+key+'"'); return; }
     renderSheet(container, toRenderShape(cd));
     applyExtras(container, cd);
   }).catch(function(e){ console.error('[sheet] mount:', e); showError(container, (e&&e.message)?e.message:'Could not load character'); });
-  // inspiration write-affordance, scoped to this container (sheet-actions.js)
-  try { wireInspiration({ root: container, characterData: CD, key: key }); } catch(_){}
+  // inspiration + equipment write-affordances, scoped to this container (sheet-actions.js);
+  // depsReady lets the controller's slot backfill wait for EquipSlots so it never races the load.
+  try { wireInspiration({ root: container, characterData: CD, key: key, depsReady: depsReady }); } catch(_){}
   return { ready: ready };
 }
 
