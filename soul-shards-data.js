@@ -235,10 +235,25 @@
   // Same sources.json / index.json path as loadClassSpellList, but filtered by a name set instead
   // of a class. Lets the spell picker resolve racial / feat spells that aren't on the character's
   // own class list (e.g. a Tiefling Wizard's Hellish Rebuke) so they bucket by their real level.
+  function spellToItem(sp, withDetail) {
+    const item = { name: sp.name, level: sp.level, school: sp.school, source: sp.source };
+    if (withDetail) {
+      item.time = sp.time || null;
+      item.range = sp.range || null;
+      item.components = sp.components || null;
+      item.duration = sp.duration || null;
+      item.ritual = !!(sp.meta && sp.meta.ritual);
+      item.concentration = (sp.duration || []).some(d => d && d.concentration);
+      item.entries = sp.entries || [];
+      item.entriesHigherLevel = sp.entriesHigherLevel || null;
+    }
+    return item;
+  }
   async function loadSpellMeta(names, opts) {
     const wantNames = new Map();                 // lowercased -> kept (first wins)
     (names || []).forEach(n => { const k = String(n).toLowerCase(); if (!wantNames.has(k)) wantNames.set(k, n); });
     if (!wantNames.size) return [];
+    const withDetail = !!(opts && opts.detail);
     const [sources, idx] = await Promise.all([
       fetchJson('spells/sources.json'),
       fetchJson('spells/index.json'),
@@ -249,31 +264,32 @@
         if (wantNames.has(spellName.toLowerCase())) want.push({ name: spellName, spellSource });
       }
     }
+    const loaded = {};
     const files = [...new Set(want.map(w => w.spellSource))].filter(s => idx[s]);
-    const data = {};
-    await Promise.all(files.map(async s => { data[s] = await fetchJson(`spells/${idx[s]}`); }));
+    await Promise.all(files.map(async s => { loaded[s] = await fetchJson(`spells/${idx[s]}`); }));
     const out = [];
     const seen = new Set();
-    const withDetail = !!(opts && opts.detail);
     for (const w of want) {
       const key = w.name.toLowerCase();
       if (seen.has(key)) continue;               // first source carrying the name wins
-      const f = data[w.spellSource]; if (!f) continue;
+      const f = loaded[w.spellSource]; if (!f) continue;
       const sp = (f.spell || []).find(x => x.name === w.name && x.source === w.spellSource);
       if (!sp) continue;
       seen.add(key);
-      const item = { name: sp.name, level: sp.level, school: sp.school, source: sp.source };
-      if (withDetail) {
-        item.time = sp.time || null;
-        item.range = sp.range || null;
-        item.components = sp.components || null;
-        item.duration = sp.duration || null;
-        item.ritual = !!(sp.meta && sp.meta.ritual);
-        item.concentration = (sp.duration || []).some(d => d && d.concentration);
-        item.entries = sp.entries || [];
-        item.entriesHigherLevel = sp.entriesHigherLevel || null;
+      out.push(spellToItem(sp, withDetail));
+    }
+    // Fallback: names not in the aggregate sources.json (e.g. GGR / SCC setting-book spells
+    // a guild background expands to) — scan the remaining indexed source files by name.
+    const missing = [...wantNames.keys()].filter(k => !seen.has(k));
+    if (missing.length) {
+      const rest = Object.keys(idx).filter(s => !(s in loaded));
+      await Promise.all(rest.map(async s => { try { loaded[s] = await fetchJson(`spells/${idx[s]}`); } catch (e) { loaded[s] = { spell: [] }; } }));
+      for (const s of rest) {
+        for (const sp of (loaded[s].spell || [])) {
+          const k = sp.name.toLowerCase();
+          if (wantNames.has(k) && !seen.has(k)) { seen.add(k); out.push(spellToItem(sp, withDetail)); }
+        }
       }
-      out.push(item);
     }
     return out;
   }

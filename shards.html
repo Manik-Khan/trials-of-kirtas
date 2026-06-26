@@ -402,7 +402,7 @@
     --cream:#ece2cd; --cream-hi:#f9f3e6; --cream-dim:#c2b99f; --cream-fnt:#8d8675;
     --parchment:#e7dabe; --ink-parch:#241c11; --red:#cf3b2c; --red-br:#e0584a;
     --gold:#c79a4a; --gold-br:#e7c279;
-    --o-class:#e7c279; --o-subclass:#55c4c0; --o-race:#e0584a; --o-feat:#ab92dd;
+    --o-class:#e7c279; --o-subclass:#55c4c0; --o-race:#e0584a; --o-feat:#ab92dd; --o-bg:#8cbf72;
     --frame:rgba(199,154,74,.34); --hair:rgba(236,226,205,.13);
     --ui:'Oswald',sans-serif; --body:'EB Garamond',Georgia,serif; --disp:'Playfair Display',serif}
   .sp-stage::after{content:""; position:absolute; inset:0; pointer-events:none; mix-blend-mode:overlay; opacity:.07; background-size:130px 130px;
@@ -442,6 +442,7 @@
   .sp-stage .legend .l-class{background:var(--o-class)}
   .sp-stage .legend .l-sub{background:var(--o-subclass)}
   .sp-stage .legend .l-race{background:var(--o-race)}
+  .sp-stage .legend .l-bg{background:var(--o-bg)}
   .sp-stage .legend .l-flag-c{background:var(--o-subclass); transform:none}
   .sp-stage .legend .l-flag-r{background:var(--o-feat); transform:none}
 
@@ -480,6 +481,7 @@
   .sp-stage .sp-row.o-class .sp-tick{border-left-color:var(--o-class)}
   .sp-stage .sp-row.o-sub .sp-tick{border-left-color:var(--o-subclass)}
   .sp-stage .sp-row.o-race .sp-tick{border-left-color:var(--o-race)}
+  .sp-stage .sp-row.o-bg .sp-tick{border-left-color:var(--o-bg)}
   .sp-stage .sp-tick .dot{display:inline-block; width:14px; height:14px; border-radius:50%; border:1.6px solid var(--cream-fnt); background:transparent; vertical-align:-2px; filter:url(#rough)}
   .sp-stage .sp-row:hover .sp-tick .dot{border-color:var(--gold-br)}
   .sp-stage .sp-row.sel .sp-tick .dot{background:var(--gold-br); border-color:var(--gold-br)}
@@ -495,6 +497,9 @@
   .sp-stage .sp-info:hover{border-color:var(--gold-br); color:var(--gold-br)}
   .sp-stage .sp-info.open{background:var(--gold-br); color:var(--ground); border-color:var(--gold-br)}
   .sp-stage .gtag{font-family:var(--ui); font-size:9.5px; font-weight:600; letter-spacing:.08em; text-transform:uppercase; color:var(--o-race); margin-left:9px; vertical-align:1px}
+  .sp-stage .stag{font-family:var(--ui); font-size:9.5px; font-weight:600; letter-spacing:.08em; text-transform:uppercase; color:var(--o-bg); margin-left:9px; vertical-align:1px}
+  .sp-stage .sp-bgnote{font-family:var(--body); font-style:italic; color:var(--cream-fnt); font-size:13.5px; margin:9px 2px 2px; display:flex; align-items:baseline; gap:7px}
+  .sp-stage .sp-bgnote .k{color:var(--o-bg); font-style:normal; font-family:var(--ui); text-transform:uppercase; letter-spacing:.08em; font-size:10.5px; font-weight:600}
 
   /* hover tooltip */
   .sp-stage .sp-tip{position:absolute; left:0; top:calc(100% - 1px); z-index:30; width:344px; max-width:78vw; background:rgba(10,19,17,.97); border:1px solid var(--frame); border-top:2px solid var(--gold-br); box-shadow:0 16px 38px -18px #000; padding:10px 12px; display:none; cursor:default}
@@ -1429,6 +1434,10 @@ var SpeciesUI = (function () {
 // gone — class, level, subclass, abilities and race all come from the live draft.
 var SpellsUI = (function () {
   var _req = 0, _ent = null, _list = [], _detail = {}, _grants = [], _raceModel = null, _lvl = null;
+  // background "expanded" spells (Ravnica guild / Strixhaven school lists): names added to
+  // the pickable pool, plus a lookup for provenance tagging. _classSet gates the dedup so a
+  // guild spell already on your class list keeps class attribution.
+  var _bgSpells = [], _bgSet = {}, _classSet = {};
   var _openDetail = null, _query = '';
 
   var SCHOOL = { A:'Abjuration', C:'Conjuration', D:'Divination', E:'Enchantment', V:'Evocation', I:'Illusion', N:'Necromancy', T:'Transmutation', P:'Psionic' };
@@ -1505,6 +1514,21 @@ var SpellsUI = (function () {
     return out;
   }
   function loadGrantsFrom(race){ try { return parseGrants(collectAdditional(race), draft.level); } catch(e){ return []; } }
+  // background "expanded" refs ("encode thoughts|ggr#c") -> { key:lowercase-name, level }.
+  // s0 = cantrips, s1..s9 = that spell level. expanded = added to your list (pickable), not granted.
+  function collectBgExpanded(bg){
+    var out = [];
+    var blocks = bg && bg.additionalSpells ? (Array.isArray(bg.additionalSpells) ? bg.additionalSpells : [bg.additionalSpells]) : [];
+    blocks.forEach(function(blk){
+      var exp = blk.expanded || {};
+      Object.keys(exp).forEach(function(slot){
+        var lvl = parseInt(String(slot).replace(/^s/, ''), 10); if (isNaN(lvl)) return;
+        var refs = []; (function walk(n){ if (Array.isArray(n)) refs = refs.concat(n); else if (n && typeof n === 'object') Object.keys(n).forEach(function(k){ walk(n[k]); }); })(exp[slot]);
+        refs.forEach(function(r){ var nm = String(r).split('|')[0].split('#')[0].trim(); if (nm) out.push({ key: nm.toLowerCase(), level: lvl }); });
+      });
+    });
+    return out;
+  }
   // The ability a race casts its innate spells with — a fixed score (Yuan-Ti Pureblood = Cha)
   // or a choice (Yuan-Ti MPMM = Int/Wis/Cha). For a choice we default to the highest of the
   // allowed scores; the sheet's spell editor lets the player change it afterwards.
@@ -1546,26 +1570,41 @@ var SpellsUI = (function () {
     var c = chosenClass();
     if (!c || typeof SoulShardsData === 'undefined' || typeof SoulShardsEngine === 'undefined') return Promise.resolve(false);
     var my = ++_req;
-    return Promise.all([SoulShardsData.loadClass(c.n), raceForBuild()]).then(function(res){
+    return Promise.all([SoulShardsData.loadClass(c.n), raceForBuild(), draft.bg ? SoulShardsData.loadBackgrounds() : Promise.resolve(null)]).then(function(res){
       if (my !== _req) return false;
       var model = res[0]; _raceModel = res[1];
+      var bgObj = (res[2] && draft.bg) ? (res[2].filter(function(x){ return x.name === draft.bg.n && (!draft.bg.s || x.source === draft.bg.s); })[0] || res[2].filter(function(x){ return x.name === draft.bg.n; })[0]) : null;
+      var bgExp = collectBgExpanded(bgObj);
       var sub = (model.subclasses || []).find(function(s){ return draft.subclass && s.name === draft.subclass.n; });
       var b = SoulShardsEngine.build({ classModel: model, level: draft.level, abilities: effectiveAbilities(_raceModel), subclassShortName: sub ? sub.shortName : null, hp: draft.hp });
       _ent = entitlementFrom(b, c, _raceModel);
       _grants = loadGrantsFrom(_raceModel);
       return SoulShardsData.loadClassSpellList(_ent.listClass, { detail:true }).then(function(list){
         if (my !== _req) return false;
-        _list = list; _detail = {}; _list.forEach(function(s){ _detail[s.name] = s; });
-        // resolve each racial grant's TRUE spell level: cantrip -> 0; on class list -> _detail;
-        // off the class list -> loadSpellMeta (by name) so it buckets correctly + gets tap-to-read.
-        var needMeta = _grants.filter(function(g){ return g.kind !== 'cantrip' && !_detail[g.name]; }).map(function(g){ return g.name; });
-        return (needMeta.length ? SoulShardsData.loadSpellMeta(needMeta, { detail:true }) : Promise.resolve([])).then(function(metas){
+        _list = list; _detail = {}; _list.forEach(function(s){ s._prov = null; _detail[s.name] = s; });
+        _classSet = {}; _list.forEach(function(s){ _classSet[s.name.toLowerCase()] = true; });
+        _bgSpells = []; _bgSet = {};
+        // genuinely-expanded background spells: not on the class list, not a racial grant
+        var grantSet = {}; _grants.forEach(function(g){ grantSet[g.name.toLowerCase()] = true; });
+        var bgSeen = {}, bgNew = [];
+        bgExp.forEach(function(e){ if (_classSet[e.key] || grantSet[e.key] || bgSeen[e.key]) return; bgSeen[e.key] = 1; bgNew.push(e); });
+        // one meta load for off-list racial grants AND background-expanded spells
+        var needNames = _grants.filter(function(g){ return g.kind !== 'cantrip' && !_detail[g.name]; }).map(function(g){ return g.name; })
+          .concat(bgNew.map(function(e){ return e.key; }));
+        return (needNames.length ? SoulShardsData.loadSpellMeta(needNames, { detail:true }) : Promise.resolve([])).then(function(metas){
           if (my !== _req) return false;
           var byName = {}; (metas || []).forEach(function(m){ byName[m.name.toLowerCase()] = m; });
           _grants.forEach(function(g){
             if (g.kind === 'cantrip'){ g.level = 0; }
             else if (_detail[g.name]){ g.level = _detail[g.name].level; }
             else { var m = byName[g.name.toLowerCase()]; g.level = m ? m.level : null; if (m && !_detail[g.name]) _detail[g.name] = m; }
+          });
+          var bgName = (draft.bg && draft.bg.n) || 'Background';
+          bgNew.forEach(function(e){
+            var m = byName[e.key]; if (!m) return;                    // unknown spell -> skip rather than show a ghost row
+            if (!_detail[m.name]){ m._prov = 'bg'; m._src = bgName; _detail[m.name] = m; _list.push(m); }
+            _bgSet[m.name.toLowerCase()] = bgName;
+            _bgSpells.push({ name: m.name, level: (m.level != null ? m.level : e.level), src: bgName });
           });
           return true;
         });
@@ -1614,6 +1653,7 @@ var SpellsUI = (function () {
       '<div class="legend">' +
         '<span><i class="' + (e.viaSub?'l-sub':'l-class') + '"></i>' + (e.viaSub?'Subclass list':'Class list') + '</span>' +
         (_grants.length ? '<span><i class="l-race"></i>Racial</span>' : '') +
+        (_bgSpells.length ? '<span><i class="l-bg"></i>' + esc((draft.bg && draft.bg.n ? draft.bg.n.split(/\s+/)[0] : 'Background')) + '</span>' : '') +
         '<span><i class="l-flag-c"></i>Concentration</span>' +
         '<span><i class="l-flag-r"></i>Ritual</span>' +
       '</div>' +
@@ -1668,11 +1708,13 @@ var SpellsUI = (function () {
     var dd = _detail[s.name];
     var d = (_openDetail && _openDetail.name === s.name && _openDetail.attr === o.attr);
     var info = dd ? '<button class="sp-info' + (d?' open':'') + '" data-detail="' + esc(s.name) + '" data-dattr="' + o.attr + '">i</button>' : '';
-    var cls = 'sp-row ' + o.oclass + (o.on?' sel':'') + (o.have?' have dim':(o.capped?' dim':''));
+    var oclass = s._prov === 'bg' ? 'o-bg' : o.oclass;
+    var cls = 'sp-row ' + oclass + (o.on?' sel':'') + (o.have?' have dim':(o.capped?' dim':''));
     var pa = o.have ? '' : ' data-pick="' + esc(s.name) + '" data-attr="' + o.attr + '"';
+    var mark = (s._prov === 'bg' && !o.have) ? '<span class="stag">' + esc(String(s._src || '').split(/\s+/)[0]) + '</span>' : '';
     return '<tr class="' + cls + '"' + pa + '>' +
         '<td class="sp-tick"><span class="dot"></span></td>' +
-        '<td class="sp-name">' + esc(s.name) + (o.have?'<span class="gtag">'+esc(o.haveTag)+'</span>':'') + (dd?tipFor(s):'') + '</td>' +
+        '<td class="sp-name">' + esc(s.name) + (o.have?'<span class="gtag">'+esc(o.haveTag)+'</span>':'') + mark + (dd?tipFor(s):'') + '</td>' +
         '<td class="sp-school">' + esc(SCHOOL[s.school]||s.school||'') + '</td>' +
         '<td class="sp-flagcell">' + flagsFor(s) + '</td>' +
         '<td class="sp-icell">' + info + '</td>' +
@@ -1736,6 +1778,7 @@ var SpellsUI = (function () {
         html += (book.length ? spellTable(book, 'prepared', oc, granted) : '<div class="muted" style="padding:6px 2px">\u2014 add spells to your book above \u2014</div>');
       }
     }
+    if (_bgSpells.some(function(s){ return s.level === _lvl; })) html += '<div class="sp-bgnote"><span class="k">' + esc((draft.bg && draft.bg.n) || 'Background') + '</span> expands your list \u2014 picked within your normal limit.</div>';
     if (_openDetail && _openDetail.attr !== 'grant' && _detail[_openDetail.name] && _detail[_openDetail.name].level === _lvl){
       html += detailCard(_detail[_openDetail.name], oc);
     }
@@ -1786,9 +1829,10 @@ var SpellsUI = (function () {
     // racial grants FIRST so race attribution wins a collision with a class pick
     var rabil = racialAbility();
     _grants.forEach(function(g){ add(g.name, 'race', raceName(), (g.kind === 'cantrip' || g.level === 0) ? 'cantrip' : (g.level != null ? g.level : null), timeOf(g.name), rabil); });
-    p.cantrips.forEach(function(n){ add(n, origin, src, 'cantrip', timeOf(n), _ent.ability); });
+    var isBgExp = function(n){ var k = n.toLowerCase(); return _bgSet[k] && !_classSet[k]; };
+    p.cantrips.forEach(function(n){ var x = isBgExp(n); add(n, x?'expanded':origin, x?_bgSet[n.toLowerCase()]:src, 'cantrip', timeOf(n), _ent.ability); });
     var loadout = _ent.mode === 'known' ? p.known : p.prepared;   // the castable list (Wizard prepares FROM the book)
-    loadout.forEach(function(n){ add(n, origin, src, lvlOf(n), timeOf(n), _ent.ability); });
+    loadout.forEach(function(n){ var x = isBgExp(n); add(n, x?'expanded':origin, x?_bgSet[n.toLowerCase()]:src, lvlOf(n), timeOf(n), _ent.ability); });
     var book = [];
     if (_ent.mode === 'spellbook') p.spellbook.forEach(function(n){ book.push({ name:n, level:lvlOf(n), origin:'class', source:_ent.cls }); });
     return { spells: out, spellbook: book };
@@ -2230,7 +2274,14 @@ var PROF_TOOL_POOL = ["Thieves' Tools","Disguise Kit","Forgery Kit","Herbalism K
 
 // lowercase 5etools skill key -> canonical name (the derive matches canonical names)
 function normSkillName(n){ var k = String(n == null ? '' : n).toLowerCase(); return PROF_SKILL_KEY[k] || String(n == null ? '' : n).replace(/\b\w/g, function(c){ return c.toUpperCase(); }); }
-function cleanProfName(s){ return String(s == null ? '' : s).replace(/^./, function(c){ return c.toUpperCase(); }); }
+// strip 5etools {@item name|SOURCE|display} markup, then case it: short tool/category
+// names -> Title Case ("thieves' tools" -> "Thieves' Tools"); descriptive phrases
+// ("one type of artisan's tools of your choice") stay sentence case.
+function cleanProfName(s){
+  s = String(s == null ? '' : s).replace(/\{@\w+\s+([^}]*)\}/g, function(_, body){ var p = body.split('|'); return (p.length >= 3 && p[2]) ? p[2] : p[0]; }).trim();
+  if (s.split(/\s+/).length <= 3 && !/\b(of|choice|one)\b/i.test(s)) return s.split(/\s+/).map(function(w){ return w.replace(/^./, function(c){ return c.toUpperCase(); }); }).join(' ');
+  return s.replace(/^./, function(c){ return c.toUpperCase(); });
+}
 function countGrants(p){ p = p || {}; return ((p.fixed || []).length) + (p.anyCount || 0) + ((p.choose || []).length); }
 
 // raw class/race/bg proficiency data + bgCustom -> resolved model:
