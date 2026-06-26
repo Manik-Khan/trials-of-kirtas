@@ -388,21 +388,48 @@ function deriveActionMods(a, s){
 }
 function actionGroup(t){ return (t==='attack'||t==='attack-cantrip')?'attack':(t==='damage-only'?'damage':'utility'); }
 function dmgFrag(dice, dmgMod, type){ if(!dice) return ''; return '<b>'+esc(dice)+(dmgMod?(dmgMod>=0?'+':'')+dmgMod:'')+'</b> '+esc(type||''); }
+// base damage plus any editor-added extra components (flat dice), e.g. "1d8+1 Slashing + 1d8 Fire"
+function dmgFullFrag(a, dmgMod){
+  var s=dmgFrag(a.dmgDice, dmgMod, a.dmgType);
+  (a.extraDamage||[]).forEach(function(c){ if(c && c.dice) s+=(s?' <span class="ac-plus">+</span> ':'')+dmgFrag(c.dice, (+c.bonus||0), c.type); });
+  return s;
+}
+var AE_PENCIL='<svg viewBox="0 0 24 24" fill="none"><path d="M4 20h4L18.5 9.5a2.12 2.12 0 0 0-3-3L5 17v3z" stroke-width="1.7" stroke-linejoin="round"/></svg>';
+var AE_EYE='<svg viewBox="0 0 24 24" fill="none"><path d="M2 12s3.5-7 10-7 10 7 10 7-3.5 7-10 7-10-7-10-7z" stroke-width="1.6"/><circle cx="12" cy="12" r="2.6" stroke-width="1.6"/></svg>';
+var AE_EYEOFF='<svg viewBox="0 0 24 24" fill="none"><path d="M4 4l16 16" stroke-width="1.6"/><path d="M2 12s3.5-7 10-7c2 0 3.7.6 5.1 1.5M22 12s-3.5 7-10 7c-2 0-3.7-.6-5.1-1.5" stroke-width="1.6"/></svg>';
+// inner HTML of a row's meta line (also used by the editor's live preview)
+function actionMetaInner(a, s){
+  var g=actionGroup(a.type), m=deriveActionMods(a, s);
+  if(g==='utility') return esc(a.note||'');
+  if(g==='damage') return dmgFullFrag(a, m.dmgMod);
+  return (m.abil?'<span class="ac-abil">'+esc(m.abil)+'</span> \u00B7 ':'')+'to hit <b>'+(m.hitMod>=0?'+':'')+m.hitMod+'</b> \u00B7 dmg '+dmgFullFrag(a, m.dmgMod);
+}
 function actionRowHTML(a, s){
-  a=a||{}; var g=actionGroup(a.type), m=deriveActionMods(a, s), meta;
-  if(g==='utility') meta='<div class="ac-note">'+esc(a.note||'')+'</div>';
-  else if(g==='damage') meta='<div class="ac-meta">'+dmgFrag(a.dmgDice, m.dmgMod, a.dmgType)+'</div>';
-  else meta='<div class="ac-meta">'+(m.abil?'<span class="ac-abil">'+esc(m.abil)+'</span> \u00B7 ':'')+'to hit <b>'+(m.hitMod>=0?'+':'')+m.hitMod+'</b> \u00B7 dmg '+dmgFrag(a.dmgDice, m.dmgMod, a.dmgType)+'</div>';
-  return '<div class="act '+g+'" data-act="'+esc(a.id||a.label||'')+'"'+(g==='utility'?'':' tabindex="0" role="button"')+'>'
-       + '<div class="ac-main"><div class="ac-n">'+esc(a.label||'')+'</div>'+meta+'</div>'
-       + (g==='utility'?'':'<span class="ac-go">roll</span>')+'</div>';
+  a=a||{}; var g=actionGroup(a.type);
+  var meta=(g==='utility')?'<div class="ac-note">'+actionMetaInner(a,s)+'</div>':'<div class="ac-meta">'+actionMetaInner(a,s)+'</div>';
+  var id=esc(a.id||a.label||'');
+  var badge=a._edited?'<span class="ac-edited">edited</span>':'';
+  // per-row editor tools (CSS-hidden until the section is in edit mode); not on utility rows
+  var tools=(g==='utility')?'' :
+    '<div class="ac-tools">'
+    + '<button type="button" class="ac-tool ac-pencil" data-act-edit="'+id+'" aria-label="Customize action">'+AE_PENCIL+'</button>'
+    + '<button type="button" class="ac-tool ac-eye'+(a._hidden?' on':'')+'" data-act-hide="'+id+'" aria-label="'+(a._hidden?'Un-hide action':'Hide action')+'">'+(a._hidden?AE_EYEOFF:AE_EYE)+'</button>'
+    + '</div>';
+  return '<div class="act '+g+(a._hidden?' is-hidden':'')+(a._edited?' edited':'')+'" data-act="'+id+'"'+(g==='utility'?'':' tabindex="0" role="button"')+'>'
+       + '<div class="ac-main"><div class="ac-n">'+esc(a.label||'')+badge+'</div>'+meta+'</div>'
+       + (g==='utility'?'':'<span class="ac-go">roll</span>')
+       + tools
+       + '</div>';
 }
 function renderActions(root, s, inventory){
   root=root||document; s=s||{};
+  ensureActionEditorStyle(root.ownerDocument || (typeof document!=='undefined'?document:null));
   var sec=root.querySelector('[data-sec="actions"]'), host=root.querySelector('[data-list="actions"]');
   // weapon + weapon-cantrip attacks derive live from carried weapons; structural.actions
   // holds the rest. assembleActions is the single source the click handler shares.
-  var list=assembleActions(inventory, s);
+  // includeHidden:true keeps editor-hidden rows in the DOM (greyed, CSS-hidden until edit
+  // mode) so they can be un-hidden; the rolling path uses the default (hidden dropped).
+  var list=assembleActions(inventory, s, { includeHidden:true });
   if(sec) sec.style.display = list.length ? '' : 'none';
   if(!host) return;
   var groups=[['attack','Attacks'],['damage','Bonus damage'],['utility','Utility']];
@@ -414,16 +441,27 @@ function renderActions(root, s, inventory){
 }
 function ordModStr(n){ return n>=0?'+'+n:''+n; }
 function d20CardHTML(d){ d=d||{}; var kept='<span class="rcd-die'+(d.isCrit?' nat20':(d.isFumble?' nat1':''))+'">'+d.kept+'</span>'; return d.twin?kept+'<span class="rcd-die drop">'+d.dropped+'</span>':kept; }
+// one result-card damage line per typed component (the editor's multi-type stack)
+function dmgPartsHTML(parts, crit){
+  return (parts||[]).map(function(p){
+    var lab = p.type ? esc(p.type) : (crit?'Crit dmg':'Damage');
+    return '<div class="rcd-line"><span class="rcd-lab">'+lab+'</span><span class="rcd-expr">['+(p.rolls||[]).join('][')+']'+(p.mod?' '+ordModStr(p.mod):'')+'</span><span class="rcd-tot dmg">'+p.total+'</span></div>';
+  }).join('');
+}
 function actionResultHTML(r, latest){
   var inner;
   if(r.kind==='utility') inner='<div class="rcd-n">'+esc(r.name)+'</div><div class="rcd-note">'+esc(r.main||'')+'</div>';
   else if(r.kind==='check') inner='<div class="rcd-n">'+esc(r.name)+'</div><div class="rcd-line"><span class="rcd-lab">Roll</span><span class="rcd-expr">'+d20CardHTML(r.d20)+' '+ordModStr(r.mod||0)+(r.bless?' +'+r.bless+'\uD83D\uDE4F':'')+'</span><span class="rcd-tot">'+r.total+'</span></div>';
-  else if(r.kind==='damage') inner='<div class="rcd-n">'+esc(r.name)+'</div><div class="rcd-line"><span class="rcd-lab">Damage</span><span class="rcd-expr">['+(r.dmgRolls||[]).join('][')+']'+(r.dmgMod?' '+ordModStr(r.dmgMod):'')+'</span><span class="rcd-tot dmg">'+r.dmgTotal+'</span></div><div class="rcd-type">'+esc(r.dmgType||'')+'</div>';
+  else if(r.kind==='damage'){
+    inner='<div class="rcd-n">'+esc(r.name)+'</div>';
+    if(r.dmgParts && r.dmgParts.length) inner+=dmgPartsHTML(r.dmgParts, false);
+    else inner+='<div class="rcd-line"><span class="rcd-lab">Damage</span><span class="rcd-expr">['+(r.dmgRolls||[]).join('][')+']'+(r.dmgMod?' '+ordModStr(r.dmgMod):'')+'</span><span class="rcd-tot dmg">'+r.dmgTotal+'</span></div><div class="rcd-type">'+esc(r.dmgType||'')+'</div>';
+  }
   else { var flag=r.isCrit?'<span class="rcd-flag crit">\u2605 Crit</span>':(r.isFumble?'<span class="rcd-flag miss">\u2717 Nat 1</span>':'');
     inner='<div class="rcd-n">'+esc(r.name)+flag+'</div>'
-      + '<div class="rcd-line"><span class="rcd-lab">To hit</span><span class="rcd-expr">'+d20CardHTML(r.d20)+' '+ordModStr(r.hitMod||0)+(r.bless?' +'+r.bless+'\uD83D\uDE4F':'')+'</span><span class="rcd-tot">'+r.total+'</span></div>'
-      + '<div class="rcd-line"><span class="rcd-lab">'+(r.isCrit?'Crit dmg':'Damage')+'</span><span class="rcd-expr">['+(r.dmgRolls||[]).join('][')+']'+(r.dmgMod?' '+ordModStr(r.dmgMod):'')+'</span><span class="rcd-tot dmg">'+r.dmgTotal+'</span></div>'
-      + '<div class="rcd-type">'+esc(r.dmgType||'')+'</div>';
+      + '<div class="rcd-line"><span class="rcd-lab">To hit</span><span class="rcd-expr">'+d20CardHTML(r.d20)+' '+ordModStr(r.hitMod||0)+(r.bless?' +'+r.bless+'\uD83D\uDE4F':'')+'</span><span class="rcd-tot">'+r.total+'</span></div>';
+    if(r.dmgParts && r.dmgParts.length) inner+=dmgPartsHTML(r.dmgParts, r.isCrit);
+    else inner+='<div class="rcd-line"><span class="rcd-lab">'+(r.isCrit?'Crit dmg':'Damage')+'</span><span class="rcd-expr">['+(r.dmgRolls||[]).join('][')+']'+(r.dmgMod?' '+ordModStr(r.dmgMod):'')+'</span><span class="rcd-tot dmg">'+r.dmgTotal+'</span></div><div class="rcd-type">'+esc(r.dmgType||'')+'</div>';
   }
   return '<div class="rcard'+(latest?' latest':'')+'">'+inner+'</div>';
 }
@@ -530,6 +568,72 @@ function ensureDefs(doc){
   doc = doc || (typeof document!=='undefined'?document:null); if(!doc) return;
   if (doc.getElementById('rough')) return;
   (doc.body || doc.documentElement).insertAdjacentHTML('beforeend', SHEET_DEFS);
+}
+// Action-editor styles, injected once per document (mirrors ensureDefs) so the editor
+// ships self-contained no matter which host the sheet mounts into. Scoped under
+// .tok-sheet; palette matches the v11 Metaphor sheet.
+var AE_CSS = `<style id="tok-ae-css">
+.tok-sheet .act-edit-btn{display:none;margin-left:auto;font:600 11px/1 'Oswald',sans-serif;letter-spacing:1px;text-transform:uppercase;color:#e7c279;background:rgba(199,154,74,.10);border:1px solid #c79a4a;border-radius:999px;padding:5px 12px;cursor:pointer;transition:background .15s,color .15s}
+.tok-sheet [data-sec="actions"].can-edit .act-edit-btn{display:inline-block}
+.tok-sheet [data-sec="actions"].can-edit .sectitle .hint{display:none}
+.tok-sheet .act-edit-btn.on{background:#c79a4a;color:#241a08}
+.tok-sheet .ac-tools{display:none;align-items:center;gap:4px;margin-left:8px}
+.tok-sheet .actionlist.editing .ac-tools{display:flex}
+.tok-sheet .actionlist.editing .act{cursor:default}
+.tok-sheet .actionlist.editing .act .ac-go{display:none}
+.tok-sheet .ac-tool{width:30px;height:30px;border-radius:7px;border:1px solid #3a564f;background:rgba(255,255,255,.03);cursor:pointer;display:flex;align-items:center;justify-content:center;padding:0;transition:border-color .15s,background .15s}
+.tok-sheet .ac-tool svg{width:14px;height:14px}
+.tok-sheet .ac-tool svg path,.tok-sheet .ac-tool svg circle{stroke:#b9b0a0}
+.tok-sheet .ac-tool:hover{border-color:#c79a4a}
+.tok-sheet .ac-tool.on{border-color:#c79a4a;background:rgba(199,154,74,.12)}
+.tok-sheet .ac-tool.on svg path,.tok-sheet .ac-tool.on svg circle{stroke:#e7c279}
+.tok-sheet .act.is-hidden{display:none}
+.tok-sheet .actionlist.editing .act.is-hidden{display:flex;opacity:.42}
+.tok-sheet .actionlist.editing .act.is-hidden .ac-n{text-decoration:line-through;text-decoration-color:#cf3b2c}
+.tok-sheet .act.edited{border-left:3px solid #55c4c0}
+.tok-sheet .ac-edited{font:600 9px/1 'Oswald',sans-serif;letter-spacing:.7px;text-transform:uppercase;color:#55c4c0;border:1px solid #55c4c0;border-radius:4px;padding:2px 5px;margin-left:7px;vertical-align:1px}
+.tok-sheet .ac-plus{color:#b9b0a0;opacity:.7}
+.tok-sheet .ae-editor{margin:-2px 0 8px;border:1px solid #c79a4a;border-top:none;border-radius:0 0 10px 10px;background:linear-gradient(180deg,rgba(199,154,74,.06),rgba(0,0,0,.12));padding:13px 12px 12px}
+.tok-sheet .ae-grid{display:grid;grid-template-columns:1fr 1fr;gap:9px 11px}
+.tok-sheet .ae-f{display:flex;flex-direction:column;gap:4px}
+.tok-sheet .ae-f.wide{grid-column:1/-1}
+.tok-sheet .ae-f label{font:500 10px/1 'Oswald',sans-serif;letter-spacing:1px;text-transform:uppercase;color:#b9b0a0}
+.tok-sheet .ae-f input[type=text],.tok-sheet .ae-f input[type=number],.tok-sheet .ae-f select{background:#10201e;border:1px solid #3a564f;border-radius:7px;color:#ece2cd;font:15px 'EB Garamond',serif;padding:7px 8px;width:100%}
+.tok-sheet .ae-f input:focus,.tok-sheet .ae-f select:focus{outline:none;border-color:#c79a4a}
+.tok-sheet .ae-f.check{flex-direction:row;align-items:center;gap:8px;padding-top:17px}
+.tok-sheet .ae-f.check input{width:18px;height:18px;accent-color:#c79a4a}
+.tok-sheet .ae-f.check label{letter-spacing:.6px}
+.tok-sheet .ae-dmg{grid-column:1/-1;border:1px solid #3a564f;border-radius:9px;padding:9px 9px 10px;background:rgba(0,0,0,.12)}
+.tok-sheet .ae-dmg-h{display:flex;align-items:center;gap:8px;font:500 10px/1 'Oswald',sans-serif;letter-spacing:1px;text-transform:uppercase;color:#b9b0a0;margin-bottom:7px}
+.tok-sheet .ae-dmg-h .ln{flex:1;height:1px;background:#3a564f}
+.tok-sheet .ae-dhdr{display:grid;grid-template-columns:70px 54px 1fr auto;gap:6px}
+.tok-sheet .ae-dhdr span{font:500 9px/1 'Oswald',sans-serif;letter-spacing:.7px;text-transform:uppercase;color:#b9b0a0}
+.tok-sheet .ae-drow{display:grid;grid-template-columns:70px 54px 1fr auto;gap:6px;align-items:center;margin:6px 0}
+.tok-sheet .ae-drow input{background:#10201e;border:1px solid #3a564f;border-radius:7px;color:#ece2cd;font:15px 'EB Garamond',serif;padding:6px 7px;width:100%}
+.tok-sheet .ae-drow input:focus{outline:none;border-color:#c79a4a}
+.tok-sheet .ae-tag{font:500 9px/1 'Oswald',sans-serif;letter-spacing:.4px;text-transform:uppercase;color:#55c4c0;border:1px solid #55c4c0;border-radius:5px;padding:5px 6px;white-space:nowrap}
+.tok-sheet .ae-del{width:30px;height:30px;border-radius:7px;border:1px solid #3a564f;background:rgba(255,255,255,.03);cursor:pointer;display:flex;align-items:center;justify-content:center;padding:0;transition:all .14s}
+.tok-sheet .ae-del svg{width:13px;height:13px}
+.tok-sheet .ae-del svg path{stroke:#b9b0a0}
+.tok-sheet .ae-del:hover{border-color:#cf3b2c}.tok-sheet .ae-del:hover svg path{stroke:#cf3b2c}
+.tok-sheet .ae-del.armed{width:auto;padding:0 10px;border-color:#cf3b2c;background:rgba(207,59,44,.16);color:#cf3b2c;font:500 10px/1 'Oswald',sans-serif;letter-spacing:.7px;text-transform:uppercase}
+.tok-sheet .ae-add{margin-top:8px;width:100%;font:500 11px/1 'Oswald',sans-serif;letter-spacing:.8px;text-transform:uppercase;color:#e7c279;background:rgba(199,154,74,.08);border:1px dashed #c79a4a;border-radius:8px;padding:8px;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:6px}
+.tok-sheet .ae-add:hover{background:rgba(199,154,74,.16)}
+.tok-sheet .ae-add svg{width:13px;height:13px}.tok-sheet .ae-add svg path{stroke:#e7c279}
+.tok-sheet .ae-pv{grid-column:1/-1;margin-top:2px;padding:8px 10px;border-radius:8px;background:#10201e;border:1px dashed #3a564f;font:14px 'EB Garamond',serif;color:#b9b0a0;line-height:1.4}
+.tok-sheet .ae-pv .pvn{font-weight:500;color:#ece2cd}
+.tok-sheet .ae-pv b{color:#ece2cd;font-weight:500}.tok-sheet .ae-pv .ac-abil{color:#55c4c0}
+.tok-sheet .ae-act{display:flex;gap:7px;margin-top:12px;align-items:center}
+.tok-sheet .ae-act .sp{flex:1}
+.tok-sheet .ae-btn{font:600 12px/1 'Oswald',sans-serif;letter-spacing:.8px;text-transform:uppercase;border-radius:8px;padding:8px 14px;cursor:pointer;border:1px solid #3a564f;background:transparent;color:#ece2cd}
+.tok-sheet .ae-btn.save{background:#c79a4a;border-color:#c79a4a;color:#241a08}
+.tok-sheet .ae-btn.reset{color:#b9b0a0}.tok-sheet .ae-btn.reset:hover{color:#cf3b2c;border-color:#cf3b2c}
+.tok-sheet .ae-btn.danger{color:#cf3b2c;border-color:rgba(207,59,44,.5)}.tok-sheet .ae-btn.danger:hover{background:rgba(207,59,44,.12)}
+</style>`;
+function ensureActionEditorStyle(doc){
+  doc = doc || (typeof document!=='undefined'?document:null); if(!doc) return;
+  if (doc.getElementById('tok-ae-css')) return;
+  (doc.head || doc.body || doc.documentElement).insertAdjacentHTML('beforeend', AE_CSS);
 }
 
 // ── the reusable sheet body markup (stamped into the mount container) ──
@@ -753,7 +857,7 @@ var SHEET_TEMPLATE = `<main class="tok-sheet">
 
       <!-- ACTIONS -->
       <div class="block" data-sec="actions">
-        <div class="sectitle"><span class="swashwrap"><h2>Actions</h2></span><span class="tail"></span><span class="hint">tap to roll</span></div>
+        <div class="sectitle"><span class="swashwrap"><h2>Actions</h2></span><span class="tail"></span><button class="act-edit-btn" type="button" data-action-edit>Edit</button><span class="hint">tap to roll</span></div>
         <div class="panelbox">
           <div class="roll-mods" data-roll-mods>
             <button class="rmod" type="button" data-rmod="advantage">Advantage</button>
@@ -886,7 +990,7 @@ function mountSheet(container, key, opts){
 
 if (typeof window !== 'undefined') {
   window.mountSheet = mountSheet;
-  window.__sheet = { renderSheet: renderSheet, toRenderShape: toRenderShape, renderEquipment: renderEquipment, renderStory: renderStory, wireSheetTabs: wireSheetTabs, buildSpellcasting: buildSpellcasting, slotPoolsLive: slotPoolsLive, buildResources: buildResources, renderResources: renderResources, renderTrackers: renderTrackers, trackerSpecs: trackerSpecs, renderConcentration: renderConcentration, renderActions: renderActions, renderActionResult: renderActionResult, deriveActionMods: deriveActionMods, renderHitDice: renderHitDice, applyExtras: applyExtras, mountSheet: mountSheet };
+  window.__sheet = { renderSheet: renderSheet, toRenderShape: toRenderShape, renderEquipment: renderEquipment, renderStory: renderStory, wireSheetTabs: wireSheetTabs, buildSpellcasting: buildSpellcasting, slotPoolsLive: slotPoolsLive, buildResources: buildResources, renderResources: renderResources, renderTrackers: renderTrackers, trackerSpecs: trackerSpecs, renderConcentration: renderConcentration, renderActions: renderActions, actionMeta: actionMetaInner, renderActionResult: renderActionResult, deriveActionMods: deriveActionMods, renderHitDice: renderHitDice, applyExtras: applyExtras, mountSheet: mountSheet };
 }
 
 export { mountSheet };

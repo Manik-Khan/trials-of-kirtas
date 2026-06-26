@@ -56,6 +56,26 @@
     return { val: b, str: ' +' + b + emoji };
   }
 
+  // "NdM" -> "(2N)dM", for crit-doubling a damage component's dice.
+  function doubleDice(s) { var m = String(s).match(/(\d+)d(\d+)/); return m ? (2 * parseInt(m[1], 10)) + 'd' + m[2] : s; }
+  // Roll the action's EXTRA damage components (the editor's multi-type damage stack:
+  // Divine Strike fire, a booming-blade thunder rider, …). Each is flat dice + bonus
+  // with its own type, rolled separately so resistances apply per type; doubled on a
+  // crit like every other damage die. Returns the structured parts plus the feed-string
+  // fragment to append after the base damage. No-op (empty) when there are no extras, so
+  // the HUD / normal rolls are byte-for-byte unchanged.
+  function rollExtraParts(action, isCrit) {
+    var parts = [], str = '', ex = action && action.extraDamage;
+    if (!ex || !ex.length) return { parts: parts, str: str };
+    for (var i = 0; i < ex.length; i++) {
+      var c = ex[i]; if (!c || !c.dice) continue;
+      var dd = rollDice(isCrit ? doubleDice(c.dice) : c.dice, c.bonus || 0);
+      parts.push({ dice: c.dice, rolls: dd.rolls, total: dd.total, mod: c.bonus || 0, type: c.type || '' });
+      str += ' \u00B7 [' + dd.rolls.join('][') + ']' + (c.bonus ? ' ' + modStr(c.bonus) : '') + ' = <strong>' + dd.total + '</strong> ' + (c.type || '');
+    }
+    return { parts: parts, str: str };
+  }
+
   // Roll a whole action. Mirrors battle.js rollActionFull exactly.
   function rollAction(action, opts) {
     opts = opts || {};
@@ -66,10 +86,13 @@
     if (action.type === 'damage-only') {
       if (!action.dmgDice) return { name: action.label, kind: 'damage', main: 'No dice', detail: action.note || '' };
       var d = rollDice(action.dmgDice, action.dmgMod || 0);
-      return { name: action.label, kind: 'damage',
+      var exD = rollExtraParts(action, false);
+      var resD = { name: action.label, kind: 'damage',
                dmgRolls: d.rolls, dmgTotal: d.total, dmgMod: action.dmgMod || 0, dmgType: action.dmgType || '',
-               main: 'Dmg: [' + d.rolls.join('][') + ']' + (action.dmgMod ? ' ' + modStr(action.dmgMod) : '') + ' = <span class="b-rh-total">' + d.total + '</span>',
+               main: 'Dmg: [' + d.rolls.join('][') + ']' + (action.dmgMod ? ' ' + modStr(action.dmgMod) : '') + ' = <span class="b-rh-total">' + d.total + '</span>' + exD.str,
                detail: action.dmgDice + (action.dmgMod ? ' ' + modStr(action.dmgMod) : '') + ' ' + (action.dmgType || '') };
+      if (exD.parts.length) resD.dmgParts = [{ dice: action.dmgDice, rolls: d.rolls, total: d.total, mod: action.dmgMod || 0, type: action.dmgType || '' }].concat(exD.parts);
+      return resD;
     }
     // attack / attack-cantrip
     var roll = rollD20(opts), bless = bonus(opts.bless, '\uD83D\uDE4F');
@@ -77,14 +100,17 @@
     var total = roll.kept + hitMod + bless.val;
     var isCrit = roll.isCrit;
     var dmg = rollDice(isCrit ? (action.critDice || action.dmgDice) : action.dmgDice, action.dmgMod || 0);
+    var exA = rollExtraParts(action, isCrit);
     var critStr = isCrit ? '<span class="b-rh-crit">\u2605 CRIT</span>'
                 : (roll.isFumble ? '<span class="b-rh-fumble">\u2717 MISS</span>' : '');
-    return { name: action.label, kind: 'attack',
+    var resA = { name: action.label, kind: 'attack',
              d20: roll, hitMod: hitMod, bless: bless.val, total: total, isCrit: isCrit, isFumble: roll.isFumble,
              dmgRolls: dmg.rolls, dmgTotal: dmg.total, dmgMod: action.dmgMod || 0, dmgType: action.dmgType || '',
              main: fmtD20(roll) + ' ' + modStr(hitMod) + bless.str + ' = <span class="b-rh-total">' + total + '</span> ' + critStr,
              detail: 'd20:' + roll.kept + (roll.label ? ' (' + roll.label + ')' : '') + (action.note ? ' \u00B7 ' + action.note : ''),
-             dmg: (isCrit ? '\u2605 Crit dmg' : 'Dmg') + ': [' + dmg.rolls.join('][') + ']' + (action.dmgMod ? ' ' + modStr(action.dmgMod) : '') + ' = <strong>' + dmg.total + '</strong> ' + (action.dmgType || '') };
+             dmg: (isCrit ? '\u2605 Crit dmg' : 'Dmg') + ': [' + dmg.rolls.join('][') + ']' + (action.dmgMod ? ' ' + modStr(action.dmgMod) : '') + ' = <strong>' + dmg.total + '</strong> ' + (action.dmgType || '') + exA.str };
+    if (exA.parts.length) resA.dmgParts = [{ dice: action.dmgDice, rolls: dmg.rolls, total: dmg.total, mod: action.dmgMod || 0, type: action.dmgType || '' }].concat(exA.parts);
+    return resA;
   }
 
   // A flat d20 check — ability checks, saving throws, skills, initiative. Same d20

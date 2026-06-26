@@ -194,10 +194,36 @@ export function buildCantripAttacks(inventory, structural) {
 // MUST build their list the same way, or a painted row whose id the clicker can't
 // resolve silently no-ops. This is the single source of truth both call. Order:
 // weapon attacks, then weapon-cantrip attacks, then structural.actions (feature /
-// cantrip / manual). When the action editor lands, its overrides apply HERE.
-export function assembleActions(inventory, structural) {
+// cantrip / manual). Then the action editor's overrides apply HERE.
+//   opts.includeHidden — keep hidden actions (tagged _hidden:true) instead of dropping
+//   them, so the editor can show them greyed for un-hiding. The default (rolling /
+//   normal render) drops them.
+export function assembleActions(inventory, structural, opts) {
   structural = structural || {};
-  return buildWeaponActions(inventory, structural)
+  var list = buildWeaponActions(inventory, structural)
     .concat(buildCantripAttacks(inventory, structural))
     .concat(structural.actions || []);
+  return applyActionOverrides(list, structural, opts);
+}
+
+// Fields the editor can override on an action. `extraDamage` (an array of flat
+// {dice,bonus,type} components) is handled separately so it replaces wholesale.
+var OVERRIDE_FIELDS = ['label', 'ability', 'proficient', 'atkBonus', 'dmgDice', 'dmgBonus', 'dmgType'];
+function applyActionOverrides(list, structural, opts) {
+  var ov = (structural && structural.actionOverrides) || null;
+  if (!ov) return list;
+  var includeHidden = !!(opts && opts.includeHidden);
+  var out = [];
+  list.forEach(function (a) {
+    var o = ov[a.id]; if (!o) { out.push(a); return; }
+    var editedKeys = Object.keys(o).filter(function (k) { return k !== 'hidden'; });
+    if (o.hidden && !includeHidden) return;                    // soft-deleted
+    var merged = Object.assign({}, a);
+    OVERRIDE_FIELDS.forEach(function (k) { if (k in o) merged[k] = o[k]; });
+    if (Array.isArray(o.extraDamage)) merged.extraDamage = o.extraDamage.slice();
+    if (o.hidden) merged._hidden = true;                       // for the editor's greyed row
+    if (editedKeys.length) merged._edited = true;              // for the "edited" badge
+    out.push(merged);
+  });
+  return out;
 }

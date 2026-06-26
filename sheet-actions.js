@@ -140,9 +140,10 @@ export function wireInspiration({ root, characterData, key } = {}) {
   function refresh() {
     try {
       const S = (typeof window !== 'undefined' ? window : globalThis).__sheet;
-      if (S && S.renderSheet && S.toRenderShape) S.renderSheet(root, S.toRenderShape({ structural, vitals }));
+      if (S && S.renderSheet && S.toRenderShape) S.renderSheet(root, S.toRenderShape({ structural, vitals, inventory }));
     } catch (_) {}
     paint(!!vitals.inspiration);   // renderSheet doesn't own the cluster button / portrait class
+    decorateActionEditor();        // re-assert edit-mode chrome + reopen panel (renderSheet rewrote the section)
   }
 
   // ── popovers (fixed-positioned at an anchor; outside-click closes) ──
@@ -654,6 +655,11 @@ export function wireInspiration({ root, characterData, key } = {}) {
     if (a.type !== 'utility') { rollRS.advantage = false; rollRS.disadvantage = false; rollRS.bless = false; renderRollMods(); }   // consume per-roll toggles
   }
   function onActionClick(e) {
+    // editor controls first: Edit toggle, per-row pencil (customize), eye (hide)
+    var et = e.target.closest('[data-action-edit]'); if (et) { e.stopPropagation(); toggleAeMode(); return; }
+    var pe = e.target.closest('[data-act-edit]'); if (pe) { e.stopPropagation(); openAeEditor(pe.getAttribute('data-act-edit')); return; }
+    var ey = e.target.closest('[data-act-hide]'); if (ey) { e.stopPropagation(); aeToggleHide(ey.getAttribute('data-act-hide')); return; }
+    if (e.target.closest('.ae-editor')) return;   // panel has its own listeners
     var rm = e.target.closest('[data-rmod]');
     if (rm) { var k = rm.getAttribute('data-rmod');
       if (k === 'advantage') { rollRS.advantage = !rollRS.advantage; if (rollRS.advantage) rollRS.disadvantage = false; }
@@ -661,9 +667,9 @@ export function wireInspiration({ root, characterData, key } = {}) {
       else rollRS[k] = !rollRS[k];
       renderRollMods(); return;
     }
-    var ac = e.target.closest('.act[data-act]'); if (ac) { var a = actionById(ac.getAttribute('data-act')); if (a && a.type !== 'utility') doRoll(a); return; }
+    var ac = e.target.closest('.act[data-act]'); if (ac) { if (aeMode) return; var a = actionById(ac.getAttribute('data-act')); if (a && a.type !== 'utility') doRoll(a); return; }
   }
-  function onActionKey(e) { if (e.key !== 'Enter' && e.key !== ' ') return; var ac = e.target.closest('.act[data-act]'); if (ac) { var a = actionById(ac.getAttribute('data-act')); if (a && a.type !== 'utility') { e.preventDefault(); doRoll(a); } } }
+  function onActionKey(e) { if (e.key !== 'Enter' && e.key !== ' ') return; if (aeMode) return; var ac = e.target.closest('.act[data-act]'); if (ac) { var a = actionById(ac.getAttribute('data-act')); if (a && a.type !== 'utility') { e.preventDefault(); doRoll(a); } } }
   // ── Checks: ability checks, saving throws, skills, initiative. Flat d20 + the
   // shown modifier through the same engine, toggles, result card, and feed as
   // attacks. Every [data-chk] row on the sheet is rollable.
@@ -680,8 +686,140 @@ export function wireInspiration({ root, characterData, key } = {}) {
   function onCheckClick(e) { var el = e.target.closest('[data-chk]'); if (!el) return; var c = chkFrom(el); doCheck(c.label, c.mod); }
   function onCheckKey(e) { if (e.key !== 'Enter' && e.key !== ' ') return; var el = e.target.closest('[data-chk]'); if (!el) return; e.preventDefault(); var c = chkFrom(el); doCheck(c.label, c.mod); }
 
-  function bindAttacks(editable) { renderRollMods(); if (!editable) return; root.addEventListener('click', onActionClick); root.addEventListener('keydown', onActionKey); root.addEventListener('click', onCheckClick); root.addEventListener('keydown', onCheckKey); }
+  // ── Action editor ──────────────────────────────────────────────────────────
+  // Edit-mode overlay on the Actions section: hide unwanted rows (e.g. stale Roll20
+  // duplicates) and customize an action's label / to-hit ability / proficiency / bonuses
+  // and a multi-type DAMAGE STACK (Divine Strike fire on a booming-blade swing, …). All
+  // edits persist as a minimal structural.actionOverrides[id]; the renderer + roller read
+  // them through assembleActions, so a tweak shows on the row, the result card, and the
+  // feed. Rolling is suppressed while in edit mode.
+  var aeEditable = false, aeMode = false, aeOpenId = null, aeDraft = null, aeArmedDel = null, aeArmTimer = null;
+  var AE_TRASH = '<svg viewBox="0 0 24 24" fill="none"><path d="M4 7h16M9 7V5a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2M6 7l1 13a1 1 0 0 0 1 1h8a1 1 0 0 0 1-1l1-13" stroke-width="1.5" stroke-linecap="round"/></svg>';
+  var AE_PLUS = '<svg viewBox="0 0 24 24" fill="none"><path d="M12 5v14M5 12h14" stroke-width="1.8" stroke-linecap="round"/></svg>';
+  function aeNum(n) { n = parseInt(n, 10); return isNaN(n) ? 0 : n; }
+  function aeEsc(s) { return String(s == null ? '' : s).replace(/&/g, '&amp;').replace(/"/g, '&quot;').replace(/</g, '&lt;'); }
+  function aeGroup(t) { return (t === 'attack' || t === 'attack-cantrip') ? 'attack' : (t === 'damage-only' ? 'damage' : 'utility'); }
+  function aeSection() { return root.querySelector('[data-sec="actions"]'); }
+  function aeList() { return root.querySelector('[data-list="actions"]'); }
+  function aeRowEl(id) { var l = aeList(); if (!l) return null; var rows = l.querySelectorAll('.act[data-act]'); for (var i = 0; i < rows.length; i++) if (rows[i].getAttribute('data-act') === id) return rows[i]; return null; }
+  // pristine (pre-override) action, for diffing a minimal override on save
+  function aeBaseAction(id) { var s2 = Object.assign({}, structural); delete s2.actionOverrides; var list = assembleActions(inventory, s2); for (var i = 0; i < list.length; i++) if ((list[i].id || list[i].label) === id) return list[i]; return null; }
+  // effective (current, override-applied) action, for seeding the editor
+  function aeEffAction(id) { var list = assembleActions(inventory, structural, { includeHidden: true }); for (var i = 0; i < list.length; i++) if ((list[i].id || list[i].label) === id) return list[i]; return null; }
 
+  function toggleAeMode() { aeMode = !aeMode; if (!aeMode) { aeOpenId = null; aeDraft = null; aeArmedDel = null; } decorateActionEditor(); }
+  function openAeEditor(id) {
+    if (!aeMode) return;
+    if (aeOpenId === id) { aeOpenId = null; aeDraft = null; aeArmedDel = null; renderAePanel(); return; }
+    var a = aeEffAction(id); if (!a) return;
+    aeDraft = { type: a.type, label: a.label || '', ability: a.ability || '', proficient: !!a.proficient, atkBonus: aeNum(a.atkBonus),
+                dmgAbility: !!a.dmgAbility, dmgDice: a.dmgDice || '', dmgBonus: aeNum(a.dmgBonus), dmgType: a.dmgType || '',
+                extraDamage: (a.extraDamage || []).map(function (c) { return { dice: c.dice || '', bonus: aeNum(c.bonus), type: c.type || '' }; }) };
+    aeOpenId = id; aeArmedDel = null; renderAePanel(); setTimeout(refreshAePreview, 0);
+  }
+  function aePanelHTML() {
+    var d = aeDraft, g = aeGroup(d.type), showHit = (g === 'attack'), ABIL = ['str', 'dex', 'con', 'int', 'wis', 'cha'];
+    var abilOpts = ['<option value="">\u2014 flat / none \u2014</option>'].concat(ABIL.map(function (k) { return '<option value="' + k + '"' + (d.ability === k ? ' selected' : '') + '>' + k.toUpperCase() + '</option>'; })).join('');
+    var rows = '<div class="ae-dhdr"><span>Dice</span><span>Bonus</span><span>Type</span><span></span></div>';
+    rows += '<div class="ae-drow"><input type="text" data-aed="dice" value="' + aeEsc(d.dmgDice) + '" placeholder="1d8"><input type="number" data-aed="bonus" value="' + d.dmgBonus + '"><input type="text" data-aed="type" value="' + aeEsc(d.dmgType) + '" placeholder="Slashing"><span class="ae-tag">' + (d.dmgAbility ? ('+' + (d.ability ? d.ability.toUpperCase() : 'mod')) : 'base') + '</span></div>';
+    d.extraDamage.forEach(function (c, i) {
+      var armed = (aeArmedDel === i);
+      rows += '<div class="ae-drow"><input type="text" data-aex="' + i + '.dice" value="' + aeEsc(c.dice) + '" placeholder="1d8"><input type="number" data-aex="' + i + '.bonus" value="' + c.bonus + '"><input type="text" data-aex="' + i + '.type" value="' + aeEsc(c.type) + '" placeholder="Fire"><button type="button" class="ae-del' + (armed ? ' armed' : '') + '" data-aedel="' + i + '">' + (armed ? 'Remove?' : AE_TRASH) + '</button></div>';
+    });
+    return '<div class="ae-editor"><div class="ae-grid">'
+      + '<div class="ae-f wide"><label>Label</label><input type="text" data-aef="label" value="' + aeEsc(d.label) + '"></div>'
+      + (showHit ? '<div class="ae-f"><label>To-hit ability</label><select data-aef="ability">' + abilOpts + '</select></div>' : '')
+      + (showHit ? '<div class="ae-f check"><input type="checkbox" data-aef="proficient"' + (d.proficient ? ' checked' : '') + '><label>Proficient (+PB)</label></div>' : '')
+      + (showHit ? '<div class="ae-f"><label>Bonus to hit</label><input type="number" data-aef="atkBonus" value="' + d.atkBonus + '"></div>' : '')
+      + '<div class="ae-dmg"><div class="ae-dmg-h">Damage<div class="ln"></div></div>' + rows + '<button type="button" class="ae-add" data-ae-add>' + AE_PLUS + ' Add damage</button></div>'
+      + '<div class="ae-pv" data-ae-pv></div>'
+      + '</div><div class="ae-act">'
+      + '<button type="button" class="ae-btn danger" data-ae-hide>Hide action</button><span class="sp"></span>'
+      + '<button type="button" class="ae-btn reset" data-ae-reset>Reset</button>'
+      + '<button type="button" class="ae-btn save" data-ae-save>Save</button>'
+      + '</div></div>';
+  }
+  function renderAePanel() {
+    var l = aeList(); if (!l) return;
+    var ex = l.querySelector('.ae-editor'); if (ex && ex.parentNode) ex.parentNode.removeChild(ex);
+    if (!aeOpenId || !aeDraft) return;
+    var row = aeRowEl(aeOpenId); if (!row) return;
+    row.insertAdjacentHTML('afterend', aePanelHTML());
+    bindAePanel();
+  }
+  function refreshAePreview() {
+    var l = aeList(); if (!l || !aeDraft) return; var pv = l.querySelector('[data-ae-pv]'); if (!pv) return;
+    var api = sheetApi(); var inner = api.actionMeta ? api.actionMeta(aeDraft, structural) : '';
+    pv.innerHTML = '<span class="pvn">' + aeEsc(aeDraft.label || '(unnamed)') + '</span> \u2014 ' + (aeGroup(aeDraft.type) === 'utility' ? 'utility' : inner);
+  }
+  function bindAePanel() {
+    var l = aeList(); if (!l) return; var ed = l.querySelector('.ae-editor'); if (!ed) return;
+    ed.querySelectorAll('[data-aef]').forEach(function (inp) {
+      var f = inp.getAttribute('data-aef');
+      var fn = function () { aeDraft[f] = inp.type === 'checkbox' ? inp.checked : (inp.type === 'number' ? aeNum(inp.value) : inp.value); refreshAePreview(); };
+      inp.addEventListener('input', fn); inp.addEventListener('change', fn);
+    });
+    ed.querySelectorAll('[data-aed]').forEach(function (inp) {
+      inp.addEventListener('input', function () { var k = inp.getAttribute('data-aed'); if (k === 'dice') aeDraft.dmgDice = inp.value; else if (k === 'bonus') aeDraft.dmgBonus = aeNum(inp.value); else aeDraft.dmgType = inp.value; refreshAePreview(); });
+    });
+    ed.querySelectorAll('[data-aex]').forEach(function (inp) {
+      inp.addEventListener('input', function () { var p = inp.getAttribute('data-aex').split('.'), i = +p[0], k = p[1]; if (!aeDraft.extraDamage[i]) return; if (k === 'bonus') aeDraft.extraDamage[i].bonus = aeNum(inp.value); else aeDraft.extraDamage[i][k] = inp.value; refreshAePreview(); });
+    });
+    var add = ed.querySelector('[data-ae-add]'); if (add) add.addEventListener('click', function (e) { e.stopPropagation(); aeDraft.extraDamage.push({ dice: '1d6', bonus: 0, type: '' }); aeArmedDel = null; renderAePanel(); setTimeout(refreshAePreview, 0); });
+    ed.querySelectorAll('[data-aedel]').forEach(function (b) {
+      b.addEventListener('click', function (e) {
+        e.stopPropagation(); var i = +b.getAttribute('data-aedel');
+        if (aeArmedDel === i) { aeDraft.extraDamage.splice(i, 1); aeArmedDel = null; clearTimeout(aeArmTimer); renderAePanel(); setTimeout(refreshAePreview, 0); }
+        else { aeArmedDel = i; renderAePanel(); setTimeout(refreshAePreview, 0); clearTimeout(aeArmTimer); aeArmTimer = setTimeout(function () { if (aeArmedDel === i) { aeArmedDel = null; renderAePanel(); setTimeout(refreshAePreview, 0); } }, 3000); }
+      });
+    });
+    var sv = ed.querySelector('[data-ae-save]'); if (sv) sv.addEventListener('click', function (e) { e.stopPropagation(); aeSave(aeOpenId); });
+    var rs = ed.querySelector('[data-ae-reset]'); if (rs) rs.addEventListener('click', function (e) { e.stopPropagation(); aeReset(aeOpenId); });
+    var hb = ed.querySelector('[data-ae-hide]'); if (hb) hb.addEventListener('click', function (e) { e.stopPropagation(); aeToggleHide(aeOpenId); });
+  }
+  // diff the draft against the pristine action → smallest override that expresses the change
+  function aeCommit(id) {
+    var base = aeBaseAction(id) || {}, cur = (structural.actionOverrides || {})[id] || {}, o = {};
+    if (cur.hidden) o.hidden = true;
+    if (aeDraft.label !== (base.label || '')) o.label = aeDraft.label;
+    if (aeGroup(base.type) === 'attack') {
+      if ((aeDraft.ability || '') !== (base.ability || '')) o.ability = aeDraft.ability;
+      if (!!aeDraft.proficient !== !!base.proficient) o.proficient = aeDraft.proficient;
+      if (aeNum(aeDraft.atkBonus) !== aeNum(base.atkBonus)) o.atkBonus = aeNum(aeDraft.atkBonus);
+    }
+    if ((aeDraft.dmgDice || '') !== (base.dmgDice || '')) o.dmgDice = aeDraft.dmgDice;
+    if (aeNum(aeDraft.dmgBonus) !== aeNum(base.dmgBonus)) o.dmgBonus = aeNum(aeDraft.dmgBonus);
+    if ((aeDraft.dmgType || '') !== (base.dmgType || '')) o.dmgType = aeDraft.dmgType;
+    var extras = aeDraft.extraDamage.filter(function (c) { return c.dice; }).map(function (c) { var e = { dice: c.dice, type: c.type || '' }; if (aeNum(c.bonus)) e.bonus = aeNum(c.bonus); return e; });
+    if (extras.length) o.extraDamage = extras;
+    return o;
+  }
+  // write/clear structural.actionOverrides[id], optimistic refresh, then persist
+  function aeWriteOverride(id, mutate) {
+    if (!aeEditable) return;
+    var prev = structural, ns = JSON.parse(JSON.stringify(structural));
+    ns.actionOverrides = ns.actionOverrides || {};
+    mutate(ns.actionOverrides);
+    if (ns.actionOverrides[id] && !Object.keys(ns.actionOverrides[id]).length) delete ns.actionOverrides[id];
+    if (ns.actionOverrides && !Object.keys(ns.actionOverrides).length) delete ns.actionOverrides;
+    aeOpenId = null; aeDraft = null; aeArmedDel = null;
+    structural = ns; refresh(); persistStructural(prev);
+  }
+  function aeSave(id) { var o = aeCommit(id); aeWriteOverride(id, function (ov) { if (Object.keys(o).length) ov[id] = o; else delete ov[id]; }); }
+  function aeReset(id) { aeWriteOverride(id, function (ov) { delete ov[id]; }); }
+  function aeToggleHide(id) { aeWriteOverride(id, function (ov) { var o = ov[id] || (ov[id] = {}); if (o.hidden) delete o.hidden; else o.hidden = true; }); }
+  // re-assert edit-mode chrome after every render (renderSheet rewrites the section)
+  function decorateActionEditor() {
+    if (!aeEditable) return;
+    var sec = aeSection(); if (sec) sec.classList.add('can-edit');
+    var l = aeList(); if (l) l.classList.toggle('editing', aeMode);
+    var btn = root.querySelector('[data-action-edit]'); if (btn) btn.classList.toggle('on', aeMode);
+    if (aeMode && aeOpenId && aeDraft) renderAePanel();
+    else { var ex = l && l.querySelector('.ae-editor'); if (ex && ex.parentNode) ex.parentNode.removeChild(ex); }
+  }
+  function bindActionEditor() { aeEditable = true; decorateActionEditor(); }
+
+  function bindAttacks(editable) { renderRollMods(); if (!editable) return; root.addEventListener('click', onActionClick); root.addEventListener('keydown', onActionKey); root.addEventListener('click', onCheckClick); root.addEventListener('keydown', onCheckKey); }
   // load state + merge baseline, then gate + bind
   const ready = (async () => {
     let editable = false;
@@ -710,6 +848,7 @@ export function wireInspiration({ root, characterData, key } = {}) {
       bindTrackers(true);
       bindSpellcasting(true);
       bindAttacks(true);
+      bindActionEditor();
     } else {
       toggle.classList.add('view-only');
       toggle.setAttribute('aria-disabled', 'true');
