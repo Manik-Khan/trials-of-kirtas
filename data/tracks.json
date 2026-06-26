@@ -486,7 +486,14 @@
       "sigil": "ti-sword",
       "color": "#6a3a5a",
       "id": "mqvh57ttkjci",
-      "tracks": []
+      "tracks": [
+        {
+          "url": "https://res.cloudinary.com/df0tgoiyb/video/upload/v1782175123/21._Tatakai_no_Taiko_sts4bz.mp3",
+          "title": "Tataki no Taika",
+          "artist": "Mononoke no Hime",
+          "id": "mqvh71g0cgfm"
+        }
+      ]
     }
   ],
   "scenes": [
