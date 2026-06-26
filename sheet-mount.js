@@ -16,6 +16,7 @@
 // ---------------------------------------------------------------------------
 
 import { wireInspiration } from './sheet-actions.js';
+import { buildWeaponActions } from './weapon-actions.js';
 
 function esc(x){ return String(x==null?'':x).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); }
 function sgn(n){ n=Number(n)||0; return (n>=0?'+':'\u2212')+Math.abs(n); }
@@ -304,7 +305,7 @@ function renderSheet(root, char){
   renderAbilities(root, ab); renderSaves(root, s); renderSkills(root, s.skills); renderFeatures(root, s.features);
   renderSpellcasting(root, s.spellcasting||{});
   renderConcentration(root, v);
-  renderActions(root, s);
+  renderActions(root, s, char.inventory);
   renderTrackers(root, s, v);
   renderEquipment(root, char.inventory, char.currency);
   renderStory(root, char.bio);
@@ -376,10 +377,12 @@ function actionRowHTML(a, s){
        + '<div class="ac-main"><div class="ac-n">'+esc(a.label||'')+'</div>'+meta+'</div>'
        + (g==='utility'?'':'<span class="ac-go">roll</span>')+'</div>';
 }
-function renderActions(root, s){
+function renderActions(root, s, inventory){
   root=root||document; s=s||{};
   var sec=root.querySelector('[data-sec="actions"]'), host=root.querySelector('[data-list="actions"]');
-  var list=s.actions||[];
+  // weapon attacks derive live from the carried weapons; structural.actions holds the
+  // rest (feature / cantrip / manual). Weapons lead the attack group.
+  var list=buildWeaponActions(inventory, s).concat(s.actions||[]);
   if(sec) sec.style.display = list.length ? '' : 'none';
   if(!host) return;
   var groups=[['attack','Attacks'],['damage','Bonus damage'],['utility','Utility']];

@@ -186,7 +186,7 @@
     incomplete.push('combat.ac (needs equipped armor \u2014 equipment not modeled in this derive)');
     if (classes.length > 1) incomplete.push('multiclass HP slightly over-counts secondary classes\u2019 first level (level-1 max applies only to the first character level)');
     incomplete.push('senses don\u2019t include feature/subclass upgrades (e.g. Shadow Magic darkvision)');
-    incomplete.push('actions[] (weapon / cantrip attacks \u2014 need equipment)');
+    incomplete.push('actions[] holds feature / cantrip attacks only \u2014 weapon attacks derive live on the sheet from carried weapons');
     // Racial spells now arrive via the picker's emit (origin:'race') and fold into groups[].
     // Only flag when the race actually grants spells the picker hasn't captured yet.
     var raceGrantsSpells = !!(race && race.additionalSpells &&
