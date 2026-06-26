@@ -480,6 +480,13 @@
           "id": "mqbaxe7ew6bl"
         }
       ]
+    },
+    {
+      "label": "Roll Initiative",
+      "sigil": "ti-sword",
+      "color": "#6a3a5a",
+      "id": "mqvh57ttkjci",
+      "tracks": []
     }
   ],
   "scenes": [
