@@ -28,6 +28,8 @@
 // sheet-mount.js's mountSheet (it calls wireInspiration scoped to its container).
 // ---------------------------------------------------------------------------
 
+import { buildWeaponActions } from './weapon-actions.js';
+
 // ── ResourceDerive resolver (browser global, set by resource-derive.js) ──
 function rd() {
   var w = (typeof window !== 'undefined') ? window : (typeof globalThis !== 'undefined' ? globalThis.window : undefined);
@@ -110,6 +112,7 @@ export function wireInspiration({ root, characterData, key } = {}) {
 
   let vitals = {};        // baseline; reconciled with the server-confirmed row
   let structural = {};    // for ResourceDerive / hit dice / CON / hpMax
+  let inventory = [];     // for weapon-derived attack actions (mirrors renderActions)
   let saving = false;
   let statTimer = null;
   let lastUndo = null;    // { snapshot, label } — the pre-rest vitals
@@ -614,8 +617,16 @@ export function wireInspiration({ root, characterData, key } = {}) {
   // after each roll. No save path: a roll mutates nothing on the character.
   var rollRS = { advantage: false, disadvantage: false, bless: false };
   var rollHist = [];
-  function actionById(id) { var as = structural.actions || []; for (var i = 0; i < as.length; i++) if ((as[i].id || as[i].label) === id) return as[i]; return null; }
-  function actionByLabel(name) { var as = structural.actions || [], n = String(name == null ? '' : name).trim().toLowerCase(); if (!n) return null; for (var i = 0; i < as.length; i++) if (String(as[i].label || '').trim().toLowerCase() === n) return as[i]; return null; }
+  // The renderer paints buildWeaponActions(inventory).concat(structural.actions); the
+  // click handler must resolve against the SAME list or weapon-derived rows (whose ids
+  // are wpn-*) silently no-op — they aren't in structural.actions. (That was the
+  // quarterstaff-won't-post / dead-duplicate-longsword bug.)
+  function allActions() {
+    try { return buildWeaponActions(inventory, structural).concat(structural.actions || []); }
+    catch (_) { return structural.actions || []; }
+  }
+  function actionById(id) { var as = allActions(); for (var i = 0; i < as.length; i++) if ((as[i].id || as[i].label) === id) return as[i]; return null; }
+  function actionByLabel(name) { var as = allActions(), n = String(name == null ? '' : name).trim().toLowerCase(); if (!n) return null; for (var i = 0; i < as.length; i++) if (String(as[i].label || '').trim().toLowerCase() === n) return as[i]; return null; }
   function deriveAction(a) {
     var api = sheetApi(), m = api.deriveActionMods ? api.deriveActionMods(a, structural) : { hitMod: +a.hitMod || 0, dmgMod: +a.dmgMod || 0 };
     var o = Object.assign({}, a); o.hitMod = m.hitMod; o.dmgMod = m.dmgMod;
@@ -670,6 +681,7 @@ export function wireInspiration({ root, characterData, key } = {}) {
       const cd = await characterData.loadCharacter(key);
       vitals = (cd && cd.vitals) ? cd.vitals : {};
       structural = (cd && cd.structural) ? cd.structural : {};
+      inventory = (cd && cd.inventory) ? cd.inventory : [];
     } catch (_) { vitals = {}; structural = {}; }
     paint(!!vitals.inspiration);
 
