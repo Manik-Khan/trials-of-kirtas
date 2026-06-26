@@ -182,6 +182,19 @@
   .chip.skill.dim{opacity:.38; cursor:not-allowed}
   .chip.skill.dim:hover{background:var(--bg-card)}
   .cust-c{font-family:var(--body); font-size:13px; color:var(--ink-soft); margin-left:6px; letter-spacing:0; text-transform:none}
+  /* ── proficiencies step: granted (inert) chips, group + choice headers, source tags ── */
+  .chip.skill.inert{cursor:default; background:var(--bg-card); display:inline-flex; align-items:center; gap:6px}
+  .chip.skill.inert:hover{background:var(--bg-card)}
+  .pf-grp{margin-top:24px}
+  .pf-grp .subhead{margin:0 0 6px}
+  .pf-sub{font-family:var(--ui); text-transform:uppercase; letter-spacing:.08em; font-size:12.5px; color:var(--ink-faint); margin:14px 0 7px; display:flex; align-items:baseline; gap:8px}
+  .pf-sub .ct{font-family:var(--body); font-size:13px; letter-spacing:0; text-transform:none; color:var(--ink-soft)}
+  .pf-sub .ct.full{color:var(--gold)}
+  .pf-src{font-family:var(--ui); font-size:10px; letter-spacing:.1em; text-transform:uppercase; font-weight:600; padding:1px 5px; border-radius:2px; line-height:1.5}
+  .pf-src.class{background:rgba(169,136,63,.18); color:#7a5f1f}
+  .pf-src.race{background:rgba(138,28,28,.13); color:var(--blood)}
+  .pf-src.bg{background:var(--bg-sunk); color:var(--ink-soft)}
+  .pf-src.have{background:var(--bg-sunk); color:var(--ink-faint)}
   /* ── species step (P3): ability-impact pills, muted notes, tap-to-read traits ── */
   .muted{color:var(--ink-faint)}
   .sp-note{font-weight:400; color:var(--ink-faint); font-size:12px}
@@ -583,7 +596,8 @@ var STEPS = [
   { id:'class',      name:'Class',      desc:'Choose a class, then its subclass. Hit die, saves, features, caster type, and the full subclass list load from the proven loadClass() model. The class decides whether you cast at all.' },
   { id:'choices',    name:'Choices',    desc:'Pick the optional features your class and subclass grant — Fighting Style, Maneuvers, Eldritch Invocations, Metamagic, and the like. Only what this build is owed at its level appears here.', conditional:true },
   { id:'feats',      name:'Feats',      desc:'Spend each Ability Score Improvement on +2/+1 to your abilities or a feat, and pick any feat your race grants at level 1. Only the slots this build has earned appear here.', conditional:true },
-  { id:'background', name:'Background', desc:'Choose a background, or customize one. The 2014 "Customizing a Background" rule lets you swap the two skills, two tools or languages, equipment, and feature.' },
+  { id:'background', name:'Background', desc:'Choose a background, or customize it. Its skills, tools, and languages are chosen on the next step; here you can swap its equipment pack and feature.' },
+  { id:'prof',       name:'Proficiencies', desc:'Lock in your skills, languages, and tools. Fixed grants from your class, species, and background fill in automatically; pick the open choices. Everything here flows onto the sheet.' },
   { id:'items',      name:'Items',      desc:'Take your class and background starting equipment — pick between the either/or bundles, or trade it all for starting gold. The result fills your inventory.' },
   { id:'spells',     name:'Spells',     desc:'Pick cantrips and spells. Known casters lock a fixed list; prepared casters choose cantrips and compute a prepared count from level plus casting modifier.', conditional:true },
   { id:'review',     name:'Review',     desc:'Confirm the assembled sheet. Forging writes the structural block to the characters table — party.html renders it from there.' },
@@ -702,7 +716,7 @@ function loadDraft(){ try { var j = window.localStorage.getItem(KEY); if (j) ret
 function saveDraft(){ try { window.localStorage.setItem(KEY, JSON.stringify(draft)); } catch(e){} flashDraft(); }
 var draft = loadDraft() || { stepId:'abilities', name:null, species:null, subrace:null, asi:{}, size:null, originMode:'std', useFloating:false, openTrait:null, cls:null, level:1, subclass:null, bg:null, bgCustom:false,
   method:'array', abilities:{ str:15, dex:14, con:13, int:12, wis:10, cha:8 }, slots:null, armed:null, hp:{ method:'average' },
-  bgSkills:[], bgTools:[], bgPack:null, bgFeature:null, choices:{}, advancement:{}, equipment:{ mode:'gear', picks:{}, gold:null }, spells:{ cantrips:[], known:[], prepared:[], spellbook:[] } };
+  bgSkills:[], bgTools:[], bgPack:null, bgFeature:null, prof:{}, choices:{}, advancement:{}, equipment:{ mode:'gear', picks:{}, gold:null }, spells:{ cantrips:[], known:[], prepared:[], spellbook:[] } };
 if (draft.level == null) draft.level = 1;
 if (!draft.method) draft.method = 'array';
 if (!draft.abilities) draft.abilities = { str:15, dex:14, con:13, int:12, wis:10, cha:8 };
@@ -857,24 +871,14 @@ function casterTagHTML(c){
 }
 var SKILLS = ['Acrobatics','Animal Handling','Arcana','Athletics','Deception','History','Insight','Intimidation','Investigation','Medicine','Nature','Perception','Performance','Persuasion','Religion','Sleight of Hand','Stealth','Survival'];
 function customControlsHTML(){
-  var skills = draft.bgSkills || [];
-  var skillChips = SKILLS.map(function(s){
-    var on = skills.indexOf(s) !== -1, full = skills.length >= 2 && !on;
-    return '<span class="chip skill' + (on ? ' sel' : '') + (full ? ' dim' : '') + '" data-skill="' + s + '">' + s + '</span>';
-  }).join('');
-  var tools = draft.bgTools || [];
-  var toolChips = TOOLS_LANGS.map(function(t){
-    var on = tools.indexOf(t) !== -1, full = tools.length >= 2 && !on;
-    return '<span class="chip skill' + (on ? ' sel' : '') + (full ? ' dim' : '') + '" data-tool="' + t.replace(/"/g,'&quot;') + '">' + t + '</span>';
-  }).join('');
+  // The skills + tools/languages swap now lives in the Proficiencies step (shared
+  // draft.bgCustom flag, cross-source aware). Here the customize toggle governs only
+  // the background's equipment pack and feature.
   var packOpts = '<option value="">Choose an equipment pack\u2026</option>' + EQUIP_PACKS.map(function(p){ return '<option' + (draft.bgPack === p ? ' selected' : '') + '>' + p + '</option>'; }).join('');
   var featOpts = '<option value="">Choose a feature\u2026</option>' + BG_FEATURES.map(function(f){ return '<option' + (draft.bgFeature === f ? ' selected' : '') + '>' + f + '</option>'; }).join('');
-  return '<div class="subhead" style="margin-top:16px">Skills — choose 2 <span class="cust-c">' + skills.length + '/2</span></div>' +
-    '<div class="chips">' + skillChips + '</div>' +
-    '<div class="subhead" style="margin-top:16px">Tools / languages — choose 2 <span class="cust-c">' + tools.length + '/2</span></div>' +
-    '<div class="chips">' + toolChips + '</div>' +
-    '<div class="subhead" style="margin-top:16px">Equipment &amp; feature</div>' +
-    '<div class="cust-selects"><select class="cust-sel" id="bg-pack">' + packOpts + '</select><select class="cust-sel" id="bg-feature">' + featOpts + '</select></div>';
+  return '<div class="subhead" style="margin-top:16px">Equipment &amp; feature</div>' +
+    '<div class="cust-selects"><select class="cust-sel" id="bg-pack">' + packOpts + '</select><select class="cust-sel" id="bg-feature">' + featOpts + '</select></div>' +
+    '<div class="grant-note" style="margin-top:10px">Skills, tools, and languages — including the custom swap — are on the Proficiencies step.</div>';
 }
 
 var BODIES = {
@@ -974,6 +978,9 @@ var BODIES = {
     return '<div class="subhead">Background</div><div id="bz-bg"></div>' + custom +
       '<div class="ph-note"><b>P5</b> adds a backgrounds.json loader and resolves skill / tool / equipment grants, reconciling overlaps with class and species. The 2014 customization rule (and the data\u2019s own \u201cCustom Background\u201d entry) drives the custom path — pick a background to reveal it.</div>';
   },
+  prof: function(){
+    return '<div id="pf-out"></div>';
+  },
   spells: function(){
     var c = chosenClass();
     if (!isCaster(c)) return '<p>This class doesn\u2019t cast spells, so there\u2019s nothing to choose here.</p>';
@@ -994,8 +1001,6 @@ var BODIES = {
     var bgCustom = '';
     if (draft.bgCustom){
       var parts = [];
-      if (draft.bgSkills && draft.bgSkills.length) parts.push(draft.bgSkills.join(' + '));
-      if (draft.bgTools && draft.bgTools.length) parts.push(draft.bgTools.join(' + '));
       if (draft.bgPack) parts.push(draft.bgPack);
       if (draft.bgFeature) parts.push(draft.bgFeature.replace(/\s*\(.*\)/, ''));
       bgCustom = ' (custom' + (parts.length ? ': ' + parts.join('; ') : '') + ')';
@@ -1107,32 +1112,13 @@ var MOUNT = {
       onPick:function(item){ draft.bg = item; saveDraft(); renderAll(); } });
     var t = q('#bg-customize');
     if (t) t.addEventListener('change', function(){ draft.bgCustom = t.checked; saveDraft(); renderAll(); });
-    Array.prototype.forEach.call(document.querySelectorAll('[data-skill]'), function(ch){
-      ch.addEventListener('click', function(){
-        var s = ch.getAttribute('data-skill');
-        var arr = draft.bgSkills || (draft.bgSkills = []);
-        var i = arr.indexOf(s);
-        if (i !== -1) arr.splice(i, 1);
-        else if (arr.length < 2) arr.push(s);
-        saveDraft(); renderAll();
-      });
-    });
-    Array.prototype.forEach.call(document.querySelectorAll('[data-tool]'), function(ch){
-      ch.addEventListener('click', function(){
-        var t2 = ch.getAttribute('data-tool');
-        var arr = draft.bgTools || (draft.bgTools = []);
-        var i = arr.indexOf(t2);
-        if (i !== -1) arr.splice(i, 1);
-        else if (arr.length < 2) arr.push(t2);
-        saveDraft(); renderAll();
-      });
-    });
     var pk = q('#bg-pack'); if (pk) pk.addEventListener('change', function(){ draft.bgPack = pk.value || null; saveDraft(); });
     var ft = q('#bg-feature'); if (ft) ft.addEventListener('change', function(){ draft.bgFeature = ft.value || null; saveDraft(); });
   },
   spells: function(){ SpellsUI.mount(); },
   choices: function(){ ChoicesUI.mount(); },
   feats: function(){ FeatsUI.mount(); },
+  prof: function(){ ProfUI.mount(); },
   items: function(){ ItemsUI.mount(); },
 };
 
@@ -2228,6 +2214,231 @@ var ItemsUI = (function () {
 })();
 
 
+// ── Proficiencies step (skills / languages / tools / weapons / armor) ─────────
+// One surface for EVERY proficiency choice — class skills, racial language/tool/skill
+// choices, and the background's skills/languages (incl. the 2014 customize swap, driven
+// by the SHARED draft.bgCustom flag the Background step also reads). Cross-source aware:
+// anything granted or picked anywhere dims everywhere else, nothing is taken twice.
+// Feeds structural.skills[] / proficiencies / passives via proficienciesForStructural().
+// The resolve / flatten / dimming core below is pure so the forge smoke can exercise it.
+var PROF_SKILLS = ['Acrobatics','Animal Handling','Arcana','Athletics','Deception','History','Insight','Intimidation','Investigation','Medicine','Nature','Perception','Performance','Persuasion','Religion','Sleight of Hand','Stealth','Survival'];
+var PROF_SKILL_KEY = (function(){ var m = {}; PROF_SKILLS.forEach(function(s){ m[s.toLowerCase()] = s; }); return m; })();
+var PROF_STD_LANGS = ['Common','Dwarvish','Elvish','Giant','Gnomish','Goblin','Halfling','Orc'];
+var PROF_EXOTIC_LANGS = ['Abyssal','Celestial','Deep Speech','Draconic','Infernal','Primordial','Sylvan','Undercommon'];
+var PROF_ALL_LANGS = PROF_STD_LANGS.concat(PROF_EXOTIC_LANGS);
+var PROF_TOOL_POOL = ["Thieves' Tools","Disguise Kit","Forgery Kit","Herbalism Kit","Navigator's Tools","Poisoner's Kit","Smith's Tools","Cook's Utensils","Carpenter's Tools","Dice Set","Playing Cards","Lute","Flute","Drum"];
+
+// lowercase 5etools skill key -> canonical name (the derive matches canonical names)
+function normSkillName(n){ var k = String(n == null ? '' : n).toLowerCase(); return PROF_SKILL_KEY[k] || String(n == null ? '' : n).replace(/\b\w/g, function(c){ return c.toUpperCase(); }); }
+function cleanProfName(s){ return String(s == null ? '' : s).replace(/^./, function(c){ return c.toUpperCase(); }); }
+function countGrants(p){ p = p || {}; return ((p.fixed || []).length) + (p.anyCount || 0) + ((p.choose || []).length); }
+
+// raw class/race/bg proficiency data + bgCustom -> resolved model:
+//   { <type>: { fixed:[{name,src,label}], choices:[{id,src,label,pool:[names],count}] } }  type in skills|languages|tools|weapons|armor
+function resolveProf(data, custom){
+  data = data || {};
+  function mk(){ return { fixed: [], choices: [] }; }
+  var model = { skills: mk(), languages: mk(), tools: mk(), weapons: mk(), armor: mk() };
+  function pushChoose(t, parsed, src, label, norm, anyPool){
+    parsed = parsed || { fixed: [], anyCount: 0, choose: [] };
+    (parsed.fixed || []).forEach(function(n){ t.fixed.push({ name: norm(n), src: src, label: label }); });
+    (parsed.choose || []).forEach(function(pool){ t.choices.push({ id: src + '-ch' + t.choices.length, src: src, label: label, pool: (pool || []).map(norm), count: 1 }); });
+    if (parsed.anyCount) t.choices.push({ id: src + '-any' + t.choices.length, src: src, label: label, pool: (anyPool || []).slice(), count: parsed.anyCount });
+  }
+
+  // class — raw 5etools startingProficiencies
+  var cp = data.classProf || {}, cl = data.className || 'Class';
+  (cp.skills || []).forEach(function(b, i){
+    if (b && b.choose) model.skills.choices.push({ id: 'class-sk' + i, src: 'class', label: cl, pool: (b.choose.from || []).map(normSkillName), count: (b.choose.count || 1) });
+    else if (b && b.any) model.skills.choices.push({ id: 'class-skany' + i, src: 'class', label: cl, pool: PROF_SKILLS.slice(), count: b.any });
+    else if (b && typeof b === 'object') Object.keys(b).forEach(function(k){ if (b[k] === true) model.skills.fixed.push({ name: normSkillName(k), src: 'class', label: cl }); });
+  });
+  (cp.tools || []).forEach(function(b, i){
+    if (typeof b === 'string') model.tools.fixed.push({ name: cleanProfName(b), src: 'class', label: cl });
+    else if (b && b.choose) model.tools.choices.push({ id: 'class-tl' + i, src: 'class', label: cl, pool: (b.choose.from || []).map(cleanProfName), count: (b.choose.count || 1) });
+    else if (b && typeof b === 'object') Object.keys(b).forEach(function(k){ if (b[k] === true) model.tools.fixed.push({ name: cleanProfName(k), src: 'class', label: cl }); });
+  });
+  (cp.weapons || []).forEach(function(w){ var n = (typeof w === 'string') ? w : (w && w.proficiency); if (n) model.weapons.fixed.push({ name: cleanProfName(n), src: 'class', label: cl }); });
+  (cp.armor || []).forEach(function(a){ var n = (typeof a === 'string') ? a : (a && a.proficiency); if (n) model.armor.fixed.push({ name: cleanProfName(n), src: 'class', label: cl }); });
+
+  // race — normalized loadRace model (already parsed per type)
+  var r = data.race;
+  if (r){
+    var rl = data.raceName || r.name || 'Race';
+    pushChoose(model.skills, r.skillProficiencies, 'race', rl, normSkillName, PROF_SKILLS);
+    var L = r.languages || { fixed: [], anyStandard: 0, any: 0 };
+    (L.fixed || []).forEach(function(n){ model.languages.fixed.push({ name: n, src: 'race', label: rl }); });
+    if (L.anyStandard) model.languages.choices.push({ id: 'race-lgstd', src: 'race', label: rl, pool: PROF_STD_LANGS.slice(), count: L.anyStandard });
+    if (L.any) model.languages.choices.push({ id: 'race-lgany', src: 'race', label: rl, pool: PROF_ALL_LANGS.slice(), count: L.any });
+    pushChoose(model.tools, r.toolProficiencies, 'race', rl, cleanProfName, PROF_TOOL_POOL);
+    pushChoose(model.weapons, r.weaponProficiencies, 'race', rl, cleanProfName, []);
+    pushChoose(model.armor, r.armorProficiencies, 'race', rl, cleanProfName, []);
+  }
+
+  // background — customize turns its grants into free choices of equal count (per type)
+  var bg = data.bgProf;
+  if (bg){
+    var bl = data.bgName || 'Background';
+    if (!custom){
+      pushChoose(model.skills, bg.skills, 'bg', bl, normSkillName, PROF_SKILLS);
+      var BL = bg.languages || { fixed: [], anyStandard: 0, any: 0 };
+      (BL.fixed || []).forEach(function(n){ model.languages.fixed.push({ name: n, src: 'bg', label: bl }); });
+      if (BL.anyStandard) model.languages.choices.push({ id: 'bg-lgstd', src: 'bg', label: bl, pool: PROF_STD_LANGS.slice(), count: BL.anyStandard });
+      if (BL.any) model.languages.choices.push({ id: 'bg-lgany', src: 'bg', label: bl, pool: PROF_ALL_LANGS.slice(), count: BL.any });
+      pushChoose(model.tools, bg.tools, 'bg', bl, cleanProfName, PROF_TOOL_POOL);
+    } else {
+      var cc = bl + ' (custom)';
+      var nSk = countGrants(bg.skills); if (nSk) model.skills.choices.push({ id: 'bg-cust-sk', src: 'bg', label: cc, pool: PROF_SKILLS.slice(), count: nSk });
+      var nLg = bg.languages ? ((bg.languages.fixed || []).length + (bg.languages.anyStandard || 0) + (bg.languages.any || 0)) : 0;
+      if (nLg) model.languages.choices.push({ id: 'bg-cust-lg', src: 'bg', label: cc, pool: PROF_ALL_LANGS.slice(), count: nLg });
+      var nTl = countGrants(bg.tools); if (nTl) model.tools.choices.push({ id: 'bg-cust-tl', src: 'bg', label: cc, pool: PROF_TOOL_POOL.slice(), count: nTl });
+    }
+  }
+  return model;
+}
+
+// names taken within a type by fixed grants + every choice EXCEPT exceptId
+function profTakenSet(typeModel, typePicks, exceptId){
+  typeModel = typeModel || { fixed: [], choices: [] }; typePicks = typePicks || {};
+  var t = {};
+  (typeModel.fixed || []).forEach(function(f){ t[f.name] = true; });
+  (typeModel.choices || []).forEach(function(ch){ if (ch.id !== exceptId) (typePicks[ch.id] || []).forEach(function(n){ t[n] = true; }); });
+  return t;
+}
+
+// resolved model + picks -> flat proficient NAME lists per type (fixed ∪ picks, deduped)
+function flattenProficiencies(model, picks){
+  model = model || {}; picks = picks || {};
+  var out = {};
+  ['skills', 'languages', 'tools', 'weapons', 'armor'].forEach(function(type){
+    var tm = model[type] || { fixed: [], choices: [] }, tp = picks[type] || {}, names = {};
+    (tm.fixed || []).forEach(function(f){ names[f.name] = true; });
+    (tm.choices || []).forEach(function(ch){ (tp[ch.id] || []).forEach(function(n){ names[n] = true; }); });
+    out[type] = Object.keys(names);
+  });
+  return out;
+}
+
+var ProfUI = (function(){
+  var _freq = 0, _classProf = null, _race = null, _bgProf = null;
+
+  function pd(){
+    var p = draft.prof || (draft.prof = {});
+    ['skills', 'languages', 'tools', 'weapons', 'armor'].forEach(function(t){ if (!p[t]) p[t] = {}; });
+    return p;
+  }
+  function data(){
+    var c = chosenClass();
+    return {
+      className: c ? c.n : '', classProf: _classProf || {},
+      raceName: (draft.species && draft.species.n) || '', race: _race,
+      bgName: (draft.bg && draft.bg.n) || '', bgProf: _bgProf
+    };
+  }
+  function model(){ return resolveProf(data(), !!draft.bgCustom); }
+
+  function loadData(){
+    var c = chosenClass(), my = ++_freq;
+    var clsP = c ? SoulShardsData.loadClass(c.n) : Promise.resolve(null);
+    var bgP = draft.bg ? SoulShardsData.loadBackgrounds() : Promise.resolve(null);
+    return Promise.all([clsP, raceForBuild(), bgP]).then(function(res){
+      if (my !== _freq) return false;
+      _classProf = (res[0] && res[0].startingProficiencies) || {};
+      _race = res[1] || null;
+      _bgProf = (res[2] && draft.bg) ? SoulShardsData.backgroundProficiencies(res[2], draft.bg.n, draft.bg.s) : null;
+      reconcile(); return true;
+    });
+  }
+  function ensureLoaded(){ return loadData(); }
+
+  // prune picks no longer valid after a class / species / background / customize change
+  function reconcile(){
+    var m = model(), p = pd();
+    ['skills', 'languages', 'tools', 'weapons', 'armor'].forEach(function(type){
+      var tm = m[type], tp = p[type] || (p[type] = {}), valid = {};
+      (tm.choices || []).forEach(function(ch){
+        valid[ch.id] = true;
+        var taken = profTakenSet(tm, tp, ch.id);
+        var cur = (tp[ch.id] || []).filter(function(n){ return ch.pool.indexOf(n) !== -1 && !taken[n]; });
+        tp[ch.id] = cur.slice(0, ch.count);
+      });
+      Object.keys(tp).forEach(function(id){ if (!valid[id]) delete tp[id]; });
+    });
+    saveDraft();
+  }
+
+  function esc(x){ return String(x).replace(/[&<>"]/g, function(c){ return ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' })[c]; }); }
+  function tag(src, label){ return ' <span class="pf-src ' + src + '">' + esc(label) + '</span>'; }
+
+  function renderType(type, title){
+    var m = model(), tm = m[type], p = pd(), tp = p[type] || {};
+    var html = '<div class="pf-grp"><div class="subhead">' + title + '</div>';
+    if (tm.fixed.length){
+      html += '<div class="pf-sub">Granted</div><div class="chips">' +
+        tm.fixed.map(function(f){ return '<span class="chip skill inert">' + esc(f.name) + tag(f.src, f.label) + '</span>'; }).join('') + '</div>';
+    }
+    var granted = {}; tm.fixed.forEach(function(f){ granted[f.name] = true; });
+    tm.choices.forEach(function(ch){
+      var picks = tp[ch.id] || [], full = picks.length >= ch.count, taken = profTakenSet(tm, tp, ch.id);
+      html += '<div class="pf-sub">' + esc(ch.label) + ' \u2014 choose ' + ch.count +
+        ' <span class="ct' + (full ? ' full' : '') + '">' + picks.length + ' / ' + ch.count + '</span></div>';
+      html += '<div class="chips">' + ch.pool.map(function(n){
+        var on = picks.indexOf(n) !== -1, elsewhere = !!taken[n] && !on, dim = elsewhere || (full && !on);
+        var t2 = (elsewhere && granted[n]) ? ' <span class="pf-src have">have</span>' : '';
+        return '<span class="chip skill' + (on ? ' sel' : '') + (dim ? ' dim' : '') +
+          '" data-type="' + type + '" data-id="' + esc(ch.id) + '" data-name="' + esc(n) + '">' + esc(n) + t2 + '</span>';
+      }).join('') + '</div>';
+    });
+    if (!tm.fixed.length && !tm.choices.length) html += '<div class="empty">None from this build.</div>';
+    return html + '</div>';
+  }
+
+  function render(){
+    var host = q('#pf-out'); if (!host) return;
+    if (!chosenClass()){ host.innerHTML = '<p>Choose a class first \u2014 proficiencies depend on your class, species, and background.</p>'; return; }
+    var customTog = draft.bg
+      ? '<label class="cust-tog"><input type="checkbox" id="pf-bgcustom"' + (draft.bgCustom ? ' checked' : '') +
+        '> <span>Customize background \u2014 choose ' + esc(draft.bg.n) + '\u2019s skills, tools &amp; languages freely</span></label>'
+      : '';
+    host.innerHTML = customTog +
+      renderType('skills', 'Skills') + renderType('languages', 'Languages') + renderType('tools', 'Tools') +
+      renderType('weapons', 'Weapons') + renderType('armor', 'Armor');
+    wire(host);
+  }
+
+  function wire(host){
+    var t = host.querySelector('#pf-bgcustom');
+    if (t) t.addEventListener('change', function(){ draft.bgCustom = t.checked; saveDraft(); reconcile(); render(); });
+    Array.prototype.forEach.call(host.querySelectorAll('[data-name]'), function(el){
+      if (el.classList.contains('dim') || el.classList.contains('inert')) return;
+      el.addEventListener('click', function(){
+        var type = el.getAttribute('data-type'), id = el.getAttribute('data-id'), name = el.getAttribute('data-name');
+        var ch = (model()[type].choices || []).filter(function(x){ return x.id === id; })[0]; if (!ch) return;
+        var p = pd(), arr = p[type][id] || (p[type][id] = []), i = arr.indexOf(name);
+        if (i !== -1) arr.splice(i, 1);
+        else if (arr.length < ch.count) arr.push(name);
+        saveDraft(); render();
+      });
+    });
+  }
+
+  function mount(){
+    var host = q('#pf-out'); if (!host) return;
+    if (!chosenClass()){ render(); return; }
+    host.innerHTML = '<div class="eng-load">Resolving proficiencies\u2026</div>';
+    loadData().then(function(){ if (q('#pf-out')) render(); }).catch(function(err){
+      var h = q('#pf-out'); if (h) h.innerHTML = '<div class="eng-load">Couldn\u2019t load proficiencies (' + esc((err && err.message) || 'fetch failed') + ').</div>';
+    });
+  }
+
+  function proficienciesForStructural(){
+    var flat = flattenProficiencies(model(), pd());
+    flat.expertise = [];
+    return flat;
+  }
+
+  return { mount: mount, ensureLoaded: ensureLoaded, proficienciesForStructural: proficienciesForStructural };
+})();
 
 
 // ── live engine readout: real SoulShardsData.loadClass + SoulShardsEngine.build ──
@@ -2348,6 +2559,7 @@ function buildStructuralPreview(model, race){
     spellbook: picked.spellbook,
     choices: (typeof ChoicesUI !== 'undefined') ? ChoicesUI.choicesForStructural() : [],
     feats: (typeof FeatsUI !== 'undefined') ? FeatsUI.featsForStructural() : [],
+    proficiencies: (typeof ProfUI !== 'undefined') ? ProfUI.proficienciesForStructural() : null,
     hp: draft.hp
   });
   return Object.assign({}, r.structural, { _incomplete: r._incomplete });
@@ -2371,7 +2583,8 @@ function forgePreview(){
   var spellsReady = (typeof SpellsUI !== 'undefined') ? SpellsUI.ensureLoaded() : Promise.resolve(true);
   var choicesReady = (typeof ChoicesUI !== 'undefined') ? ChoicesUI.ensureLoaded() : Promise.resolve(true);
   var featsReady = (typeof FeatsUI !== 'undefined') ? FeatsUI.ensureLoaded() : Promise.resolve(true);
-  Promise.all([SoulShardsData.loadClass(c.n), raceForBuild(), spellsReady, choicesReady, featsReady]).then(function(res){
+  var profReady = (typeof ProfUI !== 'undefined') ? ProfUI.ensureLoaded() : Promise.resolve(true);
+  Promise.all([SoulShardsData.loadClass(c.n), raceForBuild(), spellsReady, choicesReady, featsReady, profReady]).then(function(res){
     if (my !== forgeReq) return;
     var model = res[0], race = res[1];
     host.innerHTML = forgeCardHTML(buildStructuralPreview(model, race));
@@ -2455,7 +2668,8 @@ function forgeCommit(){
   var choicesReady = (typeof ChoicesUI !== 'undefined') ? ChoicesUI.ensureLoaded() : Promise.resolve(true);
   var featsReady = (typeof FeatsUI !== 'undefined') ? FeatsUI.ensureLoaded() : Promise.resolve(true);
   var itemsReady = (typeof ItemsUI !== 'undefined') ? ItemsUI.ensureLoaded() : Promise.resolve(true);
-  Promise.all([SoulShardsData.loadClass(c.n), raceForBuild(), spellsReady, choicesReady, featsReady, itemsReady]).then(function(res){
+  var profReady = (typeof ProfUI !== 'undefined') ? ProfUI.ensureLoaded() : Promise.resolve(true);
+  Promise.all([SoulShardsData.loadClass(c.n), raceForBuild(), spellsReady, choicesReady, featsReady, itemsReady, profReady]).then(function(res){
     var assembled = buildStructuralPreview(res[0], res[1]);
     if (assembled && assembled._error){ fxStatus('err', assembled._error); return; }
     var structural = Object.assign({}, assembled); delete structural._incomplete;
