@@ -143,14 +143,6 @@
     } else {
       scroll.innerHTML = errHTML('Sheet engine not loaded.');
     }
-    // The sheet's own in-place roll feed duplicates the right-rail feed in the
-    // float AND grows the Actions block, pushing Spellcasting down. Drop the
-    // element outright from this tab — renderActionResult then no-ops on every
-    // roll (it bails when the host is missing), and the standalone sheet, which
-    // has no right rail, keeps its copy untouched. Done in JS so it can't depend
-    // on the stylesheet landing.
-    var arFeed = scroll.querySelector('[data-list="actionResult"], .actionresult');
-    if (arFeed) arFeed.remove();
     // paint this character's saved look into the tab background — per-character,
     // read-only (writes stay owner-only via the cog on the standalone sheet).
     // Lazy-loaded; cosmetic, so any failure is swallowed and never blocks the sheet.
