@@ -560,7 +560,14 @@
       "sigil": "ti-star",
       "color": "#2a3a5a",
       "id": "mqw1lrqmxl82",
-      "tracks": []
+      "tracks": [
+        {
+          "url": "https://res.cloudinary.com/df0tgoiyb/video/upload/v1782545513/30._Choral_Chambers_on6byg.mp3",
+          "title": "Choral Chambers",
+          "artist": "Silksong",
+          "id": "mqw1m1k8erul"
+        }
+      ]
     }
   ],
   "scenes": [
