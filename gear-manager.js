@@ -24,9 +24,22 @@
   function keyOf(it, i) { return (it && it.id) ? ('id:' + it.id) : ('ix:' + i); }
   function qtyOf(it) { return (it && it.qty && it.qty > 1) ? it.qty : 1; }
 
-  // generic scroll-icon; real per-item icons come later with the edit form
+  // Fallback glyphs, used only when item-icons.js (window.ItemIcons) is absent.
   var IC = '<svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M6 3h9l4 4v14H6z"/><path d="M9 8h7M9 12h7M9 16h5"/></svg>';
   var BAGIC = '<svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M8 7V6a4 4 0 018 0v1M4 7h16l-1.4 13H5.4z"/></svg>';
+
+  // Per-item icon: prefer the curated game-icons set (iconFor honours a custom
+  // it.icon, else detects by category); degrade to the fallback glyph if absent.
+  function iconHtml(it) {
+    if (typeof window !== 'undefined' && window.ItemIcons) {
+      try { return window.ItemIcons.iconSvg(window.ItemIcons.iconFor(it), 18); } catch (e) {}
+    }
+    return (it && it.isContainer) ? BAGIC : IC;
+  }
+
+  // Lock glyphs — the pill (toggle) and the always-on row/tile indicator.
+  var LOCKG = '<svg viewBox="0 0 24 24" width="11" height="11" fill="none" stroke="currentColor" stroke-width="2"><rect x="5" y="11" width="14" height="9" rx="1.5"/><path d="M8 11V8a4 4 0 018 0v3"/></svg>';
+  var UNLOCKG = '<svg viewBox="0 0 24 24" width="11" height="11" fill="none" stroke="currentColor" stroke-width="2"><rect x="5" y="11" width="14" height="9" rx="1.5"/><path d="M8 11V8a4 4 0 017.5-2.2"/></svg>';
 
   // ── carry weight: every item counts, bag contents included (they're items) ──
   function totalWeight(inv) {
@@ -77,16 +90,18 @@
 
   // ── equip / attune controls — same contract sheet-actions.js already binds ──
   function controls(it, idx, worn, ES, capFull) {
-    if (!ES) return '';
+    var lock = '<button class="eq-pill icon lock' + (it.locked ? ' on' : '') + '" data-lock="' + idx + '" title="' + (it.locked ? 'Locked \u2014 tap to unlock' : 'Lock this row') + '">' + (it.locked ? LOCKG : UNLOCKG) + '</button>';
+    if (!ES) return lock;
     var att = '';
     if (it.reqAttune) {
       if (it.attuned) att = '<button class="eq-pill on" data-at="' + idx + '" title="Attuned \u2014 tap to release">\u2726 Attuned</button>';
       else if (capFull) att = '<button class="eq-pill capped" data-at="' + idx + '" title="Attunement limit reached">\u2726 Attune</button>';
       else att = '<button class="eq-pill" data-at="' + idx + '">\u2726 Attune</button>';
     }
-    if (worn) return '<button class="eq-pill x" data-un="' + esc(it.slot) + '">Unequip</button>' + att;
-    var eqp = ES ? ES.canEquip(it) : false;
-    return (eqp ? '<button class="eq-pill" data-eq="' + idx + '">Equip</button>' : '') + att;
+    var eq = worn
+      ? '<button class="eq-pill x" data-un="' + esc(it.slot) + '">Unequip</button>'
+      : (ES.canEquip(it) ? '<button class="eq-pill" data-eq="' + idx + '">Equip</button>' : '');
+    return eq + att + lock;
   }
 
   function slotLabel(ES, key) { var m = ES ? ES.SLOTS.filter(function (x) { return x.key === key; })[0] : null; return m ? m.label : key; }
@@ -104,10 +119,10 @@
     var qty = qtyOf(it) > 1 ? '<span class="gm-q">\u00D7' + it.qty + '</span>' : '';
     var count = isBag ? '<span class="gm-q">\u00b7 ' + childrenOf(inv, it.id).length + ' items</span>' : '';
     var ctl = '<span class="gm-ctl">' + controls(it, idx, worn, ES, capFull) + '</span>';
-    var row = '<div class="gm-row' + (worn ? ' worn' : '') + (it.attuned ? ' attuned' : '') + '" data-row="' + esc(k) + '"' + (isBag ? '' : ' data-detail="' + esc(k) + '"') + '>'
+    var row = '<div class="gm-row' + (worn ? ' worn' : '') + (it.attuned ? ' attuned' : '') + (it.locked ? ' locked' : '') + '" data-row="' + esc(k) + '"' + (isBag ? '' : ' data-detail="' + esc(k) + '"') + '>'
       + '<span class="gm-grip">\u283F</span>' + caret
-      + '<span class="gm-ic">' + (isBag ? BAGIC : IC) + '</span>'
-      + '<span class="gm-n">' + esc(it.name || 'Item') + '</span>' + star + count + qty + mid + ctl + '</div>';
+      + '<span class="gm-ic">' + iconHtml(it) + '</span>'
+      + '<span class="gm-n">' + esc(it.name || 'Item') + '</span>' + star + (it.locked ? '<span class="gm-lockg">' + LOCKG + '</span>' : '') + count + qty + mid + ctl + '</div>';
     var below = '';
     if (open) {
       if (isBag) {
@@ -157,15 +172,21 @@
       return a.i - b.i;
     });
     var COLS = 4, openKey = null;
-    Object.keys(st.open).forEach(function (kk) { if (st.open[kk]) openKey = kk; });
+    // openKey must be a TOP-LEVEL item: a bag and a child within it can both be
+    // open in st.open, but only the top-level one drops a full-width detail here
+    // (the child then expands inside that detail via rowHtml's own open check).
+    var topKeys = Object.create(null);
+    top.forEach(function (r) { topKeys[keyOf(r.it, r.i)] = true; });
+    Object.keys(st.open).forEach(function (kk) { if (st.open[kk] && topKeys[kk]) openKey = kk; });
     var cells = top.map(function (r) {
       var it = r.it, isBag = !!it.isContainer, k = keyOf(it, r.i), worn = !!it.slot;
       var tag = worn ? '<span class="gm-ttag">' + esc(slotLabel(ES, it.slot)) + '</span>' : '';
       var att = it.attuned ? '<span class="gm-tatt">\u2726</span>' : '';
+      var lk = it.locked ? '<span class="gm-tlock">' + LOCKG + '</span>' : '';
       var qty = qtyOf(it) > 1 ? '<span class="gm-tqty">\u00D7' + it.qty + '</span>' : '';
       var meta = isBag ? (childrenOf(inv, it.id).length + ' items') : (it.weaponCat || it.typeLabel || (it.weight ? it.weight + ' lb' : ''));
-      return '<div class="gm-tile' + (worn ? ' worn' : '') + (isBag ? ' bag' : '') + (openKey === k ? ' sel' : '') + '" data-tile="' + esc(k) + '">'
-        + tag + att + qty + '<span class="gm-ti">' + (isBag ? BAGIC : IC) + '</span>'
+      return '<div class="gm-tile' + (worn ? ' worn' : '') + (isBag ? ' bag' : '') + (it.locked ? ' locked' : '') + (openKey === k ? ' sel' : '') + '" data-tile="' + esc(k) + '">'
+        + tag + att + lk + qty + '<span class="gm-ti">' + iconHtml(it) + '</span>'
         + '<span class="gm-tn">' + esc(it.name || 'Item') + '</span><span class="gm-tm">' + esc(meta) + '</span></div>';
     });
     // inject the open item's detail as a full-width row after its grid row
@@ -189,7 +210,9 @@
   function currencyHtml(cur) {
     var keys = ['pp', 'gp', 'ep', 'sp', 'cp'];
     return '<div class="gm-currency">' + keys.map(function (k) {
-      return '<div class="gm-coin ' + k + '"><span class="v">' + (cur[k] || 0) + '</span><span class="k">' + k + '</span></div>';
+      var v = cur[k] || 0;
+      return '<div class="gm-coin ' + k + '"><span class="v">' + v + '</span>'
+        + '<input type="number" min="0" data-coin="' + k + '" value="' + v + '"><span class="k">' + k + '</span></div>';
     }).join('') + '</div>';
   }
 
@@ -220,9 +243,9 @@
       + '</div>'
       + '<div class="gm-meta">'
         + '<div class="gm-carry"><div class="gm-carry-face"><span>Carry</span><span>' + carryRight + '</span></div>' + bar + '</div>'
-        + currencyHtml(cur)
       + '</div>'
-      + (st.view === 'grid' ? gridHtml(inv, ES, st, capFull) : listHtml(inv, ES, st, capFull));
+      + (st.view === 'grid' ? gridHtml(inv, ES, st, capFull) : listHtml(inv, ES, st, capFull))
+      + '<div class="gm-currency-foot">' + currencyHtml(cur) + '</div>';
   }
 
   // one-time event delegation: view toggle + bag/detail expand. (Equip lives in
@@ -275,6 +298,20 @@
       '.tok-sheet .gm-coin .v{font-family:"EB Garamond",serif;font-size:16px;color:#f9f3e6}' +
       '.tok-sheet .gm-coin .k{font:500 8.5px/1 "Oswald",sans-serif;letter-spacing:.1em;text-transform:uppercase;color:#8d8675}' +
       '.tok-sheet .gm-coin.gp .v{color:#e7c279}.tok-sheet .gm-coin.gp .k{color:#c79a4a}' +
+      '.tok-sheet .gm-coin input{display:none}' +
+      '.tok-sheet [data-sec="inventory"].can-edit .gm-coin .v{display:none}' +
+      '.tok-sheet [data-sec="inventory"].can-edit .gm-coin input{display:block;width:42px;text-align:center;background:rgba(236,226,205,.06);border:1px solid rgba(236,226,205,.13);border-bottom:1px solid rgba(199,154,74,.5);border-radius:3px;color:#f9f3e6;font-family:"EB Garamond",serif;font-size:15px;padding:2px 0}' +
+      '.tok-sheet [data-sec="inventory"].can-edit .gm-coin.gp input{color:#e7c279}' +
+      '.tok-sheet .gm-coin input::-webkit-outer-spin-button,.tok-sheet .gm-coin input::-webkit-inner-spin-button{-webkit-appearance:none;margin:0}' +
+      '.tok-sheet .gm-coin input:focus{outline:none;border-bottom-color:#e7c279;background:rgba(199,154,74,.10)}' +
+      '.tok-sheet .gm-currency-foot{display:flex;justify-content:center;margin:18px 0 2px;padding-top:14px;border-top:1px solid rgba(236,226,205,.10)}' +
+      '.tok-sheet .eq-pill.icon{padding:4px 6px;line-height:0}' +
+      '.tok-sheet .eq-pill.lock{color:#8d8675;border-color:rgba(141,134,117,.4);background:transparent}' +
+      '.tok-sheet .eq-pill.lock:hover{color:#e7c279;border-color:rgba(199,154,74,.5)}' +
+      '.tok-sheet .eq-pill.lock.on{color:#e7c279;border-color:rgba(199,154,74,.55);background:rgba(199,154,74,.12)}' +
+      '.tok-sheet .gm-lockg{color:rgba(199,154,74,.55);display:inline-flex;flex-shrink:0}' +
+      '.tok-sheet .gm-row.locked .gm-grip{color:transparent}' +
+      '.tok-sheet .gm-tlock{position:absolute;bottom:6px;left:7px;color:rgba(199,154,74,.6);display:inline-flex}' +
       '.tok-sheet .gm-row{display:flex;align-items:center;gap:9px;padding:8px 4px;border-bottom:1px solid rgba(236,226,205,.08);cursor:pointer}' +
       '.tok-sheet .gm-row:hover{background:rgba(199,154,74,.05)}' +
       '.tok-sheet .gm-grip{width:10px;color:rgba(199,154,74,.22);font-size:12px;flex-shrink:0}' +

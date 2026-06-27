@@ -113,6 +113,8 @@ export function wireInspiration({ root, characterData, key, depsReady } = {}) {
   let vitals = {};        // baseline; reconciled with the server-confirmed row
   let structural = {};    // for ResourceDerive / hit dice / CON / hpMax
   let inventory = [];     // for weapon-derived attack actions (mirrors renderActions)
+  let currency = {};      // coins (pp/gp/ep/sp/cp) — a separate full-column save
+  let coinPrev = null;    // pre-edit currency snapshot, for the optimistic revert
   let saving = false;
   let statTimer = null;
   let lastUndo = null;    // { snapshot, label } — the pre-rest vitals
@@ -140,7 +142,7 @@ export function wireInspiration({ root, characterData, key, depsReady } = {}) {
   function refresh() {
     try {
       const S = (typeof window !== 'undefined' ? window : globalThis).__sheet;
-      if (S && S.renderSheet && S.toRenderShape) S.renderSheet(root, S.toRenderShape({ structural, vitals, inventory }));
+      if (S && S.renderSheet && S.toRenderShape) S.renderSheet(root, S.toRenderShape({ structural, vitals, inventory, currency }));
     } catch (_) {}
     paint(!!vitals.inspiration);   // renderSheet doesn't own the cluster button / portrait class
     decorateActionEditor();        // re-assert edit-mode chrome + reopen panel (renderSheet rewrote the section)
@@ -327,6 +329,15 @@ export function wireInspiration({ root, characterData, key, depsReady } = {}) {
     catch (e) { inventory = prev; refresh(); showStat('error', "couldn't save \u00B7 tap to retry", false); }
     finally { busy(false); }
   }
+  async function persistCurrency(prev) {
+    busy(true);
+    // no refresh() on success: it would rebuild the coin inputs and steal focus
+    // mid-edit. Coins don't touch the doll/AC/carry, so the adopted value just
+    // shows on the next natural render. Errors still revert + repaint.
+    try { var saved = await characterData.save(key, { currency: currency }); currency = (saved && saved.currency) ? saved.currency : currency; }
+    catch (e) { currency = prev; refresh(); showStat('error', "couldn't save \u00B7 tap to retry", false); }
+    finally { busy(false); }
+  }
 
   // ── equipment slots: equip / unequip / attune all write item.slot / item.attuned
   // on the inventory, then persist. EquipSlots owns the taxonomy + classifier. ──
@@ -370,6 +381,37 @@ export function wireInspiration({ root, characterData, key, depsReady } = {}) {
   function bindEquip() {
     var sec = root.querySelector('[data-sec="inventory"]'); if (sec) sec.classList.add('can-edit');
     root.addEventListener('click', onEquipClick);
+  }
+
+  // ── gear quick-edits: lock a row, edit coins. Lock writes item.locked on the
+  // inventory (same optimistic path as equip). Coins are a separate column: the
+  // value updates live on input (no re-render, so focus holds) and commits on
+  // blur / Enter via persistCurrency. ──
+  function onGearClick(e) {
+    var lk = e.target.closest('[data-lock]'); if (!lk || !root.contains(lk)) return;
+    e.stopPropagation();
+    var idx = parseInt(lk.getAttribute('data-lock'), 10);
+    var it = inventory[idx]; if (!it) return;
+    var prev = JSON.parse(JSON.stringify(inventory));
+    it.locked = !it.locked;
+    refresh(); persistInventory(prev);
+  }
+  function onCoinInput(e) {
+    var coin = e.target.closest('[data-coin]'); if (!coin || !root.contains(coin)) return;
+    if (coinPrev === null) coinPrev = JSON.parse(JSON.stringify(currency));
+    var v = parseInt(coin.value, 10); if (isNaN(v) || v < 0) v = 0;
+    var next = {}; for (var k in currency) next[k] = currency[k];   // copy-merge (save does a full-column update)
+    next[coin.getAttribute('data-coin')] = v;
+    currency = next;
+  }
+  function onCoinChange(e) {
+    var coin = e.target.closest('[data-coin]'); if (!coin || !root.contains(coin) || coinPrev === null) return;
+    var p = coinPrev; coinPrev = null; persistCurrency(p);
+  }
+  function bindGear() {
+    root.addEventListener('click', onGearClick);
+    root.addEventListener('input', onCoinInput);
+    root.addEventListener('change', onCoinChange);
   }
 
   function applySpend(id, newCur) {
@@ -883,6 +925,7 @@ export function wireInspiration({ root, characterData, key, depsReady } = {}) {
       vitals = (cd && cd.vitals) ? cd.vitals : {};
       structural = (cd && cd.structural) ? cd.structural : {};
       inventory = (cd && cd.inventory) ? cd.inventory : [];
+      currency = (cd && cd.currency) ? cd.currency : {};
     } catch (_) { vitals = {}; structural = {}; }
     paint(!!vitals.inspiration);
 
@@ -906,6 +949,7 @@ export function wireInspiration({ root, characterData, key, depsReady } = {}) {
       try { await (depsReady || Promise.resolve()); } catch (_) {}   // EquipSlots may be self-loading on rail/float hosts
       backfillInventory();
       bindEquip();
+      bindGear();
     } else {
       toggle.classList.add('view-only');
       toggle.setAttribute('aria-disabled', 'true');
