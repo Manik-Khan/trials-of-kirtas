@@ -98,6 +98,42 @@ export function rollHitDie(faces, conMod, rng) {
 function esc(x) { return String(x == null ? '' : x).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;'); }
 function raf(fn) { (typeof requestAnimationFrame !== 'undefined' ? requestAnimationFrame : function (f) { f(); })(fn); }
 
+// ── inventory drag mutations (pure, dup-safe; unit-tested). Each takes the
+// inventory array and returns a NEW array; the controller reassigns and persists.
+// rebuildFromTop replays a desired top-level order, dropping each container's
+// children in right after it, and a `used` set guards every push so an item can
+// never appear twice even if a top order and the containerId fields momentarily
+// disagree. Mirrors the approved mock's rebuildItems / fileInto / moveToTop. ──
+export function topItemsOf(inv) { var o = []; for (var i = 0; i < inv.length; i++) { if (inv[i] && !inv[i].containerId) o.push(inv[i]); } return o; }
+export function childrenRef(inv, bag) { var o = []; if (!bag || bag.id == null) return o; for (var i = 0; i < inv.length; i++) { var x = inv[i]; if (x && x.containerId != null && x.containerId === bag.id) o.push(x); } return o; }
+export function rebuildFromTop(inv, topItems) {
+  var used = new Set(), out = [];
+  topItems.forEach(function (t) {
+    if (!t || used.has(t)) return;
+    out.push(t); used.add(t);
+    if (t.isContainer && t.id != null) childrenRef(inv, t).forEach(function (c) { if (!used.has(c)) { out.push(c); used.add(c); } });
+  });
+  inv.forEach(function (x) { if (x && !used.has(x)) { out.push(x); used.add(x); } });
+  return out;
+}
+// File an item INTO a bag: it leaves the top order and lands after its bag.
+export function fileItemInto(inv, dragItem, bag) {
+  if (!dragItem || !bag || !bag.isContainer || bag.id == null || dragItem.isContainer || dragItem === bag) return { inv: inv, ok: false };
+  dragItem.containerId = bag.id; dragItem.slot = undefined;
+  return { inv: rebuildFromTop(inv, topItemsOf(inv)), ok: true };
+}
+// Place an item at top level before `beforeItem` (null = end). Clearing
+// containerId first means this ALSO pulls an item out of a bag and reorders a top
+// item via one path — the cleared containerId is why a pulled item can't dup.
+export function moveItemToTop(inv, dragItem, beforeItem) {
+  if (!dragItem) return { inv: inv, ok: false };
+  dragItem.containerId = undefined;
+  var top = topItemsOf(inv).filter(function (x) { return x !== dragItem; });
+  var at = beforeItem ? top.indexOf(beforeItem) : top.length; if (at < 0) at = top.length;
+  top.splice(at, 0, dragItem);
+  return { inv: rebuildFromTop(inv, top), ok: true };
+}
+
 export function wireInspiration({ root, characterData, key, depsReady } = {}) {
   root = root || (typeof document !== 'undefined' ? document : null);
   if (!root || !characterData) return null;
@@ -467,10 +503,90 @@ export function wireInspiration({ root, characterData, key, depsReady } = {}) {
     var f = e.target.closest('[data-ef]');
     if (f && root.contains(f)) { updateDraftField(f); return; }       // covers <select> (rarity) which may only fire change
   }
+
+  function keyOfEl(el) { return el ? (el.getAttribute('data-row') || el.getAttribute('data-tile')) : null; }
+  function startGearDrag(e) {
+    var sec = root.querySelector('[data-sec="inventory"]'); if (!sec || !sec.classList.contains('can-edit')) return;
+    var grip = e.target.closest('[data-grip]'); if (!grip || !root.contains(grip)) return;
+    var dragItem = keyToItem(grip.getAttribute('data-grip')); if (!dragItem || dragItem.locked) return;
+    var box = gmBox(); if (!box) return;
+    var d = root.ownerDocument || (typeof document !== 'undefined' ? document : null); if (!d) return;
+    e.preventDefault();
+    var st = gmState();
+    var grid = !!(st && st.view === 'grid');
+    var handleEl = grip.closest('.gm-tile,.gm-row'); if (!handleEl) return;
+    var isTile = handleEl.classList.contains('gm-tile');
+    var start = { x: e.clientX, y: e.clientY };
+    var moved = false, overBag = null, beforeKey = null, insertEl = null;
+    handleEl.classList.add('dragging');
+    handleEl.style.pointerEvents = 'none';                 // so elementFromPoint sees the bag UNDER the cursor
+    var line = d.createElement('div'); line.className = 'drop-line'; line.style.display = 'none'; box.appendChild(line);
+
+    function topHandles() {
+      var sel = grid ? '.gm-grid > .gm-tile' : '.gm-item > .gm-row';
+      return Array.prototype.slice.call(box.querySelectorAll(sel)).filter(function (el) { var t = keyToItem(keyOfEl(el)); return t && !t.containerId; });
+    }
+    function clearBag() { if (overBag) { overBag.classList.remove('bagdrop'); overBag = null; } }
+    function clearInsert() { if (insertEl) { insertEl.classList.remove('insert-before'); insertEl = null; } line.style.display = 'none'; }
+
+    function onMove(ev) {
+      if (!moved && (Math.abs(ev.clientX - start.x) + Math.abs(ev.clientY - start.y)) < 4) return;   // ignore a grip click / micro-move
+      moved = true;
+      if (!isTile) handleEl.style.transform = 'translateY(' + (ev.clientY - start.y) + 'px)';
+      var under = d.elementFromPoint(ev.clientX, ev.clientY);
+      var bagEl = under && under.closest ? under.closest('[data-row],[data-tile]') : null;
+      var bagItem = bagEl ? keyToItem(keyOfEl(bagEl)) : null;
+      if (bagItem && bagItem.isContainer && bagItem !== dragItem && !dragItem.isContainer) {
+        if (overBag !== bagEl) { clearBag(); clearInsert(); overBag = bagEl; bagEl.classList.add('bagdrop'); }
+        beforeKey = null; return;
+      }
+      clearBag();
+      var handles = topHandles(), before = null, i, b;
+      if (grid) {
+        for (i = 0; i < handles.length; i++) { b = handles[i].getBoundingClientRect();
+          if (ev.clientY < b.top) { before = handles[i]; break; }
+          if (ev.clientY <= b.bottom && ev.clientX < b.left + b.width / 2) { before = handles[i]; break; } }
+      } else {
+        for (i = 0; i < handles.length; i++) { b = handles[i].getBoundingClientRect(); if (ev.clientY < b.top + b.height / 2) { before = handles[i]; break; } }
+      }
+      beforeKey = before ? keyOfEl(before) : null;
+      if (grid) {
+        clearInsert(); if (before) { before.classList.add('insert-before'); insertEl = before; }
+      } else {
+        var boxTop = box.getBoundingClientRect().top;
+        if (before) { b = before.getBoundingClientRect(); line.style.top = (b.top - boxTop) + 'px'; }
+        else { var last = handles[handles.length - 1]; if (last) { b = last.getBoundingClientRect(); line.style.top = (b.bottom - boxTop) + 'px'; } }
+        line.style.display = 'block';
+      }
+    }
+    function onUp() {
+      d.removeEventListener('pointermove', onMove, true);
+      d.removeEventListener('pointerup', onUp, true);
+      handleEl.classList.remove('dragging'); handleEl.style.transform = ''; handleEl.style.pointerEvents = '';
+      var bagWas = overBag, beforeWas = beforeKey; clearBag(); clearInsert();
+      if (line.parentNode) line.parentNode.removeChild(line);
+      if (!moved) return;                                  // a click with no drag leaves the inventory untouched
+      var prev = JSON.parse(JSON.stringify(inventory));
+      if (bagWas) {
+        var bag = keyToItem(keyOfEl(bagWas));
+        var rf = fileItemInto(inventory, dragItem, bag);
+        if (rf.ok) { inventory = rf.inv; if (st) { if (!st.open) st.open = Object.create(null); st.open['id:' + bag.id] = true; } refresh(); persistInventory(prev); }
+        return;
+      }
+      var beforeItem = beforeWas ? keyToItem(beforeWas) : null;
+      var rm = moveItemToTop(inventory, dragItem, beforeItem);
+      if (rm.ok) { inventory = rm.inv; refresh(); persistInventory(prev); }
+    }
+    d.addEventListener('pointermove', onMove, true);
+    d.addEventListener('pointerup', onUp, true);
+  }
+  function onGearPointerDown(e) { if (e.target.closest && e.target.closest('[data-grip]')) startGearDrag(e); }
+
   function bindGear() {
     root.addEventListener('click', onGearClick);
     root.addEventListener('input', onGearInput);
     root.addEventListener('change', onGearChange);
+    root.addEventListener('pointerdown', onGearPointerDown);
   }
 
   function applySpend(id, newCur) {

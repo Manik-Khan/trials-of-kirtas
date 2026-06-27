@@ -167,9 +167,9 @@
     var count = isBag ? '<span class="gm-q">\u00b7 ' + childrenOf(inv, it.id).length + ' items</span>' : '';
     var ctl = '<span class="gm-ctl">' + controls(it, idx, worn, ES, capFull) + '</span>';
     var row = '<div class="gm-row' + (worn ? ' worn' : '') + (it.attuned ? ' attuned' : '') + (it.locked ? ' locked' : '') + '" data-row="' + esc(k) + '"' + (isBag ? '' : ' data-detail="' + esc(k) + '"') + '>'
-      + '<span class="gm-grip">\u283F</span>' + caret
+      + '<span class="gm-grip" data-grip="' + esc(k) + '">\u283F</span>' + caret
       + '<span class="gm-ic">' + iconHtml(it) + '</span>'
-      + '<span class="gm-n">' + esc(it.name || 'Item') + '</span>' + star + (it.locked ? '<span class="gm-lockg">' + LOCKG + '</span>' : '') + count + qty + mid + ctl + '</div>';
+      + '<span class="gm-n">' + esc(it.name || 'Item') + '</span>' + star + (it.locked ? '<span class="gm-lockg">' + LOCKG + '</span>' : '') + count + qty + mid + ctl + (isBag ? '<span class="bagdrop-hint">file here</span>' : '') + '</div>';
     var below = '';
     if (st.editing === k) {
       below = editFormHtml(st.draft || it, st);
@@ -235,6 +235,7 @@
       var qty = qtyOf(it) > 1 ? '<span class="gm-tqty">\u00D7' + it.qty + '</span>' : '';
       var meta = isBag ? (childrenOf(inv, it.id).length + ' items') : (it.weaponCat || it.typeLabel || (it.weight ? it.weight + ' lb' : ''));
       return '<div class="gm-tile' + (worn ? ' worn' : '') + (isBag ? ' bag' : '') + (it.locked ? ' locked' : '') + (openKey === k ? ' sel' : '') + '" data-tile="' + esc(k) + '">'
+        + '<span class="gm-tgrip" data-grip="' + esc(k) + '">\u283F</span>'
         + tag + att + lk + qty + '<span class="gm-ti">' + iconHtml(it) + '</span>'
         + '<span class="gm-tn">' + esc(it.name || 'Item') + '</span><span class="gm-tm">' + esc(meta) + '</span></div>';
     });
@@ -361,11 +362,12 @@
       '.tok-sheet .eq-pill.lock:hover{color:#e7c279;border-color:rgba(199,154,74,.5)}' +
       '.tok-sheet .eq-pill.lock.on{color:#e7c279;border-color:rgba(199,154,74,.55);background:rgba(199,154,74,.12)}' +
       '.tok-sheet .gm-lockg{color:rgba(199,154,74,.55);display:inline-flex;flex-shrink:0}' +
-      '.tok-sheet .gm-row.locked .gm-grip{color:transparent}' +
+      '.tok-sheet .gm-row.locked .gm-grip{color:transparent !important;cursor:default}' +
       '.tok-sheet .gm-tlock{position:absolute;bottom:6px;left:7px;color:rgba(199,154,74,.6);display:inline-flex}' +
       '.tok-sheet .gm-row{display:flex;align-items:center;gap:9px;padding:8px 4px;border-bottom:1px solid rgba(236,226,205,.08);cursor:pointer}' +
       '.tok-sheet .gm-row:hover{background:rgba(199,154,74,.05)}' +
-      '.tok-sheet .gm-grip{width:10px;color:rgba(199,154,74,.22);font-size:12px;flex-shrink:0}' +
+      '.tok-sheet .gm-grip{width:10px;color:rgba(199,154,74,.22);font-size:12px;flex-shrink:0;cursor:grab;touch-action:none}' +
+      '.tok-sheet [data-sec="inventory"]:not(.can-edit) .gm-grip{display:none}' +
       '.tok-sheet .gm-row:hover .gm-grip{color:rgba(199,154,74,.5)}' +
       '.tok-sheet .gm-caret,.tok-sheet .gm-exp{width:11px;flex-shrink:0;color:rgba(199,154,74,.55);font-size:11px;transition:transform .15s;display:inline-block}' +
       '.tok-sheet .gm-caret.open,.tok-sheet .gm-exp.open{transform:rotate(90deg);color:#e7c279}' +
@@ -448,7 +450,20 @@
       '.tok-sheet .ge-btn{font:600 9.5px/1 "Oswald",sans-serif;letter-spacing:.1em;text-transform:uppercase;border-radius:999px;padding:8px 16px;cursor:pointer;border:1px solid rgba(199,154,74,.45);background:transparent;color:#c2b99f}' +
       '.tok-sheet .ge-btn:hover{color:#f9f3e6}' +
       '.tok-sheet .ge-btn.primary{background:#c79a4a;border-color:#c79a4a;color:#241c11}' +
-      '.tok-sheet .ge-btn.primary:hover{background:#e7c279}';
+      '.tok-sheet .ge-btn.primary:hover{background:#e7c279}' +
+      '.tok-sheet [data-equip]{position:relative}' +
+      '.tok-sheet .gm-row.dragging{background:rgba(199,154,74,.10);box-shadow:0 6px 18px rgba(0,0,0,.4);z-index:5;cursor:grabbing}' +
+      '.tok-sheet .gm-row.bagdrop{background:rgba(85,196,192,.12);box-shadow:inset 0 0 0 1px #55c4c0}' +
+      '.tok-sheet .bagdrop-hint{font:500 8px/1 "Oswald",sans-serif;letter-spacing:.1em;text-transform:uppercase;color:#55c4c0;margin-left:8px;display:none}' +
+      '.tok-sheet .gm-row.bagdrop .bagdrop-hint{display:inline}' +
+      '.tok-sheet .drop-line{position:absolute;left:4px;right:4px;height:2px;background:#e7c279;box-shadow:0 0 8px rgba(231,194,121,.6);pointer-events:none;z-index:6}' +
+      '.tok-sheet .gm-tgrip{position:absolute;top:2px;left:50%;transform:translateX(-50%);font-size:10px;line-height:1;color:transparent;cursor:grab;touch-action:none;z-index:3;padding:2px 6px}' +
+      '.tok-sheet .gm-tile:hover .gm-tgrip{color:rgba(199,154,74,.55)}' +
+      '.tok-sheet [data-sec="inventory"]:not(.can-edit) .gm-tgrip{display:none}' +
+      '.tok-sheet .gm-tile.locked .gm-tgrip{display:none}' +
+      '.tok-sheet .gm-tile.dragging{opacity:.45}' +
+      '.tok-sheet .gm-tile.bagdrop{box-shadow:inset 0 0 0 2px #55c4c0;background:rgba(85,196,192,.12)}' +
+      '.tok-sheet .gm-tile.insert-before::after{content:\'\';position:absolute;left:-5px;top:10%;bottom:10%;width:2px;background:#e7c279;box-shadow:0 0 8px rgba(231,194,121,.6)}';
     (doc.head || doc.documentElement).appendChild(s);
   }
 
