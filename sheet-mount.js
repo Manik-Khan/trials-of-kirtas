@@ -1101,7 +1101,7 @@ var __depPromise = null;
 function ensureDeps(doc){
   var w = (typeof window!=='undefined') ? window : (typeof globalThis!=='undefined' ? globalThis : null);
   if(!w) return Promise.resolve();
-  if(w.ArmorAC && w.EquipSlots && w.GearManager) return Promise.resolve();
+  if(w.ArmorAC && w.EquipSlots && w.GearManager && w.ItemIcons) return Promise.resolve();
   doc = doc || (typeof document!=='undefined' ? document : null);
   if(!doc || !doc.createElement) return Promise.resolve();   // Node/jsdom-no-DOM: deps are eval'd in by the smoke
   if(__depPromise) return __depPromise;
@@ -1121,6 +1121,7 @@ function ensureDeps(doc){
   if(!w.ArmorAC)    jobs.push(loadScript('armor-ac.js'));
   if(!w.EquipSlots) jobs.push(loadScript('equip-slots.js'));
   if(!w.GearManager) jobs.push(loadScript('gear-manager.js'));
+  if(!w.ItemIcons)  jobs.push(loadScript('item-icons.js'));
   __depPromise = Promise.all(jobs).then(function(){ return new Promise(function(r){ setTimeout(r, 0); }); });  // let the IIFEs register on window
   return __depPromise;
 }

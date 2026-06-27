@@ -383,35 +383,94 @@ export function wireInspiration({ root, characterData, key, depsReady } = {}) {
     root.addEventListener('click', onEquipClick);
   }
 
-  // ── gear quick-edits: lock a row, edit coins. Lock writes item.locked on the
-  // inventory (same optimistic path as equip). Coins are a separate column: the
-  // value updates live on input (no re-render, so focus holds) and commits on
-  // blur / Enter via persistCurrency. ──
+  // ── gear writes. Lock + coins are the 2a quick-edits. The item edit form (2b)
+  // renders from a DRAFT held on the GearManager box state (box.__gmState), so the
+  // live inventory is untouched until Save: field writes land on the draft (no
+  // re-render, focus holds), Save copies the draft back and persists, Cancel drops
+  // it. GearManager owns the render; this owns every mutation. ──
+  function gmBox() { return root.querySelector('[data-equip]'); }
+  function gmState() { var b = gmBox(); return (b && b.__gmState) ? b.__gmState : null; }
+  function keyToItem(key) {
+    if (key == null) return null;
+    if (key.indexOf('id:') === 0) { var id = key.slice(3); return inventory.filter(function (it) { return it && String(it.id) === id; })[0] || null; }
+    if (key.indexOf('ix:') === 0) { var ix = parseInt(key.slice(3), 10); return inventory[ix] || null; }
+    return null;
+  }
+  function updateDraftField(f) {
+    var st = gmState(); if (!st || !st.editing || !st.draft) return;
+    var k = f.getAttribute('data-ef'), v;
+    if (f.type === 'number') { v = parseFloat(f.value); if (isNaN(v)) v = 0; if (k === 'qty') v = Math.max(1, Math.round(v)); else if (v < 0) v = 0; }
+    else v = f.value;
+    st.draft[k] = v;
+  }
+  function openEdit(key) {
+    var st = gmState(); if (!st) return;
+    var it = keyToItem(key); if (!it) return;
+    st.editing = key;
+    st.draft = JSON.parse(JSON.stringify(it));
+    st.picker = false;
+    st.pickerCat = null;                                   // GearManager defaults to the item's category
+    if (!st.open) st.open = Object.create(null);
+    if (it.containerId) st.open['id:' + it.containerId] = true;   // open the parent bag so the form is visible
+    st.open[key] = true;
+    refresh();
+    try { var nm = root.querySelector('[data-ef="name"]'); if (nm && nm.focus) { nm.focus(); if (nm.setSelectionRange) nm.setSelectionRange(nm.value.length, nm.value.length); } } catch (e) {}
+  }
+  function clearEdit(st) { st.editing = null; st.picker = false; st.pickerCat = null; st.draft = null; }
+  function cancelEdit() { var st = gmState(); if (!st) return; clearEdit(st); refresh(); }
+  function saveEdit() {
+    var st = gmState(); if (!st || !st.editing) return;
+    var it = keyToItem(st.editing), d = st.draft;
+    if (it && d) {
+      var prev = JSON.parse(JSON.stringify(inventory));
+      it.name = d.name; it.qty = d.qty; it.weight = d.weight; it.rarity = d.rarity;
+      it.reqAttune = !!d.reqAttune; it.flavor = d.flavor;
+      if (d.icon != null) it.icon = d.icon;
+      clearEdit(st);
+      refresh(); persistInventory(prev);
+    } else { clearEdit(st); refresh(); }
+  }
+
   function onGearClick(e) {
-    var lk = e.target.closest('[data-lock]'); if (!lk || !root.contains(lk)) return;
-    e.stopPropagation();
-    var idx = parseInt(lk.getAttribute('data-lock'), 10);
-    var it = inventory[idx]; if (!it) return;
-    var prev = JSON.parse(JSON.stringify(inventory));
-    it.locked = !it.locked;
-    refresh(); persistInventory(prev);
+    var lk = e.target.closest('[data-lock]');
+    if (lk && root.contains(lk)) {
+      e.stopPropagation();
+      var idx = parseInt(lk.getAttribute('data-lock'), 10);
+      var it = inventory[idx]; if (!it) return;
+      var prev = JSON.parse(JSON.stringify(inventory));
+      it.locked = !it.locked;
+      refresh(); persistInventory(prev); return;
+    }
+    var op = e.target.closest('[data-editopen]'); if (op && root.contains(op)) { e.stopPropagation(); openEdit(op.getAttribute('data-editopen')); return; }
+    var pt = e.target.closest('[data-pktoggle]'); if (pt && root.contains(pt)) { e.stopPropagation(); var s1 = gmState(); if (s1) { s1.picker = !s1.picker; refresh(); } return; }
+    var pc = e.target.closest('[data-pkcat]'); if (pc && root.contains(pc)) { e.stopPropagation(); var s2 = gmState(); if (s2) { s2.pickerCat = pc.getAttribute('data-pkcat'); refresh(); } return; }
+    var pp = e.target.closest('[data-pkpick]'); if (pp && root.contains(pp)) { e.stopPropagation(); var s3 = gmState(); if (s3 && s3.draft) { s3.draft.icon = pp.getAttribute('data-pkpick'); refresh(); } return; }
+    var tg = e.target.closest('[data-eftoggle]'); if (tg && root.contains(tg)) { e.stopPropagation(); var s4 = gmState(); if (s4 && s4.draft) { var fk = tg.getAttribute('data-eftoggle'); s4.draft[fk] = !s4.draft[fk]; refresh(); } return; }
+    var cancel = e.target.closest('[data-ecancel]'); if (cancel && root.contains(cancel)) { e.stopPropagation(); cancelEdit(); return; }
+    var save = e.target.closest('[data-esave]'); if (save && root.contains(save)) { e.stopPropagation(); saveEdit(); return; }
   }
-  function onCoinInput(e) {
-    var coin = e.target.closest('[data-coin]'); if (!coin || !root.contains(coin)) return;
-    if (coinPrev === null) coinPrev = JSON.parse(JSON.stringify(currency));
-    var v = parseInt(coin.value, 10); if (isNaN(v) || v < 0) v = 0;
-    var next = {}; for (var k in currency) next[k] = currency[k];   // copy-merge (save does a full-column update)
-    next[coin.getAttribute('data-coin')] = v;
-    currency = next;
+  function onGearInput(e) {
+    var coin = e.target.closest('[data-coin]');
+    if (coin && root.contains(coin)) {
+      if (coinPrev === null) coinPrev = JSON.parse(JSON.stringify(currency));
+      var v = parseInt(coin.value, 10); if (isNaN(v) || v < 0) v = 0;
+      var next = {}; for (var k in currency) next[k] = currency[k];   // copy-merge (save does a full-column update)
+      next[coin.getAttribute('data-coin')] = v;
+      currency = next; return;
+    }
+    var f = e.target.closest('[data-ef]');
+    if (f && root.contains(f)) { updateDraftField(f); return; }       // live draft write; no re-render so focus holds
   }
-  function onCoinChange(e) {
-    var coin = e.target.closest('[data-coin]'); if (!coin || !root.contains(coin) || coinPrev === null) return;
-    var p = coinPrev; coinPrev = null; persistCurrency(p);
+  function onGearChange(e) {
+    var coin = e.target.closest('[data-coin]');
+    if (coin && root.contains(coin)) { if (coinPrev !== null) { var p = coinPrev; coinPrev = null; persistCurrency(p); } return; }
+    var f = e.target.closest('[data-ef]');
+    if (f && root.contains(f)) { updateDraftField(f); return; }       // covers <select> (rarity) which may only fire change
   }
   function bindGear() {
     root.addEventListener('click', onGearClick);
-    root.addEventListener('input', onCoinInput);
-    root.addEventListener('change', onCoinChange);
+    root.addEventListener('input', onGearInput);
+    root.addEventListener('change', onGearChange);
   }
 
   function applySpend(id, newCur) {

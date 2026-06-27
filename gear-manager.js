@@ -67,7 +67,7 @@
     if (it.sourceFull || it.source) r.push(['Source', it.sourceFull || it.source]);
     return r;
   }
-  function detailHtml(it) {
+  function detailHtml(it, k) {
     var cat = (it.weaponCat || it.typeLabel) ? '<div class="gm-d-cat">' + esc(it.weaponCat || it.typeLabel) + '</div>' : '';
     var rar = (it.rarity && it.rarity !== 'None') ? '<div class="gm-d-rar">' + esc(it.rarity) + '</div>' : '';
     var stats = statRows(it);
@@ -85,7 +85,54 @@
     var notes = it.notes ? '<div class="gm-d-sec">Notes</div><div class="gm-d-flavor">' + esc(it.notes) + '</div>' : '';
     var body = cat + rar + statsHtml + propsHtml + desc + flavor + notes;
     if (!body) body = '<div class="gm-d-empty">No further detail.</div>';
-    return '<div class="gm-detail">' + body + '</div>';
+    var edit = (k != null) ? '<div class="gm-d-edit"><button class="gm-d-editbtn" data-editopen="' + esc(k) + '">Edit item</button></div>' : '';
+    return '<div class="gm-detail">' + body + edit + '</div>';
+  }
+
+  // ── edit form + icon picker (ported from the approved mock; the picker reads
+  // ItemIcons.CATEGORIES). The form renders from a draft held in box.__gmState;
+  // sheet-actions.js owns the draft, the field writes, and Save/Cancel. ──
+  var RARITIES = ['None', 'Common', 'Uncommon', 'Rare', 'Very Rare', 'Legendary', 'Artifact'];
+  function II() { return (typeof window !== 'undefined' ? window : globalThis).ItemIcons || null; }
+  function pickerCatFor(it) {
+    var ii = II(); if (!ii) return null;
+    try { return ii.detectCategory(it); } catch (e) { return (ii.CATEGORIES && ii.CATEGORIES[0]) ? ii.CATEGORIES[0].id : null; }
+  }
+  function curIconId(it) { var ii = II(); if (!ii) return null; try { return ii.iconFor(it); } catch (e) { return null; } }
+  function pickerHtml(it, st) {
+    var ii = II(); if (!ii || !ii.CATEGORIES) return '';
+    var cat = st.pickerCat || pickerCatFor(it), cur = curIconId(it);
+    var tabs = ii.CATEGORIES.map(function (c) {
+      return '<button class="ge-pk-tab' + (c.id === cat ? ' on' : '') + '" data-pkcat="' + esc(c.id) + '">' + esc(c.label) + '</button>';
+    }).join('');
+    var grp = null; for (var i = 0; i < ii.CATEGORIES.length; i++) { if (ii.CATEGORIES[i].id === cat) { grp = ii.CATEGORIES[i]; break; } }
+    if (!grp) grp = ii.CATEGORIES[0];
+    var cells = grp.icons.map(function (ic) {
+      return '<button class="ge-pk-cell' + (ic === cur ? ' sel' : '') + '" data-pkpick="' + esc(ic) + '" title="' + esc(ic) + '">' + ii.iconSvg(ic, 24) + '</button>';
+    }).join('');
+    return '<div class="ge-picker"><div class="ge-pk-tabs">' + tabs + '</div><div class="ge-pk-grid">' + cells + '</div></div>';
+  }
+  function editFormHtml(it, st) {
+    var ii = II();
+    var iconRow = ii
+      ? '<div class="ge-iconrow"><div class="ge-swatch">' + ii.iconSvg(curIconId(it), 34) + '</div>'
+        + '<div class="ge-iconmeta"><div class="lbl">Icon</div>'
+        + '<button class="ge-changeicon' + (st.picker ? ' on' : '') + '" data-pktoggle="1">' + (st.picker ? 'Done choosing' : 'Change icon') + '</button></div></div>'
+      : '';
+    var picker = st.picker ? pickerHtml(it, st) : '';
+    return '<div class="gm-edit">'
+      + '<div class="ge-head"><span>Edit item</span><span class="nm">' + esc(it.name || 'Item') + '</span></div>'
+      + iconRow + picker
+      + '<div class="ge-fields">'
+        + '<div class="ge-f wide"><label>Name</label><input data-ef="name" value="' + esc(it.name || '') + '"></div>'
+        + '<div class="ge-f"><label>Quantity</label><input type="number" min="1" data-ef="qty" value="' + (it.qty || 1) + '"></div>'
+        + '<div class="ge-f"><label>Weight (lb)</label><input type="number" min="0" step="0.1" data-ef="weight" value="' + (it.weight || 0) + '"></div>'
+        + '<div class="ge-f"><label>Rarity</label><select data-ef="rarity">' + RARITIES.map(function (r) { return '<option' + (r === (it.rarity || 'None') ? ' selected' : '') + '>' + r + '</option>'; }).join('') + '</select></div>'
+        + '<div class="ge-f"><label>Attunement</label><div class="ge-toggle' + (it.reqAttune ? ' on' : '') + '" data-eftoggle="reqAttune"><span class="box"></span><span>Requires attunement</span></div></div>'
+        + '<div class="ge-f wide"><label>Flavor / Notes</label><textarea data-ef="flavor" placeholder="A line of description, history, or a table note\u2026">' + esc(it.flavor || '') + '</textarea></div>'
+      + '</div>'
+      + '<div class="ge-foot"><button class="ge-btn" data-ecancel="1">Cancel</button><button class="ge-btn primary" data-esave="1">Save changes</button></div>'
+    + '</div>';
   }
 
   // ── equip / attune controls — same contract sheet-actions.js already binds ──
@@ -124,14 +171,16 @@
       + '<span class="gm-ic">' + iconHtml(it) + '</span>'
       + '<span class="gm-n">' + esc(it.name || 'Item') + '</span>' + star + (it.locked ? '<span class="gm-lockg">' + LOCKG + '</span>' : '') + count + qty + mid + ctl + '</div>';
     var below = '';
-    if (open) {
+    if (st.editing === k) {
+      below = editFormHtml(st.draft || it, st);
+    } else if (open) {
       if (isBag) {
         var kids = childrenOf(inv, it.id);
         below = '<div class="gm-children">' + (kids.length
           ? kids.map(function (c) { return rowHtml(c.it, c.i, inv, ES, st, capFull); }).join('')
           : '<div class="gm-bag-empty">Empty</div>') + '</div>';
       } else {
-        below = detailHtml(it);
+        below = detailHtml(it, k);
       }
     }
     return '<div class="gm-item">' + row + below + '</div>';
@@ -194,11 +243,13 @@
       var oi = top.map(function (r) { return keyOf(r.it, r.i); }).indexOf(openKey);
       if (oi >= 0) {
         var item = top[oi].it;
-        var detail = item.isContainer
-          ? '<div class="gm-children">' + (childrenOf(inv, item.id).length
-              ? childrenOf(inv, item.id).map(function (c) { return rowHtml(c.it, c.i, inv, ES, st, capFull); }).join('')
-              : '<div class="gm-bag-empty">Empty</div>') + '</div>'
-          : detailHtml(item);
+        var detail = (st.editing === openKey)
+          ? editFormHtml(st.draft || item, st)
+          : (item.isContainer
+              ? '<div class="gm-children">' + (childrenOf(inv, item.id).length
+                  ? childrenOf(inv, item.id).map(function (c) { return rowHtml(c.it, c.i, inv, ES, st, capFull); }).join('')
+                  : '<div class="gm-bag-empty">Empty</div>') + '</div>'
+              : detailHtml(item, openKey));
         var endOfRow = (Math.floor(oi / COLS) + 1) * COLS;
         if (endOfRow > cells.length) endOfRow = cells.length;
         cells.splice(endOfRow, 0, '<div class="gm-grid-detail">' + detail + '</div>');
@@ -219,7 +270,7 @@
   function render(box, ctx) {
     if (!box) return;
     box.__gmCtx = ctx;
-    var st = box.__gmState || (box.__gmState = { view: 'list', open: Object.create(null) });
+    var st = box.__gmState || (box.__gmState = { view: 'list', open: Object.create(null), editing: null, picker: false, pickerCat: null, draft: null });
     var inv = Array.isArray(ctx.inventory) ? ctx.inventory : [];
     var cur = ctx.currency || {};
     var ES = ctx.ES || null;
@@ -354,7 +405,50 @@
       '.tok-sheet .gm-tatt{position:absolute;top:5px;right:6px;color:#e7c279;font-size:11px}' +
       '.tok-sheet .gm-tqty{position:absolute;bottom:6px;right:7px;font:500 9px/1 "Oswald",sans-serif;color:#8d8675}' +
       '.tok-sheet .gm-grid-detail{grid-column:1 / -1;background:rgba(6,14,13,.5);border:1px solid rgba(199,154,74,.4);border-left:2px solid #e7c279;border-radius:4px;padding:4px 6px}' +
-      '.tok-sheet .gm-grid-detail .gm-detail{border:0;padding:9px 12px 11px}';
+      '.tok-sheet .gm-grid-detail .gm-detail{border:0;padding:9px 12px 11px}' +
+      '.tok-sheet .gm-grid-detail .gm-edit{border:0;padding:11px 13px 12px}' +
+      '.tok-sheet .gm-d-edit{margin-top:11px;padding-top:9px;border-top:1px solid rgba(236,226,205,.08)}' +
+      '.tok-sheet [data-sec="inventory"]:not(.can-edit) .gm-d-edit{display:none}' +
+      '.tok-sheet .gm-d-editbtn{font:600 9px/1 "Oswald",sans-serif;letter-spacing:.1em;text-transform:uppercase;color:#e7c279;background:transparent;border:1px solid rgba(199,154,74,.45);border-radius:999px;padding:6px 13px;cursor:pointer}' +
+      '.tok-sheet .gm-d-editbtn:hover{background:rgba(199,154,74,.14)}' +
+      '.tok-sheet .gm-edit{background:rgba(6,14,13,.62);border-top:1px solid #e7c279;border-left:2px solid #e7c279;padding:13px 15px 14px 28px}' +
+      '.tok-sheet .ge-head{font:500 10px/1 "Oswald",sans-serif;letter-spacing:.14em;text-transform:uppercase;color:#e7c279;margin:0 0 11px;display:flex;justify-content:space-between;align-items:center}' +
+      '.tok-sheet .ge-head .nm{color:#f9f3e6;font-weight:600;text-transform:none;letter-spacing:0;font-family:"EB Garamond",serif;font-size:15px}' +
+      '.tok-sheet .ge-iconrow{display:flex;gap:13px;align-items:center;margin:0 0 12px}' +
+      '.tok-sheet .ge-swatch{width:54px;height:54px;flex-shrink:0;border:1px solid rgba(199,154,74,.45);border-radius:4px;background:rgba(6,14,13,.6);display:flex;align-items:center;justify-content:center;color:#e7c279}' +
+      '.tok-sheet .ge-iconmeta{flex:1}' +
+      '.tok-sheet .ge-iconmeta .lbl{font:500 8.5px/1 "Oswald",sans-serif;letter-spacing:.12em;text-transform:uppercase;color:#8d8675;margin:0 0 4px}' +
+      '.tok-sheet .ge-changeicon{font:500 9px/1 "Oswald",sans-serif;letter-spacing:.1em;text-transform:uppercase;color:#e7c279;background:transparent;border:1px solid rgba(199,154,74,.45);border-radius:3px;padding:5px 11px;cursor:pointer}' +
+      '.tok-sheet .ge-changeicon:hover{background:rgba(199,154,74,.16)}' +
+      '.tok-sheet .ge-changeicon.on{background:rgba(199,154,74,.20);color:#e7c279}' +
+      '.tok-sheet .ge-picker{margin:0 0 13px;border:1px solid rgba(236,226,205,.13);border-radius:4px;background:rgba(6,14,13,.4);padding:9px 9px 10px}' +
+      '.tok-sheet .ge-pk-tabs{display:flex;gap:5px;overflow-x:auto;padding-bottom:8px;margin:0 0 8px;border-bottom:1px solid rgba(236,226,205,.13);scrollbar-width:thin}' +
+      '.tok-sheet .ge-pk-tab{font:500 9px/1 "Oswald",sans-serif;letter-spacing:.07em;text-transform:uppercase;color:#8d8675;background:transparent;border:1px solid transparent;border-radius:3px;padding:5px 9px;cursor:pointer;white-space:nowrap;flex-shrink:0}' +
+      '.tok-sheet .ge-pk-tab:hover{color:#c2b99f}' +
+      '.tok-sheet .ge-pk-tab.on{color:#e7c279;border-color:rgba(199,154,74,.45);background:rgba(199,154,74,.12)}' +
+      '.tok-sheet .ge-pk-grid{display:grid;grid-template-columns:repeat(7,1fr);gap:6px}' +
+      '.tok-sheet .ge-pk-cell{aspect-ratio:1;border:1px solid rgba(236,226,205,.13);border-radius:3px;background:rgba(236,226,205,.03);display:flex;align-items:center;justify-content:center;color:rgba(199,154,74,.78);cursor:pointer;transition:background .12s,border-color .12s}' +
+      '.tok-sheet .ge-pk-cell:hover{background:rgba(199,154,74,.12);color:#e7c279;border-color:rgba(199,154,74,.45)}' +
+      '.tok-sheet .ge-pk-cell.sel{border-color:#e7c279;box-shadow:inset 0 0 0 1px #e7c279;color:#e7c279}' +
+      '.tok-sheet .ge-fields{display:grid;grid-template-columns:1fr 1fr;gap:9px 11px;margin:0 0 12px}' +
+      '.tok-sheet .ge-f{display:flex;flex-direction:column;gap:4px}' +
+      '.tok-sheet .ge-f.wide{grid-column:1 / -1}' +
+      '.tok-sheet .ge-f label{font:500 8.5px/1 "Oswald",sans-serif;letter-spacing:.12em;text-transform:uppercase;color:#8d8675}' +
+      '.tok-sheet .ge-f input,.tok-sheet .ge-f select,.tok-sheet .ge-f textarea{background:rgba(236,226,205,.06);border:1px solid rgba(236,226,205,.13);border-bottom:1px solid rgba(199,154,74,.45);border-radius:3px;color:#f9f3e6;font-family:"EB Garamond",serif;font-size:14.5px;padding:6px 8px;width:100%;box-sizing:border-box}' +
+      '.tok-sheet .ge-f input:focus,.tok-sheet .ge-f select:focus,.tok-sheet .ge-f textarea:focus{outline:none;border-bottom-color:#e7c279;background:rgba(199,154,74,.08)}' +
+      '.tok-sheet .ge-f select{appearance:none;cursor:pointer}' +
+      '.tok-sheet .ge-f textarea{font-style:italic;resize:vertical;min-height:54px;line-height:1.4}' +
+      '.tok-sheet .ge-f input[type=number]{-moz-appearance:textfield}' +
+      '.tok-sheet .ge-f input[type=number]::-webkit-outer-spin-button,.tok-sheet .ge-f input[type=number]::-webkit-inner-spin-button{-webkit-appearance:none;margin:0}' +
+      '.tok-sheet .ge-toggle{display:flex;align-items:center;gap:8px;cursor:pointer;user-select:none;padding-top:18px}' +
+      '.tok-sheet .ge-toggle .box{width:16px;height:16px;border:1.5px solid rgba(199,154,74,.45);transform:rotate(45deg);flex-shrink:0;transition:background .15s}' +
+      '.tok-sheet .ge-toggle.on .box{background:#e7c279;border-color:#e7c279}' +
+      '.tok-sheet .ge-toggle span{font-family:"EB Garamond",serif;font-size:13.5px;color:#c2b99f}' +
+      '.tok-sheet .ge-foot{display:flex;justify-content:flex-end;gap:9px;border-top:1px solid rgba(236,226,205,.13);padding-top:11px}' +
+      '.tok-sheet .ge-btn{font:600 9.5px/1 "Oswald",sans-serif;letter-spacing:.1em;text-transform:uppercase;border-radius:999px;padding:8px 16px;cursor:pointer;border:1px solid rgba(199,154,74,.45);background:transparent;color:#c2b99f}' +
+      '.tok-sheet .ge-btn:hover{color:#f9f3e6}' +
+      '.tok-sheet .ge-btn.primary{background:#c79a4a;border-color:#c79a4a;color:#241c11}' +
+      '.tok-sheet .ge-btn.primary:hover{background:#e7c279}';
     (doc.head || doc.documentElement).appendChild(s);
   }
 
