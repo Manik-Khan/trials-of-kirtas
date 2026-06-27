@@ -307,19 +307,87 @@
     return '<div class="gm-grid">' + cells.join('') + '</div>';
   }
 
+  // ── money model (5e 2014, electrum kept) — pure, shared by the footer +
+  // the loot splitter. Internally everything is copper; coins consolidate with a
+  // greedy round-down that KEEPS ep (50cp) since it only ever reduces coin count. ──
+  var COIN_RATE = { pp: 1000, gp: 100, ep: 50, sp: 10, cp: 1 };
+  var COIN_ORDER = ['pp', 'gp', 'ep', 'sp', 'cp'];
+  var COIN_LEGEND = { pp: '1 pp = 10 gp = 1000 cp', gp: '1 gp = 2 ep = 10 sp = 100 cp', ep: '1 ep = 5 sp = 50 cp', sp: '1 sp = 10 cp', cp: '1 cp = base unit' };
+  function coinCopper(o) { o = o || {}; return COIN_ORDER.reduce(function (s, k) { return s + (parseInt(o[k], 10) || 0) * COIN_RATE[k]; }, 0); }
+  function coinConsolidate(c) { var out = {}; COIN_ORDER.forEach(function (k) { out[k] = Math.floor(c / COIN_RATE[k]); c -= out[k] * COIN_RATE[k]; }); return out; }
+  function coinGp(c) { return (c / 100).toFixed(2).replace(/\.?0+$/, ''); }
+  function worthStr(cur) { return coinGp(coinCopper(cur)); }
+  function splitShare(loot, ways) {
+    ways = Math.max(1, ways | 0);
+    var total = coinCopper(loot), per = Math.floor(total / ways), rem = total - per * ways;
+    return { share: coinConsolidate(per), per: per, rem: rem, remCoins: coinConsolidate(rem), total: total, ways: ways };
+  }
+  function coinLineHtml(o) {
+    var p = []; COIN_ORDER.forEach(function (k) { if (o[k] > 0) p.push('<span class="cl-c">' + o[k] + '<span class="cl-u">' + k + '</span></span>'); });
+    return p.length ? p.join('<span class="cl-dot">\u00b7</span>') : '<span class="cl-c">0<span class="cl-u">cp</span></span>';
+  }
+  function splitOutHtml(loot, ways, names) {
+    var r = splitShare(loot, ways);
+    var rem = (r.rem > 0)
+      ? '<div class="gm-sp-rem">leftover ' + coinLineHtml(r.remCoins) + ' \u2014 to the pot or one player</div>'
+      : '<div class="gm-sp-rem even">splits evenly \u2014 nothing left over</div>';
+    var chips = '';
+    for (var i = 0; i < r.ways; i++) { var nm = (names && names[i]) ? names[i] : ('Share ' + (i + 1)); chips += '<span class="gm-sp-chip">' + esc(nm) + '</span>'; }
+    return '<div class="gm-sp-each">each share</div>'
+      + '<div class="gm-sp-coins">' + coinLineHtml(r.share) + '</div>'
+      + '<div class="gm-sp-worth">each \u2248 <b>' + coinGp(r.per) + '</b> gp \u00b7 ' + r.ways + ' ways \u00b7 pile \u2248 ' + coinGp(r.total) + ' gp</div>'
+      + rem
+      + '<div class="gm-sp-names">' + chips + '</div>'
+      + '<div class="gm-sp-take"><button class="gm-sp-takebtn" data-takemine="1">Take my share</button></div>';
+  }
+
   function currencyHtml(cur) {
-    var keys = ['pp', 'gp', 'ep', 'sp', 'cp'];
-    return '<div class="gm-currency">' + keys.map(function (k) {
+    return '<div class="gm-currency">' + COIN_ORDER.map(function (k) {
       var v = cur[k] || 0;
       return '<div class="gm-coin ' + k + '"><span class="v">' + v + '</span>'
-        + '<input type="number" min="0" data-coin="' + k + '" value="' + v + '"><span class="k">' + k + '</span></div>';
+        + '<div class="gm-coin-step">'
+          + '<button class="gm-cs" data-cstep="-1" data-coin="' + k + '" tabindex="-1" type="button">\u2212</button>'
+          + '<input type="number" min="0" data-coin="' + k + '" value="' + v + '">'
+          + '<button class="gm-cs" data-cstep="1" data-coin="' + k + '" tabindex="-1" type="button">+</button>'
+        + '</div>'
+        + '<span class="k">' + k + '</span>'
+        + '<div class="gm-coin-leg">' + COIN_LEGEND[k] + '</div>'
+      + '</div>';
     }).join('') + '</div>';
+  }
+
+  // the footer: the coin row (+ steppers + worth + hover legend) and the loot
+  // Split panel. Split state lives on st.split; the controller owns the math's
+  // side effects (persist, take-my-share) and repaints [data-splitout] with live
+  // party names — here we render the shell + a names-less initial breakdown.
+  function currencyFootHtml(cur, st) {
+    var sp = st.split || (st.split = { open: false, loot: { pp: 0, gp: 0, ep: 0, sp: 0, cp: 0 }, ways: 4 });
+    var loot = sp.loot || (sp.loot = { pp: 0, gp: 0, ep: 0, sp: 0, cp: 0 });
+    var ways = sp.ways || 4;
+    var lootInputs = COIN_ORDER.map(function (k) {
+      return '<div class="gm-sl"><input type="number" min="0" data-loot="' + k + '" value="' + (loot[k] || 0) + '"><span>' + k + '</span></div>';
+    }).join('');
+    return '<div class="gm-currency-foot">'
+      + currencyHtml(cur)
+      + '<div class="gm-cur-tools">'
+        + '<button class="gm-split-btn' + (sp.open ? ' on' : '') + '" data-splittoggle="1" type="button">'
+          + '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="6" cy="6" r="2.5"/><circle cx="6" cy="18" r="2.5"/><circle cx="18" cy="12" r="2.5"/><path d="M8 7l8 4M8 17l8-4"/></svg>'
+          + 'Split loot</button>'
+        + '<span class="gm-cur-worth">Total \u2248 <b data-worth>' + worthStr(cur) + '</b> gp</span>'
+      + '</div>'
+      + '<div class="gm-split' + (sp.open ? ' open' : '') + '" data-splitpanel>'
+        + '<div class="gm-split-h"><span>Split the pile</span><a data-usemine="1">use my coins \u2198</a></div>'
+        + '<div class="gm-split-loot">' + lootInputs + '</div>'
+        + '<div class="gm-split-ways"><span class="lab">ways</span><div class="gm-ways"><button data-waysdn="1" tabindex="-1" type="button">\u2212</button><span class="n" data-waysn>' + ways + '</span><button data-waysup="1" tabindex="-1" type="button">+</button></div></div>'
+        + '<div class="gm-split-out" data-splitout>' + splitOutHtml(loot, ways, null) + '</div>'
+      + '</div>'
+    + '</div>';
   }
 
   function render(box, ctx) {
     if (!box) return;
     box.__gmCtx = ctx;
-    var st = box.__gmState || (box.__gmState = { view: 'list', open: Object.create(null), editing: null, picker: false, pickerCat: null, draft: null, adding: false, search: null });
+    var st = box.__gmState || (box.__gmState = { view: 'list', open: Object.create(null), editing: null, picker: false, pickerCat: null, draft: null, adding: false, search: null, split: null });
     var inv = Array.isArray(ctx.inventory) ? ctx.inventory : [];
     var cur = ctx.currency || {};
     var ES = ctx.ES || null;
@@ -347,7 +415,7 @@
         + '<div class="gm-carry"><div class="gm-carry-face"><span>Carry</span><span>' + carryRight + '</span></div>' + bar + '</div>'
       + '</div>'
       + (st.view === 'grid' ? gridHtml(inv, ES, st, capFull) : listHtml(inv, ES, st, capFull))
-      + '<div class="gm-currency-foot">' + currencyHtml(cur) + '</div>';
+      + currencyFootHtml(cur, st);
   }
 
   // one-time event delegation: view toggle + bag/detail expand. (Equip lives in
@@ -548,11 +616,66 @@
       '.tok-sheet .gm-add-confirm{font:600 9.5px/1 "Oswald",sans-serif;letter-spacing:.1em;text-transform:uppercase;color:#241c11;background:#c79a4a;border:1px solid #c79a4a;border-radius:999px;padding:8px 16px;cursor:pointer;display:inline-flex;align-items:center;gap:6px}' +
       '.tok-sheet .gm-add-confirm:hover{background:#e7c279}' +
       '.tok-sheet .gm-add-confirm .plus{font-size:13px;line-height:0}' +
-      '.tok-sheet .gm-add-pack-note{font-family:"EB Garamond",serif;font-style:italic;font-size:12px;color:#55c4c0}';
+      '.tok-sheet .gm-add-pack-note{font-family:"EB Garamond",serif;font-style:italic;font-size:12px;color:#55c4c0}' +
+      /* ── Currency footer: steppers · legend · loot Split · worth ── */
+      '.tok-sheet .gm-coin{position:relative}' +
+      '.tok-sheet .gm-coin-step{display:none;align-items:stretch}' +
+      '.tok-sheet [data-sec="inventory"].can-edit .gm-coin-step{display:flex}' +
+      '.tok-sheet .gm-cs{width:19px;border:1px solid rgba(236,226,205,.16);background:rgba(236,226,205,.05);color:#8d8675;font:400 14px/1 "Oswald",sans-serif;cursor:pointer;user-select:none;display:flex;align-items:center;justify-content:center;padding:0;-webkit-tap-highlight-color:transparent}' +
+      '.tok-sheet .gm-cs:first-child{border-radius:3px 0 0 3px;border-right:0}' +
+      '.tok-sheet .gm-cs:last-child{border-radius:0 3px 3px 0;border-left:0}' +
+      '.tok-sheet .gm-cs:hover{color:#e7c279;background:rgba(199,154,74,.14);border-color:rgba(199,154,74,.45)}' +
+      '.tok-sheet .gm-cs:active{background:rgba(199,154,74,.26)}' +
+      '.tok-sheet [data-sec="inventory"].can-edit .gm-coin-step input{width:38px;border-radius:0}' +
+      '.tok-sheet .gm-coin.gm-coin-flash input{animation:gmcoinflash .7s ease}' +
+      '@keyframes gmcoinflash{0%{background:rgba(231,194,121,.42)}100%{background:rgba(236,226,205,.06)}}' +
+      '.tok-sheet .gm-coin-leg{position:absolute;bottom:calc(100% + 7px);left:50%;transform:translateX(-50%) translateY(3px);background:#0c1817;border:1px solid rgba(199,154,74,.4);border-radius:4px;padding:6px 9px;white-space:nowrap;font:400 11px/1.2 "Oswald",sans-serif;letter-spacing:.03em;color:#ece2cd;box-shadow:0 10px 26px -12px rgba(0,0,0,.85);opacity:0;pointer-events:none;transition:opacity .14s, transform .14s;z-index:5}' +
+      '.tok-sheet .gm-coin:hover .gm-coin-leg{opacity:1;transform:translateX(-50%) translateY(0)}' +
+      '.tok-sheet .gm-cur-tools{display:flex;align-items:center;gap:14px;flex-wrap:wrap;justify-content:center;margin:13px 0 0}' +
+      '.tok-sheet .gm-split-btn{display:none;align-items:center;gap:6px;font:600 9.5px/1 "Oswald",sans-serif;letter-spacing:.12em;text-transform:uppercase;color:#55c4c0;background:transparent;border:1px solid rgba(85,196,192,.4);border-radius:3px;padding:7px 13px;cursor:pointer}' +
+      '.tok-sheet [data-sec="inventory"].can-edit .gm-split-btn{display:inline-flex}' +
+      '.tok-sheet .gm-split-btn:hover{background:rgba(85,196,192,.13);border-color:rgba(85,196,192,.7)}' +
+      '.tok-sheet .gm-split-btn.on{background:rgba(85,196,192,.18);border-color:rgba(85,196,192,.8)}' +
+      '.tok-sheet .gm-split-btn svg{width:14px;height:14px}' +
+      '.tok-sheet .gm-cur-worth{font-family:"EB Garamond",serif;font-size:14px;font-style:italic;color:#8d8675}' +
+      '.tok-sheet .gm-cur-worth b{color:#f9f3e6;font-style:normal;font-weight:600}' +
+      '.tok-sheet .gm-split{display:none;width:100%;max-width:430px;margin:12px auto 2px;border:1px solid rgba(85,196,192,.3);border-left:2px solid #55c4c0;border-radius:5px;background:rgba(6,16,14,.6);padding:14px 15px 15px}' +
+      '.tok-sheet [data-sec="inventory"].can-edit .gm-split.open{display:block}' +
+      '.tok-sheet .gm-split-h{font:600 9px/1 "Oswald",sans-serif;letter-spacing:.18em;text-transform:uppercase;color:#55c4c0;margin:0 0 11px;display:flex;justify-content:space-between;align-items:center}' +
+      '.tok-sheet .gm-split-h a{font:400 9px/1 "Oswald",sans-serif;letter-spacing:.1em;color:#c79a4a;cursor:pointer;text-transform:none}' +
+      '.tok-sheet .gm-split-h a:hover{color:#e7c279}' +
+      '.tok-sheet .gm-split-loot{display:flex;gap:6px;justify-content:center;flex-wrap:wrap;margin:0 0 12px}' +
+      '.tok-sheet .gm-sl{display:flex;flex-direction:column;align-items:center;gap:3px}' +
+      '.tok-sheet .gm-sl input{width:42px;text-align:center;background:rgba(236,226,205,.06);border:1px solid rgba(236,226,205,.13);border-bottom:1px solid rgba(85,196,192,.45);border-radius:3px;color:#f9f3e6;font-family:"EB Garamond",serif;font-size:14px;padding:3px 0}' +
+      '.tok-sheet .gm-sl input::-webkit-outer-spin-button,.tok-sheet .gm-sl input::-webkit-inner-spin-button{-webkit-appearance:none;margin:0}' +
+      '.tok-sheet .gm-sl input{-moz-appearance:textfield}' +
+      '.tok-sheet .gm-sl input:focus{outline:none;border-bottom-color:#55c4c0}' +
+      '.tok-sheet .gm-sl span{font:500 7.5px/1 "Oswald",sans-serif;letter-spacing:.12em;text-transform:uppercase;color:#8d8675}' +
+      '.tok-sheet .gm-split-ways{display:flex;align-items:center;justify-content:center;gap:10px;margin:0 0 12px}' +
+      '.tok-sheet .gm-split-ways .lab{font:400 9.5px/1 "Oswald",sans-serif;letter-spacing:.12em;text-transform:uppercase;color:#8d8675}' +
+      '.tok-sheet .gm-ways{display:flex;align-items:stretch}' +
+      '.tok-sheet .gm-ways button{width:22px;border:1px solid rgba(236,226,205,.16);background:rgba(236,226,205,.05);color:#ece2cd;font:400 15px/1 "Oswald",sans-serif;cursor:pointer}' +
+      '.tok-sheet .gm-ways button:first-child{border-radius:3px 0 0 3px;border-right:0}' +
+      '.tok-sheet .gm-ways button:last-child{border-radius:0 3px 3px 0;border-left:0}' +
+      '.tok-sheet .gm-ways button:hover{color:#55c4c0;border-color:rgba(85,196,192,.5)}' +
+      '.tok-sheet .gm-ways .n{min-width:30px;display:flex;align-items:center;justify-content:center;font-family:"EB Garamond",serif;font-size:17px;color:#f9f3e6;border-top:1px solid rgba(236,226,205,.13);border-bottom:1px solid rgba(236,226,205,.13);background:rgba(236,226,205,.04)}' +
+      '.tok-sheet .gm-split-out{border-top:1px solid rgba(236,226,205,.10);padding-top:12px;text-align:center}' +
+      '.tok-sheet .gm-sp-each{font:400 8.5px/1 "Oswald",sans-serif;letter-spacing:.16em;text-transform:uppercase;color:#8d8675;margin:0 0 6px}' +
+      '.tok-sheet .gm-sp-coins{font-family:"Playfair Display",serif;font-size:19px;color:#f9f3e6;letter-spacing:.4px;line-height:1.3}' +
+      '.tok-sheet .cl-c{white-space:nowrap}.tok-sheet .cl-u{font-size:11px;color:#c79a4a;font-family:"Oswald",sans-serif;text-transform:uppercase;letter-spacing:.06em;margin-left:1px}.tok-sheet .cl-dot{color:rgba(141,134,117,.5);margin:0 7px}' +
+      '.tok-sheet .gm-sp-worth{font-family:"EB Garamond",serif;font-style:italic;font-size:13px;color:#8d8675;margin:5px 0 0}.tok-sheet .gm-sp-worth b{color:#f9f3e6;font-style:normal;font-weight:600}' +
+      '.tok-sheet .gm-sp-rem{margin:11px 0 0;font:400 11px/1.3 "Oswald",sans-serif;letter-spacing:.04em;color:#e7c279;padding:7px 9px;background:rgba(199,154,74,.08);border-radius:4px;display:inline-block}' +
+      '.tok-sheet .gm-sp-rem.even{color:#55c4c0;background:rgba(85,196,192,.08)}' +
+      '.tok-sheet .gm-sp-rem .cl-u{color:#c79a4a}' +
+      '.tok-sheet .gm-sp-names{display:flex;gap:5px;justify-content:center;flex-wrap:wrap;margin:12px 0 0}' +
+      '.tok-sheet .gm-sp-chip{font:500 9px/1 "Oswald",sans-serif;letter-spacing:.06em;color:#ece2cd;border:1px solid rgba(236,226,205,.13);border-radius:999px;padding:4px 9px}' +
+      '.tok-sheet .gm-sp-take{margin:13px 0 0}' +
+      '.tok-sheet .gm-sp-takebtn{font:600 9px/1 "Oswald",sans-serif;letter-spacing:.1em;text-transform:uppercase;color:#241c11;background:#c79a4a;border:1px solid #c79a4a;border-radius:999px;padding:7px 15px;cursor:pointer}' +
+      '.tok-sheet .gm-sp-takebtn:hover{background:#e7c279}';
     (doc.head || doc.documentElement).appendChild(s);
   }
 
-  var GM = { render: render, bind: bind, injectCss: injectCss, totalWeight: totalWeight, detailHtml: detailHtml, searchResultsHtml: searchResultsHtml, VERSION: 'gm-1' };
+  var GM = { render: render, bind: bind, injectCss: injectCss, totalWeight: totalWeight, detailHtml: detailHtml, searchResultsHtml: searchResultsHtml, splitOutHtml: splitOutHtml, splitShare: splitShare, worthStr: worthStr, VERSION: 'gm-1' };
   if (typeof window !== 'undefined') { window.GearManager = GM; try { injectCss(window.document); } catch (e) {} }
   if (typeof globalThis !== 'undefined') globalThis.GearManager = GM;
   if (typeof module !== 'undefined' && module.exports) module.exports = GM;

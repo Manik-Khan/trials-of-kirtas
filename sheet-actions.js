@@ -182,6 +182,7 @@ export function wireInspiration({ root, characterData, key, depsReady } = {}) {
     } catch (_) {}
     paint(!!vitals.inspiration);   // renderSheet doesn't own the cluster button / portrait class
     decorateActionEditor();        // re-assert edit-mode chrome + reopen panel (renderSheet rewrote the section)
+    paintSplitIfOpen();            // GM re-rendered the split shell names-less; repaint with live party names
   }
 
   // ── popovers (fixed-positioned at an anchor; outside-click closes) ──
@@ -496,6 +497,39 @@ export function wireInspiration({ root, characterData, key, depsReady } = {}) {
       paintSearchResults();
       return;
     }
+    // ── currency: loot splitter ──
+    var stog = e.target.closest('[data-splittoggle]');
+    if (stog && root.contains(stog)) {
+      e.stopPropagation();
+      var ss = splitState(); if (!ss) return;
+      ss.open = !ss.open;
+      var panel = gmBox() && gmBox().querySelector('[data-splitpanel]');
+      if (panel) panel.classList.toggle('open', ss.open);
+      stog.classList.toggle('on', ss.open);
+      if (ss.open) { paintSplit(); ensurePartyNames(); }
+      return;
+    }
+    var umine = e.target.closest('[data-usemine]');
+    if (umine && root.contains(umine)) {
+      e.stopPropagation();
+      var ss2 = splitState(); if (!ss2) return;
+      var b2 = gmBox();
+      ['pp', 'gp', 'ep', 'sp', 'cp'].forEach(function (c) { ss2.loot[c] = (parseInt(currency[c], 10) || 0); if (b2) { var li = b2.querySelector('input[data-loot="' + c + '"]'); if (li) li.value = ss2.loot[c]; } });
+      paintSplit();
+      return;
+    }
+    var wbtn = e.target.closest('[data-waysdn],[data-waysup]');
+    if (wbtn && root.contains(wbtn)) {
+      e.stopPropagation();
+      var ss3 = splitState(); if (!ss3) return;
+      var up = wbtn.hasAttribute('data-waysup');
+      ss3.ways = Math.max(1, Math.min(12, (ss3.ways || 4) + (up ? 1 : -1)));
+      var nEl = gmBox() && gmBox().querySelector('[data-waysn]'); if (nEl) nEl.textContent = ss3.ways;
+      paintSplit();
+      return;
+    }
+    var tmine = e.target.closest('[data-takemine]');
+    if (tmine && root.contains(tmine)) { e.stopPropagation(); takeMyShare(); return; }
     var lk = e.target.closest('[data-lock]');
     if (lk && root.contains(lk)) {
       e.stopPropagation();
@@ -520,10 +554,12 @@ export function wireInspiration({ root, characterData, key, depsReady } = {}) {
       var v = parseInt(coin.value, 10); if (isNaN(v) || v < 0) v = 0;
       var next = {}; for (var k in currency) next[k] = currency[k];   // copy-merge (save does a full-column update)
       next[coin.getAttribute('data-coin')] = v;
-      currency = next; return;
+      currency = next; paintWorth(); return;   // keep the Total worth live on typed edits too
     }
     var asq = e.target.closest('[data-addsearch]');
     if (asq && root.contains(asq)) { var sS = gmState(); if (sS && sS.search) { sS.search.q = asq.value; runItemSearch(); } return; }   // debounced; no re-render so focus holds
+    var lootEl = e.target.closest('[data-loot]');
+    if (lootEl && root.contains(lootEl)) { var ssL = splitState(); if (ssL) { var lv = parseInt(lootEl.value, 10); ssL.loot[lootEl.getAttribute('data-loot')] = (isNaN(lv) || lv < 0) ? 0 : lv; paintSplit(); } return; }   // repaints only the breakdown; loot input holds focus
     var f = e.target.closest('[data-ef]');
     if (f && root.contains(f)) { updateDraftField(f); return; }       // live draft write; no re-render so focus holds
   }
@@ -610,7 +646,11 @@ export function wireInspiration({ root, characterData, key, depsReady } = {}) {
     d.addEventListener('pointermove', onMove, true);
     d.addEventListener('pointerup', onUp, true);
   }
-  function onGearPointerDown(e) { if (e.target.closest && e.target.closest('[data-grip]')) startGearDrag(e); }
+  function onGearPointerDown(e) {
+    if (e.target.closest && e.target.closest('[data-grip]')) { startGearDrag(e); return; }
+    var cs = e.target.closest && e.target.closest('[data-cstep]');
+    if (cs && root.contains(cs)) { e.preventDefault(); startCoinHold(cs, e); return; }
+  }
 
   // ── 5etools "+ Add item" (Inc 3). The GM renders the search panel + results
   // (read from box.__gmState.search); this owns the debounced items2 fetch, the
@@ -714,6 +754,50 @@ export function wireInspiration({ root, characterData, key, depsReady } = {}) {
         inventory[idx] = enrichMerge(match, Object.assign({}, inventory[idx], { _enriched: true, alias: item.alias || (inventory[idx].name !== match.name ? match.name : null) }));
       }).catch(function () { var idx = inventory.indexOf(item); if (idx >= 0) inventory[idx]._enriched = true; });
     })).then(function () { refresh(); persistInventory(prev); });
+  }
+
+  // ── Currency footer: steppers + the loot splitter (Inc: coin UX). Steppers
+  // mutate `currency` optimistically and DEBOUNCE persistCurrency (a flurry of
+  // taps = one save); worth + the split breakdown repaint surgically so the
+  // inputs never lose focus. "Take my share" adds the computed cut to `currency`
+  // and persists. Party names for the share chips load lazily on first open. ──
+  var coinSaveTimer = null, stepHoldT = null, stepRepeatT = null, partyNames = [], partyLoaded = false;
+  function splitState() { var st = gmState(); if (!st) return null; if (!st.split) st.split = { open: false, loot: { pp: 0, gp: 0, ep: 0, sp: 0, cp: 0 }, ways: 4 }; return st.split; }
+  function worthVal() { var API = gmAPI(); return (API && API.worthStr) ? API.worthStr(currency) : ''; }
+  function paintWorth() { var b = gmBox(); if (!b) return; var w = b.querySelector('[data-worth]'); if (w) w.textContent = worthVal(); }
+  function paintSplit() { var b = gmBox(), st = gmState(), API = gmAPI(); if (!b || !st || !st.split || !API || !API.splitOutHtml) return; var el = b.querySelector('[data-splitout]'); if (el) el.innerHTML = API.splitOutHtml(st.split.loot, st.split.ways, partyNames); }
+  function paintSplitIfOpen() { var st = gmState(); if (st && st.split && st.split.open) paintSplit(); }
+  function syncCoinInput(coin) { var b = gmBox(); if (!b) return; var inp = b.querySelector('input[data-coin="' + coin + '"]'); if (inp) inp.value = (currency[coin] || 0); }
+  function commitCoins() { clearTimeout(coinSaveTimer); coinSaveTimer = null; if (coinPrev !== null) { var p = coinPrev; coinPrev = null; persistCurrency(p); } }
+  function scheduleCoinCommit() { clearTimeout(coinSaveTimer); coinSaveTimer = setTimeout(commitCoins, 500); }
+  function coinStep(coin, delta) {
+    if (coinPrev === null) coinPrev = JSON.parse(JSON.stringify(currency));   // pre-burst snapshot for revert
+    var next = {}; for (var k in currency) next[k] = currency[k];             // copy-merge (save is a full-column update)
+    next[coin] = Math.max(0, (parseInt(next[coin], 10) || 0) + delta);
+    currency = next; syncCoinInput(coin); paintWorth(); scheduleCoinCommit();
+  }
+  function startCoinHold(btn, ev) {
+    var coin = btn.getAttribute('data-coin'), dir = parseInt(btn.getAttribute('data-cstep'), 10), big = !!(ev && ev.shiftKey);
+    coinStep(coin, dir * (big ? 10 : 1));                                     // immediate; Shift = x10
+    clearTimeout(stepHoldT); clearInterval(stepRepeatT);
+    stepHoldT = setTimeout(function () { stepRepeatT = setInterval(function () { coinStep(coin, dir * (big ? 10 : 1)); }, 80); }, 380);   // hold-to-repeat
+    var stop = function () { clearTimeout(stepHoldT); clearInterval(stepRepeatT); stepHoldT = stepRepeatT = null; if (doc) { doc.removeEventListener('pointerup', stop, true); doc.removeEventListener('pointercancel', stop, true); } };
+    if (doc) { doc.addEventListener('pointerup', stop, true); doc.addEventListener('pointercancel', stop, true); }
+  }
+  function takeMyShare() {
+    var st = gmState(), API = gmAPI(); if (!st || !st.split || !API || !API.splitShare) return;
+    var r = API.splitShare(st.split.loot, st.split.ways); if (!r || !r.share) return;
+    var prev = JSON.parse(JSON.stringify(currency));
+    var next = {}; for (var k in currency) next[k] = currency[k];
+    ['pp', 'gp', 'ep', 'sp', 'cp'].forEach(function (c) { next[c] = (parseInt(next[c], 10) || 0) + (r.share[c] || 0); });
+    currency = next;
+    var b = gmBox();
+    ['pp', 'gp', 'ep', 'sp', 'cp'].forEach(function (c) { syncCoinInput(c); if (b && r.share[c] > 0) { var el = b.querySelector('.gm-coin.' + c); if (el) { el.classList.remove('gm-coin-flash'); void el.offsetWidth; el.classList.add('gm-coin-flash'); } } });
+    paintWorth(); persistCurrency(prev);
+  }
+  function ensurePartyNames() {
+    if (partyLoaded || !characterData || !characterData.loadParty) return; partyLoaded = true;
+    Promise.resolve(characterData.loadParty()).then(function (rows) { partyNames = (rows || []).map(function (r) { return r && r.name; }).filter(Boolean); paintSplitIfOpen(); }).catch(function () {});
   }
 
   function bindGear() {
