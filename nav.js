@@ -122,7 +122,7 @@ function applyTheme(themeId) {
 function buildNav() {
   const activePath   = getActivePath();
   const currentTheme = getSavedTheme();
-  const isSheet      = activePath === 'sheet.html';
+  const isSheet      = activePath === 'sheet-v2.html';
   const activeChar   = isSheet ? (new URLSearchParams(window.location.search)).get('character') || '' : '';
 
   const navLinks = PAGES.map(page => {
@@ -137,12 +137,12 @@ function buildNav() {
     return link;
   }).join('');
 
-  // Character switcher — only rendered on sheet.html
+  // Character switcher — only rendered on sheet-v2.html
   const charSwitcher = isSheet ? `
     <div class="nav-char-switcher">
       <span class="nav-char-divider">|</span>
       ${CHARACTERS_NAV.map(c => `
-        <a href="sheet.html?character=${c.key}"
+        <a href="sheet-v2.html?character=${c.key}"
            class="nav-char-link${c.key === activeChar ? ' active' : ''}">
           ${c.label}
         </a>`).join('')}
@@ -258,7 +258,7 @@ async function populateCharMenu() {
     const body = document.getElementById('char-menu-body');
     if (body) {
       body.innerHTML =
-        `<a class="char-menu-row" href="sheet.html?character=${c.key}">` +
+        `<a class="char-menu-row" href="sheet-v2.html?character=${c.key}">` +
         `<span class="char-menu-name">${c.full || c.label}</span>` +
         `<span class="char-menu-go">→</span></a>`;
     }
@@ -569,7 +569,7 @@ function injectNavStyles() {
     .char-menu-row:hover .char-menu-name { color: var(--gold-light); }
     .char-menu-go { color: var(--gold); font-size: 0.7rem; }
 
-    /* Character switcher — sheet.html only */
+    /* Character switcher — sheet-v2.html only */
     .nav-char-switcher {
       display: flex;
       align-items: center;
