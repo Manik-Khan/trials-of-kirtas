@@ -317,17 +317,24 @@
   function coinConsolidate(c) { var out = {}; COIN_ORDER.forEach(function (k) { out[k] = Math.floor(c / COIN_RATE[k]); c -= out[k] * COIN_RATE[k]; }); return out; }
   function coinGp(c) { return (c / 100).toFixed(2).replace(/\.?0+$/, ''); }
   function worthStr(cur) { return coinGp(coinCopper(cur)); }
-  function splitShare(loot, ways) {
+  function splitShare(loot, ways, convert) {
     ways = Math.max(1, ways | 0);
-    var total = coinCopper(loot), per = Math.floor(total / ways), rem = total - per * ways;
-    return { share: coinConsolidate(per), per: per, rem: rem, remCoins: coinConsolidate(rem), total: total, ways: ways };
+    var total = coinCopper(loot);
+    if (convert) {   // "money-changer" — pool to copper + consolidate to optimal coins (MAY mint higher denominations not in the pile)
+      var per = Math.floor(total / ways), rem = total - per * ways;
+      return { share: coinConsolidate(per), per: per, rem: rem, remCoins: coinConsolidate(rem), total: total, ways: ways, convert: true };
+    }
+    // default — divide each coin type on its own; never invents a denomination that wasn't in the pile (no real-time conversion)
+    var share = {}, remCoins = {};
+    COIN_ORDER.forEach(function (k) { var n = parseInt(loot[k], 10) || 0; share[k] = Math.floor(n / ways); remCoins[k] = n - share[k] * ways; });
+    return { share: share, per: coinCopper(share), rem: coinCopper(remCoins), remCoins: remCoins, total: total, ways: ways, convert: false };
   }
   function coinLineHtml(o) {
     var p = []; COIN_ORDER.forEach(function (k) { if (o[k] > 0) p.push('<span class="cl-c">' + o[k] + '<span class="cl-u">' + k + '</span></span>'); });
     return p.length ? p.join('<span class="cl-dot">\u00b7</span>') : '<span class="cl-c">0<span class="cl-u">cp</span></span>';
   }
-  function splitOutHtml(loot, ways, names) {
-    var r = splitShare(loot, ways);
+  function splitOutHtml(loot, ways, names, convert) {
+    var r = splitShare(loot, ways, convert);
     var rem = (r.rem > 0)
       ? '<div class="gm-sp-rem">leftover ' + coinLineHtml(r.remCoins) + ' \u2014 to the pot or one player</div>'
       : '<div class="gm-sp-rem even">splits evenly \u2014 nothing left over</div>';
@@ -361,7 +368,7 @@
   // side effects (persist, take-my-share) and repaints [data-splitout] with live
   // party names — here we render the shell + a names-less initial breakdown.
   function currencyFootHtml(cur, st) {
-    var sp = st.split || (st.split = { open: false, loot: { pp: 0, gp: 0, ep: 0, sp: 0, cp: 0 }, ways: 4 });
+    var sp = st.split || (st.split = { open: false, loot: { pp: 0, gp: 0, ep: 0, sp: 0, cp: 0 }, ways: 4, convert: false });
     var loot = sp.loot || (sp.loot = { pp: 0, gp: 0, ep: 0, sp: 0, cp: 0 });
     var ways = sp.ways || 4;
     var lootInputs = COIN_ORDER.map(function (k) {
@@ -379,7 +386,8 @@
         + '<div class="gm-split-h"><span>Split the pile</span><a data-usemine="1">use my coins \u2198</a></div>'
         + '<div class="gm-split-loot">' + lootInputs + '</div>'
         + '<div class="gm-split-ways"><span class="lab">ways</span><div class="gm-ways"><button data-waysdn="1" tabindex="-1" type="button">\u2212</button><span class="n" data-waysn>' + ways + '</span><button data-waysup="1" tabindex="-1" type="button">+</button></div></div>'
-        + '<div class="gm-split-out" data-splitout>' + splitOutHtml(loot, ways, null) + '</div>'
+        + '<label class="gm-sp-conv"><input type="checkbox" data-convert' + (sp.convert ? ' checked' : '') + '> convert to best coins (money-changer)</label>'
+        + '<div class="gm-split-out" data-splitout>' + splitOutHtml(loot, ways, null, sp.convert) + '</div>'
       + '</div>'
     + '</div>';
   }
@@ -474,7 +482,7 @@
       '.tok-sheet [data-sec="inventory"].can-edit .gm-coin.gp input{color:#e7c279}' +
       '.tok-sheet .gm-coin input::-webkit-outer-spin-button,.tok-sheet .gm-coin input::-webkit-inner-spin-button{-webkit-appearance:none;margin:0}' +
       '.tok-sheet .gm-coin input:focus{outline:none;border-bottom-color:#e7c279;background:rgba(199,154,74,.10)}' +
-      '.tok-sheet .gm-currency-foot{display:flex;justify-content:center;margin:18px 0 2px;padding-top:14px;border-top:1px solid rgba(236,226,205,.10)}' +
+      '.tok-sheet .gm-currency-foot{display:flex;flex-direction:column;align-items:center;margin:18px 0 2px;padding-top:14px;border-top:1px solid rgba(236,226,205,.10)}' +
       '.tok-sheet .eq-pill.icon{padding:4px 6px;line-height:0}' +
       '.tok-sheet .eq-pill.lock{color:#8d8675;border-color:rgba(141,134,117,.4);background:transparent}' +
       '.tok-sheet .eq-pill.lock:hover{color:#e7c279;border-color:rgba(199,154,74,.5)}' +
@@ -652,6 +660,8 @@
       '.tok-sheet .gm-sl input:focus{outline:none;border-bottom-color:#55c4c0}' +
       '.tok-sheet .gm-sl span{font:500 7.5px/1 "Oswald",sans-serif;letter-spacing:.12em;text-transform:uppercase;color:#8d8675}' +
       '.tok-sheet .gm-split-ways{display:flex;align-items:center;justify-content:center;gap:10px;margin:0 0 12px}' +
+      '.tok-sheet .gm-sp-conv{display:flex;align-items:center;justify-content:center;gap:6px;font:400 9px/1.3 "Oswald",sans-serif;letter-spacing:.07em;text-transform:uppercase;color:#8d8675;cursor:pointer;user-select:none;margin:0 0 12px;text-align:center}' +
+      '.tok-sheet .gm-sp-conv input{accent-color:#c79a4a;width:13px;height:13px;cursor:pointer;flex-shrink:0}' +
       '.tok-sheet .gm-split-ways .lab{font:400 9.5px/1 "Oswald",sans-serif;letter-spacing:.12em;text-transform:uppercase;color:#8d8675}' +
       '.tok-sheet .gm-ways{display:flex;align-items:stretch}' +
       '.tok-sheet .gm-ways button{width:22px;border:1px solid rgba(236,226,205,.16);background:rgba(236,226,205,.05);color:#ece2cd;font:400 15px/1 "Oswald",sans-serif;cursor:pointer}' +

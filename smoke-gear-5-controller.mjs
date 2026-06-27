@@ -85,19 +85,32 @@ await sleep(20);   // loadParty resolves, breakdown repaints with names
 ok(box.querySelector('[data-splitout]').innerHTML.indexOf('Cosmere') >= 0, 'live party names painted into the breakdown');
 
 console.log('--- loot inputs recompute the breakdown (focus-safe) ---');
-setLoot('pp', 25); setLoot('gp', 50); setLoot('ep', 0); setLoot('sp', 100); setLoot('cp', 304);
-ok(st().split.loot.cp === 304, 'loot state updated from the inputs');
-ok(box.querySelector('[data-splitout]').innerHTML.indexOf('splits evenly') >= 0, 'this pile splits 4 ways evenly');
+setLoot('pp', 0); setLoot('gp', 12); setLoot('ep', 0); setLoot('sp', 8); setLoot('cp', 4);   // each type ÷4 is clean
+ok(st().split.loot.gp === 12, 'loot state updated from the inputs');
+ok(box.querySelector('[data-splitout]').innerHTML.indexOf('splits evenly') >= 0, 'each coin type divides 4 ways evenly');
 
 console.log('--- ways control changes the split + surfaces a remainder ---');
 click(box.querySelector('[data-waysup]'));
 ok(st().split.ways === 5, 'ways incremented 4→5');
 ok(box.querySelector('[data-waysn]').textContent === '5', 'ways display updated');
-ok(box.querySelector('[data-splitout]').innerHTML.indexOf('leftover') >= 0, '5-way split now shows a leftover');
+ok(box.querySelector('[data-splitout]').innerHTML.indexOf('leftover') >= 0, '5-way split now leaves a remainder');
+
+console.log('--- convert (money-changer) toggle: default keeps coins as-is ---');
+click(box.querySelector('[data-waysdn]'));   // back to 4
+setLoot('pp', 0); setLoot('gp', 0); setLoot('ep', 0); setLoot('sp', 0); setLoot('cp', 1000);
+ok(st().split.convert === false, 'convert is off by default');
+ok(box.querySelector('[data-splitout]').innerHTML.indexOf('250<span class="cl-u">cp') >= 0, 'default leaves the share in copper (250 cp) — nothing minted');
+{
+  const conv = box.querySelector('[data-convert]'); conv.checked = true; conv.dispatchEvent(new w.Event('change', { bubbles: true }));
+  ok(st().split.convert === true, 'toggling the checkbox flips convert on');
+  const out = box.querySelector('[data-splitout]').innerHTML;
+  ok(out.indexOf('gp') >= 0 && out.indexOf('ep') >= 0, 'convert consolidates the share (250 cp → 2 gp 1 ep)');
+  conv.checked = false; conv.dispatchEvent(new w.Event('change', { bubbles: true }));
+  ok(st().split.convert === false, 'toggling back restores split-as-is');
+}
 
 console.log('--- use my coins copies the live pile into the splitter ---');
-click(box.querySelector('[data-waysdn]'));   // back to 4
-click(box.querySelector('[data-usemine]'));
+click(box.querySelector('[data-usemine]'));   // ways already back to 4 from the convert test
 ok(st().split.loot.gp === cv('gp'), 'use-my-coins pulled the current gp into the loot');
 ok(st().split.loot.pp === cv('pp'), 'use-my-coins pulled the current pp into the loot');
 

@@ -564,6 +564,8 @@ export function wireInspiration({ root, characterData, key, depsReady } = {}) {
     if (f && root.contains(f)) { updateDraftField(f); return; }       // live draft write; no re-render so focus holds
   }
   function onGearChange(e) {
+    var conv = e.target.closest('[data-convert]');
+    if (conv && root.contains(conv)) { var ssC = splitState(); if (ssC) { ssC.convert = !!conv.checked; paintSplit(); } return; }   // money-changer toggle
     var coin = e.target.closest('[data-coin]');
     if (coin && root.contains(coin)) { if (coinPrev !== null) { var p = coinPrev; coinPrev = null; persistCurrency(p); } return; }
     var f = e.target.closest('[data-ef]');
@@ -762,10 +764,10 @@ export function wireInspiration({ root, characterData, key, depsReady } = {}) {
   // inputs never lose focus. "Take my share" adds the computed cut to `currency`
   // and persists. Party names for the share chips load lazily on first open. ──
   var coinSaveTimer = null, stepHoldT = null, stepRepeatT = null, partyNames = [], partyLoaded = false;
-  function splitState() { var st = gmState(); if (!st) return null; if (!st.split) st.split = { open: false, loot: { pp: 0, gp: 0, ep: 0, sp: 0, cp: 0 }, ways: 4 }; return st.split; }
+  function splitState() { var st = gmState(); if (!st) return null; if (!st.split) st.split = { open: false, loot: { pp: 0, gp: 0, ep: 0, sp: 0, cp: 0 }, ways: 4, convert: false }; return st.split; }
   function worthVal() { var API = gmAPI(); return (API && API.worthStr) ? API.worthStr(currency) : ''; }
   function paintWorth() { var b = gmBox(); if (!b) return; var w = b.querySelector('[data-worth]'); if (w) w.textContent = worthVal(); }
-  function paintSplit() { var b = gmBox(), st = gmState(), API = gmAPI(); if (!b || !st || !st.split || !API || !API.splitOutHtml) return; var el = b.querySelector('[data-splitout]'); if (el) el.innerHTML = API.splitOutHtml(st.split.loot, st.split.ways, partyNames); }
+  function paintSplit() { var b = gmBox(), st = gmState(), API = gmAPI(); if (!b || !st || !st.split || !API || !API.splitOutHtml) return; var el = b.querySelector('[data-splitout]'); if (el) el.innerHTML = API.splitOutHtml(st.split.loot, st.split.ways, partyNames, st.split.convert); }
   function paintSplitIfOpen() { var st = gmState(); if (st && st.split && st.split.open) paintSplit(); }
   function syncCoinInput(coin) { var b = gmBox(); if (!b) return; var inp = b.querySelector('input[data-coin="' + coin + '"]'); if (inp) inp.value = (currency[coin] || 0); }
   function commitCoins() { clearTimeout(coinSaveTimer); coinSaveTimer = null; if (coinPrev !== null) { var p = coinPrev; coinPrev = null; persistCurrency(p); } }
@@ -786,7 +788,7 @@ export function wireInspiration({ root, characterData, key, depsReady } = {}) {
   }
   function takeMyShare() {
     var st = gmState(), API = gmAPI(); if (!st || !st.split || !API || !API.splitShare) return;
-    var r = API.splitShare(st.split.loot, st.split.ways); if (!r || !r.share) return;
+    var r = API.splitShare(st.split.loot, st.split.ways, st.split.convert); if (!r || !r.share) return;
     var prev = JSON.parse(JSON.stringify(currency));
     var next = {}; for (var k in currency) next[k] = currency[k];
     ['pp', 'gp', 'ep', 'sp', 'cp'].forEach(function (c) { next[c] = (parseInt(next[c], 10) || 0) + (r.share[c] || 0); });

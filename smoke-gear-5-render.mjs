@@ -24,38 +24,45 @@ ok(GM.worthStr({ pp: 1 }) === '10', '1 pp is worth 10 gp');
 ok(GM.worthStr({ pp: 2, gp: 34, ep: 1, sp: 47, cp: 112 }) === '60.32', 'mixed pile worth = 60.32 gp');
 ok(GM.worthStr({}) === '0', 'empty pile worth 0');
 
-console.log('--- splitShare: even, remainder, electrum kept ---');
+console.log('--- splitShare DEFAULT = split each denomination as-is (no minting) ---');
 {
-  const r = GM.splitShare({ pp: 25, gp: 50, ep: 0, sp: 100, cp: 300 }, 4);   // the canonical example
-  ok(r.total === 31300, 'pile = 31,300 cp');
+  const r = GM.splitShare({ pp: 0, gp: 300, ep: 0, sp: 200, cp: 205 }, 4);   // the user's case
+  ok(r.convert === false, 'default mode is non-converting');
+  ok(r.share.pp === 0 && r.share.ep === 0, 'no platinum or electrum minted from a gp/sp/cp pile');
+  ok(r.share.gp === 75 && r.share.sp === 50 && r.share.cp === 51, 'each coin type divided on its own → 75gp 50sp 51cp');
+  ok(r.remCoins.cp === 1 && r.rem === 1, 'leftover is 1 cp (kept in its own denomination)');
+}
+{
+  const r = GM.splitShare({ pp: 25, gp: 50, ep: 0, sp: 100, cp: 300 }, 4);
+  ok(r.share.pp === 6 && r.share.gp === 12 && r.share.sp === 25 && r.share.cp === 75, 'mixed pile divides per type (6pp 12gp 25sp 75cp)');
+  ok(r.remCoins.pp === 1 && r.remCoins.gp === 2, 'leftover keeps its denominations (1pp 2gp)');
+}
+console.log('--- splitShare CONVERT = money-changer (consolidate, may mint coins) ---');
+{
+  const r = GM.splitShare({ pp: 25, gp: 50, ep: 0, sp: 100, cp: 300 }, 4, true);
+  ok(r.convert === true, 'convert mode flagged');
   ok(r.per === 7825 && r.rem === 0, 'each = 7,825 cp, no remainder');
-  ok(r.share.pp === 7 && r.share.gp === 8 && r.share.ep === 0 && r.share.sp === 2 && r.share.cp === 5, 'share = 7pp 8gp 2sp 5cp');
+  ok(r.share.pp === 7 && r.share.gp === 8 && r.share.ep === 0 && r.share.sp === 2 && r.share.cp === 5, 'consolidates to 7pp 8gp 2sp 5cp');
 }
 {
-  const r = GM.splitShare({ pp: 25, gp: 50, ep: 0, sp: 100, cp: 300 }, 3);
-  ok(r.rem === 1, '3-way split leaves 1 cp');
-  ok(r.remCoins.cp === 1, 'remainder expressed as 1 cp');
+  const r = GM.splitShare({ cp: 60 }, 1, true);
+  ok(r.share.ep === 1 && r.share.sp === 1, 'bank mode keeps electrum (60 cp → 1 ep + 1 sp)');
 }
-{
-  const r = GM.splitShare({ cp: 60 }, 1);   // 60 cp → ep used because it reduces coin count
-  ok(r.share.ep === 1 && r.share.sp === 1 && r.share.cp === 0, '60 cp consolidates to 1 ep + 1 sp (electrum kept)');
-}
-ok(GM.splitShare({ cp: 10 }, 4).per === 2 && GM.splitShare({ cp: 10 }, 4).rem === 2, 'tiny pile: 10cp/4 = 2cp each, 2cp left');
 
 console.log('--- splitOutHtml: breakdown, leftover, names, Take button ---');
 {
-  const h = GM.splitOutHtml({ pp: 25, gp: 50, ep: 0, sp: 100, cp: 300 }, 4, ['Cosmere', 'Caim', 'Líadan', 'Vesperian']);
+  const h = GM.splitOutHtml({ gp: 40, sp: 80, cp: 200 }, 4, ['Cosmere', 'Caim', 'Líadan', 'Vesperian']);   // each type divides evenly
   has(h, 'each share', 'shows the each-share header');
-  has(h, 'splits evenly', 'even split shows the no-remainder note');
-  hasnt(h, 'leftover', 'no leftover line on an even split');
+  has(h, 'splits evenly', 'an evenly-divisible pile shows the no-remainder note');
+  hasnt(h, 'leftover', 'no leftover line when each type divides clean');
   has(h, 'Cosmere', 'party names rendered as chips');
   has(h, 'Vesperian', 'all party names present');
   has(h, 'data-takemine', 'the Take my share button is present');
   ok((h.match(/gm-sp-chip/g) || []).length === 4, 'one chip per way');
 }
 {
-  const h = GM.splitOutHtml({ pp: 25, gp: 50, ep: 0, sp: 100, cp: 300 }, 3, null);
-  has(h, 'leftover', 'remainder split shows the leftover line');
+  const h = GM.splitOutHtml({ gp: 300, sp: 200, cp: 205 }, 3, null);   // 200sp & 205cp don't divide by 3
+  has(h, 'leftover', 'an uneven split shows the leftover line');
   has(h, 'Share 1', 'falls back to "Share N" when no names given');
 }
 
@@ -88,6 +95,7 @@ function render(stPatch) {
   ok(!box.querySelector('[data-splitpanel]').classList.contains('open'), 'panel is closed by default');
   ok(box.querySelectorAll('[data-loot]').length === 5, 'five loot inputs');
   ok(box.querySelector('[data-waysn]').textContent === '4', 'defaults to 4 ways');
+  ok(box.querySelector('[data-convert]'), 'the convert (money-changer) toggle is present in the panel');
   ok(box.querySelector('[data-splitout]'), 'the split-out container exists');
 }
 {
