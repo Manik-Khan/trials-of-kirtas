@@ -468,6 +468,34 @@ export function wireInspiration({ root, characterData, key, depsReady } = {}) {
   }
 
   function onGearClick(e) {
+    // ── add-item surface ──
+    var atog = e.target.closest('[data-addtoggle]');
+    if (atog && root.contains(atog)) {
+      e.stopPropagation();
+      var sA = gmState(); if (!sA) return;
+      sA.adding = !sA.adding;
+      if (sA.adding) sA.search = { q: '', loading: false, results: null, error: null, open: null };
+      else clearTimeout(searchTimer);
+      refresh();
+      if (sA.adding) { var inp = gmBox() && gmBox().querySelector('[data-addsearch]'); if (inp && inp.focus) inp.focus(); }
+      return;
+    }
+    var aitem = e.target.closest('[data-additem]');   // checked BEFORE the row, so the quick + doesn't also toggle the row
+    if (aitem && root.contains(aitem)) {
+      e.stopPropagation();
+      var sB = gmState(); if (!sB || !sB.search || !sB.search.results) return;
+      addItemFromSearch(sB.search.results[parseInt(aitem.getAttribute('data-additem'), 10)]);
+      return;
+    }
+    var ares = e.target.closest('[data-addresult]');
+    if (ares && root.contains(ares)) {
+      e.stopPropagation();
+      var sC = gmState(); if (!sC || !sC.search) return;
+      var ri = parseInt(ares.getAttribute('data-addresult'), 10);
+      sC.search.open = (sC.search.open === ri) ? null : ri;
+      paintSearchResults();
+      return;
+    }
     var lk = e.target.closest('[data-lock]');
     if (lk && root.contains(lk)) {
       e.stopPropagation();
@@ -494,6 +522,8 @@ export function wireInspiration({ root, characterData, key, depsReady } = {}) {
       next[coin.getAttribute('data-coin')] = v;
       currency = next; return;
     }
+    var asq = e.target.closest('[data-addsearch]');
+    if (asq && root.contains(asq)) { var sS = gmState(); if (sS && sS.search) { sS.search.q = asq.value; runItemSearch(); } return; }   // debounced; no re-render so focus holds
     var f = e.target.closest('[data-ef]');
     if (f && root.contains(f)) { updateDraftField(f); return; }       // live draft write; no re-render so focus holds
   }
@@ -581,6 +611,110 @@ export function wireInspiration({ root, characterData, key, depsReady } = {}) {
     d.addEventListener('pointerup', onUp, true);
   }
   function onGearPointerDown(e) { if (e.target.closest && e.target.closest('[data-grip]')) startGearDrag(e); }
+
+  // ── 5etools "+ Add item" (Inc 3). The GM renders the search panel + results
+  // (read from box.__gmState.search); this owns the debounced items2 fetch, the
+  // add (same-name stacking + pack auto-explode), and the enrich pass that fills
+  // weight/type on freshly-exploded pack children. Results repaint into
+  // [data-addresults] so the [data-addsearch] input is never rebuilt mid-type
+  // (focus holds); an add does a full refresh + persistInventory. ──
+  var searchTimer = null;
+  function gmAPI() { return (typeof window !== 'undefined' ? window : globalThis).GearManager || null; }
+  function paintSearchResults() {
+    var b = gmBox(), st = gmState(), API = gmAPI(); if (!b || !st || !API || !API.searchResultsHtml) return;
+    var el = b.querySelector('[data-addresults]'); if (el) el.innerHTML = API.searchResultsHtml(st);
+  }
+  function newContainerId() { return 'bag_' + Date.now().toString(36) + Math.random().toString(36).slice(2, 6); }
+  function titleCase(s) { return String(s == null ? '' : s).replace(/\b\w/g, function (c) { return c.toUpperCase(); }); }
+  function parsePackEntry(e) {
+    if (typeof e === 'string') return { name: titleCase(e.split('|')[0]), qty: 1 };
+    if (e && e.item) return { name: titleCase(String(e.item).split('|')[0]), qty: e.quantity || 1 };
+    if (e && e.special) return { name: titleCase(e.special), qty: e.quantity || 1 };
+    return null;
+  }
+  function looksLikeContainer(it) {
+    if (!it) return false;
+    var s = ((it.name || '') + ' ' + (it.typeLabel || it.type || '')).toLowerCase();
+    if (/\b(backpack|haversack|knapsack|rucksack|satchel|pouch|sack|chest|coffer|barrel|crate|basket|case|quiver|bandolier|bag|pack|saddlebag|lockbox|strongbox)\b/.test(s)) {
+      if (/bagpipe|bag pipe|sandbag|airbag|punching bag|bean bag/.test(s)) return false;
+      return true;
+    }
+    return false;
+  }
+  function runItemSearch() {
+    var st = gmState(); if (!st || !st.search) return;
+    var q = (st.search.q || '').trim();
+    st.search.open = null;
+    clearTimeout(searchTimer);
+    if (q.length < 2) { st.search.results = null; st.search.loading = false; st.search.error = null; paintSearchResults(); return; }
+    st.search.loading = true; st.search.error = null; paintSearchResults();
+    var f = (typeof fetch !== 'undefined') ? fetch : null;
+    if (!f) { st.search.loading = false; st.search.error = 'Search unavailable'; paintSearchResults(); return; }
+    searchTimer = setTimeout(function () {
+      var qAt = q;
+      f('/.netlify/functions/items2?q=' + encodeURIComponent(qAt)).then(function (r) { return r.json(); }).then(function (j) {
+        var s = gmState(); if (!s || !s.search || (s.search.q || '').trim() !== qAt) return;   // ignore a stale response
+        if (j && j.error) { s.search.loading = false; s.search.error = j.error; s.search.results = null; }
+        else { s.search.results = (j && j.items) ? j.items : []; s.search.loading = false; s.search.error = null; }
+        paintSearchResults();
+      }).catch(function () {
+        var s = gmState(); if (!s || !s.search || (s.search.q || '').trim() !== qAt) return;
+        s.search.loading = false; s.search.error = 'Search failed'; s.search.results = null; paintSearchResults();
+      });
+    }, 300);
+  }
+  function addItemFromSearch(item) {
+    if (!item) return;
+    var prev = JSON.parse(JSON.stringify(inventory));
+    var ex = -1; for (var i = 0; i < inventory.length; i++) { if (inventory[i] && inventory[i].name === item.name) { ex = i; break; } }
+    if (ex >= 0) {
+      inventory[ex] = Object.assign({}, inventory[ex], { qty: (inventory[ex].qty || 1) + 1 });   // same-name → stack qty
+    } else {
+      var isPack = Array.isArray(item.packContents) && item.packContents.length > 0;
+      var isContainer = isPack || looksLikeContainer(item);
+      var bagId = isContainer ? newContainerId() : null;
+      inventory.push({
+        name: item.name, detail: item.detail || null, qty: 1,
+        weight: isPack ? 0 : (item.weight != null ? item.weight : null),   // a pack's weight lives in its contents
+        dmg1: item.dmg1 || null, dmg2: item.dmg2 || null, dmgType: item.dmgType || null,
+        ac: (item.ac != null ? item.ac : null), range: item.range || null, price: item.price || null,
+        reqAttune: item.reqAttune || null, properties: item.properties || [], entries: item.entries || [],
+        rarity: item.rarity || null, weaponCat: item.weaponCat || null, typeLabel: item.typeLabel || null,
+        sourceFull: item.sourceFull || null, strength: item.strength || null, stealth: item.stealth || null,
+        icon: null, isContainer: isContainer, extradimensional: false, locked: false, attuned: false,
+        id: bagId, containerId: null, _enriched: true
+      });
+      if (isPack) {
+        item.packContents.forEach(function (e) { var p = parsePackEntry(e); if (p && p.name) inventory.push({ name: p.name, qty: p.qty, weight: null, icon: null, containerId: bagId, _enriched: false }); });
+        var st = gmState(); if (st && bagId) { if (!st.open) st.open = Object.create(null); st.open['id:' + bagId] = true; }   // auto-open so the explosion shows
+      }
+    }
+    var st2 = gmState(); if (st2 && st2.search && st2.search.results) st2.search.results.forEach(function (r) { if (r && r.name === item.name) r.__added = true; });
+    refresh(); persistInventory(prev);
+    if (inventory.some(function (x) { return x && x._enriched === false; })) setTimeout(enrichInventory, 250);
+    setTimeout(function () { var s = gmState(); if (s && s.search && s.search.results) { s.search.results.forEach(function (r) { if (r) r.__added = false; }); paintSearchResults(); } }, 1500);
+  }
+  // null-aware merge: 5etools data fills gaps, the child's own non-null fields win
+  // (so an exploded child keeps its qty/containerId/display name but GAINS weight/
+  // type — fixing the legacy merge where the child's weight:null shadowed the real one).
+  function enrichMerge(match, cur) { var out = Object.assign({}, match); for (var k in cur) { if (cur[k] != null) out[k] = cur[k]; } return out; }
+  function enrichInventory() {
+    var todo = inventory.filter(function (it) { return it && it._enriched === false && it.name; });   // ONLY freshly-exploded children
+    if (!todo.length) return;
+    var f = (typeof fetch !== 'undefined') ? fetch : null; if (!f) { todo.forEach(function (it) { it._enriched = true; }); return; }
+    var prev = JSON.parse(JSON.stringify(inventory));
+    Promise.all(todo.map(function (item) {
+      var query = item.alias || item.name;
+      return f('/.netlify/functions/items2?q=' + encodeURIComponent(query) + '&limit=10').then(function (r) { return r.json(); }).then(function (j) {
+        var idx = inventory.indexOf(item); if (idx < 0) return;
+        var items = (j && j.items) ? j.items : [];
+        if (!items.length) { inventory[idx]._enriched = true; return; }   // mark done so we never re-fetch
+        var match = items.filter(function (x) { return (x.name || '').toLowerCase() === item.name.toLowerCase(); })[0]
+          || items.filter(function (x) { return (x.name || '').toLowerCase() === query.toLowerCase(); })[0] || items[0];
+        inventory[idx] = enrichMerge(match, Object.assign({}, inventory[idx], { _enriched: true, alias: item.alias || (inventory[idx].name !== match.name ? match.name : null) }));
+      }).catch(function () { var idx = inventory.indexOf(item); if (idx >= 0) inventory[idx]._enriched = true; });
+    })).then(function () { refresh(); persistInventory(prev); });
+  }
 
   function bindGear() {
     root.addEventListener('click', onGearClick);

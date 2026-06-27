@@ -67,7 +67,9 @@
     if (it.sourceFull || it.source) r.push(['Source', it.sourceFull || it.source]);
     return r;
   }
-  function detailHtml(it, k) {
+  // body of the detail (no wrapper, no Edit button) — shared by the inventory
+  // detail AND the 5etools add-search result detail.
+  function detailBody(it) {
     var cat = (it.weaponCat || it.typeLabel) ? '<div class="gm-d-cat">' + esc(it.weaponCat || it.typeLabel) + '</div>' : '';
     var rar = (it.rarity && it.rarity !== 'None') ? '<div class="gm-d-rar">' + esc(it.rarity) + '</div>' : '';
     var stats = statRows(it);
@@ -84,9 +86,55 @@
     var flavor = it.flavor ? '<div class="gm-d-sec">Flavor / Notes</div><div class="gm-d-flavor">' + esc(it.flavor) + '</div>' : '';
     var notes = it.notes ? '<div class="gm-d-sec">Notes</div><div class="gm-d-flavor">' + esc(it.notes) + '</div>' : '';
     var body = cat + rar + statsHtml + propsHtml + desc + flavor + notes;
-    if (!body) body = '<div class="gm-d-empty">No further detail.</div>';
+    return body || '<div class="gm-d-empty">No further detail.</div>';
+  }
+  function detailHtml(it, k) {
     var edit = (k != null) ? '<div class="gm-d-edit"><button class="gm-d-editbtn" data-editopen="' + esc(k) + '">Edit item</button></div>' : '';
-    return '<div class="gm-detail">' + body + edit + '</div>';
+    return '<div class="gm-detail">' + detailBody(it) + edit + '</div>';
+  }
+
+  // ── 5etools "+ Add item" surface (Inc 3). GearManager owns the render of the
+  // search panel + results (from a search-state held on box.__gmState.search);
+  // sheet-actions.js owns the debounced items2 fetch + add/explode/enrich. The
+  // results paint into [data-addresults] so the [data-addsearch] input is never
+  // rebuilt mid-type (focus holds), mirroring the coin-input / edit-form model. ──
+  var RARITY_COL = { 'None': '#9a9a9a', 'Common': '#9a9a9a', 'Uncommon': '#4a9a4a', 'Rare': '#4a6aaa', 'Very Rare': '#7a4aaa', 'Legendary': '#b8952a', 'Artifact': '#c8432a' };
+  function rarCol(r) { return RARITY_COL[r] || '#9a9a9a'; }
+  var MAGIC = '<svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><circle cx="11" cy="11" r="7"/><path d="m20 20-3-3"/></svg>';
+  function searchResultsHtml(st) {
+    var s = (st && st.search) || {};
+    var q = (s.q || '').trim();
+    if (q.length < 2) return '<div class="gm-add-hint">Type at least 2 characters to search the compendium\u2026</div>';
+    if (s.loading) return '<div class="gm-add-state">Searching\u2026</div>';
+    if (s.error) return '<div class="gm-add-state err">' + esc(s.error) + '</div>';
+    var res = Array.isArray(s.results) ? s.results : [];
+    if (!res.length) return '<div class="gm-add-state">No items found for \u201C' + esc(q) + '\u201D.</div>';
+    return res.map(function (it, i) {
+      var open = s.open === i, added = !!it.__added;
+      var col = rarCol(it.rarity);
+      var rar = (it.rarity && it.rarity !== 'None') ? '<span class="gm-ares-rar" style="color:' + col + ';border-color:' + col + '">' + esc(it.rarity) + '</span>' : '';
+      var isPack = Array.isArray(it.packContents) && it.packContents.length > 0;
+      var detail = open ? ('<div class="gm-ares-detail">' + detailBody(it)
+        + '<div class="gm-add-foot"><button class="gm-add-confirm" data-additem="' + i + '"><span class="plus">+</span>' + (added ? 'Added \u2713' : 'Add to inventory') + '</button>'
+        + (isPack ? '<span class="gm-add-pack-note">Unpacks into a bag with its ' + it.packContents.length + ' contents</span>' : '') + '</div></div>') : '';
+      return '<div class="gm-ares' + (open ? ' open' : '') + (added ? ' added' : '') + '">'
+        + '<div class="gm-ares-row" data-addresult="' + i + '">'
+          + '<span class="gm-ares-car">\u25B8</span>'
+          + '<span class="gm-ares-ic">' + iconHtml(it) + '</span>'
+          + '<span class="gm-ares-nm">' + esc(it.name || 'Item') + '</span>' + rar
+          + '<span class="gm-ares-meta">' + esc(it.detail || it.typeLabel || '') + '</span>'
+          + '<button class="gm-ares-quick" data-additem="' + i + '">' + (added ? '\u2713' : '+\u2009Add') + '</button>'
+        + '</div>' + detail + '</div>';
+    }).join('');
+  }
+  function addPanelHtml(st) {
+    if (!st || !st.adding) return '';
+    var q = (st.search && st.search.q) || '';
+    return '<div class="gm-add">'
+      + '<div class="gm-add-search"><span class="mag">' + MAGIC + '</span>'
+        + '<input type="text" data-addsearch autocomplete="off" placeholder="Search items \u2014 longsword, potion, backpack\u2026" value="' + esc(q) + '"></div>'
+      + '<div class="gm-add-results" data-addresults>' + searchResultsHtml(st) + '</div>'
+    + '</div>';
   }
 
   // ── edit form + icon picker (ported from the approved mock; the picker reads
@@ -271,7 +319,7 @@
   function render(box, ctx) {
     if (!box) return;
     box.__gmCtx = ctx;
-    var st = box.__gmState || (box.__gmState = { view: 'list', open: Object.create(null), editing: null, picker: false, pickerCat: null, draft: null });
+    var st = box.__gmState || (box.__gmState = { view: 'list', open: Object.create(null), editing: null, picker: false, pickerCat: null, draft: null, adding: false, search: null });
     var inv = Array.isArray(ctx.inventory) ? ctx.inventory : [];
     var cur = ctx.currency || {};
     var ES = ctx.ES || null;
@@ -288,11 +336,13 @@
     box.innerHTML =
       '<div class="gm-toolbar">'
         + '<span class="gm-count">' + count + '</span><span class="gm-sp"></span>'
+        + '<button class="gm-add-btn' + (st.adding ? ' on' : '') + '" data-addtoggle="1"><span class="plus">+</span>' + (st.adding ? 'Done' : 'Add Item') + '</button>'
         + '<div class="gm-view">'
           + '<button class="gm-vb' + (st.view === 'list' ? ' on' : '') + '" data-view="list">List</button>'
           + '<button class="gm-vb' + (st.view === 'grid' ? ' on' : '') + '" data-view="grid">Grid</button>'
         + '</div>'
       + '</div>'
+      + addPanelHtml(st)
       + '<div class="gm-meta">'
         + '<div class="gm-carry"><div class="gm-carry-face"><span>Carry</span><span>' + carryRight + '</span></div>' + bar + '</div>'
       + '</div>'
@@ -463,11 +513,46 @@
       '.tok-sheet .gm-tile.locked .gm-tgrip{display:none}' +
       '.tok-sheet .gm-tile.dragging{opacity:.45}' +
       '.tok-sheet .gm-tile.bagdrop{box-shadow:inset 0 0 0 2px #55c4c0;background:rgba(85,196,192,.12)}' +
-      '.tok-sheet .gm-tile.insert-before::after{content:\'\';position:absolute;left:-5px;top:10%;bottom:10%;width:2px;background:#e7c279;box-shadow:0 0 8px rgba(231,194,121,.6)}';
+      '.tok-sheet .gm-tile.insert-before::after{content:\'\';position:absolute;left:-5px;top:10%;bottom:10%;width:2px;background:#e7c279;box-shadow:0 0 8px rgba(231,194,121,.6)}' +
+      /* ── Add Item surface (Inc 3) ── */
+      '.tok-sheet .gm-add-btn{display:inline-flex;align-items:center;gap:5px;font:600 10px/1 "Oswald",sans-serif;letter-spacing:.1em;text-transform:uppercase;color:#e7c279;background:transparent;border:1px solid rgba(199,154,74,.45);border-radius:3px;padding:5px 11px;cursor:pointer}' +
+      '.tok-sheet .gm-add-btn:hover{background:rgba(199,154,74,.14)}' +
+      '.tok-sheet .gm-add-btn.on{background:rgba(199,154,74,.20);color:#e7c279;border-color:rgba(199,154,74,.7)}' +
+      '.tok-sheet .gm-add-btn .plus{font-size:13px;line-height:0}' +
+      '.tok-sheet [data-sec="inventory"]:not(.can-edit) .gm-add-btn{display:none}' +
+      '.tok-sheet .gm-add{margin:0 0 14px;border:1px solid rgba(199,154,74,.4);border-left:2px solid #e7c279;border-radius:4px;background:rgba(6,14,13,.55);padding:12px 13px 13px}' +
+      '.tok-sheet .gm-add-search{position:relative;margin:0 0 10px}' +
+      '.tok-sheet .gm-add-search input{width:100%;box-sizing:border-box;background:rgba(236,226,205,.06);border:1px solid rgba(236,226,205,.13);border-bottom:1px solid rgba(199,154,74,.5);border-radius:3px;color:#f9f3e6;font-family:"EB Garamond",serif;font-size:15.5px;padding:9px 11px 9px 32px}' +
+      '.tok-sheet .gm-add-search input:focus{outline:none;border-bottom-color:#e7c279;background:rgba(199,154,74,.08)}' +
+      '.tok-sheet .gm-add-search input::placeholder{color:#6f7a6e}' +
+      '.tok-sheet .gm-add-search .mag{position:absolute;left:10px;top:50%;transform:translateY(-50%);color:rgba(199,154,74,.6);pointer-events:none;display:inline-flex}' +
+      '.tok-sheet .gm-add-state{font-family:"EB Garamond",serif;font-style:italic;font-size:13.5px;color:#8d8675;padding:6px 4px}' +
+      '.tok-sheet .gm-add-state.err{color:#e0a07a;font-style:normal}' +
+      '.tok-sheet .gm-add-hint{font:400 11px/1.4 "Oswald",sans-serif;letter-spacing:.04em;color:#6f7a6e;padding:2px 4px}' +
+      '.tok-sheet .gm-ares{border-bottom:1px solid rgba(236,226,205,.07)}' +
+      '.tok-sheet .gm-ares:last-child{border-bottom:0}' +
+      '.tok-sheet .gm-ares-row{display:flex;align-items:center;gap:9px;padding:8px 3px;cursor:pointer}' +
+      '.tok-sheet .gm-ares-row:hover{background:rgba(199,154,74,.05)}' +
+      '.tok-sheet .gm-ares-car{width:11px;flex-shrink:0;color:rgba(199,154,74,.5);font-size:11px;transition:transform .15s;display:inline-block}' +
+      '.tok-sheet .gm-ares.open .gm-ares-car{transform:rotate(90deg);color:#e7c279}' +
+      '.tok-sheet .gm-ares-ic{width:18px;flex-shrink:0;color:rgba(199,154,74,.5);display:inline-flex}' +
+      '.tok-sheet .gm-ares-nm{font-family:"EB Garamond",serif;font-size:15.5px;color:#f9f3e6}' +
+      '.tok-sheet .gm-ares-rar{font:500 7.5px/1 "Oswald",sans-serif;letter-spacing:.07em;text-transform:uppercase;border:1px solid;border-radius:2px;padding:2px 5px;flex-shrink:0}' +
+      '.tok-sheet .gm-ares-meta{margin-left:auto;font-family:"EB Garamond",serif;font-style:italic;font-size:12px;color:#8d8675;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:44%}' +
+      '.tok-sheet .gm-ares-quick{flex-shrink:0;font:600 8.5px/1 "Oswald",sans-serif;letter-spacing:.06em;text-transform:uppercase;color:#8d8675;background:transparent;border:1px solid rgba(141,134,117,.4);border-radius:999px;padding:4px 9px;cursor:pointer;opacity:1;transition:opacity .12s}' +
+      '.tok-sheet .gm-ares-quick:hover{color:#e7c279;border-color:rgba(199,154,74,.55)}' +
+      '@media (hover:hover){.tok-sheet .gm-ares-quick{opacity:0}.tok-sheet .gm-ares-row:hover .gm-ares-quick{opacity:1}}' +
+      '.tok-sheet .gm-ares.added .gm-ares-quick,.tok-sheet .gm-ares.added .gm-add-confirm{color:#7bc47b;border-color:rgba(123,196,123,.5);background:transparent;opacity:1}' +
+      '.tok-sheet .gm-ares-detail{background:rgba(6,14,13,.4);border-left:2px solid rgba(199,154,74,.35);padding:9px 13px 12px 26px}' +
+      '.tok-sheet .gm-add-foot{margin-top:11px;display:flex;align-items:center;gap:11px;flex-wrap:wrap}' +
+      '.tok-sheet .gm-add-confirm{font:600 9.5px/1 "Oswald",sans-serif;letter-spacing:.1em;text-transform:uppercase;color:#241c11;background:#c79a4a;border:1px solid #c79a4a;border-radius:999px;padding:8px 16px;cursor:pointer;display:inline-flex;align-items:center;gap:6px}' +
+      '.tok-sheet .gm-add-confirm:hover{background:#e7c279}' +
+      '.tok-sheet .gm-add-confirm .plus{font-size:13px;line-height:0}' +
+      '.tok-sheet .gm-add-pack-note{font-family:"EB Garamond",serif;font-style:italic;font-size:12px;color:#55c4c0}';
     (doc.head || doc.documentElement).appendChild(s);
   }
 
-  var GM = { render: render, bind: bind, injectCss: injectCss, totalWeight: totalWeight, detailHtml: detailHtml, VERSION: 'gm-1' };
+  var GM = { render: render, bind: bind, injectCss: injectCss, totalWeight: totalWeight, detailHtml: detailHtml, searchResultsHtml: searchResultsHtml, VERSION: 'gm-1' };
   if (typeof window !== 'undefined') { window.GearManager = GM; try { injectCss(window.document); } catch (e) {} }
   if (typeof globalThis !== 'undefined') globalThis.GearManager = GM;
   if (typeof module !== 'undefined' && module.exports) module.exports = GM;
