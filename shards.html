@@ -601,6 +601,7 @@
 <script src="armor-ac.js"></script>
 <script src="soul-shards-derive.js"></script>
 <script src="character-data.js"></script>
+<script src="homebrew-races.js"></script>
 <script>
 'use strict';
 
@@ -1049,8 +1050,9 @@ var BODIES = {
   },
   species: function(){
     return '<div class="subhead">Species</div>' +
-      '<button class="cr-define" id="bz-custom" type="button">\u2726 Custom race</button>' +
-      '<div id="bz-species"></div>' +
+      '<div class="sp-tabs" id="sp-tabs"><button class="sp-tab" id="sp-tab-book" data-sptab="book" type="button">Book Races</button><button class="sp-tab" id="sp-tab-hb" data-sptab="hb" type="button">\u2726 Homebrew</button></div>' +
+      '<div id="bz-book-pane"><div id="bz-species"></div></div>' +
+      '<div id="bz-hb-pane" hidden><div id="bz-homebrew"></div></div>' +
       '<div id="species-out"></div>' +
       '<div class="ph-note"><b>Species</b> resolves live from <b>races.json</b> via <b>SoulShardsData.loadRace</b> — subrace, ability increases (including the 2014 floating-origin rule), size, speed, senses, and traits. The racial increases layer onto your base scores and feed the engine. Skill / language choices and racial innate spells surface here but reconcile in P5 / P6.</div>';
   },
@@ -1252,22 +1254,7 @@ var MOUNT = {
     if (rr) rr.addEventListener('click', function(){ draft.slots = makeSlots('roll'); draft.armed = null; deriveAbilities(); saveDraft(); renderAll(); });
   },
   species: function(){
-    renderBrowseInto(q('#bz-species'), { key:'species', items:DATA.races, sel:(draft.species && draft.species.custom) ? null : draft.species,
-      onPick:function(item){
-        draft.species = item; draft.subrace = null; draft.asi = {}; draft.size = null;
-        draft.originMode = 'std'; draft.useFloating = false; draft.openTrait = null;
-        saveDraft(); renderAll();
-      } });
-    var cb = q('#bz-custom');
-    if (cb){
-      if (draft.species && draft.species.custom) cb.classList.add('on');
-      cb.addEventListener('click', function(){
-        if (draft.species && draft.species.custom) return;   // already building one
-        draft.species = SpeciesUI.freshCustomSpecies(); draft.subrace = null; draft.asi = {}; draft.size = null;
-        draft.originMode = 'std'; draft.useFloating = false; draft.openTrait = null;
-        saveDraft(); renderAll();
-      });
-    }
+    SpeciesUI.mountPicker();
     SpeciesUI.renderSpeciesOut();
   },
   class: function(){
@@ -1692,6 +1679,7 @@ var SpeciesUI = (function () {
     var bon = combinedBonuses(m);
     var bonText = Object.keys(bon).filter(function(k){ return bon[k]; }).map(function(k){ return '+'+bon[k]+' '+ABN[k]; }).join(', ') || 'none';
     html += '<div class="cr-summary"><span class="cr-sh">Engine receives</span>' + escHtml(m.name||'\u2014') + ' \u00b7 ' + escHtml(m.size||'\u2014') + ' \u00b7 ' + ((m.speed&&m.speed.walk)||0) + ' ft.' + (m.darkvision?(' \u00b7 darkvision '+m.darkvision+' ft.'):'') + ' \u00b7 increase ' + escHtml(bonText) + (m.traits&&m.traits.length?(' \u00b7 '+m.traits.length+' trait'+(m.traits.length>1?'s':'')):'') + '</div>';
+    html += '<div class="cr-foot"><button class="cr-save" id="cr-save" type="button">' + ((draft.species && draft.species._hbId) ? 'Update in Homebrew Races' : 'Save to Homebrew Races') + '</button><span class="cr-savemsg" id="cr-savemsg"></span></div>';
     html += '</div>';
     return html;
   }
@@ -1718,7 +1706,122 @@ var SpeciesUI = (function () {
     var tsave = host.querySelector('#cr-tsave');
     if (tsave) tsave.addEventListener('click', function(){ var n=host.querySelector('#cr-tname'), t=host.querySelector('#cr-ttext'); var nm2=n?n.value.trim():''; if (!nm2) return; (m.traits||(m.traits=[])).push({ name:nm2, entries:[ t?t.value.trim():'' ], source:m.name }); commit(); });
     Array.prototype.forEach.call(host.querySelectorAll('[data-cr-tdel]'), function(el){ el.addEventListener('click', function(){ m.traits.splice(+el.getAttribute('data-cr-tdel'),1); commit(); }); });
+    var saveBtn = host.querySelector('#cr-save');
+    if (saveBtn) saveBtn.addEventListener('click', function(){ saveCustomToLibrary(host); });
   }
+  // ── Phase 2: tabbed picker (Book | Homebrew) + the homebrew library ──
+  var _hbReq = 0, _hbRows = [], _spTab = null;
+  function objToRows(obj){ return Object.keys(obj || {}).map(function(k){ return { ability:k, amount:obj[k] }; }); }
+  function activeSpTab(){ if (_spTab) return _spTab; return (draft.species && draft.species.custom) ? 'hb' : 'book'; }
+  function showSpPane(tab){
+    var bt = q('#sp-tab-book'), ht = q('#sp-tab-hb'), bp = q('#bz-book-pane'), hp = q('#bz-hb-pane');
+    if (bt) bt.classList.toggle('on', tab === 'book');
+    if (ht) ht.classList.toggle('on', tab === 'hb');
+    if (bp) bp.hidden = (tab !== 'book');
+    if (hp) hp.hidden = (tab !== 'hb');
+  }
+  function adoptSpecies(item){
+    draft.species = item; draft.subrace = null; draft.asi = {}; draft.size = null;
+    draft.originMode = 'std'; draft.useFloating = false; draft.openTrait = null;
+    saveDraft(); renderAll();
+  }
+  function mountPicker(){
+    injectCustomRaceCss();
+    renderBrowseInto(q('#bz-species'), { key:'species', items:DATA.races, sel:(draft.species && draft.species.custom) ? null : draft.species,
+      onPick:function(item){ adoptSpecies(item); } });
+    renderHomebrewList(q('#bz-homebrew'));
+    var tab = activeSpTab();
+    showSpPane(tab);
+    Array.prototype.forEach.call(document.querySelectorAll('[data-sptab]'), function(el){
+      el.addEventListener('click', function(){ _spTab = el.getAttribute('data-sptab'); showSpPane(_spTab); });
+    });
+  }
+  function hbDefineBtn(){ return '<button class="cr-define" id="hb-define" type="button">\u2726 Define a new race</button>'; }
+  function wireHbDefine(host){
+    var d = host.querySelector('#hb-define');
+    if (d) d.addEventListener('click', function(){
+      draft.species = freshCustomSpecies(); draft.subrace = null; draft.asi = {}; draft.size = null;
+      draft.originMode = 'std'; draft.useFloating = false; draft.openTrait = null;
+      _spTab = 'hb'; saveDraft(); renderAll();
+    });
+  }
+  function renderHomebrewList(host){
+    if (!host) return;
+    if (typeof HomebrewRaces === 'undefined'){
+      host.innerHTML = hbDefineBtn() + '<div class="hb-note">Saved library unavailable \u2014 define a race for this character below.</div>';
+      wireHbDefine(host); return;
+    }
+    host.innerHTML = '<div class="hb-loading">Loading saved races\u2026</div>' + hbDefineBtn();
+    wireHbDefine(host);
+    var my = ++_hbReq;
+    HomebrewRaces.list().then(function(rows){
+      if (my !== _hbReq) return;
+      renderHbRows(host, rows);
+    }).catch(function(err){
+      if (my !== _hbReq) return;
+      host.innerHTML = hbDefineBtn() + '<div class="hb-note">Couldn\u2019t load the library (' + escHtml((err && err.message) || 'unavailable') + '). You can still define a race for this character.</div>';
+      wireHbDefine(host);
+    });
+  }
+  function renderHbRows(host, rows){
+    _hbRows = rows || [];
+    var listHtml = _hbRows.map(function(r){
+      var ab = (r.model && r.model.abilityBonuses) || {};
+      var bonText = Object.keys(ab).filter(function(k){ return ab[k]; }).map(function(k){ return '+' + ab[k] + ' ' + (ABN[k] || k.toUpperCase()); }).join(' ') || '+0';
+      var tcount = ((r.model && r.model.traits) || []).length;
+      var meta = [ (r.model && r.model.size) || '\u2014', (((r.model && r.model.speed && r.model.speed.walk) != null) ? r.model.speed.walk : '?') + ' ft.', bonText, tcount + ' trait' + (tcount === 1 ? '' : 's') ].join(' \u00b7 ');
+      var by = r.createdByName ? (' \u00b7 saved by ' + escHtml(r.createdByName)) : '';
+      return '<div class="hb-row">' +
+          '<button class="hb-pick" data-hb-pick="' + escHtml(r.id) + '" type="button"><span class="hb-n">' + escHtml(r.name) + '</span><span class="hb-meta">' + escHtml(meta) + by + '</span></button>' +
+          '<span class="hb-acts"><button class="hb-edit" data-hb-edit="' + escHtml(r.id) + '" type="button">edit</button><button class="hb-del" data-hb-del="' + escHtml(r.id) + '" type="button" aria-label="delete">\u2715</button></span>' +
+        '</div>';
+    }).join('');
+    host.innerHTML = (listHtml || '<div class="hb-note">No saved races yet \u2014 define one below to start your library.</div>') + hbDefineBtn();
+    wireHbDefine(host);
+    Array.prototype.forEach.call(host.querySelectorAll('[data-hb-pick]'), function(el){ el.addEventListener('click', function(){ hbAdopt(el.getAttribute('data-hb-pick'), false); }); });
+    Array.prototype.forEach.call(host.querySelectorAll('[data-hb-edit]'), function(el){ el.addEventListener('click', function(){ hbAdopt(el.getAttribute('data-hb-edit'), true); }); });
+    Array.prototype.forEach.call(host.querySelectorAll('[data-hb-del]'), function(el){ el.addEventListener('click', function(){ hbDelete(el.getAttribute('data-hb-del')); }); });
+  }
+  function hbAdopt(id, asEdit){
+    var row = (_hbRows || []).find(function(r){ return String(r.id) === String(id); });
+    if (!row) return;
+    var model = JSON.parse(JSON.stringify(row.model || {}));
+    model.custom = true;
+    if (!model.asiMode) model.asiMode = (model.abilityBonuses && Object.keys(model.abilityBonuses).length) ? 'fixed' : 'none';
+    if (!model._bonusRows) model._bonusRows = objToRows(model.abilityBonuses);
+    var sp = { n: row.name, s: 'Homebrew', custom: true, model: model };
+    if (asEdit) sp._hbId = row.id;   // editing the library entry → Save updates it
+    draft.species = sp; draft.subrace = null; draft.asi = {}; draft.size = null;
+    draft.originMode = 'std'; draft.useFloating = false; draft.openTrait = null;
+    _spTab = 'hb'; saveDraft(); renderAll();
+  }
+  function hbDelete(id){
+    if (typeof HomebrewRaces === 'undefined') return;
+    HomebrewRaces.remove(id).then(function(){
+      if (draft.species && draft.species._hbId && String(draft.species._hbId) === String(id)) delete draft.species._hbId;
+      renderHomebrewList(q('#bz-homebrew'));
+    }).catch(function(err){ window.alert('Delete failed: ' + ((err && err.message) || 'unknown')); });
+  }
+  function saveCustomToLibrary(host){
+    var m = draft.species && draft.species.model; if (!m) return;
+    var msg = host.querySelector('#cr-savemsg');
+    function show(t, cls){ if (msg){ msg.textContent = t; msg.className = 'cr-savemsg' + (cls ? (' ' + cls) : ''); } }
+    if (typeof HomebrewRaces === 'undefined'){ show('Library isn\u2019t set up yet \u2014 run the homebrew_races migration.', 'warn'); return; }
+    var nm = (m.name || '').trim();
+    if (!nm){ show('Give the race a name first.', 'warn'); return; }
+    syncCustomBonuses(m);
+    show('Saving\u2026', '');
+    var id = draft.species._hbId;
+    var p = id ? HomebrewRaces.update(id, nm, m) : HomebrewRaces.save(nm, m);
+    p.then(function(row){
+      draft.species._hbId = row.id;
+      if (typeof saveDraft === 'function') saveDraft();
+      show('Saved \u2713', 'ok');
+      var btn = host.querySelector('#cr-save'); if (btn) btn.textContent = 'Update in Homebrew Races';
+      renderHomebrewList(q('#bz-homebrew'));
+    }).catch(function(err){ show('Save failed: ' + ((err && err.message) || 'unknown'), 'warn'); });
+  }
+
   function injectCustomRaceCss(){
     if (document.getElementById('cr-css')) return;
     var s = document.createElement('style'); s.id = 'cr-css';
@@ -1766,12 +1869,33 @@ var SpeciesUI = (function () {
       '.cr-btn{font-family:var(--ui);text-transform:uppercase;letter-spacing:.1em;font-size:12px;padding:6px 12px;border-radius:2px;cursor:pointer;border:1px solid var(--rule-strong);background:transparent;color:var(--ink)}',
       '.cr-btn.go{background:var(--gold);border-color:var(--gold);color:#fff}',
       '.cr-summary{padding:11px 16px;background:var(--bg-sunk);border-top:1px solid var(--rule);font-family:var(--body);font-size:14px;color:var(--ink-soft)}',
-      '.cr-summary .cr-sh{font-family:var(--ui);text-transform:uppercase;letter-spacing:.1em;font-size:11px;color:var(--gold);margin-right:9px}'
+      '.cr-summary .cr-sh{font-family:var(--ui);text-transform:uppercase;letter-spacing:.1em;font-size:11px;color:var(--gold);margin-right:9px}',
+      '.sp-tabs{display:flex;border-bottom:2px solid var(--rule-strong);margin:0 0 12px}',
+      '.sp-tab{font-family:var(--ui);text-transform:uppercase;letter-spacing:.1em;font-size:13px;color:var(--ink-faint);padding:9px 15px;cursor:pointer;border:0;background:transparent;border-bottom:2px solid transparent;margin-bottom:-2px}',
+      '.sp-tab:hover{color:var(--ink)}',
+      '.sp-tab.on{color:var(--ink);border-bottom-color:var(--gold)}',
+      '.hb-loading,.hb-note{font-style:italic;color:var(--ink-faint);font-size:13.5px;padding:8px 2px}',
+      '.hb-row{display:flex;align-items:stretch;gap:8px;margin-bottom:7px}',
+      '.hb-pick{flex:1;text-align:left;display:flex;flex-direction:column;gap:2px;padding:9px 13px;border:1px solid var(--rule-strong);background:var(--bg-card);border-radius:2px;cursor:pointer}',
+      '.hb-pick:hover{border-color:var(--gold)}',
+      '.hb-n{font-family:var(--disp);font-weight:600;font-size:17px;color:var(--ink)}',
+      '.hb-meta{font-family:var(--ui);text-transform:uppercase;letter-spacing:.06em;font-size:11px;color:var(--ink-faint)}',
+      '.hb-acts{display:flex;align-items:center;gap:4px}',
+      '.hb-edit{font-family:var(--ui);text-transform:uppercase;letter-spacing:.06em;font-size:11px;color:var(--ink-faint);background:transparent;border:1px solid var(--rule-strong);border-radius:2px;padding:4px 9px;cursor:pointer}',
+      '.hb-edit:hover{border-color:var(--gold);color:var(--gold)}',
+      '.hb-del{font-family:var(--ui);font-size:13px;color:var(--ink-faint);background:transparent;border:1px solid var(--rule-strong);border-radius:2px;padding:4px 8px;cursor:pointer}',
+      '.hb-del:hover{border-color:var(--blood);color:var(--blood)}',
+      '.cr-foot{display:flex;align-items:center;gap:11px;flex-wrap:wrap;padding:12px 16px;border-top:1px solid var(--rule);background:var(--bg-sunk)}',
+      '.cr-save{font-family:var(--ui);text-transform:uppercase;letter-spacing:.1em;font-size:12px;padding:8px 14px;border-radius:2px;cursor:pointer;background:var(--gold);border:1px solid var(--gold);color:#fff}',
+      '.cr-save:hover{filter:brightness(1.05)}',
+      '.cr-savemsg{font-family:var(--body);font-size:13px;color:var(--ink-soft)}',
+      '.cr-savemsg.ok{color:#4a7a3a}',
+      '.cr-savemsg.warn{color:var(--blood)}'
     ].join('');
     document.head.appendChild(s);
   }
 
-  return { renderSpeciesOut: renderSpeciesOut, combinedBonuses: combinedBonuses, forgeFacts: forgeFacts, freshCustomSpecies: freshCustomSpecies };
+  return { renderSpeciesOut: renderSpeciesOut, combinedBonuses: combinedBonuses, forgeFacts: forgeFacts, freshCustomSpecies: freshCustomSpecies, mountPicker: mountPicker };
 })();
 
 // ── Spells step (P6a): the spell picker. Folds the approved P6a mock into the live flow —
