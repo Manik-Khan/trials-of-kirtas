@@ -169,6 +169,20 @@ body::after{
   </defs>
 </svg>
 
+<style>
+  /* export toolbar — fixed, themed to the dark sheet; hidden in print (see @media print in sheet-mount.css) */
+  .sheet-export{position:fixed;top:14px;right:16px;z-index:50;display:flex;gap:8px;font-family:"Oswald",sans-serif}
+  .sheet-export button{font-size:11px;letter-spacing:.09em;text-transform:uppercase;color:#e7c279;background:rgba(9,18,16,.82);
+    border:1px solid rgba(199,154,74,.45);border-radius:3px;padding:7px 12px;cursor:pointer;-webkit-backdrop-filter:blur(3px);backdrop-filter:blur(3px);transition:border-color .13s,color .13s}
+  .sheet-export button:hover{border-color:#e7c279;color:#f9f3e6}
+  .sheet-export button[disabled]{opacity:.6;cursor:default}
+  @media (max-width:880px){ .sheet-export{top:auto;bottom:14px;right:12px} }
+</style>
+<div class="sheet-export" id="sheet-export">
+  <button id="exp-print" type="button" title="Print or save as PDF">Print / PDF</button>
+  <button id="exp-json" type="button" title="Download this character as JSON">Download JSON</button>
+</div>
+
 <div id="sheet-root"></div>
 
 <script src="nav.js"></script>
@@ -181,6 +195,26 @@ body::after{
   import { mountSheet } from './sheet-mount.js';
   var key = new URLSearchParams(location.search).get('character') || 'cosmere';
   mountSheet(document.getElementById('sheet-root'), key);
+
+  // Export controls. Print opens the browser's print dialog (→ Save as PDF); the print
+  // stylesheet (sheet-mount.css @media print) flattens the sheet to ink-friendly, all
+  // tabs expanded. Download JSON pulls a fresh, complete character snapshot and saves it
+  // as a portable .json file (the same shape the characters-export backup writes).
+  var pBtn = document.getElementById('exp-print');
+  if (pBtn) pBtn.addEventListener('click', function(){ window.print(); });
+  var jBtn = document.getElementById('exp-json');
+  if (jBtn) jBtn.addEventListener('click', function(){
+    if (typeof CharacterData === 'undefined' || !CharacterData.loadCharacter) return;
+    var label = jBtn.textContent; jBtn.disabled = true; jBtn.textContent = 'Exporting\u2026';
+    CharacterData.loadCharacter(key).then(function(row){
+      var blob = new Blob([JSON.stringify(row, null, 2)], { type: 'application/json' });
+      var url = URL.createObjectURL(blob);
+      var a = document.createElement('a'); a.href = url; a.download = (key || 'character') + '.json';
+      document.body.appendChild(a); a.click(); a.remove();
+      setTimeout(function(){ URL.revokeObjectURL(url); }, 0);
+      jBtn.textContent = label; jBtn.disabled = false;
+    }).catch(function(){ jBtn.textContent = 'Export failed'; setTimeout(function(){ jBtn.textContent = label; jBtn.disabled = false; }, 1600); });
+  });
 </script>
 <script type="module" src="appearance-boot.js"></script>
 </body>

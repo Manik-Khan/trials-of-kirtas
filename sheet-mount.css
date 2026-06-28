@@ -587,3 +587,44 @@
 .tok-sheet .sheet-tab.active{color:var(--gold-br)}
 .tok-sheet .sheet-tab.active::after{content:"";position:absolute;left:8px;right:8px;bottom:-1px;height:2px;background:var(--gold-br);box-shadow:0 0 8px rgba(231,194,121,.5)}
 .tok-sheet .rightcol > .block[hidden]{display:none}
+
+/* ─────────────────────────────────────────────────────────────────────────
+   PRINT — flatten the sheet to an ink-friendly character sheet: light palette,
+   every tab section expanded onto the page, editing chrome stripped (the data
+   stays). First pass — tune margins / page-breaks to taste after previewing.
+   ───────────────────────────────────────────────────────────────────────── */
+@media print {
+  @page { margin: 13mm; }
+  html, body { background:#fff !important; }
+
+  /* screen-only chrome + background FX */
+  #site-nav, #bg, #bgveil, #fxWeave, #fxScan, #fxGeo, #fxVig, #sheet-export, .sheet-export,
+  .tok-sheet .sheet-tabbar { display:none !important; }
+
+  /* ink-friendly palette: flip the dark tokens light, keep the accent hues */
+  .tok-sheet {
+    --ground:#ffffff; --ground-2:#ffffff; --canvas:#ffffff; --panel:#ffffff; --panel-2:#f7f4ee;
+    --cream:#1c1813; --cream-hi:#000000; --cream-dim:#39332a; --cream-fnt:#6a6256;
+    --hair:#d9d3c5; --frame:#b6ad97;
+    max-width:none !important; margin:0 !important; padding:0 2mm !important;
+    background:#fff !important; color:#1c1813 !important; filter:none !important;
+  }
+  .tok-sheet, .tok-sheet * { -webkit-print-color-adjust:exact; print-color-adjust:exact;
+    box-shadow:none !important; text-shadow:none !important; }
+  .tok-sheet .distress, .tok-sheet [class*="glitch"] { filter:none !important; }
+
+  /* expand every tab's section onto the page */
+  .tok-sheet .rightcol > .block[hidden] { display:block !important; }
+  /* keep provenance tags legible on white */
+  .tok-sheet .f-tag, .tok-sheet .f-tag.t-race { color:#1c1813 !important; }
+
+  /* strip editing chrome (keep the data) */
+  .tok-sheet .feat-foot, .tok-sheet .feat-add, .tok-sheet .feat-form, .tok-sheet .f-del,
+  .tok-sheet .trk.add, .tok-sheet [data-trk-add], .tok-sheet .taddbox, .tok-sheet .tedit-head,
+  .tok-sheet .trk-x, .tok-sheet .trk-e, .tok-sheet .trk-confirm,
+  .tok-sheet [data-rest], .tok-sheet #insp-toggle { display:none !important; }
+
+  /* avoid awkward splits across pages */
+  .tok-sheet .block, .tok-sheet .panelbox, .tok-sheet .feat, .tok-sheet .trk { break-inside:avoid; page-break-inside:avoid; }
+  .tok-sheet .masthead { break-after:avoid; page-break-after:avoid; }
+}
