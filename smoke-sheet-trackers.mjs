@@ -55,13 +55,15 @@ ok(JSON.stringify(ids(Object.assign({}, twoCustom, { trackerOrder: ['cr_a', 'gho
   'stale id in trackerOrder self-heals out');
 
 // ── live mount helper (editable, recording save) ──
-function mount(structural, vitals) {
+async function mount(structural, vitals) {
   const ROW = { key: 'x', structural: clone(structural), vitals: clone(vitals || { hp: 10, conditions: [], pipState: {} }), notes: '' };
   const saved = [];
   const cd = { loadCharacter: () => Promise.resolve(clone(ROW)), canEdit: () => Promise.resolve(true),
                save: (k, patch) => { saved.push(clone(patch)); return Promise.resolve(clone(patch)); } };
   const container = document.createElement('div'); document.body.appendChild(container);
-  mountSheet(container, 'x', { characterData: cd });
+  const handle = mountSheet(container, 'x', { characterData: cd });
+  try { await (handle && handle.ready); } catch (_) {}   // initial render is depsReady-gated; await it before reading
+  await settle(8);
   return { container, saved };
 }
 const fire = (el, type, opts) => el.dispatchEvent(new dom.window.MouseEvent(type, Object.assign({ bubbles: true, cancelable: true }, opts || {})));
@@ -71,14 +73,14 @@ const lastVitals = (saved) => { for (let i = saved.length - 1; i >= 0; i--) if (
 
 // ── NO LEAK: the original regression ──
 {
-  const { container } = mount(cosmere); await settle();
+  const { container } = await mount(cosmere); await settle();
   const txt = container.querySelector('[data-list="trackers"]').textContent;
   ok(/Starlight Step/.test(txt), 'Cosmere panel shows Starlight Step');
   ok(!/Hexblade.s Curse/.test(txt) && !/Strength of the Grave/.test(txt), 'Cosmere panel: hardcoded leak rows are GONE');
   container.remove();
 }
 {
-  const { container } = mount(caim); await settle();
+  const { container } = await mount(caim); await settle();
   const txt = container.querySelector('[data-list="trackers"]').textContent;
   ok(/Ki Points/.test(txt), 'Caim panel shows Ki Points');
   ok(!/Starlight Step/.test(txt) && !/Hexblade/.test(txt), 'Caim panel: no pool leaked from another character');
@@ -87,7 +89,7 @@ const lastVitals = (saved) => { for (let i = saved.length - 1; i >= 0; i--) if (
 
 // ── SPEND: tap the boundary pip → vitals.pipState ──
 {
-  const { container, saved } = mount(caim); await settle();   // Ki max 3, pips
+  const { container, saved } = await mount(caim); await settle();   // Ki max 3, pips
   const pips = container.querySelectorAll('.trk[data-tid="ki"] .trk-p i');
   ok(pips.length === 3 && container.querySelectorAll('.trk[data-tid="ki"] .trk-p i.on').length === 3, 'Ki renders 3 full pips');
   fire(pips[2], 'click'); await settle();                      // spend one → current 2
@@ -99,7 +101,7 @@ const lastVitals = (saved) => { for (let i = saved.length - 1; i >= 0; i--) if (
 
 // ── ADD: flyout → customResources + trackerOrder ──
 {
-  const { container, saved } = mount(caim); await settle();
+  const { container, saved } = await mount(caim); await settle();
   fire(container.querySelector('[data-trk-add]'), 'click'); await settle();
   ok(!container.querySelector('[data-trk-form]').hidden, 'add-row opens the flyout');
   container.querySelector('[data-trk-name]').value = 'Channel Divinity';
@@ -113,7 +115,7 @@ const lastVitals = (saved) => { for (let i = saved.length - 1; i >= 0; i--) if (
 
 // ── REMOVE with confirm: a derived pool → trackerOrder only ──
 {
-  const { container, saved } = mount(caim); await settle();
+  const { container, saved } = await mount(caim); await settle();
   const row = container.querySelector('.trk[data-tid="ki"]');
   fire(row.querySelector('[data-tdel]'), 'click');
   ok(row.classList.contains('confirming'), 'remove ✕ arms the two-step confirm (no write yet)');
@@ -127,7 +129,7 @@ const lastVitals = (saved) => { for (let i = saved.length - 1; i >= 0; i--) if (
 
 // ── KEYBOARD REORDER: ArrowDown on a grip → trackerOrder ──
 {
-  const { container, saved } = mount(twoCustom); await settle();   // [ki, cr_a, cr_b]
+  const { container, saved } = await mount(twoCustom); await settle();   // [ki, cr_a, cr_b]
   const grip = container.querySelector('.trk[data-tid="ki"] [data-tgrip]');
   keyOn(grip, 'ArrowDown'); await settle();
   const st = lastStruct(saved);
@@ -137,7 +139,7 @@ const lastVitals = (saved) => { for (let i = saved.length - 1; i >= 0; i--) if (
 
 // ── EDIT custom: ✎ → flyout prefilled → customResources updated ──
 {
-  const { container, saved } = mount(twoCustom); await settle();
+  const { container, saved } = await mount(twoCustom); await settle();
   const editBtn = container.querySelector('.trk[data-tid="cr_a"] [data-tedit]');
   ok(!!editBtn, 'custom tracker exposes an edit affordance');
   ok(!container.querySelector('.trk[data-tid="ki"] [data-tedit]'), 'derived tracker does NOT expose edit');

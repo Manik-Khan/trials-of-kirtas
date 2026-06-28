@@ -67,7 +67,8 @@ const ROW = {
 const cd = clone(ROW);
 const mockCD = { loadCharacter: () => Promise.resolve(clone(ROW)), canEdit: () => true, save: () => Promise.resolve() };
 const container = document.createElement('div'); document.body.appendChild(container);
-mountSheet(container, 'caim', { characterData: mockCD });
+const __h = mountSheet(container, 'caim', { characterData: mockCD });
+try { await (__h && __h.ready); } catch (_) {}   // initial render is depsReady-gated
 await settle();
 const liveTrk = container.querySelector('[data-list="trackers"]');
 ok(!!liveTrk, 'mounted sheet has the left-rail trackers panel');

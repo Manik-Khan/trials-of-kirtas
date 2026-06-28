@@ -57,12 +57,12 @@ ok(typeof S.deriveActionMods === 'function' && typeof S.renderActions === 'funct
 const cosmere = JSON.parse(readFileSync(new URL('./data/characters/cosmere.json', import.meta.url), 'utf8'));
 const fire = (el, type, opts) => el.dispatchEvent(new dom.window.MouseEvent(type, Object.assign({ bubbles: true, cancelable: true }, opts || {})));
 
-function mount(row) {
+async function mount(row) {
   const ROW = clone(row); ROW.key = ROW.key || 'cosmere';
   if (!ROW.vitals) ROW.vitals = { hp: 10, conditions: [], pipState: {} };
   const cd = { loadCharacter: () => Promise.resolve(clone(ROW)), canEdit: () => Promise.resolve(true), save: () => Promise.resolve({}) };
   const container = document.createElement('div'); document.body.appendChild(container);
-  mountSheet(container, ROW.key, { characterData: cd });
+  const handle = mountSheet(container, ROW.key, { characterData: cd }); try { await (handle && handle.ready); } catch (_) {} await settle(8);
   return container;
 }
 const actEl = (c, id) => { const els = c.querySelectorAll('.act[data-act]'); for (const e of els) if (e.getAttribute('data-act') === id) return e; return null; };
@@ -80,7 +80,7 @@ const actEl = (c, id) => { const els = c.querySelectorAll('.act[data-act]'); for
 }
 
 // ── RENDER ──
-const C = mount(cosmere); await settle();
+const C = await mount(cosmere); await settle();
 {
   const groups = [...C.querySelectorAll('.agrp .agrp-h')].map(e => e.textContent);
   ok(groups.includes('Attacks'), 'render: Attacks group present');

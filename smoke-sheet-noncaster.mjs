@@ -48,7 +48,7 @@ const CASTER = {
 console.log('\n[non-caster] Champion Fighter must read clean');
 {
   const slot = document.createElement('div'); document.body.appendChild(slot);
-  mountSheet(slot, 'grok', { characterData: mockCD(FIGHTER) }); await settle();
+  const __h = mountSheet(slot, 'grok', { characterData: mockCD(FIGHTER) }); try { await (__h && __h.ready); } catch (_) {} await settle();
   const dc  = slot.querySelector('[data-f="spellDC"]');
   const atk = slot.querySelector('[data-f="spellAtk"]');
   ok(dc  && dc.textContent === '\u2014',  'Spell DC tile shows dash, not sample 13');
@@ -64,7 +64,7 @@ console.log('\n[non-caster] Champion Fighter must read clean');
 console.log('[caster] forged racial caster still renders its spells');
 {
   const slot = document.createElement('div'); document.body.appendChild(slot);
-  mountSheet(slot, 'rogue', { characterData: mockCD(CASTER) }); await settle();
+  const __h = mountSheet(slot, 'rogue', { characterData: mockCD(CASTER) }); try { await (__h && __h.ready); } catch (_) {} await settle();
   const dc = slot.querySelector('[data-f="spellDC"]');
   ok(dc && dc.textContent === '13', 'Spell DC tile shows the real 13');
   const meta = slot.querySelector('.cast-meta');

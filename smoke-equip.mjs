@@ -66,7 +66,7 @@ const INV = [
 const IDX = { plate: 0, shield: 1, sword: 2, cloak: 3, ring: 4, amulet: 5, wand: 6, rations: 7 };
 
 let saved = null;
-function mount() {
+async function mount() {
   const ROW = clone(cosmere); ROW.key = 'cosmere'; ROW.inventory = clone(INV);
   if (!ROW.vitals) ROW.vitals = { hp: 10, conditions: [], pipState: {} };
   saved = null;
@@ -76,7 +76,7 @@ function mount() {
     save: (key, patch) => { if (patch && patch.inventory) saved = clone(patch.inventory); return Promise.resolve(patch); },
   };
   const c = document.createElement('div'); document.body.appendChild(c);
-  mountSheet(c, ROW.key, { characterData: cd });
+  const handle = mountSheet(c, ROW.key, { characterData: cd }); try { await (handle && handle.ready); } catch (_) {} await settle(8);
   return c;
 }
 const cell = (c, k) => c.querySelector('.eq-slot[data-slot="' + k + '"]');
@@ -86,7 +86,7 @@ const rowByText = (c, re) => [...c.querySelectorAll('.gitem')].find(e => re.test
 const pipsOn = (c) => c.querySelectorAll('[data-equip-attune] .pip.on').length;
 
 // ── RENDER ──
-const C = mount(); await settle();
+const C = await mount(); await settle();
 {
   eq(C.querySelectorAll('.eq-slot.filled').length, 3, 'render: three slots filled (armour/shield/sword)');
   eq(C.querySelectorAll('.eq-slot.empty').length, 5, 'render: five slots empty');

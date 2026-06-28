@@ -57,14 +57,14 @@ const cosmereRow = real('cosmere'), liadanRow = real('liadan');
 const fire = (el, type, opts) => el.dispatchEvent(new dom.window.MouseEvent(type, Object.assign({ bubbles: true, cancelable: true }, opts || {})));
 const lastVitals = (saved) => { for (let i = saved.length - 1; i >= 0; i--) if (saved[i].vitals) return saved[i].vitals; return null; };
 
-function mount(row) {
+async function mount(row) {
   const ROW = clone(row); ROW.key = ROW.key || 'x';
   if (!ROW.vitals) ROW.vitals = { hp: 10, conditions: [], pipState: {} };
   const saved = [];
   const cd = { loadCharacter: () => Promise.resolve(clone(ROW)), canEdit: () => Promise.resolve(true),
                save: (k, patch) => { saved.push(clone(patch)); return Promise.resolve(clone(patch)); } };
   const container = document.createElement('div'); document.body.appendChild(container);
-  mountSheet(container, ROW.key, { characterData: cd });
+  const handle = mountSheet(container, ROW.key, { characterData: cd }); try { await (handle && handle.ready); } catch (_) {} await settle(8);
   return { container, saved };
 }
 function cleanup(container) { if (container) container.remove(); document.querySelectorAll('.sa-pop').forEach(p => p.remove()); }
@@ -84,7 +84,7 @@ const spell = (c, name) => { const els = c.querySelectorAll('.spell[data-spell]'
 // ── SLOT SPEND is quiet; writes pipState ──
 {
   feedLog = [];
-  const { container, saved } = mount(cosmereRow); await settle();
+  const { container, saved } = await mount(cosmereRow); await settle();
   const sorc = container.querySelectorAll('[data-list="pools"] .slot[data-slot="sorc_1"]');
   ok(sorc.length === 2, 'sorc_1 renders 2 slot pips with data-slot');
   ok(sorc[1].getAttribute('data-i') === '1', 'pip carries its index (data-i)');
@@ -99,7 +99,7 @@ const spell = (c, name) => { const els = c.querySelectorAll('.spell[data-spell]'
 // ── CANTRIP cast: feed, no slot ──
 {
   feedLog = [];
-  const { container, saved } = mount(cosmereRow); await settle();
+  const { container, saved } = await mount(cosmereRow); await settle();
   fire(spell(container, 'Minor Illusion'), 'click'); await settle();
   ok(feedLog.length === 1 && /Minor Illusion/.test(feedLog[0].body) && /cantrip/.test(feedLog[0].body), 'utility cantrip posted to feed as a cantrip (no bridge)');
   const v = lastVitals(saved);
@@ -111,7 +111,7 @@ const spell = (c, name) => { const els = c.querySelectorAll('.spell[data-spell]'
 // ── PICKER (2 paying pools) + concentration set + strip + drop ──
 {
   feedLog = [];
-  const { container, saved } = mount(cosmereRow); await settle();
+  const { container, saved } = await mount(cosmereRow); await settle();
   fire(spell(container, 'Hex'), 'click'); await settle();      // 1st-level, conc; pact + sorc both pay
   const pop = document.querySelector('.sa-cast');
   ok(pop, 'two paying pools → .sa-cast picker popover appears');
@@ -141,7 +141,7 @@ const spell = (c, name) => { const els = c.querySelectorAll('.spell[data-spell]'
 // ── SINGLE paying pool casts directly (no popover): Liadan / Aid (2nd only) ──
 {
   feedLog = [];
-  const { container, saved } = mount(liadanRow); await settle();
+  const { container, saved } = await mount(liadanRow); await settle();
   fire(spell(container, 'Aid'), 'click'); await settle();      // base 2 → only spell_2 pays
   ok(!document.querySelector('.sa-cast'), 'one paying pool → no picker');
   const v = lastVitals(saved);
@@ -152,7 +152,7 @@ const spell = (c, name) => { const els = c.querySelectorAll('.spell[data-spell]'
 // ── UPCAST: Liadan 1st-level spell offered 1st + 2nd; pick 2nd ──
 {
   feedLog = [];
-  const { container, saved } = mount(liadanRow); await settle();
+  const { container, saved } = await mount(liadanRow); await settle();
   fire(spell(container, 'Cure Wounds'), 'click'); await settle();  // base 1 → spell_1 + spell_2(upcast)
   const pop = document.querySelector('.sa-cast');
   ok(pop, 'Cure Wounds opens picker (two slot levels available)');
@@ -171,7 +171,7 @@ const spell = (c, name) => { const els = c.querySelectorAll('.spell[data-spell]'
   feedLog = [];
   let confirmCount = 0;
   window.confirm = () => { confirmCount++; return true; };
-  const { container, saved } = mount(liadanRow); await settle();
+  const { container, saved } = await mount(liadanRow); await settle();
   // cast Bless (conc) at 1st level
   fire(spell(container, 'Bless'), 'click'); await settle();
   fire([...document.querySelectorAll('.sa-cast .scp-btn[data-pk]')].find(b => b.getAttribute('data-pk') === 'spell_1'), 'click'); await settle();
