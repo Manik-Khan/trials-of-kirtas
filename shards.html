@@ -544,8 +544,22 @@
       <span class="ed">2014 rules</span>
     </div>
     <input id="charName" class="namefield" type="text" placeholder="Name your character…" aria-label="Character name" autocomplete="off" maxlength="48">
+    <div class="bld-actions">
+      <button class="bld-btn bld-new" id="bld-new" type="button">+ New</button>
+      <button class="bld-btn" id="bld-load" type="button">Load character <span class="bld-car">▾</span></button>
+      <div class="bld-menu" id="bld-menu" hidden>
+        <div class="bld-menu-h">Load a character into the builder</div>
+        <div id="bld-menu-list"></div>
+      </div>
+      <div class="bld-confirm" id="bld-confirm" hidden>
+        <p>Start a fresh build? This clears the current character.</p>
+        <div class="bld-cbtns"><button class="bld-cbtn" id="bld-cancel" type="button">Cancel</button><button class="bld-cbtn warn" id="bld-clear" type="button">Clear</button></div>
+      </div>
+    </div>
     <span class="draft" id="draft"><span class="dot"></span><span id="draftTxt">Draft saved</span></span>
   </header>
+
+  <div class="bld-strip" id="bld-strip" hidden></div>
 
   <div class="shell">
     <nav class="rail" aria-label="Build steps">
@@ -720,39 +734,42 @@ var BG_FEATURES = ['Shelter of the Faithful (Acolyte)','False Identity (Charlata
 var KEY = 'soulshards.draft.v1';
 function loadDraft(){ try { var j = window.localStorage.getItem(KEY); if (j) return JSON.parse(j); } catch(e){} return null; }
 function saveDraft(){ try { window.localStorage.setItem(KEY, JSON.stringify(draft)); } catch(e){} flashDraft(); }
-var draft = loadDraft() || { stepId:'abilities', name:null, species:null, subrace:null, asi:{}, size:null, originMode:'std', useFloating:false, openTrait:null, cls:null, level:1, subclass:null, bg:null, bgCustom:false,
-  method:'array', abilities:{ str:15, dex:14, con:13, int:12, wis:10, cha:8 }, slots:null, armed:null, hp:{ method:'average' },
-  bgSkills:[], bgTools:[], bgPack:null, bgFeature:null, prof:{}, choices:{}, advancement:{}, equipment:{ mode:'gear', picks:{}, gold:null }, spells:{ cantrips:[], known:[], prepared:[], spellbook:[] } };
-if (draft.level == null) draft.level = 1;
-if (!draft.method) draft.method = 'array';
-if (!draft.abilities) draft.abilities = { str:15, dex:14, con:13, int:12, wis:10, cha:8 };
-if (draft.armed === undefined) draft.armed = null;
-if (!draft.hp) draft.hp = { method:'average' };
-if (!draft.bgSkills) draft.bgSkills = [];
-if (!draft.bgTools) draft.bgTools = [];
-if (draft.bgPack === undefined) draft.bgPack = null;
-if (draft.bgFeature === undefined) draft.bgFeature = null;
-if (!draft.asi) draft.asi = {};
-if (draft.subrace === undefined) draft.subrace = null;
-if (draft.size === undefined) draft.size = null;
-if (!draft.originMode) draft.originMode = 'std';
-if (draft.useFloating === undefined) draft.useFloating = false;
-if (draft.openTrait === undefined) draft.openTrait = null;
-if (!draft.spells || typeof draft.spells !== 'object') draft.spells = { cantrips:[], known:[], prepared:[], spellbook:[] };
-['cantrips','known','prepared','spellbook'].forEach(function(k){ if (!Array.isArray(draft.spells[k])) draft.spells[k] = []; });
-if (!draft.choices || typeof draft.choices !== 'object') draft.choices = {};
-if (!draft.advancement || typeof draft.advancement !== 'object') draft.advancement = {};
-if (!draft.equipment || typeof draft.equipment !== 'object') draft.equipment = { mode:'gear', picks:{}, gold:null };
-
-// ── multiclass: draft.classes[] is the canonical class set the derive reads. Each
-// entry is { n, level, subclass, starting }. The Class step's list UI edits it
-// directly; syncClassMirror() mirrors the STARTING class back to the legacy
-// cls/level/subclass fields the spells/feats/ASI steps still use. Migrate any
-// pre-multiclass draft from those legacy fields. ──
-if (!Array.isArray(draft.classes)){
-  draft.classes = draft.cls ? [{ n: draft.cls.n, level: (draft.level || 1), subclass: (draft.subclass || null), starting: true }] : [];
+function freshDraft(){
+  return { stepId:'abilities', name:null, species:null, subrace:null, asi:{}, size:null, originMode:'std', useFloating:false, openTrait:null, cls:null, level:1, subclass:null, classes:[], bg:null, bgCustom:false,
+    method:'array', abilities:{ str:15, dex:14, con:13, int:12, wis:10, cha:8 }, slots:null, armed:null, hp:{ method:'average' },
+    bgSkills:[], bgTools:[], bgPack:null, bgFeature:null, prof:{}, choices:{}, advancement:{}, equipment:{ mode:'gear', picks:{}, gold:null }, spells:{ cantrips:[], known:[], prepared:[], spellbook:[] } };
 }
-if (draft.classes.length && !draft.classes.some(function(c){ return c.starting; })) draft.classes[0].starting = true;
+// fill any missing fields on the live draft (init, reset, or a loaded build) to a valid shape.
+function normalizeDraft(){
+  if (draft.level == null) draft.level = 1;
+  if (!draft.method) draft.method = 'array';
+  if (!draft.abilities) draft.abilities = { str:15, dex:14, con:13, int:12, wis:10, cha:8 };
+  if (draft.armed === undefined) draft.armed = null;
+  if (!draft.hp) draft.hp = { method:'average' };
+  if (!draft.bgSkills) draft.bgSkills = [];
+  if (!draft.bgTools) draft.bgTools = [];
+  if (draft.bgPack === undefined) draft.bgPack = null;
+  if (draft.bgFeature === undefined) draft.bgFeature = null;
+  if (!draft.asi) draft.asi = {};
+  if (draft.subrace === undefined) draft.subrace = null;
+  if (draft.size === undefined) draft.size = null;
+  if (!draft.originMode) draft.originMode = 'std';
+  if (draft.useFloating === undefined) draft.useFloating = false;
+  if (draft.openTrait === undefined) draft.openTrait = null;
+  if (!draft.spells || typeof draft.spells !== 'object') draft.spells = { cantrips:[], known:[], prepared:[], spellbook:[] };
+  ['cantrips','known','prepared','spellbook'].forEach(function(k){ if (!Array.isArray(draft.spells[k])) draft.spells[k] = []; });
+  if (!draft.choices || typeof draft.choices !== 'object') draft.choices = {};
+  if (!draft.advancement || typeof draft.advancement !== 'object') draft.advancement = {};
+  if (!draft.equipment || typeof draft.equipment !== 'object') draft.equipment = { mode:'gear', picks:{}, gold:null };
+  // multiclass: draft.classes[] is the canonical class set the derive reads — migrate a
+  // pre-multiclass draft from the legacy cls/level/subclass fields, and guarantee one starting class.
+  if (!Array.isArray(draft.classes)){
+    draft.classes = draft.cls ? [{ n: draft.cls.n, level: (draft.level || 1), subclass: (draft.subclass || null), starting: true }] : [];
+  }
+  if (draft.classes.length && !draft.classes.some(function(c){ return c.starting; })) draft.classes[0].starting = true;
+}
+var draft = loadDraft() || freshDraft();
+normalizeDraft();
 function classDef(n){ return (typeof DATA !== 'undefined' && DATA.classes) ? (DATA.classes.find(function(c){ return c.n === n; }) || null) : null; }
 function startingClassEntry(){ var cs = draft.classes || []; return cs.filter(function(c){ return c.starting; })[0] || cs[0] || null; }
 function orderedClasses(){ var cs = draft.classes || []; return cs.filter(function(c){ return c.starting; }).concat(cs.filter(function(c){ return !c.starting; })); }
@@ -769,6 +786,25 @@ function syncClassMirror(){
 // "Warlock 2 / Sorcerer 1" from the build, starting class first.
 function classLabelStr(){ return orderedClasses().map(function(c){ return c.n + ' ' + (c.level || 1); }).join(' / ') || '\u2014'; }
 var mcAddOpen = false;   // transient: "+ Add class" picker open state (not persisted)
+
+// ── build round-trip: snapshot the draft on forge, restore it on load, reset to blank ──
+// buildSnapshot() is the build the Forge stores in structural._build; loadBuildIntoDraft()
+// rehydrates the live draft from a snapshot (or a reverse-mapped partial); resetDraft()
+// clears to a fresh build. _edit* (the reforge target) is session state, never snapshotted.
+function buildSnapshot(){
+  var snap = {};
+  Object.keys(draft).forEach(function(k){
+    if (k === 'stepId' || k === '_editKey' || k === '_editName' || k === '_editSource') return;
+    snap[k] = draft[k];
+  });
+  return snap;
+}
+function loadBuildIntoDraft(build){
+  Object.keys(draft).forEach(function(k){ delete draft[k]; });
+  Object.assign(draft, freshDraft(), build || {});
+  normalizeDraft(); ensureSlots(); syncClassMirror();
+}
+function resetDraft(){ loadBuildIntoDraft({}); draft.stepId = 'abilities'; }
 
 ensureSlots();
 
@@ -2707,6 +2743,140 @@ function wireEngineCard(host, b){
   });
 }
 
+// ── reforge: load an existing character into the builder ───────────────────────
+// Pick a character → restore its build. Anything forged since this shipped carries a
+// lossless snapshot in structural._build; older characters are reverse-mapped from
+// structural (class list + levels + subclasses + starting, race name, background, name —
+// abilities and spell picks can't be cleanly recovered, so the strip flags them). Loading
+// sets the reforge TARGET (draft._editKey), so the review step writes back to that character.
+function reverseMapStructural(s){
+  s = s || {};
+  var build = {};
+  if (s.name) build.name = s.name;
+  if (Array.isArray(s.classes) && s.classes.length){
+    build.classes = s.classes.map(function(c, i){
+      var def = classDef(c.name);
+      var sub = null;
+      if (c.subclass) sub = (def && (def.subs || []).filter(function(x){ return x.n === c.subclass; })[0]) || { n: c.subclass };
+      return { n: c.name, level: c.level || 1, subclass: sub, starting: i === 0 };
+    });
+  }
+  if (s.race && typeof DATA !== 'undefined' && DATA.races){
+    var sp = DATA.races.filter(function(r){ return r.n === s.race; })[0];
+    if (sp) build.species = { n: sp.n, s: sp.s };
+  }
+  if (s.background && typeof DATA !== 'undefined' && DATA.backgrounds){
+    var bg = DATA.backgrounds.filter(function(b){ return b.n === s.background; })[0];
+    if (bg) build.bg = { n: bg.n, s: bg.s };
+  }
+  return build;
+}
+function loadIntoBuilder(key){
+  if (!key || typeof CharacterData === 'undefined' || !CharacterData.loadCharacter) return;
+  CharacterData.loadCharacter(key).then(function(row){
+    if (!row) return;
+    var s = row.structural || {};
+    var source, build;
+    if (s._build && typeof s._build === 'object'){ build = s._build; source = 'saved'; }
+    else { build = reverseMapStructural(s); source = 'sheet'; }
+    loadBuildIntoDraft(build);
+    draft._editKey = row.key || key;
+    draft._editName = row.name || build.name || 'character';
+    draft._editSource = source;
+    draft.stepId = 'abilities';
+    saveDraft(); renderAll();
+    var ps = q('.panel-scroll'); if (ps) ps.scrollTop = 0;
+  }).catch(function(){ /* a failed read leaves the current draft untouched */ });
+}
+// the "Editing <name>" strip under the topbar — also the reforge target indicator.
+function renderEditStrip(){
+  var strip = q('#bld-strip'); if (!strip) return;
+  if (!draft._editKey){ strip.hidden = true; strip.innerHTML = ''; return; }
+  var saved = draft._editSource === 'saved';
+  strip.hidden = false;
+  strip.innerHTML =
+    '<span class="bld-led"></span>' +
+    '<span class="bld-lbl">Editing <b>' + escHtml(draft._editName || 'character') + '</b></span>' +
+    '<span class="bld-src' + (saved ? ' saved' : '') + '">' + (saved ? 'loaded from saved build \u2014 ready to reforge' : 'reconstructed from sheet') + '</span>' +
+    (saved ? '' : '<span class="bld-chip">confirm abilities</span><span class="bld-chip">re-pick spells</span>') +
+    '<button class="bld-detach" id="bld-detach" type="button">\u2715 detach</button>';
+  var d = q('#bld-detach');
+  if (d) d.addEventListener('click', function(){
+    delete draft._editKey; delete draft._editName; delete draft._editSource;
+    saveDraft(); renderAll();
+  });
+}
+function populateLoadMenu(){
+  var list = q('#bld-menu-list'); if (!list) return;
+  if (typeof CharacterData === 'undefined' || !CharacterData.loadParty){ list.innerHTML = '<div class="bld-mempty">Character data isn\u2019t loaded.</div>'; return; }
+  list.innerHTML = '<div class="bld-mempty">Loading\u2026</div>';
+  CharacterData.loadParty().then(function(rows){
+    if (!rows || !rows.length){ list.innerHTML = '<div class="bld-mempty">No characters yet.</div>'; return; }
+    list.innerHTML = rows.map(function(r){
+      var s = r.structural || {};
+      var saved = !!(s && s._build);
+      return '<div class="bld-mrow" data-key="' + escHtml(r.key) + '">' +
+        '<div class="bld-who"><span class="bld-nm">' + escHtml(r.name || r.key) + '</span><span class="bld-cl">' + escHtml(s.classLabel || '\u2014') + '</span></div>' +
+        '<span class="bld-tag ' + (saved ? 'saved' : 'sheet') + '">' + (saved ? '\u2713 saved build' : '\u21ba from sheet') + '</span></div>';
+    }).join('');
+    Array.prototype.forEach.call(list.querySelectorAll('.bld-mrow'), function(row){
+      row.addEventListener('click', function(e){ e.stopPropagation(); var m = q('#bld-menu'); if (m) m.hidden = true; loadIntoBuilder(row.getAttribute('data-key')); });
+    });
+  }).catch(function(){ list.innerHTML = '<div class="bld-mempty">Couldn\u2019t load characters.</div>'; });
+}
+function mountForgeControls(){
+  injectBldCss();
+  var loadBtn = q('#bld-load'), newBtn = q('#bld-new'), menu = q('#bld-menu'), confirmEl = q('#bld-confirm');
+  function closeAll(){ if (menu) menu.hidden = true; if (confirmEl) confirmEl.hidden = true; }
+  if (loadBtn) loadBtn.addEventListener('click', function(e){ e.stopPropagation(); if (confirmEl) confirmEl.hidden = true; if (menu){ menu.hidden = !menu.hidden; if (!menu.hidden) populateLoadMenu(); } });
+  if (newBtn) newBtn.addEventListener('click', function(e){ e.stopPropagation(); if (menu) menu.hidden = true; if (confirmEl) confirmEl.hidden = !confirmEl.hidden; });
+  var cancel = q('#bld-cancel'), clear = q('#bld-clear');
+  if (cancel) cancel.addEventListener('click', function(e){ e.stopPropagation(); closeAll(); });
+  if (clear) clear.addEventListener('click', function(e){ e.stopPropagation(); closeAll(); resetDraft(); saveDraft(); renderAll(); var ps = q('.panel-scroll'); if (ps) ps.scrollTop = 0; });
+  document.addEventListener('click', closeAll);
+}
+function injectBldCss(){
+  if (document.getElementById('bld-css')) return;
+  var s = document.createElement('style'); s.id = 'bld-css';
+  s.textContent = [
+    '.bld-actions{display:flex;align-items:center;gap:10px;position:relative;z-index:60}',
+    '.bld-btn{font-family:var(--ui);text-transform:uppercase;letter-spacing:.12em;font-size:12px;color:var(--ink);background:transparent;border:1px solid var(--rule-strong);border-radius:2px;padding:9px 13px;cursor:pointer;white-space:nowrap}',
+    '.bld-btn:hover{border-color:var(--gold);color:var(--gold)}',
+    '.bld-btn.bld-new{color:var(--ink-faint)}',
+    '.bld-car{font-size:10px}',
+    '.bld-menu,.bld-confirm{position:absolute;top:calc(100% + 8px);right:0;background:var(--bg-card);border:1px solid var(--rule-strong);box-shadow:0 14px 34px rgba(24,19,13,.18);z-index:70}',
+    '.bld-menu{min-width:320px;max-height:60vh;overflow:auto}',
+    '.bld-menu-h{font-family:var(--ui);text-transform:uppercase;letter-spacing:.14em;font-size:11px;color:var(--ink-faint);padding:11px 15px 8px;border-bottom:1px solid var(--rule)}',
+    '.bld-mrow{display:flex;align-items:center;justify-content:space-between;gap:14px;padding:11px 15px;cursor:pointer;border-bottom:1px solid var(--rule)}',
+    '.bld-mrow:last-child{border-bottom:0}',
+    '.bld-mrow:hover{background:var(--bg-sunk)}',
+    '.bld-who{display:flex;flex-direction:column;gap:2px}',
+    '.bld-nm{font-family:var(--disp);font-weight:600;font-size:17px;color:var(--ink)}',
+    '.bld-cl{font-family:var(--body);font-size:13px;color:var(--ink-faint);font-style:italic}',
+    '.bld-tag{font-family:var(--ui);text-transform:uppercase;letter-spacing:.08em;font-size:10px;padding:3px 8px;border-radius:2px;white-space:nowrap}',
+    '.bld-tag.saved{color:#2e7d4f;border:1px solid rgba(46,125,79,.45)}',
+    '.bld-tag.sheet{color:var(--ink-faint);border:1px solid var(--rule-strong)}',
+    '.bld-mempty{font-family:var(--ui);font-size:14px;color:var(--ink-faint);padding:14px 15px;font-style:italic}',
+    '.bld-confirm{min-width:300px;padding:15px}',
+    '.bld-confirm p{margin:0 0 12px;font-family:var(--body);font-size:15px;color:var(--ink-soft)}',
+    '.bld-cbtns{display:flex;gap:10px;justify-content:flex-end}',
+    '.bld-cbtn{font-family:var(--ui);text-transform:uppercase;letter-spacing:.1em;font-size:12px;padding:8px 14px;border-radius:2px;cursor:pointer;border:1px solid var(--rule-strong);background:transparent;color:var(--ink)}',
+    '.bld-cbtn.warn{border-color:var(--blood);color:var(--blood)}',
+    '.bld-cbtn.warn:hover{background:var(--blood);color:var(--bg-card)}',
+    '.bld-strip{display:flex;align-items:center;gap:14px;padding:11px 26px;background:var(--bg-sunk);border-bottom:1px solid var(--rule-strong);flex-wrap:wrap}',
+    '.bld-strip[hidden]{display:none}',
+    '.bld-led{width:9px;height:9px;border-radius:50%;background:var(--gold);box-shadow:0 0 0 3px rgba(169,136,63,.18)}',
+    '.bld-lbl{font-family:var(--ui);letter-spacing:.03em;font-size:15px;color:var(--ink-soft)}',
+    '.bld-lbl b{font-family:var(--disp);font-weight:600;font-size:17px;color:var(--ink);vertical-align:-1px}',
+    '.bld-src{font-family:var(--ui);text-transform:uppercase;letter-spacing:.1em;font-size:11px;color:var(--ink-faint)}',
+    '.bld-src.saved{color:#2e7d4f}',
+    '.bld-chip{font-family:var(--ui);text-transform:uppercase;letter-spacing:.08em;font-size:11px;color:var(--hp-warn);border:1px solid rgba(207,122,28,.5);border-radius:2px;padding:3px 9px}',
+    '.bld-detach{margin-left:auto;font-family:var(--ui);text-transform:uppercase;letter-spacing:.1em;font-size:11px;color:var(--ink-faint);background:transparent;border:0;cursor:pointer}',
+    '.bld-detach:hover{color:var(--blood)}'
+  ].join('');
+  document.head.appendChild(s);
+}
+
 // ── forge: assemble + PREVIEW the derivable structural (no live write until P7) ──
 // Mirrors renderEngineOut: loads the real class model, runs the engine, then assembles
 // the structural fields we CAN derive now and shows them as JSON with an honest
@@ -2827,6 +2997,13 @@ function mountReview(){
       sel.innerHTML = ['<option value="">\u2014 pick a character \u2014</option>'].concat((list || []).map(function(ch){
         return '<option value="' + escHtml(ch.key) + '">' + escHtml(ch.name) + (ch.deleteMarked ? ' (marked for deletion)' : '') + '</option>';
       })).join('');
+      // loaded a character to reforge → default to updating it
+      if (draft._editKey && (list || []).some(function(ch){ return ch.key === draft._editKey; })){
+        sel.value = draft._editKey;
+        var ex = Array.prototype.filter.call(radios, function(r){ return r.value === 'existing'; })[0];
+        if (ex){ ex.checked = true; }
+        syncMode();
+      }
     }).catch(function(){ /* leave the default option in place */ });
   }
 }
@@ -2860,6 +3037,7 @@ function forgeCommit(){
     var assembled = buildStructuralPreview(res[0], res[1]);
     if (assembled && assembled._error){ fxStatus('err', assembled._error); return; }
     var structural = Object.assign({}, assembled); delete structural._incomplete;
+    structural._build = buildSnapshot();   // the build inputs, so this character can be reforged losslessly
     var hpMax = (structural.combat && structural.combat.hpMax) || 0;
     var vitals = hpMax > 0 ? { hp: hpMax } : {};
     var gear = (typeof ItemsUI !== 'undefined') ? ItemsUI.inventoryForCharacter() : { inventory: [], currency: {} };
@@ -2881,6 +3059,7 @@ function forgeCommit(){
           fxStatus('ok', filled
             ? ('Updated ' + who + ' \u2014 starting gear added (inventory was empty). Current HP / resources kept.')
             : ('Updated ' + who + '. The sheet now reads from this build (current HP / resources / gear kept).'));
+          draft._editKey = existingKey; draft._editName = who; draft._editSource = 'saved'; saveDraft(); renderEditStrip();
         });
       });
     }
@@ -2899,6 +3078,7 @@ function forgeCommit(){
     }).then(function(res){
       if (res === '_gearfail') fxStatus('ok', draft.name + ' forged (' + key + '), but the starting gear didn\u2019t attach \u2014 add it on the sheet. Assign them to a player in Members & Access.');
       else fxStatus('ok', draft.name + ' forged (' + key + '). Assign them to a player in Members & Access.');
+      draft._editKey = key; draft._editName = draft.name; draft._editSource = 'saved'; saveDraft(); renderEditStrip();
     });
   }).catch(function(err){
     fxStatus('err', 'Forge failed: ' + ((err && err.message) || 'unknown error'));
@@ -2962,9 +3142,10 @@ function renderAll(){
   if (draft.stepId === 'feats' && !featsActive()) draft.stepId = 'background';
   if (draft.stepId === 'choices' && !choicesActive()) draft.stepId = 'background';
   if (draft.stepId === 'spells' && !spellsActive()) draft.stepId = 'background';
-  renderRail(); renderEmerging(); renderStep();
+  renderRail(); renderEmerging(); renderStep(); renderEditStrip();
   var em = q('#emName');
-  if (draft.name){ em.textContent = draft.name; em.classList.remove('empty'); }
+  if (em){ if (draft.name){ em.textContent = draft.name; em.classList.remove('empty'); } else { em.textContent = 'Unnamed'; em.classList.add('empty'); } }
+  var nf = q('#charName'); if (nf && nf.value !== (draft.name || '')) nf.value = draft.name || '';   // reflect a loaded / reset name
 }
 
 // ── boot ─────────────────────────────────────────────────────────────────────
@@ -2991,6 +3172,7 @@ document.addEventListener('keydown', function(e){
   if (e.key === 'ArrowRight') step(1);
   else if (e.key === 'ArrowLeft') step(-1);
 });
+mountForgeControls();
 renderAll();
 if (loadDraft()) flashDraft();
 </script>
