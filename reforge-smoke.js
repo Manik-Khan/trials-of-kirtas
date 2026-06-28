@@ -17,17 +17,20 @@ function sliceToLineEnd(startMarker, endMarker){
   return src.slice(a, src.indexOf('\n', b));
 }
 const helpers = sliceToLineEnd('function classDef(n){', 'var mcAddOpen = false;');
-const body = [helpers, fn('freshDraft'), fn('normalizeDraft'), fn('buildSnapshot'), fn('loadBuildIntoDraft'), fn('resetDraft'), fn('reverseMapStructural')].join('\n');
+const body = [helpers, fn('classDefCaster'), fn('classIsCaster'), fn('casterClasses'),
+  fn('ensureSpellBucket'), fn('migrateSpells'),
+  fn('freshDraft'), fn('normalizeDraft'), fn('buildSnapshot'), fn('loadBuildIntoDraft'), fn('resetDraft'), fn('reverseMapStructural')].join('\n');
+const SUBCLASS_CASTERS = { 'Eldritch Knight':{progression:'1/3'}, 'Arcane Trickster':{progression:'1/3'} };
 
-// minimal DATA (only what the tests touch)
+// minimal DATA (only what the tests touch) — caster flags drive the byClass migration
 const DATA = { classes: [
-  { n:'Bard',   subs:[{n:'College of Lore'},{n:'College of Valor'}], subAt:3, subTitle:'Bard College' },
-  { n:'Cleric', subs:[{n:'Life Domain'},{n:'War Domain'}],           subAt:1, subTitle:'Divine Domain' }
+  { n:'Bard',   caster:'full', subs:[{n:'College of Lore'},{n:'College of Valor'}], subAt:3, subTitle:'Bard College' },
+  { n:'Cleric', caster:'full', subs:[{n:'Life Domain'},{n:'War Domain'}],           subAt:1, subTitle:'Divine Domain' }
 ], races:[{n:'Astral Elf',s:'AAG'},{n:'Tiefling',s:'PHB'}], backgrounds:[{n:'Sage',s:'PHB'},{n:'Acolyte',s:'PHB'}] };
 const ensureSlots = () => {};
 const draft = {};
-const api = new Function('draft','DATA','ensureSlots', body +
-  '\nreturn { buildSnapshot, loadBuildIntoDraft, resetDraft, reverseMapStructural };')(draft, DATA, ensureSlots);
+const api = new Function('draft','DATA','SUBCLASS_CASTERS','ensureSlots', body +
+  '\nreturn { buildSnapshot, loadBuildIntoDraft, resetDraft, reverseMapStructural };')(draft, DATA, SUBCLASS_CASTERS, ensureSlots);
 
 let pass = 0, fail = 0;
 const ok = (label, cond, detail) => { if (cond) pass++; else { fail++; console.log('FAIL ' + label + (detail !== undefined ? '  -> ' + JSON.stringify(detail) : '')); } };
@@ -40,7 +43,7 @@ const build = {
   classes: [ { n:'Bard', level:2, subclass:{n:'College of Lore'}, starting:true },
              { n:'Cleric', level:1, subclass:{n:'Life Domain'}, starting:false } ],
   bg: { n:'Sage', s:'PHB' }, hp:{ method:'average' },
-  spells: { cantrips:['Vicious Mockery'], known:['Healing Word'], prepared:['Cure Wounds'], spellbook:[] }
+  spells: { byClass: { Bard: { cantrips:['Vicious Mockery'], known:['Healing Word','Faerie Fire'], prepared:[], spellbook:[] } } }
 };
 Object.keys(draft).forEach(k => delete draft[k]);
 Object.assign(draft, build, { stepId:'review', _editKey:'liadan', _editName:'Líadan Luchóg', _editSource:'saved' });
@@ -62,7 +65,8 @@ ok('round-trip species', eq(draft.species, build.species), draft.species);
 ok('round-trip classes (incl. subclasses + starting)', eq(draft.classes, build.classes), draft.classes);
 ok('round-trip abilities', eq(draft.abilities, build.abilities), draft.abilities);
 ok('round-trip background', eq(draft.bg, build.bg), draft.bg);
-ok('round-trip spells', eq(draft.spells, build.spells), draft.spells);
+ok('round-trip spells: Bard bucket preserved', eq(draft.spells.byClass.Bard, build.spells.byClass.Bard), draft.spells.byClass.Bard);
+ok('round-trip spells: Cleric bucket ensured empty', eq(draft.spells.byClass.Cleric, { cantrips:[], known:[], prepared:[], spellbook:[] }), draft.spells.byClass.Cleric);
 ok('round-trip drops stale _editKey', draft._editKey === undefined, draft._editKey);
 ok('mirror: draft.cls -> starting class (Bard)', !!draft.cls && draft.cls.n === 'Bard', draft.cls && draft.cls.n);
 

@@ -645,7 +645,25 @@ function casterMode(c){
   if (c && c.caster) return c.prepared ? 'prepared' : 'known';
   var s = subclassCaster(); return s ? (s.prepared ? 'prepared' : 'known') : null;
 }
-function spellsActive(){ return isCaster(chosenClass()); }
+// ── per-class caster detection (multiclass) ──
+// A draft.classes entry {n,level,subclass,starting} casts if its base class is a caster,
+// OR its subclass is one of the half-caster subclasses (gated to its unlock level). Used to
+// decide which classes get a Spells tab + to activate the step for ANY caster in the build.
+function classDefCaster(ce){
+  if (!ce) return null;
+  var def = classDef(ce.n);
+  if (def && def.caster) return def.caster;
+  if (ce.subclass && ce.subclass.n){
+    var def2 = classDef(ce.n);
+    if (def2 && def2.subAt && (ce.level || 1) < def2.subAt) return null;   // subclass not unlocked yet
+    var sc = SUBCLASS_CASTERS[ce.subclass.n];
+    if (sc) return sc.progression;
+  }
+  return null;
+}
+function classIsCaster(ce){ return !!classDefCaster(ce); }
+function casterClasses(){ return orderedClasses().filter(classIsCaster); }
+function spellsActive(){ return casterClasses().length > 0; }
 // ── Feats step gate — owed if the race grants a level-1 feat (Variant Human /
 // Custom Lineage; this is class-independent, available at level 1 regardless of
 // class) OR the build has at least one ASI level. The racial feat is computed from
@@ -737,7 +755,7 @@ function saveDraft(){ try { window.localStorage.setItem(KEY, JSON.stringify(draf
 function freshDraft(){
   return { stepId:'abilities', name:null, species:null, subrace:null, asi:{}, size:null, originMode:'std', useFloating:false, openTrait:null, cls:null, level:1, subclass:null, classes:[], bg:null, bgCustom:false,
     method:'array', abilities:{ str:15, dex:14, con:13, int:12, wis:10, cha:8 }, slots:null, armed:null, hp:{ method:'average' },
-    bgSkills:[], bgTools:[], bgPack:null, bgFeature:null, prof:{}, choices:{}, advancement:{}, equipment:{ mode:'gear', picks:{}, gold:null }, spells:{ cantrips:[], known:[], prepared:[], spellbook:[] } };
+    bgSkills:[], bgTools:[], bgPack:null, bgFeature:null, prof:{}, choices:{}, advancement:{}, equipment:{ mode:'gear', picks:{}, gold:null }, spells:{ byClass:{} } };
 }
 // fill any missing fields on the live draft (init, reset, or a loaded build) to a valid shape.
 function normalizeDraft(){
@@ -756,8 +774,7 @@ function normalizeDraft(){
   if (!draft.originMode) draft.originMode = 'std';
   if (draft.useFloating === undefined) draft.useFloating = false;
   if (draft.openTrait === undefined) draft.openTrait = null;
-  if (!draft.spells || typeof draft.spells !== 'object') draft.spells = { cantrips:[], known:[], prepared:[], spellbook:[] };
-  ['cantrips','known','prepared','spellbook'].forEach(function(k){ if (!Array.isArray(draft.spells[k])) draft.spells[k] = []; });
+  if (!draft.spells || typeof draft.spells !== 'object') draft.spells = { byClass:{} };
   if (!draft.choices || typeof draft.choices !== 'object') draft.choices = {};
   if (!draft.advancement || typeof draft.advancement !== 'object') draft.advancement = {};
   if (!draft.equipment || typeof draft.equipment !== 'object') draft.equipment = { mode:'gear', picks:{}, gold:null };
@@ -767,6 +784,31 @@ function normalizeDraft(){
     draft.classes = draft.cls ? [{ n: draft.cls.n, level: (draft.level || 1), subclass: (draft.subclass || null), starting: true }] : [];
   }
   if (draft.classes.length && !draft.classes.some(function(c){ return c.starting; })) draft.classes[0].starting = true;
+  migrateSpells();
+}
+// per-class spell buckets: draft.spells = { byClass: { <ClassName>: {cantrips,known,prepared,spellbook} } }.
+// Each caster class picks into its own bucket. Migrates a pre-multiclass flat draft (or a loaded
+// flat snapshot) by filing the old arrays under the STARTING class — the only class it could have had.
+function ensureSpellBucket(name){
+  if (!draft.spells || typeof draft.spells !== 'object') draft.spells = { byClass:{} };
+  if (!draft.spells.byClass || typeof draft.spells.byClass !== 'object') draft.spells.byClass = {};
+  var b = draft.spells.byClass[name];
+  if (!b || typeof b !== 'object') b = draft.spells.byClass[name] = {};
+  ['cantrips','known','prepared','spellbook'].forEach(function(k){ if (!Array.isArray(b[k])) b[k] = []; });
+  return b;
+}
+function migrateSpells(){
+  var sp = draft.spells;
+  if (!sp || typeof sp !== 'object'){ draft.spells = { byClass:{} }; }
+  else if (!sp.byClass || typeof sp.byClass !== 'object'){
+    var flat = { cantrips: Array.isArray(sp.cantrips)?sp.cantrips:[], known: Array.isArray(sp.known)?sp.known:[],
+                 prepared: Array.isArray(sp.prepared)?sp.prepared:[], spellbook: Array.isArray(sp.spellbook)?sp.spellbook:[] };
+    var startName = (startingClassEntry() && startingClassEntry().n) || null;
+    var byClass = {};
+    if (startName && (flat.cantrips.length || flat.known.length || flat.prepared.length || flat.spellbook.length)) byClass[startName] = flat;
+    draft.spells = { byClass: byClass };
+  }
+  casterClasses().forEach(function(ce){ ensureSpellBucket(ce.n); });
 }
 var draft = loadDraft() || freshDraft();
 normalizeDraft();
@@ -1595,6 +1637,37 @@ var SpeciesUI = (function () {
 // gone — class, level, subclass, abilities and race all come from the live draft.
 var SpellsUI = (function () {
   var _req = 0, _ent = null, _list = [], _detail = {}, _grants = [], _raceModel = null, _lvl = null;
+  // multiclass: one profile per caster class; the active class's profile is copied into
+  // _ent/_list/_detail/_classSet/_lvl by useActive() so the single-class render code below
+  // works unchanged. _grants / _bgSpells / _shared are build-level (race + background).
+  var _casters = [], _active = null, _lvlByClass = {}, _shared = { detail:{} };
+  var ACCENTS = ['#e7c279','#8cbf72','#55c4c0','#ab92dd','#e0944a','#d98aa0'];
+  function accentFor(i){ return ACCENTS[i % ACCENTS.length]; }
+  function injectSpMultiCss(){
+    if (document.getElementById('sp-multi-css')) return;
+    var s = document.createElement('style'); s.id = 'sp-multi-css';
+    s.textContent = [
+      '.sp-stage .castertabs{display:flex; align-items:stretch; border:1px solid var(--frame); background:var(--panel-2); margin-bottom:8px}',
+      '.sp-stage .ctab{flex:1 1 0; display:flex; flex-direction:column; gap:3px; padding:11px 15px 10px; cursor:pointer; border-right:1px solid var(--hair); position:relative; background:transparent}',
+      '.sp-stage .ctab:last-child{border-right:0}',
+      '.sp-stage .ctab:hover{background:rgba(231,194,121,.06)}',
+      '.sp-stage .ctab::before{content:""; position:absolute; left:0; top:0; bottom:0; width:3px; background:var(--accent,var(--gold-br)); opacity:0; transition:opacity .12s}',
+      '.sp-stage .ctab.on::before{opacity:.95}',
+      '.sp-stage .ctab.on{background:var(--panel-sel)}',
+      '.sp-stage .ctab .cl{font-family:var(--disp); font-weight:700; font-size:18px; color:var(--cream); letter-spacing:.01em; display:flex; align-items:baseline; gap:8px}',
+      '.sp-stage .ctab.on .cl{color:var(--gold-br)}',
+      '.sp-stage .ctab .lv{font-family:var(--ui); font-weight:400; font-size:11px; letter-spacing:.12em; text-transform:uppercase; color:var(--cream-fnt)}',
+      '.sp-stage .ctab .meta{font-family:var(--ui); font-size:11.5px; letter-spacing:.06em; color:var(--cream-dim); text-transform:uppercase}',
+      '.sp-stage .ctab .prog{display:inline-flex; align-items:center; gap:5px; font-family:var(--ui); font-size:11px; letter-spacing:.06em; text-transform:uppercase; margin-top:1px; color:var(--cream-dim)}',
+      '.sp-stage .ctab .prog.done{color:var(--o-subclass)}',
+      '.sp-stage .ctab .prog .pip{width:7px; height:7px; border-radius:50%; display:inline-block}',
+      '.sp-stage .castertabs-note{font-family:var(--body); font-style:italic; font-size:13px; color:var(--cream-fnt); margin:0 0 14px}',
+      '.sp-stage .sp-multi{--o-class:var(--accent)}',
+      '.sp-stage .sp-multi .lvltab .pn{color:var(--accent)}',
+      '.sp-stage .sp-multi .lvltab.on .pn{color:var(--ground)}'
+    ].join('');
+    document.head.appendChild(s);
+  }
   // background "expanded" spells (Ravnica guild / Strixhaven school lists): names added to
   // the pickable pool, plus a lookup for provenance tagging. _classSet gates the dedup so a
   // guild spell already on your class list keeps class attribution.
@@ -1606,7 +1679,8 @@ var SpellsUI = (function () {
   var ORD = ['Cantrip','1st level','2nd level','3rd level','4th level','5th level','6th level','7th level','8th level','9th level'];
 
   function esc(x){ return String(x).replace(/[&<>]/g, function(c){ return c==='&'?'&amp;':c==='<'?'&lt;':'&gt;'; }); }
-  function picks(){ return draft.spells; }
+  function picksFor(key){ return ensureSpellBucket(key); }
+  function picks(){ return ensureSpellBucket(_active || ((casterClasses()[0] || {}).n)); }
   function raceName(){ return (draft.species && draft.species.n) || 'your race'; }
   function maxSpellLevel(slots){ var m = 0; (slots||[]).forEach(function(n,i){ if (n>0) m = i+1; }); return m; }
   function visible(list){ var ql = _query.trim().toLowerCase(); return list.filter(function(s){ return !ql || s.name.toLowerCase().indexOf(ql) !== -1; }); }
@@ -1706,78 +1780,112 @@ var SpellsUI = (function () {
     return null;
   }
 
-  // ── entitlement from the live engine build ──
-  function entitlementFrom(b, c, race){
+  // ── entitlement from the live engine build (per class) ──
+  function entitlementFrom(b, c, race, clsLevel, viaSub){
     var sp = b.spellcasting || {};
-    var prof = 2 + Math.floor((Math.max(1, draft.level) - 1) / 4);
+    var prof = 2 + Math.floor((Math.max(1, totalLevel()) - 1) / 4);   // proficiency is character-wide (total level)
     var eff = effectiveAbilities(race);
     var mod = Math.floor((((eff[sp.ability] != null ? eff[sp.ability] : 10)) - 10) / 2);
-    var viaSub = !c.caster && !!subclassCaster();
     var isWiz = c.n === 'Wizard';
     return {
-      cls: c.n, level: draft.level, ability: sp.ability || null, listClass: sp.spellListClass || c.n, viaSub: viaSub,
+      cls: c.n, level: clsLevel, ability: sp.ability || null, listClass: sp.spellListClass || c.n, viaSub: !!viaSub,
       cantrips: sp.cantripsKnown || 0, known: sp.spellsKnown || 0, preparedCount: sp.preparedCount || 0,
       slots: sp.slots || [], maxLevel: maxSpellLevel(sp.slots),
-      spellbook: isWiz ? (6 + 2 * (draft.level - 1)) : 0,
+      spellbook: isWiz ? (6 + 2 * (clsLevel - 1)) : 0,
       pact: sp.progression === 'pact',
       saveDC: 8 + prof + mod, atk: prof + mod,
       mode: isWiz ? 'spellbook' : (sp.prepared ? 'prepared' : 'known')
     };
   }
 
-  // Data-only load (no DOM): populates _ent/_list/_detail/_grants for the current draft.
-  // Reused by the Spells-step render AND the Forge (so the emit works even if Spells was skipped).
+  // Data-only load (no DOM): builds one profile per caster class (_casters) plus build-level
+  // racial grants + background-expanded spells (_grants / _bgSpells / _shared). Reused by the
+  // Spells-step render AND the Forge (so the emit works even if Spells was never opened).
   function loadData(){
-    var c = chosenClass();
-    if (!c || typeof SoulShardsData === 'undefined' || typeof SoulShardsEngine === 'undefined') return Promise.resolve(false);
+    var classes = casterClasses();
+    if (!classes.length || typeof SoulShardsData === 'undefined' || typeof SoulShardsEngine === 'undefined'){ _casters = []; return Promise.resolve(false); }
     var my = ++_req;
-    return Promise.all([SoulShardsData.loadClass(c.n), raceForBuild(), draft.bg ? SoulShardsData.loadBackgrounds() : Promise.resolve(null)]).then(function(res){
+    return Promise.all([
+      raceForBuild(),
+      draft.bg ? SoulShardsData.loadBackgrounds() : Promise.resolve(null),
+      Promise.all(classes.map(function(ce){ return SoulShardsData.loadClass(ce.n); }))
+    ]).then(function(top){
       if (my !== _req) return false;
-      var model = res[0]; _raceModel = res[1];
-      var bgObj = (res[2] && draft.bg) ? (res[2].filter(function(x){ return x.name === draft.bg.n && (!draft.bg.s || x.source === draft.bg.s); })[0] || res[2].filter(function(x){ return x.name === draft.bg.n; })[0]) : null;
+      _raceModel = top[0];
+      var bgList = top[1], models = top[2];
+      var bgObj = (bgList && draft.bg) ? (bgList.filter(function(x){ return x.name === draft.bg.n && (!draft.bg.s || x.source === draft.bg.s); })[0] || bgList.filter(function(x){ return x.name === draft.bg.n; })[0]) : null;
       var bgExp = collectBgExpanded(bgObj);
-      var sub = (model.subclasses || []).find(function(s){ return draft.subclass && s.name === draft.subclass.n; });
-      var b = SoulShardsEngine.build({ classModel: model, level: draft.level, abilities: effectiveAbilities(_raceModel), subclassShortName: sub ? sub.shortName : null, hp: draft.hp });
-      _ent = entitlementFrom(b, c, _raceModel);
       _grants = loadGrantsFrom(_raceModel);
-      return SoulShardsData.loadClassSpellList(_ent.listClass, { detail:true }).then(function(list){
+      var eff = effectiveAbilities(_raceModel);
+      // per-class entitlement (engine build at THAT class's level + subclass)
+      var perClass = classes.map(function(ce, i){
+        var model = models[i], def = classDef(ce.n) || { n: ce.n };
+        var sub = (model.subclasses || []).find(function(s){ return ce.subclass && s.name === ce.subclass.n; });
+        var viaSub = !def.caster && !!(ce.subclass && SUBCLASS_CASTERS[ce.subclass.n]);
+        var b = SoulShardsEngine.build({ classModel: model, level: (ce.level || 1), abilities: eff, subclassShortName: sub ? sub.shortName : null, hp: draft.hp });
+        return { key: ce.n, idx: i, accent: accentFor(i), ent: entitlementFrom(b, def, _raceModel, (ce.level || 1), viaSub) };
+      });
+      // each class's spell list (with detail)
+      return Promise.all(perClass.map(function(pc){
+        return SoulShardsData.loadClassSpellList(pc.ent.listClass, { detail:true }).then(function(list){
+          var detail = {}, classSet = {};
+          (list || []).forEach(function(s){ s._prov = null; detail[s.name] = s; classSet[s.name.toLowerCase()] = true; });
+          pc.list = (list || []).slice(); pc.detail = detail; pc.classSet = classSet;
+          return pc;
+        });
+      })).then(function(loaded){
         if (my !== _req) return false;
-        _list = list; _detail = {}; _list.forEach(function(s){ s._prov = null; _detail[s.name] = s; });
-        _classSet = {}; _list.forEach(function(s){ _classSet[s.name.toLowerCase()] = true; });
-        _bgSpells = []; _bgSet = {};
-        // genuinely-expanded background spells: not on the class list, not a racial grant
+        // off-list racial grants + background-expanded: one shared meta load
+        var anyClassSet = {}, haveDetail = {};
+        loaded.forEach(function(pc){ Object.keys(pc.classSet).forEach(function(k){ anyClassSet[k] = true; }); Object.keys(pc.detail).forEach(function(n){ haveDetail[n.toLowerCase()] = pc.detail[n]; }); });
         var grantSet = {}; _grants.forEach(function(g){ grantSet[g.name.toLowerCase()] = true; });
         var bgSeen = {}, bgNew = [];
-        bgExp.forEach(function(e){ if (_classSet[e.key] || grantSet[e.key] || bgSeen[e.key]) return; bgSeen[e.key] = 1; bgNew.push(e); });
-        // one meta load for off-list racial grants AND background-expanded spells
-        var needNames = _grants.filter(function(g){ return g.kind !== 'cantrip' && !_detail[g.name]; }).map(function(g){ return g.name; })
+        bgExp.forEach(function(e){ if (anyClassSet[e.key] || grantSet[e.key] || bgSeen[e.key]) return; bgSeen[e.key] = 1; bgNew.push(e); });
+        var needNames = _grants.filter(function(g){ return g.kind !== 'cantrip' && !haveDetail[g.name.toLowerCase()]; }).map(function(g){ return g.name; })
           .concat(bgNew.map(function(e){ return e.key; }));
         return (needNames.length ? SoulShardsData.loadSpellMeta(needNames, { detail:true }) : Promise.resolve([])).then(function(metas){
           if (my !== _req) return false;
           var byName = {}; (metas || []).forEach(function(m){ byName[m.name.toLowerCase()] = m; });
+          _shared = { detail:{} };
           _grants.forEach(function(g){
             if (g.kind === 'cantrip'){ g.level = 0; }
-            else if (_detail[g.name]){ g.level = _detail[g.name].level; }
-            else { var m = byName[g.name.toLowerCase()]; g.level = m ? m.level : null; if (m && !_detail[g.name]) _detail[g.name] = m; }
+            else if (haveDetail[g.name.toLowerCase()]){ g.level = haveDetail[g.name.toLowerCase()].level; _shared.detail[g.name] = haveDetail[g.name.toLowerCase()]; }
+            else { var m = byName[g.name.toLowerCase()]; g.level = m ? m.level : null; if (m) _shared.detail[g.name] = m; }
           });
           var bgName = (draft.bg && draft.bg.n) || 'Background';
+          _bgSpells = []; _bgSet = {};
           bgNew.forEach(function(e){
             var m = byName[e.key]; if (!m) return;                    // unknown spell -> skip rather than show a ghost row
-            if (!_detail[m.name]){ m._prov = 'bg'; m._src = bgName; _detail[m.name] = m; _list.push(m); }
+            m._prov = 'bg'; m._src = bgName; _shared.detail[m.name] = m;
             _bgSet[m.name.toLowerCase()] = bgName;
             _bgSpells.push({ name: m.name, level: (m.level != null ? m.level : e.level), src: bgName });
+            loaded.forEach(function(pc){ if (!pc.classSet[e.key]){ pc.list.push(m); pc.detail[m.name] = m; } });   // pickable under each class
           });
+          _casters = loaded;
+          if (!_active || !_casters.some(function(c){ return c.key === _active; })){
+            var st = startingClassEntry();
+            _active = (st && classIsCaster(st)) ? st.n : _casters[0].key;
+          }
           return true;
         });
       });
     });
   }
+  function activeCaster(){ return _casters.filter(function(c){ return c.key === _active; })[0] || _casters[0] || null; }
+  // copy the active class's profile into the module vars the render helpers read.
+  function useActive(){
+    var ca = activeCaster(); if (!ca) return null;
+    _ent = ca.ent; _list = ca.list; _classSet = ca.classSet;
+    _detail = Object.assign({}, _shared.detail, ca.detail);   // class spells + shared grant/bg detail
+    _lvl = _lvlByClass[_active] != null ? _lvlByClass[_active] : null;
+    return ca;
+  }
 
   function loadAll(){
     var host = q('#sp-out'); if (!host) return;
-    if (!chosenClass()){ host.innerHTML = ''; return; }
+    if (!casterClasses().length){ host.innerHTML = ''; return; }
     if (typeof SoulShardsData === 'undefined' || typeof SoulShardsEngine === 'undefined'){ host.innerHTML = '<div class="eng-load">Engine modules not loaded.</div>'; return; }
-    host.innerHTML = '<div class="eng-load">Resolving entitlement + spell list\u2026</div>';
+    host.innerHTML = '<div class="eng-load">Resolving entitlements + spell lists\u2026</div>';
     loadData().then(function(ok){ if (ok && q('#sp-out')) render(); }).catch(function(err){
       var h = q('#sp-out'); if (h) h.innerHTML = '<div class="eng-load">Couldn\u2019t load spells (' + esc((err && err.message) || 'fetch failed') + ').</div>';
     });
@@ -1911,11 +2019,39 @@ var SpellsUI = (function () {
     return '<div class="subhead">Granted by ' + esc(raceName()) + ' <span class="sp-note">free \u2014 doesn\u2019t count against your picks</span></div>' +
       '<table class="sp-tbl"><tbody>' + rows + '</tbody></table>' + open;
   }
+  // how many picks the class still owes (drives the tab badge)
+  function spellsLeft(ca){
+    var e = ca.ent, p = picksFor(ca.key), left = 0;
+    if (e.cantrips) left += Math.max(0, e.cantrips - p.cantrips.length);
+    if (e.mode === 'known') left += Math.max(0, e.known - p.known.length);
+    else if (e.mode === 'prepared') left += Math.max(0, e.preparedCount - p.prepared.length);
+    else if (e.mode === 'spellbook'){ left += Math.max(0, e.spellbook - p.spellbook.length); left += Math.max(0, e.preparedCount - p.prepared.length); }
+    return left;
+  }
+  // caster-class selector — only shown when the build has more than one caster
+  function casterTabs(){
+    if (_casters.length < 2) return '';
+    var tabs = _casters.map(function(ca){
+      var e = ca.ent, on = ca.key === _active, left = spellsLeft(ca);
+      var prog = left > 0
+        ? '<span class="prog left"><span class="pip" style="background:' + ca.accent + '"></span>' + left + ' to pick</span>'
+        : '<span class="prog done"><span class="pip" style="background:' + ca.accent + '"></span>all chosen</span>';
+      return '<div class="ctab' + (on ? ' on' : '') + '" data-ckey="' + esc(ca.key) + '" style="--accent:' + ca.accent + '">' +
+        '<div class="cl">' + esc(ca.key) + ' <span class="lv">Lv ' + e.level + '</span></div>' +
+        '<div class="meta">' + (e.ability || '?').toUpperCase() + ' \u00b7 ' + esc(e.mode) + (e.pact ? ' \u00b7 pact' : '') + '</div>' +
+        prog +
+      '</div>';
+    }).join('');
+    return '<div class="castertabs">' + tabs + '</div>' +
+      '<p class="castertabs-note">Spells are tracked per class \u2014 each casts off its own ability and slots.</p>';
+  }
   function render(){
     var host = q('#sp-out'); if (!host) return;
-    var e = _ent; if (!e){ host.innerHTML = ''; return; }
+    var ca = useActive(); var e = _ent;
+    if (!ca || !e){ host.innerHTML = ''; return; }
     var levels = levelsAvailable();
     if (_lvl == null || levels.indexOf(_lvl) < 0) _lvl = levels.length ? levels[0] : 0;
+    _lvlByClass[_active] = _lvl;
     var oc = e.viaSub ? 'o-sub' : 'o-class';
     var granted = {}; _grants.forEach(function(g){ granted[g.name.toLowerCase()] = (g.kind === 'cantrip' ? 'racial cantrip' : 'racial'); });
     var html = readoutCard() + statusLine() + levelBar();
@@ -1944,19 +2080,22 @@ var SpellsUI = (function () {
       html += detailCard(_detail[_openDetail.name], oc);
     }
     html += grantSection();
-    host.innerHTML = html;
+    host.innerHTML = casterTabs() + '<div class="sp-multi" style="--accent:' + ca.accent + '">' + html + '</div>';
     wire();
   }
   function wire(){
+    Array.prototype.forEach.call(document.querySelectorAll('#sp-out .ctab[data-ckey]'), function(el){
+      el.addEventListener('click', function(){ _active = el.getAttribute('data-ckey'); _openDetail = null; render(); });
+    });
     Array.prototype.forEach.call(document.querySelectorAll('#sp-out [data-lvl]'), function(el){
-      el.addEventListener('click', function(){ _lvl = parseInt(el.getAttribute('data-lvl'),10); _openDetail = null; render(); });
+      el.addEventListener('click', function(){ _lvl = parseInt(el.getAttribute('data-lvl'),10); _lvlByClass[_active] = _lvl; _openDetail = null; render(); });
     });
     Array.prototype.forEach.call(document.querySelectorAll('#sp-out .sp-row[data-pick]'), function(el){
       el.addEventListener('click', function(ev){
         if (ev.target.closest('.sp-info')) return;
         var attr = el.getAttribute('data-attr'), name = el.getAttribute('data-pick');
         toggle(pickedFor(attr), name, capFor(attr));
-        if (attr === 'spellbook') draft.spells.prepared = picks().prepared.filter(function(n){ return picks().spellbook.indexOf(n) !== -1; });
+        if (attr === 'spellbook') picks().prepared = picks().prepared.filter(function(n){ return picks().spellbook.indexOf(n) !== -1; });
         saveDraft(); render();
       });
     });
@@ -1970,32 +2109,36 @@ var SpellsUI = (function () {
     });
   }
   function mount(){
-    _openDetail = null; _lvl = null;
+    _openDetail = null;
+    injectSpMultiCss();
     var sb = q('#sp-srch');
-    if (sb){ sb.value = _query; sb.oninput = function(){ _query = sb.value; if (_ent) render(); }; }
+    if (sb){ sb.value = _query; sb.oninput = function(){ _query = sb.value; if (_casters.length) render(); }; }
     loadAll();
   }
   function ensureLoaded(){ return loadData(); }
 
-  // ── EMIT: draft.spells -> { spells:[flat, provenance-tagged], spellbook:[owned book] } for the derive ──
+  // ── EMIT: per-class buckets -> { spells:[flat, provenance-tagged], spellbook:[owned book] } for the derive ──
+  // Each caster class contributes its cantrips + loadout tagged with ITS origin/source/ability;
+  // the derive buckets them by level and the sheet shows each spell under its own class + DC.
   function spellsForStructural(){
-    if (!_ent) return { spells: [], spellbook: [] };
-    var origin = _ent.viaSub ? 'subclass' : 'class';
-    var src = _ent.viaSub ? _ent.listClass : _ent.cls;
-    var p = picks();
-    var lvlOf = function(name){ var dd = _detail[name]; if (!dd) return null; return dd.level === 0 ? 'cantrip' : dd.level; };
-    var timeOf = function(name){ var dd = _detail[name]; return dd ? (dd.time || null) : null; };
-    var out = [], seen = {};
+    if (!_casters.length) return { spells: [], spellbook: [] };
+    var out = [], seen = {}, book = [];
     function add(name, og, sourceTag, level, time, ability){ var k = name.toLowerCase(); if (seen[k]) return; seen[k] = 1; out.push({ name:name, level:level, origin:og, source:sourceTag, time:time, ability:ability || null }); }
     // racial grants FIRST so race attribution wins a collision with a class pick
     var rabil = racialAbility();
-    _grants.forEach(function(g){ add(g.name, 'race', raceName(), (g.kind === 'cantrip' || g.level === 0) ? 'cantrip' : (g.level != null ? g.level : null), timeOf(g.name), rabil); });
-    var isBgExp = function(n){ var k = n.toLowerCase(); return _bgSet[k] && !_classSet[k]; };
-    p.cantrips.forEach(function(n){ var x = isBgExp(n); add(n, x?'expanded':origin, x?_bgSet[n.toLowerCase()]:src, 'cantrip', timeOf(n), _ent.ability); });
-    var loadout = _ent.mode === 'known' ? p.known : p.prepared;   // the castable list (Wizard prepares FROM the book)
-    loadout.forEach(function(n){ var x = isBgExp(n); add(n, x?'expanded':origin, x?_bgSet[n.toLowerCase()]:src, lvlOf(n), timeOf(n), _ent.ability); });
-    var book = [];
-    if (_ent.mode === 'spellbook') p.spellbook.forEach(function(n){ book.push({ name:n, level:lvlOf(n), origin:'class', source:_ent.cls }); });
+    var sTime = function(name){ var dd = _shared.detail[name]; return dd ? (dd.time || null) : null; };
+    _grants.forEach(function(g){ add(g.name, 'race', raceName(), (g.kind === 'cantrip' || g.level === 0) ? 'cantrip' : (g.level != null ? g.level : null), sTime(g.name), rabil); });
+    _casters.forEach(function(ca){
+      var e = ca.ent, p = picksFor(ca.key);
+      var origin = e.viaSub ? 'subclass' : 'class', src = e.viaSub ? e.listClass : e.cls;
+      var lvlOf = function(name){ var dd = ca.detail[name]; if (!dd) return null; return dd.level === 0 ? 'cantrip' : dd.level; };
+      var timeOf = function(name){ var dd = ca.detail[name]; return dd ? (dd.time || null) : null; };
+      var isBgExp = function(n){ var k = n.toLowerCase(); return _bgSet[k] && !ca.classSet[k]; };
+      p.cantrips.forEach(function(n){ var x = isBgExp(n); add(n, x?'expanded':origin, x?_bgSet[n.toLowerCase()]:src, 'cantrip', timeOf(n), e.ability); });
+      var loadout = e.mode === 'known' ? p.known : p.prepared;   // castable list (Wizard prepares FROM the book)
+      loadout.forEach(function(n){ var x = isBgExp(n); add(n, x?'expanded':origin, x?_bgSet[n.toLowerCase()]:src, lvlOf(n), timeOf(n), e.ability); });
+      if (e.mode === 'spellbook') p.spellbook.forEach(function(n){ book.push({ name:n, level:lvlOf(n), origin:'class', source:e.cls }); });
+    });
     return { spells: out, spellbook: book };
   }
 

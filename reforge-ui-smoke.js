@@ -13,9 +13,12 @@ function fn(name){
   return src.slice(at, i);
 }
 const helpers = (() => { const a = src.indexOf('function classDef(n){'), b = src.indexOf('var mcAddOpen = false;', a); return src.slice(a, src.indexOf('\n', b)); })();
-const body = [helpers, fn('freshDraft'), fn('normalizeDraft'), fn('buildSnapshot'), fn('loadBuildIntoDraft'),
+const body = [helpers, fn('classDefCaster'), fn('classIsCaster'), fn('casterClasses'),
+  fn('ensureSpellBucket'), fn('migrateSpells'),
+  fn('freshDraft'), fn('normalizeDraft'), fn('buildSnapshot'), fn('loadBuildIntoDraft'),
   fn('resetDraft'), fn('reverseMapStructural'), fn('loadIntoBuilder'), fn('renderEditStrip'),
   fn('populateLoadMenu'), fn('mountForgeControls'), fn('injectBldCss')].join('\n');
+const SUBCLASS_CASTERS = { 'Eldritch Knight':{progression:'1/3'}, 'Arcane Trickster':{progression:'1/3'} };
 
 const dom = new JSDOM('<!DOCTYPE html><body>' +
   '<input id="charName"><div class="bld-actions">' +
@@ -32,10 +35,10 @@ const escHtml = (x) => String(x).replace(/[&<>]/g, c => c==='&'?'&amp;':c==='<'?
 const ensureSlots = () => {};
 let saveCount = 0; const saveDraft = () => { saveCount++; };
 const DATA = { classes: [
-  { n:'Warlock', subs:[{n:'The Hexblade'}], subAt:1, subTitle:'Otherworldly Patron' },
-  { n:'Sorcerer', subs:[{n:'Shadow Magic'}], subAt:1, subTitle:'Sorcerous Origin' },
-  { n:'Bard', subs:[{n:'College of Lore'}], subAt:3, subTitle:'Bard College' },
-  { n:'Cleric', subs:[{n:'Life Domain'}], subAt:1, subTitle:'Divine Domain' }
+  { n:'Warlock', caster:'pact', subs:[{n:'The Hexblade'}], subAt:1, subTitle:'Otherworldly Patron' },
+  { n:'Sorcerer', caster:'full', subs:[{n:'Shadow Magic'}], subAt:1, subTitle:'Sorcerous Origin' },
+  { n:'Bard', caster:'full', subs:[{n:'College of Lore'}], subAt:3, subTitle:'Bard College' },
+  { n:'Cleric', caster:'full', subs:[{n:'Life Domain'}], subAt:1, subTitle:'Divine Domain' }
 ], races:[{n:'Astral Elf',s:'AAG'}], backgrounds:[{n:'Sage',s:'PHB'}] };
 
 const cosmereBuild = { name:'Cosmere Runestar', species:{n:'Astral Elf',s:'AAG'},
@@ -55,9 +58,9 @@ const CharacterData = {
 const draft = {};
 let api;
 const renderAll = () => { if (api) api.renderEditStrip(); };
-api = new Function('draft','DATA','CharacterData','q','escHtml','saveDraft','renderAll','ensureSlots',
+api = new Function('draft','DATA','SUBCLASS_CASTERS','CharacterData','q','escHtml','saveDraft','renderAll','ensureSlots',
   body + '\nreturn { mountForgeControls, renderEditStrip, loadIntoBuilder, resetDraft };')(
-  draft, DATA, CharacterData, q, escHtml, saveDraft, renderAll, ensureSlots);
+  draft, DATA, SUBCLASS_CASTERS, CharacterData, q, escHtml, saveDraft, renderAll, ensureSlots);
 
 const click = (el) => el.dispatchEvent(new window.Event('click', { bubbles:true }));
 const tick = () => new Promise(r => setTimeout(r, 0));
