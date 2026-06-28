@@ -744,10 +744,11 @@ if (!draft.choices || typeof draft.choices !== 'object') draft.choices = {};
 if (!draft.advancement || typeof draft.advancement !== 'object') draft.advancement = {};
 if (!draft.equipment || typeof draft.equipment !== 'object') draft.equipment = { mode:'gear', picks:{}, gold:null };
 
-// ── multiclass: draft.classes[] is the class set the derive reads. Each entry is
-// { n, level, subclass, starting }. The Class step (single-class today) keeps it in
-// sync via syncSoloClass(); the multiclass list UI will edit it directly. Migrate any
-// pre-multiclass draft from the legacy cls/level/subclass fields. ──
+// ── multiclass: draft.classes[] is the canonical class set the derive reads. Each
+// entry is { n, level, subclass, starting }. The Class step's list UI edits it
+// directly; syncClassMirror() mirrors the STARTING class back to the legacy
+// cls/level/subclass fields the spells/feats/ASI steps still use. Migrate any
+// pre-multiclass draft from those legacy fields. ──
 if (!Array.isArray(draft.classes)){
   draft.classes = draft.cls ? [{ n: draft.cls.n, level: (draft.level || 1), subclass: (draft.subclass || null), starting: true }] : [];
 }
@@ -756,8 +757,18 @@ function classDef(n){ return (typeof DATA !== 'undefined' && DATA.classes) ? (DA
 function startingClassEntry(){ var cs = draft.classes || []; return cs.filter(function(c){ return c.starting; })[0] || cs[0] || null; }
 function orderedClasses(){ var cs = draft.classes || []; return cs.filter(function(c){ return c.starting; }).concat(cs.filter(function(c){ return !c.starting; })); }
 function totalLevel(){ return (draft.classes || []).reduce(function(n, c){ return n + (c.level || 0); }, 0) || 1; }
-// keep draft.classes mirroring the single-class selection until the multiclass UI lands
-function syncSoloClass(){ draft.classes = draft.cls ? [{ n: draft.cls.n, level: (draft.level || 1), subclass: (draft.subclass || null), starting: true }] : []; }
+// keep the legacy single-class fields pointed at the STARTING class so the
+// spells / feats / ASI / choices steps (still single-class) operate on it.
+function syncClassMirror(){
+  var s = startingClassEntry();
+  if (!s){ draft.cls = null; draft.subclass = null; return; }
+  var def = classDef(s.n); if (def) draft.cls = def;
+  draft.subclass = s.subclass || null;
+  draft.level = s.level || 1;
+}
+// "Warlock 2 / Sorcerer 1" from the build, starting class first.
+function classLabelStr(){ return orderedClasses().map(function(c){ return c.n + ' ' + (c.level || 1); }).join(' / ') || '\u2014'; }
+var mcAddOpen = false;   // transient: "+ Add class" picker open state (not persisted)
 
 ensureSlots();
 
@@ -879,9 +890,7 @@ function renderRail(){
 }
 
 function renderEmerging(){
-  var c = chosenClass();
-  var cls = c ? c.n + (draft.subclass ? ' (' + draft.subclass.n + ')' : '') : '\u2014';
-  q('#emMeta').innerHTML = 'Level ' + draft.level + ' · <b>' + ((draft.species && draft.species.n) || '\u2014') + '</b> · <b>' + cls + '</b>';
+  q('#emMeta').innerHTML = 'Level ' + totalLevel() + ' · <b>' + ((draft.species && draft.species.n) || '\u2014') + '</b> · <b>' + classLabelStr() + '</b>';
 }
 
 // ── step bodies ──────────────────────────────────────────────────────────────
@@ -966,30 +975,54 @@ var BODIES = {
       '<div class="ph-note"><b>Species</b> resolves live from <b>races.json</b> via <b>SoulShardsData.loadRace</b> — subrace, ability increases (including the 2014 floating-origin rule), size, speed, senses, and traits. The racial increases layer onto your base scores and feed the engine. Skill / language choices and racial innate spells surface here but reconcile in P5 / P6.</div>';
   },
   class: function(){
-    var c = chosenClass();
-    if (!c){
-      return '<div class="subhead">Class</div><div id="bz-class"></div>' +
-        '<div class="ph-note"><b>P4</b> loads the full feature timeline from <b>loadClass()</b>, plus a class-<em>list</em> loader off class/index.json (source-filtered, to keep UA / sidekicks out by default).</div>';
-    }
-    var lvlCtrl =
-      '<div class="subhead">Class level</div>' +
-      '<div class="lvl"><button class="lvl-b" data-lv="-1" aria-label="Lower level">\u2212</button>' +
-        '<span class="lvl-n">' + draft.level + '</span>' +
-        '<button class="lvl-b" data-lv="1" aria-label="Raise level">+</button>' +
-        '<span class="lvl-hint">building at level ' + draft.level + ' — grants levels 1\u2013' + draft.level + ' only</span></div>';
-    var unlocked = !c.subAt || draft.level >= c.subAt;
-    var sub;
-    if (unlocked){
-      sub = '<div class="subhead">' + c.subTitle + ' · unlocked at level ' + (c.subAt || 1) + '</div><div id="bz-subclass"></div>' +
-        '<div class="ph-note">' + (c.subs.length || 'No') + ' ' + c.subTitle.toLowerCase() + (c.subs.length === 1 ? '' : 's') +
-        ' — from <b>loadClass().subclasses</b>, source-tagged.</div>';
+    var list = orderedClasses();
+    var rows = list.map(function(ce, i){
+      var def = classDef(ce.n) || { subs: [], subAt: 1, subTitle: 'Subclass' };
+      var multi = list.length > 1;
+      var lvl = ce.level || 1;
+      var hasSub = lvl >= (def.subAt || 1) && (def.subs || []).length;
+      var subField;
+      if (hasSub){
+        var opts = '<option value="">\u2014 choose ' + escHtml((def.subTitle || 'subclass').toLowerCase()) + ' \u2014</option>' +
+          (def.subs || []).map(function(s){ return '<option' + (ce.subclass && ce.subclass.n === s.n ? ' selected' : '') + '>' + escHtml(s.n) + '</option>'; }).join('');
+        subField = '<select class="mc-sub" data-i="' + i + '">' + opts + '</select>';
+      } else {
+        subField = '<span class="mc-subhint">' + escHtml(def.subTitle || 'Subclass') + ' \u2014 at ' + escHtml(ce.n) + ' ' + (def.subAt || 1) + '</span>';
+      }
+      var badge = (ce.starting && multi) ? '<span class="mc-badge">Starting</span>' : '';
+      var setFirst = (!ce.starting && multi) ? '<button class="mc-first" data-i="' + i + '">Set starting</button>' : '';
+      var rm = multi ? '<button class="mc-rm" data-i="' + i + '" aria-label="Remove ' + escHtml(ce.n) + '">\u2715</button>' : '';
+      return '<div class="mc-row' + (ce.starting && multi ? ' is-start' : '') + '">' +
+        '<div class="mc-top">' +
+          '<span class="mc-cn">' + escHtml(ce.n) + badge + '</span>' +
+          '<span class="mc-lvl-lab">Level</span>' +
+          '<div class="lvl mc-lvl"><button class="lvl-b mc-step" data-i="' + i + '" data-d="-1" aria-label="Lower level">\u2212</button>' +
+            '<input class="mc-lvl-n" data-i="' + i + '" type="number" min="1" max="20" value="' + lvl + '" aria-label="' + escHtml(ce.n) + ' level">' +
+            '<button class="lvl-b mc-step" data-i="' + i + '" data-d="1" aria-label="Raise level">+</button></div>' +
+          rm +
+        '</div>' +
+        '<div class="mc-sub-row">' + subField + setFirst + '</div>' +
+      '</div>';
+    }).join('');
+
+    var addBlock;
+    if (mcAddOpen || !list.length){
+      var taken = list.map(function(c){ return c.n; });
+      var avail = DATA.classes.filter(function(c){ return !excludeClass(c.n) && taken.indexOf(c.n) === -1; });
+      var prows = avail.map(function(c){
+        return '<div class="mc-prow"><span class="mc-pn">' + escHtml(c.n) + '</span><button class="mc-padd" data-n="' + escHtml(c.n) + '">Add</button></div>';
+      }).join('');
+      addBlock = '<div class="mc-picker"><div class="mc-pick-h">' + (list.length ? 'Add a class' : 'Choose a starting class') + '</div>' + prows + '</div>';
     } else {
-      sub = '<div class="subhead">' + c.subTitle + '</div>' +
-        '<div class="locked-note">Chosen at level ' + c.subAt + ' — you\u2019re level ' + draft.level + ', so there\u2019s no ' + c.subTitle.toLowerCase() + ' yet. Raise the level to ' + c.subAt + '+ to choose one.</div>';
+      addBlock = '<button class="mc-add" id="mc-add">+ Add class</button>';
     }
-    return '<div class="subhead">Class</div><div id="bz-class"></div>' + casterTagHTML(c) + lvlCtrl + sub +
+
+    var head = '<div class="mc-head"><span class="subhead" style="margin:0">Classes</span>' +
+      (list.length ? '<span class="mc-total">Character level <b>' + totalLevel() + '</b></span>' : '') + '</div>';
+
+    return head + '<div class="mc-list">' + rows + '</div>' + addBlock +
       '<div id="engine-out"></div>' +
-      '<div class="ph-note"><b>P4 + P8</b> a character at level N gets exactly the level 1\u2013N grants — never future ones. The same gate is what the level-up flow walks one step at a time. (Subclass-only casters like Eldritch Knight / Arcane Trickster now resolve their casting from the chosen subclass — cantrips, spells known, and slots appear once the subclass is picked at its level.)</div>';
+      '<div class="ph-note"><b>Multiclass</b> \u2014 your <b>starting</b> class grants full proficiencies and saving throws; added classes follow the 2014 rules. Set each class\u2019s level directly (handy for a mid-campaign start). Hit dice, saves, features, and the spell-slot merge derive from the whole build.</div>';
   },
   background: function(){
     var custom = '';
@@ -1029,10 +1062,10 @@ var BODIES = {
     }
     return '<div class="sheet">' +
         '<h3>' + (draft.name || 'Unnamed') + '</h3>' +
-        '<div class="sub">Level ' + draft.level + ' ' + ((draft.species && draft.species.n) || '\u2014') + ' ' + (c ? c.n : '\u2014') + (draft.subclass ? ' · ' + draft.subclass.n : '') + '</div>' +
+        '<div class="sub">Level ' + totalLevel() + ' ' + ((draft.species && draft.species.n) || '\u2014') + ' · ' + classLabelStr() + '</div>' +
         '<dl>' +
           '<dt>Species</dt><dd>' + ((draft.species && draft.species.n) || '\u2014') + '</dd>' +
-          '<dt>Class</dt><dd>' + (c ? c.n + ' ' + draft.level + (isCaster(c) ? ' · ' + mode + ' caster' : ' · non-caster') : '\u2014') + '</dd>' +
+          '<dt>Class</dt><dd>' + classLabelStr() + (c && isCaster(c) ? ' · ' + mode + ' caster' : '') + '</dd>' +
           '<dt>' + (c ? c.subTitle : 'Subclass') + '</dt><dd>' + subLine + '</dd>' +
           '<dt>Background</dt><dd>' + ((draft.bg && draft.bg.n) || '\u2014') + bgCustom + '</dd>' +
           '<dt>Spells</dt><dd>' + (spellsActive() ? 'chosen in ' + mode + ' mode' : 'none') + '</dd>' +
@@ -1050,6 +1083,44 @@ var BODIES = {
       '<div class="ph-note"><b>Forge Character</b> derives the assembled <b>structural</b> and <b>writes</b> it to the characters table \u2014 a fresh row, or an update to the character you pick. Fields still listed under <b>_incomplete</b> (skills, AC, items) fill in as those steps land.</div>';
   },
 };
+
+function injectMcCss(){
+  if (document.getElementById('mc-css')) return;
+  var s = document.createElement('style'); s.id = 'mc-css';
+  s.textContent = [
+    '.mc-head{display:flex;align-items:baseline;justify-content:space-between;margin:22px 0 10px}',
+    '.mc-total{font-family:var(--ui);font-size:14px;letter-spacing:.04em;color:var(--ink-faint)}',
+    '.mc-total b{font-family:var(--disp);font-size:18px;color:var(--gold)}',
+    '.mc-list{display:flex;flex-direction:column;gap:9px}',
+    '.mc-row{border:1px solid var(--rule-strong);border-left:3px solid var(--rule-strong);background:var(--bg-card);padding:11px 14px 12px}',
+    '.mc-row.is-start{border-left-color:var(--gold)}',
+    '.mc-top{display:flex;align-items:center;gap:11px;flex-wrap:wrap}',
+    '.mc-cn{font-family:var(--disp);font-weight:600;font-size:20px;color:var(--ink);flex:1;min-width:120px}',
+    '.mc-badge{font-family:var(--ui);text-transform:uppercase;letter-spacing:.12em;font-size:10px;color:var(--gold);border:1px solid var(--gold);border-radius:2px;padding:2px 7px;margin-left:9px;vertical-align:3px}',
+    '.mc-lvl-lab{font-family:var(--ui);text-transform:uppercase;letter-spacing:.12em;font-size:11px;color:var(--ink-faint)}',
+    '.mc-lvl{gap:6px!important}',
+    '.mc-lvl .lvl-b{width:30px;height:30px;font-size:18px}',
+    '.mc-lvl-n{width:46px;height:30px;text-align:center;font-family:var(--disp);font-weight:600;font-size:17px;color:var(--ink);border:1px solid var(--rule-strong);background:var(--bg);border-radius:2px;-moz-appearance:textfield}',
+    '.mc-lvl-n::-webkit-outer-spin-button,.mc-lvl-n::-webkit-inner-spin-button{-webkit-appearance:none;margin:0}',
+    '.mc-rm{width:30px;height:30px;border:1px solid var(--rule-strong);background:transparent;color:var(--ink-faint);font-size:14px;cursor:pointer;border-radius:2px}',
+    '.mc-rm:hover{border-color:var(--blood);color:var(--blood)}',
+    '.mc-sub-row{display:flex;align-items:center;gap:12px;margin-top:10px;flex-wrap:wrap}',
+    '.mc-sub{font-family:var(--body);font-size:15px;color:var(--ink);border:1px solid var(--rule-strong);background:var(--bg-card);padding:5px 8px;border-radius:2px;min-width:190px}',
+    '.mc-subhint{font-family:var(--body);font-size:14px;font-style:italic;color:var(--ink-faint)}',
+    '.mc-first{font-family:var(--ui);text-transform:uppercase;letter-spacing:.1em;font-size:11px;color:var(--gold);background:transparent;border:0;cursor:pointer;padding:0}',
+    '.mc-first:hover{text-decoration:underline}',
+    '.mc-add{font-family:var(--ui);text-transform:uppercase;letter-spacing:.16em;font-size:12px;color:var(--gold);background:transparent;border:1px dashed var(--rule-strong);border-radius:2px;padding:11px;width:100%;cursor:pointer;margin-top:9px}',
+    '.mc-add:hover{background:var(--bg-sunk);border-color:var(--gold)}',
+    '.mc-picker{border:1px solid var(--rule-strong);background:var(--bg-sunk);margin-top:9px}',
+    '.mc-pick-h{font-family:var(--ui);text-transform:uppercase;letter-spacing:.14em;font-size:11px;color:var(--ink-faint);padding:10px 14px 7px;border-bottom:1px solid var(--rule)}',
+    '.mc-prow{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:8px 14px;border-bottom:1px solid var(--rule)}',
+    '.mc-prow:last-child{border-bottom:0}',
+    '.mc-pn{font-family:var(--disp);font-size:17px;color:var(--ink)}',
+    '.mc-padd{font-family:var(--ui);text-transform:uppercase;letter-spacing:.1em;font-size:11px;color:var(--ink);background:transparent;border:1px solid var(--rule-strong);border-radius:2px;padding:5px 12px;cursor:pointer}',
+    '.mc-padd:hover{border-color:var(--gold);color:var(--gold)}'
+  ].join('');
+  document.head.appendChild(s);
+}
 
 // post-render mounts (browse lists manage their own filtering/focus)
 var MOUNT = {
@@ -1110,23 +1181,60 @@ var MOUNT = {
     SpeciesUI.renderSpeciesOut();
   },
   class: function(){
-    renderBrowseInto(q('#bz-class'), { key:'class', items:DATA.classes.filter(function(c){ return !excludeClass(c.n); }), sel:draft.cls,
-      onPick:function(item){ draft.cls = item; draft.subclass = null; syncSoloClass(); saveDraft(); renderAll(); } });
-    var c = chosenClass();
-    if (!c) return;
-    Array.prototype.forEach.call(document.querySelectorAll('.lvl-b'), function(b){
+    injectMcCss();
+    var list = orderedClasses();
+    function commit(){ syncClassMirror(); saveDraft(); renderAll(); }
+    function setLevel(i, v){
+      var ce = list[i]; if (!ce) return;
+      var lv = Math.max(1, Math.min(20, parseInt(v, 10) || 1));
+      ce.level = lv;
+      var def = classDef(ce.n);
+      if (def && def.subAt && lv < def.subAt) ce.subclass = null;   // re-lock subclass below threshold
+      commit();
+    }
+    Array.prototype.forEach.call(document.querySelectorAll('.mc-step'), function(b){
       b.addEventListener('click', function(){
-        var lv = draft.level + parseInt(b.getAttribute('data-lv'), 10);
-        draft.level = Math.max(1, Math.min(20, lv));
-        if (c.subAt && draft.level < c.subAt) draft.subclass = null;   // re-locks below threshold
-        syncSoloClass(); saveDraft(); renderAll();
+        var i = parseInt(b.getAttribute('data-i'), 10);
+        setLevel(i, (list[i] ? (list[i].level || 1) : 1) + parseInt(b.getAttribute('data-d'), 10));
       });
     });
-    var unlocked = !c.subAt || draft.level >= c.subAt;
-    if (unlocked && c.subs.length){
-      renderBrowseInto(q('#bz-subclass'), { key:'subclass', items:c.subs, sel:draft.subclass,
-        onPick:function(item){ draft.subclass = item; syncSoloClass(); saveDraft(); renderAll(); } });
-    }
+    Array.prototype.forEach.call(document.querySelectorAll('.mc-lvl-n'), function(inp){
+      inp.addEventListener('change', function(){ setLevel(parseInt(inp.getAttribute('data-i'), 10), inp.value); });
+    });
+    Array.prototype.forEach.call(document.querySelectorAll('.mc-sub'), function(sel){
+      sel.addEventListener('change', function(){
+        var i = parseInt(sel.getAttribute('data-i'), 10), ce = list[i]; if (!ce) return;
+        var def = classDef(ce.n);
+        ce.subclass = ((def && def.subs) || []).find(function(s){ return s.n === sel.value; }) || null;
+        commit();
+      });
+    });
+    Array.prototype.forEach.call(document.querySelectorAll('.mc-first'), function(b){
+      b.addEventListener('click', function(){
+        var i = parseInt(b.getAttribute('data-i'), 10);
+        list.forEach(function(c, j){ c.starting = (j === i); });
+        commit();
+      });
+    });
+    Array.prototype.forEach.call(document.querySelectorAll('.mc-rm'), function(b){
+      b.addEventListener('click', function(){
+        var i = parseInt(b.getAttribute('data-i'), 10);
+        var wasStart = list[i] && list[i].starting;
+        list.splice(i, 1);
+        if (wasStart && list.length) list[0].starting = true;
+        draft.classes = list; mcAddOpen = false; commit();
+      });
+    });
+    var addBtn = q('#mc-add');
+    if (addBtn) addBtn.addEventListener('click', function(){ mcAddOpen = true; saveDraft(); renderAll(); });
+    Array.prototype.forEach.call(document.querySelectorAll('.mc-padd'), function(b){
+      b.addEventListener('click', function(){
+        var n = b.getAttribute('data-n'); if (!classDef(n)) return;
+        var first = (draft.classes || []).length === 0;
+        draft.classes = (draft.classes || []).concat([{ n: n, level: 1, subclass: null, starting: first }]);
+        mcAddOpen = false; commit();
+      });
+    });
     renderEngineOut();
   },
   background: function(){
