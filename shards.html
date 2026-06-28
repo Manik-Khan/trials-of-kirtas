@@ -743,6 +743,22 @@ if (!draft.spells || typeof draft.spells !== 'object') draft.spells = { cantrips
 if (!draft.choices || typeof draft.choices !== 'object') draft.choices = {};
 if (!draft.advancement || typeof draft.advancement !== 'object') draft.advancement = {};
 if (!draft.equipment || typeof draft.equipment !== 'object') draft.equipment = { mode:'gear', picks:{}, gold:null };
+
+// ── multiclass: draft.classes[] is the class set the derive reads. Each entry is
+// { n, level, subclass, starting }. The Class step (single-class today) keeps it in
+// sync via syncSoloClass(); the multiclass list UI will edit it directly. Migrate any
+// pre-multiclass draft from the legacy cls/level/subclass fields. ──
+if (!Array.isArray(draft.classes)){
+  draft.classes = draft.cls ? [{ n: draft.cls.n, level: (draft.level || 1), subclass: (draft.subclass || null), starting: true }] : [];
+}
+if (draft.classes.length && !draft.classes.some(function(c){ return c.starting; })) draft.classes[0].starting = true;
+function classDef(n){ return (typeof DATA !== 'undefined' && DATA.classes) ? (DATA.classes.find(function(c){ return c.n === n; }) || null) : null; }
+function startingClassEntry(){ var cs = draft.classes || []; return cs.filter(function(c){ return c.starting; })[0] || cs[0] || null; }
+function orderedClasses(){ var cs = draft.classes || []; return cs.filter(function(c){ return c.starting; }).concat(cs.filter(function(c){ return !c.starting; })); }
+function totalLevel(){ return (draft.classes || []).reduce(function(n, c){ return n + (c.level || 0); }, 0) || 1; }
+// keep draft.classes mirroring the single-class selection until the multiclass UI lands
+function syncSoloClass(){ draft.classes = draft.cls ? [{ n: draft.cls.n, level: (draft.level || 1), subclass: (draft.subclass || null), starting: true }] : []; }
+
 ensureSlots();
 
 // ── reusable browse list: search + per-source filter + scroll select ───────────
@@ -1095,7 +1111,7 @@ var MOUNT = {
   },
   class: function(){
     renderBrowseInto(q('#bz-class'), { key:'class', items:DATA.classes.filter(function(c){ return !excludeClass(c.n); }), sel:draft.cls,
-      onPick:function(item){ draft.cls = item; draft.subclass = null; saveDraft(); renderAll(); } });
+      onPick:function(item){ draft.cls = item; draft.subclass = null; syncSoloClass(); saveDraft(); renderAll(); } });
     var c = chosenClass();
     if (!c) return;
     Array.prototype.forEach.call(document.querySelectorAll('.lvl-b'), function(b){
@@ -1103,13 +1119,13 @@ var MOUNT = {
         var lv = draft.level + parseInt(b.getAttribute('data-lv'), 10);
         draft.level = Math.max(1, Math.min(20, lv));
         if (c.subAt && draft.level < c.subAt) draft.subclass = null;   // re-locks below threshold
-        saveDraft(); renderAll();
+        syncSoloClass(); saveDraft(); renderAll();
       });
     });
     var unlocked = !c.subAt || draft.level >= c.subAt;
     if (unlocked && c.subs.length){
       renderBrowseInto(q('#bz-subclass'), { key:'subclass', items:c.subs, sel:draft.subclass,
-        onPick:function(item){ draft.subclass = item; saveDraft(); renderAll(); } });
+        onPick:function(item){ draft.subclass = item; syncSoloClass(); saveDraft(); renderAll(); } });
     }
     renderEngineOut();
   },
@@ -2590,20 +2606,30 @@ function wireEngineCard(host, b){
 var forgeReq = 0;
 function escHtml(x){ return String(x).replace(/[&<>]/g, function(ch){ return ch === '&' ? '&amp;' : ch === '<' ? '&lt;' : '&gt;'; }); }
 function abMod(s){ return Math.floor((s - 10) / 2); }
-function buildStructuralPreview(model, race){
-  // P7 derive (preview): hand the chosen class model + level + subclass + race model to
+// Load every class in the build into derive-ready entries, STARTING class first
+// (the derive draws saves + full proficiencies from classes[0]). The single-class
+// Class step keeps draft.classes a one-element array; the multiclass list UI fills it.
+function loadClassEntries(){
+  return Promise.all(orderedClasses().map(function(ce){
+    return SoulShardsData.loadClass(ce.n).then(function(model){
+      var sub = (model.subclasses || []).find(function(s){ return ce.subclass && s.name === ce.subclass.n; });
+      return { model: model, level: (ce.level || 1), subclassShortName: sub ? sub.shortName : null };
+    });
+  }));
+}
+function buildStructuralPreview(classEntries, race){
+  // P7 derive (preview): hand the build's per-class entries + race model to
   // SoulShardsDerive, which runs the engine per class, folds the multiclass spellcasting
   // merge, and assembles the structural the sheet reads. Spell selections + the Wizard's book
   // come from the P6a picker (SpellsUI.spellsForStructural). Nothing is written.
   if (typeof SoulShardsDerive === 'undefined' || typeof SoulShardsSpellcasting === 'undefined'){
     return { _error: 'Spellcasting / derive modules not loaded.' };
   }
-  var sub = (model.subclasses || []).find(function(s){ return draft.subclass && s.name === draft.subclass.n; });
   var picked = (typeof SpellsUI !== 'undefined') ? SpellsUI.spellsForStructural() : { spells: [], spellbook: [] };
   var r = SoulShardsDerive.deriveStructural({
     name: draft.name || 'Unnamed', alignment: null, portrait: null,
     abilities: effectiveAbilities(race),
-    classes: [ { model: model, level: draft.level, subclassShortName: sub ? sub.shortName : null } ],
+    classes: classEntries,
     race: race || null,
     subraceName: draft.subrace ? draft.subrace.n : null,
     background: draft.bg ? { name: draft.bg.n } : null,
@@ -2637,10 +2663,10 @@ function forgePreview(){
   var choicesReady = (typeof ChoicesUI !== 'undefined') ? ChoicesUI.ensureLoaded() : Promise.resolve(true);
   var featsReady = (typeof FeatsUI !== 'undefined') ? FeatsUI.ensureLoaded() : Promise.resolve(true);
   var profReady = (typeof ProfUI !== 'undefined') ? ProfUI.ensureLoaded() : Promise.resolve(true);
-  Promise.all([SoulShardsData.loadClass(c.n), raceForBuild(), spellsReady, choicesReady, featsReady, profReady]).then(function(res){
+  Promise.all([loadClassEntries(), raceForBuild(), spellsReady, choicesReady, featsReady, profReady]).then(function(res){
     if (my !== forgeReq) return;
-    var model = res[0], race = res[1];
-    host.innerHTML = forgeCardHTML(buildStructuralPreview(model, race));
+    var entries = res[0], race = res[1];
+    host.innerHTML = forgeCardHTML(buildStructuralPreview(entries, race));
     try { host.scrollIntoView({ behavior: 'smooth', block: 'nearest' }); } catch(e){}
   }).catch(function(err){
     if (my !== forgeReq) return;
@@ -2722,7 +2748,7 @@ function forgeCommit(){
   var featsReady = (typeof FeatsUI !== 'undefined') ? FeatsUI.ensureLoaded() : Promise.resolve(true);
   var itemsReady = (typeof ItemsUI !== 'undefined') ? ItemsUI.ensureLoaded() : Promise.resolve(true);
   var profReady = (typeof ProfUI !== 'undefined') ? ProfUI.ensureLoaded() : Promise.resolve(true);
-  Promise.all([SoulShardsData.loadClass(c.n), raceForBuild(), spellsReady, choicesReady, featsReady, itemsReady, profReady]).then(function(res){
+  Promise.all([loadClassEntries(), raceForBuild(), spellsReady, choicesReady, featsReady, itemsReady, profReady]).then(function(res){
     var assembled = buildStructuralPreview(res[0], res[1]);
     if (assembled && assembled._error){ fxStatus('err', assembled._error); return; }
     var structural = Object.assign({}, assembled); delete structural._incomplete;
