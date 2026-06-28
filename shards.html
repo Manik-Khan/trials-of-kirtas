@@ -1048,7 +1048,9 @@ var BODIES = {
       '<div class="ph-note">Real now — fed to the engine (<b>CON</b> sets HP, the casting ability sizes prepared spells). Array &amp; rolls are <b>assigned</b> to stats — click a value, then a stat; click a placed value to move it. Point buy uses the 27-point budget (8\u201315). These are your <b>base</b> scores; racial increases layer on at the Species step and flow through to the engine.</div>';
   },
   species: function(){
-    return '<div class="subhead">Species</div><div id="bz-species"></div>' +
+    return '<div class="subhead">Species</div>' +
+      '<button class="cr-define" id="bz-custom" type="button">\u2726 Custom race</button>' +
+      '<div id="bz-species"></div>' +
       '<div id="species-out"></div>' +
       '<div class="ph-note"><b>Species</b> resolves live from <b>races.json</b> via <b>SoulShardsData.loadRace</b> — subrace, ability increases (including the 2014 floating-origin rule), size, speed, senses, and traits. The racial increases layer onto your base scores and feed the engine. Skill / language choices and racial innate spells surface here but reconcile in P5 / P6.</div>';
   },
@@ -1250,12 +1252,22 @@ var MOUNT = {
     if (rr) rr.addEventListener('click', function(){ draft.slots = makeSlots('roll'); draft.armed = null; deriveAbilities(); saveDraft(); renderAll(); });
   },
   species: function(){
-    renderBrowseInto(q('#bz-species'), { key:'species', items:DATA.races, sel:draft.species,
+    renderBrowseInto(q('#bz-species'), { key:'species', items:DATA.races, sel:(draft.species && draft.species.custom) ? null : draft.species,
       onPick:function(item){
         draft.species = item; draft.subrace = null; draft.asi = {}; draft.size = null;
         draft.originMode = 'std'; draft.useFloating = false; draft.openTrait = null;
         saveDraft(); renderAll();
       } });
+    var cb = q('#bz-custom');
+    if (cb){
+      if (draft.species && draft.species.custom) cb.classList.add('on');
+      cb.addEventListener('click', function(){
+        if (draft.species && draft.species.custom) return;   // already building one
+        draft.species = SpeciesUI.freshCustomSpecies(); draft.subrace = null; draft.asi = {}; draft.size = null;
+        draft.originMode = 'std'; draft.useFloating = false; draft.openTrait = null;
+        saveDraft(); renderAll();
+      });
+    }
     SpeciesUI.renderSpeciesOut();
   },
   class: function(){
@@ -1349,6 +1361,7 @@ var SpeciesUI = (function () {
   // Tasha's "Customizing Your Origin": 60 of 134 races ship with no printed ability
   // field — those assign +2/+1 or +1/+1/+1 freely. Printed-ASI races can opt in.
   function dataGrantsASI(model){
+    if (model && model.custom) return true;   // custom race: use its exact (possibly empty) bonuses, never the floating-origin UI
     if (Object.keys(model.abilityBonuses).length) return true;
     if ((model.abilityChoices || []).length) return true;
     return (model.subraces || []).some(function(sr){
@@ -1543,7 +1556,9 @@ var SpeciesUI = (function () {
 
   function renderSpeciesOut(){
     var host = q('#species-out'); if (!host) return;
+    injectCustomRaceCss();
     if (!draft.species){ host.innerHTML = '<div class="fx-empty">Pick a species above to resolve its traits, speed, size, and ability increases.</div>'; return; }
+    if (draft.species.custom){ host.innerHTML = customBuilderHTML(draft.species.model || (draft.species.model = freshCustomRaceModel())); wireCustomBuilder(host); return; }
     if (typeof SoulShardsData === 'undefined' || typeof SoulShardsData.loadRace !== 'function'){ host.innerHTML = '<div class="eng-load">Race loader not available.</div>'; return; }
     var key = draft.species.n + '|' + draft.species.s;
     var my = ++_req;
@@ -1626,7 +1641,137 @@ var SpeciesUI = (function () {
     var traits = (model.traits || []).slice(); if (sr) traits = traits.concat(sr.traits || []);
     return { speed: model.speed.walk, speedLabel: model.speed.label, size: sz, darkvision: dv || null, traits: traits.map(function(t){ return t.name; }), openCount: openItems(model).length, bonuses: combinedBonuses(model) };
   }
-  return { renderSpeciesOut: renderSpeciesOut, combinedBonuses: combinedBonuses, forgeFacts: forgeFacts };
+  // ── custom (homebrew) race builder — Phase 1: per-character (library tab is Phase 2) ──
+  // Produces a normalizeRace-shaped model stored inline on draft.species.model, so raceForBuild()
+  // returns it and effectiveAbilities + the derive consume it exactly like a book race. `custom:true`
+  // forces the fixed-bonus path (never the floating UI), so a +0 race adds nothing.
+  var CR_SKILLS = ['Acrobatics','Animal Handling','Arcana','Athletics','Deception','History','Insight','Intimidation','Investigation','Medicine','Nature','Perception','Performance','Persuasion','Religion','Sleight of Hand','Stealth','Survival'];
+  function freshCustomRaceModel(){
+    return { name:'Custom Race', source:'Homebrew', custom:true, lineage:false,
+      size:'Medium', sizeOptions:null, speed:{ walk:30, label:'30 ft.' }, darkvision:null,
+      abilityBonuses:{}, abilityChoices:[], asiMode:'none', _bonusRows:[{ability:'str',amount:2},{ability:'con',amount:1}],
+      resist:[], immune:[], conditionImmune:[], vulnerable:[],
+      languages:{ fixed:['Common'], anyStandard:0, any:0 },
+      skillProficiencies:{ fixed:[], anyCount:0, choose:[] }, toolProficiencies:{ fixed:[], anyCount:0, choose:[] },
+      weaponProficiencies:{ fixed:[], anyCount:0, choose:[] }, armorProficiencies:{ fixed:[], anyCount:0, choose:[] },
+      feats:null, additionalSpells:null, creatureTypes:null, traits:[], subraces:[] };
+  }
+  function freshCustomSpecies(){ var m = freshCustomRaceModel(); return { n:m.name, s:'Homebrew', custom:true, model:m }; }
+  function rowsToObj(rows){ var o = {}; (rows||[]).forEach(function(r){ if (r.ability && +r.amount) o[r.ability] = (o[r.ability]||0) + (+r.amount); }); return o; }
+  function syncCustomBonuses(m){ m.abilityBonuses = (m.asiMode === 'fixed') ? rowsToObj(m._bonusRows) : {}; }
+
+  function customBuilderHTML(m){
+    syncCustomBonuses(m);
+    var html = '<div class="cr-box">';
+    html += '<div class="cr-head"><span class="cr-mk">\u2726</span>Custom race<span class="cr-csub">a homebrew species \u2014 feeds the engine like a book race</span></div>';
+    html += '<div class="cr-field"><label class="cr-lab">Name</label><input class="cr-in" id="cr-name" type="text" maxlength="40" value="' + escHtml(m.name||'') + '"></div>';
+    html += '<div class="cr-field"><label class="cr-lab">Ability Score Increase <span class="cr-hint">layers onto your base scores at the Abilities step</span></label>';
+    html += '<div class="cr-seg"><button class="cr-segb' + (m.asiMode!=='fixed'?' on':'') + '" data-cr-mode="none">No increase</button><button class="cr-segb' + (m.asiMode==='fixed'?' on':'') + '" data-cr-mode="fixed">Set increases</button></div>';
+    if (m.asiMode === 'fixed'){
+      html += '<div class="cr-asi">' + (m._bonusRows||[]).map(function(r,i){
+        var opts = ABILS.map(function(k){ return '<option value="'+k+'"'+(r.ability===k?' selected':'')+'>'+ABN[k]+'</option>'; }).join('');
+        return '<div class="cr-asirow"><span class="cr-plus">+</span><input class="cr-num" type="number" min="1" max="5" value="'+(r.amount||1)+'" data-cr-bi="'+i+'" data-cr-bf="amount"><span class="cr-to">to</span><select class="cr-sel" data-cr-bi="'+i+'" data-cr-bf="ability">'+opts+'</select><button class="cr-x" data-cr-bdel="'+i+'" aria-label="remove">\u2715</button></div>';
+      }).join('') + '</div><button class="cr-add" id="cr-asi-add">+ Add increase</button>';
+    } else {
+      html += '<div class="cr-none">No racial increase \u2014 set your six scores directly at the Abilities step.</div>';
+    }
+    html += '</div>';
+    html += '<div class="cr-field"><label class="cr-lab">Size, Speed &amp; Senses</label><div class="cr-row">';
+    html += '<select class="cr-sel" id="cr-size">' + ['Tiny','Small','Medium','Large'].map(function(s){ return '<option'+(m.size===s?' selected':'')+'>'+s+'</option>'; }).join('') + '</select>';
+    html += '<span class="cr-il">Walk</span><input class="cr-num" id="cr-speed" type="number" min="0" max="120" step="5" value="' + ((m.speed&&m.speed.walk!=null)?m.speed.walk:30) + '"><span class="cr-il">ft.</span>';
+    html += '<span class="cr-il">Darkvision</span><input class="cr-num" id="cr-dark" type="number" min="0" max="120" step="5" value="' + (m.darkvision||0) + '"><span class="cr-il">ft.</span>';
+    html += '</div></div>';
+    html += '<div class="cr-field"><label class="cr-lab">Languages</label><div class="chips" id="cr-langs">' + (m.languages.fixed||[]).map(function(l){ return '<span class="cr-chip" data-cr-lang="'+escHtml(l)+'">'+escHtml(l)+' \u2715</span>'; }).join('') + '</div>';
+    html += '<div class="cr-addrow"><input class="cr-in cr-inline" id="cr-lang-in" type="text" placeholder="add a language\u2026" maxlength="30"><button class="cr-add" id="cr-lang-add">+ Add</button></div></div>';
+    html += '<div class="cr-field"><label class="cr-lab">Skill proficiencies <span class="cr-hint">tap any the race grants</span></label><div class="chips">' + CR_SKILLS.map(function(s){ var on=(m.skillProficiencies.fixed||[]).indexOf(s)!==-1; return '<span class="chip skill'+(on?' sel':'')+'" data-cr-skill="'+escHtml(s)+'">'+escHtml(s)+'</span>'; }).join('') + '</div></div>';
+    html += '<div class="cr-field"><label class="cr-lab">Tool proficiencies <span class="cr-hint">optional</span></label><div class="chips" id="cr-tools">' + (m.toolProficiencies.fixed||[]).map(function(t){ return '<span class="cr-chip" data-cr-tool="'+escHtml(t)+'">'+escHtml(t)+' \u2715</span>'; }).join('') + '</div>';
+    html += '<div class="cr-addrow"><input class="cr-in cr-inline" id="cr-tool-in" type="text" placeholder="add a tool\u2026" maxlength="30"><button class="cr-add" id="cr-tool-add">+ Add</button></div></div>';
+    html += '<div class="cr-field"><label class="cr-lab">Traits <span class="cr-hint">passive racial features</span></label><div class="cr-traits" id="cr-traits">' + (m.traits||[]).map(function(t,i){ return '<div class="cr-trait"><div class="cr-th"><span class="cr-tn">'+escHtml(t.name)+'</span><button class="cr-x" data-cr-tdel="'+i+'">\u2715 remove</button></div><div class="cr-tt">'+escHtml(entriesToText(t.entries).join(' '))+'</div></div>'; }).join('') + '</div>';
+    html += '<div class="cr-tform" id="cr-tform" hidden><input class="cr-in" id="cr-tname" type="text" placeholder="Trait name (e.g. Observant Prey)" maxlength="60"><textarea class="cr-ta" id="cr-ttext" placeholder="Description\u2026"></textarea><div class="cr-tbtns"><button class="cr-btn" id="cr-tcancel" type="button">Cancel</button><button class="cr-btn go" id="cr-tsave" type="button">Add trait</button></div></div>';
+    html += '<button class="cr-add" id="cr-trait-add">+ Add trait</button></div>';
+    var bon = combinedBonuses(m);
+    var bonText = Object.keys(bon).filter(function(k){ return bon[k]; }).map(function(k){ return '+'+bon[k]+' '+ABN[k]; }).join(', ') || 'none';
+    html += '<div class="cr-summary"><span class="cr-sh">Engine receives</span>' + escHtml(m.name||'\u2014') + ' \u00b7 ' + escHtml(m.size||'\u2014') + ' \u00b7 ' + ((m.speed&&m.speed.walk)||0) + ' ft.' + (m.darkvision?(' \u00b7 darkvision '+m.darkvision+' ft.'):'') + ' \u00b7 increase ' + escHtml(bonText) + (m.traits&&m.traits.length?(' \u00b7 '+m.traits.length+' trait'+(m.traits.length>1?'s':'')):'') + '</div>';
+    html += '</div>';
+    return html;
+  }
+  function wireCustomBuilder(host){
+    var m = draft.species && draft.species.model; if (!m) return;
+    function commit(){ draft.species.n = m.name || 'Custom Race'; syncCustomBonuses(m); refresh(); }
+    var nm = host.querySelector('#cr-name');
+    if (nm) nm.addEventListener('input', function(){ m.name = nm.value; draft.species.n = m.name || 'Custom Race'; if (typeof saveDraft === 'function') saveDraft(); });
+    Array.prototype.forEach.call(host.querySelectorAll('[data-cr-mode]'), function(el){ el.addEventListener('click', function(){ m.asiMode = el.getAttribute('data-cr-mode'); if (m.asiMode==='fixed' && !(m._bonusRows && m._bonusRows.length)) m._bonusRows = [{ability:'str',amount:2},{ability:'con',amount:1}]; commit(); }); });
+    Array.prototype.forEach.call(host.querySelectorAll('[data-cr-bdel]'), function(el){ el.addEventListener('click', function(){ m._bonusRows.splice(+el.getAttribute('data-cr-bdel'),1); commit(); }); });
+    Array.prototype.forEach.call(host.querySelectorAll('[data-cr-bi]'), function(el){ el.addEventListener('change', function(){ var i=+el.getAttribute('data-cr-bi'), f=el.getAttribute('data-cr-bf'); m._bonusRows[i][f] = (f==='amount') ? Math.max(1, +el.value||1) : el.value; commit(); }); });
+    var asiAdd = host.querySelector('#cr-asi-add'); if (asiAdd) asiAdd.addEventListener('click', function(){ (m._bonusRows||(m._bonusRows=[])).push({ability:'str',amount:1}); commit(); });
+    var szl = host.querySelector('#cr-size'); if (szl) szl.addEventListener('change', function(){ m.size = szl.value; commit(); });
+    var spd = host.querySelector('#cr-speed'); if (spd) spd.addEventListener('change', function(){ var v=Math.max(0,+spd.value||0); m.speed = { walk:v, label:v+' ft.' }; commit(); });
+    var dk = host.querySelector('#cr-dark'); if (dk) dk.addEventListener('change', function(){ var v=Math.max(0,+dk.value||0); m.darkvision = v>0?v:null; commit(); });
+    Array.prototype.forEach.call(host.querySelectorAll('[data-cr-lang]'), function(el){ el.addEventListener('click', function(){ var l=el.getAttribute('data-cr-lang'); m.languages.fixed = (m.languages.fixed||[]).filter(function(x){ return x!==l; }); commit(); }); });
+    var langAdd = host.querySelector('#cr-lang-add'); if (langAdd) langAdd.addEventListener('click', function(){ var inp=host.querySelector('#cr-lang-in'); var v=inp?inp.value.trim():''; if (v && (m.languages.fixed||(m.languages.fixed=[])).indexOf(v)===-1) m.languages.fixed.push(v); commit(); });
+    Array.prototype.forEach.call(host.querySelectorAll('[data-cr-skill]'), function(el){ el.addEventListener('click', function(){ var s=el.getAttribute('data-cr-skill'); var arr=m.skillProficiencies.fixed||(m.skillProficiencies.fixed=[]); var i=arr.indexOf(s); if (i!==-1) arr.splice(i,1); else arr.push(s); commit(); }); });
+    Array.prototype.forEach.call(host.querySelectorAll('[data-cr-tool]'), function(el){ el.addEventListener('click', function(){ var t=el.getAttribute('data-cr-tool'); m.toolProficiencies.fixed = (m.toolProficiencies.fixed||[]).filter(function(x){ return x!==t; }); commit(); }); });
+    var toolAdd = host.querySelector('#cr-tool-add'); if (toolAdd) toolAdd.addEventListener('click', function(){ var inp=host.querySelector('#cr-tool-in'); var v=inp?inp.value.trim():''; if (v && (m.toolProficiencies.fixed||(m.toolProficiencies.fixed=[])).indexOf(v)===-1) m.toolProficiencies.fixed.push(v); commit(); });
+    var trAdd = host.querySelector('#cr-trait-add'), tform = host.querySelector('#cr-tform');
+    if (trAdd && tform) trAdd.addEventListener('click', function(){ tform.hidden = false; var n=host.querySelector('#cr-tname'); if (n) n.focus(); });
+    var tcancel = host.querySelector('#cr-tcancel'); if (tcancel && tform) tcancel.addEventListener('click', function(){ tform.hidden = true; });
+    var tsave = host.querySelector('#cr-tsave');
+    if (tsave) tsave.addEventListener('click', function(){ var n=host.querySelector('#cr-tname'), t=host.querySelector('#cr-ttext'); var nm2=n?n.value.trim():''; if (!nm2) return; (m.traits||(m.traits=[])).push({ name:nm2, entries:[ t?t.value.trim():'' ], source:m.name }); commit(); });
+    Array.prototype.forEach.call(host.querySelectorAll('[data-cr-tdel]'), function(el){ el.addEventListener('click', function(){ m.traits.splice(+el.getAttribute('data-cr-tdel'),1); commit(); }); });
+  }
+  function injectCustomRaceCss(){
+    if (document.getElementById('cr-css')) return;
+    var s = document.createElement('style'); s.id = 'cr-css';
+    s.textContent = [
+      '.cr-define{display:block;width:100%;text-align:left;font-family:var(--ui);text-transform:uppercase;letter-spacing:.1em;font-size:13px;color:var(--gold);background:transparent;border:1px dashed var(--gold);border-radius:2px;padding:11px 14px;margin:0 0 10px;cursor:pointer}',
+      '.cr-define:hover{background:rgba(169,136,63,.06)}',
+      '.cr-define.on{background:var(--gold);color:#fff;border-style:solid}',
+      '.cr-box{border:1px solid var(--rule-strong);background:var(--bg-card)}',
+      '.cr-head{display:flex;align-items:baseline;gap:9px;flex-wrap:wrap;padding:12px 16px;border-bottom:1px solid var(--rule);background:var(--bg-sunk);font-family:var(--disp);font-weight:700;font-size:19px;color:var(--ink)}',
+      '.cr-head .cr-mk{color:var(--gold)}',
+      '.cr-head .cr-csub{font-family:var(--body);font-weight:400;font-style:italic;font-size:13px;color:var(--ink-soft)}',
+      '.cr-field{padding:13px 16px;border-bottom:1px solid var(--rule)}',
+      '.cr-field:last-of-type{border-bottom:0}',
+      '.cr-lab{display:block;font-family:var(--ui);text-transform:uppercase;letter-spacing:.12em;font-size:12px;color:var(--ink-soft);margin-bottom:7px}',
+      '.cr-lab .cr-hint{text-transform:none;letter-spacing:0;font-family:var(--body);font-style:italic;font-size:13px;color:var(--ink-faint);margin-left:8px}',
+      '.cr-in{font-family:var(--body);font-size:16px;padding:7px 10px;border:1px solid var(--rule-strong);background:#fff;color:var(--ink);border-radius:2px;width:100%}',
+      '.cr-in.cr-inline{width:auto;flex:1 1 180px}',
+      '.cr-num{font-family:var(--body);font-size:16px;padding:6px 8px;border:1px solid var(--rule-strong);background:#fff;color:var(--ink);border-radius:2px;width:64px}',
+      '.cr-sel{font-family:var(--body);font-size:15px;padding:6px 9px;border:1px solid var(--rule-strong);background:#fff;color:var(--ink);border-radius:2px}',
+      '.cr-row{display:flex;gap:9px;align-items:center;flex-wrap:wrap}',
+      '.cr-il{font-family:var(--ui);font-size:12px;color:var(--ink-faint);text-transform:uppercase;letter-spacing:.1em}',
+      '.cr-seg{display:flex;gap:8px;margin-bottom:9px}',
+      '.cr-segb{font-family:var(--ui);text-transform:uppercase;letter-spacing:.08em;font-size:12px;padding:6px 12px;border:1px solid var(--rule-strong);background:transparent;color:var(--ink-soft);cursor:pointer;border-radius:2px}',
+      '.cr-segb.on{background:var(--gold);border-color:var(--gold);color:#fff}',
+      '.cr-asirow{display:flex;align-items:center;gap:8px;margin-bottom:7px}',
+      '.cr-plus{font-family:var(--disp);font-weight:700;color:var(--gold);font-size:18px}',
+      '.cr-to{color:var(--ink-faint)}',
+      '.cr-add{font-family:var(--ui);text-transform:uppercase;letter-spacing:.08em;font-size:12px;color:var(--gold);background:transparent;border:1px dashed var(--rule-strong);border-radius:2px;padding:7px 11px;cursor:pointer}',
+      '.cr-add:hover{border-color:var(--gold)}',
+      '.cr-x{font-family:var(--ui);font-size:14px;color:var(--ink-faint);background:transparent;border:0;cursor:pointer;padding:2px 6px}',
+      '.cr-x:hover{color:var(--blood)}',
+      '.cr-none{font-style:italic;color:var(--ink-faint);font-size:14px;padding:3px 0}',
+      '.cr-addrow{display:flex;gap:8px;align-items:center;margin-top:8px}',
+      '.cr-chip{font-family:var(--ui);font-size:12.5px;letter-spacing:.03em;padding:5px 10px;border:1px solid var(--rule-strong);border-radius:2px;background:#fff;color:var(--ink-soft);cursor:pointer}',
+      '.cr-chip:hover{border-color:var(--blood);color:var(--blood)}',
+      '.cr-traits{display:flex;flex-direction:column;gap:8px;margin-bottom:9px}',
+      '.cr-trait{border:1px solid var(--rule-strong);border-left:3px solid var(--gold);background:#fff;padding:9px 11px}',
+      '.cr-th{display:flex;align-items:center;justify-content:space-between;gap:8px}',
+      '.cr-tn{font-family:var(--disp);font-weight:600;font-size:16px;color:var(--ink)}',
+      '.cr-tt{font-size:14px;color:var(--ink-soft);margin-top:3px;line-height:1.45}',
+      '.cr-tform{border:1px solid var(--rule-strong);background:var(--bg-sunk);padding:10px 11px;margin-bottom:9px}',
+      '.cr-tform[hidden]{display:none}',
+      '.cr-ta{width:100%;font-family:var(--body);font-size:15px;padding:7px 10px;border:1px solid var(--rule-strong);border-radius:2px;min-height:56px;margin-top:7px;resize:vertical}',
+      '.cr-tbtns{display:flex;gap:8px;justify-content:flex-end;margin-top:8px}',
+      '.cr-btn{font-family:var(--ui);text-transform:uppercase;letter-spacing:.1em;font-size:12px;padding:6px 12px;border-radius:2px;cursor:pointer;border:1px solid var(--rule-strong);background:transparent;color:var(--ink)}',
+      '.cr-btn.go{background:var(--gold);border-color:var(--gold);color:#fff}',
+      '.cr-summary{padding:11px 16px;background:var(--bg-sunk);border-top:1px solid var(--rule);font-family:var(--body);font-size:14px;color:var(--ink-soft)}',
+      '.cr-summary .cr-sh{font-family:var(--ui);text-transform:uppercase;letter-spacing:.1em;font-size:11px;color:var(--gold);margin-right:9px}'
+    ].join('');
+    document.head.appendChild(s);
+  }
+
+  return { renderSpeciesOut: renderSpeciesOut, combinedBonuses: combinedBonuses, forgeFacts: forgeFacts, freshCustomSpecies: freshCustomSpecies };
 })();
 
 // ── Spells step (P6a): the spell picker. Folds the approved P6a mock into the live flow —
@@ -2801,6 +2946,7 @@ function ord(n){ var s = ['th','st','nd','rd'], v = n % 100; return n + (s[(v - 
 var engineReq = 0;
 // Resolve the chosen species (memoized) so racial ability bonuses reach the engine.
 function raceForBuild(){
+  if (draft.species && draft.species.custom && draft.species.model) return Promise.resolve(draft.species.model);   // homebrew race: the inline model is authoritative
   if (!draft.species || typeof SoulShardsData === 'undefined' || typeof SoulShardsData.loadRace !== 'function') return Promise.resolve(null);
   return SoulShardsData.loadRace(draft.species.n, draft.species.s).catch(function(){ return null; });
 }
