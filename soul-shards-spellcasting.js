@@ -76,6 +76,22 @@
     }
   }
 
+  // Effective caster level a LONE class uses for ITS OWN slots. 2014: a single
+  // half/third caster reads its own class table (rounds UP) — distinct from the
+  // COMBINED multiclass level (rounds down, via casterContribution). A class's own
+  // table equals the full-caster progression at this rounded-up level, so we index
+  // the same table — just with this level. (full & artificer round the same way in
+  // both places; only 1/2 and 1/3 differ — that gap was the lone-half-caster bug.)
+  function soloCasterLevel(progression, level) {
+    switch (progression) {
+      case 'full':      return level;
+      case '1/2':       return Math.ceil(level / 2);
+      case '1/3':       return Math.ceil(level / 3);
+      case 'artificer': return Math.ceil(level / 2);
+      default:          return 0;
+    }
+  }
+
   // ── slot pools (the keystone) ───────────────────────────────────────────────
   function mergeSlotPools(classes) {
     var pools = [];
@@ -97,7 +113,12 @@
     var nonPact = classes.filter(function (c) { return casterContribution(c.progression, c.level) > 0; });
     var combined = nonPact.reduce(function (n, c) { return n + casterContribution(c.progression, c.level); }, 0);
     if (combined > 0) {
-      var row = MULTICLASS_SLOTS[Math.min(20, combined)] || [];
+      // ONE non-pact caster reads its OWN class table (round up); MULTIPLE read the
+      // combined multiclass level (round down). Both index the same full-caster table.
+      var slotLevel = nonPact.length === 1
+        ? soloCasterLevel(nonPact[0].progression, nonPact[0].level)
+        : combined;
+      var row = MULTICLASS_SLOTS[Math.min(20, slotLevel)] || [];
       // single full/half/third caster → name the pool after it; multiple → generic "Spell Slots"
       var label = nonPact.length === 1 ? (nonPact[0].name + ' Slots') : 'Spell Slots';
       for (var i = 0; i < row.length; i++) {
