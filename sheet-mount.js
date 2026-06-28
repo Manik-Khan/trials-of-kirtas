@@ -65,12 +65,17 @@ function renderSkills(root, skills){
     return '<div class="skill'+(sk.prof?' prof':'')+disCls+'" data-chk="skill" data-chk-label="'+esc(sk.name)+'" data-chk-mod="'+(sk.bonus||0)+'"'+disHook+' tabindex="0" role="button"><span class="dotp"></span><span class="sk-n">'+esc(sk.name)+'</span><span class="sk-a">'+esc(attr)+'</span>'+disBadge+'<span class="sk-v">'+sgn(sk.bonus||0)+'</span></div>';
   }).join('');
 }
-function renderFeatures(root, feats){
+function renderFeatures(root, feats, custom){
   var box=root.querySelector('[data-list="features"]'); if(!box) return;
-  box.innerHTML=(feats||[]).map(function(fobj){
+  var derived=(feats||[]).map(function(fobj){
     var p=parseSource(fobj.source);
     return '<div class="feat"><span class="f-tag '+p.cls+'">'+esc(p.label)+'</span><div><div class="f-n">'+esc(fobj.name)+'</div><div class="f-d">'+esc(fobj.desc)+'</div></div></div>';
   }).join('');
+  var added=(custom||[]).map(function(cf){
+    return '<div class="feat is-custom"><span class="f-tag t-custom">Custom</span><div class="f-body"><div class="f-n">'+esc(cf.name)+'</div><div class="f-d">'+esc(cf.desc)+'</div></div>'
+      +'<button class="f-del" type="button" data-cf-del="'+esc(cf.id)+'" title="Remove feature" aria-label="Remove feature">\u2715</button></div>';
+  }).join('');
+  box.innerHTML = derived + added;
 }
 function setStatus(root, v){
   var cond=root.querySelector('[data-f="conditions"]');
@@ -359,7 +364,7 @@ function renderSheet(root, char){
   setStatus(root, v);
   var notes=(char.notes!=null?char.notes:s.notes);
   if(notes!=null) setF('notes', notes);
-  renderAbilities(root, ab); renderSaves(root, s); renderSkills(root, s.skills); renderFeatures(root, s.features);
+  renderAbilities(root, ab); renderSaves(root, s); renderSkills(root, s.skills); renderFeatures(root, s.features, s.customFeatures);
   renderSpellcasting(root, s.spellcasting||{});
   renderConcentration(root, v);
   renderActions(root, s, char.inventory);
@@ -1027,6 +1032,21 @@ var SHEET_TEMPLATE = `<main class="tok-sheet">
             <div class="feat"><span class="f-tag t-race">Astral Elf</span><div><div class="f-n">Darkvision 60 ft</div><div class="f-d">See in dim light and darkness.</div></div></div>
             <div class="feat"><span class="f-tag t-race">Astral Elf</span><div><div class="f-n">Fey Ancestry</div><div class="f-d">Advantage against charm; immune to magical sleep.</div></div></div>
             <div class="feat"><span class="f-tag t-race">Astral Elf</span><div><div class="f-n">Starlight Step</div><div class="f-d">Teleport 30 ft as a bonus action, prof. uses per long rest.</div></div></div>
+          </div>
+          <div class="feat-foot">
+            <button class="feat-add" type="button" data-cf-add aria-expanded="false">＋ Add feature</button>
+            <div class="feat-form" data-cf-form hidden>
+              <label>Feature name</label>
+              <input type="text" maxlength="60" data-cf-name aria-label="Feature name" placeholder="e.g. Oath of the Wanderer">
+              <div class="ff-row2">
+                <label>Description</label>
+                <textarea data-cf-desc aria-label="Feature description" placeholder="What does this feature do?"></textarea>
+              </div>
+              <div class="ff-btns">
+                <button class="ff-btn" type="button" data-cf-cancel>Cancel</button>
+                <button class="ff-btn go" type="button" data-cf-save>Add feature</button>
+              </div>
+            </div>
           </div>
         </div>
       </div>

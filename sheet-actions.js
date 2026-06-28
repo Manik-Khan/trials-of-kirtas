@@ -983,6 +983,60 @@ export function wireInspiration({ root, characterData, key, depsReady } = {}) {
     root.addEventListener('keydown', onTrkEsc);
   }
 
+  // ── custom features (passive) — structural.customFeatures: [{ id, name, desc }] ──
+  // Mirrors the tracker form: clone structural → mutate → refresh → persistStructural.
+  // Deliberately a SEPARATE field from the derive's structural.features (which a
+  // reforge overwrites), so a hand-added feature survives re-forging. The remove
+  // control is delegated on the features list; the add form is static panel markup.
+  var cfForm = null;
+  function newCustomFeatId(label) { return 'cf_' + (slugify(label) || 'feat') + '_' + Math.random().toString(36).slice(2, 6); }
+  function cfClose() {
+    if (!cfForm) return;
+    if (cfForm.box) cfForm.box.hidden = true;
+    if (cfForm.addRow) { cfForm.addRow.style.display = ''; cfForm.addRow.setAttribute('aria-expanded', 'false'); }
+    if (cfForm.name) cfForm.name.value = '';
+    if (cfForm.desc) cfForm.desc.value = '';
+  }
+  function cfToggle() {
+    if (!cfForm || !cfForm.box) return;
+    if (cfForm.box.hidden) {
+      cfForm.box.hidden = false;
+      if (cfForm.addRow) { cfForm.addRow.style.display = 'none'; cfForm.addRow.setAttribute('aria-expanded', 'true'); }
+      if (cfForm.name) cfForm.name.focus();
+    } else cfClose();
+  }
+  function cfSave() {
+    if (saving || !cfForm) return;
+    var name = ((cfForm.name && cfForm.name.value) || '').trim(); if (!name) { if (cfForm.name) cfForm.name.focus(); return; }
+    var desc = ((cfForm.desc && cfForm.desc.value) || '').trim();
+    var prev = structural; var ns = JSON.parse(JSON.stringify(structural));
+    ns.customFeatures = (ns.customFeatures || []).slice();
+    ns.customFeatures.push({ id: newCustomFeatId(name), name: name, desc: desc });
+    structural = ns; refresh(); cfClose(); persistStructural(prev);
+  }
+  function cfRemove(id) {
+    var prev = structural; var ns = JSON.parse(JSON.stringify(structural));
+    ns.customFeatures = (ns.customFeatures || []).filter(function (x) { return x.id !== id; });
+    structural = ns; refresh(); persistStructural(prev);
+  }
+  function onFeatClick(e) {
+    var del = e.target.closest('[data-cf-del]'); if (del) { cfRemove(del.getAttribute('data-cf-del')); }
+  }
+  function bindCustomFeatures(editable) {
+    cfForm = {
+      box: root.querySelector('[data-cf-form]'), addRow: root.querySelector('[data-cf-add]'),
+      name: root.querySelector('[data-cf-name]'), desc: root.querySelector('[data-cf-desc]'),
+      save: root.querySelector('[data-cf-save]'), cancel: root.querySelector('[data-cf-cancel]')
+    };
+    if (!editable) { if (cfForm.addRow) cfForm.addRow.classList.add('view-only'); return; }
+    var host = root.querySelector('[data-list="features"]');
+    if (host) host.addEventListener('click', onFeatClick);
+    if (cfForm.addRow) cfForm.addRow.addEventListener('click', cfToggle);
+    if (cfForm.save) cfForm.save.addEventListener('click', cfSave);
+    if (cfForm.cancel) cfForm.cancel.addEventListener('click', cfClose);
+    root.addEventListener('keydown', function (e) { if (e.key === 'Escape' && cfForm && cfForm.box && !cfForm.box.hidden) cfClose(); });
+  }
+
   // ── Feed: write rolls/casts straight to the shared `feed` via the authenticated
   // client (window.__tok.sb) — the same client the sheet already uses to load the
   // character, and the same insert combat.html's HUD uses. We deliberately do NOT
@@ -1338,6 +1392,7 @@ export function wireInspiration({ root, characterData, key, depsReady } = {}) {
         hdMed.addEventListener('keydown', (e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); openHdSpend(); } });
       }
       bindTrackers(true);
+      bindCustomFeatures(true);
       bindSpellcasting(true);
       bindAttacks(true);
       bindActionEditor();
@@ -1352,6 +1407,7 @@ export function wireInspiration({ root, characterData, key, depsReady } = {}) {
         b.addEventListener('click', () => showStat('hint', 'view only', true));
       });
       bindTrackers(false);
+      bindCustomFeatures(false);
       bindSpellcasting(false);
       bindAttacks(false);
     }
