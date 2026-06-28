@@ -158,6 +158,7 @@ function buildNav() {
     </div>
   `).join('');
 
+  const onSheet = getActivePath() === 'sheet-v2.html';
   return `
     <nav id="site-nav">
       <a href="index.html" class="nav-brand">Kirtas</a>
@@ -167,6 +168,7 @@ function buildNav() {
       </div>
       <div class="nav-theme-wrap" id="nav-theme-wrap">
         <button id="battle-btn" title="Toggle battle mode" onclick="window.__battle&&window.__battle.toggleBattle()">⚔</button>
+        ${onSheet ? `<button class="nav-export-btn" onclick="toggleExportDropdown(event)" title="Export this character" aria-label="Export this character">⤓</button>` : ''}
         <button class="nav-theme-btn"
                 onclick="toggleThemeDropdown(event)"
                 title="Change theme"
@@ -176,6 +178,11 @@ function buildNav() {
                 title="Customize appearance"
                 aria-label="Customize appearance">⚙</button>
         <div class="appearance-drawer" id="appearance-drawer" aria-label="Appearance settings"></div>
+        ${onSheet ? `<div class="export-dropdown" id="export-dropdown">
+          <div class="theme-dropdown-label">Export</div>
+          <button class="export-item" type="button" onclick="event.stopPropagation();toggleExportDropdown(event);window.print()">Print / PDF</button>
+          <button class="export-item" type="button" onclick="event.stopPropagation();__downloadCharacterJSON(this)">Download JSON</button>
+        </div>` : ''}
         <div class="theme-dropdown" id="theme-dropdown">
           <div class="theme-dropdown-label">Theme</div>
           ${themeOptions}
@@ -204,12 +211,47 @@ function toggleThemeDropdown(e) {
   if (dropdown) dropdown.classList.toggle('open', dropdownOpen);
 }
 
+// Export menu (sheet page only) — Print / PDF + a portable character JSON snapshot.
+let exportDropdownOpen = false;
+function toggleExportDropdown(e) {
+  e.stopPropagation();
+  exportDropdownOpen = !exportDropdownOpen;
+  const d = document.getElementById('export-dropdown');
+  if (d) d.classList.toggle('open', exportDropdownOpen);
+  dropdownOpen = false;
+  const td = document.getElementById('theme-dropdown');
+  if (td) td.classList.remove('open');
+}
+function __downloadCharacterJSON(btn) {
+  if (typeof CharacterData === 'undefined' || !CharacterData.loadCharacter) return;
+  const key = new URLSearchParams(location.search).get('character') || 'cosmere';
+  const label = btn ? btn.textContent : '';
+  if (btn) { btn.disabled = true; btn.textContent = 'Exporting\u2026'; }
+  CharacterData.loadCharacter(key).then(function (row) {
+    const blob = new Blob([JSON.stringify(row, null, 2)], { type: 'application/json' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a'); a.href = url; a.download = (key || 'character') + '.json';
+    document.body.appendChild(a); a.click(); a.remove();
+    setTimeout(function () { URL.revokeObjectURL(url); }, 0);
+    if (btn) { btn.textContent = label; btn.disabled = false; }
+    exportDropdownOpen = false;
+    const d = document.getElementById('export-dropdown'); if (d) d.classList.remove('open');
+  }).catch(function () {
+    if (btn) { btn.textContent = 'Export failed'; setTimeout(function () { btn.textContent = label; btn.disabled = false; }, 1600); }
+  });
+}
+
 // Close on outside click
 document.addEventListener('click', () => {
   if (dropdownOpen) {
     dropdownOpen = false;
     const dropdown = document.getElementById('theme-dropdown');
     if (dropdown) dropdown.classList.remove('open');
+  }
+  if (exportDropdownOpen) {
+    exportDropdownOpen = false;
+    const ed = document.getElementById('export-dropdown');
+    if (ed) ed.classList.remove('open');
   }
   if (charMenuOpen) closeCharMenu();
 });
@@ -427,6 +469,28 @@ function injectNavStyles() {
     html.has-appearance .nav-appearance-btn { display: inline-flex; }
     .nav-appearance-btn:hover { background: rgba(184,149,42,0.2); border-color: var(--gold-mid); }
     @media (max-width: 600px) { .nav-appearance-btn { display: none !important; } }
+    .nav-export-btn {
+      width: 28px; height: 28px;
+      display: inline-flex; align-items: center; justify-content: center;
+      background: var(--gold-dim); border: 1px solid var(--gold-dim); color: var(--gold);
+      font-size: 0.98rem; cursor: pointer; padding: 0; line-height: 1;
+      transition: background 0.2s, border-color 0.2s;
+    }
+    .nav-export-btn:hover { background: rgba(184,149,42,0.2); border-color: var(--gold-mid); }
+    .export-dropdown {
+      position: absolute; top: 36px; right: 0;
+      background: var(--nav-bg); border: 1px solid var(--nav-border); min-width: 152px;
+      opacity: 0; pointer-events: none; transform: translateY(-6px);
+      transition: opacity 0.18s ease, transform 0.18s ease; z-index: 200;
+    }
+    .export-dropdown.open { opacity: 1; pointer-events: auto; transform: translateY(0); }
+    .export-item {
+      display: block; width: 100%; text-align: left; background: none; border: 0;
+      font-family: var(--font-title); font-size: 0.62rem; letter-spacing: 0.12em; text-transform: uppercase;
+      color: var(--aged); padding: 0.6rem 0.8rem; cursor: pointer; transition: background 0.15s, color 0.15s;
+    }
+    .export-item:hover { background: var(--gold-dim); color: var(--gold-light); }
+    .export-item[disabled] { opacity: 0.6; cursor: default; }
     .appearance-drawer {
       position: fixed; top: 56px; right: 14px;
       width: 300px; max-height: calc(100vh - 72px); overflow-y: auto;
