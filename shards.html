@@ -2261,7 +2261,12 @@ var SpellsUI = (function () {
       '.sp-stage .castertabs-note{font-family:var(--body); font-style:italic; font-size:13px; color:var(--cream-fnt); margin:0 0 14px}',
       '.sp-stage .sp-multi{--o-class:var(--accent)}',
       '.sp-stage .sp-multi .lvltab .pn{color:var(--accent)}',
-      '.sp-stage .sp-multi .lvltab.on .pn{color:var(--ground)}'
+      '.sp-stage .sp-multi .lvltab.on .pn{color:var(--ground)}',
+      '.sp-stage .sp-eknote{display:flex;flex-wrap:wrap;align-items:center;gap:8px 14px;margin:10px 0 2px;padding:8px 11px;border:1px solid rgba(199,154,74,.3);border-left:3px solid var(--gold-br);background:rgba(199,154,74,.08);font-family:var(--ui);font-size:12.5px;letter-spacing:.02em}',
+      '.sp-stage .sp-eknote .ek-sch{color:var(--cream-hi);font-weight:600;text-transform:uppercase;letter-spacing:.06em}',
+      '.sp-stage .sp-eknote .ek-bud{color:var(--gold-br);font-weight:600}',
+      '.sp-stage .sp-eknote .ek-bud.full{color:var(--cream-fnt)}',
+      '.sp-stage .sp-eknote .ek-hint{color:var(--cream-fnt);font-style:italic;margin-left:auto}'
     ].join('');
     document.head.appendChild(s);
   }
@@ -2420,7 +2425,9 @@ var SpellsUI = (function () {
         var sub = (model.subclasses || []).find(function(s){ return ce.subclass && s.name === ce.subclass.n; });
         var viaSub = !def.caster && !!(ce.subclass && SUBCLASS_CASTERS[ce.subclass.n]);
         var b = SoulShardsEngine.build({ classModel: model, level: (ce.level || 1), abilities: eff, subclassShortName: sub ? sub.shortName : null, hp: draft.hp });
-        return { key: ce.n, idx: i, accent: accentFor(i), ent: entitlementFrom(b, def, _raceModel, (ce.level || 1), viaSub) };
+        var ent = entitlementFrom(b, def, _raceModel, (ce.level || 1), viaSub);
+        ent.subclass = (ce.subclass && ce.subclass.n) || null;   // drives the EK/AT school restriction
+        return { key: ce.n, idx: i, accent: accentFor(i), ent: ent };
       });
       // each class's spell list (with detail)
       return Promise.all(perClass.map(function(pc){
@@ -2494,6 +2501,40 @@ var SpellsUI = (function () {
   function primaryAttr(){ return _ent.mode === 'known' ? 'known' : 'prepared'; }
   function capFor(attr){ return { cantrip:_ent.cantrips, known:_ent.known, prepared:_ent.preparedCount, spellbook:_ent.spellbook }[attr]; }
   function pickedFor(attr){ return { cantrip:picks().cantrips, known:picks().known, prepared:picks().prepared, spellbook:picks().spellbook }[attr]; }
+
+  // ==== EK SCHOOL RULE (start) ====
+  // Eldritch Knight / Arcane Trickster: their LEVELED spells must come from two schools
+  // (EK = abjuration + evocation, AT = enchantment + illusion), except one free any-school
+  // pick at 3rd / 8th / 14th / 20th level. Modeled as a budget: at most N out-of-school
+  // spells, N = how many of {3,8,14,20} the subclass level has reached. Cantrips are exempt.
+  var THIRD_SCHOOLS = {
+    'Eldritch Knight':  { schools: ['A','V'], anyAt: [3,8,14,20] },
+    'Arcane Trickster': { schools: ['E','I'], anyAt: [3,8,14,20] },
+  };
+  function ekRule(){
+    var e = _ent; if (!e || e.mode !== 'known' || !e.subclass) return null;
+    var cfg = THIRD_SCHOOLS[e.subclass]; if (!cfg) return null;
+    var set = {}; cfg.schools.forEach(function(x){ set[x] = 1; });
+    return { set: set, schools: cfg.schools, budget: cfg.anyAt.filter(function(L){ return L <= e.level; }).length };
+  }
+  function ekOutCount(){
+    var r = ekRule(); if (!r) return 0;
+    return picks().known.filter(function(n){ var d = _detail[n]; return d && !r.set[d.school]; }).length;
+  }
+  function ekBlocked(name){
+    var r = ekRule(); if (!r) return false;
+    var d = _detail[name]; if (!d || r.set[d.school]) return false;   // unknown or in-school -> allowed
+    return ekOutCount() >= r.budget;                                  // out-of-school -> only within the budget
+  }
+  function ekNote(){
+    var r = ekRule(); if (!r) return '';
+    var names = r.schools.map(function(x){ return SCHOOL[x] || x; }).join(' & ');
+    var used = ekOutCount();
+    return '<div class="sp-eknote"><span class="ek-sch">' + esc(names) + ' only</span>' +
+      '<span class="ek-bud' + (used >= r.budget ? ' full' : '') + '">' + used + ' / ' + r.budget + ' free any-school</span>' +
+      '<span class="ek-hint">one off-school pick at levels 3 / 8 / 14 / 20</span></div>';
+  }
+  // ==== EK SCHOOL RULE (end) ====
 
   function readoutCard(){
     var e = _ent;
@@ -2593,7 +2634,7 @@ var SpellsUI = (function () {
     var rows = items.map(function(s){
       var have = granted && granted[s.name.toLowerCase()];
       var on = picked.indexOf(s.name) !== -1;
-      return spellRow(s, { on:on, capped: !on && picked.length >= cap, have: !!have, haveTag: have || '', oclass:oclass, attr:attr });
+      return spellRow(s, { on:on, capped: !on && (picked.length >= cap || (attr === 'known' && ekBlocked(s.name))), have: !!have, haveTag: have || '', oclass:oclass, attr:attr });
     }).join('');
     return '<table class="sp-tbl"><tbody>' + rows + '</tbody></table>';
   }
@@ -2651,7 +2692,7 @@ var SpellsUI = (function () {
     _lvlByClass[_active] = _lvl;
     var oc = e.viaSub ? 'o-sub' : 'o-class';
     var granted = {}; _grants.forEach(function(g){ granted[g.name.toLowerCase()] = (g.kind === 'cantrip' ? 'racial cantrip' : 'racial'); });
-    var html = readoutCard() + statusLine() + levelBar();
+    var html = readoutCard() + statusLine() + ekNote() + levelBar();
     if (_lvl === 0){
       var cantrips = _list.filter(function(s){ return s.level === 0; });
       html += tblHead('Cantrips', 'cantrip', 'at will \u2014 don\u2019t use spell slots');
@@ -2691,6 +2732,7 @@ var SpellsUI = (function () {
       el.addEventListener('click', function(ev){
         if (ev.target.closest('.sp-info')) return;
         var attr = el.getAttribute('data-attr'), name = el.getAttribute('data-pick');
+        if (attr === 'known' && pickedFor(attr).indexOf(name) === -1 && ekBlocked(name)) return;   // any-school budget spent
         toggle(pickedFor(attr), name, capFor(attr));
         if (attr === 'spellbook') picks().prepared = picks().prepared.filter(function(n){ return picks().spellbook.indexOf(n) !== -1; });
         saveDraft(); render();
