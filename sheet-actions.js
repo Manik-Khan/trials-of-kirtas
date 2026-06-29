@@ -28,7 +28,7 @@
 // sheet-mount.js's mountSheet (it calls wireInspiration scoped to its container).
 // ---------------------------------------------------------------------------
 
-import { assembleActions } from './weapon-actions.js';
+import { assembleActions, meleeWeaponOptions } from './weapon-actions.js';
 
 // ── ResourceDerive resolver (browser global, set by resource-derive.js) ──
 function rd() {
@@ -1200,6 +1200,7 @@ export function wireInspiration({ root, characterData, key, depsReady } = {}) {
     var et = e.target.closest('[data-action-edit]'); if (et) { e.stopPropagation(); toggleAeMode(); return; }
     var pe = e.target.closest('[data-act-edit]'); if (pe) { e.stopPropagation(); openAeEditor(pe.getAttribute('data-act-edit')); return; }
     var ey = e.target.closest('[data-act-hide]'); if (ey) { e.stopPropagation(); aeToggleHide(ey.getAttribute('data-act-hide')); return; }
+    var bd = e.target.closest('[data-act-bind]'); if (bd && aeEditable) { e.stopPropagation(); openBindMenu(bd.getAttribute('data-act-bind'), bd); return; }
     if (e.target.closest('.ae-editor')) return;   // panel has its own listeners
     var rm = e.target.closest('[data-rmod]');
     if (rm) { var k = rm.getAttribute('data-rmod');
@@ -1353,6 +1354,39 @@ export function wireInspiration({ root, characterData, key, depsReady } = {}) {
   function aeSave(id) { var o = aeCommit(id); aeWriteOverride(id, function (ov) { if (Object.keys(o).length) ov[id] = o; else delete ov[id]; }); }
   function aeReset(id) { aeWriteOverride(id, function (ov) { delete ov[id]; }); }
   function aeToggleHide(id) { aeWriteOverride(id, function (ov) { var o = ov[id] || (ov[id] = {}); if (o.hidden) delete o.hidden; else o.hidden = true; }); }
+  // ── cantrip weapon-bind: which carried weapon a weapon-cantrip (Booming Blade, Green-Flame Blade) rides ──
+  function setCantripBind(cantrip, weaponKey) {
+    if (!aeEditable) return;
+    var prev = structural, ns = JSON.parse(JSON.stringify(structural));
+    ns.cantripBinds = ns.cantripBinds || {};
+    if (weaponKey) ns.cantripBinds[cantrip] = weaponKey; else delete ns.cantripBinds[cantrip];   // '' clears → Auto (first melee)
+    if (!Object.keys(ns.cantripBinds).length) delete ns.cantripBinds;
+    structural = ns; refresh(); persistStructural(prev);
+  }
+  function openBindMenu(cantrip, anchor) {
+    if (!aeEditable || !doc) return;
+    closePops();
+    var opts = []; try { opts = meleeWeaponOptions(inventory) || []; } catch (_) {}
+    var cur = String((structural.cantripBinds || {})[cantrip] || '').toLowerCase();
+    var nice = String(cantrip || '').replace(/\b\w/g, function (c) { return c.toUpperCase(); });
+    var pop = mkPop('sa-bind');
+    var html = '<div class="sa-pop-t">Weapon for ' + esc(nice) + '</div>';
+    if (!opts.length) html += '<div class="sa-pop-sub">No melee weapon carried</div>';
+    else {
+      html += '<div class="bind-list">';
+      html += '<button class="bind-opt' + (!cur ? ' on' : '') + '" type="button" data-wk=""><span>Auto \u00B7 first weapon</span>' + (!cur ? '<span class="bind-chk">\u2713</span>' : '') + '</button>';
+      opts.forEach(function (o) {
+        var on = !!cur && o.key === cur;
+        html += '<button class="bind-opt' + (on ? ' on' : '') + '" type="button" data-wk="' + esc(o.key) + '"><span>' + esc(o.name) + '</span>' + (on ? '<span class="bind-chk">\u2713</span>' : '') + '</button>';
+      });
+      html += '</div>';
+    }
+    pop.innerHTML = html;
+    mountPop(pop, anchor);
+    pop.querySelectorAll('[data-wk]').forEach(function (b) {
+      b.addEventListener('click', function (e) { e.stopPropagation(); closePops(); setCantripBind(cantrip, b.getAttribute('data-wk')); });
+    });
+  }
   // re-assert edit-mode chrome after every render (renderSheet rewrites the section)
   function decorateActionEditor() {
     if (!aeEditable) return;

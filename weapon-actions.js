@@ -69,6 +69,7 @@ export function normalizeWeaponName(raw) {
   var s = String(raw == null ? '' : raw).toLowerCase();
   s = s.replace(/\s*\([^)]*\)/g, ' ');        // drop "(your choice)" / "(two-handed)" etc.
   s = s.replace(/\s*\+\d+\s*/g, ' ');         // drop "+1"
+  s = s.replace(/[,;:.]/g, ' ');              // drop stray punctuation ("Longsword, +1" -> "longsword")
   s = s.replace(/\s+/g, ' ').trim();
   if (WEAPONS[s]) return s;
   var words = s.split(' ');
@@ -86,6 +87,10 @@ function action(id, label, w, dice, ability, proficient) {
 }
 
 function abilModOf(structural, k) { var a = (structural.abilities || {})[k]; return a && a.mod != null ? a.mod : 0; }
+function hasFeature(structural, frag) {
+  // true if any class/subclass/race feature or eldritch invocation name contains `frag` (lowercased)
+  return (structural.features || []).some(function (f) { return String((f && f.name) || f || '').toLowerCase().indexOf(frag) !== -1; });
+}
 function weaponProfList(structural) {
   // proficiencies.weapons is an array on forged characters but a comma-separated string
   // on legacy/migrated ones — normalize both to a lowercased list.
@@ -101,7 +106,12 @@ function weaponProfile(w, key, structural) {
   // singular. Match either way by also keying the de-pluralized form.
   var profSet = {}; profList.forEach(function (p) { profSet[p] = 1; profSet[p.replace(/s$/, '')] = 1; });
   // ranged→Dex; finesse→better of Str/Dex; else Str
-  var ability = w.ranged ? 'dex' : (w.finesse ? (abilModOf(structural, 'dex') >= abilModOf(structural, 'str') ? 'dex' : 'str') : 'str');
+  // class features can override a MELEE weapon's attack ability (overridable per-item / per-attack):
+  //   Hexblade's Hex Warrior \u2192 Charisma; Artificer Battle Smith (Battle Ready) \u2192 Intelligence.
+  var ability;
+  if (!w.ranged && hasFeature(structural, 'hex warrior')) ability = 'cha';
+  else if (!w.ranged && (hasFeature(structural, 'battle ready') || hasFeature(structural, 'battle smith'))) ability = 'int';
+  else ability = w.ranged ? 'dex' : (w.finesse ? (abilModOf(structural, 'dex') >= abilModOf(structural, 'str') ? 'dex' : 'str') : 'str');
   var proficient = (w.cat === 'simple' && hasSimple) || (w.cat === 'martial' && hasMartial) || !!profSet[key];
   return { ability: ability, proficient: proficient };
 }
@@ -114,10 +124,23 @@ export function buildWeaponActions(inventory, structural) {
     var w = WEAPONS[key];
     if (!w || !w.dmg1 || seen[key]) return;     // unknown / damage-less / already added
     seen[key] = 1;
-    var label = titleCaseName(key);
+    var label = (it && it.name) ? String(it.name).trim() : titleCaseName(key);
     var pr = weaponProfile(w, key, structural);
-    out.push(action('wpn-' + key, label, w, w.dmg1, pr.ability, pr.proficient));
-    if (w.versatile && w.dmg2) out.push(action('wpn-' + key + '-2h', label + ' (Two-Handed)', w, w.dmg2, pr.ability, pr.proficient));
+    // item-level combat carries from the equipment editor into the attack: magic to-hit/damage
+    // bonuses, an extra-damage rider, and an optional pinned ability. The action editor still
+    // overrides per-attack, and the pin beats the feature/property default.
+    var atkB = (it && +it.atkBonus) || 0, dmgB = (it && +it.dmgBonus) || 0;
+    var pin = (it && it.attackAbil) ? String(it.attackAbil).toLowerCase() : '';
+    var hasExtra = !!(it && it.extraDmg && it.extraDmg.dice);
+    var abil = pin || pr.ability;
+    function deck(id, lbl, dice) {
+      var a = action(id, lbl, w, dice, abil, pr.proficient);
+      a.atkBonus = atkB; a.dmgBonus = dmgB;
+      if (hasExtra) a.extraDamage = [{ dice: it.extraDmg.dice, bonus: 0, type: it.extraDmg.type || '' }];
+      return a;
+    }
+    out.push(deck('wpn-' + key, label, w.dmg1));
+    if (w.versatile && w.dmg2) out.push(deck('wpn-' + key + '-2h', label + ' (Two-Handed)', w.dmg2));
   });
   return out;
 }
@@ -158,19 +181,35 @@ function firstMeleeWeapon(inventory) {
 }
 function titleCantrip(cn) { return cn.replace(/\b\w/g, function (c) { return c.toUpperCase(); }); }
 
+function meleeItems(inventory) {
+  // every melee weapon carried, as {key, w, item} — `item` carries any magic bonuses
+  var out = [];
+  (inventory || []).forEach(function (it) {
+    var key = normalizeWeaponName(it && it.name), w = WEAPONS[key];
+    if (w && w.dmg1 && !w.ranged) out.push({ key: key, w: w, item: it });
+  });
+  return out;
+}
+
 export function buildCantripAttacks(inventory, structural) {
   structural = structural || {};
   var known = knownCantripSet(structural);
-  var melee = firstMeleeWeapon(inventory);
-  if (!melee) return [];                       // weapon cantrips need a melee weapon in hand
+  var melees = meleeItems(inventory);
+  if (!melees.length) return [];               // weapon cantrips need a melee weapon in hand
+  var binds = structural.cantripBinds || {};   // { '<cantrip>': '<weapon key>' } from the bind picker
   var level = structural.level || 0;
   var pb = structural.proficiencyBonus || 0;
   var spellMod = ((structural.combat || {}).spellAttackBonus != null) ? (structural.combat.spellAttackBonus - pb) : 0;
-  var pr = weaponProfile(melee.w, melee.key, structural);
-  var wLabel = titleCaseName(melee.key), wType = melee.w.dmgType;
   var out = [];
   Object.keys(WEAPON_CANTRIPS).forEach(function (cn) {
     if (!known[cn]) return;
+    // ride the pinned weapon if one is set and still carried, else the first melee weapon
+    var bind = binds[cn] ? String(binds[cn]).toLowerCase() : '';
+    var chosen = (bind && melees.filter(function (m) { return m.key === bind; })[0]) || melees[0];
+    var w = chosen.w, key = chosen.key, item = chosen.item || {};
+    var pr = weaponProfile(w, key, structural);
+    var wLabel = (item.name ? String(item.name).trim() : titleCaseName(key)).replace(/ \(.*/, '');
+    var wType = w.dmgType;
     var spec = WEAPON_CANTRIPS[cn], nice = titleCantrip(cn), note;
     if (spec.rider === 'thunder') {
       var d8 = level >= 17 ? 3 : level >= 11 ? 2 : level >= 5 ? 1 : 0;   // 2014 scaling 5/11/17
@@ -179,12 +218,26 @@ export function buildCantripAttacks(inventory, structural) {
       var extra = level >= 5 ? ' + 1d8' : '';
       note = wType + ' + ' + (spellMod >= 0 ? '+' : '') + spellMod + ' fire' + extra + ' (' + spec.cond + ')';
     }
-    out.push({
-      id: 'cant-' + cn.replace(/[^a-z]+/g, '') + '-' + melee.key.replace(/\s+/g, ''),
+    // the cantrip inherits the bound weapon's item-level magic (Booming Blade on a +1 sword gets the +1)
+    var atkB = (+item.atkBonus) || 0, dmgB = (+item.dmgBonus) || 0;
+    var act = {
+      id: 'cant-' + cn.replace(/[^a-z]+/g, ''),
       type: 'attack', label: nice + ' \u00B7 ' + wLabel,
-      ability: pr.ability, proficient: pr.proficient, atkBonus: 0,
-      dmgAbility: true, dmgBonus: 0, dmgDice: melee.w.dmg1, dmgType: note
-    });
+      ability: pr.ability, proficient: pr.proficient, atkBonus: atkB,
+      dmgAbility: true, dmgBonus: dmgB, dmgDice: w.dmg1, dmgType: note
+    };
+    if (item.extraDmg && item.extraDmg.dice) act.extraDamage = [{ dice: item.extraDmg.dice, bonus: 0, type: item.extraDmg.type || '' }];
+    out.push(act);
+  });
+  return out;
+}
+
+// Melee weapons carried, de-duped, as { key, name } — for the cantrip weapon-bind picker.
+export function meleeWeaponOptions(inventory) {
+  var seen = {}, out = [];
+  meleeItems(inventory).forEach(function (m) {
+    if (seen[m.key]) return; seen[m.key] = 1;
+    out.push({ key: m.key, name: (m.item && m.item.name ? String(m.item.name).trim() : titleCaseName(m.key)) });
   });
   return out;
 }
@@ -344,6 +397,7 @@ export function buildSpellAttacks(structural) {
   var atk = combat.spellAttackBonus != null ? combat.spellAttackBonus : 0;
   var dc = combat.spellSaveDC != null ? combat.spellSaveDC : null;
   var spellMod = combat.spellAttackBonus != null ? (combat.spellAttackBonus - (structural.proficiencyBonus || 0)) : 0;
+  var agonizing = hasFeature(structural, 'agonizing blast');   // warlock invocation: +spell mod to each Eldritch Blast beam
   var authored = {};
   (structural.actions || []).forEach(function (a) { if (a && a.label) authored[String(a.label).trim().toLowerCase().replace(/\u2019/g, "'")] = 1; });
 
@@ -377,6 +431,7 @@ export function buildSpellAttacks(structural) {
 
     var id = 'sp-' + sp.key.replace(/[^a-z0-9]+/g, '');
     var dmgBonus = (spec.bonus || 0) + (spec.addMod ? spellMod : 0);
+    if (sp.key === 'eldritch blast' && agonizing) dmgBonus += spellMod;   // Agonizing Blast
 
     if (spec.kind === 'atk') {
       out.push({ id: id, type: 'attack-cantrip', label: label, hitMod: atk, dmgMod: dmgBonus, dmgDice: dice, critDice: doubleDice(dice), dmgType: typeLabel });

@@ -471,6 +471,12 @@ function actionRowHTML(a, s){
   var meta=(g==='utility')?'<div class="ac-note">'+actionMetaInner(a,s)+'</div>':'<div class="ac-meta">'+actionMetaInner(a,s)+'</div>';
   var id=esc(a.id||a.label||'');
   var badge=a._edited?'<span class="ac-edited">edited</span>':'';
+  var nameHTML=esc(a.label||'');
+  // weapon-cantrip rows: make the bound-weapon half of the label a bind chip — chip styling + clickability are CSS-gated to editors (.can-edit); the weapon name always shows
+  if(String(a.id||'').indexOf('cant-')===0){
+    var bp=String(a.label||'').split(' \u00B7 ');
+    if(bp.length===2) nameHTML=esc(bp[0])+' \u00B7 <span class="ac-bind" data-act-bind="'+esc(bp[0].trim().toLowerCase())+'" role="button" tabindex="0">'+esc(bp[1])+'<span class="ac-bind-caret">\u25BE</span></span>';
+  }
   // per-row editor tools (CSS-hidden until the section is in edit mode); not on utility rows
   var tools=(g==='utility')?'' :
     '<div class="ac-tools">'
@@ -478,7 +484,7 @@ function actionRowHTML(a, s){
     + '<button type="button" class="ac-tool ac-eye'+(a._hidden?' on':'')+'" data-act-hide="'+id+'" aria-label="'+(a._hidden?'Un-hide action':'Hide action')+'">'+(a._hidden?AE_EYEOFF:AE_EYE)+'</button>'
     + '</div>';
   return '<div class="act '+g+(a._hidden?' is-hidden':'')+(a._edited?' edited':'')+'" data-act="'+id+'"'+(g==='utility'?'':' tabindex="0" role="button"')+'>'
-       + '<div class="ac-main"><div class="ac-n">'+esc(a.label||'')+badge+'</div>'+meta+'</div>'
+       + '<div class="ac-main"><div class="ac-n">'+nameHTML+badge+'</div>'+meta+'</div>'
        + (g==='utility'?'':'<span class="ac-go">roll</span>')
        + tools
        + '</div>';
@@ -749,6 +755,17 @@ var AE_CSS = `<style id="tok-ae-css">
 .tok-sheet .eq-pill.capped{opacity:.32;cursor:not-allowed;border-style:dashed}
 .tok-sheet .eq-pill.x{border-color:rgba(224,88,74,.5);color:#e0584a;background:rgba(207,59,44,.10)}
 .tok-sheet .eq-pill.x:hover{background:rgba(207,59,44,.2)}
+.tok-sheet .ac-bind{color:inherit}
+.tok-sheet [data-sec="actions"].can-edit .ac-bind{cursor:pointer;color:#55c4c0;border-bottom:1px dashed rgba(85,196,192,.45);transition:color .15s,border-color .15s}
+.tok-sheet [data-sec="actions"].can-edit .ac-bind:hover{color:#7fd6d2;border-bottom-color:rgba(85,196,192,.85)}
+.tok-sheet .ac-bind-caret{font-size:.78em;margin-left:3px;opacity:.7}
+.tok-sheet [data-sec="actions"]:not(.can-edit) .ac-bind-caret{display:none}
+.sa-pop.sa-bind{min-width:184px}
+.sa-pop.sa-bind .bind-list{display:flex;flex-direction:column;gap:2px;margin-top:7px}
+.sa-pop.sa-bind .bind-opt{display:flex;align-items:center;justify-content:space-between;gap:10px;width:100%;text-align:left;font:500 13.5px/1.25 'EB Garamond',serif;color:#ece2cd;background:transparent;border:1px solid transparent;border-radius:7px;padding:8px 10px;cursor:pointer;transition:background .12s,border-color .12s}
+.sa-pop.sa-bind .bind-opt:hover{background:rgba(85,196,192,.10);border-color:rgba(85,196,192,.32)}
+.sa-pop.sa-bind .bind-opt.on{background:rgba(85,196,192,.14);border-color:rgba(85,196,192,.5);color:#f9f3e6}
+.sa-pop.sa-bind .bind-chk{color:#55c4c0;font-weight:700}
 </style>`;
 function ensureActionEditorStyle(doc){
   doc = doc || (typeof document!=='undefined'?document:null); if(!doc) return;
