@@ -486,6 +486,7 @@ function actionRowHTML(a, s){
   return '<div class="act '+g+(a._hidden?' is-hidden':'')+(a._edited?' edited':'')+'" data-act="'+id+'"'+(g==='utility'?'':' tabindex="0" role="button"')+'>'
        + '<div class="ac-main"><div class="ac-n">'+nameHTML+badge+'</div>'+meta+'</div>'
        + (g==='utility'?'':'<span class="ac-go">roll</span>')
+       + (g==='utility'?'':'<button type="button" class="ac-swap" data-act-swap="'+id+'" aria-label="Swap this attack" title="Swap this attack">\u25BE</button>')
        + tools
        + '</div>';
 }
@@ -766,6 +767,15 @@ var AE_CSS = `<style id="tok-ae-css">
 .sa-pop.sa-bind .bind-opt:hover{background:rgba(85,196,192,.10);border-color:rgba(85,196,192,.32)}
 .sa-pop.sa-bind .bind-opt.on{background:rgba(85,196,192,.14);border-color:rgba(85,196,192,.5);color:#f9f3e6}
 .sa-pop.sa-bind .bind-chk{color:#55c4c0;font-weight:700}
+.tok-sheet .ac-swap{display:none;flex:0 0 auto;width:24px;height:24px;align-items:center;justify-content:center;background:transparent;border:1px solid transparent;border-radius:6px;color:#8d8675;cursor:pointer;opacity:.55;font-size:12px;transition:opacity .15s,color .15s,background .15s,border-color .15s}
+.tok-sheet [data-sec="actions"].can-edit .act:not(.is-hidden) .ac-swap{display:inline-flex}
+.tok-sheet .ac-swap:hover{opacity:1;color:#55c4c0;border-color:rgba(85,196,192,.35);background:rgba(85,196,192,.08)}
+.sa-pop.sa-swap{min-width:212px}
+.sa-pop.sa-swap .swap-list{display:flex;flex-direction:column;gap:2px;margin-top:7px}
+.sa-pop.sa-swap .swap-opt{display:flex;align-items:center;justify-content:space-between;gap:10px;width:100%;text-align:left;font:500 13.5px/1.25 'EB Garamond',serif;color:#ece2cd;background:transparent;border:1px solid transparent;border-radius:7px;padding:8px 10px;cursor:pointer;transition:background .12s,border-color .12s}
+.sa-pop.sa-swap .swap-opt:hover{background:rgba(85,196,192,.10);border-color:rgba(85,196,192,.32)}
+.sa-pop.sa-swap .swap-in{font:600 9px/1 'Oswald',sans-serif;letter-spacing:.1em;text-transform:uppercase;color:#55c4c0;opacity:.65;white-space:nowrap}
+.sa-pop.sa-swap .swap-opt:hover .swap-in{opacity:1}
 </style>`;
 function ensureActionEditorStyle(doc){
   doc = doc || (typeof document!=='undefined'?document:null); if(!doc) return;

@@ -1201,6 +1201,7 @@ export function wireInspiration({ root, characterData, key, depsReady } = {}) {
     var pe = e.target.closest('[data-act-edit]'); if (pe) { e.stopPropagation(); openAeEditor(pe.getAttribute('data-act-edit')); return; }
     var ey = e.target.closest('[data-act-hide]'); if (ey) { e.stopPropagation(); aeToggleHide(ey.getAttribute('data-act-hide')); return; }
     var bd = e.target.closest('[data-act-bind]'); if (bd && aeEditable) { e.stopPropagation(); openBindMenu(bd.getAttribute('data-act-bind'), bd); return; }
+    var sw = e.target.closest('[data-act-swap]'); if (sw && aeEditable) { e.stopPropagation(); openSwapMenu(sw.getAttribute('data-act-swap'), sw); return; }
     if (e.target.closest('.ae-editor')) return;   // panel has its own listeners
     var rm = e.target.closest('[data-rmod]');
     if (rm) { var k = rm.getAttribute('data-rmod');
@@ -1385,6 +1386,37 @@ export function wireInspiration({ root, characterData, key, depsReady } = {}) {
     mountPop(pop, anchor);
     pop.querySelectorAll('[data-wk]').forEach(function (b) {
       b.addEventListener('click', function (e) { e.stopPropagation(); closePops(); setCantripBind(cantrip, b.getAttribute('data-wk')); });
+    });
+  }
+  // ── swap: exchange this attack for one of your currently-hidden attacks (same group) ──
+  function swapGroupOf(t) { return (t === 'attack' || t === 'attack-cantrip') ? 'attack' : (t === 'damage-only' ? 'damage' : 'utility'); }
+  function doSwap(curId, inId) {
+    aeWriteOverride(curId, function (ov) {
+      (ov[curId] || (ov[curId] = {})).hidden = true;                                              // hide the current attack
+      var b = ov[inId]; if (b) { delete b.hidden; if (!Object.keys(b).length) delete ov[inId]; }   // un-hide the chosen one
+    });
+  }
+  function openSwapMenu(curId, anchor) {
+    if (!aeEditable || !doc) return;
+    closePops();
+    var all = []; try { all = assembleActions(inventory, structural, { includeHidden: true }) || []; } catch (_) {}
+    var cur = null; for (var i = 0; i < all.length; i++) if ((all[i].id || all[i].label) === curId) { cur = all[i]; break; }
+    var curG = cur ? swapGroupOf(cur.type) : 'attack';
+    var hidden = all.filter(function (a) { return a._hidden && swapGroupOf(a.type) === curG && (a.id || a.label) !== curId; });
+    var pop = mkPop('sa-swap');
+    var html = '<div class="sa-pop-t">Swap ' + esc((cur && cur.label) || 'attack') + '</div>';
+    if (!hidden.length) html += '<div class="sa-pop-sub">No hidden attacks to swap in \u2014 hide one with the eye, or add more in Edit.</div>';
+    else {
+      html += '<div class="swap-list">';
+      hidden.forEach(function (a) {
+        html += '<button class="swap-opt" type="button" data-swp="' + esc(a.id || a.label) + '"><span>' + esc(a.label || '') + '</span><span class="swap-in">swap in</span></button>';
+      });
+      html += '</div>';
+    }
+    pop.innerHTML = html;
+    mountPop(pop, anchor);
+    pop.querySelectorAll('[data-swp]').forEach(function (b) {
+      b.addEventListener('click', function (e) { e.stopPropagation(); closePops(); doSwap(curId, b.getAttribute('data-swp')); });
     });
   }
   // re-assert edit-mode chrome after every render (renderSheet rewrites the section)
