@@ -31,6 +31,9 @@ ok('Soldier ideals = 6', !!sol && sol.ideals.length === 6);
 ok('Soldier bonds = 6', !!sol && sol.bonds.length === 6);
 ok('Soldier flaws = 6', !!sol && sol.flaws.length === 6);
 
+const aco = P.forBackground('Acolyte');
+ok('a different background yields a different own list', !!aco && JSON.stringify(aco.personality) !== JSON.stringify(sol.personality));
+
 ok('>= 50 backgrounds carry trait tables', P._backgroundsWithTables() >= 50);
 
 const pool = P.pool();

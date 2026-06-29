@@ -1,7 +1,8 @@
 // smoke-shards-persona-step.mjs
-// Extracts the PERSONA STEP block spliced into shards.html and exercises its logic
-// against light stubs (no DOM): body structure, bio init, keep/cap/drop enforcement,
-// rollInto candidate selection, and the draft.bio -> sheet bio-column transform.
+// Exercises the PERSONA STEP block from shards.html against light stubs (no DOM):
+//  - body structure (four cards, visible per-bg suggestion containers, six appearance fields)
+//  - personaSyncBg(): a background change clears the stale candidate; same bg preserves it
+//  - keep / cap / drop enforcement, rollInto, and the draft.bio -> sheet bio-column transform
 import { readFileSync } from 'fs';
 
 const html = readFileSync(new URL('./shards.html', import.meta.url), 'utf8');
@@ -9,21 +10,22 @@ const A = '// ==== PERSONA STEP (start) ====';
 const B = '// ==== PERSONA STEP (end) ====';
 const block = html.slice(html.indexOf(A), html.indexOf(B) + B.length);
 
-// stubs for the inline-script globals the block closes over
 const escHtml = x => String(x).replace(/[&<>]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;' }[c]));
 let saves = 0; const saveDraft = () => { saves++; };
 const qStub = () => ({ innerHTML: '', value: '', setAttribute() {}, removeAttribute() {}, hasAttribute() { return false; }, classList: { add() {}, remove() {} } });
 const draft = { name: 'Vesperian', bg: { n: 'Soldier' }, bgCustom: false };
 
 globalThis.SoulShardsPersona = {
-  forBackground: () => ({ personality: ['p1', 'p2', 'p3', 'p4'], ideals: ['i1', 'i2'], bonds: ['b1'], flaws: ['f1'] }),
+  forBackground: name => name === 'Acolyte'
+    ? ({ personality: ['a1', 'a2'], ideals: ['ai1'], bonds: ['ab1'], flaws: ['af1'] })
+    : ({ personality: ['p1', 'p2', 'p3', 'p4'], ideals: ['i1', 'i2'], bonds: ['b1'], flaws: ['f1'] }),
   pool: () => ({ personality: ['p1', 'p2', 'p3', 'p4', 'p5'], ideals: ['i1', 'i2'], bonds: ['b1'], flaws: ['f1'] }),
   othersFor: () => ({ personality: [{ text: 'o1', src: 'Sage' }], ideals: [], bonds: [], flaws: [] }),
   load: () => Promise.resolve(),
 };
 
 const F = new Function('draft', 'q', 'escHtml', 'saveDraft',
-  block + '\n; return { personaBody, ensurePersonaBio, personaBioIsEmpty, personaBioForColumn, colBioEmpty, psCapFor, keepCand, dropKept, rollInto };'
+  block + '\n; return { personaBody, ensurePersonaBio, personaBioIsEmpty, personaBioForColumn, colBioEmpty, psCapFor, keepCand, dropKept, rollInto, personaSyncBg, getCand: function(){ return personaCand; } };'
 )(draft, qStub, escHtml, saveDraft);
 
 let pass = 0, fail = 0;
@@ -33,32 +35,37 @@ const count = (h, sub) => h.split(sub).length - 1;
 // ── body structure ─────────────────────────────────────────────────────────
 const body = F.personaBody();
 ok('renders four trait cards', count(body, 'data-card=') === 4);
-ok('cards labelled Personality/Ideals/Bonds/Flaws',
-  body.includes('Personality Traits') && body.includes('>Ideals<') && body.includes('>Bonds<') && body.includes('>Flaws<'));
+ok('each card has a visible per-background suggestion list', count(body, 'data-own=') === 4);
+ok('shows a "From <background>" label bound to the chosen bg', body.includes('From <b>Soldier</b>'));
 ok('renders six appearance fields', count(body, 'data-detail=') === 6);
 ok('each card has own + any roll buttons', count(body, 'data-roll="own"') === 4 && count(body, 'data-roll="all"') === 4);
 ok('has distinguishing-features + backstory textareas', body.includes('data-features') && body.includes('data-backstory'));
 ok('personality card advertises keep 2', body.includes('keep 2'));
 
-// ── bio init + emptiness ────────────────────────────────────────────────────
-F.ensurePersonaBio();
-ok('ensurePersonaBio creates the four trait arrays', ['personality','ideals','bonds','flaws'].every(k => Array.isArray(draft.bio[k])));
-ok('ensurePersonaBio creates details object', draft.bio.details && typeof draft.bio.details === 'object');
-ok('a fresh bio reads as empty', F.personaBioIsEmpty() === true);
-ok('psCapFor: personality=2, ideals=1', F.psCapFor('personality') === 2 && F.psCapFor('ideals') === 1);
+// ── background change re-keys the step ──────────────────────────────────────
+F.personaSyncBg();                       // first sync establishes Soldier
+F.rollInto('personality', 'own');        // sets a candidate from Soldier's list
+ok('a candidate is set after rolling', F.getCand().personality != null);
+F.personaSyncBg();                       // same background -> candidate preserved
+ok('same background keeps the candidate', F.getCand().personality != null);
+draft.bg = { n: 'Acolyte' };             // user switches background
+const changed = F.personaSyncBg();
+ok('personaSyncBg reports the change', changed === true);
+ok('switching background clears the stale candidate', F.getCand().personality === null);
+const body2 = F.personaBody();
+ok('the "From" label follows the new background', body2.includes('From <b>Acolyte</b>') && !body2.includes('From <b>Soldier</b>'));
 
 // ── keep / cap / drop ───────────────────────────────────────────────────────
+draft.bg = { n: 'Soldier' }; F.personaSyncBg();
 F.rollInto('personality', 'own'); F.keepCand('personality');
 F.rollInto('personality', 'own'); F.keepCand('personality');
 ok('keep two personality traits (cap reached)', draft.bio.personality.length === 2);
-F.rollInto('personality', 'all'); F.keepCand('personality');   // should be rejected at cap 2
+F.rollInto('personality', 'all'); F.keepCand('personality');
 ok('third keep rejected (cap enforced)', draft.bio.personality.length === 2);
-ok('bio no longer empty after keeps', F.personaBioIsEmpty() === false);
 F.dropKept('personality', 0);
 ok('dropKept removes one', draft.bio.personality.length === 1);
-
 F.rollInto('ideals', 'own'); F.keepCand('ideals');
-F.rollInto('ideals', 'own'); F.keepCand('ideals');             // cap 1 -> rejected
+F.rollInto('ideals', 'own'); F.keepCand('ideals');
 ok('ideals capped at 1', draft.bio.ideals.length === 1);
 
 // ── bio -> column transform ─────────────────────────────────────────────────

@@ -224,6 +224,9 @@
   .abil-v{display:flex; align-items:center; justify-content:center; gap:7px; margin-top:4px}
   .abil-n{font-family:var(--disp); font-size:24px; font-weight:600; min-width:30px; text-align:center; color:var(--ink)}
   .abil-step{font-family:var(--ui); font-size:16px; line-height:1; width:24px; height:24px; border:1px solid var(--rule-strong); background:var(--bg); color:var(--ink-soft); border-radius:2px; cursor:pointer; padding:0}
+  .abil-in{font-family:var(--disp); font-size:24px; font-weight:600; width:48px; text-align:center; color:var(--ink); background:var(--bg); border:1px solid var(--rule-strong); border-radius:2px; padding:2px 0; -moz-appearance:textfield}
+  .abil-in::-webkit-outer-spin-button, .abil-in::-webkit-inner-spin-button{-webkit-appearance:none; margin:0}
+  .abil-in:focus{outline:2px solid var(--blood); outline-offset:1px}
   .abil-step:hover{background:var(--bg-sunk); color:var(--ink)}
   .abil-step:focus-visible{outline:2px solid var(--blood); outline-offset:1px}
   .pb-pts{font-family:var(--ui); font-size:14px; letter-spacing:.06em; color:var(--ink-soft); margin-left:14px}
@@ -613,10 +616,11 @@ function q(s){ return document.querySelector(s); }
 
 // ── steps ────────────────────────────────────────────────────────────────────
 // ==== PERSONA STEP (start) ====
-// Personality step: roll personality traits / ideals / bonds / flaws from the chosen
-// background's real 2014 tables (or the full cross-background pool), keep the ones you
-// like, browse other backgrounds' suggestions, and set appearance + backstory. All of it
-// writes to draft.bio (working arrays + a details object during the build) and is
+// Personality step: each card shows the chosen background's own Suggested Characteristics
+// (personality trait / ideal / bond / flaw) as a visible, clickable list that refreshes
+// whenever the background changes. You can also roll that table, roll across every
+// background, or borrow a specific line from another background. Keeps (cap 2 for
+// personality, 1 for the rest) plus appearance + backstory all write to draft.bio and are
 // transformed to the sheet's bio column shape at forge time by personaBioForColumn().
 // Data layer: window.SoulShardsPersona (soul-shards-persona.js).
 var PERSONA_TRAITS = [
@@ -634,12 +638,25 @@ var PERSONA_APPEAR = [
   { key:'hair',   label:'Hair',   ph:'e.g. black',  opts:['Black','Brown','Blonde','Red','Auburn','Grey','White','Bald'] },
 ];
 
-// transient (not persisted): the current rolled/picked candidate per card, and the
-// cached cross-background suggestion pool for the chosen background.
+// transient (not persisted): the current rolled/picked candidate per card, the cached
+// suggestion pools, and which background those pools were last built for.
 var personaCand = { personality:null, ideals:null, bonds:null, flaws:null };
-var personaOthers = null;
+var personaOwn = null;      // the chosen background's own lists
+var personaOthers = null;   // every other background's lines, source-tagged
+var personaPoolBg = null;   // the background the pools + candidate were last built for
 
 function personaBgName(){ return (draft.bg && draft.bg.n) || (draft.bgCustom ? 'Custom Background' : ''); }
+
+// when the chosen background changes, drop the stale candidate so the step re-keys cleanly
+function personaSyncBg(){
+  var cur = personaBgName();
+  if (personaPoolBg !== cur){
+    personaCand = { personality:null, ideals:null, bonds:null, flaws:null };
+    personaPoolBg = cur;
+    return true;
+  }
+  return false;
+}
 
 function ensurePersonaBio(){
   if (!draft.bio || typeof draft.bio !== 'object') draft.bio = {};
@@ -711,9 +728,23 @@ function paintCard(key){
   var c = q('[data-cand="' + key + '"]'); if (c) c.innerHTML = psCand(key);
 }
 
+// the chosen background's own suggestions for this card — a visible, clickable list that
+// changes whenever the background changes (this is what makes the bg link obvious).
+function paintOwn(key){
+  var host = q('[data-own="' + key + '"]'); if (!host) return;
+  var list = (personaOwn && personaOwn[key]) || [];
+  if (!list.length){
+    host.innerHTML = '<div class="ps-empty">This background has no suggested ' + key + ' \u2014 try \u201cRoll \u00b7 any\u201d or borrow below.</div>';
+    return;
+  }
+  host.innerHTML = list.map(function(text, i){
+    return '<button class="ps-pill own" data-ownpick="' + key + '" data-i="' + i + '">' + escHtml(text) + '</button>';
+  }).join('');
+}
+
 function paintOthers(key){
   var host = q('[data-others="' + key + '"]'); if (!host) return;
-  var list = ((personaOthers && personaOthers[key]) || []).slice(0, 30);
+  var list = ((personaOthers && personaOthers[key]) || []).slice(0, 40);
   if (!list.length){ host.innerHTML = '<div class="ps-empty">No other suggestions found.</div>'; return; }
   host.innerHTML = list.map(function(o, i){
     return '<button class="ps-pill" data-pill="' + key + '" data-i="' + i + '">' + escHtml(o.text) +
@@ -724,8 +755,8 @@ function paintOthers(key){
 function rollInto(key, mode){
   var src;
   if (mode === 'own'){
-    var f = (typeof SoulShardsPersona !== 'undefined') ? SoulShardsPersona.forBackground(personaBgName()) : null;
-    src = (f && f[key]) || [];
+    src = (personaOwn && personaOwn[key]) || [];
+    if (!src.length && typeof SoulShardsPersona !== 'undefined'){ var f = SoulShardsPersona.forBackground(personaBgName()); src = (f && f[key]) || []; }
   } else {
     var p = (typeof SoulShardsPersona !== 'undefined') ? SoulShardsPersona.pool() : null;
     src = (p && p[key]) || [];
@@ -760,11 +791,13 @@ function personaBody(){
       '<div class="ps-card-h"><span class="ps-card-t">' + t.label + '</span><span class="ps-cap">keep ' + t.cap + '</span></div>' +
       '<div class="ps-kept" data-kept="' + t.key + '"></div>' +
       '<div class="ps-cand" data-cand="' + t.key + '"></div>' +
+      '<div class="ps-suglabel">From <b>' + escHtml(bgLabel) + '</b></div>' +
+      '<div class="ps-own" data-own="' + t.key + '"><div class="ps-empty">Loading suggestions\u2026</div></div>' +
       '<div class="ps-rolls">' +
-        '<button class="ps-roll" data-roll="own" data-key="' + t.key + '">Roll \u00b7 ' + escHtml(bgLabel) + '</button>' +
-        '<button class="ps-roll" data-roll="all" data-key="' + t.key + '">Roll \u00b7 any</button>' +
+        '<button class="ps-roll" data-roll="own" data-key="' + t.key + '">\uD83C\uDFB2 Roll \u00b7 ' + escHtml(bgLabel) + '</button>' +
+        '<button class="ps-roll" data-roll="all" data-key="' + t.key + '">\uD83C\uDFB2 Roll \u00b7 any</button>' +
       '</div>' +
-      '<button class="ps-more" data-more="' + t.key + '">From other backgrounds \u25be</button>' +
+      '<button class="ps-more" data-more="' + t.key + '">Borrow from other backgrounds \u25be</button>' +
       '<div class="ps-others" data-others="' + t.key + '" hidden></div>' +
     '</div>';
   }).join('');
@@ -777,14 +810,14 @@ function personaBody(){
   }).join('');
   return '<div id="psona">' +
     '<div class="subhead">Personality</div>' +
-    '<p class="ps-intro">Give ' + escHtml(draft.name || 'your character') + ' a voice. Roll from ' + escHtml(bgLabel) + '\u2019s own tables or the full set across every background \u2014 \u2713 keeps a line, \u2715 drops it. Or pick from another background\u2019s suggestions under each card.</p>' +
+    '<p class="ps-intro">Give ' + escHtml(draft.name || 'your character') + ' a voice. Each card lists ' + escHtml(bgLabel) + '\u2019s own suggestions \u2014 click one to set it, or roll the table. \u2713 keeps a line, \u2715 drops it. Borrow from any other background under each card.</p>' +
     '<div class="ps-cards">' + cards + '</div>' +
     '<div class="subhead" style="margin-top:26px">Appearance</div>' +
     '<div class="ps-appear">' + fields + '</div>' +
     '<label class="ps-field ps-wide"><span>Distinguishing features</span><textarea data-features rows="2" placeholder="Scars, tattoos, the way they carry themselves\u2026"></textarea></label>' +
     '<label class="ps-field ps-wide"><span>Backstory</span><textarea data-backstory rows="6" placeholder="Where they come from, what they want, who they\u2019ve left behind\u2026"></textarea></label>' +
     datalists +
-    '<div class="ph-note"><b>Personality</b> rolls from the real 2014 background tables (via <b>backgrounds.json</b>). Everything here writes to <b>bio</b> and lands on the sheet\u2019s Story panel \u2014 traits, appearance, and backstory. On a re-forge, bio is filled only when the character has none yet, so a rebuild never clobbers what you wrote on the sheet.</div>' +
+    '<div class="ph-note"><b>Personality</b> reads the real 2014 background tables (via <b>backgrounds.json</b>) \u2014 the suggestions follow whichever background you pick. Everything here writes to <b>bio</b> and lands on the sheet\u2019s Story panel. On a re-forge, bio is filled only when the character has none yet, so a rebuild never clobbers what you wrote on the sheet.</div>' +
   '</div>';
 }
 
@@ -794,28 +827,33 @@ function injectPersonaCss(){
     + '#psona .ps-intro{font-family:var(--body);font-size:15px;color:var(--ink-soft);max-width:64ch;margin:2px 0 18px}'
     + '#psona .ps-cards{display:grid;grid-template-columns:1fr 1fr;gap:16px}'
     + '@media (max-width:720px){#psona .ps-cards{grid-template-columns:1fr}}'
-    + '#psona .ps-card{background:var(--bg-card);border:1px solid var(--rule);border-radius:3px;padding:13px 14px 14px}'
+    + '#psona .ps-card{background:var(--bg-card);border:1px solid var(--rule);border-radius:3px;padding:13px 14px 14px;display:flex;flex-direction:column}'
     + '#psona .ps-card-h{display:flex;align-items:baseline;justify-content:space-between;margin-bottom:9px}'
     + '#psona .ps-card-t{font-family:var(--ui);text-transform:uppercase;letter-spacing:.1em;font-size:13px;color:var(--ink)}'
     + '#psona .ps-cap{font-family:var(--ui);font-size:11px;letter-spacing:.06em;color:var(--ink-faint)}'
-    + '#psona .ps-chip{display:flex;align-items:flex-start;gap:8px;background:var(--bg);border:1px solid var(--rule);border-radius:2px;padding:7px 9px;margin-bottom:7px;font-family:var(--body);font-size:14px;line-height:1.35;color:var(--ink)}'
-    + '#psona .ps-chip.cand{border-style:dashed;border-color:var(--rule-strong);background:var(--bg-sunk)}'
+    + '#psona .ps-chip{display:flex;align-items:flex-start;gap:8px;background:var(--bg-sunk);border:1px solid var(--rule-strong);border-radius:2px;padding:7px 9px;margin-bottom:7px;font-family:var(--body);font-size:14px;line-height:1.35;color:var(--ink)}'
+    + '#psona .ps-chip.kept{background:#eef3ec;border-color:#bcd0bc}'
+    + '#psona .ps-chip.cand{border-style:dashed}'
     + '#psona .ps-chip>span{flex:1}'
     + '#psona .ps-keep,#psona .ps-x{flex:none;width:22px;height:22px;border:1px solid var(--rule-strong);border-radius:2px;background:var(--bg-card);cursor:pointer;font-size:12px;line-height:1;color:var(--ink-soft);padding:0}'
     + '#psona .ps-keep{color:#3c7a3c;border-color:#bcd0bc}'
     + '#psona .ps-keep:hover{background:#eef5ee}'
     + '#psona .ps-keep:disabled{opacity:.4;cursor:default}'
     + '#psona .ps-x:hover{background:var(--bg-sunk);color:var(--blood)}'
-    + '#psona .ps-rolls{display:flex;gap:8px;margin-top:4px}'
-    + '#psona .ps-roll{flex:1;font-family:var(--ui);font-size:12.5px;letter-spacing:.04em;padding:7px 8px;background:var(--bg-card);border:1px solid var(--rule-strong);border-radius:2px;cursor:pointer;color:var(--ink-soft)}'
-    + '#psona .ps-roll:hover{background:var(--ink);color:var(--bg);border-color:var(--ink)}'
-    + '#psona .ps-more{margin-top:9px;background:none;border:0;font-family:var(--ui);font-size:11.5px;letter-spacing:.06em;text-transform:uppercase;color:var(--gold);cursor:pointer;padding:2px 0}'
-    + '#psona .ps-more:hover,#psona .ps-more.open{color:var(--blood)}'
-    + '#psona .ps-others{margin-top:8px;max-height:188px;overflow-y:auto;display:flex;flex-wrap:wrap;gap:6px;padding:2px 1px}'
+    + '#psona .ps-suglabel{font-family:var(--ui);font-size:10px;letter-spacing:.1em;text-transform:uppercase;color:var(--ink-faint);margin:10px 0 6px}'
+    + '#psona .ps-suglabel b{color:var(--gold);font-weight:600}'
+    + '#psona .ps-own{display:flex;flex-direction:column;gap:5px;max-height:216px;overflow-y:auto;padding-right:2px}'
     + '#psona .ps-pill{font-family:var(--body);font-size:13px;text-align:left;background:var(--bg);border:1px solid var(--rule);border-radius:2px;padding:6px 9px;cursor:pointer;color:var(--ink);max-width:100%}'
     + '#psona .ps-pill:hover{background:var(--bg-sunk);border-color:var(--rule-strong)}'
+    + '#psona .ps-pill.own{display:block;width:100%;font-size:13.5px;line-height:1.35}'
     + '#psona .ps-src{display:block;font-family:var(--ui);font-size:10px;letter-spacing:.06em;text-transform:uppercase;color:var(--gold);margin-top:2px}'
     + '#psona .ps-empty{font-family:var(--body);font-style:italic;font-size:13px;color:var(--ink-faint);padding:4px 2px}'
+    + '#psona .ps-rolls{display:flex;gap:8px;margin-top:10px}'
+    + '#psona .ps-roll{flex:1;font-family:var(--ui);font-size:12.5px;letter-spacing:.04em;padding:7px 8px;background:var(--bg-card);border:1px solid var(--rule-strong);border-radius:2px;cursor:pointer;color:var(--ink-soft);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}'
+    + '#psona .ps-roll:hover{background:var(--ink);color:var(--bg);border-color:var(--ink)}'
+    + '#psona .ps-more{margin-top:9px;background:none;border:0;font-family:var(--ui);font-size:11.5px;letter-spacing:.06em;text-transform:uppercase;color:var(--gold);cursor:pointer;padding:2px 0;text-align:left}'
+    + '#psona .ps-more:hover,#psona .ps-more.open{color:var(--blood)}'
+    + '#psona .ps-others{margin-top:8px;max-height:188px;overflow-y:auto;display:flex;flex-wrap:wrap;gap:6px;padding:2px 1px}'
     + '#psona .ps-appear{display:grid;grid-template-columns:repeat(3,1fr);gap:11px;margin-top:4px}'
     + '@media (max-width:620px){#psona .ps-appear{grid-template-columns:repeat(2,1fr)}}'
     + '#psona .ps-field{display:flex;flex-direction:column;gap:4px}'
@@ -832,6 +870,7 @@ function mountPersona(){
   ensurePersonaBio();
   injectPersonaCss();
   var root = q('#psona'); if (!root) return;
+  personaSyncBg();   // drop a stale candidate if the background changed since last visit
   // restore field values from the draft
   PERSONA_APPEAR.forEach(function(f){ var el = q('[data-detail="' + f.key + '"]'); if (el) el.value = (draft.bio.details && draft.bio.details[f.key]) || ''; });
   var ft = q('[data-features]'); if (ft) ft.value = draft.bio.features || '';
@@ -842,6 +881,7 @@ function mountPersona(){
   if (!root.__psonaWired){
     root.addEventListener('click', function(e){
       var el;
+      if ((el = e.target.closest('[data-ownpick]'))){ var ok = el.getAttribute('data-ownpick'); var txt = ((personaOwn && personaOwn[ok]) || [])[parseInt(el.getAttribute('data-i'), 10)]; if (txt != null){ personaCand[ok] = txt; paintCard(ok); } return; }
       if ((el = e.target.closest('[data-roll]'))){ rollInto(el.getAttribute('data-key'), el.getAttribute('data-roll')); return; }
       if ((el = e.target.closest('[data-keep]'))){ keepCand(el.getAttribute('data-keep')); return; }
       if ((el = e.target.closest('[data-discard]'))){ var dk = el.getAttribute('data-discard'); personaCand[dk] = null; paintCard(dk); return; }
@@ -857,12 +897,14 @@ function mountPersona(){
     });
     root.__psonaWired = true;
   }
-  // load the suggestion data, then fill the cross-background pills
+  // load the suggestion data, then fill the per-background lists for the CURRENT background
   if (typeof SoulShardsPersona !== 'undefined'){
     SoulShardsPersona.load().then(function(){
-      personaOthers = SoulShardsPersona.othersFor(personaBgName());
-      PERSONA_TRAITS.forEach(function(t){ paintOthers(t.key); });
-    }).catch(function(){ /* offline: pills stay empty; rolling + typing still work */ });
+      var bg = personaBgName();
+      personaOwn = SoulShardsPersona.forBackground(bg) || { personality:[], ideals:[], bonds:[], flaws:[] };
+      personaOthers = SoulShardsPersona.othersFor(bg);
+      PERSONA_TRAITS.forEach(function(t){ paintOwn(t.key); paintOthers(t.key); });
+    }).catch(function(){ PERSONA_TRAITS.forEach(function(t){ var h = q('[data-own="' + t.key + '"]'); if (h) h.innerHTML = '<div class="ps-empty">Couldn\u2019t load suggestions \u2014 type your own, or try again.</div>'; }); });
   }
 }
 // ==== PERSONA STEP (end) ====
@@ -998,7 +1040,7 @@ function makeSlots(method){
   if (method === 'array') return STD_ARRAY.map(function(v, i){ return { v:v, stat:ABILS[i] }; });   // pre-assigned in order, reassignable
   return [0,0,0,0,0,0].map(function(){ return { v:roll4d6(), stat:null }; });                        // rolls start unassigned
 }
-function ensureSlots(){ if (draft.method !== 'pointbuy' && (!draft.slots || draft.slots.length !== 6)){ draft.slots = makeSlots(draft.method); deriveAbilities(); } }
+function ensureSlots(){ if (draft.method !== 'pointbuy' && draft.method !== 'manual' && (!draft.slots || draft.slots.length !== 6)){ draft.slots = makeSlots(draft.method); deriveAbilities(); } }
 
 // baked pools for custom-background choices (P5 sources these from the data)
 var TOOLS_LANGS = ['Common','Dwarvish','Elvish','Giant','Gnomish','Goblin','Halfling','Orc','Abyssal','Celestial','Deep Speech','Draconic','Infernal','Primordial','Sylvan','Undercommon',
@@ -1270,6 +1312,7 @@ var BODIES = {
         '<button data-method="array" class="' + (draft.method === 'array' ? 'on' : '') + '">Standard array</button>' +
         '<button data-method="pointbuy" class="' + (pb ? 'on' : '') + '">Point buy</button>' +
         '<button data-method="roll" class="' + (draft.method === 'roll' ? 'on' : '') + '">Roll 4d6</button>' +
+        '<button data-method="manual" class="' + (draft.method === 'manual' ? 'on' : '') + '">Manual</button>' +
       '</div>' +
       (pb ? '<span class="pb-pts">Points <b id="pbRem">' + (27 - pbTotal(draft.abilities)) + '</b> / 27</span>' : '');
     var body;
@@ -1285,6 +1328,18 @@ var BODIES = {
           '<div class="m" data-abm="' + k + '">' + (m >= 0 ? '+' : '') + m + '</div></div>';
       }).join('');
       body = '<div class="grid ability-row" style="margin-top:16px">' + boxes + '</div>';
+    } else if (draft.method === 'manual'){
+      var mboxes = ABILS.map(function(k){
+        var v = (draft.abilities[k] != null ? draft.abilities[k] : 10), m = Math.floor((v - 10) / 2);
+        return '<div class="abil"><div class="k">' + k.toUpperCase() + '</div>' +
+          '<div class="abil-v">' +
+            '<button class="abil-step" data-ab="' + k + '" data-d="-1" aria-label="decrease ' + k.toUpperCase() + '">\u2212</button>' +
+            '<input class="abil-in" type="number" inputmode="numeric" min="1" max="30" value="' + v + '" data-abin="' + k + '" aria-label="' + k.toUpperCase() + ' score">' +
+            '<button class="abil-step" data-ab="' + k + '" data-d="1" aria-label="increase ' + k.toUpperCase() + '">+</button>' +
+          '</div>' +
+          '<div class="m" data-abm="' + k + '">' + (m >= 0 ? '+' : '') + m + '</div></div>';
+      }).join('');
+      body = '<div class="grid ability-row" style="margin-top:16px">' + mboxes + '</div>';
     } else {
       var slotBoxes = ABILS.map(function(k){
         var s = abilSlot(k), val = s ? s.v : null, m = val != null ? Math.floor((val - 10) / 2) : null;
@@ -1303,6 +1358,8 @@ var BODIES = {
         '<div class="subhead" style="margin-top:18px">' + (draft.method === 'roll' ? 'Your rolls' : 'The array') + ' <span class="cust-c">' + hint + '</span>' + reroll + '</div>' +
         '<div class="pool">' + pool + '</div>';
     }
+    if (draft.method === 'manual') return seg + body +
+      '<div class="ph-note">Real now \u2014 fed straight to the engine. <b>Manual</b> scores are <b>final totals</b>: racial increases are <b>not</b> re-added and the Species step won\u2019t move them. Enter a character\u2019s exact current scores (this is also how a reforged character with hand-set stats loads).</div>';
     return seg + body +
       '<div class="ph-note">Real now — fed to the engine (<b>CON</b> sets HP, the casting ability sizes prepared spells). Array &amp; rolls are <b>assigned</b> to stats — click a value, then a stat; click a placed value to move it. Point buy uses the 27-point budget (8\u201315). These are your <b>base</b> scores; racial increases layer on at the Species step and flow through to the engine.</div>';
   },
@@ -1472,6 +1529,7 @@ var MOUNT = {
         var meth = btn.getAttribute('data-method');
         draft.method = meth; draft.armed = null;
         if (meth === 'pointbuy'){ draft.slots = null; ABILS.forEach(function(k){ draft.abilities[k] = 8; }); }
+        else if (meth === 'manual'){ draft.slots = null; ABILS.forEach(function(k){ if (draft.abilities[k] == null) draft.abilities[k] = 10; }); }
         else { draft.slots = makeSlots(meth); deriveAbilities(); }
         saveDraft(); renderAll();
       });
@@ -1488,6 +1546,17 @@ var MOUNT = {
           var md = q('[data-abm="' + k + '"]'); if (md){ var m = Math.floor((next - 10) / 2); md.textContent = (m >= 0 ? '+' : '') + m; }
           var rem = q('#pbRem'); if (rem) rem.textContent = (27 - pbTotal(draft.abilities));
         });
+      });
+      return;
+    }
+    if (draft.method === 'manual'){
+      var setManual = function(k, val){ val = Math.max(1, Math.min(30, val | 0)); draft.abilities[k] = val; saveDraft(); renderAll(); };
+      Array.prototype.forEach.call(document.querySelectorAll('.abil-in'), function(inp){
+        inp.addEventListener('change', function(){ setManual(inp.getAttribute('data-abin'), parseInt(inp.value, 10) || 0); });
+        inp.addEventListener('keydown', function(e){ if (e.key === 'Enter') inp.blur(); });
+      });
+      Array.prototype.forEach.call(document.querySelectorAll('.abil-step'), function(btn){
+        btn.addEventListener('click', function(){ setManual(btn.getAttribute('data-ab'), (draft.abilities[btn.getAttribute('data-ab')] || 10) + parseInt(btn.getAttribute('data-d'), 10)); });
       });
       return;
     }
@@ -3336,6 +3405,7 @@ function raceForBuild(){
 // base assigned scores + racial increases — the scores the engine actually builds from.
 function effectiveAbilities(race){
   var eff = {}; ABILS.forEach(function(k){ eff[k] = (draft.abilities[k] != null ? draft.abilities[k] : 10); });
+  if (draft.method === 'manual') return eff;   // manual = final totals: no racial/feat layering, no 20 cap
   if (race && typeof SpeciesUI !== 'undefined'){
     var bon = SpeciesUI.combinedBonuses(race);
     Object.keys(bon).forEach(function(k){ eff[k] = (eff[k] || 0) + bon[k]; });
@@ -3440,6 +3510,14 @@ function reverseMapStructural(s){
   if (s.background && typeof DATA !== 'undefined' && DATA.backgrounds){
     var bg = DATA.backgrounds.filter(function(b){ return b.n === s.background; })[0];
     if (bg) build.bg = { n: bg.n, s: bg.s };
+  }
+  // abilities: recover the character's final scores into Manual mode. Older characters and
+  // hand-set stats can't be reversed to base + method, so we load the real totals as-is and
+  // let the engine treat them as final (no racial re-add) \u2014 exactly the Manual path.
+  if (s.abilities && typeof s.abilities === 'object'){
+    var ab = {}, anyAb = false;
+    ABILS.forEach(function(k){ var sc = s.abilities[k] && s.abilities[k].score; if (typeof sc === 'number'){ ab[k] = sc; anyAb = true; } });
+    if (anyAb){ build.method = 'manual'; build.abilities = ab; }
   }
   return build;
 }
