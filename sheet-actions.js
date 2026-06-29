@@ -1494,10 +1494,16 @@ export function wireInspiration({ root, characterData, key, depsReady } = {}) {
     gridEl.innerHTML = '<div class="pp-loading">Loading the library\u2026</div>';
     try {
       var res = await fetch(PP_LIST_URL, { headers: { Authorization: 'Bearer ' + ppToken() } });
-      if (!res.ok) throw new Error('list ' + res.status);
+      if (!res.ok) {
+        var reason = 'Couldn\u2019t load the portrait library (' + res.status + ').';
+        try { var j = await res.json(); if (j && j.error) reason = j.error; } catch (_) {}
+        if (res.status === 404) reason = 'Portrait service isn\u2019t deployed yet.';
+        gridEl.innerHTML = '<div class="pp-loading bad">' + reason + '</div>';
+        return;
+      }
       var data = await res.json();
       ppRenderGrid(gridEl, data.portraits || []);
-    } catch (e) { gridEl.innerHTML = '<div class="pp-loading bad">Couldn\u2019t load the portrait library.</div>'; }
+    } catch (e) { gridEl.innerHTML = '<div class="pp-loading bad">Couldn\u2019t reach the portrait service.</div>'; }
   }
 
   function ppUpload() {

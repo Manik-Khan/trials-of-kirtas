@@ -581,7 +581,7 @@
 .tok-sheet .conc-strip .cc-drop:hover{background:rgba(224,88,74,.14)}
 
 /* ── in-sheet tab bar (scoped to the sheet root) ── */
-.tok-sheet .sheet-tabbar{display:flex;gap:1px;flex-wrap:wrap;margin:0 0 22px;border-bottom:1px solid var(--frame)}
+.tok-sheet .sheet-tabbar{display:flex;gap:1px;flex-wrap:wrap;margin:0 0 22px;background:var(--panel);border-bottom:1px solid var(--frame)}
 .tok-sheet .sheet-tab{font-family:"Oswald",sans-serif;font-weight:500;font-size:12px;letter-spacing:.11em;text-transform:uppercase;color:var(--cream-fnt);background:transparent;border:0;padding:10px 16px 11px;cursor:pointer;position:relative;transition:color .13s}
 .tok-sheet .sheet-tab:hover{color:var(--cream)}
 .tok-sheet .sheet-tab.active{color:var(--gold-br)}
