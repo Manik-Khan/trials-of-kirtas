@@ -168,21 +168,35 @@ function buildNav() {
       </div>
       <div class="nav-theme-wrap" id="nav-theme-wrap">
         <button id="battle-btn" title="Toggle battle mode" onclick="window.__battle&&window.__battle.toggleBattle()">⚔</button>
-        ${onSheet ? `<button class="nav-export-btn" onclick="toggleExportDropdown(event)" title="Export this character" aria-label="Export this character">⤓</button>` : ''}
         <button class="nav-theme-btn"
                 onclick="toggleThemeDropdown(event)"
                 title="Change theme"
                 aria-label="Change site theme">◐</button>
         <button class="nav-appearance-btn"
-                onclick="event.stopPropagation();window.AppearanceUI&&window.AppearanceUI.open()"
-                title="Customize appearance"
-                aria-label="Customize appearance">⚙</button>
-        <div class="appearance-drawer" id="appearance-drawer" aria-label="Appearance settings"></div>
-        ${onSheet ? `<div class="export-dropdown" id="export-dropdown">
-          <div class="theme-dropdown-label">Export</div>
-          <button class="export-item" type="button" onclick="event.stopPropagation();toggleExportDropdown(event);window.print()">Print / PDF</button>
-          <button class="export-item" type="button" onclick="event.stopPropagation();__downloadCharacterJSON(this)">Download JSON</button>
-        </div>` : ''}
+                onclick="toggleCogFlyout(event)"
+                title="Settings"
+                aria-label="Settings">⚙</button>
+        <div class="cog-flyout" id="cog-flyout" hidden onclick="event.stopPropagation()" aria-label="Settings">
+          <div class="fly-pane on" id="cog-pane-menu">
+            ${onSheet ? `<button class="m-row" id="cog-row-download" type="button" onclick="toggleCogDownload(event)">
+              <span class="ic"><span class="g">⤓</span>Download character</span><span class="car">▸</span>
+            </button>
+            <div class="subacts" id="cog-sub-download">
+              <button class="sub-a" type="button" onclick="event.stopPropagation();__cogClose();window.print()">Print / PDF</button>
+              <button class="sub-a" type="button" onclick="event.stopPropagation();__downloadCharacterJSON(this)">Download JSON</button>
+            </div>` : ''}
+            <button class="m-row" id="cog-row-settings" type="button" onclick="cogOpenSettings(event)">
+              <span class="ic"><span class="g">⚙</span>Sheet settings</span><span class="car">▸</span>
+            </button>
+          </div>
+          <div class="fly-pane" id="cog-pane-appearance">
+            <div class="fly-head">
+              <button class="fly-back" type="button" onclick="event.stopPropagation();cogShowPane('menu')" title="Back" aria-label="Back">‹</button>
+              <span class="fly-title">Sheet settings</span>
+            </div>
+            <div class="appearance-drawer" id="appearance-drawer" aria-label="Appearance settings"></div>
+          </div>
+        </div>
         <div class="theme-dropdown" id="theme-dropdown">
           <div class="theme-dropdown-label">Theme</div>
           ${themeOptions}
@@ -211,17 +225,7 @@ function toggleThemeDropdown(e) {
   if (dropdown) dropdown.classList.toggle('open', dropdownOpen);
 }
 
-// Export menu (sheet page only) — Print / PDF + a portable character JSON snapshot.
-let exportDropdownOpen = false;
-function toggleExportDropdown(e) {
-  e.stopPropagation();
-  exportDropdownOpen = !exportDropdownOpen;
-  const d = document.getElementById('export-dropdown');
-  if (d) d.classList.toggle('open', exportDropdownOpen);
-  dropdownOpen = false;
-  const td = document.getElementById('theme-dropdown');
-  if (td) td.classList.remove('open');
-}
+// Character JSON export — a portable snapshot, triggered from the cog flyout's Download menu.
 function __downloadCharacterJSON(btn) {
   if (typeof CharacterData === 'undefined' || !CharacterData.loadCharacter) return;
   const key = new URLSearchParams(location.search).get('character') || 'cosmere';
@@ -234,12 +238,51 @@ function __downloadCharacterJSON(btn) {
     document.body.appendChild(a); a.click(); a.remove();
     setTimeout(function () { URL.revokeObjectURL(url); }, 0);
     if (btn) { btn.textContent = label; btn.disabled = false; }
-    exportDropdownOpen = false;
-    const d = document.getElementById('export-dropdown'); if (d) d.classList.remove('open');
+    __cogClose();
   }).catch(function () {
     if (btn) { btn.textContent = 'Export failed'; setTimeout(function () { btn.textContent = label; btn.disabled = false; }, 1600); }
   });
 }
+
+// ==== COG FLYOUT (start) ====
+// Cog settings flyout (themed pages) — folds Download (sheet only) + Sheet settings
+// into one ⚙ menu with a drill-in to the appearance panel. The appearance pane hosts
+// nav's #appearance-drawer; appearance-boot.js builds it on demand via AppearanceUI.mount().
+let cogFlyoutOpen = false;
+function __cogPane(p) {
+  const m = document.getElementById('cog-pane-menu'), a = document.getElementById('cog-pane-appearance');
+  if (m) m.classList.toggle('on', p === 'menu');
+  if (a) a.classList.toggle('on', p === 'ap');
+}
+function cogShowPane(p) { __cogPane(p); }
+function __cogClose() {
+  cogFlyoutOpen = false;
+  const f = document.getElementById('cog-flyout'); if (f) f.hidden = true;
+}
+function toggleCogFlyout(e) {
+  if (e) e.stopPropagation();
+  cogFlyoutOpen = !cogFlyoutOpen;
+  const f = document.getElementById('cog-flyout'); if (!f) return;
+  f.hidden = !cogFlyoutOpen;
+  if (cogFlyoutOpen) {
+    __cogPane('menu');                                                       // always open on the menu pane
+    const r = document.getElementById('cog-row-download'), s = document.getElementById('cog-sub-download');
+    if (r) r.classList.remove('open'); if (s) s.classList.remove('open');    // collapse the download accordion
+  }
+  dropdownOpen = false;                                                      // close the theme dropdown if open
+  const td = document.getElementById('theme-dropdown'); if (td) td.classList.remove('open');
+}
+function toggleCogDownload(e) {
+  if (e) e.stopPropagation();
+  const r = document.getElementById('cog-row-download'), s = document.getElementById('cog-sub-download');
+  if (r) r.classList.toggle('open'); if (s) s.classList.toggle('open');
+}
+function cogOpenSettings(e) {
+  if (e) e.stopPropagation();
+  if (window.AppearanceUI && window.AppearanceUI.mount) window.AppearanceUI.mount();   // build the panel if needed
+  __cogPane('ap');
+}
+// ==== COG FLYOUT (end) ====
 
 // Close on outside click
 document.addEventListener('click', () => {
@@ -248,11 +291,7 @@ document.addEventListener('click', () => {
     const dropdown = document.getElementById('theme-dropdown');
     if (dropdown) dropdown.classList.remove('open');
   }
-  if (exportDropdownOpen) {
-    exportDropdownOpen = false;
-    const ed = document.getElementById('export-dropdown');
-    if (ed) ed.classList.remove('open');
-  }
+  if (cogFlyoutOpen) __cogClose();
   if (charMenuOpen) closeCharMenu();
 });
 
@@ -468,41 +507,56 @@ function injectNavStyles() {
     }
     html.has-appearance .nav-appearance-btn { display: inline-flex; }
     .nav-appearance-btn:hover { background: rgba(184,149,42,0.2); border-color: var(--gold-mid); }
-    @media (max-width: 600px) { .nav-appearance-btn { display: none !important; } }
-    .nav-export-btn {
-      width: 28px; height: 28px;
-      display: inline-flex; align-items: center; justify-content: center;
-      background: var(--gold-dim); border: 1px solid var(--gold-dim); color: var(--gold);
-      font-size: 0.98rem; cursor: pointer; padding: 0; line-height: 1;
-      transition: background 0.2s, border-color 0.2s;
-    }
-    .nav-export-btn:hover { background: rgba(184,149,42,0.2); border-color: var(--gold-mid); }
-    .export-dropdown {
-      position: absolute; top: 36px; right: 0;
-      background: var(--nav-bg); border: 1px solid var(--nav-border); min-width: 152px;
-      opacity: 0; pointer-events: none; transform: translateY(-6px);
-      transition: opacity 0.18s ease, transform 0.18s ease; z-index: 200;
-    }
-    .export-dropdown.open { opacity: 1; pointer-events: auto; transform: translateY(0); }
-    .export-item {
-      display: block; width: 100%; text-align: left; background: none; border: 0;
-      font-family: var(--font-title); font-size: 0.62rem; letter-spacing: 0.12em; text-transform: uppercase;
-      color: var(--aged); padding: 0.6rem 0.8rem; cursor: pointer; transition: background 0.15s, color 0.15s;
-    }
-    .export-item:hover { background: var(--gold-dim); color: var(--gold-light); }
-    .export-item[disabled] { opacity: 0.6; cursor: default; }
+    /* the settings cog stays available on mobile too - it now hosts Download */
+    /* export UI moved into the cog flyout (.cog-flyout / .m-row / .sub-a) */
+    /* the appearance panel now renders inside the cog flyout's settings pane */
     .appearance-drawer {
-      position: fixed; top: 56px; right: 14px;
-      width: 300px; max-height: calc(100vh - 72px); overflow-y: auto;
-      background: rgba(10,16,15,0.98);
-      border: 1px solid rgba(231,194,121,0.28);
-      box-shadow: 0 18px 50px rgba(0,0,0,0.55);
-      padding: 16px 16px 18px; z-index: 9999;
-      opacity: 0; visibility: hidden; transform: translateY(-8px); pointer-events: none;
-      transition: opacity 0.16s ease, transform 0.16s ease, visibility 0.16s;
+      width: 100%; max-height: calc(100vh - 150px); overflow-y: auto;
+      padding: 14px 14px 15px; background: transparent;
     }
     .appearance-drawer:empty { display: none; }
-    .appearance-drawer.open { opacity: 1; visibility: visible; transform: none; pointer-events: auto; }
+
+    /* ── cog settings flyout ── */
+    .cog-flyout {
+      position: absolute; top: 36px; right: 0; width: 300px;
+      background: var(--nav-bg); border: 1px solid var(--nav-border);
+      box-shadow: 0 22px 50px -22px rgba(0,0,0,0.8);
+      overflow: hidden; z-index: 9999;
+    }
+    .cog-flyout[hidden] { display: none; }
+    .fly-pane { display: none; }
+    .fly-pane.on { display: block; }
+    .m-row {
+      display: flex; align-items: center; justify-content: space-between; width: 100%;
+      background: none; border: 0; border-bottom: 1px solid var(--nav-border);
+      color: var(--aged); font-family: var(--font-title); font-size: 0.78rem; letter-spacing: 0.03em;
+      padding: 0.74rem 0.85rem; cursor: pointer; text-align: left;
+      transition: background 0.15s, color 0.15s;
+    }
+    .m-row:last-child { border-bottom: 0; }
+    .m-row:hover { background: var(--gold-dim); color: var(--gold-light); }
+    .m-row .ic { display: flex; align-items: center; gap: 10px; }
+    .m-row .ic .g { color: var(--gold); width: 16px; text-align: center; }
+    .m-row .car { color: var(--muted); font-size: 0.74rem; transition: transform 0.18s; }
+    .m-row.open .car { transform: rotate(90deg); color: var(--gold); }
+    .subacts { max-height: 0; overflow: hidden; transition: max-height 0.22s ease; background: rgba(0,0,0,0.22); }
+    .subacts.open { max-height: 140px; }
+    .sub-a {
+      display: block; width: 100%; background: none; border: 0; border-bottom: 1px solid var(--nav-border);
+      color: var(--aged); font-family: var(--font-title); font-size: 0.68rem; letter-spacing: 0.04em;
+      padding: 0.62rem 0.85rem 0.62rem 2.45rem; cursor: pointer; text-align: left;
+      transition: background 0.15s, color 0.15s;
+    }
+    .sub-a:last-child { border-bottom: 0; }
+    .sub-a:hover { background: var(--gold-dim); color: var(--gold-light); }
+    .sub-a[disabled] { opacity: 0.6; cursor: default; }
+    .fly-head {
+      display: flex; align-items: center; gap: 10px; padding: 0.55rem 0.7rem;
+      border-bottom: 1px solid var(--nav-border); background: rgba(0,0,0,0.2);
+    }
+    .fly-back { background: none; border: 0; color: var(--gold); font-size: 1.15rem; cursor: pointer; padding: 0 2px; line-height: 1; }
+    .fly-back:hover { color: var(--gold-light); }
+    .fly-title { font-family: var(--font-title); font-size: 0.62rem; letter-spacing: 0.16em; text-transform: uppercase; color: var(--gold); }
 
     .theme-dropdown {
       position: absolute;

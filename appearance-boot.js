@@ -44,6 +44,7 @@ window.AppearanceUI = {
   open() { setOpen(!isOpen); },   // cog toggles the panel
   close() { setOpen(false); },
   isOpen() { return isOpen; },
+  mount() { if (!built) buildPanel(); },   // build into the drawer on demand; the cog flyout governs visibility
 };
 
 // Close on outside click — but not when clicking inside the drawer or on the cog.
