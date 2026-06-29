@@ -160,6 +160,32 @@
     }).join('');
     return '<div class="ge-picker"><div class="ge-pk-tabs">' + tabs + '</div><div class="ge-pk-grid">' + cells + '</div></div>';
   }
+  // Combat fields apply only to weapons. 5etools tags weapons type 'M'/'R' and carries a
+  // weaponCat / typeLabel containing "weapon" — gate on either (no weapons-table import needed).
+  function isWeaponItem(it) {
+    if (!it) return false;
+    var t = String(it.type || '').toUpperCase();
+    if (t === 'M' || t === 'R') return true;
+    return /weapon/i.test(String(it.typeLabel || '')) || /weapon/i.test(String(it.weaponCat || ''));
+  }
+  var EDIT_ABILS = [['auto', 'Auto \u2014 from weapon & class'], ['str', 'Strength'], ['dex', 'Dexterity'], ['con', 'Constitution'], ['int', 'Intelligence'], ['wis', 'Wisdom'], ['cha', 'Charisma']];
+  // The weapon-combat block: magic to-hit/damage bonuses, an extra-damage rider, and a pinned
+  // attack ability. buildWeaponActions already reads item.atkBonus / dmgBonus / extraDmg / attackAbil.
+  function combatSectionHtml(it) {
+    var ex = it.extraDmg || {}, pinned = String(it.attackAbil || 'auto').toLowerCase();
+    if (!pinned) pinned = 'auto';
+    var abilOpts = EDIT_ABILS.map(function (a) { return '<option value="' + a[0] + '"' + (a[0] === pinned ? ' selected' : '') + '>' + a[1] + '</option>'; }).join('');
+    return '<div class="ge-combat">'
+      + '<div class="ge-combat-h">Combat<span class="ln"></span></div>'
+      + '<div class="ge-combat-sub">Leave bonuses at 0 for a mundane weapon. A +1 weapon \u2192 set both to 1; a flame tongue \u2192 add an extra-damage rider. Ability stays Auto (finesse \u2192 Dex, Hexblade \u2192 Cha\u2026); pin it for a specific weapon. These flow into the attack automatically.</div>'
+      + '<div class="ge-fields">'
+        + '<div class="ge-f"><label>Bonus to hit</label><input type="number" step="1" data-ef="atkBonus" value="' + (+it.atkBonus || 0) + '"></div>'
+        + '<div class="ge-f"><label>Bonus to damage</label><input type="number" step="1" data-ef="dmgBonus" value="' + (+it.dmgBonus || 0) + '"></div>'
+        + '<div class="ge-f wide"><label>Extra damage (rider)</label><div class="ge-two"><input type="text" data-ef="exDice" value="' + esc(ex.dice || '') + '" placeholder="1d6"><input type="text" data-ef="exType" value="' + esc(ex.type || '') + '" placeholder="Fire"></div></div>'
+        + '<div class="ge-f wide"><label>Attack ability</label><select data-ef="attackAbil">' + abilOpts + '</select></div>'
+      + '</div>'
+    + '</div>';
+  }
   function editFormHtml(it, st) {
     var ii = II();
     var iconRow = ii
@@ -179,6 +205,7 @@
         + '<div class="ge-f"><label>Attunement</label><div class="ge-toggle' + (it.reqAttune ? ' on' : '') + '" data-eftoggle="reqAttune"><span class="box"></span><span>Requires attunement</span></div></div>'
         + '<div class="ge-f wide"><label>Flavor / Notes</label><textarea data-ef="flavor" placeholder="A line of description, history, or a table note\u2026">' + esc(it.flavor || '') + '</textarea></div>'
       + '</div>'
+      + (isWeaponItem(it) ? combatSectionHtml(it) : '')
       + '<div class="ge-foot"><button class="ge-btn" data-ecancel="1">Cancel</button><button class="ge-btn primary" data-esave="1">Save changes</button></div>'
     + '</div>';
   }
@@ -568,6 +595,12 @@
       '.tok-sheet .ge-f textarea{font-style:italic;resize:vertical;min-height:54px;line-height:1.4}' +
       '.tok-sheet .ge-f input[type=number]{-moz-appearance:textfield}' +
       '.tok-sheet .ge-f input[type=number]::-webkit-outer-spin-button,.tok-sheet .ge-f input[type=number]::-webkit-inner-spin-button{-webkit-appearance:none;margin:0}' +
+      '.tok-sheet .ge-combat{margin:0 0 12px}' +
+      '.tok-sheet .ge-combat-h{display:flex;align-items:center;gap:9px;font:600 9px/1 "Oswald",sans-serif;letter-spacing:.12em;text-transform:uppercase;color:#c79a4a;margin:2px 0 5px}' +
+      '.tok-sheet .ge-combat-h .ln{flex:1;height:1px;background:linear-gradient(90deg,rgba(84,160,151,.3),transparent)}' +
+      '.tok-sheet .ge-combat-sub{font:italic 11.5px/1.4 "EB Garamond",serif;color:#8d8675;margin:0 0 9px}' +
+      '.tok-sheet .ge-combat .ge-fields{margin:0}' +
+      '.tok-sheet .ge-two{display:grid;grid-template-columns:1fr 1fr;gap:8px}' +
       '.tok-sheet .ge-toggle{display:flex;align-items:center;gap:8px;cursor:pointer;user-select:none;padding-top:18px}' +
       '.tok-sheet .ge-toggle .box{width:16px;height:16px;border:1.5px solid rgba(199,154,74,.45);transform:rotate(45deg);flex-shrink:0;transition:background .15s}' +
       '.tok-sheet .ge-toggle.on .box{background:#e7c279;border-color:#e7c279}' +
@@ -685,7 +718,7 @@
     (doc.head || doc.documentElement).appendChild(s);
   }
 
-  var GM = { render: render, bind: bind, injectCss: injectCss, totalWeight: totalWeight, detailHtml: detailHtml, searchResultsHtml: searchResultsHtml, splitOutHtml: splitOutHtml, splitShare: splitShare, worthStr: worthStr, VERSION: 'gm-1' };
+  var GM = { render: render, bind: bind, injectCss: injectCss, totalWeight: totalWeight, detailHtml: detailHtml, editFormHtml: editFormHtml, isWeaponItem: isWeaponItem, searchResultsHtml: searchResultsHtml, splitOutHtml: splitOutHtml, splitShare: splitShare, worthStr: worthStr, VERSION: 'gm-1' };
   if (typeof window !== 'undefined') { window.GearManager = GM; try { injectCss(window.document); } catch (e) {} }
   if (typeof globalThis !== 'undefined') globalThis.GearManager = GM;
   if (typeof module !== 'undefined' && module.exports) module.exports = GM;

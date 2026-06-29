@@ -436,7 +436,7 @@ export function wireInspiration({ root, characterData, key, depsReady } = {}) {
   function updateDraftField(f) {
     var st = gmState(); if (!st || !st.editing || !st.draft) return;
     var k = f.getAttribute('data-ef'), v;
-    if (f.type === 'number') { v = parseFloat(f.value); if (isNaN(v)) v = 0; if (k === 'qty') v = Math.max(1, Math.round(v)); else if (v < 0) v = 0; }
+    if (f.type === 'number') { v = parseFloat(f.value); if (isNaN(v)) v = 0; if (k === 'qty') v = Math.max(1, Math.round(v)); else if (k !== 'atkBonus' && k !== 'dmgBonus' && v < 0) v = 0; }
     else v = f.value;
     st.draft[k] = v;
   }
@@ -462,6 +462,16 @@ export function wireInspiration({ root, characterData, key, depsReady } = {}) {
       var prev = JSON.parse(JSON.stringify(inventory));
       it.name = d.name; it.qty = d.qty; it.weight = d.weight; it.rarity = d.rarity;
       it.reqAttune = !!d.reqAttune; it.flavor = d.flavor;
+      // weapon-combat fields (only meaningful on weapons; harmless otherwise) — magic bonuses,
+      // an extra-damage rider, and a pinned attack ability. buildWeaponActions reads these
+      // straight off the item, so a +1 / Dex pin flows into the attack with no reforge.
+      if (+d.atkBonus) it.atkBonus = +d.atkBonus; else delete it.atkBonus;
+      if (+d.dmgBonus) it.dmgBonus = +d.dmgBonus; else delete it.dmgBonus;
+      var exd = (d.exDice != null ? d.exDice : (d.extraDmg && d.extraDmg.dice)) || '';
+      var ext = (d.exType != null ? d.exType : (d.extraDmg && d.extraDmg.type)) || '';
+      if (String(exd).trim()) it.extraDmg = { dice: String(exd).trim(), type: String(ext).trim() }; else delete it.extraDmg;
+      var pin = String(d.attackAbil || '').toLowerCase();
+      if (pin && pin !== 'auto') it.attackAbil = pin; else delete it.attackAbil;
       if (d.icon != null) it.icon = d.icon;
       clearEdit(st);
       refresh(); persistInventory(prev);
