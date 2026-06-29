@@ -2539,7 +2539,7 @@ var SpellsUI = (function () {
   function readoutCard(){
     var e = _ent;
     var slotSummary = (e.slots||[]).map(function(n,i){ return n>0 ? (ORD[i+1].replace(' level','') + '\u00d7' + n) : null; }).filter(Boolean).join('  ') || '\u2014';
-    var poolName = e.pact ? 'Pact Magic' : (e.mode === 'known' ? (e.cls + ' Slots') : 'Spell Slots');
+    var poolName = e.pact ? 'Pact Magic' : (e.mode === 'known' ? ((e.viaSub && e.subclass ? e.subclass : e.cls) + ' Slots') : 'Spell Slots');
     var rest = e.pact ? 'short rest' : 'long rest';
     var firstLvl = -1; for (var i=0;i<(e.slots||[]).length;i++){ if (e.slots[i]>0){ firstLvl=i; break; } }
     var dots = ''; if (firstLvl>=0){ for (var k=0;k<e.slots[firstLvl];k++){ dots += '<span class="slot'+(e.pact?' teal':'')+' on"></span>'; } }
@@ -3845,7 +3845,16 @@ function forgeCommit(){
       var hasGear = !!((gear.inventory && gear.inventory.length) || (gear.currency && Object.keys(gear.currency).length));
       return CharacterData.loadCharacter(existingKey).catch(function(){ return null; }).then(function(cur){
         var filled = !!cur && hasGear && gearIsEmpty(cur.inventory, cur.currency);
-        var patch = { structural: structural };
+        // A reforge replaces only the build-derived fields. Anything the derive does NOT
+        // produce \u2014 the portrait, hand-authored attacks (e.g. a Booming Blade cantrip
+        // carrying its own damage dice), the physical-appearance block, roller flags,
+        // inspiration \u2014 is carried forward from the existing character so a rebuild
+        // never wipes sheet work. buildStructuralPreview always passes portrait:null, so
+        // without the guard below a rebuild would blank the portrait every single time.
+        var prevStruct = (cur && cur.structural) || {};
+        var mergedStruct = Object.assign({}, prevStruct, structural);
+        if (!structural.portrait && prevStruct.portrait) mergedStruct.portrait = prevStruct.portrait;
+        var patch = { structural: mergedStruct };
         if (filled){ patch.inventory = gear.inventory; patch.currency = gear.currency; }
         if (bioCol && cur && colBioEmpty(cur.bio)) patch.bio = bioCol;   // personality/appearance: fill-if-empty too
         return CharacterData.save(existingKey, patch).then(function(row){
