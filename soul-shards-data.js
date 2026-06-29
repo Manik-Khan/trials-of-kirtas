@@ -202,7 +202,15 @@
     for (const [spellSource, spells] of Object.entries(sources)) {
       if (onlySources && !onlySources.has(spellSource)) continue;
       for (const [spellName, info] of Object.entries(spells)) {
-        if ((info.class || []).some(cl => cl.name === className)) want.push({ name: spellName, spellSource });
+        // A spell's class-list membership is split across two fields: `class` (the
+        // association defined in the spell's own book) and `classVariant` (added to the
+        // list by a LATER book — e.g. XGE adds Absorb Elements to the wizard/sorcerer/
+        // druid/ranger lists, TCE expands several lists). Both are real membership;
+        // checking only `class` silently dropped ~100 wizard spells, and the equivalent
+        // for every other class. Source gating (onlySources, above) still applies.
+        const onList = (info.class || []).some(cl => cl.name === className)
+                    || (info.classVariant || []).some(cl => cl.name === className);
+        if (onList) want.push({ name: spellName, spellSource });
       }
     }
     const files = [...new Set(want.map(w => w.spellSource))].filter(s => idx[s]);
