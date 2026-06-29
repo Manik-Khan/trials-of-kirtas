@@ -1366,6 +1366,199 @@ export function wireInspiration({ root, characterData, key, depsReady } = {}) {
 
   function bindAttacks(editable) { renderRollMods(); if (!editable) return; root.addEventListener('click', onActionClick); root.addEventListener('keydown', onActionKey); root.addEventListener('click', onCheckClick); root.addEventListener('keydown', onCheckKey); }
   // load state + merge baseline, then gate + bind
+  // ── Portrait picker ─────────────────────────────────────────────────────────
+  // Click the portrait → a modal lists the Cloudinary kirtas/portraits/ library
+  // (GET /.netlify/functions/list-portraits) to choose from, plus an "Upload new"
+  // tile gated server-side by /.netlify/functions/portrait-upload-sign (approved
+  // accounts only — 403 otherwise). Selecting writes structural.portrait through the
+  // same optimistic persistStructural the rest of the sheet uses. No SQL.
+  var PP_LIST_URL = '/.netlify/functions/list-portraits';
+  var PP_SIGN_URL = '/.netlify/functions/portrait-upload-sign';
+  var ppEl = null, ppSel = null;
+
+  function ppToken() { try { return (window.__tok && window.__tok.session && window.__tok.session.access_token) || ''; } catch (_) { return ''; } }
+
+  function ppInjectCss() {
+    if (doc.getElementById('pp-css')) return;
+    var s = doc.createElement('style'); s.id = 'pp-css';
+    s.textContent = [
+      '.pp-overlay{position:fixed;inset:0;z-index:9999;display:flex;align-items:center;justify-content:center;padding:20px;',
+        'background:rgba(4,12,14,.62);backdrop-filter:blur(3px);opacity:0;transition:opacity .16s}',
+      '.pp-overlay.open{opacity:1}',
+      '.pp-modal{width:100%;max-width:560px;background:linear-gradient(180deg,#163840,#122e34);border:1px solid rgba(201,162,74,.4);',
+        'border-radius:14px;overflow:hidden;box-shadow:0 30px 70px rgba(0,0,0,.55);transform:translateY(8px) scale(.99);transition:transform .16s}',
+      '.pp-overlay.open .pp-modal{transform:none}',
+      '.pp-head{display:flex;align-items:center;justify-content:space-between;padding:15px 18px 13px;border-bottom:1px solid rgba(201,162,74,.22);background:linear-gradient(180deg,rgba(201,162,74,.06),transparent)}',
+      '.pp-title{font-family:"Playfair Display",serif;font-weight:700;font-size:19px;color:var(--cream-hi,#f9f3e6)}',
+      '.pp-title .sub{display:block;font-family:"Oswald",sans-serif;font-weight:300;letter-spacing:.16em;text-transform:uppercase;font-size:10px;color:var(--gold,#c79a4a);margin-top:3px}',
+      '.pp-x{appearance:none;background:transparent;border:1px solid rgba(201,162,74,.22);color:var(--cream-dim,#c2b99f);width:32px;height:32px;border-radius:8px;cursor:pointer;font-size:15px;line-height:1;display:grid;place-items:center}',
+      '.pp-x:hover{border-color:var(--gold,#c79a4a);color:var(--cream-hi,#f9f3e6)}',
+      '.pp-body{padding:15px 18px;max-height:54vh;overflow:auto}',
+      '.pp-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(92px,1fr));gap:12px}',
+      '.pp-tile{position:relative;aspect-ratio:1/1;border-radius:11px;overflow:hidden;cursor:pointer;padding:0;',
+        'border:1px solid rgba(201,162,74,.22);background:#10292f;transition:transform .12s,border-color .12s,box-shadow .12s}',
+      '.pp-tile:hover{transform:translateY(-2px);border-color:rgba(201,162,74,.4)}',
+      '.pp-tile img{width:100%;height:100%;object-fit:cover;object-position:top center;display:block}',
+      '.pp-tile .pp-nm{position:absolute;left:0;right:0;bottom:0;padding:14px 7px 5px;font-family:"Oswald",sans-serif;font-size:10.5px;',
+        'letter-spacing:.04em;color:#fff;text-transform:capitalize;text-align:left;background:linear-gradient(transparent,rgba(0,0,0,.72))}',
+      '.pp-tile.sel{border-color:var(--gold-br,#e7c279);box-shadow:0 0 0 2px var(--gold-br,#e7c279),0 8px 22px rgba(0,0,0,.45)}',
+      '.pp-tile .pp-ck{position:absolute;top:6px;right:6px;width:22px;height:22px;border-radius:50%;background:var(--gold-br,#e7c279);',
+        'color:#102;display:grid;place-items:center;font-size:12px;font-weight:700;opacity:0;transform:scale(.6);transition:.12s}',
+      '.pp-tile.sel .pp-ck{opacity:1;transform:scale(1)}',
+      '.pp-up{display:grid;place-items:center;gap:6px;border-style:dashed;background:rgba(201,162,74,.05);color:var(--gold,#c79a4a)}',
+      '.pp-up svg{width:26px;height:26px}',
+      '.pp-up .pp-uplab{font-family:"Oswald",sans-serif;font-size:10.5px;letter-spacing:.06em;text-transform:uppercase}',
+      '.pp-loading{grid-column:1/-1;text-align:center;padding:26px 0;font-family:"EB Garamond",serif;font-style:italic;color:var(--cream-fnt,#8d8675)}',
+      '.pp-loading.bad{color:#d98a8a}',
+      '.pp-foot{display:flex;align-items:center;gap:13px;padding:12px 18px;border-top:1px solid rgba(201,162,74,.22);background:linear-gradient(0deg,rgba(0,0,0,.18),transparent)}',
+      '.pp-prev{display:flex;align-items:center;gap:11px;min-width:0;flex:1}',
+      '.pp-chip{width:40px;height:40px;border-radius:9px;border:1px solid rgba(201,162,74,.4);overflow:hidden;flex:none;background:#0f272d}',
+      '.pp-chip img{width:100%;height:100%;object-fit:cover}',
+      '.pp-meta{min-width:0}',
+      '.pp-meta .k{font-family:"Oswald",sans-serif;font-weight:300;letter-spacing:.16em;text-transform:uppercase;font-size:9.5px;color:var(--cream-fnt,#8d8675)}',
+      '.pp-meta .v{font-family:"EB Garamond",serif;font-size:15px;color:var(--cream,#ece2cd);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;text-transform:capitalize}',
+      '.pp-btns{display:flex;gap:9px;flex:none}',
+      '.pp-btn{appearance:none;font-family:"Oswald",sans-serif;font-weight:500;letter-spacing:.08em;text-transform:uppercase;font-size:12px;',
+        'padding:9px 16px;border-radius:9px;cursor:pointer;border:1px solid rgba(201,162,74,.22);background:transparent;color:var(--cream-dim,#c2b99f)}',
+      '.pp-btn:hover{border-color:var(--gold,#c79a4a);color:var(--cream-hi,#f9f3e6)}',
+      '.pp-btn.primary{background:linear-gradient(180deg,var(--gold-br,#e7c279),var(--gold,#c79a4a));border-color:var(--gold-br,#e7c279);color:#10211f;font-weight:600}',
+      '.pp-btn.primary:disabled{opacity:.4;cursor:not-allowed;filter:none}',
+      '.pp-toast{position:absolute;left:18px;bottom:62px;font-family:"Oswald",sans-serif;font-size:12px;letter-spacing:.03em;',
+        'padding:7px 12px;border-radius:8px;background:#1c3b42;border:1px solid rgba(201,162,74,.3);color:var(--cream,#ece2cd);opacity:0;transition:opacity .15s}',
+      '.pp-toast.show{opacity:1}.pp-toast.bad{border-color:#a55;color:#e6b3b3}',
+      '.portrait.pp-tappable{cursor:pointer}',
+      '.portrait.pp-tappable:after{content:"";position:absolute;inset:0;border-radius:inherit;box-shadow:inset 0 0 0 2px rgba(231,194,121,0);transition:box-shadow .15s;pointer-events:none}',
+      '.portrait.pp-tappable:hover:after{box-shadow:inset 0 0 0 2px rgba(231,194,121,.55)}'
+    ].join('');
+    doc.head.appendChild(s);
+  }
+
+  function ppToast(msg, bad) {
+    if (!ppEl) return;
+    var t = ppEl.querySelector('.pp-toast');
+    if (!t) { t = doc.createElement('div'); t.className = 'pp-toast'; ppEl.querySelector('.pp-modal').appendChild(t); }
+    t.textContent = msg; t.classList.toggle('bad', !!bad); t.classList.add('show');
+    clearTimeout(t._tm); t._tm = setTimeout(function () { t.classList.remove('show'); }, 2600);
+  }
+
+  function ppClose() {
+    if (!ppEl) return;
+    var el = ppEl; ppEl = null; el.classList.remove('open');
+    setTimeout(function () { if (el && el.parentNode) el.parentNode.removeChild(el); }, 170);
+  }
+
+  function ppApplyPortrait(url) {
+    if (!url) return;
+    var prev = structural;
+    structural = Object.assign({}, structural, { portrait: url });
+    var frame = portrait && portrait.querySelector('.frame');
+    if (frame) { var img = doc.createElement('img'); img.src = url; img.alt = ''; img.style.cssText = 'width:100%;height:100%;object-fit:cover;object-position:top center;display:block'; frame.innerHTML = ''; frame.appendChild(img); }
+    persistStructural(prev);   // optimistic save + reconcile + revert on error
+  }
+
+  function ppUpdateFoot() {
+    if (!ppEl) return;
+    var chip = ppEl.querySelector('.pp-chip'), nameEl = ppEl.querySelector('.pp-meta .v'), setBtn = ppEl.querySelector('.pp-set');
+    if (ppSel) {
+      chip.innerHTML = ''; var im = doc.createElement('img'); im.src = ppSel.thumb || ppSel.url; chip.appendChild(im);
+      nameEl.textContent = (ppSel.name || 'selected').replace(/[-_]/g, ' ');
+      if (setBtn) setBtn.disabled = false;
+    } else { nameEl.textContent = '\u2014'; if (setBtn) setBtn.disabled = true; }
+  }
+
+  function ppRenderGrid(gridEl, portraits) {
+    gridEl.innerHTML = '';
+    var curUrl = (structural && structural.portrait) || '';
+    portraits.forEach(function (p) {
+      var t = doc.createElement('button'); t.type = 'button'; t.className = 'pp-tile';
+      if ((ppSel && ppSel.url === p.url) || (!ppSel && p.url === curUrl)) { t.classList.add('sel'); if (!ppSel) ppSel = p; }
+      var img = doc.createElement('img'); img.loading = 'lazy'; img.src = p.thumb || p.url; img.alt = '';
+      var nm = doc.createElement('span'); nm.className = 'pp-nm'; nm.textContent = (p.name || '').replace(/[-_]/g, ' ');
+      var ck = doc.createElement('span'); ck.className = 'pp-ck'; ck.textContent = '\u2713';
+      t.appendChild(img); t.appendChild(nm); t.appendChild(ck);
+      t.addEventListener('click', function () {
+        ppSel = p;
+        gridEl.querySelectorAll('.pp-tile').forEach(function (x) { x.classList.remove('sel'); });
+        t.classList.add('sel'); ppUpdateFoot();
+      });
+      gridEl.appendChild(t);
+    });
+    var u = doc.createElement('button'); u.type = 'button'; u.className = 'pp-tile pp-up'; u.title = 'Upload a new portrait';
+    u.innerHTML = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M12 16V4M7 9l5-5 5 5"/><path d="M5 16v3a1 1 0 0 0 1 1h12a1 1 0 0 0 1-1v-3"/></svg><span class="pp-uplab">Upload new</span>';
+    u.addEventListener('click', ppUpload);
+    gridEl.appendChild(u);
+    ppUpdateFoot();
+  }
+
+  async function ppLoadGrid(gridEl) {
+    gridEl.innerHTML = '<div class="pp-loading">Loading the library\u2026</div>';
+    try {
+      var res = await fetch(PP_LIST_URL, { headers: { Authorization: 'Bearer ' + ppToken() } });
+      if (!res.ok) throw new Error('list ' + res.status);
+      var data = await res.json();
+      ppRenderGrid(gridEl, data.portraits || []);
+    } catch (e) { gridEl.innerHTML = '<div class="pp-loading bad">Couldn\u2019t load the portrait library.</div>'; }
+  }
+
+  function ppUpload() {
+    var inp = doc.createElement('input'); inp.type = 'file'; inp.accept = 'image/*';
+    inp.addEventListener('change', async function () {
+      var file = inp.files && inp.files[0]; if (!file) return;
+      ppToast('Uploading\u2026');
+      try {
+        var sres = await fetch(PP_SIGN_URL, { method: 'POST', headers: { Authorization: 'Bearer ' + ppToken(), 'Content-Type': 'application/json' }, body: JSON.stringify({ name: file.name }) });
+        if (sres.status === 403) { ppToast('Your account isn\u2019t approved to upload portraits.', true); return; }
+        if (!sres.ok) throw new Error('sign ' + sres.status);
+        var sig = await sres.json();
+        var fd = new FormData();
+        fd.append('file', file); fd.append('api_key', sig.apiKey); fd.append('timestamp', sig.timestamp);
+        fd.append('signature', sig.signature); fd.append('folder', sig.folder); fd.append('public_id', sig.publicId);
+        var ures = await fetch(sig.uploadUrl, { method: 'POST', body: fd });
+        if (!ures.ok) throw new Error('cloudinary ' + ures.status);
+        var up = await ures.json();
+        var url = up.secure_url || up.url;
+        if (!url) throw new Error('no url');
+        ppApplyPortrait(url); ppClose();
+      } catch (e) { ppToast('Upload failed \u2014 try again.', true); }
+    });
+    inp.click();
+  }
+
+  function ppOpen() {
+    ppInjectCss();
+    ppSel = (structural && structural.portrait) ? { url: structural.portrait, name: 'current' } : null;
+    ppEl = doc.createElement('div'); ppEl.className = 'pp-overlay';
+    ppEl.innerHTML =
+      '<div class="pp-modal" role="dialog" aria-label="Choose a portrait">' +
+        '<div class="pp-head"><div class="pp-title">Choose a portrait<span class="sub">kirtas / portraits</span></div>' +
+          '<button class="pp-x" title="Close">\u2715</button></div>' +
+        '<div class="pp-body"><div class="pp-grid" id="pp-grid"></div></div>' +
+        '<div class="pp-foot"><div class="pp-prev"><div class="pp-chip"></div>' +
+          '<div class="pp-meta"><div class="k">Selected</div><div class="v">\u2014</div></div></div>' +
+          '<div class="pp-btns"><button class="pp-btn pp-cancel">Cancel</button>' +
+          '<button class="pp-btn primary pp-set" disabled>Set portrait</button></div></div>' +
+      '</div>';
+    (doc.body || root).appendChild(ppEl);
+    ppEl.addEventListener('click', function (e) { if (e.target === ppEl) ppClose(); });
+    ppEl.querySelector('.pp-x').addEventListener('click', ppClose);
+    ppEl.querySelector('.pp-cancel').addEventListener('click', ppClose);
+    ppEl.querySelector('.pp-set').addEventListener('click', function () { if (ppSel) { ppApplyPortrait(ppSel.url); ppClose(); } });
+    doc.addEventListener('keydown', function esc(e) { if (e.key === 'Escape') { ppClose(); doc.removeEventListener('keydown', esc); } });
+    requestAnimationFrame(function () { if (ppEl) ppEl.classList.add('open'); });
+    ppLoadGrid(ppEl.querySelector('#pp-grid'));
+  }
+
+  function bindPortraitPicker() {
+    if (!portrait) return;
+    portrait.classList.add('pp-tappable');
+    portrait.setAttribute('role', 'button');
+    portrait.setAttribute('tabindex', '0');
+    portrait.setAttribute('title', 'Change portrait');
+    portrait.addEventListener('click', function (e) { e.stopPropagation(); ppOpen(); });
+    portrait.addEventListener('keydown', function (e) { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); ppOpen(); } });
+  }
+
+
   const ready = (async () => {
     let editable = false;
     try { editable = await characterData.canEdit(key); } catch (_) { editable = false; }
@@ -1396,6 +1589,7 @@ export function wireInspiration({ root, characterData, key, depsReady } = {}) {
       bindSpellcasting(true);
       bindAttacks(true);
       bindActionEditor();
+      bindPortraitPicker();
       try { await (depsReady || Promise.resolve()); } catch (_) {}   // EquipSlots may be self-loading on rail/float hosts
       backfillInventory();
       bindEquip();
