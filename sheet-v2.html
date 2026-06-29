@@ -35,6 +35,18 @@
   --hp-temp:    var(--gold-br);
   --frame: rgba(199,154,74,.34);
   --hair:  rgba(236,226,205,.13);
+  /* nav.js is a shared, theme-driven component, but this page doesn't load theme.css,
+     so the tokens it consumes (--nav-bg, etc.) were undefined here → transparent bar.
+     Page-local values mapped onto the v11 dark-teal palette. theme.css is left untouched. */
+  --nav-bg:     rgba(11,20,18,.94);
+  --nav-border: var(--frame);
+  --gold-dim:   rgba(199,154,74,.14);
+  --gold-mid:   var(--gold);
+  --gold-light: var(--gold-br);
+  --aged:       var(--cream-dim);
+  --muted:      var(--cream-fnt);
+  --ink:        var(--ground);
+  --font-title: "Oswald", sans-serif;
   --bg-hue:0deg; --bg-sat:1; --ac-hue:0deg; --grain:.09;
   --bg-blur:0px; --bg-chroma:grayscale(0); --fx-weave:0; --fx-scan:0; --fx-vig:0;
 }
