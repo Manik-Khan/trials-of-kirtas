@@ -189,6 +189,204 @@ export function buildCantripAttacks(inventory, structural) {
   return out;
 }
 
+// ── Spell damage → live rollable actions ─────────────────────────────────────
+// D&D-5e (2014) damaging spells, surfaced as attack/save actions the same way weapon
+// attacks and weapon-cantrips already are — derived LIVE from the character's known
+// spells (spellcasting.groups, or the legacy spells map), so nothing has to be hand-
+// authored, nothing is stored, and they can never be wiped by a reforge. Cantrips scale
+// with character level (1/2/3/4 dice at L1/5/11/17); leveled spells surface at their base
+// slot level with the per-slot upcast shown as a reminder. Booming Blade / Green-Flame
+// Blade are NOT here — those are weapon cantrips handled by buildCantripAttacks.
+//   kind: 'atk'  → spell attack roll (uses the character's spell attack bonus, crit doubles)
+//         'save' → target saves (rolls damage only; the save + DC ride in the type label)
+//         'auto' → auto-hit (Magic Missile / persistent-area effects)
+var SPELL_DAMAGE = {
+  // ── cantrips (scale by character level) ──
+  "fire bolt":        { dmg:"1d10", type:"fire",       kind:"atk",  scale:"cantrip" },
+  "ray of frost":     { dmg:"1d8",  type:"cold",       kind:"atk",  scale:"cantrip", note:"-10 ft speed" },
+  "shocking grasp":   { dmg:"1d8",  type:"lightning",  kind:"atk",  scale:"cantrip", note:"adv vs metal armor; target can't take reactions" },
+  "chill touch":      { dmg:"1d8",  type:"necrotic",   kind:"atk",  scale:"cantrip", note:"target can't regain HP" },
+  "eldritch blast":   { dmg:"1d10", type:"force",      kind:"atk",  scale:"cantrip", beams:true },
+  "thorn whip":       { dmg:"1d6",  type:"piercing",   kind:"atk",  scale:"cantrip", note:"pull 10 ft" },
+  "produce flame":    { dmg:"1d8",  type:"fire",       kind:"atk",  scale:"cantrip", note:"thrown 30 ft" },
+  "magic stone":      { dmg:"1d6",  type:"bludgeoning",kind:"atk",  scale:"cantrip", addMod:true, note:"thrown; +spell mod to hit & damage" },
+  "sacred flame":     { dmg:"1d8",  type:"radiant",    kind:"save", save:"dex", scale:"cantrip", note:"ignores cover" },
+  "toll the dead":    { dmg:"1d8",  type:"necrotic",   kind:"save", save:"wis", scale:"cantrip", note:"use d12 instead if the target is missing HP" },
+  "word of radiance": { dmg:"1d6",  type:"radiant",    kind:"save", save:"con", scale:"cantrip" },
+  "poison spray":     { dmg:"1d12", type:"poison",     kind:"save", save:"con", scale:"cantrip" },
+  "acid splash":      { dmg:"1d6",  type:"acid",       kind:"save", save:"dex", scale:"cantrip", note:"up to 2 creatures within 5 ft" },
+  "frostbite":        { dmg:"1d6",  type:"cold",       kind:"save", save:"con", scale:"cantrip", note:"disadv on next weapon attack" },
+  "mind sliver":      { dmg:"1d6",  type:"psychic",    kind:"save", save:"int", scale:"cantrip", note:"-1d4 to target's next save" },
+  "thunderclap":      { dmg:"1d6",  type:"thunder",    kind:"save", save:"con", scale:"cantrip" },
+  "sword burst":      { dmg:"1d6",  type:"force",      kind:"save", save:"dex", scale:"cantrip" },
+  "create bonfire":   { dmg:"1d8",  type:"fire",       kind:"save", save:"dex", scale:"cantrip", note:"concentration" },
+  "vicious mockery":  { dmg:"1d4",  type:"psychic",    kind:"save", save:"wis", scale:"cantrip", note:"disadv on next attack" },
+  "sapping sting":    { dmg:"1d4",  type:"necrotic",   kind:"save", save:"con", scale:"cantrip", note:"knocked prone" },
+  "lightning lure":   { dmg:"1d8",  type:"lightning",  kind:"save", save:"str", scale:"cantrip", note:"pull 10 ft (within 15 ft)" },
+  "infestation":      { dmg:"1d6",  type:"poison",     kind:"save", save:"con", scale:"cantrip", note:"target moves 5 ft randomly" },
+
+  // ── 1st ──
+  "magic missile":    { dmg:"3d4",  type:"force",      kind:"auto", bonus:3, min:1, perDarts:true },
+  "burning hands":    { dmg:"3d6",  type:"fire",       kind:"save", save:"dex", min:1, per:"1d6" },
+  "thunderwave":      { dmg:"2d8",  type:"thunder",    kind:"save", save:"con", min:1, per:"1d8", note:"push 10 ft" },
+  "chromatic orb":    { dmg:"3d8",  type:"chosen",     kind:"atk",  min:1, per:"1d8", note:"choose the damage type" },
+  "witch bolt":       { dmg:"1d12", type:"lightning",  kind:"atk",  min:1, per:"1d12", note:"sustain 1d12/turn" },
+  "guiding bolt":     { dmg:"4d6",  type:"radiant",    kind:"atk",  min:1, per:"1d6", note:"next attack vs target has adv" },
+  "inflict wounds":   { dmg:"3d10", type:"necrotic",   kind:"atk",  min:1, per:"1d10" },
+  "ray of sickness":  { dmg:"2d8",  type:"poison",     kind:"atk",  min:1, per:"1d8", note:"CON save or poisoned" },
+  "hellish rebuke":   { dmg:"2d10", type:"fire",       kind:"save", save:"dex", min:1, per:"1d10", note:"reaction" },
+  "ice knife":        { dmg:"2d6",  type:"cold",       kind:"save", save:"dex", min:1, per:"1d6", note:"+1d10 piercing on the initial hit" },
+
+  // ── 2nd ──
+  "scorching ray":    { dmg:"2d6",  type:"fire",       kind:"atk",  min:2, rays:3, perRay:true },
+  "shatter":          { dmg:"3d8",  type:"thunder",    kind:"save", save:"con", min:2, per:"1d8" },
+  "flaming sphere":   { dmg:"2d6",  type:"fire",       kind:"save", save:"dex", min:2, per:"1d6", note:"concentration" },
+  "melf's acid arrow":{ dmg:"4d4",  type:"acid",       kind:"atk",  min:2, per:"1d4", note:"+2d4 acid next turn" },
+  "acid arrow":       { dmg:"4d4",  type:"acid",       kind:"atk",  min:2, per:"1d4", note:"+2d4 acid next turn" },
+  "aganazzar's scorcher": { dmg:"3d8", type:"fire",    kind:"save", save:"dex", min:2, per:"1d8" },
+  "moonbeam":         { dmg:"2d10", type:"radiant",    kind:"save", save:"con", min:2, per:"1d10", note:"concentration" },
+  "spiritual weapon": { dmg:"1d8",  type:"force",      kind:"atk",  min:2, addMod:true, note:"bonus action; +1d8 per 2 slot levels" },
+  "cloud of daggers": { dmg:"4d4",  type:"slashing",   kind:"auto", min:2, per:"2d4", note:"on enter / start of turn in area" },
+  "dragon's breath":  { dmg:"3d6",  type:"chosen",     kind:"save", save:"dex", min:2, per:"1d6", note:"choose the damage type" },
+
+  // ── 3rd ──
+  "fireball":         { dmg:"8d6",  type:"fire",       kind:"save", save:"dex", min:3, per:"1d6" },
+  "lightning bolt":   { dmg:"8d6",  type:"lightning",  kind:"save", save:"dex", min:3, per:"1d6" },
+  "spirit guardians": { dmg:"3d8",  type:"radiant or necrotic", kind:"save", save:"wis", min:3, per:"1d8", note:"concentration" },
+  "vampiric touch":   { dmg:"3d6",  type:"necrotic",   kind:"atk",  min:3, per:"1d6", note:"concentration; heal half" },
+  "call lightning":   { dmg:"3d10", type:"lightning",  kind:"save", save:"dex", min:3, per:"1d10", note:"concentration" },
+  "erupting earth":   { dmg:"3d12", type:"bludgeoning",kind:"save", save:"dex", min:3, per:"1d12" },
+
+  // ── 4th ──
+  "ice storm":        { dmg:"2d8",  type:"bludgeoning",kind:"save", save:"dex", min:4, per:"1d8", note:"+4d6 cold" },
+  "blight":           { dmg:"8d8",  type:"necrotic",   kind:"save", save:"con", min:4, per:"1d8" },
+  "vitriolic sphere": { dmg:"10d4", type:"acid",       kind:"save", save:"dex", min:4, per:"2d4" },
+  "wall of fire":     { dmg:"5d8",  type:"fire",       kind:"save", save:"dex", min:4, per:"1d8", note:"concentration" },
+  "sickening radiance": { dmg:"4d10", type:"radiant",  kind:"save", save:"con", min:4, note:"1 level of exhaustion" },
+
+  // ── 5th ──
+  "cone of cold":     { dmg:"8d8",  type:"cold",       kind:"save", save:"con", min:5, per:"1d8" },
+  "flame strike":     { dmg:"8d6",  type:"fire & radiant", kind:"save", save:"dex", min:5, per:"1d6" },
+  "cloudkill":        { dmg:"5d8",  type:"poison",     kind:"save", save:"con", min:5, per:"1d8", note:"concentration" },
+  "immolation":       { dmg:"8d6",  type:"fire",       kind:"save", save:"dex", min:5, note:"concentration" },
+  "synaptic static":  { dmg:"8d6",  type:"psychic",    kind:"save", save:"int", min:5, note:"-1d6 to attacks/checks after" },
+  "destructive wave": { dmg:"10d6", type:"thunder + radiant/necrotic", kind:"save", save:"con", min:5 },
+
+  // ── 6th ──
+  "disintegrate":     { dmg:"10d6", type:"force",      kind:"save", save:"dex", bonus:40, min:6, per:"3d6" },
+  "chain lightning":  { dmg:"10d8", type:"lightning",  kind:"save", save:"dex", min:6, note:"+1 target per slot above 6th" },
+  "circle of death":  { dmg:"8d6",  type:"necrotic",   kind:"save", save:"con", min:6, per:"2d6" },
+  "sunbeam":          { dmg:"6d8",  type:"radiant",    kind:"save", save:"con", min:6, note:"concentration" },
+  "blade barrier":    { dmg:"6d10", type:"slashing",   kind:"save", save:"dex", min:6, note:"concentration" },
+
+  // ── 7th ──
+  "delayed blast fireball": { dmg:"12d6", type:"fire", kind:"save", save:"dex", min:7, per:"1d6", note:"+1d6 per round delayed" },
+  "finger of death":  { dmg:"7d8",  type:"necrotic",   kind:"save", save:"con", bonus:30, min:7 },
+  "fire storm":       { dmg:"7d10", type:"fire",       kind:"save", save:"dex", min:7 },
+  "crown of stars":   { dmg:"4d12", type:"radiant",    kind:"atk",  min:7, note:"one star per attack" },
+  "prismatic spray":  { dmg:"10d6", type:"varies",     kind:"save", save:"dex", min:7, note:"roll the ray color" },
+
+  // ── 8th ──
+  "incendiary cloud": { dmg:"10d8", type:"fire",       kind:"save", save:"dex", min:8, note:"concentration" },
+  "sunburst":         { dmg:"12d6", type:"radiant",    kind:"save", save:"con", min:8 },
+  "abi-dalzim's horrid wilting": { dmg:"12d8", type:"necrotic", kind:"save", save:"con", min:8 },
+
+  // ── 9th ──
+  "meteor swarm":     { dmg:"20d6", type:"fire + bludgeoning", kind:"save", save:"dex", min:9 },
+  "psychic scream":   { dmg:"14d6", type:"psychic",    kind:"save", save:"int", min:9 }
+};
+
+function scaleDice(s, mult) { var m = String(s).match(/(\d+)d(\d+)/); return m ? (parseInt(m[1], 10) * mult) + 'd' + m[2] : s; }
+function doubleDice(s) { var m = String(s).match(/(\d+)d(\d+)/); return m ? (2 * parseInt(m[1], 10)) + 'd' + m[2] : s; }
+function spellOrdinal(n) { var v = n % 100; return n + (['th', 'st', 'nd', 'rd'][(v - 20) % 10] || ['th', 'st', 'nd', 'rd'][v] || 'th'); }
+function cantripMult(level) { return level >= 17 ? 4 : level >= 11 ? 3 : level >= 5 ? 2 : 1; }
+
+// Every known spell with its level, from spellcasting.groups (forged) or the legacy
+// structural.spells map (older sheets). Lowercased, apostrophes normalised, so the
+// table lookup matches whichever quote style the source data used.
+function knownSpellList(structural) {
+  var out = [], seen = {}, sc = structural.spellcasting || {};
+  function add(name, lvl) {
+    if (!name) return;
+    var key = String(name).trim().toLowerCase().replace(/\u2019/g, "'");
+    if (seen[key]) return; seen[key] = 1;
+    out.push({ name: String(name).trim(), key: key, level: (lvl == null ? 0 : lvl) });
+  }
+  (sc.groups || []).forEach(function (g) {
+    var glvl = (g.level != null) ? g.level : (/cantrip/i.test(g.heading || '') ? 0 : null);
+    (g.spells || []).forEach(function (sp) {
+      var spl = sp && sp.level;
+      var lvl = (spl != null) ? (spl === 'cantrip' ? 0 : spl) : glvl;
+      add(sp && sp.name, lvl);
+    });
+  });
+  var legacy = structural.spells;
+  if (legacy && typeof legacy === 'object' && !Array.isArray(legacy)) {
+    Object.keys(legacy).forEach(function (k) {
+      var lm = k.match(/^level(\d)$/i);
+      var lvl = /^cantrips?$/i.test(k) ? 0 : (lm ? +lm[1] : null);
+      if (lvl == null || !Array.isArray(legacy[k])) return;
+      legacy[k].forEach(function (sp) { add((sp && sp.name) || sp, lvl); });
+    });
+  }
+  return out;
+}
+
+// Turn the character's damaging spells into rollable actions. Attack spells become
+// 'attack-cantrip' rows (real spell-attack to-hit, crit doubles the dice); save / auto
+// spells become 'damage-only' rows with the save (DC + ability) shown in the type label.
+export function buildSpellAttacks(structural) {
+  structural = structural || {};
+  var spells = knownSpellList(structural);
+  if (!spells.length) return [];
+  var clvl = structural.level || 0;
+  var combat = structural.combat || {};
+  var atk = combat.spellAttackBonus != null ? combat.spellAttackBonus : 0;
+  var dc = combat.spellSaveDC != null ? combat.spellSaveDC : null;
+  var spellMod = combat.spellAttackBonus != null ? (combat.spellAttackBonus - (structural.proficiencyBonus || 0)) : 0;
+  var authored = {};
+  (structural.actions || []).forEach(function (a) { if (a && a.label) authored[String(a.label).trim().toLowerCase().replace(/\u2019/g, "'")] = 1; });
+
+  var out = [];
+  spells.forEach(function (sp) {
+    var spec = SPELL_DAMAGE[sp.key];
+    if (!spec || authored[sp.key]) return;          // unknown spell, or the player hand-built it → leave it
+    var dice, label = sp.name, extras = [];
+
+    if (spec.scale === 'cantrip') {
+      var mult = cantripMult(clvl);
+      if (spec.beams) {
+        dice = spec.dmg;                 // Eldritch Blast: each beam is the base die — you make `mult` separate attacks
+        if (mult > 1) { label = sp.name + ' (\u00d7' + mult + ' beams)'; extras.push(mult + ' beams \u2014 roll each separately'); }
+      } else {
+        dice = scaleDice(spec.dmg, mult);
+      }
+    } else {
+      dice = spec.dmg;
+      if (spec.rays) { label = sp.name + ' (' + spec.rays + ' rays)'; extras.push(spec.rays + ' rays \u2014 roll each' + (spec.perRay ? '; +1 ray per slot above ' + spellOrdinal(spec.min) : '')); }
+      else if (spec.min) label = sp.name + ' (' + spellOrdinal(spec.min) + ')';
+      if (!spec.rays && spec.per) extras.push('+' + spec.per + ' per slot above ' + spellOrdinal(spec.min));
+      if (spec.perDarts) extras.push('+1 dart per slot above ' + spellOrdinal(spec.min));
+    }
+
+    if (spec.note) extras.push(spec.note);
+    var typeLabel = spec.type;
+    if (spec.kind === 'save') typeLabel += ' (' + String(spec.save).toUpperCase() + ' save' + (dc != null ? ' DC ' + dc : '') + ')';
+    else if (spec.kind === 'auto') typeLabel += ' (auto-hit)';
+    if (extras.length) typeLabel += ' \u00b7 ' + extras.join('; ');
+
+    var id = 'sp-' + sp.key.replace(/[^a-z0-9]+/g, '');
+    var dmgBonus = (spec.bonus || 0) + (spec.addMod ? spellMod : 0);
+
+    if (spec.kind === 'atk') {
+      out.push({ id: id, type: 'attack-cantrip', label: label, hitMod: atk, dmgMod: dmgBonus, dmgDice: dice, critDice: doubleDice(dice), dmgType: typeLabel });
+    } else {
+      out.push({ id: id, type: 'damage-only', label: label, dmgMod: dmgBonus, dmgDice: dice, dmgType: typeLabel });
+    }
+  });
+  return out;
+}
+
 // ── The ONE action list ─────────────────────────────────────────────────────
 // The renderer (renderActions) and the click handler (sheet-actions.js's allActions)
 // MUST build their list the same way, or a painted row whose id the clicker can't
@@ -202,6 +400,7 @@ export function assembleActions(inventory, structural, opts) {
   structural = structural || {};
   var list = buildWeaponActions(inventory, structural)
     .concat(buildCantripAttacks(inventory, structural))
+    .concat(buildSpellAttacks(structural))
     .concat(structural.actions || []);
   return applyActionOverrides(list, structural, opts);
 }
