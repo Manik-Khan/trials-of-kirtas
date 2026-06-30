@@ -29,6 +29,7 @@
 // ---------------------------------------------------------------------------
 
 import { assembleActions, meleeWeaponOptions } from './weapon-actions.js';
+import { spellDetailHTML, feedSummary } from './spell-detail.js';
 
 // ── ResourceDerive resolver (browser global, set by resource-derive.js) ──
 function rd() {
@@ -1143,7 +1144,10 @@ export function wireInspiration({ root, characterData, key, depsReady } = {}) {
     }
     if (isConc) nv.concentration = { name: spellName, duration: '' };
     vitals = nv; refresh(); persistVitals(prev);
-    feedPost(spellName, main + (isConc ? ' \u00B7 concentration' : ''));
+    // richer feed when we have the fetched detail (we always do when casting from the drawer)
+    var rich = spellDetailCache[spellName] ? feedSummary(spellDetailCache[spellName]) : null;
+    var line = rich ? (rich + ((base >= 1 && p && p.level > base) ? ' \u00B7 upcast to ' + ordn(p.level) + '-level' : '')) : main;
+    feedPost(spellName, line + (isConc ? ' \u00B7 concentration' : ''));
   }
 
   function dropConcentration() {
@@ -1165,10 +1169,52 @@ export function wireInspiration({ root, characterData, key, depsReady } = {}) {
     var cx = pop.querySelector('[data-pk-cancel]'); if (cx) cx.addEventListener('click', function (e) { e.stopPropagation(); closePops(); });
   }
 
+  // ── tap-to-read spell drawer: expands inline (full-width via column-span), fetches the
+  // full 5etools entry on first open, caches it, and hosts a Cast button that reuses doCast
+  // (so the slot picker / upcast / concentration guard / feed all come along unchanged).
+  var spellDetailCache = {}, spellDrawerEl = null, spellDrawerName = null;
+  function toggleSpellDrawer(rowEl) {
+    var name = rowEl.getAttribute('data-spell');
+    if (spellDrawerName === name) { closeSpellDrawer(); return; }
+    closeSpellDrawer();
+    spellDrawerName = name; rowEl.classList.add('open');
+    var dr = doc.createElement('div'); dr.className = 'spell-drawer'; dr.setAttribute('data-spell-drawer', name);
+    rowEl.insertAdjacentElement('afterend', dr); spellDrawerEl = dr;
+    fillSpellDrawer(dr, rowEl, name);
+  }
+  function closeSpellDrawer() {
+    if (spellDrawerEl && spellDrawerEl.parentNode) spellDrawerEl.parentNode.removeChild(spellDrawerEl);
+    if (spellDrawerName) { var prev = spellEl(spellDrawerName); if (prev) prev.classList.remove('open'); }
+    spellDrawerEl = null; spellDrawerName = null;
+  }
+  function castBlockHTML(name, level) {
+    var at = level === 0 ? 'cantrip \u2014 no slot spent' : 'spends a slot \u2014 you pick the level on cast';
+    return '<div class="sd-cast"><button type="button" class="sd-castbtn" data-spell-go="' + esc(name) + '">Cast</button><span class="sd-at">' + at + '</span></div>';
+  }
+  function renderSpellDrawer(dr, detail, name, level, isConc) {
+    dr.innerHTML = spellDetailHTML(detail) + castBlockHTML(name, level);
+    var b = dr.querySelector('[data-spell-go]');
+    if (b) b.addEventListener('click', function (e) { e.stopPropagation(); doCast(name, level, isConc, null); });
+  }
+  function fillSpellDrawer(dr, rowEl, name) {
+    var level = parseInt(rowEl.getAttribute('data-level'), 10) || 0, isConc = rowEl.getAttribute('data-conc') === '1';
+    if (spellDetailCache[name]) { renderSpellDrawer(dr, spellDetailCache[name], name, level, isConc); return; }
+    dr.innerHTML = '<div class="sd-loading"><span class="sd-spin"></span> Fetching from the compendium\u2026</div>';
+    var SSD = (typeof window !== 'undefined') ? window.SoulShardsData : null;
+    if (!SSD || !SSD.loadSpellMeta) { dr.innerHTML = '<div class="sd-loading">The spell compendium isn\u2019t loaded on this page.</div>'; return; }
+    SSD.loadSpellMeta([name], { detail: true }).then(function (arr) {
+      if (spellDrawerName !== name || !dr.parentNode) return;             // user moved on / drawer closed
+      var detail = (arr && arr[0]) || null;
+      if (!detail) { dr.innerHTML = '<div class="sd-loading">No compendium entry found for ' + esc(name) + '.</div>'; return; }
+      spellDetailCache[name] = detail;
+      renderSpellDrawer(dr, detail, name, level, isConc);
+    }).catch(function () { if (spellDrawerName === name && dr.parentNode) dr.innerHTML = '<div class="sd-loading">Couldn\u2019t load this spell right now.</div>'; });
+  }
+
   function onCastClick(e) {
     var slot = e.target.closest('[data-slot]'); if (slot) { spendSlot(slot.getAttribute('data-slot'), +slot.getAttribute('data-i')); return; }
     var drop = e.target.closest('[data-conc-drop]'); if (drop) { dropConcentration(); return; }
-    var sp = e.target.closest('.spell[data-spell]'); if (sp) { doCast(sp.getAttribute('data-spell'), parseInt(sp.getAttribute('data-level'), 10) || 0, sp.getAttribute('data-conc') === '1', null); return; }
+    var sp = e.target.closest('.spell[data-spell]'); if (sp) { toggleSpellDrawer(sp); return; }
   }
   function bindSpellcasting(editable) { if (!editable) return; root.addEventListener('click', onCastClick); }
 

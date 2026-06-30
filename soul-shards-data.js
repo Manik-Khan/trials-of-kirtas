@@ -232,6 +232,9 @@
         item.concentration = (sp.duration || []).some(d => d && d.concentration);
         item.entries = sp.entries || [];
         item.entriesHigherLevel = sp.entriesHigherLevel || null;
+        item.spellAttack = sp.spellAttack || null;
+        item.savingThrow = sp.savingThrow || null;
+        item.damageInflict = sp.damageInflict || null;
       }
       out.push(item);
     }
@@ -254,6 +257,9 @@
       item.concentration = (sp.duration || []).some(d => d && d.concentration);
       item.entries = sp.entries || [];
       item.entriesHigherLevel = sp.entriesHigherLevel || null;
+      item.spellAttack = sp.spellAttack || null;
+      item.savingThrow = sp.savingThrow || null;
+      item.damageInflict = sp.damageInflict || null;
     }
     return item;
   }
