@@ -40,6 +40,7 @@
   // Lock glyphs — the pill (toggle) and the always-on row/tile indicator.
   var LOCKG = '<svg viewBox="0 0 24 24" width="11" height="11" fill="none" stroke="currentColor" stroke-width="2"><rect x="5" y="11" width="14" height="9" rx="1.5"/><path d="M8 11V8a4 4 0 018 0v3"/></svg>';
   var UNLOCKG = '<svg viewBox="0 0 24 24" width="11" height="11" fill="none" stroke="currentColor" stroke-width="2"><rect x="5" y="11" width="14" height="9" rx="1.5"/><path d="M8 11V8a4 4 0 017.5-2.2"/></svg>';
+  var COGG = '<svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="1.7"><circle cx="12" cy="12" r="3"/><path d="M12 3v2M12 19v2M4.5 4.5l1.4 1.4M18.1 18.1l1.4 1.4M3 12h2M19 12h2M4.5 19.5l1.4-1.4M18.1 5.9l1.4-1.4"/></svg>';
 
   // ── carry weight: every item counts, bag contents included (they're items) ──
   function totalWeight(inv) {
@@ -186,7 +187,7 @@
       + '</div>'
     + '</div>';
   }
-  function editFormHtml(it, st) {
+  function editFormHtml(it, st, inv) {
     var ii = II();
     var iconRow = ii
       ? '<div class="ge-iconrow"><div class="ge-swatch">' + ii.iconSvg(curIconId(it), 34) + '</div>'
@@ -203,11 +204,36 @@
         + '<div class="ge-f"><label>Weight (lb)</label><input type="number" min="0" step="0.1" data-ef="weight" value="' + (it.weight || 0) + '"></div>'
         + '<div class="ge-f"><label>Rarity</label><select data-ef="rarity">' + RARITIES.map(function (r) { return '<option' + (r === (it.rarity || 'None') ? ' selected' : '') + '>' + r + '</option>'; }).join('') + '</select></div>'
         + '<div class="ge-f"><label>Attunement</label><div class="ge-toggle' + (it.reqAttune ? ' on' : '') + '" data-eftoggle="reqAttune"><span class="box"></span><span>Requires attunement</span></div></div>'
+        + '<div class="ge-f"><label>Container</label><div class="ge-toggle' + (it.isContainer ? ' on' : '') + '" data-eftoggle="isContainer"><span class="box"></span><span>Holds other items</span></div></div>'
         + '<div class="ge-f wide"><label>Flavor / Notes</label><textarea data-ef="flavor" placeholder="A line of description, history, or a table note\u2026">' + esc(it.flavor || '') + '</textarea></div>'
       + '</div>'
       + (isWeaponItem(it) ? combatSectionHtml(it) : '')
-      + '<div class="ge-foot"><button class="ge-btn" data-ecancel="1">Cancel</button><button class="ge-btn primary" data-esave="1">Save changes</button></div>'
+      + editFootHtml(it, st, inv)
     + '</div>';
+  }
+  // childcount for the spill warning; container delete/un-container moves these to the top level
+  function kidCount(inv, it) { return (inv && it && it.id != null) ? childrenOf(inv, it.id).length : 0; }
+  // the editor footer is normally Delete · Cancel · Save, but swaps to an inline confirm strip
+  // when st.confirm is armed ('delete' from the Delete button, 'uncontain' from un-ticking
+  // Container on a non-empty bag). The confirm's Yes routes by st.confirm in sheet-actions.
+  function editFootHtml(it, st, inv) {
+    var conf = st && st.confirm, n = kidCount(inv, it);
+    if (conf === 'delete') {
+      var dm = (it.isContainer && n > 0)
+        ? 'Delete <b>' + esc(it.name || 'this') + '</b>? Its ' + n + ' item' + (n > 1 ? 's' : '') + ' move to your inventory.'
+        : 'Delete <b>' + esc(it.name || 'this item') + '</b>? This can\u2019t be undone.';
+      return '<div class="ge-confirm"><div class="ge-cmsg">' + dm + '</div>'
+        + '<div class="ge-cbtns"><button class="ge-btn" data-conf-no="1">Keep</button>'
+        + '<button class="ge-btn del" data-conf-yes="1">Delete</button></div></div>';
+    }
+    if (conf === 'uncontain') {
+      return '<div class="ge-confirm"><div class="ge-cmsg">No longer a container? Its ' + n + ' item' + (n > 1 ? 's' : '') + ' move to your inventory.</div>'
+        + '<div class="ge-cbtns"><button class="ge-btn" data-conf-no="1">Keep as container</button>'
+        + '<button class="ge-btn del" data-conf-yes="1">Spill &amp; convert</button></div></div>';
+    }
+    return '<div class="ge-foot"><button class="ge-btn danger" data-edel="1">Delete</button>'
+      + '<button class="ge-btn" data-ecancel="1">Cancel</button>'
+      + '<button class="ge-btn primary" data-esave="1">Save changes</button></div>';
   }
 
   // ── equip / attune controls — same contract sheet-actions.js already binds ──
@@ -244,10 +270,10 @@
     var row = '<div class="gm-row' + (worn ? ' worn' : '') + (it.attuned ? ' attuned' : '') + (it.locked ? ' locked' : '') + '" data-row="' + esc(k) + '"' + (isBag ? '' : ' data-detail="' + esc(k) + '"') + '>'
       + '<span class="gm-grip" data-grip="' + esc(k) + '">\u283F</span>' + caret
       + '<span class="gm-ic">' + iconHtml(it) + '</span>'
-      + '<span class="gm-n">' + esc(it.name || 'Item') + '</span>' + star + (it.locked ? '<span class="gm-lockg">' + LOCKG + '</span>' : '') + count + qty + mid + ctl + (isBag ? '<span class="bagdrop-hint">file here</span>' : '') + '</div>';
+      + '<span class="gm-n">' + esc(it.name || 'Item') + '</span>' + star + (it.locked ? '<span class="gm-lockg">' + LOCKG + '</span>' : '') + count + qty + mid + ctl + (isBag ? '<button class="gm-cog" data-editopen="' + esc(k) + '" title="Edit / delete this bag">' + COGG + '</button>' : '') + (isBag ? '<span class="bagdrop-hint">file here</span>' : '') + '</div>';
     var below = '';
     if (st.editing === k) {
-      below = editFormHtml(st.draft || it, st);
+      below = editFormHtml(st.draft || it, st, inv);
     } else if (open) {
       if (isBag) {
         var kids = childrenOf(inv, it.id);
@@ -311,6 +337,7 @@
       var meta = isBag ? (childrenOf(inv, it.id).length + ' items') : (it.weaponCat || it.typeLabel || (it.weight ? it.weight + ' lb' : ''));
       return '<div class="gm-tile' + (worn ? ' worn' : '') + (isBag ? ' bag' : '') + (it.locked ? ' locked' : '') + (openKey === k ? ' sel' : '') + '" data-tile="' + esc(k) + '">'
         + '<span class="gm-tgrip" data-grip="' + esc(k) + '">\u283F</span>'
+        + (isBag ? '<button class="gm-cog" data-editopen="' + esc(k) + '" title="Edit / delete this bag">' + COGG + '</button>' : '')
         + tag + att + lk + qty + '<span class="gm-ti">' + iconHtml(it) + '</span>'
         + '<span class="gm-tn">' + esc(it.name || 'Item') + '</span><span class="gm-tm">' + esc(meta) + '</span></div>';
     });
@@ -320,7 +347,7 @@
       if (oi >= 0) {
         var item = top[oi].it;
         var detail = (st.editing === openKey)
-          ? editFormHtml(st.draft || item, st)
+          ? editFormHtml(st.draft || item, st, inv)
           : (item.isContainer
               ? '<div class="gm-children">' + (childrenOf(inv, item.id).length
                   ? childrenOf(inv, item.id).map(function (c) { return rowHtml(c.it, c.i, inv, ES, st, capFull); }).join('')
@@ -605,11 +632,23 @@
       '.tok-sheet .ge-toggle .box{width:16px;height:16px;border:1.5px solid rgba(199,154,74,.45);transform:rotate(45deg);flex-shrink:0;transition:background .15s}' +
       '.tok-sheet .ge-toggle.on .box{background:#e7c279;border-color:#e7c279}' +
       '.tok-sheet .ge-toggle span{font-family:"EB Garamond",serif;font-size:13.5px;color:#c2b99f}' +
-      '.tok-sheet .ge-foot{display:flex;justify-content:flex-end;gap:9px;border-top:1px solid rgba(236,226,205,.13);padding-top:11px}' +
+      '.tok-sheet .ge-foot{display:flex;align-items:center;justify-content:flex-end;gap:9px;border-top:1px solid rgba(236,226,205,.13);padding-top:11px}' +
       '.tok-sheet .ge-btn{font:600 9.5px/1 "Oswald",sans-serif;letter-spacing:.1em;text-transform:uppercase;border-radius:999px;padding:8px 16px;cursor:pointer;border:1px solid rgba(199,154,74,.45);background:transparent;color:#c2b99f}' +
       '.tok-sheet .ge-btn:hover{color:#f9f3e6}' +
       '.tok-sheet .ge-btn.primary{background:#c79a4a;border-color:#c79a4a;color:#241c11}' +
       '.tok-sheet .ge-btn.primary:hover{background:#e7c279}' +
+      '.tok-sheet .ge-btn.danger{border-color:rgba(207,59,44,.5);color:#e0584a;margin-right:auto}' +
+      '.tok-sheet .ge-btn.danger:hover{color:#f9f3e6;border-color:#e0584a;background:rgba(207,59,44,.12)}' +
+      '.tok-sheet .ge-btn.del{border-color:#cf3b2c;background:#cf3b2c;color:#f9f3e6}' +
+      '.tok-sheet .ge-btn.del:hover{background:#e0584a;border-color:#e0584a}' +
+      '.tok-sheet .ge-confirm{display:flex;align-items:center;gap:12px;flex-wrap:wrap;border-top:1px solid rgba(207,59,44,.3);padding-top:11px}' +
+      '.tok-sheet .ge-cmsg{flex:1 1 200px;font-family:"EB Garamond",serif;font-size:13px;color:#c2b99f;min-width:180px}' +
+      '.tok-sheet .ge-cmsg b{color:#f9f3e6;font-weight:600}' +
+      '.tok-sheet .ge-cbtns{display:flex;gap:9px;margin-left:auto}' +
+      '.tok-sheet .gm-cog{border:1px solid transparent;background:transparent;color:#8d8675;border-radius:50%;width:24px;height:24px;display:none;align-items:center;justify-content:center;cursor:pointer;padding:0;flex:0 0 auto}' +
+      '.tok-sheet [data-sec="inventory"].can-edit .gm-cog{display:inline-flex}' +
+      '.tok-sheet .gm-cog:hover{color:#e7c279;border-color:rgba(199,154,74,.4);background:rgba(231,194,121,.07)}' +
+      '.tok-sheet .gm-tile .gm-cog{position:absolute;top:3px;right:3px;z-index:3}' +
       '.tok-sheet [data-equip]{position:relative}' +
       '.tok-sheet .gm-row.dragging{background:rgba(199,154,74,.10);box-shadow:0 6px 18px rgba(0,0,0,.4);z-index:5;cursor:grabbing}' +
       '.tok-sheet .gm-row.bagdrop{background:rgba(85,196,192,.12);box-shadow:inset 0 0 0 1px #55c4c0}' +

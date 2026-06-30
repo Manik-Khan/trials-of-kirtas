@@ -134,6 +134,41 @@ export function moveItemToTop(inv, dragItem, beforeItem) {
   top.splice(at, 0, dragItem);
   return { inv: rebuildFromTop(inv, top), ok: true };
 }
+// Delete an item. If it's a container, its contents are NOT destroyed — they spill to the
+// top level (containerId cleared) so nothing is orphaned. Returns the rebuilt array, whether
+// it removed anything, and how many children spilled.
+export function deleteItemFrom(inv, target) {
+  if (!target) return { inv: inv, ok: false, spilled: 0 };
+  var spilled = 0;
+  if (target.isContainer && target.id != null) {
+    inv.forEach(function (x) { if (x && x.containerId === target.id) { x.containerId = undefined; spilled++; } });
+  }
+  var out = inv.filter(function (x) { return x !== target; });
+  return { inv: rebuildFromTop(out, topItemsOf(out)), ok: true, spilled: spilled };
+}
+// Delete several items at once (the torch / bulk path). A selected container spills only the
+// contents that weren't themselves selected; selected children just go. One rebuild at the end.
+export function deleteItemsFrom(inv, targets) {
+  var set = new Set(targets || []);
+  if (!set.size) return { inv: inv, ok: false, spilled: 0 };
+  var spilled = 0;
+  inv.forEach(function (bag) {
+    if (bag && bag.isContainer && bag.id != null && set.has(bag)) {
+      inv.forEach(function (x) { if (x && x.containerId === bag.id && !set.has(x)) { x.containerId = undefined; spilled++; } });
+    }
+  });
+  var out = inv.filter(function (x) { return !set.has(x); });
+  return { inv: rebuildFromTop(out, topItemsOf(out)), ok: true, spilled: spilled };
+}
+// Stop being a container: spill the contents to the top level and clear the flag. The item
+// stays in the inventory as a plain item. (Becoming a container is just isContainer=true + an id.)
+export function spillContainer(inv, bag) {
+  if (!bag) return { inv: inv, spilled: 0 };
+  var spilled = 0;
+  if (bag.id != null) inv.forEach(function (x) { if (x && x.containerId === bag.id) { x.containerId = undefined; spilled++; } });
+  bag.isContainer = false;
+  return { inv: rebuildFromTop(inv, topItemsOf(inv)), spilled: spilled };
+}
 
 export function wireInspiration({ root, characterData, key, depsReady } = {}) {
   root = root || (typeof document !== 'undefined' ? document : null);
@@ -448,14 +483,53 @@ export function wireInspiration({ root, characterData, key, depsReady } = {}) {
     st.draft = JSON.parse(JSON.stringify(it));
     st.picker = false;
     st.pickerCat = null;                                   // GearManager defaults to the item's category
+    st.confirm = null;
     if (!st.open) st.open = Object.create(null);
     if (it.containerId) st.open['id:' + it.containerId] = true;   // open the parent bag so the form is visible
     st.open[key] = true;
     refresh();
     try { var nm = root.querySelector('[data-ef="name"]'); if (nm && nm.focus) { nm.focus(); if (nm.setSelectionRange) nm.setSelectionRange(nm.value.length, nm.value.length); } } catch (e) {}
   }
-  function clearEdit(st) { st.editing = null; st.picker = false; st.pickerCat = null; st.draft = null; }
+  function clearEdit(st) { st.editing = null; st.picker = false; st.pickerCat = null; st.draft = null; st.confirm = null; }
   function cancelEdit() { var st = gmState(); if (!st) return; clearEdit(st); refresh(); }
+  // ── item delete + the Container toggle's side effects ──
+  // Toggling Container on a plain item makes it a container (and gives it an id so things can be
+  // filed in); toggling it off spills any contents to the top level first (confirmed if non-empty).
+  function toggleItemContainer() {
+    var st = gmState(); if (!st || !st.editing || !st.draft) return;
+    var it = keyToItem(st.editing); if (!it) return;
+    if (!it.isContainer) {
+      var prevE = JSON.parse(JSON.stringify(inventory));
+      it.isContainer = true;
+      if (it.id == null) { it.id = newContainerId(); if (!st.open) st.open = Object.create(null); st.editing = 'id:' + it.id; st.open['id:' + it.id] = true; }
+      st.draft.isContainer = true; st.draft.id = it.id;
+      refresh(); persistInventory(prevE);
+    } else if (childrenRef(inventory, it).length) {
+      st.confirm = 'uncontain'; refresh();                       // non-empty → confirm the spill
+    } else {
+      var prevD = JSON.parse(JSON.stringify(inventory));
+      it.isContainer = false; st.draft.isContainer = false;
+      refresh(); persistInventory(prevD);
+    }
+  }
+  function confirmYes() { var st = gmState(); if (!st) return; if (st.confirm === 'delete') doDeleteItem(); else if (st.confirm === 'uncontain') doUncontainItem(); }
+  function doDeleteItem() {
+    var st = gmState(); if (!st || !st.editing) return;
+    var it = keyToItem(st.editing);
+    if (!it) { clearEdit(st); refresh(); return; }
+    var prev = JSON.parse(JSON.stringify(inventory));
+    inventory = deleteItemFrom(inventory, it).inv;
+    clearEdit(st); refresh(); persistInventory(prev);
+  }
+  function doUncontainItem() {
+    var st = gmState(); if (!st || !st.editing) return;
+    var it = keyToItem(st.editing);
+    if (!it) { st.confirm = null; refresh(); return; }
+    var prev = JSON.parse(JSON.stringify(inventory));
+    inventory = spillContainer(inventory, it).inv;
+    if (st.draft) st.draft.isContainer = false;
+    st.confirm = null; refresh(); persistInventory(prev);
+  }
   function saveEdit() {
     var st = gmState(); if (!st || !st.editing) return;
     var it = keyToItem(st.editing), d = st.draft;
@@ -554,6 +628,10 @@ export function wireInspiration({ root, characterData, key, depsReady } = {}) {
     var pt = e.target.closest('[data-pktoggle]'); if (pt && root.contains(pt)) { e.stopPropagation(); var s1 = gmState(); if (s1) { s1.picker = !s1.picker; refresh(); } return; }
     var pc = e.target.closest('[data-pkcat]'); if (pc && root.contains(pc)) { e.stopPropagation(); var s2 = gmState(); if (s2) { s2.pickerCat = pc.getAttribute('data-pkcat'); refresh(); } return; }
     var pp = e.target.closest('[data-pkpick]'); if (pp && root.contains(pp)) { e.stopPropagation(); var s3 = gmState(); if (s3 && s3.draft) { s3.draft.icon = pp.getAttribute('data-pkpick'); refresh(); } return; }
+    var ctog = e.target.closest('[data-eftoggle="isContainer"]'); if (ctog && root.contains(ctog)) { e.stopPropagation(); toggleItemContainer(); return; }
+    var edel = e.target.closest('[data-edel]'); if (edel && root.contains(edel)) { e.stopPropagation(); var sdl = gmState(); if (sdl) { sdl.confirm = 'delete'; refresh(); } return; }
+    var cyes = e.target.closest('[data-conf-yes]'); if (cyes && root.contains(cyes)) { e.stopPropagation(); confirmYes(); return; }
+    var cno = e.target.closest('[data-conf-no]'); if (cno && root.contains(cno)) { e.stopPropagation(); var scn = gmState(); if (scn) { scn.confirm = null; refresh(); } return; }
     var tg = e.target.closest('[data-eftoggle]'); if (tg && root.contains(tg)) { e.stopPropagation(); var s4 = gmState(); if (s4 && s4.draft) { var fk = tg.getAttribute('data-eftoggle'); s4.draft[fk] = !s4.draft[fk]; refresh(); } return; }
     var cancel = e.target.closest('[data-ecancel]'); if (cancel && root.contains(cancel)) { e.stopPropagation(); cancelEdit(); return; }
     var save = e.target.closest('[data-esave]'); if (save && root.contains(save)) { e.stopPropagation(); saveEdit(); return; }
