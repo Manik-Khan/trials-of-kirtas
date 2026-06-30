@@ -41,6 +41,35 @@
   var LOCKG = '<svg viewBox="0 0 24 24" width="11" height="11" fill="none" stroke="currentColor" stroke-width="2"><rect x="5" y="11" width="14" height="9" rx="1.5"/><path d="M8 11V8a4 4 0 018 0v3"/></svg>';
   var UNLOCKG = '<svg viewBox="0 0 24 24" width="11" height="11" fill="none" stroke="currentColor" stroke-width="2"><rect x="5" y="11" width="14" height="9" rx="1.5"/><path d="M8 11V8a4 4 0 017.5-2.2"/></svg>';
   var COGG = '<svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="1.7"><circle cx="12" cy="12" r="3"/><path d="M12 3v2M12 19v2M4.5 4.5l1.4 1.4M18.1 18.1l1.4 1.4M3 12h2M19 12h2M4.5 19.5l1.4-1.4M18.1 5.9l1.4-1.4"/></svg>';
+  // torch trigger (the flame is hidden until .lit via CSS); plus the menu's trash + sort glyphs
+  var TORCHG = '<svg viewBox="0 0 24 24" width="17" height="17" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M12 22 L12 13"/><path d="M9.3 13 L14.7 13 L14 9.4 L10 9.4 Z"/><path d="M10 11.2 L14 11.2"/><g class="gm-flame"><path d="M12 3 C 14 5.2 14 7.4 12 9 C 10 7.4 10 5.2 12 3 Z"/></g></svg>';
+  var TRASHG = '<svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="1.7"><path d="M4 7h16M9 7V5h6v2M7 7l1 13h8l1-13"/></svg>';
+  var SORTG = '<svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="1.7"><path d="M3 6h18M6 12h12M9 18h6"/></svg>';
+  // resolve a render key ('id:x' / 'ix:n') back to its item — select mode toggles by key
+  function itemByKey(inv, key) {
+    if (key == null) return null;
+    if (key.indexOf('id:') === 0) { var id = key.slice(3); for (var i = 0; i < inv.length; i++) if (inv[i] && String(inv[i].id) === id) return inv[i]; return null; }
+    if (key.indexOf('ix:') === 0) { return inv[parseInt(key.slice(3), 10)] || null; }
+    return null;
+  }
+  function pickCount(st) { var n = 0, p = st.picked || {}; for (var k in p) if (p[k]) n++; return n; }
+  function pickBox(key, st) { return '<span class="gm-pick' + (st.picked && st.picked[key] ? ' on' : '') + '" data-pick="' + esc(key) + '">' + (st.picked && st.picked[key] ? '\u2713' : '') + '</span>'; }
+  function torchMenuHtml() {
+    return '<div class="gm-tmenu"><div class="gm-tmenu-h">Burn it down</div>'
+      + '<button class="gm-tmenu-i" data-selstart="1"><span class="mi">' + TRASHG + '</span>Delete multiple\u2026</button>'
+      + '<button class="gm-tmenu-i soon"><span class="mi">' + SORTG + '</span>Sort &amp; collapse<span class="soontag">later</span></button></div>';
+  }
+  function selectBarHtml(st) {
+    var n = pickCount(st);
+    if (st.bulkConfirm) {
+      return '<div class="gm-selbar confirm"><span class="gm-selcount">Burn <b>' + n + ' item' + (n === 1 ? '' : 's') + '</b>? This can\u2019t be undone.</span>'
+        + '<button class="gm-selbtn ghost" data-bulkcancel="1">Cancel</button>'
+        + '<button class="gm-selbtn fire" data-bulkdel="1">Delete ' + n + '</button></div>';
+    }
+    return '<div class="gm-selbar"><span class="gm-selcount">' + n + ' selected</span>'
+      + '<button class="gm-selbtn fire" data-bulkarm="1"' + (n ? '' : ' disabled') + '>\uD83D\uDD25 Delete</button>'
+      + '<button class="gm-selbtn ghost" data-selcancel="1">Cancel</button></div>';
+  }
 
   // ── carry weight: every item counts, bag contents included (they're items) ──
   function totalWeight(inv) {
@@ -267,7 +296,8 @@
     var qty = qtyOf(it) > 1 ? '<span class="gm-q">\u00D7' + it.qty + '</span>' : '';
     var count = isBag ? '<span class="gm-q">\u00b7 ' + childrenOf(inv, it.id).length + ' items</span>' : '';
     var ctl = '<span class="gm-ctl">' + controls(it, idx, worn, ES, capFull) + '</span>';
-    var row = '<div class="gm-row' + (worn ? ' worn' : '') + (it.attuned ? ' attuned' : '') + (it.locked ? ' locked' : '') + '" data-row="' + esc(k) + '"' + (isBag ? '' : ' data-detail="' + esc(k) + '"') + '>'
+    var row = '<div class="gm-row' + (worn ? ' worn' : '') + (it.attuned ? ' attuned' : '') + (it.locked ? ' locked' : '') + (st.selecting && st.picked[k] ? ' picked' : '') + '" data-row="' + esc(k) + '"' + (isBag ? '' : ' data-detail="' + esc(k) + '"') + '>'
+      + (st.selecting ? pickBox(k, st) : '')
       + '<span class="gm-grip" data-grip="' + esc(k) + '">\u283F</span>' + caret
       + '<span class="gm-ic">' + iconHtml(it) + '</span>'
       + '<span class="gm-n">' + esc(it.name || 'Item') + '</span>' + star + (it.locked ? '<span class="gm-lockg">' + LOCKG + '</span>' : '') + count + qty + mid + ctl + (isBag ? '<button class="gm-cog" data-editopen="' + esc(k) + '" title="Edit / delete this bag">' + COGG + '</button>' : '') + (isBag ? '<span class="bagdrop-hint">file here</span>' : '') + '</div>';
@@ -335,7 +365,8 @@
       var lk = it.locked ? '<span class="gm-tlock">' + LOCKG + '</span>' : '';
       var qty = qtyOf(it) > 1 ? '<span class="gm-tqty">\u00D7' + it.qty + '</span>' : '';
       var meta = isBag ? (childrenOf(inv, it.id).length + ' items') : (it.weaponCat || it.typeLabel || (it.weight ? it.weight + ' lb' : ''));
-      return '<div class="gm-tile' + (worn ? ' worn' : '') + (isBag ? ' bag' : '') + (it.locked ? ' locked' : '') + (openKey === k ? ' sel' : '') + '" data-tile="' + esc(k) + '">'
+      return '<div class="gm-tile' + (worn ? ' worn' : '') + (isBag ? ' bag' : '') + (it.locked ? ' locked' : '') + (openKey === k ? ' sel' : '') + (st.selecting && st.picked[k] ? ' picked' : '') + '" data-tile="' + esc(k) + '">'
+        + (st.selecting ? pickBox(k, st) : '')
         + '<span class="gm-tgrip" data-grip="' + esc(k) + '">\u283F</span>'
         + (isBag ? '<button class="gm-cog" data-editopen="' + esc(k) + '" title="Edit / delete this bag">' + COGG + '</button>' : '')
         + tag + att + lk + qty + '<span class="gm-ti">' + iconHtml(it) + '</span>'
@@ -453,6 +484,7 @@
     var inv = Array.isArray(ctx.inventory) ? ctx.inventory : [];
     var cur = ctx.currency || {};
     var ES = ctx.ES || null;
+    if (!st.picked) st.picked = Object.create(null);
     var attunedN = inv.filter(function (it) { return it && it.attuned; }).length;
     var capFull = attunedN >= 3;
     var tw = totalWeight(inv);
@@ -463,6 +495,7 @@
     var count = inv.length + ' item' + (inv.length === 1 ? '' : 's') + (attunedN ? ' \u00b7 ' + attunedN + ' attuned' : '');
 
     box.classList.add('gm');
+    box.classList.toggle('selecting', !!st.selecting);
     box.innerHTML =
       '<div class="gm-toolbar">'
         + '<span class="gm-count">' + count + '</span><span class="gm-sp"></span>'
@@ -471,7 +504,9 @@
           + '<button class="gm-vb' + (st.view === 'list' ? ' on' : '') + '" data-view="list">List</button>'
           + '<button class="gm-vb' + (st.view === 'grid' ? ' on' : '') + '" data-view="grid">Grid</button>'
         + '</div>'
+        + '<div class="gm-torch-wrap"><button class="gm-torch' + (st.torchLit ? ' lit' : '') + '" data-torch="1" title="Burn it down\u2026">' + TORCHG + '</button>' + (st.menuOpen ? torchMenuHtml() : '') + '</div>'
       + '</div>'
+      + (st.selecting ? selectBarHtml(st) : '')
       + addPanelHtml(st)
       + '<div class="gm-meta">'
         + '<div class="gm-carry"><div class="gm-carry-face"><span>Carry</span><span>' + carryRight + '</span></div>' + bar + '</div>'
@@ -488,6 +523,12 @@
     box.addEventListener('click', function (e) {
       var ctx = box.__gmCtx; if (!ctx) return;
       var st = box.__gmState;
+      var inv = ctx.inventory || [];
+      // a click anywhere outside the torch menu closes it
+      if (st.menuOpen) {
+        var twrap = e.target.closest ? e.target.closest('.gm-torch-wrap') : null;
+        if (!twrap) { st.menuOpen = false; if (!st.selecting) st.torchLit = false; render(box, ctx); return; }
+      }
       var vb = e.target.closest ? e.target.closest('[data-view]') : null;
       if (vb && box.contains(vb)) { st.view = vb.getAttribute('data-view'); render(box, ctx); return; }
       // ignore clicks on the equip/attune pills (sheet-actions owns those)
@@ -496,6 +537,33 @@
       // this, GM's tile/row match below would re-render and detach the cog before sheet-actions'
       // router could open the editor for it.
       if (e.target.closest && e.target.closest('[data-editopen]')) return;
+      // ── torch · burn-it-down menu · multi-select ──
+      var torchBtn = e.target.closest ? e.target.closest('[data-torch]') : null;
+      if (torchBtn && box.contains(torchBtn)) { st.menuOpen = !st.menuOpen; st.torchLit = st.menuOpen || st.selecting; render(box, ctx); return; }
+      var selStart = e.target.closest ? e.target.closest('[data-selstart]') : null;
+      if (selStart && box.contains(selStart)) { st.selecting = true; st.menuOpen = false; st.torchLit = true; st.picked = Object.create(null); st.bulkConfirm = false; render(box, ctx); return; }
+      var selCancel = e.target.closest ? e.target.closest('[data-selcancel]') : null;
+      if (selCancel && box.contains(selCancel)) { st.selecting = false; st.torchLit = false; st.picked = Object.create(null); st.bulkConfirm = false; render(box, ctx); return; }
+      var bArm = e.target.closest ? e.target.closest('[data-bulkarm]') : null;
+      if (bArm && box.contains(bArm)) { if (pickCount(st) > 0) { st.bulkConfirm = true; render(box, ctx); } return; }
+      var bCancel = e.target.closest ? e.target.closest('[data-bulkcancel]') : null;
+      if (bCancel && box.contains(bCancel)) { st.bulkConfirm = false; render(box, ctx); return; }
+      // the actual bulk delete (data-bulkdel) is owned by sheet-actions (mutation + persist) — let it bubble
+      if (e.target.closest && e.target.closest('[data-bulkdel]')) return;
+      // in select mode, clicking an item toggles its selection — except a bag BODY (not its
+      // checkbox), which expands to reveal its contents as selectable rows
+      if (st.selecting) {
+        var onPick = e.target.closest ? e.target.closest('[data-pick]') : null;
+        var selEl = e.target.closest ? e.target.closest('[data-row],[data-tile]') : null;
+        if (selEl && box.contains(selEl)) {
+          var sk = selEl.getAttribute('data-row') || selEl.getAttribute('data-tile');
+          var sit = itemByKey(inv, sk);
+          if (sit && sit.isContainer && !onPick) { var sw = !!st.open[sk]; st.open = Object.create(null); if (!sw) st.open[sk] = true; }
+          else { st.picked[sk] = !st.picked[sk]; }
+          render(box, ctx); return;
+        }
+        return;   // clicks elsewhere in select mode do nothing
+      }
       var tile = e.target.closest ? e.target.closest('[data-tile]') : null;
       if (tile && box.contains(tile)) {
         var tk = tile.getAttribute('data-tile'); var was = !!st.open[tk];
@@ -653,6 +721,43 @@
       '.tok-sheet [data-sec="inventory"].can-edit .gm-cog{display:inline-flex}' +
       '.tok-sheet .gm-cog:hover{color:#e7c279;border-color:rgba(199,154,74,.4);background:rgba(231,194,121,.07)}' +
       '.tok-sheet .gm-tile .gm-cog{position:absolute;top:3px;right:3px;z-index:3}' +
+      // ── torch · burn-it-down menu ──
+      '.tok-sheet .gm-torch-wrap{position:relative;flex:0 0 auto;display:inline-flex}' +
+      '.tok-sheet [data-sec="inventory"]:not(.can-edit) .gm-torch-wrap{display:none}' +
+      '.tok-sheet .gm-torch{border:1px solid transparent;background:transparent;color:#8d8675;border-radius:50%;width:28px;height:28px;display:inline-flex;align-items:center;justify-content:center;cursor:pointer;padding:0;transition:color .15s,border-color .15s,background .15s}' +
+      '.tok-sheet .gm-torch:hover{color:#f08a3a;border-color:rgba(240,138,58,.4);background:rgba(240,138,58,.08)}' +
+      '.tok-sheet .gm-torch.lit{color:#f08a3a;border-color:rgba(240,138,58,.5);background:rgba(240,138,58,.12)}' +
+      '.tok-sheet .gm-torch .gm-flame path{fill:#f08a3a;stroke:none;opacity:0;transform-origin:12px 9px;transition:opacity .12s}' +
+      '.tok-sheet .gm-torch.lit .gm-flame path{opacity:1;animation:gm-flicker .9s ease-in-out infinite alternate}' +
+      '@keyframes gm-flicker{0%{opacity:.7;transform:scaleY(.9)}100%{opacity:1;transform:scaleY(1.08)}}' +
+      '.tok-sheet .gm-tmenu{position:absolute;top:34px;right:0;z-index:30;min-width:210px;background:#1d2f2c;border:1px solid rgba(199,154,74,.32);border-radius:7px;box-shadow:0 10px 30px rgba(0,0,0,.5);padding:6px}' +
+      '.tok-sheet .gm-tmenu-h{font:600 9px/1 "Oswald",sans-serif;letter-spacing:.14em;text-transform:uppercase;color:#f08a3a;padding:7px 9px 6px}' +
+      '.tok-sheet .gm-tmenu-i{display:flex;align-items:center;gap:9px;width:100%;text-align:left;font:500 13px/1.1 "EB Garamond",serif;color:#ece2cd;background:transparent;border:0;border-radius:5px;padding:9px;cursor:pointer}' +
+      '.tok-sheet .gm-tmenu-i .mi{display:inline-flex;color:#c2b99f}' +
+      '.tok-sheet .gm-tmenu-i:hover{background:rgba(240,138,58,.12)}' +
+      '.tok-sheet .gm-tmenu-i:hover .mi{color:#f08a3a}' +
+      '.tok-sheet .gm-tmenu-i.soon{color:#6f6a5c;cursor:default}' +
+      '.tok-sheet .gm-tmenu-i.soon:hover{background:transparent}' +
+      '.tok-sheet .gm-tmenu-i.soon .mi{color:#565145}' +
+      '.tok-sheet .soontag{margin-left:auto;font:600 8px/1 "Oswald",sans-serif;letter-spacing:.1em;text-transform:uppercase;color:#6f6a5c;border:1px solid rgba(141,134,117,.3);border-radius:3px;padding:3px 5px}' +
+      // ── multi-select action bar ──
+      '.tok-sheet .gm-selbar{display:flex;align-items:center;gap:10px;margin:0 0 11px;padding:9px 12px;background:rgba(207,59,44,.10);border:1px solid rgba(207,59,44,.4);border-radius:6px}' +
+      '.tok-sheet .gm-selbar.confirm{background:rgba(207,59,44,.16);border-color:rgba(224,88,74,.6)}' +
+      '.tok-sheet .gm-selcount{font:500 12px/1.2 "EB Garamond",serif;color:#ece2cd;flex:1 1 auto}' +
+      '.tok-sheet .gm-selcount b{color:#e0584a;font-weight:600}' +
+      '.tok-sheet .gm-selbtn{font:600 10px/1 "Oswald",sans-serif;letter-spacing:.08em;text-transform:uppercase;border-radius:4px;padding:7px 13px;cursor:pointer;border:1px solid transparent}' +
+      '.tok-sheet .gm-selbtn.fire{background:#cf3b2c;color:#fff;border-color:#cf3b2c}' +
+      '.tok-sheet .gm-selbtn.fire:hover{background:#e0584a;border-color:#e0584a}' +
+      '.tok-sheet .gm-selbtn.fire[disabled]{opacity:.4;cursor:default;background:transparent;color:#8d8675;border-color:rgba(141,134,117,.4)}' +
+      '.tok-sheet .gm-selbtn.ghost{background:transparent;color:#c2b99f;border-color:rgba(194,185,159,.35)}' +
+      '.tok-sheet .gm-selbtn.ghost:hover{color:#ece2cd;border-color:rgba(194,185,159,.6)}' +
+      // ── select checkboxes + picked state ──
+      '.tok-sheet .gm-pick{flex:0 0 auto;width:18px;height:18px;border:1.5px solid rgba(194,185,159,.5);border-radius:4px;display:inline-flex;align-items:center;justify-content:center;font:700 12px/1 "Oswald",sans-serif;color:#fff;cursor:pointer;margin-right:2px}' +
+      '.tok-sheet .gm-pick.on{background:#cf3b2c;border-color:#cf3b2c}' +
+      '.tok-sheet .gm-tile .gm-pick{position:absolute;top:4px;left:4px;z-index:4;margin:0}' +
+      '.tok-sheet .gm-row.picked{background:rgba(207,59,44,.10);box-shadow:inset 0 0 0 1px rgba(224,88,74,.4)}' +
+      '.tok-sheet .gm-tile.picked{box-shadow:inset 0 0 0 2px #cf3b2c}' +
+      '.tok-sheet .gm.selecting .gm-grip,.tok-sheet .gm.selecting .gm-tgrip{display:none}' +
       '.tok-sheet [data-equip]{position:relative}' +
       '.tok-sheet .gm-row.dragging{background:rgba(199,154,74,.10);box-shadow:0 6px 18px rgba(0,0,0,.4);z-index:5;cursor:grabbing}' +
       '.tok-sheet .gm-row.bagdrop{background:rgba(85,196,192,.12);box-shadow:inset 0 0 0 1px #55c4c0}' +

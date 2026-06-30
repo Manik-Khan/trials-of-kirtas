@@ -530,6 +530,19 @@ export function wireInspiration({ root, characterData, key, depsReady } = {}) {
     if (st.draft) st.draft.isContainer = false;
     st.confirm = null; refresh(); persistInventory(prev);
   }
+  // ── multi-select bulk delete (the torch) ──
+  // GearManager owns the select UI/state (selecting, picked, confirm); sheet-actions owns the
+  // mutation. Selected children burn; unselected contents of a selected bag spill (deleteItemsFrom).
+  function bulkDelete() {
+    var st = gmState(); if (!st || !st.picked) return;
+    var items = [];
+    for (var key in st.picked) { if (!st.picked[key]) continue; var it = keyToItem(key); if (it) items.push(it); }
+    if (!items.length) { st.bulkConfirm = false; refresh(); return; }
+    var prev = JSON.parse(JSON.stringify(inventory));
+    inventory = deleteItemsFrom(inventory, items).inv;
+    st.selecting = false; st.picked = Object.create(null); st.bulkConfirm = false; st.torchLit = false; st.menuOpen = false;
+    refresh(); persistInventory(prev);
+  }
   function saveEdit() {
     var st = gmState(); if (!st || !st.editing) return;
     var it = keyToItem(st.editing), d = st.draft;
@@ -632,6 +645,7 @@ export function wireInspiration({ root, characterData, key, depsReady } = {}) {
     var edel = e.target.closest('[data-edel]'); if (edel && root.contains(edel)) { e.stopPropagation(); var sdl = gmState(); if (sdl) { sdl.confirm = 'delete'; refresh(); } return; }
     var cyes = e.target.closest('[data-conf-yes]'); if (cyes && root.contains(cyes)) { e.stopPropagation(); confirmYes(); return; }
     var cno = e.target.closest('[data-conf-no]'); if (cno && root.contains(cno)) { e.stopPropagation(); var scn = gmState(); if (scn) { scn.confirm = null; refresh(); } return; }
+    var bdel = e.target.closest('[data-bulkdel]'); if (bdel && root.contains(bdel)) { e.stopPropagation(); bulkDelete(); return; }
     var tg = e.target.closest('[data-eftoggle]'); if (tg && root.contains(tg)) { e.stopPropagation(); var s4 = gmState(); if (s4 && s4.draft) { var fk = tg.getAttribute('data-eftoggle'); s4.draft[fk] = !s4.draft[fk]; refresh(); } return; }
     var cancel = e.target.closest('[data-ecancel]'); if (cancel && root.contains(cancel)) { e.stopPropagation(); cancelEdit(); return; }
     var save = e.target.closest('[data-esave]'); if (save && root.contains(save)) { e.stopPropagation(); saveEdit(); return; }
