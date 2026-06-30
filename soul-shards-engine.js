@@ -78,19 +78,30 @@
   }
 
   // ── hit points ──────────────────────────────────────────────────────────────
-  // Level 1 = max die + CON. Each later level = a rolled value (if supplied) or the
-  // fixed average, + CON. Per-level breakdown is returned so the sheet can show it
-  // and so a level-up records exactly what was gained at that level.
-  function hitPoints(hd, conMod, level, hp) {
+  // Only the character's VERY FIRST level (the starting class's 1st level) is maxed:
+  // 1st = max die + CON. Every later level — INCLUDING the 1st level of a class taken
+  // by multiclassing — is a rolled value (if supplied) or the fixed average, + CON.
+  // `firstClass` (default true) says whether THIS build holds that first character
+  // level; the derive passes false for every class after the starting one, so a
+  // multiclass no longer over-counts the added class's first level. Per-level
+  // breakdown is returned so the sheet can show it and a level-up records the gain.
+  function hitPoints(hd, conMod, level, hp, firstClass) {
     hp = hp || {};
+    if (firstClass === undefined) firstClass = true;
     var method = hp.method === 'roll' ? 'roll' : 'average';
     var rolls = hp.rolls || {};
-    var byLevel = [{ level: 1, base: hd, con: conMod, gained: hd + conMod, kind: 'max' }];
-    for (var L = 2; L <= level; L++) {
-      var base = method === 'roll'
-        ? (rolls[L] != null ? rolls[L] : avgPerLevel(hd))   // missing roll falls back to average
-        : avgPerLevel(hd);
-      byLevel.push({ level: L, base: base, con: conMod, gained: base + conMod, kind: method });
+    var byLevel = [];
+    for (var L = 1; L <= level; L++) {
+      var base, kind;
+      if (L === 1 && firstClass) {
+        base = hd; kind = 'max';                            // the single maxed level
+      } else {
+        base = method === 'roll'
+          ? (rolls[L] != null ? rolls[L] : avgPerLevel(hd)) // missing roll falls back to average
+          : avgPerLevel(hd);
+        kind = method;
+      }
+      byLevel.push({ level: L, base: base, con: conMod, gained: base + conMod, kind: kind });
     }
     var max = byLevel.reduce(function (s, x) { return s + x.gained; }, 0);
     return { max: max, method: method, byLevel: byLevel };
@@ -154,7 +165,7 @@
       if (f.originType === 'class' && isASIFeature(f.name) && asiLevels.indexOf(f.level) === -1) asiLevels.push(f.level);
     });
 
-    var hp = hitPoints(model.hd, conMod, level, opts.hp);
+    var hp = hitPoints(model.hd, conMod, level, opts.hp, opts.firstClass !== false);
     var spellcasting = spellEntitlement(model, abilities, level, subclass);
 
     // everything the player still has to decide for this level set

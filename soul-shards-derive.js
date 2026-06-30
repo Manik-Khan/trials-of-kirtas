@@ -60,8 +60,12 @@
     var ABIL = ['str', 'dex', 'con', 'int', 'wis', 'cha'];
 
     // ── per-class engine builds ──
-    var builds = classes.map(function (c) {
-      return engine.build({ classModel: c.model, level: c.level, abilities: abilities, subclassShortName: c.subclassShortName, hp: input.hp });
+    // firstClass: only the FIRST entry (the starting class — classes[] arrives
+    // starting-first, the same convention the saves fold below relies on) holds the
+    // character's 1st level, so only it gets the maxed-die level-1 HP. Every added
+    // class computes its 1st level as average/rolled (correct 2014 multiclass HP).
+    var builds = classes.map(function (c, i) {
+      return engine.build({ classModel: c.model, level: c.level, abilities: abilities, subclassShortName: c.subclassShortName, hp: input.hp, firstClass: i === 0 });
     });
     var totalLevel = classes.reduce(function (n, c) { return n + (c.level || 0); }, 0);
     var pb = 2 + Math.floor((Math.max(1, totalLevel) - 1) / 4);
@@ -127,9 +131,10 @@
 
     // ── combat scalars + race/subrace traits (P3 — resolved from races.json by loadRace) ──
     var combat = { initiative: mod('dex'), hitDice: hitDice };
-    // HP — sum the engine's per-class max (level-1 max HD + CON, then average/rolled
-    // per level). Single-class is exact; multiclass over-counts secondary classes'
-    // first level, since the level-1 max only truly applies to the FIRST character level.
+    // HP — sum the engine's per-class max. The starting class's build maxes the 1st
+    // level; every added class's build (firstClass:false) averages its 1st level, so
+    // this sum is the correct 2014 multiclass total (only the very first character
+    // level is maxed).
     var hpMax = builds.reduce(function (n, b) { return n + ((b.hp && b.hp.max) || 0); }, 0);
     if (hpMax > 0) { combat.hp = hpMax; combat.hpMax = hpMax; }
     var race = input.race || null;
@@ -197,7 +202,6 @@
     // ── honest gaps ──
     incomplete.push('feature descriptions (P4 \u2014 {@tag} entries markup not yet rendered)');
     if (!acFromArmor) incomplete.push('combat.ac derives live on the sheet from worn armour (no items passed to this derive)');
-    if (classes.length > 1) incomplete.push('multiclass HP slightly over-counts secondary classes\u2019 first level (level-1 max applies only to the first character level)');
     incomplete.push('senses don\u2019t include feature/subclass upgrades (e.g. Shadow Magic darkvision)');
     incomplete.push('actions[] holds feature / cantrip attacks only \u2014 weapon attacks derive live on the sheet from carried weapons');
     // Racial spells now arrive via the picker's emit (origin:'race') and fold into groups[].
