@@ -140,7 +140,9 @@ export function buildWeaponActions(inventory, structural) {
       return a;
     }
     out.push(deck('wpn-' + key, label, w.dmg1));
-    if (w.versatile && w.dmg2) out.push(deck('wpn-' + key + '-2h', label + ' (Two-Handed)', w.dmg2));
+    // The versatile two-handed mode is a real derived attack, but it ships HIDDEN so it
+    // lives in the swap pile (one clean row per weapon); swap it in when you two-hand.
+    if (w.versatile && w.dmg2) { var a2h = deck('wpn-' + key + '-2h', label + ' (Two-Handed)', w.dmg2); a2h.defaultHidden = true; out.push(a2h); }
   });
   return out;
 }
@@ -447,16 +449,19 @@ export function buildSpellAttacks(structural) {
 // MUST build their list the same way, or a painted row whose id the clicker can't
 // resolve silently no-ops. This is the single source of truth both call. Order:
 // weapon attacks, then weapon-cantrip attacks, then structural.actions (feature /
-// cantrip / manual). Then the action editor's overrides apply HERE.
-//   opts.includeHidden — keep hidden actions (tagged _hidden:true) instead of dropping
-//   them, so the editor can show them greyed for un-hiding. The default (rolling /
-//   normal render) drops them.
+// cantrip / manual), then structural.customActions (hand-added on the sheet, reforge-safe).
+// Then the action editor's overrides apply HERE.
+//   opts.includeHidden  — keep hidden actions (tagged _hidden:true) instead of dropping them
+//                         (also surfaces a versatile weapon's hidden two-handed mode).
+//   opts.includeRemoved — return ONLY deleted actions (tagged _removed:true), for the
+//                         Removed drawer's restore list.
 export function assembleActions(inventory, structural, opts) {
   structural = structural || {};
   var list = buildWeaponActions(inventory, structural)
     .concat(buildCantripAttacks(inventory, structural))
     .concat(buildSpellAttacks(structural))
-    .concat(structural.actions || []);
+    .concat(structural.actions || [])
+    .concat(structural.customActions || []);
   return applyActionOverrides(list, structural, opts);
 }
 
@@ -465,18 +470,30 @@ export function assembleActions(inventory, structural, opts) {
 var OVERRIDE_FIELDS = ['label', 'ability', 'proficient', 'atkBonus', 'dmgDice', 'dmgBonus', 'dmgType'];
 function applyActionOverrides(list, structural, opts) {
   var ov = (structural && structural.actionOverrides) || null;
-  if (!ov) return list;
   var includeHidden = !!(opts && opts.includeHidden);
+  var includeRemoved = !!(opts && opts.includeRemoved);
   var out = [];
   list.forEach(function (a) {
-    var o = ov[a.id]; if (!o) { out.push(a); return; }
-    var editedKeys = Object.keys(o).filter(function (k) { return k !== 'hidden'; });
-    if (o.hidden && !includeHidden) return;                    // soft-deleted
+    var o = ov && ov[a.id];
+    // REMOVED (deleted): suppressed everywhere except the Removed drawer. For a derived
+    // action this is the only way to truly drop it — it'd otherwise re-derive each render.
+    if (o && o.removed) {
+      if (includeRemoved) { var mr = Object.assign({}, a); mr._removed = true; out.push(mr); }
+      return;
+    }
+    if (includeRemoved) return;                                // the Removed drawer wants ONLY removed rows
+    // HIDDEN: an explicit override wins; otherwise the action's own default (a versatile
+    // weapon's two-handed mode ships hidden, so it sits in the swap pile until swapped in).
+    var hidden = (o && 'hidden' in o) ? !!o.hidden : !!a.defaultHidden;
+    if (hidden && !includeHidden) return;
     var merged = Object.assign({}, a);
-    OVERRIDE_FIELDS.forEach(function (k) { if (k in o) merged[k] = o[k]; });
-    if (Array.isArray(o.extraDamage)) merged.extraDamage = o.extraDamage.slice();
-    if (o.hidden) merged._hidden = true;                       // for the editor's greyed row
-    if (editedKeys.length) merged._edited = true;              // for the "edited" badge
+    if (o) {
+      OVERRIDE_FIELDS.forEach(function (k) { if (k in o) merged[k] = o[k]; });
+      if (Array.isArray(o.extraDamage)) merged.extraDamage = o.extraDamage.slice();
+      var editedKeys = Object.keys(o).filter(function (k) { return k !== 'hidden' && k !== 'removed'; });
+      if (editedKeys.length) merged._edited = true;            // for the "edited" badge
+    }
+    if (hidden) merged._hidden = true;                         // for the editor's greyed row
     out.push(merged);
   });
   return out;

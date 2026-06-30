@@ -1210,7 +1210,7 @@ export function wireInspiration({ root, characterData, key, depsReady } = {}) {
     var et = e.target.closest('[data-action-edit]'); if (et) { e.stopPropagation(); toggleAeMode(); return; }
     var pe = e.target.closest('[data-act-edit]'); if (pe) { e.stopPropagation(); openAeEditor(pe.getAttribute('data-act-edit')); return; }
     var ey = e.target.closest('[data-act-hide]'); if (ey) { e.stopPropagation(); aeToggleHide(ey.getAttribute('data-act-hide')); return; }
-    var bd = e.target.closest('[data-act-bind]'); if (bd && aeEditable) { e.stopPropagation(); openBindMenu(bd.getAttribute('data-act-bind'), bd); return; }
+    var cf = e.target.closest('[data-act-cfg]'); if (cf && aeEditable) { e.stopPropagation(); openChipMenu(cf.getAttribute('data-act-cfg'), cf); return; }
     var sw = e.target.closest('[data-act-swap]'); if (sw && aeEditable) { e.stopPropagation(); openSwapMenu(sw.getAttribute('data-act-swap'), sw); return; }
     if (e.target.closest('.ae-editor')) return;   // panel has its own listeners
     var rm = e.target.closest('[data-rmod]');
@@ -1260,7 +1260,7 @@ export function wireInspiration({ root, characterData, key, depsReady } = {}) {
   function aeList() { return root.querySelector('[data-list="actions"]'); }
   function aeRowEl(id) { var l = aeList(); if (!l) return null; var rows = l.querySelectorAll('.act[data-act]'); for (var i = 0; i < rows.length; i++) if (rows[i].getAttribute('data-act') === id) return rows[i]; return null; }
   // pristine (pre-override) action, for diffing a minimal override on save
-  function aeBaseAction(id) { var s2 = Object.assign({}, structural); delete s2.actionOverrides; var list = assembleActions(inventory, s2); for (var i = 0; i < list.length; i++) if ((list[i].id || list[i].label) === id) return list[i]; return null; }
+  function aeBaseAction(id) { var s2 = Object.assign({}, structural); delete s2.actionOverrides; var list = assembleActions(inventory, s2, { includeHidden: true }); for (var i = 0; i < list.length; i++) if ((list[i].id || list[i].label) === id) return list[i]; return null; }
   // effective (current, override-applied) action, for seeding the editor
   function aeEffAction(id) { var list = assembleActions(inventory, structural, { includeHidden: true }); for (var i = 0; i < list.length; i++) if ((list[i].id || list[i].label) === id) return list[i]; return null; }
 
@@ -1364,7 +1364,21 @@ export function wireInspiration({ root, characterData, key, depsReady } = {}) {
   }
   function aeSave(id) { var o = aeCommit(id); aeWriteOverride(id, function (ov) { if (Object.keys(o).length) ov[id] = o; else delete ov[id]; }); }
   function aeReset(id) { aeWriteOverride(id, function (ov) { delete ov[id]; }); }
-  function aeToggleHide(id) { aeWriteOverride(id, function (ov) { var o = ov[id] || (ov[id] = {}); if (o.hidden) delete o.hidden; else o.hidden = true; }); }
+  // effective hidden + the action's default-hidden, read off the assembled list
+  function aeEffHidden(id) {
+    var list = assembleActions(inventory, structural, { includeHidden: true });
+    for (var i = 0; i < list.length; i++) if ((list[i].id || list[i].label) === id) return { hidden: !!list[i]._hidden, def: !!list[i].defaultHidden };
+    return { hidden: false, def: false };
+  }
+  // set an action's hidden to `want`, collapsing to its DEFAULT when they match — so a
+  // versatile two-handed mode (defaultHidden) needs an explicit hidden:false to show, while a
+  // normal attack just clears its override when re-shown. Mutates the map; prunes empty entries.
+  function aeSetHiddenIn(ov, id, want, def) {
+    var o = ov[id] || (ov[id] = {});
+    if (want === def) { delete o.hidden; if (!Object.keys(o).length) delete ov[id]; }
+    else o.hidden = want;
+  }
+  function aeToggleHide(id) { var e = aeEffHidden(id); aeWriteOverride(id, function (ov) { aeSetHiddenIn(ov, id, !e.hidden, e.def); }); }
   // ── cantrip weapon-bind: which carried weapon a weapon-cantrip (Booming Blade, Green-Flame Blade) rides ──
   function setCantripBind(cantrip, weaponKey) {
     if (!aeEditable) return;
@@ -1374,36 +1388,49 @@ export function wireInspiration({ root, characterData, key, depsReady } = {}) {
     if (!Object.keys(ns.cantripBinds).length) delete ns.cantripBinds;
     structural = ns; refresh(); persistStructural(prev);
   }
-  function openBindMenu(cantrip, anchor) {
+  // ── per-attack ability override: '' / 'auto' clears it → falls back to the item pin / derived ──
+  function setActionAbility(id, abil) {
+    aeWriteOverride(id, function (ov) { var o = ov[id] || (ov[id] = {}); if (abil && abil !== 'auto') o.ability = String(abil).toLowerCase(); else delete o.ability; });
+  }
+  // ── the blue config chip's menu: a Modifier section on every attack, plus a Weapon section
+  //    on weapon-cantrips. "Auto" in Modifier shows what it resolves to (the item pin / derived).
+  function openChipMenu(id, anchor) {
     if (!aeEditable || !doc) return;
     closePops();
-    var opts = []; try { opts = meleeWeaponOptions(inventory) || []; } catch (_) {}
-    var cur = String((structural.cantripBinds || {})[cantrip] || '').toLowerCase();
-    var nice = String(cantrip || '').replace(/\b\w/g, function (c) { return c.toUpperCase(); });
-    var pop = mkPop('sa-bind');
-    var html = '<div class="sa-pop-t">Weapon for ' + esc(nice) + '</div>';
-    if (!opts.length) html += '<div class="sa-pop-sub">No melee weapon carried</div>';
-    else {
-      html += '<div class="bind-list">';
-      html += '<button class="bind-opt' + (!cur ? ' on' : '') + '" type="button" data-wk=""><span>Auto \u00B7 first weapon</span>' + (!cur ? '<span class="bind-chk">\u2713</span>' : '') + '</button>';
-      opts.forEach(function (o) {
-        var on = !!cur && o.key === cur;
-        html += '<button class="bind-opt' + (on ? ' on' : '') + '" type="button" data-wk="' + esc(o.key) + '"><span>' + esc(o.name) + '</span>' + (on ? '<span class="bind-chk">\u2713</span>' : '') + '</button>';
-      });
-      html += '</div>';
+    var eff = aeEffAction(id) || {};
+    var base = aeBaseAction(id) || {};                                  // ability WITHOUT the per-attack override
+    var autoAbil = String(base.ability || '').toLowerCase();
+    var ovA = (structural.actionOverrides || {})[id] || {};
+    var curAbil = ovA.ability ? String(ovA.ability).toLowerCase() : '';
+    var isCant = String(id).indexOf('cant-') === 0;
+    var cantrip = '';
+    var ABIL = [['str', 'Strength'], ['dex', 'Dexterity'], ['con', 'Constitution'], ['int', 'Intelligence'], ['wis', 'Wisdom'], ['cha', 'Charisma']];
+    var NAME = { str: 'Strength', dex: 'Dexterity', con: 'Constitution', int: 'Intelligence', wis: 'Wisdom', cha: 'Charisma' };
+    var pop = mkPop('sa-cfg');
+    var html = '<div class="sa-pop-t">' + (isCant ? 'Weapon &amp; modifier' : 'Switch modifier') + '</div>';
+    if (isCant) {
+      cantrip = String((eff.label || '').split(' \u00B7 ')[0] || '').trim().toLowerCase();
+      var opts = []; try { opts = meleeWeaponOptions(inventory) || []; } catch (_) {}
+      var curW = String((structural.cantripBinds || {})[cantrip] || '').toLowerCase();
+      html += '<div class="sa-grp">Weapon</div>';
+      html += '<button class="cfg-opt" type="button" data-cw=""><span>Auto \u00b7 first weapon</span>' + (!curW ? '<span class="chk">\u2713</span>' : '') + '</button>';
+      opts.forEach(function (o) { var on = !!curW && o.key === curW; html += '<button class="cfg-opt" type="button" data-cw="' + esc(o.key) + '"><span>' + esc(o.name) + '</span>' + (on ? '<span class="chk">\u2713</span>' : '') + '</button>'; });
     }
+    html += '<div class="sa-grp">Modifier</div>';
+    html += '<button class="cfg-opt" type="button" data-ca="auto"><span>Auto <span class="sub">\u2014 ' + esc(NAME[autoAbil] || (autoAbil ? autoAbil.toUpperCase() : 'derived')) + '</span></span>' + (!curAbil ? '<span class="chk">\u2713</span>' : '') + '</button>';
+    ABIL.forEach(function (p) { var on = curAbil === p[0]; html += '<button class="cfg-opt" type="button" data-ca="' + p[0] + '"><span>' + p[1] + '</span>' + (on ? '<span class="chk">\u2713</span>' : '') + '</button>'; });
     pop.innerHTML = html;
     mountPop(pop, anchor);
-    pop.querySelectorAll('[data-wk]').forEach(function (b) {
-      b.addEventListener('click', function (e) { e.stopPropagation(); closePops(); setCantripBind(cantrip, b.getAttribute('data-wk')); });
-    });
+    pop.querySelectorAll('[data-ca]').forEach(function (b) { b.addEventListener('click', function (e) { e.stopPropagation(); closePops(); setActionAbility(id, b.getAttribute('data-ca')); }); });
+    pop.querySelectorAll('[data-cw]').forEach(function (b) { b.addEventListener('click', function (e) { e.stopPropagation(); closePops(); setCantripBind(cantrip, b.getAttribute('data-cw')); }); });
   }
   // ── swap: exchange this attack for one of your currently-hidden attacks (same group) ──
   function swapGroupOf(t) { return (t === 'attack' || t === 'attack-cantrip') ? 'attack' : (t === 'damage-only' ? 'damage' : 'utility'); }
   function doSwap(curId, inId) {
+    var curDef = aeEffHidden(curId).def, inDef = aeEffHidden(inId).def;
     aeWriteOverride(curId, function (ov) {
-      (ov[curId] || (ov[curId] = {})).hidden = true;                                              // hide the current attack
-      var b = ov[inId]; if (b) { delete b.hidden; if (!Object.keys(b).length) delete ov[inId]; }   // un-hide the chosen one
+      aeSetHiddenIn(ov, curId, true, curDef);    // hide the current attack (explicit, or clears if it was default-hidden)
+      aeSetHiddenIn(ov, inId, false, inDef);     // show the chosen one (explicit hidden:false when it's default-hidden, e.g. a versatile 2H)
     });
   }
   function openSwapMenu(curId, anchor) {

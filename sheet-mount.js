@@ -418,9 +418,18 @@ function slotPoolsLive(structural, vitals){
   var s=structural||{}, v=vitals||{}, pip=v.pipState||{};
   var raw=(s.spellcasting && Array.isArray(s.spellcasting.pools) && s.spellcasting.pools.length)
             ? s.spellcasting.pools : ((buildSpellcasting(s, v)||{}).pools||[]);
+  // Self-heal the third-caster slot label WITHOUT a reforge. An Eldritch Knight / Arcane
+  // Trickster forged before the mergeSlotPools fix has its leveled pools baked "Fighter
+  // Slots" / "Rogue Slots" (the class name). EK & AT are the only 1/3 subclasses, so a
+  // single-class character whose subclass is one of them should read "<subclass> Slots".
+  var m3=/Eldritch Knight|Arcane Trickster/.exec(String(s.subclass||''));
+  var single=!/\s\/\s/.test(String(s.classLabel||''));               // not multiclassed
+  var relabel=(m3 && single) ? (m3[0]+' Slots') : null;
   return raw.map(function(p){
     var key=poolKeyOf(p), max=p.max||0;
-    return Object.assign({}, p, { key:key, level:poolLevelOf(p), current:Math.max(0, max-(pip[key]||0)) });
+    var out=Object.assign({}, p, { key:key, level:poolLevelOf(p), current:Math.max(0, max-(pip[key]||0)) });
+    if(relabel && /^spell_/.test(key)) out.label=relabel;            // leveled pools only — never Pact / Sorcery Points
+    return out;
   });
 }
 // Non-spellcasting resource pools (Ki / Bardic / Superiority / Starlight Step),
@@ -472,10 +481,13 @@ function actionRowHTML(a, s){
   var id=esc(a.id||a.label||'');
   var badge=a._edited?'<span class="ac-edited">edited</span>':'';
   var nameHTML=esc(a.label||'');
-  // weapon-cantrip rows: make the bound-weapon half of the label a bind chip — chip styling + clickability are CSS-gated to editors (.can-edit); the weapon name always shows
-  if(String(a.id||'').indexOf('cant-')===0){
-    var bp=String(a.label||'').split(' \u00B7 ');
-    if(bp.length===2) nameHTML=esc(bp[0])+' \u00B7 <span class="ac-bind" data-act-bind="'+esc(bp[0].trim().toLowerCase())+'" role="button" tabindex="0">'+esc(bp[1])+'<span class="ac-bind-caret">\u25BE</span></span>';
+  // Blue config chip on every ATTACK row: one press to switch the to-hit ability (and on a
+  // weapon-cantrip, the bound weapon). It shows the current ability; styling + clickability
+  // are CSS-gated to editors (.can-edit). The bound-weapon name stays visible in the label.
+  var cfgChip='';
+  if(g==='attack' && a.ability){
+    var isCant=String(a.id||'').indexOf('cant-')===0;
+    cfgChip=' <span class="ac-cfg" data-act-cfg="'+id+'" role="button" tabindex="0" title="'+(isCant?'Switch modifier or weapon':'Switch modifier')+'">'+esc(String(a.ability).toUpperCase())+'<span class="ac-cfg-car">\u25BE</span></span>';
   }
   // per-row editor tools (CSS-hidden until the section is in edit mode); not on utility rows
   var tools=(g==='utility')?'' :
@@ -484,7 +496,7 @@ function actionRowHTML(a, s){
     + '<button type="button" class="ac-tool ac-eye'+(a._hidden?' on':'')+'" data-act-hide="'+id+'" aria-label="'+(a._hidden?'Un-hide action':'Hide action')+'">'+(a._hidden?AE_EYEOFF:AE_EYE)+'</button>'
     + '</div>';
   return '<div class="act '+g+(a._hidden?' is-hidden':'')+(a._edited?' edited':'')+'" data-act="'+id+'"'+(g==='utility'?'':' tabindex="0" role="button"')+'>'
-       + '<div class="ac-main"><div class="ac-n">'+nameHTML+badge+'</div>'+meta+'</div>'
+       + '<div class="ac-main"><div class="ac-n">'+nameHTML+cfgChip+badge+'</div>'+meta+'</div>'
        + (g==='utility'?'':'<span class="ac-go">roll</span>')
        + (g==='utility'?'':'<button type="button" class="ac-swap" data-act-swap="'+id+'" aria-label="Swap this attack" title="Swap this attack">\u25BE</button>')
        + tools
@@ -761,6 +773,19 @@ var AE_CSS = `<style id="tok-ae-css">
 .tok-sheet [data-sec="actions"].can-edit .ac-bind:hover{color:#7fd6d2;border-bottom-color:rgba(85,196,192,.85)}
 .tok-sheet .ac-bind-caret{font-size:.78em;margin-left:3px;opacity:.7}
 .tok-sheet [data-sec="actions"]:not(.can-edit) .ac-bind-caret{display:none}
+/* blue config chip — editors only; a viewer sees the ability in the meta line instead */
+.tok-sheet .ac-cfg{display:none}
+.tok-sheet [data-sec="actions"].can-edit .ac-cfg{display:inline-flex;align-items:center;gap:3px;font:500 8.5px/1 'Oswald',sans-serif;letter-spacing:.05em;text-transform:uppercase;color:#55c4c0;border:1px solid rgba(85,196,192,.4);background:rgba(85,196,192,.08);padding:2px 6px;margin-left:6px;cursor:pointer;vertical-align:middle;transition:background .14s,border-color .14s}
+.tok-sheet [data-sec="actions"].can-edit .ac-cfg:hover{background:rgba(85,196,192,.18);border-color:rgba(85,196,192,.7);color:#7fd6d2}
+.tok-sheet .ac-cfg-car{font-size:.9em;opacity:.75}
+/* chip popover: a Weapon section + a Modifier section */
+.sa-pop.sa-cfg{min-width:206px}
+.sa-pop.sa-cfg .sa-grp{font:600 8.5px/1 'Oswald',sans-serif;letter-spacing:.1em;text-transform:uppercase;color:#8d8675;padding:8px 4px 5px;border-top:1px solid rgba(236,226,205,.1);margin-top:4px}
+.sa-pop.sa-cfg .sa-grp:first-of-type{border-top:0;margin-top:0}
+.sa-pop.sa-cfg .cfg-opt{display:flex;align-items:center;justify-content:space-between;gap:10px;width:100%;text-align:left;font:500 13.5px/1.2 'EB Garamond',serif;color:#ece2cd;background:transparent;border:1px solid transparent;border-radius:6px;padding:7px 9px;cursor:pointer;transition:background .12s,border-color .12s}
+.sa-pop.sa-cfg .cfg-opt:hover{background:rgba(85,196,192,.1);border-color:rgba(85,196,192,.3)}
+.sa-pop.sa-cfg .cfg-opt .sub{font:italic 11px/1 'EB Garamond',serif;color:#8d8675}
+.sa-pop.sa-cfg .cfg-opt .chk{color:#55c4c0;font-size:13px}
 .sa-pop.sa-bind{min-width:184px}
 .sa-pop.sa-bind .bind-list{display:flex;flex-direction:column;gap:2px;margin-top:7px}
 .sa-pop.sa-bind .bind-opt{display:flex;align-items:center;justify-content:space-between;gap:10px;width:100%;text-align:left;font:500 13.5px/1.25 'EB Garamond',serif;color:#ece2cd;background:transparent;border:1px solid transparent;border-radius:7px;padding:8px 10px;cursor:pointer;transition:background .12s,border-color .12s}
