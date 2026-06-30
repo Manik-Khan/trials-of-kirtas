@@ -468,6 +468,7 @@ function dmgFullFrag(a, dmgMod){
 var AE_PENCIL='<svg viewBox="0 0 24 24" fill="none"><path d="M4 20h4L18.5 9.5a2.12 2.12 0 0 0-3-3L5 17v3z" stroke-width="1.7" stroke-linejoin="round"/></svg>';
 var AE_EYE='<svg viewBox="0 0 24 24" fill="none"><path d="M2 12s3.5-7 10-7 10 7 10 7-3.5 7-10 7-10-7-10-7z" stroke-width="1.6"/><circle cx="12" cy="12" r="2.6" stroke-width="1.6"/></svg>';
 var AE_EYEOFF='<svg viewBox="0 0 24 24" fill="none"><path d="M4 4l16 16" stroke-width="1.6"/><path d="M2 12s3.5-7 10-7c2 0 3.7.6 5.1 1.5M22 12s-3.5 7-10 7c-2 0-3.7-.6-5.1-1.5" stroke-width="1.6"/></svg>';
+var AE_TRASH='<svg viewBox="0 0 24 24" fill="none"><path d="M4 7h16M9 7V5a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2m2 0v13a1 1 0 0 1-1 1H7a1 1 0 0 1-1-1V7" stroke-width="1.6" stroke-linejoin="round"/></svg>';
 // inner HTML of a row's meta line (also used by the editor's live preview)
 function actionMetaInner(a, s){
   var g=actionGroup(a.type), m=deriveActionMods(a, s);
@@ -494,6 +495,7 @@ function actionRowHTML(a, s){
     '<div class="ac-tools">'
     + '<button type="button" class="ac-tool ac-pencil" data-act-edit="'+id+'" aria-label="Customize action">'+AE_PENCIL+'</button>'
     + '<button type="button" class="ac-tool ac-eye'+(a._hidden?' on':'')+'" data-act-hide="'+id+'" aria-label="'+(a._hidden?'Un-hide action':'Hide action')+'">'+(a._hidden?AE_EYEOFF:AE_EYE)+'</button>'
+    + '<button type="button" class="ac-tool ac-del" data-act-del="'+id+'" aria-label="Delete action" title="Delete">'+AE_TRASH+'</button>'
     + '</div>';
   return '<div class="act '+g+(a._hidden?' is-hidden':'')+(a._edited?' edited':'')+'" data-act="'+id+'"'+(g==='utility'?'':' tabindex="0" role="button"')+'>'
        + '<div class="ac-main"><div class="ac-n">'+nameHTML+cfgChip+badge+'</div>'+meta+'</div>'
@@ -518,7 +520,18 @@ function renderActions(root, s, inventory){
     var rows=list.filter(function(a){ return actionGroup(a.type)===gp[0]; });
     if(!rows.length) return '';
     return '<div class="agrp"><div class="agrp-h">'+gp[1]+'</div>'+rows.map(function(a){ return actionRowHTML(a, s); }).join('')+'</div>';
+  }).join('')
+  + '<button type="button" class="ac-add" data-act-add>+ Add your own attack</button>'
+  + removedDrawerHTML(assembleActions(inventory, s, { includeRemoved:true }));
+}
+// editor-only drawer of deleted actions, each with Restore. CSS-hidden until edit mode.
+function removedDrawerHTML(removed){
+  if(!removed || !removed.length) return '';
+  var rows=removed.map(function(a){
+    return '<div class="ac-rrow"><span class="ac-rn">'+esc(a.label||'(unnamed)')+'</span>'
+      + '<button type="button" class="ac-restore" data-act-restore="'+esc(a.id||a.label||'')+'">Restore</button></div>';
   }).join('');
+  return '<div class="ac-removed"><div class="ac-removed-h">Removed \u00b7 '+removed.length+'</div>'+rows+'</div>';
 }
 function ordModStr(n){ return n>=0?'+'+n:''+n; }
 function d20CardHTML(d){ d=d||{}; var kept='<span class="rcd-die'+(d.isCrit?' nat20':(d.isFumble?' nat1':''))+'">'+d.kept+'</span>'; return d.twin?kept+'<span class="rcd-die drop">'+d.dropped+'</span>':kept; }
@@ -691,6 +704,23 @@ var AE_CSS = `<style id="tok-ae-css">
 .tok-sheet .act.is-hidden{display:none}
 .tok-sheet .actionlist.editing .act.is-hidden{display:flex;opacity:.42}
 .tok-sheet .actionlist.editing .act.is-hidden .ac-n{text-decoration:line-through;text-decoration-color:#cf3b2c}
+/* delete tool — red intent; arms to a "Delete?" pill on first click (confirm on second) */
+.tok-sheet .ac-del:hover{border-color:#cf3b2c;background:rgba(207,59,44,.12)}
+.tok-sheet .ac-del:hover svg path{stroke:#e8a59c}
+.tok-sheet .ac-del.armed{width:auto;padding:0 9px;border-color:#cf3b2c;background:rgba(207,59,44,.18);color:#f0a99f;font:600 9px/1 "Oswald",sans-serif;letter-spacing:.06em;text-transform:uppercase}
+/* + Add your own attack */
+.tok-sheet .ac-add{display:none}
+.tok-sheet .actionlist.editing .ac-add{display:block;width:100%;margin-top:8px;padding:9px;border:1px dashed #3a564f;border-radius:8px;background:rgba(85,196,192,.05);color:#9fb8b3;font:600 10px/1 "Oswald",sans-serif;letter-spacing:.08em;text-transform:uppercase;cursor:pointer;transition:border-color .15s,background .15s,color .15s}
+.tok-sheet .actionlist.editing .ac-add:hover{border-color:#55c4c0;background:rgba(85,196,192,.12);color:#cdeae7}
+/* Removed drawer */
+.tok-sheet .ac-removed{display:none}
+.tok-sheet .actionlist.editing .ac-removed{display:block;margin-top:10px;border-top:1px solid rgba(236,226,205,.1);padding-top:8px}
+.tok-sheet .ac-removed-h{font:600 8.5px/1 "Oswald",sans-serif;letter-spacing:.12em;text-transform:uppercase;color:#8d8675;margin-bottom:6px}
+.tok-sheet .ac-rrow{display:flex;align-items:center;justify-content:space-between;gap:10px;padding:5px 8px;border-radius:6px}
+.tok-sheet .ac-rrow+.ac-rrow{margin-top:2px}
+.tok-sheet .ac-rn{font:italic 13px/1.2 "EB Garamond",serif;color:#9a9381;text-decoration:line-through;text-decoration-color:rgba(207,59,44,.5)}
+.tok-sheet .ac-restore{font:600 8.5px/1 "Oswald",sans-serif;letter-spacing:.06em;text-transform:uppercase;color:#55c4c0;background:transparent;border:1px solid rgba(85,196,192,.4);border-radius:999px;padding:5px 11px;cursor:pointer;transition:background .14s,border-color .14s}
+.tok-sheet .ac-restore:hover{background:rgba(85,196,192,.14);border-color:rgba(85,196,192,.7)}
 .tok-sheet .act.edited{border-left:3px solid #55c4c0}
 .tok-sheet .ac-edited{font:600 9px/1 'Oswald',sans-serif;letter-spacing:.7px;text-transform:uppercase;color:#55c4c0;border:1px solid #55c4c0;border-radius:4px;padding:2px 5px;margin-left:7px;vertical-align:1px}
 .tok-sheet .ac-plus{color:#b9b0a0;opacity:.7}

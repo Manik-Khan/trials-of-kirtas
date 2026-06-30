@@ -1210,6 +1210,9 @@ export function wireInspiration({ root, characterData, key, depsReady } = {}) {
     var et = e.target.closest('[data-action-edit]'); if (et) { e.stopPropagation(); toggleAeMode(); return; }
     var pe = e.target.closest('[data-act-edit]'); if (pe) { e.stopPropagation(); openAeEditor(pe.getAttribute('data-act-edit')); return; }
     var ey = e.target.closest('[data-act-hide]'); if (ey) { e.stopPropagation(); aeToggleHide(ey.getAttribute('data-act-hide')); return; }
+    var dl = e.target.closest('[data-act-del]'); if (dl && aeEditable) { e.stopPropagation(); onDeleteClick(dl); return; }
+    var rstr = e.target.closest('[data-act-restore]'); if (rstr && aeEditable) { e.stopPropagation(); restoreAction(rstr.getAttribute('data-act-restore')); return; }
+    var addb = e.target.closest('[data-act-add]'); if (addb && aeEditable) { e.stopPropagation(); addCustomAction(); return; }
     var cf = e.target.closest('[data-act-cfg]'); if (cf && aeEditable) { e.stopPropagation(); openChipMenu(cf.getAttribute('data-act-cfg'), cf); return; }
     var sw = e.target.closest('[data-act-swap]'); if (sw && aeEditable) { e.stopPropagation(); openSwapMenu(sw.getAttribute('data-act-swap'), sw); return; }
     if (e.target.closest('.ae-editor')) return;   // panel has its own listeners
@@ -1250,7 +1253,7 @@ export function wireInspiration({ root, characterData, key, depsReady } = {}) {
   // edits persist as a minimal structural.actionOverrides[id]; the renderer + roller read
   // them through assembleActions, so a tweak shows on the row, the result card, and the
   // feed. Rolling is suppressed while in edit mode.
-  var aeEditable = false, aeMode = false, aeOpenId = null, aeDraft = null, aeArmedDel = null, aeArmTimer = null;
+  var aeEditable = false, aeMode = false, aeOpenId = null, aeDraft = null, aeArmedDel = null, aeArmTimer = null, aeOpenIsCustom = false, delTimer = null;
   var AE_TRASH = '<svg viewBox="0 0 24 24" fill="none"><path d="M4 7h16M9 7V5a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2M6 7l1 13a1 1 0 0 0 1 1h8a1 1 0 0 0 1-1l1-13" stroke-width="1.5" stroke-linecap="round"/></svg>';
   var AE_PLUS = '<svg viewBox="0 0 24 24" fill="none"><path d="M12 5v14M5 12h14" stroke-width="1.8" stroke-linecap="round"/></svg>';
   function aeNum(n) { n = parseInt(n, 10); return isNaN(n) ? 0 : n; }
@@ -1272,7 +1275,7 @@ export function wireInspiration({ root, characterData, key, depsReady } = {}) {
     aeDraft = { type: a.type, label: a.label || '', ability: a.ability || '', proficient: !!a.proficient, atkBonus: aeNum(a.atkBonus),
                 dmgAbility: !!a.dmgAbility, dmgDice: a.dmgDice || '', dmgBonus: aeNum(a.dmgBonus), dmgType: a.dmgType || '',
                 extraDamage: (a.extraDamage || []).map(function (c) { return { dice: c.dice || '', bonus: aeNum(c.bonus), type: c.type || '' }; }) };
-    aeOpenId = id; aeArmedDel = null; renderAePanel(); setTimeout(refreshAePreview, 0);
+    aeOpenId = id; aeOpenIsCustom = isCustomAction(id); aeArmedDel = null; renderAePanel(); setTimeout(refreshAePreview, 0);
   }
   function aePanelHTML() {
     var d = aeDraft, g = aeGroup(d.type), showHit = (g === 'attack'), ABIL = ['str', 'dex', 'con', 'int', 'wis', 'cha'];
@@ -1292,7 +1295,7 @@ export function wireInspiration({ root, characterData, key, depsReady } = {}) {
       + '<div class="ae-pv" data-ae-pv></div>'
       + '</div><div class="ae-act">'
       + '<button type="button" class="ae-btn danger" data-ae-hide>Hide action</button><span class="sp"></span>'
-      + '<button type="button" class="ae-btn reset" data-ae-reset>Reset</button>'
+      + (aeOpenIsCustom ? '' : '<button type="button" class="ae-btn reset" data-ae-reset>Reset</button>')
       + '<button type="button" class="ae-btn save" data-ae-save>Save</button>'
       + '</div></div>';
   }
@@ -1362,8 +1365,53 @@ export function wireInspiration({ root, characterData, key, depsReady } = {}) {
     aeOpenId = null; aeDraft = null; aeArmedDel = null;
     structural = ns; refresh(); persistStructural(prev);
   }
-  function aeSave(id) { var o = aeCommit(id); aeWriteOverride(id, function (ov) { if (Object.keys(o).length) ov[id] = o; else delete ov[id]; }); }
+  function aeSave(id) { if (isCustomAction(id)) { saveCustomAction(id); return; } var o = aeCommit(id); aeWriteOverride(id, function (ov) { if (Object.keys(o).length) ov[id] = o; else delete ov[id]; }); }
   function aeReset(id) { aeWriteOverride(id, function (ov) { delete ov[id]; }); }
+  // ── delete (two-step) + Removed drawer + add-your-own-attack ──────────────────
+  // Delete tombstones via actionOverrides[id].removed — the only durable way to drop a
+  // derived attack (it'd re-derive otherwise); a custom attack keeps its data and just hides
+  // until Restore. The two-step arm is in-place DOM (no re-render) so the armed state holds.
+  function disarmDel(btn) { try { btn.classList.remove('armed'); if (btn.__icon != null) btn.innerHTML = btn.__icon; } catch (_) {} }
+  function onDeleteClick(btn) {
+    if (!btn) return;
+    var id = btn.getAttribute('data-act-del');
+    if (btn.classList.contains('armed')) { clearTimeout(delTimer); doDeleteAction(id); return; }
+    try { if (root) root.querySelectorAll('.ac-del.armed').forEach(disarmDel); } catch (_) {}
+    btn.__icon = btn.innerHTML; btn.classList.add('armed'); btn.textContent = 'Delete?';
+    clearTimeout(delTimer); delTimer = setTimeout(function () { disarmDel(btn); }, 3000);
+  }
+  function doDeleteAction(id) { aeWriteOverride(id, function (ov) { (ov[id] || (ov[id] = {})).removed = true; }); }
+  function restoreAction(id) { aeWriteOverride(id, function (ov) { if (ov[id]) delete ov[id].removed; }); }
+  function isCustomAction(id) { return (structural.customActions || []).some(function (c) { return (c.id || c.label) === id; }); }
+  function newActionId() { return 'custom-' + Math.random().toString(36).slice(2, 9); }
+  function addCustomAction() {
+    if (!aeEditable) return;
+    var prev = structural, ns = JSON.parse(JSON.stringify(structural));
+    ns.customActions = (ns.customActions || []).slice();
+    var id = newActionId();
+    ns.customActions.push({ id: id, type: 'attack', label: 'New attack', ability: 'str', proficient: true, atkBonus: 0, dmgDice: '1d6', dmgBonus: 0, dmgType: '' });
+    structural = ns; refresh(); persistStructural(prev);
+    setTimeout(function () { try { openAeEditor(id); } catch (_) {} }, 0);   // open the editor on the new attack once it's painted
+  }
+  // a custom action owns its data — write the draft straight into structural.customActions
+  // (no override layering), so the JSON stays clean and the attack survives a reforge.
+  function saveCustomAction(id) {
+    if (!aeEditable || !aeDraft) return;
+    var prev = structural, ns = JSON.parse(JSON.stringify(structural));
+    ns.customActions = (ns.customActions || []).slice();
+    for (var i = 0; i < ns.customActions.length; i++) {
+      if ((ns.customActions[i].id || ns.customActions[i].label) === id) {
+        var d = aeDraft, a = { id: ns.customActions[i].id, type: d.type || 'attack', label: d.label || 'Attack' };
+        if (aeGroup(a.type) === 'attack') { a.ability = d.ability || ''; a.proficient = !!d.proficient; a.atkBonus = aeNum(d.atkBonus); }
+        a.dmgDice = d.dmgDice || ''; a.dmgBonus = aeNum(d.dmgBonus); a.dmgType = d.dmgType || '';
+        var extras = d.extraDamage.filter(function (c) { return c.dice; }).map(function (c) { var e = { dice: c.dice, type: c.type || '' }; if (aeNum(c.bonus)) e.bonus = aeNum(c.bonus); return e; });
+        if (extras.length) a.extraDamage = extras;
+        ns.customActions[i] = a; break;
+      }
+    }
+    aeOpenId = null; aeDraft = null; aeArmedDel = null;
+    structural = ns; refresh(); persistStructural(prev);
+  }
   // effective hidden + the action's default-hidden, read off the assembled list
   function aeEffHidden(id) {
     var list = assembleActions(inventory, structural, { includeHidden: true });
