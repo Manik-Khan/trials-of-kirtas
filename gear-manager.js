@@ -492,6 +492,10 @@
       if (vb && box.contains(vb)) { st.view = vb.getAttribute('data-view'); render(box, ctx); return; }
       // ignore clicks on the equip/attune pills (sheet-actions owns those)
       if (e.target.closest && e.target.closest('.eq-pill')) return;
+      // ignore the edit cog + the Edit-item button (sheet-actions owns data-editopen); without
+      // this, GM's tile/row match below would re-render and detach the cog before sheet-actions'
+      // router could open the editor for it.
+      if (e.target.closest && e.target.closest('[data-editopen]')) return;
       var tile = e.target.closest ? e.target.closest('[data-tile]') : null;
       if (tile && box.contains(tile)) {
         var tk = tile.getAttribute('data-tile'); var was = !!st.open[tk];

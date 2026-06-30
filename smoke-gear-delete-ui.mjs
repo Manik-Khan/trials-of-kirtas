@@ -84,5 +84,20 @@ console.log('--- bag cog rendered in list + grid ---');
   ok(box.querySelectorAll('.gm-cog[data-editopen]').length === 1, 'grid: only the bag gets a cog (not plain items)');
 }
 
+console.log('--- GM bind must let the cog through to sheet-actions ---');
+{
+  const box = d.getElementById('box');
+  box.__gmState = { view: 'list', open: Object.create(null) };
+  const ES = { SLOTS: [{ key: 'mainHand', label: 'Main' }], canEquip: () => false };
+  GM.render(box, { inventory: inv, currency: { gp: 1 }, ES, strScore: 14 });
+  GM.bind(box);
+  const cog = box.querySelector('.gm-cog[data-editopen="id:bag1"]');
+  ok(cog != null, 'cog present');
+  cog.dispatchEvent(new w.MouseEvent('click', { bubbles: true }));   // GM should ignore this
+  ok(!box.__gmState.open['id:bag1'], 'GM does NOT expand the bag on a cog click (lets data-editopen through)');
+  const bagBody = box.querySelector('[data-row="id:bag1"] .gm-n') || box.querySelector('[data-row="id:bag1"]');
+  if (bagBody) { bagBody.dispatchEvent(new w.MouseEvent('click', { bubbles: true })); ok(!!box.__gmState.open['id:bag1'], 'GM still expands the bag on a body click'); }
+}
+
 console.log('\nsmoke-gear-delete-ui: ' + pass + ' passed, ' + fail + ' failed');
 if (fail) process.exit(1);
