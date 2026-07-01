@@ -100,3 +100,23 @@ export function extractRefs(docJSON) {
   walk(docJSON)
   return [...refs.values()]
 }
+
+// ── Stub-create at save ──────────────────────────────────────
+// Walks the live doc; every UNRESOLVED mention becomes a created
+// stub (returned for the caller to register) and its node flips to
+// resolved — the entry is recorded with the entity now existing.
+export function resolveUnresolvedMentions(editor) {
+  const stubs = []
+  const seen = new Set()
+  const tr = editor.state.tr
+  editor.state.doc.descendants((node, pos) => {
+    if (node.type.name === 'tokMention' && !node.attrs.resolved) {
+      const { id, type, label } = node.attrs
+      const k = `${type}:${id}`
+      if (!seen.has(k)) { seen.add(k); stubs.push({ id, type, label }) }
+      tr.setNodeMarkup(pos, undefined, { ...node.attrs, resolved: true })
+    }
+  })
+  if (tr.docChanged) editor.view.dispatch(tr)
+  return stubs
+}

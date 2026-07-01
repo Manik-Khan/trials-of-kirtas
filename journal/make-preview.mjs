@@ -9,6 +9,7 @@ html = html
            () => `<script type="module">\n${js}\n</script>`)
   .replace(/<link rel="stylesheet"[^>]*journal-assets\/journal\.css[^>]*>/,
            () => `<style>\n${css}\n</style>`)
+html = html.replace(/^\s*<(link|script)[^>]*data-tok-shell[^>]*>(<\/script>)?\n?/gm, '')
 html = html.replace('<title>', '<!-- STANDALONE PREVIEW — Phase 0/1 mock, sample data baked, nothing persists -->\n<title>')
 fs.writeFileSync('journal-preview.html', html)
 console.log('journal-preview.html', (html.length/1024).toFixed(0)+'kB')

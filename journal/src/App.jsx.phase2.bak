@@ -1,0 +1,254 @@
+// journal.html — Phase 2 mock (fake persistence, standalone).
+// Adds to Phase 1: seat identity (character · player), stub-create with a
+// curation queue, clickable backlinks ("every entry that mentions X"),
+// and an "also post to Chronicle" cross-post toggle.
+// Real Phase 2 swaps the in-memory stores for Supabase
+// (journal_entries + journal_refs + entities) — the UI is this one.
+
+import React, { useMemo, useState } from 'react'
+import { EditorContent, useEditor } from '@tiptap/react'
+import StarterKit from '@tiptap/starter-kit'
+import { TokMention, extractRefs, resolveUnresolvedMentions } from './editor/MentionExtension.js'
+import { suggestion } from './editor/suggestion.js'
+import { SEATS } from './data/party.js'
+import { entityStore } from './data/entityStore.js'
+
+function fmtWhen(ts) {
+  return new Date(ts).toLocaleString(undefined, {
+    month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit',
+  })
+}
+
+function RefChips({ refs, onSelect, selectedKey }) {
+  if (!refs.length) return <span className="j-refs-none">no references</span>
+  return refs.map(r => {
+    const k = `${r.type}:${r.id}`
+    return (
+      <button
+        type="button"
+        key={k}
+        className={`j-ref-chip is-${r.type} ${k === selectedKey ? 'is-active' : ''}`}
+        title={`show every entry that mentions ${r.label}`}
+        onClick={() => onSelect?.(r)}
+      >
+        {r.type === 'npc' ? '👤' : '📍'} {r.label}
+        {r.count > 1 && <em className="j-ref-count">×{r.count}</em>}
+      </button>
+    )
+  })
+}
+
+function Entry({ entry, onSelectRef, selectedKey }) {
+  const [showJSON, setShowJSON] = useState(false)
+  return (
+    <article className="j-entry">
+      <header className="j-entry-head">
+        <span className="j-entry-who">
+          {entry.character}
+          <em className="j-entry-player"> · {entry.player}</em>
+          {entry.crossPost && <span className="j-entry-cross" title="also posted to the Chronicle">📜 Chronicle</span>}
+        </span>
+        <span className="j-entry-meta">
+          <span className="j-entry-when">{fmtWhen(entry.at)}</span>
+          <button type="button" className="j-entry-json" onClick={() => setShowJSON(v => !v)}>
+            {showJSON ? 'hide structure' : 'structure'}
+          </button>
+        </span>
+      </header>
+      <div className="j-entry-body c-entry-text" dangerouslySetInnerHTML={{ __html: entry.html }} />
+      <footer className="j-entry-refs">
+        <RefChips refs={entry.refs} onSelect={onSelectRef} selectedKey={selectedKey} />
+      </footer>
+      {showJSON && <pre className="j-entry-dump">{JSON.stringify(entry.refs, null, 2)}</pre>}
+    </article>
+  )
+}
+
+export default function App() {
+  const [entries, setEntries] = useState([])
+  const [seatKey, setSeatKey] = useState('liadan') // mock default; on-site = your profile's seat
+  const [crossPost, setCrossPost] = useState(false)
+  const [selectedRef, setSelectedRef] = useState(null) // {type,id,label} → backlink panel
+  const [stubTick, setStubTick] = useState(0) // re-render when the entity pool grows
+  const [isEmpty, setIsEmpty] = useState(true)
+
+  const seat = SEATS.find(s => String(s.key) === String(seatKey)) || SEATS[4]
+
+  const editor = useEditor({
+    extensions: [
+      StarterKit,
+      TokMention.configure({ suggestion }),
+    ],
+    content: '',
+    editorProps: {
+      attributes: { class: 'j-editor-content' },
+    },
+    onCreate: ({ editor }) => setIsEmpty(editor.isEmpty),
+    onUpdate: ({ editor }) => setIsEmpty(editor.isEmpty),
+  })
+
+  const save = () => {
+    if (!editor || editor.isEmpty) return
+    // Stub-create: unresolved mentions become entities; nodes flip to resolved.
+    const stubs = resolveUnresolvedMentions(editor)
+    stubs.forEach(s => entityStore.add(s))
+    if (stubs.length) setStubTick(t => t + 1)
+
+    const json = editor.getJSON()
+    setEntries(es => [{
+      at: Date.now(),
+      character: seat.character,
+      player: seat.player,
+      characterKey: seat.key,
+      crossPost,
+      html: editor.getHTML(),
+      refs: extractRefs(json),
+    }, ...es])
+    editor.commands.clearContent(true)
+    editor.commands.focus()
+  }
+
+  // Backlinks: every entry mentioning the selected ref (the Phase 2 query —
+  // on Supabase this is one indexed select on journal_refs).
+  const backlinks = useMemo(() => {
+    if (!selectedRef) return []
+    return entries.filter(e =>
+      e.refs.some(r => r.type === selectedRef.type && r.id === selectedRef.id))
+  }, [entries, selectedRef])
+
+  // Rollup across all entries
+  const rollup = useMemo(() => {
+    const m = new Map()
+    entries.forEach(e => e.refs.forEach(r => {
+      const k = `${r.type}:${r.id}`
+      const cur = m.get(k)
+      if (cur) cur.count += r.count
+      else m.set(k, { ...r })
+    }))
+    return [...m.values()].sort((a, b) => b.count - a.count)
+  }, [entries])
+
+  const newEntities = entityStore.createdStubs() // stubTick forces refresh
+  const selectedKey = selectedRef ? `${selectedRef.type}:${selectedRef.id}` : null
+  const pickRef = r => setSelectedRef(cur =>
+    cur && cur.type === r.type && cur.id === r.id ? null : { type: r.type, id: r.id, label: r.label })
+
+  return (
+    <div className="j-page">
+      <header className="j-header">
+        <div className="j-eyebrow">The Trials of Kirtas</div>
+        <h1 className="j-title">Journal</h1>
+        <p className="j-sub">
+          Phase 2 preview — stub-create · backlinks · Chronicle cross-post ·
+          nothing persists
+        </p>
+      </header>
+
+      <section className="j-composer">
+        <div className="j-seat-strip">
+          <span className="j-seat-label">Writing as</span>
+          <select
+            className="j-seat-select"
+            value={String(seatKey)}
+            onChange={e => setSeatKey(e.target.value === 'null' ? null : e.target.value)}
+          >
+            {SEATS.map(s => (
+              <option key={String(s.key)} value={String(s.key)}>
+                {s.character} · {s.player}
+              </option>
+            ))}
+          </select>
+          <span className="j-seat-note">(mock picker — on-site this is your seat)</span>
+        </div>
+
+        <div className="j-editor-wrap">
+          {isEmpty && (
+            <div className="j-placeholder" aria-hidden="true">
+              <p>The Chronicle awaits…</p>
+              <p>
+                Record a <span className="tok-mention npc-link">@example person</span> or{' '}
+                <span className="tok-mention location-link">@example place</span> by writing @.
+              </p>
+            </div>
+          )}
+          <EditorContent editor={editor} />
+        </div>
+
+        <div className="j-composer-bar">
+          <label className="j-cross">
+            <input
+              type="checkbox"
+              checked={crossPost}
+              onChange={e => setCrossPost(e.target.checked)}
+            />
+            <span>also post to Chronicle</span>
+          </label>
+          <span className="j-composer-hint">
+            unknown <code>@</code> names are created on record
+          </span>
+          <button type="button" className="j-save" onClick={save}>Record entry</button>
+        </div>
+      </section>
+
+      {newEntities.length > 0 && (
+        <section className="j-newents" data-tick={stubTick}>
+          <h2 className="j-panel-title">New to the world</h2>
+          <ul className="j-newents-list">
+            {newEntities.map(e => (
+              <li key={`${e.type}:${e.id}`} className={`j-newent is-${e.type}`}>
+                <span className="j-newent-name">{e.type === 'npc' ? '👤' : '📍'} {e.label}</span>
+                <span className="j-newent-dest">
+                  {e.type === 'npc'
+                    ? '→ NPC page · pending curation'
+                    : '→ world map · unmapped, awaiting a pin'}
+                </span>
+              </li>
+            ))}
+          </ul>
+          <p className="j-panel-note">
+            Created from journal mentions — instantly @-able in new entries. The DM
+            curates these onto the NPC page / world map afterwards.
+          </p>
+        </section>
+      )}
+
+      {rollup.length > 0 && (
+        <section className="j-rollup">
+          <h2 className="j-panel-title">References across this journal</h2>
+          <div className="j-rollup-chips">
+            <RefChips refs={rollup} onSelect={pickRef} selectedKey={selectedKey} />
+          </div>
+          <p className="j-panel-note">click a reference to see its backlinks</p>
+        </section>
+      )}
+
+      {selectedRef && (
+        <section className="j-backlinks">
+          <header className="j-backlinks-head">
+            <h2 className="j-panel-title">
+              Entries mentioning{' '}
+              <span className={selectedRef.type === 'npc' ? 'npc-link' : 'location-link'}>
+                @{selectedRef.label}
+              </span>
+            </h2>
+            <button type="button" className="j-backlinks-close" onClick={() => setSelectedRef(null)}>✕</button>
+          </header>
+          {backlinks.length === 0 && <p className="j-empty">no entries mention this yet</p>}
+          {backlinks.map(e => (
+            <Entry key={e.at} entry={e} onSelectRef={pickRef} selectedKey={selectedKey} />
+          ))}
+        </section>
+      )}
+
+      <section className="j-entries">
+        <h2 className="j-panel-title">{entries.length ? 'All entries' : ''}</h2>
+        {entries.length === 0 && (
+          <p className="j-empty">No entries yet — write one above and record it.</p>
+        )}
+        {entries.map(e => (
+          <Entry key={e.at} entry={e} onSelectRef={pickRef} selectedKey={selectedKey} />
+        ))}
+      </section>
+    </div>
+  )
+}

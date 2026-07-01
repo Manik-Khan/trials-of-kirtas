@@ -8,14 +8,30 @@
 import { ReactRenderer } from '@tiptap/react'
 import { computePosition, flip, shift, offset } from '@floating-ui/dom'
 import { MentionList } from './MentionList.jsx'
-import { NPCS, LOCATIONS } from '../data/sample.js'
+import { entityStore } from '../data/entityStore.js'
 import { buildItems } from './match.js'
 
-export const suggestion = {
+export function makeEntitySuggestion({ onCreateEntity } = {}) {
+  return {
   char: '@',
   allowSpaces: true, // multi-word queries: "@Lord Rey…"
 
-  items: ({ query }) => buildItems(query, NPCS, LOCATIONS),
+  items: ({ query }) => buildItems(query, entityStore.npcs(), entityStore.locations()),
+
+  // Choosing "new NPC / new location" creates the entity right away —
+  // same immediacy as [[new page]]; the node inserts already-resolved.
+  command: ({ editor, range, props }) => {
+    let resolved = props.resolved
+    if (!resolved) {
+      const created = entityStore.add({ id: props.id, type: props.type, label: props.label })
+      if (created) onCreateEntity?.({ id: props.id, type: props.type, label: props.label })
+      resolved = true
+    }
+    editor.chain().focus().insertContentAt(range, [
+      { type: 'tokMention', attrs: { id: props.id, type: props.type, label: props.label, resolved } },
+      { type: 'text', text: ' ' },
+    ]).run()
+  },
 
   render: () => {
     let component
@@ -66,4 +82,8 @@ export const suggestion = {
       },
     }
   },
+  }
 }
+
+// Back-compat default (no create callback)
+export const suggestion = makeEntitySuggestion()
