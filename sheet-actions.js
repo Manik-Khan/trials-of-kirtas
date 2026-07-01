@@ -96,6 +96,32 @@ export function rollHitDie(faces, conMod, rng) {
   return { roll: roll, gain: Math.max(0, roll + (conMod || 0)) };
 }
 
+// PURE: vitals after an HP adjustment (never mutates the input). Mirrors the party
+// page exactly: effMax = base hpMax + bonus-max; damage/heal clamp current to
+// [0, effMax]; a bulk hit spends temp HP first; temp / bonus-max steppers clamp
+// 0..99; lowering bonus-max re-clamps current so it can't sit above the new max.
+// Base max HP stays build-owned — the editor never touches structural.
+export function applyHp(vitals, structural, act, amt) {
+  var v = JSON.parse(JSON.stringify(vitals || {}));
+  var cmb = (structural && structural.combat) || {};
+  var m0 = cmb.hpMax || 0;
+  var bonus = v.hpBonus || 0, temp = v.hpTemp || 0;
+  var effMax = m0 + bonus;
+  var cur = (v.hp != null) ? v.hp : (cmb.hp != null ? cmb.hp : effMax);
+  amt = Math.max(1, amt || 1);
+  var clampHp = function (n) { return Math.max(0, Math.min(effMax, n)); };
+  if (act === 'dmg') cur = clampHp(cur - 1);
+  else if (act === 'heal') cur = clampHp(cur + 1);
+  else if (act === 'healN') cur = clampHp(cur + amt);
+  else if (act === 'dmgN') { var d = amt, soak = Math.min(temp, d); temp -= soak; d -= soak; cur = clampHp(cur - d); }
+  else if (act === 'temp-') temp = Math.max(0, Math.min(99, temp - 1));
+  else if (act === 'temp+') temp = Math.max(0, Math.min(99, temp + 1));
+  else if (act === 'bonus-') { bonus = Math.max(0, Math.min(99, bonus - 1)); cur = Math.min(cur, m0 + bonus); }
+  else if (act === 'bonus+') bonus = Math.max(0, Math.min(99, bonus + 1));
+  v.hp = cur; v.hpTemp = temp; v.hpBonus = bonus;
+  return v;
+}
+
 function esc(x) { return String(x == null ? '' : x).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;'); }
 function raf(fn) { (typeof requestAnimationFrame !== 'undefined' ? requestAnimationFrame : function (f) { f(); })(fn); }
 
@@ -922,6 +948,30 @@ export function wireInspiration({ root, characterData, key, depsReady } = {}) {
     if (spent > 0) nv.pipState[id] = spent; else delete nv.pipState[id];
     vitals = nv; refresh(); persistVitals(prev);
   }
+
+  // HP editor on the sheet's Hit-Points card — same optimistic mutate → refresh →
+  // save → reconcile path as the resource pips and hit dice above, owner-gated.
+  function hpAdjust(act) {
+    if (saving) return;
+    var amtEl = root.querySelector('[data-f-hpamt]');
+    var amt = amtEl ? (parseInt(amtEl.value, 10) || 1) : 1;
+    var prev = vitals;
+    var nv = applyHp(vitals, structural, act, amt);
+    var curHp = (vitals.hp != null) ? vitals.hp : nv.hp;
+    if (nv.hp === curHp && nv.hpTemp === (vitals.hpTemp || 0) && nv.hpBonus === (vitals.hpBonus || 0)) return;  // nothing changed
+    vitals = nv; refresh(); persistVitals(prev);
+  }
+  function bindHpAdjust(editable) {
+    var host = root.querySelector('[data-hp-adj]');
+    if (!host) return;
+    if (!editable) { host.classList.add('view-only'); return; }
+    host.addEventListener('click', function (e) {
+      var b = e.target.closest('[data-hpadj]');
+      if (!b || !host.contains(b)) return;
+      e.stopPropagation(); hpAdjust(b.getAttribute('data-hpadj'));
+    });
+  }
+
   function onPip(pip) {
     var row = pip.closest('.trk[data-tid]'); if (!row) return;
     var id = row.getAttribute('data-tid'); var spec = specFor(id); if (!spec) return;
@@ -1879,6 +1929,7 @@ export function wireInspiration({ root, characterData, key, depsReady } = {}) {
         hdMed.addEventListener('click', (e) => { e.stopPropagation(); openHdSpend(); });
         hdMed.addEventListener('keydown', (e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); openHdSpend(); } });
       }
+      bindHpAdjust(true);
       bindTrackers(true);
       bindCustomFeatures(true);
       bindSpellcasting(true);
@@ -1895,6 +1946,7 @@ export function wireInspiration({ root, characterData, key, depsReady } = {}) {
       root.querySelectorAll('[data-rest]').forEach((b) => {
         b.addEventListener('click', () => showStat('hint', 'view only', true));
       });
+      bindHpAdjust(false);
       bindTrackers(false);
       bindCustomFeatures(false);
       bindSpellcasting(false);

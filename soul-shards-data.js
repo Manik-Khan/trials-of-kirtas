@@ -56,6 +56,39 @@
 
   function indexBy(arr, keyFn) { const m = new Map(); for (const x of arr) m.set(keyFn(x), x); return m; }
 
+  // Some class/subclass features keep their real text behind nested refs inside their
+  // entries — {type:'refSubclassFeature'|'refClassFeature'} — e.g. Way of Mercy points
+  // to Implements of Mercy / Hand of Healing / Hand of Harm. Resolve those inline so a
+  // feature's entries carry the full prose (proficiency grants, mechanics) instead of an
+  // opaque pointer; downstream (the sheet's feature text, the proficiency harvest) reads
+  // real content. Cross-file refOptionalfeature (invocations, fighting styles) is left
+  // as-is. Depth-guarded against pathological self-reference.
+  function resolveNestedRefs(entries, scfList, cfList, srcDefault, depth) {
+    depth = depth || 0;
+    if (!entries || depth > 4) return entries;
+    if (Array.isArray(entries)) return entries.map(function (e) { return resolveNestedRefs(e, scfList, cfList, srcDefault, depth); });
+    if (typeof entries === 'object') {
+      if (entries.type === 'refSubclassFeature' && entries.subclassFeature) {
+        var p = parseSubclassFeatureRef(entries.subclassFeature, srcDefault);
+        var obj = scfList.find(function (f) { return f.name === p.name && f.subclassShortName === p.subclassShort && f.level === p.level && (!p.subclassSource || f.source === p.subclassSource); })
+               || scfList.find(function (f) { return f.name === p.name && f.subclassShortName === p.subclassShort && f.level === p.level; });
+        return obj ? { type: 'entries', name: obj.name, entries: resolveNestedRefs(obj.entries || [], scfList, cfList, srcDefault, depth + 1) } : entries;
+      }
+      if (entries.type === 'refClassFeature' && entries.classFeature) {
+        var q2 = parseClassFeatureRef(entries.classFeature, srcDefault);
+        var cobj = cfList.find(function (f) { return f.name === q2.name && f.level === q2.level && (!q2.source || f.source === q2.source); })
+                || cfList.find(function (f) { return f.name === q2.name && f.level === q2.level; });
+        return cobj ? { type: 'entries', name: cobj.name, entries: resolveNestedRefs(cobj.entries || [], scfList, cfList, srcDefault, depth + 1) } : entries;
+      }
+      if (Array.isArray(entries.entries)) {
+        var clone = Object.assign({}, entries);
+        clone.entries = resolveNestedRefs(entries.entries, scfList, cfList, srcDefault, depth);
+        return clone;
+      }
+    }
+    return entries;
+  }
+
   // ── normalize a class file into the builder model (pure) ───────────────────
   // Build a spellcasting block from a class OR subclass object (same field names
   // on both). spellsKnown present ⇒ a "known" caster; absent ⇒ prepared.
@@ -131,7 +164,7 @@
       (featuresByLevel[p.level] || (featuresByLevel[p.level] = [])).push({
         name: p.name, level: p.level, source: p.source,
         gainSubclass: p.gainSubclass,
-        entries: obj ? obj.entries : null,
+        entries: obj ? resolveNestedRefs(obj.entries, file.subclassFeature || [], file.classFeature || [], srcDefault) : null,
         unresolved: !obj,
       });
     }
@@ -147,7 +180,7 @@
                f.name === p.name && f.subclassShortName === p.subclassShort && f.level === p.level);
         (byLevel[p.level] || (byLevel[p.level] = [])).push({
           name: p.name, level: p.level, source: p.subclassSource,
-          entries: obj ? obj.entries : null, unresolved: !obj,
+          entries: obj ? resolveNestedRefs(obj.entries, file.subclassFeature || [], file.classFeature || [], srcDefault) : null, unresolved: !obj,
         });
       }
       // ⅓-caster subclasses (Eldritch Knight, Arcane Trickster) carry their own

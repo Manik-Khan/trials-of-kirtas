@@ -46,6 +46,69 @@
   };
   var SKILL_LIST = Object.keys(SKILL_ABIL);
 
+  // lowercase skill key -> canonical name (features cite skills as {@skill Insight})
+  var SKILL_CANON = (function () { var m = {}; SKILL_LIST.forEach(function (s) { m[s.toLowerCase()] = s; }); return m; })();
+  function titleCaseTool(s) {
+    s = String(s == null ? '' : s).trim();
+    return s.split(/\s+/).map(function (w) { return w.replace(/^./, function (c) { return c.toUpperCase(); }); }).join(' ');
+  }
+  // {@skill Insight} -> Insight ; {@item herbalism kit|PHB} -> herbalism kit
+  function stripEntryTag(s) { return String(s).replace(/\{@\w+\s+([^}]*)\}/g, function (_, body) { return body.split('|')[0]; }).trim(); }
+
+  // Proficiencies GRANTED BY FEATURES. 5etools' class-builder data leaves most of
+  // these in prose (Way of Mercy's Implements of Mercy: "You gain proficiency in the
+  // {@skill Insight} and {@skill Medicine} skills, and … {@item herbalism kit|PHB}"),
+  // with no structured field — so a resolver that reads only startingProficiencies /
+  // multiclassing silently drops them. Scan each granted feature sentence-by-sentence:
+  // harvest the typed tokens ONLY from sentences that actually grant a proficiency, and
+  // skip any that defer to player choice ("one skill of your choice") so a feature's
+  // grant is never over-applied. Structured fields (if the data ever carries them) win
+  // first; prose fills the rest.
+  function featureGrantedProficiencies(builds) {
+    var out = { skills: [], tools: [], languages: [], weapons: [], armor: [], expertise: [] };
+    function addUniq(arr, v) { v = String(v == null ? '' : v).trim(); if (v && arr.indexOf(v) === -1) arr.push(v); }
+    function addSkill(name) { var c = SKILL_CANON[String(name).trim().toLowerCase()]; if (c) addUniq(out.skills, c); }
+    function scanString(s) {
+      s.split('.').forEach(function (sent) {
+        if (!/proficien/i.test(sent)) return;                                              // not a proficiency sentence
+        if (!/\b(?:gain|gains|have|has|are|is|become|becomes|proficient)\b/i.test(sent)) return;
+        if (/of your choice|choose|any (?:one|two|three|\d)\b/i.test(sent)) return;         // a choice — leave it to the Proficiencies step
+        (sent.match(/\{@skill\s+[^}]*\}/gi) || []).forEach(function (m) { addSkill(stripEntryTag(m)); });
+        (sent.match(/\{@item\s+[^}]*\}/gi) || []).forEach(function (m) { addUniq(out.tools, titleCaseTool(stripEntryTag(m))); });
+        (sent.match(/\{@language\s+[^}]*\}/gi) || []).forEach(function (m) { addUniq(out.languages, stripEntryTag(m)); });
+      });
+    }
+    function scan(entries) {
+      if (!entries) return;
+      if (typeof entries === 'string') { scanString(entries); return; }
+      if (Array.isArray(entries)) { entries.forEach(scan); return; }
+      if (typeof entries === 'object') {
+        if (entries.type === 'table') return;                                              // table rows are data, not grants
+        if (entries.entries) scan(entries.entries);
+        if (entries.items) scan(entries.items);
+      }
+    }
+    (builds || []).forEach(function (b) {
+      (b.features || []).forEach(function (f) {
+        (f.skillProficiencies || []).forEach(function (e) { if (e && typeof e === 'object') Object.keys(e).forEach(function (k) { if (e[k] === true) addSkill(k); }); });
+        (f.toolProficiencies || []).forEach(function (e) { if (e && typeof e === 'object') Object.keys(e).forEach(function (k) { if (e[k] === true) addUniq(out.tools, titleCaseTool(stripEntryTag(k))); }); });
+        (f.languageProficiencies || []).forEach(function (e) { if (e && typeof e === 'object') Object.keys(e).forEach(function (k) { if (e[k] === true) addUniq(out.languages, stripEntryTag(k)); }); });
+        scan(f.entries);
+      });
+    });
+    return out;
+  }
+  // union feature grants into the Proficiencies-step lists (deduped)
+  function mergeFeatureGrants(prof, grants) {
+    var merged = {};
+    ['skills', 'expertise', 'languages', 'tools', 'weapons', 'armor'].forEach(function (t) {
+      var base = (prof && prof[t]) ? prof[t].slice() : [];
+      (grants[t] || []).forEach(function (n) { if (base.indexOf(n) === -1) base.push(n); });
+      merged[t] = base;
+    });
+    return merged;
+  }
+
   function deriveStructural(input, deps) {
     input = input || {}; deps = deps || {};
     var engine = deps.engine || (typeof window !== 'undefined' && window.SoulShardsEngine);
@@ -162,7 +225,10 @@
     // Skills resolve to the 18-row sheet shape; passive Perception / Insight derive
     // off those rows. With no proficiency input every skill is at its bare ability
     // mod (a degenerate but valid build) — the real forge always passes this in.
-    var prof = input.proficiencies || {};
+    // input.proficiencies is the Proficiencies-step set (class/race/background); fold in
+    // anything the character's FEATURES grant (e.g. a Way of Mercy monk's Insight +
+    // Medicine + herbalism kit) so a subclass/feature prof never goes missing on the sheet.
+    var prof = mergeFeatureGrants(input.proficiencies || {}, featureGrantedProficiencies(builds));
     var profSkills = prof.skills || [];
     var profExpert = prof.expertise || [];
     var inList = function (list, name) { return (list || []).indexOf(name) !== -1; };

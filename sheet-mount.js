@@ -352,9 +352,14 @@ function renderSheet(root, char){
   setF('spellAtk', cb.spellAttackBonus!=null?sgn(cb.spellAttackBonus):'\u2014');
   renderHitDice(root, s, v);
   var hp=(v.hp!=null?v.hp:cb.hp), hpMax=(cb.hpMax!=null?cb.hpMax:cb.hp), temp=(v.hpTemp!=null?v.hpTemp:0), bonus=(v.hpBonus!=null?v.hpBonus:0), effMax=(hpMax||0)+(bonus||0);
-  setF('hp', hp); setF('hpMaxBig', '/ '+hpMax); setF('hpCurrent', 'Current '+hp+' / '+hpMax);
+  setF('hp', hp); setF('hpMaxBig', '/ '+effMax); setF('hpCurrent', 'Current '+hp+' / '+effMax);
   setF('hpTemp', temp>0?('+'+temp+' Temp'):'');
-  if(effMax>0){ styleF('hpfill','width',clamp(hp/effMax*100)+'%'); styleF('hptemp','width',clamp(temp/effMax*100)+'%'); }
+  setF('hpTempVal', temp); setF('hpBonusVal', bonus);
+  var hpTotal=effMax+temp, mainShown=Math.min(hp, effMax);
+  var hpw=function(n){ return clamp(hpTotal>0?((n<0?0:n)/hpTotal*100):0); };
+  styleF('hpfill','width',hpw(mainShown)+'%');
+  styleF('hptemp','width',hpw(temp)+'%');
+  styleF('hpbonusbar','width',hpw(Math.max(0, effMax-mainShown))+'%');
   var senses=cb.senses||s.senses||{};
   setF('darkvision', senses.darkvision?(senses.darkvision+' ft'):'\u2014');
   setF('passivePerception', s.passivePerception);
@@ -914,8 +919,27 @@ var SHEET_TEMPLATE = `<main class="tok-sheet">
         <div class="med hpmed hot">
           <div class="lab">Hit Points</div>
           <div class="big"><span data-f="hp">18</span> <span style="font-size:23px;color:var(--cream-dim)" data-f="hpMaxBig">/ 23</span></div>
-          <div class="hpbar"><div class="hpfill" data-f="hpfill"></div><div class="hptemp" data-f="hptemp"></div></div>
+          <div class="hpbar"><div class="hpfill" data-f="hpfill"></div><div class="hptemp" data-f="hptemp"></div><div class="hpbonusbar" data-f="hpbonusbar"></div></div>
           <div class="hpmeta"><span data-f="hpCurrent">Current 18 / 23</span><span class="tmp" data-f="hpTemp">+4 Temp</span></div>
+          <div class="hp-adj" data-hp-adj>
+            <div class="hp-adj-dh">
+              <button type="button" class="step" data-hpadj="dmg" aria-label="Take 1 damage">−</button>
+              <input type="number" class="hp-amt" data-f-hpamt min="1" value="1" aria-label="Damage or heal amount">
+              <button type="button" class="step" data-hpadj="heal" aria-label="Heal 1">+</button>
+              <button type="button" class="hp-btn dmg" data-hpadj="dmgN">Damage</button>
+              <button type="button" class="hp-btn heal" data-hpadj="healN">Heal</button>
+            </div>
+            <div class="hp-adj-tb">
+              <span class="hp-adj-lbl temp">Temp</span>
+              <button type="button" class="step" data-hpadj="temp-" aria-label="Temp HP down">−</button>
+              <span class="hp-adj-val" data-f="hpTempVal">0</span>
+              <button type="button" class="step" data-hpadj="temp+" aria-label="Temp HP up">+</button>
+              <span class="hp-adj-lbl bonus">Bonus</span>
+              <button type="button" class="step" data-hpadj="bonus-" aria-label="Bonus max down">−</button>
+              <span class="hp-adj-val" data-f="hpBonusVal">0</span>
+              <button type="button" class="step" data-hpadj="bonus+" aria-label="Bonus max up">+</button>
+            </div>
+          </div>
         </div>
         <div class="med-row">
           <div class="med mini"><div class="lab">Speed</div><div class="big"><span data-f="speed">30</span><span style="font-size:15px;color:var(--cream-dim)">ft</span></div><div class="sub spd-note" data-f="speed-note"></div></div>

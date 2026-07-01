@@ -145,12 +145,34 @@
 
 .tok-sheet .hpmed .big{font-size:38px}
 .tok-sheet .hpbar{position:relative;height:17px;margin:9px 2px 4px;overflow:hidden;background:rgba(0,0,0,.32);
-  border:1px solid rgba(236,226,205,.18)}
-.tok-sheet .hpfill{position:absolute;inset:0 22% 0 0;background:linear-gradient(90deg,var(--hp-full),#6cc096);filter:url(#rough)}
-.tok-sheet .hptemp{position:absolute;top:0;bottom:0;left:78%;right:8%;background:linear-gradient(90deg,var(--gold),var(--gold-br));filter:url(#rough)}
+  border:1px solid rgba(236,226,205,.18);display:flex}
+/* three consecutive segments — current (green) · temp (gold) · missing headroom (blue); widths set live in renderVitals */
+.tok-sheet .hpfill{height:100%;flex:0 0 auto;background:linear-gradient(90deg,var(--hp-full),#6cc096);filter:url(#rough)}
+.tok-sheet .hptemp{height:100%;flex:0 0 auto;background:linear-gradient(90deg,var(--gold),var(--gold-br));filter:url(#rough)}
+.tok-sheet .hpbonusbar{height:100%;flex:0 0 auto;background:linear-gradient(90deg,#4d8893,#5a9aaa);filter:url(#rough)}
 .tok-sheet .hpmeta{display:flex;justify-content:space-between;font-family:"Oswald",sans-serif;font-weight:400;
   font-size:11px;letter-spacing:.06em;text-transform:uppercase;color:var(--cream-dim)}
 .tok-sheet .hpmeta .tmp{color:var(--gold-br)}
+
+/* ——— in-sheet HP editor: quick ±1, bulk damage/heal, temp HP + bonus-max steppers ——— */
+.tok-sheet .hp-adj{margin-top:9px;display:flex;flex-direction:column;gap:7px}
+.tok-sheet .hp-adj.view-only{display:none}
+.tok-sheet .hp-adj-dh{display:flex;align-items:center;gap:5px}
+.tok-sheet .hp-adj-tb{display:flex;align-items:center;gap:5px;flex-wrap:wrap}
+.tok-sheet .hp-amt{width:40px;height:22px;background:rgba(0,0,0,.3);border:1px solid var(--hair);color:var(--cream-hi);
+  font-family:"Playfair Display",serif;font-size:14px;text-align:center;font-variant-numeric:tabular-nums;padding:0;-moz-appearance:textfield}
+.tok-sheet .hp-amt::-webkit-outer-spin-button,.tok-sheet .hp-amt::-webkit-inner-spin-button{-webkit-appearance:none;margin:0}
+.tok-sheet .hp-amt:focus{outline:none;border-color:var(--gold)}
+.tok-sheet .hp-btn{flex:1;height:22px;border:1px solid;background:transparent;cursor:pointer;font-family:"Oswald",sans-serif;
+  font-weight:500;text-transform:uppercase;letter-spacing:.1em;font-size:10px;transition:.12s}
+.tok-sheet .hp-btn.dmg{border-color:rgba(207,59,44,.5);color:var(--red-br)}
+.tok-sheet .hp-btn.dmg:hover{background:rgba(207,59,44,.16);border-color:var(--red-br)}
+.tok-sheet .hp-btn.heal{border-color:rgba(87,176,137,.5);color:#7fd0a4}
+.tok-sheet .hp-btn.heal:hover{background:rgba(87,176,137,.16)}
+.tok-sheet .hp-adj-lbl{font-family:"Oswald",sans-serif;font-weight:500;text-transform:uppercase;letter-spacing:.1em;font-size:10px;color:var(--cream-dim)}
+.tok-sheet .hp-adj-lbl.temp{color:var(--gold-br)}
+.tok-sheet .hp-adj-lbl.bonus{color:#5a9aaa;margin-left:6px}
+.tok-sheet .hp-adj-val{font-family:"Playfair Display",serif;font-weight:600;font-size:15px;min-width:18px;text-align:center;font-variant-numeric:tabular-nums;color:var(--cream)}
 .tok-sheet .attune{display:flex;gap:7px;justify-content:center;margin-top:5px}
 .tok-sheet .pip{width:12px;height:12px;transform:rotate(45deg);border:1.5px solid var(--gold-br);filter:url(#rough)}
 .tok-sheet .pip.on{background:var(--gold-br)}
