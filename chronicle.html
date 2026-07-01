@@ -22,7 +22,7 @@
       height: calc(100vh - 52px);
       overflow: hidden;
     }
-/* 06/30/26 redeploy */
+
     /* ── Sidebar ── */
     .c-sidebar {
       grid-row: 1 / 3;
@@ -1442,7 +1442,11 @@ function allowedPlayers() {
 }
 function renderPlayerBtns() {
   document.getElementById('id-players').innerHTML = allowedPlayers().map(p=>`
-
+    <button class="id-player-btn${pendingPlayer===p.id?' selected':''}" onclick="selectPlayer('${p.id}')">
+      <div class="id-dot" style="background:${p.color}"></div>
+      <div class="id-info"><span class="id-name">${p.name}</span><span class="id-char">${p.character}</span></div>
+    </button>`).join('');
+}
 function openModal() {
   pendingPlayer = currentIdentity?.playerId || null;
   renderPlayerBtns();
@@ -1454,11 +1458,6 @@ function openModal() {
   }
   document.getElementById('id-modal').classList.remove('hidden');
   updateConfirmBtn();
-}
-    <button class="id-player-btn${pendingPlayer===p.id?' selected':''}" onclick="selectPlayer('${p.id}')">
-      <div class="id-dot" style="background:${p.color}"></div>
-      <div class="id-info"><span class="id-name">${p.name}</span><span class="id-char">${p.character}</span></div>
-    </button>`).join('');
 }
 function selectPlayer(id) {
   pendingPlayer = id;
