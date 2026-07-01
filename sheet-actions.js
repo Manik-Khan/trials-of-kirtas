@@ -961,14 +961,24 @@ export function wireInspiration({ root, characterData, key, depsReady } = {}) {
     if (nv.hp === curHp && nv.hpTemp === (vitals.hpTemp || 0) && nv.hpBonus === (vitals.hpBonus || 0)) return;  // nothing changed
     vitals = nv; refresh(); persistVitals(prev);
   }
+  function adjustHpAmt(delta) {
+    var amtEl = root.querySelector('[data-f-hpamt]');
+    if (!amtEl) return;
+    amtEl.value = Math.max(1, (parseInt(amtEl.value, 10) || 1) + delta);
+  }
   function bindHpAdjust(editable) {
-    var host = root.querySelector('[data-hp-adj]');
-    if (!host) return;
-    if (!editable) { host.classList.add('view-only'); return; }
-    host.addEventListener('click', function (e) {
+    var card = root.querySelector('.hpmed');
+    if (!card) return;
+    var host = card.querySelector('[data-hp-adj]');
+    if (!editable) { if (host) host.classList.add('view-only'); card.classList.add('hp-locked'); return; }
+    card.addEventListener('click', function (e) {
       var b = e.target.closest('[data-hpadj]');
-      if (!b || !host.contains(b)) return;
-      e.stopPropagation(); hpAdjust(b.getAttribute('data-hpadj'));
+      if (!b || !card.contains(b)) return;
+      e.stopPropagation();
+      var act = b.getAttribute('data-hpadj');
+      if (act === 'amt-') return adjustHpAmt(-1);   // the field ± only changes the amount, never HP
+      if (act === 'amt+') return adjustHpAmt(1);
+      hpAdjust(act);                                 // dmg/heal (bar-flanking ±1) + Damage/Heal + temp/bonus
     });
   }
 

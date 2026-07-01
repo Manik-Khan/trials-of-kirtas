@@ -144,7 +144,10 @@
 .tok-sheet .med.mini{padding:11px 6px 10px}.tok-sheet .med.mini .big{font-size:32px}
 
 .tok-sheet .hpmed .big{font-size:38px}
-.tok-sheet .hpbar{position:relative;height:17px;margin:9px 2px 4px;overflow:hidden;background:rgba(0,0,0,.32);
+.tok-sheet .hpbar-row{display:flex;align-items:center;gap:6px;margin:9px 2px 4px}
+.tok-sheet .hpbar-row .hp-quick{flex:0 0 auto}
+.tok-sheet .hpmed.hp-locked .hp-quick{display:none}
+.tok-sheet .hpbar{position:relative;height:17px;flex:1;overflow:hidden;background:rgba(0,0,0,.32);
   border:1px solid rgba(236,226,205,.18);display:flex}
 /* three consecutive segments — current (green) · temp (gold) · missing headroom (blue); widths set live in renderVitals */
 .tok-sheet .hpfill{height:100%;flex:0 0 auto;background:linear-gradient(90deg,var(--hp-full),#6cc096);filter:url(#rough)}

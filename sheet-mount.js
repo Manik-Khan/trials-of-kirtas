@@ -919,13 +919,17 @@ var SHEET_TEMPLATE = `<main class="tok-sheet">
         <div class="med hpmed hot">
           <div class="lab">Hit Points</div>
           <div class="big"><span data-f="hp">18</span> <span style="font-size:23px;color:var(--cream-dim)" data-f="hpMaxBig">/ 23</span></div>
-          <div class="hpbar"><div class="hpfill" data-f="hpfill"></div><div class="hptemp" data-f="hptemp"></div><div class="hpbonusbar" data-f="hpbonusbar"></div></div>
+          <div class="hpbar-row">
+            <button type="button" class="step hp-quick" data-hpadj="dmg" aria-label="Take 1 damage">−</button>
+            <div class="hpbar"><div class="hpfill" data-f="hpfill"></div><div class="hptemp" data-f="hptemp"></div><div class="hpbonusbar" data-f="hpbonusbar"></div></div>
+            <button type="button" class="step hp-quick" data-hpadj="heal" aria-label="Heal 1">+</button>
+          </div>
           <div class="hpmeta"><span data-f="hpCurrent">Current 18 / 23</span><span class="tmp" data-f="hpTemp">+4 Temp</span></div>
           <div class="hp-adj" data-hp-adj>
             <div class="hp-adj-dh">
-              <button type="button" class="step" data-hpadj="dmg" aria-label="Take 1 damage">−</button>
+              <button type="button" class="step" data-hpadj="amt-" aria-label="Decrease amount">−</button>
               <input type="number" class="hp-amt" data-f-hpamt min="1" value="1" aria-label="Damage or heal amount">
-              <button type="button" class="step" data-hpadj="heal" aria-label="Heal 1">+</button>
+              <button type="button" class="step" data-hpadj="amt+" aria-label="Increase amount">+</button>
               <button type="button" class="hp-btn dmg" data-hpadj="dmgN">Damage</button>
               <button type="button" class="hp-btn heal" data-hpadj="healN">Heal</button>
             </div>
