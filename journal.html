@@ -1,0 +1,27 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Journal — The Trials of Kirtas</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=Cinzel+Decorative:wght@400;700&family=Cinzel:wght@400;600&family=Crimson+Pro:ital,wght@0,300;0,400;1,300;1,400&display=swap" rel="stylesheet">
+  <!-- on-site shell (repo-root relative; the standalone preview strips these) -->
+  <link rel="stylesheet" href="theme.css" data-tok-shell>
+  <script src="nav.js" data-tok-shell></script>
+  <script src="tooltips.js" data-tok-shell></script>
+  <script data-tok-shell>
+    // tooltips.js declares NPC_DATA/LOCATION_DATA as global-lexical consts;
+    // bridge them onto window for the module bundle.
+    window.__tokCanon = {
+      npcs: typeof NPC_DATA !== 'undefined' ? NPC_DATA : {},
+      locations: typeof LOCATION_DATA !== 'undefined' ? LOCATION_DATA : {},
+    };
+  </script>
+  <script type="module" crossorigin src="./journal-assets/journal.js?v=1782946149341"></script>
+  <link rel="stylesheet" crossorigin href="./journal-assets/journal.css?v=1782946149341">
+</head>
+<body>
+  <div id="journal-root"></div>
+</body>
+</html>
