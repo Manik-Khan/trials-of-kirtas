@@ -51,8 +51,15 @@
     });
   }
   function ensureCharacterData() {
-    if (window.CharacterData) return Promise.resolve();
-    return loadScript('character-data.js').then(function () { return waitFor(function () { return !!window.CharacterData; }, 5000); });
+    // Check the METHOD, not just presence. On pages that inject character-data.js
+    // (rather than loading it via a static <script>), an older cached/deployed copy
+    // can define window.CharacterData WITHOUT loadParty — a bare `if (window.CharacterData)`
+    // would pass and then CD().loadParty throws "not a function". If a partial copy is
+    // present, a plain re-inject would re-hit the same file, so cache-bust to force a
+    // fresh fetch; the fresh module's IIFE overwrites the stale window.CharacterData.
+    if (window.CharacterData && typeof window.CharacterData.loadParty === 'function') return Promise.resolve();
+    var src = window.CharacterData ? ('character-data.js?v=' + Date.now()) : 'character-data.js';
+    return loadScript(src).then(function () { return waitFor(function () { return !!(window.CharacterData && typeof window.CharacterData.loadParty === 'function'); }, 5000); });
   }
   // The v11 sheet's deps, in order — mirrors sheet-v2.html's includes. Most pages
   // don't load these, so we inject the missing ones the first time a sheet opens.
