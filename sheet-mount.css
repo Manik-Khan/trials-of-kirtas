@@ -264,8 +264,16 @@
 .tok-sheet .tbtn:hover{background:var(--cream-hi)}
 .tok-sheet .tbtn:focus-visible{outline:2px solid var(--cream-hi);outline-offset:2px}
 .tok-sheet .lblock.notes{display:flex;flex-direction:column}
-.tok-sheet .notepad{height:104px;font-family:"EB Garamond",serif;font-style:italic;font-size:14px;line-height:1.5;color:var(--cream-fnt);
-  background:repeating-linear-gradient(transparent,transparent 27px,var(--hair) 27px,var(--hair) 28px);padding-top:1px}
+.tok-sheet .notepad{display:block;width:100%;box-sizing:border-box;min-height:168px;resize:vertical;border:none;outline:none;
+  font-family:"EB Garamond",serif;font-size:15px;line-height:28px;color:var(--cream);
+  background:repeating-linear-gradient(transparent,transparent 27px,var(--hair) 27px,var(--hair) 28px);padding:1px 2px 0}
+.tok-sheet .notepad::placeholder{color:var(--cream-fnt);font-style:italic;opacity:.75}
+.tok-sheet .notepad.view-only{opacity:.85;cursor:default}
+.tok-sheet .notes-status{font-family:"Oswald",sans-serif;font-size:11px;letter-spacing:.08em;text-transform:uppercase;
+  color:var(--cream-fnt);margin-top:7px;min-height:14px;transition:color .2s}
+.tok-sheet .notes-status.saving{color:var(--cream-dim)}
+.tok-sheet .notes-status.saved{color:#7fd0a4}
+.tok-sheet .notes-status.error{color:#e0584a}
 
 /* ——— abilities ——— */
 .tok-sheet .abil-grid{display:grid;grid-template-columns:repeat(6,1fr);gap:11px}

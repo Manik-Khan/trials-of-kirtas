@@ -982,6 +982,28 @@ export function wireInspiration({ root, characterData, key, depsReady } = {}) {
     });
   }
 
+  // Notes tab — a plain-text field saved to the character's own `notes` column
+  // (debounced while typing, flushed on blur). Owner-gated; view-only players see it
+  // read-only. Notes isn't part of the render shape, so refresh() never clobbers it.
+  var notesTimer = null;
+  function notesStatus(txt, kind) {
+    var el = root.querySelector('[data-notes-status]'); if (!el) return;
+    el.textContent = txt || ''; el.className = 'notes-status' + (kind ? ' ' + kind : '');
+  }
+  function saveNotes() {
+    var el = root.querySelector('[data-notes]'); if (!el) return;
+    notesStatus('Saving\u2026', 'saving');
+    Promise.resolve(characterData.save(key, { notes: el.value }))
+      .then(function () { notesStatus('Saved', 'saved'); setTimeout(function () { notesStatus(''); }, 1400); })
+      .catch(function () { notesStatus("Couldn\u2019t save \u00b7 changes kept locally", 'error'); });
+  }
+  function bindNotes(editable) {
+    var el = root.querySelector('[data-notes]'); if (!el) return;
+    if (!editable) { el.setAttribute('readonly', ''); el.classList.add('view-only'); return; }
+    el.addEventListener('input', function () { clearTimeout(notesTimer); notesTimer = setTimeout(saveNotes, 700); });
+    el.addEventListener('blur', function () { clearTimeout(notesTimer); saveNotes(); });
+  }
+
   function onPip(pip) {
     var row = pip.closest('.trk[data-tid]'); if (!row) return;
     var id = row.getAttribute('data-tid'); var spec = specFor(id); if (!spec) return;
@@ -1940,6 +1962,7 @@ export function wireInspiration({ root, characterData, key, depsReady } = {}) {
         hdMed.addEventListener('keydown', (e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); openHdSpend(); } });
       }
       bindHpAdjust(true);
+      bindNotes(true);
       bindTrackers(true);
       bindCustomFeatures(true);
       bindSpellcasting(true);
@@ -1957,6 +1980,7 @@ export function wireInspiration({ root, characterData, key, depsReady } = {}) {
         b.addEventListener('click', () => showStat('hint', 'view only', true));
       });
       bindHpAdjust(false);
+      bindNotes(false);
       bindTrackers(false);
       bindCustomFeatures(false);
       bindSpellcasting(false);

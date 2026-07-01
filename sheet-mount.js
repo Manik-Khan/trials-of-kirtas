@@ -380,7 +380,8 @@ function renderSheet(root, char){
   if(langs!=null) setF('languages', Array.isArray(langs)?langs.join(' \u00B7 '):langs);
   setStatus(root, v);
   var notes=(char.notes!=null?char.notes:s.notes);
-  if(notes!=null) setF('notes', notes);
+  var ntEl=root.querySelector('[data-notes]');
+  if(ntEl && notes!=null && ntEl!==(root.ownerDocument||document).activeElement) ntEl.value=notes;
   renderAbilities(root, ab); renderSaves(root, s); renderSkills(root, s.skills); renderFeatures(root, s.features, s.customFeatures);
   renderSpellcasting(root, s.spellcasting||{});
   renderConcentration(root, v);
@@ -1202,7 +1203,8 @@ var SHEET_TEMPLATE = `<main class="tok-sheet">
       <div class="block" data-sec="notes">
         <div class="sectitle"><span class="swashwrap"><h2>Notes</h2></span><span class="tail"></span></div>
         <div class="panelbox">
-          <div class="notepad" data-f="notes"></div>
+          <textarea class="notepad" data-notes placeholder="Write anything here \u2014 saves automatically."></textarea>
+          <div class="notes-status" data-notes-status></div>
         </div>
       </div>
 

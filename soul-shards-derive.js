@@ -76,6 +76,14 @@
         (sent.match(/\{@skill\s+[^}]*\}/gi) || []).forEach(function (m) { addSkill(stripEntryTag(m)); });
         (sent.match(/\{@item\s+[^}]*\}/gi) || []).forEach(function (m) { addUniq(out.tools, titleCaseTool(stripEntryTag(m))); });
         (sent.match(/\{@language\s+[^}]*\}/gi) || []).forEach(function (m) { addUniq(out.languages, stripEntryTag(m)); });
+        // plain-text armour / weapon CATEGORY grants (Hex Warrior: "medium armor,
+        // shields, and martial weapons") — these carry no {@item} tag, so match the words.
+        if (/\blight armor\b/i.test(sent)) addUniq(out.armor, 'Light');
+        if (/\bmedium armor\b/i.test(sent)) addUniq(out.armor, 'Medium');
+        if (/\bheavy armor\b/i.test(sent)) addUniq(out.armor, 'Heavy');
+        if (/\bshields?\b/i.test(sent)) addUniq(out.armor, 'Shield');
+        if (/\bsimple weapons?\b/i.test(sent)) addUniq(out.weapons, 'Simple');
+        if (/\bmartial weapons?\b/i.test(sent)) addUniq(out.weapons, 'Martial');
       });
     }
     function scan(entries) {
