@@ -321,6 +321,8 @@ function renderEquipment(root, inventory, currency, strScore){
 // sample prose.
 function renderStory(root, bio){
   root=root||document; bio = bio || {};
+  var al = root.querySelector('[data-align]');
+  if(al && bio.alignment != null && al !== (root.ownerDocument||document).activeElement) al.value = bio.alignment;
   var q = root.querySelector('[data-f="storyQuote"]');
   if(q) q.textContent = bio.backstory || bio.appearance || '';
   function trait(f, val){ var e=root.querySelector('[data-f="'+f+'"]'); if(e) e.textContent = (val && String(val).trim()) ? val : '\u2014'; }
@@ -1189,6 +1191,11 @@ var SHEET_TEMPLATE = `<main class="tok-sheet">
       <div class="block" data-sec="bio">
         <div class="sectitle"><span class="swashwrap"><h2>Story</h2></span><span class="tail"></span></div>
         <div class="panelbox">
+          <div class="bio-align">
+            <span class="ba-lab">Alignment</span>
+            <input type="text" class="ba-input" data-align placeholder="e.g. Chaotic Good" maxlength="40" autocomplete="off">
+            <span class="ba-status" data-align-status></span>
+          </div>
           <p class="story-quote" data-f="storyQuote"></p>
           <div class="traits">
             <div class="trait"><div class="t-l">Personality</div><div class="t-t" data-f="bioPersonality">\u2014</div></div>

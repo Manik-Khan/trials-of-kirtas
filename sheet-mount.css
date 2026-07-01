@@ -552,6 +552,16 @@
   font-size:11px;color:var(--o-subclass)}
 .tok-sheet .trait .t-t{font-family:"EB Garamond",serif;font-size:15px;color:var(--cream-dim);line-height:1.32}
 
+.tok-sheet .bio-align{display:flex;align-items:center;gap:11px;margin-bottom:14px}
+.tok-sheet .bio-align .ba-lab{font-family:"Oswald",sans-serif;font-weight:600;letter-spacing:.12em;text-transform:uppercase;font-size:11px;color:var(--o-subclass);flex:0 0 auto}
+.tok-sheet .bio-align .ba-input{font-family:"EB Garamond",serif;font-size:15px;color:var(--cream);background:rgba(255,255,255,.03);border:1px solid var(--hair);border-radius:2px;padding:5px 9px;min-width:190px;outline:none;transition:border-color .15s}
+.tok-sheet .bio-align .ba-input:focus{border-color:var(--gold-br)}
+.tok-sheet .bio-align .ba-input::placeholder{color:var(--cream-fnt);font-style:italic;opacity:.7}
+.tok-sheet .bio-align .ba-input.view-only{opacity:.85;cursor:default}
+.tok-sheet .bio-align .ba-status{font-family:"Oswald",sans-serif;font-size:11px;letter-spacing:.08em;text-transform:uppercase;color:var(--cream-fnt);min-width:44px;transition:color .2s}
+.tok-sheet .bio-align .ba-status.saved{color:#7fd0a4}
+.tok-sheet .bio-align .ba-status.error{color:#e0584a}
+
 .tok-sheet .footer{display:flex;align-items:center;gap:14px;margin-top:18px}
 .tok-sheet .footer .ln{flex:1 1 auto;height:2px;background:linear-gradient(90deg,transparent,var(--gold),transparent);filter:url(#rough);opacity:.6}
 .tok-sheet .footer .mk{font-family:"Oswald",sans-serif;font-weight:400;letter-spacing:.26em;text-transform:uppercase;font-size:11px;color:var(--cream-fnt)}

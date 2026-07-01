@@ -175,6 +175,13 @@
   .pill.none{background:var(--rule-strong); color:var(--ink)}
   .cust-tog{display:inline-flex; align-items:center; gap:8px; margin-top:14px; font-family:var(--ui); font-size:16px; letter-spacing:.03em; color:var(--ink); cursor:pointer}
   .cust-tog input{width:16px; height:16px; accent-color:var(--blood)}
+  .bg-rename{display:flex; flex-direction:column; gap:5px; margin-top:16px; max-width:420px}
+  .bg-rename-lab{font-family:var(--ui); text-transform:uppercase; letter-spacing:.1em; font-size:12px; color:var(--ink-soft)}
+  .bg-rename input{font-family:var(--body); font-size:17px; padding:9px 12px; background:var(--bg-card); border:1px solid var(--rule-strong); border-radius:2px; color:var(--ink)}
+  .bg-rename input:focus{outline:none; border-color:var(--blood)}
+  .bg-rename input::placeholder{color:var(--ink-faint); font-style:italic}
+  .bg-rename-hint{font-family:var(--body); font-style:italic; font-size:13.5px; color:var(--ink-faint); line-height:1.4}
+  .rv-base{color:var(--ink-faint); font-style:italic; font-size:.88em}
   .chip.skill{cursor:pointer}
   .chip.skill:hover{background:var(--bg-sunk)}
   .chip.skill.sel{background:var(--blood); border-color:var(--blood); color:#fff}
@@ -653,7 +660,10 @@ var personaOwn = null;      // the chosen background's own lists
 var personaOthers = null;   // every other background's lines, source-tagged
 var personaPoolBg = null;   // the background the pools + candidate were last built for
 
-function personaBgName(){ return (draft.bg && draft.bg.n) || (draft.bgCustom ? 'Custom Background' : ''); }
+// The name shown for the background. A write-in custom name (e.g. "Captain") overrides
+// the base's name for DISPLAY only — grants/equipment still resolve off draft.bg.n.
+function bgDisplayName(){ if (!draft.bg) return null; var c = draft.bgCustomName && String(draft.bgCustomName).trim(); return c || draft.bg.n || null; }
+function personaBgName(){ return bgDisplayName() || (draft.bgCustom ? 'Custom Background' : ''); }
 
 // when the chosen background changes, drop the stale candidate so the step re-keys cleanly
 function personaSyncBg(){
@@ -1061,7 +1071,7 @@ var KEY = 'soulshards.draft.v1';
 function loadDraft(){ try { var j = window.localStorage.getItem(KEY); if (j) return JSON.parse(j); } catch(e){} return null; }
 function saveDraft(){ try { window.localStorage.setItem(KEY, JSON.stringify(draft)); } catch(e){} flashDraft(); }
 function freshDraft(){
-  return { stepId:'abilities', name:null, species:null, subrace:null, asi:{}, size:null, originMode:'std', useFloating:false, openTrait:null, cls:null, level:1, subclass:null, classes:[], bg:null, bgCustom:false,
+  return { stepId:'abilities', name:null, species:null, subrace:null, asi:{}, size:null, originMode:'std', useFloating:false, openTrait:null, cls:null, level:1, subclass:null, classes:[], bg:null, bgCustom:false, bgCustomName:'',
     method:'array', abilities:{ str:15, dex:14, con:13, int:12, wis:10, cha:8 }, slots:null, armed:null, hp:{ method:'average' },
     bgSkills:[], bgTools:[], bgPack:null, bgFeature:null, prof:{}, choices:{}, advancement:{}, equipment:{ mode:'gear', picks:{}, gold:null }, spells:{ byClass:{} }, raceSpellPicks:{} };
 }
@@ -1432,7 +1442,10 @@ var BODIES = {
   background: function(){
     var custom = '';
     if (draft.bg){
-      custom = '<label class="cust-tog"><input type="checkbox" id="bg-customize"' + (draft.bgCustom ? ' checked' : '') + '> <span>Customize this background</span></label>' +
+      custom = '<label class="bg-rename"><span class="bg-rename-lab">Name this background</span>' +
+          '<input type="text" id="bg-rename-in" maxlength="40" autocomplete="off" placeholder="' + escHtml(draft.bg.n) + '" value="' + escHtml(draft.bgCustomName || '') + '">' +
+          '<em class="bg-rename-hint">Give it your own name (e.g. \u201cCaptain\u201d) \u2014 it keeps ' + escHtml(draft.bg.n) + '\u2019s proficiencies, tools &amp; equipment.</em></label>' +
+        '<label class="cust-tog"><input type="checkbox" id="bg-customize"' + (draft.bgCustom ? ' checked' : '') + '> <span>Customize this background</span></label>' +
         (draft.bgCustom ? customControlsHTML() : '');
     }
     return '<div class="subhead">Background</div><div id="bz-bg"></div>' + custom +
@@ -1472,7 +1485,7 @@ var BODIES = {
           '<dt>Species</dt><dd>' + ((draft.species && draft.species.n) || '\u2014') + '</dd>' +
           '<dt>Class</dt><dd>' + classLabelStr() + (c && isCaster(c) ? ' · ' + mode + ' caster' : '') + '</dd>' +
           '<dt>' + (c ? c.subTitle : 'Subclass') + '</dt><dd>' + subLine + '</dd>' +
-          '<dt>Background</dt><dd>' + ((draft.bg && draft.bg.n) || '\u2014') + bgCustom + '</dd>' +
+          '<dt>Background</dt><dd>' + (bgDisplayName() || '\u2014') + ((draft.bgCustomName && draft.bgCustomName.trim() && draft.bg && draft.bgCustomName.trim() !== draft.bg.n) ? ' <span class="rv-base">(' + esc(draft.bg.n) + ')</span>' : '') + bgCustom + '</dd>' +
           '<dt>Spells</dt><dd>' + (spellsActive() ? 'chosen in ' + mode + ' mode' : 'none') + '</dd>' +
         '</dl>' +
       '</div>' +
@@ -1655,6 +1668,7 @@ var MOUNT = {
       onPick:function(item){ draft.bg = item; saveDraft(); renderAll(); } });
     var t = q('#bg-customize');
     if (t) t.addEventListener('change', function(){ draft.bgCustom = t.checked; saveDraft(); renderAll(); });
+    var rn = q('#bg-rename-in'); if (rn) rn.addEventListener('input', function(){ draft.bgCustomName = rn.value; saveDraft(); });
     var pk = q('#bg-pack'); if (pk) pk.addEventListener('change', function(){ draft.bgPack = pk.value || null; saveDraft(); });
     var ft = q('#bg-feature'); if (ft) ft.addEventListener('change', function(){ draft.bgFeature = ft.value || null; saveDraft(); });
   },
@@ -3861,7 +3875,7 @@ function buildStructuralPreview(classEntries, race){
     classes: classEntries,
     race: race || null,
     subraceName: draft.subrace ? draft.subrace.n : null,
-    background: draft.bg ? { name: draft.bg.n } : null,
+    background: draft.bg ? { name: bgDisplayName() } : null,
     spells: picked.spells,
     spellbook: picked.spellbook,
     choices: (typeof ChoicesUI !== 'undefined') ? ChoicesUI.choicesForStructural() : [],

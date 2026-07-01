@@ -210,6 +210,7 @@ export function wireInspiration({ root, characterData, key, depsReady } = {}) {
 
   let vitals = {};        // baseline; reconciled with the server-confirmed row
   let structural = {};    // for ResourceDerive / hit dice / CON / hpMax
+  let bio = {};           // the bio column — alignment is merged into it on save
   let inventory = [];     // for weapon-derived attack actions (mirrors renderActions)
   let currency = {};      // coins (pp/gp/ep/sp/cp) — a separate full-column save
   let coinPrev = null;    // pre-edit currency snapshot, for the optimistic revert
@@ -1002,6 +1003,28 @@ export function wireInspiration({ root, characterData, key, depsReady } = {}) {
     if (!editable) { el.setAttribute('readonly', ''); el.classList.add('view-only'); return; }
     el.addEventListener('input', function () { clearTimeout(notesTimer); notesTimer = setTimeout(saveNotes, 700); });
     el.addEventListener('blur', function () { clearTimeout(notesTimer); saveNotes(); });
+  }
+
+  // Alignment is a free-text field on the Bio tab, stored inside the bio column. Save merges
+  // it into the whole bio object so the other bio fields survive the full-column write.
+  var alignTimer = null;
+  function alignStatus(txt, kind) {
+    var el = root.querySelector('[data-align-status]'); if (!el) return;
+    el.textContent = txt || ''; el.className = 'ba-status' + (kind ? ' ' + kind : '');
+  }
+  function saveAlign() {
+    var el = root.querySelector('[data-align]'); if (!el) return;
+    bio = bio || {}; bio.alignment = el.value.trim();
+    alignStatus('Saving\u2026', 'saving');
+    Promise.resolve(characterData.save(key, { bio: bio }))
+      .then(function (saved) { if (saved && saved.bio) bio = saved.bio; alignStatus('Saved', 'saved'); setTimeout(function () { alignStatus(''); }, 1400); })
+      .catch(function () { alignStatus("Couldn\u2019t save", 'error'); });
+  }
+  function bindAlign(editable) {
+    var el = root.querySelector('[data-align]'); if (!el) return;
+    if (!editable) { el.setAttribute('readonly', ''); el.classList.add('view-only'); return; }
+    el.addEventListener('input', function () { clearTimeout(alignTimer); alignTimer = setTimeout(saveAlign, 700); });
+    el.addEventListener('blur', function () { clearTimeout(alignTimer); saveAlign(); });
   }
 
   function onPip(pip) {
@@ -1945,6 +1968,7 @@ export function wireInspiration({ root, characterData, key, depsReady } = {}) {
       structural = (cd && cd.structural) ? cd.structural : {};
       inventory = (cd && cd.inventory) ? cd.inventory : [];
       currency = (cd && cd.currency) ? cd.currency : {};
+      bio = (cd && cd.bio) ? cd.bio : {};
     } catch (_) { vitals = {}; structural = {}; }
     paint(!!vitals.inspiration);
 
@@ -1963,6 +1987,7 @@ export function wireInspiration({ root, characterData, key, depsReady } = {}) {
       }
       bindHpAdjust(true);
       bindNotes(true);
+      bindAlign(true);
       bindTrackers(true);
       bindCustomFeatures(true);
       bindSpellcasting(true);
@@ -1981,6 +2006,7 @@ export function wireInspiration({ root, characterData, key, depsReady } = {}) {
       });
       bindHpAdjust(false);
       bindNotes(false);
+      bindAlign(false);
       bindTrackers(false);
       bindCustomFeatures(false);
       bindSpellcasting(false);
