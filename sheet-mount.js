@@ -355,11 +355,23 @@ function renderSheet(root, char){
   setF('hp', hp); setF('hpMaxBig', '/ '+effMax); setF('hpCurrent', 'Current '+hp+' / '+effMax);
   setF('hpTemp', temp>0?('+'+temp+' Temp'):'');
   setF('hpTempVal', temp); setF('hpBonusVal', bonus);
-  var hpTotal=effMax+temp, mainShown=Math.min(hp, effMax);
+  // Bar segments in HP-value order: current (green) · missing (empty track) · bonus-max
+  // headroom (blue) · temp (gold). Missing HP is the dark track, never blue, so it can't
+  // be mistaken for a bonus-max buffer.
+  var hpTotal=effMax+temp;
   var hpw=function(n){ return clamp(hpTotal>0?((n<0?0:n)/hpTotal*100):0); };
+  var mainShown=Math.min(hp, effMax);
   styleF('hpfill','width',hpw(mainShown)+'%');
+  styleF('hpgap','width',hpw(Math.max(0, hpMax-hp))+'%');
+  styleF('hpbonusbar','width',hpw(Math.max(0, effMax-Math.max(hp, hpMax)))+'%');
   styleF('hptemp','width',hpw(temp)+'%');
-  styleF('hpbonusbar','width',hpw(Math.max(0, effMax-mainShown))+'%');
+  // colour states off the base max: bloodied <=50%, critical <=20%, down at 0
+  var hpRatio=(hpMax>0 ? hp/hpMax : 1), hpCard=root.querySelector('.hpmed');
+  if(hpCard){
+    hpCard.classList.toggle('hp-down', hp<=0);
+    hpCard.classList.toggle('hp-critical', hp>0 && hpRatio<=0.2);
+    hpCard.classList.toggle('hp-bloodied', hp>0 && hpRatio>0.2 && hpRatio<=0.5);
+  }
   var senses=cb.senses||s.senses||{};
   setF('darkvision', senses.darkvision?(senses.darkvision+' ft'):'\u2014');
   setF('passivePerception', s.passivePerception);
@@ -921,7 +933,7 @@ var SHEET_TEMPLATE = `<main class="tok-sheet">
           <div class="big"><span data-f="hp">18</span> <span style="font-size:23px;color:var(--cream-dim)" data-f="hpMaxBig">/ 23</span></div>
           <div class="hpbar-row">
             <button type="button" class="step hp-quick" data-hpadj="dmg" aria-label="Take 1 damage">−</button>
-            <div class="hpbar"><div class="hpfill" data-f="hpfill"></div><div class="hptemp" data-f="hptemp"></div><div class="hpbonusbar" data-f="hpbonusbar"></div></div>
+            <div class="hpbar"><div class="hpfill" data-f="hpfill"></div><div class="hpgap" data-f="hpgap"></div><div class="hpbonusbar" data-f="hpbonusbar"></div><div class="hptemp" data-f="hptemp"></div></div>
             <button type="button" class="step hp-quick" data-hpadj="heal" aria-label="Heal 1">+</button>
           </div>
           <div class="hpmeta"><span data-f="hpCurrent">Current 18 / 23</span><span class="tmp" data-f="hpTemp">+4 Temp</span></div>

@@ -153,6 +153,13 @@
 .tok-sheet .hpfill{height:100%;flex:0 0 auto;background:linear-gradient(90deg,var(--hp-full),#6cc096);filter:url(#rough)}
 .tok-sheet .hptemp{height:100%;flex:0 0 auto;background:linear-gradient(90deg,var(--gold),var(--gold-br));filter:url(#rough)}
 .tok-sheet .hpbonusbar{height:100%;flex:0 0 auto;background:linear-gradient(90deg,#4d8893,#5a9aaa);filter:url(#rough)}
+.tok-sheet .hpgap{height:100%;flex:0 0 auto;background:transparent}
+/* current-HP colour states, off the base max — bloodied (amber) is distinct from temp (gold) */
+.tok-sheet .hpmed.hp-bloodied .hpfill{background:linear-gradient(90deg,#cf7d33,#e0a04a)}
+.tok-sheet .hpmed.hp-critical .hpfill{background:linear-gradient(90deg,#a02a1f,#cf3b2c)}
+.tok-sheet .hpmed.hp-down .hpfill{background:linear-gradient(90deg,#7a2018,#a82e22)}
+.tok-sheet .hpmed.hp-bloodied .big [data-f="hp"]{color:#e7b566}
+.tok-sheet .hpmed.hp-critical .big [data-f="hp"],.tok-sheet .hpmed.hp-down .big [data-f="hp"]{color:#e0584a}
 .tok-sheet .hpmeta{display:flex;justify-content:space-between;font-family:"Oswald",sans-serif;font-weight:400;
   font-size:11px;letter-spacing:.06em;text-transform:uppercase;color:var(--cream-dim)}
 .tok-sheet .hpmeta .tmp{color:var(--gold-br)}

@@ -58,13 +58,17 @@
     if (t === 'RG') return 'ring';
     if (t === 'ST') return 'staff';
     if (t === 'M' || t === 'R' || it.dmg1) return 'weapon';
+    var n = String((it.name) || '').toLowerCase();
     if (t === 'W' || t === '') {
-      var n = String((it.name) || '').toLowerCase();
       if (/\b(cloak|cape|mantle)\b/.test(n)) return 'cloak';
       if (/\b(amulet|necklace|periapt|medallion|pendant|brooch|talisman|scarab)\b/.test(n)) return 'amulet';
       if (/\bring\b/.test(n)) return 'ring';
       if (/\b(helm|helmet|hat|circlet|crown|cap|hood|mask|diadem|goggles|lenses)\b/.test(n)) return 'head';
     }
+    // A shield that arrived WITHOUT the 'S' type code (pack-exploded, homebrew, or a
+    // starting-equipment grant that dropped the type) — catch it by name so it can be
+    // equipped. Guard against shield-y non-shields (the Shield spell, Ring of Shielding).
+    if (/\bshields?\b/.test(n) && !/\b(ring|amulet|cloak|wand|staff|scroll|potion|spell|guardian)\b/.test(n)) return 'shield';
     return null; // wands, rods, potions, scrolls, ammo, tools, gear, boots/gloves/belts
   }
 
