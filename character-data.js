@@ -12,7 +12,7 @@
 // awaits getSession before assigning __tok and dispatching 'nav:ready'). A page's
 // DOMContentLoaded can fire BEFORE that completes, so callers must not assume
 // __tok already exists — awaitTok() below waits for it instead of throwing.
-//
+// 06/30/26 redeploy
 // Shape returned to the UI mirrors the table columns 1:1, plus a convenience
 // `name` pulled from structural:
 //   { key, owner, name, structural, vitals, inventory, equipment,
