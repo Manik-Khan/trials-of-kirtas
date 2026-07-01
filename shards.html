@@ -506,6 +506,12 @@
   .sp-stage .sp-bgnote{font-family:var(--body); font-style:italic; color:var(--cream-fnt); font-size:13.5px; margin:9px 2px 2px; display:flex; align-items:baseline; gap:7px}
   .sp-stage .sp-bgnote .k{color:var(--o-bg); font-style:normal; font-family:var(--ui); text-transform:uppercase; letter-spacing:.08em; font-size:10.5px; font-weight:600}
 
+  /* racial spell choice ("one of the following") picker */
+  .sp-stage .rsp-opts{display:flex; flex-wrap:wrap; gap:8px; margin:2px 0 4px}
+  .sp-stage .rsp-opt{font-family:var(--body); font-size:14px; color:var(--cream-fnt); background:rgba(255,255,255,.03); border:1px solid var(--frame); border-radius:2px; padding:7px 13px; cursor:pointer; transition:border-color .12s, color .12s, background .12s}
+  .sp-stage .rsp-opt:hover{border-color:var(--o-race); color:var(--cream-hi)}
+  .sp-stage .rsp-opt.on{border-color:var(--o-race); color:var(--cream-hi); background:color-mix(in srgb, var(--o-race) 16%, transparent); box-shadow:inset 0 0 0 1px var(--o-race)}
+
   /* hover tooltip */
   .sp-stage .sp-tip{position:absolute; left:0; top:calc(100% - 1px); z-index:30; width:344px; max-width:78vw; background:rgba(10,19,17,.97); border:1px solid var(--frame); border-top:2px solid var(--gold-br); box-shadow:0 16px 38px -18px #000; padding:10px 12px; display:none; cursor:default}
   .sp-stage .sp-row:hover .sp-tip{display:block}
@@ -1057,7 +1063,7 @@ function saveDraft(){ try { window.localStorage.setItem(KEY, JSON.stringify(draf
 function freshDraft(){
   return { stepId:'abilities', name:null, species:null, subrace:null, asi:{}, size:null, originMode:'std', useFloating:false, openTrait:null, cls:null, level:1, subclass:null, classes:[], bg:null, bgCustom:false,
     method:'array', abilities:{ str:15, dex:14, con:13, int:12, wis:10, cha:8 }, slots:null, armed:null, hp:{ method:'average' },
-    bgSkills:[], bgTools:[], bgPack:null, bgFeature:null, prof:{}, choices:{}, advancement:{}, equipment:{ mode:'gear', picks:{}, gold:null }, spells:{ byClass:{} } };
+    bgSkills:[], bgTools:[], bgPack:null, bgFeature:null, prof:{}, choices:{}, advancement:{}, equipment:{ mode:'gear', picks:{}, gold:null }, spells:{ byClass:{} }, raceSpellPicks:{} };
 }
 // fill any missing fields on the live draft (init, reset, or a loaded build) to a valid shape.
 function normalizeDraft(){
@@ -2275,7 +2281,7 @@ var SpellsUI = (function () {
   // background "expanded" spells (Ravnica guild / Strixhaven school lists): names added to
   // the pickable pool, plus a lookup for provenance tagging. _classSet gates the dedup so a
   // guild spell already on your class list keeps class attribution.
-  var _bgSpells = [], _bgSet = {}, _classSet = {};
+  var _bgSpells = [], _bgSet = {}, _classSet = {}, _spellChoices = [];
   var _openDetail = null, _query = '';
 
   var SCHOOL = { A:'Abjuration', C:'Conjuration', D:'Divination', E:'Enchantment', V:'Evocation', I:'Illusion', N:'Necromancy', T:'Transmutation', P:'Psionic' };
@@ -2328,21 +2334,32 @@ var SpellsUI = (function () {
   // ── racial grants (origin: race) from race.additionalSpells (+ chosen subrace) ──
   function refName(ref){ return String(ref).split('#')[0].replace(/\b\w/g, function(m){ return m.toUpperCase(); }); }
   function refKind(ref){ var t = String(ref).split('#')[1]; if (t === 'c') return 'cantrip'; return 'spell'; }
-  function parseGrants(addl, charLevel){
+  // One additionalSpells BLOCK -> its granted spells [{name,kind,how}] (known + innate,
+  // gated by character level). A block is the unit of a single "spell option".
+  function parseBlockSpells(blk, charLevel){
     var out = [];
     function push(ref, how){ out.push({ name:refName(ref), kind:refKind(ref), how:how }); }
-    (addl || []).forEach(function(blk){
-      Object.keys(blk.known || {}).forEach(function(lvl){ if (+lvl <= charLevel) (blk.known[lvl] || []).forEach(function(r){ push(r, 'known'); }); });
-      Object.keys(blk.innate || {}).forEach(function(lvl){
-        if (+lvl > charLevel) return;
-        var refs = []; (function walk(n){ if (Array.isArray(n)) refs = refs.concat(n); else if (n && typeof n === 'object') Object.keys(n).forEach(function(k){ walk(n[k]); }); })(blk.innate[lvl]);
-        refs.forEach(function(r){ push(r, 'innate'); });
-      });
+    Object.keys(blk.known || {}).forEach(function(lvl){ if (+lvl <= charLevel) (blk.known[lvl] || []).forEach(function(r){ push(r, 'known'); }); });
+    Object.keys(blk.innate || {}).forEach(function(lvl){
+      if (+lvl > charLevel) return;
+      var refs = []; (function walk(n){ if (Array.isArray(n)) refs = refs.concat(n); else if (n && typeof n === 'object') Object.keys(n).forEach(function(k){ walk(n[k]); }); })(blk.innate[lvl]);
+      refs.forEach(function(r){ push(r, 'innate'); });
     });
-    var seen = {}, dedup = [];
-    out.forEach(function(g){ if (seen[g.name]) return; seen[g.name] = 1; dedup.push(g); });
-    return dedup;
+    return out;
   }
+  // Each spell SOURCE (race, chosen subrace) is its own additionalSpells array. 5etools
+  // encodes "one of the following" as PARALLEL blocks, so a source with >1 block is a
+  // CHOICE (Astral Elf's dancing lights / light / sacred flame), not three grants.
+  function spellSourcesFor(race){
+    var srcs = [];
+    if (race && race.additionalSpells) srcs.push({ id:'race', label:raceName(), blocks: Array.isArray(race.additionalSpells) ? race.additionalSpells : [race.additionalSpells] });
+    if (race && draft.subrace){
+      var sr = (race.subraces || []).filter(function(s){ return s.name === draft.subrace.n || s.label === draft.subrace.n; })[0];
+      if (sr && sr.additionalSpells) srcs.push({ id:'subrace', label:(draft.subrace.n || 'Subrace'), blocks: Array.isArray(sr.additionalSpells) ? sr.additionalSpells : [sr.additionalSpells] });
+    }
+    return srcs;
+  }
+  function raceSpellPick(id, n){ var p = (draft.raceSpellPicks || {})[id]; p = (p == null ? 0 : p); return (p >= 0 && p < n) ? p : 0; }
   function collectAdditional(race){
     var out = [];
     if (race && race.additionalSpells) out = out.concat(Array.isArray(race.additionalSpells) ? race.additionalSpells : [race.additionalSpells]);
@@ -2352,7 +2369,22 @@ var SpellsUI = (function () {
     }
     return out;
   }
-  function loadGrantsFrom(race){ try { return parseGrants(collectAdditional(race), draft.level); } catch(e){ return []; } }
+  function loadGrantsFrom(race){
+    var grants = [], choices = [];
+    try {
+      spellSourcesFor(race).forEach(function(s){
+        var blocks = (s.blocks || []).filter(Boolean);
+        if (blocks.length <= 1){ if (blocks[0]) grants = grants.concat(parseBlockSpells(blocks[0], draft.level)); return; }
+        var options = blocks.map(function(b){ return parseBlockSpells(b, draft.level); }).filter(function(o){ return o.length; });
+        if (options.length <= 1){ if (options[0]) grants = grants.concat(options[0]); return; }
+        choices.push({ id: s.id, label: s.label, options: options });
+        // fold the chosen option into grants (defaults to the first until the player picks)
+        (options[raceSpellPick(s.id, options.length)] || []).forEach(function(sp){ grants.push(sp); });
+      });
+    } catch(e){}
+    var seen = {}, dedup = []; grants.forEach(function(g){ var k = g.name.toLowerCase(); if (seen[k]) return; seen[k] = 1; dedup.push(g); });
+    return { grants: dedup, choices: choices };
+  }
   // background "expanded" refs ("encode thoughts|ggr#c") -> { key:lowercase-name, level }.
   // s0 = cantrips, s1..s9 = that spell level. expanded = added to your list (pickable), not granted.
   function collectBgExpanded(bg){
@@ -2419,7 +2451,7 @@ var SpellsUI = (function () {
       var bgList = top[1], models = top[2];
       var bgObj = (bgList && draft.bg) ? (bgList.filter(function(x){ return x.name === draft.bg.n && (!draft.bg.s || x.source === draft.bg.s); })[0] || bgList.filter(function(x){ return x.name === draft.bg.n; })[0]) : null;
       var bgExp = collectBgExpanded(bgObj);
-      _grants = loadGrantsFrom(_raceModel);
+      var _gr = loadGrantsFrom(_raceModel); _grants = _gr.grants; _spellChoices = _gr.choices;
       var eff = effectiveAbilities(_raceModel);
       // per-class entitlement (engine build at THAT class's level + subclass)
       var perClass = classes.map(function(ce, i){
@@ -2659,6 +2691,21 @@ var SpellsUI = (function () {
     return '<div class="subhead">Granted by ' + esc(raceName()) + ' <span class="sp-note">free \u2014 doesn\u2019t count against your picks</span></div>' +
       '<table class="sp-tbl"><tbody>' + rows + '</tbody></table>' + open;
   }
+  // Racial spell CHOICE groups ("one of the following of your choice"): the player picks
+  // one option; the chosen spell is already folded into _grants (so it shows in the grant
+  // list and emits), and the picker here lets them switch which one.
+  function choiceSection(){
+    if (!_spellChoices || !_spellChoices.length) return '';
+    return _spellChoices.map(function(ch){
+      var pick = raceSpellPick(ch.id, ch.options.length);
+      var opts = ch.options.map(function(op, i){
+        var names = op.map(function(sp){ return esc(sp.name); }).join(' + ') || '\u2014';
+        return '<button type="button" class="rsp-opt' + (i === pick ? ' on' : '') + '" data-racepick="' + esc(ch.id) + '" data-i="' + i + '">' + names + '</button>';
+      }).join('');
+      return '<div class="subhead">' + esc(ch.label) + ' \u2014 choose one <span class="sp-note">free \u2014 doesn\u2019t count against your picks</span></div>' +
+        '<div class="rsp-opts">' + opts + '</div>';
+    }).join('');
+  }
   // how many picks the class still owes (drives the tab badge)
   function spellsLeft(ca){
     var e = ca.ent, p = picksFor(ca.key), left = 0;
@@ -2720,6 +2767,7 @@ var SpellsUI = (function () {
       html += detailCard(_detail[_openDetail.name], oc);
     }
     html += grantSection();
+    html += choiceSection();
     host.innerHTML = casterTabs() + '<div class="sp-multi" style="--accent:' + ca.accent + '">' + html + '</div>';
     wire();
   }
@@ -2746,6 +2794,15 @@ var SpellsUI = (function () {
         var name = el.getAttribute('data-detail'), attr = el.getAttribute('data-dattr');
         _openDetail = (_openDetail && _openDetail.name === name && _openDetail.attr === attr) ? null : { name:name, attr:attr };
         render();
+      });
+    });
+    Array.prototype.forEach.call(document.querySelectorAll('#sp-out [data-racepick]'), function(el){
+      el.addEventListener('click', function(){
+        draft.raceSpellPicks = draft.raceSpellPicks || {};
+        draft.raceSpellPicks[el.getAttribute('data-racepick')] = parseInt(el.getAttribute('data-i'), 10) || 0;
+        saveDraft();
+        var g = loadGrantsFrom(_raceModel); _grants = g.grants; _spellChoices = g.choices;   // refold with the new pick
+        _openDetail = null; render();
       });
     });
   }
@@ -3215,7 +3272,7 @@ var PROF_SKILL_KEY = (function(){ var m = {}; PROF_SKILLS.forEach(function(s){ m
 var PROF_STD_LANGS = ['Common','Dwarvish','Elvish','Giant','Gnomish','Goblin','Halfling','Orc'];
 var PROF_EXOTIC_LANGS = ['Abyssal','Celestial','Deep Speech','Draconic','Infernal','Primordial','Sylvan','Undercommon'];
 var PROF_ALL_LANGS = PROF_STD_LANGS.concat(PROF_EXOTIC_LANGS);
-var PROF_TOOL_POOL = ["Thieves' Tools","Disguise Kit","Forgery Kit","Herbalism Kit","Navigator's Tools","Poisoner's Kit","Smith's Tools","Cook's Utensils","Carpenter's Tools","Dice Set","Playing Cards","Lute","Flute","Drum"];
+var PROF_TOOL_POOL = ["Thieves' Tools","Disguise Kit","Forgery Kit","Herbalism Kit","Navigator's Tools","Poisoner's Kit","Smith's Tools","Cook's Utensils","Carpenter's Tools","Dice Set","Playing Cards","Lute","Flute","Drum","Vehicles (Land)","Vehicles (Water)","Vehicles (Air)"];
 
 // lowercase 5etools skill key -> canonical name (the derive matches canonical names)
 function normSkillName(n){ var k = String(n == null ? '' : n).toLowerCase(); return PROF_SKILL_KEY[k] || String(n == null ? '' : n).replace(/\b\w/g, function(c){ return c.toUpperCase(); }); }
