@@ -480,6 +480,25 @@
       font-style: italic;
       margin-left: auto;
     }
+    /* journal provenance badge — meta.fromJournal (tooltip = the page title) */
+    .c-entry-journal {
+      display: inline-flex;
+      align-items: center;
+      gap: 4px;
+      font-family: var(--font-title);
+      font-size: 0.62rem;
+      letter-spacing: 0.14em;
+      text-transform: uppercase;
+      color: var(--gold-light);
+      background: rgba(184,149,42,0.09);
+      border: 1px solid var(--gold-dim);
+      border-radius: 3px;
+      padding: 1px 7px 1px 5px;
+      cursor: default;
+      white-space: nowrap;
+    }
+    .c-entry-journal .cj-quill { font-size: 0.7rem; line-height: 1; }
+    .c-entry-dm-label .c-entry-journal { opacity: 1; letter-spacing: 0.14em; }
 
     /* Bubble text */
     .c-entry-text {
@@ -1341,6 +1360,7 @@ function rowToEntry(r) {
     ...(r.tags && r.tags.length && { tags: r.tags }),
     ...(m.location     && { location: m.location }),
     ...(m.sessionTitle && { sessionTitle: m.sessionTitle }),
+    ...(m.fromJournal  && { fromJournal: m.fromJournal }),
     ...(r.edited_at    && { edited: true }),
   };
 }
@@ -2666,11 +2686,16 @@ function renderEntry(e) {
 
   let html = processEntryHTML(e.text||'');
 
+  // Journal provenance — shown when the entry was shared from a journal page
+  const fromJournal = e.fromJournal
+    ? `<span class="c-entry-journal" title="From the journal: ${String(e.fromJournal).replace(/"/g,'&quot;')}"><span class="cj-quill">✒</span>journal</span>`
+    : '';
+
   // DM / Narrator — full-width cinematic card
   if (isDM) {
     return `
       <div class="c-entry c-entry-dm" id="entry-${e.id}">
-        <div class="c-entry-dm-label">Narrator${menu ? ' ' + menu : ''}</div>
+        <div class="c-entry-dm-label">Narrator${fromJournal ? ' ' + fromJournal : ''}${menu ? ' ' + menu : ''}</div>
         <div class="c-entry-text">${html}</div>
         ${tags?`<div class="c-entry-tags">${tags}</div>`:''}
       </div>`;
@@ -2697,6 +2722,7 @@ const firstName = rawName === 'tyros' ? 'cosmere' : rawName.normalize('NFD').rep
         <div class="c-entry-bubble">
           <div class="c-entry-header">
             ${e.character&&e.character!==e.author&&e.character!=='Narrator'?`<span class="c-entry-character">${e.character}</span>`:''}
+            ${fromJournal}
             <span class="c-entry-time">${date} · ${time}</span>
             ${menu}
           </div>

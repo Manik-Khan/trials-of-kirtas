@@ -192,8 +192,11 @@ body::after{
 <script src="soul-shards-data.js"></script>
 <script type="module">
   import { mountSheet } from './sheet-mount.js';
+  import { mountJournalCapture } from './journal-capture.js';
   var key = new URLSearchParams(location.search).get('character') || 'cosmere';
-  mountSheet(document.getElementById('sheet-root'), key);
+  var root = document.getElementById('sheet-root');
+  mountSheet(root, key);
+  mountJournalCapture(root, key);   // reveals the Notes-tab Journal block once nav:ready + data resolve
 </script>
 <script type="module" src="appearance-boot.js"></script>
 </body>

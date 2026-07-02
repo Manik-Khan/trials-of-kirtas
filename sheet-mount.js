@@ -1215,6 +1215,23 @@ var SHEET_TEMPLATE = `<main class="tok-sheet">
         </div>
       </div>
 
+      <!-- JOURNAL (field-note capture; hidden until journal-capture.js mounts it.
+           display:none is deliberate \u2014 wireSheetTabs owns the hidden ATTRIBUTE,
+           so the module's reveal and the tab logic never fight) -->
+      <div class="block" data-sec="notes" data-journal-block style="display:none">
+        <div class="sectitle">
+          <span class="swashwrap"><h2>Journal</h2></span><span class="tail"></span>
+          <a class="journal-door-mini" data-journal-door href="#">
+            <span class="jd-glyph">\u2766</span><span class="jd-title">Open the Journal</span><span class="jd-arrow">\u2192</span>
+          </a>
+        </div>
+        <div class="panelbox">
+          <div class="jc-cap" data-jc-capture></div>
+          <div class="jc-list-lab" data-jc-list-lab>Your pages</div>
+          <div data-jc-list></div>
+        </div>
+      </div>
+
       <div class="footer"><span class="mk" data-f="nameFoot">Cosmere Runestar</span><div class="ln"></div><span class="mk">Trials of Kirtas</span></div>
 
     </section>

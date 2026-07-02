@@ -723,3 +723,89 @@
   .tok-sheet .block, .tok-sheet .panelbox, .tok-sheet .feat, .tok-sheet .trk { break-inside:avoid; page-break-inside:avoid; }
   .tok-sheet .masthead { break-after:avoid; page-break-after:avoid; }
 }
+
+/* ——— journal field-note capture (Notes tab; journal-capture.js) ——— */
+.tok-sheet .journal-door-mini{display:inline-flex;align-items:center;gap:7px;margin-bottom:5px;
+  padding:4px 10px;background:var(--panel-2);border:1px solid var(--frame);
+  text-decoration:none;white-space:nowrap;transition:border-color .15s;color:var(--cream)}
+.tok-sheet .journal-door-mini:hover{border-color:var(--gold-br)}
+.tok-sheet .journal-door-mini .jd-glyph{font-family:"Playfair Display",serif;font-size:14px;line-height:1;color:var(--gold-br)}
+.tok-sheet .journal-door-mini .jd-title{font-family:"Oswald",sans-serif;font-size:10px;font-weight:600;
+  letter-spacing:.18em;text-transform:uppercase;color:var(--cream-hi)}
+.tok-sheet .journal-door-mini .jd-arrow{font-family:"Oswald",sans-serif;font-size:11px;color:var(--gold);transition:transform .15s}
+.tok-sheet .journal-door-mini:hover .jd-arrow{transform:translateX(3px)}
+
+/* mention chips — the SAME classes the journal/chronicle emit, v11 palette */
+.tok-sheet .tok-mention{border-radius:2px;padding:0 2px;white-space:nowrap}
+.tok-sheet .npc-link{color:var(--gold-br);border-bottom:1px dotted var(--frame);cursor:default}
+.tok-sheet .location-link{color:#8ab4c9;border-bottom:1px dotted rgba(138,180,201,.4);cursor:default}
+.tok-sheet .npc-unresolved{color:var(--gold-br);border-bottom:1px dashed var(--o-race);cursor:default}
+.tok-sheet .location-unresolved{color:#8ab4c9;border-bottom:1px dashed var(--o-race);cursor:default}
+.tok-sheet .page-link{color:var(--cream-hi);border-bottom:1px solid var(--frame);cursor:default}
+
+/* the capture composer */
+.tok-sheet .jc-cap{border:1px solid var(--hair);background:var(--panel-2);padding:12px 13px;margin-bottom:14px}
+.tok-sheet .jc-cap-lab{font-family:"Oswald",sans-serif;font-size:11px;font-weight:600;letter-spacing:.2em;
+  text-transform:uppercase;color:var(--gold-br);margin-bottom:9px;display:flex;align-items:center;gap:8px;flex-wrap:wrap}
+.tok-sheet .jc-cap-lab .sub{font-family:"EB Garamond",serif;font-style:italic;font-size:12.5px;letter-spacing:0;
+  text-transform:none;color:var(--cream-fnt);font-weight:400}
+.tok-sheet .jc-title{display:block;width:100%;box-sizing:border-box;background:rgba(8,16,15,.92);color:var(--cream-hi);
+  border:1px solid var(--hair);outline:none;padding:7px 9px;margin-bottom:8px;
+  font-family:"Oswald",sans-serif;font-size:13px;letter-spacing:.05em}
+.tok-sheet .jc-title:focus{border-color:var(--frame)}
+.tok-sheet .jc-title::placeholder{color:var(--cream-fnt);opacity:.7}
+.tok-sheet .mc-wrap{position:relative}
+.tok-sheet .mc-editor{display:block;width:100%;box-sizing:border-box;min-height:84px;background:rgba(8,16,15,.92);
+  color:var(--cream);border:1px solid var(--hair);outline:none;padding:8px 9px;
+  font-family:"EB Garamond",serif;font-size:14.5px;line-height:1.6;overflow-wrap:anywhere}
+.tok-sheet .mc-editor:focus{border-color:var(--frame)}
+.tok-sheet .mc-editor:empty::before{content:attr(data-placeholder);color:var(--cream-fnt);font-style:italic;opacity:.7}
+.tok-sheet .jc-foot{display:flex;align-items:center;gap:12px;margin-top:9px;flex-wrap:wrap}
+.tok-sheet .jc-hint{font-family:"EB Garamond",serif;font-style:italic;font-size:12.5px;color:var(--cream-fnt);flex:1;min-width:160px}
+.tok-sheet .jc-status{font-family:"Oswald",sans-serif;font-size:10px;letter-spacing:.1em;text-transform:uppercase;color:#7fd0a4;min-height:12px}
+.tok-sheet .jc-btn{font-family:"Oswald",sans-serif;font-size:11px;font-weight:600;letter-spacing:.16em;
+  text-transform:uppercase;color:var(--ground);background:var(--gold);border:1px solid var(--gold-br);
+  padding:7px 15px;cursor:pointer;transition:background .15s}
+.tok-sheet .jc-btn:hover{background:var(--gold-br)}
+.tok-sheet .jc-btn:disabled{opacity:.55;cursor:default}
+
+/* the @ / [[ picker */
+.tok-sheet .mc-pick{position:absolute;left:14px;top:calc(100% - 6px);z-index:40;width:min(280px,92%);
+  background:rgba(8,16,15,.97);border:1px solid var(--frame);
+  box-shadow:0 18px 44px -18px #000;font-family:"Oswald",sans-serif;max-height:260px;overflow:auto}
+.tok-sheet .mc-pick-sec{font-size:9px;letter-spacing:.22em;text-transform:uppercase;color:var(--cream-fnt);
+  padding:7px 11px 4px;border-bottom:1px solid var(--hair)}
+.tok-sheet .mc-pick-item{display:flex;align-items:baseline;gap:8px;padding:7px 11px;cursor:pointer;font-size:13px}
+.tok-sheet .mc-pick-item:hover,.tok-sheet .mc-pick-item.sel{background:rgba(199,154,74,.13)}
+.tok-sheet .mc-pick-item .nm{color:var(--cream-hi);letter-spacing:.04em}
+.tok-sheet .mc-pick-item.loc .nm{color:#8ab4c9}
+.tok-sheet .mc-pick-item .ht{font-family:"EB Garamond",serif;font-style:italic;font-size:12px;color:var(--cream-fnt);
+  margin-left:auto;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:120px}
+.tok-sheet .mc-pick-item.create .nm{color:var(--cream-dim)}
+.tok-sheet .mc-pick-item.create .plus{color:var(--o-race);font-weight:600}
+
+/* your pages */
+.tok-sheet .jc-list-lab{font-family:"Oswald",sans-serif;font-size:11px;font-weight:600;letter-spacing:.2em;
+  text-transform:uppercase;color:var(--cream-dim);margin:2px 0 8px}
+.tok-sheet .jc-page{border:1px solid var(--hair);background:var(--panel-2);margin-bottom:7px}
+.tok-sheet .jc-page-row{display:flex;align-items:center;gap:10px;padding:8px 11px;cursor:pointer;user-select:none}
+.tok-sheet .jc-page-row:hover{background:rgba(12,22,20,.85)}
+.tok-sheet .jc-page-t{font-family:"Oswald",sans-serif;font-size:13px;font-weight:500;letter-spacing:.04em;
+  color:var(--cream-hi);flex:0 1 auto;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.tok-sheet .jc-folder{font-family:"Oswald",sans-serif;font-size:9px;letter-spacing:.14em;text-transform:uppercase;
+  color:var(--gold-br);border:1px solid var(--frame);padding:1px 6px;white-space:nowrap}
+.tok-sheet .jc-shared{font-family:"Oswald",sans-serif;font-size:9px;letter-spacing:.14em;text-transform:uppercase;
+  color:#7fd0a4;border:1px solid rgba(127,208,164,.4);padding:1px 6px;white-space:nowrap}
+.tok-sheet .jc-page-d{font-family:"EB Garamond",serif;font-style:italic;font-size:12.5px;color:var(--cream-fnt);
+  margin-left:auto;white-space:nowrap}
+.tok-sheet .jc-chev{font-family:"Oswald",sans-serif;font-size:11px;color:var(--gold);width:12px;text-align:center;flex-shrink:0}
+.tok-sheet .jc-page-body{display:none;border-top:1px solid var(--hair);padding:10px 13px 12px;
+  font-family:"EB Garamond",serif;font-size:14.5px;line-height:1.6;color:var(--cream-dim)}
+.tok-sheet .jc-page.open .jc-page-body{display:block}
+.tok-sheet .jc-page-body p{margin:0 0 .6em}
+.tok-sheet .jc-page-body p:last-child{margin-bottom:0}
+.tok-sheet .jc-page-body .ro{font-family:"Oswald",sans-serif;font-size:9px;letter-spacing:.14em;text-transform:uppercase;
+  color:var(--cream-fnt);margin-top:9px;display:flex;gap:10px;align-items:center}
+.tok-sheet .jc-page-body .ro a{color:var(--gold-br);text-decoration:none}
+.tok-sheet .jc-page-body .ro a:hover{text-decoration:underline}
+.tok-sheet .jc-empty{font-family:"EB Garamond",serif;font-style:italic;font-size:13.5px;color:var(--cream-fnt);padding:4px 2px}
