@@ -128,7 +128,10 @@ export async function mountJournalCapture(sheetRoot, key) {
   try { profile = await tok.ready; } catch (_) {}
   const uid = tok.session && tok.session.user && tok.session.user.id;
   if (!uid) return;                                         // not signed in — leave hidden
-  const mySeat = !!(profile && profile.character_key === key);
+  // nav.js profile shape is camelCase (characterKey) — see nav.js ~line 879.
+  // Tolerate snake_case too in case the shape is ever normalized.
+  const seatKey = profile ? (profile.characterKey !== undefined ? profile.characterKey : profile.character_key) : null;
+  const mySeat = seatKey != null && seatKey === key;
 
   const doorEl = block.querySelector('[data-journal-door]');
   if (doorEl) doorEl.href = 'journal.html?character=' + encodeURIComponent(key);
