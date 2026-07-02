@@ -45,12 +45,12 @@ export default function App() {
           className={`j-viewtab ${view === 'chronicle' ? 'is-on' : ''}`}
           onClick={() => setView('chronicle')}
         >
-          Chronicle <em>the shared book</em>
+          Chronicle <em>{backend.mode === 'live' ? 'redesign preview' : 'the shared book'}</em>
         </button>
       </nav>
       {view === 'journal'
         ? <JournalView vault={backend.vault} banner={backend.banner} />
-        : <ChronicleView />}
+        : <ChronicleView live={backend.mode === 'live'} />}
     </div>
   )
 }

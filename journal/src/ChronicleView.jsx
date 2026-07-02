@@ -56,7 +56,7 @@ function ChronicleEntry({ e, dimmed }) {
   )
 }
 
-export default function ChronicleView() {
+export default function ChronicleView({ live = false }) {
   const [thread, setThread] = useState(null) // `${type}:${id}` or null
 
   // per-entry refs, computed once
@@ -82,6 +82,13 @@ export default function ChronicleView() {
         <div className="j-eyebrow">The Trials of Kirtas</div>
         <h1 className="j-title">The Chronicle</h1>
         <p className="j-sub">the shared book — every voice, one record · redesign mock, sample data</p>
+        {live && (
+          <p className="j-banner" style={{ maxWidth: '560px', margin: '0.8rem auto 0' }}>
+            This tab is the redesign preview (sample entries). The live chronicle is still{' '}
+            <a href="chronicle.html" style={{ color: 'var(--gold-light, #d4ac3a)' }}>chronicle.html</a> —
+            shared journal pages land there.
+          </p>
+        )}
         <nav className="jc-toc">
           {withRefs.map(ch => (
             <a key={ch.session} className="jc-toc-item" href={`#session-${ch.session}`}>

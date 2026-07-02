@@ -341,6 +341,39 @@ function stubStore() {
   t('viewer of another journal cannot write, empty vault still has a folder', lv.canWrite() === false && lv.folders().length === 1)
 }
 
+
+// ── 9. boot: shell detection + nav:ready wait (the live bug) ──
+const { bootJournal } = await import('./src/data/backend.js')
+
+// no shell marker → sample mode (the standalone preview)
+{
+  const b = await bootJournal()
+  t('no shell marker → sample mode', b.mode === 'sample' && b.vault.pages().length >= 4)
+}
+
+// shell marker + __tok arriving LATE via nav:ready → live mode (regression: must NOT fall back to sample)
+{
+  const marker = document.createElement('meta'); marker.setAttribute('data-tok-shell',''); document.head.appendChild(marker)
+  const sbStub = { from: table => {
+    const chain = {
+      select: () => chain, eq: () => chain, is: () => chain,
+      order: () => Promise.resolve({ data: [], error: null }),
+      maybeSingle: () => Promise.resolve({ data: table === 'campaign' ? { current_session: 14 } : null, error: null }),
+      then: (res) => res({ data: [], error: null }),
+    }
+    return chain
+  }}
+  const bootP = bootJournal()   // starts BEFORE __tok exists
+  setTimeout(() => {
+    window.__tok = { sb: sbStub, session: { user: { id: 'me' } }, ready: Promise.resolve({ role: 'overseer', character_key: 'vesperian' }) }
+    document.dispatchEvent(new dom.window.Event('nav:ready'))
+  }, 30)
+  const b = await bootP
+  t('shell marker + late nav:ready → LIVE mode (no sample fallback)', b.mode === 'live')
+  t('live boot resolves the profile seat (vesperian)', b.vault.character === 'Vesperian' && b.vault.canWrite() === true)
+  marker.remove(); delete window.__tok
+}
+
 // backlink query (the journal_refs select, in-memory form)
 const mkEntry = (id, refs) => ({ at:id, refs })
 const E = [
