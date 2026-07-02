@@ -18,6 +18,15 @@
      • window.__battle RS seam (toggleRS/getRS/onRSChange)  ← battle.js, on
        the play pages.  Absent (e.g. a sheet-only page) → the mod pills mute
        and the rest of the feed still works.
+     • mention-composer.js (dynamic import)  ← the shared writing surface:
+       live @ mentions + tabbed [[wikilinks]] (My notes / All), body via
+       docToFeedBody.  Import failure → plain-input fallback (the pre-swap
+       composer, verbatim).  Pool/canon load LAZILY on first editor focus.
+       Table chat never seeds entity stubs (typo guard) — chips render,
+       the curation queue stays clean.
+     • journal-capture.js insertPage/insertRefs/freeSlug  ← the row menu's
+       "Send to my journal" (click a feed name/avatar): any row becomes a
+       Field Notes page in YOUR vault, attributed when it isn't yours.
 
    The feed LOGIC below mirrors combat.html's proven implementation,
    trimmed of the dock/ticker/encounter-scoped machinery the rail doesn't
@@ -120,6 +129,13 @@
       feedListEl.innerHTML = rows.length
         ? rows.map(FR.rowHtml).join('')
         : '<div class="feed-empty">No ' + feedTab + ' entries yet.</div>';
+      // stamp ids for the row menu (render order === rows order)
+      if (rows.length) {
+        var kids = feedListEl.querySelectorAll('.feed-row');
+        rows.forEach(function (r, i) { if (kids[i]) kids[i].setAttribute('data-row-id', r.id); });
+      }
+      // mention chips in message bodies get hover cards once tooltips.js is up
+      if (window.attachTooltips) { try { window.attachTooltips(feedListEl); } catch (e) {} }
       feedListEl.scrollTop = feedListEl.scrollHeight;
     }
     function onFeedInsert(row) {
@@ -235,16 +251,8 @@
       var body = esc(formula) + ' → ' + dicePieces(parsed) + extra + ' = <span class="ft-tot">' + total + '</span>';
       feedInsert({ channel: 'combat', kind: 'roll', formula: dbFormula, result: { total: total }, body: body, hidden: feedPostHidden && IS_STAFF });
     }
-    function feedSubmit(raw) {
-      var t = String(raw || '').trim(); if (!t) return;
-      var staffHide = feedPostHidden && IS_STAFF;
-      var cmd = t.match(/^\/(roll|r)\s+(.+)$/i);
-      if (cmd) {
-        var parsed = parseDice(cmd[2]);
-        if (parsed) { feedInsert({ channel: 'combat', kind: 'roll', formula: parsed.formula, result: { total: parsed.total }, body: diceBody(parsed), hidden: staffHide }); return; }
-      }
-      feedInsert({ channel: 'chronicle', kind: 'message', body: esc(t), hidden: staffHide });
-    }
+    // (feedSubmit lives in wireFeed's submitSurface now — one routing path
+    // for both the composer and the fallback input.)
 
     // ════════════════════════════════════════════════════════════════
     // DOM
@@ -282,7 +290,7 @@
             + '</div>'
             + '<div class="tr-feed" data-rail="feedlist"></div>'
             + '<div class="tr-composer">' + hideBtn
-              + '<input type="text" maxlength="300" placeholder="/roll 2d20kh1+5 or say something…">'
+              + '<div class="tr-mc-host" data-rail="mchost"><div class="mc-count" data-rail="mccount"></div></div>'
               + '<button class="tr-send" data-rail="dicebtn" title="Roll dice"><svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.3"><rect x="2.5" y="2.5" width="11" height="11" rx="1.5"/><circle cx="5.5" cy="5.5" r=".9" fill="currentColor"/><circle cx="10.5" cy="5.5" r=".9" fill="currentColor"/><circle cx="8" cy="8" r=".9" fill="currentColor"/><circle cx="5.5" cy="10.5" r=".9" fill="currentColor"/><circle cx="10.5" cy="10.5" r=".9" fill="currentColor"/></svg></button>'
               + '<button class="tr-send" data-rail="sendbtn" title="Send"><svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.4"><path d="M2 8l12-5-5 12-2-5z"/></svg></button>'
             + '</div>'
@@ -419,24 +427,251 @@
         });
       });
 
-      // composer: enter, send button, dice button (prefill /roll), hide toggle
-      var inp = root.querySelector('.tr-composer input');
-      inp.addEventListener('keydown', function (e) { if (e.key === 'Enter') { e.preventDefault(); feedSubmit(inp.value); inp.value = ''; } });
-      root.querySelector('[data-rail="sendbtn"]').addEventListener('click', function () { feedSubmit(inp.value); inp.value = ''; inp.focus(); });
+      // ── the writing surface (MENTION-COMPOSER swap, with fallback) ──
+      // SURF abstracts "whatever the user types into": the shared
+      // mention-composer (chips, [[ tabs) when its module loads, or a plain
+      // <input> — the pre-swap composer, verbatim — if the import fails.
+      // Submit routing is unchanged either way: /roll → combat/roll via
+      // parseDice; words → chronicle/message. The composer body is ALREADY
+      // escaped html (docToFeedBody), so it skips the esc() the input needs.
+      var host = root.querySelector('[data-rail="mchost"]');
+      var countEl = root.querySelector('[data-rail="mccount"]');
+      var SURF = null;
+
+      function updateCount() {
+        if (!countEl || !SURF) return;
+        var n = SURF.text().trim().length;
+        countEl.textContent = n + ' / 300';
+        countEl.className = 'mc-count' + (n > 300 ? ' over' : (n > 250 ? ' warn' : ''));
+      }
+      function submitSurface() {
+        if (!SURF) return;
+        var t = SURF.text().trim();
+        if (!t) return;
+        if (t.length > 300) { updateCount(); SURF.shake(); return; }
+        var staffHide = feedPostHidden && IS_STAFF;
+        var cmd = t.match(/^\/(roll|r)\s+(.+)$/i);
+        if (cmd) {
+          var parsed = parseDice(cmd[2]);
+          if (parsed) {
+            feedInsert({ channel: 'combat', kind: 'roll', formula: parsed.formula, result: { total: parsed.total }, body: diceBody(parsed), hidden: staffHide });
+            SURF.clear(); updateCount(); return;
+          }
+        }
+        feedInsert({ channel: 'chronicle', kind: 'message', body: SURF.body(), hidden: staffHide });
+        SURF.clear(); updateCount();
+      }
+
+      root.querySelector('[data-rail="sendbtn"]').addEventListener('click', function () { submitSurface(); if (SURF) SURF.focus(); });
       root.querySelector('[data-rail="dicebtn"]').addEventListener('click', function () {
-        if (!/^\/(roll|r)\b/i.test(inp.value)) inp.value = '/roll ' + inp.value.trim() + (inp.value.trim() ? '' : '1d20');
-        inp.focus();
+        if (!SURF) return;
+        var t = SURF.text();
+        if (!/^\/(roll|r)\b/i.test(t)) SURF.setText('/roll ' + t.trim() + (t.trim() ? '' : '1d20'));
+        SURF.focus();
       });
       var hide = root.querySelector('.tr-hide');
       if (hide) hide.addEventListener('click', function () { feedPostHidden = !feedPostHidden; hide.classList.toggle('on', feedPostHidden); });
 
-      // delegated: row delete + image lightbox (rows re-render constantly)
+      function mountFallbackInput() {
+        var inp = document.createElement('input');
+        inp.type = 'text'; inp.maxLength = 300;
+        inp.placeholder = '/roll 2d20kh1+5 or say something…';
+        host.insertBefore(inp, countEl);
+        SURF = {
+          text: function () { return inp.value; },
+          body: function () { return esc(inp.value.trim()); },
+          setText: function (t) { inp.value = t; },
+          clear: function () { inp.value = ''; },
+          focus: function () { inp.focus(); },
+          shake: function () {},
+        };
+        inp.addEventListener('keydown', function (e) { if (e.key === 'Enter') { e.preventDefault(); submitSurface(); } });
+      }
+
+      // ── the mention pool: lazy — nothing loads until the first focus ──
+      // canon (tooltips.js via ensureCanon) + entities + journal pages; the
+      // [[ picker gets two tabs: My notes (your seat) / All (party-readable).
+      var MC = { mod: null, mine: [], all: [], mySlugs: {}, pool: { npcs: [], locations: [] }, loaded: false, loading: false };
+      function seatName(key) {
+        if (!key) return 'Narrator';
+        return (typeof CHARACTERS !== 'undefined' && CHARACTERS[key] && CHARACTERS[key].name) || key;
+      }
+      function loadMentionData(edEl) {
+        if (MC.loaded || MC.loading || !MC.mod) return;
+        MC.loading = true;
+        Promise.all([
+          MC.mod.ensureCanon(document),
+          SB.from('entities').select('id, type, name, curated'),
+          SB.from('journal_pages').select('author_id, character_key, title, slug, folder, updated_at')
+            .order('updated_at', { ascending: false }).limit(500)
+        ]).then(function (res) {
+          var canon = res[0];
+          var entities = (res[1] && !res[1].error && res[1].data) || [];
+          var pages = (res[2] && !res[2].error && res[2].data) || [];
+          MC.pool = MC.mod.buildPool(canon, entities);
+          MC.all = pages.map(function (p) { return { id: p.slug, type: 'page', label: p.title, hint: seatName(p.character_key) }; });
+          MC.mine = pages.filter(function (p) {
+            return p.author_id === ME.userId && (p.character_key || null) === (ME.characterKey || null);
+          }).map(function (p) { MC.mySlugs[p.slug] = true; return { id: p.slug, type: 'page', label: p.title, hint: p.folder || 'Unsorted' }; });
+          MC.loaded = true; MC.loading = false;
+          if (window.attachTooltips) { try { window.attachTooltips(feedListEl); } catch (e) {} }
+          if (edEl) edEl.dispatchEvent(new Event('input', { bubbles: false }));  // repaint an open picker
+        }).catch(function (e) { MC.loading = false; console.warn('[rail] mention pool load failed:', e && e.message); });
+      }
+
+      // Kill switch (window.__railPlainComposer) forces the plain input —
+      // the harness uses it (jsdom can't resolve dynamic imports), and it's
+      // a live escape hatch if the composer ever misbehaves in the field.
+      // The timeout is patience, not failure: if the module hasn't arrived
+      // in 1.5s, mount the input so the table can type; a late module is
+      // then skipped (no mid-typing surface swap).
+      if (window.__railPlainComposer) {
+        mountFallbackInput();
+      } else {
+      setTimeout(function () { if (!SURF) mountFallbackInput(); }, 1500);
+      import('./mention-composer.js').then(function (mod) {
+        if (SURF) { console.warn('[rail] mention-composer arrived after fallback — keeping the input'); return; }
+        MC.mod = mod;
+        var composer = mod.createComposer(host, {
+          placeholder: '/roll 2d20kh1+5, @ a name, [[ a page…',
+          pool: function () { return MC.pool; },
+          pageTabs: function () { return [ { id: 'mine', label: 'My notes', items: MC.mine }, { id: 'all', label: 'All', items: MC.all } ]; },
+          // no onNewEntity — table chat NEVER seeds entity stubs (typo guard);
+          // unresolved chips still render dashed.
+        });
+        host.insertBefore(countEl, null);              // keep the counter after the editor
+        SURF = {
+          text: function () { return composer.el.textContent.replace(/\u00a0/g, ' '); },
+          body: function () { return mod.docToFeedBody(composer.getDoc()); },
+          setText: function (t) {
+            composer.clear(); composer.el.textContent = t;
+            var r = document.createRange(); r.selectNodeContents(composer.el); r.collapse(false);
+            var s = window.getSelection(); s.removeAllRanges(); s.addRange(r);
+          },
+          clear: function () { composer.clear(); },
+          focus: function () { composer.focus(); },
+          shake: function () {
+            composer.el.classList.remove('mc-shake'); void composer.el.offsetWidth;
+            composer.el.classList.add('mc-shake');
+          },
+        };
+        // Enter sends; Shift+Enter is a line break (docToFeedBody joins <br>).
+        // Attached AFTER the composer's own keydown, so a picker chip-insert
+        // arrives here with defaultPrevented — the picker wins, no send.
+        composer.el.addEventListener('keydown', function (e) {
+          if (e.key !== 'Enter' || e.defaultPrevented || e.shiftKey) return;
+          e.preventDefault();
+          submitSurface();
+        });
+        composer.el.addEventListener('input', updateCount);
+        composer.el.addEventListener('focus', function () { loadMentionData(composer.el); }, true);
+      }).catch(function (e) {
+        console.warn('[rail] mention-composer unavailable — plain input fallback:', e && e.message);
+        if (!SURF) mountFallbackInput();
+      });
+      }
+
+      // ── row menu: click a name/avatar → View sheet / Open journal /
+      //    Send to my journal (post-hoc capture: any row, YOUR vault) ──
+      var menuEl = document.createElement('div');
+      menuEl.className = 'tr-rowmenu';
+      root.appendChild(menuEl);
+      var toastEl = document.createElement('div');
+      toastEl.className = 'tr-toast';
+      root.appendChild(toastEl);
+      function toast(msg) {
+        toastEl.textContent = msg; toastEl.classList.add('on');
+        clearTimeout(toastEl.__t); toastEl.__t = setTimeout(function () { toastEl.classList.remove('on'); }, 2600);
+      }
+      function closeMenu() { menuEl.classList.remove('on'); menuEl.innerHTML = ''; }
+      document.addEventListener('click', function (e) { if (menuEl.classList.contains('on') && !menuEl.contains(e.target)) closeMenu(); }, true);
+      document.addEventListener('keydown', function (e) { if (e.key === 'Escape') closeMenu(); });
+
+      function autoTitle(text) {
+        var words = String(text || '').trim().split(/\s+/).filter(Boolean);
+        if (!words.length) return 'Table note';
+        var t = words.slice(0, 6).join(' ');
+        return words.length > 6 ? t + '…' : t;
+      }
+      function sendRowToJournal(row) {
+        Promise.all([import('./mention-composer.js'), import('./journal-capture.js')]).then(function (mods) {
+          var mc = mods[0], jc = mods[1];
+          if (!MC.mod) MC.mod = mc;
+          var ensureSlugs = MC.loaded ? Promise.resolve()
+            : SB.from('journal_pages').select('slug').eq('author_id', ME.userId).then(function (r) {
+                ((r && !r.error && r.data) || []).forEach(function (p) { MC.mySlugs[p.slug] = true; });
+              });
+          return ensureSlugs.then(function () {
+            // feed body html → doc: the locked chip spans parse back as nodes,
+            // everything else flattens to plain text. <br> is the feed's
+            // paragraph separator (docToFeedBody) — pre-split it into blocks,
+            // or serializeDoc reads a lone <br> as a blank line.
+            var box = document.createElement('div');
+            box.innerHTML = '<div>' + String(row.body || '').split(/<br\s*\/?>/i).join('</div><div>') + '</div>';
+            var docJson = mc.serializeDoc(box);
+            if (row.author_id !== ME.userId) {
+              docJson.content.unshift({ type: 'paragraph', content: [{ type: 'text',
+                text: 'Captured from ' + (row.actor_name || 'the table') + (row.session != null ? ' · Session ' + row.session : '') }] });
+            }
+            var title = autoTitle(strip(row.body));
+            var slugSet = { has: function (s) { return !!MC.mySlugs[s]; } };
+            var pageSlug = jc.freeSlug(title, slugSet);
+            return jc.insertPage(SB, {
+              author_id: ME.userId, character_key: ME.characterKey || null,
+              folder: 'Field Notes', title: title, slug: pageSlug,
+              doc: docJson, html: mc.docToHTML(docJson),
+              session: row.session != null ? row.session : (CTX.session || null),
+            }).then(function (page) {
+              MC.mySlugs[pageSlug] = true;
+              MC.mine.unshift({ id: pageSlug, type: 'page', label: title, hint: 'Field Notes' });
+              return jc.insertRefs(SB, page.id, mc.docToRefs(docJson));
+            }).then(function () { toast('\u2712 saved to your journal \u00b7 \u201c' + title + '\u201d'); });
+          });
+        }).catch(function (e) {
+          console.warn('[rail] send-to-journal failed:', e && e.message);
+          toast('couldn\u2019t save \u2014 ' + ((e && e.message) || 'journal unavailable'));
+        });
+      }
+      function openRowMenu(row, anchor) {
+        var isParty = row.actor_key && typeof CHARACTERS !== 'undefined' && CHARACTERS[row.actor_key];
+        var html = '';
+        if (isParty) html += '<button data-act="sheet">View sheet</button>';
+        html += '<button data-act="journal">Open journal</button>';
+        html += '<button data-act="capture">\u2712 Send to my journal</button>';
+        menuEl.innerHTML = html;
+        var rr = root.getBoundingClientRect(), ar = anchor.getBoundingClientRect();
+        menuEl.style.left = Math.max(8, ar.left - rr.left) + 'px';
+        menuEl.style.top = (ar.bottom - rr.top + 4) + 'px';
+        menuEl.classList.add('on');
+        menuEl.onclick = function (e) {
+          var b = e.target.closest('button'); if (!b) return;
+          var act = b.dataset.act;
+          closeMenu();
+          if (act === 'sheet') {
+            if (window.CombatSheets && typeof window.CombatSheets.open === 'function') window.CombatSheets.open(row.actor_key);
+            else window.location.href = 'sheet-v2.html?character=' + encodeURIComponent(row.actor_key);
+          } else if (act === 'journal') {
+            window.location.href = 'journal.html' + (row.actor_key ? '?character=' + encodeURIComponent(row.actor_key) : '');
+          } else if (act === 'capture') {
+            sendRowToJournal(row);
+          }
+        };
+      }
+
+      // delegated: row menu + row delete + image lightbox (rows re-render constantly)
       function closeLb() { lightbox.classList.remove('open'); setTimeout(function () { lbImg.src = ''; }, 200); document.removeEventListener('keydown', lbKey); }
       function lbKey(e) { if (e.key === 'Escape') closeLb(); }
       lightbox.addEventListener('click', function (e) { if (e.target !== lbImg) closeLb(); });
       feedListEl.addEventListener('click', function (e) {
         var del = e.target.closest('.feed-del');
         if (del) { feedDelete(Number(del.dataset.del)); return; }
+        var who = e.target.closest('.feed-av, .feed-name');
+        if (who) {
+          var rowEl = e.target.closest('.feed-row');
+          var id = rowEl && rowEl.getAttribute('data-row-id');
+          var row = id != null ? FEED.filter(function (r) { return String(r.id) === String(id); })[0] : null;
+          if (row) { openRowMenu(row, who); return; }
+        }
         var img = e.target.closest('.feed-text img');
         if (img && img.src) { lbImg.src = img.src; lightbox.classList.add('open'); document.addEventListener('keydown', lbKey); }
       });

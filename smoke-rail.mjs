@@ -79,6 +79,7 @@ async function makeRail({ role, characterKey, withBattle = true }) {
   const toggled = [];
   if (withBattle) window.__battle = { getRS: () => ({ advantage: false, disadvantage: false, bless: false, guidance: false }), toggleRS: (m) => toggled.push(m), onRSChange: null };
 
+  window.__railPlainComposer = true;   // jsdom can't resolve dynamic import() — force the plain-input surface
   window.eval(FEED_RENDER_SRC);   // window.FeedRender
   let readyFired = false;
   window.document.addEventListener('tok-rail:ready', () => { readyFired = true; });

@@ -241,10 +241,14 @@ function makeChip(doc, item) {
      placeholder,       — hint text
      pool: () => ({npcs, locations}),   — the @ pool (post-merge)
      pageItems: () => [{id,type:'page',label,hint}],  — the [[ pool
+     pageTabs: () => [{id,label,items:[…]}],  — optional TABBED [[ pool
+                        (e.g. My notes / All). Wins over pageItems when
+                        present; tabs are click-switched in the picker.
      onNewEntity(item)  — optional: an unresolved @ was chip-inserted
    }) → { el, getDoc, getRefs, isEmpty, clear, focus }                   */
 export function createComposer(host, opts) {
   opts = opts || {};
+  let pageTab = 0, curTabs = null;      // active [[ tab (pageTabs mode)
   const doc = host.ownerDocument;
   const wrap = doc.createElement('div');
   wrap.className = 'mc-wrap';
@@ -276,8 +280,14 @@ export function createComposer(host, opts) {
   }
 
   function renderPick() {
-    if (!items.length) { pick.style.display = 'none'; return; }
+    if (!items.length && !curTabs) { pick.style.display = 'none'; return; }
     let html = '', lastSec = null;
+    if (curTabs) {
+      html += '<div class="mc-pick-tabs">' + curTabs.map((t, i) =>
+        '<button type="button" class="mc-pick-tab' + (i === pageTab ? ' on' : '') + '" data-tab="' + i + '">' + esc(t.label) + '</button>'
+      ).join('') + '</div>';
+      if (!items.length) html += '<div class="mc-pick-none">no matching pages</div>';
+    }
     items.forEach((it, i) => {
       if (it.section !== lastSec) { lastSec = it.section; html += '<div class="mc-pick-sec">' + esc(it.section) + '</div>'; }
       html += '<div class="mc-pick-item' + (i === sel ? ' sel' : '') + (it.type === 'location' ? ' loc' : '') +
@@ -288,17 +298,26 @@ export function createComposer(host, opts) {
     });
     pick.innerHTML = html; pick.style.display = 'block';
   }
-  function closePick() { trig = null; items = []; pick.style.display = 'none'; }
+  function closePick() { trig = null; items = []; curTabs = null; pick.style.display = 'none'; }
 
   function refresh() {
     trig = findTrigger();
     if (!trig) { closePick(); return; }
     if (trig.kind === '[[') {
       const q = trig.query.toLowerCase().trim();
-      const pages = (opts.pageItems ? opts.pageItems() : []);
+      let pages;
+      if (opts.pageTabs) {
+        curTabs = opts.pageTabs() || [];
+        if (pageTab >= curTabs.length) pageTab = 0;
+        pages = (curTabs[pageTab] && curTabs[pageTab].items) || [];
+      } else {
+        curTabs = null;
+        pages = (opts.pageItems ? opts.pageItems() : []);
+      }
       items = pages.filter(p => !q || p.label.toLowerCase().includes(q)).slice(0, 7)
                    .map(p => Object.assign({ section: 'Pages', resolved: true }, p));
     } else {
+      curTabs = null;
       const pool = opts.pool ? opts.pool() : { npcs: [], locations: [] };
       items = buildItems(trig.query, pool.npcs || [], pool.locations || []);
     }
@@ -333,6 +352,13 @@ export function createComposer(host, opts) {
     else if (e.key === 'Escape') { e.preventDefault(); closePick(); }
   });
   pick.addEventListener('mousedown', e => {
+    const tab = e.target.closest('.mc-pick-tab');
+    if (tab) {
+      e.preventDefault();                                  // keep the editor's selection alive
+      pageTab = Number(tab.getAttribute('data-tab')) || 0;
+      refresh();
+      return;
+    }
     const it = e.target.closest('.mc-pick-item');
     if (!it) return;
     e.preventDefault();                                    // keep the editor's selection alive

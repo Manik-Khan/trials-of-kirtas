@@ -65,12 +65,12 @@ export function freeSlug(title, mySlugs) {
   for (let i = 2; i < 200; i++) if (!mySlugs.has(base + '-' + i)) return base + '-' + i;
   return base + '-' + Date.now();
 }
-async function insertPage(sb, row) {
+export async function insertPage(sb, row) {
   const res = await sb.from('journal_pages').insert(row).select().maybeSingle();
   if (res.error) throw new Error('save: ' + res.error.message);
   return res.data;
 }
-async function insertRefs(sb, pageId, refs) {
+export async function insertRefs(sb, pageId, refs) {
   if (!refs.length) return;
   const rows = refs.map(r => ({
     page_id: pageId, kind: r.kind,

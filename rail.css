@@ -120,10 +120,68 @@
 #tok-rail .tr-dice{ display:flex; flex-wrap:wrap; gap:4px; padding:7px 12px; border-top:1px solid var(--hair); flex:none; }
 #tok-rail .tr-die{ font-family:"Oswald",sans-serif; font-size:10.5px; letter-spacing:.04em; color:var(--cream-dim); border:1px solid var(--hair); background:transparent; padding:3px 7px; cursor:pointer; }
 #tok-rail .tr-die:hover{ border-color:var(--frame-hi); color:var(--gold-br); }
-#tok-rail .tr-composer{ border-top:1px solid var(--frame); padding:9px 12px; display:flex; align-items:center; gap:8px; background:rgba(7,12,11,.4); flex:none; }
+#tok-rail .tr-composer{ border-top:1px solid var(--frame); padding:9px 12px; display:flex; align-items:flex-end; gap:8px; background:rgba(7,12,11,.4); flex:none; }
 #tok-rail .tr-composer input{ flex:1; min-width:0; background:rgba(7,12,11,.5); border:1px solid var(--frame); color:var(--cream); font-family:"EB Garamond",Georgia,serif; font-size:15px; padding:8px 10px; outline:none; }
 #tok-rail .tr-composer input::placeholder{ color:var(--cream-fnt); font-style:italic; }
 #tok-rail .tr-composer input:focus{ border-color:var(--frame-hi); }
+
+/* ── the mention composer (tr-mc-host wraps mc-wrap from the module;
+      the plain input above is the import-failure fallback) ── */
+#tok-rail .tr-mc-host{ flex:1; min-width:0; position:relative; display:flex; }
+#tok-rail .tr-mc-host input{ flex:1; min-width:0; }
+#tok-rail .mc-wrap{ flex:1; min-width:0; position:relative; }
+#tok-rail .mc-editor{
+  display:block; width:100%; min-height:36px; max-height:96px; overflow-y:auto;
+  background:rgba(7,12,11,.5); border:1px solid var(--frame); color:var(--cream);
+  font-family:"EB Garamond",Georgia,serif; font-size:15px; line-height:1.4;
+  padding:8px 10px; outline:none; overflow-wrap:anywhere;
+  scrollbar-width:thin; scrollbar-color:rgba(199,154,74,.25) transparent;
+}
+#tok-rail .mc-editor:focus{ border-color:var(--frame-hi); }
+#tok-rail .mc-editor:empty::before{ content:attr(data-placeholder); color:var(--cream-fnt); font-style:italic; opacity:.75; }
+#tok-rail .mc-editor.mc-shake{ animation:tr-mcshake .3s; }
+@keyframes tr-mcshake{ 25%{ transform:translateX(-3px); } 75%{ transform:translateX(3px); } }
+#tok-rail .mc-count{ position:absolute; right:6px; top:-15px; font-family:"Oswald",sans-serif; font-size:9px; letter-spacing:.08em; color:var(--cream-fnt); background:rgba(7,12,11,.85); padding:0 4px; display:none; pointer-events:none; }
+#tok-rail .mc-count.warn{ display:block; }
+#tok-rail .mc-count.over{ display:block; color:var(--red-br); }
+
+/* the @ / [[ picker — opens UPWARD out of the bottom-anchored composer */
+#tok-rail .mc-pick{
+  position:absolute; left:0; bottom:calc(100% + 6px); z-index:40; width:min(300px,100%);
+  background:rgba(8,16,15,.97); border:1px solid var(--frame);
+  box-shadow:0 -18px 44px -18px #000; font-family:"Oswald",sans-serif; max-height:240px; overflow:auto;
+}
+#tok-rail .mc-pick-tabs{ display:flex; border-bottom:1px solid var(--frame); }
+#tok-rail .mc-pick-tab{ flex:1; font-family:"Oswald",sans-serif; font-size:9.5px; letter-spacing:.14em; text-transform:uppercase; background:transparent; border:none; border-bottom:2px solid transparent; color:var(--cream-fnt); padding:7px 0; cursor:pointer; }
+#tok-rail .mc-pick-tab.on{ color:var(--gold-br); border-bottom-color:var(--gold); }
+#tok-rail .mc-pick-none{ font-family:"EB Garamond",Georgia,serif; font-style:italic; font-size:12.5px; color:var(--cream-fnt); padding:9px 11px; }
+#tok-rail .mc-pick-sec{ font-size:9px; letter-spacing:.22em; text-transform:uppercase; color:var(--cream-fnt); padding:7px 11px 4px; border-bottom:1px solid var(--hair); }
+#tok-rail .mc-pick-item{ display:flex; align-items:baseline; gap:8px; padding:7px 11px; cursor:pointer; font-size:13px; }
+#tok-rail .mc-pick-item:hover, #tok-rail .mc-pick-item.sel{ background:rgba(199,154,74,.13); }
+#tok-rail .mc-pick-item .nm{ color:var(--cream-hi); letter-spacing:.04em; }
+#tok-rail .mc-pick-item.loc .nm{ color:#8ab4c9; }
+#tok-rail .mc-pick-item .ht{ font-family:"EB Garamond",Georgia,serif; font-style:italic; font-size:12px; color:var(--cream-fnt); margin-left:auto; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; max-width:110px; }
+#tok-rail .mc-pick-item.create .nm{ color:var(--cream-dim); }
+#tok-rail .mc-pick-item.create .plus{ color:#bd8ce8; font-weight:600; }
+
+/* mention / wikilink chips — in the editor AND in feed message bodies
+   (same classes the journal/chronicle emit; tooltips.js may not be on
+   the host page, so the rail carries its own scoped copy) */
+#tok-rail .npc-link{ color:#d4ac3a; border-bottom:1px dotted rgba(212,172,58,.4); cursor:default; }
+#tok-rail .location-link{ color:#8ab4c9; border-bottom:1px dotted rgba(138,180,201,.4); cursor:default; }
+#tok-rail .npc-unresolved{ color:var(--gold-br); border-bottom:1px dashed #bd8ce8; cursor:default; }
+#tok-rail .location-unresolved{ color:#8ab4c9; border-bottom:1px dashed #bd8ce8; cursor:default; }
+#tok-rail .page-link{ color:var(--cream-hi); border-bottom:1px solid var(--frame); cursor:default; }
+
+/* ── row menu (click a feed name/avatar) + toast ── */
+#tok-rail .feed-av, #tok-rail .feed-name{ cursor:pointer; }
+#tok-rail .tr-rowmenu{ position:absolute; z-index:60; display:none; flex-direction:column; min-width:170px; background:rgba(8,16,15,.97); border:1px solid var(--frame); box-shadow:0 18px 44px -18px #000; }
+#tok-rail .tr-rowmenu.on{ display:flex; }
+#tok-rail .tr-rowmenu button{ font-family:"Oswald",sans-serif; font-size:10.5px; letter-spacing:.12em; text-transform:uppercase; text-align:left; background:transparent; border:none; border-bottom:1px solid var(--hair); color:var(--cream-dim); padding:9px 13px; cursor:pointer; }
+#tok-rail .tr-rowmenu button:last-child{ border-bottom:none; }
+#tok-rail .tr-rowmenu button:hover{ background:rgba(199,154,74,.13); color:var(--gold-br); }
+#tok-rail .tr-toast{ position:absolute; left:12px; right:12px; bottom:64px; z-index:61; background:rgba(8,16,15,.97); border:1px solid rgba(127,208,164,.5); color:#7fd0a4; font-family:"Oswald",sans-serif; font-size:10.5px; letter-spacing:.1em; text-transform:uppercase; padding:9px 12px; opacity:0; transform:translateY(6px); transition:.25s; pointer-events:none; }
+#tok-rail .tr-toast.on{ opacity:1; transform:none; }
 #tok-rail .tr-hide{ flex:none; font-family:"Oswald",sans-serif; font-size:9px; letter-spacing:.12em; text-transform:uppercase; color:var(--cream-fnt); border:1px solid var(--frame); padding:7px 7px; cursor:pointer; background:transparent; }
 #tok-rail .tr-hide.on{ color:var(--gold-br); border-color:var(--gold); }
 #tok-rail .tr-composer button.tr-send{ background:transparent; border:1px solid var(--frame); color:var(--gold-br); width:34px; height:34px; display:flex; align-items:center; justify-content:center; cursor:pointer; flex:none; }
