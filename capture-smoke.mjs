@@ -233,7 +233,7 @@ const eq = (a, b, name) => ok(JSON.stringify(a) === JSON.stringify(b), name + '\
   const stubTok = {
     sb: { from: table },
     session: { user: { id: 'me-uid' } },
-    ready: Promise.resolve({ character_key: 'vesperian', role: 'player' }),
+    ready: Promise.resolve({ characterKey: 'vesperian', role: 'overseer' }),   // nav.js's REAL camelCase shape (stub the contract, not the bug)
   };
 
   // canon pre-bridged so ensureCanon short-circuits (no script injection in jsdom)
