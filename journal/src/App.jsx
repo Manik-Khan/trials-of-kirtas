@@ -49,7 +49,7 @@ export default function App() {
         </button>
       </nav>
       {view === 'journal'
-        ? <JournalView vault={backend.vault} banner={backend.banner} />
+        ? <JournalView vault={backend.vault} banner={backend.banner} isStaff={!!backend.isStaff} store={backend.store || null} />
         : <ChronicleView live={backend.mode === 'live'} />}
     </div>
   )

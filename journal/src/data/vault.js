@@ -72,9 +72,24 @@ export const vault = {
   character: 'Líadan Luchóg',
   folders: () => [...folders],
   pages: () => Object.values(P),
-  pagesIn: f => Object.values(P).filter(p => p.folder === f),
+  pagesIn: f => Object.values(P).filter(p => p.folder === f)
+    .sort((a, b) => (a.sort_order ?? 1e9) - (b.sort_order ?? 1e9)),
   get: id => P[id] || null,
   has: id => !!P[id],
+
+  renamePage(id, title) {
+    const p = P[id]; const t = (title || '').trim()
+    if (p && t) p.title = t                        // slug (id) stays — links hold
+  },
+
+  deletePage(id) { delete P[id] },
+
+  reorder(folder, orderedIds) {
+    orderedIds.forEach((id, i) => {
+      const p = P[id]
+      if (p) { p.folder = folder; p.sort_order = i }
+    })
+  },
 
   addFolder(name) {
     const n = name.trim()

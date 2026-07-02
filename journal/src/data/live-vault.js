@@ -12,7 +12,7 @@ import { extractPageLinks } from './vault.js'
 
 const slug = s => s.toLowerCase().trim().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '')
 
-export function makeLiveVault({ store, uid, characterName, rows, session, canWriteHere }) {
+export function makeLiveVault({ store, uid, characterName, rows, session, canWriteHere, isStaff }) {
   const P = {}
   const folders = []
   const timers = {}
@@ -28,6 +28,7 @@ export function makeLiveVault({ store, uid, characterName, rows, session, canWri
       html: r.html || '',
       json: r.doc || null,
       shared: !!r.shared_feed_id,
+      sort_order: r.sort_order ?? null,
       created_at: r.created_at,
     }
     if (!folders.includes(r.folder)) folders.push(r.folder)
@@ -53,7 +54,9 @@ export function makeLiveVault({ store, uid, characterName, rows, session, canWri
 
     folders: () => [...folders],
     pages: () => Object.values(P),
-    pagesIn: f => Object.values(P).filter(p => p.folder === f),
+    pagesIn: f => Object.values(P).filter(p => p.folder === f)
+      .sort((a, b) => (a.sort_order ?? 1e9) - (b.sort_order ?? 1e9)
+        || String(a.created_at || '').localeCompare(String(b.created_at || ''))),
     get: id => P[id] || null,
     has: id => !!P[id],
     canEdit: id => {
@@ -62,6 +65,12 @@ export function makeLiveVault({ store, uid, characterName, rows, session, canWri
       return p.author_id ? p.author_id === uid : true // just-created local page
     },
     canWrite: () => !!canWriteHere, // may the viewer create pages in THIS journal
+    // staff keep delete for moderation; words stay the author's otherwise
+    canDelete: id => {
+      const p = P[id]
+      if (!p) return false
+      return (p.author_id ? p.author_id === uid : true) || !!isStaff
+    },
 
     createdStubs: () => created,
 
@@ -100,8 +109,44 @@ export function makeLiveVault({ store, uid, characterName, rows, session, canWri
       if (!p) return
       p.folder = folder
       if (!folders.includes(folder)) folders.push(folder)
+      p.sort_order = Object.values(P).filter(x => x.folder === folder).length - 1
       if (p._rowId) store.savePage(p._rowId, { doc: p.json, html: p.html, folder })
         .catch(e => console.error('[journal] move failed:', e))
+    },
+
+    // Title-only by design — the slug is the [[wikilink]] target; re-slugging
+    // would orphan every backlink. (savePage's title path re-slugs: avoid it.)
+    renamePage(id, title) {
+      const p = P[id]
+      const t = (title || '').trim()
+      if (!p || !t) return
+      p.title = t
+      if (p._rowId && store.renamePage) store.renamePage(p._rowId, t)
+        .catch(e => console.error('[journal] rename failed:', e))
+    },
+
+    deletePage(id) {
+      const p = P[id]
+      if (!p) return
+      delete P[id]
+      if (p._rowId && store.deletePage) store.deletePage(p._rowId)
+        .catch(e => console.error('[journal] delete failed:', e))
+    },
+
+    // Reorder within a folder (and cross-folder drops): orderedIds becomes
+    // the folder's new 0..n. Only own pages are draggable (author-only RLS),
+    // so every touched row is writable.
+    reorder(folder, orderedIds) {
+      const updates = []
+      orderedIds.forEach((id, i) => {
+        const p = P[id]
+        if (!p) return
+        p.folder = folder
+        p.sort_order = i
+        if (p._rowId) updates.push({ id: p._rowId, folder, sort_order: i })
+      })
+      if (updates.length && store.reorderPages) store.reorderPages(updates)
+        .catch(e => console.error('[journal] reorder failed:', e))
     },
 
     backlinksTo(id) {

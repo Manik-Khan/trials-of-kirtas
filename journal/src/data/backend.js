@@ -88,12 +88,14 @@ export async function bootJournal() {
   const liveVault = makeLiveVault({
     store, uid,
     characterName: seatName(characterKey),
-    rows, session, canWriteHere,
+    rows, session, canWriteHere, isStaff,
   })
 
   return {
     mode: 'live',
     vault: liveVault,
+    isStaff,
+    store,                                          // the curation queue's RPC surface
     banner: canWriteHere ? null : `viewing ${seatName(characterKey)}’s journal — read-only`,
   }
 }

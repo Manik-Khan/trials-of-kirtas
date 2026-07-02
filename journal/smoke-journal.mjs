@@ -222,7 +222,7 @@ function stubSB(cans = {}) {
       delete: () => { ctx.op = 'delete'; return chain },
       eq: (k, v) => { ctx.filters[k] = v; return chain },
       is: (k, v) => { ctx.filters[k] = v; return chain },
-      order: () => finish(),
+      order: () => chain,                        // chainable, per supabase-js
       maybeSingle: () => finish(true),
       then: (res, rej) => finish().then(res, rej),
     }
@@ -357,7 +357,7 @@ const { bootJournal } = await import('./src/data/backend.js')
   const sbStub = { from: table => {
     const chain = {
       select: () => chain, eq: () => chain, is: () => chain,
-      order: () => Promise.resolve({ data: [], error: null }),
+      order: () => chain,                        // chainable, per supabase-js
       maybeSingle: () => Promise.resolve({ data: table === 'campaign' ? { current_session: 14 } : null, error: null }),
       then: (res) => res({ data: [], error: null }),
     }

@@ -18,6 +18,7 @@ import { makePageSuggestion } from './editor/pageSuggestion.js'
 import { extractOutline } from './data/vault.js'
 import { entityStore } from './data/entityStore.js'
 import { Toolbar } from './editor/Toolbar.jsx'
+import CurationQueue from './CurationQueue.jsx'
 
 function RefChips({ refs }) {
   if (!refs.length) return <span className="j-refs-none">no world references</span>
@@ -29,7 +30,7 @@ function RefChips({ refs }) {
   ))
 }
 
-export default function JournalView({ vault, banner = null }) {
+export default function JournalView({ vault, banner = null, isStaff = false, store = null }) {
   const first = vault.pages()[0]
   const [activeId, setActiveId] = useState(first?.id || null)
   const activeRef = useRef(activeId)
@@ -37,6 +38,10 @@ export default function JournalView({ vault, banner = null }) {
   const [docTick, setDocTick] = useState(0)     // active doc changed (outline/refs)
   const [newPageIn, setNewPageIn] = useState(null) // folder receiving a new page
   const [newSection, setNewSection] = useState(false)
+  const [menuFor, setMenuFor] = useState(null)  // page id with the ⋯ menu open
+  const [renaming, setRenaming] = useState(null) // page id being renamed inline
+  const [dragId, setDragId] = useState(null)    // page id being dragged
+  const [dropMark, setDropMark] = useState(null) // {id, before} | {folder}
   const bump = () => setTick(t => t + 1)
 
   const editor = useEditor({
@@ -71,6 +76,11 @@ export default function JournalView({ vault, banner = null }) {
     setDocTick(t => t + 1)
   }
   useEffect(() => { activeRef.current = activeId }, [activeId])
+  useEffect(() => {
+    const close = () => setMenuFor(null)
+    document.addEventListener('click', close)
+    return () => document.removeEventListener('click', close)
+  }, [])
 
   const active = vault.get(activeId)
   const canEditActive = vault.canEdit ? vault.canEdit(activeId) : true
@@ -95,7 +105,53 @@ export default function JournalView({ vault, banner = null }) {
 
   const renameActive = title => {
     if (!active) return
-    active.title = title
+    active.title = title                          // live keystroke echo
+    bump()
+  }
+  const commitActiveRename = () => {              // persist on blur/Enter —
+    if (!active || !canEditActive) return         // title-only, slug stable
+    if (vault.renamePage) vault.renamePage(active.id, active.title)
+  }
+
+  const commitTreeRename = (id, title) => {
+    if (vault.renamePage && title.trim()) vault.renamePage(id, title)
+    setRenaming(null)
+    bump()
+  }
+
+  const canDeletePage = id =>
+    vault.canDelete ? vault.canDelete(id) : (vault.canEdit ? vault.canEdit(id) : true)
+
+  const deletePage = id => {
+    const p = vault.get(id)
+    if (!p || !canDeletePage(id)) return
+    if (!window.confirm(`Delete “${p.title}”? Pages that link here keep a dashed dead link.`)) return
+    if (vault.deletePage) vault.deletePage(id)
+    setMenuFor(null)
+    if (activeRef.current === id) {
+      const next = vault.pages()[0]
+      activeRef.current = next?.id || null
+      setActiveId(next?.id || null)
+      if (editor) editor.commands.setContent(next?.html || '')
+    }
+    bump()
+  }
+
+  // reorder: drop before/after a sibling, or onto a section name to append.
+  const dropOnPage = (targetId, before) => {
+    if (!dragId || dragId === targetId || !vault.reorder) return
+    const tgt = vault.get(targetId)
+    const ordered = vault.pagesIn(tgt.folder).map(p => p.id).filter(id => id !== dragId)
+    const at = ordered.indexOf(targetId) + (before ? 0 : 1)
+    ordered.splice(at, 0, dragId)
+    vault.reorder(tgt.folder, ordered)
+    bump()
+  }
+  const dropOnFolder = folder => {
+    if (!dragId || !vault.reorder) return
+    const ordered = vault.pagesIn(folder).map(p => p.id).filter(id => id !== dragId)
+    ordered.push(dragId)
+    vault.reorder(folder, ordered)
     bump()
   }
 
@@ -136,7 +192,12 @@ export default function JournalView({ vault, banner = null }) {
         <nav className="j-tree">
           {vault.folders().map(f => (
             <div className="j-tree-folder" key={f}>
-              <div className="j-tree-folder-row">
+              <div
+                className={`j-tree-folder-row ${dropMark && dropMark.folder === f ? 'drop-target' : ''}`}
+                onDragOver={e => { if (dragId) { e.preventDefault(); setDropMark({ folder: f }) } }}
+                onDragLeave={() => setDropMark(m => (m && m.folder === f ? null : m))}
+                onDrop={e => { e.preventDefault(); dropOnFolder(f); setDropMark(null) }}
+              >
                 <span className="j-tree-folder-name">{f}</span>
                 {canWriteHere && (
                   <button type="button" className="j-tree-add" title={`new page in ${f}`}
@@ -152,15 +213,68 @@ export default function JournalView({ vault, banner = null }) {
                   }}
                 />
               )}
-              {vault.pagesIn(f).map(p => (
-                <button
-                  type="button" key={p.id}
-                  className={`j-tree-page ${p.id === activeId ? 'is-active' : ''}`}
-                  onClick={() => openPage(p.id)}
-                >
-                  {p.title}{p.shared && <span className="j-tree-shared" title="shared to the Chronicle"> 📜</span>}
-                </button>
-              ))}
+              {vault.pagesIn(f).map(p => {
+                const mine = vault.canEdit ? vault.canEdit(p.id) : true
+                const mark = dropMark && dropMark.id === p.id ? (dropMark.before ? 'drop-before' : 'drop-after') : ''
+                if (renaming === p.id) return (
+                  <input
+                    key={p.id} className="j-tree-input" autoFocus defaultValue={p.title}
+                    onKeyDown={e => {
+                      if (e.key === 'Enter') commitTreeRename(p.id, e.target.value)
+                      if (e.key === 'Escape') setRenaming(null)
+                    }}
+                    onBlur={e => commitTreeRename(p.id, e.target.value)}
+                  />
+                )
+                return (
+                  <div
+                    key={p.id}
+                    className={`j-tree-row ${mark} ${dragId === p.id ? 'dragging' : ''} ${mine ? '' : 'foreign'}`}
+                    draggable={mine}
+                    onDragStart={e => { setDragId(p.id); e.dataTransfer.effectAllowed = 'move' }}
+                    onDragEnd={() => { setDragId(null); setDropMark(null) }}
+                    onDragOver={e => {
+                      if (!dragId || dragId === p.id) return
+                      e.preventDefault()
+                      const r = e.currentTarget.getBoundingClientRect()
+                      setDropMark({ id: p.id, before: e.clientY < r.top + r.height / 2 })
+                    }}
+                    onDragLeave={() => setDropMark(m => (m && m.id === p.id ? null : m))}
+                    onDrop={e => {
+                      e.preventDefault()
+                      dropOnPage(p.id, !!(dropMark && dropMark.id === p.id && dropMark.before))
+                      setDropMark(null)
+                    }}
+                  >
+                    {mine && <span className="j-tree-grip" title="drag to reorder / move">⋮⋮</span>}
+                    <button
+                      type="button"
+                      className={`j-tree-page ${p.id === activeId ? 'is-active' : ''}`}
+                      onClick={() => openPage(p.id)}
+                    >
+                      {p.title}{p.shared && <span className="j-tree-shared" title="shared to the Chronicle"> 📜</span>}
+                    </button>
+                    {(mine || canDeletePage(p.id)) && (
+                      <button type="button" className="j-tree-dots"
+                        onClick={e => { e.stopPropagation(); setMenuFor(menuFor === p.id ? null : p.id) }}>⋯</button>
+                    )}
+                    {menuFor === p.id && (
+                      <div className="j-tree-menu">
+                        {mine && <>
+                          <button type="button" onClick={() => { setMenuFor(null); setRenaming(p.id) }}>Rename</button>
+                          <div className="j-tree-menu-note">rename keeps the slug — links won’t break</div>
+                        </>}
+                        {canDeletePage(p.id) && (
+                          <button type="button" className="danger" onClick={() => deletePage(p.id)}>
+                            {mine ? 'Delete' : 'Delete (staff)'}
+                          </button>
+                        )}
+                        {!mine && <div className="j-tree-menu-note">another author’s page — words are theirs; staff keep delete for moderation</div>}
+                      </div>
+                    )}
+                  </div>
+                )
+              })}
             </div>
           ))}
 
@@ -202,6 +316,8 @@ export default function JournalView({ vault, banner = null }) {
                 value={active.title}
                 readOnly={!canEditActive}
                 onChange={e => canEditActive && renameActive(e.target.value)}
+                onBlur={commitActiveRename}
+                onKeyDown={e => { if (e.key === 'Enter') { e.target.blur() } }}
               />
               <div className="j-page-meta">
                 <select
@@ -244,7 +360,8 @@ export default function JournalView({ vault, banner = null }) {
               </div>
             </section>
 
-            {stubs.length > 0 && (
+            {isStaff && <CurationQueue store={store} isStaff={isStaff} />}
+            {!isStaff && stubs.length > 0 && (
               <section className="j-newents">
                 <div className="j-side-label">New to the world</div>
                 <ul className="j-newents-list">

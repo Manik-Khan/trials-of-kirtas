@@ -22,13 +22,35 @@ export function makeJournalStore({ sb, uid, characterKey }) {
     // Edit rights are per page: author_id === uid.
     async loadPages() {
       let q = sb.from('journal_pages')
-        .select('id, author_id, folder, title, slug, doc, html, session, shared_feed_id, created_at, updated_at')
+        .select('id, author_id, folder, title, slug, doc, html, session, shared_feed_id, sort_order, created_at, updated_at')
       q = characterKey === null
         ? q.is('character_key', null)              // the Narrator's journal
         : q.eq('character_key', characterKey)
-      const res = await q.order('folder')
+      const res = await q
+        .order('folder')
+        .order('sort_order', { nullsFirst: false })
+        .order('created_at')
       if (res.error) throw new Error(`loadPages: ${res.error.message}`)
       return res.data || []
+    },
+
+    // Rename is TITLE-ONLY by design: the slug is the [[wikilink]] target —
+    // re-slugging (savePage's title path does) would orphan every backlink.
+    async renamePage(id, title) {
+      const res = await sb.from('journal_pages')
+        .update({ title: title.trim() }).eq('id', id).select('id').maybeSingle()
+      if (res.error) throw new Error(`renamePage: ${res.error.message}`)
+      return res.data
+    },
+
+    // Contiguous 0..n within a folder; own pages only (author-only RLS).
+    async reorderPages(updates /* [{id, folder, sort_order}] */) {
+      const results = await Promise.all(updates.map(u =>
+        sb.from('journal_pages')
+          .update({ folder: u.folder, sort_order: u.sort_order })
+          .eq('id', u.id)))
+      const bad = results.find(r => r.error)
+      if (bad) throw new Error(`reorderPages: ${bad.error.message}`)
     },
 
     async getCurrentSession() {
@@ -111,6 +133,60 @@ export function makeJournalStore({ sb, uid, characterKey }) {
         npcs: merge(canonNPCs, 'npc'),
         locations: merge(canonLocations, 'location'),
       }
+    },
+
+    // ── curation (staff) ──
+    async loadCurationQueue() {
+      const res = await sb.from('entities')
+        .select('id, type, name, descr, created_by, created_at')
+        .eq('curated', false)
+        .order('created_at')
+      if (res.error) throw new Error(`loadCurationQueue: ${res.error.message}`)
+      return res.data || []
+    },
+
+    // rewrite footprint for the merge preview: pages / refs / chat counts
+    async entityFootprint(type, id) {
+      const [refs, feed] = await Promise.all([
+        sb.from('journal_refs').select('page_id', { count: 'exact', head: true })
+          .eq('kind', 'entity').eq('ref_type', type).eq('ref_id', id),
+        sb.from('feed').select('id', { count: 'exact', head: true })
+          .like('body', `%data-mention-key="${id}"%`),
+      ])
+      return {
+        refs: refs.error ? 0 : (refs.count ?? 0),
+        feed: feed.error ? 0 : (feed.count ?? 0),
+      }
+    },
+
+    async updateEntity(type, id, { name, descr }) {
+      const res = await sb.from('entities')
+        .update({ name, descr }).eq('type', type).eq('id', id).select('id').maybeSingle()
+      if (res.error) throw new Error(`updateEntity: ${res.error.message}`)
+      return res.data
+    },
+
+    async discardEntity(type, id) {
+      const res = await sb.from('entities').delete().eq('type', type).eq('id', id)
+      if (res.error) throw new Error(`discardEntity: ${res.error.message}`)
+    },
+
+    // Both RPCs are SECURITY DEFINER + is_staff()-gated server-side; they are
+    // called from the browser with the user's token (never the service key —
+    // service role has no auth.uid(), the gate would fail by design).
+    async canonizeEntity(type, id) {
+      const res = await sb.rpc('canonize_entity', { p_type: type, p_id: id })
+      if (res.error) throw new Error(`canonize_entity: ${res.error.message}`)
+      return res.data                              // { pages, feed }
+    },
+
+    async mergeEntity(type, oldId, canonId, canonLabel, fixFeed) {
+      const res = await sb.rpc('merge_entity', {
+        p_type: type, p_old: oldId, p_canon: canonId,
+        p_canon_label: canonLabel, p_fix_feed: !!fixFeed,
+      })
+      if (res.error) throw new Error(`merge_entity: ${res.error.message}`)
+      return res.data                              // { pages, refs, feed }
     },
 
     async addEntity({ id, type, label }) {
