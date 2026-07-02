@@ -1524,17 +1524,18 @@ function toggleDrawer() {
 function restoreDraft() {
   try {
     const draft = JSON.parse(localStorage.getItem(DRAFT_KEY)||'{}');
-    if (draft.session) document.getElementById('d-session').value = draft.session;
+    // (Session is deliberately NOT draft-restored — the field repaints from
+    // campaign truth on load, and a weeks-stale draft number was one of the
+    // three session-fork vectors.)
     if (draft.title)   document.getElementById('d-title').value   = draft.title;
     if (draft.location)document.getElementById('d-location').value= draft.location;
-    if (draft.content && quill) quill.root.innerHTML = draft.content;
+    if (draft.content && quill) loadHtmlIntoQuill(draft.content);
   } catch(e) {}
 }
 
 function saveDraft() {
   try {
     localStorage.setItem(DRAFT_KEY, JSON.stringify({
-      session:  document.getElementById('d-session').value,
       title:    document.getElementById('d-title').value,
       location: document.getElementById('d-location').value,
       content:  quill ? quill.root.innerHTML : '',
@@ -2093,6 +2094,9 @@ function initChronicleRealtime() {
         if (!row) return;
         currentSession = row.current_session;
         document.getElementById('dm-session-val').textContent = `Session ${currentSession}`;
+        // Long-open-tab guard: repaint the drawer field from fresh truth unless
+        // an entry edit deliberately set it. (Same fork family as the draft.)
+        if (!editingEntryId) document.getElementById('d-session').value = currentSession;
         campaignConfig = row.config || {};
         renderSidebar();   // pinned tags / channel order shared live
       })
@@ -2103,6 +2107,10 @@ function initChronicleRealtime() {
 // SESSION PROMPT (auto-detect new session after 20+ hours)
 // ══════════════════════════════════════════════════════════
 function checkSessionPrompt() {
+  // Staff-only: only staff can succeed at the campaign write (RLS), so showing
+  // this to players just invites the silent-failure fork the write-first
+  // bumpSessionTo now surfaces. Don't offer what can't be accepted.
+  if (!IS_STAFF) return;
   if (!currentIdentity) return;
   if (!allEntries.length) return;
   const lastEntry = allEntries.reduce((a,b)=>new Date(a.timestamp)>new Date(b.timestamp)?a:b);
@@ -2129,17 +2137,24 @@ async function bumpSession() {
 }
 
 async function bumpSessionTo(n) {
-  currentSession = n;
-  document.getElementById('d-session').value = n;
-  document.getElementById('dm-session-val').textContent = `Session ${n}`;
-  // Campaign table is live truth; realtime carries the bump to every page.
+  // WRITE-FIRST: persist to the campaign row, repaint only on confirmed success.
+  // An RLS-blocked .update() returns NO error — it just matches 0 rows — so the
+  // .select() + row-count check is load-bearing. Without it, non-staff writes
+  // fail silently and the session number forks (the July 2026 session-fork bug).
   try {
     if (!SB) throw new Error('No Supabase client');
-    const { error } = await SB.from('campaign')
+    const { data, error } = await SB.from('campaign')
       .update({ current_session: n, updated_at: new Date().toISOString() })
-      .eq('id', 1);
+      .eq('id', 1)
+      .select('current_session');
     if (error) throw new Error(error.message);
-  } catch(e) { console.warn('Could not save session config', e); }
+    if (!data || !data.length) throw new Error('not permitted — only staff can change the session');
+    currentSession = n;
+    document.getElementById('d-session').value = n;
+    document.getElementById('dm-session-val').textContent = `Session ${n}`;
+  } catch(e) {
+    alert('The session was NOT changed: ' + e.message);
+  }
 }
 
 // ══════════════════════════════════════════════════════════
@@ -2869,14 +2884,37 @@ function toggleEntryMenu(id, e) {
 }
 document.addEventListener('click', ()=>document.querySelectorAll('.c-entry-dropdown').forEach(d=>d.classList.remove('open')));
 
+// Load HTML through Quill's clipboard pipeline so the internal delta stays in
+// sync with the DOM. Assigning quill.root.innerHTML directly leaves the delta
+// EMPTY — the editor *looks* loaded but breaks on the first interaction.
+function loadHtmlIntoQuill(html) {
+  if (!quill) return;
+  quill.setContents(quill.clipboard.convert(html || ''), 'silent');
+  quill.setSelection(quill.getLength(), 0, 'silent');
+}
+
+// Composer chips (rail/journal mention-composer) in stored feed HTML.
+// Signature: class="tok-mention …" or data-pagelink= — old Quill-authored
+// mention spans carry data-mention-type too, but never emit either of these.
+function entryHasChips(html) {
+  return /data-pagelink=|tok-mention/.test(html || '');
+}
+
 function editEntry(id) {
   const entry = allEntries.find(e=>e.id===id);
   if (!entry) return;
+  if (entryHasChips(entry.text)) {
+    // GUARD, not a matcher: Quill would flatten composer chips to plain text.
+    // Real chip editing ships with the chronicle redesign (when Quill retires);
+    // no chip-preserving blot gets built for a dying editor.
+    alert('This message contains mention chips from the table-chat composer, and editing it here would flatten them to plain text.\n\nFor now: delete it and repost from the rail. Proper chip editing arrives with the chronicle redesign.');
+    return;
+  }
   editingEntryId = id;
   document.getElementById('d-session').value  = entry.session||'';
   document.getElementById('d-title').value    = entry.sessionTitle||'';
   document.getElementById('d-location').value = entry.location||'';
-  if (quill) quill.root.innerHTML = entry.text||'';
+  loadHtmlIntoQuill(entry.text||'');
   if (!drawerOpen) toggleDrawer();
   setDrawerStatus(`Editing entry from ${new Date(entry.timestamp).toLocaleDateString()}`, 'loading');
 }
@@ -3060,7 +3098,7 @@ document.addEventListener('DOMContentLoaded', () => whenReady(async () => {
   });
 
   // Save draft on field input
-  ['d-session','d-title','d-location'].forEach(id => {
+  ['d-title','d-location'].forEach(id => {
     const el = document.getElementById(id);
     if (el) el.addEventListener('input', saveDraft);
   });
