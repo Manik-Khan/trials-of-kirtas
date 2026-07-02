@@ -54,11 +54,16 @@ export async function bootJournal() {
   const uid = tok.session?.user?.id
   const params = new URLSearchParams(window.location.search)
 
-  // whose journal: ?character= wins; otherwise your own seat (staff → Narrator)
+  // whose journal: ?character= wins; otherwise your own seat (staff → Narrator).
+  // nav.js exposes the profile in camelCase — characterKey, NOT character_key
+  // (nav.js ~line 879). The snake_case read here made every player's seat
+  // compute to null: staff landed on the Narrator vault even with a character
+  // (the overseer plays Vesperian), and ?character=<own seat> showed read-only.
+  const mySeatKey = profile?.characterKey ?? profile?.character_key ?? null
   const characterKey = params.has('character')
     ? (params.get('character') || null)
-    : (profile?.character_key ?? null)
-  const ownSeat = (profile?.character_key ?? null) === characterKey
+    : mySeatKey
+  const ownSeat = mySeatKey === characterKey
   const isStaff = profile?.role === 'overseer' || profile?.role === 'dm'
   const canWriteHere = ownSeat || (characterKey === null && isStaff)
 
