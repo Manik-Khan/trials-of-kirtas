@@ -50,7 +50,7 @@ export default function App() {
       </nav>
       {view === 'journal'
         ? <JournalView vault={backend.vault} banner={backend.banner} isStaff={!!backend.isStaff} store={backend.store || null} comments={backend.comments || null} accents={backend.accents || {}} me={backend.me || null} />
-        : <ChronicleView live={backend.mode === 'live'} />}
+        : <ChronicleView live={backend.mode === 'live'} store={backend.store || null} accents={backend.accents || {}} />}
     </div>
   )
 }

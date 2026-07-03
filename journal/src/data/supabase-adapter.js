@@ -196,6 +196,16 @@ export function makeJournalStore({ sb, uid, characterKey }) {
       return merged
     },
 
+    // ── the book: the chronicle feed as a reading layer ──
+    async loadChronicleBook() {
+      const res = await sb.from('feed')
+        .select('id, channel, kind, actor_key, actor_name, body, session, meta, hidden, created_at')
+        .eq('channel', 'chronicle')
+        .order('created_at')
+      if (res.error) throw new Error(`loadChronicleBook: ${res.error.message}`)
+      return res.data || []
+    },
+
     // ── curation (staff) ──
     async loadCurationQueue() {
       const res = await sb.from('entities')
