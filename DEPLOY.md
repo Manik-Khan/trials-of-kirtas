@@ -1,57 +1,54 @@
-# Organization arc — deploy manifest
+# Comments arc — deploy manifest
 
-Everything under `org-arc/` mirrors the repo layout. Upload each file to the
-same path in `Manik-Khan/trials-of-kirtas`.
+Contents mirror the repo root of `Manik-Khan/trials-of-kirtas` exactly —
+upload each file to the same path.
 
 ## Order of operations
-1. **Run the SQL first** (Supabase SQL editor):
-   `journal/sql/schema_delta_journal_org.sql`
-   — adds `journal_pages.sort_order`, `entity_aliases`, `canonize_entity()`,
-   `merge_entity()`. Idempotent. Validated on a local Postgres 16
-   (T1–T5: canonize resolve-flip · merge with ref-collision dedupe · label
-   escaping incl. `&`/`<`/`>` · guards · re-run safety).
-2. **Then the files** (the UI calls the RPCs; without the SQL, curation
-   actions error visibly but nothing breaks):
-   - `journal.html`                        (root — new ?v= cache-bust stamp)
-   - `journal-assets/journal.js`           (root — rebuilt bundle)
-   - `journal-assets/journal.css`          (root — rebuilt bundle)
-   - `journal/src/App.jsx`
-   - `journal/src/JournalView.jsx`
-   - `journal/src/CurationQueue.jsx`       (new)
-   - `journal/src/styles.css`
-   - `journal/src/data/supabase-adapter.js`
-   - `journal/src/data/live-vault.js`
-   - `journal/src/data/vault.js`
-   - `journal/src/data/backend.js`
-   - `journal/smoke-org.mjs`               (new harness)
-   - `journal/smoke-journal.mjs`           (stub fix: chainable .order)
-3. Hard-refresh after deploy (the browser caches .js).
+1. **SQL first** (Supabase SQL editor): `journal/sql/schema_delta_journal_comments.sql`
+   — `journal_comments` table + RLS + the history-guard trigger. Idempotent.
+   Validated on local Postgres 16: owner may flip status but is BLOCKED from
+   editing the commenter's words; author may edit own; page delete cascades.
+2. **Then the files:**
+   Root:              journal.html (new ?v= stamps)
+   journal-assets/:   journal.js · journal.css (rebuilt bundles)
+   journal/:          smoke-comments.mjs (new)
+   journal/sql/:      schema_delta_journal_comments.sql (new)
+   journal/src/:      App.jsx · JournalView.jsx · styles.css
+   journal/src/editor/:   Attribution.js (new)
+   journal/src/comments/: anchor.js · CommentMarks.js · CommentsRail.jsx ·
+                          sampleComments.js · accents.js (all new)
+   journal/src/data/: supabase-adapter.js · backend.js
+3. Hard-refresh.
 
 ## What shipped
-- Tree organization (own vault): ⋮⋮ drag-reorder within a section, drop on a
-  section name to move, ⋯ menu with Rename / Delete. Rename is TITLE-ONLY —
-  the slug ([[wikilink]] target) never changes, so backlinks hold. Foreign
-  rows (All view / others' pages): read-only, staff see Delete only.
-- Curation queue (staff, bottom of the journal): Canonize (resolve-flip —
-  every dashed chip lights solid in docs, html caches, AND feed bodies),
-  Edit name/descr, Merge into canon (rewrite preview + the "also correct
-  chat messages" checkbox — off by default, chat is a record), Discard.
-  Players keep the informational "New to the world" list.
-- merge_entity leaves the old key in entity_aliases; note the aliases table
-  is not yet consulted at typing time — wiring the composer/suggestion pool
-  to resolve aliases is a small follow-up increment.
+- Quote-anchored comments on any journal page (yours or a friend's via
+  ?character=): select text → ✎ popover → compose in the rail. Strict
+  anchoring (exact context → unique quote → ORPHAN to the "since edited"
+  log — never a guess). Highlights are ProseMirror DECORATIONS: view-only,
+  never serialized into the doc.
+- Owner actions: Accept (inserts the atomic `attribution` node after the
+  anchored sentence — YOUR write, THEIR words, their color), Edit-then-accept
+  (edits what lands on the page; the comment ROW keeps the original — the
+  trigger enforces it server-side), Dismiss. Commenters may Withdraw.
+- Show/hide-others' toggle. Colored backlinks (dot painted by the linking
+  page's seat).
+- Seat accents: content stores SEAT KEYS only; paint resolves at render from
+  profiles.appearance.accent → fallback palette → stable hash. The color
+  input next to Share to Chronicle (own vault) saves via set_my_appearance
+  (full merged object — the RPC replaces). Changing it repaints every chip,
+  underline, and dot, past and future, by construction.
+
+## Verify-once flag
+The repo's set_my_appearance body says `where id = auth.uid()`, but the
+pinned RLS lesson from the appearance arc says profiles.user_id is the auth
+UID. Appearance works live, so the DEPLOYED function likely differs from the
+committed file. One glance in Supabase → Functions settles it; if the
+deployed one also says `id`, accent saves will silently no-op (same 0-row
+class as the session bug) and I'll patch it next session.
 
 ## Validation
-- smoke-org.mjs: 14/14 (vault sort/rename/delete/reorder + adapter
-  contracts: renamePage never re-slugs; RPC params exact)
-- smoke-journal.mjs: 81/81 (regression; stub now models supabase-js's
-  chainable .order — stub the publisher's contract)
-- SQL: T1–T5 green on local Postgres 16
-- vite build clean; journal-preview.html regenerated (open it standalone to
-  eyeball the tree + queue with sample data; sample mode fakes the RPCs)
-
-## Not built (logged for future arcs)
-- Shared Quest Hub (party-shared quest section, distinct from personal
-  "Quests" folders) — M's note this session.
-- entity_aliases consulted at typing time (see above).
-- Folder rename/delete/reorder (sections are still just text values).
+smoke-comments.mjs 21/21 (anchor engine · Attribution round-trip ·
+decorations paint/drop/never-serialize · adapter contracts incl. full-merge
+accent save) · smoke-journal.mjs 81/81 · smoke-org.mjs 14/14 · SQL T1–T5 ·
+vite build clean. Preview: journal-preview-comments.html (standalone; seeded
+with one anchored comment and one deliberate orphan).
