@@ -14,7 +14,7 @@ import { Callout } from './editor/Callout.js'
 import { TokMention, extractRefs } from './editor/MentionExtension.js'
 import { makeEntitySuggestion } from './editor/suggestion.js'
 import { PageLink } from './editor/PageLink.js'
-import { makePageSuggestion } from './editor/pageSuggestion.js'
+import { makePageSuggestion, resolvePageLinkClick } from './editor/pageSuggestion.js'
 import { extractOutline } from './data/vault.js'
 import { entityStore } from './data/entityStore.js'
 import { Toolbar } from './editor/Toolbar.jsx'
@@ -60,6 +60,7 @@ export default function JournalView({ vault, banner = null, isStaff = false, sto
   const [selPop, setSelPop] = useState(null)     // {x, y} for the ✎ popover
   const [accentMap, setAccentMap] = useState(accents || {})
   const jumpRef = useRef(() => {})
+  const openPageRef = useRef(() => {})
   const bump = () => setTick(t => t + 1)
 
   const editor = useEditor({
@@ -72,7 +73,7 @@ export default function JournalView({ vault, banner = null, isStaff = false, sto
         suggestion: makeEntitySuggestion({ onCreateEntity: bump }),
       }),
       PageLink.configure({
-        suggestion: makePageSuggestion({ onCreatePage: bump }),
+        suggestion: makePageSuggestion({ vault, onCreatePage: bump }),
       }),
       Attribution,
       CommentMarks.configure({ onJump: id => jumpRef.current(id) }),
@@ -82,6 +83,13 @@ export default function JournalView({ vault, banner = null, isStaff = false, sto
     onUpdate: ({ editor }) => {
       vault.saveDoc(activeRef.current, { html: editor.getHTML(), json: editor.getJSON() })
       setDocTick(t => t + 1)
+    },
+    editorProps: {
+      handleClick: (view, _pos, event) => {
+        const id = resolvePageLinkClick(event.target, event, view.editable)
+        if (id && vault.has(id)) { openPageRef.current(id); return true }
+        return false
+      },
     },
     onSelectionUpdate: ({ editor }) => {
       const { from, to, empty } = editor.state.selection
@@ -104,6 +112,7 @@ export default function JournalView({ vault, banner = null, isStaff = false, sto
     editor.commands.setContent(p?.html || '')
     setDocTick(t => t + 1)
   }
+  openPageRef.current = openPage
   useEffect(() => { activeRef.current = activeId }, [activeId])
   useEffect(() => {
     const close = () => setMenuFor(null)

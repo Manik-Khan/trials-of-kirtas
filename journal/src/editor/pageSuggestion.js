@@ -4,34 +4,17 @@
 import { ReactRenderer } from '@tiptap/react'
 import { computePosition, flip, shift, offset } from '@floating-ui/dom'
 import { MentionList } from './MentionList.jsx'
-import { vault } from '../data/vault.js'
 
-// ── suggestion for the [[ trigger ──
-// items: this vault's pages; no match → "new page" (created in Unsorted).
-function buildPageItems(query) {
-  const q = query.toLowerCase().trim()
-  const items = vault.pages()
-    .filter(p => !q || p.title.toLowerCase().includes(q))
-    .slice(0, 7)
-    .map(p => ({
-      id: p.id, type: 'page', label: p.title, hint: p.folder,
-      resolved: true, section: 'Pages',
-    }))
-  if (q && !items.some(i => i.label.toLowerCase() === q)) {
-    items.push({
-      id: null, type: 'page', label: query.trim(), hint: '',
-      resolved: false, section: 'Create',
-    })
-  }
-  return items
-}
+import { buildPageItems } from './pagelink-core.js'
+export { resolvePageLinkClick } from './pagelink-core.js'
 
-export function makePageSuggestion({ onCreatePage } = {}) {
+export function makePageSuggestion({ vault, onCreatePage } = {}) {
+  if (!vault) throw new Error('makePageSuggestion needs the active vault')
   return {
     char: '[[',
     allowSpaces: true,
 
-    items: ({ query }) => buildPageItems(query),
+    items: ({ query }) => buildPageItems(vault, query),
 
     command: ({ editor, range, props }) => {
       let { id, label } = { id: props.id, label: props.label }
@@ -85,3 +68,5 @@ export function makePageSuggestion({ onCreatePage } = {}) {
     },
   }
 }
+
+

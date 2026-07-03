@@ -142,5 +142,28 @@ await store.saveMyAccent('#aabbcc')
     !!rpc && rpc.__params.p_appearance.accent === '#aabbcc' && rpc.__params.p_appearance.bg === 'metaphor' && rpc.__params.p_appearance.grain === 9)
 }
 
+
+console.log(' — pagelink fix: injected vault + click resolution —')
+const { buildPageItems, resolvePageLinkClick } = await import('./src/editor/pagelink-core.js')
+{
+  const fake = { pages: () => [{ id: 'real-page', title: 'Real Page', folder: 'Sessions' }],
+                 addPage: (folder, title) => ({ id: 'created', title }) }
+  const items = buildPageItems(fake, 'real')
+  t('[[ pool serves the INJECTED vault (no sample leak)', items.length >= 1 && items[0].id === 'real-page')
+  t('[[ pool offers a create row for unmatched queries', buildPageItems(fake, 'brand new').some(i => i.section === 'Create'))
+
+  const span = document.createElement('span')
+  span.setAttribute('data-pagelink', 'real-page')
+  document.body.appendChild(span)
+  t('click resolves in read-only on plain click',
+    resolvePageLinkClick(span, { metaKey: false, ctrlKey: false }, false) === 'real-page')
+  t('click needs Cmd/Ctrl while editable (plain click places the cursor)',
+    resolvePageLinkClick(span, { metaKey: false, ctrlKey: false }, true) === null
+    && resolvePageLinkClick(span, { metaKey: true, ctrlKey: false }, true) === 'real-page')
+  t('non-chip targets resolve to null',
+    resolvePageLinkClick(document.body, { metaKey: true }, false) === null)
+  span.remove()
+}
+
 console.log(`\n${pass} passed, ${fail} failed`)
 process.exit(fail ? 1 : 0)
