@@ -118,9 +118,18 @@ export function makeJournalStore({ sb, uid, characterKey }) {
     // Canon comes from tooltips.js globals when the page loads them;
     // play-created rows merge on top. Callers pass the canon arrays in.
     async loadEntities({ canonNPCs = [], canonLocations = [] } = {}) {
-      const res = await sb.from('entities').select('id, type, name, curated')
+      const [res, al] = await Promise.all([
+        sb.from('entities').select('id, type, name, curated'),
+        sb.from('entity_aliases').select('type, alias_id, canonical_id'),
+      ])
       if (res.error) throw new Error(`loadEntities: ${res.error.message}`)
       const rows = res.data || []
+      // typo → canon map written by merge_entity; consulted at typing time so
+      // a merged-away key resolves to canon instead of re-seeding the stub
+      const aliases = {}
+      for (const a of (al.error ? [] : al.data || [])) {
+        aliases[`${a.type}:${a.alias_id}`] = a.canonical_id
+      }
       const merge = (canon, type) => {
         const seen = new Set(canon.map(e => e.id))
         return [
@@ -132,6 +141,7 @@ export function makeJournalStore({ sb, uid, characterKey }) {
       return {
         npcs: merge(canonNPCs, 'npc'),
         locations: merge(canonLocations, 'location'),
+        aliases,
       }
     },
 

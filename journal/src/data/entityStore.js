@@ -8,18 +8,30 @@ const pool = {
   location: LOCATIONS.map(e => ({ ...e, origin: 'canon' })),
 }
 const created = [] // play-created stubs, in creation order (the curation queue)
+let aliasMap = {}  // `${type}:${aliasId}` → canonical id (written by merge_entity)
 
 export const entityStore = {
   persist: null, // live mode sets this: stub => Promise (fire-and-forget)
-  hydrate({ npcs, locations }) {
+  hydrate({ npcs, locations, aliases }) {
     pool.npc = npcs
     pool.location = locations
+    aliasMap = aliases || {}
+  },
+  aliases: () => aliasMap,
+  // direct hit or via alias → the canonical entity; null if unknown
+  resolve(type, id) {
+    const direct = pool[type].find(e => e.id === id)
+    if (direct) return direct
+    const canonId = aliasMap[`${type}:${id}`]
+    return canonId ? pool[type].find(e => e.id === canonId) || null : null
   },
   npcs: () => pool.npc,
   locations: () => pool.location,
   has: (type, id) => pool[type].some(e => e.id === id),
   createdStubs: () => created,
   add(stub) {
+    // an alias means this key was merged away — never re-seed the retired stub
+    if (aliasMap[`${stub.type}:${stub.id}`]) return false
     if (this.has(stub.type, stub.id)) return false
     const entity = { id: stub.id, label: stub.label, type: stub.type, hint: 'new — from the journal', origin: 'journal' }
     pool[stub.type].push(entity)

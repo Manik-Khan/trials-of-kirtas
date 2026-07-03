@@ -9,26 +9,22 @@ import { ReactRenderer } from '@tiptap/react'
 import { computePosition, flip, shift, offset } from '@floating-ui/dom'
 import { MentionList } from './MentionList.jsx'
 import { entityStore } from '../data/entityStore.js'
-import { buildItems } from './match.js'
+import { buildItems, resolveMentionInsert } from './match.js'
 
 export function makeEntitySuggestion({ onCreateEntity } = {}) {
   return {
   char: '@',
   allowSpaces: true, // multi-word queries: "@Lord Rey…"
 
-  items: ({ query }) => buildItems(query, entityStore.npcs(), entityStore.locations()),
+  items: ({ query }) => buildItems(query, entityStore.npcs(), entityStore.locations(), entityStore.aliases()),
 
   // Choosing "new NPC / new location" creates the entity right away —
   // same immediacy as [[new page]]; the node inserts already-resolved.
   command: ({ editor, range, props }) => {
-    let resolved = props.resolved
-    if (!resolved) {
-      const created = entityStore.add({ id: props.id, type: props.type, label: props.label })
-      if (created) onCreateEntity?.({ id: props.id, type: props.type, label: props.label })
-      resolved = true
-    }
+    const r = resolveMentionInsert(props, entityStore)
+    if (r.created) onCreateEntity?.({ id: r.id, type: r.type, label: r.label })
     editor.chain().focus().insertContentAt(range, [
-      { type: 'tokMention', attrs: { id: props.id, type: props.type, label: props.label, resolved } },
+      { type: 'tokMention', attrs: { id: r.id, type: r.type, label: r.label, resolved: r.resolved } },
       { type: 'text', text: ' ' },
     ]).run()
   },
