@@ -1,24 +1,8 @@
-# Book + editor fixes — deploy manifest
+# Book ordering — deploy manifest
 
-Mirrors the repo. No SQL.
+Replaces: journal.html (new ?v=), journal-assets/journal.js + .css,
+journal/src/data/bookModel.js, journal/smoke-book.mjs (15/15).
 
-Replaces:
-  journal.html (new ?v= stamps)
-  journal-assets/journal.js · journal.css
-  journal/src/JournalView.jsx
-  journal/src/ChronicleView.jsx
-  journal/src/styles.css
-  journal/src/data/bookModel.js
-  journal/smoke-book.mjs (15/15)
-
-Fixes:
-1. EDITOR BOX/BULLETS: the pagelink patch added a second editorProps key;
-   JS duplicate-key rule silently dropped the first — which carried the
-   j-editor-content styling class. Unstyled ProseMirror = default blue
-   focus ring + bullets outside the box. Merged into one key.
-2. BOOK NAMES: old drawer rows store the CLASS in meta.character
-   ('Fighter'). The seat map now leads: character name displays
-   (Vesperian Vale), hover reveals the PLAYER ALIAS (thebraveruby), with
-   a seat-accent medallion badge (portrait slot; initial for now).
-3. BOOK IMAGES: entry images clamp to 420px height (cover-fit, bordered,
-   zoom-in cursor); click opens a LIGHTBOX (click anywhere or Esc closes).
+Chapters now read freshest-first (Session 4 opens the book; the Prologue
+closes it). Entries WITHIN a chapter stay in narrative order — a chapter
+is a story, not a feed. Say the word to flip in-chapter order too.
