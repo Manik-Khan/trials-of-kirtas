@@ -64,8 +64,11 @@ export function buildBook(rows) {
     if (!bySession.has(e.session)) bySession.set(e.session, [])
     bySession.get(e.session).push(e)
   }
+  // Chapters read freshest-first — the current session opens the book and
+  // the Prologue closes it. WITHIN a chapter, entries stay in narrative
+  // order (oldest → newest): a chapter is a story, not a feed.
   const chapters = [...bySession.entries()]
-    .sort((a, b) => a[0] - b[0])
+    .sort((a, b) => b[0] - a[0])
     .map(([session, entries]) => {
       entries.sort((a, b) => a.at - b.at || (a.id < b.id ? -1 : 1))
       const titled = entries.find(e => e.sessionTitle)

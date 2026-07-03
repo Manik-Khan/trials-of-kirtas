@@ -21,20 +21,20 @@ const rows = [
 const book = buildBook(rows)
 
 console.log('smoke-book')
-t('chapters sorted by session, prologue first', book.map(c => c.session).join(',') === '0,3,4')
-t('session 0 titles as Prologue', book[0].title === 'Prologue')
-t('chapter title from the first sessionTitle', book[2].title === 'The Fort Siege')
-t('hidden rows never render', !book[2].entries.some(e => e.id === '5'))
-t('non-chronicle channels excluded', !book[2].entries.some(e => e.id === '7'))
-t('dm rows are the Narrator (golden box kind)', book[2].entries[0].kind === 'narrator' && book[2].entries[0].seat === 'narrator')
+t('chapters read freshest-first; the Prologue closes the book', book.map(c => c.session).join(',') === '4,3,0')
+t('session 0 titles as Prologue', book[2].title === 'Prologue')
+t('chapter title from the first sessionTitle', book[0].title === 'The Fort Siege')
+t('hidden rows never render', !book[0].entries.some(e => e.id === '5'))
+t('non-chronicle channels excluded', !book[0].entries.some(e => e.id === '7'))
+t('dm rows are the Narrator (golden box kind)', book[0].entries[0].kind === 'narrator' && book[0].entries[0].seat === 'narrator')
 t('character rows carry seat + both identities',
-  (() => { const e = book[2].entries.find(x => x.id === '2'); return e.kind === 'entry' && e.seat === 'vesperian' && e.character === 'Vesperian Vale' && e.player === 'thebraveruby' })())
+  (() => { const e = book[0].entries.find(x => x.id === '2'); return e.kind === 'entry' && e.seat === 'vesperian' && e.character === 'Vesperian Vale' && e.player === 'thebraveruby' })())
 t('written_at PLACES the late share at its proper time (between 19:00 and 19:30)',
-  book[2].entries.map(e => e.id).join(',') === '1,3,2')
+  book[0].entries.map(e => e.id).join(',') === '1,3,2')
 t('late share earns the badge; on-time entries do not',
-  book[2].entries.find(e => e.id === '3').sharedLate === true
-  && book[2].entries.find(e => e.id === '2').sharedLate === false)
-t('fromJournal provenance carried', book[2].entries.find(e => e.id === '3').fromJournal === 'Session 4 — notes')
+  book[0].entries.find(e => e.id === '3').sharedLate === true
+  && book[0].entries.find(e => e.id === '2').sharedLate === false)
+t('fromJournal provenance carried', book[0].entries.find(e => e.id === '3').fromJournal === 'Session 4 — notes')
 t('CLASS in old meta.character never displays — the seat map wins',
   (() => { const e = rowToBookEntry(R({ id: 20, actor_key: 'vesperian', actor_name: 'Vesperian', session: 4, body: '', created_at: '2026-07-01T00:00:00Z', meta: { character: 'Fighter' } })); return e.character === 'Vesperian Vale' })())
 t('hover identity is the PLAYER ALIAS, not the drawer label',
