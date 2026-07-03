@@ -45,6 +45,7 @@ function ChronicleEntry({ e, dimmed, accents }) {
     <article className={`jc-entry ${dimmed ? 'is-dim' : ''}`} style={{ '--accent': accent }}>
       <header className="jc-entry-head">
         <span className="jc-entry-who" title={`written by ${e.player}`}>
+          <span className="jc-medallion" aria-hidden="true">{(e.character || '?').charAt(0)}</span>
           {e.character}<span className="jc-player-reveal"> · {e.player}</span>
         </span>
         <span className="jc-entry-meta">
@@ -60,6 +61,19 @@ function ChronicleEntry({ e, dimmed, accents }) {
 
 export default function ChronicleView({ live = false, store = null, accents = {} }) {
   const [thread, setThread] = useState(null) // `${type}:${id}` or null
+  const [lightbox, setLightbox] = useState(null) // image src or null
+
+  useEffect(() => {
+    const onKey = e => { if (e.key === 'Escape') setLightbox(null) }
+    document.addEventListener('keydown', onKey)
+    return () => document.removeEventListener('keydown', onKey)
+  }, [])
+
+  const bodyClick = e => {
+    if (e.target.tagName === 'IMG' && e.target.closest('.c-entry-text')) {
+      setLightbox(e.target.currentSrc || e.target.src)
+    }
+  }
   const [rows, setRows] = useState(null)     // live feed rows | null while loading
   const [err, setErr] = useState(null)
 
@@ -132,13 +146,20 @@ export default function ChronicleView({ live = false, store = null, accents = {}
             </div>
           </header>
 
-          <div className="jc-weave">
+          <div className="jc-weave" onClick={bodyClick}>
             {ch.entries.map(e => (
               <ChronicleEntry key={e.id} e={e} dimmed={!touches(e, thread)} accents={accents} />
             ))}
           </div>
         </section>
       ))}
+
+      {lightbox && (
+        <div className="jc-lightbox" onClick={() => setLightbox(null)} role="dialog" aria-label="image — click anywhere to close">
+          <img src={lightbox} alt="" />
+          <button type="button" className="jc-lightbox-x" onClick={() => setLightbox(null)}>✕</button>
+        </div>
+      )}
 
       <footer className="jc-book-foot">
         <p>

@@ -35,6 +35,14 @@ t('late share earns the badge; on-time entries do not',
   book[2].entries.find(e => e.id === '3').sharedLate === true
   && book[2].entries.find(e => e.id === '2').sharedLate === false)
 t('fromJournal provenance carried', book[2].entries.find(e => e.id === '3').fromJournal === 'Session 4 — notes')
+t('CLASS in old meta.character never displays — the seat map wins',
+  (() => { const e = rowToBookEntry(R({ id: 20, actor_key: 'vesperian', actor_name: 'Vesperian', session: 4, body: '', created_at: '2026-07-01T00:00:00Z', meta: { character: 'Fighter' } })); return e.character === 'Vesperian Vale' })())
+t('hover identity is the PLAYER ALIAS, not the drawer label',
+  rowToBookEntry(R({ id: 21, actor_key: 'vesperian', actor_name: 'Vesperian', session: 4, body: '', created_at: '2026-07-01T00:00:00Z' })).player === 'thebraveruby')
+t('narrator hover reveals the DM alias',
+  rowToBookEntry(R({ id: 22, actor_key: 'dm', session: 4, body: '', created_at: '2026-07-01T00:00:00Z' })).player === 'hagakuredisc')
+t('unknown seats fall back gracefully to actor_name',
+  (() => { const e = rowToBookEntry(R({ id: 23, actor_key: 'guest-seat', actor_name: 'Guest', session: 4, body: '', created_at: '2026-07-01T00:00:00Z' })); return e.character === 'Guest' && e.player === 'Guest' })())
 t('rowToBookEntry survives null meta/session', (() => { const e = rowToBookEntry({ id: 9, body: '', created_at: '2026-07-01T00:00:00Z', meta: null, session: null }); return e.session === 0 && e.kind === 'narrator' })())
 
 console.log(`\n${pass} passed, ${fail} failed`)

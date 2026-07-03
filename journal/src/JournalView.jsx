@@ -79,12 +79,15 @@ export default function JournalView({ vault, banner = null, isStaff = false, sto
       CommentMarks.configure({ onJump: id => jumpRef.current(id) }),
     ],
     content: first?.html || '',
-    editorProps: { attributes: { class: 'j-editor-content' } },
     onUpdate: ({ editor }) => {
       vault.saveDoc(activeRef.current, { html: editor.getHTML(), json: editor.getJSON() })
       setDocTick(t => t + 1)
     },
     editorProps: {
+      // ONE editorProps only — a second key in this literal silently clobbers
+      // the first (duplicate-key rule), which is how the editor lost its
+      // styling class on July 3 (blue focus ring, bullets outside the box).
+      attributes: { class: 'j-editor-content' },
       handleClick: (view, _pos, event) => {
         const id = resolvePageLinkClick(event.target, event, view.editable)
         if (id && vault.has(id)) { openPageRef.current(id); return true }

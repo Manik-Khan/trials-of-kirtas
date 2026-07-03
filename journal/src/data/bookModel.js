@@ -13,6 +13,24 @@
 
 const DAY = 24 * 60 * 60 * 1000
 
+// The five seats. Old drawer rows carry the CLASS in meta.character
+// ('Fighter', 'Bard'…) — display the character, hover the player.
+// TODO(multi-campaign): read these from profiles instead of the map.
+const SEAT_CHARACTERS = {
+  cosmere: 'Cosmere Runestar',
+  liadan: 'Líadan Luchóg',
+  caim: 'Caim',
+  vesperian: 'Vesperian Vale',
+  narrator: 'Narrator',
+}
+const PLAYER_ALIASES = {
+  cosmere: 'ianakira',
+  liadan: 'nazanroseaktas',
+  caim: 'jayvanmidde',
+  vesperian: 'thebraveruby',
+  narrator: 'hagakuredisc',
+}
+
 export function rowToBookEntry(r) {
   const m = r.meta || {}
   const created = Date.parse(r.created_at)
@@ -23,8 +41,10 @@ export function rowToBookEntry(r) {
     id: String(r.id),
     kind: seat === 'narrator' ? 'narrator' : 'entry',
     seat,
-    character: m.character || r.actor_name || 'Narrator',
-    player: r.actor_name || '',
+    // character name leads; the CLASS that old rows stored in meta.character
+    // never displays. Hover reveals the player's alias.
+    character: SEAT_CHARACTERS[seat] || m.character || r.actor_name || 'Narrator',
+    player: PLAYER_ALIASES[seat] || r.actor_name || '',
     session: r.session == null ? 0 : r.session,
     sessionTitle: m.sessionTitle || null,
     location: m.location || null,
