@@ -135,6 +135,67 @@ export function makeJournalStore({ sb, uid, characterKey }) {
       }
     },
 
+    // ── comments (journal_comments): rows ABOUT a page, never writes TO it ──
+    async loadComments(pageId) {
+      const res = await sb.from('journal_comments')
+        .select('id, page_id, author_id, seat, body_html, quote, prefix, suffix, status, created_at')
+        .eq('page_id', pageId)
+        .eq('status', 'open')
+        .order('created_at')
+      if (res.error) throw new Error(`loadComments: ${res.error.message}`)
+      return res.data || []
+    },
+
+    async addComment({ page_id, seat, body_html, quote, prefix, suffix }) {
+      const res = await sb.from('journal_comments')
+        .insert({ page_id, author_id: uid, seat, body_html, quote, prefix, suffix })
+        .select()
+        .maybeSingle()
+      if (res.error) throw new Error(`addComment: ${res.error.message}`)
+      return res.data
+    },
+
+    // status flips are the page owner's verbs (accept / dismiss); the words
+    // themselves are trigger-guarded server-side — only the author edits them.
+    async setCommentStatus(id, status) {
+      const res = await sb.from('journal_comments')
+        .update({ status }).eq('id', id).select('id').maybeSingle()
+      if (res.error) throw new Error(`setCommentStatus: ${res.error.message}`)
+      return res.data
+    },
+
+    async deleteComment(id) {
+      const res = await sb.from('journal_comments').delete().eq('id', id)
+      if (res.error) throw new Error(`deleteComment: ${res.error.message}`)
+    },
+
+    // ── seat accents: colors are NEVER stored in content — content stores the
+    // seat key; paint resolves through this map at render time. Change the
+    // accent → every chip/underline/dot ever made repaints. ──
+    async loadSeatAccents() {
+      const res = await sb.from('profiles').select('character_key, role, appearance')
+      if (res.error) return {}                    // non-fatal: fallback palette
+      const map = {}
+      for (const p of res.data || []) {
+        const accent = p.appearance && p.appearance.accent
+        if (!accent) continue
+        if (p.character_key) map[p.character_key] = accent
+        if (p.role === 'overseer' || p.role === 'dm') map.narrator = accent
+      }
+      return map
+    },
+
+    // Replace-not-merge RPC: send the FULL merged appearance.
+    async saveMyAccent(hex) {
+      const cur = await sb.from('profiles').select('appearance')
+        .eq('user_id', uid).maybeSingle()
+      if (cur.error) throw new Error(`saveMyAccent/read: ${cur.error.message}`)
+      const merged = Object.assign({}, (cur.data && cur.data.appearance) || {}, { accent: hex })
+      const res = await sb.rpc('set_my_appearance', { p_appearance: merged })
+      if (res.error) throw new Error(`saveMyAccent: ${res.error.message}`)
+      return merged
+    },
+
     // ── curation (staff) ──
     async loadCurationQueue() {
       const res = await sb.from('entities')

@@ -12,6 +12,7 @@ import { makeJournalStore } from './supabase-adapter.js'
 import { makeLiveVault } from './live-vault.js'
 import { entityStore } from './entityStore.js'
 import { vault as sampleVault } from './vault.js'
+import { makeSampleComments } from '../comments/sampleComments.js'
 import { SEATS } from './party.js'
 
 const seatName = key =>
@@ -43,7 +44,11 @@ export async function bootJournal() {
   const onSite = typeof document !== 'undefined'
     && !!document.querySelector('[data-tok-shell]')
   if (!onSite) {
-    return { mode: 'sample', vault: sampleVault, banner: null }
+    return {
+      mode: 'sample', vault: sampleVault, banner: null,
+      comments: makeSampleComments(), accents: {},
+      me: { uid: 'uid-liadan', seatKey: 'liadan', seatName: 'Líadan' },
+    }
   }
 
   const tok = await waitForTok()
@@ -73,13 +78,14 @@ export async function bootJournal() {
   const toArr = (obj, type) => Object.entries(obj || {})
     .map(([k, v]) => ({ id: k, label: v.name || k, type, hint: v.role || v.type || '' }))
 
-  const [rows, entities, session] = await Promise.all([
+  const [rows, entities, session, accents] = await Promise.all([
     store.loadPages(),
     store.loadEntities({
       canonNPCs: toArr(canon.npcs, 'npc'),
       canonLocations: toArr(canon.locations, 'location'),
     }),
     store.getCurrentSession(),
+    store.loadSeatAccents().catch(() => ({})),   // non-fatal: fallback palette
   ])
 
   entityStore.hydrate(entities)
@@ -95,7 +101,10 @@ export async function bootJournal() {
     mode: 'live',
     vault: liveVault,
     isStaff,
-    store,                                          // the curation queue's RPC surface
+    store,                                          // curation + comments surface
+    comments: store,                                // same adapter, comment methods
+    accents,
+    me: { uid, seatKey: mySeatKey, seatName: seatName(mySeatKey) },
     banner: canWriteHere ? null : `viewing ${seatName(characterKey)}’s journal — read-only`,
   }
 }

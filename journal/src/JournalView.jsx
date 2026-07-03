@@ -19,6 +19,17 @@ import { extractOutline } from './data/vault.js'
 import { entityStore } from './data/entityStore.js'
 import { Toolbar } from './editor/Toolbar.jsx'
 import CurationQueue from './CurationQueue.jsx'
+import { Attribution } from './editor/Attribution.js'
+import { CommentMarks } from './comments/CommentMarks.js'
+import CommentsRail from './comments/CommentsRail.jsx'
+import { docWalk, indexToPos, captureAnchor, findAnchor, insertionIndex, splitByAnchor } from './comments/anchor.js'
+import { seatVars, seatColor } from './comments/accents.js'
+
+const SEAT_NAMES = { liadan: 'Líadan', caim: 'Caim', vesperian: 'Vesperian', cosmere: 'Cosmere' }
+function seatDisplay(seat) {
+  if (!seat) return 'Narrator'
+  return SEAT_NAMES[seat] || seat.charAt(0).toUpperCase() + seat.slice(1)
+}
 
 function RefChips({ refs }) {
   if (!refs.length) return <span className="j-refs-none">no world references</span>
@@ -30,7 +41,7 @@ function RefChips({ refs }) {
   ))
 }
 
-export default function JournalView({ vault, banner = null, isStaff = false, store = null }) {
+export default function JournalView({ vault, banner = null, isStaff = false, store = null, comments = null, accents = {}, me = null }) {
   const first = vault.pages()[0]
   const [activeId, setActiveId] = useState(first?.id || null)
   const activeRef = useRef(activeId)
@@ -42,6 +53,13 @@ export default function JournalView({ vault, banner = null, isStaff = false, sto
   const [renaming, setRenaming] = useState(null) // page id being renamed inline
   const [dragId, setDragId] = useState(null)    // page id being dragged
   const [dropMark, setDropMark] = useState(null) // {id, before} | {folder}
+  const [commentList, setCommentList] = useState([])   // open comments, active page
+  const [showOthersC, setShowOthersC] = useState(true)
+  const [hotId, setHotId] = useState(null)
+  const [compose, setCompose] = useState(null)   // {quote, prefix, suffix}
+  const [selPop, setSelPop] = useState(null)     // {x, y} for the ✎ popover
+  const [accentMap, setAccentMap] = useState(accents || {})
+  const jumpRef = useRef(() => {})
   const bump = () => setTick(t => t + 1)
 
   const editor = useEditor({
@@ -56,12 +74,23 @@ export default function JournalView({ vault, banner = null, isStaff = false, sto
       PageLink.configure({
         suggestion: makePageSuggestion({ onCreatePage: bump }),
       }),
+      Attribution,
+      CommentMarks.configure({ onJump: id => jumpRef.current(id) }),
     ],
     content: first?.html || '',
     editorProps: { attributes: { class: 'j-editor-content' } },
     onUpdate: ({ editor }) => {
       vault.saveDoc(activeRef.current, { html: editor.getHTML(), json: editor.getJSON() })
       setDocTick(t => t + 1)
+    },
+    onSelectionUpdate: ({ editor }) => {
+      const { from, to, empty } = editor.state.selection
+      if (empty || !comments) { setSelPop(null); return }
+      try {
+        const c = editor.view.coordsAtPos(to)
+        const host = editor.view.dom.getBoundingClientRect()
+        setSelPop({ x: c.left - host.left, y: c.bottom - host.top + 6, from, to })
+      } catch { setSelPop(null) }
     },
   })
 
@@ -102,6 +131,115 @@ export default function JournalView({ vault, banner = null, isStaff = false, sto
     () => (activeId ? vault.backlinksTo(activeId) : []),
     [activeId, docTick, tick],
   )
+
+  // ── comments: load per page, split by anchor, paint marks ──
+  const activeRowId = active && (active._rowId || active.id)
+  useEffect(() => {
+    let stale = false
+    if (!comments || !activeRowId) { setCommentList([]); return }
+    comments.loadComments(activeRowId)
+      .then(rows => { if (!stale) setCommentList(rows.map(r => ({ ...r, seatName: r.seatName || seatDisplay(r.seat) }))) })
+      .catch(e => console.error('[journal] comments load failed:', e))
+    return () => { stale = true }
+  }, [activeRowId, comments])          // eslint-disable-line react-hooks/exhaustive-deps
+
+  const { anchored, orphaned } = useMemo(() => {
+    if (!editor) return { anchored: [], orphaned: [] }
+    const walk = docWalk(editor.getJSON())
+    return splitByAnchor(walk.text, commentList)
+  }, [editor, commentList, docTick])
+
+  useEffect(() => {
+    if (!editor) return
+    const visible = anchored
+      .map(a => a.comment)
+      .filter(c => showOthersC || (me && c.author_id === me.uid))
+    editor.commands.setCommentMarks(visible)
+  }, [editor, anchored, showOthersC])  // eslint-disable-line react-hooks/exhaustive-deps
+
+  jumpRef.current = id => {
+    setHotId(id)
+    const el = editor && editor.view.dom.querySelector(`.j-c-hl[data-cid="${id}"]`)
+    if (el) el.scrollIntoView({ behavior: 'smooth', block: 'center' })
+    setTimeout(() => setHotId(h => (String(h) === String(id) ? null : h)), 1800)
+  }
+
+  const refreshComments = () => {
+    if (comments && activeRowId) comments.loadComments(activeRowId)
+      .then(rows => setCommentList(rows.map(r => ({ ...r, seatName: r.seatName || seatDisplay(r.seat) }))))
+      .catch(() => {})
+  }
+
+  const startCompose = () => {
+    if (!editor || !selPop) return
+    const walk = docWalk(editor.getJSON())
+    // map pm selection → text indices by scanning the pos map
+    const fromIdx = walk.map.findIndex(p => p >= selPop.from)
+    let toIdx = walk.map.findIndex(p => p >= selPop.to)
+    if (toIdx === -1) toIdx = walk.map.length
+    if (fromIdx === -1 || toIdx <= fromIdx) return
+    const a = captureAnchor(walk.text, fromIdx, toIdx)
+    if (!a.quote.trim()) return
+    setCompose(a)
+    setSelPop(null)
+  }
+
+  const submitCompose = async body => {
+    try {
+      await comments.addComment({
+        page_id: activeRowId,
+        seat: me ? me.seatKey : null,
+        seatName: me ? me.seatName : undefined,   // sample store keeps it; live derives
+        body_html: body,
+        quote: compose.quote, prefix: compose.prefix, suffix: compose.suffix,
+      })
+      setCompose(null)
+      refreshComments()
+    } catch (e) { console.error('[journal] comment failed:', e) }
+  }
+
+  const acceptComment = async (c, editedBody) => {
+    if (!editor || !canEditActive) return
+    const walk = docWalk(editor.getJSON())
+    const at = findAnchor(walk.text, c)
+    if (!at) { refreshComments(); return }        // raced an edit → it orphans
+    const pos = indexToPos(walk, insertionIndex(walk.text, at.end))
+    editor.chain().focus().insertContentAt(pos, [
+      { type: 'text', text: ' ' },
+      { type: 'attribution', attrs: {
+          seat: c.seat || 'narrator',
+          seatName: c.seatName || seatDisplay(c.seat),
+          text: editedBody || c.body_html,
+        } },
+    ]).run()
+    try { await comments.setCommentStatus(c.id, 'accepted') } catch (e) { console.error(e) }
+    refreshComments()
+  }
+
+  const dismissComment = async c => {
+    try { await comments.setCommentStatus(c.id, 'dismissed') } catch (e) { console.error(e) }
+    refreshComments()
+  }
+  const withdrawComment = async c => {
+    try { await comments.deleteComment(c.id) } catch (e) { console.error(e) }
+    refreshComments()
+  }
+
+  const saveAccent = async hex => {
+    setAccentMap(m => ({ ...m, [me.seatKey || 'narrator']: hex }))
+    if (store && store.saveMyAccent) {
+      try { await store.saveMyAccent(hex) } catch (e) { console.error('[journal] accent save failed:', e) }
+    }
+  }
+
+  const seatStyleVars = useMemo(() => {
+    const seats = new Set([
+      ...(me && me.seatKey ? [me.seatKey] : []),
+      ...commentList.map(c => c.seat || 'narrator'),
+      ...linkedFrom.map(p => p.character_key || 'narrator'),
+    ])
+    return seatVars([...seats], accentMap)
+  }, [commentList, linkedFrom, accentMap, me])
 
   const renameActive = title => {
     if (!active) return
@@ -180,7 +318,7 @@ export default function JournalView({ vault, banner = null, isStaff = false, sto
   const stubs = entityStore.createdStubs()
 
   return (
-    <div className="j-vault" data-tick={tick}>
+    <div className="j-vault" data-tick={tick} style={seatStyleVars}>
 
       {/* ── sidebar: the vault tree ── */}
       <aside className="j-side">
@@ -327,6 +465,13 @@ export default function JournalView({ vault, banner = null, isStaff = false, sto
                 >
                   {vault.folders().map(f => <option key={f} value={f}>{f}</option>)}
                 </select>
+                {canEditActive && me && (
+                  <label className="j-accent" title="your seat color — repaints every chip, underline, and dot, past and future">
+                    <input type="color"
+                      value={seatColor(me.seatKey, accentMap)}
+                      onChange={e => saveAccent(e.target.value)} />
+                  </label>
+                )}
                 {canEditActive && (
                   <button type="button" className="j-save" onClick={shareActive} disabled={active.shared}>
                     {active.shared ? '📜 shared' : 'Share to Chronicle'}
@@ -336,7 +481,17 @@ export default function JournalView({ vault, banner = null, isStaff = false, sto
             </header>
 
             {canEditActive && <Toolbar editor={editor} />}
-            <EditorContent editor={editor} />
+            <div className="j-editor-host">
+              <EditorContent editor={editor} />
+              {selPop && comments && (
+                <div className="j-selpop" style={{ left: selPop.x, top: selPop.y }}>
+                  <button type="button"
+                    onMouseDown={e => { e.preventDefault(); startCompose() }}>
+                    ✎ Comment{me && me.seatName ? ` as ${me.seatName}` : ''}
+                  </button>
+                </div>
+              )}
+            </div>
 
             <div className="j-cheat">
               <code># heading</code> <code>**bold**</code> <code>*italic*</code>{' '}
@@ -350,7 +505,9 @@ export default function JournalView({ vault, banner = null, isStaff = false, sto
                 {linkedFrom.length === 0 && <span className="j-refs-none">no pages link here yet</span>}
                 {linkedFrom.map(p => (
                   <button type="button" key={p.id} className="j-backlink-page" onClick={() => openPage(p.id)}>
-                    📄 {p.title} <em className="j-backlink-folder">· {p.folder}</em>
+                    <span className="j-backlink-dot"
+                      style={{ background: seatColor(p.character_key || 'narrator', accentMap) }} />
+                    {p.title} <em className="j-backlink-folder">· {p.folder}{p.character_key ? ` · ${seatDisplay(p.character_key)}` : ''}</em>
                   </button>
                 ))}
               </div>
@@ -359,6 +516,19 @@ export default function JournalView({ vault, banner = null, isStaff = false, sto
                 <div className="j-rollup-chips"><RefChips refs={worldRefs} /></div>
               </div>
             </section>
+
+            {comments && (
+              <CommentsRail
+                anchored={anchored} orphaned={orphaned}
+                meUid={me ? me.uid : null} meSeat={me ? me.seatKey : null}
+                meSeatName={me ? me.seatName : ''}
+                isOwner={canEditActive}
+                showOthers={showOthersC} onToggle={() => setShowOthersC(v => !v)}
+                hotId={hotId} onJump={id => jumpRef.current(id)}
+                compose={compose} onComposeSubmit={submitCompose} onComposeCancel={() => setCompose(null)}
+                onAccept={acceptComment} onDismiss={dismissComment} onWithdraw={withdrawComment}
+              />
+            )}
 
             {isStaff && <CurationQueue store={store} isStaff={isStaff} />}
             {!isStaff && stubs.length > 0 && (
