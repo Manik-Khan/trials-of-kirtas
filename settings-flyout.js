@@ -231,7 +231,7 @@
     document.dispatchEvent(new CustomEvent('tok:look', {
       detail: {
         page: PAGE,
-        appearance: { ink: appearance.ink, paper: appearance.paper, pageLooks: appearance.pageLooks || {} },
+        appearance: { ink: appearance.ink, paper: appearance.paper, pageLooks: appearance.pageLooks || {}, accent: appearance.accent },
         effective: { ink: eff.ink, paper: eff.paper, mode: st.mode, wells: st.wells, trim: st.trim },
       },
     }));
@@ -548,16 +548,8 @@
       rb.classList.toggle('is-on', siteWideOn());
     }
 
-    // seat accent
-    var ar = root.querySelector('#ts-accents'); ar.innerHTML = '';
-    ACCENTS.forEach(function (hex) {
-      ar.appendChild(dot(hex, 'Accent ' + hex,
-        (appearance.accent || '').toLowerCase() === hex.toLowerCase(), false, function () {
-          appearance.accent = hex;
-          persist(); render();
-          toast('Seat accent saved — chips and bylines repaint on next load.');
-        }));
-    });
+    // (the seat-accent dot row retired July 4 — Player color lives on the
+    //  character badge now; ACCENTS stays exported below as its catalog)
   }
 
   function build() {
@@ -612,9 +604,9 @@
       '  </div>',
       '</section>',
       '<section class="ts-sec" data-sec="seat">',
-      '  <button type="button" class="ts-sec-head"><span class="ts-lbl">Seat accent <span class="h">your chips, everywhere</span></span><span class="ts-car">▸</span></button>',
+      '  <button type="button" class="ts-sec-head"><span class="ts-lbl">Player color</span><span class="ts-car">▸</span></button>',
       '  <div class="ts-sec-body">',
-      '  <div class="ts-row" id="ts-accents" style="margin:0"></div>',
+      '  <span class="ts-note" style="margin:0;display:block">Your color moved to your character badge — top-left, beside Kirtas.</span>',
       '  </div>',
       '</section>',
       '<section class="ts-sec" id="ts-sheet-sec" data-sec="sheet">',
@@ -771,6 +763,16 @@
     open ? close() : openFly();
   }
 
+  // the badge dispatches tok:accent; the flyout OWNS appearance, so it
+  // adopts, persists (replace-not-merge), and re-announces — one writer
+  document.addEventListener('tok:accent', function (e) {
+    var a = e.detail && e.detail.accent;
+    if (!a || a === appearance.accent) return;
+    appearance.accent = a;
+    persist(); announce();
+    if (root) render();
+  });
+
   // ── boot: cache paints first, the profile is the truth ──
   appearance = readCache();
   announce();
@@ -804,5 +806,5 @@
     if (root) render();
   })();
 
-  window.TokSettings = { toggle: toggle, open: openFly, close: close, isOpen: function () { return open; } };
+  window.TokSettings = { toggle: toggle, open: openFly, close: close, isOpen: function () { return open; }, ACCENTS: ACCENTS };
 })();

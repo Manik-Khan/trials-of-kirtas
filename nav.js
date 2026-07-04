@@ -548,7 +548,7 @@ function mountRail() {
 // accent, the absorbed cog). Injected like the rail: once, after auth.
 // SETTINGS_V busts browser caches — bump it whenever settings-flyout.js
 // changes (learned July 3: the un-stamped first deploy served stale files).
-const SETTINGS_V = 6;
+const SETTINGS_V = 7;
 function mountSettings() {
   if (document.getElementById('tok-settings-js')) return;   // inject once
   // look-derive.js first: the flyout drives window.TokLook for the finish
@@ -567,6 +567,13 @@ function mountSettings() {
   s.src = 'settings-flyout.js?v=' + SETTINGS_V;
   s.async = false;
   document.body.appendChild(s);
+  // the character badge (identity, top-left) — after the flyout so
+  // TokSettings.ACCENTS exists and the tok:accent listener is armed
+  const b = document.createElement('script');
+  b.id = 'tok-badge-js';
+  b.src = 'character-badge.js?v=' + SETTINGS_V;
+  b.async = false;
+  document.body.appendChild(b);
 }
 
 

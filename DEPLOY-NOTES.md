@@ -1,4 +1,4 @@
-# tok-finishes-v4.zip — the Look finishes + the re-plumb switch
+# tok-finishes-v5.zip — the Look finishes + the re-plumb switch
 July 4 · mock v4 approved → built
 
 ## Files (upload all five to the repo root)
@@ -90,3 +90,40 @@ DEPLOY-DAY NOTE, v4 specifically: because the default flips ON, any player
 who already saved a non-default look will see it dress the whole site on
 their next visit. That is the feature keeping its promise — but it IS a
 visible change for those seats. Untouched seats see no change.
+
+## v5 — THE CHARACTER BADGE (July 4, mock approved → built)
+New file: character-badge.js (upload with the rest). nav.js: SETTINGS_V
+6 → 7, injects the badge after the flyout (async=false chain).
+
+- Portrait medallion beside KIRTAS (structural.portrait; initial-on-dark
+  fallback), player-color ring + presence dot. Menu: identity header,
+  vitals glance (hp / hpMax+bonus, temp + concentration chips, refreshed
+  on every open), Character sheet (?character=key), Journal, Player color,
+  DM tools (role-gated: Combat table, Members & access), Your characters
+  (pinned single; switcher slot ready for the multi-character future),
+  seat chip + Sign out.
+- OWNERSHIP CONTRACT: the flyout owns profiles.appearance. The badge
+  dispatches tok:accent; the flyout adopts, persists (replace-not-merge),
+  and re-announces tok:look (which now carries appearance.accent). The
+  badge repaints from tok:look. One writer, no clobbers.
+- The ◐ Seat accent section is now a Player-color pointer to the badge
+  (never an empty hole). TokSettings exports ACCENTS as the catalog.
+- V1 simplifications, deliberate: "My mentions" deferred pending journal
+  routing recon; DM row links to real destinations (deep links to combat
+  tabs come with the panel-consolidation arc).
+
+## Eyeball after deploy (hard refresh, v=7)
+1. The medallion appears beside Kirtas with your ring color; your
+   Vesperian portrait if structural.portrait is set, initial otherwise.
+2. Open it: vitals match the sheet; the sheet link opens Vesperian.
+3. Pick a Player color: menu stays open, ring/dot repaint, and the ◐
+   flyout's copy agrees (open ◐ — no stale accent).
+4. As DM you should see the DM tools row; ask a player to confirm they
+   do NOT.
+5. Sign out from the badge foot returns to login.
+
+## Validation
+node --check: all four JS files clean.
+smoke-look-derive.mjs 12/12 · smoke-settings-flyout.mjs 62/62 (incl. the
+tok:accent ownership loop) · smoke-character-badge.mjs 18/18 (three
+harnesses: player, DM, unbound seat).

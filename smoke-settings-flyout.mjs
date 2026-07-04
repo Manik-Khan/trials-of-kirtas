@@ -188,12 +188,18 @@ t('save-as appends to lookPresets and persists',
 t('the personal chip renders with ×; house chips carry none',
   $$('#ts-mine .ts-preset .del').length === 1 && $$('#ts-house .ts-preset .del').length === 0)
 
-// ── seat accent ──
-$$('#ts-accents .ts-dot')[1].click()
+// ── player color (relocated to the badge; the flyout owns persistence) ──
+t('the seat section is now the Player-color pointer, never an empty hole',
+  $('.ts-sec[data-sec="seat"] .ts-note').textContent.includes('character badge'))
+t('ACCENTS exported for the badge', Array.isArray(window.TokSettings.ACCENTS) && window.TokSettings.ACCENTS.length === 8)
+rpcCalls.length = 0
+document.dispatchEvent(new window.CustomEvent('tok:accent', { detail: { accent: '#9d7bd8' } }))
 await new Promise(r => setTimeout(r, 350))
-t('an accent pick persists through the same full-merge',
-  rpcCalls[rpcCalls.length - 1].args.p_appearance.accent === '#9d7bd8'
-  && rpcCalls[rpcCalls.length - 1].args.p_appearance.background === 'bg-keep-me')
+t('a badge tok:accent dispatch persists through the flyout full-merge',
+  rpcCalls.length === 1 && rpcCalls[0].args.p_appearance.accent === '#9d7bd8'
+  && rpcCalls[0].args.p_appearance.background === 'bg-keep-me')
+t('tok:look re-announces carrying the accent',
+  looks[looks.length - 1].appearance.accent === '#9d7bd8')
 
 // ── the absorbed cog ──
 // this harness page has no appearance wiring: the Sheet section shows an
