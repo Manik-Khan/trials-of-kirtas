@@ -75,7 +75,7 @@
     s.id = 'tok-badge-styles';
     s.textContent = [
       '#tok-badge{width:32px;height:32px;border-radius:50%;padding:0;cursor:pointer;flex:0 0 auto;',
-      'border:2px solid var(--tb-seat,#6f9fc9);background:#26231E center/cover no-repeat;position:relative;',
+      'border:2px solid var(--tb-seat,#6f9fc9);background:#26231E top center/cover no-repeat;position:relative;',
       'display:inline-flex;align-items:center;justify-content:center;margin-left:12px;vertical-align:middle;',
       "font-family:'Cinzel',serif;font-weight:700;font-size:14px;color:#e9e4d6;transition:box-shadow .15s ease}",
       '#tok-badge:hover{box-shadow:0 0 0 3px rgba(233,228,214,.18)}',
@@ -93,7 +93,7 @@
       '#tok-badge-menu a{color:inherit;text-decoration:none}',
       '#tok-badge-menu .tb-head{display:flex;gap:12px;align-items:center;padding:14px 14px 12px;border-bottom:1px solid #2e2a22}',
       '#tok-badge-menu .tb-port{width:52px;height:52px;border-radius:50%;flex:0 0 auto;border:2px solid var(--tb-seat,#6f9fc9);',
-      "background:#26231E center/cover no-repeat;display:flex;align-items:center;justify-content:center;font-family:'Cinzel',serif;font-weight:700;font-size:22px;color:#e9e4d6}",
+      "background:#26231E top center/cover no-repeat;display:flex;align-items:center;justify-content:center;font-family:'Cinzel',serif;font-weight:700;font-size:22px;color:#e9e4d6}",
       "#tok-badge-menu .tb-name{font-family:'Cinzel',serif;font-weight:700;font-size:15px;color:#e9e4d6;letter-spacing:.04em}",
       "#tok-badge-menu .tb-epi{font-family:'EB Garamond',Georgia,serif;font-style:italic;font-size:12.5px;color:#9c9482;margin-top:1px}",
       '#tok-badge-menu .tb-cls{font-size:10px;letter-spacing:.2em;font-weight:700;color:#7a7260;margin-top:4px;text-transform:uppercase}',
@@ -123,7 +123,7 @@
       '#tok-badge-menu .tb-chars{padding:10px 14px 12px;border-bottom:1px solid #221f19}',
       '#tok-badge-menu .tb-pinned{display:flex;align-items:center;gap:10px;padding:6px 0;color:#9c9482;font-size:12px;letter-spacing:.08em;font-weight:600}',
       '#tok-badge-menu .tb-cp{width:28px;height:28px;border-radius:50%;flex:0 0 auto;border:1px solid var(--tb-seat,#6f9fc9);',
-      "background:#26231E center/cover no-repeat;display:inline-flex;align-items:center;justify-content:center;font-family:'Cinzel',serif;font-weight:700;font-size:12px;color:#e9e4d6}",
+      "background:#26231E top center/cover no-repeat;display:inline-flex;align-items:center;justify-content:center;font-family:'Cinzel',serif;font-weight:700;font-size:12px;color:#e9e4d6}",
       '#tok-badge-menu .tb-now{margin-left:auto;font-size:8.5px;letter-spacing:.16em;color:#7a7260}',
       '#tok-badge-menu .tb-foot{display:flex;align-items:center;justify-content:space-between;padding:10px 14px}',
       '#tok-badge-menu .tb-seatchip{font-size:9px;letter-spacing:.18em;font-weight:700;text-transform:uppercase;border:1px solid #3a352b;color:#9c9482;padding:3px 8px}',
@@ -265,8 +265,20 @@
     badge.setAttribute('aria-expanded', 'false');
     badge.setAttribute('aria-label', 'Your character');
     badge.innerHTML = '<span class="tb-init"></span><span class="tb-dot"></span>';
-    if (brand && brand.parentNode) brand.parentNode.insertBefore(badge, brand.nextSibling);
-    else document.body.appendChild(badge);   // harness pages without a nav
+    if (brand && brand.parentNode) {
+      // #site-nav is justify-content:space-between — a bare sibling becomes
+      // its OWN distributed group and drifts to the center (July 4 deploy
+      // report). Wrap brand + badge so flexbox sees ONE left-anchored child.
+      var wrap = document.createElement('span');
+      wrap.id = 'tok-brand-wrap';
+      wrap.style.display = 'inline-flex';
+      wrap.style.alignItems = 'center';
+      brand.parentNode.insertBefore(wrap, brand);
+      wrap.appendChild(brand);
+      wrap.appendChild(badge);
+    } else {
+      document.body.appendChild(badge);   // harness pages without a nav
+    }
 
     menu = document.createElement('div');
     menu.id = 'tok-badge-menu';

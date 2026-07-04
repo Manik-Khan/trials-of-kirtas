@@ -65,7 +65,12 @@ await wait(60)
 const { w, d, rpcCalls } = A
 const q = s => d.querySelector(s), qq = s => [...d.querySelectorAll(s)]
 
-t('the badge mounts beside the brand', q('.nav-brand').nextElementSibling === q('#tok-badge'))
+t('brand + badge share ONE flex group (space-between cannot center-drift the badge)',
+  q('#tok-brand-wrap') && q('#tok-brand-wrap').parentNode.id === 'site-nav'
+  && q('#tok-brand-wrap').children[0] === q('.nav-brand')
+  && q('#tok-brand-wrap').children[1] === q('#tok-badge'))
+t('medallions crop top-center (faces live in the top of portrait art)',
+  d.getElementById('tok-badge-styles').textContent.split('top center/cover').length === 4)
 t('the menu starts closed', !q('#tok-badge-menu').classList.contains('is-open'))
 t('TokBadge rides window', typeof w.TokBadge?.toggle === 'function')
 t('badge styles are ID-armored', d.getElementById('tok-badge-styles').textContent

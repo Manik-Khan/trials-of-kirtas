@@ -1,4 +1,4 @@
-# tok-finishes-v5.zip — the Look finishes + the re-plumb switch
+# tok-finishes-v6.zip — the Look finishes + the re-plumb switch
 July 4 · mock v4 approved → built
 
 ## Files (upload all five to the repo root)
@@ -127,3 +127,16 @@ node --check: all four JS files clean.
 smoke-look-derive.mjs 12/12 · smoke-settings-flyout.mjs 62/62 (incl. the
 tok:accent ownership loop) · smoke-character-badge.mjs 18/18 (three
 harnesses: player, DM, unbound seat).
+
+## v6 patch (July 4, deploy eyeball)
+- character-badge.js: the badge no longer drifts to the nav's center —
+  #site-nav is justify-content:space-between, so a bare sibling became its
+  own distributed group; brand + badge now share one wrapped flex child
+  (#tok-brand-wrap). LESSON: injected chrome entering a space-between /
+  space-around flex row must wrap with its anchor, never sit as a bare
+  sibling.
+- character-badge.js: all three medallions (nav badge, menu header, char
+  row) crop `top center/cover` — the site's face convention (party.html's
+  portraits do the same). center/cover was beheading Vesperian.
+- nav.js: SETTINGS_V 7 → 8.
+- smokes: 12 / 62 / 19, all green.
