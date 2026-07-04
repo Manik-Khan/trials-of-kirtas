@@ -546,11 +546,14 @@ function mountRail() {
 // ── Mount the ◐ Settings flyout module ──
 // settings-flyout.js owns the unified Settings surface (look, presets, seat
 // accent, the absorbed cog). Injected like the rail: once, after auth.
+// SETTINGS_V busts browser caches — bump it whenever settings-flyout.js
+// changes (learned July 3: the un-stamped first deploy served stale files).
+const SETTINGS_V = 2;
 function mountSettings() {
   if (document.getElementById('tok-settings-js')) return;   // inject once
   const s = document.createElement('script');
   s.id = 'tok-settings-js';
-  s.src = 'settings-flyout.js';
+  s.src = 'settings-flyout.js?v=' + SETTINGS_V;
   s.defer = true;
   document.body.appendChild(s);
 }

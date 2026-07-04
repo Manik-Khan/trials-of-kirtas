@@ -69,6 +69,22 @@ const last = looks[looks.length - 1]
 t('the profile look wins: effective is Sepia on Straw for this page',
   last.effective.ink === 'sepia' && last.effective.paper === 'straw' && last.page === 'journal')
 
+// ── the July 3 hardening, pinned ──
+const sheet = document.getElementById('tokset-styles').textContent
+t('no color-mix anywhere in the stylesheet (a fragile expression inside a',
+  !sheet.includes('color-mix'))
+t('every rule is armored with the #tok-settings ID',
+  sheet.split('}').filter(r => r.trim() && r.includes('{')).every(r => {
+    const sel = r.slice(0, r.indexOf('{')).trim()
+    return sel.startsWith('#tok-settings') || sel.startsWith('.ts-toast')
+  }))
+const fly = document.getElementById('tok-settings')
+t('derived tones arrive as rgba()/rgb() literals computed in JS',
+  /^rgba\(/.test(fly.style.getPropertyValue('--ts-hairline'))
+  && /^rgb\(/.test(fly.style.getPropertyValue('--ts-faint'))
+  && /^rgb\(/.test(fly.style.getPropertyValue('--ts-soft'))
+  && /^rgba\(/.test(fly.style.getPropertyValue('--ts-wash')))
+
 // ── open ──
 window.TokSettings.open()
 await new Promise(r => setTimeout(r, 10))
@@ -176,9 +192,14 @@ t('an accent pick persists through the same full-merge',
   && rpcCalls[rpcCalls.length - 1].args.p_appearance.background === 'bg-keep-me')
 
 // ── the absorbed cog ──
+// this harness page has no appearance wiring: the Sheet section shows an
+// honest POINTER to the character sheet, never an empty hole (July 3, M)
+t('unwired page: the Sheet pointer shows, the appearance row hides',
+  !$('#ts-sheet-pointer').hidden && $('#ts-row-appearance').hidden
+  && $('#ts-sheet-pointer').getAttribute('href') === 'sheet-v2.html')
 let mounted = 0
 window.AppearanceUI = { mount: () => { mounted++ } }
-$('#ts-sheet-sec').hidden = false
+$('#ts-row-appearance').hidden = false   // as maybeShowSheet's retimer would
 $('#ts-row-appearance').click()
 await new Promise(r => setTimeout(r, 10))
 t('the Sheet row mounts AppearanceUI into the hosted #appearance-drawer',

@@ -111,6 +111,21 @@
     return base;
   }
 
+  // color-mix() proved fragile in the wild (inside border shorthands, an
+  // unsupported expression kills the WHOLE declaration — the July 3 broken
+  // flyout). The approved mock precomputed its mixes into variables and
+  // rendered perfectly; we go one further and mix in PLAIN JAVASCRIPT to
+  // rgba() literals — nothing in this stylesheet is newer than 2011 CSS.
+  function rgbaOf(hex, alpha) {
+    var n = parseInt(String(hex).replace('#', ''), 16);
+    return 'rgba(' + (n >> 16 & 255) + ',' + (n >> 8 & 255) + ',' + (n & 255) + ',' + alpha + ')';
+  }
+  function mixHex(a, b, t) { // a→b by t, returned as hex-free rgb()
+    var na = parseInt(String(a).replace('#', ''), 16), nb = parseInt(String(b).replace('#', ''), 16);
+    var m = function (sa, sb) { return Math.round(sa + (sb - sa) * t); };
+    return 'rgb(' + m(na >> 16 & 255, nb >> 16 & 255) + ',' + m(na >> 8 & 255, nb >> 8 & 255) + ',' + m(na & 255, nb & 255) + ')';
+  }
+
   // ── state ──
   var CACHE_KEY = 'tok-look-cache';
   var appearance = {};        // the WHOLE profiles.appearance object (all keys preserved)
@@ -183,65 +198,77 @@
   }
 
   // ── styles (injected once, namespaced .tokset-*) ──
+  // ── styles (injected once) ──
+  // ARMOR, learned the hard way (July 3): every selector is prefixed with
+  // the #tok-settings ID so no page stylesheet — theme.css, a bundle, an
+  // injected sheet, past or future — can ever outrank the flyout. And no
+  // color-mix() anywhere: mixed colors arrive as rgba()/rgb() literals via
+  // the --ts-hairline / --ts-faint / --ts-wash vars that render() computes
+  // in JavaScript. Nothing here is newer than 2011 CSS except custom props.
   function injectStyles() {
     if (document.getElementById('tokset-styles')) return;
     var s = document.createElement('style');
     s.id = 'tokset-styles';
     s.textContent = [
-      '.tokset{position:fixed;top:58px;right:10px;z-index:1200;width:min(400px,94vw);max-height:calc(100vh - 74px);',
+      '#tok-settings{position:fixed;top:58px;right:10px;z-index:1200;width:min(400px,94vw);max-height:calc(100vh - 74px);',
       'overflow-y:auto;overscroll-behavior:contain;background:var(--ts-paper,#E9E4D6);color:var(--ts-ink,#26231E);',
-      'border:1px solid color-mix(in srgb,var(--ts-ink,#26231E) 26%,transparent);box-shadow:0 18px 48px rgba(10,8,4,.45);',
-      'font-family:"Archivo","Helvetica Neue",sans-serif;-webkit-font-smoothing:antialiased;',
+      'border:1px solid var(--ts-hairline,rgba(38,35,30,.26));box-shadow:0 18px 48px rgba(10,8,4,.45);',
+      'font-family:"Archivo","Helvetica Neue",Helvetica,Arial,sans-serif;font-size:14px;line-height:1.4;',
+      'letter-spacing:normal;text-transform:none;-webkit-font-smoothing:antialiased;',
       'transform:translateY(-8px);opacity:0;pointer-events:none;transition:transform .25s cubic-bezier(.2,.8,.2,1),opacity .2s ease,background .4s ease,color .4s ease}',
-      '.tokset.is-open{transform:translateY(0);opacity:1;pointer-events:auto}',
-      '.tokset::-webkit-scrollbar{width:8px}.tokset::-webkit-scrollbar-thumb{background:color-mix(in srgb,var(--ts-ink) 26%,transparent)}',
-      '.tokset *{box-sizing:border-box}',
-      '.tokset button{font:inherit;color:inherit;background:none;border:0;cursor:pointer;text-align:left;padding:0}',
-      '.ts-head{display:flex;align-items:baseline;justify-content:space-between;padding:14px 16px 11px;border-bottom:1px solid color-mix(in srgb,var(--ts-ink) 26%,transparent)}',
-      '.ts-title{font-size:15px;letter-spacing:.14em;text-transform:uppercase;font-weight:700}',
-      '.ts-sub{font-size:8.5px;letter-spacing:.16em;text-transform:uppercase;font-weight:600;opacity:.55}',
-      '.ts-sec{padding:13px 16px 15px;border-bottom:1px solid color-mix(in srgb,var(--ts-ink) 26%,transparent)}',
-      '.ts-sec:last-child{border-bottom:0}',
-      '.ts-lbl{font-size:9.5px;letter-spacing:.24em;text-transform:uppercase;font-weight:700;color:var(--ts-accent,#A93A26);margin-bottom:10px}',
-      '.ts-lbl .h{float:right;font-weight:600;letter-spacing:.12em;opacity:.55;color:var(--ts-ink)}',
-      '.ts-row{display:flex;align-items:center;gap:8px;margin-bottom:9px;flex-wrap:wrap}',
-      '.ts-axis{width:40px;flex:0 0 auto;font-size:8.5px;letter-spacing:.2em;text-transform:uppercase;font-weight:600;opacity:.55}',
-      '.ts-dot{width:18px;height:18px;border-radius:50%;border:1px solid color-mix(in srgb,var(--ts-ink) 26%,transparent);position:relative;transition:transform .15s ease,opacity .2s ease;flex:0 0 auto}',
-      '.ts-dot:hover{transform:scale(1.2)}',
-      '.ts-dot.is-active::after{content:"";position:absolute;inset:-4px;border:1px solid var(--ts-ink);border-radius:50%}',
-      '.ts-dot.is-floored{opacity:.22;cursor:not-allowed}',
-      '.ts-dot.is-floored::before{content:"";position:absolute;left:-3px;right:-3px;top:50%;border-top:1.5px solid color-mix(in srgb,var(--ts-ink) 45%,transparent);transform:rotate(-45deg)}',
-      '.ts-dot.is-floored:hover{transform:none}',
-      '.ts-gap{width:7px;border-left:1px solid color-mix(in srgb,var(--ts-ink) 26%,transparent);height:15px;margin:0 1px;flex:0 0 auto}',
-      '.ts-scope{display:flex;gap:7px;align-items:center;margin-top:10px;flex-wrap:wrap}',
-      '.ts-scope-btn{font-size:8.5px;letter-spacing:.14em;text-transform:uppercase;font-weight:700;padding:5px 9px 4px;border:1px solid color-mix(in srgb,var(--ts-ink) 26%,transparent);opacity:.65}',
-      '.ts-scope-btn.is-on{background:var(--ts-ink);color:var(--ts-paper);border-color:var(--ts-ink);opacity:1}',
-      '.ts-ochip{display:inline-flex;align-items:center;gap:5px;font-size:8.5px;letter-spacing:.08em;text-transform:uppercase;font-weight:600;border:1px dashed color-mix(in srgb,var(--ts-ink) 26%,transparent);padding:4px 7px;opacity:.8}',
-      '.ts-ochip .sw{width:8px;height:8px;border-radius:50%;display:inline-block}',
-      '.ts-ochip button{font-size:11px;opacity:.6}',
-      '.ts-presets{display:flex;flex-wrap:wrap;gap:7px}',
-      '.ts-preset{display:inline-flex;align-items:center;gap:6px;border:1px solid color-mix(in srgb,var(--ts-ink) 26%,transparent);padding:5px 9px 4px;font-size:9px;letter-spacing:.1em;text-transform:uppercase;font-weight:700;opacity:.85}',
-      '.ts-preset:hover{background:color-mix(in srgb,var(--ts-ink) 7%,transparent)}',
-      '.ts-preset .pair{display:inline-flex}',
-      '.ts-preset .pair i{width:10px;height:10px;border-radius:50%;border:1px solid color-mix(in srgb,var(--ts-ink) 26%,transparent)}',
-      '.ts-preset .pair i+i{margin-left:-4px}',
-      '.ts-preset .del{font-style:normal;opacity:.55;margin-left:2px}',
-      '.ts-kick{font-size:8px;letter-spacing:.18em;text-transform:uppercase;font-weight:700;opacity:.5;margin:11px 0 6px}',
-      '.ts-kick:first-child{margin-top:0}',
-      '.ts-saveas{display:flex;gap:8px;margin-top:10px}',
-      '.ts-saveas input{flex:1 1 auto;min-width:0;font-family:"EB Garamond",Georgia,serif;font-size:13.5px;background:none;color:var(--ts-ink);border:0;border-bottom:1px solid color-mix(in srgb,var(--ts-ink) 26%,transparent);padding:3px 2px;outline:none}',
-      '.ts-saveas input:focus{border-bottom-color:var(--ts-accent)}',
-      '.ts-saveas input::placeholder{color:var(--ts-ink);opacity:.4}',
-      '.ts-saveas button{font-size:8.5px;letter-spacing:.14em;text-transform:uppercase;font-weight:700;border:1px solid var(--ts-ink);background:var(--ts-ink);color:var(--ts-paper);padding:5px 11px 4px}',
-      '.ts-note{font-family:"EB Garamond",Georgia,serif;font-style:italic;font-size:12px;opacity:.55;margin-top:8px}',
-      '.ts-mrow{display:flex;align-items:center;justify-content:space-between;width:100%;padding:7px 0;font-size:11px;letter-spacing:.06em;font-weight:600;opacity:.85}',
-      '.ts-mrow .car{opacity:.5}',
-      '.ts-sheet-drawer{margin-top:6px}',
-      '.ts-sheet-drawer .appearance-drawer{position:static;display:block}',
-      '.ts-sub-a{display:block;width:100%;padding:6px 0 6px 14px;font-size:10.5px;letter-spacing:.06em;opacity:.75}',
-      '.ts-sub-a:hover{opacity:1;color:var(--ts-accent)}',
-      '.ts-subacts{display:none}.ts-subacts.open{display:block}',
-      '.ts-toast{position:fixed;bottom:20px;left:50%;transform:translateX(-50%) translateY(60px);background:#121009;color:#e9e4d6;font-size:10.5px;letter-spacing:.06em;padding:9px 15px;opacity:0;transition:transform .3s ease,opacity .3s ease;z-index:1300;max-width:92vw;text-align:center;font-family:"Archivo",sans-serif}',
+      '#tok-settings.is-open{transform:translateY(0);opacity:1;pointer-events:auto}',
+      '#tok-settings::-webkit-scrollbar{width:8px}#tok-settings::-webkit-scrollbar-thumb{background:var(--ts-hairline)}',
+      '#tok-settings *{box-sizing:border-box;margin:0}',
+      '#tok-settings button{font-family:inherit;font-size:inherit;line-height:inherit;color:inherit;background:none;border:0;cursor:pointer;text-align:left;padding:0}',
+      '#tok-settings .ts-head{display:flex;align-items:baseline;justify-content:space-between;padding:14px 16px 11px;border-bottom:1px solid var(--ts-hairline)}',
+      '#tok-settings .ts-title{font-size:15px;letter-spacing:.14em;text-transform:uppercase;font-weight:700}',
+      '#tok-settings .ts-sub{font-size:9px;letter-spacing:.16em;text-transform:uppercase;font-weight:600;color:var(--ts-faint)}',
+      '#tok-settings .ts-sec{padding:13px 16px 15px;border-bottom:1px solid var(--ts-hairline)}',
+      '#tok-settings .ts-sec:last-child{border-bottom:0}',
+      '#tok-settings .ts-lbl{font-size:10px;letter-spacing:.24em;text-transform:uppercase;font-weight:700;color:var(--ts-accent,#A93A26);margin-bottom:11px}',
+      '#tok-settings .ts-lbl .h{float:right;font-weight:600;letter-spacing:.12em;color:var(--ts-faint)}',
+      '#tok-settings .ts-row{display:flex;align-items:center;gap:8px;margin-bottom:9px;flex-wrap:wrap}',
+      '#tok-settings .ts-axis{width:40px;flex:0 0 auto;font-size:9px;letter-spacing:.2em;text-transform:uppercase;font-weight:600;color:var(--ts-faint)}',
+      '#tok-settings .ts-dot{width:18px;height:18px;border-radius:50%;border:1px solid var(--ts-hairline);position:relative;transition:transform .15s ease,opacity .2s ease;flex:0 0 auto;padding:0}',
+      '#tok-settings .ts-dot:hover{transform:scale(1.2)}',
+      "#tok-settings .ts-dot.is-active::after{content:'';position:absolute;inset:-4px;border:1px solid var(--ts-ink);border-radius:50%}",
+      '#tok-settings .ts-dot.is-floored{opacity:.22;cursor:not-allowed}',
+      "#tok-settings .ts-dot.is-floored::before{content:'';position:absolute;left:-3px;right:-3px;top:50%;border-top:1.5px solid var(--ts-faint);transform:rotate(-45deg)}",
+      '#tok-settings .ts-dot.is-floored:hover{transform:none}',
+      '#tok-settings .ts-gap{width:7px;border-left:1px solid var(--ts-hairline);height:15px;margin:0 1px;flex:0 0 auto}',
+      '#tok-settings .ts-scope{display:flex;gap:7px;align-items:center;margin-top:10px;flex-wrap:wrap}',
+      '#tok-settings .ts-scope-btn{font-size:9.5px;letter-spacing:.14em;text-transform:uppercase;font-weight:700;padding:6px 10px 5px;border:1px solid var(--ts-hairline);color:var(--ts-soft)}',
+      '#tok-settings .ts-scope-btn.is-on{background:var(--ts-ink);color:var(--ts-paper);border-color:var(--ts-ink)}',
+      '#tok-settings .ts-ochip{display:inline-flex;align-items:center;gap:5px;font-size:9px;letter-spacing:.08em;text-transform:uppercase;font-weight:600;border:1px dashed var(--ts-hairline);padding:4px 7px;color:var(--ts-soft)}',
+      '#tok-settings .ts-ochip .sw{width:8px;height:8px;border-radius:50%;display:inline-block}',
+      '#tok-settings .ts-ochip button{font-size:11px;color:var(--ts-faint)}',
+      '#tok-settings .ts-presets{display:flex;flex-wrap:wrap;gap:7px}',
+      '#tok-settings .ts-preset{display:inline-flex;align-items:center;gap:6px;border:1px solid var(--ts-hairline);padding:6px 10px 5px;font-size:9.5px;letter-spacing:.1em;text-transform:uppercase;font-weight:700;color:var(--ts-soft)}',
+      '#tok-settings .ts-preset:hover{background:var(--ts-wash)}',
+      '#tok-settings .ts-preset .pair{display:inline-flex}',
+      '#tok-settings .ts-preset .pair i{width:10px;height:10px;border-radius:50%;border:1px solid var(--ts-hairline)}',
+      '#tok-settings .ts-preset .pair i+i{margin-left:-4px}',
+      '#tok-settings .ts-preset .del{font-style:normal;color:var(--ts-faint);margin-left:2px}',
+      '#tok-settings .ts-kick{font-size:8.5px;letter-spacing:.18em;text-transform:uppercase;font-weight:700;color:var(--ts-faint);margin:11px 0 6px}',
+      '#tok-settings .ts-kick:first-child{margin-top:0}',
+      '#tok-settings .ts-saveas{display:flex;gap:8px;margin-top:10px}',
+      '#tok-settings .ts-saveas input{flex:1 1 auto;min-width:0;font-family:"EB Garamond",Georgia,serif;font-size:13.5px;background:none;color:var(--ts-ink);border:0;border-bottom:1px solid var(--ts-hairline);padding:3px 2px;outline:none;border-radius:0}',
+      '#tok-settings .ts-saveas input:focus{border-bottom-color:var(--ts-accent)}',
+      '#tok-settings .ts-saveas input::placeholder{color:var(--ts-faint)}',
+      '#tok-settings .ts-saveas button{font-size:9px;letter-spacing:.14em;text-transform:uppercase;font-weight:700;border:1px solid var(--ts-ink);background:var(--ts-ink);color:var(--ts-paper);padding:6px 12px 5px}',
+      '#tok-settings .ts-note{font-family:"EB Garamond",Georgia,serif;font-style:italic;font-size:12.5px;color:var(--ts-faint);margin-top:8px}',
+      '#tok-settings .ts-mrow{display:flex;align-items:center;justify-content:space-between;width:100%;padding:7px 0;font-size:11.5px;letter-spacing:.06em;font-weight:600;color:var(--ts-soft)}',
+      '#tok-settings .ts-mrow .car{color:var(--ts-faint)}',
+      '#tok-settings .ts-pointer{display:block;font-family:"EB Garamond",Georgia,serif;font-style:italic;font-size:12.5px;color:var(--ts-soft);text-decoration:none;border-bottom:0;padding:2px 0}',
+      '#tok-settings .ts-pointer:hover{color:var(--ts-accent)}',
+      '#tok-settings .ts-sheet-drawer{margin-top:6px}',
+      '#tok-settings .ts-sheet-drawer .appearance-drawer{position:static;display:block}',
+      '#tok-settings .ts-sub-a{display:block;width:100%;padding:6px 0 6px 14px;font-size:11px;letter-spacing:.06em;color:var(--ts-soft)}',
+      '#tok-settings .ts-sub-a:hover{color:var(--ts-accent)}',
+      '#tok-settings .ts-subacts{display:none}#tok-settings .ts-subacts.open{display:block}',
+      '#tok-settings[data-polarity="dark"]{text-shadow:0 1px 2px rgba(0,0,0,.45)}',
+      '#tok-settings[data-polarity="dark"] .ts-scope-btn.is-on,#tok-settings[data-polarity="dark"] .ts-saveas button{text-shadow:none}',
+      '.ts-toast{position:fixed;bottom:20px;left:50%;transform:translateX(-50%) translateY(60px);background:#121009;color:#e9e4d6;font-size:11px;letter-spacing:.06em;padding:9px 15px;opacity:0;transition:transform .3s ease,opacity .3s ease;z-index:1300;max-width:92vw;text-align:center;font-family:"Archivo",Helvetica,Arial,sans-serif;line-height:1.4}',
       '.ts-toast.is-on{transform:translateX(-50%) translateY(0);opacity:1}',
     ].join('\n');
     document.head.appendChild(s);
@@ -291,6 +318,13 @@
     root.style.setProperty('--ts-ink', I.ink);
     root.style.setProperty('--ts-accent', I.accent);
     root.style.setProperty('--ts-paper', P.paper);
+    // derived tones, mixed HERE in JS (never color-mix in the stylesheet —
+    // the July 3 lesson: a fragile expression inside a shorthand kills the
+    // whole declaration and the flyout ships broken)
+    root.style.setProperty('--ts-hairline', rgbaOf(I.ink, 0.26));
+    root.style.setProperty('--ts-wash', rgbaOf(I.ink, 0.07));
+    root.style.setProperty('--ts-faint', mixHex(I.ink, P.paper, 0.55));
+    root.style.setProperty('--ts-soft', mixHex(I.ink, P.paper, 0.28));
     root.setAttribute('data-polarity', P.polarity);
 
     var pn = root.querySelector('#ts-pair'); if (pn) pn.textContent = I.name + ' on ' + P.name;
@@ -404,7 +438,7 @@
       '  <div class="ts-lbl">Seat accent <span class="h">your chips, everywhere</span></div>',
       '  <div class="ts-row" id="ts-accents" style="margin:0"></div>',
       '</section>',
-      '<section class="ts-sec" id="ts-sheet-sec" hidden>',
+      '<section class="ts-sec" id="ts-sheet-sec">',
       '  <div class="ts-lbl">Sheet</div>',
       (onSheet
         ? '  <button class="ts-mrow" type="button" id="ts-row-download"><span>⤓&nbsp; Download character</span><span class="car">▸</span></button>'
@@ -412,8 +446,9 @@
           + '<button class="ts-sub-a" type="button" id="ts-dl-print">Print / PDF</button>'
           + '<button class="ts-sub-a" type="button" id="ts-dl-json">Download JSON</button></div>'
         : ''),
-      '  <button class="ts-mrow" type="button" id="ts-row-appearance"><span>⚙&nbsp; Sheet appearance</span><span class="car">▸</span></button>',
+      '  <button class="ts-mrow" type="button" id="ts-row-appearance" hidden><span>⚙&nbsp; Sheet appearance</span><span class="car">▸</span></button>',
       '  <div class="ts-sheet-drawer ts-subacts" id="ts-sheet-drawer"><div class="appearance-drawer" id="appearance-drawer" aria-label="Appearance settings"></div></div>',
+      '  <a class="ts-pointer" id="ts-sheet-pointer" href="sheet-v2.html" hidden>Backdrops, geometry &amp; effects are sheet-page settings — they live on your character sheet →</a>',
       '</section>',
       '<section class="ts-sec" id="tokset-extra" hidden></section>',
     ].join('\n');
@@ -450,13 +485,14 @@
     root.querySelector('#ts-savebtn').addEventListener('click', saveCurrent);
     root.querySelector('#ts-savename').addEventListener('keydown', function (e) { if (e.key === 'Enter') saveCurrent(); });
 
-    // the cog's territory — only shown where a page wired appearance
-    // (appearance-boot adds html.has-appearance) or on the sheet
+    // the cog's territory: real controls where a page wired appearance
+    // (appearance-boot adds html.has-appearance) or on the sheet itself;
+    // everywhere else, an honest pointer — never an empty hole (July 3, M)
     var sheetSec = root.querySelector('#ts-sheet-sec');
     function maybeShowSheet() {
-      if (onSheet || document.documentElement.classList.contains('has-appearance') || window.AppearanceUI) {
-        sheetSec.hidden = false;
-      }
+      var wired = onSheet || document.documentElement.classList.contains('has-appearance') || !!window.AppearanceUI;
+      root.querySelector('#ts-row-appearance').hidden = !wired;
+      root.querySelector('#ts-sheet-pointer').hidden = wired;
     }
     maybeShowSheet();
     setTimeout(maybeShowSheet, 1500);   // appearance-boot loads async
