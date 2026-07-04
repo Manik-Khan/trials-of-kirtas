@@ -274,8 +274,6 @@ t('picking Print persists pageMode/wells/trim, unknown keys survive',
   && rpc2[0].args.p_appearance.background === 'bg-keep-me')
 t('Print re-lights as the selected finish',
   qq('#ts-fins .ts-fin').find(f => f.dataset.fin === 'print').classList.contains('is-on'))
-t('the first pick while site-wide is off fires the explain-yourself hint',
-  qq('.ts-toast')[0].textContent.includes('Previewing in ◐'))
 
 // fine-tune: drawer opens; an axis edit away from Print goes Custom; back re-lights
 q('#ts-tune-head').click()
@@ -292,25 +290,34 @@ t('tuning back into Print re-lights its card',
 t('fine-tune chips carry mini previews of their own outcomes',
   qq('.ts-vchip .vm').length === 8)
 
-// the site-wide opt-in: OFF by default, ON applies the theme tokens, OFF rolls back
-t('site-wide look ships OFF: no theme tokens on <html> after boot + picks',
-  d2.documentElement.style.getPropertyValue('--ink') === '')
-q('#ts-replumb').click()
-await new Promise(r => setTimeout(r, 10))
-t('opt-in ON: theme tokens land inline on <html> (the re-plumb, live)',
+// the site-wide look: ON BY DEFAULT (July 4, M) — a reader who never touches
+// the switch gets the feature; only an explicit Off is off
+t('site-wide defaults ON: theme tokens on <html> straight from boot',
   q('#ts-replumb').textContent === 'On'
   && d2.documentElement.style.getPropertyValue('--ink').startsWith('rgb(')
   && d2.documentElement.style.getPropertyValue('--gold').startsWith('rgb(')
   && d2.documentElement.getAttribute('data-look-polarity') === 'light')
 t('fixed semantics never written', d2.documentElement.style.getPropertyValue('--hp-good') === '')
+t('the switch sits at the TOP of Site look (before the ink row)',
+  q('.ts-sec[data-sec="look"] .ts-sec-body').firstElementChild.classList.contains('ts-flagrow'))
+t('presets live inside Site look now; the standalone section retired',
+  !!q('.ts-sec[data-sec="look"] #ts-house') && !q('.ts-sec[data-sec="presets"]'))
 q('#ts-replumb').click()
 await new Promise(r => setTimeout(r, 10))
-t('opt-in OFF: every token removed — clean rollback to the house theme',
-  d2.documentElement.style.getPropertyValue('--ink') === ''
+t('explicit Off: every token removed — clean rollback to the house theme',
+  q('#ts-replumb').textContent === 'Off'
+  && d2.documentElement.style.getPropertyValue('--ink') === ''
   && !d2.documentElement.hasAttribute('data-look-polarity'))
+// in the OFF state, a pick explains itself — once
+qq('#ts-inks .ts-dot').find(dd => dd.title === 'Ink: Forest').click()
+await new Promise(r => setTimeout(r, 10))
+t('a pick while OFF fires the explain-yourself hint',
+  qq('.ts-toast')[0].textContent.includes('Previewing in ◐'))
+q('#ts-replumb').click()
 await new Promise(r => setTimeout(r, 350))
-t('the opt-in itself persists (replumb key in the merged object)',
-  rpc2[rpc2.length - 1].args.p_appearance.replumb === false)
+t('back On: tokens return, and the explicit choice persists (replumb: true)',
+  d2.documentElement.style.getPropertyValue('--ink').startsWith('rgb(')
+  && rpc2[rpc2.length - 1].args.p_appearance.replumb === true)
 
 // the hint fires ONCE per session: later picks stay quiet
 const toastEl2 = qq('.ts-toast')[0]
@@ -320,7 +327,8 @@ await new Promise(r => setTimeout(r, 10))
 t('the hint fires once per session, not on every pick', toastEl2.textContent === 'x')
 
 // collapsible sections (July 4): closed on open, header expands, remembered
-t('all four sections ship closed', qq('.ts-sec[data-sec] .ts-sec-body.open').length === 0)
+t('all three sections (Site look / Seat accent / Sheet) ship closed',
+  qq('.ts-sec[data-sec]').length === 3 && qq('.ts-sec[data-sec] .ts-sec-body.open').length === 0)
 const lookSec = q('.ts-sec[data-sec="look"]')
 lookSec.querySelector('.ts-sec-head').click()
 t('a header click opens its section, caret follows',

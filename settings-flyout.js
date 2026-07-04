@@ -210,9 +210,14 @@
 
   // the site-wide opt-in: derived tokens onto <html>, or cleanly off.
   // Ships OFF — Phantom stays the pinned base until a reader flips it.
+  // July 4 (M): the site-wide look defaults ON — a reader who never touches
+  // the switch gets the feature; only an explicit Off is off. (The default
+  // look is Sumi × Bone, whose Print derivation ≈ Phantom, so untouched
+  // seats see the house theme regardless.)
+  function siteWideOn() { return appearance.replumb !== false; }
   function applyRoot() {
     if (!window.TokLook) return;
-    if (appearance.replumb) {
+    if (siteWideOn()) {
       var d = derived();
       if (d) window.TokLook.applyToRoot(d);
     } else {
@@ -246,7 +251,7 @@
     // discoverability (July 4, M's report): a pick while the site-wide look
     // is off changes the flyout but not the pages — say WHY, right then,
     // once. The journal/chronicle still follow tok:look regardless.
-    if (!appearance.replumb && window.TokLook && !hinted) {
+    if (!siteWideOn() && window.TokLook && !hinted) {
       hinted = true;
       toast('Previewing in ◐ — flip “Wear this look site-wide” below to dress the pages in it.');
     }
@@ -492,6 +497,10 @@
     // Degrades honestly: no TokLook (look-derive.js absent) → section hidden,
     // everything above behaves exactly as the previous deploy. Never a hole.
     var finSec = root.querySelector('#ts-fin-sec');
+    // the site-wide switch sits above the gate so presets/rows read cleanly,
+    // but without TokLook it would be a dead control — hide it honestly
+    var flagRow = root.querySelector('.ts-flagrow');
+    if (flagRow) flagRow.style.display = window.TokLook ? '' : 'none';
     if (window.TokLook && finSec) {
       finSec.hidden = false;
       var st = effectiveStyle();
@@ -535,8 +544,8 @@
 
       // the site-wide opt-in
       var rb = root.querySelector('#ts-replumb');
-      rb.textContent = appearance.replumb ? 'On' : 'Off';
-      rb.classList.toggle('is-on', !!appearance.replumb);
+      rb.textContent = siteWideOn() ? 'On' : 'Off';
+      rb.classList.toggle('is-on', siteWideOn());
     }
 
     // seat accent
@@ -562,8 +571,12 @@
     root.innerHTML = [
       '<div class="ts-head"><span class="ts-title">Settings</span><span class="ts-sub">per-reader · saved to your seat</span></div>',
       '<section class="ts-sec" data-sec="look">',
-      '  <button type="button" class="ts-sec-head"><span class="ts-lbl">Look <span class="h" id="ts-pair"></span></span><span class="ts-car">▸</span></button>',
+      '  <button type="button" class="ts-sec-head"><span class="ts-lbl">Site look <span class="h" id="ts-pair"></span></span><span class="ts-car">▸</span></button>',
       '  <div class="ts-sec-body">',
+      '  <div class="ts-flagrow" style="margin:0 0 12px">',
+      '    <span class="ts-flagtxt">Dress the <b>whole site</b> in your look. Off keeps it to the journal &amp; chronicle.</span>',
+      '    <button type="button" class="ts-scope-btn" id="ts-replumb">On</button>',
+      '  </div>',
       '  <div class="ts-row"><span class="ts-axis">Ink</span><span id="ts-inks" style="display:contents"></span></div>',
       '  <div class="ts-row"><span class="ts-axis">Paper</span><span id="ts-papers" style="display:contents"></span></div>',
       '  <div class="ts-scope" id="ts-scope">',
@@ -591,16 +604,7 @@
       '        <button type="button" class="ts-vchip" data-k="trim" data-v="accent"><span class="vh"></span><span class="vl">Accent</span></button>',
       '      </div></div>',
       '    </div>',
-      '    <div class="ts-flagrow">',
-      '      <span class="ts-flagtxt">Wear this look <b>site-wide</b> — every page follows your ink, paper &amp; finish. <span id="ts-flag-note">(new — some pages are still being re-plumbed)</span></span>',
-      '      <button type="button" class="ts-scope-btn" id="ts-replumb">Off</button>',
-      '    </div>',
       '  </div>',
-      '  </div>',
-      '</section>',
-      '<section class="ts-sec" data-sec="presets">',
-      '  <button type="button" class="ts-sec-head"><span class="ts-lbl">Presets</span><span class="ts-car">▸</span></button>',
-      '  <div class="ts-sec-body">',
       '  <div class="ts-kick">Yours</div><div class="ts-presets" id="ts-mine"></div>',
       '  <div class="ts-saveas"><input id="ts-savename" type="text" placeholder="Save current look as…" maxlength="24" aria-label="Preset name"><button type="button" id="ts-savebtn">Save</button></div>',
       '  <div class="ts-kick">The house</div><div class="ts-presets" id="ts-house"></div>',
@@ -681,11 +685,11 @@
       writeLook(patch);
     });
     root.querySelector('#ts-replumb').addEventListener('click', function () {
-      appearance.replumb = !appearance.replumb;
+      appearance.replumb = siteWideOn() ? false : true;   // explicit both ways
       persist(); announce(); render();
-      toast(appearance.replumb
-        ? 'Site-wide look ON — every page now wears your ink, paper & finish.'
-        : 'Site-wide look off — the site returns to the house theme.');
+      toast(siteWideOn()
+        ? 'Site-wide look ON — every page wears your ink, paper & finish.'
+        : 'Site-wide look off — the site returns to the house theme; your look stays on the journal & chronicle.');
     });
 
     // save-as

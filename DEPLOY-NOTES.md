@@ -1,4 +1,4 @@
-# tok-finishes-v3.zip — the Look finishes + the re-plumb switch
+# tok-finishes-v4.zip — the Look finishes + the re-plumb switch
 July 4 · mock v4 approved → built
 
 ## Files (upload all five to the repo root)
@@ -71,3 +71,22 @@ sync guard, replace-not-merge, stranding nudge, July 3 armor).
 - nav.js: SETTINGS_V 4 → 5.
 - smoke: 58 assertions (detach-close regression, rapid click-through,
   genuine outside click still closes, sections closed/remembered).
+
+## v4 patch (July 4, M's reorganization)
+- The Look section is now "Site look": the site-wide switch moved to the
+  TOP of the section AND defaults ON (absent key = on; only an explicit
+  Off is off) — a reader never has to discover a switch to make presets
+  and finishes do anything. Untouched seats still see ≈Phantom because
+  the default look's derivation reproduces it.
+- Presets (yours / save-as / house / archives) folded into Site look;
+  the standalone Presets section retired. All element IDs kept.
+- Seat accent stays in ◐ for now — it relocates into the character badge
+  (next arc) once that exists; controls don't strand.
+- nav.js: SETTINGS_V 5 → 6.
+- smoke: 59 assertions (default-ON boot, switch-on-top, folded presets,
+  explicit-Off rollback + hint, explicit-On persistence).
+
+DEPLOY-DAY NOTE, v4 specifically: because the default flips ON, any player
+who already saved a non-default look will see it dress the whole site on
+their next visit. That is the feature keeping its promise — but it IS a
+visible change for those seats. Untouched seats see no change.
