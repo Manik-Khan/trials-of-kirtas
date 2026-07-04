@@ -72,6 +72,29 @@ t(`SWEEP: all ${combos} legal-pair axis combos clear the 2.0 floor on text, card
   bad === 0 && combos === 55 * 18)
 t('SWEEP: dark mode keeps a dark ground on every legal pair (the Stage promise)', stageBad === 0)
 
+// the well-surface family (July 4, the wash migration)
+t('control: modal gradient = cardBg warmed by accent, driven to the pole',
+  ctrl.modalG1 === 'rgb(40,29,27)' && ctrl.modalG2 === 'rgb(18,13,12)')
+t('control: scrim, band, ember, dots all emitted as rgba literals',
+  /^rgba\(/.test(ctrl.scrim) && /^rgba\(/.test(ctrl.band)
+  && /^rgba\(/.test(ctrl.headerEmber) && ctrl.dots === 'rgba(0,0,0,0.3)')
+let modalBad = 0, dotsBad = 0
+for (const P of PAPERS) for (const I of INKS) {
+  if (contrastRatio(I.ink, P.paper) < 2.0) continue
+  for (const mode of MODES) for (const wells of WELLS) for (const trim of TRIMS) {
+    const d = L.deriveLook(...asObj(I, P), { mode, wells, trim })
+    // modal text + accent voice legible over BOTH gradient stops
+    if (con(d.cardT, d.modalG1) < 2.0 || con(d.cardT, d.modalG2) < 2.0) modalBad++
+    if (con(d.accOnModal, d.modalG1) < 2.0 || con(d.accOnModal, d.modalG2) < 2.0) modalBad++
+    // halftone dots soften on light wells
+    const cardLum = lumCss(d.cardBg)
+    if (cardLum >= 0.35 && d.dots !== 'rgba(0,0,0,0.08)') dotsBad++
+    if (cardLum < 0.35 && d.dots !== 'rgba(0,0,0,0.3)') dotsBad++
+  }
+}
+t(`SWEEP: modal text and accent-on-modal clear the 2.0 floor over both gradient stops (violations: ${modalBad})`, modalBad === 0)
+t('SWEEP: halftone dots follow well polarity on every combo', dotsBad === 0)
+
 // applyToRoot / clearRoot — the beta toggle's two directions
 const html = dom.window.document.documentElement
 L.applyToRoot(ctrl)
@@ -84,9 +107,19 @@ t('applyToRoot writes the theme token names inline',
   && html.getAttribute('data-look-polarity') === 'light')
 t('fixed semantics are never written', html.style.getPropertyValue('--hp-good') === ''
   && html.style.getPropertyValue('--prof-color') === '' && html.style.getPropertyValue('--crit-color') === '')
+t('applyToRoot writes the well-surface family to --look-* names',
+  html.style.getPropertyValue('--look-card-bg') === ctrl.cardBg
+  && html.style.getPropertyValue('--look-well') === ctrl.well
+  && html.style.getPropertyValue('--look-trim') === ctrl.trim
+  && html.style.getPropertyValue('--look-modal-g1') === ctrl.modalG1
+  && html.style.getPropertyValue('--look-modal-g2') === ctrl.modalG2
+  && html.style.getPropertyValue('--look-scrim') === ctrl.scrim
+  && html.style.getPropertyValue('--look-header-ember') === ctrl.headerEmber
+  && html.style.getPropertyValue('--look-dots') === ctrl.dots)
 L.clearRoot()
 t('clearRoot removes every token and the polarity attribute',
   html.style.getPropertyValue('--ink') === '' && html.style.getPropertyValue('--gold') === ''
+  && html.style.getPropertyValue('--look-card-bg') === '' && html.style.getPropertyValue('--look-scrim') === ''
   && !html.hasAttribute('data-look-polarity') && !L.isApplied())
 
 console.log(`\n${pass} passed, ${fail} failed`)

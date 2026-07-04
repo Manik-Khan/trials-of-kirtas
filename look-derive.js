@@ -38,6 +38,16 @@
 //
 // Classic script; rides window.TokLook. Loaded by nav.js (stamped with
 // SETTINGS_V) BEFORE settings-flyout.js, which drives it.
+//
+// July 4 (the wash migration, increment 2 — factions first): the WELL-
+// SURFACE FAMILY joins the derivation, approved via the factions mock:
+// modal gradient (cardBg warmed by the accent at the top, driven to the
+// pole at the bottom), scrim, heraldry band, header ember, halftone dot
+// color, card-muted, and accent-on-modal (legibility-guarded). All
+// emitted as rgb()/rgba() literals like everything else, and written to
+// NEW --look-* token names in ROOT_MAP — the fossil pages subscribe with
+// their original hand-painted literals as var() fallbacks, so the
+// switch-Off degrade is the pre-plumb page.
 // ============================================================
 
 (function () {
@@ -144,6 +154,21 @@
     var navBg = P.dark ? mix(P.paper, '#000000', 0.35) : mix(I.ink, '#000000', 0.45);
     var navFg = P.dark ? mix(I.ink, P.paper, 0.15) : mix(P.paper, navBg, 0.12);
 
+    // ── the well-surface family (July 4, factions mock, approved) ──
+    // Everything a fossil page's hand-painted surfaces need, derived from
+    // cardBg + accent + ground so the whole family moves with the look.
+    var cardDark = lum(cardBg) < 0.35;
+    // the modal gradient: cardBg warmed by the accent at the top, driven
+    // toward the pole at the bottom. Fossil: #2a1e10 → #140f08.
+    var modalG1 = mix(cardBg, acc, cardDark ? 0.10 : 0.06);
+    var modalG2 = cardDark ? mix(modalG1, '#000000', 0.55)
+                           : mix(modalG1, '#FFFFFF', 0.35);
+    var modalDark = lum(modalG2) < 0.35;
+    // accent voice ON the modal, pushed toward the far pole for legibility
+    var accOnModal = modalDark ? mix(acc, '#FFFFFF', 0.25) : mix(acc, '#000000', 0.10);
+    for (var j = 0; j < 5 && contrast(accOnModal, modalG1) < 2.0; j++)
+      accOnModal = mix(accOnModal, modalDark ? '#FFFFFF' : '#000000', 0.30);
+
     return {
       groundDark: groundDark,                       // boolean, for polarity hooks
       g: css(g), t: css(t),
@@ -162,6 +187,19 @@
       sectionBg: cssA(t, 0.08), sectionBorder: cssA(t, 0.15),
       navBg: cssA(navBg, 0.98), navBorder: cssA(acc, 0.35),
       noise: groundDark ? '0.30' : '0.15',
+      // the well-surface family
+      cardMuted: css(mix(cardT, cardBg, 0.40)),      // alias lines on cards
+      accStrong: cssA(acc, 0.35),                    // hover borders
+      modalG1: css(modalG1), modalG2: css(modalG2),
+      modalText2: css(mix(cardT, modalG2, 0.15)),
+      modalMuted: css(mix(cardT, modalG2, 0.45)),
+      accOnModal: css(accOnModal),
+      scrim: groundDark ? cssA(mix(g, '#000000', 0.60), 0.85)
+                        : cssA(mix(t, '#000000', 0.50), 0.55),
+      band: cssA(mix(cardBg, cardDark ? '#000000' : '#FFFFFF', 0.30), 0.5),
+      headerEmber: groundDark ? cssA(mix(acc, '#000000', 0.78), 0.8)
+                              : cssA(acc, 0.08),
+      dots: cssA('#000000', cardDark ? 0.3 : 0.08),
     };
   }
 
@@ -176,6 +214,18 @@
     '--section-bg': 'sectionBg', '--section-border': 'sectionBorder',
     '--bubble-bg': 'cardBg', '--bubble-bg-right': 'well',
     '--noise-opacity': 'noise',
+    // the well-surface family — NEW names (no theme.css legacy to reuse).
+    // Fossil pages subscribe as var(--look-*, <original literal>) so the
+    // degrade path is the hand-painted page.
+    '--look-card-bg': 'cardBg', '--look-card-text': 'cardT',
+    '--look-card-muted': 'cardMuted', '--look-card-border': 'cardBorder',
+    '--look-well': 'well', '--look-trim': 'trim',
+    '--look-accent-strong': 'accStrong',
+    '--look-modal-g1': 'modalG1', '--look-modal-g2': 'modalG2',
+    '--look-modal-text2': 'modalText2', '--look-modal-muted': 'modalMuted',
+    '--look-accent-on-modal': 'accOnModal',
+    '--look-scrim': 'scrim', '--look-band': 'band',
+    '--look-header-ember': 'headerEmber', '--look-dots': 'dots',
   };
   var applied = false;
   function applyToRoot(derived) {

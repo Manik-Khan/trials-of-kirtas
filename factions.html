@@ -37,7 +37,7 @@
     .page-header {
       text-align: center;
       padding: 5rem 2rem 3rem;
-      background: radial-gradient(ellipse 80% 60% at 50% 0%, rgba(42,20,10,0.8) 0%, transparent 70%);
+      background: radial-gradient(ellipse 80% 60% at 50% 0%, var(--look-header-ember, rgba(42,20,10,0.8)) 0%, transparent 70%);
     }
     .page-eyebrow {
       font-family: 'Cinzel', serif;
@@ -94,7 +94,7 @@
       letter-spacing: 0.5em;
       color: var(--muted);
       text-transform: uppercase;
-      border-bottom: 1px solid rgba(184,149,42,0.15);
+      border-bottom: 1px solid var(--gold-dim, rgba(184,149,42,0.15));
       padding-bottom: 0.5rem;
       margin-bottom: 1.5rem;
     }
@@ -111,8 +111,8 @@
 
     /* ── Faction card ── */
     .faction-card {
-      background: #1a1a1a;
-      border: 1px solid rgba(26,26,26,0.15);
+      background: var(--look-card-bg, #1a1a1a);
+      border: 1px solid var(--look-card-border, rgba(26,26,26,0.15));
       cursor: pointer;
       transition: border-color 0.3s, transform 0.3s, box-shadow 0.3s;
       overflow: hidden;
@@ -120,21 +120,21 @@
     }
 
     .faction-card:hover {
-      border-color: rgba(192,0,26,0.35);
+      border-color: var(--look-accent-strong, rgba(192,0,26,0.35));
       transform: translateY(-2px);
       box-shadow: 0 8px 32px rgba(0,0,0,0.3);
     }
 
     .faction-card.active {
       border-color: var(--gold);
-      box-shadow: 0 0 0 1px rgba(184,149,42,0.3), 0 8px 40px rgba(0,0,0,0.4);
+      box-shadow: 0 0 0 1px var(--gold-mid, rgba(184,149,42,0.3)), 0 8px 40px rgba(0,0,0,0.4);
     }
 
     /* Heraldry image area */
     .faction-heraldry {
       width: 100%;
       height: 200px;
-      background: #111009;
+      background: var(--look-well, #111009);
       display: flex;
       align-items: center;
       justify-content: center;
@@ -156,7 +156,7 @@
     .faction-heraldry-dots {
       position: absolute;
       inset: 0;
-      background-image: radial-gradient(circle, rgba(0,0,0,0.3) 1px, transparent 1px);
+      background-image: radial-gradient(circle, var(--look-dots, rgba(0,0,0,0.3)) 1px, transparent 1px);
       background-size: 4px 4px;
       z-index: 2;
       mix-blend-mode: multiply;
@@ -171,7 +171,7 @@
     .heraldry-placeholder {
       width: 120px;
       height: 120px;
-      border: 2px solid rgba(184,149,42,0.2);
+      border: 2px solid var(--gold-mid, rgba(184,149,42,0.2));
       display: flex;
       align-items: center;
       justify-content: center;
@@ -188,7 +188,7 @@
       font-size: 0.95rem;
       font-weight: 700;
       letter-spacing: 0.08em;
-      color: #f0ece4;
+      color: var(--look-card-text, #f0ece4);
       text-transform: uppercase;
       margin-bottom: 0.15rem;
     }
@@ -196,13 +196,13 @@
     .faction-alias {
       font-size: 0.85rem;
       font-style: italic;
-      color: var(--muted);
+      color: var(--look-card-muted, var(--muted));
       margin-bottom: 0.75rem;
     }
 
     .faction-summary {
       font-size: 0.95rem;
-      color: #b8952a;
+      color: var(--look-trim, #b8952a);
       line-height: 1.65;
       opacity: 0.9;
     }
@@ -213,7 +213,7 @@
       font-family: var(--font-title);
       font-size: 0.65rem;
       letter-spacing: 0.2em;
-      color: #f0ece4;
+      color: var(--look-card-text, #f0ece4);
       text-transform: uppercase;
       opacity: 0.5;
       transition: opacity 0.2s;
@@ -225,7 +225,7 @@
       display: none;
       position: fixed;
       inset: 0;
-      background: rgba(10,8,5,0.85);
+      background: var(--look-scrim, rgba(10,8,5,0.85));
       backdrop-filter: blur(6px);
       z-index: 500;
       align-items: center;
@@ -239,8 +239,8 @@
     }
 
     .modal {
-      background: linear-gradient(160deg, #2a1e10 0%, #140f08 100%);
-      border: 1px solid rgba(184,149,42,0.3);
+      background: linear-gradient(160deg, var(--look-modal-g1, #2a1e10) 0%, var(--look-modal-g2, #140f08) 100%);
+      border: 1px solid var(--gold-mid, rgba(184,149,42,0.3));
       max-width: 700px;
       width: 100%;
       max-height: 85vh;
@@ -253,11 +253,11 @@
     .modal-heraldry {
       width: 100%;
       height: 220px;
-      background: rgba(10,8,5,0.5);
+      background: var(--look-band, rgba(10,8,5,0.5));
       display: flex;
       align-items: center;
       justify-content: center;
-      border-bottom: 1px solid rgba(184,149,42,0.15);
+      border-bottom: 1px solid var(--gold-dim, rgba(184,149,42,0.15));
     }
 
     .modal-heraldry img {
@@ -274,20 +274,20 @@
     .modal-name {
       font-family: 'Cinzel Decorative', serif;
       font-size: 1.6rem;
-      color: var(--parchment);
+      color: var(--look-card-text, #f0e6ce);
       margin-bottom: 0.25rem;
     }
 
     .modal-alias {
       font-style: italic;
-      color: var(--gold);
+      color: var(--look-accent-on-modal, #b8952a);
       font-size: 0.95rem;
       margin-bottom: 1.5rem;
     }
 
     .modal-text {
       font-size: 1rem;
-      color: var(--parchment2);
+      color: var(--look-modal-text2, #e8d9b8);
       line-height: 1.9;
     }
 
@@ -301,7 +301,7 @@
       right: 1.25rem;
       background: none;
       border: none;
-      color: var(--muted);
+      color: var(--look-modal-muted, #6b5d4a);
       font-size: 1.5rem;
       cursor: pointer;
       line-height: 1;
@@ -313,19 +313,19 @@
     /* Scrollbar */
     .modal::-webkit-scrollbar { width: 4px; }
     .modal::-webkit-scrollbar-track { background: transparent; }
-    .modal::-webkit-scrollbar-thumb { background: rgba(184,149,42,0.3); }
+    .modal::-webkit-scrollbar-thumb { background: var(--gold-mid, rgba(184,149,42,0.3)); }
 
     /* ── Divider ── */
     .divider {
       border: none;
       height: 1px;
-      background: linear-gradient(90deg, transparent, rgba(184,149,42,0.3), transparent);
+      background: linear-gradient(90deg, transparent, var(--gold-mid, rgba(184,149,42,0.3)), transparent);
     }
 
     footer {
       text-align: center;
       padding: 3rem 2rem;
-      border-top: 1px solid rgba(184,149,42,0.1);
+      border-top: 1px solid var(--gold-dim, rgba(184,149,42,0.1));
       font-family: 'Cinzel', serif;
       font-size: 0.65rem;
       letter-spacing: 0.3em;
