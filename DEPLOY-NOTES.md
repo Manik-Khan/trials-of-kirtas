@@ -1,4 +1,4 @@
-# tok-finishes-v6.zip — the Look finishes + the re-plumb switch
+# tok-finishes-v7.zip — the Look finishes + the re-plumb switch
 July 4 · mock v4 approved → built
 
 ## Files (upload all five to the repo root)
@@ -140,3 +140,11 @@ harnesses: player, DM, unbound seat).
   portraits do the same). center/cover was beheading Vesperian.
 - nav.js: SETTINGS_V 7 → 8.
 - smokes: 12 / 62 / 19, all green.
+
+## v7 patch (July 4, final)
+- character-badge.js: the nav medallion was grey because the portrait was
+  painted onto the zero-size inner text span instead of the 32px badge
+  button (the element carrying the background styling). Image now lands on
+  the sized element; the initial rides the span; the presence dot survives.
+- nav.js: SETTINGS_V 8 -> 9.
+- smokes: 12 / 62 / 20, all green.

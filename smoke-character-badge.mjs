@@ -82,9 +82,12 @@ await wait(30)
 t('opening shows the identity: name, epithet line, class', q('#tok-badge-menu').classList.contains('is-open')
   && q('.tb-name').textContent === 'Vesperian Vale'
   && q('.tb-epi').textContent === 'Charlatan' && q('.tb-cls').textContent === 'ROGUE 5')
-t('the portrait URL lands on badge and header medallions',
-  q('#tok-badge .tb-init').style.backgroundImage.includes('vesperian.png')
+t('the portrait lands on the SIZED badge button (not the zero-size span) and the header',
+  q('#tok-badge').style.backgroundImage.includes('vesperian.png')
+  && !q('#tok-badge .tb-init').style.backgroundImage
+  && q('#tok-badge .tb-init').textContent === ''
   && q('.tb-port').style.backgroundImage.includes('vesperian.png'))
+t('the presence dot survives the portrait paint', !!q('#tok-badge .tb-dot'))
 t('vitals glance: 31 / 36 (hpMax 34 + bonus 2), temp chip shows',
   q('.tb-hp-nums').textContent === '31 / 36'
   && q('.tb-conds').textContent.includes('+3 temp'))

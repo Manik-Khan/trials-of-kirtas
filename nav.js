@@ -548,7 +548,7 @@ function mountRail() {
 // accent, the absorbed cog). Injected like the rail: once, after auth.
 // SETTINGS_V busts browser caches — bump it whenever settings-flyout.js
 // changes (learned July 3: the un-stamped first deploy served stale files).
-const SETTINGS_V = 8;
+const SETTINGS_V = 9;
 function mountSettings() {
   if (document.getElementById('tok-settings-js')) return;   // inject once
   // look-derive.js first: the flyout drives window.TokLook for the finish

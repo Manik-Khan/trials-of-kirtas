@@ -161,9 +161,13 @@
     if (badge) badge.style.setProperty('--tb-seat', accent);
     if (menu) menu.style.setProperty('--tb-seat', accent);
   }
-  function portraitCss(el, url, initial) {
-    if (url) { el.style.backgroundImage = "url('" + url + "')"; el.textContent = ''; }
-    else { el.style.backgroundImage = 'none'; el.textContent = initial; }
+  // the image goes on the SIZED element (the circle that carries the
+  // background styling); the initial goes on a separate text node — setting
+  // both on the badge button would also nuke its presence dot (July 4:
+  // painting the inner zero-size span left the nav medallion grey)
+  function portraitCss(bgEl, textEl, url, initial) {
+    if (url) { bgEl.style.backgroundImage = "url('" + url + "')"; textEl.textContent = ''; }
+    else { bgEl.style.backgroundImage = 'none'; textEl.textContent = initial; }
   }
 
   function render() {
@@ -178,8 +182,9 @@
     var hp = hpOf(charRow);
     var isDM = profile && (profile.role === 'dm' || profile.role === 'overseer');
 
-    portraitCss(badge.querySelector('.tb-init'), st.portrait, initial);
-    portraitCss(menu.querySelector('.tb-port'), st.portrait, initial);
+    portraitCss(badge, badge.querySelector('.tb-init'), st.portrait, initial);
+    var port = menu.querySelector('.tb-port');
+    portraitCss(port, port, st.portrait, initial);
     menu.querySelector('.tb-name').textContent = name;
     var epiEl = menu.querySelector('.tb-epi');
     epiEl.textContent = epi; epiEl.style.display = epi ? '' : 'none';
