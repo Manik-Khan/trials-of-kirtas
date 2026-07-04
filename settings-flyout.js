@@ -233,6 +233,7 @@
     applyRoot();
   }
 
+  var hinted = false;   // the site-wide hint fires once per session
   function writeLook(patch) {
     if (scope === 'page') {
       var pl = Object.assign({}, appearance.pageLooks || {});
@@ -242,6 +243,13 @@
       Object.assign(appearance, patch);
     }
     persist(); announce(); render();
+    // discoverability (July 4, M's report): a pick while the site-wide look
+    // is off changes the flyout but not the pages — say WHY, right then,
+    // once. The journal/chronicle still follow tok:look regardless.
+    if (!appearance.replumb && window.TokLook && !hinted) {
+      hinted = true;
+      toast('Previewing in ◐ — flip “Wear this look site-wide” below to dress the pages in it.');
+    }
   }
 
   // ── styles (injected once, namespaced .tokset-*) ──

@@ -548,21 +548,24 @@ function mountRail() {
 // accent, the absorbed cog). Injected like the rail: once, after auth.
 // SETTINGS_V busts browser caches — bump it whenever settings-flyout.js
 // changes (learned July 3: the un-stamped first deploy served stale files).
-const SETTINGS_V = 3;
+const SETTINGS_V = 4;
 function mountSettings() {
   if (document.getElementById('tok-settings-js')) return;   // inject once
   // look-derive.js first: the flyout drives window.TokLook for the finish
   // gallery and the site-wide look; both stamped with the SAME version so
   // one bump busts both caches (the July 3 stale-deploy lesson).
+  // async=false, NOT defer: dynamically inserted scripts IGNORE defer and
+  // load async (order race) — async=false restores insertion-order execution,
+  // so TokLook is guaranteed to exist before the flyout boots.
   const d = document.createElement('script');
   d.id = 'tok-look-derive-js';
   d.src = 'look-derive.js?v=' + SETTINGS_V;
-  d.defer = true;
+  d.async = false;
   document.body.appendChild(d);
   const s = document.createElement('script');
   s.id = 'tok-settings-js';
   s.src = 'settings-flyout.js?v=' + SETTINGS_V;
-  s.defer = true;
+  s.async = false;
   document.body.appendChild(s);
 }
 

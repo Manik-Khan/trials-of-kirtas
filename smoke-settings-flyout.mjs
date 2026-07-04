@@ -274,6 +274,8 @@ t('picking Print persists pageMode/wells/trim, unknown keys survive',
   && rpc2[0].args.p_appearance.background === 'bg-keep-me')
 t('Print re-lights as the selected finish',
   qq('#ts-fins .ts-fin').find(f => f.dataset.fin === 'print').classList.contains('is-on'))
+t('the first pick while site-wide is off fires the explain-yourself hint',
+  qq('.ts-toast')[0].textContent.includes('Previewing in ◐'))
 
 // fine-tune: drawer opens; an axis edit away from Print goes Custom; back re-lights
 q('#ts-tune-head').click()
@@ -309,6 +311,13 @@ t('opt-in OFF: every token removed — clean rollback to the house theme',
 await new Promise(r => setTimeout(r, 350))
 t('the opt-in itself persists (replumb key in the merged object)',
   rpc2[rpc2.length - 1].args.p_appearance.replumb === false)
+
+// the hint fires ONCE per session: later picks stay quiet
+const toastEl2 = qq('.ts-toast')[0]
+toastEl2.textContent = 'x'
+qq('#ts-inks .ts-dot').find(dd => dd.title === 'Ink: Forest').click()
+await new Promise(r => setTimeout(r, 10))
+t('the hint fires once per session, not on every pick', toastEl2.textContent === 'x')
 
 // save-as captures the style; the personal chip restores it
 q('#ts-savename').value = 'Gilded Sumi'

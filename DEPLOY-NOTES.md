@@ -1,4 +1,4 @@
-# tok-finishes.zip — the Look finishes + the re-plumb switch
+# tok-finishes-v2.zip — the Look finishes + the re-plumb switch
 July 4 · mock v4 approved → built
 
 ## Files (upload all five to the repo root)
@@ -46,3 +46,14 @@ smoke-look-derive.mjs: 12/12 (sweep: 990 legal combos, 0 floor violations,
 Stage promise holds, control case exact, apply/clear round-trips).
 smoke-settings-flyout.mjs: 48/48 (all 32 pre-existing green, incl. the
 sync guard, replace-not-merge, stranding nudge, July 3 armor).
+
+## v2 patch (July 4, after M's report)
+- nav.js: SETTINGS_V 3 → 4; injected scripts use async=false (dynamic
+  scripts IGNORE defer — they raced; insertion order now guaranteed).
+- settings-flyout.js: picking a look while the site-wide toggle is OFF now
+  toasts an explanation, once per session — the pages not changing is the
+  shipped default, and the UI now says so at the moment of confusion.
+- REMINDER for the eyeball: the toggle ships OFF, and Sumi × Bone + Print
+  is engineered to look like Phantom. Test with a LOUD pairing: flip
+  site-wide ON, pick Pine paper — the page should go dark instantly.
+  Console check: document.documentElement.style.getPropertyValue('--ink')
