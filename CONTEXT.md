@@ -1,5 +1,5 @@
 # CONTEXT.md — Trials of Kirtas
-*Updated 2026-07-03, end of the July 3 session. Upload this at the top of the next session.*
+*Updated 2026-07-03, end of the July 3 EVENING session (the shelf arc). Upload this at the top of the next session.*
 
 ---
 
@@ -15,44 +15,72 @@
   commits or pushes. Multi-file handovers ship as a **zip mirroring the repo
   layout** with a per-file destination table in `DEPLOY.md`.
 - **SQL before files** when a deploy has both — the client queries the new
-  columns immediately (the July 3 `sort_order` error was this, caught by the
-  error message doing its job).
+  columns immediately.
 - SQL deltas are idempotent, `GRANT`ed to `authenticated`, staff-gated via
   `is_staff()`, and where feasible **validated on a local Postgres 16** before
-  handover (this caught a real corruption bug — see pinned lessons).
+  handover.
 
-## ⚠ Theme status — READ THIS, it keeps regressing
+## ⚠ Theme status — RESOLVED for chronicle + journal (July 3 evening)
 
-**The "Phantom theme" was an early TEST theme, not the site's identity.** It
-kept re-entering context docs as if canonical; it is not. **The site currently
-has no chosen theme** — M is actively searching. Four aesthetic studies from
-July 3 are staged as candidates (see "Theme expedition" below). Do not treat
-dark-parchment/gold as load-bearing; do treat `theme.css` variables as the
-mechanism any chosen theme will flow through.
+The expedition landed. **The shelf aesthetic is approved and locked for the
+chronicle and the journal**: one worn paper + grain/mottle overlays, SIX INKS
++ SIX PAPERS as two independent per-reader axes, Anton (display) /
+DM Serif Display (poster) / EB Garamond (body) / Archivo (utility),
+hairline rules, Miranda accordion mechanics. M's words: "this is really
+really special" / "blown away." Site-wide adoption beyond these two surfaces
+is a separate, still-open call — do not repaint other pages on this
+authority. The old "Phantom theme" note stands: it was a test theme, never
+canon.
 
----
+**The two approved mocks (the north star — build from these):**
+- `mock-chronicle-shelf-2.html` — the CHRONICLE. Sessions as vertical book
+  spines, chronological L→R, name-first hierarchy (session NAME giant
+  vertical, "Session N" small). Miranda accordion: click a spine → volume
+  expands IN PLACE, shelf stays standing both sides, panel scrolls
+  internally (entries oldest→newest — the reading-direction problem
+  dissolves). Boxed tags / centered poster title / serif intro in the panel
+  head; prev/next volume footers; Esc + ←/→; single volume open at a time;
+  hover peek card on closed spines; intro spine at far left.
+- `mock-journal-vault.html` — the JOURNAL. **Obsidian bones, shelf skin**
+  (the vault-shelf accordion draft was REJECTED for the journal — story
+  wants drama, tools want at-a-glance; see pinned lesson). Persistent left
+  tree rail (sections + pages + comment badges + active bar), seat-dot vault
+  switcher (own = editable-in-place, foreign = read-only everywhere),
+  write-immediately pages (no edit mode), backlinks footer, `+ New page`
+  per section. Honors pinned behaviors: plain-click pagelinks in read-only,
+  ⌘/Ctrl-click while editing, dead links no-op, comments are rows ABOUT the
+  page with owner Accept/Edit-then-accept/Dismiss, atomic attribution chips.
+
+**Decisions locked with the mocks:**
+- **Ink + paper are PER-READER** — persist both into `profiles.appearance`
+  via `set_my_appearance` (replace-not-merge, full object) alongside the
+  seat accent. Nobody's choice repaints anyone else.
+- **Axes are independent and smoke-asserted:** ink swaps never write
+  `--paper`; paper swaps never write `--ink`/`--accent`. The six papers are
+  desaturated complements/neighbors of the ink hues — every ink legible on
+  every paper (36 combos).
+- Chronicle shelf replaces the *reading* layer only; writing stays in
+  chronicle.html until increment 3.
 
 ## Architecture spine (stable)
 
 - **Stack:** vanilla JS/HTML/CSS + Supabase (Postgres/Realtime/RLS) + Netlify
-  + GitHub. One walled corner: `journal/` (React + Vite + TipTap), which
-  builds to `journal/dist` → committed at repo root as `journal-assets/journal.js|css`,
-  loaded by root `journal.html` with `?v=` cache-bust stamps.
+  + GitHub. One walled corner: `journal/` (React + Vite + TipTap) → builds to
+  `journal-assets/journal.js|css`, loaded by root `journal.html` with `?v=`
+  cache-bust stamps.
 - **Feed is one live stream** (`feed` table); the chronicle/book is a
-  **reading layer** over it. Combat/Chronicle are channel filters.
+  **reading layer** over it. Combat/Chronicle are channel filters. The shelf
+  is the book's new render — `bookModel.js` chapters map onto volumes,
+  entries onto the panel.
 - **Profiles:** `profiles.user_id` is the auth UID (not `profiles.id`).
   Appearance persists in `profiles.appearance` jsonb via `set_my_appearance`
-  RPC (**replace-not-merge** — always send the full merged object).
-  ⚠ Repo copy of that RPC filters `where id = auth.uid()` while the deployed
-  one evidently works — repo file may be stale; verified accent saves persist
-  live (July 3), so deployed ≠ committed. Reconcile the committed file someday.
+  RPC (**replace-not-merge**). ⚠ Repo copy of that RPC filters
+  `where id = auth.uid()` while the deployed one works — reconcile someday.
 - **Party seats:** cosmere (ianakira) · liadan (nazanroseaktas) ·
   caim (jayvanmidde) · vesperian (thebraveruby) · DM/narrator (hagakuredisc).
-- **Seat colors are never stored in content.** Content stores seat KEYS
-  (`data-attrib="caim"`, `data-seat`, `actor_key`); paint resolves at render
-  via `journal/src/comments/accents.js`: chosen accent
-  (`profiles.appearance.accent`) → fallback palette → stable hash. Changing an
-  accent repaints all history by construction.
+- **Seat colors are never stored in content.** Content stores seat KEYS;
+  paint resolves at render via `journal/src/comments/accents.js`. The mocks'
+  baked seat hexes are placeholders — the build resolves through accents.js.
 
 ## Journal (the walled corner) — current state
 
@@ -63,132 +91,127 @@ mechanism any chosen theme will flow through.
   rename (smoke-pinned).
 - **Organization (deployed):** drag-reorder (`sort_order`, nulls-last),
   drop-on-section move, ⋯ menu rename/delete; foreign pages read-only with
-  staff delete. Curation queue (staff): Canonize (resolve-flip), Edit, Merge
-  (rewrite preview + "also correct chat" checkbox, off by default), Discard.
-- **Entities:** `entities` table + tooltips canon, merged in `entityStore`.
+  staff delete. Curation queue (staff): Canonize, Edit, Merge (rewrite
+  preview + "also correct chat" checkbox), Discard.
+  ⚠ Drag-reorder + ⋯ menu are NOT represented in the vault mock — they
+  survive the reskin unchanged; skin them onto tree rows during the build.
+- **Entities:** `entities` + tooltips canon, merged in `entityStore`.
   `canonize_entity` / `merge_entity` SECURITY DEFINER RPCs (staff-gated,
-  called with the USER token — service role has no `auth.uid()`).
-  `entity_aliases` (typo → canon) is **written by merge and now READ at
-  typing time** in the journal's `@` pool (deployed July 3): typing a retired
-  key surfaces canon, inserts the canon chip, and can never re-seed the stub.
-  ⚠ The RAIL composer (`mention-composer.js`, chronicle-side) does NOT
-  consult aliases yet — small standalone patch when wanted.
-- **Comments (deployed):** `journal_comments` — rows ABOUT a page, never
-  writes TO it. Quote+prefix/suffix anchors; STRICT matching (exact context →
-  unique quote → orphan to "Since edited"; ambiguity orphans, never guesses;
-  anchors are content-addressed, so retyping the words re-anchors).
-  Highlights are ProseMirror decorations (never serialized). Owner: Accept /
-  Edit-then-accept / Dismiss; commenter: Withdraw. Accept inserts the atomic
-  `attribution` node (delete/move whole, never edit inside). **The comment
-  row keeps the author's original words forever — a trigger blocks anyone
-  but the author from editing them** (validated on local PG). Dismissed
-  comments leave the rail; only OPEN comments orphan.
-- **Editor config:** ONE `editorProps` key only — `attributes.class` +
-  `handleClick` merged. A duplicate key silently clobbered the styling class
-  on July 3 (default blue focus ring, bullets outside the box).
-- **PageLinks:** `[[` pool + create path take the INJECTED active vault
-  (a static sample-vault import once leaked Session-12 fixtures into live).
-  Chips navigate: plain click in read-only; Cmd/Ctrl+click while editing.
-  Dead links no-op.
+  USER token). `entity_aliases` read at typing time in the journal's `@`
+  pool (deployed July 3). ⚠ The RAIL composer (`mention-composer.js`)
+  still does NOT consult aliases — small standalone patch when wanted.
+- **Comments (deployed):** `journal_comments` — rows ABOUT a page. STRICT
+  quote+context anchors; ambiguity orphans, never guesses. Highlights are
+  ProseMirror decorations. Owner: Accept / Edit-then-accept / Dismiss;
+  commenter: Withdraw. Accept inserts the atomic `attribution` node. Comment
+  rows keep the author's words forever (trigger, validated on local PG).
+- **Editor config:** ONE `editorProps` key only (duplicate-key clobber
+  lesson). **PageLinks:** `[[` pool takes the INJECTED active vault; chips
+  navigate plain-click read-only, ⌘/Ctrl-click editing; dead links no-op.
 
 ## The book (journal's Chronicle tab) — current state
 
-- `bookModel.js` (pure): feed rows → chapters. Chapters **freshest-first**
-  (Session 4 opens the book, Prologue closes it); entries within a chapter
-  in narrative order (oldest→newest) — flip on request. Hidden rows and
-  non-chronicle channels excluded. `meta.written_at` PLACES late shares at
-  their proper time; >1 day gap earns the ⏱ badge. 📄 badge from
-  `meta.fromJournal`.
-- **Naming:** old drawer rows stored the CLASS in `meta.character`
-  ('Fighter') — the seat map now leads: character name displays, hover
-  reveals the PLAYER ALIAS, seat-accent medallion badge shows the initial.
-  TODO(multi-campaign): seat maps → profiles.
-- **Images:** clamp 420px cover-fit + click-to-lightbox (Esc/click closes).
-- **NOT YET:** medallion **portraits** (needs an image source read —
-  characters table? Cloudinary tokens? next session), threads-as-replies,
-  the composer, realtime refresh of the book.
-- Writing still happens in `chronicle.html` + journal shares until
-  increments 2–3.
+- `bookModel.js` (pure): feed rows → chapters. **Deployed order verified
+  live July 3** ✓ (freshest-first chapters; narrative order within).
+  Session-repair re-stamp verified ✓ — the book shows a proper Session 2
+  chapter ("The Journey Into Kirtas").
+- The shelf render replaces the current book render (increment 1.5, next
+  build). Chapter freshest-first becomes shelf-order-chronological with the
+  NEW tag on the latest — the accordion makes stack order a non-issue.
+- **Naming:** seat map leads (character name displays, hover reveals player
+  alias). TODO(multi-campaign): seat maps → profiles.
+- **NOT YET:** medallion portraits (slot into spine feet + entry bylines),
+  threads-as-replies, the composer, realtime refresh.
 
 ## chronicle.html (legacy, patched, awaiting retirement)
 
-- July 3 patch set deployed: write-first `bumpSessionTo` with `.select()`
-  row-count verification, staff-only 20h prompt, session dropped from draft
-  save/restore (+ realtime repaint guard), clipboard-pipeline loads for
-  editEntry/restoreDraft, chip guard on edit (delete-and-repost for
-  chip-bearing rows).
-- `session-repair.sql` run July 3 — campaign truth restored; verify the
-  phantom-Session-2 re-stamp landed (the book's Session 2 chapter is the
-  tell).
+- July 3 patch set deployed ✓ (write-first `bumpSessionTo` with `.select()`
+  row-count check, staff-only 20h prompt, session out of draft save/restore,
+  clipboard-pipeline loads, chip guard). `session-repair.sql` run ✓ and the
+  re-stamp verified ✓. Writing continues here until increment 3.
 
-## Pinned lessons (new this session, in addition to the standing set)
+## Pinned lessons (July 3, both sessions)
 
 1. **Supabase `.update()` under RLS returns NO error on a blocked write — it
-   matches 0 rows.** Append `.select()` and check row count; this is
-   load-bearing, not defensive.
-2. **Postgres `regexp_replace` replacement: bare `&` is LITERAL; `\&` is the
-   WHOLE MATCH** (Oracle's convention is the reverse). Escaping `&` as `\&`
-   corrupted merged chips until local-PG validation caught it. Only
-   backslashes need doubling.
-3. **Duplicate keys in a JS object literal silently clobber** — the later
-   `editorProps` erased `attributes.class`. Grep before adding a key that
-   might already exist.
-4. **Indirect `eval()` scopes top-level `let`/`const` to the eval call** —
-   invisible to later probes. jsdom harnesses inject stubs as a real
-   `<script>` before the inline one under `runScripts:'dangerously'`.
-5. **Pure cores for headless smokes** (`match.js` discipline): any logic that
-   must be testable lives in a JSX-free module (`pagelink-core.js`,
-   `resolveMentionInsert`, `anchor.js`, `bookModel.js`).
-6. **`sh` has no brace expansion** — `mkdir -p a/{b,c}` makes a literal dir
-   and downstream `cp`s fail half-silently. Explicit paths in staging
-   commands; verify the zip listing.
-7. **Local Postgres validation of SQL deltas is worth the setup** — it caught
-   lesson 2 and proved the comments history-guard trigger.
-8. Stub the PUBLISHER'S contract in harnesses (supabase-js `.order()` chains).
+   matches 0 rows.** Append `.select()` and check row count.
+2. **Postgres `regexp_replace`: bare `&` is LITERAL; `\&` is the WHOLE
+   MATCH.** Only backslashes need doubling.
+3. **Duplicate keys in a JS object literal silently clobber.** Grep first.
+4. **Indirect `eval()` scopes top-level `let`/`const` to the eval call.**
+   Harnesses inject stubs as a real `<script>` under
+   `runScripts:'dangerously'`.
+5. **Pure cores for headless smokes** — testable logic lives JSX-free.
+6. **`sh` has no brace expansion.** Explicit paths; verify the zip listing.
+7. **Local Postgres validation of SQL deltas is worth the setup.**
+8. Stub the PUBLISHER'S contract in harnesses.
+9. **(new) Same skin, different bones.** The accordion that made the
+   chronicle sing was wrong for the journal — a story rewards ceremony; a
+   tool rewards zero clicks between thought and page. Reuse the material
+   (paper/grain/inks/type), not the mechanics, when the surface's JOB
+   differs. The vault-shelf journal draft is the cautionary artifact.
+10. **(new) Two-axis theming needs the independence invariant IN THE
+    SMOKES:** ink swaps never write `--paper`, paper swaps never write
+    `--ink`/`--accent`. Asserted in all three shelf-family mocks; carry the
+    assertion into the live build. (Amends the one-paper Kazuki rule:
+    paper is now a user axis, but the axes never cross.)
+11. **(new) jsdom has no `matchMedia`** — guard
+    `typeof matchMedia === 'function'` in inline page scripts that harnesses
+    will load.
 
-## Theme expedition (July 3, parked by M — "scratch for now")
+## Theme expedition — CLOSED (superseded by the approved pair)
 
-Four staged studies, all self-contained mocks with baked Session-4 data:
-- `mock-broadsheet.html` — the Kirtas Chronicle as a two-ink newspaper
-  (Miranda-inspired; M: loved the idea, too busy).
-- `mock-gazette.html` — broadsheet × Noda restraint; engraved SVG plates as
-  image slots; 6 paper+ink palettes.
-- `mock-journal-gazette-2.html` — bold duotone rooms, visible grain, border
-  vocabulary, vivid seat layer, writing affordances.
-- `mock-journal-gazette-3.html` — **the corrected one**: ONE constant worn
-  paper, SIX INKS that recolor type only (the actual Kazuki behavior),
-  Miranda boldness (900-weight display, 5px rules, giant folio, rotated
-  stamps). Harness asserts no palette touches `--paper`.
-Prompting lesson recorded: after two corrections on the same axis, ASK —
-don't iterate inside an assumed frame. Invariants ("the background never
-changes") beat descriptions of change.
+The four July 3 daytime studies (`mock-broadsheet`, `mock-gazette`,
+`mock-journal-gazette-2`, `mock-journal-gazette-3`) fed the winner and are
+retired as candidates. Lineage for the record: Miranda boldness + accordion
+(from the /work page M sent), gazette-3's corrected Kazuki behavior (constant
+paper, inks recolor type) now extended to the two-axis system. The
+intermediate drafts this session: `mock-chronicle-index.html` (horizontal
+Miranda index — superseded), `mock-chronicle-shelf.html` (spines with wipe
+transition — superseded by the accordion), `mock-journal-shelf.html`
+(journal as vault-shelf — REJECTED, kept as lesson 9's artifact).
 
 ## THE MAP — next session's moves, in order
 
-1. **Medallion portraits** (small): find the portrait source (read
-   `characters` table / party page wiring / Cloudinary token URLs in repo),
-   pipe into the book's medallion + potentially journal bylines. This is the
-   one visible gap M named.
-2. **Book increment 2 — threads + composer (mock first):** replies as
-   first-class threads; the minimal rich composer (the locked set: bold,
-   italic, H2, quote, `@`, `[[`) moving INTO the book. Design-bearing →
-   self-contained mock → approval → build. The rail's `docToFeedBody` and
-   the journal composer are the donor organs.
-3. **Book increment 3 — Quill retirement:** chronicle.html's drawer stands
-   down; the book becomes the writing surface too. The July 3 chronicle
-   patch becomes an epitaph.
-4. **Rail alias wiring** (small, standalone): `mention-composer.js` consults
-   `entity_aliases` like the journal pool now does.
-5. **Parked, unscheduled:** Shared Quest Hub (party-shared quest section,
-   distinct from personal "Quests" folders — same party-readable pattern);
-   theme decision (studies above); reconcile the committed
-   `set_my_appearance` with the deployed one; folder rename/delete/reorder;
-   book realtime refresh; orphan-comment "send to my journal" action.
+1. **Build: the chronicle shelf over real data.** Read the journal app
+   source + `bookModel.js` + Chronicle tab render AS THEY ARE first. Port
+   the approved shelf mock onto the real render: chapters → volumes,
+   entries → panel, seat paint through `accents.js`, session titles from
+   the seat/session data. Reading layer only; CSS-first, no behavior
+   changes to the model. jsdom smokes carry over the mock's assertions
+   (accordion single-open, order, boundaries, axis independence).
+2. **Ink + paper persistence** — extend the appearance jsonb payload with
+   the two choices via `set_my_appearance` (full merged object). No SQL
+   needed. Boot path paints before first render to avoid a flash.
+3. **Journal reskin** — the vault mock's CSS onto the real journal
+   (tree rail, seat-dot switcher, page surface). TipTap slides under the
+   new skin; drag-reorder and ⋯ menu re-skinned in place, not rebuilt.
+4. **Medallion portraits** (THE MAP's old #1, now better-slotted): recon
+   the portrait source (characters table / party wiring / Cloudinary URLs),
+   pipe into spine feet + entry bylines + book medallions.
+5. **Threads + composer INTO the panel** (increment 2, mock first): replies
+   as first-class threads; the locked minimal composer (bold, italic, H2,
+   quote, `@`, `[[`) at the foot of an open volume. Donor organs:
+   `docToFeedBody` + the journal composer.
+6. **Increment 3 — Quill retirement:** chronicle.html's drawer stands down;
+   the shelf panel becomes the writing surface.
+7. **Rail alias wiring** (small, standalone): `mention-composer.js`
+   consults `entity_aliases`.
+8. **Parked, unscheduled:** Shared Quest Hub; site-wide adoption of the
+   shelf aesthetic (separate decision); reconcile committed
+   `set_my_appearance`; folder rename/delete/reorder; book realtime
+   refresh; orphan-comment "send to my journal"; real ink hexes eyedropped
+   from kazukinoda.com if M wants fidelity (current six are C's picks in
+   his register).
 
-## Deploy ledger (July 3 session, all verified live unless noted)
+## Deploy ledger
 
-chronicle patch set ✓ → org arc (SQL + files) ✓ → comments arc ✓ →
-pagelink fix ✓ → book arc inc. 1 ✓ → alias wiring ✓ → book fixes
-(editorProps / names / lightbox) ✓ → book ordering (staged, deploy pending
-at time of writing) → session-repair.sql run ✓ (verify the re-stamp).
-Accent persistence verified live ✓ (deployed set_my_appearance is sound).
+**Daytime session (all verified live):** chronicle patch set ✓ → org arc ✓ →
+comments arc ✓ → pagelink fix ✓ → book arc inc. 1 ✓ → alias wiring ✓ →
+book fixes ✓ → book ordering ✓ (verified live, evening) →
+session-repair.sql ✓ (re-stamp verified in the book, evening).
+
+**Evening session (mocks only — nothing deployed):** approved:
+`mock-chronicle-shelf-2.html` (26-assertion smoke family, 21/21) and
+`mock-journal-vault.html` (27/27). Superseded/rejected drafts kept for
+lineage: `mock-chronicle-index.html` (15/15), `mock-chronicle-shelf.html`
+(20/20), `mock-journal-shelf.html` (26/26). All self-contained, baked data.
