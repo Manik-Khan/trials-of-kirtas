@@ -1,69 +1,74 @@
-# DEPLOY — shelf fixes (July 3, post-eyeball)
+# DEPLOY — the Settings arc (July 3, built from the approved mock)
 
-Four fixes to the just-deployed shelf: the left-edge amputation, dead
-mouse/keyboard travel, spine-title overflow, and canonical staff-editable
-session titles.
-
-## SQL FIRST (Supabase SQL editor)
-
-| file | what |
-|---|---|
-| `journal/sql/schema_delta_session_titles.sql` | `session_titles` table — one canonical title per session. Read: party. Write: `is_staff()`. Idempotent; validated twice on local PG 16 (create, re-run, upsert, blank-title constraint). |
-
-The client queries the table on boot — run the delta before the files go up.
-(If the files go first, the shelf still works: `loadSessionTitles` is
-non-fatal and falls back to row meta.)
+The ◐ Settings flyout, live: themes demote to presets, the ⚙ cog retires
+into it, the palette expands both polarities with the 2.0 contrast floor,
+per-page looks, and per-player saved presets. **SQL: none** — everything
+rides `profiles.appearance` + `set_my_appearance` (the column is jsonb;
+`pageLooks` and `lookPresets` are just new keys).
 
 ## Files (GitHub web upload, bare names)
 
-| file | destination | what changed |
+| file | destination | what |
 |---|---|---|
-| `journal.html` | repo root | fresh `?v=` stamp only |
-| `journal-assets/journal.js` | `journal-assets/` | built bundle |
+| `settings-flyout.js` | repo root | **NEW** — the unified ◐ flyout (look, floor, scope, presets, seat accent, the absorbed cog). nav.js injects it post-auth. |
+| `nav.js` | repo root | theme dropdown + THEMES + ⚙ cog RETIRED; `data-theme` pinned to `phantom`; ◐ → `TokSettings.toggle`; injects settings-flyout.js; `__downloadCharacterJSON` exposed on window (the flyout calls it) |
+| `battle.js` | repo root | mobile Battle section retargets `#tokset-extra` (dropdown gone); listens for `tok:settings-ready` |
+| `journal.html` | repo root | fresh `?v=` stamp |
+| `journal-assets/journal.js` | `journal-assets/` | built bundle (contains this arc AND the shelf-fixes arc) |
 | `journal-assets/journal.css` | `journal-assets/` | built styles |
-| `journal/src/App.jsx` | same path | passes `isStaff` to ChronicleView |
-| `journal/src/ChronicleView.jsx` | same path | contained scroll, wheel + key travel, clamped spines, staff rename |
-| `journal/src/styles.css` | same path | `overflow: clip` on scope + view, spine containment, rename affordance |
-| `journal/src/shelf/shelfModel.js` | same path | `titles` override, `spine` clamp field |
-| `journal/src/data/supabase-adapter.js` | same path | `loadSessionTitles` / `saveSessionTitle` |
-| `journal/smoke-shelf.mjs` | same path | +7 assertions (titles, clamp) |
-| `journal/smoke-skin.mjs` | same path | +6 assertions (containment, wheel, arrows, field guard) |
-| `journal/.smoke-entry.jsx` | same path | **recreated** — the dotfile never survived the last web upload (GitHub's picker drops hidden files; drag it in explicitly or use "Create new file") |
+| `journal/src/shelf/shelfTheme.js` | same path | catalog → 10 inks / 10 papers (polarity flags), FLOOR 2.0, contrast + nudge + `resolveLookFor` (per-page, pure) |
+| `journal/src/App.jsx` | same path | `tok:look` listener; polarity attr on the scope; the interim strip switcher stands down when site chrome exists (kept for standalone previews) |
+| `journal/src/data/backend.js` | same path | boot resolves the journal page's effective look (default + override) for the flash-free first paint |
+| `journal/src/styles.css` | same path | dark-polarity grain/mottle flip (`multiply` dies on dark paper → `screen`) |
+| `journal/smoke-shelf.mjs` | same path | +11 assertions (catalog, floor, nudge, per-page resolution) |
+| `journal/smoke-skin.mjs` | same path | +5 (polarity, `tok:look` repaint, switcher stand-down) |
+| `smoke-settings-flyout.mjs` | repo root | **NEW** — the flyout under jsdom + the SYNC GUARD (rendered dots must match shelfTheme.js, in order). Successor to the cog smoke. |
+| `mock-settings-flyout.html` | repo root | the approved mock (26/26), kept for lineage |
 
-## The four fixes
+**DELETE from the repo:** `smoke-nav-cog-flyout.mjs` — retired with the cog
+it smoked (deliberate, the smoke-world-marks precedent).
 
-1. **Left-edge amputation (both tabs).** `scrollIntoView` walks every
-   clipping ancestor, and an `overflow: hidden` box scrolls
-   programmatically with no user way back — opening a rightward volume
-   shoved `.sh-scope` itself left and it stayed there across tab switches.
-   Now: `overflow: clip` (cannot scroll, ever) on `.sh-scope` and
-   `.sh-view`, and all shelf navigation scrolls **only `.sh-shelf`** via a
-   contained `scrollTo`. `scrollIntoView` is banned from this file.
-2. **Travel.** Vertical mouse wheel now drives the shelf horizontally
-   (an open panel that can still scroll vertically keeps the wheel).
-   With nothing open, ←/→ travel the shelf (previously dead — that was
-   the "stuck"). Keystrokes inside inputs/fields never drive the shelf.
-3. **Spine overflow.** Spine text is clamped at 44 chars in the model
-   (`vol.spine`; the panel keeps the full `vol.name`) and the spine box
-   is `overflow: hidden` + single-column, so a long vertical-rl title can
-   never wrap into extra columns and bleed across neighbors again.
-4. **Session titles.** The old title was "the first `meta.sessionTitle`
-   any feed row happened to carry" — unownable. Now `session_titles` is
-   canon, row meta is the fallback. Staff see a ✎ beside the panel title
-   (hover): inline rename, Enter saves, Esc cancels, blank reverts to the
-   fallback. Optimistic with revert; the upsert checks row count
-   (lesson 1). To fix Session 1: open it, ✎, type the real title.
+## The shape of the thing
 
-Note: chronicle.html's sidebar and the nightly export still read row-meta
-titles — untouched by design; both retire with increment 3.
+- **profiles.appearance stays flat and grows:** `{ ink, paper, accent, …,
+  pageLooks: {page:{ink,paper}}, lookPresets: [{name,ink,paper}] }`. All
+  writes are the replace-not-merge idiom (read current → merge → write the
+  WHOLE object) so the cog's backgrounds/effects keys survive untouched —
+  smoke-asserted.
+- **`tok:look`** is the contract: the flyout resolves the current page's
+  effective look and dispatches on boot + every change; the journal's scope
+  just paints what it's told. A localStorage mirror (`tok-look-cache`)
+  paints before the profile round-trip and carries signed-out sessions.
+- **The contrast floor is 2.0** (M), computed per pairing at render — Rose
+  clears Bone at 2.01:1. A paper switch that strands the held ink nudges to
+  the highest-contrast ink with a toast (my extension to the locked
+  direction; delete `nearestLegibleInk` usage in the paper handler to
+  revert to dim-only).
+- **Themes are archives now:** Parchment / Elysian / Disco / Phantom /
+  Phantom Night live as preset chips. `localStorage['kirtas-theme']` is
+  ignored; the SITE rides Phantom as its pinned base until the site-wide
+  color re-plumb arc maps the player's look onto theme.css tokens
+  (theme.css's `[data-theme]` blocks stay in place as archives — untouched).
+- **The cog's territory:** the flyout's Sheet section shows on pages that
+  wired appearance (or on sheet-v2), hosts `#appearance-drawer`, and calls
+  the SAME `AppearanceUI.mount()` — the appearance engine is untouched.
 
 ## Validation (all green at handover)
 
 smoke-journal 81 · smoke-org 14 · smoke-comments 26 · smoke-book 15 ·
-smoke-alias 14 · **smoke-shelf 44** (was 37) · **smoke-skin 31** (was 25).
-Vite build clean. SQL delta run twice on local PG 16.
-`journal-preview.html` regenerated for a no-deploy visual check.
+smoke-alias 14 · **smoke-shelf 62** (was 44) · **smoke-skin 36** (was 31) ·
+**smoke-settings-flyout 28** (new). Mock 26/26. Vite build clean.
+`journal-preview.html` regenerated. `node --check` on nav.js /
+settings-flyout.js / battle.js / all touched modules.
 
-Render-smoke rebuild line (unchanged):
-`npx esbuild .smoke-entry.jsx --bundle --format=esm --platform=browser --jsx=automatic --outfile=.smoke-app.mjs` then `node smoke-skin.mjs`.
-(`.smoke-app.mjs` is generated — don't commit it.)
+## Eyeball list, in order
+
+1. Any page: ◐ opens the flyout; no theme dropdown, no ⚙.
+2. Pick a dark paper — the ink auto-nudges if stranded, the toast says so.
+3. Save a look under a name; reload; it's still there (profile-persisted).
+4. "Only on Journal" + a different ink → journal repaints, party doesn't.
+5. journal.html: the top-strip switcher is GONE (the flyout owns it);
+   `journal-preview.html` standalone still shows it.
+6. sheet-v2: Download character + Sheet appearance both work from the
+   flyout's Sheet section.
+7. Mobile: the Battle section appears at the flyout's foot.

@@ -39,22 +39,13 @@ const PAGES = [
 ];
 
 
-// ── Available themes ──
-// Add new themes here after adding their variables to theme.css.
-// 'id' must match the [data-theme="id"] selector in theme.css.
-// 'color' is the swatch dot color shown in the dropdown.
-const THEMES = [
-  { id: 'parchment',     label: 'Parchment',     color: '#b8952a' },
-  { id: 'elysian',       label: 'Elysian',       color: '#8096dc' },
-  { id: 'disco',         label: 'Disco',         color: '#c8622a' },
-  { id: 'phantom',       label: 'Phantom',       color: '#c0001a' },
-  { id: 'phantom-night', label: 'Phantom Night', color: '#111009' },
-  // Add new themes here:
-  // { id: 'mytheme', label: 'My Theme', color: '#hexcolor' },
-];
-
-const STORAGE_KEY = 'kirtas-theme';
-const DEFAULT_THEME = 'parchment';
+// ── Themes: RETIRED (July 3) ──
+// The data-theme system stood down: themes demoted to ink+paper PRESETS in
+// the ◐ Settings flyout (settings-flyout.js — see "From the archives").
+// The site rides Phantom as its fixed base until the site-wide color
+// re-plumb arc maps the player's look onto theme.css tokens. The old
+// [data-theme] blocks stay in theme.css as archives — do not delete.
+const PINNED_THEME = 'phantom';
 
 
 // ── Characters for the sheet switcher ──
@@ -73,55 +64,36 @@ function getActivePath() {
 }
 
 
-// ── Load saved theme ──
-function getSavedTheme() {
-  try { return localStorage.getItem(STORAGE_KEY) || DEFAULT_THEME; }
-  catch(e) { return DEFAULT_THEME; }
-}
+// ── Apply the pinned base theme ──
+// Phantom's fonts still lazy-load; the dropdown UI it once refreshed is gone.
+function applyTheme() {
+  document.documentElement.setAttribute('data-theme', PINNED_THEME);
 
-
-// ── Apply theme to document ──
-function applyTheme(themeId) {
-  const valid = THEMES.find(t => t.id === themeId);
-  const id = valid ? themeId : DEFAULT_THEME;
-  document.documentElement.setAttribute('data-theme', id);
-  try { localStorage.setItem(STORAGE_KEY, id); } catch(e) {}
-
-  // Lazy-load Phantom fonts only when needed
-  if (id === 'phantom' || id === 'phantom-night') {
-    if (!document.getElementById('font-barlow')) {
-      const l = document.createElement('link');
-      l.id = 'font-barlow'; l.rel = 'stylesheet';
-      l.href = 'https://fonts.googleapis.com/css2?family=Barlow+Condensed:ital,wght@0,400;0,700;0,900;1,700;1,900&display=swap';
-      document.head.appendChild(l);
-    }
-    if (!document.getElementById('font-eb-garamond')) {
-      const l = document.createElement('link');
-      l.id = 'font-eb-garamond'; l.rel = 'stylesheet';
-      l.href = 'https://fonts.googleapis.com/css2?family=EB+Garamond:ital,wght@0,400;0,500;1,400;1,500&display=swap';
-      document.head.appendChild(l);
-    }
-    if (!document.getElementById('font-source-serif')) {
-      const l = document.createElement('link');
-      l.id = 'font-source-serif'; l.rel = 'stylesheet';
-      l.href = 'https://fonts.googleapis.com/css2?family=Source+Serif+4:ital,wght@0,400;1,400&display=swap';
-      document.head.appendChild(l);
-    }
+  // Lazy-load Phantom fonts (the pinned base needs them)
+  if (!document.getElementById('font-barlow')) {
+    const l = document.createElement('link');
+    l.id = 'font-barlow'; l.rel = 'stylesheet';
+    l.href = 'https://fonts.googleapis.com/css2?family=Barlow+Condensed:ital,wght@0,400;0,700;0,900;1,700;1,900&display=swap';
+    document.head.appendChild(l);
   }
-
-  // Update dropdown UI if it exists
-  document.querySelectorAll('.theme-option').forEach(el => {
-    const isActive = el.dataset.theme === id;
-    el.classList.toggle('active', isActive);
-    el.querySelector('.theme-check').style.opacity = isActive ? '1' : '0';
-  });
+  if (!document.getElementById('font-eb-garamond')) {
+    const l = document.createElement('link');
+    l.id = 'font-eb-garamond'; l.rel = 'stylesheet';
+    l.href = 'https://fonts.googleapis.com/css2?family=EB+Garamond:ital,wght@0,400;0,500;1,400;1,500&display=swap';
+    document.head.appendChild(l);
+  }
+  if (!document.getElementById('font-source-serif')) {
+    const l = document.createElement('link');
+    l.id = 'font-source-serif'; l.rel = 'stylesheet';
+    l.href = 'https://fonts.googleapis.com/css2?family=Source+Serif+4:ital,wght@0,400;1,400&display=swap';
+    document.head.appendChild(l);
+  }
 }
 
 
 // ── Build nav HTML ──
 function buildNav() {
   const activePath   = getActivePath();
-  const currentTheme = getSavedTheme();
   const isSheet      = activePath === 'sheet-v2.html';
   const activeChar   = isSheet ? (new URLSearchParams(window.location.search)).get('character') || '' : '';
 
@@ -148,17 +120,6 @@ function buildNav() {
         </a>`).join('')}
     </div>` : '';
 
-  const themeOptions = THEMES.map(theme => `
-    <div class="theme-option${currentTheme === theme.id ? ' active' : ''}"
-         data-theme="${theme.id}"
-         onclick="applyTheme('${theme.id}'); toggleThemeDropdown(event)">
-      <span class="theme-dot" style="background:${theme.color}"></span>
-      <span class="theme-name">${theme.label}</span>
-      <span class="theme-check" style="opacity:${currentTheme === theme.id ? '1' : '0'}">✓</span>
-    </div>
-  `).join('');
-
-  const onSheet = getActivePath() === 'sheet-v2.html';
   return `
     <nav id="site-nav">
       <a href="index.html" class="nav-brand">Kirtas</a>
@@ -169,38 +130,10 @@ function buildNav() {
       <div class="nav-theme-wrap" id="nav-theme-wrap">
         <button id="battle-btn" title="Toggle battle mode" onclick="window.__battle&&window.__battle.toggleBattle()">⚔</button>
         <button class="nav-theme-btn"
-                onclick="toggleThemeDropdown(event)"
-                title="Change theme"
-                aria-label="Change site theme">◐</button>
-        <button class="nav-appearance-btn"
-                onclick="toggleCogFlyout(event)"
+                onclick="window.TokSettings&&window.TokSettings.toggle(event)"
                 title="Settings"
-                aria-label="Settings">⚙</button>
-        <div class="cog-flyout" id="cog-flyout" hidden onclick="event.stopPropagation()" aria-label="Settings">
-          <div class="fly-pane on" id="cog-pane-menu">
-            ${onSheet ? `<button class="m-row" id="cog-row-download" type="button" onclick="toggleCogDownload(event)">
-              <span class="ic"><span class="g">⤓</span>Download character</span><span class="car">▸</span>
-            </button>
-            <div class="subacts" id="cog-sub-download">
-              <button class="sub-a" type="button" onclick="event.stopPropagation();__cogClose();window.print()">Print / PDF</button>
-              <button class="sub-a" type="button" onclick="event.stopPropagation();__downloadCharacterJSON(this)">Download JSON</button>
-            </div>` : ''}
-            <button class="m-row" id="cog-row-settings" type="button" onclick="cogOpenSettings(event)">
-              <span class="ic"><span class="g">⚙</span>Sheet settings</span><span class="car">▸</span>
-            </button>
-          </div>
-          <div class="fly-pane" id="cog-pane-appearance">
-            <div class="fly-head">
-              <button class="fly-back" type="button" onclick="event.stopPropagation();cogShowPane('menu')" title="Back" aria-label="Back">‹</button>
-              <span class="fly-title">Sheet settings</span>
-            </div>
-            <div class="appearance-drawer" id="appearance-drawer" aria-label="Appearance settings"></div>
-          </div>
-        </div>
-        <div class="theme-dropdown" id="theme-dropdown">
-          <div class="theme-dropdown-label">Theme</div>
-          ${themeOptions}
-        </div>
+                aria-expanded="false"
+                aria-label="Settings">◐</button>
       </div>
       <!-- "Your Character" menu — opened by the Party caret. Lives at nav level
            (not inside .nav-links) and is position:fixed, JS-placed on open, so
@@ -215,17 +148,8 @@ function buildNav() {
 }
 
 
-// ── Theme dropdown toggle ──
-let dropdownOpen = false;
-
-function toggleThemeDropdown(e) {
-  e.stopPropagation();
-  dropdownOpen = !dropdownOpen;
-  const dropdown = document.getElementById('theme-dropdown');
-  if (dropdown) dropdown.classList.toggle('open', dropdownOpen);
-}
-
-// Character JSON export — a portable snapshot, triggered from the cog flyout's Download menu.
+// Character JSON export — a portable snapshot, now triggered from the ◐
+// Settings flyout's Download menu (settings-flyout.js calls this global).
 function __downloadCharacterJSON(btn) {
   if (typeof CharacterData === 'undefined' || !CharacterData.loadCharacter) return;
   const key = new URLSearchParams(location.search).get('character') || 'cosmere';
@@ -238,60 +162,22 @@ function __downloadCharacterJSON(btn) {
     document.body.appendChild(a); a.click(); a.remove();
     setTimeout(function () { URL.revokeObjectURL(url); }, 0);
     if (btn) { btn.textContent = label; btn.disabled = false; }
-    __cogClose();
+    if (window.TokSettings) window.TokSettings.close();
   }).catch(function () {
     if (btn) { btn.textContent = 'Export failed'; setTimeout(function () { btn.textContent = label; btn.disabled = false; }, 1600); }
   });
 }
+window.__downloadCharacterJSON = __downloadCharacterJSON;
 
-// ==== COG FLYOUT (start) ====
-// Cog settings flyout (themed pages) — folds Download (sheet only) + Sheet settings
-// into one ⚙ menu with a drill-in to the appearance panel. The appearance pane hosts
-// nav's #appearance-drawer; appearance-boot.js builds it on demand via AppearanceUI.mount().
-let cogFlyoutOpen = false;
-function __cogPane(p) {
-  const m = document.getElementById('cog-pane-menu'), a = document.getElementById('cog-pane-appearance');
-  if (m) m.classList.toggle('on', p === 'menu');
-  if (a) a.classList.toggle('on', p === 'ap');
-}
-function cogShowPane(p) { __cogPane(p); }
-function __cogClose() {
-  cogFlyoutOpen = false;
-  const f = document.getElementById('cog-flyout'); if (f) f.hidden = true;
-}
-function toggleCogFlyout(e) {
-  if (e) e.stopPropagation();
-  cogFlyoutOpen = !cogFlyoutOpen;
-  const f = document.getElementById('cog-flyout'); if (!f) return;
-  f.hidden = !cogFlyoutOpen;
-  if (cogFlyoutOpen) {
-    __cogPane('menu');                                                       // always open on the menu pane
-    const r = document.getElementById('cog-row-download'), s = document.getElementById('cog-sub-download');
-    if (r) r.classList.remove('open'); if (s) s.classList.remove('open');    // collapse the download accordion
-  }
-  dropdownOpen = false;                                                      // close the theme dropdown if open
-  const td = document.getElementById('theme-dropdown'); if (td) td.classList.remove('open');
-}
-function toggleCogDownload(e) {
-  if (e) e.stopPropagation();
-  const r = document.getElementById('cog-row-download'), s = document.getElementById('cog-sub-download');
-  if (r) r.classList.toggle('open'); if (s) s.classList.toggle('open');
-}
-function cogOpenSettings(e) {
-  if (e) e.stopPropagation();
-  if (window.AppearanceUI && window.AppearanceUI.mount) window.AppearanceUI.mount();   // build the panel if needed
-  __cogPane('ap');
-}
-// ==== COG FLYOUT (end) ====
+// ==== COG FLYOUT: RETIRED (July 3) ====
+// The ⚙ cog and the theme dropdown both folded into the ◐ Settings flyout
+// (settings-flyout.js). #appearance-drawer now lives inside that flyout;
+// AppearanceUI.mount() is invoked from its Sheet section. The old cog smoke
+// (smoke-nav-cog-flyout.mjs) retires with it — smoke-settings-flyout.mjs is
+// the successor.
 
 // Close on outside click
 document.addEventListener('click', () => {
-  if (dropdownOpen) {
-    dropdownOpen = false;
-    const dropdown = document.getElementById('theme-dropdown');
-    if (dropdown) dropdown.classList.remove('open');
-  }
-  if (cogFlyoutOpen) __cogClose();
   if (charMenuOpen) closeCharMenu();
 });
 
@@ -494,133 +380,6 @@ function injectNavStyles() {
       background: rgba(184,149,42,0.2);
       border-color: var(--gold-mid);
     }
-    .nav-appearance-btn {
-      display: none;
-      width: 28px; height: 28px;
-      align-items: center; justify-content: center;
-      background: var(--gold-dim);
-      border: 1px solid var(--gold-dim);
-      color: var(--gold);
-      font-size: 0.92rem;
-      cursor: pointer; padding: 0; line-height: 1;
-      transition: background 0.2s, border-color 0.2s;
-    }
-    html.has-appearance .nav-appearance-btn { display: inline-flex; }
-    .nav-appearance-btn:hover { background: rgba(184,149,42,0.2); border-color: var(--gold-mid); }
-    /* the settings cog stays available on mobile too - it now hosts Download */
-    /* export UI moved into the cog flyout (.cog-flyout / .m-row / .sub-a) */
-    /* the appearance panel now renders inside the cog flyout's settings pane */
-    .appearance-drawer {
-      width: 100%; max-height: calc(100vh - 150px); overflow-y: auto;
-      padding: 14px 14px 15px; background: transparent;
-    }
-    .appearance-drawer:empty { display: none; }
-
-    /* ── cog settings flyout ── */
-    .cog-flyout {
-      position: absolute; top: 36px; right: 0; width: 300px;
-      background: var(--nav-bg); border: 1px solid var(--nav-border);
-      box-shadow: 0 22px 50px -22px rgba(0,0,0,0.8);
-      overflow: hidden; z-index: 9999;
-    }
-    .cog-flyout[hidden] { display: none; }
-    .fly-pane { display: none; }
-    .fly-pane.on { display: block; }
-    .m-row {
-      display: flex; align-items: center; justify-content: space-between; width: 100%;
-      background: none; border: 0; border-bottom: 1px solid var(--nav-border);
-      color: var(--aged); font-family: var(--font-title); font-size: 0.78rem; letter-spacing: 0.03em;
-      padding: 0.74rem 0.85rem; cursor: pointer; text-align: left;
-      transition: background 0.15s, color 0.15s;
-    }
-    .m-row:last-child { border-bottom: 0; }
-    .m-row:hover { background: var(--gold-dim); color: var(--gold-light); }
-    .m-row .ic { display: flex; align-items: center; gap: 10px; }
-    .m-row .ic .g { color: var(--gold); width: 16px; text-align: center; }
-    .m-row .car { color: var(--muted); font-size: 0.74rem; transition: transform 0.18s; }
-    .m-row.open .car { transform: rotate(90deg); color: var(--gold); }
-    .subacts { max-height: 0; overflow: hidden; transition: max-height 0.22s ease; background: rgba(0,0,0,0.22); }
-    .subacts.open { max-height: 140px; }
-    .sub-a {
-      display: block; width: 100%; background: none; border: 0; border-bottom: 1px solid var(--nav-border);
-      color: var(--aged); font-family: var(--font-title); font-size: 0.68rem; letter-spacing: 0.04em;
-      padding: 0.62rem 0.85rem 0.62rem 2.45rem; cursor: pointer; text-align: left;
-      transition: background 0.15s, color 0.15s;
-    }
-    .sub-a:last-child { border-bottom: 0; }
-    .sub-a:hover { background: var(--gold-dim); color: var(--gold-light); }
-    .sub-a[disabled] { opacity: 0.6; cursor: default; }
-    .fly-head {
-      display: flex; align-items: center; gap: 10px; padding: 0.55rem 0.7rem;
-      border-bottom: 1px solid var(--nav-border); background: rgba(0,0,0,0.2);
-    }
-    .fly-back { background: none; border: 0; color: var(--gold); font-size: 1.15rem; cursor: pointer; padding: 0 2px; line-height: 1; }
-    .fly-back:hover { color: var(--gold-light); }
-    .fly-title { font-family: var(--font-title); font-size: 0.62rem; letter-spacing: 0.16em; text-transform: uppercase; color: var(--gold); }
-
-    .theme-dropdown {
-      position: absolute;
-      top: 36px;
-      right: 0;
-      background: var(--nav-bg);
-      border: 1px solid var(--nav-border);
-      min-width: 130px;
-      opacity: 0;
-      pointer-events: none;
-      transform: translateY(-6px);
-      transition: opacity 0.18s ease, transform 0.18s ease;
-      z-index: 200;
-    }
-    .theme-dropdown.open {
-      opacity: 1;
-      pointer-events: auto;
-      transform: translateY(0);
-    }
-
-    .theme-dropdown-label {
-      font-family: var(--font-title);
-      font-size: 0.48rem;
-      letter-spacing: 0.35em;
-      color: var(--muted);
-      text-transform: uppercase;
-      padding: 0.5rem 0.75rem 0.3rem;
-      border-bottom: 1px solid var(--gold-dim);
-      margin-bottom: 0.25rem;
-    }
-
-    .theme-option {
-      display: flex;
-      align-items: center;
-      gap: 0.5rem;
-      padding: 0.3rem 0.75rem;
-      cursor: pointer;
-      transition: background 0.15s;
-    }
-    .theme-option:hover { background: var(--gold-dim); }
-    .theme-option.active { background: rgba(184,149,42,0.08); }
-
-    .theme-dot {
-      width: 10px;
-      height: 10px;
-      border-radius: 50%;
-      flex-shrink: 0;
-    }
-    .theme-name {
-      font-family: var(--font-title);
-      font-size: 0.55rem;
-      letter-spacing: 0.12em;
-      text-transform: uppercase;
-      color: var(--aged);
-      flex: 1;
-    }
-    .theme-option.active .theme-name { color: var(--gold-light); }
-
-    .theme-check {
-      font-size: 0.6rem;
-      color: var(--gold);
-      transition: opacity 0.15s;
-    }
-
     /* ── "Your Character" menu (Party caret) ── */
     .nav-party-item {
       display: inline-flex;
@@ -784,13 +543,25 @@ function mountRail() {
   document.body.appendChild(s);
 }
 
+// ── Mount the ◐ Settings flyout module ──
+// settings-flyout.js owns the unified Settings surface (look, presets, seat
+// accent, the absorbed cog). Injected like the rail: once, after auth.
+function mountSettings() {
+  if (document.getElementById('tok-settings-js')) return;   // inject once
+  const s = document.createElement('script');
+  s.id = 'tok-settings-js';
+  s.src = 'settings-flyout.js';
+  s.defer = true;
+  document.body.appendChild(s);
+}
+
 
 // ── Init ──
 // Theme applies immediately so the page never flickers to the wrong colours.
 // Nav mount waits for the session check (~200ms) so unauthenticated users are
 // redirected before the nav renders — no flash-then-kick.
 injectNavStyles();
-applyTheme(getSavedTheme());
+applyTheme();
 
 (async function initNav() {
   // Supabase config — scoped locally so these can never collide with
@@ -928,6 +699,7 @@ applyTheme(getSavedTheme());
     mountNav();
     populateCharMenu();   // reveals the Party caret + fills it once __tok resolves
     mountRail();          // the universal right-side rail (Feed/Sheet/…), like the HUD
+    mountSettings();      // the ◐ Settings flyout (settings-flyout.js)
     dropVeil();
   } catch (e) {
     // Couldn't verify the session (e.g. the Supabase client failed to load).

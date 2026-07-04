@@ -689,8 +689,11 @@
 
     if (isMobile()) {
       if(document.getElementById('battle-mobile-section')) return;
-      const dropdown=document.getElementById('theme-dropdown');
+      // the theme dropdown retired (July 3) — the ◐ Settings flyout hosts a
+      // #tokset-extra slot for exactly this; old id kept as a fallback
+      const dropdown=document.getElementById('tokset-extra')||document.getElementById('theme-dropdown');
       if(!dropdown) return;
+      dropdown.hidden=false;
       const section=document.createElement('div');
       section.id='battle-mobile-section';
       section.innerHTML=`
@@ -1581,5 +1584,9 @@
   function bootBattle(){ if(_battleBooted) return; _battleBooted = true; init(); }
   if (document.getElementById('site-nav')) bootBattle();
   else document.addEventListener('nav:ready', bootBattle, { once: true });
+  // the ◐ Settings flyout builds AFTER nav:ready (settings-flyout.js is
+  // injected post-auth) — when its #tokset-extra slot appears, re-run the
+  // mobile injection so the Battle section lands in the flyout.
+  document.addEventListener('tok:settings-ready', () => { if (_battleBooted) injectNav(); }, { once: true });
 
 })();
