@@ -351,6 +351,12 @@
       '#tok-settings .ts-flagtxt{font-family:"EB Garamond",Georgia,serif;font-style:italic;font-size:12.5px;color:var(--ts-soft);line-height:1.35}',
       '#tok-settings[data-polarity="dark"]{text-shadow:0 1px 2px rgba(0,0,0,.45)}',
       '#tok-settings[data-polarity="dark"] .ts-scope-btn.is-on,#tok-settings[data-polarity="dark"] .ts-saveas button{text-shadow:none}',
+      '#tok-settings .ts-sec-head{display:flex;align-items:center;justify-content:space-between;width:100%;gap:10px}',
+      '#tok-settings .ts-sec-head .ts-lbl{margin:0}',
+      '#tok-settings .ts-sec-head .ts-car{color:var(--ts-faint);font-size:11px;transition:transform .15s ease}',
+      '#tok-settings .ts-sec-head.is-open .ts-car{transform:rotate(90deg)}',
+      '#tok-settings .ts-sec-body{display:none;margin-top:11px}',
+      '#tok-settings .ts-sec-body.open{display:block}',
       '.ts-toast{position:fixed;bottom:20px;left:50%;transform:translateX(-50%) translateY(60px);background:#121009;color:#e9e4d6;font-size:11px;letter-spacing:.06em;padding:9px 15px;opacity:0;transition:transform .3s ease,opacity .3s ease;z-index:1300;max-width:92vw;text-align:center;font-family:"Archivo",Helvetica,Arial,sans-serif;line-height:1.4}',
       '.ts-toast.is-on{transform:translateX(-50%) translateY(0);opacity:1}',
     ].join('\n');
@@ -555,8 +561,9 @@
     var onSheet = PAGE === 'sheet-v2';
     root.innerHTML = [
       '<div class="ts-head"><span class="ts-title">Settings</span><span class="ts-sub">per-reader · saved to your seat</span></div>',
-      '<section class="ts-sec">',
-      '  <div class="ts-lbl">Look <span class="h" id="ts-pair"></span></div>',
+      '<section class="ts-sec" data-sec="look">',
+      '  <button type="button" class="ts-sec-head"><span class="ts-lbl">Look <span class="h" id="ts-pair"></span></span><span class="ts-car">▸</span></button>',
+      '  <div class="ts-sec-body">',
       '  <div class="ts-row"><span class="ts-axis">Ink</span><span id="ts-inks" style="display:contents"></span></div>',
       '  <div class="ts-row"><span class="ts-axis">Paper</span><span id="ts-papers" style="display:contents"></span></div>',
       '  <div class="ts-scope" id="ts-scope">',
@@ -589,20 +596,26 @@
       '      <button type="button" class="ts-scope-btn" id="ts-replumb">Off</button>',
       '    </div>',
       '  </div>',
+      '  </div>',
       '</section>',
-      '<section class="ts-sec">',
-      '  <div class="ts-lbl">Presets</div>',
+      '<section class="ts-sec" data-sec="presets">',
+      '  <button type="button" class="ts-sec-head"><span class="ts-lbl">Presets</span><span class="ts-car">▸</span></button>',
+      '  <div class="ts-sec-body">',
       '  <div class="ts-kick">Yours</div><div class="ts-presets" id="ts-mine"></div>',
       '  <div class="ts-saveas"><input id="ts-savename" type="text" placeholder="Save current look as…" maxlength="24" aria-label="Preset name"><button type="button" id="ts-savebtn">Save</button></div>',
       '  <div class="ts-kick">The house</div><div class="ts-presets" id="ts-house"></div>',
       '  <div class="ts-kick">From the archives — the old themes</div><div class="ts-presets" id="ts-arch"></div>',
+      '  </div>',
       '</section>',
-      '<section class="ts-sec">',
-      '  <div class="ts-lbl">Seat accent <span class="h">your chips, everywhere</span></div>',
+      '<section class="ts-sec" data-sec="seat">',
+      '  <button type="button" class="ts-sec-head"><span class="ts-lbl">Seat accent <span class="h">your chips, everywhere</span></span><span class="ts-car">▸</span></button>',
+      '  <div class="ts-sec-body">',
       '  <div class="ts-row" id="ts-accents" style="margin:0"></div>',
+      '  </div>',
       '</section>',
-      '<section class="ts-sec" id="ts-sheet-sec">',
-      '  <div class="ts-lbl">Sheet</div>',
+      '<section class="ts-sec" id="ts-sheet-sec" data-sec="sheet">',
+      '  <button type="button" class="ts-sec-head"><span class="ts-lbl">Sheet</span><span class="ts-car">▸</span></button>',
+      '  <div class="ts-sec-body">',
       (onSheet
         ? '  <button class="ts-mrow" type="button" id="ts-row-download"><span>⤓&nbsp; Download character</span><span class="car">▸</span></button>'
           + '<div class="ts-subacts" id="ts-sub-download">'
@@ -612,6 +625,7 @@
       '  <button class="ts-mrow" type="button" id="ts-row-appearance" hidden><span>⚙&nbsp; Sheet appearance</span><span class="car">▸</span></button>',
       '  <div class="ts-sheet-drawer ts-subacts" id="ts-sheet-drawer"><div class="appearance-drawer" id="appearance-drawer" aria-label="Appearance settings"></div></div>',
       '  <a class="ts-pointer" id="ts-sheet-pointer" href="sheet-v2.html" hidden>Backdrops, geometry &amp; effects are sheet-page settings — they live on your character sheet →</a>',
+      '  </div>',
       '</section>',
       '<section class="ts-sec" id="tokset-extra" hidden></section>',
     ].join('\n');
@@ -632,6 +646,28 @@
         persist(); announce();
       }
       render();
+    });
+
+    // collapsible sections (July 4, M): everything closed on open, click a
+    // header to expand; the arrangement is remembered locally (never a
+    // profile key — it's furniture, not identity)
+    var SECS_KEY = 'tok-flyout-open';
+    function readSecs() { try { return JSON.parse(localStorage.getItem(SECS_KEY)) || {}; } catch (e) { return {}; } }
+    function setSec(sec, on) {
+      var head = sec.querySelector('.ts-sec-head'), body = sec.querySelector('.ts-sec-body');
+      if (!head || !body) return;
+      head.classList.toggle('is-open', on);
+      body.classList.toggle('open', on);
+    }
+    var openSecs = readSecs();
+    root.querySelectorAll('.ts-sec[data-sec]').forEach(function (sec) {
+      setSec(sec, !!openSecs[sec.dataset.sec]);
+      sec.querySelector('.ts-sec-head').addEventListener('click', function () {
+        var on = !sec.querySelector('.ts-sec-body').classList.contains('open');
+        setSec(sec, on);
+        openSecs[sec.dataset.sec] = on;
+        try { localStorage.setItem(SECS_KEY, JSON.stringify(openSecs)); } catch (e) { /* mirror only */ }
+      });
     });
 
     // finish machinery (July 4): drawer, axis chips, the site-wide opt-in
@@ -701,7 +737,12 @@
     });
     document.addEventListener('click', function (e) {
       if (!open) return;
-      if (root.contains(e.target)) return;
+      // composedPath, NOT contains: render() rebuilds rows via innerHTML,
+      // DETACHING the clicked dot while its event is still bubbling — a
+      // detached target fails contains() and the flyout closed on every
+      // pick (July 4, M). The path is captured at dispatch and immune.
+      var path = e.composedPath ? e.composedPath() : [];
+      if (path.indexOf(root) !== -1 || root.contains(e.target)) return;
       if (e.target.closest && e.target.closest('.nav-theme-btn')) return;
       close();
     });

@@ -319,6 +319,40 @@ qq('#ts-inks .ts-dot').find(dd => dd.title === 'Ink: Forest').click()
 await new Promise(r => setTimeout(r, 10))
 t('the hint fires once per session, not on every pick', toastEl2.textContent === 'x')
 
+// collapsible sections (July 4): closed on open, header expands, remembered
+t('all four sections ship closed', qq('.ts-sec[data-sec] .ts-sec-body.open').length === 0)
+const lookSec = q('.ts-sec[data-sec="look"]')
+lookSec.querySelector('.ts-sec-head').click()
+t('a header click opens its section, caret follows',
+  lookSec.querySelector('.ts-sec-body').classList.contains('open')
+  && lookSec.querySelector('.ts-sec-head').classList.contains('is-open'))
+t('the arrangement is remembered locally',
+  JSON.parse(w2.localStorage.getItem('tok-flyout-open')).look === true)
+
+// THE DETACH-CLOSE REGRESSION (July 4, M): a dot click re-renders the row,
+// detaching the clicked dot mid-bubble — the flyout must stay open
+t('flyout is open before the pick', q('#tok-settings').classList.contains('is-open'))
+const pickDot = qq('#ts-inks .ts-dot').find(dd => dd.title === 'Ink: Sepia')
+pickDot.dispatchEvent(new w2.MouseEvent('click', { bubbles: true }))
+await new Promise(r => setTimeout(r, 10))
+t('picking a dot NO LONGER closes the flyout (composedPath survives the re-render)',
+  q('#tok-settings').classList.contains('is-open'))
+qq('#ts-fins .ts-fin').find(f => f.dataset.fin === 'stage').dispatchEvent(new w2.MouseEvent('click', { bubbles: true }))
+await new Promise(r => setTimeout(r, 10))
+t('picking a finish keeps it open too — rapid click-through works',
+  q('#tok-settings').classList.contains('is-open'))
+// a genuine outside click still closes
+d2.body.dispatchEvent(new w2.MouseEvent('click', { bubbles: true }))
+await new Promise(r => setTimeout(r, 10))
+t('a genuine outside click still closes', !q('#tok-settings').classList.contains('is-open'))
+w2.TokSettings.open()
+await new Promise(r => setTimeout(r, 10))
+t('reopened: the Look section stayed open from the remembered arrangement',
+  lookSec.querySelector('.ts-sec-body').classList.contains('open'))
+// restore Print for the save-as assertions below (the block above moved to Stage)
+qq('#ts-fins .ts-fin').find(f => f.dataset.fin === 'print').click()
+await new Promise(r => setTimeout(r, 10))
+
 // save-as captures the style; the personal chip restores it
 q('#ts-savename').value = 'Gilded Sumi'
 q('#ts-savebtn').click()

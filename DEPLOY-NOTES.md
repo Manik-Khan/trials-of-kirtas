@@ -1,4 +1,4 @@
-# tok-finishes-v2.zip — the Look finishes + the re-plumb switch
+# tok-finishes-v3.zip — the Look finishes + the re-plumb switch
 July 4 · mock v4 approved → built
 
 ## Files (upload all five to the repo root)
@@ -57,3 +57,17 @@ sync guard, replace-not-merge, stranding nudge, July 3 armor).
   is engineered to look like Phantom. Test with a LOUD pairing: flip
   site-wide ON, pick Pine paper — the page should go dark instantly.
   Console check: document.documentElement.style.getPropertyValue('--ink')
+
+## v3 patch (July 4, after M's click-through report)
+- settings-flyout.js: FIXED the close-on-every-pick bug — render() rebuilds
+  rows via innerHTML, detaching the clicked dot mid-bubble, so the
+  outside-click handler's contains() saw a detached target and closed.
+  composedPath() (captured at dispatch) is immune. Rapid click-through and
+  in-flyout previewing now work.
+- settings-flyout.js: the four sections (Look / Presets / Seat accent /
+  Sheet) are now collapsible — all closed on open, header click expands,
+  arrangement remembered in localStorage (furniture, not identity — never
+  a profile key).
+- nav.js: SETTINGS_V 4 → 5.
+- smoke: 58 assertions (detach-close regression, rapid click-through,
+  genuine outside click still closes, sections closed/remembered).
