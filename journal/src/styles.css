@@ -77,6 +77,15 @@ body:not(:has(#site-nav)) .sh-scope { height: 100dvh; } /* standalone preview */
    black) — dark papers flip grain/mottle to screen at reduced strength */
 .sh-scope[data-polarity="dark"] .sh-mottle { mix-blend-mode: screen; opacity: 0.05; }
 .sh-scope[data-polarity="dark"] .sh-grain { mix-blend-mode: screen; opacity: 0.06; }
+/* legibility lift (M, July 3): light ink on dark ground reads faint at the
+   2.0 floor — a soft dark shadow gives the letters an edge. Reset on
+   inverted elements (ink chips carrying paper-colored text). */
+.sh-scope[data-polarity="dark"] { text-shadow: 0 1px 3px rgba(0, 0, 0, 0.55); }
+.sh-scope[data-polarity="dark"] .sh-p-tag,
+.sh-scope[data-polarity="dark"] .sh-tag-new,
+.sh-scope[data-polarity="dark"] .sh-medallion,
+.sh-scope[data-polarity="dark"] .sh-entry-badge,
+.sh-scope[data-polarity="dark"] .sh-entry-med { text-shadow: none; }
 .sh-grain {
   background-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='300' height='300'><filter id='g'><feTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='2' seed='3' stitchTiles='stitch'/><feColorMatrix type='saturate' values='0'/></filter><rect width='100%25' height='100%25' filter='url(%23g)'/></svg>");
   background-size: 300px 300px;
