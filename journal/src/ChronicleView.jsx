@@ -1,81 +1,71 @@
-// The Chronicle as the shared book — the redesign mock.
-// Sessions are chapters. Entries from every character weave in
-// chronological order, each carrying character · player, per-character
-// accent, and provenance (from a journal / shared after the fact).
-// Each chapter indexes who and where appears; clicking a thread dims
-// everything that doesn't touch it — the backlink query at book scale.
+// The Chronicle as the SHELF — the approved mock-chronicle-shelf-2 built
+// over real data. Sessions are vertical book spines, chronological left →
+// right; the clicked spine expands IN PLACE (the Miranda accordion) to a
+// reading panel that scrolls internally while the shelf stays standing on
+// both sides. Reading layer ONLY: bookModel is untouched, writing stays in
+// chronicle.html until increment 3.
+//
+// Seat paint resolves through accents.js at render — the mock's baked seat
+// hexes were placeholders. Ink/paper come from the .sh-scope tokens App
+// applies (per-reader, persisted via set_my_appearance).
 
-import React, { useEffect, useMemo, useState } from 'react'
-import { CHRONICLE, parseRefsFromHTML } from './data/chronicleSample.js'
+import React, { useEffect, useMemo, useRef, useState } from 'react'
+import { CHRONICLE } from './data/chronicleSample.js'
 import { buildBook } from './data/bookModel.js'
+import { chaptersToVolumes, nextOpen, keyOpen } from './shelf/shelfModel.js'
 import { seatColor } from './comments/accents.js'
 
 const fmtTime = ts => new Date(ts).toLocaleTimeString(undefined, { hour: 'numeric', minute: '2-digit' })
+const entrySeat = e => e.seat || e.characterKey || 'narrator'
 
-function ThreadChips({ refs, selected, onPick }) {
-  return refs.map(r => {
-    const k = `${r.type}:${r.id}`
-    return (
-      <button
-        type="button" key={k}
-        className={`j-ref-chip is-${r.type} ${selected === k ? 'is-active' : ''}`}
-        title={`follow this thread — dim entries that don't mention ${r.label}`}
-        onClick={() => onPick(selected === k ? null : k)}
-      >
-        {r.type === 'npc' ? '👤' : '📍'} {r.label}
-      </button>
-    )
-  })
+function Medallions({ vol, accents, row = false }) {
+  return (
+    <span className={`sh-medallions ${row ? 'is-row' : ''}`}>
+      {vol.seats.map(s => (
+        <span key={s} className="sh-medallion" title={vol.seatNames[s]}
+          style={{ background: seatColor(s, accents) }}>
+          {(vol.seatNames[s] || '?').charAt(0)}
+        </span>
+      ))}
+    </span>
+  )
 }
 
-function ChronicleEntry({ e, dimmed, accents }) {
-  const accent = seatColor(e.seat || e.characterKey, accents)
-  if (e.kind === 'narrator') {
-    return (
-      <div className={`jc-narr ${dimmed ? 'is-dim' : ''}`}>
-        <div className="jc-narr-rule" />
-        <div className="jc-narr-body c-entry-text" dangerouslySetInnerHTML={{ __html: e.html }} />
-        <div className="jc-narr-meta" title={`written by ${e.player}`}>
-          Narrator<span className="jc-player-reveal"> · {e.player}</span> · {fmtTime(e.at)}
-        </div>
-      </div>
-    )
-  }
+function PanelEntry({ e, accents }) {
+  const seat = entrySeat(e)
+  const accent = seatColor(seat, accents)
   return (
-    <article className={`jc-entry ${dimmed ? 'is-dim' : ''}`} style={{ '--accent': accent }}>
-      <header className="jc-entry-head">
-        <span className="jc-entry-who" title={`written by ${e.player}`}>
-          <span className="jc-medallion" aria-hidden="true">{(e.character || '?').charAt(0)}</span>
-          {e.character}<span className="jc-player-reveal"> · {e.player}</span>
-        </span>
-        <span className="jc-entry-meta">
-          {e.fromJournal && <span className="jc-badge" title={`shared from the journal page “${e.fromJournal}”`}>📄 from journal</span>}
-          {e.sharedLate && <span className="jc-badge is-late" title="published after the session, placed at its written-at time">⏱ {typeof e.sharedLate === 'string' ? e.sharedLate : 'shared later'}</span>}
-          <span className="j-entry-when">{fmtTime(e.at)}</span>
-        </span>
-      </header>
-      <div className="jc-entry-body c-entry-text" dangerouslySetInnerHTML={{ __html: e.html }} />
+    <article className="sh-entry">
+      <span className="sh-entry-med" style={{ background: accent }} title={`written by ${e.player}`}>
+        {(e.character || '?').charAt(0)}
+      </span>
+      <div className="sh-entry-main">
+        <div className="sh-entry-head">
+          <span className="sh-entry-who" style={{ color: accent }} title={`written by ${e.player}`}>
+            {e.character}<span className="sh-player-reveal"> · {e.player}</span>
+          </span>
+          {e.fromJournal && (
+            <span className="sh-entry-badge" title={`shared from the journal page “${e.fromJournal}”`}>from journal</span>
+          )}
+          {e.sharedLate && (
+            <span className="sh-entry-badge is-late" title="published after the session, placed at its written-at time">shared later</span>
+          )}
+          <span className="sh-entry-when">{fmtTime(e.at)}</span>
+        </div>
+        <div className="sh-entry-body c-entry-text" dangerouslySetInnerHTML={{ __html: e.html }} />
+      </div>
     </article>
   )
 }
 
 export default function ChronicleView({ live = false, store = null, accents = {} }) {
-  const [thread, setThread] = useState(null) // `${type}:${id}` or null
-  const [lightbox, setLightbox] = useState(null) // image src or null
-
-  useEffect(() => {
-    const onKey = e => { if (e.key === 'Escape') setLightbox(null) }
-    document.addEventListener('keydown', onKey)
-    return () => document.removeEventListener('keydown', onKey)
-  }, [])
-
-  const bodyClick = e => {
-    if (e.target.tagName === 'IMG' && e.target.closest('.c-entry-text')) {
-      setLightbox(e.target.currentSrc || e.target.src)
-    }
-  }
-  const [rows, setRows] = useState(null)     // live feed rows | null while loading
+  const [rows, setRows] = useState(null)
   const [err, setErr] = useState(null)
+  const [openIdx, setOpenIdx] = useState(null)
+  const [peek, setPeek] = useState(null)         // {i, x, y} | null
+  const [lightbox, setLightbox] = useState(null) // image src | null
+  const volRefs = useRef([])
+  const panelRefs = useRef([])
 
   useEffect(() => {
     if (!live || !store) return
@@ -87,72 +77,154 @@ export default function ChronicleView({ live = false, store = null, accents = {}
   }, [live, store])
 
   const chapters = useMemo(
-    () => (live && rows ? buildBook(rows) : CHRONICLE),
+    () => (live && rows ? buildBook(rows) : (live ? [] : CHRONICLE)),
     [live, rows],
   )
+  const volumes = useMemo(() => chaptersToVolumes(chapters), [chapters])
 
-  // per-entry refs, computed once per chapter set
-  const withRefs = useMemo(
-    () => chapters.map(ch => ({
-      ...ch,
-      entries: ch.entries.map(e => ({ ...e, refs: e.refs || parseRefsFromHTML(e.html) })),
-    })),
-    [chapters],
-  )
-
-  const chapterThreads = ch => {
-    const m = new Map()
-    ch.entries.forEach(e => e.refs.forEach(r => m.set(`${r.type}:${r.id}`, r)))
-    return [...m.values()]
+  const toggle = i => {
+    setPeek(null)
+    setOpenIdx(cur => {
+      const next = nextOpen(cur, i)
+      if (next !== null) {
+        // let the width animation start, then keep the volume in view
+        setTimeout(() => {
+          const p = panelRefs.current[next]
+          if (p) p.scrollTop = 0
+          const v = volRefs.current[next]
+          if (v && v.scrollIntoView) v.scrollIntoView({ behavior: 'smooth', inline: 'start', block: 'nearest' })
+        }, 80)
+      }
+      return next
+    })
   }
 
-  const touches = (e, key) => !key || e.refs.some(r => `${r.type}:${r.id}` === key)
+  useEffect(() => {
+    const onKey = e => {
+      if (e.key === 'Escape' && lightbox) { setLightbox(null); return }
+      if (['Escape', 'ArrowLeft', 'ArrowRight'].includes(e.key)) {
+        setOpenIdx(cur => {
+          const next = keyOpen(cur, e.key, volumes.length)
+          if (next !== cur && next !== null) setTimeout(() => {
+            const p = panelRefs.current[next]
+            if (p) p.scrollTop = 0
+            const v = volRefs.current[next]
+            if (v && v.scrollIntoView) v.scrollIntoView({ behavior: 'smooth', inline: 'start', block: 'nearest' })
+          }, 80)
+          return next
+        })
+      }
+    }
+    document.addEventListener('keydown', onKey)
+    return () => document.removeEventListener('keydown', onKey)
+  }, [volumes.length, lightbox])
+
+  // hover peek — closed spines only, mouse pointers only (CSS hides it coarse)
+  const spineMove = (e, i) => {
+    if (openIdx === i) { setPeek(null); return }
+    const pad = 22, W = 300, H = 170
+    let x = e.clientX + pad, y = e.clientY + pad
+    if (typeof window !== 'undefined') {
+      if (x + W > window.innerWidth) x = e.clientX - W - pad
+      if (y + H > window.innerHeight) y = e.clientY - H - pad
+    }
+    setPeek({ i, x, y })
+  }
+
+  const bodyClick = e => {
+    if (e.target.tagName === 'IMG' && e.target.closest('.c-entry-text')) {
+      setLightbox(e.target.currentSrc || e.target.src)
+    }
+  }
+
+  if (live && !rows && !err) return <p className="sh-state">opening the book…</p>
+  if (live && err) return <p className="sh-state">The book could not open ({err}). Try a refresh.</p>
+  if (volumes.length === 0) return (
+    <p className="sh-state">the book is empty — share a journal page or write in the <a href="chronicle.html">chronicle</a></p>
+  )
 
   return (
-    <div className="jc-book">
-      <header className="jc-book-head">
-        <div className="j-eyebrow">The Trials of Kirtas</div>
-        <h1 className="j-title">The Chronicle</h1>
-        <p className="j-sub">{live ? 'the shared book — every voice, one record' : 'the shared book — every voice, one record · redesign mock, sample data'}</p>
-        {live && (
-          <p className="j-banner" style={{ maxWidth: '560px', margin: '0.8rem auto 0' }}>
-            The book is a reading layer over the live feed. Writing still happens in{' '}
-            <a href="chronicle.html" style={{ color: 'var(--gold-light, #d4ac3a)' }}>chronicle.html</a>{' '}
-            (and by sharing journal pages) until the composer moves in.
-          </p>
-        )}
-        {live && !rows && !err && <p className="j-sub">opening the book…</p>}
-        {live && err && <p className="j-banner">The book could not open ({err}). Try a refresh.</p>}
-        {live && rows && chapters.length === 0 && (
-          <p className="j-sub">the book is empty — share a journal page or write in the chronicle</p>
-        )}
-        <nav className="jc-toc">
-          {withRefs.map(ch => (
-            <a key={ch.session} className="jc-toc-item" href={`#session-${ch.session}`}>
-              <span className="jc-toc-num">{ch.session}</span> {ch.title}
-            </a>
-          ))}
-        </nav>
-      </header>
+    <div className="sh-book">
+      <div className="sh-shelf" onMouseLeave={() => setPeek(null)}>
+        <div className="sh-intro-spine" aria-hidden="true">
+          <span className="sh-mark">‖</span>
+          <span className="sh-vtext">The Chronicle of the Trials</span>
+          <span className="sh-loc">Kirtas</span>
+        </div>
 
-      {withRefs.map(ch => (
-        <section className="jc-chapter" key={ch.session} id={`session-${ch.session}`}>
-          <header className="jc-chapter-head">
-            <div className="jc-chapter-eyebrow">Session {ch.session} · {ch.date}</div>
-            <h2 className="jc-chapter-title">{ch.title}</h2>
-            <div className="jc-chapter-threads">
-              <span className="jc-threads-label">threads</span>
-              <ThreadChips refs={chapterThreads(ch)} selected={thread} onPick={setThread} />
-            </div>
-          </header>
+        {volumes.map((vol, i) => {
+          const older = volumes[i - 1], newer = volumes[i + 1]
+          const open = openIdx === i
+          return (
+            <section className={`sh-vol ${open ? 'is-open' : ''}`} key={`${vol.session}-${i}`}
+              ref={el => { volRefs.current[i] = el }}>
+              <button type="button" className="sh-spine" aria-expanded={open}
+                aria-label={`${vol.num}: ${vol.name}`}
+                onClick={() => toggle(i)}
+                onMouseMove={e => spineMove(e, i)}
+                onMouseLeave={() => setPeek(p => (p && p.i === i ? null : p))}>
+                {vol.showNum && <span className="sh-snum">{vol.num}</span>}
+                <span className="sh-sname">{vol.name}</span>
+                <span className="sh-sfoot">
+                  {vol.isNew && <span className="sh-tag-new">New</span>}
+                  <Medallions vol={vol} accents={accents} />
+                  <span className="sh-sdate">{vol.date}</span>
+                </span>
+              </button>
 
-          <div className="jc-weave" onClick={bodyClick}>
-            {ch.entries.map(e => (
-              <ChronicleEntry key={e.id} e={e} dimmed={!touches(e, thread)} accents={accents} />
-            ))}
-          </div>
-        </section>
-      ))}
+              <div className="sh-panel">
+                <div className="sh-panel-inner" tabIndex={-1} ref={el => { panelRefs.current[i] = el }}>
+                  <header className="sh-p-head">
+                    <button type="button" className="sh-p-close" onClick={() => toggle(i)}>Close&nbsp;×</button>
+                    <div className="sh-p-tags">
+                      {vol.tags.map(t => <span className="sh-p-tag" key={t}>{t}</span>)}
+                    </div>
+                    <h2 className="sh-p-title">{vol.name}</h2>
+                    {vol.intro && <p className="sh-p-intro">{vol.intro}</p>}
+                    <div className="sh-p-meta">
+                      <span>{vol.num}</span><span>·</span><span>{vol.date}</span><span>·</span>
+                      <Medallions vol={vol} accents={accents} row />
+                    </div>
+                  </header>
+
+                  <div className="sh-p-entries" onClick={bodyClick}>
+                    {vol.entries.map(e => <PanelEntry key={e.id} e={e} accents={accents} />)}
+                  </div>
+
+                  <nav className="sh-p-turn" aria-label="Volume navigation">
+                    <button type="button" className="sh-turn-prev" disabled={!older}
+                      onClick={() => older && toggle(i - 1)}>
+                      <span className="sh-t-label">← Previous volume</span>
+                      {older
+                        ? <span className="sh-t-title">{older.name}</span>
+                        : <span className="sh-t-empty">This is where it begins.</span>}
+                    </button>
+                    <button type="button" className="sh-turn-next" disabled={!newer}
+                      onClick={() => newer && toggle(i + 1)}>
+                      <span className="sh-t-label">Next volume →</span>
+                      {newer
+                        ? <span className="sh-t-title">{newer.name}</span>
+                        : <span className="sh-t-empty">The story continues at the table.</span>}
+                    </button>
+                  </nav>
+                </div>
+              </div>
+            </section>
+          )
+        })}
+      </div>
+
+      <div className="sh-frame" aria-hidden="true">
+        <span className="sh-frame-bl">Kirtas, the Frontier</span>
+        <span className="sh-frame-br">The Chronicle · {live ? 'the living record' : 'sample data'}</span>
+      </div>
+
+      {peek && volumes[peek.i] && (
+        <div className="sh-peek is-on" style={{ left: peek.x, top: peek.y }} aria-hidden="true">
+          <div className="sh-pk-label">{volumes[peek.i].num} · {volumes[peek.i].date}</div>
+          <div className="sh-pk-excerpt">“{volumes[peek.i].excerpt}”</div>
+        </div>
+      )}
 
       {lightbox && (
         <div className="jc-lightbox" onClick={() => setLightbox(null)} role="dialog" aria-label="image — click anywhere to close">
@@ -160,14 +232,6 @@ export default function ChronicleView({ live = false, store = null, accents = {}
           <button type="button" className="jc-lightbox-x" onClick={() => setLightbox(null)}>✕</button>
         </div>
       )}
-
-      <footer className="jc-book-foot">
-        <p>
-          Entries arrive here by <strong>sharing from a character's journal</strong> (📄) or by
-          writing in the chronicle directly. Late shares (⏱) take their place in the timeline by
-          written-at time. Sessions stay the spine.
-        </p>
-      </footer>
     </div>
   )
 }

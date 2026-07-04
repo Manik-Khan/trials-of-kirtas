@@ -1,56 +1,115 @@
-// journal preview / page — two surfaces, one system:
-//   Journal   → the vault (per character; live on-site, sample standalone)
-//   Chronicle → the shared book (redesign mock)
+// journal page — two surfaces, one system, one skin:
+//   Journal   → the vault (Obsidian bones, shelf skin)
+//   Chronicle → the shelf (spines + the Miranda accordion)
+//
+// App owns the READING LOOK: ink + paper, per-reader, persisted as keys in
+// profiles.appearance via saveMyLook (replace-not-merge). The look paints
+// as --sh-* vars on the .sh-scope wrapper BEFORE the surfaces render —
+// backend resolves first, so there is no unstyled flash. The axes never
+// cross: inkVars/paperVars are structurally independent (shelfTheme.js).
 import React, { useEffect, useState } from 'react'
 import JournalView from './JournalView.jsx'
 import ChronicleView from './ChronicleView.jsx'
 import { bootJournal } from './data/backend.js'
+import { INKS, PAPERS, DEFAULT_LOOK, lookVars, resolveInk, resolvePaper } from './shelf/shelfTheme.js'
 
 export default function App() {
   const [view, setView] = useState('journal')
   const [backend, setBackend] = useState(null)
+  const [look, setLook] = useState(DEFAULT_LOOK)
 
   useEffect(() => {
     bootJournal()
-      .then(setBackend)
+      .then(b => {
+        setLook({
+          ink: b.myLook && b.myLook.ink ? b.myLook.ink : DEFAULT_LOOK.ink,
+          paper: b.myLook && b.myLook.paper ? b.myLook.paper : DEFAULT_LOOK.paper,
+        })
+        setBackend(b)
+      })
       .catch(e => {
         console.error('[journal] boot failed:', e)
         setBackend({ mode: 'error', error: String(e?.message || e) })
       })
   }, [])
 
+  // optimistic: the UI flips first, persistence follows (house idiom)
+  const setInk = key => {
+    setLook(l => ({ ...l, ink: key }))
+    if (backend?.store?.saveMyLook) backend.store.saveMyLook({ ink: key })
+      .catch(e => console.error('[journal] look save failed:', e))
+  }
+  const setPaper = key => {
+    setLook(l => ({ ...l, paper: key }))
+    if (backend?.store?.saveMyLook) backend.store.saveMyLook({ paper: key })
+      .catch(e => console.error('[journal] look save failed:', e))
+  }
+
   if (!backend) {
-    return <p className="j-empty" style={{ marginTop: '4rem' }}>Opening the journal…</p>
+    return <p className="sh-boot">Opening the journal…</p>
   }
   if (backend.mode === 'error') {
     return (
-      <p className="j-empty" style={{ marginTop: '4rem' }}>
+      <p className="sh-boot">
         The journal could not open ({backend.error}). Try a refresh, or check that the schema delta has been run.
       </p>
     )
   }
 
   return (
-    <div>
-      <nav className="j-viewnav">
-        <button
-          type="button"
-          className={`j-viewtab ${view === 'journal' ? 'is-on' : ''}`}
-          onClick={() => setView('journal')}
-        >
-          Journal <em>{backend.mode === 'live' ? `${backend.vault.character}’s vault` : 'private vault'}</em>
-        </button>
-        <button
-          type="button"
-          className={`j-viewtab ${view === 'chronicle' ? 'is-on' : ''}`}
-          onClick={() => setView('chronicle')}
-        >
-          Chronicle <em>{backend.mode === 'live' ? 'redesign preview' : 'the shared book'}</em>
-        </button>
+    <div className="sh-scope" style={lookVars(look)}>
+      <div className="sh-mottle" aria-hidden="true" />
+      <div className="sh-grain" aria-hidden="true" />
+
+      <nav className="sh-strip">
+        <div className="sh-tabs">
+          <button
+            type="button"
+            className={`sh-tab ${view === 'journal' ? 'is-on' : ''}`}
+            onClick={() => setView('journal')}
+          >Journal</button>
+          <button
+            type="button"
+            className={`sh-tab ${view === 'chronicle' ? 'is-on' : ''}`}
+            onClick={() => setView('chronicle')}
+          >Chronicle</button>
+        </div>
+        <div className="sh-switcher">
+          <div className="sh-swrow" role="group" aria-label="Ink">
+            <span>Ink</span>
+            {INKS.map(p => (
+              <button key={p.key} type="button"
+                className={`sh-dot ${resolveInk(look.ink).key === p.key ? 'is-active' : ''}`}
+                style={{ background: p.ink }}
+                title={`Ink: ${p.name}`} aria-label={`Ink: ${p.name}`}
+                onClick={() => setInk(p.key)} />
+            ))}
+          </div>
+          <div className="sh-swrow" role="group" aria-label="Paper">
+            <span>Paper</span>
+            {PAPERS.map(p => (
+              <button key={p.key} type="button"
+                className={`sh-dot ${resolvePaper(look.paper).key === p.key ? 'is-active' : ''}`}
+                style={{ background: p.paper }}
+                title={`Paper: ${p.name}`} aria-label={`Paper: ${p.name}`}
+                onClick={() => setPaper(p.key)} />
+            ))}
+          </div>
+        </div>
       </nav>
-      {view === 'journal'
-        ? <JournalView vault={backend.vault} banner={backend.banner} isStaff={!!backend.isStaff} store={backend.store || null} comments={backend.comments || null} accents={backend.accents || {}} me={backend.me || null} />
-        : <ChronicleView live={backend.mode === 'live'} store={backend.store || null} accents={backend.accents || {}} />}
+
+      <div className="sh-view">
+        {view === 'journal'
+          ? <JournalView
+              vault={backend.vault} banner={backend.banner}
+              isStaff={!!backend.isStaff} store={backend.store || null}
+              comments={backend.comments || null} accents={backend.accents || {}}
+              me={backend.me || null}
+              viewSeatKey={backend.viewSeatKey !== undefined ? backend.viewSeatKey : null}
+              live={backend.mode === 'live'}
+              commentCounts={backend.commentCounts || {}} />
+          : <ChronicleView live={backend.mode === 'live'} store={backend.store || null} accents={backend.accents || {}} />}
+      </div>
     </div>
   )
 }

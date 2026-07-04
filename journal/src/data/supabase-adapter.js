@@ -206,6 +206,37 @@ export function makeJournalStore({ sb, uid, characterKey }) {
       return merged
     },
 
+    // ── the reading look: ink + paper, per-reader (pinned decision) ──
+    // Stored as KEYS ({ ink:'sumi', paper:'bone' }) in the same appearance
+    // jsonb, resolved to hexes at render by shelfTheme.js. Same replace-
+    // not-merge discipline: read the full object, patch, send it whole.
+    async loadMyAppearance() {
+      const res = await sb.from('profiles').select('appearance')
+        .eq('user_id', uid).maybeSingle()
+      if (res.error) return {}                    // non-fatal: default look
+      return (res.data && res.data.appearance) || {}
+    },
+
+    async saveMyLook(patch /* { ink? , paper? } */) {
+      const cur = await sb.from('profiles').select('appearance')
+        .eq('user_id', uid).maybeSingle()
+      if (cur.error) throw new Error(`saveMyLook/read: ${cur.error.message}`)
+      const merged = Object.assign({}, (cur.data && cur.data.appearance) || {}, patch)
+      const res = await sb.rpc('set_my_appearance', { p_appearance: merged })
+      if (res.error) throw new Error(`saveMyLook: ${res.error.message}`)
+      return merged
+    },
+
+    // ── open-comment counts for the tree badges (boot-time snapshot) ──
+    async loadOpenCommentCounts() {
+      const res = await sb.from('journal_comments')
+        .select('page_id').eq('status', 'open')
+      if (res.error) return {}                    // non-fatal: badges just hide
+      const map = {}
+      for (const r of res.data || []) map[r.page_id] = (map[r.page_id] || 0) + 1
+      return map
+    },
+
     // ── the book: the chronicle feed as a reading layer ──
     async loadChronicleBook() {
       const res = await sb.from('feed')

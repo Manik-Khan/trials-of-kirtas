@@ -24,6 +24,7 @@ import { CommentMarks } from './comments/CommentMarks.js'
 import CommentsRail from './comments/CommentsRail.jsx'
 import { docWalk, indexToPos, captureAnchor, findAnchor, insertionIndex, splitByAnchor } from './comments/anchor.js'
 import { seatVars, seatColor } from './comments/accents.js'
+import { SEATS } from './data/party.js'
 
 const SEAT_NAMES = { liadan: 'Líadan', caim: 'Caim', vesperian: 'Vesperian', cosmere: 'Cosmere' }
 function seatDisplay(seat) {
@@ -41,7 +42,7 @@ function RefChips({ refs }) {
   ))
 }
 
-export default function JournalView({ vault, banner = null, isStaff = false, store = null, comments = null, accents = {}, me = null }) {
+export default function JournalView({ vault, banner = null, isStaff = false, store = null, comments = null, accents = {}, me = null, viewSeatKey = null, live = false, commentCounts = {} }) {
   const first = vault.pages()[0]
   const [activeId, setActiveId] = useState(first?.id || null)
   const activeRef = useRef(activeId)
@@ -335,8 +336,32 @@ export default function JournalView({ vault, banner = null, isStaff = false, sto
       {/* ── sidebar: the vault tree ── */}
       <aside className="j-side">
         <div className="j-side-head">
-          <div className="j-eyebrow">The Trials of Kirtas</div>
-          <h1 className="j-side-title">{vault.character}’s Journal</h1>
+          <div className="j-eyebrow">Trials of Kirtas</div>
+          <h1 className="j-side-title">The Journal</h1>
+        </div>
+
+        {/* seat-dot vault switcher: own vault = editable-in-place, foreign =
+            read-only everywhere. Live dots navigate (?character= scoping is
+            a boot-time decision); the sample preview keeps them inert. */}
+        <div className="j-vaults">
+          {SEATS.filter(s => s.key).map(s => {
+            const own = me && me.seatKey === s.key
+            const active = viewSeatKey === s.key
+            const href = own ? 'journal.html' : `journal.html?character=${s.key}`
+            return (
+              <a key={s.key}
+                className={`j-vault-dot ${active ? 'is-active' : ''}`}
+                style={{ background: seatColor(s.key, accentMap) }}
+                href={live ? href : undefined}
+                onClick={live ? undefined : e => e.preventDefault()}
+                title={s.character + (own ? ' (yours)' : ' (read-only)')}
+                aria-label={s.character + (own ? ' (yours)' : ' (read-only)')}
+              >{s.character.charAt(0)}</a>
+            )
+          })}
+          <span className={`j-vault-label ${canWriteHere ? 'is-own' : ''}`}>
+            {canWriteHere ? 'Yours' : 'Read-only'}
+          </span>
         </div>
 
         <nav className="j-tree">
@@ -403,6 +428,9 @@ export default function JournalView({ vault, banner = null, isStaff = false, sto
                       onClick={() => openPage(p.id)}
                     >
                       {p.title}{p.shared && <span className="j-tree-shared" title="shared to the Chronicle"> 📜</span>}
+                      {(commentCounts[p._rowId || p.id] || 0) > 0 && (
+                        <span className="j-tree-badge" title="open comments">{commentCounts[p._rowId || p.id]}</span>
+                      )}
                     </button>
                     {(mine || canDeletePage(p.id)) && (
                       <button type="button" className="j-tree-dots"
@@ -453,6 +481,10 @@ export default function JournalView({ vault, banner = null, isStaff = false, sto
             ))}
           </div>
         )}
+
+        <div className="j-rail-foot">
+          {vault.character} · {vault.pages().length} {vault.pages().length === 1 ? 'page' : 'pages'}
+        </div>
       </aside>
 
       {/* ── main: the page ── */}
@@ -461,6 +493,10 @@ export default function JournalView({ vault, banner = null, isStaff = false, sto
         {active && (
           <>
             <header className="j-page-head">
+              <div className="j-page-eyebrow">
+                <span>{active.folder}</span>
+                {!canEditActive && <span className="j-page-ro">Read-only</span>}
+              </div>
               <input
                 className="j-page-title"
                 value={active.title}

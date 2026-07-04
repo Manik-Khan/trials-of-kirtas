@@ -48,6 +48,9 @@ export async function bootJournal() {
       mode: 'sample', vault: sampleVault, banner: null,
       comments: makeSampleComments(), accents: {},
       me: { uid: 'uid-liadan', seatKey: 'liadan', seatName: 'Líadan' },
+      viewSeatKey: 'liadan',
+      myLook: { ink: null, paper: null },           // default look; nothing persists
+      commentCounts: {},
     }
   }
 
@@ -78,7 +81,7 @@ export async function bootJournal() {
   const toArr = (obj, type) => Object.entries(obj || {})
     .map(([k, v]) => ({ id: k, label: v.name || k, type, hint: v.role || v.type || '' }))
 
-  const [rows, entities, session, accents] = await Promise.all([
+  const [rows, entities, session, accents, myAppearance, commentCounts] = await Promise.all([
     store.loadPages(),
     store.loadEntities({
       canonNPCs: toArr(canon.npcs, 'npc'),
@@ -86,6 +89,8 @@ export async function bootJournal() {
     }),
     store.getCurrentSession(),
     store.loadSeatAccents().catch(() => ({})),   // non-fatal: fallback palette
+    store.loadMyAppearance().catch(() => ({})),  // non-fatal: default look
+    store.loadOpenCommentCounts().catch(() => ({})), // non-fatal: badges hide
   ])
 
   entityStore.hydrate(entities)
@@ -105,6 +110,12 @@ export async function bootJournal() {
     comments: store,                                // same adapter, comment methods
     accents,
     me: { uid, seatKey: mySeatKey, seatName: seatName(mySeatKey) },
+    viewSeatKey: characterKey,                      // whose vault is on screen
+    myLook: {                                       // ink + paper keys (per-reader)
+      ink: myAppearance.ink || null,
+      paper: myAppearance.paper || null,
+    },
+    commentCounts,                                  // page rowId → open count
     banner: canWriteHere ? null : `viewing ${seatName(characterKey)}’s journal — read-only`,
   }
 }
