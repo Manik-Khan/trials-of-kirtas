@@ -44,11 +44,13 @@ t('ink + paper painted on the scope before the surfaces',
   && scope.style.getPropertyValue('--sh-accent') === '#A93A26')
 t('grain + mottle ride above the surfaces', !!$('.sh-grain') && !!$('.sh-mottle'))
 
-// ── the strip ──
+// ── the strip (standalone mode: no #site-nav, so the switcher shows) ──
 const rows = $$('.sh-swrow')
 t('two switcher rows: Ink and Paper', rows.length === 2)
-t('six dots per axis', rows[0].querySelectorAll('.sh-dot').length === 6
-  && rows[1].querySelectorAll('.sh-dot').length === 6)
+t('ten dots per axis (the both-polarities expansion)',
+  rows[0].querySelectorAll('.sh-dot').length === 10
+  && rows[1].querySelectorAll('.sh-dot').length === 10)
+t('light polarity on the scope at arrival', scope.getAttribute('data-polarity') === 'light')
 
 const inkBefore = scope.style.getPropertyValue('--sh-ink')
 const paperBefore = scope.style.getPropertyValue('--sh-paper')
@@ -63,6 +65,35 @@ t('paper swap repaints paper…', scope.style.getPropertyValue('--sh-paper') ===
 t('…and NEVER touches --sh-ink / --sh-accent',
   scope.style.getPropertyValue('--sh-ink') === '#2B3A55'
   && scope.style.getPropertyValue('--sh-accent') === '#B4652E')
+
+// ── the tok:look contract: the ◐ flyout is the writer, the scope obeys ──
+await act(async () => {
+  document.dispatchEvent(new dom.window.CustomEvent('tok:look', {
+    detail: { page: 'journal', effective: { ink: 'rose', paper: 'charcoal' } },
+  }))
+  await sleep(10)
+})
+t('tok:look repaints the scope from `effective`',
+  scope.style.getPropertyValue('--sh-ink') === '#D98BA8'
+  && scope.style.getPropertyValue('--sh-paper') === '#1C1A17')
+t('dark paper flips the scope polarity', scope.getAttribute('data-polarity') === 'dark')
+// back to a light look for the rest of the run
+await act(async () => {
+  document.dispatchEvent(new dom.window.CustomEvent('tok:look', {
+    detail: { page: 'journal', effective: { ink: 'indigo', paper: 'straw' } },
+  }))
+  await sleep(10)
+})
+
+// ── the switcher stands down when site chrome exists (nav:ready) ──
+await act(async () => {
+  const fakeNav = document.createElement('nav'); fakeNav.id = 'site-nav'
+  document.body.appendChild(fakeNav)
+  document.dispatchEvent(new dom.window.CustomEvent('nav:ready'))
+  await sleep(20)
+})
+t('nav:ready retires the interim strip switcher', $$('.sh-swrow').length === 0)
+t('the tabs remain', $$('.sh-tab').length === 2)
 
 // ── the vault ──
 t('rail brand: kicker + wordmark', $('.j-eyebrow') && $('.j-side-title')?.textContent === 'The Journal')

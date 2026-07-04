@@ -13,10 +13,18 @@ import ChronicleView from './ChronicleView.jsx'
 import { bootJournal } from './data/backend.js'
 import { INKS, PAPERS, DEFAULT_LOOK, lookVars, resolveInk, resolvePaper } from './shelf/shelfTheme.js'
 
+// nav.js mounts asynchronously (after the session gate) — the strip's
+// ink/paper switcher stands down the moment site chrome exists, because the
+// ◐ Settings flyout owns the look now. Standalone previews (no nav) keep
+// the switcher so journal-preview.html stays drivable.
+const navPresent = () =>
+  typeof document !== 'undefined' && !!document.getElementById('site-nav')
+
 export default function App() {
   const [view, setView] = useState('journal')
   const [backend, setBackend] = useState(null)
   const [look, setLook] = useState(DEFAULT_LOOK)
+  const [hasNav, setHasNav] = useState(navPresent)
 
   useEffect(() => {
     bootJournal()
@@ -31,6 +39,24 @@ export default function App() {
         console.error('[journal] boot failed:', e)
         setBackend({ mode: 'error', error: String(e?.message || e) })
       })
+  }, [])
+
+  // The ◐ Settings flyout is the look's writer now: it resolves this page's
+  // effective look (default + journal override) and dispatches tok:look on
+  // boot and on every change. The journal only paints what it's told.
+  useEffect(() => {
+    const onLook = e => {
+      const eff = e.detail && e.detail.effective
+      if (eff && eff.ink && eff.paper) setLook({ ink: eff.ink, paper: eff.paper })
+    }
+    const onNav = () => setHasNav(true)
+    document.addEventListener('tok:look', onLook)
+    document.addEventListener('nav:ready', onNav)
+    if (navPresent()) setHasNav(true)
+    return () => {
+      document.removeEventListener('tok:look', onLook)
+      document.removeEventListener('nav:ready', onNav)
+    }
   }, [])
 
   // optimistic: the UI flips first, persistence follows (house idiom)
@@ -57,7 +83,7 @@ export default function App() {
   }
 
   return (
-    <div className="sh-scope" style={lookVars(look)}>
+    <div className="sh-scope" style={lookVars(look)} data-polarity={resolvePaper(look.paper).polarity}>
       <div className="sh-mottle" aria-hidden="true" />
       <div className="sh-grain" aria-hidden="true" />
 
@@ -74,6 +100,7 @@ export default function App() {
             onClick={() => setView('chronicle')}
           >Chronicle</button>
         </div>
+        {!hasNav && (
         <div className="sh-switcher">
           <div className="sh-swrow" role="group" aria-label="Ink">
             <span>Ink</span>
@@ -96,6 +123,7 @@ export default function App() {
             ))}
           </div>
         </div>
+        )}
       </nav>
 
       <div className="sh-view">

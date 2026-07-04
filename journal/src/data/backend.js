@@ -14,6 +14,7 @@ import { entityStore } from './entityStore.js'
 import { vault as sampleVault } from './vault.js'
 import { makeSampleComments } from '../comments/sampleComments.js'
 import { SEATS } from './party.js'
+import { resolveLookFor } from '../shelf/shelfTheme.js'
 
 const seatName = key =>
   SEATS.find(s => String(s.key) === String(key))?.character
@@ -111,10 +112,15 @@ export async function bootJournal() {
     accents,
     me: { uid, seatKey: mySeatKey, seatName: seatName(mySeatKey) },
     viewSeatKey: characterKey,                      // whose vault is on screen
-    myLook: {                                       // ink + paper keys (per-reader)
-      ink: myAppearance.ink || null,
-      paper: myAppearance.paper || null,
-    },
+    myLook: (() => {                                // ink + paper keys (per-reader):
+      // the journal page's EFFECTIVE look — default + pageLooks.journal
+      // override, resolved pure (the same resolution the ◐ flyout runs).
+      // null when the player never chose, so App falls to DEFAULT_LOOK.
+      const eff = resolveLookFor(myAppearance, 'journal')
+      const has = k => !!(myAppearance[k]
+        || (myAppearance.pageLooks && myAppearance.pageLooks.journal && myAppearance.pageLooks.journal[k]))
+      return { ink: has('ink') ? eff.ink : null, paper: has('paper') ? eff.paper : null }
+    })(),
     commentCounts,                                  // page rowId → open count
     banner: canWriteHere ? null : `viewing ${seatName(characterKey)}’s journal — read-only`,
   }

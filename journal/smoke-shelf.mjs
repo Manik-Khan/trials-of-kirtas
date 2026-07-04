@@ -6,7 +6,7 @@
 //   • AXIS INDEPENDENCE (pinned lesson 10): ink vars never carry paper;
 //     paper vars never carry ink or accent
 import { chaptersToVolumes, chapterToVolume, nextOpen, keyOpen, clamp } from './src/shelf/shelfModel.js'
-import { INKS, PAPERS, inkVars, paperVars, lookVars, resolveInk, resolvePaper, DEFAULT_LOOK } from './src/shelf/shelfTheme.js'
+import { INKS, PAPERS, FLOOR, inkVars, paperVars, lookVars, resolveInk, resolvePaper, DEFAULT_LOOK, contrastRatio, isFloored, nearestLegibleInk, resolveLookFor } from './src/shelf/shelfTheme.js'
 import { buildBook } from './src/data/bookModel.js'
 
 let pass = 0, fail = 0
@@ -87,7 +87,33 @@ t('← stops at the left boundary', keyOpen(0, 'ArrowLeft', 3) === 0)
 t('keys are inert while the shelf is closed', keyOpen(null, 'ArrowRight', 3) === null)
 
 // ── axis independence (pinned lesson 10) ──
-t('six inks, six papers', INKS.length === 6 && PAPERS.length === 6)
+t('ten inks, ten papers (the both-polarities expansion)', INKS.length === 10 && PAPERS.length === 10)
+t('the original six of each axis lead, keys unchanged',
+  INKS.slice(0, 6).map(i => i.key).join(',') === 'sumi,indigo,forest,vermilion,sepia,plum'
+  && PAPERS.slice(0, 6).map(p => p.key).join(',') === 'bone,celadon,blush,mist,straw,lilac')
+t('every paper carries a polarity flag',
+  PAPERS.every(p => p.polarity === 'light' || p.polarity === 'dark')
+  && PAPERS.filter(p => p.polarity === 'dark').length === 4)
+
+// ── the contrast floor (computed, never curated — 2.0 per M) ──
+t('the floor sits at 2.0', FLOOR === 2.0)
+t('Rose clears Bone at 2.01:1 (M was right)', !isFloored('rose', 'bone')
+  && contrastRatio('#D98BA8', '#E9E4D6') > 2.0)
+t('Gold floors on Bone; both shine on Charcoal',
+  isFloored('gold', 'bone') && !isFloored('gold', 'charcoal') && !isFloored('rose', 'charcoal'))
+t('dark inks floor on dark paper', isFloored('sumi', 'charcoal'))
+t('the stranding nudge picks the highest-contrast ink',
+  nearestLegibleInk('charcoal').key === 'bonewhite'
+  && nearestLegibleInk('bone').key !== 'bonewhite')
+
+// ── per-page looks: default cascades, override wins ──
+const APP = { ink: 'sepia', paper: 'straw', pageLooks: { journal: { ink: 'indigo' } } }
+t('no override: the default look cascades',
+  JSON.stringify(resolveLookFor(APP, 'party')) === '{"ink":"sepia","paper":"straw"}')
+t('a partial override keeps the default for the missing axis',
+  JSON.stringify(resolveLookFor(APP, 'journal')) === '{"ink":"indigo","paper":"straw"}')
+t('empty appearance resolves to the default look',
+  JSON.stringify(resolveLookFor(null, 'journal')) === JSON.stringify(DEFAULT_LOOK))
 for (const i of INKS) {
   const vars = inkVars(i.key)
   t(`ink "${i.name}" writes ink+accent and NEVER paper`,
