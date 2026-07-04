@@ -18,6 +18,14 @@
 // read current, merge keys, write the WHOLE object — the saveMyLook idiom).
 // The deployed flat shape is kept: { ink, paper, accent, … } and grows
 // { pageLooks: {page:{ink,paper}}, lookPresets: [{name,ink,paper}] }.
+//
+// July 4 (mock v4 approved) — FINISHES: the Look section gains a gallery of
+// five named finishes rendered as live thumbnails (window.TokLook, loaded by
+// nav.js from look-derive.js, does the derivation), a collapsed Fine-tune
+// drawer for the raw axes, and a "site-wide look" opt-in. Appearance grows
+// { pageMode, wells, trim, replumb }; pageLooks entries may carry the same
+// style keys per page; lookPresets entries may carry them per preset. The
+// opt-in ships OFF: deploy day changes nothing until a reader flips it.
 // Signed-out (or pre-auth) falls back to a localStorage mirror; the mirror
 // also gives the first paint before the profile round-trip lands.
 //
@@ -150,6 +158,8 @@
         ink: appearance.ink, paper: appearance.paper,
         pageLooks: appearance.pageLooks, lookPresets: appearance.lookPresets,
         accent: appearance.accent,
+        pageMode: appearance.pageMode, wells: appearance.wells, trim: appearance.trim,
+        replumb: appearance.replumb,
       }));
     } catch (e) { /* private mode etc. — the profile is still the truth */ }
   }
@@ -176,14 +186,51 @@
 
   function effective() { return resolveLookFor(appearance, PAGE); }
 
+  // the style axes resolve like the look: base keys, per-page override.
+  // (resolveLookFor itself is sync-mirrored with shelfTheme.js and stays
+  // untouched — the journal doesn't consume the axes yet.)
+  function effectiveStyle() {
+    var o = (appearance.pageLooks || {})[PAGE] || {};
+    return {
+      mode:  o.pageMode || appearance.pageMode || 'follow',
+      wells: o.wells    || appearance.wells    || 'inked',
+      trim:  o.trim     || appearance.trim     || 'auto',
+    };
+  }
+
+  // derive the effective look + style through TokLook (null if not loaded)
+  function derived(style) {
+    if (!window.TokLook) return null;
+    var eff = effective(), I = inkOf(eff.ink), P = paperOf(eff.paper);
+    return window.TokLook.deriveLook(
+      { ink: I.ink, accent: I.accent },
+      { paper: P.paper, dark: P.polarity === 'dark' },
+      style || effectiveStyle());
+  }
+
+  // the site-wide opt-in: derived tokens onto <html>, or cleanly off.
+  // Ships OFF — Phantom stays the pinned base until a reader flips it.
+  function applyRoot() {
+    if (!window.TokLook) return;
+    if (appearance.replumb) {
+      var d = derived();
+      if (d) window.TokLook.applyToRoot(d);
+    } else {
+      window.TokLook.clearRoot();
+    }
+  }
+
   function announce() {
+    var st = effectiveStyle();
+    var eff = effective();
     document.dispatchEvent(new CustomEvent('tok:look', {
       detail: {
         page: PAGE,
         appearance: { ink: appearance.ink, paper: appearance.paper, pageLooks: appearance.pageLooks || {} },
-        effective: effective(),
+        effective: { ink: eff.ink, paper: eff.paper, mode: st.mode, wells: st.wells, trim: st.trim },
       },
     }));
+    applyRoot();
   }
 
   function writeLook(patch) {
@@ -266,6 +313,34 @@
       '#tok-settings .ts-sub-a{display:block;width:100%;padding:6px 0 6px 14px;font-size:11px;letter-spacing:.06em;color:var(--ts-soft)}',
       '#tok-settings .ts-sub-a:hover{color:var(--ts-accent)}',
       '#tok-settings .ts-subacts{display:none}#tok-settings .ts-subacts.open{display:block}',
+      // ── the finish gallery + fine-tune (July 4, mock v4) — same armor:
+      // every selector #tok-settings-prefixed, every tone a JS-mixed literal
+      '#tok-settings .ts-fins{display:grid;grid-template-columns:1fr 1fr;gap:8px}',
+      '#tok-settings .ts-fin{border:1px solid var(--ts-hairline);padding:0;overflow:hidden;text-align:left;transition:border-color .15s ease}',
+      '#tok-settings .ts-fin:hover{border-color:var(--ts-soft)}',
+      '#tok-settings .ts-fin.is-on{border-color:var(--ts-ink);box-shadow:0 0 0 1px var(--ts-ink)}',
+      '#tok-settings .ts-fin .th{display:flex;align-items:center;justify-content:center;height:52px}',
+      '#tok-settings .ts-fin .tc{display:block;width:70%;border:1px solid rgba(0,0,0,.2)}',
+      '#tok-settings .ts-fin .tw{display:block;height:12px}',
+      '#tok-settings .ts-fin .tb{display:block;padding:4px 6px 5px}',
+      '#tok-settings .ts-fin .tl1{display:block;height:3px;width:72%}',
+      '#tok-settings .ts-fin .tl2{display:block;height:2.5px;width:52%;margin-top:3px}',
+      '#tok-settings .ts-fin .fn{display:block;font-size:9px;letter-spacing:.16em;text-transform:uppercase;font-weight:700;padding:5px 7px 1px;border-top:1px solid var(--ts-hairline)}',
+      '#tok-settings .ts-fin .fd{display:block;font-family:"EB Garamond",Georgia,serif;font-style:italic;font-size:11px;color:var(--ts-faint);line-height:1.25;padding:0 7px 6px}',
+      '#tok-settings .ts-vrow{margin-top:11px}',
+      '#tok-settings .ts-vq{font-family:"EB Garamond",Georgia,serif;font-style:italic;font-size:12px;color:var(--ts-soft)}',
+      '#tok-settings .ts-vchips{display:flex;gap:6px;margin-top:5px}',
+      '#tok-settings .ts-vchip{flex:1 1 0;border:1px solid var(--ts-hairline);padding:0;overflow:hidden}',
+      '#tok-settings .ts-vchip:hover{border-color:var(--ts-soft)}',
+      '#tok-settings .ts-vchip.is-on{border-color:var(--ts-ink)}',
+      '#tok-settings .ts-vchip .vh{display:flex;align-items:center;justify-content:center;height:26px}',
+      '#tok-settings .ts-vchip .vm{display:flex;flex-direction:column;justify-content:center;gap:2px;width:76%;height:18px;padding:0 4px;border:1px solid rgba(0,0,0,.25)}',
+      '#tok-settings .ts-vchip .v1{display:block;height:2.5px;width:70%}',
+      '#tok-settings .ts-vchip .v2{display:block;height:2px;width:50%}',
+      '#tok-settings .ts-vchip .vl{display:block;font-size:8px;letter-spacing:.12em;text-transform:uppercase;font-weight:700;color:var(--ts-faint);text-align:center;padding:3px 2px 4px;border-top:1px solid var(--ts-hairline)}',
+      '#tok-settings .ts-vchip.is-on .vl{color:var(--ts-ink)}',
+      '#tok-settings .ts-flagrow{display:flex;align-items:center;justify-content:space-between;gap:10px;margin-top:12px}',
+      '#tok-settings .ts-flagtxt{font-family:"EB Garamond",Georgia,serif;font-style:italic;font-size:12.5px;color:var(--ts-soft);line-height:1.35}',
       '#tok-settings[data-polarity="dark"]{text-shadow:0 1px 2px rgba(0,0,0,.45)}',
       '#tok-settings[data-polarity="dark"] .ts-scope-btn.is-on,#tok-settings[data-polarity="dark"] .ts-saveas button{text-shadow:none}',
       '.ts-toast{position:fixed;bottom:20px;left:50%;transform:translateX(-50%) translateY(60px);background:#121009;color:#e9e4d6;font-size:11px;letter-spacing:.06em;padding:9px 15px;opacity:0;transition:transform .3s ease,opacity .3s ease;z-index:1300;max-width:92vw;text-align:center;font-family:"Archivo",Helvetica,Arial,sans-serif;line-height:1.4}',
@@ -306,7 +381,11 @@
         appearance.lookPresets = (appearance.lookPresets || []).filter(function (x) { return x !== p; });
         persist(); render(); return;
       }
-      writeLook({ ink: p.ink, paper: p.paper });
+      var patch = { ink: p.ink, paper: p.paper };
+      if (p.pageMode) patch.pageMode = p.pageMode;
+      if (p.wells) patch.wells = p.wells;
+      if (p.trim) patch.trim = p.trim;
+      writeLook(patch);
     });
     return b;
   }
@@ -395,6 +474,57 @@
     var arch = root.querySelector('#ts-arch'); arch.innerHTML = '';
     ARCHIVES.forEach(function (p) { arch.appendChild(presetChip(p, false)); });
 
+    // ── the finish gallery (July 4): live thumbnails from TokLook.
+    // Degrades honestly: no TokLook (look-derive.js absent) → section hidden,
+    // everything above behaves exactly as the previous deploy. Never a hole.
+    var finSec = root.querySelector('#ts-fin-sec');
+    if (window.TokLook && finSec) {
+      finSec.hidden = false;
+      var st = effectiveStyle();
+      var finKey = window.TokLook.matchFinish(st);
+      var effL = effective(), effI = inkOf(effL.ink), effP = paperOf(effL.paper);
+      var inkObj = { ink: effI.ink, accent: effI.accent };
+      var papObj = { paper: effP.paper, dark: effP.polarity === 'dark' };
+
+      var fins = root.querySelector('#ts-fins'); fins.innerHTML = '';
+      window.TokLook.FINISHES.forEach(function (f) {
+        var d = window.TokLook.deriveLook(inkObj, papObj, f);
+        var b = document.createElement('button');
+        b.type = 'button';
+        b.className = 'ts-fin' + (f.key === finKey ? ' is-on' : '');
+        b.setAttribute('data-fin', f.key);
+        b.innerHTML = '<span class="th" style="background:' + d.g + '">'
+          + '<span class="tc" style="background:' + d.cardBg + '">'
+          + '<span class="tw" style="background:' + d.well + '"></span>'
+          + '<span class="tb"><span class="tl1" style="background:' + d.cardT + '"></span>'
+          + '<span class="tl2" style="background:' + d.trim + '"></span></span></span></span>'
+          + '<span class="fn">' + f.name + '</span><span class="fd">' + f.desc + '</span>';
+        b.addEventListener('click', function () {
+          writeLook({ pageMode: f.mode, wells: f.wells, trim: f.trim });
+        });
+        fins.appendChild(b);
+      });
+
+      // fine-tune chips: each shows ITS OWN outcome, holding the other axes
+      root.querySelectorAll('.ts-vchip').forEach(function (ch) {
+        var trial = { mode: st.mode, wells: st.wells, trim: st.trim };
+        if (ch.dataset.k === 'pageMode') trial.mode = ch.dataset.v;
+        else trial[ch.dataset.k] = ch.dataset.v;
+        var dv = window.TokLook.deriveLook(inkObj, papObj, trial);
+        var on = (ch.dataset.k === 'pageMode' ? st.mode : st[ch.dataset.k]) === ch.dataset.v;
+        ch.classList.toggle('is-on', on);
+        ch.querySelector('.vh').innerHTML = '<span class="vm" style="background:' + dv.cardBg + ';border-color:rgba(0,0,0,.25)">'
+          + '<span class="v1" style="background:' + dv.cardT + '"></span>'
+          + '<span class="v2" style="background:' + dv.trim + '"></span></span>';
+        ch.querySelector('.vh').style.background = dv.g;
+      });
+
+      // the site-wide opt-in
+      var rb = root.querySelector('#ts-replumb');
+      rb.textContent = appearance.replumb ? 'On' : 'Off';
+      rb.classList.toggle('is-on', !!appearance.replumb);
+    }
+
     // seat accent
     var ar = root.querySelector('#ts-accents'); ar.innerHTML = '';
     ACCENTS.forEach(function (hex) {
@@ -425,6 +555,31 @@
       '    <button type="button" class="ts-scope-btn" data-scope="all">Everywhere</button>',
       '    <button type="button" class="ts-scope-btn" data-scope="page">Only on ' + PAGE_LABEL + '</button>',
       '    <span id="ts-ochips" style="display:contents"></span>',
+      '  </div>',
+      '  <div id="ts-fin-sec" hidden>',
+      '    <div class="ts-kick">Finish — how the page wears them</div>',
+      '    <div class="ts-fins" id="ts-fins"></div>',
+      '    <button class="ts-mrow" type="button" id="ts-tune-head"><span>Fine-tune</span><span class="car">▸</span></button>',
+      '    <div class="ts-subacts" id="ts-tune">',
+      '      <div class="ts-vrow"><div class="ts-vq">The page itself…</div><div class="ts-vchips" id="ts-vmode">',
+      '        <button type="button" class="ts-vchip" data-k="pageMode" data-v="follow"><span class="vh"></span><span class="vl">Paper</span></button>',
+      '        <button type="button" class="ts-vchip" data-k="pageMode" data-v="dark"><span class="vh"></span><span class="vl">Always dark</span></button>',
+      '        <button type="button" class="ts-vchip" data-k="pageMode" data-v="invert"><span class="vh"></span><span class="vl">Swapped</span></button>',
+      '      </div></div>',
+      '      <div class="ts-vrow"><div class="ts-vq">Cards and panels…</div><div class="ts-vchips" id="ts-vwells">',
+      '        <button type="button" class="ts-vchip" data-k="wells" data-v="inked"><span class="vh"></span><span class="vl">Ink-tinted</span></button>',
+      '        <button type="button" class="ts-vchip" data-k="wells" data-v="neutral"><span class="vh"></span><span class="vl">Plain</span></button>',
+      '      </div></div>',
+      '      <div class="ts-vrow"><div class="ts-vq">Small text and captions…</div><div class="ts-vchips" id="ts-vtrim">',
+      '        <button type="button" class="ts-vchip" data-k="trim" data-v="auto"><span class="vh"></span><span class="vl">Quiet</span></button>',
+      '        <button type="button" class="ts-vchip" data-k="trim" data-v="gold"><span class="vh"></span><span class="vl">Gilded</span></button>',
+      '        <button type="button" class="ts-vchip" data-k="trim" data-v="accent"><span class="vh"></span><span class="vl">Accent</span></button>',
+      '      </div></div>',
+      '    </div>',
+      '    <div class="ts-flagrow">',
+      '      <span class="ts-flagtxt">Wear this look <b>site-wide</b> — every page follows your ink, paper &amp; finish. <span id="ts-flag-note">(new — some pages are still being re-plumbed)</span></span>',
+      '      <button type="button" class="ts-scope-btn" id="ts-replumb">Off</button>',
+      '    </div>',
       '  </div>',
       '</section>',
       '<section class="ts-sec">',
@@ -471,13 +626,34 @@
       render();
     });
 
+    // finish machinery (July 4): drawer, axis chips, the site-wide opt-in
+    root.querySelector('#ts-tune-head').addEventListener('click', function () {
+      root.querySelector('#ts-tune').classList.toggle('open');
+    });
+    root.querySelector('#ts-tune').addEventListener('click', function (e) {
+      var ch = e.target.closest('.ts-vchip'); if (!ch) return;
+      var patch = {};
+      patch[ch.dataset.k] = ch.dataset.v;
+      writeLook(patch);
+    });
+    root.querySelector('#ts-replumb').addEventListener('click', function () {
+      appearance.replumb = !appearance.replumb;
+      persist(); announce(); render();
+      toast(appearance.replumb
+        ? 'Site-wide look ON — every page now wears your ink, paper & finish.'
+        : 'Site-wide look off — the site returns to the house theme.');
+    });
+
     // save-as
     function saveCurrent() {
       var inp = root.querySelector('#ts-savename');
       var name = inp.value.trim();
       if (!name) { toast('Name the look first.'); return; }
-      var eff = effective();
-      appearance.lookPresets = (appearance.lookPresets || []).concat([{ name: name, ink: eff.ink, paper: eff.paper }]);
+      var eff = effective(), st = effectiveStyle();
+      appearance.lookPresets = (appearance.lookPresets || []).concat([{
+        name: name, ink: eff.ink, paper: eff.paper,
+        pageMode: st.mode, wells: st.wells, trim: st.trim,
+      }]);
       inp.value = '';
       persist(); render();
       toast('Saved “' + name + '” — yours alone.');

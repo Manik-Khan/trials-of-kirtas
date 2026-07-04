@@ -17,6 +17,7 @@ import {
 } from './journal/src/shelf/shelfTheme.js'
 
 const flyoutSrc = readFileSync(new URL('./settings-flyout.js', import.meta.url), 'utf8')
+const deriveSrc = readFileSync(new URL('./look-derive.js', import.meta.url), 'utf8')
 
 let pass = 0, fail = 0
 const t = (n, c) => { c ? (pass++, console.log('  ✓ ' + n)) : (fail++, console.log('  ✗ ' + n)) }
@@ -52,7 +53,10 @@ window.__tok = {
 const looks = []
 document.addEventListener('tok:look', e => looks.push(e.detail))
 
-// load the flyout as a REAL script (lesson 4)
+// load the flyout as a REAL script (lesson 4) — deliberately WITHOUT
+// look-derive.js: this first harness proves the degrade path (no TokLook →
+// the Finish section stays hidden, everything else behaves as the previous
+// deploy; never a hole). A second harness below loads BOTH.
 const s = document.createElement('script')
 s.textContent = flyoutSrc
 document.body.appendChild(s)
@@ -212,6 +216,107 @@ document.dispatchEvent(new window.KeyboardEvent('keydown', { key: 'Escape', bubb
 await new Promise(r => setTimeout(r, 10))
 t('Esc closes; aria follows', !$('#tok-settings').classList.contains('is-open')
   && $('.nav-theme-btn').getAttribute('aria-expanded') === 'false')
+
+t('degrade path: without TokLook the Finish section stays hidden, never a hole',
+  $('#ts-fin-sec').hidden === true)
+
+// ════════════════════════════════════════════════════════════════════
+// SECOND HARNESS — look-derive.js + settings-flyout.js together:
+// the finish gallery, the fine-tune drawer, style persistence, and the
+// site-wide opt-in (apply + rollback), July 4.
+// ════════════════════════════════════════════════════════════════════
+console.log('\nsmoke-settings-flyout · with look-derive')
+const dom2 = new JSDOM(`<!DOCTYPE html><html><head></head><body>
+  <nav id="site-nav"><button class="nav-theme-btn" aria-expanded="false">◐</button></nav>
+</body></html>`, { url: 'https://tok.test/factions.html', runScripts: 'dangerously', pretendToBeVisual: true })
+const w2 = dom2.window, d2 = w2.document
+const rpc2 = []
+w2.__tok = {
+  sb: {
+    from() { return { select() { return { eq() { return { maybeSingle: async () => ({ data: { appearance: { background: 'bg-keep-me' } }, error: null }) } } } } } },
+    rpc: async (name, args) => { rpc2.push({ name, args }); return { data: null, error: null } },
+  },
+  session: { user: { id: 'uid-test' } },
+  ready: Promise.resolve({ role: 'player' }),
+}
+const looks2 = []
+d2.addEventListener('tok:look', e => looks2.push(e.detail))
+for (const code of [deriveSrc, flyoutSrc]) {
+  const sc = d2.createElement('script'); sc.textContent = code; d2.body.appendChild(sc)
+}
+await new Promise(r => setTimeout(r, 60))
+const q = sel => d2.querySelector(sel)
+const qq = sel => [...d2.querySelectorAll(sel)]
+
+w2.TokSettings.open()
+await new Promise(r => setTimeout(r, 10))
+t('with TokLook: the Finish section shows five live thumbnails',
+  !q('#ts-fin-sec').hidden && qq('#ts-fins .ts-fin').length === 5
+  && qq('#ts-fins .ts-fin .th').every(th => th.style.background.startsWith('rgb(')))
+t('tok:look now carries the style axes (additive; journal unaffected)',
+  looks2.length > 0 && looks2[looks2.length - 1].effective.mode === 'follow'
+  && looks2[looks2.length - 1].effective.wells === 'inked'
+  && looks2[looks2.length - 1].effective.trim === 'auto')
+t('the flyout stylesheet is STILL color-mix-free and fully ID-armored',
+  !d2.getElementById('tokset-styles').textContent.includes('color-mix')
+  && d2.getElementById('tokset-styles').textContent.split('}').filter(r => r.trim() && r.includes('{')).every(r => {
+    const sel = r.slice(0, r.indexOf('{')).trim()
+    return sel.startsWith('#tok-settings') || sel.startsWith('.ts-toast')
+  }))
+
+// picking Print persists the axes through the same replace-not-merge
+rpc2.length = 0
+qq('#ts-fins .ts-fin').find(f => f.dataset.fin === 'print').click()
+await new Promise(r => setTimeout(r, 350))
+t('picking Print persists pageMode/wells/trim, unknown keys survive',
+  rpc2.length === 1 && rpc2[0].args.p_appearance.pageMode === 'follow'
+  && rpc2[0].args.p_appearance.wells === 'neutral' && rpc2[0].args.p_appearance.trim === 'gold'
+  && rpc2[0].args.p_appearance.background === 'bg-keep-me')
+t('Print re-lights as the selected finish',
+  qq('#ts-fins .ts-fin').find(f => f.dataset.fin === 'print').classList.contains('is-on'))
+
+// fine-tune: drawer opens; an axis edit away from Print goes Custom; back re-lights
+q('#ts-tune-head').click()
+t('the Fine-tune drawer opens', q('#ts-tune').classList.contains('open'))
+qq('#ts-vtrim .ts-vchip').find(c => c.dataset.v === 'auto').click()
+await new Promise(r => setTimeout(r, 10))
+t('an axis edit away from a finish goes Custom (no finish lit)',
+  qq('#ts-fins .ts-fin.is-on').length === 0)
+qq('#ts-vtrim .ts-vchip').find(c => c.dataset.v === 'gold').click()
+await new Promise(r => setTimeout(r, 10))
+t('tuning back into Print re-lights its card',
+  qq('#ts-fins .ts-fin.is-on').length === 1
+  && q('#ts-fins .ts-fin.is-on').dataset.fin === 'print')
+t('fine-tune chips carry mini previews of their own outcomes',
+  qq('.ts-vchip .vm').length === 8)
+
+// the site-wide opt-in: OFF by default, ON applies the theme tokens, OFF rolls back
+t('site-wide look ships OFF: no theme tokens on <html> after boot + picks',
+  d2.documentElement.style.getPropertyValue('--ink') === '')
+q('#ts-replumb').click()
+await new Promise(r => setTimeout(r, 10))
+t('opt-in ON: theme tokens land inline on <html> (the re-plumb, live)',
+  q('#ts-replumb').textContent === 'On'
+  && d2.documentElement.style.getPropertyValue('--ink').startsWith('rgb(')
+  && d2.documentElement.style.getPropertyValue('--gold').startsWith('rgb(')
+  && d2.documentElement.getAttribute('data-look-polarity') === 'light')
+t('fixed semantics never written', d2.documentElement.style.getPropertyValue('--hp-good') === '')
+q('#ts-replumb').click()
+await new Promise(r => setTimeout(r, 10))
+t('opt-in OFF: every token removed — clean rollback to the house theme',
+  d2.documentElement.style.getPropertyValue('--ink') === ''
+  && !d2.documentElement.hasAttribute('data-look-polarity'))
+await new Promise(r => setTimeout(r, 350))
+t('the opt-in itself persists (replumb key in the merged object)',
+  rpc2[rpc2.length - 1].args.p_appearance.replumb === false)
+
+// save-as captures the style; the personal chip restores it
+q('#ts-savename').value = 'Gilded Sumi'
+q('#ts-savebtn').click()
+await new Promise(r => setTimeout(r, 350))
+const savedP = rpc2[rpc2.length - 1].args.p_appearance.lookPresets.find(p => p.name === 'Gilded Sumi')
+t('save-as captures the finish axes with the look',
+  savedP && savedP.pageMode === 'follow' && savedP.wells === 'neutral' && savedP.trim === 'gold')
 
 console.log(`\n${pass} passed, ${fail} failed`)
 process.exit(fail ? 1 : 0)
