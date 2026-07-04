@@ -255,7 +255,14 @@ Still true and load-bearing:
 15. **(new) GitHub's web upload picker drops hidden dotfiles.** A `.foo`
     file in a zip handover silently never lands — use "Create new file"
     or drag it explicitly, and verify it's in the tree.
-16. **(new) React root-attaches `wheel` as passive** — `preventDefault`
+16. **(new) Injected shared chrome must be ARMORED:** prefix every rule
+    with the host element's ID (beats any page class rule), never inline
+    `color-mix()`/modern expressions inside shorthands (one fragile
+    expression kills the whole declaration — the borderless flyout), mix
+    derived tones in JS to rgba() literals, and cache-stamp the injected
+    script's src. The mock worked because it precomputed its mixes; the
+    live sheet didn't.
+17. **(new) React root-attaches `wheel` as passive** — `preventDefault`
     in an `onWheel` prop is ignored. Attach a native listener via ref +
     `addEventListener(…, { passive: false })`. (jsdom also lacks
     `Element.scrollTo/scrollBy` — guard and fall back to `scrollLeft`.)
@@ -312,7 +319,16 @@ recreated `.smoke-entry.jsx`).
 - **Zip 1** `tok-shelf-fixes.zip` — the four post-eyeball fixes + the
   `session_titles` delta (SQL FIRST). Smokes at zip time: shelf 44, skin 31.
 - **Zip 2** the settings arc — `settings-flyout.js`, nav/battle edits,
-  catalog expansion, journal listener. Smokes at handover: 81+14+26+15+14
-  existing ✓, shelf 62 ✓, skin 36 ✓, settings-flyout 28 ✓ (cog smoke
-  deleted). Approved `mock-settings-flyout.html` 26/26. Build clean.
-  SQL: none.
+  catalog expansion, journal listener. DEPLOYED by M ✓ — and the live
+  eyeball caught the flyout rendering broken (borderless, inflated type)
+  while the mock rendered perfectly. Root cause class: inline `color-mix()`
+  in border shorthands + class-only selectors exposed to page CSS.
+- **Zip 3** `tok-flyout-hardening.zip` (staged, NOT yet deployed) — the
+  flyout CSS armored: every rule `#tok-settings`-prefixed, ZERO color-mix
+  (tones mixed in JS to rgba/rgb literals), explicit base font pinned,
+  Sheet section always present (real controls where wired, an honest
+  pointer to sheet-v2 elsewhere — they're sheet-page settings, per M),
+  dark-paper text-shadow legibility lift in the journal (M's call),
+  `settings-flyout.js` now cache-stamped (`SETTINGS_V` in nav.js — BUMP IT
+  every flyout change; hard-refresh once after this deploy). Smokes:
+  settings-flyout 32 ✓, all others green. SQL: none.
