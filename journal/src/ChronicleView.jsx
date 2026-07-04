@@ -58,20 +58,29 @@ function PanelEntry({ e, accents }) {
   )
 }
 
-export default function ChronicleView({ live = false, store = null, accents = {} }) {
+// keystrokes typed into a field belong to the field, not the shelf
+const inField = t => !!(t && (t.closest && t.closest('input, textarea, select, [contenteditable="true"]')))
+
+export default function ChronicleView({ live = false, store = null, accents = {}, isStaff = false }) {
   const [rows, setRows] = useState(null)
+  const [titles, setTitles] = useState({})       // canonical session → title
   const [err, setErr] = useState(null)
   const [openIdx, setOpenIdx] = useState(null)
   const [peek, setPeek] = useState(null)         // {i, x, y} | null
   const [lightbox, setLightbox] = useState(null) // image src | null
+  const [editing, setEditing] = useState(null)   // {session, draft} | null
   const volRefs = useRef([])
   const panelRefs = useRef([])
+  const shelfRef = useRef(null)
 
   useEffect(() => {
     if (!live || !store) return
     let stale = false
-    store.loadChronicleBook()
-      .then(r => { if (!stale) setRows(r) })
+    Promise.all([
+      store.loadChronicleBook(),
+      store.loadSessionTitles ? store.loadSessionTitles() : Promise.resolve({}),
+    ])
+      .then(([r, t]) => { if (!stale) { setRows(r); setTitles(t || {}) } })
       .catch(e => { if (!stale) setErr(e.message) })
     return () => { stale = true }
   }, [live, store])
@@ -80,10 +89,24 @@ export default function ChronicleView({ live = false, store = null, accents = {}
     () => (live && rows ? buildBook(rows) : (live ? [] : CHRONICLE)),
     [live, rows],
   )
-  const volumes = useMemo(() => chaptersToVolumes(chapters), [chapters])
+  const volumes = useMemo(() => chaptersToVolumes(chapters, titles), [chapters, titles])
+
+  // Contained scroll: move ONLY .sh-shelf. scrollIntoView is banned here —
+  // it walks every clipping ancestor, and an overflow:hidden ancestor
+  // scrolls programmatically with no way for the user to scroll back
+  // (the July 3 "left edge amputated on both tabs" bug).
+  const bringIntoView = i => {
+    const shelf = shelfRef.current, v = volRefs.current[i]
+    if (!shelf || !v) return
+    const left = Math.max(0, shelf.scrollLeft + v.getBoundingClientRect().left - shelf.getBoundingClientRect().left)
+    // jsdom has no Element.scrollTo (lesson 11's cousin) — scrollLeft always works
+    if (typeof shelf.scrollTo === 'function') shelf.scrollTo({ left, behavior: 'smooth' })
+    else shelf.scrollLeft = left
+  }
 
   const toggle = i => {
     setPeek(null)
+    setEditing(null)
     setOpenIdx(cur => {
       const next = nextOpen(cur, i)
       if (next !== null) {
@@ -91,8 +114,7 @@ export default function ChronicleView({ live = false, store = null, accents = {}
         setTimeout(() => {
           const p = panelRefs.current[next]
           if (p) p.scrollTop = 0
-          const v = volRefs.current[next]
-          if (v && v.scrollIntoView) v.scrollIntoView({ behavior: 'smooth', inline: 'start', block: 'nearest' })
+          bringIntoView(next)
         }, 80)
       }
       return next
@@ -101,23 +123,79 @@ export default function ChronicleView({ live = false, store = null, accents = {}
 
   useEffect(() => {
     const onKey = e => {
+      if (inField(e.target)) return
       if (e.key === 'Escape' && lightbox) { setLightbox(null); return }
-      if (['Escape', 'ArrowLeft', 'ArrowRight'].includes(e.key)) {
-        setOpenIdx(cur => {
-          const next = keyOpen(cur, e.key, volumes.length)
-          if (next !== cur && next !== null) setTimeout(() => {
-            const p = panelRefs.current[next]
-            if (p) p.scrollTop = 0
-            const v = volRefs.current[next]
-            if (v && v.scrollIntoView) v.scrollIntoView({ behavior: 'smooth', inline: 'start', block: 'nearest' })
-          }, 80)
-          return next
-        })
+      if (!['Escape', 'ArrowLeft', 'ArrowRight'].includes(e.key)) return
+      if (openIdx === null && e.key !== 'Escape') {
+        // shelf closed: arrows travel the shelf itself (three spines a step)
+        const shelf = shelfRef.current
+        if (shelf) {
+          const step = Math.max(shelf.clientWidth * 0.3, 240) * (e.key === 'ArrowRight' ? 1 : -1)
+          if (typeof shelf.scrollBy === 'function') shelf.scrollBy({ left: step, behavior: 'smooth' })
+          else shelf.scrollLeft += step
+          e.preventDefault()
+        }
+        return
       }
+      setOpenIdx(cur => {
+        const next = keyOpen(cur, e.key, volumes.length)
+        if (next !== cur && next !== null) setTimeout(() => {
+          const p = panelRefs.current[next]
+          if (p) p.scrollTop = 0
+          bringIntoView(next)
+        }, 80)
+        if (next !== cur) setEditing(null)
+        return next
+      })
     }
     document.addEventListener('keydown', onKey)
     return () => document.removeEventListener('keydown', onKey)
-  }, [volumes.length, lightbox])
+  }, [volumes.length, lightbox, openIdx])
+
+  // A mouse wheel is vertical; the shelf is horizontal. Translate the wheel
+  // into shelf travel — except over an open panel that can still consume the
+  // scroll itself. Native listener: React root-attaches wheel as passive,
+  // so preventDefault must go through addEventListener({passive:false}).
+  useEffect(() => {
+    const shelf = shelfRef.current
+    if (!shelf) return
+    const onWheel = e => {
+      const panel = e.target && e.target.closest && e.target.closest('.sh-panel-inner')
+      if (panel) {
+        const canDown = panel.scrollTop + panel.clientHeight < panel.scrollHeight - 1
+        const canUp = panel.scrollTop > 0
+        if ((e.deltaY > 0 && canDown) || (e.deltaY < 0 && canUp)) return // the panel takes it
+      }
+      const delta = Math.abs(e.deltaX) > Math.abs(e.deltaY) ? e.deltaX : e.deltaY
+      if (!delta) return
+      e.preventDefault()
+      shelf.scrollLeft += delta
+    }
+    shelf.addEventListener('wheel', onWheel, { passive: false })
+    return () => shelf.removeEventListener('wheel', onWheel)
+  }, [volumes.length])
+
+  const beginRename = vol => setEditing({ session: vol.session, draft: vol.name })
+  const commitRename = async () => {
+    if (!editing) return
+    const { session, draft } = editing
+    setEditing(null)
+    const prev = titles
+    const t = String(draft || '').trim()
+    // optimistic: the UI flips first, persistence follows (house idiom)
+    setTitles(cur => {
+      const next = { ...cur }
+      if (t) next[session] = t; else delete next[session]
+      return next
+    })
+    try {
+      if (store && store.saveSessionTitle) await store.saveSessionTitle(session, t)
+    } catch (e2) {
+      console.error('[shelf] title save failed:', e2)
+      setTitles(prev)
+      alert(`Could not save the session title: ${e2.message}`)
+    }
+  }
 
   // hover peek — closed spines only, mouse pointers only (CSS hides it coarse)
   const spineMove = (e, i) => {
@@ -145,7 +223,7 @@ export default function ChronicleView({ live = false, store = null, accents = {}
 
   return (
     <div className="sh-book">
-      <div className="sh-shelf" onMouseLeave={() => setPeek(null)}>
+      <div className="sh-shelf" ref={shelfRef} onMouseLeave={() => setPeek(null)}>
         <div className="sh-intro-spine" aria-hidden="true">
           <span className="sh-mark">‖</span>
           <span className="sh-vtext">The Chronicle of the Trials</span>
@@ -164,7 +242,7 @@ export default function ChronicleView({ live = false, store = null, accents = {}
                 onMouseMove={e => spineMove(e, i)}
                 onMouseLeave={() => setPeek(p => (p && p.i === i ? null : p))}>
                 {vol.showNum && <span className="sh-snum">{vol.num}</span>}
-                <span className="sh-sname">{vol.name}</span>
+                <span className="sh-sname">{vol.spine}</span>
                 <span className="sh-sfoot">
                   {vol.isNew && <span className="sh-tag-new">New</span>}
                   <Medallions vol={vol} accents={accents} />
@@ -179,7 +257,30 @@ export default function ChronicleView({ live = false, store = null, accents = {}
                     <div className="sh-p-tags">
                       {vol.tags.map(t => <span className="sh-p-tag" key={t}>{t}</span>)}
                     </div>
-                    <h2 className="sh-p-title">{vol.name}</h2>
+                    {editing && editing.session === vol.session ? (
+                      <input
+                        className="sh-p-title-edit"
+                        value={editing.draft}
+                        autoFocus
+                        placeholder={vol.num}
+                        aria-label="Session title"
+                        onChange={e => setEditing(ed => ({ ...ed, draft: e.target.value }))}
+                        onKeyDown={e => {
+                          if (e.key === 'Enter') commitRename()
+                          if (e.key === 'Escape') setEditing(null)
+                        }}
+                        onBlur={commitRename}
+                      />
+                    ) : (
+                      <h2 className="sh-p-title">
+                        {vol.name}
+                        {live && isStaff && (
+                          <button type="button" className="sh-p-rename" title="Rename this session (staff)"
+                            aria-label={`Rename ${vol.num}`}
+                            onClick={() => beginRename(vol)}>✎</button>
+                        )}
+                      </h2>
+                    )}
                     {vol.intro && <p className="sh-p-intro">{vol.intro}</p>}
                     <div className="sh-p-meta">
                       <span>{vol.num}</span><span>·</span><span>{vol.date}</span><span>·</span>

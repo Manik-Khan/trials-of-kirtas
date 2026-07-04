@@ -25,11 +25,14 @@ export function clamp(text, max) {
 
 const entrySeat = e => e.seat || e.characterKey || 'narrator'
 
-// One chapter → one volume.
-export function chapterToVolume(ch, { isNew = false } = {}) {
+// One chapter → one volume. `titles` is the CANONICAL per-session title map
+// (session_titles table, staff-curated); it overrides whatever
+// meta.sessionTitle a stray row smuggled in. The row meta stays the fallback.
+export function chapterToVolume(ch, { isNew = false, titles = {} } = {}) {
   const entries = ch.entries || []
   const num = ch.session === 0 ? 'Prologue' : `Session ${ch.session}`
-  const name = ch.title || num
+  const canonical = titles && titles[ch.session] != null && String(titles[ch.session]).trim()
+  const name = (canonical || ch.title || num)
   const first = entries[0]
   const firstNarr = entries.find(e => e.kind === 'narrator')
   const seats = []
@@ -45,6 +48,10 @@ export function chapterToVolume(ch, { isNew = false } = {}) {
     session: ch.session,
     num,
     name,
+    // the SPINE is a fixed-width column: a long title must never wrap into a
+    // second vertical column and bleed across its neighbors (the July 3
+    // Session-1 overflow). The panel keeps the full name.
+    spine: clamp(name, 44),
     // when the chapter is untitled the name IS the number — don't say it twice
     showNum: name !== num,
     date: ch.date || '',
@@ -60,10 +67,10 @@ export function chapterToVolume(ch, { isNew = false } = {}) {
 
 // bookModel chapters read freshest-first; the shelf reads chronologically,
 // oldest at the left, the NEW tag on the freshest (rightmost) volume.
-export function chaptersToVolumes(chapters) {
+export function chaptersToVolumes(chapters, titles = {}) {
   const chrono = [...(chapters || [])].reverse()
   return chrono.map((ch, i) =>
-    chapterToVolume(ch, { isNew: chrono.length > 0 && i === chrono.length - 1 }))
+    chapterToVolume(ch, { isNew: chrono.length > 0 && i === chrono.length - 1, titles }))
 }
 
 // The accordion, as a reducer: a single volume open at a time; clicking

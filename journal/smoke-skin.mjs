@@ -103,5 +103,50 @@ t('the leftmost volume disables Previous at the boundary', (() => {
   return prev && prev.disabled
 })())
 
+// ── the July 3 scroll fixes, pinned ──
+// 1. Opening a volume moves ONLY .sh-shelf — never the scope. The old
+//    scrollIntoView walked clipping ancestors and left the whole page
+//    amputated on the left, on both tabs.
+const shelf = $('.sh-shelf')
+await act(async () => { spines[spines.length - 1].click(); await sleep(200) })
+t('opening a volume never scrolls the scope (amputation regression)',
+  scope.scrollLeft === 0 && $('.sh-view').scrollLeft === 0)
+await act(async () => {
+  document.dispatchEvent(new dom.window.KeyboardEvent('keydown', { key: 'Escape', bubbles: true }))
+  await sleep(50)
+})
+
+// 2. Every spine title is one clamped column — no vertical-column bleed.
+t('every spine title is clamped ≤ 45 chars',
+  $$('.sh-sname').every(el => el.textContent.length <= 45))
+
+// 3. A vertical wheel over the shelf travels the shelf.
+const slBefore = shelf.scrollLeft
+await act(async () => {
+  shelf.dispatchEvent(new dom.window.WheelEvent('wheel', { deltaY: 120, bubbles: true, cancelable: true }))
+  await sleep(10)
+})
+t('vertical wheel translates to shelf travel', shelf.scrollLeft === slBefore + 120)
+
+// 4. With nothing open, ←/→ travel the shelf instead of doing nothing.
+const slKeys = shelf.scrollLeft
+await act(async () => {
+  document.dispatchEvent(new dom.window.KeyboardEvent('keydown', { key: 'ArrowRight', bubbles: true, cancelable: true }))
+  await sleep(10)
+})
+t('ArrowRight travels the closed shelf', shelf.scrollLeft > slKeys)
+t('…and still never scrolls the scope', scope.scrollLeft === 0)
+
+// 5. Keystrokes inside a field never drive the shelf.
+const slField = shelf.scrollLeft
+await act(async () => {
+  const inp = document.createElement('input')
+  document.body.appendChild(inp)
+  inp.dispatchEvent(new dom.window.KeyboardEvent('keydown', { key: 'ArrowRight', bubbles: true, cancelable: true }))
+  await sleep(10)
+  inp.remove()
+})
+t('arrows typed in a field are the field\'s, not the shelf\'s', shelf.scrollLeft === slField)
+
 console.log(`\n${pass} passed, ${fail} failed`)
 process.exit(fail ? 1 : 0)

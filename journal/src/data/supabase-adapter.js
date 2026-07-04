@@ -247,6 +247,34 @@ export function makeJournalStore({ sb, uid, characterKey }) {
       return res.data || []
     },
 
+    // canonical per-session titles (session_titles table). Read-all;
+    // non-fatal on error — the book falls back to row meta.
+    async loadSessionTitles() {
+      const res = await sb.from('session_titles').select('session, title')
+      if (res.error) return {}
+      const map = {}
+      for (const r of res.data || []) map[r.session] = r.title
+      return map
+    },
+
+    // staff-only write (RLS-enforced). Empty title deletes the canonical row
+    // so the session falls back to row meta / plain number. Lesson 1 applies:
+    // a blocked write matches 0 rows and raises NO error — count the rows.
+    async saveSessionTitle(session, title) {
+      const t = String(title || '').trim()
+      if (!t) {
+        const res = await sb.from('session_titles').delete().eq('session', session).select('session')
+        if (res.error) throw new Error(`saveSessionTitle: ${res.error.message}`)
+        return null
+      }
+      const res = await sb.from('session_titles')
+        .upsert({ session, title: t, updated_at: new Date().toISOString() }, { onConflict: 'session' })
+        .select('session')
+      if (res.error) throw new Error(`saveSessionTitle: ${res.error.message}`)
+      if (!res.data || res.data.length === 0) throw new Error('saveSessionTitle: write blocked (staff only)')
+      return t
+    },
+
     // ── curation (staff) ──
     async loadCurationQueue() {
       const res = await sb.from('entities')

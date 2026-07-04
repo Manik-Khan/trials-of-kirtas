@@ -56,6 +56,25 @@ const v = chapterToVolume({ session: 7, title: '', date: 'Jul 1', entries: [] })
 t('untitled Session 7: big text is "Session 7", small number hidden',
   v.name === 'Session 7' && v.showNum === false)
 
+// ── canonical session titles (session_titles) override row meta ──
+const titled = chaptersToVolumes(chapters, { 1: 'The Crossroads, Properly Named' })
+t('canonical title overrides the row-meta title',
+  titled[1].name === 'The Crossroads, Properly Named')
+t('sessions without a canonical row keep the meta fallback',
+  titled[2].name === 'The Journey Into Kirtas')
+t('a blank canonical title is ignored (fallback survives)',
+  chaptersToVolumes(chapters, { 1: '   ' })[1].name === 'Gathering at the Crossroads')
+t('canonical title can name an untitled session (showNum flips on)',
+  chaptersToVolumes(chapters, { 0: 'Before the Frontier' })[0].showNum === true)
+
+// ── the spine is clamped; the panel keeps the full name ──
+const long = 'Northern Numior extends to the Kharak Mountains and Kirtas beyond'
+const lv = chapterToVolume({ session: 3, title: long, date: 'Jul 3', entries: [] })
+t('spine text is clamped ≤ 45 chars with an ellipsis',
+  lv.spine.length <= 45 && lv.spine.endsWith('…'))
+t('panel name keeps the full title', lv.name === long)
+t('short titles reach the spine unclamped', v.spine === 'Session 7')
+
 // ── the accordion reducer ──
 t('click opens', nextOpen(null, 2) === 2)
 t('click another switches (single volume open at a time)', nextOpen(2, 0) === 0)

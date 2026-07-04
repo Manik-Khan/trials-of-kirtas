@@ -108,7 +108,8 @@ export default function App() {
               viewSeatKey={backend.viewSeatKey !== undefined ? backend.viewSeatKey : null}
               live={backend.mode === 'live'}
               commentCounts={backend.commentCounts || {}} />
-          : <ChronicleView live={backend.mode === 'live'} store={backend.store || null} accents={backend.accents || {}} />}
+          : <ChronicleView live={backend.mode === 'live'} store={backend.store || null}
+              accents={backend.accents || {}} isStaff={!!backend.isStaff} />}
       </div>
     </div>
   )

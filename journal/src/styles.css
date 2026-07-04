@@ -47,7 +47,11 @@
   position: relative;
   height: calc(100dvh - 52px);       /* under the 52px site nav */
   display: flex; flex-direction: column;
-  overflow: hidden;
+  /* clip, NOT hidden: an overflow:hidden box still scrolls programmatically
+     (scrollIntoView walks every clipping ancestor) and offers the user no
+     way back — the "left edge amputated on both tabs" bug. clip cannot
+     scroll, ever. */
+  overflow: clip;
   background: var(--sh-paper);
   color: var(--sh-ink);
   font-family: var(--sh-font-utility);
@@ -115,7 +119,7 @@ body:not(:has(#site-nav)) .sh-scope { height: 100dvh; } /* standalone preview */
 .sh-dot.is-active::after { content: ''; position: absolute; inset: -4px; border: 1px solid var(--sh-ink); border-radius: 50%; }
 .sh-dot:focus-visible { outline: 2px solid var(--sh-accent); outline-offset: 3px; }
 
-.sh-view { flex: 1 1 auto; min-height: 0; position: relative; }
+.sh-view { flex: 1 1 auto; min-height: 0; position: relative; overflow: clip; }
 .sh-state {
   padding: 8vh 2rem; text-align: center;
   font-family: var(--sh-font-body); font-style: italic; font-size: 17px;
@@ -161,6 +165,9 @@ body:not(:has(#site-nav)) .sh-scope { height: 100dvh; } /* standalone preview */
   padding: 24px 0 20px;
   position: relative;
   transition: background 0.3s ease;
+  /* a too-long vertical-rl title wraps into extra columns and bleeds across
+     neighboring spines — the spine is a hard box */
+  overflow: hidden;
 }
 .sh-spine:hover { background: var(--sh-ink-wash); }
 .sh-spine:focus-visible { outline: 3px solid var(--sh-accent); outline-offset: -3px; }
@@ -177,7 +184,25 @@ body:not(:has(#site-nav)) .sh-scope { height: 100dvh; } /* standalone preview */
   font-size: clamp(30px, 3.6vw, 54px);
   line-height: 1; text-transform: uppercase; letter-spacing: 0.02em;
   flex: 1 1 auto; min-height: 0; overflow: hidden;
+  max-width: 100%; white-space: nowrap; /* one vertical column, full stop */
   transition: color 0.3s ease;
+}
+.sh-p-rename {
+  font-size: 0.42em; vertical-align: middle;
+  margin-left: 12px; padding: 2px 6px;
+  color: var(--sh-ink-faint);
+  border: 1px solid var(--sh-hairline);
+  opacity: 0; transition: opacity 0.2s ease, color 0.2s ease;
+}
+.sh-p-title:hover .sh-p-rename, .sh-p-rename:focus-visible { opacity: 1; }
+.sh-p-rename:hover { color: var(--sh-accent); }
+.sh-p-title-edit {
+  display: block; width: min(680px, 88%); margin: 0 auto;
+  font-family: var(--sh-font-poster);
+  font-size: clamp(40px, 4.6vw, 72px); line-height: 1.02; text-align: center;
+  color: var(--sh-ink); background: transparent;
+  border: 0; border-bottom: 2px solid var(--sh-accent);
+  outline: none; padding: 2px 8px 6px;
 }
 .sh-spine:hover .sh-sname, .sh-vol.is-open > .sh-spine .sh-sname { color: var(--sh-accent); }
 .sh-sfoot { margin-top: 2.2vh; display: flex; flex-direction: column; align-items: center; gap: 10px; }
