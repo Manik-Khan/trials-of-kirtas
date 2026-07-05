@@ -24,7 +24,7 @@ catch (e) { t('bardic-app.jsx parses: ' + e.message, false) }
 
 // ── the contract, parsed from the bus's own header ──
 const verbLines = [...busSrc.matchAll(/\{ t:'([a-zA-Z-]+)'/g)].map(m => m[1])
-const remoteVerbs = ['hello', 'cast', 'toggle', 'stop', 'next', 'prev', 'vol', 'globalPause']
+const remoteVerbs = ['hello', 'cast', 'toggle', 'stop', 'pause', 'next', 'prev', 'vol', 'globalPause']
 t(`protocol header names all remote verbs (${remoteVerbs.join(', ')})`,
   remoteVerbs.every(v => verbLines.includes(v)))
 t('protocol header names the state snapshot and engine-bye',
@@ -35,7 +35,7 @@ const adapterCase = v => new RegExp(`case '${v}':`).test(appSrc)
 const unmapped = remoteVerbs.filter(v => !adapterCase(v))
 t(`engine adapter handles every header verb (unmapped: ${unmapped.join(',') || 'none'})`, unmapped.length === 0)
 t('every verb dispatches through busVerbsRef (fresh callbacks, no stale closures)',
-  ['cast', 'toggle', 'stop', 'next', 'prev', 'vol', 'globalPause']
+  ['cast', 'toggle', 'stop', 'pause', 'next', 'prev', 'vol', 'globalPause']
     .every(v => appSrc.includes(`${v}:`)) && appSrc.includes('busVerbsRef.current = {'))
 t('hello answered with a full snapshot', appSrc.includes("case 'hello':  bus.send(busSnapshot()); break;"))
 t('snapshot publishes on chStates AND library changes',
@@ -43,6 +43,14 @@ t('snapshot publishes on chStates AND library changes',
 t('engine-bye on unload, listener removed on teardown',
   appSrc.includes("bus.send({ t: 'engine-bye', engineId: engineIdRef.current })")
   && appSrc.includes("window.removeEventListener('beforeunload', bye)"))
+// July 5 regressions, pinned: the console's mood field is LABEL — a
+// harness that feeds 'name'-shaped moods is stubbing an assumption.
+t('snapshot maps mood.label onto the protocol name field (blank-dropdown regression)',
+  appSrc.includes('name: m.label') && appSrc.includes('moodName: mood ? mood.label'))
+t('pauseChannel is a true per-channel pause, both source types (skip-button regression)',
+  appSrc.includes('const pauseChannel = useCallback((chId) => {')
+  && /pauseChannel[\s\S]*?ytPlayersRef\.current\[chId\]\?\.pauseVideo\(\)/.test(appSrc)
+  && /pauseChannel[\s\S]*?enginesRef\.current\[chId\]\?\.pauseTrack\(\)/.test(appSrc))
 t('snapshot reads through refs (chStatesRef + libraryRef), no stale state',
   appSrc.includes('const lib = libraryRef.current;') && appSrc.includes('const cs  = chStatesRef.current;'))
 

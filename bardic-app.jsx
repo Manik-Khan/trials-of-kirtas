@@ -518,6 +518,25 @@ function App() {
   const toggleGlobalPauseRef = useRef(toggleGlobalPause);
   useEffect(() => { toggleGlobalPauseRef.current = toggleGlobalPause; }, [toggleGlobalPause]);
 
+  // Per-channel pause/resume (July 5, wave A fix): the console only ever
+  // had GLOBAL pause; toggleMoodOnChannel's active branch is documented
+  // "double-press to skip". The rail's pause button needs a true
+  // per-channel pause, so this mirrors toggleGlobalPause's per-channel
+  // logic for one chId — both source types, same as the global path.
+  const pauseChannel = useCallback((chId) => {
+    const cs = chStatesRef.current[chId];
+    if (!cs || !cs.track) return;
+    if (cs.paused) {
+      if (cs.sourceType === 'sonus') ytPlayersRef.current[chId]?.playVideo();
+      else enginesRef.current[chId]?.resumeTrack();
+      setChStates(s => ({ ...s, [chId]: { ...s[chId], paused: false } }));
+    } else {
+      if (cs.sourceType === 'sonus') ytPlayersRef.current[chId]?.pauseVideo();
+      else enginesRef.current[chId]?.pauseTrack();
+      setChStates(s => ({ ...s, [chId]: { ...s[chId], paused: true } }));
+    }
+  }, []);
+
   // ============================================================
   // BARDIC BUS — engine adapter (increment 1, July 5)
   // ============================================================
@@ -535,6 +554,7 @@ function App() {
     cast:   castMoodOnChannel,
     toggle: toggleMoodOnChannel,
     stop:   stopChannel,
+    pause:  pauseChannel,
     next:   nextTrack,
     prev:   prevTrack,
     vol:    setVolume,
@@ -552,7 +572,7 @@ function App() {
       channelsOut[c.id] = {
         label: c.label, accent: c.accent,
         moodId: s.moodId ?? null,
-        moodName: mood ? mood.name : (s.sourceType === 'sonus' ? 'Sonus portal' : null),
+        moodName: mood ? mood.label : (s.sourceType === 'sonus' ? 'Sonus portal' : null),
         trackTitle: s.track ? (s.track.title || null) : null,
         paused: !!s.paused,
         volume: s.volume ?? 0.5,
@@ -564,7 +584,8 @@ function App() {
       engineId: engineIdRef.current,
       ts: Date.now(),
       onAir: false,   // wave B flips this when the radio transport lands
-      moods: lib.moods.map(m => ({ id: m.id, name: m.name, color: m.color, sigil: m.sigil })),
+      // protocol field stays 'name'; the console's mood field is 'label'
+      moods: lib.moods.map(m => ({ id: m.id, name: m.label, color: m.color, sigil: m.sigil })),
       channels: channelsOut,
     };
   }, []);
@@ -581,6 +602,7 @@ function App() {
         case 'cast':   verbs.cast(msg.moodId, msg.chId); break;
         case 'toggle': verbs.toggle(msg.moodId, msg.chId); break;
         case 'stop':   verbs.stop(msg.chId); break;
+        case 'pause':  verbs.pause(msg.chId); break;
         case 'next':   verbs.next(msg.chId); break;
         case 'prev':   verbs.prev(msg.chId); break;
         case 'vol':    verbs.vol(msg.chId, msg.val); break;

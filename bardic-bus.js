@@ -23,6 +23,7 @@
 //     { t:'cast',   moodId, chId }      cast a mood onto a channel
 //     { t:'toggle', moodId, chId }      pause/resume that mood on that channel
 //     { t:'stop',   chId }              clear the channel
+//     { t:'pause',  chId }              per-channel pause/resume
 //     { t:'next',   chId }              advance (respects shuffle bag)
 //     { t:'prev',   chId }              restart >3s in, else previous
 //     { t:'vol',    chId, val }         0..1

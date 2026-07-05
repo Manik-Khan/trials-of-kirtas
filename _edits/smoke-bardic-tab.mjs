@@ -89,6 +89,8 @@ t('tab registered: id bardic, order 30, onMount + onShow present',
   typeof registeredSpec.onMount === 'function' && typeof registeredSpec.onShow === 'function')
 t('scoped CSS injected once, ID-prefixed', !!w.document.getElementById('tok-bardic-tab-css') &&
   w.document.getElementById('tok-bardic-tab-css').textContent.startsWith('#tok-rail '))
+t('option elements carry their own dark colors (blank-popup regression)',
+  w.document.getElementById('tok-bardic-tab-css').textContent.includes('.tok-bd-sel option{background:rgb(10,18,16);color:rgb(236,226,205)}'))
 t('no color-mix / modern color syntax in injected chrome',
   !/color-mix|oklch|lab\(|lch\(/.test(w.document.getElementById('tok-bardic-tab-css').textContent))
 
@@ -113,7 +115,8 @@ musicSel.value = ''; fire(musicSel, 'change')
 t('silence → stop{chId}', engineHeard.some(m => m.t === 'stop' && m.chId === 'music'))
 engineHeard.length = 0
 fire(rows[0].querySelector('.tok-bd-ctl button'), 'click')
-t('pause button → toggle{moodId,chId}', engineHeard.some(m => m.t === 'toggle' && m.moodId === 'm-court' && m.chId === 'music'))
+t('pause button → pause{chId} (NOT toggle — that is double-press-to-skip)',
+  engineHeard.some(m => m.t === 'pause' && m.chId === 'music') && !engineHeard.some(m => m.t === 'toggle'))
 fire(rows[0].querySelectorAll('.tok-bd-ctl button')[1], 'click')
 t('next button → next{chId}', engineHeard.some(m => m.t === 'next' && m.chId === 'music'))
 const vol = rows[0].querySelector('input[type=range]')
@@ -133,12 +136,17 @@ const tog = paneEl.querySelector('.tok-bd-chiptog')
 fire(tog, 'click')
 t('chip toggle hides chip + persists tok-bardic-chip',
   chip.classList.contains('tok-bd-off') && w.localStorage.getItem('tok-bardic-chip') === 'hidden')
+const mini = paneEl.querySelector('.tok-bd-minichip')
+t('tucked chip lives in the rail: mini now-playing on, label off',
+  mini.classList.contains('on') && mini.querySelector('.mt').textContent.includes('Strings of the Old Hall')
+  && paneEl.querySelector('.tok-bd-chiprow .l').classList.contains('off'))
 w.document.getElementById('tok-rail').classList.add('tr-collapsed')
 registeredSpec.onShow()   // repaint path
 t('handle ember on for playing + hidden + collapsed',
   w.document.querySelector('.tr-handle .tok-bd-ember').classList.contains('on'))
 fire(tog, 'click')
 t('toggle restores chip', !chip.classList.contains('tok-bd-off') && w.localStorage.getItem('tok-bardic-chip') === 'shown')
+t('restored: mini chip yields back to the label', !mini.classList.contains('on') && !paneEl.querySelector('.tok-bd-chiprow .l').classList.contains('off'))
 
 // ── engine death paths ──
 engine.send({ t: 'engine-bye', engineId: 'eng-test' })

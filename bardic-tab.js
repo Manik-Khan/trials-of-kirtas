@@ -99,6 +99,7 @@
       + '#tok-rail .tok-bd-main{flex:1;min-width:0;display:flex;flex-direction:column;gap:4px}'
       + '#tok-rail .tok-bd-lab{font-family:Oswald,sans-serif;font-size:8px;letter-spacing:0.2em;text-transform:uppercase}'
       + '#tok-rail .tok-bd-sel{width:100%;background:rgba(10,18,16,0.85);border:1px solid rgba(236,226,205,0.16);color:rgba(236,226,205,1);font-family:"EB Garamond",serif;font-size:13px;padding:4px 6px}'
+      + '#tok-rail .tok-bd-sel option{background:rgb(10,18,16);color:rgb(236,226,205)}'
       + '#tok-rail .tok-bd-now{font-size:12px;color:rgba(185,176,154,1);font-style:italic;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}'
       + '#tok-rail .tok-bd-now.idle{color:rgba(139,132,115,1);font-style:normal}'
       + '#tok-rail .tok-bd-ctl{display:flex;flex-direction:column;gap:4px;align-items:center}'
@@ -106,7 +107,15 @@
       + '#tok-rail .tok-bd-ctl button{width:24px;height:24px;background:transparent;border:1px solid rgba(236,226,205,0.14);color:rgba(185,176,154,1);cursor:pointer;font-size:10px;line-height:1}'
       + '#tok-rail .tok-bd-ctl button:hover{border-color:rgba(199,154,74,0.6);color:rgba(236,226,205,1)}'
       + '#tok-rail .tok-bd-ctl input[type=range]{width:56px}'
-      + '#tok-rail .tok-bd-chiprow{display:flex;align-items:center;gap:8px}'
+      + '#tok-rail .tok-bd-chiprow{display:flex;align-items:center;gap:8px;min-height:26px}'
+      + '#tok-rail .tok-bd-minichip{display:none;align-items:center;gap:7px;min-width:0;flex:1}'
+      + '#tok-rail .tok-bd-minichip.on{display:flex}'
+      + '#tok-rail .tok-bd-minichip .eq{display:flex;align-items:flex-end;gap:2px;height:12px;flex:none}'
+      + '#tok-rail .tok-bd-minichip .eq i{width:3px;background:rgba(201,168,76,1);animation:tokBdEq 0.9s infinite ease-in-out}'
+      + '#tok-rail .tok-bd-minichip .eq i:nth-child(2){animation-delay:0.2s}'
+      + '#tok-rail .tok-bd-minichip .eq i:nth-child(3){animation-delay:0.45s}'
+      + '#tok-rail .tok-bd-minichip .mt{font-size:12px;color:rgba(236,226,205,1);font-style:italic;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}'
+      + '#tok-rail .tok-bd-chiprow .l.off{display:none}'
       + '#tok-rail .tok-bd-chiprow .l{font-family:Oswald,sans-serif;font-size:8.5px;letter-spacing:0.16em;text-transform:uppercase;color:rgba(139,132,115,1)}'
       + '#tok-rail .tok-bd-chiptog{margin-left:auto;padding:4px 10px;background:transparent;border:1px solid rgba(199,154,74,0.34);color:rgba(185,176,154,1);font-family:Oswald,sans-serif;font-size:8.5px;letter-spacing:0.18em;text-transform:uppercase;cursor:pointer}'
       + '#tok-rail .tok-bd-chiptog.on{border-color:rgba(199,154,74,0.6);color:rgba(231,194,121,1)}'
@@ -169,7 +178,8 @@
       setTimeout(pingEngine, 2500);   // give it a breath, then ask
     });
     var chiprow = el('div', 'tok-bd-chiprow');
-    chiprow.innerHTML = '<span class="l">Corner chip</span>';
+    chiprow.innerHTML = '<span class="l">Corner chip</span>'
+      + '<div class="tok-bd-minichip"><div class="eq"><i></i><i></i><i></i></div><div class="mt"></div></div>';
     var chiptog = el('button', 'tok-bd-chiptog');
     chiptog.addEventListener('click', function () {
       S.chipPref = S.chipPref === 'shown' ? 'hidden' : 'shown';
@@ -218,8 +228,9 @@
       else S.bus.send({ t: 'cast', moodId: v, chId: chId });
     });
     pauseB.addEventListener('click', function () {
-      var c = S.snap && S.snap.channels[chId];
-      if (c && c.moodId) S.bus.send({ t: 'toggle', moodId: c.moodId, chId: chId });
+      // 'pause' is a true per-channel pause/resume (engine adapter, July 5);
+      // 'toggle' on an active mood is the console's double-press-to-skip.
+      S.bus.send({ t: 'pause', chId: chId });
     });
     nextB.addEventListener('click', function () { S.bus.send({ t: 'next', chId: chId }); });
     var volT = null;
@@ -243,6 +254,18 @@
     R.light.style.display = S.engineLive ? 'none' : 'block';
     R.chiptog.classList.toggle('on', S.chipPref === 'shown');
     R.chiptog.textContent = S.chipPref === 'shown' ? 'Shown \u00b7 click to hide' : 'Hidden \u00b7 click to show';
+    // tucked chip lives HERE: the mini now-playing takes the label's space
+    var live = playingChannels();
+    var mini = R.chiptog.parentNode.querySelector('.tok-bd-minichip');
+    var lab2 = R.chiptog.parentNode.querySelector('.l');
+    var tucked = S.chipPref === 'hidden' && live.length > 0;
+    mini.classList.toggle('on', tucked);
+    lab2.classList.toggle('off', tucked);
+    if (tucked) {
+      mini.querySelector('.mt').textContent = live.map(function (c) { return c.title; }).join(' \u00b7 ');
+      var eqs = mini.querySelectorAll('.eq i');
+      for (var ei = 0; ei < eqs.length; ei++) eqs[ei].style.background = (live[ei % live.length] || live[0]).accent;
+    }
     R.chs.style.display = S.engineLive ? '' : 'none';
     if (!S.snap || !S.engineLive) return;
 
