@@ -118,6 +118,7 @@
     // ── fakeGain shim (non-proxied URLs, desktop fallback) ───────
     // Controls audio.volume directly. Works on desktop; iOS ignores it.
     let _rampTimer = null;
+    let _retryIds = [];
     const fakeGain = {
       gain: {
         value: 0,
@@ -164,13 +165,17 @@
         // play() is called directly by playTrack() synchronously within the
         // user gesture stack. This start() call handles the crossfade timing
         // only — play() retries here catch cases where the session wasn't
-        // ready yet (iOS mainly).
+        // ready yet (iOS mainly). Retries are cancellable: a deliberate
+        // pauseTrack() must win against this watchdog (July 5 — the retry
+        // was resurrecting paused audio within its 600ms window).
         const attempt = () => audio.play().catch(() => {});
-        [100, 300, 600].forEach(ms => setTimeout(() => {
+        _retryIds = [100, 300, 600].map(ms => setTimeout(() => {
           if (audio.paused && audio.src) attempt();
         }, ms));
       },
+      cancelRetries: () => { _retryIds.forEach(clearTimeout); _retryIds = []; },
       stop:  (when = 0) => {
+        _retryIds.forEach(clearTimeout); _retryIds = [];
         setTimeout(() => {
           try {
             audio.pause();
@@ -248,6 +253,7 @@
 
       const voice = makeUrlTrack(proxiedUrl, loops, onEnd, id, isProxied);
       _track = track;
+      _paused = false;   // a fresh voice is playing — never inherit a stale latch
 
       // audio.play() MUST be called synchronously within the user gesture call
       // stack — browsers block it if called after an async gap (e.g. inside
@@ -282,15 +288,18 @@
     let _paused = false;
 
     function pauseTrack() {
-      if (!current || _paused) return;
+      if (!current) return;
+      if (current.cancelRetries) current.cancelRetries();   // the watchdog must not resurrect us
       const a = _currentAudio();
-      if (a) { a.pause(); _paused = true; }
+      if (a && !a.paused) a.pause();
+      _paused = true;
     }
 
     function resumeTrack() {
-      if (!current || !_paused) return;
+      if (!current) return;
       const a = _currentAudio();
-      if (a) { a.play().catch(() => {}); _paused = false; }
+      if (a && a.paused && a.src) a.play().catch(() => {});
+      _paused = false;
     }
 
     // Get the active audio element if current voice is a URL track
