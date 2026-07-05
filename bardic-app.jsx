@@ -582,7 +582,9 @@ function App() {
       engine_name: 'the console',
       listener_count: on ? (radioStateRef.current.listeners || []).length : 0,
       updated_at: new Date().toISOString(),
-    }).eq('id', 1).then(() => {}, () => {});
+    }).eq('id', 1).then((res) => {
+      if (res && res.error) console.warn('[bardic] heartbeat write failed (did bardic-air.sql run?):', res.error.message);
+    }, (e) => console.warn('[bardic] heartbeat write failed:', e));
   }, []);
 
   useEffect(() => {
@@ -636,6 +638,12 @@ function App() {
   // the callbacks that already exist.
   const busRef = useRef(null);
   const engineIdRef = useRef('eng-' + Math.random().toString(36).slice(2, 10));
+  // the build tag travels in every snapshot: the console tab is long-lived
+  // BY DESIGN, which means it keeps running pre-deploy code until someone
+  // refreshes it (July 5 — the heartbeat "didn't work" because the engine
+  // tab predated the heartbeat). The rail shows this tag; a missing or
+  // old tag means "refresh the console tab."
+  const BARDIC_BUILD = 'B6';
 
   // latest callbacks without re-subscribing (the toggleGlobalPauseRef pattern)
   const busVerbsRef = useRef({});
@@ -671,6 +679,7 @@ function App() {
     });
     return {
       t: 'state',
+      build: BARDIC_BUILD,
       engineId: engineIdRef.current,
       ts: Date.now(),
       onAir: radioStateRef.current.onAir,

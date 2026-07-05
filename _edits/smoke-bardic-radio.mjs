@@ -199,7 +199,7 @@ t('rail: heartbeat poll replaces the watcher socket (rows do not freeze)',
   && tabSrc.includes('setInterval(pollAir, 15000);')
   && tabSrc.includes("document.addEventListener('visibilitychange', function () { if (!document.hidden) pollAir(); });"))
 t('rail: stale heartbeat (>30s) counts as off air',
-  tabSrc.includes('Date.now() - new Date(row.updated_at).getTime() < 30000'))
+  tabSrc.includes('var fresh = ageMs != null && ageMs < 30000;') && tabSrc.includes('on: !!row.on_air && fresh,'))
 t('rail: pane-show refreshes the row', tabSrc.includes('onShow: function () { pingEngine(); pollAir(); paintAll(); }'))
 t('rail: watcher never runs on console/radio pages',
   tabSrc.includes('function startWatcher()') && tabSrc.includes('if (ON_CONSOLE || ON_RADIO) return;'))
@@ -261,6 +261,16 @@ const sqlSrc = readFileSync('_edits/bardic-air.sql', 'utf8')
 t('heartbeat SQL: singleton row, RLS read+write for members',
   sqlSrc.includes('id             int primary key default 1 check (id = 1)')
   && sqlSrc.includes('create policy bardic_air_read') && sqlSrc.includes('create policy bardic_air_write'))
+t('snapshots carry the build tag (stale console tabs become visible)',
+  appSrc.includes("const BARDIC_BUILD = 'B6';") && appSrc.includes("build: BARDIC_BUILD,"))
+t('heartbeat failures are LOUD on both ends (no more silent field mysteries)',
+  appSrc.includes("console.warn('[bardic] heartbeat write failed (did bardic-air.sql run?)")
+  && tabSrc.includes("console.warn('[bardic-tab] heartbeat read failed (did bardic-air.sql run?)"))
+t('rail narrates heartbeat diagnostics: unreachable, stale-flag, or ok',
+  tabSrc.includes('heartbeat unreachable \\u2014 has bardic-air.sql been run?')
+  && tabSrc.includes('the console tab is probably running pre-deploy code; refresh it.'))
+t('engine header shows the build; pre-B6 tabs self-identify',
+  tabSrc.includes("pre-B6 \\u2014 refresh the console tab"))
 t('engine heartbeats the row: on air-on, every 10s, and false on air-off',
   appSrc.includes("sb.from('bardic_air').update({") && appSrc.includes('beatAir(true);')
   && appSrc.includes('beatAir(false);') && appSrc.includes('listener_count: on ? (radioStateRef.current.listeners || []).length : 0,'))

@@ -48,7 +48,8 @@
     tabBtn: null,
     chip: null,
     chipPref: (function () { try { return localStorage.getItem(CHIP_KEY) || 'shown'; } catch (e) { return 'shown'; } })(),
-    remote: { on: false, name: null, count: 0 },   // a broadcast on ANOTHER device (Realtime watcher)
+    remote: { on: false, name: null, count: 0 },   // a broadcast on ANOTHER device (heartbeat row)
+    airRow: { state: 'unchecked', ageS: null },    // heartbeat diagnostics for the radio section
     shut: (function () { try { return JSON.parse(localStorage.getItem('tok-bardic-shut') || '{}'); } catch (e) { return {}; } })(),
     pingTimer: null,
     rows: {},              // chId → row element refs
@@ -325,7 +326,8 @@
     if (!S.paneRefs) return;
     var R = S.paneRefs;
     R.ehead.classList.toggle('live', S.engineLive);
-    R.ehead.querySelector('.r').textContent = S.engineLive ? 'bardic-console \u00b7 background tab'
+    R.ehead.querySelector('.r').textContent = S.engineLive
+      ? ('bardic-console \u00b7 ' + (S.snap && S.snap.build ? S.snap.build : 'pre-B6 \u2014 refresh the console tab'))
       : (S.remote.on ? 'on air elsewhere' : 'not running');
     if (S.engineLive) {
       R.etext.innerHTML = 'Playing from <b>your console tab</b> \u2014 audio never touches this page, so navigation can\u2019t interrupt it.';
@@ -350,7 +352,18 @@
       R.rtune.style.display = ON_RADIO ? 'none' : 'block';
     } else {
       R.rhead.querySelector('.r').textContent = 'off air';
-      R.rtext.innerHTML = 'No broadcast right now. When the console goes on air, tune in from here \u2014 or from the corner chip.';
+      var diag;
+      if (S.airRow.state === 'error' || S.airRow.state === 'missing') {
+        diag = ' <span style="color:rgba(224,88,74,1)">heartbeat unreachable \u2014 has bardic-air.sql been run?</span>';
+      } else if (S.airRow.state === 'ok' && S.airRow.onFlag && S.airRow.ageS > 30) {
+        diag = ' <span style="color:rgba(224,88,74,1)">a broadcast flag exists but its heartbeat is ' + S.airRow.ageS
+          + 's old \u2014 the console tab is probably running pre-deploy code; refresh it.</span>';
+      } else if (S.airRow.state === 'ok') {
+        diag = ' <span style="opacity:0.7">heartbeat ok \u00b7 checked ' + (S.airRow.ageS != null ? S.airRow.ageS + 's since last write' : 'now') + '.</span>';
+      } else {
+        diag = '';
+      }
+      R.rtext.innerHTML = 'No broadcast right now. When the console goes on air, tune in from here \u2014 or from the corner chip.' + diag;
       R.rtune.style.display = 'none';
     }
     // an engine coming live opens its section (unless the user shut it themselves)
@@ -505,16 +518,28 @@
     if (!sb || document.hidden) return;
     sb.from('bardic_air').select('on_air,engine_name,listener_count,updated_at').eq('id', 1).single()
       .then(function (res) {
+        if (res && res.error) {
+          if (S.airRow.state !== 'error') console.warn('[bardic-tab] heartbeat read failed (did bardic-air.sql run?):', res.error.message);
+          S.airRow = { state: 'error', ageS: null };
+          paintAll();
+          return;
+        }
         var row = res && res.data;
-        if (!row) return;
-        var fresh = row.updated_at && (Date.now() - new Date(row.updated_at).getTime() < 30000);
+        if (!row) { S.airRow = { state: 'missing', ageS: null }; paintAll(); return; }
+        var ageMs = row.updated_at ? (Date.now() - new Date(row.updated_at).getTime()) : null;
+        var fresh = ageMs != null && ageMs < 30000;
+        S.airRow = { state: 'ok', ageS: ageMs != null ? Math.round(ageMs / 1000) : null, onFlag: !!row.on_air };
         S.remote = {
           on: !!row.on_air && fresh,
           name: row.engine_name || 'The console',
           count: row.listener_count || 0,
         };
         paintAll();
-      }, function () {});
+      }, function (e) {
+        if (S.airRow.state !== 'error') console.warn('[bardic-tab] heartbeat read failed:', e);
+        S.airRow = { state: 'error', ageS: null };
+        paintAll();
+      });
   }
   function startWatcher() {
     if (ON_CONSOLE || ON_RADIO) return;                 // engine + radio know their own state
