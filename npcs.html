@@ -23,7 +23,7 @@
     .page-header {
       text-align: center;
       padding: 5rem 2rem 3rem;
-      background: radial-gradient(ellipse 80% 60% at 50% 0%, rgba(42,20,10,0.8) 0%, transparent 70%);
+      background: radial-gradient(ellipse 80% 60% at 50% 0%, var(--look-header-ember, rgba(42,20,10,0.8)) 0%, transparent 70%);
     }
     .page-eyebrow {
       font-family: var(--font-title);
@@ -69,11 +69,11 @@
     .npc-card {
       position: relative;
       cursor: pointer;
-      border: 1px solid rgba(26,26,26,0.15);
+      border: 1px solid var(--look-card-border, rgba(26,26,26,0.15));
       transition: border-color 0.3s, transform 0.3s;
     }
     .npc-card:hover {
-      border-color: rgba(192,0,26,0.35);
+      border-color: var(--look-accent-strong, rgba(192,0,26,0.35));
       transform: translateY(-2px);
     }
 
@@ -84,18 +84,18 @@
       display: flex;
       align-items: flex-end;
       justify-content: center;
-      background: #1a1a1a;
+      background: var(--look-card-bg, #1a1a1a);
       margin-bottom: 0;
     }
 
     .portrait-bg {
       position: absolute; inset: 0;
-      background: linear-gradient(160deg, #2a2018 0%, #1a1410 55%, #0d0a07 100%);
+      background: linear-gradient(160deg, var(--look-modal-g1, #2a2018) 0%, var(--look-modal-g2, #1a1410) 55%, var(--look-modal-g2, #0d0a07) 100%);
     }
 
     .portrait-dots {
       position: absolute; inset: 0;
-      background-image: radial-gradient(circle, rgba(0,0,0,0.42) 1px, transparent 1px);
+      background-image: radial-gradient(circle, var(--look-dots, rgba(0,0,0,0.42)) 1px, transparent 1px);
       background-size: 4px 4px;
       z-index: 1; mix-blend-mode: multiply; pointer-events: none;
     }
@@ -137,7 +137,8 @@
       position: absolute; top: 12px; left: 12px; z-index: 4;
       font-family: var(--font-title);
       font-size: 6.5px; letter-spacing: 0.3em; text-transform: uppercase;
-      color: var(--parchment); background: rgba(0,0,0,0.72);
+      color: #f0ece4; /* pinned: scrim is dark in both derivation branches; --parchment drifts dark under light washes */
+      background: var(--look-scrim, rgba(0,0,0,0.72));
       padding: 3px 8px;
       backdrop-filter: blur(4px);
     }
@@ -161,10 +162,10 @@
     }
 
     .card-text {
-      background: #1a1a1a;
+      background: var(--look-card-bg, #1a1a1a);
       padding: 18px 16px 20px;
       position: relative;
-      border: 1px solid rgba(255,255,255,0.07);
+      border: 1px solid var(--look-card-border, rgba(255,255,255,0.07));
       border-top: none;
     }
 
@@ -174,9 +175,9 @@
       position: absolute;
       top: 0; left: 10px; right: 10px; height: 1.5px;
       background: linear-gradient(90deg,
-        transparent 0%, rgba(255,255,255,0.35) 20%,
-        rgba(255,255,255,0.6) 50%,
-        rgba(255,255,255,0.35) 80%, transparent 100%);
+        transparent 0%, var(--look-card-border, rgba(255,255,255,0.35)) 20%,
+        var(--look-card-muted, rgba(255,255,255,0.6)) 50%,
+        var(--look-card-border, rgba(255,255,255,0.35)) 80%, transparent 100%);
       clip-path: polygon(
         0 0, 3% 100%, 9% 20%, 17% 85%, 26% 10%,
         38% 90%, 50% 15%, 63% 85%, 75% 20%,
@@ -186,37 +187,37 @@
     .card-role {
       font-family: var(--font-title);
       font-size: 6.5px; letter-spacing: 0.35em; text-transform: uppercase;
-      color: rgba(255,255,255,0.5); margin: 0 0 4px;
+      color: var(--look-card-muted, rgba(255,255,255,0.5)); margin: 0 0 4px;
     }
 
     .card-name {
       font-family: var(--font-title);
       font-size: 18px; font-weight: 700;
-      color: #f0ece4; margin: 0 0 3px; line-height: 1.1; letter-spacing: 0.04em;
+      color: var(--look-card-text, #f0ece4); margin: 0 0 3px; line-height: 1.1; letter-spacing: 0.04em;
     }
 
     .card-faction {
       font-family: var(--font-title);
       font-size: 6.5px; letter-spacing: 0.2em; text-transform: uppercase;
-      margin: 0 0 10px; color: rgba(255,255,255,0.45);
+      margin: 0 0 10px; color: var(--look-card-muted, rgba(255,255,255,0.45));
     }
 
     .card-rule {
       width: 24px; height: 1px;
-      background: rgba(255,255,255,0.15); margin: 0 0 10px;
+      background: var(--look-card-border, rgba(255,255,255,0.15)); margin: 0 0 10px;
     }
 
     .card-desc {
       font-family: var(--font-card); font-style: italic;
-      font-size: 12px; color: #b8952a; line-height: 1.6; margin: 0 0 12px;
+      font-size: 12px; color: var(--look-trim, #b8952a); line-height: 1.6; margin: 0 0 12px;
     }
 
     .card-status {
       display: inline-flex; align-items: center; gap: 5px;
       font-family: var(--font-title); font-size: 6.5px;
       letter-spacing: 0.22em; text-transform: uppercase;
-      color: rgba(255,255,255,0.32);
-      border: 1px solid rgba(255,255,255,0.1);
+      color: var(--look-card-muted, rgba(255,255,255,0.32));
+      border: 1px solid var(--look-card-border, rgba(255,255,255,0.1));
       padding: 3px 8px;
     }
     .status-dot {
