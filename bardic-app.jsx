@@ -537,6 +537,62 @@ function App() {
     }
   }, []);
 
+  // ── Bardic radio (wave B, July 5): the engine relays clock-anchored
+  // positions to 'bardic-radio' while on air. bardic-radio.js owns the
+  // clock + transport; this block owns WHAT to anchor (it can reach
+  // enginesRef). Sonus/YT channels are omitted — can't hold clock lock.
+  const [onAir, setOnAir] = useState(false);
+  const [radioListeners, setRadioListeners] = useState([]);
+  const radioRef = useRef(null);
+
+  const buildAnchors = useCallback(() => {
+    const cs = chStatesRef.current;
+    const at = window.BardicClock ? window.BardicClock.now() : Date.now();
+    const channels = {};
+    ALL_CHANNELS.forEach(c => {
+      const s = cs[c.id];
+      if (!s || !s.track || s.sourceType === 'sonus') return;
+      const audio = enginesRef.current[c.id]?._currentAudio();
+      channels[c.id] = {
+        url: s.track.url, title: s.track.title || null,
+        label: c.label, accent: c.accent,
+        pos: audio ? audio.currentTime : 0,
+        paused: !!s.paused,
+        volume: s.volume ?? 0.5,
+        loop: (s.mode || 'loop') === 'loop',
+      };
+    });
+    return { at, channels };
+  }, []);
+
+  useEffect(() => {
+    if (!onAir) {
+      radioRef.current?.offAir();
+      radioRef.current = null;
+      setRadioListeners([]);
+      return;
+    }
+    const sb = window.__tok && window.__tok.sb;
+    if (!sb || !window.BardicRadio || !window.BardicClock) { setOnAir(false); return; }
+    let alive = true;
+    let interval = null;
+    window.BardicClock.sync().catch(() => {}).then(() => {
+      if (!alive) return;
+      radioRef.current = window.BardicRadio.broadcast(sb, {
+        onListeners: (l) => { if (alive) setRadioListeners(l); },
+      });
+      radioRef.current.sendAnchors(buildAnchors());
+      // periodic re-anchor corrects engine-side drift between state changes
+      interval = setInterval(() => radioRef.current?.sendAnchors(buildAnchors()), 10000);
+    });
+    return () => { alive = false; clearInterval(interval); radioRef.current?.offAir(); radioRef.current = null; };
+  }, [onAir, buildAnchors]);
+
+  // every visible state change re-anchors immediately (cast/pause/next/vol)
+  useEffect(() => {
+    if (onAir) radioRef.current?.sendAnchors(buildAnchors());
+  }, [chStates, onAir, buildAnchors]);
+
   // ============================================================
   // BARDIC BUS — engine adapter (increment 1, July 5)
   // ============================================================
@@ -559,6 +615,7 @@ function App() {
     prev:   prevTrack,
     vol:    setVolume,
     globalPause: toggleGlobalPause,
+    air:    setOnAir,
   };
 
   // one full snapshot — never a diff; the latest snapshot is the truth
@@ -583,12 +640,13 @@ function App() {
       t: 'state',
       engineId: engineIdRef.current,
       ts: Date.now(),
-      onAir: false,   // wave B flips this when the radio transport lands
+      onAir: onAir,
+      listeners: radioListeners,
       // protocol field stays 'name'; the console's mood field is 'label'
       moods: lib.moods.map(m => ({ id: m.id, name: m.label, color: m.color, sigil: m.sigil })),
       channels: channelsOut,
     };
-  }, []);
+  }, [onAir, radioListeners]);
 
   // subscribe once; dispatch through the refs
   useEffect(() => {
@@ -607,6 +665,7 @@ function App() {
         case 'prev':   verbs.prev(msg.chId); break;
         case 'vol':    verbs.vol(msg.chId, msg.val); break;
         case 'globalPause': verbs.globalPause(); break;
+        case 'air':    verbs.air(!!msg.on); break;
         default: break; // unknown verbs: ignore, never throw
       }
     });
@@ -616,6 +675,7 @@ function App() {
   }, [busSnapshot]);
 
   // publish on every state change the riders can see
+  // (busSnapshot's identity shifts with onAir/listeners, so those ride too)
   useEffect(() => {
     busRef.current?.send(busSnapshot());
   }, [chStates, library, busSnapshot]);

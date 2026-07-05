@@ -1,0 +1,259 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Bardic Radio · The Trials of Kirtas</title>
+<link href="https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,500;0,700;1,600&family=EB+Garamond:ital@0;1&family=Oswald:wght@300;400;500;600&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="theme.css">
+<style>
+/* ============================================================
+   radio.html — the deliberately dumb listener (wave B, July 5).
+   One tap to tune in; from then on it only obeys the shared clock.
+   All sync math lives in bardic-radio.js (positionAt / driftNudge) —
+   this page is scheduling + UI. Sonus/YT channels never arrive
+   (the engine omits them from anchors).
+   ============================================================ */
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+:root{
+  --ground:#182826; --ground-2:#13201e; --panel:rgba(12,22,20,.62);
+  --cream:#ece2cd; --cream-hi:#f9f3e6; --cream-dim:#b9b09a; --cream-fnt:#8b8473;
+  --rgold:#c79a4a; --gold-br:#e7c279; --red:#cf3b2c; --teal:#55c4c0;
+  --frame:rgba(199,154,74,.34); --frame-hi:rgba(199,154,74,.6); --hair:rgba(236,226,205,.12);
+}
+body{background:linear-gradient(180deg,var(--ground),var(--ground-2));color:var(--cream);
+  font-family:'EB Garamond',Georgia,serif;min-height:100vh;display:flex;flex-direction:column;
+  align-items:center;padding:24px 18px 40px}
+.rd-head{text-align:center;margin:6vh 0 4vh}
+.rd-eyebrow{font-family:Oswald,sans-serif;font-size:9px;letter-spacing:.3em;text-transform:uppercase;color:var(--cream-fnt)}
+.rd-title{font-family:'Playfair Display',serif;font-size:clamp(1.7rem,6vw,2.6rem);font-weight:700;color:var(--cream-hi);margin-top:6px}
+.rd-sub{font-style:italic;color:var(--cream-dim);margin-top:4px;font-size:15px}
+.rd-card{width:100%;max-width:440px;border:1px solid var(--frame);background:var(--panel);padding:18px}
+#tuneBtn{display:block;width:100%;padding:16px 0;background:transparent;border:1px solid var(--frame-hi);
+  color:var(--gold-br);font-family:Oswald,sans-serif;font-size:12px;letter-spacing:.28em;text-transform:uppercase;cursor:pointer}
+#tuneBtn:hover{background:rgba(199,154,74,.1)}
+#tuneBtn:disabled{opacity:.5;cursor:default}
+.rd-status{display:none;flex-direction:column;gap:12px}
+.rd-onair{display:flex;align-items:center;gap:9px;font-family:Oswald,sans-serif;font-size:10px;letter-spacing:.24em;text-transform:uppercase}
+.rd-onair .d{width:8px;height:8px;border-radius:50%;background:var(--cream-fnt)}
+.rd-onair.live .d{background:var(--red);box-shadow:0 0 8px var(--red);animation:pulse 1.6s infinite}
+@keyframes pulse{50%{opacity:.4}}
+.rd-clock{font-family:Oswald,sans-serif;font-size:9.5px;letter-spacing:.1em;text-transform:uppercase;color:var(--cream-fnt)}
+.rd-clock b{color:var(--teal);font-weight:500}
+.rd-ch{display:flex;align-items:center;gap:9px;padding:9px 0;border-top:1px solid var(--hair)}
+.rd-ch .bar{width:3px;align-self:stretch;flex:none}
+.rd-ch .m{flex:1;min-width:0}
+.rd-ch .lab{font-family:Oswald,sans-serif;font-size:8px;letter-spacing:.2em;text-transform:uppercase}
+.rd-ch .now{font-size:13.5px;color:var(--cream);font-style:italic;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.rd-ch .now.idle{color:var(--cream-fnt);font-style:normal;font-size:12px}
+.rd-ch .lk{font-family:Oswald,sans-serif;font-size:8.5px;color:var(--cream-fnt);letter-spacing:.08em}
+.rd-vol{display:flex;align-items:center;gap:10px;padding-top:12px;border-top:1px solid var(--hair)}
+.rd-vol .l{font-family:Oswald,sans-serif;font-size:8.5px;letter-spacing:.2em;text-transform:uppercase;color:var(--cream-fnt)}
+.rd-vol input{flex:1;accent-color:var(--rgold)}
+.rd-note{margin-top:14px;font-size:12.5px;color:var(--cream-fnt);font-style:italic;text-align:center;max-width:440px}
+</style>
+</head>
+<body>
+
+<div id="nav-root"></div>
+
+<div class="rd-head">
+  <div class="rd-eyebrow">The Bardic Console</div>
+  <div class="rd-title">Radio</div>
+  <div class="rd-sub">every speaker in the room, one instrument</div>
+</div>
+
+<div class="rd-card">
+  <button id="tuneBtn">◉ &nbsp;Tune in</button>
+  <div class="rd-status" id="status">
+    <div class="rd-onair" id="onair"><span class="d"></span><span id="onairTxt">waiting for the engine…</span></div>
+    <div class="rd-clock" id="clockTxt">clock: syncing…</div>
+    <div id="chHost"></div>
+    <div class="rd-vol"><span class="l">This device</span><input type="range" id="masterVol" min="0" max="1" step="0.01" value="0.8"></div>
+  </div>
+</div>
+<p class="rd-note">Keep this page open and the screen awake — the DM's console drives everything from here.</p>
+
+<script src="bardic-radio.js"></script>
+<script>
+(function () {
+  'use strict';
+
+  var R = window.BardicRadio, C = window.BardicClock;
+  var els = {
+    tune: document.getElementById('tuneBtn'),
+    status: document.getElementById('status'),
+    onair: document.getElementById('onair'),
+    onairTxt: document.getElementById('onairTxt'),
+    clockTxt: document.getElementById('clockTxt'),
+    chHost: document.getElementById('chHost'),
+    masterVol: document.getElementById('masterVol'),
+  };
+
+  var S = {
+    anchors: null,          // latest { at, channels } — the truth
+    lastAnchorsAt: 0,       // local ms when it arrived (off-air watchdog)
+    players: {},            // chId → { audio, ui, url }
+    listener: null,
+    master: 0.8,
+  };
+
+  function sbReady() {
+    return new Promise(function (res) {
+      function go() { window.__tok.ready.then(function (me) { res({ sb: window.__tok.sb, me: me }); }); }
+      if (window.__tok && window.__tok.sb) { go(); return; }
+      document.addEventListener('nav:ready', function once() {
+        document.removeEventListener('nav:ready', once);
+        go();
+      });
+    });
+  }
+
+  function chUi(chId, a) {
+    var row = document.createElement('div'); row.className = 'rd-ch';
+    row.innerHTML = '<div class="bar"></div><div class="m"><div class="lab"></div><div class="now idle">idle</div></div><span class="lk"></span>';
+    els.chHost.appendChild(row);
+    return { row: row, bar: row.querySelector('.bar'), lab: row.querySelector('.lab'),
+             now: row.querySelector('.now'), lk: row.querySelector('.lk') };
+  }
+
+  function player(chId, a) {
+    var p = S.players[chId];
+    if (!p) {
+      var audio = new Audio();
+      audio.preload = 'auto';
+      p = S.players[chId] = { audio: audio, ui: chUi(chId, a), url: null };
+    }
+    return p;
+  }
+
+  function applyAnchors() {
+    if (!S.anchors) return;
+    var now = C.now();
+    for (var chId in S.anchors.channels) {
+      var a = S.anchors.channels[chId];
+      var p = player(chId, a);
+      p.ui.bar.style.background = a.accent || '#c79a4a';
+      p.ui.lab.style.color = a.accent || '#c79a4a';
+      p.ui.lab.textContent = a.label || chId;
+      var anchor = { pos: a.pos, at: S.anchors.at, paused: a.paused };
+      var want = R.positionAt(anchor, now);
+      if (p.url !== a.url) {
+        p.url = a.url;
+        p.audio.src = a.url;
+        p.audio.loop = !!a.loop;
+        p.audio.currentTime = want;
+      }
+      p.audio.volume = Math.max(0, Math.min(1, (a.volume != null ? a.volume : 0.5) * S.master));
+      p.anchor = anchor;
+      if (a.paused) {
+        if (!p.audio.paused) p.audio.pause();
+        p.ui.now.classList.remove('idle');
+        p.ui.now.textContent = '\u23F8 ' + (a.title || '\u2014');
+      } else {
+        if (Math.abs(p.audio.currentTime - want) > 1.5) p.audio.currentTime = want;
+        if (p.audio.paused) p.audio.play().catch(function () {});
+        p.ui.now.classList.remove('idle');
+        p.ui.now.textContent = a.title || '\u2014';
+      }
+    }
+    // channels no longer in the anchors fall silent
+    for (var id in S.players) {
+      if (!S.anchors.channels[id]) {
+        var q = S.players[id];
+        if (!q.audio.paused) q.audio.pause();
+        q.url = null; q.anchor = null;
+        q.ui.now.classList.add('idle');
+        q.ui.now.textContent = 'idle';
+        q.ui.lk.textContent = '';
+      }
+    }
+  }
+
+  // the drift-hold loop: every 3s, nudge each live player onto the clock
+  function driftLoop() {
+    setInterval(function () {
+      if (!S.anchors) return;
+      var now = C.now();
+      var worst = 0;
+      for (var chId in S.players) {
+        var p = S.players[chId];
+        if (!p.anchor || p.anchor.paused || !p.url || p.audio.paused) continue;
+        var expected = R.positionAt(p.anchor, now);
+        var err = expected - p.audio.currentTime;
+        var n = R.driftNudge(err);
+        if (n.seek) p.audio.currentTime = expected;
+        p.audio.playbackRate = n.rate;
+        var ms = Math.abs(err * 1000);
+        if (ms > worst) worst = ms;
+        p.ui.lk.textContent = ms < 40 ? 'locked' : '\u00b1' + Math.round(ms) + 'ms';
+      }
+      if (S.listener && C.synced) S.listener.updateSync(Math.max(worst, C.rtt / 2));
+      // off-air watchdog: no anchors in 35s → the engine left
+      if (Date.now() - S.lastAnchorsAt > 35000) setOnAirUi(false);
+    }, 3000);
+  }
+
+  function setOnAirUi(live) {
+    els.onair.classList.toggle('live', live);
+    els.onairTxt.textContent = live ? 'on air' : 'waiting for the engine\u2026';
+  }
+
+  function clockLoop() {
+    // re-sync the shared clock every 60s; local drift is real on phones
+    setInterval(function () {
+      C.sync().then(function (b) {
+        els.clockTxt.innerHTML = 'clock <b>locked</b> \u00b7 offset ' + Math.round(C.offset) + 'ms \u00b7 rtt ' + Math.round(b.rtt) + 'ms';
+      }).catch(function () {});
+    }, 60000);
+  }
+
+  function wakeLock() {
+    if (!navigator.wakeLock) return;
+    var lock = null;
+    function grab() { navigator.wakeLock.request('screen').then(function (l) { lock = l; }).catch(function () {}); }
+    grab();
+    document.addEventListener('visibilitychange', function () {
+      if (!document.hidden && (!lock || lock.released)) grab();
+    });
+  }
+
+  els.masterVol.addEventListener('input', function () {
+    S.master = parseFloat(els.masterVol.value);
+    applyAnchors();
+  });
+
+  els.tune.addEventListener('click', function () {
+    els.tune.disabled = true;
+    els.tune.textContent = 'Tuning\u2026';
+    // the tap is the gesture browsers demand — everything cascades from it
+    Promise.all([C.sync(), sbReady()]).then(function (r) {
+      var got = r[1];
+      var key = 'l-' + ((got.me && got.me.id) || Math.random().toString(36).slice(2, 8)) + '-' + Math.random().toString(36).slice(2, 6);
+      var name = (got.me && got.me.displayName) || 'listener';
+      S.listener = R.listen(got.sb, { key: key, name: name }, {
+        onAnchors: function (payload) {
+          S.anchors = payload;
+          S.lastAnchorsAt = Date.now();
+          setOnAirUi(true);
+          applyAnchors();
+        },
+        onEngine: function (on) { if (!on) setOnAirUi(false); },
+      });
+      els.tune.style.display = 'none';
+      els.status.style.display = 'flex';
+      els.clockTxt.innerHTML = 'clock <b>locked</b> \u00b7 offset ' + Math.round(C.offset) + 'ms \u00b7 rtt ' + Math.round(C.rtt) + 'ms';
+      driftLoop();
+      clockLoop();
+      wakeLock();
+    }).catch(function (e) {
+      els.tune.disabled = false;
+      els.tune.textContent = '\u25C9  Tune in (retry)';
+      console.warn('[radio] tune-in failed:', e);
+    });
+  });
+})();
+</script>
+<script src="nav.js"></script>
+</body>
+</html>

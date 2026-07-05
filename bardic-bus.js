@@ -28,9 +28,10 @@
 //     { t:'prev',   chId }              restart >3s in, else previous
 //     { t:'vol',    chId, val }         0..1
 //     { t:'globalPause' }               space-bar semantics, every channel
+//     { t:'air', on }                   broadcast on/off (wave B)
 //
 //   engine → everyone (a full snapshot, never a diff):
-//     { t:'state', engineId, ts, onAir,
+//     { t:'state', engineId, ts, onAir, listeners,
 //       moods:    [{ id, name, color, sigil }],
 //       channels: { <chId>: { label, accent, moodId, moodName,
 //                             trackTitle, paused, volume, sourceType } } }

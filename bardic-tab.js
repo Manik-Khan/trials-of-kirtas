@@ -119,6 +119,16 @@
       + '#tok-rail .tok-bd-chiprow .l{font-family:Oswald,sans-serif;font-size:8.5px;letter-spacing:0.16em;text-transform:uppercase;color:rgba(139,132,115,1)}'
       + '#tok-rail .tok-bd-chiptog{margin-left:auto;padding:4px 10px;background:transparent;border:1px solid rgba(199,154,74,0.34);color:rgba(185,176,154,1);font-family:Oswald,sans-serif;font-size:8.5px;letter-spacing:0.18em;text-transform:uppercase;cursor:pointer}'
       + '#tok-rail .tok-bd-chiptog.on{border-color:rgba(199,154,74,0.6);color:rgba(231,194,121,1)}'
+      /* broadcast section */
+      + '#tok-rail .tok-bd-air .d.on{background:rgba(207,59,44,1);box-shadow:0 0 8px rgba(207,59,44,0.9);animation:tokBdPulse 1.6s infinite}'
+      + '@keyframes tokBdPulse{50%{opacity:0.45}}'
+      + '#tok-rail .tok-bd-airbtn{display:block;width:100%;padding:9px 0;background:transparent;border:1px solid rgba(199,154,74,0.6);color:rgba(231,194,121,1);font-family:Oswald,sans-serif;font-size:10px;letter-spacing:0.24em;text-transform:uppercase;cursor:pointer}'
+      + '#tok-rail .tok-bd-airbtn.on{border-color:rgba(207,59,44,0.8);color:rgba(224,88,74,1)}'
+      + '#tok-rail .tok-bd-lroll{margin-top:9px;display:flex;flex-direction:column;gap:5px}'
+      + '#tok-rail .tok-bd-l{display:flex;align-items:center;gap:8px;font-size:13px;color:rgba(185,176,154,1);font-family:"EB Garamond",serif}'
+      + '#tok-rail .tok-bd-l .ms{margin-left:auto;font-family:Oswald,sans-serif;font-size:9px;color:rgba(139,132,115,1);letter-spacing:0.08em}'
+      + '#tok-rail .tok-bd-radionote{margin-top:9px;font-size:12px;color:rgba(139,132,115,1);font-style:italic;font-family:"EB Garamond",serif}'
+      + '#tok-rail .tok-bd-radionote code{font-style:normal;color:rgba(185,176,154,1);font-family:monospace;font-size:11px}'
       /* tab live-dot */
       + '#tok-rail .tr-tab[data-rail-tab="bardic"]{position:relative}'
       + '#tok-rail .tr-tab[data-rail-tab="bardic"] .tok-bd-dot{position:absolute;top:6px;right:calc(50% - 16px);width:6px;height:6px;border-radius:50%;background:rgba(231,194,121,1);box-shadow:0 0 6px rgba(231,194,121,0.9);opacity:0;transition:opacity 0.2s}'
@@ -197,10 +207,25 @@
     var rowsHost = el('div');
     chs.appendChild(rowsHost);
 
-    wrap.appendChild(eng); wrap.appendChild(chs);
+    // BROADCAST section (wave B)
+    var air = el('div', 'tok-bd-sec tok-bd-air');
+    var ahead = el('div', 'tok-bd-head');
+    ahead.innerHTML = '<span class="d"></span>BROADCAST<span class="r"></span>';
+    var airbtn = el('button', 'tok-bd-airbtn');
+    airbtn.addEventListener('click', function () {
+      var on = !!(S.snap && S.snap.onAir);
+      S.bus.send({ t: 'air', on: !on });
+    });
+    var lroll = el('div', 'tok-bd-lroll');
+    var rnote = el('div', 'tok-bd-radionote');
+    rnote.innerHTML = 'players tune in at <code>radio.html</code> \u2014 one tap, clock-locked, every speaker in the room joins.';
+    air.appendChild(ahead); air.appendChild(airbtn); air.appendChild(lroll); air.appendChild(rnote);
+
+    wrap.appendChild(eng); wrap.appendChild(chs); wrap.appendChild(air);
     pane.appendChild(wrap);
 
-    S.paneRefs = { ehead: ehead, etext: etext, light: light, chiptog: chiptog, rowsHost: rowsHost, chs: chs };
+    S.paneRefs = { ehead: ehead, etext: etext, light: light, chiptog: chiptog, rowsHost: rowsHost, chs: chs,
+                   air: air, ahead: ahead, airbtn: airbtn, lroll: lroll };
   }
 
   function buildRow(chId, ch) {
@@ -267,6 +292,24 @@
       for (var ei = 0; ei < eqs.length; ei++) eqs[ei].style.background = (live[ei % live.length] || live[0]).accent;
     }
     R.chs.style.display = S.engineLive ? '' : 'none';
+    R.air.style.display = S.engineLive ? '' : 'none';
+    if (S.engineLive && S.snap) {
+      var isOn = !!S.snap.onAir;
+      R.ahead.querySelector('.d').classList.toggle('on', isOn);
+      R.ahead.querySelector('.r').textContent = isOn ? 'on air' : 'off';
+      R.airbtn.classList.toggle('on', isOn);
+      R.airbtn.textContent = isOn ? '\u25C9  On Air \u2014 end broadcast' : '\u25CB  Go on air';
+      var ls = S.snap.listeners || [];
+      R.lroll.innerHTML = '';
+      for (var li = 0; li < ls.length; li++) {
+        var row2 = el('div', 'tok-bd-l');
+        var nm = document.createElement('span'); nm.textContent = ls[li].name || ls[li].key;
+        var ms = el('span', 'ms');
+        ms.textContent = ls[li].syncMs != null ? ('\u00b1' + Math.round(ls[li].syncMs) + 'ms') : 'syncing\u2026';
+        row2.appendChild(nm); row2.appendChild(ms);
+        R.lroll.appendChild(row2);
+      }
+    }
     if (!S.snap || !S.engineLive) return;
 
     var moods = (S.snap.moods || []).slice().sort(function (a, b) { return String(a.name).localeCompare(String(b.name)); });
@@ -333,7 +376,7 @@
     var show = S.chipPref === 'shown' && live.length > 0;
     S.chip.classList.toggle('tok-bd-off', !show);
     if (!show) return;
-    S.chip.querySelector('.s').textContent = 'Now playing \u00b7 ' + live.length + (live.length === 1 ? ' channel' : ' channels');
+    S.chip.querySelector('.s').textContent = (S.snap && S.snap.onAir ? 'ON AIR \u00b7 ' : 'Now playing \u00b7 ') + live.length + (live.length === 1 ? ' channel' : ' channels');
     S.chip.querySelector('.t').textContent = live.map(function (c) { return c.title; }).join(' \u00b7 ');
     var eqs = S.chip.querySelectorAll('.eq i');
     for (var i = 0; i < eqs.length; i++) eqs[i].style.background = (live[i % live.length] || live[0]).accent;
