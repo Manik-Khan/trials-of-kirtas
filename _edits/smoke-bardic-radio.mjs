@@ -130,24 +130,8 @@ t('second engine yields: onConflict(name), never tracks',
   conflictName === 'the console' && chE2.tracked === null && !eng2.isActive())
 t('yielded engine sends no anchors', chE2.sent.length === 0)
 
-// the WATCHER: passive cross-device on-air peek (the phone's rail)
-const sbW = stubSb()
-let watched = null
-R.watch(sbW, { onAir: (on, name, count) => { watched = { on, name, count } } })
-const chW = sbW.channels[0]
-chW._presence = { 'engine-xyz': [{ engine: true, name: 'the console' }], 'l-1': [{ name: 'Caim' }], 'l-2': [{ name: 'Cosmere' }] }
-chW._handlers['presence:sync']()
-t('watcher reports on-air + engine name + listener count (engines excluded)',
-  watched?.on === true && watched.name === 'the console' && watched.count === 2)
-t('watcher never tracks presence (purely passive)', chW.tracked === null)
-t('watcher carries a presence key (presenceState stays live) — the blind-phone fix',
-  chW.cfg.config.presence && chW.cfg.config.presence.key.startsWith('w-'))
-chW._presence = { 'l-1': [{ name: 'Caim' }] }
-chW._handlers['presence:sync']()
-t('watcher reports off-air when the engine leaves', watched.on === false)
-// anchors count as proof of broadcast even when presence is coy
-chW._handlers['broadcast:anchors']({})
-t('watcher: flowing anchors → on-air, even with empty presence', watched.on === true)
+// the rail's cross-device awareness now rides the heartbeat ROW —
+// the presence-socket watcher froze on iOS backgrounding (B.6)
 
 // listener side
 const sbL = stubSb()
@@ -191,8 +175,8 @@ t('anchors stamped with the SHARED clock, not the wall clock',
   appSrc.includes('window.BardicClock ? window.BardicClock.now() : Date.now()'))
 t('re-anchor on every state change while on air',
   appSrc.includes('if (onAir) radioRef.current?.sendAnchors(buildAnchors());'))
-t('periodic re-anchor (10s) against engine-side drift',
-  appSrc.includes('setInterval(() => radioRef.current?.sendAnchors(buildAnchors()), 10000)'))
+t('periodic re-anchor + heartbeat ride the same 10s tick',
+  appSrc.includes('radioRef.current?.sendAnchors(buildAnchors());') && appSrc.includes('beatAir(true);\n      }, 10000);'))
 t("air verb wired: header, adapter case, setOnAir",
   busSrc.includes("{ t:'air', on }") && appSrc.includes("case 'air':    verbs.air(!!msg.on); break;"))
 t('anchors stamped with engineId (listener latch)', appSrc.includes('return { at, engineId: engineIdRef.current, channels };'))
@@ -210,9 +194,15 @@ t('rail: On Air button sends the air verb with the inverse state',
 t('rail: listener roster renders name + \u00b1ms',
   tabSrc.includes("'\\u00b1' + Math.round(ls[li].syncMs) + 'ms'"))
 t('rail: chip announces ON AIR', tabSrc.includes("S.snap.onAir ? 'ON AIR \\u00b7 '"))
-t('rail: cross-device watcher wired, guarded off console/radio pages',
-  tabSrc.includes('function startWatcher()') && tabSrc.includes('if (ON_CONSOLE || ON_RADIO) return;')
-  && tabSrc.includes('window.BardicRadio.watch(sb, {'))
+t('rail: heartbeat poll replaces the watcher socket (rows do not freeze)',
+  tabSrc.includes("sb.from('bardic_air').select('on_air,engine_name,listener_count,updated_at')")
+  && tabSrc.includes('setInterval(pollAir, 15000);')
+  && tabSrc.includes("document.addEventListener('visibilitychange', function () { if (!document.hidden) pollAir(); });"))
+t('rail: stale heartbeat (>30s) counts as off air',
+  tabSrc.includes('Date.now() - new Date(row.updated_at).getTime() < 30000'))
+t('rail: pane-show refreshes the row', tabSrc.includes('onShow: function () { pingEngine(); pollAir(); paintAll(); }'))
+t('rail: watcher never runs on console/radio pages',
+  tabSrc.includes('function startWatcher()') && tabSrc.includes('if (ON_CONSOLE || ON_RADIO) return;'))
 t('chip is the player door: remote-only broadcast shows ON AIR and routes to radio.html',
   tabSrc.includes("var remoteOnly = !S.engineLive && S.remote.on;")
   && tabSrc.includes("if (!S.engineLive && S.remote.on) { location.href = 'radio.html'; return; }"))
@@ -231,8 +221,8 @@ t('rail: blocked state surfaces the incumbent by name',
   tabSrc.includes("'blocked \\u00b7 ' + S.snap.airBlockedBy + ' is on air'"))
 
 // ── the radio page ──
-t('radio.html rides the pure helpers, no local sync math',
-  pageSrc.includes('R.positionAt(') && pageSrc.includes('R.driftNudge(') && !/function positionAt|function driftNudge/.test(pageSrc))
+t('radio.html rides positionAt for all scheduling, no local sync math',
+  pageSrc.includes('R.positionAt(') && !/function positionAt/.test(pageSrc))
 t('tune-in is the gesture: clock sync + sb ready ride the tap',
   pageSrc.includes('Promise.all([C.sync(), sbReady()])'))
 t('seek waits for metadata; playing measures the lead (iOS pre-metadata seeks ignored)',
@@ -251,20 +241,29 @@ t('adaptive seek lead measured from observed shortfall',
   pageSrc.includes('p.seekLead = Math.max(0, Math.min(1.5, p.seekLead + err * 0.7));')
   && pageSrc.includes('+ (p.anchor.paused ? 0 : p.seekLead);'))
 t('never fight a rebuffer', pageSrc.includes('p.audio.readyState < 3 || p.audio.seeking) continue;'))
-t('preservesPitch: nudges stretch, never detune', pageSrc.includes('audio.preservesPitch = true;'))
-t('stall telemetry: waiting/stalled counted; three flips to gentle',
+t('pre-blessed pool: six elements unlocked inside the tap (blocked-play fix)',
+  pageSrc.includes('function primePool()') && pageSrc.includes("var a = new Audio(SILENT_MP3);")
+  && pageSrc.includes('primePool();\n    Promise.all([C.sync(), sbReady()])')
+  && pageSrc.includes('var audio = S.pool.length ? S.pool.shift() : new Audio();'))
+t('rate manipulation is DEAD: playbackRate pinned to 1, seeks only',
+  pageSrc.includes("if (p.audio.playbackRate !== 1) { try { p.audio.playbackRate = 1; } catch (e) {} }")
+  && !pageSrc.includes('p.audio.playbackRate = n.rate'))
+t('correction: seeks past 0.45s on the 15s hysteresis, adaptive lead kept',
+  pageSrc.includes('Math.abs(err) > 0.45 && (Date.now() - p.lastSeekAt > 15000 || Math.abs(err) > 5)'))
+t('stall telemetry survives (now it points at the network, not us)',
   pageSrc.includes("audio.addEventListener('waiting', onStall);")
-  && pageSrc.includes('if (p.stalls >= 3 && !p.gentle) { p.gentle = true;'))
-t('gentle mode: rate pinned to 1, only long-hysteresis seeks past 0.8s',
-  pageSrc.includes("var n = p.gentle ? { seek: Math.abs(err) > 0.8, rate: 1 } : R.driftNudge(err);"))
-t('rate discipline: meaningful-change gate + 6s hold between writes',
-  pageSrc.includes('Math.abs(n.rate - curRate) > 0.005 && Date.now() - p.lastRateAt > 6000'))
-t('lock readout carries gentle + stall telemetry for field diagnosis',
-  pageSrc.includes("(p.gentle ? ' \\u00b7 gentle' : '')") && pageSrc.includes("' \\u00b7 stalls ' + p.stalls"))
+  && pageSrc.includes("' \\u00b7 stalls ' + p.stalls"))
 t('page wake → resync + rebuild if still stale',
   pageSrc.includes("document.addEventListener('visibilitychange'") && pageSrc.includes('S.listener.reconnect();'))
-t('hard resync rides the hysteresis gate; playbackRate carries the nudge',
-  pageSrc.includes('p.audio.currentTime = expected + p.seekLead;') && pageSrc.includes('p.audio.playbackRate = n.rate;'))
+t('hard resync rides the hysteresis gate with the adaptive lead',
+  pageSrc.includes('p.audio.currentTime = expected + p.seekLead;'))
+const sqlSrc = readFileSync('_edits/bardic-air.sql', 'utf8')
+t('heartbeat SQL: singleton row, RLS read+write for members',
+  sqlSrc.includes('id             int primary key default 1 check (id = 1)')
+  && sqlSrc.includes('create policy bardic_air_read') && sqlSrc.includes('create policy bardic_air_write'))
+t('engine heartbeats the row: on air-on, every 10s, and false on air-off',
+  appSrc.includes("sb.from('bardic_air').update({") && appSrc.includes('beatAir(true);')
+  && appSrc.includes('beatAir(false);') && appSrc.includes('listener_count: on ? (radioStateRef.current.listeners || []).length : 0,'))
 t('engine answers sync-requests through the app relay',
   appSrc.includes('onSyncRequest: () => radioRef.current?.sendAnchors(buildAnchors()),'))
 t('busSnapshot identity-stable (radio state via ref — no bus teardown flap)',

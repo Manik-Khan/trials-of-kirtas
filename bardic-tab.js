@@ -492,21 +492,35 @@
   function paintAll() { paintPane(); paintChip(); paintDot(); paintEmber(); }
 
   // ── the remote-broadcast watcher (cross-device awareness) ─────────
-  // BroadcastChannel never crosses devices: a phone's rail cannot hear a
-  // laptop's engine (July 5, M's report). This passive presence peek is
-  // how the pane learns "someone is on air" and offers Tune In instead
-  // of manufacturing a second engine.
-  function startWatcher() {
-    if (ON_CONSOLE || ON_RADIO) return;                 // those pages hold the topic already
-    if (!window.BardicRadio) return;
+  // v2 (July 5, B.6): the presence-socket watcher froze whenever iOS
+  // backgrounded the tab and never woke — the rail went blind until a
+  // refresh, three field reports running. Sockets freeze; ROWS don't.
+  // The engine heartbeats public.bardic_air every 10s while on air, and
+  // the rail simply READS it: on start, on wake, on pane-show, and on a
+  // 15s poll while the page is visible. Nothing to freeze, nothing to
+  // rebuild. A heartbeat older than 30s counts as off air (a crashed
+  // engine can't lie for long).
+  function pollAir() {
     var sb = window.__tok && window.__tok.sb;
-    if (!sb) return;
-    window.BardicRadio.watch(sb, {
-      onAir: function (on, name, count) {
-        S.remote = { on: on, name: name, count: count };
+    if (!sb || document.hidden) return;
+    sb.from('bardic_air').select('on_air,engine_name,listener_count,updated_at').eq('id', 1).single()
+      .then(function (res) {
+        var row = res && res.data;
+        if (!row) return;
+        var fresh = row.updated_at && (Date.now() - new Date(row.updated_at).getTime() < 30000);
+        S.remote = {
+          on: !!row.on_air && fresh,
+          name: row.engine_name || 'The console',
+          count: row.listener_count || 0,
+        };
         paintAll();
-      },
-    });
+      }, function () {});
+  }
+  function startWatcher() {
+    if (ON_CONSOLE || ON_RADIO) return;                 // engine + radio know their own state
+    pollAir();
+    setInterval(pollAir, 15000);
+    document.addEventListener('visibilitychange', function () { if (!document.hidden) pollAir(); });
   }
 
   // ── bus wiring ────────────────────────────────────────────────────
@@ -539,7 +553,7 @@
       var reg = window.TokRail.registerTab({
         id: 'bardic', label: 'Bardic', icon: TAB_ICON, order: 30,
         onMount: function (pane) { buildPane(pane); },
-        onShow: function () { pingEngine(); paintAll(); }
+        onShow: function () { pingEngine(); pollAir(); paintAll(); }
       });
       if (reg) S.tabBtn = reg.button;
       buildChip();

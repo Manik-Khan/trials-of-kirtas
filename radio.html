@@ -99,6 +99,7 @@ body{background:linear-gradient(180deg,var(--ground),var(--ground-2));color:var(
     listener: null,
     engineLock: null,
     lastReconnectAt: 0,
+    pool: [],
     master: 0.8,
   };
 
@@ -121,25 +122,34 @@ body{background:linear-gradient(180deg,var(--ground),var(--ground-2));color:var(
              now: row.querySelector('.now'), lk: row.querySelector('.lk') };
   }
 
+  // ── the pre-blessed pool (July 5, fourth field report) ──────────
+  // iOS blesses only elements that play()ed inside the user's tap: any
+  // Audio created LATER (a channel cast mid-session) had its play()
+  // silently rejected — "UI says playing, audio doesn't." So the tap
+  // births SIX elements, each unlocked against the console's own silent
+  // mp3, and channels draw from the pool forever after.
+  var SILENT_MP3 = 'data:audio/mpeg;base64,SUQzBAAAAAAAI1RTU0UAAAAPAAADTGF2ZjU4LjI5LjEwMAAAAAAAAAAAAAAA//tQAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAWGluZwAAAA8AAAACAAACcQCAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICA//////////////////////////////////////////////////////////////////8AAAAATGF2YzU4LjU0AAAAAAAAAAAAAAAAJAAAAAAAAAAAAnHvBMgAAAAAAAAAAAAAAAAAAAAA//tQxAADwAABpAAAACAAADSAAAAETEFNRTMuMTAwVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVU=';
+  function primePool() {
+    S.pool = [];
+    for (var i = 0; i < 6; i++) {
+      var a = new Audio(SILENT_MP3);
+      a.preload = 'auto';
+      a.volume = 0.001;
+      a.play().catch(function () {});
+      (function (el2) { setTimeout(function () { try { el2.pause(); } catch (e) {} }, 250); })(a);
+      S.pool.push(a);
+    }
+  }
   function player(chId, a) {
     var p = S.players[chId];
     if (!p) {
-      var audio = new Audio();
+      var audio = S.pool.length ? S.pool.shift() : new Audio();
       audio.preload = 'auto';
-      // stretch, don't shift: rate nudges become inaudible time-stretch
-      try { audio.preservesPitch = true; audio.webkitPreservesPitch = true; } catch (e) {}
       p = S.players[chId] = { audio: audio, ui: chUi(chId, a), url: null,
-                              seekLead: 0.25, lastSeekAt: 0,
-                              stalls: 0, gentle: false, lastRateAt: 0 };
-      // stall telemetry (July 5, third field report): if the element keeps
-      // choking, our OWN corrections are the prime suspect — three stalls
-      // flips this player to GENTLE mode: playbackRate pinned to 1, wider
-      // tolerance, seeks only on the long hysteresis. Playback continuity
-      // beats tight sync every time.
-      var onStall = function () {
-        p.stalls++;
-        if (p.stalls >= 3 && !p.gentle) { p.gentle = true; try { audio.playbackRate = 1; } catch (e) {} }
-      };
+                              seekLead: 0.25, lastSeekAt: 0, stalls: 0 };
+      // stall telemetry stays: with rate manipulation gone, a climbing
+      // stall count now points squarely at network/decode
+      var onStall = function () { p.stalls++; };
       audio.addEventListener('waiting', onStall);
       audio.addEventListener('stalled', onStall);
     }
@@ -198,7 +208,7 @@ body{background:linear-gradient(180deg,var(--ground),var(--ground-2));color:var(
         // hysteresis: no re-seek within 15s of the last one unless the
         // error is track-change scale — repeat seeks rebuffer and stutter
         var canSeek = (Date.now() - p.lastSeekAt > 15000) || Math.abs(err) > 5;
-        if (p.audio.readyState >= 1 && canSeek && R.driftNudge(err).seek) {
+        if (p.audio.readyState >= 1 && canSeek && Math.abs(err) > 0.45) {
           p.audio.currentTime = want + p.seekLead;
           p.lastSeekAt = Date.now();
         }
@@ -232,27 +242,19 @@ body{background:linear-gradient(180deg,var(--ground),var(--ground-2));color:var(
         if (p.audio.readyState < 3 || p.audio.seeking) continue;   // buffering — never fight a rebuffer
         var expected = R.positionAt(p.anchor, now);
         var err = expected - p.audio.currentTime;
-        // gentle mode: rate pinned, tolerance widened — only the long-
-        // hysteresis seek corrects, and only past 0.8s
-        var n = p.gentle ? { seek: Math.abs(err) > 0.8, rate: 1 } : R.driftNudge(err);
-        if (n.seek && (Date.now() - p.lastSeekAt > 15000 || Math.abs(err) > 5)) {
+        // NO rate manipulation, ever (July 5, fourth field report): the
+        // "56k mp3" texture WAS WebKit's pitch-preserving stretcher —
+        // a standing error held the whole listen inside it. Correction is
+        // now rare clean seeks only: past 0.45s, one per 15s, adaptive
+        // lead; track-change scale (>5s) seeks immediately.
+        if (p.audio.playbackRate !== 1) { try { p.audio.playbackRate = 1; } catch (e) {} }
+        if (Math.abs(err) > 0.45 && (Date.now() - p.lastSeekAt > 15000 || Math.abs(err) > 5)) {
           p.audio.currentTime = expected + p.seekLead;
           p.lastSeekAt = Date.now();
         }
-        // rate discipline: iOS can hiccup on EVERY playbackRate write —
-        // only write when meaningfully different, then hold 6s minimum
-        var curRate = p.audio.playbackRate || 1;
-        if (Math.abs(n.rate - curRate) > 0.005 && Date.now() - p.lastRateAt > 6000) {
-          p.audio.playbackRate = n.rate;
-          p.lastRateAt = Date.now();
-        } else if (n.rate === 1 && curRate !== 1 && Date.now() - p.lastRateAt > 6000) {
-          p.audio.playbackRate = 1;
-          p.lastRateAt = Date.now();
-        }
         var ms = Math.abs(err * 1000);
         if (ms > worst) worst = ms;
-        p.ui.lk.textContent = (ms < 90 ? 'locked' : '\u00b1' + Math.round(ms) + 'ms')
-          + (p.gentle ? ' \u00b7 gentle' : '')
+        p.ui.lk.textContent = (ms < 150 ? 'locked' : '\u00b1' + Math.round(ms) + 'ms')
           + (p.stalls ? ' \u00b7 stalls ' + p.stalls : '');
       }
       if (S.listener && C.synced) S.listener.updateSync(Math.max(worst, C.rtt / 2));
@@ -302,7 +304,9 @@ body{background:linear-gradient(180deg,var(--ground),var(--ground-2));color:var(
   els.tune.addEventListener('click', function () {
     els.tune.disabled = true;
     els.tune.textContent = 'Tuning\u2026';
-    // the tap is the gesture browsers demand — everything cascades from it
+    // the tap is the gesture browsers demand — everything cascades from it,
+    // INCLUDING the element pool: all future channels are blessed here
+    primePool();
     Promise.all([C.sync(), sbReady()]).then(function (r) {
       var got = r[1];
       var key = 'l-' + ((got.me && got.me.id) || Math.random().toString(36).slice(2, 8)) + '-' + Math.random().toString(36).slice(2, 6);

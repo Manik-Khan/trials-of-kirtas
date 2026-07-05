@@ -571,11 +571,26 @@ function App() {
     return { at, engineId: engineIdRef.current, channels };
   }, []);
 
+  // the heartbeat row: sockets freeze on iOS, rows don't. The rail on
+  // every OTHER device learns about this broadcast by reading bardic_air,
+  // not by holding a Realtime connection open (July 5, B.6).
+  const beatAir = useCallback((on) => {
+    const sb = window.__tok && window.__tok.sb;
+    if (!sb) return;
+    sb.from('bardic_air').update({
+      on_air: on,
+      engine_name: 'the console',
+      listener_count: on ? (radioStateRef.current.listeners || []).length : 0,
+      updated_at: new Date().toISOString(),
+    }).eq('id', 1).then(() => {}, () => {});
+  }, []);
+
   useEffect(() => {
     if (!onAir) {
       radioRef.current?.offAir();
       radioRef.current = null;
       setRadioListeners([]);
+      beatAir(false);
       return;
     }
     const sb = window.__tok && window.__tok.sb;
@@ -595,11 +610,16 @@ function App() {
         },
       });
       radioRef.current.sendAnchors(buildAnchors());
-      // periodic re-anchor corrects engine-side drift between state changes
-      interval = setInterval(() => radioRef.current?.sendAnchors(buildAnchors()), 10000);
+      beatAir(true);
+      // periodic re-anchor corrects engine-side drift; the heartbeat row
+      // rides the same tick
+      interval = setInterval(() => {
+        radioRef.current?.sendAnchors(buildAnchors());
+        beatAir(true);
+      }, 10000);
     });
     return () => { alive = false; clearInterval(interval); radioRef.current?.offAir(); radioRef.current = null; };
-  }, [onAir, buildAnchors]);
+  }, [onAir, buildAnchors, beatAir]);
 
   // every visible state change re-anchors immediately (cast/pause/next/vol)
   useEffect(() => {
