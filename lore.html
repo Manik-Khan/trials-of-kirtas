@@ -5,7 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Lore — The Trials of Kirtas</title>
   <link rel="preconnect" href="https://fonts.googleapis.com">
-  <link href="https://fonts.googleapis.com/css2?family=Cinzel+Decorative:wght@400;700&family=Cinzel:wght@400;600&family=Crimson+Pro:ital,wght@0,300;0,400;1,300;1,400&display=swap" rel="stylesheet">
+  <link href="https://fonts.googleapis.com/css2?family=Cinzel+Decorative:wght@400;700&family=Cinzel:wght@400;600&family=Crimson+Pro:ital,wght@0,300;0,400;1,300;1,400;1,600&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="theme.css">
   <link rel="stylesheet" href="tooltips.css">
   <style>
@@ -35,7 +35,7 @@
     .page-header {
       text-align: center;
       padding: 5rem 2rem 3rem;
-      background: radial-gradient(ellipse 80% 60% at 50% 0%, rgba(42,20,10,0.8) 0%, transparent 70%);
+      background: radial-gradient(ellipse 80% 60% at 50% 0%, var(--look-header-ember, rgba(42,20,10,0.8)) 0%, transparent 70%);
     }
     .page-eyebrow {
       font-family: 'Cinzel', serif;
@@ -124,7 +124,7 @@
 
     /* Callout block */
     .lore-callout {
-      background: linear-gradient(135deg, rgba(28,42,58,0.3) 0%, rgba(13,10,7,0.5) 100%);
+      background: linear-gradient(135deg, var(--look-well, rgba(28,42,58,0.3)) 0%, var(--look-band, rgba(13,10,7,0.5)) 100%);
       border-left: 3px solid var(--blood);
       padding: 1.5rem 2rem;
       margin: 2rem 0;
@@ -133,7 +133,12 @@
     .lore-callout p {
       font-style: italic;
       font-size: 1rem !important;
-      color: var(--parchment2);
+      /* wash drift fix: text inside a well-polarity surface reads a
+         well-polarity token — parchment2 follows the ground and goes
+         near-ink under light washes. Painter literal as fallback.
+         600 loaded in the font link above (real semibold, not faux). */
+      color: var(--look-card-text, var(--parchment2));
+      font-weight: 600;
       margin: 0 !important;
       opacity: 0.9;
     }
