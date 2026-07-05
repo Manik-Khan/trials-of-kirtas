@@ -658,13 +658,15 @@ function App() {
       if (n >= 1 && n <= 9) {
         const mood = library.moods[n - 1];
         if (!mood) return;
-        // Find which channel this mood is on (if any)
-        const playingCh = ALL_CHANNELS.find(c => chStates[c.id].moodId === mood.id);
-        if (playingCh) {
-          // Mood is active — toggle pause/resume on that channel
-          toggleMoodOnChannel(mood.id, playingCh.id);
+        // Selected-channel-first (July 5): only toggle if the mood is on the
+        // SELECTED channel; otherwise cast onto it — even if the mood is
+        // already playing elsewhere. One mood may ride multiple channels
+        // (each keeps its own shuffle bag), matching what scenes always
+        // allowed; the old any-channel gate ate the cast.
+        const selState = chStates[selectedCh];
+        if (selState.moodId === mood.id && selState.sourceType !== 'sonus') {
+          toggleMoodOnChannel(mood.id, selectedCh);
         } else {
-          // Mood is not playing anywhere — cast onto selected channel
           castMoodOnChannel(mood.id, selectedCh);
         }
       }
@@ -808,8 +810,10 @@ function App() {
             <div className="codex__grid">
               <RuneVisualizer visible={t.showViz}/>
               {library.moods.map((m, i) => {
-                const activeCh = channels.find(c => chStates[c.id].moodId === m.id);
-                const isPaused = activeCh ? chStates[activeCh.id].paused : false;
+                // a mood may be live on several channels (July 5)
+                const activeChs = channels.filter(c => chStates[c.id].moodId === m.id && chStates[c.id].sourceType !== 'sonus');
+                const activeCh = activeChs[0];
+                const isPaused = activeChs.length > 0 && activeChs.every(c => chStates[c.id].paused);
                 return (
                   <div key={m.id} className="codex__pad-wrap" style={{ '--idx': i }}>
                     <MoodPad
@@ -821,17 +825,20 @@ function App() {
                       channelAccent={activeCh?.accent || channelById[selectedCh]?.accent}
                       size={t.density === 'compact' ? 78 : t.density === 'cozy' ? 110 : 92}
                       onClick={() => {
-                        const playingCh = ALL_CHANNELS.find(c => chStates[c.id].moodId === m.id);
-                        if (playingCh) toggleMoodOnChannel(m.id, playingCh.id);
+                        // selected-channel-first (July 5): toggle only when the
+                        // mood rides the selected channel; else cast onto it,
+                        // even if it's already live on another channel.
+                        const selState = chStates[selectedCh];
+                        if (selState.moodId === m.id && selState.sourceType !== 'sonus') toggleMoodOnChannel(m.id, selectedCh);
                         else castMoodOnChannel(m.id, selectedCh);
                       }}
                       onOpenPanel={() => setTrackPanel({ moodId: m.id, fromChannel: activeCh?.id || selectedCh })}
                       onEdit={()      => setMoodEditor({ mood: m })}
                     />
                     {i < 9 && <div className="codex__keycap">{i + 1}</div>}
-                    {activeCh && !isPaused && (
-                      <div className="codex__active-dot" style={{ background: activeCh.accent }}/>
-                    )}
+                    {!isPaused && activeChs.filter(c => !chStates[c.id].paused).map((c, di) => (
+                      <div key={c.id} className="codex__active-dot" style={{ background: c.accent, right: `${-2 + di * 10}px` }}/>
+                    ))}
                     {isPaused && (
                       <div className="codex__active-dot codex__active-dot--paused"/>
                     )}
