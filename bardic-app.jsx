@@ -519,6 +519,86 @@ function App() {
   useEffect(() => { toggleGlobalPauseRef.current = toggleGlobalPause; }, [toggleGlobalPause]);
 
   // ============================================================
+  // BARDIC BUS — engine adapter (increment 1, July 5)
+  // ============================================================
+  // This tab is the ENGINE: it owns all audio and answers the bus.
+  // Riders (the rail's Bardic tab; radio.html in wave B) send verbs
+  // and render snapshots. Protocol lives in bardic-bus.js's header —
+  // that header is the contract, this adapter just maps verbs onto
+  // the callbacks that already exist.
+  const busRef = useRef(null);
+  const engineIdRef = useRef('eng-' + Math.random().toString(36).slice(2, 10));
+
+  // latest callbacks without re-subscribing (the toggleGlobalPauseRef pattern)
+  const busVerbsRef = useRef({});
+  busVerbsRef.current = {
+    cast:   castMoodOnChannel,
+    toggle: toggleMoodOnChannel,
+    stop:   stopChannel,
+    next:   nextTrack,
+    prev:   prevTrack,
+    vol:    setVolume,
+    globalPause: toggleGlobalPause,
+  };
+
+  // one full snapshot — never a diff; the latest snapshot is the truth
+  const busSnapshot = useCallback(() => {
+    const lib = libraryRef.current;
+    const cs  = chStatesRef.current;
+    const channelsOut = {};
+    ALL_CHANNELS.forEach(c => {
+      const s = cs[c.id] || {};
+      const mood = s.sourceType === 'sonus' ? null : lib.moods.find(m => m.id === s.moodId);
+      channelsOut[c.id] = {
+        label: c.label, accent: c.accent,
+        moodId: s.moodId ?? null,
+        moodName: mood ? mood.name : (s.sourceType === 'sonus' ? 'Sonus portal' : null),
+        trackTitle: s.track ? (s.track.title || null) : null,
+        paused: !!s.paused,
+        volume: s.volume ?? 0.5,
+        sourceType: s.sourceType ?? null,
+      };
+    });
+    return {
+      t: 'state',
+      engineId: engineIdRef.current,
+      ts: Date.now(),
+      onAir: false,   // wave B flips this when the radio transport lands
+      moods: lib.moods.map(m => ({ id: m.id, name: m.name, color: m.color, sigil: m.sigil })),
+      channels: channelsOut,
+    };
+  }, []);
+
+  // subscribe once; dispatch through the refs
+  useEffect(() => {
+    if (!window.BardicBus) return;
+    const bus = window.BardicBus.connect('engine');
+    busRef.current = bus;
+    const off = bus.onMessage((msg) => {
+      const verbs = busVerbsRef.current;
+      switch (msg.t) {
+        case 'hello':  bus.send(busSnapshot()); break;
+        case 'cast':   verbs.cast(msg.moodId, msg.chId); break;
+        case 'toggle': verbs.toggle(msg.moodId, msg.chId); break;
+        case 'stop':   verbs.stop(msg.chId); break;
+        case 'next':   verbs.next(msg.chId); break;
+        case 'prev':   verbs.prev(msg.chId); break;
+        case 'vol':    verbs.vol(msg.chId, msg.val); break;
+        case 'globalPause': verbs.globalPause(); break;
+        default: break; // unknown verbs: ignore, never throw
+      }
+    });
+    const bye = () => bus.send({ t: 'engine-bye', engineId: engineIdRef.current });
+    window.addEventListener('beforeunload', bye);
+    return () => { off(); window.removeEventListener('beforeunload', bye); bye(); bus.close(); };
+  }, [busSnapshot]);
+
+  // publish on every state change the riders can see
+  useEffect(() => {
+    busRef.current?.send(busSnapshot());
+  }, [chStates, library, busSnapshot]);
+
+  // ============================================================
   // SCENE ACTIONS
   // ============================================================
   const applyScene = useCallback((scene) => {
