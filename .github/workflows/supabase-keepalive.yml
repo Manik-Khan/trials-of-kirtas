@@ -1,1 +1,51 @@
+# Supabase keepalive — prevents free-tier projects from pausing after
+# 7 days of inactivity by making one real database query every 3 days.
+#
+# Lives at: .github/workflows/supabase-keepalive.yml
+#
+# Requires two repository secrets (Settings → Secrets and variables → Actions):
+#   SUPABASE_URL       e.g. https://abcdefgh.supabase.co
+#   SUPABASE_ANON_KEY  the public anon key (same one your client JS uses)
+#
+# Optional: change KEEPALIVE_TABLE below to any table in your project.
+# Even if RLS returns zero rows to an anonymous request, the query still
+# reaches Postgres and counts as project activity. For belt-and-suspenders
+# certainty, create a one-row table with an anon-readable SELECT policy:
+#
+#   create table if not exists heartbeat (id int primary key, beat timestamptz);
+#   insert into heartbeat values (1, now()) on conflict do nothing;
+#   alter table heartbeat enable row level security;
+#   create policy "anyone can read heartbeat" on heartbeat for select using (true);
+#
+# ...and set KEEPALIVE_TABLE: heartbeat
 
+name: Supabase keepalive
+
+on:
+  schedule:
+    - cron: "0 9 */3 * *"   # 09:00 UTC every 3rd day (well inside the 7-day window)
+  workflow_dispatch: {}      # lets you run it manually from the Actions tab to test
+
+env:
+  KEEPALIVE_TABLE: profiles
+
+jobs:
+  ping:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Query Supabase
+        run: |
+          echo "Pinging Supabase project to reset the inactivity timer..."
+          HTTP_CODE=$(curl -s -o /tmp/body.txt -w "%{http_code}" \
+            "${{ secrets.SUPABASE_URL }}/rest/v1/${KEEPALIVE_TABLE}?select=*&limit=1" \
+            -H "apikey: ${{ secrets.SUPABASE_ANON_KEY }}" \
+            -H "Authorization: Bearer ${{ secrets.SUPABASE_ANON_KEY }}")
+          echo "HTTP $HTTP_CODE"
+          cat /tmp/body.txt
+          # 200 = query ran (rows or empty [] both fine — RLS may hide rows).
+          # Anything else means the URL/key/table needs a look.
+          if [ "$HTTP_CODE" != "200" ]; then
+            echo "::error::Keepalive query failed with HTTP $HTTP_CODE"
+            exit 1
+          fi
+          echo "Project is awake. Timer reset."
