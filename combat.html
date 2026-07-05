@@ -404,60 +404,38 @@
     .ctx-act.ctx-danger { color: var(--blood, #c0001a); border-color: rgba(192,0,26,0.4); }
     .ctx-act.ctx-danger:hover { color: #fff; background: var(--blood, #c0001a); border-color: var(--blood, #c0001a); }
 
-    /* ── right dock (UX-AUDIT-1): labeled tabs on one collapsible panel.
-       Tabs replace the icon rail (Feed / Display / Bestiary / Combat / Scenes,
-       staff tabs absent for players). Eye + minimize live in the tab-row
-       corner. Collapsed = a slim ❮ handle on the right edge. The roll ticker
-       shows whenever the Feed pane isn't visible. ── */
-    .dock-panel {
-      position: absolute; top: 0; right: 0; bottom: 88px;   /* bottom clears the battle HUD */
-      z-index: 22;
-      width: 320px; max-width: calc(100vw - 32px);
-      background: var(--nav-bg); border-left: 1px solid var(--nav-border);
-      border-bottom: 1px solid var(--nav-border);
-      box-shadow: -8px 0 40px rgba(0,0,0,0.5);
-      display: none; flex-direction: column;
+    /* ── RAIL-DOCK (BATTLE TAB): the dock retired into the rail. combat's
+       former right panel registers ONE contextual tab ('battle', order 20)
+       through TokRail.registerTab; its sections ride a segmented sub-strip
+       inside the pane (the same pattern as the rail Feed's Combat|Chronicle
+       toggle). Chrome selectors are #tok-rail-prefixed on purpose — the
+       pane lives inside the rail, and page CSS must never leak past it.
+       Pane CONTENT keeps the shipped .dock-body/.dock-pane classes, so the
+       roster/bestiary/scenes/grid-controls CSS below is untouched. ── */
+    #tok-rail .bd-host { flex: 1; min-height: 0; display: flex; flex-direction: column; }
+    #tok-rail .bd-strip { display: flex; align-items: stretch; margin: 10px 12px 0; border: 1px solid rgba(199,154,74,0.34); flex: none; }
+    #tok-rail .bd-tab {
+      flex: 1 1 0; min-width: 0; padding: 6px 2px 5px; background: transparent; border: 0;
+      font-family: var(--font-title, "Oswald", sans-serif); letter-spacing: 0.1em; text-transform: uppercase;
+      font-size: 0.55rem; color: #8b8473; cursor: pointer;
+      white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
     }
-    .dock-panel.open { display: flex; }
-    .tab-row { display: flex; align-items: stretch; border-bottom: 1px solid var(--nav-border); flex: none; }
-    .dock-tab {
-      /* UX-AUDIT-1b (option A): icon over a tiny label — self-naming on touch
-         (no hover on iPad), compact enough for five staff tabs at 320px.
-         min-width:0 + ellipsis means no label can ever push the ✕ off again. */
-      flex: 1 1 0; min-width: 0; position: relative; padding: 0.4rem 0.1rem 0.35rem;
-      border: none; background: none; color: var(--muted); font-family: inherit;
-      cursor: pointer; border-bottom: 2px solid transparent;
-      display: flex; flex-direction: column; align-items: center; gap: 0.18rem;
-    }
-    .dock-tab .ic { font-size: 14px; line-height: 1; }
-    .dock-tab .lb {
-      font-size: 0.55rem; letter-spacing: 0.07em; text-transform: uppercase;
-      white-space: nowrap; max-width: 100%; overflow: hidden; text-overflow: ellipsis;
-    }
-    .dock-tab:hover { color: var(--parchment2); }
-    .dock-tab.active { color: var(--gold-light); border-bottom-color: var(--gold); background: rgba(184,149,42,0.06); }
-    .dock-tab.unread::after { content: ''; position: absolute; top: 4px; right: 18%; width: 7px; height: 7px; border-radius: 50%; background: var(--blood, #c0001a); }
-    .tab-corner { display: flex; align-items: center; gap: 2px; padding: 0 4px; border-left: 1px solid var(--nav-border); flex: none; margin-left: auto; }
-    .corner-btn {
-      width: 26px; height: 26px; border-radius: 6px; border: 1px solid transparent;
-      background: none; color: var(--muted); cursor: pointer; font-size: 13px;
+    #tok-rail .bd-tab:hover { color: #b9b09a; }
+    #tok-rail .bd-tab.on { background: #e7c279; color: #182826; font-weight: 600; }
+    #tok-rail .bd-corner { display: flex; align-items: center; padding: 0 2px; border-left: 1px solid rgba(199,154,74,0.34); flex: none; }
+    #tok-rail .corner-btn {
+      width: 24px; height: 24px; border: 1px solid transparent;
+      background: none; color: #8b8473; cursor: pointer; font-size: 13px;
       display: flex; align-items: center; justify-content: center; flex: none;
     }
-    .corner-btn:hover { color: var(--parchment); }
-    .corner-btn svg { width: 15px; height: 15px; fill: currentColor; }
-    .dock-handle {
-      position: absolute; right: 0; top: 50%; transform: translateY(-50%); z-index: 23;
-      width: 26px; padding: 0.6rem 0; border-radius: 8px 0 0 8px;
-      border: 1px solid var(--nav-border); border-right: none;
-      background: var(--nav-bg); color: var(--muted); cursor: pointer;
-      display: none; flex-direction: column; align-items: center; gap: 0.45rem; font-size: 13px;
-    }
-    .dock-handle:hover { color: var(--gold-light); }
-    .dock-handle.show { display: flex; }
-    .dock-handle .dot { width: 8px; height: 8px; border-radius: 50%; background: var(--blood, #c0001a); display: none; }
-    .dock-handle.unread .dot { display: block; }
+    #tok-rail .corner-btn:hover { color: #ece2cd; }
+    #tok-rail .corner-btn.on { color: #e7c279; }
+    #tok-rail .corner-btn svg { width: 15px; height: 15px; fill: currentColor; }
+    #tok-rail .bd-body { flex: 1; min-height: 0; display: flex; padding: 8px 0 0; }
     .roll-ticker {
-      position: absolute; right: 8px; bottom: 96px; z-index: 24;
+      /* right offset clears the rail's reopen handle (22px) when the rail is
+         collapsed; .rail-open pushes it past the 384px rail when it's out */
+      position: absolute; right: 36px; bottom: 96px; z-index: 24;
       display: none; align-items: center; gap: 0.5rem;
       background: var(--nav-bg); border: 1px solid var(--nav-border); border-radius: 8px;
       padding: 0.32rem 0.6rem; font-size: 0.76rem; cursor: pointer;
@@ -465,7 +443,7 @@
       max-width: 330px; white-space: nowrap; overflow: hidden;
     }
     .roll-ticker.show { display: flex; }
-    .roll-ticker.floating { right: 36px; }   /* clears the collapsed handle */
+    .roll-ticker.rail-open { right: 396px; } /* clears the open rail */
     .roll-ticker .twho { color: var(--gold-light); font-size: 0.7rem; letter-spacing: 0.05em; flex: none; }
     .roll-ticker .twhat { color: var(--parchment2); overflow: hidden; text-overflow: ellipsis; }
     .roll-ticker.flash { animation: tflash 0.8s ease; }
@@ -478,7 +456,8 @@
        (set from visualViewport) so the feed composer stays above the
        on-screen keyboard instead of underneath it. */
     @media (max-width: 640px), (max-height: 500px) {
-      .dock-panel { left: 0; top: 0; width: auto; max-width: none; border-left: none; bottom: var(--kb, 0px); }
+      /* the dock's full-screen mobile sheet retired with the dock — the rail
+         owns mobile now. The ticker still rides --kb over the keyboard. */
       .roll-ticker { bottom: calc(96px + var(--kb, 0px)); }
     }
     /* ── page toast + token info chip (UX-AUDIT-2) ── */
@@ -622,7 +601,9 @@
     .bst-save .ct { font-family: var(--font-title); font-size: 0.5rem; }
     /* staff "view as player" toggle (rail icon) + preview-mode UI suppression */
     .view-toggle.on { background: var(--gold); color: var(--ink-deep); border-color: var(--gold); }
-    .stage.view-as-player .dock-tab.staff { display: none !important; }
+    /* the strip lives in the rail (outside .stage), so the preview hide is
+       driven by JS: the eye toggles .hide-staff on the strip itself */
+    #tok-rail .bd-strip.hide-staff .bd-tab.staff { display: none !important; }
     .stage.view-as-player .tool-rail,
     .stage.view-as-player .bestiary-tab,
     .stage.view-as-player .bestiary-panel,
@@ -2028,7 +2009,7 @@
       stage.addEventListener('pointerdown', (e) => {
         if (e.button > 0) return;                 // right/middle mouse → handled by contextmenu
         // never let board pan/drag steal interactions meant for the UI panels
-        if (e.target.closest('.zoom-bar, .tool-rail, .tool-options, .gc-backdrop, .dock-panel, .dock-handle, .roll-ticker, .statblock-panel, .init-strip, .draw-del')) return;
+        if (e.target.closest('.zoom-bar, .tool-rail, .tool-options, .gc-backdrop, #tok-rail, .tr-handle, .roll-ticker, .statblock-panel, .init-strip, .draw-del')) return;
         if (FOG.editing && IS_STAFF) {                 // fog paint mode → paint cells, skip token/pan logic
           try { stage.setPointerCapture(e.pointerId); } catch (_) {}
           fogPainting = true;
@@ -2219,7 +2200,7 @@
 
       stage.addEventListener('wheel', (e) => {
         // inside a scrollable UI panel → let it scroll natively, don't zoom
-        if (e.target.closest('.ctx-menu, .dock-panel, .dock-handle, .statblock-panel, .init-strip, .tool-options, .tool-rail')) return;
+        if (e.target.closest('.ctx-menu, #tok-rail, .tr-handle, .statblock-panel, .init-strip, .tool-options, .tool-rail')) return;
         e.preventDefault();
         const rect = stage.getBoundingClientRect();
         // 1.07/tick (was 1.1) — ~30% gentler wheel zoom. Pinch (distance-driven)
@@ -2797,14 +2778,17 @@
       const isStaff = !!(me && (me.role === 'overseer' || me.role === 'dm'));
       IS_STAFF = isStaff;
 
-      // ── always-on feed (Phase 2) — the game log lives with or without an
-      // active encounter, on its own realtime channel, so the boot bail-outs
-      // below (no scene row / no encounter) no longer take the feed down. The
-      // dock hosts it (and later Display / Bestiary / Combat as they build). ──
+      // ── RAIL-DOCK: the dock retired into the rail's Battle tab. The RAIL
+      // owns the feed surface now (same tables, its own realtime + composer);
+      // this page keeps the feed WRITERS (feedInsert / feedLogRoll / logEvent)
+      // and its always-on channel purely to drive the roll ticker. renderFeed
+      // no-ops (feedListEl never mounts) and the pane-unread branches guard
+      // themselves out — the dead reader code sweeps in the feed-core
+      // extraction (increment 3). buildFeed() is deliberately NOT called;
+      // it also carried an onRSChange OVERWRITE the rail's chained listener
+      // replaces safely. ──
       await loadCampaign();
       buildDock();
-      buildFeed();
-      dockOpen('feed');
       initFeedRealtime();
 
       // active encounter (RLS: all authenticated can read)
@@ -2928,9 +2912,8 @@
           const vv = window.visualViewport;
           const kb = Math.max(0, window.innerHeight - vv.height - vv.offsetTop);
           document.documentElement.style.setProperty('--kb', Math.round(kb) + 'px');
-          // the keyboard shrinks the feed — keep it pinned to the newest message
-          if (kb > 0 && DOCK && DOCK.open === 'feed' && feedListEl)
-            feedListEl.scrollTop = feedListEl.scrollHeight;
+          // (the dock's feed keyboard-pin retired with the dock — the rail
+          // owns its own composer; --kb still drives the ticker + pg-toast)
         };
         window.visualViewport.addEventListener('resize', vvSync);
         window.visualViewport.addEventListener('scroll', vvSync);
@@ -2939,79 +2922,105 @@
     });
 
     // ── grid controls panel ──
-    // ── right dock — one slim icon rail + one panel, every right-side surface
-    // is a registered pane (Feed / Display / Bestiary / Combat). Minimized =
-    // rail only. The eye (view-as-player) is a rail toggle, not a pane. ──
+    // ── RAIL-DOCK ADAPTER (BATTLE TAB) ──────────────────────────────────
+    // The dock retired; its sections ride the rail. buildDock() builds the
+    // sub-strip + body DETACHED (so the pane builders below run in their
+    // shipped order, before the rail necessarily exists), then registers
+    // ONE contextual tab through rail.js's own seam — the rail owns the
+    // Battle tab button and the pane slot; this page owns the contents.
+    // DOCK keeps its shipped shape ({panes:{id:{btn,pane,title,onOpen}},
+    // open, last, corner, ticker}) so every downstream reference —
+    // paintCombatMenu, the view-toggle fallback, tokensPaneOpen — is
+    // untouched. dockOpen() now switches the SUB-strip; the rail handles
+    // open/collapse itself, so the panel/handle halves are gone.
     let DOCK = null;
     function buildDock() {
-      // UX-AUDIT-1: labeled tabs replaced the icon rail. The panel owns a
-      // tab-row (tabs insert before the corner, which holds eye + minimize);
-      // collapsed = the ❮ handle; the roll ticker is its own floating strip.
-      const panel = document.createElement('div');
-      panel.className = 'dock-panel';
-      panel.innerHTML = `<div class="tab-row"><div class="tab-corner"><button class="corner-btn dock-close" title="Minimize">✕</button></div></div><div class="dock-body"></div>`;
-      const handle = document.createElement('button');
-      handle.className = 'dock-handle';
-      handle.title = 'Open panel';
-      handle.innerHTML = `<span>❮</span><span class="dot"></span>`;
+      const host = document.createElement('div');
+      host.className = 'bd-host';
+      const strip = document.createElement('div');
+      strip.className = 'bd-strip';
+      const corner = document.createElement('div');
+      corner.className = 'bd-corner';
+      strip.appendChild(corner);
+      const body = document.createElement('div');
+      body.className = 'dock-body';           // shipped class — pane CSS untouched
+      host.appendChild(strip);
+      host.appendChild(body);
+      // the roll ticker survives as-is: a floating strip over the map,
+      // now gated on the RAIL's feed visibility. Click → the rail's Feed.
       const ticker = document.createElement('div');
       ticker.className = 'roll-ticker';
       ticker.title = 'Open the feed';
       ticker.innerHTML = `<span>🎲</span><span class="twho"></span><span class="twhat"></span>`;
-      stage.appendChild(panel);
-      stage.appendChild(handle);
       stage.appendChild(ticker);
-      DOCK = { panel, handle, ticker,
-               tabRow: panel.querySelector('.tab-row'),
-               corner: panel.querySelector('.tab-corner'),
-               body: panel.querySelector('.dock-body'),
-               panes: {}, open: null, last: 'feed' };
-      panel.querySelector('.dock-close').addEventListener('click', () => dockOpen(null));
-      handle.addEventListener('click', () => dockOpen(DOCK.last || 'feed'));
-      ticker.addEventListener('click', () => dockOpen('feed'));
+      ticker.addEventListener('click', () => { if (window.TokRail) window.TokRail.show('feed'); });
+      DOCK = { host, strip, corner, body, ticker, panes: {}, open: null, last: null };
+      // register with the rail — now, or when it announces itself
+      const SWORD = '<svg viewBox="0 0 18 18" fill="none" stroke="currentColor" stroke-width="1.4"><path d="M3.5 14.5L12 6l2.5-3.5L11 5 2.5 13.5zM11.5 11.5l3 3M10 14.5h3.5V11"/></svg>';
+      const reg = () => {
+        window.TokRail.registerTab({
+          id: 'battle', label: 'Battle', icon: SWORD, order: 20,
+          onMount: (pane) => { pane.appendChild(host); },
+          onShow: () => { if (!DOCK.open) dockOpen(DOCK.last || firstDockPane()); syncTicker(); },
+          onHide: () => syncTicker(),
+        });
+      };
+      if (window.TokRail && window.TokRail.ready) reg();
+      else document.addEventListener('tok-rail:ready', reg, { once: true });
+      // rail tab clicks / collapse re-gate the ticker; the rail emits no
+      // change event, so a delegated listener + microtask re-sync is the
+      // page-side glue (cheap: only fires on clicks inside the rail chrome).
+      document.addEventListener('click', (e) => {
+        if (e.target.closest && e.target.closest('#tok-rail, .tr-handle')) setTimeout(syncTicker, 0);
+      });
+    }
+    function firstDockPane() {
+      const k = Object.keys(DOCK.panes);
+      return k.length ? k[0] : null;
     }
     function dockRegister(id, { icon, title, staff, onOpen, tab }) {
+      // sub-strip button: label-only (the strip is the Feed-toggle chrome,
+      // not the old icon-over-label tabs). `staff` class kept — the
+      // view-as-player fallback keys off it.
       const btn = document.createElement('button');
-      btn.className = 'dock-tab' + (staff ? ' staff' : '');
-      btn.title = title;   // full title as the desktop tooltip
-      // option A: icon over a tiny label; `tab` overrides when the title is
-      // too long for a 64px-wide tab (e.g. 'Game feed' → 'Feed')
-      btn.innerHTML = `<span class="ic">${icon}</span><span class="lb">${tab || title}</span>`;
-      DOCK.tabRow.insertBefore(btn, DOCK.corner);
+      btn.className = 'bd-tab' + (staff ? ' staff' : '');
+      btn.title = title;
+      btn.textContent = tab || title;
+      DOCK.strip.insertBefore(btn, DOCK.corner);
       const pane = document.createElement('div');
-      pane.className = 'dock-pane';
+      pane.className = 'dock-pane';            // shipped class — pane CSS untouched
       DOCK.body.appendChild(pane);
       DOCK.panes[id] = { btn, pane, title, onOpen };
       btn.addEventListener('click', (e) => { e.stopPropagation(); dockOpen(id); });
+      if (!DOCK.open) dockOpen(id);            // first registered section shows
       return pane;
     }
     function dockOpen(id) {
       if (id && !DOCK.panes[id]) id = null;
       DOCK.open = id;
-      if (id) DOCK.last = id;        // the handle reopens to where you were
-      DOCK.panel.classList.toggle('open', !!id);
-      DOCK.handle.classList.toggle('show', !id);
+      if (id) DOCK.last = id;
       Object.entries(DOCK.panes).forEach(([k, p]) => {
-        p.btn.classList.toggle('active', k === id);
+        p.btn.classList.toggle('on', k === id);
         p.pane.classList.toggle('show', k === id);
       });
-      if (id) {
-        DOCK.panes[id].btn.classList.remove('unread');
-        if (id === 'feed') DOCK.handle.classList.remove('unread');
-        if (DOCK.panes[id].onOpen) DOCK.panes[id].onOpen();
-      }
+      if (id && DOCK.panes[id].onOpen) DOCK.panes[id].onOpen();
       syncTicker();
     }
+    // ── END RAIL-DOCK ADAPTER ───────────────────────────────────────────
 
-    // ── roll ticker: the latest roll, visible whenever the Feed pane isn't
-    // (another tab, or the dock collapsed). Sourced from the shared feed —
-    // logRoll already carries everyone's rolls, and hidden rolls never reach
-    // players under RLS, so masking is inherited for free. Click → feed. ──
+    // ── roll ticker: the latest roll, visible whenever the RAIL's Feed isn't
+    // (another rail tab, or the rail collapsed). Sourced from the shared
+    // feed — logRoll already carries everyone's rolls, and hidden rolls never
+    // reach players under RLS, so masking is inherited for free. ──
+    function railFeedVisible() {
+      const R = window.__tokRail;
+      return !!(R && R.open && R.tab === 'feed');
+    }
     function syncTicker() {
-      if (!DOCK) return;
-      const feedVisible = DOCK.open === 'feed';
-      DOCK.ticker.classList.toggle('show', !feedVisible && DOCK.ticker.dataset.has === '1');
-      DOCK.ticker.classList.toggle('floating', !DOCK.open);
+      if (!DOCK || !DOCK.ticker) return;
+      const R = window.__tokRail;
+      DOCK.ticker.classList.toggle('show', !railFeedVisible() && DOCK.ticker.dataset.has === '1');
+      DOCK.ticker.classList.toggle('rail-open', !!(R && R.open));
     }
     function tickerUpdate(row, flash) {
       if (!DOCK || !row) return;
@@ -3264,10 +3273,13 @@
       btn.addEventListener('click', () => {
         VIEW_AS_PLAYER = !VIEW_AS_PLAYER;
         stage.classList.toggle('view-as-player', VIEW_AS_PLAYER);
+        if (DOCK && DOCK.strip) DOCK.strip.classList.toggle('hide-staff', VIEW_AS_PLAYER);
         if (VIEW_AS_PLAYER) {
-          // leaving DM tooling cleanly: stop fog painting, close DM surfaces
+          // leaving DM tooling cleanly: stop fog painting, close DM surfaces.
+          // A staff sub-tab falls back to Display (players' section) — the
+          // rail's Feed is a different tab entirely now, not the fallback.
           FOG.editing = false; stage.classList.remove('fog-edit');
-          if (DOCK && DOCK.open && DOCK.panes[DOCK.open].btn.classList.contains('staff')) dockOpen('feed');
+          if (DOCK && DOCK.open && DOCK.panes[DOCK.open].btn.classList.contains('staff')) dockOpen('display');
           closeCtxMenu();
         }
         redrawFog();      // veil opacity (translucent ↔ solid)
@@ -3276,7 +3288,7 @@
         paint();
       });
       paint();
-      DOCK.corner.insertBefore(btn, DOCK.corner.firstChild);   // eye sits left of minimize in the tab corner
+      DOCK.corner.appendChild(btn);   // eye sits in the sub-strip corner (minimize retired with the dock)
     }
 
     // ── combat pane (staff) — the roster picker. Out of combat: checkboxes
@@ -3286,7 +3298,7 @@
     // to checked; it persists across fights (the hermit stays benched). ──
     let PICK_OFF = new Set();
     function buildCombatTab() {
-      const pane = dockRegister('combat', { icon: '⚔', title: 'Combat', staff: true });
+      const pane = dockRegister('combat', { icon: '⚔', title: 'Combat', tab: 'Tracker', staff: true });
       const wrap = document.createElement('div');
       wrap.className = 'roster-wrap';
       pane.appendChild(wrap);
@@ -3705,10 +3717,7 @@
       FEED.push(row);
       if (FEED.length > 250) FEED.shift();
       renderFeed();
-      if (DOCK && DOCK.panes.feed && DOCK.open !== 'feed') {
-        DOCK.panes.feed.btn.classList.add('unread');
-        if (!DOCK.open) DOCK.handle.classList.add('unread');
-      }
+      // (dock feed-unread retired — the rail flags its own Feed unread)
       // hidden rolls only ever arrive for staff (RLS); view-as-player preview
       // additionally skips them here so the ticker doesn't leak in preview
       if (row.kind === 'roll' && (!row.hidden || effectiveStaff())) tickerUpdate(row, true);
