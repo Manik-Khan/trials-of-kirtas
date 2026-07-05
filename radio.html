@@ -127,9 +127,21 @@ body{background:linear-gradient(180deg,var(--ground),var(--ground-2));color:var(
       var audio = new Audio();
       audio.preload = 'auto';
       // stretch, don't shift: rate nudges become inaudible time-stretch
-      try { audio.preservesPitch = true; } catch (e) {}
+      try { audio.preservesPitch = true; audio.webkitPreservesPitch = true; } catch (e) {}
       p = S.players[chId] = { audio: audio, ui: chUi(chId, a), url: null,
-                              seekLead: 0.25, lastSeekAt: 0 };
+                              seekLead: 0.25, lastSeekAt: 0,
+                              stalls: 0, gentle: false, lastRateAt: 0 };
+      // stall telemetry (July 5, third field report): if the element keeps
+      // choking, our OWN corrections are the prime suspect — three stalls
+      // flips this player to GENTLE mode: playbackRate pinned to 1, wider
+      // tolerance, seeks only on the long hysteresis. Playback continuity
+      // beats tight sync every time.
+      var onStall = function () {
+        p.stalls++;
+        if (p.stalls >= 3 && !p.gentle) { p.gentle = true; try { audio.playbackRate = 1; } catch (e) {} }
+      };
+      audio.addEventListener('waiting', onStall);
+      audio.addEventListener('stalled', onStall);
     }
     return p;
   }
@@ -220,15 +232,28 @@ body{background:linear-gradient(180deg,var(--ground),var(--ground-2));color:var(
         if (p.audio.readyState < 3 || p.audio.seeking) continue;   // buffering — never fight a rebuffer
         var expected = R.positionAt(p.anchor, now);
         var err = expected - p.audio.currentTime;
-        var n = R.driftNudge(err);
+        // gentle mode: rate pinned, tolerance widened — only the long-
+        // hysteresis seek corrects, and only past 0.8s
+        var n = p.gentle ? { seek: Math.abs(err) > 0.8, rate: 1 } : R.driftNudge(err);
         if (n.seek && (Date.now() - p.lastSeekAt > 15000 || Math.abs(err) > 5)) {
           p.audio.currentTime = expected + p.seekLead;
           p.lastSeekAt = Date.now();
         }
-        p.audio.playbackRate = n.rate;
+        // rate discipline: iOS can hiccup on EVERY playbackRate write —
+        // only write when meaningfully different, then hold 6s minimum
+        var curRate = p.audio.playbackRate || 1;
+        if (Math.abs(n.rate - curRate) > 0.005 && Date.now() - p.lastRateAt > 6000) {
+          p.audio.playbackRate = n.rate;
+          p.lastRateAt = Date.now();
+        } else if (n.rate === 1 && curRate !== 1 && Date.now() - p.lastRateAt > 6000) {
+          p.audio.playbackRate = 1;
+          p.lastRateAt = Date.now();
+        }
         var ms = Math.abs(err * 1000);
         if (ms > worst) worst = ms;
-        p.ui.lk.textContent = ms < 40 ? 'locked' : '\u00b1' + Math.round(ms) + 'ms';
+        p.ui.lk.textContent = (ms < 90 ? 'locked' : '\u00b1' + Math.round(ms) + 'ms')
+          + (p.gentle ? ' \u00b7 gentle' : '')
+          + (p.stalls ? ' \u00b7 stalls ' + p.stalls : '');
       }
       if (S.listener && C.synced) S.listener.updateSync(Math.max(worst, C.rtt / 2));
       var age = Date.now() - S.lastAnchorsAt;

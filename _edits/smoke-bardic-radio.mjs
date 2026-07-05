@@ -216,9 +216,17 @@ t('rail: cross-device watcher wired, guarded off console/radio pages',
 t('chip is the player door: remote-only broadcast shows ON AIR and routes to radio.html',
   tabSrc.includes("var remoteOnly = !S.engineLive && S.remote.on;")
   && tabSrc.includes("if (!S.engineLive && S.remote.on) { location.href = 'radio.html'; return; }"))
-t('rail: remote broadcast → Tune In leads, Light demoted to secondary',
-  tabSrc.includes("location.href = 'radio.html';")
-  && tabSrc.includes("R.tunein.style.display = (!S.engineLive && S.remote.on && !ON_RADIO) ? 'block' : 'none';"))
+t('rail: RADIO section leads the pane (listener role first)',
+  tabSrc.includes("wrap.appendChild(radio); wrap.appendChild(eng);")
+  && tabSrc.includes("collapsible(radio, rhead, 'radio', false);"))
+t('rail: sections collapsible with persisted state, engine shut by default',
+  tabSrc.includes("collapsible(eng, ehead, 'engine', true);")
+  && tabSrc.includes("localStorage.setItem('tok-bardic-shut'"))
+t('rail: live engine reopens its section unless the user shut it',
+  tabSrc.includes("if (S.engineLive && !('engine' in S.shut)) R.eng.classList.remove('tok-bd-shut');"))
+t('rail: radio section owns tune-in (never on radio.html itself)',
+  tabSrc.includes("rtune.addEventListener('click', function () { location.href = 'radio.html'; });")
+  && tabSrc.includes("R.rtune.style.display = ON_RADIO ? 'none' : 'block';"))
 t('rail: blocked state surfaces the incumbent by name',
   tabSrc.includes("'blocked \\u00b7 ' + S.snap.airBlockedBy + ' is on air'"))
 
@@ -244,6 +252,15 @@ t('adaptive seek lead measured from observed shortfall',
   && pageSrc.includes('+ (p.anchor.paused ? 0 : p.seekLead);'))
 t('never fight a rebuffer', pageSrc.includes('p.audio.readyState < 3 || p.audio.seeking) continue;'))
 t('preservesPitch: nudges stretch, never detune', pageSrc.includes('audio.preservesPitch = true;'))
+t('stall telemetry: waiting/stalled counted; three flips to gentle',
+  pageSrc.includes("audio.addEventListener('waiting', onStall);")
+  && pageSrc.includes('if (p.stalls >= 3 && !p.gentle) { p.gentle = true;'))
+t('gentle mode: rate pinned to 1, only long-hysteresis seeks past 0.8s',
+  pageSrc.includes("var n = p.gentle ? { seek: Math.abs(err) > 0.8, rate: 1 } : R.driftNudge(err);"))
+t('rate discipline: meaningful-change gate + 6s hold between writes',
+  pageSrc.includes('Math.abs(n.rate - curRate) > 0.005 && Date.now() - p.lastRateAt > 6000'))
+t('lock readout carries gentle + stall telemetry for field diagnosis',
+  pageSrc.includes("(p.gentle ? ' \\u00b7 gentle' : '')") && pageSrc.includes("' \\u00b7 stalls ' + p.stalls"))
 t('page wake → resync + rebuild if still stale',
   pageSrc.includes("document.addEventListener('visibilitychange'") && pageSrc.includes('S.listener.reconnect();'))
 t('hard resync rides the hysteresis gate; playbackRate carries the nudge',

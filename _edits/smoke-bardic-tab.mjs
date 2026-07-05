@@ -96,7 +96,8 @@ t('no color-mix / modern color syntax in injected chrome',
 
 t('remote sent hello on connect', engineHeard.some(m => m.t === 'hello'))
 
-t('engine section reads live', paneEl.querySelector('.tok-bd-head').classList.contains('live'))
+const engHead = () => [...paneEl.querySelectorAll('.tok-bd-head')].find(h => h.textContent.includes('ENGINE'))
+t('engine section reads live (radio section now leads the pane)', engHead().classList.contains('live'))
 const rows = paneEl.querySelectorAll('.tok-bd-row')
 t('one row per snapshot channel', rows.length === 2)
 const musicSel = rows[0].querySelector('.tok-bd-sel')
@@ -151,14 +152,14 @@ t('restored: mini chip yields back to the label', !mini.classList.contains('on')
 // ── engine death paths ──
 engine.send({ t: 'engine-bye', engineId: 'eng-test' })
 t('engine-bye → offline state, Light the engine visible, channels hidden',
-  !paneEl.querySelector('.tok-bd-head').classList.contains('live') &&
+  !engHead().classList.contains('live') &&
   paneEl.querySelector('.tok-bd-light').style.display === 'block' &&
   chip.classList.contains('tok-bd-off'))
 // crashed engine: hello ping goes unanswered → offline after the window
 engine.close()   // nobody home
 registeredSpec.onShow()  // triggers pingEngine
 await new Promise(r => setTimeout(r, 1700))
-t('unanswered ping (crashed tab) → stays offline', !paneEl.querySelector('.tok-bd-head').classList.contains('live'))
+t('unanswered ping (crashed tab) → stays offline', !engHead().classList.contains('live'))
 
 console.log(`\n${pass}/${pass + fail} passed`)
 process.exit(fail ? 1 : 0)

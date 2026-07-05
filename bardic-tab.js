@@ -49,6 +49,7 @@
     chip: null,
     chipPref: (function () { try { return localStorage.getItem(CHIP_KEY) || 'shown'; } catch (e) { return 'shown'; } })(),
     remote: { on: false, name: null, count: 0 },   // a broadcast on ANOTHER device (Realtime watcher)
+    shut: (function () { try { return JSON.parse(localStorage.getItem('tok-bardic-shut') || '{}'); } catch (e) { return {}; } })(),
     pingTimer: null,
     rows: {},              // chId → row element refs
   };
@@ -123,6 +124,15 @@
       + '#tok-rail .tok-bd-chiprow .l{font-family:Oswald,sans-serif;font-size:8.5px;letter-spacing:0.16em;text-transform:uppercase;color:rgba(139,132,115,1)}'
       + '#tok-rail .tok-bd-chiptog{margin-left:auto;padding:4px 10px;background:transparent;border:1px solid rgba(199,154,74,0.34);color:rgba(185,176,154,1);font-family:Oswald,sans-serif;font-size:8.5px;letter-spacing:0.18em;text-transform:uppercase;cursor:pointer}'
       + '#tok-rail .tok-bd-chiptog.on{border-color:rgba(199,154,74,0.6);color:rgba(231,194,121,1)}'
+      /* collapsible sections */
+      + '#tok-rail .tok-bd-head{cursor:pointer;user-select:none}'
+      + '#tok-rail .tok-bd-head .chev{margin-left:6px;font-size:8px;color:rgba(139,132,115,1);transition:transform 0.15s;display:inline-block}'
+      + '#tok-rail .tok-bd-sec.tok-bd-shut .chev{transform:rotate(-90deg)}'
+      + '#tok-rail .tok-bd-sec.tok-bd-shut > :not(.tok-bd-head){display:none !important}'
+      /* radio section (the listener role) */
+      + '#tok-rail .tok-bd-radio .d.on{background:rgba(207,59,44,1);box-shadow:0 0 8px rgba(207,59,44,0.9);animation:tokBdPulse 1.6s infinite}'
+      + '#tok-rail .tok-bd-rtext{font-size:13.5px;color:rgba(185,176,154,1);font-family:"EB Garamond",serif}'
+      + '#tok-rail .tok-bd-rtext b{color:rgba(236,226,205,1);font-weight:600}'
       /* broadcast section */
       + '#tok-rail .tok-bd-air .d.on{background:rgba(207,59,44,1);box-shadow:0 0 8px rgba(207,59,44,0.9);animation:tokBdPulse 1.6s infinite}'
       + '@keyframes tokBdPulse{50%{opacity:0.45}}'
@@ -175,6 +185,19 @@
     paintAll();
   }
 
+  // section headers toggle their section; state persists per section id
+  function collapsible(sec, head, id, defaultShut) {
+    head.insertAdjacentHTML('beforeend', '<span class="chev">\u25BC</span>');
+    var shut = (id in S.shut) ? !!S.shut[id] : !!defaultShut;
+    sec.classList.toggle('tok-bd-shut', shut);
+    head.addEventListener('click', function (ev) {
+      // the On Air dot / status text ride the header — clicks anywhere toggle
+      var now = sec.classList.toggle('tok-bd-shut');
+      S.shut[id] = now;
+      try { localStorage.setItem('tok-bardic-shut', JSON.stringify(S.shut)); } catch (e) {}
+    });
+  }
+
   // ── pane: static skeleton once, update-in-place per snapshot ──────
   function buildPane(pane) {
     pane.innerHTML = '';
@@ -217,6 +240,18 @@
     var rowsHost = el('div');
     chs.appendChild(rowsHost);
 
+    // RADIO section (the LISTENER role, July 5): leads the pane — a player
+    // who opens Bardic is almost always looking for the broadcast, not the
+    // mixing desk. The engine-runner's sections sit below, collapsible.
+    var radio = el('div', 'tok-bd-sec tok-bd-radio');
+    var rhead = el('div', 'tok-bd-head');
+    rhead.innerHTML = '<span class="d"></span>RADIO<span class="r"></span>';
+    var rtext = el('div', 'tok-bd-rtext');
+    var rtune = el('button', 'tok-bd-tunein');
+    rtune.textContent = '\u25C9  Tune in on this device';
+    rtune.addEventListener('click', function () { location.href = 'radio.html'; });
+    radio.appendChild(rhead); radio.appendChild(rtext); radio.appendChild(rtune);
+
     // BROADCAST section (wave B)
     var air = el('div', 'tok-bd-sec tok-bd-air');
     var ahead = el('div', 'tok-bd-head');
@@ -231,11 +266,19 @@
     rnote.innerHTML = 'players tune in at <code>radio.html</code> \u2014 one tap, clock-locked, every speaker in the room joins.';
     air.appendChild(ahead); air.appendChild(airbtn); air.appendChild(lroll); air.appendChild(rnote);
 
-    wrap.appendChild(eng); wrap.appendChild(chs); wrap.appendChild(air);
+    wrap.appendChild(radio); wrap.appendChild(eng); wrap.appendChild(chs); wrap.appendChild(air);
     pane.appendChild(wrap);
 
+    // role-shaped defaults: Radio open for everyone; Engine starts shut
+    // for a plain listener and opens itself the moment an engine is live
+    collapsible(radio, rhead, 'radio', false);
+    collapsible(eng, ehead, 'engine', true);
+    collapsible(chs, chead, 'channels', false);
+    collapsible(air, ahead, 'broadcast', false);
+
     S.paneRefs = { ehead: ehead, etext: etext, light: light, tunein: tunein, chiptog: chiptog, rowsHost: rowsHost, chs: chs,
-                   air: air, ahead: ahead, airbtn: airbtn, lroll: lroll };
+                   air: air, ahead: ahead, airbtn: airbtn, lroll: lroll,
+                   radio: radio, rhead: rhead, rtext: rtext, rtune: rtune, eng: eng };
   }
 
   function buildRow(chId, ch) {
@@ -292,8 +335,26 @@
     } else {
       R.etext.innerHTML = 'The engine isn\u2019t running. Light it and this pane becomes the remote.';
     }
-    R.tunein.style.display = (!S.engineLive && S.remote.on && !ON_RADIO) ? 'block' : 'none';
+    R.tunein.style.display = 'none';   // the RADIO section owns tune-in now
     R.light.style.display = S.engineLive ? 'none' : 'block';
+    // radio section: the listener's face of the pane
+    R.rhead.querySelector('.d').classList.toggle('on', S.remote.on || (S.engineLive && S.snap && S.snap.onAir));
+    if (S.engineLive && S.snap && S.snap.onAir) {
+      R.rhead.querySelector('.r').textContent = 'you are the broadcast';
+      R.rtext.innerHTML = 'This console is on air \u2014 listeners appear under Broadcast below.';
+      R.rtune.style.display = 'none';
+    } else if (S.remote.on) {
+      R.rhead.querySelector('.r').textContent = 'on air';
+      R.rtext.innerHTML = '<b>' + esc(S.remote.name || 'The console') + '</b> is broadcasting \u00b7 '
+        + S.remote.count + (S.remote.count === 1 ? ' device' : ' devices') + ' listening.';
+      R.rtune.style.display = ON_RADIO ? 'none' : 'block';
+    } else {
+      R.rhead.querySelector('.r').textContent = 'off air';
+      R.rtext.innerHTML = 'No broadcast right now. When the console goes on air, tune in from here \u2014 or from the corner chip.';
+      R.rtune.style.display = 'none';
+    }
+    // an engine coming live opens its section (unless the user shut it themselves)
+    if (S.engineLive && !('engine' in S.shut)) R.eng.classList.remove('tok-bd-shut');
     R.chiptog.classList.toggle('on', S.chipPref === 'shown');
     R.chiptog.textContent = S.chipPref === 'shown' ? 'Shown \u00b7 click to hide' : 'Hidden \u00b7 click to show';
     // tucked chip lives HERE: the mini now-playing takes the label's space
