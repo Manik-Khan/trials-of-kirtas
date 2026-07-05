@@ -39,7 +39,18 @@
 
   var TIME_URL = '/.netlify/functions/time';
   var RT_CHANNEL = 'bardic-radio';
-  var ENGINE_KEY = 'engine';
+  // Engines carry UNIQUE presence keys with { engine:true } meta — a fixed
+  // shared key let two consoles silently coexist, both 'on air', anchors
+  // interleaving from two clocks (July 5, M's two-consoles report).
+  var ENGINE_PREFIX = 'engine-';
+  function isEngineMeta(metas) { return !!(metas && metas[0] && metas[0].engine); }
+  function findEngine(state, exceptKey) {
+    for (var key in state) {
+      if (key === exceptKey) continue;
+      if (isEngineMeta(state[key])) return { key: key, name: state[key][0].name || 'another console' };
+    }
+    return null;
+  }
 
   // ── pure math (shared by the page and the harness) ──────────────
 
@@ -110,16 +121,20 @@
 
   // ENGINE side: relay anchors, watch the listener roster.
   // sb: the authenticated Supabase client (window.__tok.sb).
+  // Preflight: if ANOTHER engine already holds the air, this one does not
+  // track or anchor — handlers.onConflict(name) fires instead.
   function broadcast(sb, handlers) {
     handlers = handlers || {};
-    var ch = sb.channel(RT_CHANNEL, { config: { presence: { key: ENGINE_KEY }, broadcast: { self: false } } });
+    var myKey = ENGINE_PREFIX + Math.random().toString(36).slice(2, 10);
+    var ch = sb.channel(RT_CHANNEL, { config: { presence: { key: myKey }, broadcast: { self: false } } });
+    var active = false;
     function roster() {
       var state = ch.presenceState();
       var out = [];
       for (var key in state) {
-        if (key === ENGINE_KEY) continue;
         var metas = state[key];
-        if (metas && metas[0]) out.push({ key: key, name: metas[0].name || key, syncMs: metas[0].syncMs != null ? metas[0].syncMs : null });
+        if (!metas || !metas[0] || isEngineMeta(metas)) continue;
+        out.push({ key: key, name: metas[0].name || key, syncMs: metas[0].syncMs != null ? metas[0].syncMs : null });
       }
       return out;
     }
@@ -127,14 +142,45 @@
       if (handlers.onListeners) handlers.onListeners(roster());
     });
     ch.subscribe(function (status) {
-      if (status === 'SUBSCRIBED') ch.track({ name: 'engine' });
+      if (status !== 'SUBSCRIBED') return;
+      var other = findEngine(ch.presenceState(), myKey);
+      if (other) {
+        if (handlers.onConflict) handlers.onConflict(other.name);
+        return;   // never two engines on air — the incumbent keeps it
+      }
+      active = true;
+      ch.track({ engine: true, name: handlers.name || 'the console' });
     });
     return {
+      engineKey: myKey,
+      isActive: function () { return active; },
       sendAnchors: function (anchors) {
-        ch.send({ type: 'broadcast', event: 'anchors', payload: anchors });
+        if (active) ch.send({ type: 'broadcast', event: 'anchors', payload: anchors });
       },
-      offAir: function () { try { sb.removeChannel(ch); } catch (e) {} },
+      offAir: function () { active = false; try { sb.removeChannel(ch); } catch (e) {} },
     };
+  }
+
+  // WATCHER: a passive, presence-only peek — the rail on OTHER devices uses
+  // this to learn a broadcast exists at all (BroadcastChannel never crosses
+  // devices). Subscribes without tracking; costs one Realtime connection,
+  // same as the rail's feed channel.
+  function watch(sb, handlers) {
+    handlers = handlers || {};
+    // presence lives on the shared topic, so the watcher joins IT.
+    // supabase-js throws on a second join of an already-held topic name —
+    // callers guard for that (engine and radio pages never watch).
+    var ch = sb.channel(RT_CHANNEL, { config: {} });
+    function report() {
+      var state = ch.presenceState();
+      var eng = findEngine(state, null);
+      var count = 0;
+      for (var key in state) { if (!isEngineMeta(state[key])) count++; }
+      if (handlers.onAir) handlers.onAir(!!eng, eng ? eng.name : null, count);
+    }
+    ch.on('presence', { event: 'sync' }, report);
+    ch.subscribe(function (status) { if (status === 'SUBSCRIBED') report(); });
+    return { close: function () { try { sb.removeChannel(ch); } catch (e) {} } };
   }
 
   // LISTENER side: consume anchors, report presence.
@@ -146,9 +192,8 @@
       if (handlers.onAnchors && msg && msg.payload) handlers.onAnchors(msg.payload);
     });
     ch.on('presence', { event: 'sync' }, function () {
-      var state = ch.presenceState();
-      var engineOn = !!state[ENGINE_KEY];
-      if (handlers.onEngine) handlers.onEngine(engineOn);
+      var eng = findEngine(ch.presenceState(), null);
+      if (handlers.onEngine) handlers.onEngine(!!eng);
     });
     var meta = { name: identity.name, syncMs: null };
     ch.subscribe(function (status) {
@@ -163,9 +208,10 @@
   window.BardicClock = clock;
   window.BardicRadio = {
     CHANNEL: RT_CHANNEL,
-    ENGINE_KEY: ENGINE_KEY,
+    ENGINE_PREFIX: ENGINE_PREFIX,
     broadcast: broadcast,
     listen: listen,
+    watch: watch,
     // pure helpers (harness-shared)
     bestOffset: bestOffset,
     positionAt: positionAt,

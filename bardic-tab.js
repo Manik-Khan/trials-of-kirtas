@@ -36,6 +36,7 @@
   window.__tokBardicTab = true;
 
   var ON_CONSOLE = /bardic-console\.html/.test(location.pathname);
+  var ON_RADIO = /radio\.html/.test(location.pathname);
   var CHIP_KEY = 'tok-bardic-chip';
   var PING_MS = 1500;
 
@@ -47,6 +48,7 @@
     tabBtn: null,
     chip: null,
     chipPref: (function () { try { return localStorage.getItem(CHIP_KEY) || 'shown'; } catch (e) { return 'shown'; } })(),
+    remote: { on: false, name: null, count: 0 },   // a broadcast on ANOTHER device (Realtime watcher)
     pingTimer: null,
     rows: {},              // chId → row element refs
   };
@@ -93,6 +95,8 @@
       + '#tok-rail .tok-bd-eng b{color:rgba(236,226,205,1);font-weight:600}'
       + '#tok-rail .tok-bd-light{display:block;width:100%;margin-top:2px;padding:9px 0;background:transparent;border:1px solid rgba(199,154,74,0.6);color:rgba(231,194,121,1);font-family:Oswald,sans-serif;font-size:10px;letter-spacing:0.24em;text-transform:uppercase;cursor:pointer}'
       + '#tok-rail .tok-bd-light:hover{background:rgba(199,154,74,0.12)}'
+      + '#tok-rail .tok-bd-tunein{display:none;width:100%;margin-top:2px;padding:9px 0;background:transparent;border:1px solid rgba(207,59,44,0.7);color:rgba(224,88,74,1);font-family:Oswald,sans-serif;font-size:10px;letter-spacing:0.24em;text-transform:uppercase;cursor:pointer}'
+      + '#tok-rail .tok-bd-tunein:hover{background:rgba(207,59,44,0.1)}'
       + '#tok-rail .tok-bd-row{display:flex;align-items:center;gap:8px;padding:9px 0;border-top:1px solid rgba(236,226,205,0.12)}'
       + '#tok-rail .tok-bd-row:first-of-type{border-top:none}'
       + '#tok-rail .tok-bd-bar{width:3px;align-self:stretch;flex:none}'
@@ -181,6 +185,12 @@
     var ehead = el('div', 'tok-bd-head');
     ehead.innerHTML = '<span class="d"></span>ENGINE<span class="r"></span>';
     var etext = el('div', 'tok-bd-eng');
+    var tunein = el('button', 'tok-bd-tunein');
+    tunein.textContent = '\u25C9  Tune in on this device';
+    tunein.addEventListener('click', function () {
+      // a dedicated speaker wants the whole tab — same-tab is least surprise
+      location.href = 'radio.html';
+    });
     var light = el('button', 'tok-bd-light');
     light.textContent = '\u27E1  Light the engine';
     light.addEventListener('click', function () {
@@ -197,7 +207,7 @@
       paintAll();
     });
     chiprow.appendChild(chiptog);
-    eng.appendChild(ehead); eng.appendChild(etext); eng.appendChild(light); eng.appendChild(chiprow);
+    eng.appendChild(ehead); eng.appendChild(etext); eng.appendChild(tunein); eng.appendChild(light); eng.appendChild(chiprow);
 
     // CHANNELS section
     var chs = el('div', 'tok-bd-sec');
@@ -224,7 +234,7 @@
     wrap.appendChild(eng); wrap.appendChild(chs); wrap.appendChild(air);
     pane.appendChild(wrap);
 
-    S.paneRefs = { ehead: ehead, etext: etext, light: light, chiptog: chiptog, rowsHost: rowsHost, chs: chs,
+    S.paneRefs = { ehead: ehead, etext: etext, light: light, tunein: tunein, chiptog: chiptog, rowsHost: rowsHost, chs: chs,
                    air: air, ahead: ahead, airbtn: airbtn, lroll: lroll };
   }
 
@@ -272,10 +282,17 @@
     if (!S.paneRefs) return;
     var R = S.paneRefs;
     R.ehead.classList.toggle('live', S.engineLive);
-    R.ehead.querySelector('.r').textContent = S.engineLive ? 'bardic-console \u00b7 background tab' : 'not running';
-    R.etext.innerHTML = S.engineLive
-      ? 'Playing from <b>your console tab</b> \u2014 audio never touches this page, so navigation can\u2019t interrupt it.'
-      : 'The engine isn\u2019t running. Light it and this pane becomes the remote.';
+    R.ehead.querySelector('.r').textContent = S.engineLive ? 'bardic-console \u00b7 background tab'
+      : (S.remote.on ? 'on air elsewhere' : 'not running');
+    if (S.engineLive) {
+      R.etext.innerHTML = 'Playing from <b>your console tab</b> \u2014 audio never touches this page, so navigation can\u2019t interrupt it.';
+    } else if (S.remote.on) {
+      R.etext.innerHTML = '<b>' + esc(S.remote.name || 'The console') + '</b> is on air \u2014 '
+        + S.remote.count + (S.remote.count === 1 ? ' device' : ' devices') + ' listening. This device can join as a speaker.';
+    } else {
+      R.etext.innerHTML = 'The engine isn\u2019t running. Light it and this pane becomes the remote.';
+    }
+    R.tunein.style.display = (!S.engineLive && S.remote.on && !ON_RADIO) ? 'block' : 'none';
     R.light.style.display = S.engineLive ? 'none' : 'block';
     R.chiptog.classList.toggle('on', S.chipPref === 'shown');
     R.chiptog.textContent = S.chipPref === 'shown' ? 'Shown \u00b7 click to hide' : 'Hidden \u00b7 click to show';
@@ -296,7 +313,8 @@
     if (S.engineLive && S.snap) {
       var isOn = !!S.snap.onAir;
       R.ahead.querySelector('.d').classList.toggle('on', isOn);
-      R.ahead.querySelector('.r').textContent = isOn ? 'on air' : 'off';
+      R.ahead.querySelector('.r').textContent = isOn ? 'on air'
+        : (S.snap.airBlockedBy ? 'blocked \u00b7 ' + S.snap.airBlockedBy + ' is on air' : 'off');
       R.airbtn.classList.toggle('on', isOn);
       R.airbtn.textContent = isOn ? '\u25C9  On Air \u2014 end broadcast' : '\u25CB  Go on air';
       var ls = S.snap.listeners || [];
@@ -398,6 +416,24 @@
   }
   function paintAll() { paintPane(); paintChip(); paintDot(); paintEmber(); }
 
+  // ── the remote-broadcast watcher (cross-device awareness) ─────────
+  // BroadcastChannel never crosses devices: a phone's rail cannot hear a
+  // laptop's engine (July 5, M's report). This passive presence peek is
+  // how the pane learns "someone is on air" and offers Tune In instead
+  // of manufacturing a second engine.
+  function startWatcher() {
+    if (ON_CONSOLE || ON_RADIO) return;                 // those pages hold the topic already
+    if (!window.BardicRadio) return;
+    var sb = window.__tok && window.__tok.sb;
+    if (!sb) return;
+    window.BardicRadio.watch(sb, {
+      onAir: function (on, name, count) {
+        S.remote = { on: on, name: name, count: count };
+        paintAll();
+      },
+    });
+  }
+
   // ── bus wiring ────────────────────────────────────────────────────
   function connectBus() {
     S.bus = window.BardicBus.connect('remote');
@@ -433,6 +469,7 @@
       if (reg) S.tabBtn = reg.button;
       buildChip();
       connectBus();
+      startWatcher();
       paintAll();
     }).catch(function (e) {
       console.warn('[bardic-tab] bus unavailable:', e);

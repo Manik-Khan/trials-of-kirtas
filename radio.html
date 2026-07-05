@@ -95,6 +95,7 @@ body{background:linear-gradient(180deg,var(--ground),var(--ground-2));color:var(
     lastAnchorsAt: 0,       // local ms when it arrived (off-air watchdog)
     players: {},            // chId → { audio, ui, url }
     listener: null,
+    engineLock: null,
     master: 0.8,
   };
 
@@ -190,7 +191,7 @@ body{background:linear-gradient(180deg,var(--ground),var(--ground-2));color:var(
       }
       if (S.listener && C.synced) S.listener.updateSync(Math.max(worst, C.rtt / 2));
       // off-air watchdog: no anchors in 35s → the engine left
-      if (Date.now() - S.lastAnchorsAt > 35000) setOnAirUi(false);
+      if (Date.now() - S.lastAnchorsAt > 35000) { setOnAirUi(false); S.engineLock = null; }
     }, 3000);
   }
 
@@ -233,6 +234,11 @@ body{background:linear-gradient(180deg,var(--ground),var(--ground-2));color:var(
       var name = (got.me && got.me.displayName) || 'listener';
       S.listener = R.listen(got.sb, { key: key, name: name }, {
         onAnchors: function (payload) {
+          // latch to ONE engine: if two consoles ever race onto the air,
+          // this device follows the first clock it heard until it goes
+          // silent (the 35s watchdog releases the latch).
+          if (S.engineLock && payload.engineId && payload.engineId !== S.engineLock) return;
+          if (payload.engineId) S.engineLock = payload.engineId;
           S.anchors = payload;
           S.lastAnchorsAt = Date.now();
           setOnAirUi(true);

@@ -543,6 +543,7 @@ function App() {
   // enginesRef). Sonus/YT channels are omitted — can't hold clock lock.
   const [onAir, setOnAir] = useState(false);
   const [radioListeners, setRadioListeners] = useState([]);
+  const [airBlockedBy, setAirBlockedBy] = useState(null);  // another console holds the air
   const radioRef = useRef(null);
 
   const buildAnchors = useCallback(() => {
@@ -562,7 +563,7 @@ function App() {
         loop: (s.mode || 'loop') === 'loop',
       };
     });
-    return { at, channels };
+    return { at, engineId: engineIdRef.current, channels };
   }, []);
 
   useEffect(() => {
@@ -578,8 +579,14 @@ function App() {
     let interval = null;
     window.BardicClock.sync().catch(() => {}).then(() => {
       if (!alive) return;
+      setAirBlockedBy(null);
       radioRef.current = window.BardicRadio.broadcast(sb, {
+        name: 'the console',
         onListeners: (l) => { if (alive) setRadioListeners(l); },
+        onConflict: (name) => {
+          // never two engines on air — the incumbent keeps it (July 5)
+          if (alive) { setAirBlockedBy(name); setOnAir(false); }
+        },
       });
       radioRef.current.sendAnchors(buildAnchors());
       // periodic re-anchor corrects engine-side drift between state changes
@@ -642,11 +649,12 @@ function App() {
       ts: Date.now(),
       onAir: onAir,
       listeners: radioListeners,
+      airBlockedBy: airBlockedBy,
       // protocol field stays 'name'; the console's mood field is 'label'
       moods: lib.moods.map(m => ({ id: m.id, name: m.label, color: m.color, sigil: m.sigil })),
       channels: channelsOut,
     };
-  }, [onAir, radioListeners]);
+  }, [onAir, radioListeners, airBlockedBy]);
 
   // subscribe once; dispatch through the refs
   useEffect(() => {

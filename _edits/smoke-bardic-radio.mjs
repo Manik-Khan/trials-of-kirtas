@@ -29,7 +29,7 @@ new Function('window', 'fetch', radioSrc)(win, () => Promise.reject(new Error('n
 const R = win.BardicRadio, C = win.BardicClock
 t('module exposes clock + radio + pure helpers',
   !!R && !!C && ['bestOffset', 'positionAt', 'driftNudge', 'broadcast', 'listen'].every(k => typeof R[k] === 'function'))
-t('channel name follows the convention', R.CHANNEL === 'bardic-radio' && R.ENGINE_KEY === 'engine')
+t('channel name + unique-engine prefix', R.CHANNEL === 'bardic-radio' && R.ENGINE_PREFIX === 'engine-' && typeof R.watch === 'function')
 
 // ── the clock math: min-RTT filter (NTP's trick) ──
 // three samples: slow+skewed, FAST+clean, slow+skewed — must pick the fast one
@@ -67,7 +67,7 @@ function stubSb() {
       const ch = {
         name, cfg, tracked: null, sent: [],
         on(type, filter, fn) { handlers[type + ':' + (filter.event || '')] = fn; return ch },
-        subscribe(fn) { ch._sub = fn; fn('SUBSCRIBED'); return ch },
+        subscribe(fn) { ch._sub = fn; return ch },   // tests fire _sub after arranging presence
         track(meta) { ch.tracked = meta },
         send(msg) { ch.sent.push(msg) },
         presenceState: () => ch._presence || {},
@@ -85,17 +85,46 @@ const sbE = stubSb()
 let roster = null
 const eng = R.broadcast(sbE, { onListeners: l => { roster = l } })
 const chE = sbE.channels[0]
-t('engine joins bardic-radio with the reserved presence key',
-  chE.name === 'bardic-radio' && chE.cfg.config.presence.key === 'engine' && chE.tracked?.name === 'engine')
+chE._presence = {}
+chE._sub('SUBSCRIBED')   // empty room → this engine takes the air
+t('engine joins with a UNIQUE key and engine-flagged meta',
+  chE.name === 'bardic-radio' && chE.cfg.config.presence.key.startsWith('engine-') && chE.tracked?.engine === true)
 eng.sendAnchors({ at: 123, channels: { music: { url: 'u', pos: 1 } } })
 t('sendAnchors → broadcast event anchors',
   chE.sent.length === 1 && chE.sent[0].type === 'broadcast' && chE.sent[0].event === 'anchors' && chE.sent[0].payload.at === 123)
-chE._presence = { engine: [{ name: 'engine' }], 'l-abc': [{ name: 'Cosmere', syncMs: 18 }] }
+chE._presence = { [chE.cfg.config.presence.key]: [{ engine: true, name: 'the console' }], 'l-abc': [{ name: 'Cosmere', syncMs: 18 }] }
 chE._handlers['presence:sync']()
-t('roster excludes the engine, carries name + syncMs',
+t('roster excludes engine metas, carries name + syncMs',
   roster.length === 1 && roster[0].name === 'Cosmere' && roster[0].syncMs === 18)
 eng.offAir()
 t('offAir removes the channel', chE.removed === true)
+
+// TWO-CONSOLES REGRESSION (July 5): a second engine finds the incumbent
+// and yields — onConflict fires, no track, anchors go nowhere
+const sbE2 = stubSb()
+let conflictName = null
+const eng2 = R.broadcast(sbE2, { onConflict: n => { conflictName = n } })
+const chE2 = sbE2.channels[0]
+chE2._presence = { 'engine-incumbent': [{ engine: true, name: 'the console' }] }
+chE2._sub('SUBSCRIBED')
+eng2.sendAnchors({ at: 1, channels: {} })
+t('second engine yields: onConflict(name), never tracks',
+  conflictName === 'the console' && chE2.tracked === null && !eng2.isActive())
+t('yielded engine sends no anchors', chE2.sent.length === 0)
+
+// the WATCHER: passive cross-device on-air peek (the phone's rail)
+const sbW = stubSb()
+let watched = null
+R.watch(sbW, { onAir: (on, name, count) => { watched = { on, name, count } } })
+const chW = sbW.channels[0]
+chW._presence = { 'engine-xyz': [{ engine: true, name: 'the console' }], 'l-1': [{ name: 'Caim' }], 'l-2': [{ name: 'Cosmere' }] }
+chW._handlers['presence:sync']()
+t('watcher reports on-air + engine name + listener count (engines excluded)',
+  watched?.on === true && watched.name === 'the console' && watched.count === 2)
+t('watcher never tracks presence (purely passive)', chW.tracked === null)
+chW._presence = { 'l-1': [{ name: 'Caim' }] }
+chW._handlers['presence:sync']()
+t('watcher reports off-air when the engine leaves', watched.on === false)
 
 // listener side
 const sbL = stubSb()
@@ -104,10 +133,12 @@ const lis = R.listen(sbL, { key: 'l-x', name: 'Caim' }, {
   onAnchors: a => { gotAnchors = a }, onEngine: on => { engineOn = on },
 })
 const chL = sbL.channels[0]
+chL._presence = {}
+chL._sub('SUBSCRIBED')
 chL._handlers['broadcast:anchors']({ payload: { at: 9, channels: {} } })
 t('listener receives anchors', gotAnchors?.at === 9)
-chL._presence = { engine: [{}] }; chL._handlers['presence:sync']()
-t('listener sees the engine via presence', engineOn === true)
+chL._presence = { 'engine-abc': [{ engine: true, name: 'the console' }] }; chL._handlers['presence:sync']()
+t('listener sees the engine via presence (flagged meta, any key)', engineOn === true)
 lis.updateSync(21)
 t('updateSync re-tracks presence meta', chL.tracked.syncMs === 21 && chL.tracked.name === 'Caim')
 
@@ -124,6 +155,10 @@ t('periodic re-anchor (10s) against engine-side drift',
   appSrc.includes('setInterval(() => radioRef.current?.sendAnchors(buildAnchors()), 10000)'))
 t("air verb wired: header, adapter case, setOnAir",
   busSrc.includes("{ t:'air', on }") && appSrc.includes("case 'air':    verbs.air(!!msg.on); break;"))
+t('anchors stamped with engineId (listener latch)', appSrc.includes('return { at, engineId: engineIdRef.current, channels };'))
+t('on-air conflict → blocked state, never two engines',
+  appSrc.includes('onConflict: (name) => {') && appSrc.includes('setAirBlockedBy(name); setOnAir(false);')
+  && appSrc.includes('airBlockedBy: airBlockedBy,'))
 t('snapshot carries real onAir + listeners',
   appSrc.includes('onAir: onAir,') && appSrc.includes('listeners: radioListeners,'))
 t('console loads bardic-radio.js after the bus',
@@ -135,6 +170,14 @@ t('rail: On Air button sends the air verb with the inverse state',
 t('rail: listener roster renders name + \u00b1ms',
   tabSrc.includes("'\\u00b1' + Math.round(ls[li].syncMs) + 'ms'"))
 t('rail: chip announces ON AIR', tabSrc.includes("S.snap.onAir ? 'ON AIR \\u00b7 '"))
+t('rail: cross-device watcher wired, guarded off console/radio pages',
+  tabSrc.includes('function startWatcher()') && tabSrc.includes('if (ON_CONSOLE || ON_RADIO) return;')
+  && tabSrc.includes('window.BardicRadio.watch(sb, {'))
+t('rail: remote broadcast → Tune In leads, Light demoted to secondary',
+  tabSrc.includes("location.href = 'radio.html';")
+  && tabSrc.includes("R.tunein.style.display = (!S.engineLive && S.remote.on && !ON_RADIO) ? 'block' : 'none';"))
+t('rail: blocked state surfaces the incumbent by name',
+  tabSrc.includes("'blocked \\u00b7 ' + S.snap.airBlockedBy + ' is on air'"))
 
 // ── the radio page ──
 t('radio.html rides the pure helpers, no local sync math',
@@ -143,7 +186,10 @@ t('tune-in is the gesture: clock sync + sb ready ride the tap',
   pageSrc.includes('Promise.all([C.sync(), sbReady()])'))
 t('hard resync only past the threshold; playbackRate carries the nudge',
   pageSrc.includes('if (n.seek) p.audio.currentTime = expected;') && pageSrc.includes('p.audio.playbackRate = n.rate;'))
-t('off-air watchdog on stale anchors', pageSrc.includes('> 35000) setOnAirUi(false);'))
+t('off-air watchdog on stale anchors + latch release',
+  pageSrc.includes("> 35000) { setOnAirUi(false); S.engineLock = null; }"))
+t('listener latches to ONE engine clock',
+  pageSrc.includes('payload.engineId !== S.engineLock) return;'))
 t('wake lock requested and re-grabbed on visibility',
   pageSrc.includes("navigator.wakeLock.request('screen')"))
 t('page loads bardic-radio.js and nav.js', pageSrc.includes('src="bardic-radio.js"') && pageSrc.includes('src="nav.js"'))
