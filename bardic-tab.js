@@ -374,6 +374,10 @@
     chip.innerHTML = '<div class="eq"><i></i><i></i><i></i></div>'
       + '<div class="w"><div class="s"></div><div class="t"></div></div>';
     chip.addEventListener('click', function () {
+      // players' door: no local engine but a broadcast on the air → the
+      // chip goes straight to the radio (July 5 — typing radio.html by
+      // hand was the only path). DMs with a live engine get the pane.
+      if (!S.engineLive && S.remote.on) { location.href = 'radio.html'; return; }
       if (window.TokRail && window.TokRail.show) window.TokRail.show('bardic');
     });
     document.body.appendChild(chip);
@@ -391,9 +395,19 @@
   function paintChip() {
     if (!S.chip) return;
     var live = playingChannels();
-    var show = S.chipPref === 'shown' && live.length > 0;
+    // the chip also surfaces a REMOTE broadcast (no local engine): that's
+    // how a player discovers the radio without typing a URL
+    var remoteOnly = !S.engineLive && S.remote.on;
+    var show = S.chipPref === 'shown' && (live.length > 0 || remoteOnly);
     S.chip.classList.toggle('tok-bd-off', !show);
     if (!show) return;
+    if (remoteOnly) {
+      S.chip.querySelector('.s').textContent = 'ON AIR';
+      S.chip.querySelector('.t').textContent = (S.remote.name || 'The console') + ' is broadcasting \u00b7 tap to tune in';
+      var eqs0 = S.chip.querySelectorAll('.eq i');
+      for (var e0 = 0; e0 < eqs0.length; e0++) eqs0[e0].style.background = 'rgba(207,59,44,1)';
+      return;
+    }
     S.chip.querySelector('.s').textContent = (S.snap && S.snap.onAir ? 'ON AIR \u00b7 ' : 'Now playing \u00b7 ') + live.length + (live.length === 1 ? ' channel' : ' channels');
     S.chip.querySelector('.t').textContent = live.map(function (c) { return c.title; }).join(' \u00b7 ');
     var eqs = S.chip.querySelectorAll('.eq i');

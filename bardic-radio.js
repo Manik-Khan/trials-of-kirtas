@@ -78,16 +78,18 @@
   // Drift correction: err = expected - actual (seconds).
   //   |err| <= dead  → rate 1 (locked)
   //   |err| >  hard  → { seek: true } (hard resync)
-  //   else           → gentle rate nudge, capped ±2% (imperceptible)
-  // hard default 0.35s (July 5 field fix): a ±2% nudge closes ~20ms/s —
-  // the old 1.5s threshold let a 1.1s seek-latency error crawl for a
-  // minute. Above a third of a second, just jump.
+  //   else           → rate nudge, capped ±4% (with preservesPitch this is
+  //                    inaudible time-stretch, closing ~40ms per second)
+  // Retuned July 5 (second field report): on phone wifi every SEEK costs a
+  // rebuffer — seek-thrash IS the stutter. So the nudge zone widened
+  // (dead 60ms, hard 0.8s) and the page adds hysteresis on top; a 0.8s
+  // error now closes by stretch in ~20s instead of glitching every 3s.
   function driftNudge(errSec, dead, hard) {
-    dead = dead == null ? 0.03 : dead;
-    hard = hard == null ? 0.35 : hard;
+    dead = dead == null ? 0.06 : dead;
+    hard = hard == null ? 0.8 : hard;
     if (Math.abs(errSec) > hard) return { seek: true, rate: 1 };
     if (Math.abs(errSec) <= dead) return { seek: false, rate: 1 };
-    var rate = 1 + Math.max(-0.02, Math.min(0.02, errSec * 0.04));
+    var rate = 1 + Math.max(-0.04, Math.min(0.04, errSec * 0.08));
     return { seek: false, rate: rate };
   }
 
@@ -207,24 +209,55 @@
 
   // LISTENER side: consume anchors, report presence.
   // identity: { key, name } (key must be unique per device).
+  // SELF-REBUILDING (July 5, the 63-seconds-of-silence report): iOS Safari
+  // drops Realtime websockets without telling the page — sync-requests were
+  // shouting into a dead socket and only a refresh fixed it. The handle now
+  // rebuilds its channel on error statuses AND on demand (reconnect()),
+  // preserving handlers and presence meta; the page's staleness ladder
+  // calls reconnect() when asking politely hasn't worked.
   function listen(sb, identity, handlers) {
     handlers = handlers || {};
-    var ch = sb.channel(RT_CHANNEL, { config: { presence: { key: identity.key } } });
-    ch.on('broadcast', { event: 'anchors' }, function (msg) {
-      if (handlers.onAnchors && msg && msg.payload) handlers.onAnchors(msg.payload);
-    });
-    ch.on('presence', { event: 'sync' }, function () {
-      var eng = findEngine(ch.presenceState(), null);
-      if (handlers.onEngine) handlers.onEngine(!!eng);
-    });
     var meta = { name: identity.name, syncMs: null };
-    ch.subscribe(function (status) {
-      if (status === 'SUBSCRIBED') ch.track(meta);
-    });
+    var ch = null;
+    var closed = false;
+    var rejoinTimer = null;
+    function build() {
+      if (closed) return;
+      ch = sb.channel(RT_CHANNEL, { config: { presence: { key: identity.key } } });
+      ch.on('broadcast', { event: 'anchors' }, function (msg) {
+        if (handlers.onAnchors && msg && msg.payload) handlers.onAnchors(msg.payload);
+      });
+      ch.on('presence', { event: 'sync' }, function () {
+        var eng = findEngine(ch.presenceState(), null);
+        if (handlers.onEngine) handlers.onEngine(!!eng);
+      });
+      ch.subscribe(function (status) {
+        if (status === 'SUBSCRIBED') {
+          ch.track(meta);
+          if (handlers.onReconnect) handlers.onReconnect();
+        } else if (status === 'CHANNEL_ERROR' || status === 'TIMED_OUT' || status === 'CLOSED') {
+          scheduleRejoin();
+        }
+      });
+    }
+    function scheduleRejoin() {
+      if (closed || rejoinTimer) return;
+      rejoinTimer = setTimeout(function () {
+        rejoinTimer = null;
+        reconnect();
+      }, 2000);
+    }
+    function reconnect() {
+      if (closed) return;
+      try { sb.removeChannel(ch); } catch (e) {}
+      build();
+    }
+    build();
     return {
       updateSync: function (syncMs) { meta.syncMs = syncMs; try { ch.track(meta); } catch (e) {} },
       requestSync: function () { try { ch.send({ type: 'broadcast', event: 'sync-request', payload: {} }); } catch (e) {} },
-      close: function () { try { sb.removeChannel(ch); } catch (e) {} },
+      reconnect: reconnect,
+      close: function () { closed = true; clearTimeout(rejoinTimer); try { sb.removeChannel(ch); } catch (e) {} },
     };
   }
 

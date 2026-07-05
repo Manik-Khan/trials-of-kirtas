@@ -98,6 +98,7 @@ body{background:linear-gradient(180deg,var(--ground),var(--ground-2));color:var(
     players: {},            // chId → { audio, ui, url }
     listener: null,
     engineLock: null,
+    lastReconnectAt: 0,
     master: 0.8,
   };
 
@@ -125,7 +126,10 @@ body{background:linear-gradient(180deg,var(--ground),var(--ground-2));color:var(
     if (!p) {
       var audio = new Audio();
       audio.preload = 'auto';
-      p = S.players[chId] = { audio: audio, ui: chUi(chId, a), url: null };
+      // stretch, don't shift: rate nudges become inaudible time-stretch
+      try { audio.preservesPitch = true; } catch (e) {}
+      p = S.players[chId] = { audio: audio, ui: chUi(chId, a), url: null,
+                              seekLead: 0.25, lastSeekAt: 0 };
     }
     return p;
   }
@@ -146,15 +150,29 @@ body{background:linear-gradient(180deg,var(--ground),var(--ground-2));color:var(
         p.audio.src = a.url;
         p.audio.loop = !!a.loop;
         // iOS Safari IGNORES currentTime set before metadata loads (July 5,
-        // the 1136ms field report) — seek once the element is ready, and
-        // re-seek when playback actually begins, so load latency never
-        // becomes a standing offset the nudger has to crawl down.
+        // the 1136ms field report) — seek once the element is ready. The
+        // seek carries an ADAPTIVE LEAD: aim slightly ahead by this
+        // device's measured seek-latency, then refine the lead from the
+        // error actually observed once playback runs. One good seek per
+        // track — repeat seeking is the stutter (second field report).
         var seekWhenReady = function () {
           if (!p.anchor) return;
-          try { p.audio.currentTime = R.positionAt(p.anchor, C.now()); } catch (e) {}
+          try {
+            p.audio.currentTime = R.positionAt(p.anchor, C.now()) + (p.anchor.paused ? 0 : p.seekLead);
+            p.lastSeekAt = Date.now();
+          } catch (e) {}
+        };
+        var measureLead = function () {
+          if (!p.anchor || p.anchor.paused) return;
+          setTimeout(function () {
+            if (!p.anchor || p.audio.paused || p.audio.seeking) return;
+            var err = R.positionAt(p.anchor, C.now()) - p.audio.currentTime;
+            // fold the observed shortfall into next time's lead
+            p.seekLead = Math.max(0, Math.min(1.5, p.seekLead + err * 0.7));
+          }, 800);
         };
         p.audio.addEventListener('loadedmetadata', seekWhenReady, { once: true });
-        p.audio.addEventListener('playing', seekWhenReady, { once: true });
+        p.audio.addEventListener('playing', measureLead, { once: true });
         if (p.audio.readyState >= 1) seekWhenReady();
       }
       p.audio.volume = Math.max(0, Math.min(1, (a.volume != null ? a.volume : 0.5) * S.master));
@@ -165,7 +183,13 @@ body{background:linear-gradient(180deg,var(--ground),var(--ground-2));color:var(
         p.ui.now.textContent = '\u23F8 ' + (a.title || '\u2014');
       } else {
         var err = want - p.audio.currentTime;
-        if (p.audio.readyState >= 1 && R.driftNudge(err).seek) p.audio.currentTime = want;
+        // hysteresis: no re-seek within 15s of the last one unless the
+        // error is track-change scale — repeat seeks rebuffer and stutter
+        var canSeek = (Date.now() - p.lastSeekAt > 15000) || Math.abs(err) > 5;
+        if (p.audio.readyState >= 1 && canSeek && R.driftNudge(err).seek) {
+          p.audio.currentTime = want + p.seekLead;
+          p.lastSeekAt = Date.now();
+        }
         if (p.audio.paused) p.audio.play().catch(function () {});
         p.ui.now.classList.remove('idle');
         p.ui.now.textContent = a.title || '\u2014';
@@ -193,11 +217,14 @@ body{background:linear-gradient(180deg,var(--ground),var(--ground-2));color:var(
       for (var chId in S.players) {
         var p = S.players[chId];
         if (!p.anchor || p.anchor.paused || !p.url || p.audio.paused) continue;
-        if (p.audio.readyState < 1) continue;   // no metadata yet — seeking is a no-op here
+        if (p.audio.readyState < 3 || p.audio.seeking) continue;   // buffering — never fight a rebuffer
         var expected = R.positionAt(p.anchor, now);
         var err = expected - p.audio.currentTime;
         var n = R.driftNudge(err);
-        if (n.seek) p.audio.currentTime = expected;
+        if (n.seek && (Date.now() - p.lastSeekAt > 15000 || Math.abs(err) > 5)) {
+          p.audio.currentTime = expected + p.seekLead;
+          p.lastSeekAt = Date.now();
+        }
         p.audio.playbackRate = n.rate;
         var ms = Math.abs(err * 1000);
         if (ms > worst) worst = ms;
@@ -205,10 +232,14 @@ body{background:linear-gradient(180deg,var(--ground),var(--ground-2));color:var(
       }
       if (S.listener && C.synced) S.listener.updateSync(Math.max(worst, C.rtt / 2));
       var age = Date.now() - S.lastAnchorsAt;
-      // convergence: anchors going stale → ASK the engine (self-healing
-      // against any missed delivery — July 5, the frozen-track report)
-      if (S.listener && age > 12000 && age < 35000) S.listener.requestSync();
-      // off-air watchdog: no anchors in 35s → the engine left
+      // the staleness ladder (July 5, the 63-seconds report): ask at 12s;
+      // if asking didn't help by 22s the SOCKET is dead — rebuild the
+      // whole channel (a refresh-without-the-refresh); off-air at 35s.
+      if (S.listener && age > 12000 && age < 22000) S.listener.requestSync();
+      if (S.listener && age > 22000 && age < 35000 && Date.now() - S.lastReconnectAt > 10000) {
+        S.lastReconnectAt = Date.now();
+        S.listener.reconnect();
+      }
       if (age > 35000) { setOnAirUi(false); S.engineLock = null; }
       els.ageTxt.textContent = S.lastAnchorsAt ? ('last anchor ' + Math.round(age / 1000) + 's ago') : '';
     }, 3000);
@@ -264,8 +295,18 @@ body{background:linear-gradient(180deg,var(--ground),var(--ground-2));color:var(
           applyAnchors();
         },
         onEngine: function (on) { if (!on) setOnAirUi(false); },
+        onReconnect: function () { S.listener && S.listener.requestSync(); },
       });
       S.listener.requestSync();   // never wait for the next periodic anchor
+      document.addEventListener('visibilitychange', function () {
+        if (document.hidden || !S.listener) return;
+        // waking up: the socket may be stale and the clock drifted
+        S.listener.requestSync();
+        C.sync().catch(function () {});
+        setTimeout(function () {
+          if (Date.now() - S.lastAnchorsAt > 8000) { S.lastReconnectAt = Date.now(); S.listener.reconnect(); }
+        }, 4000);
+      });
       els.tune.style.display = 'none';
       els.status.style.display = 'flex';
       els.clockTxt.innerHTML = 'clock <b>locked</b> \u00b7 offset ' + Math.round(C.offset) + 'ms \u00b7 rtt ' + Math.round(C.rtt) + 'ms';
