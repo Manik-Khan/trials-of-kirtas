@@ -706,6 +706,27 @@
     .gc-btn.on   { background: var(--gold); color: var(--ink-deep); border-color: var(--gold); }
     .gc-fog-brush, .gc-fog-bulk { gap: 0.3rem; }
     .stage.fog-edit { cursor: crosshair; }
+    /* ── RAIL-DOCK: the Display pane at rail size. The gc-* sizes above were
+       tuned for the 320px dock; inside the 384px rail they read miniature.
+       Everything here is #tok-rail-scoped — the classes upsize ONLY when the
+       pane lives in the rail, nothing else on the page moves. ── */
+    #tok-rail .grid-controls { padding: 0.9rem 1.1rem; }
+    #tok-rail .gc-sub {
+      font-size: 0.66rem; letter-spacing: 0.24em; color: var(--gold-light);
+      padding-bottom: 0.35rem; border-bottom: 1px solid var(--gold-dim);
+      margin: 1.1rem 0 0.7rem;
+    }
+    #tok-rail .gc-sub:first-child { margin-top: 0; }
+    #tok-rail .gc-tag { font-size: 0.5rem; letter-spacing: 0.18em; }
+    #tok-rail .gc-row { margin-bottom: 0.7rem; gap: 0.8rem; }
+    #tok-rail .gc-row label { font-size: 0.66rem; letter-spacing: 0.16em; color: var(--parchment2); }
+    #tok-rail .gc-row input[type=range] { width: 140px; }
+    #tok-rail .gc-row select {
+      font-size: 0.62rem; padding: 5px 8px; min-width: 96px;
+    }
+    #tok-rail .gc-row input[type=color] { width: 34px; height: 24px; }
+    #tok-rail .gc-row input[type=checkbox] { width: 16px; height: 16px; accent-color: var(--gold); }
+    #tok-rail .gc-btn { font-size: 0.6rem; padding: 7px 6px; }
     /* ── bestiary picker (DM): lives in the dock's Bestiary pane ── */
     .bestiary-panel {
       flex: 1; min-height: 0;
