@@ -1,118 +1,117 @@
 # CONTEXT.md — Trials of Kirtas
-Updated: July 4, 2026 (evening — the factions wash / override-landmine session)
+Updated: July 4, 2026 (night — the dock retires into the rail)
 Replace the previous CONTEXT.md with this one.
 
 ────────────────────────────────────────────────────────────
 ## DEPLOY STATE
-- **tok-wash-factions-v1 DEPLOYED and verified green** (after the override
-  incident below): look-derive.js (well-surface family), factions.html
-  (24 fossil rewires), nav.js (SETTINGS_V 9 → **10**), smoke-look-derive.mjs
-  (extended), smoke-factions-wash.mjs (new). No SQL.
-- **⚠ tok-finishes-v7 was NEVER deployed** — the session doc said staged
-  and it stayed staged. Live character-badge.js is still v6: the grey-
-  medallion portrait fix is NOT live. Repo carries v7's badge; deploy
-  character-badge.js alone (nav.js is already past it at V10) or fold it
-  into the next zip. Don't let a repo version constant stand in for
-  deploy state again — verify live before building on it.
-- Validation bar this arc: node --check clean ×2; smoke-look-derive
-  **17/17** (12 prior + 5 new); smoke-factions-wash **22/22** (new);
-  smoke-settings-flyout **62/62** regression against the extended module.
+- **tok-rail-dock: v1/v2 verified live** (M's screenshot: Battle tab up,
+  five sections, eye in the strip corner). **v3 staged, pending deploy** —
+  combat.html only; adds the rail-size restyle for Bestiary / Tracker /
+  Tokens / dock-act buttons on top of v2's Display restyle. No SQL,
+  **rail.js untouched**, no SETTINGS_V bump. The zip also carries
+  _edits/smoke-rail-dock.mjs — repo housekeeping, not deploy.
+- **⚠ tok-finishes-v7 STILL not deployed** — carried from the evening doc.
+  Live character-badge.js is v6; the grey-medallion portrait fix is not
+  live. Deploy character-badge.js alone or fold into the next zip.
+- Validation bar this arc: node --check clean on combat.html's inline
+  script (all edits); smoke-rail-dock **22/22** (publisher's contract
+  parsed from rail.js itself, adapter registration, deferred
+  tok-rail:ready path, sub-strip switching, staff gating, ticker gating).
 
-## WHAT SHIPPED TODAY (July 4, evening)
-Increment 2 of the re-plumb — **the wash migration, factions first**
-(mock → approve → build; the mock: card grid + modal, HARDCODED⟷DERIVED
-prop-swap on identical markup, live readout, control-case exact badge):
-1. **The well-surface family in look-derive.js** — new derivations off
-   cardBg + accent + ground: modal gradient (modalG1 = cardBg warmed by
-   accent; modalG2 driven to the pole), scrim, heraldry band, header
-   ember, halftone-dot color (softens to 0.08 on light wells), cardMuted,
-   accStrong (0.35 hover voice), accOnModal with a legibility push loop.
-   Sweep-asserted: modal text + accent-on-modal clear the 2.0 floor over
-   BOTH gradient stops on every legal combo.
-2. **ROOT_MAP grew 16 `--look-*` tokens** (card-bg/-text/-muted/-border,
-   well, trim, accent-strong, modal-g1/-g2/-text2/-muted,
-   accent-on-modal, scrim, band, header-ember, dots). New names — these
-   surfaces have no theme.css legacy to reuse. Pages own geometry
-   (gradients compose in the page CSS); tokens carry complete colors only.
-3. **factions.html rewired** — every fossil is now
-   `var(--look-*, <original literal>)`. Old-gold hairlines ride live
-   --gold-dim/--gold-mid. Switch-Off degrades to the hand-painted page —
-   with ONE deliberate exception: **the drift fix**. The modal's text read
-   var(--parchment)/var(--parchment2) — Parchment-era paint that
-   Phantom's inverted semantics turned near-black-on-brown (the modal was
-   quietly illegible live). Modal text now reads well-polarity tokens
-   with the PAINTER'S cream literals (#f0e6ce / #e8d9b8) as fallbacks, so
-   even Off is legible.
-4. **smoke-factions-wash.mjs** — the page-side contract: parses ROOT_MAP
-   out of look-derive.js itself (publisher's contract, never a local
-   copy), asserts every --look-* read is published, every fallback is the
-   painter's literal, zero orphan literals, drift gone.
+## WHAT SHIPPED TONIGHT (July 4, night)
+**The combat dock retired into the rail** — the map's "panel
+consolidation" item, finally read correctly (see LESSONS):
+1. combat.html registers ONE contextual rail tab — `battle`, order 20 —
+   through rail.js's shipped `registerTab` seam (the seam's own comment
+   named the combat tabs as its intended riders; the rail header called
+   this "phase 3"). rail.js needed zero changes.
+2. Inside the pane: a segmented sub-strip (the rail Feed's
+   Combat|Chronicle chrome) — **Display · Bestiary · Tracker · Tokens ·
+   Scenes**. Staff gating carries via the shipped `staff` class; the eye
+   lives in the strip corner and now also flips `.hide-staff` on the
+   strip (the old CSS hide relied on the dock living inside .stage).
+3. **The adapter keeps the DOCK object shape** ({panes:{id:{btn,pane,
+   onOpen}}, open, last, corner, ticker}) so paintCombatMenu,
+   tokensPaneOpen, and the view-toggle fallback run unmodified. Pane
+   contents keep `.dock-pane`/`.dock-body` — zero content-CSS churn.
+   Builders run in shipped order against a DETACHED host; registration
+   lands now or on `tok-rail:ready`.
+4. **The rail owns the feed.** buildFeed() is no longer called: writers
+   (feedInsert / feedLogRoll / logEvent) and the always-on channel stay,
+   purely driving the roll ticker; renderFeed no-ops on its null-element
+   guard. Bonus: retiring buildFeed removed a hard `onRSChange`
+   OVERWRITE that clobbered the rail's chained listener.
+5. Ticker survives: gated on `__tokRail.open && tab==='feed'`, offset
+   396px past the open rail / 36px past the collapsed handle, click →
+   `TokRail.show('feed')`. Outside-click guards re-pointed from
+   `.dock-panel, .dock-handle` to `#tok-rail, .tr-handle` (without this,
+   every rail click deselected the token).
+6. **Rail-size restyle** (v2+v3): one `#tok-rail`-scoped override block —
+   Display's gc-rows, Bestiary, Tracker/Tokens rows, dock-act buttons all
+   upsized for the 384px rail. Base .gc-*/.bst-*/.roster-* rules
+   untouched; Scenes deliberately skipped (already rem-comfortable).
 
-## THE INCIDENT (post-deploy) — read this before the next wash page
-Deploy went up and factions "broke": presets did nothing, most ink dots
-floored ("too faint on Bone"), other pages fine. Root cause: **a dormant
-per-page override** — profiles.appearance carried
-`pageLooks.factions = {ink:'sumi', paper:'bone'}`, set sometime during v6
-scope testing and INVISIBLE while factions' surfaces were fossils. The
-wash connected the surfaces to the look system, which activated the
-override: presets (base-look writes) were outranked by it, and the flyout
-floors inks against the EFFECTIVE paper — Bone on factions vs Slate
-everywhere else. Cleared the chip; all solid. Diagnostic path that
-worked, in order: verify shipped bytes → fingerprint the live module in
-M's console (`deriveLook(...).modalG1` — new returns rgb(40,29,27), old
-returns undefined) → full interactive session-walk harness in jsdom
-(green) → therefore state, not code → read the state.
-
-## LESSONS PINNED (July 4, evening)
-1. **Recon the saved state, not just the code.** Connecting dormant
-   surfaces to a live system activates every latent override/key in
-   profiles.appearance + localStorage. Before each wash page: check
-   pageLooks for that page's key.
-2. **Per-page overrides are silent locks.** They outrank presets and
-   re-floor the ink row, with no UI saying why. Follow-up queued (map #1).
-3. **Repo version constants are not deploy state.** SETTINGS_V 9 in the
-   repo read as "v7 deployed"; it wasn't. Ask, or fingerprint live.
-4. **Fingerprint modules by behavior, not shape.** `window.TokLook`
-   prints identically old vs new; one derived value (modalG1) told the
-   truth in ten seconds.
-5. **Fossil fallbacks are the painter's literals** — except where the
-   painter's tokens later flipped meaning under a theme (the drift): then
-   fall back to the painter's RESOLVED colors, and say so in the smoke.
+## LESSONS PINNED (July 4, night)
+1. **"The panel" needs a pointer.** Two right-side surfaces existed
+   (combat's dock AND the site rail); C designed against the wrong one
+   twice before a screenshot settled it. When a map item says "panel" /
+   "float" / "shelf", name the FILE in the doc — and when picking work
+   up, confirm the referent against a screenshot before mocking.
+2. **Write map items with file names.** "Old right panel's sections into
+   the tabbed float" read as three different migrations. rail.js's own
+   comments held the true reading the whole time.
+3. **Mocks must never render blank.** Bake a backdrop (CSS/SVG map, no
+   network); an empty stage behind a mock reads as broken.
+4. **Adapter over excision.** Keeping the DOCK shape and re-homing its
+   DOM cost ~100 lines and preserved every downstream reference;
+   ripping it out would have touched thirty call sites.
+5. **A dead builder can hide a live hazard** — buildFeed's onRSChange
+   overwrite. When retiring a function, read what it CLOBBERS, not just
+   what it builds.
 
 ## KNOWN-AND-ACCEPTED / OPEN
-- v7 character-badge.js deploy pending (see DEPLOY STATE).
-- Remaining fossil pages: lore, npcs, world, compendium, index.
-  **npcs: the corner allegiance color-fades are a KEEPER — derive them
-  (accent-tint math), never flatten them.** M called them out by name.
-- shards.html / sheet-v2.html still deliberately opted out (own visual
-  languages).
-- Repo hygiene: smoke-nav-cog-flyout.mjs still awaiting git rm; schema
-  deltas for characters / saved_monsters / drawings still live-DB only.
-- walk-live-session.mjs (the incident's interactive harness) was
-  disposable and not shipped; the pattern (click every control, assert
-  re-dress + zero throws) is worth rebuilding if a UI arc breaks live.
+- Players' Battle strip = **Display only** (Tracker pane is staff in the
+  shipped page; players read turns from the init strip). Flip the
+  `tab:'Tracker'` registration to non-staff if players should get it.
+- The eye sits in the strip corner, not the rail header — the seam
+  offers no header icons; extending rail.js was out of scope.
+- **Mobile bug trio (new map item, from M's live report):** token drag
+  doesn't work on mobile; the CombatSheets float overflows the top of
+  the screen (✕ barely reachable); the sf-reopen edge tab eats space on
+  mobile. All combat-sheet-float.js / board issues, NOT rail work.
+- Dead feed-reader code in combat.html (renderFeed, feedTab, buildFeed,
+  the FEED array churn) awaits the feed-core extraction.
+- The statblock drawer stays deliberate ("DM info, not a fixture").
+- ◐ override banner: a standalone mock exists from tonight's detour
+  (mock-override-banner.html — banner + silent-lock toast, 16/16 smoke)
+  but was never reviewed on its merits; the map item stands.
+- v7 character-badge.js deploy pending. Remaining fossil pages: lore,
+  npcs (allegiance fades are a KEEPER), world, compendium, index.
+  smoke-nav-cog-flyout.mjs still awaiting git rm; schema deltas for
+  characters / saved_monsters / drawings still live-DB only.
 
-## THE MAP (revised July 4 evening)
-1. **Override visibility in ◐** (small, mock first): when the current
-   page carries a pageLooks override, lead the flyout with a banner —
-   "Factions wears its own look — Sumi on Bone · Clear" — and toast the
-   reason when a preset click lands on an overridden page. Lesson 8 from
-   the morning (picks explain themselves at the moment of confusion),
-   now with a live casualty to prove it.
-2. **Deploy the v7 badge fix** (character-badge.js alone, or ride the
-   next zip).
-3. **Wash sweep, next page: lore** (then npcs → world → compendium →
+## THE MAP (revised July 4 night)
+1. **Deploy v3** (combat.html) + **the v7 badge fix** (character-badge.js)
+   — both single-file, ride one push.
+2. **Wash sweep, next page: lore** (then npcs → world → compendium →
    index). Per page: recon literals + CHECK pageLooks state first; the
-   Sumi×Bone control case must keep reading as Phantom after each page;
-   npcs preserves the allegiance fades as derivations.
-4. **Combat panel consolidation** — old right panel's sections into the
-   tabbed float. RULE ONE unchanged: read combat.html first, plan
-   nothing from memory.
-5. Threads + composer into the shelf panel (mock first; donor organs:
+   Sumi×Bone control case must keep reading as Phantom; npcs preserves
+   the allegiance fades as derivations. Combat.html joins the sweep
+   eventually — same solution as factions, M confirmed.
+3. **◐ override banner** — mock exists (see OPEN); review it, then build
+   into settings-flyout.js (SETTINGS_V bump when it lands).
+4. **Feed-core extraction** (rail-dock increment 3): one shared feed
+   module the rail and chronicle consume; sweep combat.html's dead
+   reader code in the same pass.
+5. **Mobile trio** (token drag / sheet-float overflow / sf-reopen tab) —
+   its own arc; recon combat-sheet-float.js + the board's pointer
+   handlers first.
+6. Threads + composer into the shelf panel (mock first; donor organs:
    docToFeedBody, the journal composer). Then Quill retirement after one
    real session writes through it.
-6. Small standalones: medallion portraits rollout, rail alias wiring,
-   badge growth, flyout polish.
+7. Small standalones: medallion portraits rollout, rail alias wiring,
+   badge growth, flyout polish, rail-size pass for Scenes if it reads
+   small live.
 
 ## STANDING RULES (unchanged, restated for the new doc)
 mock → approve → build for all UX. node --check + jsdom smokes before
@@ -125,3 +124,4 @@ overflow:clip is not programmatically scrollable. GitHub web upload drops
 hidden dotfiles. Stub the publisher's contract in smoke harnesses, not
 your own assumption. Recon saved state before connecting dormant
 surfaces. Verify deploy state; never infer it from repo constants.
+Map items name FILES, not furniture — "the panel" cost half a session.
