@@ -38,8 +38,8 @@ t('every verb dispatches through busVerbsRef (fresh callbacks, no stale closures
   ['cast', 'toggle', 'stop', 'pause', 'next', 'prev', 'vol', 'globalPause', 'air']
     .every(v => appSrc.includes(`${v}:`)) && appSrc.includes('busVerbsRef.current = {'))
 t('hello answered with a full snapshot', appSrc.includes("case 'hello':  bus.send(busSnapshot()); break;"))
-t('snapshot publishes on chStates AND library changes',
-  /useEffect\(\(\) => \{\s*\n\s*busRef\.current\?\.send\(busSnapshot\(\)\);\s*\n\s*\}, \[chStates, library, busSnapshot\]\);/.test(appSrc))
+t('snapshot publishes on chStates, library, and radio-state changes',
+  /useEffect\(\(\) => \{\s*\n\s*busRef\.current\?\.send\(busSnapshot\(\)\);\s*\n\s*\}, \[chStates, library, onAir, radioListeners, airBlockedBy, busSnapshot\]\);/.test(appSrc))
 t('engine-bye on unload, listener removed on teardown',
   appSrc.includes("bus.send({ t: 'engine-bye', engineId: engineIdRef.current })")
   && appSrc.includes("window.removeEventListener('beforeunload', bye)"))

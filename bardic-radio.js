@@ -79,9 +79,12 @@
   //   |err| <= dead  → rate 1 (locked)
   //   |err| >  hard  → { seek: true } (hard resync)
   //   else           → gentle rate nudge, capped ±2% (imperceptible)
+  // hard default 0.35s (July 5 field fix): a ±2% nudge closes ~20ms/s —
+  // the old 1.5s threshold let a 1.1s seek-latency error crawl for a
+  // minute. Above a third of a second, just jump.
   function driftNudge(errSec, dead, hard) {
     dead = dead == null ? 0.03 : dead;
-    hard = hard == null ? 1.5 : hard;
+    hard = hard == null ? 0.35 : hard;
     if (Math.abs(errSec) > hard) return { seek: true, rate: 1 };
     if (Math.abs(errSec) <= dead) return { seek: false, rate: 1 };
     var rate = 1 + Math.max(-0.02, Math.min(0.02, errSec * 0.04));
@@ -128,6 +131,7 @@
     var myKey = ENGINE_PREFIX + Math.random().toString(36).slice(2, 10);
     var ch = sb.channel(RT_CHANNEL, { config: { presence: { key: myKey }, broadcast: { self: false } } });
     var active = false;
+    var pendingAnchors = null;   // last anchors sent pre-SUBSCRIBED — flushed on join
     function roster() {
       var state = ch.presenceState();
       var out = [];
@@ -141,6 +145,11 @@
     ch.on('presence', { event: 'sync' }, function () {
       if (handlers.onListeners) handlers.onListeners(roster());
     });
+    // convergence: any listener can ASK for anchors (join, staleness) —
+    // the system never depends on catching a change broadcast (July 5)
+    ch.on('broadcast', { event: 'sync-request' }, function () {
+      if (active && handlers.onSyncRequest) handlers.onSyncRequest();
+    });
     ch.subscribe(function (status) {
       if (status !== 'SUBSCRIBED') return;
       var other = findEngine(ch.presenceState(), myKey);
@@ -150,12 +159,17 @@
       }
       active = true;
       ch.track({ engine: true, name: handlers.name || 'the console' });
+      if (pendingAnchors) {   // the immediate pre-join send is never dropped
+        ch.send({ type: 'broadcast', event: 'anchors', payload: pendingAnchors });
+        pendingAnchors = null;
+      }
     });
     return {
       engineKey: myKey,
       isActive: function () { return active; },
       sendAnchors: function (anchors) {
         if (active) ch.send({ type: 'broadcast', event: 'anchors', payload: anchors });
+        else pendingAnchors = anchors;
       },
       offAir: function () { active = false; try { sb.removeChannel(ch); } catch (e) {} },
     };
@@ -170,15 +184,23 @@
     // presence lives on the shared topic, so the watcher joins IT.
     // supabase-js throws on a second join of an already-held topic name —
     // callers guard for that (engine and radio pages never watch).
-    var ch = sb.channel(RT_CHANNEL, { config: {} });
+    // The presence KEY is required even for a passive reader — without it
+    // presenceState() can stay empty forever (July 5, the phone's blind
+    // rail). The watcher still never track()s, so it stays invisible.
+    var ch = sb.channel(RT_CHANNEL, { config: { presence: { key: 'w-' + Math.random().toString(36).slice(2, 8) } } });
+    var lastAnchorAt = 0;
     function report() {
       var state = ch.presenceState();
       var eng = findEngine(state, null);
       var count = 0;
       for (var key in state) { if (!isEngineMeta(state[key])) count++; }
-      if (handlers.onAir) handlers.onAir(!!eng, eng ? eng.name : null, count);
+      // belt + braces: flowing anchors are proof of a broadcast even if
+      // presence is being coy on this platform
+      var anchorsFresh = (Date.now() - lastAnchorAt) < 35000;
+      if (handlers.onAir) handlers.onAir(!!eng || anchorsFresh, eng ? eng.name : (anchorsFresh ? 'the console' : null), count);
     }
     ch.on('presence', { event: 'sync' }, report);
+    ch.on('broadcast', { event: 'anchors' }, function () { lastAnchorAt = Date.now(); report(); });
     ch.subscribe(function (status) { if (status === 'SUBSCRIBED') report(); });
     return { close: function () { try { sb.removeChannel(ch); } catch (e) {} } };
   }
@@ -201,6 +223,7 @@
     });
     return {
       updateSync: function (syncMs) { meta.syncMs = syncMs; try { ch.track(meta); } catch (e) {} },
+      requestSync: function () { try { ch.send({ type: 'broadcast', event: 'sync-request', payload: {} }); } catch (e) {} },
       close: function () { try { sb.removeChannel(ch); } catch (e) {} },
     };
   }

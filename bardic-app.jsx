@@ -545,6 +545,11 @@ function App() {
   const [radioListeners, setRadioListeners] = useState([]);
   const [airBlockedBy, setAirBlockedBy] = useState(null);  // another console holds the air
   const radioRef = useRef(null);
+  // refs mirror the radio state so busSnapshot stays identity-stable —
+  // a shifting busSnapshot re-ran the subscribe-once effect, tearing the
+  // BroadcastChannel down (with an engine-bye) on every roster change
+  const radioStateRef = useRef({ onAir: false, listeners: [], blockedBy: null });
+  radioStateRef.current = { onAir, listeners: radioListeners, blockedBy: airBlockedBy };
 
   const buildAnchors = useCallback(() => {
     const cs = chStatesRef.current;
@@ -582,6 +587,7 @@ function App() {
       setAirBlockedBy(null);
       radioRef.current = window.BardicRadio.broadcast(sb, {
         name: 'the console',
+        onSyncRequest: () => radioRef.current?.sendAnchors(buildAnchors()),
         onListeners: (l) => { if (alive) setRadioListeners(l); },
         onConflict: (name) => {
           // never two engines on air — the incumbent keeps it (July 5)
@@ -647,14 +653,14 @@ function App() {
       t: 'state',
       engineId: engineIdRef.current,
       ts: Date.now(),
-      onAir: onAir,
-      listeners: radioListeners,
-      airBlockedBy: airBlockedBy,
+      onAir: radioStateRef.current.onAir,
+      listeners: radioStateRef.current.listeners,
+      airBlockedBy: radioStateRef.current.blockedBy,
       // protocol field stays 'name'; the console's mood field is 'label'
       moods: lib.moods.map(m => ({ id: m.id, name: m.label, color: m.color, sigil: m.sigil })),
       channels: channelsOut,
     };
-  }, [onAir, radioListeners, airBlockedBy]);
+  }, []);   // identity-stable: radio state rides radioStateRef
 
   // subscribe once; dispatch through the refs
   useEffect(() => {
@@ -686,7 +692,7 @@ function App() {
   // (busSnapshot's identity shifts with onAir/listeners, so those ride too)
   useEffect(() => {
     busRef.current?.send(busSnapshot());
-  }, [chStates, library, busSnapshot]);
+  }, [chStates, library, onAir, radioListeners, airBlockedBy, busSnapshot]);
 
   // ============================================================
   // SCENE ACTIONS

@@ -53,9 +53,9 @@ t('positionAt never rewinds on clock jitter', R.positionAt(anchor, 49_000) === 1
 t('inside deadband → locked at rate 1', R.driftNudge(0.02).rate === 1 && !R.driftNudge(0.02).seek)
 t('small drift → gentle nudge, capped ±2%',
   R.driftNudge(0.3).rate > 1 && R.driftNudge(0.3).rate <= 1.02 &&
-  R.driftNudge(-0.3).rate < 1 && R.driftNudge(-0.3).rate >= 0.98 &&
-  R.driftNudge(5000).seek === true)
-t('beyond hard limit → seek', R.driftNudge(2).seek && R.driftNudge(-2).seek)
+  R.driftNudge(-0.3).rate < 1 && R.driftNudge(-0.3).rate >= 0.98)
+t('FIELD PIN: 1136ms seeks immediately (hard limit 0.35s, no more crawling)',
+  R.driftNudge(1.136).seek && R.driftNudge(0.5).seek && R.driftNudge(-0.5).seek && !R.driftNudge(0.3).seek)
 
 // ── transport over a stubbed sb ──
 function stubSb() {
@@ -92,6 +92,22 @@ t('engine joins with a UNIQUE key and engine-flagged meta',
 eng.sendAnchors({ at: 123, channels: { music: { url: 'u', pos: 1 } } })
 t('sendAnchors → broadcast event anchors',
   chE.sent.length === 1 && chE.sent[0].type === 'broadcast' && chE.sent[0].event === 'anchors' && chE.sent[0].payload.at === 123)
+// engine answers sync-requests (convergence)
+let askedFor = 0
+const sbE3 = stubSb()
+const eng3 = R.broadcast(sbE3, { onSyncRequest: () => { askedFor++ } })
+const chE3 = sbE3.channels[0]
+chE3._presence = {}; chE3._sub('SUBSCRIBED')
+chE3._handlers['broadcast:sync-request']({})
+t('engine answers sync-request when active', askedFor === 1)
+// pre-join sends buffer and flush on SUBSCRIBED — never dropped
+const sbE4 = stubSb()
+const eng4 = R.broadcast(sbE4, {})
+const chE4 = sbE4.channels[0]
+eng4.sendAnchors({ at: 77, channels: {} })   // before SUBSCRIBED
+t('pre-join anchors buffered, not dropped', chE4.sent.length === 0)
+chE4._presence = {}; chE4._sub('SUBSCRIBED')
+t('buffered anchors flush on join', chE4.sent.length === 1 && chE4.sent[0].payload.at === 77)
 chE._presence = { [chE.cfg.config.presence.key]: [{ engine: true, name: 'the console' }], 'l-abc': [{ name: 'Cosmere', syncMs: 18 }] }
 chE._handlers['presence:sync']()
 t('roster excludes engine metas, carries name + syncMs',
@@ -122,9 +138,14 @@ chW._handlers['presence:sync']()
 t('watcher reports on-air + engine name + listener count (engines excluded)',
   watched?.on === true && watched.name === 'the console' && watched.count === 2)
 t('watcher never tracks presence (purely passive)', chW.tracked === null)
+t('watcher carries a presence key (presenceState stays live) — the blind-phone fix',
+  chW.cfg.config.presence && chW.cfg.config.presence.key.startsWith('w-'))
 chW._presence = { 'l-1': [{ name: 'Caim' }] }
 chW._handlers['presence:sync']()
 t('watcher reports off-air when the engine leaves', watched.on === false)
+// anchors count as proof of broadcast even when presence is coy
+chW._handlers['broadcast:anchors']({})
+t('watcher: flowing anchors → on-air, even with empty presence', watched.on === true)
 
 // listener side
 const sbL = stubSb()
@@ -141,6 +162,8 @@ chL._presence = { 'engine-abc': [{ engine: true, name: 'the console' }] }; chL._
 t('listener sees the engine via presence (flagged meta, any key)', engineOn === true)
 lis.updateSync(21)
 t('updateSync re-tracks presence meta', chL.tracked.syncMs === 21 && chL.tracked.name === 'Caim')
+lis.requestSync()
+t('listener can request anchors', chL.sent.some(m => m.event === 'sync-request'))
 
 // ── the engine relay in bardic-app.jsx ──
 try { parse(appSrc, { sourceType: 'script', plugins: ['jsx'] }); t('bardic-app.jsx parses clean', true) }
@@ -158,9 +181,9 @@ t("air verb wired: header, adapter case, setOnAir",
 t('anchors stamped with engineId (listener latch)', appSrc.includes('return { at, engineId: engineIdRef.current, channels };'))
 t('on-air conflict → blocked state, never two engines',
   appSrc.includes('onConflict: (name) => {') && appSrc.includes('setAirBlockedBy(name); setOnAir(false);')
-  && appSrc.includes('airBlockedBy: airBlockedBy,'))
-t('snapshot carries real onAir + listeners',
-  appSrc.includes('onAir: onAir,') && appSrc.includes('listeners: radioListeners,'))
+  && appSrc.includes('airBlockedBy: radioStateRef.current.blockedBy,'))
+t('snapshot carries real onAir + listeners (via the stable ref)',
+  appSrc.includes('onAir: radioStateRef.current.onAir,') && appSrc.includes('listeners: radioStateRef.current.listeners,'))
 t('console loads bardic-radio.js after the bus',
   consoleSrc.indexOf('bardic-radio.js') > consoleSrc.indexOf('bardic-bus.js'))
 
@@ -184,8 +207,21 @@ t('radio.html rides the pure helpers, no local sync math',
   pageSrc.includes('R.positionAt(') && pageSrc.includes('R.driftNudge(') && !/function positionAt|function driftNudge/.test(pageSrc))
 t('tune-in is the gesture: clock sync + sb ready ride the tap',
   pageSrc.includes('Promise.all([C.sync(), sbReady()])'))
+t('seek waits for metadata (iOS ignores pre-metadata currentTime)',
+  pageSrc.includes("p.audio.addEventListener('loadedmetadata', seekWhenReady, { once: true })")
+  && pageSrc.includes("p.audio.addEventListener('playing', seekWhenReady, { once: true })"))
+t('drift loop skips elements without metadata', pageSrc.includes('if (p.audio.readyState < 1) continue;'))
+t('listener requests anchors on join and on staleness (self-healing)',
+  pageSrc.includes('S.listener.requestSync();   // never wait')
+  && pageSrc.includes('age > 12000 && age < 35000) S.listener.requestSync();'))
+t('anchor-age readout for field diagnosis', pageSrc.includes("'last anchor ' + Math.round(age / 1000) + 's ago'"))
 t('hard resync only past the threshold; playbackRate carries the nudge',
   pageSrc.includes('if (n.seek) p.audio.currentTime = expected;') && pageSrc.includes('p.audio.playbackRate = n.rate;'))
+t('engine answers sync-requests through the app relay',
+  appSrc.includes('onSyncRequest: () => radioRef.current?.sendAnchors(buildAnchors()),'))
+t('busSnapshot identity-stable (radio state via ref — no bus teardown flap)',
+  appSrc.includes('radioStateRef.current = { onAir, listeners: radioListeners, blockedBy: airBlockedBy };')
+  && appSrc.includes('}, []);   // identity-stable: radio state rides radioStateRef'))
 t('off-air watchdog on stale anchors + latch release',
   pageSrc.includes("> 35000) { setOnAirUi(false); S.engineLock = null; }"))
 t('listener latches to ONE engine clock',
