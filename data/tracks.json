@@ -724,7 +724,14 @@
       "sigil": "ti-crown",
       "color": "#4a3a6a",
       "id": "mr7b7y1hzdif",
-      "tracks": []
+      "tracks": [
+        {
+          "url": "https://res.cloudinary.com/df0tgoiyb/video/upload/v1783226824/3-03._Victory_Fanfare_sptoot.mp3",
+          "title": "Victory Fanfare",
+          "artist": "Octopath Traveller II",
+          "id": "mr7b8ip01s7x"
+        }
+      ]
     }
   ],
   "scenes": [
