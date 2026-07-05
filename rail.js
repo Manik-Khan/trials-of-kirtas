@@ -62,6 +62,13 @@
       ct.onerror = function () { console.warn('[rail] characters-tab.js failed to load'); };
       document.head.appendChild(ct);
     }
+    // Bardic remote tab + corner chip — registers itself against the seam on
+    // tok-rail:ready (same rider pattern as characters-tab.js). Non-blocking.
+    if (!window.__tokBardicTab && !document.querySelector('script[src$="bardic-tab.js"]')) {
+      var bt = document.createElement('script'); bt.src = 'bardic-tab.js';
+      bt.onerror = function () { console.warn('[rail] bardic-tab.js failed to load'); };
+      document.head.appendChild(bt);
+    }
     // Appearance customizer — fills the built-in Settings pane on tok-rail:ready and
     // routes its live preview onto the floating sheet. ES module; non-blocking.
     if (!window.AppearanceSettings && !document.querySelector('script[src$="appearance-settings.js"]')) {
