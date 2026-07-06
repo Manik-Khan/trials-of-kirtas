@@ -372,7 +372,12 @@ body{background:linear-gradient(180deg,var(--ground),var(--ground-2));color:var(
         }
         var ms = Math.abs(err * 1000);
         if (ms > worst) worst = ms;
-        p.ui.lk.textContent = (ms < 150 ? 'locked' : '\u00b1' + Math.round(ms) + 'ms')
+        // HONEST READOUT (July 6 pm): always show the real decode-vs-clock
+        // gap; only call it locked when genuinely tight. NOTE: this gap is
+        // currentTime vs the clock — it does NOT see audible divergence
+        // after a fresh-track seek, which is the real track-change bug.
+        p.ui.lk.textContent = '\u00b1' + Math.round(ms) + 'ms'
+          + (ms < 35 ? ' \u00b7 locked' : '')
           + (g.relocking ? ' \u00b7 locking' : '')
           + (p.stalls ? ' \u00b7 stalls ' + p.stalls : '');
       }
@@ -493,7 +498,7 @@ body{background:linear-gradient(180deg,var(--ground),var(--ground-2));color:var(
     els.echoFail.classList.toggle('on', !!fail);
     document.getElementById('echoBuild').textContent =
       'echo ' + (window.BardicEcho ? window.BardicEcho.BUILD : 'MISSING') +
-      ' \u00b7 radio B11';   // stale tabs must be visible
+      ' \u00b7 radio B12';   // stale tabs must be visible
   }
   function echoShowFail(why) {
     els.echoFailWhy.textContent = why;
