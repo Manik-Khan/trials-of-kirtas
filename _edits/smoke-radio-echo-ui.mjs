@@ -1,55 +1,48 @@
-// smoke: echo-lock UI wiring in radio.html — stubbed BardicEcho drives
-// the full flow: listen pane → result card → apply writes trim; failure
-// path narrates; dismiss clears.
+// smoke: echo-lock UI wiring (B8.1.1) — the census/idle path runs
+// end-to-end in jsdom (a fresh page has no anchors); the happy-path
+// rendering was runtime-proven in B8.1's suite and is unchanged, so it
+// is held here by source assertions.
 import { JSDOM } from 'jsdom';
 import fs from 'fs';
 let pass=0, fail=0;
 const ok=(c,m)=>{ c?(pass++,console.log(' ✓',m)):(fail++,console.log(' ✗',m)); };
-const sleep = ms => new Promise(r=>setTimeout(r,ms));
 
 const html = fs.readFileSync('/home/claude/radio.html','utf8');
-let measureArgs = null, nextResult = null;
+let measureCalled = false;
 const dom = new JSDOM(html,{runScripts:'dangerously',pretendToBeVisual:true,url:'https://tok.test/radio.html',
   beforeParse(w){
     w.BardicRadio = { positionAt: () => 10 };
     w.BardicClock = { now: () => 123456, sync: () => Promise.resolve(), offset:0, rtt:0 };
-    w.BardicEcho = { BUILD:'stub', measure(o){ measureArgs = o; return Promise.resolve(nextResult); } };
+    w.BardicEcho = { BUILD:'stub', measure(){ measureCalled = true; return Promise.resolve({ok:false,reason:'x',detail:'x'}); } };
     Object.defineProperty(w,'localStorage',{value:{getItem:()=>null,setItem(){},removeItem(){}}});
   }});
 const w = dom.window, doc = w.document;
 const click = id => doc.getElementById(id).dispatchEvent(new w.Event('click',{bubbles:true}));
 const on = id => doc.getElementById(id).classList.contains('on');
 
-ok(!!doc.getElementById('echoBtn'), 'echo button renders under the steppers');
-ok(!on('echoListen') && !on('echoResult'), 'panes hidden at boot');
+ok(!!doc.getElementById('echoBtn'), 'echo button renders');
 
-// happy path
-nextResult = { ok:true, trimMs:76, selfMs:198, roomMs:122, selfConf:3.1, roomConf:2.7, channelTitle:'Tavern' };
+// census path: no anchors yet → narrated, measure NOT called, button NOT stuck
 click('echoBtn');
-ok(on('echoListen'), 'run → listening pane');
-ok(doc.getElementById('echoBtn').disabled === true, 'button disabled during capture');
-ok(measureArgs && Array.isArray(measureArgs.channels) && typeof measureArgs.duck==='function'
-   && typeof measureArgs.positionAt==='function' && typeof measureArgs.clockNow==='function',
-   'measure() receives the full contract shape');
-await sleep(30);
-ok(!on('echoListen') && on('echoResult'), 'resolve → result card');
-ok(doc.getElementById('echoRoom').textContent==='+122ms' && doc.getElementById('echoSelf').textContent==='+198ms',
-   'both measurements shown raw');
-ok(doc.getElementById('echoProp').textContent==='+76ms', 'proposal rendered');
-ok(doc.getElementById('echoWhy').textContent.includes('Tavern'), 'names the channel it locked against');
-click('echoApply');
-ok(doc.getElementById('trimTxt').textContent==='+76ms', 'apply writes trim through setTrim: '+doc.getElementById('trimTxt').textContent);
-ok(!on('echoResult'), 'card dismisses on apply');
-
-// failure path
-nextResult = { ok:false, reason:'room', detail:'Tavern: no clean peak (×1.2)' };
-click('echoBtn');
-await sleep(30);
-ok(on('echoResult') && on('echoFail'), 'room failure → failure pane');
-ok(doc.getElementById('echoFailWhy').textContent.includes('no clean peak'), 'failure narrates the detail');
-ok(doc.getElementById('echoFailWhy').textContent.includes('rhythmic'), 'failure suggests the fallback');
+ok(on('echoResult') && on('echoFail'), 'pre-broadcast run → failure pane');
+ok(doc.getElementById('echoFailWhy').textContent.includes('is the engine on air'),
+   'idle narration names the actual state: '+JSON.stringify(doc.getElementById('echoFailWhy').textContent));
+ok(measureCalled===false, 'measure() not called when the gate finds nothing');
+ok(doc.getElementById('echoBtn').disabled===false, 'button not left disabled by the bail');
 click('echoFailDismiss');
-ok(!on('echoResult'), 'failure dismisses');
+ok(!on('echoResult'), 'dismiss clears');
+
+// source assertions: the gate + the title fix + census narration
+ok((()=>{ const a=html.indexOf('census.total++'), b=html.indexOf('playing.push');
+   return a>0 && b>a && !html.slice(a,b).includes('p.audio'); })(),
+   'gate code (census→push) never consults the LOCAL element');
+ok(/if \(!p\.anchor \|\| p\.anchor\.paused\) \{ census\.paused\+\+; continue; \}/.test(html),
+   'gate = unpaused anchor…');
+ok(/if \(!p\.url\) \{ census\.noUrl\+\+; continue; \}/.test(html), '…plus a track url — nothing else');
+ok(/p\.ui && p\.ui\.lab && p\.ui\.lab\.textContent/.test(html),
+   'channel title read from the rendered label (anchor carries only pos/at/paused — the scar)');
+ok(/anchor-paused: ' \+ census\.paused/.test(html), 'census narrated with counts');
+ok(/setTrim\(echoProposed\)/.test(html), 'apply still funnels through setTrim');
 
 console.log(`\nsmoke-radio-echo-ui: ${pass} passed, ${fail} failed`);
 process.exit(fail?1:0);

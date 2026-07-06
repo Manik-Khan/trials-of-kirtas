@@ -483,12 +483,33 @@ body{background:linear-gradient(180deg,var(--ground),var(--ground-2));color:var(
   }
   function echoRun() {
     if (!window.BardicEcho) { echoShowFail('bardic-echo.js failed to load'); return; }
-    var playing = [];
+    // GATE ON WHAT THE MEASUREMENT NEEDS, not on local playback state:
+    // the room half only requires an unpaused ANCHOR + a track url — we
+    // duck the local elements regardless, so whether THIS device's
+    // element is playing is irrelevant (iOS suspends backgrounded
+    // elements; M may listen to the room with local volume down).
+    // First field run (July 6) failed exactly here: 'nothing playing'
+    // while the room played on — the old gate demanded !p.audio.paused.
+    var playing = [], census = { total: 0, paused: 0, noUrl: 0 };
     for (var id in S.players) {
       var p = S.players[id];
-      if (p.anchor && !p.anchor.paused && p.url && !p.audio.paused) {
-        playing.push({ chId: id, title: p.anchor.title, url: p.url, anchor: p.anchor });
-      }
+      census.total++;
+      if (!p.anchor || p.anchor.paused) { census.paused++; continue; }
+      if (!p.url) { census.noUrl++; continue; }
+      playing.push({ chId: id,
+                     title: (p.ui && p.ui.lab && p.ui.lab.textContent) || id,
+                     url: p.url, anchor: p.anchor });
+    }
+    if (!playing.length) {
+      // narrate the census — a field screenshot should self-diagnose
+      echoShowFail(!S.anchors
+        ? 'no broadcast heard yet \u2014 is the engine on air?'
+        : census.total === 0
+          ? 'tuned in, but no channels have arrived yet \u2014 light one on the console'
+          : 'channels: ' + census.total + ' \u00b7 anchor-paused: ' + census.paused +
+            (census.noUrl ? ' \u00b7 missing track url: ' + census.noUrl : '') +
+            ' \u2014 cast something on the console, then re-listen');
+      return;
     }
     els.echoBtn.disabled = true;
     echoPanes(true, false, false);
