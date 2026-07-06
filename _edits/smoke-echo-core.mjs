@@ -9,7 +9,7 @@ const ok=(c,m)=>{ c?(pass++,console.log(' ✓',m)):(fail++,console.log(' ✗',m)
 global.window = {};
 eval(fs.readFileSync('/home/claude/bardic-echo.js','utf8'));
 const E = global.window.BardicEcho;
-ok(!!E && E.BUILD==='E1', 'module loads, BUILD E1');
+ok(!!E && E.BUILD==='E2', 'module loads, BUILD E2');
 const { makeChirp, envelope, xcorr, trimFrom, PAD_S, CAP_S } = E;
 
 const gaps = E.BURSTS_MS.slice(1).map((v,i)=>v-E.BURSTS_MS[i]);
@@ -87,5 +87,18 @@ ok(/S\.echoDucked = !!on/.test(html), 'duck sets the guard flag');
 ok(/setTrim\(echoProposed\)/.test(html), 'apply funnels through setTrim');
 ok(/echoShowFail\(\(e && e\.message\)/.test(html), 'hard errors narrate raw text');
 
-console.log(`\nsmoke-echo-core: ${pass} passed, ${fail} failed`);
+
+
+// B8.1.2 additions: summarize taxonomy
+{
+  const S = E.summarize;
+  ok(E.BUILD==='E2', 'BUILD bumped to E2');
+  ok(S([{kind:'fetch',msg:'Tavern: Failed to fetch'}]).reason==='pcm', 'all-fetch → pcm');
+  ok(S([{kind:'fetch',msg:'a'},{kind:'weak',msg:'b'}]).reason==='pcm', 'fetch present → pcm (most actionable)');
+  ok(S([{kind:'weak',msg:'a'},{kind:'edge',msg:'b'}]).reason==='weak', 'weak beats edge');
+  ok(S([{kind:'edge',msg:'a'}]).reason==='edge', 'all-edge → edge');
+  ok(S([]).reason==='room', 'empty tries → generic room');
+  ok(S([{kind:'weak',msg:'Tavern: peak 0.11, conf ×1.2'}]).detail.includes('×1.2'), 'detail carries raw numbers');
+}
+console.log(`echo-core+taxonomy: ${pass} passed, ${fail} failed`);
 process.exit(fail?1:0);

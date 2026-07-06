@@ -234,7 +234,10 @@
                   cSelf.confidence.toFixed(1) + ') \u2014 volume down, or mic blocked/covered' };
       }
 
-      // ROOM: try each playing channel until one correlates cleanly
+      // ROOM: try each playing channel until one correlates cleanly.
+      // Failures are CATEGORIZED — a blocked PCM fetch (CORS) must never
+      // masquerade as "your music isn't rhythmic enough" (July 6 field:
+      // big drums at point-blank read as a smoothness failure).
       var tries = [];
       var chain = Promise.resolve(null);
       opts.channels.forEach(function (chn) {
@@ -248,7 +251,7 @@
           }).then(function (audioBuf) {
             var p0 = opts.positionAt(chn.anchor, cap.cap0.clockMs);   // seconds
             if (p0 < PAD_S || p0 + CAP_S + PAD_S > audioBuf.duration) {
-              tries.push(chn.title + ': too close to track edge');
+              tries.push({ kind: 'edge', msg: chn.title + ': too close to track edge' });
               return null;
             }
             var seg = monoSlice(audioBuf, p0 - PAD_S, p0 + CAP_S + PAD_S);
@@ -256,21 +259,22 @@
             var lo = Math.round((PAD_S - 1.2) * 1000), hi = Math.round((PAD_S + 1.2) * 1000);
             var cRoom = xcorr(capEnv, segEnv, lo, hi);
             if (cRoom.peak < 0.2 || cRoom.confidence < 1.5) {
-              tries.push(chn.title + ': no clean peak (\u00d7' + cRoom.confidence.toFixed(1) + ')');
+              tries.push({ kind: 'weak', msg: chn.title + ': peak ' + cRoom.peak.toFixed(2) +
+                           ', conf \u00d7' + cRoom.confidence.toFixed(1) });
               return null;
             }
             return { chn: chn, cRoom: cRoom };
           }).catch(function (e) {
             // CORS / decode failures NARRATE — this is the known unknown
-            tries.push(chn.title + ': PCM fetch/decode failed \u2014 ' + (e && e.message ? e.message : e));
+            tries.push({ kind: 'fetch', msg: chn.title + ': ' + (e && e.message ? e.message : e) });
             return null;
           });
         });
       });
       return chain.then(function (found) {
         if (!found) {
-          return { ok: false, reason: 'room',
-            detail: tries.join(' \u00b7 ') || 'no channel correlated' };
+          var s = summarize(tries);
+          return { ok: false, reason: s.reason, detail: s.detail };
         }
         var t = trimFrom({ chirpLagMs: cSelf.lag, chirpSchedMs: cap.cap0.chirpSchedMs,
                            roomLagMs: found.cRoom.lag });
@@ -285,10 +289,26 @@
     });
   }
 
+  // PURE failure taxonomy over the room tries — exported for the smoke.
+  // 'pcm'  : every attempt died fetching/decoding (CORS, network, codec)
+  // 'weak' : correlation RAN and peaked low (genuinely smooth material)
+  // 'edge' : usable position too near a track boundary
+  // Mixed bags report the most actionable kind: pcm > weak > edge.
+  function summarize(tries) {
+    if (!tries.length) return { reason: 'room', detail: 'no channel correlated' };
+    var kinds = {};
+    tries.forEach(function (t) { kinds[t.kind] = (kinds[t.kind] || 0) + 1; });
+    var msgs = tries.map(function (t) { return t.msg; }).join(' \u00b7 ');
+    if (kinds.fetch) return { reason: 'pcm', detail: msgs };
+    if (kinds.weak) return { reason: 'weak', detail: msgs };
+    return { reason: 'edge', detail: msgs };
+  }
+
   window.BardicEcho = {
-    BUILD: 'E1',
+    BUILD: 'E2',
     BURSTS_MS: BURSTS_MS, PAD_S: PAD_S, CAP_S: CAP_S, CHIRP_AT_S: CHIRP_AT_S,
     makeChirp: makeChirp, envelope: envelope, xcorr: xcorr, trimFrom: trimFrom,
+    summarize: summarize,
     measure: measure
   };
 })();

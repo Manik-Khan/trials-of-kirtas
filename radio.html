@@ -464,11 +464,15 @@ body{background:linear-gradient(180deg,var(--ground),var(--ground-2));color:var(
   function echoDuck(on) {
     S.echoDucked = !!on;   // applyAnchors respects this — an anchor tick
                            // mid-capture must not un-duck the channels
+    // MUTED, not volume: iOS IGNORES programmatic volume on media
+    // elements (hardware buttons own it) — the July 6 field runs ducked
+    // nothing, so the phone played its own copy into its own mic.
+    // muted IS honored.
     for (var id in S.players) {
       var p = S.players[id];
       if (!p.audio) continue;
-      if (on) { p._preDuck = p.audio.volume; p.audio.volume = 0; }
-      else if (p._preDuck != null) { p.audio.volume = p._preDuck; p._preDuck = null; }
+      if (on) { p._preMuted = p.audio.muted; p.audio.muted = true; }
+      else if (p._preMuted != null) { p.audio.muted = p._preMuted; p._preMuted = null; }
     }
   }
   function echoPanes(listen, ok, fail) {
@@ -533,11 +537,15 @@ body{background:linear-gradient(180deg,var(--ground),var(--ground-2));color:var(
       els.echoMeter.style.transform = 'scaleX(1)';
       els.echoBtn.disabled = false;
       if (!res.ok) {
-        echoShowFail(res.reason === 'idle' ? res.detail
-          : res.reason === 'room'
-            ? 'no channel correlated \u2014 ' + res.detail +
+        echoShowFail(
+          res.reason === 'pcm'
+            ? 'couldn\u2019t read the track\u2019s audio data (CORS or network \u2014 the known unknown): ' + res.detail
+          : res.reason === 'weak'
+            ? 'correlation ran but peaked low \u2014 ' + res.detail +
               '. Try during something rhythmic, or dial the steppers by ear.'
-            : res.detail);
+          : res.reason === 'edge'
+            ? 'track position too near a boundary \u2014 ' + res.detail + '. Re-listen mid-track.'
+          : res.detail);
         return;
       }
       echoProposed = res.trimMs;

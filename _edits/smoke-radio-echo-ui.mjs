@@ -44,5 +44,14 @@ ok(/p\.ui && p\.ui\.lab && p\.ui\.lab\.textContent/.test(html),
 ok(/anchor-paused: ' \+ census\.paused/.test(html), 'census narrated with counts');
 ok(/setTrim\(echoProposed\)/.test(html), 'apply still funnels through setTrim');
 
+
+// B8.1.2: failure-reason rendering + the muted duck
+ok(/couldn\\u2019t read the track\\u2019s audio data \(CORS or network/.test(html), 'pcm failures name CORS/network, never rhythm');
+ok((()=>{ const i=html.indexOf("res.reason === 'pcm'"); const j=html.indexOf(':', html.indexOf('?', i));
+   return i>0 && !html.slice(i,j).toLowerCase().includes('rhythmic'); })(), 'pcm branch carries no rhythmic advice');
+ok(/res\.reason === 'weak'[^]{0,220}rhythmic/.test(html), 'weak branch keeps the rhythmic suggestion');
+ok(/p\.audio\.muted = true/.test(html) && /_preMuted/.test(html), 'duck uses muted (iOS ignores volume), with restore');
+ok(!/p\._preDuck = p\.audio\.volume/.test(html), 'volume-based duck removed');
+
 console.log(`\nsmoke-radio-echo-ui: ${pass} passed, ${fail} failed`);
 process.exit(fail?1:0);
