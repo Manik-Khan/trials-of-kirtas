@@ -361,7 +361,7 @@
   }
 
   window.BardicEcho = {
-    BUILD: 'E5',
+    BUILD: 'E6',
     BURSTS_MS: BURSTS_MS, PAD_S: PAD_S, CAP_S: CAP_S, CHIRP_AT_S: CHIRP_AT_S,
     makeChirp: makeChirp, envelope: envelope, xcorr: xcorr, trimFrom: trimFrom,
     summarize: summarize,
