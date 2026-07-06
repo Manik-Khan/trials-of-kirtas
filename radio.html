@@ -123,8 +123,8 @@ body{background:linear-gradient(180deg,var(--ground),var(--ground-2));color:var(
     </div>
     <div class="rd-echoresult" id="echoResult">
       <div id="echoOk" style="display:none">
-        <div class="meas"><span>Console reports</span><span><span class="v" id="echoRoom"></span><span class="c" id="echoRoomC"></span></span></div>
-        <div class="meas"><span>This device arrives</span><span><span class="v" id="echoSelf"></span><span class="c" id="echoSelfC"></span></span></div>
+        <div class="meas"><span>Room measured</span><span><span class="v" id="echoRoom"></span><span class="c" id="echoRoomC"></span></span></div>
+        <div class="meas"><span>This device</span><span><span class="v" id="echoSelf"></span><span class="c" id="echoSelfC"></span></span></div>
         <div class="rd-echoprop">
           <div>set trim to <span class="big" id="echoProp"></span></div>
           <div class="why" id="echoWhy">device &minus; room &middot; one clean seek on apply</div>
@@ -149,7 +149,7 @@ body{background:linear-gradient(180deg,var(--ground),var(--ground-2));color:var(
 <p class="rd-note">Keep this page open and the screen awake — the DM's console drives everything from here.</p>
 
 <script src="bardic-radio.js"></script>
-<script src="bardic-echo.js?v=E5"></script>
+<script src="bardic-echo.js?v=E6"></script>
 <script>
 (function () {
   'use strict';
@@ -190,18 +190,8 @@ body{background:linear-gradient(180deg,var(--ground),var(--ground-2));color:var(
     // human dials it: play something rhythmic, slide until the claps
     // align. Positive trim = this device plays EARLIER.
     trimMs: (function () { try { return parseInt(localStorage.getItem('tok-radio-trim') || '0', 10) || 0; } catch (e) { return 0; } })(),
-    // echo lock B8.2: this device's measured output latency (selfTest),
-    // persisted — it only changes when the output route changes
-    selfMs: (function () { try { var v = localStorage.getItem('tok-radio-selfms'); return v == null ? null : parseInt(v, 10); } catch (e) { return null; } })(),
-    selfConf: null,
-    echoApplied: false,     // auto-apply fires once per fresh measurement
-    // B8.2.1: the EAR BIAS — trim = self − console + bias. The machine's
-    // absolute numbers carry each device's capture-pipeline slop (input
-    // latency + buffer callback), which does NOT cancel across devices
-    // (July 6 field: machine +158, M's ear +111). Any manual stepper or
-    // slider move after an echo lock TEACHES this bias; it persists.
-    echoBias: (function () { try { var v = localStorage.getItem('tok-radio-echobias'); return v == null ? 0 : (parseInt(v, 10) || 0); } catch (e) { return 0; } })(),
-    lastEchoBase: null,     // self − console of the most recent lock
+    // echo lock: measure() recomputes trim fresh each run; the only thing
+    // that persists is the trim itself (via setTrim -> tok-radio-trim).
   };
 
   function sbReady() {
@@ -452,14 +442,13 @@ body{background:linear-gradient(180deg,var(--ground),var(--ground-2));color:var(
   setTrim(S.trimMs);
   els.syncTrim.addEventListener('input', function () {
     setTrim(parseInt(els.syncTrim.value, 10));
-    echoLearn();
   });
   // steppers: the slider is too coarse for thumbs — buttons do the last
   // inch. Press-and-hold repeats (420ms arm, then every 110ms).
   Array.prototype.forEach.call(document.querySelectorAll('#trimSteps button'), function (btn) {
     var step = parseInt(btn.getAttribute('data-step'), 10);
     var armT = null, repT = null;
-    function fire() { setTrim(S.trimMs + step); echoLearn(); }
+    function fire() { setTrim(S.trimMs + step); }
     function up() { clearTimeout(armT); clearInterval(repT); armT = repT = null; }
     btn.addEventListener('pointerdown', function (e) {
       e.preventDefault();
@@ -471,27 +460,24 @@ body{background:linear-gradient(180deg,var(--ground),var(--ground-2));color:var(
     btn.addEventListener('pointerleave', up);
   });
 
-  // ── ECHO LOCK (B8.1) — one capture, two questions; DSP + contract in
-  // bardic-echo.js. Everything lands through setTrim: same clamp, same
-  // persist, same one clean seek.
+  // ── ECHO LOCK (B9) — acoustic auto-trim. One mic capture answers two
+  // questions in the SAME timebase: SELF (this device's own chirp) and
+  // ROOM (the laptop's track heard across the air, correlated against the
+  // track PCM at the shared-clock position, chirp span masked). All DSP
+  // and the sign contract live in bardic-echo.js (BardicEcho.measure);
+  // the trim lands through setTrim — same clamp, persist, one clean seek.
+  // The console self-test / roomLatencyMs / ear-bias machinery is retired
+  // from this page: the phone measures the room directly and M's ear does
+  // the last nudge on the steppers. The host is the timekeeper.
   var echoProposed = null, echoMeterT = null;
-  // manual trim moves after a lock teach the per-device ear bias:
-  // bias = where your ear put it − where the arithmetic put it
-  function echoLearn() {
-    if (S.lastEchoBase == null) return;
-    S.echoBias = S.trimMs - S.lastEchoBase;
-    try { localStorage.setItem('tok-radio-echobias', String(S.echoBias)); } catch (e) {}
-  }
-  function echoTrimFor(base) {
-    return Math.max(-500, Math.min(500, Math.round(base + S.echoBias)));
-  }
+
+  // Duck the local mix during capture — its own copy of the track would
+  // forge a second room peak. MUTED, not volume: iOS ignores programmatic
+  // volume on media elements (July 6 field: an unducked run played the
+  // phone's own copy into its own mic). .muted IS honored.
   function echoDuck(on) {
-    S.echoDucked = !!on;   // applyAnchors respects this — an anchor tick
-                           // mid-capture must not un-duck the channels
-    // MUTED, not volume: iOS IGNORES programmatic volume on media
-    // elements (hardware buttons own it) — the July 6 field runs ducked
-    // nothing, so the phone played its own copy into its own mic.
-    // muted IS honored.
+    S.echoDucked = !!on;   // applyAnchors respects this, so an anchor tick
+                           // mid-capture can't un-duck the channels
     for (var id in S.players) {
       var p = S.players[id];
       if (!p.audio) continue;
@@ -499,35 +485,7 @@ body{background:linear-gradient(180deg,var(--ground),var(--ground-2));color:var(
       else if (p._preMuted != null) { p.audio.muted = p._preMuted; p._preMuted = null; }
     }
   }
-  function echoPanes(listen, ok, fail) {
-    els.echoListen.classList.toggle('on', !!listen);
-    els.echoResult.classList.toggle('on', !!(ok || fail));
-    els.echoOk.style.display = ok ? 'block' : 'none';
-    els.echoFail.classList.toggle('on', !!fail);
-  }
-  function echoShowFail(why) {
-    els.echoFailWhy.textContent = why;
-    echoPanes(false, false, true);
-  }
-  // ── ECHO LOCK B8.2 — self-chirp both sides ─────────────────────────
-  // This device measures ITS OWN speaker→mic round trip (the half that
-  // never failed: 73/74/73ms in feasibility). The console measures its
-  // own the same way and BROADCASTS it in the anchors (roomLatencyMs).
-  //   trim = selfMs − roomLatencyMs
-  // No music required, no ducking, no PCM fetch — so it runs at TUNE-IN
-  // (the tap is the mic-permission gesture too). The acoustic room path
-  // (BardicEcho.measure) stays in the module as a dormant fallback.
-  var echoProposed = null, echoMeterT = null;
-  // manual trim moves after a lock teach the per-device ear bias:
-  // bias = where your ear put it − where the arithmetic put it
-  function echoLearn() {
-    if (S.lastEchoBase == null) return;
-    S.echoBias = S.trimMs - S.lastEchoBase;
-    try { localStorage.setItem('tok-radio-echobias', String(S.echoBias)); } catch (e) {}
-  }
-  function echoTrimFor(base) {
-    return Math.max(-500, Math.min(500, Math.round(base + S.echoBias)));
-  }
+
   function echoPanes(listen, ok, fail) {
     els.echoListen.classList.toggle('on', !!listen);
     els.echoResult.classList.toggle('on', !!(ok || fail));
@@ -535,7 +493,7 @@ body{background:linear-gradient(180deg,var(--ground),var(--ground-2));color:var(
     els.echoFail.classList.toggle('on', !!fail);
     document.getElementById('echoBuild').textContent =
       'echo ' + (window.BardicEcho ? window.BardicEcho.BUILD : 'MISSING') +
-      ' \u00b7 radio B8.2.1';   // stale tabs must be visible
+      ' \u00b7 radio B9';   // stale tabs must be visible
   }
   function echoShowFail(why) {
     els.echoFailWhy.textContent = why;
@@ -547,78 +505,79 @@ body{background:linear-gradient(180deg,var(--ground),var(--ground-2));color:var(
     els.echoMeter.style.transform = 'scaleX(0)';
     var t0 = Date.now();
     echoMeterT = setInterval(function () {
-      els.echoMeter.style.transform = 'scaleX(' + Math.min(0.9, (Date.now() - t0) / 3000) + ')';
+      els.echoMeter.style.transform = 'scaleX(' + Math.min(0.9, (Date.now() - t0) / 4000) + ')';
     }, 150);
   }
-  function echoRenderCard(autoApplied) {
-    var room = (S.anchors && S.anchors.roomLatencyMs != null) ? S.anchors.roomLatencyMs : null;
-    document.getElementById('echoSelf').textContent = (S.selfMs > 0 ? '+' : '') + S.selfMs + 'ms';
-    document.getElementById('echoSelfC').textContent = S.selfConf ? '\u00d7' + S.selfConf.toFixed(1) : '';
-    document.getElementById('echoRoom').textContent = room == null ? '\u2014' : (room > 0 ? '+' : '') + room + 'ms';
-    document.getElementById('echoRoomC').textContent = '';
-    var applyBtn = document.getElementById('echoApply');
-    if (room == null) {
-      // a disabled button must say WHY (July 6: it read as broken)
-      echoProposed = null;
-      S.lastEchoBase = null;
-      applyBtn.disabled = true;
-      applyBtn.textContent = 'Needs console';
-      document.getElementById('echoProp').textContent = '\u2014';
-      document.getElementById('echoWhy').textContent =
-        'console hasn\u2019t calibrated (or its tab is stale \u2014 Engine header should read \u00b7 B8): tap \ud83c\udf99 room latency there, then re-listen';
-    } else {
-      S.lastEchoBase = Math.round(S.selfMs - room);
-      echoProposed = echoTrimFor(S.lastEchoBase);
-      applyBtn.disabled = false;
-      applyBtn.textContent = 'Apply';
-      document.getElementById('echoProp').textContent = (echoProposed > 0 ? '+' : '') + echoProposed + 'ms';
-      document.getElementById('echoWhy').textContent =
-        'device \u2212 console' + (S.echoBias ? ' + ear ' + (S.echoBias > 0 ? '+' : '') + S.echoBias : '') +
-        (autoApplied ? ' \u00b7 applied at tune-in' : ' \u00b7 one clean seek on apply');
+
+  // the channels currently on the air, shaped the way measure() wants them
+  function echoChannels() {
+    var out = [];
+    if (!S.anchors || !S.anchors.channels) return out;
+    for (var chId in S.anchors.channels) {
+      var a = S.anchors.channels[chId];
+      if (a.paused || !a.url) continue;
+      out.push({ chId: chId, title: a.label || chId, url: a.url,
+                 anchor: { pos: a.pos, at: S.anchors.at, paused: a.paused } });
     }
+    return out;
+  }
+
+  function echoRenderCard(res) {
+    echoProposed = res.trimMs;
+    document.getElementById('echoRoom').textContent = (res.roomMs > 0 ? '+' : '') + res.roomMs + 'ms';
+    document.getElementById('echoRoomC').textContent = res.roomConf ? '\u00d7' + res.roomConf.toFixed(1) : '';
+    document.getElementById('echoSelf').textContent = (res.selfMs > 0 ? '+' : '') + res.selfMs + 'ms';
+    document.getElementById('echoSelfC').textContent = res.selfConf ? '\u00d7' + res.selfConf.toFixed(1) : '';
+    document.getElementById('echoProp').textContent = (res.trimMs > 0 ? '+' : '') + res.trimMs + 'ms';
+    document.getElementById('echoWhy').textContent =
+      'device \u2212 room' + (res.channelTitle ? ' \u00b7 ' + res.channelTitle : '') +
+      ' \u00b7 one clean seek on apply';
+    var applyBtn = document.getElementById('echoApply');
+    applyBtn.disabled = false;
+    applyBtn.textContent = 'Apply';
     echoPanes(false, true, false);
   }
-  // combine when both halves exist; auto-apply exactly once per tune-in
-  function echoCombine() {
-    if (S.selfMs == null || S.echoApplied) return;
-    if (!S.anchors || S.anchors.roomLatencyMs == null) return;
-    S.echoApplied = true;
-    S.lastEchoBase = Math.round(S.selfMs - S.anchors.roomLatencyMs);
-    setTrim(echoTrimFor(S.lastEchoBase));
-    echoRenderCard(true);
-  }
-  function echoRun(auto) {
-    if (!window.BardicEcho || !window.BardicEcho.selfTest) {
-      echoShowFail('bardic-echo.js (E4+) not loaded \u2014 hard-refresh this page'); return;
+
+  // measure against the room. User-triggered (button/re-listen) — the tap
+  // is the mic + AudioContext gesture, and by now a channel is audibly
+  // playing, which the acoustic pass needs (unlike the old self-test, this
+  // can't run at the silent tune-in tap).
+  function echoRun() {
+    if (!window.BardicEcho || !window.BardicEcho.measure) {
+      echoShowFail('bardic-echo.js not loaded \u2014 hard-refresh this page'); return;
+    }
+    var chans = echoChannels();
+    if (!chans.length) {
+      echoShowFail('nothing playing \u2014 tune in and let a channel start before locking'); return;
     }
     els.echoBtn.disabled = true;
     echoPanes(true, false, false);
-    els.echoStage.textContent = auto ? 'echo lock \u00b7 measuring this device' : 'measuring this device';
+    els.echoStage.textContent = 'listening to the room\u2026';
     echoMeterRun(true);
-    window.BardicEcho.selfTest({
+    window.BardicEcho.measure({
+      channels: chans,
+      positionAt: R.positionAt,
+      clockNow: function () { return C.now(); },
+      duck: echoDuck,
       onStage: function (t) { els.echoStage.textContent = t; }
     }).then(function (res) {
       echoMeterRun(false);
       els.echoBtn.disabled = false;
-      if (!res.ok) { echoShowFail(res.detail); return; }
-      S.selfMs = res.selfMs;
-      S.selfConf = res.conf;
-      S.echoApplied = false;               // fresh measurement re-arms apply
-      try { localStorage.setItem('tok-radio-selfms', String(res.selfMs)); } catch (e) {}
-      if (S.anchors && S.anchors.roomLatencyMs != null) { echoCombine(); }
-      else { echoRenderCard(false); }      // shows the console-hasn\u2019t-calibrated path
+      if (!res.ok) { echoShowFail(res.detail || res.reason); return; }
+      echoRenderCard(res);
     }).catch(function (e) {
-      // failures must narrate — surface the raw error where M can see it
       echoMeterRun(false);
       els.echoBtn.disabled = false;
+      echoDuck(false);   // never leave the room muted on a hard error
       echoShowFail((e && e.message) ? e.message : String(e));
     });
   }
-  els.echoBtn.addEventListener('click', function () { echoRun(false); });
-  document.getElementById('echoRetry').addEventListener('click', function () { echoRun(false); });
-  document.getElementById('echoFailRetry').addEventListener('click', function () { echoRun(false); });
+
+  els.echoBtn.addEventListener('click', echoRun);
+  document.getElementById('echoRetry').addEventListener('click', echoRun);
+  document.getElementById('echoFailRetry').addEventListener('click', echoRun);
   document.getElementById('echoApply').addEventListener('click', function () {
-    if (echoProposed !== null) { setTrim(echoProposed); S.echoApplied = true; }
+    if (echoProposed !== null) setTrim(echoProposed);
     echoPanes(false, false, false);
   });
   document.getElementById('echoDismiss').addEventListener('click', function () { echoPanes(false, false, false); });
@@ -629,10 +588,8 @@ body{background:linear-gradient(180deg,var(--ground),var(--ground-2));color:var(
     els.tune.textContent = 'Tuning\u2026';
     // the tap is the gesture browsers demand — everything cascades from it,
     // INCLUDING the element pool: all future channels are blessed here —
-    // and (B8.2) the mic permission + echo self-test: static resolving
-    // into the station.
+    // (echo lock is user-triggered from its button once music is flowing.)
     primePool();
-    echoRun(true);
     Promise.all([C.sync(), sbReady()]).then(function (r) {
       var got = r[1];
       var key = 'l-' + ((got.me && got.me.id) || Math.random().toString(36).slice(2, 8)) + '-' + Math.random().toString(36).slice(2, 6);
@@ -648,7 +605,6 @@ body{background:linear-gradient(180deg,var(--ground),var(--ground-2));color:var(
           S.lastAnchorsAt = Date.now();
           setOnAirUi(true);
           applyAnchors();
-          echoCombine();   // console's roomLatencyMs may just have arrived
         },
         onEngine: function (on) { if (!on) setOnAirUi(false); },
         onReconnect: function () { S.listener && S.listener.requestSync(); },
