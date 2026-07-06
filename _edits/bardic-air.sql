@@ -29,3 +29,15 @@ drop policy if exists bardic_air_read  on public.bardic_air;
 drop policy if exists bardic_air_write on public.bardic_air;
 create policy bardic_air_read  on public.bardic_air for select to authenticated using (true);
 create policy bardic_air_write on public.bardic_air for update to authenticated using (true) with check (id = 1);
+
+-- POLICIES ARE NOT PRIVILEGES (July 5, "heartbeat unreachable" after the
+-- SQL ran twice): if the project's default privileges don't cover new
+-- tables, authenticated has no table-level rights at all and every
+-- request fails before RLS is even consulted. Grant explicitly —
+-- idempotent, harmless where defaults already covered it.
+grant select, update on public.bardic_air to authenticated;
+grant select on public.bardic_air to anon;
+
+-- and make PostgREST notice the new table immediately rather than on its
+-- own schedule (the schema cache can lag DDL)
+notify pgrst, 'reload schema';

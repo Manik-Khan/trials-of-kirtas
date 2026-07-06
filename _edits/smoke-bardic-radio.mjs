@@ -261,13 +261,21 @@ const sqlSrc = readFileSync('_edits/bardic-air.sql', 'utf8')
 t('heartbeat SQL: singleton row, RLS read+write for members',
   sqlSrc.includes('id             int primary key default 1 check (id = 1)')
   && sqlSrc.includes('create policy bardic_air_read') && sqlSrc.includes('create policy bardic_air_write'))
+t('heartbeat SQL: explicit grants (policies are not privileges) + schema reload',
+  sqlSrc.includes('grant select, update on public.bardic_air to authenticated;')
+  && sqlSrc.includes("notify pgrst, 'reload schema';"))
+t('rail poll uses maybeSingle and surfaces the RAW error text on screen',
+  tabSrc.includes(".maybeSingle()") && tabSrc.includes("msg: String(res.error.message || '').slice(0, 120)")
+  && tabSrc.includes('heartbeat error: \\u201c'))
+t('missing row is its own diagnosis, not lumped into unreachable',
+  tabSrc.includes('its singleton row is missing'))
 t('snapshots carry the build tag (stale console tabs become visible)',
   appSrc.includes("const BARDIC_BUILD = 'B6';") && appSrc.includes("build: BARDIC_BUILD,"))
 t('heartbeat failures are LOUD on both ends (no more silent field mysteries)',
   appSrc.includes("console.warn('[bardic] heartbeat write failed (did bardic-air.sql run?)")
-  && tabSrc.includes("console.warn('[bardic-tab] heartbeat read failed (did bardic-air.sql run?)"))
-t('rail narrates heartbeat diagnostics: unreachable, stale-flag, or ok',
-  tabSrc.includes('heartbeat unreachable \\u2014 has bardic-air.sql been run?')
+  && tabSrc.includes("console.warn('[bardic-tab] heartbeat read failed:', res.error.message);"))
+t('rail narrates heartbeat diagnostics: named error, stale-flag, or ok',
+  tabSrc.includes('the grants block in bardic-air.sql needs to run')
   && tabSrc.includes('the console tab is probably running pre-deploy code; refresh it.'))
 t('engine header shows the build; pre-B6 tabs self-identify',
   tabSrc.includes("pre-B6 \\u2014 refresh the console tab"))

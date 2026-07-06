@@ -353,8 +353,12 @@
     } else {
       R.rhead.querySelector('.r').textContent = 'off air';
       var diag;
-      if (S.airRow.state === 'error' || S.airRow.state === 'missing') {
-        diag = ' <span style="color:rgba(224,88,74,1)">heartbeat unreachable \u2014 has bardic-air.sql been run?</span>';
+      if (S.airRow.state === 'error') {
+        diag = ' <span style="color:rgba(224,88,74,1)">heartbeat error: \u201c' + esc(S.airRow.msg || 'unknown') + '\u201d'
+          + ' \u2014 if this says permission denied, the grants block in bardic-air.sql needs to run;'
+          + ' if it says the relation doesn\u2019t exist, PostgREST\u2019s schema cache hasn\u2019t reloaded.</span>';
+      } else if (S.airRow.state === 'missing') {
+        diag = ' <span style="color:rgba(224,88,74,1)">the bardic_air table answers but its singleton row is missing \u2014 re-run the insert from bardic-air.sql.</span>';
       } else if (S.airRow.state === 'ok' && S.airRow.onFlag && S.airRow.ageS > 30) {
         diag = ' <span style="color:rgba(224,88,74,1)">a broadcast flag exists but its heartbeat is ' + S.airRow.ageS
           + 's old \u2014 the console tab is probably running pre-deploy code; refresh it.</span>';
@@ -516,11 +520,13 @@
   function pollAir() {
     var sb = window.__tok && window.__tok.sb;
     if (!sb || document.hidden) return;
-    sb.from('bardic_air').select('on_air,engine_name,listener_count,updated_at').eq('id', 1).single()
+    // maybeSingle: a missing ROW is a distinct diagnosis from a denied
+    // TABLE — .single() blurred them into one 'unreachable' (July 5)
+    sb.from('bardic_air').select('on_air,engine_name,listener_count,updated_at').eq('id', 1).maybeSingle()
       .then(function (res) {
         if (res && res.error) {
-          if (S.airRow.state !== 'error') console.warn('[bardic-tab] heartbeat read failed (did bardic-air.sql run?):', res.error.message);
-          S.airRow = { state: 'error', ageS: null };
+          if (S.airRow.state !== 'error') console.warn('[bardic-tab] heartbeat read failed:', res.error.message);
+          S.airRow = { state: 'error', ageS: null, msg: String(res.error.message || '').slice(0, 120) };
           paintAll();
           return;
         }
@@ -537,7 +543,7 @@
         paintAll();
       }, function (e) {
         if (S.airRow.state !== 'error') console.warn('[bardic-tab] heartbeat read failed:', e);
-        S.airRow = { state: 'error', ageS: null };
+        S.airRow = { state: 'error', ageS: null, msg: String((e && e.message) || e || '').slice(0, 120) };
         paintAll();
       });
   }
