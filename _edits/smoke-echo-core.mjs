@@ -9,7 +9,7 @@ const ok=(c,m)=>{ c?(pass++,console.log(' ✓',m)):(fail++,console.log(' ✗',m)
 global.window = {};
 eval(fs.readFileSync('/home/claude/bardic-echo.js','utf8'));
 const E = global.window.BardicEcho;
-ok(!!E && E.BUILD==='E3', 'module loads, BUILD E3');
+ok(!!E && E.BUILD==='E4', 'module loads, BUILD E4');
 const { makeChirp, envelope, xcorr, trimFrom, PAD_S, CAP_S } = E;
 
 const gaps = E.BURSTS_MS.slice(1).map((v,i)=>v-E.BURSTS_MS[i]);
@@ -82,7 +82,7 @@ for (const [L, Eroom, want] of [[200,120,80],[60,140,-80],[180,-90,270],[650,20,
 
 // integration points in radio.html
 const html = fs.readFileSync('/home/claude/radio.html','utf8');
-ok(/<script src="bardic-echo\.js"><\/script>/.test(html), 'radio.html loads bardic-echo.js');
+ok(/<script src="bardic-echo\.js\?v=E4"><\/script>/.test(html), 'radio.html loads bardic-echo.js, cache-stamped E4');
 ok(/if \(!S\.echoDucked\) p\.audio\.volume/.test(html), 'anchor-tick volume write respects the duck');
 ok(/S\.echoDucked = !!on/.test(html), 'duck sets the guard flag');
 ok(/setTrim\(echoProposed\)/.test(html), 'apply funnels through setTrim');
@@ -108,7 +108,7 @@ ok(/echoShowFail\(\(e && e\.message\)/.test(html), 'hard errors narrate raw text
 // B8.1.2 additions: summarize taxonomy
 {
   const S = E.summarize;
-  ok(E.BUILD==='E3', 'BUILD bumped to E3');
+  ok(E.BUILD==='E4' && typeof E.selfTest==='function', 'BUILD E4 with selfTest exported');
   ok(S([{kind:'fetch',msg:'Tavern: Failed to fetch'}]).reason==='pcm', 'all-fetch → pcm');
   ok(S([{kind:'fetch',msg:'a'},{kind:'weak',msg:'b'}]).reason==='pcm', 'fetch present → pcm (most actionable)');
   ok(S([{kind:'weak',msg:'a'},{kind:'edge',msg:'b'}]).reason==='weak', 'weak beats edge');

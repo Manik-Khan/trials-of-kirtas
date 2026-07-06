@@ -98,6 +98,49 @@ function proxyAudioUrl(url) {
 // ============================================================
 // App
 // ============================================================
+
+// ── B8.2: room-latency calibration chip ──────────────────────────────
+// One tap runs BardicEcho.selfTest on THIS device (the console = the
+// room's voice). The number rides every anchor; listeners subtract it.
+// The click here is the mic-permission gesture for the engine tab.
+function RoomLatencyChip({ value, onMeasured }) {
+  const [busy, setBusy] = useState(false);
+  const [err, setErr] = useState(null);
+  const run = () => {
+    if (busy) return;
+    if (!window.BardicEcho || !window.BardicEcho.selfTest) {
+      setErr('bardic-echo.js (E4+) not loaded'); return;
+    }
+    setBusy(true); setErr(null);
+    window.BardicEcho.selfTest({}).then(res => {
+      setBusy(false);
+      if (!res.ok) { setErr(res.detail); return; }
+      try { localStorage.setItem('tok-bardic-roomlat', String(res.selfMs)); } catch (e) {}
+      onMeasured(res.selfMs);
+    }).catch(e => {
+      // failures must narrate
+      setBusy(false);
+      setErr((e && e.message) ? e.message : String(e));
+    });
+  };
+  return (
+    <div style={{ position: 'fixed', left: 14, bottom: 14, zIndex: 60, maxWidth: 300 }}>
+      <button onClick={run} title="Measure this device's output latency — listeners auto-trim against it"
+        style={{ fontFamily: 'Oswald, sans-serif', fontSize: 11, letterSpacing: '.14em',
+                 textTransform: 'uppercase', padding: '9px 14px', cursor: 'pointer',
+                 background: 'rgba(12,22,20,.85)', color: value == null ? '#9aa89f' : '#c9a34a',
+                 border: '1px solid ' + (value == null ? '#2a3b38' : '#5a4b28') }}>
+        {busy ? '\ud83c\udf99 listening\u2026'
+              : value == null ? '\ud83c\udf99 room latency \u2014 tap to measure'
+              : '\ud83c\udf99 room ' + (value > 0 ? '+' : '') + value + 'ms'}
+      </button>
+      {err && <div style={{ marginTop: 6, fontSize: 12, lineHeight: 1.4, color: '#b8442c',
+                            background: 'rgba(12,22,20,.9)', padding: '6px 8px',
+                            border: '1px solid #2a3b38' }}>{err}</div>}
+    </div>
+  );
+}
+
 function App() {
   const [t, setTweak] = useTweaks(TWEAK_DEFAULTS);
 
@@ -542,6 +585,15 @@ function App() {
   // clock + transport; this block owns WHAT to anchor (it can reach
   // enginesRef). Sonus/YT channels are omitted — can't hold clock lock.
   const [onAir, setOnAir] = useState(false);
+  // B8.2 echo lock: THIS device's measured output latency — the number
+  // every listener subtracts (trim = theirSelf − ours). Measured by the
+  // same selfTest the phones run; persisted; broadcast in every anchor.
+  const [roomLat, setRoomLat] = useState(() => {
+    try { const v = localStorage.getItem('tok-bardic-roomlat'); return v == null ? null : parseInt(v, 10); }
+    catch (e) { return null; }
+  });
+  const roomLatRef = useRef(roomLat);
+  useEffect(() => { roomLatRef.current = roomLat; }, [roomLat]);
   const [radioListeners, setRadioListeners] = useState([]);
   const [airBlockedBy, setAirBlockedBy] = useState(null);  // another console holds the air
   const radioRef = useRef(null);
@@ -581,7 +633,7 @@ function App() {
         loop: (s.mode || 'loop') === 'loop',
       };
     });
-    return { at, engineId: engineIdRef.current, channels };
+    return { at, engineId: engineIdRef.current, channels, roomLatencyMs: roomLatRef.current };
   }, []);
 
   // the heartbeat row: sockets freeze on iOS, rows don't. The rail on
@@ -641,7 +693,7 @@ function App() {
   // on the room's devices within one anchor
   useEffect(() => {
     if (onAir) radioRef.current?.sendAnchors(buildAnchors());
-  }, [chStates, radioMask, onAir, buildAnchors]);
+  }, [chStates, radioMask, onAir, roomLat, buildAnchors]);
 
   // ============================================================
   // BARDIC BUS — engine adapter (increment 1, July 5)
@@ -658,7 +710,7 @@ function App() {
   // refreshes it (July 5 — the heartbeat "didn't work" because the engine
   // tab predated the heartbeat). The rail shows this tag; a missing or
   // old tag means "refresh the console tab."
-  const BARDIC_BUILD = 'B6';
+  const BARDIC_BUILD = 'B8';
 
   // latest callbacks without re-subscribing (the toggleGlobalPauseRef pattern)
   const busVerbsRef = useRef({});
@@ -1271,6 +1323,8 @@ function App() {
       </TweaksPanel>
       {/* GLOBAL PAUSE — mobile floating button */}
       <GlobalPauseButton anyPlaying={anyPlaying} onToggle={toggleGlobalPause}/>
+      {/* B8.2: echo-lock room calibration */}
+      <RoomLatencyChip value={roomLat} onMeasured={setRoomLat}/>
 
     </div>
   );

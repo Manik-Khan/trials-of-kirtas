@@ -18,6 +18,14 @@
 //
 // PROTOCOL v1 — every envelope: { v:1, from:<role>, t:<type>, ... }
 //
+// RADIO ANCHORS SIDE-CONTRACT (B8.2, July 6) — the engine's radio
+// anchors payload (Realtime event 'anchors') carries, beside
+// {at, engineId, channels}:
+//   roomLatencyMs : number|null — the ENGINE device's own measured
+//     output latency (BardicEcho.selfTest via the console's 🎙 chip).
+//     Listeners compute sync trim = theirOwnSelfMs − roomLatencyMs.
+//     null = console never calibrated; listeners keep persisted trim.
+//
 //   remote → engine (verbs; engine maps them onto its callbacks):
 //     { t:'hello' }                     announce; engine replies with state
 //     { t:'cast',   moodId, chId }      cast a mood onto a channel

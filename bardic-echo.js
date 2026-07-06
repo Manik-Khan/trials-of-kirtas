@@ -170,12 +170,12 @@
     return out;
   }
 
-  function capture(ctx, stream, onChirpScheduled) {
+  function capture(ctx, stream, onChirpScheduled, capSeconds) {
     return new Promise(function (resolve, reject) {
       var sr = ctx.sampleRate;
       var src = ctx.createMediaStreamSource(stream);
       var proc = ctx.createScriptProcessor(4096, 1, 1);
-      var chunks = [], captured = 0, capTarget = Math.round(CAP_S * sr);
+      var chunks = [], captured = 0, capTarget = Math.round((capSeconds || CAP_S) * sr);
       var started = false, cap0 = null;
       var guard = setTimeout(function () {
         try { proc.disconnect(); src.disconnect(); } catch (e) {}
@@ -325,11 +325,47 @@
     return { reason: 'edge', detail: msgs };
   }
 
+  // ── selfTest (B8.2 — THE primary path) ─────────────────────────────
+  // The half that never failed: this device's own speaker→mic round trip
+  // (feasibility: 73/74/73ms, peak 0.99). No music required, no ducking,
+  // no PCM fetch — it runs standalone at tune-in. Trim math is then
+  // trim = selfMs − anchors.roomLatencyMs, where the CONSOLE measures
+  // and broadcasts ITS OWN selfTest number (see bardic-bus.js header).
+  // The acoustic room path (measure) stays below as a dormant fallback.
+  var SELF_CAP_S = 2.4;   // 0.35 lead + 1.45 chirp + tail
+  function selfTest(opts) {
+    opts = opts || {};
+    var stageEC = '';
+    var onStage = function (t) { stageEC = t; if (opts.onStage) opts.onStage(t); };
+    var ctxRef = null;
+    return getCtx().then(function (ctx) {
+      ctxRef = ctx;
+      return getMic(onStage);
+    }).then(function (stream) {
+      onStage('listening\u2026');
+      return capture(ctxRef, stream, { clockNow: function () { return Date.now(); } }, SELF_CAP_S);
+    }).then(function (cap) {
+      var capEnv = envelope(cap.rec, cap.sr);
+      var chirpEnv = envelope(makeChirp(cap.sr), cap.sr);
+      var sched = Math.round(cap.cap0.chirpSchedMs);
+      var c = xcorr(chirpEnv, capEnv, Math.max(0, sched - 200), sched + 900);
+      if (c.peak < 0.25 || c.confidence < 1.6) {
+        return { ok: false, reason: 'chirp',
+          detail: 'own chirp not heard (peak ' + c.peak.toFixed(2) + ', conf \u00d7' +
+                  c.confidence.toFixed(1) + ') \u2014 volume down, or mic blocked/covered' };
+      }
+      var t = trimFrom({ chirpLagMs: c.lag, chirpSchedMs: cap.cap0.chirpSchedMs, roomLagMs: Math.round(PAD_S * 1000) });
+      return { ok: true, selfMs: t.selfMs, peak: c.peak, conf: c.confidence,
+               echoCancellation: stageEC };
+    });
+  }
+
   window.BardicEcho = {
-    BUILD: 'E3',
+    BUILD: 'E4',
     BURSTS_MS: BURSTS_MS, PAD_S: PAD_S, CAP_S: CAP_S, CHIRP_AT_S: CHIRP_AT_S,
     makeChirp: makeChirp, envelope: envelope, xcorr: xcorr, trimFrom: trimFrom,
     summarize: summarize,
+    selfTest: selfTest,
     measure: measure
   };
 })();
