@@ -123,8 +123,8 @@ body{background:linear-gradient(180deg,var(--ground),var(--ground-2));color:var(
     </div>
     <div class="rd-echoresult" id="echoResult">
       <div id="echoOk" style="display:none">
-        <div class="meas"><span>Room measured</span><span><span class="v" id="echoRoom"></span><span class="c" id="echoRoomC"></span></span></div>
-        <div class="meas"><span>This device</span><span><span class="v" id="echoSelf"></span><span class="c" id="echoSelfC"></span></span></div>
+        <div class="meas" id="echoRoomRow" style="display:none"><span>Room</span><span><span class="v" id="echoRoom"></span><span class="c" id="echoRoomC"></span></span></div>
+        <div class="meas"><span>Round trip</span><span><span class="v" id="echoSelf"></span><span class="c" id="echoSelfC"></span></span></div>
         <div class="rd-echoprop">
           <div>set trim to <span class="big" id="echoProp"></span></div>
           <div class="why" id="echoWhy">device &minus; room &middot; one clean seek on apply</div>
@@ -149,7 +149,7 @@ body{background:linear-gradient(180deg,var(--ground),var(--ground-2));color:var(
 <p class="rd-note">Keep this page open and the screen awake — the DM's console drives everything from here.</p>
 
 <script src="bardic-radio.js"></script>
-<script src="bardic-echo.js?v=E6"></script>
+<script src="bardic-echo.js?v=E7"></script>
 <script>
 (function () {
   'use strict';
@@ -460,19 +460,19 @@ body{background:linear-gradient(180deg,var(--ground),var(--ground-2));color:var(
     btn.addEventListener('pointerleave', up);
   });
 
-  // ── ECHO LOCK (B9) — acoustic auto-trim. One mic capture answers two
-  // questions in the SAME timebase: SELF (this device's own chirp) and
-  // ROOM (the laptop's track heard across the air, correlated against the
-  // track PCM at the shared-clock position, chirp span masked). All DSP
-  // and the sign contract live in bardic-echo.js (BardicEcho.measure);
-  // the trim lands through setTrim — same clamp, persist, one clean seek.
-  // The console self-test / roomLatencyMs / ear-bias machinery is retired
-  // from this page: the phone measures the room directly and M's ear does
-  // the last nudge on the steppers. The host is the timekeeper.
+  // ── ECHO LOCK (B10) — output round-trip auto-trim. This device plays a
+  // known irregular pattern through its own speaker and times how long it
+  // takes back to its own mic (BardicEcho.roundTrip). Correlated against
+  // OUR pattern — one sharp peak — never against the playing track (music
+  // cross-correlates ambiguously: that was B9's "no clean lock" and the
+  // clamped-to-500 misfires). The lag lands through setTrim as a positive
+  // trim (device output is late -> play earlier); M's ear does the last
+  // nudge on the steppers. The retired B8/B9 console/room/bias machinery
+  // stays dormant in bardic-echo.js (measure/selfTest) for now.
   var echoProposed = null, echoMeterT = null;
 
-  // Duck the local mix during capture — its own copy of the track would
-  // forge a second room peak. MUTED, not volume: iOS ignores programmatic
+  // Duck this device's own track during the measurement so it isn't
+  // fighting the pattern. MUTED, not volume: iOS ignores programmatic
   // volume on media elements (July 6 field: an unducked run played the
   // phone's own copy into its own mic). .muted IS honored.
   function echoDuck(on) {
@@ -493,7 +493,7 @@ body{background:linear-gradient(180deg,var(--ground),var(--ground-2));color:var(
     els.echoFail.classList.toggle('on', !!fail);
     document.getElementById('echoBuild').textContent =
       'echo ' + (window.BardicEcho ? window.BardicEcho.BUILD : 'MISSING') +
-      ' \u00b7 radio B9';   // stale tabs must be visible
+      ' \u00b7 radio B10';   // stale tabs must be visible
   }
   function echoShowFail(why) {
     els.echoFailWhy.textContent = why;
@@ -509,55 +509,35 @@ body{background:linear-gradient(180deg,var(--ground),var(--ground-2));color:var(
     }, 150);
   }
 
-  // the channels currently on the air, shaped the way measure() wants them
-  function echoChannels() {
-    var out = [];
-    if (!S.anchors || !S.anchors.channels) return out;
-    for (var chId in S.anchors.channels) {
-      var a = S.anchors.channels[chId];
-      if (a.paused || !a.url) continue;
-      out.push({ chId: chId, title: a.label || chId, url: a.url,
-                 anchor: { pos: a.pos, at: S.anchors.at, paused: a.paused } });
-    }
-    return out;
-  }
 
   function echoRenderCard(res) {
-    echoProposed = res.trimMs;
-    document.getElementById('echoRoom').textContent = (res.roomMs > 0 ? '+' : '') + res.roomMs + 'ms';
-    document.getElementById('echoRoomC').textContent = res.roomConf ? '\u00d7' + res.roomConf.toFixed(1) : '';
-    document.getElementById('echoSelf').textContent = (res.selfMs > 0 ? '+' : '') + res.selfMs + 'ms';
-    document.getElementById('echoSelfC').textContent = res.selfConf ? '\u00d7' + res.selfConf.toFixed(1) : '';
-    document.getElementById('echoProp').textContent = (res.trimMs > 0 ? '+' : '') + res.trimMs + 'ms';
+    echoProposed = res.lag;   // device output is LATE by its round trip ->
+                              // play earlier -> positive trim
+    document.getElementById('echoRoomRow').style.display = 'none';
+    document.getElementById('echoSelf').textContent = res.lag + 'ms';
+    document.getElementById('echoSelfC').textContent =
+      res.confidence ? 'peak ' + res.peak.toFixed(2) + ' \u00b7 \u00d7' + res.confidence.toFixed(1) : '';
+    document.getElementById('echoProp').textContent = (res.lag > 0 ? '+' : '') + res.lag + 'ms';
     document.getElementById('echoWhy').textContent =
-      'device \u2212 room' + (res.channelTitle ? ' \u00b7 ' + res.channelTitle : '') +
-      ' \u00b7 one clean seek on apply';
+      'this device\u2019s output round trip \u00b7 apply, then nudge by ear';
     var applyBtn = document.getElementById('echoApply');
     applyBtn.disabled = false;
     applyBtn.textContent = 'Apply';
     echoPanes(false, true, false);
   }
 
-  // measure against the room. User-triggered (button/re-listen) — the tap
-  // is the mic + AudioContext gesture, and by now a channel is audibly
-  // playing, which the acoustic pass needs (unlike the old self-test, this
-  // can't run at the silent tune-in tap).
+  // measure THIS DEVICE's output round trip (the proven mock path).
+  // User-triggered — the tap is the mic + AudioContext gesture. Works with
+  // or without a track playing; the trim it lands applies to whatever's on.
   function echoRun() {
-    if (!window.BardicEcho || !window.BardicEcho.measure) {
+    if (!window.BardicEcho || !window.BardicEcho.roundTrip) {
       echoShowFail('bardic-echo.js not loaded \u2014 hard-refresh this page'); return;
-    }
-    var chans = echoChannels();
-    if (!chans.length) {
-      echoShowFail('nothing playing \u2014 tune in and let a channel start before locking'); return;
     }
     els.echoBtn.disabled = true;
     echoPanes(true, false, false);
-    els.echoStage.textContent = 'listening to the room\u2026';
+    els.echoStage.textContent = 'measuring this device\u2026';
     echoMeterRun(true);
-    window.BardicEcho.measure({
-      channels: chans,
-      positionAt: R.positionAt,
-      clockNow: function () { return C.now(); },
+    window.BardicEcho.roundTrip({
       duck: echoDuck,
       onStage: function (t) { els.echoStage.textContent = t; }
     }).then(function (res) {
@@ -568,7 +548,7 @@ body{background:linear-gradient(180deg,var(--ground),var(--ground-2));color:var(
     }).catch(function (e) {
       echoMeterRun(false);
       els.echoBtn.disabled = false;
-      echoDuck(false);   // never leave the room muted on a hard error
+      echoDuck(false);
       echoShowFail((e && e.message) ? e.message : String(e));
     });
   }
