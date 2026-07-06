@@ -1,0 +1,206 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">
+<title>mock — echo lock flow (auto-trim in radio.html)</title>
+<style>
+  :root{ --bg:#131a19; --panel:#182826; --line:#2a3b38; --ink:#e8e2d4;
+    --dim:#9aa89f; --gold:#c9a34a; --ember:#b8442c; --ok:#7fae7a; --teal:#55c4c0; }
+  *{box-sizing:border-box; -webkit-tap-highlight-color:transparent}
+  html,body{margin:0; background:var(--bg); color:var(--ink); font-family:'EB Garamond',Georgia,serif}
+  body{max-width:420px; margin:0 auto; padding:18px 16px 60px}
+  h1{font-family:Oswald,system-ui,sans-serif; font-weight:500; font-size:13px; letter-spacing:.18em;
+     text-transform:uppercase; color:var(--dim); margin:0 0 4px}
+  .note{font-size:13px; color:var(--dim); line-height:1.45; margin:0 0 16px}
+  .panel{background:var(--panel); border:1px solid var(--line); padding:14px}
+
+  .trim-label{font-family:Oswald,sans-serif; font-size:11px; letter-spacing:.16em;
+    text-transform:uppercase; color:var(--dim); display:flex; justify-content:space-between; align-items:baseline}
+  .trim-val{font-family:Oswald,sans-serif; font-size:26px; color:var(--gold); font-variant-numeric:tabular-nums}
+  .trim-val small{font-size:12px; color:var(--dim)}
+  input[type=range]{width:100%; margin:14px 0 10px; accent-color:var(--gold); height:28px}
+  .steppers{display:grid; grid-template-columns:repeat(4,1fr); gap:8px}
+  .steppers button{font-family:Oswald,sans-serif; font-size:15px; background:#111917; color:var(--ink);
+    border:1px solid var(--line); padding:12px 0; cursor:pointer; touch-action:manipulation;
+    user-select:none; -webkit-user-select:none}
+  .steppers button:active{border-color:var(--gold)}
+
+  #autoBtn{display:block; width:100%; margin-top:12px; padding:14px 0; background:transparent;
+    border:1px solid #5a4b28; color:var(--gold); font-family:Oswald,sans-serif; font-size:12px;
+    letter-spacing:.22em; text-transform:uppercase; cursor:pointer; touch-action:manipulation}
+  #autoBtn:disabled{opacity:.45}
+
+  /* listening state */
+  #listenRow{display:none; margin-top:12px; border-top:1px solid var(--line); padding-top:12px}
+  #listenRow.on{display:block}
+  .lis{display:flex; align-items:center; gap:10px; font-family:Oswald,sans-serif; font-size:10px;
+    letter-spacing:.18em; text-transform:uppercase; color:var(--teal)}
+  .lis .d{width:8px;height:8px;border-radius:50%;background:var(--teal);animation:pulse 1.1s infinite}
+  @keyframes pulse{50%{opacity:.25}}
+  #meter{height:3px; background:#101816; margin-top:10px; position:relative; overflow:hidden}
+  #meter i{position:absolute; inset:0; background:var(--teal); transform-origin:left; transform:scaleX(0);
+    transition:transform .2s linear}
+  .lis-hint{font-size:12.5px; color:var(--dim); font-style:italic; margin-top:8px}
+
+  /* result card */
+  #result{display:none; margin-top:12px; border-top:1px solid var(--line); padding-top:12px}
+  #result.on{display:block}
+  .meas{display:flex; justify-content:space-between; font-size:14px; padding:3px 0}
+  .meas .v{font-family:Oswald,sans-serif; color:var(--ink); font-variant-numeric:tabular-nums}
+  .meas .c{color:var(--dim); font-size:11.5px; margin-left:8px}
+  .prop{margin-top:10px; padding:10px; border:1px solid #5a4b28; text-align:center}
+  .prop .big{font-family:Oswald,sans-serif; font-size:24px; color:var(--gold)}
+  .prop .why{font-size:12px; color:var(--dim); margin-top:2px}
+  #resBtns{display:flex; gap:8px; margin-top:10px}
+  #resBtns button{flex:1; font-family:Oswald,sans-serif; font-size:11px; letter-spacing:.16em;
+    text-transform:uppercase; padding:12px 0; border:1px solid var(--line); background:#111917;
+    color:var(--dim); cursor:pointer; touch-action:manipulation}
+  #resBtns button.primary{color:var(--gold); border-color:#5a4b28}
+  #fail{display:none; font-size:13.5px; line-height:1.5; color:var(--ink)}
+  #fail.on{display:block}
+  #fail b{color:var(--ember)}
+
+  .simrow{margin-top:16px; display:flex; gap:8px; align-items:center;
+    font-family:Oswald,sans-serif; font-size:9px; letter-spacing:.18em; text-transform:uppercase; color:#6d7a74}
+  .simrow button{font-family:inherit; font-size:inherit; letter-spacing:inherit; text-transform:inherit;
+    background:#101816; border:1px solid var(--line); color:var(--dim); padding:6px 10px; cursor:pointer}
+  .simrow button.sel{color:var(--teal); border-color:var(--teal)}
+</style>
+<link href="https://fonts.googleapis.com/css2?family=Oswald:wght@400;500&family=EB+Garamond:ital@0;1&display=swap" rel="stylesheet">
+</head>
+<body>
+  <h1>Radio · Auto-Trim — flow mock</h1>
+  <p class="note">The echo-lock button living where it will live: under the trim controls.
+  Measurement is simulated here (numbers are plausible fakes) — this mock is about the <i>flow</i>:
+  listening state, the two measurements, the proposed trim, apply. Toggle the simulator at the
+  bottom to preview the smooth-track failure.</p>
+
+  <div class="panel">
+    <div class="trim-label"><span>Sync trim</span><span class="trim-val" id="trimVal">+0 <small>ms</small></span></div>
+    <input type="range" id="trimSlider" min="-500" max="500" step="5" value="0">
+    <div class="steppers">
+      <button data-step="-25">−25</button><button data-step="-5">−5</button>
+      <button data-step="5">+5</button><button data-step="25">+25</button>
+    </div>
+
+    <button id="autoBtn">🎙 &nbsp;Auto-trim (echo lock)</button>
+
+    <div id="listenRow">
+      <div class="lis"><span class="d"></span><span>listening to the room</span></div>
+      <div id="meter"><i></i></div>
+      <div class="lis-hint">Keep the music playing — a short chirp will sound from this device.</div>
+    </div>
+
+    <div id="result">
+      <div id="ok">
+        <div class="meas"><span>Room arrives</span><span><span class="v" id="mRoom">+122ms</span><span class="c" id="cRoom">×2.7</span></span></div>
+        <div class="meas"><span>This device arrives</span><span><span class="v" id="mSelf">+198ms</span><span class="c" id="cSelf">×3.1</span></span></div>
+        <div class="prop">
+          <div>set trim to <span class="big" id="mProp">+76ms</span></div>
+          <div class="why">device − room · one clean seek on apply</div>
+        </div>
+        <div id="resBtns">
+          <button id="dismissBtn">Dismiss</button>
+          <button id="retryBtn">Re-listen</button>
+          <button id="applyBtn" class="primary">Apply</button>
+        </div>
+      </div>
+      <div id="fail">
+        <b>No clean lock</b> — this track is too smooth to fingerprint (long pads, few transients).
+        Try again during something rhythmic, or dial the steppers by ear.
+        <div id="resBtns2" style="display:flex;gap:8px;margin-top:10px">
+          <button id="failDismiss" style="flex:1;font-family:Oswald,sans-serif;font-size:11px;letter-spacing:.16em;text-transform:uppercase;padding:12px 0;border:1px solid var(--line);background:#111917;color:var(--dim);cursor:pointer">Dismiss</button>
+          <button id="failRetry" style="flex:1;font-family:Oswald,sans-serif;font-size:11px;letter-spacing:.16em;text-transform:uppercase;padding:12px 0;border:1px solid #5a4b28;background:#111917;color:var(--gold);cursor:pointer">Re-listen</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="simrow">
+    <span>simulate:</span>
+    <button id="simGood" class="sel">✓ rhythmic track</button>
+    <button id="simSmooth">✗ smooth track</button>
+  </div>
+
+<script>
+(function(){
+  'use strict';
+  var trim = 0;
+  var slider = document.getElementById('trimSlider');
+  var valEl = document.getElementById('trimVal');
+  function setTrim(v){
+    trim = Math.max(-500, Math.min(500, Math.round(v) || 0));
+    slider.value = trim;
+    valEl.innerHTML = (trim > 0 ? '+' : '') + trim + ' <small>ms</small>';
+  }
+  slider.addEventListener('input', function(){ setTrim(+slider.value); });
+  Array.prototype.forEach.call(document.querySelectorAll('.steppers button'), function(btn){
+    btn.addEventListener('click', function(){ setTrim(trim + (+btn.dataset.step)); });
+  });
+  setTrim(0);
+
+  var mode = 'good';
+  var simGood = document.getElementById('simGood'), simSmooth = document.getElementById('simSmooth');
+  simGood.addEventListener('click', function(){ mode='good'; simGood.classList.add('sel'); simSmooth.classList.remove('sel'); });
+  simSmooth.addEventListener('click', function(){ mode='smooth'; simSmooth.classList.add('sel'); simGood.classList.remove('sel'); });
+
+  var autoBtn = document.getElementById('autoBtn');
+  var listenRow = document.getElementById('listenRow');
+  var meterFill = document.querySelector('#meter i');
+  var result = document.getElementById('result');
+  var okPane = document.getElementById('ok'), failPane = document.getElementById('fail');
+  var proposed = 0;
+
+  function fakeMeasure(){
+    // plausible fakes anchored near the field-measured 73ms self latency
+    var room = Math.round(90 + Math.random()*80);          // 90–170ms
+    var self = Math.round(room + 40 + Math.random()*140);  // later than room
+    return { room: room, self: self, prop: self - room,
+             cRoom: (2.0 + Math.random()*1.2).toFixed(1),
+             cSelf: (2.4 + Math.random()*1.2).toFixed(1) };
+  }
+
+  function runFlow(){
+    autoBtn.disabled = true;
+    result.classList.remove('on'); okPane.style.display='none'; failPane.classList.remove('on');
+    listenRow.classList.add('on');
+    meterFill.style.transform = 'scaleX(0)';
+    var t0 = Date.now(), DUR = 3600;
+    var tick = setInterval(function(){
+      var f = Math.min(1, (Date.now()-t0)/DUR);
+      meterFill.style.transform = 'scaleX(' + f + ')';
+      if (f >= 1){
+        clearInterval(tick);
+        listenRow.classList.remove('on');
+        result.classList.add('on');
+        if (mode === 'good'){
+          var m = fakeMeasure();
+          proposed = m.prop;
+          document.getElementById('mRoom').textContent = '+' + m.room + 'ms';
+          document.getElementById('mSelf').textContent = '+' + m.self + 'ms';
+          document.getElementById('cRoom').textContent = '\u00d7' + m.cRoom;
+          document.getElementById('cSelf').textContent = '\u00d7' + m.cSelf;
+          document.getElementById('mProp').textContent = (m.prop>0?'+':'') + m.prop + 'ms';
+          okPane.style.display = 'block';
+        } else {
+          failPane.classList.add('on');
+        }
+        autoBtn.disabled = false;
+      }
+    }, 120);
+  }
+
+  autoBtn.addEventListener('click', runFlow);
+  document.getElementById('retryBtn').addEventListener('click', runFlow);
+  document.getElementById('failRetry').addEventListener('click', runFlow);
+  document.getElementById('applyBtn').addEventListener('click', function(){
+    setTrim(proposed);
+    result.classList.remove('on');
+  });
+  document.getElementById('dismissBtn').addEventListener('click', function(){ result.classList.remove('on'); });
+  document.getElementById('failDismiss').addEventListener('click', function(){ result.classList.remove('on'); });
+})();
+</script>
+</body>
+</html>
