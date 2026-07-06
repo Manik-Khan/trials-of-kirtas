@@ -1,0 +1,240 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">
+<title>mock — radio sync trim v2 (steppers + tap sync)</title>
+<style>
+  :root{
+    --bg:#131a19; --panel:#182826; --line:#2a3b38; --ink:#e8e2d4;
+    --dim:#9aa89f; --gold:#c9a34a; --ember:#b8442c; --ok:#7fae7a;
+    --font-title:'Oswald',system-ui,sans-serif; --font-body:'EB Garamond',Georgia,serif;
+  }
+  *{box-sizing:border-box; -webkit-tap-highlight-color:transparent}
+  html,body{margin:0; background:var(--bg); color:var(--ink); font-family:var(--font-body)}
+  body{max-width:420px; margin:0 auto; padding:18px 16px 60px}
+  h1{font-family:var(--font-title); font-weight:500; font-size:13px; letter-spacing:.18em;
+     text-transform:uppercase; color:var(--dim); margin:0 0 4px}
+  .note{font-size:13px; color:var(--dim); line-height:1.45; margin:0 0 18px}
+  .panel{background:var(--panel); border:1px solid var(--line); padding:14px}
+
+  /* ── trim row ── */
+  .trim-label{font-family:var(--font-title); font-size:11px; letter-spacing:.16em;
+    text-transform:uppercase; color:var(--dim); display:flex; justify-content:space-between; align-items:baseline}
+  .trim-val{font-family:var(--font-title); font-size:26px; letter-spacing:.04em; color:var(--gold);
+    font-variant-numeric:tabular-nums; min-width:110px; text-align:right}
+  .trim-val small{font-size:12px; color:var(--dim); letter-spacing:.1em}
+  input[type=range]{width:100%; margin:14px 0 10px; accent-color:var(--gold); height:28px}
+  .steppers{display:grid; grid-template-columns:repeat(4,1fr); gap:8px}
+  .steppers button{
+    font-family:var(--font-title); font-size:15px; letter-spacing:.06em;
+    background:#111917; color:var(--ink); border:1px solid var(--line);
+    padding:12px 0; cursor:pointer; user-select:none; -webkit-user-select:none; touch-action:manipulation}
+  .steppers button:active{background:#0c1211; border-color:var(--gold)}
+  .rowline{display:flex; gap:8px; margin-top:12px}
+  .rowline button{flex:1; font-family:var(--font-title); font-size:12px; letter-spacing:.14em;
+    text-transform:uppercase; padding:12px 0; cursor:pointer; border:1px solid var(--line);
+    background:#111917; color:var(--dim); touch-action:manipulation}
+  .rowline button.primary{color:var(--gold); border-color:#5a4b28}
+  .hint{font-size:12px; color:var(--dim); margin:10px 0 0; line-height:1.4}
+
+  /* ── tap overlay ── */
+  #tapOverlay{position:fixed; inset:0; background:rgba(9,13,12,.96); display:none;
+    flex-direction:column; align-items:center; padding:28px 20px; z-index:10}
+  #tapOverlay.on{display:flex}
+  #tapOverlay h2{font-family:var(--font-title); font-weight:500; font-size:13px;
+    letter-spacing:.2em; text-transform:uppercase; color:var(--gold); margin:0 0 6px}
+  #tapStage{font-size:14px; color:var(--dim); text-align:center; line-height:1.5; min-height:44px}
+  #tapPad{width:min(78vw,300px); aspect-ratio:1; margin:26px 0; border:1px solid var(--line);
+    background:#101816; display:flex; align-items:center; justify-content:center;
+    font-family:var(--font-title); font-size:15px; letter-spacing:.2em; text-transform:uppercase;
+    color:var(--dim); user-select:none; -webkit-user-select:none; touch-action:manipulation}
+  #tapPad.armed{border-color:var(--gold); color:var(--ink)}
+  #tapPad.hit{background:#1c2a27}
+  #tapCount{font-family:var(--font-title); font-size:22px; color:var(--ink); letter-spacing:.1em;
+    font-variant-numeric:tabular-nums; min-height:30px}
+  #tapResult{font-size:14px; text-align:center; line-height:1.6; min-height:66px; color:var(--ink)}
+  #tapResult .big{font-family:var(--font-title); font-size:24px; color:var(--gold)}
+  #tapResult .bad{color:var(--ember)}
+  .tapBtns{display:flex; gap:10px; width:100%; max-width:340px; margin-top:auto}
+  .tapBtns button{flex:1; font-family:var(--font-title); font-size:12px; letter-spacing:.14em;
+    text-transform:uppercase; padding:14px 0; border:1px solid var(--line); background:#111917;
+    color:var(--dim); cursor:pointer; touch-action:manipulation}
+  .tapBtns button.primary{color:var(--gold); border-color:#5a4b28}
+  .tapBtns button[disabled]{opacity:.35}
+  .mocknote{margin-top:14px; font-size:11.5px; color:#6d7a74; text-align:center; line-height:1.45}
+</style>
+<link href="https://fonts.googleapis.com/css2?family=Oswald:wght@400;500&family=EB+Garamond:ital,wght@0,400;0,600;1,400&display=swap" rel="stylesheet">
+</head>
+<body>
+  <h1>Radio · Sync Trim — mock v2</h1>
+  <p class="note">Two proposals in one: <b>steppers</b> under the slider (the slider stays for coarse sweeps; buttons do the last inch), and a <b>TAP SYNC</b> flow that measures the trim for you. In this mock the “room” is a simulated click track with a hidden offset — tap along and see if it finds it.</p>
+
+  <div class="panel">
+    <div class="trim-label"><span>Sync trim</span>
+      <span class="trim-val" id="trimVal">+0 <small>ms</small></span></div>
+    <input type="range" id="trimSlider" min="-500" max="500" step="5" value="0">
+    <div class="steppers">
+      <button data-step="-25">−25</button>
+      <button data-step="-5">−5</button>
+      <button data-step="5">+5</button>
+      <button data-step="25">+25</button>
+    </div>
+    <div class="rowline">
+      <button id="tapOpen" class="primary">Tap sync</button>
+      <button id="trimZero">Reset</button>
+    </div>
+    <p class="hint">Hold a stepper to repeat. Trim applies on release with one clean seek, same as today.</p>
+  </div>
+
+  <div id="tapOverlay">
+    <h2>Tap Sync</h2>
+    <div id="tapStage">The room will play a steady click.<br>Tap the pad <b>on each click you hear</b> — 12 taps.</div>
+    <div id="tapPad">start</div>
+    <div id="tapCount"></div>
+    <div id="tapResult"></div>
+    <div class="tapBtns">
+      <button id="tapCancel">Cancel</button>
+      <button id="tapApply" class="primary" disabled>Apply</button>
+    </div>
+    <p class="mocknote">Mock detail: hidden room offset is randomized each run (±250 ms).<br>Real build: the engine broadcasts the click; your channels mute during the test.</p>
+  </div>
+
+<script>
+(function(){
+  'use strict';
+  // ── trim state ─────────────────────────────────────────
+  var trim = 0;
+  var slider = document.getElementById('trimSlider');
+  var valEl = document.getElementById('trimVal');
+  function setTrim(v){
+    trim = Math.max(-500, Math.min(500, Math.round(v)));
+    slider.value = trim;
+    valEl.innerHTML = (trim > 0 ? '+' : '') + trim + ' <small>ms</small>';
+  }
+  slider.addEventListener('input', function(){ setTrim(+slider.value); });
+  document.getElementById('trimZero').addEventListener('click', function(){ setTrim(0); });
+
+  // steppers with press-and-hold repeat
+  Array.prototype.forEach.call(document.querySelectorAll('.steppers button'), function(btn){
+    var step = +btn.dataset.step, t = null, r = null;
+    function fire(){ setTrim(trim + step); }
+    function down(e){ e.preventDefault(); fire();
+      t = setTimeout(function(){ r = setInterval(fire, 110); }, 420); }
+    function up(){ clearTimeout(t); clearInterval(r); t = r = null; }
+    btn.addEventListener('pointerdown', down);
+    btn.addEventListener('pointerup', up);
+    btn.addEventListener('pointercancel', up);
+    btn.addEventListener('pointerleave', up);
+  });
+  setTrim(0);
+
+  // ── tap sync ───────────────────────────────────────────
+  var PERIOD = 600;      // ms between clicks (real build: wider or patterned — see notes)
+  var NEED   = 12;       // taps collected
+  var overlay = document.getElementById('tapOverlay');
+  var pad = document.getElementById('tapPad');
+  var stage = document.getElementById('tapStage');
+  var countEl = document.getElementById('tapCount');
+  var resultEl = document.getElementById('tapResult');
+  var applyBtn = document.getElementById('tapApply');
+
+  var ac = null, clickTimer = null, gridStart = 0, hiddenOffset = 0;
+  var taps = [], measured = null, running = false;
+
+  function click(when, hi){
+    var o = ac.createOscillator(), g = ac.createGain();
+    o.frequency.value = hi ? 1660 : 1240;
+    g.gain.setValueAtTime(0.0001, when);
+    g.gain.exponentialRampToValueAtTime(0.5, when + 0.004);
+    g.gain.exponentialRampToValueAtTime(0.0001, when + 0.06);
+    o.connect(g); g.connect(ac.destination);
+    o.start(when); o.stop(when + 0.08);
+  }
+
+  function startRun(){
+    if (!ac) ac = new (window.AudioContext || window.webkitAudioContext)();
+    ac.resume();
+    taps = []; measured = null; running = true;
+    applyBtn.disabled = true; resultEl.textContent = '';
+    hiddenOffset = Math.round((Math.random() * 500) - 250);   // the "room's" secret
+    stage.innerHTML = 'Listen… tap <b>on</b> each click.';
+    pad.textContent = 'tap'; pad.classList.add('armed');
+    countEl.textContent = '0 / ' + NEED;
+
+    // grid in performance.now() time; audible clicks land at grid + hiddenOffset
+    var lead = 900;
+    gridStart = performance.now() + lead;
+    var k = 0;
+    var acBase = ac.currentTime + lead / 1000 + hiddenOffset / 1000;
+    clickTimer = setInterval(function(){
+      // schedule a few clicks ahead
+      while (k * PERIOD / 1000 < (ac.currentTime - (acBase - lead/1000 - hiddenOffset/1000)) + 1.2){
+        click(acBase + k * PERIOD / 1000, k % 4 === 0);
+        k++;
+        if (k > 80) { break; }
+      }
+    }, 250);
+  }
+
+  function stopRun(){
+    running = false;
+    clearInterval(clickTimer); clickTimer = null;
+    pad.classList.remove('armed');
+  }
+
+  function signedMod(x, p){ var m = ((x % p) + p) % p; return m >= p/2 ? m - p : m; }
+  function median(a){ var s = a.slice().sort(function(x,y){return x-y;});
+    var n = s.length; return n % 2 ? s[(n-1)/2] : (s[n/2-1] + s[n/2]) / 2; }
+
+  function finish(){
+    stopRun();
+    var phases = taps.map(function(t){ return signedMod(t - gridStart, PERIOD); });
+    var med = median(phases);
+    var spread = median(phases.map(function(p){ return Math.abs(p - med); }));
+    if (spread > 60){
+      resultEl.innerHTML = '<span class="bad">Too noisy (±' + Math.round(spread) +
+        ' ms). Try again — steady taps, right on the click.</span>';
+      pad.textContent = 'retry'; stage.textContent = ''; countEl.textContent = '';
+      measured = null; return;
+    }
+    measured = Math.round(med);
+    var err = measured - hiddenOffset;
+    resultEl.innerHTML = 'Measured trim <span class="big">' + (measured>0?'+':'') + measured +
+      ' ms</span><br><span style="color:var(--dim)">consistency ±' + Math.round(spread) +
+      ' ms · hidden offset was ' + (hiddenOffset>0?'+':'') + hiddenOffset +
+      ' (you were ' + (err>0?'+':'') + err + ' off)</span>';
+    stage.textContent = ''; countEl.textContent = '';
+    pad.textContent = 'again';
+    applyBtn.disabled = false;
+  }
+
+  pad.addEventListener('pointerdown', function(e){
+    e.preventDefault();
+    if (!running){ startRun(); return; }
+    var now = performance.now();
+    if (now < gridStart - PERIOD/2) return;      // ignore taps before the grid starts
+    taps.push(now);
+    pad.classList.add('hit'); setTimeout(function(){ pad.classList.remove('hit'); }, 90);
+    countEl.textContent = taps.length + ' / ' + NEED;
+    if (taps.length >= NEED) finish();
+  });
+
+  document.getElementById('tapOpen').addEventListener('click', function(){
+    overlay.classList.add('on');
+    stage.innerHTML = 'The room will play a steady click.<br>Tap the pad <b>on each click you hear</b> — ' + NEED + ' taps.';
+    pad.textContent = 'start'; countEl.textContent = ''; resultEl.textContent = '';
+    applyBtn.disabled = true;
+  });
+  document.getElementById('tapCancel').addEventListener('click', function(){
+    stopRun(); overlay.classList.remove('on');
+  });
+  applyBtn.addEventListener('click', function(){
+    if (measured === null) return;
+    setTrim(measured);
+    stopRun(); overlay.classList.remove('on');
+  });
+})();
+</script>
+</body>
+</html>

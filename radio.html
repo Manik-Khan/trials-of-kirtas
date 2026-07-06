@@ -50,6 +50,12 @@ body{background:linear-gradient(180deg,var(--ground),var(--ground-2));color:var(
 .rd-vol{display:flex;align-items:center;gap:10px;padding-top:12px;border-top:1px solid var(--hair)}
 .rd-vol .l{font-family:Oswald,sans-serif;font-size:8.5px;letter-spacing:.2em;text-transform:uppercase;color:var(--cream-fnt)}
 .rd-vol input{flex:1;accent-color:var(--rgold)}
+.rd-trimsteps{display:grid;grid-template-columns:repeat(4,1fr);gap:8px;padding-top:8px}
+.rd-trimsteps button{font-family:Oswald,sans-serif;font-size:13px;letter-spacing:.08em;
+  background:rgba(12,22,20,.5);color:var(--cream);border:1px solid var(--hair);
+  padding:11px 0;cursor:pointer;user-select:none;-webkit-user-select:none;
+  -webkit-touch-callout:none;touch-action:manipulation}
+.rd-trimsteps button:active{border-color:var(--frame-hi);color:var(--gold-br)}
 .rd-note{margin-top:14px;font-size:12.5px;color:var(--cream-fnt);font-style:italic;text-align:center;max-width:440px}
 </style>
 </head>
@@ -71,7 +77,13 @@ body{background:linear-gradient(180deg,var(--ground),var(--ground-2));color:var(
     <div class="rd-clock" id="ageTxt"></div>
     <div id="chHost"></div>
     <div class="rd-vol"><span class="l">This device</span><input type="range" id="masterVol" min="0" max="1" step="0.01" value="0.8"></div>
-    <div class="rd-vol"><span class="l">Sync trim</span><input type="range" id="syncTrim" min="-500" max="500" step="10" value="0"><span class="l" id="trimTxt" style="min-width:52px;text-align:right">0ms</span></div>
+    <div class="rd-vol"><span class="l">Sync trim</span><input type="range" id="syncTrim" min="-500" max="500" step="5" value="0"><span class="l" id="trimTxt" style="min-width:52px;text-align:right">0ms</span></div>
+    <div class="rd-trimsteps" id="trimSteps">
+      <button type="button" data-step="-25">&minus;25</button>
+      <button type="button" data-step="-5">&minus;5</button>
+      <button type="button" data-step="5">+5</button>
+      <button type="button" data-step="25">+25</button>
+    </div>
   </div>
 </div>
 <p class="rd-note">Keep this page open and the screen awake — the DM's console drives everything from here.</p>
@@ -309,15 +321,14 @@ body{background:linear-gradient(180deg,var(--ground),var(--ground-2));color:var(
     applyAnchors();
   });
 
-  els.syncTrim.value = String(S.trimMs);
-  els.trimTxt.textContent = (S.trimMs > 0 ? '+' : '') + S.trimMs + 'ms';
+  // one path for every trim source (slider drag, stepper taps, future
+  // tap-sync): clamp, paint, persist, then settle into ONE clean seek.
   var trimSeekT = null;
-  els.syncTrim.addEventListener('input', function () {
-    var prev = S.trimMs;
-    S.trimMs = parseInt(els.syncTrim.value, 10) || 0;
+  function setTrim(v) {
+    S.trimMs = Math.max(-500, Math.min(500, Math.round(v) || 0));
+    els.syncTrim.value = String(S.trimMs);
     els.trimTxt.textContent = (S.trimMs > 0 ? '+' : '') + S.trimMs + 'ms';
     try { localStorage.setItem('tok-radio-trim', String(S.trimMs)); } catch (e) {}
-    // settle, then land the new trim with one clean seek per live channel
     clearTimeout(trimSeekT);
     trimSeekT = setTimeout(function () {
       var now = C.now();
@@ -328,6 +339,26 @@ body{background:linear-gradient(180deg,var(--ground),var(--ground-2));color:var(
         p.lastSeekAt = Date.now();
       }
     }, 400);
+  }
+  setTrim(S.trimMs);
+  els.syncTrim.addEventListener('input', function () {
+    setTrim(parseInt(els.syncTrim.value, 10));
+  });
+  // steppers: the slider is too coarse for thumbs — buttons do the last
+  // inch. Press-and-hold repeats (420ms arm, then every 110ms).
+  Array.prototype.forEach.call(document.querySelectorAll('#trimSteps button'), function (btn) {
+    var step = parseInt(btn.getAttribute('data-step'), 10);
+    var armT = null, repT = null;
+    function fire() { setTrim(S.trimMs + step); }
+    function up() { clearTimeout(armT); clearInterval(repT); armT = repT = null; }
+    btn.addEventListener('pointerdown', function (e) {
+      e.preventDefault();
+      fire();
+      armT = setTimeout(function () { repT = setInterval(fire, 110); }, 420);
+    });
+    btn.addEventListener('pointerup', up);
+    btn.addEventListener('pointercancel', up);
+    btn.addEventListener('pointerleave', up);
   });
 
   els.tune.addEventListener('click', function () {
