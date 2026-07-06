@@ -465,8 +465,8 @@ body{background:linear-gradient(180deg,var(--ground),var(--ground-2));color:var(
   // takes back to its own mic (BardicEcho.roundTrip). Correlated against
   // OUR pattern — one sharp peak — never against the playing track (music
   // cross-correlates ambiguously: that was B9's "no clean lock" and the
-  // clamped-to-500 misfires). The lag lands through setTrim as a positive
-  // trim (device output is late -> play earlier); M's ear does the last
+  // clamped-to-500 misfires). The lag maps to setTrim as -(roundTrip/2)
+  // (field July 6 pm: your ear wanted negative ~half the round trip); the
   // nudge on the steppers. The retired B8/B9 console/room/bias machinery
   // stays dormant in bardic-echo.js (measure/selfTest) for now.
   var echoProposed = null, echoMeterT = null;
@@ -493,7 +493,7 @@ body{background:linear-gradient(180deg,var(--ground),var(--ground-2));color:var(
     els.echoFail.classList.toggle('on', !!fail);
     document.getElementById('echoBuild').textContent =
       'echo ' + (window.BardicEcho ? window.BardicEcho.BUILD : 'MISSING') +
-      ' \u00b7 radio B10';   // stale tabs must be visible
+      ' \u00b7 radio B11';   // stale tabs must be visible
   }
   function echoShowFail(why) {
     els.echoFailWhy.textContent = why;
@@ -511,15 +511,19 @@ body{background:linear-gradient(180deg,var(--ground),var(--ground-2));color:var(
 
 
   function echoRenderCard(res) {
-    echoProposed = res.lag;   // device output is LATE by its round trip ->
-                              // play earlier -> positive trim
+    // FIELD-CORRECTED (July 6 pm): sign was backwards and the round trip
+    // counts the mic path too. Your ear wanted NEGATIVE, ~half the round
+    // trip (73 -> -30). So trim = -(roundTrip / 2), played LATER. Still an
+    // estimate; the stepper nudge closes the last few ms.
+    var oneWay = Math.round(res.lag / 2);
+    echoProposed = -oneWay;
     document.getElementById('echoRoomRow').style.display = 'none';
     document.getElementById('echoSelf').textContent = res.lag + 'ms';
     document.getElementById('echoSelfC').textContent =
       res.confidence ? 'peak ' + res.peak.toFixed(2) + ' \u00b7 \u00d7' + res.confidence.toFixed(1) : '';
-    document.getElementById('echoProp').textContent = (res.lag > 0 ? '+' : '') + res.lag + 'ms';
+    document.getElementById('echoProp').textContent = (echoProposed > 0 ? '+' : '') + echoProposed + 'ms';
     document.getElementById('echoWhy').textContent =
-      'this device\u2019s output round trip \u00b7 apply, then nudge by ear';
+      'round trip ' + res.lag + 'ms \u2192 one-way \u00f7 2, played later \u00b7 nudge by ear';
     var applyBtn = document.getElementById('echoApply');
     applyBtn.disabled = false;
     applyBtn.textContent = 'Apply';
