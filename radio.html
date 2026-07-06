@@ -71,6 +71,7 @@ body{background:linear-gradient(180deg,var(--ground),var(--ground-2));color:var(
     <div class="rd-clock" id="ageTxt"></div>
     <div id="chHost"></div>
     <div class="rd-vol"><span class="l">This device</span><input type="range" id="masterVol" min="0" max="1" step="0.01" value="0.8"></div>
+    <div class="rd-vol"><span class="l">Sync trim</span><input type="range" id="syncTrim" min="-500" max="500" step="10" value="0"><span class="l" id="trimTxt" style="min-width:52px;text-align:right">0ms</span></div>
   </div>
 </div>
 <p class="rd-note">Keep this page open and the screen awake — the DM's console drives everything from here.</p>
@@ -90,6 +91,8 @@ body{background:linear-gradient(180deg,var(--ground),var(--ground-2));color:var(
     ageTxt: document.getElementById('ageTxt'),
     chHost: document.getElementById('chHost'),
     masterVol: document.getElementById('masterVol'),
+    syncTrim: document.getElementById('syncTrim'),
+    trimTxt: document.getElementById('trimTxt'),
   };
 
   var S = {
@@ -101,6 +104,11 @@ body{background:linear-gradient(180deg,var(--ground),var(--ground-2));color:var(
     lastReconnectAt: 0,
     pool: [],
     master: 0.8,
+    // per-device sync trim (July 5): output latency — decode buffers,
+    // Bluetooth speakers especially — is invisible to the browser, so the
+    // human dials it: play something rhythmic, slide until the claps
+    // align. Positive trim = this device plays EARLIER.
+    trimMs: (function () { try { return parseInt(localStorage.getItem('tok-radio-trim') || '0', 10) || 0; } catch (e) { return 0; } })(),
   };
 
   function sbReady() {
@@ -166,7 +174,7 @@ body{background:linear-gradient(180deg,var(--ground),var(--ground-2));color:var(
       p.ui.lab.style.color = a.accent || '#c79a4a';
       p.ui.lab.textContent = a.label || chId;
       var anchor = { pos: a.pos, at: S.anchors.at, paused: a.paused };
-      var want = R.positionAt(anchor, now);
+      var want = R.positionAt(anchor, now) + S.trimMs / 1000;
       if (p.url !== a.url) {
         p.url = a.url;
         p.audio.src = a.url;
@@ -180,7 +188,7 @@ body{background:linear-gradient(180deg,var(--ground),var(--ground-2));color:var(
         var seekWhenReady = function () {
           if (!p.anchor) return;
           try {
-            p.audio.currentTime = R.positionAt(p.anchor, C.now()) + (p.anchor.paused ? 0 : p.seekLead);
+            p.audio.currentTime = R.positionAt(p.anchor, C.now()) + S.trimMs / 1000 + (p.anchor.paused ? 0 : p.seekLead);
             p.lastSeekAt = Date.now();
           } catch (e) {}
         };
@@ -188,7 +196,7 @@ body{background:linear-gradient(180deg,var(--ground),var(--ground-2));color:var(
           if (!p.anchor || p.anchor.paused) return;
           setTimeout(function () {
             if (!p.anchor || p.audio.paused || p.audio.seeking) return;
-            var err = R.positionAt(p.anchor, C.now()) - p.audio.currentTime;
+            var err = R.positionAt(p.anchor, C.now()) + S.trimMs / 1000 - p.audio.currentTime;
             // fold the observed shortfall into next time's lead
             p.seekLead = Math.max(0, Math.min(1.5, p.seekLead + err * 0.7));
           }, 800);
@@ -240,7 +248,7 @@ body{background:linear-gradient(180deg,var(--ground),var(--ground-2));color:var(
         var p = S.players[chId];
         if (!p.anchor || p.anchor.paused || !p.url || p.audio.paused) continue;
         if (p.audio.readyState < 3 || p.audio.seeking) continue;   // buffering — never fight a rebuffer
-        var expected = R.positionAt(p.anchor, now);
+        var expected = R.positionAt(p.anchor, now) + S.trimMs / 1000;
         var err = expected - p.audio.currentTime;
         // NO rate manipulation, ever (July 5, fourth field report): the
         // "56k mp3" texture WAS WebKit's pitch-preserving stretcher —
@@ -299,6 +307,27 @@ body{background:linear-gradient(180deg,var(--ground),var(--ground-2));color:var(
   els.masterVol.addEventListener('input', function () {
     S.master = parseFloat(els.masterVol.value);
     applyAnchors();
+  });
+
+  els.syncTrim.value = String(S.trimMs);
+  els.trimTxt.textContent = (S.trimMs > 0 ? '+' : '') + S.trimMs + 'ms';
+  var trimSeekT = null;
+  els.syncTrim.addEventListener('input', function () {
+    var prev = S.trimMs;
+    S.trimMs = parseInt(els.syncTrim.value, 10) || 0;
+    els.trimTxt.textContent = (S.trimMs > 0 ? '+' : '') + S.trimMs + 'ms';
+    try { localStorage.setItem('tok-radio-trim', String(S.trimMs)); } catch (e) {}
+    // settle, then land the new trim with one clean seek per live channel
+    clearTimeout(trimSeekT);
+    trimSeekT = setTimeout(function () {
+      var now = C.now();
+      for (var chId in S.players) {
+        var p = S.players[chId];
+        if (!p.anchor || p.anchor.paused || !p.url || p.audio.readyState < 1) continue;
+        p.audio.currentTime = R.positionAt(p.anchor, now) + S.trimMs / 1000 + p.seekLead;
+        p.lastSeekAt = Date.now();
+      }
+    }, 400);
   });
 
   els.tune.addEventListener('click', function () {

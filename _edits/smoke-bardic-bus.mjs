@@ -24,7 +24,7 @@ catch (e) { t('bardic-app.jsx parses: ' + e.message, false) }
 
 // ── the contract, parsed from the bus's own header ──
 const verbLines = [...busSrc.matchAll(/\{ t:'([a-zA-Z-]+)'/g)].map(m => m[1])
-const remoteVerbs = ['hello', 'cast', 'toggle', 'stop', 'pause', 'next', 'prev', 'vol', 'globalPause', 'air']
+const remoteVerbs = ['hello', 'cast', 'toggle', 'stop', 'pause', 'next', 'prev', 'vol', 'globalPause', 'air', 'radiomask']
 t(`protocol header names all remote verbs (${remoteVerbs.join(', ')})`,
   remoteVerbs.every(v => verbLines.includes(v)))
 t('protocol header names the state snapshot and engine-bye',
@@ -35,11 +35,11 @@ const adapterCase = v => new RegExp(`case '${v}':`).test(appSrc)
 const unmapped = remoteVerbs.filter(v => !adapterCase(v))
 t(`engine adapter handles every header verb (unmapped: ${unmapped.join(',') || 'none'})`, unmapped.length === 0)
 t('every verb dispatches through busVerbsRef (fresh callbacks, no stale closures)',
-  ['cast', 'toggle', 'stop', 'pause', 'next', 'prev', 'vol', 'globalPause', 'air']
+  ['cast', 'toggle', 'stop', 'pause', 'next', 'prev', 'vol', 'globalPause', 'air', 'radiomask']
     .every(v => appSrc.includes(`${v}:`)) && appSrc.includes('busVerbsRef.current = {'))
 t('hello answered with a full snapshot', appSrc.includes("case 'hello':  bus.send(busSnapshot()); break;"))
 t('snapshot publishes on chStates, library, and radio-state changes',
-  /useEffect\(\(\) => \{\s*\n\s*busRef\.current\?\.send\(busSnapshot\(\)\);\s*\n\s*\}, \[chStates, library, onAir, radioListeners, airBlockedBy, busSnapshot\]\);/.test(appSrc))
+  /useEffect\(\(\) => \{\s*\n\s*busRef\.current\?\.send\(busSnapshot\(\)\);\s*\n\s*\}, \[chStates, library, onAir, radioListeners, airBlockedBy, radioMask, busSnapshot\]\);/.test(appSrc))
 t('engine-bye on unload, listener removed on teardown',
   appSrc.includes("bus.send({ t: 'engine-bye', engineId: engineIdRef.current })")
   && appSrc.includes("window.removeEventListener('beforeunload', bye)"))

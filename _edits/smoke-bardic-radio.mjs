@@ -253,6 +253,19 @@ t('correction: seeks past 0.45s on the 15s hysteresis, adaptive lead kept',
 t('stall telemetry survives (now it points at the network, not us)',
   pageSrc.includes("audio.addEventListener('waiting', onStall);")
   && pageSrc.includes("' \\u00b7 stalls ' + p.stalls"))
+t('sync trim: persisted, applied to every position computation, one seek on change',
+  pageSrc.includes("localStorage.setItem('tok-radio-trim'")
+  && (pageSrc.match(/\+ S\.trimMs \/ 1000/g) || []).length >= 4
+  && pageSrc.includes('trimSeekT = setTimeout('))
+t('radiomask verb: header, adapter, host-only filter in anchors',
+  busSrc.includes("{ t:'radiomask', chId, on }")
+  && appSrc.includes("case 'radiomask': verbs.radiomask(msg.chId, !!msg.on); break;")
+  && appSrc.includes('if (!radioMaskRef.current[c.id]) return;   // host-only channel'))
+t('routing change re-anchors immediately (masked channel falls silent within one anchor)',
+  appSrc.includes('}, [chStates, radioMask, onAir, buildAnchors]);'))
+t('rail: antenna toggle sends radiomask with the inverse of snapshot state',
+  tabSrc.includes("S.bus.send({ t: 'radiomask', chId: chId, on: !cur });")
+  && tabSrc.includes("refs.antB.style.display = S.snap.onAir ? '' : 'none';"))
 t('page wake → resync + rebuild if still stale',
   pageSrc.includes("document.addEventListener('visibilitychange'") && pageSrc.includes('S.listener.reconnect();'))
 t('hard resync rides the hysteresis gate with the adaptive lead',

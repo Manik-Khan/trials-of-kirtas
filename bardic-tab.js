@@ -113,6 +113,9 @@
       + '#tok-rail .tok-bd-ctl button{width:24px;height:24px;background:transparent;border:1px solid rgba(236,226,205,0.14);color:rgba(185,176,154,1);cursor:pointer;font-size:10px;line-height:1}'
       + '#tok-rail .tok-bd-ctl button:hover{border-color:rgba(199,154,74,0.6);color:rgba(236,226,205,1)}'
       + '#tok-rail .tok-bd-ctl input[type=range]{width:56px}'
+      + '#tok-rail .tok-bd-ant{width:24px;height:24px;background:transparent;border:1px solid rgba(236,226,205,0.14);color:rgba(139,132,115,1);cursor:pointer;font-size:11px;line-height:1}'
+      + '#tok-rail .tok-bd-ant.on{border-color:rgba(207,59,44,0.7);color:rgba(224,88,74,1)}'
+      + '#tok-rail .tok-bd-ant:hover{border-color:rgba(199,154,74,0.6)}'
       + '#tok-rail .tok-bd-chiprow{display:flex;align-items:center;gap:8px;min-height:26px}'
       + '#tok-rail .tok-bd-minichip{display:none;align-items:center;gap:7px;min-width:0;flex:1}'
       + '#tok-rail .tok-bd-minichip.on{display:flex}'
@@ -295,7 +298,9 @@
     var btns = el('div', 'btns');
     var pauseB = document.createElement('button'); pauseB.title = 'Pause / resume';
     var nextB = document.createElement('button'); nextB.textContent = '\u23ED'; nextB.title = 'Next track';
-    btns.appendChild(pauseB); btns.appendChild(nextB);
+    var antB = document.createElement('button'); antB.className = 'tok-bd-ant'; antB.textContent = '\u2609';
+    antB.title = 'Broadcast this channel to the radio (off = host-only)';
+    btns.appendChild(pauseB); btns.appendChild(nextB); btns.appendChild(antB);
     var vol = document.createElement('input');
     vol.type = 'range'; vol.min = '0'; vol.max = '1'; vol.step = '0.01';
     ctl.appendChild(btns); ctl.appendChild(vol);
@@ -312,6 +317,10 @@
       S.bus.send({ t: 'pause', chId: chId });
     });
     nextB.addEventListener('click', function () { S.bus.send({ t: 'next', chId: chId }); });
+    antB.addEventListener('click', function () {
+      var cur = S.snap && S.snap.radioMask ? S.snap.radioMask[chId] !== false : true;
+      S.bus.send({ t: 'radiomask', chId: chId, on: !cur });
+    });
     var volT = null;
     vol.addEventListener('input', function () {
       clearTimeout(volT);
@@ -319,7 +328,7 @@
       volT = setTimeout(function () { S.bus.send({ t: 'vol', chId: chId, val: v }); }, 90);
     });
 
-    return { row: row, bar: bar, lab: lab, sel: sel, now: now, pauseB: pauseB, vol: vol };
+    return { row: row, bar: bar, lab: lab, sel: sel, now: now, pauseB: pauseB, vol: vol, antB: antB };
   }
 
   function paintPane() {
@@ -439,6 +448,9 @@
         refs.now.textContent = ch.sourceType === 'sonus' ? 'Sonus portal (console-only)' : 'idle';
       }
       refs.pauseB.textContent = ch.paused ? '\u25B6' : '\u23F8';
+      var onRadio = S.snap.radioMask ? S.snap.radioMask[chId] !== false : true;
+      refs.antB.classList.toggle('on', onRadio && !!S.snap.onAir);
+      refs.antB.style.display = S.snap.onAir ? '' : 'none';   // routing only matters on air
       if (document.activeElement !== refs.vol) refs.vol.value = String(ch.volume != null ? ch.volume : 0.5);
     }
   }

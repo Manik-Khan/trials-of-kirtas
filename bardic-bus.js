@@ -29,6 +29,7 @@
 //     { t:'vol',    chId, val }         0..1
 //     { t:'globalPause' }               space-bar semantics, every channel
 //     { t:'air', on }                   broadcast on/off (wave B)
+//     { t:'radiomask', chId, on }       channel rides the broadcast or stays host-only
 //
 //   engine → everyone (a full snapshot, never a diff):
 //     { t:'state', engineId, ts, onAir, listeners,

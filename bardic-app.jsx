@@ -548,6 +548,18 @@ function App() {
   // refs mirror the radio state so busSnapshot stays identity-stable —
   // a shifting busSnapshot re-ran the subscribe-once effect, tearing the
   // BroadcastChannel down (with an engine-bye) on every roster change
+  // per-channel broadcast routing (July 5): ambience to the room's
+  // devices, rhythmic music host-only — each channel opts in or out of
+  // the anchors. Default: everything broadcasts.
+  const [radioMask, setRadioMask] = useState(() => {
+    const m = {}; ALL_CHANNELS.forEach(c => { m[c.id] = true; }); return m;
+  });
+  const radioMaskRef = useRef(radioMask);
+  radioMaskRef.current = radioMask;
+  const setChannelBroadcast = useCallback((chId, on) => {
+    setRadioMask(m => ({ ...m, [chId]: !!on }));
+  }, []);
+
   const radioStateRef = useRef({ onAir: false, listeners: [], blockedBy: null });
   radioStateRef.current = { onAir, listeners: radioListeners, blockedBy: airBlockedBy };
 
@@ -558,6 +570,7 @@ function App() {
     ALL_CHANNELS.forEach(c => {
       const s = cs[c.id];
       if (!s || !s.track || s.sourceType === 'sonus') return;
+      if (!radioMaskRef.current[c.id]) return;   // host-only channel
       const audio = enginesRef.current[c.id]?._currentAudio();
       channels[c.id] = {
         url: s.track.url, title: s.track.title || null,
@@ -623,10 +636,12 @@ function App() {
     return () => { alive = false; clearInterval(interval); radioRef.current?.offAir(); radioRef.current = null; };
   }, [onAir, buildAnchors, beatAir]);
 
-  // every visible state change re-anchors immediately (cast/pause/next/vol)
+  // every visible state change re-anchors immediately (cast/pause/next/vol),
+  // and so does a routing change — a channel pulled host-only falls silent
+  // on the room's devices within one anchor
   useEffect(() => {
     if (onAir) radioRef.current?.sendAnchors(buildAnchors());
-  }, [chStates, onAir, buildAnchors]);
+  }, [chStates, radioMask, onAir, buildAnchors]);
 
   // ============================================================
   // BARDIC BUS — engine adapter (increment 1, July 5)
@@ -657,6 +672,7 @@ function App() {
     vol:    setVolume,
     globalPause: toggleGlobalPause,
     air:    setOnAir,
+    radiomask: setChannelBroadcast,
   };
 
   // one full snapshot — never a diff; the latest snapshot is the truth
@@ -685,6 +701,7 @@ function App() {
       onAir: radioStateRef.current.onAir,
       listeners: radioStateRef.current.listeners,
       airBlockedBy: radioStateRef.current.blockedBy,
+      radioMask: radioMaskRef.current,
       // protocol field stays 'name'; the console's mood field is 'label'
       moods: lib.moods.map(m => ({ id: m.id, name: m.label, color: m.color, sigil: m.sigil })),
       channels: channelsOut,
@@ -709,6 +726,7 @@ function App() {
         case 'vol':    verbs.vol(msg.chId, msg.val); break;
         case 'globalPause': verbs.globalPause(); break;
         case 'air':    verbs.air(!!msg.on); break;
+        case 'radiomask': verbs.radiomask(msg.chId, !!msg.on); break;
         default: break; // unknown verbs: ignore, never throw
       }
     });
@@ -721,7 +739,7 @@ function App() {
   // (busSnapshot's identity shifts with onAir/listeners, so those ride too)
   useEffect(() => {
     busRef.current?.send(busSnapshot());
-  }, [chStates, library, onAir, radioListeners, airBlockedBy, busSnapshot]);
+  }, [chStates, library, onAir, radioListeners, airBlockedBy, radioMask, busSnapshot]);
 
   // ============================================================
   // SCENE ACTIONS
