@@ -292,7 +292,27 @@ body{background:linear-gradient(180deg,var(--ground),var(--ground-2));color:var(
             p.seekLead = Math.max(0, Math.min(1.5, p.seekLead + err * 0.7));
           }, 800);
         };
+        // FRESH-TRACK SEEK FIX (July 6 pm field): the loadedmetadata seek
+        // below lands in an UNBUFFERED region — iOS snaps it and currentTime
+        // drifts from the true audible position. That is the track-change
+        // bug: the readout read 180ms while the ear wanted 5, and elsewhere
+        // read 30ms while the sound was clearly off. Once the track has
+        // actually decoded around the target, re-seek ONCE into buffered
+        // audio, which re-glues the audible position to currentTime and the
+        // clock. A deliberate second seek, scoped to the track load only.
+        p.bufReseek = false;
+        var bufferedReseek = function () {
+          if (p.bufReseek || !p.anchor || p.anchor.paused) return;
+          if (p.audio.readyState < 3) return;   // need decoded audio near the target
+          p.bufReseek = true;
+          try {
+            p.audio.currentTime = R.positionAt(p.anchor, C.now()) + S.trimMs / 1000 + p.seekLead;
+            p.lastSeekAt = Date.now();
+          } catch (e) {}
+        };
         p.audio.addEventListener('loadedmetadata', seekWhenReady, { once: true });
+        p.audio.addEventListener('canplay', bufferedReseek, { once: true });
+        p.audio.addEventListener('canplaythrough', bufferedReseek, { once: true });
         p.audio.addEventListener('playing', measureLead, { once: true });
         if (p.audio.readyState >= 1) seekWhenReady();
       }
@@ -498,7 +518,7 @@ body{background:linear-gradient(180deg,var(--ground),var(--ground-2));color:var(
     els.echoFail.classList.toggle('on', !!fail);
     document.getElementById('echoBuild').textContent =
       'echo ' + (window.BardicEcho ? window.BardicEcho.BUILD : 'MISSING') +
-      ' \u00b7 radio B12';   // stale tabs must be visible
+      ' \u00b7 radio B13';   // stale tabs must be visible
   }
   function echoShowFail(why) {
     els.echoFailWhy.textContent = why;
