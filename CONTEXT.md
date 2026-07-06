@@ -1,127 +1,184 @@
 # CONTEXT.md — Trials of Kirtas
-Updated: July 4, 2026 (night — the dock retires into the rail)
+Updated: July 5, 2026 (night — the wash takes two pages; the Bardic Console learns to broadcast)
 Replace the previous CONTEXT.md with this one.
 
 ────────────────────────────────────────────────────────────
 ## DEPLOY STATE
-- **tok-rail-dock: v1/v2 verified live** (M's screenshot: Battle tab up,
-  five sections, eye in the strip corner). **v3 staged, pending deploy** —
-  combat.html only; adds the rail-size restyle for Bestiary / Tracker /
-  Tokens / dock-act buttons on top of v2's Display restyle. No SQL,
-  **rail.js untouched**, no SETTINGS_V bump. The zip also carries
-  _edits/smoke-rail-dock.mjs — repo housekeeping, not deploy.
-- **⚠ tok-finishes-v7 STILL not deployed** — carried from the evening doc.
-  Live character-badge.js is v6; the grey-medallion portrait fix is not
-  live. Deploy character-badge.js alone or fold into the next zip.
-- Validation bar this arc: node --check clean on combat.html's inline
-  script (all edits); smoke-rail-dock **22/22** (publisher's contract
-  parsed from rail.js itself, adapter registration, deferred
-  tok-rail:ready path, sub-strip switching, staff gating, ticker gating).
+- **July 4 items confirmed live**: rail-dock v3 (combat.html) AND the v7
+  character-badge fix both rode the July 4 21:51 push — the old doc's
+  "pending" lines were stale against their own commit. Item closed.
+  supabase-keepalive.yml also in.
+- **tok-lore-npcs-wash-v1: deployed, verified** (M: "these work well").
+- **Bardic wave A (tok-bardic-remote-waveA-v3): deployed, verified** —
+  remote works, multicast works, pause works after the engine-latch fix.
+- **Bardic radio B.6.2: deployed + bardic-air.sql run (with the grants
+  block), heartbeat verified working** on the phone's rail.
+- **tok-bardic-trim-routing-B7: uploading at session close** (radio.html,
+  bardic-app.jsx, bardic-bus.js, bardic-tab.js; no SQL). ⚠ REFRESH THE
+  CONSOLE TAB after this push — see LESSONS 2.
+- Superseded zips, do not deploy: bardic-multicast-v1, remote-i1,
+  waveA(-v1/v2), radio-waveB/B2/B3/B4/B5/B6/B6-1.
+- Validation bar this session: every zip carried its smokes in _edits/;
+  suite at close: radio 86 · bus 19 · tab 28 · pause 12 · multicast 10,
+  all green. Wash: lore 12/12, npcs 21/21, mocks 16/16 + 8/8.
 
-## WHAT SHIPPED TONIGHT (July 4, night)
-**The combat dock retired into the rail** — the map's "panel
-consolidation" item, finally read correctly (see LESSONS):
-1. combat.html registers ONE contextual rail tab — `battle`, order 20 —
-   through rail.js's shipped `registerTab` seam (the seam's own comment
-   named the combat tabs as its intended riders; the rail header called
-   this "phase 3"). rail.js needed zero changes.
-2. Inside the pane: a segmented sub-strip (the rail Feed's
-   Combat|Chronicle chrome) — **Display · Bestiary · Tracker · Tokens ·
-   Scenes**. Staff gating carries via the shipped `staff` class; the eye
-   lives in the strip corner and now also flips `.hide-staff` on the
-   strip (the old CSS hide relied on the dock living inside .stage).
-3. **The adapter keeps the DOCK object shape** ({panes:{id:{btn,pane,
-   onOpen}}, open, last, corner, ticker}) so paintCombatMenu,
-   tokensPaneOpen, and the view-toggle fallback run unmodified. Pane
-   contents keep `.dock-pane`/`.dock-body` — zero content-CSS churn.
-   Builders run in shipped order against a DETACHED host; registration
-   lands now or on `tok-rail:ready`.
-4. **The rail owns the feed.** buildFeed() is no longer called: writers
-   (feedInsert / feedLogRoll / logEvent) and the always-on channel stay,
-   purely driving the roll ticker; renderFeed no-ops on its null-element
-   guard. Bonus: retiring buildFeed removed a hard `onRSChange`
-   OVERWRITE that clobbered the rail's chained listener.
-5. Ticker survives: gated on `__tokRail.open && tab==='feed'`, offset
-   396px past the open rail / 36px past the collapsed handle, click →
-   `TokRail.show('feed')`. Outside-click guards re-pointed from
-   `.dock-panel, .dock-handle` to `#tok-rail, .tr-handle` (without this,
-   every rail click deselected the token).
-6. **Rail-size restyle** (v2+v3): one `#tok-rail`-scoped override block —
-   Display's gc-rows, Bestiary, Tracker/Tokens rows, dock-act buttons all
-   upsized for the 384px rail. Base .gc-*/.bst-*/.roster-* rules
-   untouched; Scenes deliberately skipped (already rem-comfortable).
+## WHAT SHIPPED (July 5)
+**1. The wash sweep took lore + npcs** (factions-mirror pattern):
+- lore.html: 4 edits — header ember → --look-header-ember; callout →
+  candidate A (well → band), text → --look-card-text + real italic-600
+  semibold (font link gained the axis); gold hairlines stay literal
+  (theme constant). Approved via mock-lore-wash (A/B shown live).
+- npcs.html: 16 rewires across 11 published tokens — ember, card family,
+  trim, accent-strong hover, portrait stage → modal-g1/g2 (3 fossil
+  stops preserved in fallbacks), dots → --look-dots, badge → --look-scrim
+  with text PINNED #f0ece4 (scrim is dark in both derivation branches;
+  --parchment drifts). KEEPERS untouched and smoke-pinned: five wipes,
+  bars, faction tints, status dots; portrait-fade was already
+  token-faithful via --ink-deep. Body byte-identical from <body> on.
+- Both smokes parse ROOT_MAP from look-derive.js itself (34 tokens).
 
-## LESSONS PINNED (July 4, night)
-1. **"The panel" needs a pointer.** Two right-side surfaces existed
-   (combat's dock AND the site rail); C designed against the wrong one
-   twice before a screenshot settled it. When a map item says "panel" /
-   "float" / "shelf", name the FILE in the doc — and when picking work
-   up, confirm the referent against a screenshot before mocking.
-2. **Write map items with file names.** "Old right panel's sections into
-   the tabbed float" read as three different migrations. rail.js's own
-   comments held the true reading the whole time.
-3. **Mocks must never render blank.** Bake a backdrop (CSS/SVG map, no
-   network); an empty stage behind a mock reads as broken.
-4. **Adapter over excision.** Keeping the DOCK shape and re-homing its
-   DOM cost ~100 lines and preserved every downstream reference;
-   ripping it out would have touched thirty call sites.
-5. **A dead builder can hide a live hazard** — buildFeed's onRSChange
-   overwrite. When retiring a function, read what it CLOBBERS, not just
-   what it builds.
+**2. The Bardic Console became a system** (the session's arc):
+- **bardic-bus.js** — BroadcastChannel('tok-bardic-bus'), protocol v1 in
+  the header (THE contract): verbs hello/cast/toggle/stop/pause/next/
+  prev/vol/globalPause/air/radiomask in; full-SNAPSHOT state out
+  (never diffs — riders stateless, latest snapshot is truth); engine-bye.
+- **bardic-app.jsx** — engine adapter (verb table on refs); busSnapshot
+  identity-stable (radio state via radioStateRef — a shifting snapshot
+  was tearing the bus down per roster change); NEW pauseChannel
+  (per-channel pause never existed; toggle = double-press-to-skip);
+  selected-channel-first multicast (one mood, many channels, own bags);
+  radio relay: clock-stamped anchors on every state change + 10s tick,
+  sonus/YT omitted, engineId stamped; onAir conflict → airBlockedBy;
+  radioMask per-channel routing; bardic_air heartbeat every 10s;
+  BARDIC_BUILD tag ('B6') in every snapshot.
+- **bardic-audio.js** — the latch bug (SHIPPED SINCE THE MIXER WAS BUILT):
+  playTrack never reset _paused → pause-then-cast bricked pausing while
+  the app flipped its own state. Fixed: playTrack resets; pause/resume
+  trust the ELEMENT (heals live desyncs in one press); the 100/300/600ms
+  autoplay watchdog is cancellable and pauseTrack cancels it.
+- **bardic-tab.js** — the rail's Bardic tab (registerTab, order 30,
+  rail.js untouched but for a 6-line loader in the characters-tab slot).
+  Role-shaped pane, collapsible sections persisted (tok-bardic-shut):
+  RADIO leads (listener role), ENGINE (auto-opens when live), CHANNELS
+  (dropdown-first rows — silence + moods alphabetical; pause/next/vol;
+  antenna toggle = rides broadcast or host-only, visible on air only),
+  BROADCAST (On Air, roster with ±ms, blocked-by state). Corner chip:
+  ticker offsets (396/36), toggle → mini chip lives IN the rail row,
+  tab live-dot, handle ember; for players the chip reads ON AIR and
+  routes straight to radio.html. Cross-device awareness = heartbeat
+  POLL (15s + wake + pane-show), narrated diagnostics (raw error text,
+  stale-flag → "refresh the console tab", row-missing distinct).
+- **bardic-radio.js** — shared clock (/.netlify/functions/time, 6 pings,
+  min-RTT filter, 60s re-sync); pure helpers bestOffset/positionAt/
+  driftNudge (page and harness run the SAME math); broadcast() with
+  unique engine keys + {engine:true} meta + conflict preflight (the
+  incumbent keeps the air) + pre-join anchor buffering + sync-request
+  answering; listen() SELF-REBUILDING (error statuses → 2s-backoff
+  rebuild; reconnect() on demand); watch() retained but the rail no
+  longer uses sockets.
+- **radio.html** — one-tap tune-in (the gesture births a pre-blessed
+  6-element pool — iOS only blesses gesture-born audio); anchors-only
+  scheduling; NO rate manipulation ever (see LESSONS 3): seeks past
+  0.45s, one per 15s, adaptive per-device seekLead, never during
+  rebuffer; staleness ladder ask-12s / rebuild-22s / off-air-35s;
+  single-engine latch; wake → resync + rebuild-if-stale; wake lock;
+  SYNC TRIM slider ±500ms persisted (tok-radio-trim) — the human dials
+  out BT/pipeline latency by ear, one clean seek on settle; telemetry:
+  clock line, "last anchor Ns ago", per-channel lock ±ms + stall count.
+- **netlify/functions/time.js**, **_edits/bardic-air.sql** (singleton
+  heartbeat row; RLS + EXPLICIT GRANTS + notify pgrst reload).
+
+## LESSONS PINNED (July 5)
+1. **A transport's reach is a design constraint. Write it down.**
+   BroadcastChannel = one device. Realtime = the room — but iOS freezes
+   background sockets without telling the page; ROWS don't freeze.
+   Affordances must match the transport that can serve them (the phone's
+   rail offered "Light the engine" because it couldn't hear the laptop).
+2. **The console tab is long-lived BY DESIGN → it runs pre-deploy code.**
+   Refresh any open console tab after every bardic push. Build tags make
+   stale tabs visible (Engine header shows '· B6'; bump per wave).
+3. **Never rate-nudge music.** WebKit's pitch-preserving stretcher is the
+   "56k mp3" sound; a standing error holds the whole listen inside it.
+   Correction = rare clean seeks with an adaptive lead. (M's ear found
+   this; ±570ms + "compression" was the giveaway.)
+4. **iOS blesses only gesture-born audio elements.** Channels cast after
+   tune-in played to nobody. The tap births a pool; draw from it forever.
+5. **Stub the publisher's contract — a scar, not just a rule.** The mood
+   field is `label`; the harness fed `name`-shaped moods and passed while
+   the dropdown rendered blank. Assert mappings against the SOURCE.
+6. **Silent catch blocks cost three field rounds.** Failures must narrate:
+   loud warns + on-screen diagnostics (the heartbeat error text solved in
+   one screenshot what silence couldn't in three).
+7. **Policies are not privileges.** New Supabase tables may need explicit
+   GRANTs; RLS is consulted only after table rights pass. And
+   `notify pgrst, 'reload schema'` after DDL.
+8. **Field telemetry beats theory.** "last anchor Ns ago", stall counts,
+   and lock readouts turned every report after their arrival into a
+   diagnosis. Instrument before you iterate.
 
 ## KNOWN-AND-ACCEPTED / OPEN
-- Players' Battle strip = **Display only** (Tracker pane is staff in the
-  shipped page; players read turns from the init strip). Flip the
-  `tab:'Tracker'` registration to non-staff if players should get it.
-- The eye sits in the strip corner, not the rail header — the seam
-  offers no header icons; extending rail.js was out of scope.
-- **Mobile bug trio (new map item, from M's live report):** token drag
-  doesn't work on mobile; the CombatSheets float overflows the top of
-  the screen (✕ barely reachable); the sf-reopen edge tab eats space on
-  mobile. All combat-sheet-float.js / board issues, NOT rail work.
-- Dead feed-reader code in combat.html (renderFeed, feedTab, buildFeed,
-  the FEED array churn) awaits the feed-core extraction.
-- The statblock drawer stays deliberate ("DM info, not a fixture").
-- ◐ override banner: a standalone mock exists from tonight's detour
-  (mock-override-banner.html — banner + silent-lock toast, 16/16 smoke)
-  but was never reviewed on its merits; the map item stands.
-- v7 character-badge.js deploy pending. Remaining fossil pages: lore,
-  npcs (allegiance fades are a KEEPER), world, compendium, index.
-  smoke-nav-cog-flyout.mjs still awaiting git rm; schema deltas for
-  characters / saved_monsters / drawings still live-DB only.
+- **Radio sync floor (media elements): ~±150-500ms on iOS** after all
+  fixes; trim kills the FIXED part per device. Ambience reads as
+  resonance (M likes it); rhythm needs trim calibration — and if that's
+  not enough, wave C (below). Remote solo listeners don't perceive offset
+  at all (no room to be offset against).
+- Track-change gap ~2s on listeners (load + one seek) — physics of
+  streaming; preloading (engine announces next track early) is the lever
+  if it grates.
+- Stalls 1-2 at track start = load buffering, normal. CLIMBING stalls
+  mid-track post-B.6 = genuine delivery; lever = Cloudinary audio
+  transforms (consistent-bitrate AAC), a URL tweak.
+- Two engines racing on-air simultaneously: preflight covers the normal
+  case; the listener single-engine latch is the insurance.
+- Chip vs roll ticker on combat.html: both bottom-right; eyeball for
+  crowding, one-line offset if needed.
+- Carried from July 4: ◐ override banner (mock-override-banner.html,
+  outputs-only, unreviewed); players' Battle strip = Display only;
+  dead feed-reader code in combat.html awaits feed-core;
+  smoke-nav-cog-flyout.mjs awaiting git rm; schema deltas for
+  characters/saved_monsters/drawings live-DB only; statblock drawer
+  deliberate.
 
-## THE MAP (revised July 4 night)
-1. **Deploy v3** (combat.html) + **the v7 badge fix** (character-badge.js)
-   — both single-file, ride one push.
-2. **Wash sweep, next page: lore** (then npcs → world → compendium →
-   index). Per page: recon literals + CHECK pageLooks state first; the
-   Sumi×Bone control case must keep reading as Phantom; npcs preserves
-   the allegiance fades as derivations. Combat.html joins the sweep
-   eventually — same solution as factions, M confirmed.
-3. **◐ override banner** — mock exists (see OPEN); review it, then build
-   into settings-flyout.js (SETTINGS_V bump when it lands).
-4. **Feed-core extraction** (rail-dock increment 3): one shared feed
-   module the rail and chronicle consume; sweep combat.html's dead
-   reader code in the same pass.
-5. **Mobile trio** (token drag / sheet-float overflow / sf-reopen tab) —
-   its own arc; recon combat-sheet-float.js + the board's pointer
-   handlers first.
-6. Threads + composer into the shelf panel (mock first; donor organs:
-   docToFeedBody, the journal composer). Then Quill retirement after one
-   real session writes through it.
-7. Small standalones: medallion portraits rollout, rail alias wiring,
-   badge growth, flyout polish, rail-size pass for Scenes if it reads
-   small live.
+## THE MAP (revised July 5 night)
+1. **Field-test B.7**: calibrate sync trim per device with a rhythmic
+   track; exercise the antenna toggles (ambience to the room, battle
+   host-only). Read the telemetry lines back.
+2. **Wave C — Web Audio precision mode** (only if rhythm still fails
+   post-trim): fetch + decodeAudioData + source.start(when, offset)
+   against the audio clock; sample-accurate, ±15-40ms honest;
+   outputLatency compensation; per-channel opt-in (decoded PCM is
+   memory-hungry — not a wholesale swap). Own arc, session-day testing.
+3. **Wash sweep, next page: world** (then compendium). index PULLED from
+   the sweep — its overhaul designs token-native from the start (its own
+   mock-first arc). combat.html joins eventually, same as factions.
+4. **party.html ↔ v11 sheet parity**: field-by-field diff vs
+   sheet-mount.js's render set → layout mock → build.
+5. **Feed-core extraction → chronicle swap.** M to name the referent:
+   retire chronicle.html for journal.html, or rebuild chronicle.html on
+   the shared feed. Feed-core lands first either way; sweep combat.html's
+   dead reader code in the same pass.
+6. **Console layout re-haul** (needs M's gripes list) — dropdowns-in-rail
+   precedent may inform the console's own density.
+7. **Mobile trio** (token drag / sheet-float overflow / sf-reopen tab) —
+   combat-sheet-float.js + board pointer handlers, own arc.
+8. Small standalones: medallion portraits rollout, rail alias wiring,
+   badge growth, flyout polish, Scenes rail-size if it reads small live.
 
-## STANDING RULES (unchanged, restated for the new doc)
+## STANDING RULES (additions in caps context)
 mock → approve → build for all UX. node --check + jsdom smokes before
-every handover; smoke green + screenshot = done. C preps zips; M deploys
-(SQL first when present); C never commits or pushes. Injected chrome:
-ID-prefixed selectors, JS-mixed rgb()/rgba() literals (no color-mix or
-modern CSS expressions in shorthand), cache-stamp every injected script
-with SETTINGS_V. scrollIntoView banned in scoped containers;
-overflow:clip is not programmatically scrollable. GitHub web upload drops
-hidden dotfiles. Stub the publisher's contract in smoke harnesses, not
-your own assumption. Recon saved state before connecting dormant
-surfaces. Verify deploy state; never infer it from repo constants.
-Map items name FILES, not furniture — "the panel" cost half a session.
+every handover (JSX: @babel/parser IS the node --check); smoke green +
+screenshot = done. C preps zips; M deploys (SQL first when present); C
+never commits or pushes. REFRESH THE CONSOLE TAB AFTER EVERY BARDIC
+DEPLOY. Injected chrome: ID-prefixed selectors, JS-mixed rgb()/rgba()
+literals, cache-stamp per SETTINGS_V (rail riders follow the shipped
+bare-src bootstrap convention). scrollIntoView banned in scoped
+containers; overflow:clip not programmatically scrollable. GitHub web
+upload drops hidden dotfiles. Stub the publisher's contract in smoke
+harnesses, not your own assumption — AND ASSERT FIELD MAPPINGS AGAINST
+SOURCE (the `label` scar). Recon saved state before connecting dormant
+surfaces. Verify deploy state; never infer it from repo constants — and
+never from a long-lived tab. Map items name FILES, not furniture.
+FAILURES MUST NARRATE: no silent catch blocks in cross-device paths;
+surface the raw error where the person testing can see it. NEVER
+RATE-NUDGE MUSIC. Bardic protocol lives in bardic-bus.js's header;
+snapshots, never diffs. Every bardic wave bumps BARDIC_BUILD.
