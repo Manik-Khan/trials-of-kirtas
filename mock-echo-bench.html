@@ -1,0 +1,514 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Echo Lock — acoustic bench</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,600;1,500&family=Oswald:wght@300;400;500;600&family=EB+Garamond:ital@0;1&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --ground:#182826; --panel:#1f302d; --panel-2:#243a36; --line:#31514b;
+    --ink:#efe7d6; --ink-dim:#a9bab2;
+    --gold:#d9a441;   /* self  */
+    --teal:#5fb0a0;   /* room  */
+    --blood:#c65a4a;  /* fail  */
+    --font-title:"Playfair Display",serif;
+    --font-num:"Oswald",sans-serif;
+    --font-body:"EB Garamond",serif;
+  }
+  *{box-sizing:border-box}
+  html,body{margin:0}
+  body{
+    background:var(--ground); color:var(--ink); font-family:var(--font-body);
+    font-size:17px; line-height:1.5; -webkit-font-smoothing:antialiased;
+    min-height:100dvh; padding:clamp(16px,4vw,40px) clamp(14px,4vw,32px) 64px;
+    position:relative; overflow-x:hidden;
+  }
+  /* grain + vignette, quiet */
+  body::before{content:"";position:fixed;inset:0;pointer-events:none;z-index:0;
+    background:radial-gradient(120% 90% at 50% 8%,transparent 55%,rgba(0,0,0,.45) 100%);}
+  body::after{content:"";position:fixed;inset:0;pointer-events:none;z-index:0;opacity:.05;
+    background-image:url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='120' height='120'><filter id='n'><feTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='2'/></filter><rect width='120' height='120' filter='url(%23n)'/></svg>");}
+  main{max-width:560px;margin:0 auto;position:relative;z-index:1}
+
+  .eyebrow{font-family:var(--font-num);font-weight:500;letter-spacing:.28em;
+    text-transform:uppercase;font-size:12px;color:var(--teal);margin:0 0 6px}
+  h1{font-family:var(--font-title);font-weight:600;font-size:clamp(30px,8vw,42px);
+    line-height:1.02;margin:0 0 10px}
+  .lede{color:var(--ink-dim);margin:0 0 22px;max-width:46ch}
+
+  .roles{display:flex;gap:10px;margin:0 0 26px}
+  .role{flex:1;font-family:var(--font-num);font-weight:500;letter-spacing:.06em;
+    text-transform:uppercase;font-size:14px;padding:12px;border:1px solid var(--line);
+    background:transparent;color:var(--ink-dim);cursor:pointer}
+  .role[aria-pressed="true"]{background:var(--panel);color:var(--ink);border-color:var(--teal)}
+  .role .sub{display:block;font-family:var(--font-body);font-weight:400;text-transform:none;
+    letter-spacing:0;font-size:13px;color:var(--ink-dim);margin-top:2px}
+
+  section.pane{display:none}
+  section.pane.on{display:block}
+
+  .card{border:1px solid var(--line);background:var(--panel);padding:18px 18px 20px;margin:0 0 16px}
+  .card h2{font-family:var(--font-num);font-weight:500;letter-spacing:.04em;font-size:16px;
+    text-transform:uppercase;margin:0 0 4px}
+  .card p.hint{color:var(--ink-dim);margin:0 0 14px;font-size:15px}
+
+  button.go{font-family:var(--font-num);font-weight:500;letter-spacing:.08em;text-transform:uppercase;
+    font-size:15px;padding:13px 18px;border:1px solid var(--teal);background:var(--panel-2);
+    color:var(--ink);cursor:pointer;width:100%}
+  button.go:active{background:var(--teal);color:var(--ground)}
+  button.go[disabled]{opacity:.5;cursor:default}
+  button.go.host-live{border-color:var(--gold);color:var(--gold)}
+
+  .readout{display:grid;grid-template-columns:1fr 1fr;gap:1px;background:var(--line);
+    border:1px solid var(--line);margin:16px 0 0}
+  .readout .cell{background:var(--panel);padding:12px 14px}
+  .readout .k{font-family:var(--font-num);font-weight:300;letter-spacing:.14em;text-transform:uppercase;
+    font-size:11px;color:var(--ink-dim)}
+  .readout .v{font-family:var(--font-num);font-weight:500;font-size:30px;line-height:1.1;margin-top:2px}
+  .v.self{color:var(--gold)} .v.room{color:var(--teal)} .v.trim{color:var(--ink)}
+  .v .u{font-size:14px;color:var(--ink-dim);margin-left:3px}
+  .peakbar{height:4px;background:var(--panel-2);margin-top:8px;position:relative}
+  .peakbar i{position:absolute;left:0;top:0;bottom:0;background:currentColor}
+
+  .status{font-family:var(--font-body);font-size:15px;margin:14px 0 0;padding:10px 12px;
+    border-left:3px solid var(--line);color:var(--ink-dim);background:var(--panel-2)}
+  .status.ok{border-color:var(--teal);color:var(--ink)}
+  .status.warn{border-color:var(--gold);color:var(--ink)}
+  .status.bad{border-color:var(--blood);color:var(--ink)}
+
+  canvas{width:100%;height:120px;display:block;margin-top:14px;background:var(--panel-2);border:1px solid var(--line)}
+  .legend{display:flex;gap:16px;font-family:var(--font-num);font-weight:300;letter-spacing:.1em;
+    text-transform:uppercase;font-size:11px;color:var(--ink-dim);margin-top:8px}
+  .legend b{font-weight:500} .legend .s{color:var(--gold)} .legend .r{color:var(--teal)}
+
+  .foot{color:var(--ink-dim);font-size:14px;margin-top:26px;border-top:1px solid var(--line);padding-top:14px}
+  .foot code{font-family:var(--font-num);font-weight:400;color:var(--ink);letter-spacing:.03em}
+  .tag{position:fixed;right:10px;bottom:8px;z-index:2;font-family:var(--font-num);font-weight:300;
+    letter-spacing:.14em;font-size:10px;color:var(--ink-dim);opacity:.7}
+  @media (prefers-reduced-motion:reduce){*{transition:none!important;animation:none!important}}
+</style>
+</head>
+<body>
+<main>
+  <p class="eyebrow">Bardic radio · sync bench</p>
+  <h1>Echo Lock</h1>
+  <p class="lede">Measure the phone against the room, in one capture — no console, no self-only math. Prove the acoustic read on this actual phone, then we wire it into the radio.</p>
+
+  <div class="roles" role="group" aria-label="Device role">
+    <button class="role" id="rHost" aria-pressed="false">Host
+      <span class="sub">laptop — plays the bed</span></button>
+    <button class="role" id="rPhone" aria-pressed="false">Phone
+      <span class="sub">measures the offset</span></button>
+  </div>
+
+  <!-- HOST -->
+  <section class="pane" id="paneHost">
+    <div class="card">
+      <h2>Broadcast the bed</h2>
+      <p class="hint">Run this on the laptop that plays the room. It loops a short irregular bench tone — the phone listens for it. Turn the laptop up to a normal listening level and leave this running.</p>
+      <button class="go" id="bedBtn">Play bed loop</button>
+      <div class="status" id="hostStatus">Idle.</div>
+    </div>
+    <p class="foot">The bed is broadband with sharp onsets on purpose — it correlates cleanly and you can hear when a second copy fuses with it. It is a bench signal, not the real track.</p>
+  </section>
+
+  <!-- PHONE -->
+  <section class="pane" id="panePhone">
+    <div class="card">
+      <h2>1 · Self-check <span style="color:var(--ink-dim);font-weight:300">— this device alone</span></h2>
+      <p class="hint">No host needed. The phone chirps and listens for its own chirp back — proves the raw mic and the math work on this phone. Expect a crisp peak near 1.0.</p>
+      <button class="go" id="selfBtn">Run self-check</button>
+      <div class="readout" id="selfOut" style="display:none">
+        <div class="cell"><div class="k">Round trip</div><div class="v self" id="selfRt">—<span class="u">ms</span></div></div>
+        <div class="cell"><div class="k">Peak</div><div class="v self" id="selfPk">—</div>
+          <div class="peakbar" style="color:var(--gold)"><i id="selfPkBar" style="width:0"></i></div></div>
+      </div>
+      <div class="status" id="selfStatus" style="display:none"></div>
+    </div>
+
+    <div class="card">
+      <h2>2 · Room measure <span style="color:var(--ink-dim);font-weight:300">— needs Host running</span></h2>
+      <p class="hint">Start Host on the laptop first. The phone chirps, then listens ~4s for the laptop’s bed across the room. The reading that matters is the <b style="color:var(--teal)">room peak</b>: crisp means the across-room bed was cleanly caught — the thing that failed before.</p>
+      <button class="go" id="measBtn">Measure room</button>
+      <div class="readout" id="measOut" style="display:none">
+        <div class="cell"><div class="k">Self peak</div><div class="v self" id="mSelfPk">—</div>
+          <div class="peakbar" style="color:var(--gold)"><i id="mSelfBar" style="width:0"></i></div></div>
+        <div class="cell"><div class="k">Room peak</div><div class="v room" id="mRoomPk">—</div>
+          <div class="peakbar" style="color:var(--teal)"><i id="mRoomBar" style="width:0"></i></div></div>
+        <div class="cell"><div class="k">Room lag</div><div class="v room" id="mRoomMs">—<span class="u">ms</span></div></div>
+        <div class="cell"><div class="k">Raw trim <span style="text-transform:none;letter-spacing:0">(uncalib.)</span></div><div class="v trim" id="mTrim">—<span class="u">ms</span></div></div>
+      </div>
+      <canvas id="curve" width="600" height="240" style="display:none"></canvas>
+      <div class="legend" id="legend" style="display:none"><span><b class="s">■</b> self · chirp</span><span><b class="r">■</b> room · bed</span></div>
+      <div class="status" id="measStatus" style="display:none"></div>
+    </div>
+
+    <p class="foot">Trim shows as <code>self − room</code> but is <b>uncalibrated here</b> — there’s no shared clock on a bench, so the absolute zero lives in the radio, not this file. What this bench proves is that both peaks come back <b>crisp</b> on your phone. If they do, the old “peaked 0.26” was the stale cache / <code>volume=0</code> duck — not physics — and we wire <code>measure()</code> into radio.html where the clock defines zero, and your ear does the final calibration.</p>
+  </section>
+</main>
+<div class="tag">echo-bench · fresh · no cache surface</div>
+
+<script>
+/* ==== DSP core (identical to the headless-smoked echo-dsp.js) ==== */
+/* echo-dsp.js — pure DSP core for the Echo Lock acoustic harness.
+ * No DOM, no Web Audio; operates on Float32Array + sampleRate.
+ * This exact text is inlined verbatim into the harness <script>, and
+ * imported by smoke-echo-dsp.mjs. Keep the two byte-identical.
+ *
+ * The measurement, plainly:
+ *   The phone captures ~4s of mic while (a) it fires a short chirp (its
+ *   own output, near, the SELF reference) and (b) the laptop across the
+ *   room plays a known bed loop (the ROOM). We find where each lands in
+ *   the capture by normalized cross-correlation of energy envelopes.
+ *     selfMs = lag of the phone's own chirp   (its output+mic latency)
+ *     roomMs = lag of the laptop's bed        (the room, through the air)
+ *     trim   = selfMs - roomMs                (the offset to cancel)
+ *   The chirp span is masked out before the ROOM search so the phone's
+ *   own loud, zero-distance chirp can't masquerade as the room bed —
+ *   the exact failure ("peaked low 0.26") that killed this path before.
+ */
+
+// ---- deterministic RNG so host + phone synth byte-identical beds ----
+function lcg(seed) {
+  let s = seed >>> 0;
+  return function () { s = (s * 1664525 + 1013904223) >>> 0; return s / 4294967296; };
+}
+
+// ---- SELF reference: a short Hann-windowed exponential sine sweep ----
+// Broadband + non-repetitive => a single sharp autocorrelation peak.
+function makeChirp(sr, ms) {
+  ms = ms || 260;
+  const n = Math.round(sr * ms / 1000);
+  const out = new Float32Array(n);
+  const f0 = 1500, f1 = 6500;
+  const k = Math.log(f1 / f0);
+  for (let i = 0; i < n; i++) {
+    const t = i / sr;
+    const T = n / sr;
+    const phase = 2 * Math.PI * f0 * (T / k) * (Math.exp(k * t / T) - 1);
+    const w = 0.5 - 0.5 * Math.cos(2 * Math.PI * i / (n - 1)); // Hann
+    out[i] = w * Math.sin(phase);
+  }
+  return out;
+}
+
+// ---- ROOM reference: a 2.4s irregular broadband bed, deterministic ----
+// Sharp filtered-noise clicks on an irregular pulse + a couple tone blips.
+// Sharp onsets => clean envelope xcorr; irregular => unambiguous peak;
+// distinct enough that the ear can tell "fused" from "echoing".
+function makeBed(sr, seconds) {
+  seconds = seconds || 2.4;
+  const n = Math.round(sr * seconds);
+  const out = new Float32Array(n);
+  const rnd = lcg(0x5eed1e);
+  // irregular click grid
+  let t = 0.12;
+  while (t < seconds - 0.15) {
+    const at = Math.round(t * sr);
+    const dur = Math.round(sr * (0.012 + rnd() * 0.02));
+    let prev = 0;
+    for (let i = 0; i < dur && at + i < n; i++) {
+      // one-pole bandpassy filtered noise burst with fast decay
+      const white = rnd() * 2 - 1;
+      const bp = white - prev; prev = white;
+      const env = Math.exp(-i / (dur * 0.35));
+      out[at + i] += 0.6 * bp * env;
+    }
+    t += 0.14 + rnd() * 0.16; // irregular spacing
+  }
+  // two tonal blips for ear-legibility
+  [[0.5, 440], [1.6, 660]].forEach(function (b) {
+    const at = Math.round(b[0] * sr), dur = Math.round(sr * 0.14);
+    for (let i = 0; i < dur && at + i < n; i++) {
+      const env = Math.exp(-i / (dur * 0.4));
+      out[at + i] += 0.25 * env * Math.sin(2 * Math.PI * b[1] * i / sr);
+    }
+  });
+  // normalize to ~0.9 peak
+  let mx = 1e-9;
+  for (let i = 0; i < n; i++) mx = Math.max(mx, Math.abs(out[i]));
+  const g = 0.9 / mx;
+  for (let i = 0; i < n; i++) out[i] *= g;
+  return out;
+}
+
+// ---- energy envelope: rectify -> one-pole smooth -> decimate ----
+function envelope(x, sr, envRate) {
+  envRate = envRate || 1000;
+  const tau = 0.004; // 4ms smoothing
+  const a = Math.exp(-1 / (sr * tau));
+  const step = Math.max(1, Math.round(sr / envRate));
+  const outLen = Math.floor(x.length / step);
+  const env = new Float32Array(outLen);
+  let y = 0, j = 0, acc = 0, cnt = 0;
+  for (let i = 0; i < x.length; i++) {
+    const r = Math.abs(x[i]);
+    y = a * y + (1 - a) * r;
+    acc += y; cnt++;
+    if (cnt === step) { if (j < outLen) env[j++] = acc / step; acc = 0; cnt = 0; }
+  }
+  return { env: env, rate: Math.round(sr / step) };
+}
+
+// ---- normalized cross-correlation: slide template across signal ----
+// Returns {lag, peak, curve}: lag in envelope samples, peak in [-1,1].
+function slideMatch(sig, tmpl, maxLag) {
+  const n = tmpl.length;
+  let mb = 0; for (let i = 0; i < n; i++) mb += tmpl[i]; mb /= n;
+  const tz = new Float32Array(n); let nb = 0;
+  for (let i = 0; i < n; i++) { tz[i] = tmpl[i] - mb; nb += tz[i] * tz[i]; }
+  nb = Math.sqrt(nb) || 1e-9;
+  const lim = Math.min(maxLag, sig.length - n);
+  const curve = new Float32Array(Math.max(0, lim + 1));
+  let bestLag = 0, bestVal = -2;
+  for (let lag = 0; lag <= lim; lag++) {
+    let ma = 0; for (let i = 0; i < n; i++) ma += sig[lag + i]; ma /= n;
+    let dot = 0, na = 0;
+    for (let i = 0; i < n; i++) { const av = sig[lag + i] - ma; dot += av * tz[i]; na += av * av; }
+    na = Math.sqrt(na) || 1e-9;
+    const c = dot / (na * nb);
+    curve[lag] = c;
+    if (c > bestVal) { bestVal = c; bestLag = lag; }
+  }
+  return { lag: bestLag, peak: bestVal, curve: curve };
+}
+
+// ---- the measurement ----
+// capture: Float32Array mic recording. refs: {chirp, bed} waveforms.
+// Returns selfMs/roomMs/trimMs + peaks + a status taxonomy.
+function measureFromCapture(capture, sr, refs) {
+  const envRate = 1000;
+  const cap = envelope(capture, sr, envRate);
+  const chirpEnv = envelope(refs.chirp, sr, envRate).env;
+  const bedEnv = envelope(refs.bed, sr, envRate).env;
+  const rate = cap.rate;
+  const msPer = 1000 / rate;
+
+  // SELF: find the phone's own chirp anywhere in the capture.
+  const selfMax = Math.round(0.6 * rate); // search first 600ms
+  const self = slideMatch(cap.env, chirpEnv, selfMax);
+  const selfMs = self.lag * msPer;
+
+  // Mask the chirp span so it can't pose as a bed peak in the ROOM search.
+  const masked = cap.env.slice();
+  const guard = Math.round(0.03 * rate);
+  const m0 = Math.max(0, self.lag - guard);
+  const m1 = Math.min(masked.length, self.lag + chirpEnv.length + guard);
+  for (let i = m0; i < m1; i++) masked[i] = 0;
+
+  // ROOM: find the laptop's bed. Its absolute lag is uncalibrated in the
+  // harness (no shared clock here) — what we read is PEAK QUALITY: was the
+  // across-room bed cleanly detected? Search the full window.
+  const roomMax = Math.round(2.0 * rate);
+  const room = slideMatch(masked, bedEnv, roomMax);
+  const roomMs = room.lag * msPer;
+
+  const status = summarize(self.peak, room.peak);
+  return {
+    selfMs: selfMs, selfPeak: self.peak,
+    roomMs: roomMs, roomPeak: room.peak,
+    trimMs: selfMs - roomMs,
+    rate: rate, selfCurve: self.curve, roomCurve: room.curve,
+    status: status
+  };
+}
+
+// ---- failure taxonomy: a fail must say WHY, in the room's voice ----
+function summarize(selfPeak, roomPeak) {
+  if (selfPeak < 0.5) return { ok: false, code: 'weak-self',
+    msg: 'Chirp not heard back — is the mic covered or muted?' };
+  if (roomPeak < 0.5) return { ok: false, code: 'weak-room',
+    msg: 'Room bed too faint — start Host on the laptop and raise its volume.' };
+  if (roomPeak < 0.7) return { ok: true, code: 'soft-room',
+    msg: 'Room detected but soft — nudge the laptop louder for a cleaner read.' };
+  return { ok: true, code: 'ok', msg: 'Clean read on both.' };
+}
+
+// export for the node smoke; ignored in the browser (guarded).
+if (typeof module !== 'undefined' && module.exports) {
+  module.exports = { lcg, makeChirp, makeBed, envelope, slideMatch, measureFromCapture, summarize };
+}
+/* ==== end DSP core ==== */
+</script>
+
+<script>
+/* ==== harness glue: audio + UI. iOS-correct: raw mic (echoCancellation
+   false), user-gesture resume, gain-0 sink so the recorder runs without
+   feeding the mic to the speaker. ==== */
+(function () {
+  "use strict";
+  var $ = function (id) { return document.getElementById(id); };
+  var ctx = null;
+  function audioCtx() {
+    if (!ctx) ctx = new (window.AudioContext || window.webkitAudioContext)();
+    return ctx;
+  }
+
+  // ---- role switch ----
+  var paneHost = $("paneHost"), panePhone = $("panePhone");
+  function setRole(which) {
+    var host = which === "host";
+    $("rHost").setAttribute("aria-pressed", host);
+    $("rPhone").setAttribute("aria-pressed", !host);
+    paneHost.classList.toggle("on", host);
+    panePhone.classList.toggle("on", !host);
+  }
+  $("rHost").onclick = function () { setRole("host"); };
+  $("rPhone").onclick = function () { setRole("phone"); };
+  // auto-hint by viewport: phones measure, laptops host
+  setRole(Math.min(screen.width, screen.height) <= 820 ? "phone" : "host");
+
+  // ---- HOST: loop the bed ----
+  var bedSource = null;
+  $("bedBtn").onclick = async function () {
+    var c = audioCtx();
+    await c.resume();
+    if (bedSource) {
+      try { bedSource.stop(); } catch (e) {}
+      bedSource = null;
+      $("bedBtn").textContent = "Play bed loop";
+      $("bedBtn").classList.remove("host-live");
+      $("hostStatus").textContent = "Idle.";
+      return;
+    }
+    var bed = makeBed(c.sampleRate, 2.4);
+    var buf = c.createBuffer(1, bed.length, c.sampleRate);
+    buf.getChannelData(0).set(bed);
+    var s = c.createBufferSource();
+    s.buffer = buf; s.loop = true;
+    var g = c.createGain(); g.gain.value = 0.9;
+    s.connect(g); g.connect(c.destination);
+    s.start();
+    bedSource = s;
+    $("bedBtn").textContent = "Stop bed loop";
+    $("bedBtn").classList.add("host-live");
+    $("hostStatus").className = "status ok";
+    $("hostStatus").textContent = "Broadcasting @ " + c.sampleRate + " Hz — leave running. Raise laptop volume to a normal level.";
+  };
+
+  // ---- shared: record N seconds of raw mic, fire the chirp at +150ms ----
+  // Resolves { capture:Float32Array, sr, chirpOffsetMs } where chirpOffsetMs
+  // is where in the capture we scheduled the chirp start.
+  async function captureWithChirp(durSec, chirp) {
+    var c = audioCtx();
+    await c.resume();
+    var stream = await navigator.mediaDevices.getUserMedia({
+      audio: { echoCancellation: false, autoGainControl: false, noiseSuppression: false, channelCount: 1 }
+    });
+    var src = c.createMediaStreamSource(stream);
+    var bufSize = 4096;
+    var proc = c.createScriptProcessor(bufSize, 1, 1);
+    var sink = c.createGain(); sink.gain.value = 0; // silent sink so proc runs
+    var chunks = [], started = false, recStart = 0;
+    var CHIRP_OFFSET = 0.15;
+
+    proc.onaudioprocess = function (e) {
+      var d = e.inputBuffer.getChannelData(0);
+      if (!started) {
+        started = true; recStart = c.currentTime;
+        if (chirp) {
+          var cb = c.createBuffer(1, chirp.length, c.sampleRate);
+          cb.getChannelData(0).set(chirp);
+          var cs = c.createBufferSource(); cs.buffer = cb;
+          cs.connect(c.destination);
+          cs.start(recStart + CHIRP_OFFSET);
+        }
+      }
+      chunks.push(new Float32Array(d));
+    };
+    src.connect(proc); proc.connect(sink); sink.connect(c.destination);
+
+    await new Promise(function (r) { setTimeout(r, durSec * 1000 + 250); });
+    try { proc.disconnect(); src.disconnect(); sink.disconnect(); } catch (e) {}
+    stream.getTracks().forEach(function (t) { t.stop(); });
+
+    var total = chunks.reduce(function (n, a) { return n + a.length; }, 0);
+    var cap = new Float32Array(total), o = 0;
+    chunks.forEach(function (a) { cap.set(a, o); o += a.length; });
+    return { capture: cap, sr: c.sampleRate, chirpOffsetMs: CHIRP_OFFSET * 1000 };
+  }
+
+  function pk(x) { return (x <= 0 ? 0 : x >= 1 ? 100 : x * 100).toFixed(0) + "%"; }
+  function setStatus(el, cls, msg) { el.style.display = "block"; el.className = "status " + cls; el.textContent = msg; }
+  function busy(btn, on, label) { btn.disabled = on; btn.textContent = on ? label : btn.dataset.rest; }
+
+  // ---- 1 · self-check (round trip on this device) ----
+  var selfBtn = $("selfBtn"); selfBtn.dataset.rest = "Run self-check";
+  selfBtn.onclick = async function () {
+    busy(selfBtn, true, "Listening…");
+    try {
+      var chirp = makeChirp(audioCtx().sampleRate, 260);
+      var res = await captureWithChirp(1.6, chirp);
+      var capEnv = envelope(res.capture, res.sr, 1000);
+      var chEnv = envelope(chirp, res.sr, 1000).env;
+      var m = slideMatch(capEnv.env, chEnv, capEnv.rate); // full-window
+      var lagMs = m.lag * (1000 / capEnv.rate);
+      var rtMs = lagMs - res.chirpOffsetMs; // subtract the scheduled offset
+      $("selfOut").style.display = "grid";
+      $("selfRt").innerHTML = (rtMs > 0 ? rtMs.toFixed(0) : "—") + '<span class="u">ms</span>';
+      $("selfPk").textContent = m.peak.toFixed(2);
+      $("selfPkBar").style.width = pk(m.peak);
+      if (m.peak < 0.5) setStatus($("selfStatus"), "bad", "No clean chirp return — is the mic covered, or the phone silent-switched? (Chirp still plays even on silent.)");
+      else setStatus($("selfStatus"), "ok", "Raw mic + DSP good on this phone. Output round trip ≈ " + rtMs.toFixed(0) + " ms.");
+    } catch (err) {
+      setStatus($("selfStatus"), "bad", "Mic blocked: " + (err && err.message ? err.message : err));
+    }
+    busy(selfBtn, false);
+  };
+
+  // ---- 2 · room measure ----
+  var measBtn = $("measBtn"); measBtn.dataset.rest = "Measure room";
+  measBtn.onclick = async function () {
+    busy(measBtn, true, "Chirp → listening 4s…");
+    try {
+      var sr = audioCtx().sampleRate;
+      var chirp = makeChirp(sr, 260), bed = makeBed(sr, 2.4);
+      var res = await captureWithChirp(4.0, chirp);
+      var r = measureFromCapture(res.capture, res.sr, { chirp: chirp, bed: bed });
+      $("measOut").style.display = "grid";
+      $("mSelfPk").textContent = r.selfPeak.toFixed(2); $("mSelfBar").style.width = pk(r.selfPeak);
+      $("mRoomPk").textContent = r.roomPeak.toFixed(2); $("mRoomBar").style.width = pk(r.roomPeak);
+      $("mRoomMs").innerHTML = r.roomMs.toFixed(0) + '<span class="u">ms</span>';
+      $("mTrim").innerHTML = r.trimMs.toFixed(0) + '<span class="u">ms</span>';
+      drawCurves(r);
+      var cls = r.status.code === "ok" ? "ok" : (r.status.ok ? "warn" : "bad");
+      setStatus($("measStatus"), cls, r.status.msg +
+        (r.status.ok ? "  Room peak " + r.roomPeak.toFixed(2) + " — " + (r.roomPeak >= 0.7 ? "clean catch across the room." : "readable but soft.") : ""));
+    } catch (err) {
+      setStatus($("measStatus"), "bad", "Mic blocked: " + (err && err.message ? err.message : err));
+    }
+    busy(measBtn, false);
+  };
+
+  // ---- correlation curves: self (gold) + room (teal), peaks marked ----
+  function drawCurves(r) {
+    var cv = $("curve"); cv.style.display = "block"; $("legend").style.display = "flex";
+    var dpr = window.devicePixelRatio || 1;
+    var w = cv.clientWidth, h = 120;
+    cv.width = w * dpr; cv.height = h * dpr;
+    var g = cv.getContext("2d"); g.scale(dpr, dpr);
+    g.clearRect(0, 0, w, h);
+    g.strokeStyle = "#31514b"; g.lineWidth = 1;
+    g.beginPath(); g.moveTo(0, h / 2); g.lineTo(w, h / 2); g.stroke();
+    function plot(curve, peakLag, color) {
+      if (!curve || !curve.length) return;
+      g.strokeStyle = color; g.lineWidth = 1.5; g.beginPath();
+      for (var i = 0; i < curve.length; i++) {
+        var x = i / (curve.length - 1) * w;
+        var y = h / 2 - Math.max(-1, Math.min(1, curve[i])) * (h / 2 - 6);
+        i ? g.lineTo(x, y) : g.moveTo(x, y);
+      }
+      g.stroke();
+      var px = peakLag / (curve.length - 1) * w;
+      g.fillStyle = color; g.fillRect(px - 1, 6, 2, h - 12);
+    }
+    plot(r.roomCurve, r.roomMs / (1000 / r.rate), "#5fb0a0");
+    plot(r.selfCurve, r.selfMs / (1000 / r.rate), "#d9a441");
+  }
+})();
+</script>
+</body>
+</html>
