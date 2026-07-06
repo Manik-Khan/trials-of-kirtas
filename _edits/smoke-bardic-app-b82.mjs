@@ -32,7 +32,7 @@ ok(/setBusy\(false\);\s*\n\s*setErr\(\(e && e\.message\)/.test(app), 'chip failu
 ok(/RADIO ANCHORS SIDE-CONTRACT/.test(bus) && /roomLatencyMs : number\|null/.test(bus),
    'contract lives in bardic-bus.js header (THE contract)');
 ok(/tab teardown race — drop \*\/ \}/.test(bus), 'the mangled inline comment was restored');
-ok(/bardic-echo\.js\?v=E4/.test(page), 'console page loads the echo module, cache-stamped');
+ok(/bardic-echo\.js\?v=E5/.test(page), 'console page loads the echo module, cache-stamped');
 
 console.log(`\nsmoke-bardic-app-b82: ${pass} passed, ${fail} failed`);
 process.exit(fail?1:0);

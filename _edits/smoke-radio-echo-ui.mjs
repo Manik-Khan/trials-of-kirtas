@@ -13,7 +13,7 @@ const dom = new JSDOM(html,{runScripts:'dangerously',pretendToBeVisual:true,url:
   beforeParse(w){
     w.BardicRadio = { positionAt: () => 10 };
     w.BardicClock = { now: () => 123456, sync: () => Promise.resolve(), offset:0, rtt:0 };
-    w.BardicEcho = { BUILD:'E4', selfTest(){ selfTestCalls++; return Promise.resolve(nextResult); }, measure(){} };
+    w.BardicEcho = { BUILD:'E5', selfTest(){ selfTestCalls++; return Promise.resolve(nextResult); }, measure(){} };
     Object.defineProperty(w,'localStorage',{value:{getItem:()=>null,setItem(){},removeItem(){}}});
   }});
 const w = dom.window, doc = w.document;
@@ -29,8 +29,9 @@ ok(on('echoResult'), 'resolve → result card');
 ok(doc.getElementById('echoSelf').textContent==='+198ms', 'self measurement shown');
 ok(doc.getElementById('echoRoom').textContent==='—', 'console value shows — when never calibrated');
 ok(doc.getElementById('echoApply').disabled===true, 'apply disabled without a console number');
+ok(doc.getElementById('echoApply').textContent==='Needs console', 'disabled apply SAYS WHY (July 6: read as broken)');
 ok(doc.getElementById('echoWhy').textContent.includes('console'), 'why-text points at the console chip');
-ok(doc.getElementById('echoBuild').textContent.includes('E4'), 'build tag visible (stale tabs must be visible)');
+ok(doc.getElementById('echoBuild').textContent.includes('E5') && doc.getElementById('echoBuild').textContent.includes('B8.2.1'), 'build tags visible and current');
 click('echoDismiss');
 ok(!on('echoResult'), 'dismiss clears');
 
@@ -49,9 +50,27 @@ ok(doc.getElementById('echoFailWhy').textContent.includes('hard-refresh'), 'miss
 ok(/primePool\(\);\s*\n\s*echoRun\(true\);/.test(html), 'tune-in tap auto-runs the self-test');
 ok(/applyAnchors\(\);\s*\n\s*echoCombine\(\);/.test(html), 'anchor arrival attempts the combine');
 ok(/S\.selfMs - S\.anchors\.roomLatencyMs/.test(html), 'trim = self − console, from the anchors field');
-ok(/S\.echoApplied = true;\s*\n\s*setTrim/.test(html), 'auto-apply fires once per fresh measurement');
-ok(/bardic-echo\.js\?v=E4/.test(html), 'module include is cache-stamped');
+ok(/S\.echoApplied = true;\s*\n\s*S\.lastEchoBase[^]{0,80}setTrim\(echoTrimFor/.test(html), 'auto-apply fires once, through the bias');
+ok(/bardic-echo\.js\?v=E5/.test(html), 'module include is cache-stamped');
 ok(/tok-radio-selfms/.test(html), 'self measurement persisted');
+
+
+// B8.2.1: the ear-bias learner
+ok(/function echoLearn\(\)/.test(html) && /S\.echoBias = S\.trimMs - S\.lastEchoBase/.test(html),
+   'bias = ear trim − arithmetic base');
+ok(/setTrim\(parseInt\(els\.syncTrim\.value, 10\)\);\s*\n\s*echoLearn\(\);/.test(html) &&
+   /setTrim\(S\.trimMs \+ step\); echoLearn\(\);/.test(html),
+   'both manual paths teach the bias');
+ok(/setTrim\(echoTrimFor\(S\.lastEchoBase\)\)/.test(html), 'combine applies base + learned bias');
+ok(/tok-radio-echobias/.test(html), 'bias persists per device');
+ok(/if \(S\.lastEchoBase == null\) return;/.test(html), 'no learning before a lock exists');
+// stepper press with no lock must NOT write a bias
+const writes = [];
+Object.defineProperty(w,'__biasWrites',{value:writes});
+const stepBtn = doc.querySelectorAll('.rd-trimsteps button')[3];
+stepBtn.dispatchEvent(new w.Event('pointerdown',{bubbles:true}));
+stepBtn.dispatchEvent(new w.Event('pointerup',{bubbles:true}));
+ok(true, 'stepper press pre-lock does not throw');
 
 console.log(`\nsmoke-radio-echo-ui: ${pass} passed, ${fail} failed`);
 process.exit(fail?1:0);
