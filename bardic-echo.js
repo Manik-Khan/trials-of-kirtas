@@ -360,12 +360,83 @@
     });
   }
 
+  // ── roundTrip (E7 — the proven feasibility path, restored) ─────────
+  // The measurement that ACTUALLY WORKED in the field (mock-echo-lock):
+  // this device plays the irregular pattern through its own speaker and
+  // times how long it takes back to its own mic — the output->mic round
+  // trip. Correlated against our OWN known pattern (one sharp peak), NOT
+  // the playing track (music cross-correlates ambiguously — that was the
+  // "no clean lock" / clamped-to-500 failure). No PCM fetch, no shared
+  // clock, no room pass. Returns {ok, lag, peak, confidence, curve}.
+  var RT_CAP_S = 2.6, RT_LEAD_S = 0.25;
+  function roundTrip(opts) {
+    opts = opts || {};
+    var onStage = function (t) { if (opts.onStage) opts.onStage(t); };
+    var ctxRef = null;
+    return getCtx().then(function (ctx) { ctxRef = ctx; return getMic(onStage); })
+    .then(function (stream) {
+      if (opts.duck) opts.duck(true);   // mute this device's own track so
+                                        // the pattern isn't fighting music
+      onStage('playing pattern \u00b7 listening\u2026');
+      return new Promise(function (resolve, reject) {
+        var ctx = ctxRef, sr = ctx.sampleRate;
+        var ref = makeChirp(sr);
+        var refBuf = ctx.createBuffer(1, ref.length, sr);
+        refBuf.getChannelData(0).set(ref);
+        var src = ctx.createMediaStreamSource(stream);
+        var proc = ctx.createScriptProcessor(4096, 1, 1);
+        var chunks = [], captured = 0, capTarget = Math.round(RT_CAP_S * sr);
+        var playAtSample = -1;
+        var guard = setTimeout(function () {
+          try { proc.disconnect(); src.disconnect(); } catch (e) {}
+          reject(new Error('capture timeout \u2014 no mic frames arrived'));
+        }, 8000);
+        proc.onaudioprocess = function (e) {
+          var d = e.inputBuffer.getChannelData(0);
+          chunks.push(new Float32Array(d));
+          captured += d.length;
+          if (playAtSample < 0) {
+            // mark the capture-sample where playback begins, then fire it
+            playAtSample = captured + Math.round(RT_LEAD_S * sr);
+            var when = ctx.currentTime + RT_LEAD_S;
+            var node = ctx.createBufferSource();
+            node.buffer = refBuf; node.connect(ctx.destination); node.start(when);
+          }
+          if (captured >= capTarget) {
+            clearTimeout(guard);
+            try { proc.disconnect(); src.disconnect(); } catch (e2) {}
+            var rec = new Float32Array(captured), off = 0;
+            for (var i = 0; i < chunks.length; i++) { rec.set(chunks[i], off); off += chunks[i].length; }
+            resolve({ rec: rec.subarray(playAtSample), sr: sr });
+          }
+        };
+        src.connect(proc);
+        proc.connect(ctx.destination);   // keep the node alive; proc emits silence
+      });
+    }).then(function (r) {
+      if (opts.duck) opts.duck(false);
+      var eRef = envelope(makeChirp(r.sr), r.sr);
+      var eRec = envelope(r.rec, r.sr);
+      var res = xcorr(eRef, eRec, 0, 900);   // search 0..900ms for the return
+      if (res.peak < 0.25 || res.confidence < 1.6) {
+        return { ok: false, reason: 'weak',
+          detail: 'no clean peak (peak ' + res.peak.toFixed(2) + ', conf \u00d7' +
+                  res.confidence.toFixed(1) + ') \u2014 raise the volume, or the mic is blocked / echo-cancelled' };
+      }
+      return { ok: true, lag: res.lag, peak: res.peak, confidence: res.confidence, curve: res.curve };
+    }).catch(function (e) {
+      if (opts.duck) opts.duck(false);
+      throw e;
+    });
+  }
+
   window.BardicEcho = {
-    BUILD: 'E6',
+    BUILD: 'E7',
     BURSTS_MS: BURSTS_MS, PAD_S: PAD_S, CAP_S: CAP_S, CHIRP_AT_S: CHIRP_AT_S,
     makeChirp: makeChirp, envelope: envelope, xcorr: xcorr, trimFrom: trimFrom,
     summarize: summarize,
-    selfTest: selfTest,
-    measure: measure
+    roundTrip: roundTrip,
+    selfTest: selfTest,   // dormant (device-only, superseded)
+    measure: measure    // dormant (room-vs-track; music is too ambiguous)
   };
 })();
