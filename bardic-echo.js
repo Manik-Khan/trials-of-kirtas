@@ -33,7 +33,8 @@
   // irregular spacing buys one unambiguous maximum.
   var BURSTS_MS = [0, 170, 290, 520, 660, 900, 1030, 1290];
   var CHIRP_S = 1.45;      // pattern length
-  var CAP_S = 3.2;         // capture length
+  var CAP_S = 4.0;         // capture length (E3: was 3.2 — the room pass
+                           // deserves ~2.5s of chirp-free material)
   var PAD_S = 1.5;         // room search half-window (±1.2s usable)
   var CHIRP_AT_S = 0.35;   // chirp schedule offset after capture start
 
@@ -67,22 +68,37 @@
   }
 
   // Normalized cross-correlation of envelopes over lag ∈ [loLag, hiLag).
+  // Optional mask {lo, hi}: REF-side frame indices excluded from every
+  // sum — E3's chirp exclusion (July 6 field: the phone's own chirp at
+  // zero distance buried the room's music, peak 0.26 conf ×1.1; masking
+  // the known chirp span restores the room pass).
   // confidence = peak vs best rival OUTSIDE ±25 frames of the peak.
-  function xcorr(ref, rec, loLag, hiLag) {
-    var mr = 0, i;
-    for (i = 0; i < ref.length; i++) mr += ref[i];
-    mr /= ref.length;
+  function xcorr(ref, rec, loLag, hiLag, mask) {
+    var mLo = mask ? mask.lo : -1, mHi = mask ? mask.hi : -1;
+    var mr = 0, nm = 0, i;
+    for (i = 0; i < ref.length; i++) {
+      if (i >= mLo && i < mHi) continue;
+      mr += ref[i]; nm++;
+    }
+    mr /= (nm || 1);
     var er = 0;
-    for (i = 0; i < ref.length; i++) { var d = ref[i] - mr; er += d * d; }
+    for (i = 0; i < ref.length; i++) {
+      if (i >= mLo && i < mHi) continue;
+      var d = ref[i] - mr; er += d * d;
+    }
     var lo = Math.max(0, loLag | 0), hi = Math.max(lo + 1, hiLag | 0);
     var curve = new Float32Array(hi - lo), best = -1, bestLag = lo;
     for (var lag = lo; lag < hi; lag++) {
       var ms = 0, n = 0;
-      for (i = 0; i < ref.length && lag + i < rec.length; i++) { ms += rec[lag + i]; n++; }
-      if (n < ref.length * 0.8) break;
+      for (i = 0; i < ref.length && lag + i < rec.length; i++) {
+        if (i >= mLo && i < mHi) continue;
+        ms += rec[lag + i]; n++;
+      }
+      if (n < nm * 0.8) break;
       ms /= n;
       var num = 0, es = 0;
-      for (i = 0; i < n; i++) {
+      for (i = 0; i < ref.length && lag + i < rec.length; i++) {
+        if (i >= mLo && i < mHi) continue;
         var dr = ref[i] - mr, ds = rec[lag + i] - ms;
         num += dr * ds; es += ds * ds;
       }
@@ -235,6 +251,11 @@
       }
 
       // ROOM: try each playing channel until one correlates cleanly.
+      // The capture REF is MASKED over the chirp span the self pass just
+      // located (±ringing margin) — the phone's own chirp at zero
+      // distance otherwise buries the room across the air (E3).
+      var chirpMask = { lo: Math.max(0, cSelf.lag - 40),
+                        hi: cSelf.lag + Math.round(CHIRP_S * 1000) + 80 };
       // Failures are CATEGORIZED — a blocked PCM fetch (CORS) must never
       // masquerade as "your music isn't rhythmic enough" (July 6 field:
       // big drums at point-blank read as a smoothness failure).
@@ -257,7 +278,7 @@
             var seg = monoSlice(audioBuf, p0 - PAD_S, p0 + CAP_S + PAD_S);
             var segEnv = envelope(seg, audioBuf.sampleRate);
             var lo = Math.round((PAD_S - 1.2) * 1000), hi = Math.round((PAD_S + 1.2) * 1000);
-            var cRoom = xcorr(capEnv, segEnv, lo, hi);
+            var cRoom = xcorr(capEnv, segEnv, lo, hi, chirpMask);
             if (cRoom.peak < 0.2 || cRoom.confidence < 1.5) {
               tries.push({ kind: 'weak', msg: chn.title + ': peak ' + cRoom.peak.toFixed(2) +
                            ', conf \u00d7' + cRoom.confidence.toFixed(1) });
@@ -305,7 +326,7 @@
   }
 
   window.BardicEcho = {
-    BUILD: 'E2',
+    BUILD: 'E3',
     BURSTS_MS: BURSTS_MS, PAD_S: PAD_S, CAP_S: CAP_S, CHIRP_AT_S: CHIRP_AT_S,
     makeChirp: makeChirp, envelope: envelope, xcorr: xcorr, trimFrom: trimFrom,
     summarize: summarize,

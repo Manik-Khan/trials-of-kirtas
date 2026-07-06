@@ -9,7 +9,7 @@ const ok=(c,m)=>{ c?(pass++,console.log(' ✓',m)):(fail++,console.log(' ✗',m)
 global.window = {};
 eval(fs.readFileSync('/home/claude/bardic-echo.js','utf8'));
 const E = global.window.BardicEcho;
-ok(!!E && E.BUILD==='E2', 'module loads, BUILD E2');
+ok(!!E && E.BUILD==='E3', 'module loads, BUILD E3');
 const { makeChirp, envelope, xcorr, trimFrom, PAD_S, CAP_S } = E;
 
 const gaps = E.BURSTS_MS.slice(1).map((v,i)=>v-E.BURSTS_MS[i]);
@@ -45,12 +45,13 @@ function synthesize(Lms, Ems, roomGain, noise){
   return cap;
 }
 
-function pipeline(cap){
+function pipeline(cap, useMask=true){
   const capEnv = envelope(cap, sr);
   const cSelf = xcorr(chirpEnv, capEnv, Math.max(0,schedMs-200), schedMs+900);
+  const mask = useMask ? { lo: Math.max(0,cSelf.lag-40), hi: cSelf.lag+1450+80 } : null;
   const seg = track.subarray(Math.round((p0-PAD_S)*sr), Math.round((p0+CAP_S+PAD_S)*sr));
   const segEnv = envelope(seg, sr);
-  const cRoom = xcorr(capEnv, segEnv, Math.round((PAD_S-1.2)*1000), Math.round((PAD_S+1.2)*1000));
+  const cRoom = xcorr(capEnv, segEnv, Math.round((PAD_S-1.2)*1000), Math.round((PAD_S+1.2)*1000), mask);
   return { cSelf, cRoom, t: trimFrom({chirpLagMs:cSelf.lag, chirpSchedMs:schedMs, roomLagMs:cRoom.lag}) };
 }
 
@@ -89,10 +90,25 @@ ok(/echoShowFail\(\(e && e\.message\)/.test(html), 'hard errors narrate raw text
 
 
 
+// E3: the July 6 field failure, reproduced and cured — room 22dB below
+// the phone's own chirp (0.05 vs 0.6). Unmasked = the failure we saw;
+// masked = the fix.
+{
+  const cap = synthesize(180, 120, 0.05, 0.02);
+  const un = pipeline(cap, false);
+  ok(un.cRoom.confidence < 1.5 || un.cRoom.peak < 0.2,
+     `UNMASKED room fails at 22dB imbalance (peak ${un.cRoom.peak.toFixed(2)}, conf ×${un.cRoom.confidence.toFixed(1)}) — the field failure`);
+  const ma = pipeline(cap, true);
+  ok(ma.cRoom.confidence >= 1.5 && ma.cRoom.peak >= 0.2,
+     `MASKED room passes (peak ${ma.cRoom.peak.toFixed(2)}, conf ×${ma.cRoom.confidence.toFixed(1)})`);
+  ok(Math.abs(ma.t.roomMs - 120) <= 12 && Math.abs(ma.t.trimMs - 60) <= 12,
+     `…and recovers room 120ms / trim +60 (got ${ma.t.roomMs}ms / ${ma.t.trimMs>0?'+':''}${ma.t.trimMs}ms)`);
+}
+
 // B8.1.2 additions: summarize taxonomy
 {
   const S = E.summarize;
-  ok(E.BUILD==='E2', 'BUILD bumped to E2');
+  ok(E.BUILD==='E3', 'BUILD bumped to E3');
   ok(S([{kind:'fetch',msg:'Tavern: Failed to fetch'}]).reason==='pcm', 'all-fetch → pcm');
   ok(S([{kind:'fetch',msg:'a'},{kind:'weak',msg:'b'}]).reason==='pcm', 'fetch present → pcm (most actionable)');
   ok(S([{kind:'weak',msg:'a'},{kind:'edge',msg:'b'}]).reason==='weak', 'weak beats edge');
