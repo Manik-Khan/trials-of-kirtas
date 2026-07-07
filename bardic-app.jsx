@@ -594,6 +594,23 @@ function App() {
   });
   const roomLatRef = useRef(roomLat);
   useEffect(() => { roomLatRef.current = roomLat; }, [roomLat]);
+  // HOST OFFSET (July 6 pm): the phones sync to the console's broadcast pos,
+  // so shifting pos moves every listener as a GROUP against this laptop's
+  // own sound. One by-ear dial aligns the room instead of chasing each
+  // device's latency. Positive/negative is meaningless in the abstract —
+  // M dials until the laptop sits in the pocket with the phones.
+  const [hostOffsetMs, setHostOffsetMs] = useState(() => {
+    try { const v = localStorage.getItem('tok-bardic-hostoffset'); return v == null ? 0 : (parseInt(v, 10) || 0); }
+    catch (e) { return 0; }
+  });
+  const hostOffsetRef = useRef(hostOffsetMs);
+  useEffect(() => {
+    hostOffsetRef.current = hostOffsetMs;
+    try { localStorage.setItem('tok-bardic-hostoffset', String(hostOffsetMs)); } catch (e) {}
+  }, [hostOffsetMs]);
+  const nudgeHostOffset = useCallback((d) => {
+    setHostOffsetMs(v => Math.max(-500, Math.min(500, (v || 0) + d)));
+  }, []);
   const [radioListeners, setRadioListeners] = useState([]);
   const [airBlockedBy, setAirBlockedBy] = useState(null);  // another console holds the air
   const radioRef = useRef(null);
@@ -627,7 +644,7 @@ function App() {
       channels[c.id] = {
         url: s.track.url, title: s.track.title || null,
         label: c.label, accent: c.accent,
-        pos: audio ? audio.currentTime : 0,
+        pos: Math.max(0, (audio ? audio.currentTime : 0) + (hostOffsetRef.current || 0) / 1000),
         paused: !!s.paused,
         volume: s.volume ?? 0.5,
         loop: (s.mode || 'loop') === 'loop',
@@ -693,7 +710,7 @@ function App() {
   // on the room's devices within one anchor
   useEffect(() => {
     if (onAir) radioRef.current?.sendAnchors(buildAnchors());
-  }, [chStates, radioMask, onAir, roomLat, buildAnchors]);
+  }, [chStates, radioMask, onAir, roomLat, hostOffsetMs, buildAnchors]);
 
   // ============================================================
   // BARDIC BUS — engine adapter (increment 1, July 5)
@@ -993,6 +1010,27 @@ function App() {
                    onChange={e => { setMasterMuted(false); setMasterVol(+e.target.value); }}/>
             <div className="master-vol__readout">{Math.round((masterMuted ? 0 : masterVol) * 100)}</div>
           </div>
+          {onAir && (
+            <div style={{ display: 'flex', alignItems: 'center', gap: '6px', marginLeft: '10px',
+                          padding: '3px 10px', border: '1px solid rgba(199,154,74,.34)' }}
+                 title="Shift every listener as a group against this laptop's own sound. Dial by ear until the room plays as one.">
+              <span style={{ fontFamily: 'Cinzel, serif', fontSize: '9.5px', letterSpacing: '.16em',
+                             textTransform: 'uppercase', color: '#b9b09a', whiteSpace: 'nowrap' }}>Room sync</span>
+              <button onClick={() => nudgeHostOffset(-5)} title="Listeners −5ms"
+                      style={{ font: '600 12px Cinzel, serif', color: '#e7c279', background: 'transparent',
+                               border: '1px solid rgba(199,154,74,.4)', padding: '2px 7px', cursor: 'pointer' }}>−5</button>
+              <input type="range" min={-500} max={500} step={5} value={hostOffsetMs}
+                     onChange={e => setHostOffsetMs(+e.target.value)}
+                     style={{ width: '104px', accentColor: '#c79a4a' }}/>
+              <button onClick={() => nudgeHostOffset(5)} title="Listeners +5ms"
+                      style={{ font: '600 12px Cinzel, serif', color: '#e7c279', background: 'transparent',
+                               border: '1px solid rgba(199,154,74,.4)', padding: '2px 7px', cursor: 'pointer' }}>+5</button>
+              <div style={{ font: '500 12px Cinzel, serif', fontVariantNumeric: 'tabular-nums',
+                            minWidth: '48px', textAlign: 'right', color: '#ece2cd' }}>
+                {hostOffsetMs > 0 ? '+' : ''}{hostOffsetMs}ms
+              </div>
+            </div>
+          )}
           <button className="header-btn" onClick={() => setOverlay('timer')} title="Hourglass">
             <i className="ti ti-hourglass"/>
           </button>
