@@ -306,6 +306,11 @@ body{background:linear-gradient(180deg,var(--ground),var(--ground-2));color:var(
           try {
             p.audio.currentTime = R.positionAt(p.anchor, C.now()) + S.trimMs / 1000 + SEEK_LEAD;
             p.lastSeekAt = Date.now();
+            // This buffered seek IS the per-track lock. End the tight relock
+            // window so the drift loop drops to its wide deadband and stops
+            // chasing — on iOS every corrective seek rebuffers, so "spot on
+            // then stutter" was the loop re-seeking a lock it already had.
+            p.relockUntil = 0;
           } catch (e) {}
         };
         p.audio.addEventListener('loadedmetadata', seekWhenReady, { once: true });
@@ -515,7 +520,7 @@ body{background:linear-gradient(180deg,var(--ground),var(--ground-2));color:var(
     els.echoFail.classList.toggle('on', !!fail);
     document.getElementById('echoBuild').textContent =
       'echo ' + (window.BardicEcho ? window.BardicEcho.BUILD : 'MISSING') +
-      ' \u00b7 radio B14';   // stale tabs must be visible
+      ' \u00b7 radio B15';   // stale tabs must be visible
   }
   function echoShowFail(why) {
     els.echoFailWhy.textContent = why;
