@@ -1,0 +1,16 @@
+{
+  "note": "ToK platform asset library. textures = tileable surfaces; sprites = placeable props (one entry per object; the builder appends _E/_N/_S/_W.png). Curate freely — files can sit in the folders without being listed here; only what you list shows in the builder.",
+  "textures": [
+    { "id": "grass_meadow", "label": "Meadow grass", "file": "textures/grass_meadow.jpg", "tileable": true, "surface": "grass" }
+  ],
+  "sprites": [
+    { "id": "chest_closed",    "label": "Chest (closed)",   "pack": "kenney-isometric", "base": "chestClosed",    "rotations": ["E","N","S","W"] },
+    { "id": "chest_open",      "label": "Chest (open)",     "pack": "kenney-isometric", "base": "chestOpen",      "rotations": ["E","N","S","W"] },
+    { "id": "barrel",          "label": "Barrel",           "pack": "kenney-isometric", "base": "barrel",         "rotations": ["E","N","S","W"] },
+    { "id": "barrels",         "label": "Barrels",          "pack": "kenney-isometric", "base": "barrels",        "rotations": ["E","N","S","W"] },
+    { "id": "barrels_stacked", "label": "Barrels (stacked)","pack": "kenney-isometric", "base": "barrelsStacked", "rotations": ["E","N","S","W"] },
+    { "id": "bridge",          "label": "Bridge",           "pack": "kenney-isometric", "base": "bridge",         "rotations": ["E","N","S","W"] },
+    { "id": "bridge_broken",   "label": "Bridge (broken)",  "pack": "kenney-isometric", "base": "bridgeBroken",   "rotations": ["E","N","S","W"] },
+    { "id": "chair",           "label": "Chair",            "pack": "kenney-isometric", "base": "chair",          "rotations": ["E","N","S","W"] }
+  ]
+}
