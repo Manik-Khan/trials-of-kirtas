@@ -155,6 +155,13 @@ body{background:linear-gradient(180deg,var(--ground),var(--ground-2));color:var(
   'use strict';
 
   var R = window.BardicRadio, C = window.BardicClock;
+  // Lead for ACCURATE (buffered) seeks. Small + FIXED on purpose: the old
+  // adaptive p.seekLead learned from the unbuffered currentTime (which lies
+  // on a fresh-track seek), drifted, and overshot small drift corrections by
+  // ~250ms — that was the drift loop's "can't settle" ringing. The large
+  // adaptive lead now survives ONLY on the throwaway metadata seek, whose
+  // job is just to trigger buffering near the target. Tunable.
+  var SEEK_LEAD = 0.05;
   var els = {
     tune: document.getElementById('tuneBtn'),
     status: document.getElementById('status'),
@@ -283,15 +290,6 @@ body{background:linear-gradient(180deg,var(--ground),var(--ground-2));color:var(
             p.lastSeekAt = Date.now();
           } catch (e) {}
         };
-        var measureLead = function () {
-          if (!p.anchor || p.anchor.paused) return;
-          setTimeout(function () {
-            if (!p.anchor || p.audio.paused || p.audio.seeking) return;
-            var err = R.positionAt(p.anchor, C.now()) + S.trimMs / 1000 - p.audio.currentTime;
-            // fold the observed shortfall into next time's lead
-            p.seekLead = Math.max(0, Math.min(1.5, p.seekLead + err * 0.7));
-          }, 800);
-        };
         // FRESH-TRACK SEEK FIX (July 6 pm field): the loadedmetadata seek
         // below lands in an UNBUFFERED region — iOS snaps it and currentTime
         // drifts from the true audible position. That is the track-change
@@ -306,14 +304,13 @@ body{background:linear-gradient(180deg,var(--ground),var(--ground-2));color:var(
           if (p.audio.readyState < 3) return;   // need decoded audio near the target
           p.bufReseek = true;
           try {
-            p.audio.currentTime = R.positionAt(p.anchor, C.now()) + S.trimMs / 1000 + p.seekLead;
+            p.audio.currentTime = R.positionAt(p.anchor, C.now()) + S.trimMs / 1000 + SEEK_LEAD;
             p.lastSeekAt = Date.now();
           } catch (e) {}
         };
         p.audio.addEventListener('loadedmetadata', seekWhenReady, { once: true });
         p.audio.addEventListener('canplay', bufferedReseek, { once: true });
         p.audio.addEventListener('canplaythrough', bufferedReseek, { once: true });
-        p.audio.addEventListener('playing', measureLead, { once: true });
         if (p.audio.readyState >= 1) seekWhenReady();
       }
       if (!S.echoDucked) p.audio.volume = Math.max(0, Math.min(1, (a.volume != null ? a.volume : 0.5) * S.master));
@@ -328,7 +325,7 @@ body{background:linear-gradient(180deg,var(--ground),var(--ground-2));color:var(
         // error is track-change scale — repeat seeks rebuffer and stutter
         var canSeek = (Date.now() - p.lastSeekAt > 15000) || Math.abs(err) > 5;
         if (p.audio.readyState >= 1 && canSeek && Math.abs(err) > 0.45) {
-          p.audio.currentTime = want + p.seekLead;
+          p.audio.currentTime = want + SEEK_LEAD;
           p.lastSeekAt = Date.now();
         }
         if (p.audio.paused) p.audio.play().catch(function () {});
@@ -387,7 +384,7 @@ body{background:linear-gradient(180deg,var(--ground),var(--ground-2));color:var(
         if (p.audio.playbackRate !== 1) { try { p.audio.playbackRate = 1; } catch (e) {} }
         var g = relockGate(p, err, Date.now());
         if (g.seek) {
-          p.audio.currentTime = expected + p.seekLead;
+          p.audio.currentTime = expected + SEEK_LEAD;
           p.lastSeekAt = Date.now();
         }
         var ms = Math.abs(err * 1000);
@@ -459,7 +456,7 @@ body{background:linear-gradient(180deg,var(--ground),var(--ground-2));color:var(
       for (var chId in S.players) {
         var p = S.players[chId];
         if (!p.anchor || p.anchor.paused || !p.url || p.audio.readyState < 1) continue;
-        p.audio.currentTime = R.positionAt(p.anchor, now) + S.trimMs / 1000 + p.seekLead;
+        p.audio.currentTime = R.positionAt(p.anchor, now) + S.trimMs / 1000 + SEEK_LEAD;
         p.lastSeekAt = Date.now();
       }
     }, 400);
@@ -518,7 +515,7 @@ body{background:linear-gradient(180deg,var(--ground),var(--ground-2));color:var(
     els.echoFail.classList.toggle('on', !!fail);
     document.getElementById('echoBuild').textContent =
       'echo ' + (window.BardicEcho ? window.BardicEcho.BUILD : 'MISSING') +
-      ' \u00b7 radio B13';   // stale tabs must be visible
+      ' \u00b7 radio B14';   // stale tabs must be visible
   }
   function echoShowFail(why) {
     els.echoFailWhy.textContent = why;
