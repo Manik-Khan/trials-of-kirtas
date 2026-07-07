@@ -1,0 +1,234 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Web Audio sync — feasibility</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@600&family=Oswald:wght@300;400;500;600&family=EB+Garamond&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --ground:#182826; --panel:#1f302d; --panel-2:#243a36; --line:#31514b;
+    --ink:#efe7d6; --ink-dim:#a9bab2; --gold:#d9a441; --teal:#5fb0a0; --blood:#c65a4a;
+    --num:"Oswald",sans-serif; --body:"EB Garamond",serif; --title:"Playfair Display",serif;
+  }
+  *{box-sizing:border-box}
+  html,body{margin:0}
+  body{background:var(--ground);color:var(--ink);font-family:var(--body);font-size:17px;
+    min-height:100dvh;padding:clamp(16px,4vw,40px) clamp(14px,4vw,32px) 64px;position:relative;overflow-x:hidden}
+  body::before{content:"";position:fixed;inset:0;pointer-events:none;z-index:0;
+    background:radial-gradient(120% 90% at 50% 6%,transparent 55%,rgba(0,0,0,.45) 100%)}
+  main{max-width:540px;margin:0 auto;position:relative;z-index:1}
+  .eyebrow{font-family:var(--num);font-weight:500;letter-spacing:.28em;text-transform:uppercase;
+    font-size:12px;color:var(--teal);margin:0 0 6px}
+  h1{font-family:var(--title);font-weight:600;font-size:clamp(28px,7vw,38px);line-height:1.03;margin:0 0 10px}
+  .lede{color:var(--ink-dim);margin:0 0 22px;max-width:48ch}
+
+  .beat{height:120px;border:1px solid var(--line);background:var(--panel);display:flex;
+    align-items:center;justify-content:center;margin:0 0 16px;position:relative;overflow:hidden}
+  .beat .dot{width:64px;height:64px;border-radius:50%;background:var(--panel-2);
+    box-shadow:0 0 0 1px var(--line) inset;transition:transform .04s linear,background .04s linear,box-shadow .04s linear}
+  .beat.hit .dot{background:var(--gold);transform:scale(1.35);box-shadow:0 0 40px var(--gold)}
+  .beat.down .dot{background:var(--teal);box-shadow:0 0 60px var(--teal)}
+  .beat .n{position:absolute;top:8px;left:12px;font-family:var(--num);font-weight:300;
+    letter-spacing:.14em;text-transform:uppercase;font-size:11px;color:var(--ink-dim)}
+
+  .row{display:flex;gap:10px;margin:0 0 16px}
+  button.go{flex:1;font-family:var(--num);font-weight:500;letter-spacing:.08em;text-transform:uppercase;
+    font-size:15px;padding:14px 12px;border:1px solid var(--teal);background:var(--panel-2);color:var(--ink);cursor:pointer}
+  button.go:active{background:var(--teal);color:var(--ground)}
+  button.go.stop{border-color:var(--blood)}
+  button.go.ghost{border-color:var(--line);color:var(--ink-dim)}
+
+  .card{border:1px solid var(--line);background:var(--panel);padding:16px 16px 18px;margin:0 0 16px}
+  .card h2{font-family:var(--num);font-weight:500;letter-spacing:.04em;font-size:15px;text-transform:uppercase;margin:0 0 4px}
+  .card p.hint{color:var(--ink-dim);margin:0 0 14px;font-size:15px}
+
+  .offset{display:flex;align-items:center;gap:8px}
+  .offset input[type=range]{flex:1;accent-color:var(--gold)}
+  .offset button{font-family:var(--num);font-weight:500;font-size:14px;color:var(--gold);background:transparent;
+    border:1px solid var(--line);padding:6px 10px;cursor:pointer}
+  .offset .val{font-family:var(--num);font-weight:500;font-size:22px;min-width:74px;text-align:right;font-variant-numeric:tabular-nums}
+
+  .grid{display:grid;grid-template-columns:1fr 1fr;gap:1px;background:var(--line);border:1px solid var(--line)}
+  .grid .cell{background:var(--panel);padding:10px 12px}
+  .grid .k{font-family:var(--num);font-weight:300;letter-spacing:.12em;text-transform:uppercase;font-size:10px;color:var(--ink-dim)}
+  .grid .v{font-family:var(--num);font-weight:500;font-size:20px;margin-top:2px;font-variant-numeric:tabular-nums}
+  .foot{color:var(--ink-dim);font-size:14px;margin-top:22px;border-top:1px solid var(--line);padding-top:14px}
+  .foot code{font-family:var(--num);color:var(--ink)}
+  .tag{position:fixed;right:10px;bottom:8px;z-index:2;font-family:var(--num);font-weight:300;letter-spacing:.14em;font-size:10px;color:var(--ink-dim);opacity:.7}
+</style>
+</head>
+<body>
+<main>
+  <p class="eyebrow">Bardic radio · foundation test</p>
+  <h1>Web Audio sync</h1>
+  <p class="lede">Both devices play the same click-loop, each locked to the wall clock through Web Audio — sample-accurate scheduling, a clock that doesn't lie, and no seeks. Open on the laptop and the phone, press Play on both, and listen: do the downbeats land as one?</p>
+
+  <div class="beat" id="beat"><span class="n" id="beatN">—</span><div class="dot"></div></div>
+
+  <div class="row">
+    <button class="go" id="playBtn">Play</button>
+    <button class="go ghost" id="resyncBtn">Re-sync</button>
+  </div>
+
+  <div class="card">
+    <h2>Clock offset <span style="color:var(--ink-dim);font-weight:300">— reconcile device clocks</span></h2>
+    <p class="hint">This proto uses each device's system clock, so a little skew between laptop and phone is normal. Nudge one device until the two lock. (In the real app, BardicClock does this automatically and tighter — here it's manual just to prove the <em>playback</em> holds.)</p>
+    <div class="offset">
+      <button id="offMinus">−5</button>
+      <input type="range" id="offSlider" min="-500" max="500" step="1" value="0">
+      <button id="offPlus">+5</button>
+      <div class="val" id="offVal">0ms</div>
+    </div>
+  </div>
+
+  <div class="grid">
+    <div class="cell"><div class="k">Sample rate</div><div class="v" id="mSr">—</div></div>
+    <div class="cell"><div class="k">Output latency</div><div class="v" id="mLat">—</div></div>
+    <div class="cell"><div class="k">Loop position</div><div class="v" id="mPos">—</div></div>
+    <div class="cell"><div class="k">Clock↔audio drift</div><div class="v" id="mDrift">—</div></div>
+  </div>
+
+  <p class="foot">What this proves if it holds: playback that stays glued to the clock with <b>no stutter</b> on (re)position, a position that's actually <b>truthful</b>, and an output latency the browser <b>hands us</b> (<code id="latSrc">—</code>) instead of us chasing it with a microphone. If the two devices lock and stay locked — even a Bluetooth speaker, whose latency Web Audio still reports — the rebuild is worth it.</p>
+</main>
+<div class="tag">webaudio-sync · proto</div>
+
+<script>
+(function () {
+  "use strict";
+  var $ = function (id) { return document.getElementById(id); };
+  var LOOP_MS = 2000;          // 2s loop, 4 beats @ 120 BPM
+  var BEATS = 4;
+  var ctx = null, loopBuf = null, master = null, srcNode = null;
+  var offsetMs = 0, playing = false, startInfo = null;
+
+  function audioCtx() {
+    if (!ctx) {
+      ctx = new (window.AudioContext || window.webkitAudioContext)();
+      master = ctx.createGain(); master.gain.value = 0.9; master.connect(ctx.destination);
+    }
+    return ctx;
+  }
+  function sharedNow() { return Date.now() + offsetMs; }
+  function outLatency() { return (ctx && (ctx.outputLatency || ctx.baseLatency)) || 0; }
+
+  // ── build a 2s click-loop with an unmistakable downbeat ──────────────
+  function buildLoop(c) {
+    var sr = c.sampleRate, n = Math.round(sr * LOOP_MS / 1000);
+    var buf = c.createBuffer(1, n, sr), d = buf.getChannelData(0);
+    function ping(atSec, freq, amp, decay) {
+      var at = Math.round(atSec * sr), dur = Math.round(sr * decay);
+      for (var i = 0; i < dur && at + i < n; i++) {
+        var env = Math.exp(-i / (dur * 0.28));
+        d[at + i] += amp * env * Math.sin(2 * Math.PI * freq * i / sr);
+      }
+    }
+    function click(atSec, amp) {
+      var at = Math.round(atSec * sr), dur = Math.round(sr * 0.006), prev = 0;
+      for (var i = 0; i < dur && at + i < n; i++) {
+        var w = Math.random() * 2 - 1, bp = w - prev; prev = w;
+        d[at + i] += amp * bp * Math.exp(-i / (dur * 0.4));
+      }
+    }
+    var beat = LOOP_MS / 1000 / BEATS;
+    click(0, 0.9); ping(0, 180, 0.8, 0.18);              // DOWNBEAT: loud click + low tone
+    for (var b = 1; b < BEATS; b++) { click(b * beat, 0.4); ping(b * beat, b === 2 ? 440 : 330, 0.3, 0.09); }
+    return buf;
+  }
+
+  // position (seconds) into the loop at a given wall time
+  function posAt(wallMs) { return (((wallMs % LOOP_MS) + LOOP_MS) % LOOP_MS) / 1000; }
+
+  function start() {
+    var c = audioCtx();
+    return c.resume().then(function () {
+      if (!loopBuf) loopBuf = buildLoop(c);
+      stopSource();
+      var lead = 0.12, outLat = outLatency();
+      var whenCtx = c.currentTime + lead;
+      // wall time at which this scheduled instant becomes AUDIBLE
+      var audibleWall = sharedNow() + (lead + outLat) * 1000;
+      var offsetSec = posAt(audibleWall);
+      var s = c.createBufferSource();
+      s.buffer = loopBuf; s.loop = true; s.loopStart = 0; s.loopEnd = LOOP_MS / 1000;
+      var g = c.createGain(); g.gain.value = 0; g.connect(master);
+      s.connect(g); s.start(whenCtx, offsetSec);
+      g.gain.setValueAtTime(0, whenCtx);
+      g.gain.linearRampToValueAtTime(1, whenCtx + 0.02);   // 20ms fade-in, no click
+      srcNode = { src: s, gain: g, whenCtx: whenCtx, offsetSec: offsetSec };
+      startInfo = { whenCtx: whenCtx, offsetSec: offsetSec, outLat: outLat };
+      playing = true;
+      $("playBtn").textContent = "Stop"; $("playBtn").classList.add("stop");
+    });
+  }
+  function stopSource() {
+    if (srcNode) {
+      try {
+        var c = ctx, g = srcNode.gain, s = srcNode.src, t = c.currentTime;
+        g.gain.cancelScheduledValues(t); g.gain.setValueAtTime(g.gain.value, t);
+        g.gain.linearRampToValueAtTime(0, t + 0.02);       // fade-out, no click
+        s.stop(t + 0.03);
+      } catch (e) {}
+      srcNode = null;
+    }
+  }
+  function stop() {
+    stopSource(); playing = false;
+    $("playBtn").textContent = "Play"; $("playBtn").classList.remove("stop");
+  }
+
+  $("playBtn").onclick = function () { playing ? stop() : start(); };
+  $("resyncBtn").onclick = function () { if (playing) start(); };  // clean reposition, no rebuffer
+
+  // clock offset control
+  function setOffset(v) {
+    offsetMs = Math.max(-500, Math.min(500, v | 0));
+    $("offSlider").value = offsetMs;
+    $("offVal").textContent = (offsetMs > 0 ? "+" : "") + offsetMs + "ms";
+    if (playing) start();   // re-lock at the new offset (gapless)
+  }
+  $("offSlider").oninput = function () { setOffset(+this.value); };
+  $("offMinus").onclick = function () { setOffset(offsetMs - 5); };
+  $("offPlus").onclick = function () { setOffset(offsetMs + 5); };
+
+  // ── visuals + telemetry (rAF) ──
+  var lastBeatIdx = -1;
+  function frame() {
+    var wall = sharedNow();
+    var pos = posAt(wall);
+    var beat = (LOOP_MS / 1000) / BEATS;
+    var idx = Math.floor(pos / beat);
+    var into = (pos - idx * beat) / beat;
+    var el = $("beat");
+    if (idx !== lastBeatIdx) {
+      lastBeatIdx = idx;
+      el.classList.add("hit"); el.classList.toggle("down", idx === 0);
+      $("beatN").textContent = "beat " + (idx + 1) + " / " + BEATS;
+      setTimeout(function () { el.classList.remove("hit"); }, 90);
+    }
+    if (ctx) {
+      $("mSr").textContent = ctx.sampleRate + " Hz";
+      var ol = outLatency();
+      $("mLat").textContent = ol ? Math.round(ol * 1000) + " ms" : "—";
+      $("latSrc").textContent = ctx.outputLatency ? "ctx.outputLatency" : (ctx.baseLatency ? "ctx.baseLatency" : "unavailable");
+      $("mPos").textContent = pos.toFixed(3) + " s";
+      if (playing && startInfo) {
+        // where the source actually is vs where the clock wants it — the drift
+        var srcPos = (startInfo.offsetSec + (ctx.currentTime - startInfo.whenCtx)) % (LOOP_MS / 1000);
+        var wantPos = posAt(sharedNow() + startInfo.outLat * 1000);
+        var dms = ((srcPos - wantPos) * 1000);
+        // wrap to nearest
+        while (dms > LOOP_MS / 2) dms -= LOOP_MS;
+        while (dms < -LOOP_MS / 2) dms += LOOP_MS;
+        $("mDrift").textContent = (dms > 0 ? "+" : "") + dms.toFixed(1) + " ms";
+      } else $("mDrift").textContent = "—";
+    }
+    requestAnimationFrame(frame);
+  }
+  requestAnimationFrame(frame);
+})();
+</script>
+</body>
+</html>
