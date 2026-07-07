@@ -74,6 +74,17 @@
   </div>
 
   <div class="card">
+    <h2>Real track <span style="color:var(--ink-dim);font-weight:300">— optional</span></h2>
+    <p class="hint">Paste a track URL (the same ones the console broadcasts). It'll fetch + decode it and loop <em>that</em> instead of the click-bed — the real test of decode + music sync. Leave blank to use the click-loop.</p>
+    <div class="offset">
+      <input type="text" id="trackUrl" placeholder="https://…/track.mp3"
+             style="flex:1;font-family:var(--body);font-size:15px;padding:8px 10px;background:var(--panel-2);border:1px solid var(--line);color:var(--ink)">
+      <button id="loadBtn" style="font-family:var(--num);font-weight:500;font-size:14px;color:var(--teal);background:transparent;border:1px solid var(--line);padding:8px 12px;cursor:pointer">Load</button>
+    </div>
+    <div id="loadStatus" style="font-size:14px;color:var(--ink-dim);margin-top:8px">Using the built-in click-loop.</div>
+  </div>
+
+  <div class="card">
     <h2>Clock offset <span style="color:var(--ink-dim);font-weight:300">— reconcile device clocks</span></h2>
     <p class="hint">This proto uses each device's system clock, so a little skew between laptop and phone is normal. Nudge one device until the two lock. (In the real app, BardicClock does this automatically and tighter — here it's manual just to prove the <em>playback</em> holds.)</p>
     <div class="offset">
@@ -102,7 +113,7 @@
   var LOOP_MS = 2000;          // 2s loop, 4 beats @ 120 BPM
   var BEATS = 4;
   var ctx = null, loopBuf = null, master = null, srcNode = null;
-  var offsetMs = 0, playing = false, startInfo = null;
+  var offsetMs = 0, playing = false, startInfo = null, usingTrack = false;
 
   function audioCtx() {
     if (!ctx) {
@@ -181,6 +192,35 @@
 
   $("playBtn").onclick = function () { playing ? stop() : start(); };
   $("resyncBtn").onclick = function () { if (playing) start(); };  // clean reposition, no rebuffer
+
+  // ── optional: load a REAL track (fetch + decodeAudioData) ──
+  $("loadBtn").onclick = function () {
+    var url = ($("trackUrl").value || "").trim();
+    var st = $("loadStatus");
+    if (!url) { loopBuf = null; usingTrack = false; LOOP_MS = 2000;
+      st.textContent = "Using the built-in click-loop."; st.style.color = "var(--ink-dim)"; return; }
+    var c = audioCtx();
+    st.textContent = "fetching…"; st.style.color = "var(--gold)";
+    c.resume().then(function () { return fetch(url); })
+      .then(function (r) { if (!r.ok) throw new Error("HTTP " + r.status); st.textContent = "decoding…"; return r.arrayBuffer(); })
+      .then(function (ab) {
+        return new Promise(function (res, rej) {
+          var p = c.decodeAudioData(ab, res, rej);   // callback form for iOS; promise if returned
+          if (p && p.then) p.then(res, rej);
+        });
+      })
+      .then(function (buf) {
+        loopBuf = buf; usingTrack = true; LOOP_MS = buf.duration * 1000;
+        st.textContent = "loaded · " + buf.duration.toFixed(1) + "s · " +
+          Math.round(buf.duration * buf.sampleRate * buf.numberOfChannels * 4 / 1048576) + " MB in memory";
+        st.style.color = "var(--teal)";
+        if (playing) start();   // swap in gaplessly
+      })
+      .catch(function (e) {
+        st.textContent = "failed: " + (e && e.message ? e.message : e) + " (CORS? the host must allow fetch)";
+        st.style.color = "var(--blood)";
+      });
+  };
 
   // clock offset control
   function setOffset(v) {
