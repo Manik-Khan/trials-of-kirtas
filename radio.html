@@ -150,11 +150,20 @@ body{background:linear-gradient(180deg,var(--ground),var(--ground-2));color:var(
 
 <script src="bardic-radio.js"></script>
 <script src="bardic-echo.js?v=E7"></script>
+<script src="bardic-player.js?v=WA1"></script>
 <script>
 (function () {
   'use strict';
 
   var R = window.BardicRadio, C = window.BardicClock;
+  // Web Audio engine flag: radio.html?engine=wa routes playback through
+  // bardic-player.js (decode + schedule, no HTMLAudioElement). Off by
+  // default — every guarded branch below falls through to the old engine.
+  var WA = /[?&]engine=wa(\b|&|$)/i.test(location.search);
+  if (WA) { try { var _wab = document.createElement('div');
+    _wab.textContent = 'engine: Web Audio \u00b7 WA1';
+    _wab.style.cssText = 'position:fixed;left:8px;bottom:8px;z-index:9;font:11px/1.4 monospace;letter-spacing:.1em;color:#5fb0a0;opacity:.85';
+    if (document.body) document.body.appendChild(_wab); } catch (e) {} }
   // Lead for ACCURATE (buffered) seeks. Small + FIXED on purpose: the old
   // adaptive p.seekLead learned from the unbuffered currentTime (which lies
   // on a fresh-track seek), drifted, and overshot small drift corrections by
@@ -373,6 +382,7 @@ body{background:linear-gradient(180deg,var(--ground),var(--ground-2));color:var(
   // the drift-hold loop: every 3s, nudge each live player onto the clock
   function driftLoop() {
     setInterval(function () {
+      if (WA) return;   // Web Audio schedules itself; no seek-drift loop
       if (!S.anchors) return;
       var now = C.now();
       var worst = 0;
@@ -444,7 +454,8 @@ body{background:linear-gradient(180deg,var(--ground),var(--ground-2));color:var(
 
   els.masterVol.addEventListener('input', function () {
     S.master = parseFloat(els.masterVol.value);
-    applyAnchors();
+    if (WA && window.BardicPlayer) { if (S.anchors) BardicPlayer.applyAnchors(S.anchors, S.master, S.trimMs); }
+    else applyAnchors();
   });
 
   // one path for every trim source (slider drag, stepper taps, future
@@ -457,6 +468,7 @@ body{background:linear-gradient(180deg,var(--ground),var(--ground-2));color:var(
     try { localStorage.setItem('tok-radio-trim', String(S.trimMs)); } catch (e) {}
     clearTimeout(trimSeekT);
     trimSeekT = setTimeout(function () {
+      if (WA && window.BardicPlayer) { if (S.anchors) BardicPlayer.applyAnchors(S.anchors, S.master, S.trimMs); return; }
       var now = C.now();
       for (var chId in S.players) {
         var p = S.players[chId];
@@ -520,7 +532,7 @@ body{background:linear-gradient(180deg,var(--ground),var(--ground-2));color:var(
     els.echoFail.classList.toggle('on', !!fail);
     document.getElementById('echoBuild').textContent =
       'echo ' + (window.BardicEcho ? window.BardicEcho.BUILD : 'MISSING') +
-      ' \u00b7 radio B15';   // stale tabs must be visible
+      ' \u00b7 radio B16';   // stale tabs must be visible
   }
   function echoShowFail(why) {
     els.echoFailWhy.textContent = why;
@@ -601,6 +613,7 @@ body{background:linear-gradient(180deg,var(--ground),var(--ground-2));color:var(
     // INCLUDING the element pool: all future channels are blessed here —
     // (echo lock is user-triggered from its button once music is flowing.)
     primePool();
+    if (WA && window.BardicPlayer) BardicPlayer.resume();
     Promise.all([C.sync(), sbReady()]).then(function (r) {
       var got = r[1];
       var key = 'l-' + ((got.me && got.me.id) || Math.random().toString(36).slice(2, 8)) + '-' + Math.random().toString(36).slice(2, 6);
@@ -615,7 +628,8 @@ body{background:linear-gradient(180deg,var(--ground),var(--ground-2));color:var(
           S.anchors = payload;
           S.lastAnchorsAt = Date.now();
           setOnAirUi(true);
-          applyAnchors();
+          if (WA && window.BardicPlayer) BardicPlayer.applyAnchors(payload, S.master, S.trimMs);
+          else applyAnchors();
         },
         onEngine: function (on) { if (!on) setOnAirUi(false); },
         onReconnect: function () { S.listener && S.listener.requestSync(); },
