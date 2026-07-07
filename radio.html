@@ -148,9 +148,9 @@ body{background:linear-gradient(180deg,var(--ground),var(--ground-2));color:var(
 </div>
 <p class="rd-note">Keep this page open and the screen awake — the DM's console drives everything from here.</p>
 
-<script src="bardic-radio.js"></script>
+<script src="bardic-radio.js?v=clk2"></script>
 <script src="bardic-echo.js?v=E7"></script>
-<script src="bardic-player.js?v=WA1"></script>
+<script src="bardic-player.js?v=WA2"></script>
 <script>
 (function () {
   'use strict';
@@ -161,9 +161,15 @@ body{background:linear-gradient(180deg,var(--ground),var(--ground-2));color:var(
   // default — every guarded branch below falls through to the old engine.
   var WA = /[?&]engine=wa(\b|&|$)/i.test(location.search);
   if (WA) { try { var _wab = document.createElement('div');
-    _wab.textContent = 'engine: Web Audio \u00b7 WA1';
-    _wab.style.cssText = 'position:fixed;left:8px;bottom:8px;z-index:9;font:11px/1.4 monospace;letter-spacing:.1em;color:#5fb0a0;opacity:.85';
-    if (document.body) document.body.appendChild(_wab); } catch (e) {} }
+    _wab.style.cssText = 'position:fixed;left:8px;bottom:8px;z-index:9;font:11px/1.5 monospace;letter-spacing:.05em;color:#5fb0a0;opacity:.85;white-space:pre';
+    if (document.body) document.body.appendChild(_wab);
+    setInterval(function () {
+      var off = (C && C.offset != null) ? Math.round(C.offset) : '?';
+      var rtt = (C && C.rtt != null) ? Math.round(C.rtt) : '?';
+      var ol = (window.BardicPlayer && BardicPlayer.outLat) ? BardicPlayer.outLat() : 0;
+      _wab.textContent = 'Web Audio WA2  \u00b7  clock ' + (off > 0 ? '+' : '') + off + 'ms (rtt ' + rtt + ')  \u00b7  out ' + Math.round(ol * 1000) + 'ms';
+    }, 1000);
+  } catch (e) {} }
   // Lead for ACCURATE (buffered) seeks. Small + FIXED on purpose: the old
   // adaptive p.seekLead learned from the unbuffered currentTime (which lies
   // on a fresh-track seek), drifted, and overshot small drift corrections by
@@ -468,7 +474,7 @@ body{background:linear-gradient(180deg,var(--ground),var(--ground-2));color:var(
     try { localStorage.setItem('tok-radio-trim', String(S.trimMs)); } catch (e) {}
     clearTimeout(trimSeekT);
     trimSeekT = setTimeout(function () {
-      if (WA && window.BardicPlayer) { if (S.anchors) BardicPlayer.applyAnchors(S.anchors, S.master, S.trimMs); return; }
+      if (WA && window.BardicPlayer) { if (S.anchors) BardicPlayer.applyAnchors(S.anchors, S.master, S.trimMs, true); return; }
       var now = C.now();
       for (var chId in S.players) {
         var p = S.players[chId];
@@ -532,7 +538,7 @@ body{background:linear-gradient(180deg,var(--ground),var(--ground-2));color:var(
     els.echoFail.classList.toggle('on', !!fail);
     document.getElementById('echoBuild').textContent =
       'echo ' + (window.BardicEcho ? window.BardicEcho.BUILD : 'MISSING') +
-      ' \u00b7 radio B16';   // stale tabs must be visible
+      ' \u00b7 radio B17';   // stale tabs must be visible
   }
   function echoShowFail(why) {
     els.echoFailWhy.textContent = why;

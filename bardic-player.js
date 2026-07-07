@@ -8,9 +8,9 @@
 // ============================================================
 (function () {
   'use strict';
-  var BUILD = 'WA1';
+  var BUILD = 'WA2';
   var LEAD = 0.12;              // schedule this far ahead of ctx time
-  var DRIFT_RESYNC = 0.045;     // only reschedule a playing channel past 45ms
+  var DRIFT_RESYNC = 0.030;     // only auto-reschedule a playing channel past 30ms
 
   var ctx = null, master = null;
   var buffers = {};             // url -> { buffer } | { pending: Promise }
@@ -96,7 +96,7 @@
   }
 
   // reconcile every channel to a fresh anchor payload
-  function applyAnchors(payload, masterVol, trimMs) {
+  function applyAnchors(payload, masterVol, trimMs, forcePos) {
     if (!payload || !payload.channels) return;
     getCtx();
     var mv = (masterVol == null ? 1 : masterVol);
@@ -114,9 +114,12 @@
         var cur = channels[chId];
         var fresh = !cur || cur.url !== a.url || cur.paused !== !!a.paused || !cur.src;
         if (fresh) { schedule(chId, anchor, buf, volume); return; }
-        // same track already playing: ride volume, reschedule only on real drift
+        // same track already playing: ride volume smoothly
         if (cur.gain) cur.gain.gain.setTargetAtTime(volume, ctx.currentTime, 0.05);
         cur.volume = volume;
+        // an explicit trim/offset change must land NOW, however small —
+        // don't let the drift gate swallow a -5ms nudge
+        if (forcePos) { schedule(chId, anchor, buf, volume); return; }
         var want = positionAt(anchor, clockNow() + outLat() * 1000);
         if (anchor.loop) want = (((want % buf.duration) + buf.duration) % buf.duration);
         var have = projectedPos(cur);

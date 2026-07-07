@@ -114,10 +114,18 @@
       return chain.then(function () {
         var best = bestOffset(samples);
         if (!best) throw new Error('no clock samples');
-        clock.offset = best.offset;
-        clock.rtt = best.rtt;
+        // Keep the GLOBAL best-RTT offset. A faster round trip means less
+        // path asymmetry, so its offset is more trustworthy. Adopt a new
+        // batch only when it's about as fast as our best-ever (±15ms); a
+        // slower, noisier batch is IGNORED. This stops the clock lurching
+        // on every 60s re-sync — the lurch that threw each new song off.
+        var curRtt = (clock.rtt == null ? Infinity : clock.rtt);
+        if (best.rtt <= curRtt + 15) {
+          clock.offset = best.offset;
+          clock.rtt = best.rtt;
+        }
         clock.synced = true;
-        return best;
+        return { offset: clock.offset, rtt: clock.rtt };
       });
     },
   };
