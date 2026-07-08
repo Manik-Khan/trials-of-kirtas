@@ -30,8 +30,9 @@ const PAGES = [
   { label: 'Party',       path: 'party.html' },
   { label: 'Combat',      path: 'combat.html' },   // ← new
   { label: 'Factions',    path: 'factions.html' },
-  { label: 'Chronicle',   path: 'chronicle.html' },
-  { label: 'Journal',     path: 'journal.html' },
+  { label: 'Chronicle',   path: 'journal.html?view=chronicle' },   // the new book
+  { label: 'Feed',        path: 'chronicle.html' },                 // live posting / DM console
+  { label: 'Journal',     path: 'journal.html' },                   // the vault
   { label: 'NPCs',       path: 'npcs.html' },
   { label: 'World',      path: 'world.html' },
   { label: 'Lore',       path: 'lore.html' },
@@ -99,7 +100,13 @@ function buildNav() {
   const activeChar   = isSheet ? (new URLSearchParams(window.location.search)).get('character') || '' : '';
 
   const navLinks = PAGES.map(page => {
-    const isActive = activePath === page.path;
+    // journal.html hosts two nav entries (Chronicle = ?view=chronicle, Journal =
+    // the vault); disambiguate them by the ?view param so the right one highlights.
+    const curView = (new URLSearchParams(window.location.search)).get('view') || '';
+    const [pPath, pQuery] = page.path.split('?');
+    const pView = pQuery ? ((new URLSearchParams(pQuery)).get('view') || '') : '';
+    let isActive = pPath === activePath;
+    if (isActive && pPath === 'journal.html') isActive = (pView === curView);
     const link = `<a href="${page.path}" class="nav-link${isActive ? ' active' : ''}">${page.label}</a>`;
     // Party gets a caret that opens the "Your Character" menu. The caret starts
     // hidden and is revealed by populateCharMenu() only if the signed-in user

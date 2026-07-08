@@ -1245,6 +1245,9 @@
       <div class="c-session-ctrl-row" style="margin-top:8px">
         <button class="c-session-bump" id="export-archive-btn" onclick="exportArchive()" title="Regenerate the git-committed chronicle.json from the live feed">Export archive</button>
       </div>
+      <div class="c-session-ctrl-row" style="margin-top:8px">
+        <button class="c-session-bump" onclick="newSection()" title="Insert a section heading (e.g. 'The Parlay') into the current session — shows in the book's outline">+ New Section</button>
+      </div>
     </div>
   </div>
 
@@ -3034,6 +3037,33 @@ async function submitEntry() {
     setDrawerStatus(`Failed: ${e.message}`,'error');
   } finally {
     document.getElementById('drawer-submit').disabled = false;
+  }
+}
+
+// Post a section heading: a chronicle row flagged meta.section. The new book
+// renders it as an in-stream heading and lists it in the per-session outline;
+// the old chronicle just shows the bolded title. Session comes from the drawer
+// field (falls back to the current session).
+async function newSection() {
+  const title = (window.prompt('Section heading (e.g. "The Parlay"):') || '').trim();
+  if (!title) return;
+  const parsed = parseInt(document.getElementById('d-session').value, 10);
+  const session = Number.isFinite(parsed) ? parsed : currentSession;
+  const actorKey = currentIdentity && currentIdentity.playerId === 'dm' ? null : (currentIdentity && currentIdentity.playerId) || null;
+  const esc = t => String(t).replace(/[&<>]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;' }[c]));
+  try {
+    if (!SB) throw new Error('No Supabase client');
+    const { data, error } = await SB.from('feed').insert({
+      channel: 'chronicle', kind: 'message', session,
+      actor_key: actorKey, actor_name: (currentIdentity && currentIdentity.name) || 'Narrator',
+      body: '<p><strong>' + esc(title) + '</strong></p>',
+      meta: { section: title },
+    }).select().single();
+    if (error) throw new Error(error.message);
+    if (!allEntries.some(e => e._rowId === data.id)) allEntries = [rowToEntry(data), ...allEntries];
+    renderSidebar(); renderEntries();
+  } catch (e) {
+    alert('Could not add section: ' + e.message);
   }
 }
 

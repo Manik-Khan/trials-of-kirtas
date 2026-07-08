@@ -21,7 +21,11 @@ const navPresent = () =>
   typeof document !== 'undefined' && !!document.getElementById('site-nav')
 
 export default function App() {
-  const [view, setView] = useState('journal')
+  // nav deep-links the Chronicle tab via journal.html?view=chronicle; otherwise
+  // the app opens on the Journal (vault) tab as before.
+  const initialView = (typeof window !== 'undefined'
+    && new URLSearchParams(window.location.search).get('view') === 'chronicle') ? 'chronicle' : 'journal'
+  const [view, setView] = useState(initialView)
   const [backend, setBackend] = useState(null)
   const [look, setLook] = useState(DEFAULT_LOOK)
   const [hasNav, setHasNav] = useState(navPresent)
