@@ -613,14 +613,14 @@
 </div>
 
 <!-- engine + data + write-path modules (deployed alongside this page) -->
-<script src="soul-shards-data.js"></script>
-<script src="soul-shards-engine.js"></script>
-<script src="soul-shards-spellcasting.js"></script>
-<script src="armor-ac.js"></script>
-<script src="soul-shards-derive.js"></script>
-<script src="character-data.js"></script>
-<script src="homebrew-races.js"></script>
-<script src="soul-shards-persona.js"></script>
+<script src="soul-shards-data.js?v=sf1"></script>
+<script src="soul-shards-engine.js?v=sf1"></script>
+<script src="soul-shards-spellcasting.js?v=sf1"></script>
+<script src="armor-ac.js?v=sf1"></script>
+<script src="soul-shards-derive.js?v=sf1"></script>
+<script src="character-data.js?v=sf1"></script>
+<script src="homebrew-races.js?v=sf1"></script>
+<script src="soul-shards-persona.js?v=sf1"></script>
 <script>
 'use strict';
 
@@ -4162,15 +4162,26 @@ function forgeCommit(){
 // ── render current step ──────────────────────────────────────────────────────
 function renderStep(){
   var s = STEPS.find(function(x){ return x.id === draft.stepId; });
+  if (!s){ s = STEPS[0]; draft.stepId = s.id; }   // stale/unknown persisted stepId → recover, don't crash
   var act = activeSteps();
   var pos = act.findIndex(function(x){ return x.id === s.id; });
 
   q('#kicker').textContent = 'Step ' + (pos + 1) + ' of ' + act.length;
   q('#title').textContent = s.name;
   q('#desc').textContent = s.desc;
-  q('#body').innerHTML = BODIES[s.id]();
+  // A throw inside a step's body used to leave #body showing the PREVIOUS step — so the
+  // step looked like it "didn't exist" (e.g. Review vanishing). Surface the error in place
+  // instead: the step always narrates, and a stale/mismatched cached module reads as a clear
+  // message ("hard-refresh") rather than a silently missing screen.
+  try { q('#body').innerHTML = BODIES[s.id](); }
+  catch (e){
+    console.error('[forge] step body failed:', s.id, e);
+    q('#body').innerHTML = '<div class="fx-warn">This step couldn\u2019t render (' + esc((e && e.message) || 'unknown error') +
+      '). Your progress is saved. Try a hard refresh \u2014 if it persists, a deployed file may be stale or missing.</div>';
+  }
   q('#prog').textContent = s.name + ' — ' + (pos + 1) + '/' + act.length;
-  if (MOUNT[s.id]) MOUNT[s.id]();
+  try { if (MOUNT[s.id]) MOUNT[s.id](); }
+  catch (e){ console.error('[forge] step mount failed:', s.id, e); }
 
   var back = q('#back'), next = q('#next');
   back.disabled = pos <= 0;
