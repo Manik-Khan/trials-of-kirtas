@@ -31,6 +31,7 @@ const PAGES = [
   { label: 'Combat',      path: 'combat.html' },   // ← new
   { label: 'Factions',    path: 'factions.html' },
   { label: 'Chronicle',   path: 'chronicle.html' },
+  { label: 'Journal',     path: 'journal.html' },
   { label: 'NPCs',       path: 'npcs.html' },
   { label: 'World',      path: 'world.html' },
   { label: 'Lore',       path: 'lore.html' },

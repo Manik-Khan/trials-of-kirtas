@@ -367,5 +367,26 @@ export function makeJournalStore({ sb, uid, characterKey }) {
       if (mark.error) throw new Error(`shareToChronicle/mark: ${mark.error.message}`)
       return ins.data?.id ?? null
     },
+
+    // ── live: stream chronicle-channel changes so the book updates at the table ──
+    // Mirrors chronicle.html's proven realtime path (no setAuth needed — non-hidden
+    // chronicle rows read for every authenticated user; hidden rows correctly do not
+    // stream to players). Returns an unsubscribe. DELETE is left unfiltered and matched
+    // by id (Supabase can't filter deletes on a non-PK column reliably); a delete of a
+    // row not in the book is simply a no-op.
+    subscribeChronicle({ onInsert, onUpdate, onDelete }) {
+      const ch = sb.channel('journal-chronicle-live')
+        .on('postgres_changes',
+          { event: 'INSERT', schema: 'public', table: 'feed', filter: 'channel=eq.chronicle' },
+          ({ new: row }) => { if (row) onInsert(row) })
+        .on('postgres_changes',
+          { event: 'UPDATE', schema: 'public', table: 'feed', filter: 'channel=eq.chronicle' },
+          ({ new: row }) => { if (row) onUpdate(row) })
+        .on('postgres_changes',
+          { event: 'DELETE', schema: 'public', table: 'feed' },
+          ({ old }) => { if (old && old.id != null) onDelete(old.id) })
+        .subscribe()
+      return () => { try { sb.removeChannel(ch) } catch (e) { /* already gone */ } }
+    },
   }
 }

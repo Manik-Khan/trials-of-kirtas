@@ -18,6 +18,15 @@ import { seatColor } from './comments/accents.js'
 const fmtTime = ts => new Date(ts).toLocaleTimeString(undefined, { hour: 'numeric', minute: '2-digit' })
 const entrySeat = e => e.seat || e.characterKey || 'narrator'
 
+// Seat portraits — the feed-render precedence: portrait art over the initial.
+// (Same Cloudinary URLs feed-render.js uses; the initial shows if art 404s.)
+const PORTRAIT = {
+  cosmere: 'https://res.cloudinary.com/df0tgoiyb/image/upload/v1779833033/kirtas/characters/cosmere.png',
+  caim: 'https://res.cloudinary.com/df0tgoiyb/image/upload/v1779833008/kirtas/characters/caim.png',
+  liadan: 'https://res.cloudinary.com/df0tgoiyb/image/upload/v1779732202/kirtas/portraits/liadan.png',
+  vesperian: 'https://res.cloudinary.com/df0tgoiyb/image/upload/v1779833079/kirtas/characters/vesperian.png',
+}
+
 function Medallions({ vol, accents, row = false }) {
   return (
     <span className={`sh-medallions ${row ? 'is-row' : ''}`}>
@@ -34,10 +43,15 @@ function Medallions({ vol, accents, row = false }) {
 function PanelEntry({ e, accents }) {
   const seat = entrySeat(e)
   const accent = seatColor(seat, accents)
+  const isNarrator = seat === 'narrator'
   return (
-    <article className="sh-entry">
-      <span className="sh-entry-med" style={{ background: accent }} title={`written by ${e.player}`}>
-        {(e.character || '?').charAt(0)}
+    <article className={`sh-entry${isNarrator ? ' is-narrator' : ''}`}>
+      <span className="sh-entry-med" style={{ background: accent, borderColor: accent }} title={`written by ${e.player}`}>
+        {PORTRAIT[seat] && (
+          <img className="sh-entry-portrait" src={PORTRAIT[seat]} alt=""
+            onError={ev => { ev.currentTarget.style.display = 'none' }} />
+        )}
+        <span className="sh-entry-ini">{(e.character || '?').charAt(0)}</span>
       </span>
       <div className="sh-entry-main">
         <div className="sh-entry-head">
@@ -83,6 +97,25 @@ export default function ChronicleView({ live = false, store = null, accents = {}
       .then(([r, t]) => { if (!stale) { setRows(r); setTitles(t || {}) } })
       .catch(e => { if (!stale) setErr(e.message) })
     return () => { stale = true }
+  }, [live, store])
+
+  // live: fold realtime chronicle changes into the book — the story emerges at
+  // the table (and edits/deletes reflect) with no refresh. Additive; when not
+  // live this never runs, so the load-once path is untouched.
+  useEffect(() => {
+    if (!live || !store || !store.subscribeChronicle) return
+    const upsert = (list, row) => {
+      if (!list) return list
+      const i = list.findIndex(r => r.id === row.id)
+      if (i >= 0) { const next = list.slice(); next[i] = row; return next }
+      return [...list, row]
+    }
+    const unsub = store.subscribeChronicle({
+      onInsert: row => setRows(cur => (cur ? upsert(cur, row) : cur)),
+      onUpdate: row => setRows(cur => (cur ? upsert(cur, row) : cur)),
+      onDelete: id => setRows(cur => (cur ? cur.filter(r => r.id !== id) : cur)),
+    })
+    return unsub
   }, [live, store])
 
   const chapters = useMemo(

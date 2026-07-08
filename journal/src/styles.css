@@ -309,6 +309,17 @@ body:not(:has(#site-nav)) .sh-scope { height: 100dvh; } /* standalone preview */
   font-weight: 700; font-size: 15px;
   color: var(--sh-paper);
   border: 1px solid color-mix(in srgb, var(--sh-ink) 30%, transparent);
+  position: relative; overflow: hidden;
+}
+/* fold: portrait art over the initial (initial shows if the art 404s) */
+.sh-entry-portrait { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; border-radius: 50%; }
+.sh-entry-ini { position: relative; z-index: 0; }
+/* fold: the Narrator's golden box (kept legible with pictures inside it) */
+.sh-entry.is-narrator .sh-entry-body {
+  border-left: 3px solid var(--sh-accent);
+  padding-left: 20px;
+  padding-top: 1.4vh; padding-bottom: 1.4vh;
+  background: color-mix(in srgb, var(--sh-accent) 7%, transparent);
 }
 .sh-entry-head { display: flex; align-items: baseline; gap: 13px; margin-bottom: 1.4vh; flex-wrap: wrap; }
 .sh-entry-who { font-size: 12px; letter-spacing: 0.16em; text-transform: uppercase; font-weight: 700; }
