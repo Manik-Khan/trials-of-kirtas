@@ -981,7 +981,36 @@ function classDefCaster(ce){
 }
 function classIsCaster(ce){ return !!classDefCaster(ce); }
 function casterClasses(){ return orderedClasses().filter(classIsCaster); }
-function spellsActive(){ return casterClasses().length > 0; }
+// The Spells step is owed if the build has a caster class OR the race grants innate/
+// racial spells (e.g. a Mark of Finding Half-Orc's Hunter's Mark) — those must surface
+// and fold into the sheet even on a non-caster like a Barbarian. The race is loaded
+// async, so cache a yes/no per race+level signature (mirrors the Feats / Choices gates).
+var _spRaceGrants = false, _spSig = null;
+function raceGrantsSpells(race){
+  if (!race) return false;
+  var addl = Array.isArray(race.additionalSpells) ? race.additionalSpells : (race.additionalSpells ? [race.additionalSpells] : []);
+  if (addl.length) return true;
+  if (draft.subrace && Array.isArray(race.subraces)){
+    var sr = race.subraces.filter(function(s){ return s.name === draft.subrace.n || s.label === draft.subrace.n; })[0];
+    if (sr && sr.additionalSpells && (Array.isArray(sr.additionalSpells) ? sr.additionalSpells.length : true)) return true;
+  }
+  return false;
+}
+function spellsSig(){ return (draft.species ? draft.species.n + '|' + draft.species.s : '') + '|' + (draft.subrace ? draft.subrace.n : '') + '|' + draft.level; }
+function spellsActive(){
+  if (casterClasses().length > 0) return true;
+  var sig = spellsSig();
+  if (sig !== _spSig){ _spSig = sig; _spRaceGrants = false; computeSpellsOwed(sig); }
+  return _spRaceGrants;
+}
+function computeSpellsOwed(sig){
+  if (typeof SoulShardsData === 'undefined') return;
+  raceForBuild().then(function(race){
+    if (spellsSig() !== sig) return;
+    var owed = raceGrantsSpells(race);
+    if (owed !== _spRaceGrants){ _spRaceGrants = owed; if (typeof renderRail === 'function') renderRail(); }
+  }).catch(function(){});
+}
 // ── Feats step gate — owed if the race grants a level-1 feat (Variant Human /
 // Custom Lineage; this is class-independent, available at level 1 regardless of
 // class) OR the build has at least one ASI level. The racial feat is computed from
@@ -1037,6 +1066,8 @@ function computeChoicesOwed(sig){
     var owed = false;
     (model.optFeatureProg || []).forEach(function(b){ if (SoulShardsData.progressionCountAt(b.progression, draft.level) > 0) owed = true; });
     if (sub) (sub.optFeatureProg || []).forEach(function(b){ if (SoulShardsData.progressionCountAt(b.progression, draft.level) > 0) owed = true; });
+    if (!owed && typeof SoulShardsData.featureChoiceGroups === 'function' &&
+        SoulShardsData.featureChoiceGroups(model, sub ? sub.shortName : null, draft.level).length) owed = true;
     if (owed !== _chOwed){ _chOwed = owed; if (typeof renderRail === 'function') renderRail(); }
   }).catch(function(){});
 }
@@ -2453,7 +2484,10 @@ var SpellsUI = (function () {
   // Spells-step render AND the Forge (so the emit works even if Spells was never opened).
   function loadData(){
     var classes = casterClasses();
-    if (!classes.length || typeof SoulShardsData === 'undefined' || typeof SoulShardsEngine === 'undefined'){ _casters = []; return Promise.resolve(false); }
+    if (typeof SoulShardsData === 'undefined' || typeof SoulShardsEngine === 'undefined'){ _casters = []; return Promise.resolve(false); }
+    // No caster class, but the race may still grant innate/racial spells (Mark of Finding
+    // → Hunter's Mark). Load just those so they surface + fold into the sheet.
+    if (!classes.length) return loadGrantsOnly();
     var my = ++_req;
     return Promise.all([
       raceForBuild(),
@@ -2523,6 +2557,30 @@ var SpellsUI = (function () {
       });
     });
   }
+  // Non-caster build (no Spells tabs, no class list) whose RACE grants innate/racial
+  // spells. Load the race model, resolve the grants + any "one of the following" choice,
+  // hydrate their level/detail, and leave _casters empty. spellsForStructural() emits
+  // these with origin:'race' so the derive folds them onto the sheet exactly as it does
+  // for a caster; render() shows the grant/choice sections with no per-class UI.
+  function loadGrantsOnly(){
+    var my = ++_req;
+    return raceForBuild().then(function(race){
+      if (my !== _req) return false;
+      _raceModel = race;
+      var gr = loadGrantsFrom(_raceModel); _grants = gr.grants; _spellChoices = gr.choices;
+      _casters = []; _bgSpells = []; _bgSet = {}; _shared = { detail:{} };
+      var needNames = _grants.filter(function(g){ return g.kind !== 'cantrip'; }).map(function(g){ return g.name; });
+      return (needNames.length ? SoulShardsData.loadSpellMeta(needNames, { detail:true }) : Promise.resolve([])).then(function(metas){
+        if (my !== _req) return false;
+        var byName = {}; (metas || []).forEach(function(m){ byName[m.name.toLowerCase()] = m; });
+        _grants.forEach(function(g){
+          if (g.kind === 'cantrip'){ g.level = 0; return; }
+          var m = byName[g.name.toLowerCase()]; g.level = m ? m.level : null; if (m) _shared.detail[g.name] = m;
+        });
+        return true;
+      });
+    });
+  }
   function activeCaster(){ return _casters.filter(function(c){ return c.key === _active; })[0] || _casters[0] || null; }
   // copy the active class's profile into the module vars the render helpers read.
   function useActive(){
@@ -2535,8 +2593,9 @@ var SpellsUI = (function () {
 
   function loadAll(){
     var host = q('#sp-out'); if (!host) return;
-    if (!casterClasses().length){ host.innerHTML = ''; return; }
     if (typeof SoulShardsData === 'undefined' || typeof SoulShardsEngine === 'undefined'){ host.innerHTML = '<div class="eng-load">Engine modules not loaded.</div>'; return; }
+    // caster classes drive the per-class picker; with none, loadData falls back to
+    // racial-grants-only (a non-caster race that still grants innate spells).
     host.innerHTML = '<div class="eng-load">Resolving entitlements + spell lists\u2026</div>';
     loadData().then(function(ok){ if (ok && q('#sp-out')) render(); }).catch(function(err){
       var h = q('#sp-out'); if (h) h.innerHTML = '<div class="eng-load">Couldn\u2019t load spells (' + esc((err && err.message) || 'fetch failed') + ').</div>';
@@ -2749,7 +2808,18 @@ var SpellsUI = (function () {
   function render(){
     var host = q('#sp-out'); if (!host) return;
     var ca = useActive(); var e = _ent;
-    if (!ca || !e){ host.innerHTML = ''; return; }
+    if (!ca || !e){
+      // No caster class — but the race may grant innate/racial spells. Show just those.
+      if (_grants.length || (_spellChoices && _spellChoices.length)){
+        _detail = Object.assign({}, _shared.detail);
+        host.innerHTML = '<div class="sp-multi">' +
+          '<div class="statusline done"><b>Racial spells</b>granted by your species — folded onto the sheet automatically</div>' +
+          grantSection() + choiceSection() + '</div>';
+        wire();
+        return;
+      }
+      host.innerHTML = ''; return;
+    }
     var levels = levelsAvailable();
     if (_lvl == null || levels.indexOf(_lvl) < 0) _lvl = levels.length ? levels[0] : 0;
     _lvlByClass[_active] = _lvl;
@@ -2833,7 +2903,7 @@ var SpellsUI = (function () {
   // Each caster class contributes its cantrips + loadout tagged with ITS origin/source/ability;
   // the derive buckets them by level and the sheet shows each spell under its own class + DC.
   function spellsForStructural(){
-    if (!_casters.length) return { spells: [], spellbook: [] };
+    if (!_casters.length && !_grants.length) return { spells: [], spellbook: [] };
     var out = [], seen = {}, book = [];
     function add(name, og, sourceTag, level, time, ability){ var k = name.toLowerCase(); if (seen[k]) return; seen[k] = 1; out.push({ name:name, level:level, origin:og, source:sourceTag, time:time, ability:ability || null }); }
     // racial grants FIRST so race attribution wins a collision with a class pick
@@ -2879,7 +2949,11 @@ var ChoicesUI = (function () {
       var sub = (model.subclasses || []).find(function(s){ return draft.subclass && s.name === draft.subclass.n; });
       return SoulShardsData.owedFeatureChoices(model, sub ? sub.shortName : null, draft.level, {}).then(function(groups){
         if (my !== _creq) return false;
-        _groups = groups || []; reconcile(); return true;
+        // in-feature option picks (Totem Spirit / Aspect of the Beast / …) aren't
+        // optionalfeatureProgression, so they come from a separate walk of the granted features.
+        var featOpts = (typeof SoulShardsData.featureChoiceGroups === 'function')
+          ? SoulShardsData.featureChoiceGroups(model, sub ? sub.shortName : null, draft.level) : [];
+        _groups = (groups || []).concat(featOpts); reconcile(); return true;
       });
     });
   }
@@ -2957,7 +3031,7 @@ var ChoicesUI = (function () {
     var out = [];
     (_groups || []).forEach(function(g){
       var byName = {}; (g.options || []).forEach(function(o){ byName[o.name] = o; });
-      sel(g).forEach(function(n){ var o = byName[n]; if (o) out.push({ name: o.name, origin: g.origin, originName: g.originName, source: o.source, entries: o.entries, featureType: o.featureType }); });
+      sel(g).forEach(function(n){ var o = byName[n]; if (o) out.push({ name: g.featureOption ? (g.name + ': ' + o.name) : o.name, origin: g.origin, originName: g.originName, source: o.source, entries: o.entries, featureType: o.featureType }); });
     });
     return out;
   }

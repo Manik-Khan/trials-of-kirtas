@@ -89,6 +89,59 @@
     return entries;
   }
 
+  // Some (sub)class features hold a "choose 1 of the following" block INLINE in their
+  // entries — {type:'options', count:N, entries:[refSubclassFeature|refClassFeature, …]}
+  // (e.g. the Totem Warrior's Totem Spirit / Aspect of the Beast / Totemic Attunement,
+  // where you pick Bear / Eagle / Wolf / …). Unlike Fighting Style or Maneuvers these
+  // are NOT an optionalfeatureProgression, so the builder never saw them. The block may
+  // sit one ref deep: the LISTED feature "Path of the Totem Warrior" points (via
+  // refSubclassFeature) at "Totem Spirit", and the options live inside THAT. So we
+  // follow refSubclassFeature / refClassFeature into their targets and carry the target
+  // feature's name down as the choice `label`. Returns, per options block:
+  //   [{ count, label, options:[{ name, source, level, entries }] }]
+  function _findScf(scfList, p) {
+    return scfList.find(function (f) { return f.name === p.name && f.subclassShortName === p.subclassShort && f.level === p.level && (!p.subclassSource || f.source === p.subclassSource); })
+        || scfList.find(function (f) { return f.name === p.name && f.subclassShortName === p.subclassShort && f.level === p.level; });
+  }
+  function _findCf(cfList, q) {
+    return cfList.find(function (f) { return f.name === q.name && f.level === q.level && (!q.source || f.source === q.source); })
+        || cfList.find(function (f) { return f.name === q.name && f.level === q.level; });
+  }
+  function extractFeatureOptions(entries, scfList, cfList, srcDefault, depth, label) {
+    depth = depth || 0;
+    var out = [];
+    if (!entries || depth > 6) return out;
+    var arr = Array.isArray(entries) ? entries : [entries];
+    arr.forEach(function (e) {
+      if (!e || typeof e !== 'object') return;
+      if (e.type === 'options' && Array.isArray(e.entries)) {
+        var options = [];
+        e.entries.forEach(function (ref) {
+          if (!ref || typeof ref !== 'object') return;
+          if (ref.type === 'refSubclassFeature' && ref.subclassFeature) {
+            var obj = _findScf(scfList, parseSubclassFeatureRef(ref.subclassFeature, srcDefault));
+            if (obj) options.push({ name: obj.name, source: obj.source, level: obj.level,
+              entries: resolveNestedRefs(obj.entries || [], scfList, cfList, srcDefault, depth + 1) });
+          } else if (ref.type === 'refClassFeature' && ref.classFeature) {
+            var cobj = _findCf(cfList, parseClassFeatureRef(ref.classFeature, srcDefault));
+            if (cobj) options.push({ name: cobj.name, source: cobj.source, level: cobj.level,
+              entries: resolveNestedRefs(cobj.entries || [], scfList, cfList, srcDefault, depth + 1) });
+          }
+        });
+        if (options.length) out.push({ count: (+e.count || 1), label: label || null, options: options });
+      } else if (e.type === 'refSubclassFeature' && e.subclassFeature) {
+        var t = _findScf(scfList, parseSubclassFeatureRef(e.subclassFeature, srcDefault));
+        if (t) out = out.concat(extractFeatureOptions(t.entries, scfList, cfList, srcDefault, depth + 1, t.name));
+      } else if (e.type === 'refClassFeature' && e.classFeature) {
+        var tc = _findCf(cfList, parseClassFeatureRef(e.classFeature, srcDefault));
+        if (tc) out = out.concat(extractFeatureOptions(tc.entries, scfList, cfList, srcDefault, depth + 1, tc.name));
+      } else if (Array.isArray(e.entries)) {
+        out = out.concat(extractFeatureOptions(e.entries, scfList, cfList, srcDefault, depth + 1, label));
+      }
+    });
+    return out;
+  }
+
   // ── normalize a class file into the builder model (pure) ───────────────────
   // Build a spellcasting block from a class OR subclass object (same field names
   // on both). spellsKnown present ⇒ a "known" caster; absent ⇒ prepared.
@@ -165,6 +218,7 @@
         name: p.name, level: p.level, source: p.source,
         gainSubclass: p.gainSubclass,
         entries: obj ? resolveNestedRefs(obj.entries, file.subclassFeature || [], file.classFeature || [], srcDefault) : null,
+        choices: obj ? extractFeatureOptions(obj.entries, file.subclassFeature || [], file.classFeature || [], srcDefault) : [],
         unresolved: !obj,
       });
     }
@@ -180,7 +234,9 @@
                f.name === p.name && f.subclassShortName === p.subclassShort && f.level === p.level);
         (byLevel[p.level] || (byLevel[p.level] = [])).push({
           name: p.name, level: p.level, source: p.subclassSource,
-          entries: obj ? resolveNestedRefs(obj.entries, file.subclassFeature || [], file.classFeature || [], srcDefault) : null, unresolved: !obj,
+          entries: obj ? resolveNestedRefs(obj.entries, file.subclassFeature || [], file.classFeature || [], srcDefault) : null,
+          choices: obj ? extractFeatureOptions(obj.entries, file.subclassFeature || [], file.classFeature || [], srcDefault) : [],
+          unresolved: !obj,
         });
       }
       // ⅓-caster subclasses (Eldritch Knight, Arcane Trickster) carry their own
@@ -607,6 +663,40 @@
     }).filter(Boolean);
   }
 
+  // In-feature option picks (the Totem Warrior's Totem Spirit / Aspect of the Beast /
+  // Totemic Attunement — "choose Bear / Eagle / Wolf / …"). These live INLINE in a
+  // feature's entries (see extractFeatureOptions), not in optionalfeatureProgression, so
+  // owedFeatureChoices never saw them. Walk the class + chosen-subclass features granted
+  // at `level` and return their option blocks in the SAME group shape owedFeatureChoices
+  // uses, so ChoicesUI renders / reconciles / emits them with no extra plumbing. Pure +
+  // synchronous (operates on an already-loaded loadClass() model).
+  function featureChoiceGroups(model, subclassShortName, level) {
+    if (!model) return [];
+    var L = Math.max(1, level | 0);
+    var groups = [];
+    function collect(featuresByLevel, origin, originName) {
+      for (var lv = 1; lv <= L; lv++) {
+        (featuresByLevel[lv] || []).forEach(function (f) {
+          (f.choices || []).forEach(function (choice, ci) {
+            var base = choice.label || f.name;
+            var name = base + ((!choice.label && f.choices.length > 1) ? (' (' + (ci + 1) + ')') : '');
+            groups.push({
+              name: name, featureType: [], count: (choice.count || 1),
+              origin: origin, originName: originName, featureOption: true,
+              options: (choice.options || []).map(function (o) {
+                return { name: o.name, source: o.source, prerequisite: null, prereqText: '', entries: o.entries || null };
+              })
+            });
+          });
+        });
+      }
+    }
+    collect(model.featuresByLevel || {}, 'class', model.name);
+    var sc = (model.subclasses || []).find(function (s) { return s.shortName === subclassShortName; });
+    if (sc) collect(sc.featuresByLevel || {}, 'subclass', sc.name);
+    return groups;
+  }
+
   // ── Feats (feats.json) ──────────────────────────────────────────────────────
   function loadFeats() {
     return fetchJson('feats.json').then(d => d.feat || []);
@@ -744,7 +834,7 @@
     BASE, fetchJson,
     parseClassFeatureRef, parseSubclassFeatureRef, normalizeClass,
     loadClass, loadClassSpellList, loadSpellMeta,
-    loadOptionalFeatures, owedFeatureChoices, progressionCountAt, prereqText,
+    loadOptionalFeatures, owedFeatureChoices, featureChoiceGroups, progressionCountAt, prereqText,
     loadFeats, featPrereqText, featMeetsPrereq, featAbilityChoice, featsForChar,
     loadBackgrounds, backgroundEquipment, backgroundProficiencies, parseStartingEquipment,
     loadRace,

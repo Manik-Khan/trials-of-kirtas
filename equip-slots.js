@@ -45,6 +45,35 @@
     return String((it && it.type) || '').split('|')[0].trim().toUpperCase();
   }
 
+  // The PHB armour + shield names, for classifying gear that arrives WITHOUT a 5etools
+  // `type` code — the Forge's starting-equipment grant emits bare {name, qty}, so a
+  // granted "Scale Mail" / "Chain Mail" / "Plate" had no type and fell through to null
+  // (no Equip button). ArmorAC owns the authoritative table (magic/mithral/longest-suffix
+  // matching); prefer it when present and fall back to this set for the standalone smoke.
+  var BODY_ARMOR_NAMES = [
+    'padded', 'leather', 'studded leather', 'hide', 'chain shirt', 'scale mail',
+    'breastplate', 'half plate', 'ring mail', 'chain mail', 'splint', 'plate'
+  ];
+  function cleanArmorName(raw) {
+    return String(raw == null ? '' : raw).toLowerCase()
+      .replace(/\s*\([^)]*\)/g, ' ').replace(/\s*\+\d+\s*/g, ' ')
+      .replace(/\bmith(?:ral|ril)\b/g, ' ').replace(/\s+/g, ' ').trim();
+  }
+  // 'armor' | 'shield' | null — name only, no type code required.
+  function armorByName(it) {
+    if (!it || !it.name) return null;
+    var g = (typeof window !== 'undefined' ? window : (typeof globalThis !== 'undefined' ? globalThis : null));
+    if (g && g.ArmorAC && typeof g.ArmorAC.classifyArmor === 'function') {
+      var info = g.ArmorAC.classifyArmor(it);
+      if (info) return info.cat === 'shield' ? 'shield' : 'armor';
+    }
+    var clean = cleanArmorName(it.name);
+    var words = clean.split(' ');
+    for (var j = words.length; j > 0; j--) { if (BODY_ARMOR_NAMES.indexOf(words.slice(0, j).join(' ')) !== -1) return 'armor'; }
+    for (var i = 0; i < words.length; i++) { if (BODY_ARMOR_NAMES.indexOf(words.slice(i).join(' ')) !== -1) return 'armor'; }
+    return null;
+  }
+
   // Map an item to the slot category it belongs in (or null = unslottable/carried).
   // Armour, shields, rings, staves and weapons are unambiguous from `type`; the
   // wondrous catch-all ("W") and untyped homebrew fall to a name heuristic — the
@@ -69,6 +98,10 @@
     // starting-equipment grant that dropped the type) — catch it by name so it can be
     // equipped. Guard against shield-y non-shields (the Shield spell, Ring of Shielding).
     if (/\bshields?\b/.test(n) && !/\b(ring|amulet|cloak|wand|staff|scroll|potion|spell|guardian)\b/.test(n)) return 'shield';
+    // Body armour / shield granted without a type code (Forge starting equipment emits
+    // bare names) — classify by name so it registers as armour and can be equipped.
+    var byName = armorByName(it);
+    if (byName) return byName;
     return null; // wands, rods, potions, scrolls, ammo, tools, gear, boots/gloves/belts
   }
 
