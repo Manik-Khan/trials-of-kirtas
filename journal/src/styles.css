@@ -1113,3 +1113,6 @@ body:not(:has(#site-nav)) .sh-scope { height: 100dvh; } /* standalone preview */
 .sh-ol-item { font-family: var(--sh-font-utility); font-size: 10px; letter-spacing: 0.14em; text-transform: uppercase; font-weight: 700; color: var(--sh-ink-soft); background: transparent; border: 1px solid var(--sh-hairline); border-radius: 2px; padding: 5px 9px; cursor: pointer; }
 .sh-ol-item:hover { border-color: var(--sh-accent); color: var(--sh-accent); }
 .sh-ol-item.is-fight { color: var(--sh-accent); }
+
+/* journal editor: URL-inserted images (no upload) */
+.j-img { max-width: 100%; height: auto; display: block; margin: 0.6em 0; border-radius: 2px; }

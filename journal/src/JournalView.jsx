@@ -10,6 +10,7 @@ import { EditorContent, useEditor } from '@tiptap/react'
 import StarterKit from '@tiptap/starter-kit'
 import TaskList from '@tiptap/extension-task-list'
 import TaskItem from '@tiptap/extension-task-item'
+import Image from '@tiptap/extension-image'
 import { Callout } from './editor/Callout.js'
 import { TokMention, extractRefs } from './editor/MentionExtension.js'
 import { makeEntitySuggestion } from './editor/suggestion.js'
@@ -70,6 +71,7 @@ export default function JournalView({ vault, banner = null, isStaff = false, sto
       TaskList,
       TaskItem.configure({ nested: true }),
       Callout,
+      Image.configure({ allowBase64: false, HTMLAttributes: { class: 'j-img' } }),
       TokMention.configure({
         suggestion: makeEntitySuggestion({ onCreateEntity: bump }),
       }),

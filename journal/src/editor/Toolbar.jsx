@@ -20,6 +20,7 @@ const BTNS = [
   { sep: true },
   { label: '‹›', title: 'code', is: e => e.isActive('code'), run: e => e.chain().focus().toggleCode().run() },
   { label: '—',  title: 'divider', is: () => false, run: e => e.chain().focus().setHorizontalRule().run() },
+  { label: '🖼', title: 'insert image by URL', is: () => false, run: e => { const url = (window.prompt('Image URL (https://…):') || '').trim(); if (url) e.chain().focus().setImage({ src: url }).run() } },
   { label: '❐',  title: 'callout (toggle)', is: e => e.isActive('callout'), run: e => e.chain().focus().toggleCallout().run() },
   { label: '❐↻', title: 'callout style (note → quest → warning → lore)', is: () => false, run: e => e.chain().focus().cycleCalloutVariant().run() },
   { sep: true },
