@@ -41,8 +41,60 @@ const TINT = { entrance:0x3fd0bb, combat:0x8f95a3, elite:0x9b6cf0, treasure:0xd9
    params, particle system, prop-kit flags consumed by the generator,
    and name-generator word pools. Everything downstream is data-driven. */
 const THEMES = {
-  ancient: {
-    label:'ANCIENT', accent:'#e8973f',
+  grass: {
+    label:'GRASS', accent:'#8fdc5a',
+    bg:0x0a120b, fog:0x0e1a10, fogD:0.0018,
+    hemi:[0x4a7a52, 0x10160e, 0.65], dir:[0xfff2d0, 0.95],
+    floor:0x8a9678, corridor:0x717d5f, wall:0x5c6a52, cap:0x7a8768,
+    pillar:0x66725a, debris:[0x50593f, 0x646a4a],
+    flame:0x9fe86a, flameCore:0xf0ffd8, torchLight:[0x86dd52, 1.3, 9],
+    cloth:0x3a6a2c,
+    pools:null,
+    roots:true, shafts:true, particles:{kind:4, color:0xbfe89a, n:150},
+    nameA:['Sunlit','Windswept','Rolling','Wild','Blooming','Open','Green','Untamed'],
+    nameB:['Meadows','Fields','Downs','Commons','Reaches','Greens','Vale','Heath']
+  },
+  druidic: {
+    label:'DRUIDIC', accent:'#59d68f',
+    bg:0x060c09, fog:0x091510, fogD:0.0023,
+    hemi:[0x2f5a46, 0x08120c, 0.6], dir:[0xd8f0c8, 0.8],
+    floor:0x848e7e, corridor:0x6a7560, wall:0x556050, cap:0x6e7a66,
+    pillar:0x606c5c, debris:[0x49543f, 0x5c644c],
+    flame:0x62e0a8, flameCore:0xe6fff0, torchLight:[0x4ad98e, 1.3, 9],
+    cloth:0x1f5038,
+    pools:{mode:2, colA:0x0c3532, colB:0x2fa38a, glow:0.6, amount:0.05, pits:1},
+    roots:true, shafts:true, particles:{kind:4, color:0x8fe6b8, n:200},
+    nameA:['Ancient','Whispering','Sacred','Overgrown','Rootbound','Wildgrown','Elder','Mossgrown'],
+    nameB:['Groves','Warrens','Roots','Conservatory','Hollows','Thickets','Cisterns','Arbors']
+  },
+  tundra: {
+    label:'TUNDRA', accent:'#7fd4ff',
+    bg:0x060a12, fog:0x0b1522, fogD:0.0024,
+    hemi:[0x3a5a80, 0x0a0e18, 0.5], dir:[0xcfe4ff, 0.82],
+    floor:0x93a0b2, corridor:0x78848f, wall:0x60708a, cap:0x8194ac,
+    pillar:0x70809a, debris:[0x55617a, 0x6d7a90],
+    flame:0x86d9ff, flameCore:0xe8f7ff, torchLight:[0x6fc4ff, 1.35, 9.5],
+    cloth:0x2b4d70,
+    pools:{mode:1, colA:0x4a86c0, colB:0xbfe4ff, glow:0.55, amount:0},
+    lakes:true, icicles:true, particles:{kind:2, color:0xdff0ff, n:260},
+    nameA:['Frozen','Rimebound','Glacial','Howling','Pale','Windbitten','Wintered','Snowchoked'],
+    nameB:['Wastes','Reaches','Glaciers','Hollows','Galleries','Warrens','Expanse','Throat']
+  },
+  swamp: {
+    label:'SWAMP', accent:'#6fb59a',
+    bg:0x080d0a, fog:0x0c1512, fogD:0.0032,
+    hemi:[0x35503f, 0x080d09, 0.5], dir:[0xb8ccb0, 0.5],
+    floor:0x6e7668, corridor:0x585f4f, wall:0x474d40, cap:0x5c6252,
+    pillar:0x535847, debris:[0x3e4436, 0x50543a],
+    flame:0x8fd9a0, flameCore:0xe6ffe8, torchLight:[0x72cc8a, 1.25, 8.5],
+    cloth:0x2a4a30,
+    pools:{mode:2, colA:0x0c1f18, colB:0x3a7a5c, glow:0.5, amount:0.10, pits:2},
+    roots:true, particles:{kind:3, color:0x8fbf9a, n:180},
+    nameA:['Sunken','Drowned','Fetid','Miasmic','Rotting','Weeping','Stagnant','Boglost'],
+    nameB:['Marshes','Fens','Bogs','Mires','Sloughs','Wetlands','Sumps','Hollows']
+  },
+  temple: {
+    label:'TEMPLE', accent:'#e8973f',
     bg:0x07080d, fog:0x07080d, fogD:0.0021,
     hemi:[0x2e3a52, 0x0a0b10, 0.55], dir:[0xffe8c8, 0.85],
     floor:0x8a8f9c, corridor:0x6d7380, wall:0x5c626e, cap:0x757b88,
@@ -50,11 +102,24 @@ const THEMES = {
     flame:0xffa640, flameCore:0xfff3c8, torchLight:[0xff8c3a, 1.5, 9.5],
     cloth:0x7d2c26,
     pools:null, particles:{kind:0, color:0xaab4cc, n:110},
-    nameA:['Sunken','Forgotten','Silent','Hollow','Elder','Broken','Nameless','Fallen'],
-    nameB:['Halls','Vaults','Catacombs','Depths','Sanctum','Undercroft','Barrows','Reliquary']
+    nameA:['Forgotten','Silent','Hallowed','Elder','Sacred','Ruined','Vaulted','Solemn'],
+    nameB:['Temples','Sanctums','Shrines','Reliquary','Cloisters','Naves','Vaults','Halls']
   },
-  molten: {
-    label:'MOLTEN', accent:'#ff8642',
+  cavern: {
+    label:'CAVERN', accent:'#79c6d8',
+    bg:0x06090d, fog:0x0a0f16, fogD:0.0026,
+    hemi:[0x2f3e52, 0x070a0f, 0.5], dir:[0xcdd8e6, 0.7],
+    floor:0x7c8290, corridor:0x646a78, wall:0x4f5563, cap:0x6a707e,
+    pillar:0x5c6270, debris:[0x474d5a, 0x585e4e],
+    flame:0x8fd0ff, flameCore:0xe6f4ff, torchLight:[0x74bfff, 1.4, 9.5],
+    cloth:0x2b4560,
+    pools:{mode:1, colA:0x2a5878, colB:0x9fd8e8, glow:0.7, amount:0.12, pits:2},
+    particles:{kind:2, color:0xbfe4f0, n:200},
+    nameA:['Deep','Sunless','Echoing','Jagged','Hollow','Gloaming','Crystal','Under'],
+    nameB:['Caverns','Grottoes','Warrens','Deeps','Chasms','Galleries','Hollows','Throat']
+  },
+  volcanic: {
+    label:'VOLCANIC', accent:'#ff8642',
     bg:0x0c0605, fog:0x1a0b04, fogD:0.0028,
     hemi:[0x6b3419, 0x160503, 0.55], dir:[0xffd9b0, 0.5],
     floor:0x7a685c, corridor:0x614f44, wall:0x503e34, cap:0x6b5546,
@@ -65,45 +130,6 @@ const THEMES = {
     particles:{kind:1, color:0xffa050, n:240},
     nameA:['Molten','Ashen','Cindered','Smouldering','Charred','Burning','Ember','Scorched'],
     nameB:['Forges','Furnaces','Calderas','Foundry','Kilns','Vents','Crucible','Depths']
-  },
-  frost: {
-    label:'FROST', accent:'#7fd4ff',
-    bg:0x060a12, fog:0x0b1522, fogD:0.0024,
-    hemi:[0x3a5a80, 0x0a0e18, 0.5], dir:[0xcfe4ff, 0.82],
-    floor:0x93a0b2, corridor:0x78848f, wall:0x60708a, cap:0x8194ac,
-    pillar:0x70809a, debris:[0x55617a, 0x6d7a90],
-    flame:0x86d9ff, flameCore:0xe8f7ff, torchLight:[0x6fc4ff, 1.35, 9.5],
-    cloth:0x2b4d70,
-    pools:{mode:1, colA:0x4a86c0, colB:0xbfe4ff, glow:0.55, amount:0},
-    lakes:true, icicles:true, particles:{kind:2, color:0xdff0ff, n:260},
-    nameA:['Frozen','Rimebound','Glacial','Howling','Pale','Shivering','Wintered','Whitelocked'],
-    nameB:['Crypts','Caverns','Hollows','Galleries','Sepulchre','Warrens','Reaches','Throat']
-  },
-  grim: {
-    label:'GRIM', accent:'#9fe66a',
-    bg:0x070a07, fog:0x0a130a, fogD:0.0030,
-    hemi:[0x2c4030, 0x070a06, 0.52], dir:[0xbfd8b0, 0.45],
-    floor:0x7c8276, corridor:0x62685c, wall:0x4f5549, cap:0x666c5e,
-    pillar:0x5c6254, debris:[0x4a4f44, 0x5e5c48],
-    flame:0x8fe05a, flameCore:0xe9ffd0, torchLight:[0x77d94a, 1.35, 9],
-    cloth:0x33461f,
-    pools:{mode:3, colA:0x0a1207, colB:0x41602c, glow:0.6, amount:0.05, pits:1},
-    graveyards:true, bones:true, particles:{kind:3, color:0x9fe66a, n:150},
-    nameA:['Blighted','Weeping','Rotting','Cursed','Umbral','Plagued','Mournful','Grim'],
-    nameB:['Necropolis','Ossuary','Tombs','Charnels','Graves','Catacombs','Morgue','Crypts']
-  },
-  verdant: {
-    label:'VERDANT', accent:'#59d68f',
-    bg:0x060c09, fog:0x091510, fogD:0.0023,
-    hemi:[0x2f5a46, 0x08120c, 0.6], dir:[0xd8f0c8, 0.8],
-    floor:0x848e7e, corridor:0x6a7560, wall:0x556050, cap:0x6e7a66,
-    pillar:0x606c5c, debris:[0x49543f, 0x5c644c],
-    flame:0x62e0a8, flameCore:0xe6fff0, torchLight:[0x4ad98e, 1.3, 9],
-    cloth:0x1f5038,
-    pools:{mode:2, colA:0x0c3532, colB:0x2fa38a, glow:0.6, amount:0.05, pits:1},
-    roots:true, shafts:true, particles:{kind:4, color:0x8fe6b8, n:200},
-    nameA:['Verdant','Overgrown','Sporebound','Tangled','Mossgrown','Waking','Feral','Blooming'],
-    nameB:['Gardens','Warrens','Roots','Conservatory','Hollows','Groves','Cisterns','Arbors']
   }
 };
 const THEME_KEYS = Object.keys(THEMES);
