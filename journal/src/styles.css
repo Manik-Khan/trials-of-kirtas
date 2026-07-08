@@ -321,6 +321,41 @@ body:not(:has(#site-nav)) .sh-scope { height: 100dvh; } /* standalone preview */
   padding-top: 1.4vh; padding-bottom: 1.4vh;
   background: color-mix(in srgb, var(--sh-accent) 7%, transparent);
 }
+
+/* ── combat, inline: fight → collapsible rounds → the feed-render dice look ── */
+.sh-fight { border: 1px solid var(--sh-hairline); margin: 3vh 0; background: color-mix(in srgb, var(--sh-ink) 3%, transparent); }
+.sh-fight-lead { display: flex; align-items: center; gap: 10px; margin-bottom: -1px;
+  font-family: var(--sh-font-utility); font-size: 10px; letter-spacing: 0.3em; text-transform: uppercase; font-weight: 700; color: var(--sh-ink-faint); }
+.sh-fight-lead::before { content: "\2694"; color: var(--sh-accent); font-size: 13px; letter-spacing: 0; }
+.sh-fight-head { width: 100%; display: flex; align-items: center; gap: 12px; padding: 13px 16px; cursor: pointer; background: none; border: 0; text-align: left; transition: background 0.2s ease; }
+.sh-fight-head:hover { background: color-mix(in srgb, var(--sh-ink) 5%, transparent); }
+.sh-fight-caret { font-size: 11px; color: var(--sh-ink-faint); transition: transform 0.2s ease; }
+.sh-fight-head.is-open .sh-fight-caret { transform: rotate(90deg); }
+.sh-fight-title { font-family: var(--sh-font-body); font-style: italic; font-size: 17px; color: var(--sh-ink); }
+.sh-fight-title b { font-style: normal; font-weight: 700; }
+.sh-fight-sum { margin-left: auto; font-size: 10px; letter-spacing: 0.18em; text-transform: uppercase; color: var(--sh-ink-faint); font-weight: 600; }
+.sh-fight-pad { padding: 6px 16px 14px; }
+.sh-round + .sh-round { border-top: 1px solid color-mix(in srgb, var(--sh-ink) 8%, transparent); }
+.sh-round-head { width: 100%; display: flex; align-items: center; gap: 10px; padding: 9px 16px; cursor: pointer;
+  background: color-mix(in srgb, var(--sh-ink) 4%, transparent); border: 0; text-align: left;
+  font-family: var(--sh-font-utility); font-size: 10px; letter-spacing: 0.2em; text-transform: uppercase; font-weight: 700; color: var(--sh-ink-faint); }
+.sh-round-head:hover { color: var(--sh-ink-soft); }
+.sh-round-caret { font-size: 10px; transition: transform 0.2s ease; }
+.sh-round.is-open .sh-round-caret { transform: rotate(90deg); }
+.sh-round-count { margin-left: auto; font-weight: 600; }
+.feed-row { display: flex; gap: 11px; padding: 8px 0; align-items: flex-start; }
+.feed-row + .feed-row { border-top: 1px solid color-mix(in srgb, var(--sh-ink) 8%, transparent); }
+.feed-av { flex: none; width: 30px; height: 30px; border-radius: 50%; border: 1.5px solid var(--sh-hairline);
+  overflow: hidden; display: grid; place-items: center; position: relative; background: color-mix(in srgb, var(--sh-ink) 10%, transparent); }
+.feed-av-img { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; }
+.feed-av-i { font-family: var(--sh-font-utility); font-weight: 700; font-size: 12px; color: var(--sh-ink-soft); }
+.feed-av-dm { color: var(--sh-accent); font-size: 12px; }
+.feed-meta { font-size: 11px; color: var(--sh-ink-faint); }
+.feed-name { font-weight: 700; }
+.feed-text { font-size: 13.5px; color: var(--sh-ink-soft); margin-top: 2px; font-family: var(--sh-font-body); }
+.feed-text .ft-tot { color: var(--sh-accent); font-weight: 700; }
+.feed-text .ft-die { color: var(--sh-ink-faint); }
+.feed-text .ft-drop { color: var(--sh-ink-faint); text-decoration: line-through; opacity: 0.6; }
 .sh-entry-head { display: flex; align-items: baseline; gap: 13px; margin-bottom: 1.4vh; flex-wrap: wrap; }
 .sh-entry-who { font-size: 12px; letter-spacing: 0.16em; text-transform: uppercase; font-weight: 700; }
 .sh-player-reveal { opacity: 0; transition: opacity 0.2s ease; font-weight: 500; }
@@ -1021,3 +1056,60 @@ body:not(:has(#site-nav)) .sh-scope { height: 100dvh; } /* standalone preview */
   .j-main { height: auto; }
   .sh-strip { flex-wrap: wrap; }
 }
+
+/* ── the Index: sticky left spine + slim overlay (the book's frontmatter) ── */
+.sh-scope { --idx-w: min(380px, 88vw); }
+.sh-index { position: sticky; left: 0; z-index: 6; flex: 0 0 auto; align-self: stretch; display: flex; }
+.idx-spine { background: color-mix(in srgb, var(--sh-accent) 8%, var(--sh-paper)); justify-content: space-between !important; position: relative; z-index: 5; width: calc(var(--sh-spine-w) * 0.72); }
+.idx-spine:hover, .idx-spine.is-open { background: color-mix(in srgb, var(--sh-accent) 15%, var(--sh-paper)); }
+.idx-mark { font-size: 15px; font-weight: 700; letter-spacing: 0.1em; color: var(--sh-accent); }
+.idx-vtitle { writing-mode: vertical-rl; font-family: var(--sh-font-poster); font-style: italic; font-size: 20px; color: var(--sh-ink-soft); letter-spacing: 0.04em; }
+.idx-spine:hover .idx-vtitle, .idx-spine.is-open .idx-vtitle { color: var(--sh-accent); }
+.idx-loc { writing-mode: vertical-rl; font-size: 10px; letter-spacing: 0.24em; text-transform: uppercase; color: var(--sh-ink-faint); font-weight: 600; }
+.idx-panel { position: absolute; left: 0; top: 0; height: 100%; width: var(--idx-w); overflow: hidden; border-right: 1px solid var(--sh-hairline); background: var(--sh-paper); box-shadow: 24px 0 48px -26px rgba(0,0,0,0.45); transform: translateX(-100%); opacity: 0; pointer-events: none; transition: transform 0.38s cubic-bezier(0.2,0.8,0.2,1), opacity 0.28s ease; z-index: 7; }
+.idx-panel.is-open { transform: none; opacity: 1; pointer-events: auto; }
+.idx-inner { width: var(--idx-w); height: 100%; overflow-y: auto; overscroll-behavior: contain; }
+.idx-head { position: relative; padding: 6vh 22px 3vh; border-bottom: 1px solid var(--sh-hairline); }
+.idx-close { position: absolute; top: 16px; right: 18px; font-family: var(--sh-font-utility); font-size: 10px; letter-spacing: 0.2em; text-transform: uppercase; color: var(--sh-ink-faint); cursor: pointer; background: none; border: 0; }
+.idx-close:hover { color: var(--sh-accent); }
+.idx-title { font-family: var(--sh-font-poster); font-size: 30px; color: var(--sh-ink); }
+.idx-sub { margin-top: 1vh; font-family: var(--sh-font-body); font-size: 14px; color: var(--sh-ink-soft); line-height: 1.5; }
+.idx-body { padding: 2.4vh 22px 5vh; }
+.idx-search input { width: 100%; box-sizing: border-box; background: color-mix(in srgb, var(--sh-ink) 4%, transparent); border: 1px solid var(--sh-hairline); color: var(--sh-ink); font-family: var(--sh-font-body); font-size: 15px; padding: 11px 13px; outline: none; }
+.idx-search input:focus { border-color: var(--sh-accent); }
+.idx-facet { margin-top: 2.2vh; }
+.idx-facet > label { display: block; font-family: var(--sh-font-utility); font-size: 10px; letter-spacing: 0.24em; text-transform: uppercase; font-weight: 700; color: var(--sh-ink-faint); margin-bottom: 8px; }
+.idx-chips { display: flex; flex-wrap: wrap; gap: 6px; }
+.idx-chip { font-family: var(--sh-font-utility); font-size: 11px; letter-spacing: 0.05em; font-weight: 600; color: var(--sh-ink-soft); background: transparent; border: 1px solid var(--sh-hairline); border-radius: 2px; padding: 5px 9px; cursor: pointer; display: inline-flex; align-items: center; gap: 6px; }
+.idx-chip:hover { border-color: color-mix(in srgb, var(--sh-accent) 50%, var(--sh-hairline)); }
+.idx-chip.is-on { background: var(--sh-ink); color: var(--sh-paper); border-color: var(--sh-ink); }
+.idx-dot { width: 8px; height: 8px; border-radius: 50%; flex: none; }
+.idx-ct { color: var(--sh-ink-faint); font-size: 10px; }
+.idx-chip.is-on .idx-ct { color: color-mix(in srgb, var(--sh-paper) 70%, transparent); }
+.idx-results { margin-top: 3vh; border-top: 1px solid var(--sh-hairline); padding-top: 1vh; }
+.idx-prompt { font-family: var(--sh-font-body); font-style: italic; font-size: 15px; color: var(--sh-ink-faint); line-height: 1.6; margin-top: 2vh; }
+.idx-active { display: flex; align-items: center; flex-wrap: wrap; gap: 7px; margin: 2vh 0; }
+.idx-lbl { font-family: var(--sh-font-utility); font-size: 10px; letter-spacing: 0.2em; text-transform: uppercase; color: var(--sh-ink-faint); font-weight: 700; }
+.idx-achip { font-family: var(--sh-font-utility); font-size: 11px; font-weight: 600; color: var(--sh-paper); background: var(--sh-ink); border: 0; padding: 4px 8px; cursor: pointer; }
+.idx-achip:hover { background: var(--sh-accent); }
+.idx-clearall { margin-left: auto; font-family: var(--sh-font-utility); font-size: 10px; letter-spacing: 0.18em; text-transform: uppercase; color: var(--sh-accent); cursor: pointer; font-weight: 700; background: none; border: 0; }
+.idx-res { display: block; width: 100%; text-align: left; padding: 11px 0; border: 0; border-top: 1px solid var(--sh-hairline); cursor: pointer; background: none; }
+.idx-res:first-of-type { border-top: 0; }
+.idx-res-top { display: flex; align-items: center; gap: 8px; margin-bottom: 3px; }
+.idx-res-name { font-family: var(--sh-font-utility); font-size: 11px; letter-spacing: 0.06em; font-weight: 700; text-transform: uppercase; }
+.idx-res-sess { margin-left: auto; font-family: var(--sh-font-utility); font-size: 10px; letter-spacing: 0.16em; color: var(--sh-ink-faint); font-weight: 600; }
+.idx-res-snip { display: block; font-family: var(--sh-font-body); font-size: 13.5px; color: var(--sh-ink-soft); line-height: 1.42; }
+.idx-res:hover .idx-res-snip { color: var(--sh-ink); }
+
+/* ⟵ Start — a way back to the head of the shelf */
+.sh-book { position: relative; }
+.sh-tostart { position: absolute; left: 16px; bottom: 16px; z-index: 5; font-family: var(--sh-font-utility); font-size: 10px; letter-spacing: 0.18em; text-transform: uppercase; font-weight: 700; color: var(--sh-paper); background: var(--sh-ink); border: 0; padding: 8px 12px; cursor: pointer; opacity: 0; transform: translateX(-8px); pointer-events: none; transition: opacity 0.25s ease, transform 0.25s ease; }
+.sh-tostart.is-on { opacity: 0.92; transform: none; pointer-events: auto; }
+.sh-tostart:hover { background: var(--sh-accent); }
+
+/* ── sections + per-session outline ── */
+.sh-section { font-family: var(--sh-font-utility); font-size: 12px; letter-spacing: 0.26em; text-transform: uppercase; font-weight: 700; color: var(--sh-accent); margin: 4vh 0 1vh; padding-bottom: 6px; border-bottom: 1px solid var(--sh-hairline); scroll-margin-top: 12px; }
+.sh-outline { display: flex; flex-wrap: wrap; gap: 8px; padding: 0 8% 2vh; }
+.sh-ol-item { font-family: var(--sh-font-utility); font-size: 10px; letter-spacing: 0.14em; text-transform: uppercase; font-weight: 700; color: var(--sh-ink-soft); background: transparent; border: 1px solid var(--sh-hairline); border-radius: 2px; padding: 5px 9px; cursor: pointer; }
+.sh-ol-item:hover { border-color: var(--sh-accent); color: var(--sh-accent); }
+.sh-ol-item.is-fight { color: var(--sh-accent); }

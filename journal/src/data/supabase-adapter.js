@@ -247,6 +247,23 @@ export function makeJournalStore({ sb, uid, characterKey }) {
       return res.data || []
     },
 
+    // combat rows + encounter names, so the book can weave each fight in at
+    // the moment it happened. Encounter load is non-fatal (fights fall back to
+    // a generic "Combat" title). `result` carries the round markers.
+    async loadChronicleCombat() {
+      const [rowsRes, encRes] = await Promise.all([
+        sb.from('feed')
+          .select('id, channel, kind, actor_key, actor_name, body, result, session, encounter_id, hidden, created_at')
+          .eq('channel', 'combat')
+          .order('created_at'),
+        sb.from('encounters').select('id, name'),
+      ])
+      if (rowsRes.error) throw new Error(`loadChronicleCombat: ${rowsRes.error.message}`)
+      const encounters = {}
+      if (!encRes.error) (encRes.data || []).forEach(e => { encounters[e.id] = e.name || null })
+      return { rows: rowsRes.data || [], encounters }
+    },
+
     // canonical per-session titles (session_titles table). Read-all;
     // non-fatal on error — the book falls back to row meta.
     async loadSessionTitles() {
@@ -374,17 +391,23 @@ export function makeJournalStore({ sb, uid, characterKey }) {
     // stream to players). Returns an unsubscribe. DELETE is left unfiltered and matched
     // by id (Supabase can't filter deletes on a non-PK column reliably); a delete of a
     // row not in the book is simply a no-op.
-    subscribeChronicle({ onInsert, onUpdate, onDelete }) {
+    subscribeChronicle({ onInsert, onUpdate, onCombatInsert, onCombatUpdate, onDelete }) {
       const ch = sb.channel('journal-chronicle-live')
         .on('postgres_changes',
           { event: 'INSERT', schema: 'public', table: 'feed', filter: 'channel=eq.chronicle' },
-          ({ new: row }) => { if (row) onInsert(row) })
+          ({ new: row }) => { if (row && onInsert) onInsert(row) })
         .on('postgres_changes',
           { event: 'UPDATE', schema: 'public', table: 'feed', filter: 'channel=eq.chronicle' },
-          ({ new: row }) => { if (row) onUpdate(row) })
+          ({ new: row }) => { if (row && onUpdate) onUpdate(row) })
+        .on('postgres_changes',
+          { event: 'INSERT', schema: 'public', table: 'feed', filter: 'channel=eq.combat' },
+          ({ new: row }) => { if (row && onCombatInsert) onCombatInsert(row) })
+        .on('postgres_changes',
+          { event: 'UPDATE', schema: 'public', table: 'feed', filter: 'channel=eq.combat' },
+          ({ new: row }) => { if (row && onCombatUpdate) onCombatUpdate(row) })
         .on('postgres_changes',
           { event: 'DELETE', schema: 'public', table: 'feed' },
-          ({ old }) => { if (old && old.id != null) onDelete(old.id) })
+          ({ old }) => { if (old && old.id != null && onDelete) onDelete(old.id) })
         .subscribe()
       return () => { try { sb.removeChannel(ch) } catch (e) { /* already gone */ } }
     },

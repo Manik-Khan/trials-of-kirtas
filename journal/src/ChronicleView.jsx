@@ -11,7 +11,7 @@
 
 import React, { useEffect, useMemo, useRef, useState } from 'react'
 import { CHRONICLE } from './data/chronicleSample.js'
-import { buildBook } from './data/bookModel.js'
+import { buildBook, buildFights, fightsBySession, facetCounts, filterBookEntries, indexActive } from './data/bookModel.js'
 import { chaptersToVolumes, nextOpen, keyOpen } from './shelf/shelfModel.js'
 import { seatColor } from './comments/accents.js'
 
@@ -72,11 +72,184 @@ function PanelEntry({ e, accents }) {
   )
 }
 
+// merge a session's prose entries with its fights, in narrative time order,
+// so a fight appears at the moment it broke out.
+function mergeTimeline(entries, fights) {
+  const items = (entries || []).map(e => ({ t: e.at, k: 'entry', e }))
+  ;(fights || []).forEach(f => items.push({ t: f.startAt, k: 'fight', f }))
+  items.sort((a, b) => a.t - b.t)
+  return items
+}
+
+function FightRoll({ r, accents }) {
+  const nameColor = r.side === 'party' ? seatColor(r.seat, accents) : r.side === 'enemy' ? '#b06a5a' : 'var(--sh-accent)'
+  const ring = r.side === 'party' ? '#4a6aa0' : r.side === 'enemy' ? '#a05a6a' : 'var(--sh-accent)'
+  const art = r.seat ? PORTRAIT[r.seat] : ''
+  return (
+    <div className="feed-row">
+      <div className="feed-av" style={{ borderColor: ring }}>
+        {art && <img className="feed-av-img" src={art} alt="" onError={ev => { ev.currentTarget.style.display = 'none' }} />}
+        {r.side === 'dm' ? <span className="feed-av-dm">◆</span> : <span className="feed-av-i">{(r.name || '?').charAt(0)}</span>}
+      </div>
+      <div style={{ minWidth: 0 }}>
+        <div className="feed-meta"><span className="feed-name" style={{ color: nameColor }}>{r.name}</span> · roll · {fmtTime(r.at)}</div>
+        <div className="feed-text" dangerouslySetInnerHTML={{ __html: r.body }} />
+      </div>
+    </div>
+  )
+}
+
+// a fight, inline where it happened: collapsed by default; opens to rounds
+// (all rolls in full), each round independently collapsible.
+function FightBlock({ f, accents }) {
+  const [open, setOpen] = useState(false)
+  const [closedRounds, setClosedRounds] = useState(() => new Set())   // rounds open by default
+  const toggleRound = n => setClosedRounds(prev => {
+    const next = new Set(prev); next.has(n) ? next.delete(n) : next.add(n); return next
+  })
+  return (
+    <div className="sh-fight">
+      <div className="sh-fight-lead">combat breaks out</div>
+      <button type="button" className={`sh-fight-head${open ? ' is-open' : ''}`}
+        aria-expanded={open} onClick={() => setOpen(o => !o)}>
+        <span className="sh-fight-caret">▶</span>
+        <span className="sh-fight-title">Combat — <b>{f.encounter}</b></span>
+        <span className="sh-fight-sum">{f.rollCount} roll{f.rollCount === 1 ? '' : 's'} · {f.roundCount} round{f.roundCount === 1 ? '' : 's'}</span>
+      </button>
+      {open && (
+        <div className="sh-fight-rows">
+          {f.rounds.map(rd => {
+            const rOpen = !closedRounds.has(rd.round)
+            return (
+              <div key={rd.round} className={`sh-round${rOpen ? ' is-open' : ''}`}>
+                <button type="button" className="sh-round-head" aria-expanded={rOpen}
+                  onClick={() => toggleRound(rd.round)}>
+                  <span className="sh-round-caret">▶</span>Round {rd.round}
+                  <span className="sh-round-count">{rd.rolls.length} roll{rd.rolls.length === 1 ? '' : 's'}</span>
+                </button>
+                {rOpen && (
+                  <div className="sh-round-rows">
+                    <div className="sh-fight-pad">
+                      {rd.rolls.map(r => <FightRoll key={r.id} r={r} accents={accents} />)}
+                    </div>
+                  </div>
+                )}
+              </div>
+            )
+          })}
+        </div>
+      )}
+    </div>
+  )
+}
+
+const snippet = html => {
+  const t = String(html || '').replace(/<[^>]*>/g, ' ').replace(/\s+/g, ' ').trim()
+  return t.length > 96 ? t.slice(0, 96) + '…' : t
+}
+const shortName = n => String(n || '').split(' ')[0]
+
+function Facet({ label, children }) {
+  return (
+    <div className="idx-facet">
+      <label>{label}</label>
+      <div className="idx-chips">{children}</div>
+    </div>
+  )
+}
+
+// The Index — the intro spine, now a slim overlay off the left edge. Sticky, so
+// it stays at the head of the book; opening it leaves the reader's session put.
+function IndexOverlay({ open, fs, facets, seatNames, volumes, results, accents, onToggle, onClose, onQ, onAuthor, onTag, onNpc, onClear, onJump }) {
+  const active = indexActive(fs)
+  const chips = []
+  if (fs.author) chips.push({ k: 'author', label: shortName(seatNames[fs.author] || fs.author) })
+  Object.keys(fs.tags).forEach(t => chips.push({ k: 'tag:' + t, label: '#' + t }))
+  Object.keys(fs.npcs).forEach(n => chips.push({ k: 'npc:' + n, label: n }))
+  if (fs.q) chips.push({ k: 'q', label: '“' + fs.q + '”' })
+  return (
+    <div className="sh-index">
+      <button type="button" className={`sh-spine idx-spine${open ? ' is-open' : ''}`} onClick={onToggle} aria-expanded={open}>
+        <span className="idx-mark">‖</span>
+        <span className="idx-vtitle">Index · The Chronicle</span>
+        <span className="idx-loc">Kirtas</span>
+      </button>
+      <aside className={`idx-panel${open ? ' is-open' : ''}`} aria-hidden={!open}>
+        <div className="idx-inner">
+          <header className="idx-head">
+            <button type="button" className="idx-close" onClick={onClose}>Close ✕</button>
+            <h2 className="idx-title">Index</h2>
+            <p className="idx-sub">The whole record — search it, or narrow by who, what, or when.</p>
+          </header>
+          <div className="idx-body">
+            <div className="idx-search">
+              <input type="text" value={fs.q} placeholder="Search the record…" onChange={e => onQ(e.target.value)} />
+            </div>
+            <Facet label="Sessions">
+              {volumes.map((v, i) => (
+                <button key={v.session} type="button" className="idx-chip" onClick={() => onJump(i)}>{v.num} · {v.name}</button>
+              ))}
+            </Facet>
+            <Facet label="Authors">
+              {Object.keys(facets.authors).map(k => (
+                <button key={k} type="button" className={`idx-chip${fs.author === k ? ' is-on' : ''}`} onClick={() => onAuthor(k)}>
+                  <span className="idx-dot" style={{ background: seatColor(k, accents) }} />{shortName(seatNames[k] || k)} <span className="idx-ct">{facets.authors[k]}</span>
+                </button>
+              ))}
+            </Facet>
+            {Object.keys(facets.tags).length > 0 && (
+              <Facet label="Tags">
+                {Object.keys(facets.tags).map(t => (
+                  <button key={t} type="button" className={`idx-chip${fs.tags[t] ? ' is-on' : ''}`} onClick={() => onTag(t)}>#{t} <span className="idx-ct">{facets.tags[t]}</span></button>
+                ))}
+              </Facet>
+            )}
+            {Object.keys(facets.npcs).length > 0 && (
+              <Facet label="NPCs mentioned">
+                {Object.keys(facets.npcs).map(n => (
+                  <button key={n} type="button" className={`idx-chip${fs.npcs[n] ? ' is-on' : ''}`} onClick={() => onNpc(n)}>{n} <span className="idx-ct">{facets.npcs[n]}</span></button>
+                ))}
+              </Facet>
+            )}
+            <div className="idx-results">
+              {!active ? (
+                <p className="idx-prompt">Search the record above, or choose an author, tag, or NPC — a result takes you to it in the book.</p>
+              ) : (
+                <>
+                  <div className="idx-active">
+                    <span className="idx-lbl">Filtering</span>
+                    {chips.map(c => <button key={c.k} type="button" className="idx-achip" onClick={() => onClear(c.k)}>{c.label} ✕</button>)}
+                    <button type="button" className="idx-clearall" onClick={() => onClear('*')}>Clear</button>
+                  </div>
+                  {results.length === 0
+                    ? <p className="idx-prompt">No entries match — try fewer filters.</p>
+                    : results.map(e => (
+                        <button key={e.id} type="button" className="idx-res" onClick={() => onJump(e._vol)}>
+                          <span className="idx-res-top">
+                            <span className="idx-dot" style={{ background: seatColor(e.seat, accents) }} />
+                            <span className="idx-res-name" style={{ color: seatColor(e.seat, accents) }}>{e.character}</span>
+                            <span className="idx-res-sess">S{e.session}</span>
+                          </span>
+                          <span className="idx-res-snip">{snippet(e.html)}</span>
+                        </button>
+                      ))}
+                </>
+              )}
+            </div>
+          </div>
+        </div>
+      </aside>
+    </div>
+  )
+}
+
 // keystrokes typed into a field belong to the field, not the shelf
 const inField = t => !!(t && (t.closest && t.closest('input, textarea, select, [contenteditable="true"]')))
 
 export default function ChronicleView({ live = false, store = null, accents = {}, isStaff = false }) {
   const [rows, setRows] = useState(null)
+  const [combatRows, setCombatRows] = useState([])   // channel:'combat' feed rows
+  const [encMap, setEncMap] = useState({})           // encounter id → name
   const [titles, setTitles] = useState({})       // canonical session → title
   const [err, setErr] = useState(null)
   const [openIdx, setOpenIdx] = useState(null)
@@ -93,15 +266,20 @@ export default function ChronicleView({ live = false, store = null, accents = {}
     Promise.all([
       store.loadChronicleBook(),
       store.loadSessionTitles ? store.loadSessionTitles() : Promise.resolve({}),
+      store.loadChronicleCombat ? store.loadChronicleCombat() : Promise.resolve({ rows: [], encounters: {} }),
     ])
-      .then(([r, t]) => { if (!stale) { setRows(r); setTitles(t || {}) } })
+      .then(([r, t, c]) => {
+        if (stale) return
+        setRows(r); setTitles(t || {})
+        setCombatRows((c && c.rows) || []); setEncMap((c && c.encounters) || {})
+      })
       .catch(e => { if (!stale) setErr(e.message) })
     return () => { stale = true }
   }, [live, store])
 
-  // live: fold realtime chronicle changes into the book — the story emerges at
-  // the table (and edits/deletes reflect) with no refresh. Additive; when not
-  // live this never runs, so the load-once path is untouched.
+  // live: fold realtime changes into the book — chronicle prose AND combat
+  // rolls emerge at the table (edits/deletes reflect) with no refresh. Additive;
+  // when not live this never runs, so the load-once path is untouched.
   useEffect(() => {
     if (!live || !store || !store.subscribeChronicle) return
     const upsert = (list, row) => {
@@ -113,7 +291,12 @@ export default function ChronicleView({ live = false, store = null, accents = {}
     const unsub = store.subscribeChronicle({
       onInsert: row => setRows(cur => (cur ? upsert(cur, row) : cur)),
       onUpdate: row => setRows(cur => (cur ? upsert(cur, row) : cur)),
-      onDelete: id => setRows(cur => (cur ? cur.filter(r => r.id !== id) : cur)),
+      onCombatInsert: row => setCombatRows(cur => upsert(cur || [], row)),
+      onCombatUpdate: row => setCombatRows(cur => upsert(cur || [], row)),
+      onDelete: id => {
+        setRows(cur => (cur ? cur.filter(r => r.id !== id) : cur))
+        setCombatRows(cur => (cur ? cur.filter(r => r.id !== id) : cur))
+      },
     })
     return unsub
   }, [live, store])
@@ -122,7 +305,54 @@ export default function ChronicleView({ live = false, store = null, accents = {}
     () => (live && rows ? buildBook(rows) : (live ? [] : CHRONICLE)),
     [live, rows],
   )
+  const fightsBySess = useMemo(
+    () => (live ? fightsBySession(buildFights(combatRows, encMap)) : {}),
+    [live, combatRows, encMap],
+  )
   const volumes = useMemo(() => chaptersToVolumes(chapters, titles), [chapters, titles])
+
+  // ── Index: flat entry pool + facets + filtered results ──
+  const [ixOpen, setIxOpen] = useState(false)
+  const [fs, setFs] = useState({ author: null, tags: {}, npcs: {}, q: '' })
+  const [scrolled, setScrolled] = useState(false)
+  const flat = useMemo(() => {
+    const out = []
+    chapters.forEach((ch, i) => (ch.entries || []).forEach(e => out.push({ ...e, _vol: i })))
+    return out
+  }, [chapters])
+  const facets = useMemo(() => facetCounts(flat), [flat])
+  const seatNames = useMemo(() => {
+    const m = {}
+    flat.forEach(e => { if (e.seat && !m[e.seat]) m[e.seat] = e.character })
+    return m
+  }, [flat])
+  const results = useMemo(() => filterBookEntries(flat, fs), [flat, fs])
+  const clearIndex = () => setFs({ author: null, tags: {}, npcs: {}, q: '' })
+  const removeChip = key => {
+    if (key === '*') return clearIndex()
+    setFs(s => {
+      if (key === 'author') return { ...s, author: null }
+      if (key === 'q') return { ...s, q: '' }
+      if (key.startsWith('tag:')) { const tags = { ...s.tags }; delete tags[key.slice(4)]; return { ...s, tags } }
+      if (key.startsWith('npc:')) { const npcs = { ...s.npcs }; delete npcs[key.slice(4)]; return { ...s, npcs } }
+      return s
+    })
+  }
+  const openVolume = i => {
+    setPeek(null); setEditing(null); setOpenIdx(i)
+    setTimeout(() => { const p = panelRefs.current[i]; if (p) p.scrollTop = 0; bringIntoView(i) }, 80)
+  }
+  const jumpTo = i => { clearIndex(); setIxOpen(false); openVolume(i) }
+  // outline → scroll the open panel to a section/fight (scrollIntoView is banned
+  // here; move the panel's own scrollTop by the element's offset within it)
+  const scrollToId = (i, id) => {
+    const cont = panelRefs.current[i]
+    if (!cont) return
+    const el = cont.querySelector('[id="' + id + '"]')
+    if (!el) return
+    const top = el.getBoundingClientRect().top - cont.getBoundingClientRect().top + cont.scrollTop - 12
+    if (cont.scrollTo) cont.scrollTo({ top, behavior: 'smooth' }); else cont.scrollTop = top
+  }
 
   // Contained scroll: move ONLY .sh-shelf. scrollIntoView is banned here —
   // it walks every clipping ancestor, and an overflow:hidden ancestor
@@ -205,7 +435,9 @@ export default function ChronicleView({ live = false, store = null, accents = {}
       shelf.scrollLeft += delta
     }
     shelf.addEventListener('wheel', onWheel, { passive: false })
-    return () => shelf.removeEventListener('wheel', onWheel)
+    const onScroll = () => setScrolled(shelf.scrollLeft > 6)
+    shelf.addEventListener('scroll', onScroll)
+    return () => { shelf.removeEventListener('wheel', onWheel); shelf.removeEventListener('scroll', onScroll) }
   }, [volumes.length])
 
   const beginRename = vol => setEditing({ session: vol.session, draft: vol.name })
@@ -257,11 +489,16 @@ export default function ChronicleView({ live = false, store = null, accents = {}
   return (
     <div className="sh-book">
       <div className="sh-shelf" ref={shelfRef} onMouseLeave={() => setPeek(null)}>
-        <div className="sh-intro-spine" aria-hidden="true">
-          <span className="sh-mark">‖</span>
-          <span className="sh-vtext">The Chronicle of the Trials</span>
-          <span className="sh-loc">Kirtas</span>
-        </div>
+        <IndexOverlay
+          open={ixOpen} fs={fs} facets={facets} seatNames={seatNames}
+          volumes={volumes} results={results} accents={accents}
+          onToggle={() => setIxOpen(o => !o)} onClose={() => setIxOpen(false)}
+          onQ={v => setFs(s => ({ ...s, q: v }))}
+          onAuthor={k => setFs(s => ({ ...s, author: s.author === k ? null : k }))}
+          onTag={t => setFs(s => { const tags = { ...s.tags }; tags[t] ? delete tags[t] : (tags[t] = 1); return { ...s, tags } })}
+          onNpc={n => setFs(s => { const npcs = { ...s.npcs }; npcs[n] ? delete npcs[n] : (npcs[n] = 1); return { ...s, npcs } })}
+          onClear={removeChip} onJump={jumpTo}
+        />
 
         {volumes.map((vol, i) => {
           const older = volumes[i - 1], newer = volumes[i + 1]
@@ -321,8 +558,30 @@ export default function ChronicleView({ live = false, store = null, accents = {}
                     </div>
                   </header>
 
+                  {(() => {
+                    const marks = mergeTimeline(vol.entries, fightsBySess[vol.session])
+                      .filter(it => it.k === 'fight' || it.e.kind === 'section')
+                    if (marks.length < 2) return null
+                    return (
+                      <nav className="sh-outline" aria-label="In this session">
+                        {marks.map((it, oi) => {
+                          const id = it.k === 'fight' ? `fight-${it.f.id}` : `sec-${it.e.id}`
+                          const label = it.k === 'fight' ? `⚔ ${it.f.encounter}` : it.e.section
+                          return (
+                            <button key={oi} type="button" className={`sh-ol-item${it.k === 'fight' ? ' is-fight' : ''}`}
+                              onClick={() => scrollToId(i, id)}>{label}</button>
+                          )
+                        })}
+                      </nav>
+                    )
+                  })()}
+
                   <div className="sh-p-entries" onClick={bodyClick}>
-                    {vol.entries.map(e => <PanelEntry key={e.id} e={e} accents={accents} />)}
+                    {mergeTimeline(vol.entries, fightsBySess[vol.session]).map(it => {
+                      if (it.k === 'fight') return <FightBlock key={`fight-${it.f.id}`} f={it.f} accents={accents} />
+                      if (it.e.kind === 'section') return <h3 className="sh-section" id={`sec-${it.e.id}`} key={it.e.id}>{it.e.section}</h3>
+                      return <PanelEntry key={it.e.id} e={it.e} accents={accents} />
+                    })}
                   </div>
 
                   <nav className="sh-p-turn" aria-label="Volume navigation">
@@ -352,6 +611,11 @@ export default function ChronicleView({ live = false, store = null, accents = {}
         <span className="sh-frame-bl">Kirtas, the Frontier</span>
         <span className="sh-frame-br">The Chronicle · {live ? 'the living record' : 'sample data'}</span>
       </div>
+
+      <button type="button" className={`sh-tostart${scrolled ? ' is-on' : ''}`}
+        onClick={() => { const sh = shelfRef.current; if (sh) { if (sh.scrollTo) sh.scrollTo({ left: 0, behavior: 'smooth' }); else sh.scrollLeft = 0 } }}>
+        ⟵ Start
+      </button>
 
       {peek && volumes[peek.i] && (
         <div className="sh-peek is-on" style={{ left: peek.x, top: peek.y }} aria-hidden="true">
