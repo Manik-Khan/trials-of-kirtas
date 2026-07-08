@@ -1487,7 +1487,12 @@ var BODIES = {
   },
   spells: function(){
     var c = chosenClass();
-    if (!isCaster(c)) return '<p>This class doesn\u2019t cast spells, so there\u2019s nothing to choose here.</p>';
+    // A non-caster class can still reach this step when the RACE grants innate spells
+    // (e.g. a dragonmark like Mark of Finding → Hunter's Mark). spellsActive() folds in
+    // that race-grant check (cached in _spRaceGrants), so gate the "nothing here"
+    // placeholder on it rather than on class casting alone — otherwise the step is owed
+    // and forge-emits the racial spell, but its body renders empty with no #sp-out host.
+    if (!isCaster(c) && !spellsActive()) return '<p>This class doesn\u2019t cast spells, so there\u2019s nothing to choose here.</p>';
     // Static search bar (kept OUT of the re-rendered #sp-out so typing holds focus) + the host the
     // SpellsUI module fills from the live engine build + loadClassSpellList. See SpellsUI below.
     return '<div class="sp-stage">' +
@@ -4067,11 +4072,17 @@ function forgeCommit(){
   if (typeof SoulShardsData === 'undefined' || typeof SoulShardsEngine === 'undefined'){ fxStatus('err', 'Engine modules not loaded.'); return; }
 
   fxStatus('busy', 'Assembling the structural\u2026');
-  var spellsReady = (typeof SpellsUI !== 'undefined') ? SpellsUI.ensureLoaded() : Promise.resolve(true);
-  var choicesReady = (typeof ChoicesUI !== 'undefined') ? ChoicesUI.ensureLoaded() : Promise.resolve(true);
-  var featsReady = (typeof FeatsUI !== 'undefined') ? FeatsUI.ensureLoaded() : Promise.resolve(true);
-  var itemsReady = (typeof ItemsUI !== 'undefined') ? ItemsUI.ensureLoaded() : Promise.resolve(true);
-  var profReady = (typeof ProfUI !== 'undefined') ? ProfUI.ensureLoaded() : Promise.resolve(true);
+  // The class + race are load-critical (the derive can't assemble without them) so a failure
+  // there legitimately aborts with an error. The auxiliary step-loaders (spells / choices /
+  // feats / items / prof) are NOT: a transient fetch failure (optionalfeatures.json, spell
+  // metadata) must never strand the forge on "can't finish" — degrade to whatever that module
+  // already had and let the write proceed. Each therefore swallows its own rejection.
+  var soft = function (p) { return (p && p.catch) ? p.catch(function (e) { console.warn('[forge] a step loader failed, continuing:', e && e.message); return true; }) : Promise.resolve(true); };
+  var spellsReady = soft((typeof SpellsUI !== 'undefined') ? SpellsUI.ensureLoaded() : Promise.resolve(true));
+  var choicesReady = soft((typeof ChoicesUI !== 'undefined') ? ChoicesUI.ensureLoaded() : Promise.resolve(true));
+  var featsReady = soft((typeof FeatsUI !== 'undefined') ? FeatsUI.ensureLoaded() : Promise.resolve(true));
+  var itemsReady = soft((typeof ItemsUI !== 'undefined') ? ItemsUI.ensureLoaded() : Promise.resolve(true));
+  var profReady = soft((typeof ProfUI !== 'undefined') ? ProfUI.ensureLoaded() : Promise.resolve(true));
   Promise.all([loadClassEntries(), raceForBuild(), spellsReady, choicesReady, featsReady, itemsReady, profReady]).then(function(res){
     var assembled = buildStructuralPreview(res[0], res[1]);
     if (assembled && assembled._error){ fxStatus('err', assembled._error); return; }
