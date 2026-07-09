@@ -21,6 +21,7 @@ import { entityStore } from './data/entityStore.js'
 import { Toolbar } from './editor/Toolbar.jsx'
 import CurationQueue from './CurationQueue.jsx'
 import { Attribution } from './editor/Attribution.js'
+import { SlashCommand } from './editor/SlashCommand.js'
 import { CommentMarks } from './comments/CommentMarks.js'
 import CommentsRail from './comments/CommentsRail.jsx'
 import { docWalk, indexToPos, captureAnchor, findAnchor, insertionIndex, splitByAnchor } from './comments/anchor.js'
@@ -79,6 +80,7 @@ export default function JournalView({ vault, banner = null, isStaff = false, sto
         suggestion: makePageSuggestion({ vault, onCreatePage: bump }),
       }),
       Attribution,
+      SlashCommand,
       CommentMarks.configure({ onJump: id => jumpRef.current(id) }),
     ],
     content: first?.html || '',

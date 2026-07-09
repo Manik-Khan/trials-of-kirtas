@@ -1116,3 +1116,6 @@ body:not(:has(#site-nav)) .sh-scope { height: 100dvh; } /* standalone preview */
 
 /* journal editor: URL-inserted images (no upload) */
 .j-img { max-width: 100%; height: auto; display: block; margin: 0.6em 0; border-radius: 2px; }
+
+/* "/" command menu — shares .jm-dropdown with the @ and [[ menus */
+.jm-dd-cmd { font-family: var(--sh-font-utility, inherit); font-weight: 700; font-size: 12px; opacity: 0.8; min-width: 1.4em; text-align: center; }
