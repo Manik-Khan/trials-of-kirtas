@@ -232,6 +232,18 @@ real placement. **These are decisions, not hypotheses.**
 
 ## §7 · WORKING RULES
 
+- **A classic block's top-level `var` is a global. `type="module"` un-globals it,
+  and modules are deferred.** Converting `topography-test-mock.html` broke the party
+  select twice over: `CHAR` stopped being `window.CHAR`, so every character read
+  "NO COMBAT SHEET"; and even once exported, the classic block had already painted
+  before the module ran. Fix: explicit `window.CHAR`, a `topo:ready` event, and a
+  narrating 6s timeout. **Enumerate every top-level binding against the other blocks
+  — a shortlist you invented is not a check.**
+- **Grep for every import specifier, not the ones you expect.** `n8ao/dist/N8AO.js`
+  imports `three`, `postprocessing`, *and* `three/examples/jsm/postprocessing/Pass.js`.
+  That third is a different bare prefix from `three/addons/` even though both resolve
+  to the same directory. Missing it throws `Failed to resolve module specifier`, which
+  reads like a network error and is not.
 - Read actual repo source before editing. *A plausible hypothesis is not a diagnosis.*
 - **Never write a synthetic test and call it proof.** Extract the real functions
   and run them on the real generated field. Headless tests that pass while the

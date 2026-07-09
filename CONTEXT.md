@@ -290,6 +290,9 @@ whole story of the missing sprites, the missing flanking, and the missing feel.
   behind `useLegacyLights`; r165 deleted it. `topography-test-mock.html` restores it as `LEGACY_PI`
   on `amb/hemi/sun/rim` — same multiply, identical image. π does **not** cover PointLight/SpotLight.
 - **Post-processing is still not wired.** Only `topography-test-mock.html` enables a shadow map.
+- **Module gotcha:** topo's renderer block is now `type="module"` — deferred, and its top-level
+  `var`s are not globals. It exports `window.CHAR` and fires `topo:ready`; the classic party-select
+  block waits for that event. `n8ao` needs `three/examples/jsm/` mapped as well as `three/addons/`.
   Pins when post lands: `postprocessing@6.39.2` needs `three >=0.168 <0.186`; `n8ao@1.10.3` imports
   bare `postprocessing` even for `N8AOPass` alone.
 - **The repo is PUBLIC. Assets must be CC0 or CC-BY. Nothing else.**

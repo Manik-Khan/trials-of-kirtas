@@ -9,7 +9,7 @@
 <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,600;0,700;1,600&family=Oswald:wght@300;400;500;600&family=EB+Garamond:ital@0;1&display=swap" rel="stylesheet">
 <link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@400;600;700&family=Cinzel+Decorative:wght@700&family=Crimson+Pro:ital,wght@0,400;0,600;1,400&family=Barlow+Condensed:wght@500;600;700&display=swap" rel="stylesheet">
 <!-- three.js r185 (was r128, cdnjs UMD). three has shipped no browser UMD build
-     since ~r160, so a classic <script src> tag cannot reach any modern version or
+     since ~r160, so a classic script-src tag cannot reach any modern version or
      any addon. ESM + an import map is the only door. Pins are load-bearing:
      postprocessing@6.39.2 requires three >=0.168 <0.186, so r185 is the ceiling. -->
 <script type="importmap">
@@ -20,7 +20,7 @@
   }
 }
 </script>
-<script>/* ── inlined canonical forge/tactics-geometry.js — MUST stay byte-identical ── */
+<script>/* ── inlined canonical forge/tactics-geometry.js — MUST stay code-identical ── */
 /* ════════════════════════════════════════════════════════════════════
    tactics-geometry.js — pure map-geometry rules over the MAP DOCUMENT.
    No three.js, no DOM. Same source runs in the browser (window.TacticsGeo)
@@ -519,12 +519,14 @@ global.TacticsGeo = API;
   </div>
 <script type="module">
 import * as THREE from 'three';
-/* Module scope is safe here, verified rather than assumed:
-   · zero inline HTML on*= attributes in this file (all 19 are JS property
-     assignments like `hs.oninput=`), so nothing needs a global function;
-   · this block already publishes its only three cross-block symbols on
-     window (__placeRoster, __enterForge, __startCombat), and the classic
-     party-select block below calls __enterForge guarded, inside a click. */
+/* Module scope changes what escapes this block. Two consequences, both handled:
+   · No inline HTML on*= attributes exist in this file (all 19 matches are JS
+     property assignments like `hs.oninput=`), so no handler needs a global.
+   · A top-level `var` here is NO LONGER a global. `CHAR` was, and the classic
+     party-select block at the bottom reads it. It is exported explicitly below,
+     together with a topo:ready event, because this block is now deferred and
+     that block paints before it. Every top-level binding was cross-checked
+     against block 4, not a guessed shortlist. */
 /* ================================================================
    DUNGEON GENERATOR CORE — extracted verbatim from
    github.com/majidmanzarpour/threejs-procedural-dungeon (src/main.js).
@@ -2697,7 +2699,15 @@ function renderHud(){
 }
 
 function runFoe(){ if(CB.active&&!CB.over&&!CB.react&&active()&&active().side==="foe") foeTurn(); }
+/* CHAR was a top-level `var` in a classic script block, which made it window.CHAR
+   for free. Under type="module" it is module-scoped, and the classic party-select
+   block below reads it to decide who has a combat sheet, so every character
+   greyed out as "NO COMBAT SHEET". Export it like the other three cross-block
+   symbols. The module also announces itself, because it is DEFERRED: block 4
+   paints before this line ever runs. */
+window.CHAR = CHAR;
 window.__startCombat=startCombat;
+document.dispatchEvent(new CustomEvent("topo:ready"));
 addEventListener("pointerup", function(e){ if(CB.active&&!CB.over&&!CB.react&&moved<6) combatClick(e.clientX,e.clientY); });
 (function(){
   var g=function(id){return document.getElementById(id);};
@@ -2747,7 +2757,7 @@ addEventListener("pointerup", function(e){ if(CB.active&&!CB.over&&!CB.react&&mo
   /* A character with no CHAR entry has no combat sheet. It used to be dropped
      silently inside startCombat (`if(!s) return;`) — no token, no initiative
      row, no log line. Block it here and say why. */
-  function ready(k){ return typeof CHAR!=="undefined" && !!CHAR[k]; }
+  function ready(k){ return !!(window.CHAR && window.CHAR[k]); }
 
   // badges: your login's letter; numbered when you drive >1, own character first
   function computeBadges(){
@@ -2826,7 +2836,24 @@ addEventListener("pointerup", function(e){ if(CB.active&&!CB.over&&!CB.react&&mo
     else if(e.key==="Enter"){ forge(); e.preventDefault(); }
   });
   document.getElementById("psForge").addEventListener("click", forge);
-  build();
+
+  /* The renderer block is an ES module now, therefore deferred. It defines CHAR,
+     which ready() needs. Painting now would grey out the whole party. Wait for
+     topo:ready; if it never comes the module failed to load, and that must say
+     so rather than showing six characters with no sheets. */
+  if (window.CHAR) build();
+  else {
+    var painted = false;
+    var go = function(){ if (painted) return; painted = true; build(); };
+    document.addEventListener("topo:ready", go, { once:true });
+    setTimeout(function(){
+      if (painted) return;
+      go();
+      var c = document.getElementById("psCount");
+      if (c) c.innerHTML = '<b style="color:var(--bad,#c0553f)">The renderer did not load.</b> '
+        + 'three.js r185 is fetched as an ES module from cdn.jsdelivr.net \u2014 check the console.';
+    }, 6000);
+  }
 })();
 </script>
 </body>

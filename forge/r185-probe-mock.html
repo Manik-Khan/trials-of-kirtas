@@ -23,26 +23,33 @@
 /* Injected, not inline, so the CDN is switchable: ?cdn=jsdelivr (default) | esmsh | unpkg.
    An import map must exist before the first module load begins. A classic <script> in
    <head> runs before the module tag at the end of <body> is reached, so this is legal.
-   n8ao failing on one CDN while postprocessing succeeds on the same one is a fact about
-   that CDN, not about the code — this switch is how we tell those apart. */
+   n8ao/dist/N8AO.js imports THREE bare specifiers, not two:
+     "three", "postprocessing", and "three/examples/jsm/postprocessing/Pass.js".
+   That last one is a DIFFERENT bare prefix from "three/addons/", even though both
+   resolve to the same directory. Omit it and the browser throws
+     TypeError: Failed to resolve module specifier "three/examples/jsm/postprocessing/Pass.js"
+   which looks like a network failure and is not. Map both prefixes. */
 window.__CDN = (() => {
   const which = new URLSearchParams(location.search).get('cdn') || 'jsdelivr';
   const MAPS = {
     jsdelivr: {
       three:          'https://cdn.jsdelivr.net/npm/three@0.185.1/build/three.module.js',
       'three/addons/':'https://cdn.jsdelivr.net/npm/three@0.185.1/examples/jsm/',
+      'three/examples/jsm/':'https://cdn.jsdelivr.net/npm/three@0.185.1/examples/jsm/',
       postprocessing: 'https://cdn.jsdelivr.net/npm/postprocessing@6.39.2/build/index.js',
       n8ao:           'https://cdn.jsdelivr.net/npm/n8ao@1.10.3/dist/N8AO.js'
     },
     unpkg: {
       three:          'https://unpkg.com/three@0.185.1/build/three.module.js',
       'three/addons/':'https://unpkg.com/three@0.185.1/examples/jsm/',
+      'three/examples/jsm/':'https://unpkg.com/three@0.185.1/examples/jsm/',
       postprocessing: 'https://unpkg.com/postprocessing@6.39.2/build/index.js',
       n8ao:           'https://unpkg.com/n8ao@1.10.3/dist/N8AO.js'
     },
     esmsh: {
       three:          'https://esm.sh/three@0.185.1',
       'three/addons/':'https://esm.sh/three@0.185.1/examples/jsm/',
+      'three/examples/jsm/':'https://esm.sh/three@0.185.1/examples/jsm/',
       postprocessing: 'https://esm.sh/postprocessing@6.39.2',
       n8ao:           'https://esm.sh/n8ao@1.10.3?external=three,postprocessing'
     }
@@ -300,6 +307,11 @@ async function diagnose(url) {
   }
 }
 
+/* A resolve error is not a transport error, and saying "probing…" at one is noise. */
+function isSpecifierError(e) {
+  return /resolve module specifier/i.test(e && e.message || '');
+}
+
 try {
   ({ N8AOPass } = await import('n8ao'));
   if (!N8AOPass) throw new Error('module loaded but exports no N8AOPass');
@@ -315,6 +327,12 @@ try {
   document.getElementById('ao').value = 'gtao';   // fall back; never sit on a dead selection
 
   const url = window.__CDN.imports.n8ao;
+  if (isSpecifierError(e)) {
+    note(`<b>N8AO did not load. Fell back to GTAOPass.</b><br>
+          <code>${e.message}</code><br><br>
+          This is a <b>resolution</b> failure, not a network one — a bare specifier
+          in n8ao's module graph has no import-map entry. Nothing to probe.`);
+  } else {
   note(`<b>N8AO did not load. Fell back to GTAOPass.</b><br>
         <code>${e.message}</code><br><br>
         Resolved to <code>${url}</code><br><br>
@@ -326,6 +344,7 @@ try {
      Probe: ${verdict}<br><br>
      <b>postprocessing loaded from the same CDN</b>, so the import map is sound.
      Retry on another mirror: append <code>?cdn=unpkg</code> or <code>?cdn=esmsh</code> to this URL.`));
+  }
 }
 
 /* ── renderer ─────────────────────────────────────────────────────────── */

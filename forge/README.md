@@ -122,8 +122,15 @@ their own pass.
 
 Post-processing (N8AO, bloom) is **not** wired yet. Pins, when it is:
 `postprocessing@6.39.2` requires `three >=0.168 <0.186`, so r185 is the ceiling;
-`n8ao@1.10.3` imports the bare specifier `postprocessing` even when you only use
-`N8AOPass`, so that entry must exist in the import map or the module 404s quietly.
+`n8ao@1.10.3` imports **three** bare specifiers — `three`, `postprocessing`, and
+`three/examples/jsm/postprocessing/Pass.js`. The last is a different prefix from
+`three/addons/` despite resolving to the same directory. All three must be in the
+import map, or the browser throws `Failed to resolve module specifier`.
+
+`topography-test-mock.html` runs its renderer in a `type="module"` block. That block
+is **deferred**, and its top-level `var`s are no longer globals. It exports `CHAR`
+and `__placeRoster` / `__enterForge` / `__startCombat` on `window`, and fires a
+`topo:ready` event that the classic party-select block waits for before painting.
 
 ## Tests (dev-time only — Node, not shipped)
 
