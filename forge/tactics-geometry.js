@@ -7,7 +7,14 @@
    MAP DOCUMENT (the shared contract the generator will emit):
      { cols, rows,
        h:    Int[rows*cols]   terrain height in FEET (0,5,10,15…),
-       wall: bool[rows*cols]  full-height opaque sight+move blocker }
+       wall: bool[rows*cols]  MOVEMENT blocker (impassable),
+       occ?: Int[rows*cols]   OPTIONAL occluder height in FEET *above* h[]:
+                              0 = open ground, 4.5 = a boulder, 10.5 = a temple
+                              wall. Sight is decided by h+occ vs the 3D ray, so
+                              a hill occludes and a pit never can.
+                              When occ[] is ABSENT the module falls back to the
+                              v1 rule (wall === full-height opaque), so existing
+                              maps keep their exact behaviour. }
 
    Everything here is ENFORCE-layer (deterministic, one right answer).
    The ADJUDICATE layer (which OAs trigger, soft/narrative cover, the DM's
@@ -20,6 +27,8 @@
 var SQUARE_FT = 5;   // one square
 var STEP_FT   = 5;   // max height delta you can walk up/down in one step;
                      // anything taller is a CLIFF → needs climb or fly
+var EYE_FT    = 5;   // a Medium creature's eye, above the ground it stands on
+var FOOT_FT   = 0.5; // and the lowest sliver of it that still counts as visible
 
 /* ── map helpers ─────────────────────────────────────────────────── */
 function makeMap(cols, rows) {
@@ -31,6 +40,14 @@ function idx(map, c, r) { return r * map.cols + c; }
 function inBounds(map, c, r) { return c >= 0 && c < map.cols && r >= 0 && r < map.rows; }
 function heightAt(map, c, r) { return inBounds(map, c, r) ? map.h[idx(map, c, r)] : 0; }
 function isWall(map, c, r) { return inBounds(map, c, r) && !!map.wall[idx(map, c, r)]; }
+/* The top of whatever stands in this cell, in feet. Off-map is opaque.
+   With no occ[], a wall is infinitely tall — v1 behaviour, unchanged. */
+function occTop(map, c, r) {
+  if (!inBounds(map, c, r)) return Infinity;
+  var i = idx(map, c, r);
+  if (map.occ && map.occ[i] != null) return map.h[i] + map.occ[i];
+  return map.wall[i] ? Infinity : map.h[i];
+}
 function chebyshev(a, b) { return Math.max(Math.abs(a.c - b.c), Math.abs(a.r - b.r)); }
 
 /* ── MOVEMENT — height-gated BFS ─────────────────────────────────────
@@ -96,65 +113,92 @@ function range3d(map, a, b) {
 }
 function inRange(map, a, b, rangeFt) { return range3d(map, a, b) <= rangeFt + 1e-6; }
 
-/* ── LINE-OF-SIGHT + COVER — 5e grid corner-tracing ──────────────────
-   Walls are full-height opaque blockers (terrain-height occlusion —
-   shooting over a hill — is the documented next layer, not v1).
-   Rule: from ONE corner of the attacker's square, trace to all four
-   corners of the target's square; the attacker picks the corner giving
-   the FEWEST blocked lines (least cover, per RAW). Blocked count →
+/* ── LINE-OF-SIGHT + COVER — 5e corner-tracing, in three dimensions ──
+   The v1 rule traced four flat lines and asked "is there a wall cell?".
+   This traces the same four lines through the HEIGHTFIELD and asks "does
+   anything stand above the ray where it passes?" — which is the same
+   question with the z-axis put back.
+
+   Consequences that fall out of the arithmetic rather than being asserted:
+     · A pit can never block. Its top is below the ray, always.
+     · A hill or a wall blocks when it rises above the ray.
+     · Height beats cover: raise the eye, raise the whole ray, clear the wall.
+     · Pressed against a wall taller than you, you are blind — the ray has
+       not begun to climb. Step back and the same ray meets the wall higher
+       up, so it clears. Only true when the target is ABOVE you; a flat ray
+       cannot rise. This is why the wall's near CORNER, not its centre,
+       decides. We sample densely, so the low edge of each cell is tested.
+     · A creature is five feet tall. We trace to its head AND its feet, so a
+       boulder that hides the legs and not the head yields three-quarters
+       cover, not total. That grading is the whole point of the corner rule.
+
+   Eight lines: 4 corners × {feet, head}. Blocked count →
      0     none
-     1–2   half           (+2 AC / +2 Dex saves)
-     3     three-quarters (+5)
-     4     total          (cannot be targeted by a single-target attack)   */
-function segHitsWall(map, x0, y0, x1, y1, aC, aR, bC, bR) {
-  // dense sample of the OPEN segment; a strictly-interior wall cell blocks.
+     1–4   half           (+2 AC / +2 Dex saves)   [centre must be clear]
+     5–7   three-quarters (+5)
+     8     total          (cannot be targeted by a single-target attack)   */
+function segOccluded(map, x0, y0, z0, x1, y1, z1, aC, aR, bC, bR) {
+  // Dense sample of the OPEN segment. Because we test every sample, the low
+  // edge of each cell along the ray is tested too — that is the near corner.
   var steps = 240;
   for (var s = 1; s < steps; s++) {
     var t = s / steps;
-    var x = x0 + (x1 - x0) * t, y = y0 + (y1 - y0) * t;
+    var x = x0 + (x1 - x0) * t, y = y0 + (y1 - y0) * t, z = z0 + (z1 - z0) * t;
     var c = Math.floor(x), r = Math.floor(y);
     if ((c === aC && r === aR) || (c === bC && r === bR)) continue; // own squares
-    if (isWall(map, c, r)) return true;
+    if (occTop(map, c, r) > z + 1e-9) return true;
   }
   return false;
 }
+/* v1 name kept as a thin alias: same question, flat map, no occ[]. */
+function segHitsWall(map, x0, y0, x1, y1, aC, aR, bC, bR) {
+  var z = heightAt(map, aC, aR) + EYE_FT;
+  return segOccluded(map, x0, y0, z, x1, y1, z, aC, aR, bC, bR);
+}
 var CORNERS = [[0,0],[1,0],[0,1],[1,1]];
 function losVerdict(map, a, b) {
-  // Trace from the attacker's actual eye (square centre) to the target's four
-  // corners. Using the centre — not the most favourable corner — matches the
-  // single drawn sight-line and refuses the "peek around the edge" loophole
-  // that let shots graze straight through a wall and still count as half cover.
-  var ax = a.c + 0.5, ay = a.r + 0.5;
+  // From the attacker's actual eye (square centre, EYE_FT up) — not the most
+  // favourable corner — which matches the single drawn sight-line and refuses
+  // the "peek around the edge" loophole that let shots graze straight through
+  // a wall and still count as half cover.
+  var ax = a.c + 0.5, ay = a.r + 0.5, az = heightAt(map, a.c, a.r) + EYE_FT;
+  var bh = heightAt(map, b.c, b.r);
+  var zHead = bh + EYE_FT, zFeet = bh + FOOT_FT;
   var blocked = 0;
   for (var tc = 0; tc < CORNERS.length; tc++) {
-    if (segHitsWall(map, ax, ay, b.c + CORNERS[tc][0], b.r + CORNERS[tc][1], a.c, a.r, b.c, b.r)) blocked++;
+    var bx = b.c + CORNERS[tc][0], by = b.r + CORNERS[tc][1];
+    if (segOccluded(map, ax, ay, az, bx, by, zHead, a.c, a.r, b.c, b.r)) blocked++;
+    if (segOccluded(map, ax, ay, az, bx, by, zFeet, a.c, a.r, b.c, b.r)) blocked++;
   }
-  var centerBlocked = segHitsWall(map, ax, ay, b.c + 0.5, b.r + 0.5, a.c, a.r, b.c, b.r);
+  var centerBlocked = segOccluded(map, ax, ay, az,
+                                  b.c + 0.5, b.r + 0.5, bh + (EYE_FT + FOOT_FT) / 2,
+                                  a.c, a.r, b.c, b.r);
   var cover, acBonus;
   if (blocked === 0)      { cover = "none";  acBonus = 0; }
-  else if (blocked >= 4)  { cover = "total"; acBonus = Infinity; }   // no corner visible
-  else if (blocked <= 2 && !centerBlocked) { cover = "half"; acBonus = 2; }
-  else { cover = "three-quarters"; acBonus = 5; }  // heavy clip, or shooting around a blocked centre
+  else if (blocked >= 8)  { cover = "total"; acBonus = Infinity; }   // nothing visible
+  else if (blocked <= 4 && !centerBlocked) { cover = "half"; acBonus = 2; }
+  else { cover = "three-quarters"; acBonus = 5; }  // heavy clip, or a blocked centre
   return { cover: cover, acBonus: acBonus, blocked: blocked, canTarget: cover !== "total" };
 }
 
 /* center-to-center ray, for drawing the "is the shot clear" line */
 function losRay(map, a, b) {
-  var x0 = a.c + 0.5, y0 = a.r + 0.5, x1 = b.c + 0.5, y1 = b.r + 0.5;
+  var x0 = a.c + 0.5, y0 = a.r + 0.5, z0 = heightAt(map, a.c, a.r) + EYE_FT;
+  var x1 = b.c + 0.5, y1 = b.r + 0.5, z1 = heightAt(map, b.c, b.r) + EYE_FT;
   var steps = 240;
   for (var s = 1; s < steps; s++) {
     var t = s / steps;
     var c = Math.floor(x0 + (x1 - x0) * t), r = Math.floor(y0 + (y1 - y0) * t);
     if ((c === a.c && r === a.r) || (c === b.c && r === b.r)) continue;
-    if (isWall(map, c, r)) return { blocked: true, at: { c: c, r: r } };
+    if (occTop(map, c, r) > z0 + (z1 - z0) * t + 1e-9) return { blocked: true, at: { c: c, r: r } };
   }
   return { blocked: false, at: null };
 }
 
 var API = {
-  SQUARE_FT: SQUARE_FT, STEP_FT: STEP_FT, DIRS: DIRS,
+  SQUARE_FT: SQUARE_FT, STEP_FT: STEP_FT, EYE_FT: EYE_FT, FOOT_FT: FOOT_FT, DIRS: DIRS,
   makeMap: makeMap, idx: idx, inBounds: inBounds, heightAt: heightAt,
-  isWall: isWall, chebyshev: chebyshev,
+  isWall: isWall, occTop: occTop, chebyshev: chebyshev,
   stepAllowed: stepAllowed, movementReach: movementReach, pathTo: pathTo,
   canReachMelee: canReachMelee, range3d: range3d, inRange: inRange,
   losVerdict: losVerdict, losRay: losRay

@@ -1,0 +1,2087 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+<title>ToK — Tactics Diorama (Grid Mock)</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@600;800&family=Oswald:wght@400;500;600&family=EB+Garamond:ital@0;1&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --ink:#0d1a18; --deep:#182826; --bone:#e8dcc0; --gold:#c9a24b;
+    --blood:#a33b2e; --teal:#4c8f86; --violet:#7b5ea7; --steel:#9fb0ac;
+    --leaf:#8fd08a;
+  }
+  *{ margin:0; padding:0; box-sizing:border-box; }
+  html,body{ height:100%; overflow:hidden; background:var(--ink);
+    font-family:"EB Garamond", Georgia, serif; color:var(--bone);
+    -webkit-user-select:none; user-select:none; touch-action:none; }
+  #stage{ position:fixed; inset:0; }
+  canvas{ display:block; }
+
+  #vignette{ position:fixed; inset:0; pointer-events:none; z-index:5;
+    background:radial-gradient(ellipse at 50% 42%, transparent 46%, rgba(5,10,9,.55) 100%); }
+  #grain{ position:fixed; inset:-50%; width:200%; height:200%; pointer-events:none; z-index:6; opacity:.05;
+    background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='300' height='300'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='2'/%3E%3C/filter%3E%3Crect width='300' height='300' filter='url(%23n)'/%3E%3C/svg%3E"); }
+
+  #plates{ position:fixed; inset:0; pointer-events:none; z-index:8; }
+  .plate{ position:absolute; transform:translate(-50%,-100%); text-align:center; transition:opacity .5s; }
+  .plate .nm{ font-family:Oswald,sans-serif; font-size:10px; font-weight:500;
+    letter-spacing:.15em; text-transform:uppercase; color:var(--bone);
+    text-shadow:0 1px 3px rgba(0,0,0,.9); white-space:nowrap; }
+  .plate .bar{ width:52px; height:4px; margin:2px auto 0; background:rgba(0,0,0,.65);
+    border:1px solid rgba(232,220,192,.35); }
+  .plate .fill{ height:100%; width:100%; transition:width .45s cubic-bezier(.2,.8,.3,1); }
+  .plate.pc .fill{ background:linear-gradient(90deg,#a5842f,var(--gold)); }
+  .plate.foe .fill{ background:linear-gradient(90deg,#7e2b21,var(--blood)); }
+  .plate.dead{ opacity:.25; }
+
+  .dmg{ position:absolute; transform:translate(-50%,-50%); pointer-events:none;
+    font-family:Oswald,sans-serif; font-weight:600; font-size:28px; color:#fff;
+    text-shadow:0 0 8px rgba(0,0,0,.8), 0 2px 0 rgba(0,0,0,.6);
+    animation:dmgFloat 1.05s ease-out forwards; z-index:9; }
+  .dmg.hurtPc{ color:#ff8a76; }
+  .dmg.miss{ font-size:19px; font-style:italic; font-family:"EB Garamond",serif;
+    font-weight:400; color:var(--steel); }
+  .dmg.crit{ font-size:42px; color:var(--gold); }
+  .dmg.heal{ color:var(--leaf); }
+  @keyframes dmgFloat{
+    0%{ opacity:0; margin-top:6px; } 12%{ opacity:1; margin-top:0; }
+    75%{ opacity:1; } 100%{ opacity:0; margin-top:-44px; } }
+
+  #turnStrip{ position:fixed; top:14px; left:50%; transform:translateX(-50%);
+    display:flex; gap:6px; z-index:10; }
+  .tile{ width:40px; height:52px; background:rgba(13,26,24,.82); overflow:hidden;
+    border:1px solid rgba(232,220,192,.22); position:relative;
+    transition:border-color .3s, transform .3s; }
+  .tile img{ width:100%; height:100%; object-fit:cover; }
+  .tile img.pix{ object-fit:contain; image-rendering:pixelated; padding:4px 6px 2px; }
+  .tile.active{ border-color:var(--gold); transform:translateY(4px);
+    box-shadow:0 0 14px rgba(201,162,75,.35); }
+  .tile.dead{ opacity:.3; filter:grayscale(1); }
+  .tile .side{ position:absolute; left:0; right:0; bottom:0; height:3px; }
+  .tile.pc .side{ background:var(--gold); } .tile.foe .side{ background:var(--blood); }
+
+  #phase{ position:fixed; top:76px; left:50%; transform:translateX(-50%); z-index:10;
+    font-family:Oswald,sans-serif; font-size:10px; letter-spacing:.24em;
+    text-transform:uppercase; color:var(--teal); pointer-events:none;
+    text-shadow:0 1px 3px rgba(0,0,0,.9); transition:opacity .3s; }
+
+  #dock{ position:fixed; left:50%; bottom:18px; transform:translateX(-50%);
+    z-index:10; display:none; text-align:center; max-width:96vw; }
+  #dock.show{ display:block; animation:dockIn .28s ease-out; }
+  @keyframes dockIn{ from{ opacity:0; transform:translate(-50%,10px);} to{ opacity:1; transform:translate(-50%,0);} }
+  #dockName{ font-family:Cinzel,serif; font-weight:800; font-size:15px;
+    letter-spacing:.22em; text-transform:uppercase; color:var(--gold);
+    text-shadow:0 1px 4px rgba(0,0,0,.8); }
+  #dockStats{ font-family:Oswald,sans-serif; font-size:10px; letter-spacing:.18em;
+    text-transform:uppercase; color:var(--steel); margin:4px 0 8px;
+    text-shadow:0 1px 3px rgba(0,0,0,.9); }
+  #dockBtns{ display:flex; gap:6px; justify-content:center; flex-wrap:wrap; }
+  .abtn{ font-family:Oswald,sans-serif; font-size:12px; font-weight:500;
+    letter-spacing:.12em; text-transform:uppercase; color:var(--bone);
+    background:rgba(13,26,24,.88); border:1px solid rgba(232,220,192,.35);
+    padding:9px 14px; cursor:pointer; transition:all .15s; }
+  .abtn:hover{ border-color:var(--gold); color:var(--gold); background:rgba(24,40,38,.94); }
+  .abtn.armed{ border-color:var(--blood); color:#ff9d8a; }
+  .abtn.armed.kind-heal{ border-color:var(--leaf); color:var(--leaf); }
+  .abtn:active{ transform:translateY(1px); }
+  .abtn[disabled]{ opacity:.35; pointer-events:none; }
+  .abtn .sub{ display:block; font-size:9px; letter-spacing:.08em; color:var(--steel);
+    margin-top:2px; font-weight:400; }
+  .abtn.isbonus{ border-color:rgba(76,143,134,.5); }
+  .abtn.isbonus:not([disabled]):hover{ border-color:var(--teal); color:var(--teal); }
+  .abtn.isfree{ border-color:rgba(123,94,167,.55); }
+  .abtn.isfree:not([disabled]):hover{ border-color:var(--violet); color:#c3aee0; }
+  #dockStats .pips{ color:var(--gold); letter-spacing:.06em; font-size:10px; }
+
+  /* ── rewind transport (Staff only) ── */
+  #rewindBar{ position:fixed; left:50%; bottom:0; transform:translateX(-50%); z-index:14;
+    display:none; align-items:center; gap:10px; padding:7px 14px 9px;
+    background:linear-gradient(180deg,rgba(8,16,15,.72),rgba(8,16,15,.97));
+    border:1px solid rgba(201,162,75,.35); border-bottom:none; }
+  body.staff #rewindBar{ display:flex; }
+  body.staff #dock{ bottom:70px; }
+  body.staff #log{ bottom:74px; }
+  #rwLabel{ font-family:Oswald,sans-serif; font-size:10px; letter-spacing:.2em;
+    text-transform:uppercase; color:#ff6b57; min-width:78px; }
+  #rwLabel.playing{ color:var(--gold); }
+  #rwTrack{ position:relative; width:min(44vw,380px); height:8px; cursor:pointer;
+    background:rgba(232,220,192,.12); border:1px solid rgba(232,220,192,.25); }
+  #rwFill{ position:absolute; left:0; top:0; bottom:0; width:0;
+    background:linear-gradient(90deg,#7a5f2a,var(--gold)); }
+  #rwHead{ position:absolute; top:-3px; width:3px; height:14px; background:var(--bone); left:0; transform:translateX(-50%); }
+  #rwTicks{ position:absolute; inset:0; pointer-events:none; }
+  #rwTicks i{ position:absolute; top:0; bottom:0; width:1px; background:rgba(232,220,192,.4); transform:translateX(-50%); }
+  #rwBtns{ display:flex; gap:4px; }
+  #rwBtns button{ width:34px; height:26px; font-size:12px; color:var(--bone);
+    background:rgba(13,26,24,.9); border:1px solid rgba(232,220,192,.3); cursor:pointer;
+    font-family:"EB Garamond",serif; }
+  #rwBtns button:hover:not(:disabled){ border-color:var(--gold); color:var(--gold); }
+  #rwBtns button:disabled{ opacity:.28; cursor:default; }
+  #rwPos{ font-family:"Courier New",monospace; font-size:11px; color:var(--gold);
+    letter-spacing:.06em; min-width:46px; text-align:center; }
+  #rwFx{ position:fixed; inset:0; z-index:13; pointer-events:none; opacity:0; transition:opacity .1s;
+    background:repeating-linear-gradient(0deg,rgba(255,255,255,.06) 0 2px,transparent 2px 4px); }
+  #rwFx.on{ opacity:1; }
+  #rwFx::after{ content:"\25c4\25c4 REWIND"; position:absolute; top:14px; left:50%; transform:translateX(-50%);
+    font-family:Oswald,sans-serif; font-size:12px; letter-spacing:.34em; color:#ff6b57;
+    text-shadow:0 1px 4px rgba(0,0,0,.9); }
+  #rwFx.fwd::after{ content:"\25ba\25ba FORWARD"; color:var(--leaf); }
+
+  #log{ position:fixed; left:18px; bottom:16px; z-index:10; max-width:300px; pointer-events:none; }
+  #log div{ font-family:Oswald,sans-serif; font-size:11px; letter-spacing:.08em;
+    text-transform:uppercase; color:var(--steel); margin-top:4px;
+    text-shadow:0 1px 3px rgba(0,0,0,.9); }
+  #log div:last-child{ color:var(--bone); }
+  #log em{ color:var(--gold); font-style:normal; }
+
+  #orbit{ position:fixed; right:16px; bottom:16px; z-index:10; display:flex; gap:6px; }
+  #orbit button{ width:40px; height:40px; font-size:17px; color:var(--bone);
+    background:rgba(13,26,24,.88); border:1px solid rgba(232,220,192,.35);
+    cursor:pointer; font-family:"EB Garamond",serif; }
+  #orbit button:hover{ border-color:var(--gold); color:var(--gold); }
+
+  #banner{ position:fixed; inset:0; display:none; z-index:20;
+    align-items:center; justify-content:center; flex-direction:column;
+    background:rgba(5,10,9,.45); }
+  #banner.show{ display:flex; animation:bannerIn .8s ease-out; }
+  @keyframes bannerIn{ from{ opacity:0; } to{ opacity:1; } }
+  #bannerText{ font-family:Cinzel,serif; font-weight:800; font-size:min(11vw,84px);
+    letter-spacing:.3em; text-indent:.3em; color:var(--gold);
+    text-shadow:0 0 40px rgba(201,162,75,.45), 0 4px 12px rgba(0,0,0,.8); }
+  #banner.grim #bannerText{ color:var(--blood); }
+  #bannerSub{ font-family:"EB Garamond",serif; font-style:italic; font-size:17px;
+    color:var(--bone); opacity:.85; margin-top:10px; }
+  #resetBtn{ margin-top:34px; pointer-events:auto; }
+
+  #chip{ position:fixed; top:16px; left:18px; z-index:10; pointer-events:none; }
+  #chip .t1{ font-family:Cinzel,serif; font-weight:800; font-size:13px;
+    letter-spacing:.28em; text-transform:uppercase; color:var(--bone);
+    text-shadow:0 1px 4px rgba(0,0,0,.9); }
+  #chip .t2{ font-family:Oswald,sans-serif; font-size:9px; letter-spacing:.22em;
+    text-transform:uppercase; color:var(--gold); margin-top:2px; opacity:.85; }
+
+  /* ── verdict badges over targets ── */
+  #targetFx{ position:fixed; inset:0; z-index:11; pointer-events:none; }
+  .tbadge{ position:absolute; transform:translate(-50%,-100%);
+    font-family:Oswald,sans-serif; font-size:9px; font-weight:600; letter-spacing:.16em;
+    text-transform:uppercase; white-space:nowrap; padding:3px 7px;
+    background:rgba(13,26,24,.9); border:1px solid var(--teal); color:var(--teal);
+    text-shadow:0 1px 2px rgba(0,0,0,.9); }
+  .tbadge.cov{ border-color:var(--gold); color:var(--gold); }
+  .tbadge.bad{ border-color:var(--blood); color:#e79485; }
+  .tbadge .adv{ color:#e6c266; }
+  .tbadge .dis{ color:#ff9d8a; }
+  .tbadge .flat{ color:var(--steel); }
+  .tbadge.adv{ border-color:#c9a24b; }
+  .tbadge.dis{ border-color:#c07158; }
+
+  /* ── geometry settings: mode + override + legend ── */
+  #geoPanel{ position:fixed; top:16px; right:16px; z-index:12; display:flex;
+    flex-direction:column; align-items:flex-end; gap:7px; }
+  .gpRow{ display:flex; align-items:center; gap:8px; }
+  .gpLbl{ font-family:Oswald,sans-serif; font-size:9px; letter-spacing:.24em;
+    text-transform:uppercase; color:var(--steel); }
+  .seg{ display:flex; border:1px solid rgba(232,220,192,.35); background:rgba(13,26,24,.88); }
+  .seg button{ font-family:Oswald,sans-serif; font-size:10px; font-weight:500;
+    letter-spacing:.12em; text-transform:uppercase; color:var(--steel);
+    background:transparent; border:0; padding:7px 11px; cursor:pointer; transition:all .15s; }
+  .seg button + button{ border-left:1px solid rgba(232,220,192,.2); }
+  .seg button.on{ color:var(--ink); background:var(--teal); }
+  .chipbtn{ font-family:Oswald,sans-serif; font-size:10px; font-weight:500;
+    letter-spacing:.14em; text-transform:uppercase; color:var(--steel);
+    background:rgba(13,26,24,.88); border:1px solid rgba(232,220,192,.35);
+    padding:7px 11px; cursor:pointer; transition:all .15s; }
+  .chipbtn.on{ color:var(--ink); background:var(--gold); border-color:var(--gold); }
+  .chipbtn.hide{ display:none; }
+  .chipbtn.danger{ color:#e79485; border-color:var(--blood); }
+  .chipbtn.danger:hover{ color:#fff; background:var(--blood); }
+  body:not(.staff) #resetChip{ display:none; }
+  #legend{ display:flex; gap:10px; background:rgba(13,26,24,.72); padding:5px 9px; }
+  #legend span{ display:flex; align-items:center; gap:4px;
+    font-family:Oswald,sans-serif; font-size:8px; letter-spacing:.16em;
+    text-transform:uppercase; color:var(--steel); }
+  #legend i{ width:14px; height:2px; display:inline-block; }
+  #legend i.teal{ background:var(--teal); } #legend i.gold{ background:var(--gold); }
+  #legend i.blood{ background:var(--blood); }
+
+  /* ── DM confirm (ask mode) ── */
+  #geoConfirm{ position:fixed; left:50%; bottom:120px; transform:translateX(-50%);
+    z-index:14; display:none; text-align:center; background:rgba(13,26,24,.96);
+    border:1px solid var(--gold); padding:12px 16px; max-width:92vw; }
+  #geoConfirm.show{ display:block; animation:dockIn .2s ease-out; }
+  #geoConfirm .gcMsg{ font-family:Oswald,sans-serif; font-size:11px; letter-spacing:.1em;
+    text-transform:uppercase; color:var(--bone); margin-bottom:9px; }
+  #geoConfirm .gcRow{ display:flex; gap:6px; justify-content:center; }
+
+  @media (max-width:640px){
+    .abtn{ padding:8px 10px; font-size:11px; }
+    .plate .bar{ width:44px; }
+    #log{ max-width:150px; }
+    #geoPanel{ top:auto; bottom:64px; right:10px; }
+    #chip{ font-size:9px; }
+  }
+</style>
+</head>
+<body>
+<div id="stage"></div>
+<div id="vignette"></div>
+<div id="grain"></div>
+<div id="plates"></div>
+
+<div id="chip">
+  <div class="t1">Trials of Kirtas</div>
+  <div class="t2">Geometry Enforcement — Height · Reach · Line-of-Sight</div>
+</div>
+
+<div id="turnStrip"></div>
+<div id="phase"></div>
+<div id="targetFx"></div>
+
+<div id="geoPanel">
+  <div class="gpRow">
+    <span class="gpLbl">Geometry</span>
+    <div class="seg" id="modeSeg">
+      <button data-mode="fast" class="on">Fast · auto</button>
+      <button data-mode="ask">Ask DM</button>
+    </div>
+  </div>
+  <button id="ovrChip" class="chipbtn">Override · off</button>
+  <button id="flankChip" class="chipbtn">Flanking → Adv · off</button>
+  <button id="staffChip" class="chipbtn">Staff · rewind off</button>
+  <button id="resetChip" class="chipbtn danger">⟲ Reset Combat</button>
+  <div id="legend">
+    <span><i class="teal"></i>clear</span>
+    <span><i class="gold"></i>cover</span>
+    <span><i class="blood"></i>no line</span>
+  </div>
+</div>
+
+<div id="geoConfirm"></div>
+
+<div id="dock">
+  <div id="dockName"></div>
+  <div id="dockStats"></div>
+  <div id="dockBtns"></div>
+</div>
+
+<div id="log"></div>
+<div id="orbit">
+  <button id="rotL" title="Rotate left">⟲</button>
+  <button id="rotR" title="Rotate right">⟳</button>
+</div>
+
+<div id="rwFx"></div>
+<div id="rewindBar">
+  <div id="rwLabel">● REC</div>
+  <div id="rwBtns">
+    <button id="rwStart" title="Rewind to the start of this turn">&#9198;</button>
+    <button id="rwBack" title="Rewind one step">&#9194;</button>
+    <button id="rwFwd" title="Forward one step">&#9193;</button>
+    <button id="rwEnd" title="Jump to latest">&#9197;</button>
+  </div>
+  <div id="rwTrack"><div id="rwTicks"></div><div id="rwFill"></div><div id="rwHead"></div></div>
+  <div id="rwPos">0/0</div>
+</div>
+
+<div id="banner">
+  <div id="bannerText"></div>
+  <div id="bannerSub"></div>
+  <button class="abtn" id="resetBtn">Fight Again</button>
+</div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+<script>
+/* ── inlined tactics-geometry.js (canonical copy ships alongside) ── */
+/* ════════════════════════════════════════════════════════════════════
+   tactics-geometry.js — pure map-geometry rules over the MAP DOCUMENT.
+   No three.js, no DOM. Same source runs in the browser (window.TacticsGeo)
+   and headless in node (require / import default), so every verdict is
+   smoke-testable — the WebGL-can't-be-tested-headless gap doesn't touch it.
+
+   MAP DOCUMENT (the shared contract the generator will emit):
+     { cols, rows,
+       h:    Int[rows*cols]   terrain height in FEET (0,5,10,15…),
+       wall: bool[rows*cols]  full-height opaque sight+move blocker }
+
+   Everything here is ENFORCE-layer (deterministic, one right answer).
+   The ADJUDICATE layer (which OAs trigger, soft/narrative cover, the DM's
+   rule-of-cool override) lives above this in the mock UI, not here.
+   ════════════════════════════════════════════════════════════════════ */
+;(function (global) {
+"use strict";
+
+/* ── tunables (5e grid) ──────────────────────────────────────────── */
+var SQUARE_FT = 5;   // one square
+var STEP_FT   = 5;   // max height delta you can walk up/down in one step;
+                     // anything taller is a CLIFF → needs climb or fly
+var EYE_FT    = 5;   // a Medium creature's eye, above the ground it stands on
+var FOOT_FT   = 0.5; // and the lowest sliver of it that still counts as visible
+
+/* ── map helpers ─────────────────────────────────────────────────── */
+function makeMap(cols, rows) {
+  return { cols: cols, rows: rows,
+           h: new Array(cols * rows).fill(0),
+           wall: new Array(cols * rows).fill(false) };
+}
+function idx(map, c, r) { return r * map.cols + c; }
+function inBounds(map, c, r) { return c >= 0 && c < map.cols && r >= 0 && r < map.rows; }
+function heightAt(map, c, r) { return inBounds(map, c, r) ? map.h[idx(map, c, r)] : 0; }
+function isWall(map, c, r) { return inBounds(map, c, r) && !!map.wall[idx(map, c, r)]; }
+/* The top of whatever stands in this cell, in feet. Off-map is opaque.
+   With no occ[], a wall is infinitely tall — v1 behaviour, unchanged. */
+function occTop(map, c, r) {
+  if (!inBounds(map, c, r)) return Infinity;
+  var i = idx(map, c, r);
+  if (map.occ && map.occ[i] != null) return map.h[i] + map.occ[i];
+  return map.wall[i] ? Infinity : map.h[i];
+}
+function chebyshev(a, b) { return Math.max(Math.abs(a.c - b.c), Math.abs(a.r - b.r)); }
+
+/* ── MOVEMENT — height-gated BFS ─────────────────────────────────────
+   Walls block. Occupied tiles block. A step to an adjacent tile is barred
+   when the height delta exceeds STEP_FT — UNLESS the token can climb or fly.
+   (Climb cost = still 1 square here; real 5e 2×-cost climb is a later refinement.)
+   `occupied` is a Set of "c,r" strings for other creatures.               */
+var DIRS = [[1,0],[-1,0],[0,1],[0,-1],[1,1],[1,-1],[-1,1],[-1,-1]];
+function stepAllowed(map, token, fromC, fromR, toC, toR) {
+  if (!inBounds(map, toC, toR)) return false;
+  if (isWall(map, toC, toR)) return false;
+  var dh = Math.abs(heightAt(map, toC, toR) - heightAt(map, fromC, fromR));
+  if (token.fly || token.climb) return true;      // wings / climb kit ignore the cliff
+  return dh <= STEP_FT;                            // otherwise a cliff is a hard no
+}
+function movementReach(map, token, occupied, budgetSquares) {
+  occupied = occupied || new Set();
+  var budget = (budgetSquares != null) ? budgetSquares : Math.floor(token.speed / SQUARE_FT);
+  var start = token.c + "," + token.r;
+  var seen = {}; seen[start] = { d: 0, from: null };
+  var q = [{ c: token.c, r: token.r, d: 0 }];
+  while (q.length) {
+    var n = q.shift();
+    if (n.d >= budget) continue;
+    for (var i = 0; i < DIRS.length; i++) {
+      var c = n.c + DIRS[i][0], r = n.r + DIRS[i][1], k = c + "," + r;
+      if (seen[k] !== undefined) continue;
+      if (occupied.has(k)) continue;
+      if (!stepAllowed(map, token, n.c, n.r, c, r)) continue;
+      seen[k] = { d: n.d + 1, from: n.c + "," + n.r };
+      q.push({ c: c, r: r, d: n.d + 1 });
+    }
+  }
+  delete seen[start];
+  return seen;
+}
+function pathTo(seen, token, c, r) {
+  var path = [], k = c + "," + r, home = token.c + "," + token.r;
+  while (k && k !== home) {
+    var p = k.split(",").map(Number);
+    path.unshift({ c: p[0], r: p[1] });
+    k = seen[k] ? seen[k].from : null;
+  }
+  return path;
+}
+
+/* ── MELEE REACH — horizontal AND vertical ───────────────────────────
+   You can't swing a longsword at someone one square away but 15 ft up.
+   reachFt is 5 for most, 10 for reach weapons.                            */
+function canReachMelee(map, a, b, reachFt) {
+  reachFt = reachFt || SQUARE_FT;
+  var horizOk = chebyshev(a, b) <= Math.floor(reachFt / SQUARE_FT);
+  var dv = Math.abs(heightAt(map, a.c, a.r) - heightAt(map, b.c, b.r));
+  return horizOk && dv <= reachFt;
+}
+
+/* ── RANGED — true 3D distance in feet ───────────────────────────────
+   Horizontal on the grid (chebyshev×5) combined with the vertical drop.  */
+function range3d(map, a, b) {
+  var horiz = chebyshev(a, b) * SQUARE_FT;
+  var vert = Math.abs(heightAt(map, a.c, a.r) - heightAt(map, b.c, b.r));
+  return Math.hypot(horiz, vert);
+}
+function inRange(map, a, b, rangeFt) { return range3d(map, a, b) <= rangeFt + 1e-6; }
+
+/* ── LINE-OF-SIGHT + COVER — 5e corner-tracing, in three dimensions ──
+   The v1 rule traced four flat lines and asked "is there a wall cell?".
+   This traces the same four lines through the HEIGHTFIELD and asks "does
+   anything stand above the ray where it passes?" — which is the same
+   question with the z-axis put back.
+
+   Consequences that fall out of the arithmetic rather than being asserted:
+     · A pit can never block. Its top is below the ray, always.
+     · A hill or a wall blocks when it rises above the ray.
+     · Height beats cover: raise the eye, raise the whole ray, clear the wall.
+     · Pressed against a wall taller than you, you are blind — the ray has
+       not begun to climb. Step back and the same ray meets the wall higher
+       up, so it clears. Only true when the target is ABOVE you; a flat ray
+       cannot rise. This is why the wall's near CORNER, not its centre,
+       decides. We sample densely, so the low edge of each cell is tested.
+     · A creature is five feet tall. We trace to its head AND its feet, so a
+       boulder that hides the legs and not the head yields three-quarters
+       cover, not total. That grading is the whole point of the corner rule.
+
+   Eight lines: 4 corners × {feet, head}. Blocked count →
+     0     none
+     1–4   half           (+2 AC / +2 Dex saves)   [centre must be clear]
+     5–7   three-quarters (+5)
+     8     total          (cannot be targeted by a single-target attack)   */
+function segOccluded(map, x0, y0, z0, x1, y1, z1, aC, aR, bC, bR) {
+  // Dense sample of the OPEN segment. Because we test every sample, the low
+  // edge of each cell along the ray is tested too — that is the near corner.
+  var steps = 240;
+  for (var s = 1; s < steps; s++) {
+    var t = s / steps;
+    var x = x0 + (x1 - x0) * t, y = y0 + (y1 - y0) * t, z = z0 + (z1 - z0) * t;
+    var c = Math.floor(x), r = Math.floor(y);
+    if ((c === aC && r === aR) || (c === bC && r === bR)) continue; // own squares
+    if (occTop(map, c, r) > z + 1e-9) return true;
+  }
+  return false;
+}
+/* v1 name kept as a thin alias: same question, flat map, no occ[]. */
+function segHitsWall(map, x0, y0, x1, y1, aC, aR, bC, bR) {
+  var z = heightAt(map, aC, aR) + EYE_FT;
+  return segOccluded(map, x0, y0, z, x1, y1, z, aC, aR, bC, bR);
+}
+var CORNERS = [[0,0],[1,0],[0,1],[1,1]];
+function losVerdict(map, a, b) {
+  // From the attacker's actual eye (square centre, EYE_FT up) — not the most
+  // favourable corner — which matches the single drawn sight-line and refuses
+  // the "peek around the edge" loophole that let shots graze straight through
+  // a wall and still count as half cover.
+  var ax = a.c + 0.5, ay = a.r + 0.5, az = heightAt(map, a.c, a.r) + EYE_FT;
+  var bh = heightAt(map, b.c, b.r);
+  var zHead = bh + EYE_FT, zFeet = bh + FOOT_FT;
+  var blocked = 0;
+  for (var tc = 0; tc < CORNERS.length; tc++) {
+    var bx = b.c + CORNERS[tc][0], by = b.r + CORNERS[tc][1];
+    if (segOccluded(map, ax, ay, az, bx, by, zHead, a.c, a.r, b.c, b.r)) blocked++;
+    if (segOccluded(map, ax, ay, az, bx, by, zFeet, a.c, a.r, b.c, b.r)) blocked++;
+  }
+  var centerBlocked = segOccluded(map, ax, ay, az,
+                                  b.c + 0.5, b.r + 0.5, bh + (EYE_FT + FOOT_FT) / 2,
+                                  a.c, a.r, b.c, b.r);
+  var cover, acBonus;
+  if (blocked === 0)      { cover = "none";  acBonus = 0; }
+  else if (blocked >= 8)  { cover = "total"; acBonus = Infinity; }   // nothing visible
+  else if (blocked <= 4 && !centerBlocked) { cover = "half"; acBonus = 2; }
+  else { cover = "three-quarters"; acBonus = 5; }  // heavy clip, or a blocked centre
+  return { cover: cover, acBonus: acBonus, blocked: blocked, canTarget: cover !== "total" };
+}
+
+/* center-to-center ray, for drawing the "is the shot clear" line */
+function losRay(map, a, b) {
+  var x0 = a.c + 0.5, y0 = a.r + 0.5, z0 = heightAt(map, a.c, a.r) + EYE_FT;
+  var x1 = b.c + 0.5, y1 = b.r + 0.5, z1 = heightAt(map, b.c, b.r) + EYE_FT;
+  var steps = 240;
+  for (var s = 1; s < steps; s++) {
+    var t = s / steps;
+    var c = Math.floor(x0 + (x1 - x0) * t), r = Math.floor(y0 + (y1 - y0) * t);
+    if ((c === a.c && r === a.r) || (c === b.c && r === b.r)) continue;
+    if (occTop(map, c, r) > z0 + (z1 - z0) * t + 1e-9) return { blocked: true, at: { c: c, r: r } };
+  }
+  return { blocked: false, at: null };
+}
+
+var API = {
+  SQUARE_FT: SQUARE_FT, STEP_FT: STEP_FT, EYE_FT: EYE_FT, FOOT_FT: FOOT_FT, DIRS: DIRS,
+  makeMap: makeMap, idx: idx, inBounds: inBounds, heightAt: heightAt,
+  isWall: isWall, occTop: occTop, chebyshev: chebyshev,
+  stepAllowed: stepAllowed, movementReach: movementReach, pathTo: pathTo,
+  canReachMelee: canReachMelee, range3d: range3d, inRange: inRange,
+  losVerdict: losVerdict, losRay: losRay
+};
+if (typeof module !== "undefined" && module.exports) module.exports = API;
+global.TacticsGeo = API;
+
+})(typeof window !== "undefined" ? window : globalThis);
+
+</script>
+<script>
+/* ════════════════════════════════════════════════════════════════════
+   ToK Tactics Diorama — standalone FE/FFT-style grid mock.
+   Party stats, actions, and LIVE HP pulled from the repo's character
+   JSON (structural.combat + structural.actions + combat.hp) on
+   2026-07-05 and baked in. 14×10 board = 70ft × 50ft at 5ft squares.
+   Movement = speed/5 squares (8-dir, Chebyshev range). All resolution
+   is d20+mod vs AC, crits double dice — the sheet's math shape.
+   No Supabase; the real build reads the combatants channel instead.
+   ════════════════════════════════════════════════════════════════════ */
+(function(){
+"use strict";
+
+var REDUCED = window.matchMedia && window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+
+var PORTRAITS = {"cosmere": "data:image/jpeg;base64,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", "caim": "data:image/jpeg;base64,/9j/4AAQSkZJRgABAQAAAQABAAD/2wBDAAkGBwgHBgkIBwgKCgkLDRYPDQwMDRsUFRAWIB0iIiAdHx8kKDQsJCYxJx8fLT0tMTU3Ojo6Iys/RD84QzQ5Ojf/2wBDAQoKCg0MDRoPDxo3JR8lNzc3Nzc3Nzc3Nzc3Nzc3Nzc3Nzc3Nzc3Nzc3Nzc3Nzc3Nzc3Nzc3Nzc3Nzc3Nzc3Nzf/wAARCABgAE0DASIAAhEBAxEB/8QAHwAAAQUBAQEBAQEAAAAAAAAAAAECAwQFBgcICQoL/8QAtRAAAgEDAwIEAwUFBAQAAAF9AQIDAAQRBRIhMUEGE1FhByJxFDKBkaEII0KxwRVS0fAkM2JyggkKFhcYGRolJicoKSo0NTY3ODk6Q0RFRkdISUpTVFVWV1hZWmNkZWZnaGlqc3R1dnd4eXqDhIWGh4iJipKTlJWWl5iZmqKjpKWmp6ipqrKztLW2t7i5usLDxMXGx8jJytLT1NXW19jZ2uHi4+Tl5ufo6erx8vP09fb3+Pn6/8QAHwEAAwEBAQEBAQEBAQAAAAAAAAECAwQFBgcICQoL/8QAtREAAgECBAQDBAcFBAQAAQJ3AAECAxEEBSExBhJBUQdhcRMiMoEIFEKRobHBCSMzUvAVYnLRChYkNOEl8RcYGRomJygpKjU2Nzg5OkNERUZHSElKU1RVVldYWVpjZGVmZ2hpanN0dXZ3eHl6goOEhYaHiImKkpOUlZaXmJmaoqOkpaanqKmqsrO0tba3uLm6wsPExcbHyMnK0tPU1dbX2Nna4uPk5ebn6Onq8vP09fb3+Pn6/9oADAMBAAIRAxEAPwCx4q13UtJ0zRtSsrpj9oG14WClAQo6ZHB4Nec6hqE+oao9zebWlmYszbcfpXW+PLW4Xwzp9210ZUSXYExwuQT0+mPyrgBuaUL5hU4+8gxitJt3sTBKxJHdpZ3ZncZI4VR9KqvfhrgSNEQWJY7T1zVOefErxyqJMHG/o1JFF5u6Tdt29CayNEm9jct0SaNiGwVboOxwP/r1RlH+j+uX5wcdzUWlNIDKoc7Qc/Wp2P7tFYcGTB9+TQIpw2Xmum4HDNjP9M10FjAkUf7mEJxy7VXmwIFVABiUdO1X5FwgO0cHqT0rOTuXFWI7qB3tZHaTePLbgdK52Nwkahk3jqPauouJ1awnyQSIzwo46VkxPHHEm1lTIzwBRFhJHosaW2taYlvq92YraJd0cS8MJM4z7/LXE6pY22mXYRJzIBnDMMcc/wD1q2LG4D2A+0fugw5LN930/CsvxH5c3lywIBHnbuBzuPqa6JMxSOY1REMpkXv1ot1jEW7Hze/cVa2x+RJJM2AAAqgfePpWdu2vhAQpGQPSs2bQdnqWVuTDKzLyhA3CpvtKSRrkFQGHJGaglgKaesjEF5ZPXnAFW7FEdSrbQcd/aldWDl5pE80o8sYZWVmBXB44NX72QIodsKG65rnmZYpxk4XPPtWncbpgPMYnaOMVLQapmrblHtJGB3KVPfOaw45UjLKwB544rZtkjgtWOQBtyWPc1hpCJctIxT0pRGzrbJI55Yo5onQMQpb0yetHiWCztQUtWZlLgvntnOOnGP8A69ZNpfDzCsa8pgjkiluLgzbjIeWI/TNaST5rmaa5bGHesCu0dCDj86pRMDgHrnvWjPFJuBWNiqjqB3rNaM8sAdp6jHT3pFvZMnuWzsH91Rj+dJBK3mAD+L9KgaTJPftTVfbKr5wQeaLaAnZmlfW4CeYSCT+lVheysACRxxxV2WVZbXZjJxkH0rJBxJj3pR21HU30L6zSy5R5WZOPl3EAVKVZgB5jcelVkjAZXMnII4q0XA9MGnYhElpI2+QY+8hAqR7yKJirqWKjAwcD8etXUtGij8wQyAnrlDXOTlllkRgQVYgg1ZJaOoSxkhAApOeDSySfP5r5YEfMKzmbsaeJdwAqWXG3UikC+Y3ln5CePUVb06wa7c7jtjXv60tlZvdtGABjduY44ArUu5bextxBb8N3AOc0risU71YrVQiNuHrWWRzvPfpU8juz7pORnJGetJMqb/kHyE9xyBRsVe5MWV4IyUyT196sROhyRhR0xWeh2F4255q1uUcKFIHqBQyTr4rtlttiyXMo/wCmwfaPzrmdcg3yG5j2ZxhwpH51qf2xclVQKQcclFxmquoET2rSY5yNxIFW5XJUTnQR0OQaFBZwg6k4pWjOQKdGpjkDN2qblWL4byYSyHbIo4ZT1+tRRbWO+Q5ducmoJZGK4z160iuMYzzQhyHzsMn2pZELW8b+q4/Kq7nnP51aLkwQA42px+fNDFEZBAbqTO+OPCgkngVZNngDD7vcGo7iU7QNiqMYJQdR9KaZEYBm35PvSAuCK5aMYG9R95geKmSGUQFZVj8k9SO1bsyaRFp5EErxSSMAylwSeMjgdBWM1i5LbJAqHqGySauSsTEoLAjXJLOozkqCMAioboxg4ByBVq4sZTgPKMDkdqoNGUYhkyagoYR1J61GQUwfUVbKvIBhcfhioJ4SvzH8gc0wIeT6VYeT9wEH3OPz4qLAxj9aezZjxgjgAe9IFoPdFY5HHHamyZ2rz2pflI+U8+hpsp4X2oBn/9k=", "liadan": "data:image/jpeg;base64,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", "vesperian": "data:image/jpeg;base64,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"};
+
+/* ── dice ─────────────────────────────────────────────────────────── */
+function d(n){ return 1 + Math.floor(Math.random()*n); }
+function roll(dice){
+  var m = dice.match(/^(\d+)d(\d+)([+-]\d+)?$/);
+  var count = +m[1], sides = +m[2], mod = m[3] ? +m[3] : 0;
+  var total = mod;
+  for (var i=0;i<count;i++){ total += d(sides); }
+  return total;
+}
+
+/* ── pixel sprite factory (theater mock's) ────────────────────────── */
+function pixelCanvas(rows, palette, px){
+  px = px || 8;
+  var w = rows[0].length, h = rows.length;
+  var c = document.createElement("canvas");
+  c.width = w*px; c.height = h*px;
+  var g = c.getContext("2d");
+  for (var y=0;y<h;y++) for (var x=0;x<w;x++){
+    var ch = rows[y][x];
+    if (ch === "." || !palette[ch]) continue;
+    g.fillStyle = palette[ch];
+    g.fillRect(x*px, y*px, px, px);
+  }
+  return c;
+}
+var SPRITES = {
+  knight: { px: [
+    "......tt......","......tt......",".....ssss.....",".....sffs.....",
+    ".....ssss..W..","....tssst..w..","..ssssssss.w..","..s.ssssss.w..",
+    "..s.sttts..w..","..f.ssssssfw..","....ssssss.w..","....ssss...w..",
+    "....ssss......","...ss..ss.....","...ss..ss.....","...aa..aa.....",
+    "...bb..bb....."
+  ], pal:{ t:"#c9a24b", s:"#b9c2c6", a:"#7d868b", f:"#e8c39a", b:"#4a3a2c", w:"#d8dde0", W:"#fff8e0" } },
+  monk: { px: [
+    "....hhhh......","...hhhhhh.....","...hhffhh.....","....hffh......",
+    "....cccc......","..w.CCCC......","..w.CCCCCC....","..wfCCCCCCf...",
+    "....CvvvC.....","....CCCC......","....CCCC......","...CC..CC.....",
+    "...cc..cc.....","...ff..ff....."
+  ], pal:{ h:"#3a2f4e", c:"#6e2f2a", C:"#59261f", v:"#c9a24b", f:"#c98a6a", w:"#cfd6da" } },
+  bard: { px: [
+    ".....ee.ee....","....gggggg....","....gffffg....",".....ffff.....",
+    "..W.cccc......","..w.cccc......",".wwfcccccf....","..w.cvvc......",
+    "..W.cccc......","....cccc......","...cc..cc.....","...cc..cc.....",
+    "...bb..bb....."
+  ], pal:{ e:"#c9b8a0", g:"#8d7a5f", c:"#3f6d5f", v:"#4c8f86", f:"#e8d2b8", w:"#8a6b42", W:"#e8dcc0", b:"#33291f" } },
+  fighter: { px: [
+    ".....hhh..W...","....hhhhh.w...","....hffh..w...",".....ff...w...",
+    "....ssss..w...","...ssssss.w...","..fsssssSfw...","...svvvs..w...",
+    "...sssss......","...sssss......","...ss.ss......","..ss...ss.....",
+    "..bb...bb....."
+  ], pal:{ s:"#5a6a72", S:"#7b8b93", v:"#7b5ea7", h:"#d8d8de", f:"#cfc4bc", w:"#a9b2b8", W:"#e8ecef", b:"#241f1a" } },
+  goblin: { px: [
+    ".e........e.",".eggggggggeE","..gggggggg..","..gy.gy.gg..",
+    "...gggggg...","..cccccc.w..",".gccccccgw..","..cvvc...w..",
+    "..cccc..ww..","..gg..gg....","..GG..GG...."
+  ], pal:{ e:"#5f8f3f", E:"#5f8f3f", g:"#5f8f3f", y:"#ffd23e", c:"#5a4632", v:"#3c2f22", w:"#7a6248", G:"#4a7231" } },
+  gobArcher: { px: [
+    ".e........e.",".eggggggggeE","..gggggggg..","..gy.gy.gg..",
+    "...gggggg...","..W.cccc....","..w.cccc....",".wwgccccg...",
+    "..w.cvvc....","..W.cccc....","..gg..gg....","..GG..GG...."
+  ], pal:{ e:"#5f8f3f", E:"#5f8f3f", g:"#5f8f3f", y:"#ffd23e", c:"#4a5a3a", v:"#3c2f22", w:"#8a6b42", W:"#e8dcc0", G:"#4a7231" } },
+  chief: { px: [
+    ".e..........e.",".eggggggggggE.","..rrrrrrrrrr..","..gy..gy..gg..",
+    "...gggggggg...","..cccccccc.w..",".gccccccccgw..",".g.cvvvvc..w..",
+    "...cccccc.ww..","...cccccc.ww..","..gg....gg....","..GG....GG...."
+  ], pal:{ e:"#4f7f37", E:"#4f7f37", g:"#4f7f37", r:"#a33b2e", y:"#ffd23e", c:"#4e3d2c", v:"#3c2f22", w:"#6e5335", G:"#3e6329" } }
+};
+
+/* ── the roster — REAL SHEET DATA (structural fetched from repo) ──────
+   hp = live vitals; ac/speed/init from structural.combat; resources &
+   slots from structural.classFeatures; actions from structural.actions.
+   Economy tags: bonus (bonus action) · needsAttack (after the Attack
+   action) · cost {ki|slot|secondWind|actionSurge} · rider (boom/hex/vm). */
+var PARTY = [
+  { key:"cosmere", name:"Cosmere", cls:"Warlock 2 / Sorc 1 · Hexblade",
+    sprite:"knight", portrait:"cosmere",
+    hp:19, hpMax:20, ac:18, speed:30, initMod:2,
+    res:{ slot1:3 },                              /* 1 pact + 2 sorcerer 1st-level */
+    react:{ shield:{ cost:{slot1:1} } },          /* +5 AC, reaction, on being hit */
+    actions:[
+      { label:"Eldritch Blast", sub:"action · rng 120 · +5 · 1d10+3", kind:"attack",
+        rng:24, hit:5, dmg:"1d10+3", fx:"ebolt", spell:true,
+        note:"Cantrip. Agonizing Blast folded in (+3 CHA)." },
+      { label:"Longsword", sub:"action · melee · +5 · 1d8+3", kind:"attack",
+        rng:1, hit:5, dmg:"1d8+3", fx:"slash" },
+      { label:"Hex", sub:"bonus · 1 slot · +1d6 on hits", kind:"buff", buff:"hex",
+        rng:18, cost:{slot1:1}, bonus:true, spell:true,
+        note:"Concentration. Your hits vs the hexed foe deal +1d6 necrotic." }
+    ] },
+  { key:"caim", name:"Caim", cls:"Monk 3 · Way of Mercy",
+    sprite:"monk", portrait:"caim", climb:true,   /* scrambles cliffs the others can't */
+    hp:24, hpMax:24, ac:16, speed:40, initMod:3,
+    res:{ ki:3, rebuke:1 },
+    react:{ hellishRebuke:{ cost:{rebuke:1}, dc:11, dmg:"2d10", save:"dex" } },  /* on taking damage */
+    actions:[
+      { label:"Shortsword", sub:"action · melee · +5 · 1d6+3", kind:"attack",
+        rng:1, hit:5, dmg:"1d6+3", fx:"slash" },
+      { label:"Flurry of Blows", sub:"bonus · 1 ki · after Attack · +4 1d4+3 ×2", kind:"attack",
+        rng:1, hit:4, dmg:"1d4+3", fx:"slash", strikes:2,
+        bonus:true, needsAttack:true, cost:{ki:1} },
+      { label:"Hand of Healing", sub:"action · 1 ki · touch · 1d4+3", kind:"heal",
+        rng:1, dmg:"1d4+3", cost:{ki:1} }
+    ] },
+  { key:"liadan", name:"Líadan", cls:"Bard 4 · College of Creation",
+    sprite:"bard", portrait:"liadan",
+    hp:19, hpMax:19, ac:12, speed:20, initMod:2,
+    res:{ slot1:4, slot2:2, bardic:2 },
+    react:{ silveryBarbs:{ cost:{slot1:1}, range:6 } },  /* foe hit within 30 ft → reroll low */
+    actions:[
+      { label:"Sling", sub:"action · rng 30 · +3 · 1d4+1", kind:"attack",
+        rng:6, hit:3, dmg:"1d4+1", fx:"arrow" },
+      { label:"Vicious Mockery", sub:"action · rng 60 · WIS DC 12 · 1d4", kind:"save",
+        rng:12, dc:12, dmg:"1d4", saveAbility:"wis", rider:"vm", spell:true,
+        note:"Cantrip. On a failed save: 1d4 psychic + disadvantage on its next attack." },
+      { label:"Healing Word", sub:"bonus · 1 slot · rng 60 · 1d4+2 +3 Life", kind:"heal",
+        rng:12, dmg:"1d4+2", disciple:1, bonus:true, cost:{slot1:1}, spell:true },
+      { label:"Cure Wounds", sub:"action · 1 slot · touch · 1d8+2 +3 Life", kind:"heal",
+        rng:1, dmg:"1d8+2", disciple:1, cost:{slot1:1}, spell:true },
+      { label:"Bardic Inspiration", sub:"bonus · ally · +1d6 next roll", kind:"buffAlly",
+        buff:"bardic", rng:12, bonus:true, cost:{bardic:1},
+        note:"Give an ally a d6 to add to their next attack." }
+    ] },
+  { key:"vesperian", name:"Vesperian", cls:"Fighter 3 · Eldritch Knight",
+    sprite:"fighter", portrait:"vesperian",
+    hp:24, hpMax:31, ac:18, speed:30, initMod:4,
+    res:{ secondWind:1, actionSurge:1, slot1:2 },
+    react:{ shield:{ cost:{slot1:1} } },          /* +5 AC, reaction, on being hit */
+    actions:[
+      { label:"Longsword", sub:"action · melee · +6 · 1d8+4", kind:"attack",
+        rng:1, hit:6, dmg:"1d8+4", fx:"slash",
+        note:"Per the wired sheet (DEX +4). Dueling would make this +6 — flagged." },
+      { label:"Shortbow", sub:"action · rng 80 · +6 · 1d6+4", kind:"attack",
+        rng:16, hit:6, dmg:"1d6+4", fx:"arrow" },
+      { label:"Booming Blade", sub:"action · melee · +6 · 1d8+4 · boom", kind:"attack",
+        rng:1, hit:6, dmg:"1d8+4", fx:"slash", rider:"boom", spell:true,
+        note:"Cantrip weapon attack (full longsword damage). If the target then moves, +1d8 thunder." },
+      { label:"Second Wind", sub:"bonus · 1d10+3 · once", kind:"selfheal",
+        dmg:"1d10+3", bonus:true, cost:{secondWind:1} },
+      { label:"Action Surge", sub:"free · once · take another action", kind:"surge",
+        free:true, cost:{actionSurge:1},
+        note:"Regain your action this turn." }
+    ] }
+];
+/* Mirefen goblins — 5etools 2014 statblocks */
+var FOES = [
+  { key:"gob-a", name:"Goblin",        sprite:"goblin",    hp:7,  ac:15, speed:30, initMod:2,
+    atk:{ label:"Scimitar", rng:1, hit:4, dmg:"1d6+2", fx:"slash" } },
+  { key:"gob-b", name:"Goblin",        sprite:"goblin",    hp:7,  ac:15, speed:30, initMod:2,
+    atk:{ label:"Scimitar", rng:1, hit:4, dmg:"1d6+2", fx:"slash" } },
+  { key:"gob-c", name:"Goblin Archer", sprite:"gobArcher", hp:7,  ac:15, speed:30, initMod:2,
+    atk:{ label:"Shortbow", rng:16, hit:4, dmg:"1d6+2", fx:"arrow" },
+    melee:{ label:"Scimitar", rng:1, hit:4, dmg:"1d6+2", fx:"slash" } },
+  { key:"gob-d", name:"Goblin Archer", sprite:"gobArcher", hp:7,  ac:15, speed:30, initMod:2,
+    atk:{ label:"Shortbow", rng:16, hit:4, dmg:"1d6+2", fx:"arrow" },
+    melee:{ label:"Scimitar", rng:1, hit:4, dmg:"1d6+2", fx:"slash" } },
+  { key:"boss",  name:"Goblin Boss",   sprite:"chief",     hp:21, ac:17, speed:30, initMod:2,
+    climb:true,   /* nimble — can scramble down the cliff to engage */
+    atk:{ label:"Scimitar", rng:1, hit:4, dmg:"1d6+2", fx:"slash" }, strikes:2 }
+];
+
+/* ── the board — a MAP DOCUMENT the geometry reads ───────────────────
+   This is the shape the generator emits: a grid + per-tile height + walls.
+   The whole enforcement layer (movement, reach, range, LOS) reads THIS,
+   not the renderer — so it stays testable without WebGL.               */
+var COLS = 14, ROWS = 10;
+var VS = 0.09;                         // world units per foot of elevation
+var G = TacticsGeo;
+var MAP = G.makeMap(COLS, ROWS);
+(function authorDemoMap(){
+  function H(c,r,ft){ MAP.h[G.idx(MAP,c,r)] = ft; }
+  function W(c,r){ MAP.wall[G.idx(MAP,c,r)] = true; }
+  // NE plateau, 15ft — a true cliff: only climb/fly can mount it
+  for (var r=0;r<=3;r++) for (var c=11;c<COLS;c++) H(c,r,15);
+  // a 5ft terrace lip below it — walkable up, but the 5→15 jump is the cliff
+  for (var r2=0;r2<=3;r2++) H(10,r2,5);
+  // a stone wall column mid-field — total cover behind it, a peek at its edge
+  W(6,4); W(6,5); W(6,6);
+})();
+
+var SPAWN_PC  = { cosmere:[1,3], caim:[1,6], liadan:[0,4], vesperian:[2,5] };
+var SPAWN_FOE = { "gob-a":[7,5], "gob-b":[9,6], "gob-c":[11,2], "gob-d":[10,7], "boss":[12,1] };
+
+function tileY(c,r){ return G.heightAt(MAP,c,r) * VS; }
+function inBoard(c,r){ return G.inBounds(MAP,c,r); }
+function keyOf(c,r){ return c+","+r; }
+function worldX(c){ return c - (COLS-1)/2; }
+function worldZ(r){ return r - (ROWS-1)/2; }
+var chebyshev = G.chebyshev;
+
+/* ── three.js stage ───────────────────────────────────────────────── */
+var stage = document.getElementById("stage");
+var renderer = new THREE.WebGLRenderer({ antialias:false });
+renderer.setPixelRatio(Math.min(window.devicePixelRatio, 1.5));
+renderer.setSize(window.innerWidth, window.innerHeight);
+stage.appendChild(renderer.domElement);
+
+var scene = new THREE.Scene();
+scene.fog = new THREE.FogExp2(0x0a1614, 0.026);
+(function(){
+  var c = document.createElement("canvas"); c.width = 8; c.height = 256;
+  var g = c.getContext("2d");
+  var gr = g.createLinearGradient(0,0,0,256);
+  gr.addColorStop(0,"#050d0c"); gr.addColorStop(0.55,"#0e211e");
+  gr.addColorStop(0.8,"#1a332d"); gr.addColorStop(1,"#22403a");
+  g.fillStyle = gr; g.fillRect(0,0,8,256);
+  scene.background = new THREE.CanvasTexture(c);
+})();
+
+var camera = new THREE.PerspectiveCamera(38, window.innerWidth/window.innerHeight, 0.1, 90);
+var CAM_R = 13.2, CAM_H = 9.4;
+var yaw = -Math.PI/5, yawTarget = yaw;
+function placeCamera(){
+  camera.position.set(Math.sin(yaw)*CAM_R, CAM_H, Math.cos(yaw)*CAM_R);
+  camera.lookAt(0, 0.4, 0);
+}
+placeCamera();
+
+// lights
+scene.add(new THREE.AmbientLight(0x2a4440, 1.15));
+var dir = new THREE.DirectionalLight(0x9fb8ae, 0.5);
+dir.position.set(-5, 10, 6);
+scene.add(dir);
+var torch = new THREE.PointLight(0xd9a441, 0.9, 20, 2);
+torch.position.set(0, 3.4, 0);
+scene.add(torch);
+
+// surrounding ground apron + backdrop silhhouettes
+(function(){
+  var apron = new THREE.Mesh(new THREE.PlaneGeometry(70, 46),
+    new THREE.MeshLambertMaterial({ color:0x121f1c }));
+  apron.rotation.x = -Math.PI/2;
+  apron.position.y = -0.35;
+  scene.add(apron);
+  function ridge(z, y, h, color){
+    var c = document.createElement("canvas"); c.width = 1024; c.height = 256;
+    var g = c.getContext("2d");
+    g.fillStyle = color;
+    g.beginPath(); g.moveTo(0,256);
+    var x = 0;
+    while (x < 1024){
+      x += 60 + Math.random()*120; g.lineTo(x, 256 - (64 + Math.random()*90));
+      x += 60 + Math.random()*120; g.lineTo(x, 256 - (26 + Math.random()*30));
+    }
+    g.lineTo(1024,256); g.closePath(); g.fill();
+    var m = new THREE.Mesh(new THREE.PlaneGeometry(64, h),
+      new THREE.MeshBasicMaterial({ map:new THREE.CanvasTexture(c), transparent:true, depthWrite:false }));
+    m.position.set(0, y, z);
+    scene.add(m);
+    var m2 = m.clone(); m2.rotation.y = Math.PI; m2.position.z = -z; scene.add(m2);
+    var m3 = m.clone(); m3.rotation.y = Math.PI/2; m3.position.set(z, y, 0); scene.add(m3);
+    var m4 = m.clone(); m4.rotation.y = -Math.PI/2; m4.position.set(-z, y, 0); scene.add(m4);
+  }
+  ridge(-21, 3.6, 10, "#0c1a17");
+})();
+
+// tile textures — a few painted variants
+function tileTexture(base, moss){
+  var c = document.createElement("canvas"); c.width = 96; c.height = 96;
+  var g = c.getContext("2d");
+  g.fillStyle = base; g.fillRect(0,0,96,96);
+  for (var i=0;i<26;i++){
+    g.fillStyle = "rgba(0,0,0,"+(0.04+Math.random()*0.08)+")";
+    g.fillRect(Math.random()*90, Math.random()*90, 3+Math.random()*8, 2+Math.random()*5);
+  }
+  if (moss){
+    for (var j=0;j<7;j++){
+      g.fillStyle = "rgba(52,84,62,"+(0.25+Math.random()*0.3)+")";
+      g.beginPath();
+      g.ellipse(Math.random()*96, Math.random()*96, 6+Math.random()*14, 4+Math.random()*8, Math.random()*3, 0, 7);
+      g.fill();
+    }
+  }
+  g.strokeStyle = "rgba(10,20,18,0.85)"; g.lineWidth = 3;
+  g.strokeRect(0,0,96,96);
+  return new THREE.CanvasTexture(c);
+}
+var TILE_TEX = [
+  tileTexture("#22352f", true), tileTexture("#1f312c", true),
+  tileTexture("#243830", false), tileTexture("#20332d", true)
+];
+var CLIFF_TEX = tileTexture("#2c3a3f", false);   // rock face on raised sides
+
+var tiles = {};   // key → { mesh, hi, c, r, wall }
+var boardGroup = new THREE.Group();
+scene.add(boardGroup);
+
+(function buildBoard(){
+  var BOTTOM = -0.6;
+  for (var r=0;r<ROWS;r++){
+    for (var c=0;c<COLS;c++){
+      var top = tileY(c,r);
+      var wall = G.isWall(MAP,c,r);
+      var colTop = wall ? top + 1.5 : top;      // walls rise as opaque stone
+      var h = colTop - BOTTOM;
+      var capMat = wall
+        ? new THREE.MeshLambertMaterial({ color:0x3c4a52 })
+        : new THREE.MeshLambertMaterial({ map: TILE_TEX[(c*7+r*3)%TILE_TEX.length] });
+      var sideMat = wall
+        ? new THREE.MeshLambertMaterial({ color:0x2a343b })
+        : new THREE.MeshLambertMaterial({ map: (top>0 ? CLIFF_TEX : undefined),
+            color: top>0 ? 0xffffff : 0x141f1b });
+      var mesh = new THREE.Mesh(new THREE.BoxGeometry(0.98, h, 0.98),
+        [sideMat, sideMat, capMat, sideMat, sideMat, sideMat]);
+      mesh.position.set(worldX(c), BOTTOM + h/2, worldZ(r));
+      boardGroup.add(mesh);
+
+      var hi = new THREE.Mesh(new THREE.PlaneGeometry(0.92, 0.92),
+        new THREE.MeshBasicMaterial({ color:0x4c8f86, transparent:true, opacity:0,
+          depthWrite:false }));
+      hi.rotation.x = -Math.PI/2;
+      hi.position.set(worldX(c), top + 0.012, worldZ(r));
+      scene.add(hi);
+      tiles[keyOf(c,r)] = { mesh:mesh, hi:hi, c:c, r:r, wall:wall };
+    }
+  }
+})();
+
+// dust
+var motes = null;
+if (!REDUCED){
+  var COUNT = 80, pos = new Float32Array(COUNT*3), vel = [];
+  for (var i=0;i<COUNT;i++){
+    pos[i*3]=(Math.random()-0.5)*16; pos[i*3+1]=Math.random()*4.5; pos[i*3+2]=(Math.random()-0.5)*12;
+    vel.push(0.05+Math.random()*0.12);
+  }
+  var geo = new THREE.BufferGeometry();
+  geo.setAttribute("position", new THREE.BufferAttribute(pos,3));
+  motes = new THREE.Points(geo, new THREE.PointsMaterial({ color:0xd9c48a, size:0.045,
+    transparent:true, opacity:0.5, depthWrite:false, blending:THREE.AdditiveBlending }));
+  motes.userData = { vel:vel };
+  scene.add(motes);
+}
+
+var shadowTx = (function(){
+  var c = document.createElement("canvas"); c.width=64; c.height=64;
+  var g = c.getContext("2d");
+  var gr = g.createRadialGradient(32,32,4,32,32,30);
+  gr.addColorStop(0,"rgba(0,0,0,0.45)"); gr.addColorStop(1,"rgba(0,0,0,0)");
+  g.fillStyle = gr; g.fillRect(0,0,64,64);
+  return new THREE.CanvasTexture(c);
+})();
+var slashTx = (function(){
+  var c = document.createElement("canvas"); c.width=128; c.height=128;
+  var g = c.getContext("2d");
+  g.strokeStyle="#fff4d8"; g.lineWidth=9; g.lineCap="round";
+  g.shadowColor="#c9a24b"; g.shadowBlur=14;
+  g.beginPath(); g.arc(64,96,62,-2.4,-0.7); g.stroke();
+  g.lineWidth=4; g.strokeStyle="#ffffff";
+  g.beginPath(); g.arc(64,96,62,-2.3,-0.8); g.stroke();
+  return new THREE.CanvasTexture(c);
+})();
+function streakTexture(color, glow){
+  var c = document.createElement("canvas"); c.width=96; c.height=32;
+  var g = c.getContext("2d");
+  g.shadowColor=glow; g.shadowBlur=10;
+  g.strokeStyle=color; g.lineWidth=5; g.lineCap="round";
+  g.beginPath(); g.moveTo(8,16); g.lineTo(88,16); g.stroke();
+  g.fillStyle="#ffffff"; g.beginPath(); g.arc(88,16,5,0,7); g.fill();
+  return new THREE.CanvasTexture(c);
+}
+var arrowTx = streakTexture("#e8dcc0","#4c8f86");
+var eboltTx = streakTexture("#c9b0ff","#7b5ea7");
+var healTx = (function(){
+  var c = document.createElement("canvas"); c.width=64; c.height=64;
+  var g = c.getContext("2d");
+  g.shadowColor="#8fd08a"; g.shadowBlur=12;
+  g.strokeStyle="#d8f5d4"; g.lineWidth=8; g.lineCap="round";
+  g.beginPath(); g.moveTo(32,10); g.lineTo(32,54); g.moveTo(10,32); g.lineTo(54,32); g.stroke();
+  return new THREE.CanvasTexture(c);
+})();
+
+/* ── units ────────────────────────────────────────────────────────── */
+var platesEl = document.getElementById("plates");
+var units = [];
+
+function makeUnit(def, side, cr){
+  var spr = SPRITES[def.sprite];
+  var canvas = pixelCanvas(spr.px, spr.pal);
+  var tx = new THREE.CanvasTexture(canvas);
+  tx.magFilter = THREE.NearestFilter; tx.minFilter = THREE.NearestFilter;
+  var rows = spr.px.length, cols = spr.px[0].length;
+  var hW = (def.sprite==="chief") ? 1.35 : (side==="foe" ? 0.95 : 1.15);
+  var wW = hW * (cols/rows);
+  var geo = new THREE.PlaneGeometry(wW, hW);
+  geo.translate(0, hW/2, 0);
+  var mat = new THREE.MeshBasicMaterial({ map:tx, transparent:true, alphaTest:0.15 });
+  var mesh = new THREE.Mesh(geo, mat);
+  if (side==="foe") mesh.scale.x = -1;
+  scene.add(mesh);
+
+  var blob = new THREE.Mesh(new THREE.PlaneGeometry(wW*0.85, wW*0.5),
+    new THREE.MeshBasicMaterial({ map:shadowTx, transparent:true, depthWrite:false }));
+  blob.rotation.x = -Math.PI/2;
+  scene.add(blob);
+
+  var plate = document.createElement("div");
+  plate.className = "plate " + (side==="pc"?"pc":"foe");
+  plate.innerHTML = '<div class="nm">'+def.name+'</div><div class="bar"><div class="fill"></div></div>';
+  platesEl.appendChild(plate);
+
+  var u = {
+    def:def, side:side, name:def.name, key:def.key,
+    hp:def.hp, hpMax:def.hpMax || def.hp, ac:def.ac, speed:def.speed,
+    c:cr[0], r:cr[1],
+    mesh:mesh, blob:blob, plate:plate, canvas:canvas,
+    bobPhase:Math.random()*6.28, height:hW,
+    dead:false, init:d(20)+def.initMod,
+    climb:!!def.climb, fly:!!def.fly,
+    res: Object.assign({}, def.res || {}),   /* full rest — start at max */
+    boom:null,      /* {by} — sheathed in Booming Blade energy */
+    hex:null,       /* foe this unit has Hexed */
+    vmDis:false,    /* Vicious Mockery: disadvantage on next attack */
+    bardic:0,       /* pending Bardic Inspiration die size (0 = none) */
+    reacted:false,  /* reaction spent this round (opportunity attacks) */
+    shield:false,   /* Shield spell: +5 AC until start of next turn */
+    sbAdv:false,    /* Silvery Barbs granted advantage on next attack */
+    uses:{}
+  };
+  (def.actions||[]).forEach(function(a){ if (a.uses) u.uses[a.label]=a.uses; });
+  placeUnit(u);
+  units.push(u);
+  return u;
+}
+function placeUnit(u){
+  u.mesh.position.set(worldX(u.c), tileY(u.c,u.r), worldZ(u.r));
+  u.blob.position.set(worldX(u.c), tileY(u.c,u.r)+0.013, worldZ(u.r));
+}
+function unitAt(c,r){
+  return units.find(function(u){ return !u.dead && u.c===c && u.r===r; }) || null;
+}
+function occupiedSet(except){
+  var s = new Set();
+  units.forEach(function(u){ if (!u.dead && u!==except) s.add(keyOf(u.c,u.r)); });
+  return s;
+}
+
+var pcs = PARTY.map(function(p){ return makeUnit(p, "pc", SPAWN_PC[p.key]); });
+var foes = FOES.map(function(f){ return makeUnit(f, "foe", SPAWN_FOE[f.key]); });
+
+/* ── movement — the geometry module owns the rules ────────────────────
+   height-gated BFS: walls, occupancy, and cliffs (Δh>5ft) all block,
+   unless the token can climb or fly.                                    */
+function reachable(u, budgetSquares){
+  return G.movementReach(MAP,
+    { c:u.c, r:u.r, speed:u.speed, climb:u.climb, fly:u.fly },
+    occupiedSet(u), budgetSquares);
+}
+function pathTo(seen, u, c, r){ return G.pathTo(seen, { c:u.c, r:u.r }, c, r); }
+
+/* ── highlights ───────────────────────────────────────────────────── */
+function clearHi(){
+  Object.keys(tiles).forEach(function(k){ tiles[k].hi.material.opacity = 0; });
+}
+function hiTiles(keys, hex, op){
+  keys.forEach(function(k){
+    var t = tiles[k]; if (!t) return;
+    t.hi.material.color.setHex(hex);
+    t.hi.material.opacity = op;
+  });
+}
+
+/* ── HTML overlays ────────────────────────────────────────────────── */
+var v3 = new THREE.Vector3();
+function project(obj, yOff){
+  v3.copy(obj.position); v3.y += yOff;
+  v3.project(camera);
+  return { x:(v3.x*0.5+0.5)*window.innerWidth, y:(-v3.y*0.5+0.5)*window.innerHeight };
+}
+function updatePlates(){
+  units.forEach(function(u){
+    var p = project(u.mesh, u.height + 0.26);
+    u.plate.style.left = p.x+"px";
+    u.plate.style.top = p.y+"px";
+    u.plate.querySelector(".fill").style.width = Math.max(0,u.hp/u.hpMax)*100+"%";
+    u.plate.classList.toggle("dead", u.dead);
+  });
+}
+function spawnNumber(u, text, cls){
+  var p = project(u.mesh, u.height+0.05);
+  var el = document.createElement("div");
+  el.className = "dmg" + (cls ? " "+cls : "");
+  el.textContent = text;
+  el.style.left = (p.x + (Math.random()*22-11))+"px";
+  el.style.top = p.y+"px";
+  platesEl.appendChild(el);
+  setTimeout(function(){ el.remove(); }, 1100);
+}
+var logEl = document.getElementById("log");
+var logAll = [], logShown = 0;
+function renderLog(){
+  var upto = logAll.slice(0, logShown);
+  var slice = upto.slice(Math.max(0, upto.length - 3));
+  logEl.innerHTML = slice.map(function(l){ return "<div>"+l+"</div>"; }).join("");
+}
+function log(html){
+  if (logShown < logAll.length) logAll.length = logShown;   // a new line drops the redo branch
+  logAll.push(html); logShown = logAll.length; renderLog();
+}
+var phaseEl = document.getElementById("phase");
+function phase(t){ phaseEl.textContent = t || ""; }
+
+/* ── tween / wait ─────────────────────────────────────────────────── */
+var tweens = [];
+function tween(dur, fn, ease){
+  if (REDUCED) dur = Math.min(dur, 120);
+  return new Promise(function(res){
+    tweens.push({ t0:performance.now(), dur:dur, fn:fn,
+      ease: ease || function(t){ return t<0.5 ? 2*t*t : 1-Math.pow(-2*t+2,2)/2; },
+      res:res });
+  });
+}
+function stepTweens(now){
+  for (var i=tweens.length-1;i>=0;i--){
+    var tw = tweens[i];
+    var t = Math.min(1,(now-tw.t0)/tw.dur);
+    tw.fn(tw.ease(t), t);
+    if (t>=1){ tweens.splice(i,1); tw.res(); }
+  }
+}
+function wait(ms){ return new Promise(function(res){ setTimeout(res, REDUCED?Math.min(ms,150):ms); }); }
+var shakeAmt = 0;
+function shake(a){ if (!REDUCED) shakeAmt = Math.max(shakeAmt, a); }
+
+/* ── choreography ─────────────────────────────────────────────────── */
+function walk(u, path){
+  var before = enemiesThreatening(u);        // who threatens the square we're leaving
+  var chain = Promise.resolve();
+  path.forEach(function(step){
+    chain = chain.then(function(){
+      var a = u.mesh.position.clone();
+      var b = new THREE.Vector3(worldX(step.c), tileY(step.c,step.r), worldZ(step.r));
+      return tween(150, function(e){
+        u.mesh.position.lerpVectors(a,b,e);
+        u.mesh.position.y += Math.sin(e*Math.PI)*0.14;
+        u.blob.position.x = u.mesh.position.x;
+        u.blob.position.z = u.mesh.position.z;
+        u.blob.position.y = b.y + 0.013;
+      }, function(t){ return t; }).then(function(){
+        u.c = step.c; u.r = step.r;
+        placeUnit(u);
+      });
+    });
+  });
+  return chain
+    .then(function(){ return path.length ? provokeOAs(u, before) : null; })
+    .then(function(){
+      // Booming Blade: moving while wreathed detonates the stored thunder
+      if (u.boom && path.length && !u.dead){
+        u.boom = null;
+        var thr = roll("1d8");
+        log("<em>"+u.name+"</em> moves — <em>booming "+thr+" thunder</em>");
+        return applyDamage(u, thr, u.side==="foe" ? "" : "hurtPc ");
+      }
+    });
+}
+function flashHit(t){
+  t.mesh.material.color.setHex(0xff6b57);
+  var ox = t.mesh.position.x;
+  tween(220, function(e){
+    t.mesh.position.x = ox + Math.sin(e*18)*0.06*(1-e);
+  });
+  setTimeout(function(){ t.mesh.material.color.setHex(0xffffff); }, 130);
+}
+function vfxAt(t, tx, hex){
+  var m = new THREE.Mesh(new THREE.PlaneGeometry(0.9,0.9),
+    new THREE.MeshBasicMaterial({ map:tx, transparent:true, depthWrite:false,
+      blending:THREE.AdditiveBlending }));
+  m.position.copy(t.mesh.position);
+  m.position.y += t.height*0.55;
+  m.rotation.y = yaw;
+  m.rotation.z = (Math.random()-0.5)*1.2;
+  scene.add(m);
+  return tween(220, function(e){
+    m.material.opacity = 1-e;
+    m.scale.setScalar(1+e*0.5);
+  }).then(function(){ scene.remove(m); });
+}
+function bolt(a, b, tx){
+  var m = new THREE.Mesh(new THREE.PlaneGeometry(0.8,0.26),
+    new THREE.MeshBasicMaterial({ map:tx, transparent:true, depthWrite:false,
+      blending:THREE.AdditiveBlending }));
+  var p0 = a.mesh.position.clone(); p0.y += a.height*0.6;
+  var p1 = b.mesh.position.clone(); p1.y += b.height*0.55;
+  m.position.copy(p0);
+  m.rotation.y = yaw;
+  scene.add(m);
+  var dist = p0.distanceTo(p1);
+  return tween(120 + dist*28, function(e){
+    m.position.lerpVectors(p0,p1,e);
+    m.position.y += Math.sin(e*Math.PI)*Math.min(0.5, dist*0.06);
+  }, function(t){ return t; }).then(function(){ scene.remove(m); });
+}
+function applyDamage(t, amount, cls){
+  t.hp = Math.max(0, t.hp - amount);
+  spawnNumber(t, amount, cls);
+  flashHit(t);
+  shake(0.05);
+  if (t.hp<=0 && !t.dead) return die(t);
+  return Promise.resolve();
+}
+function applyHeal(t, amount){
+  t.hp = Math.min(t.hpMax, t.hp + amount);
+  spawnNumber(t, "+"+amount, "heal");
+  vfxAt(t, healTx);
+  return Promise.resolve();
+}
+function die(u){
+  u.dead = true;
+  log("<em>"+u.name+"</em> falls!");
+  refreshStrip();
+  var mat = u.mesh.material;
+  return tween(600, function(e){
+    u.mesh.rotation.z = (u.side==="pc"?1:-1) * -e*Math.PI/2;
+    mat.opacity = 1-e*0.82;
+    u.blob.material.opacity = 1-e;
+  }).then(function(){ mat.opacity = 0.16; });
+}
+
+/* ── advantage / disadvantage + transparent d20 ──────────────────────
+   House rule (toggle): flanking → advantage (not the flat +2/+5 variant).
+   RAW: a ranged attack has disadvantage while a hostile is within 5 ft.
+   Vicious Mockery imposes disadvantage on the target's next attack.       */
+var FLANKING = false;
+function hostileAdjacent(u){
+  return units.some(function(x){ return !x.dead && x.side!==u.side && chebyshev(x,u)<=1; });
+}
+function isFlanked(attacker, target){
+  if (chebyshev({c:attacker.c,r:attacker.r}, target) > 1) return false;   // must be in melee
+  var oc = 2*target.c - attacker.c, orr = 2*target.r - attacker.r;         // opposite square
+  return units.some(function(x){
+    return !x.dead && x.side===attacker.side && x!==attacker && x.c===oc && x.r===orr;
+  });
+}
+function advState(attacker, target, act){
+  var adv=false, dis=false, why=[];
+  if (act.kind==="attack"){
+    if (act.rng>1 && hostileAdjacent(attacker)){ dis=true; why.push("point-blank"); }
+    if (act.rng<=1 && FLANKING && isFlanked(attacker, target)){ adv=true; why.push("flanking"); }
+  }
+  if (attacker.vmDis){ dis=true; why.push("mocked"); }
+  if (attacker.sbAdv){ adv=true; why.push("silvered"); }
+  var cancelled = adv && dis;
+  return { adv: cancelled?false:adv, dis: cancelled?false:dis, why:why, cancelled:cancelled };
+}
+function d20adv(mod, adv, dis){
+  var a=d(20), b=d(20), rolls=[a], pick=a;
+  if (adv && !dis){ rolls=[a,b]; pick=Math.max(a,b); }
+  else if (dis && !adv){ rolls=[a,b]; pick=Math.min(a,b); }
+  return { rolls:rolls, nat:pick, mod:mod, total:pick+mod };
+}
+function rollText(r, adv, dis){
+  var dice = r.rolls.length>1
+    ? "["+r.rolls[0]+","+r.rolls[1]+"]→"+r.nat+(adv?" adv":dis?" dis":"")
+    : "["+r.nat+"]";
+  return "d20 "+dice+" "+(r.mod>=0?"+":"")+r.mod+" = <em>"+r.total+"</em>";
+}
+var GOB_SAVE = { str:1, dex:2, con:0, int:-1, wis:-1, cha:-1 };  // Mirefen goblin save mods
+function saveModFor(u, abil){ return (GOB_SAVE[abil]!=null) ? GOB_SAVE[abil] : 0; }
+
+/* sheet-shaped resolution: transparent d20 + adv/dis, crit doubles dice */
+function resolveAttack(actor, target, act, coverBonus, bardicDie){
+  var adv = advState(actor, target, act);
+  var r = d20adv(act.hit, adv.adv, adv.dis);
+  var bard = 0;
+  if (bardicDie){ bard = d(bardicDie); r.total += bard; }
+  var out = { r:r, adv:adv, bard:bard, ac:target.ac + (target.shield?5:0) + (coverBonus||0) };
+  if (r.nat === 1){ out.hit=false; out.nat1=true; return out; }
+  var crit = r.nat === 20;
+  if (!crit && r.total < out.ac){ out.hit=false; return out; }
+  out.hit=true; out.crit=crit; return out;   // damage rolled later, so a Barbs reroll can undo a crit
+}
+function strike(actor, target, act, opts){
+  opts = opts || {};
+  var strikes = act.strikes || 1;
+  var chain = Promise.resolve();
+  var isRanged = act.rng > 1;
+  var coverBonus = 0;
+  if (isRanged && act.kind==="attack" && !opts.forced){
+    var v = G.losVerdict(MAP, actor, target).acBonus; coverBonus = isFinite(v) ? v : 0;
+  }
+  for (var s=0;s<strikes;s++){
+    (function(idx){
+      chain = chain.then(function(){
+        if (target.dead) return null;
+        var pre;
+        if (isRanged){
+          pre = bolt(actor, target, act.fx==="ebolt" ? eboltTx : arrowTx);
+        } else {
+          var a = actor.mesh.position.clone(), b = target.mesh.position.clone();
+          var dst = a.clone().lerp(b, 0.55);
+          pre = tween(170, function(e){ actor.mesh.position.lerpVectors(a, dst, e<0.5 ? e*2 : (1-e)*2); });
+        }
+        return pre.then(function(){
+          if (target.dead) return null;
+          var bardicDie = (idx===0 && actor.bardic) ? actor.bardic : 0;
+          var r = resolveAttack(actor, target, act, coverBonus, bardicDie);
+          if (idx===0){ if (bardicDie) actor.bardic = 0; if (actor.vmDis) actor.vmDis = false; if (actor.sbAdv) actor.sbAdv = false; }
+          if (!isRanged || act.fx==="slash") vfxAt(target, slashTx);
+          var head = "<em>"+actor.name+"</em> "+act.label+" → "+target.name+": "+
+                     rollText(r.r, r.adv.adv, r.adv.dis)+" vs AC "+r.ac;
+          var tags = (r.adv.why.length ? " <em>("+r.adv.why.join(", ")+(r.adv.cancelled?" cancel":"")+")</em>" : "")
+                   + (bardicDie ? " <em>+Bardic "+r.bard+"</em>" : "")
+                   + (coverBonus ? " <em>(+"+coverBonus+" cover)</em>" : "")
+                   + (opts.forced ? " <em>⚑override</em>" : "");
+          if (!r.hit){
+            spawnNumber(target, r.nat1 ? "NAT 1" : "MISS", "miss");
+            log(head+" — <em>miss</em>"+tags);
+            return wait(140);
+          }
+          log(head+tags);                       // the incoming hit — verdict pending on reactions
+          return resolveHit(actor, target, act, r);
+        });
+      });
+    })(s);
+  }
+  return chain;
+}
+function saveAttack(actor, target, act){
+  return bolt(actor, target, eboltTx).then(function(){
+    if (target.dead) return null;
+    var abil = act.saveAbility || "wis";
+    var r = d20adv(saveModFor(target, abil), false, false);
+    var head = "<em>"+actor.name+"</em> "+act.label+" → "+target.name+": "+
+               abil.toUpperCase()+" save "+rollText(r,false,false)+" vs DC "+act.dc;
+    if (r.total >= act.dc){
+      spawnNumber(target, "SAVE", "miss");
+      log(head+" — <em>saves</em>");
+      return wait(140);
+    }
+    var dmg = roll(act.dmg);
+    if (act.rider==="vm") target.vmDis = true;      // disadvantage on its next attack
+    log(head+" — <em>fails "+dmg+"</em>"+(act.rider==="vm"?" <em>(mocked)</em>":""));
+    return applyDamage(target, dmg, "");
+  });
+}
+
+/* ── reactions: Shield · Silvery Barbs · Hellish Rebuke ───────────────
+   The interrupt fires only on a HIT (a miss resolves silently). For now the
+   DM holds every seat, so whoDecides() is always the DM; when per-player
+   seats land, that's the only line that changes. Each reaction snapshots
+   into the rewind log, so a fight-swinging Barbs stays scrubbable.          */
+function whoDecides(){ return "DM"; }
+function canPayReact(u, rx){
+  if (u.reacted) return false;
+  if (rx.cost) for (var k in rx.cost){ if ((u.res[k]||0) < rx.cost[k]) return false; }
+  return true;
+}
+function payReact(u, rx){ u.reacted = true; if (rx.cost) for (var k in rx.cost) u.res[k] -= rx.cost[k]; }
+function promptReaction(msg, yesLabel){
+  var prev = busy; busy = true;                 // lock the board + transport while deciding
+  return new Promise(function(resolve){
+    askConfirm(msg,
+      function(){ busy = prev; resolve(true); },
+      function(){ busy = prev; resolve(false); },
+      yesLabel, "Pass");
+  });
+}
+/* Silvery Barbs: offered when a foe LANDS a hit and a caster can see it within 30 ft */
+function sbCandidate(attacker){
+  if (attacker.side !== "foe") return null;
+  return units.filter(function(u){ return !u.dead && u.side==="pc" && u.def.react && u.def.react.silveryBarbs; })
+    .filter(function(u){ var rx = u.def.react.silveryBarbs;
+      return canPayReact(u, rx) && G.inRange(MAP, u, attacker, (rx.range||6)*5) && G.losVerdict(MAP, u, attacker).canTarget; })[0] || null;
+}
+function grantSbAdvantage(sb, ally){
+  if (!ally || ally.dead) return;
+  ally.sbAdv = true;
+  log("<em>"+sb.name+"</em> steadies "+ally.name+" — <em>advantage</em> on their next attack");
+}
+/* Hellish Rebuke: offered to a creature that just TOOK damage */
+function offerRebuke(victim, attacker){
+  var rx = victim.def && victim.def.react && victim.def.react.hellishRebuke;
+  if (victim.dead || !rx || !canPayReact(victim, rx)) return Promise.resolve();
+  return promptReaction("\ud83d\udd25 "+victim.name+" — Hellish Rebuke on "+attacker.name+"? ("+whoDecides()+")", "Hellish Rebuke")
+    .then(function(use){
+      if (!use) return null;
+      payReact(victim, rx);
+      var save = d20adv(saveModFor(attacker, rx.save||"dex"), false, false);
+      var full = roll(rx.dmg), dmg = save.total >= rx.dc ? Math.floor(full/2) : full;
+      log("<em>"+victim.name+"</em> — <em>Hellish Rebuke</em>: "+attacker.name+" "+(rx.save||"dex").toUpperCase()+
+          " save "+rollText(save,false,false)+" vs DC "+rx.dc+" — "+(save.total>=rx.dc?"half":"full")+" <em>"+dmg+" fire</em>");
+      pushHistory("\ud83d\udd25 Hellish Rebuke");
+      return applyDamage(attacker, dmg, "");
+    });
+}
+/* the interrupt chain for a landed hit: Silvery Barbs → Shield → damage → Rebuke */
+function resolveHit(actor, target, act, r){
+  var chain = Promise.resolve(true);
+  // 1) Silvery Barbs — reroll the attack, take the lower
+  chain = chain.then(function(hit){
+    if (!hit) return false;
+    var sb = sbCandidate(actor);
+    if (!sb) return true;
+    return promptReaction("\u26a1 "+sb.name+" — Silvery Barbs on "+actor.name+"'s hit? ("+whoDecides()+")", "Silvery Barbs")
+      .then(function(use){
+        if (!use) return true;
+        payReact(sb, sb.def.react.silveryBarbs);
+        var newNat = d(20), lower = Math.min(r.r.nat, newNat);
+        r.r.rolls = [r.r.nat, newNat]; r.r.nat = lower; r.r.total = lower + r.r.mod + (r.bard||0);
+        r.crit = (lower === 20);
+        var still = (lower !== 1) && (lower === 20 || r.r.total >= r.ac);
+        log("<em>"+sb.name+"</em> — <em>Silvery Barbs</em>: "+actor.name+" rerolls, takes ["+lower+"] = "+
+            r.r.total+" vs AC "+r.ac+" — "+(still?"still hits":"turned aside"));
+        pushHistory("\u26a1 Silvery Barbs");
+        grantSbAdvantage(sb, target);       // the saved ally gets advantage
+        return still;
+      });
+  });
+  // 2) Shield — target raises +5 AC and we re-check the same roll
+  chain = chain.then(function(hit){
+    if (!hit || target.dead) return hit;
+    var rx = target.def.react && target.def.react.shield;
+    if (!rx || !canPayReact(target, rx)) return true;
+    return promptReaction("\ud83d\udee1 "+target.name+" — Shield? +5 AC vs this hit ("+whoDecides()+")", "Shield")
+      .then(function(use){
+        if (!use) return true;
+        payReact(target, rx); target.shield = true;
+        var newAC = r.ac + 5;
+        var still = (r.r.nat === 20) || (r.r.nat !== 1 && r.r.total >= newAC);
+        log("<em>"+target.name+"</em> — <em>Shield!</em> AC "+r.ac+" \u2192 "+newAC+"; "+r.r.total+" vs "+newAC+" — "+(still?"still hits":"blocked"));
+        r.ac = newAC; pushHistory("\ud83d\udee1 Shield");
+        return still;
+      });
+  });
+  // 3) outcome — damage (rolled now, honouring any Barbs-erased crit), then Rebuke
+  chain = chain.then(function(hit){
+    if (!hit){ spawnNumber(target, "MISS", "miss"); log("\u2192 <em>the blow is turned aside</em>"); return wait(160); }
+    var dmg = roll(act.dmg); if (r.crit) dmg += roll(act.dmg.replace(/[+-]\d+$/,""));
+    var dtag = "";
+    if (actor.hex === target){ var h = roll("1d6"); dmg += h; dtag += " <em>+Hex "+h+"</em>"; }
+    log("\u2192 <em>hit "+dmg+"</em>"+(r.crit?" CRIT":"")+dtag);
+    var dmgP = applyDamage(target, dmg, (actor.side==="foe"?"hurtPc ":"")+(r.crit?"crit":""));
+    if (act.rider==="boom" && !target.dead){ target.boom = { by:actor }; log(target.name+" is <em>wreathed in booming energy</em>"); }
+    return dmgP.then(function(){ return offerRebuke(target, actor); }).then(function(){ return wait(140); });
+  });
+  return chain;
+}
+
+/* ── opportunity attacks (reactions) ─────────────────────────────────
+   Leaving a hostile's reach (5 ft, more with a reach weapon) provokes one
+   melee OA from each threatening enemy that still has its reaction.        */
+function reachOf(u){ return u.def.reach || 1; }
+function enemiesThreatening(mover){
+  return units.filter(function(x){ return !x.dead && x.side!==mover.side && chebyshev(x,mover) <= reachOf(x); });
+}
+function meleeActOf(u){
+  if (u.side==="foe") return u.def.melee || (u.def.atk && u.def.atk.rng<=1 ? u.def.atk : null);
+  return (u.def.actions||[]).find(function(a){ return a.kind==="attack" && a.rng<=1 && !a.cost && !a.bonus; }) || null;
+}
+function provokeOAs(mover, before){
+  var chain = Promise.resolve();
+  before.forEach(function(e){
+    if (e.dead || e.reacted) return;
+    if (chebyshev(e, mover) <= reachOf(e)) return;    // never left reach → no OA
+    var m = meleeActOf(e);
+    if (!m) return;
+    e.reacted = true;                                  // spends the reaction
+    chain = chain.then(function(){
+      if (mover.dead) return null;
+      log("<em>"+e.name+"</em> — <em>opportunity attack</em> on "+mover.name+"!");
+      return strike(e, mover, Object.assign({ kind:"attack" }, m, { strikes:1 }));
+    });
+  });
+  return chain;
+}
+
+/* ── turn engine — action + bonus + move ──────────────────────────── */
+var order = units.slice().sort(function(a,b){ return b.init-a.init; });
+var turnIdx = -1, busy = false, over = false;
+var active = null, moveLeft = 0, acted = false, bonused = false;
+var rewinding = false;   // true while the transport is animating a scrub
+var reach = null, armed = null;
+
+function pips(cur, max){ var s=""; for (var i=0;i<max;i++) s += (i<cur?"●":"○"); return s; }
+function resLabel(u){
+  var r = u.res||{}, max = u.def.res||{}, out = [];
+  if (r.ki!=null)          out.push("KI "+pips(r.ki, max.ki));
+  if (r.slot1!=null)       out.push("SLOTS "+pips(r.slot1, max.slot1)+(r.slot2!=null?" / "+pips(r.slot2,max.slot2):""));
+  else if (r.slot2!=null)  out.push("SLOTS II "+pips(r.slot2, max.slot2));
+  if (r.bardic!=null)      out.push("BARD "+pips(r.bardic, max.bardic));
+  if (r.secondWind!=null)  out.push("2ND WIND "+(r.secondWind?"●":"○"));
+  if (r.actionSurge!=null) out.push("SURGE "+(r.actionSurge?"●":"○"));
+  return out.join("  ·  ");
+}
+function canAfford(act){
+  if (act.free){ /* no economy cost */ }
+  else if (act.bonus){ if (bonused) return { ok:false, reason:"bonus used" }; }
+  else if (acted) return { ok:false, reason:"action used" };
+  if (act.needsAttack && !acted) return { ok:false, reason:"after Attack" };
+  if (act.cost) for (var k in act.cost){
+    if ((active.res[k]||0) < act.cost[k]){
+      return { ok:false, reason: k==="ki"?"no ki" : (k==="slot1"||k==="slot2")?"no slots"
+                                : k==="bardic"?"none left":"used" };
+    }
+  }
+  return { ok:true };
+}
+function payFor(act){
+  if (act.free){} else if (act.bonus) bonused = true; else acted = true;
+  if (act.cost) for (var k in act.cost) active.res[k] -= act.cost[k];
+}
+function affordableMain(){ return active.def.actions.some(function(a){ return !a.bonus && !a.free && canAfford(a).ok; }); }
+function affordableBonus(){ return active.def.actions.some(function(a){ return (a.bonus||a.free) && canAfford(a).ok; }); }
+function hasOptions(){
+  if (!active || active.side!=="pc") return false;
+  if (moveLeft > 0) return true;
+  if (!acted && affordableMain()) return true;
+  return affordableBonus();
+}
+
+var stripEl = document.getElementById("turnStrip");
+function buildStrip(){
+  stripEl.innerHTML = "";
+  order.forEach(function(u){
+    var t = document.createElement("div");
+    t.className = "tile "+u.side;
+    var img = document.createElement("img");
+    if (u.side==="pc" && PORTRAITS[u.def.portrait]){
+      img.src = PORTRAITS[u.def.portrait];
+    } else {
+      img.src = u.canvas.toDataURL();
+      img.className = "pix";
+    }
+    img.alt = u.name;
+    t.appendChild(img);
+    var s = document.createElement("div"); s.className = "side"; t.appendChild(s);
+    u.tile = t;
+    stripEl.appendChild(t);
+  });
+}
+function refreshStrip(){
+  order.forEach(function(u,i){
+    u.tile.classList.toggle("active", i===turnIdx && !u.dead);
+    u.tile.classList.toggle("dead", u.dead);
+  });
+}
+
+var dock = document.getElementById("dock");
+var dockName = document.getElementById("dockName");
+var dockStats = document.getElementById("dockStats");
+var dockBtns = document.getElementById("dockBtns");
+
+function refreshDock(){
+  if (!active || active.side!=="pc"){ dock.classList.remove("show"); return; }
+  dockName.textContent = active.name;
+  var rl = resLabel(active);
+  dockStats.innerHTML = active.def.cls + "  ·  AC "+active.ac+" · HP "+active.hp+"/"+active.hpMax
+    + (rl ? '<br><span class="pips">'+rl+'</span>' : "");
+  dockBtns.innerHTML = "";
+  active.def.actions.forEach(function(act){
+    var b = document.createElement("button");
+    b.className = "abtn" + (act.bonus?" isbonus":"") + (act.free?" isfree":"");
+    var aff = canAfford(act);
+    b.innerHTML = act.label + '<span class="sub">'+act.sub+(aff.ok?"":" — "+aff.reason)+'</span>';
+    if (!aff.ok) b.setAttribute("disabled","");
+    b.addEventListener("click", function(){
+      if (busy || !canAfford(act).ok) return;
+      if (act.kind === "selfheal"){                     // Second Wind
+        busy = true; payFor(act);
+        var amt = roll(act.dmg);
+        applyHeal(active, amt).then(function(){
+          log("<em>"+active.name+"</em> "+act.label+" <em>+"+amt+"</em>");
+          busy=false; pushHistory("act · "+active.name+" "+act.label); refreshDock(); maybeAutoEnd();
+        });
+        return;
+      }
+      if (act.kind === "surge"){                         // Action Surge — regain the action
+        payFor(act); acted = false;
+        log("<em>"+active.name+"</em> — Action Surge · <em>action regained</em>");
+        pushHistory("act · "+active.name+" Action Surge");
+        refreshDock(); showMove();
+        return;
+      }
+      if (armed && armed.act === act){        // clicking the armed action again cancels it
+        armCancel(); showMove();
+        return;
+      }
+      armCancel();
+      armed = { act:act, btn:b };
+      b.classList.add("armed");
+      if (act.kind==="heal" || act.kind==="buffAlly") b.classList.add("kind-heal");
+      showTargets();
+    });
+    dockBtns.appendChild(b);
+  });
+  var w = document.createElement("button");
+  w.className = "abtn";
+  w.innerHTML = "End Turn";
+  w.addEventListener("click", function(){ if (!busy) endTurn(); });
+  dockBtns.appendChild(w);
+  dock.classList.add("show");
+}
+function armCancel(){
+  if (armed && armed.btn) armed.btn.classList.remove("armed","kind-heal");
+  armed = null;
+}
+function showMove(){
+  clearHi(); clearTargets();
+  if (moveLeft<=0 || !active || active.side!=="pc") { reach = null; return; }
+  reach = reachable(active, moveLeft);
+  hiTiles(Object.keys(reach), 0x4c8f86, 0.34);
+  var extra = (active.climb||active.fly) ? "  ·  can scale the cliff" : "";
+  phase(moveLeft*5 + " ft left" + (acted ? " — move or wait" : " · act · wait — any order") + extra);
+}
+/* ── geometry verdict per candidate target ───────────────────────────
+   melee → horizontal + vertical reach; ranged → 3D range + LOS/cover.
+   This is the ENFORCE layer; the mode switch below decides what to do
+   with the verdict (auto-apply, ask the DM, or override).              */
+function ftAt(u){ return G.heightAt(MAP,u.c,u.r); }
+function targetState(actor, u, act){
+  var a = { c:actor.c, r:actor.r }, b = { c:u.c, r:u.r };
+  if (act.kind === "heal" || act.kind === "buffAlly"){
+    var rOk = act.rng<=1 ? chebyshev(a,b) <= 1 : G.inRange(MAP,a,b,act.rng*5);
+    return { legal:rOk, reason: rOk?"":"out of range", cover:"none", acBonus:0 };
+  }
+  if (act.rng <= 1){                                   // melee attack
+    if (G.canReachMelee(MAP, a, b, (act.rng||1)*5)) return { legal:true, reason:"", cover:"none", acBonus:0 };
+    var reason = chebyshev(a,b) > (act.rng||1) ? "out of reach"
+               : (ftAt(u) > ftAt(actor) ? "too high" : ftAt(u) < ftAt(actor) ? "too low" : "out of reach");
+    return { legal:false, reason:reason, cover:"none", acBonus:0 };
+  }
+  var inR = G.inRange(MAP, a, b, act.rng*5);            // ranged attack / save / foe-buff
+  var v = G.losVerdict(MAP, a, b);
+  if (!inR) return { legal:false, reason:"out of range", cover:"none", acBonus:0 };
+  if (!v.canTarget) return { legal:false, reason:"no line", cover:"total", acBonus:0 };
+  // cover raises AC and Dex saves only — a Wis save (Vicious Mockery) or a buff ignores it
+  var coverApplies = (act.kind === "attack") || act.dexSave === true;
+  return { legal:true, reason:"",
+           cover: coverApplies ? v.cover : "none",
+           acBonus: (coverApplies && isFinite(v.acBonus)) ? v.acBonus : 0 };
+}
+
+/* verdict overlays: DOM badges + three.js sight-lines */
+var targetFx = document.getElementById("targetFx");
+var badges = [], losLines = [];
+function clearTargets(){
+  badges.forEach(function(x){ x.el.remove(); }); badges = [];
+  losLines.forEach(function(l){ scene.remove(l); }); losLines = [];
+  units.forEach(function(u){ u._st = null; });
+}
+function badgeFor(u, st, act){
+  var lines = [], cls = "tbadge";
+  if (!st.legal){
+    cls += " bad";
+    lines.push((act.kind==="heal"||act.kind==="buffAlly") ? "· out of range"
+      : st.reason==="no line" ? "✕ no line"
+      : st.reason==="too high" ? "↑ too high"
+      : st.reason==="too low"  ? "↓ too low"
+      : st.reason==="out of reach" ? "⤢ out of reach" : "· out of range");
+  } else {
+    if (act.kind === "attack"){                       // pre-roll adv/dis notification
+      var av = advState(active, u, act);
+      if (av.adv){ cls += " adv"; lines.push('<span class="adv">⇑ ADV · '+av.why.join(", ")+'</span>'); }
+      else if (av.dis){ cls += " dis"; lines.push('<span class="dis">⇓ DIS · '+av.why.join(", ")+'</span>'); }
+      else if (av.cancelled) lines.push('<span class="flat">± adv/dis cancel</span>');
+    }
+    if (st.cover==="half"){ if (cls.indexOf("adv")<0&&cls.indexOf("dis")<0) cls+=" cov"; lines.push('<span class="cov">½ cover +2</span>'); }
+    else if (st.cover==="three-quarters"){ if (cls.indexOf("adv")<0&&cls.indexOf("dis")<0) cls+=" cov"; lines.push('<span class="cov">¾ cover +5</span>'); }
+  }
+  if (!lines.length) return;                           // clean legal shot → no badge
+  var el = document.createElement("div"); el.className = cls; el.innerHTML = lines.join("<br>");
+  targetFx.appendChild(el); badges.push({ el:el, u:u });
+}
+function drawRay(a, b, st){
+  var p0 = a.mesh.position.clone(); p0.y += a.height*0.6;
+  var p1 = b.mesh.position.clone(); p1.y += b.height*0.55;
+  var col = !st.legal ? 0xa33b2e : (st.cover!=="none" ? 0xc9a24b : 0x4c8f86);
+  var g = new THREE.BufferGeometry().setFromPoints([p0,p1]);
+  var l = new THREE.Line(g, new THREE.LineBasicMaterial({ color:col, transparent:true, opacity:0.85 }));
+  scene.add(l); losLines.push(l);
+}
+function updateBadges(){
+  badges.forEach(function(x){
+    var p = project(x.u.mesh, x.u.height + 0.5);
+    x.el.style.left = p.x+"px"; x.el.style.top = p.y+"px";
+  });
+}
+
+function showTargets(){
+  clearHi(); clearTargets();
+  if (!armed) return;
+  var act = armed.act;
+  var allyTargeted = (act.kind==="heal" || act.kind==="buffAlly");
+  var pool = allyTargeted ? pcs : foes;
+  var any=false, anyLegal=false;
+  pool.forEach(function(u){
+    if (u.dead) return;
+    if (act.kind==="heal" && u===active && act.rng<1) return;
+    var st = targetState(active, u, act);
+    u._st = st; any = true; if (st.legal) anyLegal = true;
+    var col = allyTargeted ? 0x8fd08a : (st.legal ? 0xa33b2e : 0x33403c);
+    hiTiles([keyOf(u.c,u.r)], col, st.legal ? 0.42 : 0.13);
+    badgeFor(u, st, act);
+    if (act.rng>1 && !allyTargeted) drawRay(active, u, st);
+  });
+  phase(anyLegal ? "Choose a target — or pick another action"
+       : any ? (override ? "No clear target — Override is ON, tap to force"
+                         : "No clear target — toggle Override, or pick another action")
+             : "No targets");
+}
+function maybeAutoEnd(){
+  if (!hasOptions()) endTurn();
+  else { showMove(); refreshDock(); }
+}
+
+/* ── mode switch + override + confirm (the ADJUDICATE layer) ────────── */
+var geoMode = "fast";          // "fast" (auto-enforce) | "ask" (DM confirms)
+var override = false;          // fast-mode escape hatch: force a blocked shot
+function reasonLabel(st){
+  return st.reason==="no line" ? "No line of sight"
+       : st.reason==="too high" ? "Target is above your melee reach"
+       : st.reason==="too low"  ? "Target is below your melee reach"
+       : st.reason==="out of reach" ? "Out of melee reach" : "Out of range";
+}
+function coverLabel(st){
+  return st.cover==="half" ? "Half cover (+2 AC)" : "Three-quarters cover (+5 AC)";
+}
+var confirmEl = document.getElementById("geoConfirm");
+function askConfirm(msg, onYes, onNo, yesLabel, noLabel){
+  confirmEl.innerHTML = "";
+  var m = document.createElement("div"); m.className="gcMsg"; m.textContent = msg;
+  var row = document.createElement("div"); row.className="gcRow";
+  var y = document.createElement("button"); y.className="abtn"; y.textContent = yesLabel||"Allow";
+  var n = document.createElement("button"); n.className="abtn"; n.textContent = noLabel||"Cancel";
+  y.addEventListener("click", function(){ confirmEl.classList.remove("show"); onYes && onYes(); });
+  n.addEventListener("click", function(){ confirmEl.classList.remove("show"); onNo && onNo(); });
+  row.appendChild(y); row.appendChild(n);
+  confirmEl.appendChild(m); confirmEl.appendChild(row);
+  confirmEl.classList.add("show");
+}
+function fireAt(u, act, forced){
+  busy = true;
+  payFor(act);
+  armCancel(); clearHi(); clearTargets();
+  var p;
+  if (act.kind === "heal"){
+    var amt = roll(act.dmg), dl = 0;
+    if (act.disciple){ dl = 2 + act.disciple; amt += dl; }   // Disciple of Life: +(2 + spell level)
+    p = applyHeal(u, amt).then(function(){
+      log("<em>"+active.name+"</em> "+act.label+" → "+u.name+" <em>+"+amt+"</em>"+(dl?" <em>(+"+dl+" Life)</em>":""));
+    });
+  } else if (act.kind === "buff"){                    // Hex (foe)
+    if (act.buff === "hex") active.hex = u;
+    log("<em>"+active.name+"</em> casts "+act.label+" on "+u.name+" <em>(concentration)</em>");
+    p = vfxAt(u, slashTx);
+  } else if (act.kind === "buffAlly"){                 // Bardic Inspiration (ally)
+    if (act.buff === "bardic") u.bardic = 6;
+    log("<em>"+active.name+"</em> — "+act.label+" → "+u.name+" <em>(d6 on next attack)</em>");
+    p = vfxAt(u, healTx);
+  } else if (act.kind === "save"){
+    p = saveAttack(active, u, act);
+  } else {
+    p = strike(active, u, act, { forced:forced });
+  }
+  p.then(function(){ busy=false; pushHistory("act · "+active.name+" "+act.label); if (checkEnd()) return; maybeAutoEnd(); });
+}
+function fireOrAsk(u, act){
+  var st = u._st || targetState(active, u, act);
+  if (st.legal && st.cover==="none"){ fireAt(u, act, false); return; }   // clean shot
+  if (geoMode === "fast"){
+    if (st.legal){ fireAt(u, act, false); return; }        // cover auto-applied in strike
+    if (override){ fireAt(u, act, true); return; }          // forced (rule of cool)
+    phase(reasonLabel(st) + " — toggle Override to force");  // greyed: say why
+    return;
+  }
+  // ask mode → DM decides
+  if (!st.legal){
+    askConfirm(reasonLabel(st) + " — allow the shot anyway?",
+      function(){ fireAt(u, act, true); }, null, "Allow", "Cancel");
+  } else {
+    askConfirm(coverLabel(st) + " — apply it, or ignore (rule of cool)?",
+      function(){ fireAt(u, act, false); }, function(){ fireAt(u, act, true); },
+      "Apply +"+st.acBonus, "Ignore");
+  }
+}
+
+(function wireGeoPanel(){
+  var seg = document.getElementById("modeSeg");
+  var ovr = document.getElementById("ovrChip");
+  seg.addEventListener("click", function(e){
+    var b = e.target && e.target.closest ? e.target.closest("button[data-mode]") : null;
+    if (!b) return;
+    geoMode = b.getAttribute("data-mode");
+    [].forEach.call(seg.children, function(x){ x.classList.toggle("on", x===b); });
+    ovr.classList.toggle("hide", geoMode!=="fast");        // override is the fast-mode escape hatch
+    if (geoMode!=="fast"){ override=false; ovr.classList.remove("on"); ovr.textContent="Override · off"; }
+    if (armed) showTargets();
+  });
+  ovr.addEventListener("click", function(){
+    override = !override;
+    ovr.classList.toggle("on", override);
+    ovr.textContent = "Override · " + (override?"on":"off");
+    if (armed) showTargets();
+  });
+  var flank = document.getElementById("flankChip");
+  flank.addEventListener("click", function(){
+    FLANKING = !FLANKING;
+    flank.classList.toggle("on", FLANKING);
+    flank.textContent = "Flanking → Adv · " + (FLANKING?"on":"off");
+    if (armed) showTargets();
+  });
+  var staff = document.getElementById("staffChip");
+  staff.addEventListener("click", function(){
+    var on = !document.body.classList.contains("staff");
+    document.body.classList.toggle("staff", on);
+    staff.classList.toggle("on", on);
+    staff.textContent = "Staff · rewind " + (on?"on":"off");
+    if (on) updateRewindBar();
+  });
+})();
+
+/* board interaction */
+var raycaster = new THREE.Raycaster();
+var pointer = new THREE.Vector2();
+renderer.domElement.addEventListener("pointerdown", function(e){
+  if (busy || over || !active || active.side!=="pc") return;
+  pointer.x = (e.clientX/window.innerWidth)*2-1;
+  pointer.y = -(e.clientY/window.innerHeight)*2+1;
+  raycaster.setFromCamera(pointer, camera);
+
+  // units first
+  var uhits = raycaster.intersectObjects(units.filter(function(u){ return !u.dead; })
+    .map(function(u){ return u.mesh; }));
+  if (uhits.length && armed){
+    var mesh = uhits[0].object;
+    var u = units.find(function(x){ return x.mesh===mesh; });
+    var act = armed.act;
+    var okSide = (act.kind==="heal" || act.kind==="buffAlly") ? u.side==="pc" : u.side==="foe";
+    if (okSide){ fireOrAsk(u, act); return; }
+  }
+
+  // then tiles (movement)
+  if (moveLeft>0 && reach){
+    var thits = raycaster.intersectObjects(Object.keys(tiles).map(function(k){ return tiles[k].mesh; }));
+    if (thits.length){
+      var tm = thits[0].object;
+      var tk = Object.keys(tiles).find(function(k){ return tiles[k].mesh===tm; });
+      if (tk && reach[tk]){
+        var cr = tk.split(",").map(Number);
+        var path = pathTo(reach, active, cr[0], cr[1]);
+        busy = true;
+        armCancel();
+        clearHi();
+        walk(active, path).then(function(){
+          moveLeft -= path.length;              // spend only the squares actually used
+          busy = false;
+          pushHistory("move · " + active.name);
+          maybeAutoEnd();
+        });
+      }
+    }
+  }
+});
+
+/* foe AI — same geometry as the party: needs real reach / range + line,
+   repositions for a shot, and holds if the map denies one. */
+function foeCanHitFrom(pos, t, act){
+  var src = { c:pos.c, r:pos.r };
+  if (act.rng <= 1) return G.canReachMelee(MAP, src, t, (act.rng||1)*5);
+  return G.inRange(MAP, src, t, act.rng*5) && G.losVerdict(MAP, src, t).canTarget;
+}
+function foeTurn(f){
+  var living = pcs.filter(function(p){ return !p.dead; });
+  if (!living.length){ busy=false; checkEnd(); return; }
+  living.sort(function(a,b){ return chebyshev(f,a)-chebyshev(f,b); });
+  var target = living[0];
+  var ranged = f.def.atk;
+  var melee  = f.def.melee || (ranged.rng<=1 ? ranged : null);
+  function pickActFrom(pos){
+    if (melee  && foeCanHitFrom(pos, target, melee))  return melee;
+    if (foeCanHitFrom(pos, target, ranged)) return ranged;
+    return null;
+  }
+  var p = Promise.resolve();
+  if (!pickActFrom(f)){
+    var seen = reachable(f);
+    var keys = Object.keys(seen);
+    var shootTiles = keys.filter(function(k){
+      var cr = k.split(",").map(Number); return pickActFrom({ c:cr[0], r:cr[1] }); });
+    var pool = shootTiles.length ? shootTiles : keys;
+    var bestK=null, bestD=1e9;
+    pool.forEach(function(k){
+      var cr = k.split(",").map(Number);
+      var dd = chebyshev({ c:cr[0], r:cr[1] }, target);
+      if (dd < bestD){ bestD = dd; bestK = k; }
+    });
+    if (bestK){ var cr = bestK.split(",").map(Number); p = walk(f, pathTo(seen, f, cr[0], cr[1])); }
+  }
+  p.then(function(){
+    if (f.dead) return null;                 // dropped by an opportunity attack mid-move
+    if (target.dead) return null;
+    var act = pickActFrom(f);
+    if (!act){ log(f.name+" has no line — holds"); return null; }  // geometry denies the shot
+    var a = Object.assign({ kind:"attack" }, act, { strikes: f.def.strikes || 1 });
+    return strike(f, target, a);
+  }).then(function(){ busy=false; if (checkEnd()) return; pushHistory("foe · "+f.name); endTurn(); });
+}
+
+function checkEnd(){
+  if (foes.every(function(f){ return f.dead; })){ banner(true); return true; }
+  if (pcs.every(function(p){ return p.dead; })){ banner(false); return true; }
+  return false;
+}
+function banner(win){
+  over = true;
+  dock.classList.remove("show");
+  clearHi(); clearTargets(); confirmEl.classList.remove("show"); phase("");
+  var b = document.getElementById("banner");
+  document.getElementById("bannerText").textContent = win ? "VICTORY" : "DEFEAT";
+  document.getElementById("bannerSub").textContent = win
+    ? "The ledge is taken; the Mirefen road is clear."
+    : "The party falls beneath the Mirefen's shadow…";
+  b.classList.toggle("grim", !win);
+  b.classList.add("show");
+}
+document.getElementById("resetBtn").addEventListener("click", function(){ location.reload(); });
+
+function endTurn(){
+  clearHi(); clearTargets(); armCancel(); phase("");
+  confirmEl.classList.remove("show");
+  dock.classList.remove("show");
+  if (over || checkEnd()) return;
+  nextTurn();
+}
+function nextTurn(){
+  var guard = 0;
+  do { turnIdx = (turnIdx+1)%order.length; guard++; }
+  while (order[turnIdx].dead && guard < 30);
+  active = order[turnIdx];
+  moveLeft = Math.floor(active.speed / 5); acted = false; bonused = false; armed = null;
+  active.reacted = false;                 // reaction refreshes at the start of your turn
+  active.shield = false;                   // Shield lasts until the start of your next turn
+  // Booming Blade energy lapses if the caster reaches their next turn and the target never moved
+  units.forEach(function(x){ if (x.boom && x.boom.by === active) x.boom = null; });
+  refreshStrip();
+  pushHistory("\u25b6 " + active.name);
+  if (active.side==="pc"){
+    showMove();
+    refreshDock();
+  } else {
+    busy = true;
+    wait(600).then(function(){ foeTurn(active); });   // stays busy through the foe's turn + its reaction prompts
+  }
+}
+
+/* ── camera orbit ─────────────────────────────────────────────────── */
+function rotate(dirn){
+  yawTarget += dirn * Math.PI/4;
+}
+document.getElementById("rotL").addEventListener("click", function(){ rotate(1); });
+document.getElementById("rotR").addEventListener("click", function(){ rotate(-1); });
+
+/* ── frame loop ───────────────────────────────────────────────────── */
+var clock = new THREE.Clock();
+function frame(){
+  requestAnimationFrame(frame);
+  var now = performance.now();
+  var t = clock.getElapsedTime();
+  stepTweens(now);
+
+  yaw += (yawTarget - yaw) * 0.08;
+  placeCamera();
+  if (!REDUCED && shakeAmt > 0.001){
+    camera.position.x += (Math.random()-0.5)*shakeAmt;
+    camera.position.y += (Math.random()-0.5)*shakeAmt;
+    shakeAmt *= 0.86;
+  }
+
+  units.forEach(function(u){
+    u.mesh.rotation.y = yaw;           // billboard toward orbiting camera
+    if (u.dead) return;
+    var base = tileY(u.c,u.r);
+    if (!rewinding && (tweens.length===0 || u!==active)){
+      u.mesh.position.y = base + Math.abs(Math.sin(t*2.1+u.bobPhase))*0.03;
+    }
+  });
+
+  torch.intensity = 0.9 + Math.sin(t*9.3)*0.06 + Math.sin(t*23.7)*0.04;
+  if (motes){
+    var arr = motes.geometry.attributes.position.array;
+    var vel = motes.userData.vel;
+    for (var i=0;i<vel.length;i++){
+      arr[i*3+1] += vel[i]*0.016;
+      arr[i*3]   += Math.sin(t*0.6+i)*0.0016;
+      if (arr[i*3+1] > 4.6) arr[i*3+1] = 0;
+    }
+    motes.geometry.attributes.position.needsUpdate = true;
+  }
+  updatePlates();
+  updateBadges();
+  renderer.render(scene, camera);
+}
+window.addEventListener("resize", function(){
+  camera.aspect = window.innerWidth/window.innerHeight;
+  camera.updateProjectionMatrix();
+  renderer.setSize(window.innerWidth, window.innerHeight);
+});
+
+/* ── rewind / playback (Staff only) ───────────────────────────────────
+   Every committed beat pushes a full state snapshot. The Staff can scrub
+   back and forth through them like a tape; a new action from a rewound
+   point drops the redo branch. State-restore, not re-simulation.          */
+var history = [], hptr = -1;
+var byKeyU = {};
+units.forEach(function(u){
+  if (!u.key || byKeyU[u.key]) console.error("rewind: unit key missing or duplicate —", u.name, u.key);
+  byKeyU[u.key] = u;
+});
+function snapUnit(u){
+  return { key:u.key, c:u.c, r:u.r, hp:u.hp, dead:u.dead,
+    res: JSON.parse(JSON.stringify(u.res||{})),
+    boom: u.boom ? u.boom.by.key : null,
+    hex:  u.hex ? u.hex.key : null,
+    vmDis:u.vmDis, bardic:u.bardic, reacted:u.reacted, shield:u.shield, sbAdv:u.sbAdv };
+}
+function takeSnapshot(label){
+  return { label:label||"", turnIdx:turnIdx, moveLeft:moveLeft, acted:acted, bonused:bonused,
+    over:over, logLen:logShown, units: units.map(snapUnit) };
+}
+function pushHistory(label){
+  if (hptr < history.length-1) history = history.slice(0, hptr+1);   // drop redo branch
+  history.push(takeSnapshot(label));
+  hptr = history.length-1;
+  updateRewindBar();
+}
+function resetUnitVisual(u){
+  if (u.dead){
+    u.mesh.rotation.z = (u.side==="pc"?1:-1) * -Math.PI/2;
+    u.mesh.material.opacity = 0.16;
+    if (u.blob) u.blob.material.opacity = 0;
+  } else {
+    u.mesh.rotation.z = 0;
+    u.mesh.material.opacity = 1;
+    u.mesh.material.color.setHex(0xffffff);
+    if (u.blob) u.blob.material.opacity = 1;
+  }
+}
+/* apply a snapshot's logic + non-positional visuals immediately; return the
+   list of tokens whose board position changed so the caller can tween them */
+function applySnapshot(snap){
+  turnIdx = snap.turnIdx; moveLeft = (snap.moveLeft!=null?snap.moveLeft:0); acted = snap.acted; bonused = snap.bonused; over = snap.over;
+  var moves = [];
+  snap.units.forEach(function(su){
+    var u = byKeyU[su.key]; if (!u) return;
+    u.hp=su.hp;
+    u.res = JSON.parse(JSON.stringify(su.res));
+    u.boom = su.boom ? { by: byKeyU[su.boom] } : null;
+    u.hex  = su.hex ? byKeyU[su.hex] : null;
+    u.vmDis = su.vmDis; u.bardic = su.bardic; u.reacted = su.reacted;
+    u.shield = !!su.shield; u.sbAdv = !!su.sbAdv;
+    var moved2 = (u.c!==su.c || u.r!==su.r);
+    var from = u.mesh.position.clone();
+    var to = new THREE.Vector3(worldX(su.c), tileY(su.c,su.r), worldZ(su.r));
+    u.c = su.c; u.r = su.r; u.dead = su.dead;
+    resetUnitVisual(u);                                   // revive/kill instantly
+    if (moved2) moves.push({ u:u, from:from, to:to });
+  });
+  active = order[turnIdx];
+  logShown = snap.logLen; renderLog();
+  refreshStrip(); clearHi(); clearTargets(); armCancel();
+  var bnr = document.getElementById("banner"); if (!over) bnr.classList.remove("show");
+  return moves;
+}
+function placeAll(){ units.forEach(function(u){ placeUnit(u); }); }
+function restoreSnapshot(snap){                            // instant (used at boot only)
+  applySnapshot(snap); placeAll();
+  if (!over && active && active.side==="pc"){ showMove(); refreshDock(); }
+  else dock.classList.remove("show");
+}
+/* animate one beat: HP bars ease via CSS, tokens slide from where they are to
+   the snapshot's squares — a quick reverse of the motion, VHS-style */
+function animateBeat(snap, dur){
+  var moves = applySnapshot(snap);
+  if (!moves.length){ placeAll(); return wait(Math.min(dur, 90)); }
+  return tween(dur, function(e){
+    moves.forEach(function(m){
+      m.u.mesh.position.lerpVectors(m.from, m.to, e);
+      if (m.u.blob){ m.u.blob.position.x = m.u.mesh.position.x;
+        m.u.blob.position.z = m.u.mesh.position.z; m.u.blob.position.y = m.to.y + 0.013; }
+    });
+  }, function(t){ return t<0.5 ? 2*t*t : 1-Math.pow(-2*t+2,2)/2; })
+  .then(function(){ placeAll(); });                       // every token exact at the destination beat
+}
+function goTo(idx, fwd){
+  if (busy || rewinding || idx<0 || idx>=history.length || idx===hptr) return;
+  var dir = idx>hptr ? 1 : -1, steps = Math.abs(idx-hptr);
+  var dur = steps>1 ? Math.max(90, Math.min(200, 700/steps)) : 300;   // spool faster over long jumps
+  busy = true; rewinding = true;
+  var fx = document.getElementById("rwFx");
+  fx.classList.toggle("fwd", dir>0); fx.classList.add("on");
+  (function stepOnce(){
+    if (hptr === idx){
+      fx.classList.remove("on"); rewinding = false; busy = false;
+      if (!over && active && active.side==="pc"){ showMove(); refreshDock(); }
+      else dock.classList.remove("show");
+      phase(""); updateRewindBar();
+      return;
+    }
+    hptr += dir;
+    animateBeat(history[hptr], dur).then(stepOnce);
+  })();
+}
+function updateRewindBar(){
+  var n = history.length;
+  var el = function(id){ return document.getElementById(id); };
+  var pos = el("rwPos"); if (pos) pos.textContent = (hptr+1)+"/"+n;
+  var pct = n<=1 ? 0 : (hptr/(n-1))*100;
+  if (el("rwFill")) el("rwFill").style.width = pct+"%";
+  if (el("rwHead")) el("rwHead").style.left = pct+"%";
+  var ticks = el("rwTicks");
+  if (ticks){ ticks.innerHTML=""; for (var i=0;i<n;i++){ var t=document.createElement("i");
+    t.style.left = (n<=1?0:(i/(n-1))*100)+"%"; ticks.appendChild(t); } }
+  var atStart = hptr<=0, atEnd = hptr>=n-1;
+  if (el("rwBack"))  el("rwBack").disabled  = atStart || busy;
+  if (el("rwStart")) el("rwStart").disabled = atStart || busy;
+  if (el("rwFwd"))   el("rwFwd").disabled   = atEnd || busy;
+  if (el("rwEnd"))   el("rwEnd").disabled   = atEnd || busy;
+  var lbl = el("rwLabel");
+  if (lbl){ var live = atEnd; lbl.textContent = live ? "\u25cf REC" : "\u25c4\u25c4 REWOUND"; lbl.classList.toggle("playing", !live); }
+}
+function coarseRewindTarget(){
+  // the "▶ Name" beat that began the current turn; if already there, the previous turn's start
+  var starts = [];
+  for (var i=0;i<history.length;i++) if (history[i].label.charAt(0)==="\u25b6") starts.push(i);
+  var cur = 0;
+  for (var k=0;k<starts.length;k++) if (starts[k] <= hptr) cur = starts[k];
+  if (cur === hptr){
+    var prev = 0;
+    for (var j=0;j<starts.length;j++) if (starts[j] < hptr) prev = starts[j];
+    return prev;
+  }
+  return cur;
+}
+(function(){
+  var el = function(id){ return document.getElementById(id); };
+  el("rwBack").addEventListener("click", function(){ goTo(hptr-1, false); });     // fine: one beat
+  el("rwFwd").addEventListener("click",  function(){ goTo(hptr+1, true); });
+  el("rwStart").addEventListener("click", function(){                             // coarse: start of the turn
+    if (busy || rewinding || hptr<=0) return;
+    goTo(coarseRewindTarget(), false);
+  });
+  el("rwEnd").addEventListener("click",  function(){ goTo(history.length-1, true); });
+  el("rwTrack").addEventListener("click", function(e){
+    if (busy || history.length<=1) return;
+    var rect = this.getBoundingClientRect();
+    var f = Math.max(0, Math.min(1, (e.clientX-rect.left)/rect.width));
+    var idx = Math.round(f*(history.length-1));
+    goTo(idx, idx>hptr);
+  });
+  // full reset — deliberately awkward: two confirmations
+  el("resetChip").addEventListener("click", function(){
+    if (busy || rewinding || hptr<=0) return;
+    askConfirm("Reset the entire battle? You'll undo all "+hptr+" recorded beats.",
+      function(){
+        askConfirm("Are you absolutely certain? This rewinds every move of the encounter.",
+          function(){ goTo(0, false); }, null, "Yes — reset it all", "Keep playing");
+      }, null, "Continue", "Cancel");
+  });
+})();
+
+buildStrip();
+log("Goblins hold the ledge — <em>roll initiative!</em>");
+pushHistory("Encounter start");
+frame();
+setTimeout(nextTurn, 900);
+
+})();
+</script>
+</body>
+</html>

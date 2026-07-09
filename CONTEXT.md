@@ -246,11 +246,11 @@ occluder height in feet above its terrain, and `losVerdict` traces the 5e corner
   cracks, banners occlude nothing.
 - `forge/tests/smoke-los-cover.js` (27 known-answer cases) encodes all of the above.
 
-⚠ **Inline-copy sync rule:** `tactics-geometry.js` is inlined in **two** mocks now —
+⚠ **Inline-copy sync rule:** `tactics-geometry.js` is inlined in **two** mocks —
 `battle-tactics-geo-mock.html` **and** `topography-test-mock.html`. Three copies total, all
-byte-identical; the tactics mock asserts it. Change one, change all three.
+**code-identical** (comments stripped; the inlines carry an older header). Change one, change all three.
 
-Tests: `smoke-forge-engine.js` (**broken** — asks `themeKey:"frost"`, renamed `tundra`),
+Tests (all in `forge/tests/`, 83 green): `smoke-forge-engine.js` 14/14 (frost→tundra fixed),
 `smoke-map-bridge.mjs` 16/16, `smoke-tactics-geometry.mjs` 26/26, `smoke-los-cover.js` 27/27.
 
 ### The four mocks — which is which (none are superseded)
@@ -283,10 +283,12 @@ whole story of the missing sprites, the missing flanking, and the missing feel.
 
 ## Art, assets, licensing (Forge and site-wide)
 
-- **three.js is pinned to r128** (cdnjs), ~5 years old. Upgrading unlocks `GTAOPass`, modern
-  `EffectComposer`, and `pmndrs/postprocessing` + `N8AO`. Biggest render unlock available; free.
-- **No mock has ever used post-processing.** Zero `EffectComposer` in the project. Only
-  `topography-test-mock.html` enables a shadow map.
+- **three.js: `topography-test-mock.html` runs r185** (ESM + import map). The other three mocks
+  stay on r128 — reference sources, not surfaces. three shipped no browser UMD build after ~r160,
+  so a classic `<script src>` tag could never reach `EffectComposer`/`GTAOPass`/`N8AO` at any version.
+- **Post-processing is still not wired.** Only `topography-test-mock.html` enables a shadow map.
+  Pins when post lands: `postprocessing@6.39.2` needs `three >=0.168 <0.186`; `n8ao@1.10.3` imports
+  bare `postprocessing` even for `N8AOPass` alone.
 - **The repo is PUBLIC. Assets must be CC0 or CC-BY. Nothing else.**
   - Good: **Kenney**, **Poly Haven**, **ambientCG**, **Quaternius**, **Kay Lousberg** (all CC0).
     Kenney plumbing already half-exists: `assets/library.json`, `CHEST_DEMO`.

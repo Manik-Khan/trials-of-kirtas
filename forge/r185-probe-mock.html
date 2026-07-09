@@ -1,0 +1,652 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Forge · r185 renderer probe</title>
+
+<!-- ══════════════════════════════════════════════════════════════════════
+     THE IMPORT MAP IS THE UPGRADE.
+     three has shipped no browser UMD build since ~r160 (0.169's `main` is
+     build/three.cjs), and examples/js/ was deleted at r148. So the classic
+     <script src=".../three.min.js"> tag in forge/topography-test-mock.html:11
+     cannot reach EffectComposer, GTAOPass or N8AO at ANY version. Moving to
+     ESM + an import map is not a nicety; it is the only door.
+
+     Versions are pinned, and the pins are load-bearing:
+       postprocessing@6.39.2  peer:  three >=0.168.0 <0.186.0   → r185 is the ceiling
+       n8ao@1.10.3            peer:  postprocessing >=6.30.0, three >=0.137
+     n8ao/dist/N8AO.js imports the bare specifier "postprocessing" even when
+     you only use N8AOPass. Omit that map entry and the module 404s quietly.
+     ═════════════════════════════════════════════════════════════════════ -->
+<script>
+/* Injected, not inline, so the CDN is switchable: ?cdn=jsdelivr (default) | esmsh | unpkg.
+   An import map must exist before the first module load begins. A classic <script> in
+   <head> runs before the module tag at the end of <body> is reached, so this is legal.
+   n8ao failing on one CDN while postprocessing succeeds on the same one is a fact about
+   that CDN, not about the code — this switch is how we tell those apart. */
+window.__CDN = (() => {
+  const which = new URLSearchParams(location.search).get('cdn') || 'jsdelivr';
+  const MAPS = {
+    jsdelivr: {
+      three:          'https://cdn.jsdelivr.net/npm/three@0.185.1/build/three.module.js',
+      'three/addons/':'https://cdn.jsdelivr.net/npm/three@0.185.1/examples/jsm/',
+      postprocessing: 'https://cdn.jsdelivr.net/npm/postprocessing@6.39.2/build/index.js',
+      n8ao:           'https://cdn.jsdelivr.net/npm/n8ao@1.10.3/dist/N8AO.js'
+    },
+    unpkg: {
+      three:          'https://unpkg.com/three@0.185.1/build/three.module.js',
+      'three/addons/':'https://unpkg.com/three@0.185.1/examples/jsm/',
+      postprocessing: 'https://unpkg.com/postprocessing@6.39.2/build/index.js',
+      n8ao:           'https://unpkg.com/n8ao@1.10.3/dist/N8AO.js'
+    },
+    esmsh: {
+      three:          'https://esm.sh/three@0.185.1',
+      'three/addons/':'https://esm.sh/three@0.185.1/examples/jsm/',
+      postprocessing: 'https://esm.sh/postprocessing@6.39.2',
+      n8ao:           'https://esm.sh/n8ao@1.10.3?external=three,postprocessing'
+    }
+  };
+  const imports = MAPS[which] || MAPS.jsdelivr;
+  const el = document.createElement('script');
+  el.type = 'importmap';
+  el.textContent = JSON.stringify({ imports });
+  document.head.appendChild(el);
+  return { which, imports };
+})();
+</script>
+
+<style>
+  :root{
+    --ink:#182826; --ink-2:#101c1b; --ink-3:#0a1211;
+    --paper:#e8e2d4; --paper-dim:#a9a294;
+    --gold:#c9a227; --teal:#4d8f86; --blood:#8f3a2f; --violet:#6b5b95;
+    --rule:#2e4442;
+  }
+  *{box-sizing:border-box}
+  html,body{height:100%;margin:0}
+  body{
+    background:var(--ink-3); color:var(--paper);
+    font-family:"Oswald","Barlow Condensed",system-ui,sans-serif;
+    display:grid; grid-template-columns:minmax(0,1fr) 328px;
+    overflow:hidden;
+  }
+  #stage{position:relative;min-width:0;background:var(--ink-3)}
+  #stage canvas{display:block;width:100%;height:100%}
+
+  /* ── the signature: the pass chain declares itself, and admits failure ── */
+  #chain{
+    position:absolute; left:16px; bottom:16px; display:flex; gap:0; align-items:stretch;
+    font-size:11px; letter-spacing:.14em; text-transform:uppercase;
+    background:rgba(10,18,17,.82); border:1px solid var(--rule);
+  }
+  #chain .lk{padding:8px 12px; border-right:1px solid var(--rule); color:var(--paper-dim); position:relative}
+  #chain .lk:last-child{border-right:0}
+  #chain .lk[data-state="on"]{color:var(--ink-3); background:var(--gold)}
+  #chain .lk[data-state="off"]{opacity:.42}
+  #chain .lk[data-state="fail"]{color:var(--paper); background:var(--blood)}
+
+  aside{
+    background:var(--ink); border-left:1px solid var(--rule);
+    overflow-y:auto; padding:20px 20px 40px;
+  }
+  h1{
+    font-family:"Playfair Display",Georgia,serif; font-weight:400;
+    font-size:22px; margin:0 0 2px; letter-spacing:.01em;
+  }
+  .sub{font-size:11px;letter-spacing:.18em;text-transform:uppercase;color:var(--paper-dim);margin-bottom:18px}
+
+  section{border-top:1px solid var(--rule); padding:14px 0}
+  section > h2{
+    font-size:10px; letter-spacing:.2em; text-transform:uppercase;
+    color:var(--gold); margin:0 0 10px; font-weight:500;
+  }
+  .row{display:flex;align-items:center;justify-content:space-between;gap:10px;margin:7px 0;font-size:13px}
+  .row label{cursor:pointer;user-select:none}
+  .row.dis{opacity:.4}
+  .why{font-size:11px;color:var(--blood);margin:-4px 0 8px;font-family:"EB Garamond",Georgia,serif;font-style:italic}
+
+  input[type=range]{width:132px;accent-color:var(--teal)}
+  input[type=checkbox]{accent-color:var(--gold);width:15px;height:15px}
+  select{
+    background:var(--ink-2);color:var(--paper);border:1px solid var(--rule);
+    font-family:inherit;font-size:12px;padding:3px 6px;border-radius:0
+  }
+  .val{font-variant-numeric:tabular-nums;color:var(--paper-dim);font-size:12px;min-width:44px;text-align:right}
+
+  #boot{font-family:ui-monospace,"SF Mono",Menlo,monospace;font-size:11px;line-height:1.65}
+  #boot div{display:flex;gap:8px}
+  #boot .k{color:var(--paper-dim);flex:0 0 96px}
+  #boot .ok{color:var(--teal)} #boot .bad{color:var(--blood)} #boot .num{color:var(--gold)}
+
+  #note{
+    display:none; margin-top:12px; padding:10px 11px;
+    border-left:2px solid var(--blood); background:rgba(143,58,47,.10);
+    font-family:"EB Garamond",Georgia,serif; font-size:12.5px; line-height:1.55;
+  }
+  #note.on{display:block}
+  #note code{font-family:ui-monospace,monospace;font-size:11px;color:var(--gold);word-break:break-all}
+  #note b{font-family:"Oswald",sans-serif;font-weight:500;letter-spacing:.04em}
+  #fps{
+    position:absolute;right:16px;top:16px;font-variant-numeric:tabular-nums;
+    font-size:11px;letter-spacing:.12em;color:var(--paper-dim);
+    background:rgba(10,18,17,.82);border:1px solid var(--rule);padding:6px 10px
+  }
+  #fatal{
+    position:absolute;inset:0;display:none;place-content:center;padding:48px;
+    font-family:"EB Garamond",Georgia,serif;font-size:16px;line-height:1.6;color:var(--paper)
+  }
+  #fatal code{font-family:ui-monospace,monospace;font-size:12px;color:var(--gold)}
+  @media(prefers-reduced-motion:reduce){ #chain .lk{transition:none} }
+</style>
+</head>
+<body>
+
+<div id="stage">
+  <div id="fps">— fps</div>
+  <div id="chain">
+    <div class="lk" id="lk-render" data-state="off">render</div>
+    <div class="lk" id="lk-ao"     data-state="off">ao</div>
+    <div class="lk" id="lk-bloom"  data-state="off">bloom</div>
+    <div class="lk" id="lk-output" data-state="off">output</div>
+  </div>
+  <div id="fatal"></div>
+</div>
+
+<aside>
+  <h1>r185 renderer probe</h1>
+  <div class="sub">Battle Forge · migration gate</div>
+
+  <section>
+    <h2>Boot</h2>
+    <div id="boot">
+      <div><span class="k">three</span><span id="b-three">…</span></div>
+      <div><span class="k">postprocessing</span><span id="b-pp">…</span></div>
+      <div><span class="k">n8ao</span><span id="b-n8ao">…</span></div>
+      <div><span class="k">webgl2</span><span id="b-gl">…</span></div>
+      <div><span class="k">colorspace</span><span id="b-cs">…</span></div>
+      <div><span class="k">cdn</span><span id="b-cdn">…</span></div>
+    </div>
+    <div id="note"></div>
+  </section>
+
+  <section>
+    <h2>Post-processing <span style="color:var(--paper-dim);letter-spacing:0;text-transform:none">— new at r185</span></h2>
+    <div class="row">
+      <label for="ao">Ambient occlusion</label>
+      <select id="ao">
+        <option value="none">off</option>
+        <option value="n8ao" selected>N8AO</option>
+        <option value="gtao">GTAOPass</option>
+      </select>
+    </div>
+    <div class="row" id="r-aov">
+      <label for="aov">Show</label>
+      <select id="aov"><option value="combined" selected>combined</option><option value="ao">AO only</option></select>
+    </div>
+    <div class="row" id="r-aor"><label for="aor">AO radius</label><input type="range" id="aor" min="0.5" max="12" step="0.1" value="4.0"><span class="val" id="v-aor">4.0</span></div>
+    <div class="row" id="r-aoi"><label for="aoi">AO intensity</label><input type="range" id="aoi" min="0" max="6" step="0.1" value="2.4"><span class="val" id="v-aoi">2.4</span></div>
+    <div class="row"><label for="bloom">Bloom</label><input type="checkbox" id="bloom"></div>
+    <div class="row" id="r-bls"><label for="bls">Bloom strength</label><input type="range" id="bls" min="0" max="1.5" step="0.02" value="0.32"><span class="val" id="v-bls">0.32</span></div>
+    <div class="row"><label for="composer">Use composer</label><input type="checkbox" id="composer" checked></div>
+  </section>
+
+  <section>
+    <h2>Existing material stack</h2>
+    <div class="row"><label for="toon">Toon + gradient ramp</label><input type="checkbox" id="toon" checked></div>
+    <div class="row"><label for="outline">Ink outlines (inverted hull)</label><input type="checkbox" id="outline" checked></div>
+    <div class="row"><label for="instao">Baked per-instance AO</label><input type="checkbox" id="instao" checked></div>
+    <div class="row"><label for="torch">Torch PointLights</label><input type="checkbox" id="torch" checked></div>
+  </section>
+
+  <section>
+    <h2>Lighting <span style="color:var(--paper-dim);letter-spacing:0;text-transform:none">— semantics changed at r155</span></h2>
+    <div class="why">r128's intensities were tuned before lights became physical. Dial this by eye; there is no correct constant to hand you.</div>
+    <div class="row"><label for="lmul">Intensity ×</label><input type="range" id="lmul" min="0.25" max="4" step="0.05" value="1"><span class="val" id="v-lmul">1.00</span></div>
+    <div class="row"><label for="expo">Exposure</label><input type="range" id="expo" min="0.4" max="2" step="0.02" value="1"><span class="val" id="v-expo">1.00</span></div>
+  </section>
+</aside>
+
+<script type="module">
+/* ══════════════════════════════════════════════════════════════════════
+   Probe scope. This file answers ONE question and refuses to answer others:
+
+     Does the r185 ESM stack render the Forge's actual material vocabulary
+     — MeshToonMaterial + 4-step gradient ramp, inverted-hull ink outlines,
+     an InstancedMesh heightfield with setColorAt, CanvasTexture sprites,
+     LinearToneMapping, sRGB output — correctly, with N8AO and bloom on top?
+
+   It is not the Forge. No generator, no geometry rules, no combat. Nothing
+   here is meant to be ported. It exists so the 243 KB file gets touched once.
+
+   Every three.js call below is one we already make in
+   forge/topography-test-mock.html, rewritten for r185. The rewrites:
+     renderer.outputEncoding = THREE.sRGBEncoding  →  .outputColorSpace = THREE.SRGBColorSpace
+     texture.encoding        = THREE.sRGBEncoding  →  .colorSpace        = THREE.SRGBColorSpace
+     gradient ramp                                 →  .colorSpace = THREE.NoColorSpace (explicit)
+     tone mapping under a composer                 →  OutputPass, last in the chain
+   ══════════════════════════════════════════════════════════════════════ */
+
+const boot = (id, text, cls) => {
+  const el = document.getElementById(id);
+  el.textContent = text;
+  el.className = cls || '';
+};
+const link = (id, state) => document.getElementById(id).dataset.state = state;
+
+const fatal = (heading, detail) => {
+  const el = document.getElementById('fatal');
+  el.style.display = 'grid';
+  el.innerHTML = `<div><strong>${heading}</strong><br><br>${detail}</div>`;
+};
+
+/* ── imports, each narrating its own failure ─────────────────────────── */
+let THREE, EffectComposer, RenderPass, UnrealBloomPass, OutputPass, GTAOPass, N8AOPass;
+
+try {
+  THREE = await import('three');
+  boot('b-three', `r${THREE.REVISION}`, 'ok');
+} catch (e) {
+  boot('b-three', 'FAILED', 'bad');
+  fatal('three@0.185.1 did not load.',
+    `The import map maps <code>three</code> to jsdelivr. If you are offline, or jsdelivr is blocked,
+     nothing below can run. Console: <code>${e.message}</code>`);
+  throw e;
+}
+
+try {
+  ({ EffectComposer } = await import('three/addons/postprocessing/EffectComposer.js'));
+  ({ RenderPass }      = await import('three/addons/postprocessing/RenderPass.js'));
+  ({ UnrealBloomPass } = await import('three/addons/postprocessing/UnrealBloomPass.js'));
+  ({ OutputPass }      = await import('three/addons/postprocessing/OutputPass.js'));
+  ({ GTAOPass }        = await import('three/addons/postprocessing/GTAOPass.js'));
+} catch (e) {
+  fatal('three/addons/ failed to resolve.',
+    `The trailing slash in the import map key <code>"three/addons/"</code> is required. Console: <code>${e.message}</code>`);
+  throw e;
+}
+
+/* postprocessing is imported for its side effect on the module graph:
+   n8ao's dist bundle does `from "postprocessing"` unconditionally. */
+try {
+  const pp = await import('postprocessing');
+  boot('b-pp', `ok · ${Object.keys(pp).length} exports`, 'ok');
+} catch (e) {
+  boot('b-pp', 'FAILED', 'bad');
+}
+
+boot('b-cdn', window.__CDN.which, 'ok');
+
+const note = (html) => { const n = document.getElementById('note'); n.classList.add('on'); n.innerHTML = html; };
+
+/* Why n8ao gets a real post-mortem rather than a shrug:
+   its 26 named imports from three all exist at r185, `Pass` exists in
+   postprocessing 6.39.2, and it has no top-level throw. There is no static
+   reason for it to fail — so if it does, the cause is transport, and only a
+   fetch of the resolved URL can say which kind. */
+async function diagnose(url) {
+  try {
+    const res = await fetch(url, { method: 'GET', mode: 'cors' });
+    if (!res.ok) return `the CDN answered <b>HTTP ${res.status}</b>. The file isn't there at that path.`;
+    const ct = res.headers.get('content-type') || '(none)';
+    const body = await res.text();
+    if (!/javascript|ecmascript/i.test(ct))
+      return `the CDN served it as <code>${ct}</code>, not JavaScript. Browsers refuse to execute that as a module.`;
+    if (!/^\s*(import|export|\/\*|\/\/)/m.test(body.slice(0, 400)))
+      return `it downloaded ${body.length} bytes, but the head doesn't look like ES module source.`;
+    return `it downloaded ${body.length} bytes of valid-looking JS as <code>${ct}</code>. So the fetch is fine and the failure is at module <em>evaluation</em> — check the browser console for the real stack.`;
+  } catch (err) {
+    return `the fetch itself threw (<code>${err.message}</code>) — the request was blocked, offline, or refused by CORS. If this page is inside a sandboxed preview frame, that frame's network policy is the likeliest culprit. Try opening the file directly from disk.`;
+  }
+}
+
+try {
+  ({ N8AOPass } = await import('n8ao'));
+  if (!N8AOPass) throw new Error('module loaded but exports no N8AOPass');
+  boot('b-n8ao', 'N8AOPass ok', 'ok');
+} catch (e) {
+  boot('b-n8ao', `${e.name || 'Error'}`, 'bad');
+  N8AOPass = null;
+
+  /* Failures narrate, and disabled controls state why. */
+  const opt = document.getElementById('ao').querySelector('[value=n8ao]');
+  opt.disabled = true;
+  opt.textContent = 'N8AO — unavailable';
+  document.getElementById('ao').value = 'gtao';   // fall back; never sit on a dead selection
+
+  const url = window.__CDN.imports.n8ao;
+  note(`<b>N8AO did not load. Fell back to GTAOPass.</b><br>
+        <code>${e.message}</code><br><br>
+        Resolved to <code>${url}</code><br><br>
+        Probing…`);
+  diagnose(url).then(verdict => note(
+    `<b>N8AO did not load. Fell back to GTAOPass.</b><br>
+     <code>${e.message}</code><br><br>
+     Resolved to <code>${url}</code><br><br>
+     Probe: ${verdict}<br><br>
+     <b>postprocessing loaded from the same CDN</b>, so the import map is sound.
+     Retry on another mirror: append <code>?cdn=unpkg</code> or <code>?cdn=esmsh</code> to this URL.`));
+}
+
+/* ── renderer ─────────────────────────────────────────────────────────── */
+const stageEl = document.getElementById('stage');
+const renderer = new THREE.WebGLRenderer({ antialias: true });
+renderer.setPixelRatio(Math.min(devicePixelRatio, 1.75));
+renderer.outputColorSpace = THREE.SRGBColorSpace;   // was renderer.outputEncoding
+renderer.toneMapping = THREE.LinearToneMapping;     // ACES desaturates the painterly read; unchanged
+renderer.toneMappingExposure = 1.0;
+stageEl.appendChild(renderer.domElement);
+
+boot('b-gl', renderer.capabilities.isWebGL2 ? 'yes' : 'no (fallback)', renderer.capabilities.isWebGL2 ? 'ok' : 'bad');
+boot('b-cs', 'SRGBColorSpace', 'ok');
+
+const scene = new THREE.Scene();
+scene.fog = new THREE.Fog(0x9fb4c8, 60, 210);
+
+const camera = new THREE.PerspectiveCamera(38, 1, 0.1, 900);
+const cam = { theta: Math.PI * 0.22, phi: Math.PI * 0.34, r: 74, tgt: new THREE.Vector3(0, 3, 0) };
+function placeCam() {
+  const sp = Math.sin(cam.phi), cp = Math.cos(cam.phi);
+  camera.position.set(
+    cam.tgt.x + cam.r * sp * Math.sin(cam.theta),
+    cam.tgt.y + cam.r * cp,
+    cam.tgt.z + cam.r * sp * Math.cos(cam.theta));
+  camera.lookAt(cam.tgt);
+}
+
+/* ── sky: CanvasTexture, sRGB-tagged the r185 way ─────────────────────── */
+function cv(w, h) { const c = document.createElement('canvas'); c.width = w; c.height = h; return { c, x: c.getContext('2d') }; }
+(function sky() {
+  const { c, x } = cv(2, 256);
+  const g = x.createLinearGradient(0, 0, 0, 256);
+  g.addColorStop(0, '#3f6f95'); g.addColorStop(0.55, '#9fb4c8'); g.addColorStop(1, '#d8c9a8');
+  x.fillStyle = g; x.fillRect(0, 0, 2, 256);
+  const t = new THREE.CanvasTexture(c);
+  t.colorSpace = THREE.SRGBColorSpace;              // was t.encoding
+  scene.background = t;
+})();
+
+/* ── lights: topo's exact colors + intensities, behind a live multiplier ─ */
+const LIGHTS = [];
+const amb  = new THREE.AmbientLight(0xcdd8ee, 0.30);
+const hemi = new THREE.HemisphereLight(0xbcd6ff, 0x5a4c32, 0.50);
+const sun  = new THREE.DirectionalLight(0xfff2d2, 1.16);  sun.position.set(70, 82, 34);
+const rim  = new THREE.DirectionalLight(0x8fb6d8, 0.26);  rim.position.set(-50, 30, -40);
+[amb, hemi, sun, rim].forEach(l => { l.userData.base = l.intensity; LIGHTS.push(l); scene.add(l); });
+
+/* torch PointLights — §3 marks these ✗ on topo. Cheap; here to be judged. */
+const torches = new THREE.Group(); scene.add(torches);
+[[-14, 3.4, -8, 0xffb457], [16, 4.4, 6, 0xff8a3d], [2, 3.0, 18, 0xffc978]].forEach(([x, y, z, col]) => {
+  const p = new THREE.PointLight(col, 26, 44, 2);
+  p.position.set(x, y, z);
+  p.userData.base = 26; p.userData.seed = Math.random() * 9;
+  torches.add(p);
+  const bulb = new THREE.Mesh(new THREE.SphereGeometry(0.32, 10, 8),
+    new THREE.MeshBasicMaterial({ color: col, toneMapped: false }));
+  bulb.position.copy(p.position); torches.add(bulb);
+});
+
+/* ── the toon ramp: 4 hard steps, Nearest, and NOT sRGB ───────────────── */
+const toonGrad = (() => {
+  const { c, x } = cv(4, 1);
+  ['#454545', '#8c8c8c', '#c6c6c6', '#ffffff'].forEach((col, i) => { x.fillStyle = col; x.fillRect(i, 0, 1, 1); });
+  const t = new THREE.CanvasTexture(c);
+  t.magFilter = THREE.NearestFilter; t.minFilter = THREE.NearestFilter;
+  t.colorSpace = THREE.NoColorSpace;   // a ramp is data, not colour. sRGB-tagging it crushes the steps.
+  t.needsUpdate = true;
+  return t;
+})();
+
+const surfMat = (toon, opts) => toon
+  ? new THREE.MeshToonMaterial(Object.assign({ gradientMap: toonGrad }, opts))
+  : new THREE.MeshLambertMaterial(opts);
+
+const OUTLINE_MAT = new THREE.MeshBasicMaterial({ color: 0x1a140e, side: THREE.BackSide, toneMapped: false });
+
+/* ── heightfield: InstancedMesh + setColorAt, mirroring topo's field ──── */
+const COLS = 26, ROWS = 26, TILE = 2.4;
+const hash = (c, r) => { const s = Math.sin(c * 127.1 + r * 311.7) * 43758.5453; return s - Math.floor(s); };
+const heightAt = (c, r) => {
+  const a = hash(Math.floor(c / 5), Math.floor(r / 5));
+  const b = hash(Math.floor(c / 9) + 7, Math.floor(r / 9) + 3);
+  return Math.max(0, Math.round((a * 3 + b * 2.2) - 0.8));
+};
+
+let field = null, outlineField = null;
+const BODY = 0x7f8f6a;
+
+function buildField(toon, wantOutline, wantInstAO) {
+  [field, outlineField].forEach(m => { if (m) { scene.remove(m); m.geometry.dispose(); m.dispose?.(); } });
+
+  const geo = new THREE.BoxGeometry(TILE, 1, TILE);
+  const n = COLS * ROWS;
+
+  field = new THREE.InstancedMesh(geo, surfMat(toon, { color: BODY }), n);
+  outlineField = wantOutline ? new THREE.InstancedMesh(geo, OUTLINE_MAT, n) : null;
+
+  const m4 = new THREE.Matrix4(), pos = new THREE.Vector3(), qt = new THREE.Quaternion(), sc = new THREE.Vector3();
+  const col = new THREE.Color();
+  let i = 0;
+
+  for (let r = 0; r < ROWS; r++) for (let c = 0; c < COLS; c++) {
+    const h = heightAt(c, r) + 1;
+    const x = (c - COLS / 2) * TILE, z = (r - ROWS / 2) * TILE;
+
+    pos.set(x, h / 2, z); sc.set(1, h, 1);
+    m4.compose(pos, qt, sc);
+    field.setMatrixAt(i, m4);
+
+    if (outlineField) { sc.set(1.055, h + 0.09, 1.055); m4.compose(pos, qt, sc); outlineField.setMatrixAt(i, m4); }
+
+    /* baked per-instance AO: how buried is this cell by its neighbours?
+       This is the `setColorAt` row §3 credits to topo. It isn't in the repo copy. */
+    if (wantInstAO) {
+      let buried = 0;
+      for (const [dc, dr] of [[1,0],[-1,0],[0,1],[0,-1]]) {
+        const nc = c + dc, nr = r + dr;
+        if (nc < 0 || nr < 0 || nc >= COLS || nr >= ROWS) continue;
+        if (heightAt(nc, nr) + 1 > h) buried++;
+      }
+      const k = 1 - buried * 0.13;
+      col.setHex(BODY).multiplyScalar(k);
+    } else {
+      col.setHex(BODY);
+    }
+    field.setColorAt(i, col);
+    i++;
+  }
+
+  field.instanceMatrix.needsUpdate = true;
+  if (field.instanceColor) field.instanceColor.needsUpdate = true;
+  scene.add(field);
+  if (outlineField) { outlineField.instanceMatrix.needsUpdate = true; outlineField.renderOrder = -1; scene.add(outlineField); }
+}
+
+/* ── sprite tokens: the 4 PCs, as billboards, sRGB-tagged ─────────────── */
+const PC = [
+  { name: 'Caim',      tint: '#4d8f86' },
+  { name: 'Cosmere',   tint: '#6b5b95' },
+  { name: 'Líadan',    tint: '#c9a227' },
+  { name: 'Vesperian', tint: '#8f3a2f' },
+];
+PC.forEach((p, i) => {
+  const { c, x } = cv(48, 72);
+  x.fillStyle = p.tint; x.fillRect(10, 18, 28, 54);
+  x.fillStyle = '#f0e7d2'; x.fillRect(16, 4, 16, 16);
+  x.fillStyle = 'rgba(0,0,0,.35)'; x.fillRect(10, 62, 28, 10);
+  const t = new THREE.CanvasTexture(c);
+  t.magFilter = THREE.NearestFilter; t.minFilter = THREE.NearestFilter;
+  t.colorSpace = THREE.SRGBColorSpace;
+  const s = new THREE.Sprite(new THREE.SpriteMaterial({ map: t, transparent: true }));
+  s.scale.set(2 * (2 / 3), 2, 1);
+  s.center.set(0.5, 0);
+  const cc = 11 + i * 2, rr = 12;
+  s.position.set((cc - COLS / 2) * TILE, heightAt(cc, rr) + 1, (rr - ROWS / 2) * TILE);
+  s.renderOrder = 4;
+  scene.add(s);
+});
+
+/* ── the composer chain ───────────────────────────────────────────────── */
+let composer = null, aoPass = null, bloomPass = null;
+
+function buildChain(aoMode, wantBloom) {
+  composer?.dispose?.();
+  aoPass = bloomPass = null;
+
+  const size = new THREE.Vector2();
+  renderer.getSize(size);
+
+  composer = new EffectComposer(renderer);
+  composer.setPixelRatio(Math.min(devicePixelRatio, 1.75));
+  composer.setSize(size.x, size.y);
+  composer.addPass(new RenderPass(scene, camera));
+  link('lk-render', 'on');
+
+  /* AO. Both passes are guarded — a missing knob narrates instead of throwing. */
+  if (aoMode === 'n8ao' && N8AOPass) {
+    try {
+      aoPass = new N8AOPass(scene, camera, size.x, size.y);
+      composer.addPass(aoPass);
+      link('lk-ao', 'on');
+    } catch (e) { link('lk-ao', 'fail'); aoPass = null; console.warn('N8AOPass:', e); }
+  } else if (aoMode === 'gtao') {
+    try {
+      aoPass = new GTAOPass(scene, camera, size.x, size.y);
+      if (GTAOPass.OUTPUT && 'output' in aoPass) aoPass.output = GTAOPass.OUTPUT.Default;
+      composer.addPass(aoPass);
+      link('lk-ao', 'on');
+    } catch (e) { link('lk-ao', 'fail'); aoPass = null; console.warn('GTAOPass:', e); }
+  } else {
+    link('lk-ao', 'off');
+  }
+  syncAO();
+
+  if (wantBloom) {
+    bloomPass = new UnrealBloomPass(new THREE.Vector2(size.x, size.y), Number(bls.value), 0.4, 0.85);
+    composer.addPass(bloomPass);
+    link('lk-bloom', 'on');
+  } else link('lk-bloom', 'off');
+
+  /* OutputPass must be last: under a composer it — not the renderer — applies
+     tone mapping and the sRGB conversion. Omit it and everything reads flat. */
+  composer.addPass(new OutputPass());
+  link('lk-output', 'on');
+}
+
+function syncAO() {
+  if (!aoPass) { warnZero(false); return; }
+  const radius = Number(aor.value), intensity = Number(aoi.value), aoOnly = aov.value === 'ao';
+
+  if (aoPass.configuration) {                                       // N8AO
+    const c = aoPass.configuration;
+    if ('aoRadius'        in c) c.aoRadius        = radius;
+    if ('intensity'       in c) c.intensity       = intensity;
+    if ('distanceFalloff' in c) c.distanceFalloff = radius * 0.25;
+    aoPass.setDisplayMode?.(aoOnly ? 'AO' : 'Combined');
+  } else if (typeof aoPass.updateGtaoMaterial === 'function') {     // GTAOPass
+    aoPass.updateGtaoMaterial({ radius, scale: Math.max(intensity, 0.001) * 0.5 });
+    if (GTAOPass.OUTPUT && 'output' in aoPass)
+      aoPass.output = aoOnly ? (GTAOPass.OUTPUT.Denoise ?? GTAOPass.OUTPUT.Default) : GTAOPass.OUTPUT.Default;
+  }
+  warnZero(intensity === 0);
+}
+
+/* The screenshot's AO looked dead for two reasons at once. This catches the second. */
+function warnZero(on) {
+  const row = document.getElementById('r-aoi');
+  row.title = on ? 'AO is running but multiplied by zero.' : '';
+  row.style.color = on ? 'var(--blood)' : '';
+}
+
+/* ── controls ─────────────────────────────────────────────────────────── */
+const $ = id => document.getElementById(id);
+const [ao, aov, aor, aoi, bloom, bls, useComposer, toon, outline, instao, torch, lmul, expo] =
+  ['ao','aov','aor','aoi','bloom','bls','composer','toon','outline','instao','torch','lmul','expo'].map($);
+
+const rebuildField = () => buildField(toon.checked, outline.checked, instao.checked);
+const rebuildChain = () => buildChain(ao.value, bloom.checked);
+
+const showVal = (el, out, d = 2) => { $(out).textContent = Number(el.value).toFixed(d); };
+
+ao.onchange = () => { rebuildChain(); gateAO(); };
+aov.onchange = syncAO;
+bloom.onchange = rebuildChain;
+[aor, aoi].forEach(el => el.oninput = () => { showVal(el, 'v-' + el.id, 1); syncAO(); });
+bls.oninput = () => { showVal(bls, 'v-bls'); if (bloomPass) bloomPass.strength = Number(bls.value); };
+[toon, outline, instao].forEach(el => el.onchange = rebuildField);
+torch.onchange = () => torches.visible = torch.checked;
+
+useComposer.onchange = () => {
+  const on = useComposer.checked;
+  ['lk-render','lk-ao','lk-bloom','lk-output'].forEach(id => link(id, on ? (id==='lk-ao' && ao.value==='none' ? 'off' : 'on') : 'off'));
+  if (on) rebuildChain();
+};
+
+lmul.oninput = () => {
+  showVal(lmul, 'v-lmul');
+  const k = Number(lmul.value);
+  LIGHTS.forEach(l => l.intensity = l.userData.base * k);
+};
+expo.oninput = () => { showVal(expo, 'v-expo'); renderer.toneMappingExposure = Number(expo.value); };
+
+/* Disabled controls state why (working rule). */
+function gateAO() {
+  const off = ao.value === 'none';
+  ['r-aov','r-aor','r-aoi'].forEach(id => $(id).classList.toggle('dis', off));
+  [aov, aor, aoi].forEach(el => el.disabled = off);
+  if (off) warnZero(false);
+}
+gateAO();
+
+/* ── resize ───────────────────────────────────────────────────────────── */
+function resize() {
+  const w = stageEl.clientWidth, h = stageEl.clientHeight;
+  renderer.setSize(w, h, false);
+  camera.aspect = w / h; camera.updateProjectionMatrix();
+  composer?.setSize(w, h);
+  aoPass?.setSize?.(w, h);
+}
+addEventListener('resize', resize);
+
+/* ── orbit (drag + wheel), reduced-motion aware ───────────────────────── */
+let drag = null;
+stageEl.addEventListener('pointerdown', e => { drag = { x: e.clientX, y: e.clientY }; stageEl.setPointerCapture(e.pointerId); });
+stageEl.addEventListener('pointerup',   e => { drag = null; stageEl.releasePointerCapture(e.pointerId); });
+stageEl.addEventListener('pointermove', e => {
+  if (!drag) return;
+  cam.theta -= (e.clientX - drag.x) * 0.005;
+  cam.phi = Math.min(Math.PI * 0.48, Math.max(0.12, cam.phi - (e.clientY - drag.y) * 0.004));
+  drag = { x: e.clientX, y: e.clientY };
+});
+stageEl.addEventListener('wheel', e => { e.preventDefault(); cam.r = Math.min(180, Math.max(22, cam.r + e.deltaY * 0.06)); }, { passive: false });
+
+/* ── go ───────────────────────────────────────────────────────────────── */
+rebuildField();
+resize();
+rebuildChain();
+
+const REDUCED = matchMedia('(prefers-reduced-motion: reduce)').matches;
+let last = performance.now(), acc = 0, frames = 0;
+
+function tick(now) {
+  requestAnimationFrame(tick);
+  const dt = (now - last) / 1000; last = now;
+
+  if (!REDUCED && torch.checked) {
+    torches.children.forEach(o => {
+      if (!o.isPointLight) return;
+      o.intensity = o.userData.base * (0.82 + 0.18 * Math.sin(now * 0.008 + o.userData.seed) * Math.sin(now * 0.021 + o.userData.seed * 2)) * Number(lmul.value);
+    });
+  }
+
+  placeCam();
+  if (useComposer.checked && composer) composer.render(dt);
+  else renderer.render(scene, camera);
+
+  acc += dt; frames++;
+  if (acc >= 0.5) { $('fps').textContent = `${Math.round(frames / acc)} fps`; acc = 0; frames = 0; }
+}
+requestAnimationFrame(tick);
+</script>
+</body>
+</html>

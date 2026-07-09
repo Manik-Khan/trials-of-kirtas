@@ -41,7 +41,7 @@ const tall = Engine.generate({ seed: 7, heightMode: "tiered", verticality: 10 })
 ok("verticality scales the elevation", Math.max(...tall.h) >= Math.max(...tiered.h));
 
 // ── CONTROL: DM params take effect ──
-ok("biome is honoured", Engine.generate({ seed: 7, themeKey: "frost" }).meta.biome === "frost");
+ok("biome is honoured", Engine.generate({ seed: 7, themeKey: "tundra" }).meta.biome === "tundra");
 const big = Engine.generate({ seed: 7, roomCount: 14 });
 const small = Engine.generate({ seed: 7, roomCount: 5 });
 ok("room count changes the map", big.cols * big.rows !== small.cols * small.rows || big.spawns.length !== small.spawns.length);

@@ -28,6 +28,14 @@ missing, absent, unimplemented, or "was never built":
 
 **Never say "we never had X" without having run step 3.**
 
+5. **And the mirror image, learned 2026-07-08:** the repo is not M's working copy.
+   `main` was ~5 files behind — no `occ[]` in `forge/tactics-geometry.js`, no
+   `smoke-los-cover.js`, and a `topography-test-mock.html` 366 lines short of the
+   one on M's disk (no sprites, no shadow map, no AO). A session that greps only
+   GitHub will conclude features are missing that M is looking at. So: grep the
+   repo before claiming absence, **and ask M for the file before editing it.**
+   "Present in the repo" and "current" are different claims.
+
 ---
 
 ## §1 · WHAT THE FORGE IS
@@ -64,14 +72,16 @@ greyed out in the select and must never be silently dropped.
 | `forge/map-bridge.js` | generator/heightfield → MAP document `{cols,rows,h,wall,occ,spawns,props}` | canonical |
 | `forge/forge-dungeon.js` | generator. **THEMES keys are the biome names**: `grass druidic tundra swamp temple cavern volcanic` | canonical |
 | `forge/forge-engine.js` | seeded generate → validated map | canonical |
-| `forge/tests/*` | smokes. `smoke-forge-engine.js` **still throws** on `themeKey:"frost"` — needs `frost`→`tundra` | broken, known |
+| `forge/tests/*` | smokes. 83 green: engine 14 · bridge 16 · geometry 26 · los-cover 27 | canonical |
 | `topography-test-mock.html` | **THE surface.** Heightfield + all the geometry + combat loop | active |
 | `battle-tactics-geo-mock.html` | flat box-tile combat mock. **The source of the combat system and the feel layer.** NOT superseded — it is the port source | reference |
 | `battle-forge-mock.html` | *"the dream one."* generator → tactics diorama. **Source of the pixel sprites + portraits** | reference |
 | `battle-forge-biome-mock.html` | **source of the biome art direction.** `SKINS` table: `wallH`, fog, light rigs, particles, flavour scatter | reference |
 
-`tactics-geometry.js` is **inlined in two mocks** and must stay byte-identical to
-canonical in both. Any change ships to three files at once.
+`tactics-geometry.js` is **inlined in two mocks** and must stay **code-identical**
+(comments stripped) to canonical in both. Any change ships to three files at once.
+It was never byte-identical: both inlines carry an older header comment. The rule
+was restated rather than left as an invariant nobody could satisfy.
 
 The topography mock's *inlined generator is an old copy* with the pre-rename
 theme keys (`ancient/molten/frost/grim/verdant`). The repo's is current. Rebasing
@@ -173,7 +183,9 @@ real placement. **These are decisions, not hypotheses.**
 3. **Sight lines may be invisible.** Drawn with `LineBasicMaterial`, default
    `depthTest`, so segments passing through terrain disappear. Suspected, not
    confirmed in a browser. Set `depthTest:false` + `renderOrder`.
-4. **`smoke-forge-engine.js` throws** on `themeKey:"frost"` (renamed `tundra`).
+4. ~~`smoke-forge-engine.js` throws on `themeKey:"frost"`~~ — **fixed** (→ `tundra`).
+   The underlying wart stands: an unknown `themeKey` dies as a `TypeError` at
+   `forge-dungeon.js:348` (`TH.lakes` of undefined) instead of narrating. Guard it.
 5. **topo's inlined generator is stale** (old theme keys). Rebase on
    `forge/forge-dungeon.js` and take `WALL_FT` from `MapBridge.wallFeetFor()`.
 6. **TOON banding + ink outlines** were tuned against flat lighting; they may
@@ -183,10 +195,17 @@ real placement. **These are decisions, not hypotheses.**
 
 ## §6 · ART, ASSETS, LICENSING
 
-- **three.js is pinned to r128** (cdnjs), ~5 years old. Upgrading unlocks
-  `GTAOPass`, modern `EffectComposer`, and `pmndrs/postprocessing` + `N8AO`.
-  This is the single biggest render unlock available and it costs nothing.
-- No mock has ever used post-processing. Zero `EffectComposer` in the project.
+- **three.js: `topography-test-mock.html` is on r185**, ESM via import map.
+  The other three mocks stay on r128 — reference sources, not surfaces.
+  three shipped no browser UMD build after ~r160 and deleted `examples/js/` at
+  r148, so a classic `<script src>` tag could never have reached `EffectComposer`,
+  `GTAOPass` or `N8AO` at *any* version. The import map was the whole upgrade.
+- Post-processing is still **not wired**. Pins when it is: `postprocessing@6.39.2`
+  needs `three >=0.168 <0.186` (r185 is the ceiling); `n8ao@1.10.3` imports the
+  bare specifier `postprocessing` even for `N8AOPass` alone — omit that import-map
+  entry and it 404s silently. n8ao failed to load in a sandboxed preview frame;
+  `forge/r185-probe-mock.html` diagnoses which kind of failure and offers
+  `?cdn=unpkg` / `?cdn=esmsh`.
 - **The repo is PUBLIC. Assets must be CC0 or CC-BY.** Nothing else.
   - Good: **Kenney**, **Poly Haven**, **ambientCG**, **Quaternius**, **Kay Lousberg** (all CC0).
   - The Kenney plumbing already half-exists: `assets/library.json`, `CHEST_DEMO`.
@@ -211,8 +230,8 @@ real placement. **These are decisions, not hypotheses.**
   browser stays broken are the failure mode this project keeps hitting.
 - mock → approve → build for UX work.
 - `node --check` every script block + run the smokes before handover.
-- Inlined `tactics-geometry.js` must stay byte-identical to canonical in
-  **both** mocks.
+- Inlined `tactics-geometry.js` must stay **code-identical** to canonical in
+  **both** mocks (comments stripped — the headers already diverge).
 - Surgical edits. Never change a theme CSS variable for a per-page issue.
 - Failures must narrate. Disabled controls must state why. A character with no
   combat sheet is greyed out, never silently dropped.
@@ -225,9 +244,14 @@ real placement. **These are decisions, not hypotheses.**
 
 In order. Do not skip to 4.
 
+0. ~~Upgrade three.js~~ — **done, out of order, for cause.** Steps 2–3 were
+   blocked: the port sources were not in the repo. The renderer was the only
+   unblocked item, and doing it first means the toon/outline stack gets tuned
+   against the final renderer once instead of twice. Confirm `?lightmul=` in a
+   browser and bake the constant in.
 1. Fix §5.1 and §5.2 (slider, placement). Small, and the map stops lying.
 2. Port the **feel layer** from `battle-tactics-geo-mock.html`: badges, hit
    flash, shake, idle bob. Write floating damage text. Fix §5.3.
 3. Port **flanking** and **opportunity attacks**. Write **Ready an action** —
    the geometry now demands it.
-4. Then, and only then: upgrade three.js, add N8AO + bloom, and source CC0 props.
+4. Then: add N8AO + bloom on the proven base, and source CC0 props.

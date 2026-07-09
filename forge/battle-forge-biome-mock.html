@@ -1,0 +1,1351 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+<title>Battle Forge — Dungeon → Biome Diorama</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,600;0,700;1,600&family=Oswald:wght@300;400;500;600&family=EB+Garamond:ital@0;1&display=swap" rel="stylesheet">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+<style>
+  :root{
+    --tk-ground:#0c1615; --tk-ink:#e9e2cf; --tk-ink-dim:#9fb0a6; --tk-line:#2f4440;
+    --tk-gold:#d9b45a; --tk-teal:#4fae9b; --tk-red:#c1503f;
+    --tk-panel:#0d1817; --tk-panel-2:#13211f;
+    --f-display:'Playfair Display',serif; --f-util:'Oswald',sans-serif; --f-body:'EB Garamond',serif;
+  }
+  *{box-sizing:border-box;margin:0;padding:0}
+  html,body{height:100%;overflow:hidden;background:var(--tk-ground);color:var(--tk-ink);
+    font-family:var(--f-body);-webkit-user-select:none;user-select:none;touch-action:none}
+  #stage{position:fixed;inset:0}
+  canvas{display:block}
+  .overlay{position:fixed;inset:0;pointer-events:none;z-index:5}
+  .grain{opacity:.05;mix-blend-mode:overlay;
+    background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='120' height='120'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='2'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E")}
+  .vignette{background:radial-gradient(ellipse at center,transparent 40%,rgba(0,0,0,.6) 100%)}
+
+  .masthead{position:fixed;top:0;left:0;right:0;z-index:10;display:flex;align-items:baseline;gap:14px;
+    padding:16px 20px 30px;background:linear-gradient(180deg,rgba(6,12,11,.94),rgba(6,12,11,0));pointer-events:none}
+  .masthead h1{font-family:var(--f-display);font-weight:700;font-size:20px;letter-spacing:.3px}
+  .masthead .sub{font-family:var(--f-util);font-weight:300;text-transform:uppercase;letter-spacing:2.5px;font-size:10px;color:var(--tk-ink-dim)}
+  .masthead .dn{margin-left:auto;font-family:var(--f-display);font-style:italic;font-weight:600;font-size:16px;color:var(--tk-gold);text-align:right}
+
+  .forgebar{position:fixed;top:60px;left:20px;z-index:10;display:flex;gap:6px;align-items:center;flex-wrap:wrap;max-width:min(560px,calc(100% - 40px))}
+  .forgebar input#seed{width:66px;font-family:var(--f-util);font-size:13px;color:var(--tk-ink);
+    background:var(--tk-panel);border:1px solid var(--tk-line);padding:7px 8px;letter-spacing:1px}
+  .fbtn{font-family:var(--f-util);text-transform:uppercase;letter-spacing:1.4px;font-size:11px;color:var(--tk-ink-dim);
+    background:var(--tk-panel);border:1px solid var(--tk-line);padding:8px 12px;cursor:pointer;transition:.16s}
+  .fbtn:hover{color:var(--tk-ink);border-color:var(--tk-ink-dim)}
+  .fbtn.primary{background:var(--tk-gold);color:var(--tk-ground);border-color:var(--tk-gold);font-weight:500}
+  select#roomSel{font-family:var(--f-util);font-size:11px;text-transform:uppercase;letter-spacing:1px;color:var(--tk-ink-dim);
+    background:var(--tk-panel);border:1px solid var(--tk-line);padding:7px 8px;cursor:pointer;max-width:210px}
+
+  .panel{position:fixed;left:20px;bottom:20px;z-index:10;width:272px;
+    background:linear-gradient(180deg,var(--tk-panel-2),var(--tk-panel));border:1px solid var(--tk-line);
+    padding:14px;box-shadow:0 18px 50px rgba(0,0,0,.55)}
+  .panel .eyebrow{font-family:var(--f-util);font-weight:500;text-transform:uppercase;letter-spacing:2px;font-size:10px;color:var(--tk-ink-dim);margin-bottom:9px}
+  .chips{display:grid;grid-template-columns:1fr 1fr 1fr;gap:6px;margin-bottom:14px}
+  .chip{font-family:var(--f-util);text-transform:uppercase;letter-spacing:.8px;font-size:10px;color:var(--tk-ink-dim);
+    background:transparent;border:1px solid var(--tk-line);padding:8px 4px;cursor:pointer;transition:.16s;
+    display:flex;align-items:center;gap:5px;justify-content:center}
+  .chip .swatch{width:8px;height:8px;flex:0 0 8px;border:1px solid rgba(255,255,255,.15)}
+  .chip:hover{color:var(--tk-ink);border-color:var(--tk-ink-dim)}
+  .chip.active{color:var(--tk-ground);background:var(--tk-gold);border-color:var(--tk-gold);font-weight:500}
+  .divider{height:1px;background:var(--tk-line);margin:2px 0 13px}
+  .toggle-row{display:flex;margin-bottom:14px;border:1px solid var(--tk-line)}
+  .toggle-row button{flex:1;font-family:var(--f-util);text-transform:uppercase;letter-spacing:1px;font-size:10px;
+    color:var(--tk-ink-dim);background:transparent;border:0;padding:8px 4px;cursor:pointer;transition:.16s}
+  .toggle-row button.active{background:var(--tk-teal);color:var(--tk-ground);font-weight:500}
+  .toggle-row button:first-child{border-right:1px solid var(--tk-line)}
+  .slider-wrap label{display:flex;justify-content:space-between;align-items:baseline;font-family:var(--f-util);
+    text-transform:uppercase;letter-spacing:1.4px;font-size:10px;color:var(--tk-ink-dim);margin-bottom:7px}
+  .slider-wrap label .val{font-size:12px;color:var(--tk-gold)}
+  input[type=range]{-webkit-appearance:none;width:100%;height:2px;background:var(--tk-line);outline:none}
+  input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;width:14px;height:14px;background:var(--tk-gold);cursor:pointer;border:2px solid var(--tk-ground)}
+  input[type=range]::-moz-range-thumb{width:14px;height:14px;background:var(--tk-gold);cursor:pointer;border:2px solid var(--tk-ground)}
+
+  .orbit-btns{position:fixed;right:20px;top:70px;z-index:10;display:flex;gap:6px}
+  .orbit-btns button{font-family:var(--f-util);font-size:13px;color:var(--tk-ink-dim);background:var(--tk-panel);
+    border:1px solid var(--tk-line);width:32px;height:32px;cursor:pointer;transition:.16s}
+  .orbit-btns button:hover{color:var(--tk-ink);border-color:var(--tk-ink-dim)}
+  .attrib{position:fixed;right:20px;bottom:20px;z-index:10;text-align:right;font-family:var(--f-util);font-weight:300;
+    text-transform:uppercase;letter-spacing:1.4px;font-size:9px;color:var(--tk-ink-dim);line-height:1.9;pointer-events:none}
+  .attrib .k{color:var(--tk-ink)}
+
+  @media (max-width:660px){
+    .panel{width:calc(100% - 40px)} .attrib{display:none}
+    .masthead .dn{font-size:13px} select#roomSel{max-width:150px}
+  }
+</style>
+</head>
+<body>
+  <div id="stage"></div>
+  <div class="overlay grain"></div>
+  <div class="overlay vignette"></div>
+
+  <div class="masthead">
+    <h1>Battle Forge</h1>
+    <span class="sub">Dungeon → Biome Diorama</span>
+    <span class="dn" id="dungeonName">—</span>
+  </div>
+
+  <div class="forgebar">
+    <input id="seed" value="7" aria-label="Seed">
+    <button class="fbtn" id="dice" title="Random seed">🎲</button>
+    <button class="fbtn primary" id="forgeBtn">Forge</button>
+    <select id="roomSel" aria-label="Frame room"><option value="">Whole dungeon</option></select>
+  </div>
+
+  <div class="orbit-btns">
+    <button id="orbitL" title="Orbit left">‹</button>
+    <button id="orbitR" title="Orbit right">›</button>
+  </div>
+
+  <div class="panel">
+    <div class="eyebrow">Dungeon type</div>
+    <div class="chips" id="chips"></div>
+    <div class="divider"></div>
+    <div class="eyebrow">Floor</div>
+    <div class="toggle-row" id="floorToggle">
+      <button data-mode="biome" class="active">Biome ground</button>
+      <button data-mode="map">Map art</button>
+    </div>
+    <div class="slider-wrap">
+      <label>Biome tint over floor <span class="val" id="tintVal">50%</span></label>
+      <input type="range" id="tint" min="0" max="100" value="50">
+    </div>
+  </div>
+
+  <div class="attrib">
+    <span class="k">Drag</span> orbit · <span class="k">Wheel</span> zoom<br>
+    Generator core © Majid Manzarpour · MIT<br>
+    Diorama + skins: ToK mock · Three.js r128
+  </div>
+
+<script>
+/* ================================================================
+   DUNGEON GENERATOR CORE — extracted verbatim from
+   github.com/majidmanzarpour/threejs-procedural-dungeon (src/main.js).
+   MIT License (c) 2026 Majid Manzarpour. The copyright + MIT permission
+   notice are retained per the license; see the repo LICENSE for full text.
+   Pure JS: no Three.js dependency in this block.
+   ================================================================ */
+function mulberry32(seed){
+  let a = seed >>> 0;
+  return function(){
+    a |= 0; a = (a + 0x6D2B79F5) | 0;
+    let t = Math.imul(a ^ (a >>> 15), 1 | a);
+    t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t;
+    return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
+  };
+}
+function makeRng(seed){
+  const r = mulberry32(seed);
+  return {
+    f:(a,b)=> a + r()*(b-a),
+    i:(a,b)=> a + Math.floor(r()*(b-a+1)),
+    pick:(arr)=> arr[Math.floor(r()*arr.length)],
+    chance:(p)=> r() < p,
+    raw:r,
+    gauss(mu,sig){ let u=0,v=0; while(u===0)u=r(); while(v===0)v=r();
+      return mu + sig*Math.sqrt(-2*Math.log(u))*Math.cos(2*Math.PI*v); }
+  };
+}
+
+/* ---------------- constants ---------------- */
+const VOID=0, FLOOR=1, WALL=2, POOL=3;
+const TYPE = { ENTRANCE:'entrance', COMBAT:'combat', ELITE:'elite', TREASURE:'treasure', SHRINE:'shrine', BOSS:'boss' };
+const TINT = { entrance:0x3fd0bb, combat:0x8f95a3, elite:0x9b6cf0, treasure:0xd9a441, shrine:0x5a8fe8, boss:0xd8433a };
+
+/* ---------------- theme specs ----------------
+   Each theme is one data object: palette, lighting rig, liquid shader
+   params, particle system, prop-kit flags consumed by the generator,
+   and name-generator word pools. Everything downstream is data-driven. */
+const THEMES = {
+  ancient: {
+    label:'ANCIENT', accent:'#e8973f',
+    bg:0x07080d, fog:0x07080d, fogD:0.0021,
+    hemi:[0x2e3a52, 0x0a0b10, 0.55], dir:[0xffe8c8, 0.85],
+    floor:0x8a8f9c, corridor:0x6d7380, wall:0x5c626e, cap:0x757b88,
+    pillar:0x6a707e, debris:[0x4c515e, 0x60584a],
+    flame:0xffa640, flameCore:0xfff3c8, torchLight:[0xff8c3a, 1.5, 9.5],
+    cloth:0x7d2c26,
+    pools:null, particles:{kind:0, color:0xaab4cc, n:110},
+    nameA:['Sunken','Forgotten','Silent','Hollow','Elder','Broken','Nameless','Fallen'],
+    nameB:['Halls','Vaults','Catacombs','Depths','Sanctum','Undercroft','Barrows','Reliquary']
+  },
+  molten: {
+    label:'MOLTEN', accent:'#ff8642',
+    bg:0x0c0605, fog:0x1a0b04, fogD:0.0028,
+    hemi:[0x6b3419, 0x160503, 0.55], dir:[0xffd9b0, 0.5],
+    floor:0x7a685c, corridor:0x614f44, wall:0x503e34, cap:0x6b5546,
+    pillar:0x5e4a3e, debris:[0x4a382e, 0x60462f],
+    flame:0xff8c26, flameCore:0xffe9b0, torchLight:[0xff7326, 1.7, 10],
+    cloth:0x7d2416,
+    pools:{mode:0, colA:0x2b0d05, colB:0xff5a1f, glow:1.55, amount:0.16, pits:2},
+    particles:{kind:1, color:0xffa050, n:240},
+    nameA:['Molten','Ashen','Cindered','Smouldering','Charred','Burning','Ember','Scorched'],
+    nameB:['Forges','Furnaces','Calderas','Foundry','Kilns','Vents','Crucible','Depths']
+  },
+  frost: {
+    label:'FROST', accent:'#7fd4ff',
+    bg:0x060a12, fog:0x0b1522, fogD:0.0024,
+    hemi:[0x3a5a80, 0x0a0e18, 0.5], dir:[0xcfe4ff, 0.82],
+    floor:0x93a0b2, corridor:0x78848f, wall:0x60708a, cap:0x8194ac,
+    pillar:0x70809a, debris:[0x55617a, 0x6d7a90],
+    flame:0x86d9ff, flameCore:0xe8f7ff, torchLight:[0x6fc4ff, 1.35, 9.5],
+    cloth:0x2b4d70,
+    pools:{mode:1, colA:0x4a86c0, colB:0xbfe4ff, glow:0.55, amount:0},
+    lakes:true, icicles:true, particles:{kind:2, color:0xdff0ff, n:260},
+    nameA:['Frozen','Rimebound','Glacial','Howling','Pale','Shivering','Wintered','Whitelocked'],
+    nameB:['Crypts','Caverns','Hollows','Galleries','Sepulchre','Warrens','Reaches','Throat']
+  },
+  grim: {
+    label:'GRIM', accent:'#9fe66a',
+    bg:0x070a07, fog:0x0a130a, fogD:0.0030,
+    hemi:[0x2c4030, 0x070a06, 0.52], dir:[0xbfd8b0, 0.45],
+    floor:0x7c8276, corridor:0x62685c, wall:0x4f5549, cap:0x666c5e,
+    pillar:0x5c6254, debris:[0x4a4f44, 0x5e5c48],
+    flame:0x8fe05a, flameCore:0xe9ffd0, torchLight:[0x77d94a, 1.35, 9],
+    cloth:0x33461f,
+    pools:{mode:3, colA:0x0a1207, colB:0x41602c, glow:0.6, amount:0.05, pits:1},
+    graveyards:true, bones:true, particles:{kind:3, color:0x9fe66a, n:150},
+    nameA:['Blighted','Weeping','Rotting','Cursed','Umbral','Plagued','Mournful','Grim'],
+    nameB:['Necropolis','Ossuary','Tombs','Charnels','Graves','Catacombs','Morgue','Crypts']
+  },
+  verdant: {
+    label:'VERDANT', accent:'#59d68f',
+    bg:0x060c09, fog:0x091510, fogD:0.0023,
+    hemi:[0x2f5a46, 0x08120c, 0.6], dir:[0xd8f0c8, 0.8],
+    floor:0x848e7e, corridor:0x6a7560, wall:0x556050, cap:0x6e7a66,
+    pillar:0x606c5c, debris:[0x49543f, 0x5c644c],
+    flame:0x62e0a8, flameCore:0xe6fff0, torchLight:[0x4ad98e, 1.3, 9],
+    cloth:0x1f5038,
+    pools:{mode:2, colA:0x0c3532, colB:0x2fa38a, glow:0.6, amount:0.05, pits:1},
+    roots:true, shafts:true, particles:{kind:4, color:0x8fe6b8, n:200},
+    nameA:['Verdant','Overgrown','Sporebound','Tangled','Mossgrown','Waking','Feral','Blooming'],
+    nameB:['Gardens','Warrens','Roots','Conservatory','Hollows','Groves','Cisterns','Arbors']
+  }
+};
+const THEME_KEYS = Object.keys(THEMES);
+
+/* ---------------- name generator ---------------- */
+function dungeonName(rng, th){
+  const C=['Mal','Vor','Ash','Ker','Ul','Dra','Noth','Zar','Bel','Mor','Gol','Ith'];
+  const D=['goth','ath','ruk','esh','mir','gul','dan','oth','ek','ash','uzek','arim'];
+  return 'The ' + rng.pick(th.nameA) + ' ' + rng.pick(th.nameB) + ' of ' + rng.pick(C) + '\u2019' + rng.pick(D);
+}
+
+/* ---------------- Delaunay (Bowyer–Watson) ---------------- */
+function delaunay(pts){
+  const n = pts.length;
+  if(n < 2) return [];
+  if(n === 2) return [[0,1]];
+  const P = pts.map((p,i)=>({x:p.x + ((i*0.618033)%1)*1e-3, y:p.y + ((i*0.414213)%1)*1e-3, i}));
+  let minX=1e18,minY=1e18,maxX=-1e18,maxY=-1e18;
+  for(const p of P){ if(p.x<minX)minX=p.x; if(p.y<minY)minY=p.y; if(p.x>maxX)maxX=p.x; if(p.y>maxY)maxY=p.y; }
+  const dm = Math.max(maxX-minX, maxY-minY, 1), mx=(minX+maxX)/2, my=(minY+maxY)/2;
+  const s1={x:mx-30*dm,y:my-dm,i:-1}, s2={x:mx,y:my+30*dm,i:-2}, s3={x:mx+30*dm,y:my-dm,i:-3};
+  const mkTri=(a,b,c)=>{
+    const t=[a,b,c];
+    const d=2*(a.x*(b.y-c.y)+b.x*(c.y-a.y)+c.x*(a.y-b.y));
+    if(Math.abs(d)<1e-12){ t.ccx=0; t.ccy=0; t.r2=Infinity; return t; }
+    const a2=a.x*a.x+a.y*a.y, b2=b.x*b.x+b.y*b.y, c2=c.x*c.x+c.y*c.y;
+    t.ccx=(a2*(b.y-c.y)+b2*(c.y-a.y)+c2*(a.y-b.y))/d;
+    t.ccy=(a2*(c.x-b.x)+b2*(a.x-c.x)+c2*(b.x-a.x))/d;
+    t.r2=(a.x-t.ccx)*(a.x-t.ccx)+(a.y-t.ccy)*(a.y-t.ccy);
+    return t;
+  };
+  let tris=[mkTri(s1,s2,s3)];
+  for(const p of P){
+    const bad=[], edges=[];
+    for(const t of tris){ if((p.x-t.ccx)*(p.x-t.ccx)+(p.y-t.ccy)*(p.y-t.ccy) < t.r2) bad.push(t); }
+    for(const t of bad) for(let e=0;e<3;e++) edges.push([t[e],t[(e+1)%3]]);
+    const poly=[];
+    for(let i=0;i<edges.length;i++){
+      let shared=false;
+      for(let j=0;j<edges.length;j++){ if(i===j) continue;
+        const a=edges[i],b=edges[j];
+        if((a[0]===b[0]&&a[1]===b[1])||(a[0]===b[1]&&a[1]===b[0])){shared=true;break;}
+      }
+      if(!shared) poly.push(edges[i]);
+    }
+    tris = tris.filter(t=>!bad.includes(t));
+    for(const e of poly) tris.push(mkTri(e[0],e[1],p));
+  }
+  tris = tris.filter(t=>t[0].i>=0 && t[1].i>=0 && t[2].i>=0);
+  const seen=new Set(), out=[];
+  for(const t of tris) for(let e=0;e<3;e++){
+    const a=t[e].i, b=t[(e+1)%3].i, lo=Math.min(a,b), hi=Math.max(a,b), k=lo*4096+hi;
+    if(!seen.has(k)){ seen.add(k); out.push([lo,hi]); }
+  }
+  return out;
+}
+
+/* ---------------- generator ---------------- */
+function generateDungeon(params){
+  const t0 = performance.now();
+  let attempt = 0, seed = params.seed >>> 0, d = null;
+  while(attempt < 5){
+    d = tryGenerate(seed, params);
+    if(d.valid) break;
+    seed = (Math.imul(seed, 9301) + 49297) >>> 0; attempt++;
+  }
+  d.stats.genMs = performance.now() - t0;
+  d.stats.attempts = attempt + 1;
+  return d;
+}
+
+function tryGenerate(seed, params){
+  const rng = makeRng(seed);
+  const N = params.roomCount;
+  const TH = THEMES[params.themeKey];
+
+  /* -- 1. scatter -- */
+  const R = Math.sqrt(N) * 4.6;
+  const rooms = [];
+  const large = [];
+  for(let i=0;i<N;i++){
+    const t = rng.raw();
+    let w,h,arch;
+    if(t<0.45){ arch='s'; w=rng.i(5,7);  h=rng.i(5,7); }
+    else if(t<0.85){ arch='m'; w=rng.i(8,12); h=rng.i(8,12); }
+    else { arch='l'; w=rng.i(13,18); h=rng.i(13,18); large.push(i); }
+    const st = rng.raw();
+    const shape = st<0.60 ? 'rect' : (st<0.82 ? 'ellipse' : 'oct');
+    const ang = rng.f(0, Math.PI*2), rad = R*Math.sqrt(rng.raw());
+    rooms.push({ id:i, cx:Math.cos(ang)*rad, cy:Math.sin(ang)*rad, w, h, arch, shape,
+      sx0:Math.cos(ang)*rad, sy0:Math.sin(ang)*rad,
+      type:TYPE.COMBAT, depth:0, difficulty:0.2, degree:0 });
+  }
+  while(large.length < 2){
+    const j = rng.i(0, N-1);
+    if(rooms[j].arch !== 'l'){ rooms[j].arch='l'; rooms[j].w=rng.i(13,18); rooms[j].h=rng.i(13,18); rooms[j].shape='rect'; large.push(j); }
+  }
+
+  /* -- 2. separate -- */
+  const PAD = 2;
+  { const CX=new Float64Array(N), CY=new Float64Array(N), HW=new Float64Array(N), HH=new Float64Array(N);
+    for(let i=0;i<N;i++){ CX[i]=rooms[i].cx; CY[i]=rooms[i].cy; HW[i]=rooms[i].w/2+PAD/2; HH[i]=rooms[i].h/2+PAD/2; }
+    for(let iter=0; iter<300; iter++){
+      let moved = false;
+      for(let i=0;i<N;i++) for(let j=i+1;j<N;j++){
+        const ox = HW[i]+HW[j] - Math.abs(CX[i]-CX[j]);
+        if(ox<=0) continue;
+        const oy = HH[i]+HH[j] - Math.abs(CY[i]-CY[j]);
+        if(oy<=0) continue;
+        moved = true;
+        if(ox < oy){ const s = CX[i] <= CX[j] ? -1 : 1; CX[i] += s*ox/2; CX[j] -= s*ox/2; }
+        else       { const s = CY[i] <= CY[j] ? -1 : 1; CY[i] += s*oy/2; CY[j] -= s*oy/2; }
+      }
+      if(!moved) break;
+    }
+    for(let i=0;i<N;i++){ rooms[i].cx = Math.round(CX[i]); rooms[i].cy = Math.round(CY[i]); }
+  }
+
+  /* -- 3. graph: Delaunay -> MST -> loops -- */
+  const centers = rooms.map(r=>({x:r.cx, y:r.cy}));
+  let delEdges = delaunay(centers);
+  if(delEdges.length === 0){ delEdges = []; for(let i=0;i<N-1;i++) delEdges.push([i,i+1]); }
+  const elen = e => Math.hypot(centers[e[0]].x-centers[e[1]].x, centers[e[0]].y-centers[e[1]].y);
+
+  const adj = Array.from({length:N},()=>[]);
+  delEdges.forEach((e,idx)=>{ const w=elen(e); adj[e[0]].push({b:e[1],w,idx}); adj[e[1]].push({b:e[0],w,idx}); });
+  const inT = new Uint8Array(N); inT[0]=1; let inCount=1;
+  const mstIdx = new Set();
+  while(inCount < N){
+    let best=null;
+    for(let a=0;a<N;a++) if(inT[a]) for(const e of adj[a]) if(!inT[e.b] && (!best || e.w<best.w)) best=e;
+    if(!best) break;
+    inT[best.b]=1; inCount++; mstIdx.add(best.idx);
+  }
+  if(inCount < N) return { valid:false, stats:{} };
+
+  let mstLenSum=0; for(const i of mstIdx) mstLenSum += elen(delEdges[i]);
+  const mstMean = mstLenSum / Math.max(1, mstIdx.size);
+
+  const edges = [];
+  delEdges.forEach((e,idx)=>{
+    if(mstIdx.has(idx)) edges.push({a:e[0], b:e[1], isLoop:false, isCritical:false});
+    else if(elen(e) < mstMean*2.2 && rng.chance(params.loopChance))
+      edges.push({a:e[0], b:e[1], isLoop:true, isCritical:false});
+  });
+  for(const e of edges){ rooms[e.a].degree++; rooms[e.b].degree++; }
+
+  /* leaf guard: dungeons need dead ends — prune loop edges until >=3 leaves */
+  if(N >= 20){
+    let leafCount = 0;
+    for(let i=0;i<N;i++) if(rooms[i].degree===1) leafCount++;
+    while(leafCount < 3){
+      let bi=-1, bs=-1;
+      for(let i=0;i<edges.length;i++){
+        const e=edges[i]; if(!e.isLoop) continue;
+        const s=(rooms[e.a].degree===2?1:0)+(rooms[e.b].degree===2?1:0);
+        const L=Math.hypot(centers[e.a].x-centers[e.b].x, centers[e.a].y-centers[e.b].y);
+        const score = s*10000 + L;
+        if(score>bs){ bs=score; bi=i; }
+      }
+      if(bi<0) break;
+      const e=edges[bi];
+      if(--rooms[e.a].degree===1) leafCount++;
+      if(--rooms[e.b].degree===1) leafCount++;
+      edges.splice(bi,1);
+    }
+  }
+
+  /* -- 4. semantics before carving -- */
+  const gAdj = Array.from({length:N},()=>[]);
+  edges.forEach((e,i)=>{ gAdj[e.a].push({b:e.b,i}); gAdj[e.b].push({b:e.a,i}); });
+
+  let boss = 0; for(let i=1;i<N;i++) if(rooms[i].w*rooms[i].h > rooms[boss].w*rooms[boss].h) boss = i;
+
+  const distFrom = src => {
+    const D = new Int32Array(N).fill(-1); D[src]=0; const q=[src];
+    for(let h=0; h<q.length; h++){ const a=q[h]; for(const e of gAdj[a]) if(D[e.b]<0){ D[e.b]=D[a]+1; q.push(e.b); } }
+    return D;
+  };
+  const dB = distFrom(boss);
+  let entrance = -1, bestD = -1;
+  for(let i=0;i<N;i++) if(i!==boss && rooms[i].degree===1 && dB[i]>bestD){ bestD=dB[i]; entrance=i; }
+  if(entrance < 0){ for(let i=0;i<N;i++) if(i!==boss && dB[i]>bestD){ bestD=dB[i]; entrance=i; } }
+
+  const dE = distFrom(entrance);
+  let maxDepth = 1; for(let i=0;i<N;i++) if(dE[i]>maxDepth) maxDepth = dE[i];
+  rooms.forEach((r,i)=>{ r.depth = Math.max(0,dE[i]); r.difficulty = Math.min(1, 0.15 + 0.85*(r.depth/maxDepth)); });
+  rooms[entrance].type = TYPE.ENTRANCE; rooms[entrance].difficulty = 0;
+  rooms[boss].type = TYPE.BOSS; rooms[boss].difficulty = 1;
+
+  const par = new Int32Array(N).fill(-1), pe = new Int32Array(N).fill(-1);
+  { const q=[entrance], vis=new Uint8Array(N); vis[entrance]=1;
+    for(let h=0; h<q.length; h++){ const a=q[h];
+      for(const e of gAdj[a]) if(!vis[e.b]){ vis[e.b]=1; par[e.b]=a; pe[e.b]=e.i; q.push(e.b); } } }
+  const critRooms = new Set(); let critLen = 0;
+  for(let c=boss; c!==-1; c=par[c]){ critRooms.add(c); if(pe[c]>=0){ edges[pe[c]].isCritical=true; critLen++; } if(c===entrance) break; }
+
+  const leaves = [];
+  for(let i=0;i<N;i++) if(i!==entrance && i!==boss && rooms[i].degree===1) leaves.push(i);
+  leaves.sort((a,b)=>rooms[b].depth-rooms[a].depth);
+  leaves.slice(0,4).forEach(i=>{ rooms[i].type = TYPE.TREASURE; });
+
+  const shrineC = [];
+  for(let i=0;i<N;i++){ const r=rooms[i];
+    if(r.type===TYPE.COMBAT && !critRooms.has(i) && r.depth>maxDepth*0.3 && r.depth<maxDepth*0.85) shrineC.push(i); }
+  for(let k=0; k<2 && shrineC.length>0; k++){
+    const j = shrineC.splice(rng.i(0,shrineC.length-1),1)[0]; rooms[j].type = TYPE.SHRINE;
+  }
+  const eliteC = [];
+  for(const i of critRooms){ const r=rooms[i];
+    if(r.type===TYPE.COMBAT && r.depth>=maxDepth*0.55 && r.depth<=maxDepth*0.85) eliteC.push(i); }
+  eliteC.sort((a,b)=>rooms[a].depth-rooms[b].depth);
+  for(let k=0;k<Math.min(2,eliteC.length);k++) rooms[eliteC[eliteC.length-1-k]].type = TYPE.ELITE;
+
+  /* -- 4.5 theme room mutations (generation-aware) -- */
+  if(TH.lakes){
+    const lc = [];
+    for(let i=0;i<N;i++){ const r=rooms[i];
+      if((r.type===TYPE.COMBAT || r.type===TYPE.ELITE) && Math.min(r.w,r.h)>=9) lc.push(i); }
+    for(let k=0; k<2 && lc.length>0; k++) rooms[lc.splice(rng.i(0,lc.length-1),1)[0]].lake = true;
+  }
+  if(TH.graveyards){
+    const gc = [];
+    for(let i=0;i<N;i++){ const r=rooms[i];
+      if(r.type===TYPE.COMBAT && r.shape!=='ellipse' && Math.min(r.w,r.h)>=8) gc.push(i); }
+    for(let k=0; k<3 && gc.length>0; k++) rooms[gc.splice(rng.i(0,gc.length-1),1)[0]].grave = true;
+  }
+
+  /* -- 5. carve + rasterize -- */
+  let minX=1e9,minY=1e9,maxX=-1e9,maxY=-1e9;
+  for(const r of rooms){
+    minX=Math.min(minX, r.cx - Math.ceil(r.w/2)); maxX=Math.max(maxX, r.cx + Math.ceil(r.w/2));
+    minY=Math.min(minY, r.cy - Math.ceil(r.h/2)); maxY=Math.max(maxY, r.cy + Math.ceil(r.h/2));
+  }
+  const PADG = 5, offX = PADG - minX, offY = PADG - minY;
+  const W = (maxX-minX) + PADG*2 + 1, H = (maxY-minY) + PADG*2 + 1;
+  for(const r of rooms){ r.cx += offX; r.cy += offY; r.sx0 += offX; r.sy0 += offY; }
+
+  const grid = new Uint8Array(W*H);
+  const roomId = new Int16Array(W*H).fill(-1);
+  const corridor = new Uint8Array(W*H);
+  const idx = (x,y)=> y*W + x;
+  const inB = (x,y)=> x>=0 && y>=0 && x<W && y<H;
+
+  for(const r of rooms){
+    const rx=r.w/2, ry=r.h/2, sh=r.shape, ch=Math.min(rx,ry)*0.55;
+    const irx2=1/(rx*rx), iry2=1/(ry*ry);
+    const y0=Math.max(0,Math.floor(r.cy-ry)), y1=Math.min(H-1,Math.ceil(r.cy+ry));
+    const x0=Math.max(0,Math.floor(r.cx-rx)), x1=Math.min(W-1,Math.ceil(r.cx+rx));
+    for(let y=y0;y<=y1;y++){
+      const dy=y-r.cy, ady=Math.abs(dy), row=y*W;
+      if(ady>ry) continue;
+      for(let x=x0;x<=x1;x++){
+        const dx=x-r.cx, adx=Math.abs(dx);
+        if(adx>rx) continue;
+        let ok=true;
+        if(sh==='ellipse') ok = dx*dx*irx2 + dy*dy*iry2 <= 1.0;
+        else if(sh==='oct') ok = adx<=rx-ch || ady<=ry-ch || (adx-(rx-ch))+(ady-(ry-ch)) <= ch;
+        if(ok){ const c=row+x; grid[c]=FLOOR; roomId[c]=r.id; }
+      }
+    }
+  }
+
+  const stamp = (x,y)=>{ if(inB(x,y) && grid[idx(x,y)]!==FLOOR){ grid[idx(x,y)]=FLOOR; corridor[idx(x,y)]=1; } };
+  const offs = w => w===1?[0] : (w===2?[0,1] : [-1,0,1]);
+  const hLine=(x0,x1,y,w)=>{ const o=offs(w); for(let x=Math.min(x0,x1); x<=Math.max(x0,x1); x++) for(const k of o) stamp(x,y+k); };
+  const vLine=(y0,y1,x,w)=>{ const o=offs(w); for(let y=Math.min(y0,y1); y<=Math.max(y0,y1); y++) for(const k of o) stamp(x+k,y); };
+
+  for(const e of edges){
+    const A=rooms[e.a], B=rooms[e.b];
+    let w = e.isCritical ? 3 : 2;
+    if(!e.isCritical && (rooms[e.a].type===TYPE.TREASURE || rooms[e.b].type===TYPE.TREASURE) && rng.chance(0.4)) w = 1;
+    const dx = Math.abs(A.cx-B.cx), dy = Math.abs(A.cy-B.cy);
+    const ovX = Math.min(A.cx+A.w/2, B.cx+B.w/2) - Math.max(A.cx-A.w/2, B.cx-B.w/2);
+    const ovY = Math.min(A.cy+A.h/2, B.cy+B.h/2) - Math.max(A.cy-A.h/2, B.cy-B.h/2);
+    if(ovX >= w+2 && dy > 0){ const x = Math.round((Math.max(A.cx-A.w/2,B.cx-B.w/2)+Math.min(A.cx+A.w/2,B.cx+B.w/2))/2); vLine(A.cy,B.cy,x,w); }
+    else if(ovY >= w+2 && dx > 0){ const y = Math.round((Math.max(A.cy-A.h/2,B.cy-B.h/2)+Math.min(A.cy+A.h/2,B.cy+B.h/2))/2); hLine(A.cx,B.cx,y,w); }
+    else if(rng.chance(0.5)){ hLine(A.cx,B.cx,A.cy,w); vLine(A.cy,B.cy,B.cx,w); }
+    else { vLine(A.cy,B.cy,A.cx,w); hLine(A.cx,B.cx,B.cy,w); }
+  }
+
+  for(let y=0;y<H;y++){
+    const row=y*W;
+    for(let x=0;x<W;x++){
+      if(grid[row+x]!==FLOOR) continue;
+      const ya=Math.max(0,y-1), yb=Math.min(H-1,y+1);
+      const xa=Math.max(0,x-1), xb=Math.min(W-1,x+1);
+      for(let ny=ya;ny<=yb;ny++){
+        const nrow=ny*W;
+        for(let nx=xa;nx<=xb;nx++){
+          const ni=nrow+nx;
+          if(grid[ni]===VOID) grid[ni]=WALL;
+        }
+      }
+    }
+  }
+
+  const doorway = new Uint8Array(W*H);
+  for(let y=0;y<H;y++){
+    const row=y*W;
+    for(let x=0;x<W;x++){
+      const c=row+x;
+      if(!corridor[c]) continue;
+      if((x<W-1 && roomId[c+1]>=0) || (x>0 && roomId[c-1]>=0) ||
+         (y<H-1 && roomId[c+W]>=0) || (y>0 && roomId[c-W]>=0)) doorway[c]=1;
+    }
+  }
+
+  /* -- 5.5 theme carving: liquid pockets, frozen lakes, arches -- */
+  /* Pockets replace single WALL cells with sunken liquid slots (POOL).
+     Connectivity is untouched: floor cells never change, and any VOID
+     exposed behind a pocket is backfilled with WALL. */
+  const pools = [];
+  if(TH.pools && TH.pools.amount > 0){
+    const nearDoorC = (x,y,d)=>{ for(let oy=-d;oy<=d;oy++) for(let ox=-d;ox<=d;ox++){
+      const nx=x+ox, ny=y+oy;
+      if(nx>=0&&ny>=0&&nx<W&&ny<H && doorway[idx(nx,ny)]) return true; } return false; };
+    const cand = [];
+    for(let y=1;y<H-1;y++) for(let x=1;x<W-1;x++){
+      const c=idx(x,y);
+      if(grid[c]!==WALL || nearDoorC(x,y,2)) continue;
+      let nf=0;
+      if(grid[c+1]===FLOOR) nf++; if(grid[c-1]===FLOOR) nf++;
+      if(grid[c+W]===FLOOR) nf++; if(grid[c-W]===FLOOR) nf++;
+      if(nf===1) cand.push({x,y});
+    }
+    for(let i=cand.length-1;i>0;i--){ const j=rng.i(0,i); const t=cand[i]; cand[i]=cand[j]; cand[j]=t; }
+    const target = Math.round(cand.length * TH.pools.amount);
+    for(const s of cand){
+      if(pools.length >= target) break;
+      let close=false;
+      for(const p of pools) if(Math.max(Math.abs(p.x-s.x),Math.abs(p.y-s.y)) < 3){ close=true; break; }
+      if(close) continue;
+      grid[idx(s.x,s.y)] = POOL; pools.push({x:s.x, y:s.y});
+    }
+    for(const p of pools)
+      for(let oy=-1;oy<=1;oy++) for(let ox=-1;ox<=1;ox++){
+        const nx=p.x+ox, ny=p.y+oy;
+        if(nx>=0&&ny>=0&&nx<W&&ny<H && grid[idx(nx,ny)]===VOID) grid[idx(nx,ny)]=WALL;
+      }
+  }
+
+  /* Interior liquid pits: single floor cells sunk into lava/water/miasma.
+     Carved before BFS validation, so connectivity is still guaranteed;
+     interior-only + spacing >= 4 means a room can never be split. */
+  if(TH.pools && TH.pools.pits){
+    for(const r of rooms){
+      if((r.type!==TYPE.COMBAT && r.type!==TYPE.ELITE) || r.lake || r.grave) continue;
+      let n = Math.min(TH.pools.pits, Math.floor(r.w*r.h/45)+1), guard=0;
+      while(n>0 && guard++<40){
+        const x=rng.i(Math.floor(r.cx-r.w/2)+2, Math.ceil(r.cx+r.w/2)-2);
+        const y=rng.i(Math.floor(r.cy-r.h/2)+2, Math.ceil(r.cy+r.h/2)-2);
+        if(!inB(x,y)) continue;
+        const c=idx(x,y);
+        if(roomId[c]!==r.id || grid[c]!==FLOOR || doorway[c]) continue;
+        let ok=true;
+        for(let oy=-1;oy<=1 && ok;oy++) for(let ox=-1;ox<=1;ox++)
+          if(grid[idx(x+ox,y+oy)]!==FLOOR){ ok=false; break; }
+        if(ok) for(const p of pools) if(Math.max(Math.abs(p.x-x),Math.abs(p.y-y))<4){ ok=false; break; }
+        if(!ok) continue;
+        grid[c]=POOL; pools.push({x,y}); n--;
+      }
+    }
+  }
+
+  /* Frozen lakes: interior floor cells of lake rooms stay walkable (FLOOR
+     for BFS) but are flagged so rendering swaps stone tiles for ice. */
+  const lakeMask = new Uint8Array(W*H);
+  const lakeCells = [];
+  for(const r of rooms){
+    if(!r.lake) continue;
+    for(let y=Math.floor(r.cy-r.h/2)+2; y<=Math.ceil(r.cy+r.h/2)-2; y++)
+      for(let x=Math.floor(r.cx-r.w/2)+2; x<=Math.ceil(r.cx+r.w/2)-2; x++){
+        if(!inB(x,y)) continue;
+        const c=idx(x,y);
+        if(roomId[c]!==r.id || grid[c]!==FLOOR || doorway[c]) continue;
+        let solid=false;
+        for(let oy=-1;oy<=1 && !solid;oy++) for(let ox=-1;ox<=1;ox++)
+          if(grid[idx(x+ox,y+oy)]!==FLOOR){ solid=true; break; }
+        if(!solid){ lakeMask[c]=1; lakeCells.push({x,y}); }
+      }
+  }
+
+  /* Doorway arches: group doorway cells into runs perpendicular to the
+     corridor axis; one arch frame per run of width <= 3. */
+  const arches = [];
+  { const aseen = new Uint8Array(W*H);
+    for(let y=0;y<H;y++) for(let x=0;x<W;x++){
+      const c=idx(x,y);
+      if(!doorway[c] || aseen[c]) continue;
+      let rx=0, ry=0;
+      if(x<W-1 && roomId[c+1]>=0) rx=1; else if(x>0 && roomId[c-1]>=0) rx=-1;
+      else if(y<H-1 && roomId[c+W]>=0) ry=1; else ry=-1;
+      const px = rx===0 ? 1 : 0, py = rx===0 ? 0 : 1;
+      let x0=x, y0=y, x1=x, y1=y;
+      while(inB(x0-px,y0-py) && doorway[idx(x0-px,y0-py)] && !aseen[idx(x0-px,y0-py)]){ x0-=px; y0-=py; }
+      while(inB(x1+px,y1+py) && doorway[idx(x1+px,y1+py)] && !aseen[idx(x1+px,y1+py)]){ x1+=px; y1+=py; }
+      let len=0;
+      for(let ax=x0, ay=y0;; ax+=px, ay+=py){ aseen[idx(ax,ay)]=1; len++; if(ax===x1 && ay===y1) break; }
+      if(len<=3) arches.push({x:(x0+x1)/2, y:(y0+y1)/2, px, py, len});
+    }
+  }
+
+  /* -- 6. BFS field + validation -- */
+  const bfs = new Int16Array(W*H).fill(-1);
+  const ei = idx(rooms[entrance].cx, rooms[entrance].cy);
+  const total = W*H;
+  let floorTotal=0; for(let i=0;i<total;i++) if(grid[i]===FLOOR) floorTotal++;
+  let reach=0, maxBfs=0;
+  if(grid[ei]===FLOOR){
+    const q = new Int32Array(floorTotal); let qh=0, qt=0;
+    q[qt++]=ei; bfs[ei]=0; reach=1;
+    while(qh<qt){
+      const c=q[qh++], x=c%W, b=bfs[c]+1;
+      let n;
+      if(x>0       && grid[n=c-1]===FLOOR && bfs[n]<0){ bfs[n]=b; q[qt++]=n; reach++; }
+      if(x<W-1     && grid[n=c+1]===FLOOR && bfs[n]<0){ bfs[n]=b; q[qt++]=n; reach++; }
+      if(c>=W      && grid[n=c-W]===FLOOR && bfs[n]<0){ bfs[n]=b; q[qt++]=n; reach++; }
+      if(c<total-W && grid[n=c+W]===FLOOR && bfs[n]<0){ bfs[n]=b; q[qt++]=n; reach++; }
+    }
+    maxBfs = bfs[q[qt-1]];  /* FIFO: last enqueued cell is farthest */
+  }
+  const valid = reach === floorTotal && floorTotal > 0;
+
+  /* -- 7. decoration (pure data) -- */
+  const props=[], spawns=[];
+  const occ = new Uint8Array(W*H);
+  const nearDoor = (x,y,d)=>{ for(let oy=-d;oy<=d;oy++) for(let ox=-d;ox<=d;ox++)
+    if(inB(x+ox,y+oy) && doorway[idx(x+ox,y+oy)]) return true; return false; };
+  const interior = (x,y)=>{ for(let oy=-1;oy<=1;oy++) for(let ox=-1;ox<=1;ox++)
+    if(!inB(x+ox,y+oy) || grid[idx(x+ox,y+oy)]!==FLOOR) return false; return true; };
+  const put = (kind,x,y,rot,scale,rid)=>{ props.push({kind,x,y,rot:rot||0,scale:scale||1,roomId:rid}); occ[idx(x,y)]=1; };
+
+  for(const r of rooms){
+    const cix = idx(r.cx, r.cy);
+    if(r.type===TYPE.ENTRANCE) put('ring', r.cx, r.cy, 0, 1, r.id);
+    if(r.type===TYPE.BOSS){
+      put('bossCrystal', r.cx, r.cy, rng.f(0,6.28), 1, r.id);
+      const rr = Math.max(2.5, Math.min(r.w,r.h)/2 - 2), a0 = rng.f(0,1);
+      for(let k=0;k<6;k++){
+        const a = a0 + k*Math.PI/3;
+        const bx = Math.round(r.cx + Math.cos(a)*rr), by = Math.round(r.cy + Math.sin(a)*rr);
+        if(inB(bx,by) && grid[idx(bx,by)]===FLOOR && !occ[idx(bx,by)] && !nearDoor(bx,by,1)) put('brazier',bx,by,0,1,r.id);
+      }
+    }
+    if(r.type===TYPE.TREASURE && grid[cix]===FLOOR) put('chest', r.cx, r.cy, rng.i(0,3)*Math.PI/2, 1, r.id);
+    if(r.type===TYPE.SHRINE && grid[cix]===FLOOR) put('shrineCrystal', r.cx, r.cy, rng.f(0,6.28), 1, r.id);
+
+    if((r.type===TYPE.COMBAT || r.type===TYPE.ELITE) && Math.min(r.w,r.h)>=10 && r.shape!=='ellipse' && !r.grave && !r.lake){
+      const step = Math.min(r.w,r.h) >= 14 ? 4 : 3;
+      for(let y=Math.ceil(r.cy-r.h/2)+2; y<=r.cy+r.h/2-2; y++)
+        for(let x=Math.ceil(r.cx-r.w/2)+2; x<=r.cx+r.w/2-2; x++){
+          if(((x-r.cx)%step)!==0 || ((y-r.cy)%step)!==0) continue;
+          if(x===r.cx && y===r.cy) continue;
+          if(interior(x,y) && !occ[idx(x,y)] && !nearDoor(x,y,2)) put('pillar',x,y,0,rng.f(0.94,1.06),r.id);
+        }
+    }
+    if(r.grave){
+      for(let y=Math.ceil(r.cy-r.h/2)+2; y<=r.cy+r.h/2-2; y+=2)
+        for(let x=Math.ceil(r.cx-r.w/2)+2; x<=r.cx+r.w/2-2; x+=2){
+          if(Math.abs(x-r.cx)<=1 && Math.abs(y-r.cy)<=1) continue;
+          if(interior(x,y) && !occ[idx(x,y)] && !nearDoor(x,y,2) && rng.chance(0.8))
+            put('grave', x, y, rng.f(-0.3,0.3), rng.f(0.85,1.15), r.id);
+        }
+      if(Math.min(r.w,r.h)>=10 && grid[cix]===FLOOR && !occ[cix])
+        put('sarco', r.cx, r.cy, rng.chance(0.5)?0:Math.PI/2, 1, r.id);
+      let cd=4;
+      while(cd-->0){
+        const x=rng.i(Math.floor(r.cx-r.w/2)+1, Math.ceil(r.cx+r.w/2)-1);
+        const y=rng.i(Math.floor(r.cy-r.h/2)+1, Math.ceil(r.cy+r.h/2)-1);
+        if(inB(x,y) && roomId[idx(x,y)]===r.id && grid[idx(x,y)]===FLOOR && !occ[idx(x,y)])
+          put('candle', x, y, 0, rng.f(0.85,1.2), r.id);
+      }
+    }
+    if(r.type===TYPE.COMBAT || r.type===TYPE.ELITE || r.type===TYPE.BOSS){
+      let area=0;
+      for(let y=Math.floor(r.cy-r.h/2); y<=Math.ceil(r.cy+r.h/2); y++)
+        for(let x=Math.floor(r.cx-r.w/2); x<=Math.ceil(r.cx+r.w/2); x++)
+          if(inB(x,y) && roomId[idx(x,y)]===r.id) area++;
+      let count = Math.round((area/18) * (0.5 + r.difficulty));
+      if(r.type===TYPE.ELITE) count = Math.max(2, Math.round(count*0.6));
+      if(r.type===TYPE.BOSS)  count = rng.i(2,3);
+      const tier = r.type===TYPE.ELITE ? 3 : Math.max(1, Math.ceil(r.difficulty*3));
+      let guard=0;
+      while(count>0 && guard++<220){
+        const x=rng.i(Math.floor(r.cx-r.w/2)+1, Math.ceil(r.cx+r.w/2)-1);
+        const y=rng.i(Math.floor(r.cy-r.h/2)+1, Math.ceil(r.cy+r.h/2)-1);
+        if(!inB(x,y)) continue;
+        const c=idx(x,y);
+        if(roomId[c]===r.id && grid[c]===FLOOR && !occ[c] && !doorway[c] && !lakeMask[c]){
+          spawns.push({x,y,tier,roomId:r.id}); occ[c]=1; count--;
+        }
+      }
+    }
+  }
+  const torchCand=[];
+  for(let y=0;y<H;y++){
+    const row=y*W;
+    for(let x=0;x<W;x++){
+      const c=row+x;
+      if(grid[c]!==WALL) continue;
+      if(x<W-1 && grid[c+1]===FLOOR)      torchCand.push({x,y,dx:1,dy:0});
+      else if(x>0 && grid[c-1]===FLOOR)   torchCand.push({x,y,dx:-1,dy:0});
+      else if(y<H-1 && grid[c+W]===FLOOR) torchCand.push({x,y,dx:0,dy:1});
+      else if(y>0 && grid[c-W]===FLOOR)   torchCand.push({x,y,dx:0,dy:-1});
+    }
+  }
+  for(let i=torchCand.length-1;i>0;i--){ const j=rng.i(0,i); const t=torchCand[i]; torchCand[i]=torchCand[j]; torchCand[j]=t; }
+  const torches=[];
+  for(const c of torchCand){
+    let ok=true;
+    for(const t of torches) if(Math.max(Math.abs(t.x-c.x),Math.abs(t.y-c.y))<4){ ok=false; break; }
+    if(ok) torches.push(c);
+  }
+  for(let y=0;y<H;y++){
+    const row=y*W;
+    for(let x=0;x<W;x++){
+      const c=row+x;
+      if(grid[c]!==FLOOR || occ[c] || doorway[c] || lakeMask[c]) continue;
+      const rid = roomId[c];
+      const diff = rid>=0 ? rooms[rid].difficulty : 0.5;
+      let p = params.decorDensity * 0.045 * (1.25 - 0.6*diff);
+      if(corridor[c]) p *= 0.45;
+      if(rng.chance(p)) props.push({kind:'debris',x,y,rot:rng.f(0,6.28),scale:rng.f(0.6,1.35),roomId:rid,v:rng.i(0,2)});
+    }
+  }
+
+  /* -- 7.5 theme prop sweeps -- */
+  const floorDir = (x,y)=>{
+    const c=idx(x,y);
+    if(x<W-1 && grid[c+1]===FLOOR) return [1,0];
+    if(x>0 && grid[c-1]===FLOOR) return [-1,0];
+    if(y<H-1 && grid[c+W]===FLOOR) return [0,1];
+    if(y>0 && grid[c-W]===FLOOR) return [0,-1];
+    return null;
+  };
+  if(TH.icicles){
+    for(let y=0;y<H;y++) for(let x=0;x<W;x++){
+      if(grid[idx(x,y)]!==WALL) continue;
+      const d = floorDir(x,y);
+      if(d && rng.chance(0.06 + 0.08*params.decorDensity))
+        props.push({kind:'icicle',x,y,dx:d[0],dy:d[1],rot:rng.f(0,6.28),scale:rng.f(0.7,1.3)});
+    }
+    for(const lc of lakeCells)
+      if(rng.chance(0.05)) props.push({kind:'shardIce',x:lc.x,y:lc.y,rot:rng.f(0,6.28),scale:rng.f(0.6,1.2)});
+  }
+  if(TH.roots){
+    const sites=[];
+    for(let y=1;y<H-1;y++) for(let x=1;x<W-1;x++){
+      if(grid[idx(x,y)]!==WALL) continue;
+      const d = floorDir(x,y);
+      if(d && roomId[idx(x+d[0],y+d[1])]>=0) sites.push({x,y,dx:d[0],dy:d[1]});
+    }
+    for(let i=sites.length-1;i>0;i--){ const j=rng.i(0,i); const t=sites[i]; sites[i]=sites[j]; sites[j]=t; }
+    const breaches=[];
+    for(const s of sites){
+      if(breaches.length>=5) break;
+      let close=false;
+      for(const b of breaches) if(Math.max(Math.abs(b.x-s.x),Math.abs(b.y-s.y))<7){ close=true; break; }
+      if(!close) breaches.push(s);
+    }
+    const mossMask = new Uint8Array(W*H);
+    for(const b of breaches){
+      props.push({kind:'roots',x:b.x,y:b.y,dx:b.dx,dy:b.dy,rot:0,scale:rng.f(0.9,1.2)});
+      for(let oy=-2;oy<=2;oy++) for(let ox=-2;ox<=2;ox++){
+        const nx=b.x+ox, ny=b.y+oy;
+        if(!inB(nx,ny)) continue;
+        const c=idx(nx,ny);
+        if(grid[c]===FLOOR && !mossMask[c] && rng.chance(0.75)){
+          mossMask[c]=1; props.push({kind:'moss',x:nx,y:ny,rot:rng.f(0,6.28),scale:rng.f(0.7,1.4)});
+        }
+      }
+    }
+    for(let y=0;y<H;y++) for(let x=0;x<W;x++){
+      const c=idx(x,y);
+      if(grid[c]!==FLOOR || mossMask[c] || lakeMask[c]) continue;
+      let nw=0;
+      if(x<W-1 && grid[c+1]===WALL) nw++; if(x>0 && grid[c-1]===WALL) nw++;
+      if(y<H-1 && grid[c+W]===WALL) nw++; if(y>0 && grid[c-W]===WALL) nw++;
+      if(nw>0 && rng.chance(0.12*params.decorDensity)){
+        mossMask[c]=1; props.push({kind:'moss',x,y,rot:rng.f(0,6.28),scale:rng.f(0.6,1.3)});
+      }
+    }
+  }
+  if(TH.bones){
+    for(let y=0;y<H;y++) for(let x=0;x<W;x++){
+      const c=idx(x,y);
+      if(grid[c]!==FLOOR || occ[c] || doorway[c] || corridor[c]) continue;
+      const rid = roomId[c];
+      if(rid>=0 && rooms[rid].depth>1 && rng.chance(0.018 + 0.02*params.decorDensity))
+        props.push({kind:'bones',x,y,rot:rng.f(0,6.28),scale:rng.f(0.8,1.2),roomId:rid});
+    }
+  }
+  /* liquid veins: crack decals anchored to pool edges so they read as heat/
+     rot radiating FROM the liquid into the surrounding stone, never floating
+     mid-room. Frost gets pale fracture lines around lake shores. */
+  { const DIRS = [[1,0],[-1,0],[0,1],[0,-1]];
+    if(TH.pools && (TH.pools.mode===0 || TH.pools.mode===3)){
+      const pv = TH.pools.mode===0 ? 0.8 : 0.45;
+      for(const p of pools)
+        for(const [dx,dy] of DIRS){
+          const nx=p.x+dx, ny=p.y+dy;
+          if(!inB(nx,ny) || grid[idx(nx,ny)]!==FLOOR) continue;
+          if(rng.chance(pv))
+            props.push({kind:'crack',x:nx,y:ny,dx,dy,rot:rng.f(0,6.28),scale:rng.f(0.9,1.5)});
+        }
+    }
+    if(TH.lakes){
+      for(const lc of lakeCells)
+        for(const [dx,dy] of DIRS){
+          const nx=lc.x+dx, ny=lc.y+dy;
+          if(!inB(nx,ny)) continue;
+          const c2 = idx(nx,ny);
+          if(grid[c2]!==FLOOR || lakeMask[c2]) continue;
+          if(rng.chance(0.3))
+            props.push({kind:'crack',x:nx,y:ny,dx,dy,rot:rng.f(0,6.28),scale:rng.f(0.7,1.2),ice:1});
+        }
+    }
+  }
+  for(const r of rooms){
+    if(r.type!==TYPE.ELITE && r.type!==TYPE.BOSS) continue;
+    const cand=[];
+    for(let y=Math.floor(r.cy-r.h/2)-1; y<=Math.ceil(r.cy+r.h/2)+1; y++)
+      for(let x=Math.floor(r.cx-r.w/2)-1; x<=Math.ceil(r.cx+r.w/2)+1; x++){
+        if(!inB(x,y) || grid[idx(x,y)]!==WALL) continue;
+        const d = floorDir(x,y);
+        if(d && roomId[idx(x+d[0],y+d[1])]===r.id) cand.push({x,y,dx:d[0],dy:d[1]});
+      }
+    for(let i=cand.length-1;i>0;i--){ const j=rng.i(0,i); const t=cand[i]; cand[i]=cand[j]; cand[j]=t; }
+    const placed=[];
+    for(const s of cand){
+      if(placed.length >= (r.type===TYPE.BOSS?4:2)) break;
+      let close=false;
+      for(const p of placed) if(Math.max(Math.abs(p.x-s.x),Math.abs(p.y-s.y))<4){ close=true; break; }
+      if(!close){ placed.push(s); props.push({kind:'banner',x:s.x,y:s.y,dx:s.dx,dy:s.dy,rot:0,scale:1}); }
+    }
+  }
+
+  const loops = edges.filter(e=>e.isLoop).length;
+  return {
+    valid, params, seed, name:dungeonName(rng, TH),
+    W,H, grid, roomId, corridor, doorway, bfs, maxBfs,
+    rooms, edges, entrance, boss, maxDepth,
+    props, spawns, torches, pools, lakeCells, lakeMask, arches,
+    stats:{ rooms:N, edges:edges.length, loops, critLen, floorTiles:floorTotal, reach, genMs:0, attempts:1 }
+  };
+}
+
+/* ════════════════════════════════════════════════════════════════════
+   BATTLE FORGE — RENDERER + BIOME/TYPE SKINS  (ToK mock code)
+   Consumes the generator's map document (grid + rooms + spawns + props +
+   torches) into an HD-2D 3D diorama. Six selectable dungeon types, each a
+   palette + atmosphere + prop treatment layered over the same layout.
+   Generator core above is MIT © Majid Manzarpour (see its banner).
+   ════════════════════════════════════════════════════════════════════ */
+const REDUCED = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+
+/* ---------------- canvas sprite factory ---------------- */
+function cv(w,h){const c=document.createElement('canvas');c.width=w;c.height=h;
+  const x=c.getContext('2d');x.imageSmoothingEnabled=false;return {c,x};}
+function ctex(c){const t=new THREE.CanvasTexture(c);t.magFilter=THREE.NearestFilter;
+  t.minFilter=THREE.LinearMipmapLinearFilter;return t;}
+function pxr(x,X,Y,W,H,col){x.fillStyle=col;x.fillRect(X,Y,W,H);}
+
+function sTree(kind){const {c,x}=cv(64,96);
+  if(kind==='pine'||kind==='snowpine'){pxr(x,29,74,6,20,'#4a3527');
+    const g=kind==='snowpine'?['#2c4a3a','#37624b','#4a7a5e']:['#2f5233','#3d6b3f','#4f854f'];
+    for(let i=0;i<3;i++){const y=20+i*20,w=44-i*10;x.fillStyle=g[i];x.beginPath();
+      x.moveTo(32,y);x.lineTo(32+w/2,y+24);x.lineTo(32-w/2,y+24);x.closePath();x.fill();}
+    if(kind==='snowpine'){x.fillStyle='rgba(240,248,255,.85)';for(let i=0;i<3;i++){const y=20+i*20,w=44-i*10;
+      x.beginPath();x.moveTo(32,y);x.lineTo(32+w/2-3,y+8);x.lineTo(32-w/2+3,y+8);x.closePath();x.fill();}}
+  } else if(kind==='cypress'){pxr(x,30,70,5,24,'#3b2a1e');
+    const b=(cx,cy,r,col)=>{x.fillStyle=col;x.beginPath();x.arc(cx,cy,r,0,7);x.fill();};
+    b(32,50,17,'#38513a');b(24,40,12,'#41603f');b(40,42,11,'#41603f');b(32,28,13,'#4a704a');
+  } else if(kind==='bare'){pxr(x,30,54,5,40,'#5b4636');x.strokeStyle='#5b4636';x.lineWidth=3;
+    [[32,58,18,44],[32,50,46,38],[20,45,10,34],[46,39,56,28]].forEach(p=>{x.beginPath();x.moveTo(p[0],p[1]);x.lineTo(p[2],p[3]);x.stroke();});
+    x.fillStyle='rgba(230,240,250,.7)';[[18,44],[46,38],[10,34],[56,28]].forEach(p=>x.fillRect(p[0]-2,p[1]-2,5,3));
+  } else {pxr(x,29,60,6,34,'#4a3527');
+    const b=(cx,cy,r,col)=>{x.fillStyle=col;x.beginPath();x.arc(cx,cy,r,0,7);x.fill();};
+    b(32,40,20,'#3c6b3e');b(20,34,13,'#4c8150');b(44,34,13,'#4c8150');b(32,24,15,'#5a9459');}
+  return c;}
+function sGrass(){const {c,x}=cv(28,28);
+  for(let i=0;i<6;i++){const bx=6+i*3+(i%2),sw=Math.random()*4-2;
+    x.strokeStyle=i%2?'#5f8a3e':'#6f9a4a';x.lineWidth=2;x.beginPath();
+    x.moveTo(bx,26);x.quadraticCurveTo(bx+sw,16,bx+sw*1.6,7);x.stroke();}return c;}
+function sReed(){const {c,x}=cv(24,64);
+  for(let i=0;i<4;i++){const bx=5+i*4,h=30+Math.random()*24;
+    x.strokeStyle=i%2?'#6a7f3c':'#7c9147';x.lineWidth=2;x.beginPath();
+    x.moveTo(bx,64);x.quadraticCurveTo(bx-2,64-h/2,bx-4,64-h);x.stroke();
+    pxr(x,bx-6,64-h-6,4,8,'#8a6b34');}return c;}
+function sRock(snow){const {c,x}=cv(40,32);x.fillStyle='#5c5f5a';x.beginPath();
+  x.moveTo(4,30);x.lineTo(9,14);x.lineTo(20,8);x.lineTo(33,15);x.lineTo(37,30);x.closePath();x.fill();
+  x.fillStyle='#6d716b';x.beginPath();x.moveTo(9,14);x.lineTo(20,8);x.lineTo(24,17);x.lineTo(14,20);x.closePath();x.fill();
+  if(snow){x.fillStyle='rgba(235,244,252,.9)';x.beginPath();
+    x.moveTo(9,14);x.lineTo(20,8);x.lineTo(33,15);x.lineTo(28,18);x.lineTo(20,13);x.lineTo(13,17);x.closePath();x.fill();}
+  return c;}
+function sMushroom(glow){const {c,x}=cv(24,28);pxr(x,10,16,4,10,'#d8cdb0');
+  x.fillStyle=glow?'#6ad0b0':'#7a3b8e';x.beginPath();x.ellipse(12,14,10,6,0,0,7);x.fill();
+  x.fillStyle=glow?'rgba(200,255,240,.9)':'rgba(230,210,240,.9)';[[8,12],[15,13],[12,10]].forEach(p=>x.fillRect(p[0],p[1],2,2));return c;}
+function sChest(){const {c,x}=cv(34,30);pxr(x,4,14,26,14,'#6b4527');pxr(x,4,8,26,8,'#7d5230');
+  pxr(x,4,13,26,3,'#c9a24b');pxr(x,15,16,4,6,'#c9a24b');
+  x.fillStyle='#4a2f18';x.fillRect(6,26,22,3);return c;}
+function sCrystal(col){const {c,x}=cv(28,40);x.fillStyle=col;x.globalAlpha=.9;x.beginPath();
+  x.moveTo(14,2);x.lineTo(22,20);x.lineTo(17,38);x.lineTo(9,36);x.lineTo(6,18);x.closePath();x.fill();
+  x.globalAlpha=1;x.fillStyle='rgba(255,255,255,.6)';x.beginPath();
+  x.moveTo(14,2);x.lineTo(18,18);x.lineTo(12,20);x.closePath();x.fill();return c;}
+function sBanner(col){const {c,x}=cv(24,48);pxr(x,4,2,16,4,'#3a2c1c');x.fillStyle=col;
+  x.beginPath();x.moveTo(5,6);x.lineTo(19,6);x.lineTo(19,38);x.lineTo(12,32);x.lineTo(5,38);x.closePath();x.fill();
+  x.fillStyle='rgba(255,255,255,.18)';x.fillRect(10,12,4,4);x.fillRect(10,20,4,4);return c;}
+function sGrave(){const {c,x}=cv(24,30);x.fillStyle='#7a7d78';x.beginPath();
+  x.moveTo(6,30);x.lineTo(6,12);x.arc(12,12,6,Math.PI,0);x.lineTo(18,30);x.closePath();x.fill();
+  x.strokeStyle='#5a5d58';x.lineWidth=2;x.beginPath();x.moveTo(12,8);x.lineTo(12,18);x.moveTo(8,12);x.lineTo(16,12);x.stroke();return c;}
+function sTorch(){const {c,x}=cv(16,20);x.fillStyle='#ffb640';x.beginPath();
+  x.moveTo(8,1);x.lineTo(13,13);x.lineTo(3,13);x.closePath();x.fill();
+  x.fillStyle='#ffe08a';x.beginPath();x.moveTo(8,4);x.lineTo(11,12);x.lineTo(5,12);x.closePath();x.fill();return c;}
+function sHero(kind){const {c,x}=cv(32,48);const skin='#e6b98f';
+  if(kind==='warrior'){pxr(x,11,30,10,14,'#8a8f96');pxr(x,10,42,5,5,'#3a3a40');pxr(x,17,42,5,5,'#3a3a40');
+    pxr(x,12,16,8,10,skin);pxr(x,12,12,8,5,'#5a3b28');pxr(x,22,20,4,18,'#b8b8c0');pxr(x,20,18,3,4,'#d9b45a');pxr(x,6,26,5,12,'#7a4a2a');
+  } else if(kind==='mage'){pxr(x,11,28,10,16,'#4a3d7a');pxr(x,10,44,11,3,'#2c2450');
+    pxr(x,12,16,8,10,skin);pxr(x,11,10,10,7,'#5c4a9a');pxr(x,22,14,3,26,'#8a6b34');pxr(x,20,10,7,7,'#7fd0e0');
+  } else if(kind==='monk'){pxr(x,11,30,10,14,'#c98a3a');pxr(x,10,44,5,3,'#6b4522');pxr(x,17,44,5,3,'#6b4522');
+    pxr(x,12,16,8,10,skin);pxr(x,12,13,8,4,'#2a2a2a');pxr(x,22,22,3,18,'#8a6b34');
+  } else {pxr(x,11,30,10,14,'#7a3b3b');pxr(x,10,44,11,3,'#4a2020');
+    pxr(x,12,16,8,10,skin);pxr(x,11,12,10,5,'#caa24b');pxr(x,22,18,3,22,'#b8b8c0');}
+  return c;}
+function sGoblin(archer){const {c,x}=cv(28,36);pxr(x,9,20,10,12,archer?'#4a5a2a':'#5a6a2a');
+  pxr(x,8,32,4,4,'#2a2a20');pxr(x,16,32,4,4,'#2a2a20');
+  pxr(x,10,10,8,10,'#7a9a4a');pxr(x,11,13,2,2,'#c93a2a');pxr(x,15,13,2,2,'#c93a2a');
+  pxr(x,7,9,3,4,'#7a9a4a');pxr(x,18,9,3,4,'#7a9a4a');
+  if(archer){x.strokeStyle='#6b4522';x.lineWidth=2;x.beginPath();x.arc(22,20,7,-1.1,1.1);x.stroke();}
+  else pxr(x,19,14,3,16,'#9a9a9a');return c;}
+function sDot(col){const {c,x}=cv(32,32);const g=x.createRadialGradient(16,16,0,16,16,16);
+  g.addColorStop(0,col);g.addColorStop(.4,col.replace('rgb','rgba').replace(')',',.6)'));
+  g.addColorStop(1,'rgba(0,0,0,0)');x.fillStyle=g;x.fillRect(0,0,32,32);return c;}
+function sShadow(){const {c,x}=cv(64,32);const g=x.createRadialGradient(32,16,0,32,16,30);
+  g.addColorStop(0,'rgba(0,0,0,.5)');g.addColorStop(1,'rgba(0,0,0,0)');
+  x.fillStyle=g;x.beginPath();x.ellipse(32,16,30,13,0,0,7);x.fill();return c;}
+function floorTex(base,flecks){const {c,x}=cv(128,128);x.fillStyle=base;x.fillRect(0,0,128,128);
+  for(let i=0;i<900;i++){x.fillStyle=flecks[(Math.random()*flecks.length)|0];
+    const s=1+Math.random()*2;x.fillRect(Math.random()*128,Math.random()*128,s,s);}return c;}
+function wallTex(base,dark){const {c,x}=cv(64,64);x.fillStyle=base;x.fillRect(0,0,64,64);
+  x.strokeStyle=dark;x.lineWidth=2;
+  for(let y=0;y<64;y+=16){x.beginPath();x.moveTo(0,y);x.lineTo(64,y);x.stroke();
+    const off=(y/16)%2?32:0;x.beginPath();x.moveTo(off,y);x.lineTo(off,y+16);x.stroke();
+    x.beginPath();x.moveTo(off+32,y);x.lineTo(off+32,y+16);x.stroke();}return c;}
+
+/* ---------------- SKINS: the six dungeon types ---------------- */
+const SKINS = {
+  grass:{ name:'Verdant Field', genTheme:'verdant', swatch:'#6f9a4a',
+    clear:0x9fbf8e, fog:[0xb9d4a6,18,120], amb:[0xfff3dd,0.8], hemi:[0xbfe0ff,0x5a7d3a,0.55], sun:[0xfff0cc,1.0,[40,60,30]],
+    floorCol:0x6f9a54, floorTex:()=>floorTex('#5f8a3e',['#6f9a4a','#456a2c','#7fa858']),
+    wallCol:0x6a5a3a, wallTex:()=>wallTex('#6a5a3a','#4a3d28'), wallH:1.4, wallJit:0.1,
+    tint:0x9fd066, pillar:'mossy', water:{color:0x3f7fae,frozen:false,opacity:.6},
+    flavor:[['tree',10,1.1],['grass',60,.5],['rock',10,.9]], part:{tex:'rgb(255,246,180)',n:130,mode:'pollen'} },
+
+  druidic:{ name:'Druidic Sanctum', genTheme:'verdant', swatch:'#3c6b3e',
+    clear:0x2c4030, fog:[0x33503c,12,74], amb:[0x9fe0b0,0.5], hemi:[0x6fae8f,0x1e2c22,0.55], sun:[0xd0ffb0,0.65,[24,50,20]],
+    floorCol:0x3a5138, floorTex:()=>floorTex('#2e3d2a',['#38513a','#26331f','#4a3a2a']),
+    wallCol:0x3a4a38, wallTex:()=>wallTex('#3a4a38','#26331f'), wallH:1.6, wallJit:0.15,
+    tint:0x6fd08a, pillar:'mossy', water:{color:0x2fa38a,frozen:false,opacity:.62},
+    flavor:[['cypress',9,1.2],['mushroom',20,.4],['grass',26,.45],['tree',4,1.0]], part:{tex:'rgb(180,255,190)',n:90,mode:'spore'} },
+
+  tundra:{ name:'Frostbound Waste', genTheme:'frost', swatch:'#cfe4f2',
+    clear:0xcfe0ee, fog:[0xd6e6f2,16,100], amb:[0xdce8f5,0.85], hemi:[0xeaf4ff,0x8fa8bc,0.7], sun:[0xeaf2ff,0.8,[36,56,24]],
+    floorCol:0xc9d8e4, floorTex:()=>floorTex('#c9d8e4',['#dbe8f2','#b7c8d6','#e6f0f8']),
+    wallCol:0x8fa8bc, wallTex:()=>wallTex('#8fa8bc','#6a808f'), wallH:1.5, wallJit:0.12,
+    tint:0x9fc8f0, pillar:'rock', water:{color:0xaad0ea,frozen:true,opacity:.85},
+    flavor:[['snowpine',9,1.1],['bare',5,1.0],['rock',9,.9]], part:{tex:'rgb(240,248,255)',n:300,mode:'snow'} },
+
+  swamp:{ name:'Mireheart Bog', genTheme:'grim', swatch:'#3a5540',
+    clear:0x2a3a30, fog:[0x35493a,10,60], amb:[0x9fc0a0,0.55], hemi:[0x7fae90,0x1a261e,0.5], sun:[0xc8e0a8,0.55,[28,46,22]],
+    floorCol:0x33422c, floorTex:()=>floorTex('#2a3626',['#33422c','#20291d','#4a3d26']),
+    wallCol:0x3a4436, wallTex:()=>wallTex('#3a4436','#232b1f'), wallH:1.25, wallJit:0.18,
+    tint:0x7fb060, pillar:'mossy', water:{color:0x35583f,frozen:false,opacity:.72},
+    flavor:[['reed',30,.7],['cypress',7,1.25],['mushroom',12,.4]], part:{tex:'rgb(190,255,150)',n:60,mode:'firefly'} },
+
+  temple:{ name:'Sunken Temple', genTheme:'ancient', swatch:'#c9a24b',
+    clear:0x14100a, fog:[0x1a1510,20,110], amb:[0xffe6bc,0.7], hemi:[0x6a5a3a,0x141008,0.5], sun:[0xffdca0,0.7,[30,54,22]],
+    floorCol:0x8a8172, floorTex:()=>floorTex('#8a8172',['#9a9182','#736a5c','#a89a7c']),
+    wallCol:0x7d7460, wallTex:()=>wallTex('#7d7460','#57503f'), wallH:2.1, wallJit:0.0,
+    tint:0xd9b45a, pillar:'column', water:{color:0x3a4a5a,frozen:false,opacity:.6},
+    flavor:[], part:{tex:'rgb(230,200,140)',n:80,mode:'dust'} },
+
+  cavern:{ name:'Weeping Cavern', genTheme:'ancient', swatch:'#6a7a80',
+    clear:0x0a1012, fog:[0x0d1618,14,78], amb:[0x9fc0c8,0.5], hemi:[0x3a5a62,0x08100f,0.55], sun:[0xb0d8e0,0.5,[26,48,20]],
+    floorCol:0x4a504e, floorTex:()=>floorTex('#3e4442',['#4a504e','#2e3230','#5a5048']),
+    wallCol:0x51574f, wallTex:()=>wallTex('#51574f','#33372f'), wallH:1.9, wallJit:0.95,
+    tint:0x7fb0c0, pillar:'rock', water:{color:0x2a4a52,frozen:false,opacity:.68},
+    flavor:[['stalagmite',26,1.0],['crystalCluster',10,.8],['rock',10,.9]], part:{tex:'rgb(190,230,240)',n:70,mode:'drip'} },
+};
+const SKIN_ORDER = ['grass','druidic','tundra','swamp','temple','cavern'];
+
+/* ---------------- three.js setup ---------------- */
+const stageEl=document.getElementById('stage');
+const scene=new THREE.Scene();
+const renderer=new THREE.WebGLRenderer({antialias:true});
+renderer.setPixelRatio(Math.min(devicePixelRatio,1.75));
+renderer.outputEncoding=THREE.sRGBEncoding;
+stageEl.appendChild(renderer.domElement);
+const camera=new THREE.PerspectiveCamera(40,1,0.1,600);
+const cam={theta:Math.PI*0.25, phi:Math.PI*0.36, r:60, tgt:new THREE.Vector3(0,0,0)};
+function placeCam(){const sp=Math.sin(cam.phi),cp=Math.cos(cam.phi);
+  camera.position.set(cam.tgt.x+cam.r*sp*Math.sin(cam.theta),cam.tgt.y+cam.r*cp,cam.tgt.z+cam.r*sp*Math.cos(cam.theta));
+  camera.lookAt(cam.tgt);}
+
+/* persistent groups */
+const gStatic=new THREE.Group(), gProps=new THREE.Group(), gTokens=new THREE.Group();
+scene.add(gStatic,gProps,gTokens);
+let lightGroup=new THREE.Group(); scene.add(lightGroup);
+let particles=null, tintPlane=null, mapPlane=null, floorMesh=null;
+const shadowTex=ctex(sShadow());
+
+/* light pool (real point lights, repositioned to nearest sources) */
+const LIGHTPOOL=[]; for(let i=0;i<10;i++){const l=new THREE.PointLight(0xffa640,0,16,2);scene.add(l);LIGHTPOOL.push(l);}
+let lightSources=[]; // {pos:Vector3, color}
+
+/* ---------------- billboard helper ---------------- */
+function grounded(canvas,wx,wz,scale){const t=ctex(canvas);
+  const m=new THREE.SpriteMaterial({map:t,transparent:true,toneMapped:false});
+  const s=new THREE.Sprite(m);const asp=canvas.width/canvas.height;
+  s.scale.set(scale*asp,scale,1);s.center.set(0.5,0);s.position.set(wx,0.02,wz);s.renderOrder=2;return s;}
+function shadow(wx,wz,r){const m=new THREE.SpriteMaterial({map:shadowTex,transparent:true,depthWrite:false,toneMapped:false});
+  const s=new THREE.Sprite(m);s.scale.set(r,r*0.5,1);s.position.set(wx,0.05,wz);return s;}
+
+/* ---------------- dungeon state + build ---------------- */
+let D=null, currentSkin='temple', floorMode='biome', tintAmt=0.5;
+function wx(gx){return gx - D.W/2 + 0.5;}
+function wz(gy){return gy - D.H/2 + 0.5;}
+function at(gx,gy){return D.grid[gy*D.W+gx];}
+
+function forge(seed){
+  const sk=SKINS[currentSkin];
+  D=generateDungeon({seed:seed>>>0, roomCount:9, loopChance:0.22, decorDensity:0.85, themeKey:sk.genTheme});
+  document.getElementById('dungeonName').textContent=D.name;
+  buildRoomDropdown();
+  buildScene();
+  frameWhole();
+}
+
+function clearGroup(g){while(g.children.length){const c=g.children.pop();
+  // dispose geometry + material only; textures may be shared (e.g. shadowTex), so leave maps alone
+  if(c.material){Array.isArray(c.material)?c.material.forEach(m=>m.dispose&&m.dispose()):(c.material.dispose&&c.material.dispose());}
+  if(c.geometry)c.geometry.dispose();
+  if(c.traverse)c.traverse(o=>{if(o!==c){o.geometry&&o.geometry.dispose();o.material&&o.material.dispose&&o.material.dispose();}});}}
+
+function buildScene(){
+  const sk=SKINS[currentSkin];
+  scene.background=new THREE.Color(sk.clear);
+  scene.fog=new THREE.Fog(sk.fog[0],sk.fog[1],sk.fog[2]);
+  buildLights(sk);
+  buildStatic(sk);
+  buildProps(sk);
+  buildFlavor(sk);
+  buildTokens(sk);
+  buildParticles(sk);
+  buildTint(sk);
+  buildMapPlane(sk);
+  applyFloorMode();
+}
+
+function buildLights(sk){clearGroup(lightGroup);
+  lightGroup.add(new THREE.AmbientLight(sk.amb[0],sk.amb[1]));
+  lightGroup.add(new THREE.HemisphereLight(sk.hemi[0],sk.hemi[1],sk.hemi[2]));
+  const sun=new THREE.DirectionalLight(sk.sun[0],sk.sun[1]);sun.position.set(...sk.sun[2]);lightGroup.add(sun);}
+
+/* instanced floor / wall / pool from the grid */
+function buildStatic(sk){
+  clearGroup(gStatic);
+  let nf=0,nw=0,np=0;
+  for(let i=0;i<D.grid.length;i++){const v=D.grid[i];if(v===FLOOR)nf++;else if(v===WALL)nw++;else if(v===POOL)np++;}
+  const _m=new THREE.Matrix4(),_q=new THREE.Quaternion(),_s=new THREE.Vector3(),_p=new THREE.Vector3();
+
+  // FLOOR
+  const fGeo=new THREE.BoxGeometry(1,0.2,1);
+  const fMat=new THREE.MeshLambertMaterial({map:ctex(sk.floorTex()),color:0xffffff});
+  floorMesh=new THREE.InstancedMesh(fGeo,fMat,nf);
+  // POOL
+  const pGeo=new THREE.BoxGeometry(1,0.08,1);
+  const pMat=new THREE.MeshLambertMaterial({color:sk.water.color,transparent:!sk.water.frozen,opacity:sk.water.opacity});
+  const poolMesh=np?new THREE.InstancedMesh(pGeo,pMat,np):null;
+  // WALL (per-instance height via scale.y)
+  const wGeo=new THREE.BoxGeometry(1,1,1);
+  const wMat=new THREE.MeshLambertMaterial({map:ctex(sk.wallTex()),color:0xffffff});
+  const wallMesh=new THREE.InstancedMesh(wGeo,wMat,nw);
+
+  let fi=0,wi=0,pi=0;
+  for(let gy=0;gy<D.H;gy++)for(let gx=0;gx<D.W;gx++){
+    const v=D.grid[gy*D.W+gx];const X=wx(gx),Z=wz(gy);
+    if(v===FLOOR){_p.set(X,-0.1,Z);_q.identity();_s.set(1,1,1);_m.compose(_p,_q,_s);floorMesh.setMatrixAt(fi++,_m);}
+    else if(v===POOL){_p.set(X,-0.06,Z);_q.identity();_s.set(1,1,1);_m.compose(_p,_q,_s);poolMesh.setMatrixAt(pi++,_m);}
+    else if(v===WALL){
+      // hide fully-buried walls (no floor neighbour) to keep interiors open
+      let exposed=false;
+      for(const [dx,dy] of [[1,0],[-1,0],[0,1],[0,-1]]){const nx=gx+dx,ny=gy+dy;
+        if(nx>=0&&ny>=0&&nx<D.W&&ny<D.H){const nv=D.grid[ny*D.W+nx];if(nv===FLOOR||nv===POOL){exposed=true;break;}}}
+      const h = exposed ? sk.wallH*(1+(Math.random()*2-1)*sk.wallJit) : sk.wallH*0.5;
+      _p.set(X,h/2,Z);_q.identity();_s.set(1,h,1);_m.compose(_p,_q,_s);wallMesh.setMatrixAt(wi++,_m);
+    }
+  }
+  floorMesh.instanceMatrix.needsUpdate=true; wallMesh.instanceMatrix.needsUpdate=true;
+  gStatic.add(floorMesh,wallMesh);
+  if(poolMesh){poolMesh.instanceMatrix.needsUpdate=true;poolMesh.userData.water=!sk.water.frozen;gStatic.add(poolMesh);}
+}
+
+/* generator props → 3D columns / rock spires / billboards */
+function stoneMat(col){return new THREE.MeshLambertMaterial({color:col});}
+function column(X,Z,h,col){const g=new THREE.Group();
+  const shaft=new THREE.Mesh(new THREE.CylinderGeometry(0.34,0.4,h,10),stoneMat(col));
+  shaft.position.y=h/2;g.add(shaft);
+  const cap=new THREE.Mesh(new THREE.BoxGeometry(1.05,0.3,1.05),stoneMat(col*1.0+0x0a0a0a));cap.position.y=h+0.05;g.add(cap);
+  const base=new THREE.Mesh(new THREE.BoxGeometry(1.0,0.25,1.0),stoneMat(col));base.position.y=0.12;g.add(base);
+  g.position.set(X,0,Z);return g;}
+function rockSpire(X,Z,h,col,down){const m=new THREE.Mesh(new THREE.ConeGeometry(0.4+Math.random()*0.25,h,6),stoneMat(col));
+  if(down){m.position.set(X,h/2,Z);}else{m.position.set(X,h/2,Z);}m.rotation.y=Math.random()*6;return m;}
+
+function buildProps(sk){
+  clearGroup(gProps); lightSources=[];
+  const wallH=sk.wallH;
+  D.props.forEach(p=>{
+    const X=wx(p.x),Z=wz(p.y);
+    switch(p.kind){
+      case 'pillar':
+        if(sk.pillar==='column') gProps.add(column(X,Z,wallH*1.5,sk.wallCol));
+        else if(sk.pillar==='rock') gProps.add(rockSpire(X,Z,wallH*1.3,sk.wallCol*1+0x080808));
+        else { gProps.add(shadow(X,Z,1.1)); gProps.add(grounded(sRock(currentSkin==='tundra'),X,Z,1.2)); }
+        break;
+      case 'brazier': {
+        gProps.add(grounded(sTorch(),X,Z,0.9));
+        lightSources.push({pos:new THREE.Vector3(X,1.1,Z),color:0xffa640}); break; }
+      case 'chest': gProps.add(shadow(X,Z,0.8)); gProps.add(grounded(sChest(),X,Z,0.9)); break;
+      case 'bossCrystal': gProps.add(grounded(sCrystal('#c1503f'),X,Z,1.8));
+        lightSources.push({pos:new THREE.Vector3(X,1.2,Z),color:0xc1503f}); break;
+      case 'shrineCrystal': gProps.add(grounded(sCrystal('#5a8fe8'),X,Z,1.4));
+        lightSources.push({pos:new THREE.Vector3(X,1.0,Z),color:0x5a8fe8}); break;
+      case 'banner': gProps.add(grounded(sBanner(skClothColor(sk)),X,Z,1.5)); break;
+      case 'grave': gProps.add(grounded(sGrave(),X,Z,0.8)); break;
+      case 'sarco': gProps.add(shadow(X,Z,1.2)); gProps.add(grounded(sGrave(),X,Z,1.0)); break;
+      default: break; // debris/moss/candle/etc left to atmosphere
+    }
+  });
+  // torches on walls → flame billboard, a few become real lights
+  D.torches.forEach(t=>{const X=wx(t.x)+t.dx*0.4,Z=wz(t.y)+t.dy*0.4;
+    gProps.add(grounded(sTorch(),X,Z,0.7));
+    lightSources.push({pos:new THREE.Vector3(X,wallH*0.7,Z),color:0xffa640});});
+}
+function skClothColor(sk){return currentSkin==='temple'?'#7d2c26':currentSkin==='swamp'?'#33461f':currentSkin==='tundra'?'#2b4d70':'#7d2c26';}
+
+/* biome flavour scatter along room edges (outdoor / cavern dressing) */
+function floorEdgeCells(){const out=[];
+  for(let gy=1;gy<D.H-1;gy++)for(let gx=1;gx<D.W-1;gx++){
+    if(at(gx,gy)!==FLOOR) continue; if(D.doorway&&D.doorway[gy*D.W+gx]) continue;
+    let nearWall=false;
+    for(const[dx,dy] of[[1,0],[-1,0],[0,1],[0,-1],[1,1],[-1,-1]]) if(at(gx+dx,gy+dy)===WALL){nearWall=true;break;}
+    if(nearWall) out.push([gx,gy]);}
+  return out;}
+function buildFlavor(sk){
+  if(!sk.flavor.length) return;
+  const cells=floorEdgeCells(); if(!cells.length) return;
+  const used=new Set();
+  sk.flavor.forEach(([kind,count,scale])=>{
+    for(let i=0;i<count;i++){
+      let tries=0,cell; do{cell=cells[(Math.random()*cells.length)|0];tries++;}while(used.has(cell[0]+','+cell[1])&&tries<8);
+      used.add(cell[0]+','+cell[1]);
+      const X=wx(cell[0])+(Math.random()*.5-.25), Z=wz(cell[1])+(Math.random()*.5-.25);
+      const s=scale*(0.85+Math.random()*0.3);
+      if(kind==='stalagmite'){gProps.add(rockSpire(X,Z,0.8+Math.random()*1.4,sk.wallCol));}
+      else if(kind==='crystalCluster'){gProps.add(grounded(sCrystal('#6fd0e0'),X,Z,0.6+Math.random()*0.5));
+        if(Math.random()<0.4)lightSources.push({pos:new THREE.Vector3(X,0.6,Z),color:0x6fd0e0});}
+      else if(kind==='tree'||kind==='cypress'||kind==='snowpine'||kind==='bare'){
+        gProps.add(shadow(X,Z,s*1.2)); gProps.add(grounded(sTree(kind==='tree'?'leafy':kind),X,Z,s*2.4));}
+      else if(kind==='grass'){gProps.add(grounded(sGrass(),X,Z,s*0.7));}
+      else if(kind==='reed'){gProps.add(grounded(sReed(),X,Z,s*1.4));}
+      else if(kind==='mushroom'){gProps.add(grounded(sMushroom(currentSkin==='druidic'),X,Z,s*0.5));}
+      else if(kind==='rock'){gProps.add(grounded(sRock(currentSkin==='tundra'),X,Z,s*0.9));}
+    }
+  });
+}
+
+/* party at entrance, foes on the framed room's spawns */
+function roomCenterFloor(room){ // nearest floor cell to room center
+  if(at(room.cx,room.cy)===FLOOR) return [room.cx,room.cy];
+  for(let r=1;r<6;r++)for(let dy=-r;dy<=r;dy++)for(let dx=-r;dx<=r;dx++){
+    const x=room.cx+dx,y=room.cy+dy; if(x>0&&y>0&&x<D.W&&y<D.H&&at(x,y)===FLOOR)return[x,y];}
+  return [room.cx,room.cy];}
+let stagedRoomId=null;
+function buildTokens(sk, roomId){
+  clearGroup(gTokens);
+  const ent = D.rooms.find(r=>r.type==='entrance') || D.rooms[0];
+  const [ex,ey]=roomCenterFloor(ent);
+  const party=['warrior','mage','monk','bard'];
+  party.forEach((k,i)=>{const ox=(i%2?1:-1)*0.9, oz=(i<2?-0.9:0.9);
+    const X=wx(ex)+ox, Z=wz(ey)+oz;
+    gTokens.add(shadow(X,Z,1.0)); gTokens.add(grounded(sHero(k),X,Z,1.8));});
+  const rid = roomId!=null?roomId:stagedRoomId;
+  if(rid!=null){const foes=D.spawns.filter(s=>s.roomId===rid);
+    foes.forEach(s=>{const X=wx(s.x),Z=wz(s.y);
+      gTokens.add(shadow(X,Z,0.9)); gTokens.add(grounded(sGoblin(s.tier>=2),X,Z,s.tier>=3?1.9:1.5));});}
+}
+
+function buildParticles(sk){
+  if(particles){scene.remove(particles);particles.geometry.dispose();particles.material.map.dispose();particles.material.dispose();}
+  const p=sk.part,N=p.n;
+  const span=Math.max(D.W,D.H);
+  const geo=new THREE.BufferGeometry();const pos=new Float32Array(N*3);const base=new Float32Array(N*3);const vel=new Float32Array(N);
+  for(let i=0;i<N;i++){const x=(Math.random()-.5)*span,z=(Math.random()-.5)*span,y=Math.random()*12+0.3;
+    pos[i*3]=x;pos[i*3+1]=y;pos[i*3+2]=z;base[i*3]=x;base[i*3+1]=y;base[i*3+2]=z;vel[i]=0.4+Math.random()*1.0;}
+  geo.setAttribute('position',new THREE.BufferAttribute(pos,3));
+  const mat=new THREE.PointsMaterial({map:ctex(sDot(p.tex)),
+    size:p.mode==='snow'?0.5:(p.mode==='firefly'?0.4:0.3),transparent:true,depthWrite:false,sizeAttenuation:true,
+    opacity:p.mode==='dust'?0.5:0.8,blending:(p.mode==='firefly'||p.mode==='dust')?THREE.AdditiveBlending:THREE.NormalBlending,toneMapped:false});
+  particles=new THREE.Points(geo,mat);particles.userData={mode:p.mode,vel,base,span};scene.add(particles);
+}
+
+function buildTint(sk){
+  if(tintPlane){scene.remove(tintPlane);tintPlane.geometry.dispose();tintPlane.material.dispose();}
+  const g=new THREE.PlaneGeometry(D.W,D.H);
+  const m=new THREE.MeshBasicMaterial({color:0xffffff,transparent:true,blending:THREE.MultiplyBlending,depthWrite:false});
+  tintPlane=new THREE.Mesh(g,m);tintPlane.rotation.x=-Math.PI/2;tintPlane.position.y=0.04;scene.add(tintPlane);
+  applyTint();
+}
+function applyTint(){const tc=new THREE.Color(SKINS[currentSkin].tint);
+  tintPlane&&tintPlane.material.color.setRGB(1-(1-tc.r)*tintAmt,1-(1-tc.g)*tintAmt,1-(1-tc.b)*tintAmt);}
+
+/* top-down "flattened map" ground for the Map-art floor mode */
+function drawDungeonMap(sk){
+  const S=Math.min(1024/D.W,1024/D.H)|0||8; const cw=D.W*S,ch=D.H*S;
+  const {c,x}=cv(cw,ch);
+  x.fillStyle='#e9dcc0';x.fillRect(0,0,cw,ch);
+  for(let gy=0;gy<D.H;gy++)for(let gx=0;gx<D.W;gx++){const v=at(gx,gy);
+    if(v===FLOOR){x.fillStyle='#d8c8a2';x.fillRect(gx*S,gy*S,S,S);}
+    else if(v===POOL){x.fillStyle='#7fa0b8';x.fillRect(gx*S,gy*S,S,S);}
+    else if(v===WALL){x.fillStyle='#3a2c1c';x.fillRect(gx*S,gy*S,S,S);}}
+  // grid
+  x.strokeStyle='rgba(90,70,40,.22)';x.lineWidth=1;
+  for(let i=0;i<=D.W;i++){x.beginPath();x.moveTo(i*S,0);x.lineTo(i*S,ch);x.stroke();}
+  for(let i=0;i<=D.H;i++){x.beginPath();x.moveTo(0,i*S);x.lineTo(cw,i*S);x.stroke();}
+  return c;
+}
+function buildMapPlane(sk){
+  if(mapPlane){scene.remove(mapPlane);mapPlane.geometry.dispose();mapPlane.material.map.dispose();mapPlane.material.dispose();}
+  const t=ctex(drawDungeonMap(sk));
+  const m=new THREE.MeshBasicMaterial({map:t});
+  mapPlane=new THREE.Mesh(new THREE.PlaneGeometry(D.W,D.H),m);
+  mapPlane.rotation.x=-Math.PI/2;mapPlane.position.y=-0.05;mapPlane.visible=false;scene.add(mapPlane);
+}
+function applyFloorMode(){
+  if(!floorMesh) return;
+  const isMap = floorMode==='map';
+  floorMesh.visible=!isMap;
+  if(mapPlane) mapPlane.visible=isMap;
+}
+
+/* ---------------- camera framing ---------------- */
+function frameWhole(){cam.tgt.set(0,0,0);cam.r=Math.max(D.W,D.H)*0.95;cam.phi=Math.PI*0.36;stagedRoomId=null;buildTokens(SKINS[currentSkin]);placeCam();}
+function frameRoom(room){const [fx,fy]=roomCenterFloor(room);
+  cam.tgt.set(wx(fx),0.5,wz(fy));cam.r=Math.max(room.w,room.h)*1.9+6;cam.phi=Math.PI*0.34;
+  stagedRoomId=room.id; buildTokens(SKINS[currentSkin],room.id); placeCam();}
+
+/* ---------------- UI ---------------- */
+const chipsEl=document.getElementById('chips');
+SKIN_ORDER.forEach(k=>{const sk=SKINS[k];const el=document.createElement('button');
+  el.className='chip'+(k==='temple'?' active':'');el.dataset.k=k;
+  el.innerHTML=`<span class="swatch" style="background:${sk.swatch}"></span>${sk.name.split(' ').slice(-1)[0]}`;
+  el.onclick=()=>{currentSkin=k;document.querySelectorAll('.chip').forEach(c=>c.classList.toggle('active',c.dataset.k===k));
+    forge(parseInt(document.getElementById('seed').value)||7);};
+  chipsEl.appendChild(el);});
+
+function buildRoomDropdown(){const sel=document.getElementById('roomSel');
+  sel.innerHTML='<option value="">Whole dungeon</option>';
+  D.rooms.slice().sort((a,b)=>a.depth-b.depth).forEach(r=>{
+    const o=document.createElement('option');o.value=r.id;
+    o.textContent=`${r.type[0].toUpperCase()+r.type.slice(1)} · depth ${r.depth}${r.type==='combat'||r.type==='elite'||r.type==='boss'?` · ${D.spawns.filter(s=>s.roomId===r.id).length} foes`:''}`;
+    sel.appendChild(o);});
+  sel.onchange=()=>{const v=sel.value;if(v==='')frameWhole();else frameRoom(D.rooms.find(r=>r.id==+v));};
+}
+
+document.getElementById('forgeBtn').onclick=()=>forge(parseInt(document.getElementById('seed').value)||7);
+document.getElementById('dice').onclick=()=>{const s=Math.floor(Math.random()*99999);
+  document.getElementById('seed').value=s;forge(s);};
+document.getElementById('seed').addEventListener('keydown',e=>{if(e.key==='Enter')forge(parseInt(e.target.value)||7);});
+document.querySelectorAll('#floorToggle button').forEach(b=>b.onclick=()=>{floorMode=b.dataset.mode;
+  document.querySelectorAll('#floorToggle button').forEach(x=>x.classList.toggle('active',x===b));applyFloorMode();});
+const tintSlider=document.getElementById('tint');
+tintSlider.oninput=()=>{tintAmt=tintSlider.value/100;document.getElementById('tintVal').textContent=tintSlider.value+'%';applyTint();};
+document.getElementById('orbitL').onclick=()=>{cam.theta-=Math.PI/8;placeCam();};
+document.getElementById('orbitR').onclick=()=>{cam.theta+=Math.PI/8;placeCam();};
+
+let drag=false,lx=0,ly=0;
+renderer.domElement.addEventListener('pointerdown',e=>{drag=true;lx=e.clientX;ly=e.clientY;});
+addEventListener('pointerup',()=>drag=false);
+addEventListener('pointermove',e=>{if(!drag)return;cam.theta-=(e.clientX-lx)*0.006;cam.phi-=(e.clientY-ly)*0.005;
+  cam.phi=Math.max(0.12,Math.min(1.45,cam.phi));lx=e.clientX;ly=e.clientY;placeCam();});
+renderer.domElement.addEventListener('wheel',e=>{e.preventDefault();
+  cam.r=Math.max(10,Math.min(D?Math.max(D.W,D.H)*1.4:120,cam.r+e.deltaY*0.04));placeCam();},{passive:false});
+
+/* ---------------- resize + loop ---------------- */
+function resize(){renderer.setSize(innerWidth,innerHeight);camera.aspect=innerWidth/innerHeight;camera.updateProjectionMatrix();placeCam();}
+addEventListener('resize',resize);
+
+let t0=performance.now();
+function loop(){requestAnimationFrame(loop);const t=(performance.now()-t0)/1000;
+  // light pool → nearest sources to camera target
+  if(lightSources.length){
+    const sorted=lightSources.map(s=>({s,d:s.pos.distanceToSquared(cam.tgt)})).sort((a,b)=>a.d-b.d);
+    for(let i=0;i<LIGHTPOOL.length;i++){const L=LIGHTPOOL[i];
+      if(i<sorted.length){L.position.copy(sorted[i].s.pos);L.color.setHex(sorted[i].s.color);
+        L.intensity=1.4+(REDUCED?0:Math.sin(t*7+i)*0.25);L.distance=14;}else L.intensity=0;}
+  }
+  if(!REDUCED&&particles){const pos=particles.geometry.attributes.position.array;
+    const {mode,vel,base,span}=particles.userData;
+    for(let i=0;i<vel.length;i++){const iy=i*3+1;
+      if(mode==='snow'||mode==='drip'){pos[iy]-=vel[i]*0.04;pos[i*3]=base[i*3]+Math.sin(t+i)*0.3;if(pos[iy]<0.1)pos[iy]=12;}
+      else if(mode==='pollen'||mode==='spore'||mode==='dust'){pos[iy]+=vel[i]*0.006;pos[i*3]=base[i*3]+Math.sin(t*0.6+i)*0.6;if(pos[iy]>12)pos[iy]=0.3;}
+      else if(mode==='firefly'){pos[iy]=base[iy]+Math.sin(t*0.8+i)*0.7;pos[i*3]=base[i*3]+Math.cos(t*0.5+i)*0.6;}}
+    particles.geometry.attributes.position.needsUpdate=true;
+    if(mode==='firefly')particles.material.opacity=0.5+Math.sin(t*3)*0.35;}
+  renderer.render(scene,camera);}
+
+resize(); forge(7); loop();
+
+</script>
+</body>
+</html>
