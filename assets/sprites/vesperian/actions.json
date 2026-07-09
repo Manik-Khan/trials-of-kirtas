@@ -1,0 +1,10 @@
+{
+  "frames_glob": "frames/*_HSV_0.png",
+  "cell": {"mode": "auto", "pad": 8, "max_width": 200},
+  "anchor": "bottom_center",
+  "cleanup": {"alpha_thresh": 40, "min_area_frac": 0.02},
+  "animations": [
+    {"name": "walk",   "start": 6,   "end": 150, "count": 12},
+    {"name": "combat", "start": 156, "end": 234, "count": 10}
+  ]
+}
