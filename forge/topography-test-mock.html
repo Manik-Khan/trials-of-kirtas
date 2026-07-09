@@ -1996,10 +1996,25 @@ function placeProp(p,waterY){const X=wxc(p.x),Z=wzc(p.y),topY=p.h*STEP;
   }
 }
 function mesh(geo,col,x,y,z){const m=new THREE.Mesh(geo,stoneMat(col));m.position.set(x,y,z);return m;}
+/* ── ALPHA_CUT — why every upright sprite needs it ──────────────────────
+   THREE.SpriteMaterial.depthWrite defaults to TRUE. A transparent sprite
+   without alphaTest therefore writes depth across its WHOLE quad, empty
+   texels included, and anything drawn afterwards at greater depth is
+   rejected. A tree became an invisible opaque rectangle roughly a tile
+   wide, and goblins standing behind it vanished.
+
+   Nothing to do with the map: `combatMapFromF` sets wall[] only for T_ROCK,
+   T_WATER and gaps. A tree contributes occ[] = 5.5 ft, which is cover.
+
+   makeToken() already passed alphaTest:0.15 — which is precisely why tokens
+   never showed the bug and props always did. Same constant here, so the two
+   agree: a texel fainter than 0.15 is discarded before it can write depth.
+   The ground-shadow branch stays depthWrite:false; it must never occlude.  */
+const ALPHA_CUT = 0.15;
 function billboard(tex,x,y,z,scale,asp,flat){
   if(flat){const m=new THREE.SpriteMaterial({map:tex,transparent:true,depthWrite:false,toneMapped:false});
     const s=new THREE.Sprite(m);s.scale.set(scale,scale*0.5,1);s.position.set(x,y,z);return s;}
-  const m=new THREE.SpriteMaterial({map:tex,transparent:true,toneMapped:false});
+  const m=new THREE.SpriteMaterial({map:tex,transparent:true,alphaTest:ALPHA_CUT,toneMapped:false});
   const s=new THREE.Sprite(m);s.scale.set(scale*(2/3),scale,1);s.center.set(0.5,0);s.position.set(x,y,z);s.renderOrder=2;return s;}
 
 function buildHaze(span){if(particles){scene.remove(particles);particles.geometry.dispose();}
@@ -2130,7 +2145,7 @@ function placeToken(key,cell){
   tokenGroup.add(billboard(shadowTex, X, Y+0.05, Z, 1.25, 0.7, true));
   const st = spriteTex(ROSTER_SPRITE[key]);
   let s;
-  if(st){ s=new THREE.Sprite(new THREE.SpriteMaterial({map:st.tex,transparent:true,alphaTest:0.15,toneMapped:false}));
+  if(st){ s=new THREE.Sprite(new THREE.SpriteMaterial({map:st.tex,transparent:true,alphaTest:ALPHA_CUT,toneMapped:false}));
     s.scale.set(2.05*st.aspect,2.05,1); s.center.set(0.5,0); s.position.set(X,Y+0.02,Z); }
   else { s=billboard(initialTokenTex(ROSTER_INIT[key]||key.charAt(0).toUpperCase(), ROSTER_COL[key]||'#b8863a'), X,Y+0.02,Z, 2.6, 2/3, false); }
   s.renderOrder=4; tokenGroup.add(s);
@@ -2280,7 +2295,7 @@ function placeAt(point){ if(!selectedSprite||!F) return;
    .then(pairs=>{ const tex={}; let aspect=1;
      pairs.forEach(([r,v])=>{ if(v){tex[r]=v.tex; aspect=v.aspect;} });
      if(!Object.keys(tex).length){ document.getElementById('libStatus').textContent='couldn\u2019t load sprite (is it served?)'; return; }
-     const mat=new THREE.SpriteMaterial({map:tex[rotForCamera()]||Object.values(tex)[0],transparent:true,toneMapped:false});
+     const mat=new THREE.SpriteMaterial({map:tex[rotForCamera()]||Object.values(tex)[0],transparent:true,alphaTest:ALPHA_CUT,toneMapped:false});
      const s=new THREE.Sprite(mat); s.center.set(0.5,0);
      const sh=new THREE.Mesh(new THREE.PlaneGeometry(1,1),new THREE.MeshBasicMaterial({map:shadowTex,transparent:true,depthWrite:false,toneMapped:false}));
      sh.rotation.x=-Math.PI/2;
@@ -2466,7 +2481,7 @@ function makeToken(u){
        so a Sprite — which always faces the camera — is the right primitive.
        center at the feet, so the standee grows upward out of its tier. */
     var hW = u.side==="pc" ? 2.05 : 1.75;
-    u.sprite=new THREE.Sprite(new THREE.SpriteMaterial({map:st.tex,transparent:true,alphaTest:0.15,toneMapped:false}));
+    u.sprite=new THREE.Sprite(new THREE.SpriteMaterial({map:st.tex,transparent:true,alphaTest:ALPHA_CUT,toneMapped:false}));
     u.sprite.scale.set(hW*st.aspect, hW, 1);
     u.sprite.center.set(0.5,0);
     u.sprite.position.set(X,Y+0.02,Z);

@@ -141,6 +141,11 @@ fails if you do.
 camera-facing sprite quad is wider than its cell and clips into the box next door — an
 artifact of billboards, not of the rules.
 
+Every **upright** sprite must set `alphaTest` (`ALPHA_CUT = 0.15`). `SpriteMaterial`
+defaults `depthWrite:true`, so a transparent sprite without it writes depth across its
+whole quad and silently swallows anything behind it — a tree became an invisible
+tile-wide wall. Ground shadows are the one exception: `depthWrite:false`, never occluding.
+
 ### The 5-ft grid
 
 The caps are already one 1×1 instance per cell, so a 1×1 quad on each cap top *is* the
@@ -161,10 +166,10 @@ node smoke-map-bridge.mjs        # seam: generator payload → combat rules hono
 node smoke-tactics-geometry.mjs  # geometry: cliffs, LoS, movement budget                        (26)
 node smoke-los-cover.js          # heightfield LoS + graded cover, one case per stated rule      (27)
 node smoke-placement.js          # spread rule: no blobs, no stacking, foes in the 40-90 ft band (19)
-node smoke-flora.js              # walls are hard; flora clears them; every kind has a height    (17)
+node smoke-flora.js              # walls hard, flora clears them, every kind has a height + depth (22)
 ```
 
-119 assertions, all green. `smoke-placement.js` **extracts `clusterAround` and
+124 assertions, all green. `smoke-placement.js` **extracts `clusterAround` and
 `foeAnchor` from the mock at test time** rather than copying them, and runs them over
 40 real `ForgeEngine.generate()` fields — a copy would pass while the mock stayed broken. `smoke-los-cover.js` is the arbiter: if a change
 breaks it, the change is wrong until argued otherwise.

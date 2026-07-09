@@ -222,6 +222,15 @@ real placement. **These are decisions, not hypotheses.**
    `pal` at render time (paint changes immediately), `density` per biome. Kinds added:
    `snowpine`, `bare`, `reed`, `mushroom`. `PROP_FT.bare` was missing and would have
    occluded nothing, silently.
+10. ~~Trees had an invisible opaque hitbox.~~ **Fixed.** `THREE.SpriteMaterial`
+   defaults `depthWrite:true`. `billboard()` created upright sprites with
+   `transparent:true` and **no `alphaTest`**, so the whole quad wrote depth — empty
+   texels included — and anything behind a tree disappeared into a tile-wide
+   rectangle. `makeToken()` had always passed `alphaTest:0.15`, which is exactly why
+   tokens never showed it and props always did. Now one shared `ALPHA_CUT = 0.15`.
+   The hand-placed library props (`renderPlaced`) had the same bug. **Not a map
+   problem:** `combatMapFromF` writes `wall[]` from terrain only; a prop contributes
+   `occ[]`, i.e. cover. `smoke-flora.js` now fails if any upright sprite omits it.
 9. ~~`applyLook()` silently undid `LEGACY_PI`.~~ **Fixed.** It ran at boot and on
    every biome chip and assigned the raw `LOOK` intensity literals, so the mock
    rendered π× dark from the moment of the r185 migration. Self-inflicted: the

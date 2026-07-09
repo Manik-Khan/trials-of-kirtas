@@ -163,5 +163,29 @@ console.log('\n\u2500\u2500 walls are hard, and flora clears them (30 seeds \u00
   t('every plant belongs to its biome', offBiome === 0, `${offBiome} off-biome`);
 }
 
+console.log('\n\u2500\u2500 no sprite becomes an invisible wall \u2500\u2500');
+{
+  /* SpriteMaterial.depthWrite defaults to true. A transparent upright sprite
+     without alphaTest writes depth across its whole quad, empty texels and all,
+     and swallows whatever stands behind it. Trees did exactly this. The ground
+     shadows are the deliberate exception: depthWrite:false, never occluding. */
+  const mats = [...html.matchAll(/new THREE\.SpriteMaterial\(\{([^}]*)\}\)/g)]
+    .map(m => ({ flags: m[1], line: html.slice(0, m.index).split('\n').length }));
+  const upright = mats.filter(m => !/depthWrite\s*:\s*false/.test(m.flags));
+  const naked = upright.filter(m => !/alphaTest/.test(m.flags));
+  t(`${mats.length} sprite materials, ${upright.length} upright`, mats.length > 0);
+  t('every upright sprite cuts alpha before writing depth', naked.length === 0,
+    `lines ${naked.map(m => m.line).join(', ')}`);
+  t('the ground-shadow sprite still never writes depth',
+    mats.some(m => /depthWrite\s*:\s*false/.test(m.flags)));
+
+  /* And the rules half: a prop is cover, never a barrier. */
+  const cm = fn('combatMapFromF');
+  t('combatMapFromF writes wall[] only from terrain, never from props',
+    /m\.wall\[i\]\s*=\s*gap\s*\|\|/.test(cm) && !/props[\s\S]*m\.wall/.test(cm));
+  t('props contribute to occ[] only', /if\s*\(?ft\s*>\s*m\.occ\[j\]\)?\s*m\.occ\[j\]\s*=\s*ft/.test(cm.replace(/\s+/g, ' ')) ||
+    /m\.occ\[j\]\s*=\s*ft/.test(cm));
+}
+
 console.log(`\n${pass}/${pass + fail} passed${fail ? `  \u2014 ${fail} FAILED` : ''}\n`);
 process.exit(fail ? 1 : 0);
