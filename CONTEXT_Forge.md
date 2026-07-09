@@ -192,6 +192,18 @@ real placement. **These are decisions, not hypotheses.**
 3. **Sight lines may be invisible.** Drawn with `LineBasicMaterial`, default
    `depthTest`, so segments passing through terrain disappear. Suspected, not
    confirmed in a browser. Set `depthTest:false` + `renderOrder`.
+3b. **Flora is drawn ~2× its occluder height.** `placeProp` draws a tree 2.4 world
+   units tall. At `STEP=1.15` that is 2.09 tiers ≈ 10.4 ft, but `PROP_FT.tree`
+   is 5.5 ft. The picture says total cover; the rules say three-quarters. §4 says
+   the picture may never disagree with the sight lines. The *ratios* between kinds
+   are now correct (`VIS()`), the absolute scale is not. Halving it shrinks every
+   tree in the project, so it is M's call, not a bug fix.
+3c. **A wall renders 1.4 tiers tall but a token quad is ~1.4 units wide in a
+   1-unit cell.** Camera-facing sprites next to walls clip into them. Flora no
+   longer lands there (fixed, below); 30% of walkable cells still touch a wall,
+   so tokens can still clip. The walls are hard — this is a billboard artifact,
+   not a rules failure. Proved: 0/19831 walkable cells are `T_ROCK`; 0 `T_ROCK`
+   cells are passable.
 4. ~~`smoke-forge-engine.js` throws on `themeKey:"frost"`~~ — **fixed** (→ `tundra`).
    The underlying wart stands: an unknown `themeKey` dies as a `TypeError` at
    `forge-dungeon.js:348` (`TH.lakes` of undefined) instead of narrating. Guard it.
@@ -199,6 +211,22 @@ real placement. **These are decisions, not hypotheses.**
    `forge/forge-dungeon.js` and take `WALL_FT` from `MapBridge.wallFeetFor()`.
 6. **TOON banding + ink outlines** were tuned against flat lighting; they may
    fight the new AO and cast shadow. Unverified.
+7. ~~Trees are 100% wall-adjacent.~~ **Fixed.** `buildTiersField` *required* a wall
+   neighbour (`if(edge && rand<0.5)`). Measured: 2082/2082 trees against a wall.
+   Now: never adjacent to a wall, biased toward ledges (a neighbour one tier down),
+   which keeps the treeline structure the old rule was reaching for.
+8. ~~Green trees in winter.~~ **Fixed.** A biome chip changed sky, fog, four lights
+   and three cap colours — never the generator, the props, or `sTree()`'s hardcoded
+   greens. New `FLORA` table: `kinds` at build time (a kind carries an occluder
+   height, so species change on re-forge, not on a chip click — the chip says so),
+   `pal` at render time (paint changes immediately), `density` per biome. Kinds added:
+   `snowpine`, `bare`, `reed`, `mushroom`. `PROP_FT.bare` was missing and would have
+   occluded nothing, silently.
+9. ~~`applyLook()` silently undid `LEGACY_PI`.~~ **Fixed.** It ran at boot and on
+   every biome chip and assigned the raw `LOOK` intensity literals, so the mock
+   rendered π× dark from the moment of the r185 migration. Self-inflicted: the
+   π was applied at light construction and overwritten two hundred lines later.
+   Every intensity now goes through `LEGACY_PI` inside `applyLook`.
 
 ---
 

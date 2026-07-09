@@ -250,9 +250,14 @@ occluder height in feet above its terrain, and `losVerdict` traces the 5e corner
 `battle-tactics-geo-mock.html` **and** `topography-test-mock.html`. Three copies total, all
 **code-identical** (comments stripped; the inlines carry an older header). Change one, change all three.
 
-Tests (all in `forge/tests/`, 102 green): `smoke-forge-engine.js` 14/14 (frost→tundra fixed),
+Tests (all in `forge/tests/`, 119 green): `smoke-forge-engine.js` 14/14 (frost→tundra fixed),
 `smoke-map-bridge.mjs` 16/16, `smoke-tactics-geometry.mjs` 26/26, `smoke-los-cover.js` 27/27,
-`smoke-placement.js` 19/19 (extracts the real functions from the mock, runs them on real fields).
+`smoke-placement.js` 19/19, `smoke-flora.js` 17/17 (both extract the real functions from the mock).
+- **Flora:** `FLORA[biome]` — `kinds` at build time (a kind carries an occluder height), `pal` at render
+  time (a biome chip retints instantly; species need a re-forge). Walls are hard: 0/19831 walkable cells
+  are `T_ROCK`. Trees no longer plant against walls — they used to, 100% of the time, by construction.
+- **Grid:** per-cap 1×1 instanced quad, live opacity slider, no rebuild.
+- **Watch:** `applyLook()` must multiply every light by `LEGACY_PI`, or the mock renders π× dark.
 
 ### The four mocks — which is which (none are superseded)
 

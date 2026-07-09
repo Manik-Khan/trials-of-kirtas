@@ -127,6 +127,26 @@ Post-processing (N8AO, bloom) is **not** wired yet. Pins, when it is:
 `three/addons/` despite resolving to the same directory. All three must be in the
 import map, or the browser throws `Failed to resolve module specifier`.
 
+### Flora and walls
+
+`FLORA[biome]` decides what grows. `kinds` is read at **build** time, because a kind
+carries an occluder height (`PROP_FT`, mirrored from `map-bridge` `PROP_UNITS` × 5 ft)
+and sight is decided by `tier*5 + occ` — species therefore change on a re-forge, not on
+a biome click. `pal` is read at **render** time, so a click retints immediately. Add a
+kind without adding its height and it will occlude nothing, silently; `smoke-flora.js`
+fails if you do.
+
+`T_ROCK` is a wall: impassable in `combatMapFromF`, excluded from `walkableCells`,
+`occ = WALL_FT`. Nothing spawns in one. Flora is kept off wall-adjacent cells because a
+camera-facing sprite quad is wider than its cell and clips into the box next door — an
+artifact of billboards, not of the rules.
+
+### The 5-ft grid
+
+The caps are already one 1×1 instance per cell, so a 1×1 quad on each cap top *is* the
+5-ft square. One instanced transparent plane, a texture that is only a border, and
+`setGridOpacity()` writes `material.opacity` — the slider never rebuilds the field.
+
 `topography-test-mock.html` runs its renderer in a `type="module"` block. That block
 is **deferred**, and its top-level `var`s are no longer globals. It exports `CHAR`
 and `__placeRoster` / `__enterForge` / `__startCombat` on `window`, and fires a
@@ -141,9 +161,10 @@ node smoke-map-bridge.mjs        # seam: generator payload → combat rules hono
 node smoke-tactics-geometry.mjs  # geometry: cliffs, LoS, movement budget                        (26)
 node smoke-los-cover.js          # heightfield LoS + graded cover, one case per stated rule      (27)
 node smoke-placement.js          # spread rule: no blobs, no stacking, foes in the 40-90 ft band (19)
+node smoke-flora.js              # walls are hard; flora clears them; every kind has a height    (17)
 ```
 
-102 assertions, all green. `smoke-placement.js` **extracts `clusterAround` and
+119 assertions, all green. `smoke-placement.js` **extracts `clusterAround` and
 `foeAnchor` from the mock at test time** rather than copying them, and runs them over
 40 real `ForgeEngine.generate()` fields — a copy would pass while the mock stayed broken. `smoke-los-cover.js` is the arbiter: if a change
 breaks it, the change is wrong until argued otherwise.

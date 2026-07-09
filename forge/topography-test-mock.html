@@ -457,6 +457,10 @@ global.TacticsGeo = API;
       <button data-toon="0">Soft</button>
     </div>
     <label class="checkrow" style="margin-bottom:11px"><input type="checkbox" id="outlineChk" checked> Ink outlines</label>
+    <div class="slider-wrap">
+      <label>Grid (5 ft) <span class="val" id="gridVal">0%</span></label>
+      <input type="range" id="grid" min="0" max="100" value="0">
+    </div>
     <div class="divider"></div>
     <div class="eyebrow">Props (asset library)</div>
     <select id="propSel"><option value="">— select a prop —</option></select>
@@ -1294,18 +1298,39 @@ function cv(w,h){const c=document.createElement('canvas');c.width=w;c.height=h;
   const x=c.getContext('2d');x.imageSmoothingEnabled=false;return {c,x};}
 function ctex(c){const t=new THREE.CanvasTexture(c);t.magFilter=THREE.NearestFilter;t.minFilter=THREE.LinearMipmapLinearFilter;return t;}
 function pxr(x,X,Y,W,H,col){x.fillStyle=col;x.fillRect(X,Y,W,H);}
-function sTree(kind){const {c,x}=cv(64,96); const b=(cx,cy,r,col)=>{x.fillStyle=col;x.beginPath();x.arc(cx,cy,r,0,7);x.fill();};
-  if(kind==='cypress'){pxr(x,30,70,5,24,'#3b2a1e');
-    b(32,50,17,'#4a6b3a');b(24,40,12,'#557a42');b(40,42,11,'#557a42');b(32,28,13,'#628a4a');
-  } else if(kind==='pine'){pxr(x,30,74,5,20,'#4a3527');
-    const g=['#375c3a','#42704a','#527f56']; for(let i=0;i<3;i++){const y=22+i*18,w=42-i*10;x.fillStyle=g[i];
-      x.beginPath();x.moveTo(32,y);x.lineTo(32+w/2,y+22);x.lineTo(32-w/2,y+22);x.closePath();x.fill();}
-  } else if(kind==='poplar'){pxr(x,30,58,4,36,'#5a4028');
-    b(32,44,10,'#4c7840');b(32,32,11,'#588a4c');b(32,20,9,'#63975a');
-  } else if(kind==='bush'){b(24,72,12,'#4a7038');b(40,72,12,'#548046');b(32,64,14,'#5d8a50');
-  } else {pxr(x,29,62,6,32,'#5a4028');
-    b(32,42,20,'#4a7038');b(20,36,13,'#5a8446');b(44,36,13,'#5a8446');b(32,26,15,'#689452');
-    for(let i=0;i<10;i++){x.fillStyle='rgba(140,170,90,.4)';x.fillRect(16+Math.random()*32,20+Math.random()*32,2,2);}}
+/* sTree(kind, pal) — silhouettes are per-kind, paint is per-biome.
+   pal = { trunk, leaf:[dark, mid, light], accent }. Defaults to the verdant
+   palette so any caller that forgets the second argument still draws. */
+function sTree(kind, pal){const {c,x}=cv(64,96);
+  pal = pal || { trunk:'#5a4028', leaf:['#4a7038','#5a8446','#689452'], accent:'rgba(140,170,90,.4)' };
+  const L=pal.leaf, b=(cx,cy,r,col)=>{x.fillStyle=col;x.beginPath();x.arc(cx,cy,r,0,7);x.fill();};
+  const cone=(cols)=>{ for(let i=0;i<3;i++){const y=22+i*18,w=42-i*10;x.fillStyle=cols[i];
+    x.beginPath();x.moveTo(32,y);x.lineTo(32+w/2,y+22);x.lineTo(32-w/2,y+22);x.closePath();x.fill();} };
+  if(kind==='cypress'){pxr(x,30,70,5,24,pal.trunk);
+    b(32,50,17,L[0]);b(24,40,12,L[1]);b(40,42,11,L[1]);b(32,28,13,L[2]);
+  } else if(kind==='pine'){pxr(x,30,74,5,20,pal.trunk); cone(L);
+  } else if(kind==='snowpine'){pxr(x,30,74,5,20,pal.trunk); cone(L);
+    /* snow sits on the upper face of each tier, not on the whole tree */
+    x.fillStyle=pal.accent;
+    for(let i=0;i<3;i++){const y=22+i*18,w=42-i*10;
+      x.beginPath();x.moveTo(32,y);x.lineTo(32+w/2*0.55,y+12);x.lineTo(32-w/2*0.55,y+12);x.closePath();x.fill();}
+  } else if(kind==='bare'){pxr(x,30,52,5,42,pal.trunk);
+    const arm=(x0,y0,x1,y1,w)=>{x.strokeStyle=pal.trunk;x.lineWidth=w;x.beginPath();x.moveTo(x0,y0);x.lineTo(x1,y1);x.stroke();};
+    arm(32,58,17,40,4); arm(32,52,46,36,4); arm(32,44,24,28,3); arm(32,40,42,24,3); arm(32,34,32,20,3);
+  } else if(kind==='poplar'){pxr(x,30,58,4,36,pal.trunk);
+    b(32,44,10,L[0]);b(32,32,11,L[1]);b(32,20,9,L[2]);
+  } else if(kind==='bush'){b(24,72,12,L[0]);b(40,72,12,L[1]);b(32,64,14,L[2]);
+  } else if(kind==='reed'){x.strokeStyle=L[1];x.lineWidth=2;
+    for(let i=0;i<7;i++){const x0=20+i*4, lean=(i%2?1:-1)*(3+i);
+      x.beginPath();x.moveTo(x0,88);x.quadraticCurveTo(x0+lean*0.4,60,x0+lean,38+i*2);x.stroke();}
+    x.fillStyle=L[2]; for(let i=0;i<3;i++) x.fillRect(24+i*8,36+i*3,3,9);
+  } else if(kind==='mushroom'){pxr(x,29,66,6,22,pal.trunk);
+    x.fillStyle=L[1];x.beginPath();x.ellipse(32,64,20,13,0,Math.PI,0);x.fill();
+    x.fillStyle=L[2];x.beginPath();x.ellipse(32,62,20,10,0,Math.PI,0);x.fill();
+    x.fillStyle=pal.accent; b(24,58,3,pal.accent); b(38,57,2.5,pal.accent); b(32,52,2,pal.accent);
+  } else {pxr(x,29,62,6,32,pal.trunk);
+    b(32,42,20,L[0]);b(20,36,13,L[1]);b(44,36,13,L[1]);b(32,26,15,L[2]);
+    for(let i=0;i<10;i++){x.fillStyle=pal.accent;x.fillRect(16+Math.random()*32,20+Math.random()*32,2,2);}}
   return c;}
 function sRock(){const {c,x}=cv(40,32);x.fillStyle='#6a5c48';x.beginPath();
   x.moveTo(4,30);x.lineTo(9,14);x.lineTo(20,8);x.lineTo(33,15);x.lineTo(37,30);x.closePath();x.fill();
@@ -1406,10 +1431,14 @@ function fitShadow(span){
 function applyLook(){
   const L=LOOK[BIOME]||LOOK.grass;
   scene.background=skyTexture(L.sky);
-  amb.color.set(L.amb[0]);  amb.intensity=L.amb[1];
-  hemi.color.set(L.hemi[0]); hemi.groundColor.set(L.hemi[1]); hemi.intensity=L.hemi[2];
-  sun.color.set(L.sun[0]);   sun.intensity=L.sun[1];
-  rim.color.set(L.rim[0]);   rim.intensity=L.rim[1];
+  /* Every intensity that reaches a light goes through LEGACY_PI. applyLook()
+     runs at boot and on every biome click, and it used to assign the raw LOOK
+     literals — silently undoing the r128 restore two lines after it was made.
+     If you add a light, multiply it here too, or it will be pi-times dark. */
+  amb.color.set(L.amb[0]);  amb.intensity=L.amb[1]*LEGACY_PI;
+  hemi.color.set(L.hemi[0]); hemi.groundColor.set(L.hemi[1]); hemi.intensity=L.hemi[2]*LEGACY_PI;
+  sun.color.set(L.sun[0]);   sun.intensity=L.sun[1]*LEGACY_PI;
+  rim.color.set(L.rim[0]);   rim.intensity=L.rim[1]*LEGACY_PI;
   _tc.grassCap=_tc.stoneCap=_tc.rockCap=_tc.rockCliff=null;  // repaint the palette
 }
 
@@ -1426,11 +1455,76 @@ const T_WATER=0,T_GRASS=1,T_STONE=2,T_PLAZA=3,T_ROCK=4;
    low, so a pit can never block. A wall's top is high, so it can.          */
 const WALL_FT = 7;            // a carved wall / grass bank. SKINS.wallH(grass)=1.4 units ×5
 const PROP_FT = {             // world-unit height × 5. Absent ⇒ flat dressing, occludes nothing.
-  column:15, pillar:15, rock:4.5, boulder:4.5, tree:5.5, cypress:6, snowpine:5.5,
+  column:15, pillar:15, rock:4.5, boulder:4.5, tree:5.5, cypress:6, snowpine:5.5, bare:5,
   stalagmite:5, crystalCluster:4, reed:3.5, grass:2.5, mushroom:2, bush:2.5, poplar:6, pine:5.5,
   ring:0, bridge:0, moss:0, bones:0, crack:0, banner:0, icicle:0, debris:1.5
 };
 function propOccFt(p){ var u=PROP_FT[p.kind]; return u==null?0:u*(p.scale||1); }
+
+/* ── FLORA — biome art direction for the things that grow ───────────────
+   The biome chips changed sky, fog, four lights and three cap colours, and
+   nothing else. Trees were green in the Frostbound Waste because sTree()
+   hardcoded greens and the kind list was fixed. Two levels of fix:
+
+     kinds    chosen at BUILD time, because a kind carries an occluder height
+              (PROP_FT) and sight must never disagree with the picture. You
+              see new species after a re-forge, not after a chip click.
+     pal      chosen at RENDER time. Same silhouette, same height, different
+              paint. A chip click retints the foliage immediately.
+
+   `density` scales how much of it there is: a cavern grows less than a field.
+   Every kind here has an entry in PROP_FT, mirrored from map-bridge PROP_UNITS.
+   Add a kind without adding its height and it will occlude nothing, silently. */
+const FLORA = {
+  grass:   { density:1.00, kinds:['tree','tree','tree','poplar','bush'],
+             pal:{ trunk:'#5a4028', leaf:['#4a7038','#5a8446','#689452'], accent:'rgba(140,170,90,.40)' } },
+  druidic: { density:1.15, kinds:['tree','tree','cypress','bush','mushroom'],
+             pal:{ trunk:'#453520', leaf:['#2f5730','#3c6c3c','#4a7f48'], accent:'rgba(120,190,120,.35)' } },
+  tundra:  { density:0.55, kinds:['snowpine','snowpine','pine','bare'],
+             pal:{ trunk:'#4a3f36', leaf:['#37544c','#4c6a60','#7f9a96'], accent:'rgba(232,242,246,.60)' } },
+  swamp:   { density:0.90, kinds:['cypress','reed','reed','mushroom','bare'],
+             pal:{ trunk:'#3b3524', leaf:['#3d4c29','#4f5c31','#65703c'], accent:'rgba(150,160,90,.30)' } },
+  temple:  { density:0.40, kinds:['cypress','cypress','bush'],
+             pal:{ trunk:'#4e4030', leaf:['#3a5738','#496a44','#587c50'], accent:'rgba(190,175,120,.30)' } },
+  cavern:  { density:0.45, kinds:['mushroom','mushroom','bush'],
+             pal:{ trunk:'#4a4450', leaf:['#43506b','#566484','#7684a8'], accent:'rgba(150,200,220,.40)' } },
+};
+const flora = () => FLORA[BIOME] || FLORA.grass;
+const FLORA_KINDS = new Set(['tree','cypress','pine','snowpine','poplar','bush','bare','reed','mushroom']);
+
+/* Visual height, as a ratio of a tree. A 2 ft mushroom used to be drawn the
+   same 2.4 units tall as a 5.5 ft tree. The absolute scale is still art, not
+   geometry — see CONTEXT_Forge §4 — but the ratios are now the real ones. */
+const VIS = k => (PROP_FT[k] || PROP_FT.tree) / PROP_FT.tree;
+
+/* Canvas work is not free and renderField() runs on every slider tick. */
+const _floraTex = {};
+function floraTex(kind){
+  const k = kind + '|' + BIOME;
+  if(!_floraTex[k]) _floraTex[k] = ctex(sTree(kind, flora().pal));
+  return _floraTex[k];
+}
+
+/* One square of grid, drawn once. Transparent inside, ink on the seam.
+   Drawn at 128px with a 3px stroke so the line stays crisp at a grazing
+   camera angle; NearestFilter would alias it, LinearMipmap softens it. */
+let GRID_OPACITY = 0, GRID_MESH = null, _gridTex = null;
+function gridTex(){
+  if(_gridTex) return _gridTex;
+  const {c,x}=cv(128,128);
+  x.clearRect(0,0,128,128);
+  x.strokeStyle='#20241c'; x.lineWidth=3;
+  x.strokeRect(1.5,1.5,125,125);
+  const t=new THREE.CanvasTexture(c);
+  t.colorSpace=THREE.SRGBColorSpace; t.anisotropy=8;
+  _gridTex=t; return t;
+}
+function setGridOpacity(v){
+  GRID_OPACITY=Math.max(0,Math.min(1,v));
+  if(!GRID_MESH) return;
+  GRID_MESH.material.opacity=GRID_OPACITY;
+  GRID_MESH.visible=GRID_OPACITY>0.001;   // stop paying for it when it is off
+}
 const CAP={ [T_GRASS]:{tex:()=>capTex('#7f8f4a',['#8fa055','#6b7a3c','#97a862']),col:0xffffff},
            [T_STONE]:{tex:()=>capTex('#9a8f76',['#a89a7c','#857a62','#b0a482']),col:0xffffff},
            [T_PLAZA]:{tex:()=>plazaTex(),col:0xffffff},
@@ -1582,8 +1676,9 @@ function scatterTrees(field, densityFrac){const {W,H,height,type,props}=field;
   const T=(x,y)=>type[y*W+x];
   const grass=[]; for(let y=1;y<H-1;y++)for(let x=1;x<W-1;x++) if(T(x,y)===T_GRASS) grass.push([x,y]);
   if(!grass.length) return;
-  const total=Math.floor(grass.length*densityFrac);
-  const kinds=['tree','tree','tree','cypress','pine','poplar','bush'];
+  const F0=flora();
+  const total=Math.floor(grass.length*densityFrac*F0.density);
+  const kinds=F0.kinds;                       // biome decides the species, and their heights
   const used=new Set();
   const put=(x,y)=>{ if(x<1||y<1||x>=W-1||y>=H-1) return; const key=x+','+y; if(used.has(key)||T(x,y)!==T_GRASS) return;
     used.add(key); props.push({kind:kinds[(Math.random()*kinds.length)|0], x, y, h:height[y*W+x], scale:0.82+Math.random()*0.5}); };
@@ -1649,12 +1744,33 @@ function buildTiersField(seed){
   for(let i=0;i<height.length;i++) if(foot[i]&&height[i]<=0 && type[i]!==T_ROCK) type[i]=T_WATER;
   // walls become short ruin columns above ground; scatter trees on floor edges
   D.props.forEach(p=>{ if(p.kind==='pillar'||p.kind==='bossCrystal') props.push({kind:'column',x:p.x,y:p.y,h:height[p.y*W+p.x]}); });
-  // trees along wall-adjacent floor
+  /* Trees used to REQUIRE a wall neighbour — `if(edge && rand<0.5)`. Measured
+     over 30 seeds that put 2082 of 2082 trees against a wall. A tree is a
+     camera-facing quad about 1.4 units wide standing in a 1-unit cell, and a
+     wall renders WALL_FT/STEP_FT tiers above its own floor, so orbiting the
+     camera swings the quad into the wall and it reads as planted inside one.
+     The walls were never soft: T_ROCK is impassable in combatMapFromF and
+     excluded from walkableCells. The placement was just the worst case.
+
+     So: never adjacent to a wall. Bias toward LEDGES instead — a cell whose
+     neighbour drops a tier — which keeps the treeline structure that made the
+     old rule attractive, without the clipping. */
+  const F0=flora();
   let trees=0;
-  for(let k=0;k<3000 && trees<70;k++){const x=1+((Math.random()*(W-2))|0),y=1+((Math.random()*(H-2))|0);
+  const cap=Math.round(70*F0.density);
+  for(let k=0;k<6000 && trees<cap;k++){const x=1+((Math.random()*(W-2))|0),y=1+((Math.random()*(H-2))|0);
     const i=y*W+x; if(type[i]!==T_GRASS)continue;
-    let edge=false;for(const[dx,dy]of[[1,0],[-1,0],[0,1],[0,-1]])if(D.grid[(y+dy)*W+(x+dx)]===WALL){edge=true;break;}
-    if(edge&&Math.random()<0.5){props.push({kind:'tree',x,y,h:height[i]});trees++;}}
+    let wall=false, ledge=false;
+    for(const[dx,dy]of[[1,0],[-1,0],[0,1],[0,-1]]){
+      const j=(y+dy)*W+(x+dx);
+      if(D.grid[j]===WALL||type[j]===T_ROCK){wall=true;break;}
+      if(Math.abs(height[i]-height[j])>=1) ledge=true;
+    }
+    if(wall) continue;
+    if(Math.random() < (ledge?0.5:0.12)){
+      props.push({kind:F0.kinds[(Math.random()*F0.kinds.length)|0], x, y, h:height[i],
+                  scale:0.82+Math.random()*0.5});
+      trees++; } }
   /* A carved dungeon's WALL cells are real walls with a real height. They were
      relaxed down to the neighbouring floor tier above (so they render flush),
      which is why sight used to be decided by a type flag instead of geometry.
@@ -1729,6 +1845,23 @@ function renderField(){
   // shallow rock bed under water cells (so basins have depth, not see-through)
   const bedMesh = watCells?new THREE.InstancedMesh(new THREE.BoxGeometry(1,1,1),surfMat({color:0x3a4a44}),watCells):null;
 
+  /* ── the 5-ft grid ──────────────────────────────────────────────────
+     No math and no shader. The caps are already one 1x1 instance per cell,
+     so a 1x1 quad laid on each cap's top face IS the 5-ft square — the seam
+     falls exactly where the rules put it. One transparent instanced plane,
+     a texture that is nothing but a border, and the opacity is live: the
+     slider writes material.opacity and never rebuilds the field.
+     depthWrite off so the quads never fight the props standing on them. */
+  const gridN = counts[T_GRASS]+counts[T_STONE]+counts[T_PLAZA]+counts[T_ROCK];
+  const gridMesh = gridN ? new THREE.InstancedMesh(
+      new THREE.PlaneGeometry(1,1),
+      new THREE.MeshBasicMaterial({ map:gridTex(), transparent:true, depthWrite:false,
+                                    toneMapped:false, opacity:GRID_OPACITY }),
+      gridN) : null;
+  if(gridMesh){ gridMesh.visible = GRID_OPACITY>0.001; gridMesh.renderOrder=1; }
+  let gi=0;
+  const _gq=new THREE.Quaternion().setFromAxisAngle(new THREE.Vector3(1,0,0),-Math.PI/2);
+
   /* Ambient occlusion, per instance. A blocky heightfield reads as a pile of
      boxes because nothing darkens where the boxes meet. Count how much taller
      the eight neighbours are and tint the cap accordingly. ~15 lines, no shader,
@@ -1760,7 +1893,8 @@ function renderField(){
     if(t===T_WATER){ if(bedMesh){const bt=Math.min(top,waterY-0.3); _p.set(X,bt-0.1,Z);_s.set(1,0.2,1);_m.compose(_p,_q,_s);bedMesh.setMatrixAt(bedi++,_m);} }
     else { _p.set(X,top-capT/2,Z);_s.set(1,1,1);_m.compose(_p,_q,_s);
            const k=ci[t]++; capMesh[t].setMatrixAt(k,_m);
-           const a=ao(x,y); _col.setRGB(a,a,a); capMesh[t].setColorAt(k,_col); }
+           const a=ao(x,y); _col.setRGB(a,a,a); capMesh[t].setColorAt(k,_col);
+           if(gridMesh){ _p.set(X,top+0.012,Z);_s.set(1,1,1);_m.compose(_p,_gq,_s); gridMesh.setMatrixAt(gi++,_m); } }
     { const a=ao(x,y)*0.88; _col.setRGB(a,a,a); bodyMesh.setColorAt(bi-1,_col); }
   }
   bodyMesh.instanceMatrix.needsUpdate=true;
@@ -1770,6 +1904,8 @@ function renderField(){
     if(capMesh[t].instanceColor) capMesh[t].instanceColor.needsUpdate=true;
     capMesh[t].castShadow=true; capMesh[t].receiveShadow=true; world.add(capMesh[t]); }
   if(bedMesh){bedMesh.instanceMatrix.needsUpdate=true;bedMesh.receiveShadow=true;world.add(bedMesh);}
+  if(gridMesh){ gridMesh.instanceMatrix.needsUpdate=true; world.add(gridMesh); GRID_MESH=gridMesh; }
+  else GRID_MESH=null;
   // aim the shadow frustum at the field we just built
   sun.position.set(W*0.55, Math.max(W,H)*1.1, H*0.35);
   sun.target.position.set(0,0,0); sun.target.updateMatrixWorld();
@@ -1845,10 +1981,13 @@ function placeProp(p,waterY){const X=wxc(p.x),Z=wzc(p.y),topY=p.h*STEP;
     addWorld(new THREE.BoxGeometry(1.05,0.3,1.05),0xa89a7c,X,topY+h+0.05,Z);
   } else if(p.kind==='ruin'){const h=STEP*(1.6+Math.random()*1.4);
     addWorld(new THREE.BoxGeometry(0.9,h,0.9),0x8a7d64,X,topY+h/2,Z);
-  } else if(p.kind==='tree'||p.kind==='cypress'||p.kind==='pine'||p.kind==='poplar'||p.kind==='bush'){
-    const sc=p.scale||1;
+  } else if(FLORA_KINDS.has(p.kind)){
+    /* Height is now the kind's height, relative to a tree. A mushroom used to
+       be drawn as tall as an oak. The texture is cached per kind+biome, so a
+       biome chip retints the whole field without regenerating anything. */
+    const sc=(p.scale||1)*VIS(p.kind);
     world.add(billboard(shadowTex,X,topY+0.05,Z,1.3*sc,0.7,true));
-    world.add(billboard(ctex(sTree(p.kind)),X,topY+0.02,Z,2.4*sc,2.4,false));
+    world.add(billboard(floraTex(p.kind),X,topY+0.02,Z,2.4*sc,2.4,false));
   } else if(p.kind==='ring'){ // spiral / stone ring laid flat
     addWorld(new THREE.TorusGeometry(2.2,0.35,8,28),0x9a8f76,X,topY+0.15,Z,{x:Math.PI/2});
     addWorld(new THREE.TorusGeometry(1.2,0.28,8,24),0x8a7d64,X,topY+0.12,Z,{x:Math.PI/2});
@@ -2036,9 +2175,15 @@ function rebuild(){
   bar.innerHTML=Object.keys(LOOK).map(k=>'<button class="chip'+(k===BIOME?' active':'')+'" data-b="'+k+'">'+LOOK[k].name+'</button>').join('');
   host.parentNode.insertBefore(bar,host.nextSibling);
   bar.querySelectorAll('.chip').forEach(b=>b.onclick=()=>{
-    BIOME=b.dataset.b;
+    const was=BIOME; BIOME=b.dataset.b;
     bar.querySelectorAll('.chip').forEach(x=>x.classList.toggle('active',x===b));
     applyLook(); if(F) renderField();
+    /* Paint changes now; species change on the next re-forge, because a kind
+       carries an occluder height and the sight lines were computed from it. */
+    if(F && was!==BIOME && (F.props||[]).some(p=>FLORA_KINDS.has(p.kind))){
+      const el=document.getElementById('dungeonName');
+      if(el) el.textContent = LOOK[BIOME].name + ' \u00b7 re-forge to reseed the flora';
+    }
   });
 })();
 const MODES=[['traced','Traced art'],['tiers','Generated tiers'],['flat','Flat (contrast)'],['image','Imported map']];
@@ -2076,6 +2221,9 @@ document.getElementById('dice').onclick=()=>{document.getElementById('seed').val
 document.getElementById('seed').addEventListener('keydown',e=>{if(e.key==='Enter'){mode='tiers';rebuild();}});
 const hs=document.getElementById('height');hs.oninput=()=>{STEP=hs.value/100;document.getElementById('heightVal').textContent=hs.value+'%';
   if(F){ renderField(); restageForHeight(); }};
+/* Live: writes one float on one material. No rebuild, no reflow. */
+const gs=document.getElementById('grid');
+if(gs) gs.oninput=()=>{ document.getElementById('gridVal').textContent=gs.value+'%'; setGridOpacity(gs.value/100); };
 document.querySelectorAll('#shadeToggle button').forEach(b=>b.onclick=()=>{TOON=b.dataset.toon==='1';
   document.querySelectorAll('#shadeToggle button').forEach(x=>x.classList.toggle('active',x===b)); if(F)renderField();});
 document.getElementById('outlineChk').onchange=e=>{OUTLINE=e.target.checked; if(F)renderField();};
