@@ -140,9 +140,12 @@ node smoke-forge-engine.js       # engine: reliability, control, completion, com
 node smoke-map-bridge.mjs        # seam: generator payload → combat rules honour it              (16)
 node smoke-tactics-geometry.mjs  # geometry: cliffs, LoS, movement budget                        (26)
 node smoke-los-cover.js          # heightfield LoS + graded cover, one case per stated rule      (27)
+node smoke-placement.js          # spread rule: no blobs, no stacking, foes in the 40-90 ft band (19)
 ```
 
-83 assertions, all green. `smoke-los-cover.js` is the arbiter: if a change
+102 assertions, all green. `smoke-placement.js` **extracts `clusterAround` and
+`foeAnchor` from the mock at test time** rather than copying them, and runs them over
+40 real `ForgeEngine.generate()` fields — a copy would pass while the mock stayed broken. `smoke-los-cover.js` is the arbiter: if a change
 breaks it, the change is wrong until argued otherwise.
 
 The combat-rules smoke (reactions, rewind, action economy) lives with the

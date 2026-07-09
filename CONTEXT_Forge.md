@@ -174,12 +174,21 @@ real placement. **These are decisions, not hypotheses.**
 
 ## §5 · KNOWN BUGS (open)
 
-1. **Height-exaggeration slider breaks the map.** `hs.oninput` calls
-   `renderField()` and never `positionToken()`. Terrain rescales; tokens keep
-   their old world `Y`, so they bury or float. Two-line fix.
-2. **Everyone bunches in one spot.** `foeAnchor()` prefers the 15–60 ft band and
-   `clusterAround()` packs each side around one seed cell. Party needs a loose
-   formation; foes need 40–90 ft and their own footing.
+1. ~~Height-exaggeration slider breaks the map.~~ **Fixed.** It was not two lines:
+   `renderField()` rebuilds `world`, but **four** groups hang off `scene` and hold
+   a STEP-derived Y — `tokenGroup`, `placedGroup`, `moveGroup`, `sightGroup`.
+   All are restaged by `restageForHeight()`: one door for the next thing that grows a Y.
+2. ~~Everyone bunches in one spot.~~ **Fixed.** `clusterAround(cells,seed,n,taken,minSep)`
+   enforces clear squares between placements, relaxes one square at a time rather than
+   returning short, reports the sep it settled for, and commits `taken` only for the
+   cells it actually returns — it used to poison the pool on a failed search.
+   `PC_SPREAD=1`, `FOE_SPREAD=2`; `foeAnchor`'s preferred band is now 40–90 ft, with
+   `anySeen` (15–120 ft, in LoS) still the fallback. Also killed: `pcCells[i]||pcCells[last]`,
+   which silently stacked leftover PCs on one square.
+   Measured over 60 real seeds: fights opening inside 15 ft **6 → 0**; nearest PC→foe
+   minimum 5 ft → 15 ft; median gap inside the party 1 → 2 squares, inside the foes 1 → 3.
+   `forge/tests/smoke-placement.js` (19) extracts the real functions from the mock and
+   runs them on real generated fields.
 3. **Sight lines may be invisible.** Drawn with `LineBasicMaterial`, default
    `depthTest`, so segments passing through terrain disappear. Suspected, not
    confirmed in a browser. Set `depthTest:false` + `renderOrder`.

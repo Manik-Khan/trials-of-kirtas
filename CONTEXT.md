@@ -250,8 +250,9 @@ occluder height in feet above its terrain, and `losVerdict` traces the 5e corner
 `battle-tactics-geo-mock.html` **and** `topography-test-mock.html`. Three copies total, all
 **code-identical** (comments stripped; the inlines carry an older header). Change one, change all three.
 
-Tests (all in `forge/tests/`, 83 green): `smoke-forge-engine.js` 14/14 (frost→tundra fixed),
-`smoke-map-bridge.mjs` 16/16, `smoke-tactics-geometry.mjs` 26/26, `smoke-los-cover.js` 27/27.
+Tests (all in `forge/tests/`, 102 green): `smoke-forge-engine.js` 14/14 (frost→tundra fixed),
+`smoke-map-bridge.mjs` 16/16, `smoke-tactics-geometry.mjs` 26/26, `smoke-los-cover.js` 27/27,
+`smoke-placement.js` 19/19 (extracts the real functions from the mock, runs them on real fields).
 
 ### The four mocks — which is which (none are superseded)
 
@@ -268,9 +269,9 @@ whole story of the missing sprites, the missing flanking, and the missing feel.
 
 ### Open
 
-- **Bugs:** height slider rescales terrain but never calls `positionToken()` (units bury/float);
-  `foeAnchor()` + `clusterAround()` bunch both sides in one spot; sight lines may be
-  `depthTest`-hidden inside terrain (unverified in browser).
+- **Bugs:** ~~height slider~~ fixed (`restageForHeight()` — four groups held a STEP-derived Y, not one);
+  ~~placement bunching~~ fixed (`minSep` spread + 40–90 ft foe band; 6→0 fights opening inside 15 ft
+  over 60 seeds); sight lines may still be `depthTest`-hidden inside terrain (§5.3, unverified in browser).
 - **Not ported:** flanking → advantage, opportunity attacks, DOM badges, hit flash, camera shake,
   idle bob, torch PointLights.
 - **Exists nowhere:** Ready an action (the geometry now demands it), floating damage text,

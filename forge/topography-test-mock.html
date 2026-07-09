@@ -2075,7 +2075,7 @@ document.getElementById('dice').onclick=()=>{document.getElementById('seed').val
   mode='tiers';setActiveChip('tiers');document.getElementById('seedGroup').style.opacity='1';setImgOnly(false);rebuild();};
 document.getElementById('seed').addEventListener('keydown',e=>{if(e.key==='Enter'){mode='tiers';rebuild();}});
 const hs=document.getElementById('height');hs.oninput=()=>{STEP=hs.value/100;document.getElementById('heightVal').textContent=hs.value+'%';
-  if(F)renderField();};
+  if(F){ renderField(); restageForHeight(); }};
 document.querySelectorAll('#shadeToggle button').forEach(b=>b.onclick=()=>{TOON=b.dataset.toon==='1';
   document.querySelectorAll('#shadeToggle button').forEach(x=>x.classList.toggle('active',x===b)); if(F)renderField();});
 document.getElementById('outlineChk').onchange=e=>{OUTLINE=e.target.checked; if(F)renderField();};
@@ -2264,9 +2264,47 @@ function combatMapFromF(){
 }
 function walkable(){ var out=[]; for(var y=0;y<F.H;y++)for(var x=0;x<F.W;x++){ var i=y*F.W+x;
   if(F.foot[i]&&F.height[i]>0&&(F.type[i]===T_GRASS||F.type[i]===T_STONE||F.type[i]===T_PLAZA)) out.push({x:x,y:y,h:F.height[i]}); } return out; }
-function clusterAround(cells,seed,n,taken){ var d2=function(a,b){return(a.x-b.x)*(a.x-b.x)+(a.y-b.y)*(a.y-b.y);};
-  var s=cells.slice().sort(function(a,b){return d2(a,seed)-d2(b,seed);}),out=[];
-  for(var i=0;i<s.length&&out.length<n;i++){var k=s[i].x+","+s[i].y;if(!taken[k]){taken[k]=1;out.push(s[i]);}} return out; }
+/* ── §5.2 · nobody stands on top of anybody ──────────────────────────────
+   The old rule sorted every free cell by distance to a seed and took the first
+   n. That is the tightest possible packing: a blob. Both sides did it, around
+   seeds that `foeAnchor` kept choosing close together, so the whole map met in
+   one corner.
+
+   `minSep` is the number of clear squares required between two placed cells.
+   0 reproduces the old behaviour exactly. If the map cannot honour the spread
+   — a corridor, a tiny room — it RELAXES one square at a time rather than
+   returning short, and reports the sep it settled for on the returned array,
+   so the caller can say so out loud.
+
+   It also no longer writes to `taken` while searching. The old version marked
+   cells as it went, so a run that came up short still poisoned the next call's
+   pool. Commit only the set that is actually returned.                     */
+var PC_SPREAD  = 1;   // one clear square between allies — a formation, not a pile
+var FOE_SPREAD = 2;   // foes hold their own footing
+
+function clusterAround(cells,seed,n,taken,minSep){
+  var d2  =function(a,b){return(a.x-b.x)*(a.x-b.x)+(a.y-b.y)*(a.y-b.y);};
+  var cheb=function(a,b){return Math.max(Math.abs(a.x-b.x),Math.abs(a.y-b.y));};
+  if(!seed) seed=cells[0];
+  if(!seed) { var e=[]; e.sep=0; e.short=true; return e; }
+  var s=cells.slice().sort(function(a,b){return d2(a,seed)-d2(b,seed);});
+  var want=Math.max(0, minSep|0), best=null;
+  for(var sep=want; sep>=0; sep--){
+    var out=[];
+    for(var i=0;i<s.length&&out.length<n;i++){
+      var cl=s[i];
+      if(taken[cl.x+","+cl.y]) continue;
+      var clash=false;
+      for(var j=0;j<out.length;j++){ if(cheb(out[j],cl)<=sep){ clash=true; break; } }
+      if(!clash) out.push(cl);
+    }
+    out.sep=sep;
+    if(!best||out.length>best.length) best=out;
+    if(out.length>=n) break;
+  }
+  best.short = best.length<n;
+  for(var b=0;b<best.length;b++) taken[best[b].x+","+best[b].y]=1;
+  return best; }
 function tierY(c,r){ return (F.height[r*F.W+c]||0)*STEP; }
 function tokenTex(key){ if(ROSTER_ART[key]){var t=new THREE.TextureLoader().load(ROSTER_ART[key]);t.minFilter=THREE.LinearFilter;return t;}
   return initialTokenTex((ROSTER_INIT[key]||key.charAt(0).toUpperCase()), ROSTER_COL[key]||"#b8863a"); }
@@ -2291,6 +2329,27 @@ function makeToken(u){
   u.sprite.renderOrder=4; tokenGroup.add(u.sprite);
 }
 function positionToken(u){ var X=wxc(u.c),Z=wzc(u.r),Y=tierY(u.c,u.r); if(u.sprite)u.sprite.position.set(X,Y+0.02,Z); if(u.shadow)u.shadow.position.set(X,Y+0.05,Z); }
+
+/* ── §5.1 · the height slider rescales terrain and nothing else ──────────
+   renderField() calls clearWorld(), which empties `world` and rebuilds it at
+   the new STEP. Four other groups hang off `scene`, not `world`, and every one
+   of them holds a world-space Y derived from STEP:
+     tokenGroup   combat tokens + their ground shadows   → bury or float
+     placedGroup  library props placed by hand           → same
+     moveGroup    reach tiles                            → hover in the air
+     sightGroup   drawn sight lines                      → ditto
+   Anything that owes its Y to STEP is restaged here, in one place, so the next
+   thing that grows a Y has one obvious door to knock on.
+   The two overlay groups are cleared rather than rebuilt: they are transient
+   and get redrawn on the next hover/select. Redrawing them here would need the
+   current selection, which the slider has no business knowing about.        */
+function restageForHeight(){
+  if (typeof CB !== "undefined" && CB && CB.units)
+    CB.units.forEach(function(u){ if (u.sprite || u.shadow) positionToken(u); });
+  if (typeof placed !== "undefined" && placed && placed.length) renderPlaced();
+  if (typeof moveGroup  !== "undefined" && moveGroup)  moveGroup.clear();
+  if (typeof sightGroup !== "undefined" && sightGroup) sightGroup.clear();
+}
 function removeToken(u){ if(u.sprite)tokenGroup.remove(u.sprite); if(u.shadow)tokenGroup.remove(u.shadow); u.sprite=null; u.shadow=null; }
 
 function startCombat(){
@@ -2301,10 +2360,19 @@ function startCombat(){
   var maxH=cells.reduce(function(m,c){return Math.max(m,c.h);},0), minH=cells.reduce(function(m,c){return Math.min(m,c.h);},99);
   var hi=cells.filter(function(c){return c.h===maxH;}), lo=cells.filter(function(c){return c.h===minH;});
   var taken={}, roster=window.__fightRoster||[];
-  var pcCells=clusterAround(cells, hi[(hi.length/2)|0]||cells[0], roster.length, taken);
+  var pcCells=clusterAround(cells, hi[(hi.length/2)|0]||cells[0], roster.length, taken, PC_SPREAD);
   var foeN=Math.min(6,Math.max(3,roster.length+1));
-  var foeCells=clusterAround(cells, foeAnchor(cells,pcCells,taken)||lo[(lo.length/2)|0]||cells[cells.length-1], foeN, taken);
-  roster.forEach(function(key,i){ var s=CHAR[key]; if(!s)return; var cell=pcCells[i]||pcCells[pcCells.length-1]; if(!cell)return;
+  var foeCells=clusterAround(cells, foeAnchor(cells,pcCells,taken)||lo[(lo.length/2)|0]||cells[cells.length-1], foeN, taken, FOE_SPREAD);
+  /* Failures narrate. A cramped map is a fact about the map, not a thing to hide. */
+  if(pcCells.sep<PC_SPREAD||foeCells.sep<FOE_SPREAD)
+    clog("<i>Tight ground \u2014 formation compressed to "+
+         Math.min(pcCells.sep,foeCells.sep)+" clear square(s) between combatants.</i>");
+  if(pcCells.short) clog("<i>Only "+pcCells.length+" of "+roster.length+" party cells found; the rest sit this one out.</i>");
+  if(foeCells.short) clog("<i>Only "+foeCells.length+" of "+foeN+" foe cells found.</i>");
+  /* The old fallback was `pcCells[i]||pcCells[last]` \u2014 it stacked leftover PCs
+     on one square. A character with nowhere to stand is dropped loudly, not
+     silently welded to a friend. */
+  roster.forEach(function(key,i){ var s=CHAR[key]; if(!s)return; var cell=pcCells[i]; if(!cell)return;
     var u={ id:"pc"+i, key:key, side:"pc", name:s.name, c:cell.x, r:cell.y, hp:s.hp, hpMax:s.hp, ac:s.ac, speed:s.speed,
       initMod:s.init, climb:!!s.climb, fly:!!s.fly, actions:s.actions, react:s.react||null, res:JSON.parse(JSON.stringify(s.res||{})),
       reacted:false, badge:(window.__fightControllers&&window.__fightControllers[key]&&window.__fightControllers[key].badge)||null, alive:true };
@@ -2323,6 +2391,7 @@ function startCombat(){
    generated dungeon, are the entrance room and the deepest room: the two
    furthest-apart rooms, with every wall in the map between them. Half the
    seeds weren't even inside 120 ft. Anchor on a cell the party can SEE. */
+var FOE_BAND_MIN = 40, FOE_BAND_MAX = 90;   // feet
 function foeAnchor(cells,pcCells,taken){
   if(!pcCells.length) return null;
   var band=[], anySeen=[];
@@ -2333,7 +2402,11 @@ function foeAnchor(cells,pcCells,taken){
       var A={c:pcCells[i].x,r:pcCells[i].y}, d=cbDist(A,T);
       if(d<15||d>120) continue;
       if(!TG.losVerdict(CB.map,A,T).canTarget) continue;
-      anySeen.push(cl); if(d<=60) band.push(cl); break;
+      /* The preferred band is 40-90 ft: outside a Monk's opening dash, inside
+         a longbow's first range increment. The old 15-60 ft band seeded the
+         goblins close enough that clusterAround's blob swallowed the party.
+         `anySeen` (15-120 ft, in line of sight) stays as the wider fallback. */
+      anySeen.push(cl); if(d>=FOE_BAND_MIN&&d<=FOE_BAND_MAX) band.push(cl); break;
     }
   });
   var pool = band.length?band : anySeen;
