@@ -400,6 +400,33 @@ global.TacticsGeo = API;
 .cbPort{width:100%;height:74px;background-size:cover;background-position:top center;
   border:1px solid rgba(0,0,0,.22);margin-bottom:6px;filter:saturate(.92) contrast(1.04)}
 #biomeChips .chip{font-size:10px;padding:4px 7px}
+/* ── FEEL LAYER — verdict badges + damage floaters (port: battle-tactics-geo-mock) ── */
+#cbFx{ position:fixed; inset:0; z-index:18; pointer-events:none; overflow:hidden; }
+.tbadge{ position:absolute; transform:translate(-50%,-100%); background:rgba(240,233,220,.93);
+  border:1px solid var(--tk-line); padding:3px 7px; font:600 11px/1.4 'Barlow Condensed',sans-serif;
+  letter-spacing:.06em; color:var(--tk-ink); white-space:nowrap; text-align:center;
+  box-shadow:0 4px 14px rgba(40,30,10,.25); }
+.tbadge.cov{ border-color:var(--tk-gold); }
+.tbadge.bad{ border-color:#a33b2e; color:#a33b2e; }
+.tbadge.adv{ border-color:#c9a24b; }
+.tbadge.dis{ border-color:#c07158; }
+.tbadge .adv,.tbadge .cov{ color:#8a6a1f; }
+.tbadge .dis{ color:#a33b2e; }
+.tbadge .flat{ color:var(--tk-ink-dim); }
+.dmgFloat{ position:absolute; transform:translate(-50%,-100%); font-family:var(--f-display); font-weight:700;
+  font-size:20px; color:#a33b2e; text-shadow:0 1px 0 rgba(255,255,255,.65),0 3px 10px rgba(40,30,10,.35);
+  animation:dmgRise .95s ease-out forwards; white-space:nowrap; }
+.dmgFloat.heal{ color:#3f7d46; }
+.dmgFloat.crit{ font-size:27px; color:#8f2418; }
+.dmgFloat.miss{ color:var(--tk-ink-dim); font-size:14px; letter-spacing:.14em; }
+.dmgFloat.down{ color:#0d0a07; font-size:15px; letter-spacing:.2em; }
+@keyframes dmgRise{ 0%{opacity:0;margin-top:0} 12%{opacity:1} 100%{opacity:0;margin-top:-46px} }
+@media (prefers-reduced-motion: reduce){ .dmgFloat{ animation-duration:.4s } }
+.cbChipRow{ display:flex; gap:8px; margin-top:8px; }
+.cbChipTog{ flex:1; font-family:var(--f-util); text-transform:uppercase; letter-spacing:.1em; font-size:11px;
+  color:var(--tk-ink-dim); background:transparent; border:1px solid var(--tk-line); padding:7px 6px; cursor:pointer; }
+.cbChipTog.on{ color:#8a6a1f; border-color:var(--tk-gold); background:rgba(201,162,75,.12); }
+.cbChipTog:disabled{ opacity:.35; cursor:not-allowed; }
 </style>
 </head>
 <body>
@@ -496,6 +523,7 @@ global.TacticsGeo = API;
     Generator core © Majid Manzarpour · MIT
   </div>
   <div id="combatHud" style="display:none">
+    <div id="cbFx"></div>
     <div class="cbInitWrap"><div class="cbInit" id="cbInit"></div></div>
     <div class="cbPanel">
       <div class="cbActive" id="cbActive"></div>
@@ -508,6 +536,11 @@ global.TacticsGeo = API;
       <div class="cbBtns2">
         <button class="cbReforge" id="cbReforge">Re-forge map</button>
         <button class="cbReset" id="cbReset" title="Reset the whole battle">Reset</button>
+      </div>
+      <div class="cbChipRow">
+        <button class="cbChipTog" id="cbFlank" title="House rule: attackers on opposite sides of a target in melee get advantage">Flank: off</button>
+        <button class="cbChipTog" id="cbReady" title="Hold a weapon attack as a reaction; it fires when a foe moves into range">Ready</button>
+        <button class="cbChipTog" id="cbVes" title="Vesperian animated sprite sheet (assets/sprites/vesperian/)">Ves: &hellip;</button>
       </div>
     </div>
     <div class="cbLog" id="cbLog"></div>
@@ -2338,8 +2371,62 @@ renderer.domElement.addEventListener('wheel',e=>{e.preventDefault();
 function resize(){renderer.setSize(innerWidth,innerHeight);camera.aspect=innerWidth/innerHeight;camera.updateProjectionMatrix();placeCam();}
 addEventListener('resize',resize);
 
-let t0=performance.now();
-function loop(){requestAnimationFrame(loop);const t=(performance.now()-t0)/1000;
+/* ══ FEEL LAYER — ported from battle-tactics-geo-mock.html ═══════════════
+   tween runner + shake + flashHit come across near-verbatim. The floaters
+   and badges are new DOM on #cbFx, projected from sprite world positions —
+   every frame for badges (this camera orbits; the tactics mock's did not),
+   once at spawn for floaters (they live under a second).
+   This block sits BEFORE loop() because loop's first run is synchronous. */
+var tweens=[];
+function tween(dur,fn,ease){ if(REDUCED) dur=Math.min(dur,90);
+  return new Promise(function(res){ tweens.push({t0:performance.now(),dur:dur,fn:fn,ease:ease||function(t){return t;},res:res}); }); }
+function pumpTweens(now){ for(var i=tweens.length-1;i>=0;i--){ var tw=tweens[i];
+  var t=Math.min(1,(now-tw.t0)/tw.dur); tw.fn(tw.ease(t),t); if(t>=1){ tweens.splice(i,1); tw.res(); } } }
+var shakeAmt=0;
+function shake(a){ if(!REDUCED) shakeAmt=Math.max(shakeAmt,a); }
+function flashHit(t){ if(!t.sprite||!t.sprite.material) return;
+  t.sprite.material.color.setHex(0xff6b57);
+  var ox=t.sprite.position.x;
+  tween(220,function(e){ if(t.sprite) t.sprite.position.x=ox+Math.sin(e*18)*0.06*(1-e); });
+  setTimeout(function(){ if(t.sprite) t.sprite.material.color.setHex(0xffffff); },130); }
+/* screen px of a point `frac` of the way up a unit's standee */
+function projectUnit(u,frac){ if(!u.sprite) return null;
+  var v=u.sprite.position.clone(); v.y+=Math.abs(u.sprite.scale.y||2)*(frac==null?1.02:frac);
+  v.project(camera);
+  return { x:(v.x+1)/2*innerWidth, y:(1-v.y)/2*innerHeight, behind:v.z>1 }; }
+function fxHost(){ return document.getElementById("cbFx"); }
+function floatAt(u,text,cls){ var host=fxHost(); if(!host||!u) return;
+  var p=projectUnit(u,1.05); if(!p||p.behind) return;
+  var el=document.createElement("div"); el.className="dmgFloat"+(cls?" "+cls:"");
+  el.textContent=text; el.style.left=p.x+"px"; el.style.top=p.y+"px";
+  host.appendChild(el); setTimeout(function(){ el.remove(); },1000); }
+/* verdict badges over targets while an action is armed */
+var badges=[];
+function clearBadges(){ badges.forEach(function(b){ b.el.remove(); }); badges=[]; }
+function badgeFor(u,t,a,ro){ var host=fxHost(); if(!host) return;
+  var lines=[],cls="tbadge";
+  if(!ro.ok){ cls+=" bad";
+    lines.push(ro.why==="no line of sight" ? "\u2715 no line"
+             : ro.why==="out of reach" ? "\u2922 out of reach" : "\u00b7 out of range"); }
+  else {
+    if(a.kind==="attack"){ var av=advPreview(u,t,a);
+      if(av.adv){ cls+=" adv"; lines.push('<span class="adv">\u21d1 ADV \u00b7 '+av.why.join(", ")+'</span>'); }
+      else if(av.dis||ro.dis){ cls+=" dis"; var w=av.why.slice(); if(ro.dis)w.push("long range");
+        lines.push('<span class="dis">\u21d3 DIS \u00b7 '+w.join(", ")+'</span>'); }
+      else if(av.cancelled) lines.push('<span class="flat">\u00b1 adv/dis cancel</span>'); }
+    if(ro.coverName==="half") lines.push('<span class="cov">\u00bd cover +2</span>');
+    else if(ro.coverName==="three-quarters") lines.push('<span class="cov">\u00be cover +5</span>');
+  }
+  if(!lines.length) return;                     /* a clean legal shot earns no badge */
+  var el=document.createElement("div"); el.className=cls; el.innerHTML=lines.join("<br>");
+  host.appendChild(el); badges.push({el:el,u:t}); }
+function trackBadges(){ badges.forEach(function(b){ var p=projectUnit(b.u,1.12);
+  if(!p||p.behind){ b.el.style.display="none"; return; }
+  b.el.style.display=""; b.el.style.left=p.x+"px"; b.el.style.top=p.y+"px"; }); }
+
+let t0=performance.now(), _lt=0;
+function loop(){requestAnimationFrame(loop);const now=performance.now();const t=(now-t0)/1000;const dt=Math.min(0.1,t-_lt);_lt=t;
+  pumpTweens(now);
   if(!REDUCED){
     waterMeshes.forEach(w=>{if(w.tex){w.tex.offset.x=t*0.012;w.tex.offset.y=t*0.006;}
       else if(w.fall){w.fall.offset.y=(t*0.6)%1;}});
@@ -2350,10 +2437,24 @@ function loop(){requestAnimationFrame(loop);const t=(performance.now()-t0)/1000;
   // placed props face the camera: swap to the E/N/S/W view for the current orbit
   if(placed.length){const r=rotForCamera();
     for(const p of placed){ if(r!==p.cur && p.tex[r]){ p.sprite.material.map=p.tex[r]; p.sprite.material.needsUpdate=true; p.cur=r; } }}
+  if(typeof CB!=="undefined"&&CB&&CB.active){
+    CB.units.forEach(u=>{
+      if(!u.alive||!u.sprite) return;
+      if(u._ves){ vesTick(u,dt); return; }                 // the sheet carries its own life
+      if(!REDUCED&&!u._moving) u.sprite.position.y=tierY(u.c,u.r)+0.02+(Math.sin(t*2.1+(u.bobPhase||0))+1)*0.022;
+    });
+    trackBadges();
+  }
+  if(shakeAmt>0.0005){ placeCam();
+    camera.position.x+=(Math.random()-0.5)*shakeAmt*2;
+    camera.position.y+=(Math.random()-0.5)*shakeAmt;
+    shakeAmt*=0.86; if(shakeAmt<=0.0005){ shakeAmt=0; placeCam(); } }
   renderer.render(scene,camera);}
 
 document.getElementById('seedGroup').style.opacity='0.35';
 resize(); rebuild(); fetchLibrary(); loop();
+/* vesApply() boots at the END of this module — its VES/VES_MODES vars are
+   declared far below, and a call from here would read them pre-assignment. */
 
 /* ══════════════════════════════════════════════════════════════════════
    TACTICAL BATTLE — full rules + REACTIONS + REWIND on the heightfield.
@@ -2370,6 +2471,129 @@ var CB = { active:false, over:false, units:[], order:[], ti:0, map:null, seen:nu
 var moveGroup = new THREE.Group(); scene.add(moveGroup);
 var sightGroup = new THREE.Group(); scene.add(sightGroup);
 var SHOW_SIGHT = true;
+var CB_ANIM = false;      // a walk tween is running — input waits for it
+var READYING = false;     // "Ready" armed: the next attack picked is held, not thrown
+
+/* ── FLANKING → advantage (house rule; toggle) — port: battle-tactics L1140.
+   Faithful port: the flanker check is the 2D opposite square, gated on melee
+   reach. Tiers don't enter it — a flanker one tier up who can still reach you
+   is still on your other side. */
+var FLANKING = false;
+function hostileAdjacent(u){ return CB.units.some(function(x){ return x.alive&&x.side!==u.side&&TG.chebyshev(x,u)<=1; }); }
+function isFlanked(attacker,target){
+  if(TG.chebyshev({c:attacker.c,r:attacker.r},{c:target.c,r:target.r})>1) return false;
+  var oc=2*target.c-attacker.c, orr=2*target.r-attacker.r;
+  return CB.units.some(function(x){ return x.alive&&x.side===attacker.side&&x!==attacker&&x.c===oc&&x.r===orr; });
+}
+/* pre-roll advantage/disadvantage, with the reasons — feeds badges AND rolls */
+function advPreview(u,t,a){
+  var adv=false,dis=false,why=[];
+  if(a.kind==="attack"){
+    if((a.rng||1)>1 && hostileAdjacent(u)){ dis=true; why.push("point-blank"); }
+    if((a.rng||1)<=1 && FLANKING && isFlanked(u,t)){ adv=true; why.push("flank"); }
+  }
+  if(u.reckless){ adv=true; why.push("reckless"); }
+  if(u.inspired){ adv=true; why.push("inspired"); }
+  var cancel=adv&&dis;
+  return { adv:cancel?false:adv, dis:cancel?false:dis, cancelled:cancel, why:why };
+}
+
+/* ── OPPORTUNITY ATTACKS — port: battle-tactics L1356.
+   Leaving a hostile's melee reach provokes one OA from each threatening enemy
+   that still holds its reaction. Foes swing automatically (and say so); a PC's
+   OA is offered to the DM — spending a party reaction is a choice. */
+function reachOf(u){ return 1; }   // nobody carries a reach weapon yet; the door is here
+function enemiesThreatening(mover){
+  return CB.units.filter(function(x){ return x.alive&&x.side!==mover.side&&TG.chebyshev(x,mover)<=reachOf(x); });
+}
+function meleeActOf(u){
+  if(u.side==="foe") return (u.atk&&(u.atk.rng||1)<=1)?u.atk:null;
+  return (u.actions||[]).filter(function(a){ return a.kind==="attack"&&(a.rng||1)<=1&&!a.cost&&!a.bonus&&!a.spell; })[0]||null;
+}
+function provokeOAs(mover,before,done){
+  var queue=before.filter(function(e){ return e.alive&&!e.reacted&&TG.chebyshev(e,mover)>reachOf(e)&&meleeActOf(e); });
+  (function next(){
+    if(!queue.length||!mover.alive){ done(); return; }
+    var e=queue.shift(), m=meleeActOf(e);
+    var fire=function(){ e.reacted=true;
+      clog("<em>"+e.name+"</em> \u2014 <b>opportunity attack</b> on "+mover.name+"!");
+      resolveStrike(e,Object.assign({kind:"attack"},m,{strikes:1}),mover,{ok:true,cover:0},
+        function(){ snapshot("Opportunity attack"); renderHud(); next(); }); };
+    if(e.side==="pc") promptGeneric(e.name+" \u2014 Opportunity Attack",
+      mover.name+" leaves "+e.name+"'s reach. Take the swing? (uses "+e.name+"'s reaction)", fire, next);
+    else fire();
+  })();
+}
+
+/* ── READY AN ACTION — new; exists in no mock. The geometry demands it:
+   from a plateau you cannot see the base of your own cliff, so you hold the
+   shot. Scope: weapon attacks (no cost, no spell). The readied attack fires
+   as a REACTION when a foe finishes a move inside range + line of sight;
+   it lapses at the start of your next turn. */
+function checkReadied(mover,done){
+  var queue=CB.units.filter(function(p){ return p.alive&&p.side!==mover.side&&p.readied&&!p.reacted; });
+  (function next(){
+    if(!queue.length||!mover.alive){ done(); return; }
+    var p=queue.shift(), a=p.readied.act, ro=reachOK(p,a,mover);
+    if(!ro.ok){ next(); return; }
+    promptGeneric(p.name+" \u2014 Readied: "+a.label,
+      mover.name+" is now in range and sight. Release the readied "+a.label+"? (uses "+p.name+"'s reaction)",
+      function(){ p.reacted=true; p.readied=null;
+        clog("<em>"+p.name+"</em> releases the readied <b>"+a.label+"</b>!");
+        resolveStrike(p,Object.assign({},a,{strikes:1}),mover,ro,
+          function(){ snapshot("Readied action"); renderHud(); next(); }); },
+      next);
+  })();
+}
+
+/* ── VESPERIAN ANIMATED BILLBOARD — assets/sprites/vesperian/ ──────────
+   walk row 0 (12f) · combat row 1 (10f) · 12 uniform columns. Facing flips
+   by negative X scale (the baked mirror row is gone on purpose — the
+   protect_rect hack doubled heads; Ryn changing shoulders is the accepted
+   cost). Failure narrates and the pixel token stands in. */
+var VES={ state:"off", tex:null, atlas:null, cols:12, rows:2 };
+var VES_MODES=["px72","full","off"], VES_MODE=0;
+function vesLoad(which,done){
+  var base="assets/sprites/vesperian/";
+  fetch(base+(which==="px72"?"atlas_px72.json":"atlas.json"))
+    .then(function(r){ if(!r.ok) throw 0; return r.json(); })
+    .then(function(atlas){
+      var img=new Image();
+      img.onload=function(){
+        var t=new THREE.Texture(img); t.needsUpdate=true;
+        t.magFilter=THREE.NearestFilter; t.minFilter=THREE.NearestFilter; t.generateMipmaps=false;
+        t.colorSpace=THREE.SRGBColorSpace;
+        t.repeat.set(1/VES.cols,1/VES.rows);
+        done({tex:t,atlas:atlas});
+      };
+      img.onerror=function(){ done(null); };
+      img.src=base+atlas.sheet;
+    }).catch(function(){ done(null); });
+}
+function vesApply(){
+  var which=VES_MODES[VES_MODE], btn=document.getElementById("cbVes");
+  if(which==="off"){ VES.state="off"; if(btn){btn.textContent="Ves: pixel token"; btn.classList.remove("on");} rebuildVesToken(); return; }
+  if(btn) btn.textContent="Ves: loading\u2026";
+  vesLoad(which,function(res){
+    if(!res){ VES.state="failed";
+      if(btn){ btn.textContent="Ves: sheet unavailable"; btn.classList.remove("on"); }
+      console.warn("[ves] assets/sprites/vesperian/ ("+which+") not reachable \u2014 pixel token stands in.");
+      rebuildVesToken(); return; }
+    VES.tex=res.tex; VES.atlas=res.atlas; VES.state="ready";
+    if(btn){ btn.textContent="Ves: sheet \u00b7 "+which; btn.classList.add("on"); }
+    rebuildVesToken();
+  });
+}
+function rebuildVesToken(){ if(typeof CB==="undefined"||!CB||!CB.active) return;
+  CB.units.forEach(function(u){ if(u.key==="vesperian"&&u.alive){ removeToken(u); makeToken(u); } }); }
+function vesTick(u,dt){
+  var v=u._ves; if(!v||!VES.atlas) return;
+  var anim=VES.atlas.animations[v.mode==="walk"?0:1], fps=v.mode==="walk"?12:7;
+  v.acc=(v.acc||0)+dt;
+  if(v.acc>=1/fps){ v.acc=0; v.fi=((v.fi||0)+1)%anim.frames; }
+  VES.tex.offset.set(v.fi/VES.cols, anim.row===0?0.5:0);
+  u.sprite.scale.x=Math.abs(u.sprite.scale.x)*(v.face||1);
+}
 
 var CHAR = {
   vesperian:{ name:"Vesperian", hp:40, ac:18, speed:30, init:4, res:{secondWind:1,actionSurge:1,slot1:2},
@@ -2473,7 +2697,17 @@ function tokenTex(key){ if(ROSTER_ART[key]){var t=new THREE.TextureLoader().load
   return initialTokenTex((ROSTER_INIT[key]||key.charAt(0).toUpperCase()), ROSTER_COL[key]||"#b8863a"); }
 function makeToken(u){
   var X=wxc(u.c),Z=wzc(u.r),Y=tierY(u.c,u.r);
+  u.bobPhase=u.bobPhase!=null?u.bobPhase:Math.random()*6.28;
   u.shadow=billboard(shadowTex,X,Y+0.05,Z,1.2,0.7,true); tokenGroup.add(u.shadow);
+  u._ves=null;
+  if(u.key==="vesperian" && VES.state==="ready"){
+    var aspW=VES.atlas.cell_w/VES.atlas.cell_h, vH=2.15;
+    u.sprite=new THREE.Sprite(new THREE.SpriteMaterial({map:VES.tex,transparent:true,alphaTest:ALPHA_CUT,toneMapped:false}));
+    u.sprite.scale.set(vH*aspW,vH,1); u.sprite.center.set(0.5,0); u.sprite.position.set(X,Y+0.02,Z);
+    u._ves={mode:"idle",face:1,fi:0,acc:0};
+    u.sprite.renderOrder=4; tokenGroup.add(u.sprite);
+    return;
+  }
   var key = u.side==="pc" ? ROSTER_SPRITE[u.key] : FOE_SPRITE;
   var st  = key && spriteTex(key);
   if(st){
@@ -2516,7 +2750,8 @@ function restageForHeight(){
 function removeToken(u){ if(u.sprite)tokenGroup.remove(u.sprite); if(u.shadow)tokenGroup.remove(u.shadow); u.sprite=null; u.shadow=null; }
 
 function startCombat(){
-  tokenGroup.clear(); moveGroup.clear();
+  tokenGroup.clear(); moveGroup.clear(); clearBadges(); READYING=false; CB_ANIM=false;
+  var fx=fxHost(); if(fx) fx.innerHTML="";
   CB={ active:true, over:false, units:[], order:[], ti:-1, map:combatMapFromF(), seen:null, st:null, pending:null, hexed:null,
        log:[], hist:[], hptr:-1, turnStartPtr:-1, react:null };
   var cells=walkable(); if(!cells.length){ CB.active=false; return; }
@@ -2588,6 +2823,8 @@ function nextTurn(){
   for(var g=0; g<=CB.order.length; g++){ CB.ti=(CB.ti+1)%CB.order.length; if(active()&&active().alive) break; }
   var u=active(); if(!u) return;
   u.reacted=false;   // reaction refreshes at the start of your turn
+  if(u.readied){ clog("<i>"+u.name+"'s readied "+u.readied.act.label+" lapses.</i>"); u.readied=null; }
+  READYING=false;
   CB.units.forEach(function(x){ if(x.boomMark && x.boomMark.by===u.id) x.boomMark=null; });  // Booming Blade lapses at caster’s next turn
   CB.st={ moveLeft:Math.floor(u.speed/5), usedAction:false, usedBonus:false, attacked:false };
   CB.pending=null;
@@ -2609,9 +2846,13 @@ var SIGHT_CLEAR=0x4c8f86, SIGHT_COVER=0xc9a24b, SIGHT_BLOCK=0xa33b2e;
 function eyeAt(c,r){ return new THREE.Vector3(wxc(c), tierY(c,r)+STEP, wzc(r)); }  // eye = 5 ft = one tier
 function sightLine(p0,p1,col,dashed){
   var g=new THREE.BufferGeometry().setFromPoints([p0,p1]);
+  /* §5.3: LineBasicMaterial depth-tests by default, so any segment passing
+     THROUGH terrain vanished inside it. depthTest:false + a high renderOrder
+     draws the whole line over the world — a sight line is a UI verdict, not
+     an object in the scene. */
   var mat = dashed
-    ? new THREE.LineDashedMaterial({color:col,transparent:true,opacity:0.75,dashSize:0.5,gapSize:0.35})
-    : new THREE.LineBasicMaterial({color:col,transparent:true,opacity:0.9});
+    ? new THREE.LineDashedMaterial({color:col,transparent:true,opacity:0.75,dashSize:0.5,gapSize:0.35,depthTest:false})
+    : new THREE.LineBasicMaterial({color:col,transparent:true,opacity:0.9,depthTest:false});
   var l=new THREE.Line(g,mat); if(dashed) l.computeLineDistances();
   l.renderOrder=6; return l;
 }
@@ -2635,7 +2876,7 @@ function blockMark(c,r){
   var i=r*F.W+c, occ=(F.occ?F.occ[i]:0)||0;
   var y=tierY(c,r)+(occ/STEP_FT)*STEP+0.07;
   var m=new THREE.Mesh(new THREE.PlaneGeometry(0.92,0.92),
-    new THREE.MeshBasicMaterial({color:SIGHT_BLOCK,transparent:true,opacity:0.55,depthWrite:false}));
+    new THREE.MeshBasicMaterial({color:SIGHT_BLOCK,transparent:true,opacity:0.55,depthWrite:false,depthTest:false}));
   m.rotation.x=-Math.PI/2; m.position.set(wxc(c),y,wzc(r)); m.renderOrder=5; return m;
 }
 /* what the HUD prints under the kit buttons — the verdict for every foe */
@@ -2655,11 +2896,14 @@ function tileFlat(c,r,color,alpha){ var m=new THREE.Mesh(new THREE.PlaneGeometry
   new THREE.MeshBasicMaterial({color:color,transparent:true,opacity:alpha,depthWrite:false}));
   m.rotation.x=-Math.PI/2; m.position.set(wxc(c),tierY(c,r)+0.06,wzc(r)); m.renderOrder=1; return m; }
 function drawHi(){
+  clearBadges();
   moveGroup.clear(); if(!CB.active||CB.over) return; var u=active(); if(!u||u.side!=="pc") return;
   if(CB.pending){ var pa=CB.pending;
-    if(pa.kind==="heal"||pa.kind==="buffAlly"){ validTargets(u,pa).forEach(function(t){ moveGroup.add(tileFlat(t.c,t.r,0x3a8a92,0.5)); }); }
+    if(pa.kind==="heal"||pa.kind==="buffAlly"){ validTargets(u,pa).forEach(function(t){ moveGroup.add(tileFlat(t.c,t.r,0x3a8a92,0.5)); });
+      allies(u).forEach(function(t){ if(t===u&&(pa.rng||1)<1)return; var ro=reachOK(u,pa,t); if(!ro.ok) badgeFor(u,t,pa,ro); }); }
     else { enemies(u).forEach(function(t){ var ro=reachOK(u,pa,t);
-      var col=!ro.ok?0x6b6357:(ro.dis?0xd08a2a:0xb34a38), al=!ro.ok?0.20:0.5; moveGroup.add(tileFlat(t.c,t.r,col,al)); }); }
+      var col=!ro.ok?0x6b6357:(ro.dis?0xd08a2a:0xb34a38), al=!ro.ok?0.20:0.5; moveGroup.add(tileFlat(t.c,t.r,col,al));
+      badgeFor(u,t,pa,ro); }); }
     return; }
   if(CB.st.moveLeft>0) Object.keys(CB.seen||{}).forEach(function(k){ var p=k.split(",").map(Number); moveGroup.add(tileFlat(p[0],p[1],0x3a8a92,0.26)); });
 }
@@ -2721,14 +2965,15 @@ function spend(u,a){ if(a.cost) for(var k in a.cost) u.res[k]-=a.cost[k];
 function reactReady(u,key){ if(!u.alive||!u.react||!u.react[key]||u.reacted)return false;
   var c=u.react[key].cost; if(c) for(var k in c) if((u.res[k]||0)<c[k]) return false; return true; }
 function payReact(u,key){ var c=u.react[key].cost; if(c) for(var k in c) u.res[k]-=c[k]; u.reacted=true; }
-function promptReaction(u,key,desc,onUse,onSkip){
+function promptGeneric(title,desc,onUse,onSkip){
   var ov=document.getElementById("cbReact"); if(!ov){ onSkip&&onSkip(); return; }
-  document.getElementById("cbReactTitle").textContent=u.name+" \u2014 "+REACT_LABEL[key];
+  document.getElementById("cbReactTitle").textContent=title;
   document.getElementById("cbReactDesc").textContent=desc;
   ov.style.display="flex";
   CB.react={ use:function(){ ov.style.display="none"; CB.react=null; onUse&&onUse(); },
              skip:function(){ ov.style.display="none"; CB.react=null; onSkip&&onSkip(); } };
 }
+function promptReaction(u,key,desc,onUse,onSkip){ promptGeneric(u.name+" \u2014 "+REACT_LABEL[key],desc,onUse,onSkip); }
 /* attacker's HIT against target → SB → Shield → damage → HR */
 function pipelineHit(attacker, a, hs, target, applyDmg, done){
   var steps=[];
@@ -2752,14 +2997,15 @@ function pipelineHit(attacker, a, hs, target, applyDmg, done){
       function(){ run(i+1); });
   })(0);
   function preDmg(){
-    if(!hs.hit){ done(false); return; }
+    if(!hs.hit){ floatAt(target,"miss","miss"); done(false); return; }
     applyDmg();
     if(reactReady(target,"hellishRebuke")){
       promptReaction(target,"hellishRebuke","Deal 2d10 fire to "+attacker.name+" (DEX save)?",
         function(){ var rc=target.react.hellishRebuke; payReact(target,"hellishRebuke");
           var sv=d(20)+(attacker.save||0), dmg=rollDmg(rc.dmg); if(sv>=rc.dc) dmg=Math.floor(dmg/2);
           attacker.hp-=dmg; var line="Hellish Rebuke \u2014 "+attacker.name+" DEX save "+sv+" vs "+rc.dc+": "+dmg+" fire";
-          if(attacker.hp<=0){ attacker.alive=false; removeToken(attacker); line+=" \u2014 <b>down</b>"; }
+          flashHit(attacker); shake(0.16); floatAt(attacker,String(dmg),"dmg");
+          if(attacker.hp<=0){ floatAt(attacker,"DOWN","down"); attacker.alive=false; removeToken(attacker); line+=" \u2014 <b>down</b>"; }
           clog(line); snapshot("Hellish Rebuke"); renderHud(); done(true); },
         function(){ done(true); });
     } else done(true);
@@ -2768,16 +3014,22 @@ function pipelineHit(attacker, a, hs, target, applyDmg, done){
 
 /* ── resolution ─────────────────────────────────────────────────────── */
 function resolveStrike(u,a,t,ro,done){
-  var cover=ro.cover||0, adv=(u.reckless||u.inspired), dis=!!ro.dis, roll=d20a(adv,dis); if(u.inspired)u.inspired=false;
+  var cover=ro.cover||0, av=advPreview(u,t,a);
+  var adv=av.adv, dis=av.dis||!!ro.dis;
+  if(adv&&dis){ adv=false; dis=false; }              // 5e: any dis cancels any adv
+  var roll=d20a(adv,dis); if(u.inspired)u.inspired=false;
   var hs={ roll:roll, acBonus:cover, crit:roll===20, hit:false };
   hs.hit=hs.crit||(roll!==1 && roll+a.hit>=t.ac+cover);
-  clog(u.name+" \u2192 "+t.name+": "+a.label+" ("+roll+"+"+a.hit+" vs AC "+(t.ac+cover)+(cover?" cov":"")+(dis&&!adv?" disadv":"")+(adv&&!dis?" adv":"")+")"+(hs.hit?"":" \u2014 miss"));
-  if(!hs.hit){ done(); return; }
+  var tag = adv?" adv"+(av.why.length?" ("+av.why.join(", ")+")":"") : dis?" disadv" : "";
+  clog(u.name+" \u2192 "+t.name+": "+a.label+" ("+roll+"+"+a.hit+" vs AC "+(t.ac+cover)+(cover?" cov":"")+tag+")"+(hs.hit?"":" \u2014 miss"));
+  if(!hs.hit){ floatAt(t,"miss","miss"); done(); return; }
   pipelineHit(u,a,hs,t, function applyDmg(){
     var dmg=rollDmg(a.dmg)+(hs.crit?rollDmg(a.dmg)-parseDmg(a.dmg).bonus:0);
     if(u.raging&&(a.rng||1)<=1) dmg+=2; if(CB.hexed===t.id) dmg+=d(6);
     t.hp-=dmg; var line=(hs.crit?"<b>CRIT</b> ":"")+t.name+" takes "+dmg+" ("+Math.max(0,t.hp)+"/"+t.hpMax+")";
-    if(t.hp<=0){ t.alive=false; removeToken(t); line+=" \u2014 <b>down</b>"; } clog(line);
+    flashHit(t); shake(hs.crit?0.34:0.16);
+    floatAt(t,(hs.crit?"\u2736 ":"")+dmg,hs.crit?"crit":"dmg");
+    if(t.hp<=0){ floatAt(t,"DOWN","down"); t.alive=false; removeToken(t); line+=" \u2014 <b>down</b>"; } clog(line);
     if(a.rider==="boom" && t.alive) t.boomMark={by:u.id};
   }, function(){ done(); });
 }
@@ -2790,14 +3042,24 @@ function doAttack(u,a,t,after){
 function doSave(u,a,t){ var ro=reachOK(u,a,t); if(!ro.ok){ clog(u.name+" \u2014 "+ro.why+"."); return; }
   var sv=d(20)+(t.save||0), fail=sv<a.dc, line=u.name+" \u2192 "+t.name+": "+a.label+" ("+a.saveAbility.toUpperCase()+" save "+sv+" vs DC "+a.dc+") ";
   if(fail){ var dmg=rollDmg(a.dmg); t.hp-=dmg; line+="fail "+dmg; if(a.rider==="vm"){ t.disadv=true; line+=" + disadvantage"; }
-    if(t.hp<=0){ t.alive=false; removeToken(t); line+=" \u2014 <b>down</b>"; } } else line+="save"; clog(line); }
+    flashHit(t); shake(0.14); floatAt(t,String(dmg),"dmg");
+    if(t.hp<=0){ floatAt(t,"DOWN","down"); t.alive=false; removeToken(t); line+=" \u2014 <b>down</b>"; } }
+  else { line+="save"; floatAt(t,"save","miss"); } clog(line); }
 function doHeal(u,a,t){ var ro=reachOK(u,a,t); if(!ro.ok){ clog(u.name+" \u2014 "+ro.why+"."); return; }
-  var amt=rollDmg(a.dmg)+(a.disciple||0), was=t.hp; t.hp=Math.min(t.hpMax,t.hp+amt); clog(u.name+" \u2192 "+t.name+": "+a.label+" +"+(t.hp-was)+" ("+t.hp+"/"+t.hpMax+")"); }
+  var amt=rollDmg(a.dmg)+(a.disciple||0), was=t.hp; t.hp=Math.min(t.hpMax,t.hp+amt);
+  floatAt(t,"+"+(t.hp-was),"heal");
+  clog(u.name+" \u2192 "+t.name+": "+a.label+" +"+(t.hp-was)+" ("+t.hp+"/"+t.hpMax+")"); }
 
 function selectAction(idx){
-  var u=active(); if(!u||u.side!=="pc"||CB.react) return; var a=u.actions[idx]; if(!a) return;
+  var u=active(); if(!u||u.side!=="pc"||CB.react||CB_ANIM) return; var a=u.actions[idx]; if(!a) return;
   var cu=canUse(u,a); if(!cu.ok){ clog("<i>"+a.label+": "+cu.why+".</i>"); return; }
-  if(a.kind==="selfheal"){ var amt=rollDmg(a.dmg); u.hp=Math.min(u.hpMax,u.hp+amt); clog(u.name+": "+a.label+" +"+amt+" ("+u.hp+"/"+u.hpMax+")"); spend(u,a); finishAction(); return; }
+  if(READYING){
+    if(a.kind!=="attack"||a.spell||a.cost||a.bonus){ clog("<i>Ready holds a plain weapon attack \u2014 no spells, costs, or bonus actions (yet).</i>"); return; }
+    u.readied={act:a}; CB.st.usedAction=true; READYING=false;
+    clog(u.name+" <b>readies</b> "+a.label+" \u2014 it fires as a reaction when a foe moves into range and sight.");
+    snapshot("Ready"); drawHi(); drawSight(); renderHud(); return;
+  }
+  if(a.kind==="selfheal"){ var amt=rollDmg(a.dmg); u.hp=Math.min(u.hpMax,u.hp+amt); floatAt(u,"+"+amt,"heal"); clog(u.name+": "+a.label+" +"+amt+" ("+u.hp+"/"+u.hpMax+")"); spend(u,a); finishAction(); return; }
   if(a.kind==="surge"){ CB.st.usedAction=false; clog(u.name+" \u2014 Action Surge: action regained."); spend(u,a); finishAction(); return; }
   CB.pending=a; drawHi(); drawSight(); renderHud();
 }
@@ -2812,7 +3074,7 @@ function resolveOn(u,a,t){
 
 /* ── input ──────────────────────────────────────────────────────────── */
 function combatClick(cx,cy){
-  if(!CB.active||CB.over||CB.react) return; var u=active(); if(!u||u.side!=="pc") return;
+  if(!CB.active||CB.over||CB.react||CB_ANIM) return; var u=active(); if(!u||u.side!=="pc") return;
   var rect=renderer.domElement.getBoundingClientRect();
   ndc.x=((cx-rect.left)/rect.width)*2-1; ndc.y=-((cy-rect.top)/rect.height)*2+1; ray.setFromCamera(ndc,camera);
   var tHit=ray.intersectObjects(tokenGroup.children,true)[0];
@@ -2826,40 +3088,91 @@ function combatClick(cx,cy){
   if(CB.seen&&CB.seen[gx+","+gy]&&!unitAt(gx,gy)&&CB.st.moveLeft>0) moveUnitTo(u,gx,gy);
 }
 function spriteUnit(obj){ var f=null; CB.units.forEach(function(u){ if(u.alive&&(u.sprite===obj||u.shadow===obj)) f=u; }); return f; }
+/* tweened, hop-per-square walk — port of battle-tactics walk() re-hosted on
+   the heightfield. Steps come from TG.pathTo over the same reach map the
+   telegraph drew, so the token walks exactly the tiles the rules charged. */
+function walkPath(u,path,done){
+  if(!path.length||!u.sprite){ positionToken(u); done(); return; }
+  CB_ANIM=true; u._moving=true; if(u._ves) u._ves.mode="walk";
+  var i=0;
+  (function step(){
+    if(i>=path.length||!u.alive){ CB_ANIM=false; u._moving=false; if(u._ves)u._ves.mode="idle"; positionToken(u); done(); return; }
+    var st=path[i++];
+    var ax=u.sprite.position.x, ay=u.sprite.position.y, az=u.sprite.position.z;
+    var bx=wxc(st.c), by=tierY(st.c,st.r)+0.02, bz=wzc(st.r);
+    if(u._ves && Math.abs(bx-ax)>1e-6) u._ves.face=(bx<ax)?1:-1;   // source footage walks left
+    tween(150,function(e){
+      if(!u.sprite) return;
+      u.sprite.position.set(ax+(bx-ax)*e, ay+(by-ay)*e+Math.sin(e*Math.PI)*0.14, az+(bz-az)*e);
+      if(u.shadow) u.shadow.position.set(u.sprite.position.x, by+0.03, u.sprite.position.z);
+    }).then(function(){ u.c=st.c; u.r=st.r; positionToken(u); step(); });
+  })();
+}
 function moveUnitTo(u,gx,gy){
-  var cost=CB.seen[gx+","+gy].d; u.c=gx; u.r=gy; positionToken(u);
-  CB.st.moveLeft-=cost; CB.seen=(CB.st.moveLeft>0)?TG.movementReach(CB.map,u,occupied(u),CB.st.moveLeft):{};
-  boomTrigger(u);
-  snapshot("Move"); drawHi(); drawSight(); renderHud(); maybeEnd();
+  var cost=CB.seen[gx+","+gy].d;
+  var path=TG.pathTo(CB.seen,{c:u.c,r:u.r},gx,gy); if(!path.length) path=[{c:gx,r:gy}];
+  var before=enemiesThreatening(u);
+  clearBadges(); moveGroup.clear(); sightGroup.clear();
+  walkPath(u,path,function(){
+    CB.st.moveLeft-=cost;
+    CB.seen=(CB.st.moveLeft>0)?TG.movementReach(CB.map,u,occupied(u),CB.st.moveLeft):{};
+    provokeOAs(u,before,function(){
+      if(u.alive) boomTrigger(u);
+      snapshot("Move"); drawHi(); drawSight(); renderHud(); maybeEnd();
+    });
+  });
 }
 function boomTrigger(u){ if(!u.boomMark) return; var dmg=rollDmg("1d8"); u.hp-=dmg;
   var line="Booming Blade — "+u.name+" moved: "+dmg+" thunder ("+Math.max(0,u.hp)+"/"+u.hpMax+")";
-  u.boomMark=null; if(u.hp<=0){ u.alive=false; removeToken(u); line+=" — <b>down</b>"; } clog(line); }
-function endTurn(){ if(!CB.active||CB.over||CB.react) return; moveGroup.clear(); sightGroup.clear(); nextTurn(); }
+  flashHit(u); shake(0.14); floatAt(u,String(dmg),"dmg");
+  u.boomMark=null; if(u.hp<=0){ floatAt(u,"DOWN","down"); u.alive=false; removeToken(u); line+=" — <b>down</b>"; } clog(line); }
+function endTurn(){ if(!CB.active||CB.over||CB.react||CB_ANIM) return; clearBadges(); moveGroup.clear(); sightGroup.clear(); nextTurn(); }
 
 function foeTurn(){
-  var u=active(); if(!u||!u.alive||u.side!=="foe"){ return; }
+  var u=active(); if(!u||!u.alive||u.side!=="foe"||CB_ANIM){ return; }
   var pcs=CB.units.filter(function(x){return x.alive&&x.side==="pc";}); if(!pcs.length){ maybeEnd(); return; }
   pcs.sort(function(a,b){return TG.chebyshev(u,a)-TG.chebyshev(u,b);});
   var tgt=pcs[0], atk=u.atk;
   var canNow=function(){ var A={c:u.c,r:u.r},T={c:tgt.c,r:tgt.r}; return ((atk.rng||1)<=1?TG.canReachMelee(CB.map,A,T,5):TG.inRange(CB.map,A,T,rangeFt(atk)))&&TG.losVerdict(CB.map,A,T).canTarget; };
+  function strikePhase(){
+    if(!u.alive){ renderHud(); if(!maybeEnd()) endTurn(); return; }
+    if(!tgt.alive||!canNow()){ renderHud(); if(!maybeEnd()) endTurn(); return; }
+    var adv=(FLANKING&&(atk.rng||1)<=1&&isFlanked(u,tgt)), dis=!!u.disadv; if(u.disadv)u.disadv=false;
+    if(adv&&dis){ adv=false; dis=false; }
+    var roll=d20a(adv,dis), hs={roll:roll,acBonus:0,crit:roll===20,hit:(roll===20)||(roll!==1&&roll+atk.hit>=tgt.ac)};
+    clog(u.name+" \u2192 "+tgt.name+": "+atk.label+" ("+roll+"+"+atk.hit+" vs AC "+tgt.ac+(adv?" adv (flank)":"")+(dis?" disadv":"")+")"+(hs.hit?"":" \u2014 miss"));
+    if(hs.hit){ pipelineHit(u,atk,hs,tgt, function(){ var dmg=rollDmg(atk.dmg); tgt.hp-=dmg;
+        var line=tgt.name+" takes "+dmg+" ("+Math.max(0,tgt.hp)+"/"+tgt.hpMax+")";
+        flashHit(tgt); shake(0.2); floatAt(tgt,String(dmg),"dmg");
+        if(tgt.hp<=0){ floatAt(tgt,"DOWN","down"); tgt.alive=false; removeToken(tgt); line+=" \u2014 <b>down</b>"; } clog(line);
+      }, function(){ renderHud(); if(!maybeEnd()) endTurn(); }); return; }
+    floatAt(tgt,"miss","miss");
+    renderHud(); if(!maybeEnd()) endTurn();
+  }
   if(!canNow()){ var seen=TG.movementReach(CB.map,u,occupied(u),Math.floor(u.speed/5)),best=null,bd=1e9;
     Object.keys(seen).forEach(function(k){var p=k.split(",").map(Number);if(unitAt(p[0],p[1]))return;var dd=TG.chebyshev({c:p[0],r:p[1]},tgt);if(dd<bd){bd=dd;best={c:p[0],r:p[1]};}});
-    if(best){ u.c=best.c; u.r=best.r; positionToken(u); clog(u.name+" advances."); boomTrigger(u); snapshot("Foe move"); if(!u.alive){ renderHud(); if(!maybeEnd()) endTurn(); return; } } }
-  if(canNow()){
-    var dis=!!u.disadv; if(u.disadv)u.disadv=false;
-    var roll=d20a(false,dis), hs={roll:roll,acBonus:0,crit:roll===20,hit:(roll===20)||(roll!==1&&roll+atk.hit>=tgt.ac)};
-    clog(u.name+" \u2192 "+tgt.name+": "+atk.label+" ("+roll+"+"+atk.hit+" vs AC "+tgt.ac+")"+(hs.hit?"":" \u2014 miss"));
-    if(hs.hit){ pipelineHit(u,atk,hs,tgt, function(){ var dmg=rollDmg(atk.dmg); tgt.hp-=dmg;
-        var line=tgt.name+" takes "+dmg+" ("+Math.max(0,tgt.hp)+"/"+tgt.hpMax+")"; if(tgt.hp<=0){tgt.alive=false;removeToken(tgt);line+=" \u2014 <b>down</b>";} clog(line);
-      }, function(){ renderHud(); if(!maybeEnd()) endTurn(); }); return; }
+    if(best){
+      var before=enemiesThreatening(u);
+      var path=TG.pathTo(seen,{c:u.c,r:u.r},best.c,best.r); if(!path.length) path=[{c:best.c,r:best.r}];
+      clog(u.name+" advances.");
+      walkPath(u,path,function(){
+        provokeOAs(u,before,function(){          // leaving a PC's reach costs
+          checkReadied(u,function(){             // arriving in a readied sight costs too
+            if(u.alive) boomTrigger(u);
+            snapshot("Foe move");
+            strikePhase();
+          });
+        });
+      });
+      return;
+    }
   }
-  renderHud(); if(!maybeEnd()) endTurn();
+  strikePhase();
 }
 function maybeEnd(){
   var pc=CB.units.filter(function(u){return u.alive&&u.side==="pc";}).length, fo=CB.units.filter(function(u){return u.alive&&u.side==="foe";}).length;
-  if(!fo){ CB.over=true; moveGroup.clear(); sightGroup.clear(); clog("<b>Victory.</b> The field is yours."); banner("Victory"); renderHud(); return true; }
-  if(!pc){ CB.over=true; moveGroup.clear(); sightGroup.clear(); clog("<b>Defeat.</b> The party falls."); banner("Defeat"); renderHud(); return true; }
+  if(!fo){ CB.over=true; moveGroup.clear(); sightGroup.clear(); clearBadges(); clog("<b>Victory.</b> The field is yours."); banner("Victory"); renderHud(); return true; }
+  if(!pc){ CB.over=true; moveGroup.clear(); sightGroup.clear(); clearBadges(); clog("<b>Defeat.</b> The party falls."); banner("Defeat"); renderHud(); return true; }
   return false;
 }
 
@@ -2868,7 +3181,8 @@ function snapshot(label,turnStart){
   var st={ label:label, turnStart:!!turnStart, ti:CB.ti, hexed:CB.hexed,
     turn: CB.st?JSON.parse(JSON.stringify(CB.st)):null, log:CB.log.slice(),
     units: CB.units.map(function(u){ return { id:u.id, c:u.c, r:u.r, hp:u.hp, alive:u.alive,
-      res:JSON.parse(JSON.stringify(u.res||{})), reacted:!!u.reacted, raging:!!u.raging, inspired:!!u.inspired, disadv:!!u.disadv }; }) };
+      res:JSON.parse(JSON.stringify(u.res||{})), reacted:!!u.reacted, raging:!!u.raging, inspired:!!u.inspired, disadv:!!u.disadv,
+      readied:(u.readied&&u.actions)?u.actions.indexOf(u.readied.act):-1 }; }) };
   if(CB.hptr<CB.hist.length-1) CB.hist=CB.hist.slice(0,CB.hptr+1);
   CB.hist.push(st); CB.hptr=CB.hist.length-1; updateRewindUI();
 }
@@ -2876,16 +3190,17 @@ function restore(st){
   CB.ti=st.ti; CB.hexed=st.hexed; CB.st=st.turn?JSON.parse(JSON.stringify(st.turn)):null; CB.log=st.log.slice(); CB.over=false; CB.pending=null;
   var byId={}; CB.units.forEach(function(u){byId[u.id]=u;});
   st.units.forEach(function(su){ var u=byId[su.id]; if(!u)return; u.c=su.c;u.r=su.r;u.hp=su.hp;u.alive=su.alive;
-    u.res=JSON.parse(JSON.stringify(su.res)); u.reacted=su.reacted; u.raging=su.raging; u.inspired=su.inspired; u.disadv=su.disadv; });
+    u.res=JSON.parse(JSON.stringify(su.res)); u.reacted=su.reacted; u.raging=su.raging; u.inspired=su.inspired; u.disadv=su.disadv;
+    u.readied=(su.readied!=null&&su.readied>=0&&u.actions)?{act:u.actions[su.readied]}:null; });
   tokenGroup.clear(); CB.units.forEach(function(u){ if(u.alive) makeToken(u); });
   var u=active(); if(u&&u.side==="pc"&&CB.st) CB.seen=TG.movementReach(CB.map,u,occupied(u),CB.st.moveLeft); else CB.seen={};
   document.getElementById("cbLog").innerHTML=CB.log.map(function(l){return '<div class="cbLogRow">'+l+'</div>';}).join("");
   document.getElementById("cbBanner").style.display="none";
   drawHi(); drawSight(); renderHud(); updateRewindUI();
 }
-function rewindFine(){ if(CB.react||CB.over) return; if(CB.hptr>0){ CB.hptr--; restore(CB.hist[CB.hptr]); } }
-function rewindFwd(){ if(CB.react||CB.over) return; if(CB.hptr<CB.hist.length-1){ CB.hptr++; restore(CB.hist[CB.hptr]); } }
-function rewindTurn(){ if(CB.react||CB.over) return; var i=CB.hptr-1; while(i>=0 && !CB.hist[i].turnStart) i--; if(i>=0){ CB.hptr=i; restore(CB.hist[i]); } }
+function rewindFine(){ if(CB.react||CB.over||CB_ANIM) return; if(CB.hptr>0){ CB.hptr--; restore(CB.hist[CB.hptr]); } }
+function rewindFwd(){ if(CB.react||CB.over||CB_ANIM) return; if(CB.hptr<CB.hist.length-1){ CB.hptr++; restore(CB.hist[CB.hptr]); } }
+function rewindTurn(){ if(CB.react||CB.over||CB_ANIM) return; var i=CB.hptr-1; while(i>=0 && !CB.hist[i].turnStart) i--; if(i>=0){ CB.hptr=i; restore(CB.hist[i]); } }
 function resetCombat(){
   if(!confirm("Reset the entire battle? All progress this fight is lost.")) return;
   if(!confirm("Are you sure? This cannot be undone.")) return;
@@ -2919,6 +3234,7 @@ function renderHud(){
         +(a.cost?' <span class="cbCost">'+Object.keys(a.cost).map(function(k){return u.res[k]+"\u00b7"+k;}).join(" ")+'</span>':'')+'</button>'; }).join("") : '';
     var port = (isPc && PORTRAITS[u.key]) ? '<div class="cbPort" style="background-image:url(\''+PORTRAITS[u.key]+'\')"></div>' : '';
     panel.innerHTML=port+'<div class="cbName">'+u.name+(isPc?'':' <span class="cbTag">foe</span>')+(u.raging?' <span class="cbTag" style="color:#b34a38;border-color:#b34a38">RAGE</span>':'')
+      +(u.readied?' <span class="cbTag" style="color:#8a6a1f;border-color:#8a6a1f">readied: '+u.readied.act.label+'</span>':'')
       +(u.react&&!u.reacted?' <span class="cbTag" style="color:#3a8a92;border-color:#3a8a92">reaction</span>':'')+'</div>'
       +'<div class="cbHpwrap"><div class="cbHplbl"><span>HP</span><span>'+Math.max(0,u.hp)+' / '+u.hpMax+'</span></div><div class="cbHpbar"><i style="width:'+Math.max(0,Math.round(100*u.hp/u.hpMax))+'%"></i></div></div>'
       +'<div class="cbStats"><span>Move <b>'+(CB.st?CB.st.moveLeft*5:0)+' ft</b></span><span>Action <b>'+(CB.st&&CB.st.usedAction?"used":"ready")+'</b></span><span>Bonus <b>'+(CB.st&&CB.st.usedBonus?"used":"ready")+'</b></span></div>'
@@ -2931,6 +3247,9 @@ function renderHud(){
     else { var fg=document.getElementById("cbFoeGo"); if(fg) fg.addEventListener("click",runFoe); }
   }
   var et=document.getElementById("cbEnd"); if(et)et.disabled=(u&&u.side!=="pc")||CB.over||!!CB.react;
+  var rb=document.getElementById("cbReady");
+  if(rb){ rb.disabled=(!u||u.side!=="pc")||CB.over||!!CB.react||!!(CB.st&&CB.st.usedAction);
+    rb.classList.toggle("on",READYING); rb.textContent=READYING?"Ready: pick attack":"Ready"; }
   updateRewindUI();
 }
 
@@ -2943,6 +3262,7 @@ function runFoe(){ if(CB.active&&!CB.over&&!CB.react&&active()&&active().side===
    paints before this line ever runs. */
 window.CHAR = CHAR;
 window.__startCombat=startCombat;
+vesApply();   // kick off the Vesperian sheet fetch; failure narrates on the chip
 document.dispatchEvent(new CustomEvent("topo:ready"));
 addEventListener("pointerup", function(e){ if(CB.active&&!CB.over&&!CB.react&&moved<6) combatClick(e.clientX,e.clientY); });
 (function(){
@@ -2955,6 +3275,17 @@ addEventListener("pointerup", function(e){ if(CB.active&&!CB.over&&!CB.react&&mo
   if(g("cbReset")) g("cbReset").addEventListener("click",resetCombat);
   if(g("cbReactUse")) g("cbReactUse").addEventListener("click",function(){ if(CB.react)CB.react.use(); });
   if(g("cbReactSkip")) g("cbReactSkip").addEventListener("click",function(){ if(CB.react)CB.react.skip(); });
+  if(g("cbFlank")) g("cbFlank").addEventListener("click",function(){
+    FLANKING=!FLANKING; this.classList.toggle("on",FLANKING); this.textContent="Flank: "+(FLANKING?"on":"off");
+    if(CB.active) clog("<i>House rule \u2014 flanking "+(FLANKING?"grants advantage (both sides).":"off.")+"</i>");
+    drawHi(); });
+  if(g("cbReady")) g("cbReady").addEventListener("click",function(){
+    var u=active&&active(); if(!u||u.side!=="pc"||CB.over||CB.react||CB_ANIM) return;
+    if(CB.st&&CB.st.usedAction){ clog("<i>Ready: the action is already spent.</i>"); return; }
+    READYING=!READYING;
+    clog(READYING?"<i>Ready \u2014 now pick a plain weapon attack to hold as a reaction.</i>":"<i>Ready cancelled.</i>");
+    renderHud(); });
+  if(g("cbVes")) g("cbVes").addEventListener("click",function(){ VES_MODE=(VES_MODE+1)%VES_MODES.length; vesApply(); });
 })();
 </script>
 <script>
