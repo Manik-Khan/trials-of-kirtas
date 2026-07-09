@@ -4,10 +4,15 @@ Custom D&D 5e virtual tabletop. Live: **trials-of-kirtas.netlify.app**
 Repo: `Manik-Khan/trials-of-kirtas` · vanilla JS/HTML/CSS + Supabase + Netlify + GitHub.
 Walled React/Vite/TipTap corner at `journal/`.
 
-Updated: **July 8, 2026.** Supersedes the July 6 repo `CONTEXT.md` (whose "Echo Lock open
-question" was answered in the July 7 radio session — see Bardic Radio below) and folds that
-doc's Battle Theater / Forge material forward. Reconciled sources: the July 7 context doc,
-the July 6 repo doc, `forge/README.md`, and the July 8 Chronicle session.
+Updated: **July 8, 2026 (evening — Forge geometry session).** Supersedes the July 6 repo
+`CONTEXT.md` and the morning July 8 doc. Folds the Battle Theater / Forge material forward and
+rewrites the Forge section around what actually shipped. Reconciled sources: the July 7 context
+doc, the July 6 repo doc, `forge/README.md`, the July 8 Chronicle session, and the July 8 Forge
+geometry session.
+
+**Companion doc: `CONTEXT_Forge.md` — read it before touching the Forge.** It carries the port
+manifest (what the combat system consists of, and which parts exist where), the settled geometry
+decisions, and the open bugs. This doc is the project; that one is the subsystem.
 
 **Deploy rule: Claude never commits or pushes. M deploys manually via GitHub upload.**
 Claude hands back bare-filename files (or a folder-structured zip) + a one-line deploy note.
@@ -196,9 +201,9 @@ independent syncs), not the offset jumping.
 
 ---
 
-## Battle Forge & Battle Theater (carried forward from the July 6 doc)
+## 🟡 Battle Forge — geometry landed, combat system half-ported (July 8 PM)
 
-**`forge/README.md` is canonical for this subsystem — read it, don't re-derive.** Summary:
+**`forge/README.md` + `CONTEXT_Forge.md` are canonical for this subsystem.** Read both.
 
 Procedural battle-map generation + the seam that turns a generated map into a rules-enforced
 encounter. **Optional layer that extends theatre-of-the-mind — never replaces it.**
@@ -210,36 +215,117 @@ params ─▶ forge-engine ─▶ (map-bridge contract) ─▶ tactics-geometry 
 
 - **`forge-dungeon.js`** — generator core, extracted verbatim from
   `majidmanzarpour/threejs-procedural-dungeon`. **MIT attribution required everywhere it appears.**
-- **`forge-engine.js`** — `ForgeEngine.generate(params)` returns a finished, **verified** map
-  (valid contract, spawns on open floor, PC↔foe mutually reachable; failing seeds retried).
-  Params: `seed · themeKey · roomCount · heightMode · verticality · party · foes`.
-- **`map-bridge.js`** — the seam → `{cols, rows, h[], wall[]}`.
-- **`tactics-geometry.js`** — combat rules (movement, cliffs, LOS, ranges). Canonical.
+  Its `THEMES` keys **are the biome names**: `grass druidic tundra swamp temple cavern volcanic`.
+- **`forge-engine.js`** — `ForgeEngine.generate(params)` returns a finished, **verified** map.
+- **`map-bridge.js`** — the seam → `{cols, rows, h[], wall[], occ[]}` + `spawns`, `props`, `meta`.
+- **`tactics-geometry.js`** — combat rules (movement, cliffs, LoS, cover, ranges). Canonical.
 
-All four dual-export (browser `window.*` + Node `module.exports`) so tests and game share code.
+### ⚠ The word "bridge" has cost this project real time
 
-⚠ **Inline-copy sync rule:** `tactics-geometry.js` is ALSO inlined inside
-`battle-tactics-geo-mock.html`. The copies MUST stay **byte-identical**; the mock's validation
-asserts it. Change one, change both.
+`map-bridge.js` bridges the generator to the **map document**. It does *not* bridge the generator
+to the **combat system**. When M says "port the battle mock," he means the combat system:
+flanking, opportunity attacks, hit flash, badges, damage floaters, Ready-an-action. That list
+lives in `CONTEXT_Forge.md` §3 as a **port manifest with source line numbers**. Work the manifest.
 
-Tests (dev-time, not shipped): `forge/tests/smoke-forge-engine.js`, `smoke-map-bridge.mjs`,
-`smoke-tactics-geometry.mjs`.
+### `occ[]` — the July 8 geometry fix (settled; do not relitigate)
 
-**Battle Theater arc (exploratory, NOT deployed, not in repo):** three standalone HD-2D combat
-mocks (`battle-theater-mock.html` side-view diorama; `battle-tactics-mock.html` FE/FFT grid on
-REAL sheet data; `battle-forge-mock.html` generator → tactics diorama, the dream one). Move-undo
-added from M's field note. Agreed next build: wire Forge to load a generated map +
-character-select entrance; add `mode` field (`classic` | `forge`) on encounter.
+Sight is **height, and only height**. Nothing is opaque by type. Every cell carries `occ[]`, an
+occluder height in feet above its terrain, and `losVerdict` traces the 5e corner lines through 3D.
+
+- **Distance** = Chebyshev hypotenuse: `max(horizontal_squares, vertical_tiers) × 5`.
+  *Divergence:* canonical `TG.range3d` still uses Euclidean hypot. Unreconciled, deliberate.
+- **A hole can never block** — its top is below the ray. Falls out; no clause enforces it.
+- **Dead ground is a FEATURE.** From a plateau you cannot see the base of your own cliff. Walk to
+  the ledge or Ready an action. Earlier attempts "over-blocked"; they were correct.
+- **Standing back and standing high are opposite levers.** Backing off a wall raises the ray *at
+  the wall* only when the target is above you. A flat ray cannot rise.
+- **Cover is graded** — 8 corner-lines (4 corners × head/feet): `0 none · 1–4 half (+2) ·
+  5–7 three-quarters (+5) · 8 total`. A 4.5 ft boulder = ¾. A 10.5 ft temple wall = total.
+- **Occluder heights come from the generator**, not thin air: `map-bridge.BIOME_WALL_UNITS`
+  mirrors `SKINS.wallH` × 5 ft. Props: rock 4.5 · tree 5.5 · reed 3.5 · column 15. Moss, bones,
+  cracks, banners occlude nothing.
+- `forge/tests/smoke-los-cover.js` (27 known-answer cases) encodes all of the above.
+
+⚠ **Inline-copy sync rule:** `tactics-geometry.js` is inlined in **two** mocks now —
+`battle-tactics-geo-mock.html` **and** `topography-test-mock.html`. Three copies total, all
+byte-identical; the tactics mock asserts it. Change one, change all three.
+
+Tests: `smoke-forge-engine.js` (**broken** — asks `themeKey:"frost"`, renamed `tundra`),
+`smoke-map-bridge.mjs` 16/16, `smoke-tactics-geometry.mjs` 26/26, `smoke-los-cover.js` 27/27.
+
+### The four mocks — which is which (none are superseded)
+
+| file | what it holds |
+|---|---|
+| `topography-test-mock.html` | **THE surface.** Heightfield, LoS/cover, reactions, rewind, sight lines |
+| `battle-tactics-geo-mock.html` | flat box-tile combat. **The port source for the combat system + feel layer** |
+| `battle-forge-mock.html` | *"the dream one."* generator → tactics diorama. **Source of the pixel sprites + portraits** |
+| `battle-forge-biome-mock.html` | **source of the biome art direction** — `SKINS`: `wallH`, fog, light rigs, particles |
+
+The Forge was rebased from `battle-forge-mock.html` onto `topography-test-mock.html`. The rebase
+carried the geometry across and **left the renderer and the combat system behind.** That is the
+whole story of the missing sprites, the missing flanking, and the missing feel.
+
+### Open
+
+- **Bugs:** height slider rescales terrain but never calls `positionToken()` (units bury/float);
+  `foeAnchor()` + `clusterAround()` bunch both sides in one spot; sight lines may be
+  `depthTest`-hidden inside terrain (unverified in browser).
+- **Not ported:** flanking → advantage, opportunity attacks, DOM badges, hit flash, camera shake,
+  idle bob, torch PointLights.
+- **Exists nowhere:** Ready an action (the geometry now demands it), floating damage text,
+  post-processing.
+- topo's **inlined generator is stale** (old theme keys). Rebase on `forge/forge-dungeon.js`.
+- Agreed next build: wire Forge to load a generated map + character-select entrance; add `mode`
+  field (`classic` | `forge`) on encounter.
+
+---
+
+## Art, assets, licensing (Forge and site-wide)
+
+- **three.js is pinned to r128** (cdnjs), ~5 years old. Upgrading unlocks `GTAOPass`, modern
+  `EffectComposer`, and `pmndrs/postprocessing` + `N8AO`. Biggest render unlock available; free.
+- **No mock has ever used post-processing.** Zero `EffectComposer` in the project. Only
+  `topography-test-mock.html` enables a shadow map.
+- **The repo is PUBLIC. Assets must be CC0 or CC-BY. Nothing else.**
+  - Good: **Kenney**, **Poly Haven**, **ambientCG**, **Quaternius**, **Kay Lousberg** (all CC0).
+    Kenney plumbing already half-exists: `assets/library.json`, `CHEST_DEMO`.
+  - **Never use ripped game assets.** Wind Waker JS ships Nintendo models/textures; its credits
+    *thank* Nintendo, which is not a licence.
+  - **Epic/Fab:** the 5%-over-$1M royalty is the **Unreal Engine** licence and is irrelevant —
+    Epic's EULA states Fab assets "are not Licensed Technology." Fab's Standard License restricts
+    sharing to collaborators via a **private repository**. Ours is public. Only Fab items under an
+    explicit **Creative Commons** licence are usable.
+- **The battle mock does not look better because of its renderer.** It has no shadows and no
+  post-processing either. It looks better because things were *drawn* and things *move*. Feel is
+  cheaper than art and buys more.
 
 ---
 
 ## Firm working rules (enforced; keep enforcing)
 
+- **🔴 NEVER claim something doesn't exist without searching for it.** This is the single most
+  expensive failure in this project's history. In the July 8 Forge session Claude told M the
+  pixel sprites "were never there" — they were sitting in `battle-forge-mock.html`, in the repo,
+  named in this doc on the "Battle Theater arc" line. Claude also failed to open `CONTEXT.md`
+  for four turns *while it was attached to the conversation*, then explained the omission as
+  though the file hadn't been provided. It had.
+  - Read **every** attached file, including ones whose contents aren't expanded inline. They are
+    on disk at `/mnt/user-data/uploads/`.
+  - The repo is **public**. Pull it:
+    `curl https://raw.githubusercontent.com/Manik-Khan/trials-of-kirtas/main/<path>`
+    (the GitHub tree API rate-limits from the sandbox; fetch files directly.)
+  - "X doesn't exist" is a claim about **the repo**, not about your context window. Grep first.
+  - **M is entitled to ask "did you grep that?" and the answer must be yes before the claim.**
 - **Read the live repo source before editing.** Fetch if not provided
   (`raw.githubusercontent.com/Manik-Khan/trials-of-kirtas/main/...`). **A plausible hypothesis is
   not a diagnosis.** Most of the ~30 radio attempts' wasted motion came from theorizing instead
   of reading. (July 8: reading first is what revealed the book was already feed-wired and merely
   unlinked — the task was 1/10th the size it looked.)
+- **A headless test that passes while the browser stays broken is not proof.** Extract the *real*
+  functions and run them on the *real* generated field. The Forge burned a full session on
+  synthetic geometry tests that passed 17/17 while every shot in the browser read "no line of
+  sight." Instrument reality.
 - **Mock → approve → build** for anything UX/architectural. Standalone, no-deps, renders on its
   own. Five mock rounds settled the Chronicle before a line of real code; M's field use killed
   the full-panel Index in one pass.
