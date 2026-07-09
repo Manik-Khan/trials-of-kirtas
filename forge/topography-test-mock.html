@@ -1365,14 +1365,31 @@ const amb =new THREE.AmbientLight(0xcdd8ee,0.30); scene.add(amb);
 const hemi=new THREE.HemisphereLight(0xbcd6ff,0x5a4c32,0.50); scene.add(hemi);
 const sun =new THREE.DirectionalLight(0xfff2d2,1.16); sun.position.set(70,82,34); scene.add(sun); scene.add(sun.target);
 const rim =new THREE.DirectionalLight(0x8fb6d8,0.26); rim.position.set(-50,30,-40); scene.add(rim);
-/* r155 reinterpreted light intensity in physical units; r165 removed the
-   useLegacyLights escape hatch. The four intensities above were tuned against
-   r128's semantics. There is no constant to assert — measure it. Flag-guarded,
-   default 1 (off): ?lightmul=1.4 &c. Delete this block once the number is known. */
-(function(){ const k=parseFloat(new URLSearchParams(location.search).get('lightmul'));
-  if(!isFinite(k)||k<=0||k===1) return;
-  [amb,hemi,sun,rim].forEach(l=>l.intensity*=k);
-  console.info('[topo] lightmul='+k+' applied to amb/hemi/sun/rim'); })();
+/* ── the r128 → r185 light-intensity restore ──────────────────────────
+   r128 multiplied every non-physical light by pi inside the SHADER:
+     lights_pars_begin.glsl.js:47   #ifndef PHYSICALLY_CORRECT_LIGHTS
+     lights_pars_begin.glsl.js:49       irradiance *= PI;
+     lights_lambert_vertex.glsl.js:45   directLightColor_Diffuse = PI * directLight.color;
+   and `physicallyCorrectLights` defaulted to false, so this always ran.
+   r155 moved that same pi into JS — WebGLLights.setup()'s
+     const scaleFactor = ( useLegacyLights === true ) ? Math.PI : 1;
+   — and flipped the default to false. r165 deleted the flag, and the pi.
+
+   So r185 renders these four lights pi-times darker than r128 did. Restoring
+   it is exact, not taste: it is the same multiply, so the image comes back
+   pixel-identical, clipping included. The four literals above stay as authored.
+
+   Verified against three's own source at r128 and r159, not from memory.
+   ?lightmul=<k> overrides, for tuning only.
+
+   NOTE for whoever adds torch PointLights: pi is NOT sufficient for punctual
+   lights. r155 also changed `decay` and distance falloff to physical units.
+   Point and spot need their own pass. ─────────────────────────────────────── */
+const LEGACY_PI = (function(){
+  const k = parseFloat(new URLSearchParams(location.search).get('lightmul'));
+  return (isFinite(k) && k > 0) ? k : Math.PI;
+})();
+[amb,hemi,sun,rim].forEach(l => l.intensity *= LEGACY_PI);
 /* A real shadow map. Not one mock in this project had ever enabled one — every
    shadow was a blurred quad. Height is what this game is about; it has to read. */
 renderer.shadowMap.enabled=true; renderer.shadowMap.type=THREE.PCFSoftShadowMap;

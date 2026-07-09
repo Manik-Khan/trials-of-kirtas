@@ -286,6 +286,9 @@ whole story of the missing sprites, the missing flanking, and the missing feel.
 - **three.js: `topography-test-mock.html` runs r185** (ESM + import map). The other three mocks
   stay on r128 — reference sources, not surfaces. three shipped no browser UMD build after ~r160,
   so a classic `<script src>` tag could never reach `EffectComposer`/`GTAOPass`/`N8AO` at any version.
+- **Lights are ×π at r185.** r128 applied π in the shader (`irradiance *= PI`); r155 moved it to JS
+  behind `useLegacyLights`; r165 deleted it. `topography-test-mock.html` restores it as `LEGACY_PI`
+  on `amb/hemi/sun/rim` — same multiply, identical image. π does **not** cover PointLight/SpotLight.
 - **Post-processing is still not wired.** Only `topography-test-mock.html` enables a shadow map.
   Pins when post lands: `postprocessing@6.39.2` needs `three >=0.168 <0.186`; `n8ao@1.10.3` imports
   bare `postprocessing` even for `N8AOPass` alone.

@@ -114,6 +114,12 @@ neither a modern version nor any addon — the import map is the only door.
 The other three mocks are still r128 on purpose. They are reference sources for
 the port, not surfaces; migrating them buys nothing and risks the originals.
 
+Light intensities are restored by **×π** (`LEGACY_PI`). r128 applied that π in the
+shader; r155 moved it to `WebGLLights.scaleFactor` behind `useLegacyLights`; r165
+deleted it. Same multiply, identical image. It does **not** cover `PointLight` /
+`SpotLight` — r155 also changed `decay` and distance falloff, so torches need
+their own pass.
+
 Post-processing (N8AO, bloom) is **not** wired yet. Pins, when it is:
 `postprocessing@6.39.2` requires `three >=0.168 <0.186`, so r185 is the ceiling;
 `n8ao@1.10.3` imports the bare specifier `postprocessing` even when you only use

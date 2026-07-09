@@ -200,6 +200,14 @@ real placement. **These are decisions, not hypotheses.**
   three shipped no browser UMD build after ~r160 and deleted `examples/js/` at
   r148, so a classic `<script src>` tag could never have reached `EffectComposer`,
   `GTAOPass` or `N8AO` at *any* version. The import map was the whole upgrade.
+- **Lights: ×π.** r128 multiplied every non-physical light by π *in the shader*
+  (`irradiance *= PI` under `#ifndef PHYSICALLY_CORRECT_LIGHTS`; Lambert's
+  `directLightColor_Diffuse = PI * directLight.color`), and `physicallyCorrectLights`
+  defaulted to false. r155 moved that π into JS as `WebGLLights` `scaleFactor` behind
+  `useLegacyLights`; r165 deleted both. So r185 is π× darker. `topography-test-mock.html`
+  restores it as `LEGACY_PI`, applied to `amb/hemi/sun/rim`. Same multiply → identical
+  image. **π is NOT enough for PointLight/SpotLight** — r155 also changed `decay` and
+  distance falloff. Torches need their own pass.
 - Post-processing is still **not wired**. Pins when it is: `postprocessing@6.39.2`
   needs `three >=0.168 <0.186` (r185 is the ceiling); `n8ao@1.10.3` imports the
   bare specifier `postprocessing` even for `N8AOPass` alone — omit that import-map
@@ -247,8 +255,8 @@ In order. Do not skip to 4.
 0. ~~Upgrade three.js~~ — **done, out of order, for cause.** Steps 2–3 were
    blocked: the port sources were not in the repo. The renderer was the only
    unblocked item, and doing it first means the toon/outline stack gets tuned
-   against the final renderer once instead of twice. Confirm `?lightmul=` in a
-   browser and bake the constant in.
+   against the final renderer once instead of twice. Light intensities are
+   restored by ×π (see below); still wants a browser eyeball.
 1. Fix §5.1 and §5.2 (slider, placement). Small, and the map stops lying.
 2. Port the **feel layer** from `battle-tactics-geo-mock.html`: badges, hit
    flash, shake, idle bob. Write floating damage text. Fix §5.3.
