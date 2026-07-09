@@ -1,79 +1,233 @@
-# CONTEXT — Battle Forge (heightfield) — updated 2026-07-08
+# CONTEXT — Battle Forge — updated 2026-07-08
 
-> Handoff for a fresh session. The Forge is playable end-to-end EXCEPT the
-> ranged geometry / line-of-sight, which is **still not working in-browser**
-> after several attempts. Read **"THE GEOMETRY PROBLEM"** below FIRST — there is
-> a specific trap to avoid.
-
----
-
-## PROJECT SPINE (unchanged)
-- **Trials of Kirtas (ToK)** — M's D&D 5e VTT. Repo `Manik-Khan/trials-of-kirtas` (public). Deploy `trials-of-kirtas.netlify.app`. Vanilla JS/HTML/CSS + Supabase + Netlify. **C never pushes; M deploys by hand.** Stage files to `/mnt/user-data/outputs/`.
-- Party (6, live via `CharacterData`/Supabase — party.html & sheet-v2 read live, NOT the repo `data/characters/*.json` seeds): **Caim** (Monk), **Chonkalius** (Barbarian 3, placeholder — ignore for now), **Cosmere Runestar** (Warlock 2/Sorc 1), **Líadan Luchóg** (Bard 3/Cleric 1), **The Wiz** (Wizard 3, placeholder — ignore), **Vesperian Vale** (Fighter 4). M is admin, plays Vesperian.
-- Working rules: mock→approve→build; **read repo source before editing**; `node --check` + smokes before handover; **inlined `tactics-geometry.js` must stay byte-identical to `forge/tactics-geometry.js`**; surgical edits; failures narrate; deploy URL is `trials-of-kirtas.netlify.app`.
+> This doc exists because the same failure kept happening: a session would read
+> *part* of the material, conclude a feature "was never there," and rebuild
+> something the repo already had. The sprites were the worst case — they had
+> been sitting in `battle-forge-mock.html` in the repo the whole time.
+>
+> **The fix is not better prompting from M. It is the protocol in §0.**
 
 ---
 
-## WHERE THE WORK LANDED THIS SESSION
+## §0 · READ THIS FIRST — the protocol
 
-**The Forge was rebased onto `topography-test-mock.html`** (M's parchment heightfield diorama) — this is now THE surface. `battle-tactics-geo-mock.html` (dark FE-style combat mock) is **superseded** and kept only as the source of the M-authored action sets. Do not build on it.
+Before writing a single line of code, and before claiming *anything* is
+missing, absent, unimplemented, or "was never built":
 
-Flow now: **party.html-style cinematic select → "Enter the Forge" → generates a tiered heightfield (Generated Tiers mode) → drops the chosen party at the entrance (highest tier) + a goblin band deep (lowest tier) → playable tactical battle.**
+1. **Read every uploaded file.** Files on disk at `/mnt/user-data/uploads/`
+   count even when they are not pasted into the conversation. `CONTEXT.md` was
+   skipped for four turns for exactly this reason.
+2. **Enumerate the repo.** `Manik-Khan/trials-of-kirtas` is public. Pull it:
+   `curl https://raw.githubusercontent.com/Manik-Khan/trials-of-kirtas/main/<path>`
+   The GitHub tree API rate-limits from the sandbox; fetch files directly.
+   `forge/README.md` is canonical and is usually the answer.
+3. **Grep before you assert.** "X doesn't exist" is a claim about the repo, not
+   about your context window. Prove it with a search across all four mocks.
+4. **Consult §2 (the file map) and §3 (the port manifest).** If a feature is
+   listed as present in a mock, it is present. Port it; do not reinvent it.
 
-### What is built (and passes headless checks)
-- **Select** (`#partySelect`): opt-in, controller/badge model driven by *who you're logged in as* — a "Logged in as" switcher (mock-only), you pick which characters this login drives → **V, or V1/V2/V3/V4** when one login drives several (own char first). Hands `window.__fightRoster` + `window.__fightControllers` to the Forge.
-- **Bridge** (`makeToken`): characters are billboard **standees**. FIX THIS SESSION: tokens render an **immediate placeholder** (seat-colour initial, synchronous canvas texture) and **swap to the portrait async on load** — so tokens are never blank (earlier they were empty because the portrait `TextureLoader` had no placeholder). Goblins = "G". Real token sprites still pending from M's other thread.
-- **Turn loop**: initiative, height-gated movement (teal tiles, click-to-move, budget), End Turn. Foes are **DM-stepped** ("▶ Run [Goblin]'s turn" button) — deliberately no auto-timer, so rewind can't race it.
-- **Action system** (ported verbatim from `battle-tactics-geo-mock.html` PARTY defs): per-character kits, action/bonus/free economy, resources (slots/ki/bardic/rage/secondWind/actionSurge), attacks / saves (VM) / heals (+Disciple) / buffs (Hex, Bardic) / Magic Missile auto / Action Surge / Second Wind. Menu → pick action → click target.
-- **Reactions**: on a hit, DM-prompted pipeline **Silvery Barbs → Shield → damage → Hellish Rebuke**; one reaction/creature refreshed at your turn; each snapshots into rewind.
-- **Rewind** (3-tier, cross-turn): **◀** one beat · **⏮** to a turn start (walks back through turns) · **▶** redo · **Reset** (two confirms). Snapshot/restore rebuilds positions, HP, resources, downed tokens, turn state.
-- **HUD**: parchment initiative rail, active-unit panel (HP / move / action / bonus / kit buttons), reaction overlay, log, rewind transport, Re-forge, Reset. Combat stats/kits for the 4 real PCs; Chonkalius/Wiz are `approx` placeholders.
-
-### Files (in outputs)
-- **`topography-test-mock.html`** — the Battle Forge (THE file).
-- **`liadan.json`** — seed sheet corrected to Bard 3 / Cleric 1, level 4, 24/31, AC 12 (repo seed is secondary; live is Supabase).
-- **`smoke-forge-engine.js`** — `frost`→`tundra` test fix (repo upload, `forge/tests/`).
-
----
-
-## ⚠️ THE GEOMETRY PROBLEM — READ BEFORE TOUCHING CODE
-
-**Symptom (persistent):** ranged attacks report **"no line of sight"** for essentially all targets; the targeting geometry doesn't light up. Eldritch Blast (120 ft), Shortbow (80/320) should hit visible goblins and don't. M confirms **"the geometry is not fixed"** across multiple attempts and suspects an **error loop**. This is why the session was stopped.
-
-**THE TRAP (most important thing in this doc):** every fix this session was "validated" by **headless synthetic tests that kept passing (17/17, 9/9, 10/10, 8/8) while the browser stayed broken.** The tests build a fake `F` field by hand and confirm the *algorithm I wrote* does what *I think* — they do NOT prove anything about the real running system. **Do not write more synthetic geometry tests and call them proof. That is the loop.**
-
-**What next session MUST do first — instrument reality, don't theorize:**
-1. In the actual running combat, when a "no line of sight" fires, `console.log` the REAL values: attacker `{c,r}` and target `{c,r}`; `F.W/F.H`; the raw `F.height`, `F.foot`, `F.type` along the traced line; and the actual `cbDist`/`cbLoS` return. Compare to what's on screen.
-2. Verify the **coordinate mapping is not the bug** — that a clicked token resolves to the cell the unit actually occupies, that `wxc/wzc` (world→cell) inverse used in `combatClick` (`gx=round(point.x+F.W/2-0.5)`) matches how tokens were placed, and that `CB.map`/`F` indices line up with token `c,r`. A half-cell or transposed-axis error would make LoS trace the wrong cells and always "fail" — and would never show up in synthetic tests.
-3. Confirm `cbLoS`/`reachOK` are even the functions being hit (no stale duplicate, no `CB.map` vs `F` divergence after a re-forge).
-
-**Attempts already made (don't just redo these):**
-- Range: switched `range3d` (Euclidean hypot) → `cbDist = max(horizontal, vertical)×5` (3D Chebyshev; 30 ahead + 30 down = 30). *This part matches M's rule and is probably fine.*
-- LoS attempt #1: reused canonical `losVerdict` — wrong; it treats everything outside the dungeon footprint as opaque wall → blocks all cross-area shots.
-- LoS attempt #2: `cbLoS` with a straight eye-to-eye interpolated sightline — over-blocked because the shooter's OWN plateau sags below the descending line when firing downhill.
-- LoS attempt #3 (**current, UNTESTED in-browser** — M stopped before testing it): `cbLoS` blocks only if intervening terrain/rock rises above `max(eyeA, eyeB)` (you see over anything up to your own eye height). Whether this actually works in-browser is **unknown** — verify with step 1 above before assuming.
-
-**M's canonical geometry rules (the target behavior):**
-- A tier = **5 ft**. Diagonals = **5 ft** (Chebyshev, not 5/10). Movement already does this correctly.
-- **3D distance = the Chebyshev hypotenuse:** `max(horizontal_squares, vertical_tiers) × 5`. "A creature 30 ft down and ahead is still 30 ft."
-- **LoS uses the same air geometry.** "Down and ahead is visible." A hill/wall taller than you blocks; open air, valleys, gaps, and shooting downhill do not.
-
-**Possible real culprits not yet ruled out:** (a) coordinate/cell mismatch between token placement and the LoS trace (step 2) — this is the prime suspect and was never checked; (b) `F.height` values differing from the assumed integer tiers at combat time; (c) foes genuinely behind `T_ROCK` in generated dungeons (would be *correct* blocking, but worth confirming vs perceived-open terrain); (d) `cbLoS` reading a stale `F` after re-forge.
-
-**Decision still open:** whether this heightfield range/LoS should become the **canonical** rule in `forge/tactics-geometry.js` (and re-synced into the inline + the box-tile `battle-tactics` mock), or stay local to the topography combat. Don't fold into canonical until it actually works in-browser.
+**Never say "we never had X" without having run step 3.**
 
 ---
 
-## OTHER OPEN / DEFERRED
-- **Cover**: the wall-corner cover bonus was dropped when replacing `losVerdict`; heightfield partial cover (half cover from a low ridge) is unimplemented.
-- **Booming Blade** move-trigger implemented (marked target moving takes +1d8, lapses at caster's turn) — verify in-browser once LoS works.
-- **Foe AI**: goblins only, advance-and-strike; DM-stepped. Real monsters / proper AI later.
-- **Chonkalius & The Wiz**: placeholder kits, `approx`. Ignore until real sheets provided.
-- **Real token sprite sheet**: pending from M's separate thread; drops into the `makeToken` async-swap path.
-- **Live data**: select is seeded to match live party.html; swap `PARTY` for `await window.CharacterData.loadParty()` when embedded in the app.
-- The **asset library** (`/assets/library.json`) and the rest of the topography builder are intact and untouched by the combat layer.
+## §1 · WHAT THE FORGE IS
+
+A generated-dungeon → 3D tactical-combat game mode for **Trials of Kirtas**, a
+D&D 5e VTT. Vanilla JS/HTML/CSS + Supabase + Netlify + three.js. Repo
+`Manik-Khan/trials-of-kirtas` (public). Deploy `trials-of-kirtas.netlify.app`.
+**C never pushes; M deploys by hand.** Stage files to `/mnt/user-data/outputs/`.
+
+The architecture, from an earlier session and still correct:
+
+> One map document, three renderers. The generator emits a tile grid, room
+> metadata, spawn marks, props and torches — deterministic from a seed. The
+> tactics diorama consumes exactly that. `{seed, theme, sliders}` in a Supabase
+> row regenerates an identical map on every client.
+
+**The word "bridge" has been the source of a persistent misunderstanding.**
+`forge/map-bridge.js` bridges the generator to the *map document*. It does NOT
+bridge the generator to the *combat system*. The combat system is the thing in
+§3, and porting it is a separate, unfinished job.
+
+Party (live via `CharacterData`/Supabase): **Caim** (Monk), **Cosmere Runestar**
+(Warlock 2/Sorc 1), **Líadan Luchóg** (Bard 3/Cleric 1), **Vesperian Vale**
+(Fighter 4). **Chonkalius** and **The Wiz** have no combat sheet — they are
+greyed out in the select and must never be silently dropped.
 
 ---
 
-## SUGGESTED FIRST MOVE NEXT SESSION
-Open `topography-test-mock.html`, start a fight, fire a ranged attack that *should* connect, and **read the instrumentation (step 1–2 above) before writing any code.** Find out what the real cells/heights/LoS actually are. The bug is almost certainly in the gap between the synthetic tests and the real field — most likely the token↔cell coordinate mapping — not in the LoS math that keeps passing tests.
+## §2 · FILE MAP — where everything actually lives
+
+| file | what it holds | status |
+|---|---|---|
+| `forge/tactics-geometry.js` | **canonical rules module.** Chebyshev, movement reach, climb/fly cliff gate, 3D LoS + graded cover | canonical |
+| `forge/map-bridge.js` | generator/heightfield → MAP document `{cols,rows,h,wall,occ,spawns,props}` | canonical |
+| `forge/forge-dungeon.js` | generator. **THEMES keys are the biome names**: `grass druidic tundra swamp temple cavern volcanic` | canonical |
+| `forge/forge-engine.js` | seeded generate → validated map | canonical |
+| `forge/tests/*` | smokes. `smoke-forge-engine.js` **still throws** on `themeKey:"frost"` — needs `frost`→`tundra` | broken, known |
+| `topography-test-mock.html` | **THE surface.** Heightfield + all the geometry + combat loop | active |
+| `battle-tactics-geo-mock.html` | flat box-tile combat mock. **The source of the combat system and the feel layer.** NOT superseded — it is the port source | reference |
+| `battle-forge-mock.html` | *"the dream one."* generator → tactics diorama. **Source of the pixel sprites + portraits** | reference |
+| `battle-forge-biome-mock.html` | **source of the biome art direction.** `SKINS` table: `wallH`, fog, light rigs, particles, flavour scatter | reference |
+
+`tactics-geometry.js` is **inlined in two mocks** and must stay byte-identical to
+canonical in both. Any change ships to three files at once.
+
+The topography mock's *inlined generator is an old copy* with the pre-rename
+theme keys (`ancient/molten/frost/grim/verdant`). The repo's is current. Rebasing
+the mock onto `forge/forge-dungeon.js` is an open task.
+
+---
+
+## §3 · THE PORT MANIFEST
+
+Machine-derived from the four mocks (definition-level greps, not vibes). This is
+the contract for "port the battle mock." **Everything marked ✗ is the job.**
+
+### Rules
+| feature | tactics | forge | topo | notes |
+|---|---|---|---|---|
+| dungeon generator | – | ✔ | ✔ | topo's copy is stale |
+| heightfield / tiers | – | – | ✔ | topo only |
+| line of sight (3D ray) | ✔ | – | ✔ | canonical |
+| graded cover ½ / ¾ / total | ✔ | – | ✔ | canonical |
+| occluder heights `occ[]` | – | – | ✔ | canonical |
+| movement reach + budget | ✔ | – | ✔ | |
+| climb / fly cliff gate | ✔ | – | ✔ | in `tactics-geometry.js` |
+| initiative order | ✔ | ✔ | ✔ | |
+| reaction pipeline | – | – | ✔ | Silvery Barbs → Shield → Rebuke |
+| rewind / snapshot | – | – | ✔ | |
+| **flanking → advantage** | ✔ | – | **✗** | `battle-tactics` ~L1100–1120: `isFlanked()`, `FLANKING` toggle chip, house rule = advantage, not +2 |
+| **opportunity attacks** | ✔ | – | **✗** | `battle-tactics` ~L1319–1340: fires mid-move, can drop the mover before they arrive |
+| **ready / held action** | ✗ | ✗ | ✗ | **exists nowhere.** Required by the geometry: if you can't see the enemy below the cliff, you Ready |
+
+### Feel — the layer that makes it a game
+| feature | tactics | forge | topo | notes |
+|---|---|---|---|---|
+| move tile telegraph | – | – | ✔ | |
+| tweened movement | ✔ | ✔ | ✔ | |
+| sight lines drawn | ✔ | – | ✔ | topo's may be `depthTest`-hidden inside terrain — **unverified in browser** |
+| **badges over units** | ✔ | – | **✗** | `battle-tactics` ~L1515–1550: DOM badges `✕ no line` · `↑ too high` · `½ cover +2` · `¾ cover +5` |
+| **hit flash** | ✔ | ✔ | **✗** | `battle-tactics` L1036 `flashHit()` |
+| **camera shake** | ✔ | ✔ | **✗** | `battle-tactics` L1002 `shake()`, gated on `REDUCED` |
+| **idle bob** | ✔ | ✔ | **✗** | `bobPhase` L886, applied L1854 |
+| **floating damage text** | ✗ | ✗ | ✗ | **exists nowhere.** Must be written |
+
+### Art / render
+| feature | tactics | forge | biome | topo | notes |
+|---|---|---|---|---|---|
+| pixel sprites | ✔ | ✔ | – | ✔ | `SPRITES` + `pixelCanvas()`, 7 keys |
+| base64 portraits | ✔ | ✔ | – | ✔ | 4 PCs |
+| per-biome light rig | – | – | ✔ | ✔ | `SKINS` / `LOOK` |
+| **torch PointLights** | ✔ | ✔ | ✔ | **✗** | topo has the theme data, never builds the lights |
+| particles | – | ✔ | ✔ | ✔ | |
+| shadow map | – | – | – | ✔ | topo only; PCF soft, fitted ortho frustum |
+| ambient occlusion | – | ~ | – | ✔ | per-instance `setColorAt` |
+| **post-processing** | ✗ | ✗ | ✗ | ✗ | exists nowhere |
+
+---
+
+## §4 · GEOMETRY — settled, do not relitigate
+
+Reached over a long session, verified against the real generator, real field,
+real placement. **These are decisions, not hypotheses.**
+
+- **Distance** = Chebyshev hypotenuse: `max(horizontal_squares, vertical_tiers) × 5`.
+  A tier is 5 ft. Diagonals are 5 ft. 30 ahead + 30 down = 30 ft.
+  *Divergence:* canonical `TG.range3d` still uses Euclidean hypot. Unreconciled,
+  deliberate, flagged. Do not silently change it.
+- **Sight is height, and only height.** Nothing is "opaque by type." Every cell
+  has `occ[]`, an occluder height in feet above its terrain. `losVerdict` traces
+  the 5e corner lines through 3D and asks whether anything rises above the ray.
+- **A hole can never block.** Its top is below the ray. This falls out of the
+  arithmetic; no clause enforces it. Gap cells get `occ = 0`.
+- **Dead ground is a FEATURE.** Standing on a plateau you cannot see the base of
+  your own cliff. Walk to the ledge, or Ready an action. This is why the naive
+  ray "over-blocked" in earlier attempts — it was correct.
+- **Standing back and standing high are opposite levers.** Backing away from a
+  wall raises the ray *at the wall* only when the target is above you. Elevation
+  buys you a wall you stand near and loses you one you stand far from.
+  A flat ray cannot rise, so a level shot is never helped by stepping back.
+- **Cover is graded**, 8 corner-lines (4 corners × head/feet):
+  `0 → none · 1–4 → half (+2) · 5–7 → three-quarters (+5) · 8 → total`.
+  A 4.5 ft boulder yields ¾. A 10.5 ft temple wall yields total.
+- **Occluder heights come from the generator**, not from thin air:
+  `map-bridge.BIOME_WALL_UNITS` mirrors `SKINS.wallH` × 5 ft.
+  grass 7 · druidic 8 · tundra 7.5 · swamp 6.25 · temple 10.5 · cavern 9.5 ·
+  volcanic 8.5 *(placeholder — no SKINS entry yet)*.
+  Props: rock 4.5 · tree 5.5 · reed 3.5 · mushroom 2 · column 15.
+  Moss, bones, cracks, banners, icicles occlude nothing.
+- **`smoke-los-cover.js` (27 cases) encodes all of the above.** If a change
+  breaks it, the change is wrong until argued otherwise.
+
+---
+
+## §5 · KNOWN BUGS (open)
+
+1. **Height-exaggeration slider breaks the map.** `hs.oninput` calls
+   `renderField()` and never `positionToken()`. Terrain rescales; tokens keep
+   their old world `Y`, so they bury or float. Two-line fix.
+2. **Everyone bunches in one spot.** `foeAnchor()` prefers the 15–60 ft band and
+   `clusterAround()` packs each side around one seed cell. Party needs a loose
+   formation; foes need 40–90 ft and their own footing.
+3. **Sight lines may be invisible.** Drawn with `LineBasicMaterial`, default
+   `depthTest`, so segments passing through terrain disappear. Suspected, not
+   confirmed in a browser. Set `depthTest:false` + `renderOrder`.
+4. **`smoke-forge-engine.js` throws** on `themeKey:"frost"` (renamed `tundra`).
+5. **topo's inlined generator is stale** (old theme keys). Rebase on
+   `forge/forge-dungeon.js` and take `WALL_FT` from `MapBridge.wallFeetFor()`.
+6. **TOON banding + ink outlines** were tuned against flat lighting; they may
+   fight the new AO and cast shadow. Unverified.
+
+---
+
+## §6 · ART, ASSETS, LICENSING
+
+- **three.js is pinned to r128** (cdnjs), ~5 years old. Upgrading unlocks
+  `GTAOPass`, modern `EffectComposer`, and `pmndrs/postprocessing` + `N8AO`.
+  This is the single biggest render unlock available and it costs nothing.
+- No mock has ever used post-processing. Zero `EffectComposer` in the project.
+- **The repo is PUBLIC. Assets must be CC0 or CC-BY.** Nothing else.
+  - Good: **Kenney**, **Poly Haven**, **ambientCG**, **Quaternius**, **Kay Lousberg** (all CC0).
+  - The Kenney plumbing already half-exists: `assets/library.json`, `CHEST_DEMO`.
+- **Do not use ripped game assets.** Wind Waker JS ships Nintendo models and
+  textures; its credits *thank* Nintendo, which is not a licence.
+- **Epic/Fab.** The 5%-over-$1M royalty is the **Unreal Engine** licence and is
+  irrelevant to us — Epic's EULA states that assets from Fab "are not Licensed
+  Technology." Fab's Standard License permits any engine, but restricts sharing
+  to collaborators via a **private repository**. Our repo is public. Fab items
+  offered under an explicit **Creative Commons** licence are the only usable ones.
+- The battle mock does not look better because of its renderer. It has no
+  shadows and no post-processing either. It looks better because things were
+  *drawn* and things *move*. Feel is cheaper than art and buys more.
+
+---
+
+## §7 · WORKING RULES
+
+- Read actual repo source before editing. *A plausible hypothesis is not a diagnosis.*
+- **Never write a synthetic test and call it proof.** Extract the real functions
+  and run them on the real generated field. Headless tests that pass while the
+  browser stays broken are the failure mode this project keeps hitting.
+- mock → approve → build for UX work.
+- `node --check` every script block + run the smokes before handover.
+- Inlined `tactics-geometry.js` must stay byte-identical to canonical in
+  **both** mocks.
+- Surgical edits. Never change a theme CSS variable for a per-page issue.
+- Failures must narrate. Disabled controls must state why. A character with no
+  combat sheet is greyed out, never silently dropped.
+- Never commit or push. M deploys by hand via GitHub web upload.
+- Deploy URL is `trials-of-kirtas.netlify.app`.
+
+---
+
+## §8 · SUGGESTED NEXT SESSION
+
+In order. Do not skip to 4.
+
+1. Fix §5.1 and §5.2 (slider, placement). Small, and the map stops lying.
+2. Port the **feel layer** from `battle-tactics-geo-mock.html`: badges, hit
+   flash, shake, idle bob. Write floating damage text. Fix §5.3.
+3. Port **flanking** and **opportunity attacks**. Write **Ready an action** —
+   the geometry now demands it.
+4. Then, and only then: upgrade three.js, add N8AO + bloom, and source CC0 props.
