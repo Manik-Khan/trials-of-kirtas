@@ -33,8 +33,8 @@
     },
     "combat": {
       "ac": 12,
-      "hp": 19,
-      "hpMax": 19,
+      "hp": 24,
+      "hpMax": 31,
       "speed": 20,
       "hpTemp": 0,
       "hitDice": "4d8",
@@ -346,7 +346,7 @@
       }
     ],
     "portrait": "img/portraits/liadan.png",
-    "subclass": "College of Creation",
+    "subclass": "Life Domain",
     "abilities": {
       "cha": {
         "mod": 2,
@@ -383,7 +383,7 @@
       "weight": "30 lbs"
     },
     "background": "Entertainer (Singer)",
-    "classLabel": "Bard",
+    "classLabel": "Bard 3 / Cleric 1",
     "inspiration": true,
     "rollerFlags": {
       "halfProfBonus": 1,
