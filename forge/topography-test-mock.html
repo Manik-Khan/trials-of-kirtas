@@ -427,6 +427,13 @@ global.TacticsGeo = API;
   color:var(--tk-ink-dim); background:transparent; border:1px solid var(--tk-line); padding:7px 6px; cursor:pointer; }
 .cbChipTog.on{ color:#8a6a1f; border-color:var(--tk-gold); background:rgba(201,162,75,.12); }
 .cbChipTog:disabled{ opacity:.35; cursor:not-allowed; }
+.cbRelRow{ display:flex; flex-direction:column; gap:6px; margin-top:8px; }
+.cbRel{ display:flex; justify-content:space-between; align-items:center; gap:8px;
+  font-family:var(--f-util); font-size:11px; letter-spacing:.06em; color:#8a6a1f;
+  border:1px solid var(--tk-gold); background:rgba(201,162,75,.10); padding:7px 8px; cursor:pointer; }
+.cbRel.on{ background:var(--tk-gold); color:#fff; }
+.cbRel.on .cbRelX{ color:#fff; }
+.cbRelX{ color:#a33b2e; font-weight:700; padding:0 3px; cursor:pointer; }
 </style>
 </head>
 <body>
@@ -539,9 +546,10 @@ global.TacticsGeo = API;
       </div>
       <div class="cbChipRow">
         <button class="cbChipTog" id="cbFlank" title="House rule: attackers on opposite sides of a target in melee get advantage">Flank: off</button>
-        <button class="cbChipTog" id="cbReady" title="Hold a weapon attack as a reaction; it fires when a foe moves into range">Ready</button>
+        <button class="cbChipTog" id="cbReady" title="Hold an attack (weapon or attack spell) as a reaction; the DM releases it when the trigger comes">Ready</button>
         <button class="cbChipTog" id="cbVes" title="Vesperian animated sprite sheet (assets/sprites/vesperian/)">Ves: &hellip;</button>
       </div>
+      <div class="cbRelRow" id="cbRelease" style="display:none"></div>
     </div>
     <div class="cbLog" id="cbLog"></div>
     <div class="cbBanner" id="cbBanner" style="display:none"></div>
@@ -2527,9 +2535,15 @@ function provokeOAs(mover,before,done){
 
 /* ── READY AN ACTION — new; exists in no mock. The geometry demands it:
    from a plateau you cannot see the base of your own cliff, so you hold the
-   shot. Scope: weapon attacks (no cost, no spell). The readied attack fires
-   as a REACTION when a foe finishes a move inside range + line of sight;
-   it lapses at the start of your next turn. */
+   shot. RAW (PHB 193): readying takes your action; a readied SPELL is cast
+   on your turn — slot spent immediately — and HELD by concentration until
+   the reaction releases it. If it lapses or concentration breaks, the slot
+   is gone. Two triggers, because the trigger is DM territory:
+     · auto: a foe finishes a move in range + sight → skippable prompt
+     · manual: the DM taps the gold hold-row, then a target, any time the
+       fiction says "now" — and taps \u2715 to break the hold (concentration
+       lost, trigger passed). Foes never ready; out of scope. */
+var RELEASING=null;    // the unit whose readied action the DM is aiming
 function checkReadied(mover,done){
   var queue=CB.units.filter(function(p){ return p.alive&&p.side!==mover.side&&p.readied&&!p.reacted; });
   (function next(){
@@ -2553,22 +2567,31 @@ function checkReadied(mover,done){
    cost). Failure narrates and the pixel token stands in. */
 var VES={ state:"off", tex:null, atlas:null, cols:12, rows:2 };
 var VES_MODES=["px72","full","off"], VES_MODE=0;
+/* The mock is served from forge/, the sheets live at the repo root: a
+   page-relative "assets/…" resolves to forge/assets/ and 404s. Try the
+   sibling path first, then the parent, and say which one answered. */
+var VES_BASES=["assets/sprites/vesperian/","../assets/sprites/vesperian/"];
 function vesLoad(which,done){
-  var base="assets/sprites/vesperian/";
-  fetch(base+(which==="px72"?"atlas_px72.json":"atlas.json"))
-    .then(function(r){ if(!r.ok) throw 0; return r.json(); })
-    .then(function(atlas){
-      var img=new Image();
-      img.onload=function(){
-        var t=new THREE.Texture(img); t.needsUpdate=true;
-        t.magFilter=THREE.NearestFilter; t.minFilter=THREE.NearestFilter; t.generateMipmaps=false;
-        t.colorSpace=THREE.SRGBColorSpace;
-        t.repeat.set(1/VES.cols,1/VES.rows);
-        done({tex:t,atlas:atlas});
-      };
-      img.onerror=function(){ done(null); };
-      img.src=base+atlas.sheet;
-    }).catch(function(){ done(null); });
+  var name=(which==="px72"?"atlas_px72.json":"atlas.json");
+  (function tryBase(bi){
+    if(bi>=VES_BASES.length){ done(null); return; }
+    var base=VES_BASES[bi];
+    fetch(base+name)
+      .then(function(r){ if(!r.ok) throw 0; return r.json(); })
+      .then(function(atlas){
+        var img=new Image();
+        img.onload=function(){
+          var t=new THREE.Texture(img); t.needsUpdate=true;
+          t.magFilter=THREE.NearestFilter; t.minFilter=THREE.NearestFilter; t.generateMipmaps=false;
+          t.colorSpace=THREE.SRGBColorSpace;
+          t.repeat.set(1/VES.cols,1/VES.rows);
+          console.log("[ves] sheet loaded from "+base);
+          done({tex:t,atlas:atlas});
+        };
+        img.onerror=function(){ tryBase(bi+1); };
+        img.src=base+atlas.sheet;
+      }).catch(function(){ tryBase(bi+1); });
+  })(0);
 }
 function vesApply(){
   var which=VES_MODES[VES_MODE], btn=document.getElementById("cbVes");
@@ -2577,7 +2600,7 @@ function vesApply(){
   vesLoad(which,function(res){
     if(!res){ VES.state="failed";
       if(btn){ btn.textContent="Ves: sheet unavailable"; btn.classList.remove("on"); }
-      console.warn("[ves] assets/sprites/vesperian/ ("+which+") not reachable \u2014 pixel token stands in.");
+      console.warn("[ves] "+which+" sheet not reachable at "+VES_BASES.join(" or ")+" \u2014 pixel token stands in.");
       rebuildVesToken(); return; }
     VES.tex=res.tex; VES.atlas=res.atlas; VES.state="ready";
     if(btn){ btn.textContent="Ves: sheet \u00b7 "+which; btn.classList.add("on"); }
@@ -2750,7 +2773,7 @@ function restageForHeight(){
 function removeToken(u){ if(u.sprite)tokenGroup.remove(u.sprite); if(u.shadow)tokenGroup.remove(u.shadow); u.sprite=null; u.shadow=null; }
 
 function startCombat(){
-  tokenGroup.clear(); moveGroup.clear(); clearBadges(); READYING=false; CB_ANIM=false;
+  tokenGroup.clear(); moveGroup.clear(); clearBadges(); READYING=false; RELEASING=null; CB_ANIM=false;
   var fx=fxHost(); if(fx) fx.innerHTML="";
   CB={ active:true, over:false, units:[], order:[], ti:-1, map:combatMapFromF(), seen:null, st:null, pending:null, hexed:null,
        log:[], hist:[], hptr:-1, turnStartPtr:-1, react:null };
@@ -2823,8 +2846,9 @@ function nextTurn(){
   for(var g=0; g<=CB.order.length; g++){ CB.ti=(CB.ti+1)%CB.order.length; if(active()&&active().alive) break; }
   var u=active(); if(!u) return;
   u.reacted=false;   // reaction refreshes at the start of your turn
-  if(u.readied){ clog("<i>"+u.name+"'s readied "+u.readied.act.label+" lapses.</i>"); u.readied=null; }
-  READYING=false;
+  if(u.readied){ clog("<i>"+u.name+"'s readied "+u.readied.act.label
+    +(u.readied.act.spell?" dissipates \u2014 the slot was spent when it was cast.":" lapses.")+"</i>"); u.readied=null; }
+  READYING=false; if(RELEASING&&(!RELEASING.alive||!RELEASING.readied)) RELEASING=null;
   CB.units.forEach(function(x){ if(x.boomMark && x.boomMark.by===u.id) x.boomMark=null; });  // Booming Blade lapses at caster’s next turn
   CB.st={ moveLeft:Math.floor(u.speed/5), usedAction:false, usedBonus:false, attacked:false };
   CB.pending=null;
@@ -2897,7 +2921,13 @@ function tileFlat(c,r,color,alpha){ var m=new THREE.Mesh(new THREE.PlaneGeometry
   m.rotation.x=-Math.PI/2; m.position.set(wxc(c),tierY(c,r)+0.06,wzc(r)); m.renderOrder=1; return m; }
 function drawHi(){
   clearBadges();
-  moveGroup.clear(); if(!CB.active||CB.over) return; var u=active(); if(!u||u.side!=="pc") return;
+  moveGroup.clear(); if(!CB.active||CB.over) return;
+  if(RELEASING&&RELEASING.readied){ var rlA=RELEASING.readied.act;
+    enemies(RELEASING).forEach(function(t){ var ro=reachOK(RELEASING,rlA,t);
+      moveGroup.add(tileFlat(t.c,t.r,!ro.ok?0x6b6357:0xc9a24b,!ro.ok?0.20:0.5));
+      badgeFor(RELEASING,t,rlA,ro); });
+    return; }
+  var u=active(); if(!u||u.side!=="pc") return;
   if(CB.pending){ var pa=CB.pending;
     if(pa.kind==="heal"||pa.kind==="buffAlly"){ validTargets(u,pa).forEach(function(t){ moveGroup.add(tileFlat(t.c,t.r,0x3a8a92,0.5)); });
       allies(u).forEach(function(t){ if(t===u&&(pa.rng||1)<1)return; var ro=reachOK(u,pa,t); if(!ro.ok) badgeFor(u,t,pa,ro); }); }
@@ -3052,11 +3082,16 @@ function doHeal(u,a,t){ var ro=reachOK(u,a,t); if(!ro.ok){ clog(u.name+" \u2014 
 
 function selectAction(idx){
   var u=active(); if(!u||u.side!=="pc"||CB.react||CB_ANIM) return; var a=u.actions[idx]; if(!a) return;
+  if(CB.pending===a){ CB.pending=null; drawHi(); drawSight(); renderHud(); return; }   // tap again = put it away
   var cu=canUse(u,a); if(!cu.ok){ clog("<i>"+a.label+": "+cu.why+".</i>"); return; }
   if(READYING){
-    if(a.kind!=="attack"||a.spell||a.cost||a.bonus){ clog("<i>Ready holds a plain weapon attack \u2014 no spells, costs, or bonus actions (yet).</i>"); return; }
+    if(a.kind!=="attack"){ clog("<i>Ready holds an attack \u2014 melee, ranged, or an attack spell.</i>"); return; }
+    if(a.bonus){ clog("<i>Ready takes your ACTION \u2014 a bonus-action attack can't be held.</i>"); return; }
+    if(a.cost) for(var rk in a.cost) u.res[rk]-=a.cost[rk];   // RAW: a readied spell is cast NOW; the slot is spent whether or not it fires
     u.readied={act:a}; CB.st.usedAction=true; READYING=false;
-    clog(u.name+" <b>readies</b> "+a.label+" \u2014 it fires as a reaction when a foe moves into range and sight.");
+    clog(u.name+" <b>readies</b> "+a.label+(a.spell
+      ? " \u2014 the spell is <b>cast and held</b>: the slot is spent, concentration keeps it burning. If it lapses or concentration breaks (\u2715 on the hold), the slot is lost."
+      : " \u2014 it fires as a reaction when the trigger comes: automatically when a foe moves into range, or when the DM taps the hold."));
     snapshot("Ready"); drawHi(); drawSight(); renderHud(); return;
   }
   if(a.kind==="selfheal"){ var amt=rollDmg(a.dmg); u.hp=Math.min(u.hpMax,u.hp+amt); floatAt(u,"+"+amt,"heal"); clog(u.name+": "+a.label+" +"+amt+" ("+u.hp+"/"+u.hpMax+")"); spend(u,a); finishAction(); return; }
@@ -3074,15 +3109,32 @@ function resolveOn(u,a,t){
 
 /* ── input ──────────────────────────────────────────────────────────── */
 function combatClick(cx,cy){
-  if(!CB.active||CB.over||CB.react||CB_ANIM) return; var u=active(); if(!u||u.side!=="pc") return;
+  if(!CB.active||CB.over||CB.react||CB_ANIM) return;
   var rect=renderer.domElement.getBoundingClientRect();
   ndc.x=((cx-rect.left)/rect.width)*2-1; ndc.y=-((cy-rect.top)/rect.height)*2+1; ray.setFromCamera(ndc,camera);
+  /* DM release mode runs on ANY turn — the readied shot is a reaction */
+  if(RELEASING){
+    if(!RELEASING.alive||!RELEASING.readied){ RELEASING=null; drawHi(); renderHud(); return; }
+    var rHit=ray.intersectObjects(tokenGroup.children,true)[0];
+    if(rHit){ var ru=spriteUnit(rHit.object);
+      if(ru&&ru.side!==RELEASING.side){
+        var rA=RELEASING.readied.act, rro=reachOK(RELEASING,rA,ru);
+        if(!rro.ok){ clog("<i>"+rA.label+": "+rro.why+".</i>"); return; }
+        var p=RELEASING; RELEASING=null; p.reacted=true; p.readied=null;
+        clog("<em>"+p.name+"</em> releases the readied <b>"+rA.label+"</b> \u2014 DM calls the trigger!");
+        resolveStrike(p,Object.assign({},rA,{strikes:1}),ru,rro,
+          function(){ snapshot("Readied action"); drawHi(); drawSight(); renderHud(); maybeEnd(); });
+        return;
+      } }
+    RELEASING=null; drawHi(); renderHud(); return;    // ground / friendly click puts it back on hold
+  }
+  var u=active(); if(!u||u.side!=="pc") return;
   var tHit=ray.intersectObjects(tokenGroup.children,true)[0];
   if(tHit){ var tu=spriteUnit(tHit.object);
     if(tu&&CB.pending){ var pa=CB.pending, wantAlly=(pa.kind==="heal"||pa.kind==="buffAlly");
       if((wantAlly&&tu.side!==u.side)||(!wantAlly&&tu.side===u.side)){ clog("<i>"+pa.label+": wrong target.</i>"); return; }
       var ro=reachOK(u,pa,tu); if(ro.ok) resolveOn(u,pa,tu); else clog("<i>"+pa.label+": "+ro.why+".</i>"); return; } }
-  if(CB.pending) return;
+  if(CB.pending){ CB.pending=null; drawHi(); drawSight(); renderHud(); return; }   // open ground = put the weapon away
   var gHit=ray.intersectObjects(world.children,true)[0]; if(!gHit) return;
   var gx=Math.round(gHit.point.x+F.W/2-0.5), gy=Math.round(gHit.point.z+F.H/2-0.5);
   if(CB.seen&&CB.seen[gx+","+gy]&&!unitAt(gx,gy)&&CB.st.moveLeft>0) moveUnitTo(u,gx,gy);
@@ -3187,7 +3239,7 @@ function snapshot(label,turnStart){
   CB.hist.push(st); CB.hptr=CB.hist.length-1; updateRewindUI();
 }
 function restore(st){
-  CB.ti=st.ti; CB.hexed=st.hexed; CB.st=st.turn?JSON.parse(JSON.stringify(st.turn)):null; CB.log=st.log.slice(); CB.over=false; CB.pending=null;
+  RELEASING=null; CB.ti=st.ti; CB.hexed=st.hexed; CB.st=st.turn?JSON.parse(JSON.stringify(st.turn)):null; CB.log=st.log.slice(); CB.over=false; CB.pending=null;
   var byId={}; CB.units.forEach(function(u){byId[u.id]=u;});
   st.units.forEach(function(su){ var u=byId[su.id]; if(!u)return; u.c=su.c;u.r=su.r;u.hp=su.hp;u.alive=su.alive;
     u.res=JSON.parse(JSON.stringify(su.res)); u.reacted=su.reacted; u.raging=su.raging; u.inspired=su.inspired; u.disadv=su.disadv;
@@ -3250,6 +3302,24 @@ function renderHud(){
   var rb=document.getElementById("cbReady");
   if(rb){ rb.disabled=(!u||u.side!=="pc")||CB.over||!!CB.react||!!(CB.st&&CB.st.usedAction);
     rb.classList.toggle("on",READYING); rb.textContent=READYING?"Ready: pick attack":"Ready"; }
+  var rr=document.getElementById("cbRelease");
+  if(rr){ var holders=CB.units.filter(function(p){ return p.alive&&p.readied&&!p.reacted; });
+    rr.style.display=holders.length?"flex":"none";
+    rr.innerHTML=holders.map(function(p){
+      return '<div class="cbRel'+(RELEASING===p?' on':'')+'" data-k="'+p.id+'" title="Tap, then tap a foe: the DM calls the trigger">'
+        +'\u26a1 '+p.name+': '+p.readied.act.label+(p.readied.act.spell?' \u00b7 conc.':'')
+        +'<span class="cbRelX" data-x="'+p.id+'" title="Break the hold \u2014 concentration lost / trigger passed">\u2715</span></div>'; }).join("");
+    rr.querySelectorAll(".cbRel").forEach(function(el){ el.addEventListener("click",function(ev){
+      if(ev.target.classList.contains("cbRelX")) return;
+      var p=CB.units.filter(function(x){ return x.id===el.dataset.k; })[0]; if(!p||!p.readied) return;
+      RELEASING=(RELEASING===p)?null:p; drawHi(); renderHud(); }); });
+    rr.querySelectorAll(".cbRelX").forEach(function(x){ x.addEventListener("click",function(ev){ ev.stopPropagation();
+      var p=CB.units.filter(function(u2){ return u2.id===x.dataset.x; })[0]; if(!p||!p.readied) return;
+      clog("<i>"+p.name+"'s hold on "+p.readied.act.label
+        +(p.readied.act.spell?" breaks \u2014 concentration lost; the slot is spent.":" is dropped.")+"</i>");
+      p.readied=null; if(RELEASING===p)RELEASING=null;
+      snapshot("Hold broken"); drawHi(); renderHud(); }); });
+  }
   updateRewindUI();
 }
 
