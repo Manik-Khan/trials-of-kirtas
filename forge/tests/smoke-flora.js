@@ -18,6 +18,7 @@ const fs = require('fs');
 const path = require('path');
 const TG = require('../tactics-geometry.js');
 const MB = require('../map-bridge.js');
+const FD = require('../forge-dungeon.js');
 
 const MOCK = path.join(__dirname, '..', 'topography-test-mock.html');
 const html = fs.readFileSync(MOCK, 'utf8');
@@ -87,9 +88,11 @@ function build(seed, biome) {
   );
   const make = new Function(
     'BIOME', 'T_WATER', 'T_GRASS', 'T_STONE', 'T_PLAZA', 'T_ROCK',
-    'WALL_FT', 'STEP_FT', 'EMPTY_OCC', 'document', 'window', 'TG', 'F', src);
+    'WALL_FT', 'STEP_FT', 'EMPTY_OCC', 'document', 'window', 'TG', 'F',
+    'ForgeDungeon', 'MapBridge', src);
   return make(biome, T_WATER, T_GRASS, T_STONE, T_PLAZA, T_ROCK,
-              WALL_FT, STEP_FT, EMPTY_OCC, documentStub, windowStub, TG, null);
+              WALL_FT, STEP_FT, EMPTY_OCC, documentStub, windowStub, TG, null,
+              FD, MB);
 }
 
 const { FLORA, PROP_FT, FLORA_KINDS } = build(1, 'grass');
