@@ -2,6 +2,7 @@
    CommonJS so the modules' own require() chains resolve.
    Run: node forge/tests/smoke-protocol.js */
 const FP = require("../forge-protocol.js");
+const FR = require("../forge-replay.js");
 
 let pass = 0, fail = 0;
 const ok = (n, c) => { c ? pass++ : fail++; console.log((c ? "✓ " : "✗ ") + n); };
@@ -308,6 +309,27 @@ const ROSTER = [
     typeof sConn.fetchAll === "function");
   ok("supabase publish resolves {ok, seq}",
     (await sConn.publish(FP.makeEvent("caim", "chat", { text: "hi" }))).seq === 1);
+
+  // ── edit.add_unit (FORGE_BOARD.md §6) ──
+  (function(){
+    var roster=[{unit:"caim",side:"pc",pos:{c:1,r:1},hp:24}];
+    var rows=[
+      {seq:1,kind:"session_started",unit:"__session",payload:{}},
+      {seq:2,kind:"edit",unit:"__session",payload:{changes:[{add_unit:{unit:"gob9",name:"Goblin 9",side:"foe",pos:{c:5,r:5},hp:7,statblock:{name:"Goblin"}}}]}},
+      {seq:3,kind:"attack_resolved",unit:"caim",payload:{target:"gob9",hit:true,dmg:3}}
+    ];
+    var st=FR.replayLog(roster,rows);
+    ok("add_unit creates the unit", !!st.units.gob9);
+    ok("added unit takes damage", st.units.gob9.hp===4);
+    ok("added unit carries statblock", st.units.gob9.statblock && st.units.gob9.statblock.name==="Goblin");
+    // duplicate is inert
+    var st2=FR.replayLog(roster, rows.concat([{seq:4,kind:"edit",unit:"__session",payload:{changes:[{add_unit:{unit:"gob9",pos:{c:0,r:0},hp:99}}]}}]));
+    ok("duplicate add_unit ignored", st2.units.gob9.hp===4);
+    // arrival then restore behind it: snapshot had no gob9 → gob9 gone after restore
+    var snap=FR.replayLog(roster, rows.slice(0,1));
+    var st3=FR.replayLog(roster, rows.concat([{seq:5,kind:"restore",unit:"__session",payload:{to_seq:1,snapshot:FR.snapshot(snap)}}]));
+    ok("restore behind arrival erases it", !st3.units.gob9);
+  })();
 
   console.log("\n" + pass + " passed, " + fail + " failed");
   process.exitCode = fail ? 1 : 0;

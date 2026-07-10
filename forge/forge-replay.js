@@ -122,6 +122,22 @@
       }
       case "edit":
         (p.changes || []).forEach(function (ch) {
+          if (ch.add_unit) {
+            var au = ch.add_unit;
+            if (!au.unit || !au.pos || au.hp == null || state.units[au.unit]) {
+              console.warn("[forge-replay] add_unit ignored: " +
+                (au.unit && state.units[au.unit] ? "duplicate unit " + au.unit : "missing unit/pos/hp"));
+              return;
+            }
+            state.units[au.unit] = {
+              side: au.side || "foe", pos: { c: au.pos.c, r: au.pos.r },
+              hp: au.hp, maxHp: (au.maxHp != null ? au.maxHp : au.hp),
+              conditions: [], reacts: (au.reacts || []).slice(),
+              reactionUsed: false, downed: false,
+              name: au.name || au.unit, statblock: au.statblock || null
+            };
+            return;
+          }
           var t = state.units[ch.unit]; if (!t) return;
           if (ch.pos) t.pos = { c: ch.pos.c, r: ch.pos.r };
           if (ch.hp != null) { t.hp = Math.max(0, Math.min(t.maxHp, ch.hp)); t.downed = (t.hp === 0); }
