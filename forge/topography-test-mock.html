@@ -2184,6 +2184,7 @@ function spawnFromState(state, row){
   CB={ active:true, over:false, units:[], order:[], ti:-1, map:combatMapFromF(), seen:null, st:null, pending:null, hexed:null,
        log:[], hist:[], hptr:-1, turnStartPtr:-1, react:null };
   var cells=walkable();
+  if(!cells.length){ clog('<i>No walkable cells on this map — cannot place the fight.</i>'); CB.active=false; return; }
   var maxH=cells.reduce(function(m,c){return Math.max(m,c.h);},0), minH=cells.reduce(function(m,c){return Math.min(m,c.h);},99);
   var hi=cells.filter(function(c){return c.h===maxH;}), lo=cells.filter(function(c){return c.h===minH;});
   var pcSpawn=hi[(hi.length/2)|0]||cells[0], foeSpawn=lo[(lo.length/2)|0]||cells[cells.length-1];
@@ -2194,6 +2195,8 @@ function spawnFromState(state, row){
       if(sp){ r=Object.assign({},r,{pos:{c:sp.x,r:sp.y}});
         clog("<i>"+escapeHtml(r.name||r.unit)+": no position fact — using spawn.</i>"); }
     }
+    var pos = (stateUnit && stateUnit.pos) || r.pos;
+    if(!pos){ clog("<i>"+escapeHtml(r.name||r.unit)+" has nowhere to stand — skipped.</i>"); return; }
     var u=unitFromRosterRow(r, stateUnit);
     CB.units.push(u); makeToken(u);
   });
@@ -2213,14 +2216,14 @@ function applyVerb(v){
   switch(v.t){
     case "walk":   if(u){ CB_ANIM=true; walkPath(u, v.path.map(function(p){return {c:p.c,r:p.r};}), function(){ CB_ANIM=false; }); } break;
     case "jump":   if(u){ u.c=v.to.c; u.r=v.to.r; positionToken(u); } break;
-    case "hp":     if(u){ u.hp=v.hp; u.alive=!v.downed; renderHud(); if(!u.alive) removeToken(u); } break;
+    case "hp":     if(u){ u.hp=v.hp; if(v.maxHp!=null) u.hpMax=v.maxHp; u.alive=!v.downed; renderHud(); if(!u.alive) removeToken(u); } break;
     case "spawn":  spawnUnitFromState(v.unit, v.u); break;
     case "despawn":if(u){ removeToken(u); CB.units=CB.units.filter(function(x){return x!==u;}); CB.order=CB.order.filter(function(x){return x!==u;}); } break;
     case "turn":   setActiveFromLog(v.unit, v.round); break;   // Task 8 fleshes the HUD side
     case "status": if(v.status==="ended"){ CB.over=true; clog("<b>Fight over.</b>"); } break;
     case "chat":   clog("<i>"+escapeHtml(v.unit)+":</i> "+escapeHtml(v.text)); break;
     case "prompt": case "prompt_clear": break;                 // Task 9
-    case "resync": resyncFromState(window.__forgeSession.pipe.state()); break;
+    case "resync": if(__pipe) resyncFromState(__pipe.state()); break;
   }
 }
 function resyncFromState(st){
@@ -2804,6 +2807,7 @@ var qs = new URLSearchParams(location.search);
 var SUPA_URL = qs.get("url") || "https://cfthwspwpcfamgbfqzuq.supabase.co";
 var SUPA_KEY = qs.get("key") || "sb_publishable_12KUwzDbVvcar0zjh2KE6g_6IRBfmMJ";
 const SESSION_ID = qs.get('session');
+let __pipe = null;
 if (SESSION_ID) bootSession(SESSION_ID).catch(e => {
   clog('<b style="color:#c0553f">Could not join the fight:</b> ' + escapeHtml(e.message || e));
 });
@@ -2829,6 +2833,7 @@ async function bootSession(sid){
     onEvent: (r, st) => { const before = lastState; lastState = window.ForgeReplay.snapshot(st);
       window.ForgeBoard.verbsFor(r, before, st).forEach(applyVerb); }
   });
+  __pipe = pipe;
   lastState = window.ForgeReplay.snapshot(pipe.state());
   await pipe.catchUp();
   lastState = window.ForgeReplay.snapshot(pipe.state());
