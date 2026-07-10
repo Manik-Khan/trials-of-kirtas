@@ -23,6 +23,12 @@
 <script src="forge-dungeon.js?v=fb1"></script>
 <script src="map-bridge.js?v=fb1"></script>
 <script src="forge-engine.js?v=fb1"></script>
+<script src="forge-protocol.js?v=fb1"></script>
+<script src="forge-replay.js?v=fb1"></script>
+<script src="forge-bus.js?v=fb1"></script>
+<script src="forge-pipeline.js?v=fb1"></script>
+<script src="forge-board.js?v=fb1"></script>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <script>/* ── inlined canonical forge/tactics-geometry.js — MUST stay code-identical ── */
 /* ════════════════════════════════════════════════════════════════════
    tactics-geometry.js — pure map-geometry rules over the MAP DOCUMENT.
@@ -2109,6 +2115,122 @@ function removeToken(u){
     if(u.shadow){ tokenGroup.remove(u.shadow); u.shadow=null; } return; }
   if(u.sprite)tokenGroup.remove(u.sprite); if(u.shadow)tokenGroup.remove(u.shadow); u.sprite=null; u.shadow=null; }
 
+/* ── MULTIPLAYER (Task 6): unit-building shared by the LOCAL sandbox
+   (startCombat's PC/foe cellwork below) and the session boot (spawnFromState)
+   — one door for kit sourcing, so Tasks 14/16 only need to widen it, not hunt
+   two copies. `kit` is a CHAR[...] / FOE-shaped sheet (name,hp,ac,speed,init,
+   climb,fly,actions,react,res / atk,save). */
+function buildUnit(kit, side, opts){
+  var isPc = side === "pc";
+  var u = { id: opts.id, key: opts.key, unit: opts.unit, side: side,
+    name: opts.name || (kit && kit.name) || opts.key,
+    c: opts.c, r: opts.r, hp: opts.hp, hpMax: opts.hpMax,
+    ac: kit && kit.ac, speed: (kit && kit.speed) || 30, initMod: (kit && kit.init) || 0,
+    climb: !!(kit && kit.climb), res: JSON.parse(JSON.stringify((kit && kit.res) || {})),
+    reacted: false, alive: opts.alive !== false };
+  if (isPc) { u.fly = !!(kit && kit.fly); u.actions = (kit && kit.actions) || []; u.react = (kit && kit.react) || null; u.badge = opts.badge || null; }
+  else { u.save = kit && kit.save; u.atk = kit && kit.atk; }
+  return u;
+}
+/* roster row {unit,kind,sheet_ref?,name?,statblock?,pos?,hp?,maxHp?} + the
+   replayed state.units[unit] (facts win over the roster row) → a CB unit.
+   PCs map sheet_ref → CHAR kits (fallback: the unit id itself — the mock's
+   roster rows use CHAR keys as unit ids, e.g. "cosmere"); foes without a
+   statblock get the mock's stand-in FOE goblin kit for now (Tasks 14/16
+   replace kit sourcing — this is the one door they widen). */
+function unitFromRosterRow(row, stateUnit){
+  var isPc = (row.kind || "pc") === "pc";
+  var kit = isPc ? (CHAR[row.sheet_ref] || CHAR[row.unit]) : (row.statblock || FOE);
+  var pos = (stateUnit && stateUnit.pos) || row.pos;
+  var hp    = stateUnit ? stateUnit.hp    : (row.hp    != null ? row.hp    : (kit && kit.hp));
+  var hpMax = stateUnit ? stateUnit.maxHp : (row.maxHp != null ? row.maxHp : (kit && kit.hp));
+  var alive = stateUnit ? !stateUnit.downed : true;
+  var badge = (window.__fightControllers && window.__fightControllers[row.unit] && window.__fightControllers[row.unit].badge) || null;
+  return buildUnit(kit, isPc ? "pc" : "foe", { id: row.unit, key: isPc ? (row.sheet_ref || row.unit) : row.unit,
+    unit: row.unit, name: row.name || (kit && kit.name) || row.unit,
+    c: pos.c, r: pos.r, hp: hp, hpMax: hpMax, alive: alive, badge: badge });
+}
+function unitByKey(k){ return CB.units.filter(function(u){ return u.unit === k; })[0] || null; }
+function escapeHtml(s){ return String(s).replace(/[&<>"']/g, function(c){
+  return { "&":"&amp;", "<":"&lt;", ">":"&gt;", '"':"&quot;", "'":"&#39;" }[c]; }); }
+/* the session's own initiative order (facts from the log) drives CB.order /
+   CB.ti for the HUD strip; Task 8 fleshes the rest of the turn-taking UI. */
+function setActiveFromLog(unitKey, round){
+  var st = window.__forgeSession && window.__forgeSession.pipe.state();
+  if (st && st.initiative && st.initiative.length)
+    CB.order = st.initiative.map(function(k){ return unitByKey(k); }).filter(Boolean);
+  var idx = CB.order.indexOf(unitByKey(unitKey));
+  if (idx >= 0) CB.ti = idx;
+  renderHud();
+}
+/* mid-fight roster edit (an 'edit' event's add_unit) — `su` is the freshly
+   replayed state.units[unit] record, not a roster row. unitFromRosterRow
+   already prefers the state record over the roster shape when both are
+   given, so a synthetic roster row carrying just the state record's own
+   name/statblock/pos/hp reuses the same one door instead of a second. */
+function spawnUnitFromState(unitKey, su){
+  if (!su || unitByKey(unitKey)) return;
+  var u = unitFromRosterRow({ unit: unitKey, kind: su.side === "pc" ? "pc" : "foe",
+    name: su.name, statblock: su.statblock, pos: su.pos, hp: su.hp, maxHp: su.maxHp }, su);
+  CB.units.push(u); CB.order.push(u); makeToken(u);
+}
+/* Task 6: boot a fight FROM a session row instead of local party-select +
+   a rolled initiative. No local placement, no local roll — positions/hp are
+   facts from the replayed log (fallback: the roster row's own `pos`, then
+   the map's first PC/foe spawn cell, narrated). */
+function spawnFromState(state, row){
+  tokenGroup.clear(); moveGroup.clear(); clearBadges(); READYING=false; RELEASING=null; CB_ANIM=false;
+  var fx=fxHost(); if(fx) fx.innerHTML="";
+  CB={ active:true, over:false, units:[], order:[], ti:-1, map:combatMapFromF(), seen:null, st:null, pending:null, hexed:null,
+       log:[], hist:[], hptr:-1, turnStartPtr:-1, react:null };
+  var cells=walkable();
+  var maxH=cells.reduce(function(m,c){return Math.max(m,c.h);},0), minH=cells.reduce(function(m,c){return Math.min(m,c.h);},99);
+  var hi=cells.filter(function(c){return c.h===maxH;}), lo=cells.filter(function(c){return c.h===minH;});
+  var pcSpawn=hi[(hi.length/2)|0]||cells[0], foeSpawn=lo[(lo.length/2)|0]||cells[cells.length-1];
+  (row.roster||[]).forEach(function(r){
+    var stateUnit=(state.units||{})[r.unit];
+    if(!r.pos && !(stateUnit && stateUnit.pos)){
+      var sp=((r.kind||"pc")==="pc")?pcSpawn:foeSpawn;
+      if(sp){ r=Object.assign({},r,{pos:{c:sp.x,r:sp.y}});
+        clog("<i>"+escapeHtml(r.name||r.unit)+": no position fact — using spawn.</i>"); }
+    }
+    var u=unitFromRosterRow(r, stateUnit);
+    CB.units.push(u); makeToken(u);
+  });
+  if (state.initiative && state.initiative.length){
+    CB.order = state.initiative.map(function(k){ return unitByKey(k); }).filter(Boolean);
+    var av = window.ForgeReplay.activeUnit(state);
+    CB.ti = av ? CB.order.indexOf(unitByKey(av)) : -1;
+  } else CB.order = CB.units.slice();
+  showHud(true); renderHud();
+}
+/* event row + before/after replayed state → ForgeBoard.verbsFor()'d verbs,
+   applied onto the same CB.units the local sandbox drives. `killToken` in
+   the task brief is this file's `removeToken`; `setHudHp` is just renderHud
+   repainting the live unit fields — there is no separate HP-only paint. */
+function applyVerb(v){
+  var u = v.unit && unitByKey(v.unit);
+  switch(v.t){
+    case "walk":   if(u){ CB_ANIM=true; walkPath(u, v.path.map(function(p){return {c:p.c,r:p.r};}), function(){ CB_ANIM=false; }); } break;
+    case "jump":   if(u){ u.c=v.to.c; u.r=v.to.r; positionToken(u); } break;
+    case "hp":     if(u){ u.hp=v.hp; u.alive=!v.downed; renderHud(); if(!u.alive) removeToken(u); } break;
+    case "spawn":  spawnUnitFromState(v.unit, v.u); break;
+    case "despawn":if(u){ removeToken(u); CB.units=CB.units.filter(function(x){return x!==u;}); CB.order=CB.order.filter(function(x){return x!==u;}); } break;
+    case "turn":   setActiveFromLog(v.unit, v.round); break;   // Task 8 fleshes the HUD side
+    case "status": if(v.status==="ended"){ CB.over=true; clog("<b>Fight over.</b>"); } break;
+    case "chat":   clog("<i>"+escapeHtml(v.unit)+":</i> "+escapeHtml(v.text)); break;
+    case "prompt": case "prompt_clear": break;                 // Task 9
+    case "resync": resyncFromState(window.__forgeSession.pipe.state()); break;
+  }
+}
+function resyncFromState(st){
+  CB.units.forEach(function(u){ var s=(st.units||{})[u.unit]; if(!s){ removeToken(u); return; }
+    u.c=s.pos.c; u.r=s.pos.r; u.hp=s.hp; u.alive=!s.downed; positionToken(u); });
+  CB.units=CB.units.filter(function(u){ return (st.units||{})[u.unit]; });
+  CB.order=CB.order.filter(function(u){ return (st.units||{})[u.unit]; });
+  renderHud();
+}
+
 function startCombat(){
   tokenGroup.clear(); moveGroup.clear(); clearBadges(); READYING=false; RELEASING=null; CB_ANIM=false;
   var fx=fxHost(); if(fx) fx.innerHTML="";
@@ -2131,12 +2253,11 @@ function startCombat(){
      on one square. A character with nowhere to stand is dropped loudly, not
      silently welded to a friend. */
   roster.forEach(function(key,i){ var s=CHAR[key]; if(!s)return; var cell=pcCells[i]; if(!cell)return;
-    var u={ id:"pc"+i, key:key, side:"pc", name:s.name, c:cell.x, r:cell.y, hp:s.hp, hpMax:s.hp, ac:s.ac, speed:s.speed,
-      initMod:s.init, climb:!!s.climb, fly:!!s.fly, actions:s.actions, react:s.react||null, res:JSON.parse(JSON.stringify(s.res||{})),
-      reacted:false, badge:(window.__fightControllers&&window.__fightControllers[key]&&window.__fightControllers[key].badge)||null, alive:true };
+    var badge=(window.__fightControllers&&window.__fightControllers[key]&&window.__fightControllers[key].badge)||null;
+    var u=buildUnit(s,"pc",{id:"pc"+i,key:key,c:cell.x,r:cell.y,hp:s.hp,hpMax:s.hp,badge:badge});
     CB.units.push(u); makeToken(u); });
-  foeCells.forEach(function(cell,i){ var u={ id:"foe"+i, key:"goblin"+i, side:"foe", name:FOE.name+" "+(i+1), c:cell.x, r:cell.y,
-      hp:FOE.hp, hpMax:FOE.hp, ac:FOE.ac, speed:FOE.speed, initMod:FOE.init, climb:!!FOE.climb, save:FOE.save, atk:FOE.atk, res:{}, reacted:false, alive:true };
+  foeCells.forEach(function(cell,i){
+    var u=buildUnit(FOE,"foe",{id:"foe"+i,key:"goblin"+i,name:FOE.name+" "+(i+1),c:cell.x,r:cell.y,hp:FOE.hp,hpMax:FOE.hp});
     CB.units.push(u); makeToken(u); });
   CB.units.forEach(function(u){ u.init=d(20)+u.initMod; });
   CB.order=CB.units.slice().sort(function(a,b){ return b.init-a.init||b.initMod-a.initMod; });
@@ -2672,6 +2793,51 @@ window.CHAR = CHAR;
 window.__startCombat=startCombat;
 vesApply();   // kick off the Vesperian sheet fetch; failure narrates on the chip
 document.dispatchEvent(new CustomEvent("topo:ready"));
+
+/* ── MULTIPLAYER BOOT (Task 6, view-sync stage) ─────────────────────────
+   ?session=<uuid> joins an existing forge_sessions row and builds the SAME
+   dungeon + tokens from it — never from local party-select/UI. No local
+   actions yet: applyVerb only paints what the log says happened. Same
+   project constants as protocol-harness-mock.html (nav.js:599, login.html:157
+   — the publishable key is public by design); ?url=&key= still override. */
+var qs = new URLSearchParams(location.search);
+var SUPA_URL = qs.get("url") || "https://cfthwspwpcfamgbfqzuq.supabase.co";
+var SUPA_KEY = qs.get("key") || "sb_publishable_12KUwzDbVvcar0zjh2KE6g_6IRBfmMJ";
+const SESSION_ID = qs.get('session');
+if (SESSION_ID) bootSession(SESSION_ID).catch(e => {
+  clog('<b style="color:#c0553f">Could not join the fight:</b> ' + escapeHtml(e.message || e));
+});
+async function bootSession(sid){
+  const sb = window.supabase.createClient(SUPA_URL, SUPA_KEY);
+  const { data:{ user } } = await sb.auth.getUser();
+  if (!user) { clog('<b>Sign in to join the fight.</b>'); return; }
+  const { data: row, error } = await sb.from('forge_sessions').select('*').eq('id', sid).single();
+  if (error || !row) throw new Error(error ? error.message : 'no such session');
+  // identical dungeon from the row — never from local UI
+  document.getElementById('partySelect').classList.add('gone');
+  mode = 'tiers'; BIOME = row.map.theme;
+  F = buildTiersField(row.map.seed, Object.assign({ themeKey: row.map.theme }, row.map.sliders));
+  if (!F.occ) F.occ = EMPTY_OCC(F.W * F.H);
+  applyLook(); renderField();
+  const me = { actor: user.id, units: (row.controllers[user.id] || []), overseer: row.overseer === user.id };
+  const conn = window.ForgeBus.makeSupabaseBus({ sb, sessionId: sid }).connect();
+  let lastState;
+  const pipe = window.ForgePipeline.makePipeline({
+    conn, roster: row.roster, me,
+    reactions: () => [],                     // Task 8 fills this
+    onPrompt: () => {}, onPromptFallback: () => {},   // Task 9 fills these
+    onEvent: (r, st) => { const before = lastState; lastState = window.ForgeReplay.snapshot(st);
+      window.ForgeBoard.verbsFor(r, before, st).forEach(applyVerb); }
+  });
+  lastState = window.ForgeReplay.snapshot(pipe.state());
+  await pipe.catchUp();
+  lastState = window.ForgeReplay.snapshot(pipe.state());
+  spawnFromState(pipe.state(), row);
+  window.__forgeSession = { pipe, row, me, sb };
+  setInterval(() => pipe.checkTimeouts(), 1000);
+  clog('<b>Joined fight ' + sid.slice(0, 8) + '</b> as ' + (me.overseer ? 'overseer' : me.units.join(', ') || 'spectator'));
+}
+
 addEventListener("pointerup", function(e){ if(CB.active&&!CB.over&&!CB.react&&moved<6) combatClick(e.clientX,e.clientY); });
 (function(){
   var g=function(id){return document.getElementById(id);};
