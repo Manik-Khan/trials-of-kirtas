@@ -2447,8 +2447,9 @@ function loop(){requestAnimationFrame(loop);const now=performance.now();const t=
     for(const p of placed){ if(r!==p.cur && p.tex[r]){ p.sprite.material.map=p.tex[r]; p.sprite.material.needsUpdate=true; p.cur=r; } }}
   if(typeof CB!=="undefined"&&CB&&CB.active){
     CB.units.forEach(u=>{
-      if(!u.alive||!u.sprite) return;
-      if(u._ves){ vesTick(u,dt); return; }                 // the sheet carries its own life
+      if(!u.sprite) return;
+      if(u._ves){ vesTick(u,dt); return; }                 // the sheet carries its own life (even fallen)
+      if(!u.alive) return;
       if(!REDUCED&&!u._moving) u.sprite.position.y=tierY(u.c,u.r)+0.02+(Math.sin(t*2.1+(u.bobPhase||0))+1)*0.022;
     });
     trackBadges();
@@ -2565,8 +2566,10 @@ function checkReadied(mover,done){
    by negative X scale (the baked mirror row is gone on purpose — the
    protect_rect hack doubled heads; Ryn changing shoulders is the accepted
    cost). Failure narrates and the pixel token stands in. */
-var VES={ state:"off", tex:null, atlas:null, cols:12, rows:2 };
+var VES={ state:"off", tex:null, atlas:null, cols:12, rows:2, byName:null };
 var VES_MODES=["px72","full","off"], VES_MODE=0;
+var VES_FPS={ walk:12, idle:5, attack:14, cast:10, down:8 };
+var VES_ONESHOT={ attack:1, cast:1, down:1 };
 /* The mock is served from forge/, the sheets live at the repo root: a
    page-relative "assets/…" resolves to forge/assets/ and 404s. Try the
    sibling path first, then the parent, and say which one answered. */
@@ -2581,12 +2584,14 @@ function vesLoad(which,done){
       .then(function(atlas){
         var img=new Image();
         img.onload=function(){
+          var rows=atlas.animations.length, cols=Math.round(img.width/atlas.cell_w);
           var t=new THREE.Texture(img); t.needsUpdate=true;
           t.magFilter=THREE.NearestFilter; t.minFilter=THREE.NearestFilter; t.generateMipmaps=false;
           t.colorSpace=THREE.SRGBColorSpace;
-          t.repeat.set(1/VES.cols,1/VES.rows);
-          console.log("[ves] sheet loaded from "+base);
-          done({tex:t,atlas:atlas});
+          t.repeat.set(1/cols,1/rows);
+          var byName={}; atlas.animations.forEach(function(a){ byName[a.name]=a; });
+          console.log("[ves] sheet loaded from "+base+" \u2014 "+rows+" rows ("+atlas.animations.map(function(a){return a.name;}).join(", ")+")");
+          done({tex:t,atlas:atlas,rows:rows,cols:cols,byName:byName});
         };
         img.onerror=function(){ tryBase(bi+1); };
         img.src=base+atlas.sheet;
@@ -2602,19 +2607,29 @@ function vesApply(){
       if(btn){ btn.textContent="Ves: sheet unavailable"; btn.classList.remove("on"); }
       console.warn("[ves] "+which+" sheet not reachable at "+VES_BASES.join(" or ")+" \u2014 pixel token stands in.");
       rebuildVesToken(); return; }
-    VES.tex=res.tex; VES.atlas=res.atlas; VES.state="ready";
+    VES.tex=res.tex; VES.atlas=res.atlas; VES.rows=res.rows; VES.cols=res.cols; VES.byName=res.byName; VES.state="ready";
+    if(!res.byName.idle) console.warn("[ves] this atlas has no 'idle' row \u2014 the OLD 2-row sheet is still deployed. Re-upload assets/sprites/vesperian/ from the new zip.");
     if(btn){ btn.textContent="Ves: sheet \u00b7 "+which; btn.classList.add("on"); }
     rebuildVesToken();
   });
 }
 function rebuildVesToken(){ if(typeof CB==="undefined"||!CB||!CB.active) return;
   CB.units.forEach(function(u){ if(u.key==="vesperian"&&u.alive){ removeToken(u); makeToken(u); } }); }
+function vesPlay(u,mode){ var v=u&&u._ves; if(!v||v.mode===mode) return; v.mode=mode; v.fi=0; v.acc=0; }
 function vesTick(u,dt){
-  var v=u._ves; if(!v||!VES.atlas) return;
-  var anim=VES.atlas.animations[v.mode==="walk"?0:1], fps=v.mode==="walk"?12:7;
+  var v=u._ves; if(!v||!VES.byName) return;
+  var anim=VES.byName[v.mode]||VES.byName.idle||VES.atlas.animations[0];
+  var fps=VES_FPS[v.mode]||8;
   v.acc=(v.acc||0)+dt;
-  if(v.acc>=1/fps){ v.acc=0; v.fi=((v.fi||0)+1)%anim.frames; }
-  VES.tex.offset.set(v.fi/VES.cols, anim.row===0?0.5:0);
+  if(v.acc>=1/fps){ v.acc=0;
+    if(VES_ONESHOT[v.mode]){
+      if(v.fi<anim.frames-1) v.fi++;
+      else if(v.mode!=="down"){ v.mode="idle"; v.fi=0; anim=VES.byName.idle||anim; }
+      /* "down" holds its last frame — the body stays where it fell */
+    } else v.fi=((v.fi||0)+1)%anim.frames;
+  }
+  if(v.fi>=anim.frames) v.fi=anim.frames-1;
+  VES.tex.offset.set(v.fi/VES.cols, 1-(anim.row+1)/VES.rows);
   u.sprite.scale.x=Math.abs(u.sprite.scale.x)*(v.face||1);
 }
 
@@ -2770,7 +2785,10 @@ function restageForHeight(){
   if (typeof moveGroup  !== "undefined" && moveGroup)  moveGroup.clear();
   if (typeof sightGroup !== "undefined" && sightGroup) sightGroup.clear();
 }
-function removeToken(u){ if(u.sprite)tokenGroup.remove(u.sprite); if(u.shadow)tokenGroup.remove(u.shadow); u.sprite=null; u.shadow=null; }
+function removeToken(u){
+  if(u._ves&&u.sprite){ vesPlay(u,"down");                 // the body stays where it fell
+    if(u.shadow){ tokenGroup.remove(u.shadow); u.shadow=null; } return; }
+  if(u.sprite)tokenGroup.remove(u.sprite); if(u.shadow)tokenGroup.remove(u.shadow); u.sprite=null; u.shadow=null; }
 
 function startCombat(){
   tokenGroup.clear(); moveGroup.clear(); clearBadges(); READYING=false; RELEASING=null; CB_ANIM=false;
@@ -3044,6 +3062,7 @@ function pipelineHit(attacker, a, hs, target, applyDmg, done){
 
 /* ── resolution ─────────────────────────────────────────────────────── */
 function resolveStrike(u,a,t,ro,done){
+  if(u._ves) vesPlay(u, a.spell?"cast":"attack");
   var cover=ro.cover||0, av=advPreview(u,t,a);
   var adv=av.adv, dis=av.dis||!!ro.dis;
   if(adv&&dis){ adv=false; dis=false; }              // 5e: any dis cancels any adv
@@ -3145,10 +3164,10 @@ function spriteUnit(obj){ var f=null; CB.units.forEach(function(u){ if(u.alive&&
    telegraph drew, so the token walks exactly the tiles the rules charged. */
 function walkPath(u,path,done){
   if(!path.length||!u.sprite){ positionToken(u); done(); return; }
-  CB_ANIM=true; u._moving=true; if(u._ves) u._ves.mode="walk";
+  CB_ANIM=true; u._moving=true; vesPlay(u,"walk");
   var i=0;
   (function step(){
-    if(i>=path.length||!u.alive){ CB_ANIM=false; u._moving=false; if(u._ves)u._ves.mode="idle"; positionToken(u); done(); return; }
+    if(i>=path.length||!u.alive){ CB_ANIM=false; u._moving=false; vesPlay(u,"idle"); positionToken(u); done(); return; }
     var st=path[i++];
     var ax=u.sprite.position.x, ay=u.sprite.position.y, az=u.sprite.position.z;
     var bx=wxc(st.c), by=tierY(st.c,st.r)+0.02, bz=wzc(st.r);
@@ -3244,7 +3263,7 @@ function restore(st){
   st.units.forEach(function(su){ var u=byId[su.id]; if(!u)return; u.c=su.c;u.r=su.r;u.hp=su.hp;u.alive=su.alive;
     u.res=JSON.parse(JSON.stringify(su.res)); u.reacted=su.reacted; u.raging=su.raging; u.inspired=su.inspired; u.disadv=su.disadv;
     u.readied=(su.readied!=null&&su.readied>=0&&u.actions)?{act:u.actions[su.readied]}:null; });
-  tokenGroup.clear(); CB.units.forEach(function(u){ if(u.alive) makeToken(u); });
+  tokenGroup.clear(); CB.units.forEach(function(u){ if(u.alive) makeToken(u); else { u.sprite=null; u.shadow=null; u._ves=null; } });
   var u=active(); if(u&&u.side==="pc"&&CB.st) CB.seen=TG.movementReach(CB.map,u,occupied(u),CB.st.moveLeft); else CB.seen={};
   document.getElementById("cbLog").innerHTML=CB.log.map(function(l){return '<div class="cbLogRow">'+l+'</div>';}).join("");
   document.getElementById("cbBanner").style.display="none";
