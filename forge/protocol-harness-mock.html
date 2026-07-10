@@ -1,0 +1,160 @@
+<!doctype html>
+<meta charset="utf-8">
+<title>Forge protocol harness</title>
+<style>
+  body { font: 14px/1.4 monospace; background: #14110e; color: #d8cdb8; margin: 16px; }
+  button { font: inherit; margin: 2px; min-height: 44px; min-width: 44px; }
+  #log { white-space: pre-wrap; border-top: 1px solid #4a3f30; margin-top: 12px; padding-top: 8px; }
+  .warn { color: #d08a4a; }
+</style>
+<h3>Battle Forge — protocol harness (mock)</h3>
+<div id="who" class="warn">connecting…</div>
+<div id="controls"></div>
+<div id="log"></div>
+<script src="forge-protocol.js?v=fp1"></script>
+<script src="forge-replay.js?v=fr1"></script>
+<script src="forge-bus.js?v=fb1"></script>
+<script src="forge-pipeline.js?v=fpl1"></script>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script>
+/* Two-window harness: open ?role=overseer in one window, ?role=player&unit=cosmere
+   in another (different logged-in users). ?session=<uuid> joins an existing one.
+   Every failure narrates into #log (CLAUDE.md: failures must narrate).
+
+   Manual two-window checklist:
+   0. Player window: copy the "your uid" line. Overseer window: paste it in the
+      assign box, pick the player's unit, click assign. Without this every player
+      write is rejected by RLS (identity gate).
+   1. Overseer: click start → initiative. Player window's log shows both events arrive.
+   2. Player: click move to (3,3). Both windows show move_declared then move_resolved.
+   3. Overseer: click goblin attacks cosmere (19). The player window gets the
+      confirm() dialog (Shield prompt); answering yes resolves the attack as a miss
+      in both windows.
+   4. Let a prompt sit 20s without answering. The overseer window logs the TIMEOUT
+      fallback line (onPromptFallback).
+   5. Player: click write for CAIM (should be REJECTED). Log shows REJECTED: … — this
+      is the live proof of the RLS identity gate (a real Postgres rejection, not the
+      memory-bus mirror).
+   6. Refresh the player window mid-fight — it should catch up via catchUp() and
+      converge. In both windows' consoles run JSON.parse(__forgeState()).lastSeq and
+      confirm the two values are equal. */
+(function () {
+  var qs = new URLSearchParams(location.search);
+  var logEl = document.getElementById("log");
+  function say(s, warn) {
+    var d = document.createElement("div"); if (warn) d.className = "warn";
+    d.textContent = s; logEl.prepend(d);
+  }
+  // Reuse the site's supabase config: same URL/key pair the live pages use.
+  // Paste them here when testing; the harness never ships to a real page.
+  var SUPA_URL = qs.get("url") || "", SUPA_KEY = qs.get("key") || "";
+  if (!SUPA_URL || !SUPA_KEY) { say("pass ?url=&key= (supabase project url + anon key) — harness idle", 1); return; }
+  var sb = window.supabase.createClient(SUPA_URL, SUPA_KEY);
+
+  var ROSTER = [
+    { unit: "caim", side: "pc", pos: { c: 1, r: 1 }, hp: 30, reacts: [] },
+    { unit: "cosmere", side: "pc", pos: { c: 2, r: 1 }, hp: 21, reacts: ["shield"] },
+    { unit: "goblin1", side: "foe", pos: { c: 8, r: 8 }, hp: 7, reacts: ["oa"] }
+  ];
+  var role = qs.get("role") || "overseer", unit = qs.get("unit") || "cosmere";
+
+  async function main() {
+    var auth;
+    try {
+      auth = await sb.auth.getUser();
+    } catch (e) {
+      say("auth.getUser() threw: " + (e && e.message ? e.message : e), 1);
+      return;
+    }
+    if (auth.error) { say("auth.getUser() failed: " + auth.error.message, 1); return; }
+    if (!auth.data || !auth.data.user) { say("not logged in — serve this harness from the SAME ORIGIN as the live site (file:// or localhost sees a different localStorage) and sign in there first. The two windows need two DIFFERENT accounts via separate browser profiles.", 1); return; }
+    var uid = auth.data.user.id;
+    if (role !== "overseer") {
+      say("your uid: " + uid + " — the overseer must assign your unit to this uid (assign box, overseer window)", 1);
+    }
+    var sessionId = qs.get("session");
+    if (!sessionId) {
+      if (role !== "overseer") { say("player windows need ?session=<uuid> from the overseer window", 1); return; }
+      var ins = await sb.from("forge_sessions").insert({
+        overseer: uid, map: { seed: 7, theme: "grass", sliders: {} },
+        roster: ROSTER, controllers: {}, status: "active"
+      }).select("id").single();
+      if (ins.error) { say("session create failed: " + ins.error.message, 1); return; }
+      sessionId = ins.data.id;
+      say("SESSION " + sessionId + " — open a player window with ?session=" + sessionId);
+    }
+    document.getElementById("who").textContent = role + " · " + (role === "overseer" ? "(all units)" : unit) + " · session " + sessionId;
+
+    var conn = window.ForgeBus.makeSupabaseBus({ sb: sb, sessionId: sessionId }).connect();
+    var pipe = window.ForgePipeline.makePipeline({
+      conn: conn, roster: ROSTER,
+      me: { actor: uid, units: role === "overseer" ? [] : [unit], overseer: role === "overseer" },
+      reactions: function (st, declared, answers) {   // stand-in candidates (real rules: build step 5)
+        if (answers && answers.length) return [];      // a declined Shield must not re-prompt (pipeline contract)
+        if (declared.kind !== "attack_declared") return [];
+        var t = st.units[declared.payload.target];
+        return (t && t.reacts.indexOf("shield") >= 0 && !t.reactionUsed)
+          ? [{ to: declared.payload.target, react: "shield", context: { roll: declared.payload.roll } }] : [];
+      },
+      onPrompt: function (row) {
+        if (confirm(row.payload.to + " — " + row.payload.react + "? (roll " +
+            (row.payload.context && row.payload.context.roll) + ")"))
+          pipe.answerPrompt(row.payload.to, row.seq, true);
+        else pipe.answerPrompt(row.payload.to, row.seq, false);
+      },
+      onPromptFallback: function (p) { say("TIMEOUT → overseer: answer " + p.react + " for " + p.to, 1); },
+      onEvent: function (row, st) {
+        say("#" + row.seq + " " + row.unit + " " + row.kind + " " + JSON.stringify(row.payload));
+      }
+    });
+    await pipe.catchUp();
+    say("caught up — lastSeq " + pipe.state().lastSeq);
+    window.__forgeState = function () { return JSON.stringify(pipe.state()); };
+
+    var C = document.getElementById("controls");
+    function btn(label, fn) {
+      var b = document.createElement("button"); b.textContent = label;
+      b.onclick = function () { fn().then(function (r) { if (r && r.ok === false) say("REJECTED: " + r.why, 1); }); };
+      C.appendChild(b);
+    }
+    if (role === "overseer") {
+      var uidInput = document.createElement("input");
+      uidInput.type = "text"; uidInput.placeholder = "player auth uid"; uidInput.size = 36;
+      var unitSel = document.createElement("select");
+      ["cosmere", "caim"].forEach(function (u) {
+        var o = document.createElement("option"); o.value = u; o.textContent = u; unitSel.appendChild(o);
+      });
+      var assignBtn = document.createElement("button"); assignBtn.textContent = "assign";
+      assignBtn.onclick = async function () {
+        var cur = await sb.from("forge_sessions").select("controllers").eq("id", sessionId).single();
+        if (cur.error) { say("assign failed: " + cur.error.message, 1); return; }
+        var map = cur.data.controllers || {};
+        var units = map[uidInput.value.trim()] || [];
+        if (units.indexOf(unitSel.value) < 0) units.push(unitSel.value);
+        map[uidInput.value.trim()] = units;
+        var res = await sb.from("forge_sessions").update({ controllers: map }).eq("id", sessionId);
+        say(res.error ? "assign failed: " + res.error.message : "assigned " + unitSel.value + " → " + uidInput.value.trim(), res.error ? 1 : 0);
+      };
+      C.appendChild(uidInput); C.appendChild(unitSel); C.appendChild(assignBtn);
+      btn("start", function () { return pipe.start(); });
+      btn("initiative", function () { return pipe.setInitiative(["caim", "goblin1", "cosmere"]); });
+      btn("goblin attacks cosmere (19)", function () {
+        return pipe.attack("goblin1", { target: "cosmere", roll: 19, mode: "melee" },
+          function (a) { return (a.length && a[0] && a[0].payload.use) ? { hit: false } : { hit: true, dmg: 6 }; });
+      });
+      btn("GOD MODE: goblin hp 3", function () { return pipe.edit([{ unit: "goblin1", hp: 3 }]); });
+      btn("force end turn", function () { return pipe.endTurn(pipe.activeUnit() || "caim"); });
+    } else {
+      btn("move to (3,3)", function () {
+        return pipe.move(unit, [{ c: 2, r: 1 }, { c: 3, r: 3 }],
+          function () { return { final_cell: { c: 3, r: 3 } }; });
+      });
+      btn("end turn", function () { return pipe.endTurn(unit); });
+      btn("write for CAIM (should be REJECTED)", function () { return pipe.chat("caim", "imposter"); });
+    }
+    btn("chat", function () { return pipe.chat(role === "overseer" ? "goblin1" : unit, "hello from " + role); });
+    setInterval(function () { pipe.checkTimeouts(); }, 1000);
+  }
+  main();
+})();
+</script>

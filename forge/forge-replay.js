@@ -1,0 +1,159 @@
+/* ── forge-replay.js ──────────────────────────────────────────────────
+   Battle Forge REDUCER (FORGE_PROTOCOL.md). State is never stored — it is
+   derived by replaying the event log top to bottom. This module applies
+   FACTS; it never re-runs rules (rules live in tactics-geometry and the
+   acting client). Turn start is DERIVED: initiative_set order + count of
+   turn_ended (spec §2 — an explicit turn_started would break the identity
+   gate). Dual export: browser (window.ForgeReplay) + node.                */
+(function (root, factory) {
+  var FP = (typeof require !== "undefined") ? require("./forge-protocol.js") : root.ForgeProtocol;
+  var api = factory(FP);
+  if (typeof module !== "undefined" && module.exports) module.exports = api;
+  else root.ForgeReplay = api;
+})(typeof self !== "undefined" ? self : this, function (FP) {
+
+  function initialState(roster) {
+    var units = {};
+    (roster || []).forEach(function (u) {
+      units[u.unit] = {
+        side: u.side, pos: { c: u.pos.c, r: u.pos.r },
+        hp: u.hp, maxHp: (u.maxHp != null ? u.maxHp : u.hp),
+        conditions: [], reacts: (u.reacts || []).slice(),
+        reactionUsed: false, downed: false
+      };
+    });
+    return {
+      status: "staging", units: units, rolls: {}, initiative: null,
+      turnsEnded: 0, pendingAction: null, pendingPrompt: null,
+      chat: [], lastSeq: 0
+    };
+  }
+
+  function activeUnit(state) {
+    if (!state.initiative || state.status !== "active") return null;
+    return state.initiative[state.turnsEnded % state.initiative.length];
+  }
+  function round(state) {
+    if (!state.initiative) return 0;
+    return Math.floor(state.turnsEnded / state.initiative.length) + 1;
+  }
+
+  function applyDamage(u, dmg) { u.hp = Math.max(0, u.hp - dmg); u.downed = (u.hp === 0); }
+  function applyEffects(state, effects) {
+    (effects || []).forEach(function (e) {
+      var u = state.units[e.unit]; if (!u) return;
+      if (e.dmg) applyDamage(u, e.dmg);
+      if (e.heal) { u.hp = Math.min(u.maxHp, u.hp + e.heal); if (u.hp > 0) u.downed = false; }
+      if (e.add_condition && u.conditions.indexOf(e.add_condition) < 0) u.conditions.push(e.add_condition);
+      if (e.remove_condition) u.conditions = u.conditions.filter(function (c) { return c !== e.remove_condition; });
+    });
+  }
+
+  /* applyEvent mutates state. `corrections` maps seq → corrected payload
+     (pre-scanned overrides — Task 4). Unknown kinds are ignored, narrated. */
+  function applyEvent(state, row, corrections) {
+    var p = row.payload || {};
+    if (corrections && corrections[row.seq]) p = Object.assign({}, p, corrections[row.seq]);
+    switch (row.kind) {
+      case "session_started": state.status = "active"; break;
+      case "initiative_rolled": state.rolls[row.unit] = p.roll; break;
+      case "initiative_set":
+        state.initiative = p.order.slice(); state.turnsEnded = 0;
+        Object.keys(state.units).forEach(function (k) { state.units[k].reactionUsed = false; });
+        break;
+      case "turn_ended": {
+        state.turnsEnded++;
+        var next = activeUnit(state);   // reaction refreshes at the start of your turn
+        if (next && state.units[next]) state.units[next].reactionUsed = false;
+        state.pendingAction = null;
+        break;
+      }
+      case "session_ended": state.status = "ended"; break;
+      case "move_declared":
+        state.pendingAction = { kind: "move", unit: row.unit, path: p.path, seq: row.seq };
+        break;
+      case "move_resolved": {
+        var mv = state.units[row.unit];
+        var stop = p.interrupted_at || p.final_cell;
+        if (mv && stop) mv.pos = { c: stop.c, r: stop.r };
+        state.pendingAction = null;
+        break;
+      }
+      case "attack_declared":
+        state.pendingAction = { kind: "attack", unit: row.unit, target: p.target, roll: p.roll, seq: row.seq };
+        break;
+      case "attack_resolved": {
+        var tgt = p.target || (state.pendingAction && state.pendingAction.target);
+        if (p.hit && tgt && state.units[tgt]) applyDamage(state.units[tgt], p.dmg || 0);
+        applyEffects(state, p.effects);
+        state.pendingAction = null;
+        break;
+      }
+      case "ability_used":
+        applyEffects(state, p.effects);
+        break;
+      case "prompt":
+        state.pendingPrompt = {
+          seq: row.seq, asker: row.unit, to: p.to, react: p.react,
+          timeout: p.timeout, context: p.context || null, created_at: row.created_at
+        };
+        break;
+      case "prompt_answered": {
+        var pp = state.pendingPrompt;
+        if (!pp || pp.seq !== p.prompt_seq || pp.to !== row.unit) break;   // stale/duplicate/foreign answer: inert
+        if (p.use && state.units[row.unit]) state.units[row.unit].reactionUsed = true;
+        applyEffects(state, p.effects);
+        state.pendingPrompt = null;
+        break;
+      }
+      case "reaction_declared":
+        if (state.units[row.unit]) state.units[row.unit].reactionUsed = true;
+        applyEffects(state, p.effects);
+        break;
+      case "chat":
+        state.chat.push({ unit: row.unit, text: p.text, seq: row.seq });
+        break;
+      case "override": break;   // consumed by replayLog's pre-scan, not at position
+      case "restore": {
+        var snap = JSON.parse(JSON.stringify(p.snapshot));
+        Object.keys(state).forEach(function (k) { delete state[k]; });
+        Object.assign(state, snap);
+        break;
+      }
+      case "edit":
+        (p.changes || []).forEach(function (ch) {
+          var t = state.units[ch.unit]; if (!t) return;
+          if (ch.pos) t.pos = { c: ch.pos.c, r: ch.pos.r };
+          if (ch.hp != null) { t.hp = Math.max(0, Math.min(t.maxHp, ch.hp)); t.downed = (t.hp === 0); }
+          if (ch.conditions) t.conditions = ch.conditions.slice();
+        });
+        break;
+      default:
+        if (FP.KINDS.indexOf(row.kind) < 0)
+          console.warn("[forge-replay] unknown kind ignored: " + row.kind);
+        break;                          // remaining kinds land in Tasks 3–4
+    }
+    state.lastSeq = row.seq;
+    return state;
+  }
+
+  /* Pre-scan overrides (seq → correction), then replay in order. A restore
+     resets state to its snapshot mid-replay — the dead branch is applied and
+     then erased, one replay path (spec §5). */
+  function replayLog(roster, rows) {
+    var corrections = {};
+    rows.forEach(function (row) {
+      if (row.kind === "override") corrections[row.payload.corrects_seq] = row.payload.correction;
+    });
+    var state = initialState(roster);
+    rows.forEach(function (row) { applyEvent(state, row, corrections); });
+    return state;
+  }
+
+  function snapshot(state) { return JSON.parse(JSON.stringify(state)); }
+
+  return {
+    initialState: initialState, activeUnit: activeUnit, round: round,
+    applyEvent: applyEvent, replayLog: replayLog, snapshot: snapshot
+  };
+});

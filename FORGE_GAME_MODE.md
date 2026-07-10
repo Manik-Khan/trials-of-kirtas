@@ -1,6 +1,7 @@
 # Battle Forge — Game Mode Design
 *Brainstorm output, 2026-07-09 (rev 2). Decision record + architecture + build order.*
 *Goal: BG3-grade interactive tactical combat, played as a real game of 5e at the table.*
+*Build step 4 (the protocol spine) is deep-designed in **`FORGE_PROTOCOL.md`** (2026-07-10).*
 
 ---
 

@@ -179,3 +179,11 @@ combat mock, not here — it validates the game surface, not the map subsystem.
 
 **A headless test that passes while the browser stays broken is not proof.**
 Extract the real functions and run them on the real generated field.
+
+## Protocol (multiplayer spine)
+
+`forge-protocol.js → forge-replay.js → forge-bus.js → forge-pipeline.js`.
+Design: `FORGE_PROTOCOL.md` (repo root). State is derived by replaying the
+append-only `forge_events` log; the bus is swappable (memory in smokes,
+Supabase live); RLS enforces identity only — turn order is client-gated.
+Smokes: `tests/smoke-protocol.js`, `tests/smoke-replay.js`.

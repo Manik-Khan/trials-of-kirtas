@@ -77,6 +77,11 @@ greyed out in the select and must never be silently dropped.
 | `battle-tactics-geo-mock.html` | flat box-tile combat mock. **The source of the combat system and the feel layer.** NOT superseded — it is the port source | reference |
 | `battle-forge-mock.html` | *"the dream one."* generator → tactics diorama. **Source of the pixel sprites + portraits** | reference |
 | `battle-forge-biome-mock.html` | **source of the biome art direction.** `SKINS` table: `wallH`, fog, light rigs, particles, flavour scatter | reference |
+| `forge/forge-protocol.js` | event vocabulary: 17 kinds, envelope validation. No `turn_started` — derived | canonical |
+| `forge/forge-replay.js` | reducer: log → state. Facts only, never rules. Override pre-scan, restore branch, GOD-MODE edit | canonical |
+| `forge/forge-bus.js` | transport: MemoryBus (headless, mirrors the RLS identity+kind gate) + SupabaseBus | canonical |
+| `forge/forge-pipeline.js` | acting-client pipeline: declared→resolved, cross-device prompts, timeout→overseer | canonical |
+| `forge/protocol-harness-mock.html` | two-window Supabase harness, `__forgeState()` dump | mock |
 
 `tactics-geometry.js` is **inlined in two mocks** and must stay **code-identical**
 (comments stripped) to canonical in both. Any change ships to three files at once.

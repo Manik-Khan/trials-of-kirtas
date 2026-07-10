@@ -46,6 +46,8 @@ These are the source of truth. Do not summarize from memory; open them.
   source line numbers), §4 settled geometry, §5 known bugs.
 - **`FORGE_GAME_MODE.md`** — the Forge multiplayer game-mode design (event protocol,
   client roles, build order). The forward plan.
+- **`FORGE_PROTOCOL.md`** — the event protocol deep-design (schema, 17-kind event
+  vocabulary, reaction pipeline, rewind/retcon/GOD MODE, test plan). Spec for build step 4.
 - **`forge/README.md`** — the map subsystem's own README (pipeline, module globals).
 - **`CONTEXT-sheet-and-appearance.md`**, **`DEPLOY-*.md`**, **`TOOLTIP-GUIDE.md`** —
   narrower references.
