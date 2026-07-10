@@ -27,23 +27,18 @@ begin
   select exists (select 1 from jsonb_array_elements(s.roster) r
                  where r->>'unit' = p_unit and coalesce(r->>'kind','pc') = 'pc') into in_roster;
   if not in_roster then return jsonb_build_object('ok', false, 'why', 'not a claimable character in this fight'); end if;
+  -- jsonb ? on an array matches string elements — same idiom as the forge_events_insert gate (schema_delta_forge.sql).
   select k into claimed_by from jsonb_each(s.controllers) as e(k, v)
-    where v @> to_jsonb(array[p_unit]) limit 1;
-  -- NOTE: Line 41 corrected from "v ? p_unit" to "v @> to_jsonb(array[p_unit])"
-  -- Cross-check (schema_delta_forge.sql:13): controllers = {auth_uid: [unit,...]} is object of arrays
-  -- The "?" operator checks object keys, but v is a jsonb array. Must use "@>" (superset) for array membership check.
+    where v ? p_unit limit 1;
   if claimed_by is not null and claimed_by <> uid then
     return jsonb_build_object('ok', false, 'why', 'already claimed');
   end if;
   update public.forge_sessions
      set controllers = jsonb_set(controllers, array[uid],
                         coalesce(controllers->uid, '[]'::jsonb) ||
-                        case when coalesce(controllers->uid, '[]'::jsonb) @> to_jsonb(array[p_unit])
+                        case when coalesce(controllers->uid, '[]'::jsonb) ? p_unit
                              then '[]'::jsonb else to_jsonb(array[p_unit]) end)
    where id = p_session;
-  -- NOTE: Line 48 corrected from "? p_unit" to "@> to_jsonb(array[p_unit])"
-  -- Cross-check (schema_delta_forge.sql:13): controllers->[uid] yields a jsonb array like ["unit1","unit2"]
-  -- Same fix: "@>" for array membership instead of "?" which is for object keys.
   return jsonb_build_object('ok', true);
 end $$;
 
