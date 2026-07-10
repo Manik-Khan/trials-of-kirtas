@@ -64,10 +64,27 @@ One fight: real party of 4 from live sheets, bestiary goblins, one biome. Player
 1. **Look pass** (mock, no netcode): N8AO + selective bloom + tilt-shift composer (`postprocessing@6.39.2`), torch glow sprites, CSS grain/vignette.
 2. **Generator rebase**: topo mock's stale inlined generator → canonical `forge-dungeon.js` pipeline. Before netcode, so the map layer stops being a fork.
 3. **De-mock data**: CHAR kits ← Soul Shards sheets (`CharacterData`); foes ← bestiary. Sheet → engine-actions derivation layer.
-4. **Protocol + replay loop** on Supabase; overseer + one player device; movement and attacks only.
-5. **Reactions + readied over the wire.** The cross-device pipeline pause.
-6. **Player HUD touch polish**; party sprite sheets for Caim / Cosmere / Líadan (pipeline proven).
-7. **QA harness**: `window.__forgeState()` JSON dump + a local Playwright replay script — catches the browser-integration class of bug before handover.
+4. ~~**Protocol + replay loop**~~ — **DONE, out of order, 2026-07-10.** Shipped as
+   `forge/forge-protocol.js` / `forge-replay.js` / `forge-bus.js` / `forge-pipeline.js` +
+   `schema_delta_forge.sql`, spec'd in `FORGE_PROTOCOL.md`, 70 protocol smokes green.
+   **Field-verified same night** on two real browsers via `forge/protocol-harness-mock.html`:
+   movement, attacks, cross-device Shield prompt (changed a hit to a miss), duplicate-answer
+   guard observed working live. The board-less part of step 5 came with it.
+5. **Reactions + readied over the wire.** ~~The cross-device pipeline pause~~ — pause is
+   built and field-verified (step 4). Remaining: **readied actions**, and prompt UX per
+   design (player device gets the modal; overseer sees "waiting on X" and inherits only on
+   the 20s timeout — the harness crudely pops both, the real HUD must not).
+6. **Marry protocol to the board** *(recommended next)*: generator rebase (was step 2 —
+   topo mock's stale inlined generator → canonical `forge-dungeon.js`), `{seed,theme,sliders}`
+   from the session row so two devices render the identical dungeon, tokens driven by the
+   event log. Starts de-mock of CHAR kits (was step 3).
+7. **Look pass** (was step 1 — still mock-first, still owed): N8AO + selective bloom +
+   tilt-shift composer (`postprocessing@6.39.2`), torch glow sprites, CSS grain/vignette.
+   Lands best on a board that is already multiplayer.
+8. **Player HUD touch polish**; party sprite sheets for Caim / Cosmere / Líadan; the
+   character-claim lobby (replaces the harness's uid-paste assign box).
+9. **QA harness**: `window.__forgeState()` (shipped in the harness) + a local Playwright
+   replay script — catches the browser-integration class of bug before handover.
 
 ## 7 · Deferred (explicitly, so it doesn't creep)
 

@@ -11,9 +11,11 @@ The maintainer is **M** (Manik). Claude assists; **M deploys by hand.**
 
 ## 🔴 HARD RULES — non-negotiable
 
-1. **Never `git push` and never add a git remote.** M deploys manually via GitHub
-   web upload. Claude's job ends at validated files + a one-line deploy note.
-   Don't `git commit` on M's behalf either unless explicitly asked.
+1. **Never `git push`.** Pushing `main` deploys the live site via Netlify — that
+   button is M's alone. Since 2026-07-10 M commits and pushes himself (web upload
+   retired); Claude may `git commit` **only when M explicitly asks**, staging
+   files by name (never sweep in `.claude/` — it's gitignored; keep it so).
+   Otherwise Claude's job still ends at validated files + a one-line deploy note.
 2. **Read the actual repo source before editing any file.** A plausible hypothesis
    is not a diagnosis. Most wasted motion in this project's history came from
    theorizing instead of reading. Open the file; grep the callers; then edit.

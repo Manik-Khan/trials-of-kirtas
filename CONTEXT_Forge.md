@@ -306,12 +306,30 @@ real placement. **These are decisions, not hypotheses.**
 - Surgical edits. Never change a theme CSS variable for a per-page issue.
 - Failures must narrate. Disabled controls must state why. A character with no
   combat sheet is greyed out, never silently dropped.
-- Never commit or push. M deploys by hand via GitHub web upload.
+- **Deploy workflow changed 2026-07-10:** M now commits and **pushes himself**
+  (`git push` = Netlify live deploy). Claude commits only when M explicitly asks,
+  and **never pushes**. `.gitignore` hides `.claude/` — never `git add` around it.
 - Deploy URL is `trials-of-kirtas.netlify.app`.
 
 ---
 
 ## §8 · SUGGESTED NEXT SESSION
+
+**2026-07-10: the multiplayer protocol spine shipped and was field-verified** —
+see `FORGE_PROTOCOL.md` (spec) and §2's four `forge-*.js` rows. Two real browsers:
+same session, movement/attacks synced, a cross-device Shield prompt turned a hit
+into a miss, the duplicate-answer guard observed working live. SQL applied to the
+live Supabase. DM-facing rules future sessions must respect: an `override` cannot
+reach behind the latest `restore` (use `edit`); sessions stay `status='active'`
+while playing and the `session_ended` event is written *before* flipping status;
+the harness pops prompts on every controlling window — the real player HUD must
+route prompts per spec §4 (player modal; overseer inherits only on timeout).
+
+**Recommended next: marry the protocol to the board** — generator rebase (§5.5)
+so the topo mock runs the canonical `forge-dungeon.js`, `{seed,theme,sliders}`
+read from the `forge_sessions` row so two devices render the identical dungeon,
+tokens driven by `forge_events`. Then the look pass. The older list below stands
+for the single-device port debts (feel layer, flanking/OA/Ready).
 
 In order. Do not skip to 4.
 
