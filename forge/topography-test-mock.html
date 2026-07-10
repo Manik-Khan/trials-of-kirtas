@@ -484,6 +484,25 @@ global.TacticsGeo = API;
     </div>
     <div class="fname" id="fnames">No image loaded — greyscale = height</div>
     <div class="divider"></div>
+    <div class="eyebrow" style="margin-bottom:6px">DUNGEON</div>
+    <div class="slider-wrap">
+      <label>Rooms <span class="val" id="roomsVal">8</span></label>
+      <input type="range" id="rooms" min="4" max="16" value="8">
+    </div>
+    <div class="slider-wrap">
+      <label>Loops <span class="val" id="loopsVal">20%</span></label>
+      <input type="range" id="loops" min="0" max="100" value="20">
+    </div>
+    <div class="slider-wrap">
+      <label>Decor <span class="val" id="decorVal">70%</span></label>
+      <input type="range" id="decor" min="0" max="100" value="70">
+    </div>
+    <div class="slider-wrap">
+      <label>Foes <span class="val" id="foesVal">5</span></label>
+      <input type="range" id="foes" min="1" max="8" value="5">
+    </div>
+    <div class="divider"></div>
+    <div class="eyebrow" style="margin-bottom:6px">CAMERA (local)</div>
     <div class="slider-wrap">
       <label>Height exaggeration <span class="val" id="heightVal">115%</span></label>
       <input type="range" id="height" min="30" max="260" value="115">
@@ -1497,7 +1516,7 @@ window.__enterForge = function(){
 function rebuild(){
   WATERLEVEL = (mode==='image') ? 0.45 : 0.6;
   if(mode==='traced'){ F=buildTracedField(); document.getElementById('dungeonName').textContent='Chen Yue — traced heightfield'; }
-  else if(mode==='tiers'){ F=buildTiersField(parseInt(document.getElementById('seed').value)||7); }
+  else if(mode==='tiers'){ const fp=forgeParams(); F=buildTiersField(fp.seed, {themeKey:fp.theme, roomCount:fp.sliders.roomCount, loopChance:fp.sliders.loopChance, decorDensity:fp.sliders.decorDensity}); }
   else if(mode==='image'){ if(imgHeight){ F=buildImageField(); } else { F=buildTracedField(); } }
   else { F=buildTracedField(); for(let i=0;i<F.height.length;i++)F.height[i]=F.type[i]===T_WATER?0:3; // FLAT contrast
     document.getElementById('dungeonName').textContent='Flat (no elevation) — contrast'; }
@@ -1555,6 +1574,21 @@ stageEl.addEventListener('drop',e=>{e.preventDefault();loadImageFile(e.dataTrans
   el.oninput=()=>{document.getElementById(id+'Val').textContent=el.value+(id==='water'?'%':'');
     if(mode==='image'&&imgHeight)rebuild();};});
 document.getElementById('autoDress').onchange=()=>{if(mode==='image'&&imgHeight)rebuild();};
+// dungeon knobs (tiers mode) — re-forge on change, mirrors the image-mode sliders above
+['rooms','loops','decor','foes'].forEach(id=>{const el=document.getElementById(id);
+  el.oninput=()=>{document.getElementById(id+'Val').textContent=el.value+((id==='loops'||id==='decor')?'%':'');
+    if(mode==='tiers')rebuild();};});
+/* the real generator inputs, verbatim — Task 11 writes this into forge_sessions.map */
+function forgeParams(){
+  return { seed: parseInt(document.getElementById('seed').value)||7,
+           theme: BIOME,
+           sliders: { roomCount:+document.getElementById('rooms').value,
+                      loopChance:(+document.getElementById('loops').value)/100,
+                      decorDensity:(+document.getElementById('decor').value)/100,
+                      verticality:5,
+                      foes:+document.getElementById('foes').value } };
+}
+window.__forgeParams = forgeParams;
 
 document.getElementById('forgeBtn').onclick=()=>{if(mode!=='tiers'){mode='tiers';setActiveChip('tiers');document.getElementById('seedGroup').style.opacity='1';setImgOnly(false);}rebuild();};
 document.getElementById('dice').onclick=()=>{document.getElementById('seed').value=Math.floor(Math.random()*99999);
