@@ -45,10 +45,10 @@
     var d = document.createElement("div"); if (warn) d.className = "warn";
     d.textContent = s; logEl.prepend(d);
   }
-  // Reuse the site's supabase config: same URL/key pair the live pages use.
-  // Paste them here when testing; the harness never ships to a real page.
-  var SUPA_URL = qs.get("url") || "", SUPA_KEY = qs.get("key") || "";
-  if (!SUPA_URL || !SUPA_KEY) { say("pass ?url=&key= (supabase project url + anon key) — harness idle", 1); return; }
+  // Same project constants the live pages carry (nav.js:599, login.html:157 —
+  // the publishable key is public by design). ?url=&key= still override for testing.
+  var SUPA_URL = qs.get("url") || "https://cfthwspwpcfamgbfqzuq.supabase.co";
+  var SUPA_KEY = qs.get("key") || "sb_publishable_12KUwzDbVvcar0zjh2KE6g_6IRBfmMJ";
   var sb = window.supabase.createClient(SUPA_URL, SUPA_KEY);
 
   var ROSTER = [
