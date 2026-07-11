@@ -1,4 +1,4 @@
-# CONTEXT — Battle Forge — updated 2026-07-11
+# CONTEXT — Battle Forge — updated 2026-07-11 (night; field-round-3 wave STAGED, not yet committed — base `b1d7d72`)
 
 > This doc exists because the same failure kept happening: a session would read
 > *part* of the material, conclude a feature "was never there," and rebuild
@@ -43,7 +43,9 @@ missing, absent, unimplemented, or "was never built":
 A generated-dungeon → 3D tactical-combat game mode for **Trials of Kirtas**, a
 D&D 5e VTT. Vanilla JS/HTML/CSS + Supabase + Netlify + three.js. Repo
 `Manik-Khan/trials-of-kirtas` (public). Deploy `trials-of-kirtas.netlify.app`.
-**C never pushes; M deploys by hand.** Stage files to `/mnt/user-data/outputs/`.
+Deploy workflow is §7's 2026-07-10 rule: **M pushes; C commits only on M's
+explicit ask, and never pushes** (the two 2026-07-11 pushes were M's direct
+instruction each time — an exception on order, not a new default).
 
 The architecture, from an earlier session and still correct:
 
@@ -72,20 +74,21 @@ greyed out in the select and must never be silently dropped.
 | `forge/map-bridge.js` | generator/heightfield → MAP document `{cols,rows,h,wall,occ,spawns,props}` | canonical |
 | `forge/forge-dungeon.js` | generator. **THEMES keys are the biome names**: `grass druidic tundra swamp temple cavern volcanic` | canonical |
 | `forge/forge-engine.js` | seeded generate → validated map | canonical |
-| `forge/forge-board.js` | translator: wire↔board verbs (turn loop, prompt routing, initiative, overseer toolbar incl. GOD MODE/rewind/Add-foe) | canonical |
-| `schema_delta_forge_board.sql` | append-only migration: `forge_claim_unit()` claim RPC + session visibility for players | **not yet applied to live Supabase** |
+| `forge/forge-board.js` | translator: wire↔board verbs (turn loop, prompt routing, initiative, overseer toolbar incl. GOD MODE/rewind/Add-foe). Move verbs self-contained: walk prefers the declared path, falls back to `payload.path` (2026-07-11). `deadFoeSkip(state)` — pure dead-foe-holds-the-turn decision; the mock's overseer device publishes the skip (`?v=fb5`) | canonical |
+| `schema_delta_forge_board.sql` | append-only migration: `forge_claim_unit()` claim RPC + session visibility for players | **presumed applied to live Supabase** (M's bite-1 field rounds ran two-device, which needs it — confirm with M, do not assert) |
 | `forge/tests/smoke-tiers-rebase.js` | rebase smoke: canonical `ForgeEngine.generate()` on real seeds, §4-geometry invariants hold | canonical |
-| `forge/tests/smoke-forge-board.js` | known-answer: scripted logs → board-verb sequences (move/attack/turn/prompt/timeout/restore/edit/add_unit/claim-gate) | canonical |
+| `forge/tests/smoke-forge-board.js` | known-answer: scripted logs → board-verb sequences (move/attack/turn/prompt/timeout/restore/edit/add_unit/claim-gate) + `deadFoeSkip` decision cases | canonical |
 | `forge/tests/smoke-starter-kits.js` | starter action bar from live sheet stats, generic-kit fallback, CHAR alias | canonical |
-| `forge/tests/*` | smokes. 246 green: engine 14 · bridge 16 · geometry 26 · los-cover 27 · placement 19 · flora 22 · protocol 56 · tiers-rebase 32 · forge-board 18 · starter-kits 16 | canonical |
+| `forge/tests/smoke-cover-contest.js` | known-answer: the Cover Contest end-to-end over MemoryBus — ruling/timeout/total flows, replay determinism, culprit geometry, and the overseer-only gate twin (a player forging `prompt_answered{unit:"__overseer"}` is rejected) | canonical |
+| `forge/tests/*` | smokes. 335 green (2026-07-11 night): engine 14 · bridge 16 · geometry 26 · los-cover 37 · placement 19 · flora 22 · protocol 56 · replay 35 · tiers-rebase 32 · forge-board 26 · starter-kits 16 · bus-reconnect 12 · cover-contest 24 | canonical |
 | `topography-test-mock.html` | **THE surface.** Heightfield + all the geometry + combat loop | active |
 | `battle-tactics-geo-mock.html` | flat box-tile combat mock. **The source of the combat system and the feel layer.** NOT superseded — it is the port source | reference |
 | `battle-forge-mock.html` | *"the dream one."* generator → tactics diorama. **Source of the pixel sprites + portraits** | reference |
 | `battle-forge-biome-mock.html` | **source of the biome art direction.** `SKINS` table: `wallH`, fog, light rigs, particles, flavour scatter | reference |
 | `forge/forge-protocol.js` | event vocabulary: 17 kinds, envelope validation. No `turn_started` — derived | canonical |
-| `forge/forge-replay.js` | reducer: log → state. Facts only, never rules. Override pre-scan, restore branch, GOD-MODE edit | canonical |
+| `forge/forge-replay.js` | reducer: log → state. Facts only, never rules. Override pre-scan, restore branch, GOD-MODE edit. Since 2026-07-11: per-turn action economy derived from the log (`turnEconomy()`, facts carry `slot`; `undo_of` refunds a retracted move) | canonical |
 | `forge/forge-bus.js` | transport: MemoryBus (headless, mirrors the RLS identity+kind gate) + SupabaseBus | canonical |
-| `forge/forge-pipeline.js` | acting-client pipeline: declared→resolved, cross-device prompts, timeout→overseer | canonical |
+| `forge/forge-pipeline.js` | acting-client pipeline: declared→resolved, cross-device prompts, timeout→overseer. Since 2026-07-11: `undoMove()` (player retracts own last move, compensating fact) + `contestCover()` (pre-roll cover-contest pause, `FORGE_COVER_CONTEST.md`) | canonical |
 | `forge/protocol-harness-mock.html` | two-window Supabase harness, `__forgeState()` dump | mock |
 
 `tactics-geometry.js` is **inlined in two mocks** and must stay **code-identical**
@@ -116,7 +119,7 @@ the contract for "port the battle mock." **Everything marked ✗ is the job.**
 | climb / fly cliff gate | ✔ | – | ✔ | in `tactics-geometry.js` |
 | initiative order | ✔ | ✔ | ✔ | |
 | reaction pipeline | – | – | ✔ | Silvery Barbs → Shield → Rebuke |
-| rewind / snapshot | – | – | ✔ | |
+| rewind / snapshot | – | – | ✔ | session-aware 2026-07-11: HUD cluster publishes protocol facts (overseer `restore`; player `undo_of` move retraction). Sandbox keeps local time-travel |
 | **flanking → advantage** | ✔ | – | **✗** | `battle-tactics` ~L1100–1120: `isFlanked()`, `FLANKING` toggle chip, house rule = advantage, not +2 |
 | **opportunity attacks** | ✔ | – | **✗** | `battle-tactics` ~L1319–1340: fires mid-move, can drop the mover before they arrive |
 | **ready / held action** | ✗ | ✗ | ✗ | **exists nowhere.** Required by the geometry: if you can't see the enemy below the cliff, you Ready |
@@ -339,6 +342,49 @@ real placement. **These are decisions, not hypotheses.**
    carry `path`; `verbsFor` prefers the declared path and falls back to
    `payload.path`. Old logs (no path anywhere) still jump — unchanged.
    `smoke-forge-board.js` 18 → 20.
+16. ~~Every attack/ability echo set `usedAction=true` — a Hex/Bardic bonus ate
+   the action, rewind restored position but not action/movement, refresh
+   refunded unspent movement.~~ **Fixed 2026-07-11** (M's round-2 field report;
+   three bugs, one root cause: economy was local bookkeeping clobbered by a
+   slot-blind echo handler). Action economy is now a **derived fact of the
+   log**: publishers stamp `slot` ("action"/"bonus"/"free"; Action Surge adds
+   `restores:"action"`), `forge-replay.js` derives per-turn `movedFt/usedAction/
+   usedBonus` for the active unit (`turnEconomy()`), and the mock's
+   `applyLogEconomy()` reconciles `CB.st` from the replayed state after every
+   applied event, resync, and turn boot — the echo-clobber block is deleted.
+   Legacy slot-less rows default to "action", so old logs replay unchanged.
+   Local sandbox `spend()` untouched. `smoke-replay.js` 26 → 35.
+17. ~~Refresh refunded the whole turn (movement AND action, every device).~~
+   **Fixed (round-3 wave, staged).** §5.16's overlay was correct and dead on
+   arrival: the boot path ran `setActiveFromLog → applyLogEconomy()` BEFORE
+   `window.__forgeSession` was assigned, and applyLogEconomy's own guard
+   (`if(!window.__forgeSession) return`) silently no-op'd — the fix only ever
+   fired for mid-session resyncs. Same root, second symptom: `renderHud`'s
+   turn gating read `sess=null` during the boot paint, so `iControl` briefly
+   computed true for everyone. One move: the session object is assigned the
+   moment `catchUp()` settles, before anything paints or derives from it.
+18. ~~A dead foe's turn stranded the fight (M forced the turn end at the
+   table).~~ **Fixed (staged).** `foeTurn()` hard no-ops on `!u.alive` and
+   `endTurn()`'s button gate never fires for foes — nothing ever published
+   the dead foe's `turn_ended`. Now: `ForgeBoard.deadFoeSkip(state)` (pure,
+   6 smoke cases) names the downed FOE holding the turn; the overseer's
+   device publishes a narrated `turn_ended` ("☠ Goblin 3 is down — turn
+   skipped") from every applied echo AND once at boot (a fight refreshed
+   into a stuck state unsticks itself). Reducer untouched — old logs replay
+   identically; the skip is an ordinary fact. Downed PCs are never skipped
+   (death saves are theirs — note there is still no death-save flow, that's
+   its own bite). Strip chip shows ☠ instead of an hp readout when dead.
+19. ~~Attack log leaked the defender's AC.~~ **Fixed (staged), M's ruling:
+   stripped across the board** — the log carries roll+mod, adv/disadv, the
+   cover word (never the +N), and the verdict; the target number is theirs.
+   Three sites (sandbox strike, session netAttack, foe strikePhase). Shield
+   lines still print the PC's own AC (players know their own sheet).
+20. ~~Swapping the Ves pixel sheet before moving left a ghost sprite at the
+   old cell until refresh.~~ **Fixed (staged).** `removeToken`'s corpse
+   branch (deliberate: a dead animated body stays where it fell) also caught
+   `rebuildVesToken`'s sheet swap — the old sprite stayed orphaned in
+   `tokenGroup` while `makeToken` overwrote `u.sprite`. `removeToken(u,force)`
+   is the swap door: hard removal; the death path is untouched.
 
 ---
 
@@ -413,6 +459,36 @@ real placement. **These are decisions, not hypotheses.**
 
 ## §8 · SUGGESTED NEXT SESSION
 
+**2026-07-11 (night): M's field round 3 produced a five-item wave — STAGED,
+validated, NOT committed** (M deploys). §5.17–20 carry the four bug fixes;
+the fifth item is a feature, BG3-style "who is that":
+
+- **Strip nameplate → camera.** Clicking an initiative-strip chip pans the
+  camera to that token (smoothstep tween on `cam.tgt`), pulses its cell
+  gold, and floats its nameplate. Works for dead units too (pans to where
+  they fell; no nameplate without a sprite).
+- **Token → nameplate.** Clicking any visible token, on ANY turn from ANY
+  device, floats its existing name ("Goblin 3") over it for ~2s — the same
+  name the strip tooltip already leaked, no hidden info. Targeting a pending
+  action still wins on your own turn; a unit with no sprite (future
+  invisibility) can't be raycast or projected, so hiding excludes itself.
+- **Canvas-click guard (rode along, latent bug):** the global `pointerup`
+  that feeds `combatClick` used to run for HUD clicks too — the ray just
+  usually hit nothing useful. The strip chips sit over the arena, so the
+  leak would have fired a phantom inspect/move under every chip tap. Board
+  clicks now require `e.target === renderer.domElement`.
+
+Suite at **335 green** (§2; forge-board 20 → 26). All five items are
+browser-facing — **pending M's eyeball**: refresh mid-turn on both devices
+(economy must hold), kill a foe and watch its turn skip + ☠ chip, a log with
+no AC anywhere, chip-click pan, token-click nameplate, and that HUD buttons
+still behave with the canvas guard in. Files staged: `forge/topography-test-
+mock.html`, `forge/forge-board.js` (include stamp bumped `?v=fb5`),
+`forge/tests/smoke-forge-board.js`. Also flagged for a future bite: every
+foe shares the goblin pixel sprite (`FOE_SPRITE`) — per-mob art is either
+more hand-drawn `SPRITES` keys or CC0 stock per §6; and downed PCs have no
+death-save flow yet.
+
 **2026-07-10: the multiplayer protocol spine shipped and was field-verified** —
 see `FORGE_PROTOCOL.md` (spec) and §2's four `forge-*.js` rows. Two real browsers:
 same session, movement/attacks synced, a cross-device Shield prompt turned a hit
@@ -423,25 +499,50 @@ while playing and the `session_ended` event is written *before* flipping status;
 the harness pops prompts on every controlling window — the real player HUD must
 route prompts per spec §4 (player modal; overseer inherits only on timeout).
 
-**Bite 1 MERGED to `main` 2026-07-11** — the marriage: shared dungeon from the
-session row (§5.5 fixed), full turn loop on the real board, folder-filtered claim
-screen, live + staged fight creation, real sheet stats with curated starter action
-bars, bestiary foes incl. mid-fight reinforcements, sheet⇄fight live mirror. Merged
-untested-in-field by M's call (local testing was blocked: sign-in lives on the
-netlify origin, so `Open the table` never appears on localhost). Still owed:
-**apply `schema_delta_forge_board.sql`** to the live Supabase (after
-`schema_delta_members.sql` — it uses `is_member()`), then **M's two-device field
-checklist** (`FORGE_BOARD.md` appendix, 14 steps) on the live site. Multiplayer is
-dormant without `?session=`; the single-device sandbox was regression-gated at
-every step. Known-and-accepted for the field pass: ~~a refresh refunds unspent
-movement (coded TODO)~~ **fixed 2026-07-11 (Priority 2)** — action economy is now a
-DERIVED FACT of the log (`forge-replay.js` `turnEconomy()`; facts carry `slot`), so
-refresh/rewind/override all land with correct movement/action/bonus and a Hex/Bardic
-bonus no longer eats the action. Still open: Confirm Order doesn't wait for stragglers
-(late rolls sort to the bottom — empty seats never block). **Bite 2** is the sheet→actions derivation
-layer plus the feel-layer ports (badges, hit flash, shake, bob, floating damage,
-flanking/OA/Ready) — specced in `FORGE_BOARD.md` §0. The older list below stands for the
-single-device port debts.
+**Bite 1 MERGED to `main` 2026-07-11, then FIELD-TESTED the same day** — the
+marriage: shared dungeon from the session row (§5.5 fixed), full turn loop on the
+real board, folder-filtered claim screen, live + staged fight creation, real sheet
+stats with curated starter action bars, bestiary foes incl. mid-fight
+reinforcements, sheet⇄fight live mirror. M ran real two-device rounds at the table
+(which implies `schema_delta_forge_board.sql` reached the live Supabase —
+**presumed applied; confirm with M before relying on it**). Multiplayer is dormant
+without `?session=`; the single-device sandbox was regression-gated at every step.
+Still open from the bite-1 accepted list: Confirm Order doesn't wait for
+stragglers (late rolls sort to the bottom — empty seats never block).
+
+**2026-07-11: M's field rounds produced two fix waves, both merged and pushed by
+C on M's explicit order each time** (`f28e0bb`, then `b1d7d72` — the deploy-
+protocol exception was M's direct instruction, twice; the §7 rule stands).
+What shipped, and where the detail lives:
+
+- **Ledge peek** (`f28e0bb`) — lip-corner alternate eyes in `losVerdict`, all
+  three geometry copies. §4's dated amendment. Ruling settled.
+- **Cover grading by attribution-by-side** (`b1d7d72`, round 3 — round 2's
+  2-square radius was M-rejected same day). §4's dated amendment. Ruling settled,
+  with **three defaults M may still redline**: (i) attribution walks the whole
+  segment, defender's benefit — shooter-side clutter cannot shadow a boulder
+  beside the target; (ii) a mob hull-down behind his own rim grades ¾ (defilade);
+  (iii) the overseer's fine-undo is a `restore` branch, not an in-place edit.
+  Plus one scope cut to bless: no dedicated pre-declare re-rule button (Correct
+  last covers resolved shots).
+- **Action economy derived from the log** (§5.16) — bonus actions stop eating
+  the action; rewind/refresh restore movement and action.
+- **HUD undo, session-aware** (§3 rewind row; `FORGE_PROTOCOL.md` §5 dated
+  note) — overseer undo/turn-rewind in the old cluster; players undo their own
+  last move via a compensating `move_resolved{undo_of}` fact. No schema change.
+- **Cover Contest built** per `FORGE_COVER_CONTEST.md` (status flipped in that
+  doc; reason field optional/de-emphasized per M). `pipe.contestCover()`, the
+  overseer ruling menu, culprit-cell highlight, 24-case smoke incl. the gate twin.
+- **Player panel lock** (§5.14) and the **move-tween guarantee** (§5.15).
+
+Suite at **329 green** (§2). Next, in order: **M's field re-check of this wave**
+(economy numbers on the HUD, undo affordances, a real contested shot);
+**TOKEN_NUDGE + bus-reconnect re-check** — §5.13's fix and the wall-clip nudge
+are still *pending M's eyeball / not yet re-field-tested*; then the **bite-2
+brainstorm proper** — sheet→actions derivation layer plus the feel-layer ports
+(badges, hit flash, shake, bob, floating damage, flanking/OA/Ready, ▶ watch
+mode). `FORGE_BOARD.md` §0 still says bite 2 needs its own spec — write it
+before building. The older list below stands for the single-device port debts.
 
 In order. Do not skip to 4.
 
