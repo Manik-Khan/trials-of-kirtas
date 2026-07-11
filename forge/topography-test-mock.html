@@ -2227,6 +2227,7 @@ function applyVerb(v){
         /* Task 7b: foeTurn awaits its OWN move's tween completion (u.c/u.r
            are only live AFTER this callback) before deciding the strike
            phase \u2014 see awaitWalkDone. */
+        // assumes the walking unit still exists at echo time; a despawn mid-walk would strand the foe chain (no such path today)
         if(__pendingWalkDone && __pendingWalkDone.unit===v.unit){ var w=__pendingWalkDone; __pendingWalkDone=null; w.resolve(); }
       }); } break;
     case "jump":   if(u){ u.c=v.to.c; u.r=v.to.r; positionToken(u); } break;
@@ -2935,7 +2936,7 @@ let __pipe = null;
    incremented once per declared publish (one per strike) and decremented on
    each matching resolved echo OR publish failure; buttons re-enable only
    when it reaches 0. */
-let __awaitingUnit = null, __awaitingKind = null, __awaitingCount = 0;
+let __awaitingUnit = null, __awaitingKind = null, __awaitingCount = 0, __awaitingSince = 0;
 /* Task 7b: __awaitingKind holds only ONE kind at a time (Task 7's design —
    see __awaitingCount above). foeTurn chains move → attack → turn_ended,
    three DIFFERENT resolved-kinds in one AI turn, so each step must wait for
@@ -2977,8 +2978,10 @@ async function bootSession(sid){
       if (__awaitingCount > 0 && r.unit === __awaitingUnit && r.kind === __awaitingKind) {
         __awaitingCount--;
         if (__awaitingCount <= 0) {
-          __awaitingCount = 0; __awaitingUnit = null; __awaitingKind = null;   // one of MY resolved echoes landed
+          __awaitingCount = 0; __awaitingUnit = null; __awaitingKind = null; __awaitingSince = 0;   // one of MY resolved echoes landed
           if (__awaitingSettled) { const cb = __awaitingSettled; __awaitingSettled = null; cb(); }   // Task 7b: unblock a chained foeTurn step
+        } else {
+          __awaitingSince = Date.now();   // progress happened, refresh the watchdog timer
         }
       }
       /* Finding 3 (review): economy flags are derived facts, not local
@@ -3012,8 +3015,16 @@ async function bootSession(sid){
     if (bootActive) setActiveFromLog(bootActive, window.ForgeReplay.round(bootState));
   }
   window.__forgeSession = { pipe, row, me, sb };
-  setInterval(() => pipe.checkTimeouts(), 1000);
+  setInterval(() => { pipe.checkTimeouts(); checkEchoStall(); }, 1000);
   clog('<b>Joined fight ' + sid.slice(0, 8) + '</b> as ' + (me.overseer ? 'overseer' : me.units.join(', ') || 'spectator'));
+}
+// echo-loss watchdog: publish succeeded but the echo never came — the log is truth, refetch it
+function checkEchoStall(){
+  if (__awaitingCount > 0 && __awaitingSince && (Date.now() - __awaitingSince) > 12000) {
+    clog('<i>The table isn\'t answering — re-syncing from the log…</i>');
+    __awaitingCount = 0; __awaitingSince = 0;
+    __pipe.catchUp().then(function(){ resyncFromState(__pipe.state()); renderHud(); clog('<i>Re-synced.</i>'); }).catch(function(e){ clog('<b style="color:#c0553f">Re-sync failed — reload the page.</b>'); });
+  }
 }
 /* Every publish path gets the same failure narration (spec §8): nothing on
    any screen moved (the tap never rendered locally), and the player is told. */
@@ -3024,8 +3035,10 @@ function netPublishFail(r){
     if (__awaitingCount > 0) {
       __awaitingCount--;
       if (__awaitingCount <= 0) {
-        __awaitingCount = 0; __awaitingUnit = null; __awaitingKind = null;
+        __awaitingCount = 0; __awaitingUnit = null; __awaitingKind = null; __awaitingSince = 0;
         if (__awaitingSettled) { const cb = __awaitingSettled; __awaitingSettled = null; cb(); }   // Task 7b: a failure also "settles" the wait — a chained foeTurn step must not hang forever
+      } else {
+        __awaitingSince = Date.now();   // progress happened, refresh the watchdog timer
       }
     }
     clog('<b style="color:#c0553f">Couldn\u2019t reach the table — try that again.</b> <i>(' + (r.why || 'publish failed') + ')</i>');
@@ -3038,7 +3051,7 @@ function netPublishFail(r){
    animates every screen, including this one, and only then spends budget. */
 function netMove(u, path){
   var fin = path[path.length-1];
-  __awaitingUnit = u.unit; __awaitingKind = 'move_resolved'; __awaitingCount++; renderHud();
+  __awaitingUnit = u.unit; __awaitingKind = 'move_resolved'; if(__awaitingCount++===0) __awaitingSince = Date.now(); renderHud();
   // Task 7b: returns the publish result so a caller can sequence a follow-up
   // (foeTurn's move → strike chain) off publish success/failure. Existing PC
   // callers (combatClick) don't use the return value — unaffected.
@@ -3085,7 +3098,7 @@ function netAttack(u,a,t){
          report), so this currently arms inertly in session play. */
       if(a.rider==="boom" && hpLeft>0) t.boomMark={by:u.id};
     } else floatAt(t,"miss","miss");
-    __awaitingCount++;   // Finding 2: one publish per strike — buttons re-enable only once every strike's echo (or failure) has landed
+    if(__awaitingCount++===0) __awaitingSince = Date.now();   // Finding 2: one publish per strike — buttons re-enable only once every strike's echo (or failure) has landed
     renderHud();
     window.__forgeSession.pipe.attack(u.unit, { target: t.unit, roll: roll, adv: adv, dis: dis, crit: crit, mode: a.label },
         function(){ return { hit: hit, dmg: dmg }; })
@@ -3095,7 +3108,7 @@ function netAttack(u,a,t){
 /* End Turn: publish only. beginTurn's fresh budget/cleanup arrives via the
    echoed "turn" verb → setActiveFromLog — not from a local nextTurn() call. */
 function netEndTurn(u){
-  __awaitingUnit = u.unit; __awaitingKind = 'turn_ended'; __awaitingCount++; renderHud();
+  __awaitingUnit = u.unit; __awaitingKind = 'turn_ended'; if(__awaitingCount++===0) __awaitingSince = Date.now(); renderHud();
   window.__forgeSession.pipe.endTurn(u.unit).then(netPublishFail);
 }
 /* Task 7b req 1: foeTurn's session-mode turn-advance. endTurn()'s PC-only
@@ -3130,7 +3143,7 @@ function foeTurnDone(){
    AND miss (mirrors netAttack: an unpublished miss would leave the shared
    log/turn-economy unsynced on other screens). */
 function netFoeAttack(u,atk,t,hs,adv,dis){
-  __awaitingUnit=u.unit; __awaitingKind='attack_resolved'; __awaitingCount++; renderHud();
+  __awaitingUnit=u.unit; __awaitingKind='attack_resolved'; if(__awaitingCount++===0) __awaitingSince = Date.now(); renderHud();
   var dmg = hs.hit ? rollDmg(atk.dmg) : 0;
   return window.__forgeSession.pipe.attack(u.unit, { target:t.unit, roll:hs.roll, adv:!!adv, dis:!!dis, crit:hs.crit, mode:atk.label },
       function(){ return { hit:hs.hit, dmg:dmg }; })
@@ -3151,7 +3164,7 @@ function netFoeAttack(u,atk,t,hs,adv,dis){
    (unit,kind) match in bootSession's onEvent already does this). */
 function netUseAbility(u,a,targets,effects,opts){
   opts = opts || {};
-  __awaitingUnit=u.unit; __awaitingKind='ability_used'; __awaitingCount++; renderHud();
+  __awaitingUnit=u.unit; __awaitingKind='ability_used'; if(__awaitingCount++===0) __awaitingSince = Date.now(); renderHud();
   var payload = { ability:a.label, targets:targets, effects:effects||[] };
   if (opts.roll!=null) payload.roll = opts.roll;
   if (opts.dmg!=null) payload.dmg = opts.dmg;
