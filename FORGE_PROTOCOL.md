@@ -70,7 +70,7 @@ round) is never stored — it is derived by replaying the log top to bottom.
 | `chat` | anything said between actions | `{text}` | anyone, any time (not turn-gated by design) |
 | `override` | "DM says that actually missed." | `{corrects_seq, correction}` | overseer only |
 | `restore` | "Rewind to the top of round 2." | `{to_seq, snapshot}` (full board state inline) | overseer only |
-| `edit` | GOD MODE: the divine hand | `{changes:[{unit, pos?, hp?, conditions?, typed_roll?, typed_dmg?}]}` | overseer only |
+| `edit` | GOD MODE: the divine hand | `{changes:[{unit, pos?, hp?, conditions?, typed_roll?, typed_dmg?}], add_unit?}` | overseer only |
 | `session_ended` | "Fight's over." | `{}` | overseer |
 
 - **`unit` on a `prompt` is the asking (acting) unit** — the prompted unit is
@@ -81,6 +81,13 @@ round) is never stored — it is derived by replaying the log top to bottom.
   and the order is re-confirmed mid-fight (slotting a reinforcement into the turn
   order, FORGE_BOARD.md §6), naming the currently-active unit here resumes the round
   in place instead of restarting it at position 0. Omit it for fight start.
+- **`add_unit` (optional) on `edit`** — the one protocol extension for mid-fight
+  reinforcements (FORGE_BOARD.md §6): `{unit, name, kind:'foe', statblock, pos,
+  disposition?, size?}`. The event carries the **full snapshot inline**, so any
+  replay — late joiner, refresh, branch — reconstructs the arrival with no outside
+  dependency; nothing is fetched from the bestiary at replay time. Overseer-only,
+  same privileged-kind guard as the rest of `edit` (RLS + the bus twin). A
+  duplicate `unit` id is rejected and narrated, never silently dropped.
 - **There is deliberately no `turn_started` event.** Turn start is derived: `initiative_set`
   order + count/position of `turn_ended` events (round increments on wrap). An explicit
   event would need a writer who doesn't control the incoming unit, which the identity gate
@@ -229,6 +236,8 @@ working browser.
 | Planned turns | Client-local staging; yes/no prompt at turn start; re-validated; **never auto-fires** |
 | Chat | `chat` event in the same log — live feed + lands in the fight transcript for Chronicle recaps |
 | `turn_started` | **Does not exist** — derived from `initiative_set` + `turn_ended` (avoids an RLS hole and a race) |
+| `add_unit` | Full snapshot inline on `edit`; replay is self-contained (no outside dependency, no bestiary refetch); overseer-only via the same privileged-kind guard |
+| `resume_at` | Mid-fight re-order (`initiative_set`) resumes the round at the named unit instead of restarting it at position 0 |
 
 ## §9 · Explicitly out of scope (unchanged from rev 2 §7)
 

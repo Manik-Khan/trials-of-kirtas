@@ -212,3 +212,45 @@ it.
 Sheet→actions derivation layer, AoE ruling, ▶ watch catch-up, feel-layer ports (badges,
 hit flash, shake, bob, floating damage), flanking/OA/Ready on the board, per-player fog,
 spectator mode, Playwright QA (rev 2 step 7). All previously named; none forgotten.
+
+---
+
+## Appendix — Field checklist (bite 1)
+
+§9.6's proof, run by M at the table with two real devices and the live Supabase — the
+class of bug the smokes cannot see. Tick each box; M's report is ground truth.
+
+- [ ] **1. Apply `schema_delta_forge_board.sql`** in the Supabase SQL editor, first, before
+  anything below. *Expected:* runs clean (idempotent), no error.
+- [ ] **2. Forge a fight live** at the table — dial the dungeon, **Open the table**.
+  *Expected:* a session row appears, `status='staging'`.
+- [ ] **3. Save for later, then open a staged fight** — park a fight in staging, confirm
+  it's on the overseer's staged-fights list, open it. *Expected:* same flow onward,
+  nothing lost.
+- [ ] **4. Claim a PC on the tablet, including a same-PC race** — two devices tap the same
+  card together. *Expected:* first tap wins, the loser is told, no double-claim.
+- [ ] **5. Folder filter** — check the claim select. *Expected:* Chonkalius and The Wiz are
+  absent (no combat sheet); the four-PC party is present.
+- [ ] **6. Initiative lobby on both devices.** *Expected:* each player sees their own roll
+  button; overseer rolls for foes/absent; the confirmed order matches on every screen.
+- [ ] **7. Synced move + attack.** *Expected:* a tap on one device renders (tween/attack)
+  on the other device only from the echo — never from the local tap.
+- [ ] **8. Shield modal routing.** *Expected:* the modal (with countdown) appears **only**
+  on the targeted player's device; every other device, including the overseer, shows a
+  "waiting on X" banner.
+- [ ] **9. Let a prompt time out.** *Expected:* falls to the overseer's screen, who answers
+  as the unit; the event's `actor` stamp shows the overseer answered.
+- [ ] **10. Refresh mid-prompt AND refresh mid-turn** (two checks). *Expected:* mid-prompt
+  refresh comes back showing the same prompt with the timer adjusted; mid-turn refresh
+  comes back showing the turn HUD, no state lost.
+- [ ] **11. A foe's turn run by the DM.** *Expected:* the overseer's local action publishes
+  and resolves identically on every device.
+- [ ] **12. Mid-fight reinforcement** — **Add foe** from the toolbar, place it, slot into
+  initiative. *Expected:* the fight resumes at the currently-active unit — no round
+  restart.
+- [ ] **13. Rewind.** *Expected:* tokens jump to the snapshot; the abandoned branch greys
+  out in the feed on every device.
+- [ ] **14. Sheet mirror + persistence** (four checks in one pass): the character sheet
+  page shows fight damage live; a rewind re-sets the sheet's number too; ★ on a fight foe
+  makes it appear on the `saved_monsters` shelf in `combat.html`; and a fight opened on a
+  wounded PC starts at their true (not full) HP.

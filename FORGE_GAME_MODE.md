@@ -71,13 +71,18 @@ One fight: real party of 4 from live sheets, bestiary goblins, one biome. Player
    movement, attacks, cross-device Shield prompt (changed a hit to a miss), duplicate-answer
    guard observed working live. The board-less part of step 5 came with it.
 5. **Reactions + readied over the wire.** ~~The cross-device pipeline pause~~ — pause is
-   built and field-verified (step 4). Remaining: **readied actions**, and prompt UX per
-   design (player device gets the modal; overseer sees "waiting on X" and inherits only on
-   the 20s timeout — the harness crudely pops both, the real HUD must not).
-6. **Marry protocol to the board** *(recommended next)*: generator rebase (was step 2 —
-   topo mock's stale inlined generator → canonical `forge-dungeon.js`), `{seed,theme,sliders}`
-   from the session row so two devices render the identical dungeon, tokens driven by the
-   event log. Starts de-mock of CHAR kits (was step 3).
+   built and field-verified (step 4). **Prompt UX per design shipped**, 2026-07-10
+   (`forge-board` branch, task 9): the player device gets the modal (resume mid-count on
+   rejoin); everyone else sees "waiting on X"; the overseer inherits only on the 20s
+   timeout. Remaining: **readied actions** — still open, deferred to bite 2
+   (`FORGE_BOARD.md` §10).
+6. **Marry protocol to the board** — **bite 1 shipped, done-pending-field-check**, branch
+   `forge-board`, 2026-07-10: generator rebase (topo mock's stale inlined generator →
+   canonical `forge-dungeon.js`), `{seed,theme,sliders}` from the session row so two
+   devices render the identical dungeon, the full turn loop driven by the event log, CHAR
+   kits de-mocked off live `CharacterData`. Deep-specced in **`FORGE_BOARD.md`**; awaiting
+   M's two-device field checklist (`FORGE_BOARD.md` appendix) before merge. Bite 2
+   (sheet→actions derivation layer, feel-layer ports) is specced there too (§0).
 7. **Look pass** (was step 1 — still mock-first, still owed): N8AO + selective bloom +
    tilt-shift composer (`postprocessing@6.39.2`), torch glow sprites, CSS grain/vignette.
    Lands best on a board that is already multiplayer.
