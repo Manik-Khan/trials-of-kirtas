@@ -35,6 +35,12 @@
      into window.__tok (see bootSession below). If that bridge or the read itself fails,
      startFight() narrates and falls back to kit HP — never blocks the fight. -->
 <script src="../character-data.js?v=fb1"></script>
+<!-- Task 14: statblock → HUD-actor adapter (pure logic, no DOM/Supabase — see
+     its header contract). Loaded as a classic script so window.MonsterActor
+     is available before the module body below runs; unitFromRosterRow reads
+     it lazily (at spawn time), so load order relative to the module tag
+     doesn't matter beyond "before first spawn". -->
+<script src="../monster-actor.js?v=fb1"></script>
 <script>/* ── inlined canonical forge/tactics-geometry.js — MUST stay code-identical ── */
 /* ════════════════════════════════════════════════════════════════════
    tactics-geometry.js — pure map-geometry rules over the MAP DOCUMENT.
@@ -304,6 +310,28 @@ global.TacticsGeo = API;
   .fbStagedRow .fname{margin-bottom:0;flex:1;white-space:normal}
   .fbStagedRow .filebtn{flex:none;padding:6px 8px}
   #fbLifecycleMsg{min-height:1.4em;word-break:break-word;white-space:normal}
+  /* Task 14: foe picker (search the books + shelf strip + picked list) */
+  #fpSearch{width:100%;box-sizing:border-box;font-family:var(--f-util);font-size:11px;color:var(--tk-ink);
+    background:var(--tk-panel);border:1px solid var(--tk-line);padding:7px 8px;margin-bottom:4px}
+  #fpSearch:focus{outline:none;border-color:var(--tk-gold)}
+  .fpRow{display:flex;align-items:center;gap:5px;margin-bottom:5px;font-family:var(--f-util);font-size:10.5px;color:var(--tk-ink-dim)}
+  .fpName{flex:1;color:var(--tk-ink);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  .fpCr,.fpTags{font-size:9px;letter-spacing:.5px;color:var(--tk-ink-dim);white-space:nowrap}
+  .fpRow .filebtn{flex:none;padding:5px 7px}
+  .fpStep{flex:none;width:20px;height:20px;line-height:18px;text-align:center;font-family:var(--f-util);
+    color:var(--tk-ink-dim);background:var(--tk-panel-2);border:1px solid var(--tk-line);cursor:pointer}
+  .fpStep:hover{color:var(--tk-ink);border-color:var(--tk-gold)}
+  .fpCount{flex:none;min-width:14px;text-align:center;color:var(--tk-ink)}
+  .fpStar{flex:none;background:transparent;border:1px solid var(--tk-line);color:var(--tk-gold);cursor:pointer;
+    width:20px;height:20px;line-height:18px;text-align:center}
+  .fpStar.on{background:var(--tk-gold);color:#fff}
+  .fpRemove{flex:none;font-family:var(--f-util);font-size:9px;text-transform:uppercase;letter-spacing:.5px;
+    color:var(--tk-ink-dim);background:transparent;border:1px solid var(--tk-line);padding:4px 6px;cursor:pointer}
+  .fpRemove:hover{color:#c0553f;border-color:#c0553f}
+  #fpBookResults,#fpShelf{max-height:140px;overflow-y:auto;margin-bottom:6px}
+  .cbFoeStar{font-size:12px;color:var(--tk-gold);background:transparent;border:1px solid var(--tk-gold);
+    cursor:pointer;padding:1px 6px;margin-left:6px;vertical-align:middle}
+  .cbFoeStar.on{background:var(--tk-gold);color:#fff}
 /* ── party.html character select, folded onto the Forge (dark cinematic) ── */
 #partySelect{ --field:#0d0a07; --fg:#f0e6ce; --fg-dim:#9a8f78; --accent:#8a2222; --line:rgba(184,149,42,.30); --gold:#b8952a;
   position:fixed; inset:0; z-index:120; background:var(--field); color:var(--fg);
@@ -556,6 +584,7 @@ global.TacticsGeo = API;
     <div class="slider-wrap">
       <label>Foes <span class="val" id="foesVal">5</span></label>
       <input type="range" id="foes" min="1" max="8" value="5">
+      <div class="fname" style="margin-top:2px">Fallback headcount — generic goblins, used only when nothing is picked below.</div>
     </div>
     <!-- Task 11: the two doors (FORGE_BOARD.md §3) — hidden until we know the
          viewer is signed in AND not already inside a session (initLifecyclePanel
@@ -570,6 +599,18 @@ global.TacticsGeo = API;
       <div class="fname" id="fbLifecycleMsg"></div>
       <div class="eyebrow" style="margin:9px 0 6px">Staged fights</div>
       <div id="fbStagedList"></div>
+      <div class="divider" style="margin-top:13px"></div>
+      <!-- Task 14: foe picker — replaces the generic Foes-slider goblins in
+           buildRoster() once anything is picked here (slider stays as the
+           fallback, labelled above). Books lazy-load on first search. -->
+      <div class="eyebrow" style="margin-bottom:6px">Foes <span style="opacity:.6;font-weight:400;text-transform:none;letter-spacing:0">— picked replaces the slider fallback</span></div>
+      <input id="fpSearch" type="text" placeholder="Search the bestiary…" autocomplete="off">
+      <div class="fname" id="fpSearchStatus"></div>
+      <div id="fpBookResults"></div>
+      <div class="eyebrow" style="margin:9px 0 6px">Shelf</div>
+      <div id="fpShelf"><div class="fname">Loading…</div></div>
+      <div class="eyebrow" style="margin:9px 0 6px">Picked</div>
+      <div id="fpPicked"><div class="fname">Nothing picked — the Foes slider above fills in generic goblins.</div></div>
     </div>
     <div class="divider"></div>
     <div class="eyebrow" style="margin-bottom:6px">CAMERA (local)</div>
@@ -2282,23 +2323,78 @@ function buildUnit(kit, side, opts){
   else { u.save = kit && kit.save; u.atk = kit && kit.atk; }
   return u;
 }
+// Task 14: an attack action's note carries "reach 5 ft." / "range 30/120 ft."
+// (monster-actor.js's cleanText/noteBits) — pull squares (5ft units) from it
+// for the FOE-AI's `.atk.rng`; no match (or no note) → melee, rng:1.
+function rangeFromNote(note){
+  var m = String(note || '').match(/reach\s+(\d+)\s*ft|range\s+(\d+)/i);
+  if (!m) return null;
+  var ft = Number(m[1] || m[2]);
+  return ft ? Math.max(1, Math.round(ft / 5)) : null;
+}
+/* Task 14: adapt a roster row's raw 5etools statblock (row.statblock) into
+   the FOE-shaped kit buildUnit already expects — via monster-actor.js
+   (MonsterActor.toCharacter), the same adapter combat.html's HUD will use.
+   Bridges TWO shapes onto the resulting unit:
+     kit.atk     — {label,rng,hit,dmg}, the shape the EXISTING foe AI
+                   (foeTurn) already eats; taken from the adapter's first
+                   attack-type action. No attack-type action parses (e.g. a
+                   pure spellcaster/multiattack-only block) → kit.atk stays
+                   null; foeTurn() narrates a utility note and stands down
+                   rather than throwing (never a broken button).
+     kit.mActions — the adapter's FULL parsed action list, carried onto the
+                   unit as u.mActions for the overseer's foe HUD.
+                   // TODO(bite 2): full foe action HUD — only .atk drives
+                   // play today; mActions is read-only narration fodder.
+   MonsterActor missing/unparseable → null (caller falls back to FOE), same
+   graceful-degradation contract the adapter itself documents. */
+function foeKitFromStatblock(row){
+  if (!row.statblock) return null;
+  if (!window.MonsterActor) {
+    clog('<i>monster-actor.js not loaded — ' + escapeHtml(row.name || row.unit) + ' falls back to the generic goblin kit.</i>');
+    return null;
+  }
+  var mc;
+  try { mc = window.MonsterActor.toCharacter({ id: row.unit, name: row.name, statblock: row.statblock }); }
+  catch (e) {
+    clog('<i>' + escapeHtml(row.name || row.unit) + '’s statblock did not parse — falls back to the generic goblin kit.</i>');
+    return null;
+  }
+  var combat = mc.combat || {};
+  var atkAction = (mc.actions || []).filter(function(a){ return a.type === 'attack'; })[0];
+  var atk = atkAction ? {
+    label: atkAction.label, rng: rangeFromNote(atkAction.note) || 1,
+    hit: atkAction.hitMod,
+    dmg: atkAction.dmgDice + (atkAction.dmgMod ? (atkAction.dmgMod > 0 ? '+' : '') + atkAction.dmgMod : ''),
+  } : null;
+  return {
+    name: mc.name, hp: combat.hp, ac: combat.ac, speed: combat.speed, init: combat.initiative,
+    atk: atk, mActions: mc.actions,
+  };
+}
 /* roster row {unit,kind,sheet_ref?,name?,statblock?,pos?,hp?,maxHp?} + the
    replayed state.units[unit] (facts win over the roster row) → a CB unit.
    PCs map sheet_ref → CHAR kits (fallback: the unit id itself — the mock's
-   roster rows use CHAR keys as unit ids, e.g. "cosmere"); foes without a
-   statblock get the mock's stand-in FOE goblin kit for now (Tasks 14/16
-   replace kit sourcing — this is the one door they widen). */
+   roster rows use CHAR keys as unit ids, e.g. "cosmere"); foes carry a full
+   5etools statblock (Task 14's roster) adapted via foeKitFromStatblock, or
+   (no statblock, or the adapter can't run) the mock's stand-in FOE goblin
+   kit — this is the one door kit sourcing widens through. */
 function unitFromRosterRow(row, stateUnit){
   var isPc = (row.kind || "pc") === "pc";
-  var kit = isPc ? (CHAR[row.sheet_ref] || CHAR[row.unit]) : (row.statblock || FOE);
+  var foeKit = isPc ? null : foeKitFromStatblock(row);
+  var kit = isPc ? (CHAR[row.sheet_ref] || CHAR[row.unit]) : (foeKit || FOE);
   var pos = (stateUnit && stateUnit.pos) || row.pos;
   var hp    = stateUnit ? stateUnit.hp    : (row.hp    != null ? row.hp    : (kit && kit.hp));
   var hpMax = stateUnit ? stateUnit.maxHp : (row.maxHp != null ? row.maxHp : (kit && kit.hp));
   var alive = stateUnit ? !stateUnit.downed : true;
   var badge = (window.__fightControllers && window.__fightControllers[row.unit] && window.__fightControllers[row.unit].badge) || null;
-  return buildUnit(kit, isPc ? "pc" : "foe", { id: row.unit, key: isPc ? (row.sheet_ref || row.unit) : row.unit,
+  var u = buildUnit(kit, isPc ? "pc" : "foe", { id: row.unit, key: isPc ? (row.sheet_ref || row.unit) : row.unit,
     unit: row.unit, name: row.name || (kit && kit.name) || row.unit,
     c: pos.c, r: pos.r, hp: hp, hpMax: hpMax, alive: alive, badge: badge });
+  // TODO(bite 2): full foe action HUD — u.mActions/u.statblock ride along for
+  // the ★ save-back and future action-list rendering; only u.atk drives play.
+  if (!isPc) { u.mActions = kit && kit.mActions; u.statblock = row.statblock || null; }
+  return u;
 }
 function unitByKey(k){ return CB.units.filter(function(u){ return u.unit === k; })[0] || null; }
 function escapeHtml(s){ return String(s).replace(/[&<>"']/g, function(c){
@@ -3357,6 +3453,16 @@ function foeTurn(){
   var pcs=CB.units.filter(function(x){return x.alive&&x.side==="pc";}); if(!pcs.length){ maybeEnd(); return; }
   pcs.sort(function(a,b){return TG.chebyshev(u,a)-TG.chebyshev(u,b);});
   var tgt=pcs[0], atk=u.atk;
+  /* Task 14: exotic statblocks (no parseable attack-type action — pure
+     spellcasters, multiattack-only blocks) degrade to a readable stand-down
+     note instead of throwing on the atk.rng read below — never a broken
+     button, per FORGE_BOARD.md §8. */
+  if(!atk){
+    var first=(u.mActions&&u.mActions[0])||null;
+    var note=first?(first.label+(first.note?": "+first.note:"")):"has nothing to attack with";
+    clog(u.name+" stands its ground — "+escapeHtml(note)+" <i>(no parsed attack — TODO bite 2 full foe action HUD)</i>");
+    renderHud(); foeTurnDone(); return;
+  }
   var canNow=function(){ var A={c:u.c,r:u.r},T={c:tgt.c,r:tgt.r}; return ((atk.rng||1)<=1?TG.canReachMelee(CB.map,A,T,5):TG.inRange(CB.map,A,T,rangeFt(atk)))&&TG.losVerdict(CB.map,A,T).canTarget; };
   function strikePhase(){
     if(!u.alive){ renderHud(); foeTurnDone(); return; }
@@ -3495,7 +3601,7 @@ function renderHud(){
         +(a.cost?' <span class="cbCost">'+Object.keys(a.cost).map(function(k){return u.res[k]+"\u00b7"+k;}).join(" ")+'</span>':'')+'</button>'; }).join("") : '';
     var port = (isPc && PORTRAITS[u.key]) ? '<div class="cbPort" style="background-image:url(\''+PORTRAITS[u.key]+'\')"></div>' : '';
     var turnBanner = '<div class="cbHint">'+escapeHtml(u.name)+'\u2019s turn \u2014 '+escapeHtml(controllerLabel(u.unit))+' is acting.</div>';
-    panel.innerHTML=port+'<div class="cbName">'+u.name+(isPc?'':' <span class="cbTag">foe</span>')+(u.raging?' <span class="cbTag" style="color:#b34a38;border-color:#b34a38">RAGE</span>':'')
+    panel.innerHTML=port+'<div class="cbName">'+u.name+(isPc?'':' <span class="cbTag">foe</span>'+((u.statblock&&iControl)?' <button class="cbFoeStar" id="cbFoeStar" title="Save to the shelf">☆</button>':''))+(u.raging?' <span class="cbTag" style="color:#b34a38;border-color:#b34a38">RAGE</span>':'')
       +(u.readied?' <span class="cbTag" style="color:#8a6a1f;border-color:#8a6a1f">readied: '+u.readied.act.label+'</span>':'')
       +(u.react&&!u.reacted?' <span class="cbTag" style="color:#3a8a92;border-color:#3a8a92">reaction</span>':'')+'</div>'
       +'<div class="cbHpwrap"><div class="cbHplbl"><span>HP</span><span>'+Math.max(0,u.hp)+' / '+u.hpMax+'</span></div><div class="cbHpbar"><i style="width:'+Math.max(0,Math.round(100*u.hp/u.hpMax))+'%"></i></div></div>'
@@ -3509,6 +3615,10 @@ function renderHud(){
       var stg=document.getElementById("cbSightTog");
       if(stg) stg.addEventListener("click",function(){ SHOW_SIGHT=!SHOW_SIGHT; drawSight(); renderHud(); }); }
     else if(!isPc&&iControl){ var fg=document.getElementById("cbFoeGo"); if(fg) fg.addEventListener("click",runFoe); }
+    // Task 14: ★ save-back — smallest reasonable spot on the overseer's foe
+    // turn HUD (also lives on the pre-fight picked list, fpStar above).
+    if(!isPc&&u.statblock&&iControl){ var fst=document.getElementById("cbFoeStar");
+      if(fst) fst.addEventListener("click",function(){ saveFoeToShelf(u.name,u.statblock,fst); }); }
   }
   var et=document.getElementById("cbEnd");
   if(et){ et.disabled=(u&&u.side!=="pc")||CB.over||!!CB.react||(sess&&!iControl)||waitingMe;
@@ -3661,16 +3771,181 @@ if (SESSION_ID) bootSession(SESSION_ID).catch(e => {
 else initLifecyclePanel().catch(e => {
   clog('<b style="color:#c0553f">Lifecycle panel failed to load:</b> ' + escapeHtml((e && e.message) || e));
 });
-/* Task 14 owns the real roster (party ∩ Campaign Characters folder + bestiary
-   foe picks); THIS function is its stand-in for Task 11 — every CHAR key as a
-   PC row plus N generic goblins sized by the Foes slider. Replace wholesale,
-   not incrementally: nothing else in this file should grow its own opinion
-   about roster shape. */
+/* ── Task 14: the foe picker (shelf + books) ─────────────────────────────
+   Reuses combat.html's DM bestiary picker (~3166-3280) and saved_monsters
+   shelf (~3610-3660) patterns, pointed at the Forge panel instead of the
+   board. FOE_PICKED is the session-local "what will buildRoster() spawn"
+   list; empty → buildRoster() falls back to the Foes-slider goblins (spec
+   FORGE_BOARD.md §6). Statblocks here are the FULL raw 5etools JSON — the
+   same snapshot-on-pick discipline combat.html's dropMonster uses. */
+var FOE_PICKED = [];              // [{ name, statblock, count }]
+var FOE_SHELF = [];               // saved_monsters rows: {id,name,statblock,tags}
+var FOE_BOOKS_CACHE = null;       // null until loaded; then [{name,cr,raw}]
+var FOE_BOOKS_PROMISE = null;
+// Same CDN source + book list as combat.html's bestiary picker — an absolute
+// URL, so (unlike the mock's other includes) it needs no "../" path fix for
+// living in forge/. No local bestiary JSON exists in the repo (verified);
+// this remote fetch is the only source, exactly as combat.html already uses it.
+var BEST_BASE = 'https://raw.githubusercontent.com/5etools-mirror-3/5etools-2014-src/main/data';
+var BEST_SOURCES = [
+  { label: 'Monster Manual', file: 'bestiary/bestiary-mm.json' },
+  { label: "Volo's Guide",   file: 'bestiary/bestiary-vgm.json' },
+  { label: "Mordenkainen's", file: 'bestiary/bestiary-mtf.json' },
+  { label: 'DMG',            file: 'bestiary/bestiary-dmg.json' },
+];
+function bstFmtCR(cr){ if (cr === 0) return '0'; if (!cr) return '—'; return typeof cr === 'object' ? (cr.cr || '—') : cr; }
+function bstParseCR(cr){ var s = bstFmtCR(cr); if (s === '1/8') return 0.125; if (s === '1/4') return 0.25; if (s === '1/2') return 0.5; return parseFloat(s) || 0; }
+
+function foeSlug(s){ return String(s || 'foe').toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '') || 'foe'; }
+
+// Lazy-load every book once, narrated while it loads; a book that fails to
+// fetch is skipped (narrated) rather than blocking the others — one bad
+// source never hides the rest of the shelf/search.
+function ensureFoeBooksLoaded(onProgress){
+  if (FOE_BOOKS_CACHE) return Promise.resolve(FOE_BOOKS_CACHE);
+  if (FOE_BOOKS_PROMISE) return FOE_BOOKS_PROMISE;
+  if (onProgress) onProgress('Loading the bestiary…');
+  FOE_BOOKS_PROMISE = (async function(){
+    var all = [];
+    for (var i = 0; i < BEST_SOURCES.length; i++){
+      try {
+        var res = await fetch(BEST_BASE + '/' + BEST_SOURCES[i].file);
+        if (!res.ok) throw new Error('HTTP ' + res.status);
+        var json = await res.json();
+        (json.monster || []).forEach(function(m){ all.push({ name: m.name, cr: bstParseCR(m.cr), raw: m }); });
+      } catch (e) {
+        clog('<i>Bestiary book “' + escapeHtml(BEST_SOURCES[i].label) + '” failed to load — ' + escapeHtml((e && e.message) || e) + '</i>');
+      }
+    }
+    FOE_BOOKS_CACHE = all;
+    FOE_BOOKS_PROMISE = null;
+    return all;
+  })();
+  return FOE_BOOKS_PROMISE;
+}
+async function loadFoeShelf(){
+  var res = await sb.from('saved_monsters').select('id,name,statblock,tags').order('name');
+  if (res.error) { clog('<i>Foe shelf failed to load — ' + escapeHtml(res.error.message) + '</i>'); FOE_SHELF = []; return; }
+  FOE_SHELF = res.data || [];
+}
+function renderFoeShelf(){
+  var el = document.getElementById('fpShelf');
+  if (!el) return;
+  if (!FOE_SHELF.length) { el.innerHTML = '<div class="fname">Shelf is empty.</div>'; return; }
+  el.innerHTML = FOE_SHELF.map(function(s, i){
+    return '<div class="fpRow"><span class="fpName" title="' + escapeHtml(s.name) + '">' + escapeHtml(s.name) + '</span>'
+      + (s.tags && s.tags.length ? '<span class="fpTags">' + s.tags.map(escapeHtml).join(', ') + '</span>' : '')
+      + '<button class="filebtn fpAdd" data-i="' + i + '">+ Add</button></div>';
+  }).join('');
+  el.querySelectorAll('.fpAdd').forEach(function(btn){
+    btn.onclick = function(){ var s = FOE_SHELF[+btn.dataset.i]; addPickedFoe(s.name, s.statblock); };
+  });
+}
+function addPickedFoe(name, statblock){
+  if (!statblock) { clog('<i>Could not add ' + escapeHtml(name || 'that monster') + ' — no statblock.</i>'); return; }
+  var existing = FOE_PICKED.filter(function(p){ return p.name === name; })[0];
+  if (existing) existing.count++;
+  else FOE_PICKED.push({ name: name, statblock: statblock, count: 1 });
+  renderFoePicked();
+}
+function renderFoePicked(){
+  var el = document.getElementById('fpPicked');
+  if (!el) return;
+  if (!FOE_PICKED.length) { el.innerHTML = '<div class="fname">Nothing picked — the Foes slider above fills in generic goblins.</div>'; return; }
+  el.innerHTML = FOE_PICKED.map(function(p, i){
+    return '<div class="fpRow"><span class="fpName" title="' + escapeHtml(p.name) + '">' + escapeHtml(p.name) + '</span>'
+      + '<button class="fpStep" data-i="' + i + '" data-d="-1">−</button>'
+      + '<span class="fpCount">' + p.count + '</span>'
+      + '<button class="fpStep" data-i="' + i + '" data-d="1">+</button>'
+      + '<button class="fpStar" data-i="' + i + '" title="Save this to the shelf">☆</button>'
+      + '<button class="fpRemove" data-i="' + i + '">Remove</button></div>';
+  }).join('');
+  el.querySelectorAll('.fpStep').forEach(function(btn){
+    btn.onclick = function(){
+      var i = +btn.dataset.i, d = +btn.dataset.d;
+      FOE_PICKED[i].count = Math.max(1, FOE_PICKED[i].count + d);
+      renderFoePicked();
+    };
+  });
+  el.querySelectorAll('.fpRemove').forEach(function(btn){
+    btn.onclick = function(){ FOE_PICKED.splice(+btn.dataset.i, 1); renderFoePicked(); };
+  });
+  el.querySelectorAll('.fpStar').forEach(function(btn){
+    btn.onclick = function(){ var p = FOE_PICKED[+btn.dataset.i]; saveFoeToShelf(p.name, p.statblock, btn); };
+  });
+}
+// ★ save-back (FORGE_BOARD.md §6): additive, matching combat.html's
+// saveMonsterCopy — every press inserts a fresh saved_monsters row (no
+// dedupe-by-name; renaming/merging happens on the shelf itself, same as
+// combat.html). tags:['forge'] marks the row's origin.
+async function saveFoeToShelf(name, statblock, btnEl){
+  if (!statblock) { clog('<i>Could not save — no statblock.</i>'); return; }
+  var res = await sb.from('saved_monsters')
+    .insert({ name: name || statblock.name || 'Monster', statblock: statblock, tags: ['forge'] }).select().single();
+  if (res.error) { clog('<i>Save to shelf failed — ' + escapeHtml(res.error.message) + '</i>'); return; }
+  FOE_SHELF.push(res.data);
+  clog('<i>★ ' + escapeHtml(name || statblock.name || 'Monster') + ' saved to the shelf.</i>');
+  if (btnEl) {
+    btnEl.textContent = '★'; btnEl.classList.add('on');
+    setTimeout(function(){ btnEl.textContent = '☆'; btnEl.classList.remove('on'); }, 900);
+  }
+  renderFoeShelf();
+}
+// Search box over the loaded books — stale-response guarded (re-checks the
+// live input value once the (possibly slow, first-time) book load resolves).
+function renderFoeBookResults(all, q){
+  var listEl = document.getElementById('fpBookResults');
+  if (!listEl) return;
+  var shown = all.filter(function(e){ return e.name.toLowerCase().indexOf(q) >= 0; })
+    .sort(function(a, b){ return a.name.localeCompare(b.name); }).slice(0, 25);
+  if (!shown.length) { listEl.innerHTML = '<div class="fname">No matches.</div>'; return; }
+  listEl.innerHTML = shown.map(function(e, i){
+    return '<div class="fpRow"><span class="fpName" title="' + escapeHtml(e.name) + '">' + escapeHtml(e.name) + '</span>'
+      + '<span class="fpCr">CR ' + bstFmtCR(e.raw.cr) + '</span>'
+      + '<button class="filebtn fpAdd" data-i="' + i + '">+ Add</button></div>';
+  }).join('');
+  listEl.querySelectorAll('.fpAdd').forEach(function(btn){
+    btn.onclick = function(){ addPickedFoe(shown[+btn.dataset.i].name, shown[+btn.dataset.i].raw); };
+  });
+}
+function wireFoePicker(){
+  var input = document.getElementById('fpSearch');
+  if (!input) return;
+  input.addEventListener('input', function(){
+    var q = input.value.trim().toLowerCase();
+    var statusEl = document.getElementById('fpSearchStatus');
+    var listEl = document.getElementById('fpBookResults');
+    if (!q) { if (listEl) listEl.innerHTML = ''; if (statusEl) statusEl.textContent = ''; return; }
+    ensureFoeBooksLoaded(function(msg){ if (statusEl) statusEl.textContent = msg; }).then(function(all){
+      if (input.value.trim().toLowerCase() !== q) return;   // input moved on while books were loading
+      if (statusEl) statusEl.textContent = '';
+      renderFoeBookResults(all, q);
+    });
+  });
+}
+
+/* Task 14's real roster: PC rows unchanged (every CHAR key, as before);
+   foe rows come from the picked list (shelf/book taps in the panel above),
+   COPIED (deep-cloned) statblocks so a fight never changes because a source
+   file updated (spec FORGE_BOARD.md §6). Nothing picked → falls back to the
+   old N generic goblins sized by the Foes slider (labelled as a fallback in
+   the panel). Replace wholesale, not incrementally: nothing else in this
+   file should grow its own opinion about roster shape. */
 function buildRoster(){
   var pcs = Object.keys(CHAR).map(function(key){ return { unit: key, kind: 'pc', sheet_ref: key }; });
-  var foeN = Math.max(1, +document.getElementById('foes').value || 1);
   var foes = [];
-  for (var i = 1; i <= foeN; i++) foes.push({ unit: 'foe-goblin-' + i, kind: 'foe', name: 'Goblin ' + i });
+  if (FOE_PICKED.length){
+    FOE_PICKED.forEach(function(p){
+      var slug = foeSlug(p.name);
+      for (var n = 1; n <= p.count; n++){
+        foes.push({ unit: 'foe-' + slug + '-' + n, kind: 'foe', name: p.name + ' ' + n,
+          statblock: JSON.parse(JSON.stringify(p.statblock)) });
+      }
+    });
+  } else {
+    var foeN = Math.max(1, +document.getElementById('foes').value || 1);
+    for (var i = 1; i <= foeN; i++) foes.push({ unit: 'foe-goblin-' + i, kind: 'foe', name: 'Goblin ' + i });
+  }
   return pcs.concat(foes);
 }
 /* Task 11: insert one forge_sessions row, status 'staging' — the exact shape
@@ -3720,6 +3995,12 @@ async function initLifecyclePanel(){
     refreshStagedList(user.id, say);   // the row just parked belongs in the list too
   };
   await refreshStagedList(user.id, say);
+  // Task 14: foe picker — shelf loads with the rest of the panel; search
+  // wiring is idempotent-safe here since initLifecyclePanel only ever runs
+  // once per page load (no ?session=, see the branch above bootSession).
+  wireFoePicker();
+  renderFoePicked();
+  loadFoeShelf().then(renderFoeShelf);
 }
 /* Task 11: overseer-only staged-fights list — status='staging' rows this uid
    opened. Open navigates like the doors above; Abandon flips status to
