@@ -2734,6 +2734,7 @@ function openReactionModal(prompt,opts){
     if(use){ var r=computeReactionExtra(prompt.react,ctx,u,askerU,askerName); extra=r.extra; clogLine=r.clogLine; }
     window.__forgeSession.pipe.answerPrompt(prompt.to,prompt.seq,use,extra).then(function(res){
       if(res && res.ok===false){ netPublishFail(res); __answeringPromptSeq=null; return; }
+      __answeringPromptSeq=null;   // Finding 3 (review): reset on success too — not just the failure branch
       // resource spend / .reacted bookkeeping lands on THIS unit's OWN device
       // only (mirrors payReact's local role) — other devices learn reactionUsed
       // from the prompt_answered echo itself (forge-replay.js applyEvent).
@@ -2749,10 +2750,20 @@ function openReactionModal(prompt,opts){
       ringNum.textContent=Math.ceil(remain/1000);
       ring.style.background="conic-gradient(var(--tk-gold) "+(360*(total>0?remain/total:0)).toFixed(1)+"deg, rgba(168,159,138,.3) 0deg)";
       if(remain<=0){
-        // this device's countdown is spent; the fallback fires on the OVERSEER's
-        // tick (pipe.checkTimeouts()), not this one — just say so and wait
         if(PROMPT_UI.timerId){ clearInterval(PROMPT_UI.timerId); PROMPT_UI.timerId=null; }
-        btns.style.display="none"; ring.style.display="none"; timesUp.style.display="block";
+        var owSess=window.__forgeSession;
+        if(owSess && owSess.me && owSess.me.overseer){
+          // Finding 2a (review): this IS the overseer's own modal (a DM-run,
+          // unclaimed unit) — there's no one else to fall back to, so the
+          // countdown running out isn't a timeout at all. Keep the buttons
+          // live and just mark the ring as overtime; the DM may take their time.
+          ringNum.textContent="overtime"; ringNum.style.color="var(--tk-ink-dim)";
+          ring.style.background="rgba(168,159,138,.3)";
+        } else {
+          // this device's countdown is spent; the fallback fires on the OVERSEER's
+          // tick (pipe.checkTimeouts()), not this one — just say so and wait
+          btns.style.display="none"; ring.style.display="none"; timesUp.style.display="block";
+        }
       }
     };
     tick();   // a refresh resumes mid-count — created_at survived the replay
@@ -2775,11 +2786,50 @@ function showPromptBanner(prompt){
   tick();
   PROMPT_UI.timerId=setInterval(tick,250);
 }
+/* Finding 1 (review): sess.row.controllers is a one-shot snapshot fetched
+   at boot — a mid-fight claim (allowed by design) never reaches it, so
+   isUnitClaimed()/promptRole() can tell the overseer's device it still
+   owns an unclaimed unit's prompt forever. Only the OVERSEER's role
+   determination depends on that map (a real controller's promptRole is
+   "modal" unconditionally, no isUnitClaimed lookup involved) — refresh it
+   from the row right before an overseer's device commits to a role.
+   Mutates the SAME `me` object bootSession's pipeline deps hold (never
+   replaces it) so the pipeline sees the gain too. */
+var __ctlRefreshWarned=false;
+function refreshControllers(){
+  var sess=window.__forgeSession; if(!sess) return Promise.resolve();
+  return sess.sb.from('forge_sessions').select('controllers').eq('id', sess.row.id).single().then(function(res){
+    if(res.error || !res.data){
+      if(!__ctlRefreshWarned){ __ctlRefreshWarned=true; clog('<i>Could not refresh who controls whom — using last known.</i>'); }
+      return;   // fall back to the last-known snapshot
+    }
+    sess.row.controllers = res.data.controllers || {};
+    var mine = sess.row.controllers[sess.me.actor] || [];
+    sess.me.units.length = 0;
+    Array.prototype.push.apply(sess.me.units, mine);
+  });
+}
+/* Shared by routePrompt and onWirePrompt (both fire on the overseer's
+   device for the same prompt). The routing decision happens AFTER the
+   refresh resolves; a brief banner-then-upgrade flicker is fine — show
+   the banner as the safe interim state (unless a modal/fallback is
+   already open for this exact prompt, which we never downgrade), then
+   upgrade banner→modal if the refreshed role says so. Never the reverse. */
+function overseerRoutePrompt(prompt){
+  if(PROMPT_UI.seq===prompt.seq && PROMPT_UI.kind!=="banner") return;   // already resolved (modal/fallback) — don't downgrade
+  showPromptBanner(prompt);
+  refreshControllers().then(function(){
+    if(PROMPT_UI.seq!==prompt.seq || PROMPT_UI.kind!=="banner") return;   // superseded, closed, or already upgraded
+    if(promptRole(prompt.to)==="modal") openReactionModal(prompt,{});
+  });
+}
 /* ForgeBoard.verbsFor's "prompt" verb — fires on every device. The
    responder's own modal is owned by onWirePrompt (or the fallback), so
    this only ever paints the banner (everyone else, asker included). */
 function routePrompt(prompt){
   if(!prompt) return;
+  var sess=window.__forgeSession;
+  if(sess && sess.me && sess.me.overseer){ overseerRoutePrompt(prompt); return; }
   if(promptRole(prompt.to)==="modal") return;
   showPromptBanner(prompt);
 }
@@ -2790,6 +2840,7 @@ function routePrompt(prompt){
 function onWirePrompt(row){
   var sess=window.__forgeSession, prompt=sess && sess.pipe.state().pendingPrompt;
   if(!prompt || prompt.seq!==row.seq) return;   // superseded by a later prompt already
+  if(sess.me.overseer){ overseerRoutePrompt(prompt); return; }
   if(promptRole(prompt.to)!=="modal") return;
   openReactionModal(prompt,{});
 }
@@ -2799,7 +2850,11 @@ function onWirePrompt(row){
 function onWirePromptFallback(p){
   if(!p) return;
   if(__answeringPromptSeq===p.seq) return;                              // already answering — echo just hasn't landed yet
-  if(PROMPT_UI.seq===p.seq && PROMPT_UI.kind==="fallback") return;       // fallback modal already open for this prompt
+  // Finding 2b (review): a modal for this prompt already open on THIS device —
+  // of ANY kind, not just "fallback" — means we're already the responder (e.g.
+  // the overseer's own direct modal for an unclaimed unit). Don't clobber a
+  // live, still-answerable modal with a needless "timed out" fallback modal.
+  if(PROMPT_UI.seq===p.seq && (PROMPT_UI.kind==="modal" || PROMPT_UI.kind==="fallback")) return;
   openReactionModal(p,{ fallback:true });
 }
 
