@@ -1,8 +1,19 @@
 # Battle Forge — Contest Cover
 *Design spec, 2026-07-11 (M's second ruling, same day as the ledge-peek geometry change).
 Companion to `FORGE_PROTOCOL.md` (the event spine this leans on) and `CONTEXT_Forge.md` §4
-(the geometry that produces the verdict being argued). **Spec only — nothing built yet; M
-approves the mechanism and the mock (`forge/cover-contest-mock.html`) first.***
+(the geometry that produces the verdict being argued).*
+
+**STATUS: APPROVED & BUILT, 2026-07-11.** M approved the mock (`forge/cover-contest-mock.html`)
+with one change: the free-text reason field is **optional and de-emphasized** ("we're always
+playing via talking — it can stay for logs") — shipped as a single muted placeholder input
+under the ruling grid, no label header, `reason` omitted from the fact when blank. Built per
+Option B below: `pipe.contestCover()` (forge-pipeline.js) + the `cbCoverModal` ruling menu,
+per-attack contest toggle, culprit-cell highlight, and cover-aware prompt routing in
+`forge/topography-test-mock.html`; known-answer coverage in
+`forge/tests/smoke-cover-contest.js` (24 cases, incl. the §8.6 gate twin). One deliberate
+scope cut: **door (b) proactive** has no dedicated toolbar button — the overseer re-rules a
+*resolved* shot via the existing **Correct last** (`override`, §3's own fallback for a missed
+window) and rules any *contested* shot from the menu.
 
 ---
 

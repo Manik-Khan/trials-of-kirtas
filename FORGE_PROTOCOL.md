@@ -183,6 +183,22 @@ gives the overseer the two tools real tables use, and never pretends otherwise:
 - After any of the three, every device keeps replaying the log and lands in the same
   corrected reality. No special sync case.
 
+- **Player Undo-move (added 2026-07-11, Priority 3).** M: *"it's an undo — players should be
+  able to undo their movement; admin can undo attacks, movement, etc."* The overseer's undo
+  is `restore`/`override` above, from the combat HUD's rewind cluster (⏮ turn boundary · ◀
+  last action). A **player** may retract their **own** last move, and only when that move is
+  the most recent event in the log (nothing, by anyone, happened after it — the HUD narrates
+  the refusal otherwise). The wire is a **compensating fact, not an RLS change**: a bare
+  `move_resolved { final_cell:<pre-move cell>, undo_of:<seq>, undo_ft:<ft> }` the player
+  publishes for their own unit. `move_resolved` is not a privileged kind and the player owns
+  the unit, so the §1 identity gate already passes it — **no schema delta, and every old log
+  stays valid** (rows without `undo_of` replay exactly as before). Replay treats `undo_of`
+  by landing the unit back on `final_cell` and **refunding `undo_ft`** from the derived
+  economy (§ the turn-economy derivation); `undo_ft` rides inline so replay stays pure (no
+  look-back). Chosen over loosening the overseer-only RLS precisely to keep replay pure and
+  legacy logs intact. An undo of an undo is refused (the fact carries `undo_of`, which the
+  gate check skips).
+
 ## §6 · Catch-up: joins, refreshes, drops
 
 - **One rebuild path:** any connecting device fetches the session's events and replays from

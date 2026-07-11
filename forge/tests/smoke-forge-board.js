@@ -37,6 +37,20 @@ ok("add_unit → spawn verb", verbs[9].some(v=>v.t==="spawn"&&v.unit==="gob2"));
 // restore → resync
 const rows2=rows.concat([{seq:11,kind:"restore",unit:"__session",payload:{to_seq:2,snapshot:FR.snapshot(FR.replayLog(roster,rows.slice(0,2)))}}]);
 ok("restore → resync verb", run(rows2).verbs[10].some(v=>v.t==="resync"));
+// bite-1 fix (2026-07-11): a lost move_declared no longer degrades the tween —
+// the resolve fact carries its own path, and verbsFor prefers declared, then payload
+const gap=[
+  {seq:1,kind:"session_started",unit:"__session",payload:{}},
+  {seq:2,kind:"initiative_set",unit:"__session",payload:{order:["caim","gob1"]}},
+  // no move_declared: the row was silently lost in transit
+  {seq:4,kind:"move_resolved",unit:"caim",payload:{final_cell:{c:3,r:1},path:[{c:1,r:1},{c:2,r:1},{c:3,r:1}]}},
+  {seq:5,kind:"move_resolved",unit:"caim",payload:{final_cell:{c:4,r:1}}},   // legacy row: no path anywhere
+];
+const gapRun=run(gap);
+ok("move_resolved with payload.path and no declare → still a walk",
+  gapRun.verbs[2].some(v=>v.t==="walk"&&v.unit==="caim"&&v.path.length===3&&v.to.c===3));
+ok("no declared and no payload path → jump (old logs unchanged)",
+  gapRun.verbs[3].some(v=>v.t==="jump"&&v.unit==="caim"&&v.to.c===4));
 // controls / canClaim / mirrorPlan
 ok("controls: own unit", FB.controls({actor:"u1",units:["caim"],overseer:false},"caim"));
 ok("controls: overseer any", FB.controls({actor:"u9",units:[],overseer:true},"gob1"));

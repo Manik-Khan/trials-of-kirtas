@@ -81,7 +81,9 @@ function setW(m, c, r) { m.wall[Geo.idx(m, c, r)] = true; }
   eq("target fully behind a wall column = total", tv.cover, "total");
   ok("total cover cannot be targeted", tv.canTarget === false);
 
-  // a shorter wall the target peeks past → partial (some lines clear)
+  // a shorter wall the target peeks past → partial (some lines clear). Under
+  // M's round-3 grading (2026-07-11, attribution by side) the c=3 wall is a
+  // midfield tie (3 squares from each) and grades — the original map stands.
   const peek = Geo.makeMap(8, 5);
   setW(peek, 3, 2); setW(peek, 3, 3);
   const pv = Geo.losVerdict(peek, { c: 0, r: 1 }, { c: 6, r: 2 });

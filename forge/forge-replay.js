@@ -25,13 +25,36 @@
     return {
       status: "staging", units: units, rolls: {}, initiative: null,
       turnsEnded: 0, pendingAction: null, pendingPrompt: null,
-      chat: [], lastSeq: 0
+      chat: [], lastSeq: 0,
+      economy: { unit: null, movedFt: 0, usedAction: false, usedBonus: false, attacked: false }
     };
   }
 
   function activeUnit(state) {
     if (!state.initiative || state.status !== "active") return null;
     return state.initiative[state.turnsEnded % state.initiative.length];
+  }
+
+  /* Action economy is a DERIVED FACT of the log (never bookkept locally). It is
+     reset for whoever is active now and rebuilt by replaying the turn's facts.
+     Facts only, no rules: movement is path length ×5, action/bonus come off the
+     publisher's `slot` (default "action" for legacy rows), a `restores:"action"`
+     ability (Action Surge) refunds the action. */
+  function resetEconomy(state) {
+    state.economy = { unit: activeUnit(state), movedFt: 0, usedAction: false, usedBonus: false, attacked: false };
+  }
+  function spendSlot(state, unit, p, isAttack) {
+    if (!state.economy || unit !== state.economy.unit) return;
+    if (p.restores === "action") { state.economy.usedAction = false; return; }
+    var slot = p.slot || "action";
+    if (slot === "bonus") { state.economy.usedBonus = true; }
+    else if (slot === "free") { /* no economy cost */ }
+    else { state.economy.usedAction = true; if (isAttack) state.economy.attacked = true; }
+  }
+  function turnEconomy(state) {
+    var e = state.economy || { unit: null, movedFt: 0, usedAction: false, usedBonus: false, attacked: false };
+    return { unit: e.unit, movedFt: e.movedFt, usedAction: e.usedAction,
+             usedBonus: e.usedBonus, attacked: e.attacked };
   }
   function round(state) {
     if (!state.initiative) return 0;
@@ -55,7 +78,7 @@
     var p = row.payload || {};
     if (corrections && corrections[row.seq]) p = Object.assign({}, p, corrections[row.seq]);
     switch (row.kind) {
-      case "session_started": state.status = "active"; break;
+      case "session_started": state.status = "active"; resetEconomy(state); break;
       case "initiative_rolled": state.rolls[row.unit] = p.roll; break;
       case "initiative_set": {
         var prevRound = round(state);   // BEFORE overwriting order/turnsEnded
@@ -70,6 +93,7 @@
           state.turnsEnded = 0;
         }
         Object.keys(state.units).forEach(function (k) { state.units[k].reactionUsed = false; });
+        resetEconomy(state);   // a re-order re-seats the active unit; fresh economy
         break;
       }
       case "turn_ended": {
@@ -77,6 +101,7 @@
         var next = activeUnit(state);   // reaction refreshes at the start of your turn
         if (next && state.units[next]) state.units[next].reactionUsed = false;
         state.pendingAction = null;
+        resetEconomy(state);   // the next unit begins with a full turn's economy
         break;
       }
       case "session_ended": state.status = "ended"; break;
@@ -87,6 +112,21 @@
         var mv = state.units[row.unit];
         var stop = p.interrupted_at || p.final_cell;
         if (mv && stop) mv.pos = { c: stop.c, r: stop.r };
+        if (p.undo_of != null) {
+          // a player's own Undo-move (Priority 3): a self-published compensating
+          // move_resolved that returns the unit to its pre-move cell (final_cell)
+          // and REFUNDS the undone move's distance from the economy (undo_ft is
+          // a carried fact — replay stays pure, no lookup, old logs stay valid).
+          if (state.economy && row.unit === state.economy.unit && p.undo_ft)
+            state.economy.movedFt = Math.max(0, state.economy.movedFt - p.undo_ft);
+        } else {
+          // economy: movement is a derived fact — sum the declared path length ×5
+          // for the active unit (path from the matching move_declared, else payload).
+          var mpath = (state.pendingAction && state.pendingAction.kind === "move" &&
+                       state.pendingAction.unit === row.unit) ? state.pendingAction.path : p.path;
+          if (state.economy && row.unit === state.economy.unit && mpath)
+            state.economy.movedFt += mpath.length * 5;
+        }
         state.pendingAction = null;
         break;
       }
@@ -97,11 +137,13 @@
         var tgt = p.target || (state.pendingAction && state.pendingAction.target);
         if (p.hit && tgt && state.units[tgt]) applyDamage(state.units[tgt], p.dmg || 0);
         applyEffects(state, p.effects);
+        spendSlot(state, row.unit, p, true);   // an attack spends its slot (default action)
         state.pendingAction = null;
         break;
       }
       case "ability_used":
         applyEffects(state, p.effects);
+        spendSlot(state, row.unit, p, false);   // action / bonus / free per payload.slot
         break;
       case "prompt":
         state.pendingPrompt = {
@@ -181,6 +223,7 @@
 
   return {
     initialState: initialState, activeUnit: activeUnit, round: round,
-    applyEvent: applyEvent, replayLog: replayLog, snapshot: snapshot
+    applyEvent: applyEvent, replayLog: replayLog, snapshot: snapshot,
+    turnEconomy: turnEconomy
   };
 });

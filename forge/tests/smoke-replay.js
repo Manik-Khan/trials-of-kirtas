@@ -170,5 +170,82 @@ s = FR.replayLog(ROSTER, setup.concat([
 ]));
 ok("answer after a restore erased the prompt is inert", s.units.caim.hp === 30);
 
+// ── action economy: a DERIVED FACT of the log (M's round-2 ruling, 2026-07-11) ──
+// movement: sum of move_resolved declared path lengths ×5, for the active unit
+let eco = FR.turnEconomy(FR.replayLog(ROSTER, setup.concat([
+  row(5, "caim", "move_declared", { path: [{ c: 2, r: 2 }, { c: 3, r: 3 }] }),
+  row(6, "caim", "move_resolved", { final_cell: { c: 3, r: 3 } })
+])));
+ok("economy: a move shows movedFt (2 squares → 10 ft)",
+  eco.unit === "caim" && eco.movedFt === 10 && !eco.usedAction && !eco.usedBonus);
+
+// a bonus-action ability spends the BONUS, not the action (Hex / Bardic Inspiration —
+// the field bug where a bonus ate the action; slot on the fact is the fix)
+eco = FR.turnEconomy(FR.replayLog(ROSTER, setup.concat([
+  row(5, "caim", "ability_used", { ability: "hex", slot: "bonus", targets: ["goblin1"], effects: [] })
+])));
+ok("economy: bonus ability → usedBonus true, usedAction false",
+  eco.usedBonus === true && eco.usedAction === false);
+
+// an attack spends the action (default slot)
+eco = FR.turnEconomy(FR.replayLog(ROSTER, setup.concat([
+  row(5, "caim", "attack_declared", { target: "goblin1", roll: 17, mode: "melee" }),
+  row(6, "caim", "attack_resolved", { hit: true, dmg: 5 })
+])));
+ok("economy: an attack → usedAction true, attacked true",
+  eco.usedAction === true && eco.attacked === true && eco.usedBonus === false);
+
+// Action Surge (netSurge: slot free, restores action) refunds the spent action
+eco = FR.turnEconomy(FR.replayLog(ROSTER, setup.concat([
+  row(5, "caim", "attack_declared", { target: "goblin1", roll: 17, mode: "melee" }),
+  row(6, "caim", "attack_resolved", { hit: true, dmg: 5 }),
+  row(7, "caim", "ability_used", { ability: "action_surge", slot: "free", restores: "action", effects: [] })
+])));
+ok("economy: Action Surge refunds the action (usedAction back to false)",
+  eco.usedAction === false && eco.attacked === true);
+
+// legacy rows with no slot default to "action" (old logs stay valid)
+eco = FR.turnEconomy(FR.replayLog(ROSTER, setup.concat([
+  row(5, "caim", "ability_used", { ability: "old_row", effects: [] })
+])));
+ok("economy: a slot-less legacy ability spends the action", eco.usedAction === true);
+
+// turn_ended resets the economy for the next unit — fresh
+eco = FR.turnEconomy(FR.replayLog(ROSTER, setup.concat([
+  row(5, "caim", "move_declared", { path: [{ c: 2, r: 2 }] }),
+  row(6, "caim", "move_resolved", { final_cell: { c: 2, r: 2 } }),
+  row(7, "caim", "attack_declared", { target: "goblin1", roll: 17, mode: "melee" }),
+  row(8, "caim", "attack_resolved", { hit: true, dmg: 5 }),
+  row(9, "caim", "turn_ended", {})
+])));
+ok("economy: turn_ended → fresh economy for the next unit (goblin1)",
+  eco.unit === "goblin1" && eco.movedFt === 0 && !eco.usedAction && !eco.usedBonus);
+
+// restore to a turn boundary rebuilds fresh economy (the snapshot carries it) —
+// the field bug where rewind restored position but not action/movement
+const ecoPre = FR.replayLog(ROSTER, setup);   // caim's turn, nothing spent yet
+eco = FR.turnEconomy(FR.replayLog(ROSTER, setup.concat([
+  row(5, "caim", "move_declared", { path: [{ c: 2, r: 2 }, { c: 3, r: 3 }] }),
+  row(6, "caim", "move_resolved", { final_cell: { c: 3, r: 3 } }),
+  row(7, "caim", "attack_declared", { target: "goblin1", roll: 17, mode: "melee" }),
+  row(8, "caim", "attack_resolved", { hit: true, dmg: 5 }),
+  row(9, "__session", "restore", { to_seq: 4, snapshot: FR.snapshot(ecoPre) })
+])));
+ok("economy: restore to the turn boundary refunds movement AND action",
+  eco.unit === "caim" && eco.movedFt === 0 && !eco.usedAction && !eco.usedBonus);
+
+// Undo-move (Priority 3): a player's compensating move_resolved{undo_of,undo_ft}
+// lands them back on the pre-move cell AND refunds the movement budget
+const undoLog = setup.concat([
+  row(5, "caim", "move_declared", { path: [{ c: 2, r: 2 }, { c: 3, r: 3 }] }),
+  row(6, "caim", "move_resolved", { final_cell: { c: 3, r: 3 } }),
+  row(7, "caim", "move_resolved", { final_cell: { c: 1, r: 1 }, undo_of: 6, undo_ft: 10 })
+]);
+s = FR.replayLog(ROSTER, undoLog);
+eco = FR.turnEconomy(s);
+ok("undo-move returns the unit to its pre-move cell",
+  s.units.caim.pos.c === 1 && s.units.caim.pos.r === 1);
+ok("undo-move refunds the movement budget", eco.movedFt === 0 && !eco.usedAction);
+
 console.log("\n" + pass + " passed, " + fail + " failed");
 process.exitCode = fail ? 1 : 0;

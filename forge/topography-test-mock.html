@@ -24,10 +24,10 @@
 <script src="map-bridge.js?v=fb1"></script>
 <script src="forge-engine.js?v=fb1"></script>
 <script src="forge-protocol.js?v=fb1"></script>
-<script src="forge-replay.js?v=fb1"></script>
+<script src="forge-replay.js?v=fb3"></script>
 <script src="forge-bus.js?v=fb2"></script>
-<script src="forge-pipeline.js?v=fb1"></script>
-<script src="forge-board.js?v=fb1"></script>
+<script src="forge-pipeline.js?v=fb4"></script>
+<script src="forge-board.js?v=fb4"></script>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <!-- Task 11: Start fight reads live PC vitals off the real sheet. character-data.js
      normally waits on nav.js's window.__tok — this mock doesn't carry nav.js's full
@@ -174,18 +174,44 @@ function inRange(map, a, b, rangeFt) { return range3d(map, a, b) <= rangeFt + 1e
      1–4   half           (+2 AC / +2 Dex saves)   [centre must be clear]
      5–7   three-quarters (+5)
      8     total          (cannot be targeted by a single-target attack)   */
-function segOccluded(map, x0, y0, z0, x1, y1, z1, aC, aR, bC, bR) {
+function segBlocker(map, x0, y0, z0, x1, y1, z1, aC, aR, bC, bR) {
   // Dense sample of the OPEN segment. Because we test every sample, the low
   // edge of each cell along the ray is tested too — that is the near corner.
+  // Returns the FIRST cell whose top rises above the ray, or null. The cell
+  // identity is what lets cover be GRADED by attribution — whose side of the
+  // shot the blocker sits on (M's ruling, 2026-07-11 round 3 — see verdictFromEye).
   var steps = 240;
   for (var s = 1; s < steps; s++) {
     var t = s / steps;
     var x = x0 + (x1 - x0) * t, y = y0 + (y1 - y0) * t, z = z0 + (z1 - z0) * t;
     var c = Math.floor(x), r = Math.floor(y);
     if ((c === aC && r === aR) || (c === bC && r === bR)) continue; // own squares
-    if (occTop(map, c, r) > z + 1e-9) return true;
+    if (occTop(map, c, r) > z + 1e-9) return { c: c, r: r };
   }
-  return false;
+  return null;
+}
+function segOccluded(map, x0, y0, z0, x1, y1, z1, aC, aR, bC, bR) {
+  return segBlocker(map, x0, y0, z0, x1, y1, z1, aC, aR, bC, bR) !== null;
+}
+/* Attribution walk for one corner line (M's ruling, round 3): blocked if ANY
+   cell rises above the ray; GRADED if any such cell sits at least as close to
+   the target as to the attacker. The whole segment is walked (not first-hit):
+   shooter-side clutter must not shadow real cover standing beside the target
+   — defender's benefit, same as the midfield tie. */
+function segAttrib(map, x0, y0, z0, x1, y1, z1, a, b) {
+  var steps = 240, blocked = false, graded = false;
+  for (var s = 1; s < steps; s++) {
+    var t = s / steps;
+    var x = x0 + (x1 - x0) * t, y = y0 + (y1 - y0) * t, z = z0 + (z1 - z0) * t;
+    var c = Math.floor(x), r = Math.floor(y);
+    if ((c === a.c && r === a.r) || (c === b.c && r === b.r)) continue;
+    if (occTop(map, c, r) > z + 1e-9) {
+      blocked = true;
+      var cell = { c: c, r: r };
+      if (chebyshev(cell, b) <= chebyshev(cell, a)) { graded = true; break; }
+    }
+  }
+  return { blocked: blocked, graded: graded };
 }
 /* v1 name kept as a thin alias: same question, flat map, no occ[]. */
 function segHitsWall(map, x0, y0, x1, y1, aC, aR, bC, bR) {
@@ -212,22 +238,33 @@ function lipCorners(map, c, r) {
   return out;
 }
 function verdictFromEye(map, ax, ay, az, a, b) {
+  // Cover is what the TARGET hides behind (M's ruling, 2026-07-11, round 3):
+  // a blocking cell GRADES cover (the half/three-quarters counts, and the
+  // centre-line check) only when it sits at least as close to the target as
+  // to the attacker — a midfield tie grades, defender's benefit. An
+  // obstruction on the shooter's side is the shooter's VANTAGE problem
+  // (step up / lean — the ledge-peek eye), not the target's AC, so it adds
+  // nothing to the grade. Wall height and size enter through the line count
+  // itself; there is no other constant. TOTAL is unchanged: all 8 corner
+  // lines blocked by anything anywhere is dead ground — cannot target.
   var bh = heightAt(map, b.c, b.r);
   var zHead = bh + EYE_FT, zFeet = bh + FOOT_FT;
-  var blocked = 0;
+  var blocked = 0, graded = 0;
   for (var tc = 0; tc < CORNERS.length; tc++) {
     var bx = b.c + CORNERS[tc][0], by = b.r + CORNERS[tc][1];
-    if (segOccluded(map, ax, ay, az, bx, by, zHead, a.c, a.r, b.c, b.r)) blocked++;
-    if (segOccluded(map, ax, ay, az, bx, by, zFeet, a.c, a.r, b.c, b.r)) blocked++;
+    var hl = segAttrib(map, ax, ay, az, bx, by, zHead, a, b);
+    if (hl.blocked) { blocked++; if (hl.graded) graded++; }
+    var fl = segAttrib(map, ax, ay, az, bx, by, zFeet, a, b);
+    if (fl.blocked) { blocked++; if (fl.graded) graded++; }
   }
-  var centerBlocked = segOccluded(map, ax, ay, az,
-                                  b.c + 0.5, b.r + 0.5, bh + (EYE_FT + FOOT_FT) / 2,
-                                  a.c, a.r, b.c, b.r);
+  var cl = segAttrib(map, ax, ay, az,
+                     b.c + 0.5, b.r + 0.5, bh + (EYE_FT + FOOT_FT) / 2, a, b);
+  var centerGraded = cl.graded;
   var cover, acBonus;
-  if (blocked === 0)      { cover = "none";  acBonus = 0; }
-  else if (blocked >= 8)  { cover = "total"; acBonus = Infinity; }   // nothing visible
-  else if (blocked <= 4 && !centerBlocked) { cover = "half"; acBonus = 2; }
-  else { cover = "three-quarters"; acBonus = 5; }  // heavy clip, or a blocked centre
+  if (blocked >= 8)        { cover = "total"; acBonus = Infinity; }   // every line blocked → dead ground
+  else if (graded === 0)   { cover = "none";  acBonus = 0; }          // only shooter-side clips, and a clear line exists
+  else if (graded <= 4 && !centerGraded) { cover = "half"; acBonus = 2; }
+  else { cover = "three-quarters"; acBonus = 5; }  // heavy target-side clip, or a graded centre
   return { cover: cover, acBonus: acBonus, blocked: blocked, canTarget: cover !== "total" };
 }
 function losVerdict(map, a, b) {
@@ -566,6 +603,26 @@ global.TacticsGeo = API;
 .cbGodBtns button{ flex:1; font-family:var(--f-util); font-size:11px; color:var(--tk-ink); background:var(--tk-panel-2); border:1px solid var(--tk-line); padding:6px 0; cursor:pointer; }
 .cbCorrectRow{ display:flex; justify-content:space-between; align-items:center; gap:10px; margin:8px 0; font-family:var(--f-util); font-size:13px; color:var(--tk-ink); }
 .cbCorrectRow input[type="number"]{ width:70px; font-family:var(--f-util); font-size:13px; padding:4px 6px; border:1px solid var(--tk-line); background:var(--tk-panel-2); color:var(--tk-ink); }
+/* Cover contest (FORGE_COVER_CONTEST.md; ruling menu styled per the approved
+   cover-contest-mock). Reason field is OPTIONAL and de-emphasized (M's call). */
+.cbCoverGrid{ display:grid; grid-template-columns:1fr 1fr; gap:8px; margin:12px 0 0; }
+.cbCoverBtn{ min-height:52px; font-family:var(--f-util); text-transform:uppercase; letter-spacing:.08em;
+  font-size:12px; font-weight:500; border:1px solid var(--tk-line); background:var(--tk-panel-2); color:var(--tk-ink);
+  cursor:pointer; padding:8px; display:flex; flex-direction:column; align-items:center; justify-content:center; gap:2px;
+  transition:.16s; -webkit-tap-highlight-color:transparent; }
+.cbCoverBtn .big{ font-size:15px; font-weight:600; }
+.cbCoverBtn .sub{ font-size:9px; color:var(--tk-ink-dim); }
+.cbCoverBtn.sel{ background:var(--tk-gold); border-color:var(--tk-gold); color:#fff; }
+.cbCoverBtn.sel .sub{ color:rgba(255,255,255,.8); }
+.cbCoverBtn.no{ border-color:#a8402f; }
+.cbCoverBtn.no.sel{ background:#a8402f; border-color:#a8402f; }
+.cbCoverReason{ width:100%; margin-top:10px; font-family:var(--f-body); font-size:13px; color:var(--tk-ink);
+  background:var(--tk-panel-2); border:1px solid var(--tk-line); padding:8px 9px; }
+.cbCoverReason::placeholder{ color:var(--tk-ink-dim); font-style:italic; opacity:.75; }
+.cbContestTog{ display:block; width:100%; margin-top:8px; min-height:38px; font-family:var(--f-util);
+  text-transform:uppercase; letter-spacing:.1em; font-size:11px; border:1px solid var(--tk-line);
+  background:transparent; color:var(--tk-ink-dim); cursor:pointer; padding:8px 10px; text-align:left; }
+.cbContestTog.on{ background:rgba(58,138,146,.16); border-color:var(--tk-teal); color:var(--tk-ink); }
 .cbRewindList{ display:flex; flex-direction:column; gap:6px; max-height:40vh; overflow:auto; margin:10px 0; }
 .cbRewindItem{ text-align:left; font-family:var(--f-util); font-size:12px; color:var(--tk-ink); background:var(--tk-panel-2); border:1px solid var(--tk-line); padding:8px 9px; cursor:pointer; }
 .cbRewindItem:hover{ border-color:var(--tk-ink-dim); }
@@ -773,6 +830,28 @@ global.TacticsGeo = API;
     </div>
     <div class="cbPromptBanner" id="cbPromptBanner" style="display:none">
       <span id="cbPromptBannerText"></span><span class="cbPromptBannerTimer" id="cbPromptBannerTimer"></span>
+    </div>
+    <!-- Cover contest (FORGE_COVER_CONTEST.md §3): the overseer's ruling menu,
+         styled per the approved cover-contest-mock. Opens ONLY on the overseer
+         device (prompt.to = "__overseer"); everyone else gets the waiting
+         banner above. Reason is optional and de-emphasized (M's call). -->
+    <div class="cbReact" id="cbCoverModal" style="display:none">
+      <div class="cbReactCard cbPromptCard">
+        <div class="cbReactEy" id="cbCoverEy">Cover ruling &mdash; contest pending</div>
+        <div class="cbReactTitle" id="cbCoverTitle"></div>
+        <div class="cbReactDesc" id="cbCoverDesc"></div>
+        <div class="cbCoverGrid" id="cbCoverGrid">
+          <button class="cbCoverBtn" data-cover="none" data-ac="0"><span class="big">None</span><span class="sub">clear shot</span></button>
+          <button class="cbCoverBtn" data-cover="half" data-ac="2"><span class="big">Half +2</span><span class="sub">to AC</span></button>
+          <button class="cbCoverBtn" data-cover="three-quarters" data-ac="5"><span class="big">&frac34; +5</span><span class="sub">to AC</span></button>
+          <button class="cbCoverBtn no" data-cover="total" data-ac=""><span class="big">Total</span><span class="sub">no attack</span></button>
+        </div>
+        <input class="cbCoverReason" id="cbCoverReason" placeholder="reason &mdash; optional, lands in the log">
+        <div class="cbReactBtns">
+          <button class="cbReactUse" id="cbCoverConfirm" disabled>Confirm ruling</button>
+          <button class="cbReactSkip" id="cbCoverSkip">Let the grid stand</button>
+        </div>
+      </div>
     </div>
     <!-- Task 10: session-only initiative lobby — shown after session_started,
          before initiative_set. Rebuilt from state.rolls on every event AND on
@@ -1822,6 +1901,9 @@ function rebuild(){
   bar.innerHTML=Object.keys(LOOK).map(k=>'<button class="chip'+(k===BIOME?' active':'')+'" data-b="'+k+'">'+LOOK[k].name+'</button>').join('');
   host.parentNode.insertBefore(bar,host.nextSibling);
   bar.querySelectorAll('.chip').forEach(b=>b.onclick=()=>{
+    // Bite-1 fix (2026-07-11): the biome feeds forgeParams + flora reseed — in
+    // session mode it belongs to the fight, same narrated lock as the knobs.
+    if(SESSION_ID){ clog('<i>The map belongs to the fight — the biome is locked during a session.</i>'); return; }
     const was=BIOME; BIOME=b.dataset.b;
     bar.querySelectorAll('.chip').forEach(x=>x.classList.toggle('active',x===b));
     applyLook(); if(F) renderField();
@@ -1840,11 +1922,19 @@ function setImgOnly(on){document.querySelectorAll('.imgonly').forEach(e=>e.class
 MODES.forEach(([k,label])=>{const el=document.createElement('button');el.className='chip'+(k==='traced'?' active':'')+(k==='image'?' disabled':'');el.dataset.k=k;
   el.textContent=label;el.style.opacity=(k==='image')?'0.4':'';
   el.onclick=()=>{ if(k==='image'&&!imgHeight)return;
+    // Bite-1 fix (2026-07-11): mode chips call rebuild() — a player tap used to
+    // regenerate a LOCAL map mid-fight and orphan every token. Same narrated
+    // no-op the rooms/loops/decor/forge controls already had.
+    if(SESSION_ID){ clog('<i>The map belongs to the fight — the height source is locked during a session.</i>'); return; }
     mode=k;setActiveChip(k);
     document.getElementById('seedGroup').style.opacity=k==='tiers'?'1':'0.35';
     setImgOnly(k==='image'); rebuild();};
   chipsEl.appendChild(el);});
-function activateImage(name){imgHeight&&(document.querySelector('.chip[data-k="image"]').style.opacity='1');
+function activateImage(name){
+  // Bite-1 fix (2026-07-11): image import is the third door into rebuild() —
+  // file pick AND stage drag-drop both land here, so the one gate covers both.
+  if(SESSION_ID){ clog('<i>The map belongs to the fight — imports are disabled during a session.</i>'); return; }
+  imgHeight&&(document.querySelector('.chip[data-k="image"]').style.opacity='1');
   document.getElementById('fnames').textContent=(name?('H: '+name):'')+(imgType?'  ·  type map loaded':'');
   mode='image';setActiveChip('image');document.getElementById('seedGroup').style.opacity='0.35';setImgOnly(true);rebuild();}
 
@@ -2280,7 +2370,7 @@ var STARTER_KITS = {
 };
 var CHAR = STARTER_KITS;   // alias — every existing CHAR[...] read site keeps working unchanged
 var FOE = { name:"Goblin", hp:7, ac:15, speed:30, init:2, save:1, climb:true, atk:{ label:"Scimitar", rng:1, hit:4, dmg:"1d6+2" } };
-var REACT_LABEL = { silveryBarbs:"Silvery Barbs", shield:"Shield", hellishRebuke:"Hellish Rebuke" };
+var REACT_LABEL = { silveryBarbs:"Silvery Barbs", shield:"Shield", hellishRebuke:"Hellish Rebuke", cover:"Cover ruling" };
 
 function d(n){ return 1+Math.floor(Math.random()*n); }
 function d20a(adv,dis){ var a=d(20); if(adv&&!dis)return Math.max(a,d(20)); if(dis&&!adv)return Math.min(a,d(20)); return a; }
@@ -2640,6 +2730,26 @@ function setActiveFromLog(unitKey, round){
   var idx = CB.order.indexOf(unitByKey(unitKey));
   if (idx >= 0) CB.ti = idx;
   beginTurn(unitByKey(unitKey));   // same fresh-budget/cleanup body nextTurn uses \u2014 no local initiative advance
+  applyLogEconomy();   // a mid-turn refresh/rewind must NOT refund spent movement/action \u2014 overlay the log's own economy
+}
+/* Session mode: CB.st is a DERIVED FACT of the log, never spent locally
+   (the acting device still calls spend() predictively; every device including
+   the actor reconciles to this on each echo). FR.turnEconomy replays the
+   active unit's movement path lengths and action/bonus slots; overlay them onto
+   the fresh CB.st beginTurn built, so refresh / rewind / override all land with
+   correct move/action/bonus. No session (local sandbox) \u2192 this no-ops and the
+   old local spend() path is untouched. */
+function applyLogEconomy(){
+  if(!window.__forgeSession || !CB.st) return;
+  var u=active(); if(!u) return;
+  var eco=window.ForgeReplay.turnEconomy(window.__forgeSession.pipe.state());
+  if(!eco || eco.unit!==u.unit) return;
+  var full=Math.floor(u.speed/5);
+  CB.st.moveLeft=Math.max(0, full - Math.round(eco.movedFt/5));
+  CB.st.usedAction=eco.usedAction;
+  CB.st.usedBonus=eco.usedBonus;
+  CB.st.attacked=eco.attacked;
+  CB.seen=(u.side==="pc"&&CB.st.moveLeft>0)?TG.movementReach(CB.map,u,occupied(u),CB.st.moveLeft):{};
 }
 /* mid-fight roster edit (an 'edit' event's add_unit) — `su` is the freshly
    replayed state.units[unit] record, not a roster row. unitFromRosterRow
@@ -2772,6 +2882,7 @@ function resyncFromState(st){
     var cur = active();
     if (av && (!cur || cur.unit !== av)) setActiveFromLog(av, window.ForgeReplay.round(st));
   }
+  applyLogEconomy();   // a same-unit resync (rewind/override within a turn) re-derives economy without re-seating the turn
   renderHud();
 }
 /* Task 11: pulled the fresh roster off the row on the session_started echo
@@ -3018,7 +3129,7 @@ function beginTurn(u){
   READYING=false; if(RELEASING&&(!RELEASING.alive||!RELEASING.readied)) RELEASING=null;
   CB.units.forEach(function(x){ if(x.boomMark && x.boomMark.by===u.id) x.boomMark=null; });  // Booming Blade lapses at caster’s next turn
   CB.st={ moveLeft:Math.floor(u.speed/5), usedAction:false, usedBonus:false, attacked:false };
-  CB.pending=null;
+  CB.pending=null; CONTEST_COVER=false;   // the contest toggle is per-attack, never carried across turns
   CB.seen=TG.movementReach(CB.map,u,occupied(u),CB.st.moveLeft);
   snapshot("Turn: "+u.name, true); CB.turnStartPtr=CB.hptr;
   drawHi(); drawSight(); renderHud();
@@ -3094,6 +3205,7 @@ function tileFlat(c,r,color,alpha){ var m=new THREE.Mesh(new THREE.PlaneGeometry
 function drawHi(){
   clearBadges();
   moveGroup.clear(); if(!CB.active||CB.over) return;
+  if(CONTEST_HI) moveGroup.add(tileFlat(CONTEST_HI.c,CONTEST_HI.r,0xb8863a,0.55));   // the block being argued about (cover contest, spec §7)
   if(RELEASING&&RELEASING.readied){ var rlA=RELEASING.readied.act;
     enemies(RELEASING).forEach(function(t){ var ro=reachOK(RELEASING,rlA,t);
       moveGroup.add(tileFlat(t.c,t.r,!ro.ok?0x6b6357:0xc9a24b,!ro.ok?0.20:0.5));
@@ -3292,6 +3404,12 @@ function reactionCandidates(state,declaredRow,answers){
    is untouched and keeps serving the no-session path. */
 var PROMPT_UI = { seq:null, kind:null, timerId:null, onUse:null, onSkip:null };
 var __answeringPromptSeq = null;   // guards the fallback modal from reopening while OUR OWN answer is in flight
+/* Cover contest (FORGE_COVER_CONTEST.md): CONTEST_COVER is the player's
+   per-attack pre-roll toggle (armed on the HUD, consumed by the next attack);
+   CONTEST_HI is the culprit cell {c,r} drawHi keeps lit gold while a contest
+   is open — on the asker's board AND the overseer's. */
+var CONTEST_COVER = false;
+var CONTEST_HI = null;
 
 function isUnitClaimed(unitKey){
   var sess=window.__forgeSession; if(!sess) return false;
@@ -3321,6 +3439,8 @@ function clearPromptUI(){
   if(PROMPT_UI.timerId){ clearInterval(PROMPT_UI.timerId); PROMPT_UI.timerId=null; }
   var modal=document.getElementById("cbPromptModal"); if(modal) modal.style.display="none";
   var banner=document.getElementById("cbPromptBanner"); if(banner) banner.style.display="none";
+  var cov=document.getElementById("cbCoverModal"); if(cov) cov.style.display="none";
+  if(CONTEST_HI){ CONTEST_HI=null; drawHi(); }   // culprit-cell highlight lives exactly as long as the contest
   PROMPT_UI.seq=null; PROMPT_UI.kind=null; PROMPT_UI.onUse=null; PROMPT_UI.onSkip=null;
 }
 function reactionDescFor(react,askerName){
@@ -3487,9 +3607,83 @@ function overseerRoutePrompt(prompt){
 function routePrompt(prompt){
   if(!prompt) return;
   var sess=window.__forgeSession;
+  if(prompt.react==="cover"){ routeCoverPrompt(prompt); return; }   // contest: menu on the overseer, banner for everyone else
   if(sess && sess.me && sess.me.overseer){ overseerRoutePrompt(prompt); return; }
   if(promptRole(prompt.to)==="modal") return;
   showPromptBanner(prompt);
+}
+/* ── Cover contest routing + ruling menu (FORGE_COVER_CONTEST.md §3/§7) ──
+   prompt.to is the sentinel "__overseer": controlsUnit() is true only on the
+   overseer's device, so the menu can never open anywhere else; every other
+   screen (asker included — their pipeline is paused awaiting the answer)
+   shows the "Waiting on the DM — Cover ruling?" banner. No new event kinds:
+   the ruling is a prompt_answered{cover,acBonus,reason} only the overseer
+   can write (the identity gate rejects a player forging "__overseer"). */
+function routeCoverPrompt(prompt){
+  var sess=window.__forgeSession; if(!sess) return;
+  if(sess.me.overseer){ openCoverRuling(prompt); return; }
+  showPromptBanner(prompt);   // controllerLabel("__overseer") → "the DM"
+}
+function openCoverRuling(prompt){
+  var ctx=prompt.context||{};
+  var aU=unitByKey(ctx.attacker), tU=unitByKey(ctx.target);
+  var aName=aU?aU.name:(ctx.attacker||"attacker"), tName=tU?tU.name:(ctx.target||"target");
+  clearPromptUI();
+  PROMPT_UI.seq=prompt.seq; PROMPT_UI.kind="cover";
+  var el=document.getElementById("cbCoverModal"); if(!el) return;
+  var ey=document.getElementById("cbCoverEy"), title=document.getElementById("cbCoverTitle"),
+      desc=document.getElementById("cbCoverDesc"), grid=document.getElementById("cbCoverGrid"),
+      reason=document.getElementById("cbCoverReason"), confirm=document.getElementById("cbCoverConfirm"),
+      skip=document.getElementById("cbCoverSkip");
+  ey.textContent="Cover ruling — contest pending";
+  title.textContent=aName+" → "+tName;
+  var v=ctx.verdict||{}, gridSays=(v.cover==="none"?"none":v.cover==="half"?"half +2":v.cover==="three-quarters"?"¾ +5":v.cover||"?");
+  desc.textContent=aName+" contests the shot on "+tName+". The grid says "+gridSays
+    +(ctx.culprit?" — it blames the cell ("+ctx.culprit.c+","+ctx.culprit.r+"), lit gold on the board.":" — partial cover from the angle, no single blocker to light.");
+  // culprit-cell highlight on the DM's own board (spec §7)
+  CONTEST_HI = ctx.culprit ? { c:ctx.culprit.c, r:ctx.culprit.r } : null; drawHi();
+  var picked=null;
+  grid.querySelectorAll(".cbCoverBtn").forEach(function(b){
+    b.classList.remove("sel"); b.disabled=false;
+    b.onclick=function(){
+      grid.querySelectorAll(".cbCoverBtn").forEach(function(x){ x.classList.remove("sel"); });
+      b.classList.add("sel");
+      picked={ cover:b.getAttribute("data-cover"), acBonus:b.getAttribute("data-ac")===""?null:+b.getAttribute("data-ac") };
+      confirm.disabled=false;
+    };
+  });
+  reason.value=""; confirm.disabled=true;
+  function settle(use){
+    var extra={};
+    if(use&&picked){
+      extra={ cover:picked.cover, acBonus:picked.acBonus, reason:(reason.value||"").trim()||undefined };
+    }
+    clearPromptUI();
+    __answeringPromptSeq=prompt.seq;
+    window.__forgeSession.pipe.answerPrompt("__overseer",prompt.seq,use,extra).then(function(res){
+      if(res && res.ok===false){ netPublishFail(res); __answeringPromptSeq=null; return; }
+      __answeringPromptSeq=null;
+      if(use&&picked) clog('<i>The DM rules <b>'+escapeHtml(picked.cover)+'</b>'
+        +(extra.reason?' — “'+escapeHtml(extra.reason)+'”':'')+'.</i>');
+      else clog("<i>The DM lets the grid stand.</i>");
+    });
+  }
+  confirm.onclick=function(){ if(picked) settle(true); };
+  skip.onclick=function(){ settle(false); };
+  el.style.display="flex";
+  // the asker's 20s default fires without us (spec §4) — past the window the
+  // menu narrates that a ruling now needs Correct last, instead of lying.
+  var tick=function(){
+    if(PROMPT_UI.seq!==prompt.seq){ clearInterval(PROMPT_UI.timerId); return; }
+    var remain=promptRemaining(prompt);
+    if(remain<=0){
+      ey.textContent="Cover ruling — window closed, the grid stood";
+      confirm.disabled=true; skip.textContent="Dismiss";
+      grid.querySelectorAll(".cbCoverBtn").forEach(function(b){ b.disabled=true; });
+      if(PROMPT_UI.timerId){ clearInterval(PROMPT_UI.timerId); PROMPT_UI.timerId=null; }
+    }
+  };
+  tick(); PROMPT_UI.timerId=setInterval(tick,500);
 }
 /* forge-pipeline's onPrompt: fires on any device where controlsUnit(to) is
    true — that includes the overseer for every prompt (see the block
@@ -3498,6 +3692,7 @@ function routePrompt(prompt){
 function onWirePrompt(row){
   var sess=window.__forgeSession, prompt=sess && sess.pipe.state().pendingPrompt;
   if(!prompt || prompt.seq!==row.seq) return;   // superseded by a later prompt already
+  if(prompt.react==="cover"){ routeCoverPrompt(prompt); return; }   // contest: no controllers refresh needed — the sentinel routes by role alone
   if(sess.me.overseer){ overseerRoutePrompt(prompt); return; }
   if(promptRole(prompt.to)!=="modal") return;
   openReactionModal(prompt,{});
@@ -3507,6 +3702,7 @@ function onWirePrompt(row){
    the same prompt to the overseer's screen, flagged as such. */
 function onWirePromptFallback(p){
   if(!p) return;
+  if(p.react==="cover") return;   // cover contest: the ruling menu is ALREADY on the overseer's screen; the 20s default fires asker-side (FORGE_COVER_CONTEST.md §4)
   if(__answeringPromptSeq===p.seq) return;                              // already answering — echo just hasn't landed yet
   // Finding 2b (review): a modal for this prompt already open on THIS device —
   // of ANY kind, not just "fallback" — means we're already the responder (e.g.
@@ -3562,7 +3758,7 @@ function selectAction(idx){
      buff/buffAlly, which go through combatClick's already-guarded pending-
      action tap) \u2014 same defense-in-depth gate Task 7 put on combatClick. */
   if(sess && (!window.ForgeBoard.controls(sess.me,u.unit) || __awaitingCount>0)) return;
-  if(CB.pending===a){ CB.pending=null; drawHi(); drawSight(); renderHud(); return; }   // tap again = put it away
+  if(CB.pending===a){ CB.pending=null; CONTEST_COVER=false; drawHi(); drawSight(); renderHud(); return; }   // tap again = put it away (and disarm the contest toggle)
   var cu=canUse(u,a); if(!cu.ok){ clog("<i>"+a.label+": "+cu.why+".</i>"); return; }
   if(READYING){
     if(a.kind!=="attack"){ clog("<i>Ready holds an attack \u2014 melee, ranged, or an attack spell.</i>"); return; }
@@ -3582,7 +3778,7 @@ function selectAction(idx){
     CB.st.usedAction=false; clog(u.name+" \u2014 Action Surge: action regained."); spend(u,a); finishAction(); return; }
   CB.pending=a; drawHi(); drawSight(); renderHud();
 }
-function finishAction(){ CB.pending=null; snapshot("Action"); drawHi(); drawSight(); renderHud(); maybeEnd(); }
+function finishAction(){ CB.pending=null; CONTEST_COVER=false; snapshot("Action"); drawHi(); drawSight(); renderHud(); maybeEnd(); }
 function resolveOn(u,a,t){
   var sess=window.__forgeSession;
   /* Task 7b req 2: every non-attack kind now forks on session the same way
@@ -3816,9 +4012,69 @@ function restore(st){
   document.getElementById("cbBanner").style.display="none";
   drawHi(); drawSight(); renderHud(); updateRewindUI();
 }
-function rewindFine(){ if(CB.react||CB.over||CB_ANIM) return; if(CB.hptr>0){ CB.hptr--; restore(CB.hist[CB.hptr]); } }
-function rewindFwd(){ if(CB.react||CB.over||CB_ANIM) return; if(CB.hptr<CB.hist.length-1){ CB.hptr++; restore(CB.hist[CB.hptr]); } }
-function rewindTurn(){ if(CB.react||CB.over||CB_ANIM) return; var i=CB.hptr-1; while(i>=0 && !CB.hist[i].turnStart) i--; if(i>=0){ CB.hptr=i; restore(CB.hist[i]); } }
+/* Priority 3 (2026-07-11): the combat-HUD rewind cluster is session-aware again.
+   In the local sandbox it is the old single-device time-travel (CB.hist/hptr),
+   untouched. In a shared fight it is an UNDO that publishes a fact everyone
+   replays: the overseer undoes the last action / rewinds to a turn boundary; a
+   player undoes their OWN last move. Economy is restored for free (Priority 2). */
+function rewindFine(){
+  if(window.__forgeSession){ sessionUndoLast(); return; }
+  if(CB.react||CB.over||CB_ANIM) return; if(CB.hptr>0){ CB.hptr--; restore(CB.hist[CB.hptr]); } }
+function rewindFwd(){
+  if(window.__forgeSession) return;   // a shared fight has no local forward step — undo is a published fact
+  if(CB.react||CB.over||CB_ANIM) return; if(CB.hptr<CB.hist.length-1){ CB.hptr++; restore(CB.hist[CB.hptr]); } }
+function rewindTurn(){
+  if(window.__forgeSession){ sessionRewindTurn(); return; }
+  if(CB.react||CB.over||CB_ANIM) return; var i=CB.hptr-1; while(i>=0 && !CB.hist[i].turnStart) i--; if(i>=0){ CB.hptr=i; restore(CB.hist[i]); } }
+/* who/what the player's Undo-move may retract: legal only when their own unit's
+   move is the MOST RECENT event in the log (nothing happened after it, by anyone).
+   Returns { unit, seq, prePos, ft } or null; undoWhyDisabled() narrates the no. */
+function myUndoableMove(){
+  var sess=window.__forgeSession; if(!sess||sess.me.overseer) return null;
+  var evs=sess.pipe.events(); if(!evs.length) return null;
+  var last=evs[evs.length-1];
+  if(last.kind!=="move_resolved") return null;
+  if(last.payload && last.payload.undo_of!=null) return null;      // never undo an undo
+  if(!window.ForgeBoard.controls(sess.me, last.unit)) return null; // must be my own unit
+  var declSeq=null, ft=0;
+  for(var i=evs.length-2;i>=0;i--){
+    if(evs[i].unit!==last.unit) continue;
+    if(evs[i].kind==="move_declared"){ declSeq=evs[i].seq; ft=((evs[i].payload&&evs[i].payload.path)||[]).length*5; break; }
+    if(evs[i].kind==="move_resolved"||evs[i].kind==="attack_resolved"||evs[i].kind==="ability_used") break;
+  }
+  if(declSeq==null) return null;
+  var pre=sess.pipe.stateAt(declSeq-1), pu=pre.units&&pre.units[last.unit]; if(!pu) return null;
+  return { unit:last.unit, seq:last.seq, prePos:{ c:pu.pos.c, r:pu.pos.r }, ft:ft };
+}
+function undoWhyDisabled(){
+  var sess=window.__forgeSession; if(!sess) return "Undo opens when the fight starts.";
+  if(sess.me.overseer) return "Undo the last action.";
+  var evs=sess.pipe.events(), last=evs[evs.length-1];
+  if(!last) return "Nothing to undo yet.";
+  return "You can only undo your move right after it — another action happened after yours.";
+}
+function sessionUndoLast(){
+  var sess=window.__forgeSession; if(!sess||CB.over) return;
+  if(__awaitingCount>0) return;   // don't stack undos on top of an in-flight publish
+  if(sess.me.overseer){
+    var evs=sess.pipe.events();
+    if(evs.length<2){ clog("<i>Nothing to undo yet.</i>"); return; }
+    clog("<i>The DM undoes the last action.</i>");
+    netSessionPublish("restore", sess.pipe.restoreTo(evs[evs.length-2].seq));
+    return;
+  }
+  var info=myUndoableMove();
+  if(!info){ clog("<i>"+undoWhyDisabled()+"</i>"); return; }
+  var nm=(unitByKey(info.unit)&&unitByKey(info.unit).name)||info.unit;
+  clog("<i>"+escapeHtml(nm)+" steps back — move undone.</i>");
+  __awaitingUnit=info.unit; __awaitingKind='move_resolved'; if(__awaitingCount++===0) __awaitingSince=Date.now(); renderHud();
+  sess.pipe.undoMove(info.unit, info.prePos, info.seq, info.ft).then(netPublishFail);
+}
+function sessionRewindTurn(){
+  var sess=window.__forgeSession; if(!sess) return;
+  if(!sess.me.overseer){ clog("<i>Only the DM rewinds the whole turn — you can undo your own move.</i>"); return; }
+  openRewind();   // the same turn-boundary picker the overseer toolbar's Rewind uses
+}
 function resetCombat(){
   if(window.__forgeSession || SESSION_ID){ clog("<i>Shared fights rewind from the DM's toolbar.</i>"); return; }
   if(!confirm("Reset the entire battle? All progress this fight is lost.")) return;
@@ -3827,14 +4083,28 @@ function resetCombat(){
 }
 function updateRewindUI(){
   var f=document.getElementById("cbFine"), w=document.getElementById("cbFwd"), t=document.getElementById("cbTurn");
-  /* C2 (final-review): shared fights rewind from the DM's toolbar (overseer
-     restore/override) — the local time-travel cluster stays parked, never
-     re-enabled by the can/hptr logic below, once a session exists. */
+  /* Priority 3 (2026-07-11): the cluster is session-aware again (it used to be
+     fully parked here with "rewind from the DM's toolbar"). A shared fight has
+     no local forward step, so cbFwd stays disabled and narrates why; cbFine is
+     UNDO (overseer: last action · player: their own last move) and cbTurn is the
+     turn-boundary rewind (overseer only). Sandbox falls through to the can/hptr
+     logic below, unchanged. */
   if(window.__forgeSession || SESSION_ID){
-    var lockTitle="Shared fights rewind from the DM's toolbar.";
-    if(f){ f.disabled=true; f.title=lockTitle; }
-    if(w){ w.disabled=true; w.title=lockTitle; }
-    if(t){ t.disabled=true; t.title=lockTitle; }
+    var sess=window.__forgeSession;
+    if(w){ w.disabled=true; w.title="A shared fight moves only forward — undo publishes to the table."; }
+    if(!sess){   // staging, before the pipe exists
+      if(f){ f.disabled=true; f.title="Undo opens when the fight starts."; }
+      if(t){ t.disabled=true; t.title="Rewind opens when the fight starts."; }
+      return;
+    }
+    if(sess.me.overseer){
+      if(f){ f.disabled=CB.over||!!CB.react; f.title="Undo the last action"; }
+      if(t){ t.disabled=CB.over||!!CB.react; t.title="Rewind to a turn boundary"; }
+    } else {
+      if(t){ t.disabled=true; t.title="Only the DM rewinds the whole turn."; }
+      var um=myUndoableMove();
+      if(f){ f.disabled=!um||CB.over||!!CB.react; f.title=um?"Undo your move":undoWhyDisabled(); }
+    }
     return;
   }
   var can=CB.active&&!CB.over&&!CB.react, hasTurn=false;
@@ -3877,12 +4147,16 @@ function renderHud(){
       +'<div class="cbStats"><span>Move <b>'+(CB.st?CB.st.moveLeft*5:0)+' ft</b></span><span>Action <b>'+(CB.st&&CB.st.usedAction?"used":"ready")+'</b></span><span>Bonus <b>'+(CB.st&&CB.st.usedBonus?"used":"ready")+'</b></span></div>'
       +(isPc?(iControl
           ?'<div class="cbActs">'+acts+'</div><div class="cbHint">'+(waitingMe?'<i>Waiting for the table\u2026</i>':(CB.pending?('<b>'+CB.pending.label+'</b> \u2014 '+((CB.pending.rng||1)>1?'red = in range \u00b7 amber = long (disadv) \u00b7 grey = unreachable':'click a highlighted target')):'Move on teal \u00b7 pick an action, then a target.'))+'</div>'
+            +(sess&&CB.pending&&CB.pending.kind==="attack"&&!waitingMe
+              ?'<button class="cbContestTog'+(CONTEST_COVER?' on':'')+'" id="cbContestTog" title="Pause before the roll: the DM re-rules cover for this one attack (20s, or the grid stands)">Contest cover: '+(CONTEST_COVER?'<b>on</b> \u2014 the DM rules before you roll':'off')+'</button>':'')
             +'<div class="cbSight"><div class="cbSightHd"><span>SIGHT</span><button id="cbSightTog">'+(SHOW_SIGHT?'hide lines':'show lines')+'</button></div>'+sightReport(u)+'</div>'
           :turnBanner)
         :(iControl?'<button class="cbFoeGo" id="cbFoeGo"'+(waitingMe?' disabled title="Waiting for the table\u2026"':'')+'>\u25b6 Run '+u.name+'\u2019s turn</button>':turnBanner));
     if(isPc&&iControl){ panel.querySelectorAll(".cbAct").forEach(function(b){ b.addEventListener("click",function(){ selectAction(+b.dataset.i); }); });
       var stg=document.getElementById("cbSightTog");
-      if(stg) stg.addEventListener("click",function(){ SHOW_SIGHT=!SHOW_SIGHT; drawSight(); renderHud(); }); }
+      if(stg) stg.addEventListener("click",function(){ SHOW_SIGHT=!SHOW_SIGHT; drawSight(); renderHud(); });
+      var ctg=document.getElementById("cbContestTog");
+      if(ctg) ctg.addEventListener("click",function(){ CONTEST_COVER=!CONTEST_COVER; renderHud(); }); }
     else if(!isPc&&iControl){ var fg=document.getElementById("cbFoeGo"); if(fg) fg.addEventListener("click",runFoe); }
     // Task 14: ★ save-back — smallest reasonable spot on the overseer's foe
     // turn HUD (also lives on the pre-fight picked list, fpStar above).
@@ -3972,9 +4246,15 @@ const SESSION_ID = qs.get('session');
    live. Local sandbox (no ?session=) is unchanged. */
 if (SESSION_ID) {
   var SESSION_LOCK_TITLE = "The map belongs to the fight — re-forge is disabled during a session.";
-  ["rooms","loops","decor","foes","seed","dice","forgeBtn"].forEach(function(id){
+  ["rooms","loops","decor","foes","seed","dice","forgeBtn","loadHeight","loadType"].forEach(function(id){
     var el = document.getElementById(id);
     if (el) { el.disabled = true; el.title = SESSION_LOCK_TITLE; }
+  });
+  // Bite-1 fix (2026-07-11): the mode + biome chips bypassed this lock (their
+  // handlers call rebuild()/applyLook with no gate) — now inert AND look it,
+  // same belt-and-suspenders the knobs get; handlers also narrate the no-op.
+  document.querySelectorAll("#chips .chip, #biomeChips .chip").forEach(function(el){
+    el.disabled = true; el.title = SESSION_LOCK_TITLE; el.style.opacity = "0.4";
   });
   /* C2 (final-review): the combat HUD's local time-travel cluster (rewind/
      reset) and re-forge button are local-sandbox-only too. cbFine/cbFwd/
@@ -3985,6 +4265,36 @@ if (SESSION_ID) {
   if (cbResetEl) { cbResetEl.disabled = true; cbResetEl.title = "Shared fights rewind from the DM's toolbar."; }
   var cbReforgeEl = document.getElementById("cbReforge");
   if (cbReforgeEl) { cbReforgeEl.disabled = true; cbReforgeEl.title = "The map belongs to the fight."; }
+  /* Bite-1 fix (2026-07-11), M: "that should be on the admin side only" — on a
+     NON-overseer device the forge/dungeon knob sections leave the panel
+     entirely (locked-but-visible knobs read as broken to a player who never
+     owns them). The overseer keeps them, locked as above. Called from
+     bootSession once me.overseer is known; narrated by the note it leaves.
+     Camera knobs (Height exaggeration / Grid / Prop size) are client-local
+     paint and stay for everyone. */
+  window.__hidePanelForgeControls = function(){
+    var sess = window.__forgeSession; if (!sess || sess.me.overseer) return;
+    var sg = document.getElementById("seedGroup"); if (sg) sg.style.display = "none";
+    ["chips","biomeChips","fnames"].forEach(function(id){
+      var el = document.getElementById(id); if (el) el.style.display = "none";
+    });
+    document.querySelectorAll(".panel .slider-wrap").forEach(function(w){
+      var inp = w.querySelector("input");
+      if (inp && ["rooms","loops","decor","foes"].indexOf(inp.id) >= 0) w.style.display = "none";
+    });
+    document.querySelectorAll(".panel .eyebrow").forEach(function(e){
+      var t = (e.textContent || "").trim();
+      if (t === "Height source" || t === "DUNGEON") e.style.display = "none";
+    });
+    var lh = document.getElementById("loadHeight");
+    if (lh && lh.parentNode && lh.parentNode.classList.contains("improw")) lh.parentNode.style.display = "none";
+    var panel = document.querySelector(".panel");
+    if (panel) {
+      var note = document.createElement("div"); note.className = "fname";
+      note.textContent = "Map + dungeon knobs live on the DM’s device during a shared fight.";
+      panel.insertBefore(note, panel.firstChild);
+    }
+  };
   /* Field 2026-07-11: the session lived only in the URL — nothing on screen
      named it, so a second browser had no way into the same fight. The badge
      IS the invitation: this exact URL joins THIS fight on any device. Built
@@ -4497,16 +4807,14 @@ async function bootSession(sid){
           __awaitingSince = Date.now();   // progress happened, refresh the watchdog timer
         }
       }
-      /* Finding 3 (review): economy flags are derived facts, not local
-         bookkeeping — every device (including the actor's own) must learn a
-         PC spent its action/attack from the echo itself, so a spent PC can't
-         be re-triggered from another console (e.g. the overseer's). Resource
-         (res/cost) spend sync lands with ability payloads (later task). */
-      const activeUnit = CB.st && active();
-      if (activeUnit && r.unit === activeUnit.unit) {
-        if (r.kind === 'attack_resolved') { CB.st.usedAction = true; CB.st.attacked = true; }
-        else if (r.kind === 'ability_used') { CB.st.usedAction = true; }
-      }
+      /* Action economy is a DERIVED FACT of the log (M's round-2 ruling,
+         2026-07-11): the old echo-clobber set usedAction=true on EVERY
+         attack_resolved/ability_used, ignoring the kit's bonus flag (so a Hex/
+         Bardic bonus ate the action) and never rebuilding movement on rewind.
+         It is derived instead — applyLogEconomy() below, run AFTER verbsFor so
+         a turn-boundary echo has re-seated CB.st first, reconciles every device
+         (including the actor's own) to FR.turnEconomy: bonus stays bonus, an
+         Action Surge refund is honoured, and rewind restores move/action. */
       // Finding 1 (review): clear the lobby's own in-flight guards on their
       // matching echo — landing here (not in applyVerb) because these two
       // kinds carry no ForgeBoard verb of their own (rolls/order live in
@@ -4515,6 +4823,7 @@ async function bootSession(sid){
       if (r.kind === 'initiative_rolled') { delete __initPublishing[r.unit]; }
       else if (r.kind === 'initiative_set') { __initConfirming = false; }
       window.ForgeBoard.verbsFor(r, before, st).forEach(applyVerb);
+      applyLogEconomy();   // derive CB.st (move/action/bonus) from the replayed log after the turn is (re)seated
       runMirror(before, lastState);   // Task 13: after every applied event, mirror any hp change I control back to its sheet
       renderHud();   // repaints the cleared guard even on a verb-less event (e.g. a miss)
       syncInitiativeLobby();   // Task 10: initiative_rolled/initiative_set/session_started all pass through here
@@ -4536,10 +4845,12 @@ async function bootSession(sid){
   const bootState = pipe.state();
   if (bootState.initiative && bootState.status === 'active') {
     const bootActive = window.ForgeReplay.activeUnit(bootState);
-    // TODO(board): derive spent budget from log — refresh currently refunds movement
+    // Priority 2 (2026-07-11): setActiveFromLog now overlays the log-derived
+    // economy (applyLogEconomy), so a mid-turn refresh no longer refunds movement.
     if (bootActive) setActiveFromLog(bootActive, window.ForgeReplay.round(bootState));
   }
   window.__forgeSession = { pipe, row, me, sb };
+  if (window.__hidePanelForgeControls) window.__hidePanelForgeControls();   // bite-1: players lose the DM-only knob sections (narrated by the note it leaves)
   // Task 13: catchUp() never fires onEvent per row, so a device joining/
   // refreshing mid-fight needs one explicit mirror pass of its own —
   // otherwise an overseer covering an unclaimed PC that took damage while
@@ -4554,7 +4865,8 @@ async function bootSession(sid){
   // its first tick (e.g. the overseer refreshing after the 20s already ran).
   const bootPrompt = pipe.state().pendingPrompt;
   if (bootPrompt) {
-    if (promptRole(bootPrompt.to) === 'modal') openReactionModal(bootPrompt, {});
+    if (bootPrompt.react === 'cover') routeCoverPrompt(bootPrompt);   // refresh mid-contest (spec §5): menu on the overseer, "waiting on the DM" elsewhere
+    else if (promptRole(bootPrompt.to) === 'modal') openReactionModal(bootPrompt, {});
     else showPromptBanner(bootPrompt);
   }
   setInterval(() => { pipe.checkTimeouts(); checkEchoStall(); }, 1000);
@@ -4585,7 +4897,8 @@ function checkEchoStall(){
       var stallPrompt = __pipe.state().pendingPrompt;
       if (!stallPrompt) { clearPromptUI(); }
       else if (PROMPT_UI.seq !== stallPrompt.seq) {
-        if (promptRole(stallPrompt.to) === 'modal') openReactionModal(stallPrompt, {});
+        if (stallPrompt.react === 'cover') routeCoverPrompt(stallPrompt);
+        else if (promptRole(stallPrompt.to) === 'modal') openReactionModal(stallPrompt, {});
         else showPromptBanner(stallPrompt);
       }
       syncInitiativeLobby();
@@ -4627,7 +4940,10 @@ function netMove(u, path){
   // Task 7b: returns the publish result so a caller can sequence a follow-up
   // (foeTurn's move → strike chain) off publish success/failure. Existing PC
   // callers (combatClick) don't use the return value — unaffected.
-  return window.__forgeSession.pipe.move(u.unit, path, function(){ return { final_cell: { c: fin.c, r: fin.r } }; })
+  // Bite-1 fix (2026-07-11): the resolve fact carries its own path (the same
+  // idiom attack_resolved uses for target) — a device that silently lost the
+  // move_declared row no longer degrades the tween to a jump.
+  return window.__forgeSession.pipe.move(u.unit, path, function(){ return { final_cell: { c: fin.c, r: fin.r }, path: path }; })
     .then(function(r){ netPublishFail(r); return r; });
 }
 /* roll + hit math stay local (same functions/order the sandbox always used);
@@ -4638,6 +4954,50 @@ function netMove(u, path){
    needing the (not-yet-arrived) echo to tell us the target is down. */
 function netAttack(u,a,t){
   var ro=reachOK(u,a,t); if(!ro.ok){ clog(u.name+" — "+ro.why+"."); return; }
+  if(CONTEST_COVER){ CONTEST_COVER=false; contestThenAttack(u,a,t,ro); return; }   // per-attack toggle, consumed here
+  netAttackGo(u,a,t,ro);
+}
+/* Contest cover (FORGE_COVER_CONTEST.md §3, door a): pre-roll pause. The prompt
+   carries the grid's verdict + the culprit cell (losRay along the verdict's own
+   winning eye, spec §7) so the DM's menu can light the block being argued about.
+   attack_declared is NOT published yet — the roll hasn't happened. The 20s
+   default fires HERE, asker-side: no ruling → the geometry verdict stands. */
+function contestThenAttack(u,a,t,ro){
+  var v=ro.verdict||sightTo(u,t);
+  var ray=TG.losRay(CB.map,{c:u.c,r:u.r},{c:t.c,r:t.r},v.eye);
+  var culprit=ray.at||null;
+  CONTEST_HI=culprit?{ c:culprit.c, r:culprit.r }:null; drawHi();
+  clog(u.name+" contests cover on "+t.name+" — the grid says "+(ro.coverName||"none")
+    +(culprit?", blaming ("+culprit.c+","+culprit.r+")":", partial cover from the angle")+". Waiting on the DM…");
+  // hold the seat while the table waits (same guard shape every publish uses);
+  // 'cover_contest' matches no echo kind, so only the .then below releases it
+  __awaitingUnit=u.unit; __awaitingKind='cover_contest'; if(__awaitingCount++===0) __awaitingSince=Date.now(); renderHud();
+  window.__forgeSession.pipe.contestCover(u.unit,{
+    attacker:u.unit, target:t.unit,
+    verdict:{ cover:v.cover, acBonus:(v.acBonus===Infinity?null:v.acBonus), blocked:v.blocked },
+    culprit:culprit
+  }).then(function(ans){
+    __awaitingCount=Math.max(0,__awaitingCount-1);
+    if(__awaitingCount===0){ __awaitingUnit=null; __awaitingKind=null; __awaitingSince=0; }
+    CONTEST_HI=null; drawHi();
+    var p=ans&&ans.payload;
+    if(!p||!p.use||!p.cover){
+      clog("<i>"+(ans?"The DM lets the grid stand":"No ruling in 20s — the grid stands")
+        +": "+(ro.coverName||"none")+". The shot proceeds.</i>");
+      netAttackGo(u,a,t,ro); return;
+    }
+    if(p.cover==="total"){
+      clog("<i>The DM rules <b>total cover</b> — no shot."
+        +(p.reason?" “"+escapeHtml(p.reason)+"”":"")+" Your action is not spent.</i>");
+      CB.pending=null; drawHi(); drawSight(); renderHud(); return;
+    }
+    var acB=(p.acBonus!=null)?p.acBonus:(COVER_AC[p.cover]||0);
+    clog("<i>The DM rules <b>"+escapeHtml(p.cover)+"</b>"
+      +(p.reason?" — “"+escapeHtml(p.reason)+"”":"")+". The shot proceeds under it.</i>");
+    netAttackGo(u,a,t,Object.assign({},ro,{ cover:acB, coverName:p.cover }));
+  });
+}
+function netAttackGo(u,a,t,ro){
   var n=a.strikes||1, i=0, hpLeft=t.hp;
   __awaitingUnit = u.unit; __awaitingKind = 'attack_resolved'; renderHud();
   (function strike(){
@@ -4694,7 +5054,9 @@ function netAttack(u,a,t){
             var ku=unitByKey(row.unit); return ku&&ku.react&&Object.keys(ku.react)[0]==="hellishRebuke" && row.payload && row.payload.use;
           })[0];
           if(rb) effects.push({ unit:u.unit, dmg:rb.payload.dmg });
-          return { hit: hs.hit, dmg: dmg, effects: effects };
+          // Priority 2: the resolved fact carries which slot it spent, so
+          // forge-replay's turnEconomy grades the economy without kit knowledge.
+          return { hit: hs.hit, dmg: dmg, effects: effects, slot: a.bonus ? "bonus" : "action" };
         })
       .then(function(r){ if (r && r.ok === false) { netPublishFail(r); return; } strike(); });
   })();
@@ -4759,7 +5121,8 @@ function netFoeAttack(u,atk,t,hs,adv,dis){
           var ku=unitByKey(row.unit); return ku&&ku.react&&Object.keys(ku.react)[0]==="hellishRebuke" && row.payload && row.payload.use;
         })[0];
         if(rb) effects.push({ unit:u.unit, dmg:rb.payload.dmg });
-        return { hit:fhs.hit, dmg:dmg, effects:effects };
+        // Priority 2: foe attacks are actions (foe kits carry no bonus flag).
+        return { hit:fhs.hit, dmg:dmg, effects:effects, slot: atk.bonus ? "bonus" : "action" };
       })
     .then(function(r){ if (r && r.ok===false) netPublishFail(r); return r; });
 }
@@ -4779,7 +5142,9 @@ function netFoeAttack(u,atk,t,hs,adv,dis){
 function netUseAbility(u,a,targets,effects,opts){
   opts = opts || {};
   __awaitingUnit=u.unit; __awaitingKind='ability_used'; if(__awaitingCount++===0) __awaitingSince = Date.now(); renderHud();
-  var payload = { ability:a.label, targets:targets, effects:effects||[] };
+  var payload = { ability:a.label, targets:targets, effects:effects||[],
+    slot: a.bonus ? "bonus" : (a.free ? "free" : "action") };   // Priority 2: economy slot rides the fact
+  if (opts.restores) payload.restores = opts.restores;   // Action Surge: slot "free", restores "action"
   if (opts.roll!=null) payload.roll = opts.roll;
   if (opts.dmg!=null) payload.dmg = opts.dmg;
   if (opts.context) payload.context = opts.context;   // narration-only, not a replay field — ignored by applyEvent, harmless
@@ -4840,7 +5205,9 @@ function netSelfHeal(u,a){
    other kind here follows. */
 function netSurge(u,a){
   clog(u.name+" — Action Surge: action regained.");
-  netUseAbility(u,a,[u.unit],[],{ onSuccess:function(){ CB.st.usedAction=false; } });
+  // Priority 2: the fact is slot:"free" + restores:"action", so replay-derived
+  // economy refunds the action on every device; the local reset stays predictive.
+  netUseAbility(u,a,[u.unit],[],{ restores:"action", onSuccess:function(){ CB.st.usedAction=false; } });
 }
 /* buff (Hex) / buffAlly (Bardic Inspiration) — CB.hexed and t.inspired are
    local combat-math flags with no replay-fact representation (no hp/

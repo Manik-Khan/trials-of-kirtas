@@ -127,11 +127,43 @@
       move: function (unit, path, resolveFacts) {
         return act(unit, "move_declared", { path: path }, "move_resolved", resolveFacts);
       },
+      /* Undo-move (Priority 3): a player retracts their OWN last move. It is a
+         bare compensating move_resolved (no declare, so it fires no OA prompts)
+         that lands the unit back on `prePos` and carries `undo_ft` so replay
+         refunds the movement budget. move_resolved is not a privileged kind and
+         the player owns `unit`, so the identity gate passes it with no schema
+         change — see FORGE_PROTOCOL.md's dated undo note. */
+      undoMove: function (unit, prePos, ofSeq, ft) {
+        return publish(unit, "move_resolved",
+          { final_cell: { c: prePos.c, r: prePos.r }, undo_of: ofSeq, undo_ft: ft });
+      },
       attack: function (unit, facts, resolveFacts) {
         // resolutions are self-contained facts: carry the declared target so
         // replay never depends on the shared pendingAction slot
         return act(unit, "attack_declared", facts, "attack_resolved", function (answers) {
           return Object.assign({ target: facts.target }, resolveFacts(answers));
+        });
+      },
+      /* Cover contest (FORGE_COVER_CONTEST.md §3): a pre-roll pause reusing the
+         ask() primitive — prompt{to:"__overseer",react:"cover"} — raced against
+         the same 20s window a reaction prompt gets. No ruling in time → resolves
+         null and the geometry verdict stands (spec §4: the overseer IS the
+         authority, so its non-answer means "the grid stands"; a late ruling is
+         inert — the awaiting token is abandoned). timeoutMs is injectable for
+         the smokes; the published prompt still carries the standard timeout:20. */
+      contestCover: function (unit, context, timeoutMs) {
+        return new Promise(function (resolve) {
+          var settled = false;
+          var timer = setTimeout(function () {
+            if (settled) return; settled = true;
+            awaiting = null;   // abandon the pause; the late answer echo is inert
+            resolve(null);
+          }, timeoutMs != null ? timeoutMs : 20000);
+          ask(unit, { to: "__overseer", react: "cover", context: context || {} })
+            .then(function (row) {
+              if (settled) return; settled = true;
+              clearTimeout(timer); resolve(row);
+            });
         });
       },
       useAbility: function (unit, facts) { return publish(unit, "ability_used", facts); },

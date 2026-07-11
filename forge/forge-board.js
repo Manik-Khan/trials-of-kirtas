@@ -62,7 +62,11 @@
         break;
       case "move_resolved": {
         var mv = after.units[row.unit];
-        var path = (before.pendingAction && before.pendingAction.unit === row.unit && before.pendingAction.path) || null;
+        // prefer the declared path; fall back to the path the resolve fact now
+        // carries itself (bite-1 fix, 2026-07-11: a lost move_declared row used
+        // to silently degrade the tween to a jump — facts are self-contained)
+        var path = (before.pendingAction && before.pendingAction.unit === row.unit && before.pendingAction.path)
+                || (row.payload && row.payload.path) || null;
         if (mv) verbs.push(path ? { t: "walk", unit: row.unit, path: path, to: { c: mv.pos.c, r: mv.pos.r } }
                                 : { t: "jump", unit: row.unit, to: { c: mv.pos.c, r: mv.pos.r } });
         verbs = verbs.concat(unitDiffs(before, after).filter(function (v) { return !(v.t === "jump" && v.unit === row.unit); }));

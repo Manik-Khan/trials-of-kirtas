@@ -137,18 +137,44 @@ function inRange(map, a, b, rangeFt) { return range3d(map, a, b) <= rangeFt + 1e
      1–4   half           (+2 AC / +2 Dex saves)   [centre must be clear]
      5–7   three-quarters (+5)
      8     total          (cannot be targeted by a single-target attack)   */
-function segOccluded(map, x0, y0, z0, x1, y1, z1, aC, aR, bC, bR) {
+function segBlocker(map, x0, y0, z0, x1, y1, z1, aC, aR, bC, bR) {
   // Dense sample of the OPEN segment. Because we test every sample, the low
   // edge of each cell along the ray is tested too — that is the near corner.
+  // Returns the FIRST cell whose top rises above the ray, or null. The cell
+  // identity is what lets cover be GRADED by attribution — whose side of the
+  // shot the blocker sits on (M's ruling, 2026-07-11 round 3 — see verdictFromEye).
   var steps = 240;
   for (var s = 1; s < steps; s++) {
     var t = s / steps;
     var x = x0 + (x1 - x0) * t, y = y0 + (y1 - y0) * t, z = z0 + (z1 - z0) * t;
     var c = Math.floor(x), r = Math.floor(y);
     if ((c === aC && r === aR) || (c === bC && r === bR)) continue; // own squares
-    if (occTop(map, c, r) > z + 1e-9) return true;
+    if (occTop(map, c, r) > z + 1e-9) return { c: c, r: r };
   }
-  return false;
+  return null;
+}
+function segOccluded(map, x0, y0, z0, x1, y1, z1, aC, aR, bC, bR) {
+  return segBlocker(map, x0, y0, z0, x1, y1, z1, aC, aR, bC, bR) !== null;
+}
+/* Attribution walk for one corner line (M's ruling, round 3): blocked if ANY
+   cell rises above the ray; GRADED if any such cell sits at least as close to
+   the target as to the attacker. The whole segment is walked (not first-hit):
+   shooter-side clutter must not shadow real cover standing beside the target
+   — defender's benefit, same as the midfield tie. */
+function segAttrib(map, x0, y0, z0, x1, y1, z1, a, b) {
+  var steps = 240, blocked = false, graded = false;
+  for (var s = 1; s < steps; s++) {
+    var t = s / steps;
+    var x = x0 + (x1 - x0) * t, y = y0 + (y1 - y0) * t, z = z0 + (z1 - z0) * t;
+    var c = Math.floor(x), r = Math.floor(y);
+    if ((c === a.c && r === a.r) || (c === b.c && r === b.r)) continue;
+    if (occTop(map, c, r) > z + 1e-9) {
+      blocked = true;
+      var cell = { c: c, r: r };
+      if (chebyshev(cell, b) <= chebyshev(cell, a)) { graded = true; break; }
+    }
+  }
+  return { blocked: blocked, graded: graded };
 }
 /* v1 name kept as a thin alias: same question, flat map, no occ[]. */
 function segHitsWall(map, x0, y0, x1, y1, aC, aR, bC, bR) {
@@ -175,22 +201,33 @@ function lipCorners(map, c, r) {
   return out;
 }
 function verdictFromEye(map, ax, ay, az, a, b) {
+  // Cover is what the TARGET hides behind (M's ruling, 2026-07-11, round 3):
+  // a blocking cell GRADES cover (the half/three-quarters counts, and the
+  // centre-line check) only when it sits at least as close to the target as
+  // to the attacker — a midfield tie grades, defender's benefit. An
+  // obstruction on the shooter's side is the shooter's VANTAGE problem
+  // (step up / lean — the ledge-peek eye), not the target's AC, so it adds
+  // nothing to the grade. Wall height and size enter through the line count
+  // itself; there is no other constant. TOTAL is unchanged: all 8 corner
+  // lines blocked by anything anywhere is dead ground — cannot target.
   var bh = heightAt(map, b.c, b.r);
   var zHead = bh + EYE_FT, zFeet = bh + FOOT_FT;
-  var blocked = 0;
+  var blocked = 0, graded = 0;
   for (var tc = 0; tc < CORNERS.length; tc++) {
     var bx = b.c + CORNERS[tc][0], by = b.r + CORNERS[tc][1];
-    if (segOccluded(map, ax, ay, az, bx, by, zHead, a.c, a.r, b.c, b.r)) blocked++;
-    if (segOccluded(map, ax, ay, az, bx, by, zFeet, a.c, a.r, b.c, b.r)) blocked++;
+    var hl = segAttrib(map, ax, ay, az, bx, by, zHead, a, b);
+    if (hl.blocked) { blocked++; if (hl.graded) graded++; }
+    var fl = segAttrib(map, ax, ay, az, bx, by, zFeet, a, b);
+    if (fl.blocked) { blocked++; if (fl.graded) graded++; }
   }
-  var centerBlocked = segOccluded(map, ax, ay, az,
-                                  b.c + 0.5, b.r + 0.5, bh + (EYE_FT + FOOT_FT) / 2,
-                                  a.c, a.r, b.c, b.r);
+  var cl = segAttrib(map, ax, ay, az,
+                     b.c + 0.5, b.r + 0.5, bh + (EYE_FT + FOOT_FT) / 2, a, b);
+  var centerGraded = cl.graded;
   var cover, acBonus;
-  if (blocked === 0)      { cover = "none";  acBonus = 0; }
-  else if (blocked >= 8)  { cover = "total"; acBonus = Infinity; }   // nothing visible
-  else if (blocked <= 4 && !centerBlocked) { cover = "half"; acBonus = 2; }
-  else { cover = "three-quarters"; acBonus = 5; }  // heavy clip, or a blocked centre
+  if (blocked >= 8)        { cover = "total"; acBonus = Infinity; }   // every line blocked → dead ground
+  else if (graded === 0)   { cover = "none";  acBonus = 0; }          // only shooter-side clips, and a clear line exists
+  else if (graded <= 4 && !centerGraded) { cover = "half"; acBonus = 2; }
+  else { cover = "three-quarters"; acBonus = 5; }  // heavy target-side clip, or a graded centre
   return { cover: cover, acBonus: acBonus, blocked: blocked, canTarget: cover !== "total" };
 }
 function losVerdict(map, a, b) {

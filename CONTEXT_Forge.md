@@ -182,14 +182,38 @@ real placement. **These are decisions, not hypotheses.**
 - **Cover is graded**, 8 corner-lines (4 corners × head/feet):
   `0 → none · 1–4 → half (+2) · 5–7 → three-quarters (+5) · 8 → total`.
   A 4.5 ft boulder yields ¾. A 10.5 ft temple wall yields total.
+- **Grading amendment — attribution by side (M's ruling, 2026-07-11, round 3;
+  supersedes the same-day round-2 "2-square radius" version).** M saw an enemy
+  standing in the open take +5 from a shot fired down off a ledge: the lines to
+  the target's feet were clipped by attacker-side lip / terrain edges. Round 2
+  fixed it with a hard 10-ft-of-the-target radius; M rejected the radius as
+  absolute ("a wall 3+ squares in front of someone can absolutely still be
+  cover — it depends on the height and size of the wall; I'm thinking about
+  vantage points"). The rule now: **"cover is what the TARGET hides behind; an
+  obstruction on the shooter's side is the shooter's vantage problem (step up /
+  lean), not the target's AC."** A blocking cell **grades** cover (half/¾, and
+  the centre-line check) when it sits at least as close to the target as to the
+  attacker — `chebyshev(blocker,target) ≤ chebyshev(blocker,attacker)`; a
+  midfield tie grades (defender's benefit). Strictly attacker-side blockers
+  grade nothing. Each corner line's attribution walks the **whole** segment,
+  not just the first blocker — shooter-side clutter cannot shadow a boulder
+  standing beside the target (also defender's benefit). Wall height/size enter
+  through the line count itself; there is no other constant. **TOTAL is
+  unchanged**: all 8 lines blocked by anything anywhere is dead ground, so the
+  mesa / level-with-the-wall-base / step-back-to-break-LoS cases stand, and a
+  mob hull-down behind his own rim correctly keeps ¾ (defilade). Ledge-peek
+  alternate-eye logic untouched. Identical in all three `tactics-geometry`
+  copies (`segAttrib` + `verdictFromEye`).
 - **Occluder heights come from the generator**, not from thin air:
   `map-bridge.BIOME_WALL_UNITS` mirrors `SKINS.wallH` × 5 ft.
   grass 7 · druidic 8 · tundra 7.5 · swamp 6.25 · temple 10.5 · cavern 9.5 ·
   volcanic 8.5 *(placeholder — no SKINS entry yet)*.
   Props: rock 4.5 · tree 5.5 · reed 3.5 · mushroom 2 · column 15.
   Moss, bones, cracks, banners, icicles occlude nothing.
-- **`smoke-los-cover.js` (33 cases) encodes all of the above** (was 27; +ledge-peek
-  section, 2026-07-11). If a change breaks it, the change is wrong until argued otherwise.
+- **`smoke-los-cover.js` (37 cases) encodes all of the above** (was 27; +ledge-peek
+  section, then the grading sections re-frozen under round 3 — attacker-side
+  terrace, boulder-shadow pair, parapet-by-side pair, hull-down rim — all
+  2026-07-11). If a change breaks it, the change is wrong until argued otherwise.
 
 ---
 
@@ -297,6 +321,24 @@ real placement. **These are decisions, not hypotheses.**
    short session id + **Copy join link** (the URL is the invitation), and a
    sandbox-started fight narrates that it is single-device and points at Open the
    table.
+14. ~~Mode + biome chips bypassed the session lock.~~ **Fixed 2026-07-11.** The
+   Finding-2 lock (rooms/loops/decor/foes + seed/dice/Forge tiers, narrated
+   no-ops + disabled controls) never covered the `MODES.forEach` chips, the
+   biome chips, or the image-import door (`activateImage` — file pick AND
+   stage drag-drop) — a player tap regenerated a LOCAL map mid-fight and
+   orphaned every token. All three doors now gate on `SESSION_ID` with the
+   same narrated no-op, the chips render inert and look it, and on a
+   NON-overseer device the forge/dungeon knob sections leave the panel
+   entirely (M: "that should be on the admin side only") behind a one-line
+   note; the overseer keeps them, locked. Camera knobs stay live for everyone.
+15. ~~A silently lost `move_declared` degraded the move tween to a jump.~~
+   **Fixed 2026-07-11.** `forge-bus.js deliver()` has no per-row gap handling,
+   so a dropped declare left `forge-board.js` with no `pendingAction.path` and
+   the resolve painted as a teleport. Per the protocol's own idiom
+   (`attack_resolved` already carries its target), `move_resolved` facts now
+   carry `path`; `verbsFor` prefers the declared path and falls back to
+   `payload.path`. Old logs (no path anywhere) still jump — unchanged.
+   `smoke-forge-board.js` 18 → 20.
 
 ---
 
@@ -391,9 +433,12 @@ netlify origin, so `Open the table` never appears on localhost). Still owed:
 `schema_delta_members.sql` — it uses `is_member()`), then **M's two-device field
 checklist** (`FORGE_BOARD.md` appendix, 14 steps) on the live site. Multiplayer is
 dormant without `?session=`; the single-device sandbox was regression-gated at
-every step. Known-and-accepted for the field pass: a refresh refunds unspent
-movement (coded TODO), and Confirm Order doesn't wait for stragglers (late rolls
-sort to the bottom — empty seats never block). **Bite 2** is the sheet→actions derivation
+every step. Known-and-accepted for the field pass: ~~a refresh refunds unspent
+movement (coded TODO)~~ **fixed 2026-07-11 (Priority 2)** — action economy is now a
+DERIVED FACT of the log (`forge-replay.js` `turnEconomy()`; facts carry `slot`), so
+refresh/rewind/override all land with correct movement/action/bonus and a Hex/Bardic
+bonus no longer eats the action. Still open: Confirm Order doesn't wait for stragglers
+(late rolls sort to the bottom — empty seats never block). **Bite 2** is the sheet→actions derivation
 layer plus the feel-layer ports (badges, hit flash, shake, bob, floating damage,
 flanking/OA/Ready) — specced in `FORGE_BOARD.md` §0. The older list below stands for the
 single-device port debts.
