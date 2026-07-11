@@ -64,5 +64,34 @@ ok("canClaim: ended", !FB.canClaim({...sess,status:"ended"},"u1","caim").ok);
 const b4={units:{caim:{hp:24},gob1:{hp:7}}}, af={units:{caim:{hp:20},gob1:{hp:4}}};
 const plan=FB.mirrorPlan(b4,af,["caim"],{caim:{sheet_ref:"caim"},gob1:{}});
 ok("mirrorPlan: one write, my unit, absolute", plan.length===1&&plan[0].key==="caim"&&plan[0].vitals.hp===20);
+// deadFoeSkip (field 2026-07-11: a dead foe's turn stranded the fight).
+// Decision only — the overseer device publishes the actual turn_ended.
+function skState(extra){ // fight where it is gob1's turn
+  const r=[
+    {seq:1,kind:"session_started",unit:"__session",payload:{}},
+    {seq:2,kind:"initiative_set",unit:"__session",payload:{order:["caim","gob1"]}},
+    {seq:3,kind:"turn_ended",unit:"caim",payload:{}},
+  ].concat(extra||[]);
+  return run(r).st;
+}
+ok("deadFoeSkip: dead foe holds the turn → its key",
+  FB.deadFoeSkip(skState([{seq:4,kind:"attack_resolved",unit:"caim",payload:{target:"gob1",hit:true,dmg:7}}]))==="gob1");
+ok("deadFoeSkip: alive foe holds the turn → null",
+  FB.deadFoeSkip(skState())===null);
+ok("deadFoeSkip: revived foe → null (heal clears downed)",
+  FB.deadFoeSkip(skState([
+    {seq:4,kind:"attack_resolved",unit:"caim",payload:{target:"gob1",hit:true,dmg:7}},
+    {seq:5,kind:"ability_used",unit:"gob1",payload:{effects:[{unit:"gob1",heal:3}],slot:"free"}},
+  ]))===null);
+// downed PC keeps the turn — death saves are theirs to roll
+const pcDown=run([
+  {seq:1,kind:"session_started",unit:"__session",payload:{}},
+  {seq:2,kind:"initiative_set",unit:"__session",payload:{order:["caim","gob1"]}},
+  {seq:3,kind:"attack_resolved",unit:"gob1",payload:{target:"caim",hit:true,dmg:24}},
+]).st;
+ok("deadFoeSkip: downed PC holds the turn → null", FB.deadFoeSkip(pcDown)===null);
+ok("deadFoeSkip: ended fight → null",
+  FB.deadFoeSkip(Object.assign(snap(skState([{seq:4,kind:"attack_resolved",unit:"caim",payload:{target:"gob1",hit:true,dmg:7}}])),{status:"ended"}))===null);
+ok("deadFoeSkip: no state → null", FB.deadFoeSkip(null)===null);
 console.log("smoke-forge-board: "+pass+" passed, "+fail+" failed");
 process.exit(fail?1:0);
