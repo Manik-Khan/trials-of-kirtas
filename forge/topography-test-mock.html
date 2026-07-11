@@ -457,6 +457,28 @@ global.TacticsGeo = API;
 .cbRel.on{ background:var(--tk-gold); color:#fff; }
 .cbRel.on .cbRelX{ color:#fff; }
 .cbRelX{ color:#a33b2e; font-weight:700; padding:0 3px; cursor:pointer; }
+/* Task 10: initiative lobby + overseer toolbar (FORGE_PROTOCOL.md §3/§5) */
+.cbInitLobbyCard{ width:380px; max-width:90vw; max-height:80vh; overflow:auto; }
+.cbInitRow{ display:flex; justify-content:space-between; align-items:center; gap:10px; padding:7px 0; border-bottom:1px solid rgba(168,159,138,.3); font-family:var(--f-util); font-size:13px; color:var(--tk-ink); }
+.cbInitRow:last-child{ border-bottom:none; }
+.cbInitVal{ display:flex; align-items:center; gap:8px; }
+.cbInitRoll{ font-family:var(--f-util); text-transform:uppercase; letter-spacing:.1em; font-size:11px; color:#fff; background:var(--tk-gold); border:1px solid var(--tk-gold); padding:6px 10px; cursor:pointer; }
+.cbInitRoll:disabled{ opacity:.4; cursor:not-allowed; }
+.cbOverseer{ position:fixed; top:56px; left:20px; z-index:16; width:220px; background:linear-gradient(180deg,var(--tk-panel),var(--tk-panel-2)); border:1px solid #b34a38; padding:12px; box-shadow:0 14px 40px rgba(60,50,30,.25); }
+.cbOverseerHd{ font-family:var(--f-util); text-transform:uppercase; letter-spacing:.16em; font-size:11px; color:#b34a38; margin-bottom:8px; }
+.cbOverseerBtns{ display:flex; flex-direction:column; gap:6px; }
+.cbOverseerBtns button{ font-family:var(--f-util); text-transform:uppercase; letter-spacing:.08em; font-size:11.5px; color:var(--tk-ink); background:var(--tk-panel-2); border:1px solid var(--tk-line); padding:8px 9px; cursor:pointer; text-align:left; }
+.cbOverseerBtns button:disabled{ opacity:.35; cursor:not-allowed; }
+.cbOverseerBtns button.on{ background:#b34a38; color:#fff; border-color:#b34a38; }
+.cbGodPanel{ margin-top:10px; padding-top:10px; border-top:1px solid rgba(168,159,138,.3); font-family:var(--f-util); font-size:11.5px; color:var(--tk-ink); }
+.cbGodName{ font-weight:600; margin-bottom:6px; }
+.cbGodBtns{ display:flex; gap:5px; margin:6px 0; }
+.cbGodBtns button{ flex:1; font-family:var(--f-util); font-size:11px; color:var(--tk-ink); background:var(--tk-panel-2); border:1px solid var(--tk-line); padding:6px 0; cursor:pointer; }
+.cbCorrectRow{ display:flex; justify-content:space-between; align-items:center; gap:10px; margin:8px 0; font-family:var(--f-util); font-size:13px; color:var(--tk-ink); }
+.cbCorrectRow input[type="number"]{ width:70px; font-family:var(--f-util); font-size:13px; padding:4px 6px; border:1px solid var(--tk-line); background:var(--tk-panel-2); color:var(--tk-ink); }
+.cbRewindList{ display:flex; flex-direction:column; gap:6px; max-height:40vh; overflow:auto; margin:10px 0; }
+.cbRewindItem{ text-align:left; font-family:var(--f-util); font-size:12px; color:var(--tk-ink); background:var(--tk-panel-2); border:1px solid var(--tk-line); padding:8px 9px; cursor:pointer; }
+.cbRewindItem:hover{ border-color:var(--tk-ink-dim); }
 </style>
 </head>
 <body>
@@ -619,6 +641,48 @@ global.TacticsGeo = API;
     </div>
     <div class="cbPromptBanner" id="cbPromptBanner" style="display:none">
       <span id="cbPromptBannerText"></span><span class="cbPromptBannerTimer" id="cbPromptBannerTimer"></span>
+    </div>
+    <!-- Task 10: session-only initiative lobby — shown after session_started,
+         before initiative_set. Rebuilt from state.rolls on every event AND on
+         a fresh boot (syncInitiativeLobby), so a refresh mid-lobby recovers it. -->
+    <div class="cbReact" id="cbInitLobby" style="display:none">
+      <div class="cbReactCard cbInitLobbyCard">
+        <div class="cbReactEy">Initiative</div>
+        <div class="cbReactTitle">Roll for it</div>
+        <div id="cbInitLobbyList"></div>
+        <div class="cbReactBtns" id="cbInitLobbyOverseerBtns" style="display:none">
+          <button class="cbReactSkip" id="cbInitRollRest">Roll for the rest</button>
+          <button class="cbReactUse" id="cbInitConfirm">Confirm order</button>
+        </div>
+      </div>
+    </div>
+    <!-- Task 10: overseer toolbar — session + overseer only (FORGE_PROTOCOL.md §3/§5) -->
+    <div class="cbOverseer" id="cbOverseer" style="display:none">
+      <div class="cbOverseerHd">Overseer</div>
+      <div class="cbOverseerBtns">
+        <button id="ovForceEnd" title="Force the active unit's turn to end">Force end turn</button>
+        <button id="ovCorrect" title="Correct the last resolved attack / move / ability">Correct last</button>
+        <button id="ovRewind" title="Rewind to a turn boundary">Rewind</button>
+        <button id="ovGod" title="Move any unit by hand, edit HP">GOD MODE: off</button>
+        <button id="ovEndFight" title="End this fight for everyone">End fight</button>
+      </div>
+      <div class="cbGodPanel" id="cbGodPanel" style="display:none"></div>
+    </div>
+    <div class="cbReact" id="cbCorrectModal" style="display:none">
+      <div class="cbReactCard">
+        <div class="cbReactEy">Correct last</div>
+        <div class="cbReactTitle" id="cbCorrectWho"></div>
+        <div id="cbCorrectFields"></div>
+        <div class="cbReactBtns"><button class="cbReactUse" id="cbCorrectSave">Save correction</button><button class="cbReactSkip" id="cbCorrectCancel">Cancel</button></div>
+      </div>
+    </div>
+    <div class="cbReact" id="cbRewindModal" style="display:none">
+      <div class="cbReactCard">
+        <div class="cbReactEy">Rewind</div>
+        <div class="cbReactTitle">Pick a turn boundary</div>
+        <div class="cbRewindList" id="cbRewindList"></div>
+        <div class="cbReactBtns"><button class="cbReactSkip" id="cbRewindCancel">Cancel</button></div>
+      </div>
     </div>
   </div>
 <script type="module">
@@ -2944,6 +3008,12 @@ function resolveOn(u,a,t){
 
 /* ── input ──────────────────────────────────────────────────────────── */
 function combatClick(cx,cy){
+  /* Task 10 GOD MODE: overseer-only, bypasses the normal turn/side gates
+     below on purpose (the divine hand moves ANY unit, any time). Reuses the
+     exact ray/tokenGroup/world picking the rest of this function already
+     uses — no new raycasting. */
+  var godSess=window.__forgeSession;
+  if(GOD_MODE && godSess && godSess.me.overseer){ if(CB.active) godModeClick(cx,cy); return; }
   if(!CB.active||CB.over||CB.react||CB_ANIM) return;
   var rect=renderer.domElement.getBoundingClientRect();
   ndc.x=((cx-rect.left)/rect.width)*2-1; ndc.y=-((cy-rect.top)/rect.height)*2+1; ray.setFromCamera(ndc,camera);
@@ -3227,6 +3297,7 @@ function renderHud(){
       snapshot("Hold broken"); drawHi(); renderHud(); }); });
   }
   updateRewindUI();
+  if(window.__forgeSession) renderOverseerToolbar();   // Task 10: toolbar/GOD panel track every board repaint
 }
 
 function runFoe(){ if(CB.active&&!CB.over&&!CB.react&&active()&&active().side==="foe") foeTurn(); }
@@ -3268,6 +3339,13 @@ let __pipe = null;
    each matching resolved echo OR publish failure; buttons re-enable only
    when it reaches 0. */
 let __awaitingUnit = null, __awaitingKind = null, __awaitingCount = 0, __awaitingSince = 0;
+/* Task 10: overseer GOD MODE + the initiative-lobby/correct/rewind modals —
+   local UI state only, never replayed facts. GOD_MODE/godSel drive the
+   click-to-move + HP-stepper flow (reuses combatClick's own raycasting);
+   initiativeLobbyOpen tracks the pre-fight roll panel so a mid-lobby refresh
+   (catchUp never fires onEvent per row) can reconstruct it explicitly. */
+let GOD_MODE = false, godSel = null, initiativeLobbyOpen = false;
+let __correctSeq = null, __correctKind = null;
 /* Task 7b: __awaitingKind holds only ONE kind at a time (Task 7's design —
    see __awaitingCount above). foeTurn chains move → attack → turn_ended,
    three DIFFERENT resolved-kinds in one AI turn, so each step must wait for
@@ -3327,6 +3405,7 @@ async function bootSession(sid){
       }
       window.ForgeBoard.verbsFor(r, before, st).forEach(applyVerb);
       renderHud();   // repaints the cleared guard even on a verb-less event (e.g. a miss)
+      syncInitiativeLobby();   // Task 10: initiative_rolled/initiative_set/session_started all pass through here
     }
   });
   __pipe = pipe;
@@ -3346,6 +3425,7 @@ async function bootSession(sid){
     if (bootActive) setActiveFromLog(bootActive, window.ForgeReplay.round(bootState));
   }
   window.__forgeSession = { pipe, row, me, sb };
+  syncInitiativeLobby(); renderOverseerToolbar();   // Task 10: reconstruct the lobby/toolbar on a fresh join/refresh (catchUp fires no per-row onEvent)
   // Task 9: a refresh can't lose a prompt (spec §4) — replay reconstructed
   // pendingPrompt (catchUp() never calls onPrompt/onEvent per row), so if
   // the log ends mid-prompt, route it now with the timer resumed from
@@ -3656,6 +3736,247 @@ function controllerLabel(unitKey){
   return isUnitClaimed(unitKey) ? (row.name||unitKey) : "the DM";   // Task 9's isUnitClaimed — same "claimed" rule
 }
 
+/* ══ Task 10: INITIATIVE LOBBY ═══════════════════════════════════════════
+   Session-only, between session_started and initiative_set. Every roster
+   unit shows its state.rolls[unit] value (or "waiting…"); a unit I control
+   (ForgeBoard.controls — true for the overseer on every row, per spec) gets
+   a Roll button. Rebuilt on every event AND explicitly after catchUp() —
+   catchUp never fires onEvent per row, so a mid-lobby refresh needs its own
+   call (see syncInitiativeLobby in bootSession). */
+function rollForUnit(sess,unitKey){
+  var u=unitByKey(unitKey), mod=u?u.initMod:0, total=d(20)+mod;
+  clog("<i>Initiative — "+escapeHtml((u&&u.name)||unitKey)+": "+total+"</i>");
+  sess.pipe.rollInitiative(unitKey,total).then(netPublishFail);
+}
+function rollForRest(){
+  var sess=window.__forgeSession; if(!sess||!sess.me.overseer) return;
+  var st=sess.pipe.state();
+  (sess.row.roster||[]).forEach(function(r){ if(st.rolls[r.unit]==null) rollForUnit(sess,r.unit); });
+}
+function confirmInitiative(){
+  var sess=window.__forgeSession; if(!sess||!sess.me.overseer) return;
+  var st=sess.pipe.state();
+  var rows=(sess.row.roster||[]).slice();
+  rows.sort(function(a,b){
+    var ra=st.rolls[a.unit], rb=st.rolls[b.unit];
+    ra=(ra==null)?-Infinity:ra; rb=(rb==null)?-Infinity:rb;
+    if(ra!==rb) return rb-ra;
+    var ua=unitByKey(a.unit), ub=unitByKey(b.unit);
+    var ma=(ua&&ua.initMod)||0, mb=(ub&&ub.initMod)||0;
+    if(ma!==mb) return mb-ma;
+    return String(a.name||a.unit).localeCompare(String(b.name||b.unit));
+  });
+  var order=rows.map(function(r){ return r.unit; });
+  var cf=document.getElementById("cbInitConfirm"); if(cf) cf.disabled=true;   // one tap — the initiative_set echo dismisses the lobby
+  sess.pipe.setInitiative(order).then(netPublishFail);
+}
+function renderInitiativeLobby(){
+  var sess=window.__forgeSession; if(!sess) return;
+  var st=sess.pipe.state();
+  var box=document.getElementById("cbInitLobbyList"); if(!box) return;
+  var rows=(sess.row.roster||[]);
+  box.innerHTML=rows.map(function(r){
+    var roll=st.rolls[r.unit], mine=window.ForgeBoard.controls(sess.me,r.unit);
+    var val = roll!=null ? "<b>"+roll+"</b>"
+            : (mine ? '<button class="cbInitRoll" data-u="'+r.unit+'">Roll</button>' : "<i>waiting…</i>");
+    return '<div class="cbInitRow"><span>'+escapeHtml(r.name||r.unit)+'</span><span class="cbInitVal">'+val+'</span></div>';
+  }).join("");
+  box.querySelectorAll(".cbInitRoll").forEach(function(b){
+    b.addEventListener("click",function(){ b.disabled=true; rollForUnit(sess,b.dataset.u); });
+  });
+  var ob=document.getElementById("cbInitLobbyOverseerBtns");
+  if(ob){
+    ob.style.display=sess.me.overseer?"flex":"none";
+    if(sess.me.overseer){
+      var allRolled=rows.every(function(r){ return st.rolls[r.unit]!=null; });
+      var rest=document.getElementById("cbInitRollRest"); if(rest) rest.disabled=allRolled;
+      var conf=document.getElementById("cbInitConfirm"); if(conf) conf.disabled=!(allRolled||sess.me.overseer);
+    }
+  }
+}
+function showInitiativeLobby(){ initiativeLobbyOpen=true; var el=document.getElementById("cbInitLobby"); if(el) el.style.display="flex"; renderInitiativeLobby(); }
+function hideInitiativeLobby(){ initiativeLobbyOpen=false; var el=document.getElementById("cbInitLobby"); if(el) el.style.display="none"; }
+function syncInitiativeLobby(){
+  var sess=window.__forgeSession; if(!sess) return;
+  var st=sess.pipe.state();
+  if(st.status==="active" && !st.initiative){ if(!initiativeLobbyOpen) showInitiativeLobby(); else renderInitiativeLobby(); }
+  else if(initiativeLobbyOpen) hideInitiativeLobby();
+}
+
+/* ══ Task 10: OVERSEER TOOLBAR ═══════════════════════════════════════════
+   Five controls (FORGE_PROTOCOL.md §3/§5). Every publish here goes out on
+   unit "__session" (forge-pipeline.js's overseer tools) — bootSession's
+   onEvent already matches echoes by (r.unit, r.kind), so "__session" needs
+   no special-casing there; setting __awaitingUnit="__session" is enough to
+   reuse the SAME guard/counter idiom netMove/netAttack/netEndTurn use. */
+function netSessionPublish(kind,promise){
+  __awaitingUnit="__session"; __awaitingKind=kind; if(__awaitingCount++===0) __awaitingSince=Date.now(); renderHud();
+  return promise.then(netPublishFail);
+}
+/* Force End Turn: the plain "End turn" button already lets the overseer end
+   a PC's turn early (ForgeBoard.controls is true for the overseer on any
+   unit) — this one additionally covers a stuck FOE turn, which cbEnd
+   deliberately excludes (foes end via the foeTurn AI chain). */
+function forceEndTurn(){
+  var sess=window.__forgeSession; if(!sess||!sess.me.overseer) return;
+  if(__awaitingCount>0) return;
+  var u=active(); if(!u){ clog("<i>No active unit to force.</i>"); return; }
+  clog("<i>The DM forces "+escapeHtml(u.name)+"'s turn to end.</i>");
+  netEndTurn(u);   // Task 7's own publish+guard — Force End Turn IS pipe.endTurn(activeUnit)
+}
+function lastResolvedEvent(){
+  var sess=window.__forgeSession; if(!sess) return null;
+  var evs=sess.pipe.events();
+  for(var i=evs.length-1;i>=0;i--){
+    var k=evs[i].kind;
+    if(k==="attack_resolved"||k==="move_resolved"||k==="ability_used") return evs[i];
+  }
+  return null;
+}
+function openCorrectLast(){
+  var sess=window.__forgeSession; if(!sess||!sess.me.overseer) return;
+  var ev=lastResolvedEvent(); if(!ev){ clog("<i>Nothing resolved yet to correct.</i>"); return; }
+  var p=ev.payload||{}, fieldsHtml="";
+  if(ev.kind==="attack_resolved"){
+    fieldsHtml='<label class="cbCorrectRow"><span>Hit</span><input type="checkbox" id="corHit"'+(p.hit?" checked":"")+'></label>'
+      +'<label class="cbCorrectRow"><span>Damage</span><input type="number" id="corDmg" min="0" value="'+(p.dmg!=null?p.dmg:0)+'"></label>';
+  } else if(ev.kind==="move_resolved"){
+    var fc=p.final_cell||{c:0,r:0};
+    fieldsHtml='<label class="cbCorrectRow"><span>Cell column</span><input type="number" id="corC" value="'+fc.c+'"></label>'
+      +'<label class="cbCorrectRow"><span>Cell row</span><input type="number" id="corR" value="'+fc.r+'"></label>';
+  } else {   // ability_used — only the numeric fields that happen to be present
+    if(p.roll!=null) fieldsHtml+='<label class="cbCorrectRow"><span>Roll</span><input type="number" id="corRoll" value="'+p.roll+'"></label>';
+    if(p.dmg!=null) fieldsHtml+='<label class="cbCorrectRow"><span>Damage</span><input type="number" id="corDmg2" value="'+p.dmg+'"></label>';
+    if(!fieldsHtml) fieldsHtml='<div class="cbHint">No numeric fields on this ability to correct.</div>';
+  }
+  var who=document.getElementById("cbCorrectWho");
+  if(who) who.textContent=((unitByKey(ev.unit)&&unitByKey(ev.unit).name)||ev.unit)+" — seq "+ev.seq+" ("+ev.kind+")";
+  var fl=document.getElementById("cbCorrectFields"); if(fl) fl.innerHTML=fieldsHtml;
+  __correctSeq=ev.seq; __correctKind=ev.kind;
+  var m=document.getElementById("cbCorrectModal"); if(m) m.style.display="flex";
+}
+function closeCorrect(){ var m=document.getElementById("cbCorrectModal"); if(m) m.style.display="none"; __correctSeq=null; __correctKind=null; }
+function submitCorrect(){
+  var sess=window.__forgeSession; if(!sess||__correctSeq==null) return;
+  var correction={};
+  if(__correctKind==="attack_resolved"){
+    var hitEl=document.getElementById("corHit"), dmgEl=document.getElementById("corDmg");
+    if(hitEl) correction.hit=hitEl.checked;
+    if(dmgEl) correction.dmg=+dmgEl.value||0;
+  } else if(__correctKind==="move_resolved"){
+    var cEl=document.getElementById("corC"), rEl=document.getElementById("corR");
+    if(cEl&&rEl) correction.final_cell={ c:+cEl.value||0, r:+rEl.value||0 };
+  } else {
+    var rollEl=document.getElementById("corRoll"), dmg2El=document.getElementById("corDmg2");
+    if(rollEl) correction.roll=+rollEl.value||0;
+    if(dmg2El) correction.dmg=+dmg2El.value||0;
+  }
+  var seq=__correctSeq;
+  closeCorrect();
+  clog("<i>The DM corrects seq "+seq+".</i>");
+  netSessionPublish("override", sess.pipe.override(seq,correction));
+}
+/* Rewind: a "turn boundary" is the seq of an initiative_set (round 1's own
+   start) or a turn_ended (every later turn flip) — stateAt(seq) replays
+   through that event inclusive, so activeUnit(state) is already the NEXT
+   unit's turn, exactly the point restoreTo(seq) should land on. */
+function turnBoundaries(){
+  var sess=window.__forgeSession; if(!sess) return [];
+  var evs=sess.pipe.events(), out=[];
+  evs.forEach(function(ev){
+    if(ev.kind!=="initiative_set" && ev.kind!=="turn_ended") return;
+    var st=sess.pipe.stateAt(ev.seq), au=window.ForgeReplay.activeUnit(st); if(!au) return;
+    var name=(unitByKey(au)&&unitByKey(au).name)||au;
+    out.push({ seq:ev.seq, label:"Turn: "+name+" (round "+window.ForgeReplay.round(st)+")" });
+  });
+  return out.reverse();
+}
+function openRewind(){
+  var sess=window.__forgeSession; if(!sess||!sess.me.overseer) return;
+  var list=turnBoundaries();
+  if(!list.length){ clog("<i>No turn boundary to rewind to yet.</i>"); return; }
+  var box=document.getElementById("cbRewindList"); if(!box) return;
+  box.innerHTML=list.map(function(b){ return '<button class="cbRewindItem" data-seq="'+b.seq+'">'+escapeHtml(b.label)+'</button>'; }).join("");
+  box.querySelectorAll(".cbRewindItem").forEach(function(btn){
+    btn.addEventListener("click",function(){ doRewind(+btn.dataset.seq, btn.textContent); });
+  });
+  var m=document.getElementById("cbRewindModal"); if(m) m.style.display="flex";
+}
+function closeRewind(){ var m=document.getElementById("cbRewindModal"); if(m) m.style.display="none"; }
+function doRewind(seq,label){
+  var sess=window.__forgeSession; if(!sess) return;
+  closeRewind();
+  clog("<i>The DM rewound to "+escapeHtml(label)+".</i>");
+  netSessionPublish("restore", sess.pipe.restoreTo(seq));
+}
+/* GOD MODE: toggle, then click-a-unit/click-a-cell (combatClick's own
+   godModeClick branch, above) + an HP stepper on whichever unit is
+   selected. Every act narrates — spec §5's "divine hand" is never silent. */
+function toggleGodMode(){
+  var sess=window.__forgeSession; if(!sess||!sess.me.overseer) return;
+  GOD_MODE=!GOD_MODE; godSel=null;
+  clog("<i>GOD MODE "+(GOD_MODE?"engaged.":"disengaged.")+"</i>");
+  renderOverseerToolbar();
+}
+function netGodEdit(changes){
+  var sess=window.__forgeSession; if(!sess) return Promise.resolve();
+  return netSessionPublish("edit", sess.pipe.edit(changes));
+}
+function godModeClick(cx,cy){
+  var rect=renderer.domElement.getBoundingClientRect();
+  ndc.x=((cx-rect.left)/rect.width)*2-1; ndc.y=-((cy-rect.top)/rect.height)*2+1; ray.setFromCamera(ndc,camera);
+  var tHit=ray.intersectObjects(tokenGroup.children,true)[0];
+  if(tHit){ var tu=spriteUnit(tHit.object);
+    if(tu){ godSel=tu; renderGodPanel();
+      clog("<i>GOD MODE — "+escapeHtml(tu.name)+" selected. Tap a cell to move, or use the HP stepper.</i>"); }
+    return; }
+  if(!godSel) return;
+  var gHit=ray.intersectObjects(world.children,true)[0]; if(!gHit) return;
+  var gx=Math.round(gHit.point.x+F.W/2-0.5), gy=Math.round(gHit.point.z+F.H/2-0.5);
+  var u=godSel;
+  clog("<i>The DM moves "+escapeHtml(u.name)+" to ("+gx+","+gy+").</i>");
+  netGodEdit([{ unit:u.unit, pos:{ c:gx, r:gy } }]);
+}
+function godAdjustHp(delta){
+  if(!godSel) return;
+  var hp=Math.max(0,Math.min(godSel.hpMax,godSel.hp+delta)), unit=godSel.unit, name=godSel.name;
+  clog("<i>The DM sets "+escapeHtml(name)+"'s HP to "+hp+".</i>");
+  netGodEdit([{ unit:unit, hp:hp }]);
+}
+function renderGodPanel(){
+  var el=document.getElementById("cbGodPanel"); if(!el) return;
+  if(!GOD_MODE||!godSel){ el.style.display="none"; el.innerHTML=""; return; }
+  el.style.display="block";
+  el.innerHTML='<div class="cbGodName">'+escapeHtml(godSel.name)+' — HP '+Math.max(0,godSel.hp)+'/'+godSel.hpMax+'</div>'
+    +'<div class="cbGodBtns"><button data-d="-5">-5</button><button data-d="-1">-1</button><button data-d="1">+1</button><button data-d="5">+5</button></div>'
+    +'<div class="cbHint">Tap a cell to move '+escapeHtml(godSel.name)+'. Tap another unit to switch.</div>';
+  el.querySelectorAll("button[data-d]").forEach(function(b){ b.addEventListener("click",function(){ godAdjustHp(+b.dataset.d); }); });
+}
+function endFightClicked(){
+  var sess=window.__forgeSession; if(!sess||!sess.me.overseer) return;
+  if(__awaitingCount>0) return;
+  if(!confirm("End this fight for everyone?")) return;
+  clog("<i>The DM ends the fight.</i>");
+  netSessionPublish("session_ended", sess.pipe.end());
+}
+/* Called from renderHud (state changed) — visibility + disabled states only;
+   the GOD panel's own content is (re)painted by renderGodPanel above. */
+function renderOverseerToolbar(){
+  var sess=window.__forgeSession;
+  var el=document.getElementById("cbOverseer"); if(!el) return;
+  var show=!!sess&&sess.me.overseer&&CB.active;
+  el.style.display=show?"block":"none";
+  if(!show) return;
+  var st=sess.pipe.state(), ended=(st.status==="ended"), busy=__awaitingCount>0;
+  var fe=document.getElementById("ovForceEnd"); if(fe) fe.disabled=ended||busy||!active();
+  var co=document.getElementById("ovCorrect"); if(co) co.disabled=ended||busy||!lastResolvedEvent();
+  var rw=document.getElementById("ovRewind"); if(rw) rw.disabled=busy||!turnBoundaries().length;
+  var gm=document.getElementById("ovGod");
+  if(gm){ gm.disabled=ended; gm.textContent="GOD MODE: "+(GOD_MODE?"on":"off"); gm.classList.toggle("on",GOD_MODE); }
+  var ef=document.getElementById("ovEndFight"); if(ef) ef.disabled=ended||busy;
+  renderGodPanel();
+}
+
 addEventListener("pointerup", function(e){ if(CB.active&&!CB.over&&!CB.react&&moved<6) combatClick(e.clientX,e.clientY); });
 (function(){
   var g=function(id){return document.getElementById(id);};
@@ -3680,6 +4001,17 @@ addEventListener("pointerup", function(e){ if(CB.active&&!CB.over&&!CB.react&&mo
     clog(READYING?"<i>Ready \u2014 now pick a plain weapon attack to hold as a reaction.</i>":"<i>Ready cancelled.</i>");
     renderHud(); });
   if(g("cbVes")) g("cbVes").addEventListener("click",function(){ VES_MODE=(VES_MODE+1)%VES_MODES.length; vesApply(); });
+  /* Task 10: initiative lobby + overseer toolbar */
+  if(g("cbInitRollRest")) g("cbInitRollRest").addEventListener("click",rollForRest);
+  if(g("cbInitConfirm")) g("cbInitConfirm").addEventListener("click",confirmInitiative);
+  if(g("ovForceEnd")) g("ovForceEnd").addEventListener("click",forceEndTurn);
+  if(g("ovCorrect")) g("ovCorrect").addEventListener("click",openCorrectLast);
+  if(g("ovRewind")) g("ovRewind").addEventListener("click",openRewind);
+  if(g("ovGod")) g("ovGod").addEventListener("click",toggleGodMode);
+  if(g("ovEndFight")) g("ovEndFight").addEventListener("click",endFightClicked);
+  if(g("cbCorrectSave")) g("cbCorrectSave").addEventListener("click",submitCorrect);
+  if(g("cbCorrectCancel")) g("cbCorrectCancel").addEventListener("click",closeCorrect);
+  if(g("cbRewindCancel")) g("cbRewindCancel").addEventListener("click",closeRewind);
 })();
 </script>
 <script>
