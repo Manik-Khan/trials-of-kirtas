@@ -259,6 +259,25 @@ real placement. **These are decisions, not hypotheses.**
    signed-out branch returned *silently* (a narration-rule violation, also fixed).
    Now: panel viewport-capped + scrollable; bestiary collapsed by default behind
    a toggle whose header always carries the picked count.
+13. ~~A dropped realtime channel left the device deaf forever.~~ **Fixed
+   2026-07-11** (M's second field report: a foe turn "desynced, tried to fix
+   itself, looped until I forced the turn end"). `forge-bus.js` built its
+   channel once; on CHANNEL_ERROR/TIMED_OUT/CLOSED (laptop sleep, throttled
+   background tab, network blip) it logged one console.warn and never
+   resubscribed. Every echo after that was "lost," so the mock's 12-second
+   stall watchdog crawled the fight forward in resync steps — the loop M saw.
+   Now: capped-backoff resubscribe on a fresh topic, seq-gap backfill of rows
+   missed while deaf (safe: the pipeline dedups by seq), and an optional
+   `onTransport` hook the mock routes to the combat log — drops narrate at
+   the table, not in a console nobody has open. `smoke-bus-reconnect.js` (12)
+   drives the real bus through drop/flap/backfill. Include stamp bumped
+   `?v=fb2` in both mocks. *Not yet re-field-tested.* Also moved that day:
+   the Overseer toolbar (top-left → right-middle; it sat on the forgebar and
+   walled off the map panel), and §5.3c got its middle-path fix — tokens
+   slide 0.6 world units toward the camera at draw time only (matrixWorld
+   mutated in onBeforeRender, restored in onAfterRender), so standees stop
+   sinking into adjacent walls while real occlusion still hides them.
+   *Both pending M's eyeball.*
 12. ~~The session lived only in the URL.~~ **Fixed 2026-07-11.** After **Open the
    table** nothing on screen named the session — no id, no share affordance (only
    "Save for later" copied a link). A second browser had no door into the same

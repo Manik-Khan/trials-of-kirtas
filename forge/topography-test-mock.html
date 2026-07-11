@@ -25,7 +25,7 @@
 <script src="forge-engine.js?v=fb1"></script>
 <script src="forge-protocol.js?v=fb1"></script>
 <script src="forge-replay.js?v=fb1"></script>
-<script src="forge-bus.js?v=fb1"></script>
+<script src="forge-bus.js?v=fb2"></script>
 <script src="forge-pipeline.js?v=fb1"></script>
 <script src="forge-board.js?v=fb1"></script>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
@@ -514,7 +514,12 @@ global.TacticsGeo = API;
 .cbInitVal{ display:flex; align-items:center; gap:8px; }
 .cbInitRoll{ font-family:var(--f-util); text-transform:uppercase; letter-spacing:.1em; font-size:11px; color:#fff; background:var(--tk-gold); border:1px solid var(--tk-gold); padding:6px 10px; cursor:pointer; }
 .cbInitRoll:disabled{ opacity:.4; cursor:not-allowed; }
-.cbOverseer{ position:fixed; top:56px; left:20px; z-index:16; width:220px; background:linear-gradient(180deg,var(--tk-panel),var(--tk-panel-2)); border:1px solid #b34a38; padding:12px; box-shadow:0 14px 40px rgba(60,50,30,.25); }
+/* Field 2026-07-11: this lived at top-LEFT, stacked on the forgebar and the
+   map panel's column — engaging GOD MODE walled off the map options. The left
+   edge is four deep (masthead/forgebar/panel/log); the right-middle, between
+   the orbit buttons and the action panel, is the free real estate. Capped +
+   scrollable so a grown GOD panel can never crawl under the action HUD. */
+.cbOverseer{ position:fixed; top:112px; right:20px; z-index:16; width:220px; max-height:calc(100vh - 420px); overflow-y:auto; overscroll-behavior:contain; scrollbar-width:thin; background:linear-gradient(180deg,var(--tk-panel),var(--tk-panel-2)); border:1px solid #b34a38; padding:12px; box-shadow:0 14px 40px rgba(60,50,30,.25); }
 .cbOverseerHd{ font-family:var(--f-util); text-transform:uppercase; letter-spacing:.16em; font-size:11px; color:#b34a38; margin-bottom:8px; }
 .cbOverseerBtns{ display:flex; flex-direction:column; gap:6px; }
 .cbOverseerBtns button{ font-family:var(--f-util); text-transform:uppercase; letter-spacing:.08em; font-size:11.5px; color:var(--tk-ink); background:var(--tk-panel-2); border:1px solid var(--tk-line); padding:8px 9px; cursor:pointer; text-align:left; }
@@ -2313,6 +2318,38 @@ function clusterAround(cells,seed,n,taken,minSep){
 function tierY(c,r){ return (F.height[r*F.W+c]||0)*STEP; }
 function tokenTex(key){ if(ROSTER_ART[key]){var t=new THREE.TextureLoader().load(ROSTER_ART[key]);t.minFilter=THREE.LinearFilter;return t;}
   return initialTokenTex((ROSTER_INIT[key]||key.charAt(0).toUpperCase()), ROSTER_COL[key]||"#b8863a"); }
+/* Field 2026-07-11: a standee's card is wider than its 1-square cell, so a
+   token beside a wall poked into the stone and the renderer swallowed half
+   the art (§5.3c). At draw time only, the card slides TOKEN_NUDGE world units
+   toward the camera — enough to win against the wall it stands beside, small
+   enough that terrain genuinely between camera and token still hides it.
+   matrixWorld is mutated inside the render call and restored right after, so
+   game logic, raycasts and tweens never see the shift. The shared temps are
+   safe: three renders each object's onBeforeRender/draw/onAfterRender as one
+   uninterrupted sequence. */
+var TOKEN_NUDGE=0.6;
+var __nudgeDir=new THREE.Vector3(), __nudgePos=new THREE.Vector3(), __nudgeCam=new THREE.Vector3();
+function nudgeSprite(sp){
+  sp.onBeforeRender=function(renderer,scene,camera){
+    __nudgePos.setFromMatrixPosition(sp.matrixWorld);
+    __nudgeCam.setFromMatrixPosition(camera.matrixWorld);
+    __nudgeDir.subVectors(__nudgeCam,__nudgePos);
+    var d=__nudgeDir.length();
+    if(d<TOKEN_NUDGE*2){ sp.userData.__nudged=false; return; }   // camera in your face — leave it be
+    __nudgeDir.multiplyScalar(TOKEN_NUDGE/d);
+    sp.matrixWorld.elements[12]+=__nudgeDir.x;
+    sp.matrixWorld.elements[13]+=__nudgeDir.y;
+    sp.matrixWorld.elements[14]+=__nudgeDir.z;
+    sp.userData.__nudged=true;
+  };
+  sp.onAfterRender=function(){
+    if(!sp.userData.__nudged) return;
+    sp.userData.__nudged=false;
+    sp.matrixWorld.elements[12]-=__nudgeDir.x;
+    sp.matrixWorld.elements[13]-=__nudgeDir.y;
+    sp.matrixWorld.elements[14]-=__nudgeDir.z;
+  };
+}
 function makeToken(u){
   var X=wxc(u.c),Z=wzc(u.r),Y=tierY(u.c,u.r);
   u.bobPhase=u.bobPhase!=null?u.bobPhase:Math.random()*6.28;
@@ -2323,7 +2360,7 @@ function makeToken(u){
     u.sprite=new THREE.Sprite(new THREE.SpriteMaterial({map:VES.tex,transparent:true,alphaTest:ALPHA_CUT,toneMapped:false}));
     u.sprite.scale.set(vH*aspW,vH,1); u.sprite.center.set(0.5,0); u.sprite.position.set(X,Y+0.02,Z);
     u._ves={mode:"idle",face:1,fi:0,acc:0};
-    u.sprite.renderOrder=4; tokenGroup.add(u.sprite);
+    u.sprite.renderOrder=4; nudgeSprite(u.sprite); tokenGroup.add(u.sprite);
     return;
   }
   var key = u.side==="pc" ? ROSTER_SPRITE[u.key] : FOE_SPRITE;
@@ -2341,7 +2378,7 @@ function makeToken(u){
     // nobody drew this one (Chonkalius, The Wiz) → lettered standee, and it shows
     u.sprite=billboard(initialTokenTex(u.badge||ROSTER_INIT[u.key]||u.name.charAt(0),seatCol(u)), X,Y+0.02,Z, 2.6, 2/3, false);
   }
-  u.sprite.renderOrder=4; tokenGroup.add(u.sprite);
+  u.sprite.renderOrder=4; nudgeSprite(u.sprite); tokenGroup.add(u.sprite);
 }
 function positionToken(u){ var X=wxc(u.c),Z=wzc(u.r),Y=tierY(u.c,u.r); if(u.sprite)u.sprite.position.set(X,Y+0.02,Z); if(u.shadow)u.shadow.position.set(X,Y+0.05,Z); }
 
@@ -4405,7 +4442,10 @@ async function bootSession(sid){
   });
   if (row.status === 'staging') clog('<b>Fight is forming</b> — waiting for the DM to start.');
   const me = { actor: user.id, units: (row.controllers[user.id] || []), overseer: row.overseer === user.id };
-  const conn = window.ForgeBus.makeSupabaseBus({ sb, sessionId: sid }).connect();
+  /* Field 2026-07-11: transport drops narrate on the board, not in a console
+     nobody has open at the table. */
+  const conn = window.ForgeBus.makeSupabaseBus({ sb, sessionId: sid,
+    onTransport: function(m){ clog('<i>' + escapeHtml(m) + '</i>'); } }).connect();
   // Task 13: lastState is module-level now (shared with syncRosterFacts/
   // checkEchoStall outside this function) — see its declaration near __pipe.
   const pipe = window.ForgePipeline.makePipeline({

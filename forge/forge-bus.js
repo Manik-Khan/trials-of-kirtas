@@ -83,19 +83,63 @@
               });
           },
           subscribe: function (fn) {
-            sb.channel("forge:" + sid)
-              .on("postgres_changes",
-                { event: "INSERT", schema: "public", table: "forge_events",
-                  filter: "session_id=eq." + sid },
-                function (msg) {
-                  var r = msg.new;
-                  fn({ seq: r.id, unit: r.unit, actor: r.actor, kind: r.kind,
-                       payload: r.payload, created_at: Date.parse(r.created_at) });
-                })
-              .subscribe(function (status) {
-                if (status !== "SUBSCRIBED" && typeof console !== "undefined")
-                  console.warn("[forge-bus] realtime channel status: " + status);
-              });
+            /* Field 2026-07-11: this channel was built once — any drop
+               (CHANNEL_ERROR / TIMED_OUT / CLOSED: laptop sleep, a throttled
+               background tab, a network blip) left the device deaf behind one
+               console.warn, and every echo after it read as "lost". The
+               app-level stall watchdog then crawled the fight forward in
+               12-second resync steps — the field's "desynced and looping"
+               foe turn. The transport now owns its own recovery: resubscribe
+               on a FRESH topic (supabase-js keeps per-topic state) with
+               capped backoff, then backfill every row this device missed
+               while deaf. Rows may arrive twice around a reconnect — the
+               pipeline dedups by seq (forge-pipeline catchUp/`seen`), per
+               contract. deps.onTransport (optional) narrates drops/recovery
+               to the surface; retryMs (optional) exists for the smoke. */
+            var retryMs = deps.retryMs || 500;
+            var hi = 0, gen = 0, failCount = 0, reopening = false;
+            function note(msg) {
+              if (typeof console !== "undefined") console.warn("[forge-bus] " + msg);
+              if (deps.onTransport) { try { deps.onTransport(msg); } catch (e) {} }
+            }
+            function deliver(r) {
+              if (r.id > hi) hi = r.id;
+              fn({ seq: r.id, unit: r.unit, actor: r.actor, kind: r.kind,
+                   payload: r.payload, created_at: Date.parse(r.created_at) });
+            }
+            function backfill() {
+              sb.from("forge_events").select("*")
+                .eq("session_id", sid).gt("id", hi).order("id", { ascending: true })
+                .then(function (res) {
+                  if (res.error) { note("catch-up read failed: " + res.error.message); return; }
+                  res.data.forEach(deliver);
+                });
+            }
+            function open() {
+              gen++;
+              var ch = sb.channel("forge:" + sid + ":" + gen);
+              ch.on("postgres_changes",
+                  { event: "INSERT", schema: "public", table: "forge_events",
+                    filter: "session_id=eq." + sid },
+                  function (msg) { deliver(msg.new); })
+                .subscribe(function (status) {
+                  if (status === "SUBSCRIBED") {
+                    failCount = 0;
+                    if (gen > 1) { note("connection restored — catching up on missed events."); backfill(); }
+                    return;
+                  }
+                  if (status === "CHANNEL_ERROR" || status === "TIMED_OUT" || status === "CLOSED") {
+                    if (reopening) return;   // one reopen per drop — a flapping channel must not storm
+                    reopening = true;
+                    failCount++;
+                    note("connection dropped (" + status + ") — reconnecting…");
+                    try { sb.removeChannel(ch); } catch (e) {}
+                    setTimeout(function () { reopening = false; open(); },
+                      Math.min(15000, retryMs * Math.pow(2, Math.min(failCount, 5))));
+                  }
+                });
+            }
+            open();
           },
           fetchAll: function () {
             return sb.from("forge_events").select("*")
