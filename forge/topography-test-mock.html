@@ -1715,8 +1715,13 @@ stageEl.addEventListener('drop',e=>{e.preventDefault();loadImageFile(e.dataTrans
     if(mode==='image'&&imgHeight)rebuild();};});
 document.getElementById('autoDress').onchange=()=>{if(mode==='image'&&imgHeight)rebuild();};
 // dungeon knobs (tiers mode) — re-forge on change, mirrors the image-mode sliders above
+// Finding 2 (review): in session mode the map belongs to the fight — SESSION_ID
+// (declared below) is read at call time, well after the whole script has run,
+// so these closures see its real value by the time a user can ever fire them.
 ['rooms','loops','decor','foes'].forEach(id=>{const el=document.getElementById(id);
-  el.oninput=()=>{document.getElementById(id+'Val').textContent=el.value+((id==='loops'||id==='decor')?'%':'');
+  el.oninput=()=>{
+    if(SESSION_ID){ clog('<i>The map belongs to the fight — re-forge is disabled during a session.</i>'); return; }
+    document.getElementById(id+'Val').textContent=el.value+((id==='loops'||id==='decor')?'%':'');
     if(mode==='tiers')rebuild();};});
 /* the real generator inputs, verbatim — Task 11 writes this into forge_sessions.map */
 function forgeParams(){
@@ -1730,10 +1735,17 @@ function forgeParams(){
 }
 window.__forgeParams = forgeParams;
 
-document.getElementById('forgeBtn').onclick=()=>{if(mode!=='tiers'){mode='tiers';setActiveChip('tiers');document.getElementById('seedGroup').style.opacity='1';setImgOnly(false);}rebuild();};
-document.getElementById('dice').onclick=()=>{document.getElementById('seed').value=Math.floor(Math.random()*99999);
+document.getElementById('forgeBtn').onclick=()=>{
+  if(SESSION_ID){ clog('<i>The map belongs to the fight — re-forge is disabled during a session.</i>'); return; }
+  if(mode!=='tiers'){mode='tiers';setActiveChip('tiers');document.getElementById('seedGroup').style.opacity='1';setImgOnly(false);}rebuild();};
+document.getElementById('dice').onclick=()=>{
+  if(SESSION_ID){ clog('<i>The map belongs to the fight — re-forge is disabled during a session.</i>'); return; }
+  document.getElementById('seed').value=Math.floor(Math.random()*99999);
   mode='tiers';setActiveChip('tiers');document.getElementById('seedGroup').style.opacity='1';setImgOnly(false);rebuild();};
-document.getElementById('seed').addEventListener('keydown',e=>{if(e.key==='Enter'){mode='tiers';rebuild();}});
+document.getElementById('seed').addEventListener('keydown',e=>{
+  if(e.key!=='Enter')return;
+  if(SESSION_ID){ clog('<i>The map belongs to the fight — re-forge is disabled during a session.</i>'); return; }
+  mode='tiers';rebuild();});
 const hs=document.getElementById('height');hs.oninput=()=>{STEP=hs.value/100;document.getElementById('heightVal').textContent=hs.value+'%';
   if(F){ renderField(); restageForHeight(); }};
 /* Live: writes one float on one material. No rebuild, no reflow. */
@@ -2402,20 +2414,21 @@ function resyncFromState(st){
 /* Task 11: pulled the fresh roster off the row on the session_started echo
    (applyVerb's "status" case) and moves/heals every token onto the facts
    Start fight computed. Best-effort — a failure here just leaves the ghost
-   pile up until the next refresh, narrated, never fatal to the fight. */
+   pile up until the next refresh, narrated, never fatal to the fight.
+   Finding 1 (review): a device that booted during staging seeded the
+   pipeline's roster closure with placeholder facts (no real hp/maxHp/pos);
+   hand-patching u.hp/u.hpMax here left every later rebuild (attack math,
+   catchUp, rewind) diffing against that stale placeholder. setRoster()
+   reassigns the pipeline's closure and rebuilds — repaint the WHOLE board
+   from the returned state via the existing resyncFromState()/renderHud()
+   instead of hand-patching individual tokens. */
 function syncRosterFacts(){
   var sess=window.__forgeSession; if(!sess) return;
   sess.sb.from('forge_sessions').select('roster').eq('id', sess.row.id).single().then(function(res){
     if(res.error || !res.data){ clog('<i>Couldn’t sync starting positions — refresh to pick them up.</i>'); return; }
     var roster=res.data.roster||[]; sess.row.roster=roster;
-    roster.forEach(function(r){
-      if(!r.pos) return;
-      var u=unitByKey(r.unit); if(!u) return;
-      u.c=r.pos.c; u.r=r.pos.r; positionToken(u);
-      if(r.hp!=null) u.hp=r.hp;
-      if(r.maxHp!=null) u.hpMax=r.maxHp;
-    });
-    renderHud();
+    var st=sess.pipe.setRoster(roster);
+    resyncFromState(st);   // repaints pos/hp/downed for every token + renderHud()
   }, function(){ clog('<i>Couldn’t sync starting positions — refresh to pick them up.</i>'); });
 }
 
@@ -3397,6 +3410,21 @@ var qs = new URLSearchParams(location.search);
 var SUPA_URL = qs.get("url") || "https://cfthwspwpcfamgbfqzuq.supabase.co";
 var SUPA_KEY = qs.get("key") || "sb_publishable_12KUwzDbVvcar0zjh2KE6g_6IRBfmMJ";
 const SESSION_ID = qs.get('session');
+/* Finding 2 (review): the map belongs to the fight once a session exists —
+   rebuilding F from LOCAL dungeon knobs would desync the board from the
+   session's actual map and poison Start-fight placement. DUNGEON re-forge
+   controls (Rooms/Loops/Decor/Foes + seed/dice/Forge tiers) render inert and
+   look it; their handlers above are also narrated no-ops (belt + suspenders
+   against a disabled control still receiving a programmatic event). Camera
+   knobs (Height exaggeration/Grid/Prop size) are client-local paint and stay
+   live. Local sandbox (no ?session=) is unchanged. */
+if (SESSION_ID) {
+  var SESSION_LOCK_TITLE = "The map belongs to the fight — re-forge is disabled during a session.";
+  ["rooms","loops","decor","foes","seed","dice","forgeBtn"].forEach(function(id){
+    var el = document.getElementById(id);
+    if (el) { el.disabled = true; el.title = SESSION_LOCK_TITLE; }
+  });
+}
 /* Task 11: one client for the whole page — bootSession's join AND the forge
    panel's lifecycle doors (Open the table / Save for later / staged list)
    share it, so "signed in" means the same thing everywhere on this page. */

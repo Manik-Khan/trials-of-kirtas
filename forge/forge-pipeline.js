@@ -116,6 +116,13 @@
           rebuild(); return state;
         });
       },
+      /* roster facts can be enriched at fight start (FORGE_BOARD.md §3) — a
+         device that boots during staging seeds `roster` with placeholders;
+         Start Fight later fills in real hp/maxHp/pos. Reassigning `roster`
+         here (rebuild/stateAt/restoreTo all read this same closure var) makes
+         every future rebuild, catch-up, and rewind replay off the enriched
+         facts instead of the placeholders they booted with. */
+      setRoster: function (newRoster) { roster = newRoster; rebuild(); return state; },
 
       move: function (unit, path, resolveFacts) {
         return act(unit, "move_declared", { path: path }, "move_resolved", resolveFacts);

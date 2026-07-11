@@ -331,6 +331,27 @@ const ROSTER = [
     ok("restore behind arrival erases it", !st3.units.gob9);
   })();
 
+  // ── Finding 1 (review): setRoster rebuilds every future state off the
+  // enriched facts (FORGE_BOARD.md §3) — a device that booted during staging
+  // holds placeholder hp; Start Fight enriches the roster row, and every
+  // later rebuild/catchUp/restore must replay against the enriched baseline,
+  // not the placeholder the pipeline was constructed with.
+  (function () {
+    var placeholderRoster = [{ unit: "gob1", side: "foe", pos: { c: 5, r: 5 }, hp: 10 }];
+    var busSR = FB.makeMemoryBus({ controllers: {}, overseer: "u-dm", now: () => 0 });
+    var connSR = busSR.connect("u-dm");
+    var pipeSR = FPipe.makePipeline({ conn: connSR, roster: placeholderRoster,
+      me: { actor: "u-dm", units: [], overseer: true } });
+    connSR.publish(FP.makeEvent("gob1", "attack_resolved", { target: "gob1", hit: true, dmg: 3 }));
+    ok("placeholder roster: replayed damage lands (hp 10 - 3 = 7)",
+      pipeSR.state().units.gob1.hp === 7);
+    var enrichedRoster = [{ unit: "gob1", side: "foe", pos: { c: 5, r: 5 }, hp: 5 }];
+    var stAfter = pipeSR.setRoster(enrichedRoster);
+    ok("setRoster returns the freshly rebuilt state", stAfter === pipeSR.state());
+    ok("setRoster rebuilds off the enriched baseline (hp 5 - 3 = 2, not 10 - 3 = 7)",
+      pipeSR.state().units.gob1.hp === 2);
+  })();
+
   console.log("\n" + pass + " passed, " + fail + " failed");
   process.exitCode = fail ? 1 : 0;
 })();
