@@ -249,6 +249,24 @@ real placement. **These are decisions, not hypotheses.**
    rendered π× dark from the moment of the r185 migration. Self-inflicted: the
    π was applied at light construction and overwritten two hundred lines later.
    Every intensity now goes through `LEGACY_PI` inside `applyLook`.
+11. ~~Signed-in panel outgrew the screen.~~ **Fixed 2026-07-11** (M's first field
+   report on bite 1). `.panel` is fixed and bottom-anchored with, until now, no
+   max-height and no overflow — Task 14's foe picker (sign-in-gated, unbounded,
+   uncollapsible) grew it past the top of the viewport and shoved seed/rooms/
+   loops/decor, the mode chips, and the biome chips off-screen. Read at the
+   table as "we lost seed/rooms/paths/biomes." Locally it could never reproduce:
+   sign-in doesn't cross origins, so the section simply never rendered — and the
+   signed-out branch returned *silently* (a narration-rule violation, also fixed).
+   Now: panel viewport-capped + scrollable; bestiary collapsed by default behind
+   a toggle whose header always carries the picked count.
+12. ~~The session lived only in the URL.~~ **Fixed 2026-07-11.** After **Open the
+   table** nothing on screen named the session — no id, no share affordance (only
+   "Save for later" copied a link). A second browser had no door into the same
+   fight, and the sandbox's own "start combat" (which never creates a session, by
+   design) read as broken multiplayer. Now: in-session `.forgebar` badge shows the
+   short session id + **Copy join link** (the URL is the invitation), and a
+   sandbox-started fight narrates that it is single-device and points at Open the
+   table.
 
 ---
 

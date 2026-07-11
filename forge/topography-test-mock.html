@@ -262,6 +262,11 @@ global.TacticsGeo = API;
   .masthead .sub{font-family:var(--f-util);font-weight:300;text-transform:uppercase;letter-spacing:2.5px;font-size:10px;color:var(--tk-ink-dim)}
   .masthead .dn{margin-left:auto;font-family:var(--f-display);font-style:italic;font-weight:600;font-size:15px;color:var(--tk-gold);text-align:right}
   .forgebar{position:fixed;top:60px;left:20px;z-index:10;display:flex;gap:6px;align-items:center;flex-wrap:wrap}
+  /* In-session badge: the session previously lived only in the URL — nothing
+     on screen named it, so a second device had no door in (field 2026-07-11). */
+  .sessionBadge{display:flex;gap:8px;align-items:center;font-family:var(--f-util);font-size:11px;color:var(--tk-ink);
+    background:var(--tk-panel);border:1px solid var(--tk-line);padding:6px 9px}
+  .sessionBadge b{color:var(--tk-gold);letter-spacing:.5px}
   #seedGroup{display:flex;gap:6px;align-items:center;transition:opacity .2s}
   input#seed{width:66px;font-family:var(--f-util);font-size:13px;color:var(--tk-ink);background:var(--tk-panel);border:1px solid var(--tk-line);padding:7px 8px}
   .fbtn{font-family:var(--f-util);text-transform:uppercase;letter-spacing:1.4px;font-size:11px;color:var(--tk-ink-dim);
@@ -269,7 +274,10 @@ global.TacticsGeo = API;
   .fbtn:hover{color:var(--tk-ink);border-color:var(--tk-ink-dim)}
   .fbtn.primary{background:var(--tk-gold);color:#fff;border-color:var(--tk-gold);font-weight:500}
   .panel{position:fixed;left:20px;bottom:20px;z-index:10;width:262px;background:linear-gradient(180deg,var(--tk-panel),var(--tk-panel-2));
-    border:1px solid var(--tk-line);padding:14px;box-shadow:0 14px 40px rgba(60,50,30,.25)}
+    border:1px solid var(--tk-line);padding:14px;box-shadow:0 14px 40px rgba(60,50,30,.25);
+    /* The panel must never outgrow the screen — the signed-in foe picker once
+       pushed every control above it out of reach (field report 2026-07-11). */
+    max-height:calc(100vh - 40px);overflow-y:auto;overscroll-behavior:contain;scrollbar-width:thin}
   .panel .eyebrow{font-family:var(--f-util);font-weight:500;text-transform:uppercase;letter-spacing:2px;font-size:10px;color:var(--tk-ink-dim);margin-bottom:9px}
   .chips{display:flex;flex-direction:column;gap:6px;margin-bottom:14px}
   .chip{font-family:var(--f-util);text-transform:uppercase;letter-spacing:1px;font-size:11px;color:var(--tk-ink-dim);
@@ -609,15 +617,22 @@ global.TacticsGeo = API;
       <div class="divider" style="margin-top:13px"></div>
       <!-- Task 14: foe picker — replaces the generic Foes-slider goblins in
            buildRoster() once anything is picked here (slider stays as the
-           fallback, labelled above). Books lazy-load on first search. -->
-      <div class="eyebrow" style="margin-bottom:6px">Foes <span style="opacity:.6;font-weight:400;text-transform:none;letter-spacing:0">— picked replaces the slider fallback</span></div>
-      <input id="fpSearch" type="text" placeholder="Search the bestiary…" autocomplete="off">
-      <div class="fname" id="fpSearchStatus"></div>
-      <div id="fpBookResults"></div>
-      <div class="eyebrow" style="margin:9px 0 6px">Shelf</div>
-      <div id="fpShelf"><div class="fname">Loading…</div></div>
-      <div class="eyebrow" style="margin:9px 0 6px">Picked</div>
-      <div id="fpPicked"><div class="fname">Nothing picked — the Foes slider above fills in generic goblins.</div></div>
+           fallback, labelled above). Books lazy-load on first search.
+           Collapsed by default: expanded it dominates the panel (field
+           report 2026-07-11) — the header always shows the picked count. -->
+      <div class="eyebrow" id="fpToggle" role="button" tabindex="0" aria-expanded="false"
+           style="margin-bottom:6px;cursor:pointer;user-select:none">
+        <span id="fpArrow">▸</span> Bestiary <span id="fpHeadCount" style="opacity:.6;font-weight:400;text-transform:none;letter-spacing:0">— nothing picked</span></div>
+      <div id="fpBody" style="display:none">
+        <div class="fname" style="margin-bottom:4px">Picked foes replace the Foes-slider goblins at Start fight.</div>
+        <input id="fpSearch" type="text" placeholder="Search the bestiary…" autocomplete="off">
+        <div class="fname" id="fpSearchStatus"></div>
+        <div id="fpBookResults"></div>
+        <div class="eyebrow" style="margin:9px 0 6px">Shelf</div>
+        <div id="fpShelf"><div class="fname">Loading…</div></div>
+        <div class="eyebrow" style="margin:9px 0 6px">Picked</div>
+        <div id="fpPicked"><div class="fname">Nothing picked — the Foes slider above fills in generic goblins.</div></div>
+      </div>
     </div>
     <div class="divider"></div>
     <div class="eyebrow" style="margin-bottom:6px">CAMERA (local)</div>
@@ -2878,6 +2893,10 @@ function startCombat(){
   CB.units.forEach(function(u){ u.init=d(20)+u.initMod; });
   CB.order=CB.units.slice().sort(function(a,b){ return b.init-a.init||b.initMod-a.initMod; });
   clog("<b>Roll initiative.</b> "+CB.order.map(function(u){return u.name+" "+u.init;}).join(" \u00b7 "));
+  /* Field 2026-07-11: this door was mistaken for multiplayer \u2014 say plainly
+     which kind of fight just started, and where the shared one lives. */
+  if(!SESSION_ID && !window.__forgeSession)
+    clog("<i>Local sandbox \u2014 this fight lives on this device only. To play together, sign in and use <b>Open the table</b> in the panel.</i>");
   showHud(true); nextTurn();
 }
 
@@ -3894,6 +3913,31 @@ if (SESSION_ID) {
   if (cbResetEl) { cbResetEl.disabled = true; cbResetEl.title = "Shared fights rewind from the DM's toolbar."; }
   var cbReforgeEl = document.getElementById("cbReforge");
   if (cbReforgeEl) { cbReforgeEl.disabled = true; cbReforgeEl.title = "The map belongs to the fight."; }
+  /* Field 2026-07-11: the session lived only in the URL — nothing on screen
+     named it, so a second browser had no way into the same fight. The badge
+     IS the invitation: this exact URL joins THIS fight on any device. Built
+     with textContent (the id comes off the query string — never innerHTML). */
+  (function(){
+    var bar = document.querySelector('.forgebar');
+    if (!bar) return;
+    var badge = document.createElement('div'); badge.className = 'sessionBadge';
+    var lbl = document.createElement('span'); lbl.textContent = 'Session ';
+    var idEl = document.createElement('b'); idEl.textContent = SESSION_ID.slice(0, 8); idEl.title = SESSION_ID;
+    lbl.appendChild(idEl);
+    var btn = document.createElement('button'); btn.className = 'fbtn';
+    btn.textContent = 'Copy join link';
+    btn.title = 'Anyone who opens this link joins THIS fight — send it to the other device.';
+    btn.onclick = function(){
+      var url = location.href;
+      var flash = function(t){ btn.textContent = t; setTimeout(function(){ btn.textContent = 'Copy join link'; }, 1800); };
+      if (navigator.clipboard && navigator.clipboard.writeText)
+        navigator.clipboard.writeText(url).then(function(){ flash('Copied ✓'); },
+          function(){ window.prompt('Copy the join link:', url); });
+      else window.prompt('Copy the join link:', url);
+    };
+    badge.appendChild(lbl); badge.appendChild(btn);
+    bar.appendChild(badge);
+  })();
 }
 /* Task 11: one client for the whole page — bootSession's join AND the forge
    panel's lifecycle doors (Open the table / Save for later / staged list)
@@ -4057,6 +4101,13 @@ function addPickedFoe(name, statblock){
 function renderFoePicked(){
   var el = document.getElementById('fpPicked');
   if (!el) return;
+  // The collapsed header must still say what's inside — a hidden pick list
+  // that silently overrides the Foes slider would read as a haunted map.
+  var headEl = document.getElementById('fpHeadCount');
+  if (headEl){
+    var total = FOE_PICKED.reduce(function(s, p){ return s + p.count; }, 0);
+    headEl.textContent = total ? '— ' + total + ' picked' : '— nothing picked';
+  }
   if (!FOE_PICKED.length) { el.innerHTML = '<div class="fname">Nothing picked — the Foes slider above fills in generic goblins.</div>'; return; }
   el.innerHTML = FOE_PICKED.map(function(p, i){
     return '<div class="fpRow"><span class="fpName" title="' + escapeHtml(p.name) + '">' + escapeHtml(p.name) + '</span>'
@@ -4115,6 +4166,18 @@ function renderFoeBookResults(all, q){
   });
 }
 function wireFoePicker(){
+  var toggle = document.getElementById('fpToggle');
+  if (toggle){
+    var flip = function(){
+      var body = document.getElementById('fpBody'), arrow = document.getElementById('fpArrow');
+      var open = body.style.display === 'none';
+      body.style.display = open ? '' : 'none';
+      if (arrow) arrow.textContent = open ? '▾' : '▸';
+      toggle.setAttribute('aria-expanded', open ? 'true' : 'false');
+    };
+    toggle.onclick = flip;
+    toggle.onkeydown = function(e){ if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); flip(); } };
+  }
   var input = document.getElementById('fpSearch');
   if (!input) return;
   input.addEventListener('input', function(){
@@ -4174,7 +4237,21 @@ async function openTable(uid){
 async function initLifecyclePanel(){
   var auth = await sb.auth.getUser();
   var user = auth.data && auth.data.user;
-  if (auth.error || !user) return;   // not signed in — the local sandbox stays the whole story, panel stays hidden
+  if (auth.error || !user) {
+    /* Field 2026-07-11: this used to return silently, so the whole table/
+       bestiary section simply didn't exist when signed out (always, on
+       localhost — logins don't cross origins) and its later appearance on
+       the live site read as haunted. Absent UI must narrate too. */
+    var boxOut = document.getElementById('fbLifecycle');
+    if (boxOut) {
+      boxOut.style.display = '';
+      boxOut.innerHTML = '<div class="divider"></div>' +
+        '<div class="eyebrow" style="margin-bottom:6px">THE TABLE</div>' +
+        '<div class="fname">Single-device sandbox. Sign in on the site to open a shared table ' +
+        '(sign-in lives on trials-of-kirtas.netlify.app — it never works from localhost).</div>';
+    }
+    return;
+  }
   var box = document.getElementById('fbLifecycle');
   if (!box) return;
   box.style.display = '';
