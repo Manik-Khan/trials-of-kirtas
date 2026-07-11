@@ -70,7 +70,7 @@ round) is never stored — it is derived by replaying the log top to bottom.
 | `chat` | anything said between actions | `{text}` | anyone, any time (not turn-gated by design) |
 | `override` | "DM says that actually missed." | `{corrects_seq, correction}` | overseer only |
 | `restore` | "Rewind to the top of round 2." | `{to_seq, snapshot}` (full board state inline) | overseer only |
-| `edit` | GOD MODE: the divine hand | `{changes:[{unit, pos?, hp?, conditions?, typed_roll?, typed_dmg?}], add_unit?}` | overseer only |
+| `edit` | GOD MODE: the divine hand | `{changes:[{unit, pos?, hp?, conditions?, typed_roll?, typed_dmg?} \| {add_unit:{…}}]}` | overseer only |
 | `session_ended` | "Fight's over." | `{}` | overseer |
 
 - **`unit` on a `prompt` is the asking (acting) unit** — the prompted unit is

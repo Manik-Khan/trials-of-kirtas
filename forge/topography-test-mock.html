@@ -1739,6 +1739,7 @@ function placeRoster(){
 }
 window.__placeRoster = placeRoster;
 window.__enterForge = function(){
+  if(SESSION_ID){ clog('<i>The map belongs to the fight — re-forge is disabled during a session.</i>'); return; }
   mode='tiers'; setActiveChip('tiers');
   document.getElementById('seedGroup').style.opacity='1'; setImgOnly(false);
   rebuild();   // forges generated tiers → renderField → placeRoster
@@ -2665,9 +2666,25 @@ function applyVerb(v){
 }
 function resyncFromState(st){
   CB.units.forEach(function(u){ var s=(st.units||{})[u.unit]; if(!s){ removeToken(u); return; }
-    u.c=s.pos.c; u.r=s.pos.r; u.hp=s.hp; u.alive=!s.downed; positionToken(u); });
+    u.c=s.pos.c; u.r=s.pos.r; u.hp=s.hp; u.alive=!s.downed; positionToken(u);
+    // I2 (final-review): a token whose sprite was cleared (e.g. lost on a
+    // prior downed pass, or never made on this device) must be recreated
+    // here — resync is the one path every device converges through.
+    if(!u.sprite && s && !s.downed){ makeToken(u); positionToken(u); } });
   CB.units=CB.units.filter(function(u){ return (st.units||{})[u.unit]; });
   CB.order=CB.order.filter(function(u){ return (st.units||{})[u.unit]; });
+  // I2: units present in the replayed state but never spawned on this
+  // device (e.g. a mid-fight add_unit missed while offline) get spawned now.
+  Object.keys(st.units||{}).forEach(function(key){
+    if(!unitByKey(key)) spawnUnitFromState(key, st.units[key]);
+  });
+  // I1: the active turn is itself a fact of the replayed state — resync
+  // must not leave the HUD pointed at a stale unit/round.
+  if (st.initiative && st.initiative.length){
+    var av = window.ForgeReplay.activeUnit(st);
+    var cur = active();
+    if (av && (!cur || cur.unit !== av)) setActiveFromLog(av, window.ForgeReplay.round(st));
+  }
   renderHud();
 }
 /* Task 11: pulled the fresh roster off the row on the session_started echo
@@ -3712,14 +3729,25 @@ function rewindFine(){ if(CB.react||CB.over||CB_ANIM) return; if(CB.hptr>0){ CB.
 function rewindFwd(){ if(CB.react||CB.over||CB_ANIM) return; if(CB.hptr<CB.hist.length-1){ CB.hptr++; restore(CB.hist[CB.hptr]); } }
 function rewindTurn(){ if(CB.react||CB.over||CB_ANIM) return; var i=CB.hptr-1; while(i>=0 && !CB.hist[i].turnStart) i--; if(i>=0){ CB.hptr=i; restore(CB.hist[i]); } }
 function resetCombat(){
+  if(window.__forgeSession || SESSION_ID){ clog("<i>Shared fights rewind from the DM's toolbar.</i>"); return; }
   if(!confirm("Reset the entire battle? All progress this fight is lost.")) return;
   if(!confirm("Are you sure? This cannot be undone.")) return;
   startCombat();
 }
 function updateRewindUI(){
+  var f=document.getElementById("cbFine"), w=document.getElementById("cbFwd"), t=document.getElementById("cbTurn");
+  /* C2 (final-review): shared fights rewind from the DM's toolbar (overseer
+     restore/override) — the local time-travel cluster stays parked, never
+     re-enabled by the can/hptr logic below, once a session exists. */
+  if(window.__forgeSession || SESSION_ID){
+    var lockTitle="Shared fights rewind from the DM's toolbar.";
+    if(f){ f.disabled=true; f.title=lockTitle; }
+    if(w){ w.disabled=true; w.title=lockTitle; }
+    if(t){ t.disabled=true; t.title=lockTitle; }
+    return;
+  }
   var can=CB.active&&!CB.over&&!CB.react, hasTurn=false;
   for(var i=CB.hptr-1;i>=0;i--){ if(CB.hist[i].turnStart){ hasTurn=true; break; } }
-  var f=document.getElementById("cbFine"), w=document.getElementById("cbFwd"), t=document.getElementById("cbTurn");
   if(f) f.disabled=!(can&&CB.hptr>0);
   if(w) w.disabled=!(can&&CB.hptr<CB.hist.length-1);
   if(t) t.disabled=!(can&&hasTurn);
@@ -3857,6 +3885,15 @@ if (SESSION_ID) {
     var el = document.getElementById(id);
     if (el) { el.disabled = true; el.title = SESSION_LOCK_TITLE; }
   });
+  /* C2 (final-review): the combat HUD's local time-travel cluster (rewind/
+     reset) and re-forge button are local-sandbox-only too. cbFine/cbFwd/
+     cbTurn are re-gated live by updateRewindUI (they toggle with combat
+     history); cbReset and cbReforge have no other dynamic owner, so they're
+     parked here for the life of the page. */
+  var cbResetEl = document.getElementById("cbReset");
+  if (cbResetEl) { cbResetEl.disabled = true; cbResetEl.title = "Shared fights rewind from the DM's toolbar."; }
+  var cbReforgeEl = document.getElementById("cbReforge");
+  if (cbReforgeEl) { cbReforgeEl.disabled = true; cbReforgeEl.title = "The map belongs to the fight."; }
 }
 /* Task 11: one client for the whole page — bootSession's join AND the forge
    panel's lifecycle doors (Open the table / Save for later / staged list)
@@ -4389,6 +4426,17 @@ function checkEchoStall(){
       var before=lastState;
       lastState=window.ForgeReplay.snapshot(__pipe.state());
       resyncFromState(__pipe.state());
+      // I3 (final-review): mirror bootSession's post-catchUp prompt handling —
+      // the watchdog's own resync can just as easily land on a state whose
+      // prompt already cleared (stale modal/banner still open) or whose
+      // prompt this device never saw (an echo genuinely lost mid-prompt).
+      var stallPrompt = __pipe.state().pendingPrompt;
+      if (!stallPrompt) { clearPromptUI(); }
+      else if (PROMPT_UI.seq !== stallPrompt.seq) {
+        if (promptRole(stallPrompt.to) === 'modal') openReactionModal(stallPrompt, {});
+        else showPromptBanner(stallPrompt);
+      }
+      syncInitiativeLobby();
       // resume parked chains: the publish reached the log; resync recovered its effects, so the chain's next step is legitimate
       if (parkedWalk) { try { parkedWalk.resolve(); } catch(e) { clog('<i>…resumed step failed — reload if the fight looks stuck.</i>'); } }
       if (parkedSettle) { try { parkedSettle(); } catch(e) { clog('<i>…resumed step failed — reload if the fight looks stuck.</i>'); } }
@@ -4604,13 +4652,17 @@ function netUseAbility(u,a,targets,effects,opts){
 function netSave(u,a,t){
   var ro=reachOK(u,a,t); if(!ro.ok){ clog(u.name+" — "+ro.why+"."); return; }
   var sv=d(20)+(t.save||0), fail=sv<a.dc, line=u.name+" → "+t.name+": "+a.label+" ("+a.saveAbility.toUpperCase()+" save "+sv+" vs DC "+a.dc+") ";
-  var effects=[], dmg=0, ctx=null;
+  var effects=[], dmg=0, ctx=null, applyDisadv=false;
   if(fail){
     dmg=rollDmg(a.dmg); line+="fail "+dmg; effects.push({unit:t.unit,dmg:dmg});
-    if(a.rider==="vm"){ t.disadv=true; line+=" + disadvantage"; ctx="vm rider: "+t.name+" has disadvantage on its next attack (local only, not yet synced)"; }
+    if(a.rider==="vm"){ applyDisadv=true; line+=" + disadvantage"; ctx="vm rider: "+t.name+" has disadvantage on its next attack (local only, not yet synced)"; }
   } else line+="save";
   clog(line);
-  netUseAbility(u,a,[t.unit],effects,{roll:sv, dmg:fail?dmg:undefined, context:ctx});
+  // M4 (final-review): t.disadv is a local-only flag (see block comment above) —
+  // it must not arm on a failed publish, so it moves into the publish success
+  // callback, same as CB.st.usedAction in netSurge. Narration stays predictive.
+  netUseAbility(u,a,[t.unit],effects,{roll:sv, dmg:fail?dmg:undefined, context:ctx,
+    onSuccess: applyDisadv ? function(){ t.disadv=true; } : undefined});
 }
 /* heal (Healing Word/Cure Wounds) — amount rolled locally exactly as
    doHeal; the narration can't show the post-heal total (that arrives with
@@ -4651,14 +4703,17 @@ function netSurge(u,a){
    // controlling device has a separate CB.units entry that never learns
    // it, so today this buff is inert for anyone but a self-target. */
 function netBuff(u,a,t){
-  CB.hexed=t.id;
   clog(u.name+" hexes "+t.name+" (+1d6 on hits vs it).");
-  netUseAbility(u,a,[t.unit],[],{ context:"hex — +1d6 on "+u.name+"'s hits vs "+t.name+" (local only, not yet synced)" });
+  // M4 (final-review): CB.hexed is local-only (see block comment above) —
+  // arm it on publish success only, so a failed publish leaves no phantom hex.
+  netUseAbility(u,a,[t.unit],[],{ context:"hex — +1d6 on "+u.name+"'s hits vs "+t.name+" (local only, not yet synced)",
+    onSuccess:function(){ CB.hexed=t.id; } });
 }
 function netBuffAlly(u,a,t){
-  t.inspired=true;
   clog(u.name+" inspires "+t.name+" (advantage on next attack).");
-  netUseAbility(u,a,[t.unit],[],{ context:"bardic inspiration — advantage on "+t.name+"'s next attack (local only, not yet synced)" });
+  // M4 (final-review): t.inspired is local-only — arm it on publish success only.
+  netUseAbility(u,a,[t.unit],[],{ context:"bardic inspiration — advantage on "+t.name+"'s next attack (local only, not yet synced)",
+    onSuccess:function(){ t.inspired=true; } });
 }
 /* the unit key of who controls the active seat — "the DM" for foes/unclaimed
    PCs, else the character's own name (the roster carries no player display

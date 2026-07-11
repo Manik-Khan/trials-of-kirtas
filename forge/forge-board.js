@@ -61,7 +61,7 @@
         verbs = verbs.concat(turnVerb(before, after));
         break;
       case "move_resolved": {
-        var mv = after.units[row.unit], p = row.payload || {};
+        var mv = after.units[row.unit];
         var path = (before.pendingAction && before.pendingAction.unit === row.unit && before.pendingAction.path) || null;
         if (mv) verbs.push(path ? { t: "walk", unit: row.unit, path: path, to: { c: mv.pos.c, r: mv.pos.r } }
                                 : { t: "jump", unit: row.unit, to: { c: mv.pos.c, r: mv.pos.r } });

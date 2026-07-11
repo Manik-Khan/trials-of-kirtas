@@ -3,12 +3,13 @@
 -- narrow door. Also: members must SEE forming fights to claim into them —
 -- the old select policy required already-being-in-controllers (chicken/egg).
 -- Idempotent and safe to re-run. Append-only: never edit schema_delta_forge.sql.
+-- requires schema_delta_members.sql applied first (is_member).
 
--- 1. visibility: any signed-in member sees sessions (this Supabase is the
+-- 1. visibility: any approved member sees sessions (this Supabase is the
 --    campaign's members only; events stay gated by their own policy)
 drop policy if exists forge_sessions_select on public.forge_sessions;
 create policy forge_sessions_select on public.forge_sessions
-  for select to authenticated using (true);
+  for select to authenticated using (public.is_member());
 
 -- 2. the claim door. SECURITY DEFINER: bypasses forge_sessions_overseer_write
 --    for exactly this shape of write and nothing else.
@@ -21,6 +22,7 @@ declare
   claimed_by text;
 begin
   if auth.uid() is null then return jsonb_build_object('ok', false, 'why', 'not signed in'); end if;
+  if not public.is_member() then return jsonb_build_object('ok', false, 'why', 'not a member'); end if;
   select * into s from public.forge_sessions where id = p_session for update;
   if not found then return jsonb_build_object('ok', false, 'why', 'no such fight'); end if;
   if s.status = 'ended' then return jsonb_build_object('ok', false, 'why', 'fight is over'); end if;
