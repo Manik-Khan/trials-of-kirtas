@@ -3022,8 +3022,17 @@ async function bootSession(sid){
 function checkEchoStall(){
   if (__awaitingCount > 0 && __awaitingSince && (Date.now() - __awaitingSince) > 12000) {
     clog('<i>The table isn\'t answering — re-syncing from the log…</i>');
-    __awaitingCount = 0; __awaitingSince = 0;
-    __pipe.catchUp().then(function(){ resyncFromState(__pipe.state()); renderHud(); clog('<i>Re-synced.</i>'); }).catch(function(e){ clog('<b style="color:#c0553f">Re-sync failed — reload the page.</b>'); });
+    var parkedSettle = __awaitingSettled; __awaitingSettled = null;
+    var parkedWalk = __pendingWalkDone; __pendingWalkDone = null;
+    __awaitingCount = 0; __awaitingSince = 0; __awaitingUnit = null; __awaitingKind = null;
+    __pipe.catchUp().then(function(){
+      resyncFromState(__pipe.state());
+      // resume parked chains: the publish reached the log; resync recovered its effects, so the chain's next step is legitimate
+      if (parkedWalk) { try { parkedWalk.resolve(); } catch(e) { clog('<i>…resumed step failed — reload if the fight looks stuck.</i>'); } }
+      if (parkedSettle) { try { parkedSettle(); } catch(e) { clog('<i>…resumed step failed — reload if the fight looks stuck.</i>'); } }
+      renderHud();
+      clog('<i>Re-synced.</i>');
+    }).catch(function(e){ clog('<b style="color:#c0553f">Re-sync failed — reload the page.</b>'); });
   }
 }
 /* Every publish path gets the same failure narration (spec §8): nothing on
