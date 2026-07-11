@@ -3237,6 +3237,7 @@ function netAttack(u,a,t){
           // final damage and sent it in the answer's extra — fold it in as a fact,
           // same shape forge-replay's applyEffects expects ({unit,dmg}).
           var rb=(answers||[]).filter(function(row){
+            if(!row||!row.payload) return false;
             var ku=unitByKey(row.unit); return ku&&ku.react&&Object.keys(ku.react)[0]==="hellishRebuke" && row.payload && row.payload.use;
           })[0];
           if(rb) effects.push({ unit:u.unit, dmg:rb.payload.dmg });
@@ -3301,6 +3302,7 @@ function netFoeAttack(u,atk,t,hs,adv,dis){
         }
         var effects=[];
         var rb=(answers||[]).filter(function(row){
+          if(!row||!row.payload) return false;
           var ku=unitByKey(row.unit); return ku&&ku.react&&Object.keys(ku.react)[0]==="hellishRebuke" && row.payload && row.payload.use;
         })[0];
         if(rb) effects.push({ unit:u.unit, dmg:rb.payload.dmg });
