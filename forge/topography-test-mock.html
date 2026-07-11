@@ -388,6 +388,9 @@ global.TacticsGeo = API;
 .cbReforge{ font-family:var(--f-util); text-transform:uppercase; letter-spacing:.12em; font-size:12px; color:var(--tk-ink-dim); background:transparent; border:1px solid var(--tk-line); padding:10px 12px; cursor:pointer; }
 .cbLog{ position:fixed; left:20px; bottom:20px; z-index:16; width:300px; max-height:34vh; overflow:auto; background:linear-gradient(180deg,var(--tk-panel),var(--tk-panel-2)); border:1px solid var(--tk-line); padding:10px 12px; font-size:13px; color:var(--tk-ink); box-shadow:0 14px 40px rgba(60,50,30,.25); }
 .cbLogRow{ padding:3px 0; border-bottom:1px solid rgba(168,159,138,.3); line-height:1.35; }
+/* Task 13: sheet-mirror retry chip — small, persistent, near the log; only
+   visible while the mirror write queue is non-empty (FORGE_BOARD.md §5). */
+.cbMirrorChip{ position:fixed; left:20px; bottom:calc(20px + 34vh + 8px); z-index:16; font-family:var(--f-util); text-transform:uppercase; letter-spacing:1px; font-size:11px; color:var(--tk-ink-dim); background:linear-gradient(180deg,var(--tk-panel),var(--tk-panel-2)); border:1px solid var(--tk-line); padding:5px 10px; box-shadow:0 8px 20px rgba(60,50,30,.25); }
 .cbLogRow:first-child{ font-weight:600; }
 .cbBanner{ position:fixed; top:38%; left:50%; transform:translate(-50%,-50%); z-index:20; font-family:var(--f-display); font-weight:700; font-size:64px; color:var(--tk-gold); text-shadow:0 4px 20px rgba(0,0,0,.4); background:rgba(240,233,220,.85); border:2px solid var(--tk-gold); padding:14px 44px; }
 .cbActs{ display:flex; flex-wrap:wrap; gap:5px; margin:10px 0 2px; }
@@ -641,6 +644,7 @@ global.TacticsGeo = API;
       <div class="cbRelRow" id="cbRelease" style="display:none"></div>
     </div>
     <div class="cbLog" id="cbLog"></div>
+    <div class="cbMirrorChip" id="cbMirrorChip" style="display:none">sheet catching up&hellip;</div>
     <div class="cbBanner" id="cbBanner" style="display:none"></div>
     <div class="cbReact" id="cbReact" style="display:none">
       <div class="cbReactCard">
@@ -2390,7 +2394,15 @@ function applyVerb(v){
     case "despawn":if(u){ removeToken(u); CB.units=CB.units.filter(function(x){return x!==u;}); CB.order=CB.order.filter(function(x){return x!==u;}); } break;
     case "turn":   setActiveFromLog(v.unit, v.round); break;   // Task 8 fleshes the HUD side
     case "status": if(v.status==="ended"){ CB.over=true; clog("<b>Fight over.</b>");
-      clearPromptUI(); if(window.__forgeSession) window.__forgeSession.row.status="ended"; }
+      clearPromptUI(); if(window.__forgeSession) window.__forgeSession.row.status="ended";
+      /* Task 13: status flips to "ended" here, before this event's own
+         trailing runMirror() call — that call becomes a no-op (boundary:
+         mirror only while active), so anything already queued from EARLIER
+         events needs one last flush now, then the interval stops (spec:
+         "after session_ended the last drain flushes then the interval
+         stops"). Fire-and-forget — the fight is already over; nothing else
+         waits on it. */
+      drainMirror().finally(function(){ if (__mirrorTimer) { clearInterval(__mirrorTimer); __mirrorTimer=null; } }); }
       /* Task 11: session_started's own verb is just this status flip (forge-board.js
          never diffs roster) — Start fight wrote real pos/hp into the ROW, not the log,
          so a device that's been sitting on the staging screen since before Start fight
@@ -2431,9 +2443,109 @@ function syncRosterFacts(){
   sess.sb.from('forge_sessions').select('roster').eq('id', sess.row.id).single().then(function(res){
     if(res.error || !res.data){ clog('<i>Couldn’t sync starting positions — refresh to pick them up.</i>'); return; }
     var roster=res.data.roster||[]; sess.row.roster=roster;
+    var before=lastState;
     var st=sess.pipe.setRoster(roster);
+    lastState=window.ForgeReplay.snapshot(st);
     resyncFromState(st);   // repaints pos/hp/downed for every token + renderHud()
+    runMirror(before, lastState);   // Task 13: Start-fight facts landing here count as a state change too
   }, function(){ clog('<i>Couldn’t sync starting positions — refresh to pick them up.</i>'); });
+}
+
+/* ── Task 13: sheet mirror (FORGE_BOARD.md §5) ─────────────────────────
+   "The combat IS the sheet." Whenever replayed state changes a mirrored
+   unit's HP, that unit's controlling device writes the derived absolute
+   value back to CharacterData — never a delta, so rewind/override/GOD MODE
+   just re-set the number and nothing ever needs un-writing. One writer per
+   unit: a non-overseer mirrors only their own claimed units; the overseer
+   additionally covers every roster pc NOT in ANY player's controllers list
+   (DM-run units) — never both, so no two devices ever race the same key. */
+function myMirrorUnits(sess){
+  if (!sess.me.overseer) return sess.me.units || [];
+  var claimed={};
+  Object.keys(sess.row.controllers||{}).forEach(function(owner){
+    (sess.row.controllers[owner]||[]).forEach(function(u){ claimed[u]=true; });
+  });
+  return (sess.row.roster||[]).filter(function(r){
+    return (r.kind||'pc')==='pc' && !claimed[r.unit];
+  }).map(function(r){ return r.unit; });
+}
+/* roster row lookup by unit id (mirrorPlan's rosterByUnit), and its reverse
+   (sheet key → unit id) — a queued write re-reads the CURRENT replayed hp
+   at drain time (see drainOne), so it needs to get back from "which sheet"
+   to "which unit" after mirrorPlan already resolved the key. */
+function rosterMaps(sess){
+  var byUnit={}, unitForKey={};
+  (sess.row.roster||[]).forEach(function(r){
+    byUnit[r.unit]=r;
+    if (r.sheet_ref) unitForKey[r.sheet_ref]=r.unit;
+  });
+  return { byUnit:byUnit, unitForKey:unitForKey };
+}
+/* Call after every applied event (onEvent) and every resync/setRoster
+   repaint — anywhere replayed state can change. Boundary: mirror only
+   while the fight is active (staging writes no facts yet; session_ended
+   flushes once then stops — see applyVerb's "status" case) and never in
+   local sandbox mode (no window.__forgeSession there, so sess is falsy).
+   `sess` is optional — defaults to the live session; bootSession's own
+   post-catchUp call passes one explicitly because that runs a beat before
+   window.__forgeSession is assigned. */
+function runMirror(before, after, sess){
+  sess = sess || window.__forgeSession;
+  if (!sess || !before || !after || sess.row.status!=='active') return;
+  var maps=rosterMaps(sess);
+  var plan=window.ForgeBoard.mirrorPlan(before, after, myMirrorUnits(sess), maps.byUnit);
+  plan.forEach(function(p){
+    var unit=maps.unitForKey[p.key];
+    if (unit) __mirrorQueue.set(p.key, unit);   // latest-wins: overwrite, value re-read at drain
+  });
+}
+/* One queued key → one write. Reads pipe.state() FRESH here (not the value
+   queued at enqueue time) — a rewind landing between enqueue and drain then
+   writes the post-rewind truth, exactly the "rewind just re-sets" rule.
+   Loads the character's full vitals ONCE (lazily), keeps the cached copy
+   patched with our own successful writes, and only ever changes .hp on it —
+   save() replaces the whole vitals column, so every other field (hpTemp,
+   hpBonus, pipState, concentration…) has to ride along untouched. Resolves
+   true/false (success/failure); never throws — the fight never waits on
+   this and a caller that doesn't await it is deliberately fire-and-forget. */
+async function drainOne(key, unit, sess){
+  if (__mirrorInFlight.has(key)) return true;
+  __mirrorInFlight.add(key);
+  try {
+    var vitals=__mirrorVitals.get(key);
+    if (!vitals) {
+      var ch=await window.CharacterData.loadCharacter(key);
+      vitals=(ch && ch.vitals) ? Object.assign({}, ch.vitals) : {};
+      __mirrorVitals.set(key, vitals);
+    }
+    var st=sess.pipe.state(), u=st.units && st.units[unit];
+    if (!u) { __mirrorQueue.delete(key); return true; }   // unit is gone — nothing left to mirror
+    vitals.hp=u.hp;
+    var saved=await window.CharacterData.save(key, { vitals: vitals });
+    if (saved && saved.vitals) __mirrorVitals.set(key, Object.assign({}, saved.vitals));
+    __mirrorQueue.delete(key);
+    return true;
+  } catch (e) {
+    return false;   // stays queued — next 5s tick retries with whatever hp is current THEN
+  } finally {
+    __mirrorInFlight.delete(key);
+  }
+}
+function showMirrorChip(on){
+  __mirrorChipShown=!!on;
+  var el=document.getElementById('cbMirrorChip'); if (el) el.style.display=on?'block':'none';
+}
+/* The 5s drain — one pass over the whole queue, one narration for the WHOLE
+   batch (not per key, not per retry): fires once when a failure first shows
+   the chip, stays silent on every subsequent tick until the queue empties
+   and the chip clears (per spec: "narrated once, not per retry"). */
+async function drainMirror(){
+  var sess=window.__forgeSession;
+  if (!sess || !__mirrorQueue.size) return;
+  var pairs=Array.from(__mirrorQueue.entries());
+  var results=await Promise.all(pairs.map(function(p){ return drainOne(p[0], p[1], sess); }));
+  if (results.indexOf(false)>=0 && !__mirrorChipShown) clog('<i>Sheet sync is catching up — retrying…</i>');
+  showMirrorChip(__mirrorQueue.size>0);
 }
 
 function startCombat(){
@@ -3440,6 +3552,29 @@ if (SESSION_ID) {
    share it, so "signed in" means the same thing everywhere on this page. */
 const sb = window.supabase.createClient(SUPA_URL, SUPA_KEY);
 let __pipe = null;
+/* Task 13: sheet mirror (FORGE_BOARD.md §5) — module-level (not bootSession-
+   local) so both onEvent (inside bootSession) and syncRosterFacts/
+   checkEchoStall (outside it) share the same replayed-state cursor and
+   write queue. bootSession only ever runs once per page load (the
+   SESSION_ID branch below), so hoisting lastState here is the same
+   single-session assumption __pipe already relies on.
+   __mirrorQueue: sheet key → controlling unit id (latest-wins — re-enqueuing
+     a key just overwrites the same unit id; the VALUE written is always
+     read fresh at drain time, never the value at enqueue time, so a rewind
+     landing in between just re-sets, per spec).
+   __mirrorVitals: sheet key → its loaded vitals object, loaded once lazily
+     and kept current with our own writes — save() replaces the WHOLE vitals
+     column (character-data.js save() is a plain .update()), so patching a
+     cached copy is the only way to avoid clobbering hpTemp/hpBonus/
+     pipState/concentration/etc.
+   __mirrorInFlight: keys with a save() in flight — skips a re-drain of the
+     same key on the next 5s tick while the previous write is still pending. */
+let lastState = null;
+let __mirrorQueue = new Map();
+let __mirrorVitals = new Map();
+let __mirrorInFlight = new Set();
+let __mirrorTimer = null;
+let __mirrorChipShown = false;
 /* Task 7's in-flight guard: while MY OWN declared move/attack/end-turn is
    awaiting its resolved echo, action buttons stay disabled so a double-tap
    can't double-publish. Tracked by (unit, resolved-kind) rather than by
@@ -3654,7 +3789,8 @@ async function bootSession(sid){
   if (row.status === 'staging') clog('<b>Fight is forming</b> — waiting for the DM to start.');
   const me = { actor: user.id, units: (row.controllers[user.id] || []), overseer: row.overseer === user.id };
   const conn = window.ForgeBus.makeSupabaseBus({ sb, sessionId: sid }).connect();
-  let lastState;
+  // Task 13: lastState is module-level now (shared with syncRosterFacts/
+  // checkEchoStall outside this function) — see its declaration near __pipe.
   const pipe = window.ForgePipeline.makePipeline({
     conn, roster: pipelineRoster, me,
     reactions: reactionCandidates,
@@ -3687,12 +3823,14 @@ async function bootSession(sid){
       if (r.kind === 'initiative_rolled') { delete __initPublishing[r.unit]; }
       else if (r.kind === 'initiative_set') { __initConfirming = false; }
       window.ForgeBoard.verbsFor(r, before, st).forEach(applyVerb);
+      runMirror(before, lastState);   // Task 13: after every applied event, mirror any hp change I control back to its sheet
       renderHud();   // repaints the cleared guard even on a verb-less event (e.g. a miss)
       syncInitiativeLobby();   // Task 10: initiative_rolled/initiative_set/session_started all pass through here
     }
   });
   __pipe = pipe;
   lastState = window.ForgeReplay.snapshot(pipe.state());
+  const __bootMirrorBefore = lastState;
   await pipe.catchUp();
   lastState = window.ForgeReplay.snapshot(pipe.state());
   window.__fightControllers = deriveFightControllers(row, user.id);
@@ -3709,6 +3847,12 @@ async function bootSession(sid){
     if (bootActive) setActiveFromLog(bootActive, window.ForgeReplay.round(bootState));
   }
   window.__forgeSession = { pipe, row, me, sb };
+  // Task 13: catchUp() never fires onEvent per row, so a device joining/
+  // refreshing mid-fight needs one explicit mirror pass of its own —
+  // otherwise an overseer covering an unclaimed PC that took damage while
+  // THIS device was offline/away would never backfill that PC's sheet.
+  runMirror(__bootMirrorBefore, lastState);
+  __mirrorTimer = setInterval(drainMirror, 5000);   // Task 13: latest-wins retry drain — only ticks for a live session, never in local sandbox mode
   syncInitiativeLobby(); renderOverseerToolbar();   // Task 10: reconstruct the lobby/toolbar on a fresh join/refresh (catchUp fires no per-row onEvent)
   // Task 9: a refresh can't lose a prompt (spec §4) — replay reconstructed
   // pendingPrompt (catchUp() never calls onPrompt/onEvent per row), so if
@@ -3738,12 +3882,15 @@ function checkEchoStall(){
     var parkedWalk = __pendingWalkDone; __pendingWalkDone = null;
     __awaitingCount = 0; __awaitingSince = 0; __awaitingUnit = null; __awaitingKind = null;
     __pipe.catchUp().then(function(){
+      var before=lastState;
+      lastState=window.ForgeReplay.snapshot(__pipe.state());
       resyncFromState(__pipe.state());
       // resume parked chains: the publish reached the log; resync recovered its effects, so the chain's next step is legitimate
       if (parkedWalk) { try { parkedWalk.resolve(); } catch(e) { clog('<i>…resumed step failed — reload if the fight looks stuck.</i>'); } }
       if (parkedSettle) { try { parkedSettle(); } catch(e) { clog('<i>…resumed step failed — reload if the fight looks stuck.</i>'); } }
       renderHud();
       clog('<i>Re-synced.</i>');
+      runMirror(before, lastState);   // Task 13: this re-sync can also change hp — mirror it, same as any other state change
     }).catch(function(e){ clog('<b style="color:#c0553f">Re-sync failed — reload the page.</b>'); });
   }
 }
