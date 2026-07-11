@@ -1,4 +1,4 @@
-# CONTEXT — Battle Forge — updated 2026-07-08
+# CONTEXT — Battle Forge — updated 2026-07-11
 
 > This doc exists because the same failure kept happening: a session would read
 > *part* of the material, conclude a feature "was never there," and rebuild
@@ -72,7 +72,12 @@ greyed out in the select and must never be silently dropped.
 | `forge/map-bridge.js` | generator/heightfield → MAP document `{cols,rows,h,wall,occ,spawns,props}` | canonical |
 | `forge/forge-dungeon.js` | generator. **THEMES keys are the biome names**: `grass druidic tundra swamp temple cavern volcanic` | canonical |
 | `forge/forge-engine.js` | seeded generate → validated map | canonical |
-| `forge/tests/*` | smokes. 83 green: engine 14 · bridge 16 · geometry 26 · los-cover 27 | canonical |
+| `forge/forge-board.js` | translator: wire↔board verbs (turn loop, prompt routing, initiative, overseer toolbar incl. GOD MODE/rewind/Add-foe) | canonical |
+| `schema_delta_forge_board.sql` | append-only migration: `forge_claim_unit()` claim RPC + session visibility for players | **not yet applied to live Supabase** |
+| `forge/tests/smoke-tiers-rebase.js` | rebase smoke: canonical `ForgeEngine.generate()` on real seeds, §4-geometry invariants hold | canonical |
+| `forge/tests/smoke-forge-board.js` | known-answer: scripted logs → board-verb sequences (move/attack/turn/prompt/timeout/restore/edit/add_unit/claim-gate) | canonical |
+| `forge/tests/smoke-starter-kits.js` | starter action bar from live sheet stats, generic-kit fallback, CHAR alias | canonical |
+| `forge/tests/*` | smokes. 246 green: engine 14 · bridge 16 · geometry 26 · los-cover 27 · placement 19 · flora 22 · protocol 56 · tiers-rebase 32 · forge-board 18 · starter-kits 16 | canonical |
 | `topography-test-mock.html` | **THE surface.** Heightfield + all the geometry + combat loop | active |
 | `battle-tactics-geo-mock.html` | flat box-tile combat mock. **The source of the combat system and the feel layer.** NOT superseded — it is the port source | reference |
 | `battle-forge-mock.html` | *"the dream one."* generator → tactics diorama. **Source of the pixel sprites + portraits** | reference |
@@ -212,8 +217,11 @@ real placement. **These are decisions, not hypotheses.**
 4. ~~`smoke-forge-engine.js` throws on `themeKey:"frost"`~~ — **fixed** (→ `tundra`).
    The underlying wart stands: an unknown `themeKey` dies as a `TypeError` at
    `forge-dungeon.js:348` (`TH.lakes` of undefined) instead of narrating. Guard it.
-5. **topo's inlined generator is stale** (old theme keys). Rebase on
-   `forge/forge-dungeon.js` and take `WALL_FT` from `MapBridge.wallFeetFor()`.
+5. ~~topo's inlined generator is stale~~ **Fixed** (`forge-board` branch, task 1):
+   the mock's stale inline generator was replaced by canonical `ForgeEngine.generate()`
+   → `forge-dungeon.js` → `map-bridge.js`, with wall/prop occluder heights read from
+   `MapBridge.wallFeetFor()`/`propFeet()`; verified against `smoke-tiers-rebase.js`
+   (32 green) on real seeds.
 6. **TOON banding + ink outlines** were tuned against flat lighting; they may
    fight the new AO and cast shadow. Unverified.
 7. ~~Trees are 100% wall-adjacent.~~ **Fixed.** `buildTiersField` *required* a wall
@@ -325,11 +333,22 @@ while playing and the `session_ended` event is written *before* flipping status;
 the harness pops prompts on every controlling window — the real player HUD must
 route prompts per spec §4 (player modal; overseer inherits only on timeout).
 
-**Recommended next: marry the protocol to the board** — generator rebase (§5.5)
-so the topo mock runs the canonical `forge-dungeon.js`, `{seed,theme,sliders}`
-read from the `forge_sessions` row so two devices render the identical dungeon,
-tokens driven by `forge_events`. Then the look pass. The older list below stands
-for the single-device port debts (feel layer, flanking/OA/Ready).
+**Bite 1 MERGED to `main` 2026-07-11** — the marriage: shared dungeon from the
+session row (§5.5 fixed), full turn loop on the real board, folder-filtered claim
+screen, live + staged fight creation, real sheet stats with curated starter action
+bars, bestiary foes incl. mid-fight reinforcements, sheet⇄fight live mirror. Merged
+untested-in-field by M's call (local testing was blocked: sign-in lives on the
+netlify origin, so `Open the table` never appears on localhost). Still owed:
+**apply `schema_delta_forge_board.sql`** to the live Supabase (after
+`schema_delta_members.sql` — it uses `is_member()`), then **M's two-device field
+checklist** (`FORGE_BOARD.md` appendix, 14 steps) on the live site. Multiplayer is
+dormant without `?session=`; the single-device sandbox was regression-gated at
+every step. Known-and-accepted for the field pass: a refresh refunds unspent
+movement (coded TODO), and Confirm Order doesn't wait for stragglers (late rolls
+sort to the bottom — empty seats never block). **Bite 2** is the sheet→actions derivation
+layer plus the feel-layer ports (badges, hit flash, shake, bob, floating damage,
+flanking/OA/Ready) — specced in `FORGE_BOARD.md` §0. The older list below stands for the
+single-device port debts.
 
 In order. Do not skip to 4.
 

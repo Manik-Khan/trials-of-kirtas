@@ -57,10 +57,21 @@
     switch (row.kind) {
       case "session_started": state.status = "active"; break;
       case "initiative_rolled": state.rolls[row.unit] = p.roll; break;
-      case "initiative_set":
-        state.initiative = p.order.slice(); state.turnsEnded = 0;
+      case "initiative_set": {
+        var prevRound = round(state);   // BEFORE overwriting order/turnsEnded
+        state.initiative = p.order.slice();
+        if (p.resume_at != null && state.initiative.indexOf(p.resume_at) >= 0) {
+          // mid-fight re-order (FORGE_BOARD.md §6 reinforcements): resume at the
+          // named unit in the current round — a new goblin must not restart the round
+          state.turnsEnded = (Math.max(1, prevRound) - 1) * state.initiative.length
+                           + state.initiative.indexOf(p.resume_at);
+        } else {
+          if (p.resume_at != null) console.warn("[forge-replay] resume_at not in order — restarting round: " + p.resume_at);
+          state.turnsEnded = 0;
+        }
         Object.keys(state.units).forEach(function (k) { state.units[k].reactionUsed = false; });
         break;
+      }
       case "turn_ended": {
         state.turnsEnded++;
         var next = activeUnit(state);   // reaction refreshes at the start of your turn
@@ -122,6 +133,22 @@
       }
       case "edit":
         (p.changes || []).forEach(function (ch) {
+          if (ch.add_unit) {
+            var au = ch.add_unit;
+            if (!au.unit || !au.pos || au.hp == null || state.units[au.unit]) {
+              console.warn("[forge-replay] add_unit ignored: " +
+                (au.unit && state.units[au.unit] ? "duplicate unit " + au.unit : "missing unit/pos/hp"));
+              return;
+            }
+            state.units[au.unit] = {
+              side: au.side || "foe", pos: { c: au.pos.c, r: au.pos.r },
+              hp: au.hp, maxHp: (au.maxHp != null ? au.maxHp : au.hp),
+              conditions: [], reacts: (au.reacts || []).slice(),
+              reactionUsed: false, downed: false,
+              name: au.name || au.unit, statblock: au.statblock || null
+            };
+            return;
+          }
           var t = state.units[ch.unit]; if (!t) return;
           if (ch.pos) t.pos = { c: ch.pos.c, r: ch.pos.r };
           if (ch.hp != null) { t.hp = Math.max(0, Math.min(t.maxHp, ch.hp)); t.downed = (t.hp === 0); }
