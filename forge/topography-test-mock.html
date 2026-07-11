@@ -2440,6 +2440,7 @@ function foeKitFromStatblock(row){
    the load resolves (or in the local sandbox, which never calls
    loadLiveStats at all) just see a cold cache and keep the kit's own
    numbers, silently. */
+/*SK-START*/
 var __liveStatsCache = null;    // null = never loaded; {} (or populated) once loadLiveStats() settles
 var __liveStatsLoading = null;  // in-flight promise — concurrent callers share one load
 var __liveStatsWarned = {};     // "using kit numbers" narrated once per character key per boot
@@ -2486,7 +2487,8 @@ function liveStatsFor(sheetRef){
    Only reachable once __liveStatsCache is warm (loadLiveStats already
    settled) — before that a sheet-having folder PC is indistinguishable
    from a no-sheet one and this simply returns null, same as pre-Task-16. */
-var GENERIC_PC_KIT = { react: null, res: {}, actions: [
+var GENERIC_PC_KIT = { ac: 10, speed: 30, init: 0, /* unarmored commoner baseline — never 0 */
+  react: null, res: {}, actions: [
   { label: "Improvised Strike", kind: "attack", rng: 1, hit: 2, dmg: "1d4+1" }
 ] };
 var __genericKitWarned = {};
@@ -2501,6 +2503,7 @@ function kitFor(key){
   }
   return Object.assign({ name: c.name || key }, GENERIC_PC_KIT);
 }
+/*SK-END*/
 /* roster row {unit,kind,sheet_ref?,name?,statblock?,pos?,hp?,maxHp?} + the
    replayed state.units[unit] (facts win over the roster row) → a CB unit.
    PCs map sheet_ref → CHAR kits (fallback: the unit id itself — the mock's
