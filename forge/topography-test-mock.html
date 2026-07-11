@@ -2161,7 +2161,7 @@ function setActiveFromLog(unitKey, round){
     CB.order = st.initiative.map(function(k){ return unitByKey(k); }).filter(Boolean);
   var idx = CB.order.indexOf(unitByKey(unitKey));
   if (idx >= 0) CB.ti = idx;
-  renderHud();
+  beginTurn(unitByKey(unitKey));   // same fresh-budget/cleanup body nextTurn uses \u2014 no local initiative advance
 }
 /* mid-fight roster edit (an 'edit' event's add_unit) — `su` is the freshly
    replayed state.units[unit] record, not a roster row. unitFromRosterRow
@@ -2214,9 +2214,20 @@ function spawnFromState(state, row){
 function applyVerb(v){
   var u = v.unit && unitByKey(v.unit);
   switch(v.t){
-    case "walk":   if(u){ CB_ANIM=true; walkPath(u, v.path.map(function(p){return {c:p.c,r:p.r};}), function(){ CB_ANIM=false; }); } break;
+    case "walk":   if(u){ var steps=v.path.map(function(p){return {c:p.c,r:p.r};}); CB_ANIM=true;
+      walkPath(u, steps, function(){ CB_ANIM=false;
+        /* movement budget is client-local bookkeeping (never part of the
+           replayed state) \u2014 it updates HERE, off the walk verb\u2019s own
+           path length, on every device (including the mover\u2019s), instead
+           of at tap-time. That is what keeps a failed publish from ever
+           having spent a square nobody saw walked. */
+        if(u===active() && CB.st){ CB.st.moveLeft-=steps.length;
+          CB.seen=(CB.st.moveLeft>0)?TG.movementReach(CB.map,u,occupied(u),CB.st.moveLeft):{}; }
+        drawHi(); drawSight(); renderHud();
+      }); } break;
     case "jump":   if(u){ u.c=v.to.c; u.r=v.to.r; positionToken(u); } break;
-    case "hp":     if(u){ u.hp=v.hp; if(v.maxHp!=null) u.hpMax=v.maxHp; u.alive=!v.downed; renderHud(); if(!u.alive) removeToken(u); } break;
+    case "hp":     if(u){ u.hp=v.hp; if(v.maxHp!=null) u.hpMax=v.maxHp; u.alive=!v.downed; renderHud();
+      if(!u.alive){ removeToken(u); maybeEnd(); } } break;
     case "spawn":  spawnUnitFromState(v.unit, v.u); break;
     case "despawn":if(u){ removeToken(u); CB.units=CB.units.filter(function(x){return x!==u;}); CB.order=CB.order.filter(function(x){return x!==u;}); } break;
     case "turn":   setActiveFromLog(v.unit, v.round); break;   // Task 8 fleshes the HUD side
@@ -2302,10 +2313,12 @@ function unitAt(c,r){ return CB.units.filter(function(u){return u.alive&&u.c===c
 function enemies(u){ return CB.units.filter(function(x){return x.alive&&x.side!==u.side;}); }
 function allies(u){ return CB.units.filter(function(x){return x.alive&&x.side===u.side;}); }
 
-function nextTurn(){
-  if(CB.over) return;
-  for(var g=0; g<=CB.order.length; g++){ CB.ti=(CB.ti+1)%CB.order.length; if(active()&&active().alive) break; }
-  var u=active(); if(!u) return;
+/* the shared "a turn begins for u" body \u2014 LOCAL (nextTurn) picks u
+   itself by scanning CB.order for the next alive combatant; SESSION
+   (setActiveFromLog) is handed u directly (the log's own initiative is the
+   fact, no scanning). Both must see byte-identical cleanup/budget/paint. */
+function beginTurn(u){
+  if(!u) return;
   u.reacted=false;   // reaction refreshes at the start of your turn
   if(u.readied){ clog("<i>"+u.name+"'s readied "+u.readied.act.label
     +(u.readied.act.spell?" dissipates \u2014 the slot was spent when it was cast.":" lapses.")+"</i>"); u.readied=null; }
@@ -2316,6 +2329,11 @@ function nextTurn(){
   CB.seen=TG.movementReach(CB.map,u,occupied(u),CB.st.moveLeft);
   snapshot("Turn: "+u.name, true); CB.turnStartPtr=CB.hptr;
   drawHi(); drawSight(); renderHud();
+}
+function nextTurn(){
+  if(CB.over) return;
+  for(var g=0; g<=CB.order.length; g++){ CB.ti=(CB.ti+1)%CB.order.length; if(active()&&active().alive) break; }
+  beginTurn(active());
   // foe turns are stepped by the DM (“Foe acts”) so rewind never races a timer
 }
 
@@ -2562,7 +2580,13 @@ function selectAction(idx){
 }
 function finishAction(){ CB.pending=null; snapshot("Action"); drawHi(); drawSight(); renderHud(); maybeEnd(); }
 function resolveOn(u,a,t){
-  if(a.kind==="attack"){ doAttack(u,a,t,function(){ spend(u,a); finishAction(); }); return; }
+  /* Attack is the only kind this task wires to the pipeline (brief scope).
+     save/heal/buff/buffAlly stay local-only for now \u2014 a real gap in a
+     live session (flagged in the report), out of scope here. */
+  if(a.kind==="attack"){
+    if(window.__forgeSession) netAttack(u,a,t); else doAttack(u,a,t,function(){ spend(u,a); finishAction(); });
+    return;
+  }
   if(a.kind==="save"){ doSave(u,a,t); spend(u,a); finishAction(); return; }
   if(a.kind==="heal"){ doHeal(u,a,t); spend(u,a); finishAction(); return; }
   if(a.kind==="buff"){ CB.hexed=t.id; clog(u.name+" hexes "+t.name+" (+1d6 on hits vs it)."); spend(u,a); finishAction(); return; }
@@ -2591,6 +2615,8 @@ function combatClick(cx,cy){
     RELEASING=null; drawHi(); renderHud(); return;    // ground / friendly click puts it back on hold
   }
   var u=active(); if(!u||u.side!=="pc") return;
+  var sess=window.__forgeSession;
+  if(sess && (!window.ForgeBoard.controls(sess.me,u.unit) || __awaitingMe)) return;   // not my seat, or my last tap hasn't echoed
   var tHit=ray.intersectObjects(tokenGroup.children,true)[0];
   if(tHit){ var tu=spriteUnit(tHit.object);
     if(tu&&CB.pending){ var pa=CB.pending, wantAlly=(pa.kind==="heal"||pa.kind==="buffAlly");
@@ -2599,7 +2625,12 @@ function combatClick(cx,cy){
   if(CB.pending){ CB.pending=null; drawHi(); drawSight(); renderHud(); return; }   // open ground = put the weapon away
   var gHit=ray.intersectObjects(world.children,true)[0]; if(!gHit) return;
   var gx=Math.round(gHit.point.x+F.W/2-0.5), gy=Math.round(gHit.point.z+F.H/2-0.5);
-  if(CB.seen&&CB.seen[gx+","+gy]&&!unitAt(gx,gy)&&CB.st.moveLeft>0) moveUnitTo(u,gx,gy);
+  if(CB.seen&&CB.seen[gx+","+gy]&&!unitAt(gx,gy)&&CB.st.moveLeft>0){
+    /* legality/path computed exactly as today; only the mutation forks \u2014
+       a session publishes and waits for the echo, the sandbox walks now. */
+    if(sess){ var path=TG.pathTo(CB.seen,{c:u.c,r:u.r},gx,gy); if(!path.length) path=[{c:gx,r:gy}]; netMove(u,path); }
+    else moveUnitTo(u,gx,gy);
+  }
 }
 function spriteUnit(obj){ var f=null; CB.units.forEach(function(u){ if(u.alive&&(u.sprite===obj||u.shadow===obj)) f=u; }); return f; }
 /* tweened, hop-per-square walk — port of battle-tactics walk() re-hosted on
@@ -2640,7 +2671,14 @@ function boomTrigger(u){ if(!u.boomMark) return; var dmg=rollDmg("1d8"); u.hp-=d
   var line="Booming Blade — "+u.name+" moved: "+dmg+" thunder ("+Math.max(0,u.hp)+"/"+u.hpMax+")";
   flashHit(u); shake(0.14); floatAt(u,String(dmg),"dmg");
   u.boomMark=null; if(u.hp<=0){ floatAt(u,"DOWN","down"); u.alive=false; removeToken(u); line+=" — <b>down</b>"; } clog(line); }
-function endTurn(){ if(!CB.active||CB.over||CB.react||CB_ANIM) return; clearBadges(); moveGroup.clear(); sightGroup.clear(); nextTurn(); }
+function endTurn(){
+  if(!CB.active||CB.over||CB.react||CB_ANIM) return;
+  var u=active(); if(!u) return;
+  var sess=window.__forgeSession;
+  if(sess && (u.side!=="pc" || !window.ForgeBoard.controls(sess.me,u.unit) || __awaitingMe)) return;
+  clearBadges(); moveGroup.clear(); sightGroup.clear();
+  if(sess) netEndTurn(u); else nextTurn();
+}
 
 function foeTurn(){
   var u=active(); if(!u||!u.alive||u.side!=="foe"||CB_ANIM){ return; }
@@ -2738,31 +2776,47 @@ function initBadge(u){ return u.badge||(u.side==="pc"?(ROSTER_INIT[u.key]||u.nam
 function seatCol(u){ return (window.__fightControllers&&window.__fightControllers[u.key]&&window.__fightControllers[u.key].color)||(u.side==="pc"?(ROSTER_COL[u.key]||"#b8863a"):"#7a2e2e"); }
 function renderHud(){
   if(!CB.active) return; var u=active();
+  var sess=window.__forgeSession;
+  /* Turn gating (brief step 3): action buttons paint only for whoever
+     controls the active seat; everyone else gets a narrated banner instead.
+     No session \u2192 unchanged (local sandbox is single-operator, always true).
+     Overseer always controls (ForgeBoard.controls). */
+  var iControl = !sess || window.ForgeBoard.controls(sess.me, u && u.unit);
+  var waitingMe = iControl && __awaitingMe;   // MY tap is published, echo not back yet
   var strip=document.getElementById("cbInit");
   if(strip) strip.innerHTML=CB.order.map(function(o){ return '<div class="cbUnit'+(o===u?" act":"")+(o.alive?"":" dead")+'" title="'+o.name+'">'
     +'<span class="cbU-b" style="background:'+seatCol(o)+'">'+initBadge(o)+'</span><span class="cbU-hp">'+Math.max(0,o.hp)+'</span></div>'; }).join("");
   var panel=document.getElementById("cbActive");
   if(panel&&u){ var isPc=u.side==="pc";
-    var acts=isPc? u.actions.map(function(a,i){ var cu=canUse(u,a), sel=CB.pending===a;
+    var acts=(isPc&&iControl)? u.actions.map(function(a,i){ var cu=waitingMe?{ok:false,why:"waiting for the table"}:canUse(u,a), sel=CB.pending===a;
       return '<button class="cbAct'+(sel?" sel":"")+'" data-i="'+i+'"'+(cu.ok?"":" disabled title=\""+cu.why+"\"")+'>'+a.label
         +(a.cost?' <span class="cbCost">'+Object.keys(a.cost).map(function(k){return u.res[k]+"\u00b7"+k;}).join(" ")+'</span>':'')+'</button>'; }).join("") : '';
     var port = (isPc && PORTRAITS[u.key]) ? '<div class="cbPort" style="background-image:url(\''+PORTRAITS[u.key]+'\')"></div>' : '';
+    var turnBanner = '<div class="cbHint">'+escapeHtml(u.name)+'\u2019s turn \u2014 '+escapeHtml(controllerLabel(u.unit))+' is acting.</div>';
     panel.innerHTML=port+'<div class="cbName">'+u.name+(isPc?'':' <span class="cbTag">foe</span>')+(u.raging?' <span class="cbTag" style="color:#b34a38;border-color:#b34a38">RAGE</span>':'')
       +(u.readied?' <span class="cbTag" style="color:#8a6a1f;border-color:#8a6a1f">readied: '+u.readied.act.label+'</span>':'')
       +(u.react&&!u.reacted?' <span class="cbTag" style="color:#3a8a92;border-color:#3a8a92">reaction</span>':'')+'</div>'
       +'<div class="cbHpwrap"><div class="cbHplbl"><span>HP</span><span>'+Math.max(0,u.hp)+' / '+u.hpMax+'</span></div><div class="cbHpbar"><i style="width:'+Math.max(0,Math.round(100*u.hp/u.hpMax))+'%"></i></div></div>'
       +'<div class="cbStats"><span>Move <b>'+(CB.st?CB.st.moveLeft*5:0)+' ft</b></span><span>Action <b>'+(CB.st&&CB.st.usedAction?"used":"ready")+'</b></span><span>Bonus <b>'+(CB.st&&CB.st.usedBonus?"used":"ready")+'</b></span></div>'
-      +(isPc?'<div class="cbActs">'+acts+'</div><div class="cbHint">'+(CB.pending?('<b>'+CB.pending.label+'</b> \u2014 '+((CB.pending.rng||1)>1?'red = in range \u00b7 amber = long (disadv) \u00b7 grey = unreachable':'click a highlighted target')):'Move on teal \u00b7 pick an action, then a target.')+'</div>'
-        +'<div class="cbSight"><div class="cbSightHd"><span>SIGHT</span><button id="cbSightTog">'+(SHOW_SIGHT?'hide lines':'show lines')+'</button></div>'+sightReport(u)+'</div>'
-      :'<button class="cbFoeGo" id="cbFoeGo">\u25b6 Run '+u.name+'\u2019s turn</button>');
-    if(isPc){ panel.querySelectorAll(".cbAct").forEach(function(b){ b.addEventListener("click",function(){ selectAction(+b.dataset.i); }); });
+      +(isPc?(iControl
+          ?'<div class="cbActs">'+acts+'</div><div class="cbHint">'+(waitingMe?'<i>Waiting for the table\u2026</i>':(CB.pending?('<b>'+CB.pending.label+'</b> \u2014 '+((CB.pending.rng||1)>1?'red = in range \u00b7 amber = long (disadv) \u00b7 grey = unreachable':'click a highlighted target')):'Move on teal \u00b7 pick an action, then a target.'))+'</div>'
+            +'<div class="cbSight"><div class="cbSightHd"><span>SIGHT</span><button id="cbSightTog">'+(SHOW_SIGHT?'hide lines':'show lines')+'</button></div>'+sightReport(u)+'</div>'
+          :turnBanner)
+        :(iControl?'<button class="cbFoeGo" id="cbFoeGo">\u25b6 Run '+u.name+'\u2019s turn</button>':turnBanner));
+    if(isPc&&iControl){ panel.querySelectorAll(".cbAct").forEach(function(b){ b.addEventListener("click",function(){ selectAction(+b.dataset.i); }); });
       var stg=document.getElementById("cbSightTog");
       if(stg) stg.addEventListener("click",function(){ SHOW_SIGHT=!SHOW_SIGHT; drawSight(); renderHud(); }); }
-    else { var fg=document.getElementById("cbFoeGo"); if(fg) fg.addEventListener("click",runFoe); }
+    else if(!isPc&&iControl){ var fg=document.getElementById("cbFoeGo"); if(fg) fg.addEventListener("click",runFoe); }
   }
-  var et=document.getElementById("cbEnd"); if(et)et.disabled=(u&&u.side!=="pc")||CB.over||!!CB.react;
+  var et=document.getElementById("cbEnd");
+  if(et){ et.disabled=(u&&u.side!=="pc")||CB.over||!!CB.react||(sess&&!iControl)||waitingMe;
+    et.title = waitingMe ? "Waiting for the table\u2026" : ""; }
   var rb=document.getElementById("cbReady");
-  if(rb){ rb.disabled=(!u||u.side!=="pc")||CB.over||!!CB.react||!!(CB.st&&CB.st.usedAction);
+  if(rb){ /* Ready/Release isn't wired to the pipeline this task \u2014 a readied
+       attack releases (resolveStrike) straight to local state with no publish,
+       which would silently diverge across screens in a live session. Disabled
+       there until it's ported (flagged in the report). */
+    rb.disabled=(!u||u.side!=="pc")||CB.over||!!CB.react||!!(CB.st&&CB.st.usedAction)||!!sess;
     rb.classList.toggle("on",READYING); rb.textContent=READYING?"Ready: pick attack":"Ready"; }
   var rr=document.getElementById("cbRelease");
   if(rr){ var holders=CB.units.filter(function(p){ return p.alive&&p.readied&&!p.reacted; });
@@ -2797,17 +2851,27 @@ window.__startCombat=startCombat;
 vesApply();   // kick off the Vesperian sheet fetch; failure narrates on the chip
 document.dispatchEvent(new CustomEvent("topo:ready"));
 
-/* ── MULTIPLAYER BOOT (Task 6, view-sync stage) ─────────────────────────
+/* ── MULTIPLAYER BOOT (Task 6, view-sync stage) ────────────────────────────────────────────────
    ?session=<uuid> joins an existing forge_sessions row and builds the SAME
-   dungeon + tokens from it — never from local party-select/UI. No local
-   actions yet: applyVerb only paints what the log says happened. Same
-   project constants as protocol-harness-mock.html (nav.js:599, login.html:157
+   dungeon + tokens from it — never from local party-select/UI. Task 7 wires
+   the board's own taps (move/attack/end turn) to the pipeline — see netMove/
+   netAttack/netEndTurn below — the board itself never mutates on a tap; only
+   applyVerb (fed by the echoed log) paints. Same project constants as
+   protocol-harness-mock.html (nav.js:599, login.html:157
    — the publishable key is public by design); ?url=&key= still override. */
 var qs = new URLSearchParams(location.search);
 var SUPA_URL = qs.get("url") || "https://cfthwspwpcfamgbfqzuq.supabase.co";
 var SUPA_KEY = qs.get("key") || "sb_publishable_12KUwzDbVvcar0zjh2KE6g_6IRBfmMJ";
 const SESSION_ID = qs.get('session');
 let __pipe = null;
+/* Task 7's in-flight guard: while MY OWN declared move/attack/end-turn is
+   awaiting its resolved echo, action buttons stay disabled so a double-tap
+   can't double-publish. Tracked by (unit, resolved-kind) rather than by
+   promise settlement, because a Supabase publish() resolves as soon as the
+   INSERT lands — well before the realtime echo that actually paints the
+   board — and the reviewer's note on Task 6 flagged CB_ANIM as too fragile
+   a signal to lean on further for this. */
+let __awaitingMe = false, __awaitingUnit = null, __awaitingKind = null;
 if (SESSION_ID) bootSession(SESSION_ID).catch(e => {
   clog('<b style="color:#c0553f">Could not join the fight:</b> ' + escapeHtml(e.message || e));
 });
@@ -2831,7 +2895,12 @@ async function bootSession(sid){
     reactions: () => [],                     // Task 8 fills this
     onPrompt: () => {}, onPromptFallback: () => {},   // Task 9 fills these
     onEvent: (r, st) => { const before = lastState; lastState = window.ForgeReplay.snapshot(st);
-      window.ForgeBoard.verbsFor(r, before, st).forEach(applyVerb); }
+      if (__awaitingMe && r.unit === __awaitingUnit && r.kind === __awaitingKind) {
+        __awaitingMe = false; __awaitingUnit = null; __awaitingKind = null;   // MY resolved echo landed
+      }
+      window.ForgeBoard.verbsFor(r, before, st).forEach(applyVerb);
+      renderHud();   // repaints the cleared guard even on a verb-less event (e.g. a miss)
+    }
   });
   __pipe = pipe;
   lastState = window.ForgeReplay.snapshot(pipe.state());
@@ -2841,6 +2910,86 @@ async function bootSession(sid){
   window.__forgeSession = { pipe, row, me, sb };
   setInterval(() => pipe.checkTimeouts(), 1000);
   clog('<b>Joined fight ' + sid.slice(0, 8) + '</b> as ' + (me.overseer ? 'overseer' : me.units.join(', ') || 'spectator'));
+}
+/* Every publish path gets the same failure narration (spec §8): nothing on
+   any screen moved (the tap never rendered locally), and the player is told. */
+function netPublishFail(r){
+  if (r && r.ok === false) {
+    __awaitingMe = false; __awaitingUnit = null; __awaitingKind = null;
+    clog('<b style="color:#c0553f">Couldn\u2019t reach the table — try that again.</b> <i>(' + (r.why || 'publish failed') + ')</i>');
+    renderHud();
+  }
+}
+/* the acting unit's own device: compute legality exactly as the local
+   sandbox does (unchanged TG.pathTo/budget math up the call chain), then
+   publish. The board does NOT mutate here — the echoed walk verb (applyVerb)
+   animates every screen, including this one, and only then spends budget. */
+function netMove(u, path){
+  var fin = path[path.length-1];
+  __awaitingMe = true; __awaitingUnit = u.unit; __awaitingKind = 'move_resolved'; renderHud();
+  window.__forgeSession.pipe.move(u.unit, path, function(){ return { final_cell: { c: fin.c, r: fin.r } }; })
+    .then(netPublishFail);
+}
+/* roll + hit math stay local (same functions/order the sandbox always used);
+   the local apply (t.hp -=) is removed — damage lands only via the echoed
+   hp verb. Multi-strike actions publish one declare/resolve pair per strike,
+   sequentially, same order the local strike loop already used; hpLeft is a
+   LOCAL shadow of the target's hp so a killing blow stops the loop without
+   needing the (not-yet-arrived) echo to tell us the target is down. */
+function netAttack(u,a,t){
+  var ro=reachOK(u,a,t); if(!ro.ok){ clog(u.name+" — "+ro.why+"."); return; }
+  var n=a.strikes||1, i=0, hpLeft=t.hp;
+  __awaitingMe = true; __awaitingUnit = u.unit; __awaitingKind = 'attack_resolved'; renderHud();
+  (function strike(){
+    if(i>=n || hpLeft<=0){
+      __awaitingMe = false; __awaitingUnit = null; __awaitingKind = null;   // this device's own turn economy, not a board mutation
+      if(a.rider==="boom") clog("<i>Booming Blade set — +1d8 if "+t.name+" moves.</i>");
+      spend(u,a); finishAction(); return;
+    }
+    i++;
+    if(u._ves) vesPlay(u, a.spell?"cast":"attack");
+    var cover=ro.cover||0, av=advPreview(u,t,a);
+    var adv=av.adv, dis=av.dis||!!ro.dis;
+    if(adv&&dis){ adv=false; dis=false; }
+    var roll=d20a(adv,dis); if(u.inspired)u.inspired=false;
+    var crit=roll===20;
+    var hit=crit||(roll!==1 && roll+a.hit>=t.ac+cover);
+    var tag = adv?" adv"+(av.why.length?" ("+av.why.join(", ")+")":"") : dis?" disadv" : "";
+    clog(u.name+" → "+t.name+": "+a.label+" ("+roll+"+"+a.hit+" vs AC "+(t.ac+cover)+(cover?" cov":"")+tag+")"+(hit?"":" — miss"));
+    var dmg=0;
+    if(hit){
+      dmg=rollDmg(a.dmg)+(crit?rollDmg(a.dmg)-parseDmg(a.dmg).bonus:0);
+      if(u.raging&&(a.rng||1)<=1) dmg+=2; if(CB.hexed===t.id) dmg+=d(6);
+      hpLeft-=dmg;
+      /* boomMark/CB.st are client-local bookkeeping (never part of the
+         replayed state, same reasoning as the walk verb's budget update
+         above) — safe to set immediately; nothing publishes it. boomTrigger
+         itself isn't wired to netMove/session movement yet (flagged in the
+         report), so this currently arms inertly in session play. */
+      if(a.rider==="boom" && hpLeft>0) t.boomMark={by:u.id};
+    } else floatAt(t,"miss","miss");
+    window.__forgeSession.pipe.attack(u.unit, { target: t.unit, roll: roll, adv: adv, dis: dis, crit: crit, mode: a.label },
+        function(){ return { hit: hit, dmg: dmg }; })
+      .then(function(r){ if (r && r.ok === false) { netPublishFail(r); return; } strike(); });
+  })();
+}
+/* End Turn: publish only. beginTurn's fresh budget/cleanup arrives via the
+   echoed "turn" verb → setActiveFromLog — not from a local nextTurn() call. */
+function netEndTurn(u){
+  __awaitingMe = true; __awaitingUnit = u.unit; __awaitingKind = 'turn_ended'; renderHud();
+  window.__forgeSession.pipe.endTurn(u.unit).then(netPublishFail);
+}
+/* the unit key of who controls the active seat — "the DM" for foes/unclaimed
+   PCs, else the character's own name (the roster carries no player display
+   name; the table already narrates reactions this way, e.g. "waiting on
+   Cosmere…", so the same idiom names the banner's <who>). */
+function controllerLabel(unitKey){
+  var sess=window.__forgeSession; if(!sess) return "";
+  var row=(sess.row.roster||[]).filter(function(r){ return r.unit===unitKey; })[0];
+  if(!row || (row.kind||"pc")!=="pc") return "the DM";
+  var ctl=sess.row.controllers||{};
+  var claimed=Object.keys(ctl).some(function(k){ return (ctl[k]||[]).indexOf(unitKey)>=0; });
+  return claimed ? (row.name||unitKey) : "the DM";
 }
 
 addEventListener("pointerup", function(e){ if(CB.active&&!CB.over&&!CB.react&&moved<6) combatClick(e.clientX,e.clientY); });
