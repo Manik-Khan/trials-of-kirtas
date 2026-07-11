@@ -2461,6 +2461,7 @@ function explainBlock(u,t,v){
 }
 
 function canUse(u,a){
+  if(!CB.st) return {ok:false,why:"turn not ready"};   // defense-in-depth: a HUD paint must never crash session boot
   if(a.bonus&&CB.st.usedBonus) return {ok:false,why:"bonus action used"};
   if(!a.bonus&&!a.free&&CB.st.usedAction) return {ok:false,why:"action used"};
   if(a.needsAttack&&!CB.st.attacked) return {ok:false,why:"attack first"};
@@ -2616,7 +2617,7 @@ function combatClick(cx,cy){
   }
   var u=active(); if(!u||u.side!=="pc") return;
   var sess=window.__forgeSession;
-  if(sess && (!window.ForgeBoard.controls(sess.me,u.unit) || __awaitingMe)) return;   // not my seat, or my last tap hasn't echoed
+  if(sess && (!window.ForgeBoard.controls(sess.me,u.unit) || __awaitingCount>0)) return;   // not my seat, or a tap of mine hasn't echoed yet
   var tHit=ray.intersectObjects(tokenGroup.children,true)[0];
   if(tHit){ var tu=spriteUnit(tHit.object);
     if(tu&&CB.pending){ var pa=CB.pending, wantAlly=(pa.kind==="heal"||pa.kind==="buffAlly");
@@ -2675,7 +2676,7 @@ function endTurn(){
   if(!CB.active||CB.over||CB.react||CB_ANIM) return;
   var u=active(); if(!u) return;
   var sess=window.__forgeSession;
-  if(sess && (u.side!=="pc" || !window.ForgeBoard.controls(sess.me,u.unit) || __awaitingMe)) return;
+  if(sess && (u.side!=="pc" || !window.ForgeBoard.controls(sess.me,u.unit) || __awaitingCount>0)) return;
   clearBadges(); moveGroup.clear(); sightGroup.clear();
   if(sess) netEndTurn(u); else nextTurn();
 }
@@ -2782,7 +2783,7 @@ function renderHud(){
      No session \u2192 unchanged (local sandbox is single-operator, always true).
      Overseer always controls (ForgeBoard.controls). */
   var iControl = !sess || window.ForgeBoard.controls(sess.me, u && u.unit);
-  var waitingMe = iControl && __awaitingMe;   // MY tap is published, echo not back yet
+  var waitingMe = iControl && __awaitingCount > 0;   // MY tap(s) are published, not every echo is back yet
   var strip=document.getElementById("cbInit");
   if(strip) strip.innerHTML=CB.order.map(function(o){ return '<div class="cbUnit'+(o===u?" act":"")+(o.alive?"":" dead")+'" title="'+o.name+'">'
     +'<span class="cbU-b" style="background:'+seatCol(o)+'">'+initBadge(o)+'</span><span class="cbU-hp">'+Math.max(0,o.hp)+'</span></div>'; }).join("");
@@ -2817,6 +2818,7 @@ function renderHud(){
        which would silently diverge across screens in a live session. Disabled
        there until it's ported (flagged in the report). */
     rb.disabled=(!u||u.side!=="pc")||CB.over||!!CB.react||!!(CB.st&&CB.st.usedAction)||!!sess;
+    rb.title = sess ? "Ready waits for a later update in shared fights" : "";   // Finding 4: disabled controls must say why
     rb.classList.toggle("on",READYING); rb.textContent=READYING?"Ready: pick attack":"Ready"; }
   var rr=document.getElementById("cbRelease");
   if(rr){ var holders=CB.units.filter(function(p){ return p.alive&&p.readied&&!p.reacted; });
@@ -2870,8 +2872,14 @@ let __pipe = null;
    promise settlement, because a Supabase publish() resolves as soon as the
    INSERT lands — well before the realtime echo that actually paints the
    board — and the reviewer's note on Task 6 flagged CB_ANIM as too fragile
-   a signal to lean on further for this. */
-let __awaitingMe = false, __awaitingUnit = null, __awaitingKind = null;
+   a signal to lean on further for this.
+   Finding 2 (review): a plain boolean cleared on the FIRST matching echo
+   re-enabled buttons after strike 1 of a multi-strike attack while strikes
+   2..n were still publishing — a double-publish window. __awaitingCount is
+   incremented once per declared publish (one per strike) and decremented on
+   each matching resolved echo OR publish failure; buttons re-enable only
+   when it reaches 0. */
+let __awaitingUnit = null, __awaitingKind = null, __awaitingCount = 0;
 if (SESSION_ID) bootSession(SESSION_ID).catch(e => {
   clog('<b style="color:#c0553f">Could not join the fight:</b> ' + escapeHtml(e.message || e));
 });
@@ -2895,8 +2903,18 @@ async function bootSession(sid){
     reactions: () => [],                     // Task 8 fills this
     onPrompt: () => {}, onPromptFallback: () => {},   // Task 9 fills these
     onEvent: (r, st) => { const before = lastState; lastState = window.ForgeReplay.snapshot(st);
-      if (__awaitingMe && r.unit === __awaitingUnit && r.kind === __awaitingKind) {
-        __awaitingMe = false; __awaitingUnit = null; __awaitingKind = null;   // MY resolved echo landed
+      if (__awaitingCount > 0 && r.unit === __awaitingUnit && r.kind === __awaitingKind) {
+        __awaitingCount--; if (__awaitingCount <= 0) { __awaitingCount = 0; __awaitingUnit = null; __awaitingKind = null; }   // one of MY resolved echoes landed
+      }
+      /* Finding 3 (review): economy flags are derived facts, not local
+         bookkeeping — every device (including the actor's own) must learn a
+         PC spent its action/attack from the echo itself, so a spent PC can't
+         be re-triggered from another console (e.g. the overseer's). Resource
+         (res/cost) spend sync lands with ability payloads (later task). */
+      const activeUnit = CB.st && active();
+      if (activeUnit && r.unit === activeUnit.unit) {
+        if (r.kind === 'attack_resolved') { CB.st.usedAction = true; CB.st.attacked = true; }
+        else if (r.kind === 'ability_used') { CB.st.usedAction = true; }
       }
       window.ForgeBoard.verbsFor(r, before, st).forEach(applyVerb);
       renderHud();   // repaints the cleared guard even on a verb-less event (e.g. a miss)
@@ -2907,6 +2925,17 @@ async function bootSession(sid){
   await pipe.catchUp();
   lastState = window.ForgeReplay.snapshot(pipe.state());
   spawnFromState(pipe.state(), row);
+  /* Finding 1a: a refresh mid-turn lands here with a state whose initiative
+     is already active — spawnFromState places units and the order, but never
+     rebuilds CB.st (no local nextTurn() ever ran on this device). Replay the
+     active unit through the SAME echo path a live "turn" verb uses, so
+     CB.st comes out byte-identical to what beginTurn would have produced. */
+  const bootState = pipe.state();
+  if (bootState.initiative && bootState.status === 'active') {
+    const bootActive = window.ForgeReplay.activeUnit(bootState);
+    // TODO(board): derive spent budget from log — refresh currently refunds movement
+    if (bootActive) setActiveFromLog(bootActive, window.ForgeReplay.round(bootState));
+  }
   window.__forgeSession = { pipe, row, me, sb };
   setInterval(() => pipe.checkTimeouts(), 1000);
   clog('<b>Joined fight ' + sid.slice(0, 8) + '</b> as ' + (me.overseer ? 'overseer' : me.units.join(', ') || 'spectator'));
@@ -2915,7 +2944,9 @@ async function bootSession(sid){
    any screen moved (the tap never rendered locally), and the player is told. */
 function netPublishFail(r){
   if (r && r.ok === false) {
-    __awaitingMe = false; __awaitingUnit = null; __awaitingKind = null;
+    // Finding 2: a failed publish releases only ITS OWN slot, so a failed
+    // strike among several in-flight can't wedge the whole guard open.
+    if (__awaitingCount > 0) { __awaitingCount--; if (__awaitingCount <= 0) { __awaitingCount = 0; __awaitingUnit = null; __awaitingKind = null; } }
     clog('<b style="color:#c0553f">Couldn\u2019t reach the table — try that again.</b> <i>(' + (r.why || 'publish failed') + ')</i>');
     renderHud();
   }
@@ -2926,7 +2957,7 @@ function netPublishFail(r){
    animates every screen, including this one, and only then spends budget. */
 function netMove(u, path){
   var fin = path[path.length-1];
-  __awaitingMe = true; __awaitingUnit = u.unit; __awaitingKind = 'move_resolved'; renderHud();
+  __awaitingUnit = u.unit; __awaitingKind = 'move_resolved'; __awaitingCount++; renderHud();
   window.__forgeSession.pipe.move(u.unit, path, function(){ return { final_cell: { c: fin.c, r: fin.r } }; })
     .then(netPublishFail);
 }
@@ -2939,10 +2970,12 @@ function netMove(u, path){
 function netAttack(u,a,t){
   var ro=reachOK(u,a,t); if(!ro.ok){ clog(u.name+" — "+ro.why+"."); return; }
   var n=a.strikes||1, i=0, hpLeft=t.hp;
-  __awaitingMe = true; __awaitingUnit = u.unit; __awaitingKind = 'attack_resolved'; renderHud();
+  __awaitingUnit = u.unit; __awaitingKind = 'attack_resolved'; renderHud();
   (function strike(){
     if(i>=n || hpLeft<=0){
-      __awaitingMe = false; __awaitingUnit = null; __awaitingKind = null;   // this device's own turn economy, not a board mutation
+      // Finding 2: the guard is released purely by matching echoes/failures
+      // (see __awaitingCount) — not by this local loop finishing, which used
+      // to clear it after strike 1's echo while strikes 2..n were still publishing.
       if(a.rider==="boom") clog("<i>Booming Blade set — +1d8 if "+t.name+" moves.</i>");
       spend(u,a); finishAction(); return;
     }
@@ -2968,6 +3001,8 @@ function netAttack(u,a,t){
          report), so this currently arms inertly in session play. */
       if(a.rider==="boom" && hpLeft>0) t.boomMark={by:u.id};
     } else floatAt(t,"miss","miss");
+    __awaitingCount++;   // Finding 2: one publish per strike — buttons re-enable only once every strike's echo (or failure) has landed
+    renderHud();
     window.__forgeSession.pipe.attack(u.unit, { target: t.unit, roll: roll, adv: adv, dis: dis, crit: crit, mode: a.label },
         function(){ return { hit: hit, dmg: dmg }; })
       .then(function(r){ if (r && r.ok === false) { netPublishFail(r); return; } strike(); });
@@ -2976,7 +3011,7 @@ function netAttack(u,a,t){
 /* End Turn: publish only. beginTurn's fresh budget/cleanup arrives via the
    echoed "turn" verb → setActiveFromLog — not from a local nextTurn() call. */
 function netEndTurn(u){
-  __awaitingMe = true; __awaitingUnit = u.unit; __awaitingKind = 'turn_ended'; renderHud();
+  __awaitingUnit = u.unit; __awaitingKind = 'turn_ended'; __awaitingCount++; renderHud();
   window.__forgeSession.pipe.endTurn(u.unit).then(netPublishFail);
 }
 /* the unit key of who controls the active seat — "the DM" for foes/unclaimed
