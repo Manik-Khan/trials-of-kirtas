@@ -2326,12 +2326,20 @@ function applyVerb(v){
         if(__pendingWalkDone && __pendingWalkDone.unit===v.unit){ var w=__pendingWalkDone; __pendingWalkDone=null; w.resolve(); }
       }); } break;
     case "jump":   if(u){ u.c=v.to.c; u.r=v.to.r; positionToken(u); } break;
-    case "hp":     if(u){ u.hp=v.hp; if(v.maxHp!=null) u.hpMax=v.maxHp; u.alive=!v.downed; renderHud();
-      if(!u.alive){ removeToken(u); maybeEnd(); } } break;
+    case "hp":     if(u){ var wasAlive=u.alive; u.hp=v.hp; if(v.maxHp!=null) u.hpMax=v.maxHp; u.alive=!v.downed; renderHud();
+      if(!u.alive){ removeToken(u); maybeEnd(); }
+      // Finding 2 (review): GOD-MODE revival (hp 0→N) — removeToken nulled the
+      // sprite/shadow on the way down; nothing on the "hp" verb ever recreated
+      // them, so a revived unit went invisible. Genuine revive only (was dead,
+      // now alive, and the sprite is actually gone — never re-spawn a token
+      // that's merely being healed while already standing).
+      else if(!wasAlive && u.alive && !u.sprite){ makeToken(u); positionToken(u); clog(escapeHtml(u.name)+" is back on their feet."); }
+      } break;
     case "spawn":  spawnUnitFromState(v.unit, v.u); break;
     case "despawn":if(u){ removeToken(u); CB.units=CB.units.filter(function(x){return x!==u;}); CB.order=CB.order.filter(function(x){return x!==u;}); } break;
     case "turn":   setActiveFromLog(v.unit, v.round); break;   // Task 8 fleshes the HUD side
-    case "status": if(v.status==="ended"){ CB.over=true; clog("<b>Fight over.</b>"); } break;
+    case "status": if(v.status==="ended"){ CB.over=true; clog("<b>Fight over.</b>");
+      clearPromptUI(); } break;   // Finding 3a (review): end fight must not leave an open reaction prompt (modal or banner) answerable
     case "chat":   clog("<i>"+escapeHtml(v.unit)+":</i> "+escapeHtml(v.text)); break;
     case "prompt":       routePrompt(v.prompt); break;         // banner for everyone but the responder (onWirePrompt owns their modal)
     case "prompt_clear": clearPromptUI(); break;
@@ -3403,6 +3411,13 @@ async function bootSession(sid){
         if (r.kind === 'attack_resolved') { CB.st.usedAction = true; CB.st.attacked = true; }
         else if (r.kind === 'ability_used') { CB.st.usedAction = true; }
       }
+      // Finding 1 (review): clear the lobby's own in-flight guards on their
+      // matching echo — landing here (not in applyVerb) because these two
+      // kinds carry no ForgeBoard verb of their own (rolls/order live in
+      // state.rolls / state.initiative, read straight off pipe.state() by
+      // renderInitiativeLobby).
+      if (r.kind === 'initiative_rolled') { delete __initPublishing[r.unit]; }
+      else if (r.kind === 'initiative_set') { __initConfirming = false; }
       window.ForgeBoard.verbsFor(r, before, st).forEach(applyVerb);
       renderHud();   // repaints the cleared guard even on a verb-less event (e.g. a miss)
       syncInitiativeLobby();   // Task 10: initiative_rolled/initiative_set/session_started all pass through here
@@ -3743,10 +3758,43 @@ function controllerLabel(unitKey){
    a Roll button. Rebuilt on every event AND explicitly after catchUp() —
    catchUp never fires onEvent per row, so a mid-lobby refresh needs its own
    call (see syncInitiativeLobby in bootSession). */
+/* Finding 1 (review): renderInitiativeLobby rebuilds innerHTML on every
+   event, which wipes any `disabled` set directly on a button — a second
+   click before the first click's echo lands re-entered rollForUnit /
+   confirmInitiative and double-published. Real, module-scoped in-flight
+   state instead: renderInitiativeLobby reads it on EVERY rebuild, so the
+   disabled state survives the re-render that used to erase it. Cleared on
+   the matching echo (onEvent below) or on a publish failure (initRollFail /
+   initConfirmFail). */
+var __initPublishing = {};   // unitKey -> true while that unit's roll is in flight
+var __initConfirming = false;
+/* Finding 4 (review): netPublishFail decrements __awaitingCount, a counter
+   this lobby path never increments (rollForUnit/confirmInitiative don't go
+   through netMove/netAttack/etc.'s guard) — routing a lobby failure through
+   it would decrement a counter that isn't "ours" to touch. Smaller, isolated
+   fix: the lobby gets its own tiny failure narrators instead of touching the
+   shared netPublishFail (which several other guarded paths rely on as-is). */
+function initRollFail(unitKey,r){
+  if(r && r.ok===false){
+    delete __initPublishing[unitKey];
+    clog('<b style="color:#c0553f">Couldn’t reach the table — try that again.</b> <i>(' + (r.why || 'publish failed') + ')</i>');
+    renderInitiativeLobby();
+  }
+}
+function initConfirmFail(r){
+  if(r && r.ok===false){
+    __initConfirming=false;
+    clog('<b style="color:#c0553f">Couldn’t reach the table — try that again.</b> <i>(' + (r.why || 'publish failed') + ')</i>');
+    renderInitiativeLobby();
+  }
+}
 function rollForUnit(sess,unitKey){
+  if(__initPublishing[unitKey]) return;   // a previous tap for this unit hasn't echoed (or failed) yet
+  __initPublishing[unitKey]=true;
+  renderInitiativeLobby();   // paint "rolling…" immediately, don't wait for the next event
   var u=unitByKey(unitKey), mod=u?u.initMod:0, total=d(20)+mod;
   clog("<i>Initiative — "+escapeHtml((u&&u.name)||unitKey)+": "+total+"</i>");
-  sess.pipe.rollInitiative(unitKey,total).then(netPublishFail);
+  sess.pipe.rollInitiative(unitKey,total).then(function(r){ initRollFail(unitKey,r); });
 }
 function rollForRest(){
   var sess=window.__forgeSession; if(!sess||!sess.me.overseer) return;
@@ -3755,6 +3803,7 @@ function rollForRest(){
 }
 function confirmInitiative(){
   var sess=window.__forgeSession; if(!sess||!sess.me.overseer) return;
+  if(__initConfirming) return;   // a previous confirm hasn't echoed (or failed) yet
   var st=sess.pipe.state();
   var rows=(sess.row.roster||[]).slice();
   rows.sort(function(a,b){
@@ -3767,8 +3816,9 @@ function confirmInitiative(){
     return String(a.name||a.unit).localeCompare(String(b.name||b.unit));
   });
   var order=rows.map(function(r){ return r.unit; });
-  var cf=document.getElementById("cbInitConfirm"); if(cf) cf.disabled=true;   // one tap — the initiative_set echo dismisses the lobby
-  sess.pipe.setInitiative(order).then(netPublishFail);
+  __initConfirming=true;
+  renderInitiativeLobby();   // one tap — paint "confirming…" now; the initiative_set echo dismisses the lobby entirely
+  sess.pipe.setInitiative(order).then(initConfirmFail);
 }
 function renderInitiativeLobby(){
   var sess=window.__forgeSession; if(!sess) return;
@@ -3777,12 +3827,13 @@ function renderInitiativeLobby(){
   var rows=(sess.row.roster||[]);
   box.innerHTML=rows.map(function(r){
     var roll=st.rolls[r.unit], mine=window.ForgeBoard.controls(sess.me,r.unit);
+    var rolling=!!__initPublishing[r.unit];
     var val = roll!=null ? "<b>"+roll+"</b>"
-            : (mine ? '<button class="cbInitRoll" data-u="'+r.unit+'">Roll</button>' : "<i>waiting…</i>");
+            : (mine ? '<button class="cbInitRoll" data-u="'+r.unit+'"'+(rolling?' disabled':'')+'>'+(rolling?'rolling…':'Roll')+'</button>' : "<i>waiting…</i>");
     return '<div class="cbInitRow"><span>'+escapeHtml(r.name||r.unit)+'</span><span class="cbInitVal">'+val+'</span></div>';
   }).join("");
   box.querySelectorAll(".cbInitRoll").forEach(function(b){
-    b.addEventListener("click",function(){ b.disabled=true; rollForUnit(sess,b.dataset.u); });
+    b.addEventListener("click",function(){ rollForUnit(sess,b.dataset.u); });
   });
   var ob=document.getElementById("cbInitLobbyOverseerBtns");
   if(ob){
@@ -3790,7 +3841,8 @@ function renderInitiativeLobby(){
     if(sess.me.overseer){
       var allRolled=rows.every(function(r){ return st.rolls[r.unit]!=null; });
       var rest=document.getElementById("cbInitRollRest"); if(rest) rest.disabled=allRolled;
-      var conf=document.getElementById("cbInitConfirm"); if(conf) conf.disabled=!(allRolled||sess.me.overseer);
+      var conf=document.getElementById("cbInitConfirm");
+      if(conf){ conf.disabled=__initConfirming||!(allRolled||sess.me.overseer); conf.textContent=__initConfirming?"confirming…":"Confirm order"; }
     }
   }
 }
@@ -3988,8 +4040,19 @@ addEventListener("pointerup", function(e){ if(CB.active&&!CB.over&&!CB.react&&mo
   if(g("cbReset")) g("cbReset").addEventListener("click",resetCombat);
   if(g("cbReactUse")) g("cbReactUse").addEventListener("click",function(){ if(CB.react)CB.react.use(); });
   if(g("cbReactSkip")) g("cbReactSkip").addEventListener("click",function(){ if(CB.react)CB.react.skip(); });
-  if(g("cbPromptUse")) g("cbPromptUse").addEventListener("click",function(){ if(PROMPT_UI.onUse) PROMPT_UI.onUse(); });
-  if(g("cbPromptSkip")) g("cbPromptSkip").addEventListener("click",function(){ if(PROMPT_UI.onSkip) PROMPT_UI.onSkip(); });
+  if(g("cbPromptUse")) g("cbPromptUse").addEventListener("click",function(){
+    // Finding 3b (review): end fight races the modal's own click — the
+    // "status" verb's clearPromptUI (3a) closes it, but a tap already in
+    // flight (e.g. mid-event-loop) must not still answer a dead session.
+    var sess=window.__forgeSession;
+    if(sess && sess.pipe.state().status==="ended"){ clog("<i>The fight has ended.</i>"); return; }
+    if(PROMPT_UI.onUse) PROMPT_UI.onUse();
+  });
+  if(g("cbPromptSkip")) g("cbPromptSkip").addEventListener("click",function(){
+    var sess=window.__forgeSession;
+    if(sess && sess.pipe.state().status==="ended"){ clog("<i>The fight has ended.</i>"); return; }
+    if(PROMPT_UI.onSkip) PROMPT_UI.onSkip();
+  });
   if(g("cbFlank")) g("cbFlank").addEventListener("click",function(){
     FLANKING=!FLANKING; this.classList.toggle("on",FLANKING); this.textContent="Flank: "+(FLANKING?"on":"off");
     if(CB.active) clog("<i>House rule \u2014 flanking "+(FLANKING?"grants advantage (both sides).":"off.")+"</i>");
