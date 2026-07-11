@@ -89,6 +89,23 @@
     return verbs;
   }
 
+  /* Dead-foe auto-skip (field 2026-07-11: a dead foe's turn stranded the
+     fight — foeTurn() hard no-ops on !u.alive and endTurn()'s button gate
+     never fires for foes, so nothing published turn_ended). Pure DECISION
+     only: returns the active unit's key when the turn is seated on a downed
+     FOE in a live fight, else null. Downed PCs are never skipped — death
+     saves are theirs to roll. The caller (the overseer's device, gated on
+     controls() + no publish in flight) publishes the narrated turn_ended;
+     the reducer stays untouched, so old logs replay identically and the
+     skip is an ordinary fact in the log. */
+  function deadFoeSkip(state) {
+    if (!state || state.status !== "active") return null;
+    var k = FR.activeUnit(state);
+    var u = k && (state.units || {})[k];
+    if (!u || u.side === "pc" || !u.downed) return null;
+    return k;
+  }
+
   /* Sheet mirror (FORGE_BOARD.md §5): my units only, absolute hp. */
   function mirrorPlan(before, after, myUnits, rosterByUnit) {
     var out = [];
@@ -100,5 +117,5 @@
     return out;
   }
 
-  return { verbsFor: verbsFor, controls: controls, canClaim: canClaim, mirrorPlan: mirrorPlan };
+  return { verbsFor: verbsFor, controls: controls, canClaim: canClaim, mirrorPlan: mirrorPlan, deadFoeSkip: deadFoeSkip };
 });

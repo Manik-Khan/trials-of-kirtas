@@ -27,7 +27,7 @@
 <script src="forge-replay.js?v=fb3"></script>
 <script src="forge-bus.js?v=fb2"></script>
 <script src="forge-pipeline.js?v=fb4"></script>
-<script src="forge-board.js?v=fb4"></script>
+<script src="forge-board.js?v=fb5"></script>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <!-- Task 11: Start fight reads live PC vitals off the real sheet. character-data.js
      normally waits on nav.js's window.__tok — this mock doesn't carry nav.js's full
@@ -565,6 +565,13 @@ global.TacticsGeo = API;
 .dmgFloat.crit{ font-size:27px; color:#8f2418; }
 .dmgFloat.miss{ color:var(--tk-ink-dim); font-size:14px; letter-spacing:.14em; }
 .dmgFloat.down{ color:#0d0a07; font-size:15px; letter-spacing:.2em; }
+/* #4: token nameplate — same paper as .tbadge, gold-edged, short-lived */
+.unitName{ position:absolute; transform:translate(-50%,-100%); background:rgba(240,233,220,.95);
+  border:1px solid var(--tk-gold); padding:3px 9px; font:600 12px/1.4 'Barlow Condensed',sans-serif;
+  letter-spacing:.08em; color:var(--tk-ink); white-space:nowrap;
+  box-shadow:0 4px 14px rgba(40,30,10,.25); animation:nameFade 1.8s ease-out forwards; }
+@keyframes nameFade{ 0%{opacity:0} 8%{opacity:1} 78%{opacity:1} 100%{opacity:0} }
+#cbInit .cbUnit{ cursor:pointer; }
 @keyframes dmgRise{ 0%{opacity:0;margin-top:0} 12%{opacity:1} 100%{opacity:0;margin-top:-46px} }
 @media (prefers-reduced-motion: reduce){ .dmgFloat{ animation-duration:.4s } }
 .cbChipRow{ display:flex; gap:8px; margin-top:8px; }
@@ -2140,6 +2147,40 @@ function trackBadges(){ badges.forEach(function(b){ var p=projectUnit(b.u,1.12);
   if(!p||p.behind){ b.el.style.display="none"; return; }
   b.el.style.display=""; b.el.style.left=p.x+"px"; b.el.style.top=p.y+"px"; }); }
 
+/* ── #4 · WHO IS THAT (BG3-style, field ask 2026-07-11) ─────────────────
+   Two doors, one answer. Click a token on the map → its nameplate floats
+   over it. Click a nameplate chip on the initiative strip → the camera
+   pans to the token, its cell pulses, then the nameplate shows. Only the
+   name the token already wears ("Goblin 3") — no hidden info; a unit with
+   no sprite (future invisibility) simply can't be hit or projected. */
+var __nameEl=null;
+function showNameplate(u){
+  var host=fxHost(); if(!host||!u) return;
+  var p=projectUnit(u,1.14); if(!p||p.behind) return;
+  if(__nameEl){ __nameEl.remove(); __nameEl=null; }
+  var el=document.createElement("div"); el.className="unitName";
+  el.textContent=u.name; el.style.left=p.x+"px"; el.style.top=p.y+"px";
+  host.appendChild(el); __nameEl=el;
+  setTimeout(function(){ if(__nameEl===el){ __nameEl=null; } el.remove(); },1800);
+}
+function ringPulse(c,r){
+  var m=new THREE.Mesh(new THREE.RingGeometry(0.34,0.5,40),
+    new THREE.MeshBasicMaterial({color:0xc9a24b,transparent:true,opacity:0.85,depthWrite:false,depthTest:false,side:THREE.DoubleSide}));
+  m.rotation.x=-Math.PI/2; m.position.set(wxc(c),tierY(c,r)+0.08,wzc(r)); m.renderOrder=6;
+  scene.add(m);
+  tween(700,function(e){ var s=0.9+e*1.1; m.scale.set(s,s,1); m.material.opacity=0.85*(1-e); })
+    .then(function(){ scene.remove(m); m.geometry.dispose(); m.material.dispose(); });
+}
+function inspectUnit(u){ if(!u) return; ringPulse(u.c,u.r); showNameplate(u); }
+function focusUnit(u){
+  if(!u) return;
+  var to={x:wxc(u.c), y:tierY(u.c,u.r)+0.6, z:wzc(u.r)};
+  var from={x:cam.tgt.x, y:cam.tgt.y, z:cam.tgt.z};
+  tween(420,function(e){ var k=e*e*(3-2*e);   // smoothstep — arrive, don't slam
+    cam.tgt.set(from.x+(to.x-from.x)*k, from.y+(to.y-from.y)*k, from.z+(to.z-from.z)*k); placeCam(); })
+    .then(function(){ ringPulse(u.c,u.r); if(u.sprite) showNameplate(u); });
+}
+
 let t0=performance.now(), _lt=0;
 function loop(){requestAnimationFrame(loop);const now=performance.now();const t=(now-t0)/1000;const dt=Math.min(0.1,t-_lt);_lt=t;
   pumpTweens(now);
@@ -2322,7 +2363,7 @@ function vesApply(){
   });
 }
 function rebuildVesToken(){ if(typeof CB==="undefined"||!CB||!CB.active) return;
-  CB.units.forEach(function(u){ if(u.key==="vesperian"&&u.alive){ removeToken(u); makeToken(u); } }); }
+  CB.units.forEach(function(u){ if(u.key==="vesperian"&&u.alive){ removeToken(u,true); makeToken(u); } }); }
 function vesPlay(u,mode){ var v=u&&u._ves; if(!v||v.mode===mode) return; v.mode=mode; v.fi=0; v.acc=0; }
 function vesTick(u,dt){
   var v=u._ves; if(!v||!VES.byName) return;
@@ -2527,8 +2568,14 @@ function restageForHeight(){
   if (typeof moveGroup  !== "undefined" && moveGroup)  moveGroup.clear();
   if (typeof sightGroup !== "undefined" && sightGroup) sightGroup.clear();
 }
-function removeToken(u){
-  if(u._ves&&u.sprite){ vesPlay(u,"down");                 // the body stays where it fell
+function removeToken(u,force){
+  /* Field 2026-07-11 (the sheet-swap ghost): the corpse branch below is for
+     DEATH — it deliberately leaves the sprite in the scene. rebuildVesToken's
+     sheet swap also routed through here, took the corpse branch, then
+     makeToken overwrote u.sprite — the old sprite stayed orphaned in
+     tokenGroup until a refresh rebuilt the scene. `force` is the swap door:
+     hard removal, no corpse. */
+  if(!force&&u._ves&&u.sprite){ vesPlay(u,"down");         // the body stays where it fell
     if(u.shadow){ tokenGroup.remove(u.shadow); u.shadow=null; } return; }
   if(u.sprite)tokenGroup.remove(u.sprite); if(u.shadow)tokenGroup.remove(u.shadow); u.sprite=null; u.shadow=null; }
 
@@ -3722,7 +3769,7 @@ function resolveStrike(u,a,t,ro,done){
   var hs={ roll:roll, acBonus:cover, crit:roll===20, hit:false };
   hs.hit=hs.crit||(roll!==1 && roll+a.hit>=t.ac+cover);
   var tag = adv?" adv"+(av.why.length?" ("+av.why.join(", ")+")":"") : dis?" disadv" : "";
-  clog(u.name+" \u2192 "+t.name+": "+a.label+" ("+roll+"+"+a.hit+" vs AC "+(t.ac+cover)+(cover?" cov":"")+tag+")"+(hs.hit?"":" \u2014 miss"));
+  clog(u.name+" \u2192 "+t.name+": "+a.label+" ("+roll+"+"+a.hit+(cover?" \u00b7 cover":"")+tag+")"+(hs.hit?"":" \u2014 miss"));   // #3: the defender's AC is theirs — the log carries roll+mod and the verdict, never the target number
   if(!hs.hit){ floatAt(t,"miss","miss"); done(); return; }
   pipelineHit(u,a,hs,t, function applyDmg(){
     var dmg=rollDmg(a.dmg)+(hs.crit?rollDmg(a.dmg)-parseDmg(a.dmg).bonus:0);
@@ -3826,11 +3873,19 @@ function combatClick(cx,cy){
       } }
     RELEASING=null; drawHi(); renderHud(); return;    // ground / friendly click puts it back on hold
   }
-  var u=active(); if(!u||u.side!=="pc") return;
+  var u=active();
   var sess=window.__forgeSession;
-  if(sess && (!window.ForgeBoard.controls(sess.me,u.unit) || __awaitingCount>0)) return;   // not my seat, or a tap of mine hasn't echoed yet
+  /* #4: myTurn folds the two old gates (active PC + my seat, nothing in
+     flight). Token INSPECT runs before them — clicking any visible token
+     answers "who is that" on ANY turn, from ANY device (same name the
+     strip tooltip already leaks; hidden units, when they exist, will have
+     no sprite to hit). Targeting a pending action still wins on my turn. */
+  var myTurn = !!u && u.side==="pc" && (!sess || (window.ForgeBoard.controls(sess.me,u.unit) && __awaitingCount===0));
   var tHit=ray.intersectObjects(tokenGroup.children,true)[0];
-  if(tHit){ var tu=spriteUnit(tHit.object);
+  var tu=tHit?spriteUnit(tHit.object):null;
+  if(tu && !(myTurn && CB.pending)){ inspectUnit(tu); return; }
+  if(!myTurn) return;   // not my seat / not a PC turn / a tap of mine hasn't echoed yet
+  if(tHit){
     if(tu&&CB.pending){ var pa=CB.pending, wantAlly=(pa.kind==="heal"||pa.kind==="buffAlly");
       if((wantAlly&&tu.side!==u.side)||(!wantAlly&&tu.side===u.side)){ clog("<i>"+pa.label+": wrong target.</i>"); return; }
       var ro=reachOK(u,pa,tu); if(ro.ok) resolveOn(u,pa,tu); else clog("<i>"+pa.label+": "+ro.why+".</i>"); return; } }
@@ -3924,7 +3979,7 @@ function foeTurn(){
     var adv=(FLANKING&&(atk.rng||1)<=1&&isFlanked(u,tgt)), dis=!!u.disadv; if(u.disadv)u.disadv=false;
     if(adv&&dis){ adv=false; dis=false; }
     var roll=d20a(adv,dis), hs={roll:roll,acBonus:0,crit:roll===20,hit:(roll===20)||(roll!==1&&roll+atk.hit>=tgt.ac)};
-    clog(u.name+" \u2192 "+tgt.name+": "+atk.label+" ("+roll+"+"+atk.hit+" vs AC "+tgt.ac+(adv?" adv (flank)":"")+(dis?" disadv":"")+")"+(hs.hit?"":" \u2014 miss"));
+    clog(u.name+" \u2192 "+tgt.name+": "+atk.label+" ("+roll+"+"+atk.hit+(adv?" adv (flank)":"")+(dis?" disadv":"")+")"+(hs.hit?"":" \u2014 miss"));   // #3: no AC in the log
     if(sess){
       /* Task 7b req 1: same fork as netAttack (Task 7) \u2014 the roll/hit math
          above is unchanged local rules; only the commit forks. No
@@ -4131,8 +4186,12 @@ function renderHud(){
   var iControl = !sess || window.ForgeBoard.controls(sess.me, u && u.unit);
   var waitingMe = iControl && __awaitingCount > 0;   // MY tap(s) are published, not every echo is back yet
   var strip=document.getElementById("cbInit");
-  if(strip) strip.innerHTML=CB.order.map(function(o){ return '<div class="cbUnit'+(o===u?" act":"")+(o.alive?"":" dead")+'" title="'+o.name+'">'
-    +'<span class="cbU-b" style="background:'+seatCol(o)+'">'+initBadge(o)+'</span><span class="cbU-hp">'+Math.max(0,o.hp)+'</span></div>'; }).join("");
+  if(strip) strip.innerHTML=CB.order.map(function(o,oi){ return '<div class="cbUnit'+(o===u?" act":"")+(o.alive?"":" dead")+'" data-oi="'+oi+'" title="'+o.name+'">'
+    +'<span class="cbU-b" style="background:'+seatCol(o)+'">'+initBadge(o)+'</span><span class="cbU-hp">'+(o.alive?Math.max(0,o.hp):"\u2620")+'</span></div>'; }).join("");
+  /* #4 (BG3): a strip nameplate is a camera door — click pans to the token
+     and pulses its cell, so "which one is Goblin 3" has a one-tap answer. */
+  if(strip) strip.querySelectorAll(".cbUnit").forEach(function(ch){
+    ch.addEventListener("click",function(){ var o=CB.order[+ch.dataset.oi]; if(o) focusUnit(o); }); });
   var panel=document.getElementById("cbActive");
   if(panel&&u){ var isPc=u.side==="pc";
     var acts=(isPc&&iControl)? u.actions.map(function(a,i){ var cu=waitingMe?{ok:false,why:"waiting for the table"}:canUse(u,a), sel=CB.pending===a;
@@ -4827,6 +4886,7 @@ async function bootSession(sid){
       runMirror(before, lastState);   // Task 13: after every applied event, mirror any hp change I control back to its sheet
       renderHud();   // repaints the cleared guard even on a verb-less event (e.g. a miss)
       syncInitiativeLobby();   // Task 10: initiative_rolled/initiative_set/session_started all pass through here
+      maybeAutoSkip();   // #2: turn seated on a dead foe (advanced onto it, or it died mid-turn) → overseer publishes the narrated skip
     }
   });
   __pipe = pipe;
@@ -4836,6 +4896,15 @@ async function bootSession(sid){
   lastState = window.ForgeReplay.snapshot(pipe.state());
   window.__fightControllers = deriveFightControllers(row, user.id);
   await loadLiveStats();   // Task 16: make sure the live-stats cache is settled before any PC unit is built, so ac/speed/init never race the board's first paint
+  /* Field 2026-07-11 (refresh = fresh economy, every device): __forgeSession
+     used to be assigned AFTER the boot seat below, so applyLogEconomy()'s
+     `if(!window.__forgeSession) return` guard silently no-op'd on every cold
+     refresh — Priority 2's overlay only ever ran for mid-session resyncs,
+     and beginTurn's fresh budget stood. Same root: renderHud's turn gating
+     read sess=null during the boot paint, so iControl briefly computed true
+     for everyone. The session exists the moment catchUp settles — assign it
+     BEFORE anything that paints or derives from it. */
+  window.__forgeSession = { pipe, row, me, sb };
   spawnFromState(pipe.state(), row);
   /* Finding 1a: a refresh mid-turn lands here with a state whose initiative
      is already active — spawnFromState places units and the order, but never
@@ -4849,7 +4918,7 @@ async function bootSession(sid){
     // economy (applyLogEconomy), so a mid-turn refresh no longer refunds movement.
     if (bootActive) setActiveFromLog(bootActive, window.ForgeReplay.round(bootState));
   }
-  window.__forgeSession = { pipe, row, me, sb };
+  maybeAutoSkip();   // #2: a fight refreshed/joined while a DEAD FOE holds the turn must unstick itself
   if (window.__hidePanelForgeControls) window.__hidePanelForgeControls();   // bite-1: players lose the DM-only knob sections (narrated by the note it leaves)
   // Task 13: catchUp() never fires onEvent per row, so a device joining/
   // refreshing mid-fight needs one explicit mirror pass of its own —
@@ -5017,7 +5086,7 @@ function netAttackGo(u,a,t,ro){
     var crit=roll===20;
     var hit=crit||(roll!==1 && roll+a.hit>=t.ac+cover);
     var tag = adv?" adv"+(av.why.length?" ("+av.why.join(", ")+")":"") : dis?" disadv" : "";
-    clog(u.name+" → "+t.name+": "+a.label+" ("+roll+"+"+a.hit+" vs AC "+(t.ac+cover)+(cover?" cov":"")+tag+")"+(hit?"":" — miss"));
+    clog(u.name+" → "+t.name+": "+a.label+" ("+roll+"+"+a.hit+(cover?" · cover":"")+tag+")"+(hit?"":" — miss"));   // #3: no AC in the log
     if(__awaitingCount++===0) __awaitingSince = Date.now();   // Finding 2: one publish per strike — buttons re-enable only once every strike's echo (or failure) has landed
     renderHud();
     /* Task 8: hitBonus/cover/hit ride along on the declared payload as
@@ -5078,6 +5147,25 @@ function netEndTurn(u){
 function foeAdvanceTurn(){
   if(!window.__forgeSession) return;
   var u=active(); if(!u) return;
+  netEndTurn(u);
+}
+/* #2 (field 2026-07-11): a dead foe's turn stranded the fight — foeTurn()
+   hard no-ops on !u.alive, and endTurn()'s button gate never fires for foes,
+   so nothing ever published its turn_ended. The DECISION lives in
+   ForgeBoard.deadFoeSkip (pure, smoke-tested); this is the publish side.
+   Runs on every applied echo AND once at boot, so both doors are covered:
+   the turn advancing ONTO an already-dead foe, and the active foe DYING
+   mid-turn (OA/reaction). Overseer's device only, one publish in flight at
+   a time — the chain terminates because PCs are never skipped. Downed PCs
+   keep their turn: death saves are theirs to roll. */
+function maybeAutoSkip(){
+  var sess=window.__forgeSession;
+  if(!sess||!sess.me.overseer) return;
+  if(!CB.active||CB.over||__awaitingCount>0) return;
+  var k=window.ForgeBoard.deadFoeSkip(sess.pipe.state());
+  if(!k) return;
+  var u=unitByKey(k); if(!u) return;
+  clog("<i>\u2620 "+escapeHtml(u.name)+" is down \u2014 turn skipped.</i>");
   netEndTurn(u);
 }
 /* Task 7b: shared tail for every foeTurn() exit path (dead attacker, dead/
@@ -5822,7 +5910,13 @@ function confirmSlotInitiative(){
   netSessionPublish("initiative_set", sess.pipe.setInitiative(order,resumeAt));
 }
 
-addEventListener("pointerup", function(e){ if(CB.active&&!CB.over&&!CB.react&&moved<6) combatClick(e.clientX,e.clientY); });
+/* #4: only canvas clicks reach the board. This global listener used to run
+   for HUD clicks too — the ray just usually hit nothing useful behind the
+   panel. The new strip chips sit directly over the arena, so the leak would
+   fire a phantom inspect/move under every chip tap. The canvas has no child
+   elements; anything else as target is UI. */
+addEventListener("pointerup", function(e){ if(e.target!==renderer.domElement) return;
+  if(CB.active&&!CB.over&&!CB.react&&moved<6) combatClick(e.clientX,e.clientY); });
 (function(){
   var g=function(id){return document.getElementById(id);};
   if(g("cbEnd")) g("cbEnd").addEventListener("click",endTurn);
