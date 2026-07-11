@@ -2327,10 +2327,17 @@ function buildUnit(kit, side, opts){
 // (monster-actor.js's cleanText/noteBits) — pull squares (5ft units) from it
 // for the FOE-AI's `.atk.rng`; no match (or no note) → melee, rng:1.
 function rangeFromNote(note){
-  var m = String(note || '').match(/reach\s+(\d+)\s*ft|range\s+(\d+)/i);
+  // Finding 3 (review): a two-band ranged note ("range 30/120 ft.") carries a
+  // normal AND a long range — capture the optional second number too, so the
+  // adapter can set atk.long (squares, same ÷5 conversion) and the engine's
+  // existing long-range/disadvantage logic (reachOK's `a.long`) engages.
+  var m = String(note || '').match(/reach\s+(\d+)\s*ft|range\s+(\d+)(?:\/(\d+))?/i);
   if (!m) return null;
   var ft = Number(m[1] || m[2]);
-  return ft ? Math.max(1, Math.round(ft / 5)) : null;
+  if (!ft) return null;
+  var out = { rng: Math.max(1, Math.round(ft / 5)) };
+  if (m[3]) out.long = Math.max(1, Math.round(Number(m[3]) / 5));
+  return out;
 }
 /* Task 14: adapt a roster row's raw 5etools statblock (row.statblock) into
    the FOE-shaped kit buildUnit already expects — via monster-actor.js
@@ -2362,13 +2369,15 @@ function foeKitFromStatblock(row){
   }
   var combat = mc.combat || {};
   var atkAction = (mc.actions || []).filter(function(a){ return a.type === 'attack'; })[0];
+  var rf = atkAction ? rangeFromNote(atkAction.note) : null;
   var atk = atkAction ? {
-    label: atkAction.label, rng: rangeFromNote(atkAction.note) || 1,
+    label: atkAction.label, rng: (rf && rf.rng) || 1,
     hit: atkAction.hitMod,
     dmg: atkAction.dmgDice + (atkAction.dmgMod ? (atkAction.dmgMod > 0 ? '+' : '') + atkAction.dmgMod : ''),
   } : null;
+  if (atk && rf && rf.long != null) atk.long = rf.long;
   return {
-    name: mc.name, hp: combat.hp, ac: combat.ac, speed: combat.speed, init: combat.initiative,
+    name: mc.name, hp: combat.hp, hpMax: combat.hpMax, ac: combat.ac, speed: combat.speed, init: combat.initiative,
     atk: atk, mActions: mc.actions,
   };
 }
@@ -2384,8 +2393,13 @@ function unitFromRosterRow(row, stateUnit){
   var foeKit = isPc ? null : foeKitFromStatblock(row);
   var kit = isPc ? (CHAR[row.sheet_ref] || CHAR[row.unit]) : (foeKit || FOE);
   var pos = (stateUnit && stateUnit.pos) || row.pos;
-  var hp    = stateUnit ? stateUnit.hp    : (row.hp    != null ? row.hp    : (kit && kit.hp));
-  var hpMax = stateUnit ? stateUnit.maxHp : (row.maxHp != null ? row.maxHp : (kit && kit.hp));
+  // Finding 1c (review): a stateUnit can exist but still carry a missing/NaN
+  // hp fact (e.g. a foe roster row that was never enriched) — check the FACT
+  // itself, not just presence of the stateUnit, before trusting it; fall
+  // through to the roster row, then the kit. A missing fact must never
+  // surface as NaN.
+  var hp    = (stateUnit && stateUnit.hp    != null) ? stateUnit.hp    : (row.hp    != null ? row.hp    : (kit && kit.hp));
+  var hpMax = (stateUnit && stateUnit.maxHp != null) ? stateUnit.maxHp : (row.maxHp != null ? row.maxHp : (kit && (kit.hpMax != null ? kit.hpMax : kit.hp)));
   var alive = stateUnit ? !stateUnit.downed : true;
   var badge = (window.__fightControllers && window.__fightControllers[row.unit] && window.__fightControllers[row.unit].badge) || null;
   var u = buildUnit(kit, isPc ? "pc" : "foe", { id: row.unit, key: isPc ? (row.sheet_ref || row.unit) : row.unit,
@@ -3618,7 +3632,11 @@ function renderHud(){
     // Task 14: ★ save-back — smallest reasonable spot on the overseer's foe
     // turn HUD (also lives on the pre-fight picked list, fpStar above).
     if(!isPc&&u.statblock&&iControl){ var fst=document.getElementById("cbFoeStar");
-      if(fst) fst.addEventListener("click",function(){ saveFoeToShelf(u.name,u.statblock,fst); }); }
+      // Finding 2 (review): mid-fight this must save the statblock's base
+      // name, not the per-instance token name ("Goblin 2") — combat.html's
+      // handler always keys the shelf off the base name. The pre-fight
+      // picked-list ★ (fpStar) already does this; only this HUD wiring lagged.
+      if(fst) fst.addEventListener("click",function(){ saveFoeToShelf((u.statblock&&u.statblock.name)||u.name,u.statblock,fst); }); }
   }
   var et=document.getElementById("cbEnd");
   if(et){ et.disabled=(u&&u.side!=="pc")||CB.over||!!CB.react||(sess&&!iControl)||waitingMe;
@@ -4102,8 +4120,19 @@ async function bootSession(sid){
     var out = Object.assign({}, r);
     if (!out.pos) out.pos = __spawn;
     if (out.hp == null) {
-      var kit = (out.kind || 'pc') === 'pc' ? CHAR[out.sheet_ref || out.unit] : FOE;
-      out.hp = kit ? kit.hp : 1;
+      if ((out.kind || 'pc') === 'pc') {
+        var kit = CHAR[out.sheet_ref || out.unit];
+        out.hp = kit ? kit.hp : 1;
+      } else {
+        // Finding 1b (review): route foe placeholder facts through the same
+        // adapter startFight/HUD use, so the lobby paint matches — the
+        // hardcoded FOE goblin kit only kicks in as foeKitFromStatblock's own
+        // graceful-degradation fallback (no/unparseable statblock).
+        var fk = foeKitFromStatblock(out) || FOE;
+        out.hp = fk.hp;
+        if (out.maxHp == null && fk.hpMax != null) out.maxHp = fk.hpMax;
+        if (out.ac == null) out.ac = fk.ac;
+      }
     }
     if (out.maxHp == null) out.maxHp = out.hp;
     return out;
@@ -4634,7 +4663,19 @@ async function startFight(){
     catch(e){ clog("<i>Sheet read failed (" + escapeHtml((e&&e.message)||e) + ") — falling back to kit HP.</i>"); }
     var byKey={}; party.forEach(function(c){ byKey[c.key]=c; });
     roster.forEach(function(r){
-      if((r.kind||"pc")!=="pc") return;
+      if((r.kind||"pc")!=="pc"){
+        // Finding 1a (review): foe rows never got hp/maxHp facts here, so
+        // state.units[foe].hp stayed undefined post-replay → NaN HP in the
+        // HUD and unkillable foes (applyDamage's Math.max(0, NaN)). Route
+        // through the same adapter combat.html's HUD uses; a row without a
+        // (parseable) statblock falls back to the generic FOE kit — the same
+        // graceful-degradation contract foeKitFromStatblock documents.
+        if(r.kind==="foe"){
+          var fk=foeKitFromStatblock(r)||FOE;
+          r.hp=fk.hp; r.maxHp=(fk.hpMax!=null)?fk.hpMax:fk.hp;
+        }
+        return;
+      }
       var c=byKey[r.sheet_ref||r.unit];
       if(c){
         var cmb=(c.structural&&c.structural.combat)||{}, v=c.vitals||{};
