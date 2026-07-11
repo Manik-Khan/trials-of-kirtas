@@ -2224,6 +2224,10 @@ function applyVerb(v){
         if(u===active() && CB.st){ CB.st.moveLeft-=steps.length;
           CB.seen=(CB.st.moveLeft>0)?TG.movementReach(CB.map,u,occupied(u),CB.st.moveLeft):{}; }
         drawHi(); drawSight(); renderHud();
+        /* Task 7b: foeTurn awaits its OWN move's tween completion (u.c/u.r
+           are only live AFTER this callback) before deciding the strike
+           phase \u2014 see awaitWalkDone. */
+        if(__pendingWalkDone && __pendingWalkDone.unit===v.unit){ var w=__pendingWalkDone; __pendingWalkDone=null; w.resolve(); }
       }); } break;
     case "jump":   if(u){ u.c=v.to.c; u.r=v.to.r; positionToken(u); } break;
     case "hp":     if(u){ u.hp=v.hp; if(v.maxHp!=null) u.hpMax=v.maxHp; u.alive=!v.downed; renderHud();
@@ -2563,6 +2567,11 @@ function doHeal(u,a,t){ var ro=reachOK(u,a,t); if(!ro.ok){ clog(u.name+" \u2014 
 
 function selectAction(idx){
   var u=active(); if(!u||u.side!=="pc"||CB.react||CB_ANIM) return; var a=u.actions[idx]; if(!a) return;
+  var sess=window.__forgeSession;
+  /* Task 7b req 2: selfheal/surge fire with no target tap (unlike heal/save/
+     buff/buffAlly, which go through combatClick's already-guarded pending-
+     action tap) \u2014 same defense-in-depth gate Task 7 put on combatClick. */
+  if(sess && (!window.ForgeBoard.controls(sess.me,u.unit) || __awaitingCount>0)) return;
   if(CB.pending===a){ CB.pending=null; drawHi(); drawSight(); renderHud(); return; }   // tap again = put it away
   var cu=canUse(u,a); if(!cu.ok){ clog("<i>"+a.label+": "+cu.why+".</i>"); return; }
   if(READYING){
@@ -2575,23 +2584,30 @@ function selectAction(idx){
       : " \u2014 it fires as a reaction when the trigger comes: automatically when a foe moves into range, or when the DM taps the hold."));
     snapshot("Ready"); drawHi(); drawSight(); renderHud(); return;
   }
-  if(a.kind==="selfheal"){ var amt=rollDmg(a.dmg); u.hp=Math.min(u.hpMax,u.hp+amt); floatAt(u,"+"+amt,"heal"); clog(u.name+": "+a.label+" +"+amt+" ("+u.hp+"/"+u.hpMax+")"); spend(u,a); finishAction(); return; }
-  if(a.kind==="surge"){ CB.st.usedAction=false; clog(u.name+" \u2014 Action Surge: action regained."); spend(u,a); finishAction(); return; }
+  if(a.kind==="selfheal"){
+    if(sess){ netSelfHeal(u,a); return; }
+    var amt=rollDmg(a.dmg); u.hp=Math.min(u.hpMax,u.hp+amt); floatAt(u,"+"+amt,"heal"); clog(u.name+": "+a.label+" +"+amt+" ("+u.hp+"/"+u.hpMax+")"); spend(u,a); finishAction(); return; }
+  if(a.kind==="surge"){
+    if(sess){ netSurge(u,a); return; }
+    CB.st.usedAction=false; clog(u.name+" \u2014 Action Surge: action regained."); spend(u,a); finishAction(); return; }
   CB.pending=a; drawHi(); drawSight(); renderHud();
 }
 function finishAction(){ CB.pending=null; snapshot("Action"); drawHi(); drawSight(); renderHud(); maybeEnd(); }
 function resolveOn(u,a,t){
-  /* Attack is the only kind this task wires to the pipeline (brief scope).
-     save/heal/buff/buffAlly stay local-only for now \u2014 a real gap in a
-     live session (flagged in the report), out of scope here. */
+  var sess=window.__forgeSession;
+  /* Task 7b req 2: every non-attack kind now forks on session the same way
+     attack (Task 7) does \u2014 local roll/DC math is unchanged; only the commit
+     (state mutation) swaps for publish + echo-paint. combatClick already
+     gated the tap that got us here (control + in-flight guard), same as it
+     does for attack. */
   if(a.kind==="attack"){
-    if(window.__forgeSession) netAttack(u,a,t); else doAttack(u,a,t,function(){ spend(u,a); finishAction(); });
+    if(sess) netAttack(u,a,t); else doAttack(u,a,t,function(){ spend(u,a); finishAction(); });
     return;
   }
-  if(a.kind==="save"){ doSave(u,a,t); spend(u,a); finishAction(); return; }
-  if(a.kind==="heal"){ doHeal(u,a,t); spend(u,a); finishAction(); return; }
-  if(a.kind==="buff"){ CB.hexed=t.id; clog(u.name+" hexes "+t.name+" (+1d6 on hits vs it)."); spend(u,a); finishAction(); return; }
-  if(a.kind==="buffAlly"){ t.inspired=true; clog(u.name+" inspires "+t.name+" (advantage on next attack)."); spend(u,a); finishAction(); return; }
+  if(a.kind==="save"){ if(sess){ netSave(u,a,t); return; } doSave(u,a,t); spend(u,a); finishAction(); return; }
+  if(a.kind==="heal"){ if(sess){ netHeal(u,a,t); return; } doHeal(u,a,t); spend(u,a); finishAction(); return; }
+  if(a.kind==="buff"){ if(sess){ netBuff(u,a,t); return; } CB.hexed=t.id; clog(u.name+" hexes "+t.name+" (+1d6 on hits vs it)."); spend(u,a); finishAction(); return; }
+  if(a.kind==="buffAlly"){ if(sess){ netBuffAlly(u,a,t); return; } t.inspired=true; clog(u.name+" inspires "+t.name+" (advantage on next attack)."); spend(u,a); finishAction(); return; }
 }
 
 /* ── input ──────────────────────────────────────────────────────────── */
@@ -2683,31 +2699,71 @@ function endTurn(){
 
 function foeTurn(){
   var u=active(); if(!u||!u.alive||u.side!=="foe"||CB_ANIM){ return; }
+  var sess=window.__forgeSession;
+  /* Task 7b req 1: foes are the overseer's \u2014 same ForgeBoard.controls gate
+     Task 7 put on combatClick/endTurn for PCs. renderHud only ever renders
+     the "\u25b6 Run foe's turn" button for iControl, so this is defense in
+     depth (a stray/direct call must still be a no-op with narration, not a
+     silent local-only mutation), not the primary gate. */
+  if(sess && !window.ForgeBoard.controls(sess.me,u.unit)){
+    clog("<i>Only the DM runs a foe's turn.</i>"); return;
+  }
+  if(sess && __awaitingCount>0) return;   // this foe's own previous publish hasn't echoed yet
   var pcs=CB.units.filter(function(x){return x.alive&&x.side==="pc";}); if(!pcs.length){ maybeEnd(); return; }
   pcs.sort(function(a,b){return TG.chebyshev(u,a)-TG.chebyshev(u,b);});
   var tgt=pcs[0], atk=u.atk;
   var canNow=function(){ var A={c:u.c,r:u.r},T={c:tgt.c,r:tgt.r}; return ((atk.rng||1)<=1?TG.canReachMelee(CB.map,A,T,5):TG.inRange(CB.map,A,T,rangeFt(atk)))&&TG.losVerdict(CB.map,A,T).canTarget; };
   function strikePhase(){
-    if(!u.alive){ renderHud(); if(!maybeEnd()) endTurn(); return; }
-    if(!tgt.alive||!canNow()){ renderHud(); if(!maybeEnd()) endTurn(); return; }
+    if(!u.alive){ renderHud(); foeTurnDone(); return; }
+    if(!tgt.alive||!canNow()){ renderHud(); foeTurnDone(); return; }
     var adv=(FLANKING&&(atk.rng||1)<=1&&isFlanked(u,tgt)), dis=!!u.disadv; if(u.disadv)u.disadv=false;
     if(adv&&dis){ adv=false; dis=false; }
     var roll=d20a(adv,dis), hs={roll:roll,acBonus:0,crit:roll===20,hit:(roll===20)||(roll!==1&&roll+atk.hit>=tgt.ac)};
     clog(u.name+" \u2192 "+tgt.name+": "+atk.label+" ("+roll+"+"+atk.hit+" vs AC "+tgt.ac+(adv?" adv (flank)":"")+(dis?" disadv":"")+")"+(hs.hit?"":" \u2014 miss"));
+    if(sess){
+      /* Task 7b req 1: same fork as netAttack (Task 7) \u2014 the roll/hit math
+         above is unchanged local rules; only the commit forks. No
+         pipelineHit reaction cascade (Silvery Barbs/Shield/Hellish Rebuke)
+         here \u2014 reactions are Task 8's job, same carve-out Task 7 made for
+         PC session attacks. Publishes hit AND miss (mirrors netAttack: a
+         miss still needs to land on the shared log / turn economy). */
+      netFoeAttack(u,atk,tgt,hs,adv,dis).then(function(r){
+        if (r && r.ok===false) return;   // netPublishFail already narrated + released the guard
+        awaitSettled().then(function(){ renderHud(); foeTurnDone(); });
+      });
+      return;
+    }
     if(hs.hit){ pipelineHit(u,atk,hs,tgt, function(){ var dmg=rollDmg(atk.dmg); tgt.hp-=dmg;
         var line=tgt.name+" takes "+dmg+" ("+Math.max(0,tgt.hp)+"/"+tgt.hpMax+")";
         flashHit(tgt); shake(0.2); floatAt(tgt,String(dmg),"dmg");
         if(tgt.hp<=0){ floatAt(tgt,"DOWN","down"); tgt.alive=false; removeToken(tgt); line+=" \u2014 <b>down</b>"; } clog(line);
-      }, function(){ renderHud(); if(!maybeEnd()) endTurn(); }); return; }
+      }, function(){ renderHud(); foeTurnDone(); }); return; }
     floatAt(tgt,"miss","miss");
-    renderHud(); if(!maybeEnd()) endTurn();
+    renderHud(); foeTurnDone();
   }
   if(!canNow()){ var seen=TG.movementReach(CB.map,u,occupied(u),Math.floor(u.speed/5)),best=null,bd=1e9;
     Object.keys(seen).forEach(function(k){var p=k.split(",").map(Number);if(unitAt(p[0],p[1]))return;var dd=TG.chebyshev({c:p[0],r:p[1]},tgt);if(dd<bd){bd=dd;best={c:p[0],r:p[1]};}});
     if(best){
-      var before=enemiesThreatening(u);
       var path=TG.pathTo(seen,{c:u.c,r:u.r},best.c,best.r); if(!path.length) path=[{c:best.c,r:best.r}];
       clog(u.name+" advances.");
+      if(sess){
+        /* Task 7b req 1: same fork as PC move (Task 7) \u2014 publish only, no
+           local mutation. provokeOAs/checkReadied/boomTrigger are Task 8
+           reaction territory (also unwired for PC session moves \u2014 Task 7
+           report \u00a73), so a foe's session move never triggers them either;
+           the walk paints, on every screen (mover's own included), only via
+           the echo. strikePhase must wait for the WALK TWEEN to finish (not
+           merely the row to arrive) \u2014 canNow()/reachOK read u.c/u.r live,
+           and those are only current once the echo's walkPath callback has
+           run (see awaitWalkDone / applyVerb's "walk" case). */
+        var walkDone=awaitWalkDone(u.unit);
+        netMove(u,path).then(function(r){
+          if (r && r.ok===false){ __pendingWalkDone=null; return; }   // narrated by netPublishFail; no echo is coming \u2014 this foe's turn stalls here (re-run via the button)
+          walkDone.then(strikePhase);
+        });
+        return;
+      }
+      var before=enemiesThreatening(u);
       walkPath(u,path,function(){
         provokeOAs(u,before,function(){          // leaving a PC's reach costs
           checkReadied(u,function(){             // arriving in a readied sight costs too
@@ -2803,7 +2859,7 @@ function renderHud(){
           ?'<div class="cbActs">'+acts+'</div><div class="cbHint">'+(waitingMe?'<i>Waiting for the table\u2026</i>':(CB.pending?('<b>'+CB.pending.label+'</b> \u2014 '+((CB.pending.rng||1)>1?'red = in range \u00b7 amber = long (disadv) \u00b7 grey = unreachable':'click a highlighted target')):'Move on teal \u00b7 pick an action, then a target.'))+'</div>'
             +'<div class="cbSight"><div class="cbSightHd"><span>SIGHT</span><button id="cbSightTog">'+(SHOW_SIGHT?'hide lines':'show lines')+'</button></div>'+sightReport(u)+'</div>'
           :turnBanner)
-        :(iControl?'<button class="cbFoeGo" id="cbFoeGo">\u25b6 Run '+u.name+'\u2019s turn</button>':turnBanner));
+        :(iControl?'<button class="cbFoeGo" id="cbFoeGo"'+(waitingMe?' disabled title="Waiting for the table\u2026"':'')+'>\u25b6 Run '+u.name+'\u2019s turn</button>':turnBanner));
     if(isPc&&iControl){ panel.querySelectorAll(".cbAct").forEach(function(b){ b.addEventListener("click",function(){ selectAction(+b.dataset.i); }); });
       var stg=document.getElementById("cbSightTog");
       if(stg) stg.addEventListener("click",function(){ SHOW_SIGHT=!SHOW_SIGHT; drawSight(); renderHud(); }); }
@@ -2880,6 +2936,21 @@ let __pipe = null;
    each matching resolved echo OR publish failure; buttons re-enable only
    when it reaches 0. */
 let __awaitingUnit = null, __awaitingKind = null, __awaitingCount = 0;
+/* Task 7b: __awaitingKind holds only ONE kind at a time (Task 7's design —
+   see __awaitingCount above). foeTurn chains move → attack → turn_ended,
+   three DIFFERENT resolved-kinds in one AI turn, so each step must wait for
+   __awaitingCount to fully settle back to 0 before starting the next
+   publish — otherwise a later step's __awaitingKind assignment would
+   overwrite an earlier step's, and that earlier step's own echo would never
+   decrement the guard. */
+let __awaitingSettled = null;   // callback fired once __awaitingCount returns to 0
+function awaitSettled(){ return new Promise(function(resolve){ if (__awaitingCount<=0) resolve(); else __awaitingSettled = resolve; }); }
+/* Task 7b: foeTurn awaits its OWN move's tween completion (not merely the
+   echo row's arrival) before deciding the strike phase — canNow()/reachOK
+   read u.c/u.r live, which are only current once applyVerb's "walk" case
+   has run walkPath's completion callback. See applyVerb's "walk" case. */
+let __pendingWalkDone = null;   // {unit, resolve}
+function awaitWalkDone(unit){ return new Promise(function(resolve){ __pendingWalkDone = { unit: unit, resolve: resolve }; }); }
 if (SESSION_ID) bootSession(SESSION_ID).catch(e => {
   clog('<b style="color:#c0553f">Could not join the fight:</b> ' + escapeHtml(e.message || e));
 });
@@ -2904,7 +2975,11 @@ async function bootSession(sid){
     onPrompt: () => {}, onPromptFallback: () => {},   // Task 9 fills these
     onEvent: (r, st) => { const before = lastState; lastState = window.ForgeReplay.snapshot(st);
       if (__awaitingCount > 0 && r.unit === __awaitingUnit && r.kind === __awaitingKind) {
-        __awaitingCount--; if (__awaitingCount <= 0) { __awaitingCount = 0; __awaitingUnit = null; __awaitingKind = null; }   // one of MY resolved echoes landed
+        __awaitingCount--;
+        if (__awaitingCount <= 0) {
+          __awaitingCount = 0; __awaitingUnit = null; __awaitingKind = null;   // one of MY resolved echoes landed
+          if (__awaitingSettled) { const cb = __awaitingSettled; __awaitingSettled = null; cb(); }   // Task 7b: unblock a chained foeTurn step
+        }
       }
       /* Finding 3 (review): economy flags are derived facts, not local
          bookkeeping — every device (including the actor's own) must learn a
@@ -2946,7 +3021,13 @@ function netPublishFail(r){
   if (r && r.ok === false) {
     // Finding 2: a failed publish releases only ITS OWN slot, so a failed
     // strike among several in-flight can't wedge the whole guard open.
-    if (__awaitingCount > 0) { __awaitingCount--; if (__awaitingCount <= 0) { __awaitingCount = 0; __awaitingUnit = null; __awaitingKind = null; } }
+    if (__awaitingCount > 0) {
+      __awaitingCount--;
+      if (__awaitingCount <= 0) {
+        __awaitingCount = 0; __awaitingUnit = null; __awaitingKind = null;
+        if (__awaitingSettled) { const cb = __awaitingSettled; __awaitingSettled = null; cb(); }   // Task 7b: a failure also "settles" the wait — a chained foeTurn step must not hang forever
+      }
+    }
     clog('<b style="color:#c0553f">Couldn\u2019t reach the table — try that again.</b> <i>(' + (r.why || 'publish failed') + ')</i>');
     renderHud();
   }
@@ -2958,8 +3039,11 @@ function netPublishFail(r){
 function netMove(u, path){
   var fin = path[path.length-1];
   __awaitingUnit = u.unit; __awaitingKind = 'move_resolved'; __awaitingCount++; renderHud();
-  window.__forgeSession.pipe.move(u.unit, path, function(){ return { final_cell: { c: fin.c, r: fin.r } }; })
-    .then(netPublishFail);
+  // Task 7b: returns the publish result so a caller can sequence a follow-up
+  // (foeTurn's move → strike chain) off publish success/failure. Existing PC
+  // callers (combatClick) don't use the return value — unaffected.
+  return window.__forgeSession.pipe.move(u.unit, path, function(){ return { final_cell: { c: fin.c, r: fin.r } }; })
+    .then(function(r){ netPublishFail(r); return r; });
 }
 /* roll + hit math stay local (same functions/order the sandbox always used);
    the local apply (t.hp -=) is removed — damage lands only via the echoed
@@ -3013,6 +3097,141 @@ function netAttack(u,a,t){
 function netEndTurn(u){
   __awaitingUnit = u.unit; __awaitingKind = 'turn_ended'; __awaitingCount++; renderHud();
   window.__forgeSession.pipe.endTurn(u.unit).then(netPublishFail);
+}
+/* Task 7b req 1: foeTurn's session-mode turn-advance. endTurn()'s PC-only
+   gate (Task 7) exists for the End Turn BUTTON; a foe's automated turn
+   still needs its own turn_ended publish once the AI is done acting —
+   netEndTurn has no such gate, so it's called directly here instead of
+   going through endTurn(). By the time this runs, __awaitingCount is
+   already back to 0 (foeTurn's strikePhase only calls this after
+   awaitSettled()/its own early-return checks, both of which guarantee no
+   publish is still in flight — see foeTurn). */
+function foeAdvanceTurn(){
+  if(!window.__forgeSession) return;
+  var u=active(); if(!u) return;
+  netEndTurn(u);
+}
+/* Task 7b: shared tail for every foeTurn() exit path (dead attacker, dead/
+   unreachable target, or a completed strike) — same "paint, then advance
+   unless the fight just ended" shape the old inline
+   `if(!maybeEnd()) endTurn();` had, forked session-aware. */
+function foeTurnDone(){
+  if(!maybeEnd()){ if(window.__forgeSession) foeAdvanceTurn(); else endTurn(); }
+}
+/* Task 7b req 1: foe analog of netAttack (Task 7) — same publish shape
+   (single declare/resolve pair via pipe.attack), no reaction cascade (Task
+   8's job, matches netAttack's own carve-out). Deliberately does NOT reuse
+   netAttack's roll/hit/dmg math (crit-doubling, hex/rage bonuses, cover) —
+   the brief requires the foe AI's decision logic stay exactly as it was,
+   and the pre-existing local strikePhase math never had any of that (foes
+   don't crit-double, don't read CB.hexed, etc.); `hs` is already the fully-
+   decided roll/hit from strikePhase. Foes never multi-strike (FOE.atk has
+   no .strikes), so this is one publish, not a loop. Always publishes, hit
+   AND miss (mirrors netAttack: an unpublished miss would leave the shared
+   log/turn-economy unsynced on other screens). */
+function netFoeAttack(u,atk,t,hs,adv,dis){
+  __awaitingUnit=u.unit; __awaitingKind='attack_resolved'; __awaitingCount++; renderHud();
+  var dmg = hs.hit ? rollDmg(atk.dmg) : 0;
+  return window.__forgeSession.pipe.attack(u.unit, { target:t.unit, roll:hs.roll, adv:!!adv, dis:!!dis, crit:hs.crit, mode:atk.label },
+      function(){ return { hit:hs.hit, dmg:dmg }; })
+    .then(function(r){ if (r && r.ok===false) netPublishFail(r); return r; });
+}
+/* Task 7b req 2/3/4: shared publish for the non-attack action kinds (heal,
+   selfheal, save, buff, buffAlly, surge). Rolls/DCs/saves resolve LOCALLY
+   on the caller exactly as today — this only ferries the resulting facts
+   (spec: rules never travel, facts do). `effects` follow forge-replay.js's
+   applyEffects shape ({unit,dmg}/{unit,heal}/{unit,add_condition}/
+   {unit,remove_condition}). Mirrors netAttack's own success handling: the
+   acting device sets its own usedAction/usedBonus/resource spend (spend+
+   finishAction) at PUBLISH SUCCESS, not deferred to the echo — other
+   devices already learn usedAction from the ability_used echo itself
+   (Task 7 Finding 3, bootSession's onEvent). ability_used has no
+   declare/resolve pair, so __awaitingKind is set to 'ability_used' directly
+   and cleared by that same echo (no extra wiring needed — the existing
+   (unit,kind) match in bootSession's onEvent already does this). */
+function netUseAbility(u,a,targets,effects,opts){
+  opts = opts || {};
+  __awaitingUnit=u.unit; __awaitingKind='ability_used'; __awaitingCount++; renderHud();
+  var payload = { ability:a.label, targets:targets, effects:effects||[] };
+  if (opts.roll!=null) payload.roll = opts.roll;
+  if (opts.dmg!=null) payload.dmg = opts.dmg;
+  if (opts.context) payload.context = opts.context;   // narration-only, not a replay field — ignored by applyEvent, harmless
+  return window.__forgeSession.pipe.useAbility(u.unit, payload).then(function(r){
+    if (r && r.ok===false){ netPublishFail(r); return r; }
+    if (opts.onSuccess) opts.onSuccess();
+    spend(u,a); finishAction();
+    return r;
+  });
+}
+/* save (Vicious Mockery) — roll/DC math is doSave's, unchanged; only the
+   commit forks (no local t.hp mutation, no floatAt — matches netAttack's
+   own no-flash-on-echo precedent). t.disadv (the "vm" rider) has no
+   replay-fact representation — nothing in this codebase reads
+   state.units[x].conditions for gameplay yet, so add_condition would be
+   inert data, not a real sync. Kept as a LOCAL field on the acting device,
+   same carve-out the brief names for CB.hexed.
+   // TODO(board): Vicious Mockery's disadvantage rider isn't synced to the
+   // target's own controlling device — it only ever lands on foes anyway
+   // (foeTurn reads u.disadv on the overseer's own units), so this is a
+   // real gap only once a save can target a PC, not yet reachable in play. */
+function netSave(u,a,t){
+  var ro=reachOK(u,a,t); if(!ro.ok){ clog(u.name+" — "+ro.why+"."); return; }
+  var sv=d(20)+(t.save||0), fail=sv<a.dc, line=u.name+" → "+t.name+": "+a.label+" ("+a.saveAbility.toUpperCase()+" save "+sv+" vs DC "+a.dc+") ";
+  var effects=[], dmg=0, ctx=null;
+  if(fail){
+    dmg=rollDmg(a.dmg); line+="fail "+dmg; effects.push({unit:t.unit,dmg:dmg});
+    if(a.rider==="vm"){ t.disadv=true; line+=" + disadvantage"; ctx="vm rider: "+t.name+" has disadvantage on its next attack (local only, not yet synced)"; }
+  } else line+="save";
+  clog(line);
+  netUseAbility(u,a,[t.unit],effects,{roll:sv, dmg:fail?dmg:undefined, context:ctx});
+}
+/* heal (Healing Word/Cure Wounds) — amount rolled locally exactly as
+   doHeal; the narration can't show the post-heal total (that arrives with
+   the echo's hp verb, same gap netAttack already has for damage), so it
+   reports the roll instead of "+N (new/max)". */
+function netHeal(u,a,t){
+  var ro=reachOK(u,a,t); if(!ro.ok){ clog(u.name+" — "+ro.why+"."); return; }
+  var amt=rollDmg(a.dmg)+(a.disciple||0);
+  clog(u.name+" → "+t.name+": "+a.label+" heal roll "+amt+".");
+  netUseAbility(u,a,[t.unit],[{unit:t.unit,heal:amt}]);
+}
+/* selfheal (Second Wind) — same roll, targets self. */
+function netSelfHeal(u,a){
+  var amt=rollDmg(a.dmg);
+  clog(u.name+": "+a.label+" heal roll "+amt+".");
+  netUseAbility(u,a,[u.unit],[{unit:u.unit,heal:amt}]);
+}
+/* surge (Action Surge) — req 4: no board fact at all (only resets local
+   turn economy), so publish ability_used with EMPTY effects purely so the
+   shared log records that it happened; the economy reset itself
+   (CB.st.usedAction=false) is applied locally at publish success via
+   opts.onSuccess, same "acting device commits its own economy" rule every
+   other kind here follows. */
+function netSurge(u,a){
+  clog(u.name+" — Action Surge: action regained.");
+  netUseAbility(u,a,[u.unit],[],{ onSuccess:function(){ CB.st.usedAction=false; } });
+}
+/* buff (Hex) / buffAlly (Bardic Inspiration) — CB.hexed and t.inspired are
+   local combat-math flags with no replay-fact representation (no hp/
+   condition change at all), exactly the case the brief calls out by name:
+   publish what CAN be (the ability_used fact + a context note for the
+   log), keep the flag local.
+   // TODO(board): Hex's +1d6 bonus (CB.hexed) is never seen by other
+   // screens — it's consumed only by THIS device's own netAttack/
+   // resolveStrike math.
+   // TODO(board): Bardic Inspiration's advantage flag (t.inspired) is set
+   // on the CASTER's own copy of the ally's unit object — the ally's own
+   // controlling device has a separate CB.units entry that never learns
+   // it, so today this buff is inert for anyone but a self-target. */
+function netBuff(u,a,t){
+  CB.hexed=t.id;
+  clog(u.name+" hexes "+t.name+" (+1d6 on hits vs it).");
+  netUseAbility(u,a,[t.unit],[],{ context:"hex — +1d6 on "+u.name+"'s hits vs "+t.name+" (local only, not yet synced)" });
+}
+function netBuffAlly(u,a,t){
+  t.inspired=true;
+  clog(u.name+" inspires "+t.name+" (advantage on next attack).");
+  netUseAbility(u,a,[t.unit],[],{ context:"bardic inspiration — advantage on "+t.name+"'s next attack (local only, not yet synced)" });
 }
 /* the unit key of who controls the active seat — "the DM" for foes/unclaimed
    PCs, else the character's own name (the roster carries no player display
