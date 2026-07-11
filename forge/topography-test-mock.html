@@ -2515,12 +2515,27 @@ async function drainOne(key, unit, sess){
     var vitals=__mirrorVitals.get(key);
     if (!vitals) {
       var ch=await window.CharacterData.loadCharacter(key);
-      vitals=(ch && ch.vitals) ? Object.assign({}, ch.vitals) : {};
-      __mirrorVitals.set(key, vitals);
+      var loaded=(ch && ch.vitals) || {};
+      vitals=Object.assign({}, loaded);
+      /* Finding 3 (review): loadCharacter's shape() always hands back at
+         least `{}` for vitals, even when the character has never had one —
+         caching THAT permanently would make every later drain of this key
+         believe the sheet has no fields at all and clobber them on write.
+         Use the empty object for THIS write only; only cache once save()'s
+         response (below) hands back a real, post-write vitals object — the
+         server's shaped response already refreshes the cache on success. */
+      if (Object.keys(loaded).length) __mirrorVitals.set(key, vitals);
     }
     var st=sess.pipe.state(), u=st.units && st.units[unit];
     if (!u) { __mirrorQueue.delete(key); return true; }   // unit is gone — nothing left to mirror
-    vitals.hp=u.hp;
+    var targetHp=u.hp;
+    /* Finding 2 (review): the sheet already holds the right number — a
+       universal no-op-write guard. Covers boot-backfill re-enqueuing every
+       damaged unclaimed PC on every overseer join even when nothing actually
+       changed, and shrinks Finding 1's collision surface for free (nothing
+       to race over if there's nothing to write). */
+    if (Number(vitals.hp)===Number(targetHp)) { __mirrorQueue.delete(key); return true; }
+    vitals.hp=targetHp;
     var saved=await window.CharacterData.save(key, { vitals: vitals });
     if (saved && saved.vitals) __mirrorVitals.set(key, Object.assign({}, saved.vitals));
     __mirrorQueue.delete(key);
@@ -2538,11 +2553,35 @@ function showMirrorChip(on){
 /* The 5s drain — one pass over the whole queue, one narration for the WHOLE
    batch (not per key, not per retry): fires once when a failure first shows
    the chip, stays silent on every subsequent tick until the queue empties
-   and the chip clears (per spec: "narrated once, not per retry"). */
+   and the chip clears (per spec: "narrated once, not per retry").
+   Finding 1a (review): sess.row.controllers is otherwise only refreshed by
+   incidental prompt routing, so a mid-fight claim could leave the overseer
+   mirroring a unit its claimer now owns, racing that device's writes.
+   Recheck ownership right here, every tick: refresh the controllers row
+   first (overseer device only — a real controller's own myMirrorUnits()
+   never depends on it), throttled to once per 4s so a healthy table isn't
+   paying a network round trip on every 5s tick. A refresh failure just
+   falls back to the stale map, narrated once via refreshControllers' own
+   chip idiom, and never blocks the drain. Then recompute ownership via
+   myMirrorUnits() for every queued key and dequeue-without-writing anything
+   this device no longer mirrors.
+   Finding 1b (review): the residual race window is bounded to at most one
+   drain tick and is self-healing — mirrored values are always absolute,
+   never deltas, so the next hp change re-mirrors the correct number from
+   whichever device actually owns the unit now. Acceptable for a trusted
+   home table. */
 async function drainMirror(){
   var sess=window.__forgeSession;
   if (!sess || !__mirrorQueue.size) return;
-  var pairs=Array.from(__mirrorQueue.entries());
+  if (sess.me.overseer && (Date.now() - __lastCtlRefresh) >= 4000) {
+    await refreshControllers();
+  }
+  var mine={}; myMirrorUnits(sess).forEach(function(u){ mine[u]=true; });
+  var pairs=Array.from(__mirrorQueue.entries()).filter(function(p){
+    if (mine[p[1]]) return true;
+    __mirrorQueue.delete(p[0]);   // no longer mine — dequeue without writing (Finding 1a)
+    return false;
+  });
   var results=await Promise.all(pairs.map(function(p){ return drainOne(p[0], p[1], sess); }));
   if (results.indexOf(false)>=0 && !__mirrorChipShown) clog('<i>Sheet sync is catching up — retrying…</i>');
   showMirrorChip(__mirrorQueue.size>0);
@@ -3062,8 +3101,10 @@ function showPromptBanner(prompt){
    Mutates the SAME `me` object bootSession's pipeline deps hold (never
    replaces it) so the pipeline sees the gain too. */
 var __ctlRefreshWarned=false;
+var __lastCtlRefresh=0;   // Finding 1a (review): drainMirror's throttle timestamp — shared so a prompt-routing refresh also counts toward the 4s window
 function refreshControllers(){
   var sess=window.__forgeSession; if(!sess) return Promise.resolve();
+  __lastCtlRefresh=Date.now();   // Finding 1a (review): shared clock — any caller's refresh (prompt routing or drainMirror) counts toward drainMirror's 4s throttle
   return sess.sb.from('forge_sessions').select('controllers').eq('id', sess.row.id).single().then(function(res){
     if(res.error || !res.data){
       if(!__ctlRefreshWarned){ __ctlRefreshWarned=true; clog('<i>Could not refresh who controls whom — using last known.</i>'); }
