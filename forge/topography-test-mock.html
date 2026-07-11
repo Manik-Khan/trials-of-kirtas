@@ -2390,13 +2390,17 @@ function applyVerb(v){
     case "despawn":if(u){ removeToken(u); CB.units=CB.units.filter(function(x){return x!==u;}); CB.order=CB.order.filter(function(x){return x!==u;}); } break;
     case "turn":   setActiveFromLog(v.unit, v.round); break;   // Task 8 fleshes the HUD side
     case "status": if(v.status==="ended"){ CB.over=true; clog("<b>Fight over.</b>");
-      clearPromptUI(); }
+      clearPromptUI(); if(window.__forgeSession) window.__forgeSession.row.status="ended"; }
       /* Task 11: session_started's own verb is just this status flip (forge-board.js
          never diffs roster) — Start fight wrote real pos/hp into the ROW, not the log,
          so a device that's been sitting on the staging screen since before Start fight
          (this echo is everyone's, including the overseer's own) needs one refetch to
-         pick them up. A fresh join/reload already gets them straight off row.roster. */
-      else if(v.status==="active") syncRosterFacts();
+         pick them up. A fresh join/reload already gets them straight off row.roster.
+         Task 12: also flips row.status here — previously only the overseer's own
+         startFight() set it locally, so every OTHER device's row.status stayed
+         "staging" forever (bootSession fetches it once, at join) and the claim
+         screen's "is the fight active" read would have been stale on them. */
+      else if(v.status==="active"){ if(window.__forgeSession) window.__forgeSession.row.status="active"; syncRosterFacts(); }
       break;   // Finding 3a (review): end fight must not leave an open reaction prompt (modal or banner) answerable
     case "chat":   clog("<i>"+escapeHtml(v.unit)+":</i> "+escapeHtml(v.text)); break;
     case "prompt":       routePrompt(v.prompt); break;         // banner for everyone but the responder (onWirePrompt owns their modal)
@@ -3395,6 +3399,11 @@ function runFoe(){ if(CB.active&&!CB.over&&!CB.react&&active()&&active().side===
    paints before this line ever runs. */
 window.CHAR = CHAR;
 window.__startCombat=startCombat;
+/* Task 12: the classic party-select block's claim screen calls this straight
+   after a successful RPC (me.units updates in place, same object the
+   pipeline's deps hold) — module-scoped functions aren't reachable from a
+   classic <script> without an explicit export, same reason CHAR needed one. */
+window.refreshControllers = refreshControllers;
 vesApply();   // kick off the Vesperian sheet fetch; failure narrates on the chip
 document.dispatchEvent(new CustomEvent("topo:ready"));
 
@@ -3575,6 +3584,30 @@ async function refreshStagedList(uid, say){
     });
   } catch (e) { say('couldn’t load staged fights — ' + ((e && e.message) || e), true); }
 }
+/* Task 12: window.__fightControllers (board badge/seat color) as a
+   DERIVATION from the row's controllers — never a local invention, per
+   FORGE_BOARD.md §3. Claimed units get the claimer's badge (mine reads
+   "you", everyone else gets a short id fragment — the roster/controllers
+   carry no display names, so this stays honest rather than inventing one).
+   Once the fight is active, an unclaimed pc reads "DM" (spec: "run by the
+   DM"). Computed once at boot, before spawnFromState assigns token badges
+   (unitFromRosterRow reads this map) — a claim landing mid-fight updates the
+   row but does not repaint an already-spawned token's badge (future work). */
+function deriveFightControllers(row, uid){
+  var out = {}, ctl = row.controllers || {};
+  Object.keys(ctl).forEach(function(owner){
+    (ctl[owner] || []).forEach(function(unit){
+      out[unit] = { player: owner, badge: owner === uid ? 'you' : owner.replace(/-/g,'').slice(0,4).toUpperCase(),
+        color: owner === uid ? '#b8952a' : '#7a6a52' };
+    });
+  });
+  if (row.status === 'active') {
+    (row.roster || []).forEach(function(r){
+      if ((r.kind || 'pc') === 'pc' && !out[r.unit]) out[r.unit] = { player: null, badge: 'DM', color: '#5a5a5a' };
+    });
+  }
+  return out;
+}
 async function bootSession(sid){
   const { data:{ user } } = await sb.auth.getUser();
   if (!user) { clog('<b>Sign in to join the fight.</b>'); return; }
@@ -3587,8 +3620,14 @@ async function bootSession(sid){
   window.__tok = window.__tok || { sb: sb, ready: Promise.resolve(true) };
   const { data: row, error } = await sb.from('forge_sessions').select('*').eq('id', sid).single();
   if (error || !row) throw new Error(error ? error.message : 'no such session');
-  // identical dungeon from the row — never from local UI
-  document.getElementById('partySelect').classList.add('gone');
+  /* Task 12: the party-select scene becomes the claim screen for
+     staging/active fights (folder-filtered roster ∩ Campaign Characters,
+     wired to forge_claim_unit) — it owns its own dismissal now, so this
+     block no longer hides it unconditionally. The handshake mirrors the
+     topo:ready deferral pattern: the classic block is not a module, so it
+     cannot see the `row`/`sb`/`uid` closed over here without this. */
+  window.__forgeStaging = { row: row, sb: sb, uid: user.id };
+  document.dispatchEvent(new CustomEvent('forge:staging'));
   mode = 'tiers'; BIOME = row.map.theme;
   F = buildTiersField(row.map.seed, Object.assign({ themeKey: row.map.theme }, row.map.sliders));
   if (!F.occ) F.occ = EMPTY_OCC(F.W * F.H);
@@ -3654,6 +3693,7 @@ async function bootSession(sid){
   lastState = window.ForgeReplay.snapshot(pipe.state());
   await pipe.catchUp();
   lastState = window.ForgeReplay.snapshot(pipe.state());
+  window.__fightControllers = deriveFightControllers(row, user.id);
   spawnFromState(pipe.state(), row);
   /* Finding 1a: a refresh mid-turn lands here with a state whose initiative
      is already active — spawnFromState places units and the order, but never
@@ -4409,6 +4449,11 @@ addEventListener("pointerup", function(e){ if(CB.active&&!CB.over&&!CB.react&&mo
    CharacterData.loadParty() in-app (same shape).
    ════════════════════════════════════════════════════════════════════ */
 (function(){
+  /* Task 12: ?session= present → the claim screen replaces local join
+     toggles (branch at the bottom of this IIFE). Read straight off
+     location.search rather than the module's own `const SESSION_ID` —
+     that's module-scoped and invisible to this classic script. */
+  var SESSION_ID = new URLSearchParams(location.search).get("session");
   var PARTY = [
     { key:"caim",       name:"Caim",             cls:"Monk",                  epi:"Urchin",              hp:24, max:24, ac:16,   init:3, portrait:"img/portraits/caim.png" },
     { key:"chonkalius", name:"Chonkalius",       cls:"Barbarian 3",           epi:'Outlander "Wizard?"', hp:35, max:35, ac:12,   init:0, portrait:null },
@@ -4504,6 +4549,176 @@ addEventListener("pointerup", function(e){ if(CB.active&&!CB.over&&!CB.react&&mo
     host.classList.add("gone");
     if(window.__enterForge) window.__enterForge();
   }
+  /* ── Task 12: session claim mode ─────────────────────────────────────
+     Same #partySelect/#psRow scene, driven by the session roster ∩ the
+     "Campaign Characters" folder instead of local join toggles. Tap →
+     forge_claim_unit RPC. Reuses esc()/sgn()/ready()/host/row from the
+     local-mode code above (same IIFE, both need window.CHAR the same way);
+     everything else below is claim-mode-only and never runs local mode's
+     own build()/forge()/keydown wiring (that stays in the `else` branch,
+     byte-identical to before this task). */
+  function claimMode(){
+    var cards = [], note = "", busy = false;
+
+    function ownerOf(unit, controllers){
+      var ks = Object.keys(controllers || {});
+      for (var i = 0; i < ks.length; i++) if ((controllers[ks[i]] || []).indexOf(unit) >= 0) return ks[i];
+      return null;
+    }
+    function shortId(uid){ return uid ? uid.replace(/-/g, "").slice(0, 4).toUpperCase() : "?"; }
+    function say(html){ var c = document.getElementById("psCount"); if (c) c.innerHTML = html; }
+
+    /* Folder filter (spec §3): session roster PCs ∩ the "Campaign
+       Characters" folder (case-insensitive name match; membership via
+       members[charKey]===folderId). No such folder, or the layout fetch
+       itself fails → show every roster PC, narrated either way. */
+    async function loadCards(){
+      var stg = window.__forgeStaging;
+      var pcs = (stg.row.roster || []).filter(function(r){ return (r.kind || "pc") === "pc"; });
+      note = "";
+      try {
+        var layout = await window.CharacterData.loadLayout();
+        var folders = layout.folders || [], target = null;
+        for (var i = 0; i < folders.length; i++) {
+          if (/^campaign characters$/i.test(folders[i].name || "")) { target = folders[i]; break; }
+        }
+        if (target) {
+          var members = layout.members || {};
+          pcs = pcs.filter(function(r){ return members[r.sheet_ref || r.unit] === target.id; });
+        } else {
+          note = "no Campaign Characters folder \u2014 showing everyone.";
+        }
+      } catch (e) {
+        note = "couldn\u2019t load the roster folders \u2014 showing everyone.";
+      }
+      cards = pcs;
+    }
+
+    function render(){
+      var stg = window.__forgeStaging, uid = stg.uid, srow = stg.row, active = srow.status === "active";
+      var isOverseer = srow.overseer === uid;
+      row.innerHTML = cards.map(function(r){
+        var key = r.sheet_ref || r.unit, kit = window.CHAR && window.CHAR[key];
+        var hasKit = !!kit, name = r.name || (kit && kit.name) || key;
+        var owner = ownerOf(r.unit, srow.controllers);
+        var mine = !!owner && owner === uid, other = !!owner && !mine;
+        /* ForgeBoard.canClaim is the UI-greying twin of the SQL rule (the RPC
+           enforces the real gate) — it says ok:true for a unit I already own
+           too (a harmless re-claim), so "tappable" still layers on `!mine`
+           (nothing to do by tapping again) and the combat-kit/overseer checks
+           canClaim doesn't know about. */
+        var claim = window.ForgeBoard && window.ForgeBoard.canClaim(srow, uid, r.unit);
+        var tappable = hasKit && !isOverseer && !mine && !!(claim && claim.ok);
+        var badgeTxt = mine ? "you" : (other ? shortId(owner) : (!owner && active ? "DM" : "\u2014"));
+        var badgeCol = mine ? "#b8952a" : (other ? "#7a6a52" : (!owner && active ? "#5a5a5a" : null));
+        var bstyle = badgeCol ? (' style="background:' + badgeCol + ';border-color:' + badgeCol + ';color:#0d0a07"') : "";
+        var topRight = !hasKit ? "NO COMBAT SHEET" : (owner ? "CLAIMED" : (active ? "RUN BY THE DM" : "UNCLAIMED"));
+        var sub = !hasKit ? "no combat sheet \u2014 not selectable"
+          : mine ? "claimed by you"
+          : other ? "claimed by another player"
+          : active ? "tap to take over from the DM"
+          : "tap to claim";
+        var vit = hasKit
+          ? '<div class="pVit"><div class="pHpwrap"><div class="pHplabel"><span>HP</span><span>' + kit.hp + ' / ' + kit.hp + '</span></div>'
+            + '<div class="pHpbar"><i style="width:100%"></i></div></div>'
+            + '<div class="pStat"><b>' + (kit.ac != null ? kit.ac : "\u2014") + '</b><span>AC</span></div>'
+            + '<div class="pStat"><b>' + sgn(kit.init) + '</b><span>INIT</span></div></div>'
+          : "";
+        return '<div class="psCard' + (mine ? " joined" : "") + (tappable ? "" : " psLocked") + '" data-unit="' + esc(r.unit) + '" tabindex="0"'
+          + (tappable ? "" : ' title="' + esc(sub) + '"') + '>'
+          + '<div class="pInit">' + esc(name[0]) + '</div><div class="pWash"></div>'
+          + '<div class="pCtrl"' + bstyle + '>' + esc(badgeTxt) + '</div>'
+          + '<div class="pBadge">' + esc(topRight) + '</div>'
+          + '<div class="pPlate"><div class="pNm">' + esc(name) + '</div><div class="pEpi">' + esc(sub) + '</div>'
+          + vit
+          + '</div></div>';
+      }).join("");
+      row.querySelectorAll(".psCard").forEach(function(el){
+        el.addEventListener("click", function(){ onCardTap(el.dataset.unit); });
+      });
+      if (note) { say('<i>' + esc(note) + '</i>'); return; }
+      if (isOverseer) { say(active ? 'players are picking their characters \u2014 the fight is underway' : 'players are picking their characters'); return; }
+      say(active ? 'the fight is underway \u2014 tap an unclaimed character to take over from the DM'
+                 : 'tap your character to claim it \u2014 others are picking too');
+    }
+
+    /* Tap → RPC → re-render from a FRESH row fetch either way (spec §3): a
+       success needs the real controllers map (refreshControllers mutates
+       me.units in place off it); a failure ("already claimed" etc.) needs
+       to show what actually won the race, not this device's stale guess. */
+    async function onCardTap(unit){
+      if (busy) return;
+      var stg = window.__forgeStaging;
+      if (stg.row.overseer === stg.uid) { say("<i>the overseer doesn\u2019t claim characters \u2014 unclaimed units are already yours to run.</i>"); return; }
+      var r = cards.filter(function(c){ return c.unit === unit; })[0]; if (!r) return;
+      var kit = window.CHAR && window.CHAR[r.sheet_ref || r.unit]; if (!kit) return;
+      var owner = ownerOf(unit, stg.row.controllers);
+      if (owner === stg.uid) return;   // already mine — nothing to do
+      /* The instant, local check (spec: the UI-greying twin) — short-circuits
+         an obviously-blocked tap without a round trip; the RPC (server-side,
+         row-locked) is still the ONLY thing that actually decides a race. */
+      var claim = window.ForgeBoard && window.ForgeBoard.canClaim(stg.row, stg.uid, unit);
+      if (claim && !claim.ok) { say('<b style="color:var(--bad,#c0553f)">Couldn’t claim:</b> ' + esc(claim.why)); render(); return; }
+      busy = true;
+      say("<i>claiming\u2026</i>");
+      var res;
+      try {
+        var rpc = await stg.sb.rpc("forge_claim_unit", { p_session: stg.row.id, p_unit: unit });
+        res = rpc.error ? { ok: false, why: rpc.error.message } : (rpc.data || { ok: false, why: "no response" });
+      } catch (e) {
+        res = { ok: false, why: (e && e.message) || String(e) };
+      }
+      try {
+        var fresh = await stg.sb.from("forge_sessions").select("*").eq("id", stg.row.id).single();
+        if (!fresh.error && fresh.data) Object.assign(stg.row, fresh.data);   // same object __forgeSession.row shares
+      } catch (e) { /* keep the last-known row — the claim result itself still narrates */ }
+      busy = false;
+      if (res.ok) {
+        if (window.refreshControllers) { try { await window.refreshControllers(); } catch (e) {} }
+        var nowActive = stg.row.status === "active";
+        say('<b style="color:var(--fg)">Claimed ' + esc(r.name || unit) + '.</b>' + (nowActive ? ' Entering the fight\u2026' : ' Waiting on the rest of the table\u2026'));
+        render();
+        if (nowActive) setTimeout(function(){ host.classList.add("gone"); }, 500);
+      } else {
+        say('<b style="color:var(--bad,#c0553f)">Couldn\u2019t claim:</b> ' + esc(res.why || "try again"));
+        render();
+      }
+    }
+
+    async function init(){
+      var stg = window.__forgeStaging;
+      if (!stg || stg.row.status === "ended") { host.classList.add("gone"); return; }   // nothing to claim into
+      var loginEl = document.getElementById("psLogin"), everyoneBtn = document.getElementById("psEveryone"), forgeBtn = document.getElementById("psForge");
+      if (loginEl) loginEl.style.display = "none";      // req 5: identity is sb.auth, not the mock's fake login chips
+      if (everyoneBtn) everyoneBtn.style.display = "none";   // local-only bulk toggle, not applicable to claiming
+      if (forgeBtn) {
+        forgeBtn.textContent = "Enter the board \u2192";
+        forgeBtn.disabled = false;   // always available — the overseer needs it to reach Start fight (in the HUD, under this overlay); a player may also just watch
+        forgeBtn.addEventListener("click", function(){ host.classList.add("gone"); });
+      }
+      await loadCards();
+      render();
+    }
+
+    var charReady = !!window.CHAR, stagingReady = !!window.__forgeStaging, started = false;
+    function tryStart(){ if (started || !(charReady && stagingReady)) return; started = true; init(); }
+    if (!charReady) document.addEventListener("topo:ready", function(){ charReady = true; tryStart(); }, { once: true });
+    if (!stagingReady) document.addEventListener("forge:staging", function(){ stagingReady = true; tryStart(); }, { once: true });
+    tryStart();
+    /* Mirrors the local-mode 6s narrated timeout below — waits on BOTH
+       signals (module readiness AND the session handshake) since either
+       one alone leaves an unusable half-built screen. Falls through to the
+       board rather than stranding the player behind a dead overlay. */
+    setTimeout(function(){
+      if (started) return;
+      started = true;
+      host.classList.add("gone");
+      say('<b style="color:var(--bad,#c0553f)">The fight didn\u2019t load in time.</b> Reload to try again.');
+    }, 6000);
+  }
+
+  if (SESSION_ID) { claimMode(); return; }
+
   document.addEventListener("keydown", function(e){
     if(host.classList.contains("gone")) return;
     if(e.key==="ArrowRight"){ pi=(pi+1)%PARTY.length; paint(); e.preventDefault(); }
