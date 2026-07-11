@@ -400,6 +400,20 @@ global.TacticsGeo = API;
 .cbReactBtns{ display:flex; gap:10px; margin-top:16px; }
 .cbReactUse{ flex:1; font-family:var(--f-util); text-transform:uppercase; letter-spacing:.14em; font-size:13px; font-weight:500; color:#fff; background:var(--tk-gold); border:1px solid var(--tk-gold); padding:11px; cursor:pointer; }
 .cbReactSkip{ font-family:var(--f-util); text-transform:uppercase; letter-spacing:.12em; font-size:13px; color:var(--tk-ink-dim); background:transparent; border:1px solid var(--tk-line); padding:11px 16px; cursor:pointer; }
+/* Task 9: session-only prompt modal (player/overseer-fallback) + waiting banner
+   (everyone else). Same card idiom as .cbReact — see its comment above. */
+.cbPromptCard{ width:360px; text-align:center; }
+.cbPromptFlag{ font-family:var(--f-util); text-transform:uppercase; letter-spacing:.1em; font-size:11px; color:#a33b2e; margin-top:6px; }
+.cbPromptRing{ position:relative; width:64px; height:64px; margin:14px auto 4px; border-radius:50%;
+  background:conic-gradient(var(--tk-gold) 0deg, rgba(168,159,138,.3) 0deg); display:flex; align-items:center; justify-content:center; }
+.cbPromptRing::before{ content:""; position:absolute; inset:5px; border-radius:50%; background:var(--tk-panel); }
+.cbPromptRing span{ position:relative; font-family:var(--f-util); font-weight:600; font-size:16px; color:var(--tk-ink); }
+.cbPromptTimesUp{ font-family:var(--f-body); font-style:italic; font-size:13px; color:var(--tk-ink-dim); margin-top:14px; }
+.cbPromptBanner{ position:fixed; top:14px; left:50%; transform:translateX(-50%); z-index:19; display:flex; align-items:center; gap:10px;
+  font-family:var(--f-util); font-size:13px; letter-spacing:.06em; color:var(--tk-ink);
+  background:linear-gradient(180deg,var(--tk-panel),var(--tk-panel-2)); border:1px solid var(--tk-gold);
+  padding:9px 16px; box-shadow:0 10px 30px rgba(40,30,10,.3); }
+.cbPromptBannerTimer{ font-weight:700; color:var(--tk-gold); min-width:1.6em; text-align:right; }
 .cbSight{margin-top:8px;border-top:1px solid rgba(0,0,0,.14);padding-top:6px}
 .cbSightHd{display:flex;justify-content:space-between;align-items:center;font:600 10px/1 'Barlow Condensed',sans-serif;letter-spacing:.14em;opacity:.65;margin-bottom:4px}
 .cbSightHd button{font:600 10px/1 'Barlow Condensed',sans-serif;letter-spacing:.1em;background:none;border:1px solid rgba(0,0,0,.2);border-radius:2px;padding:3px 6px;cursor:pointer;opacity:.8}
@@ -588,6 +602,23 @@ global.TacticsGeo = API;
         <div class="cbReactDesc" id="cbReactDesc"></div>
         <div class="cbReactBtns"><button class="cbReactUse" id="cbReactUse">Use reaction</button><button class="cbReactSkip" id="cbReactSkip">Skip</button></div>
       </div>
+    </div>
+    <!-- Task 9: session-only routed prompt. Modal shows on the prompted unit's
+         player (or the overseer, immediately for an unclaimed unit / on the
+         20s fallback); everyone else gets the waiting banner below. -->
+    <div class="cbReact" id="cbPromptModal" style="display:none">
+      <div class="cbReactCard cbPromptCard">
+        <div class="cbReactEy" id="cbPromptEy">Reaction</div>
+        <div class="cbReactTitle" id="cbPromptTitle"></div>
+        <div class="cbReactDesc" id="cbPromptDesc"></div>
+        <div class="cbPromptFlag" id="cbPromptFlag" style="display:none"></div>
+        <div class="cbPromptRing" id="cbPromptRing"><span id="cbPromptRingNum"></span></div>
+        <div class="cbReactBtns" id="cbPromptBtns"><button class="cbReactUse" id="cbPromptUse">Use</button><button class="cbReactSkip" id="cbPromptSkip">Pass</button></div>
+        <div class="cbPromptTimesUp" id="cbPromptTimesUp" style="display:none">Time&rsquo;s up &mdash; the DM is answering&hellip;</div>
+      </div>
+    </div>
+    <div class="cbPromptBanner" id="cbPromptBanner" style="display:none">
+      <span id="cbPromptBannerText"></span><span class="cbPromptBannerTimer" id="cbPromptBannerTimer"></span>
     </div>
   </div>
 <script type="module">
@@ -2238,7 +2269,8 @@ function applyVerb(v){
     case "turn":   setActiveFromLog(v.unit, v.round); break;   // Task 8 fleshes the HUD side
     case "status": if(v.status==="ended"){ CB.over=true; clog("<b>Fight over.</b>"); } break;
     case "chat":   clog("<i>"+escapeHtml(v.unit)+":</i> "+escapeHtml(v.text)); break;
-    case "prompt": case "prompt_clear": break;                 // Task 9
+    case "prompt":       routePrompt(v.prompt); break;         // banner for everyone but the responder (onWirePrompt owns their modal)
+    case "prompt_clear": clearPromptUI(); break;
     case "resync": if(__pipe) resyncFromState(__pipe.state()); break;
   }
 }
@@ -2586,48 +2618,189 @@ function reactionCandidates(state,declaredRow,answers){
     cands.push({ to:target, react:"hellishRebuke", context:{ attacker:attacker } });
   return cands;
 }
-/* forge-pipeline's onPrompt: fires only on the device that controls
-   `to` (the pipeline's own controlsUnit() gate — see forge-pipeline.js
-   ingest()). Computes the SAME reaction math pipelineHit's onUse
-   callbacks do (kit data — CHAR/FOE — is identical static data on every
-   device, so this device can roll its own reaction dice/save exactly as
-   the local sandbox would), then answers with the result as a fact.
-   TODO(Task 9): modal — confirm() stands in for the real prompt UI. */
-function onWirePrompt(row){
-  var p=row.payload||{}, ctx=p.context||{};
-  var u=unitByKey(p.to); if(!u) return;
-  var askerU=unitByKey(ctx.attacker), askerName=askerU?askerU.name:"the attacker";
-  var label=REACT_LABEL[p.react]||p.react, desc=label;
-  if(p.react==="silveryBarbs") desc="Force "+askerName+"'s hit to reroll (disadvantage)?";
-  else if(p.react==="shield") desc="+5 AC vs "+askerName+"'s hit?";
-  else if(p.react==="hellishRebuke") desc="Deal 2d10 fire to "+askerName+" (DEX save)?";
-  var use=confirm(u.name+" — "+label+"\n"+desc);
+/* ── Task 9: prompt UX routed per spec (FORGE_BOARD.md §4 / FORGE_PROTOCOL.md §4) ──
+   Two independent signal paths land on the SAME prompt:
+     1. forge-pipeline's onPrompt (onWirePrompt below) fires only on a device
+        where controlsUnit(to) is true — which the pipeline defines as
+        "controls the unit OR is the overseer" (forge-pipeline.js:26). That
+        means it fires on the overseer for EVERY prompt, not just unclaimed
+        ones — promptRole() below is the fix: it re-derives the real
+        responder (the unit's player, or the overseer only when the unit is
+        unclaimed) and onWirePrompt bails when this device isn't it.
+     2. ForgeBoard.verbsFor's "prompt" verb (applyVerb's "prompt" case,
+        routePrompt below) fires on EVERY device unconditionally — that is
+        what paints the "waiting on X…" banner for everyone who isn't the
+        responder, asker included (their pipeline is paused awaiting the
+        answer same as anyone else's screen).
+   Session-only: the local sandbox's #cbReactUse/#cbReactSkip (promptGeneric)
+   is untouched and keeps serving the no-session path. */
+var PROMPT_UI = { seq:null, kind:null, timerId:null, onUse:null, onSkip:null };
+var __answeringPromptSeq = null;   // guards the fallback modal from reopening while OUR OWN answer is in flight
+
+function isUnitClaimed(unitKey){
+  var sess=window.__forgeSession; if(!sess) return false;
+  var ctl=sess.row.controllers||{};
+  return Object.keys(ctl).some(function(k){ return (ctl[k]||[]).indexOf(unitKey)>=0; });
+}
+/* the real responder for THIS device: the unit's own player, or the
+   overseer only when nobody has claimed the unit (DM-run — the overseer
+   IS the player). Everyone else (including the overseer of a claimed
+   unit, and the asker) gets the waiting banner; the overseer inherits a
+   claimed unit's prompt only via the 20s onPromptFallback below. */
+function promptRole(to){
+  var sess=window.__forgeSession; if(!sess) return "banner";
+  var me=sess.me;
+  if(!window.ForgeBoard.controls(me,to)) return "banner";
+  if(me.overseer && isUnitClaimed(to)) return "banner";
+  return "modal";
+}
+function promptRemaining(prompt){
+  var elapsed=Date.now()-new Date(prompt.created_at).getTime();
+  return Math.max(0, prompt.timeout*1000-elapsed);
+}
+/* closes whatever prompt UI is showing — the prompt_clear verb (answer
+   echo), our own answer (don't wait for the round trip), and a fallback
+   modal opening over a stale banner/modal all route through here. */
+function clearPromptUI(){
+  if(PROMPT_UI.timerId){ clearInterval(PROMPT_UI.timerId); PROMPT_UI.timerId=null; }
+  var modal=document.getElementById("cbPromptModal"); if(modal) modal.style.display="none";
+  var banner=document.getElementById("cbPromptBanner"); if(banner) banner.style.display="none";
+  PROMPT_UI.seq=null; PROMPT_UI.kind=null; PROMPT_UI.onUse=null; PROMPT_UI.onSkip=null;
+}
+function reactionDescFor(react,askerName){
+  var label=REACT_LABEL[react]||react, desc=label;
+  if(react==="silveryBarbs") desc="Force "+askerName+"'s hit to reroll (disadvantage)?";
+  else if(react==="shield") desc="+5 AC vs "+askerName+"'s hit?";
+  else if(react==="hellishRebuke") desc="Deal 2d10 fire to "+askerName+" (DEX save)?";
+  return { label:label, desc:desc };
+}
+/* the SAME reaction math pipelineHit's onUse callbacks do (kit data —
+   CHAR/FOE — is identical static data on every device, so this device can
+   roll its own reaction dice/save exactly as the local sandbox would). */
+function computeReactionExtra(react,ctx,u,askerU,askerName){
   var extra={}, clogLine=null;
-  if(use){
-    if(p.react==="silveryBarbs"){
-      var roll=d20a(false,true), crit=roll===20;
-      var tU=unitByKey(ctx.target), hit=crit||(roll!==1 && roll+(ctx.hitBonus||0)>=((tU&&tU.ac)||0)+(ctx.cover||0));
-      extra={ roll:roll, crit:crit, hit:hit };
-      clogLine="Silvery Barbs — "+askerName+" rerolls: "+roll+(hit?"":" → miss");
-    } else if(p.react==="shield"){
-      var hit2=!!ctx.crit || (ctx.roll!==1 && ctx.roll+(ctx.hitBonus||0)>=((u.ac||0)+5)+(ctx.cover||0));
-      extra={ hit:hit2 };
-      clogLine="Shield — "+u.name+" AC "+((u.ac||0)+5)+(hit2?"":" → the blow misses");
-    } else if(p.react==="hellishRebuke"){
-      var rc=u.react&&u.react.hellishRebuke;
-      var sv=d(20)+((askerU&&askerU.save)||0), dmg=rc?rollDmg(rc.dmg):0;
-      var final=(rc&&sv>=rc.dc)?Math.floor(dmg/2):dmg;
-      extra={ dmg:final, sv:sv, dc:rc&&rc.dc };
-      clogLine="Hellish Rebuke — "+askerName+" DEX save "+sv+" vs "+(rc&&rc.dc)+": "+final+" fire";
-    }
+  if(react==="silveryBarbs"){
+    var roll=d20a(false,true), crit=roll===20;
+    var tU=unitByKey(ctx.target), hit=crit||(roll!==1 && roll+(ctx.hitBonus||0)>=((tU&&tU.ac)||0)+(ctx.cover||0));
+    extra={ roll:roll, crit:crit, hit:hit };
+    clogLine="Silvery Barbs — "+askerName+" rerolls: "+roll+(hit?"":" → miss");
+  } else if(react==="shield"){
+    var hit2=!!ctx.crit || (ctx.roll!==1 && ctx.roll+(ctx.hitBonus||0)>=((u.ac||0)+5)+(ctx.cover||0));
+    extra={ hit:hit2 };
+    clogLine="Shield — "+u.name+" AC "+((u.ac||0)+5)+(hit2?"":" → the blow misses");
+  } else if(react==="hellishRebuke"){
+    var rc=u.react&&u.react.hellishRebuke;
+    var sv=d(20)+((askerU&&askerU.save)||0), dmg=rc?rollDmg(rc.dmg):0;
+    var final=(rc&&sv>=rc.dc)?Math.floor(dmg/2):dmg;
+    extra={ dmg:final, sv:sv, dc:rc&&rc.dc };
+    clogLine="Hellish Rebuke — "+askerName+" DEX save "+sv+" vs "+(rc&&rc.dc)+": "+final+" fire";
   }
-  window.__forgeSession.pipe.answerPrompt(p.to,row.seq,use,extra).then(function(r){
-    if(r && r.ok===false){ netPublishFail(r); return; }
-    // resource spend / .reacted bookkeeping lands on THIS unit's OWN device
-    // only (mirrors payReact's local role) — other devices learn reactionUsed
-    // from the prompt_answered echo itself (forge-replay.js applyEvent).
-    if(use){ payReact(u,p.react); if(clogLine) clog(clogLine); snapshot(REACT_LABEL[p.react]); renderHud(); }
-  });
+  return { extra:extra, clogLine:clogLine };
+}
+/* opts.fallback: the overseer answering as the unit after the 20s timeout
+   (pipeline's checkTimeouts → onPromptFallback). Same card, same answer
+   path — only the eyebrow/flag and the (already-spent) countdown differ. */
+function openReactionModal(prompt,opts){
+  opts=opts||{};
+  var u=unitByKey(prompt.to); if(!u) return;
+  var ctx=prompt.context||{};
+  var askerU=unitByKey(ctx.attacker), askerName=askerU?askerU.name:"the attacker";
+  var info=reactionDescFor(prompt.react,askerName);
+
+  clearPromptUI();   // a fresh prompt (or a fallback transfer) replaces whatever was showing
+  PROMPT_UI.seq=prompt.seq; PROMPT_UI.kind=opts.fallback?"fallback":"modal";
+
+  var el=document.getElementById("cbPromptModal"); if(!el) return;
+  var eyebrow=document.getElementById("cbPromptEy"), title=document.getElementById("cbPromptTitle"),
+      desc=document.getElementById("cbPromptDesc"), flag=document.getElementById("cbPromptFlag"),
+      ring=document.getElementById("cbPromptRing"), ringNum=document.getElementById("cbPromptRingNum"),
+      btns=document.getElementById("cbPromptBtns"), timesUp=document.getElementById("cbPromptTimesUp");
+  eyebrow.textContent = opts.fallback ? "Reaction — timed out" : "Reaction";
+  title.textContent = u.name+" — "+info.label;
+  desc.textContent = info.desc;
+  btns.style.display="flex"; timesUp.style.display="none";
+  if(opts.fallback){
+    flag.textContent="answering as "+u.name+" (timed out)"; flag.style.display="block";
+    ring.style.display="none"; ringNum.textContent="";
+  } else {
+    flag.style.display="none"; ring.style.display="flex";
+  }
+  el.style.display="flex";
+
+  function settle(use){
+    clearPromptUI();   // closes on our own answer — don't wait for the echo round trip
+    __answeringPromptSeq=prompt.seq;
+    var extra={}, clogLine=null;
+    if(use){ var r=computeReactionExtra(prompt.react,ctx,u,askerU,askerName); extra=r.extra; clogLine=r.clogLine; }
+    window.__forgeSession.pipe.answerPrompt(prompt.to,prompt.seq,use,extra).then(function(res){
+      if(res && res.ok===false){ netPublishFail(res); __answeringPromptSeq=null; return; }
+      // resource spend / .reacted bookkeeping lands on THIS unit's OWN device
+      // only (mirrors payReact's local role) — other devices learn reactionUsed
+      // from the prompt_answered echo itself (forge-replay.js applyEvent).
+      if(use){ payReact(u,prompt.react); if(clogLine) clog(clogLine); snapshot(REACT_LABEL[prompt.react]); renderHud(); }
+    });
+  }
+  PROMPT_UI.onUse=function(){ settle(true); };
+  PROMPT_UI.onSkip=function(){ settle(false); };
+
+  if(!opts.fallback){
+    var tick=function(){
+      var remain=promptRemaining(prompt), total=prompt.timeout*1000;
+      ringNum.textContent=Math.ceil(remain/1000);
+      ring.style.background="conic-gradient(var(--tk-gold) "+(360*(total>0?remain/total:0)).toFixed(1)+"deg, rgba(168,159,138,.3) 0deg)";
+      if(remain<=0){
+        // this device's countdown is spent; the fallback fires on the OVERSEER's
+        // tick (pipe.checkTimeouts()), not this one — just say so and wait
+        if(PROMPT_UI.timerId){ clearInterval(PROMPT_UI.timerId); PROMPT_UI.timerId=null; }
+        btns.style.display="none"; ring.style.display="none"; timesUp.style.display="block";
+      }
+    };
+    tick();   // a refresh resumes mid-count — created_at survived the replay
+    PROMPT_UI.timerId=setInterval(tick,250);
+  }
+}
+function showPromptBanner(prompt){
+  clearPromptUI();
+  PROMPT_UI.seq=prompt.seq; PROMPT_UI.kind="banner";
+  var el=document.getElementById("cbPromptBanner"); if(!el) return;
+  var text=document.getElementById("cbPromptBannerText"), timer=document.getElementById("cbPromptBannerTimer");
+  var name=controllerLabel(prompt.to), label=REACT_LABEL[prompt.react]||prompt.react;
+  text.textContent="Waiting on "+name+" — "+label+"?";
+  el.style.display="flex";
+  var tick=function(){
+    var remain=promptRemaining(prompt);
+    timer.textContent=Math.ceil(remain/1000)+"s";
+    if(remain<=0 && PROMPT_UI.timerId){ clearInterval(PROMPT_UI.timerId); PROMPT_UI.timerId=null; }
+  };
+  tick();
+  PROMPT_UI.timerId=setInterval(tick,250);
+}
+/* ForgeBoard.verbsFor's "prompt" verb — fires on every device. The
+   responder's own modal is owned by onWirePrompt (or the fallback), so
+   this only ever paints the banner (everyone else, asker included). */
+function routePrompt(prompt){
+  if(!prompt) return;
+  if(promptRole(prompt.to)==="modal") return;
+  showPromptBanner(prompt);
+}
+/* forge-pipeline's onPrompt: fires on any device where controlsUnit(to) is
+   true — that includes the overseer for every prompt (see the block
+   comment above). promptRole() re-derives whether THIS device is actually
+   the responder before opening anything. */
+function onWirePrompt(row){
+  var sess=window.__forgeSession, prompt=sess && sess.pipe.state().pendingPrompt;
+  if(!prompt || prompt.seq!==row.seq) return;   // superseded by a later prompt already
+  if(promptRole(prompt.to)!=="modal") return;
+  openReactionModal(prompt,{});
+}
+/* pipe.checkTimeouts() calls this on the overseer's device only, once
+   20s have passed with no answer (forge-pipeline.js:154-162) — re-target
+   the same prompt to the overseer's screen, flagged as such. */
+function onWirePromptFallback(p){
+  if(!p) return;
+  if(__answeringPromptSeq===p.seq) return;                              // already answering — echo just hasn't landed yet
+  if(PROMPT_UI.seq===p.seq && PROMPT_UI.kind==="fallback") return;       // fallback modal already open for this prompt
+  openReactionModal(p,{ fallback:true });
 }
 
 /* ── resolution ─────────────────────────────────────────────────────── */
@@ -3076,7 +3249,7 @@ async function bootSession(sid){
   const pipe = window.ForgePipeline.makePipeline({
     conn, roster: row.roster, me,
     reactions: reactionCandidates,
-    onPrompt: onWirePrompt, onPromptFallback: () => {},   // Task 9 fills the overseer timeout fallback
+    onPrompt: onWirePrompt, onPromptFallback: onWirePromptFallback,
     onEvent: (r, st) => { const before = lastState; lastState = window.ForgeReplay.snapshot(st);
       if (__awaitingCount > 0 && r.unit === __awaitingUnit && r.kind === __awaitingKind) {
         __awaitingCount--;
@@ -3118,6 +3291,16 @@ async function bootSession(sid){
     if (bootActive) setActiveFromLog(bootActive, window.ForgeReplay.round(bootState));
   }
   window.__forgeSession = { pipe, row, me, sb };
+  // Task 9: a refresh can't lose a prompt (spec §4) — replay reconstructed
+  // pendingPrompt (catchUp() never calls onPrompt/onEvent per row), so if
+  // the log ends mid-prompt, route it now with the timer resumed from
+  // created_at. checkTimeouts() below picks up an already-expired one on
+  // its first tick (e.g. the overseer refreshing after the 20s already ran).
+  const bootPrompt = pipe.state().pendingPrompt;
+  if (bootPrompt) {
+    if (promptRole(bootPrompt.to) === 'modal') openReactionModal(bootPrompt, {});
+    else showPromptBanner(bootPrompt);
+  }
   setInterval(() => { pipe.checkTimeouts(); checkEchoStall(); }, 1000);
   clog('<b>Joined fight ' + sid.slice(0, 8) + '</b> as ' + (me.overseer ? 'overseer' : me.units.join(', ') || 'spectator'));
 }
@@ -3415,9 +3598,7 @@ function controllerLabel(unitKey){
   var sess=window.__forgeSession; if(!sess) return "";
   var row=(sess.row.roster||[]).filter(function(r){ return r.unit===unitKey; })[0];
   if(!row || (row.kind||"pc")!=="pc") return "the DM";
-  var ctl=sess.row.controllers||{};
-  var claimed=Object.keys(ctl).some(function(k){ return (ctl[k]||[]).indexOf(unitKey)>=0; });
-  return claimed ? (row.name||unitKey) : "the DM";
+  return isUnitClaimed(unitKey) ? (row.name||unitKey) : "the DM";   // Task 9's isUnitClaimed — same "claimed" rule
 }
 
 addEventListener("pointerup", function(e){ if(CB.active&&!CB.over&&!CB.react&&moved<6) combatClick(e.clientX,e.clientY); });
@@ -3431,6 +3612,8 @@ addEventListener("pointerup", function(e){ if(CB.active&&!CB.over&&!CB.react&&mo
   if(g("cbReset")) g("cbReset").addEventListener("click",resetCombat);
   if(g("cbReactUse")) g("cbReactUse").addEventListener("click",function(){ if(CB.react)CB.react.use(); });
   if(g("cbReactSkip")) g("cbReactSkip").addEventListener("click",function(){ if(CB.react)CB.react.skip(); });
+  if(g("cbPromptUse")) g("cbPromptUse").addEventListener("click",function(){ if(PROMPT_UI.onUse) PROMPT_UI.onUse(); });
+  if(g("cbPromptSkip")) g("cbPromptSkip").addEventListener("click",function(){ if(PROMPT_UI.onSkip) PROMPT_UI.onSkip(); });
   if(g("cbFlank")) g("cbFlank").addEventListener("click",function(){
     FLANKING=!FLANKING; this.classList.toggle("on",FLANKING); this.textContent="Flank: "+(FLANKING?"on":"off");
     if(CB.active) clog("<i>House rule \u2014 flanking "+(FLANKING?"grants advantage (both sides).":"off.")+"</i>");
