@@ -2195,7 +2195,8 @@ function vesTick(u,dt){
   u.sprite.scale.x=Math.abs(u.sprite.scale.x)*(v.face||1);
 }
 
-var CHAR = {
+// STARTER_KITS: curated bite-1 action bars — numbers below are FALLBACKS; live sheets override stats in session mode. Bite 2's derivation layer replaces this table.
+var STARTER_KITS = {
   vesperian:{ name:"Vesperian", hp:40, ac:18, speed:30, init:4, res:{secondWind:1,actionSurge:1,slot1:2},
     react:{ shield:{cost:{slot1:1}} }, actions:[
     { label:"Longsword", kind:"attack", rng:1, hit:6, dmg:"1d8+6" },
@@ -2221,6 +2222,7 @@ var CHAR = {
     { label:"Cure Wounds", kind:"heal", rng:1, dmg:"1d8+2", disciple:3, cost:{slot1:1}, spell:true },
     { label:"Bardic Inspiration", kind:"buffAlly", rng:12, bonus:true, cost:{bardic:1} } ] }
 };
+var CHAR = STARTER_KITS;   // alias — every existing CHAR[...] read site keeps working unchanged
 var FOE = { name:"Goblin", hp:7, ac:15, speed:30, init:2, save:1, climb:true, atk:{ label:"Scimitar", rng:1, hit:4, dmg:"1d6+2" } };
 var REACT_LABEL = { silveryBarbs:"Silvery Barbs", shield:"Shield", hellishRebuke:"Hellish Rebuke" };
 
@@ -2427,6 +2429,78 @@ function foeKitFromStatblock(row){
     atk: atk, mActions: mc.actions,
   };
 }
+/* Task 16 (bite 1): session-mode live-stats overlay. STARTER_KITS' ac/speed/
+   init are hand-tuned FALLBACKS — a live sheet's structural.combat (field
+   names confirmed against sheet-mount.js/characters.js/combat.html: ac,
+   speed, initiative) wins when it's readable. hp/maxHp are NOT touched here
+   — Task 11/13 already own those from roster/state facts.
+   loadLiveStats() is fired once per boot (bootSession + claimMode's init())
+   and cached; stats don't change mid-fight, so no refresh path is needed.
+   liveStatsFor() is a synchronous cache read — call sites that run before
+   the load resolves (or in the local sandbox, which never calls
+   loadLiveStats at all) just see a cold cache and keep the kit's own
+   numbers, silently. */
+var __liveStatsCache = null;    // null = never loaded; {} (or populated) once loadLiveStats() settles
+var __liveStatsLoading = null;  // in-flight promise — concurrent callers share one load
+var __liveStatsWarned = {};     // "using kit numbers" narrated once per character key per boot
+function loadLiveStats(){
+  if (__liveStatsCache) return Promise.resolve(__liveStatsCache);
+  if (__liveStatsLoading) return __liveStatsLoading;
+  if (!window.CharacterData) { __liveStatsCache = {}; return Promise.resolve(__liveStatsCache); }
+  __liveStatsLoading = window.CharacterData.loadParty().then(function(party){
+    var byKey = {}; (party || []).forEach(function(c){ byKey[c.key] = c; });
+    __liveStatsCache = byKey; __liveStatsLoading = null; return byKey;
+  }).catch(function(e){
+    clog('<i>Sheet read failed (' + escapeHtml((e && e.message) || e) + ') — using kit numbers.</i>');
+    __liveStatsCache = {}; __liveStatsLoading = null; return __liveStatsCache;
+  });
+  return __liveStatsLoading;
+}
+// per-field fallback: any of ac/speed/init missing (sheet unavailable, no
+// character, or the field itself absent) narrates ONCE per key, then that
+// one field falls through to the kit's own number via the caller's
+// Object.assign — a partially-live sheet still gets whatever IS live.
+function liveStatsFor(sheetRef){
+  if (!sheetRef) return null;
+  var c = __liveStatsCache && __liveStatsCache[sheetRef];
+  var cmb = (c && c.structural && c.structural.combat) || null;
+  var out = null, missing = !cmb;
+  if (cmb) {
+    out = {};
+    if (cmb.ac != null) out.ac = cmb.ac; else missing = true;
+    if (cmb.speed != null) out.speed = cmb.speed; else missing = true;
+    if (cmb.initiative != null) out.init = cmb.initiative; else missing = true;
+  }
+  if (missing && !__liveStatsWarned[sheetRef]) {
+    __liveStatsWarned[sheetRef] = true;
+    var label = (STARTER_KITS[sheetRef] && STARTER_KITS[sheetRef].name) || (c && c.name) || sheetRef;
+    clog('<i>' + escapeHtml(label) + ': using kit numbers — sheet unavailable.</i>');
+  }
+  return out;
+}
+/* Task 16 (bite 1): a folder PC whose sheet exists but has no hand-tuned
+   STARTER_KITS entry yet gets a generic bar rather than an empty/broken
+   card — Dash and Dodge are not modelled as HUD actions anywhere in this
+   file (grepped; nothing calls a "dash"/"dodge" kind), so they are skipped
+   here rather than invented; bite 2's derivation layer is the real fix.
+   Only reachable once __liveStatsCache is warm (loadLiveStats already
+   settled) — before that a sheet-having folder PC is indistinguishable
+   from a no-sheet one and this simply returns null, same as pre-Task-16. */
+var GENERIC_PC_KIT = { react: null, res: {}, actions: [
+  { label: "Improvised Strike", kind: "attack", rng: 1, hit: 2, dmg: "1d4+1" }
+] };
+var __genericKitWarned = {};
+function kitFor(key){
+  if (!key) return null;
+  if (STARTER_KITS[key]) return STARTER_KITS[key];
+  var c = __liveStatsCache && __liveStatsCache[key];
+  if (!c) return null;
+  if (!__genericKitWarned[key]) {
+    __genericKitWarned[key] = true;
+    clog('<i>' + escapeHtml(c.name || key) + ': starter kit — full actions come with the derivation layer.</i>');
+  }
+  return Object.assign({ name: c.name || key }, GENERIC_PC_KIT);
+}
 /* roster row {unit,kind,sheet_ref?,name?,statblock?,pos?,hp?,maxHp?} + the
    replayed state.units[unit] (facts win over the roster row) → a CB unit.
    PCs map sheet_ref → CHAR kits (fallback: the unit id itself — the mock's
@@ -2437,7 +2511,14 @@ function foeKitFromStatblock(row){
 function unitFromRosterRow(row, stateUnit){
   var isPc = (row.kind || "pc") === "pc";
   var foeKit = isPc ? null : foeKitFromStatblock(row);
-  var kit = isPc ? (CHAR[row.sheet_ref] || CHAR[row.unit]) : (foeKit || FOE);
+  var kit = isPc ? (kitFor(row.sheet_ref) || kitFor(row.unit)) : (foeKit || FOE);
+  // Task 16 (bite 1): session-mode live ac/speed/init overlay — unitFromRosterRow
+  // is only ever called from session paths (spawnFromState/spawnUnitFromState),
+  // never the local sandbox's startCombat(), so this is naturally session-only.
+  if (isPc && kit) {
+    var live = liveStatsFor(row.sheet_ref || row.unit);
+    if (live) kit = Object.assign({}, kit, live);
+  }
   var pos = (stateUnit && stateUnit.pos) || row.pos;
   // Finding 1c (review): a stateUnit can exist but still carry a missing/NaN
   // hp fact (e.g. a foe roster row that was never enriched) — check the FACT
@@ -3738,6 +3819,12 @@ window.__startCombat=startCombat;
    classic <script> without an explicit export, same reason CHAR needed one. */
 window.refreshControllers = refreshControllers;
 window.renderHud = renderHud;
+/* Task 16 (bite 1): the claim screen (classic <script> below) paints the
+   same live ac/init overlay and generic-kit fallback the board itself
+   uses — same cross-block export reason as CHAR/refreshControllers. */
+window.kitFor = kitFor;
+window.liveStatsFor = liveStatsFor;
+window.loadLiveStats = loadLiveStats;
 vesApply();   // kick off the Vesperian sheet fetch; failure narrates on the chip
 document.dispatchEvent(new CustomEvent("topo:ready"));
 
@@ -4156,6 +4243,7 @@ async function bootSession(sid){
      CharacterData.loadParty()/loadCharacter() to work without pulling in the
      rest of nav.js. Never clobbers a real window.__tok if one is ever added. */
   window.__tok = window.__tok || { sb: sb, ready: Promise.resolve(true) };
+  loadLiveStats();   // Task 16: kick off the live ac/speed/init read now (session mode only) — claimMode's init() and spawnFromState below await this same cached promise
   const { data: row, error } = await sb.from('forge_sessions').select('*').eq('id', sid).single();
   if (error || !row) throw new Error(error ? error.message : 'no such session');
   /* Task 12: the party-select scene becomes the claim screen for
@@ -4246,6 +4334,7 @@ async function bootSession(sid){
   await pipe.catchUp();
   lastState = window.ForgeReplay.snapshot(pipe.state());
   window.__fightControllers = deriveFightControllers(row, user.id);
+  await loadLiveStats();   // Task 16: make sure the live-stats cache is settled before any PC unit is built, so ac/speed/init never race the board's first paint
   spawnFromState(pipe.state(), row);
   /* Finding 1a: a refresh mid-turn lands here with a state whose initiative
      is already active — spawnFromState places units and the order, but never
@@ -5376,8 +5465,12 @@ renderer.domElement.addEventListener("contextmenu", function(e){ if(ADD_FOE_PLAC
       var stg = window.__forgeStaging, uid = stg.uid, srow = stg.row, active = srow.status === "active";
       var isOverseer = srow.overseer === uid;
       row.innerHTML = cards.map(function(r){
-        var key = r.sheet_ref || r.unit, kit = window.CHAR && window.CHAR[key];
+        var key = r.sheet_ref || r.unit, kit = window.kitFor && window.kitFor(key);
         var hasKit = !!kit, name = r.name || (kit && kit.name) || key;
+        // Task 16 (bite 1): same live ac/init overlay the board itself uses — hp stays the kit's own placeholder (Task 11/13 own real hp/maxHp, and only once the fight actually starts)
+        var live = hasKit ? window.liveStatsFor && window.liveStatsFor(key) : null;
+        var vitAc = (live && live.ac != null) ? live.ac : (kit && kit.ac);
+        var vitInit = (live && live.init != null) ? live.init : (kit && kit.init);
         var owner = ownerOf(r.unit, srow.controllers);
         var mine = !!owner && owner === uid, other = !!owner && !mine;
         /* ForgeBoard.canClaim is the UI-greying twin of the SQL rule (the RPC
@@ -5396,11 +5489,13 @@ renderer.domElement.addEventListener("contextmenu", function(e){ if(ADD_FOE_PLAC
           : other ? "claimed by another player"
           : active ? "tap to take over from the DM"
           : "tap to claim";
+        // a generic (no-STARTER_KITS-entry) kit carries no hp placeholder of its own \u2014 show a dash rather than "undefined / undefined" (req 4: never broken)
+        var vitHp = kit && kit.hp != null ? kit.hp : "\u2014", vitPct = (kit && kit.hp != null) ? 100 : 0;
         var vit = hasKit
-          ? '<div class="pVit"><div class="pHpwrap"><div class="pHplabel"><span>HP</span><span>' + kit.hp + ' / ' + kit.hp + '</span></div>'
-            + '<div class="pHpbar"><i style="width:100%"></i></div></div>'
-            + '<div class="pStat"><b>' + (kit.ac != null ? kit.ac : "\u2014") + '</b><span>AC</span></div>'
-            + '<div class="pStat"><b>' + sgn(kit.init) + '</b><span>INIT</span></div></div>'
+          ? '<div class="pVit"><div class="pHpwrap"><div class="pHplabel"><span>HP</span><span>' + vitHp + ' / ' + vitHp + '</span></div>'
+            + '<div class="pHpbar"><i style="width:' + vitPct + '%"></i></div></div>'
+            + '<div class="pStat"><b>' + (vitAc != null ? vitAc : "\u2014") + '</b><span>AC</span></div>'
+            + '<div class="pStat"><b>' + sgn(vitInit) + '</b><span>INIT</span></div></div>'
           : "";
         return '<div class="psCard' + (mine ? " joined" : "") + (tappable ? "" : " psLocked") + '" data-unit="' + esc(r.unit) + '" tabindex="0"'
           + (tappable ? "" : ' title="' + esc(sub) + '"') + '>'
@@ -5429,7 +5524,7 @@ renderer.domElement.addEventListener("contextmenu", function(e){ if(ADD_FOE_PLAC
       var stg = window.__forgeStaging;
       if (stg.row.overseer === stg.uid) { say("<i>the overseer doesn\u2019t claim characters \u2014 unclaimed units are already yours to run.</i>"); return; }
       var r = cards.filter(function(c){ return c.unit === unit; })[0]; if (!r) return;
-      var kit = window.CHAR && window.CHAR[r.sheet_ref || r.unit]; if (!kit) return;
+      var kit = window.kitFor && window.kitFor(r.sheet_ref || r.unit); if (!kit) return;
       var owner = ownerOf(unit, stg.row.controllers);
       if (owner === stg.uid) return;   // already mine — nothing to do
       /* The instant, local check (spec: the UI-greying twin) — short-circuits
@@ -5474,6 +5569,8 @@ renderer.domElement.addEventListener("contextmenu", function(e){ if(ADD_FOE_PLAC
         forgeBtn.disabled = false;   // always available — the overseer needs it to reach Start fight (in the HUD, under this overlay); a player may also just watch
         forgeBtn.addEventListener("click", function(){ host.classList.add("gone"); });
       }
+      // Task 16 (bite 1): wait for the same live-stats cache the board uses (bootSession already kicked it off) so the claim cards' AC/init aren't a race against the fetch
+      if (window.loadLiveStats) { try { await window.loadLiveStats(); } catch (e) {} }
       await loadCards();
       render();
     }
