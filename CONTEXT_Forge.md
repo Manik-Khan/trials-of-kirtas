@@ -1,4 +1,4 @@
-# CONTEXT — Battle Forge — updated 2026-07-08
+# CONTEXT — Battle Forge — updated 2026-07-11
 
 > This doc exists because the same failure kept happening: a session would read
 > *part* of the material, conclude a feature "was never there," and rebuild
@@ -333,13 +333,19 @@ while playing and the `session_ended` event is written *before* flipping status;
 the harness pops prompts on every controlling window — the real player HUD must
 route prompts per spec §4 (player modal; overseer inherits only on timeout).
 
-**Bite 1 shipped on branch `forge-board`** (2026-07-10) — the marriage: shared dungeon
-from the session row (§5.5 fixed), full turn loop on the real board, folder-filtered
-claim screen, live + staged fight creation, real sheet stats with curated starter action
-bars, bestiary foes incl. mid-fight reinforcements, sheet⇄fight live mirror. It is
-**awaiting M's two-device field checklist** (`FORGE_BOARD.md` appendix — run at the table
-with two devices and the live Supabase) **and applying `schema_delta_forge_board.sql`**
-to that Supabase; neither has happened yet. **Bite 2** is the sheet→actions derivation
+**Bite 1 MERGED to `main` 2026-07-11** — the marriage: shared dungeon from the
+session row (§5.5 fixed), full turn loop on the real board, folder-filtered claim
+screen, live + staged fight creation, real sheet stats with curated starter action
+bars, bestiary foes incl. mid-fight reinforcements, sheet⇄fight live mirror. Merged
+untested-in-field by M's call (local testing was blocked: sign-in lives on the
+netlify origin, so `Open the table` never appears on localhost). Still owed:
+**apply `schema_delta_forge_board.sql`** to the live Supabase (after
+`schema_delta_members.sql` — it uses `is_member()`), then **M's two-device field
+checklist** (`FORGE_BOARD.md` appendix, 14 steps) on the live site. Multiplayer is
+dormant without `?session=`; the single-device sandbox was regression-gated at
+every step. Known-and-accepted for the field pass: a refresh refunds unspent
+movement (coded TODO), and Confirm Order doesn't wait for stragglers (late rolls
+sort to the bottom — empty seats never block). **Bite 2** is the sheet→actions derivation
 layer plus the feel-layer ports (badges, hit flash, shake, bob, floating damage,
 flanking/OA/Ready) — specced in `FORGE_BOARD.md` §0. The older list below stands for the
 single-device port debts.
