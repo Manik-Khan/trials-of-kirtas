@@ -352,6 +352,59 @@ const ROSTER = [
       pipeSR.state().units.gob1.hp === 2);
   })();
 
+  // ── initiative_set resume_at (Task 15b): re-confirming the order mid-fight
+  // (slotting in a reinforcement, FORGE_BOARD.md §6) must resume at the unit
+  // whose turn it was, not restart round 1 ──
+  (function () {
+    var roster = [
+      { unit: "A", side: "pc", pos: { c: 1, r: 1 }, hp: 10 },
+      { unit: "B", side: "pc", pos: { c: 2, r: 1 }, hp: 10 },
+      { unit: "C", side: "foe", pos: { c: 8, r: 8 }, hp: 7 }
+    ];
+    var baseRows = [
+      { seq: 1, kind: "session_started", unit: "__session", payload: {} },
+      { seq: 2, kind: "initiative_set", unit: "__session", payload: { order: ["A", "B"] } },
+      { seq: 3, kind: "turn_ended", unit: "A", payload: {} },
+      { seq: 4, kind: "turn_ended", unit: "B", payload: {} }
+    ];
+    // baseRows alone puts us at round 2, A active (two turn_endeds over a 2-unit
+    // order) — the reslot below must resume there, not restart round 1.
+
+    // resume at the unit whose turn it was — round must not restart
+    var stA = FR.replayLog(roster, baseRows.concat([
+      { seq: 5, kind: "initiative_set", unit: "__session", payload: { order: ["A", "B", "C"], resume_at: "A" } }
+    ]));
+    ok("resume_at A: stays round 2, A active, turnsEnded = 3",
+      stA.turnsEnded === 3 && FR.round(stA) === 2 && FR.activeUnit(stA) === "A");
+
+    // resume mid-order at B
+    var stB = FR.replayLog(roster, baseRows.concat([
+      { seq: 5, kind: "initiative_set", unit: "__session", payload: { order: ["A", "B", "C"], resume_at: "B" } }
+    ]));
+    ok("resume_at B: round 2, B active", FR.round(stB) === 2 && FR.activeUnit(stB) === "B");
+
+    // resume_at absent: fight-start behavior unchanged
+    var stStart = FR.replayLog(roster, [
+      { seq: 1, kind: "session_started", unit: "__session", payload: {} },
+      { seq: 2, kind: "initiative_set", unit: "__session", payload: { order: ["A", "B"] } }
+    ]);
+    ok("no resume_at: fight start unchanged (turnsEnded 0, A active, round 1)",
+      stStart.turnsEnded === 0 && FR.activeUnit(stStart) === "A" && FR.round(stStart) === 1);
+
+    // resume_at naming a unit not in the new order: fall back, narrate, never throw
+    var warned = null;
+    var origWarn = console.warn;
+    console.warn = function (msg) { warned = msg; };
+    var stFallback;
+    try {
+      stFallback = FR.replayLog(roster, baseRows.concat([
+        { seq: 5, kind: "initiative_set", unit: "__session", payload: { order: ["A", "B", "C"], resume_at: "ghost" } }
+      ]));
+    } finally { console.warn = origWarn; }
+    ok("resume_at not in order: falls back to turnsEnded 0, warns, never throws",
+      stFallback.turnsEnded === 0 && !!warned && /ghost/.test(warned));
+  })();
+
   console.log("\n" + pass + " passed, " + fail + " failed");
   process.exitCode = fail ? 1 : 0;
 })();

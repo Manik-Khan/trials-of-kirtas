@@ -57,10 +57,21 @@
     switch (row.kind) {
       case "session_started": state.status = "active"; break;
       case "initiative_rolled": state.rolls[row.unit] = p.roll; break;
-      case "initiative_set":
-        state.initiative = p.order.slice(); state.turnsEnded = 0;
+      case "initiative_set": {
+        var prevRound = round(state);   // BEFORE overwriting order/turnsEnded
+        state.initiative = p.order.slice();
+        if (p.resume_at != null && state.initiative.indexOf(p.resume_at) >= 0) {
+          // mid-fight re-order (FORGE_BOARD.md §6 reinforcements): resume at the
+          // named unit in the current round — a new goblin must not restart the round
+          state.turnsEnded = (Math.max(1, prevRound) - 1) * state.initiative.length
+                           + state.initiative.indexOf(p.resume_at);
+        } else {
+          if (p.resume_at != null) console.warn("[forge-replay] resume_at not in order — restarting round: " + p.resume_at);
+          state.turnsEnded = 0;
+        }
         Object.keys(state.units).forEach(function (k) { state.units[k].reactionUsed = false; });
         break;
+      }
       case "turn_ended": {
         state.turnsEnded++;
         var next = activeUnit(state);   // reaction refreshes at the start of your turn

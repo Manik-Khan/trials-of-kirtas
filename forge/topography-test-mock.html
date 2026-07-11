@@ -5148,10 +5148,12 @@ function confirmSlotInitiative(){
   var pending=unslottedUnits();
   if(!pending.length){ closeSlotModal(); return; }
   var order=st.initiative.concat(pending);
+  var resumeAt=sess.pipe.activeUnit();   // this is a mid-fight re-order (FORGE_BOARD.md §6) —
+                                          // resume at whoever's turn it was, never restart the round
   var names=pending.map(function(k){ return escapeHtml((unitByKey(k)&&unitByKey(k).name)||k); }).join(", ");
   closeSlotModal();
   clog("<i>The DM slots "+names+" into the turn order.</i>");
-  netSessionPublish("initiative_set", sess.pipe.setInitiative(order));
+  netSessionPublish("initiative_set", sess.pipe.setInitiative(order,resumeAt));
 }
 
 addEventListener("pointerup", function(e){ if(CB.active&&!CB.over&&!CB.react&&moved<6) combatClick(e.clientX,e.clientY); });

@@ -145,7 +145,11 @@
 
       /* overseer tools — the bus identity gate is the enforcement */
       start: function () { return publish("__session", "session_started", {}); },
-      setInitiative: function (order) { return publish("__session", "initiative_set", { order: order }); },
+      setInitiative: function (order, resumeAt) {
+        var payload = { order: order };
+        if (resumeAt != null) payload.resume_at = resumeAt;   // reinforcements (FORGE_BOARD.md §6): resume, don't restart the round
+        return publish("__session", "initiative_set", payload);
+      },
       override: function (seq, correction) {
         return publish("__session", "override", { corrects_seq: seq, correction: correction });
       },

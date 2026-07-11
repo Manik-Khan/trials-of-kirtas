@@ -57,7 +57,7 @@ round) is never stored — it is derived by replaying the log top to bottom.
 |---|---|---|---|
 | `session_started` | "We're fighting — map and roster locked." | `{}` (map/roster live on the session row) | overseer |
 | `initiative_rolled` | "I rolled a 14." | `{roll}` | each player (own device); overseer for foes/absent |
-| `initiative_set` | "Order is: Caim, goblin 2, Cosmere…" | `{order:[unit,...]}` | overseer |
+| `initiative_set` | "Order is: Caim, goblin 2, Cosmere…" | `{order:[unit,...], resume_at?}` | overseer |
 | `turn_ended` | "Done." | `{}` | active player; overseer may force (actor shows who) |
 | `move_declared` | "I move along this path." | `{path}` | mover |
 | `move_resolved` | "…and arrive." (or stop short) | `{final_cell, interrupted_at?}` | mover |
@@ -77,6 +77,10 @@ round) is never stored — it is derived by replaying the log top to bottom.
   `payload.to`. If `unit` were the prompted unit, the §1 identity gate would reject the
   insert (the asker doesn't control the defender). Same trap as `turn_started`, dodged
   the same way.
+- **`resume_at` (optional) on `initiative_set`** — when a fight is already underway
+  and the order is re-confirmed mid-fight (slotting a reinforcement into the turn
+  order, FORGE_BOARD.md §6), naming the currently-active unit here resumes the round
+  in place instead of restarting it at position 0. Omit it for fight start.
 - **There is deliberately no `turn_started` event.** Turn start is derived: `initiative_set`
   order + count/position of `turn_ended` events (round increments on wrap). An explicit
   event would need a writer who doesn't control the incoming unit, which the identity gate
