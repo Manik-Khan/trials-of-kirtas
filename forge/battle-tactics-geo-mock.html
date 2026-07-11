@@ -445,12 +445,25 @@ function segHitsWall(map, x0, y0, x1, y1, aC, aR, bC, bR) {
   return segOccluded(map, x0, y0, z, x1, y1, z, aC, aR, bC, bR);
 }
 var CORNERS = [[0,0],[1,0],[0,1],[1,1]];
-function losVerdict(map, a, b) {
-  // From the attacker's actual eye (square centre, EYE_FT up) — not the most
-  // favourable corner — which matches the single drawn sight-line and refuses
-  // the "peek around the edge" loophole that let shots graze straight through
-  // a wall and still count as half cover.
-  var ax = a.c + 0.5, ay = a.r + 0.5, az = heightAt(map, a.c, a.r) + EYE_FT;
+/* Ledge peek (M's table ruling, 2026-07-11): standing AT a ledge means you
+   lean over it — that is why step-to-the-ledge, shoot, step-back is a real
+   tactic. A corner of the attacker's own square is a LIP corner when any of
+   the three other cells sharing it has a top (occTop) below the attacker's
+   floor. Flat ground offers no lip corners, so the centre-only eye — which
+   refuses the sideways peek-around-the-edge loophole — is unchanged, and one
+   square back from the edge the lip cell still blocks (dead ground stands). */
+function lipCorners(map, c, r) {
+  var floor = heightAt(map, c, r), out = [];
+  for (var k = 0; k < CORNERS.length; k++) {
+    var dx = CORNERS[k][0] ? 1 : -1, dy = CORNERS[k][1] ? 1 : -1;
+    if (occTop(map, c + dx, r) < floor - 1e-9 ||
+        occTop(map, c, r + dy) < floor - 1e-9 ||
+        occTop(map, c + dx, r + dy) < floor - 1e-9)
+      out.push([c + CORNERS[k][0], r + CORNERS[k][1]]);
+  }
+  return out;
+}
+function verdictFromEye(map, ax, ay, az, a, b) {
   var bh = heightAt(map, b.c, b.r);
   var zHead = bh + EYE_FT, zFeet = bh + FOOT_FT;
   var blocked = 0;
@@ -469,10 +482,32 @@ function losVerdict(map, a, b) {
   else { cover = "three-quarters"; acBonus = 5; }  // heavy clip, or a blocked centre
   return { cover: cover, acBonus: acBonus, blocked: blocked, canTarget: cover !== "total" };
 }
+function losVerdict(map, a, b) {
+  // Centre eye first — the honest default (not the most favourable corner:
+  // that loophole let shots graze through walls sideways). Lip corners are
+  // tried only when the centre verdict left cover to shave, and only where
+  // the ground falls away. The winning eye rides back in v.eye so the drawn
+  // sight line can start where the ruling looked from.
+  var az = heightAt(map, a.c, a.r) + EYE_FT;
+  var v = verdictFromEye(map, a.c + 0.5, a.r + 0.5, az, a, b);
+  v.eye = { x: a.c + 0.5, y: a.r + 0.5, peek: false };
+  if (v.acBonus === 0) return v;
+  var lips = lipCorners(map, a.c, a.r);
+  for (var e = 0; e < lips.length; e++) {
+    var w = verdictFromEye(map, lips[e][0], lips[e][1], az, a, b);
+    if (w.acBonus < v.acBonus) { w.eye = { x: lips[e][0], y: lips[e][1], peek: true }; v = w; }
+    if (v.acBonus === 0) break;
+  }
+  return v;
+}
 
-/* center-to-center ray, for drawing the "is the shot clear" line */
-function losRay(map, a, b) {
-  var x0 = a.c + 0.5, y0 = a.r + 0.5, z0 = heightAt(map, a.c, a.r) + EYE_FT;
+/* center-to-center ray, for drawing the "is the shot clear" line.
+   Optional eye {x,y} starts the ray where losVerdict's winning eye looked
+   from (ledge peek), so the drawn line agrees with the ruling. */
+function losRay(map, a, b, eye) {
+  var x0 = (eye && eye.x != null) ? eye.x : a.c + 0.5,
+      y0 = (eye && eye.y != null) ? eye.y : a.r + 0.5,
+      z0 = heightAt(map, a.c, a.r) + EYE_FT;
   var x1 = b.c + 0.5, y1 = b.r + 0.5, z1 = heightAt(map, b.c, b.r) + EYE_FT;
   var steps = 240;
   for (var s = 1; s < steps; s++) {
@@ -490,7 +525,7 @@ var API = {
   isWall: isWall, occTop: occTop, chebyshev: chebyshev,
   stepAllowed: stepAllowed, movementReach: movementReach, pathTo: pathTo,
   canReachMelee: canReachMelee, range3d: range3d, inRange: inRange,
-  losVerdict: losVerdict, losRay: losRay
+  losVerdict: losVerdict, losRay: losRay, lipCorners: lipCorners
 };
 if (typeof module !== "undefined" && module.exports) module.exports = API;
 global.TacticsGeo = API;

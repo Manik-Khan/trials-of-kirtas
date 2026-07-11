@@ -71,12 +71,39 @@ console.log('\n── a flat ray cannot rise: standing back never helps a level 
 console.log('\n── height beats the wall — but it is the OPPOSITE lever ──');
 console.log('   (the ray FALLS toward a lower target, so elevation buys you');
 console.log('    a wall you stand near, and loses you one you stand far from)');
-{ const m = map(20, 3);
-  set(m, 10, 1, { occ: 10.5 });                                     // temple wall, c=10
-  t('level with the wall base, 8 squares off', cover(m, {c:2,r:1}, {c:18,r:1}), 'total');
-  for (let c = 0; c < 10; c++) set(m, c, 1, { h: 10 });             // shooter plateau, 2 tiers
-  t('two tiers up, 2 squares from the wall',   cover(m, {c:8,r:1}, {c:18,r:1}), 'none');
-  t('two tiers up, 8 squares from the wall',   cover(m, {c:2,r:1}, {c:18,r:1}), 'total'); }
+{ /* 5 rows + a full wall COLUMN so the shooter stands MID-plateau: a 3-row
+     map made the plateau a one-cell ridge, and under the 2026-07-11 ledge-
+     peek ruling a ridge shooter leans over its lips — a different case,
+     tested in the ledge-peek section below. Off the lip, nothing changed. */
+  const m = map(20, 5);
+  for (let r = 0; r < 5; r++) set(m, 10, r, { occ: 10.5 });         // temple wall column, c=10
+  t('level with the wall base, 8 squares off', cover(m, {c:2,r:2}, {c:18,r:2}), 'total');
+  for (let r = 0; r < 5; r++) for (let c = 0; c < 10; c++) set(m, c, r, { h: 10 }); // shooter plateau, 2 tiers
+  t('two tiers up, 2 squares from the wall',   cover(m, {c:8,r:2}, {c:18,r:2}), 'none');
+  t('two tiers up, 8 squares from the wall',   cover(m, {c:2,r:2}, {c:18,r:2}), 'total'); }
+
+console.log("\n── ledge peek: at the lip you lean over (M's ruling, 2026-07-11) ──");
+console.log('   (step to the ledge, shoot, step back — the strategy is real:');
+console.log('    one square back, the lip cell is dead ground again)');
+{ const m = map(20, 5);                                             // plateau c0..4 at 15 ft,
+  for (let r = 0; r < 5; r++) {                                     // a 12 ft wall column at c=8
+    for (let c = 0; c <= 4; c++) set(m, c, r, { h: 15 });           // (top 3 ft BELOW the lip),
+    set(m, 8, r, { occ: 12 });                                      // mob on low ground at c=12
+  }
+  const atLip = G.losVerdict(m, {c:4,r:2}, {c:12,r:2});
+  t('at the lip, wall top below your feet: the shot exists', atLip.cover, 'three-quarters');
+  t('  …and canTarget says so', atLip.canTarget, true);
+  t('one square back: dead ground returns', cover(m, {c:3,r:2}, {c:12,r:2}), 'total'); }
+{ const m = map(20, 3);                                             // the old 3-row "plateau":
+  set(m, 10, 1, { occ: 10.5 });                                     // a RIDGE — both sides drop,
+  for (let c = 0; c < 10; c++) set(m, c, 1, { h: 10 });             // so every corner is a lip
+  const v = G.losVerdict(m, {c:2,r:1}, {c:18,r:1});
+  t('a ridge shooter leans: far temple wall shaved to three-quarters', v.cover, 'three-quarters');
+  t('  …and the verdict names the peeked eye', v.eye.peek, true); }
+{ const m = map(12, 3);                                             // flat ground: no drop, no
+  set(m, 9, 1, { occ: 4.5 });                                       // lean — the sideways-peek
+  const v = G.losVerdict(m, {c:1,r:1}, {c:10,r:1});                 // loophole stays closed
+  t('flat ground never peeks', v.eye.peek, false); }
 
 console.log('\n── dead ground: below a cliff, you cannot see the mob set back from the rim ──');
 { const m = map(30, 3);

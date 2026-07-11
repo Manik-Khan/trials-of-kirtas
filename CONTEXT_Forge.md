@@ -168,6 +168,17 @@ real placement. **These are decisions, not hypotheses.**
   wall raises the ray *at the wall* only when the target is above you. Elevation
   buys you a wall you stand near and loses you one you stand far from.
   A flat ray cannot rise, so a level shot is never helped by stepping back.
+- **Ledge peek — amendment, M's ruling 2026-07-11.** Standing *at* a lip you lean
+  over it: a corner of the attacker's own square is a **lip corner** when any of
+  the three other cells sharing it has an occTop below the attacker's floor, and
+  `losVerdict` tries those lip corners as alternate eyes (same eye height) only
+  when the honest centre-eye verdict left cover to shave. It does **not** relitigate
+  the dead-ground bullets above: one square back from the edge there are no lip
+  corners, so the dead ground still stands (step-to-ledge → shoot → step-back stays
+  the intended tactic), and flat ground offers no lip corners either — the sideways
+  corner-peek-around-a-wall loophole stays closed. The verdict now rides back an
+  `eye:{x,y,peek}`; `peek:true` reports when a lip corner won. `losRay(map,a,b,eye)`
+  takes the winning eye so the drawn line starts where the ruling looked from.
 - **Cover is graded**, 8 corner-lines (4 corners × head/feet):
   `0 → none · 1–4 → half (+2) · 5–7 → three-quarters (+5) · 8 → total`.
   A 4.5 ft boulder yields ¾. A 10.5 ft temple wall yields total.
@@ -177,8 +188,8 @@ real placement. **These are decisions, not hypotheses.**
   volcanic 8.5 *(placeholder — no SKINS entry yet)*.
   Props: rock 4.5 · tree 5.5 · reed 3.5 · mushroom 2 · column 15.
   Moss, bones, cracks, banners, icicles occlude nothing.
-- **`smoke-los-cover.js` (27 cases) encodes all of the above.** If a change
-  breaks it, the change is wrong until argued otherwise.
+- **`smoke-los-cover.js` (33 cases) encodes all of the above** (was 27; +ledge-peek
+  section, 2026-07-11). If a change breaks it, the change is wrong until argued otherwise.
 
 ---
 
