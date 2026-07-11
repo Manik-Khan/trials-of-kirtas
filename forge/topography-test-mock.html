@@ -3404,6 +3404,7 @@ window.__startCombat=startCombat;
    pipeline's deps hold) — module-scoped functions aren't reachable from a
    classic <script> without an explicit export, same reason CHAR needed one. */
 window.refreshControllers = refreshControllers;
+window.renderHud = renderHud;
 vesApply();   // kick off the Vesperian sheet fetch; failure narrates on the chip
 document.dispatchEvent(new CustomEvent("topo:ready"));
 
@@ -3610,7 +3611,8 @@ function deriveFightControllers(row, uid){
 }
 async function bootSession(sid){
   const { data:{ user } } = await sb.auth.getUser();
-  if (!user) { clog('<b>Sign in to join the fight.</b>'); return; }
+  if (!user) { var pc=document.getElementById('psCount'); if(pc) pc.innerHTML='<b>Sign in to join the fight.</b>';
+    clog('<b>Sign in to join the fight.</b>'); return; }
   /* Bridge for character-data.js: it normally waits on nav.js's window.__tok
      (session + Supabase client, assembled by the site's shared nav chrome).
      This mock doesn't load nav.js — sharing the SAME already-authenticated
@@ -4674,7 +4676,7 @@ addEventListener("pointerup", function(e){ if(CB.active&&!CB.over&&!CB.react&&mo
       } catch (e) { /* keep the last-known row — the claim result itself still narrates */ }
       busy = false;
       if (res.ok) {
-        if (window.refreshControllers) { try { await window.refreshControllers(); } catch (e) {} }
+        if (window.refreshControllers) { try { await window.refreshControllers(); if (window.renderHud) window.renderHud(); } catch (e) {} }
         var nowActive = stg.row.status === "active";
         say('<b style="color:var(--fg)">Claimed ' + esc(r.name || unit) + '.</b>' + (nowActive ? ' Entering the fight\u2026' : ' Waiting on the rest of the table\u2026'));
         render();
