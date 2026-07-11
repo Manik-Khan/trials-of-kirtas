@@ -2527,6 +2527,109 @@ function pipelineHit(attacker, a, hs, target, applyDmg, done){
   }
 }
 
+/* \u2500\u2500 Task 8: reactions over the wire \u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500
+   Ports pipelineHit/preDmg's candidate selection (same priority order:
+   Silvery Barbs \u2192 Shield \u2192 Hellish Rebuke) so it runs off a REPLAYED
+   `state` instead of the local CB.units the sandbox mutates in place.
+   Eligibility reuses reactReady() itself (not a rewrite), fed a merged
+   view: alive/reacted/hp come from `state` (the facts every device agrees
+   on), react/res/range come from unitByKey()'s CB.units entry (kit data;
+   kits aren't part of replay state, Task 16 wires real kit sourcing).
+   reactionCandidates() is called repeatedly by forge-pipeline's askAll();
+   it holds no state of its own between calls, the running hit/AC/roll
+   state (pipelineHit's hs, ported) is rebuilt from `answers` every time
+   via replayHitState(), the same helper resolveFacts() uses in netAttack/
+   netFoeAttack below, one hit-folding implementation, not two. */
+function reactStateFor(state,unitKey){
+  var su=state.units&&state.units[unitKey], ku=unitByKey(unitKey);
+  if(!su||!ku) return null;
+  return { alive:!su.downed, reacted:!!su.reactionUsed, react:ku.react, res:ku.res };
+}
+function wireReactReady(state,unitKey,key){
+  var proxy=reactStateFor(state,unitKey);
+  return !!proxy && reactReady(proxy,key);   // same helper the local sandbox uses, not forked
+}
+/* Rebuilds pipelineHit's running hs {roll,crit,hit,acBonus} from the
+   declared payload's pre-reaction facts plus every ACCEPTED answer so far,
+   in the order they were asked (askAll enforces one prompt at a time).
+   Each unit in this roster has exactly one react key, so the answering
+   unit alone identifies which reaction an answer was for, no need to
+   thread a react tag through prompt_answered's payload. */
+function replayHitState(payload,answers){
+  var hs={ roll:payload.roll, crit:!!payload.crit, hit:!!payload.hit, acBonus:payload.cover||0 };
+  (answers||[]).forEach(function(row){
+    var pl=row&&row.payload; if(!pl||!pl.use) return;
+    var ku=unitByKey(row.unit), key=ku&&ku.react&&Object.keys(ku.react)[0];
+    if(key==="silveryBarbs" && pl.roll!=null){ hs.roll=pl.roll; hs.crit=!!pl.crit; hs.hit=!!pl.hit; }
+    else if(key==="shield"){ hs.acBonus+=5; hs.hit=!!pl.hit; }
+  });
+  return hs;
+}
+function reactionCandidates(state,declaredRow,answers){
+  if(!declaredRow || declaredRow.kind!=="attack_declared") return [];   // moves don't offer OA reactions yet (unwired, task-7/7b reports)
+  var p=declaredRow.payload||{}, attacker=declaredRow.unit, target=p.target;
+  if(!state.units || !state.units[attacker] || !state.units[target]) return [];
+  var hs=replayHitState(p,answers);
+  if(!hs.hit) return [];   // a confirmed miss never reaches Shield/Barbs/Rebuke; matches pipelineHit/preDmg
+  var cands=[], aPos=state.units[attacker].pos, tSide=state.units[target].side;
+  Object.keys(state.units).forEach(function(k){
+    if(!wireReactReady(state,k,"silveryBarbs") || state.units[k].side!==tSide) return;
+    var ku=unitByKey(k);
+    if(cbDist({c:state.units[k].pos.c,r:state.units[k].pos.r},{c:aPos.c,r:aPos.r})<=ku.react.silveryBarbs.range*5)
+      cands.push({ to:k, react:"silveryBarbs",
+        context:{ attacker:attacker, target:target, hitBonus:p.hitBonus||0, cover:p.cover||0 } });
+  });
+  if(wireReactReady(state,target,"shield"))
+    cands.push({ to:target, react:"shield",
+      context:{ attacker:attacker, hitBonus:p.hitBonus||0, roll:hs.roll, crit:hs.crit, cover:hs.acBonus } });
+  if(wireReactReady(state,target,"hellishRebuke"))
+    cands.push({ to:target, react:"hellishRebuke", context:{ attacker:attacker } });
+  return cands;
+}
+/* forge-pipeline's onPrompt: fires only on the device that controls
+   `to` (the pipeline's own controlsUnit() gate — see forge-pipeline.js
+   ingest()). Computes the SAME reaction math pipelineHit's onUse
+   callbacks do (kit data — CHAR/FOE — is identical static data on every
+   device, so this device can roll its own reaction dice/save exactly as
+   the local sandbox would), then answers with the result as a fact.
+   TODO(Task 9): modal — confirm() stands in for the real prompt UI. */
+function onWirePrompt(row){
+  var p=row.payload||{}, ctx=p.context||{};
+  var u=unitByKey(p.to); if(!u) return;
+  var askerU=unitByKey(ctx.attacker), askerName=askerU?askerU.name:"the attacker";
+  var label=REACT_LABEL[p.react]||p.react, desc=label;
+  if(p.react==="silveryBarbs") desc="Force "+askerName+"'s hit to reroll (disadvantage)?";
+  else if(p.react==="shield") desc="+5 AC vs "+askerName+"'s hit?";
+  else if(p.react==="hellishRebuke") desc="Deal 2d10 fire to "+askerName+" (DEX save)?";
+  var use=confirm(u.name+" — "+label+"\n"+desc);
+  var extra={}, clogLine=null;
+  if(use){
+    if(p.react==="silveryBarbs"){
+      var roll=d20a(false,true), crit=roll===20;
+      var tU=unitByKey(ctx.target), hit=crit||(roll!==1 && roll+(ctx.hitBonus||0)>=((tU&&tU.ac)||0)+(ctx.cover||0));
+      extra={ roll:roll, crit:crit, hit:hit };
+      clogLine="Silvery Barbs — "+askerName+" rerolls: "+roll+(hit?"":" → miss");
+    } else if(p.react==="shield"){
+      var hit2=!!ctx.crit || (ctx.roll!==1 && ctx.roll+(ctx.hitBonus||0)>=((u.ac||0)+5)+(ctx.cover||0));
+      extra={ hit:hit2 };
+      clogLine="Shield — "+u.name+" AC "+((u.ac||0)+5)+(hit2?"":" → the blow misses");
+    } else if(p.react==="hellishRebuke"){
+      var rc=u.react&&u.react.hellishRebuke;
+      var sv=d(20)+((askerU&&askerU.save)||0), dmg=rc?rollDmg(rc.dmg):0;
+      var final=(rc&&sv>=rc.dc)?Math.floor(dmg/2):dmg;
+      extra={ dmg:final, sv:sv, dc:rc&&rc.dc };
+      clogLine="Hellish Rebuke — "+askerName+" DEX save "+sv+" vs "+(rc&&rc.dc)+": "+final+" fire";
+    }
+  }
+  window.__forgeSession.pipe.answerPrompt(p.to,row.seq,use,extra).then(function(r){
+    if(r && r.ok===false){ netPublishFail(r); return; }
+    // resource spend / .reacted bookkeeping lands on THIS unit's OWN device
+    // only (mirrors payReact's local role) — other devices learn reactionUsed
+    // from the prompt_answered echo itself (forge-replay.js applyEvent).
+    if(use){ payReact(u,p.react); if(clogLine) clog(clogLine); snapshot(REACT_LABEL[p.react]); renderHud(); }
+  });
+}
+
 /* ── resolution ─────────────────────────────────────────────────────── */
 function resolveStrike(u,a,t,ro,done){
   if(u._ves) vesPlay(u, a.spell?"cast":"attack");
@@ -2972,8 +3075,8 @@ async function bootSession(sid){
   let lastState;
   const pipe = window.ForgePipeline.makePipeline({
     conn, roster: row.roster, me,
-    reactions: () => [],                     // Task 8 fills this
-    onPrompt: () => {}, onPromptFallback: () => {},   // Task 9 fills these
+    reactions: reactionCandidates,
+    onPrompt: onWirePrompt, onPromptFallback: () => {},   // Task 9 fills the overseer timeout fallback
     onEvent: (r, st) => { const before = lastState; lastState = window.ForgeReplay.snapshot(st);
       if (__awaitingCount > 0 && r.unit === __awaitingUnit && r.kind === __awaitingKind) {
         __awaitingCount--;
@@ -3020,6 +3123,13 @@ async function bootSession(sid){
 }
 // echo-loss watchdog: publish succeeded but the echo never came — the log is truth, refetch it
 function checkEchoStall(){
+  // Task 8: a live reaction prompt owns the declared→resolved gap on purpose
+  // (a prompt can legitimately sit for 20s+ waiting on a human) — that is
+  // not a lost echo, so the watchdog holds off for as long as the pipeline's
+  // replayed state shows one pending. Refreshing __awaitingSince here (rather
+  // than skipping the check outright) means the 12s countdown starts fresh
+  // the instant the prompt clears, same as any other in-flight progress.
+  if (__pipe && __pipe.state().pendingPrompt) { __awaitingSince = Date.now(); return; }
   if (__awaitingCount > 0 && __awaitingSince && (Date.now() - __awaitingSince) > 12000) {
     clog('<i>The table isn\'t answering — re-syncing from the log…</i>');
     var parkedSettle = __awaitingSettled; __awaitingSettled = null;
@@ -3095,22 +3205,43 @@ function netAttack(u,a,t){
     var hit=crit||(roll!==1 && roll+a.hit>=t.ac+cover);
     var tag = adv?" adv"+(av.why.length?" ("+av.why.join(", ")+")":"") : dis?" disadv" : "";
     clog(u.name+" → "+t.name+": "+a.label+" ("+roll+"+"+a.hit+" vs AC "+(t.ac+cover)+(cover?" cov":"")+tag+")"+(hit?"":" — miss"));
-    var dmg=0;
-    if(hit){
-      dmg=rollDmg(a.dmg)+(crit?rollDmg(a.dmg)-parseDmg(a.dmg).bonus:0);
-      if(u.raging&&(a.rng||1)<=1) dmg+=2; if(CB.hexed===t.id) dmg+=d(6);
-      hpLeft-=dmg;
-      /* boomMark/CB.st are client-local bookkeeping (never part of the
-         replayed state, same reasoning as the walk verb's budget update
-         above) — safe to set immediately; nothing publishes it. boomTrigger
-         itself isn't wired to netMove/session movement yet (flagged in the
-         report), so this currently arms inertly in session play. */
-      if(a.rider==="boom" && hpLeft>0) t.boomMark={by:u.id};
-    } else floatAt(t,"miss","miss");
     if(__awaitingCount++===0) __awaitingSince = Date.now();   // Finding 2: one publish per strike — buttons re-enable only once every strike's echo (or failure) has landed
     renderHud();
-    window.__forgeSession.pipe.attack(u.unit, { target: t.unit, roll: roll, adv: adv, dis: dis, crit: crit, mode: a.label },
-        function(){ return { hit: hit, dmg: dmg }; })
+    /* Task 8: hitBonus/cover/hit ride along on the declared payload as
+       facts (validateEvent only requires target+roll) so reactionCandidates
+       and the prompted device's onPrompt handler can recompute hit without
+       re-deriving cover geometry on another screen. Damage is NOT rolled
+       here — pipelineHit's local order rolls damage only once the hit is
+       FINAL (post Silvery Barbs/Shield), so resolveFacts (below) rolls it
+       only after askAll() has run every reaction prompt for this strike. */
+    window.__forgeSession.pipe.attack(u.unit,
+        { target: t.unit, roll: roll, adv: adv, dis: dis, crit: crit, mode: a.label, hitBonus: a.hit, cover: cover, hit: hit },
+        function(answers){
+          var hs=replayHitState({ roll:roll, crit:crit, hit:hit, cover:cover }, answers);
+          var effects=[], dmg=0;
+          if(hs.hit){
+            dmg=rollDmg(a.dmg)+(hs.crit?rollDmg(a.dmg)-parseDmg(a.dmg).bonus:0);
+            if(u.raging&&(a.rng||1)<=1) dmg+=2; if(CB.hexed===t.id) dmg+=d(6);
+            hpLeft=Math.max(0,hpLeft-dmg);
+            /* boomMark/CB.st are client-local bookkeeping (never part of the
+               replayed state, same reasoning as the walk verb's budget update
+               above) — safe to set immediately; nothing publishes it. boomTrigger
+               itself isn't wired to netMove/session movement yet (flagged in the
+               report), so this currently arms inertly in session play. */
+            if(a.rider==="boom" && hpLeft>0) t.boomMark={by:u.id};
+          } else {
+            if(hit) clog("<i>"+a.label+" — a reaction turned that hit into a miss.</i>");
+            floatAt(t,"miss","miss");
+          }
+          // Hellish Rebuke: the target's controller already rolled the (save-adjusted)
+          // final damage and sent it in the answer's extra — fold it in as a fact,
+          // same shape forge-replay's applyEffects expects ({unit,dmg}).
+          var rb=(answers||[]).filter(function(row){
+            var ku=unitByKey(row.unit); return ku&&ku.react&&Object.keys(ku.react)[0]==="hellishRebuke" && row.payload && row.payload.use;
+          })[0];
+          if(rb) effects.push({ unit:u.unit, dmg:rb.payload.dmg });
+          return { hit: hs.hit, dmg: dmg, effects: effects };
+        })
       .then(function(r){ if (r && r.ok === false) { netPublishFail(r); return; } strike(); });
   })();
 }
@@ -3153,9 +3284,28 @@ function foeTurnDone(){
    log/turn-economy unsynced on other screens). */
 function netFoeAttack(u,atk,t,hs,adv,dis){
   __awaitingUnit=u.unit; __awaitingKind='attack_resolved'; if(__awaitingCount++===0) __awaitingSince = Date.now(); renderHud();
-  var dmg = hs.hit ? rollDmg(atk.dmg) : 0;
-  return window.__forgeSession.pipe.attack(u.unit, { target:t.unit, roll:hs.roll, adv:!!adv, dis:!!dis, crit:hs.crit, mode:atk.label },
-      function(){ return { hit:hs.hit, dmg:dmg }; })
+  /* Task 8: this IS the walkthrough FORGE_PROTOCOL.md §4 leads with (goblin
+     attacks Cosmere, who has Shield) — target=PC, so Shield/Barbs/Rebuke are
+     all reachable here. Same replayHitState()/effects fold as netAttack;
+     foes never crit-double or reroll bonus dice (Task 7b's own carve-out —
+     strikePhase's math never did either), so damage here stays the plain
+     single rollDmg() the pre-Task-8 code always used. */
+  return window.__forgeSession.pipe.attack(u.unit,
+      { target:t.unit, roll:hs.roll, adv:!!adv, dis:!!dis, crit:hs.crit, mode:atk.label, hitBonus:atk.hit, cover:hs.acBonus||0, hit:hs.hit },
+      function(answers){
+        var fhs=replayHitState({ roll:hs.roll, crit:hs.crit, hit:hs.hit, cover:hs.acBonus||0 }, answers);
+        var dmg = fhs.hit ? rollDmg(atk.dmg) : 0;
+        if(!fhs.hit){
+          if(hs.hit) clog("<i>"+atk.label+" — a reaction turned that hit into a miss.</i>");
+          floatAt(t,"miss","miss");
+        }
+        var effects=[];
+        var rb=(answers||[]).filter(function(row){
+          var ku=unitByKey(row.unit); return ku&&ku.react&&Object.keys(ku.react)[0]==="hellishRebuke" && row.payload && row.payload.use;
+        })[0];
+        if(rb) effects.push({ unit:u.unit, dmg:rb.payload.dmg });
+        return { hit:fhs.hit, dmg:dmg, effects:effects };
+      })
     .then(function(r){ if (r && r.ok===false) netPublishFail(r); return r; });
 }
 /* Task 7b req 2/3/4: shared publish for the non-attack action kinds (heal,
