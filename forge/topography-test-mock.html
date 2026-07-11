@@ -29,6 +29,12 @@
 <script src="forge-pipeline.js?v=fb1"></script>
 <script src="forge-board.js?v=fb1"></script>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<!-- Task 11: Start fight reads live PC vitals off the real sheet. character-data.js
+     normally waits on nav.js's window.__tok — this mock doesn't carry nav.js's full
+     site chrome, so bootSession bridges its own already-authenticated Supabase client
+     into window.__tok (see bootSession below). If that bridge or the read itself fails,
+     startFight() narrates and falls back to kit HP — never blocks the fight. -->
+<script src="../character-data.js?v=fb1"></script>
 <script>/* ── inlined canonical forge/tactics-geometry.js — MUST stay code-identical ── */
 /* ════════════════════════════════════════════════════════════════════
    tactics-geometry.js — pure map-geometry rules over the MAP DOCUMENT.
@@ -293,6 +299,11 @@ global.TacticsGeo = API;
     text-transform:uppercase;letter-spacing:1.4px;font-size:9px;color:var(--tk-ink-dim);line-height:1.9;pointer-events:none}
   .attrib .k{color:var(--tk-ink)}
   @media (max-width:660px){.panel{width:calc(100% - 40px)}.attrib{display:none}.masthead .dn{font-size:12px}}
+  /* Task 11: session lifecycle — Open the table / Save for later / staged list */
+  .fbStagedRow{display:flex;align-items:center;gap:6px;margin-bottom:6px}
+  .fbStagedRow .fname{margin-bottom:0;flex:1;white-space:normal}
+  .fbStagedRow .filebtn{flex:none;padding:6px 8px}
+  #fbLifecycleMsg{min-height:1.4em;word-break:break-word;white-space:normal}
 /* ── party.html character select, folded onto the Forge (dark cinematic) ── */
 #partySelect{ --field:#0d0a07; --fg:#f0e6ce; --fg-dim:#9a8f78; --accent:#8a2222; --line:rgba(184,149,42,.30); --gold:#b8952a;
   position:fixed; inset:0; z-index:120; background:var(--field); color:var(--fg);
@@ -543,6 +554,20 @@ global.TacticsGeo = API;
       <label>Foes <span class="val" id="foesVal">5</span></label>
       <input type="range" id="foes" min="1" max="8" value="5">
     </div>
+    <!-- Task 11: the two doors (FORGE_BOARD.md §3) — hidden until we know the
+         viewer is signed in AND not already inside a session (initLifecyclePanel
+         only runs when there's no ?session=). -->
+    <div id="fbLifecycle" style="display:none">
+      <div class="divider"></div>
+      <div class="eyebrow" style="margin-bottom:6px">THE TABLE</div>
+      <div class="improw">
+        <button class="filebtn" id="fbOpenTable">Open the table</button>
+        <button class="filebtn" id="fbSaveLater">Save for later</button>
+      </div>
+      <div class="fname" id="fbLifecycleMsg"></div>
+      <div class="eyebrow" style="margin:9px 0 6px">Staged fights</div>
+      <div id="fbStagedList"></div>
+    </div>
     <div class="divider"></div>
     <div class="eyebrow" style="margin-bottom:6px">CAMERA (local)</div>
     <div class="slider-wrap">
@@ -653,6 +678,20 @@ global.TacticsGeo = API;
         <div class="cbReactBtns" id="cbInitLobbyOverseerBtns" style="display:none">
           <button class="cbReactSkip" id="cbInitRollRest">Roll for the rest</button>
           <button class="cbReactUse" id="cbInitConfirm">Confirm order</button>
+        </div>
+      </div>
+    </div>
+    <!-- Task 11: session-only staging panel — shown while the pipeline's replayed
+         status is still "staging" (before Start fight publishes session_started).
+         Overseer gets the Start fight button; everyone else gets the waiting
+         banner. Lifecycle mirrors cbInitLobby's (syncInitiativeLobby drives both). -->
+    <div class="cbReact" id="cbStagingPanel" style="display:none">
+      <div class="cbReactCard">
+        <div class="cbReactEy">Staging</div>
+        <div class="cbReactTitle">Fight is forming</div>
+        <div class="cbReactDesc" id="cbStagingDesc">waiting for the DM to start&hellip;</div>
+        <div class="cbReactBtns" id="cbStagingOverseerBtns" style="display:none">
+          <button class="cbReactUse" id="cbStartFight">Start fight</button>
         </div>
       </div>
     </div>
@@ -2339,7 +2378,14 @@ function applyVerb(v){
     case "despawn":if(u){ removeToken(u); CB.units=CB.units.filter(function(x){return x!==u;}); CB.order=CB.order.filter(function(x){return x!==u;}); } break;
     case "turn":   setActiveFromLog(v.unit, v.round); break;   // Task 8 fleshes the HUD side
     case "status": if(v.status==="ended"){ CB.over=true; clog("<b>Fight over.</b>");
-      clearPromptUI(); } break;   // Finding 3a (review): end fight must not leave an open reaction prompt (modal or banner) answerable
+      clearPromptUI(); }
+      /* Task 11: session_started's own verb is just this status flip (forge-board.js
+         never diffs roster) — Start fight wrote real pos/hp into the ROW, not the log,
+         so a device that's been sitting on the staging screen since before Start fight
+         (this echo is everyone's, including the overseer's own) needs one refetch to
+         pick them up. A fresh join/reload already gets them straight off row.roster. */
+      else if(v.status==="active") syncRosterFacts();
+      break;   // Finding 3a (review): end fight must not leave an open reaction prompt (modal or banner) answerable
     case "chat":   clog("<i>"+escapeHtml(v.unit)+":</i> "+escapeHtml(v.text)); break;
     case "prompt":       routePrompt(v.prompt); break;         // banner for everyone but the responder (onWirePrompt owns their modal)
     case "prompt_clear": clearPromptUI(); break;
@@ -2352,6 +2398,25 @@ function resyncFromState(st){
   CB.units=CB.units.filter(function(u){ return (st.units||{})[u.unit]; });
   CB.order=CB.order.filter(function(u){ return (st.units||{})[u.unit]; });
   renderHud();
+}
+/* Task 11: pulled the fresh roster off the row on the session_started echo
+   (applyVerb's "status" case) and moves/heals every token onto the facts
+   Start fight computed. Best-effort — a failure here just leaves the ghost
+   pile up until the next refresh, narrated, never fatal to the fight. */
+function syncRosterFacts(){
+  var sess=window.__forgeSession; if(!sess) return;
+  sess.sb.from('forge_sessions').select('roster').eq('id', sess.row.id).single().then(function(res){
+    if(res.error || !res.data){ clog('<i>Couldn’t sync starting positions — refresh to pick them up.</i>'); return; }
+    var roster=res.data.roster||[]; sess.row.roster=roster;
+    roster.forEach(function(r){
+      if(!r.pos) return;
+      var u=unitByKey(r.unit); if(!u) return;
+      u.c=r.pos.c; u.r=r.pos.r; positionToken(u);
+      if(r.hp!=null) u.hp=r.hp;
+      if(r.maxHp!=null) u.hpMax=r.maxHp;
+    });
+    renderHud();
+  }, function(){ clog('<i>Couldn’t sync starting positions — refresh to pick them up.</i>'); });
 }
 
 function startCombat(){
@@ -3332,6 +3397,10 @@ var qs = new URLSearchParams(location.search);
 var SUPA_URL = qs.get("url") || "https://cfthwspwpcfamgbfqzuq.supabase.co";
 var SUPA_KEY = qs.get("key") || "sb_publishable_12KUwzDbVvcar0zjh2KE6g_6IRBfmMJ";
 const SESSION_ID = qs.get('session');
+/* Task 11: one client for the whole page — bootSession's join AND the forge
+   panel's lifecycle doors (Open the table / Save for later / staged list)
+   share it, so "signed in" means the same thing everywhere on this page. */
+const sb = window.supabase.createClient(SUPA_URL, SUPA_KEY);
 let __pipe = null;
 /* Task 7's in-flight guard: while MY OWN declared move/attack/end-turn is
    awaiting its resolved echo, action buttons stay disabled so a double-tap
@@ -3372,10 +3441,122 @@ function awaitWalkDone(unit){ return new Promise(function(resolve){ __pendingWal
 if (SESSION_ID) bootSession(SESSION_ID).catch(e => {
   clog('<b style="color:#c0553f">Could not join the fight:</b> ' + escapeHtml(e.message || e));
 });
+/* Task 11: the forge panel's two doors + the overseer's staged-fights list are
+   only reachable from OUTSIDE a session — bootSession above owns the whole
+   in-session path (including Start fight). No ?session= → offer them. */
+else initLifecyclePanel().catch(e => {
+  clog('<b style="color:#c0553f">Lifecycle panel failed to load:</b> ' + escapeHtml((e && e.message) || e));
+});
+/* Task 14 owns the real roster (party ∩ Campaign Characters folder + bestiary
+   foe picks); THIS function is its stand-in for Task 11 — every CHAR key as a
+   PC row plus N generic goblins sized by the Foes slider. Replace wholesale,
+   not incrementally: nothing else in this file should grow its own opinion
+   about roster shape. */
+function buildRoster(){
+  var pcs = Object.keys(CHAR).map(function(key){ return { unit: key, kind: 'pc', sheet_ref: key }; });
+  var foeN = Math.max(1, +document.getElementById('foes').value || 1);
+  var foes = [];
+  for (var i = 1; i <= foeN; i++) foes.push({ unit: 'foe-goblin-' + i, kind: 'foe', name: 'Goblin ' + i });
+  return pcs.concat(foes);
+}
+/* Task 11: insert one forge_sessions row, status 'staging' — the exact shape
+   protocol-harness-mock.html's own insert uses (harness ~78-83), roster/map
+   swapped for the real generator output. Shared by both doors. */
+async function openTable(uid){
+  try {
+    var ins = await sb.from('forge_sessions').insert({
+      overseer: uid, map: __forgeParams(), roster: buildRoster(), controllers: {}, status: 'staging'
+    }).select('id').single();
+    if (ins.error) return { ok: false, why: ins.error.message };
+    return { ok: true, id: ins.data.id };
+  } catch (e) { return { ok: false, why: (e && e.message) || String(e) }; }
+}
+/* Task 11: the forge panel's two doors + the overseer's staged-fights list.
+   Gated on a REAL Supabase sign-in (sb.auth.getUser()) — unrelated to the
+   local sandbox's #psLogin chips, which just toggle a fake single-device
+   roster for the no-session combat mock. Only called when there's no
+   ?session= (see the branch above bootSession). */
+async function initLifecyclePanel(){
+  var auth = await sb.auth.getUser();
+  var user = auth.data && auth.data.user;
+  if (auth.error || !user) return;   // not signed in — the local sandbox stays the whole story, panel stays hidden
+  var box = document.getElementById('fbLifecycle');
+  if (!box) return;
+  box.style.display = '';
+  var msgEl = document.getElementById('fbLifecycleMsg');
+  function say(msg, isError){ if (msgEl) { msgEl.textContent = msg; msgEl.style.color = isError ? '#c0553f' : ''; } }
+
+  document.getElementById('fbOpenTable').onclick = async function(){
+    say('opening the table…');
+    var res = await openTable(user.id);
+    if (!res.ok) { say('couldn’t open the table — ' + res.why, true); return; }
+    var params = new URLSearchParams(location.search);
+    params.set('session', res.id);
+    location.href = location.pathname + '?' + params.toString();
+  };
+  document.getElementById('fbSaveLater').onclick = async function(){
+    say('saving for later…');
+    var res = await openTable(user.id);
+    if (!res.ok) { say('couldn’t save the fight — ' + res.why, true); return; }
+    var params = new URLSearchParams(location.search);
+    params.set('session', res.id);
+    var joinUrl = location.origin + location.pathname + '?' + params.toString();
+    say('Saved — session ' + res.id.slice(0, 8) + '. Join link copied: ' + joinUrl);
+    if (navigator.clipboard) navigator.clipboard.writeText(joinUrl).catch(function(){});
+    refreshStagedList(user.id, say);   // the row just parked belongs in the list too
+  };
+  await refreshStagedList(user.id, say);
+}
+/* Task 11: overseer-only staged-fights list — status='staging' rows this uid
+   opened. Open navigates like the doors above; Abandon flips status to
+   'ended' (rows are cheap, events append-only — nothing is deleted). */
+async function refreshStagedList(uid, say){
+  var listEl = document.getElementById('fbStagedList');
+  if (!listEl) return;
+  try {
+    var res = await sb.from('forge_sessions').select('id,map,created_at')
+      .eq('status', 'staging').eq('overseer', uid).order('created_at', { ascending: false });
+    if (res.error) { say('couldn’t load staged fights — ' + res.error.message, true); return; }
+    var rows = res.data || [];
+    if (!rows.length) { listEl.innerHTML = '<div class="fname">No staged fights.</div>'; return; }
+    listEl.innerHTML = rows.map(function(r){
+      var m = r.map || {}, s = m.sliders || {};
+      var summary = 'seed ' + (m.seed != null ? m.seed : '?') + ' · ' + (m.theme || '?') +
+        ' · rooms ' + (s.roomCount != null ? s.roomCount : '?') + ' · foes ' + (s.foes != null ? s.foes : '?');
+      return '<div class="fbStagedRow" data-id="' + r.id + '">' +
+        '<div class="fname" title="' + escapeHtml(summary) + '">' + escapeHtml(summary) + '</div>' +
+        '<button class="filebtn fbOpenStaged" data-id="' + r.id + '">Open</button>' +
+        '<button class="filebtn fbAbandon" data-id="' + r.id + '">Abandon</button>' +
+        '</div>';
+    }).join('');
+    listEl.querySelectorAll('.fbOpenStaged').forEach(function(b){
+      b.onclick = function(){
+        var params = new URLSearchParams(location.search);
+        params.set('session', b.dataset.id);
+        location.href = location.pathname + '?' + params.toString();
+      };
+    });
+    listEl.querySelectorAll('.fbAbandon').forEach(function(b){
+      b.onclick = async function(){
+        if (!confirm('Abandon this staged fight?')) return;
+        var upd = await sb.from('forge_sessions').update({ status: 'ended' }).eq('id', b.dataset.id);
+        if (upd.error) { say('couldn’t abandon — ' + upd.error.message, true); return; }
+        say('Fight abandoned.');
+        refreshStagedList(uid, say);
+      };
+    });
+  } catch (e) { say('couldn’t load staged fights — ' + ((e && e.message) || e), true); }
+}
 async function bootSession(sid){
-  const sb = window.supabase.createClient(SUPA_URL, SUPA_KEY);
   const { data:{ user } } = await sb.auth.getUser();
   if (!user) { clog('<b>Sign in to join the fight.</b>'); return; }
+  /* Bridge for character-data.js: it normally waits on nav.js's window.__tok
+     (session + Supabase client, assembled by the site's shared nav chrome).
+     This mock doesn't load nav.js — sharing the SAME already-authenticated
+     client here (same URL/key → same localStorage session) is enough for
+     CharacterData.loadParty()/loadCharacter() to work without pulling in the
+     rest of nav.js. Never clobbers a real window.__tok if one is ever added. */
+  window.__tok = window.__tok || { sb: sb, ready: Promise.resolve(true) };
   const { data: row, error } = await sb.from('forge_sessions').select('*').eq('id', sid).single();
   if (error || !row) throw new Error(error ? error.message : 'no such session');
   // identical dungeon from the row — never from local UI
@@ -3384,11 +3565,29 @@ async function bootSession(sid){
   F = buildTiersField(row.map.seed, Object.assign({ themeKey: row.map.theme }, row.map.sliders));
   if (!F.occ) F.occ = EMPTY_OCC(F.W * F.H);
   applyLook(); renderField();
+  /* Task 11: forge_sessions.roster only gets real pos/hp at Start fight (§3 —
+     placement is computed once, THEN). FR.initialState() requires both on
+     EVERY unit to build any replayed state at all, even the empty "staging"
+     one this pipeline is about to construct — so a still-staging row needs a
+     placeholder here, client-side only, never written back. Real facts (once
+     Start fight runs) simply pass through untouched. */
+  var __cells = walkable(), __spawn = __cells[0] ? { c: __cells[0].x, r: __cells[0].y } : { c: 0, r: 0 };
+  var pipelineRoster = (row.roster || []).map(function(r){
+    var out = Object.assign({}, r);
+    if (!out.pos) out.pos = __spawn;
+    if (out.hp == null) {
+      var kit = (out.kind || 'pc') === 'pc' ? CHAR[out.sheet_ref || out.unit] : FOE;
+      out.hp = kit ? kit.hp : 1;
+    }
+    if (out.maxHp == null) out.maxHp = out.hp;
+    return out;
+  });
+  if (row.status === 'staging') clog('<b>Fight is forming</b> — waiting for the DM to start.');
   const me = { actor: user.id, units: (row.controllers[user.id] || []), overseer: row.overseer === user.id };
   const conn = window.ForgeBus.makeSupabaseBus({ sb, sessionId: sid }).connect();
   let lastState;
   const pipe = window.ForgePipeline.makePipeline({
-    conn, roster: row.roster, me,
+    conn, roster: pipelineRoster, me,
     reactions: reactionCandidates,
     onPrompt: onWirePrompt, onPromptFallback: onWirePromptFallback,
     onEvent: (r, st) => { const before = lastState; lastState = window.ForgeReplay.snapshot(st);
@@ -3853,6 +4052,99 @@ function syncInitiativeLobby(){
   var st=sess.pipe.state();
   if(st.status==="active" && !st.initiative){ if(!initiativeLobbyOpen) showInitiativeLobby(); else renderInitiativeLobby(); }
   else if(initiativeLobbyOpen) hideInitiativeLobby();
+  syncStagingPanel(sess,st);   // Task 11: same event/boot call sites drive the staging panel too
+}
+/* Task 11: shown between join and Start fight (state.status stays "staging"
+   — forge-replay's initialState default — until session_started flips it to
+   "active", the same transition syncInitiativeLobby watches for the lobby).
+   Overseer sees the Start fight button; everyone else sees the waiting banner. */
+function syncStagingPanel(sess,st){
+  var panel=document.getElementById("cbStagingPanel"); if(!panel) return;
+  if(st.status!=="staging"){ panel.style.display="none"; return; }
+  panel.style.display="flex";
+  var desc=document.getElementById("cbStagingDesc");
+  var btns=document.getElementById("cbStagingOverseerBtns");
+  if(sess.me.overseer){
+    if(desc) desc.textContent="everyone's ready when you are.";
+    if(btns) btns.style.display="flex";
+  } else {
+    if(desc) desc.textContent="waiting for the DM to start…";
+    if(btns) btns.style.display="none";
+  }
+}
+document.getElementById("cbStartFight").addEventListener("click", startFight);
+/* Task 11: overseer, in-session, status still "staging". Snapshots live PC
+   vitals + computes placements ONCE on this device (the same clusterAround/
+   foeAnchor/walkable path startCombat uses locally, §3), writes both into
+   the row alongside status:'active', THEN publishes session_started — the
+   row flip has to land first because forge_events' RLS only allows inserts
+   on an active session (FORGE_BOARD.md §3: "events can't insert until
+   active"). Any failure leaves the row in staging, untouched, retryable. */
+async function startFight(){
+  var sess=window.__forgeSession; if(!sess||!sess.me.overseer) return;
+  var st=sess.pipe.state();
+  if(st.status!=="staging") return;
+  var btn=document.getElementById("cbStartFight"); if(btn) btn.disabled=true;
+  clog("<i>Starting the fight&hellip;</i>");
+  var committed=false;   // var (not let) — hoisted to function scope, readable in the catch below
+  try{
+    var roster=(sess.row.roster||[]).map(function(r){ return Object.assign({},r); });
+    // a) live vitals — character-data.js:296-297's own expressions (party.html's, verbatim)
+    var party=[];
+    try{ party=await window.CharacterData.loadParty(); }
+    catch(e){ clog("<i>Sheet read failed (" + escapeHtml((e&&e.message)||e) + ") — falling back to kit HP.</i>"); }
+    var byKey={}; party.forEach(function(c){ byKey[c.key]=c; });
+    roster.forEach(function(r){
+      if((r.kind||"pc")!=="pc") return;
+      var c=byKey[r.sheet_ref||r.unit];
+      if(c){
+        var cmb=(c.structural&&c.structural.combat)||{}, v=c.vitals||{};
+        r.hp=(v.hp!=null)?v.hp:(cmb.hp||0);
+        r.maxHp=(cmb.hpMax||0)+(v.hpBonus||0);
+      } else {
+        var kit=CHAR[r.sheet_ref||r.unit];
+        r.hp=kit?kit.hp:(r.hp||1); r.maxHp=kit?kit.hp:(r.maxHp||r.hp||1);
+        clog("<i>"+escapeHtml(r.name||r.unit)+": no character sheet — using kit HP.</i>");
+      }
+    });
+    // b) placements, computed once here (not replayed — the overseer's own roll)
+    var cells=walkable();
+    if(!cells.length) throw new Error("no walkable cells on this map");
+    var maxH=cells.reduce(function(m,c){return Math.max(m,c.h);},0), minH=cells.reduce(function(m,c){return Math.min(m,c.h);},99);
+    var hi=cells.filter(function(c){return c.h===maxH;}), lo=cells.filter(function(c){return c.h===minH;});
+    var pcRows=roster.filter(function(r){return (r.kind||"pc")==="pc";});
+    var foeRows=roster.filter(function(r){return r.kind==="foe";});
+    var taken={};
+    var pcCells=clusterAround(cells, hi[(hi.length/2)|0]||cells[0], pcRows.length, taken, PC_SPREAD);
+    var foeCells=clusterAround(cells, foeAnchor(cells,pcCells,taken)||lo[(lo.length/2)|0]||cells[cells.length-1], foeRows.length, taken, FOE_SPREAD);
+    if(pcCells.short) clog("<i>Only "+pcCells.length+" of "+pcRows.length+" party cells found; the rest sit this one out.</i>");
+    if(foeCells.short) clog("<i>Only "+foeCells.length+" of "+foeRows.length+" foe cells found.</i>");
+    pcRows.forEach(function(r,i){ var cell=pcCells[i]; if(cell) r.pos={c:cell.x,r:cell.y}; });
+    foeRows.forEach(function(r,i){ var cell=foeCells[i]; if(cell) r.pos={c:cell.x,r:cell.y}; });
+    // c) commit: row first (unlocks event writes — RLS blocks forge_events
+    //    inserts on a non-active session, §3), then the session_started event
+    var upd=await sess.sb.from("forge_sessions").update({ roster:roster, status:"active" }).eq("id", sess.row.id);
+    if(upd.error) throw new Error(upd.error.message);
+    committed=true; sess.row.roster=roster; sess.row.status="active";
+    var res=await sess.pipe.start();
+    if(res && res.ok===false) throw new Error(res.why||"publish failed");
+    clog("<b>Fight started.</b>");
+  } catch(e){
+    var reverted="";
+    if(committed){
+      // the row flipped to active but session_started never landed — revert so
+      // "still staging" stays true and Start fight is honestly retryable (§8)
+      try{
+        var rv=await sess.sb.from("forge_sessions").update({ status:"staging" }).eq("id", sess.row.id);
+        if(!rv.error){ sess.row.status="staging"; reverted=' <i>(still staging — try again)</i>'; }
+        else reverted=' <i>(row may be stuck active — check the staged list)</i>';
+      } catch(e2){ reverted=' <i>(row may be stuck active — check the staged list)</i>'; }
+    } else reverted=' <i>(still staging — try again)</i>';
+    clog('<b style="color:#c0553f">Couldn’t start the fight:</b> ' + escapeHtml((e&&e.message)||e) + reverted);
+  } finally {
+    if(btn) btn.disabled=false;
+    syncInitiativeLobby();
+  }
 }
 
 /* ══ Task 10: OVERSEER TOOLBAR ═══════════════════════════════════════════
