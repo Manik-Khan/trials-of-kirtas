@@ -521,6 +521,13 @@ global.TacticsGeo = API;
 .cbRewindList{ display:flex; flex-direction:column; gap:6px; max-height:40vh; overflow:auto; margin:10px 0; }
 .cbRewindItem{ text-align:left; font-family:var(--f-util); font-size:12px; color:var(--tk-ink); background:var(--tk-panel-2); border:1px solid var(--tk-line); padding:8px 9px; cursor:pointer; }
 .cbRewindItem:hover{ border-color:var(--tk-ink-dim); }
+/* Task 15: reinforcements — Add foe modal (reuses .fpRow/.fpName/.fpStep/.fpCount/
+   .filebtn/.fpRemove from Task 14's picker, and .cbInitLobbyCard/.cbInitRow from
+   Task 10's lobby, so no new row/list chrome is needed here) + the post-arrival
+   "slot into initiative" chip docked in the overseer toolbar. */
+.cbSlotChip{ margin-top:10px; padding-top:10px; border-top:1px solid rgba(168,159,138,.3); }
+.cbSlotChip .cbHint{ margin-top:0; margin-bottom:6px; }
+.cbSlotChip button{ width:100%; }
 </style>
 </head>
 <body>
@@ -748,9 +755,12 @@ global.TacticsGeo = API;
         <button id="ovCorrect" title="Correct the last resolved attack / move / ability">Correct last</button>
         <button id="ovRewind" title="Rewind to a turn boundary">Rewind</button>
         <button id="ovGod" title="Move any unit by hand, edit HP">GOD MODE: off</button>
+        <button id="ovAddFoe" title="Bring a new foe into the fight">Add foe</button>
         <button id="ovEndFight" title="End this fight for everyone">End fight</button>
       </div>
       <div class="cbGodPanel" id="cbGodPanel" style="display:none"></div>
+      <!-- Task 15: shown once an add_unit arrival isn't in state.initiative yet -->
+      <div class="cbSlotChip" id="cbSlotChip" style="display:none"></div>
     </div>
     <div class="cbReact" id="cbCorrectModal" style="display:none">
       <div class="cbReactCard">
@@ -766,6 +776,42 @@ global.TacticsGeo = API;
         <div class="cbReactTitle">Pick a turn boundary</div>
         <div class="cbRewindList" id="cbRewindList"></div>
         <div class="cbReactBtns"><button class="cbReactSkip" id="cbRewindCancel">Cancel</button></div>
+      </div>
+    </div>
+    <!-- Task 15: reinforcements — compact mid-fight foe picker (shelf + search,
+         pick ONE kind, count 1..4), then "tap a cell to place" (combatClick's
+         own GOD-MODE-style intercept, below). -->
+    <div class="cbReact" id="cbAddFoeModal" style="display:none">
+      <div class="cbReactCard cbInitLobbyCard">
+        <div class="cbReactEy">Reinforcements</div>
+        <div class="cbReactTitle">Add a foe</div>
+        <input id="afSearch" type="text" placeholder="Search the bestiary…" autocomplete="off">
+        <div class="fname" id="afSearchStatus"></div>
+        <div id="afBookResults"></div>
+        <div class="cbReactEy" style="margin-top:10px">Shelf</div>
+        <div id="afShelf"><div class="fname">Loading…</div></div>
+        <div class="cbReactEy" style="margin-top:10px">Picked</div>
+        <div id="afPicked"><div class="fname">Tap a name above to pick one kind.</div></div>
+        <div class="cbReactBtns">
+          <button class="cbReactUse" id="afStartPlace" disabled>Tap a cell to place</button>
+          <button class="cbReactSkip" id="afCancel">Cancel</button>
+        </div>
+      </div>
+    </div>
+    <!-- Task 15: after the arrival echoes in (spawn verb), the overseer's
+         toolbar offers this one tap — pre-filled order + newcomer(s) appended
+         at the end, per FORGE_BOARD.md §6. Until confirmed the newcomer just
+         isn't in state.initiative; the fight is never blocked on it. -->
+    <div class="cbReact" id="cbSlotModal" style="display:none">
+      <div class="cbReactCard cbInitLobbyCard">
+        <div class="cbReactEy">Reinforcements</div>
+        <div class="cbReactTitle">Slot into initiative</div>
+        <div class="cbReactDesc">New arrivals join the order at the end — one tap sets it for everyone.</div>
+        <div id="cbSlotList" style="margin-top:8px"></div>
+        <div class="cbReactBtns">
+          <button class="cbReactUse" id="cbSlotConfirm">Confirm order</button>
+          <button class="cbReactSkip" id="cbSlotCancel">Cancel</button>
+        </div>
       </div>
     </div>
   </div>
@@ -2505,6 +2551,9 @@ function applyVerb(v){
     case "turn":   setActiveFromLog(v.unit, v.round); break;   // Task 8 fleshes the HUD side
     case "status": if(v.status==="ended"){ CB.over=true; clog("<b>Fight over.</b>");
       clearPromptUI(); if(window.__forgeSession) window.__forgeSession.row.status="ended";
+      // Task 15: end fight must not leave a placement wave hanging (Esc/right-click
+      // cancels it normally, but the fight ending out from under it needs the same reset).
+      ADD_FOE_PLACING=false; ADD_FOE_PLACE_PICK=null; ADD_FOE_REMAINING=0;
       /* Task 13: status flips to "ended" here, before this event's own
          trailing runMirror() call — that call becomes a no-op (boundary:
          mirror only while active), so anything already queued from EARLIER
@@ -3367,6 +3416,9 @@ function combatClick(cx,cy){
      uses — no new raycasting. */
   var godSess=window.__forgeSession;
   if(GOD_MODE && godSess && godSess.me.overseer){ if(CB.active) godModeClick(cx,cy); return; }
+  /* Task 15: reinforcements placement — same overseer-only, CB.active-only
+     bypass GOD MODE uses (the "divine hand" dropping a new token in). */
+  if(ADD_FOE_PLACING && godSess && godSess.me.overseer){ if(CB.active) addFoePlaceClick(cx,cy); return; }
   if(!CB.active||CB.over||CB.react||CB_ANIM) return;
   var rect=renderer.domElement.getBoundingClientRect();
   ndc.x=((cx-rect.left)/rect.width)*2-1; ndc.y=-((cy-rect.top)/rect.height)*2+1; ray.setFromCamera(ndc,camera);
@@ -3765,6 +3817,15 @@ let __awaitingUnit = null, __awaitingKind = null, __awaitingCount = 0, __awaitin
    (catchUp never fires onEvent per row) can reconstruct it explicitly. */
 let GOD_MODE = false, godSel = null, initiativeLobbyOpen = false;
 let __correctSeq = null, __correctKind = null;
+/* Task 15: reinforcements — Add-foe modal state (ADD_FOE_MODAL_PICK/COUNT) and
+   the placement-click mode that follows it (ADD_FOE_PLACING, mirrors GOD_MODE's
+   own click-intercept idiom in combatClick, below). ADD_FOE_PLACE_PICK/SLUG/
+   NEXT_N/REMAINING are the live wave: the numbering counter increments LOCALLY
+   per tap (not re-derived from state each time) so two quick taps before the
+   first echo lands can never collide on the same foe-<slug>-<n> id. */
+let ADD_FOE_MODAL_PICK = null, ADD_FOE_COUNT = 1;
+let ADD_FOE_PLACING = false, ADD_FOE_PLACE_PICK = null, ADD_FOE_SLUG = null, ADD_FOE_NEXT_N = 1, ADD_FOE_REMAINING = 0;
+let __afShelfLoaded = false;
 /* Task 7b: __awaitingKind holds only ONE kind at a time (Task 7's design —
    see __awaitingCount above). foeTurn chains move → attack → turn_ended,
    three DIFFERENT resolved-kinds in one AI turn, so each step must wait for
@@ -4838,6 +4899,7 @@ function doRewind(seq,label){
    selected. Every act narrates — spec §5's "divine hand" is never silent. */
 function toggleGodMode(){
   var sess=window.__forgeSession; if(!sess||!sess.me.overseer) return;
+  if(ADD_FOE_PLACING) cancelAddFoePlacing();   // Task 15: the two click-intercept modes are mutually exclusive
   GOD_MODE=!GOD_MODE; godSel=null;
   clog("<i>GOD MODE "+(GOD_MODE?"engaged.":"disengaged.")+"</i>");
   renderOverseerToolbar();
@@ -4898,7 +4960,198 @@ function renderOverseerToolbar(){
   var gm=document.getElementById("ovGod");
   if(gm){ gm.disabled=ended; gm.textContent="GOD MODE: "+(GOD_MODE?"on":"off"); gm.classList.toggle("on",GOD_MODE); }
   var ef=document.getElementById("ovEndFight"); if(ef) ef.disabled=ended||busy;
+  // Task 15: reinforcements need a confirmed order to slot into (spec's "mid-fight"
+  // framing) — gating here, not on the click handler, keeps the reason visible.
+  var af=document.getElementById("ovAddFoe");
+  if(af){ af.disabled=ended||busy||ADD_FOE_PLACING||!st.initiative;
+    af.title = !st.initiative ? "Roll initiative first" : (ADD_FOE_PLACING ? "Placing — tap the board, or Esc/right-click to stop" : "Bring a new foe into the fight"); }
   renderGodPanel();
+  renderSlotChip();
+}
+
+/* ══ Task 15: Reinforcements — Add foe mid-fight (FORGE_BOARD.md §6) ════════════════════════════════
+   Every piece already exists (Task 14's picker, Task 3's add_unit replay, Task 6's
+   spawn verb, Task 10's GOD-MODE cell-picking + netSessionPublish guard, Task 10's
+   CONFIRM ORDER path) — this is wiring, per the brief. Shape decision (reported):
+   each PLACED foe publishes its OWN `edit` (one add_unit change per event), not
+   one edit batching the whole wave — a failed publish mid-wave then only drops
+   the ONE foe that failed (narrated, retryable) instead of the whole tap sequence,
+   and it reuses netSessionPublish's existing per-publish guard/counter exactly as
+   every other overseer tool does, with no widening of that contract. */
+
+// unique foe-<slug>-<n>, checked against BOTH the starting roster AND the live
+// replayed state.units (mid-fight arrivals of the same kind already landed).
+function nextFoeNumber(slug){
+  var max=0, re=new RegExp("^foe-"+slug+"-(\\d+)$");
+  var sess=window.__forgeSession; if(!sess) return 1;
+  (sess.row.roster||[]).forEach(function(r){ var m=re.exec(r.unit); if(m) max=Math.max(max,+m[1]); });
+  var st=sess.pipe.state();
+  if(st&&st.units) Object.keys(st.units).forEach(function(k){ var m=re.exec(k); if(m) max=Math.max(max,+m[1]); });
+  return max+1;
+}
+// walkable (per the existing terrain/foot rule `walkable()` already uses for
+// combat placement) AND not already stood on — narrated on a bad tap, never thrown.
+function cellIsValidForFoe(c,r){
+  if(!walkable().some(function(w){ return w.x===c && w.y===r; })) return false;
+  if(unitAt(c,r)) return false;
+  return true;
+}
+// state.units carrying an id not (yet) in state.initiative — self-healing: once
+// setInitiative includes it, this naturally returns empty and the chip hides.
+function unslottedUnits(){
+  var sess=window.__forgeSession; if(!sess) return [];
+  var st=sess.pipe.state(); if(!st.initiative) return [];
+  var have={}; st.initiative.forEach(function(k){ have[k]=true; });
+  return Object.keys(st.units||{}).filter(function(k){ return !have[k] && st.units[k] && !st.units[k].downed; });
+}
+
+/* ── Add-foe modal: shelf + search, pick ONE kind, count 1..4 ─────────── */
+function pickAddFoe(name,statblock){
+  if(!statblock){ clog("<i>Could not pick "+escapeHtml(name||"that monster")+" — no statblock.</i>"); return; }
+  ADD_FOE_MODAL_PICK={ name:name, statblock:statblock }; ADD_FOE_COUNT=1;
+  renderAddFoePicked();
+}
+function renderAddFoePicked(){
+  var el=document.getElementById("afPicked"); var startBtn=document.getElementById("afStartPlace");
+  if(!el) return;
+  if(!ADD_FOE_MODAL_PICK){ el.innerHTML='<div class="fname">Tap a name above to pick one kind.</div>'; if(startBtn) startBtn.disabled=true; return; }
+  var p=ADD_FOE_MODAL_PICK;
+  el.innerHTML='<div class="fpRow"><span class="fpName" title="'+escapeHtml(p.name)+'">'+escapeHtml(p.name)+'</span>'
+    +'<button class="fpStep" data-d="-1">−</button><span class="fpCount">'+ADD_FOE_COUNT+'</span><button class="fpStep" data-d="1">+</button>'
+    +'<button class="fpRemove" id="afClear">Clear</button></div>';
+  el.querySelectorAll(".fpStep").forEach(function(btn){
+    btn.addEventListener("click",function(){ ADD_FOE_COUNT=Math.max(1,Math.min(4,ADD_FOE_COUNT+(+btn.dataset.d))); renderAddFoePicked(); });
+  });
+  var clr=document.getElementById("afClear");
+  if(clr) clr.addEventListener("click",function(){ ADD_FOE_MODAL_PICK=null; ADD_FOE_COUNT=1; renderAddFoePicked(); });
+  if(startBtn) startBtn.disabled=false;
+}
+function renderAddFoeShelf(){
+  var el=document.getElementById("afShelf"); if(!el) return;
+  if(!FOE_SHELF.length){ el.innerHTML='<div class="fname">Shelf is empty.</div>'; return; }
+  el.innerHTML=FOE_SHELF.map(function(s,i){
+    return '<div class="fpRow"><span class="fpName" title="'+escapeHtml(s.name)+'">'+escapeHtml(s.name)+'</span>'
+      +(s.tags&&s.tags.length?'<span class="fpTags">'+s.tags.map(escapeHtml).join(", ")+'</span>':'')
+      +'<button class="filebtn afPick" data-i="'+i+'">Pick</button></div>';
+  }).join("");
+  el.querySelectorAll(".afPick").forEach(function(btn){ btn.addEventListener("click",function(){ var s=FOE_SHELF[+btn.dataset.i]; pickAddFoe(s.name,s.statblock); }); });
+}
+function renderAddFoeBookResults(all,q){
+  var listEl=document.getElementById("afBookResults"); if(!listEl) return;
+  var shown=all.filter(function(e){ return e.name.toLowerCase().indexOf(q)>=0; })
+    .sort(function(a,b){ return a.name.localeCompare(b.name); }).slice(0,25);
+  if(!shown.length){ listEl.innerHTML='<div class="fname">No matches.</div>'; return; }
+  listEl.innerHTML=shown.map(function(e,i){
+    return '<div class="fpRow"><span class="fpName" title="'+escapeHtml(e.name)+'">'+escapeHtml(e.name)+'</span>'
+      +'<span class="fpCr">CR '+bstFmtCR(e.raw.cr)+'</span><button class="filebtn afPick" data-i="'+i+'">Pick</button></div>';
+  }).join("");
+  listEl.querySelectorAll(".afPick").forEach(function(btn){ btn.addEventListener("click",function(){ pickAddFoe(shown[+btn.dataset.i].name,shown[+btn.dataset.i].raw); }); });
+}
+function wireAddFoeSearch(){
+  var input=document.getElementById("afSearch"); if(!input) return;
+  input.addEventListener("input",function(){
+    var q=input.value.trim().toLowerCase();
+    var statusEl=document.getElementById("afSearchStatus"), listEl=document.getElementById("afBookResults");
+    if(!q){ if(listEl) listEl.innerHTML=""; if(statusEl) statusEl.textContent=""; return; }
+    ensureFoeBooksLoaded(function(msg){ if(statusEl) statusEl.textContent=msg; }).then(function(all){
+      if(input.value.trim().toLowerCase()!==q) return;   // input moved on while books were loading
+      if(statusEl) statusEl.textContent="";
+      renderAddFoeBookResults(all,q);
+    });
+  });
+}
+function openAddFoeModal(){
+  var sess=window.__forgeSession; if(!sess||!sess.me.overseer||!CB.active) return;
+  if(ADD_FOE_PLACING){ clog("<i>Still placing the last wave — finish or Esc/right-click to stop first.</i>"); return; }
+  ADD_FOE_MODAL_PICK=null; ADD_FOE_COUNT=1;
+  var search=document.getElementById("afSearch"); if(search) search.value="";
+  var status=document.getElementById("afSearchStatus"); if(status) status.textContent="";
+  var results=document.getElementById("afBookResults"); if(results) results.innerHTML="";
+  renderAddFoeShelf(); renderAddFoePicked();
+  // in-session boot never calls initLifecyclePanel/loadFoeShelf (that's the
+  // no-session lifecycle panel's own doorway) — load it here, once.
+  if(!__afShelfLoaded){ __afShelfLoaded=true; loadFoeShelf().then(renderAddFoeShelf); }
+  var m=document.getElementById("cbAddFoeModal"); if(m) m.style.display="flex";
+}
+function closeAddFoeModal(){ var m=document.getElementById("cbAddFoeModal"); if(m) m.style.display="none"; }
+function startAddFoePlacing(){
+  if(!ADD_FOE_MODAL_PICK) return;
+  var pick=ADD_FOE_MODAL_PICK;
+  ADD_FOE_PLACE_PICK=pick; ADD_FOE_SLUG=foeSlug(pick.name); ADD_FOE_NEXT_N=nextFoeNumber(ADD_FOE_SLUG);
+  ADD_FOE_REMAINING=ADD_FOE_COUNT; ADD_FOE_PLACING=true;
+  GOD_MODE=false; godSel=null;   // mutually exclusive click-intercept modes
+  closeAddFoeModal();
+  clog("<i>Tap a cell to place "+(ADD_FOE_COUNT>1?(ADD_FOE_COUNT+"× "):"")+escapeHtml(pick.name)+". Esc or right-click cancels.</i>");
+  renderOverseerToolbar();
+}
+function cancelAddFoePlacing(){
+  if(!ADD_FOE_PLACING) return;
+  ADD_FOE_PLACING=false; ADD_FOE_PLACE_PICK=null; ADD_FOE_REMAINING=0;
+  clog("<i>The DM stops the reinforcement wave.</i>");
+  renderOverseerToolbar();
+}
+function addFoePlaceClick(cx,cy){
+  var rect=renderer.domElement.getBoundingClientRect();
+  ndc.x=((cx-rect.left)/rect.width)*2-1; ndc.y=-((cy-rect.top)/rect.height)*2+1; ray.setFromCamera(ndc,camera);
+  var gHit=ray.intersectObjects(world.children,true)[0]; if(!gHit) return;
+  var gx=Math.round(gHit.point.x+F.W/2-0.5), gy=Math.round(gHit.point.z+F.H/2-0.5);
+  if(!cellIsValidForFoe(gx,gy)){ clog("<i>That cell won’t hold a foe — pick an open, walkable cell.</i>"); return; }
+  placeAddFoeAt(gx,gy);
+}
+function placeAddFoeAt(gx,gy){
+  var sess=window.__forgeSession; if(!sess||!ADD_FOE_PLACE_PICK){ ADD_FOE_PLACING=false; return; }
+  var pick=ADD_FOE_PLACE_PICK, n=ADD_FOE_NEXT_N++, slug=ADD_FOE_SLUG;
+  var unitId="foe-"+slug+"-"+n, name=pick.name+" "+n;
+  var sbCopy=JSON.parse(JSON.stringify(pick.statblock));   // Task 14's own snapshot-on-pick discipline
+  var kit=foeKitFromStatblock({ unit:unitId, name:name, statblock:sbCopy });
+  var hp=(kit&&kit.hp!=null)?kit.hp:FOE.hp;
+  var hpMax=(kit&&kit.hpMax!=null)?kit.hpMax:hp;
+  clog("<i>The DM brings in "+escapeHtml(name)+".</i>");
+  netSessionPublish("edit", sess.pipe.edit([{ add_unit:{ unit:unitId, name:name, side:"foe", pos:{c:gx,r:gy}, hp:hp, maxHp:hpMax, statblock:sbCopy } }]));
+  ADD_FOE_REMAINING--;
+  if(ADD_FOE_REMAINING>0) clog("<i>"+ADD_FOE_REMAINING+" more to place — tap a cell, or Esc/right-click to stop.</i>");
+  else { ADD_FOE_PLACING=false; ADD_FOE_PLACE_PICK=null; clog("<i>Reinforcements placed.</i>"); }
+  renderOverseerToolbar();
+}
+
+/* ── post-arrival: prompt to slot the newcomer(s) into initiative ─────── */
+function renderSlotChip(){
+  var el=document.getElementById("cbSlotChip"); if(!el) return;
+  var sess=window.__forgeSession;
+  if(!sess||!sess.me.overseer||!CB.active){ el.style.display="none"; el.innerHTML=""; return; }
+  var pending=unslottedUnits();
+  if(!pending.length){ el.style.display="none"; el.innerHTML=""; return; }
+  var names=pending.map(function(k){ var u=unitByKey(k); return (u&&u.name)||k; });
+  el.style.display="block";
+  el.innerHTML='<div class="cbHint">'+escapeHtml(names.join(", "))+' '+(pending.length>1?"have":"has")+' arrived — not yet in the turn order. The fight isn’t blocked either way.</div>'
+    +'<button class="cbReactUse" id="cbSlotBtn">Slot into initiative</button>';
+  var b=document.getElementById("cbSlotBtn"); if(b) b.addEventListener("click",openSlotModal);
+}
+function openSlotModal(){
+  var sess=window.__forgeSession; if(!sess||!sess.me.overseer) return;
+  var st=sess.pipe.state(); if(!st.initiative) return;
+  var pending=unslottedUnits();
+  if(!pending.length){ clog("<i>Nothing waiting to be slotted.</i>"); return; }
+  var box=document.getElementById("cbSlotList"); if(!box) return;
+  box.innerHTML = st.initiative.map(function(k){
+      return '<div class="cbInitRow"><span>'+escapeHtml((unitByKey(k)&&unitByKey(k).name)||k)+'</span></div>';
+    }).join("")
+    + pending.map(function(k){
+      return '<div class="cbInitRow"><span>'+escapeHtml((unitByKey(k)&&unitByKey(k).name)||k)+'</span><span class="cbInitVal"><i>new</i></span></div>';
+    }).join("");
+  var m=document.getElementById("cbSlotModal"); if(m) m.style.display="flex";
+}
+function closeSlotModal(){ var m=document.getElementById("cbSlotModal"); if(m) m.style.display="none"; }
+function confirmSlotInitiative(){
+  var sess=window.__forgeSession; if(!sess||!sess.me.overseer) return;
+  var st=sess.pipe.state(); if(!st.initiative) return;
+  var pending=unslottedUnits();
+  if(!pending.length){ closeSlotModal(); return; }
+  var order=st.initiative.concat(pending);
+  var names=pending.map(function(k){ return escapeHtml((unitByKey(k)&&unitByKey(k).name)||k); }).join(", ");
+  closeSlotModal();
+  clog("<i>The DM slots "+names+" into the turn order.</i>");
+  netSessionPublish("initiative_set", sess.pipe.setInitiative(order));
 }
 
 addEventListener("pointerup", function(e){ if(CB.active&&!CB.over&&!CB.react&&moved<6) combatClick(e.clientX,e.clientY); });
@@ -4947,7 +5200,18 @@ addEventListener("pointerup", function(e){ if(CB.active&&!CB.over&&!CB.react&&mo
   if(g("cbCorrectSave")) g("cbCorrectSave").addEventListener("click",submitCorrect);
   if(g("cbCorrectCancel")) g("cbCorrectCancel").addEventListener("click",closeCorrect);
   if(g("cbRewindCancel")) g("cbRewindCancel").addEventListener("click",closeRewind);
+  /* Task 15: reinforcements */
+  wireAddFoeSearch();
+  if(g("ovAddFoe")) g("ovAddFoe").addEventListener("click",openAddFoeModal);
+  if(g("afStartPlace")) g("afStartPlace").addEventListener("click",startAddFoePlacing);
+  if(g("afCancel")) g("afCancel").addEventListener("click",closeAddFoeModal);
+  if(g("cbSlotConfirm")) g("cbSlotConfirm").addEventListener("click",confirmSlotInitiative);
+  if(g("cbSlotCancel")) g("cbSlotCancel").addEventListener("click",closeSlotModal);
 })();
+/* Task 15: Esc / right-click abandon a placement wave mid-way — the "waiting"
+   state must never wedge if the DM steps away from it (brief's guard idiom). */
+document.addEventListener("keydown", function(e){ if(e.key==="Escape" && ADD_FOE_PLACING) cancelAddFoePlacing(); });
+renderer.domElement.addEventListener("contextmenu", function(e){ if(ADD_FOE_PLACING){ e.preventDefault(); cancelAddFoePlacing(); } });
 </script>
 <script>
 /* ════════════════════════════════════════════════════════════════════
