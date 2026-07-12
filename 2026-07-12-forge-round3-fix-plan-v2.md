@@ -1,6 +1,8 @@
 # 2026-07-12 · Forge round-3 fix plan (REVISED after headless repro)
 
-**Status: DIAGNOSED — root causes reproduced headlessly against the live character JSONs (not inferred from the screenshot). Supersedes the first round-3 plan (`2026-07-12-forge-round3-fix-plan.md`); findings 1–3 there were misdiagnosed. Read §0 first — the mechanism is embarrassing and instructive.**
+**Status: BUILT — all §H items (A+B+C · E · D step 1 · G · F) shipped in the 2026-07-12d session. Read `CONTEXT_Forge-update-2026-07-12d.md` for what landed, the two known-answer corrections (Líadan DC 12, HW 1d4+2), and the dedupe ruling awaiting M. Original plan text below, unchanged.**
+
+**Status at write time: DIAGNOSED — root causes reproduced headlessly against the live character JSONs (not inferred from the screenshot). Supersedes the first round-3 plan (`2026-07-12-forge-round3-fix-plan.md`); findings 1–3 there were misdiagnosed. Read §0 first — the mechanism is embarrassing and instructive.**
 
 ---
 

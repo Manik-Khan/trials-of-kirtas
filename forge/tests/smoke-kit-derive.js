@@ -5,7 +5,7 @@
 
    Drives the REAL derive() with fixture data shaped after the live party.
    No DOM, no Supabase — pure logic.                                       */
-const FKD = require("./forge-kit-derive.js");
+const FKD = require("../forge-kit-derive.js");
 
 let pass = 0, fail = 0;
 function ok(name, cond) { if (cond) { pass++; } else { fail++; console.log("  FAIL " + name); } }
@@ -838,6 +838,196 @@ const LIADAN_CHAR = {
   ok("cantrip-scale: VM at level 5 = 2d4", vm5 && vm5.dmg === "2d4");
 })();
 
-// ── summary ──────────────────────────────────────────────────────────────
-console.log("smoke-kit-derive: " + pass + " passed, " + fail + " failed");
-process.exit(fail ? 1 : 0);
+// ── 20. LIVE FIXTURES (round-3 plan v2 §A/B/C) ───────────────────────────
+// The fixture-shape rule, pinned 2026-07-12: any derive-layer smoke that
+// models `structural` must load the REAL character JSONs from
+// data/characters/ alongside the synthetic fixtures. The synthetic shapes
+// above stay for edge cases; the live shapes below are the production truth
+// the round-3 table test caught the fixtures lying about.
+//   charData mapping mirrors the legacy JSON layout: the file's top-level
+//   `combat` block ({hp,hpTemp,pipState,…}) is the vitals-equivalent.
+const fs = require("fs"), path = require("path");
+function liveChar(key) {
+  const j = JSON.parse(fs.readFileSync(
+    path.join(__dirname, "..", "..", "data", "characters", key + ".json"), "utf8"));
+  return { key: key, name: (j.structural || {}).name || key,
+           structural: j.structural || {}, vitals: j.combat || {},
+           inventory: j.inventory || [], currency: j.currency || {} };
+}
+const RESOLVABLE = { attack:1, save:1, heal:1, buff:1, buffAlly:1, selfheal:1,
+                     surge:1, dash:1, disengage:1, dodge:1, help:1, ready:1,
+                     potion:1, item:1 };
+
+(async function liveFixtureSection() {
+  const WA = await import("../../weapon-actions.js");
+  const LIVE = {};
+  ["liadan", "cosmere", "caim", "vesperian"].forEach(function (k) { LIVE[k] = liveChar(k); });
+  function kitOf(k) {
+    const c = LIVE[k];
+    const assembled = WA.assembleActions(c.inventory, c.structural);
+    return FKD.derive(c, { assembledActions: assembled });
+  }
+  function tile(kit, tab, label) {
+    return (kit.tabs[tab] || []).filter(function (t) { return t.label === label; })[0] || null;
+  }
+  function flat(kit, label) {
+    return (kit.actions || []).filter(function (a) { return a.label === label; });
+  }
+
+  // ── Fact 1: spellTiles reads the live structural.spells shape ──
+  const lia = kitOf("liadan");
+  ok("live/lia: spells tab derives from structural.spells (12 tiles; Feather Fall is a reaction)",
+     (lia.tabs.spells || []).length === 12);
+  const hw = tile(lia, "spells", "Healing Word");
+  ok("live/lia: Healing Word kind=heal", hw && hw.kind === "heal");
+  ok("live/lia: Healing Word dmg=1d4+2 (cast mod from spellAttackBonus-PB)", hw && hw.dmg === "1d4+2");
+  ok("live/lia: Healing Word rng=12 (60 ft)", hw && hw.rng === 12);
+  ok("live/lia: Healing Word is a bonus action (castingTime→time)", hw && hw.bonus === true);
+  ok("live/lia: Healing Word costs slot1", hw && hw.cost && hw.cost.slot1 === 1);
+  const cw = tile(lia, "spells", "Cure Wounds");
+  ok("live/lia: Cure Wounds kind=heal dmg=1d8+2", cw && cw.kind === "heal" && cw.dmg === "1d8+2");
+  const vmL = tile(lia, "spells", "Vicious Mockery");
+  ok("live/lia: VM kind=save/wis", vmL && vmL.kind === "save" && vmL.saveAbility === "wis");
+  ok("live/lia: VM DC 12 (combat.spellSaveDC, not the guess path)", vmL && vmL.dc === 12);
+  const bless = tile(lia, "spells", "Bless");
+  ok("live/lia: Bless kind=buffAlly, conc carried (concentration→conc)",
+     bless && bless.kind === "buffAlly" && bless.conc === true);
+  ok("live/lia: Feather Fall excluded (reaction by castingTime)", !tile(lia, "spells", "Feather Fall"));
+  const charm = tile(lia, "spells", "Charm Person");
+  ok("live/lia: Charm Person greyed with reason", charm && charm.greyed === true && !!charm.greyReason);
+
+  const cos = kitOf("cosmere");
+  const eb = tile(cos, "spells", "Eldritch Blast");
+  ok("live/cos: '1'/'cantrip' keys normalize — EB spell tile exists", !!eb);
+  ok("live/cos: EB kind=attack hit=+5 dmg=1d10 rng=24",
+     eb && eb.kind === "attack" && eb.hit === 5 && eb.dmg === "1d10" && eb.rng === 24);
+  const hexT = tile(cos, "spells", "Hex");
+  ok("live/cos: Hex kind=buff rng=18 bonus conc", hexT && hexT.kind === "buff" && hexT.rng === 18
+     && hexT.bonus === true && hexT.conc === true);
+  ok("live/cos: Shield excluded from the shelf (reaction)", !tile(cos, "spells", "Shield"));
+  ok("live/cos: Absorb Elements excluded from the shelf (reaction)", !tile(cos, "spells", "Absorb Elements"));
+
+  const caim = kitOf("caim");
+  ok("live/caim: 'level2'/'cantrips' keys normalize — Thaumaturgy tile exists",
+     !!tile(caim, "spells", "Thaumaturgy"));
+  ok("live/caim: Thaumaturgy greyed", tile(caim, "spells", "Thaumaturgy").greyed === true);
+  ok("live/caim: Hellish Rebuke excluded by REACTION_SPELLS name (rows carry no castingTime)",
+     !tile(caim, "spells", "Hellish Rebuke"));
+  ok("live/caim: react.hellishRebuke still armed (tiefling door)", !!(caim.react && caim.react.hellishRebuke));
+
+  const ves = kitOf("vesperian");
+  ok("live/ves: Shield excluded (reaction)", !tile(ves, "spells", "Shield"));
+  const ff = tile(ves, "spells", "Find Familiar");
+  ok("live/ves: Find Familiar greyed", ff && ff.greyed === true);
+  // BB exists as a real sheet attack-cantrip row — the greyed spells-tab
+  // pointer folds into it (derived-or-live-wire wins; greyed never wins).
+  ok("live/ves: greyed BB pointer folded — BB absent from spells tab", !tile(ves, "spells", "Booming Blade"));
+  const bbA = tile(ves, "attacks", "Booming Blade");
+  ok("live/ves: one real BB in attacks, kind=attack hit=+6",
+     bbA && bbA.kind === "attack" && bbA.hit === 6 && !bbA.greyed);
+  ok("live/ves: BB carries the folded spells-tab source", bbA && Array.isArray(bbA._folded) && bbA._folded.length === 1);
+  const mi = tile(ves, "spells", "Minor Illusion");
+  ok("live/ves: DC 12 rides combat.spellSaveDC (guess path would say 10)", mi && mi.dc === 12);
+  ok("live/ves: derived hp reads structural.combat.hpMax (31, not the 10 default)",
+     ves.maxHp === 31);
+
+  // ── Fact 2: damage-only ≠ save — the SPELL_COMBAT label decides the kind ──
+  const hwFlat = flat(lia, "Healing Word");
+  ok("live/lia: exactly one Healing Word in flatActions", hwFlat.length === 1);
+  ok("live/lia: flat Healing Word kind=heal (NOT save)", hwFlat.length === 1 && hwFlat[0].kind === "heal");
+  ok("live/lia: flat Cure Wounds kind=heal", flat(lia, "Cure Wounds").length === 1
+     && flat(lia, "Cure Wounds")[0].kind === "heal");
+  const vmFlat = flat(lia, "Vicious Mockery");
+  ok("live/lia: exactly one VM in flat, kind=save (utility sheet row folded)",
+     vmFlat.length === 1 && vmFlat[0].kind === "save");
+  const hohT = tile(caim, "attacks", "Hand of Healing");
+  ok("live/caim: Hand of Healing → heal via alias, sheet dice trusted (1d4+3)",
+     hohT && hohT.kind === "heal" && !hohT.greyed && hohT.dmg === "1d4+3");
+  const hexDmg = tile(cos, "attacks", "Hex (damage)");
+  ok("live/cos: Hex (damage) greyed rider, never a wrong-kind live wire",
+     hexDmg && hexDmg.greyed === true && /parent effect/.test(hexDmg.greyReason || ""));
+  ok("live/cos: Hex (damage) not in flatActions", flat(cos, "Hex (damage)").length === 0);
+  const aeRow = tile(cos, "attacks", "Absorb Elements");
+  ok("live/cos: Absorb Elements sheet row greyed", aeRow && aeRow.greyed === true);
+  const hohm = tile(caim, "attacks", "Hand of Harm");
+  ok("live/caim: Hand of Harm (no projection, no saveAbility) greyed", hohm && hohm.greyed === true);
+  // attack-cantrip rows keep their real attack roll; the derived spell tile
+  // outranks the sheet row in the dedupe, so EB lives exactly once (spells tab)
+  const ebFlat = flat(cos, "Eldritch Blast");
+  ok("live/cos: exactly one EB in flat, kind=attack hit=+5",
+     ebFlat.length === 1 && ebFlat[0].kind === "attack" && ebFlat[0].hit === 5);
+  ok("live/cos: sheet EB row folded into the spell tile",
+     eb && Array.isArray(eb._folded) && eb._folded.length === 1);
+
+  // ── C: dedupe — assembled/classFeature wins, sheet row folds into the winner ──
+  const slings = (lia.tabs.attacks || []).filter(function (t) { return t.label === "Sling"; });
+  ok("live/lia: exactly one Sling (assembled wins)", slings.length === 1 && slings[0].id === "wpn-sling");
+  ok("live/lia: Sling derived math (hit=+3)", slings.length === 1 && slings[0].hit === 3);
+  ok("live/lia: folded sheet Sling preserved on the winner",
+     slings.length === 1 && Array.isArray(slings[0]._folded) && slings[0]._folded.length === 1);
+  const daggers = (lia.tabs.attacks || []).filter(function (t) { return t.label === "Dagger"; });
+  ok("live/lia: exactly one Dagger", daggers.length === 1 && daggers[0].id === "wpn-dagger");
+  const sw = flat(ves, "Second Wind");
+  ok("live/ves: exactly one Second Wind, kind=selfheal (classFeature wins)",
+     sw.length === 1 && sw[0].kind === "selfheal");
+  ok("live/ves: Second Wind adopts the folded sheet dice (1d10+3)", sw.length === 1 && sw[0].dmg === "1d10+3");
+  const lsC = (cos.tabs.attacks || []).filter(function (t) { return t.label === "Longsword"; });
+  ok("live/cos: exactly one Longsword (assembled wins)", lsC.length === 1 && lsC[0].id === "wpn-longsword");
+
+  // ── The invariant, upgraded: asserted on LIVE kits ──
+  ["liadan", "cosmere", "caim", "vesperian"].forEach(function (k) {
+    const kit = kitOf(k);
+    const bad = (kit.actions || []).filter(function (a) { return !RESOLVABLE[a.kind]; });
+    ok("live/" + k + ": every flatAction kind resolvable (found: "
+       + bad.map(function (a) { return a.label + ":" + a.kind; }).join(", ") + ")", bad.length === 0);
+    ["attacks", "spells"].forEach(function (tab) {
+      const loose = (kit.tabs[tab] || []).filter(function (t) { return !t.greyed && !RESOLVABLE[t.kind]; });
+      ok("live/" + k + "/" + tab + ": greyed-or-resolvable (loose: "
+         + loose.map(function (t) { return t.label + ":" + t.kind; }).join(", ") + ")", loose.length === 0);
+    });
+  });
+
+  // ── knownSpellList legacy keys: bare digits now feed buildSpellAttacks ──
+  const bare = WA.buildSpellAttacks({ level: 3, proficiencyBonus: 2,
+    combat: { spellAttackBonus: 5, spellSaveDC: 13 },
+    spells: { "1": [{ name: "Guiding Bolt" }] } });
+  ok("weapon-actions: bare '1' spells key reaches buildSpellAttacks", bare.length === 1
+     && bare[0].label.indexOf("Guiding Bolt") === 0 && bare[0].type === "attack-cantrip");
+
+  // ── spellGroupsFrom exported and shape-checked ──
+  ok("spellGroupsFrom exported", typeof FKD.spellGroupsFrom === "function");
+  if (typeof FKD.spellGroupsFrom === "function") {
+    const g = FKD.spellGroupsFrom(LIVE.caim.structural);
+    const lv = g.map(function (x) { return x.level; }).sort().join(",");
+    ok("spellGroupsFrom: caim level2/cantrips → levels 0,2", lv === "0,2");
+    const g2 = FKD.spellGroupsFrom({ spellcasting: { groups: [{ level: 1, spells: [] }] }, spells: { "1": [{ name: "X" }] } });
+    ok("spellGroupsFrom: prefers spellcasting.groups when present", g2.length === 1 && g2[0].spells.length === 0);
+  }
+
+  // ── wrapStarterKit exported (E1 needs it from the mock's kitFor) ──
+  ok("wrapStarterKit exported", typeof FKD.wrapStarterKit === "function");
+
+  // ── G: itemTiles reads 5etools type codes (live inventories use M/R/G/P/SC…) ──
+  const gInv = [
+    { name: "Greater Healing Draught", type: "P" },
+    { name: "Revivify (Spell Scroll)", type: "SC" },
+    { name: "Longsword", type: "M" },
+    { name: "Backpack", type: "G" }
+  ];
+  const gTiles = FKD.itemTiles(gInv);
+  ok("itemTiles: 5etools 'P' → potion tile", gTiles.length === 2
+     && gTiles[0].label === "Greater Healing Draught" && gTiles[0].kind === "potion");
+  ok("itemTiles: 5etools 'SC' → scroll tile", gTiles.length === 2 && gTiles[1].kind === "item");
+  // The round-3 items-empty finding is CORRECT behavior: nobody carries a
+  // usable item. Pin it so a future loot drop is the only thing that changes it.
+  ["liadan", "cosmere", "caim", "vesperian"].forEach(function (k) {
+    ok("live/" + k + ": items tab empty (no potions/scrolls carried — diagnosis, not bug)",
+       FKD.itemTiles(LIVE[k].inventory).length === 0);
+  });
+})().catch(function (e) {
+  fail++; console.log("  FAIL live-fixture section threw: " + (e && e.stack || e));
+}).finally(function () {
+  // ── summary ────────────────────────────────────────────────────────────
+  console.log("smoke-kit-derive: " + pass + " passed, " + fail + " failed");
+  process.exit(fail ? 1 : 0);
+});

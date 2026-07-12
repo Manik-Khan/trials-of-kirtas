@@ -2913,8 +2913,13 @@ function kitFor(key){
   if (!key) return null;
   // 1. Derived kit (full live-data derivation)
   if (__derivedKits && __derivedKits[key]) return __derivedKits[key];
-  // 2. STARTER_KITS fallback (hand-tuned)
-  if (STARTER_KITS[key]) return STARTER_KITS[key];
+  // 2. STARTER_KITS fallback (hand-tuned) — wrapped so `tabs` always exist
+  //    (round-3 §E1: the raw kit is tab-less; the bar rendered empty on it)
+  if (STARTER_KITS[key]) {
+    return (window.ForgeKitDerive && window.ForgeKitDerive.wrapStarterKit)
+      ? window.ForgeKitDerive.wrapStarterKit(key, STARTER_KITS[key])
+      : STARTER_KITS[key];
+  }
   // 3. Generic kit for any sheet-having PC without a starter entry
   var c = __liveStatsCache && __liveStatsCache[key];
   if (!c) return null;
@@ -3066,10 +3071,11 @@ function applyVerb(v){
       if(!u.alive){ removeToken(u); maybeEnd(); }
       // Finding 2 (review): GOD-MODE revival (hp 0→N) — removeToken nulled the
       // sprite/shadow on the way down; nothing on the "hp" verb ever recreated
-      // them, so a revived unit went invisible. Genuine revive only (was dead,
-      // now alive, and the sprite is actually gone — never re-spawn a token
-      // that's merely being healed while already standing).
-      else if(!wasAlive && u.alive && !u.sprite){ makeToken(u); positionToken(u); clog(escapeHtml(u.name)+" is back on their feet."); }
+      // them, so a revived unit went invisible. §F widens this to every
+      // revive (heal-the-downed now publishes through the same hp verb): a
+      // corpse sprite (the _ves down pose) counts too — force-rebuild so the
+      // unit stands back up instead of staying in the death pose.
+      else if(!wasAlive && u.alive){ removeToken(u,true); makeToken(u); positionToken(u); clog(escapeHtml(u.name)+" is back on their feet."); }
       } break;
     case "spawn":  spawnUnitFromState(v.unit, v.u); break;
     case "despawn":if(u){ removeToken(u); CB.units=CB.units.filter(function(x){return x!==u;}); CB.order=CB.order.filter(function(x){return x!==u;}); } break;
@@ -3288,8 +3294,17 @@ async function drainMirror(){
   showMirrorChip(__mirrorQueue.size>0);
 }
 
+/* Round-3 §E1: the local sandbox never called loadLiveStats(), so bars sat
+   empty until a session started. startCombat now derives first (a no-op
+   after the first call — loadLiveStats caches), then places. Signed-out
+   local play resolves instantly: no CharacterData → an empty derive map →
+   kitFor falls to the wrapped starter kits, which now carry tabs. */
 function startCombat(){
+  loadLiveStats().then(startCombatNow);
+}
+function startCombatNow(){
   tokenGroup.clear(); moveGroup.clear(); clearBadges(); READYING=false; RELEASING=null; CB_ANIM=false;
+  __losExplained={};   // §D: the once-per-geometry LoS feed guard resets with the fight
   var fx=fxHost(); if(fx) fx.innerHTML="";
   CB={ active:true, over:false, units:[], order:[], ti:-1, map:combatMapFromF(), seen:null, st:null, pending:null, hexed:null,
        log:[], hist:[], hptr:-1, turnStartPtr:-1, react:null };
@@ -3309,9 +3324,9 @@ function startCombat(){
   /* The old fallback was `pcCells[i]||pcCells[last]` \u2014 it stacked leftover PCs
      on one square. A character with nowhere to stand is dropped loudly, not
      silently welded to a friend. */
-  roster.forEach(function(key,i){ var s=CHAR[key]; if(!s)return; var cell=pcCells[i]; if(!cell)return;
+  roster.forEach(function(key,i){ var s=kitFor(key)||CHAR[key]; if(!s)return; var cell=pcCells[i]; if(!cell)return;
     var badge=(window.__fightControllers&&window.__fightControllers[key]&&window.__fightControllers[key].badge)||null;
-    var u=buildUnit(s,"pc",{id:"pc"+i,key:key,c:cell.x,r:cell.y,hp:s.hp,hpMax:s.hp,badge:badge});
+    var u=buildUnit(s,"pc",{id:"pc"+i,key:key,c:cell.x,r:cell.y,hp:s.hp,hpMax:(s.maxHp!=null?s.maxHp:s.hp),badge:badge});
     CB.units.push(u); makeToken(u); });
   foeCells.forEach(function(cell,i){
     var u=buildUnit(FOE,"foe",{id:"foe"+i,key:"goblin"+i,name:FOE.name+" "+(i+1),c:cell.x,r:cell.y,hp:FOE.hp,hpMax:FOE.hp});
@@ -3359,6 +3374,12 @@ function active(){ return CB.order[CB.ti]; }
 function unitAt(c,r){ return CB.units.filter(function(u){return u.alive&&u.c===c&&u.r===r;})[0]||null; }
 function enemies(u){ return CB.units.filter(function(x){return x.alive&&x.side!==u.side;}); }
 function allies(u){ return CB.units.filter(function(x){return x.alive&&x.side===u.side;}); }
+/* Round-3 §F (M's ruling): a heal on a downed ally brings it up at the
+   healed HP, unconscious cleared. allies() filters `alive`, which made the
+   ruling inexpressible — a downed unit stays in CB.units (removeToken
+   drops only the sprite), so the heal target pool simply stops filtering. */
+function alliesForHeal(u){ return CB.units.filter(function(x){return x.side===u.side;}); }
+function downedUnitAt(c,r){ return CB.units.filter(function(x){return !x.alive&&x.c===c&&x.r===r;})[0]||null; }
 
 /* the shared "a turn begins for u" body \u2014 LOCAL (nextTurn) picks u
    itself by scanning CB.order for the next alive combatant; SESSION
@@ -3442,36 +3463,85 @@ function sightReport(u){
   }).join("");
 }
 
-function tileFlat(c,r,color,alpha){ var m=new THREE.Mesh(new THREE.PlaneGeometry(0.92,0.92),
-  new THREE.MeshBasicMaterial({color:color,transparent:true,opacity:alpha,depthWrite:false}));
-  m.rotation.x=-Math.PI/2; m.position.set(wxc(c),tierY(c,r)+0.06,wzc(r)); m.renderOrder=1; return m; }
+/* Round-3 §E2: target tints were depth-tested, so they hid under the baked
+   ink shell (the gold marker has depthTest:false, which is why gold showed).
+   `noDepth` is the tint door: paint over everything, renderOrder above the
+   sprites. Movement-range tiles stay depth-tested — they belong to the
+   terrain and must vanish behind hills. */
+function tileFlat(c,r,color,alpha,noDepth){ var m=new THREE.Mesh(new THREE.PlaneGeometry(0.92,0.92),
+  new THREE.MeshBasicMaterial({color:color,transparent:true,opacity:alpha,depthWrite:false,depthTest:noDepth?false:true}));
+  m.rotation.x=-Math.PI/2; m.position.set(wxc(c),tierY(c,r)+0.06,wzc(r)); m.renderOrder=noDepth?4:1; return m; }
 function drawHi(){
   clearBadges();
   moveGroup.clear(); if(!CB.active||CB.over) return;
-  if(CONTEST_HI) moveGroup.add(tileFlat(CONTEST_HI.c,CONTEST_HI.r,0xb8863a,0.55));   // the block being argued about (cover contest, spec §7)
-  if(GRANT_PICK){ grantTargets(GRANT_PICK.caster).forEach(function(t){ moveGroup.add(tileFlat(t.c,t.r,0x3a8a92,0.5)); }); return; }   // Silvery Barbs rider: eligible allies
+  if(CONTEST_HI) moveGroup.add(tileFlat(CONTEST_HI.c,CONTEST_HI.r,0xb8863a,0.55,true));   // the block being argued about (cover contest, spec §7)
+  if(GRANT_PICK){ grantTargets(GRANT_PICK.caster).forEach(function(t){ moveGroup.add(tileFlat(t.c,t.r,0x3a8a92,0.5,true)); }); return; }   // Silvery Barbs rider: eligible allies
   if(RELEASING&&RELEASING.readied){ var rlA=RELEASING.readied.act;
     enemies(RELEASING).forEach(function(t){ var ro=reachOK(RELEASING,rlA,t);
-      moveGroup.add(tileFlat(t.c,t.r,!ro.ok?0x6b6357:0xc9a24b,!ro.ok?0.20:0.5));
+      moveGroup.add(tileFlat(t.c,t.r,!ro.ok?0x6b6357:0xc9a24b,!ro.ok?0.20:0.5,true));
       badgeFor(RELEASING,t,rlA,ro); });
     return; }
   var u=active(); if(!u||u.side!=="pc") return;
   if(CB.pending){ var pa=CB.pending;
     if(pa.kind==="heal"||pa.kind==="buffAlly"){
       var hiCol = pa.kind==="heal" ? 0x2da84f : 0xc9a24b;   // green for heal, gold for buffAlly
-      validTargets(u,pa).forEach(function(t){ moveGroup.add(tileFlat(t.c,t.r,hiCol,0.5)); });
-      allies(u).forEach(function(t){ if(t===u&&(pa.rng||1)<1)return; var ro=reachOK(u,pa,t); if(!ro.ok) badgeFor(u,t,pa,ro); }); }
+      validTargets(u,pa).forEach(function(t){ moveGroup.add(tileFlat(t.c,t.r,hiCol,0.5,true)); });
+      (pa.kind==="heal"?alliesForHeal(u):allies(u)).forEach(function(t){ if(t===u&&(pa.rng||1)<1)return; var ro=reachOK(u,pa,t); if(!ro.ok) badgeFor(u,t,pa,ro); }); }
     else { enemies(u).forEach(function(t){ var ro=reachOK(u,pa,t);
-      var col=!ro.ok?0x6b6357:(ro.dis?0xd08a2a:0xb34a38), al=!ro.ok?0.20:0.5; moveGroup.add(tileFlat(t.c,t.r,col,al));
+      var col=!ro.ok?0x6b6357:(ro.dis?0xd08a2a:0xb34a38), al=!ro.ok?0.20:0.5; moveGroup.add(tileFlat(t.c,t.r,col,al,true));
       badgeFor(u,t,pa,ro); }); }
     return; }
   if(CB.st.moveLeft>0) Object.keys(CB.seen||{}).forEach(function(k){ var p=k.split(",").map(Number); moveGroup.add(tileFlat(p[0],p[1],0x4fd0e0,0.42)); });   // #2: brighter cyan + higher alpha — the old teal 0.26 blended into grass/stone
 }
 function validTargets(u,a){
   if(a.kind==="selfheal"||a.kind==="rage"||a.kind==="surge") return [u];
-  var list=(a.kind==="heal"||a.kind==="buffAlly")?allies(u):enemies(u);
+  var list=(a.kind==="heal")?alliesForHeal(u):(a.kind==="buffAlly")?allies(u):enemies(u);
   return list.filter(function(t){ if(t===u&&a.kind!=="heal")return false; return reachOK(u,a,t).ok; });
 }
+/* ── Round-3 §E3: FFT-style hover tile (M's ask) ─────────────────────────
+   One glowing tileFlat under the hovered cell so the click's landing spot
+   is always visible. Soft green by default; when an action is pending and
+   the hovered cell holds a unit, tint by validity — green = a legal target,
+   red = wrong side / out of reach / no line. rAF-throttled, recomputed only
+   when the cell changes (or an action is pending, whose validity can change
+   without the cursor moving between repaints is NOT tracked — cheap enough
+   to recompute on every cell change only). depthTest:false, over the ink. */
+var hoverGroup=new THREE.Group(); scene.add(hoverGroup);
+var __hoverCell=null, __hoverRafPending=false, __hoverEvt=null;
+function clearHover(){ if(__hoverCell!==null){ hoverGroup.clear(); __hoverCell=null; } }
+function hoverTint(gx,gy,u){
+  if(!CB.pending||!u||u.side!=="pc") return 0x2da84f;             // plain landing-cell glow
+  var pa=CB.pending;
+  var t=unitAt(gx,gy)||(pa.kind==="heal"?downedUnitAt(gx,gy):null);
+  if(!t) return 0x2da84f;                                          // empty cell — plain glow
+  if(pa.kind==="selfheal"||pa.kind==="surge") return t===u?0x2da84f:0xb34a38;
+  var wantAlly=(pa.kind==="heal"||pa.kind==="buffAlly");
+  if(wantAlly!==(t.side===u.side)) return 0xb34a38;                // wrong side
+  return reachOK(u,pa,t).ok?0x2da84f:0xb34a38;
+}
+function hoverMove(e){
+  if(!CB.active||CB.over||drag||CB_ANIM){ clearHover(); return; }
+  __hoverEvt=e;
+  if(__hoverRafPending) return;
+  __hoverRafPending=true;
+  requestAnimationFrame(function(){
+    __hoverRafPending=false;
+    var ev=__hoverEvt; if(!ev||!CB.active||CB.over||drag){ clearHover(); return; }
+    var rect=renderer.domElement.getBoundingClientRect();
+    ndc.x=((ev.clientX-rect.left)/rect.width)*2-1; ndc.y=-((ev.clientY-rect.top)/rect.height)*2+1;
+    ray.setFromCamera(ndc,camera);
+    var hit=ray.intersectObjects(world.children,true)[0];
+    if(!hit){ clearHover(); return; }
+    var gx=Math.round(hit.point.x+F.W/2-0.5), gy=Math.round(hit.point.z+F.H/2-0.5);
+    if(gx<0||gy<0||gx>=F.W||gy>=F.H){ clearHover(); return; }
+    var key=gx+","+gy+(CB.pending?"|p":"");
+    if(key===__hoverCell) return;
+    hoverGroup.clear(); __hoverCell=key;
+    hoverGroup.add(tileFlat(gx,gy,hoverTint(gx,gy,active()),0.35,true));
+  });
+}
+renderer.domElement.addEventListener("pointermove",hoverMove);
+renderer.domElement.addEventListener("pointerleave",clearHover);
 /* ── GEOMETRY ────────────────────────────────────────────────────────────
    DISTANCE stays local: M's rule is the Chebyshev hypotenuse — a tier is
    5 ft, diagonals are 5 ft, so 30 ahead + 30 down = 30. (Canonical
@@ -3500,11 +3570,34 @@ function reachOK(u,a,t){
   return {ok:true,cover:0,dis:dis};
 }
 /* Instrument reality: when a shot is refused, say exactly which cell refused
-   it and how tall that cell is. No more silent "no line of sight". */
+   it and how tall that cell is. No more silent "no line of sight".
+   Round-3 §D step 1: the explanation goes TO THE FEED — named blocker
+   (prop kind at the cell, else terrain), occluder feet, corner count — so
+   M can table-read one real refusal before ruling on tree occlusion. The
+   guard keys on attacker/target/positions: one feed line per geometry
+   (reachOK runs on every repaint; the console line was already spammy, the
+   feed line must not be). Reset per fight in startCombatNow.               */
+var __losExplained={};
+function occluderKindAt(c,r){
+  var best=null;
+  (F.props||[]).forEach(function(p){
+    if(p.x===c&&p.y===r){ var ft=propOccFt(p); if(!best||ft>best.ft) best={kind:p.kind,ft:ft}; }
+  });
+  return best;
+}
 function explainBlock(u,t,v){
   var hit=TG.losRay(CB.map,{c:u.c,r:u.r},{c:t.c,r:t.r});
   if(!hit.blocked||!hit.at) return;
   var j=hit.at.r*F.W+hit.at.c;
+  var key=u.unit+">"+(t.unit||t.id)+"@"+u.c+","+u.r+">"+t.c+","+t.r;
+  if(!__losExplained[key]){
+    __losExplained[key]=true;
+    var prop=occluderKindAt(hit.at.c,hit.at.r);
+    var name=prop?prop.kind:(CB.map.occ[j]>0?"occluder":"terrain");
+    clog("<i>No line of sight \u2014 "+escapeHtml(name)+" at ("+hit.at.c+","+hit.at.r+"), "
+      +(CB.map.h[j]+CB.map.occ[j])+" ft ("+CB.map.h[j]+" terrain + "+CB.map.occ[j]+" occluder), "
+      +v.blocked+"/8 corners blocked.</i>");
+  }
   console.log("[LoS] "+u.name+" ("+u.c+","+u.r+") h"+CB.map.h[j===0?0:u.r*F.W+u.c]+
     " → "+t.name+" ("+t.c+","+t.r+")  blocked at ("+hit.at.c+","+hit.at.r+")"+
     "  terrain "+CB.map.h[j]+" ft + occluder "+CB.map.occ[j]+" ft = "+(CB.map.h[j]+CB.map.occ[j])+" ft"+
@@ -4018,7 +4111,14 @@ function doSave(u,a,t){ var ro=reachOK(u,a,t); if(!ro.ok){ clog(u.name+" \u2014 
     if(t.hp<=0){ floatAt(t,"DOWN","down"); t.alive=false; removeToken(t); line+=" \u2014 <b>down</b>"; } }
   else { line+="save"; floatAt(t,"save","miss"); } clog(line); }
 function doHeal(u,a,t){ var ro=reachOK(u,a,t); if(!ro.ok){ clog(u.name+" \u2014 "+ro.why+"."); return; }
-  var amt=rollDmg(a.dmg)+(a.disciple||0), was=t.hp; t.hp=Math.min(t.hpMax,t.hp+amt);
+  var amt=rollDmg(a.dmg)+(a.disciple||0);
+  if(!t.alive) t.hp=Math.max(0,t.hp);   /* \u00a7F: the sandbox lets hp go negative on the way down; the heal counts from 0 */
+  var was=t.hp; t.hp=Math.min(t.hpMax,t.hp+amt);
+  if(!t.alive&&t.hp>0){                 /* \u00a7F (M's ruling): up at the healed HP, unconscious cleared */
+    t.alive=true; removeToken(t,true); makeToken(t); positionToken(t);
+    floatAt(t,"+"+(t.hp-was),"heal");
+    clog(u.name+" \u2192 "+t.name+": "+a.label+" +"+(t.hp-was)+" ("+t.hp+"/"+t.hpMax+") \u2014 <b>"+escapeHtml(t.name)+" is back on their feet.</b>");
+    return; }
   floatAt(t,"+"+(t.hp-was),"heal");
   clog(u.name+" \u2192 "+t.name+": "+a.label+" +"+(t.hp-was)+" ("+t.hp+"/"+t.hpMax+")"); }
 
@@ -4115,12 +4215,33 @@ function combatClick(cx,cy){
   var myTurn = !!u && u.side==="pc" && (!sess || (window.ForgeBoard.controls(sess.me,u.unit) && __awaitingCount===0));
   var tHit=ray.intersectObjects(tokenGroup.children,true)[0];
   var tu=tHit?spriteUnit(tHit.object):null;
-  if(tu && !(myTurn && CB.pending)){ setSel(tu.key); inspectUnit(tu); return; }   // #1: click a token → select (gold) + nameplate
+  /* Round-3 §F: a downed ally is a legal HEAL target (M's ruling). Its
+     sprite is either gone (removeToken) or a corpse (the _ves down pose),
+     so the alive-filtered spriteUnit can't see it — with a heal pending,
+     fall through to the any-state matcher. */
+  if(!tu && tHit && myTurn && CB.pending && CB.pending.kind==="heal") tu=spriteUnitAny(tHit.object);
+  if(tu && tu.alive && !(myTurn && CB.pending)){ setSel(tu.key); inspectUnit(tu); return; }   // #1: click a token → select (gold) + nameplate
   if(!myTurn) return;   // not my seat / not a PC turn / a tap of mine hasn't echoed yet
   if(tHit){
     if(tu&&CB.pending){ var pa=CB.pending, wantAlly=(pa.kind==="heal"||pa.kind==="buffAlly");
       if((wantAlly&&tu.side!==u.side)||(!wantAlly&&tu.side===u.side)){ clog("<i>"+pa.label+": wrong target.</i>"); return; }
+      if(!tu.alive&&pa.kind!=="heal"){ clog("<i>"+pa.label+": they're already down.</i>"); return; }
       var ro=reachOK(u,pa,tu); if(ro.ok) resolveOn(u,pa,tu); else clog("<i>"+pa.label+": "+ro.why+".</i>"); return; } }
+  /* Sprite-less downed ally: the heal click lands on bare ground — resolve
+     it against the cell before "open ground" cancels the pending action. */
+  if(CB.pending&&CB.pending.kind==="heal"&&!tHit){
+    var dHit=ray.intersectObjects(world.children,true)[0];
+    if(dHit){
+      var dx=Math.round(dHit.point.x+F.W/2-0.5), dy=Math.round(dHit.point.z+F.H/2-0.5);
+      var du=downedUnitAt(dx,dy);
+      if(du){
+        if(du.side!==u.side){ clog("<i>"+CB.pending.label+": wrong target.</i>"); return; }
+        var dro=reachOK(u,CB.pending,du);
+        if(dro.ok) resolveOn(u,CB.pending,du); else clog("<i>"+CB.pending.label+": "+dro.why+".</i>");
+        return;
+      }
+    }
+  }
   if(CB.pending){ CB.pending=null; drawHi(); drawSight(); renderHud(); return; }   // open ground = put the weapon away
   var gHit=ray.intersectObjects(world.children,true)[0]; if(!gHit){ clearSelTgt(); return; }
   var gx=Math.round(gHit.point.x+F.W/2-0.5), gy=Math.round(gHit.point.z+F.H/2-0.5);
@@ -4133,6 +4254,8 @@ function combatClick(cx,cy){
   }
 }
 function spriteUnit(obj){ var f=null; CB.units.forEach(function(u){ if(u.alive&&(u.sprite===obj||u.shadow===obj)) f=u; }); return f; }
+/* §F: same matcher, no alive filter — a downed _ves corpse keeps its sprite */
+function spriteUnitAny(obj){ var f=null; CB.units.forEach(function(u){ if(u.sprite===obj||u.shadow===obj) f=u; }); return f; }
 /* tweened, hop-per-square walk — port of battle-tactics walk() re-hosted on
    the heightfield. Steps come from TG.pathTo over the same reach map the
    telegraph drew, so the token walks exactly the tiles the rules charged. */

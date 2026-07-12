@@ -15,10 +15,10 @@ function deepEq(a, b) { return JSON.stringify(a) === JSON.stringify(b); }
 const m = html.match(/\/\*SK-START\*\/([\s\S]*?)\/\*SK-END\*\//);
 ok("liveStatsFor/kitFor/loadLiveStats extractable", !!m);
 
-function makeSandbox(STARTER_KITS, characterData) {
+function makeSandbox(STARTER_KITS, characterData, forgeKitDerive) {
   const clog = function () {};              // narration UI — not under test here
   const escapeHtml = function (s) { return String(s); };
-  const win = { CharacterData: characterData };
+  const win = { CharacterData: characterData, ForgeKitDerive: forgeKitDerive };
   const fn = new Function(
     "window", "STARTER_KITS", "clog", "escapeHtml",
     m[1] + "\nreturn { loadLiveStats: loadLiveStats, liveStatsFor: liveStatsFor, " +
@@ -68,12 +68,26 @@ async function main() {
     ok("liveStatsFor: warn flag stays set (still once)", sb.__liveStatsWarned.cosmere === true);
   }
 
-  // 3. kitFor known key → the exact STARTER_KITS entry (same reference).
+  // 3. kitFor known key, NO derive layer loaded → the exact STARTER_KITS
+  //    entry (same reference) — the raw fallback survives a missing module.
   {
     const sb = makeSandbox(STARTER_KITS, { loadParty: () => Promise.resolve([]) });
     await sb.loadLiveStats();
     const kit = sb.kitFor("vesperian");
-    ok("kitFor: known key returns STARTER_KITS entry", kit === STARTER_KITS.vesperian);
+    ok("kitFor: known key (no derive layer) returns STARTER_KITS entry", kit === STARTER_KITS.vesperian);
+  }
+
+  // 3b. Round-3 §E1: with ForgeKitDerive present, the starter branch WRAPS —
+  //     tabs always exist, so the forge bar never renders empty on a raw kit.
+  {
+    const FKD = require("../forge-kit-derive.js");
+    const sb = makeSandbox(STARTER_KITS, { loadParty: () => Promise.resolve([]) }, FKD);
+    await sb.loadLiveStats();
+    const kit = sb.kitFor("vesperian");
+    ok("kitFor: starter branch wraps via wrapStarterKit", !!kit && kit.fallback === "starter");
+    ok("kitFor: wrapped starter kit carries tabs", !!kit && !!kit.tabs && Array.isArray(kit.tabs.attacks));
+    ok("kitFor: wrapped starter kit keeps the hand-tuned actions", !!kit && kit.actions.length === STARTER_KITS.vesperian.actions.length);
+    ok("kitFor: wrapping never mutates the raw kit", STARTER_KITS.vesperian.tabs === undefined);
   }
 
   // 4. kitFor unknown key (sheet exists, no STARTER_KITS entry) → generic kit.

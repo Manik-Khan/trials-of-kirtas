@@ -157,19 +157,49 @@
       // ── Spell attack rows from buildSpellAttacks (weapon-actions.js) ──
       // attack-cantrip: hitMod is the complete spell attack bonus (ability+prof)
       //   — must NOT be recomputed from the weapon ability path.
-      // damage-only: save spells — re-kind to "save" with DC + saveAbility.
+      // damage-only (round-3 Fact 2): NOT a save bucket — it's the action
+      //   editor's "roll dice, no attack roll" type, and live sheets file
+      //   Healing Word / Cure Wounds / Hand of Healing / Hex (damage) /
+      //   Absorb Elements under it. The SPELL_COMBAT label lookup decides
+      //   the kind; the row type only decides which numeric fields to trust
+      //   (hitMod direct on attack-cantrip, dmgMod/dmgDice on both).
+      //   No projection and no saveAbility → greyed, never a wrong-kind
+      //   live wire. Projection to buff/buffAlly on a damage bucket means
+      //   the row is a RIDER of its parent effect → greyed v1.
       if (a.type === "attack-cantrip" || a.type === "damage-only") {
         var spDmgMod = a.dmgMod || 0;
         var spDmgExpr = (a.dmgDice || "1d4");
         if (spDmgMod > 0) spDmgExpr += "+" + spDmgMod;
         else if (spDmgMod < 0) spDmgExpr += String(spDmgMod);
 
-        var spKind = a.type === "attack-cantrip" ? "attack" : "save";
         var spDc   = sc.saveDC || ((s.combat || {}).spellSaveDC) || null;
 
-        // Range + rider from SPELL_COMBAT if available
-        var spName = (a.label || "").toLowerCase().replace(/\s*\(.*\)$/, "").replace(/\u2019/g, "'");
-        var proj   = SPELL_COMBAT[spName];
+        // Label → SPELL_COMBAT projection ("Hex (damage)" keeps its
+        // parenthetical for the rider check; the base lookup strips it)
+        var rawName = (a.label || "").toLowerCase().replace(/\u2019/g, "'").trim();
+        var spName  = rawName.replace(/\s*\(.*\)$/, "");
+        var proj    = SPELL_COMBAT[rawName] || SPELL_COMBAT[spName];
+        var projKind = proj ? proj.kind : undefined;
+
+        var spKind, spGreyed = false, spGreyReason = null;
+        if (a.type === "attack-cantrip") {
+          spKind = "attack";               // the sheet's real attack roll — always trusted
+        } else if (rawName !== spName && rawName.indexOf("(damage)") !== -1) {
+          spKind = "spell"; spGreyed = true;
+          spGreyReason = "Rolls from its parent effect \u2014 the drawer explains";
+        } else if (projKind === "heal" || projKind === "save" || projKind === "selfheal") {
+          spKind = projKind;               // the projection decides
+        } else if (projKind === "buff" || projKind === "buffAlly") {
+          spKind = "spell"; spGreyed = true;   // damage rider of a buff spell
+          spGreyReason = "Rolls from its parent effect \u2014 the drawer explains";
+        } else if (a.saveAbility) {
+          spKind = "save";                 // buildSpellAttacks-derived save row
+        } else {
+          spKind = "spell"; spGreyed = true;
+          spGreyReason = (proj && proj.greyReason)
+            || "Not yet wired for Forge combat \u2014 rules text in the drawer";
+        }
+
         var spRng  = (proj && proj.rng) ? proj.rng : (a.type === "attack-cantrip" ? 24 : 12);
         var spRider = (proj && proj.rider) || null;
 
@@ -182,7 +212,7 @@
           long:        null,
           hit:         a.type === "attack-cantrip" ? (a.hitMod || 0) : 0,
           dc:          spKind === "save" ? spDc : null,
-          saveAbility: a.saveAbility || (proj && proj.save) || null,
+          saveAbility: spKind === "save" ? (a.saveAbility || (proj && proj.save) || null) : null,
           dmg:         spDmgExpr,
           dmgStack:    [{ dice: a.dmgDice || "1d4", bonus: spDmgMod, type: a.dmgType || "" }],
           bonus:       !!a.bonus,
@@ -194,6 +224,8 @@
           critDice:    a.critDice || null,
           strikes:     null,
           needsAttack: false,
+          greyed:      spGreyed,
+          greyReason:  spGreyReason,
           _src:        a
         });
         return;
@@ -298,6 +330,10 @@
     "mass cure wounds":   { kind: "heal", rng: 12, baseDmg: "3d8", healMod: true },
     "heal":               { kind: "heal", rng: 12, baseDmg: "70" },
     "prayer of healing":  { kind: "heal", rng: 6,  baseDmg: "2d8", healMod: true },
+    // Way of Mercy — sheet-row aliases (not spells; the label lookup in
+    // attackTiles resolves them so the ki heal is a real heal tile)
+    "hand of healing":    { kind: "heal", rng: 1 },
+    "hands of healing":   { kind: "heal", rng: 1 },
 
     // ── buff (single-target enemy debuff) ──
     "hex":                { kind: "buff", rng: 18 },
@@ -378,24 +414,75 @@
   function _cantripMult(level) { return level >= 17 ? 4 : level >= 11 ? 3 : level >= 5 ? 2 : 1; }
   function _scaleDice(s, mult) { var m = String(s).match(/(\d+)d(\d+)/); return m ? (parseInt(m[1],10)*mult)+'d'+m[2] : s; }
 
+  // ── the live-shape normalizer (round-3 Fact 1) ──────────────────────────
+  /* structural.spellcasting is None on every live character — spells live
+     under structural.spells, level-keyed with INCONSISTENT keys per sheet:
+     '1'/'2'/'cantrip' (Líadan, Cosmere, Vesperian) vs 'level2'/'cantrips'
+     (Caim). spellGroupsFrom prefers spellcasting.groups when present (the
+     forged/new shape) and otherwise builds groups from structural.spells:
+       key normalization  'cantrip'|'cantrips' → 0, 'N'|'levelN' → N
+       per-row            castingTime → time, concentration|conc → conc,
+                          range/duration/desc carried on the row (→ _src). */
+  function normSpellLevelKey(k) {
+    if (/^cantrips?$/i.test(k)) return 0;
+    var m = String(k).match(/^(?:level)?(\d)$/i);
+    return m ? +m[1] : null;
+  }
+  function spellGroupsFrom(s) {
+    var sc = (s && s.spellcasting) || {};
+    if (sc.groups && sc.groups.length) return sc.groups;
+    var legacy = s && s.spells;
+    if (!legacy || typeof legacy !== "object" || Array.isArray(legacy)) return [];
+    var groups = [];
+    Object.keys(legacy).forEach(function (k) {
+      if (!Array.isArray(legacy[k])) return;
+      var lvl = normSpellLevelKey(k);
+      if (lvl == null) return;
+      groups.push({ level: lvl, spells: legacy[k].map(function (sp) {
+        if (!sp) return { name: "" };
+        if (typeof sp === "string") return { name: sp };
+        return {
+          name: sp.name || "",
+          time: sp.castingTime || sp.time || null,
+          conc: !!(sp.concentration || sp.conc),
+          range: sp.range || null,
+          duration: sp.duration || null,
+          desc: sp.desc || null,
+          source: sp.source || null,
+          origin: sp.origin || null
+        };
+      }) });
+    });
+    groups.sort(function (a, b) { return a.level - b.level; });
+    return groups;
+  }
+
   // ── SPELLS tab ──────────────────────────────────────────────────────────
-  /* Reads structural.spellcasting.groups → pipeline-ready tiles via SPELL_COMBAT.
+  /* Reads spellGroupsFrom(structural) → pipeline-ready tiles via SPELL_COMBAT.
      Cantrips first, grouped by level. Excludes spellbook-only entries.
-     Unmapped or utility spells render greyed with an explanation in the drawer. */
+     Unmapped or utility spells render greyed with an explanation in the drawer.
+     DC / attack bonus chain (round-3): spellcasting.saveDC → the sheet's
+     combat.spellSaveDC (live shape) → the guessCastAbil computation. Same
+     for the attack bonus; the cast mod backs out of the stored attack bonus
+     when present (attackBonus − PB), matching buildSpellAttacks' spellMod. */
   function spellTiles(s) {
     var sc = s.spellcasting || {};
+    var cmb = s.combat || {};
     var tiles = [];
-    var dc = sc.saveDC || (8 + profBonus(s) + abilMod(s, guessCastAbil(s)));
-    var atkBonus = sc.attackBonus || (profBonus(s) + abilMod(s, guessCastAbil(s)));
-    var castMod = abilMod(s, guessCastAbil(s));
+    var dc = sc.saveDC || cmb.spellSaveDC || (8 + profBonus(s) + abilMod(s, guessCastAbil(s)));
+    var atkBonus = sc.attackBonus || cmb.spellAttackBonus || (profBonus(s) + abilMod(s, guessCastAbil(s)));
+    var castMod = (sc.attackBonus || cmb.spellAttackBonus) != null && (sc.attackBonus || cmb.spellAttackBonus) !== 0
+      ? (sc.attackBonus || cmb.spellAttackBonus) - profBonus(s)
+      : abilMod(s, guessCastAbil(s));
     var clvl = s.level || 0;
 
-    (sc.groups || []).forEach(function (g) {
+    spellGroupsFrom(s).forEach(function (g) {
       var lvl = g.level != null ? (typeof g.level === "number" ? g.level : parseInt(g.level, 10) || 0) : 0;
       (g.spells || []).forEach(function (sp) {
         var isCantrip = lvl === 0;
         var isBonus   = isTimeCostBonus(sp.time);
-        var isReaction = isTimeCostReaction(sp.time);
+        var isReaction = isTimeCostReaction(sp.time)
+          || (!sp.time && !!REACTION_SPELLS[String(sp.name || "").toLowerCase()]);
         // Reaction spells don't go on the shelf (they're in the react pipeline)
         if (isReaction) return;
 
@@ -504,13 +591,18 @@
 
   // ── ITEMS tab ───────────────────────────────────────────────────────────
   /* Usable subset of the gear-manager inventory. Type whitelist from spec:
-     potion, scroll, oil. Count badges for stacked items. */
+     potion, scroll, oil. Count badges for stacked items.
+     Round-3 §G: live inventories carry 5etools type CODES (M/R/G/LA/P/SC…),
+     not words — map the usable codes so the first looted potion (type "P")
+     actually surfaces. Today's empty tab is correct: nobody carries one. */
   var USABLE_TYPES = { potion: 1, scroll: 1, oil: 1, wand: 1, rod: 1 };
+  var USABLE_TYPE_CODES = { p: "potion", sc: "scroll", wd: "wand", rd: "rod" };
   function itemTiles(inventory) {
     var tiles = [], seen = {};
     (inventory || []).forEach(function (it) {
       if (!it || !it.name) return;
-      var type = String(it.type || it.itemType || "").toLowerCase();
+      var type = String(it.type || it.itemType || "").toLowerCase().replace(/\|.*$/, "");
+      if (USABLE_TYPE_CODES[type]) type = USABLE_TYPE_CODES[type];
       // Use the type field, or detect from the name
       if (!USABLE_TYPES[type]) {
         if (/^potion\b/i.test(it.name)) type = "potion";
@@ -659,7 +751,11 @@
     });
 
     // Non-weapon custom actions from the sheet's action editor
-    // (assembled actions that are type 'utility' or 'damage' go here)
+    // (assembled actions that are type 'utility' or 'damage' go here).
+    // Round-3 Fact 2: 'utility'/'damage' are not pipeline-resolvable kinds —
+    // these rows are drawer notes, greyed so they never flow into
+    // flatActions as wrong-kind live wires. A derived twin (spell tile /
+    // classFeature tile) wins the dedupe and folds the note into itself.
     (assembled || []).forEach(function (a) {
       if (!a || a._removed || a._hidden) return;
       var group = actionGroup(a.type);
@@ -668,7 +764,10 @@
           id: a.id || ("custom_" + tiles.length), label: a.label || "Custom",
           kind: group, tab: "actions", rng: a.rng || null,
           bonus: !!a.bonus, free: !!a.free, spell: !!a.spell, conc: !!a.conc,
-          cost: a.cost || null, _src: a
+          cost: a.cost || null,
+          greyed: true,
+          greyReason: "Rules text in the drawer \u2014 not yet a Forge-resolvable action",
+          _src: a
         });
       }
     });
@@ -697,19 +796,20 @@
     "shield":           { key: "shield",        slotLevel: 1 },
     "silvery barbs":    { key: "silveryBarbs",   slotLevel: 1, range: 12 },
     "absorb elements":  { key: "absorbElements", slotLevel: 1 },
+    "hellish rebuke":   { key: "hellishRebuke",  slotLevel: 1 },
     "counterspell":     { key: "counterspell",   slotLevel: 3 }
   };
 
   function buildReactions(s) {
     var react = {};
-    var sc = s.spellcasting || {};
 
-    (sc.groups || []).forEach(function (g) {
+    spellGroupsFrom(s).forEach(function (g) {
       (g.spells || []).forEach(function (sp) {
-        if (!isTimeCostReaction(sp.time)) return;
         var key = String(sp.name || "").toLowerCase();
         var def = REACTION_SPELLS[key];
         if (!def) return; // unknown reaction spell — skip for now
+        // Reaction by time; a time-less live row (Caim's shape) counts by name
+        if (sp.time && !isTimeCostReaction(sp.time)) return;
         var slotKey = "slot" + def.slotLevel;
         var entry = { cost: {} };
         entry.cost[slotKey] = 1;
@@ -887,13 +987,24 @@
     tabs.items   = itemTiles(inv);
     tabs.feats   = featTiles(s);
     tabs.actions = actionTiles(s, assembled);
-    tabs.bonus   = bonusTiles(tabs);
+
+    // 5b. Dedupe (round-3 §C): the same action arrives twice — inventory-
+    // assembled + sheet action row (Sling, Dagger, Longsword), classFeature +
+    // sheet row (Second Wind). Normalized-label dedupe; the derived tile wins
+    // (it has the derived math); the sheet row folds into the winner's
+    // _folded so nothing the sheet wrote is lost. A greyed tile never beats a
+    // resolvable one. If the winner has no damage expression and the folded
+    // sheet row carries dice, the winner adopts them (Second Wind's 1d10+3).
+    dedupeTabs(tabs);
+    tabs.bonus = bonusTiles(tabs);
 
     // 6. Flat actions list (backward compat: beginTurn/selectAction read u.actions)
-    //    Attacks + non-feat tabs, minus greyed
+    //    Attacks + spells + class-feature/custom actions — greyed tiles never
+    //    flow (round-3 invariant: every flat action's kind is resolvable OR
+    //    the tile is greyed; a greyed tile is drawer-only, not a live wire).
     var flatActions = [];
-    tabs.attacks.forEach(function (t) { flatActions.push(flatTile(t)); });
-    tabs.spells.forEach(function (t) { flatActions.push(flatTile(t)); });
+    tabs.attacks.forEach(function (t) { if (!t.greyed) flatActions.push(flatTile(t)); });
+    tabs.spells.forEach(function (t) { if (!t.greyed) flatActions.push(flatTile(t)); });
     tabs.actions.forEach(function (t) {
       if (!t.greyed && !t.universal) flatActions.push(flatTile(t));
     });
@@ -906,8 +1017,8 @@
     };
 
     // 8. HP from vitals (the live value) or structural
-    var hp    = v.hp    != null ? v.hp    : ((s.combat || {}).maxHp || 10);
-    var maxHp = v.maxHp != null ? v.maxHp : ((s.combat || {}).maxHp || 10);
+    var hp    = v.hp    != null ? v.hp    : ((s.combat || {}).maxHp || (s.combat || {}).hpMax || 10);
+    var maxHp = v.maxHp != null ? v.maxHp : ((s.combat || {}).maxHp || (s.combat || {}).hpMax || 10);
 
     return {
       key:          charData.key || null,
@@ -927,6 +1038,50 @@
       spellcasting: scInfo,
       derived:      true   // flag: this kit came from the derivation layer, not STARTER_KITS
     };
+  }
+
+  /* ── round-3 §C: normalized-label dedupe across attacks/spells/actions ──
+     Provenance rank: classFeature 4 · derived spell tile 3 · assembled
+     weapon/cantrip/spell row (wpn-/cant-/sp- ids) 2 · sheet action row 1.
+     Resolvable (non-greyed) always outranks greyed. Universals and greyed
+     placeholder actions (Grapple/Shove) never join the contest. */
+  function _dedupeKey(label) {
+    return String(label || "").toLowerCase().replace(/\u2019/g, "'").replace(/\s+/g, " ").trim();
+  }
+  function _provRank(t) {
+    if (t.classFeature) return 4;
+    if (t.tab === "spells") return 3;
+    if (/^(wpn-|cant-|sp-)/.test(String(t.id || ""))) return 2;
+    return 1;
+  }
+  function _dedupeScore(t) { return (t.greyed ? 0 : 10) + _provRank(t); }
+  function dedupeTabs(tabs) {
+    var best = {};
+    ["attacks", "spells", "actions"].forEach(function (tabKey) {
+      (tabs[tabKey] || []).forEach(function (t) {
+        if (t.universal) return;
+        var k = _dedupeKey(t.label);
+        if (!k) return;
+        if (!best[k] || _dedupeScore(t) > _dedupeScore(best[k])) best[k] = t;
+      });
+    });
+    ["attacks", "spells", "actions"].forEach(function (tabKey) {
+      tabs[tabKey] = (tabs[tabKey] || []).filter(function (t) {
+        if (t.universal) return true;
+        var k = _dedupeKey(t.label);
+        var w = k && best[k];
+        if (!w || w === t) return true;
+        // fold the loser into the winner
+        w._folded = w._folded || [];
+        w._folded.push(t._src || t);
+        // adopt missing damage dice from a folded sheet row (Second Wind)
+        if (!w.dmg && t._src && t._src.dmgDice) {
+          var fm = t._src.dmgMod || 0;
+          w.dmg = t._src.dmgDice + (fm > 0 ? "+" + fm : (fm < 0 ? String(fm) : ""));
+        }
+        return false;
+      });
+    });
   }
 
   /* Flatten a tab tile to the minimal shape the pipeline's canUse/selectAction
@@ -1019,11 +1174,13 @@
     buildReactions: buildReactions,
     attackTiles:   attackTiles,
     spellTiles:    spellTiles,
+    spellGroupsFrom: spellGroupsFrom,
     itemTiles:     itemTiles,
     featTiles:     featTiles,
     actionTiles:   actionTiles,
     classFeatureTiles: classFeatureTiles,
     bonusTiles:    bonusTiles,
+    wrapStarterKit: wrapStarterKit,
     forgeResKey:   forgeResKey,
     UNIVERSALS:    UNIVERSALS,
     GREYED:        GREYED,

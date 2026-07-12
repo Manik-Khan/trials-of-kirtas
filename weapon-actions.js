@@ -378,7 +378,9 @@ function knownSpellList(structural) {
   var legacy = structural.spells;
   if (legacy && typeof legacy === 'object' && !Array.isArray(legacy)) {
     Object.keys(legacy).forEach(function (k) {
-      var lm = k.match(/^level(\d)$/i);
+      // Live sheets key levels inconsistently: '1'/'2'/'cantrip' on some,
+      // 'level2'/'cantrips' on others (round-3 Fact 1) — accept both.
+      var lm = k.match(/^(?:level)?(\d)$/i);
       var lvl = /^cantrips?$/i.test(k) ? 0 : (lm ? +lm[1] : null);
       if (lvl == null || !Array.isArray(legacy[k])) return;
       legacy[k].forEach(function (sp) { add((sp && sp.name) || sp, lvl); });

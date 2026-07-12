@@ -3,7 +3,7 @@
    verdicts, kept/dropped, mods, the SB row, no "AC" substring anywhere.)
 
    Pure logic, no DOM.                                                     */
-const FFR = require("./forge-feed-render.js");
+const FFR = require("../forge-feed-render.js");
 
 let pass = 0, fail = 0;
 function ok(name, cond) { if (cond) { pass++; } else { fail++; console.log("  FAIL " + name); } }

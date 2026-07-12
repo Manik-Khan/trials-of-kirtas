@@ -5,8 +5,8 @@
 // ── load both registries (they self-attach to `window` / global) ────────
 const g = typeof globalThis !== 'undefined' ? globalThis : (typeof self !== 'undefined' ? self : {});
 g.window = g;
-require('./item-icons.js');
-require('./spell-icons.js');
+require('../../item-icons.js');
+require('../../spell-icons.js');
 const ItemIcons  = g.ItemIcons;
 const SpellIcons = g.SpellIcons;
 
