@@ -33,6 +33,7 @@
 <script src="forge-hud.js?v=b2"></script>
 <script src="../item-icons.js?v=b3"></script>
 <script src="../spell-icons.js?v=b3"></script>
+<script src="../icon-picker.js?v=b3"></script>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <!-- Task 11: Start fight reads live PC vitals off the real sheet. character-data.js
      normally waits on nav.js's window.__tok — this mock doesn't carry nav.js's full
@@ -4561,6 +4562,65 @@ document.addEventListener("forge:universalAction", function(e){
   else if(k === "dodge"){ clog("<b>" + u.name + "</b> dodges (attacks have disadv, Dex saves have adv)."); u.dodging = true; CB.st.usedAction = true; snapshot("Dodge"); renderHud(); }
   else if(k === "help"){ clog("<b>" + u.name + "</b> readies Help — the next ally's attack has advantage."); u.helping = true; CB.st.usedAction = true; snapshot("Help"); renderHud(); }
   else if(k === "ready"){ var rb = document.getElementById("cbReady"); if(rb && !rb.disabled) rb.click(); }
+});
+
+/* ── Bite 4–6: icon picker + hide bridge ── */
+document.addEventListener("forge:openIconPicker", function(e){
+  if(!e.detail || !e.detail.tile || !window.IconPicker) return;
+  var tile = e.detail.tile;
+  var dw = document.getElementById("fgDrawer");
+  if(!dw) return;
+  var btnRow = dw.querySelector(".fg-dw-actions");
+  if(!btnRow) return;
+  // Toggle the picker inline below the drawer actions row
+  window.IconPicker.toggle(btnRow, {
+    current: null,
+    registries: (tile.spell || tile.classFeature) ? ["spell","item"] : ["item","spell"],
+    onPick: function(name){
+      /* Write to structural.iconOverrides via CharacterData.save copy-merge.
+         controlling device only — other devices pick it up next boot. */
+      var u = active(); if(!u) return;
+      var sheetRef = u.key;
+      var c = __liveStatsCache && __liveStatsCache[sheetRef]; if(!c || !c.structural) return;
+      var s = c.structural;
+      var ov = Object.assign({}, s.iconOverrides || {});
+      ov[tile.id] = name;
+      s.iconOverrides = ov;
+      if(window.CharacterData && window.CharacterData.save){
+        try{ window.CharacterData.save(sheetRef, { structural: Object.assign({}, s) }); }catch(e){}
+      }
+      // Re-derive and re-render
+      if(window.ForgeKitDerive && __liveStatsCache[sheetRef]){
+        try{
+          var actions = (typeof assembleActions === "function") ? assembleActions(c.inventory||[], s) : (s.actions||[]);
+          __derivedKits[sheetRef] = window.ForgeKitDerive.derive(c, { assembledActions: actions, starterKits: STARTER_KITS });
+        }catch(e){}
+      }
+      window.IconPicker.close();
+      renderHud();
+    }
+  });
+});
+document.addEventListener("forge:hideTile", function(e){
+  if(!e.detail || !e.detail.tileId) return;
+  var u = active(); if(!u) return;
+  var sheetRef = u.key;
+  var c = __liveStatsCache && __liveStatsCache[sheetRef]; if(!c || !c.structural) return;
+  var s = c.structural;
+  var ov = Object.assign({}, s.actionOverrides || {});
+  ov[e.detail.tileId] = Object.assign({}, ov[e.detail.tileId] || {}, { hidden: true });
+  s.actionOverrides = ov;
+  if(window.CharacterData && window.CharacterData.save){
+    try{ window.CharacterData.save(sheetRef, { structural: Object.assign({}, s) }); }catch(e){}
+  }
+  // Re-derive and re-render
+  if(window.ForgeKitDerive && __liveStatsCache[sheetRef]){
+    try{
+      var actions = (typeof assembleActions === "function") ? assembleActions(c.inventory||[], s) : (s.actions||[]);
+      __derivedKits[sheetRef] = window.ForgeKitDerive.derive(c, { assembledActions: actions, starterKits: STARTER_KITS });
+    }catch(e){}
+  }
+  renderHud();
 });
 
 vesApply();   // kick off the Vesperian sheet fetch; failure narrates on the chip

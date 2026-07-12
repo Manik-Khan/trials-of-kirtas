@@ -113,6 +113,42 @@ box-shadow:0 14px 40px rgba(60,50,30,.3)}\n\
 .fg-fbody{overflow:auto;flex:1;padding:4px 0}\n\
 .fg-frow{display:flex;gap:8px;padding:7px 12px;border-bottom:1px solid var(--hud-line)}\n\
 .fg-frow:hover{background:var(--hud-bg2)}\n\
+/* ═══ OVERFLOW CHIP ═══ */\n\
+.fg-overflow{padding:2px 7px;font-size:11px;font-weight:700;color:var(--hud-dim2);background:var(--hud-bg2);\
+border:1px solid var(--hud-line);cursor:pointer;letter-spacing:.04em;white-space:nowrap}\n\
+.fg-overflow:hover{color:var(--hud-fg)}\n\
+/* ═══ RESOURCES TAB ═══ */\n\
+.fg-resGrid{display:flex;gap:8px;padding:9px 14px;overflow-x:auto;min-height:62px;border-bottom:1px solid var(--hud-line)}\n\
+.fg-resCard{min-width:120px;max-width:160px;flex-shrink:0;background:var(--hud-bg2);border:1px solid var(--hud-line);padding:8px 10px;cursor:pointer;transition:.12s}\n\
+.fg-resCard:hover{border-color:var(--hud-dim)}\n\
+.fg-resCard .rc-label{font-size:12px;font-weight:600;letter-spacing:.04em;margin-bottom:4px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}\n\
+.fg-resCard .rc-pips{display:flex;gap:3px;flex-wrap:wrap;margin-bottom:4px}\n\
+.fg-resCard .rc-die{font-size:10px;color:var(--hud-gold);font-weight:700}\n\
+.fg-resCard .rc-detail{display:none;margin-top:6px;padding-top:6px;border-top:1px solid var(--hud-line);font-size:11px;color:var(--hud-dim2);line-height:1.4}\n\
+.fg-resCard.expanded .rc-detail{display:block}\n\
+.fg-resCard .rc-detail b{color:var(--hud-fg);font-weight:600}\n\
+.fg-resCard.tone-class{border-left:3px solid var(--hud-gold)}\n\
+.fg-resCard.tone-subclass{border-left:3px solid #3a8a8a}\n\
+.fg-resCard.tone-race{border-left:3px solid var(--hud-red)}\n\
+.fg-resCard.tone-custom{border-left:3px solid #8a6aaa}\n\
+/* ═══ DETAIL DRAWER ═══ */\n\
+#fgDrawer{position:fixed;left:50%;bottom:calc(100% + 8px);transform:translateX(-50%);z-index:18;width:min(460px,68vw);\
+background:var(--hud-bg);border:1px solid var(--hud-line);font-family:"Barlow Condensed",system-ui;color:var(--hud-fg);\
+box-shadow:0 -8px 30px rgba(0,0,0,.35);display:none;max-height:40vh;overflow-y:auto}\n\
+body.fg-parch #fgDrawer{--hud-bg:var(--tk-panel);--hud-line:var(--tk-line);--hud-fg:var(--tk-ink);--hud-dim:#6b6455;\
+--hud-dim2:#8a8272;--hud-gold:var(--tk-gold);--hud-red:var(--tk-blood)}\n\
+.fg-dw-head{display:flex;align-items:center;justify-content:space-between;padding:10px 14px;border-bottom:1px solid var(--hud-line)}\n\
+.fg-dw-name{font-size:15px;font-weight:700;letter-spacing:.03em}\n\
+.fg-dw-cost{font-size:12px;color:var(--hud-dim2);display:flex;gap:8px;align-items:center}\n\
+.fg-dw-cost .conc{color:var(--hud-gold);font-weight:600}\n\
+.fg-dw-body{padding:10px 14px;font-size:13px;line-height:1.5;color:var(--hud-dim2)}\n\
+.fg-dw-body b,.fg-dw-body strong{color:var(--hud-fg);font-weight:600}\n\
+.fg-dw-body p{margin:0 0 6px}\n\
+.fg-dw-actions{display:flex;gap:8px;padding:8px 14px;border-top:1px solid var(--hud-line)}\n\
+.fg-dw-btn{padding:5px 12px;background:var(--hud-bg2);border:1px solid var(--hud-line);color:var(--hud-fg);\
+font-family:"Barlow Condensed",system-ui;font-size:12px;cursor:pointer;letter-spacing:.06em}\n\
+.fg-dw-btn:hover{background:var(--hud-line)}\n\
+.fg-dw-grey{color:var(--hud-dim);font-style:italic}\n\
 ';
 
   // ── HTML ──────────────────────────────────────────────────────────────
@@ -145,17 +181,20 @@ box-shadow:0 14px 40px rgba(60,50,30,.3)}\n\
 
     // Tab clicks
     wireTabs();
+    // Tile long-press / right-click → detail drawer; overflow chip → resources tab
+    wireTileInteractions();
   }
 
   // ── TABS ────────────────────────────────────────────────────────────
   var TABS = [
-    { key: "attacks",  ico: "\u2694", label: "Attacks", icoColor: "var(--hud-red)" },
-    { key: "spells",   ico: "\u2726", label: "Spells",  icoColor: "var(--hud-gold)" },
-    { key: "items",    ico: "\u25ce", label: "Items",   icoColor: "var(--hud-fg)" },
-    { key: "feats",    ico: "\u2756", label: "Feats",   icoColor: "var(--hud-fg)" },
-    { key: "bonus",    ico: "\u26a1", label: "Bonus",   icoColor: "var(--hud-blue)" },
-    { key: "actions",  ico: "\u25c9", label: "Actions", icoColor: "var(--hud-fg)" },
-    { key: "__end",    ico: "\u27f3", label: "End Turn", end: true }
+    { key: "attacks",   ico: "\u2694", label: "Attacks",   icoColor: "var(--hud-red)" },
+    { key: "spells",    ico: "\u2726", label: "Spells",    icoColor: "var(--hud-gold)" },
+    { key: "items",     ico: "\u25ce", label: "Items",     icoColor: "var(--hud-fg)" },
+    { key: "feats",     ico: "\u2756", label: "Feats",     icoColor: "var(--hud-fg)" },
+    { key: "bonus",     ico: "\u26a1", label: "Bonus",     icoColor: "var(--hud-blue)" },
+    { key: "actions",   ico: "\u25c9", label: "Actions",   icoColor: "var(--hud-fg)" },
+    { key: "resources", ico: "\u2b21", label: "Resources", icoColor: "var(--hud-dim2)" },
+    { key: "__end",     ico: "\u27f3", label: "End Turn",  end: true }
   ];
 
   function renderTabs(s) {
@@ -210,17 +249,36 @@ box-shadow:0 14px 40px rgba(60,50,30,.3)}\n\
     var actionPip = '<span class="fg-pp' + (eco.usedAction ? " spent" : "") + '"></span>';
     var bonusPip = '<span class="fg-pp tri' + (eco.usedBonus ? " spent" : "") + '"></span>';
 
-    // Resource pips (from kit.pools)
+    // Resource pips (curated: ≤3 prioritized pip groups, then +N overflow)
+    // Priority: spell-slot pools by level, then class resources by origin
+    // (class → subclass → race → custom). Large pools (max>6) skip the top row.
     var resPips = "";
-    (kit.pools || []).forEach(function (p) {
-      if (p.kind === "slot" && p.max > 6) return; // skip large slot pools — they'd overflow
+    var allPools = (kit.pools || []).slice();
+    var ORIGIN_ORDER = { "class": 0, "subclass": 1, "race": 2, "custom": 3 };
+    var sortedPools = allPools
+      .filter(function (p) { return p.max > 0 && !(p.kind === "slot" && p.max > 6); })
+      .sort(function (a, b) {
+        // slots first (by level asc), then resources by origin priority
+        if (a.kind === "slot" && b.kind !== "slot") return -1;
+        if (a.kind !== "slot" && b.kind === "slot") return 1;
+        if (a.kind === "slot" && b.kind === "slot") return (a.level || 0) - (b.level || 0);
+        var oa = ORIGIN_ORDER[a.origin || "class"] || 0, ob = ORIGIN_ORDER[b.origin || "class"] || 0;
+        return oa - ob;
+      });
+    var MAX_TOP_PIPS = 3;
+    var shownPools = sortedPools.slice(0, MAX_TOP_PIPS);
+    var overflowCount = sortedPools.length - shownPools.length;
+    shownPools.forEach(function (p) {
       var pips = "";
       var ppClass = p.kind === "resource" ? " ki" : "";
-      for (var i = 0; i < p.max; i++) {
-        pips += '<span class="fg-pp' + ppClass + (i >= p.current ? " spent" : "") + '"></span>';
+      for (var j = 0; j < p.max; j++) {
+        pips += '<span class="fg-pp' + ppClass + (j >= p.current ? " spent" : "") + '"></span>';
       }
       resPips += '<div class="fg-resChip"><div class="fg-pips">' + pips + '</div><span class="k">' + esc(p.label) + "</span></div>";
     });
+    if (overflowCount > 0) {
+      resPips += '<div class="fg-resChip"><button class="fg-overflow" data-tab="resources">+' + overflowCount + '</button></div>';
+    }
 
     // Move bar
     var moveLeft = eco.moveLeft != null ? eco.moveLeft : Math.floor((u.speed || 30) / 5);
@@ -250,8 +308,17 @@ box-shadow:0 14px 40px rgba(60,50,30,.3)}\n\
     var el = document.getElementById("fgShelf");
     if (!el) return;
 
+    // Close the drawer on any shelf re-render (tab change, turn change, etc.)
+    closeDrawer();
+
     if (!s || !s.active || !s.iControl) {
       el.innerHTML = '<span class="fg-shelfEmpty">' + (s && s.active ? esc(s.active.name) + "\u2019s turn \u2014 watching." : "No active unit.") + '</span>';
+      return;
+    }
+
+    // Resources tab: render cards instead of tiles
+    if (activeTab === "resources") {
+      renderResources(s);
       return;
     }
 
@@ -390,6 +457,265 @@ box-shadow:0 14px 40px rgba(60,50,30,.3)}\n\
     var el = document.getElementById("fgFeedBody");
     if (!el) return;
     el.innerHTML = feedLog.map(function (h) { return '<div class="fg-frow">' + h + '</div>'; }).join("");
+  }
+
+  // ── RESOURCES TAB (⬡) ───────────────────────────────────────────────
+  /* Renders scrollable cards, one per pool. Tap toggles expanded detail. */
+  function renderResources(s) {
+    var el = document.getElementById("fgShelf");
+    if (!el) return;
+    var kit = s.kit || {};
+    var pools = kit.pools || [];
+    if (!pools.length) {
+      el.innerHTML = '<span class="fg-shelfEmpty">No tracked resources.</span>';
+      return;
+    }
+    el.innerHTML = '<div class="fg-resGrid">' + pools.map(function (p, idx) {
+      var pips = "";
+      for (var j = 0; j < p.max; j++) {
+        pips += '<span class="fg-pp ki' + (j >= p.current ? " spent" : "") + '"></span>';
+      }
+      var dieBadge = p.die ? '<span class="rc-die">' + esc(p.die) + '</span>' : "";
+      var toneClass = p.tone ? " tone-" + p.tone : "";
+      var detail = '<div class="rc-detail">';
+      if (p.recharge) detail += '<div><b>Recharge:</b> ' + esc(p.recharge) + '</div>';
+      if (p.origin)   detail += '<div><b>Origin:</b> ' + esc(p.origin) + '</div>';
+      if (p.source && p.source !== p.origin) detail += '<div><b>Source:</b> ' + esc(p.source) + '</div>';
+      detail += '<div><b>Current:</b> ' + p.current + ' / ' + p.max + '</div>';
+      detail += '</div>';
+      return '<div class="fg-resCard' + toneClass + '" data-pool-idx="' + idx + '">'
+        + '<div class="rc-label">' + esc(p.label) + '</div>'
+        + '<div class="rc-pips">' + pips + '</div>'
+        + dieBadge + detail + '</div>';
+    }).join("") + '</div>';
+    // Wire tap-to-expand
+    el.querySelectorAll(".fg-resCard").forEach(function (card) {
+      card.addEventListener("click", function () { card.classList.toggle("expanded"); });
+    });
+  }
+
+  // ── DETAIL DRAWER ─────────────────────────────────────────────────────
+  /* Long-press (touch) / right-click (desktop) on any tile → card above the bar.
+     Anchored to #fgBar. Shows name, cost line, full description, Change Icon, Hide. */
+  var _drawerEl = null;
+  var _drawerTile = null;
+  var _spellTextCache = {};
+
+  function ensureDrawer() {
+    if (_drawerEl) return _drawerEl;
+    _drawerEl = document.createElement("div");
+    _drawerEl.id = "fgDrawer";
+    var bar = document.getElementById("fgBar");
+    if (bar) bar.appendChild(_drawerEl);
+    else document.body.appendChild(_drawerEl);
+    // Close on click-outside
+    document.addEventListener("click", function (e) {
+      if (_drawerEl.style.display === "none") return;
+      if (!_drawerEl.contains(e.target) && !e.target.closest(".fg-tile")) {
+        closeDrawer();
+      }
+    });
+    document.addEventListener("keydown", function (e) {
+      if (e.key === "Escape") closeDrawer();
+    });
+    return _drawerEl;
+  }
+
+  function closeDrawer() {
+    if (_drawerEl) _drawerEl.style.display = "none";
+    _drawerTile = null;
+  }
+
+  function openDrawer(tile, structural) {
+    var dw = ensureDrawer();
+    _drawerTile = tile;
+
+    // ── cost line ──
+    var costParts = [];
+    if (tile.bonus) costParts.push("\u25b2 Bonus");
+    else if (tile.free) costParts.push("\u2022 Free");
+    else if (!tile.passive && !tile.universal) costParts.push("\u25c6 Action");
+    if (tile.hit) costParts.push("+" + tile.hit + " to hit");
+    if (tile.dc) costParts.push("DC " + tile.dc);
+    if (tile.cost) {
+      var keys = Object.keys(tile.cost);
+      keys.forEach(function (k) { costParts.push(tile.cost[k] + "\u00d7 " + k); });
+    }
+    var concBadge = tile.conc ? '<span class="conc">CONC</span>' : "";
+
+    // ── description ──
+    var desc = "";
+    if (tile.greyed && tile.greyReason) {
+      desc = '<p class="fg-dw-grey">' + esc(tile.greyReason) + '</p>';
+    } else if (tile.desc) {
+      desc = '<p>' + esc(tile.desc) + '</p>';
+    } else if (tile.dmg) {
+      // Attack tiles: format damage + rider
+      desc = '<p>' + esc(tile.dmg);
+      if (tile.dmgStack && tile.dmgStack.length) {
+        desc += ' (' + tile.dmgStack.map(function (d) {
+          return esc(d.dice + (d.bonus > 0 ? '+' + d.bonus : d.bonus < 0 ? d.bonus : '') + (d.type ? ' ' + d.type : ''));
+        }).join(' + ') + ')';
+      }
+      if (tile.rider) desc += '<br>' + esc(tile.rider);
+      desc += '</p>';
+    }
+
+    // For spells: attempt to load full text if we haven't already
+    if (tile.spell && tile._src && tile._src.name && !tile.desc) {
+      var spellName = tile._src.name;
+      if (_spellTextCache[spellName]) {
+        desc = _renderSpellEntries(_spellTextCache[spellName]);
+      } else {
+        desc = '<p><i>Loading spell text\u2026</i></p>';
+        _loadSpellText(spellName, function (entries) {
+          if (_drawerTile === tile && _drawerEl && _drawerEl.style.display !== "none") {
+            var bodyEl = _drawerEl.querySelector(".fg-dw-body");
+            if (bodyEl) bodyEl.innerHTML = entries ? _renderSpellEntries(entries) : '<p><i>Full text unavailable.</i></p>';
+          }
+        });
+      }
+    }
+
+    // ── actions row ──
+    var actionsHtml = '<div class="fg-dw-actions">';
+    actionsHtml += '<button class="fg-dw-btn" data-dw-action="icon">\u270e Change icon</button>';
+    actionsHtml += '<button class="fg-dw-btn" data-dw-action="hide">\u2716 Hide from bar</button>';
+    actionsHtml += '</div>';
+
+    dw.innerHTML = '<div class="fg-dw-head"><span class="fg-dw-name">' + esc(tile.label || tile.name || "?") + '</span>'
+      + '<span class="fg-dw-cost">' + costParts.join(' \u00b7 ') + ' ' + concBadge + '</span></div>'
+      + '<div class="fg-dw-body">' + desc + '</div>'
+      + actionsHtml;
+    dw.style.display = "block";
+
+    // Wire drawer actions
+    dw.querySelectorAll("[data-dw-action]").forEach(function (btn) {
+      btn.addEventListener("click", function (e) {
+        e.stopPropagation();
+        var action = btn.dataset.dwAction;
+        if (action === "icon") {
+          document.dispatchEvent(new CustomEvent("forge:openIconPicker", { detail: { tile: tile } }));
+        } else if (action === "hide") {
+          document.dispatchEvent(new CustomEvent("forge:hideTile", { detail: { tileId: tile.id } }));
+          closeDrawer();
+        }
+      });
+    });
+  }
+
+  /* Lazy-load spell text from soul-shards-data.js. Non-fatal on failure. */
+  function _loadSpellText(spellName, cb) {
+    if (_spellTextCache[spellName]) { cb(_spellTextCache[spellName]); return; }
+    if (window.SoulShardsData && window.SoulShardsData.loadSpellMeta) {
+      window.SoulShardsData.loadSpellMeta([spellName], { detail: true }).then(function (results) {
+        var sp = (results || []).filter(function (r) { return r.name.toLowerCase() === spellName.toLowerCase(); })[0];
+        if (sp && sp.entries) {
+          _spellTextCache[spellName] = sp;
+          cb(sp);
+        } else { cb(null); }
+      }).catch(function () { cb(null); });
+    } else { cb(null); }
+  }
+
+  /* Render 5etools entries array to simple HTML. */
+  function _renderSpellEntries(sp) {
+    if (!sp || !sp.entries) return '<p><i>No description.</i></p>';
+    var html = '';
+    // Spell meta line
+    var meta = [];
+    if (sp.time && sp.time[0]) {
+      var t = sp.time[0];
+      meta.push('<b>Casting:</b> ' + (t.number || 1) + ' ' + (t.unit || 'action'));
+    }
+    if (sp.range) {
+      var r = sp.range;
+      if (r.type === 'point' && r.distance) meta.push('<b>Range:</b> ' + (r.distance.amount || 0) + ' ' + (r.distance.type || 'ft'));
+      else if (r.type === 'special') meta.push('<b>Range:</b> special');
+      else meta.push('<b>Range:</b> ' + (r.type || 'varies'));
+    }
+    if (sp.duration && sp.duration[0]) {
+      var d = sp.duration[0];
+      if (d.concentration) meta.push('<b>Duration:</b> Conc., ' + (d.duration ? (d.duration.amount + ' ' + d.duration.type) : ''));
+      else if (d.type === 'instant') meta.push('<b>Duration:</b> Instantaneous');
+      else if (d.duration) meta.push('<b>Duration:</b> ' + d.duration.amount + ' ' + d.duration.type);
+    }
+    if (sp.components) {
+      var c = sp.components;
+      var parts = [];
+      if (c.v) parts.push('V');
+      if (c.s) parts.push('S');
+      if (c.m) parts.push('M' + (typeof c.m === 'string' ? ' (' + c.m + ')' : c.m && c.m.text ? ' (' + c.m.text + ')' : ''));
+      meta.push('<b>Components:</b> ' + parts.join(', '));
+    }
+    if (meta.length) html += '<p style="font-size:11px;color:var(--hud-dim)">' + meta.join(' \u00b7 ') + '</p>';
+    // Entries
+    (sp.entries || []).forEach(function (e) {
+      if (typeof e === 'string') html += '<p>' + _entryText(e) + '</p>';
+      else if (e && e.type === 'entries' && e.entries) {
+        html += '<p><b>' + esc(e.name || '') + '</b></p>';
+        e.entries.forEach(function (sub) {
+          if (typeof sub === 'string') html += '<p>' + _entryText(sub) + '</p>';
+        });
+      } else if (e && e.type === 'list' && e.items) {
+        e.items.forEach(function (li) {
+          html += '<p>\u2022 ' + (typeof li === 'string' ? _entryText(li) : esc(li.entry || JSON.stringify(li))) + '</p>';
+        });
+      }
+    });
+    if (sp.entriesHigherLevel) {
+      (sp.entriesHigherLevel || []).forEach(function (e) {
+        if (typeof e === 'string') html += '<p><i>' + _entryText(e) + '</i></p>';
+        else if (e && e.entries) {
+          html += '<p><b>' + esc(e.name || 'At Higher Levels') + '.</b> ';
+          e.entries.forEach(function (sub) { if (typeof sub === 'string') html += _entryText(sub) + ' '; });
+          html += '</p>';
+        }
+      });
+    }
+    return html || '<p><i>No description.</i></p>';
+  }
+
+  /* Strip 5etools inline tags like {@damage 1d6} → 1d6, {@condition blinded} → blinded */
+  function _entryText(s) {
+    return esc(String(s || '').replace(/\{@\w+\s+([^|}]+)(?:\|[^}]*)?\}/g, '$1'));
+  }
+
+  // ── TILE INTERACTIONS (drawer trigger) ─────────────────────────────────
+  /* Wire long-press (touch) / right-click (desktop) on tiles to open the drawer. */
+  function wireTileInteractions() {
+    var _longTimer = null;
+    document.addEventListener("contextmenu", function (e) {
+      var tile = e.target.closest(".fg-tile");
+      if (!tile) return;
+      e.preventDefault();
+      _openDrawerForTile(tile);
+    });
+    document.addEventListener("touchstart", function (e) {
+      var tile = e.target.closest(".fg-tile");
+      if (!tile) return;
+      _longTimer = setTimeout(function () { _openDrawerForTile(tile); }, 500);
+    }, { passive: true });
+    document.addEventListener("touchend", function () { clearTimeout(_longTimer); }, { passive: true });
+    document.addEventListener("touchmove", function () { clearTimeout(_longTimer); }, { passive: true });
+
+    // Overflow chip clicks → switch to resources tab
+    document.addEventListener("click", function (e) {
+      var ov = e.target.closest(".fg-overflow");
+      if (!ov) return;
+      activeTab = "resources";
+      if (_lastState) renderForgeBar(_lastState);
+    });
+  }
+
+  function _openDrawerForTile(tileEl) {
+    var idx = +tileEl.dataset.tileIdx;
+    if (isNaN(idx) || !_lastState || !_lastState.kit) return;
+    var kit = _lastState.kit;
+    var tiles = (kit.tabs && kit.tabs[activeTab]) || [];
+    var tile = tiles[idx];
+    if (!tile) return;
+    openDrawer(tile, _lastState._structural || {});
   }
 
   // ── MAIN RENDER ─────────────────────────────────────────────────────
