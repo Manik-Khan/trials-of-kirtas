@@ -356,8 +356,11 @@
   }
 
   // ── ACTIONS tab ─────────────────────────────────────────────────────────
-  /* Five universal actions + any custom action-editor rows from structural.
-     Grapple/Shove greyed per spec §2. */
+  /* Five universal actions + class feature actions + custom action-editor rows.
+     Grapple/Shove greyed per spec §2.
+     Class feature actions: features that ARE usable actions (Second Wind,
+     Action Surge, Flurry of Blows, etc.) — detected from structural.features
+     and/or structural.resources and projected as tiles. */
   var UNIVERSALS = [
     { id: "act_dash",       label: "Dash",       kind: "dash",       desc: "Double your movement for this turn." },
     { id: "act_disengage",  label: "Disengage",  kind: "disengage",  desc: "Your movement doesn't provoke opportunity attacks this turn." },
@@ -370,8 +373,45 @@
     { id: "act_shove",   label: "Shove",   kind: "shove",   desc: "Contested Athletics check — not yet available.", greyed: true, greyReason: "Contested checks are a later bite." }
   ];
 
+  /* Known class features that are usable actions.
+     key: lowercase name match, tab: where the tile lives,
+     bonus/free: action economy, cost: resource key + count,
+     kind: pipeline kind for the event. */
+  var CLASS_FEATURE_ACTIONS = [
+    { match: "second wind",       id: "cf_second_wind",    label: "Second Wind",       kind: "selfheal",   tab: "actions", bonus: true,  free: false, cost: { secondWind: 1 },    desc: "Regain 1d10+level HP as a bonus action." },
+    { match: "action surge",      id: "cf_action_surge",   label: "Action Surge",      kind: "surge",      tab: "actions", bonus: false, free: true,  cost: { actionSurge: 1 },   desc: "Take one additional action this turn." },
+    { match: "flurry of blows",   id: "cf_flurry",         label: "Flurry of Blows",   kind: "attack",     tab: "actions", bonus: true,  free: false, cost: { ki: 1 },            desc: "After Attack action: 2 unarmed strikes as a bonus action." },
+    { match: "patient defense",   id: "cf_patient_defense",label: "Patient Defense",   kind: "dodge",      tab: "actions", bonus: true,  free: false, cost: { ki: 1 },            desc: "Dodge as a bonus action." },
+    { match: "step of the wind",  id: "cf_step_wind",      label: "Step of the Wind",  kind: "dash",       tab: "actions", bonus: true,  free: false, cost: { ki: 1 },            desc: "Dash or Disengage as a bonus action." },
+    { match: "hands of healing",  id: "cf_hands_heal",     label: "Hands of Healing",  kind: "heal",       tab: "actions", bonus: false, free: false, cost: { ki: 1 },            desc: "Heal 1d4+WIS as an action (1 ki)." },
+    { match: "hexblade",          id: "cf_hex_curse",      label: "Hexblade\u2019s Curse", kind: "buff",   tab: "actions", bonus: true,  free: false, cost: null,                 desc: "Bonus action: bonus to hit, crit on 19–20 vs one target." }
+  ];
+
+  function classFeatureTiles(s) {
+    var tiles = [];
+    var feats = (s.features || []).concat(s.customFeatures || []);
+    var featNames = feats.map(function (f) { return (f && f.name) ? f.name.toLowerCase() : ""; });
+
+    CLASS_FEATURE_ACTIONS.forEach(function (cfa) {
+      // Check if the character has this feature
+      var found = featNames.some(function (n) { return n.indexOf(cfa.match) !== -1; });
+      if (!found) return;
+      tiles.push({
+        id: cfa.id, label: cfa.label, kind: cfa.kind, tab: cfa.tab,
+        desc: cfa.desc, rng: null,
+        bonus: !!cfa.bonus, free: !!cfa.free, spell: false, conc: false,
+        cost: cfa.cost, classFeature: true
+      });
+    });
+    return tiles;
+  }
+
   function actionTiles(s, assembled) {
     var tiles = [];
+
+    // Class feature actions (Second Wind, Action Surge, Flurry, etc.)
+    var cfTiles = classFeatureTiles(s);
+    cfTiles.forEach(function (t) { tiles.push(t); });
 
     // Universal actions
     UNIVERSALS.forEach(function (u) {
@@ -483,7 +523,10 @@
     "magic missile": "missile-swarm",
     // class features
     "flurry of blows": "punch-blast", "hand of healing": "healing",
+    "hands of healing": "healing",
     "second wind": "health-increase", "action surge": "sprint",
+    "patient defense": "shield", "step of the wind": "evasion",
+    "hexblade": "cursed-star",
     // universals
     dash: "sprint", disengage: "evasion", dodge: "dodging",
     help: "hand", ready: "hourglass"
@@ -687,6 +730,7 @@
     itemTiles:     itemTiles,
     featTiles:     featTiles,
     actionTiles:   actionTiles,
+    classFeatureTiles: classFeatureTiles,
     bonusTiles:    bonusTiles,
     forgeResKey:   forgeResKey,
     UNIVERSALS:    UNIVERSALS,

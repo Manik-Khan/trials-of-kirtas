@@ -299,7 +299,7 @@ box-shadow:0 14px 40px rgba(60,50,30,.3)}\n\
       // Icon
       var iconId = iconIdFor(t);
       var iconSvg = iconId
-        ? '<svg><use href="#' + iconId + '"/></svg>'
+        ? '<svg viewBox="0 0 24 24"><use href="#' + iconId + '"/></svg>'
         : '<span style="position:absolute;inset:0;display:flex;align-items:center;justify-content:center;font-weight:700;font-size:16px;color:var(--hud-dim)">'
           + (t.label || "?").charAt(0).toUpperCase() + '</span>';
 
