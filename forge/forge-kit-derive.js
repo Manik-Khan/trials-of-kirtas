@@ -83,6 +83,8 @@
 
     // Class resources: if ResourceDerive produced structural.resources, use it;
     // otherwise fall through (bare structural may not carry .resources at all).
+    // Full passthrough (§1 of the icons/resources spec): recharge, die, tag,
+    // origin, source, custom all ride through — the Resources tab consumes them.
     var resources = s.resources || [];
     resources.forEach(function (r) {
       if (!r || !r.id) return;
@@ -93,7 +95,14 @@
       pools.push({
         key: fk, rawKey: r.id, level: 0, label: r.label || r.id,
         badge: r.die || String(max), max: max, current: cur,
-        tone: r.tone || "class", kind: "resource"
+        tone: r.tone || "class", kind: "resource",
+        // ── passthrough fields (resource-derive emits all of these) ──
+        recharge: r.recharge || null,
+        die:      r.die      || null,
+        tag:      r.tag      || null,
+        origin:   r.origin   || null,
+        source:   r.source   || null,
+        custom:   !!r.custom
       });
     });
 
@@ -106,21 +115,24 @@
       res.secondWind = Math.max(0, 1 - (pip.secondWind || 0));
       pools.push({ key: "secondWind", rawKey: "secondWind", level: 0,
         label: "Second Wind", badge: "1", max: 1, current: res.secondWind,
-        tone: "class", kind: "resource" });
+        tone: "class", kind: "resource",
+        recharge: "short rest", die: null, tag: null, origin: "class", source: "class", custom: false });
     }
     if (!seen.actionSurge && has(s.classLabel, "fighter") && (s.level || 0) >= 2) {
       var asCnt = (s.level || 0) >= 17 ? 2 : 1;
       res.actionSurge = Math.max(0, asCnt - (pip.actionSurge || 0));
       pools.push({ key: "actionSurge", rawKey: "actionSurge", level: 0,
         label: "Action Surge", badge: String(asCnt), max: asCnt, current: res.actionSurge,
-        tone: "class", kind: "resource" });
+        tone: "class", kind: "resource",
+        recharge: "short rest", die: null, tag: null, origin: "class", source: "class", custom: false });
     }
     // Hellish Rebuke (Tiefling racial, once per long rest)
     if (!seen.rebuke && has(s.race, "tiefling")) {
       res.rebuke = Math.max(0, 1 - (pip.rebuke || 0));
       pools.push({ key: "rebuke", rawKey: "rebuke", level: 0,
         label: "Infernal Legacy", badge: "1", max: 1, current: res.rebuke,
-        tone: "race", kind: "resource" });
+        tone: "race", kind: "resource",
+        recharge: "long rest", die: null, tag: null, origin: "race", source: "race", custom: false });
     }
 
     return { res: res, pools: pools };
@@ -450,12 +462,14 @@
   }
 
   // ── BONUS tab ───────────────────────────────────────────────────────────
-  /* Filter, not source: gathers every bonus-costed tile from the other tabs. */
+  /* Filter, not source: gathers every tile that doesn't eat your action.
+     M's ruling (2026-07-12): bonus + free — "everything that doesn't eat
+     your action." Action Surge (RAW free) joins Second Wind (bonus) etc. */
   function bonusTiles(tabs) {
     var out = [];
     ["attacks", "spells", "items", "actions"].forEach(function (tabKey) {
       (tabs[tabKey] || []).forEach(function (t) {
-        if (t.bonus) out.push(t);
+        if (t.bonus || t.free) out.push(t);
       });
     });
     return out;
