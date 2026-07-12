@@ -71,9 +71,9 @@ font-family:"Playfair Display",serif;font-weight:700;font-size:19px;color:var(--
 .fg-tile:hover{border-color:var(--hud-dim)}\n\
 .fg-tile.sel{outline:2px solid var(--hud-gold)}\n\
 .fg-tile.greyed{opacity:.35;cursor:default}\n\
-.fg-tile svg{position:absolute;inset:7px;stroke:var(--hud-fg);fill:none;stroke-width:1.6;stroke-linecap:round;stroke-linejoin:round}\n\
-.fg-tile.spell svg{stroke:var(--hud-blue)}\n\
-.fg-tile.heal svg{stroke:var(--hud-green)}\n\
+.fg-tile svg{position:absolute;inset:7px;fill:var(--hud-fg)}\n\
+.fg-tile.spell svg{fill:var(--hud-blue)}\n\
+.fg-tile.heal svg{fill:var(--hud-green)}\n\
 .fg-tile .bns{position:absolute;top:0;right:0;width:0;height:0;border-left:11px solid transparent;border-top:11px solid var(--hud-blue)}\n\
 .fg-tile .cost{position:absolute;bottom:0;right:2px;font-size:10px;font-weight:700;color:var(--hud-dim)}\n\
 .fg-tile::after{content:attr(data-tip);position:absolute;bottom:calc(100% + 8px);left:50%;transform:translateX(-50%);\
@@ -296,10 +296,10 @@ box-shadow:0 14px 40px rgba(60,50,30,.3)}\n\
       if (t.conc) tip += " \u00b7 conc.";
       if (t.greyed && t.greyReason) tip += "\\n" + t.greyReason;
 
-      // Icon
-      var iconId = iconIdFor(t);
-      var iconSvg = iconId
-        ? '<svg viewBox="0 0 24 24"><use href="#' + iconId + '"/></svg>'
+      // Icon — resolved from registries (SpellIcons / ItemIcons)
+      var svgMarkup = iconSvgFor(t, s._structural);
+      var iconHtml = svgMarkup
+        ? svgMarkup
         : '<span style="position:absolute;inset:0;display:flex;align-items:center;justify-content:center;font-weight:700;font-size:16px;color:var(--hud-dim)">'
           + (t.label || "?").charAt(0).toUpperCase() + '</span>';
 
@@ -313,7 +313,7 @@ box-shadow:0 14px 40px rgba(60,50,30,.3)}\n\
       }
 
       return '<div class="' + cls + '" data-tip="' + tip + '" data-tile-idx="' + i + '" data-tile-id="' + esc(t.id || "") + '">'
-        + iconSvg + bns + cost + '</div>';
+        + iconHtml + bns + cost + '</div>';
     }).join("");
 
     // Wire tile clicks
@@ -337,17 +337,27 @@ box-shadow:0 14px 40px rgba(60,50,30,.3)}\n\
     });
   }
 
-  function iconIdFor(tile) {
-    if (!window.ForgeKitDerive) return null;
-    var name = window.ForgeKitDerive.iconFor(tile);
+  /* Resolve a tile's icon to inline SVG markup from the registries.
+     Returns an SVG string, or null for letter-tile fallback.
+     Uses ForgeKitDerive.resolveIcon (the full chain: inline → override →
+     keyword → category → letter), then renders via whichever registry
+     owns the resolved glyph name. */
+  function iconSvgFor(tile, structural) {
+    var name = null;
+    if (window.ForgeKitDerive && window.ForgeKitDerive.resolveIcon) {
+      name = window.ForgeKitDerive.resolveIcon(tile, structural || {});
+    } else if (window.ForgeKitDerive) {
+      name = window.ForgeKitDerive.iconFor(tile);
+    }
     if (!name) return null;
-    // Check if the SVG symbol exists
-    var id = "gi-" + name;
-    if (document.getElementById(id)) return id;
-    // Fall back to v3 mock's i- prefix symbols
-    var id2 = "i-" + name;
-    if (document.getElementById(id2)) return id2;
-    return id; // try the gi- prefix even if not found — the SVG sprite may load later
+    // Check SpellIcons first, then ItemIcons
+    if (window.SpellIcons && window.SpellIcons.BODIES && window.SpellIcons.BODIES[name]) {
+      return window.SpellIcons.iconSvg(name, 30);
+    }
+    if (window.ItemIcons && window.ItemIcons.BODIES && window.ItemIcons.BODIES[name]) {
+      return window.ItemIcons.iconSvg(name, 30);
+    }
+    return null;
   }
 
   // ── HINT (contextual strip above tabs) ──────────────────────────────

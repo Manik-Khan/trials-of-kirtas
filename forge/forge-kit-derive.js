@@ -515,38 +515,43 @@
   }
 
   // ── ICON MAP ────────────────────────────────────────────────────────────
-  /* Keyword → game-icons.net glyph name. The bar assigns icons from this map;
-     the actual <img> URL is built by the renderer, not this module.
+  /* Keyword → registry glyph name (SpellIcons or ItemIcons). Demoted to a
+     seeding layer by resolveIcon — fires when no inline icon or override
+     exists. Weapon keywords reference ItemIcons names; spell/feature/
+     universal keywords reference SpellIcons names.
      CC-BY 3.0 Delapouite / Lorc / Skoll — attribution in the repo README. */
   var ICON_KEYWORDS = {
-    // weapons
-    longsword: "plain-dagger", shortsword: "stiletto", shortbow: "pocket-bow",
-    longbow: "high-shot", scimitar: "scimitar", rapier: "piercing-sword",
+    // weapons (→ ItemIcons glyph names)
+    longsword: "plain-dagger", shortsword: "plain-dagger", shortbow: "bow-arrow",
+    longbow: "high-shot", rapier: "piercing-sword",
     dagger: "bowie-knife", greataxe: "sharp-axe", greatsword: "pointy-sword",
     handaxe: "thrown-knife", javelin: "thrown-spear", mace: "flanged-mace",
-    quarterstaff: "bo", warhammer: "thor-hammer", flail: "flail",
-    crossbow: "crossbow", sling: "sling",
-    // spells
-    "eldritch blast": "beam-wake", "fire bolt": "fire-ray",
+    quarterstaff: "wizard-staff", warhammer: "thor-hammer", crossbow: "crossbow",
+    // spells (→ SpellIcons glyph names)
+    "eldritch blast": "eldritch-beam", "fire bolt": "fire-bolt",
     "booming blade": "thunder-blade", "green-flame blade": "fire-blade",
-    "vicious mockery": "angry-eyes", "healing word": "healing",
-    "cure wounds": "medical-pack", hex: "cursed-star", shield: "shield",
-    "silvery barbs": "psy-waves", "hellish rebuke": "fire-ring",
-    "guiding bolt": "focusing-beam", "sacred flame": "fire-zone",
+    "vicious mockery": "vicious-mockery", "healing word": "healing",
+    "cure wounds": "cure-wounds", hex: "hex-spell", shield: "shield-ward",
+    "silvery barbs": "silvery-barbs", "hellish rebuke": "infernal-fire",
+    "guiding bolt": "guiding-bolt", "sacred flame": "sacred-flame",
     "bardic inspiration": "musical-notes", thunderwave: "wave-strike",
-    "magic missile": "missile-swarm",
-    // class features
-    "flurry of blows": "punch-blast", "hand of healing": "healing",
-    "hands of healing": "healing",
-    "second wind": "health-increase", "action surge": "sprint",
-    "patient defense": "shield", "step of the wind": "evasion",
-    "hexblade": "cursed-star",
-    // universals
+    "magic missile": "missile-swarm", "armor of agathys": "armor-frost",
+    "heat metal": "heat-metal", shatter: "shatter-spell",
+    "find familiar": "find-familiar", mending: "mending-spell",
+    bless: "bless-cross",
+    // class features (→ SpellIcons glyph names)
+    "flurry of blows": "flurry-fists", "hand of healing": "hands-of-mercy",
+    "hands of healing": "hands-of-mercy",
+    "second wind": "health-increase", "action surge": "action-surge",
+    "patient defense": "patient-shield", "step of the wind": "step-wind",
+    "hexblade": "hex-curse",
+    // universals (→ SpellIcons glyph names)
     dash: "sprint", disengage: "evasion", dodge: "dodging",
     help: "hand", ready: "hourglass"
   };
 
-  /* Returns an icon name for a tile: keyword match → kind-generic → letter. */
+  /* Returns an icon name for a tile: keyword match → kind-generic → null.
+     Legacy API — resolveIcon is the full-chain resolver. */
   function iconFor(tile) {
     if (!tile) return null;
     var name = String(tile.label || "").toLowerCase();
@@ -564,6 +569,63 @@
     if (tile.kind === "feature" || tile.tab === "feats") return "scroll-unfurled";
     if (tile.tab === "actions") return "hand";
     return null; // caller falls through to initial-letter tile
+  }
+
+  // ── RESOLVER (design doc §3) ─────────────────────────────────────────
+  /* Full icon resolution chain. Returns a glyph name from SpellIcons or
+     ItemIcons — or null when no registry has a match (→ letter tile).
+     Exported so forge-hud.js and any future surface share one path.
+       1. tile._src.icon           (inline — items & custom actions)
+       2. structural.iconOverrides[tile.id]
+       3. ICON_KEYWORDS seed       (name match → registry glyph name)
+       4. category default         (SpellIcons.iconFor / ItemIcons.iconFor)
+       5. null → letter tile       (never blank — Chonkalius rule)          */
+  function resolveIcon(tile, structural) {
+    if (!tile) return null;
+
+    // 1. Inline icon from the source row (gear-manager custom icons)
+    if (tile._src && tile._src.icon) {
+      if (_inRegistry(tile._src.icon)) return tile._src.icon;
+    }
+
+    // 2. Player override (structural.iconOverrides keyed by tile id)
+    var overrides = structural && structural.iconOverrides;
+    if (overrides && tile.id && overrides[tile.id]) {
+      if (_inRegistry(overrides[tile.id])) return overrides[tile.id];
+    }
+
+    // 3. ICON_KEYWORDS seed (name match → registry glyph name)
+    var kwResult = iconFor(tile);
+    if (kwResult && _inRegistry(kwResult)) return kwResult;
+
+    // 4. Category default via registry iconFor (browser only)
+    var _SI = typeof SpellIcons !== "undefined" ? SpellIcons : null;
+    var _II = typeof ItemIcons  !== "undefined" ? ItemIcons  : null;
+    if (tile.spell || tile.tab === "spells" || tile.tab === "actions" || tile.classFeature || tile.universal) {
+      if (_SI) { var si = _SI.iconFor(tile); if (si && _SI.BODIES[si]) return si; }
+    }
+    if (tile.tab === "attacks" || tile.tab === "items") {
+      if (_II) { var ii = _II.iconFor(tile._src || tile); if (ii && _II.BODIES[ii]) return ii; }
+    }
+    // Cross-check the other registry
+    if (_SI && kwResult && _SI.BODIES[kwResult]) return kwResult;
+    if (_II && kwResult && _II.BODIES[kwResult]) return kwResult;
+
+    // 5. null → letter tile
+    return kwResult || null;
+  }
+
+  /* Check if a glyph name exists in either registry (browser only). */
+  function _inRegistry(name) {
+    if (!name) return false;
+    var _SI = typeof SpellIcons !== "undefined" ? SpellIcons : null;
+    var _II = typeof ItemIcons  !== "undefined" ? ItemIcons  : null;
+    if (_SI && _SI.BODIES && _SI.BODIES[name]) return true;
+    if (_II && _II.BODIES && _II.BODIES[name]) return true;
+    // In headless (no registries loaded), accept any name — the keyword map
+    // is the only source and its values are known-good at build time.
+    if (!_SI && !_II) return true;
+    return false;
   }
 
   // ── the fallback kits (inlined from the mock) ──────────────────────────
@@ -736,6 +798,7 @@
   return {
     derive:        derive,
     iconFor:       iconFor,
+    resolveIcon:   resolveIcon,
     combatStats:   combatStats,
     buildResPools: buildResPools,
     buildReactions: buildReactions,

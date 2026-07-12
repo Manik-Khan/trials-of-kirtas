@@ -520,6 +520,50 @@ const LIADAN_CHAR = {
   ok("order: tile ids match source ids", atkIds[0] === "wpn-longsword" && atkIds[1] === "wpn-shortbow");
 })();
 
+// 14b. Resolver chain (headless — registries not loaded, _inRegistry accepts all)
+(function testResolverChain() {
+  ok("resolver: exported", typeof FKD.resolveIcon === "function");
+
+  // Step 1: inline icon from _src beats everything
+  var tile1 = { id: "atk_0", label: "Longsword", tab: "attacks", _src: { icon: "custom-blade" } };
+  ok("resolver: inline _src.icon wins", FKD.resolveIcon(tile1, {}) === "custom-blade");
+
+  // Step 2: iconOverrides beats keyword seed
+  var tile2 = { id: "spell_healing_word", label: "Healing Word", tab: "spells", spell: true };
+  var struct2 = { iconOverrides: { "spell_healing_word": "holy-light" } };
+  ok("resolver: iconOverrides wins over keyword", FKD.resolveIcon(tile2, struct2) === "holy-light");
+
+  // Step 3: ICON_KEYWORDS seed fires when no inline or override
+  var tile3 = { id: "spell_hw", label: "Healing Word", tab: "spells", spell: true };
+  ok("resolver: keyword seed fires", FKD.resolveIcon(tile3, {}) === "healing");
+
+  // Step 1 > Step 2: inline beats override
+  var tile4 = { id: "atk_0", label: "Longsword", tab: "attacks", _src: { icon: "my-icon" } };
+  var struct4 = { iconOverrides: { "atk_0": "other-icon" } };
+  ok("resolver: inline beats override", FKD.resolveIcon(tile4, struct4) === "my-icon");
+
+  // Step 5: unknown → falls to kind-generic (in headless, ICON_KEYWORDS kind-generic returns)
+  var tile5 = { id: "x", label: "Zzzyxxx Mystery", tab: "attacks", kind: "attack" };
+  var r5 = FKD.resolveIcon(tile5, {});
+  ok("resolver: unknown attack → crossed-swords (kind-generic)", r5 === "crossed-swords");
+
+  // Null tile → null
+  ok("resolver: null tile → null", FKD.resolveIcon(null, {}) === null);
+
+  // Weapon tile inherits gear-manager custom icon via _src
+  var wpnTile = { id: "atk_0", label: "Longsword", tab: "attacks",
+                  _src: { name: "Longsword", icon: "flame-sword" } };
+  ok("resolver: weapon inherits gear-manager icon", FKD.resolveIcon(wpnTile, {}) === "flame-sword");
+
+  // Override survives re-derivation (override applies to a fresh tile with same id)
+  var tile6a = { id: "spell_hex", label: "Hex", tab: "spells", spell: true };
+  var struct6 = { iconOverrides: { "spell_hex": "cursed-star" } };
+  ok("resolver: override on spell tile", FKD.resolveIcon(tile6a, struct6) === "cursed-star");
+  // Second call, same id, same override — still works
+  var tile6b = { id: "spell_hex", label: "Hex", tab: "spells", spell: true };
+  ok("resolver: override survives re-derive", FKD.resolveIcon(tile6b, struct6) === "cursed-star");
+})();
+
 // 15. Resource passthrough: recharge, die, tag, origin, source, custom survive derive
 (function testResourcePassthrough() {
   // Caim has ki with recharge/die/tag/origin/source from resource-derive
