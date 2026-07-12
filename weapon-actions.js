@@ -438,7 +438,7 @@ export function buildSpellAttacks(structural) {
     if (spec.kind === 'atk') {
       out.push({ id: id, type: 'attack-cantrip', label: label, hitMod: atk, dmgMod: dmgBonus, dmgDice: dice, critDice: doubleDice(dice), dmgType: typeLabel });
     } else {
-      out.push({ id: id, type: 'damage-only', label: label, dmgMod: dmgBonus, dmgDice: dice, dmgType: typeLabel });
+      out.push({ id: id, type: 'damage-only', label: label, dmgMod: dmgBonus, dmgDice: dice, dmgType: typeLabel, saveAbility: spec.save || null });
     }
   });
   return out;

@@ -147,12 +147,59 @@
   function attackTiles(s, assembled) {
     var tiles = [];
     var pb = profBonus(s);
+    var sc = s.spellcasting || {};
 
     (assembled || []).forEach(function (a) {
       if (!a || a._removed || a._hidden) return;
       var group = actionGroup(a.type);
       if (group !== "attack") return; // only attack-type rows into this tab
 
+      // ── Spell attack rows from buildSpellAttacks (weapon-actions.js) ──
+      // attack-cantrip: hitMod is the complete spell attack bonus (ability+prof)
+      //   — must NOT be recomputed from the weapon ability path.
+      // damage-only: save spells — re-kind to "save" with DC + saveAbility.
+      if (a.type === "attack-cantrip" || a.type === "damage-only") {
+        var spDmgMod = a.dmgMod || 0;
+        var spDmgExpr = (a.dmgDice || "1d4");
+        if (spDmgMod > 0) spDmgExpr += "+" + spDmgMod;
+        else if (spDmgMod < 0) spDmgExpr += String(spDmgMod);
+
+        var spKind = a.type === "attack-cantrip" ? "attack" : "save";
+        var spDc   = sc.saveDC || ((s.combat || {}).spellSaveDC) || null;
+
+        // Range + rider from SPELL_COMBAT if available
+        var spName = (a.label || "").toLowerCase().replace(/\s*\(.*\)$/, "").replace(/\u2019/g, "'");
+        var proj   = SPELL_COMBAT[spName];
+        var spRng  = (proj && proj.rng) ? proj.rng : (a.type === "attack-cantrip" ? 24 : 12);
+        var spRider = (proj && proj.rider) || null;
+
+        tiles.push({
+          id:          a.id || ("atk_" + tiles.length),
+          label:       a.label || "Spell",
+          kind:        spKind,
+          tab:         "attacks",
+          rng:         spRng,
+          long:        null,
+          hit:         a.type === "attack-cantrip" ? (a.hitMod || 0) : 0,
+          dc:          spKind === "save" ? spDc : null,
+          saveAbility: a.saveAbility || (proj && proj.save) || null,
+          dmg:         spDmgExpr,
+          dmgStack:    [{ dice: a.dmgDice || "1d4", bonus: spDmgMod, type: a.dmgType || "" }],
+          bonus:       !!a.bonus,
+          free:        !!a.free,
+          spell:       true,
+          conc:        !!a.conc,
+          cost:        a.cost || null,
+          rider:       spRider,
+          critDice:    a.critDice || null,
+          strikes:     null,
+          needsAttack: false,
+          _src:        a
+        });
+        return;
+      }
+
+      // ── Normal weapon attack rows ──
       var abil = a.ability || "str";
       var mod = abilMod(s, abil);
       var hitTotal = mod + (a.proficient !== false ? pb : 0) + (a.atkBonus || 0);
@@ -210,14 +257,138 @@
     return "attack";
   }
 
+  // ── SPELL_COMBAT — pipeline-kind projection for the Spells tab ─────────
+  // Maps lowercase spell name → { kind, rng (squares), save, baseDmg, scale,
+  //   healMod, addMod, rider }. Coverage: the four PCs' current lists first,
+  //   then the common 5e set. DC/atkBonus derive from structural.spellcasting.
+  //
+  //   kind:  "attack"|"save"|"heal"|"buff"|"buffAlly"|"selfheal"  → resolvable
+  //          null  → utility, greyed with explanation
+  //
+  //   Unmapped spells also grey ("Not yet wired for Forge combat").
+  //   attackTiles also references this table for range/save on spell-attack rows.
+  var SPELL_COMBAT = {
+    // ── attack cantrips (scale by character level) ──
+    "eldritch blast":     { kind: "attack", rng: 24, baseDmg: "1d10", scale: "cantrip" },
+    "fire bolt":          { kind: "attack", rng: 24, baseDmg: "1d10", scale: "cantrip" },
+    "ray of frost":       { kind: "attack", rng: 12, baseDmg: "1d8",  scale: "cantrip" },
+    "shocking grasp":     { kind: "attack", rng: 1,  baseDmg: "1d8",  scale: "cantrip" },
+    "chill touch":        { kind: "attack", rng: 24, baseDmg: "1d8",  scale: "cantrip" },
+    "thorn whip":         { kind: "attack", rng: 6,  baseDmg: "1d6",  scale: "cantrip" },
+    "produce flame":      { kind: "attack", rng: 6,  baseDmg: "1d8",  scale: "cantrip" },
+    "magic stone":        { kind: "attack", rng: 12, baseDmg: "1d6",  scale: "cantrip", addMod: true },
+
+    // ── save cantrips ──
+    "vicious mockery":    { kind: "save", save: "wis", rng: 12, baseDmg: "1d4", scale: "cantrip", rider: "vm" },
+    "sacred flame":       { kind: "save", save: "dex", rng: 12, baseDmg: "1d8", scale: "cantrip" },
+    "toll the dead":      { kind: "save", save: "wis", rng: 12, baseDmg: "1d8", scale: "cantrip" },
+    "acid splash":        { kind: "save", save: "dex", rng: 12, baseDmg: "1d6", scale: "cantrip" },
+    "poison spray":       { kind: "save", save: "con", rng: 2,  baseDmg: "1d12", scale: "cantrip" },
+    "word of radiance":   { kind: "save", save: "con", rng: 1,  baseDmg: "1d6",  scale: "cantrip" },
+    "frostbite":          { kind: "save", save: "con", rng: 12, baseDmg: "1d6",  scale: "cantrip" },
+    "mind sliver":        { kind: "save", save: "int", rng: 12, baseDmg: "1d6",  scale: "cantrip" },
+    "thunderclap":        { kind: "save", save: "con", rng: 1,  baseDmg: "1d6",  scale: "cantrip" },
+    "sword burst":        { kind: "save", save: "dex", rng: 1,  baseDmg: "1d6",  scale: "cantrip" },
+
+    // ── heal ──
+    "healing word":       { kind: "heal", rng: 12, baseDmg: "1d4", healMod: true },
+    "cure wounds":        { kind: "heal", rng: 1,  baseDmg: "1d8", healMod: true },
+    "spare the dying":    { kind: "heal", rng: 1 },
+    "mass healing word":  { kind: "heal", rng: 12, baseDmg: "1d4", healMod: true },
+    "mass cure wounds":   { kind: "heal", rng: 12, baseDmg: "3d8", healMod: true },
+    "heal":               { kind: "heal", rng: 12, baseDmg: "70" },
+    "prayer of healing":  { kind: "heal", rng: 6,  baseDmg: "2d8", healMod: true },
+
+    // ── buff (single-target enemy debuff) ──
+    "hex":                { kind: "buff", rng: 18 },
+    "hunter's mark":      { kind: "buff", rng: 18 },
+
+    // ── ally buff ──
+    "bless":              { kind: "buffAlly", rng: 6 },
+    "guidance":           { kind: "buffAlly", rng: 1 },
+    "sanctuary":          { kind: "buffAlly", rng: 6 },
+    "aid":                { kind: "buffAlly", rng: 6 },
+    "shield of faith":    { kind: "buffAlly", rng: 12 },
+    "heroism":            { kind: "buffAlly", rng: 1 },
+    "protection from evil and good": { kind: "buffAlly", rng: 1 },
+    "haste":              { kind: "buffAlly", rng: 6 },
+    "warding bond":       { kind: "buffAlly", rng: 1 },
+
+    // ── self buff / temp HP ──
+    "armor of agathys":   { kind: "selfheal", baseDmg: "5" },
+    "false life":         { kind: "selfheal", baseDmg: "1d4+4" },
+    "mirror image":       { kind: "selfheal" },
+    "mage armor":         { kind: "selfheal" },
+    "shield":             { kind: "selfheal" },  // reaction — but if it reaches the tab, self-cast
+
+    // ── save (leveled damage) ──
+    "shatter":            { kind: "save", save: "con", rng: 12, baseDmg: "3d8" },
+    "heat metal":         { kind: "save", save: "con", rng: 12, baseDmg: "2d8" },
+    "thunderwave":        { kind: "save", save: "con", rng: 3,  baseDmg: "2d8" },
+    "burning hands":      { kind: "save", save: "dex", rng: 3,  baseDmg: "3d6" },
+    "hellish rebuke":     { kind: "save", save: "dex", rng: 12, baseDmg: "2d10" },
+    "fireball":           { kind: "save", save: "dex", rng: 30, baseDmg: "8d6" },
+    "lightning bolt":     { kind: "save", save: "dex", rng: 20, baseDmg: "8d6" },
+    "spirit guardians":   { kind: "save", save: "wis", rng: 3,  baseDmg: "3d8" },
+    "moonbeam":           { kind: "save", save: "con", rng: 24, baseDmg: "2d10" },
+    "call lightning":     { kind: "save", save: "dex", rng: 24, baseDmg: "3d10" },
+
+    // ── attack (leveled) ──
+    "guiding bolt":       { kind: "attack", rng: 24, baseDmg: "4d6" },
+    "inflict wounds":     { kind: "attack", rng: 1,  baseDmg: "3d10" },
+    "chromatic orb":      { kind: "attack", rng: 18, baseDmg: "3d8" },
+    "scorching ray":      { kind: "attack", rng: 24, baseDmg: "2d6" },
+    "spiritual weapon":   { kind: "attack", rng: 12, baseDmg: "1d8", addMod: true },
+    "magic missile":      { kind: "attack", rng: 24, baseDmg: "3d4+3" },
+
+    // ── weapon cantrips → grey (use from Attacks tab) ──
+    "booming blade":      { kind: null, greyReason: "Weapon cantrip \u2014 use from the Attacks tab" },
+    "green-flame blade":  { kind: null, greyReason: "Weapon cantrip \u2014 use from the Attacks tab" },
+
+    // ── utility / non-combat → grey ──
+    "find familiar":      { kind: null },
+    "mending":            { kind: null },
+    "minor illusion":     { kind: null },
+    "mage hand":          { kind: null },
+    "prestidigitation":   { kind: null },
+    "thaumaturgy":        { kind: null },
+    "detect magic":       { kind: null },
+    "charm person":       { kind: null },
+    "feather fall":       { kind: null },
+    "disguise self":      { kind: null },
+    "comprehend languages": { kind: null },
+    "identify":           { kind: null },
+    "unseen servant":     { kind: null },
+    "silent image":       { kind: null },
+    "speak with animals": { kind: null },
+    "misty step":         { kind: null },
+    "invisibility":       { kind: null },
+    "darkness":           { kind: null },
+    "darkvision":         { kind: null },
+    "knock":              { kind: null },
+    "suggestion":         { kind: null },
+    "counterspell":       { kind: null },
+    "dispel magic":       { kind: null },
+    "fly":                { kind: null },
+    "absorb elements":    { kind: null },
+    "silvery barbs":      { kind: null }
+  };
+
+  // Cantrip scaling helpers (mirrors weapon-actions.js — derive is a separate IIFE)
+  function _cantripMult(level) { return level >= 17 ? 4 : level >= 11 ? 3 : level >= 5 ? 2 : 1; }
+  function _scaleDice(s, mult) { var m = String(s).match(/(\d+)d(\d+)/); return m ? (parseInt(m[1],10)*mult)+'d'+m[2] : s; }
+
   // ── SPELLS tab ──────────────────────────────────────────────────────────
-  /* Reads structural.spellcasting.groups. Cantrips first, grouped by level.
-     Excludes spellbook-only entries (Wizard's book ≠ prepared). */
+  /* Reads structural.spellcasting.groups → pipeline-ready tiles via SPELL_COMBAT.
+     Cantrips first, grouped by level. Excludes spellbook-only entries.
+     Unmapped or utility spells render greyed with an explanation in the drawer. */
   function spellTiles(s) {
     var sc = s.spellcasting || {};
     var tiles = [];
     var dc = sc.saveDC || (8 + profBonus(s) + abilMod(s, guessCastAbil(s)));
     var atkBonus = sc.attackBonus || (profBonus(s) + abilMod(s, guessCastAbil(s)));
+    var castMod = abilMod(s, guessCastAbil(s));
+    var clvl = s.level || 0;
 
     (sc.groups || []).forEach(function (g) {
       var lvl = g.level != null ? (typeof g.level === "number" ? g.level : parseInt(g.level, 10) || 0) : 0;
@@ -236,23 +407,65 @@
           cost[slotKey] = 1;
         }
 
+        // ── SPELL_COMBAT projection ──
+        var spKey = (sp.name || "").toLowerCase().replace(/\u2019/g, "'");
+        var proj  = SPELL_COMBAT[spKey];
+
+        var kind, rng, dmg, saveAbility, rider, greyed, greyReason;
+
+        if (!proj || proj.kind === null || proj.kind === undefined) {
+          // Unknown or utility spell → greyed
+          kind        = "spell";
+          greyed      = true;
+          greyReason  = (proj && proj.greyReason) || "Not yet wired for Forge combat \u2014 rules text in the drawer";
+          rng         = null;
+          dmg         = null;
+          saveAbility = null;
+          rider       = null;
+        } else {
+          // Resolvable combat spell
+          kind        = proj.kind;
+          rng         = proj.rng || 1;
+          saveAbility = proj.save || null;
+          rider       = proj.rider || null;
+          greyed      = false;
+          greyReason  = null;
+
+          // Compute damage / healing expression
+          if (proj.baseDmg) {
+            var rawDmg = proj.baseDmg;
+            if (proj.scale === "cantrip") rawDmg = _scaleDice(rawDmg, _cantripMult(clvl));
+            var bonus = 0;
+            if (proj.healMod || proj.addMod) bonus += castMod;
+            if (bonus > 0) dmg = rawDmg + "+" + bonus;
+            else if (bonus < 0) dmg = rawDmg + String(bonus);
+            else dmg = rawDmg;
+          } else {
+            dmg = null;
+          }
+        }
+
         tiles.push({
-          id:       "spell_" + slugify(sp.name),
-          label:    sp.name || "Spell",
-          kind:     "spell",
-          tab:      "spells",
-          level:    lvl,
-          rng:      null,  // spells have variable range; pipeline reads the statblock
-          hit:      atkBonus,
-          dc:       dc,
-          dmg:      null,  // too variable to derive generically; pipeline handles it
-          bonus:    isBonus,
-          free:     false,
-          spell:    true,
-          conc:     !!(sp.conc || sp.concentration),
-          cost:     cost,
-          origin:   sp.origin || "class",
-          _src:     sp
+          id:          "spell_" + slugify(sp.name),
+          label:       sp.name || "Spell",
+          kind:        kind,
+          tab:         "spells",
+          level:       lvl,
+          rng:         rng,
+          hit:         kind === "attack" ? atkBonus : 0,
+          dc:          dc,
+          dmg:         dmg,
+          saveAbility: saveAbility,
+          bonus:       isBonus,
+          free:        false,
+          spell:       true,
+          conc:        !!(sp.conc || sp.concentration),
+          cost:        cost,
+          origin:      sp.origin || "class",
+          rider:       rider,
+          greyed:      greyed || false,
+          greyReason:  greyReason || null,
+          _src:        sp
         });
       });
     });
@@ -340,7 +553,8 @@
         tab:    "feats",
         origin: parseOrigin(f.source),
         kind:   "feature",
-        passive: true  // read-only; detail drawer
+        passive: true,  // read-only; detail drawer
+        _src:   f       // drawer can reach f.entries (5etools array) when present
       });
     });
     (s.customFeatures || []).forEach(function (f) {
@@ -352,7 +566,8 @@
         tab:    "feats",
         origin: "custom",
         kind:   "feature",
-        passive: true
+        passive: true,
+        _src:   f
       });
     });
     return tiles;
@@ -812,6 +1027,7 @@
     forgeResKey:   forgeResKey,
     UNIVERSALS:    UNIVERSALS,
     GREYED:        GREYED,
+    SPELL_COMBAT:  SPELL_COMBAT,
     GENERIC_PC_KIT: GENERIC_PC_KIT,
     ICON_KEYWORDS: ICON_KEYWORDS
   };

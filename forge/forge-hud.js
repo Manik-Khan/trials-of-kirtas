@@ -547,6 +547,9 @@ font-family:"Barlow Condensed",system-ui;font-size:12px;cursor:pointer;letter-sp
     var desc = "";
     if (tile.greyed && tile.greyReason) {
       desc = '<p class="fg-dw-grey">' + esc(tile.greyReason) + '</p>';
+    } else if (!tile.spell && tile._src && tile._src.entries) {
+      // Feature/feat with 5etools entries array — render rich text
+      desc = _renderSpellEntries(tile._src);
     } else if (tile.desc) {
       desc = '<p>' + esc(tile.desc) + '</p>';
     } else if (tile.dmg) {

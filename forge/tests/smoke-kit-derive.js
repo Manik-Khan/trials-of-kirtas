@@ -619,6 +619,225 @@ const LIADAN_CHAR = {
   ok("res-pass: custom resource origin = 'custom'", myPool && myPool.origin === "custom");
 })();
 
+// 16. Feat tiles carry _src (drawer can reach entries/desc from the original feature)
+(function testFeatSrcPassthrough() {
+  // Vesperian has structural features with desc strings
+  var kit = FKD.derive(VES_CHAR);
+  var featTab = kit.tabs.feats || [];
+  ok("feat-src: Vesperian has feat tiles", featTab.length > 0);
+
+  var sw = featTab.filter(function (t) { return t.label === "Second Wind"; })[0];
+  ok("feat-src: Second Wind tile exists", !!sw);
+  ok("feat-src: Second Wind has _src", sw && !!sw._src);
+  ok("feat-src: _src.name === feature name", sw && sw._src && sw._src.name === "Second Wind");
+  ok("feat-src: _src.desc matches tile.desc", sw && sw._src && sw.desc === sw._src.desc);
+
+  // Custom features also carry _src
+  var customChar = JSON.parse(JSON.stringify(VES_CHAR));
+  customChar.structural.customFeatures = [
+    { name: "Homebrew Trick", desc: "Does something cool.", source: "custom" }
+  ];
+  var cKit = FKD.derive(customChar);
+  var cFeat = (cKit.tabs.feats || []).filter(function (t) { return t.label === "Homebrew Trick"; })[0];
+  ok("feat-src: custom feature tile exists", !!cFeat);
+  ok("feat-src: custom feature has _src", cFeat && !!cFeat._src);
+  ok("feat-src: custom _src.name matches", cFeat && cFeat._src && cFeat._src.name === "Homebrew Trick");
+
+  // Forward-proof: a feature with entries array is reachable via _src
+  var entriesChar = JSON.parse(JSON.stringify(VES_CHAR));
+  entriesChar.structural.features = [
+    { name: "Rich Feature", source: "class:Fighter", desc: "Short desc.",
+      entries: ["Full description.", "Second paragraph."] }
+  ];
+  var eKit = FKD.derive(entriesChar);
+  var rich = (eKit.tabs.feats || []).filter(function (t) { return t.label === "Rich Feature"; })[0];
+  ok("feat-src: entries-bearing feature has _src", rich && !!rich._src);
+  ok("feat-src: _src.entries is reachable", rich && rich._src && Array.isArray(rich._src.entries));
+  ok("feat-src: _src.entries[0] is correct", rich && rich._src && rich._src.entries[0] === "Full description.");
+})();
+
+// 17. SPELL_COMBAT: per-PC known-answer spell projections
+(function testSpellCombatProjection() {
+  // ── Líadan: Healing Word → heal/1d4+3/12 sq ──
+  var liaKit = FKD.derive(LIADAN_CHAR);
+  var liaSpells = liaKit.tabs.spells || [];
+
+  var hw = liaSpells.filter(function (t) { return t.label === "Healing Word"; })[0];
+  ok("spell-proj: Healing Word exists", !!hw);
+  ok("spell-proj: Healing Word kind=heal", hw && hw.kind === "heal");
+  ok("spell-proj: Healing Word dmg=1d4+3", hw && hw.dmg === "1d4+3");
+  ok("spell-proj: Healing Word rng=12", hw && hw.rng === 12);
+  ok("spell-proj: Healing Word bonus=true", hw && hw.bonus === true);
+  ok("spell-proj: Healing Word not greyed", hw && !hw.greyed);
+
+  // Cure Wounds → heal/1d8+3/rng=1 (touch)
+  var cw = liaSpells.filter(function (t) { return t.label === "Cure Wounds"; })[0];
+  ok("spell-proj: Cure Wounds kind=heal", cw && cw.kind === "heal");
+  ok("spell-proj: Cure Wounds dmg=1d8+3", cw && cw.dmg === "1d8+3");
+  ok("spell-proj: Cure Wounds rng=1", cw && cw.rng === 1);
+
+  // Vicious Mockery → save/wis (cantrip, level 4 = 1d4)
+  var vm = liaSpells.filter(function (t) { return t.label === "Vicious Mockery"; })[0];
+  ok("spell-proj: VM kind=save", vm && vm.kind === "save");
+  ok("spell-proj: VM saveAbility=wis", vm && vm.saveAbility === "wis");
+  ok("spell-proj: VM dmg=1d4 (level 4)", vm && vm.dmg === "1d4");
+  ok("spell-proj: VM rng=12", vm && vm.rng === 12);
+  ok("spell-proj: VM rider=vm", vm && vm.rider === "vm");
+  ok("spell-proj: VM dc=13", vm && vm.dc === 13);
+
+  // Bless → buffAlly, conc
+  var bl = liaSpells.filter(function (t) { return t.label === "Bless"; })[0];
+  ok("spell-proj: Bless kind=buffAlly", bl && bl.kind === "buffAlly");
+  ok("spell-proj: Bless conc=true", bl && bl.conc === true);
+  ok("spell-proj: Bless rng=6", bl && bl.rng === 6);
+  ok("spell-proj: Bless not greyed", bl && !bl.greyed);
+  ok("spell-proj: Bless cost slot1", bl && bl.cost && bl.cost.slot1 === 1);
+
+  // Mending → greyed (utility)
+  var mend = liaSpells.filter(function (t) { return t.label === "Mending"; })[0];
+  ok("spell-proj: Mending greyed", mend && mend.greyed === true);
+  ok("spell-proj: Mending has greyReason", mend && typeof mend.greyReason === "string" && mend.greyReason.length > 5);
+
+  // Shatter → save/con, 3d8, rng 12
+  var sh = liaSpells.filter(function (t) { return t.label === "Shatter"; })[0];
+  ok("spell-proj: Shatter kind=save", sh && sh.kind === "save");
+  ok("spell-proj: Shatter saveAbility=con", sh && sh.saveAbility === "con");
+  ok("spell-proj: Shatter dmg=3d8", sh && sh.dmg === "3d8");
+
+  // Heat Metal → save/con, bonus action
+  var hm = liaSpells.filter(function (t) { return t.label === "Heat Metal"; })[0];
+  ok("spell-proj: Heat Metal kind=save", hm && hm.kind === "save");
+  ok("spell-proj: Heat Metal bonus=true", hm && hm.bonus === true);
+  ok("spell-proj: Heat Metal conc=true", hm && hm.conc === true);
+
+  // Silvery Barbs → reaction, should be filtered out (not in spells tab)
+  var sb = liaSpells.filter(function (t) { return t.label === "Silvery Barbs"; })[0];
+  ok("spell-proj: Silvery Barbs filtered (reaction)", !sb);
+
+  // ── Cosmere: Hex → buff, Armor of Agathys → selfheal, EB → attack ──
+  var cosKit = FKD.derive(COSMERE_CHAR);
+  var cosSpells = cosKit.tabs.spells || [];
+
+  var hex = cosSpells.filter(function (t) { return t.label === "Hex"; })[0];
+  ok("spell-proj: Hex kind=buff", hex && hex.kind === "buff");
+  ok("spell-proj: Hex rng=18", hex && hex.rng === 18);
+  ok("spell-proj: Hex bonus=true", hex && hex.bonus === true);
+
+  var aoa = cosSpells.filter(function (t) { return t.label === "Armor of Agathys"; })[0];
+  ok("spell-proj: AoA kind=selfheal", aoa && aoa.kind === "selfheal");
+  ok("spell-proj: AoA dmg=5", aoa && aoa.dmg === "5");
+
+  var eb = cosSpells.filter(function (t) { return t.label === "Eldritch Blast"; })[0];
+  ok("spell-proj: EB kind=attack", eb && eb.kind === "attack");
+  ok("spell-proj: EB rng=24", eb && eb.rng === 24);
+  ok("spell-proj: EB hit=atkBonus (5)", eb && eb.hit === 5);
+  ok("spell-proj: EB dmg=1d10 (level 3)", eb && eb.dmg === "1d10");
+
+  // Booming Blade → greyed (weapon cantrip)
+  var bb = cosSpells.filter(function (t) { return t.label === "Booming Blade"; })[0];
+  ok("spell-proj: BB greyed (weapon cantrip)", bb && bb.greyed === true);
+  ok("spell-proj: BB greyReason mentions Attacks tab", bb && /Attacks tab/i.test(bb.greyReason || ""));
+
+  // Shield → reaction, should be filtered out
+  var sh2 = cosSpells.filter(function (t) { return t.label === "Shield"; })[0];
+  ok("spell-proj: Shield filtered (reaction)", !sh2);
+
+  // ── Vesperian: Find Familiar → greyed, Booming Blade → greyed ──
+  var vesKit = FKD.derive(VES_CHAR);
+  var vesSpells = vesKit.tabs.spells || [];
+
+  var ff = vesSpells.filter(function (t) { return t.label === "Find Familiar"; })[0];
+  ok("spell-proj: Find Familiar greyed", ff && ff.greyed === true);
+
+  var vbb = vesSpells.filter(function (t) { return t.label === "Booming Blade"; })[0];
+  ok("spell-proj: Ves BB greyed", vbb && vbb.greyed === true);
+})();
+
+// 18. SPELL_COMBAT: greyed-fallback invariant — every spells-tab tile has a resolvable kind OR greyed:true
+(function testGreyedInvariant() {
+  var RESOLVE_KINDS = { attack: 1, save: 1, heal: 1, buff: 1, buffAlly: 1, selfheal: 1, surge: 1, rage: 1 };
+  [VES_CHAR, CAIM_CHAR, COSMERE_CHAR, LIADAN_CHAR].forEach(function (c) {
+    var kit = FKD.derive(c);
+    (kit.tabs.spells || []).forEach(function (t) {
+      var resolvable = !!RESOLVE_KINDS[t.kind];
+      var safe = resolvable || t.greyed === true;
+      ok("grey-inv: " + c.key + "/" + t.label + " resolvable OR greyed", safe);
+    });
+  });
+})();
+
+// 19. SPELL_COMBAT: attack-cantrip hit math (from assembled actions)
+(function testAttackCantripHit() {
+  // Build a character with assembled actions that include attack-cantrip rows
+  var assembled = [
+    { id: "sp-eldritchblast", type: "attack-cantrip", label: "Eldritch Blast", hitMod: 5, dmgMod: 0, dmgDice: "1d10", critDice: "2d10", dmgType: "force" },
+    { id: "sp-viciousmockery", type: "damage-only", label: "Vicious Mockery", dmgMod: 0, dmgDice: "1d4", dmgType: "psychic (WIS save DC 13)", saveAbility: "wis" }
+  ];
+  var tiles = FKD.attackTiles(LIADAN_CHAR.structural, assembled);
+
+  var ebTile = tiles.filter(function (t) { return t.label === "Eldritch Blast"; })[0];
+  ok("atk-cantrip: EB tile exists", !!ebTile);
+  ok("atk-cantrip: EB kind=attack", ebTile && ebTile.kind === "attack");
+  ok("atk-cantrip: EB hit=5 (hitMod, not recomputed)", ebTile && ebTile.hit === 5);
+  ok("atk-cantrip: EB dmg=1d10", ebTile && ebTile.dmg === "1d10");
+  ok("atk-cantrip: EB rng=24 (from SPELL_COMBAT)", ebTile && ebTile.rng === 24);
+  ok("atk-cantrip: EB spell=true", ebTile && ebTile.spell === true);
+  ok("atk-cantrip: EB critDice=2d10", ebTile && ebTile.critDice === "2d10");
+
+  var vmTile = tiles.filter(function (t) { return t.label === "Vicious Mockery"; })[0];
+  ok("dmg-only: VM tile exists", !!vmTile);
+  ok("dmg-only: VM kind=save (re-kinded)", vmTile && vmTile.kind === "save");
+  ok("dmg-only: VM dc=13", vmTile && vmTile.dc === 13);
+  ok("dmg-only: VM saveAbility=wis", vmTile && vmTile.saveAbility === "wis");
+  ok("dmg-only: VM dmg=1d4", vmTile && vmTile.dmg === "1d4");
+  ok("dmg-only: VM rider=vm (from SPELL_COMBAT)", vmTile && vmTile.rider === "vm");
+
+  // Verify weapon rows still compute normally alongside spell rows
+  var mixedAssembled = [
+    { id: "w-longsword", label: "Longsword", ability: "str", dmgDice: "1d8", dmgType: "slashing", proficient: true },
+    { id: "sp-eldritchblast", type: "attack-cantrip", label: "Eldritch Blast", hitMod: 5, dmgMod: 0, dmgDice: "1d10", critDice: "2d10", dmgType: "force" }
+  ];
+  var mixTiles = FKD.attackTiles(VES_CHAR.structural, mixedAssembled);
+  var sword = mixTiles.filter(function (t) { return t.label === "Longsword"; })[0];
+  ok("mixed: Longsword still computes hit from str+prof", sword && sword.hit === (4 + 2)); // str=4, prof=2
+  var ebMix = mixTiles.filter(function (t) { return t.label === "Eldritch Blast"; })[0];
+  ok("mixed: EB uses hitMod directly", ebMix && ebMix.hit === 5);
+})();
+
+// 20. Cantrip scaling in spellTiles (level-dependent)
+(function testCantripScaling() {
+  // Level 3 (Cosmere) → mult=1
+  var cosKit = FKD.derive(COSMERE_CHAR);
+  var eb3 = (cosKit.tabs.spells || []).filter(function (t) { return t.label === "Eldritch Blast"; })[0];
+  ok("cantrip-scale: EB at level 3 = 1d10", eb3 && eb3.dmg === "1d10");
+
+  // Level 5 → mult=2 (2d10)
+  var lvl5 = JSON.parse(JSON.stringify(COSMERE_CHAR));
+  lvl5.structural.level = 5;
+  var kit5 = FKD.derive(lvl5);
+  var eb5 = (kit5.tabs.spells || []).filter(function (t) { return t.label === "Eldritch Blast"; })[0];
+  ok("cantrip-scale: EB at level 5 = 2d10", eb5 && eb5.dmg === "2d10");
+
+  // Level 11 → mult=3 (3d10)
+  var lvl11 = JSON.parse(JSON.stringify(COSMERE_CHAR));
+  lvl11.structural.level = 11;
+  var kit11 = FKD.derive(lvl11);
+  var eb11 = (kit11.tabs.spells || []).filter(function (t) { return t.label === "Eldritch Blast"; })[0];
+  ok("cantrip-scale: EB at level 11 = 3d10", eb11 && eb11.dmg === "3d10");
+
+  // VM at level 4 → 1d4 (mult=1)
+  var liaKit = FKD.derive(LIADAN_CHAR);
+  var vm4 = (liaKit.tabs.spells || []).filter(function (t) { return t.label === "Vicious Mockery"; })[0];
+  ok("cantrip-scale: VM at level 4 = 1d4", vm4 && vm4.dmg === "1d4");
+
+  // VM at level 5 → 2d4
+  var lvl5L = JSON.parse(JSON.stringify(LIADAN_CHAR));
+  lvl5L.structural.level = 5;
+  var kit5L = FKD.derive(lvl5L);
+  var vm5 = (kit5L.tabs.spells || []).filter(function (t) { return t.label === "Vicious Mockery"; })[0];
+  ok("cantrip-scale: VM at level 5 = 2d4", vm5 && vm5.dmg === "2d4");
+})();
+
 // ── summary ──────────────────────────────────────────────────────────────
 console.log("smoke-kit-derive: " + pass + " passed, " + fail + " failed");
 process.exit(fail ? 1 : 0);

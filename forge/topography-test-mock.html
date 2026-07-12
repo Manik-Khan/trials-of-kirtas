@@ -34,6 +34,11 @@
 <script src="../item-icons.js?v=b3"></script>
 <script src="../spell-icons.js?v=b3"></script>
 <script src="../icon-picker.js?v=b3"></script>
+<!-- Bite C1: lazy spell-text + feat-entries in the detail drawer.
+     soul-shards-data.js exports window.SoulShardsData; forge-hud's _loadSpellText
+     calls .loadSpellMeta([name],{detail:true}) on drawer open — see §C of the
+     2026-07-12 fix plan. Fetches from 5etools CDN, no Supabase dependency. -->
+<script src="../soul-shards-data.js?v=b4"></script>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <!-- Task 11: Start fight reads live PC vitals off the real sheet. character-data.js
      normally waits on nav.js's window.__tok — this mock doesn't carry nav.js's full
@@ -3452,7 +3457,9 @@ function drawHi(){
     return; }
   var u=active(); if(!u||u.side!=="pc") return;
   if(CB.pending){ var pa=CB.pending;
-    if(pa.kind==="heal"||pa.kind==="buffAlly"){ validTargets(u,pa).forEach(function(t){ moveGroup.add(tileFlat(t.c,t.r,0x3a8a92,0.5)); });
+    if(pa.kind==="heal"||pa.kind==="buffAlly"){
+      var hiCol = pa.kind==="heal" ? 0x2da84f : 0xc9a24b;   // green for heal, gold for buffAlly
+      validTargets(u,pa).forEach(function(t){ moveGroup.add(tileFlat(t.c,t.r,hiCol,0.5)); });
       allies(u).forEach(function(t){ if(t===u&&(pa.rng||1)<1)return; var ro=reachOK(u,pa,t); if(!ro.ok) badgeFor(u,t,pa,ro); }); }
     else { enemies(u).forEach(function(t){ var ro=reachOK(u,pa,t);
       var col=!ro.ok?0x6b6357:(ro.dis?0xd08a2a:0xb34a38), al=!ro.ok?0.20:0.5; moveGroup.add(tileFlat(t.c,t.r,col,al));
