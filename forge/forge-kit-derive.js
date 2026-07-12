@@ -106,6 +106,52 @@
       });
     });
 
+    // ── legacy ledger fallback (round-3 follow-up, M's upcast session) ──
+    // Live sheets carry slots in structural.classFeatures, not
+    // spellcasting.pools: spellSlots {"<lvl>":{max}}, pactSlots {max,level},
+    // and named class resources ({max} objects; bardicInspiration pairs with
+    // bardicInspirationDie for the badge). pipState spends on spell_<lvl> /
+    // pactSlots / the raw key — the same keys the sheet's orbs already use.
+    var cf = s.classFeatures || {};
+    if (!(sc.pools || []).length && cf.spellSlots) {
+      Object.keys(cf.spellSlots).forEach(function (lk) {
+        var lvl = parseInt(lk, 10); if (!lvl) return;
+        var max = (cf.spellSlots[lk] || {}).max || 0; if (!max) return;
+        var raw = "spell_" + lvl, fk = forgeResKey(raw);
+        if (res[fk] != null) return;
+        var cur = Math.max(0, max - (pip[raw] || 0));
+        res[fk] = cur;
+        pools.push({ key: fk, rawKey: raw, level: lvl, label: "Lvl " + lvl,
+          badge: "Lvl " + lvl, max: max, current: cur, tone: "class", kind: "slot" });
+      });
+    }
+    if (!(sc.pools || []).length && cf.pactSlots && cf.pactSlots.max) {
+      var pMax = cf.pactSlots.max, pCur = Math.max(0, pMax - (pip.pactSlots || 0));
+      if (res.pact == null) {
+        res.pact = pCur;
+        pools.push({ key: "pact", rawKey: "pactSlots", level: cf.pactSlots.level || 1,
+          label: "Pact", badge: "Pact " + (cf.pactSlots.level || 1), max: pMax, current: pCur,
+          tone: "class", kind: "slot" });
+      }
+    }
+    if (!resources.length) {
+      Object.keys(cf).forEach(function (k) {
+        if (k === "spellSlots" || k === "pactSlots" || /Die$/.test(k)) return;
+        var v = cf[k];
+        if (!v || typeof v !== "object" || v.max == null) return;   // booleans (moteOfPotential) skip
+        var fk = forgeResKey(k);
+        if (res[fk] != null) return;
+        var cur = Math.max(0, v.max - (pip[k] || 0));
+        res[fk] = cur;
+        pools.push({ key: fk, rawKey: k, level: 0,
+          label: titleCase(k.replace(/([A-Z])/g, " $1")),
+          badge: cf[k + "Die"] || String(v.max), max: v.max, current: cur,
+          tone: "class", kind: "resource",
+          recharge: null, die: cf[k + "Die"] || null, tag: null,
+          origin: "class", source: "class", custom: false });
+      });
+    }
+
     // Fighter extras: Second Wind + Action Surge (keyed in STARTER_KITS as
     // secondWind / actionSurge; carried in structural.classFeatures or custom
     // resources). Detect from the class label if not already in resources.
@@ -323,13 +369,13 @@
     "sword burst":        { kind: "save", save: "dex", rng: 1,  baseDmg: "1d6",  scale: "cantrip" },
 
     // ── heal ──
-    "healing word":       { kind: "heal", rng: 12, baseDmg: "1d4", healMod: true },
-    "cure wounds":        { kind: "heal", rng: 1,  baseDmg: "1d8", healMod: true },
+    "healing word":       { kind: "heal", rng: 12, baseDmg: "1d4", healMod: true, per: "1d4" },
+    "cure wounds":        { kind: "heal", rng: 1,  baseDmg: "1d8", healMod: true, per: "1d8" },
     "spare the dying":    { kind: "heal", rng: 1 },
-    "mass healing word":  { kind: "heal", rng: 12, baseDmg: "1d4", healMod: true },
-    "mass cure wounds":   { kind: "heal", rng: 12, baseDmg: "3d8", healMod: true },
+    "mass healing word":  { kind: "heal", rng: 12, baseDmg: "1d4", healMod: true, per: "1d4" },
+    "mass cure wounds":   { kind: "heal", rng: 12, baseDmg: "3d8", healMod: true, per: "1d8" },
     "heal":               { kind: "heal", rng: 12, baseDmg: "70" },
-    "prayer of healing":  { kind: "heal", rng: 6,  baseDmg: "2d8", healMod: true },
+    "prayer of healing":  { kind: "heal", rng: 6,  baseDmg: "2d8", healMod: true, per: "1d8" },
     // Way of Mercy — sheet-row aliases (not spells; the label lookup in
     // attackTiles resolves them so the ki heal is a real heal tile)
     "hand of healing":    { kind: "heal", rng: 1 },
@@ -358,21 +404,21 @@
     "shield":             { kind: "selfheal" },  // reaction — but if it reaches the tab, self-cast
 
     // ── save (leveled damage) ──
-    "shatter":            { kind: "save", save: "con", rng: 12, baseDmg: "3d8" },
-    "heat metal":         { kind: "save", save: "con", rng: 12, baseDmg: "2d8" },
-    "thunderwave":        { kind: "save", save: "con", rng: 3,  baseDmg: "2d8" },
-    "burning hands":      { kind: "save", save: "dex", rng: 3,  baseDmg: "3d6" },
-    "hellish rebuke":     { kind: "save", save: "dex", rng: 12, baseDmg: "2d10" },
-    "fireball":           { kind: "save", save: "dex", rng: 30, baseDmg: "8d6" },
-    "lightning bolt":     { kind: "save", save: "dex", rng: 20, baseDmg: "8d6" },
-    "spirit guardians":   { kind: "save", save: "wis", rng: 3,  baseDmg: "3d8" },
-    "moonbeam":           { kind: "save", save: "con", rng: 24, baseDmg: "2d10" },
-    "call lightning":     { kind: "save", save: "dex", rng: 24, baseDmg: "3d10" },
+    "shatter":            { kind: "save", save: "con", rng: 12, baseDmg: "3d8", per: "1d8" },
+    "heat metal":         { kind: "save", save: "con", rng: 12, baseDmg: "2d8", per: "1d8" },
+    "thunderwave":        { kind: "save", save: "con", rng: 3,  baseDmg: "2d8", per: "1d8" },
+    "burning hands":      { kind: "save", save: "dex", rng: 3,  baseDmg: "3d6", per: "1d6" },
+    "hellish rebuke":     { kind: "save", save: "dex", rng: 12, baseDmg: "2d10", per: "1d10" },
+    "fireball":           { kind: "save", save: "dex", rng: 30, baseDmg: "8d6", per: "1d6" },
+    "lightning bolt":     { kind: "save", save: "dex", rng: 20, baseDmg: "8d6", per: "1d6" },
+    "spirit guardians":   { kind: "save", save: "wis", rng: 3,  baseDmg: "3d8", per: "1d8" },
+    "moonbeam":           { kind: "save", save: "con", rng: 24, baseDmg: "2d10", per: "1d10" },
+    "call lightning":     { kind: "save", save: "dex", rng: 24, baseDmg: "3d10", per: "1d10" },
 
     // ── attack (leveled) ──
-    "guiding bolt":       { kind: "attack", rng: 24, baseDmg: "4d6" },
-    "inflict wounds":     { kind: "attack", rng: 1,  baseDmg: "3d10" },
-    "chromatic orb":      { kind: "attack", rng: 18, baseDmg: "3d8" },
+    "guiding bolt":       { kind: "attack", rng: 24, baseDmg: "4d6", per: "1d6" },
+    "inflict wounds":     { kind: "attack", rng: 1,  baseDmg: "3d10", per: "1d10" },
+    "chromatic orb":      { kind: "attack", rng: 18, baseDmg: "3d8", per: "1d8" },
     "scorching ray":      { kind: "attack", rng: 24, baseDmg: "2d6" },
     "spiritual weapon":   { kind: "attack", rng: 12, baseDmg: "1d8", addMod: true },
     "magic missile":      { kind: "attack", rng: 24, baseDmg: "3d4+3" },
@@ -413,6 +459,22 @@
   // Cantrip scaling helpers (mirrors weapon-actions.js — derive is a separate IIFE)
   function _cantripMult(level) { return level >= 17 ? 4 : level >= 11 ? 3 : level >= 5 ? 2 : 1; }
   function _scaleDice(s, mult) { var m = String(s).match(/(\d+)d(\d+)/); return m ? (parseInt(m[1],10)*mult)+'d'+m[2] : s; }
+
+  /* Upcast scaling (M's ask, 2026-07-12d follow-up): add `steps` copies of
+     the `per` dice to a damage/heal expression. Same die size folds into the
+     leading term (1d4+2, 1d4, 1 → 2d4+2); a mismatched die appends its own
+     term (2d8, 1d10, 1 → 2d8+1d10). Only spells whose scaling is a plain
+     "+dice per slot level" carry `per` — rays/darts/targets don't upcast v1. */
+  function upcastDmg(dmg, per, steps) {
+    steps = steps | 0;
+    if (!dmg || !per || steps <= 0) return dmg;
+    var pm = String(per).match(/^(\d+)d(\d+)$/);
+    if (!pm) return dmg;
+    var addN = parseInt(pm[1], 10) * steps, die = pm[2];
+    var dm = String(dmg).match(/^(\d+)d(\d+)(.*)$/);
+    if (dm && dm[2] === die) return (parseInt(dm[1], 10) + addN) + "d" + die + dm[3];
+    return dmg + "+" + addN + "d" + die;
+  }
 
   // ── the live-shape normalizer (round-3 Fact 1) ──────────────────────────
   /* structural.spellcasting is None on every live character — spells live
@@ -475,6 +537,14 @@
       ? (sc.attackBonus || cmb.spellAttackBonus) - profBonus(s)
       : abilMod(s, guessCastAbil(s));
     var clvl = s.level || 0;
+    // Disciple of Life (Life Domain): healing spells of 1st level or higher
+    // restore +2+spellLevel. Rides the tile as `disciple` — the heal path
+    // (doHeal/netHeal) already rolls +(a.disciple||0); the STARTER_KITS
+    // Líadan entry set the precedent (dmg:"1d4+2", disciple:3). Base-level
+    // casts only: upcasting isn't modeled anywhere in the Forge yet.
+    var hasDisciple = (s.features || []).concat(s.customFeatures || []).some(function (f) {
+      return String((f && f.name) || f || "").toLowerCase().indexOf("disciple of life") !== -1;
+    });
 
     spellGroupsFrom(s).forEach(function (g) {
       var lvl = g.level != null ? (typeof g.level === "number" ? g.level : parseInt(g.level, 10) || 0) : 0;
@@ -542,6 +612,8 @@
           hit:         kind === "attack" ? atkBonus : 0,
           dc:          dc,
           dmg:         dmg,
+          disciple:    (hasDisciple && kind === "heal" && !isCantrip && dmg) ? (2 + lvl) : null,
+          upPer:       (!isCantrip && !greyed && proj && proj.per) ? proj.per : null,
           saveAbility: saveAbility,
           bonus:       isBonus,
           free:        false,
@@ -1094,6 +1166,9 @@
       long:   t.long || null,
       hit:    t.hit || 0,
       dmg:    t.dmg || null,
+      disciple: t.disciple || null,
+      upPer:  t.upPer || null,
+      level:  t.level != null ? t.level : null,
       dmgStack: t.dmgStack || null,
       bonus:  !!t.bonus,
       free:   !!t.free,
@@ -1175,6 +1250,7 @@
     attackTiles:   attackTiles,
     spellTiles:    spellTiles,
     spellGroupsFrom: spellGroupsFrom,
+    upcastDmg:     upcastDmg,
     itemTiles:     itemTiles,
     featTiles:     featTiles,
     actionTiles:   actionTiles,

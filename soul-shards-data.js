@@ -248,6 +248,10 @@
         spellcasting: mkSpellcasting(sc, subclassSpellList(sc)),
         slotsByLevel: mkSlots(sc.subclassTableGroups),
         optFeatureProg: sc.optionalfeatureProgression || [],
+        // Domain / expanded-list grants (Life Domain's always-prepared spells,
+        // Warlock patron expanded lists, …) — 5etools subclass.additionalSpells.
+        // Shape: [{ prepared: { "<classLevel>": ["bless","cure wounds"], … }, expanded: {…} }]
+        additionalSpells: sc.additionalSpells || null,
       };
     });
 

@@ -3303,7 +3303,7 @@ function startCombat(){
   loadLiveStats().then(startCombatNow);
 }
 function startCombatNow(){
-  tokenGroup.clear(); moveGroup.clear(); clearBadges(); READYING=false; RELEASING=null; CB_ANIM=false;
+  tokenGroup.clear(); moveGroup.clear(); clearBadges(); hideUpcastPick(); READYING=false; RELEASING=null; CB_ANIM=false;
   __losExplained={};   // §D: the once-per-geometry LoS feed guard resets with the fight
   var fx=fxHost(); if(fx) fx.innerHTML="";
   CB={ active:true, over:false, units:[], order:[], ti:-1, map:combatMapFromF(), seen:null, st:null, pending:null, hexed:null,
@@ -4122,14 +4122,78 @@ function doHeal(u,a,t){ var ro=reachOK(u,a,t); if(!ro.ok){ clog(u.name+" \u2014 
   floatAt(t,"+"+(t.hp-was),"heal");
   clog(u.name+" \u2192 "+t.name+": "+a.label+" +"+(t.hp-was)+" ("+t.hp+"/"+t.hpMax+")"); }
 
-function selectAction(idx){
+/* ── Round-3 follow-up (M's ask): SPELL UPCASTING ────────────────────────
+   A leveled spell tile costs slot<base>. When the caster holds higher slots
+   and the spell scales (upPer dice per level, and/or Disciple of Life's
+   2+slotLevel), tapping the tile opens a slot chooser; the pick builds an
+   EFFECTIVE action (cost slot<L>, dmg via ForgeKitDerive.upcastDmg,
+   disciple rebased, label "(2nd)") that flows through the existing
+   pending/spend/publish doors untouched — the fact's ability label carries
+   the level to every device. When the base slot is dry but a higher one
+   isn't, the cast auto-promotes with a feed note (RAW). Non-scaling spells
+   never see the chooser. */
+var UPCAST_PICK=null;
+function slotBaseOf(a){ if(!a||!a.cost) return null; for(var k in a.cost){ var m=/^slot(\d)$/.exec(k); if(m) return +m[1]; } return null; }
+function castableLevels(u,base){ var out=[]; for(var L=base;L<=9;L++){ if((u.res["slot"+L]||0)>0) out.push(L); } return out; }
+function lvlOrdinal(n){ return n+(["th","st","nd","rd"][n%10]&&n%10<4&&(n<11||n>13)?["th","st","nd","rd"][n%10]:"th"); }
+function upcastAction(a,base,L){
+  if(L===base) return a;
+  var eff=Object.assign({},a);
+  eff.cost={}; eff.cost["slot"+L]=1;
+  if(a.upPer&&a.dmg&&window.ForgeKitDerive) eff.dmg=window.ForgeKitDerive.upcastDmg(a.dmg,a.upPer,L-base);
+  if(a.disciple) eff.disciple=a.disciple+(L-base);
+  eff.label=a.label+" ("+lvlOrdinal(L)+")";
+  eff.castLevel=L; eff._base=a;
+  return eff;
+}
+function hideUpcastPick(){ if(UPCAST_PICK){ if(UPCAST_PICK.el) UPCAST_PICK.el.remove(); UPCAST_PICK=null; } }
+function showUpcastPick(u,idx,a,base,lvls){
+  hideUpcastPick();
+  var el=document.createElement("div");
+  el.style.cssText="position:fixed;left:50%;bottom:120px;transform:translateX(-50%);z-index:60;"+
+    "background:rgba(18,26,24,.94);border:1px solid #c9a24b;padding:8px 12px;display:flex;gap:8px;"+
+    "align-items:center;font:600 13px/1.2 sans-serif;color:#e8ddc4;";
+  var lab=document.createElement("span"); lab.textContent="Cast "+a.label+" at:"; el.appendChild(lab);
+  lvls.forEach(function(L){
+    var b=document.createElement("button");
+    b.textContent=lvlOrdinal(L)+" \u00b7 "+(u.res["slot"+L]||0);
+    b.style.cssText="background:#243c36;border:1px solid #4c8f86;color:#e8ddc4;padding:4px 10px;cursor:pointer;font:inherit;";
+    if(L===base) b.style.borderColor="#c9a24b";
+    b.addEventListener("click",function(){ hideUpcastPick(); selectAction(idx,L); });
+    el.appendChild(b);
+  });
+  var x=document.createElement("button"); x.textContent="\u2715";
+  x.style.cssText="background:none;border:none;color:#a99;cursor:pointer;font:inherit;padding:2px 4px;";
+  x.addEventListener("click",hideUpcastPick);
+  el.appendChild(x);
+  document.body.appendChild(el);
+  UPCAST_PICK={el:el,unit:u.unit};
+}
+
+function selectAction(idx,castLevel){
   var u=active(); if(!u||u.side!=="pc"||CB.react||CB_ANIM) return; var a=u.actions[idx]; if(!a) return;
   var sess=window.__forgeSession;
+  hideUpcastPick();
   /* Task 7b req 2: selfheal/surge fire with no target tap (unlike heal/save/
      buff/buffAlly, which go through combatClick's already-guarded pending-
      action tap) \u2014 same defense-in-depth gate Task 7 put on combatClick. */
   if(sess && (!window.ForgeBoard.controls(sess.me,u.unit) || __awaitingCount>0)) return;
-  if(CB.pending===a){ CB.pending=null; CONTEST_COVER=false; drawHi(); drawSight(); renderHud(); return; }   // tap again = put it away (and disarm the contest toggle)
+  if(CB.pending===a||(CB.pending&&CB.pending._base===a)){ CB.pending=null; CONTEST_COVER=false; drawHi(); drawSight(); renderHud(); return; }   // tap again = put it away (and disarm the contest toggle)
+  var upBase=slotBaseOf(a);
+  if(upBase!=null&&a.spell){
+    var lvls=castableLevels(u,upBase);
+    if(!lvls.length){ clog("<i>"+a.label+": no spell slots left.</i>"); return; }
+    var scales=!!(a.upPer||a.disciple);
+    if(castLevel!=null){
+      if(lvls.indexOf(castLevel)===-1){ clog("<i>"+a.label+": no level "+castLevel+" slot.</i>"); return; }
+      a=upcastAction(a,upBase,castLevel);
+    }
+    else if(scales&&lvls.length>1&&!READYING){ showUpcastPick(u,idx,a,upBase,lvls); return; }
+    else if(lvls[0]!==upBase){
+      a=upcastAction(a,upBase,lvls[0]);
+      clog("<i>"+a._base.label+": cast from a level "+lvls[0]+" slot \u2014 no level "+upBase+" slots left.</i>");
+    }
+  }
   var cu=canUse(u,a); if(!cu.ok){ clog("<i>"+a.label+": "+cu.why+".</i>"); return; }
   if(READYING){
     if(a.kind!=="attack"){ clog("<i>Ready holds an attack \u2014 melee, ranged, or an attack spell.</i>"); return; }
@@ -4149,7 +4213,7 @@ function selectAction(idx){
     CB.st.usedAction=false; clog(u.name+" \u2014 Action Surge: action regained."); spend(u,a); finishAction(); return; }
   CB.pending=a; drawHi(); drawSight(); renderHud();
 }
-function finishAction(){ CB.pending=null; CONTEST_COVER=false; snapshot("Action"); drawHi(); drawSight(); renderHud(); maybeEnd(); }
+function finishAction(){ hideUpcastPick(); CB.pending=null; CONTEST_COVER=false; snapshot("Action"); drawHi(); drawSight(); renderHud(); maybeEnd(); }
 function resolveOn(u,a,t){
   var sess=window.__forgeSession;
   /* Task 7b req 2: every non-attack kind now forks on session the same way

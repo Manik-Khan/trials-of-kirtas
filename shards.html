@@ -2435,6 +2435,28 @@ var SpellsUI = (function () {
     var seen = {}, dedup = []; grants.forEach(function(g){ var k = g.name.toLowerCase(); if (seen[k]) return; seen[k] = 1; dedup.push(g); });
     return { grants: dedup, choices: choices };
   }
+  // ── domain grants (origin: subclass) from subclass.additionalSpells.prepared ──
+  // Life Domain PHB: { prepared: { "1": ["bless","cure wounds"], "3": [...], ... } },
+  // keyed by CLASS level (the cleric level gates them in a multiclass, not the
+  // character level). Always prepared, free — they never count against picks.
+  function domainRefsFor(sub, clsLevel){
+    if (!sub || !sub.additionalSpells) return [];
+    var blocks = Array.isArray(sub.additionalSpells) ? sub.additionalSpells : [sub.additionalSpells];
+    var out = [], seen = {};
+    blocks.forEach(function(blk){
+      var prep = blk && blk.prepared; if (!prep) return;
+      Object.keys(prep).forEach(function(lvl){
+        if (+lvl > clsLevel) return;
+        var refs = []; (function walk(n){ if (Array.isArray(n)) refs = refs.concat(n); else if (n && typeof n === 'object') Object.keys(n).forEach(function(k){ walk(n[k]); }); })(prep[lvl]);
+        refs.forEach(function(r){
+          var nm = String(r).split('|')[0].split('#')[0].trim().replace(/\b\w/g, function(m){ return m.toUpperCase(); });
+          var k = nm.toLowerCase(); if (!nm || seen[k]) return; seen[k] = 1;
+          out.push(nm);
+        });
+      });
+    });
+    return out;
+  }
   // background "expanded" refs ("encode thoughts|ggr#c") -> { key:lowercase-name, level }.
   // s0 = cantrips, s1..s9 = that spell level. expanded = added to your list (pickable), not granted.
   function collectBgExpanded(bg){
@@ -2514,7 +2536,9 @@ var SpellsUI = (function () {
         var b = SoulShardsEngine.build({ classModel: model, level: (ce.level || 1), abilities: eff, subclassShortName: sub ? sub.shortName : null, hp: draft.hp });
         var ent = entitlementFrom(b, def, _raceModel, (ce.level || 1), viaSub);
         ent.subclass = (ce.subclass && ce.subclass.n) || null;   // drives the EK/AT school restriction
-        return { key: ce.n, idx: i, accent: accentFor(i), ent: ent };
+        return { key: ce.n, idx: i, accent: accentFor(i), ent: ent,
+                 subName: sub ? sub.name : null,
+                 domainRefs: domainRefsFor(sub, ce.level || 1) };
       });
       // each class's spell list (with detail)
       return Promise.all(perClass.map(function(pc){
@@ -2532,8 +2556,11 @@ var SpellsUI = (function () {
         var grantSet = {}; _grants.forEach(function(g){ grantSet[g.name.toLowerCase()] = true; });
         var bgSeen = {}, bgNew = [];
         bgExp.forEach(function(e){ if (anyClassSet[e.key] || grantSet[e.key] || bgSeen[e.key]) return; bgSeen[e.key] = 1; bgNew.push(e); });
+        var domainNeed = [];
+        loaded.forEach(function(pc){ (pc.domainRefs || []).forEach(function(nm){ if (!haveDetail[nm.toLowerCase()]) domainNeed.push(nm); }); });
         var needNames = _grants.filter(function(g){ return g.kind !== 'cantrip' && !haveDetail[g.name.toLowerCase()]; }).map(function(g){ return g.name; })
-          .concat(bgNew.map(function(e){ return e.key; }));
+          .concat(bgNew.map(function(e){ return e.key; }))
+          .concat(domainNeed);
         return (needNames.length ? SoulShardsData.loadSpellMeta(needNames, { detail:true }) : Promise.resolve([])).then(function(metas){
           if (my !== _req) return false;
           var byName = {}; (metas || []).forEach(function(m){ byName[m.name.toLowerCase()] = m; });
@@ -2551,6 +2578,19 @@ var SpellsUI = (function () {
             _bgSet[m.name.toLowerCase()] = bgName;
             _bgSpells.push({ name: m.name, level: (m.level != null ? m.level : e.level), src: bgName });
             loaded.forEach(function(pc){ if (!pc.classSet[e.key]){ pc.list.push(m); pc.detail[m.name] = m; } });   // pickable under each class
+          });
+          // domain grants: canonical name + level from the class list (they're
+          // usually on it) or the shared meta batch; fold detail so the emit's
+          // lvlOf/timeOf and the grant table's info button resolve.
+          loaded.forEach(function(pc){
+            pc.domain = [];
+            (pc.domainRefs || []).forEach(function(nm){
+              var d = haveDetail[nm.toLowerCase()] || byName[nm.toLowerCase()] || null;
+              var canon = d ? d.name : nm;
+              if (d && !pc.detail[canon]) pc.detail[canon] = d;
+              if (d) _shared.detail[canon] = d;
+              pc.domain.push({ name: canon, level: d ? d.level : null });
+            });
           });
           _casters = loaded;
           if (!_active || !_casters.some(function(c){ return c.key === _active; })){
@@ -2750,6 +2790,24 @@ var SpellsUI = (function () {
     }).join('');
     return '<table class="sp-tbl"><tbody>' + rows + '</tbody></table>';
   }
+  function domainSection(){
+    var ca = activeCaster(); if (!ca || !(ca.domain || []).length) return '';
+    var rows = ca.domain.map(function(g){
+      var sp = _detail[g.name] || null;
+      var d = (_openDetail && _openDetail.name === g.name && _openDetail.attr === 'grant');
+      var info = sp ? '<button class="sp-info' + (d?' open':'') + '" data-detail="' + esc(g.name) + '" data-dattr="grant">i</button>' : '';
+      return '<tr class="sp-row o-subclass have">' +
+        '<td class="sp-tick"><span class="dot" style="background:var(--o-subclass);border-color:var(--o-subclass)"></span></td>' +
+        '<td class="sp-name">' + esc(g.name) + '<span class="gtag">always prepared</span>' + (sp?tipFor(sp):'') + '</td>' +
+        '<td class="sp-school">' + esc(sp ? (SCHOOL[sp.school]||sp.school||'') : '') + '</td>' +
+        '<td class="sp-flagcell">' + flagsFor(sp) + '</td>' +
+        '<td class="sp-icell">' + info + '</td>' +
+      '</tr>';
+    }).join('');
+    return '<div class="subhead">Granted by ' + esc(ca.subName || (ca.ent && ca.ent.subclass) || 'your subclass') +
+      ' <span class="sp-note">always prepared \u2014 doesn\u2019t count against your picks</span></div>' +
+      '<table class="sp-tbl"><tbody>' + rows + '</tbody></table>';
+  }
   function grantSection(){
     if (!_grants.length) return '';
     var rows = _grants.map(function(g){
@@ -2830,6 +2888,7 @@ var SpellsUI = (function () {
     _lvlByClass[_active] = _lvl;
     var oc = e.viaSub ? 'o-sub' : 'o-class';
     var granted = {}; _grants.forEach(function(g){ granted[g.name.toLowerCase()] = (g.kind === 'cantrip' ? 'racial cantrip' : 'racial'); });
+    (( activeCaster() || {} ).domain || []).forEach(function(g){ granted[g.name.toLowerCase()] = 'domain \u2014 always prepared'; });
     var html = readoutCard() + statusLine() + ekNote() + levelBar();
     if (_lvl === 0){
       var cantrips = _list.filter(function(s){ return s.level === 0; });
@@ -2855,6 +2914,7 @@ var SpellsUI = (function () {
     if (_openDetail && _openDetail.attr !== 'grant' && _detail[_openDetail.name] && _detail[_openDetail.name].level === _lvl){
       html += detailCard(_detail[_openDetail.name], oc);
     }
+    html += domainSection();
     html += grantSection();
     html += choiceSection();
     host.innerHTML = casterTabs() + '<div class="sp-multi" style="--accent:' + ca.accent + '">' + html + '</div>';
@@ -2921,6 +2981,9 @@ var SpellsUI = (function () {
       var lvlOf = function(name){ var dd = ca.detail[name]; if (!dd) return null; return dd.level === 0 ? 'cantrip' : dd.level; };
       var timeOf = function(name){ var dd = ca.detail[name]; return dd ? (dd.time || null) : null; };
       var isBgExp = function(n){ var k = n.toLowerCase(); return _bgSet[k] && !ca.classSet[k]; };
+      // domain grants FIRST within the class so subclass attribution wins a
+      // collision with a hand-pick of the same spell (mirrors the racial rule)
+      (ca.domain || []).forEach(function(g){ add(g.name, 'subclass', ca.subName || e.subclass || src, lvlOf(g.name) != null ? lvlOf(g.name) : (g.level === 0 ? 'cantrip' : g.level), timeOf(g.name), e.ability); });
       p.cantrips.forEach(function(n){ var x = isBgExp(n); add(n, x?'expanded':origin, x?_bgSet[n.toLowerCase()]:src, 'cantrip', timeOf(n), e.ability); });
       var loadout = e.mode === 'known' ? p.known : p.prepared;   // castable list (Wizard prepares FROM the book)
       loadout.forEach(function(n){ var x = isBgExp(n); add(n, x?'expanded':origin, x?_bgSet[n.toLowerCase()]:src, lvlOf(n), timeOf(n), e.ability); });

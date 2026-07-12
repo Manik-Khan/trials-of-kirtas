@@ -884,8 +884,18 @@ const RESOLVABLE = { attack:1, save:1, heal:1, buff:1, buffAlly:1, selfheal:1,
   ok("live/lia: Healing Word rng=12 (60 ft)", hw && hw.rng === 12);
   ok("live/lia: Healing Word is a bonus action (castingTime→time)", hw && hw.bonus === true);
   ok("live/lia: Healing Word costs slot1", hw && hw.cost && hw.cost.slot1 === 1);
+  // Disciple of Life (Life Domain, on her live features): healing spells of
+  // 1st+ restore +2+spellLevel. The hand-tuned STARTER_KITS entry modeled
+  // this (disciple:3) and doHeal/netHeal already roll +(a.disciple||0) —
+  // the derived tiles must carry it too. M's table catch, 2026-07-12d.
+  ok("live/lia: Healing Word carries disciple:3 (Disciple of Life, 1st lvl)", hw && hw.disciple === 3);
   const cw = tile(lia, "spells", "Cure Wounds");
   ok("live/lia: Cure Wounds kind=heal dmg=1d8+2", cw && cw.kind === "heal" && cw.dmg === "1d8+2");
+  ok("live/lia: Cure Wounds carries disciple:3", cw && cw.disciple === 3);
+  ok("live/lia: flat Healing Word passes disciple through (doHeal rolls it)",
+     (function(){ var f = flat(lia, "Healing Word")[0]; return f && f.disciple === 3; })());
+  ok("live/lia: Aid (buffAlly) carries no disciple", (function(){
+     var a = tile(lia, "spells", "Aid"); return a && a.disciple == null; })());
   const vmL = tile(lia, "spells", "Vicious Mockery");
   ok("live/lia: VM kind=save/wis", vmL && vmL.kind === "save" && vmL.saveAbility === "wis");
   ok("live/lia: VM DC 12 (combat.spellSaveDC, not the guess path)", vmL && vmL.dc === 12);
@@ -1006,6 +1016,39 @@ const RESOLVABLE = { attack:1, save:1, heal:1, buff:1, buffAlly:1, selfheal:1,
 
   // ── wrapStarterKit exported (E1 needs it from the mock's kitFor) ──
   ok("wrapStarterKit exported", typeof FKD.wrapStarterKit === "function");
+
+  // ── slots from the legacy ledger (classFeatures.spellSlots) ──────────────
+  // The table-blocking discovery behind M's upcast ask: live sheets carry
+  // slots in structural.classFeatures ({"1":{max:4},"2":{max:2}}, plus named
+  // resources like bardicInspiration {max:2, die via bardicInspirationDie}),
+  // NOT in spellcasting.pools — so every leveled spell tile derived this
+  // morning was uncastable (res={}). pipState spends on spell_N / the raw key.
+  ok("live/lia: res.slot1=4 from classFeatures.spellSlots", lia.res.slot1 === 4);
+  ok("live/lia: res.slot2=2", lia.res.slot2 === 2);
+  ok("live/lia: bardicInspiration pool max 2, badge d6", (function(){
+     var p = (lia.pools||[]).filter(function(x){ return x.rawKey === "bardicInspiration"; })[0];
+     return p && p.max === 2 && p.current === 2 && p.badge === "d6"; })());
+  ok("live/lia: slot pools spend on pipState spell_N keys", (function(){
+     var c = liveChar("liadan"); c.vitals = Object.assign({}, c.vitals, { pipState: { spell_1: 3 } });
+     var k = FKD.derive(c); return k.res.slot1 === 1 && k.res.slot2 === 2; })());
+  ok("live/lia: canUse door — Healing Word's slot1 cost is now payable", lia.res.slot1 >= 1);
+
+  // ── upcasting (derive half): upcastDmg + per-scaling metadata ────────────
+  ok("upcastDmg exported", typeof FKD.upcastDmg === "function");
+  if (typeof FKD.upcastDmg === "function") {
+    ok("upcastDmg: 1d4+2 per 1d4 ×1 → 2d4+2", FKD.upcastDmg("1d4+2", "1d4", 1) === "2d4+2");
+    ok("upcastDmg: 1d8+2 per 1d8 ×2 → 3d8+2", FKD.upcastDmg("1d8+2", "1d8", 2) === "3d8+2");
+    ok("upcastDmg: 8d6 per 1d6 ×1 → 9d6", FKD.upcastDmg("8d6", "1d6", 1) === "9d6");
+    ok("upcastDmg: mismatched die appends (2d8 per 1d10 ×1 → 2d8+1d10)",
+       FKD.upcastDmg("2d8", "1d10", 1) === "2d8+1d10");
+    ok("upcastDmg: 0 steps is identity", FKD.upcastDmg("1d4+2", "1d4", 0) === "1d4+2");
+  }
+  const hwUp = tile(lia, "spells", "Healing Word");
+  ok("live/lia: Healing Word carries upPer 1d4 (upcast-scalable)", hwUp && hwUp.upPer === "1d4");
+  ok("live/lia: Cure Wounds carries upPer 1d8", (function(){
+     var t = tile(lia, "spells", "Cure Wounds"); return t && t.upPer === "1d8"; })());
+  ok("live/lia: cantrips carry no upPer", (function(){
+     var t = tile(lia, "spells", "Vicious Mockery"); return t && t.upPer == null; })());
 
   // ── G: itemTiles reads 5etools type codes (live inventories use M/R/G/P/SC…) ──
   const gInv = [
