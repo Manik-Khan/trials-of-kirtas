@@ -24,7 +24,7 @@
 <script src="map-bridge.js?v=fb1"></script>
 <script src="forge-engine.js?v=fb1"></script>
 <script src="forge-protocol.js?v=fb1"></script>
-<script src="forge-replay.js?v=fb3"></script>
+<script src="forge-replay.js?v=fb6"></script>
 <script src="forge-bus.js?v=fb2"></script>
 <script src="forge-pipeline.js?v=fb4"></script>
 <script src="forge-board.js?v=fb5"></script>
@@ -478,6 +478,8 @@ global.TacticsGeo = API;
 .cbUnit{ display:flex; flex-direction:column; align-items:center; gap:3px; }
 .cbUnit.dead{ opacity:.3; filter:grayscale(1); }
 .cbUnit.act .cbU-b{ outline:2px solid var(--tk-gold); outline-offset:1px; }
+.cbUnit.selq .cbU-b{ box-shadow:0 0 0 2px #e8b53a; }
+.cbUnit.tgtq .cbU-b{ box-shadow:0 0 0 2px #c0402f; }
 .cbU-b{ width:30px; height:30px; display:flex; align-items:center; justify-content:center; font-family:var(--f-display); font-weight:700; font-size:13px; color:#0d0a07; border:1px solid rgba(0,0,0,.25); }
 .cbU-hp{ font-family:var(--f-util); font-size:11px; color:var(--tk-ink-dim); }
 .cbPanel{ position:fixed; right:20px; bottom:20px; z-index:16; width:262px; background:linear-gradient(180deg,var(--tk-panel),var(--tk-panel-2)); border:1px solid var(--tk-line); padding:14px; box-shadow:0 14px 40px rgba(60,50,30,.25); }
@@ -1826,15 +1828,75 @@ var SPRITES = {
 
 const ROSTER_SPRITE = { cosmere:"knight", caim:"monk", liadan:"bard", vesperian:"fighter" };
 const FOE_SPRITE = "goblin";
+
+/* ── #1 · SPRITE OUTLINES (baked) + SELECTION/TARGET GLOW ───────────────
+   Stacked sprites on adjacent squares were unreadable. Each sprite now
+   carries a baked INK contour (M's pick: ink, half-pixel) so silhouettes
+   separate at tabletop zoom, and a second outline-ONLY sprite over the same
+   quad lights up gold (selected) / red (targeted) — a glow that never tints
+   the body the way a material-colour flash would.
+   outlineMask pads the pixel grid by 1 and marks: 2=body, 1=contour (empty
+   cell touching body in the 8-neighbourhood — corners close). paintOutline
+   draws the "half" weight: half-cell ribbons hugging each body edge, quarter
+   squares sealing diagonal-only corners. Baked once per (sprite,colour) into
+   a NearestFilter canvas — zero per-frame cost, pixel-true. */
+const OUTLINE_INK = "#1a160f";
+function outlineMask(rows, palette){
+  var w=rows[0].length+2, h=rows.length+2;
+  function body(x,y){ var ch=rows[y-1]&&rows[y-1][x-1]; return !!(ch&&ch!=="."&&palette[ch]); }
+  var grid=[]; for(var y=0;y<h;y++){ grid.push([]); for(var x=0;x<w;x++) grid[y].push(body(x,y)?2:0); }
+  for(y=0;y<h;y++) for(x=0;x<w;x++){ if(grid[y][x]) continue;
+    for(var dy=-1;dy<=1&&!grid[y][x];dy++) for(var dx=-1;dx<=1;dx++){ if(!dx&&!dy) continue;
+      var ny=y+dy,nx=x+dx; if(ny>=0&&ny<h&&nx>=0&&nx<w&&grid[ny][nx]===2){ grid[y][x]=1; break; } } }
+  return { w:w, h:h, at:function(x,y){ return grid[y][x]; } };
+}
+function paintOutline(g,m,px,color){
+  g.fillStyle=color;
+  for(var y=0;y<m.h;y++) for(var x=0;x<m.w;x++){ if(m.at(x,y)!==1) continue;
+    var hp=px/2, N=y>0&&m.at(x,y-1)===2, S=y<m.h-1&&m.at(x,y+1)===2, W=x>0&&m.at(x-1,y)===2, E=x<m.w-1&&m.at(x+1,y)===2;
+    if(N) g.fillRect(x*px,y*px,px,hp); if(S) g.fillRect(x*px,y*px+hp,px,hp);
+    if(W) g.fillRect(x*px,y*px,hp,px); if(E) g.fillRect(x*px+hp,y*px,hp,px);
+    if(!N&&!S&&!W&&!E){
+      if(y>0&&x>0&&m.at(x-1,y-1)===2) g.fillRect(x*px,y*px,hp,hp);
+      if(y>0&&x<m.w-1&&m.at(x+1,y-1)===2) g.fillRect(x*px+hp,y*px,hp,hp);
+      if(y<m.h-1&&x>0&&m.at(x-1,y+1)===2) g.fillRect(x*px,y*px+hp,hp,hp);
+      if(y<m.h-1&&x<m.w-1&&m.at(x+1,y+1)===2) g.fillRect(x*px+hp,y*px+hp,hp,hp);
+    }
+  }
+}
+function outlinedPixelCanvas(rows,palette,px,color){
+  px=px||8; var m=outlineMask(rows,palette);
+  var c=document.createElement("canvas"); c.width=m.w*px; c.height=m.h*px; var g=c.getContext("2d");
+  for(var y=1;y<m.h-1;y++) for(var x=1;x<m.w-1;x++){ if(m.at(x,y)!==2) continue;
+    g.fillStyle=palette[rows[y-1][x-1]]; g.fillRect(x*px,y*px,px,px); }
+  if(color) paintOutline(g,m,px,color);
+  return c;
+}
+function glowPixelCanvas(rows,palette,px,color){
+  px=px||8; var m=outlineMask(rows,palette);
+  var c=document.createElement("canvas"); c.width=m.w*px; c.height=m.h*px;
+  paintOutline(c.getContext("2d"),m,px,color); return c;
+}
 const _spriteTex={};
 function spriteTex(key){
   if(_spriteTex[key]) return _spriteTex[key];
   const spr=SPRITES[key]; if(!spr) return null;
-  const t=new THREE.CanvasTexture(pixelCanvas(spr.px, spr.pal));
+  const t=new THREE.CanvasTexture(outlinedPixelCanvas(spr.px, spr.pal, 8, OUTLINE_INK));   // #1: baked ink contour
   t.magFilter=THREE.NearestFilter; t.minFilter=THREE.NearestFilter;   // pixels stay pixels
   t.generateMipmaps=false;
-  _spriteTex[key]={ tex:t, aspect:spr.px[0].length/spr.px.length };
+  // aspect accounts for the +2 padding the outline mask adds all round
+  _spriteTex[key]={ tex:t, aspect:(spr.px[0].length+2)/(spr.px.length+2) };
   return _spriteTex[key];
+}
+const GLOW_SEL="#e8b53a", GLOW_TGT="#c0402f";
+const _glowTex={};
+function glowTex(key,color){
+  var k=key+"|"+color; if(_glowTex[k]) return _glowTex[k];
+  const spr=SPRITES[key]; if(!spr) return null;
+  var t=new THREE.CanvasTexture(glowPixelCanvas(spr.px,spr.pal,8,color));
+  t.magFilter=THREE.NearestFilter; t.minFilter=THREE.NearestFilter; t.generateMipmaps=false;
+  _glowTex[k]={ tex:t, aspect:(spr.px[0].length+2)/(spr.px.length+2) };
+  return _glowTex[k];
 }
 const ROSTER_ART = {};   // portraits live in the DOM plates now; tokens are sprites
 const ROSTER_INIT = { caim:"C", chonkalius:"Ch", cosmere:"CR", liadan:"L", thewiz:"W", vesperian:"V" };
@@ -2196,10 +2258,19 @@ function loop(){requestAnimationFrame(loop);const now=performance.now();const t=
     for(const p of placed){ if(r!==p.cur && p.tex[r]){ p.sprite.material.map=p.tex[r]; p.sprite.material.needsUpdate=true; p.cur=r; } }}
   if(typeof CB!=="undefined"&&CB&&CB.active){
     CB.units.forEach(u=>{
-      if(!u.sprite) return;
-      if(u._ves){ vesTick(u,dt); return; }                 // the sheet carries its own life (even fallen)
+      if(!u.sprite){ if(u._glow){ tokenGroup.remove(u._glow); u._glow=null; } return; }
+      var isSel=CB.selKey===u.key, isTgt=CB.tgtKey===u.key, lit=isSel||isTgt;
+      if(u._ves){ vesTick(u,dt);
+        if(u._glowTint&&u.sprite.material){ var pv=0.5+0.5*Math.sin(t*(isTgt?6.5:3.5));   // #1: Ves has no pixel grid — tint-pulse instead
+          var cv=new THREE.Color(u._glowCol); u.sprite.material.color.setRGB(1-(1-cv.r)*pv,1-(1-cv.g)*pv,1-(1-cv.b)*pv); }
+        return; }                                          // the sheet carries its own life (even fallen)
       if(!u.alive) return;
-      if(!REDUCED&&!u._moving) u.sprite.position.y=tierY(u.c,u.r)+0.02+(Math.sin(t*2.1+(u.bobPhase||0))+1)*0.022;
+      var by = (!REDUCED&&!u._moving) ? tierY(u.c,u.r)+0.02+(Math.sin(t*2.1+(u.bobPhase||0))+1)*0.022 : u.sprite.position.y;
+      if(!REDUCED&&!u._moving) u.sprite.position.y=by;
+      if(u._glow){ u._glow.position.y=by;                  // #1: glow rides the bob, pulses in place
+        u._glow.material.opacity = 0.6 + 0.4*Math.sin(t*(isTgt?6.5:3.5)); }
+      else if(u._glowTint&&u.sprite.material){ var p2=0.5+0.5*Math.sin(t*(isTgt?6.5:3.5)), c2=new THREE.Color(u._glowCol);
+        u.sprite.material.color.setRGB(1-(1-c2.r)*p2,1-(1-c2.g)*p2,1-(1-c2.b)*p2); }
     });
     trackBadges();
   }
@@ -2225,7 +2296,7 @@ resize(); rebuild(); fetchLibrary(); loop();
 var TG = window.TacticsGeo;
 var STEP_FT = 5;
 var CB = { active:false, over:false, units:[], order:[], ti:0, map:null, seen:null, st:null, pending:null, hexed:null,
-           log:[], hist:[], hptr:-1, turnStartPtr:-1, react:null };
+           log:[], hist:[], hptr:-1, turnStartPtr:-1, react:null, selKey:null, tgtKey:null };
 var moveGroup = new THREE.Group(); scene.add(moveGroup);
 var sightGroup = new THREE.Group(); scene.add(sightGroup);
 var SHOW_SIGHT = true;
@@ -2252,6 +2323,7 @@ function advPreview(u,t,a){
   }
   if(u.reckless){ adv=true; why.push("reckless"); }
   if(u.inspired){ adv=true; why.push("inspired"); }
+  if(u.advGrant){ adv=true; why.push(u.advGrant.reason||"granted"); }
   var cancel=adv&&dis;
   return { adv:cancel?false:adv, dis:cancel?false:dis, cancelled:cancel, why:why };
 }
@@ -2402,7 +2474,7 @@ var STARTER_KITS = {
     { label:"Longsword", kind:"attack", rng:1, hit:5, dmg:"1d8+3" },
     { label:"Hex", kind:"buff", buff:"hex", rng:18, bonus:true, cost:{slot1:1}, spell:true } ] },
   liadan:{ name:"Líadan", hp:31, ac:12, speed:30, init:1, res:{slot1:4,slot2:2,bardic:2},
-    react:{ silveryBarbs:{cost:{slot1:1}, range:6} }, actions:[
+    react:{ silveryBarbs:{cost:{slot1:1}, range:12} }, actions:[
     { label:"Sling", kind:"attack", rng:6, long:24, hit:3, dmg:"1d4+1" },
     { label:"Vicious Mockery", kind:"save", rng:12, dc:12, dmg:"1d4", saveAbility:"wis", rider:"vm", spell:true },
     { label:"Healing Word", kind:"heal", rng:12, dmg:"1d4+2", disciple:3, bonus:true, cost:{slot1:1}, spell:true },
@@ -2415,6 +2487,46 @@ var REACT_LABEL = { silveryBarbs:"Silvery Barbs", shield:"Shield", hellishRebuke
 
 function d(n){ return 1+Math.floor(Math.random()*n); }
 function d20a(adv,dis){ var a=d(20); if(adv&&!dis)return Math.max(a,d(20)); if(dis&&!adv)return Math.min(a,d(20)); return a; }
+/* Silvery Barbs (RAW): the triggering creature KEEPS its original d20, rolls ONE
+   new one, and uses the lower of the two. Not d20a(false,true), which rerolls
+   both fresh — that can never let the attacker keep a good original roll. */
+function sbReroll(orig){ return Math.min(orig, d(20)); }
+/* Grant advantage on a unit's NEXT attack. General, not SB-specific: the Silvery
+   Barbs rider calls it now; the Help action and familiars drop into the same slot
+   later. `advPreview` reads u.advGrant; resolveStrike clears it when spent. */
+function grantAdvantage(u,reason){ if(!u) return; u.advGrant={reason:reason||"granted"};
+  clog(escapeHtml(u.name)+" has advantage on their next attack ("+escapeHtml(reason||"granted")+").");
+  renderHud&&renderHud(); }
+/* Silvery Barbs rider pick (sandbox / DM-driven). The caster chooses a friendly
+   within 60 ft — including themselves — to receive the advantage grant. The
+   caller passes a done() the pipeline resumes on. Click-off, or no eligible
+   ally, self-grants (RAW-legal: "you can choose yourself"). */
+var GRANT_PICK=null;
+function grantTargets(caster){
+  var rng=(caster.react&&caster.react.silveryBarbs&&caster.react.silveryBarbs.range||12)*5;
+  return CB.units.filter(function(x){ return x.alive&&x.side===caster.side&&
+    cbDist({c:x.c,r:x.r},{c:caster.c,r:caster.r})<=rng; });
+}
+function pickGrantTarget(caster,done){
+  var elig=grantTargets(caster);
+  if(elig.length<=1){ grantAdvantage(caster,"silvery barbs"); snapshot("Silvery Barbs"); renderHud(); done&&done(); return; }
+  GRANT_PICK={ caster:caster, done:function(pick){ GRANT_PICK=null;
+    grantAdvantage(pick||caster,"silvery barbs"); snapshot("Silvery Barbs"); drawHi(); renderHud(); done&&done(); } };
+  clog("<i>Silvery Barbs \u2014 pick who gains advantage (tap a friendly token, or the field to take it yourself).</i>");
+  drawHi(); renderHud();
+}
+/* Session rider pick: returns the chosen grantTo KEY via done(key). The reducer
+   applies the grant from the fact; this only chooses. If this device can drive
+   the caster's board, reuse the same overlay; otherwise (e.g. staff answering a
+   remote unit without a live pick) self-grant — deterministic and RAW-legal. */
+function pickGrantTargetWire(caster,done){
+  var elig=grantTargets(caster);
+  if(elig.length<=1){ done(caster.unit||caster.key); return; }
+  GRANT_PICK={ caster:caster, done:function(pick){ GRANT_PICK=null; drawHi(); renderHud();
+    done((pick&&(pick.unit||pick.key))||caster.unit||caster.key); } };
+  clog("<i>Silvery Barbs \u2014 pick who gains advantage (tap a friendly token, or the field to take it yourself).</i>");
+  drawHi(); renderHud();
+}
 function parseDmg(s){ var m=/(\d+)d(\d+)(?:\+(\d+))?/.exec(s); return m?{n:+m[1],die:+m[2],bonus:+(m[3]||0)}:{n:0,die:0,bonus:+s||0}; }
 function rollDmg(s){ var p=parseDmg(s),t=p.bonus; for(var i=0;i<p.n;i++)t+=d(p.die); return t; }
 function rangeFt(a){ return (a.rng||1)*5; }
@@ -2540,13 +2652,42 @@ function makeToken(u){
     u.sprite.scale.set(hW*st.aspect, hW, 1);
     u.sprite.center.set(0.5,0);
     u.sprite.position.set(X,Y+0.02,Z);
+    u._spr=key; u._glowH=hW;   // #1: remember the sprite key so the glow overlay can be (re)built on select
   } else {
     // nobody drew this one (Chonkalius, The Wiz) → lettered standee, and it shows
     u.sprite=billboard(initialTokenTex(u.badge||ROSTER_INIT[u.key]||u.name.charAt(0),seatCol(u)), X,Y+0.02,Z, 2.6, 2/3, false);
   }
   u.sprite.renderOrder=4; nudgeSprite(u.sprite); tokenGroup.add(u.sprite);
+  syncGlow(u);   // #1: (re)build the selection/target glow to match current CB.selKey/tgtKey
 }
-function positionToken(u){ var X=wxc(u.c),Z=wzc(u.r),Y=tierY(u.c,u.r); if(u.sprite)u.sprite.position.set(X,Y+0.02,Z); if(u.shadow)u.shadow.position.set(X,Y+0.05,Z); }
+/* #1 · glow overlay — an outline-only sprite over the token's own quad, gold for
+   selection / red for target, pulsed in loop(). Rebuilt when selection changes.
+   Pixel-sprite tokens get a baked glow texture; the Ves atlas + lettered standees
+   have no pixel grid, so they pulse a material tint on the sprite itself. */
+function glowColorFor(u){ return CB.selKey===u.key ? GLOW_SEL : (CB.tgtKey===u.key ? GLOW_TGT : null); }
+function syncGlow(u){
+  if(!u||!u.sprite){ return; }
+  var col=glowColorFor(u);
+  // tear down a stale overlay first
+  if(u._glow){ tokenGroup.remove(u._glow); if(u._glow.material.map)u._glow.material.map.dispose&&0; u._glow=null; }
+  u._glowTint=false;
+  if(!col){ if(u._ves||!u._spr){ if(u.sprite.material) u.sprite.material.color.setHex(0xffffff); } return; }
+  if(u._spr){
+    var gt=glowTex(u._spr,col); if(!gt) return;
+    var g=new THREE.Sprite(new THREE.SpriteMaterial({map:gt.tex,transparent:true,depthWrite:false,toneMapped:false,opacity:1}));
+    g.scale.copy(u.sprite.scale); g.center.set(0.5,0); g.position.copy(u.sprite.position);
+    g.renderOrder=5; u._glow=g; tokenGroup.add(g);
+  } else {
+    // Ves atlas / lettered standee: no pixel grid → pulse a tint on the body sprite
+    u._glowTint=true; u._glowCol=col;
+  }
+}
+function syncAllGlow(){ if(typeof CB!=="undefined"&&CB.units) CB.units.forEach(syncGlow); }
+/* selection / target setters — used by both the strip chips and token clicks */
+function setSel(key){ CB.selKey = (CB.selKey===key? null : key); syncAllGlow(); renderHud&&renderHud(); }
+function setTgt(key){ CB.tgtKey = (CB.tgtKey===key? null : key); syncAllGlow(); renderHud&&renderHud(); }
+function clearSelTgt(){ if(CB.selKey||CB.tgtKey){ CB.selKey=null; CB.tgtKey=null; syncAllGlow(); renderHud&&renderHud(); } }
+function positionToken(u){ var X=wxc(u.c),Z=wzc(u.r),Y=tierY(u.c,u.r); if(u.sprite)u.sprite.position.set(X,Y+0.02,Z); if(u.shadow)u.shadow.position.set(X,Y+0.05,Z); if(u._glow)u._glow.position.set(X,Y+0.02,Z); }
 
 /* ── §5.1 · the height slider rescales terrain and nothing else ──────────
    renderField() calls clearWorld(), which empties `world` and rebuilds it at
@@ -2575,6 +2716,7 @@ function removeToken(u,force){
      makeToken overwrote u.sprite — the old sprite stayed orphaned in
      tokenGroup until a refresh rebuilt the scene. `force` is the swap door:
      hard removal, no corpse. */
+  if(u._glow){ tokenGroup.remove(u._glow); u._glow=null; }   // #1: glow never outlives its token
   if(!force&&u._ves&&u.sprite){ vesPlay(u,"down");         // the body stays where it fell
     if(u.shadow){ tokenGroup.remove(u.shadow); u.shadow=null; } return; }
   if(u.sprite)tokenGroup.remove(u.sprite); if(u.shadow)tokenGroup.remove(u.shadow); u.sprite=null; u.shadow=null; }
@@ -3253,6 +3395,7 @@ function drawHi(){
   clearBadges();
   moveGroup.clear(); if(!CB.active||CB.over) return;
   if(CONTEST_HI) moveGroup.add(tileFlat(CONTEST_HI.c,CONTEST_HI.r,0xb8863a,0.55));   // the block being argued about (cover contest, spec §7)
+  if(GRANT_PICK){ grantTargets(GRANT_PICK.caster).forEach(function(t){ moveGroup.add(tileFlat(t.c,t.r,0x3a8a92,0.5)); }); return; }   // Silvery Barbs rider: eligible allies
   if(RELEASING&&RELEASING.readied){ var rlA=RELEASING.readied.act;
     enemies(RELEASING).forEach(function(t){ var ro=reachOK(RELEASING,rlA,t);
       moveGroup.add(tileFlat(t.c,t.r,!ro.ok?0x6b6357:0xc9a24b,!ro.ok?0.20:0.5));
@@ -3266,7 +3409,7 @@ function drawHi(){
       var col=!ro.ok?0x6b6357:(ro.dis?0xd08a2a:0xb34a38), al=!ro.ok?0.20:0.5; moveGroup.add(tileFlat(t.c,t.r,col,al));
       badgeFor(u,t,pa,ro); }); }
     return; }
-  if(CB.st.moveLeft>0) Object.keys(CB.seen||{}).forEach(function(k){ var p=k.split(",").map(Number); moveGroup.add(tileFlat(p[0],p[1],0x3a8a92,0.26)); });
+  if(CB.st.moveLeft>0) Object.keys(CB.seen||{}).forEach(function(k){ var p=k.split(",").map(Number); moveGroup.add(tileFlat(p[0],p[1],0x4fd0e0,0.42)); });   // #2: brighter cyan + higher alpha — the old teal 0.26 blended into grass/stone
 }
 function validTargets(u,a){
   if(a.kind==="selfheal"||a.kind==="rage"||a.kind==="surge") return [u];
@@ -3339,20 +3482,27 @@ function promptReaction(u,key,desc,onUse,onSkip){ promptGeneric(u.name+" \u2014 
 /* attacker's HIT against target → SB → Shield → damage → HR */
 function pipelineHit(attacker, a, hs, target, applyDmg, done){
   var steps=[];
-  CB.units.forEach(function(u){ if(u.side===target.side && reactReady(u,"silveryBarbs") &&
+  // Silvery Barbs is offered to casters HOSTILE to the attacker (the creature
+  // that succeeded) — you barb an enemy's hit, never your own party's. Keyed on
+  // attacker.side, not target.side: a PC hitting a foe must never prompt Líadan.
+  CB.units.forEach(function(u){ if(u.side!==attacker.side && reactReady(u,"silveryBarbs") &&
       cbDist({c:u.c,r:u.r},{c:attacker.c,r:attacker.r})<=(u.react.silveryBarbs.range*5))
     steps.push({u:u,key:"silveryBarbs"}); });
   if(reactReady(target,"shield")) steps.push({u:target,key:"shield"});
   (function run(i){
     if(i>=steps.length || !hs.hit){ preDmg(); return; }
     var s=steps[i];
-    var desc = s.key==="silveryBarbs" ? ("Force "+attacker.name+" to reroll its hit on "+target.name+"?")
+    var desc = s.key==="silveryBarbs" ? ("Force "+attacker.name+" to reroll on "+target.name+" and take the lower?")
              : ("+5 AC vs "+attacker.name+"'s hit?");
     promptReaction(s.u,s.key,desc,
       function(){ payReact(s.u,s.key);
-        if(s.key==="silveryBarbs"){ hs.roll=d20a(false,true); hs.crit=hs.roll===20;
+        if(s.key==="silveryBarbs"){ var orig=hs.roll; hs.roll=sbReroll(orig); hs.crit=hs.roll===20;
           hs.hit=hs.crit||(hs.roll!==1 && hs.roll+a.hit>=target.ac+hs.acBonus);
-          clog("Silvery Barbs \u2014 "+attacker.name+" rerolls: "+hs.roll+(hs.hit?"":" \u2192 miss")); }
+          clog("Silvery Barbs \u2014 "+attacker.name+" rerolls "+orig+" \u2192 "+hs.roll+" (lower stands)"+(hs.hit?"":" \u2192 miss"));
+          snapshot(REACT_LABEL[s.key]); renderHud();
+          // RAW rider: the caster then grants a chosen ally (or self) advantage
+          // on their next attack. Pick runs before the pipeline continues.
+          pickGrantTarget(s.u, function(){ run(i+1); }); return; }
         else { hs.acBonus+=5; hs.hit=hs.crit||(hs.roll!==1 && hs.roll+a.hit>=target.ac+hs.acBonus);
           clog("Shield \u2014 "+target.name+" AC "+(target.ac+hs.acBonus)+(hs.hit?"":" \u2192 the blow misses")); }
         snapshot(REACT_LABEL[s.key]); renderHud(); run(i+1); },
@@ -3418,13 +3568,15 @@ function reactionCandidates(state,declaredRow,answers){
   if(!state.units || !state.units[attacker] || !state.units[target]) return [];
   var hs=replayHitState(p,answers);
   if(!hs.hit) return [];   // a confirmed miss never reaches Shield/Barbs/Rebuke; matches pipelineHit/preDmg
-  var cands=[], aPos=state.units[attacker].pos, tSide=state.units[target].side;
+  var cands=[], aPos=state.units[attacker].pos, aSide=state.units[attacker].side;
   Object.keys(state.units).forEach(function(k){
-    if(!wireReactReady(state,k,"silveryBarbs") || state.units[k].side!==tSide) return;
+    // hostile-to-the-attacker, not same-side-as-target: a PC hitting a foe must
+    // never offer Líadan the barb. Keyed on the creature that succeeded.
+    if(!wireReactReady(state,k,"silveryBarbs") || state.units[k].side===aSide) return;
     var ku=unitByKey(k);
     if(cbDist({c:state.units[k].pos.c,r:state.units[k].pos.r},{c:aPos.c,r:aPos.r})<=ku.react.silveryBarbs.range*5)
       cands.push({ to:k, react:"silveryBarbs",
-        context:{ attacker:attacker, target:target, hitBonus:p.hitBonus||0, cover:p.cover||0 } });
+        context:{ attacker:attacker, target:target, hitBonus:p.hitBonus||0, cover:p.cover||0, origRoll:hs.roll } });
   });
   if(wireReactReady(state,target,"shield"))
     cands.push({ to:target, react:"shield",
@@ -3492,7 +3644,7 @@ function clearPromptUI(){
 }
 function reactionDescFor(react,askerName){
   var label=REACT_LABEL[react]||react, desc=label;
-  if(react==="silveryBarbs") desc="Force "+askerName+"'s hit to reroll (disadvantage)?";
+  if(react==="silveryBarbs") desc="Force "+askerName+" to reroll and take the lower?";
   else if(react==="shield") desc="+5 AC vs "+askerName+"'s hit?";
   else if(react==="hellishRebuke") desc="Deal 2d10 fire to "+askerName+" (DEX save)?";
   return { label:label, desc:desc };
@@ -3503,10 +3655,10 @@ function reactionDescFor(react,askerName){
 function computeReactionExtra(react,ctx,u,askerU,askerName){
   var extra={}, clogLine=null;
   if(react==="silveryBarbs"){
-    var roll=d20a(false,true), crit=roll===20;
+    var orig=(ctx.origRoll!=null?ctx.origRoll:d(20)), roll=sbReroll(orig), crit=roll===20;
     var tU=unitByKey(ctx.target), hit=crit||(roll!==1 && roll+(ctx.hitBonus||0)>=((tU&&tU.ac)||0)+(ctx.cover||0));
     extra={ roll:roll, crit:crit, hit:hit };
-    clogLine="Silvery Barbs — "+askerName+" rerolls: "+roll+(hit?"":" → miss");
+    clogLine="Silvery Barbs — "+askerName+" rerolls "+orig+" → "+roll+" (lower stands)"+(hit?"":" → miss");
   } else if(react==="shield"){
     var hit2=!!ctx.crit || (ctx.roll!==1 && ctx.roll+(ctx.hitBonus||0)>=((u.ac||0)+5)+(ctx.cover||0));
     extra={ hit:hit2 };
@@ -3555,6 +3707,21 @@ function openReactionModal(prompt,opts){
     __answeringPromptSeq=prompt.seq;
     var extra={}, clogLine=null;
     if(use){ var r=computeReactionExtra(prompt.react,ctx,u,askerU,askerName); extra=r.extra; clogLine=r.clogLine; }
+    // Silvery Barbs rider: bundle the advantage grant into the SAME answered fact
+    // (no second prompt round-trip). The grant is an EFFECT (grant_advantage on
+    // grantTo) — a fact the reducer replays deterministically on every device.
+    // Whoever answered (Líadan within 20s, else staff on timeout) picks; no pick
+    // or no eligible ally self-grants (RAW: "you can choose yourself").
+    if(use && prompt.react==="silveryBarbs"){
+      var finish=function(grantTo){
+        extra.grantTo=grantTo;
+        extra.effects=(extra.effects||[]).concat([{ unit:grantTo, grant_advantage:true, grant_reason:"silvery barbs" }]);
+        publishAnswer();
+      };
+      pickGrantTargetWire(u, finish); return;   // async pick, then publishAnswer()
+    }
+    publishAnswer();
+    function publishAnswer(){
     window.__forgeSession.pipe.answerPrompt(prompt.to,prompt.seq,use,extra).then(function(res){
       if(res && res.ok===false){ netPublishFail(res); __answeringPromptSeq=null; return; }
       __answeringPromptSeq=null;   // Finding 3 (review): reset on success too — not just the failure branch
@@ -3563,6 +3730,7 @@ function openReactionModal(prompt,opts){
       // from the prompt_answered echo itself (forge-replay.js applyEvent).
       if(use){ payReact(u,prompt.react); if(clogLine) clog(clogLine); snapshot(REACT_LABEL[prompt.react]); renderHud(); }
     });
+    }
   }
   PROMPT_UI.onUse=function(){ settle(true); };
   PROMPT_UI.onSkip=function(){ settle(false); };
@@ -3765,7 +3933,7 @@ function resolveStrike(u,a,t,ro,done){
   var cover=ro.cover||0, av=advPreview(u,t,a);
   var adv=av.adv, dis=av.dis||!!ro.dis;
   if(adv&&dis){ adv=false; dis=false; }              // 5e: any dis cancels any adv
-  var roll=d20a(adv,dis); if(u.inspired)u.inspired=false;
+  var roll=d20a(adv,dis); if(u.inspired)u.inspired=false; if(u.advGrant)u.advGrant=null;   // grant is "next attack" — spent on the roll
   var hs={ roll:roll, acBonus:cover, crit:roll===20, hit:false };
   hs.hit=hs.crit||(roll!==1 && roll+a.hit>=t.ac+cover);
   var tag = adv?" adv"+(av.why.length?" ("+av.why.join(", ")+")":"") : dis?" disadv" : "";
@@ -3857,6 +4025,14 @@ function combatClick(cx,cy){
   if(!CB.active||CB.over||CB.react||CB_ANIM) return;
   var rect=renderer.domElement.getBoundingClientRect();
   ndc.x=((cx-rect.left)/rect.width)*2-1; ndc.y=-((cy-rect.top)/rect.height)*2+1; ray.setFromCamera(ndc,camera);
+  /* Silvery Barbs rider pick — friendly token in range grants to it; a click on
+     anything else (ground / out-of-range / enemy) takes the grant for the caster. */
+  if(GRANT_PICK){
+    var gHit=ray.intersectObjects(tokenGroup.children,true)[0], gPick=null;
+    if(gHit){ var gu=spriteUnit(gHit.object);
+      if(gu && grantTargets(GRANT_PICK.caster).indexOf(gu)>=0) gPick=gu; }
+    GRANT_PICK.done(gPick); return;
+  }
   /* DM release mode runs on ANY turn — the readied shot is a reaction */
   if(RELEASING){
     if(!RELEASING.alive||!RELEASING.readied){ RELEASING=null; drawHi(); renderHud(); return; }
@@ -3883,15 +4059,16 @@ function combatClick(cx,cy){
   var myTurn = !!u && u.side==="pc" && (!sess || (window.ForgeBoard.controls(sess.me,u.unit) && __awaitingCount===0));
   var tHit=ray.intersectObjects(tokenGroup.children,true)[0];
   var tu=tHit?spriteUnit(tHit.object):null;
-  if(tu && !(myTurn && CB.pending)){ inspectUnit(tu); return; }
+  if(tu && !(myTurn && CB.pending)){ setSel(tu.key); inspectUnit(tu); return; }   // #1: click a token → select (gold) + nameplate
   if(!myTurn) return;   // not my seat / not a PC turn / a tap of mine hasn't echoed yet
   if(tHit){
     if(tu&&CB.pending){ var pa=CB.pending, wantAlly=(pa.kind==="heal"||pa.kind==="buffAlly");
       if((wantAlly&&tu.side!==u.side)||(!wantAlly&&tu.side===u.side)){ clog("<i>"+pa.label+": wrong target.</i>"); return; }
       var ro=reachOK(u,pa,tu); if(ro.ok) resolveOn(u,pa,tu); else clog("<i>"+pa.label+": "+ro.why+".</i>"); return; } }
   if(CB.pending){ CB.pending=null; drawHi(); drawSight(); renderHud(); return; }   // open ground = put the weapon away
-  var gHit=ray.intersectObjects(world.children,true)[0]; if(!gHit) return;
+  var gHit=ray.intersectObjects(world.children,true)[0]; if(!gHit){ clearSelTgt(); return; }
   var gx=Math.round(gHit.point.x+F.W/2-0.5), gy=Math.round(gHit.point.z+F.H/2-0.5);
+  clearSelTgt();   // #1: a click on the field deselects (a token click reselects before this runs)
   if(CB.seen&&CB.seen[gx+","+gy]&&!unitAt(gx,gy)&&CB.st.moveLeft>0){
     /* legality/path computed exactly as today; only the mutation forks \u2014
        a session publishes and waits for the echo, the sandbox walks now. */
@@ -4186,12 +4363,14 @@ function renderHud(){
   var iControl = !sess || window.ForgeBoard.controls(sess.me, u && u.unit);
   var waitingMe = iControl && __awaitingCount > 0;   // MY tap(s) are published, not every echo is back yet
   var strip=document.getElementById("cbInit");
-  if(strip) strip.innerHTML=CB.order.map(function(o,oi){ return '<div class="cbUnit'+(o===u?" act":"")+(o.alive?"":" dead")+'" data-oi="'+oi+'" title="'+o.name+'">'
+  if(strip) strip.innerHTML=CB.order.map(function(o,oi){ return '<div class="cbUnit'+(o===u?" act":"")+(o.alive?"":" dead")+(CB.selKey===o.key?" selq":"")+(CB.tgtKey===o.key?" tgtq":"")+'" data-oi="'+oi+'" title="'+o.name+'">'
     +'<span class="cbU-b" style="background:'+seatCol(o)+'">'+initBadge(o)+'</span><span class="cbU-hp">'+(o.alive?Math.max(0,o.hp):"\u2620")+'</span></div>'; }).join("");
   /* #4 (BG3): a strip nameplate is a camera door — click pans to the token
-     and pulses its cell, so "which one is Goblin 3" has a one-tap answer. */
+     and pulses its cell, so "which one is Goblin 3" has a one-tap answer.
+     #1: left-click also SELECTS (gold glow), right-click TARGETS (red glow). */
   if(strip) strip.querySelectorAll(".cbUnit").forEach(function(ch){
-    ch.addEventListener("click",function(){ var o=CB.order[+ch.dataset.oi]; if(o) focusUnit(o); }); });
+    ch.addEventListener("click",function(){ var o=CB.order[+ch.dataset.oi]; if(o){ setSel(o.key); focusUnit(o); } });
+    ch.addEventListener("contextmenu",function(e){ e.preventDefault(); var o=CB.order[+ch.dataset.oi]; if(o) setTgt(o.key); }); });
   var panel=document.getElementById("cbActive");
   if(panel&&u){ var isPc=u.side==="pc";
     var acts=(isPc&&iControl)? u.actions.map(function(a,i){ var cu=waitingMe?{ok:false,why:"waiting for the table"}:canUse(u,a), sel=CB.pending===a;

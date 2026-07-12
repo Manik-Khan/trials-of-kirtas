@@ -19,7 +19,7 @@
         side: u.side, pos: { c: u.pos.c, r: u.pos.r },
         hp: u.hp, maxHp: (u.maxHp != null ? u.maxHp : u.hp),
         conditions: [], reacts: (u.reacts || []).slice(),
-        reactionUsed: false, downed: false
+        reactionUsed: false, downed: false, advGrant: null
       };
     });
     return {
@@ -69,7 +69,18 @@
       if (e.heal) { u.hp = Math.min(u.maxHp, u.hp + e.heal); if (u.hp > 0) u.downed = false; }
       if (e.add_condition && u.conditions.indexOf(e.add_condition) < 0) u.conditions.push(e.add_condition);
       if (e.remove_condition) u.conditions = u.conditions.filter(function (c) { return c !== e.remove_condition; });
+      // advantage-on-next-attack grant (Silvery Barbs rider now; Help/familiars
+      // later). A fact, not a roll — replays identically. `advGrant.reason` is
+      // display only. Consumed when the unit's own attack resolves (below).
+      if (e.grant_advantage) u.advGrant = { reason: e.grant_reason || "granted" };
     });
+  }
+
+  /* An attacker spends any standing advantage grant the moment it attacks — the
+     grant is "next attack," so a resolved attack clears the flag on the actor. */
+  function consumeAdvGrant(state, unitKey) {
+    var u = state.units[unitKey];
+    if (u) u.advGrant = null;
   }
 
   /* applyEvent mutates state. `corrections` maps seq → corrected payload
@@ -136,6 +147,7 @@
       case "attack_resolved": {
         var tgt = p.target || (state.pendingAction && state.pendingAction.target);
         if (p.hit && tgt && state.units[tgt]) applyDamage(state.units[tgt], p.dmg || 0);
+        consumeAdvGrant(state, row.unit);   // "next attack" grant is spent by attacking
         applyEffects(state, p.effects);
         spendSlot(state, row.unit, p, true);   // an attack spends its slot (default action)
         state.pendingAction = null;
@@ -186,7 +198,7 @@
               side: au.side || "foe", pos: { c: au.pos.c, r: au.pos.r },
               hp: au.hp, maxHp: (au.maxHp != null ? au.maxHp : au.hp),
               conditions: [], reacts: (au.reacts || []).slice(),
-              reactionUsed: false, downed: false,
+              reactionUsed: false, downed: false, advGrant: null,
               name: au.name || au.unit, statblock: au.statblock || null
             };
             return;
