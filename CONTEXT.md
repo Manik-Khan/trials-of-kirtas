@@ -4,18 +4,19 @@ Custom D&D 5e virtual tabletop. Live: **trials-of-kirtas.netlify.app**
 Repo: `Manik-Khan/trials-of-kirtas` · vanilla JS/HTML/CSS + Supabase + Netlify + GitHub.
 Walled React/Vite/TipTap corner at `journal/`.
 
-Updated: **July 8, 2026 (evening — Forge geometry session).** Supersedes the July 6 repo
-`CONTEXT.md` and the morning July 8 doc. Folds the Battle Theater / Forge material forward and
-rewrites the Forge section around what actually shipped. Reconciled sources: the July 7 context
-doc, the July 6 repo doc, `forge/README.md`, the July 8 Chronicle session, and the July 8 Forge
-geometry session.
+Updated: **July 11, 2026 (evening — bite-1 field day; two Forge fix waves live).** Supersedes
+the July 8 evening doc (which superseded July 6 + the July 8 morning doc). The non-Forge sections
+stand as written there; the Forge section below carries the July 10–11 protocol/bite-1/field-day
+state. Reconciled sources: the July 8 doc, `CONTEXT_Forge.md`, `FORGE_PROTOCOL.md`,
+`FORGE_BOARD.md`, `FORGE_COVER_CONTEST.md`, and commits `f28e0bb` / `b1d7d72`.
 
 **Companion doc: `CONTEXT_Forge.md` — read it before touching the Forge.** It carries the port
 manifest (what the combat system consists of, and which parts exist where), the settled geometry
 decisions, and the open bugs. This doc is the project; that one is the subsystem.
 
-**Deploy rule: Claude never commits or pushes. M deploys manually via GitHub upload.**
-Claude hands back bare-filename files (or a folder-structured zip) + a one-line deploy note.
+**Deploy rule (changed 2026-07-10): M commits and pushes himself** (`git push` = Netlify live
+deploy). Claude commits **only when M explicitly asks**, staging files by name, and **never
+pushes**. Otherwise Claude's job ends at validated files + a one-line deploy note.
 Cache-stamp every module include (`?v=`) — non-negotiable on iOS.
 
 ---
@@ -201,12 +202,62 @@ independent syncs), not the offset jumping.
 
 ---
 
-## 🟡 Battle Forge — geometry landed, combat system half-ported (July 8 PM)
+## 🟡 Battle Forge — multiplayer live on the real board; bite 1 field-tested (July 8 → 12)
 
 **`forge/README.md` + `CONTEXT_Forge.md` are canonical for this subsystem.** Read both.
+For the cover-contest mechanism, `FORGE_COVER_CONTEST.md`; for the event protocol,
+`FORGE_PROTOCOL.md`; for the board marriage, `FORGE_BOARD.md`.
 
 Procedural battle-map generation + the seam that turns a generated map into a rules-enforced
 encounter. **Optional layer that extends theatre-of-the-mind — never replaces it.**
+
+### July 10–11 — the protocol spine, bite 1, and the field-day fix waves
+
+**July 10:** the multiplayer event protocol shipped and was verified in two real browsers
+(`FORGE_PROTOCOL.md`; four `forge-*.js` modules — vocabulary, reducer, bus, pipeline).
+**July 11:** bite 1 — the protocol married to the real board (shared dungeon from the session
+row, turn loop, claim screen, sheet stats, bestiary foes, sheet⇄fight mirror) — merged to
+`main` and **field-tested by M at the table the same day**. His field reports drove two fix
+waves, both committed and pushed by C **on M's explicit order each time** (`f28e0bb`,
+`b1d7d72` — an exception to the deploy rule by direct instruction, not a new default):
+
+- **LoS rulings settled** — *ledge peek* (standing at a lip you lean over it: lip-corner
+  alternate eyes in `losVerdict`) and *cover grading by attribution-by-side* ("cover is what
+  the TARGET hides behind"; shooter-side obstructions are a vantage problem, not AC). Both
+  dated in `CONTEXT_Forge.md` §4; identical in all three `tactics-geometry` copies.
+- **Action economy is a derived fact of the log** — facts carry their `slot`, the reducer
+  derives per-turn movement/action/bonus. Fixes three field bugs at once: bonus actions ate
+  the action, rewind restored position but not economy, refresh refunded movement.
+- **Undo back in the combat HUD, session-aware** — overseer undo/turn-rewind publish protocol
+  facts; a player can retract their own last move (compensating fact, no schema change).
+- **Cover Contest built** per the approved `FORGE_COVER_CONTEST.md` spec + mock: player
+  pre-roll "Contest cover" pauses the attack, the ruling menu opens on the DM's device only,
+  the ruling lands in the log as a fact, the culprit cell lights on the board. Reason field
+  optional and de-emphasized (M's call).
+- **Player panel lock** — mode/biome/import chips can no longer regenerate a local map
+  mid-fight; non-overseer devices lose the forge/dungeon knob sections entirely.
+- **Move-tween guarantee** — `move_resolved` facts carry their own `path`, so a lost declare
+  row degrades nothing.
+
+**July 12 (staged, NOT committed — M deploys):** M's five-item legibility/rules field report;
+items 1, 2, 4 built, **3+5 parked as the next session's brainstorm** (handoff written into
+`CONTEXT_Forge.md` §8 — start there, mock-first):
+
+- **Sprite legibility** — baked ink half-pixel outlines on every pixel sprite (M approved from
+  a standalone mock), plus a side-colored glow system: friendly gold, foe red, always; explicit
+  target red wins; the active unit glows on its turn (PC gold, foe red — "so we know which one
+  is attacking"), foe glow gated on a `foeVisible()` seam for the not-yet-designed hidden system.
+- **Movement telegraph contrast** — reach tiles brightened (teal@0.26 → cyan@0.42).
+- **Silvery Barbs → full RAW, both paths** — 60 ft, keep-original-reroll-take-lower, offer gate
+  keyed on the ATTACKER's side (own-side hits never prompt), and the advantage rider built as
+  GENERAL plumbing (`advGrant` / `grantAdvantage()` / reducer `grant_advantage` effect on the
+  existing `prompt_answered` fact — no new protocol kind, no schema) so **Help and familiars
+  later are a one-line call**, per M. Full story: `CONTEXT_Forge.md` §5.21–22 + the approved
+  spec `2026-07-11-silvery-barbs-raw-design.md`.
+
+Forge smokes: **335 green** on `main` + this wave's 22 staged (SB 13, glow-color 9); replay
+regression 35/35. Detail, per-bug history, and the three
+defaults M may still redline live in `CONTEXT_Forge.md` (§4, §5, §8).
 
 ```
 params ─▶ forge-engine ─▶ (map-bridge contract) ─▶ tactics-geometry ─▶ combat
@@ -241,18 +292,22 @@ occluder height in feet above its terrain, and `losVerdict` traces the 5e corner
   the wall* only when the target is above you. A flat ray cannot rise.
 - **Cover is graded** — 8 corner-lines (4 corners × head/feet): `0 none · 1–4 half (+2) ·
   5–7 three-quarters (+5) · 8 total`. A 4.5 ft boulder = ¾. A 10.5 ft temple wall = total.
+  **Two dated July-11 amendments** (M's table rulings — `CONTEXT_Forge.md` §4 is canonical):
+  *ledge peek* (lip-corner alternate eyes) and *attribution by side* (only blockers at least
+  as close to the target as to the attacker grade half/¾; total is unchanged).
 - **Occluder heights come from the generator**, not thin air: `map-bridge.BIOME_WALL_UNITS`
   mirrors `SKINS.wallH` × 5 ft. Props: rock 4.5 · tree 5.5 · reed 3.5 · column 15. Moss, bones,
   cracks, banners occlude nothing.
-- `forge/tests/smoke-los-cover.js` (27 known-answer cases) encodes all of the above.
+- `forge/tests/smoke-los-cover.js` (37 known-answer cases as of July 11) encodes all of the above.
 
 ⚠ **Inline-copy sync rule:** `tactics-geometry.js` is inlined in **two** mocks —
 `battle-tactics-geo-mock.html` **and** `topography-test-mock.html`. Three copies total, all
 **code-identical** (comments stripped; the inlines carry an older header). Change one, change all three.
 
-Tests (all in `forge/tests/`, 124 green): `smoke-forge-engine.js` 14/14 (frost→tundra fixed),
-`smoke-map-bridge.mjs` 16/16, `smoke-tactics-geometry.mjs` 26/26, `smoke-los-cover.js` 27/27,
-`smoke-placement.js` 19/19, `smoke-flora.js` 22/22 (both extract the real functions from the mock).
+Tests (all in `forge/tests/`, **329 green as of July 11** — full per-file counts in
+`CONTEXT_Forge.md` §2): engine 14 (frost→tundra fixed), bridge 16, geometry 26, los-cover 37,
+placement 19, flora 22 (placement/flora extract the real functions from the mock), protocol 56,
+replay 35, tiers-rebase 32, forge-board 20, starter-kits 16, bus-reconnect 12, cover-contest 24.
 - **Flora:** `FLORA[biome]` — `kinds` at build time (a kind carries an occluder height), `pal` at render
   time (a biome chip retints instantly; species need a re-forge). Walls are hard: 0/19831 walkable cells
   are `T_ROCK`. Trees no longer plant against walls — they used to, 100% of the time, by construction.
@@ -283,9 +338,12 @@ whole story of the missing sprites, the missing flanking, and the missing feel.
   idle bob, torch PointLights.
 - **Exists nowhere:** Ready an action (the geometry now demands it), floating damage text,
   post-processing.
-- topo's **inlined generator is stale** (old theme keys). Rebase on `forge/forge-dungeon.js`.
-- Agreed next build: wire Forge to load a generated map + character-select entrance; add `mode`
-  field (`classic` | `forge`) on encounter.
+- ~~topo's inlined generator is stale~~ **fixed in bite 1** — the mock now runs canonical
+  `ForgeEngine.generate()` (`CONTEXT_Forge.md` §5.5; `smoke-tiers-rebase.js` 32 green).
+- ~~Agreed next build: wire Forge to load a generated map + character-select entrance~~ —
+  **that was bite 1, shipped July 11** (see the July 10–11 section above). Next is M's field
+  re-check of the fix waves, then the **bite-2 spec** (sheet→actions derivation + the feel-layer
+  ports above) — `FORGE_BOARD.md` §0 says bite 2 needs its own spec before building.
 
 ---
 

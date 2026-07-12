@@ -1,4 +1,4 @@
-# CONTEXT — Battle Forge — updated 2026-07-11 (night; field-round-3 wave STAGED, not yet committed — base `b1d7d72`)
+# CONTEXT — Battle Forge — updated 2026-07-12 (glow/outline + Silvery Barbs wave STAGED, not yet committed — base: `main` as of 2026-07-11, which WAS current with M's disk, byte-identical, at session start)
 
 > This doc exists because the same failure kept happening: a session would read
 > *part* of the material, conclude a feature "was never there," and rebuild
@@ -35,6 +35,14 @@ missing, absent, unimplemented, or "was never built":
    GitHub will conclude features are missing that M is looking at. So: grep the
    repo before claiming absence, **and ask M for the file before editing it.**
    "Present in the repo" and "current" are different claims.
+
+6. **The mirror of the mirror, learned 2026-07-11:** THIS DOC's header goes stale
+   too. A session asserted "the repo is 5 files behind" straight from rule 5's
+   example and the then-current header ("STAGED, not yet committed") — M had
+   committed; `main` and M's uploads were byte-identical. Rule 5 is about *asking
+   for files*, not a standing fact about the repo. **Currency is verified by
+   `diff`, never recited from this doc.** When M uploads a file, diff it against
+   the repo copy before claiming either is ahead.
 
 ---
 
@@ -385,6 +393,36 @@ real placement. **These are decisions, not hypotheses.**
    `rebuildVesToken`'s sheet swap — the old sprite stayed orphaned in
    `tokenGroup` while `makeToken` overwrote `u.sprite`. `removeToken(u,force)`
    is the swap door: hard removal; the death path is untouched.
+21. ~~Silvery Barbs fired on the party's own hits and rolled a fresh d20 at
+   disadvantage.~~ **Fixed (staged 2026-07-12), M's rulings settled: 60 ft,
+   full RAW, never offered on your own side's successes.** Four defects, both
+   paths (sandbox `pipelineHit` + session `reactionCandidates`/
+   `computeReactionExtra`): (i) range 6→12; (ii) reroll was two-fresh-take-min —
+   now `sbReroll(orig)` = keep the original d20, roll ONE new, take the lower
+   (the session ctx carries `origRoll` so the fact is self-contained and
+   replay-deterministic); (iii) the offer gate keyed on the TARGET's side —
+   now keyed on the ATTACKER's (`u.side!==attacker.side`), which is what
+   actually stopped the own-hit prompts; (iv) the advantage rider existed
+   nowhere — now the caster picks a friendly in range (gold-tile overlay;
+   click-off or no-eligible self-grants, RAW-legal), bundled as a
+   `grant_advantage` **effect on the same `prompt_answered` fact** — no new
+   protocol kind, no schema, 20s→staff timeout unchanged. The grant is
+   deliberately GENERAL plumbing: `u.advGrant` read by `advPreview`, set by
+   `grantAdvantage(unit,reason)`, cleared by the reducer's `consumeAdvGrant`
+   on the granted unit's `attack_resolved` — **Help and familiars later are
+   one `grantAdvantage(ally,'help')` call, per M.** No 1-minute expiry timer
+   (deliberate; combats are short — commented, not built).
+   `forge-replay.js` reducer +14 lines, stamp `?v=fb6`.
+   `smoke-silvery-barbs.js` (13): reroll arithmetic, gate both directions,
+   grant/self-grant, consume, replay determinism. Known SB truth for future
+   sessions: the spell is *famously strong by design* — reroll-lower AND the
+   rider off a 1st-level slot. "Triggers a lot" is the spell, not a bug.
+22. **Hidden/invisibility system does not exist — but its seam does.**
+   `foeVisible(u)` (returns `true` today, one TODO-marked function) gates every
+   foe glow: turn-red, target-red, select-red. When hidden lands, that function
+   is the single plug point — a hidden foe stops glowing without touching the
+   colour logic; making its *token* not render is the rest of that future bite.
+   Deliberately not stubbed further (the system's shape isn't designed yet).
 
 ---
 
@@ -459,8 +497,78 @@ real placement. **These are decisions, not hypotheses.**
 
 ## §8 · SUGGESTED NEXT SESSION
 
-**2026-07-11 (night): M's field round 3 produced a five-item wave — STAGED,
-validated, NOT committed** (M deploys). §5.17–20 carry the four bug fixes;
+**2026-07-12: the legibility + Silvery Barbs wave — STAGED, validated, NOT
+committed** (M deploys). Born from M's five-item field report; items 1, 2, 4
+built this wave, **items 3+5 deliberately parked — they are the next session,
+see the brainstorm handoff below.**
+
+- **#1 · Sprite outlines + glow (M approved from a standalone mock first:
+  ink, half-pixel).** Every pixel sprite carries a baked ink contour
+  (`outlineMask`/`paintOutline`/`outlinedPixelCanvas` — 8-neighbourhood,
+  half-cell ribbons, quarter-square corner seals; texture aspect now includes
+  the +2 padding). Light-up is an outline-ONLY overlay sprite
+  (`glowTex`/`syncGlow`), `depthTest:false`, `renderOrder 6` — equal-depth
+  let the ink win and hid the glow, that's why. **Colour is SIDE-based (M's
+  correction after the first build went action-based): friendly gold
+  `#e8b53a`, foe red `#c0402f`, always.** Priority in `glowColorFor`:
+  explicit target red → selection (side colour) → active unit on its turn
+  (PC gold / foe red, "so we know which one is attacking"). Foe glow gates
+  on the `foeVisible` seam (§5.22). Left-click token or strip chip selects;
+  right-click chip targets; ground click clears; chip rings derive from the
+  same `glowColorFor`. Ves atlas + lettered standees have no pixel grid →
+  material-tint pulse instead. Glows torn down in `removeToken`/death/swap.
+  `smoke-glow-color.mjs` (9) pins the colour rules against the REAL file's
+  extracted function.
+- **#2 · Movement telegraph contrast:** reach tiles `0x3a8a92`@0.26 →
+  `0x4fd0e0`@0.42 (one line in `drawHi`). M's report: the teal sank into
+  grass/stone.
+- **#4 · Silvery Barbs → RAW** — the whole story is §5.21. Spec:
+  `2026-07-11-silvery-barbs-raw-design.md` (M-approved with two refinements:
+  60 ft, and 20s→staff offered whenever a slot's available).
+
+Files staged: `forge/topography-test-mock.html`, `forge/forge-replay.js`
+(`?v=fb6`), `forge/tests/smoke-silvery-barbs.js` (13),
+`forge/tests/smoke-glow-color.mjs` (9). Validation: all script blocks
+`node --check` clean; replay 35/35 (no regression); outline contour smoke
+green against the real file. **Pending M's table eyeball:** stacked bodies
+separating; gold following the turn; active/targeted foe red OVER the ink;
+no foe ever gold; cyan reach tiles; a live SB round-trip (foe hits PC →
+Líadan offered → `orig → new (lower stands)` → ally pick → `⇑ ADV · silvery
+barbs` badge → clears after the swing) and the negative (PC hits foe → no
+offer). Session-path rider pick on a second device is the least-exercised
+path — watch it specifically.
+
+**⏭ CARRIED-OVER BRAINSTORM — items 3+5, the tracker roll-row port. Next
+session starts HERE, mock-first, per Brainstorming.md (one question per
+message, no code before an approved design).** What the next session needs
+to know, so it doesn't re-derive it:
+
+- **M's ask (verbatim intent):** the combat tracker doesn't show player rolls
+  on the admin side — the §5.19 AC-strip took the whole roll display down,
+  not just AC. combat.html already has the full system — advantage,
+  disadvantage, bless, etc. — "it can be directly ported." Miss/Hit should be
+  explicit (it already is in combat.html's renderer).
+- **What combat.html has** (grep `feedRollWithMods`, the dice engine block
+  ~L3860, `getRS/toggleRS`): rich roll rows — spelled-out dice, kept/dropped
+  dice on adv/dis, 🙏/✦ modifier tags (bless/guidance), explicit Hit/Miss
+  verdicts, and per-roll state toggles. The forge already has the MATH
+  (`advPreview`, `d20a`, cover grading, `⇑ ADV`/`⇓ DIS` badges) — what it
+  lacks is the RENDERING and the admin-side visibility.
+- **The constraint that shapes the design:** §5.19 is M's settled ruling —
+  players never see AC/target numbers; the log carries roll+mod, adv/disadv,
+  the cover word, the verdict. So the port is per-VIEWER: the overseer sees
+  full player rolls; players keep the stripped view. That's a display fork,
+  not a protocol change — the facts already carry the numbers.
+- **Design questions to brainstorm (not decided):** where rolls render
+  (combat-log lines vs. strip vs. a roll panel); whether the forge log rows
+  adopt combat.html's row markup wholesale or a compact variant; whether
+  `getRS`-style pre-roll toggles (bless etc.) come over now or wait for the
+  sheet→actions derivation layer; how `advGrant` (§5.21) shows in the row's
+  modifier tags. Mock the log row FIRST — M approves visuals from mocks.
+
+**2026-07-11 (night): M's field round 3 produced a five-item wave — merged
+and current on `main`** (the "STAGED" note that used to lead this entry went
+stale; see §0.6). §5.17–20 carry the four bug fixes;
 the fifth item is a feature, BG3-style "who is that":
 
 - **Strip nameplate → camera.** Clicking an initiative-strip chip pans the
