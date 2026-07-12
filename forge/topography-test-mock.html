@@ -2664,7 +2664,17 @@ function makeToken(u){
    selection / red for target, pulsed in loop(). Rebuilt when selection changes.
    Pixel-sprite tokens get a baked glow texture; the Ves atlas + lettered standees
    have no pixel grid, so they pulse a material tint on the sprite itself. */
-function glowColorFor(u){ return CB.selKey===u.key ? GLOW_SEL : (CB.tgtKey===u.key ? GLOW_TGT : null); }
+/* #1 · glow COLOUR is side-based, not action-based (M's correction): a foe is
+   always red, a friendly always gold. Priority: an explicit red target wins;
+   then a selected unit takes its side colour; then the ACTIVE unit, if a PC,
+   glows gold as a turn indicator (no click needed). */
+function glowColorFor(u){
+  if(!u||!u.alive) return null;
+  if(CB.tgtKey===u.key) return GLOW_TGT;                          // explicit target → red
+  if(CB.selKey===u.key) return u.side==="pc" ? GLOW_SEL : GLOW_TGT;   // selection → side colour
+  if(CB.active && !CB.over && active()===u && u.side==="pc") return GLOW_SEL;   // whose turn → gold
+  return null;
+}
 function syncGlow(u){
   if(!u||!u.sprite){ return; }
   var col=glowColorFor(u);
@@ -2674,9 +2684,11 @@ function syncGlow(u){
   if(!col){ if(u._ves||!u._spr){ if(u.sprite.material) u.sprite.material.color.setHex(0xffffff); } return; }
   if(u._spr){
     var gt=glowTex(u._spr,col); if(!gt) return;
-    var g=new THREE.Sprite(new THREE.SpriteMaterial({map:gt.tex,transparent:true,depthWrite:false,toneMapped:false,opacity:1}));
+    // depthTest:false + renderOrder above the body so the glow sits OVER the
+    // baked ink (equal depth was letting the ink win, hiding the glow).
+    var g=new THREE.Sprite(new THREE.SpriteMaterial({map:gt.tex,transparent:true,depthTest:false,depthWrite:false,toneMapped:false,opacity:1}));
     g.scale.copy(u.sprite.scale); g.center.set(0.5,0); g.position.copy(u.sprite.position);
-    g.renderOrder=5; u._glow=g; tokenGroup.add(g);
+    g.renderOrder=6; u._glow=g; tokenGroup.add(g);
   } else {
     // Ves atlas / lettered standee: no pixel grid → pulse a tint on the body sprite
     u._glowTint=true; u._glowCol=col;
@@ -2684,9 +2696,9 @@ function syncGlow(u){
 }
 function syncAllGlow(){ if(typeof CB!=="undefined"&&CB.units) CB.units.forEach(syncGlow); }
 /* selection / target setters — used by both the strip chips and token clicks */
-function setSel(key){ CB.selKey = (CB.selKey===key? null : key); syncAllGlow(); renderHud&&renderHud(); }
-function setTgt(key){ CB.tgtKey = (CB.tgtKey===key? null : key); syncAllGlow(); renderHud&&renderHud(); }
-function clearSelTgt(){ if(CB.selKey||CB.tgtKey){ CB.selKey=null; CB.tgtKey=null; syncAllGlow(); renderHud&&renderHud(); } }
+function setSel(key){ CB.selKey = (CB.selKey===key? null : key); renderHud&&renderHud(); }
+function setTgt(key){ CB.tgtKey = (CB.tgtKey===key? null : key); renderHud&&renderHud(); }
+function clearSelTgt(){ if(CB.selKey||CB.tgtKey){ CB.selKey=null; CB.tgtKey=null; renderHud&&renderHud(); } }
 function positionToken(u){ var X=wxc(u.c),Z=wzc(u.r),Y=tierY(u.c,u.r); if(u.sprite)u.sprite.position.set(X,Y+0.02,Z); if(u.shadow)u.shadow.position.set(X,Y+0.05,Z); if(u._glow)u._glow.position.set(X,Y+0.02,Z); }
 
 /* ── §5.1 · the height slider rescales terrain and nothing else ──────────
@@ -4355,6 +4367,7 @@ function initBadge(u){ return u.badge||(u.side==="pc"?(ROSTER_INIT[u.key]||u.nam
 function seatCol(u){ return (window.__fightControllers&&window.__fightControllers[u.key]&&window.__fightControllers[u.key].color)||(u.side==="pc"?(ROSTER_COL[u.key]||"#b8863a"):"#7a2e2e"); }
 function renderHud(){
   if(!CB.active) return; var u=active();
+  syncAllGlow();   // #1: active-PC gold + any select/target glow follow the current turn/state
   var sess=window.__forgeSession;
   /* Turn gating (brief step 3): action buttons paint only for whoever
      controls the active seat; everyone else gets a narrated banner instead.
@@ -4363,7 +4376,9 @@ function renderHud(){
   var iControl = !sess || window.ForgeBoard.controls(sess.me, u && u.unit);
   var waitingMe = iControl && __awaitingCount > 0;   // MY tap(s) are published, not every echo is back yet
   var strip=document.getElementById("cbInit");
-  if(strip) strip.innerHTML=CB.order.map(function(o,oi){ return '<div class="cbUnit'+(o===u?" act":"")+(o.alive?"":" dead")+(CB.selKey===o.key?" selq":"")+(CB.tgtKey===o.key?" tgtq":"")+'" data-oi="'+oi+'" title="'+o.name+'">'
+  if(strip) strip.innerHTML=CB.order.map(function(o,oi){ var glowc=glowColorFor(o);
+    var ring=(glowc===GLOW_SEL?" selq":glowc===GLOW_TGT?" tgtq":"");
+    return '<div class="cbUnit'+(o===u?" act":"")+(o.alive?"":" dead")+ring+'" data-oi="'+oi+'" title="'+o.name+'">'
     +'<span class="cbU-b" style="background:'+seatCol(o)+'">'+initBadge(o)+'</span><span class="cbU-hp">'+(o.alive?Math.max(0,o.hp):"\u2620")+'</span></div>'; }).join("");
   /* #4 (BG3): a strip nameplate is a camera door — click pans to the token
      and pulses its cell, so "which one is Goblin 3" has a one-tap answer.
