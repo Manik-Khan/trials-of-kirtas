@@ -90,7 +90,7 @@ const CAIM_CHAR = {
     ],
     spellcasting: null,
     resources: [
-      { id: "ki", label: "Ki Points", tag: "Ki", max: 4, die: null, recharge: "short rest", tone: "class" }
+      { id: "ki", label: "Ki Points", tag: "Ki", max: 4, die: null, recharge: "short rest", tone: "class", source: "class", origin: "class" }
     ],
     actions: [],
     customActions: [],
@@ -186,7 +186,7 @@ const LIADAN_CHAR = {
       ]
     },
     resources: [
-      { id: "bardicInspiration", label: "Bardic Inspiration", tag: "Bard", max: 3, die: "d6", recharge: "long rest", tone: "class" }
+      { id: "bardicInspiration", label: "Bardic Inspiration", tag: "Bard", max: 3, die: "d6", recharge: "long rest", tone: "class", source: "class", origin: "class" }
     ],
     actions: [],
     customActions: [],
@@ -460,6 +460,119 @@ const LIADAN_CHAR = {
   FKD.derive(VES_CHAR);
   var after = JSON.stringify(VES_CHAR);
   ok("no-mutation: charData unchanged after derive", before === after);
+})();
+
+// 13. Bonus-tab widening: bonus + free (M's ruling 2026-07-12)
+(function testBonusTabWidening() {
+  var kit = FKD.derive(VES_CHAR);
+  // Action Surge is free:true, bonus:false — must appear in bonus tab
+  ok("bonus-widen: Action Surge in bonus tab", kit.tabs.bonus.some(function (t) { return t.label === "Action Surge"; }));
+  // Second Wind is bonus:true — still in bonus tab
+  ok("bonus-widen: Second Wind still in bonus tab", kit.tabs.bonus.some(function (t) { return t.label === "Second Wind"; }));
+  // No action-costed tiles should leak in
+  var leaked = kit.tabs.bonus.filter(function (t) { return !t.bonus && !t.free; });
+  ok("bonus-widen: no action-only tiles leak in", leaked.length === 0);
+  // Universals (Dash/Dodge/Help/Disengage/Ready) are not bonus and not free → excluded
+  ok("bonus-widen: Dash not in bonus tab", !kit.tabs.bonus.some(function (t) { return t.label === "Dash"; }));
+
+  // Caim: Flurry/Patient Defense/Step of the Wind are bonus → in bonus tab
+  var cKit = FKD.derive(CAIM_CHAR);
+  ok("bonus-widen: Caim Flurry in bonus tab", cKit.tabs.bonus.some(function (t) { return t.label === "Flurry of Blows"; }));
+  ok("bonus-widen: Caim Patient Defense in bonus tab", cKit.tabs.bonus.some(function (t) { return t.label === "Patient Defense"; }));
+  ok("bonus-widen: Caim Step of the Wind in bonus tab", cKit.tabs.bonus.some(function (t) { return t.label === "Step of the Wind"; }));
+  // Hands of Healing is action (bonus:false, free:false) → NOT in bonus tab
+  ok("bonus-widen: Hands of Healing not in bonus tab", !cKit.tabs.bonus.some(function (t) { return t.label === "Hands of Healing"; }));
+
+  // Cosmere: Hex (bonus spell) in bonus tab, Hexblade's Curse (bonus) in bonus tab
+  var cosKit = FKD.derive(COSMERE_CHAR);
+  ok("bonus-widen: Cosmere Hex in bonus tab", cosKit.tabs.bonus.some(function (t) { return t.label === "Hex"; }));
+  ok("bonus-widen: Cosmere Hexblade's Curse in bonus tab", cosKit.tabs.bonus.some(function (t) { return /hexblade/i.test(t.label); }));
+
+  // Líadan: Healing Word (bonus spell) in bonus tab; Heat Metal (bonus spell) in bonus tab
+  var liaKit = FKD.derive(LIADAN_CHAR);
+  ok("bonus-widen: Líadan Healing Word in bonus tab", liaKit.tabs.bonus.some(function (t) { return t.label === "Healing Word"; }));
+  ok("bonus-widen: Líadan Heat Metal in bonus tab", liaKit.tabs.bonus.some(function (t) { return t.label === "Heat Metal"; }));
+})();
+
+// 14. Order passthrough: assembledActions order === tabs.attacks order
+(function testOrderPassthrough() {
+  // Simulate assembleActions output order: weapon1, weapon2, cantrip-attack, spell-attack
+  var assembled = [
+    { id: "wpn-longsword",  type: "attack", label: "Longsword",  ability: "str", proficient: true, atkBonus: 0, dmgAbility: true, dmgBonus: 0, dmgDice: "1d8",  dmgType: "Slashing" },
+    { id: "wpn-shortbow",   type: "attack", label: "Shortbow",   ability: "dex", proficient: true, atkBonus: 0, dmgAbility: true, dmgBonus: 0, dmgDice: "1d6",  dmgType: "Piercing", range: "80/320" },
+    { id: "cant-boomingblade", type: "attack", label: "Booming Blade · Longsword", ability: "str", proficient: true, atkBonus: 0, dmgAbility: true, dmgBonus: 0, dmgDice: "1d8", dmgType: "Slashing + thunder" },
+    { id: "sp-firebolt",    type: "attack", label: "Fire Bolt",  ability: "int", proficient: true, atkBonus: 0, dmgAbility: false, dmgBonus: 0, dmgDice: "1d10", dmgType: "fire" },
+    { id: "custom-taunt",   type: "utility", label: "Taunt" }
+  ];
+  var kit = FKD.derive(VES_CHAR, { assembledActions: assembled });
+  // attacks tab should have exactly the 4 attack-type rows, in order
+  var atkLabels = kit.tabs.attacks.map(function (t) { return t.label; });
+  ok("order: attacks tab has 4 tiles", atkLabels.length === 4);
+  ok("order: index 0 = Longsword", atkLabels[0] === "Longsword");
+  ok("order: index 1 = Shortbow", atkLabels[1] === "Shortbow");
+  ok("order: index 2 = Booming Blade · Longsword", atkLabels[2] === "Booming Blade · Longsword");
+  ok("order: index 3 = Fire Bolt", atkLabels[3] === "Fire Bolt");
+  // utility goes to actions tab, not attacks
+  ok("order: Taunt in actions, not attacks", !atkLabels.some(function (l) { return l === "Taunt"; }));
+  ok("order: Taunt in actions tab", kit.tabs.actions.some(function (t) { return t.label === "Taunt"; }));
+  // tile ids also preserved
+  var atkIds = kit.tabs.attacks.map(function (t) { return t.id; });
+  ok("order: tile ids match source ids", atkIds[0] === "wpn-longsword" && atkIds[1] === "wpn-shortbow");
+})();
+
+// 15. Resource passthrough: recharge, die, tag, origin, source, custom survive derive
+(function testResourcePassthrough() {
+  // Caim has ki with recharge/die/tag/origin/source from resource-derive
+  var kit = FKD.derive(CAIM_CHAR);
+  var kiPool = kit.pools.filter(function (p) { return p.key === "ki"; })[0];
+  ok("res-pass: ki pool exists", !!kiPool);
+  ok("res-pass: ki recharge = 'short rest'", kiPool && kiPool.recharge === "short rest");
+  ok("res-pass: ki die = null", kiPool && kiPool.die === null);
+  ok("res-pass: ki tone = 'class'", kiPool && kiPool.tone === "class");
+  ok("res-pass: ki origin = 'class'", kiPool && kiPool.origin === "class");
+  ok("res-pass: ki source = 'class'", kiPool && kiPool.source === "class");
+  ok("res-pass: ki custom = false", kiPool && kiPool.custom === false);
+
+  // Líadan has bardic inspiration with die = 'd6', recharge = 'long rest'
+  var liaKit = FKD.derive(LIADAN_CHAR);
+  var bardPool = liaKit.pools.filter(function (p) { return /bard/i.test(p.label); })[0];
+  ok("res-pass: bardic pool exists", !!bardPool);
+  ok("res-pass: bardic die = 'd6'", bardPool && bardPool.die === "d6");
+  ok("res-pass: bardic recharge = 'long rest'", bardPool && bardPool.recharge === "long rest");
+  ok("res-pass: bardic origin = 'class'", bardPool && bardPool.origin === "class");
+  ok("res-pass: bardic custom = false", bardPool && bardPool.custom === false);
+
+  // Vesperian: hardcoded secondWind pool has recharge/origin
+  var vesKit = FKD.derive(VES_CHAR);
+  var swPool = vesKit.pools.filter(function (p) { return p.key === "secondWind"; })[0];
+  ok("res-pass: secondWind pool exists", !!swPool);
+  ok("res-pass: secondWind recharge = 'short rest'", swPool && swPool.recharge === "short rest");
+  ok("res-pass: secondWind origin = 'class'", swPool && swPool.origin === "class");
+  var asPool = vesKit.pools.filter(function (p) { return p.key === "actionSurge"; })[0];
+  ok("res-pass: actionSurge pool exists", !!asPool);
+  ok("res-pass: actionSurge recharge = 'short rest'", asPool && asPool.recharge === "short rest");
+
+  // Caim Tiefling: hardcoded rebuke pool has recharge/origin
+  var rebukePool = kit.pools.filter(function (p) { return p.key === "rebuke"; })[0];
+  ok("res-pass: rebuke pool exists", !!rebukePool);
+  ok("res-pass: rebuke recharge = 'long rest'", rebukePool && rebukePool.recharge === "long rest");
+  ok("res-pass: rebuke origin = 'race'", rebukePool && rebukePool.origin === "race");
+
+  // Custom resource passthrough: add one to a fixture and verify custom:true survives
+  var customChar = JSON.parse(JSON.stringify(CAIM_CHAR));
+  customChar.structural.resources.push({
+    id: "myRes", label: "My Thing", tag: "MT", max: 3, die: "d4",
+    recharge: "short or long rest", tone: "class", source: "custom", origin: "custom", custom: true
+  });
+  var cKit = FKD.derive(customChar);
+  var myPool = cKit.pools.filter(function (p) { return p.key === "myRes"; })[0];
+  ok("res-pass: custom resource pool exists", !!myPool);
+  ok("res-pass: custom resource custom = true", myPool && myPool.custom === true);
+  ok("res-pass: custom resource die = 'd4'", myPool && myPool.die === "d4");
+  ok("res-pass: custom resource tag = 'MT'", myPool && myPool.tag === "MT");
+  ok("res-pass: custom resource recharge = 'short or long rest'", myPool && myPool.recharge === "short or long rest");
+  ok("res-pass: custom resource source = 'custom'", myPool && myPool.source === "custom");
+  ok("res-pass: custom resource origin = 'custom'", myPool && myPool.origin === "custom");
 })();
 
 // ── summary ──────────────────────────────────────────────────────────────
