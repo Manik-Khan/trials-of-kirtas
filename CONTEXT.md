@@ -341,9 +341,13 @@ whole story of the missing sprites, the missing flanking, and the missing feel.
 - ~~topo's inlined generator is stale~~ **fixed in bite 1** — the mock now runs canonical
   `ForgeEngine.generate()` (`CONTEXT_Forge.md` §5.5; `smoke-tiers-rebase.js` 32 green).
 - ~~Agreed next build: wire Forge to load a generated map + character-select entrance~~ —
-  **that was bite 1, shipped July 11** (see the July 10–11 section above). Next is M's field
-  re-check of the fix waves, then the **bite-2 spec** (sheet→actions derivation + the feel-layer
-  ports above) — `FORGE_BOARD.md` §0 says bite 2 needs its own spec before building.
+  **that was bite 1, shipped July 11** (see the July 10–11 section above). ~~Next: the bite-2
+  spec~~ — **written and design-approved 2026-07-12: `2026-07-12-forge-bg3-hud-design.md`**, the
+  full BG3 HUD pass (battle.js bar extended bottom-center off a sheet→actions derivation layer;
+  the Chat Feed as the combat log, bottom-right; uniform full-math rolls, no AC ever). It absorbs
+  the sheet→actions half of bite 2; the remaining feel-layer ports stay their own bite. Next
+  session: M reviews the spec, then build in its §6 bite order. `CONTEXT_Forge.md` §8 carries
+  the handoff; M's table eyeball of the July-12 glow/SB wave is still outstanding alongside it.
 
 ---
 

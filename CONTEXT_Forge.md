@@ -1,4 +1,4 @@
-# CONTEXT — Battle Forge — updated 2026-07-12 (glow/outline + Silvery Barbs wave STAGED, not yet committed — base: `main` as of 2026-07-11, which WAS current with M's disk, byte-identical, at session start)
+# CONTEXT — Battle Forge — updated 2026-07-12, second session (BG3 HUD design APPROVED — spec written, build is next session. The glow/SB wave that the last header called "STAGED" is CONFIRMED MERGED on `main`, verified by grep this session — §0.6 caught its own example again)
 
 > This doc exists because the same failure kept happening: a session would read
 > *part* of the material, conclude a feature "was never there," and rebuild
@@ -497,10 +497,28 @@ real placement. **These are decisions, not hypotheses.**
 
 ## §8 · SUGGESTED NEXT SESSION
 
-**2026-07-12: the legibility + Silvery Barbs wave — STAGED, validated, NOT
-committed** (M deploys). Born from M's five-item field report; items 1, 2, 4
-built this wave, **items 3+5 deliberately parked — they are the next session,
-see the brainstorm handoff below.**
+**2026-07-12 (second session): the items-3+5 brainstorm ran and grew, with M's
+approval at every widening, into the FULL BG3 HUD PASS — design approved,
+spec written: `2026-07-12-forge-bg3-hud-design.md`. Next session = M reviews
+the spec (Brainstorming.md step 8, the gate), then BUILD, in the spec's §6
+bite order (derivation module first, headless + smoked).** The shape, so no
+session re-derives it: battle.js's desktop bar extended across bottom-center
+(donor, not engine — the forge does NOT load battle.js; taps route through
+the pipeline), drawer unrolled into an icon-tile shelf, tabs = sheet sections
+(⚔ Attacks · ✦ Spells · ◎ Items · ❖ Feats · ⚡ Bonus[filter] · ◉ Actions) —
+**this absorbs bite 2's sheet→actions derivation layer**; the Chat Feed is
+the log, bottom-right (acting device writes the feed row, echoes never do,
+sandbox stays local); rolls show full math on every device, NO AC EVER
+(§5.19 stands), verdict badges, tap-expands the damage dice; skin (Battle
+dark / Forge parchment) and icons-vs-labels are per-player via
+`profiles.appearance`. Approved mock: `forge-battlehud-extended-mock-v3.html`
+(round 3; rounds 1–2 were the corner-card and standalone-icon-bar shapes,
+both superseded). `cbPanel`/`cbLog`/the roller retire; every affordance has
+a named new home in the spec — **do not rebuild them.** Settled small print
+lives in the spec, not here: read it before building.
+
+**Still pending M's table eyeball from the FIRST 2026-07-12 wave (merged,
+not yet field-checked)** — carry this list until M runs it:
 
 - **#1 · Sprite outlines + glow (M approved from a standalone mock first:
   ink, half-pixel).** Every pixel sprite carries a baked ink contour
@@ -538,33 +556,22 @@ barbs` badge → clears after the swing) and the negative (PC hits foe → no
 offer). Session-path rider pick on a second device is the least-exercised
 path — watch it specifically.
 
-**⏭ CARRIED-OVER BRAINSTORM — items 3+5, the tracker roll-row port. Next
-session starts HERE, mock-first, per Brainstorming.md (one question per
-message, no code before an approved design).** What the next session needs
-to know, so it doesn't re-derive it:
+**~~⏭ CARRIED-OVER BRAINSTORM — items 3+5~~ — RAN 2026-07-12 (second
+session), concluded, superseded by the spec above.** Three corrections the
+run surfaced, kept because the old block's claims would mislead:
 
-- **M's ask (verbatim intent):** the combat tracker doesn't show player rolls
-  on the admin side — the §5.19 AC-strip took the whole roll display down,
-  not just AC. combat.html already has the full system — advantage,
-  disadvantage, bless, etc. — "it can be directly ported." Miss/Hit should be
-  explicit (it already is in combat.html's renderer).
-- **What combat.html has** (grep `feedRollWithMods`, the dice engine block
-  ~L3860, `getRS/toggleRS`): rich roll rows — spelled-out dice, kept/dropped
-  dice on adv/dis, 🙏/✦ modifier tags (bless/guidance), explicit Hit/Miss
-  verdicts, and per-roll state toggles. The forge already has the MATH
-  (`advPreview`, `d20a`, cover grading, `⇑ ADV`/`⇓ DIS` badges) — what it
-  lacks is the RENDERING and the admin-side visibility.
-- **The constraint that shapes the design:** §5.19 is M's settled ruling —
-  players never see AC/target numbers; the log carries roll+mod, adv/disadv,
-  the cover word, the verdict. So the port is per-VIEWER: the overseer sees
-  full player rolls; players keep the stripped view. That's a display fork,
-  not a protocol change — the facts already carry the numbers.
-- **Design questions to brainstorm (not decided):** where rolls render
-  (combat-log lines vs. strip vs. a roll panel); whether the forge log rows
-  adopt combat.html's row markup wholesale or a compact variant; whether
-  `getRS`-style pre-roll toggles (bless etc.) come over now or wait for the
-  sheet→actions derivation layer; how `advGrant` (§5.21) shows in the row's
-  modifier tags. Mock the log row FIRST — M approves visuals from mocks.
+- The old block said "the port is per-VIEWER." **M ruled otherwise: the view
+  is UNIFORM** — every device sees full math, no AC ever (Roll20/Foundry
+  model). No viewer fork exists in the design.
+- The old block said combat.html's renderer has explicit Hit/Miss. **It
+  doesn't** — battle.js's `✗ MISS` is a natural-1 fumble badge; the HUD never
+  knows AC. The forge is the only layer with a true verdict; the row markup
+  ports, the verdict is forge-supplied.
+- The admin-visibility gap's mechanics, for the record: `attack_resolved`
+  falls into `forge-board.js verbsFor`'s `default:` → `unitDiffs` → hp verbs
+  only. The roll payload (`roll/adv/dis/crit/mode/hitBonus/cover/hit`)
+  reaches every device and is simply never painted. The fix is the feed-row
+  write + shared renderer in the spec — not a new verb for the old cbLog.
 
 **2026-07-11 (night): M's field round 3 produced a five-item wave — merged
 and current on `main`** (the "STAGED" note that used to lead this entry went
