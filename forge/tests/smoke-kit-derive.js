@@ -83,6 +83,9 @@ const CAIM_CHAR = {
       { name: "Unarmored Defense", desc: "AC = 10 + DEX + WIS.", source: "class:Monk" },
       { name: "Martial Arts", desc: "Use Dex for unarmed strikes; bonus unarmed.", source: "class:Monk" },
       { name: "Ki", desc: "3 ki points.", source: "class:Monk" },
+      { name: "Flurry of Blows", desc: "After Attack: 2 unarmed strikes as a bonus action (1 ki).", source: "class:Monk" },
+      { name: "Patient Defense", desc: "Dodge as a bonus action (1 ki).", source: "class:Monk" },
+      { name: "Step of the Wind", desc: "Dash or Disengage as a bonus action (1 ki).", source: "class:Monk" },
       { name: "Hands of Healing", desc: "Spend 1 ki to heal 1d4+WIS.", source: "subclass:Way of Mercy" }
     ],
     spellcasting: null,
@@ -237,6 +240,16 @@ const LIADAN_CHAR = {
   // Actions tab: universals present
   ok("ves: actions tab has Dash", kit.tabs.actions.some(function (a) { return a.label === "Dash"; }));
   ok("ves: actions tab has Grapple (greyed)", kit.tabs.actions.some(function (a) { return a.label === "Grapple" && a.greyed; }));
+
+  // Class feature actions: Second Wind (bonus), Action Surge (free)
+  ok("ves: actions tab has Second Wind", kit.tabs.actions.some(function (a) { return a.label === "Second Wind"; }));
+  ok("ves: Second Wind is bonus action", kit.tabs.actions.some(function (a) { return a.label === "Second Wind" && a.bonus; }));
+  ok("ves: Second Wind costs secondWind:1", kit.tabs.actions.some(function (a) { return a.label === "Second Wind" && a.cost && a.cost.secondWind === 1; }));
+  ok("ves: actions tab has Action Surge", kit.tabs.actions.some(function (a) { return a.label === "Action Surge"; }));
+  ok("ves: Action Surge is free action", kit.tabs.actions.some(function (a) { return a.label === "Action Surge" && a.free; }));
+  ok("ves: Action Surge costs actionSurge:1", kit.tabs.actions.some(function (a) { return a.label === "Action Surge" && a.cost && a.cost.actionSurge === 1; }));
+  // Second Wind should also appear in bonus tab (filter)
+  ok("ves: bonus tab has Second Wind", kit.tabs.bonus.some(function (t) { return t.label === "Second Wind"; }));
 })();
 
 // 2. Caim: Monk 4 Tiefling — ki, Hellish Rebuke, climb, no spellcasting
@@ -261,6 +274,12 @@ const LIADAN_CHAR = {
 
   // Feats
   ok("caim: feats tab has features", kit.tabs.feats.length >= 3);
+
+  // Class feature actions: Flurry, Patient Defense, Step of the Wind, Hands of Healing
+  ok("caim: actions has Flurry of Blows", kit.tabs.actions.some(function (a) { return a.label === "Flurry of Blows"; }));
+  ok("caim: Flurry costs ki:1", kit.tabs.actions.some(function (a) { return a.label === "Flurry of Blows" && a.cost && a.cost.ki === 1; }));
+  ok("caim: actions has Patient Defense", kit.tabs.actions.some(function (a) { return a.label === "Patient Defense"; }));
+  ok("caim: actions has Hands of Healing", kit.tabs.actions.some(function (a) { return a.label === "Hands of Healing"; }));
 })();
 
 // 3. Cosmere: Warlock 2 / Sorcerer 1 — multiclass pools, Shield reaction, Hex as bonus
