@@ -2666,13 +2666,18 @@ function makeToken(u){
    have no pixel grid, so they pulse a material tint on the sprite itself. */
 /* #1 · glow COLOUR is side-based, not action-based (M's correction): a foe is
    always red, a friendly always gold. Priority: an explicit red target wins;
-   then a selected unit takes its side colour; then the ACTIVE unit, if a PC,
-   glows gold as a turn indicator (no click needed). */
+   then a selected unit takes its side colour; then the ACTIVE unit glows on its
+   turn — gold if a PC, red if a foe (so you can see which enemy is attacking),
+   the foe-red gated on visibility for the not-yet-built hidden system. */
+function foeVisible(u){ return true; }   // TODO(hidden system): a hidden foe returns false here — its turn/target glow (and eventually its token) must not render
 function glowColorFor(u){
   if(!u||!u.alive) return null;
-  if(CB.tgtKey===u.key) return GLOW_TGT;                          // explicit target → red
-  if(CB.selKey===u.key) return u.side==="pc" ? GLOW_SEL : GLOW_TGT;   // selection → side colour
-  if(CB.active && !CB.over && active()===u && u.side==="pc") return GLOW_SEL;   // whose turn → gold
+  if(CB.tgtKey===u.key) return u.side==="pc" ? GLOW_TGT : (foeVisible(u)?GLOW_TGT:null);   // explicit target → red (a hidden foe can't be lit)
+  if(CB.selKey===u.key) return u.side==="pc" ? GLOW_SEL : (foeVisible(u)?GLOW_TGT:null);   // selection → side colour
+  if(CB.active && !CB.over && active()===u){
+    if(u.side==="pc") return GLOW_SEL;                       // your turn → gold
+    if(foeVisible(u)) return GLOW_TGT;                       // enemy's turn → red (the attacker)
+  }
   return null;
 }
 function syncGlow(u){
