@@ -3530,10 +3530,17 @@ function hoverMove(e){
     var rect=renderer.domElement.getBoundingClientRect();
     ndc.x=((ev.clientX-rect.left)/rect.width)*2-1; ndc.y=-((ev.clientY-rect.top)/rect.height)*2+1;
     ray.setFromCamera(ndc,camera);
-    var hit=ray.intersectObjects(world.children,true)[0];
-    if(!hit){ clearHover(); return; }
-    var gx=Math.round(hit.point.x+F.W/2-0.5), gy=Math.round(hit.point.z+F.H/2-0.5);
-    if(gx<0||gy<0||gx>=F.W||gy>=F.H){ clearHover(); return; }
+    /* A cursor on a standee's body snaps the hover tile to THAT unit's cell —
+       the tile now predicts exactly what combatClick will resolve (3b fix). */
+    var pu=pickUnit(!!(CB.pending&&CB.pending.kind==="heal"));
+    var gx, gy;
+    if(pu){ gx=pu.c; gy=pu.r; }
+    else {
+      var hit=ray.intersectObjects(world.children,true)[0];
+      if(!hit){ clearHover(); return; }
+      gx=Math.round(hit.point.x+F.W/2-0.5); gy=Math.round(hit.point.z+F.H/2-0.5);
+      if(gx<0||gy<0||gx>=F.W||gy>=F.H){ clearHover(); return; }
+    }
     var key=gx+","+gy+(CB.pending?"|p":"");
     if(key===__hoverCell) return;
     hoverGroup.clear(); __hoverCell=key;
@@ -4248,25 +4255,23 @@ function combatClick(cx,cy){
   /* Silvery Barbs rider pick — friendly token in range grants to it; a click on
      anything else (ground / out-of-range / enemy) takes the grant for the caster. */
   if(GRANT_PICK){
-    var gHit=ray.intersectObjects(tokenGroup.children,true)[0], gPick=null;
-    if(gHit){ var gu=spriteUnit(gHit.object);
-      if(gu && grantTargets(GRANT_PICK.caster).indexOf(gu)>=0) gPick=gu; }
+    var gu=pickUnit(false), gPick=null;
+    if(gu && grantTargets(GRANT_PICK.caster).indexOf(gu)>=0) gPick=gu;
     GRANT_PICK.done(gPick); return;
   }
   /* DM release mode runs on ANY turn — the readied shot is a reaction */
   if(RELEASING){
     if(!RELEASING.alive||!RELEASING.readied){ RELEASING=null; drawHi(); renderHud(); return; }
-    var rHit=ray.intersectObjects(tokenGroup.children,true)[0];
-    if(rHit){ var ru=spriteUnit(rHit.object);
-      if(ru&&ru.side!==RELEASING.side){
-        var rA=RELEASING.readied.act, rro=reachOK(RELEASING,rA,ru);
-        if(!rro.ok){ clog("<i>"+rA.label+": "+rro.why+".</i>"); return; }
-        var p=RELEASING; RELEASING=null; p.reacted=true; p.readied=null;
-        clog("<em>"+p.name+"</em> releases the readied <b>"+rA.label+"</b> \u2014 DM calls the trigger!");
-        resolveStrike(p,Object.assign({},rA,{strikes:1}),ru,rro,
-          function(){ snapshot("Readied action"); drawHi(); drawSight(); renderHud(); maybeEnd(); });
-        return;
-      } }
+    var ru=pickUnit(false);
+    if(ru&&ru.side!==RELEASING.side){
+      var rA=RELEASING.readied.act, rro=reachOK(RELEASING,rA,ru);
+      if(!rro.ok){ clog("<i>"+rA.label+": "+rro.why+".</i>"); return; }
+      var p=RELEASING; RELEASING=null; p.reacted=true; p.readied=null;
+      clog("<em>"+p.name+"</em> releases the readied <b>"+rA.label+"</b> \u2014 DM calls the trigger!");
+      resolveStrike(p,Object.assign({},rA,{strikes:1}),ru,rro,
+        function(){ snapshot("Readied action"); drawHi(); drawSight(); renderHud(); maybeEnd(); });
+      return;
+    }
     RELEASING=null; drawHi(); renderHud(); return;    // ground / friendly click puts it back on hold
   }
   var u=active();
@@ -4277,38 +4282,34 @@ function combatClick(cx,cy){
      strip tooltip already leaks; hidden units, when they exist, will have
      no sprite to hit). Targeting a pending action still wins on my turn. */
   var myTurn = !!u && u.side==="pc" && (!sess || (window.ForgeBoard.controls(sess.me,u.unit) && __awaitingCount===0));
-  var tHit=ray.intersectObjects(tokenGroup.children,true)[0];
-  var tu=tHit?spriteUnit(tHit.object):null;
-  /* Round-3 §F: a downed ally is a legal HEAL target (M's ruling). Its
-     sprite is either gone (removeToken) or a corpse (the _ves down pose),
-     so the alive-filtered spriteUnit can't see it — with a heal pending,
-     fall through to the any-state matcher. */
-  if(!tu && tHit && myTurn && CB.pending && CB.pending.kind==="heal") tu=spriteUnitAny(tHit.object);
+  /* ── WYSIWYG targeting (field fix, 2026-07-12 table round 3b) ──────────
+     The old picker took the NEAREST sprite quad — but quads are 1.5–2 units
+     wide on 1-unit cells and THREE.Sprite raycasting ignores alphaTest, so
+     in a crowd the transparent corner of whoever sat closest to the camera
+     ate the click ("wrong target" on a clean goblin tap), and a quad
+     bleeding over a neighbouring cell caught clicks on visibly EMPTY ground.
+     New contract: the hover tile's CELL is the truth. One world raycast →
+     the hovered cell; a unit standing on it is the target (downed included
+     while a heal is pending). Only when the cell is empty does a sprite
+     candidate count, and then only via pickUnit's proximity score — the
+     click must land within the unit's own cell footprint, never a quad edge. */
+  var gHit=ray.intersectObjects(world.children,true)[0];
+  var gx=null, gy=null;
+  if(gHit){
+    gx=Math.round(gHit.point.x+F.W/2-0.5); gy=Math.round(gHit.point.z+F.H/2-0.5);
+    if(gx<0||gy<0||gx>=F.W||gy>=F.H){ gx=null; gy=null; }
+  }
+  var healPending = myTurn && CB.pending && CB.pending.kind==="heal";
+  var cellUnit = gx!=null ? (unitAt(gx,gy)||(healPending?downedUnitAt(gx,gy):null)) : null;
+  var tu = pickUnit(healPending) || cellUnit;   // column first, then the cell — same order the hover tile predicts
   if(tu && tu.alive && !(myTurn && CB.pending)){ setSel(tu.key); inspectUnit(tu); return; }   // #1: click a token → select (gold) + nameplate
   if(!myTurn) return;   // not my seat / not a PC turn / a tap of mine hasn't echoed yet
-  if(tHit){
-    if(tu&&CB.pending){ var pa=CB.pending, wantAlly=(pa.kind==="heal"||pa.kind==="buffAlly");
-      if((wantAlly&&tu.side!==u.side)||(!wantAlly&&tu.side===u.side)){ clog("<i>"+pa.label+": wrong target.</i>"); return; }
-      if(!tu.alive&&pa.kind!=="heal"){ clog("<i>"+pa.label+": they're already down.</i>"); return; }
-      var ro=reachOK(u,pa,tu); if(ro.ok) resolveOn(u,pa,tu); else clog("<i>"+pa.label+": "+ro.why+".</i>"); return; } }
-  /* Sprite-less downed ally: the heal click lands on bare ground — resolve
-     it against the cell before "open ground" cancels the pending action. */
-  if(CB.pending&&CB.pending.kind==="heal"&&!tHit){
-    var dHit=ray.intersectObjects(world.children,true)[0];
-    if(dHit){
-      var dx=Math.round(dHit.point.x+F.W/2-0.5), dy=Math.round(dHit.point.z+F.H/2-0.5);
-      var du=downedUnitAt(dx,dy);
-      if(du){
-        if(du.side!==u.side){ clog("<i>"+CB.pending.label+": wrong target.</i>"); return; }
-        var dro=reachOK(u,CB.pending,du);
-        if(dro.ok) resolveOn(u,CB.pending,du); else clog("<i>"+CB.pending.label+": "+dro.why+".</i>");
-        return;
-      }
-    }
-  }
+  if(tu&&CB.pending){ var pa=CB.pending, wantAlly=(pa.kind==="heal"||pa.kind==="buffAlly");
+    if((wantAlly&&tu.side!==u.side)||(!wantAlly&&tu.side===u.side)){ clog("<i>"+pa.label+": wrong target.</i>"); return; }
+    if(!tu.alive&&pa.kind!=="heal"){ clog("<i>"+pa.label+": they're already down.</i>"); return; }
+    var ro=reachOK(u,pa,tu); if(ro.ok) resolveOn(u,pa,tu); else clog("<i>"+pa.label+": "+ro.why+".</i>"); return; }
   if(CB.pending){ CB.pending=null; drawHi(); drawSight(); renderHud(); return; }   // open ground = put the weapon away
-  var gHit=ray.intersectObjects(world.children,true)[0]; if(!gHit){ clearSelTgt(); return; }
-  var gx=Math.round(gHit.point.x+F.W/2-0.5), gy=Math.round(gHit.point.z+F.H/2-0.5);
+  if(gx==null){ clearSelTgt(); return; }
   clearSelTgt();   // #1: a click on the field deselects (a token click reselects before this runs)
   if(CB.seen&&CB.seen[gx+","+gy]&&!unitAt(gx,gy)&&CB.st.moveLeft>0){
     /* legality/path computed exactly as today; only the mutation forks \u2014
@@ -4320,6 +4321,31 @@ function combatClick(cx,cy){
 function spriteUnit(obj){ var f=null; CB.units.forEach(function(u){ if(u.alive&&(u.sprite===obj||u.shadow===obj)) f=u; }); return f; }
 /* §F: same matcher, no alive filter — a downed _ves corpse keeps its sprite */
 function spriteUnitAny(obj){ var f=null; CB.units.forEach(function(u){ if(u.sprite===obj||u.shadow===obj) f=u; }); return f; }
+/* WYSIWYG picker (field fix, table round 3b): THREE.Sprite raycasting hits
+   the whole quad — alphaTest trims pixels, not picking — and quads are wider
+   than their cells, so nearest-quad-wins ate crowded clicks. This picker
+   ignores quads entirely: score every unit by the ray's closest horizontal
+   approach to its STANDEE COLUMN (anchor X,Z, from just under the tier to
+   head height), accept only within the unit's own cell footprint. Camera-
+   pitch-proof (a torso click at a steep angle still scores its own column),
+   and hidden foes stay unclickable (no sprite → no pick). */
+var PICK_R2 = 0.55*0.55;   // squared — just over half a cell
+function pickUnit(anyState){
+  var o=ray.ray.origin, d=ray.ray.direction;
+  var dd=d.x*d.x+d.z*d.z; if(dd<1e-9) return null;
+  var best=null, bestD=Infinity;
+  CB.units.forEach(function(un){
+    if(!anyState && !un.alive) return;
+    if(!un.sprite && !un.shadow) return;             // no visual on this device — not clickable
+    var X=wxc(un.c), Z=wzc(un.r);
+    var t=((X-o.x)*d.x+(Z-o.z)*d.z)/dd; if(t<0) return;
+    var hx=o.x+t*d.x-X, hz=o.z+t*d.z-Z, h2=hx*hx+hz*hz;
+    var y=o.y+t*d.y, base=tierY(un.c,un.r);
+    if(y<base-0.25 || y>base+2.4) return;            // outside the standee's column
+    if(h2<bestD){ bestD=h2; best=un; }
+  });
+  return (best && bestD<=PICK_R2) ? best : null;
+}
 /* tweened, hop-per-square walk — port of battle-tactics walk() re-hosted on
    the heightfield. Steps come from TG.pathTo over the same reach map the
    telegraph drew, so the token walks exactly the tiles the rules charged. */

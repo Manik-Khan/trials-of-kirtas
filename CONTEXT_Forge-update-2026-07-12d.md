@@ -1,3 +1,5 @@
+> **MERGED into CONTEXT_Forge.md (same session). Keep or delete on the next push — the master now carries everything; this file remains the detailed session record.**
+
 # CONTEXT_Forge update · 2026-07-12d session (round-3 plan v2 shipped + M's table catches: Disciple, slots, upcasting, domain spells)
 
 **Merge into CONTEXT_Forge.md. Supersedes the "next session — build order" framing in `CONTEXT_Forge-update-2026-07-12c.md`: every item in plan v2 §H (A+B+C · E · D step 1 · G · F) shipped this session in one pass (`forge-round3-fixes.zip`, uploaded). What remains is the browser eyeball (plan §I checklist) and the sequenced tail (D step 2 ruling → arc E foes → concentration arc).**
@@ -15,7 +17,7 @@
 | `forge/tests/smoke-starter-kits.js` | +4: kitFor wrap scenario (real ForgeKitDerive injected → `fallback:"starter"`, tabs present, raw kit never mutated); no-derive fallback re-pinned | 20 |
 | `forge/tests/smoke-spell-icons.js` / `smoke-feed-render.js` / `smoke-kit-derive.js` | **baseline repair** — the in-repo copies required `./module.js` from `forge/tests/` (a zip-layout artifact); paths fixed to `../` / `../../`. These three suites could not run from the repo as uploaded | — |
 
-All suites green at handover: kit-derive **341** · spell-icons 43 · feed-render 66 · starter-kits **20** · protocol 56 · replay 35 · silvery-barbs 13. (`smoke-glow-color.mjs` reads an uncommitted `topo-work.html` scratch file and errors in-repo — pre-existing, untouched.)
+All suites green at handover: kit-derive **341** · spell-icons 43 · feed-render 66 · starter-kits **20** · protocol 56 · replay 35 · silvery-barbs 13 · **pick-unit 12 (new)**. (`smoke-glow-color.mjs` reads an uncommitted `topo-work.html` scratch file and errors in-repo — pre-existing, untouched.)
 
 ## Plan-doc corrections (the fixture-shape rule, applied to the plan itself)
 
@@ -45,9 +47,19 @@ The **fact layer already worked**: `forge-replay.js` un-downs on any heal that l
 
 **The WIS 13-vs-14 question:** the committed `data/characters/liadan.json` says **WIS 14 → +2** (internally consistent; `saves.wis.bonus:2` agrees). If M's live Supabase row says 13, the repo copy is stale — the smokes pin the repo fixtures, and the fixture-shape rule then applies to the repo copy itself: re-export or re-forge, and the known answers shift with it. Her CHA is also +2, so the per-class casting ability doesn't change the heal mod either way *today*.
 
+## Table round 3b — the wrong-target / phantom-hit screenshot (same session)
+
+**M's field report:** hover tile on a visibly empty cell, goblin adjacent — clicking the goblin said "wrong target" (repeatedly, see the feed spam), clicking the empty cell resolved the attack ONTO the goblin. M asked whether the session layer could be at fault. **It isn't** — the mis-resolved attack published and echoed cleanly; the bug was the click picker, identical in the sandbox. Sessions are just where fights get crowded enough to expose it.
+
+**Mechanism (two compounding facts):** token sprites are THREE.Sprite quads **1.5–2 world units wide on 1-unit cells** (PC 2.05/Ves 2.15 tall, foe 1.75, width×aspect, centered on the unit's column), and **THREE.Sprite raycasting ignores alphaTest** — the whole invisible quad intersects. `combatClick` took `intersectObjects(...)[0]`, the *nearest quad*: in a knot, the transparent corner of whoever sat closest to the camera ate the click ("wrong target"), and a quad bleeding over the neighbouring cell caught clicks on visibly empty ground. The hover tile raycasts the *terrain*, so it truthfully showed the cell — the two pickers disagreed, which is exactly the screenshot.
+
+**Fix — WYSIWYG targeting, the hover tile is the contract:** new `pickUnit(anyState)` ignores quads entirely and scores every unit by the ray's closest horizontal approach to its **standee column** (anchor X/Z, tier to head height), accepting only hits within the unit's own cell footprint (0.55) — camera-pitch-proof (steep-angle torso clicks still score their own column), and hidden units (no sprite/shadow) stay unclickable. `combatClick` resolves `pickUnit → unit-on-the-hovered-cell → ground` (downed included while a heal pends — the §F door folds in); GRANT_PICK and RELEASING use the same picker. The **hover tile now snaps to a hovered standee's cell**, so the tile predicts the click exactly — empty-cell clicks near a quad edge cancel the pending action instead of phantom-hitting the neighbour.
+
+**Smoked:** new `forge/tests/smoke-pick-unit.js` (12) extracts the real `pickUnit` from the mock and drives M's screenshot geometry as known answers: goblin-body click in a crowd → the goblin; the empty adjacent cell → nobody; feet clicks, crowd separation, the corpse-via-heal door, the hidden-unit rule, and the over-the-head sky click.
+
 ## Next session — build order
 
-1. **Browser eyeball, plan §I + second wave:** upcast chooser on Healing Word (1st/2nd), Disciple riding the roll, domain grant section in the Spells step, re-forge Líadan.
+1. **Browser eyeball, plan §I + second wave + 3b:** crowded-fight clicks land on the hovered tile (the screenshot scenario, re-tested at the table); upcast chooser on Healing Word (1st/2nd); Disciple riding the roll; domain grant section in the Spells step; re-forge Líadan.
    Original §I list:  Healing Word paints allies green over the ink; hover glow tracks the cursor and flips red on invalid targets; local sandbox bar populated pre-session; a blocked shortbow shot names its blocker in the feed; heal a downed ally end-to-end (both local and session).
 2. **§D step 2:** M table-reads one real refusal line → rules on tree occlusion (trees cap at three-quarters / lower pine occ / as-is) → geometry smoke pins the ruling.
 3. **Arc E foes** (promotable on M's word) → **concentration arc** (mock-gated), per the standing order.

@@ -1,3 +1,5 @@
+> **MERGED into CONTEXT_Forge.md (2026-07-12 fourth session). Safe to delete on the next push. The "next session" build order here RAN — see CONTEXT_Forge-update-2026-07-12d.md.**
+
 # CONTEXT_Forge update · 2026-07-12c session (bites C1+A shipped → table round 3 → headless repro)
 
 **Merge into CONTEXT_Forge.md. Supersedes the "next session starts with fix plan §F bite 1" framing in `CONTEXT_Forge-update-2026-07-12b.md` — bites C1 and A shipped this session (`forge-bites-c1-a.zip`, uploaded), a third table round produced six findings, and a headless repro against the live character JSONs found the two production facts that invalidate part of bite A. The read-first doc for the next session is `2026-07-12-forge-round3-fix-plan-v2.md`.**

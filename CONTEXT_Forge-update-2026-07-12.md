@@ -1,3 +1,5 @@
+> **MERGED into CONTEXT_Forge.md (2026-07-12 fourth session). Safe to delete on the next push.**
+
 # CONTEXT_Forge update · 2026-07-12 session (Bite 2 build + review round 1)
 
 **Merge this into CONTEXT_Forge.md. It supersedes any "bite 2 pending" framing — bite 2's core shipped this session and survived one visual review round with two fixes.**

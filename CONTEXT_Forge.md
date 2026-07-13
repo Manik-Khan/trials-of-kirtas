@@ -1,4 +1,4 @@
-# CONTEXT — Battle Forge — updated 2026-07-12, second session (BG3 HUD design APPROVED — spec written, build is next session. The glow/SB wave that the last header called "STAGED" is CONFIRMED MERGED on `main`, verified by grep this session — §0.6 caught its own example again)
+# CONTEXT — Battle Forge — updated 2026-07-12, FOURTH session (round-3 fix plan v2 SHIPPED in full + M's table catches: Disciple of Life, legacy-ledger slots, spell UPCASTING, domain spells in Soul Shards, and the WYSIWYG click picker. The BG3 HUD the last header called "build is next session" was BUILT across sessions 2–4 — kit-derive/feed-render/hud are live modules. Session record: `CONTEXT_Forge-update-2026-07-12d.md`; the 12/12c update docs are merged below and can be deleted)
 
 > This doc exists because the same failure kept happening: a session would read
 > *part* of the material, conclude a feature "was never there," and rebuild
@@ -88,11 +88,14 @@ greyed out in the select and must never be silently dropped.
 | `forge/tests/smoke-forge-board.js` | known-answer: scripted logs → board-verb sequences (move/attack/turn/prompt/timeout/restore/edit/add_unit/claim-gate) + `deadFoeSkip` decision cases | canonical |
 | `forge/tests/smoke-starter-kits.js` | starter action bar from live sheet stats, generic-kit fallback, CHAR alias | canonical |
 | `forge/tests/smoke-cover-contest.js` | known-answer: the Cover Contest end-to-end over MemoryBus — ruling/timeout/total flows, replay determinism, culprit geometry, and the overseer-only gate twin (a player forging `prompt_answered{unit:"__overseer"}` is rejected) | canonical |
-| `forge/tests/*` | smokes. 335 green (2026-07-11 night): engine 14 · bridge 16 · geometry 26 · los-cover 37 · placement 19 · flora 22 · protocol 56 · replay 35 · tiers-rebase 32 · forge-board 26 · starter-kits 16 · bus-reconnect 12 · cover-contest 24 | canonical |
+| `forge/tests/*` | smokes. HUD-wave battery, all green 2026-07-12 night: **kit-derive 341** (incl. the four live `data/characters/*.json` as first-class fixtures, loaded from disk, driven through the real `assembleActions`) · spell-icons 43 · feed-render 66 · **starter-kits 20** · protocol 56 · replay 35 · silvery-barbs 13 · **pick-unit 12**. Older battery unchanged: engine 14 · bridge 16 · geometry 26 · los-cover 37 · placement 19 · flora 22 · tiers-rebase 32 · forge-board 26 · bus-reconnect 12 · cover-contest 24. (`smoke-glow-color.mjs` reads an uncommitted `topo-work.html` scratch file and errors in-repo — pre-existing, known.) | canonical |
 | `topography-test-mock.html` | **THE surface.** Heightfield + all the geometry + combat loop | active |
 | `battle-tactics-geo-mock.html` | flat box-tile combat mock. **The source of the combat system and the feel layer.** NOT superseded — it is the port source | reference |
 | `battle-forge-mock.html` | *"the dream one."* generator → tactics diorama. **Source of the pixel sprites + portraits** | reference |
 | `battle-forge-biome-mock.html` | **source of the biome art direction.** `SKINS` table: `wallH`, fog, light rigs, particles, flavour scatter | reference |
+| `forge/forge-kit-derive.js` | **sheet→actions derivation** (the BG3 HUD's engine): `derive(charData)` → kit with `tabs` (attacks/spells/items/feats/bonus/actions), flat pipeline actions, res pools, reactions. `spellGroupsFrom` reads BOTH spell shapes (forged `spellcasting.groups` + legacy level-keyed `structural.spells` with inconsistent keys); SPELL_COMBAT projection table (~70 spells, label decides the kind); dedupe (derived wins, sheet folds to `_folded`); Disciple of Life; `upcastDmg` + `per` scaling; legacy `classFeatures` slot/resource ledger fallback; 5etools item-type codes | canonical |
+| `forge/forge-feed-render.js` | Chat Feed renderer (headless): roll rows, full math, verdict badges, NO AC EVER | canonical |
+| `forge/forge-hud.js` | the BG3 bar: tab shelf, icon tiles, drawer (`_renderSpellEntries`), bonus-corner economy marks; dispatches `forge:selectAction` | canonical |
 | `forge/forge-protocol.js` | event vocabulary: 17 kinds, envelope validation. No `turn_started` — derived | canonical |
 | `forge/forge-replay.js` | reducer: log → state. Facts only, never rules. Override pre-scan, restore branch, GOD-MODE edit. Since 2026-07-11: per-turn action economy derived from the log (`turnEconomy()`, facts carry `slot`; `undo_of` refunds a retracted move) | canonical |
 | `forge/forge-bus.js` | transport: MemoryBus (headless, mirrors the RLS identity+kind gate) + SupabaseBus | canonical |
@@ -423,6 +426,46 @@ real placement. **These are decisions, not hypotheses.**
    is the single plug point — a hidden foe stops glowing without touching the
    colour logic; making its *token* not render is the rest of that future bite.
    Deliberately not stubbed further (the system's shape isn't designed yet).
+23. ~~Round 3: heals painted enemies, "wrong target" spam, zero spell tiles in
+   production.~~ **Fixed (plan v2 §A/B/C, 2026-07-12d).** Two production facts the
+   fixtures never modeled: `structural.spellcasting` is None on every live sheet
+   (spells sit under level-keyed `structural.spells` with INCONSISTENT keys —
+   `'1'/'2'/'cantrip'` vs `'level2'/'cantrips'`), and the sheet's `damage-only`
+   type is the action editor's "roll dice, no attack roll" bucket, NOT "save
+   spell" — live sheets file Healing Word / Cure Wounds / Hand of Healing there,
+   and bite A's blanket re-kind made heals target enemies. Now: `spellGroupsFrom`
+   normalizes both shapes; the SPELL_COMBAT **label** decides the kind (row type
+   only picks which numeric fields to trust); no projection → greyed, never a
+   wrong-kind live wire; greyed tiles never reach flatActions (the invariant,
+   asserted on LIVE kits). Second consumer found by code read: `knownSpellList`'s
+   legacy regex missed bare digit keys — also fixed.
+24. ~~Every leveled spell tile was uncastable — `kit.res` was `{}`.~~ **Fixed
+   (2026-07-12d second wave).** Live slots live in the legacy
+   `structural.classFeatures` ledger (`spellSlots {"1":{max}}`, `pactSlots`,
+   named resources + `…Die` badges), which `buildResPools` never read. Fallback
+   added; pools spend on the same `pipState.spell_N` keys the sheet orbs use.
+   Found while building M's upcasting ask — which also shipped: `upcastDmg` +
+   `per` scaling in SPELL_COMBAT, slot-chooser strip in the mock, effective
+   action carries cost/dmg/Disciple/"(2nd)" label through the untouched
+   pending/spend/publish doors. Auto-promotes (with a feed note) when the base
+   slot is dry. v2 debts: rays/darts/extra-targets/Aid, Ready-at-level.
+25. ~~Crowded fights: clicking a goblin said "wrong target"; clicking the empty
+   cell beside him hit him.~~ **Fixed (table round 3b, M's screenshot).** NOT the
+   session layer — the mis-resolved attack published cleanly. Token sprites are
+   quads 1.5–2 units wide on 1-unit cells and **THREE.Sprite raycasting ignores
+   alphaTest**; `combatClick` took intersection `[0]`, so the nearest quad's
+   transparent corner ate clicks. Now `pickUnit`: ray-vs-**standee-column**
+   closest approach (quads ignored entirely), cell-footprint threshold,
+   camera-pitch-proof, hidden units (no sprite) unclickable. The hover tile
+   snaps to a hovered standee's cell — **the tile predicts the click exactly**
+   (the WYSIWYG contract). `smoke-pick-unit.js` (12) drives M's screenshot
+   geometry as known answers.
+26. **Shortbow LoS refusals in the open — instrumented, ruling pending (plan v2
+   §D).** `explainBlock` now narrates TO THE FEED — named blocker from `F.props`
+   at the blocking cell, terrain+occluder feet, corner count — once per
+   attacker/target/geometry (`__losExplained`, reset per fight). M table-reads
+   one real refusal line, THEN rules on tree occlusion (¾ cap / lower pine occ /
+   as-is). No blind geometry fix — §4 discipline.
 
 ---
 
@@ -492,11 +535,74 @@ real placement. **These are decisions, not hypotheses.**
   (`git push` = Netlify live deploy). Claude commits only when M explicitly asks,
   and **never pushes**. `.gitignore` hides `.claude/` — never `git add` around it.
 - Deploy URL is `trials-of-kirtas.netlify.app`.
+- **The fixture-shape rule (pinned 2026-07-12, second offense — and it cuts both
+  ways):** any derive-layer smoke that models `structural` must load the REAL
+  character JSONs from `data/characters/` alongside synthetic fixtures —
+  fixtures are diffed against live data, never against the intended contract.
+  The rule then caught the PLAN doc's own known answers (Líadan DC 13 → the
+  JSON says 12; +3 heal mod → +2): numbers in a plan are hypotheses until
+  diffed against the JSONs. Caveat: the repo JSONs can themselves lag the live
+  Supabase rows (M's WIS 13-vs-14 question) — the smokes pin the repo copies.
+- **Headless repro before theory.** The round-3 screenshot diagnosis was wrong
+  twice; a 40-line node harness against live data was right once and decisively.
+  When live behavior contradicts green smokes, reproduce with production data
+  before proposing fixes.
+- **When a shape bug is found, grep for its second consumer.** Fact 1's repro
+  scoped it to `spellTiles`; only the code read found `knownSpellList` quietly
+  eating the same inconsistent keys.
+- **The repo-as-uploaded must run its own smokes.** Three suites landed with
+  `./module.js` require paths that never resolved from `forge/tests/` (a zip-
+  layout artifact) and had never been executed in place. Baseline before
+  surgery, always.
 
 ---
 
 ## §8 · SUGGESTED NEXT SESSION
 
+**2026-07-12, sessions 2–4 — THE HUD WAVE, SHIPPED.** The spec below RAN: bites
+1+2 built the three headless modules and wired them; the table's round 3
+falsified two fixture assumptions (§5.23); plan v2
+(`2026-07-12-forge-round3-fix-plan-v2.md`, status BUILT) shipped in full in one
+pass — A+B+C surgery on live-shape derivation, E quick wins (sandbox derives
+before placing, `wrapStarterKit`, tint `depthTest:false`, the **FFT hover
+tile**), D step 1 LoS feed instrumentation, G items diagnosis (correct-empty;
+5etools codes mapped), F heal-the-downed (M's ruling: up at healed HP,
+unconscious cleared — replay already had it, the UI now reaches it, corpse-pose
+revive included). Then M's review catches, same day: **Disciple of Life** on
+derived heals, the **legacy-ledger slots** hole (§5.24), **spell upcasting v1**
+(slot chooser, effective actions, "(2nd)" on the published fact), **domain
+spells in Soul Shards** (subclass `additionalSpells.prepared` gated by CLASS
+level, teal always-prepared section, greyed in pick pools, emits
+`origin:'subclass'` with THAT class's ability — M re-forges Líadan when ready;
+her current Bless/Cure Wounds are hand-entered and untagged), and the **WYSIWYG
+picker** (§5.25). Session record with every ruling and number:
+`CONTEXT_Forge-update-2026-07-12d.md`.
+
+**NEXT, in order:**
+1. **Browser eyeball** — crowded-fight clicks land on the hovered tile (M's
+   screenshot scenario, re-tested at the table); upcast chooser on Healing Word
+   (1st ·4 / 2nd ·2), Disciple riding the roll; local sandbox bar populated
+   pre-session; a blocked shortbow shot names its blocker in the feed; heal a
+   downed ally end-to-end (sandbox AND session); domain grant section in the
+   Spells step; **re-forge Líadan**.
+2. **§D step 2** — M reads one real LoS refusal line → rules on tree occlusion
+   → geometry smoke pins the ruling (§5.26).
+3. **Ratify or flip the dedupe ruling:** derived-representation-wins also folds
+   the greyed "use from the Attacks tab" BB/GFB pointer tiles into the real
+   attack rows, so the Spells tab no longer lists weapon cantrips. One-rule
+   flip in `_dedupeScore` if M wants the pointers back.
+4. Then the standing order: **arc E foes** (promotable on M's word) →
+   **concentration arc** (mock-gated).
+
+Carried by name: Supabase feed insert (top since bite 2) · upcasting v2
+(rays/darts/targets/Aid; Ready-at-level) · universal-action fact publishing ·
+appearance prefs §6.5 · manual resource adjust · gear-manager picker migration ·
+Resources tab read-only v1 · spell-icon glyphs pending M's curation ·
+picker search + glyph growth.
+
+---
+
+**~~2026-07-12 (second session)~~ — BUILT, see above. Kept for the shape:**
 **2026-07-12 (second session): the items-3+5 brainstorm ran and grew, with M's
 approval at every widening, into the FULL BG3 HUD PASS — design approved,
 spec written: `2026-07-12-forge-bg3-hud-design.md`. Next session = M reviews
