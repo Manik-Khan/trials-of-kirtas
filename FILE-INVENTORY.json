@@ -1,0 +1,46 @@
+[
+  {
+    "path": "ART-PREVIEW.png",
+    "bytes": 445660
+  },
+  {
+    "path": "UPLOAD-MANIFEST.md",
+    "bytes": 913
+  },
+  {
+    "path": "PATCH-NOTES.md",
+    "bytes": 1195
+  },
+  {
+    "path": "forge/topography-test-mock.html",
+    "bytes": 553274
+  },
+  {
+    "path": "forge/assets/topography-art/horizon-grass.png",
+    "bytes": 69328
+  },
+  {
+    "path": "forge/assets/topography-art/horizon-druidic.png",
+    "bytes": 63893
+  },
+  {
+    "path": "forge/assets/topography-art/horizon-tundra.png",
+    "bytes": 70583
+  },
+  {
+    "path": "forge/assets/topography-art/horizon-swamp.png",
+    "bytes": 68725
+  },
+  {
+    "path": "forge/assets/topography-art/horizon-temple.png",
+    "bytes": 53825
+  },
+  {
+    "path": "forge/assets/topography-art/horizon-cavern.png",
+    "bytes": 67306
+  },
+  {
+    "path": "forge/assets/topography-art/biome-decals.png",
+    "bytes": 106509
+  }
+]
