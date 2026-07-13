@@ -1,0 +1,10 @@
+956de6d6394cbc6b3446b79795b7fd571942ae9b07c8b66ade05778124fa2c69  ./README_APPLY.md
+6c81ad40046042c749e308f5feb1baa3764a949599e92bdafc330261df3a68c4  ./UPLOAD_MANIFEST.md
+7b3d09b6da187124dcc402ad3b40aa70f8a76c329fe1ff216d1db00fac4d60b2  ./VALIDATION.md
+2c2443d643ef6d4e18d29968879df0e445442526a3145528c1dde26a8e468a8c  ./forge/PHASE2_GENERATOR_FOUNDATION.md
+ae3b8563af02a7273df17530fec4f9343a123e571c4dfb874b19184e37b31c90  ./forge/camera-discovery-mock.html
+1438d40d84e49f6baddfd6849ccc8780636db1a867710c9d9d072d28c176d5f9  ./forge/forge-generator-foundation.js
+6e56cd7658922b92aab91e15079991314690861c99daba71fd4171c1500a4818  ./forge/tests/smoke-generator-foundation.js
+eeaf666338b5f979d82c4e0339011a07ea31595a886f3d7c787d442dc56f6f51  ./tools/apply-forge-phase15-phase2-foundation.js
+0edbe2697f7746f0ba64df27d7a6a4aeb43ca74b99e58da27cceb8923617cfe9  ./tools/forge-phase15-phase2-browser-patcher.html
+b79cb36d4700356a4c78858fbc27f9ce618a883ca2b929764e5ad6baa3030f92  ./tools/test-apply-forge-phase15-phase2-foundation.js
