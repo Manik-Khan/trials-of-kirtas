@@ -11,9 +11,10 @@
 })(typeof self !== "undefined" ? self : this, function () {
   "use strict";
 
-  var VERSION = "1.0.0";
+  var VERSION = "1.1.0";
   var STORAGE_KEY = "tok-forge-token-art-v1";
   var FIVE_TOOLS_TOKEN_ROOT = "https://5e.tools/img/bestiary/tokens";
+  var TOKEN_PROXY_ROOT = "/.netlify/functions/forge-token-art";
 
   function text(v) { return v == null ? "" : String(v).trim(); }
   function slug(v) {
@@ -42,7 +43,7 @@
   function kindIdentity(unit) {
     unit = unit || {};
     if (unit.side === "pc") return "pc:" + slug(unit.key || unit.sheet_ref || unit.unit || unit.name);
-    var stat = unit.statblock || {};
+    var stat = unit.statblock || unit.bestiary || {};
     return "foe:" + slug(stat.source || unit.source || "custom") + ":" + slug(stat.name || unit.name || unit.key || unit.unit);
   }
   function overrideKey(unit, scope) {
@@ -119,12 +120,22 @@
     }
     return null;
   }
+  function monsterIdentity(stat, unit) {
+    stat = stat || (unit && unit.bestiary) || {};
+    var bestiary = (unit && unit.bestiary) || {};
+    var source = text(stat.source || bestiary.source || (unit && unit.source));
+    var name = text(stat.name || bestiary.name || (unit && unit.name));
+    return source && name ? { source: source, name: name } : null;
+  }
+  function fiveToolsDirectUrl(stat, unit) {
+    var id = monsterIdentity(stat, unit);
+    if (!id) return null;
+    return FIVE_TOOLS_TOKEN_ROOT + "/" + encodeURIComponent(id.source) + "/" + encodeURIComponent(id.name) + ".webp";
+  }
   function fiveToolsTokenUrl(stat, unit) {
-    stat = stat || {};
-    var source = text(stat.source || (unit && unit.source));
-    var name = text(stat.name || (unit && unit.name));
-    if (!source || !name) return null;
-    return FIVE_TOOLS_TOKEN_ROOT + "/" + encodeURIComponent(source) + "/" + encodeURIComponent(name) + ".webp";
+    var id = monsterIdentity(stat, unit);
+    if (!id) return null;
+    return TOKEN_PROXY_ROOT + "?source=" + encodeURIComponent(id.source) + "&name=" + encodeURIComponent(id.name);
   }
   function resolve(unit, options) {
     unit = unit || {}; options = options || {};
@@ -139,11 +150,11 @@
       var portrait = explicitUrl(unit.portrait || portraits[unit.key] || portraits[unit.sheet_ref] || portraits[unit.unit]);
       if (portrait) return { url: portrait, source: "pc-portrait", fallback: false };
     } else {
-      var stat = unit.statblock || {};
+      var stat = unit.statblock || unit.bestiary || {};
       var explicit = monsterExplicit(stat);
       if (explicit) return { url: explicit, source: "statblock-art", fallback: false };
       var auto = fiveToolsTokenUrl(stat, unit);
-      if (auto) return { url: auto, source: "5etools-token", fallback: false };
+      if (auto) return { url: auto, fallbackUrl: fiveToolsDirectUrl(stat, unit), source: "5etools-token", fallback: false };
     }
     return { url: null, source: "initials", initials: initials(unit.name || unit.key || unit.unit), fallback: true };
   }
@@ -152,6 +163,7 @@
     VERSION: VERSION,
     STORAGE_KEY: STORAGE_KEY,
     FIVE_TOOLS_TOKEN_ROOT: FIVE_TOOLS_TOKEN_ROOT,
+    TOKEN_PROXY_ROOT: TOKEN_PROXY_ROOT,
     initials: initials,
     safeUrl: safeUrl,
     unitId: unitId,
@@ -164,6 +176,8 @@
     setOverride: setOverride,
     clearOverride: clearOverride,
     clearAllOverrides: clearAllOverrides,
+    monsterIdentity: monsterIdentity,
+    fiveToolsDirectUrl: fiveToolsDirectUrl,
     fiveToolsTokenUrl: fiveToolsTokenUrl,
     resolve: resolve
   });

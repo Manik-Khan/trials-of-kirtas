@@ -24,7 +24,7 @@
 <script src="forge-dungeon.js?v=fb1"></script>
 <script src="map-bridge.js?v=fb1"></script>
 <script src="forge-generator-foundation.js?v=g2f2"></script>
-<script src="forge-unit-art.js?v=ua1"></script>
+<script src="forge-unit-art.js?v=ua2"></script>
 <script src="forge-engine.js?v=fb1"></script>
 <script src="forge-protocol.js?v=fb1"></script>
 <script src="forge-replay.js?v=fb6"></script>
@@ -37,6 +37,7 @@
 <script src="forge-kit-derive.js?v=b2"></script>
 <script src="forge-feed-render.js?v=b2"></script>
 <script src="forge-hud.js?v=b2"></script>
+<script src="forge-table-correctness.js?v=fd1"></script>
 <script src="../item-icons.js?v=b3"></script>
 <script src="../spell-icons.js?v=b3"></script>
 <script src="../icon-picker.js?v=b3"></script>
@@ -494,6 +495,36 @@ global.TacticsGeo = API;
   body.combat-mode:not(.forge-peek) .masthead,body.combat-mode:not(.forge-peek) .forgebar{transform:translateY(-12px)}
   body.combat-mode .vignette{background:radial-gradient(ellipse at center,transparent 50%,rgba(20,14,8,.30) 100%)}
   @media (max-width:660px){#sceneModeToggle{left:12px;top:12px}}
+  /* Phase 1.5d: Forge is now a compact local-view menu. Authority never
+     changes here — Staff/Player View only masks privileged presentation. */
+  #sceneModeMenuWrap{position:fixed;left:20px;top:18px;z-index:130;display:none;pointer-events:auto}
+  body.combat-mode #sceneModeMenuWrap{display:block}
+  #sceneModeMenuWrap #sceneModeToggle{position:static;display:flex}
+  #sceneModeMenu{position:absolute;left:0;top:calc(100% + 6px);width:218px;padding:6px;background:rgba(20,16,11,.96);
+    border:1px solid rgba(184,134,58,.72);box-shadow:0 16px 34px rgba(0,0,0,.42);backdrop-filter:blur(10px)}
+  #sceneModeMenu[hidden]{display:none}
+  .sceneMenuBtn{width:100%;display:flex;justify-content:space-between;gap:10px;text-align:left;font-family:var(--f-util);
+    text-transform:uppercase;letter-spacing:1.1px;font-size:10px;color:#e8ddc4;background:transparent;border:1px solid transparent;padding:9px 10px;cursor:pointer}
+  .sceneMenuBtn:hover{background:rgba(184,134,58,.12);border-color:rgba(184,134,58,.38)}
+  .sceneMenuBtn b{color:#d6ad62;font-weight:600}
+  .sceneMenuNote{padding:6px 10px 4px;font:italic 11px/1.35 var(--f-body);color:#a99f8d;border-top:1px solid rgba(184,134,58,.2)}
+  @media (max-width:660px){#sceneModeMenuWrap{left:12px;top:12px}}
+  /* Reinforcement picker owns the viewport while open; the fixed BG3 HUD
+     can no longer cover its footer. */
+  body.forge-modal-open #combatHud{z-index:180}
+  body.forge-modal-open #fgBar,body.forge-modal-open #fgFeed{pointer-events:none;filter:brightness(.55)}
+  #cbAddFoeModal{z-index:190;padding:clamp(10px,3vh,28px)}
+  #cbAddFoeModal .cbInitLobbyCard{width:min(520px,94vw);height:min(760px,calc(100dvh - 24px));max-height:calc(100dvh - 24px);
+    display:flex;flex-direction:column;overflow:hidden}
+  #cbAddFoeModal #afBookResults,#cbAddFoeModal #afShelf{max-height:none;min-height:42px;overflow:auto;overscroll-behavior:contain}
+  #cbAddFoeModal #afBookResults{flex:1 1 48%}
+  #cbAddFoeModal #afShelf{flex:1 1 28%}
+  #cbAddFoeModal #afPicked{flex:0 0 auto}
+  #cbAddFoeModal .cbReactBtns{position:sticky;bottom:0;flex:0 0 auto;margin-top:10px;padding-top:10px;background:linear-gradient(180deg,rgba(229,221,203,0),var(--tk-panel-2) 28%)}
+  /* Player presentation: privileged tools are absent, not merely disabled. */
+  body.forge-player-view #cbOverseer{display:none!important}
+  body.forge-player-view.forge-active-foe #fgBar{display:none!important}
+
   @media (max-width:660px){.panel{width:calc(100% - 40px)}.attrib{display:none}.masthead .dn{font-size:12px}}
   /* Task 11: session lifecycle — Open the table / Save for later / staged list */
   .fbStagedRow{display:flex;align-items:center;gap:6px;margin-bottom:6px}
@@ -790,7 +821,14 @@ global.TacticsGeo = API;
     <button id="orbitL" title="Orbit left">‹</button>
     <button id="orbitR" title="Orbit right">›</button>
   </div>
-  <button id="sceneModeToggle" type="button" title="Show or hide Forge controls">⚒ <span>Forge</span></button>
+  <div id="sceneModeMenuWrap">
+    <button id="sceneModeToggle" type="button" title="Forge and view options" aria-haspopup="true" aria-expanded="false">⚒ <span>Forge</span> ▾</button>
+    <div id="sceneModeMenu" hidden>
+      <button class="sceneMenuBtn" id="sceneForgeControls" type="button"><span>Forge controls</span><b>hidden</b></button>
+      <button class="sceneMenuBtn" id="sceneViewerMode" type="button" hidden><span>Presentation</span><b>Staff View</b></button>
+      <div class="sceneMenuNote" id="sceneViewerNote">Player View hides DM tools and enemy internals locally.</div>
+    </div>
+  </div>
   <div class="panel">
     <div class="eyebrow">Height source</div>
     <div class="chips" id="chips"></div>
@@ -2417,11 +2455,14 @@ function makeTopToken(u){
   ring.userData.unit=u;u.topRing=ring;tokenGroup.add(ring);
   const resolved=unitArtResolution(u);u._tokenArtResolved=resolved;
   if(resolved.url){
-    new THREE.TextureLoader().load(resolved.url,function(tex){
+    const loadArt=function(url,onFail){new THREE.TextureLoader().load(url,function(tex){
       if(u.topToken!==disc){tex.dispose();return;}
-      cropTokenTexture(tex);const old=disc.material.map;disc.material.map=tex;disc.material.needsUpdate=true;if(old)old.dispose();
-    },undefined,function(){
-      if(u.topToken===disc){u._tokenArtResolved={url:null,source:'initials-fallback',fallback:true};disc.material.map=fallback;disc.material.needsUpdate=true;}
+      cropTokenTexture(tex);const old=disc.material.map;disc.material.map=tex;disc.material.needsUpdate=true;if(old&&old!==tex)old.dispose();
+    },undefined,onFail);};
+    loadArt(resolved.url,function(){
+      if(resolved.fallbackUrl&&resolved.fallbackUrl!==resolved.url){
+        loadArt(resolved.fallbackUrl,function(){if(u.topToken===disc){u._tokenArtResolved={url:null,source:'initials-fallback',fallback:true};disc.material.map=fallback;disc.material.needsUpdate=true;}});
+      } else if(u.topToken===disc){u._tokenArtResolved={url:null,source:'initials-fallback',fallback:true};disc.material.map=fallback;disc.material.needsUpdate=true;}
     });
   }
   syncUnitVisual(u);
@@ -3400,7 +3441,7 @@ function buildUnit(kit, side, opts){
     c: opts.c, r: opts.r, hp: opts.hp, hpMax: opts.hpMax,
     ac: kit && kit.ac, speed: (kit && kit.speed) || 30, initMod: (kit && kit.init) || 0,
     climb: !!(kit && kit.climb), res: JSON.parse(JSON.stringify((kit && kit.res) || {})),
-    reacted: false, alive: opts.alive !== false, tokenArt: opts.tokenArt || null };
+    reacted: false, alive: opts.alive !== false, tokenArt: opts.tokenArt || null, bestiary: opts.bestiary || null };
   if (isPc) { u.fly = !!(kit && kit.fly); u.actions = (kit && kit.actions) || []; u.react = (kit && kit.react) || null; u.badge = opts.badge || null; }
   else { u.save = kit && kit.save; u.atk = kit && kit.atk; }
   return u;
@@ -3598,7 +3639,8 @@ function unitFromRosterRow(row, stateUnit){
   var u = buildUnit(kit, isPc ? "pc" : "foe", { id: row.unit, key: isPc ? (row.sheet_ref || row.unit) : row.unit,
     unit: row.unit, name: row.name || (kit && kit.name) || row.unit,
     c: pos.c, r: pos.r, hp: hp, hpMax: hpMax, alive: alive, badge: badge,
-    tokenArt: (stateUnit&&stateUnit.tokenArt)||row.tokenArt||row.token_url||null });
+    tokenArt: (stateUnit&&stateUnit.tokenArt)||row.tokenArt||row.token_url||null,
+    bestiary: row.bestiary || (row.statblock&&{name:row.statblock.name||row.name,source:row.statblock.source}) || null });
   // TODO(bite 2): full foe action HUD — u.mActions/u.statblock ride along for
   // the ★ save-back and future action-list rendering; only u.atk drives play.
   if (!isPc) { u.mActions = kit && kit.mActions; u.statblock = row.statblock || null; }
@@ -4732,17 +4774,23 @@ function resolveStrike(u,a,t,ro,done){
   var hs={ roll:roll, acBonus:cover, crit:roll===20, hit:false };
   hs.hit=hs.crit||(roll!==1 && roll+a.hit>=t.ac+cover);
   var tag = adv?" adv"+(av.why.length?" ("+av.why.join(", ")+")":"") : dis?" disadv" : "";
-  clog(u.name+" \u2192 "+t.name+": "+a.label+" ("+roll+"+"+a.hit+(cover?" \u00b7 cover":"")+tag+")"+(hs.hit?"":" \u2014 miss"));   // #3: the defender's AC is theirs — the log carries roll+mod and the verdict, never the target number
-  if(!hs.hit){ floatAt(t,"miss","miss"); done(); return; }
+  clog(u.name+" \u2192 "+t.name+": "+a.label+" ("+roll+"+"+a.hit+(cover?" \u00b7 cover":"")+tag+")"+(hs.hit?"":" \u2014 miss"),false);   // parchment narration only; structured row owns the BG3 feed
+  if(!hs.hit){ floatAt(t,"miss","miss"); if(window.ForgeTableCorrectness)window.ForgeTableCorrectness.pushFact({actor:u.unit,target:t.unit,mode:a.label,roll:roll,hitBonus:a.hit,hit:false,crit:false,adv:adv,dis:dis,cover:cover,coverName:ro.coverName||null}); done(); return; }
+  var feedResolved=false;
   pipelineHit(u,a,hs,t, function applyDmg(){
     var dmg=rollDmg(a.dmg)+(hs.crit?rollDmg(a.dmg)-parseDmg(a.dmg).bonus:0);
     if(u.raging&&(a.rng||1)<=1) dmg+=2; if(CB.hexed===t.id) dmg+=d(6);
     t.hp-=dmg; var line=(hs.crit?"<b>CRIT</b> ":"")+t.name+" takes "+dmg+" ("+Math.max(0,t.hp)+"/"+t.hpMax+")";
     flashHit(t); shake(hs.crit?0.34:0.16);
     floatAt(t,(hs.crit?"\u2736 ":"")+dmg,hs.crit?"crit":"dmg");
-    if(t.hp<=0){ floatAt(t,"DOWN","down"); t.alive=false; removeToken(t); line+=" \u2014 <b>down</b>"; } clog(line);
+    if(t.hp<=0){ floatAt(t,"DOWN","down"); t.alive=false; removeToken(t); line+=" \u2014 <b>down</b>"; } clog(line,false);
+    if(window.ForgeTableCorrectness)window.ForgeTableCorrectness.pushFact({actor:u.unit,target:t.unit,mode:a.label,roll:hs.roll,hitBonus:a.hit,hit:true,crit:hs.crit,dmg:dmg,adv:adv,dis:dis,cover:cover,coverName:ro.coverName||null,dropped:hs.roll!==roll?roll:null,mods:hs.roll!==roll?[{k:"silvery_barbs"}]:[]});
+    feedResolved=true;
     if(a.rider==="boom" && t.alive) t.boomMark={by:u.id};
-  }, function(){ done(); });
+  }, function(){
+    if(!feedResolved&&window.ForgeTableCorrectness)window.ForgeTableCorrectness.pushFact({actor:u.unit,target:t.unit,mode:a.label,roll:hs.roll,hitBonus:a.hit,hit:false,crit:false,adv:adv,dis:dis,cover:cover,coverName:ro.coverName||null,dropped:hs.roll!==roll?roll:null,mods:hs.roll!==roll?[{k:"silvery_barbs"}]:[]});
+    done();
+  });
 }
 function doAttack(u,a,t,after){
   var ro=reachOK(u,a,t); if(!ro.ok){ clog(u.name+" \u2014 "+ro.why+"."); after(false); return; }
@@ -4755,7 +4803,8 @@ function doSave(u,a,t){ var ro=reachOK(u,a,t); if(!ro.ok){ clog(u.name+" \u2014 
   if(fail){ var dmg=rollDmg(a.dmg); t.hp-=dmg; line+="fail "+dmg; if(a.rider==="vm"){ t.disadv=true; line+=" + disadvantage"; }
     flashHit(t); shake(0.14); floatAt(t,String(dmg),"dmg");
     if(t.hp<=0){ floatAt(t,"DOWN","down"); t.alive=false; removeToken(t); line+=" \u2014 <b>down</b>"; } }
-  else { line+="save"; floatAt(t,"save","miss"); } clog(line); }
+  else { line+="save"; floatAt(t,"save","miss"); } clog(line,false);
+  if(window.ForgeTableCorrectness)window.ForgeTableCorrectness.pushFact({kind:"save",actor:u.unit,target:t.unit,mode:a.label,saveAbility:a.saveAbility,saveRoll:sv,dc:a.dc,saved:!fail,hit:fail,dmg:fail?dmg:0}); }
 function doHeal(u,a,t){ var ro=reachOK(u,a,t); if(!ro.ok){ clog(u.name+" \u2014 "+ro.why+"."); return; }
   var amt=rollDmg(a.dmg)+(a.disciple||0);
   if(!t.alive) t.hp=Math.max(0,t.hp);   /* \u00a7F: the sandbox lets hp go negative on the way down; the heal counts from 0 */
@@ -4766,18 +4815,19 @@ function doHeal(u,a,t){ var ro=reachOK(u,a,t); if(!ro.ok){ clog(u.name+" \u2014 
     clog(u.name+" \u2192 "+t.name+": "+a.label+" +"+(t.hp-was)+" ("+t.hp+"/"+t.hpMax+") \u2014 <b>"+escapeHtml(t.name)+" is back on their feet.</b>");
     return; }
   floatAt(t,"+"+(t.hp-was),"heal");
-  clog(u.name+" \u2192 "+t.name+": "+a.label+" +"+(t.hp-was)+" ("+t.hp+"/"+t.hpMax+")"); }
+  clog(u.name+" \u2192 "+t.name+": "+a.label+" +"+(t.hp-was)+" ("+t.hp+"/"+t.hpMax+")",false);
+  if(window.ForgeTableCorrectness)window.ForgeTableCorrectness.pushFact({kind:"ability",actor:u.unit,ability:a.label,effects:[{unit:t.unit,heal:t.hp-was}]}); }
 
 /* ── Round-3 follow-up (M's ask): SPELL UPCASTING ────────────────────────
    A leveled spell tile costs slot<base>. When the caster holds higher slots
-   and the spell scales (upPer dice per level, and/or Disciple of Life's
-   2+slotLevel), tapping the tile opens a slot chooser; the pick builds an
+   and more than one eligible slot level is available, tapping the tile opens
+   a slot chooser — even when higher slots add no benefit. The pick builds an
    EFFECTIVE action (cost slot<L>, dmg via ForgeKitDerive.upcastDmg,
    disciple rebased, label "(2nd)") that flows through the existing
    pending/spend/publish doors untouched — the fact's ability label carries
    the level to every device. When the base slot is dry but a higher one
-   isn't, the cast auto-promotes with a feed note (RAW). Non-scaling spells
-   never see the chooser. */
+   isn't, the cast auto-promotes with a feed note (RAW). The chooser labels
+   non-scaling spells “No additional effect at higher levels.” */
 var UPCAST_PICK=null;
 function slotBaseOf(a){ if(!a||!a.cost) return null; for(var k in a.cost){ var m=/^slot(\d)$/.exec(k); if(m) return +m[1]; } return null; }
 function castableLevels(u,base){ var out=[]; for(var L=base;L<=9;L++){ if((u.res["slot"+L]||0)>0) out.push(L); } return out; }
@@ -4799,7 +4849,10 @@ function showUpcastPick(u,idx,a,base,lvls){
   el.style.cssText="position:fixed;left:50%;bottom:120px;transform:translateX(-50%);z-index:60;"+
     "background:rgba(18,26,24,.94);border:1px solid #c9a24b;padding:8px 12px;display:flex;gap:8px;"+
     "align-items:center;font:600 13px/1.2 sans-serif;color:#e8ddc4;";
-  var lab=document.createElement("span"); lab.textContent="Cast "+a.label+" at:"; el.appendChild(lab);
+  var head=document.createElement("div");head.style.cssText="display:flex;flex-direction:column;gap:2px;margin-right:4px";
+  var lab=document.createElement("span"); lab.textContent="Cast "+a.label+" at:"; head.appendChild(lab);
+  var note=document.createElement("small");note.textContent=(a.upPer||a.disciple)?"Higher slots apply the listed scaling.":"No additional effect at higher levels.";
+  note.style.cssText="font:400 10px/1.25 sans-serif;color:#a99f8d";head.appendChild(note);el.appendChild(head);
   lvls.forEach(function(L){
     var b=document.createElement("button");
     b.textContent=lvlOrdinal(L)+" \u00b7 "+(u.res["slot"+L]||0);
@@ -4829,12 +4882,11 @@ function selectAction(idx,castLevel){
   if(upBase!=null&&a.spell){
     var lvls=castableLevels(u,upBase);
     if(!lvls.length){ clog("<i>"+a.label+": no spell slots left.</i>"); return; }
-    var scales=!!(a.upPer||a.disciple);
     if(castLevel!=null){
       if(lvls.indexOf(castLevel)===-1){ clog("<i>"+a.label+": no level "+castLevel+" slot.</i>"); return; }
       a=upcastAction(a,upBase,castLevel);
     }
-    else if(scales&&lvls.length>1&&!READYING){ showUpcastPick(u,idx,a,upBase,lvls); return; }
+    else if(lvls.length>1&&!READYING){ showUpcastPick(u,idx,a,upBase,lvls); return; }
     else if(lvls[0]!==upBase){
       a=upcastAction(a,upBase,lvls[0]);
       clog("<i>"+a._base.label+": cast from a level "+lvls[0]+" slot \u2014 no level "+upBase+" slots left.</i>");
@@ -5064,7 +5116,7 @@ function foeTurn(){
     var adv=(FLANKING&&(atk.rng||1)<=1&&isFlanked(u,tgt)), dis=!!u.disadv; if(u.disadv)u.disadv=false;
     if(adv&&dis){ adv=false; dis=false; }
     var roll=d20a(adv,dis), hs={roll:roll,acBonus:0,crit:roll===20,hit:(roll===20)||(roll!==1&&roll+atk.hit>=tgt.ac)};
-    clog(u.name+" \u2192 "+tgt.name+": "+atk.label+" ("+roll+"+"+atk.hit+(adv?" adv (flank)":"")+(dis?" disadv":"")+")"+(hs.hit?"":" \u2014 miss"));   // #3: no AC in the log
+    clog(u.name+" \u2192 "+tgt.name+": "+atk.label+" ("+roll+"+"+atk.hit+(adv?" adv (flank)":"")+(dis?" disadv":"")+")"+(hs.hit?"":" \u2014 miss"),false);   // structured row owns the BG3 feed
     if(sess){
       /* Task 7b req 1: same fork as netAttack (Task 7) \u2014 the roll/hit math
          above is unchanged local rules; only the commit forks. No
@@ -5078,12 +5130,18 @@ function foeTurn(){
       });
       return;
     }
-    if(hs.hit){ pipelineHit(u,atk,hs,tgt, function(){ var dmg=rollDmg(atk.dmg); tgt.hp-=dmg;
+    if(hs.hit){ var foeFeedResolved=false; pipelineHit(u,atk,hs,tgt, function(){ var dmg=rollDmg(atk.dmg); tgt.hp-=dmg;
         var line=tgt.name+" takes "+dmg+" ("+Math.max(0,tgt.hp)+"/"+tgt.hpMax+")";
         flashHit(tgt); shake(0.2); floatAt(tgt,String(dmg),"dmg");
-        if(tgt.hp<=0){ floatAt(tgt,"DOWN","down"); tgt.alive=false; removeToken(tgt); line+=" \u2014 <b>down</b>"; } clog(line);
-      }, function(){ renderHud(); foeTurnDone(); }); return; }
+        if(tgt.hp<=0){ floatAt(tgt,"DOWN","down"); tgt.alive=false; removeToken(tgt); line+=" \u2014 <b>down</b>"; } clog(line,false);
+        if(window.ForgeTableCorrectness)window.ForgeTableCorrectness.pushFact({actor:u.unit,target:tgt.unit,mode:atk.label,roll:hs.roll,hitBonus:atk.hit,hit:true,crit:hs.crit,dmg:dmg,adv:adv,dis:dis,dropped:hs.roll!==roll?roll:null,mods:hs.roll!==roll?[{k:"silvery_barbs"}]:[]});
+        foeFeedResolved=true;
+      }, function(){
+        if(!foeFeedResolved&&window.ForgeTableCorrectness)window.ForgeTableCorrectness.pushFact({actor:u.unit,target:tgt.unit,mode:atk.label,roll:hs.roll,hitBonus:atk.hit,hit:false,crit:false,adv:adv,dis:dis,dropped:hs.roll!==roll?roll:null,mods:hs.roll!==roll?[{k:"silvery_barbs"}]:[]});
+        renderHud(); foeTurnDone();
+      }); return; }
     floatAt(tgt,"miss","miss");
+    if(window.ForgeTableCorrectness)window.ForgeTableCorrectness.pushFact({actor:u.unit,target:tgt.unit,mode:atk.label,roll:roll,hitBonus:atk.hit,hit:false,crit:false,adv:adv,dis:dis});
     renderHud(); foeTurnDone();
   }
   if(!canNow()){ var seen=TG.movementReach(CB.map,u,occupied(u),Math.floor(u.speed/5)),best=null,bd=1e9;
@@ -5255,22 +5313,36 @@ function updateRewindUI(){
 }
 
 /* ── HUD ────────────────────────────────────────────────────────────── */
-function clog(html){ CB.log.unshift(html); if(CB.log.length>60)CB.log.pop();
+function clog(html,feed){ CB.log.unshift(html); if(CB.log.length>60)CB.log.pop();
   var el=document.getElementById("cbLog"); if(el)el.innerHTML=CB.log.map(function(l){return '<div class="cbLogRow">'+l+'</div>';}).join("");
-  /* Bite 2: also write to the forge feed */ if(window.addForgeRow) try{window.addForgeRow(html);}catch(e){} }
+  /* Structured roll rows own the BG3 feed; predictive/local narration can opt out. */
+  if(feed!==false&&window.addForgeRow) try{window.addForgeRow(html);}catch(e){} }
 function banner(t){ var b=document.getElementById("cbBanner"); if(b){b.textContent=t;b.style.display="block";} }
-function setSceneMode(combat){document.body.classList.toggle('combat-mode',!!combat);if(!combat)document.body.classList.remove('forge-peek');
-  const s=document.querySelector('#sceneModeToggle span');if(s)s.textContent=document.body.classList.contains('forge-peek')?'Hide Forge':'Forge';}
+function refreshSceneMenu(){
+  var tc=window.ForgeTableCorrectness,sess=window.__forgeSession;
+  var fc=document.querySelector('#sceneForgeControls b');if(fc)fc.textContent=document.body.classList.contains('forge-peek')?'shown':'hidden';
+  var vm=document.getElementById('sceneViewerMode');
+  if(vm){var auth=tc&&tc.privileged(sess);vm.hidden=!auth;if(auth){var b=vm.querySelector('b');if(b)b.textContent=tc.staffView(sess)?'Staff View':'Player View';}}
+  if(tc)tc.applyBody(sess,typeof active==='function'&&typeof CB!=='undefined'&&CB&&CB.active?active():null);
+}
+function setSceneMode(combat){document.body.classList.toggle('combat-mode',!!combat);if(!combat)document.body.classList.remove('forge-peek');refreshSceneMenu();}
 function showHud(on){ var h=document.getElementById("combatHud"); if(h)h.style.display=on?"block":"none"; var b=document.getElementById("cbBanner"); if(b)b.style.display="none"; setSceneMode(on); }
-const sceneModeToggle=document.getElementById('sceneModeToggle');if(sceneModeToggle)sceneModeToggle.addEventListener('click',function(){
-  document.body.classList.toggle('forge-peek');const s=this.querySelector('span');if(s)s.textContent=document.body.classList.contains('forge-peek')?'Hide Forge':'Forge';
-});
+const sceneModeToggle=document.getElementById('sceneModeToggle'),sceneModeMenu=document.getElementById('sceneModeMenu');
+if(sceneModeToggle)sceneModeToggle.addEventListener('click',function(e){e.stopPropagation();var open=sceneModeMenu&&sceneModeMenu.hidden; if(sceneModeMenu)sceneModeMenu.hidden=!open;this.setAttribute('aria-expanded',open?'true':'false');refreshSceneMenu();});
+const sceneForgeControls=document.getElementById('sceneForgeControls');if(sceneForgeControls)sceneForgeControls.addEventListener('click',function(){document.body.classList.toggle('forge-peek');refreshSceneMenu();if(sceneModeMenu)sceneModeMenu.hidden=true;if(sceneModeToggle)sceneModeToggle.setAttribute('aria-expanded','false');});
+const sceneViewerMode=document.getElementById('sceneViewerMode');if(sceneViewerMode)sceneViewerMode.addEventListener('click',function(){if(window.ForgeTableCorrectness)window.ForgeTableCorrectness.toggle(window.__forgeSession);refreshSceneMenu();if(sceneModeMenu)sceneModeMenu.hidden=true;if(sceneModeToggle)sceneModeToggle.setAttribute('aria-expanded','false');});
+document.addEventListener('click',function(e){var w=document.getElementById('sceneModeMenuWrap');if(sceneModeMenu&&w&&!w.contains(e.target)){sceneModeMenu.hidden=true;if(sceneModeToggle)sceneModeToggle.setAttribute('aria-expanded','false');}});
 function initBadge(u){ return u.badge||(u.side==="pc"?(ROSTER_INIT[u.key]||u.name[0]):"g"); }
 function seatCol(u){ return (window.__fightControllers&&window.__fightControllers[u.key]&&window.__fightControllers[u.key].color)||(u.side==="pc"?(ROSTER_COL[u.key]||"#b8863a"):"#7a2e2e"); }
 function renderHud(){
   if(!CB.active) return; var u=active();
   syncAllGlow();   // #1: active-PC gold + any select/target glow follow the current turn/state
   var sess=window.__forgeSession;
+  var tc=window.ForgeTableCorrectness;
+  var disclosure=tc?tc.viewerSnapshot(sess,u):{staffView:!sess||!!(sess.me&&sess.me.overseer),playerView:false,suppressEnemyHud:false};
+  var staffView=!!disclosure.staffView,playerView=!!disclosure.playerView,suppressEnemyHud=!!disclosure.suppressEnemyHud;
+  if(tc)tc.applyBody(sess,u);refreshSceneMenu();
+  var hudOrder=tc?tc.visibleOrder(CB.order,typeof foeVisible==='function'?foeVisible:null,sess):CB.order.slice();
   /* Turn gating (brief step 3): action buttons paint only for whoever
      controls the active seat; everyone else gets a narrated banner instead.
      No session \u2192 unchanged (local sandbox is single-operator, always true).
@@ -5278,18 +5350,20 @@ function renderHud(){
   var iControl = !sess || window.ForgeBoard.controls(sess.me, u && u.unit);
   var waitingMe = iControl && __awaitingCount > 0;   // MY tap(s) are published, not every echo is back yet
   var strip=document.getElementById("cbInit");
-  if(strip) strip.innerHTML=CB.order.map(function(o,oi){ var glowc=glowColorFor(o);
+  if(strip) strip.innerHTML=hudOrder.map(function(o){ var glowc=glowColorFor(o);
     var ring=(glowc===GLOW_SEL?" selq":glowc===GLOW_TGT?" tgtq":"");
-    return '<div class="cbUnit'+(o===u?" act":"")+(o.alive?"":" dead")+ring+'" data-oi="'+oi+'" title="'+o.name+'">'
-    +'<span class="cbU-b" style="background:'+seatCol(o)+'">'+initBadge(o)+'</span><span class="cbU-hp">'+(o.alive?Math.max(0,o.hp):"\u2620")+'</span></div>'; }).join("");
+    var hpText=!o.alive?"\u2620":(o.side==="foe"&&!staffView?"":Math.max(0,o.hp));
+    return '<div class="cbUnit'+(o===u?" act":"")+(o.alive?"":" dead")+ring+'" data-unit="'+escapeHtml(o.unit||o.key||o.id)+'" title="'+escapeHtml(o.name)+'">'
+    +'<span class="cbU-b" style="background:'+seatCol(o)+'">'+initBadge(o)+'</span><span class="cbU-hp">'+hpText+'</span></div>'; }).join("");
   /* #4 (BG3): a strip nameplate is a camera door — click pans to the token
      and pulses its cell, so "which one is Goblin 3" has a one-tap answer.
      #1: left-click also SELECTS (gold glow), right-click TARGETS (red glow). */
   if(strip) strip.querySelectorAll(".cbUnit").forEach(function(ch){
-    ch.addEventListener("click",function(){ var o=CB.order[+ch.dataset.oi]; if(o){ setSel(o.key); focusUnit(o); } });
-    ch.addEventListener("contextmenu",function(e){ e.preventDefault(); var o=CB.order[+ch.dataset.oi]; if(o) setTgt(o.key); }); });
+    ch.addEventListener("click",function(){ var o=unitByKey(ch.dataset.unit); if(o){ setSel(o.key); focusUnit(o); } });
+    ch.addEventListener("contextmenu",function(e){ e.preventDefault(); var o=unitByKey(ch.dataset.unit); if(o) setTgt(o.key); }); });
   var panel=document.getElementById("cbActive");
-  if(panel&&u){ var isPc=u.side==="pc";
+  if(panel&&suppressEnemyHud)panel.innerHTML="";
+  if(panel&&u&&!suppressEnemyHud){ var isPc=u.side==="pc";
     var acts=(isPc&&iControl)? u.actions.map(function(a,i){ var cu=waitingMe?{ok:false,why:"waiting for the table"}:canUse(u,a), sel=CB.pending===a;
       return '<button class="cbAct'+(sel?" sel":"")+'" data-i="'+i+'"'+(cu.ok?"":" disabled title=\""+cu.why+"\"")+'>'+a.label
         +(a.cost?' <span class="cbCost">'+Object.keys(a.cost).map(function(k){return u.res[k]+"\u00b7"+k;}).join(" ")+'</span>':'')+'</button>'; }).join("") : '';
@@ -5361,12 +5435,12 @@ function renderHud(){
     if (cbPanelEl) cbPanelEl.style.display = "none";
     if (cbLogEl)   cbLogEl.style.display   = "none";
     window.renderForgeBar({
-      active: u, order: CB.order, iControl: iControl, waiting: waitingMe,
+      active: u, order: hudOrder, iControl: iControl, waiting: waitingMe,
       economy: CB.st, pending: CB.pending, over: CB.over,
       selKey: CB.selKey, tgtKey: CB.tgtKey,
       showSight: SHOW_SIGHT, contestCover: CONTEST_COVER,
-      session: !!window.__forgeSession,
-      kit: u && kitFor(u.key),
+      session: !!window.__forgeSession, viewerMode:disclosure.mode, suppressEnemyHud:suppressEnemyHud,
+      kit: suppressEnemyHud ? null : (u && kitFor(u.key)),
       _structural: u && __liveStatsCache && __liveStatsCache[u.key] && __liveStatsCache[u.key].structural || null,
       readying: READYING, releasing: RELEASING,
       sightReport: u && u.side === "pc" ? sightReport(u) : ""
@@ -5861,7 +5935,8 @@ function buildRoster(){
     });
   } else {
     var foeN = Math.max(1, +document.getElementById('foes').value || 1);
-    for (var i = 1; i <= foeN; i++) foes.push({ unit: 'foe-goblin-' + i, kind: 'foe', name: 'Goblin ' + i });
+    for (var i = 1; i <= foeN; i++) foes.push({ unit: 'foe-goblin-' + i, kind: 'foe', name: 'Goblin ' + i,
+      bestiary:{name:'Goblin',source:'MM'} });
   }
   return pcs.concat(foes);
 }
@@ -6089,6 +6164,7 @@ async function bootSession(sid){
       if (r.kind === 'initiative_rolled') { delete __initPublishing[r.unit]; }
       else if (r.kind === 'initiative_set') { __initConfirming = false; }
       window.ForgeBoard.verbsFor(r, before, st).forEach(applyVerb);
+      if(window.ForgeTableCorrectness)window.ForgeTableCorrectness.pushEvent(r);
       applyLogEconomy();   // derive CB.st (move/action/bonus) from the replayed log after the turn is (re)seated
       runMirror(before, lastState);   // Task 13: after every applied event, mirror any hp change I control back to its sheet
       renderHud();   // repaints the cleared guard even on a verb-less event (e.g. a miss)
@@ -6112,6 +6188,8 @@ async function bootSession(sid){
      for everyone. The session exists the moment catchUp settles — assign it
      BEFORE anything that paints or derives from it. */
   window.__forgeSession = { pipe, row, me, sb };
+  if(window.ForgeTableCorrectness)window.ForgeTableCorrectness.applyBody(window.__forgeSession);
+  refreshSceneMenu();
   spawnFromState(pipe.state(), row);
   /* Finding 1a: a refresh mid-turn lands here with a state whose initiative
      is already active — spawnFromState places units and the order, but never
@@ -6293,7 +6371,7 @@ function netAttackGo(u,a,t,ro){
     var crit=roll===20;
     var hit=crit||(roll!==1 && roll+a.hit>=t.ac+cover);
     var tag = adv?" adv"+(av.why.length?" ("+av.why.join(", ")+")":"") : dis?" disadv" : "";
-    clog(u.name+" → "+t.name+": "+a.label+" ("+roll+"+"+a.hit+(cover?" · cover":"")+tag+")"+(hit?"":" — miss"));   // #3: no AC in the log
+    clog(u.name+" → "+t.name+": "+a.label+" ("+roll+"+"+a.hit+(cover?" · cover":"")+tag+")"+(hit?"":" — miss"),false);   // structured echo row owns the BG3 feed
     if(__awaitingCount++===0) __awaitingSince = Date.now();   // Finding 2: one publish per strike — buttons re-enable only once every strike's echo (or failure) has landed
     renderHud();
     /* Task 8: hitBonus/cover/hit ride along on the declared payload as
@@ -6304,7 +6382,7 @@ function netAttackGo(u,a,t,ro){
        FINAL (post Silvery Barbs/Shield), so resolveFacts (below) rolls it
        only after askAll() has run every reaction prompt for this strike. */
     window.__forgeSession.pipe.attack(u.unit,
-        { target: t.unit, roll: roll, adv: adv, dis: dis, crit: crit, mode: a.label, hitBonus: a.hit, cover: cover, hit: hit },
+        { target: t.unit, roll: roll, adv: adv, dis: dis, crit: crit, mode: a.label, hitBonus: a.hit, cover: cover, coverName:ro.coverName||null, advReason:av.why.join(", "), hit: hit },
         function(answers){
           var hs=replayHitState({ roll:roll, crit:crit, hit:hit, cover:cover }, answers);
           var effects=[], dmg=0;
@@ -6332,7 +6410,8 @@ function netAttackGo(u,a,t,ro){
           if(rb) effects.push({ unit:u.unit, dmg:rb.payload.dmg });
           // Priority 2: the resolved fact carries which slot it spent, so
           // forge-replay's turnEconomy grades the economy without kit knowledge.
-          return { hit: hs.hit, dmg: dmg, effects: effects, slot: a.bonus ? "bonus" : "action" };
+          return { hit: hs.hit, crit:hs.crit, roll:hs.roll, dmg: dmg, effects: effects, slot: a.bonus ? "bonus" : "action",
+            mode:a.label, hitBonus:a.hit, cover:cover, coverName:ro.coverName||null, adv:adv, dis:dis, advReason:av.why.join(", ") };
         })
       .then(function(r){ if (r && r.ok === false) { netPublishFail(r); return; } strike(); });
   })();
@@ -6402,7 +6481,7 @@ function netFoeAttack(u,atk,t,hs,adv,dis){
      strikePhase's math never did either), so damage here stays the plain
      single rollDmg() the pre-Task-8 code always used. */
   return window.__forgeSession.pipe.attack(u.unit,
-      { target:t.unit, roll:hs.roll, adv:!!adv, dis:!!dis, crit:hs.crit, mode:atk.label, hitBonus:atk.hit, cover:hs.acBonus||0, hit:hs.hit },
+      { target:t.unit, roll:hs.roll, adv:!!adv, dis:!!dis, crit:hs.crit, mode:atk.label, hitBonus:atk.hit, cover:hs.acBonus||0, coverName:hs.acBonus===5?"three-quarters":hs.acBonus===2?"half":"none", advReason:adv?"flanking":null, hit:hs.hit },
       function(answers){
         var fhs=replayHitState({ roll:hs.roll, crit:hs.crit, hit:hs.hit, cover:hs.acBonus||0 }, answers);
         var dmg = fhs.hit ? rollDmg(atk.dmg) : 0;
@@ -6417,7 +6496,8 @@ function netFoeAttack(u,atk,t,hs,adv,dis){
         })[0];
         if(rb) effects.push({ unit:u.unit, dmg:rb.payload.dmg });
         // Priority 2: foe attacks are actions (foe kits carry no bonus flag).
-        return { hit:fhs.hit, dmg:dmg, effects:effects, slot: atk.bonus ? "bonus" : "action" };
+        return { hit:fhs.hit, crit:fhs.crit, roll:fhs.roll, dmg:dmg, effects:effects, slot: atk.bonus ? "bonus" : "action",
+          mode:atk.label, hitBonus:atk.hit, cover:hs.acBonus||0, coverName:hs.acBonus===5?"three-quarters":hs.acBonus===2?"half":"none", adv:!!adv, dis:!!dis, advReason:adv?"flanking":null };
       })
     .then(function(r){ if (r && r.ok===false) netPublishFail(r); return r; });
 }
@@ -6911,7 +6991,7 @@ function endFightClicked(){
 function renderOverseerToolbar(){
   var sess=window.__forgeSession;
   var el=document.getElementById("cbOverseer"); if(!el) return;
-  var show=!!sess&&sess.me.overseer&&CB.active;
+  var show=!!sess&&sess.me.overseer&&CB.active&&(!window.ForgeTableCorrectness||window.ForgeTableCorrectness.staffView(sess));
   el.style.display=show?"block":"none";
   if(!show) return;
   var st=sess.pipe.state(), ended=(st.status==="ended"), busy=__awaitingCount>0;
@@ -7033,8 +7113,9 @@ function openAddFoeModal(){
   // no-session lifecycle panel's own doorway) — load it here, once.
   if(!__afShelfLoaded){ __afShelfLoaded=true; loadFoeShelf().then(renderAddFoeShelf); }
   var m=document.getElementById("cbAddFoeModal"); if(m) m.style.display="flex";
+  document.body.classList.add("forge-modal-open");
 }
-function closeAddFoeModal(){ var m=document.getElementById("cbAddFoeModal"); if(m) m.style.display="none"; }
+function closeAddFoeModal(){ var m=document.getElementById("cbAddFoeModal"); if(m) m.style.display="none"; document.body.classList.remove("forge-modal-open"); }
 function startAddFoePlacing(){
   if(!ADD_FOE_MODAL_PICK) return;
   var pick=ADD_FOE_MODAL_PICK;

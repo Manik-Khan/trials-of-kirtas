@@ -1,26 +1,26 @@
-# Upload manifest
+# Upload manifest — Phase 1.5d
 
-## Replacement produced by either patcher
+## Replace
 
 - `forge/topography-test-mock.html`
-
-## New repository files
-
 - `forge/forge-unit-art.js`
-- `forge/TOPDOWN_TOKEN_RIG.md`
-- `forge/tests/smoke-unit-art.js`
-- `forge/tests/smoke-token-rig-contract.js`
 
-## Helper and handoff files — do not need to deploy
+## Add
 
-- `tools/forge-topdown-token-rig-browser-patcher.html`
-- `tools/apply-forge-topdown-token-rig.js`
-- `tools/test-apply-forge-topdown-token-rig.js`
-- `tools/token-rig-patch.json`
+- `forge/forge-table-correctness.js`
+- `netlify/functions/forge-token-art.js`
+- `forge/tests/smoke-phase15d-contract.js`
+- `forge/tests/smoke-table-correctness.js`
+- `forge/tests/smoke-token-proxy.js`
+- `forge/tests/smoke-unit-art-automatic.js`
+
+## Documentation / helper files — deployment optional
+
 - `README_APPLY.md`
+- `PHASE15D_TABLE_CORRECTNESS.md`
 - `VALIDATION.md`
-- `UPLOAD_MANIFEST.md`
-- `CONTEXT_Forge-update-2026-07-13c.md`
+- `CONTEXT_Forge-update-2026-07-13d.md`
+- `SOURCE_BASELINE.txt`
 - `SHA256SUMS.txt`
 
-M remains the committer and pusher. The bundle performs neither action.
+M remains the committer and pusher. Nothing in this bundle commits or deploys.

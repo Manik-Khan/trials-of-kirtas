@@ -1,0 +1,23 @@
+Phase 1.5d patch baseline
+
+Source file supplied by M:
+  topography-test-mock(3).html
+
+SHA256 of supplied baseline:
+  484644cdcd1b091171b4ca65d9f03fd0e40774438bbcc6780d72dda59ab997a2
+
+Patched replacement:
+  forge/topography-test-mock.html
+
+SHA256 of patched replacement:
+  bbae6a57055ef1db63c844812d859ae9919b596440b76543311e8b12c29d1996
+
+Line counts:
+  baseline: 7504
+  patched:  7585
+
+Unified diff summary:
+  130 insertions
+  49 deletions
+
+Everything other than the uploaded HTML was treated as current main, per M's instruction.
