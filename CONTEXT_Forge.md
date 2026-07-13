@@ -1,4 +1,4 @@
-# CONTEXT — Battle Forge — updated 2026-07-12, FOURTH session (round-3 fix plan v2 SHIPPED in full + M's table catches: Disciple of Life, legacy-ledger slots, spell UPCASTING, domain spells in Soul Shards, and the WYSIWYG click picker. The BG3 HUD the last header called "build is next session" was BUILT across sessions 2–4 — kit-derive/feed-render/hud are live modules. Session record: `CONTEXT_Forge-update-2026-07-12d.md`; the 12/12c update docs are merged below and can be deleted)
+# CONTEXT — Battle Forge — updated 2026-07-12, FIFTH session (LEDGE FIRING + DATABASE CHARACTER AUTHORITY shipped and table-verified: the 12f bundle was repaired against real main after its guards correctly aborted, kit-derive fixtures now carry the party's REAL gear, and the table's "still can't shoot over the wall" turned out to be a Bite-2 weapon-range contract gap in `weapon-actions.js` — fixed, deployed, ranged shots work. Session record: `CONTEXT_Forge-update-2026-07-12g.md`; 12d remains the round-3 record; 12f is superseded by 12g and can be deleted)
 
 > This doc exists because the same failure kept happening: a session would read
 > *part* of the material, conclude a feature "was never there," and rebuild
@@ -193,6 +193,24 @@ real placement. **These are decisions, not hypotheses.**
   corner-peek-around-a-wall loophole stays closed. The verdict now rides back an
   `eye:{x,y,peek}`; `peek:true` reports when a lip corner won. `losRay(map,a,b,eye)`
   takes the winning eye so the drawn line starts where the ruling looked from.
+- **Ledge firing / parapet lean — M's ruling 2026-07-12 (extends the 2026-07-11 lip
+  amendment; the field case: shooter eye 25 ft, adjacent traced wall 15 terrain + 7
+  occluder = 22 ft, reported 8/8 blocked).** A shooter may lean over an **immediately
+  adjacent, target-facing wall** whose top is below the shooter's eye. The lean
+  requires a **shared cardinal edge** — at an exact 45° shot both cardinal edges are
+  candidates, and **the diagonal cell is never the ignored parapet**. The legal
+  exception forgives **only the cell's added `occ` height; its terrain stays solid**
+  (`traceTop`): a shallow line clears a low cap, a steep downward line still hits the
+  earth berm beneath it, and `losVerdict` rejects an alternate eye whose centre ray
+  dies in the ignored cell's terrain. A wall at/above eye height blocks; a wall one or
+  more open cells away is traced normally; a target-facing wall **owns the ruling**
+  (no corner-graze fallback around it), and lip corners are now filtered to the
+  target-facing edge, so the sideways loophole stays closed. Target-side cover grades
+  normally. The winning `eye` carries origin + ignored-occluder cell into `losRay`, so
+  **the drawn line is the line that authorized the shot**.
+  `smoke-ledge-fire.js` freezes eleven clauses (shallow clear · steep berm block ·
+  tall/equal block · one-back block · side-wall closure · target-side cover ·
+  diagonal never ignored · exact-45 and near-45 edge selection · two-candidate case).
 - **Cover is graded**, 8 corner-lines (4 corners × head/feet):
   `0 → none · 1–4 → half (+2) · 5–7 → three-quarters (+5) · 8 → total`.
   A 4.5 ft boulder yields ¾. A 10.5 ft temple wall yields total.
@@ -465,7 +483,21 @@ real placement. **These are decisions, not hypotheses.**
    at the blocking cell, terrain+occluder feet, corner count — once per
    attacker/target/geometry (`__losExplained`, reset per fight). M table-reads
    one real refusal line, THEN rules on tree occlusion (¾ cap / lower pine occ /
-   as-is). No blind geometry fix — §4 discipline.
+   as-is). No blind geometry fix — §4 discipline. **12g addendum: the 2026-07-12
+   table refusals ("out of reach" on every goblin) were NOT LoS — see §5.27 and
+   the §7 triage rule. The feed instrumentation is only now genuinely reachable
+   for ranged shots; the §D table-read still stands.**
+27. ~~Every ranged weapon from the live-derivation path armed as melee — the
+   ledge test's real blocker.~~ **Fixed, deployed (`weapon-actions.js` +6,
+   2026-07-12g).** `assembleActions` was built for the sheet's dice roller and
+   never emitted range, so `forge-kit-derive` defaulted every weapon tile to
+   `rng 1` and `reachOK` melee-branched before `losVerdict` ran. `deck()` now
+   copies range onto the action for `w.ranged` weapons (item data beats the base
+   table — magic bows), **deliberately ranged-only**. Left open by that scoping:
+   **thrown-weapon ranged mode** (a dagger keeps its melee identity; no throw
+   action yet), **reach weapons** (reach 10 ft → `rng 2` unmodeled; the parser
+   comment anticipates it), and the standing **`cbDist` Chebyshev vs
+   `TG.range3d` Euclidean divergence** (§4, still flagged, still deliberate).
 
 ---
 
@@ -521,6 +553,26 @@ real placement. **These are decisions, not hypotheses.**
   to the same directory. Missing it throws `Failed to resolve module specifier`, which
   reads like a network error and is not.
 - Read actual repo source before editing. *A plausible hypothesis is not a diagnosis.*
+- **Refusal triage (pinned 2026-07-12g): read the label before blaming geometry.**
+  The three refusals are three different gates — **"out of reach"** = the reach
+  gate melee-branched (`a.rng ≤ 1`: the ARMED ACTION's range, an action-shape
+  question); **"out of range"** = distance vs the action's range (a `cbDist`
+  question); **"no line of sight"** = `losVerdict` (a §4 geometry question, and
+  the only one the feed's named-blocker line narrates). The bar's own hint
+  leaks the same fact: "click a highlighted target" renders only for
+  `pending.rng ≤ 1`. A whole session was nearly spent re-litigating settled
+  geometry over a reach-gate refusal.
+- **Patcher anchors are verified against a fresh clone of real `main`, not a
+  fixture (pinned 2026-07-12g).** The 12f bundle's fixture "carried the reviewed
+  code shapes" with single-line formatting the repo doesn't have; three
+  count-guards correctly aborted on real main. The guard firing is the system
+  working — repair the anchor, never force the replacement. Corollary: a
+  whole-body function replacement must carry the original's dated ruling
+  comments verbatim; rulings live in-code.
+- **`data/characters/*.json` is the live-truth mirror, at most one night stale**
+  (`characters-export-nightly` — service-role, complete row). Use it for gear/
+  abilities diagnosis before asking M or touching Supabase; only distrust it for
+  same-day sheet edits (the 12g fight ran on a Vesperian newer than the export).
 - **Never write a synthetic test and call it proof.** Extract the real functions
   and run them on the real generated field. Headless tests that pass while the
   browser stays broken are the failure mode this project keeps hitting.
@@ -558,6 +610,33 @@ real placement. **These are decisions, not hypotheses.**
 ---
 
 ## §8 · SUGGESTED NEXT SESSION
+
+**2026-07-12, fifth session — LEDGE + CHARACTER AUTHORITY LIVE, RANGED SHOTS WORK.**
+The 12f bundle (repaired against real main) shipped ledge firing, database character
+authority (fail-closed, per-character error containment), real-gear fixtures, and the
+`weapon-actions.js` range fix; M confirmed the table works better. Full battery green
+(record: `CONTEXT_Forge-update-2026-07-12g.md`).
+
+**NEXT, in order:**
+1. **Finish the 12f browser/table checklist** — the ledge suite at the table now that
+   ranged shots arm correctly: shallow shot over the 22-ft parapet legal, line drawn
+   from the shared edge; steep shot into the berm blocked; wall raised to eye height
+   blocked; one square back blocked; exact-diagonal cases; **a fresh fight initializes
+   every PC at sheet-derived AC/HP** (expect Líadan at her CURRENT row — Leather, 12 —
+   not the 12e narrative's 17); locally break a dependency → one clear error kit, the
+   rest of the party derives.
+2. **§D step 2 (§5.26)** — now genuinely reachable for ranged shots: M table-reads one
+   real "no line of sight" feed line (named blocker, feet, corners) → rules on tree
+   occlusion → geometry smoke pins it.
+3. **Mid-fight sheet sync** — the deferred character-authority bite: a named,
+   replayable protocol fact with one publishing authority for importing a sheet edit
+   into an active encounter. Until it exists, active fights stay log-authoritative by
+   design.
+4. **Thrown-weapon ranged mode + reach weapons (§5.27)** — small, contract-shaped, and
+   the reach-10 case will bite the first polearm foe.
+5. **Ratify or flip the dedupe ruling** (carried from session 4, unchanged below).
+
+---
 
 **2026-07-12, sessions 2–4 — THE HUD WAVE, SHIPPED.** The spec below RAN: bites
 1+2 built the three headless modules and wired them; the table's round 3

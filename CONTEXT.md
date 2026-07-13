@@ -4,11 +4,13 @@ Custom D&D 5e virtual tabletop. Live: **trials-of-kirtas.netlify.app**
 Repo: `Manik-Khan/trials-of-kirtas` · vanilla JS/HTML/CSS + Supabase + Netlify + GitHub.
 Walled React/Vite/TipTap corner at `journal/`.
 
-Updated: **July 11, 2026 (evening — bite-1 field day; two Forge fix waves live).** Supersedes
-the July 8 evening doc (which superseded July 6 + the July 8 morning doc). The non-Forge sections
-stand as written there; the Forge section below carries the July 10–11 protocol/bite-1/field-day
-state. Reconciled sources: the July 8 doc, `CONTEXT_Forge.md`, `FORGE_PROTOCOL.md`,
-`FORGE_BOARD.md`, `FORGE_COVER_CONTEST.md`, and commits `f28e0bb` / `b1d7d72`.
+Updated: **July 12, 2026 (late night — ledge firing + database character authority live and
+table-verified; ranged weapons fixed).** Supersedes the July 11 evening doc (which superseded
+July 8 + July 6). The non-Forge sections stand as written there; the Forge section below carries
+July 10–12 (protocol → bite 1 field day → the HUD wave → the 12f/12g authority-and-ledge
+session). Reconciled sources: the July 11 doc, `CONTEXT_Forge.md` (fifth-session header),
+`CONTEXT_Forge-update-2026-07-12d.md` and `-12g.md`, `FORGE_PROTOCOL.md`, `FORGE_BOARD.md`,
+`FORGE_COVER_CONTEST.md`.
 
 **Companion doc: `CONTEXT_Forge.md` — read it before touching the Forge.** It carries the port
 manifest (what the combat system consists of, and which parts exist where), the settled geometry
@@ -210,6 +212,34 @@ For the cover-contest mechanism, `FORGE_COVER_CONTEST.md`; for the event protoco
 
 Procedural battle-map generation + the seam that turns a generated map into a rules-enforced
 encounter. **Optional layer that extends theatre-of-the-mind — never replaces it.**
+
+### July 12 (late) — ledge firing, database character authority, and the ranged-weapon fix
+
+Fifth Forge session of the day (full record: `CONTEXT_Forge-update-2026-07-12g.md`). Three
+things went live, each table-relevant:
+
+- **Ledge firing (M's ruling 2026-07-12, now §4-settled in `CONTEXT_Forge.md`):** a shooter
+  leans over an immediately adjacent, target-facing wall below their eye — shared cardinal
+  edge required, diagonal never the ignored parapet, and the exception forgives **only the
+  occluder, never the terrain berm beneath it**. The winning eye rides into `losRay`, so the
+  drawn line is the line that authorized the shot. Eleven-case `smoke-ledge-fire.js` freezes it.
+- **Database character authority:** new root `character-combat.js` — HP from `vitals`, AC and
+  armor consequences recomputed through the sheet's own `ArmorAC` + `EquipSlots`. **Fail-closed**:
+  a stale cached `structural.combat.ac` is never silently substituted; a projection failure
+  becomes one loud per-character error kit and the rest of the party still derives. New-fight
+  initialization only — active fights stay event-log authoritative until the mid-fight sync
+  protocol fact is designed (deliberate boundary, unchanged).
+- **The ranged-weapon fix:** the post-deploy ledge test failed with "out of reach" on every
+  goblin — the **reach gate**, not geometry. `assembleActions` (built for the sheet's roller)
+  never emitted weapon range, so every ranged weapon armed as melee and LoS was never consulted.
+  One guarded line in `weapon-actions.js` (`deck()` carries range for ranged weapons) fixed it;
+  M confirmed at the table. Refusal-triage rule pinned in `CONTEXT_Forge.md` §7: **"out of
+  reach" / "out of range" / "no line" are three different gates — read the label first.**
+
+Process notes that earned their pin: the 12f patch bundle's guards correctly **aborted** on
+real main (fixture-verified regexes vs. actual repo formatting — anchors are now verified
+against a fresh clone); and `data/characters/*.json` is the **nightly live-truth mirror** of
+the Supabase rows, good for diagnosis, stale only against same-day sheet edits.
 
 ### July 10–11 — the protocol spine, bite 1, and the field-day fix waves
 
