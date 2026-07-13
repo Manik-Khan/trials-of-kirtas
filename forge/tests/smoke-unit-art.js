@@ -1,0 +1,50 @@
+#!/usr/bin/env node
+"use strict";
+const A=require("../forge-unit-art.js");
+let pass=0;
+function ok(v,label){if(!v)throw new Error("FAIL: "+label);console.log("ok",++pass,"-",label);}
+function throws(fn,re,label){let e=null;try{fn();}catch(x){e=x;}ok(e&&re.test(e.message),label);}
+function memory(){const d={};return {getItem:k=>Object.prototype.hasOwnProperty.call(d,k)?d[k]:null,setItem:(k,v)=>{d[k]=String(v);},dump:()=>d};}
+const pc={side:"pc",unit:"caim-live",key:"caim",name:"Caim"};
+const gob1={side:"foe",unit:"goblin-1",name:"Goblin 1",statblock:{name:"Goblin",source:"MM"}};
+const gob2={side:"foe",unit:"goblin-2",name:"Goblin 2",statblock:{name:"Goblin",source:"MM"}};
+ok(A.VERSION==="1.0.0","module version is pinned");
+ok(A.initials("Mire Shaman")==="MS","two-word initials");
+ok(A.initials("Goblin")==="GO","single-word initials stay legible");
+ok(A.safeUrl("https://example.com/a.webp").startsWith("https://"),"https art accepted");
+ok(A.safeUrl("data:image/png;base64,AAAA")!==null,"image data URL accepted");
+ok(A.safeUrl("javascript:alert(1)")===null,"javascript URL rejected");
+ok(A.safeUrl("data:text/html;base64,AAAA")===null,"non-image data URL rejected");
+ok(A.overrideKey(gob1,"unit")!==A.overrideKey(gob2,"unit"),"per-instance keys differ");
+ok(A.overrideKey(gob1,"kind")===A.overrideKey(gob2,"kind"),"same creature kind shares a kind key");
+ok(A.kindIdentity(pc)==="pc:caim","PC kind key is stable by character");
+ok(A.kindIdentity(gob1)==="foe:mm:goblin","foe kind key uses source and statblock name");
+const s=memory();
+A.setOverride(gob1,"kind","https://example.com/goblin.webp",s);
+ok(A.getOverride(gob2,s).source==="local-kind","kind override reaches another matching creature");
+A.setOverride(gob1,"unit","https://example.com/red-goblin.webp",s);
+ok(A.getOverride(gob1,s).url.endsWith("red-goblin.webp"),"instance override wins over kind override");
+ok(A.getOverride(gob2,s).url.endsWith("goblin.webp"),"kind override remains for sibling unit");
+ok(A.clearOverride(gob1,"unit",s)===true,"instance override clears");
+ok(A.getOverride(gob1,s).source==="local-kind","clearing instance reveals kind override");
+ok(A.clearAllOverrides(gob1,s)===true,"clear-all removes both scopes for this identity");
+ok(A.getOverride(gob1,s)===null,"clear-all returns to automatic art");
+throws(()=>A.setOverride(gob1,"unit","file:///tmp/a.png",s),/http\(s\)/,"unsafe override fails loudly");
+const p=A.resolve(pc,{storage:memory(),portraits:{caim:"data:image/jpeg;base64,AAAA"}});
+ok(p.source==="pc-portrait","PC portrait is automatic fallback");
+const explicit=A.resolve({...pc,tokenArt:"https://example.com/caim-custom.webp"},{storage:memory(),portraits:{caim:"https://example.com/portrait.webp"}});
+ok(explicit.source==="unit-field","authoritative unit field has highest precedence");
+const stat=A.resolve({...gob1,statblock:{name:"Goblin",source:"MM",tokenUrl:"https://example.com/stat.webp"}},{storage:memory()});
+ok(stat.source==="statblock-art","explicit statblock token art is honored");
+const auto=A.resolve(gob1,{storage:memory()});
+ok(auto.source==="5etools-token"&&auto.url.includes("/MM/Goblin.webp"),"5etools token URL derives from source and name");
+const fallback=A.resolve({side:"foe",unit:"mystery",name:"Mire Shaman"},{storage:memory()});
+ok(fallback.fallback&&fallback.initials==="MS","missing art degrades to initials");
+const localStore=memory();A.setOverride(pc,"unit","https://example.com/local.webp",localStore);
+const local=A.resolve({...pc,tokenArt:null},{storage:localStore,portraits:{caim:"https://example.com/portrait.webp"}});
+ok(local.source==="local-unit","local explicit choice beats automatic portrait");
+const corrupt=memory();corrupt.setItem(A.STORAGE_KEY,"not json");
+ok(Object.keys(A.loadOverrides(corrupt).overrides).length===0,"corrupt storage degrades safely");
+const dirty=A.parseStore({overrides:{good:"https://example.com/a.png",bad:"javascript:x"}});
+ok(dirty.overrides.good&&!dirty.overrides.bad,"stored URLs are revalidated on read");
+console.log("\n"+pass+" unit-art checks green");
