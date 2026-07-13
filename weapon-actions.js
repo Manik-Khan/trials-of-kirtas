@@ -136,6 +136,12 @@ export function buildWeaponActions(inventory, structural) {
     function deck(id, lbl, dice) {
       var a = action(id, lbl, w, dice, abil, pr.proficient);
       a.atkBonus = atkB; a.dmgBonus = dmgB;
+      // Ranged weapons carry their range onto the action ("80/320" feet) so the
+      // Forge's reach gate sees a ranged attack instead of a defaulted melee
+      // one (forge-kit-derive already parses a.range into squares). Item data
+      // wins over the base table (magic bows). Deliberately ranged-only: a
+      // thrown melee weapon keeps its melee identity here.
+      if (w.ranged) a.range = (it && it.range) || w.range || null;
       if (hasExtra) a.extraDamage = [{ dice: it.extraDmg.dice, bonus: 0, type: it.extraDmg.type || '' }];
       return a;
     }
