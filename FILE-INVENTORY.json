@@ -1,46 +1,267 @@
 [
   {
-    "path": "ART-PREVIEW.png",
-    "bytes": 445660
-  },
-  {
     "path": "UPLOAD-MANIFEST.md",
-    "bytes": 913
+    "bytes": 537,
+    "sha256": "5eb613e0f709e0dc257d8d9bf6b61e667b58c46d9df7697384694db96f68846b"
   },
   {
-    "path": "PATCH-NOTES.md",
-    "bytes": 1195
+    "path": "docs/PATCH-NOTES.md",
+    "bytes": 1202,
+    "sha256": "437292e9cd46a47f2da6671e8b1721a61aab1e8e21c6a5563286c69442f1167d"
   },
   {
-    "path": "forge/topography-test-mock.html",
-    "bytes": 553274
+    "path": "forge/assets/forge-horizons/cavern-horizon.png",
+    "bytes": 2263016,
+    "sha256": "ed828a2221bc24372d50308f7001765e0a73f7740a67ced88feefaf7cc78447c"
   },
   {
-    "path": "forge/assets/topography-art/horizon-grass.png",
-    "bytes": 69328
+    "path": "forge/assets/forge-horizons/druidic-horizon.png",
+    "bytes": 2870696,
+    "sha256": "c7c735389b88dabd06ada4ab872c9ad047bbe2761573074794c8a84b8570d0b0"
   },
   {
-    "path": "forge/assets/topography-art/horizon-druidic.png",
-    "bytes": 63893
+    "path": "forge/assets/forge-horizons/grassland-horizon.png",
+    "bytes": 2227877,
+    "sha256": "9b7c832da62516b8cc9cbcb9a0971884506809c4c0e9dd099e2fae1b7d7f7cc2"
   },
   {
-    "path": "forge/assets/topography-art/horizon-tundra.png",
-    "bytes": 70583
+    "path": "forge/assets/forge-horizons/swamp-horizon.png",
+    "bytes": 2112705,
+    "sha256": "5dc5092b8110d970c5b983f0197b6cd6c4c53e7ca327bca72c391c8b762fb12c"
   },
   {
-    "path": "forge/assets/topography-art/horizon-swamp.png",
-    "bytes": 68725
+    "path": "forge/assets/forge-horizons/temple-horizon.png",
+    "bytes": 2368441,
+    "sha256": "5dde903880bf8356f093c801363877b744af7c1fdbfa51742ed44c7204069bc5"
   },
   {
-    "path": "forge/assets/topography-art/horizon-temple.png",
-    "bytes": 53825
+    "path": "forge/assets/forge-horizons/tundra-horizon.png",
+    "bytes": 2156823,
+    "sha256": "eaeeb88bff02db563f0b9d9c583eba8160e5300ecccdc7ca615fee45977577d5"
   },
   {
-    "path": "forge/assets/topography-art/horizon-cavern.png",
-    "bytes": 67306
+    "path": "forge/assets/forge-landmarks/cavern/landmark-a.png",
+    "bytes": 258701,
+    "sha256": "9c992a32cfb77eca2534131a32745ea4bc31fd9ad72c9fbdff43de21c534be49"
+  },
+  {
+    "path": "forge/assets/forge-landmarks/cavern/landmark-b.png",
+    "bytes": 337749,
+    "sha256": "c75cfe7bcd3c5769680ad4bd6f0c37bcacda15f971e55db644a07bea96ec5ffb"
+  },
+  {
+    "path": "forge/assets/forge-landmarks/druidic/landmark-a.png",
+    "bytes": 374554,
+    "sha256": "81de8c9f41f73213b7cffce1bf386232db5d2f79c50e3d89b926541946780229"
+  },
+  {
+    "path": "forge/assets/forge-landmarks/druidic/landmark-b.png",
+    "bytes": 200917,
+    "sha256": "d7b4591c3cb76f8d9dbedf15f8c7db8a1586d0411a78068a532dd5daf40ff8f6"
+  },
+  {
+    "path": "forge/assets/forge-landmarks/grassland/landmark-a.png",
+    "bytes": 188721,
+    "sha256": "b800da539937209079521b8cae9bb2a30beee5500b1c6152962fb2baaae1217e"
+  },
+  {
+    "path": "forge/assets/forge-landmarks/grassland/landmark-b.png",
+    "bytes": 193631,
+    "sha256": "30ceaa88db6dcac0078e8e1f439d5fbe765a557b05c337bcf0a198c99dbfe88a"
+  },
+  {
+    "path": "forge/assets/forge-landmarks/swamp/landmark-a.png",
+    "bytes": 285795,
+    "sha256": "ea8d1ab5ba9130d25f0f46ae19f82db64c49b5a834c4cd8fd5850731433dd782"
+  },
+  {
+    "path": "forge/assets/forge-landmarks/swamp/landmark-b.png",
+    "bytes": 223987,
+    "sha256": "1bee9329e9d08afd76e7c77995aa4473751338cbae356cd06396d5c28c03d012"
+  },
+  {
+    "path": "forge/assets/forge-landmarks/temple/landmark-a.png",
+    "bytes": 375560,
+    "sha256": "11192548bc62006fcbee94e69a9457cb24167c2deb88b4c8d3364787acf06684"
+  },
+  {
+    "path": "forge/assets/forge-landmarks/temple/landmark-b.png",
+    "bytes": 276872,
+    "sha256": "b26515b3132bcd95c2be283f8cfcc305a211844f719e216060fcb25d64a3386f"
+  },
+  {
+    "path": "forge/assets/forge-landmarks/tundra/landmark-a.png",
+    "bytes": 182381,
+    "sha256": "eb4dc78cb9cfaaeaad4cd2aa30bc8966c36e958b95d8cf70780e3d4a919dc925"
+  },
+  {
+    "path": "forge/assets/forge-landmarks/tundra/landmark-b.png",
+    "bytes": 286666,
+    "sha256": "0233cfcc879ed238e231639d4bb8a54c9fb6b4891a18ec637575b5e2b5fccdbc"
+  },
+  {
+    "path": "forge/assets/forge-parallax/cavern/far.png",
+    "bytes": 465146,
+    "sha256": "fed28e1b5a61502be54a13872a51f485c586ef6d767ea4127b7f8103b9da4ef7"
+  },
+  {
+    "path": "forge/assets/forge-parallax/cavern/mid.png",
+    "bytes": 507056,
+    "sha256": "05a50b30b2e3c949ceca8c422399b6a0de998f7c2b8c981596f5bc400cc082e0"
+  },
+  {
+    "path": "forge/assets/forge-parallax/cavern/near.png",
+    "bytes": 421517,
+    "sha256": "8a9715ace708fae1e199d1047118416b7fcddd8d0950a2c90ae94eb74dc91076"
+  },
+  {
+    "path": "forge/assets/forge-parallax/druidic/far.png",
+    "bytes": 345068,
+    "sha256": "66f67954f217afae8af3f7e3310655d91ff0309f15f059792e80654b4820bf14"
+  },
+  {
+    "path": "forge/assets/forge-parallax/druidic/mid.png",
+    "bytes": 530856,
+    "sha256": "c8127bc51a5ce9f58359727f2ee44c5a25f8c62aab079bcc9d9e97adc1fe993a"
+  },
+  {
+    "path": "forge/assets/forge-parallax/druidic/near.png",
+    "bytes": 513679,
+    "sha256": "1cb7809efa83ae6fbcae6a13184a58dd9d00364dbe6499a09e04065838cd0809"
+  },
+  {
+    "path": "forge/assets/forge-parallax/grassland/far.png",
+    "bytes": 383393,
+    "sha256": "678f010d931eb33a8ee76405901783131cc2ddf5ea96b5e3dc95552f483c3f9e"
+  },
+  {
+    "path": "forge/assets/forge-parallax/grassland/mid.png",
+    "bytes": 377620,
+    "sha256": "806707406d76e7cb35f55bcfc190c28e53e9fd439d5932de48e09cb1a280398d"
+  },
+  {
+    "path": "forge/assets/forge-parallax/grassland/near.png",
+    "bytes": 355286,
+    "sha256": "3dc99e33a16e39b0bba08163e39916ee8b53583dcf7966bdfff6dbd13646e527"
+  },
+  {
+    "path": "forge/assets/forge-parallax/swamp/far.png",
+    "bytes": 364671,
+    "sha256": "32cbc564b1f9906639175cc7be6a7e2696c75f428921899883569ee3f6358bd2"
+  },
+  {
+    "path": "forge/assets/forge-parallax/swamp/mid.png",
+    "bytes": 587121,
+    "sha256": "2f2b89693176d51effabd7659bc34537036de9e0bc80d7f2417ca96f2b7f215f"
+  },
+  {
+    "path": "forge/assets/forge-parallax/swamp/near.png",
+    "bytes": 388879,
+    "sha256": "689b09a3d5e09e9730b076c95d411dd1538e0146e37a2fd88418c245cdc3e86a"
+  },
+  {
+    "path": "forge/assets/forge-parallax/temple/far.png",
+    "bytes": 411520,
+    "sha256": "9fd309c0708adea6d7f11c21b8cc387593ee56cbc22866dbb6558ec730ea66ab"
+  },
+  {
+    "path": "forge/assets/forge-parallax/temple/mid.png",
+    "bytes": 482444,
+    "sha256": "da60f009a5ef0dcd7d8a65e887b5b00eccfac57948345e24a601a6b5a19c33da"
+  },
+  {
+    "path": "forge/assets/forge-parallax/temple/near.png",
+    "bytes": 361422,
+    "sha256": "1fc2cfd3314597a34c6e82aeb25814273633dc52dff49dbfa26b16f77925af09"
+  },
+  {
+    "path": "forge/assets/forge-parallax/tundra/far.png",
+    "bytes": 526634,
+    "sha256": "55c353caad2bcd34a1069ebadb7ea1a241d684b3a947ce0b1dcfd4b58473e3d6"
+  },
+  {
+    "path": "forge/assets/forge-parallax/tundra/mid.png",
+    "bytes": 342540,
+    "sha256": "6326ceb746c3c3b3d3ccfb8b501d1dec0bd46720352353d5c761a9b882d51fe4"
+  },
+  {
+    "path": "forge/assets/forge-parallax/tundra/near.png",
+    "bytes": 361125,
+    "sha256": "1adaf396ce5ac221a9910dcda80363d1bad8f9437e8d3af4e0cb5cc86f983159"
+  },
+  {
+    "path": "forge/assets/forge-skies-storybook/cavern-storybook-sky.png",
+    "bytes": 1197982,
+    "sha256": "36f9cd758eec41e387dd52572beb6c35fe0fdba56171ab70c89d65c9466b0571"
+  },
+  {
+    "path": "forge/assets/forge-skies-storybook/druidic-storybook-sky.png",
+    "bytes": 1007669,
+    "sha256": "19016bc85f334d4387a42f69ea21ac77e523f55cc8166fce30dc69705cee2464"
+  },
+  {
+    "path": "forge/assets/forge-skies-storybook/grassland-storybook-sky.png",
+    "bytes": 1087316,
+    "sha256": "4057c8657a604406a14cdccc3447cb645527416437dc3ae3cc8b9bc519a69e78"
+  },
+  {
+    "path": "forge/assets/forge-skies-storybook/swamp-storybook-sky.png",
+    "bytes": 987876,
+    "sha256": "3489a24628006f22c7e855c28f97d4799e4ffe4774b05093dc668d1b7e339811"
+  },
+  {
+    "path": "forge/assets/forge-skies-storybook/temple-storybook-sky.png",
+    "bytes": 1188025,
+    "sha256": "33362be063bd9a7624e6c0c6fca8b3ef25d0f30bb7d6d8c1fa0a03941020a4ac"
+  },
+  {
+    "path": "forge/assets/forge-skies-storybook/tundra-storybook-sky.png",
+    "bytes": 1079762,
+    "sha256": "45ca1d717f96644b168441e98c108f0940163760b07fa87ca97da0e073bd97ec"
   },
   {
     "path": "forge/assets/topography-art/biome-decals.png",
-    "bytes": 106509
+    "bytes": 106509,
+    "sha256": "f5267aa95ec04302c2a37b60b0fff4d8ed9d59fe1c909b9488cb81b69a75f210"
+  },
+  {
+    "path": "forge/assets/topography-art/horizon-cavern.png",
+    "bytes": 67306,
+    "sha256": "d050d827ce7cd91f419402eede937515dfeda16f5f03e2c43365aa64a7d6933f"
+  },
+  {
+    "path": "forge/assets/topography-art/horizon-druidic.png",
+    "bytes": 63893,
+    "sha256": "6ee4bbf5035c4ad19a4fd39c60c17e5ecc5908e52ed82a5783d48a8130f52bca"
+  },
+  {
+    "path": "forge/assets/topography-art/horizon-grass.png",
+    "bytes": 69328,
+    "sha256": "88cd067ba4846968245a20c9e54e2cf6d28f3dc63369b630e5ca8cdf3a42162a"
+  },
+  {
+    "path": "forge/assets/topography-art/horizon-swamp.png",
+    "bytes": 68725,
+    "sha256": "9a86a59ab555ad1f72614512d92f11bd2a3e93b1b5d120c508d16d3d1aeea1c4"
+  },
+  {
+    "path": "forge/assets/topography-art/horizon-temple.png",
+    "bytes": 53825,
+    "sha256": "203a8ca0bc4df9fff7746daceed45782aafcceeecfb673552ff6f6cbb63da9ff"
+  },
+  {
+    "path": "forge/assets/topography-art/horizon-tundra.png",
+    "bytes": 70583,
+    "sha256": "18062dc9dc321c5cf0a068af36e101b91022325272b085d33b2a77cfacdc1330"
+  },
+  {
+    "path": "forge/topography-test-mock.html",
+    "bytes": 558772,
+    "sha256": "97f5bcdb6cea855d96370a8a72996bc8e1b9cc4a61eae3b352462a718a4293f6"
+  },
+  {
+    "path": "previews/A-v2-art-contact-sheet.png",
+    "bytes": 4652154,
+    "sha256": "077a6e9c530da901c06dd707cf2c85728c75e2df71e967b5b0ee625030a8c44e"
   }
 ]

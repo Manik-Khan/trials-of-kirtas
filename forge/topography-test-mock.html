@@ -1116,6 +1116,23 @@ const HORIZON_ART={
   grass:'horizon-grass.png', druidic:'horizon-druidic.png', tundra:'horizon-tundra.png',
   swamp:'horizon-swamp.png', temple:'horizon-temple.png', cavern:'horizon-cavern.png'
 };
+/* Build A v3 — storybook background stack. These images never enter the map
+   document: they are camera-facing scenic cards behind the playable field.
+   URL switches make browser A/B checks possible without another deploy:
+     ?storybook=0  restores the v1 cylinder + gradient backdrop
+     ?parallax=0   keeps sky + horizon, hides far/mid/near cards
+     ?landmarks=0  hides the optional hero landmark card               */
+const STORYBOOK_PARAMS=new URLSearchParams(location.search);
+const STORYBOOK_ON=STORYBOOK_PARAMS.get('storybook')!=='0';
+const PARALLAX_ON=STORYBOOK_PARAMS.get('parallax')!=='0';
+const LANDMARKS_ON=STORYBOOK_PARAMS.get('landmarks')!=='0';
+const STORY_KEY={grass:'grassland',druidic:'druidic',tundra:'tundra',swamp:'swamp',temple:'temple',cavern:'cavern'};
+const STORY_PATH={
+  sky:k=>'assets/forge-skies-storybook/'+k+'-storybook-sky.png',
+  horizon:k=>'assets/forge-horizons/'+k+'-horizon.png',
+  parallax:(k,l)=>'assets/forge-parallax/'+k+'/'+l+'.png',
+  landmark:(k,l)=>'assets/forge-landmarks/'+k+'/landmark-'+l+'.png'
+};
 const DECAL_ATLAS=ART_BASE+'biome-decals.png';
 function hash32(s){ let h=2166136261>>>0; s=String(s); for(let i=0;i<s.length;i++){h^=s.charCodeAt(i);h=Math.imul(h,16777619);} return h>>>0; }
 
@@ -1187,7 +1204,7 @@ const camera=new THREE.PerspectiveCamera(38,1,0.1,900);
 const cam={theta:Math.PI*0.22, phi:Math.PI*0.30, r:80, tgt:new THREE.Vector3(0,4,0)};
 function placeCam(){const sp=Math.sin(cam.phi),cp=Math.cos(cam.phi);
   camera.position.set(cam.tgt.x+cam.r*sp*Math.sin(cam.theta),cam.tgt.y+cam.r*cp,cam.tgt.z+cam.r*sp*Math.cos(cam.theta));
-  camera.lookAt(cam.tgt);}
+  camera.lookAt(cam.tgt); updateStorybookBackdrop();}
 
 // warm key sun + cool sky/ambient → the painting's warm-light / cool-shadow read
 /* ══ BIOME LOOK — the SKINS rig from battle-forge-biome-mock.html.
@@ -1422,6 +1439,80 @@ function skyTexture(sky){const S=sky||['#cbc4b6','#c2c4c2','#b3bcc5'];
   const {c,x}=cv(16,256); const g=x.createLinearGradient(0,0,0,256);
   g.addColorStop(0,S[0]);g.addColorStop(0.62,S[1]);g.addColorStop(1,S[2]);
   x.fillStyle=g;x.fillRect(0,0,16,256); return ctex(c);}
+
+/* ── STORYBOOK BACKDROP — camera-facing scenic cards ──────────────────
+   The old cyclorama used one repeated silhouette. This stack keeps the sky,
+   horizon, three transparent depth bands and one optional landmark separate.
+   Because every card stays behind the field and writes no depth, it cannot
+   create cover, collision or a misleading tactical object. */
+const storyBackdrop=new THREE.Group(); scene.add(storyBackdrop);
+const storyTexCache=new Map();
+let storySpan=80, storyLayers=[];
+function storyTexture(url){
+  if(storyTexCache.has(url)) return storyTexCache.get(url);
+  const t=new THREE.TextureLoader().load(url,function(tex){
+    tex.colorSpace=THREE.SRGBColorSpace; tex.magFilter=THREE.LinearFilter;
+    tex.minFilter=THREE.LinearMipmapLinearFilter; updateStorybookBackdrop();
+  },undefined,function(){ console.warn('[storybook-art] missing:',url); });
+  t.colorSpace=THREE.SRGBColorSpace; t.magFilter=THREE.LinearFilter; t.minFilter=THREE.LinearMipmapLinearFilter;
+  storyTexCache.set(url,t); return t;
+}
+function clearStorybookBackdrop(){
+  while(storyBackdrop.children.length){const s=storyBackdrop.children.pop(); if(s.material)s.material.dispose();}
+  storyLayers.length=0;
+}
+function storySprite(kind,url,opts){
+  opts=opts||{};
+  const m=new THREE.SpriteMaterial({map:storyTexture(url),transparent:kind!=='sky',opacity:opts.opacity==null?1:opts.opacity,
+    depthWrite:false,depthTest:kind!=='sky',toneMapped:false,fog:false,alphaTest:kind==='sky'?0:0.018});
+  const s=new THREE.Sprite(m); s.frustumCulled=false; s.renderOrder=opts.order||-80;
+  s.userData.story=Object.assign({kind:kind,defaultAspect:opts.aspect||2.8,distance:opts.distance||360,
+    width:opts.width||1.25,y:opts.y||0,drift:opts.drift||0,side:opts.side||0},opts);
+  storyBackdrop.add(s); storyLayers.push(s); return s;
+}
+function buildStorybookBackdrop(span){
+  storySpan=span||80; clearStorybookBackdrop();
+  if(!STORYBOOK_ON) return;
+  const k=STORY_KEY[BIOME]||'grassland';
+  storySprite('sky',STORY_PATH.sky(k),{distance:520,width:1.18,y:0,aspect:1.38,order:-120});
+  storySprite('horizon',STORY_PATH.horizon(k),{distance:470,width:1.32,y:-0.15,drift:0.035,aspect:16/9,order:-110,opacity:0.98});
+  if(PARALLAX_ON){
+    storySprite('far',STORY_PATH.parallax(k,'far'),{distance:430,width:1.38,y:-0.17,drift:0.075,aspect:3.0,order:-105,opacity:0.76});
+    storySprite('mid',STORY_PATH.parallax(k,'mid'),{distance:390,width:1.30,y:-0.22,drift:0.15,aspect:3.0,order:-100,opacity:0.88});
+    storySprite('near',STORY_PATH.parallax(k,'near'),{distance:350,width:1.22,y:-0.28,drift:0.24,aspect:3.0,order:-95,opacity:0.94});
+  }
+  if(LANDMARKS_ON){
+    const seedEl=document.getElementById('seed'), h=hash32(k+'|'+(seedEl?seedEl.value:'')+'|landmark');
+    const choice=(h&1)?'a':'b', side=(h&2)?1:-1;
+    storySprite('landmark',STORY_PATH.landmark(k,choice),{distance:375,width:0.31,y:-0.12,drift:0.19,
+      side:side,aspect:1.15,order:-97,opacity:0.96});
+  }
+  updateStorybookBackdrop();
+}
+function updateStorybookBackdrop(){
+  if(!storyLayers.length||!camera) return;
+  const forward=new THREE.Vector3(); camera.getWorldDirection(forward);
+  const right=new THREE.Vector3(1,0,0).applyQuaternion(camera.quaternion).normalize();
+  const up=new THREE.Vector3(0,1,0).applyQuaternion(camera.quaternion).normalize();
+  const fov=THREE.MathUtils.degToRad(camera.fov), targetScreen=cam.tgt.dot(right);
+  storyLayers.forEach(s=>{
+    const o=s.userData.story, dist=o.distance;
+    const viewH=2*dist*Math.tan(fov/2), viewW=viewH*Math.max(camera.aspect,0.7);
+    const img=s.material.map&&s.material.map.image;
+    const aspect=img&&img.width&&img.height?img.width/img.height:o.defaultAspect;
+    let w,h;
+    if(o.kind==='sky'){w=viewW*o.width;h=viewH*1.20;}
+    else if(o.kind==='landmark'){h=viewH*0.37;w=h*aspect;}
+    else {w=viewW*o.width;h=w/aspect;}
+    s.scale.set(w,h,1);
+    const orbitShift=Math.sin(cam.theta-Math.PI*0.22)*storySpan*o.drift*0.22;
+    const focusLag=-targetScreen*o.drift;
+    const sideShift=o.side?o.side*viewW*0.27:0;
+    s.position.copy(camera.position).addScaledVector(forward,dist)
+      .addScaledVector(right,orbitShift+focusLag+sideShift)
+      .addScaledVector(up,viewH*o.y);
+  });
+}
 
 /* ═══════════════ TOON SHADING ═══════════════
    Banded (cel) lighting via a stepped gradient map, plus inverted-hull
@@ -1877,11 +1968,14 @@ function renderField(){
   const slab=new THREE.Mesh(new THREE.BoxGeometry(span,BASE+2,span),new THREE.MeshLambertMaterial({color:SLABCOL}));
   slab.position.y=-BASE-1+0.6; world.add(slab);
 
-  // ---- distant mountain backdrop (a hazed cyclorama around the scene) ----
-  const bdR=span*1.55;
-  const bd=new THREE.Mesh(new THREE.CylinderGeometry(bdR,bdR,span*0.7,48,1,true),
-    new THREE.MeshBasicMaterial({map:mountainTex(),transparent:true,side:THREE.BackSide,depthWrite:false,fog:true,toneMapped:false}));
-  bd.position.y=span*0.16; world.add(bd);
+  // ---- backdrop fallback: the old repeated cyclorama remains available
+  //      at ?storybook=0 for performance and visual A/B comparisons. ----
+  if(!STORYBOOK_ON){
+    const bdR=span*1.55;
+    const bd=new THREE.Mesh(new THREE.CylinderGeometry(bdR,bdR,span*0.7,48,1,true),
+      new THREE.MeshBasicMaterial({map:mountainTex(),transparent:true,side:THREE.BackSide,depthWrite:false,fog:true,toneMapped:false}));
+    bd.position.y=span*0.16; world.add(bd);
+  }
 
   // ---- waterfalls: big drops where a water edge meets much-lower water ----
   addWaterfalls();
@@ -1891,9 +1985,10 @@ function renderField(){
   addSurfaceDecals();
   addMotivatedLights(span);
 
-  // ---- haze particles ----
+  // ---- haze particles + visual-only storybook backdrop ----
   buildHaze(span);
   renderPlaced();
+  buildStorybookBackdrop(span);
 
   frameField();
 }
