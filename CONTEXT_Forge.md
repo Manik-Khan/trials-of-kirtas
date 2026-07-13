@@ -1,4 +1,4 @@
-# CONTEXT — Battle Forge — updated 2026-07-12, FIFTH session (LEDGE FIRING + DATABASE CHARACTER AUTHORITY shipped and table-verified: the 12f bundle was repaired against real main after its guards correctly aborted, kit-derive fixtures now carry the party's REAL gear, and the table's "still can't shoot over the wall" turned out to be a Bite-2 weapon-range contract gap in `weapon-actions.js` — fixed, deployed, ranged shots work. Session record: `CONTEXT_Forge-update-2026-07-12g.md`; 12d remains the round-3 record; 12f is superseded by 12g and can be deleted)
+# CONTEXT — Battle Forge — updated 2026-07-13, SIXTH session (VISUAL DIRECTION RATIFIED: storybook sky + horizon live and approved; masked parallax/landmark cards parked; camera-follow, world-space fog of war, tactical-prop split, and graph-based generator Phase 2 planned. Current handoff: `CONTEXT_Forge-update-2026-07-13a.md`; 12g remains the shipped ledge/character-authority record)
 
 > This doc exists because the same failure kept happening: a session would read
 > *part* of the material, conclude a feature "was never there," and rebuild
@@ -90,6 +90,11 @@ greyed out in the select and must never be silently dropped.
 | `forge/tests/smoke-cover-contest.js` | known-answer: the Cover Contest end-to-end over MemoryBus — ruling/timeout/total flows, replay determinism, culprit geometry, and the overseer-only gate twin (a player forging `prompt_answered{unit:"__overseer"}` is rejected) | canonical |
 | `forge/tests/*` | smokes. HUD-wave battery, all green 2026-07-12 night: **kit-derive 341** (incl. the four live `data/characters/*.json` as first-class fixtures, loaded from disk, driven through the real `assembleActions`) · spell-icons 43 · feed-render 66 · **starter-kits 20** · protocol 56 · replay 35 · silvery-barbs 13 · **pick-unit 12**. Older battery unchanged: engine 14 · bridge 16 · geometry 26 · los-cover 37 · placement 19 · flora 22 · tiers-rebase 32 · forge-board 26 · bus-reconnect 12 · cover-contest 24. (`smoke-glow-color.mjs` reads an uncommitted `topo-work.html` scratch file and errors in-repo — pre-existing, known.) | canonical |
 | `topography-test-mock.html` | **THE surface.** Heightfield + all the geometry + combat loop | active |
+| `forge/assets/topography-art/` | biome decal atlas + first-pass horizons used by the 2026-07-13 visual pass | active assets |
+| `forge/assets/forge-horizons/` | six painterly biome horizon plates | active assets |
+| `forge/assets/forge-skies-storybook/` | six stronger storybook sky plates | active assets |
+| `forge/assets/forge-parallax/` | experimental far/mid/near cards; current extracted files have baked matte/checkerboard masking | **parked; default off** |
+| `forge/assets/forge-landmarks/` | experimental background landmark cards; same masking issue | **parked; default off** |
 | `battle-tactics-geo-mock.html` | flat box-tile combat mock. **The source of the combat system and the feel layer.** NOT superseded — it is the port source | reference |
 | `battle-forge-mock.html` | *"the dream one."* generator → tactics diorama. **Source of the pixel sprites + portraits** | reference |
 | `battle-forge-biome-mock.html` | **source of the biome art direction.** `SKINS` table: `wallH`, fog, light rigs, particles, flavour scatter | reference |
@@ -140,12 +145,12 @@ the contract for "port the battle mock." **Everything marked ✗ is the job.**
 |---|---|---|---|---|
 | move tile telegraph | – | – | ✔ | |
 | tweened movement | ✔ | ✔ | ✔ | |
-| sight lines drawn | ✔ | – | ✔ | topo's may be `depthTest`-hidden inside terrain — **unverified in browser** |
-| **badges over units** | ✔ | – | **✗** | `battle-tactics` ~L1515–1550: DOM badges `✕ no line` · `↑ too high` · `½ cover +2` · `¾ cover +5` |
-| **hit flash** | ✔ | ✔ | **✗** | `battle-tactics` L1036 `flashHit()` |
-| **camera shake** | ✔ | ✔ | **✗** | `battle-tactics` L1002 `shake()`, gated on `REDUCED` |
-| **idle bob** | ✔ | ✔ | **✗** | `bobPhase` L886, applied L1854 |
-| **floating damage text** | ✗ | ✗ | ✗ | **exists nowhere.** Must be written |
+| sight lines drawn | ✔ | – | ✔ | topo now uses `depthTest:false` + render order; browser-visible |
+| badges over units | ✔ | – | ✔ | verdict/advantage/cover badges ported to `#cbFx`; projected every frame |
+| hit flash | ✔ | ✔ | ✔ | ported (`flashHit`) |
+| camera shake | ✔ | ✔ | ✔ | ported; gated on reduced motion |
+| idle bob | ✔ | ✔ | ✔ | ported; suppressed while moving/down |
+| floating damage text | ✗ | ✗ | ✔ | new DOM floaters for damage/heal/crit/miss/down |
 
 ### Art / render
 | feature | tactics | forge | biome | topo | notes |
@@ -153,7 +158,7 @@ the contract for "port the battle mock." **Everything marked ✗ is the job.**
 | pixel sprites | ✔ | ✔ | – | ✔ | `SPRITES` + `pixelCanvas()`, 7 keys |
 | base64 portraits | ✔ | ✔ | – | ✔ | 4 PCs |
 | per-biome light rig | – | – | ✔ | ✔ | `SKINS` / `LOOK` |
-| **torch PointLights** | ✔ | ✔ | ✔ | **✗** | topo has the theme data, never builds the lights |
+| torch / magical PointLights | ✔ | ✔ | ✔ | ✔ | bounded local lights + additive source cards; `?fxlights=0` A/B |
 | particles | – | ✔ | ✔ | ✔ | |
 | shadow map | – | – | – | ✔ | topo only; PCF soft, fitted ortho frustum |
 | ambient occlusion | – | ~ | – | ✔ | per-instance `setColorAt` |
@@ -266,15 +271,12 @@ real placement. **These are decisions, not hypotheses.**
    minimum 5 ft → 15 ft; median gap inside the party 1 → 2 squares, inside the foes 1 → 3.
    `forge/tests/smoke-placement.js` (19) extracts the real functions from the mock and
    runs them on real generated fields.
-3. **Sight lines may be invisible.** Drawn with `LineBasicMaterial`, default
-   `depthTest`, so segments passing through terrain disappear. Suspected, not
-   confirmed in a browser. Set `depthTest:false` + `renderOrder`.
-3b. **Flora is drawn ~2× its occluder height.** `placeProp` draws a tree 2.4 world
-   units tall. At `STEP=1.15` that is 2.09 tiers ≈ 10.4 ft, but `PROP_FT.tree`
-   is 5.5 ft. The picture says total cover; the rules say three-quarters. §4 says
-   the picture may never disagree with the sight lines. The *ratios* between kinds
-   are now correct (`VIS()`), the absolute scale is not. Halving it shrinks every
-   tree in the project, so it is M's call, not a bug fix.
+3. ~~Sight lines may be invisible.~~ **Fixed 2026-07-13.** The material now uses
+   `depthTest:false` with explicit render order, and the browser screenshots show the lines.
+3b. ~~Flora is drawn ~2× its occluder height.~~ **Fixed 2026-07-13.** Visual height is
+   now derived from the same feet contract: `VIS_HEIGHT(kind,scale) = PROP_FT × STEP/5 × scale`.
+   Decorative spread may exceed the solid trunk, but the visually solid mass no longer promises
+   more cover than `occ[]`.
 3c. **A wall renders 1.4 tiers tall but a token quad is ~1.4 units wide in a
    1-unit cell.** Camera-facing sprites next to walls clip into them. Flora no
    longer lands there (fixed, below); 30% of walkable cells still touch a wall,
@@ -501,6 +503,27 @@ real placement. **These are decisions, not hypotheses.**
 
 ---
 
+
+28. **Experimental parallax/landmark masking is broken.** The generated source atlases
+    contain a baked light checkerboard/matte in RGB rather than dependable alpha. The v3
+    extraction displays white rectangular blocks in the real browser. M's A/B is decisive:
+    `?parallax=0&landmarks=0` looks strong. Make those systems opt-in (`=1`) or remove the
+    broken derived PNGs from runtime until regenerated with genuine transparency.
+29. **Camera opens on the map, not the actor.** `frameField()` resets `cam.tgt` to the
+    field centre and fits almost the entire map. `focusUnit()` exists, but drag only orbits;
+    there is no terrain pan, follow state, target-pair framing, recenter, or player bounds.
+30. **Fog of war does not exist yet.** Camera limits alone are not authority. Build
+    party-shared `visibleNow` + accumulated `explored`, keyed to map cells and canonical
+    height/LoS; gate enemy sprites/hover/badges/targeting through `foeVisible()`.
+31. **The horizon is camera-relative.** Camera orbit is correct (the scene root is not
+    spinning), but a fixed painted composition behind an orbiting board can read like a
+    model rotating on a studio table. Sky may stay camera-locked; later consider a
+    cylindrical or world-aligned horizon panorama.
+32. **The generator lacks macro variety and encounter semantics.** It deterministically
+    emits a heightfield, but maps still begin from the same broad grammar. Phase 2 is the
+    archetype + graph + semantics + constrained elevation + connector + validate/repair
+    pipeline in §8 and the 2026-07-13a session record.
+
 ## §6 · ART, ASSETS, LICENSING
 
 - **three.js: `topography-test-mock.html` is on r185**, ESM via import map.
@@ -610,6 +633,35 @@ real placement. **These are decisions, not hypotheses.**
 ---
 
 ## §8 · SUGGESTED NEXT SESSION
+
+
+**2026-07-13, sixth session — VISUAL DIRECTION RATIFIED; CAMERA / FOG / GENERATOR PLAN NEXT.**
+Full record: `CONTEXT_Forge-update-2026-07-13a.md`.
+
+Shipped/verified in the current visual branch: authored fog, scale-correct flora, tuned
+shading/AO/outlines, cliff detail, decals, bounded magical PointLights, combat-mode chrome,
+visible sight lines, verdict badges, hit flash, shake, idle bob, damage floaters and
+nameplates. Six storybook skies and six painted horizons are wired; M's browser A/B approves
+that pair. The extracted parallax/landmark cards have broken baked-matte masking and are parked.
+
+**NEXT, in order:**
+1. **Tiny art cleanup patch:** sky+horizon normal; parallax/landmarks off by default and
+   experimental opt-ins only (`?parallax=1`, `?landmarks=1`) or removed until rebuilt.
+2. **Camera/discovery mock → approve → build:** open on active/first PC; follow actor;
+   initiative/token focus; attacker+target framing; terrain pan; zoom/orbit; recenter;
+   overseer Overview; player bounds and zoom limit. Keep camera orbit, never rotate world root.
+3. **Party-shared fog of war:** unexplored / explored / visible-now in world space;
+   hide caps, cliffs, props, tokens and interactions; `foeVisible()` is the enemy gate.
+4. **Generator foundation:** `generatorVersion`, exact `mapSnapshot`, deterministic stage
+   sub-seeds, map archetypes, graph/semantic metadata, debug overlays.
+5. **Graph terrain:** scatter → separate → Delaunay → MST + loops → BFS semantics →
+   constrained elevations → ramps/stairs/bridges/etc. → semantic spawns/objectives →
+   validate/repair/retry → emit.
+6. **Tactical prop pack:** separate from background cards; footprint + `occFt` + movement
+   effect + rotations before art can enter the playable map.
+7. Then resume carried rules backlog: mid-fight sheet sync, thrown/ranged mode, reach
+   weapons, flanking, opportunity attacks, Ready.
+
 
 **2026-07-12, fifth session — LEDGE + CHARACTER AUTHORITY LIVE, RANGED SHOTS WORK.**
 The 12f bundle (repaired against real main) shipped ledge firing, database character

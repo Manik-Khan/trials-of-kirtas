@@ -4,13 +4,13 @@ Custom D&D 5e virtual tabletop. Live: **trials-of-kirtas.netlify.app**
 Repo: `Manik-Khan/trials-of-kirtas` · vanilla JS/HTML/CSS + Supabase + Netlify + GitHub.
 Walled React/Vite/TipTap corner at `journal/`.
 
-Updated: **July 12, 2026 (late night — ledge firing + database character authority live and
-table-verified; ranged weapons fixed).** Supersedes the July 11 evening doc (which superseded
-July 8 + July 6). The non-Forge sections stand as written there; the Forge section below carries
-July 10–12 (protocol → bite 1 field day → the HUD wave → the 12f/12g authority-and-ledge
-session). Reconciled sources: the July 11 doc, `CONTEXT_Forge.md` (fifth-session header),
-`CONTEXT_Forge-update-2026-07-12d.md` and `-12g.md`, `FORGE_PROTOCOL.md`, `FORGE_BOARD.md`,
-`FORGE_COVER_CONTEST.md`.
+Updated: **July 13, 2026 (visual direction ratified — storybook sky + painted horizon approved;
+masked parallax/landmark cards parked; camera-follow, world-space fog of war, tactical-prop split,
+and graph-based generator Phase 2 planned).** Supersedes the July 12 late-night project doc.
+The non-Forge sections stand as written there; the Forge section now carries July 10–13.
+Reconciled sources: the July 12 doc, `CONTEXT_Forge.md` (sixth-session header),
+`CONTEXT_Forge-update-2026-07-12g.md`, `CONTEXT_Forge-update-2026-07-13a.md`,
+`FORGE_PROTOCOL.md`, `FORGE_BOARD.md`, and `FORGE_COVER_CONTEST.md`.
 
 **Companion doc: `CONTEXT_Forge.md` — read it before touching the Forge.** It carries the port
 manifest (what the combat system consists of, and which parts exist where), the settled geometry
@@ -204,7 +204,7 @@ independent syncs), not the offset jumping.
 
 ---
 
-## 🟡 Battle Forge — multiplayer live on the real board; bite 1 field-tested (July 8 → 12)
+## 🟡 Battle Forge — multiplayer live; visual direction ratified; camera/fog/generator next (July 8 → 13)
 
 **`forge/README.md` + `CONTEXT_Forge.md` are canonical for this subsystem.** Read both.
 For the cover-contest mechanism, `FORGE_COVER_CONTEST.md`; for the event protocol,
@@ -212,6 +212,39 @@ For the cover-contest mechanism, `FORGE_COVER_CONTEST.md`; for the event protoco
 
 Procedural battle-map generation + the seam that turns a generated map into a rules-enforced
 encounter. **Optional layer that extends theatre-of-the-mind — never replaces it.**
+
+
+### July 13 — visual pass, storybook backgrounds, and the next architecture
+
+Sixth Forge session (full handoff: `CONTEXT_Forge-update-2026-07-13a.md`). The topography
+surface received a real art/feel pass: authored biome fog, scale-correct flora tied to
+`PROP_FT`, lighter toon/AO/outline balance, cliff strata and decals, bounded magical
+PointLights, combat-mode chrome, visible sight lines, verdict badges, hit flash, shake, idle
+motion, damage/heal/miss/down floaters, and token nameplates.
+
+Five browser-upload bundles were produced across the session: the first integrated visual pass;
+Build A horizons/skies; Build B generator roadmap; Build A v2 parallax/landmark art; and Build A
+v3 integration. M's real-browser A/B settled the art direction:
+
+- **keep:** stronger storybook sky + painted biome horizon;
+- **park:** extracted parallax and landmark cards — their generated source sheets carried a
+  baked light checkerboard/matte instead of trustworthy alpha, producing white block masks;
+- **next cleanup:** make parallax/landmarks opt-in or remove them from runtime until regenerated.
+
+Background cards and tactical props are now explicitly different systems. A future playable
+landmark must have a tile footprint, rotation/view art, movement consequence, and `occFt`, with
+its rules emitted into `props`/`occ[]`; distant scenery has none of those.
+
+The next approved architecture order is:
+
+1. active-unit camera follow, selected-unit and attacker/target framing, terrain pan, recenter,
+   overview, and player camera bounds;
+2. party-shared three-state fog of war in **world/map space**, with enemies and interactions gated
+   through `foeVisible()`;
+3. generator Phase 2: versioning + snapshots + stable stage sub-seeds + map archetypes, then
+   scatter/separate/Delaunay/MST+loops/semantics/constrained elevations/connectors/spawns,
+   followed by validate/repair and separate rules-relevant versus visual decoration;
+4. a dedicated tactical-prop art/data pack after the map contract is ready.
 
 ### July 12 (late) — ledge firing, database character authority, and the ranged-weapon fix
 
@@ -361,13 +394,15 @@ whole story of the missing sprites, the missing flanking, and the missing feel.
 
 ### Open
 
-- **Bugs:** ~~height slider~~ fixed (`restageForHeight()` — four groups held a STEP-derived Y, not one);
-  ~~placement bunching~~ fixed (`minSep` spread + 40–90 ft foe band; 6→0 fights opening inside 15 ft
-  over 60 seeds); sight lines may still be `depthTest`-hidden inside terrain (§5.3, unverified in browser).
-- **Not ported:** flanking → advantage, opportunity attacks, DOM badges, hit flash, camera shake,
-  idle bob, torch PointLights.
-- **Exists nowhere:** Ready an action (the geometry now demands it), floating damage text,
-  post-processing.
+- **Bugs:** height slider and placement bunching remain fixed; sight-line depth hiding is now
+  fixed (`depthTest:false`). Current art bug: generated parallax/landmark cards have baked
+  checkerboard/matte masking and stay off.
+- **Now ported:** DOM verdict badges, hit flash, camera shake, idle bob, floating combat text,
+  nameplates, visible sight lines, and bounded magical PointLights.
+- **Still not ported:** flanking → advantage and opportunity attacks.
+- **Still exists nowhere:** Ready an action and post-processing.
+- **New architecture backlog:** camera follow/pan/framing, world-space party-shared fog of war,
+  graph-based generator Phase 2, and tactical map props with footprints + `occFt`.
 - ~~topo's inlined generator is stale~~ **fixed in bite 1** — the mock now runs canonical
   `ForgeEngine.generate()` (`CONTEXT_Forge.md` §5.5; `smoke-tiers-rebase.js` 32 green).
 - ~~Agreed next build: wire Forge to load a generated map + character-select entrance~~ —
@@ -407,6 +442,12 @@ whole story of the missing sprites, the missing flanking, and the missing feel.
 - **The battle mock does not look better because of its renderer.** It has no shadows and no
   post-processing either. It looks better because things were *drawn* and things *move*. Feel is
   cheaper than art and buys more.
+- **July 13 visual ruling:** use storybook sky + painted horizon. Parallax and landmark cards from
+  the v2 generated atlases remain disabled until real-alpha replacements exist.
+- **Background versus map props:** background art is visual-only. Tactical landmarks require
+  footprint, movement/blocking, `occFt`, placement clearance, and directional/rotational art.
+- M currently commits through GitHub's browser; preserve folder structure in ZIP handoffs and
+  provide an upload manifest.
 
 ---
 
