@@ -1,23 +1,30 @@
-Phase 1.5d patch baseline
+Phase 1.5f source baseline
+==========================
 
-Source file supplied by M:
-  topography-test-mock(3).html
+Base bundle:
+  Phase 1.5e effects + feed production output.
 
-SHA256 of supplied baseline:
-  484644cdcd1b091171b4ca65d9f03fd0e40774438bbcc6780d72dda59ab997a2
+Base topography SHA256:
+  3487178acdfb382fed59f30bc465097b749fd29ff2984fad5573abb83df76c56
 
-Patched replacement:
-  forge/topography-test-mock.html
+Replacement topography SHA256 before packaging:
+  ced0e444f68f8648e746ed3c1a313ec75420fd117a6396e37c930a6ad3fd1807
 
-SHA256 of patched replacement:
-  bbae6a57055ef1db63c844812d859ae9919b596440b76543311e8b12c29d1996
+Topography line counts:
+  baseline:    7734
+  replacement: 7884
 
-Line counts:
-  baseline: 7504
-  patched:  7585
+Unified topography diff:
+  169 insertions
+  19 deletions
 
-Unified diff summary:
-  130 insertions
-  49 deletions
+Base forge-table-correctness.js SHA256:
+  27437e531c6983039f348086266a4548b87c3951db3b0a9ffbf304c7070efac8
 
-Everything other than the uploaded HTML was treated as current main, per M's instruction.
+Replacement forge-table-correctness.js SHA256:
+  75df312dc0812fe953309f0637877cf3ab6b9039939e64dcf44268d3cc897389
+
+New forge-discovery.js SHA256:
+  490f9defce4f47196cb65eb4af0213c049cb319f56ccc47966a5c08c8bcfba62
+
+Everything else is retained from the current Phase 1.5c–e production bundle set.

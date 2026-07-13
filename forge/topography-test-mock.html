@@ -28,6 +28,8 @@
 <script src="forge-engine.js?v=fb1"></script>
 <script src="forge-protocol.js?v=fb1"></script>
 <script src="forge-replay.js?v=fb6"></script>
+<script src="forge-effects.js?v=fe1"></script>
+<script src="forge-discovery.js?v=fd1"></script>
 <script src="forge-bus.js?v=fb2"></script>
 <script src="forge-pipeline.js?v=fb4"></script>
 <script src="forge-board.js?v=fb5"></script>
@@ -37,7 +39,7 @@
 <script src="forge-kit-derive.js?v=b2"></script>
 <script src="forge-feed-render.js?v=b2"></script>
 <script src="forge-hud.js?v=b2"></script>
-<script src="forge-table-correctness.js?v=fd1"></script>
+<script src="forge-table-correctness.js?v=fd2"></script>
 <script src="../item-icons.js?v=b3"></script>
 <script src="../spell-icons.js?v=b3"></script>
 <script src="../icon-picker.js?v=b3"></script>
@@ -783,6 +785,19 @@ global.TacticsGeo = API;
 .cbSlotChip{ margin-top:10px; padding-top:10px; border-top:1px solid rgba(168,159,138,.3); }
 .cbSlotChip .cbHint{ margin-top:0; margin-bottom:6px; }
 .cbSlotChip button{ width:100%; }
+
+  /* ── Phase 1.5f: world-space discovery + firing-position preview ── */
+  #firePreviewLegend{position:fixed;left:50%;bottom:154px;transform:translateX(-50%);z-index:19;
+    display:none;align-items:center;gap:10px;flex-wrap:wrap;justify-content:center;max-width:min(760px,calc(100vw - 32px));
+    padding:8px 12px;background:rgba(12,16,15,.94);border:1px solid rgba(205,184,132,.36);box-shadow:0 12px 36px rgba(0,0,0,.48);
+    color:#e8dfce;font:650 11px/1.3 'Barlow Condensed',sans-serif;letter-spacing:.06em;text-transform:uppercase;pointer-events:none}
+  #firePreviewLegend.on{display:flex}
+  .fireLeg{display:inline-flex;align-items:center;gap:5px;white-space:nowrap}.fireSw{width:12px;height:12px;border:1px solid rgba(255,255,255,.28);box-shadow:inset 0 0 0 1px rgba(0,0,0,.18)}
+  .fireSw.clear{background:#2da84f}.fireSw.half{background:#e0bf44}.fireSw.three{background:#d67a2f}.fireSw.blocked{background:#252a27}
+  #firePreviewReadout{min-width:190px;color:#fff1c8;text-align:center}
+  #discoveryStatus{margin-top:3px}
+  body.forge-player-view #discoveryStatus{color:#7f998c}
+  @media(max-width:660px){#firePreviewLegend{bottom:145px;font-size:10px;gap:7px}.fireLeg span:last-child{display:none}#firePreviewReadout{min-width:140px}}
 </style>
 </head>
 <body>
@@ -901,6 +916,7 @@ global.TacticsGeo = API;
       <button class="filebtn" id="camOverview" title="Overseer-only full-map framing">Overview</button>
     </div>
     <div class="fname" id="camStatus">3D · free camera · Shift/middle-drag pans</div>
+    <div class="fname" id="discoveryStatus">Discovery waits for combat.</div>
     <div class="improw" style="margin:7px 0 4px">
       <button class="filebtn" id="tokenArtEdit" title="Customize the selected or active combatant on this device">Token art…</button>
       <button class="filebtn" id="tokenArtAuto" title="Clear only this combatant override; its creature or character default remains">Use default</button>
@@ -957,6 +973,7 @@ global.TacticsGeo = API;
   <!-- Bite 3: inline sprite block deleted — icons now from item-icons.js + spell-icons.js registries -->
   <div id="combatHud" style="display:none">
     <div id="cbFx"></div>
+    <div id="firePreviewLegend" aria-live="polite"><b>Firing positions</b><span class="fireLeg"><i class="fireSw clear"></i><span>clear</span></span><span class="fireLeg"><i class="fireSw half"></i><span>half +2</span></span><span class="fireLeg"><i class="fireSw three"></i><span>¾ +5</span></span><span class="fireLeg"><i class="fireSw blocked"></i><span>no shot</span></span><span id="firePreviewReadout">Select a colored origin to inspect it.</span></div>
     <div class="cbInitWrap"><div class="cbInit" id="cbInit"></div></div>
     <div class="cbPanel">
       <div class="cbActive" id="cbActive"></div>
@@ -1335,7 +1352,8 @@ function cameraPan(dx,dy){
   cam.tgt.addScaledVector(right,-dx*scale).addScaledVector(forward,dy*scale);
   cameraSetMode('free');placeCam();
 }
-function cameraFollowTurn(u){if(!u)return;cameraSetMode('follow');focusUnit(u,'follow');}
+function cameraFocusAllowed(u){return !u||u.side!=='foe'||typeof foeVisible!=='function'||foeVisible(u);}
+function cameraFollowTurn(u){if(!u)return;if(!cameraFocusAllowed(u)){cameraSetMode('free');return;}cameraSetMode('follow');focusUnit(u,'follow');}
 function cameraRecenter(){
   const u=(typeof active==='function'&&typeof CB!=='undefined'&&CB&&CB.active)?active():null;
   if(u) cameraFollowTurn(u); else frameField();
@@ -1345,7 +1363,7 @@ function overviewCamera(){
   cameraSetMode('free');frameField();
 }
 function frameCameraPair(a,b){
-  if(!a||!b) return;
+  if(!a||!b||!cameraFocusAllowed(a)||!cameraFocusAllowed(b)) return;
   clearTimeout(cam.pairTimer);
   const pa=cameraUnitPoint(a),pb=cameraUnitPoint(b);if(!pa||!pb)return;
   const mid=pa.clone().add(pb).multiplyScalar(0.5);mid.y=Math.max(pa.y,pb.y)*0.55+Math.min(pa.y,pb.y)*0.45;
@@ -1357,7 +1375,7 @@ function frameCameraPair(a,b){
 }
 function cameraFollowTick(){
   if(cam.mode!=='follow'||typeof active!=='function'||typeof CB==='undefined'||!CB||!CB.active)return;
-  const u=active(),p=cameraUnitPoint(u);if(!p)return;
+  const u=active();if(!cameraFocusAllowed(u))return;const p=cameraUnitPoint(u);if(!p)return;
   if(cam.tgt.distanceToSquared(p)>0.0004){cam.tgt.lerp(p,0.24);placeCam();}
 }
 function wireCameraControls(){
@@ -2923,7 +2941,7 @@ function ringPulse(c,r){
 }
 function inspectUnit(u){ if(!u) return; ringPulse(u.c,u.r); showNameplate(u); }
 function focusUnit(u,mode){
-  if(!u) return;
+  if(!u||!cameraFocusAllowed(u)) return;
   cameraSetMode(mode||'focus');
   var to=cameraUnitPoint(u);
   cameraTweenTo(to,null,420,function(){ringPulse(u.c,u.r);if(u.sprite)showNameplate(u);});
@@ -2959,6 +2977,7 @@ function loop(){requestAnimationFrame(loop);const now=performance.now();const t=
         u.sprite.material.color.setRGB(1-(1-c2.r)*p2,1-(1-c2.g)*p2,1-(1-c2.b)*p2); }
     });
     trackBadges();
+    trackEffectBadges();
   }
   cameraFollowTick();   // Phase 1.5: track tweened movement without camera bob
   syncAllUnitVisuals();   // top token follows the same movement tween and fog gate
@@ -2987,9 +3006,190 @@ var CB = { active:false, over:false, units:[], order:[], ti:0, map:null, seen:nu
            log:[], hist:[], hptr:-1, turnStartPtr:-1, react:null, selKey:null, tgtKey:null };
 var moveGroup = new THREE.Group(); scene.add(moveGroup);
 var sightGroup = new THREE.Group(); scene.add(sightGroup);
+var fogGroup = new THREE.Group(); scene.add(fogGroup);
 var SHOW_SIGHT = true;
 var CB_ANIM = false;      // a walk tween is running — input waits for it
 var READYING = false;     // "Ready" armed: the next attack picked is held, not thrown
+
+/* ── PHASE 1.5f: party-shared world-space discovery ───────────────────
+   Player View sees the union of every living PC's current sight. Explored
+   memory is reconstructed from the shared movement log, so refresh/join does
+   not reset the dungeon. Staff View stays omniscient; switching to Player
+   View locally shows exactly the discovery presentation without changing
+   account authority. The first renderer is intentionally cell-volume fog —
+   map-space authority now, per-instance terrain visibility later. */
+var DISCOVERY={mapRef:null,mapSerial:0,cache:new Map(),visible:null,explored:null,states:null,
+  ready:false,currentSig:'',historySig:'',fogSig:'',localTrail:[],unexploredMesh:null,exploredMesh:null};
+var FIRE_PREVIEW=null;
+function discoveryApi(){return window.ForgeDiscovery||null;}
+function discoveryHasSession(){return !!window.__forgeSession||new URLSearchParams(location.search).has('session');}
+function discoveryPlayerView(){
+  if(!discoveryHasSession())return false;   // local sandbox is the DM's workbench
+  var tc=window.ForgeTableCorrectness;return tc?tc.playerView(window.__forgeSession):!(window.__forgeSession&&window.__forgeSession.me&&window.__forgeSession.me.overseer);
+}
+function discoverySideMap(){var out={};(CB.units||[]).forEach(function(u){out[u.unit||u.key||u.id]=u.side;});return out;}
+function discoveryCurrentSources(){return (CB.units||[]).filter(function(u){return u.side==='pc'&&u.alive;}).map(function(u){return {unit:u.unit||u.key||u.id,c:u.c,r:u.r,radiusFt:discoveryApi().sightRadiusFt(u)};});}
+function discoveryHistorySources(){
+  var D=discoveryApi(),sess=window.__forgeSession,current=discoveryCurrentSources();if(!D)return current;
+  if(sess&&sess.pipe&&typeof sess.pipe.events==='function')return D.uniqueCells(D.historySources(sess.row&&sess.row.roster||[],sess.pipe.events(),discoverySideMap()).concat(current));
+  current.forEach(function(p){DISCOVERY.localTrail.push(p);});DISCOVERY.localTrail=D.uniqueCells(DISCOVERY.localTrail);return D.uniqueCells(DISCOVERY.localTrail.concat(current));
+}
+function discoveryMaskFor(src){
+  var D=discoveryApi(),radius=src.radiusFt||D.DEFAULT_SIGHT_FT,key=DISCOVERY.mapSerial+'|'+src.c+','+src.r+'|'+radius;
+  if(!DISCOVERY.cache.has(key))DISCOVERY.cache.set(key,D.visibleFrom(CB.map,src,TG,{radiusFt:radius}));
+  return DISCOVERY.cache.get(key);
+}
+function clearFogMeshes(){
+  [DISCOVERY.unexploredMesh,DISCOVERY.exploredMesh].forEach(function(m){if(!m)return;fogGroup.remove(m);if(m.geometry)m.geometry.dispose();if(m.material)m.material.dispose();});
+  DISCOVERY.unexploredMesh=null;DISCOVERY.exploredMesh=null;
+}
+function fogCellTransform(c,r,state,obj){
+  var i=r*CB.map.cols+c,terrain=((CB.map.h[i]||0)/5)*STEP,occ=((CB.map.occ&&CB.map.occ[i]||0)/5)*STEP;
+  var bottom=-2.2,top=terrain+Math.max(.85,occ+.7),height=Math.max(.6,top-bottom);
+  obj.position.set(wxc(c),bottom+height/2,wzc(r));obj.scale.set(1.025,height,1.025);obj.updateMatrix();
+}
+function buildFogMesh(cells,state){
+  if(!cells.length)return null;
+  var geo=new THREE.BoxGeometry(1,1,1),mat=state===0
+    ?new THREE.MeshBasicMaterial({color:0x07100d,depthWrite:true,toneMapped:false,fog:false})
+    :new THREE.MeshBasicMaterial({color:0x17231f,transparent:true,opacity:.44,depthWrite:false,side:THREE.DoubleSide,toneMapped:false,fog:false});
+  var mesh=new THREE.InstancedMesh(geo,mat,cells.length),o=new THREE.Object3D();
+  cells.forEach(function(cell,j){fogCellTransform(cell.c,cell.r,state,o);mesh.setMatrixAt(j,o.matrix);});
+  mesh.instanceMatrix.needsUpdate=true;mesh.renderOrder=state===0?18:17;mesh.frustumCulled=false;fogGroup.add(mesh);return mesh;
+}
+function applyDiscoveryFog(force){
+  var player=discoveryPlayerView(),sig=(player?'player':'staff')+'|'+DISCOVERY.currentSig+'|'+DISCOVERY.historySig+'|'+STEP;
+  if(!force&&sig===DISCOVERY.fogSig)return;DISCOVERY.fogSig=sig;
+  clearFogMeshes();if(!CB.active||!CB.map||!DISCOVERY.ready||!player)return;
+  var D=discoveryApi(),dark=[],memory=[];
+  for(var r=0;r<CB.map.rows;r++)for(var c=0;c<CB.map.cols;c++){
+    var st=D.cellState(DISCOVERY.states,CB.map,c,r);if(st===D.UNEXPLORED)dark.push({c:c,r:r});else if(st===D.EXPLORED)memory.push({c:c,r:r});
+  }
+  DISCOVERY.unexploredMesh=buildFogMesh(dark,D.UNEXPLORED);DISCOVERY.exploredMesh=buildFogMesh(memory,D.EXPLORED);
+}
+function updateDiscoveryStatus(){
+  var el=document.getElementById('discoveryStatus');if(!el)return;
+  if(!CB.active||!DISCOVERY.ready){el.textContent='Discovery waits for combat.';return;}
+  if(!discoveryPlayerView()){el.textContent='Discovery: Staff View shows the full battlefield.';return;}
+  var D=discoveryApi(),vis=0,exp=0,total=DISCOVERY.states.length;
+  for(var i=0;i<total;i++){if(DISCOVERY.states[i]===D.VISIBLE)vis++;if(DISCOVERY.states[i]!==D.UNEXPLORED)exp++;}
+  el.textContent='Party vision · '+vis+' visible · '+exp+'/'+total+' explored';
+}
+function refreshDiscovery(force){
+  var D=discoveryApi();if(!D||!CB.active||!CB.map){DISCOVERY.ready=false;clearFogMeshes();updateDiscoveryStatus();return;}
+  if(DISCOVERY.mapRef!==CB.map){DISCOVERY.mapRef=CB.map;DISCOVERY.mapSerial++;DISCOVERY.cache.clear();DISCOVERY.visible=null;DISCOVERY.explored=null;DISCOVERY.states=null;DISCOVERY.localTrail=[];DISCOVERY.currentSig='';DISCOVERY.historySig='';DISCOVERY.fogSig='';force=true;}
+  var current=discoveryCurrentSources(),history=discoveryHistorySources();
+  var currentSig=current.map(function(p){return p.unit+':'+p.c+','+p.r+':'+p.radiusFt;}).sort().join('|');
+  var historySig=history.map(function(p){return p.unit+':'+p.c+','+p.r;}).sort().join('|');
+  if(force||currentSig!==DISCOVERY.currentSig){DISCOVERY.visible=D.unionMasks(current.map(discoveryMaskFor),CB.map.cols*CB.map.rows);DISCOVERY.currentSig=currentSig;}
+  if(force||historySig!==DISCOVERY.historySig){DISCOVERY.explored=D.unionMasks(history.map(discoveryMaskFor),CB.map.cols*CB.map.rows);DISCOVERY.historySig=historySig;}
+  DISCOVERY.explored=D.mergeExplored(DISCOVERY.explored,DISCOVERY.visible);DISCOVERY.states=D.composeStates(DISCOVERY.explored,DISCOVERY.visible);DISCOVERY.ready=true;
+  applyDiscoveryFog(force);updateDiscoveryStatus();
+}
+function discoveryCellVisible(c,r){var D=discoveryApi();return !!(D&&DISCOVERY.ready&&D.cellVisible(DISCOVERY.states,CB.map,c,r));}
+document.addEventListener('forge:viewerMode',function(){refreshDiscovery(true);syncAllUnitVisuals();drawHi();drawSight();});
+
+/* ── PHASE 1.5e: persistent effect ledger ─────────────────────────────
+   Effects are facts inside the existing payload.effects array. ForgeReplay
+   continues to own HP/turn economy; ForgeEffects independently derives wards
+   and their duration from the same append-only log. Old clients ignore these
+   records safely. LOCAL_EFFECT_ROWS gives the sandbox the same replay model. */
+var LOCAL_EFFECT_ROWS=[], LOCAL_EFFECT_SEQ=0;
+var EFFECT_STATE={effects:{},byUnit:{},starts:{},order:[],active:null};
+var EFFECT_BADGES=[];
+var SANCTUARY_REJECT={};
+function effectApi(){ return window.ForgeEffects||null; }
+function effectRows(){
+  var sess=window.__forgeSession;
+  if(sess&&sess.pipe&&typeof sess.pipe.events==="function") return sess.pipe.events();
+  return LOCAL_EFFECT_ROWS;
+}
+function effectFor(u,kind){ var E=effectApi(); return E&&u?E.find(EFFECT_STATE,u.unit||u.key||u.id,kind):null; }
+function effectList(u){ var E=effectApi(); return E&&u?E.forUnit(EFFECT_STATE,u.unit||u.key||u.id):[]; }
+function clearEffectBadges(){ EFFECT_BADGES.forEach(function(x){if(x.el)x.el.remove();}); EFFECT_BADGES=[]; }
+function syncEffectBadges(){
+  clearEffectBadges(); var host=fxHost(); if(!host)return;
+  Object.keys(EFFECT_STATE.effects||{}).forEach(function(id){
+    var ef=EFFECT_STATE.effects[id],u=unitByKey(ef.target); if(!u||!u.alive)return;
+    /* Never let a status badge reveal a hidden foe before the unit itself is
+       visible. Staff View still sees the complete battlefield through the
+       permission-aware foeVisible seam. */
+    if(u.side==="foe"&&typeof foeVisible==="function"&&!foeVisible(u))return;
+    var el=document.createElement("div");el.className="forge-effect-badge forge-effect-"+escapeHtml(ef.kind||"effect");
+    el.textContent=ef.kind==="sanctuary"?"⬡ SANCTUARY":String(ef.label||ef.kind||"EFFECT").toUpperCase();
+    host.appendChild(el);EFFECT_BADGES.push({el:el,u:u,id:id});
+  });
+}
+function trackEffectBadges(){ EFFECT_BADGES.forEach(function(x){var p=projectUnit(x.u,1.47);if(!p||p.behind){x.el.style.display="none";return;}x.el.style.display="";x.el.style.left=p.x+"px";x.el.style.top=p.y+"px";}); }
+function refreshEffectState(trigger,silent){
+  var E=effectApi();if(!E)return;
+  var prev=EFFECT_STATE||{effects:{}};EFFECT_STATE=E.replay(effectRows());syncEffectBadges();
+  if(!silent&&trigger&&trigger.kind==="turn_ended"&&window.ForgeTableCorrectness){
+    Object.keys(prev.effects||{}).forEach(function(id){var old=prev.effects[id];if(!EFFECT_STATE.effects[id]&&old&&old.expires){
+      window.ForgeTableCorrectness.pushFact({kind:"effect",action:"remove",actor:trigger.unit,target:old.target,effect:old,reason:"duration expired"});
+    }});
+  }
+}
+function localEffectEvent(kind,unit,payload,quiet){
+  var row={seq:++LOCAL_EFFECT_SEQ,kind:kind,unit:unit,payload:payload||{},created_at:new Date().toISOString()};
+  LOCAL_EFFECT_ROWS.push(row);
+  if(!quiet&&window.ForgeTableCorrectness)window.ForgeTableCorrectness.pushEvent(row);
+  refreshEffectState(row,false);return row;
+}
+function resetLocalEffects(order){
+  LOCAL_EFFECT_ROWS=[];LOCAL_EFFECT_SEQ=0;EFFECT_STATE={effects:{},byUnit:{},starts:{},order:[],active:null};SANCTUARY_REJECT={};
+  if(order&&order.length)localEffectEvent("initiative_set","__local",{order:order},true);else syncEffectBadges();
+}
+function sanctuaryAction(a){var E=effectApi();return !!(E&&E.isSanctuaryAction(a));}
+function harmfulDirect(a){var E=effectApi();return !!(E&&E.harmfulDirect(a));}
+function wisdomSaveMod(u){
+  if(!u)return 0;
+  if(u.saveMods&&u.saveMods.wis!=null)return +u.saveMods.wis||0;
+  var sb=u.statblock||{};
+  if(sb.save&&sb.save.wis!=null)return parseInt(sb.save.wis,10)||0;
+  if(sb.wis!=null)return Math.floor(((+sb.wis||10)-10)/2);
+  return +u.save||0;
+}
+function breakOpFor(u,a){var E=effectApi();return E?E.removalForActor(EFFECT_STATE,u.unit||u.key||u.id,a):null;}
+function withBreakOp(effects,u,a){effects=effects||[];var op=breakOpFor(u,a);if(op)effects.push(op);return effects;}
+function localBreakWard(u,a){var op=breakOpFor(u,a);if(op)localEffectEvent("ability_used",u.unit,{ability:a.label,effects:[op],slot:"free",silent:true});}
+function recordSanctuaryCheck(u,t,ward,result){
+  var payload={ability:"Sanctuary ward",targets:[t.unit],effects:[],slot:"free",context:{kind:"sanctuary-save",target:t.unit,roll:result.roll,mod:result.mod,total:result.total,dc:result.dc,saved:result.saved}};
+  var sess=window.__forgeSession;
+  if(!sess){localEffectEvent("ability_used",u.unit,payload);return Promise.resolve(true);}
+  __awaitingUnit=u.unit;__awaitingKind="ability_used";if(__awaitingCount++===0)__awaitingSince=Date.now();renderHud();
+  return sess.pipe.useAbility(u.unit,payload).then(function(r){if(r&&r.ok===false){netPublishFail(r);return false;}return true;});
+}
+function closeSanctuaryChoice(){var el=document.getElementById("cbSanctuaryChoice");if(el)el.remove();}
+function sanctuaryLostAction(u,a,t,after){
+  closeSanctuaryChoice();var effects=withBreakOp([],u,a),sess=window.__forgeSession;
+  clog("<i>Sanctuary turns aside "+escapeHtml(u.name)+"’s "+escapeHtml(a.label)+". The attack is lost.</i>");
+  if(sess){
+    netUseAbility(u,a,[t.unit],effects,{context:"Sanctuary prevented the attack."}).then(function(r){if(after&&(!r||r.ok!==false))after();});
+  }else{
+    localEffectEvent("ability_used",u.unit,{ability:a.label+" — warded",targets:[t.unit],effects:effects,slot:a.bonus?"bonus":"action",context:"Sanctuary prevented the attack."});
+    spend(u,a);finishAction();if(after)after();
+  }
+}
+function openSanctuaryChoice(u,a,t,result){
+  closeSanctuaryChoice();
+  var el=document.createElement("div");el.id="cbSanctuaryChoice";el.className="cbReact";
+  el.innerHTML='<div class="cbReactCard cbSanctuaryCard"><div class="cbReactEy">Sanctuary — Wisdom save failed</div><div class="cbReactTitle">The ward turns the attack aside</div><div class="cbReactDesc">'+escapeHtml(u.name)+' rolled '+result.total+' against DC '+result.dc+'. Choose another legal target, or lose '+(a.bonus?'the bonus action':'the attack')+'.</div><div class="cbReactBtns"><button class="cbReactUse" data-choice="other">Choose another target</button><button class="cbReactSkip" data-choice="lose">Lose attack</button></div></div>';
+  document.body.appendChild(el);
+  el.querySelector('[data-choice="other"]').onclick=function(){SANCTUARY_REJECT[t.unit]=true;closeSanctuaryChoice();CB.tgtKey=null;drawHi();drawSight();renderHud();clog("<i>Choose another target — the same Sanctuary cannot be tested again by this action.</i>");};
+  el.querySelector('[data-choice="lose"]').onclick=function(){sanctuaryLostAction(u,a,t);};
+}
+function sanctuaryGate(u,a,t,onPass,onFail){
+  var E=effectApi(),ward=E&&harmfulDirect(a)?effectFor(t,"sanctuary"):null;
+  if(!ward){onPass();return;}
+  if(SANCTUARY_REJECT[t.unit]){if(onFail)onFail(ward,null,true);else openSanctuaryChoice(u,a,t,{total:"—",dc:ward.dc});return;}
+  var result=E.wisdomSave(ward,wisdomSaveMod(u),d(20));
+  recordSanctuaryCheck(u,t,ward,result).then(function(ok){
+    if(!ok)return;
+    if(result.saved){onPass();return;}
+    if(onFail)onFail(ward,result,false);else openSanctuaryChoice(u,a,t,result);
+  });
+}
 
 /* ── FLANKING → advantage (house rule; toggle) — port: battle-tactics L1140.
    Faithful port: the flanker check is the 2D opposite square, gated on melee
@@ -3358,7 +3558,18 @@ function makeToken(u){
    then a selected unit takes its side colour; then the ACTIVE unit glows on its
    turn — gold if a PC, red if a foe (so you can see which enemy is attacking),
    the foe-red gated on visibility for the not-yet-built hidden system. */
-function foeVisible(u){ return true; }   // TODO(hidden system): a hidden foe returns false here — its turn/target glow (and eventually its token) must not render
+function foeVisible(u){ if(!u||u.side!=='foe')return true; if(!discoveryPlayerView())return true; return discoveryCellVisible(u.c,u.r); }
+/* A hidden foe may still change a visible PC's HP. Player View narrates that
+   consequence without leaking the attacker's identity or bespoke action name.
+   This is presentation-only; the authoritative row and replay remain intact. */
+function viewerFeedEvent(row){
+  if(!row||!discoveryPlayerView())return row;
+  var actor=unitByKey(row.unit);if(!actor||actor.side!=='foe'||foeVisible(actor))return row;
+  var p=Object.assign({},row.payload||{});
+  if(row.kind==='attack_declared'||row.kind==='attack_resolved')p.mode='Unseen attack';
+  if(row.kind==='ability_used')p.ability='Unseen effect';
+  return Object.assign({},row,{unit:'__unseen_foe__',payload:p});
+}
 function glowColorFor(u){
   if(!u||!u.alive) return null;
   if(CB.tgtKey===u.key) return u.side==="pc" ? GLOW_TGT : (foeVisible(u)?GLOW_TGT:null);   // explicit target → red (a hidden foe can't be lit)
@@ -3390,9 +3601,9 @@ function syncGlow(u){
 }
 function syncAllGlow(){ if(typeof CB!=="undefined"&&CB.units) CB.units.forEach(syncGlow); syncAllUnitVisuals(); }
 /* selection / target setters — used by both the strip chips and token clicks */
-function setSel(key){ CB.selKey = (CB.selKey===key? null : key); renderHud&&renderHud(); }
-function setTgt(key){ CB.tgtKey=(CB.tgtKey===key?null:key); if(CB.tgtKey){var t=unitByKey(CB.tgtKey),a=active();if(a&&t)frameCameraPair(a,t);} renderHud&&renderHud(); }
-function clearSelTgt(){ if(CB.selKey||CB.tgtKey){ CB.selKey=null; CB.tgtKey=null; renderHud&&renderHud(); } }
+function setSel(key){ CB.selKey = (CB.selKey===key? null : key); drawHi&&drawHi();drawSight&&drawSight();renderHud&&renderHud(); }
+function setTgt(key){ CB.tgtKey=(CB.tgtKey===key?null:key); if(CB.tgtKey){var t=unitByKey(CB.tgtKey),a=active();if(a&&t)frameCameraPair(a,t);} drawHi&&drawHi();drawSight&&drawSight();renderHud&&renderHud(); }
+function clearSelTgt(){ if(CB.selKey||CB.tgtKey){ CB.selKey=null; CB.tgtKey=null; drawHi&&drawHi();drawSight&&drawSight();renderHud&&renderHud(); } }
 function positionToken(u){ var X=wxc(u.c),Z=wzc(u.r),Y=tierY(u.c,u.r); if(u.sprite)u.sprite.position.set(X,Y+0.02,Z); if(u.shadow)u.shadow.position.set(X,Y+0.05,Z); if(u._glow)u._glow.position.set(X,Y+0.02,Z); if(u.topToken)u.topToken.position.set(X,Y+TOP_TOKEN_Y,Z); if(u.topRing)u.topRing.position.set(X,Y+TOP_TOKEN_Y+.008,Z); syncUnitVisual(u); }
 
 /* ── §5.1 · the height slider rescales terrain and nothing else ──────────
@@ -3414,6 +3625,7 @@ function restageForHeight(){
   if (typeof placed !== "undefined" && placed && placed.length) renderPlaced();
   if (typeof moveGroup  !== "undefined" && moveGroup)  moveGroup.clear();
   if (typeof sightGroup !== "undefined" && sightGroup) sightGroup.clear();
+  if (typeof refreshDiscovery === "function") refreshDiscovery(true);
 }
 function removeToken(u,force){
   /* Field 2026-07-11 (the sheet-swap ghost): the corpse branch below is for
@@ -3441,6 +3653,8 @@ function buildUnit(kit, side, opts){
     c: opts.c, r: opts.r, hp: opts.hp, hpMax: opts.hpMax,
     ac: kit && kit.ac, speed: (kit && kit.speed) || 30, initMod: (kit && kit.init) || 0,
     climb: !!(kit && kit.climb), res: JSON.parse(JSON.stringify((kit && kit.res) || {})),
+    saveMods: JSON.parse(JSON.stringify((kit && kit.saveMods) || {})),
+    spellcasting: JSON.parse(JSON.stringify((kit && kit.spellcasting) || {})),
     reacted: false, alive: opts.alive !== false, tokenArt: opts.tokenArt || null, bestiary: opts.bestiary || null };
   if (isPc) { u.fly = !!(kit && kit.fly); u.actions = (kit && kit.actions) || []; u.react = (kit && kit.react) || null; u.badge = opts.badge || null; }
   else { u.save = kit && kit.save; u.atk = kit && kit.atk; }
@@ -3644,6 +3858,11 @@ function unitFromRosterRow(row, stateUnit){
   // TODO(bite 2): full foe action HUD — u.mActions/u.statblock ride along for
   // the ★ save-back and future action-list rendering; only u.atk drives play.
   if (!isPc) { u.mActions = kit && kit.mActions; u.statblock = row.statblock || null; }
+  else {
+    var liveRow=__liveStatsCache&&__liveStatsCache[row.sheet_ref||row.unit];
+    var saves=liveRow&&liveRow.structural&&liveRow.structural.saves;
+    if(saves) Object.keys(saves).forEach(function(k){var v=saves[k];u.saveMods[k]=+(v&&v.bonus!=null?v.bonus:v)||0;});
+  }
   return u;
 }
 function unitByKey(k){ return CB.units.filter(function(u){ return u.unit === k; })[0] || null; }
@@ -3983,7 +4202,7 @@ function startCombat(){
   loadLiveStats().then(startCombatNow);
 }
 function startCombatNow(){
-  tokenGroup.clear(); moveGroup.clear(); clearBadges(); hideUpcastPick(); READYING=false; RELEASING=null; CB_ANIM=false;
+  tokenGroup.clear(); moveGroup.clear(); clearBadges(); clearEffectBadges(); hideUpcastPick(); closeSanctuaryChoice(); READYING=false; RELEASING=null; CB_ANIM=false;
   __losExplained={};   // §D: the once-per-geometry LoS feed guard resets with the fight
   var fx=fxHost(); if(fx) fx.innerHTML="";
   CB={ active:true, over:false, units:[], order:[], ti:-1, map:combatMapFromF(), seen:null, st:null, pending:null, hexed:null,
@@ -4006,13 +4225,16 @@ function startCombatNow(){
      silently welded to a friend. */
   roster.forEach(function(key,i){ var s=kitFor(key)||CHAR[key]; if(!s)return; var cell=pcCells[i]; if(!cell)return;
     var badge=(window.__fightControllers&&window.__fightControllers[key]&&window.__fightControllers[key].badge)||null;
-    var u=buildUnit(s,"pc",{id:"pc"+i,key:key,c:cell.x,r:cell.y,hp:s.hp,hpMax:(s.maxHp!=null?s.maxHp:s.hp),badge:badge});
+    var u=buildUnit(s,"pc",{id:"pc"+i,key:key,unit:key,c:cell.x,r:cell.y,hp:s.hp,hpMax:(s.maxHp!=null?s.maxHp:s.hp),badge:badge});
+    var lr=__liveStatsCache&&__liveStatsCache[key],ls=lr&&lr.structural&&lr.structural.saves;
+    if(ls)Object.keys(ls).forEach(function(k){var v=ls[k];u.saveMods[k]=+(v&&v.bonus!=null?v.bonus:v)||0;});
     CB.units.push(u); makeToken(u); });
   foeCells.forEach(function(cell,i){
-    var u=buildUnit(FOE,"foe",{id:"foe"+i,key:"goblin"+i,name:FOE.name+" "+(i+1),c:cell.x,r:cell.y,hp:FOE.hp,hpMax:FOE.hp});
+    var u=buildUnit(FOE,"foe",{id:"foe"+i,key:"goblin"+i,unit:"foe"+i,name:FOE.name+" "+(i+1),c:cell.x,r:cell.y,hp:FOE.hp,hpMax:FOE.hp});
     CB.units.push(u); makeToken(u); });
   CB.units.forEach(function(u){ u.init=d(20)+u.initMod; });
   CB.order=CB.units.slice().sort(function(a,b){ return b.init-a.init||b.initMod-a.initMod; });
+  resetLocalEffects(CB.order.map(function(x){return x.unit||x.key||x.id;}));
   clog("<b>Roll initiative.</b> "+CB.order.map(function(u){return u.name+" "+u.init;}).join(" \u00b7 "));
   /* Field 2026-07-11: this door was mistaken for multiplayer \u2014 say plainly
      which kind of fight just started, and where the shared one lives. */
@@ -4049,10 +4271,10 @@ function foeAnchor(cells,pcCells,taken){
   return pool[(Math.random()*pool.length)|0];
 }
 
-function occupied(except){ var s=new Set(); CB.units.forEach(function(u){ if(u.alive&&u!==except) s.add(u.c+","+u.r); }); return s; }
+function occupied(except){ var s=new Set(); CB.units.forEach(function(u){ if(u.alive&&u!==except)s.add(u.c+","+u.r); }); return s; }
 function active(){ return CB.order[CB.ti]; }
-function unitAt(c,r){ return CB.units.filter(function(u){return u.alive&&u.c===c&&u.r===r;})[0]||null; }
-function enemies(u){ return CB.units.filter(function(x){return x.alive&&x.side!==u.side;}); }
+function unitAt(c,r){ return CB.units.filter(function(u){return u.alive&&u.c===c&&u.r===r&&(u.side!=="foe"||foeVisible(u));})[0]||null; }
+function enemies(u){ return CB.units.filter(function(x){return x.alive&&x.side!==u.side&&(u.side!=="pc"||x.side!=="foe"||foeVisible(x));}); }
 function allies(u){ return CB.units.filter(function(x){return x.alive&&x.side===u.side;}); }
 /* Round-3 §F (M's ruling): a heal on a downed ally brings it up at the
    healed HP, unconscious cleared. allies() filters `alive`, which made the
@@ -4081,7 +4303,9 @@ function beginTurn(u){
 }
 function nextTurn(){
   if(CB.over) return;
+  var ended=active();
   for(var g=0; g<=CB.order.length; g++){ CB.ti=(CB.ti+1)%CB.order.length; if(active()&&active().alive) break; }
+  if(!window.__forgeSession&&ended)localEffectEvent("turn_ended",ended.unit||ended.key||ended.id,{},true);
   beginTurn(active());
   // foe turns are stepped by the DM (“Foe acts”) so rewind never races a timer
 }
@@ -4152,8 +4376,40 @@ function sightReport(u){
 function tileFlat(c,r,color,alpha,noDepth){ var m=new THREE.Mesh(new THREE.PlaneGeometry(0.92,0.92),
   new THREE.MeshBasicMaterial({color:color,transparent:true,opacity:alpha,depthWrite:false,depthTest:noDepth?false:true}));
   m.rotation.x=-Math.PI/2; m.position.set(wxc(c),tierY(c,r)+0.06,wzc(r)); m.renderOrder=noDepth?4:1; return m; }
+function clearFiringPreview(){FIRE_PREVIEW=null;var el=document.getElementById('firePreviewLegend');if(el){el.classList.remove('on');var rd=document.getElementById('firePreviewReadout');if(rd)rd.textContent='Select a colored origin to inspect it.';}}
+function firingTargetFor(u,a){
+  if(!u||!a||a.kind!=='attack'||(a.rng||1)<=1)return null;
+  var t=unitByKey(CB.tgtKey)||unitByKey(CB.selKey);
+  if(!t||!t.alive||t.side===u.side)return null;
+  if(u.side==='pc'&&t.side==='foe'&&!foeVisible(t))return null;
+  return t;
+}
+function previewOrigins(u){
+  var out=[{c:u.c,r:u.r,cost:0}];Object.keys(CB.seen||{}).forEach(function(k){var p=k.split(',').map(Number),v=CB.seen[k]||{};out.push({c:p[0],r:p[1],cost:v.d||0});});
+  /* Never let a tactical preview outline an origin the player has not yet
+     discovered. Explored memory is fair planning information; black cells
+     remain black. Staff View keeps the complete debugging preview. */
+  var D=discoveryApi();if(discoveryPlayerView()&&D&&DISCOVERY.ready)out=out.filter(function(cell){return D.cellState(DISCOVERY.states,CB.map,cell.c,cell.r)!==D.UNEXPLORED;});
+  return out;
+}
+function showFiringPreview(u,a,t){
+  var D=discoveryApi();if(!D)return false;
+  var result=D.classifyOrigins(previewOrigins(u),function(origin){var ghost=Object.assign({},u,{c:origin.c,r:origin.r});return reachOK(ghost,a,t,{silent:true});});
+  FIRE_PREVIEW={actor:u,action:a,target:t,cells:result.cells,byKey:{},summary:result.summary};
+  result.cells.forEach(function(cell){FIRE_PREVIEW.byKey[cell.key]=cell;var alpha=cell.state==='blocked'?.62:.50;
+    var tile=tileFlat(cell.c,cell.r,D.stateColor(cell.state),alpha,true);if(cell.long)tile.scale.set(.84,.84,1);moveGroup.add(tile);});
+  var el=document.getElementById('firePreviewLegend');if(el)el.classList.add('on');
+  var here=FIRE_PREVIEW.byKey[u.c+','+u.r];if(here)updateFiringReadout(here.c,here.r);
+  badgeFor(u,t,a,reachOK(u,a,t,{silent:true}));return true;
+}
+function updateFiringReadout(c,r){
+  var el=document.getElementById('firePreviewReadout');if(!el||!FIRE_PREVIEW)return;
+  var cell=FIRE_PREVIEW.byKey[c+','+r];if(!cell){el.textContent='Reachable origins only.';return;}
+  var move=cell.cost?cell.cost*5+' ft move':'current position',label=cell.state==='clear'?'clear shot':cell.state==='half'?'half cover +2':cell.state==='three-quarters'?'¾ cover +5':(cell.reason||'no shot');
+  el.textContent=move+' · '+label+(cell.long?' · long range (disadvantage)':'');
+}
 function drawHi(){
-  clearBadges();
+  clearBadges();clearFiringPreview();
   moveGroup.clear(); if(!CB.active||CB.over) return;
   if(CONTEST_HI) moveGroup.add(tileFlat(CONTEST_HI.c,CONTEST_HI.r,0xb8863a,0.55,true));   // the block being argued about (cover contest, spec §7)
   if(GRANT_PICK){ grantTargets(GRANT_PICK.caster).forEach(function(t){ moveGroup.add(tileFlat(t.c,t.r,0x3a8a92,0.5,true)); }); return; }   // Silvery Barbs rider: eligible allies
@@ -4162,7 +4418,13 @@ function drawHi(){
       moveGroup.add(tileFlat(t.c,t.r,!ro.ok?0x6b6357:0xc9a24b,!ro.ok?0.20:0.5,true));
       badgeFor(RELEASING,t,rlA,ro); });
     return; }
-  var u=active(); if(!u||u.side!=="pc") return;
+  var u=active(); if(!u) return;
+  /* Direct-fire preview works for players and the DM. A player selects a
+     visible foe, then arms a ranged attack. On a foe turn, staff can mark a
+     PC target from the initiative strip before running the foe. */
+  var previewAction=u.side==='pc'?CB.pending:(u.atk?Object.assign({kind:'attack'},u.atk):null),previewTarget=firingTargetFor(u,previewAction);
+  if(previewTarget&&showFiringPreview(u,previewAction,previewTarget))return;
+  if(u.side!=="pc")return;
   if(CB.pending){ var pa=CB.pending;
     if(pa.kind==="heal"||pa.kind==="buffAlly"){
       var hiCol = pa.kind==="heal" ? 0x2da84f : 0xc9a24b;   // green for heal, gold for buffAlly
@@ -4191,6 +4453,7 @@ var hoverGroup=new THREE.Group(); scene.add(hoverGroup);
 var __hoverCell=null, __hoverRafPending=false, __hoverEvt=null;
 function clearHover(){ if(__hoverCell!==null){ hoverGroup.clear(); __hoverCell=null; } }
 function hoverTint(gx,gy,u){
+  if(FIRE_PREVIEW&&FIRE_PREVIEW.byKey[gx+","+gy])return discoveryApi().stateColor(FIRE_PREVIEW.byKey[gx+","+gy].state);
   if(!CB.pending||!u||u.side!=="pc") return 0x2da84f;             // plain landing-cell glow
   var pa=CB.pending;
   var t=unitAt(gx,gy)||(pa.kind==="heal"?downedUnitAt(gx,gy):null);
@@ -4226,6 +4489,7 @@ function hoverMove(e){
     if(key===__hoverCell) return;
     hoverGroup.clear(); __hoverCell=key;
     hoverGroup.add(tileFlat(gx,gy,hoverTint(gx,gy,active()),0.35,true));
+    if(FIRE_PREVIEW)updateFiringReadout(gx,gy);
   });
 }
 renderer.domElement.addEventListener("pointermove",hoverMove);
@@ -4244,15 +4508,15 @@ function cbDist(a,b){ var horiz=Math.max(Math.abs(a.c-b.c),Math.abs(a.r-b.r)), v
 var COVER_AC = { "none":0, "half":2, "three-quarters":5, "total":Infinity };
 function sightTo(u,t){ return TG.losVerdict(CB.map,{c:u.c,r:u.r},{c:t.c,r:t.r}); }
 
-function reachOK(u,a,t){
-  var A={c:u.c,r:u.r}, T={c:t.c,r:t.r}, dis=false;
+function reachOK(u,a,t,opts){
+  opts=opts||{};var A={c:u.c,r:u.r}, T={c:t.c,r:t.r}, dis=false;
   if((a.rng||1)<=1){ if(!TG.canReachMelee(CB.map,A,T,5)) return {ok:false,why:"out of reach"}; }
   else { var dist=cbDist(A,T), norm=rangeFt(a), lng=a.long?a.long*5:norm;
     if(dist>lng+1e-6) return {ok:false,why:"out of range"};
     dis = dist>norm+1e-6;   /* beyond normal range → attack at disadvantage */ }
   if(a.kind==="attack"||a.kind==="save"||a.kind==="auto"){
     var v=TG.losVerdict(CB.map,A,T);
-    if(!v.canTarget){ explainBlock(u,t,v); return {ok:false,why:"no line of sight",verdict:v}; }
+    if(!v.canTarget){ if(!opts.silent)explainBlock(u,t,v); return {ok:false,why:"no line of sight",verdict:v}; }
     return {ok:true, cover:v.acBonus, coverName:v.cover, dis:dis, verdict:v};
   }
   return {ok:true,cover:0,dis:dis};
@@ -4798,13 +5062,13 @@ function doAttack(u,a,t,after){
   (function strike(){ if(i>=n || !t.alive){ if(a.rider==="boom") clog("<i>Booming Blade set \u2014 +1d8 if "+t.name+" moves.</i>"); after(true); return; }
     i++; resolveStrike(u,a,t,ro, strike); })();
 }
-function doSave(u,a,t){ var ro=reachOK(u,a,t); if(!ro.ok){ clog(u.name+" \u2014 "+ro.why+"."); return; }
+function doSave(u,a,t){ var ro=reachOK(u,a,t); if(!ro.ok){ clog(u.name+" \u2014 "+ro.why+"."); return false; }
   var sv=d(20)+(t.save||0), fail=sv<a.dc, line=u.name+" \u2192 "+t.name+": "+a.label+" ("+a.saveAbility.toUpperCase()+" save "+sv+" vs DC "+a.dc+") ";
   if(fail){ var dmg=rollDmg(a.dmg); t.hp-=dmg; line+="fail "+dmg; if(a.rider==="vm"){ t.disadv=true; line+=" + disadvantage"; }
     flashHit(t); shake(0.14); floatAt(t,String(dmg),"dmg");
     if(t.hp<=0){ floatAt(t,"DOWN","down"); t.alive=false; removeToken(t); line+=" \u2014 <b>down</b>"; } }
   else { line+="save"; floatAt(t,"save","miss"); } clog(line,false);
-  if(window.ForgeTableCorrectness)window.ForgeTableCorrectness.pushFact({kind:"save",actor:u.unit,target:t.unit,mode:a.label,saveAbility:a.saveAbility,saveRoll:sv,dc:a.dc,saved:!fail,hit:fail,dmg:fail?dmg:0}); }
+  if(window.ForgeTableCorrectness)window.ForgeTableCorrectness.pushFact({kind:"save",actor:u.unit,target:t.unit,mode:a.label,saveAbility:a.saveAbility,saveRoll:sv,dc:a.dc,saved:!fail,hit:fail,dmg:fail?dmg:0}); return true; }
 function doHeal(u,a,t){ var ro=reachOK(u,a,t); if(!ro.ok){ clog(u.name+" \u2014 "+ro.why+"."); return; }
   var amt=rollDmg(a.dmg)+(a.disciple||0);
   if(!t.alive) t.hp=Math.max(0,t.hp);   /* \u00a7F: the sandbox lets hp go negative on the way down; the heal counts from 0 */
@@ -4911,22 +5175,36 @@ function selectAction(idx,castLevel){
     CB.st.usedAction=false; clog(u.name+" \u2014 Action Surge: action regained."); spend(u,a); finishAction(); return; }
   CB.pending=a; drawHi(); drawSight(); renderHud();
 }
-function finishAction(){ hideUpcastPick(); CB.pending=null; CONTEST_COVER=false; snapshot("Action"); drawHi(); drawSight(); renderHud(); maybeEnd(); }
+function finishAction(){ hideUpcastPick(); closeSanctuaryChoice(); CB.pending=null; CONTEST_COVER=false; SANCTUARY_REJECT={}; snapshot("Action"); drawHi(); drawSight(); renderHud(); maybeEnd(); }
 function resolveOn(u,a,t){
   var sess=window.__forgeSession;
-  /* Task 7b req 2: every non-attack kind now forks on session the same way
-     attack (Task 7) does \u2014 local roll/DC math is unchanged; only the commit
-     (state mutation) swaps for publish + echo-paint. combatClick already
-     gated the tap that got us here (control + in-flight guard), same as it
-     does for attack. */
-  if(a.kind==="attack"){
-    if(sess) netAttack(u,a,t); else doAttack(u,a,t,function(){ spend(u,a); finishAction(); });
-    return;
+  function commit(){
+    if(a.kind==="attack"){
+      if(sess) netAttack(u,a,t); else doAttack(u,a,t,function(ok){if(ok)localBreakWard(u,a);spend(u,a);finishAction();});
+      return;
+    }
+    if(a.kind==="save"){
+      if(sess){netSave(u,a,t);return;}
+      if(doSave(u,a,t)){localBreakWard(u,a);spend(u,a);finishAction();}return;
+    }
+    if(a.kind==="heal"){if(sess){netHeal(u,a,t);return;}doHeal(u,a,t);spend(u,a);finishAction();return;}
+    if(a.kind==="buff"){
+      if(sess){netBuff(u,a,t);return;}
+      CB.hexed=t.id;clog(u.name+" hexes "+t.name+" (+1d6 on hits vs it).");localBreakWard(u,a);spend(u,a);finishAction();return;
+    }
+    if(a.kind==="buffAlly"){
+      if(sanctuaryAction(a)){
+        if(!effectApi()){clog("<i>Sanctuary cannot be applied — the effect ledger did not load.</i>");return;}
+        if(sess){netBuffAlly(u,a,t);return;}
+        var op=effectApi().addSanctuary({source:u.unit,target:t.unit,dc:a.dc||10,nonce:LOCAL_EFFECT_SEQ+1});
+        localEffectEvent("ability_used",u.unit,{ability:a.label,targets:[t.unit],effects:[op],slot:a.bonus?"bonus":"action"});
+        spend(u,a);finishAction();return;
+      }
+      if(sess){netBuffAlly(u,a,t);return;}t.inspired=true;clog(u.name+" inspires "+t.name+" (advantage on next attack).");spend(u,a);finishAction();return;
+    }
   }
-  if(a.kind==="save"){ if(sess){ netSave(u,a,t); return; } doSave(u,a,t); spend(u,a); finishAction(); return; }
-  if(a.kind==="heal"){ if(sess){ netHeal(u,a,t); return; } doHeal(u,a,t); spend(u,a); finishAction(); return; }
-  if(a.kind==="buff"){ if(sess){ netBuff(u,a,t); return; } CB.hexed=t.id; clog(u.name+" hexes "+t.name+" (+1d6 on hits vs it)."); spend(u,a); finishAction(); return; }
-  if(a.kind==="buffAlly"){ if(sess){ netBuffAlly(u,a,t); return; } t.inspired=true; clog(u.name+" inspires "+t.name+" (advantage on next attack)."); spend(u,a); finishAction(); return; }
+  if(harmfulDirect(a)){sanctuaryGate(u,a,t,commit);return;}
+  commit();
 }
 
 /* ── input ──────────────────────────────────────────────────────────── */
@@ -5027,6 +5305,7 @@ function pickUnit(anyState){
   var best=null, bestD=Infinity;
   CB.units.forEach(function(un){
     if(!anyState && !un.alive) return;
+    if(!unitRigVisible(un)) return;                      // Player View: hidden foes never enter the mathematical fallback picker
     if(!un.sprite && !un.shadow && !un.topToken) return; // no visual on this device — not clickable
     var X=wxc(un.c), Z=wzc(un.r);
     var t=((X-o.x)*d.x+(Z-o.z)*d.z)/dd; if(t<0) return;
@@ -5109,40 +5388,43 @@ function foeTurn(){
     clog(u.name+" stands its ground — "+escapeHtml(note)+" <i>(no parsed attack — TODO bite 2 full foe action HUD)</i>");
     renderHud(); foeTurnDone(); return;
   }
-  var canNow=function(){ var A={c:u.c,r:u.r},T={c:tgt.c,r:tgt.r}; return ((atk.rng||1)<=1?TG.canReachMelee(CB.map,A,T,5):TG.inRange(CB.map,A,T,rangeFt(atk)))&&TG.losVerdict(CB.map,A,T).canTarget; };
+  var canTargetNow=function(target){ var A={c:u.c,r:u.r},T={c:target.c,r:target.r}; return ((atk.rng||1)<=1?TG.canReachMelee(CB.map,A,T,5):TG.inRange(CB.map,A,T,rangeFt(atk)))&&TG.losVerdict(CB.map,A,T).canTarget; };
+  var canNow=function(){return canTargetNow(tgt);};
   function strikePhase(){
     if(!u.alive){ renderHud(); foeTurnDone(); return; }
     if(!tgt.alive||!canNow()){ renderHud(); foeTurnDone(); return; }
-    var adv=(FLANKING&&(atk.rng||1)<=1&&isFlanked(u,tgt)), dis=!!u.disadv; if(u.disadv)u.disadv=false;
-    if(adv&&dis){ adv=false; dis=false; }
-    var roll=d20a(adv,dis), hs={roll:roll,acBonus:0,crit:roll===20,hit:(roll===20)||(roll!==1&&roll+atk.hit>=tgt.ac)};
-    clog(u.name+" \u2192 "+tgt.name+": "+atk.label+" ("+roll+"+"+atk.hit+(adv?" adv (flank)":"")+(dis?" disadv":"")+")"+(hs.hit?"":" \u2014 miss"),false);   // structured row owns the BG3 feed
-    if(sess){
-      /* Task 7b req 1: same fork as netAttack (Task 7) \u2014 the roll/hit math
-         above is unchanged local rules; only the commit forks. No
-         pipelineHit reaction cascade (Silvery Barbs/Shield/Hellish Rebuke)
-         here \u2014 reactions are Task 8's job, same carve-out Task 7 made for
-         PC session attacks. Publishes hit AND miss (mirrors netAttack: a
-         miss still needs to land on the shared log / turn economy). */
-      netFoeAttack(u,atk,tgt,hs,adv,dis).then(function(r){
-        if (r && r.ok===false) return;   // netPublishFail already narrated + released the guard
-        awaitSettled().then(function(){ renderHud(); foeTurnDone(); });
-      });
-      return;
-    }
-    if(hs.hit){ var foeFeedResolved=false; pipelineHit(u,atk,hs,tgt, function(){ var dmg=rollDmg(atk.dmg); tgt.hp-=dmg;
-        var line=tgt.name+" takes "+dmg+" ("+Math.max(0,tgt.hp)+"/"+tgt.hpMax+")";
-        flashHit(tgt); shake(0.2); floatAt(tgt,String(dmg),"dmg");
-        if(tgt.hp<=0){ floatAt(tgt,"DOWN","down"); tgt.alive=false; removeToken(tgt); line+=" \u2014 <b>down</b>"; } clog(line,false);
-        if(window.ForgeTableCorrectness)window.ForgeTableCorrectness.pushFact({actor:u.unit,target:tgt.unit,mode:atk.label,roll:hs.roll,hitBonus:atk.hit,hit:true,crit:hs.crit,dmg:dmg,adv:adv,dis:dis,dropped:hs.roll!==roll?roll:null,mods:hs.roll!==roll?[{k:"silvery_barbs"}]:[]});
-        foeFeedResolved=true;
-      }, function(){
-        if(!foeFeedResolved&&window.ForgeTableCorrectness)window.ForgeTableCorrectness.pushFact({actor:u.unit,target:tgt.unit,mode:atk.label,roll:hs.roll,hitBonus:atk.hit,hit:false,crit:false,adv:adv,dis:dis,dropped:hs.roll!==roll?roll:null,mods:hs.roll!==roll?[{k:"silvery_barbs"}]:[]});
-        renderHud(); foeTurnDone();
-      }); return; }
-    floatAt(tgt,"miss","miss");
-    if(window.ForgeTableCorrectness)window.ForgeTableCorrectness.pushFact({actor:u.unit,target:tgt.unit,mode:atk.label,roll:roll,hitBonus:atk.hit,hit:false,crit:false,adv:adv,dis:dis});
-    renderHud(); foeTurnDone();
+    sanctuaryGate(u,atk,tgt,function rollStrike(){
+      if(!sess)localBreakWard(u,atk);
+      var adv=(FLANKING&&(atk.rng||1)<=1&&isFlanked(u,tgt)), dis=!!u.disadv; if(u.disadv)u.disadv=false;
+      if(adv&&dis){ adv=false; dis=false; }
+      var roll=d20a(adv,dis), hs={roll:roll,acBonus:0,crit:roll===20,hit:(roll===20)||(roll!==1&&roll+atk.hit>=tgt.ac)};
+      clog(u.name+" \u2192 "+tgt.name+": "+atk.label+" ("+roll+"+"+atk.hit+(adv?" adv (flank)":"")+(dis?" disadv":"")+")"+(hs.hit?"":" \u2014 miss"),false);
+      if(sess){
+        netFoeAttack(u,atk,tgt,hs,adv,dis).then(function(r){
+          if(r&&r.ok===false)return;
+          awaitSettled().then(function(){renderHud();foeTurnDone();});
+        });return;
+      }
+      if(hs.hit){var foeFeedResolved=false;pipelineHit(u,atk,hs,tgt,function(){var dmg=rollDmg(atk.dmg);tgt.hp-=dmg;
+          var line=tgt.name+" takes "+dmg+" ("+Math.max(0,tgt.hp)+"/"+tgt.hpMax+")";
+          flashHit(tgt);shake(0.2);floatAt(tgt,String(dmg),"dmg");
+          if(tgt.hp<=0){floatAt(tgt,"DOWN","down");tgt.alive=false;removeToken(tgt);line+=" \u2014 <b>down</b>";}clog(line,false);
+          if(window.ForgeTableCorrectness)window.ForgeTableCorrectness.pushFact({actor:u.unit,target:tgt.unit,mode:atk.label,roll:hs.roll,hitBonus:atk.hit,hit:true,crit:hs.crit,dmg:dmg,adv:adv,dis:dis,dropped:hs.roll!==roll?roll:null,mods:hs.roll!==roll?[{k:"silvery_barbs"}]:[]});
+          foeFeedResolved=true;
+        },function(){
+          if(!foeFeedResolved&&window.ForgeTableCorrectness)window.ForgeTableCorrectness.pushFact({actor:u.unit,target:tgt.unit,mode:atk.label,roll:hs.roll,hitBonus:atk.hit,hit:false,crit:false,adv:adv,dis:dis,dropped:hs.roll!==roll?roll:null,mods:hs.roll!==roll?[{k:"silvery_barbs"}]:[]});
+          renderHud();foeTurnDone();
+        });return;}
+      floatAt(tgt,"miss","miss");
+      if(window.ForgeTableCorrectness)window.ForgeTableCorrectness.pushFact({actor:u.unit,target:tgt.unit,mode:atk.label,roll:roll,hitBonus:atk.hit,hit:false,crit:false,adv:adv,dis:dis});
+      renderHud();foeTurnDone();
+    },function(_ward,result,already){
+      var old=tgt;SANCTUARY_REJECT[old.unit]=true;
+      var alt=pcs.filter(function(x){return x.alive&&x!==old&&!SANCTUARY_REJECT[x.unit]&&canTargetNow(x);})[0]||null;
+      if(alt){tgt=alt;clog("<i>Sanctuary repels "+escapeHtml(u.name)+" — it turns to "+escapeHtml(tgt.name)+" instead.</i>");strikePhase();return;}
+      if(already)result={total:"—",dc:(effectFor(old,"sanctuary")||{}).dc||10};
+      sanctuaryLostAction(u,atk,old,function(){if(sess)awaitSettled().then(function(){renderHud();foeTurnDone();});else{renderHud();foeTurnDone();}});
+    });
   }
   if(!canNow()){ var seen=TG.movementReach(CB.map,u,occupied(u),Math.floor(u.speed/5)),best=null,bd=1e9;
     Object.keys(seen).forEach(function(k){var p=k.split(",").map(Number);if(unitAt(p[0],p[1]))return;var dd=TG.chebyshev({c:p[0],r:p[1]},tgt);if(dd<bd){bd=dd;best={c:p[0],r:p[1]};}});
@@ -5192,6 +5474,7 @@ function maybeEnd(){
 function snapshot(label,turnStart){
   var st={ label:label, turnStart:!!turnStart, ti:CB.ti, hexed:CB.hexed,
     turn: CB.st?JSON.parse(JSON.stringify(CB.st)):null, log:CB.log.slice(),
+    effectRows:LOCAL_EFFECT_ROWS.slice(), effectSeq:LOCAL_EFFECT_SEQ,
     units: CB.units.map(function(u){ return { id:u.id, c:u.c, r:u.r, hp:u.hp, alive:u.alive,
       res:JSON.parse(JSON.stringify(u.res||{})), reacted:!!u.reacted, raging:!!u.raging, inspired:!!u.inspired, disadv:!!u.disadv,
       readied:(u.readied&&u.actions)?u.actions.indexOf(u.readied.act):-1 }; }) };
@@ -5199,7 +5482,8 @@ function snapshot(label,turnStart){
   CB.hist.push(st); CB.hptr=CB.hist.length-1; updateRewindUI();
 }
 function restore(st){
-  RELEASING=null; CB.ti=st.ti; CB.hexed=st.hexed; CB.st=st.turn?JSON.parse(JSON.stringify(st.turn)):null; CB.log=st.log.slice(); CB.over=false; CB.pending=null;
+  RELEASING=null;closeSanctuaryChoice();SANCTUARY_REJECT={};CB.ti=st.ti; CB.hexed=st.hexed; CB.st=st.turn?JSON.parse(JSON.stringify(st.turn)):null; CB.log=st.log.slice(); CB.over=false; CB.pending=null;
+  LOCAL_EFFECT_ROWS=(st.effectRows||[]).slice();LOCAL_EFFECT_SEQ=st.effectSeq||0;refreshEffectState(null,true);
   var byId={}; CB.units.forEach(function(u){byId[u.id]=u;});
   st.units.forEach(function(su){ var u=byId[su.id]; if(!u)return; u.c=su.c;u.r=su.r;u.hp=su.hp;u.alive=su.alive;
     u.res=JSON.parse(JSON.stringify(su.res)); u.reacted=su.reacted; u.raging=su.raging; u.inspired=su.inspired; u.disadv=su.disadv;
@@ -5315,8 +5599,12 @@ function updateRewindUI(){
 /* ── HUD ────────────────────────────────────────────────────────────── */
 function clog(html,feed){ CB.log.unshift(html); if(CB.log.length>60)CB.log.pop();
   var el=document.getElementById("cbLog"); if(el)el.innerHTML=CB.log.map(function(l){return '<div class="cbLogRow">'+l+'</div>';}).join("");
-  /* Structured roll rows own the BG3 feed; predictive/local narration can opt out. */
-  if(feed!==false&&window.addForgeRow) try{window.addForgeRow(html);}catch(e){} }
+  /* Structured roll rows own the BG3 feed; predictive/local narration can opt out.
+     Dense LoS instrumentation stays available but collapses under Details. */
+  if(feed!==false&&window.addForgeRow) try{
+    if(window.ForgeTableCorrectness&&window.ForgeTableCorrectness.isGeometryDiagnostic(html))window.ForgeTableCorrectness.pushDiagnostic(html);
+    else window.addForgeRow(html);
+  }catch(e){} }
 function banner(t){ var b=document.getElementById("cbBanner"); if(b){b.textContent=t;b.style.display="block";} }
 function refreshSceneMenu(){
   var tc=window.ForgeTableCorrectness,sess=window.__forgeSession;
@@ -5326,7 +5614,7 @@ function refreshSceneMenu(){
   if(tc)tc.applyBody(sess,typeof active==='function'&&typeof CB!=='undefined'&&CB&&CB.active?active():null);
 }
 function setSceneMode(combat){document.body.classList.toggle('combat-mode',!!combat);if(!combat)document.body.classList.remove('forge-peek');refreshSceneMenu();}
-function showHud(on){ var h=document.getElementById("combatHud"); if(h)h.style.display=on?"block":"none"; var b=document.getElementById("cbBanner"); if(b)b.style.display="none"; setSceneMode(on); }
+function showHud(on){ var h=document.getElementById("combatHud"); if(h)h.style.display=on?"block":"none"; var b=document.getElementById("cbBanner"); if(b)b.style.display="none"; setSceneMode(on); if(on)refreshDiscovery(true);else clearFogMeshes(); }
 const sceneModeToggle=document.getElementById('sceneModeToggle'),sceneModeMenu=document.getElementById('sceneModeMenu');
 if(sceneModeToggle)sceneModeToggle.addEventListener('click',function(e){e.stopPropagation();var open=sceneModeMenu&&sceneModeMenu.hidden; if(sceneModeMenu)sceneModeMenu.hidden=!open;this.setAttribute('aria-expanded',open?'true':'false');refreshSceneMenu();});
 const sceneForgeControls=document.getElementById('sceneForgeControls');if(sceneForgeControls)sceneForgeControls.addEventListener('click',function(){document.body.classList.toggle('forge-peek');refreshSceneMenu();if(sceneModeMenu)sceneModeMenu.hidden=true;if(sceneModeToggle)sceneModeToggle.setAttribute('aria-expanded','false');});
@@ -5336,6 +5624,7 @@ function initBadge(u){ return u.badge||(u.side==="pc"?(ROSTER_INIT[u.key]||u.nam
 function seatCol(u){ return (window.__fightControllers&&window.__fightControllers[u.key]&&window.__fightControllers[u.key].color)||(u.side==="pc"?(ROSTER_COL[u.key]||"#b8863a"):"#7a2e2e"); }
 function renderHud(){
   if(!CB.active) return; var u=active();
+  refreshDiscovery();
   syncAllGlow();   // #1: active-PC gold + any select/target glow follow the current turn/state
   var sess=window.__forgeSession;
   var tc=window.ForgeTableCorrectness;
@@ -5353,8 +5642,9 @@ function renderHud(){
   if(strip) strip.innerHTML=hudOrder.map(function(o){ var glowc=glowColorFor(o);
     var ring=(glowc===GLOW_SEL?" selq":glowc===GLOW_TGT?" tgtq":"");
     var hpText=!o.alive?"\u2620":(o.side==="foe"&&!staffView?"":Math.max(0,o.hp));
-    return '<div class="cbUnit'+(o===u?" act":"")+(o.alive?"":" dead")+ring+'" data-unit="'+escapeHtml(o.unit||o.key||o.id)+'" title="'+escapeHtml(o.name)+'">'
-    +'<span class="cbU-b" style="background:'+seatCol(o)+'">'+initBadge(o)+'</span><span class="cbU-hp">'+hpText+'</span></div>'; }).join("");
+    var ward=effectFor(o,"sanctuary");
+    return '<div class="cbUnit'+(o===u?" act":"")+(o.alive?"":" dead")+ring+'" data-unit="'+escapeHtml(o.unit||o.key||o.id)+'" title="'+escapeHtml(o.name)+(ward?' · Sanctuary':'')+'">'
+    +'<span class="cbU-b" style="background:'+seatCol(o)+'">'+initBadge(o)+'</span>'+(ward?'<span class="cbU-eff" aria-label="Sanctuary">⬡</span>':'')+'<span class="cbU-hp">'+hpText+'</span></div>'; }).join("");
   /* #4 (BG3): a strip nameplate is a camera door — click pans to the token
      and pulses its cell, so "which one is Goblin 3" has a one-tap answer.
      #1: left-click also SELECTS (gold glow), right-click TARGETS (red glow). */
@@ -5371,11 +5661,12 @@ function renderHud(){
     var turnBanner = '<div class="cbHint">'+escapeHtml(u.name)+'\u2019s turn \u2014 '+escapeHtml(controllerLabel(u.unit))+' is acting.</div>';
     panel.innerHTML=port+'<div class="cbName">'+u.name+(isPc?'':' <span class="cbTag">foe</span>'+((u.statblock&&iControl)?' <button class="cbFoeStar" id="cbFoeStar" title="Save to the shelf">☆</button>':''))+(u.raging?' <span class="cbTag" style="color:#b34a38;border-color:#b34a38">RAGE</span>':'')
       +(u.readied?' <span class="cbTag" style="color:#8a6a1f;border-color:#8a6a1f">readied: '+u.readied.act.label+'</span>':'')
-      +(u.react&&!u.reacted?' <span class="cbTag" style="color:#3a8a92;border-color:#3a8a92">reaction</span>':'')+'</div>'
+      +(u.react&&!u.reacted?' <span class="cbTag" style="color:#3a8a92;border-color:#3a8a92">reaction</span>':'')
+      +(effectFor(u,"sanctuary")?' <span class="cbTag" style="color:#d8b35b;border-color:#d8b35b">⬡ sanctuary</span>':'')+'</div>'
       +'<div class="cbHpwrap"><div class="cbHplbl"><span>HP</span><span>'+Math.max(0,u.hp)+' / '+u.hpMax+'</span></div><div class="cbHpbar"><i style="width:'+Math.max(0,Math.round(100*u.hp/u.hpMax))+'%"></i></div></div>'
       +'<div class="cbStats"><span>Move <b>'+(CB.st?CB.st.moveLeft*5:0)+' ft</b></span><span>Action <b>'+(CB.st&&CB.st.usedAction?"used":"ready")+'</b></span><span>Bonus <b>'+(CB.st&&CB.st.usedBonus?"used":"ready")+'</b></span></div>'
       +(isPc?(iControl
-          ?'<div class="cbActs">'+acts+'</div><div class="cbHint">'+(waitingMe?'<i>Waiting for the table\u2026</i>':(CB.pending?('<b>'+CB.pending.label+'</b> \u2014 '+((CB.pending.rng||1)>1?'red = in range \u00b7 amber = long (disadv) \u00b7 grey = unreachable':'click a highlighted target')):'Move on teal \u00b7 pick an action, then a target.'))+'</div>'
+          ?'<div class="cbActs">'+acts+'</div><div class="cbHint">'+(waitingMe?'<i>Waiting for the table\u2026</i>':(CB.pending?('<b>'+CB.pending.label+'</b> \u2014 '+((CB.pending.kind==='attack'&&(CB.pending.rng||1)>1&&(unitByKey(CB.tgtKey)||unitByKey(CB.selKey)))?'green/yellow/orange = firing origins \u00b7 dark = no shot':((CB.pending.rng||1)>1?'red = in range \u00b7 amber = long (disadv) \u00b7 grey = unreachable':'click a highlighted target'))):'Move on teal \u00b7 select a foe, then pick a ranged attack to preview firing positions.'))+'</div>'
             +(sess&&CB.pending&&CB.pending.kind==="attack"&&!waitingMe
               ?'<button class="cbContestTog'+(CONTEST_COVER?' on':'')+'" id="cbContestTog" title="Pause before the roll: the DM re-rules cover for this one attack (20s, or the grid stands)">Contest cover: '+(CONTEST_COVER?'<b>on</b> \u2014 the DM rules before you roll':'off')+'</button>':'')
             +'<div class="cbSight"><div class="cbSightHd"><span>SIGHT</span><button id="cbSightTog">'+(SHOW_SIGHT?'hide lines':'show lines')+'</button></div>'+sightReport(u)+'</div>'
@@ -6164,7 +6455,8 @@ async function bootSession(sid){
       if (r.kind === 'initiative_rolled') { delete __initPublishing[r.unit]; }
       else if (r.kind === 'initiative_set') { __initConfirming = false; }
       window.ForgeBoard.verbsFor(r, before, st).forEach(applyVerb);
-      if(window.ForgeTableCorrectness)window.ForgeTableCorrectness.pushEvent(r);
+      if(window.ForgeTableCorrectness)window.ForgeTableCorrectness.pushEvent(viewerFeedEvent(r));
+      refreshEffectState(r,false);
       applyLogEconomy();   // derive CB.st (move/action/bonus) from the replayed log after the turn is (re)seated
       runMirror(before, lastState);   // Task 13: after every applied event, mirror any hp change I control back to its sheet
       renderHud();   // repaints the cleared guard even on a verb-less event (e.g. a miss)
@@ -6191,6 +6483,7 @@ async function bootSession(sid){
   if(window.ForgeTableCorrectness)window.ForgeTableCorrectness.applyBody(window.__forgeSession);
   refreshSceneMenu();
   spawnFromState(pipe.state(), row);
+  refreshEffectState(null,true);
   /* Finding 1a: a refresh mid-turn lands here with a state whose initiative
      is already active — spawnFromState places units and the order, but never
      rebuilds CB.st (no local nextTurn() ever ran on this device). Replay the
@@ -6352,7 +6645,7 @@ function contestThenAttack(u,a,t,ro){
   });
 }
 function netAttackGo(u,a,t,ro){
-  var n=a.strikes||1, i=0, hpLeft=t.hp;
+  var n=a.strikes||1, i=0, hpLeft=t.hp, wardBreakPending=breakOpFor(u,a);
   __awaitingUnit = u.unit; __awaitingKind = 'attack_resolved'; renderHud();
   (function strike(){
     if(i>=n || hpLeft<=0){
@@ -6385,7 +6678,7 @@ function netAttackGo(u,a,t,ro){
         { target: t.unit, roll: roll, adv: adv, dis: dis, crit: crit, mode: a.label, hitBonus: a.hit, cover: cover, coverName:ro.coverName||null, advReason:av.why.join(", "), hit: hit },
         function(answers){
           var hs=replayHitState({ roll:roll, crit:crit, hit:hit, cover:cover }, answers);
-          var effects=[], dmg=0;
+          var effects=wardBreakPending?[wardBreakPending]:[], dmg=0; wardBreakPending=null;
           if(hs.hit){
             dmg=rollDmg(a.dmg)+(hs.crit?rollDmg(a.dmg)-parseDmg(a.dmg).bonus:0);
             if(u.raging&&(a.rng||1)<=1) dmg+=2; if(CB.hexed===t.id) dmg+=d(6);
@@ -6489,7 +6782,7 @@ function netFoeAttack(u,atk,t,hs,adv,dis){
           if(hs.hit) clog("<i>"+atk.label+" — a reaction turned that hit into a miss.</i>");
           floatAt(t,"miss","miss");
         }
-        var effects=[];
+        var effects=withBreakOp([],u,atk);
         var rb=(answers||[]).filter(function(row){
           if(!row||!row.payload) return false;
           var ku=unitByKey(row.unit); return ku&&ku.react&&Object.keys(ku.react)[0]==="hellishRebuke" && row.payload && row.payload.use;
@@ -6544,7 +6837,7 @@ function netUseAbility(u,a,targets,effects,opts){
 function netSave(u,a,t){
   var ro=reachOK(u,a,t); if(!ro.ok){ clog(u.name+" — "+ro.why+"."); return; }
   var sv=d(20)+(t.save||0), fail=sv<a.dc, line=u.name+" → "+t.name+": "+a.label+" ("+a.saveAbility.toUpperCase()+" save "+sv+" vs DC "+a.dc+") ";
-  var effects=[], dmg=0, ctx=null, applyDisadv=false;
+  var effects=withBreakOp([],u,a), dmg=0, ctx=null, applyDisadv=false;
   if(fail){
     dmg=rollDmg(a.dmg); line+="fail "+dmg; effects.push({unit:t.unit,dmg:dmg});
     if(a.rider==="vm"){ applyDisadv=true; line+=" + disadvantage"; ctx="vm rider: "+t.name+" has disadvantage on its next attack (local only, not yet synced)"; }
@@ -6600,10 +6893,16 @@ function netBuff(u,a,t){
   clog(u.name+" hexes "+t.name+" (+1d6 on hits vs it).");
   // M4 (final-review): CB.hexed is local-only (see block comment above) —
   // arm it on publish success only, so a failed publish leaves no phantom hex.
-  netUseAbility(u,a,[t.unit],[],{ context:"hex — +1d6 on "+u.name+"'s hits vs "+t.name+" (local only, not yet synced)",
+  netUseAbility(u,a,[t.unit],withBreakOp([],u,a),{ context:"hex — +1d6 on "+u.name+"'s hits vs "+t.name+" (local only, not yet synced)",
     onSuccess:function(){ CB.hexed=t.id; } });
 }
 function netBuffAlly(u,a,t){
+  if(sanctuaryAction(a)){
+    var E=effectApi();if(!E){clog("<i>Sanctuary cannot be applied — the effect ledger did not load.</i>");return;}
+    var wardDc=a.dc||(u.spellcasting&&u.spellcasting.saveDC)||10;
+    var op=E.addSanctuary({source:u.unit,target:t.unit,dc:wardDc,nonce:Date.now()});
+    netUseAbility(u,a,[t.unit],[op],{context:"Sanctuary wards "+t.name+" for up to 1 minute."});return;
+  }
   clog(u.name+" inspires "+t.name+" (advantage on next attack).");
   // M4 (final-review): t.inspired is local-only — arm it on publish success only.
   netUseAbility(u,a,[t.unit],[],{ context:"bardic inspiration — advantage on "+t.name+"'s next attack (local only, not yet synced)",

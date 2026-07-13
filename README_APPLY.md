@@ -1,116 +1,116 @@
-# Battle Forge — Phase 1.5d table-correctness build
+# Battle Forge — Phase 1.5f discovery + direct-fire preview
 
-This bundle is based on the exact `topography-test-mock.html` uploaded after the successful 3D/top-down and token-rig field test. Everything else was treated as current `main`.
+This bundle advances the exact Phase 1.5e production surface into the final discovery/tactical-guidance bite before active Phase 2 terrain generation.
 
-## What this bite fixes
+## What this bite adds
 
-### Local Staff View / Player View
+### Party-shared world-space discovery
 
-The **Forge** button now opens a compact menu:
+Player View now has three battlefield states:
 
-- **Forge controls** — show or hide the authoring chrome.
-- **Presentation: Staff View / Player View** — available only to staff/DM/overseer accounts.
+- **Unexplored** — covered by opaque world-space fog; enemies and interaction are hidden.
+- **Explored memory** — static battlefield remains visible through a darkened/desaturated fog layer; enemies and current activity remain hidden.
+- **Visible now** — normal rendering and interaction.
 
-This is a local presentation mask only. It does not change the signed-in role, claimed characters, protocol permissions, or session authority.
+Current visibility is the union of every living PC's sight. Sight uses each unit's explicit vision/darkvision value when present and otherwise defaults to 60 ft. Every candidate cell is checked through the canonical `TacticsGeo.losVerdict()` geometry.
 
-- Real players are always in Player View and cannot escape it.
-- In Player View, an active enemy has no BG3 action/stat HUD.
-- Enemy HP is omitted from the initiative strip.
-- Hidden foes are omitted through the existing `foeVisible()` seam.
-- The overseer toolbar is absent in Player View.
-- Staff View retains complete DM tools and enemy internals.
+Exploration is reconstructed from the shared event log:
 
-### Automatic bestiary token art
+- roster starting positions;
+- every resolved PC movement path;
+- PC position edits/reinforcements;
+- restore snapshots.
 
-- Generic test goblins now carry the canonical `Goblin` / `MM` bestiary identity.
-- Picked and saved monsters preserve name/source identity through roster → session → combat unit.
-- Top-down tokens first request art through a fixed-path same-origin Netlify function, then retry the direct 5e.tools image, then fall back to initials.
-- Existing per-combatant and creature/character-default custom art still outranks automatic art.
+A refreshed or newly joined player therefore derives the same explored battlefield after catch-up. Rewinds deliberately do **not** erase player memory: if the table saw an area on an abandoned branch, it remains explored.
 
-### Reinforcement picker
+Staff View and the local sandbox remain omniscient.
 
-- The add-foe browser now owns the viewport above the combat HUD.
-- Search results and shelf sections scroll independently.
-- Picked foes and the footer remain reachable.
-- The HUD beneath is dimmed and does not intercept input while the modal is open.
+### Hidden-foe disclosure gates
 
-### Ki resource bridge
+In Player View, a hidden foe is absent from:
 
-`classFeatures.kiPoints` remains the raw sheet/storage key, but the Forge kit now exposes the canonical combat resource `ki`. Caim's action costs therefore read and spend the same full pool shown by the sheet.
+- 3D standees and top-down tokens;
+- initiative order;
+- hover/cell targeting and the fallback standee-column picker;
+- target pools, sight lines, badges and effect markers;
+- camera follow, focus and attacker/target framing.
 
-### Leveled spell-slot chooser
+If a hidden foe changes a visible PC's HP, the authoritative result still appears without revealing identity or a bespoke action name: the feed uses **Unseen foe / Unseen attack**. Staff View continues to receive the complete fact.
 
-Every leveled spell asks which eligible slot to spend when more than one slot level is available, including spells with no upcast benefit. Non-scaling spells explicitly say:
+### Direct ranged firing-position preview
 
-> No additional effect at higher levels.
+For one direct ranged attack and one selected hostile target, every reachable firing origin is classified using the existing movement, range, elevation and cover rules:
 
-This fixes Sanctuary silently choosing a 2nd-level slot. **Sanctuary's persistent ward and Wisdom-save attack interception are not part of this bite; they are Phase 1.5e.**
+- **Green** — clear shot, no cover.
+- **Yellow** — half cover, +2.
+- **Orange** — three-quarters cover, +5.
+- **Dark charcoal** — total cover, no line, or outside range.
 
-### Cover Contest restored
+Long-range disadvantage keeps the cover color and is stated in the readout. Hovering a colored origin reports movement cost and the resulting shot.
 
-The existing pre-roll adjudication system is restored to the BG3 HUD as **Contest next shot**:
+The preview:
 
-1. arm the toggle;
-2. choose the target;
-3. the attack pauses before rolling;
-4. the DM rules no / half / three-quarters / total cover;
-5. after 20 seconds without a ruling, the grid verdict stands.
+- uses `CB.seen` / canonical movement reach rather than arbitrary map cells;
+- calls the existing `reachOK()` and `TacticsGeo.losVerdict()` rules in a silent preview mode;
+- works for a PC targeting a visible foe and for staff inspecting a foe targeting a PC;
+- never outlines an unexplored origin in Player View;
+- is informational only — it does not commit a move or attack;
+- is limited to direct attacks. AoE templates will receive a separate vocabulary later.
 
-### Structured Forge feed
-
-Resolved attacks and abilities now paint through `ForgeFeedRender` with:
-
-- attacker, target, action, d20 math, advantage/disadvantage, cover word, verdict and damage;
-- no enemy AC;
-- soft green hit, soft red miss, muted gold critical, blue-grey save and teal healing row treatments;
-- authoritative echoed session facts, so every device sees the same result without predictive duplicates;
-- local-sandbox attacks, saves and healing using the same presentation.
+Cover Contest remains available as **Contest next shot** when the table wants the DM to replace the grid ruling.
 
 ## Upload through GitHub's browser
 
-Upload these repository files with their folder paths intact:
+Upload these files with repository paths intact.
 
-### Replacements
+### Replace
 
 - `forge/topography-test-mock.html`
-- `forge/forge-unit-art.js`
-
-### New runtime files
-
 - `forge/forge-table-correctness.js`
-- `netlify/functions/forge-token-art.js`
 
-### New regression tests
+### Add
 
-- `forge/tests/smoke-phase15d-contract.js`
-- `forge/tests/smoke-table-correctness.js`
-- `forge/tests/smoke-token-proxy.js`
-- `forge/tests/smoke-unit-art-automatic.js`
+- `forge/forge-discovery.js`
+- `forge/tests/smoke-forge-discovery.js`
+- `forge/tests/smoke-phase15f-contract.js`
 
-The documentation files and `SHA256SUMS.txt` are helper artifacts and do not need to be deployed.
+The bundle also carries the latest retained Phase 1.5c–e runtime files and regression tests for continuity. They do not need to be re-uploaded when the corresponding previous bundles are already live and byte-identical.
 
 ## Browser field checks
 
-1. Start a session as overseer/staff and open **Forge → Presentation**.
-2. Switch to Player View while Vesperian is active:
-   - PC HUD remains;
-   - enemy HP is absent from the initiative strip;
-   - overseer toolbar is absent.
-3. Advance to a goblin turn:
-   - the active enemy BG3 bar is completely absent in Player View;
-   - switch back to Staff View and confirm the complete enemy HUD returns.
-4. Enter top-down view and confirm generic, saved, and newly picked goblins load token art rather than `G`.
-5. Open **Add foe**, scroll to the bottom, pick a monster, and complete the modal without the HUD covering its footer.
-6. On Caim's turn, spend a Ki action and confirm a full pool can be used and decrements correctly.
-7. Cast Sanctuary while level-1 and level-2 slots are available; select either level and confirm the chosen pool is spent.
-8. Arm **Contest next shot**, target a covered creature, and confirm the DM ruling appears before the roll.
-9. Make a hit, miss, critical, save and healing action; confirm the right-side feed includes full math and damage with subtle verdict tinting and no AC.
-10. Refresh both staff and player devices once mid-turn and confirm viewer masking and action economy remain stable.
+1. Join one browser as staff/overseer and another as a real player.
+2. On the staff browser, use **Forge → Presentation → Player View**:
+   - fog should match the real player browser;
+   - switching back to Staff View should reveal the full battlefield immediately;
+   - authority and DM controls should remain intact.
+3. Move two different PCs on either device:
+   - their visible areas should union party-wide;
+   - previously seen terrain should remain as dark explored memory;
+   - refresh and late-join should reconstruct the same explored area.
+4. Put a foe outside party sight:
+   - no token/standee, initiative chip, badge, hover target or nameplate should appear;
+   - its hidden turn should not move the Player View camera;
+   - if it damages a PC, the player feed should say **Unseen foe**, while Staff View keeps the real identity.
+5. Test fog in both **3D** and **Top-down** camera views.
+6. On a PC turn, select a visible foe and arm a direct ranged attack:
+   - reachable origins should become green/yellow/orange/dark;
+   - hovering them should show movement cost, cover and long-range disadvantage;
+   - black/unexplored cells should never receive a preview tile.
+7. Switch to Staff View on a foe turn, select a PC target, and confirm the same preview works from the foe's weapon.
+8. Arm **Contest next shot** from a covered origin and verify the existing pre-roll DM ruling still overrides the preview/grid verdict.
+9. Refresh both devices mid-turn and repeat a movement plus ranged preview.
+10. Watch performance on the largest current map in both camera views; this first renderer uses two instanced fog meshes, not one mesh per cell.
 
-## Deliberate next boundaries
+## Deliberate boundaries
 
-- **Phase 1.5e:** replayable effect ledger, Sanctuary ward, visible effects, Wisdom-save attack interception, duration and break conditions.
-- **Phase 1.5f:** party-shared world-space fog and the direct-attack firing-position preview (green / yellow / orange / dark-hatched).
-- **Phase 2 terrain:** active archetypes, elevations, connectors, semantic spawns/objectives, validation and repair.
+- The first fog renderer uses per-cell world-space volumes. The stronger destination is per-instance cap/cliff/prop visibility after the behavior is field-approved.
+- The default sight radius is 60 ft when a sheet/monster does not provide one.
+- Hidden foes still occupy their real grid cells. A later hidden-contact rule can narrate an attempted move into an occupied unseen square; this bite prevents disclosure and targeting but does not invent that adjudication.
+- Explored memory is derived from the append-only log rather than stored as a new protocol fact or database column.
+- Firing-position preview does not queue **move → attack**.
+- AoE, cones, lines and burst templates are not represented by the direct-attack colors.
+- No active generator archetype/elevation behavior changes in this bite.
+
+After field approval, the next build is **Phase 2 terrain**: activate archetypes, assign constrained elevations and connectors, place semantic spawns/objectives, then validate and repair generated maps.
 
 No commit or push is performed by this bundle.

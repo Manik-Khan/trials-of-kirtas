@@ -7,7 +7,8 @@ const doc={body:{classList:{_s:new Set(),toggle(k,v){v?this._s.add(k):this._s.de
 const ctx={console,document:doc,localStorage:{getItem:k=>mem[k]||null,setItem:(k,v)=>mem[k]=v},CustomEvent:function(n,o){this.type=n;this.detail=o&&o.detail;},ForgeKitDerive:{derive(){return {res:{kiPoints:3},pools:[{key:"kiPoints",rawKey:"kiPoints",current:3}],actions:[{cost:{ki:1}}]};}},ForgeFeedRender:{rollBody:f=>`ROLL:${f.actor}:${f.mode}:${f.roll}:${f.dmg==null?"":f.dmg}:${f.coverName||""}`,abilityBody:f=>`ABILITY:${f.actor}:${(f.effects||[]).map(e=>e.heal!=null?"heal"+e.heal:e.dmg!=null?"dmg"+e.dmg:"").join(",")}`},addForgeRow(h){rows.push(h);},setTimeout,clearTimeout};ctx.self=ctx;ctx.window=ctx;
 vm.createContext(ctx);vm.runInContext(fs.readFileSync(path.join(__dirname,"..","forge-table-correctness.js"),"utf8"),ctx);
 const F=ctx.ForgeTableCorrectness;
-ok(F&&F.VERSION==="1.0.0","browser API loads");
+ok(F&&F.VERSION==="1.2.0","browser API loads");
+ok(typeof F.installFeedInteraction==="function","feed damage-detail interaction is part of the public contract");
 const k=ctx.ForgeKitDerive.derive({});
 ok(k.res.ki===3,"kiPoints aliases to canonical ki");
 ok(k.pools[0].key==="ki"&&k.pools[0].rawKey==="kiPoints","display pool keeps raw sheet key");
@@ -30,6 +31,8 @@ ok(atk.coverName==="half"&&atk.dmg===8,"self-contained resolved attack becomes a
 ok(F.factHtml(atk).includes("forge-result-hit")&&F.factHtml(atk).includes("ROLL:caim:Longbow:17:8:half"),"hit row receives soft hit tone and damage");
 const miss=F.factFromEvent({kind:"attack_resolved",unit:"g",payload:{target:"caim",roll:4,hitBonus:4,hit:false}});
 ok(F.factHtml(miss).includes("forge-result-miss"),"miss row receives soft miss tone");
+const unseen={kind:"sanctuary-save",actor:"__unseen_foe__",target:"caim",roll:12,mod:1,total:13,dc:14,saved:false};
+ok(F.factHtml(unseen).includes("Unseen foe")&&!F.factHtml(unseen).includes("__unseen_foe__"),"hidden attacker feed identity is human-readable and anonymous");
 const before=rows.length;
 ok(F.pushEvent({kind:"attack_declared",unit:"caim",payload:{target:"g",mode:"Shortbow",roll:13,hitBonus:5,cover:5,adv:true}})==="","declaration waits for the final verdict instead of painting early");
 ok(rows.length===before,"attack declaration creates no duplicate feed row");
@@ -38,4 +41,15 @@ ok(rows.length===before+1&&rows.at(-1).includes("ROLL:caim:Shortbow:13:6:three-q
 const ability=F.factFromEvent({kind:"ability_used",unit:"liadan",payload:{ability:"Healing Word",targets:["caim"],effects:[{unit:"caim",heal:6}]}});
 ok(ability.kind==="ability"&&ability.target==="caim","ability echo becomes structured fact");
 ok(F.factHtml(ability).includes("forge-result-heal")&&F.factHtml(ability).includes("ABILITY:liadan:heal6"),"healing effect receives a soft heal tone");
+ok(F.isGeometryDiagnostic("No line of sight — occluder at (25,31), 8/8 corners blocked."),"geometry diagnostics are recognized for collapse");
+ok(F.diagnosticHtml("occluder at (2,3)").includes("<details")&&F.diagnosticHtml("occluder at (2,3)").includes("Geometry details"),"geometry diagnostics render as disclosure rows");
+const wardSave=F.factFromEvent({kind:"ability_used",unit:"goblin",payload:{context:{kind:"sanctuary-save",target:"liadan",roll:8,mod:1,total:9,dc:13,saved:false}}});
+ok(wardSave.kind==="sanctuary-save"&&!wardSave.saved,"Sanctuary save facts get a dedicated presentation shape");
+ok(F.factHtml(wardSave).includes("WARD HOLDS")&&F.factHtml(wardSave).includes("forge-result-ward"),"failed Sanctuary save is glance-readable");
+const n0=rows.length;
+F.pushEvent({kind:"ability_used",unit:"liadan",payload:{ability:"Sanctuary",effects:[{unit:"liadan",add_effect:{id:"s1",kind:"sanctuary",label:"Sanctuary",target:"liadan",dc:13}}]}});
+ok(rows.length===n0+1&&rows.at(-1).includes("APPLIED"),"effect-ledger facts paint one effect row without a duplicate generic ability row");
+const n1=rows.length;
+F.pushEvent({kind:"ability_used",unit:"vesperian",payload:{ability:"Longsword",effects:[{unit:"vesperian",remove_effect:"s1",effect_label:"Sanctuary",effect_kind:"sanctuary",reason:"attacked"}]}});
+ok(rows.length===n1+1&&rows.at(-1).includes("Sanctuary")&&rows.at(-1).includes("ENDED"),"effect removal keeps the effect name in the feed");
 console.log("\n",pass,"table-correctness checks green");

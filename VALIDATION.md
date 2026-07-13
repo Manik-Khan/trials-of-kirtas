@@ -1,74 +1,88 @@
-# Validation record — Phase 1.5d
+# Validation record — Phase 1.5f
 
-Completed July 13, 2026 against the exact production HTML uploaded after M's successful 3D/top-down and token-rig field test.
+Completed July 13, 2026 against the exact Phase 1.5e production output.
 
 ## Green
 
 ### Runtime syntax
 
+- `node --check forge/forge-discovery.js`
+- `node --check forge/forge-effects.js`
 - `node --check forge/forge-table-correctness.js`
 - `node --check forge/forge-unit-art.js`
 - `node --check netlify/functions/forge-token-art.js`
-- Extracted and parsed all three executable inline scripts from the patched HTML:
-  - classic geometry block;
+- Extracted and parsed all three executable inline scripts from `forge/topography-test-mock.html`:
+  - canonical geometry block;
   - production ES module block;
   - classic party/session block.
-- Import map excluded because it is JSON, not executable JavaScript.
 
-### Headless checks
+### Headless and integration checks
 
+- `smoke-forge-effects.js` — **31 green**
 - `smoke-phase15d-contract.js` — **20 green**
-- `smoke-table-correctness.js` — **21 green**
+- `smoke-phase15e-contract.js` — **25 green**
+- `smoke-table-correctness.js` — **29 green**
 - `smoke-token-proxy.js` — **7 green**
 - `smoke-unit-art-automatic.js` — **6 green**
+- `smoke-forge-discovery.js` — **41 green**
+- `smoke-phase15f-contract.js` — **47 green**
 
-**Total: 54 checks green.**
+**Total: 206 checks green.**
 
-Coverage includes:
+New coverage includes:
 
-- permission-aware Staff/Player View;
-- real-player lock to Player View;
-- hidden-foe filtering and enemy-vital masking;
-- active-enemy HUD suppression;
-- Forge-menu presentation toggle;
-- bestiary identity transport and generic Goblin/MM fallback;
-- same-origin token bridge and direct-art retry;
-- custom-art precedence;
-- reinforcement modal stacking/close contract;
-- `kiPoints` → `ki` alias while retaining `rawKey`;
-- non-scaling leveled-spell chooser text;
-- Cover Contest restoration;
-- declaration/resolution feed merging;
-- self-contained resolved attack display facts;
-- damage, healing and soft verdict tone classes;
-- duplicate predictive-row prevention.
+- stable three-state discovery values;
+- explicit/darkvision/default sight radii;
+- canonical LoS delegation and party-union visibility;
+- explored-memory accumulation and event-history reconstruction;
+- PC/foe roster-kind normalization;
+- movement path, edit, reinforcement and restore history;
+- camera-independent world-space fog groups;
+- instanced unexplored versus explored rendering;
+- Player View versus Staff View behavior;
+- hidden-foe unit rig, initiative, target pool, cell picker and fallback-picker gates;
+- hidden-turn camera non-disclosure;
+- anonymous hidden-attacker feed presentation;
+- ranged direct-action qualification;
+- reachable-origin classification with movement-cost preservation;
+- no preview on unexplored origins;
+- green/yellow/orange/dark cover vocabulary;
+- long-range disadvantage retention;
+- silent preview geometry evaluation;
+- no protocol addition and explicit AoE exclusion.
 
 ### Integrity
 
 - `SHA256SUMS.txt` excludes itself and passes `sha256sum -c`.
-- Patched HTML is based on the uploaded file with SHA256:
-  `484644cdcd1b091171b4ca65d9f03fd0e40774438bbcc6780d72dda59ab997a2`.
+- ZIP integrity passes `unzip -t`.
+
+## Source/diff
+
+- Phase 1.5e topography baseline SHA256:
+  `3487178acdfb382fed59f30bc465097b749fd29ff2984fad5573abb83df76c56`
+- Phase 1.5f topography replacement SHA256:
+  `ced0e444f68f8648e746ed3c1a313ec75420fd117a6396e37c930a6ad3fd1807`
+- Topography diff: **169 insertions, 19 deletions**.
 
 ## Not claimed
 
-- No automated Chromium/WebGL rendering was available. M still needs to eyeball the menu, reinforcement modal, top-down token images and feed colors in a real browser.
-- The complete repository was not available in this isolated workspace, so the entire pre-existing Forge smoke battery was not rerun here.
-- Supabase/RLS and a real two-device session were not exercised by headless tests.
-- Sanctuary's persistent effect is not implemented in this bite; only correct slot choice is.
-- Fog of war and the firing-position cover preview remain the next separate bite.
+- No automated Chromium/WebGL rendering was available. The fog volumes, 3D/top-down composition, overlay colors and hover feel require M's real-browser eyeball.
+- A live two-device Supabase session was not exercised in this workspace. Shared exploration was validated headlessly from event-shaped history, not over realtime transport.
+- The complete historical repository checkout could not be fetched here, so unrelated legacy Forge suites were not rerun. All eight relevant retained/new suites in this bundle are green.
+- Cell-volume fog is the approved first renderer, not the final per-instance terrain renderer.
+- Hidden-contact movement, AoE templates and click-to-queue move/attack are not implemented.
 - No commit or push was performed.
 
 ## Recommended repository checks after upload
 
 ```bash
-node forge/tests/smoke-phase15d-contract.js
+node forge/tests/smoke-forge-discovery.js
+node forge/tests/smoke-phase15f-contract.js
+node forge/tests/smoke-forge-effects.js
+node forge/tests/smoke-phase15e-contract.js
 node forge/tests/smoke-table-correctness.js
-node forge/tests/smoke-token-proxy.js
-node forge/tests/smoke-unit-art-automatic.js
-node forge/tests/smoke-kit-derive.js
-node forge/tests/smoke-starter-kits.js
 node forge/tests/smoke-cover-contest.js
-node forge/tests/smoke-feed-render.js
+node forge/tests/smoke-los-cover.js
 node forge/tests/smoke-forge-board.js
 node forge/tests/smoke-replay.js
 ```
