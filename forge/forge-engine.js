@@ -153,6 +153,9 @@
   /* the one call: params → a finished, verified, combat-ready map */
   function generate(params) {
     var p = Object.assign({}, DEFAULTS, params || {});
+    if (p.themeKey != null && FD.THEME_KEYS.indexOf(p.themeKey) < 0) {
+      throw new Error("forge-engine: unknown themeKey \"" + p.themeKey + "\" (expected one of: " + FD.THEME_KEYS.join(", " ) + ")");
+    }
     var seed = (p.seed != null ? p.seed : randomSeed()) >>> 0;
     var rng = mulberry32(seed ^ 0x9e3779b9);
     var themes = FD.THEME_KEYS;
