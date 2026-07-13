@@ -1,24 +1,30 @@
 # Upload manifest
 
-## Replacements produced by the browser or Node patcher
+## Replacements produced by the patcher
 
 - `forge/topography-test-mock.html`
 - `forge/forge-engine.js`
 
-## New repository files in this ZIP
+## New repository files
 
 - `forge/forge-generator-foundation.js`
 - `forge/camera-discovery-mock.html`
 - `forge/PHASE2_GENERATOR_FOUNDATION.md`
 - `forge/tests/smoke-generator-foundation.js`
+- `forge/tests/smoke-camera-contract.js`
 
-## Helper files — do not need to deploy
+## Helpers — do not deploy
 
-- `tools/forge-phase15-phase2-browser-patcher.html`
-- `tools/apply-forge-phase15-phase2-foundation.js`
-- `tools/test-apply-forge-phase15-phase2-foundation.js`
+- `tools/forge-phase15-camera-phase2-browser-patcher.html`
+- `tools/apply-forge-phase15-camera-phase2-foundation.js`
+- `tools/test-apply-forge-phase15-camera-phase2-foundation.js`
 - `README_APPLY.md`
 - `VALIDATION.md`
 - `UPLOAD_MANIFEST.md`
+- `SHA256SUMS.txt`
 
-M remains the committer and pusher. This bundle performs neither action.
+M remains the committer and pusher. No helper commits or pushes.
+
+## Context handoff — optional repository upload
+
+- `CONTEXT_Forge-update-2026-07-13b.md`
