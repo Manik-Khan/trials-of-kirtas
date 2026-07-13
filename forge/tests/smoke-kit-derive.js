@@ -62,6 +62,8 @@ const VES_CHAR = {
   },
   vitals: { hp: 40, maxHp: 40, pipState: {} },
   inventory: [
+    { name: "Scale Mail", type: "MA" },   // real gear: 14 + Dex(cap 2) + shield = AC 18, derived
+    { name: "Shield", type: "S" },
     { name: "Longsword", type: "weapon" },
     { name: "Shortbow", type: "weapon" },
     { name: "Potion of Healing", type: "potion" }
@@ -76,7 +78,7 @@ const CAIM_CHAR = {
     classLabel: "Monk 4", subclass: "Way of Mercy",
     race: "Tiefling",
     abilities: { str: { score: 10, mod: 0 }, dex: { score: 16, mod: 3 }, con: { score: 14, mod: 2 },
-                 int: { score: 8, mod: -1 }, wis: { score: 14, mod: 2 }, cha: { score: 12, mod: 1 } },
+                 int: { score: 8, mod: -1 }, wis: { score: 16, mod: 3 }, cha: { score: 12, mod: 1 } }, // real Caim wis +3: Unarmored Defense 10+3+3 = 16
     proficiencyBonus: 2,
     combat: { ac: 16, speed: 40, initiative: 3, maxHp: 24, climb: true },
     features: [
@@ -142,6 +144,8 @@ const COSMERE_CHAR = {
   },
   vitals: { hp: 20, maxHp: 20, pipState: {} },
   inventory: [
+    { name: "Scale Mail", type: "MA" },   // real gear (Hexblade medium armor): 14 + 2 + 2 = AC 18, derived
+    { name: "Shield", type: "S" },
     { name: "Longsword", type: "weapon" }
   ]
 };
@@ -194,6 +198,7 @@ const LIADAN_CHAR = {
   },
   vitals: { hp: 31, maxHp: 31, pipState: { spell_1: 1 } },  // 1 lvl-1 slot spent
   inventory: [
+    { name: "Leather Armor", type: "LA" },  // real gear: 11 + Dex 1 = AC 12, derived
     { name: "Sling", type: "weapon" },
     { name: "Potion of Healing", type: "potion" },
     { name: "Potion of Healing", type: "potion" },

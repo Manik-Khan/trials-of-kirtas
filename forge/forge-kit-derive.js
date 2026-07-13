@@ -46,18 +46,60 @@
   }
 
   // ── combat stats ────────────────────────────────────────────────────────
-  function combatStats(s) {
-    var cmb = s.combat || {};
-    return {
-      ac:    cmb.ac   != null ? cmb.ac   : 10,
-      speed: cmb.speed != null ? cmb.speed : 30,
-      init:  cmb.initiative != null ? cmb.initiative : 0,
-      fly:   !!cmb.fly,
-      climb: !!cmb.climb
-    };
+function characterCombatApi() {
+  if (typeof CharacterCombat !== "undefined" && CharacterCombat && typeof CharacterCombat.derive === "function") return CharacterCombat;
+  if (typeof globalThis !== "undefined" && globalThis.CharacterCombat && typeof globalThis.CharacterCombat.derive === "function") return globalThis.CharacterCombat;
+  if (typeof require === "function") {
+    try { return require('../character-combat.js'); }
+    catch (err) { if (typeof console !== "undefined" && console.warn) console.warn('CharacterCombat require failed', err); }
   }
-
-  // ── resource map & display pools ────────────────────────────────────────
+  return null;
+}
+function combatStats(s, inventory, vitals, charData) {
+  var cc = characterCombatApi();
+  if (!cc) {
+    var missing = new Error('CharacterCombat unavailable; refusing cached combat fields');
+    missing.code = 'FORGE_CHARACTER_COMBAT_MISSING';
+    throw missing;
+  }
+  return cc.derive(charData || { structural: s, inventory: inventory || [], vitals: vitals || {} });
+}
+function escapeCombatError(s) {
+  return String(s == null ? '' : s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;').replace(/'/g, '&#39;');
+}
+function surfaceCombatError(charData, err) {
+  var name = (charData && (charData.name || (charData.structural || {}).name || charData.key)) || 'Unknown character';
+  var message = 'Character data unavailable — ' + name + ': ' + ((err && err.message) || err || 'unknown projection error');
+  if (typeof console !== 'undefined' && console.error) console.error(message, err);
+  if (typeof globalThis !== 'undefined') {
+    try {
+      if (typeof globalThis.addForgeRow === 'function') {
+        globalThis.addForgeRow('<div class="ffr-body"><b>' + escapeCombatError(name) + '</b><br>' + escapeCombatError(message) + '</div>');
+      }
+    } catch (_) { /* feed may not be mounted yet */ }
+    try {
+      if (typeof globalThis.dispatchEvent === 'function' && typeof globalThis.CustomEvent === 'function') {
+        globalThis.dispatchEvent(new globalThis.CustomEvent('forge:characterDataError', { detail: { key: charData && charData.key || null, name: name, message: message, error: err } }));
+      }
+    } catch (_) { /* non-browser */ }
+  }
+  return message;
+}
+function combatErrorKit(charData, err) {
+  var name = (charData && (charData.name || (charData.structural || {}).name || charData.key)) || 'Unknown character';
+  var message = surfaceCombatError(charData, err);
+  var errorTile = { id: 'character-data-error', label: 'Character data unavailable', kind: 'utility', tab: 'actions', greyed: true, reason: message, description: message };
+  return {
+    key: charData && charData.key || null,
+    name: '⚠ ' + name,
+    hp: 0, maxHp: 0, ac: 0, speed: 0, init: 0, fly: false, climb: false,
+    res: {}, react: null, actions: [],
+    tabs: { attacks: [], spells: [], items: [], feats: [], actions: [errorTile], bonus: [] },
+    pools: [], spellcasting: null, derived: false, fallback: 'error', unavailable: true,
+    loadError: message
+  };
+}
+// ── resource map & display pools ────────────────────────────────────────
   /* Builds both the flat `res` map (for canUse cost checks) and the display
      `pools` array (for the bar's slot/resource pips). Sources: spellcasting
      pools + ResourceDerive-style class resources. Vitals.pipState carries the
@@ -1041,7 +1083,14 @@
     var inv = charData.inventory || [];
 
     // 1. Combat stats
-    var stats = combatStats(s);
+    var stats;
+  try { stats = combatStats(s, inv, v, charData); }
+  catch (combatErr) {
+    if (opts && typeof opts.onCharacterError === 'function') {
+      try { opts.onCharacterError(combatErr, charData); } catch (_) { /* caller hook is non-fatal */ }
+    }
+    return combatErrorKit(charData, combatErr);
+  }
 
     // 2. Resource pools + flat res map
     var rp = buildResPools(s, v);
@@ -1089,8 +1138,8 @@
     };
 
     // 8. HP from vitals (the live value) or structural
-    var hp    = v.hp    != null ? v.hp    : ((s.combat || {}).maxHp || (s.combat || {}).hpMax || 10);
-    var maxHp = v.maxHp != null ? v.maxHp : ((s.combat || {}).maxHp || (s.combat || {}).hpMax || 10);
+    var hp    = stats.hp;
+    var maxHp = stats.maxHp;
 
     return {
       key:          charData.key || null,
@@ -1098,6 +1147,8 @@
       hp:           hp,
       maxHp:        maxHp,
       ac:           stats.ac,
+      acSource:     stats.acSource || null,
+      sourceUpdatedAt: stats.sourceUpdatedAt || charData.updatedAt || charData.updated_at || null,
       speed:        stats.speed,
       init:         stats.init,
       fly:          stats.fly,
