@@ -1,37 +1,39 @@
-# Upload manifest — Phase 1.5f
+# Upload manifest — Phase 1.5g
 
-## Replace
+## Runtime replacement
 
 - `forge/topography-test-mock.html`
 - `forge/forge-table-correctness.js`
 
-## Add
+## New runtime file
+
+- `forge/forge-combat-rules.js`
+
+## Retained cumulative support files
+
+These are unchanged from the previous Phase 1.5 bundles and are included so the cumulative tests run from the ZIP. They do not need to replace identical deployed copies:
 
 - `forge/forge-discovery.js`
-- `forge/tests/smoke-forge-discovery.js`
-- `forge/tests/smoke-phase15f-contract.js`
-
-## Retained latest files included for continuity
-
-These are unchanged from the preceding Phase 1.5c–e bundles and do not need to be re-uploaded when already live:
-
 - `forge/forge-effects.js`
 - `forge/forge-unit-art.js`
 - `netlify/functions/forge-token-art.js`
-- `forge/tests/smoke-forge-effects.js`
-- `forge/tests/smoke-phase15d-contract.js`
-- `forge/tests/smoke-phase15e-contract.js`
-- `forge/tests/smoke-table-correctness.js`
-- `forge/tests/smoke-token-proxy.js`
-- `forge/tests/smoke-unit-art-automatic.js`
 
-## Documentation / helper files — deployment optional
+## Tests
+
+New:
+
+- `forge/tests/smoke-forge-combat-rules.js`
+- `forge/tests/smoke-phase15g-contract.js`
+
+Retained or updated cumulative tests are included under `forge/tests/` for convenience.
+
+## Documentation only
 
 - `README_APPLY.md`
-- `PHASE15F_DISCOVERY_AND_FIRE_PREVIEW.md`
+- `PHASE15G_COMBAT_FLOW_AND_CLASS_ACTIONS.md`
 - `VALIDATION.md`
-- `CONTEXT_Forge-update-2026-07-13f.md`
+- `UPLOAD_MANIFEST.md`
 - `SOURCE_BASELINE.txt`
-- `SHA256SUMS.txt`
+- `CONTEXT_Forge-update-2026-07-13g.md`
 
-M remains the committer and pusher. Nothing in this bundle commits or deploys.
+M remains the committer and pusher. This bundle performs neither action.

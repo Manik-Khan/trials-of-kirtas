@@ -22,7 +22,7 @@
   else root.ForgeTableCorrectness=api;
 })(typeof self!=="undefined"?self:this,function(root){
   "use strict";
-  var VERSION="1.2.0";
+  var VERSION="1.3.0";
   var VIEW_KEY="tok-forge-view-mode-v1";
 
   function esc(s){return String(s==null?"":s).replace(/[&<>"']/g,function(c){return {"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c];});}
@@ -78,16 +78,17 @@
     return {privileged:p,mode:pv?"player":"staff",playerView:pv,staffView:!pv,suppressEnemyHud:!!(pv&&active&&active.side==="foe")};
   }
 
-  function normalizeKit(kit){
+  function normalizeKit(kit,charData){
     if(!kit||typeof kit!=="object")return kit;
     if(kit.res&&kit.res.ki==null&&kit.res.kiPoints!=null)kit.res.ki=kit.res.kiPoints;
     (kit.pools||[]).forEach(function(p){if(p&&p.key==="kiPoints"){p.key="ki";if(!p.rawKey)p.rawKey="kiPoints";}});
+    if(root.ForgeCombatRules&&typeof root.ForgeCombatRules.auditKit==="function")root.ForgeCombatRules.auditKit(kit,charData);
     return kit;
   }
   function installKitAlias(){
     var kd=root.ForgeKitDerive;if(!kd||kd.__tableCorrectnessKi)return false;
     ["derive","wrapStarterKit"].forEach(function(name){
-      if(typeof kd[name]!=="function")return;var raw=kd[name];kd[name]=function(){return normalizeKit(raw.apply(this,arguments));};
+      if(typeof kd[name]!=="function")return;var raw=kd[name];kd[name]=function(){var args=arguments;return normalizeKit(raw.apply(this,args),args[0]);};
     });
     kd.__tableCorrectnessKi=true;return true;
   }
@@ -169,8 +170,27 @@
     var text=stripTags(html);
     return '<details class="forge-geometry-group"><summary>Geometry details</summary><div class="forge-geometry-line">'+esc(text)+'</div></details>';
   }
-  function pushDiagnostic(html){var out=diagnosticHtml(html);if(typeof root.addForgeRow==="function")root.addForgeRow(out);return out;}
+  function pushDiagnostic(html){var out=diagnosticHtml(html);if(typeof root.addForgeRow==="function")root.addForgeRow(out,{channel:"system"});return out;}
 
+  var FEED_VIEW_KEY="tok-forge-feed-view-v1";
+  function feedView(){var s=storage(),v="table";try{v=s&&s.getItem(FEED_VIEW_KEY)||"table";}catch(_e){}return /^(table|system|all)$/.test(v)?v:"table";}
+  function setFeedView(v){if(!/^(table|system|all)$/.test(v))v="table";var s=storage();try{if(s)s.setItem(FEED_VIEW_KEY,v);}catch(_e){}applyFeedView(v);return v;}
+  function rowChannel(html,opts){if(opts&&opts.channel)return opts.channel;if(root.ForgeCombatRules&&root.ForgeCombatRules.categoryForHtml)return root.ForgeCombatRules.categoryForHtml(html);return isGeometryDiagnostic(html)?"system":"table";}
+  function applyFeedView(v){if(!root.document)return;v=v||feedView();var feed=root.document.getElementById("fgFeed");if(!feed)return;feed.dataset.feedView=v;feed.querySelectorAll(".fg-feed-tab").forEach(function(b){b.classList.toggle("on",b.dataset.view===v);});feed.querySelectorAll(".fg-frow[data-feed-channel]").forEach(function(r){r.hidden=!(v==="all"||r.dataset.feedChannel===v);});}
+  function ensureFeedTabs(){if(!root.document)return false;var feed=root.document.getElementById("fgFeed");if(!feed)return false;var tabs=root.document.getElementById("fgFeedTabs");if(!tabs){tabs=root.document.createElement("div");tabs.id="fgFeedTabs";tabs.className="fg-feed-tabs";["table","system","all"].forEach(function(v){var b=root.document.createElement("button");b.type="button";b.className="fg-feed-tab";b.dataset.view=v;b.textContent=v.charAt(0).toUpperCase()+v.slice(1);b.onclick=function(){setFeedView(v);};tabs.appendChild(b);});var head=feed.firstElementChild;feed.insertBefore(tabs,head?head.nextSibling:feed.firstChild);}
+    /* Rows that arrived before this decorator installed still need a channel;
+       otherwise System filtering would leave old geometry diagnostics visible. */
+    feed.querySelectorAll(".fg-frow:not([data-feed-channel])").forEach(function(r){r.dataset.feedChannel=rowChannel(r.innerHTML);});
+    applyFeedView();return true;}
+  function markNewestFeedRow(channel){if(!root.document)return;var feed=root.document.getElementById("fgFeed");if(!feed)return;var rows=feed.querySelectorAll(".fg-frow:not([data-feed-channel])");if(!rows.length)return;var row=rows[0];row.dataset.feedChannel=channel||"table";applyFeedView();}
+  function installFeedChannels(){if(typeof root.addForgeRow!=="function"||root.addForgeRow.__feedChannels)return false;var raw=root.addForgeRow;var wrapped=function(html,opts){var ch=rowChannel(html,opts);var out=raw.apply(this,arguments);/* Stamp the just-added row before retro-classifying older rows, so an explicit opts.channel always wins. */markNewestFeedRow(ch);ensureFeedTabs();return out;};wrapped.__feedChannels=true;wrapped._raw=raw;root.addForgeRow=wrapped;ensureFeedTabs();return true;}
+  function ensureFlowButtons(state){
+    if(!root.document)return;var bar=root.document.getElementById("fgBar");if(!bar)return;var host=bar.querySelector(".fg-hint")||bar;
+    function btn(id,label,eventName,show,title){var b=root.document.getElementById(id);if(!show){if(b)b.remove();return null;}if(!b){b=root.document.createElement("button");b.id=id;b.type="button";b.className="fg-flow-btn";b.addEventListener("click",function(){root.document.dispatchEvent(new root.CustomEvent(eventName));});host.appendChild(b);}b.innerHTML=label;b.title=title||"";return b;}
+    btn("fgConfirmAttack","⚔ Confirm attack","forge:confirmAttack",!!(state&&state.confirmAttack),state&&state.confirmWhy||"Roll the armed attack against the selected target.");
+    btn("fgUndoMove","↶ Undo move","forge:undoMove",!!(state&&state.undoMove),state&&state.undoWhy||"Undo your most recent move before another consequence occurs.");
+    var stand=btn("fgStand","Stand up","forge:standProne",!!(state&&state.canStand),state&&state.standWhy||"Spend half your speed to stand from Prone.");if(stand&&state.standCostFt)stand.innerHTML="Stand up · "+state.standCostFt+" ft";
+  }
   function ensureContestButton(state){
     if(!root.document)return;
     var bar=root.document.getElementById("fgBar");if(!bar)return;
@@ -195,7 +215,7 @@
         if(bar)bar.style.display=snap.suppressEnemyHud?"none":"";
         if(feed)feed.style.display="";
       }
-      ensureContestButton(outState);return out;
+      ensureContestButton(outState);ensureFlowButtons(outState);return out;
     };
     wrapped.__tableCorrectness=true;wrapped._raw=raw;root.renderForgeBar=wrapped;return true;
   }
@@ -204,6 +224,13 @@
     var s=root.document.createElement("style");s.id="forgeTableCorrectnessCss";s.textContent=[
       (root.ForgeFeedRender&&root.ForgeFeedRender.CSS)||"",
       ".fg-contest-next{display:block;width:100%;margin-top:8px;padding:7px 10px;border:1px solid rgba(216,179,91,.55);background:rgba(216,179,91,.08);color:#d7c18a;font:700 11px/1.2 'Barlow Condensed',sans-serif;letter-spacing:.08em;text-transform:uppercase;cursor:pointer}",
+      ".fg-flow-btn{display:inline-flex;margin:8px 5px 0 0;padding:8px 11px;border:1px solid rgba(111,190,157,.55);background:rgba(58,138,146,.16);color:#d9fff1;font:750 11px/1.2 'Barlow Condensed',sans-serif;letter-spacing:.08em;text-transform:uppercase;cursor:pointer}",
+      "#fgConfirmAttack{border-color:rgba(216,179,91,.75);background:rgba(216,179,91,.20);color:#fff0bd}",
+      "#fgUndoMove{border-color:rgba(150,177,196,.62);background:rgba(78,112,140,.17);color:#d9efff}",
+      ".fg-feed-tabs{display:flex;gap:5px;padding:7px 10px;border-bottom:1px solid rgba(255,255,255,.09);background:rgba(0,0,0,.18)}",
+      ".fg-feed-tab{flex:1;padding:6px 7px;border:1px solid rgba(216,179,91,.28);background:transparent;color:#aaa18f;font:750 10px/1 'Barlow Condensed',sans-serif;letter-spacing:.12em;text-transform:uppercase;cursor:pointer}",
+      ".fg-feed-tab.on{background:rgba(216,179,91,.18);border-color:rgba(216,179,91,.66);color:#f6e8bd}",
+      ".fg-frow[hidden]{display:none!important}",
       ".fg-contest-next.on{background:rgba(216,179,91,.24);border-color:#d8b35b;color:#fff1bf}",
       "#fgFeed{background:rgba(12,16,15,.965)!important;border-color:rgba(205,184,132,.34)!important;box-shadow:0 18px 54px rgba(0,0,0,.62)!important;backdrop-filter:blur(14px) saturate(.78);-webkit-backdrop-filter:blur(14px) saturate(.78);color:#eee7d8!important}",
       "#fgFeed .fg-feed-head,#fgFeed h3,#fgFeed h4{color:#dcbf72!important;text-shadow:0 1px 0 #000}",
@@ -246,8 +273,8 @@
     });
     return true;
   }
-  function install(){injectCss();installKitAlias();installHudDecorator();installFeedInteraction();applyBody();return true;}
+  function install(){injectCss();installKitAlias();installHudDecorator();installFeedInteraction();installFeedChannels();ensureFeedTabs();applyBody();return true;}
   install();
   if(root.document)root.document.addEventListener("DOMContentLoaded",install,{once:true});
-  return Object.freeze({VERSION:VERSION,VIEW_KEY:VIEW_KEY,privileged:privileged,mode:mode,staffView:staffView,playerView:playerView,setMode:setMode,toggle:toggle,applyBody:applyBody,visibleOrder:visibleOrder,displayUnit:displayUnit,viewerSnapshot:viewerSnapshot,normalizeKit:normalizeKit,installKitAlias:installKitAlias,factFromEvent:factFromEvent,factHtml:factHtml,pushFact:pushFact,pushEvent:pushEvent,isGeometryDiagnostic:isGeometryDiagnostic,diagnosticHtml:diagnosticHtml,pushDiagnostic:pushDiagnostic,installHudDecorator:installHudDecorator,installFeedInteraction:installFeedInteraction,install:install});
+  return Object.freeze({VERSION:VERSION,VIEW_KEY:VIEW_KEY,privileged:privileged,mode:mode,staffView:staffView,playerView:playerView,setMode:setMode,toggle:toggle,applyBody:applyBody,visibleOrder:visibleOrder,displayUnit:displayUnit,viewerSnapshot:viewerSnapshot,normalizeKit:normalizeKit,installKitAlias:installKitAlias,factFromEvent:factFromEvent,factHtml:factHtml,pushFact:pushFact,pushEvent:pushEvent,isGeometryDiagnostic:isGeometryDiagnostic,diagnosticHtml:diagnosticHtml,pushDiagnostic:pushDiagnostic,feedView:feedView,setFeedView:setFeedView,applyFeedView:applyFeedView,installFeedChannels:installFeedChannels,ensureFeedTabs:ensureFeedTabs,installHudDecorator:installHudDecorator,installFeedInteraction:installFeedInteraction,ensureFlowButtons:ensureFlowButtons,install:install});
 });

@@ -1,116 +1,101 @@
-# Battle Forge — Phase 1.5f discovery + direct-fire preview
+# Battle Forge Phase 1.5g — apply and field-check
 
-This bundle advances the exact Phase 1.5e production surface into the final discovery/tactical-guidance bite before active Phase 2 terrain generation.
+This bundle is based on the exact Phase 1.5f production `forge/topography-test-mock.html` supplied by M on July 13, 2026. The remaining Forge modules are expected to be the current copies on `main`.
 
-## What this bite adds
+No database migration, commit, or push is included.
 
-### Party-shared world-space discovery
+## Upload through GitHub
 
-Player View now has three battlefield states:
-
-- **Unexplored** — covered by opaque world-space fog; enemies and interaction are hidden.
-- **Explored memory** — static battlefield remains visible through a darkened/desaturated fog layer; enemies and current activity remain hidden.
-- **Visible now** — normal rendering and interaction.
-
-Current visibility is the union of every living PC's sight. Sight uses each unit's explicit vision/darkvision value when present and otherwise defaults to 60 ft. Every candidate cell is checked through the canonical `TacticsGeo.losVerdict()` geometry.
-
-Exploration is reconstructed from the shared event log:
-
-- roster starting positions;
-- every resolved PC movement path;
-- PC position edits/reinforcements;
-- restore snapshots.
-
-A refreshed or newly joined player therefore derives the same explored battlefield after catch-up. Rewinds deliberately do **not** erase player memory: if the table saw an area on an abandoned branch, it remains explored.
-
-Staff View and the local sandbox remain omniscient.
-
-### Hidden-foe disclosure gates
-
-In Player View, a hidden foe is absent from:
-
-- 3D standees and top-down tokens;
-- initiative order;
-- hover/cell targeting and the fallback standee-column picker;
-- target pools, sight lines, badges and effect markers;
-- camera follow, focus and attacker/target framing.
-
-If a hidden foe changes a visible PC's HP, the authoritative result still appears without revealing identity or a bespoke action name: the feed uses **Unseen foe / Unseen attack**. Staff View continues to receive the complete fact.
-
-### Direct ranged firing-position preview
-
-For one direct ranged attack and one selected hostile target, every reachable firing origin is classified using the existing movement, range, elevation and cover rules:
-
-- **Green** — clear shot, no cover.
-- **Yellow** — half cover, +2.
-- **Orange** — three-quarters cover, +5.
-- **Dark charcoal** — total cover, no line, or outside range.
-
-Long-range disadvantage keeps the cover color and is stated in the readout. Hovering a colored origin reports movement cost and the resulting shot.
-
-The preview:
-
-- uses `CB.seen` / canonical movement reach rather than arbitrary map cells;
-- calls the existing `reachOK()` and `TacticsGeo.losVerdict()` rules in a silent preview mode;
-- works for a PC targeting a visible foe and for staff inspecting a foe targeting a PC;
-- never outlines an unexplored origin in Player View;
-- is informational only — it does not commit a move or attack;
-- is limited to direct attacks. AoE templates will receive a separate vocabulary later.
-
-Cover Contest remains available as **Contest next shot** when the table wants the DM to replace the grid ruling.
-
-## Upload through GitHub's browser
-
-Upload these files with repository paths intact.
-
-### Replace
+Replace:
 
 - `forge/topography-test-mock.html`
 - `forge/forge-table-correctness.js`
 
-### Add
+Add:
 
-- `forge/forge-discovery.js`
-- `forge/tests/smoke-forge-discovery.js`
-- `forge/tests/smoke-phase15f-contract.js`
+- `forge/forge-combat-rules.js`
 
-The bundle also carries the latest retained Phase 1.5c–e runtime files and regression tests for continuity. They do not need to be re-uploaded when the corresponding previous bundles are already live and byte-identical.
+The HTML already loads the new module as:
 
-## Browser field checks
+```html
+<script src="forge-combat-rules.js?v=fcr1"></script>
+<script src="forge-table-correctness.js?v=fg1"></script>
+```
 
-1. Join one browser as staff/overseer and another as a real player.
-2. On the staff browser, use **Forge → Presentation → Player View**:
-   - fog should match the real player browser;
-   - switching back to Staff View should reveal the full battlefield immediately;
-   - authority and DM controls should remain intact.
-3. Move two different PCs on either device:
-   - their visible areas should union party-wide;
-   - previously seen terrain should remain as dark explored memory;
-   - refresh and late-join should reconstruct the same explored area.
-4. Put a foe outside party sight:
-   - no token/standee, initiative chip, badge, hover target or nameplate should appear;
-   - its hidden turn should not move the Player View camera;
-   - if it damages a PC, the player feed should say **Unseen foe**, while Staff View keeps the real identity.
-5. Test fog in both **3D** and **Top-down** camera views.
-6. On a PC turn, select a visible foe and arm a direct ranged attack:
-   - reachable origins should become green/yellow/orange/dark;
-   - hovering them should show movement cost, cover and long-range disadvantage;
-   - black/unexplored cells should never receive a preview tile.
-7. Switch to Staff View on a foe turn, select a PC target, and confirm the same preview works from the foe's weapon.
-8. Arm **Contest next shot** from a covered origin and verify the existing pre-roll DM ruling still overrides the preview/grid verdict.
-9. Refresh both devices mid-turn and repeat a movement plus ranged preview.
-10. Watch performance on the largest current map in both camera views; this first renderer uses two instanced fog meshes, not one mesh per cell.
+The files under `forge/tests/` are validation artifacts. Uploading them is recommended but is not required for the browser runtime.
 
-## Deliberate boundaries
+## Quick browser field pass
 
-- The first fog renderer uses per-cell world-space volumes. The stronger destination is per-instance cap/cliff/prop visibility after the behavior is field-approved.
-- The default sight radius is 60 ft when a sheet/monster does not provide one.
-- Hidden foes still occupy their real grid cells. A later hidden-contact rule can narrate an attempted move into an occupied unseen square; this bite prevents disclosure and targeting but does not invent that adjudication.
-- Explored memory is derived from the append-only log rather than stored as a new protocol fact or database column.
-- Firing-position preview does not queue **move → attack**.
-- AoE, cones, lines and burst templates are not represented by the direct-attack colors.
-- No active generator archetype/elevation behavior changes in this bite.
+### Feed
 
-After field approval, the next build is **Phase 2 terrain**: activate archetypes, assign constrained elevations and connectors, place semantic spawns/objectives, then validate and repair generated maps.
+1. Open **Table**, **System**, and **All** in the Game Feed.
+2. Confirm attacks, damage, healing, spell effects, and chat stay in **Table**.
+3. Confirm geometry/occluder, discovery, transport, and resync diagnostics move to **System**.
+4. Confirm older rows already present when the HUD initializes are classified too.
 
-No commit or push is performed by this bundle.
+### Caim
+
+1. Spend Ki on **Step of the Wind** and choose both Dash and Disengage in separate turns.
+2. Confirm it spends the **bonus action**, not the action.
+3. Attack first, then use **Flurry of Blows**.
+4. Confirm two separate attack rolls, Caim's normal Unarmed Strike bonus, non-zero damage, one Ki spent, and one bonus action spent.
+5. Confirm **Martial Arts** uses one canonical Unarmed Strike after Attack.
+6. Confirm **Patient Defense** applies Dodge and attacks against Caim receive disadvantage.
+7. Confirm malformed damaging actions visibly refuse rather than resolving for zero damage.
+
+`Hand of Harm` is deliberately shown as an unavailable post-hit rider in this bite. It is not misrepresented as a standalone attack; its post-hit target/rider prompt remains a later class-action extension.
+
+### Toll the Dead
+
+1. Target a creature at full HP: use the d8 damage die.
+2. Damage it first, then cast again: use the d12 damage die.
+3. Confirm the current authoritative HP is used immediately before resolution.
+
+### Targeting and preview
+
+1. Arm a direct attack.
+2. Click a visible token or its initiative chip.
+3. Confirm the click selects the target and paints the preview without rolling.
+4. Use **Confirm attack** to commit the roll.
+5. Confirm **Contest next shot** remains available before commitment.
+
+### Undo movement
+
+1. Move a player-controlled active unit and confirm **Undo move** appears.
+2. Undo immediately and confirm position and movement budget restore on every device.
+3. Move again, then create another consequence such as an attack or opportunity attack.
+4. Confirm player undo is no longer offered and the DM must use full rewind.
+5. As staff, enter Player View and confirm the same player-side rule; Staff View retains DM rewind.
+
+### Flanking
+
+Under **Forge → Rules / Edit**, cycle:
+
+- Advantage — default
+- +2
+- +5
+- Off
+
+Confirm the selection is shared through the encounter log, applies symmetrically to PCs and foes, and updates after movement/downing. Multiple advantage sources do not stack; any advantage plus any disadvantage becomes a normal roll. Downed or incapacitated creatures do not provide a flank.
+
+### Prone
+
+1. Select a unit and use **Forge → Apply Prone**.
+2. Confirm the condition appears in the initiative strip and survives refresh/reconnect.
+3. Confirm the prone creature's attacks have disadvantage.
+4. Confirm attacks from within 5 feet gain advantage against it, while attacks from farther away have disadvantage.
+5. Confirm crawling costs double movement.
+6. Confirm **Stand up** appears and spends half the creature's speed.
+7. Confirm clearing/standing removes Prone on every device.
+
+## Headless checks
+
+From the repository root:
+
+```bash
+node forge/tests/smoke-forge-combat-rules.js
+node forge/tests/smoke-phase15g-contract.js
+node forge/tests/smoke-table-correctness.js
+```
+
+The retained Phase 1.5d/e/f tests are also included for cumulative checking.

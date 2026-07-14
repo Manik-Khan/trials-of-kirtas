@@ -1,30 +1,10 @@
-Phase 1.5f source baseline
-==========================
+Battle Forge Phase 1.5g source baseline
 
-Base bundle:
-  Phase 1.5e effects + feed production output.
+Production source supplied by M:
+  forge/topography-test-mock.html
+  Phase 1.5f SHA-256: ced0e444f68f8648e746ed3c1a313ec75420fd117a6396e37c930a6ad3fd1807
 
-Base topography SHA256:
-  3487178acdfb382fed59f30bc465097b749fd29ff2984fad5573abb83df76c56
+Patched Phase 1.5g replacement SHA-256 before packaging:
+  fdba7c2be8501bf4e1ac88d1faf0ed2d7568b776c2c090db0fb3fea11286a94d
 
-Replacement topography SHA256 before packaging:
-  ced0e444f68f8648e746ed3c1a313ec75420fd117a6396e37c930a6ad3fd1807
-
-Topography line counts:
-  baseline:    7734
-  replacement: 7884
-
-Unified topography diff:
-  169 insertions
-  19 deletions
-
-Base forge-table-correctness.js SHA256:
-  27437e531c6983039f348086266a4548b87c3951db3b0a9ffbf304c7070efac8
-
-Replacement forge-table-correctness.js SHA256:
-  75df312dc0812fe953309f0637877cf3ab6b9039939e64dcf44268d3cc897389
-
-New forge-discovery.js SHA256:
-  490f9defce4f47196cb65eb4af0213c049cb319f56ccc47966a5c08c8bcfba62
-
-Everything else is retained from the current Phase 1.5c–e production bundle set.
+The user stated all other Forge modules remain current on main. No stale ZIP was treated as authority.
