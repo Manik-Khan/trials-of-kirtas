@@ -7,7 +7,7 @@ const moduleText=fs.readFileSync(path.join(root,"forge-discovery.js"),"utf8");
 let pass=0;
 function ok(v,label){if(!v)throw new Error("FAIL: "+label);console.log("ok",++pass,"-",label);}
 function has(text,needle,label){ok(text.includes(needle),label);}
-has(html,'forge-discovery.js?v=fd1','production surface loads the discovery module with a cache stamp');
+has(html,'forge-discovery.js?v=fd2','production surface loads the discovery module with a cache stamp');
 has(html,'var fogGroup = new THREE.Group(); scene.add(fogGroup);','fog is a world-space three.js group');
 has(html,'Player View sees the union of every living PC','party-shared vision contract is explicit');
 has(html,"if(!discoveryHasSession())return false;   // local sandbox is the DM's workbench",'local sandbox remains omniscient');
@@ -17,8 +17,10 @@ has(html,'D.historySources(sess.row&&sess.row.roster||[],sess.pipe.events(),disc
 has(html,"DISCOVERY.localTrail",'local sandbox exploration has an incremental fallback');
 has(html,'D.visibleFrom(CB.map,src,TG','production visibility delegates to canonical tactics geometry');
 has(html,'D.composeStates(DISCOVERY.explored,DISCOVERY.visible)','visible and explored masks compose into three states');
-has(html,'new THREE.InstancedMesh','fog cells render with instancing rather than one mesh per tile');
-has(html,'state===0','unexplored and explored fog use distinct materials');
+has(html,'function registerDiscoveryInstanced','terrain instances register their map cells for discovery state');
+has(html,'function buildFogVeil','unexplored space uses one continuous mask veil');
+has(html,'new THREE.CanvasTexture(canvas)','the veil is driven by one map-space state texture');
+ok(!html.includes('obj.scale.set(1.025,height,1.025)'), 'overlapping tall fog boxes were removed');
 has(html,'function foeVisible(u){','the established foeVisible seam is implemented');
 has(html,"return discoveryCellVisible(u.c,u.r)",'player-facing foe visibility is keyed to the foe map cell');
 has(html,"function viewerFeedEvent(row)",'hidden enemy outcomes have a Player View feed sanitizer');
@@ -31,7 +33,7 @@ has(html,'refreshDiscovery();\n  syncAllGlow();','discovery updates before HUD/g
 has(html,"document.addEventListener('forge:viewerMode'",'staff/player presentation switches repaint discovery locally');
 has(html,"function cameraFocusAllowed(u)",'camera focus has a visibility gate');
 has(html,"if(!cameraFocusAllowed(u)){cameraSetMode('free');return;}",'hidden enemy turns do not drag Player View across the map');
-has(html,'if (typeof refreshDiscovery === "function") refreshDiscovery(true);','height changes restage fog volumes');
+has(html,'if (typeof refreshDiscovery === "function") refreshDiscovery(true);','height changes restage discovery rendering');
 has(html,'id="discoveryStatus"','the Forge panel reports discovery state');
 has(html,'id="firePreviewLegend"','direct-fire preview has a persistent color legend');
 has(html,'function firingTargetFor(u,a)','preview requires one direct ranged attack and target');

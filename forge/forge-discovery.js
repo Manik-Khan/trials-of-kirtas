@@ -18,7 +18,7 @@
 })(typeof self!=="undefined"?self:this,function(){
   "use strict";
 
-  var VERSION="1.0.0";
+  var VERSION="1.1.0";
   var UNEXPLORED=0, EXPLORED=1, VISIBLE=2;
   var DEFAULT_SIGHT_FT=60;
 
@@ -68,7 +68,7 @@
         var target={c:c,r:r};
         if(rangeFt(map,origin,target,geometry)>radius+1e-6)continue;
         if(c===origin.c&&r===origin.r){out[idx(map,c,r)]=1;continue;}
-        var verdict=geometry&&typeof geometry.losVerdict==="function"?geometry.losVerdict(map,origin,target):{canTarget:true};
+        var verdict=geometry&&typeof geometry.losVerdict==="function"?geometry.losVerdict(map,origin,target,{ignoreCreatures:true}):{canTarget:true};
         if(verdict&&verdict.canTarget)out[idx(map,c,r)]=1;
       }
     }

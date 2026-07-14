@@ -1,4 +1,4 @@
-# CONTEXT — Battle Forge — updated 2026-07-13, SIXTH session (VISUAL DIRECTION RATIFIED: storybook sky + horizon live and approved; masked parallax/landmark cards parked; camera-follow, world-space fog of war, tactical-prop split, and graph-based generator Phase 2 planned. Current handoff: `CONTEXT_Forge-update-2026-07-13a.md`; 12g remains the shipped ledge/character-authority record)
+# CONTEXT — Battle Forge — updated 2026-07-13, PHASE 1.5h COMPLETE (camera, token rigs, feed/effects, discovery, combat-flow corrections, calibrated body-cover geometry, and non-leaking fog renderer shipped in bundles; current handoff: `CONTEXT_Forge-update-2026-07-13h.md`)
 
 > This doc exists because the same failure kept happening: a session would read
 > *part* of the material, conclude a feature "was never there," and rebuild
@@ -6,6 +6,37 @@
 > been sitting in `battle-forge-mock.html` in the repo the whole time.
 >
 > **The fix is not better prompting from M. It is the protocol in §0.**
+
+---
+
+## CURRENT ADDENDUM · 2026-07-13h — read before the older sections
+
+Phase 1.5 is complete through the field-driven geometry/fog calibration. The current
+production line now includes:
+
+- approved storybook sky + horizon, 3D/top-down camera modes, follow/focus/pair/free
+  camera behavior, and player-safe camera bounds;
+- dual 3D standee/top-down token rigs, 5e.tools bestiary art, and local per-unit/per-kind
+  token-art overrides;
+- Staff View ↔ Player View, enemy disclosure privacy, Table/System/All feed, structured
+  roll/damage rows, Cover Contest, reinforcement modal, slot chooser, and Ki aliases;
+- replayable effects with Sanctuary; party-shared world-space discovery; direct-ranged
+  firing-position preview; Monk composition; Toll the Dead d12; target→preview→confirm;
+  player move undo; flanking variants; source-aware advantage/disadvantage; Prone;
+- generator foundation `2.0.0-foundation.2`: exact snapshots/fingerprints, graph metadata,
+  archetype keys, deterministic stage seeds, and guarded save integration;
+- **Phase 1.5h geometry:** twelve body samples instead of eight head/feet rays,
+  target-side grading, sub-cell `coverShape[]`, intervening-creature cover, staff cover audit;
+- **Phase 1.5h fog:** per-instance terrain state plus one continuous unexplored veil;
+  the overlapping fog boxes that caused triangle/checker z-fighting and hidden-room
+  silhouette leaks are removed.
+
+**Current validation:** 426 cumulative checks green in the handoff bundle. Browser/WebGL
+and live two-device testing remain field gates.
+
+**Current next phase:** active Phase 2 generator terrain. Do not restart Phase 1.5 design
+unless a real browser field report demonstrates a regression. See §8 and
+`CONTEXT_Forge-update-2026-07-13h.md`.
 
 ---
 
@@ -78,7 +109,7 @@ greyed out in the select and must never be silently dropped.
 
 | file | what it holds | status |
 |---|---|---|
-| `forge/tactics-geometry.js` | **canonical rules module.** Chebyshev, movement reach, climb/fly cliff gate, 3D LoS + graded cover | canonical |
+| `forge/tactics-geometry.js` | **canonical rules module.** Chebyshev, movement, 3D LoS, twelve-sample body cover, target-side attribution, sub-cell `coverShape[]`, intervening creatures, ledge/parapet eyes, cover audit | canonical · Phase 1.5h |
 | `forge/map-bridge.js` | generator/heightfield → MAP document `{cols,rows,h,wall,occ,spawns,props}` | canonical |
 | `forge/forge-dungeon.js` | generator. **THEMES keys are the biome names**: `grass druidic tundra swamp temple cavern volcanic` | canonical |
 | `forge/forge-engine.js` | seeded generate → validated map | canonical |
@@ -88,7 +119,7 @@ greyed out in the select and must never be silently dropped.
 | `forge/tests/smoke-forge-board.js` | known-answer: scripted logs → board-verb sequences (move/attack/turn/prompt/timeout/restore/edit/add_unit/claim-gate) + `deadFoeSkip` decision cases | canonical |
 | `forge/tests/smoke-starter-kits.js` | starter action bar from live sheet stats, generic-kit fallback, CHAR alias | canonical |
 | `forge/tests/smoke-cover-contest.js` | known-answer: the Cover Contest end-to-end over MemoryBus — ruling/timeout/total flows, replay determinism, culprit geometry, and the overseer-only gate twin (a player forging `prompt_answered{unit:"__overseer"}` is rejected) | canonical |
-| `forge/tests/*` | smokes. HUD-wave battery, all green 2026-07-12 night: **kit-derive 341** (incl. the four live `data/characters/*.json` as first-class fixtures, loaded from disk, driven through the real `assembleActions`) · spell-icons 43 · feed-render 66 · **starter-kits 20** · protocol 56 · replay 35 · silvery-barbs 13 · **pick-unit 12**. Older battery unchanged: engine 14 · bridge 16 · geometry 26 · los-cover 37 · placement 19 · flora 22 · tiers-rebase 32 · forge-board 26 · bus-reconnect 12 · cover-contest 24. (`smoke-glow-color.mjs` reads an uncommitted `topo-work.html` scratch file and errors in-repo — pre-existing, known.) | canonical |
+| `forge/tests/*` | historical battery plus the cumulative Phase 1.5 bundle. Phase 1.5h bundle: **426 checks green** across 14 suites, including los-cover 50, focused cover calibration 15, discovery 41, effects 31, combat-rules 56, Phase 1.5d/e/f/g/h contracts, geometry byte-sync, table-correctness, token-art and proxy. Run the full repo battery after integration. | canonical |
 | `topography-test-mock.html` | **THE surface.** Heightfield + all the geometry + combat loop | active |
 | `forge/assets/topography-art/` | biome decal atlas + first-pass horizons used by the 2026-07-13 visual pass | active assets |
 | `forge/assets/forge-horizons/` | six painterly biome horizon plates | active assets |
@@ -105,16 +136,22 @@ greyed out in the select and must never be silently dropped.
 | `forge/forge-replay.js` | reducer: log → state. Facts only, never rules. Override pre-scan, restore branch, GOD-MODE edit. Since 2026-07-11: per-turn action economy derived from the log (`turnEconomy()`, facts carry `slot`; `undo_of` refunds a retracted move) | canonical |
 | `forge/forge-bus.js` | transport: MemoryBus (headless, mirrors the RLS identity+kind gate) + SupabaseBus | canonical |
 | `forge/forge-pipeline.js` | acting-client pipeline: declared→resolved, cross-device prompts, timeout→overseer. Since 2026-07-11: `undoMove()` (player retracts own last move, compensating fact) + `contestCover()` (pre-roll cover-contest pause, `FORGE_COVER_CONTEST.md`) | canonical |
+| `forge/forge-generator-foundation.js` | generator version, independent stage seeds, archetype vocabulary, graph metadata, exact map snapshots, fingerprints, encounter envelopes | canonical foundation.2 |
+| `forge/forge-unit-art.js` | PC/bestiary token-art resolver, safe URL/local overrides, per-combatant and per-kind precedence | canonical Phase 1.5c |
+| `forge/forge-table-correctness.js` | Staff/Player presentation disclosure, feed channels, slot/resource/privacy and table-correctness seams | canonical Phase 1.5d–g |
+| `forge/forge-effects.js` | pure replayable persistent-effect ledger; Sanctuary and conditions reconstruct from event facts | canonical Phase 1.5e |
+| `forge/forge-discovery.js` | party-shared three-state world discovery, movement-history reconstruction; v1.1 uses static LoS with transient creatures ignored | canonical Phase 1.5h |
+| `forge/forge-combat-rules.js` | named advantage/disadvantage reducer, flanking modes, Prone, Monk composition, Toll the Dead and action validation | canonical Phase 1.5g |
 | `forge/protocol-harness-mock.html` | two-window Supabase harness, `__forgeState()` dump | mock |
 
-`tactics-geometry.js` is **inlined in two mocks** and must stay **code-identical**
-(comments stripped) to canonical in both. Any change ships to three files at once.
-It was never byte-identical: both inlines carry an older header comment. The rule
-was restated rather than left as an invariant nobody could satisfy.
+`tactics-geometry.js` is **inlined in two mocks** and must stay code-identical to
+canonical. Any change ships to three files at once. Phase 1.5h makes the production
+topography inline byte-identical to canonical and includes a guarded patcher for the
+current reference `battle-tactics-geo-mock.html`; do not deploy only two of the three.
 
-The topography mock's *inlined generator is an old copy* with the pre-rename
-theme keys (`ancient/molten/frost/grim/verdant`). The repo's is current. Rebasing
-the mock onto `forge/forge-dungeon.js` is an open task.
+The production topography mock consumes canonical `ForgeEngine.generate()` /
+`forge-dungeon.js` / `map-bridge.js`; the old pre-rename inline generator problem was
+closed before this handoff.
 
 ---
 
@@ -136,7 +173,7 @@ the contract for "port the battle mock." **Everything marked ✗ is the job.**
 | initiative order | ✔ | ✔ | ✔ | |
 | reaction pipeline | – | – | ✔ | Silvery Barbs → Shield → Rebuke |
 | rewind / snapshot | – | – | ✔ | session-aware 2026-07-11: HUD cluster publishes protocol facts (overseer `restore`; player `undo_of` move retraction). Sandbox keeps local time-travel |
-| **flanking → advantage** | ✔ | – | **✗** | `battle-tactics` ~L1100–1120: `isFlanked()`, `FLANKING` toggle chip, house rule = advantage, not +2 |
+| **flanking** | ✔ | – | ✔ | shared rule modes: advantage default, +2, +5, Off; named adv/dis sources cancel normally; incapacitated/downed units do not flank |
 | **opportunity attacks** | ✔ | – | **✗** | `battle-tactics` ~L1319–1340: fires mid-move, can drop the mover before they arrive |
 | **ready / held action** | ✗ | ✗ | ✗ | **exists nowhere.** Required by the geometry: if you can't see the enemy below the cliff, you Ready |
 
@@ -216,41 +253,38 @@ real placement. **These are decisions, not hypotheses.**
   `smoke-ledge-fire.js` freezes eleven clauses (shallow clear · steep berm block ·
   tall/equal block · one-back block · side-wall closure · target-side cover ·
   diagonal never ignored · exact-45 and near-45 edge selection · two-candidate case).
-- **Cover is graded**, 8 corner-lines (4 corners × head/feet):
-  `0 → none · 1–4 → half (+2) · 5–7 → three-quarters (+5) · 8 → total`.
-  A 4.5 ft boulder yields ¾. A 10.5 ft temple wall yields total.
-- **Grading amendment — attribution by side (M's ruling, 2026-07-11, round 3;
-  supersedes the same-day round-2 "2-square radius" version).** M saw an enemy
-  standing in the open take +5 from a shot fired down off a ledge: the lines to
-  the target's feet were clipped by attacker-side lip / terrain edges. Round 2
-  fixed it with a hard 10-ft-of-the-target radius; M rejected the radius as
-  absolute ("a wall 3+ squares in front of someone can absolutely still be
-  cover — it depends on the height and size of the wall; I'm thinking about
-  vantage points"). The rule now: **"cover is what the TARGET hides behind; an
-  obstruction on the shooter's side is the shooter's vantage problem (step up /
-  lean), not the target's AC."** A blocking cell **grades** cover (half/¾, and
-  the centre-line check) when it sits at least as close to the target as to the
-  attacker — `chebyshev(blocker,target) ≤ chebyshev(blocker,attacker)`; a
-  midfield tie grades (defender's benefit). Strictly attacker-side blockers
-  grade nothing. Each corner line's attribution walks the **whole** segment,
-  not just the first blocker — shooter-side clutter cannot shadow a boulder
-  standing beside the target (also defender's benefit). Wall height/size enter
-  through the line count itself; there is no other constant. **TOTAL is
-  unchanged**: all 8 lines blocked by anything anywhere is dead ground, so the
-  mesa / level-with-the-wall-base / step-back-to-break-LoS cases stand, and a
-  mob hull-down behind his own rim correctly keeps ¾ (defilade). Ledge-peek
-  alternate-eye logic untouched. Identical in all three `tactics-geometry`
-  copies (`segAttrib` + `verdictFromEye`).
+- **Cover grading — Phase 1.5h supersedes the old eight-ray head/feet model.**
+  Visibility and partial cover are related but separate questions. The target is sampled
+  at **twelve body points**: four inset horizontal corners across lower-body, torso, and
+  head/shoulder bands. Target-side blocked samples grade as `0–5 none · 6–8 half (+2) ·
+  9–11 three-quarters (+5)`; all 12 blocked anywhere is total cover. A low lip hiding
+  only the lower band no longer automatically grants half cover. This is Battle Forge's
+  deterministic 3D interpretation of 5e body coverage, not a claim that RAW prescribes
+  twelve rays.
+- **Attribution by side remains settled (M's ruling, 2026-07-11 round 3).**
+  “Cover is what the TARGET hides behind.” A blocker grades cover when it is at least
+  as close to the target as the attacker; midfield ties benefit the defender. Strictly
+  attacker-side blockers are vantage problems, not bonus AC. The whole segment is walked
+  so shooter-side clutter cannot shadow real target-side cover. Total cover still means
+  all twelve body samples are physically blocked anywhere. Ledge/parapet alternate-eye
+  logic remains intact.
+- **Sub-cell cover footprints — Phase 1.5h.** Optional `map.coverShape[]` entries describe
+  `full`, `circle`, or `box` footprints inside a cell. Walls/terrain stay full-cell;
+  trees, rocks, columns, reeds, mushrooms and similar props receive first-pass narrower
+  shapes. Optional `map.creatures[]` supplies living intervening-creature silhouettes;
+  dead creatures are ignored, and discovery passes `ignoreCreatures:true`.
 - **Occluder heights come from the generator**, not from thin air:
   `map-bridge.BIOME_WALL_UNITS` mirrors `SKINS.wallH` × 5 ft.
   grass 7 · druidic 8 · tundra 7.5 · swamp 6.25 · temple 10.5 · cavern 9.5 ·
   volcanic 8.5 *(placeholder — no SKINS entry yet)*.
   Props: rock 4.5 · tree 5.5 · reed 3.5 · mushroom 2 · column 15.
-  Moss, bones, cracks, banners, icicles occlude nothing.
-- **`smoke-los-cover.js` (37 cases) encodes all of the above** (was 27; +ledge-peek
-  section, then the grading sections re-frozen under round 3 — attacker-side
-  terrace, boulder-shadow pair, parapet-by-side pair, hull-down rim — all
-  2026-07-11). If a change breaks it, the change is wrong until argued otherwise.
+  Moss, bones, cracks, banners and icicles occlude nothing. Height and footprint are now
+  separate contracts; Phase 2 tactical props must keep art, `occFt`, and `coverShape`
+  consistent.
+- **`smoke-los-cover.js` now has 50 Phase 1.5h cases.** It freezes body thresholds,
+  target-side attribution, sub-cell props, creature cover, dead ground, ledge/parapet
+  firing, eye metadata, audits and range compatibility. `smoke-cover-calibration.js`
+  adds 15 focused cases and `smoke-geometry-sync.js` freezes canonical/inline identity.
 
 ---
 
@@ -634,278 +668,51 @@ real placement. **These are decisions, not hypotheses.**
 
 ## §8 · SUGGESTED NEXT SESSION
 
+**Current handoff: `CONTEXT_Forge-update-2026-07-13h.md`. Read it first.**
 
-**2026-07-13, sixth session — VISUAL DIRECTION RATIFIED; CAMERA / FOG / GENERATOR PLAN NEXT.**
-Full record: `CONTEXT_Forge-update-2026-07-13a.md`.
+### Release gate for Phase 1.5h
 
-Shipped/verified in the current visual branch: authored fog, scale-correct flora, tuned
-shading/AO/outlines, cliff detail, decals, bounded magical PointLights, combat-mode chrome,
-visible sight lines, verdict badges, hit flash, shake, idle bob, damage floaters and
-nameplates. Six storybook skies and six painted horizons are wired; M's browser A/B approves
-that pair. The extracted parallax/landmark cards have broken baked-matte masking and are parked.
+1. Upload the exact Phase 1.5h runtime replacements.
+2. Use the guarded patcher to synchronize the current `battle-tactics-geo-mock.html`
+   inline geometry.
+3. Browser-check 3D and top-down Player View: no checker/triangle fog, no hidden room
+   silhouettes, explored memory dark, visible props/lights correct.
+4. Recheck low lips, waist barriers, narrow trunks, boulders, intervening creatures,
+   ledge/parapet firing, and Cover Contest.
+5. Run **Forge → Run cover audit** on multiple real seeds. Tune only from measured field
+   evidence, not from one dramatic shot.
+6. Run the full repository smoke battery and a two-device session.
 
-**NEXT, in order:**
-1. **Tiny art cleanup patch:** sky+horizon normal; parallax/landmarks off by default and
-   experimental opt-ins only (`?parallax=1`, `?landmarks=1`) or removed until rebuilt.
-2. **Camera/discovery mock → approve → build:** open on active/first PC; follow actor;
-   initiative/token focus; attacker+target framing; terrain pan; zoom/orbit; recenter;
-   overseer Overview; player bounds and zoom limit. Keep camera orbit, never rotate world root.
-3. **Party-shared fog of war:** unexplored / explored / visible-now in world space;
-   hide caps, cliffs, props, tokens and interactions; `foeVisible()` is the enemy gate.
-4. **Generator foundation:** `generatorVersion`, exact `mapSnapshot`, deterministic stage
-   sub-seeds, map archetypes, graph/semantic metadata, debug overlays.
-5. **Graph terrain:** scatter → separate → Delaunay → MST + loops → BFS semantics →
-   constrained elevations → ramps/stairs/bridges/etc. → semantic spawns/objectives →
-   validate/repair/retry → emit.
-6. **Tactical prop pack:** separate from background cards; footprint + `occFt` + movement
-   effect + rotations before art can enter the playable map.
-7. Then resume carried rules backlog: mid-fight sheet sync, thrown/ranged mode, reach
-   weapons, flanking, opportunity attacks, Ready.
+### Then begin active Phase 2 generator terrain
 
+1. **Snapshot-first session loading:** exact `mapSnapshot` authoritative; legacy recipe
+   fallback for old sessions.
+2. **Archetype selector + versioned parameters:** valley, canyon, central hill, ring,
+   split plateau, bridge crossing, island chain, courtyard, cavern chambers, temple
+   terraces, ridge, basin, plus compatibility `legacy-dungeon`.
+3. **Stage ownership:** make `layout`, `height`, `semantics`, `decor`, and `foes` seeds
+   actually own independent deterministic streams.
+4. **Constrained height assignment:** bounded tiers, no unavoidable low-ground spawn trap,
+   mandatory normal-creature route.
+5. **First-class connectors:** ramps, stairs, bridges, doors, tunnels, ledges, and fords,
+   with movement/access semantics.
+6. **Semantic spawns/objectives:** critical path, entrance, boss, side rooms, encounter intent.
+7. **Validation and local repair:** connectivity, spawn distance, immediate LoS, cover within
+   one move, route count, elevation advantage, choke width, sightline lengths, melee access
+   to ranged positions, and objective access. Retry only the failed stage when repair fails.
+8. **Debug overlays:** graph, critical path, semantics, height bands, connectors, cover density,
+   spawn influence, and reachable routes.
+9. **Tactical prop contract:** deepen Phase 1.5h `coverShape` into authored footprint,
+   rotation/view art, movement effect, and `occFt`; keep visual-only decoration separate.
 
-**2026-07-12, fifth session — LEDGE + CHARACTER AUTHORITY LIVE, RANGED SHOTS WORK.**
-The 12f bundle (repaired against real main) shipped ledge firing, database character
-authority (fail-closed, per-character error containment), real-gear fixtures, and the
-`weapon-actions.js` range fix; M confirmed the table works better. Full battery green
-(record: `CONTEXT_Forge-update-2026-07-12g.md`).
+### Carried later work
 
-**NEXT, in order:**
-1. **Finish the 12f browser/table checklist** — the ledge suite at the table now that
-   ranged shots arm correctly: shallow shot over the 22-ft parapet legal, line drawn
-   from the shared edge; steep shot into the berm blocked; wall raised to eye height
-   blocked; one square back blocked; exact-diagonal cases; **a fresh fight initializes
-   every PC at sheet-derived AC/HP** (expect Líadan at her CURRENT row — Leather, 12 —
-   not the 12e narrative's 17); locally break a dependency → one clear error kit, the
-   rest of the party derives.
-2. **§D step 2 (§5.26)** — now genuinely reachable for ranged shots: M table-reads one
-   real "no line of sight" feed line (named blocker, feet, corners) → rules on tree
-   occlusion → geometry smoke pins it.
-3. **Mid-fight sheet sync** — the deferred character-authority bite: a named,
-   replayable protocol fact with one publishing authority for importing a sheet edit
-   into an active encounter. Until it exists, active fights stay log-authoritative by
-   design.
-4. **Thrown-weapon ranged mode + reach weapons (§5.27)** — small, contract-shaped, and
-   the reach-10 case will bite the first polearm foe.
-5. **Ratify or flip the dedupe ruling** (carried from session 4, unchanged below).
+- Hand of Harm post-hit rider.
+- Broader condition enforcement and old combat.html condition UI migration.
+- AoE templates/affected cells.
+- Mid-fight sheet import fact.
+- Thrown/reach weapons, opportunity attacks, and generalized Ready/ruling flows.
 
----
+### Deploy rule
 
-**2026-07-12, sessions 2–4 — THE HUD WAVE, SHIPPED.** The spec below RAN: bites
-1+2 built the three headless modules and wired them; the table's round 3
-falsified two fixture assumptions (§5.23); plan v2
-(`2026-07-12-forge-round3-fix-plan-v2.md`, status BUILT) shipped in full in one
-pass — A+B+C surgery on live-shape derivation, E quick wins (sandbox derives
-before placing, `wrapStarterKit`, tint `depthTest:false`, the **FFT hover
-tile**), D step 1 LoS feed instrumentation, G items diagnosis (correct-empty;
-5etools codes mapped), F heal-the-downed (M's ruling: up at healed HP,
-unconscious cleared — replay already had it, the UI now reaches it, corpse-pose
-revive included). Then M's review catches, same day: **Disciple of Life** on
-derived heals, the **legacy-ledger slots** hole (§5.24), **spell upcasting v1**
-(slot chooser, effective actions, "(2nd)" on the published fact), **domain
-spells in Soul Shards** (subclass `additionalSpells.prepared` gated by CLASS
-level, teal always-prepared section, greyed in pick pools, emits
-`origin:'subclass'` with THAT class's ability — M re-forges Líadan when ready;
-her current Bless/Cure Wounds are hand-entered and untagged), and the **WYSIWYG
-picker** (§5.25). Session record with every ruling and number:
-`CONTEXT_Forge-update-2026-07-12d.md`.
-
-**NEXT, in order:**
-1. **Browser eyeball** — crowded-fight clicks land on the hovered tile (M's
-   screenshot scenario, re-tested at the table); upcast chooser on Healing Word
-   (1st ·4 / 2nd ·2), Disciple riding the roll; local sandbox bar populated
-   pre-session; a blocked shortbow shot names its blocker in the feed; heal a
-   downed ally end-to-end (sandbox AND session); domain grant section in the
-   Spells step; **re-forge Líadan**.
-2. **§D step 2** — M reads one real LoS refusal line → rules on tree occlusion
-   → geometry smoke pins the ruling (§5.26).
-3. **Ratify or flip the dedupe ruling:** derived-representation-wins also folds
-   the greyed "use from the Attacks tab" BB/GFB pointer tiles into the real
-   attack rows, so the Spells tab no longer lists weapon cantrips. One-rule
-   flip in `_dedupeScore` if M wants the pointers back.
-4. Then the standing order: **arc E foes** (promotable on M's word) →
-   **concentration arc** (mock-gated).
-
-Carried by name: Supabase feed insert (top since bite 2) · upcasting v2
-(rays/darts/targets/Aid; Ready-at-level) · universal-action fact publishing ·
-appearance prefs §6.5 · manual resource adjust · gear-manager picker migration ·
-Resources tab read-only v1 · spell-icon glyphs pending M's curation ·
-picker search + glyph growth.
-
----
-
-**~~2026-07-12 (second session)~~ — BUILT, see above. Kept for the shape:**
-**2026-07-12 (second session): the items-3+5 brainstorm ran and grew, with M's
-approval at every widening, into the FULL BG3 HUD PASS — design approved,
-spec written: `2026-07-12-forge-bg3-hud-design.md`. Next session = M reviews
-the spec (Brainstorming.md step 8, the gate), then BUILD, in the spec's §6
-bite order (derivation module first, headless + smoked).** The shape, so no
-session re-derives it: battle.js's desktop bar extended across bottom-center
-(donor, not engine — the forge does NOT load battle.js; taps route through
-the pipeline), drawer unrolled into an icon-tile shelf, tabs = sheet sections
-(⚔ Attacks · ✦ Spells · ◎ Items · ❖ Feats · ⚡ Bonus[filter] · ◉ Actions) —
-**this absorbs bite 2's sheet→actions derivation layer**; the Chat Feed is
-the log, bottom-right (acting device writes the feed row, echoes never do,
-sandbox stays local); rolls show full math on every device, NO AC EVER
-(§5.19 stands), verdict badges, tap-expands the damage dice; skin (Battle
-dark / Forge parchment) and icons-vs-labels are per-player via
-`profiles.appearance`. Approved mock: `forge-battlehud-extended-mock-v3.html`
-(round 3; rounds 1–2 were the corner-card and standalone-icon-bar shapes,
-both superseded). `cbPanel`/`cbLog`/the roller retire; every affordance has
-a named new home in the spec — **do not rebuild them.** Settled small print
-lives in the spec, not here: read it before building.
-
-**Still pending M's table eyeball from the FIRST 2026-07-12 wave (merged,
-not yet field-checked)** — carry this list until M runs it:
-
-- **#1 · Sprite outlines + glow (M approved from a standalone mock first:
-  ink, half-pixel).** Every pixel sprite carries a baked ink contour
-  (`outlineMask`/`paintOutline`/`outlinedPixelCanvas` — 8-neighbourhood,
-  half-cell ribbons, quarter-square corner seals; texture aspect now includes
-  the +2 padding). Light-up is an outline-ONLY overlay sprite
-  (`glowTex`/`syncGlow`), `depthTest:false`, `renderOrder 6` — equal-depth
-  let the ink win and hid the glow, that's why. **Colour is SIDE-based (M's
-  correction after the first build went action-based): friendly gold
-  `#e8b53a`, foe red `#c0402f`, always.** Priority in `glowColorFor`:
-  explicit target red → selection (side colour) → active unit on its turn
-  (PC gold / foe red, "so we know which one is attacking"). Foe glow gates
-  on the `foeVisible` seam (§5.22). Left-click token or strip chip selects;
-  right-click chip targets; ground click clears; chip rings derive from the
-  same `glowColorFor`. Ves atlas + lettered standees have no pixel grid →
-  material-tint pulse instead. Glows torn down in `removeToken`/death/swap.
-  `smoke-glow-color.mjs` (9) pins the colour rules against the REAL file's
-  extracted function.
-- **#2 · Movement telegraph contrast:** reach tiles `0x3a8a92`@0.26 →
-  `0x4fd0e0`@0.42 (one line in `drawHi`). M's report: the teal sank into
-  grass/stone.
-- **#4 · Silvery Barbs → RAW** — the whole story is §5.21. Spec:
-  `2026-07-11-silvery-barbs-raw-design.md` (M-approved with two refinements:
-  60 ft, and 20s→staff offered whenever a slot's available).
-
-Files staged: `forge/topography-test-mock.html`, `forge/forge-replay.js`
-(`?v=fb6`), `forge/tests/smoke-silvery-barbs.js` (13),
-`forge/tests/smoke-glow-color.mjs` (9). Validation: all script blocks
-`node --check` clean; replay 35/35 (no regression); outline contour smoke
-green against the real file. **Pending M's table eyeball:** stacked bodies
-separating; gold following the turn; active/targeted foe red OVER the ink;
-no foe ever gold; cyan reach tiles; a live SB round-trip (foe hits PC →
-Líadan offered → `orig → new (lower stands)` → ally pick → `⇑ ADV · silvery
-barbs` badge → clears after the swing) and the negative (PC hits foe → no
-offer). Session-path rider pick on a second device is the least-exercised
-path — watch it specifically.
-
-**~~⏭ CARRIED-OVER BRAINSTORM — items 3+5~~ — RAN 2026-07-12 (second
-session), concluded, superseded by the spec above.** Three corrections the
-run surfaced, kept because the old block's claims would mislead:
-
-- The old block said "the port is per-VIEWER." **M ruled otherwise: the view
-  is UNIFORM** — every device sees full math, no AC ever (Roll20/Foundry
-  model). No viewer fork exists in the design.
-- The old block said combat.html's renderer has explicit Hit/Miss. **It
-  doesn't** — battle.js's `✗ MISS` is a natural-1 fumble badge; the HUD never
-  knows AC. The forge is the only layer with a true verdict; the row markup
-  ports, the verdict is forge-supplied.
-- The admin-visibility gap's mechanics, for the record: `attack_resolved`
-  falls into `forge-board.js verbsFor`'s `default:` → `unitDiffs` → hp verbs
-  only. The roll payload (`roll/adv/dis/crit/mode/hitBonus/cover/hit`)
-  reaches every device and is simply never painted. The fix is the feed-row
-  write + shared renderer in the spec — not a new verb for the old cbLog.
-
-**2026-07-11 (night): M's field round 3 produced a five-item wave — merged
-and current on `main`** (the "STAGED" note that used to lead this entry went
-stale; see §0.6). §5.17–20 carry the four bug fixes;
-the fifth item is a feature, BG3-style "who is that":
-
-- **Strip nameplate → camera.** Clicking an initiative-strip chip pans the
-  camera to that token (smoothstep tween on `cam.tgt`), pulses its cell
-  gold, and floats its nameplate. Works for dead units too (pans to where
-  they fell; no nameplate without a sprite).
-- **Token → nameplate.** Clicking any visible token, on ANY turn from ANY
-  device, floats its existing name ("Goblin 3") over it for ~2s — the same
-  name the strip tooltip already leaked, no hidden info. Targeting a pending
-  action still wins on your own turn; a unit with no sprite (future
-  invisibility) can't be raycast or projected, so hiding excludes itself.
-- **Canvas-click guard (rode along, latent bug):** the global `pointerup`
-  that feeds `combatClick` used to run for HUD clicks too — the ray just
-  usually hit nothing useful. The strip chips sit over the arena, so the
-  leak would have fired a phantom inspect/move under every chip tap. Board
-  clicks now require `e.target === renderer.domElement`.
-
-Suite at **335 green** (§2; forge-board 20 → 26). All five items are
-browser-facing — **pending M's eyeball**: refresh mid-turn on both devices
-(economy must hold), kill a foe and watch its turn skip + ☠ chip, a log with
-no AC anywhere, chip-click pan, token-click nameplate, and that HUD buttons
-still behave with the canvas guard in. Files staged: `forge/topography-test-
-mock.html`, `forge/forge-board.js` (include stamp bumped `?v=fb5`),
-`forge/tests/smoke-forge-board.js`. Also flagged for a future bite: every
-foe shares the goblin pixel sprite (`FOE_SPRITE`) — per-mob art is either
-more hand-drawn `SPRITES` keys or CC0 stock per §6; and downed PCs have no
-death-save flow yet.
-
-**2026-07-10: the multiplayer protocol spine shipped and was field-verified** —
-see `FORGE_PROTOCOL.md` (spec) and §2's four `forge-*.js` rows. Two real browsers:
-same session, movement/attacks synced, a cross-device Shield prompt turned a hit
-into a miss, the duplicate-answer guard observed working live. SQL applied to the
-live Supabase. DM-facing rules future sessions must respect: an `override` cannot
-reach behind the latest `restore` (use `edit`); sessions stay `status='active'`
-while playing and the `session_ended` event is written *before* flipping status;
-the harness pops prompts on every controlling window — the real player HUD must
-route prompts per spec §4 (player modal; overseer inherits only on timeout).
-
-**Bite 1 MERGED to `main` 2026-07-11, then FIELD-TESTED the same day** — the
-marriage: shared dungeon from the session row (§5.5 fixed), full turn loop on the
-real board, folder-filtered claim screen, live + staged fight creation, real sheet
-stats with curated starter action bars, bestiary foes incl. mid-fight
-reinforcements, sheet⇄fight live mirror. M ran real two-device rounds at the table
-(which implies `schema_delta_forge_board.sql` reached the live Supabase —
-**presumed applied; confirm with M before relying on it**). Multiplayer is dormant
-without `?session=`; the single-device sandbox was regression-gated at every step.
-Still open from the bite-1 accepted list: Confirm Order doesn't wait for
-stragglers (late rolls sort to the bottom — empty seats never block).
-
-**2026-07-11: M's field rounds produced two fix waves, both merged and pushed by
-C on M's explicit order each time** (`f28e0bb`, then `b1d7d72` — the deploy-
-protocol exception was M's direct instruction, twice; the §7 rule stands).
-What shipped, and where the detail lives:
-
-- **Ledge peek** (`f28e0bb`) — lip-corner alternate eyes in `losVerdict`, all
-  three geometry copies. §4's dated amendment. Ruling settled.
-- **Cover grading by attribution-by-side** (`b1d7d72`, round 3 — round 2's
-  2-square radius was M-rejected same day). §4's dated amendment. Ruling settled,
-  with **three defaults M may still redline**: (i) attribution walks the whole
-  segment, defender's benefit — shooter-side clutter cannot shadow a boulder
-  beside the target; (ii) a mob hull-down behind his own rim grades ¾ (defilade);
-  (iii) the overseer's fine-undo is a `restore` branch, not an in-place edit.
-  Plus one scope cut to bless: no dedicated pre-declare re-rule button (Correct
-  last covers resolved shots).
-- **Action economy derived from the log** (§5.16) — bonus actions stop eating
-  the action; rewind/refresh restore movement and action.
-- **HUD undo, session-aware** (§3 rewind row; `FORGE_PROTOCOL.md` §5 dated
-  note) — overseer undo/turn-rewind in the old cluster; players undo their own
-  last move via a compensating `move_resolved{undo_of}` fact. No schema change.
-- **Cover Contest built** per `FORGE_COVER_CONTEST.md` (status flipped in that
-  doc; reason field optional/de-emphasized per M). `pipe.contestCover()`, the
-  overseer ruling menu, culprit-cell highlight, 24-case smoke incl. the gate twin.
-- **Player panel lock** (§5.14) and the **move-tween guarantee** (§5.15).
-
-Suite at **329 green** (§2). Next, in order: **M's field re-check of this wave**
-(economy numbers on the HUD, undo affordances, a real contested shot);
-**TOKEN_NUDGE + bus-reconnect re-check** — §5.13's fix and the wall-clip nudge
-are still *pending M's eyeball / not yet re-field-tested*; then the **bite-2
-brainstorm proper** — sheet→actions derivation layer plus the feel-layer ports
-(badges, hit flash, shake, bob, floating damage, flanking/OA/Ready, ▶ watch
-mode). `FORGE_BOARD.md` §0 still says bite 2 needs its own spec — write it
-before building. The older list below stands for the single-device port debts.
-
-In order. Do not skip to 4.
-
-0. ~~Upgrade three.js~~ — **done, out of order, for cause.** Steps 2–3 were
-   blocked: the port sources were not in the repo. The renderer was the only
-   unblocked item, and doing it first means the toon/outline stack gets tuned
-   against the final renderer once instead of twice. Light intensities are
-   restored by ×π (see below); still wants a browser eyeball.
-1. Fix §5.1 and §5.2 (slider, placement). Small, and the map stops lying.
-2. Port the **feel layer** from `battle-tactics-geo-mock.html`: badges, hit
-   flash, shake, idle bob. Write floating damage text. Fix §5.3.
-3. Port **flanking** and **opportunity attacks**. Write **Ready an action** —
-   the geometry now demands it.
-4. Then: add N8AO + bloom on the proven base, and source CC0 props.
+M uploads, commits, and pushes. Do not push without explicit instruction.

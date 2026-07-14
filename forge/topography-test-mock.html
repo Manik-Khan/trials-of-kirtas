@@ -4,7 +4,7 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
 <title>Topography Test — Heightfield Diorama</title>
-<!-- Visual art-direction pass: 2026-07-13a -->
+<!-- Phase 1.5h: calibrated 5e body cover + per-instance discovery fog -->
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,600;0,700;1,600&family=Oswald:wght@300;400;500;600&family=EB+Garamond:ital@0;1&display=swap" rel="stylesheet">
@@ -30,7 +30,7 @@
 <script src="forge-replay.js?v=fb6"></script>
 <script src="forge-combat-rules.js?v=fcr1"></script>
 <script src="forge-effects.js?v=fe1"></script>
-<script src="forge-discovery.js?v=fd1"></script>
+<script src="forge-discovery.js?v=fd2"></script>
 <script src="forge-bus.js?v=fb2"></script>
 <script src="forge-pipeline.js?v=fb4"></script>
 <script src="forge-board.js?v=fb5"></script>
@@ -171,246 +171,230 @@ function range3d(map, a, b) {
 }
 function inRange(map, a, b, rangeFt) { return range3d(map, a, b) <= rangeFt + 1e-6; }
 
-/* ── LINE-OF-SIGHT + COVER — 5e corner-tracing, in three dimensions ──
-   The v1 rule traced four flat lines and asked "is there a wall cell?".
-   This traces the same four lines through the HEIGHTFIELD and asks "does
-   anything stand above the ray where it passes?" — which is the same
-   question with the z-axis put back.
+/* ── LINE-OF-SIGHT + COVER — 5e body coverage in three dimensions ──
+   Visibility and cover are related but no longer the same question.
 
-   Consequences that fall out of the arithmetic rather than being asserted:
-     · A pit can never block. Its top is below the ray, always.
-     · A hill or a wall blocks when it rises above the ray.
-     · Height beats cover: raise the eye, raise the whole ray, clear the wall.
-     · Pressed against a wall taller than you, you are blind — the ray has
-       not begun to climb. Step back and the same ray meets the wall higher
-       up, so it clears. Only true when the target is ABOVE you; a flat ray
-       cannot rise. This is why the wall's near CORNER, not its centre,
-       decides. We sample densely, so the low edge of each cell is tested.
-     · A creature is five feet tall. We trace to its head AND its feet, so a
-       boulder that hides the legs and not the head yields three-quarters
-       cover, not total. That grading is the whole point of the corner rule.
+   TOTAL COVER / line of sight:
+     all target-body samples are blocked somewhere along the shot.
 
-   Eight lines: 4 corners × {feet, head}. Blocked count →
-     0     none
-     1–4   half           (+2 AC / +2 Dex saves)   [centre must be clear]
-     5–7   three-quarters (+5)
-     8     total          (cannot be targeted by a single-target attack)   */
-function segBlocker(map, x0, y0, z0, x1, y1, z1, aC, aR, bC, bR) {
-  // Dense sample of the OPEN segment. Because we test every sample, the low
-  // edge of each cell along the ray is tested too — that is the near corner.
-  // Returns the FIRST cell whose top rises above the ray, or null. The cell
-  // identity is what lets cover be GRADED by attribution — whose side of the
-  // shot the blocker sits on (M's ruling, 2026-07-11 round 3 — see verdictFromEye).
-  var steps = 240;
-  for (var s = 1; s < steps; s++) {
-    var t = s / steps;
-    var x = x0 + (x1 - x0) * t, y = y0 + (y1 - y0) * t, z = z0 + (z1 - z0) * t;
-    var c = Math.floor(x), r = Math.floor(y);
-    if ((c === aC && r === aR) || (c === bC && r === bR)) continue; // own squares
-    if (occTop(map, c, r) > z + 1e-9) return { c: c, r: r };
+   COVER GRADE:
+     only target-side blockers count toward the target's cover, preserving the
+     table ruling that shooter-side clutter is a vantage problem rather than
+     bonus AC. Twelve target samples (four inset horizontal corners across
+     lower-body, torso, and head bands) approximate the 5e body-percentage rule:
+       0–5 target-side samples blocked  → no cover
+       6–8                              → half cover (+2)
+       9–11                             → three-quarters (+5)
+       12 blocked anywhere              → total cover
+
+   This avoids the old eight-ray failure where a shin-high lip blocked all four
+   foot rays and automatically granted half cover despite leaving most of the
+   creature visible. Optional coverShape[] entries let narrow trunks/columns
+   occupy only part of a cell; optional creatures[] provide intervening-creature
+   cover without turning every occupied square into a five-foot solid cube. */
+var BODY_LEVELS = [0.75, 2.75, 4.75];
+var SAMPLE_INSET = 0.08;
+var BODY_CORNERS = [
+  [SAMPLE_INSET,SAMPLE_INSET],[1-SAMPLE_INSET,SAMPLE_INSET],
+  [SAMPLE_INSET,1-SAMPLE_INSET],[1-SAMPLE_INSET,1-SAMPLE_INSET]
+];
+var BODY_SAMPLES = BODY_LEVELS.length * BODY_CORNERS.length;
+
+function coverShapeAt(map,c,r){
+  if(!inBounds(map,c,r)||!map.coverShape)return null;
+  return map.coverShape[idx(map,c,r)]||null;
+}
+function pointInCoverShape(shape,lx,ly){
+  if(!shape||shape.kind==='full')return true;
+  var cx=shape.cx==null?0.5:Number(shape.cx),cy=shape.cy==null?0.5:Number(shape.cy);
+  if(shape.kind==='circle'){
+    var rad=shape.radius==null?0.28:Number(shape.radius),dx=lx-cx,dy=ly-cy;
+    return dx*dx+dy*dy<=rad*rad+1e-9;
+  }
+  if(shape.kind==='box'){
+    var hx=shape.halfX==null?0.35:Number(shape.halfX),hy=shape.halfY==null?hx:Number(shape.halfY);
+    return Math.abs(lx-cx)<=hx+1e-9&&Math.abs(ly-cy)<=hy+1e-9;
+  }
+  return true;
+}
+function addedBlocker(map,c,r,x,y,z,ignoreCell){
+  if(!inBounds(map,c,r))return {c:c,r:r,type:'off-map'};
+  var i=idx(map,c,r),ground=heightAt(map,c,r);
+  if(ground>z+1e-9)return {c:c,r:r,type:'terrain'};
+  if(ignoreCell&&c===ignoreCell.c&&r===ignoreCell.r)return null;
+  var occ;
+  if(map.occ&&map.occ[i]!=null)occ=Number(map.occ[i])||0;
+  else occ=map.wall[i]?Infinity:0;
+  if(!(ground+occ>z+1e-9))return null;
+  var shape=coverShapeAt(map,c,r);
+  if(shape&&!pointInCoverShape(shape,x-c,y-r))return null;
+  return {c:c,r:r,type:(shape&&shape.source)||((map.wall&&map.wall[i])?'wall':'occluder')};
+}
+function creatureBlocker(map,c,r,x,y,z,opts){
+  if(opts&&opts.ignoreCreatures)return null;
+  var list=map&&map.creatures;
+  if(!Array.isArray(list))return null;
+  for(var i=0;i<list.length;i++){
+    var u=list[i];if(!u||u.alive===false||u.c!==c||u.r!==r)continue;
+    var ground=heightAt(map,c,r),height=Number(u.heightFt)||5;
+    if(!(ground+height>z+1e-9))continue;
+    var rad=Number(u.radius);if(!Number.isFinite(rad))rad=0.28;
+    var cx=c+(u.cx==null?0.5:Number(u.cx)),cy=r+(u.cy==null?0.5:Number(u.cy));
+    var dx=x-cx,dy=y-cy;if(dx*dx+dy*dy<=rad*rad+1e-9)
+      return {c:c,r:r,type:'creature',unit:u.unit||u.key||u.id||null};
   }
   return null;
 }
-function segOccluded(map, x0, y0, z0, x1, y1, z1, aC, aR, bC, bR) {
-  return segBlocker(map, x0, y0, z0, x1, y1, z1, aC, aR, bC, bR) !== null;
+function blockerAtPoint(map,c,r,x,y,z,ignoreCell,opts){
+  return addedBlocker(map,c,r,x,y,z,ignoreCell)||creatureBlocker(map,c,r,x,y,z,opts);
 }
-/* Attribution walk for one corner line (M's ruling, round 3): blocked if ANY
-   cell rises above the ray; GRADED if any such cell sits at least as close to
-   the target as to the attacker. The whole segment is walked (not first-hit):
-   shooter-side clutter must not shadow real cover standing beside the target
-   — defender's benefit, same as the midfield tie. */
-function traceTop(map, c, r, ignoreCell) {
-  // A legal parapet lean forgives only the ADDED occluder. The terrain
-  // beneath it still exists and can block a steep downward shot.
-  if (ignoreCell && c === ignoreCell.c && r === ignoreCell.r) return heightAt(map, c, r);
-  return occTop(map, c, r);
-}
-function segAttrib(map, x0, y0, z0, x1, y1, z1, a, b, ignoreCell) {
-  var steps = 240, blocked = false, graded = false;
-  for (var s = 1; s < steps; s++) {
-    var t = s / steps;
-    var x = x0 + (x1 - x0) * t, y = y0 + (y1 - y0) * t, z = z0 + (z1 - z0) * t;
-    var c = Math.floor(x), r = Math.floor(y);
-    if ((c === a.c && r === a.r) || (c === b.c && r === b.r)) continue;
-    if (traceTop(map, c, r, ignoreCell) > z + 1e-9) {
-      blocked = true;
-      var cell = { c: c, r: r };
-      if (chebyshev(cell, b) <= chebyshev(cell, a)) { graded = true; break; }
-    }
+function segBlocker(map,x0,y0,z0,x1,y1,z1,aC,aR,bC,bR,ignoreCell,opts){
+  var steps=240;
+  for(var s=1;s<steps;s++){
+    var t=s/steps,x=x0+(x1-x0)*t,y=y0+(y1-y0)*t,z=z0+(z1-z0)*t;
+    var c=Math.floor(x),r=Math.floor(y);
+    if((c===aC&&r===aR)||(c===bC&&r===bR))continue;
+    var hit=blockerAtPoint(map,c,r,x,y,z,ignoreCell,opts);if(hit)return hit;
   }
-  return { blocked: blocked, graded: graded };
+  return null;
 }
-/* v1 name kept as a thin alias: same question, flat map, no occ[]. */
-function segHitsWall(map, x0, y0, x1, y1, aC, aR, bC, bR) {
-  var z = heightAt(map, aC, aR) + EYE_FT;
-  return segOccluded(map, x0, y0, z, x1, y1, z, aC, aR, bC, bR);
+function segOccluded(map,x0,y0,z0,x1,y1,z1,aC,aR,bC,bR,ignoreCell,opts){
+  return segBlocker(map,x0,y0,z0,x1,y1,z1,aC,aR,bC,bR,ignoreCell,opts)!==null;
 }
-var CORNERS = [[0,0],[1,0],[0,1],[1,1]];
-/* Ledge peek (M's table ruling, 2026-07-11): standing AT a ledge means you
-   lean over it — that is why step-to-the-ledge, shoot, step-back is a real
-   tactic. A corner of the attacker's own square is a LIP corner when any of
-   the three other cells sharing it has a top (occTop) below the attacker's
-   floor. Flat ground offers no lip corners, so the centre-only eye — which
-   refuses the sideways peek-around-the-edge loophole — is unchanged, and one
-   square back from the edge the lip cell still blocks (dead ground stands). */
-function lipCorners(map, c, r) {
-  var floor = heightAt(map, c, r), out = [];
-  for (var k = 0; k < CORNERS.length; k++) {
-    var dx = CORNERS[k][0] ? 1 : -1, dy = CORNERS[k][1] ? 1 : -1;
-    if (occTop(map, c + dx, r) < floor - 1e-9 ||
-        occTop(map, c, r + dy) < floor - 1e-9 ||
-        occTop(map, c + dx, r + dy) < floor - 1e-9) {
-      out.push([c + CORNERS[k][0], r + CORNERS[k][1]]);
-    }
+function traceTop(map,c,r,ignoreCell){
+  if(ignoreCell&&c===ignoreCell.c&&r===ignoreCell.r)return heightAt(map,c,r);
+  return occTop(map,c,r);
+}
+function segAttrib(map,x0,y0,z0,x1,y1,z1,a,b,ignoreCell,opts){
+  var steps=240,blocked=false,graded=false,first=null,types={};
+  for(var s=1;s<steps;s++){
+    var t=s/steps,x=x0+(x1-x0)*t,y=y0+(y1-y0)*t,z=z0+(z1-z0)*t;
+    var c=Math.floor(x),r=Math.floor(y);
+    if((c===a.c&&r===a.r)||(c===b.c&&r===b.r))continue;
+    var hit=blockerAtPoint(map,c,r,x,y,z,ignoreCell,opts);if(!hit)continue;
+    blocked=true;if(!first)first=hit;types[hit.type]=(types[hit.type]||0)+1;
+    var cell={c:c,r:r};
+    if(chebyshev(cell,b)<=chebyshev(cell,a)){graded=true;break;}
+  }
+  return {blocked:blocked,graded:graded,first:first,types:types};
+}
+function segHitsWall(map,x0,y0,x1,y1,aC,aR,bC,bR){
+  var z=heightAt(map,aC,aR)+EYE_FT;
+  return segOccluded(map,x0,y0,z,x1,y1,z,aC,aR,bC,bR,null,null);
+}
+var CORNERS=[[0,0],[1,0],[0,1],[1,1]];
+function lipCorners(map,c,r){
+  var floor=heightAt(map,c,r),out=[];
+  for(var k=0;k<CORNERS.length;k++){
+    var dx=CORNERS[k][0]?1:-1,dy=CORNERS[k][1]?1:-1;
+    if(occTop(map,c+dx,r)<floor-1e-9||occTop(map,c,r+dy)<floor-1e-9||occTop(map,c+dx,r+dy)<floor-1e-9)
+      out.push([c+CORNERS[k][0],r+CORNERS[k][1]]);
   }
   return out;
 }
-
-/* Target-facing shared edges. A ledge lean requires a CARDINAL edge the
-   attacker actually shares with the parapet cell. At an exact 45-degree shot
-   both cardinal edges are candidates; the diagonal cell is never ignored. */
-function targetFacingEdges(a, b) {
-  var dx = (b.c + 0.5) - (a.c + 0.5), dy = (b.r + 0.5) - (a.r + 0.5);
-  var ax = Math.abs(dx), ay = Math.abs(dy), out = [];
-  if (ax < 1e-12 && ay < 1e-12) return out;
-  if (ax >= ay - 1e-12 && ax > 1e-12) {
-    var sx = dx > 0 ? 1 : -1;
-    out.push({ c: a.c + sx, r: a.r, x: a.c + (sx > 0 ? 1 : 0), y: a.r + 0.5, edge: 'x' });
-  }
-  if (ay >= ax - 1e-12 && ay > 1e-12) {
-    var sy = dy > 0 ? 1 : -1;
-    out.push({ c: a.c, r: a.r + sy, x: a.c + 0.5, y: a.r + (sy > 0 ? 1 : 0), edge: 'y' });
-  }
+function targetFacingEdges(a,b){
+  var dx=(b.c+0.5)-(a.c+0.5),dy=(b.r+0.5)-(a.r+0.5),ax=Math.abs(dx),ay=Math.abs(dy),out=[];
+  if(ax<1e-12&&ay<1e-12)return out;
+  if(ax>=ay-1e-12&&ax>1e-12){var sx=dx>0?1:-1;out.push({c:a.c+sx,r:a.r,x:a.c+(sx>0?1:0),y:a.r+0.5,edge:'x'});}
+  if(ay>=ax-1e-12&&ay>1e-12){var sy=dy>0?1:-1;out.push({c:a.c,r:a.r+sy,x:a.c+0.5,y:a.r+(sy>0?1:0),edge:'y'});}
   return out;
 }
-
-function lowWallPeeks(map, a, b) {
-  var edges = targetFacingEdges(a, b), z = heightAt(map, a.c, a.r) + EYE_FT;
-  var out = [], hasFacingWall = false;
-  for (var i = 0; i < edges.length; i++) {
-    var e = edges[i];
-    if (!inBounds(map, e.c, e.r) || (e.c === b.c && e.r === b.r) || !isWall(map, e.c, e.r)) continue;
-    hasFacingWall = true;
-    if (occTop(map, e.c, e.r) < z - 1e-9) {
-      out.push({ x: e.x, y: e.y, z: z, peek: true, stepOut: true, ignore: { c: e.c, r: e.r }, edge: e.edge });
-    }
+function lowWallPeeks(map,a,b){
+  var edges=targetFacingEdges(a,b),z=heightAt(map,a.c,a.r)+EYE_FT,out=[],hasFacingWall=false;
+  for(var i=0;i<edges.length;i++){
+    var e=edges[i];if(!inBounds(map,e.c,e.r)||(e.c===b.c&&e.r===b.r)||!isWall(map,e.c,e.r))continue;
+    hasFacingWall=true;if(occTop(map,e.c,e.r)<z-1e-9)
+      out.push({x:e.x,y:e.y,z:z,peek:true,stepOut:true,ignore:{c:e.c,r:e.r},edge:e.edge});
   }
-  return { eyes: out, hasFacingWall: hasFacingWall };
+  return {eyes:out,hasFacingWall:hasFacingWall};
 }
-
-function targetFacingLipCorners(map, a, b) {
-  var lips = lipCorners(map, a.c, a.r);
-  if (!lips.length) return lips;
-  var dx = (b.c + 0.5) - (a.c + 0.5), dy = (b.r + 0.5) - (a.r + 0.5);
-  var best = -Infinity, scores = [];
-  for (var i = 0; i < lips.length; i++) {
-    var sx = lips[i][0] - (a.c + 0.5), sy = lips[i][1] - (a.r + 0.5);
-    var score = sx * dx + sy * dy;
-    scores.push(score);
-    if (score > best) best = score;
-  }
-  return lips.filter(function (_, i) { return scores[i] >= best - 1e-9; });
+function targetFacingLipCorners(map,a,b){
+  var lips=lipCorners(map,a.c,a.r);if(!lips.length)return lips;
+  var dx=(b.c+0.5)-(a.c+0.5),dy=(b.r+0.5)-(a.r+0.5),best=-Infinity,scores=[];
+  for(var i=0;i<lips.length;i++){var sx=lips[i][0]-(a.c+0.5),sy=lips[i][1]-(a.r+0.5),score=sx*dx+sy*dy;scores.push(score);if(score>best)best=score;}
+  return lips.filter(function(_,i){return scores[i]>=best-1e-9;});
 }
-
-function firingPoints(map, a, b) {
-  var z = heightAt(map, a.c, a.r) + EYE_FT;
-  var wall = lowWallPeeks(map, a, b);
-  // A target-facing shared-edge wall owns the ruling. Low walls yield only
-  // their legal edge step-outs; tall walls yield none. Do not fall through to
-  // a numerical corner graze around the same obstruction.
-  if (wall.hasFacingWall) return wall.eyes;
-
-  var out = [], lips = targetFacingLipCorners(map, a, b);
-  for (var i = 0; i < lips.length; i++) {
-    out.push({ x: lips[i][0], y: lips[i][1], z: z, peek: true, stepOut: false, ignore: null, edge: 'lip' });
+function cornerOutsideBlocked(map,a,corner,z){
+  var sx=corner[0]<0.5?-1:1,sy=corner[1]<0.5?-1:1;
+  var cells=[{c:a.c+sx,r:a.r},{c:a.c,r:a.r+sy}];
+  for(var i=0;i<cells.length;i++){
+    var q=cells[i];if(inBounds(map,q.c,q.r)&&isWall(map,q.c,q.r)&&occTop(map,q.c,q.r)>=z-1e-9)return true;
   }
+  return false;
+}
+function targetFacingCornerEyes(map,a,b){
+  var z=heightAt(map,a.c,a.r)+EYE_FT,dx=(b.c+0.5)-(a.c+0.5),dy=(b.r+0.5)-(a.r+0.5);
+  var best=-Infinity,scored=[];
+  for(var i=0;i<BODY_CORNERS.length;i++){
+    var q=BODY_CORNERS[i],score=(q[0]-0.5)*dx+(q[1]-0.5)*dy;scored.push({q:q,score:score});if(score>best)best=score;
+  }
+  return scored.filter(function(s){return s.score>=best-1e-9&&!cornerOutsideBlocked(map,a,s.q,z);})
+    .map(function(s){return {x:a.c+s.q[0],y:a.r+s.q[1],z:z,peek:false,stepOut:false,ignore:null,edge:'corner'};});
+}
+function firingPoints(map,a,b){
+  var z=heightAt(map,a.c,a.r)+EYE_FT,wall=lowWallPeeks(map,a,b);if(wall.hasFacingWall)return wall.eyes;
+  var out=[],seen={};
+  targetFacingLipCorners(map,a,b).forEach(function(q){var eye={x:q[0],y:q[1],z:z,peek:true,stepOut:false,ignore:null,edge:'lip'},k=eye.x+','+eye.y;if(!seen[k]){seen[k]=1;out.push(eye);}});
+  targetFacingCornerEyes(map,a,b).forEach(function(eye){var k=eye.x+','+eye.y;if(!seen[k]){seen[k]=1;out.push(eye);}});
   return out;
 }
-
-function verdictFromEye(map, ax, ay, az, a, b, ignoreCell) {
-  // Cover is what the TARGET hides behind (M's ruling, 2026-07-11, round 3):
-  // a blocking cell GRADES cover (the half/three-quarters counts, and the
-  // centre-line check) only when it sits at least as close to the target as
-  // to the attacker — a midfield tie grades, defender's benefit. An
-  // obstruction on the shooter's side is the shooter's VANTAGE problem
-  // (step up / lean — the ledge-peek eye), not the target's AC, so it adds
-  // nothing to the grade. Wall height and size enter through the line count
-  // itself; there is no other constant. TOTAL is unchanged: all 8 corner
-  // lines blocked by anything anywhere is dead ground — cannot target.
-  var bh = heightAt(map, b.c, b.r);
-  var zHead = bh + EYE_FT, zFeet = bh + FOOT_FT;
-  var blocked = 0, graded = 0;
-  for (var tc = 0; tc < CORNERS.length; tc++) {
-    var bx = b.c + CORNERS[tc][0], by = b.r + CORNERS[tc][1];
-    var hl = segAttrib(map, ax, ay, az, bx, by, zHead, a, b, ignoreCell);
-    if (hl.blocked) { blocked++; if (hl.graded) graded++; }
-    var fl = segAttrib(map, ax, ay, az, bx, by, zFeet, a, b, ignoreCell);
-    if (fl.blocked) { blocked++; if (fl.graded) graded++; }
+function mergeTypes(dst,src){Object.keys(src||{}).forEach(function(k){dst[k]=(dst[k]||0)+src[k];});}
+function verdictFromEye(map,ax,ay,az,a,b,ignoreCell,opts){
+  var bh=heightAt(map,b.c,b.r),blocked=0,graded=0,types={},first=null;
+  for(var zc=0;zc<BODY_LEVELS.length;zc++)for(var tc=0;tc<BODY_CORNERS.length;tc++){
+    var q=BODY_CORNERS[tc],line=segAttrib(map,ax,ay,az,b.c+q[0],b.r+q[1],bh+BODY_LEVELS[zc],a,b,ignoreCell,opts);
+    if(line.blocked){blocked++;if(!first)first=line.first;if(line.graded)graded++;mergeTypes(types,line.types);}
   }
-  var cl = segAttrib(map, ax, ay, az, b.c + 0.5, b.r + 0.5,
-    bh + (EYE_FT + FOOT_FT) / 2, a, b, ignoreCell);
-  var centerGraded = cl.graded;
-  var cover, acBonus;
-  if (blocked >= 8) { cover = "total"; acBonus = Infinity; }
-  else if (graded === 0) { cover = "none"; acBonus = 0; }
-  else if (graded <= 4 && !centerGraded) { cover = "half"; acBonus = 2; }
-  else { cover = "three-quarters"; acBonus = 5; }
-  return { cover: cover, acBonus: acBonus, blocked: blocked, canTarget: cover !== "total" };
+  var cover,acBonus;
+  if(blocked>=BODY_SAMPLES){cover='total';acBonus=Infinity;}
+  else if(graded<6){cover='none';acBonus=0;}
+  else if(graded<9){cover='half';acBonus=2;}
+  else{cover='three-quarters';acBonus=5;}
+  return {cover:cover,acBonus:acBonus,blocked:blocked,graded:graded,samples:BODY_SAMPLES,
+    canTarget:cover!=='total',culprits:types,firstBlocker:first};
 }
-function losVerdict(map, a, b) {
-  // Centre eye first. Legal alternate firing points are evaluated and the
-  // winning eye/ignore metadata rides back so the visible line uses the same
-  // geometry that authorised the shot.
-  var az = heightAt(map, a.c, a.r) + EYE_FT;
-  var v = verdictFromEye(map, a.c + 0.5, a.r + 0.5, az, a, b, null);
-  v.eye = { x: a.c + 0.5, y: a.r + 0.5, z: az, peek: false, stepOut: false, ignore: null, edge: null };
-  if (v.acBonus === 0) return v;
-
-  var eyes = firingPoints(map, a, b);
-  for (var e = 0; e < eyes.length; e++) {
-    var eye = eyes[e];
-    // The parapet's cap may be forgiven; its terrain may not. Reject this
-    // alternate eye when the centre sight ray hits the ignored cell's berm.
-    var probe = eye.ignore ? losRay(map, a, b, eye) : null;
-    if (probe && probe.blocked && probe.at && probe.at.c === eye.ignore.c && probe.at.r === eye.ignore.r) continue;
-    var w = verdictFromEye(map, eye.x, eye.y, eye.z, a, b, eye.ignore || null);
-    if (w.acBonus < v.acBonus || (w.acBonus === v.acBonus && w.blocked < v.blocked)) {
-      w.eye = eye;
-      v = w;
-    }
-    if (v.acBonus === 0) break;
+function losVerdict(map,a,b,opts){
+  opts=opts||{};var az=heightAt(map,a.c,a.r)+EYE_FT;
+  var v=verdictFromEye(map,a.c+0.5,a.r+0.5,az,a,b,null,opts);
+  v.eye={x:a.c+0.5,y:a.r+0.5,z:az,peek:false,stepOut:false,ignore:null,edge:null};
+  if(v.acBonus===0)return v;
+  var eyes=firingPoints(map,a,b);
+  for(var e=0;e<eyes.length;e++){
+    var eye=eyes[e],probe=eye.ignore?losRay(map,a,b,eye,opts):null;
+    if(probe&&probe.blocked&&probe.at&&probe.at.c===eye.ignore.c&&probe.at.r===eye.ignore.r)continue;
+    var w=verdictFromEye(map,eye.x,eye.y,eye.z,a,b,eye.ignore||null,opts);
+    if(w.acBonus<v.acBonus||(w.acBonus===v.acBonus&&w.blocked<v.blocked)){w.eye=eye;v=w;}
+    if(v.acBonus===0)break;
   }
   return v;
 }
-/* center-to-center ray, for drawing the "is the shot clear" line.
-   Optional eye {x,y} starts the ray where losVerdict's winning eye looked
-   from (ledge peek), so the drawn line agrees with the ruling. */
-function losRay(map, a, b, eye) {
-  var x0 = (eye && eye.x != null) ? eye.x : a.c + 0.5;
-  var y0 = (eye && eye.y != null) ? eye.y : a.r + 0.5;
-  var z0 = (eye && eye.z != null) ? eye.z : heightAt(map, a.c, a.r) + EYE_FT;
-  var x1 = b.c + 0.5, y1 = b.r + 0.5, z1 = heightAt(map, b.c, b.r) + EYE_FT;
-  var ignoreCell = eye && eye.ignore;
-  var steps = 240;
-  for (var s = 1; s < steps; s++) {
-    var t = s / steps;
-    var c = Math.floor(x0 + (x1 - x0) * t), r = Math.floor(y0 + (y1 - y0) * t);
-    if ((c === a.c && r === a.r) || (c === b.c && r === b.r)) continue;
-    if (traceTop(map, c, r, ignoreCell) > z0 + (z1 - z0) * t + 1e-9) {
-      return { blocked: true, at: { c: c, r: r } };
-    }
+function losRay(map,a,b,eye,opts){
+  var x0=(eye&&eye.x!=null)?eye.x:a.c+0.5,y0=(eye&&eye.y!=null)?eye.y:a.r+0.5;
+  var z0=(eye&&eye.z!=null)?eye.z:heightAt(map,a.c,a.r)+EYE_FT;
+  var x1=b.c+0.5,y1=b.r+0.5,z1=heightAt(map,b.c,b.r)+EYE_FT,ignoreCell=eye&&eye.ignore,steps=240;
+  for(var s=1;s<steps;s++){
+    var t=s/steps,x=x0+(x1-x0)*t,y=y0+(y1-y0)*t,z=z0+(z1-z0)*t,c=Math.floor(x),r=Math.floor(y);
+    if((c===a.c&&r===a.r)||(c===b.c&&r===b.r))continue;
+    var hit=blockerAtPoint(map,c,r,x,y,z,ignoreCell,opts);if(hit)return {blocked:true,at:hit};
   }
-  return { blocked: false, at: null };
+  return {blocked:false,at:null};
 }
-var API = {
-  SQUARE_FT: SQUARE_FT, STEP_FT: STEP_FT, EYE_FT: EYE_FT, FOOT_FT: FOOT_FT, DIRS: DIRS,
-  makeMap: makeMap, idx: idx, inBounds: inBounds, heightAt: heightAt,
-  isWall: isWall, occTop: occTop, chebyshev: chebyshev,
-  stepAllowed: stepAllowed, movementReach: movementReach, pathTo: pathTo,
-  canReachMelee: canReachMelee, range3d: range3d, inRange: inRange,
-  losVerdict: losVerdict, losRay: losRay, lipCorners: lipCorners, targetFacingEdges: targetFacingEdges, lowWallPeeks: lowWallPeeks, firingPoints: firingPoints };
-if (typeof module !== "undefined" && module.exports) module.exports = API;
-global.TacticsGeo = API;
+function coverAudit(map,pairs,opts){
+  var counts={none:0,half:0,'three-quarters':0,total:0},culprits={},total=0;
+  (pairs||[]).forEach(function(pair){if(!pair||!pair.a||!pair.b)return;var v=losVerdict(map,pair.a,pair.b,opts);counts[v.cover]++;total++;mergeTypes(culprits,v.culprits);});
+  var pct={};Object.keys(counts).forEach(function(k){pct[k]=total?Math.round(counts[k]*1000/total)/10:0;});
+  return {total:total,counts:counts,percent:pct,culprits:culprits};
+}
+var API={
+  SQUARE_FT:SQUARE_FT,STEP_FT:STEP_FT,EYE_FT:EYE_FT,FOOT_FT:FOOT_FT,DIRS:DIRS,
+  BODY_LEVELS:BODY_LEVELS,BODY_SAMPLES:BODY_SAMPLES,
+  makeMap:makeMap,idx:idx,inBounds:inBounds,heightAt:heightAt,isWall:isWall,occTop:occTop,chebyshev:chebyshev,
+  stepAllowed:stepAllowed,movementReach:movementReach,pathTo:pathTo,canReachMelee:canReachMelee,range3d:range3d,inRange:inRange,
+  coverShapeAt:coverShapeAt,pointInCoverShape:pointInCoverShape,losVerdict:losVerdict,losRay:losRay,
+  lipCorners:lipCorners,targetFacingEdges:targetFacingEdges,lowWallPeeks:lowWallPeeks,firingPoints:firingPoints,coverAudit:coverAudit
+};
+if(typeof module!=="undefined"&&module.exports)module.exports=API;
+global.TacticsGeo=API;
 
 })(typeof window !== "undefined" ? window : globalThis);
 </script>
@@ -846,6 +830,7 @@ global.TacticsGeo = API;
       <button class="sceneMenuBtn" id="sceneForgeControls" type="button"><span>Forge controls</span><b>hidden</b></button>
       <button class="sceneMenuBtn" id="sceneViewerMode" type="button" hidden><span>Presentation</span><b>Staff View</b></button>
       <button class="sceneMenuBtn" id="sceneFlankingRule" type="button" hidden><span>Flanking</span><b>Advantage</b></button>
+      <button class="sceneMenuBtn" id="sceneCoverAudit" type="button" hidden><span>Geometry</span><b>Run cover audit</b></button>
       <button class="sceneMenuBtn" id="sceneProneToggle" type="button" hidden><span>Selected condition</span><b>Toggle Prone</b></button>
       <div class="sceneMenuNote" id="sceneViewerNote">Player View hides DM tools and enemy internals locally. Combat rules are shared with the table.</div>
     </div>
@@ -1492,7 +1477,20 @@ const PROP_FT = {             // world-unit height × 5. Absent ⇒ flat dressin
   stalagmite:5, crystalCluster:4, reed:3.5, grass:2.5, mushroom:2, bush:2.5, poplar:6, pine:5.5,
   ring:0, bridge:0, moss:0, bones:0, crack:0, banner:0, icicle:0, debris:1.5
 };
+/* Phase 1.5h: height alone made every prop a five-foot-wide solid prism.
+   coverShape supplies the missing horizontal footprint. Terrain walls remain
+   full-cell; narrow trunks and columns only block rays that cross their mass. */
+const PROP_COVER_SHAPE={
+  column:{kind:'circle',radius:.29},pillar:{kind:'circle',radius:.31},
+  rock:{kind:'circle',radius:.37},boulder:{kind:'circle',radius:.40},
+  tree:{kind:'circle',radius:.18},cypress:{kind:'circle',radius:.17},snowpine:{kind:'circle',radius:.19},
+  bare:{kind:'circle',radius:.16},poplar:{kind:'circle',radius:.15},pine:{kind:'circle',radius:.18},
+  stalagmite:{kind:'circle',radius:.25},crystalCluster:{kind:'circle',radius:.29},
+  reed:{kind:'circle',radius:.13},grass:{kind:'circle',radius:.18},mushroom:{kind:'circle',radius:.12},
+  bush:{kind:'circle',radius:.34},debris:{kind:'box',halfX:.30,halfY:.30}
+};
 function propOccFt(p){ var u=PROP_FT[p.kind]; return u==null?0:u*(p.scale||1); }
+function propCoverShape(p){var q=PROP_COVER_SHAPE[p.kind];if(!q)return null;var scale=Math.max(.55,Math.min(1.35,p.scale||1));return Object.assign({source:p.kind},q,{radius:q.radius==null?q.radius:Math.min(.48,q.radius*scale),halfX:q.halfX==null?q.halfX:Math.min(.48,q.halfX*scale),halfY:q.halfY==null?q.halfY:Math.min(.48,q.halfY*scale)});}
 
 /* ── FLORA — biome art direction for the things that grow ───────────────
    The biome chips changed sky, fog, four lights and three cap colours, and
@@ -1720,12 +1718,12 @@ const toonGrad=(()=>{const {c,x}=cv(3,1);['#737373','#b9b9b9','#ffffff'].forEach
 function surfMat(opts){ return TOON ? new THREE.MeshToonMaterial(Object.assign({gradientMap:toonGrad},opts))
                                      : new THREE.MeshLambertMaterial(opts); }
 const OUTLINE_MAT=new THREE.MeshBasicMaterial({color:0x1a140e,side:THREE.BackSide,toneMapped:false});
-function addWorld(geo,col,x,y,z,rot){ // mesh + optional inverted-hull outline shell
+function addWorld(geo,col,x,y,z,rot,fogCell){ // mesh + optional inverted-hull outline shell
   const m=new THREE.Mesh(geo,stoneMat(col)); m.position.set(x,y,z);
   if(rot){if(rot.x)m.rotation.x=rot.x; if(rot.y)m.rotation.y=rot.y;} world.add(m);
   if(OUTLINE){const s=new THREE.Mesh(geo,OUTLINE_MAT); s.position.set(x,y,z);
-    if(rot){if(rot.x)s.rotation.x=rot.x; if(rot.y)s.rotation.y=rot.y;} s.scale.multiplyScalar(1.035); world.add(s);}
-  return m;
+    if(rot){if(rot.x)s.rotation.x=rot.x; if(rot.y)s.rotation.y=rot.y;} s.scale.multiplyScalar(1.035);if(fogCell)tagDiscoveryObject(s,fogCell.c,fogCell.r,'visible-only'); world.add(s);}
+  if(fogCell)tagDiscoveryObject(m,fogCell.c,fogCell.r,'visible-only');return m;
 }
 
 /* ---- FIELD: {W,H,height,type,footprint,props[]} ---- */
@@ -1960,7 +1958,7 @@ function loadImageFile(file,cb){ if(!file||!/^image\//.test(file.type))return;
   rd.readAsDataURL(file); }
 
 /* ---------- render a field ---------- */
-function clearWorld(){while(world.children.length){const c=world.children.pop();
+function clearWorld(){if(typeof resetDiscoveryRenderRegistry==='function')resetDiscoveryRenderRegistry();while(world.children.length){const c=world.children.pop();
   c.traverse&&c.traverse(o=>{o.geometry&&o.geometry.dispose();if(o.material&&o!==c){}});
   c.geometry&&c.geometry.dispose();}
   waterMeshes.length=0;}
@@ -2006,7 +2004,7 @@ function addSurfaceDecals(){
       toneMapped:false,opacity:.55+rng()*.24,polygonOffset:true,polygonOffsetFactor:-2,polygonOffsetUnits:-2});
     const m=new THREE.Mesh(new THREE.PlaneGeometry(1,1),mat), size=.58+rng()*.72;
     m.rotation.x=-Math.PI/2;m.rotation.z=rng()*Math.PI*2;m.scale.set(size,size,1);
-    m.position.set(wxc(c.x),F.height[c.i]*STEP+.018,wzc(c.y));m.renderOrder=2;world.add(m);
+    m.position.set(wxc(c.x),F.height[c.i]*STEP+.018,wzc(c.y));m.renderOrder=2;tagDiscoveryObject(m,c.x,c.y,'visible-only');world.add(m);
   }
 }
 
@@ -2032,11 +2030,11 @@ function lightFxTex(kind,color){const key=kind+'|'+color;if(_lightFx[key])return
   else if(kind==='wisp'){x.beginPath();x.arc(48,62,12,0,7);x.fill();x.beginPath();x.moveTo(48,74);x.quadraticCurveTo(64,91,43,108);x.quadraticCurveTo(54,87,48,74);x.fill();}
   else{x.beginPath();x.moveTo(49,28);x.bezierCurveTo(72,54,62,82,48,95);x.bezierCurveTo(25,78,31,55,49,28);x.fill();}
   return (_lightFx[key]=ctex(c));}
-function addLocalSource(x,y,z,cfg,scale){
+function addLocalSource(x,y,z,cfg,scale,c,r){
   const sm=new THREE.SpriteMaterial({map:lightFxTex(cfg.kind,cfg.color),transparent:true,depthWrite:false,
     blending:THREE.AdditiveBlending,toneMapped:false,opacity:.88});
-  const s=new THREE.Sprite(sm);s.scale.set(scale*.75,scale,1);s.center.set(.5,.28);s.position.set(x,y,z);s.renderOrder=5;world.add(s);
-  const l=new THREE.PointLight(cfg.color,cfg.intensity,cfg.distance,2);l.position.set(x,y+scale*.35,z);l.castShadow=false;world.add(l);
+  const s=new THREE.Sprite(sm);s.scale.set(scale*.75,scale,1);s.center.set(.5,.28);s.position.set(x,y,z);s.renderOrder=5;tagDiscoveryObject(s,c,r,'visible-only');world.add(s);
+  const l=new THREE.PointLight(cfg.color,cfg.intensity,cfg.distance,2);l.position.set(x,y+scale*.35,z);l.castShadow=false;tagDiscoveryObject(l,c,r,'visible-only');world.add(l);
 }
 function addMotivatedLights(span){
   if(new URLSearchParams(location.search).get('fxlights')==='0')return;
@@ -2047,13 +2045,13 @@ function addMotivatedLights(span){
   const props=(F.props||[]).filter(p=>pref.indexOf(p.kind)>=0).sort(()=>rng()-.5);
   for(const p of props){if(chosen.length>=max)break;const x=wxc(p.x),z=wzc(p.y);if(!farEnough(x,z))continue;
     let y=p.h*STEP+.42;if(p.kind==='column')y+=STEP*2.45;else if(FLORA_KINDS.has(p.kind))y+=VIS_HEIGHT(p.kind,p.scale||1)*.68;
-    chosen.push({x,z});addLocalSource(x,y,z,cfg,.75+(p.scale||1)*.28);
+    chosen.push({x,z});addLocalSource(x,y,z,cfg,.75+(p.scale||1)*.28,p.x,p.y);
   }
   const W=F.W,H=F.H,OCC=F.occ||EMPTY_OCC(W*H), open=[];
   for(let y=2;y<H-2;y++)for(let x=2;x<W-2;x++){const i=y*W+x;if(F.foot[i]&&F.type[i]!==T_WATER&&OCC[i]<.01)open.push({x,y,i});}
   for(let tries=0;chosen.length<max&&open.length&&tries<open.length*2;tries++){
     const c=open[(rng()*open.length)|0],x=wxc(c.x),z=wzc(c.y);if(!farEnough(x,z))continue;
-    chosen.push({x,z});addLocalSource(x,F.height[c.i]*STEP+.38,z,cfg,.66+rng()*.28);
+    chosen.push({x,z});addLocalSource(x,F.height[c.i]*STEP+.38,z,cfg,.66+rng()*.28,c.x,c.y);
   }
 }
 
@@ -2111,6 +2109,7 @@ function renderField(){
     return Math.max(0.70, 1 - occl*0.050);                 // preserve readable midtones
   }
   const ci={[T_GRASS]:0,[T_STONE]:0,[T_PLAZA]:0,[T_ROCK]:0}; let bi=0,bedi=0;
+  const bodyCells=[],bedCells=[],gridCells=[],capCells={[T_GRASS]:[],[T_STONE]:[],[T_PLAZA]:[],[T_ROCK]:[]};
   const waterY=WATERLEVEL*STEP+0.15;
   const OCC=F.occ||EMPTY_OCC(W*H);
   for(let y=0;y<H;y++)for(let x=0;x<W;x++){const i=y*W+x; if(!F.foot[i])continue;
@@ -2120,22 +2119,22 @@ function renderField(){
     const X=wxc(x),Z=wzc(y); const t=F.type[i];
     // body: base(-BASE) → top-cap
     const capT=0.34; const b0=-BASE, b1=(t===T_WATER)?Math.min(top,waterY-0.3):top-capT;
-    const bh=Math.max(0.2,b1-b0); _p.set(X,(b0+b1)/2,Z);_q.identity();_s.set(1,bh,1);_m.compose(_p,_q,_s);bodyMesh.setMatrixAt(bi++,_m);
-    if(t===T_WATER){ if(bedMesh){const bt=Math.min(top,waterY-0.3); _p.set(X,bt-0.1,Z);_s.set(1,0.2,1);_m.compose(_p,_q,_s);bedMesh.setMatrixAt(bedi++,_m);} }
+    const bh=Math.max(0.2,b1-b0); _p.set(X,(b0+b1)/2,Z);_q.identity();_s.set(1,bh,1);_m.compose(_p,_q,_s);bodyMesh.setMatrixAt(bi++,_m);bodyCells.push({c:x,r:y});
+    if(t===T_WATER){ if(bedMesh){const bt=Math.min(top,waterY-0.3); _p.set(X,bt-0.1,Z);_s.set(1,0.2,1);_m.compose(_p,_q,_s);bedMesh.setMatrixAt(bedi++,_m);bedCells.push({c:x,r:y});} }
     else { _p.set(X,top-capT/2,Z);_s.set(1,1,1);_m.compose(_p,_q,_s);
-           const k=ci[t]++; capMesh[t].setMatrixAt(k,_m);
+           const k=ci[t]++; capMesh[t].setMatrixAt(k,_m);capCells[t].push({c:x,r:y});
            const a=ao(x,y); _col.setRGB(a,a,a); capMesh[t].setColorAt(k,_col);
-           if(gridMesh){ _p.set(X,top+0.012,Z);_s.set(1,1,1);_m.compose(_p,_gq,_s); gridMesh.setMatrixAt(gi++,_m); } }
+           if(gridMesh){ _p.set(X,top+0.012,Z);_s.set(1,1,1);_m.compose(_p,_gq,_s); gridMesh.setMatrixAt(gi++,_m);gridCells.push({c:x,r:y}); } }
     { const a=ao(x,y)*0.94; _col.setRGB(a,a,a); bodyMesh.setColorAt(bi-1,_col); }
   }
   bodyMesh.instanceMatrix.needsUpdate=true;
   if(bodyMesh.instanceColor) bodyMesh.instanceColor.needsUpdate=true;
-  bodyMesh.castShadow=true; bodyMesh.receiveShadow=true; world.add(bodyMesh);
+  bodyMesh.castShadow=true; bodyMesh.receiveShadow=true; world.add(bodyMesh);registerDiscoveryInstanced(bodyMesh,bodyCells,'terrain');
   for(const t in capMesh){ capMesh[t].instanceMatrix.needsUpdate=true;
     if(capMesh[t].instanceColor) capMesh[t].instanceColor.needsUpdate=true;
-    capMesh[t].castShadow=true; capMesh[t].receiveShadow=true; world.add(capMesh[t]); }
-  if(bedMesh){bedMesh.instanceMatrix.needsUpdate=true;bedMesh.receiveShadow=true;world.add(bedMesh);}
-  if(gridMesh){ gridMesh.instanceMatrix.needsUpdate=true; world.add(gridMesh); GRID_MESH=gridMesh; }
+    capMesh[t].castShadow=true; capMesh[t].receiveShadow=true; world.add(capMesh[t]);registerDiscoveryInstanced(capMesh[t],capCells[t],'terrain'); }
+  if(bedMesh){bedMesh.instanceMatrix.needsUpdate=true;bedMesh.receiveShadow=true;world.add(bedMesh);registerDiscoveryInstanced(bedMesh,bedCells,'terrain');}
+  if(gridMesh){ gridMesh.instanceMatrix.needsUpdate=true; world.add(gridMesh); GRID_MESH=gridMesh;registerDiscoveryInstanced(gridMesh,gridCells,'visible-only'); }
   else GRID_MESH=null;
   // aim the shadow frustum at the field we just built
   sun.position.set(W*0.55, Math.max(W,H)*1.1, H*0.35);
@@ -2188,6 +2187,7 @@ function renderField(){
   buildStorybookBackdrop(span);
 
   frameField();
+  if(typeof refreshDiscovery==='function'&&typeof CB!=='undefined'&&CB&&CB.active)refreshDiscovery(true);
 }
 
 function waterTexture(){const {c,x}=cv(128,128);x.fillStyle='#2fa0b0';x.fillRect(0,0,128,128);
@@ -2215,22 +2215,21 @@ function addWaterfalls(){const W=F.W,H=F.H;let made=0;
 function stoneMat(col){return surfMat({color:col});}
 function placeProp(p,waterY){const X=wxc(p.x),Z=wzc(p.y),topY=p.h*STEP;
   if(p.kind==='column'){const h=STEP*2.4;
-    addWorld(new THREE.CylinderGeometry(0.34,0.4,h,10),0x9a8f76,X,topY+h/2,Z);
-    addWorld(new THREE.BoxGeometry(1.05,0.3,1.05),0xa89a7c,X,topY+h+0.05,Z);
+    addWorld(new THREE.CylinderGeometry(0.34,0.4,h,10),0x9a8f76,X,topY+h/2,Z,null,{c:p.x,r:p.y});
+    addWorld(new THREE.BoxGeometry(1.05,0.3,1.05),0xa89a7c,X,topY+h+0.05,Z,null,{c:p.x,r:p.y});
   } else if(p.kind==='ruin'){const h=STEP*(1.6+Math.random()*1.4);
-    addWorld(new THREE.BoxGeometry(0.9,h,0.9),0x8a7d64,X,topY+h/2,Z);
+    addWorld(new THREE.BoxGeometry(0.9,h,0.9),0x8a7d64,X,topY+h/2,Z,null,{c:p.x,r:p.y});
   } else if(FLORA_KINDS.has(p.kind)){
     /* Height is now the kind's height, relative to a tree. A mushroom used to
        be drawn as tall as an oak. The texture is cached per kind+biome, so a
        biome chip retints the whole field without regenerating anything. */
     const vh=VIS_HEIGHT(p.kind,p.scale||1), sw=Math.max(.45,vh*.68);
-    world.add(billboard(shadowTex,X,topY+0.05,Z,Math.max(.42,sw*.72),0.7,true));
-    world.add(billboard(floraTex(p.kind),X,topY+0.02,Z,vh,vh,false));
+    const sh=billboard(shadowTex,X,topY+0.05,Z,Math.max(.42,sw*.72),0.7,true),fl=billboard(floraTex(p.kind),X,topY+0.02,Z,vh,vh,false);tagDiscoveryObject(sh,p.x,p.y,'visible-only');tagDiscoveryObject(fl,p.x,p.y,'visible-only');world.add(sh);world.add(fl);
   } else if(p.kind==='ring'){ // spiral / stone ring laid flat
-    addWorld(new THREE.TorusGeometry(2.2,0.35,8,28),0x9a8f76,X,topY+0.15,Z,{x:Math.PI/2});
-    addWorld(new THREE.TorusGeometry(1.2,0.28,8,24),0x8a7d64,X,topY+0.12,Z,{x:Math.PI/2});
+    addWorld(new THREE.TorusGeometry(2.2,0.35,8,28),0x9a8f76,X,topY+0.15,Z,{x:Math.PI/2},{c:p.x,r:p.y});
+    addWorld(new THREE.TorusGeometry(1.2,0.28,8,24),0x8a7d64,X,topY+0.12,Z,{x:Math.PI/2},{c:p.x,r:p.y});
   } else if(p.kind==='bridge'){
-    addWorld(new THREE.BoxGeometry(4.5,0.25,1.2),0x8a6b42,X,topY+0.2,Z);
+    addWorld(new THREE.BoxGeometry(4.5,0.25,1.2),0x8a6b42,X,topY+0.2,Z,null,{c:p.x,r:p.y});
   }
 }
 function mesh(geo,col,x,y,z){const m=new THREE.Mesh(geo,stoneMat(col));m.position.set(x,y,z);return m;}
@@ -2815,7 +2814,7 @@ function renderPlaced(){ placedGroup.clear();
     const X=wxc(p.gx),Z=wzc(p.gy),Y=tier*STEP;
     p.sprite.scale.set(p.size*p.aspect,p.size,1); p.sprite.position.set(X,Y+0.02,Z); p.sprite.renderOrder=3;
     p.shadow.scale.set(p.size*0.85,p.size*0.85,1); p.shadow.position.set(X,Y+0.04,Z);
-    placedGroup.add(p.shadow); placedGroup.add(p.sprite); } }
+    tagDiscoveryObject(p.shadow,p.gx,p.gy,'visible-only');tagDiscoveryObject(p.sprite,p.gx,p.gy,'visible-only');placedGroup.add(p.shadow); placedGroup.add(p.sprite); } }
 
 function fetchLibrary(){ fetch(ASSET_BASE+'/library.json').then(r=>{ if(!r.ok) throw 0; return r.json(); })
   .then(j=>{ LIB={textures:j.textures||[],sprites:j.sprites||[]}; populatePropPicker();
@@ -3024,10 +3023,21 @@ var READYING = false;     // "Ready" armed: the next attack picked is held, not 
    memory is reconstructed from the shared movement log, so refresh/join does
    not reset the dungeon. Staff View stays omniscient; switching to Player
    View locally shows exactly the discovery presentation without changing
-   account authority. The first renderer is intentionally cell-volume fog —
-   map-space authority now, per-instance terrain visibility later. */
+   account authority. Phase 1.5h replaces overlapping cell volumes with per-instance terrain state plus one continuous unexplored veil. Unseen room heights and props no longer sculpt the fog itself. */
 var DISCOVERY={mapRef:null,mapSerial:0,cache:new Map(),visible:null,explored:null,states:null,
-  ready:false,currentSig:'',historySig:'',fogSig:'',localTrail:[],unexploredMesh:null,exploredMesh:null};
+  ready:false,currentSig:'',historySig:'',fogSig:'',localTrail:[]};
+var DISCOVERY_RENDER={instanced:[],objects:[],veil:null,veilTexture:null};
+function resetDiscoveryRenderRegistry(){
+  if(!DISCOVERY_RENDER)return;DISCOVERY_RENDER.instanced=[];DISCOVERY_RENDER.objects=[];
+  if(DISCOVERY_RENDER.veil){fogGroup.remove(DISCOVERY_RENDER.veil);if(DISCOVERY_RENDER.veil.geometry)DISCOVERY_RENDER.veil.geometry.dispose();if(DISCOVERY_RENDER.veil.material)DISCOVERY_RENDER.veil.material.dispose();}
+  if(DISCOVERY_RENDER.veilTexture)DISCOVERY_RENDER.veilTexture.dispose();DISCOVERY_RENDER.veil=null;DISCOVERY_RENDER.veilTexture=null;
+}
+function registerDiscoveryInstanced(mesh,cells,mode){
+  if(!mesh||!cells||!cells.length)return;var mats=[],cols=[],m=new THREE.Matrix4(),col=new THREE.Color(1,1,1);
+  for(var i=0;i<cells.length;i++){mesh.getMatrixAt(i,m);mats.push(m.clone());if(mesh.instanceColor){mesh.getColorAt(i,col);cols.push(col.clone());}else cols.push(null);}
+  DISCOVERY_RENDER.instanced.push({mesh:mesh,cells:cells.slice(),matrices:mats,colors:cols,mode:mode||'terrain'});
+}
+function tagDiscoveryObject(obj,c,r,mode){if(!obj||c==null||r==null)return obj;obj.userData=obj.userData||{};obj.userData.discoveryCell={c:Number(c),r:Number(r),mode:mode||'visible-only'};if(!obj.userData.discoveryRegistered){obj.userData.discoveryRegistered=true;DISCOVERY_RENDER.objects.push(obj);}return obj;}
 var FIRE_PREVIEW=null;
 function discoveryApi(){return window.ForgeDiscovery||null;}
 function discoveryHasSession(){return !!window.__forgeSession||new URLSearchParams(location.search).has('session');}
@@ -3048,32 +3058,43 @@ function discoveryMaskFor(src){
   return DISCOVERY.cache.get(key);
 }
 function clearFogMeshes(){
-  [DISCOVERY.unexploredMesh,DISCOVERY.exploredMesh].forEach(function(m){if(!m)return;fogGroup.remove(m);if(m.geometry)m.geometry.dispose();if(m.material)m.material.dispose();});
-  DISCOVERY.unexploredMesh=null;DISCOVERY.exploredMesh=null;
+  if(DISCOVERY_RENDER.veil){fogGroup.remove(DISCOVERY_RENDER.veil);if(DISCOVERY_RENDER.veil.geometry)DISCOVERY_RENDER.veil.geometry.dispose();if(DISCOVERY_RENDER.veil.material)DISCOVERY_RENDER.veil.material.dispose();DISCOVERY_RENDER.veil=null;}
+  if(DISCOVERY_RENDER.veilTexture){DISCOVERY_RENDER.veilTexture.dispose();DISCOVERY_RENDER.veilTexture=null;}
 }
-function fogCellTransform(c,r,state,obj){
-  var i=r*CB.map.cols+c,terrain=((CB.map.h[i]||0)/5)*STEP,occ=((CB.map.occ&&CB.map.occ[i]||0)/5)*STEP;
-  var bottom=-2.2,top=terrain+Math.max(.85,occ+.7),height=Math.max(.6,top-bottom);
-  obj.position.set(wxc(c),bottom+height/2,wzc(r));obj.scale.set(1.025,height,1.025);obj.updateMatrix();
+function hiddenMatrix(base){var p=new THREE.Vector3(),q=new THREE.Quaternion(),sc=new THREE.Vector3();base.decompose(p,q,sc);sc.set(.0001,.0001,.0001);p.y=-BASE-20;return new THREE.Matrix4().compose(p,q,sc);}
+function discoveryStateAt(c,r){var D=discoveryApi();return D&&DISCOVERY.ready?D.cellState(DISCOVERY.states,CB.map,c,r):2;}
+function applyDiscoveryInstances(player){
+  var visCol=new THREE.Color(),memCol=new THREE.Color(0.20,0.25,0.23);
+  DISCOVERY_RENDER.instanced.forEach(function(entry){var mesh=entry.mesh;if(!mesh)return;
+    for(var i=0;i<entry.cells.length;i++){
+      var cell=entry.cells[i],st=player?discoveryStateAt(cell.c,cell.r):2,base=entry.matrices[i];
+      mesh.setMatrixAt(i,(st===0||entry.mode==='visible-only'&&st!==2)?hiddenMatrix(base):base);
+      if(entry.mode==='terrain'){
+        var original=entry.colors[i]||new THREE.Color(1,1,1);visCol.copy(original);
+        mesh.setColorAt(i,st===1?memCol.clone().multiplyScalar(Math.max(.55,original.r)):visCol);
+      }
+    }
+    mesh.instanceMatrix.needsUpdate=true;if(mesh.instanceColor)mesh.instanceColor.needsUpdate=true;
+  });
+  DISCOVERY_RENDER.objects.forEach(function(obj){if(!obj||!obj.userData||!obj.userData.discoveryCell)return;var q=obj.userData.discoveryCell,st=player?discoveryStateAt(q.c,q.r):2;obj.visible=!player||(q.mode==='visible-only'?st===2:st!==0);});
 }
-function buildFogMesh(cells,state){
-  if(!cells.length)return null;
-  var geo=new THREE.BoxGeometry(1,1,1),mat=state===0
-    ?new THREE.MeshBasicMaterial({color:0x07100d,depthWrite:true,toneMapped:false,fog:false})
-    :new THREE.MeshBasicMaterial({color:0x17231f,transparent:true,opacity:.44,depthWrite:false,side:THREE.DoubleSide,toneMapped:false,fog:false});
-  var mesh=new THREE.InstancedMesh(geo,mat,cells.length),o=new THREE.Object3D();
-  cells.forEach(function(cell,j){fogCellTransform(cell.c,cell.r,state,o);mesh.setMatrixAt(j,o.matrix);});
-  mesh.instanceMatrix.needsUpdate=true;mesh.renderOrder=state===0?18:17;mesh.frustumCulled=false;fogGroup.add(mesh);return mesh;
+function fogMaskCanvas(){
+  var scale=8,c=document.createElement('canvas');c.width=CB.map.cols*scale;c.height=CB.map.rows*scale;var x=c.getContext('2d');x.clearRect(0,0,c.width,c.height);
+  for(var r=0;r<CB.map.rows;r++)for(var col=0;col<CB.map.cols;col++)if(discoveryStateAt(col,r)===0){x.fillStyle='rgba(5,11,9,.98)';x.fillRect(col*scale,r*scale,scale,scale);}
+  return c;
+}
+function buildFogVeil(){
+  var canvas=fogMaskCanvas(),tex=new THREE.CanvasTexture(canvas);tex.magFilter=THREE.LinearFilter;tex.minFilter=THREE.LinearFilter;tex.needsUpdate=true;
+  var maxFt=0;for(var i=0;i<CB.map.h.length;i++)maxFt=Math.max(maxFt,(CB.map.h[i]||0)+(CB.map.occ&&CB.map.occ[i]||0));
+  var mat=new THREE.MeshBasicMaterial({map:tex,transparent:true,depthTest:false,depthWrite:false,toneMapped:false,fog:false,side:THREE.DoubleSide});
+  var veil=new THREE.Mesh(new THREE.PlaneGeometry(CB.map.cols,CB.map.rows),mat);veil.rotation.x=-Math.PI/2;veil.position.y=(maxFt/5)*STEP+.75;veil.renderOrder=16;veil.frustumCulled=false;
+  fogGroup.add(veil);DISCOVERY_RENDER.veil=veil;DISCOVERY_RENDER.veilTexture=tex;
 }
 function applyDiscoveryFog(force){
-  var player=discoveryPlayerView(),sig=(player?'player':'staff')+'|'+DISCOVERY.currentSig+'|'+DISCOVERY.historySig+'|'+STEP;
-  if(!force&&sig===DISCOVERY.fogSig)return;DISCOVERY.fogSig=sig;
-  clearFogMeshes();if(!CB.active||!CB.map||!DISCOVERY.ready||!player)return;
-  var D=discoveryApi(),dark=[],memory=[];
-  for(var r=0;r<CB.map.rows;r++)for(var c=0;c<CB.map.cols;c++){
-    var st=D.cellState(DISCOVERY.states,CB.map,c,r);if(st===D.UNEXPLORED)dark.push({c:c,r:r});else if(st===D.EXPLORED)memory.push({c:c,r:r});
-  }
-  DISCOVERY.unexploredMesh=buildFogMesh(dark,D.UNEXPLORED);DISCOVERY.exploredMesh=buildFogMesh(memory,D.EXPLORED);
+  var player=discoveryPlayerView(),sig=(player?'player':'staff')+'|'+DISCOVERY.currentSig+'|'+DISCOVERY.historySig+'|'+STEP+'|'+DISCOVERY_RENDER.instanced.length;
+  if(!force&&sig===DISCOVERY.fogSig)return;DISCOVERY.fogSig=sig;clearFogMeshes();
+  if(!CB.active||!CB.map||!DISCOVERY.ready){applyDiscoveryInstances(false);return;}
+  applyDiscoveryInstances(player);if(player)buildFogVeil();
 }
 function updateDiscoveryStatus(){
   var el=document.getElementById('discoveryStatus');if(!el)return;
@@ -3437,20 +3458,29 @@ function rangeFt(a){ return (a.rng||1)*5; }
    occ[] = occluder feet above the terrain (what SIGHT is decided by).
    A gap (foot=0) is impassable but occludes NOTHING — a hole is not a wall. */
 function combatMapFromF(){
-  var n=F.W*F.H, m=TG.makeMap(F.W,F.H); m.occ=new Array(n).fill(0);
+  var n=F.W*F.H, m=TG.makeMap(F.W,F.H);m.occ=new Array(n).fill(0);m.coverShape=new Array(n).fill(null);
   var OCC=F.occ||EMPTY_OCC(n);
   for(var i=0;i<n;i++){
     var gap=!F.foot[i];
     m.h[i]    = gap ? 0 : (F.height[i]||0)*STEP_FT;
     m.wall[i] = gap || F.type[i]===T_ROCK || F.type[i]===T_WATER;   // impassable
     m.occ[i]  = gap ? 0 : OCC[i];                                   // a hole occludes nothing
+    if(!gap&&OCC[i]>0)m.coverShape[i]={kind:'full',source:'wall'};   // authored banks/walls fill the cell
   }
   (F.props||[]).forEach(function(p){
-    var c=p.x, r=p.y; if(c==null||r==null||c<0||r<0||c>=F.W||r>=F.H) return;
-    var j=r*F.W+c, ft=propOccFt(p);
-    if(ft>m.occ[j]) m.occ[j]=ft;                                    // boulders + trees are cover
+    var c=p.x,r=p.y;if(c==null||r==null||c<0||r<0||c>=F.W||r>=F.H)return;
+    var j=r*F.W+c,ft=propOccFt(p);
+    if(ft>m.occ[j]){m.occ[j]=ft;m.coverShape[j]=propCoverShape(p);}  // height + footprint must agree
   });
+  syncGeometryCreatures(m);
   return m;
+}
+function syncGeometryCreatures(map){
+  map=map||(typeof CB!=='undefined'&&CB&&CB.map);if(!map)return map;
+  map.creatures=((typeof CB!=='undefined'&&CB&&CB.units)||[]).filter(function(u){return u&&u.alive!==false;}).map(function(u){
+    var size=String(u.size||u.statblock&&u.statblock.size||'M').toUpperCase();var rad=/G/.test(size)?.48:/H/.test(size)?.44:/L/.test(size)?.40:.35;
+    return {unit:u.unit||u.key||u.id,c:u.c,r:u.r,alive:u.alive!==false,heightFt:/G|H/.test(size)?10:/L/.test(size)?8:5,radius:rad};
+  });return map;
 }
 function walkable(){ var out=[]; for(var y=0;y<F.H;y++)for(var x=0;x<F.W;x++){ var i=y*F.W+x;
   if(F.foot[i]&&F.height[i]>0&&(F.type[i]===T_GRASS||F.type[i]===T_STONE||F.type[i]===T_PLAZA)) out.push({x:x,y:y,h:F.height[i]}); } return out; }
@@ -4525,10 +4555,10 @@ renderer.domElement.addEventListener("pointerleave",clearHover);
 function tTier(c,r){ return (c<0||r<0||c>=F.W||r>=F.H)?0:(F.height[r*F.W+c]||0); }
 function cbDist(a,b){ var horiz=Math.max(Math.abs(a.c-b.c),Math.abs(a.r-b.r)), vert=Math.abs(tTier(a.c,a.r)-tTier(b.c,b.r)); return Math.max(horiz,vert)*5; }
 var COVER_AC = { "none":0, "half":2, "three-quarters":5, "total":Infinity };
-function sightTo(u,t){ return TG.losVerdict(CB.map,{c:u.c,r:u.r},{c:t.c,r:t.r}); }
+function sightTo(u,t){syncGeometryCreatures();return TG.losVerdict(CB.map,{c:u.c,r:u.r},{c:t.c,r:t.r});}
 
 function reachOK(u,a,t,opts){
-  opts=opts||{};var A={c:u.c,r:u.r}, T={c:t.c,r:t.r}, dis=false;
+  opts=opts||{};syncGeometryCreatures();var A={c:u.c,r:u.r}, T={c:t.c,r:t.r}, dis=false;
   if((a.rng||1)<=1){ if(!TG.canReachMelee(CB.map,A,T,5)) return {ok:false,why:"out of reach"}; }
   else { var dist=cbDist(A,T), norm=rangeFt(a), lng=a.long?a.long*5:norm;
     if(dist>lng+1e-6) return {ok:false,why:"out of range"};
@@ -5423,7 +5453,7 @@ function foeTurn(){
     clog(u.name+" stands its ground — "+escapeHtml(note)+" <i>(no parsed attack — TODO bite 2 full foe action HUD)</i>");
     renderHud(); foeTurnDone(); return;
   }
-  var canTargetNow=function(target){ var A={c:u.c,r:u.r},T={c:target.c,r:target.r}; return ((atk.rng||1)<=1?TG.canReachMelee(CB.map,A,T,5):TG.inRange(CB.map,A,T,rangeFt(atk)))&&TG.losVerdict(CB.map,A,T).canTarget; };
+  var canTargetNow=function(target){syncGeometryCreatures();var A={c:u.c,r:u.r},T={c:target.c,r:target.r}; return ((atk.rng||1)<=1?TG.canReachMelee(CB.map,A,T,5):TG.inRange(CB.map,A,T,rangeFt(atk)))&&TG.losVerdict(CB.map,A,T).canTarget; };
   var canNow=function(){return canTargetNow(tgt);};
   function strikePhase(){
     if(!u.alive){ renderHud(); foeTurnDone(); return; }
@@ -5654,6 +5684,7 @@ function refreshSceneMenu(){
   var auth=tc&&tc.privileged(sess);
   if(vm){vm.hidden=!auth;if(auth){var b=vm.querySelector('b');if(b)b.textContent=tc.staffView(sess)?'Staff View':'Player View';}}
   var fr=document.getElementById('sceneFlankingRule');if(fr){fr.hidden=!auth;var fb=fr.querySelector('b');if(fb)fb.textContent=flankingLabel();}
+  var ca=document.getElementById('sceneCoverAudit');if(ca)ca.hidden=!auth;
   var pr=document.getElementById('sceneProneToggle');if(pr){pr.hidden=!auth;var chosen=(typeof CB!=="undefined"&&CB)?unitByKey(CB.selKey):null;var pb=pr.querySelector('b');if(pb)pb.textContent=chosen?(effectFor(chosen,"prone")?'Clear Prone':'Apply Prone'):'Select unit';pr.disabled=!chosen;}
   if(tc)tc.applyBody(sess,typeof active==='function'&&typeof CB!=='undefined'&&CB&&CB.active?active():null);
 }
@@ -5664,6 +5695,17 @@ if(sceneModeToggle)sceneModeToggle.addEventListener('click',function(e){e.stopPr
 const sceneForgeControls=document.getElementById('sceneForgeControls');if(sceneForgeControls)sceneForgeControls.addEventListener('click',function(){document.body.classList.toggle('forge-peek');refreshSceneMenu();if(sceneModeMenu)sceneModeMenu.hidden=true;if(sceneModeToggle)sceneModeToggle.setAttribute('aria-expanded','false');});
 const sceneViewerMode=document.getElementById('sceneViewerMode');if(sceneViewerMode)sceneViewerMode.addEventListener('click',function(){if(window.ForgeTableCorrectness)window.ForgeTableCorrectness.toggle(window.__forgeSession);refreshSceneMenu();if(sceneModeMenu)sceneModeMenu.hidden=true;if(sceneModeToggle)sceneModeToggle.setAttribute('aria-expanded','false');});
 const sceneFlankingRule=document.getElementById('sceneFlankingRule');if(sceneFlankingRule)sceneFlankingRule.addEventListener('click',function(){var next=nextFlankingRule(),sess=window.__forgeSession;if(sess&&sess.me.overseer){netSessionPublish("edit",sess.pipe.edit([{rule:{name:"flanking",value:next}}]));}else if(!sess){FLANK_RULE=next;renderHud();}refreshSceneMenu();});
+function runCoverAudit(){
+  if(!CB||!CB.active||!CB.map||!TG.coverAudit)return;syncGeometryCreatures();var cells=[];
+  for(var r=0;r<CB.map.rows;r++)for(var c=0;c<CB.map.cols;c++){var i=r*CB.map.cols+c;if(!CB.map.wall[i])cells.push({c:c,r:r});}
+  var pairs=[],limit=Math.min(700,cells.length*3),seed=(+document.getElementById('seed').value||7)>>>0;
+  function rnd(){seed=(Math.imul(seed^seed>>>15,1|seed)+0x6D2B79F5)|0;return ((seed^seed>>>14)>>>0)/4294967296;}
+  for(var k=0;k<limit*8&&pairs.length<limit;k++){var a=cells[(rnd()*cells.length)|0],b=cells[(rnd()*cells.length)|0];if(!a||!b)continue;var d=TG.range3d(CB.map,a,b);if(d<15||d>120)continue;pairs.push({a:a,b:b});}
+  var q=TG.coverAudit(CB.map,pairs),p=q.percent,types=Object.keys(q.culprits).sort(function(a,b){return q.culprits[b]-q.culprits[a];}).slice(0,5).map(function(k){return k+' '+q.culprits[k];}).join(' · ')||'none';
+  var html='<details class="forge-geometry-group" open><summary>Cover audit · '+q.total+' sampled shots</summary><div class="forge-geometry-line">Clear '+p.none+'% · Half '+p.half+'% · ¾ '+p['three-quarters']+'% · Total '+p.total+'%<br>Culprits: '+types+'</div></details>';
+  if(window.addForgeRow)window.addForgeRow(html,{channel:'system'});else clog(html,false);if(sceneModeMenu)sceneModeMenu.hidden=true;
+}
+const sceneCoverAudit=document.getElementById('sceneCoverAudit');if(sceneCoverAudit)sceneCoverAudit.addEventListener('click',runCoverAudit);
 const sceneProneToggle=document.getElementById('sceneProneToggle');if(sceneProneToggle)sceneProneToggle.addEventListener('click',function(){var sess=window.__forgeSession,u=(typeof CB!=="undefined"&&CB)?unitByKey(CB.selKey):null;if(!u)return;var old=effectFor(u,"prone"),op=old?effectApi().remove(old.id,"DM cleared Prone",u.unit,old):window.ForgeCombatRules.addCondition({source:"__overseer",target:u.unit,nonce:Date.now()});var act={label:old?"Clear Prone":"Apply Prone",kind:"condition-edit",free:true};if(sess&&sess.me.overseer)netUseAbility(u,act,[u.unit],[op],{context:{kind:"condition-edit",condition:"prone"}});else if(!sess){localEffectEvent("ability_used",u.unit,{ability:act.label,targets:[u.unit],effects:[op],slot:"free"});refreshEffectState(null,true);renderHud();}if(sceneModeMenu)sceneModeMenu.hidden=true;});
 document.addEventListener('click',function(e){var w=document.getElementById('sceneModeMenuWrap');if(sceneModeMenu&&w&&!w.contains(e.target)){sceneModeMenu.hidden=true;if(sceneModeToggle)sceneModeToggle.setAttribute('aria-expanded','false');}});
 function initBadge(u){ return u.badge||(u.side==="pc"?(ROSTER_INIT[u.key]||u.name[0]):"g"); }

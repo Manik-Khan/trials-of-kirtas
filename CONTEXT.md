@@ -4,15 +4,14 @@ Custom D&D 5e virtual tabletop. Live: **trials-of-kirtas.netlify.app**
 Repo: `Manik-Khan/trials-of-kirtas` · vanilla JS/HTML/CSS + Supabase + Netlify + GitHub.
 Walled React/Vite/TipTap corner at `journal/`.
 
-Updated: **July 13, 2026 (visual direction ratified — storybook sky + painted horizon approved;
-masked parallax/landmark cards parked; camera-follow, world-space fog of war, tactical-prop split,
-and graph-based generator Phase 2 planned).** Supersedes the July 12 late-night project doc.
-The non-Forge sections stand as written there; the Forge section now carries July 10–13.
-Reconciled sources: the July 12 doc, `CONTEXT_Forge.md` (sixth-session header),
-`CONTEXT_Forge-update-2026-07-12g.md`, `CONTEXT_Forge-update-2026-07-13a.md`,
-`FORGE_PROTOCOL.md`, `FORGE_BOARD.md`, and `FORGE_COVER_CONTEST.md`.
+Updated: **July 13, 2026 (Battle Forge Phase 1.5 complete through geometry/fog calibration;
+active Phase 2 generator terrain is next).** Supersedes the earlier July 13 project handoff.
+The non-Forge sections stand as written there; the Forge section now carries July 10–13h.
+Reconciled sources include `CONTEXT_Forge.md`, the July 12g ledge/character-authority record,
+all July 13 a–h Forge handoffs, `FORGE_PROTOCOL.md`, `FORGE_BOARD.md`, and
+`FORGE_COVER_CONTEST.md`.
 
-**Companion doc: `CONTEXT_Forge.md` — read it before touching the Forge.** It carries the port
+**Companion docs: `CONTEXT_Forge.md` and `CONTEXT_Forge-update-2026-07-13h.md` — read both before touching the Forge.** The canonical subsystem doc carries the port
 manifest (what the combat system consists of, and which parts exist where), the settled geometry
 decisions, and the open bugs. This doc is the project; that one is the subsystem.
 
@@ -204,7 +203,41 @@ independent syncs), not the offset jumping.
 
 ---
 
-## 🟡 Battle Forge — multiplayer live; visual direction ratified; camera/fog/generator next (July 8 → 13)
+## 🟡 Battle Forge — Phase 1.5 complete; calibrated geometry/fog shipped in bundle; active Phase 2 next (July 8 → 13h)
+
+**Current authority:** `CONTEXT_Forge-update-2026-07-13h.md` plus the refreshed
+`CONTEXT_Forge.md`. The older July 13 material below is historical progression; where it
+conflicts with the h handoff, h wins.
+
+### July 13h — geometry and fog calibration closes Phase 1.5
+
+The field pass showed that the first cover model and first fog renderer were both too literal
+about cells:
+
+- eight head/feet cover rays made low lips count too heavily;
+- every prop occupied a full five-foot solid regardless of its real width;
+- overlapping fog boxes z-fought into triangle/checker patterns and their heights leaked hidden
+  room and wall silhouettes.
+
+Phase 1.5h replaces cover grading with twelve body samples across lower body, torso, and head;
+keeps target-side attribution, dead ground, ledge peek, parapet lean, and Cover Contest; adds
+sub-cell `coverShape[]`, living intervening-creature cover, and a staff cover-distribution audit.
+
+Fog now uses per-instance discovery state plus one continuous unexplored veil. Unexplored
+terrain instances are removed; explored terrain is dark remembered terrain; transient props,
+decals, local lights, enemies, badges, and targeting require current visibility. The old
+cell-volume fog is gone.
+
+This sits on the complete Phase 1.5 stack built earlier that day: generator foundation,
+3D/top-down camera, dual standee/token rigs and custom token art, Staff/Player View, feed/privacy
+and table correctness, Sanctuary effect ledger, shared discovery and firing preview, Monk/Toll
+the Dead corrections, explicit target→confirm flow, player move undo, flanking modes, source-aware
+advantage/disadvantage, and Prone.
+
+The cumulative Phase 1.5h bundle has **426 green checks**. Browser/WebGL and live two-device
+field tests remain required. After that, begin active Phase 2: snapshot-first load, archetype
+parameters, stage-owned random streams, constrained elevations/connectors, semantic spawns and
+objectives, validation/local repair, debug overlays, and authored tactical prop footprints.
 
 **`forge/README.md` + `CONTEXT_Forge.md` are canonical for this subsystem.** Read both.
 For the cover-contest mechanism, `FORGE_COVER_CONTEST.md`; for the event protocol,

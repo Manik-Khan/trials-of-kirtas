@@ -8,7 +8,7 @@ const openGeo={
   range3d:(m,a,b)=>Math.hypot(Math.max(Math.abs(a.c-b.c),Math.abs(a.r-b.r))*5,0),
   losVerdict:()=>({canTarget:true,cover:"none",acBonus:0})
 };
-ok(D.VERSION==="1.0.0","module version is pinned");
+ok(D.VERSION==="1.1.0","module version is pinned");
 ok(D.UNEXPLORED===0&&D.EXPLORED===1&&D.VISIBLE===2,"three discovery states are stable");
 ok(D.dims({W:3,H:4}).cols===3&&D.dims({W:3,H:4}).rows===4,"legacy W/H map dimensions normalize");
 ok(D.idx(map(),2,3)===17,"cell index is row-major");

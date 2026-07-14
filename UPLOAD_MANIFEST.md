@@ -1,39 +1,47 @@
-# Upload manifest — Phase 1.5g
+# Upload manifest — Phase 1.5h
 
-## Runtime replacement
+## Runtime replacements
 
 - `forge/topography-test-mock.html`
-- `forge/forge-table-correctness.js`
+- `forge/tactics-geometry.js`
+- `forge/forge-discovery.js`
 
-## New runtime file
+## Reference mock replacement produced by guarded patcher
 
-- `forge/forge-combat-rules.js`
+- `battle-tactics-geo-mock.html` **or** `forge/battle-tactics-geo-mock.html`, matching its current repository location
+
+## Test replacements
+
+- `forge/tests/smoke-los-cover.js`
+- `forge/tests/smoke-forge-discovery.js`
+- `forge/tests/smoke-phase15f-contract.js`
+
+## New tests
+
+- `forge/tests/smoke-cover-calibration.js`
+- `forge/tests/smoke-phase15h-contract.js`
+- `forge/tests/smoke-geometry-sync.js`
+
+## New subsystem document
+
+- `forge/PHASE15H_GEOMETRY_AND_FOG.md`
 
 ## Retained cumulative support files
 
-These are unchanged from the previous Phase 1.5 bundles and are included so the cumulative tests run from the ZIP. They do not need to replace identical deployed copies:
+The ZIP includes unchanged Phase 1.5 modules and tests so the cumulative battery can run from the bundle. Do not replace identical deployed copies merely because they are present.
 
-- `forge/forge-discovery.js`
-- `forge/forge-effects.js`
-- `forge/forge-unit-art.js`
-- `netlify/functions/forge-token-art.js`
+## Helper files — do not deploy
 
-## Tests
-
-New:
-
-- `forge/tests/smoke-forge-combat-rules.js`
-- `forge/tests/smoke-phase15g-contract.js`
-
-Retained or updated cumulative tests are included under `forge/tests/` for convenience.
-
-## Documentation only
-
+- `tools/forge-phase15h-sync-battle-mock.html`
+- `tools/apply-forge-phase15h-battle-mock.js`
+- `tools/test-apply-forge-phase15h-battle-mock.js`
 - `README_APPLY.md`
-- `PHASE15G_COMBAT_FLOW_AND_CLASS_ACTIONS.md`
 - `VALIDATION.md`
 - `UPLOAD_MANIFEST.md`
 - `SOURCE_BASELINE.txt`
-- `CONTEXT_Forge-update-2026-07-13g.md`
+- `CONTEXT.md`
+- `CONTEXT_Forge.md`
+- `CONTEXT_Forge-update-2026-07-13h.md`
+- `README_NEW_SESSION.md`
 
 M remains the committer and pusher. This bundle performs neither action.

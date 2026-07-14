@@ -1,10 +1,25 @@
-Battle Forge Phase 1.5g source baseline
+Battle Forge Phase 1.5h source baseline
+========================================
 
-Production source supplied by M:
-  forge/topography-test-mock.html
-  Phase 1.5f SHA-256: ced0e444f68f8648e746ed3c1a313ec75420fd117a6396e37c930a6ad3fd1807
+Production input:
+  Exact Phase 1.5g replacement supplied in
+  battle-forge-phase15g-combat-flow-2026-07-13.zip
 
-Patched Phase 1.5g replacement SHA-256 before packaging:
+Input topography SHA-256:
   fdba7c2be8501bf4e1ac88d1faf0ed2d7568b776c2c090db0fb3fea11286a94d
 
-The user stated all other Forge modules remain current on main. No stale ZIP was treated as authority.
+Phase 1.5h output topography SHA-256:
+  1895b67dfc154de9befb3407318b307a46292817438d9e94b7d6bd21f945052f
+
+Canonical Phase 1.5h tactics geometry SHA-256:
+  c2483167043f1d3ddb13b3e21689357b0c28e0cc66706501187e218a90055b90
+
+Phase 1.5h discovery module SHA-256:
+  2a13d764c61a16d307e20a3961f191811861f64ebc714a9c1b8d09c167df9153
+
+Reference battle-tactics-geo-mock.html:
+  The exact current file was not uploaded in this session. The bundle therefore
+  supplies a guarded browser and Node patcher that replace only its canonical
+  inlined tactics-geometry block. Diff the downloaded output before upload.
+
+No commit or push was performed.

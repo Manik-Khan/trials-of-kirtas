@@ -1,6 +1,6 @@
-# Battle Forge Phase 1.5g — apply and field-check
+# Battle Forge Phase 1.5h — apply and field-check
 
-This bundle is based on the exact Phase 1.5f production `forge/topography-test-mock.html` supplied by M on July 13, 2026. The remaining Forge modules are expected to be the current copies on `main`.
+This bundle is based on the exact Phase 1.5g production `forge/topography-test-mock.html` that M field-tested on July 13, 2026. It retains all Phase 1.5b–g camera, token, feed, effect, discovery, class-action, flanking, Prone, and Player View work.
 
 No database migration, commit, or push is included.
 
@@ -9,93 +9,87 @@ No database migration, commit, or push is included.
 Replace:
 
 - `forge/topography-test-mock.html`
-- `forge/forge-table-correctness.js`
+- `forge/tactics-geometry.js`
+- `forge/forge-discovery.js`
+- `forge/tests/smoke-los-cover.js`
+- `forge/tests/smoke-forge-discovery.js`
+- `forge/tests/smoke-phase15f-contract.js`
 
 Add:
 
-- `forge/forge-combat-rules.js`
+- `forge/tests/smoke-cover-calibration.js`
+- `forge/tests/smoke-phase15h-contract.js`
+- `forge/tests/smoke-geometry-sync.js`
+- `forge/PHASE15H_GEOMETRY_AND_FOG.md`
 
-The HTML already loads the new module as:
+The other cumulative Phase 1.5 support modules/tests in the ZIP are unchanged convenience copies and do not need to replace byte-identical deployed files.
 
-```html
-<script src="forge-combat-rules.js?v=fcr1"></script>
-<script src="forge-table-correctness.js?v=fg1"></script>
+## Synchronize the reference tactical mock
+
+`tactics-geometry.js` is also inlined in `battle-tactics-geo-mock.html`. Use one of these offline guarded tools:
+
+### Browser
+
+1. Open `tools/forge-phase15h-sync-battle-mock.html` locally.
+2. Choose the current live `battle-tactics-geo-mock.html` from GitHub/downloaded checkout.
+3. Click **Validate, patch, and download**.
+4. Upload the downloaded replacement to the same repository path.
+
+### Checkout
+
+From the repository root:
+
+```bash
+node path/to/unzipped-bundle/tools/apply-forge-phase15h-battle-mock.js .
 ```
 
-The files under `forge/tests/` are validation artifacts. Uploading them is recommended but is not required for the browser runtime.
+The patcher checks both repository-root and `forge/` locations. It aborts unless exactly one canonical geometry block is found. It does not commit or push.
 
-## Quick browser field pass
+## Browser field pass
 
-### Feed
+### Cover
 
-1. Open **Table**, **System**, and **All** in the Game Feed.
-2. Confirm attacks, damage, healing, spell effects, and chat stay in **Table**.
-3. Confirm geometry/occluder, discovery, transport, and resync diagnostics move to **System**.
-4. Confirm older rows already present when the HUD initializes are classified too.
+1. Compare shots over low lips. A shin-high obstruction should normally be **clear**, not automatic half cover.
+2. Confirm waist-high broad barriers still grant half cover.
+3. Confirm a near-full wall can grant three-quarters or total depending on geometry.
+4. Shoot past narrow trees/columns and broad boulders; they should no longer behave as identical five-foot walls.
+5. Place one living creature between attacker and target and confirm intervening-creature cover can appear.
+6. Down the intervening creature and confirm it stops supplying creature cover.
+7. Recheck ledge peek and parapet lean: shallow legal shot, steep berm block, tall parapet block, one-square-back block.
+8. Use **Contest next shot** and confirm the DM ruling still replaces the computed cover.
+9. In Staff View, run **Forge → Run cover audit** on several seeds and inspect the System-feed distribution before changing thresholds.
 
-### Caim
+### Fog
 
-1. Spend Ki on **Step of the Wind** and choose both Dash and Disengage in separate turns.
-2. Confirm it spends the **bonus action**, not the action.
-3. Attack first, then use **Flurry of Blows**.
-4. Confirm two separate attack rolls, Caim's normal Unarmed Strike bonus, non-zero damage, one Ki spent, and one bonus action spent.
-5. Confirm **Martial Arts** uses one canonical Unarmed Strike after Attack.
-6. Confirm **Patient Defense** applies Dodge and attacks against Caim receive disadvantage.
-7. Confirm malformed damaging actions visibly refuse rather than resolving for zero damage.
-
-`Hand of Harm` is deliberately shown as an unavailable post-hit rider in this bite. It is not misrepresented as a standalone attack; its post-hit target/rider prompt remains a later class-action extension.
-
-### Toll the Dead
-
-1. Target a creature at full HP: use the d8 damage die.
-2. Damage it first, then cast again: use the d12 damage die.
-3. Confirm the current authoritative HP is used immediately before resolution.
-
-### Targeting and preview
-
-1. Arm a direct attack.
-2. Click a visible token or its initiative chip.
-3. Confirm the click selects the target and paints the preview without rolling.
-4. Use **Confirm attack** to commit the roll.
-5. Confirm **Contest next shot** remains available before commitment.
-
-### Undo movement
-
-1. Move a player-controlled active unit and confirm **Undo move** appears.
-2. Undo immediately and confirm position and movement budget restore on every device.
-3. Move again, then create another consequence such as an attack or opportunity attack.
-4. Confirm player undo is no longer offered and the DM must use full rewind.
-5. As staff, enter Player View and confirm the same player-side rule; Staff View retains DM rewind.
-
-### Flanking
-
-Under **Forge → Rules / Edit**, cycle:
-
-- Advantage — default
-- +2
-- +5
-- Off
-
-Confirm the selection is shared through the encounter log, applies symmetrically to PCs and foes, and updates after movement/downing. Multiple advantage sources do not stack; any advantage plus any disadvantage becomes a normal roll. Downed or incapacitated creatures do not provide a flank.
-
-### Prone
-
-1. Select a unit and use **Forge → Apply Prone**.
-2. Confirm the condition appears in the initiative strip and survives refresh/reconnect.
-3. Confirm the prone creature's attacks have disadvantage.
-4. Confirm attacks from within 5 feet gain advantage against it, while attacks from farther away have disadvantage.
-5. Confirm crawling costs double movement.
-6. Confirm **Stand up** appears and spends half the creature's speed.
-7. Confirm clearing/standing removes Prone on every device.
+1. Enter Player View in both 3D and top-down.
+2. Confirm the triangular/checker z-fighting is gone.
+3. Confirm unexplored areas do not reveal hidden wall, room, prop, or light silhouettes.
+4. Move PCs and confirm visible terrain becomes normal while explored memory remains dark.
+5. Confirm props, decals, local lights, enemies, badges, and targeting disappear outside current visibility.
+6. Refresh or join from a second device and confirm explored memory reconstructs from the shared movement history.
+7. Switch to Staff View and confirm the complete battlefield returns without changing session authority.
 
 ## Headless checks
 
 From the repository root:
 
 ```bash
-node forge/tests/smoke-forge-combat-rules.js
-node forge/tests/smoke-phase15g-contract.js
-node forge/tests/smoke-table-correctness.js
+node forge/tests/smoke-los-cover.js
+node forge/tests/smoke-cover-calibration.js
+node forge/tests/smoke-geometry-sync.js
+node forge/tests/smoke-forge-discovery.js
+node forge/tests/smoke-phase15h-contract.js
 ```
 
-The retained Phase 1.5d/e/f tests are also included for cumulative checking.
+Run the retained Forge battery after integration as well.
+
+## New-session handoff
+
+After the field pass, use the refreshed context files in this bundle:
+
+- `CONTEXT.md`
+- `CONTEXT_Forge.md`
+- `CONTEXT_Forge-update-2026-07-13h.md`
+- `README_NEW_SESSION.md`
+
+The next build is active Phase 2 generator terrain, not another redesign of Phase 1.5 unless the field pass demonstrates a regression.
