@@ -18,6 +18,8 @@ has(html,"m.coverShape=new Array(n).fill(null)","combat map carries footprint de
 has(html,"syncGeometryCreatures(m)","combat map carries live creature silhouettes");
 has(html,"function registerDiscoveryInstanced","terrain visibility is per instance");
 ok(html.indexOf("var DISCOVERY_RENDER={") < html.indexOf("resize(); rebuild();"),"discovery render registry exists before initial terrain build");
+ok(html.indexOf('var SESSION_ID = new URLSearchParams(location.search).get("session");') < html.indexOf("resize(); rebuild();"),"session identity exists before initial rebuild");
+ok(!html.includes("const SESSION_ID = qs.get('session');"),"session identity has no late lexical TDZ declaration");
 has(html,"function buildFogVeil","unexplored masking is one continuous veil");
 has(html,"depthTest:false,depthWrite:false","veil cannot z-fight with terrain tops");
 has(html,"tagDiscoveryObject","props, decals, and lights obey discovery state");

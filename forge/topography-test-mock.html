@@ -1734,6 +1734,10 @@ function addWorld(geo,col,x,y,z,rot,fogCell){ // mesh + optional inverted-hull o
 let F=null;
 /* Phase 2 snapshot authority: while a saved session is open, this exact map
    document — not a regenerated recipe — is the geometry source of truth. */
+/* Session identity is needed by the very first rebuild(). Keep this ahead of
+   all startup render calls: a later const declaration creates a TDZ and aborts
+   the renderer before topo:ready / character sheets can publish. */
+var SESSION_ID = new URLSearchParams(location.search).get("session");
 let SESSION_MAP_AUTHORITY=null;
 let imgHeight=null, imgType=null;   // loaded HTMLImageElements
 
@@ -6035,7 +6039,7 @@ document.dispatchEvent(new CustomEvent("topo:ready"));
 var qs = new URLSearchParams(location.search);
 var SUPA_URL = qs.get("url") || "https://cfthwspwpcfamgbfqzuq.supabase.co";
 var SUPA_KEY = qs.get("key") || "sb_publishable_12KUwzDbVvcar0zjh2KE6g_6IRBfmMJ";
-const SESSION_ID = qs.get('session');
+SESSION_ID = qs.get('session');
 /* Finding 2 (review): the map belongs to the fight once a session exists —
    rebuilding F from LOCAL dungeon knobs would desync the board from the
    session's actual map and poison Start-fight placement. DUNGEON re-forge
@@ -7760,8 +7764,8 @@ renderer.domElement.addEventListener("contextmenu", function(e){ if(ADD_FOE_PLAC
 (function(){
   /* Task 12: ?session= present → the claim screen replaces local join
      toggles (branch at the bottom of this IIFE). Read straight off
-     location.search rather than the module's own `const SESSION_ID` —
-     that's module-scoped and invisible to this classic script. */
+     location.search rather than the module's early `SESSION_ID` —
+     that variable is module-scoped and invisible to this classic script. */
   var SESSION_ID = new URLSearchParams(location.search).get("session");
   var PARTY = [
     { key:"caim",       name:"Caim",             cls:"Monk",                  epi:"Urchin",              hp:24, max:24, ac:16,   init:3, portrait:"img/portraits/caim.png" },
