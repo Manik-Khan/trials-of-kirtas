@@ -6,9 +6,8 @@
 
    MAP DOCUMENT (the shared contract the generator will emit):
      { cols, rows,
-       h:    Number[rows*cols] terrain height in FEET,
-       wall: bool[rows*cols]  full-height opaque sight+move blocker,
-       connectors: Connector[] first-class stairs/ramps authorizing steep edges }
+       h:    Int[rows*cols]   terrain height in FEET (0,5,10,15…),
+       wall: bool[rows*cols]  full-height opaque sight+move blocker }
 
    Everything here is ENFORCE-layer (deterministic, one right answer).
    The ADJUDICATE layer (which OAs trigger, soft/narrative cover, the DM's
@@ -50,28 +49,12 @@ function chebyshev(a, b) { return Math.max(Math.abs(a.c - b.c), Math.abs(a.r - b
    (Climb cost = still 1 square here; real 5e 2×-cost climb is a later refinement.)
    `occupied` is a Set of "c,r" strings for other creatures.               */
 var DIRS = [[1,0],[-1,0],[0,1],[0,-1],[1,1],[1,-1],[-1,1],[-1,-1]];
-function connectorBetween(map,fromC,fromR,toC,toR){
-  var list=map&&map.connectors;if(!Array.isArray(list))return null;
-  for(var i=0;i<list.length;i++){
-    var c=list[i],f=c&&c.from,t=c&&c.to;if(!c||!f||!t||c.state==='closed'||c.state==='broken')continue;
-    if(f.c===fromC&&f.r===fromR&&t.c===toC&&t.r===toR)return c;
-    if(!c.oneWay&&f.c===toC&&f.r===toR&&t.c===fromC&&t.r===fromR)return c;
-  }
-  return null;
-}
-function connectorAllows(token,connector){
-  if(!connector)return false;var req=connector.requires||{};
-  if(req.fly&&!token.fly)return false;if(req.climb&&!token.climb)return false;
-  if(req.swim&&!token.swim)return false;if(req.jump&&!token.jump)return false;
-  return true;
-}
 function stepAllowed(map, token, fromC, fromR, toC, toR) {
   if (!inBounds(map, toC, toR)) return false;
   if (isWall(map, toC, toR)) return false;
   var dh = Math.abs(heightAt(map, toC, toR) - heightAt(map, fromC, fromR));
   if (token.fly || token.climb) return true;      // wings / climb kit ignore the cliff
-  if (dh <= STEP_FT) return true;
-  return connectorAllows(token,connectorBetween(map,fromC,fromR,toC,toR));
+  return dh <= STEP_FT;                            // otherwise a cliff is a hard no
 }
 function movementReach(map, token, occupied, budgetSquares) {
   occupied = occupied || new Set();
@@ -341,7 +324,7 @@ var API={
   SQUARE_FT:SQUARE_FT,STEP_FT:STEP_FT,EYE_FT:EYE_FT,FOOT_FT:FOOT_FT,DIRS:DIRS,
   BODY_LEVELS:BODY_LEVELS,BODY_SAMPLES:BODY_SAMPLES,
   makeMap:makeMap,idx:idx,inBounds:inBounds,heightAt:heightAt,isWall:isWall,occTop:occTop,chebyshev:chebyshev,
-  connectorBetween:connectorBetween,connectorAllows:connectorAllows,stepAllowed:stepAllowed,movementReach:movementReach,pathTo:pathTo,canReachMelee:canReachMelee,range3d:range3d,inRange:inRange,
+  stepAllowed:stepAllowed,movementReach:movementReach,pathTo:pathTo,canReachMelee:canReachMelee,range3d:range3d,inRange:inRange,
   coverShapeAt:coverShapeAt,pointInCoverShape:pointInCoverShape,losVerdict:losVerdict,losRay:losRay,
   lipCorners:lipCorners,targetFacingEdges:targetFacingEdges,lowWallPeeks:lowWallPeeks,firingPoints:firingPoints,coverAudit:coverAudit
 };

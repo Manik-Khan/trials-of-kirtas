@@ -4,7 +4,7 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
 <title>Topography Test — Heightfield Diorama</title>
-<!-- Phase 1.5h: calibrated 5e body cover + per-instance discovery fog -->
+<!-- Phase 2e: bounded tactical elevations + first-class stairs, ramps, and ledges -->
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,600;0,700;1,600&family=Oswald:wght@300;400;500;600&family=EB+Garamond:ital@0;1&display=swap" rel="stylesheet">
@@ -23,9 +23,9 @@
 </script>
 <script src="forge-dungeon.js?v=fb1"></script>
 <script src="map-bridge.js?v=fb1"></script>
-<script src="forge-generator-foundation.js?v=g2s1"></script>
+<script src="forge-generator-foundation.js?v=g2e1"></script>
 <script src="forge-unit-art.js?v=ua2"></script>
-<script src="forge-engine.js?v=fe4"></script>
+<script src="forge-engine.js?v=fe5"></script>
 <script src="forge-protocol.js?v=fb1"></script>
 <script src="forge-replay.js?v=fb6"></script>
 <script src="forge-combat-rules.js?v=fcr1"></script>
@@ -71,8 +71,9 @@
 
    MAP DOCUMENT (the shared contract the generator will emit):
      { cols, rows,
-       h:    Int[rows*cols]   terrain height in FEET (0,5,10,15…),
-       wall: bool[rows*cols]  full-height opaque sight+move blocker }
+       h:    Number[rows*cols] terrain height in FEET,
+       wall: bool[rows*cols]  full-height opaque sight+move blocker,
+       connectors: Connector[] first-class stairs/ramps authorizing steep edges }
 
    Everything here is ENFORCE-layer (deterministic, one right answer).
    The ADJUDICATE layer (which OAs trigger, soft/narrative cover, the DM's
@@ -114,12 +115,28 @@ function chebyshev(a, b) { return Math.max(Math.abs(a.c - b.c), Math.abs(a.r - b
    (Climb cost = still 1 square here; real 5e 2×-cost climb is a later refinement.)
    `occupied` is a Set of "c,r" strings for other creatures.               */
 var DIRS = [[1,0],[-1,0],[0,1],[0,-1],[1,1],[1,-1],[-1,1],[-1,-1]];
+function connectorBetween(map,fromC,fromR,toC,toR){
+  var list=map&&map.connectors;if(!Array.isArray(list))return null;
+  for(var i=0;i<list.length;i++){
+    var c=list[i],f=c&&c.from,t=c&&c.to;if(!c||!f||!t||c.state==='closed'||c.state==='broken')continue;
+    if(f.c===fromC&&f.r===fromR&&t.c===toC&&t.r===toR)return c;
+    if(!c.oneWay&&f.c===toC&&f.r===toR&&t.c===fromC&&t.r===fromR)return c;
+  }
+  return null;
+}
+function connectorAllows(token,connector){
+  if(!connector)return false;var req=connector.requires||{};
+  if(req.fly&&!token.fly)return false;if(req.climb&&!token.climb)return false;
+  if(req.swim&&!token.swim)return false;if(req.jump&&!token.jump)return false;
+  return true;
+}
 function stepAllowed(map, token, fromC, fromR, toC, toR) {
   if (!inBounds(map, toC, toR)) return false;
   if (isWall(map, toC, toR)) return false;
   var dh = Math.abs(heightAt(map, toC, toR) - heightAt(map, fromC, fromR));
   if (token.fly || token.climb) return true;      // wings / climb kit ignore the cliff
-  return dh <= STEP_FT;                            // otherwise a cliff is a hard no
+  if (dh <= STEP_FT) return true;
+  return connectorAllows(token,connectorBetween(map,fromC,fromR,toC,toR));
 }
 function movementReach(map, token, occupied, budgetSquares) {
   occupied = occupied || new Set();
@@ -389,7 +406,7 @@ var API={
   SQUARE_FT:SQUARE_FT,STEP_FT:STEP_FT,EYE_FT:EYE_FT,FOOT_FT:FOOT_FT,DIRS:DIRS,
   BODY_LEVELS:BODY_LEVELS,BODY_SAMPLES:BODY_SAMPLES,
   makeMap:makeMap,idx:idx,inBounds:inBounds,heightAt:heightAt,isWall:isWall,occTop:occTop,chebyshev:chebyshev,
-  stepAllowed:stepAllowed,movementReach:movementReach,pathTo:pathTo,canReachMelee:canReachMelee,range3d:range3d,inRange:inRange,
+  connectorBetween:connectorBetween,connectorAllows:connectorAllows,stepAllowed:stepAllowed,movementReach:movementReach,pathTo:pathTo,canReachMelee:canReachMelee,range3d:range3d,inRange:inRange,
   coverShapeAt:coverShapeAt,pointInCoverShape:pointInCoverShape,losVerdict:losVerdict,losRay:losRay,
   lipCorners:lipCorners,targetFacingEdges:targetFacingEdges,lowWallPeeks:lowWallPeeks,firingPoints:firingPoints,coverAudit:coverAudit
 };
@@ -836,6 +853,7 @@ body.forge-author-preview #partySelect{opacity:0;pointer-events:none}
       <button class="sceneMenuBtn" id="sceneViewerMode" type="button" hidden><span>Presentation</span><b>Staff View</b></button>
       <button class="sceneMenuBtn" id="sceneFlankingRule" type="button" hidden><span>Flanking</span><b>Advantage</b></button>
       <button class="sceneMenuBtn" id="sceneCoverAudit" type="button" hidden><span>Geometry</span><b>Run cover audit</b></button>
+      <button class="sceneMenuBtn" id="sceneVerticalOverlay" type="button" hidden><span>Height</span><b>Show connectors</b></button>
       <button class="sceneMenuBtn" id="sceneProneToggle" type="button" hidden><span>Selected condition</span><b>Toggle Prone</b></button>
       <div class="sceneMenuNote" id="sceneViewerNote">Player View hides DM tools and enemy internals locally. Combat rules are shared with the table.</div>
     </div>
@@ -1889,8 +1907,8 @@ function buildTiersField(seed, params){
     else if(v===WALL){foot[i]=1;type[i]=T_ROCK;}
     else{foot[i]=0;type[i]=T_WATER;}
   }
-  // lowest tier floor → water basin feel
-  for(let i=0;i<height.length;i++) if(foot[i]&&height[i]<=0 && type[i]!==T_ROCK) type[i]=T_WATER;
+  // Phase 2e: floor elevation never implies water. Only the generator's POOL
+  // cells are water; visual basin dressing may not rewrite movement geometry.
   // walls become short ruin columns above ground; scatter trees on floor edges
   D.props.forEach(p=>{ if(p.kind==='pillar'||p.kind==='bossCrystal') props.push({kind:'column',x:p.x,y:p.y,h:height[p.y*W+p.x]}); });
   /* Trees used to REQUIRE a wall neighbour — `if(edge && rand<0.5)`. Measured
@@ -1927,8 +1945,11 @@ function buildTiersField(seed, params){
   for(let i=0;i<W*H;i++) if(type[i]===T_ROCK) occ[i]=WALL_FT;
   document.getElementById('dungeonName').textContent=D.name;
   return {W,H,height,type,foot,props,occ,name:D.name,
+          connectors:(stageMap.connectors||[]).map(c=>JSON.parse(JSON.stringify(c))),
+          ledges:(stageMap.ledges||[]).map(l=>JSON.parse(JSON.stringify(l))),
           spawns:(stageMap.spawns||[]).map(s=>Object.assign({},s)),
           generatorMeta:stageMap.meta&&stageMap.meta.graph?stageMap.meta.graph:(window.ForgeGeneratorFoundation?window.ForgeGeneratorFoundation.graphMetadata(D):null),
+          verticalMeta:stageMap.meta&&stageMap.meta.vertical?JSON.parse(JSON.stringify(stageMap.meta.vertical)):null,
           stageOwnership:stageMap.meta&&stageMap.meta.stageOwnership?JSON.parse(JSON.stringify(stageMap.meta.stageOwnership)):null};
 }
 /*BTF-END*/
@@ -1983,8 +2004,11 @@ function fieldFromSessionSnapshot(envelope){
   SESSION_MAP_AUTHORITY=map;
   const field={W:map.cols,H:map.rows,height:Float32Array.from(map.h,v=>(+v||0)/STEP_FT),type,foot,
     props:(map.props||[]).map(p=>Object.assign({},p)),occ:baseOcc,
+    connectors:(map.connectors||[]).map(c=>JSON.parse(JSON.stringify(c))),
+    ledges:(map.ledges||[]).map(l=>JSON.parse(JSON.stringify(l))),
     spawns:(map.spawns||[]).map(s=>Object.assign({},s)),name:(rf&&rf.name)||(map.meta&&map.meta.name)||'Saved battlefield',
-    generatorMeta:envelope.graph||(map.meta&&map.meta.graph)||null};
+    generatorMeta:envelope.graph||(map.meta&&map.meta.graph)||null,verticalMeta:(map.meta&&map.meta.vertical)||null,
+    stageOwnership:(map.meta&&map.meta.stageOwnership)||null};
   document.getElementById('dungeonName').textContent=field.name;
   return field;
 }
@@ -2244,7 +2268,8 @@ function renderField(){
   // ---- waterfalls: big drops where a water edge meets much-lower water ----
   addWaterfalls();
 
-  // ---- props ----
+  // ---- first-class height connectors + props ----
+  renderVerticalConnectors();
   F.props.forEach(p=>placeProp(p,waterY));
   addSurfaceDecals();
   addMotivatedLights(span);
@@ -2255,6 +2280,7 @@ function renderField(){
   buildStorybookBackdrop(span);
 
   frameField();
+  drawVerticalOverlay();
   if(typeof refreshDiscovery==='function'&&typeof CB!=='undefined'&&CB&&CB.active)refreshDiscovery(true);
 }
 
@@ -2279,6 +2305,21 @@ function addWaterfalls(){const W=F.W,H=F.H;let made=0;
     }
   }
 }
+
+function connectorPoint(p){return new THREE.Vector3(wxc(p.c),Number(p.elevationFt||0)/STEP_FT*STEP+.07,wzc(p.r));}
+function renderRampConnector(c){
+  const a=connectorPoint(c.from),b=connectorPoint(c.to),mid=a.clone().add(b).multiplyScalar(.5),dir=b.clone().sub(a),len=dir.length();
+  const g=new THREE.BoxGeometry(Math.max(.55,Number(c.widthFt||5)/5*.78),.10,len);
+  const m=new THREE.Mesh(g,stoneMat(0xb78f54));m.position.copy(mid);m.quaternion.setFromUnitVectors(new THREE.Vector3(0,0,1),dir.clone().normalize());
+  m.castShadow=true;m.receiveShadow=true;tagDiscoveryObject(m,c.from.c,c.from.r,'visible-only');world.add(m);
+}
+function renderStairConnector(c){
+  const a=connectorPoint(c.from),b=connectorPoint(c.to),steps=Math.max(3,Math.round(Math.abs((c.to.elevationFt||0)-(c.from.elevationFt||0))/2.5)),dx=(b.x-a.x)/steps,dz=(b.z-a.z)/steps;
+  for(let i=0;i<steps;i++){const t=(i+.5)/steps,y=a.y+(b.y-a.y)*(i+1)/steps,depth=Math.max(.18,Math.hypot(dx,dz)*1.08);
+    const g=new THREE.BoxGeometry(Math.max(.55,Number(c.widthFt||5)/5*.78),.12,depth),m=new THREE.Mesh(g,stoneMat(0xb9a27b));
+    m.position.set(a.x+(b.x-a.x)*t,y,a.z+(b.z-a.z)*t);m.rotation.y=Math.atan2(b.x-a.x,b.z-a.z);m.castShadow=true;m.receiveShadow=true;tagDiscoveryObject(m,c.from.c,c.from.r,'visible-only');world.add(m);}
+}
+function renderVerticalConnectors(){(F.connectors||[]).forEach(c=>{if(!c||c.state==='closed'||c.state==='broken')return;c.kind==='ramp'?renderRampConnector(c):renderStairConnector(c);});}
 
 function stoneMat(col){return surfMat({color:col});}
 function placeProp(p,waterY){const X=wxc(p.x),Z=wzc(p.y),topY=p.h*STEP;
@@ -2828,7 +2869,7 @@ function forgeSessionMap(){
   const params=forgeParams();if(!F)return params;const map=combatMapFromF();
   map.props=(F.props||[]).map(p=>Object.assign({},p));
   map.spawns=(typeof CB!=='undefined'&&CB&&Array.isArray(CB.units)&&CB.units.length)?CB.units.map(u=>({c:u.c,r:u.r,side:u.side||null,unit:u.key||u.unit||u.id||null,alive:u.alive!==false})):(F.spawns||[]).map(s=>Object.assign({},s));
-  map.meta=Object.assign({},map.meta||{},{source:'topography-test-mock',name:F.name||null,renderField:renderFieldSnapshot(F),stageOwnership:F.stageOwnership||null});
+  map.meta=Object.assign({},map.meta||{},{source:'topography-test-mock',name:F.name||null,renderField:renderFieldSnapshot(F),vertical:F.verticalMeta||null,stageOwnership:F.stageOwnership||null});
   const envelope=gf.encounterEnvelope(map,params,F.generatorMeta||null);
   envelope.rules={flanking:(typeof FLANK_RULE!=="undefined"?FLANK_RULE:"advantage")};
   return envelope;
@@ -3154,6 +3195,19 @@ var CB = { active:false, over:false, units:[], order:[], ti:0, map:null, seen:nu
            log:[], hist:[], hptr:-1, turnStartPtr:-1, react:null, selKey:null, tgtKey:null };
 var moveGroup = new THREE.Group(); scene.add(moveGroup);
 var sightGroup = new THREE.Group(); scene.add(sightGroup);
+var verticalOverlayGroup = new THREE.Group(); scene.add(verticalOverlayGroup);
+var VERTICAL_OVERLAY=false;
+function verticalEdgeLine(a,b,col){
+  var pa=connectorPoint(a),pb=connectorPoint(b),g=new THREE.BufferGeometry().setFromPoints([pa,pb]);
+  var m=new THREE.LineBasicMaterial({color:col,transparent:true,opacity:.9,depthTest:false,depthWrite:false});
+  var line=new THREE.Line(g,m);line.renderOrder=980;return line;
+}
+function drawVerticalOverlay(){
+  while(verticalOverlayGroup.children.length){var old=verticalOverlayGroup.children.pop();if(old.geometry)old.geometry.dispose();if(old.material)old.material.dispose();}
+  if(!VERTICAL_OVERLAY||!F)return;
+  (F.ledges||[]).forEach(l=>verticalOverlayGroup.add(verticalEdgeLine(l.a,l.b,l.connectorId?0xd8b35b:0xc44f45)));
+  (F.connectors||[]).forEach(c=>verticalOverlayGroup.add(verticalEdgeLine(c.from,c.to,c.kind==='ramp'?0x4fc7c1:0xd8b35b)));
+}
 var fogGroup = new THREE.Group(); scene.add(fogGroup);
 var SHOW_SIGHT = true;
 var CB_ANIM = false;      // a walk tween is running — input waits for it
@@ -3626,6 +3680,7 @@ function combatMapFromF(){
     var saved=gf.restoreMap(SESSION_MAP_AUTHORITY);syncGeometryCreatures(saved);return saved;
   }
   var n=F.W*F.H, m=TG.makeMap(F.W,F.H);m.occ=new Array(n).fill(0);m.coverShape=new Array(n).fill(null);
+  m.connectors=(F.connectors||[]).map(c=>JSON.parse(JSON.stringify(c)));m.ledges=(F.ledges||[]).map(l=>JSON.parse(JSON.stringify(l)));
   var OCC=F.occ||EMPTY_OCC(n);
   for(var i=0;i<n;i++){
     var gap=!F.foot[i];
@@ -3650,7 +3705,7 @@ function syncGeometryCreatures(map){
   });return map;
 }
 function walkable(){ var out=[]; for(var y=0;y<F.H;y++)for(var x=0;x<F.W;x++){ var i=y*F.W+x;
-  if(F.foot[i]&&F.height[i]>0&&(F.type[i]===T_GRASS||F.type[i]===T_STONE||F.type[i]===T_PLAZA)) out.push({x:x,y:y,h:F.height[i]}); } return out; }
+  if(F.foot[i]&&F.height[i]>=0&&(F.type[i]===T_GRASS||F.type[i]===T_STONE||F.type[i]===T_PLAZA)) out.push({x:x,y:y,h:F.height[i]}); } return out; }
 /* ── §5.2 · nobody stands on top of anybody ──────────────────────────────
    The old rule sorted every free cell by distance to a seed and took the first
    n. That is the tightest possible packing: a blob. Both sides did it, around
@@ -3836,6 +3891,7 @@ function restageForHeight(){
   if (typeof placed !== "undefined" && placed && placed.length) renderPlaced();
   if (typeof moveGroup  !== "undefined" && moveGroup)  moveGroup.clear();
   if (typeof sightGroup !== "undefined" && sightGroup) sightGroup.clear();
+  if (typeof drawVerticalOverlay === "function") drawVerticalOverlay();
   if (typeof refreshDiscovery === "function") refreshDiscovery(true);
 }
 function removeToken(u,force){
@@ -5867,6 +5923,8 @@ function refreshSceneMenu(){
   if(vm){vm.hidden=!auth;if(auth){var b=vm.querySelector('b');if(b)b.textContent=tc.staffView(sess)?'Staff View':'Player View';}}
   var fr=document.getElementById('sceneFlankingRule');if(fr){fr.hidden=!auth;var fb=fr.querySelector('b');if(fb)fb.textContent=flankingLabel();}
   var ca=document.getElementById('sceneCoverAudit');if(ca)ca.hidden=!auth;
+  if(!auth&&VERTICAL_OVERLAY){VERTICAL_OVERLAY=false;drawVerticalOverlay();}
+  var vo=document.getElementById('sceneVerticalOverlay');if(vo){vo.hidden=!auth;var vb=vo.querySelector('b');if(vb)vb.textContent=VERTICAL_OVERLAY?'Hide connectors':'Show connectors';}
   var pr=document.getElementById('sceneProneToggle');if(pr){pr.hidden=!auth;var chosen=(typeof CB!=="undefined"&&CB)?unitByKey(CB.selKey):null;var pb=pr.querySelector('b');if(pb)pb.textContent=chosen?(effectFor(chosen,"prone")?'Clear Prone':'Apply Prone'):'Select unit';pr.disabled=!chosen;}
   if(tc)tc.applyBody(sess,typeof active==='function'&&typeof CB!=='undefined'&&CB&&CB.active?active():null);
 }
@@ -5888,6 +5946,7 @@ function runCoverAudit(){
   if(window.addForgeRow)window.addForgeRow(html,{channel:'system'});else clog(html,false);if(sceneModeMenu)sceneModeMenu.hidden=true;
 }
 const sceneCoverAudit=document.getElementById('sceneCoverAudit');if(sceneCoverAudit)sceneCoverAudit.addEventListener('click',runCoverAudit);
+const sceneVerticalOverlay=document.getElementById('sceneVerticalOverlay');if(sceneVerticalOverlay)sceneVerticalOverlay.addEventListener('click',function(){VERTICAL_OVERLAY=!VERTICAL_OVERLAY;drawVerticalOverlay();refreshSceneMenu();if(sceneModeMenu)sceneModeMenu.hidden=true;});
 const sceneProneToggle=document.getElementById('sceneProneToggle');if(sceneProneToggle)sceneProneToggle.addEventListener('click',function(){var sess=window.__forgeSession,u=(typeof CB!=="undefined"&&CB)?unitByKey(CB.selKey):null;if(!u)return;var old=effectFor(u,"prone"),op=old?effectApi().remove(old.id,"DM cleared Prone",u.unit,old):window.ForgeCombatRules.addCondition({source:"__overseer",target:u.unit,nonce:Date.now()});var act={label:old?"Clear Prone":"Apply Prone",kind:"condition-edit",free:true};if(sess&&sess.me.overseer)netUseAbility(u,act,[u.unit],[op],{context:{kind:"condition-edit",condition:"prone"}});else if(!sess){localEffectEvent("ability_used",u.unit,{ability:act.label,targets:[u.unit],effects:[op],slot:"free"});refreshEffectState(null,true);renderHud();}if(sceneModeMenu)sceneModeMenu.hidden=true;});
 document.addEventListener('click',function(e){var w=document.getElementById('sceneModeMenuWrap');if(sceneModeMenu&&w&&!w.contains(e.target)){sceneModeMenu.hidden=true;if(sceneModeToggle)sceneModeToggle.setAttribute('aria-expanded','false');}});
 function initBadge(u){ return u.badge||(u.side==="pc"?(ROSTER_INIT[u.key]||u.name[0]):"g"); }

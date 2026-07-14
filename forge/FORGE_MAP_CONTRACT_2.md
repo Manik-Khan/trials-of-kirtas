@@ -207,6 +207,25 @@ A connector explains how two otherwise distinct walk surfaces relate.
 
 A bridge is not merely a decorative prop. It owns a walk plane, endpoints, width, clearance, rails/cover where applicable, and the terrain or hazard beneath it.
 
+### 3.7 Ledge
+
+A ledge records an abrupt vertical boundary between adjacent walk surfaces. It is not a wall and does not itself invent a traversal.
+
+```js
+{
+  id: String,
+  a: { c: Number, r: Number, elevationFt: Number },
+  b: { c: Number, r: Number, elevationFt: Number },
+  high: { c: Number, r: Number, elevationFt: Number },
+  low: { c: Number, r: Number, elevationFt: Number },
+  dropFt: Number,
+  connectorId: String | null,
+  source: "generated" | "imported" | "authored" | "height"
+}
+```
+
+Phase 2e introduces `ledges[]` beside `connectors[]`. A ledge with no connector is a cliff for ordinary movement. A linked stair/ramp authorizes that exact edge. A later edge-blocker migration may enrich drops with rails, falling, one-way descent, and jump/climb rulings without changing floor elevations.
+
 ---
 
 ## 4. Geometry responsibilities

@@ -2,14 +2,15 @@
    Battle Forge ENGINE. Turns forge-dungeon into one deterministic,
    validated combat-map pipeline.
 
-   Phase 2d adds true stage ownership. New parameter records run the current
-   legacy room-and-corridor grammar through five isolated streams:
+   Phase 2e keeps the five isolated streams and gives the height stage a
+   bounded tactical product: floor elevations, first-class stairs/ramps, and
+   explicit ledges. Ordinary creatures may cross no more than five vertical
+   feet unless an open connector authorizes the edge.
 
-     layout → height → semantics → decor → foes
+     layout → height + connectors → semantics → decor → foes
 
-   A retry advances only the stage that failed. Version-1 parameter records
-   keep the old monolithic profile so snapshot-less legacy sessions remain
-   reproducible. Snapshots remain authoritative on load.
+   Version-1 parameter records keep the old monolithic profile so snapshot-less
+   legacy sessions remain reproducible. Snapshots remain authoritative on load.
 
    Depends on forge-dungeon.js, map-bridge.js, and
    forge-generator-foundation.js. Dual browser/Node export.               */
@@ -68,13 +69,51 @@
     generatorProfile: "stage-owned-legacy"
   };
 
+  var MAX_ELEVATION_FT = 15;
+  var MAX_UNCONNECTED_STEP_FT = 5;
+  var MAX_CONNECTOR_RISE_FT = 10;
+  var CARDINAL = [[1,0],[-1,0],[0,1],[0,-1]];
+
+  function connectorBetween(map, fromC, fromR, toC, toR) {
+    var list = map && map.connectors;
+    if (!Array.isArray(list)) return null;
+    for (var i = 0; i < list.length; i++) {
+      var c = list[i];
+      if (!c || c.state === "closed" || c.state === "broken") continue;
+      var f = c.from || {}, t = c.to || {};
+      if (f.c === fromC && f.r === fromR && t.c === toC && t.r === toR) return c;
+      if (!c.oneWay && f.c === toC && f.r === toR && t.c === fromC && t.r === fromR) return c;
+    }
+    return null;
+  }
+
+  function ordinaryStepAllowed(map, fromC, fromR, toC, toR) {
+    if (toC < 0 || toR < 0 || toC >= map.cols || toR >= map.rows) return false;
+    if (map.wall[idx(map.cols, toC, toR)]) return false;
+    var dh = Math.abs(Number(map.h[idx(map.cols, toC, toR)] || 0) - Number(map.h[idx(map.cols, fromC, fromR)] || 0));
+    return dh <= MAX_UNCONNECTED_STEP_FT + 1e-9 || !!connectorBetween(map, fromC, fromR, toC, toR);
+  }
+
   function bfsReach(map, start) {
     var seen = new Set(), q = [start]; seen.add(key(start.c, start.r));
-    var nb = [[1,0],[-1,0],[0,1],[0,-1]];
     while (q.length) {
       var n = q.shift();
-      for (var i = 0; i < 4; i++) {
-        var c = n.c + nb[i][0], r = n.r + nb[i][1], k = key(c, r);
+      for (var i = 0; i < CARDINAL.length; i++) {
+        var c = n.c + CARDINAL[i][0], r = n.r + CARDINAL[i][1], k = key(c, r);
+        if (c < 0 || r < 0 || c >= map.cols || r >= map.rows) continue;
+        if (seen.has(k) || !ordinaryStepAllowed(map, n.c, n.r, c, r)) continue;
+        seen.add(k); q.push({ c: c, r: r });
+      }
+    }
+    return seen;
+  }
+
+  function bfsReachLegacy(map, start) {
+    var seen = new Set(), q = [start]; seen.add(key(start.c, start.r));
+    while (q.length) {
+      var n = q.shift();
+      for (var i = 0; i < CARDINAL.length; i++) {
+        var c = n.c + CARDINAL[i][0], r = n.r + CARDINAL[i][1], k = key(c, r);
         if (c < 0 || r < 0 || c >= map.cols || r >= map.rows) continue;
         if (seen.has(k) || map.wall[idx(map.cols, c, r)]) continue;
         seen.add(k); q.push({ c: c, r: r });
@@ -83,16 +122,56 @@
     return seen;
   }
 
+  function validateVerticalRecords(map) {
+    var n = map.cols * map.rows, i;
+    if (!Array.isArray(map.connectors) || !Array.isArray(map.ledges)) return false;
+    for (i = 0; i < n; i++) {
+      var h = Number(map.h[i]);
+      if (!Number.isFinite(h) || h < -1e-9 || h > MAX_ELEVATION_FT + 1e-9) return false;
+    }
+    var ids = {};
+    for (i = 0; i < map.connectors.length; i++) {
+      var c = map.connectors[i], f = c && c.from, t = c && c.to;
+      if (!c || !f || !t || ids[c.id] || (c.kind !== "stairs" && c.kind !== "ramp")) return false;
+      ids[c.id] = true;
+      if (Math.abs(f.c - t.c) + Math.abs(f.r - t.r) !== 1) return false;
+      if (f.c < 0 || f.r < 0 || t.c < 0 || t.r < 0 || f.c >= map.cols || t.c >= map.cols || f.r >= map.rows || t.r >= map.rows) return false;
+      if (map.wall[idx(map.cols, f.c, f.r)] || map.wall[idx(map.cols, t.c, t.r)]) return false;
+      if (Math.abs(Number(map.h[idx(map.cols, f.c, f.r)]) - Number(f.elevationFt)) > 1e-9) return false;
+      if (Math.abs(Number(map.h[idx(map.cols, t.c, t.r)]) - Number(t.elevationFt)) > 1e-9) return false;
+      var rise = Math.abs(Number(f.elevationFt) - Number(t.elevationFt));
+      if (!(rise > 0 && rise <= MAX_CONNECTOR_RISE_FT + 1e-9)) return false;
+    }
+    for (i = 0; i < map.ledges.length; i++) {
+      var l = map.ledges[i];
+      if (!l || !l.a || !l.b || !(Number(l.dropFt) > MAX_UNCONNECTED_STEP_FT)) return false;
+      if (Math.abs(l.a.c - l.b.c) + Math.abs(l.a.r - l.b.r) !== 1) return false;
+      if (l.connectorId != null && !ids[l.connectorId]) return false;
+    }
+    for (var r = 0; r < map.rows; r++) for (var col = 0; col < map.cols; col++) {
+      var here = idx(map.cols, col, r); if (map.wall[here]) continue;
+      for (var d = 0; d < 2; d++) {
+        var nc = col + (d === 0 ? 1 : 0), nr = r + (d === 1 ? 1 : 0);
+        if (nc >= map.cols || nr >= map.rows) continue;
+        var there = idx(map.cols, nc, nr); if (map.wall[there]) continue;
+        if (Math.abs(Number(map.h[here]) - Number(map.h[there])) > MAX_CONNECTOR_RISE_FT + 1e-9) return false;
+      }
+    }
+    return true;
+  }
+
   function verify(map) {
     var validation = MB.validate(map);
     if (!validation || !validation.ok) return false;
+    var verticalContract = !!(map.meta && map.meta.vertical);
+    if (verticalContract && !validateVerticalRecords(map)) return false;
     var pcs = (map.spawns || []).filter(function (s) { return s.side === "pc"; });
     var foes = (map.spawns || []).filter(function (s) { return s.side === "foe"; });
     if (!pcs.length || !foes.length) return false;
     if (map.spawns.some(function (s) {
       return s.c < 0 || s.r < 0 || s.c >= map.cols || s.r >= map.rows || map.wall[idx(map.cols, s.c, s.r)];
     })) return false;
-    var reach = bfsReach(map, pcs[0]);
+    var reach = verticalContract ? bfsReach(map, pcs[0]) : bfsReachLegacy(map, pcs[0]);
     return map.spawns.every(function (s) { return reach.has(key(s.c, s.r)); });
   }
 
@@ -183,6 +262,7 @@
         .forEach(function (s) { foes.push({ c: s.c, r: s.r, side: "foe" }); });
     }
     map.spawns = pcs.concat(foes);
+    map.connectors = []; map.ledges = [];
     map.meta = Object.assign(map.meta || {}, {
       source: "forge-engine", seed: d.seed, biome: p.themeKey, name: d.name,
       heightMode: p.heightMode, party: pcs.length, foes: foes.length
@@ -383,16 +463,36 @@
     return h;
   }
 
-  function heightField(d, p, heightSeed, facts) {
+  function clampTier(value) { return Math.max(1, Math.min(Math.round(MAX_ELEVATION_FT / 5), Math.round(value))); }
+
+  function boundedCellTiers(d, p, heightSeed, facts) {
     var n = d.W * d.H, out = new Float32Array(n);
-    if (p.heightMode === "flat") return out;
+    if (p.heightMode === "flat") {
+      for (var flatI = 0; flatI < n; flatI++) out[flatI] = d.grid[flatI] === MB.CELL.POOL ? 0 : 5;
+      return { tiers: out, orientation: "flat" };
+    }
     facts = facts || graphFacts(d);
     var rng = mulberry32((heightSeed ^ 0x7f4a7c15) >>> 0), reverse = rng() < 0.5;
-    var maxD = Math.max(1, facts.maxDepth || 1), roomTier = {};
-    d.rooms.forEach(function (r, index) {
+    var maxD = Math.max(1, facts.maxDepth || 1), maxTier = Math.round(MAX_ELEVATION_FT / 5), roomTier = {};
+    d.rooms.forEach(function (room, index) {
       var ratio = Math.max(0, Number(facts.depth[index] || 0)) / maxD;
-      roomTier[r.id] = Math.round((reverse ? ratio : 1 - ratio) * 5);
+      var base = Math.round((reverse ? ratio : 1 - ratio) * maxTier);
+      var jitter = rng() < 0.28 ? (rng() < 0.5 ? -1 : 1) : 0;
+      roomTier[room.id] = clampTier(base + jitter);
     });
+    /* Graph neighbours may differ by at most two tiers. This keeps every abrupt
+       transition within a single generated stair/ramp connector's 10-ft rise. */
+    for (var pass = 0; pass < 8; pass++) {
+      var changed = false;
+      (d.edges || []).forEach(function (edge) {
+        var a = d.rooms[edge.a], b = d.rooms[edge.b]; if (!a || !b) return;
+        var ta = roomTier[a.id], tb = roomTier[b.id], diff = ta - tb;
+        if (Math.abs(diff) <= 2) return;
+        if (diff > 0) roomTier[a.id] = tb + 2; else roomTier[b.id] = ta + 2;
+        changed = true;
+      });
+      if (!changed) break;
+    }
     var F = MB.CELL.FLOOR, P = MB.CELL.POOL, h = new Float32Array(n).fill(-1);
     for (var i = 0; i < n; i++) {
       if (d.grid[i] === F || d.grid[i] === P) {
@@ -401,9 +501,102 @@
       }
     }
     relaxHeights(d, h);
-    for (var m = 0; m < n; m++) out[m] = h[m] * p.verticality;
-    out._orientation = reverse ? "boss-high" : "entrance-high";
-    return out;
+    /* Corridor relaxation can still leave a local three-tier seam. Clamp only
+       the offending cell toward its neighbour; room interiors otherwise stay flat. */
+    for (var smooth = 0; smooth < 12; smooth++) {
+      var moved = false;
+      for (var r = 0; r < d.H; r++) for (var c = 0; c < d.W; c++) {
+        var k = idx(d.W, c, r);
+        if (d.grid[k] === MB.CELL.WALL || d.grid[k] === MB.CELL.VOID) continue;
+        for (var e = 0; e < 2; e++) {
+          var nc = c + (e === 0 ? 1 : 0), nr = r + (e === 1 ? 1 : 0);
+          if (nc >= d.W || nr >= d.H) continue;
+          var j = idx(d.W, nc, nr);
+          if (d.grid[j] === MB.CELL.WALL || d.grid[j] === MB.CELL.VOID) continue;
+          var diff = h[k] - h[j];
+          if (Math.abs(diff) <= 2) continue;
+          if (diff > 0) h[k] = h[j] + 2; else h[j] = h[k] + 2;
+          moved = true;
+        }
+      }
+      if (!moved) break;
+    }
+    for (var m = 0; m < n; m++) out[m] = d.grid[m] === MB.CELL.POOL ? 0 : clampTier(h[m]) * 5;
+    return { tiers: out, orientation: reverse ? "boss-high" : "entrance-high" };
+  }
+
+  function edgeHash(seed, a, b) {
+    var ac = Math.min(a.c, b.c), ar = Math.min(a.r, b.r), bc = Math.max(a.c, b.c), br = Math.max(a.r, b.r);
+    return GF && typeof GF.hash32 === "function" ? GF.hash32(seed + ":" + ac + "," + ar + ":" + bc + "," + br) : ((seed + ac * 73856093 + ar * 19349663 + bc * 83492791 + br) >>> 0);
+  }
+
+  function verticalRecords(map, heightSeed) {
+    var edges = [], openIndex = {}, open = [], i;
+    for (var r = 0; r < map.rows; r++) for (var c = 0; c < map.cols; c++) {
+      i = idx(map.cols, c, r); if (map.wall[i]) continue; openIndex[key(c, r)] = open.length; open.push({ c: c, r: r });
+    }
+    for (var y = 0; y < map.rows; y++) for (var x = 0; x < map.cols; x++) {
+      var ai = idx(map.cols, x, y); if (map.wall[ai]) continue;
+      [[1,0],[0,1]].forEach(function (dir) {
+        var nx = x + dir[0], ny = y + dir[1]; if (nx >= map.cols || ny >= map.rows) return;
+        var bi = idx(map.cols, nx, ny); if (map.wall[bi]) return;
+        var a = { c: x, r: y, elevationFt: Number(map.h[ai]) }, b = { c: nx, r: ny, elevationFt: Number(map.h[bi]) };
+        var delta = Math.abs(a.elevationFt - b.elevationFt);
+        edges.push({ a: a, b: b, deltaFt: delta, hash: edgeHash(heightSeed, a, b) });
+      });
+    }
+    var parent = open.map(function (_, index) { return index; });
+    function find(a) { while (parent[a] !== a) { parent[a] = parent[parent[a]]; a = parent[a]; } return a; }
+    function join(a, b) { a = find(a); b = find(b); if (a === b) return false; parent[b] = a; return true; }
+    edges.forEach(function (edge) {
+      if (edge.deltaFt <= MAX_UNCONNECTED_STEP_FT) join(openIndex[key(edge.a.c, edge.a.r)], openIndex[key(edge.b.c, edge.b.r)]);
+    });
+    var steep = edges.filter(function (edge) { return edge.deltaFt > MAX_UNCONNECTED_STEP_FT; }).sort(function (a, b) { return a.hash - b.hash; });
+    var selected = [];
+    steep.forEach(function (edge) {
+      if (edge.deltaFt > MAX_CONNECTOR_RISE_FT + 1e-9) return;
+      if (join(openIndex[key(edge.a.c, edge.a.r)], openIndex[key(edge.b.c, edge.b.r)])) selected.push(edge);
+    });
+    var gentle = edges.filter(function (edge) { return edge.deltaFt === MAX_UNCONNECTED_STEP_FT; }).sort(function (a, b) { return a.hash - b.hash; });
+    /* A map with smooth 5-ft terraces still records a small number of authored
+       transitions so the renderer/importer share real stairs and ramps rather
+       than treating every rise as anonymous terrain. */
+    var gentleCap = Math.min(4, Math.max(0, Math.ceil(open.length / 900)));
+    for (i = 0; i < gentle.length && i < gentleCap; i++) selected.push(gentle[i]);
+    var selectedKey = {}, connectors = [];
+    selected.sort(function (a, b) { return a.hash - b.hash; }).forEach(function (edge, index) {
+      var low = edge.a.elevationFt <= edge.b.elevationFt ? edge.a : edge.b;
+      var high = low === edge.a ? edge.b : edge.a;
+      var id = "height-connector-" + index, kind = index % 2 ? "ramp" : "stairs";
+      selectedKey[key(edge.a.c, edge.a.r) + ">" + key(edge.b.c, edge.b.r)] = id;
+      selectedKey[key(edge.b.c, edge.b.r) + ">" + key(edge.a.c, edge.a.r)] = id;
+      connectors.push({ id: id, kind: kind, from: copyObject(low), to: copyObject(high), path: [copyObject(low), copyObject(high)],
+        widthFt: 5, clearanceFt: null, movementCostFt: 5, requires: { climb: false, jump: false, swim: false, fly: false },
+        oneWay: false, blocksWhenClosed: false, state: "open", deltaFt: edge.deltaFt, source: "height", render: { generated: true } });
+    });
+    var ledges = steep.map(function (edge, index) {
+      var high = edge.a.elevationFt >= edge.b.elevationFt ? edge.a : edge.b, low = high === edge.a ? edge.b : edge.a;
+      return { id: "height-ledge-" + index, a: copyObject(edge.a), b: copyObject(edge.b), high: copyObject(high), low: copyObject(low),
+        dropFt: edge.deltaFt, connectorId: selectedKey[key(edge.a.c, edge.a.r) + ">" + key(edge.b.c, edge.b.r)] || null, source: "height" };
+    });
+    return { connectors: connectors, ledges: ledges, edges: edges };
+  }
+
+  function heightField(d, p, heightSeed, facts) {
+    var bounded = boundedCellTiers(d, p, heightSeed, facts);
+    return { h: bounded.tiers, orientation: bounded.orientation, connectors: [], ledges: [] };
+  }
+
+  function wallSupportHeight(map, heights, cellIndex) {
+    var c = cellIndex % map.cols, r = Math.floor(cellIndex / map.cols), best = null;
+    for (var i = 0; i < CARDINAL.length; i++) {
+      var nc = c + CARDINAL[i][0], nr = r + CARDINAL[i][1];
+      if (nc < 0 || nr < 0 || nc >= map.cols || nr >= map.rows) continue;
+      var j = idx(map.cols, nc, nr); if (map.wall[j]) continue;
+      var h = Number(heights[j]); if (!Number.isFinite(h)) continue;
+      if (best == null || h > best) best = h;
+    }
+    return best == null ? 0 : best;
   }
 
   function openCells(d, map, roomFilter) {
@@ -463,7 +656,7 @@
       layout: fp({ W: d.W, H: d.H, grid: Array.from(d.grid || []), rooms: d.rooms.map(function (r) {
         return { id: r.id, cx: r.cx, cy: r.cy, w: r.w, h: r.h, shape: r.shape || null };
       }), edges: (d.edges || []).map(function (e) { return { a: e.a, b: e.b, isLoop: !!e.isLoop }; }) }),
-      height: fp(Array.from(map.h || [])),
+      height: fp({ h: Array.from(map.h || []), connectors: map.connectors || [], ledges: map.ledges || [] }),
       semantics: fp({ entrance: d.entrance, boss: d.boss, maxDepth: d.maxDepth,
         rooms: d.rooms.map(function (r) { return { id: r.id, type: r.type, depth: r.depth, difficulty: r.difficulty, lake: !!r.lake, grave: !!r.grave, semanticMark: r.semanticMark || null }; }),
         critical: (d.edges || []).map(function (e) { return !!e.isCritical; }) }),
@@ -488,11 +681,14 @@
       /* Structural graph facts are topology-derived, not a random stage. They
          let height run before semantic labels without borrowing semantics RNG. */
       var facts = graphFacts(d);
-      var heights = heightField(d, p, seeds.height, facts);
+      var heightPlan = heightField(d, p, seeds.height, facts);
       applySemantics(d, seeds.semantics, facts);
       applyDecor(d, candidateProps, candidateTorches, seeds.decor, p.decorDensity);
-      var map = MB.dungeonToMap(d, { poolBlocks: p.poolBlocks });
-      for (var i = 0; i < heights.length; i++) map.h[i] = map.wall[i] ? 0 : heights[i];
+      var map = MB.dungeonToMap(d, { poolBlocks: !!(p.poolBlocks || p.waterBlocks) });
+      for (var i = 0; i < heightPlan.h.length; i++) map.h[i] = map.wall[i] ? wallSupportHeight(map, heightPlan.h, i) : heightPlan.h[i];
+      var vertical = verticalRecords(map, seeds.height);
+      map.connectors = vertical.connectors; map.ledges = vertical.ledges;
+      map.meta = Object.assign(map.meta || {}, { vertical: { version: 1, maxElevationFt: MAX_ELEVATION_FT, orientation: heightPlan.orientation, connectors: map.connectors.length, ledges: map.ledges.length } });
 
       for (var foeAttempt = 0; foeAttempt < maxFoes; foeAttempt++) {
         placeSpawns(map, d, p, stageAttemptSeed(seeds.foes, "foes", foeAttempt));
@@ -503,6 +699,7 @@
           source: "forge-engine", seed: layoutSeed, requestedSeed: p.seed, biome: theme, name: d.name,
           heightMode: p.heightMode, party: p.party, foes: p.foes,
           attempts: layoutAttempt + 1,
+          vertical: { version: 1, maxElevationFt: MAX_ELEVATION_FT, orientation: heightPlan.orientation, connectors: map.connectors.length, ledges: map.ledges.length },
           stageOwnership: { version: 1, profile: "stage-owned-legacy", seeds: copyObject(seeds), attempts: attempts, fingerprints: fingerprints }
         });
         var effective = Object.assign({}, p, { themeKey: theme, generatorProfile: "stage-owned-legacy" });
@@ -548,6 +745,12 @@
       applySemantics: applySemantics,
       applyDecor: applyDecor,
       heightField: heightField,
+      boundedCellTiers: boundedCellTiers,
+      verticalRecords: verticalRecords,
+      validateVerticalRecords: validateVerticalRecords,
+      connectorBetween: connectorBetween,
+      ordinaryStepAllowed: ordinaryStepAllowed,
+      wallSupportHeight: wallSupportHeight,
       placeSpawns: placeSpawns,
       stageFingerprints: stageFingerprints,
       verify: verify,

@@ -16,7 +16,7 @@
 })(typeof self !== "undefined" ? self : this, function () {
   "use strict";
 
-  var GENERATOR_VERSION = "2.0.0-stages.1";
+  var GENERATOR_VERSION = "2.0.0-elevations.1";
   var PARAMETER_SCHEMA = "forge-map-parameters";
   var PARAMETER_VERSION = 2;
   var SUPPORTED_PARAMETER_VERSIONS = Object.freeze([1, 2]);
@@ -220,6 +220,69 @@
     return out;
   }
 
+  var CONNECTOR_KINDS = Object.freeze(["stairs", "ramp", "ladder", "bridge", "door", "tunnel", "ford", "jump", "climb"]);
+
+  function normalizeMapPoint(point, cols, rows, label) {
+    point = point || {};
+    var out = clonePlain(point) || {};
+    out.c = numberOr(point.c, NaN);
+    out.r = numberOr(point.r, NaN);
+    out.elevationFt = numberOr(point.elevationFt, NaN);
+    if (!Number.isInteger(out.c) || !Number.isInteger(out.r) || !Number.isFinite(out.elevationFt)) {
+      throw new Error("forge-generator-foundation: " + label + " requires integer c/r and finite elevationFt");
+    }
+    if (out.c < 0 || out.r < 0 || out.c >= cols || out.r >= rows) {
+      throw new Error("forge-generator-foundation: " + label + " " + out.c + "," + out.r + " is outside " + cols + "x" + rows);
+    }
+    return out;
+  }
+
+  function normalizeConnector(connector, index, cols, rows) {
+    connector = connector || {};
+    var out = clonePlain(connector) || {};
+    out.id = connector.id == null || connector.id === "" ? "connector-" + index : String(connector.id);
+    out.kind = connector.kind == null ? "stairs" : String(connector.kind);
+    if (CONNECTOR_KINDS.indexOf(out.kind) < 0) {
+      throw new Error("forge-generator-foundation: connector " + out.id + " has unknown kind \"" + out.kind + "\"");
+    }
+    out.from = normalizeMapPoint(connector.from, cols, rows, "connector " + out.id + " from");
+    out.to = normalizeMapPoint(connector.to, cols, rows, "connector " + out.id + " to");
+    var path = connector.path == null ? [out.from, out.to] : connector.path;
+    if (!Array.isArray(path) || path.length < 2) {
+      throw new Error("forge-generator-foundation: connector " + out.id + " path requires at least two points");
+    }
+    out.path = path.map(function (point, pointIndex) {
+      return normalizeMapPoint(point, cols, rows, "connector " + out.id + " path[" + pointIndex + "]");
+    });
+    out.widthFt = clampNumber(connector.widthFt, 5, 0.5, 100);
+    out.clearanceFt = connector.clearanceFt == null ? null : clampNumber(connector.clearanceFt, 0, 0, 1000);
+    out.movementCostFt = connector.movementCostFt == null ? null : clampNumber(connector.movementCostFt, 0, 0, 1000);
+    var req = connector.requires || {};
+    out.requires = { climb: !!req.climb, jump: !!req.jump, swim: !!req.swim, fly: !!req.fly };
+    out.oneWay = !!connector.oneWay;
+    out.blocksWhenClosed = !!connector.blocksWhenClosed;
+    out.state = connector.state == null ? "open" : String(connector.state);
+    if (["open", "closed", "broken"].indexOf(out.state) < 0) {
+      throw new Error("forge-generator-foundation: connector " + out.id + " has invalid state \"" + out.state + "\"");
+    }
+    return out;
+  }
+
+  function normalizeLedge(ledge, index, cols, rows) {
+    ledge = ledge || {};
+    var out = clonePlain(ledge) || {};
+    out.id = ledge.id == null || ledge.id === "" ? "ledge-" + index : String(ledge.id);
+    out.a = normalizeMapPoint(ledge.a, cols, rows, "ledge " + out.id + " a");
+    out.b = normalizeMapPoint(ledge.b, cols, rows, "ledge " + out.id + " b");
+    out.dropFt = clampNumber(ledge.dropFt, Math.abs(out.a.elevationFt - out.b.elevationFt), 0, 1000);
+    if (!(out.dropFt > 0)) throw new Error("forge-generator-foundation: ledge " + out.id + " requires a positive dropFt");
+    out.high = normalizeMapPoint(ledge.high || (out.a.elevationFt >= out.b.elevationFt ? out.a : out.b), cols, rows, "ledge " + out.id + " high");
+    out.low = normalizeMapPoint(ledge.low || (out.a.elevationFt < out.b.elevationFt ? out.a : out.b), cols, rows, "ledge " + out.id + " low");
+    out.connectorId = ledge.connectorId == null ? null : String(ledge.connectorId);
+    out.source = ledge.source == null ? "height" : String(ledge.source);
+    return out;
+  }
+
   function snapshotMap(map) {
     if (!map || typeof map !== "object") {
       throw new Error("forge-generator-foundation: snapshotMap requires a map object");
@@ -259,7 +322,25 @@
     if (map.props != null && !Array.isArray(map.props)) {
       throw new Error("forge-generator-foundation: props must be an array");
     }
+    if (map.connectors != null && !Array.isArray(map.connectors)) {
+      throw new Error("forge-generator-foundation: connectors must be an array");
+    }
+    if (map.ledges != null && !Array.isArray(map.ledges)) {
+      throw new Error("forge-generator-foundation: ledges must be an array");
+    }
     var cover = map.coverShape == null ? new Array(n).fill(null) : cells(map.coverShape, null, "coverShape");
+    var connectors = (map.connectors || []).map(function (connector, index) { return normalizeConnector(connector, index, cols, rows); });
+    var connectorIds = {};
+    connectors.forEach(function (connector) {
+      if (connectorIds[connector.id]) throw new Error("forge-generator-foundation: duplicate connector id \"" + connector.id + "\"");
+      connectorIds[connector.id] = true;
+    });
+    var ledges = (map.ledges || []).map(function (ledge, index) { return normalizeLedge(ledge, index, cols, rows); });
+    ledges.forEach(function (ledge) {
+      if (ledge.connectorId != null && !connectorIds[ledge.connectorId]) {
+        throw new Error("forge-generator-foundation: ledge " + ledge.id + " references unknown connector \"" + ledge.connectorId + "\"");
+      }
+    });
 
     return {
       cols: cols,
@@ -268,6 +349,8 @@
       wall: cells(map.wall, false, "wall").map(Boolean),
       occ: occCells(map.occ),
       coverShape: cover.map(function (shape) { return shape == null ? null : clonePlain(shape); }),
+      connectors: connectors,
+      ledges: ledges,
       spawns: (map.spawns || []).map(function (spawn) { return normalizeSpawn(spawn, cols, rows); }),
       props: clonePlain(map.props || []),
       meta: clonePlain(map.meta || {}, { stripKeys: ["mapSnapshot"] })
@@ -604,6 +687,7 @@
     STAGES: STAGES,
     ARCHETYPES: ARCHETYPES,
     ARCHETYPE_DEFINITIONS: ARCHETYPE_DEFINITIONS,
+    CONNECTOR_KINDS: CONNECTOR_KINDS,
     hash32: hash32,
     deriveSeed: deriveSeed,
     stageSeeds: stageSeeds,
@@ -623,6 +707,6 @@
     normalizeParams: normalizeParams,
     encounterEnvelope: encounterEnvelope,
     attachMeta: attachMeta,
-    _internals: { stableStringify: stableStringify, clonePlain: clonePlain }
+    _internals: { stableStringify: stableStringify, clonePlain: clonePlain, normalizeConnector: normalizeConnector, normalizeLedge: normalizeLedge }
   };
 });
