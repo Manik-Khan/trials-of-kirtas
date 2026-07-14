@@ -17,6 +17,7 @@ has(html,"const PROP_COVER_SHAPE","production map assigns prop footprints");
 has(html,"m.coverShape=new Array(n).fill(null)","combat map carries footprint descriptors");
 has(html,"syncGeometryCreatures(m)","combat map carries live creature silhouettes");
 has(html,"function registerDiscoveryInstanced","terrain visibility is per instance");
+ok(html.indexOf("var DISCOVERY_RENDER={") < html.indexOf("resize(); rebuild();"),"discovery render registry exists before initial terrain build");
 has(html,"function buildFogVeil","unexplored masking is one continuous veil");
 has(html,"depthTest:false,depthWrite:false","veil cannot z-fight with terrain tops");
 has(html,"tagDiscoveryObject","props, decals, and lights obey discovery state");

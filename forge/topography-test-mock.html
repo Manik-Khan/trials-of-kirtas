@@ -1718,6 +1718,10 @@ const toonGrad=(()=>{const {c,x}=cv(3,1);['#737373','#b9b9b9','#ffffff'].forEach
 function surfMat(opts){ return TOON ? new THREE.MeshToonMaterial(Object.assign({gradientMap:toonGrad},opts))
                                      : new THREE.MeshLambertMaterial(opts); }
 const OUTLINE_MAT=new THREE.MeshBasicMaterial({color:0x1a140e,side:THREE.BackSide,toneMapped:false});
+/* Phase 1.5h.1 hotfix: renderField() runs during initial module boot, before
+   the later discovery helper block is reached. The registry must already exist
+   when terrain/prop construction calls tagDiscoveryObject(). */
+var DISCOVERY_RENDER={instanced:[],objects:[],veil:null,veilTexture:null};
 function addWorld(geo,col,x,y,z,rot,fogCell){ // mesh + optional inverted-hull outline shell
   const m=new THREE.Mesh(geo,stoneMat(col)); m.position.set(x,y,z);
   if(rot){if(rot.x)m.rotation.x=rot.x; if(rot.y)m.rotation.y=rot.y;} world.add(m);
@@ -3026,7 +3030,6 @@ var READYING = false;     // "Ready" armed: the next attack picked is held, not 
    account authority. Phase 1.5h replaces overlapping cell volumes with per-instance terrain state plus one continuous unexplored veil. Unseen room heights and props no longer sculpt the fog itself. */
 var DISCOVERY={mapRef:null,mapSerial:0,cache:new Map(),visible:null,explored:null,states:null,
   ready:false,currentSig:'',historySig:'',fogSig:'',localTrail:[]};
-var DISCOVERY_RENDER={instanced:[],objects:[],veil:null,veilTexture:null};
 function resetDiscoveryRenderRegistry(){
   if(!DISCOVERY_RENDER)return;DISCOVERY_RENDER.instanced=[];DISCOVERY_RENDER.objects=[];
   if(DISCOVERY_RENDER.veil){fogGroup.remove(DISCOVERY_RENDER.veil);if(DISCOVERY_RENDER.veil.geometry)DISCOVERY_RENDER.veil.geometry.dispose();if(DISCOVERY_RENDER.veil.material)DISCOVERY_RENDER.veil.material.dispose();}
