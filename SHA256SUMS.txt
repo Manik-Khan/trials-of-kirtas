@@ -1,8 +1,12 @@
 18c3bc443609a121a9a133f785150a978421dc434f3c90dfa82181efade40acc  ./CONTEXT_Forge-update-2026-07-14a.1.md
+923eef8d96987efd4fe81f2b5fad5bf899268336cb90bc9481a21832dacfc462  ./CONTEXT_Forge-update-2026-07-14b.md
 a97ae69896b694d6540de62be7958818c52e6faebc979a097e6af8c4d5133f17  ./README_PHASE2A1_SESSION_BOOT_HOTFIX.md
+5f940d1ebcd7f787c2d9b9ed9a4f97d5d56fe381663e750205345dfc405fc0dd  ./README_PHASE2B_MAP_CONTRACT.md
 6dbc63135f4014f7efd92cf235dcccc5e8bad1f37fefc34bd52cea8336ad17b0  ./README_PHASE2_SNAPSHOT_AUTHORITY.md
+fc41e735811ef6a2e2264495ad17944e1213fb28fb7f92859ec3cdf15745db5a  ./forge/FORGE_MAP_CONTRACT_2.md
 bbac0f90d26ea4e91b73e0bf5406243fa6bedd51924c25e5a56d3e37aa3ee147  ./forge/forge-engine.js
 b0e04d93e793cb07083e9259c1e5910f9bd00277a4f35c56d8c71dcd7710a6f8  ./forge/forge-generator-foundation.js
+73ee8ed758cc17c56736b93d601880c5d23abab9d198721732af7f84a57ad5ac  ./forge/tests/smoke-map-contract-render-truth.js
 9e001a4d54e44ce72d800a38475cc57463851a3bbfbecdd8298b4d7762213c82  ./forge/tests/smoke-phase15h-contract.js
 c9fbae94d6c6d07a862cabfa1fe23eff2603771d4db27a6685af77766d193c18  ./forge/tests/smoke-snapshot-authority.js
-30bbebd365b9b803a9ec4f16d3dd2f23f37889bed718024d7a05e2a2f0c953d8  ./forge/topography-test-mock.html
+6b01ea4a0c558ad200e54b060752217070a719864a582df0a5be3ede19336d45  ./forge/topography-test-mock.html
