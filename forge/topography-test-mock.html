@@ -23,9 +23,9 @@
 </script>
 <script src="forge-dungeon.js?v=fb1"></script>
 <script src="map-bridge.js?v=fb1"></script>
-<script src="forge-generator-foundation.js?v=g2p1"></script>
+<script src="forge-generator-foundation.js?v=g2s1"></script>
 <script src="forge-unit-art.js?v=ua2"></script>
-<script src="forge-engine.js?v=fe3"></script>
+<script src="forge-engine.js?v=fe4"></script>
 <script src="forge-protocol.js?v=fb1"></script>
 <script src="forge-replay.js?v=fb6"></script>
 <script src="forge-combat-rules.js?v=fcr1"></script>
@@ -1867,43 +1867,28 @@ function seedTracedProps(field){const {W,H,height,type,props}=field;
 function buildTiersField(seed, params){
   window.performance||(window.performance={now:()=>Date.now()});
   params = params || {};
-  const themeKey = (params.themeKey && ForgeDungeon.THEME_KEYS.indexOf(params.themeKey)>=0)
-                   ? params.themeKey
-                   : (ForgeDungeon.THEME_KEYS.indexOf(BIOME)>=0 ? BIOME : 'grass');
-  const D = ForgeDungeon.generateDungeon({
-    seed: seed>>>0,
-    roomCount:   params.roomCount   != null ? params.roomCount   : 8,
-    loopChance:  params.loopChance  != null ? params.loopChance  : 0.2,
-    decorDensity:params.decorDensity!= null ? params.decorDensity: 0.7,
-    themeKey
-  });
+  const requestedTheme=(params.themeKey||params.theme||BIOME);
+  const themeKey=(requestedTheme&&ForgeDungeon.THEME_KEYS.indexOf(requestedTheme)>=0)?requestedTheme:'grass';
+  if(!window.ForgeEngine||typeof window.ForgeEngine.generateDetailed!=='function')
+    throw new Error('Forge stage-owned engine did not load');
+  /* Phase 2d: the production preview consumes the same staged pipeline as the
+     saved combat map. No second monolithic generator call may drift from it. */
+  const detail=window.ForgeEngine.generateDetailed(Object.assign({},params,{seed:seed>>>0,themeKey}));
+  const D=detail.dungeon,stageMap=detail.map,record=detail.parameters||{};
   WALL_FT = MapBridge.wallFeetFor(themeKey);
-  const rng = mulberry32((seed>>>0) ^ 0x51ab3d);   // deterministic scatter — two devices must agree
+  const decorSeed=record.stageSeeds&&record.stageSeeds.decor!=null?record.stageSeeds.decor:(seed>>>0);
+  const rng = mulberry32((decorSeed>>>0) ^ 0x51ab3d);
   const W=D.W,H=D.H;
   const height=new Float32Array(W*H), type=new Uint8Array(W*H), foot=new Uint8Array(W*H), props=[];
-  const occ=new Float32Array(W*H);   // occluder feet ABOVE the tier (walls only)
-  const maxD=Math.max(1,D.maxDepth||Math.max(...D.rooms.map(r=>r.depth)));
-  const tierOf=r=>Math.round((1 - r.depth/maxD)*5); // entrance high, deep low
-  const roomTier={}; D.rooms.forEach(r=>roomTier[r.id]=tierOf(r));
+  const occ=new Float32Array(W*H);
   const FLOOR=MapBridge.CELL.FLOOR, WALL=MapBridge.CELL.WALL, POOL=MapBridge.CELL.POOL;
-  // init heights: room cells = room tier; others -1 (unset)
-  const hh=new Float32Array(W*H).fill(-1);
   for(let i=0;i<D.grid.length;i++){
     const v=D.grid[i];
-    if(v===FLOOR||v===POOL){ foot[i]=1;
-      const rid=D.roomId?D.roomId[i]:-1;
-      hh[i] = (rid>=0 && roomTier[rid]!=null) ? roomTier[rid] : -1;
-      type[i]= v===POOL?T_WATER:T_GRASS;
-    } else if(v===WALL){ foot[i]=1; hh[i]=-1; type[i]=T_ROCK; }
-    else { foot[i]=0; hh[i]=0; type[i]=T_WATER; }
+    height[i]=Math.max(0,Number(stageMap.h[i]||0)/STEP_FT);
+    if(v===FLOOR||v===POOL){foot[i]=1;type[i]=v===POOL?T_WATER:T_GRASS;}
+    else if(v===WALL){foot[i]=1;type[i]=T_ROCK;}
+    else{foot[i]=0;type[i]=T_WATER;}
   }
-  // relax unset cells (corridors, walls) from assigned neighbours — a few passes
-  for(let pass=0;pass<6;pass++){
-    for(let y=1;y<H-1;y++)for(let x=1;x<W-1;x++){const i=y*W+x; if(!foot[i]||hh[i]>=0)continue;
-      let s=0,n=0; for(const[dx,dy]of[[1,0],[-1,0],[0,1],[0,-1]]){const j=(y+dy)*W+(x+dx); if(foot[j]&&hh[j]>=0){s+=hh[j];n++;}}
-      if(n) hh[i]=Math.round(s/n);}
-  }
-  for(let i=0;i<hh.length;i++) height[i]=Math.max(0,hh[i]<0?0:hh[i]);
   // lowest tier floor → water basin feel
   for(let i=0;i<height.length;i++) if(foot[i]&&height[i]<=0 && type[i]!==T_ROCK) type[i]=T_WATER;
   // walls become short ruin columns above ground; scatter trees on floor edges
@@ -1942,8 +1927,9 @@ function buildTiersField(seed, params){
   for(let i=0;i<W*H;i++) if(type[i]===T_ROCK) occ[i]=WALL_FT;
   document.getElementById('dungeonName').textContent=D.name;
   return {W,H,height,type,foot,props,occ,name:D.name,
-          spawns:(D.spawns||[]).map(s=>({c:s.x,r:s.y,roomId:s.roomId,tier:s.tier,side:null})),
-          generatorMeta:window.ForgeGeneratorFoundation?window.ForgeGeneratorFoundation.graphMetadata(D):null};
+          spawns:(stageMap.spawns||[]).map(s=>Object.assign({},s)),
+          generatorMeta:stageMap.meta&&stageMap.meta.graph?stageMap.meta.graph:(window.ForgeGeneratorFoundation?window.ForgeGeneratorFoundation.graphMetadata(D):null),
+          stageOwnership:stageMap.meta&&stageMap.meta.stageOwnership?JSON.parse(JSON.stringify(stageMap.meta.stageOwnership)):null};
 }
 /*BTF-END*/
 window.__buildTiersField = buildTiersField;
@@ -2713,7 +2699,7 @@ function rebuild(){
   if(!SESSION_ID)SESSION_MAP_AUTHORITY=null;
   WATERLEVEL = (mode==='image') ? 0.45 : 0.6;
   if(mode==='traced'){ F=buildTracedField(); document.getElementById('dungeonName').textContent='Chen Yue — traced heightfield'; }
-  else if(mode==='tiers'){ const fp=forgeParams(); F=buildTiersField(fp.seed, {themeKey:fp.theme, roomCount:fp.sliders.roomCount, loopChance:fp.sliders.loopChance, decorDensity:fp.sliders.decorDensity}); }
+  else if(mode==='tiers'){ const fp=forgeParams(); F=buildTiersField(fp.seed, fp); }
   else if(mode==='image'){ if(imgHeight){ F=buildImageField(); } else { F=buildTracedField(); } }
   else { F=buildTracedField(); for(let i=0;i<F.height.length;i++)F.height[i]=F.type[i]===T_WATER?0:3; // FLAT contrast
     document.getElementById('dungeonName').textContent='Flat (no elevation) — contrast'; }
@@ -2792,9 +2778,9 @@ document.getElementById('autoDress').onchange=()=>{if(mode==='image'&&imgHeight)
     document.getElementById(id+'Val').textContent=el.value+((id==='loops'||id==='decor')?'%':'');
     if(mode==='tiers')rebuild();};});
 
-/* Phase 2c: archetype intent is now a versioned saved parameter. Only the
-   legacy-dungeon grammar is active in this slice; the next slice gives each
-   deterministic stage ownership and begins making these choices structural. */
+/* Phase 2d: archetype intent is versioned and all five generator stages own
+   independent deterministic streams. Non-legacy archetype grammars remain
+   explicitly record-only until the terrain-archetype slice. */
 const archetypeEl=document.getElementById('archetype');
 const archetypeStatusEl=document.getElementById('archetypeStatus');
 const archetypeNoteEl=document.getElementById('archetypeNote');
@@ -2808,7 +2794,7 @@ function paintArchetypeControl(key,sessionLocked){
   if(archetypeEl&&archetypeEl.value!==def.key)archetypeEl.value=def.key;
   if(archetypeStatusEl)archetypeStatusEl.textContent=sessionLocked?'saved':(def.status==='active'?'active':'recorded');
   if(archetypeNoteEl){
-    archetypeNoteEl.textContent=def.summary+(def.status==='active'?'':' Recorded in the map recipe; this build still previews the Legacy dungeon grammar.');
+    archetypeNoteEl.textContent=def.summary+(def.status==='active'?'':' Recorded in the map recipe; the stage-owned pipeline is active, but this archetype still uses the Legacy dungeon layout grammar.');
   }
   return def;
 }
@@ -2821,7 +2807,7 @@ function paintArchetypeControl(key,sessionLocked){
   archetypeEl.onchange=()=>{
     if(SESSION_ID){clog('<i>The map belongs to the fight — its archetype is locked.</i>');return;}
     const def=paintArchetypeControl(archetypeEl.value,false);
-    clog('<i>'+escapeHtml(def.label)+' archetype recorded. The current preview remains Legacy dungeon until stage ownership lands.</i>');
+    clog('<i>'+escapeHtml(def.label)+' archetype recorded. The staged generator is active; this selection still uses Legacy dungeon layout grammar until archetype terrain lands.</i>');
   };
   paintArchetypeControl('legacy-dungeon',false);
 })();
@@ -2842,7 +2828,7 @@ function forgeSessionMap(){
   const params=forgeParams();if(!F)return params;const map=combatMapFromF();
   map.props=(F.props||[]).map(p=>Object.assign({},p));
   map.spawns=(typeof CB!=='undefined'&&CB&&Array.isArray(CB.units)&&CB.units.length)?CB.units.map(u=>({c:u.c,r:u.r,side:u.side||null,unit:u.key||u.unit||u.id||null,alive:u.alive!==false})):(F.spawns||[]).map(s=>Object.assign({},s));
-  map.meta=Object.assign({},map.meta||{},{source:'topography-test-mock',name:F.name||null,renderField:renderFieldSnapshot(F)});
+  map.meta=Object.assign({},map.meta||{},{source:'topography-test-mock',name:F.name||null,renderField:renderFieldSnapshot(F),stageOwnership:F.stageOwnership||null});
   const envelope=gf.encounterEnvelope(map,params,F.generatorMeta||null);
   envelope.rules={flanking:(typeof FLANK_RULE!=="undefined"?FLANK_RULE:"advantage")};
   return envelope;

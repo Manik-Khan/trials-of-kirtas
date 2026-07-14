@@ -16,9 +16,14 @@
 })(typeof self !== "undefined" ? self : this, function () {
   "use strict";
 
-  var GENERATOR_VERSION = "2.0.0-params.1";
+  var GENERATOR_VERSION = "2.0.0-stages.1";
   var PARAMETER_SCHEMA = "forge-map-parameters";
-  var PARAMETER_VERSION = 1;
+  var PARAMETER_VERSION = 2;
+  var SUPPORTED_PARAMETER_VERSIONS = Object.freeze([1, 2]);
+  var GENERATOR_PROFILES = Object.freeze({
+    LEGACY: "legacy-dungeon",
+    STAGED: "stage-owned-legacy"
+  });
   var STAGES = Object.freeze(["layout", "height", "semantics", "decor", "foes"]);
   var ARCHETYPE_DEFINITIONS = Object.freeze([
     Object.freeze({ key: "legacy-dungeon", label: "Legacy dungeon", status: "active", summary: "Current room-and-corridor generator." }),
@@ -86,6 +91,20 @@
         : deriveSeed(rootSeed, "forge-stage:" + stage);
     }
     return out;
+  }
+
+  /* A retry belongs to the stage that failed. Advancing one stage's attempt
+     never perturbs another stage's stream. */
+  function stageAttemptSeed(seed, stage, attempt) {
+    return deriveSeed(asUint32(seed), "forge-stage-attempt:" + String(stage) + ":" + Math.max(0, Number(attempt) || 0));
+  }
+
+  function assertGeneratorProfile(value) {
+    var v = value == null || value === "" ? GENERATOR_PROFILES.STAGED : String(value);
+    if (v !== GENERATOR_PROFILES.LEGACY && v !== GENERATOR_PROFILES.STAGED) {
+      throw new Error("forge-generator-foundation: unknown generator profile \"" + v + "\"");
+    }
+    return v;
   }
 
   function assertArchetype(value) {
@@ -291,7 +310,7 @@
   }
 
   function isParameterRecord(value) {
-    return hasParameterSchema(value) && Number(value.version) === PARAMETER_VERSION;
+    return hasParameterSchema(value) && SUPPORTED_PARAMETER_VERSIONS.indexOf(Number(value.version)) >= 0;
   }
 
   function legacySource(input) {
@@ -305,10 +324,11 @@
   function parameterRecord(input) {
     input = input || {};
     var source = legacySource(input);
-    if (source.schema === PARAMETER_SCHEMA && Number(source.version) !== PARAMETER_VERSION) {
+    var sourceVersion = source.schema === PARAMETER_SCHEMA ? Number(source.version) : null;
+    if (sourceVersion != null && SUPPORTED_PARAMETER_VERSIONS.indexOf(sourceVersion) < 0) {
       throw new Error(
         "forge-generator-foundation: unsupported parameter record version " +
-        String(source.version) + " (expected " + PARAMETER_VERSION + ")"
+        String(source.version) + " (supported: " + SUPPORTED_PARAMETER_VERSIONS.join(", ") + ")"
       );
     }
 
@@ -321,6 +341,14 @@
     var theme = recordSource && Object.prototype.hasOwnProperty.call(source, "theme") ? source.theme
       : (source.theme != null ? source.theme : (input.theme != null ? input.theme : (input.themeKey != null ? input.themeKey : null)));
     var seeds = stageSeeds(seed, source.stageSeeds || input.stageSeeds);
+    /* Version 1 recipes predate real stage ownership. Preserve their legacy
+       generator profile so snapshot-less old sessions regenerate faithfully.
+       New/unversioned authoring inputs opt into the staged legacy grammar. */
+    var profile = assertGeneratorProfile(
+      source.generatorProfile != null ? source.generatorProfile :
+        (input.generatorProfile != null ? input.generatorProfile :
+          (sourceVersion === 1 ? GENERATOR_PROFILES.LEGACY : GENERATOR_PROFILES.STAGED))
+    );
 
     var layout = sourceStages.layout || sourceValues.layout || {};
     var height = sourceStages.height || sourceValues.height || {};
@@ -363,10 +391,9 @@
       seed: seed,
       theme: theme,
       archetype: archetype,
-      /* Phase 2c records the requested archetype now. Until the next slice
-         makes stages own generation, every selection still runs through the
-         current legacy room-and-corridor grammar. */
-      generatorProfile: "legacy-dungeon",
+      /* Archetype grammar is still legacy room-and-corridor. The profile now
+         says whether its five deterministic stages are truly isolated. */
+      generatorProfile: profile,
       stageSeeds: seeds,
       stages: {
         layout: {
@@ -421,6 +448,7 @@
     out.seed = record.seed;
     if (record.theme != null) out.themeKey = record.theme;
     out.archetype = record.archetype;
+    out.generatorProfile = record.generatorProfile;
     out.stageSeeds = clonePlain(record.stageSeeds);
     out.parameters = clonePlain(record);
     return out;
@@ -570,6 +598,8 @@
     GENERATOR_VERSION: GENERATOR_VERSION,
     PARAMETER_SCHEMA: PARAMETER_SCHEMA,
     PARAMETER_VERSION: PARAMETER_VERSION,
+    SUPPORTED_PARAMETER_VERSIONS: SUPPORTED_PARAMETER_VERSIONS,
+    GENERATOR_PROFILES: GENERATOR_PROFILES,
     PARAMETER_DEFAULTS: PARAMETER_DEFAULTS,
     STAGES: STAGES,
     ARCHETYPES: ARCHETYPES,
@@ -577,6 +607,8 @@
     hash32: hash32,
     deriveSeed: deriveSeed,
     stageSeeds: stageSeeds,
+    stageAttemptSeed: stageAttemptSeed,
+    assertGeneratorProfile: assertGeneratorProfile,
     assertArchetype: assertArchetype,
     archetypeDefinition: archetypeDefinition,
     assertThemeKey: assertThemeKey,
