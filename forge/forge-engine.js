@@ -17,10 +17,11 @@
 (function (root, factory) {
   var FD = (typeof require !== "undefined") ? require("./forge-dungeon.js") : root.ForgeDungeon;
   var MB = (typeof require !== "undefined") ? require("./map-bridge.js") : root.MapBridge;
-  var api = factory(FD, MB);
+  var GF = (typeof require !== "undefined") ? require("./forge-generator-foundation.js") : root.ForgeGeneratorFoundation;
+  var api = factory(FD, MB, GF);
   if (typeof module !== "undefined" && module.exports) module.exports = api;
   else root.ForgeEngine = api;
-})(typeof self !== "undefined" ? self : this, function (FD, MB) {
+})(typeof self !== "undefined" ? self : this, function (FD, MB, GF) {
 
   function mulberry32(a) {
     a = a >>> 0;
@@ -173,8 +174,24 @@
     throw new Error("forge-engine: no valid combat map after " + p.retries + " attempts (seed " + seed + ")");
   }
 
+  /* Session load is snapshot-first. A present snapshot is authoritative and
+     must verify; only an envelope with NO mapSnapshot may use the legacy recipe. */
+  function loadEncounter(envelope) {
+    if (!GF || typeof GF.resolveEncounter !== "function") {
+      throw new Error("forge-engine: generator foundation did not load");
+    }
+    var resolved = GF.resolveEncounter(envelope, generate);
+    var result = MB.validate(resolved.map);
+    if (!result || !result.ok) {
+      var why = result && (result.why || result.errors && result.errors.join(", "));
+      throw new Error("forge-engine: saved combat map is invalid" + (why ? " — " + why : ""));
+    }
+    return resolved.map;
+  }
+
   return {
     generate: generate,
+    loadEncounter: loadEncounter,
     randomSeed: randomSeed,
     THEME_KEYS: FD.THEME_KEYS,
     DEFAULTS: DEFAULTS,

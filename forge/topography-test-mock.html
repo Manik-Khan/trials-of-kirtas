@@ -23,9 +23,9 @@
 </script>
 <script src="forge-dungeon.js?v=fb1"></script>
 <script src="map-bridge.js?v=fb1"></script>
-<script src="forge-generator-foundation.js?v=g2f2"></script>
+<script src="forge-generator-foundation.js?v=g2s1"></script>
 <script src="forge-unit-art.js?v=ua2"></script>
-<script src="forge-engine.js?v=fb1"></script>
+<script src="forge-engine.js?v=fe2"></script>
 <script src="forge-protocol.js?v=fb1"></script>
 <script src="forge-replay.js?v=fb6"></script>
 <script src="forge-combat-rules.js?v=fcr1"></script>
@@ -1732,6 +1732,9 @@ function addWorld(geo,col,x,y,z,rot,fogCell){ // mesh + optional inverted-hull o
 
 /* ---- FIELD: {W,H,height,type,footprint,props[]} ---- */
 let F=null;
+/* Phase 2 snapshot authority: while a saved session is open, this exact map
+   document — not a regenerated recipe — is the geometry source of truth. */
+let SESSION_MAP_AUTHORITY=null;
 let imgHeight=null, imgType=null;   // loaded HTMLImageElements
 
 /* ---- pure importer helpers (image → topography) ---- */
@@ -1924,6 +1927,61 @@ function buildTiersField(seed, params){
 }
 /*BTF-END*/
 window.__buildTiersField = buildTiersField;
+
+/* ── Phase 2: exact saved-map authority ───────────────────────────────
+   The combat snapshot owns h/wall/occ/coverShape/spawns/props. Renderer-only
+   type/foot/baseOcc live in meta.renderField so repainting does not force us to
+   reinterpret effective prop occlusion as a full-cell terrain wall. */
+function arrayOfLength(value,n,label){
+  const a=ArrayBuffer.isView(value)?Array.from(value):Array.isArray(value)?value.slice():null;
+  if(!a||a.length!==n)throw new Error('Saved battlefield '+label+' length does not match '+n);
+  return a;
+}
+function renderFieldSnapshot(field){
+  const n=field.W*field.H,base=field.occ||EMPTY_OCC(n);
+  return {version:1,name:field.name||null,type:Array.from(field.type),foot:Array.from(field.foot),baseOcc:Array.from(base)};
+}
+function inferredRenderArrays(map){
+  const n=map.cols*map.rows,type=new Uint8Array(n),foot=new Uint8Array(n),baseOcc=new Float32Array(n);
+  const candidates=new Uint8Array(n);
+  for(let i=0;i<n;i++){
+    const shape=map.coverShape&&map.coverShape[i],wallShape=shape&&(shape.source==='wall'||shape.kind==='full'&&shape.source==='terrain');
+    const occ=Number(map.occ[i]||0);
+    if(map.wall[i]&&!Number.isFinite(occ))candidates[i]=1; // JSON-restored opaque void; never draw an infinite column
+    else if(map.wall[i]&&(wallShape||occ>0)){foot[i]=1;type[i]=T_ROCK;baseOcc[i]=occ;}
+    else if(map.wall[i])candidates[i]=1;
+    else{foot[i]=1;type[i]=T_GRASS;}
+  }
+  /* Old foundation.2 snapshots did not carry type/foot. Border-connected,
+     zero-occlusion blockers are the exterior void; enclosed ones are pools. */
+  const seen=new Uint8Array(n),q=[];
+  function push(c,r){if(c<0||r<0||c>=map.cols||r>=map.rows)return;const i=r*map.cols+c;if(candidates[i]&&!seen[i]){seen[i]=1;q.push(i);}}
+  for(let c=0;c<map.cols;c++){push(c,0);push(c,map.rows-1);}for(let r=0;r<map.rows;r++){push(0,r);push(map.cols-1,r);}
+  while(q.length){const i=q.shift(),c=i%map.cols,r=(i/map.cols)|0;push(c+1,r);push(c-1,r);push(c,r+1);push(c,r-1);}
+  for(let i=0;i<n;i++)if(candidates[i]){type[i]=T_WATER;foot[i]=seen[i]?0:1;}
+  return {type,foot,baseOcc};
+}
+function fieldFromSessionSnapshot(envelope){
+  const gf=window.ForgeGeneratorFoundation;
+  if(!gf||typeof gf.restoreMap!=='function')throw new Error('Forge snapshot loader did not load');
+  const map=gf.restoreMap(envelope.mapSnapshot,envelope.mapFingerprint);
+  const n=map.cols*map.rows,rf=map.meta&&map.meta.renderField;
+  let type,foot,baseOcc;
+  if(rf){
+    type=Uint8Array.from(arrayOfLength(rf.type,n,'render type').map(v=>{v=Number(v);if(!Number.isInteger(v)||v<T_WATER||v>T_ROCK)throw new Error('Saved battlefield has an invalid render type');return v;}));
+    foot=Uint8Array.from(arrayOfLength(rf.foot,n,'render footprint').map(Boolean));
+    baseOcc=Float32Array.from(arrayOfLength(rf.baseOcc,n,'base occlusion').map(v=>{v=Number(v);if(!Number.isFinite(v)||v<0)throw new Error('Saved battlefield has invalid base occlusion');return v;}));
+  }else{
+    const inferred=inferredRenderArrays(map);type=inferred.type;foot=inferred.foot;baseOcc=inferred.baseOcc;
+  }
+  SESSION_MAP_AUTHORITY=map;
+  const field={W:map.cols,H:map.rows,height:Float32Array.from(map.h,v=>(+v||0)/STEP_FT),type,foot,
+    props:(map.props||[]).map(p=>Object.assign({},p)),occ:baseOcc,
+    spawns:(map.spawns||[]).map(s=>Object.assign({},s)),name:(rf&&rf.name)||(map.meta&&map.meta.name)||'Saved battlefield',
+    generatorMeta:envelope.graph||(map.meta&&map.meta.graph)||null};
+  document.getElementById('dungeonName').textContent=field.name;
+  return field;
+}
 
 /* ---------- IMAGE field: heightmap PNG → topography ---------- */
 function sampleImage(img,W,H){const {c,x}=cv(W,H);x.imageSmoothingEnabled=true; // smoothing ON = averages each tile
@@ -2632,6 +2690,7 @@ window.__enterForge = function(){
 };
 
 function rebuild(){
+  if(!SESSION_ID)SESSION_MAP_AUTHORITY=null;
   WATERLEVEL = (mode==='image') ? 0.45 : 0.6;
   if(mode==='traced'){ F=buildTracedField(); document.getElementById('dungeonName').textContent='Chen Yue — traced heightfield'; }
   else if(mode==='tiers'){ const fp=forgeParams(); F=buildTiersField(fp.seed, {themeKey:fp.theme, roomCount:fp.sliders.roomCount, loopChance:fp.sliders.loopChance, decorDensity:fp.sliders.decorDensity}); }
@@ -2726,7 +2785,7 @@ function forgeSessionMap(){
   const params=forgeParams();if(!F)return params;const map=combatMapFromF();
   map.props=(F.props||[]).map(p=>Object.assign({},p));
   map.spawns=(typeof CB!=='undefined'&&CB&&Array.isArray(CB.units)&&CB.units.length)?CB.units.map(u=>({c:u.c,r:u.r,side:u.side||null,unit:u.key||u.unit||u.id||null,alive:u.alive!==false})):(F.spawns||[]).map(s=>Object.assign({},s));
-  map.meta=Object.assign({},map.meta||{},{source:'topography-test-mock',name:F.name||null});
+  map.meta=Object.assign({},map.meta||{},{source:'topography-test-mock',name:F.name||null,renderField:renderFieldSnapshot(F)});
   const envelope=gf.encounterEnvelope(map,params,F.generatorMeta||null);
   envelope.rules={flanking:(typeof FLANK_RULE!=="undefined"?FLANK_RULE:"advantage")};
   return envelope;
@@ -3461,6 +3520,11 @@ function rangeFt(a){ return (a.rng||1)*5; }
    occ[] = occluder feet above the terrain (what SIGHT is decided by).
    A gap (foot=0) is impassable but occludes NOTHING — a hole is not a wall. */
 function combatMapFromF(){
+  if(SESSION_MAP_AUTHORITY){
+    var gf=window.ForgeGeneratorFoundation;
+    if(!gf||typeof gf.restoreMap!=='function')throw new Error('Forge snapshot loader did not load');
+    var saved=gf.restoreMap(SESSION_MAP_AUTHORITY);syncGeometryCreatures(saved);return saved;
+  }
   var n=F.W*F.H, m=TG.makeMap(F.W,F.H);m.occ=new Array(n).fill(0);m.coverShape=new Array(n).fill(null);
   var OCC=F.occ||EMPTY_OCC(n);
   for(var i=0;i<n;i++){
@@ -6482,18 +6546,22 @@ async function bootSession(sid){
   loadLiveStats();   // Task 16: kick off the live ac/speed/init read now (session mode only) — claimMode's init() and spawnFromState below await this same cached promise
   const { data: row, error } = await sb.from('forge_sessions').select('*').eq('id', sid).single();
   if (error || !row) throw new Error(error ? error.message : 'no such session');
-  /* Task 12: the party-select scene becomes the claim screen for
-     staging/active fights (folder-filtered roster ∩ Campaign Characters,
-     wired to forge_claim_unit) — it owns its own dismissal now, so this
-     block no longer hides it unconditionally. The handshake mirrors the
-     topo:ready deferral pattern: the classic block is not a module, so it
-     cannot see the `row`/`sb`/`uid` closed over here without this. */
-  window.__forgeStaging = { row: row, sb: sb, uid: user.id };
+  /* Phase 2: mapSnapshot is authoritative whenever the key is present.
+     Missing means a legacy recipe; malformed or mismatched means stop loudly. */
+  mode='tiers';WATERLEVEL=0.6;
+  BIOME=(row.map&&row.map.theme)||(row.map&&row.map.mapSnapshot&&row.map.mapSnapshot.meta&&row.map.mapSnapshot.meta.biome)||'grass';
+  if(row.map&&Object.prototype.hasOwnProperty.call(row.map,'mapSnapshot')){
+    F=fieldFromSessionSnapshot(row.map);
+  }else{
+    SESSION_MAP_AUTHORITY=null;
+    F=buildTiersField(row.map.seed,Object.assign({themeKey:row.map.theme},row.map.sliders));
+  }
+  if(!F.occ)F.occ=EMPTY_OCC(F.W*F.H);
+  WALL_FT=MapBridge.wallFeetFor(BIOME);applyLook();renderField();
+  /* Task 12: publish the claim-screen handshake only after the battlefield
+     itself has loaded; a corrupted snapshot must never open a half-built fight. */
+  window.__forgeStaging={row:row,sb:sb,uid:user.id};
   document.dispatchEvent(new CustomEvent('forge:staging'));
-  mode = 'tiers'; BIOME = row.map.theme;
-  F = buildTiersField(row.map.seed, Object.assign({ themeKey: row.map.theme }, row.map.sliders));
-  if (!F.occ) F.occ = EMPTY_OCC(F.W * F.H);
-  applyLook(); renderField();
   /* Task 11: forge_sessions.roster only gets real pos/hp at Start fight (§3 —
      placement is computed once, THEN). FR.initialState() requires both on
      EVERY unit to build any replayed state at all, even the empty "staging"

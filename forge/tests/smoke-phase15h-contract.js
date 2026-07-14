@@ -27,4 +27,9 @@ has(html,"window.addForgeRow(html,{channel:'system'})","cover audit reports to S
 ok(!html.includes("obj.scale.set(1.025,height,1.025)"),"overlapping fog volumes are absent");
 has(disc,"geometry.losVerdict(map,origin,target,{ignoreCreatures:true})","terrain discovery ignores transient creature screens");
 ok(disc.includes('var VERSION="1.1.0"'),"discovery renderer contract version is bumped");
-console.log("\n"+pass+" Phase 1.5h contract checks green");
+/* Phase 2 must not regress the h.1 boot fix while changing session load. */
+has(html,"let SESSION_MAP_AUTHORITY=null","saved sessions have an explicit exact-map authority");
+has(html,"fieldFromSessionSnapshot(row.map)","session boot has a snapshot-first read path");
+has(html,"renderField:renderFieldSnapshot(F)","new sessions retain faithful render metadata");
+has(html,"var saved=gf.restoreMap(SESSION_MAP_AUTHORITY)","combat geometry consumes the saved map rather than regenerated art state");
+console.log("\n"+pass+" Phase 1.5h + snapshot-authority contract checks green");

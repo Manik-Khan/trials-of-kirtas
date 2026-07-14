@@ -16,7 +16,7 @@
 })(typeof self !== "undefined" ? self : this, function () {
   "use strict";
 
-  var GENERATOR_VERSION = "2.0.0-foundation.2";
+  var GENERATOR_VERSION = "2.0.0-snapshot.1";
   var STAGES = Object.freeze(["layout", "height", "semantics", "decor", "foes"]);
   var ARCHETYPES = Object.freeze([
     "legacy-dungeon",
@@ -138,11 +138,17 @@
     return walk(value);
   }
 
-  function normalizeSpawn(s) {
+  function normalizeSpawn(s, cols, rows) {
     s = s || {};
     var out = clonePlain(s) || {};
-    out.c = numberOr(s.c != null ? s.c : s.x, 0);
-    out.r = numberOr(s.r != null ? s.r : s.y, 0);
+    out.c = numberOr(s.c != null ? s.c : s.x, NaN);
+    out.r = numberOr(s.r != null ? s.r : s.y, NaN);
+    if (!Number.isInteger(out.c) || !Number.isInteger(out.r)) {
+      throw new Error("forge-generator-foundation: spawn coordinates must be integers");
+    }
+    if (cols != null && rows != null && (out.c < 0 || out.r < 0 || out.c >= cols || out.r >= rows)) {
+      throw new Error("forge-generator-foundation: spawn " + out.c + "," + out.r + " is outside " + cols + "x" + rows);
+    }
     if (!Object.prototype.hasOwnProperty.call(out, "side")) out.side = null;
     if (!Object.prototype.hasOwnProperty.call(out, "roomId")) out.roomId = null;
     if (!Object.prototype.hasOwnProperty.call(out, "tier")) out.tier = null;
@@ -155,26 +161,49 @@
     }
     var cols = numberOr(map.cols != null ? map.cols : map.W, 0);
     var rows = numberOr(map.rows != null ? map.rows : map.H, 0);
-    if (!(cols > 0 && rows > 0)) {
-      throw new Error("forge-generator-foundation: map snapshot requires positive cols/rows");
+    if (!(cols > 0 && rows > 0 && Number.isInteger(cols) && Number.isInteger(rows))) {
+      throw new Error("forge-generator-foundation: map snapshot requires positive integer cols/rows");
     }
     var n = cols * rows;
-    function cells(value, fill) {
+    function cells(value, fill, label) {
       var a = ArrayBuffer.isView(value) ? Array.prototype.slice.call(value)
         : Array.isArray(value) ? value.slice() : [];
       if (a.length !== n) {
-        throw new Error("forge-generator-foundation: map cell array length " + a.length + " does not match " + n);
+        throw new Error("forge-generator-foundation: " + label + " cell array length " + a.length + " does not match " + n);
       }
       return a.map(function (v) { return v == null ? fill : v; });
     }
+    function finiteCells(value, fill, label) {
+      return cells(value, fill, label).map(function (v) {
+        var n = Number(v);
+        if (!Number.isFinite(n)) throw new Error("forge-generator-foundation: " + label + " contains a non-finite value");
+        return n;
+      });
+    }
+    function occCells(value) {
+      return cells(value == null ? new Array(n).fill(0) : value, 0, "occ").map(function (v) {
+        if (v === Infinity || v === "Infinity") return "Infinity"; // JSON-safe opaque void
+        var n = Number(v);
+        if (!Number.isFinite(n)) throw new Error("forge-generator-foundation: occ contains an unsupported non-finite value");
+        return n;
+      });
+    }
+    if (map.spawns != null && !Array.isArray(map.spawns)) {
+      throw new Error("forge-generator-foundation: spawns must be an array");
+    }
+    if (map.props != null && !Array.isArray(map.props)) {
+      throw new Error("forge-generator-foundation: props must be an array");
+    }
+    var cover = map.coverShape == null ? new Array(n).fill(null) : cells(map.coverShape, null, "coverShape");
 
     return {
       cols: cols,
       rows: rows,
-      h: cells(map.h, 0),
-      wall: cells(map.wall, false).map(Boolean),
-      occ: cells(map.occ || new Array(n).fill(0), 0),
-      spawns: (map.spawns || []).map(normalizeSpawn),
+      h: finiteCells(map.h, 0, "h"),
+      wall: cells(map.wall, false, "wall").map(Boolean),
+      occ: occCells(map.occ),
+      coverShape: cover.map(function (shape) { return shape == null ? null : clonePlain(shape); }),
+      spawns: (map.spawns || []).map(function (spawn) { return normalizeSpawn(spawn, cols, rows); }),
       props: clonePlain(map.props || []),
       meta: clonePlain(map.meta || {}, { stripKeys: ["mapSnapshot"] })
     };
@@ -191,6 +220,59 @@
 
   function fingerprintSnapshot(snapshot) {
     return hash32(stableStringify(snapshot)).toString(16).padStart(8, "0");
+  }
+
+
+  function restoreMap(snapshot, expectedFingerprint) {
+    if (!snapshot || typeof snapshot !== "object" || Array.isArray(snapshot)) {
+      throw new Error("forge-generator-foundation: saved mapSnapshot is missing or malformed");
+    }
+    var actual = fingerprintSnapshot(snapshot);
+    if (expectedFingerprint != null && String(expectedFingerprint) !== actual) {
+      throw new Error(
+        "forge-generator-foundation: map fingerprint mismatch (expected " +
+        String(expectedFingerprint) + ", got " + actual + ")"
+      );
+    }
+    var restored = snapshotMap(snapshot);
+    restored.occ = restored.occ.map(function (v) { return v === "Infinity" ? Infinity : v; });
+    return restored;
+  }
+
+  function recipeParams(envelope) {
+    if (!envelope || typeof envelope !== "object") {
+      throw new Error("forge-generator-foundation: encounter envelope is unavailable");
+    }
+    var out = clonePlain(envelope.sliders || {}) || {};
+    out.seed = asUint32(envelope.seed);
+    if (envelope.theme != null) out.themeKey = envelope.theme;
+    if (envelope.archetype != null) out.archetype = assertArchetype(envelope.archetype);
+    if (envelope.stageSeeds != null) out.stageSeeds = clonePlain(envelope.stageSeeds);
+    return out;
+  }
+
+  function resolveEncounter(envelope, legacyFactory) {
+    if (!envelope || typeof envelope !== "object") {
+      throw new Error("forge-generator-foundation: encounter envelope is unavailable");
+    }
+    if (Object.prototype.hasOwnProperty.call(envelope, "mapSnapshot")) {
+      var map = restoreMap(envelope.mapSnapshot, envelope.mapFingerprint);
+      return {
+        source: "snapshot",
+        map: map,
+        fingerprint: fingerprintSnapshot(envelope.mapSnapshot),
+        legacy: false
+      };
+    }
+    if (typeof legacyFactory !== "function") {
+      throw new Error("forge-generator-foundation: legacy encounter requires a recipe generator");
+    }
+    return {
+      source: "legacy-recipe",
+      map: legacyFactory(recipeParams(envelope)),
+      fingerprint: null,
+      legacy: true
+    };
   }
 
   function graphMetadata(dungeon) {
@@ -314,7 +396,10 @@
     assertArchetype: assertArchetype,
     assertThemeKey: assertThemeKey,
     snapshotMap: snapshotMap,
+    restoreMap: restoreMap,
     fingerprintSnapshot: fingerprintSnapshot,
+    recipeParams: recipeParams,
+    resolveEncounter: resolveEncounter,
     graphMetadata: graphMetadata,
     normalizeParams: normalizeParams,
     encounterEnvelope: encounterEnvelope,

@@ -1,5 +1,7 @@
-cd29781ff9efcaa4c81e55d5d65088bda3301f3dd4f5bbf799e7401c7060a42f  ./CONTEXT_Forge-update-2026-07-13h1.md
-a1938bdb6c6029f16d4d64be68f6753973167f90e7c2b494539847eb73bc63f7  ./README_HOTFIX.md
-0e8147b19454b2c7ccf80115cd615de76923437fd9e5ddfc2a62f28148e4b434  ./VALIDATION.md
-506521fd68d93bf5f23031a3bbdc5c42ca09fbe4cbf8b9a359f731caaca76665  ./forge/tests/smoke-phase15h-contract.js
-0cbb173759a5377ae81ad473bf2b1207e8dcd8edb9f8ec96ae4cbb94dccfb180  ./forge/topography-test-mock.html
+1ca1aad71f32a94b41eb36fcbbcd7c8c2ad55c537001e03e670ace3e8096777a  ./CONTEXT_Forge-update-2026-07-14a.md
+6dbc63135f4014f7efd92cf235dcccc5e8bad1f37fefc34bd52cea8336ad17b0  ./README_PHASE2_SNAPSHOT_AUTHORITY.md
+bbac0f90d26ea4e91b73e0bf5406243fa6bedd51924c25e5a56d3e37aa3ee147  ./forge/forge-engine.js
+b0e04d93e793cb07083e9259c1e5910f9bd00277a4f35c56d8c71dcd7710a6f8  ./forge/forge-generator-foundation.js
+595a02e4bc767a6597ff624642094aa59be989b6f94fd30c39f3660af1234143  ./forge/tests/smoke-phase15h-contract.js
+c9fbae94d6c6d07a862cabfa1fe23eff2603771d4db27a6685af77766d193c18  ./forge/tests/smoke-snapshot-authority.js
+3c38f97c997eed406f8444b2a3a391706fcd53de506ede3bf896372c7f232204  ./forge/topography-test-mock.html
