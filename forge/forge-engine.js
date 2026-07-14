@@ -151,9 +151,22 @@
 
   function randomSeed() { return (Math.random() * 0xffffffff) >>> 0; }
 
-  /* the one call: params → a finished, verified, combat-ready map */
+  function generationParams(params) {
+    var source = params || {};
+    if (GF && typeof GF.recipeParams === "function" &&
+        (source.parameters || source.parameterRecord || source.schema === GF.PARAMETER_SCHEMA)) {
+      source = GF.recipeParams(source.schema === GF.PARAMETER_SCHEMA ? { parameters: source } : source);
+    }
+    var p = Object.assign({}, DEFAULTS, source);
+    if (GF && typeof GF.assertArchetype === "function") p.archetype = GF.assertArchetype(p.archetype);
+    return p;
+  }
+
+  /* the one call: params or a versioned parameter record → a finished,
+     verified, combat-ready map. Phase 2c records non-legacy archetypes but
+     deliberately keeps the current legacy grammar until stage ownership. */
   function generate(params) {
-    var p = Object.assign({}, DEFAULTS, params || {});
+    var p = generationParams(params);
     if (p.themeKey != null && FD.THEME_KEYS.indexOf(p.themeKey) < 0) {
       throw new Error("forge-engine: unknown themeKey \"" + p.themeKey + "\" (expected one of: " + FD.THEME_KEYS.join(", " ) + ")");
     }
@@ -168,8 +181,14 @@
         decorDensity: p.decorDensity, themeKey: theme
       });
       if (!d || !d.valid) continue;
-      var map = build(d, Object.assign({}, p, { themeKey: theme }));
-      if (verify(map)) { map.meta.attempts = attempt + 1; map.meta.requestedSeed = seed; return map; }
+      var effective = Object.assign({}, p, { seed: seed, themeKey: theme });
+      var map = build(d, effective);
+      if (verify(map)) {
+        map.meta.attempts = attempt + 1;
+        map.meta.requestedSeed = seed;
+        if (GF && typeof GF.attachMeta === "function") GF.attachMeta(map, effective, d);
+        return map;
+      }
     }
     throw new Error("forge-engine: no valid combat map after " + p.retries + " attempts (seed " + seed + ")");
   }
@@ -195,6 +214,6 @@
     randomSeed: randomSeed,
     THEME_KEYS: FD.THEME_KEYS,
     DEFAULTS: DEFAULTS,
-    _internals: { tierField: tierField, bfsReach: bfsReach, verify: verify }
+    _internals: { tierField: tierField, bfsReach: bfsReach, verify: verify, generationParams: generationParams }
   };
 });

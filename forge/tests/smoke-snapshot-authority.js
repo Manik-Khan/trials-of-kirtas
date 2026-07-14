@@ -57,5 +57,5 @@ ok(html.includes("fieldFromSessionSnapshot(row.map)"),"session boot selects the 
 ok(html.includes("Object.prototype.hasOwnProperty.call(row.map,'mapSnapshot')"),"snapshot presence, not truthiness, chooses authority");
 ok(html.includes("renderField:renderFieldSnapshot(F)"),"new sessions retain the render-only data needed for faithful repainting");
 ok(html.includes("var saved=gf.restoreMap(SESSION_MAP_AUTHORITY)"),"combat geometry clones the authoritative snapshot instead of rebuilding it from art data");
-ok(html.includes("forge-generator-foundation.js?v=g2s1")&&html.includes("forge-engine.js?v=fe2"),"changed runtime modules are cache-busted");
+ok(html.includes("forge-generator-foundation.js?v=g2p1")&&html.includes("forge-engine.js?v=fe3"),"changed runtime modules are cache-busted");
 console.log("\n"+pass+" snapshot-authority checks green");

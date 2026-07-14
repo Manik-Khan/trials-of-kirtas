@@ -23,9 +23,9 @@
 </script>
 <script src="forge-dungeon.js?v=fb1"></script>
 <script src="map-bridge.js?v=fb1"></script>
-<script src="forge-generator-foundation.js?v=g2s1"></script>
+<script src="forge-generator-foundation.js?v=g2p1"></script>
 <script src="forge-unit-art.js?v=ua2"></script>
-<script src="forge-engine.js?v=fe2"></script>
+<script src="forge-engine.js?v=fe3"></script>
 <script src="forge-protocol.js?v=fb1"></script>
 <script src="forge-replay.js?v=fb6"></script>
 <script src="forge-combat-rules.js?v=fcr1"></script>
@@ -37,10 +37,10 @@
 <script src="../armor-ac.js?v=cc2"></script>
 <script src="../equip-slots.js?v=cc2"></script>
 <script src="../character-combat.js?v=cc2"></script>
-<script src="forge-kit-derive.js?v=b2"></script>
-<script src="forge-feed-render.js?v=b2"></script>
+<script src="forge-kit-derive.js?v=b3"></script>
+<script src="forge-feed-render.js?v=b3"></script>
 <script src="forge-hud.js?v=b2"></script>
-<script src="forge-table-correctness.js?v=fg1"></script>
+<script src="forge-table-correctness.js?v=fg2"></script>
 <script src="../item-icons.js?v=b3"></script>
 <script src="../spell-icons.js?v=b3"></script>
 <script src="../icon-picker.js?v=b3"></script>
@@ -595,6 +595,9 @@ global.TacticsGeo=API;
 #partySelect .pcChip.sit{ color:var(--fg-dim); letter-spacing:.1em; }
 #partySelect .psFoot{ display:flex; align-items:center; justify-content:space-between; padding:14px 26px; gap:16px; }
 #partySelect .psFootBtns{ display:flex; align-items:center; gap:10px; }
+#psReturn{position:fixed;left:20px;top:104px;z-index:32;display:none}
+body.forge-author-preview #psReturn{display:block}
+body.forge-author-preview #partySelect{opacity:0;pointer-events:none}
 #partySelect .psEveryone{ font-family:'Barlow Condensed',sans-serif; text-transform:uppercase; letter-spacing:.14em; font-size:12px; color:var(--fg-dim); background:transparent; border:1px solid var(--line); padding:11px 16px; cursor:pointer; transition:.16s; }
 #partySelect .psEveryone:hover{ color:var(--fg); border-color:var(--fg-dim); }
 #partySelect .psCount{ font-family:'Barlow Condensed',sans-serif; text-transform:uppercase; letter-spacing:.16em; font-size:13px; color:var(--fg-dim); }
@@ -801,11 +804,13 @@ global.TacticsGeo=API;
     <div class="psFoot">
       <div class="psCount" id="psCount"></div>
       <div class="psFootBtns">
+        <button class="psEveryone" id="psPreview">Inspect map</button>
         <button class="psEveryone" id="psEveryone">Everyone plays their own</button>
         <button class="psForge" id="psForge">Enter the Forge &rarr;</button>
       </div>
     </div>
   </div>
+  <button class="fbtn" id="psReturn" type="button">Choose party / start fight</button>
   <div id="stage"></div>
   <div class="overlay vignette"></div>
   <div class="masthead">
@@ -845,6 +850,11 @@ global.TacticsGeo=API;
     <div class="fname" id="fnames">No image loaded — greyscale = height</div>
     <div class="divider"></div>
     <div class="eyebrow" style="margin-bottom:6px">DUNGEON</div>
+    <div class="slider-wrap" id="archetypeWrap">
+      <label for="archetype">Archetype <span class="val" id="archetypeStatus">active</span></label>
+      <select id="archetype" aria-describedby="archetypeNote"></select>
+      <div class="fname" id="archetypeNote" style="margin-top:4px">Current room-and-corridor generator.</div>
+    </div>
     <div class="slider-wrap">
       <label>Rooms <span class="val" id="roomsVal">8</span></label>
       <input type="range" id="rooms" min="4" max="16" value="8">
@@ -1135,7 +1145,7 @@ global.TacticsGeo=API;
   </div>
 <script type="module">
 import * as THREE from 'three';
-import { assembleActions } from '../weapon-actions.js';
+import { assembleActions } from '../weapon-actions.js?v=fg3';
 /* Module scope changes what escapes this block. Two consequences, both handled:
    · No inline HTML on*= attributes exist in this file (all 19 matches are JS
      property assignments like `hs.oninput=`), so no handler needs a global.
@@ -2781,13 +2791,50 @@ document.getElementById('autoDress').onchange=()=>{if(mode==='image'&&imgHeight)
     if(SESSION_ID){ clog('<i>The map belongs to the fight — re-forge is disabled during a session.</i>'); return; }
     document.getElementById(id+'Val').textContent=el.value+((id==='loops'||id==='decor')?'%':'');
     if(mode==='tiers')rebuild();};});
-/* the real generator inputs, verbatim — Task 11 writes this into forge_sessions.map */
+
+/* Phase 2c: archetype intent is now a versioned saved parameter. Only the
+   legacy-dungeon grammar is active in this slice; the next slice gives each
+   deterministic stage ownership and begins making these choices structural. */
+const archetypeEl=document.getElementById('archetype');
+const archetypeStatusEl=document.getElementById('archetypeStatus');
+const archetypeNoteEl=document.getElementById('archetypeNote');
+function archetypeDef(key){
+  const gf=window.ForgeGeneratorFoundation;
+  if(gf&&typeof gf.archetypeDefinition==='function')return gf.archetypeDefinition(key);
+  return {key:'legacy-dungeon',label:'Legacy dungeon',status:'active',summary:'Current room-and-corridor generator.'};
+}
+function paintArchetypeControl(key,sessionLocked){
+  const def=archetypeDef(key);
+  if(archetypeEl&&archetypeEl.value!==def.key)archetypeEl.value=def.key;
+  if(archetypeStatusEl)archetypeStatusEl.textContent=sessionLocked?'saved':(def.status==='active'?'active':'recorded');
+  if(archetypeNoteEl){
+    archetypeNoteEl.textContent=def.summary+(def.status==='active'?'':' Recorded in the map recipe; this build still previews the Legacy dungeon grammar.');
+  }
+  return def;
+}
+(function initArchetypeSelector(){
+  if(!archetypeEl)return;
+  const gf=window.ForgeGeneratorFoundation;
+  const defs=gf&&Array.isArray(gf.ARCHETYPE_DEFINITIONS)?gf.ARCHETYPE_DEFINITIONS:[archetypeDef('legacy-dungeon')];
+  archetypeEl.innerHTML=defs.map(d=>'<option value="'+d.key+'">'+d.label+(d.status==='active'?'':' — recorded')+'</option>').join('');
+  archetypeEl.value='legacy-dungeon';
+  archetypeEl.onchange=()=>{
+    if(SESSION_ID){clog('<i>The map belongs to the fight — its archetype is locked.</i>');return;}
+    const def=paintArchetypeControl(archetypeEl.value,false);
+    clog('<i>'+escapeHtml(def.label)+' archetype recorded. The current preview remains Legacy dungeon until stage ownership lands.</i>');
+  };
+  paintArchetypeControl('legacy-dungeon',false);
+})();
+window.__forgeArchetype={get:()=>archetypeEl?archetypeEl.value:'legacy-dungeon',paint:paintArchetypeControl};
+
+/* The real generator inputs are normalized into a versioned parameter record.
+   Top-level seed/theme/sliders remain for old sessions and current runtime. */
 function forgeParams(){
   const seed=parseInt(document.getElementById('seed').value)||7;
   const gf=window.ForgeGeneratorFoundation;
-  return { seed, theme:BIOME,
-    sliders:{roomCount:+document.getElementById('rooms').value,loopChance:(+document.getElementById('loops').value)/100,decorDensity:(+document.getElementById('decor').value)/100,verticality:5,foes:+document.getElementById('foes').value},
-    generatorVersion:gf?gf.GENERATOR_VERSION:null,archetype:'legacy-dungeon',stageSeeds:gf?gf.stageSeeds(seed):null };
+  const legacy={ seed, theme:BIOME, archetype:archetypeEl?archetypeEl.value:'legacy-dungeon',
+    sliders:{roomCount:+document.getElementById('rooms').value,loopChance:(+document.getElementById('loops').value)/100,decorDensity:(+document.getElementById('decor').value)/100,heightMode:'tiered',verticality:5,foes:+document.getElementById('foes').value} };
+  return gf&&typeof gf.normalizeParams==='function'?gf.normalizeParams(legacy):legacy;
 }
 window.__forgeParams=forgeParams;
 function forgeSessionMap(){
@@ -3557,8 +3604,30 @@ function pickGrantTargetWire(caster,done){
   clog("<i>Silvery Barbs \u2014 pick who gains advantage (tap a friendly token, or the field to take it yourself).</i>");
   drawHi(); renderHud();
 }
-function parseDmg(s){ var m=/(\d+)d(\d+)(?:\+(\d+))?/.exec(s); return m?{n:+m[1],die:+m[2],bonus:+(m[3]||0)}:{n:0,die:0,bonus:+s||0}; }
+function parseDmg(s){
+  var raw=String(s==null?"0":s).replace(/\s+/g,""),m=/^(?:(\d+)d(\d+))?([+-]\d+)?$/i.exec(raw);
+  return m?{n:+(m[1]||0),die:+(m[2]||0),bonus:+(m[3]||0)}:{n:0,die:0,bonus:+raw||0};
+}
 function rollDmg(s){ var p=parseDmg(s),t=p.bonus; for(var i=0;i<p.n;i++)t+=d(p.die); return t; }
+/* One damage roll, one evidence record. `dmgStack` is emitted by
+   forge-kit-derive; legacy/simple actions fall back to parsing `a.dmg`.
+   Critical hits double dice, never flat modifiers. */
+function rollDamageComponent(diceExpr,bonus,type,crit){
+  var p=parseDmg(diceExpr||"0"),rolls=[],count=p.n*(crit?2:1),total=(Number(bonus)||0)+p.bonus;
+  for(var i=0;i<count;i++){var r=d(p.die);rolls.push(r);total+=r;}
+  return {rolls:rolls,bonus:(Number(bonus)||0)+p.bonus,type:type||"",total:total};
+}
+function rollActionDamage(a,crit,extras){
+  a=a||{};var stack=Array.isArray(a.dmgStack)&&a.dmgStack.length?a.dmgStack:null,parts=[];
+  if(stack)stack.forEach(function(c){parts.push(rollDamageComponent(c.dice||"0",c.bonus||0,c.type||"",!!crit));});
+  else{
+    var p=parseDmg(a.dmg||"0"),dice=p.n?(p.n+"d"+p.die):"0";
+    parts.push(rollDamageComponent(dice,p.bonus,a.dmgType||"",!!crit));
+  }
+  (extras||[]).forEach(function(c){parts.push(rollDamageComponent(c.dice||"0",c.bonus||0,c.type||"",!!(crit&&c.critDice!==false)));});
+  var total=parts.reduce(function(n,c){return n+(Number(c.total)||0);},0);
+  return {total:total,parts:parts};
+}
 function rangeFt(a){ return (a.rng||1)*5; }
 
 /* The MAP contract: h[] = terrain feet, wall[] = MOVEMENT blocker,
@@ -4034,6 +4103,7 @@ function setActiveFromLog(unitKey, round){
   if (idx >= 0) CB.ti = idx;
   beginTurn(unitByKey(unitKey));   // same fresh-budget/cleanup body nextTurn uses \u2014 no local initiative advance
   applyLogEconomy();   // a mid-turn refresh/rewind must NOT refund spent movement/action \u2014 overlay the log's own economy
+  drawHi(); renderHud(); // beginTurn painted the full budget; repaint the reconciled log budget immediately
 }
 /* Session mode: CB.st is a DERIVED FACT of the log, never spent locally
    (the acting device still calls spend() predictively; every device including
@@ -4118,8 +4188,10 @@ function applyVerb(v){
            path length, on every device (including the mover\u2019s), instead
            of at tap-time. That is what keeps a failed publish from ever
            having spent a square nobody saw walked. */
-        if(u===active() && CB.st){ CB.st.moveLeft-=steps.length;
-          rebuildMoveReach(u); }
+        if(u===active() && CB.st){
+          if(window.__forgeSession) applyLogEconomy(); // echoed log already owns this spend; never subtract it twice
+          else { CB.st.moveLeft=Math.max(0,CB.st.moveLeft-steps.length); rebuildMoveReach(u); }
+        }
         drawHi(); drawSight(); renderHud();
         /* Task 7b: foeTurn awaits its OWN move's tween completion (u.c/u.r
            are only live AFTER this callback) before deciding the strike
@@ -5209,13 +5281,14 @@ function resolveStrike(u,a,t,ro,done){
   if(!hs.hit){ floatAt(t,"miss","miss"); if(window.ForgeTableCorrectness)window.ForgeTableCorrectness.pushFact({actor:u.unit,target:t.unit,mode:a.label,roll:roll,hitBonus:hitMod,hit:false,crit:false,adv:adv,dis:dis,cover:cover,coverName:ro.coverName||null}); done(); return; }
   var feedResolved=false;
   pipelineHit(u,rollAction,hs,t, function applyDmg(){
-    var dmg=rollDmg(a.dmg)+(hs.crit?rollDmg(a.dmg)-parseDmg(a.dmg).bonus:0);
-    if(u.raging&&(a.rng||1)<=1) dmg+=2; if(CB.hexed===t.id) dmg+=d(6);
+    var extra=[];if(u.raging&&(a.rng||1)<=1)extra.push({dice:"0",bonus:2,type:"Rage",critDice:false});
+    if(CB.hexed===t.id)extra.push({dice:"1d6",bonus:0,type:"Hex"});
+    var damage=rollActionDamage(a,hs.crit,extra),dmg=damage.total;
     t.hp-=dmg; var line=(hs.crit?"<b>CRIT</b> ":"")+t.name+" takes "+dmg+" ("+Math.max(0,t.hp)+"/"+t.hpMax+")";
     flashHit(t); shake(hs.crit?0.34:0.16);
     floatAt(t,(hs.crit?"\u2736 ":"")+dmg,hs.crit?"crit":"dmg");
     if(t.hp<=0){ floatAt(t,"DOWN","down"); t.alive=false; removeToken(t); line+=" \u2014 <b>down</b>"; } clog(line,false);
-    if(window.ForgeTableCorrectness)window.ForgeTableCorrectness.pushFact({actor:u.unit,target:t.unit,mode:a.label,roll:hs.roll,hitBonus:hitMod,hit:true,crit:hs.crit,dmg:dmg,adv:adv,dis:dis,cover:cover,coverName:ro.coverName||null,dropped:hs.roll!==roll?roll:null,mods:hs.roll!==roll?[{k:"silvery_barbs"}]:[]});
+    if(window.ForgeTableCorrectness)window.ForgeTableCorrectness.pushFact({actor:u.unit,target:t.unit,mode:a.label,roll:hs.roll,hitBonus:hitMod,hit:true,crit:hs.crit,dmg:dmg,dmgParts:damage.parts,adv:adv,dis:dis,cover:cover,coverName:ro.coverName||null,dropped:hs.roll!==roll?roll:null,mods:hs.roll!==roll?[{k:"silvery_barbs"}]:[]});
     feedResolved=true;
     if(a.rider==="boom" && t.alive) t.boomMark={by:u.id};
   }, function(){
@@ -5310,6 +5383,12 @@ function standFromProne(){var u=active();if(!u||!CB.st||!effectFor(u,"prone"))re
 var CONFIRM_TARGET=null;
 function directAttack(a){return !!a&&a.kind==="attack"&&!a.aoe&&!a.area&&!a.template;}
 function targetForConfirm(){return CONFIRM_TARGET&&unitByKey(CONFIRM_TARGET);}
+function coverContestAvailable(){
+  var u=active(),t=targetForConfirm()||unitByKey(CB.tgtKey)||unitByKey(CB.selKey);
+  if(!u||!t||!CB.pending||CB.pending.kind!=="attack"||u.side===t.side)return false;
+  var v=sightTo(u,t),b=v&&v.acBonus;
+  return !!(v&&v.canTarget&&Number.isFinite(b)&&b>0);
+}
 function clearConfirmTarget(){CONFIRM_TARGET=null;document.body.classList.remove("forge-target-confirm");}
 function selectAction(idx,castLevel){
   var u=active(); if(!u||u.side!=="pc"||CB.react||CB_ANIM) return; var a=u.actions[idx]; if(!a) return;
@@ -5592,11 +5671,11 @@ function foeTurn(){
           awaitSettled().then(function(){renderHud();foeTurnDone();});
         });return;
       }
-      if(hs.hit){var foeFeedResolved=false;pipelineHit(u,atk,hs,tgt,function(){var dmg=rollDmg(atk.dmg);tgt.hp-=dmg;
+      if(hs.hit){var foeFeedResolved=false;pipelineHit(u,atk,hs,tgt,function(){var damage=rollActionDamage(atk,false,[]),dmg=damage.total;tgt.hp-=dmg;
           var line=tgt.name+" takes "+dmg+" ("+Math.max(0,tgt.hp)+"/"+tgt.hpMax+")";
           flashHit(tgt);shake(0.2);floatAt(tgt,String(dmg),"dmg");
           if(tgt.hp<=0){floatAt(tgt,"DOWN","down");tgt.alive=false;removeToken(tgt);line+=" \u2014 <b>down</b>";}clog(line,false);
-          if(window.ForgeTableCorrectness)window.ForgeTableCorrectness.pushFact({actor:u.unit,target:tgt.unit,mode:atk.label,roll:hs.roll,hitBonus:foeHitMod,hit:true,crit:hs.crit,dmg:dmg,adv:adv,dis:dis,dropped:hs.roll!==roll?roll:null,mods:hs.roll!==roll?[{k:"silvery_barbs"}]:[]});
+          if(window.ForgeTableCorrectness)window.ForgeTableCorrectness.pushFact({actor:u.unit,target:tgt.unit,mode:atk.label,roll:hs.roll,hitBonus:foeHitMod,hit:true,crit:hs.crit,dmg:dmg,dmgParts:damage.parts,adv:adv,dis:dis,dropped:hs.roll!==roll?roll:null,mods:hs.roll!==roll?[{k:"silvery_barbs"}]:[]});
           foeFeedResolved=true;
         },function(){
           if(!foeFeedResolved&&window.ForgeTableCorrectness)window.ForgeTableCorrectness.pushFact({actor:u.unit,target:tgt.unit,mode:atk.label,roll:hs.roll,hitBonus:foeHitMod,hit:false,crit:false,adv:adv,dis:dis,dropped:hs.roll!==roll?roll:null,mods:hs.roll!==roll?[{k:"silvery_barbs"}]:[]});
@@ -5879,8 +5958,8 @@ function renderHud(){
       +'<div class="cbStats"><span>Move <b>'+(CB.st?CB.st.moveLeft*5:0)+' ft</b></span><span>Action <b>'+(CB.st&&CB.st.usedAction?"used":"ready")+'</b></span><span>Bonus <b>'+(CB.st&&CB.st.usedBonus?"used":"ready")+'</b></span></div>'
       +(isPc?(iControl
           ?'<div class="cbActs">'+acts+'</div><div class="cbHint">'+(waitingMe?'<i>Waiting for the table\u2026</i>':(CB.pending?('<b>'+CB.pending.label+'</b> \u2014 '+((CB.pending.kind==='attack'&&(CB.pending.rng||1)>1&&(unitByKey(CB.tgtKey)||unitByKey(CB.selKey)))?'green/yellow/orange = firing origins \u00b7 dark = no shot':((CB.pending.rng||1)>1?'red = in range \u00b7 amber = long (disadv) \u00b7 grey = unreachable':'click a highlighted target'))):'Move on teal \u00b7 select a foe, then pick a ranged attack to preview firing positions.'))+'</div>'
-            +(sess&&CB.pending&&CB.pending.kind==="attack"&&!waitingMe
-              ?'<button class="cbContestTog'+(CONTEST_COVER?' on':'')+'" id="cbContestTog" title="Pause before the roll: the DM re-rules cover for this one attack (20s, or the grid stands)">Contest cover: '+(CONTEST_COVER?'<b>on</b> \u2014 the DM rules before you roll':'off')+'</button>':'')
+            +(sess&&CB.pending&&CB.pending.kind==="attack"&&!waitingMe&&coverContestAvailable()
+              ?'<button class="cbContestTog'+(CONTEST_COVER?' on':'')+'" id="cbContestTog" title="Pause before the roll: the DM re-rules existing cover for this one attack (20s, or the grid stands)">Contest cover: '+(CONTEST_COVER?'<b>on</b> \u2014 the DM rules before you roll':'off')+'</button>':'')
             +'<div class="cbSight"><div class="cbSightHd"><span>SIGHT</span><button id="cbSightTog">'+(SHOW_SIGHT?'hide lines':'show lines')+'</button></div>'+sightReport(u)+'</div>'
           :turnBanner)
         :(iControl?'<button class="cbFoeGo" id="cbFoeGo"'+(waitingMe?' disabled title="Waiting for the table\u2026"':'')+'>\u25b6 Run '+u.name+'\u2019s turn</button>':turnBanner));
@@ -5941,7 +6020,7 @@ function renderHud(){
       active: u, order: hudOrder, iControl: iControl, waiting: waitingMe,
       economy: CB.st, pending: CB.pending, over: CB.over,
       selKey: CB.selKey, tgtKey: CB.tgtKey,
-      showSight: SHOW_SIGHT, contestCover: CONTEST_COVER,
+      showSight: SHOW_SIGHT, contestCover: CONTEST_COVER, coverContestAvailable:coverContestAvailable(),
       session: !!window.__forgeSession, viewerMode:disclosure.mode, suppressEnemyHud:suppressEnemyHud,
       kit: suppressEnemyHud ? null : (u && kitFor(u.key)),
       _structural: u && __liveStatsCache && __liveStatsCache[u.key] && __liveStatsCache[u.key].structural || null,
@@ -6098,7 +6177,7 @@ SESSION_ID = qs.get('session');
 if (SESSION_ID) {
   enforceTacticalVerticalScale('session');
   var SESSION_LOCK_TITLE = "The map belongs to the fight — re-forge is disabled during a session.";
-  ["rooms","loops","decor","foes","seed","dice","forgeBtn","loadHeight","loadType"].forEach(function(id){
+  ["archetype","rooms","loops","decor","foes","seed","dice","forgeBtn","loadHeight","loadType"].forEach(function(id){
     var el = document.getElementById(id);
     if (el) { el.disabled = true; el.title = SESSION_LOCK_TITLE; }
   });
@@ -6131,8 +6210,8 @@ if (SESSION_ID) {
       var el = document.getElementById(id); if (el) el.style.display = "none";
     });
     document.querySelectorAll(".panel .slider-wrap").forEach(function(w){
-      var inp = w.querySelector("input");
-      if (inp && ["rooms","loops","decor","foes"].indexOf(inp.id) >= 0) w.style.display = "none";
+      var inp = w.querySelector("input,select");
+      if (inp && ["archetype","rooms","loops","decor","foes"].indexOf(inp.id) >= 0) w.style.display = "none";
     });
     document.querySelectorAll(".panel .eyebrow").forEach(function(e){
       var t = (e.textContent || "").trim();
@@ -6534,7 +6613,10 @@ async function refreshStagedList(uid, say){
     if (!rows.length) { listEl.innerHTML = '<div class="fname">No staged fights.</div>'; return; }
     listEl.innerHTML = rows.map(function(r){
       var m = r.map || {}, s = m.sliders || {};
-      var summary = 'seed ' + (m.seed != null ? m.seed : '?') + ' · ' + (m.theme || '?') +
+      var akey = (m.parameters && m.parameters.archetype) || m.archetype || 'legacy-dungeon';
+      var adef = window.ForgeGeneratorFoundation && window.ForgeGeneratorFoundation.archetypeDefinition
+        ? window.ForgeGeneratorFoundation.archetypeDefinition(akey) : { label: akey };
+      var summary = 'seed ' + (m.seed != null ? m.seed : '?') + ' · ' + (m.theme || '?') + ' · ' + adef.label +
         ' · rooms ' + (s.roomCount != null ? s.roomCount : '?') + ' · foes ' + (s.foes != null ? s.foes : '?');
       return '<div class="fbStagedRow" data-id="' + r.id + '">' +
         '<div class="fname" title="' + escapeHtml(summary) + '">' + escapeHtml(summary) + '</div>' +
@@ -6602,11 +6684,18 @@ async function bootSession(sid){
      Missing means a legacy recipe; malformed or mismatched means stop loudly. */
   mode='tiers';WATERLEVEL=0.6;
   BIOME=(row.map&&row.map.theme)||(row.map&&row.map.mapSnapshot&&row.map.mapSnapshot.meta&&row.map.mapSnapshot.meta.biome)||'grass';
-  if(row.map&&Object.prototype.hasOwnProperty.call(row.map,'mapSnapshot')){
+  const hasSavedSnapshot=!!(row.map&&Object.prototype.hasOwnProperty.call(row.map,'mapSnapshot'));
+  const savedArchetype=(row.map&&row.map.parameters&&row.map.parameters.archetype)||(row.map&&row.map.archetype)||'legacy-dungeon';
+  if(window.__forgeArchetype)window.__forgeArchetype.paint(savedArchetype,true);
+  if(hasSavedSnapshot){
+    /* Snapshot authority does not require an older client to understand a
+       future parameter version merely to repaint an already-saved map. */
     F=fieldFromSessionSnapshot(row.map);
   }else{
     SESSION_MAP_AUTHORITY=null;
-    F=buildTiersField(row.map.seed,Object.assign({themeKey:row.map.theme},row.map.sliders));
+    const sessionRecipe=(window.ForgeGeneratorFoundation&&typeof window.ForgeGeneratorFoundation.recipeParams==='function')
+      ?window.ForgeGeneratorFoundation.recipeParams(row.map||{}):Object.assign({seed:row.map.seed,themeKey:row.map.theme},row.map.sliders||{});
+    F=buildTiersField(sessionRecipe.seed,Object.assign({themeKey:sessionRecipe.themeKey},sessionRecipe));
   }
   if(!F.occ)F.occ=EMPTY_OCC(F.W*F.H);
   WALL_FT=MapBridge.wallFeetFor(BIOME);applyLook();renderField();
@@ -6829,7 +6918,8 @@ function netMove(u, path){
 function netAttack(u,a,t){
   var valid=window.ForgeCombatRules.requireDamage(a);if(!valid.ok){clog('<b style="color:#c0553f">'+escapeHtml(valid.why)+' — action refused.</b>');return;}
   var ro=reachOK(u,a,t); if(!ro.ok){ clog(u.name+" — "+ro.why+"."); return; }
-  if(CONTEST_COVER){ CONTEST_COVER=false; contestThenAttack(u,a,t,ro); return; }   // per-attack toggle, consumed here
+  if(CONTEST_COVER&&Number.isFinite(ro.cover)&&ro.cover>0){ CONTEST_COVER=false; contestThenAttack(u,a,t,ro); return; }
+  CONTEST_COVER=false; // a moved target/attacker may have erased the cover after the toggle was armed
   netAttackGo(u,a,t,ro);
 }
 /* Contest cover (FORGE_COVER_CONTEST.md §3, door a): pre-roll pause. The prompt
@@ -6905,10 +6995,11 @@ function netAttackGo(u,a,t,ro){
         { target: t.unit, roll: roll, adv: adv, dis: dis, crit: crit, mode: a.label, hitBonus: hitMod, cover: cover, coverName:ro.coverName||null, advReason:av.why.join(", "), flankBonus:av.attackBonus||0, hit: hit },
         function(answers){
           var hs=replayHitState({ roll:roll, crit:crit, hit:hit, cover:cover }, answers);
-          var effects=wardBreakPending?[wardBreakPending]:[], dmg=0; wardBreakPending=null;
+          var effects=wardBreakPending?[wardBreakPending]:[], dmg=0,damage=null; wardBreakPending=null;
           if(hs.hit){
-            dmg=rollDmg(a.dmg)+(hs.crit?rollDmg(a.dmg)-parseDmg(a.dmg).bonus:0);
-            if(u.raging&&(a.rng||1)<=1) dmg+=2; if(CB.hexed===t.id) dmg+=d(6);
+            var extra=[];if(u.raging&&(a.rng||1)<=1)extra.push({dice:"0",bonus:2,type:"Rage",critDice:false});
+            if(CB.hexed===t.id)extra.push({dice:"1d6",bonus:0,type:"Hex"});
+            damage=rollActionDamage(a,hs.crit,extra);dmg=damage.total;
             hpLeft=Math.max(0,hpLeft-dmg);
             /* boomMark/CB.st are client-local bookkeeping (never part of the
                replayed state, same reasoning as the walk verb's budget update
@@ -6930,7 +7021,7 @@ function netAttackGo(u,a,t,ro){
           if(rb) effects.push({ unit:u.unit, dmg:rb.payload.dmg });
           // Priority 2: the resolved fact carries which slot it spent, so
           // forge-replay's turnEconomy grades the economy without kit knowledge.
-          return { hit: hs.hit, crit:hs.crit, roll:hs.roll, dmg: dmg, effects: effects, slot: a.bonus ? "bonus" : "action",
+          return { hit: hs.hit, crit:hs.crit, roll:hs.roll, dmg: dmg, dmgParts:damage?damage.parts:null, effects: effects, slot: a.bonus ? "bonus" : "action",
             mode:a.label, hitBonus:hitMod, cover:cover, coverName:ro.coverName||null, adv:adv, dis:dis, advReason:av.why.join(", "), flankBonus:av.attackBonus||0 };
         })
       .then(function(r){ if (r && r.ok === false) { netPublishFail(r); return; } strike(); });
@@ -7004,7 +7095,7 @@ function netFoeAttack(u,atk,t,hs,adv,dis,hitMod,advReason,flankBonus){
       { target:t.unit, roll:hs.roll, adv:!!adv, dis:!!dis, crit:hs.crit, mode:atk.label, hitBonus:hitMod, cover:hs.acBonus||0, coverName:hs.acBonus===5?"three-quarters":hs.acBonus===2?"half":"none", advReason:advReason||null, flankBonus:flankBonus||0, hit:hs.hit },
       function(answers){
         var fhs=replayHitState({ roll:hs.roll, crit:hs.crit, hit:hs.hit, cover:hs.acBonus||0 }, answers);
-        var dmg = fhs.hit ? rollDmg(atk.dmg) : 0;
+        var damage=fhs.hit?rollActionDamage(atk,false,[]):null,dmg=damage?damage.total:0;
         if(!fhs.hit){
           if(hs.hit) clog("<i>"+atk.label+" — a reaction turned that hit into a miss.</i>");
           floatAt(t,"miss","miss");
@@ -7016,7 +7107,7 @@ function netFoeAttack(u,atk,t,hs,adv,dis,hitMod,advReason,flankBonus){
         })[0];
         if(rb) effects.push({ unit:u.unit, dmg:rb.payload.dmg });
         // Priority 2: foe attacks are actions (foe kits carry no bonus flag).
-        return { hit:fhs.hit, crit:fhs.crit, roll:fhs.roll, dmg:dmg, effects:effects, slot: atk.bonus ? "bonus" : "action",
+        return { hit:fhs.hit, crit:fhs.crit, roll:fhs.roll, dmg:dmg, dmgParts:damage?damage.parts:null, effects:effects, slot: atk.bonus ? "bonus" : "action",
           mode:atk.label, hitBonus:hitMod, cover:hs.acBonus||0, coverName:hs.acBonus===5?"three-quarters":hs.acBonus===2?"half":"none", adv:!!adv, dis:!!dis, advReason:advReason||null, flankBonus:flankBonus||0 };
       })
     .then(function(r){ if (r && r.ok===false) netPublishFail(r); return r; });
@@ -7901,12 +7992,22 @@ renderer.domElement.addEventListener("contextmenu", function(e){ if(ADD_FOE_PLAC
       : 'select who this computer ('+INIT[currentUser]+') is driving \u2014 tap a character';
     document.getElementById("psForge").disabled = n === 0;
   }
+  function previewMap(){
+    document.body.classList.add("forge-author-preview");
+    host.classList.add("gone");
+    if(window.__forgeVerticalScale)window.__forgeVerticalScale.setAuthoring(document.getElementById("height").value);
+  }
+  function returnToParty(){
+    document.body.classList.remove("forge-author-preview");
+    host.classList.remove("gone");
+  }
   function forge(){
     var j = joinList(); if(!j.length) return;
     var badges = computeBadges();
     window.__fightRoster = j;
     window.__fightControllers = {};
     j.forEach(function(k){ window.__fightControllers[k] = { player:currentUser, badge:badges[k], color:SEATCOL[currentUser] }; });
+    document.body.classList.remove("forge-author-preview");
     host.classList.add("gone");
     if(window.__enterForge) window.__enterForge();
   }
@@ -8043,9 +8144,9 @@ renderer.domElement.addEventListener("contextmenu", function(e){ if(ADD_FOE_PLAC
       if (res.ok) {
         if (window.refreshControllers) { try { await window.refreshControllers(); if (window.renderHud) window.renderHud(); } catch (e) {} }
         var nowActive = stg.row.status === "active";
-        say('<b style="color:var(--fg)">Claimed ' + esc(r.name || unit) + '.</b>' + (nowActive ? ' Entering the fight\u2026' : ' Waiting on the rest of the table\u2026'));
+        say('<b style="color:var(--fg)">Claimed ' + esc(r.name || unit) + '.</b> '
+          + (nowActive ? 'Choose another character or press Enter the fight.' : 'Choose another character or wait for the table.'));
         render();
-        if (nowActive) setTimeout(function(){ host.classList.add("gone"); }, 500);
       } else {
         say('<b style="color:var(--bad,#c0553f)">Couldn\u2019t claim:</b> ' + esc(res.why || "try again"));
         render();
@@ -8055,11 +8156,12 @@ renderer.domElement.addEventListener("contextmenu", function(e){ if(ADD_FOE_PLAC
     async function init(){
       var stg = window.__forgeStaging;
       if (!stg || stg.row.status === "ended") { host.classList.add("gone"); return; }   // nothing to claim into
-      var loginEl = document.getElementById("psLogin"), everyoneBtn = document.getElementById("psEveryone"), forgeBtn = document.getElementById("psForge");
+      var loginEl = document.getElementById("psLogin"), everyoneBtn = document.getElementById("psEveryone"), previewBtn=document.getElementById("psPreview"), forgeBtn = document.getElementById("psForge");
       if (loginEl) loginEl.style.display = "none";      // req 5: identity is sb.auth, not the mock's fake login chips
       if (everyoneBtn) everyoneBtn.style.display = "none";   // local-only bulk toggle, not applicable to claiming
+      if (previewBtn) previewBtn.style.display = "none";       // shared sessions are already tactical and locked
       if (forgeBtn) {
-        forgeBtn.textContent = "Enter the board \u2192";
+        forgeBtn.textContent = stg.row.status === "active" ? "Enter the fight \u2192" : "Enter the board \u2192";
         forgeBtn.disabled = false;   // always available — the overseer needs it to reach Start fight (in the HUD, under this overlay); a player may also just watch
         forgeBtn.addEventListener("click", function(){ host.classList.add("gone"); });
       }
@@ -8096,6 +8198,8 @@ renderer.domElement.addEventListener("contextmenu", function(e){ if(ADD_FOE_PLAC
     else if(e.key==="Enter"){ forge(); e.preventDefault(); }
   });
   document.getElementById("psForge").addEventListener("click", forge);
+  document.getElementById("psPreview").addEventListener("click", previewMap);
+  document.getElementById("psReturn").addEventListener("click", returnToParty);
 
   /* The renderer block is an ES module now, therefore deferred. It defines CHAR,
      which ready() needs. Painting now would grey out the whole party. Wait for

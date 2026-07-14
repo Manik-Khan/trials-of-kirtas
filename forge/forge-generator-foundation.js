@@ -16,23 +16,38 @@
 })(typeof self !== "undefined" ? self : this, function () {
   "use strict";
 
-  var GENERATOR_VERSION = "2.0.0-snapshot.1";
+  var GENERATOR_VERSION = "2.0.0-params.1";
+  var PARAMETER_SCHEMA = "forge-map-parameters";
+  var PARAMETER_VERSION = 1;
   var STAGES = Object.freeze(["layout", "height", "semantics", "decor", "foes"]);
-  var ARCHETYPES = Object.freeze([
-    "legacy-dungeon",
-    "valley",
-    "canyon",
-    "central-hill",
-    "ring",
-    "split-plateau",
-    "bridge-crossing",
-    "island-chain",
-    "courtyard",
-    "cavern-chambers",
-    "temple-terraces",
-    "ridge",
-    "basin"
+  var ARCHETYPE_DEFINITIONS = Object.freeze([
+    Object.freeze({ key: "legacy-dungeon", label: "Legacy dungeon", status: "active", summary: "Current room-and-corridor generator." }),
+    Object.freeze({ key: "valley", label: "Valley", status: "record-only", summary: "Two elevated sides with a low route between them." }),
+    Object.freeze({ key: "canyon", label: "Canyon", status: "record-only", summary: "A deep dividing cut with constrained crossings." }),
+    Object.freeze({ key: "central-hill", label: "Central hill", status: "record-only", summary: "A dominant elevated center with approaches around it." }),
+    Object.freeze({ key: "ring", label: "Ring", status: "record-only", summary: "A circular route around a central obstruction or objective." }),
+    Object.freeze({ key: "split-plateau", label: "Split plateau", status: "record-only", summary: "Separated high regions joined by limited connectors." }),
+    Object.freeze({ key: "bridge-crossing", label: "Bridge crossing", status: "record-only", summary: "Opposed banks focused on one or more bridges." }),
+    Object.freeze({ key: "island-chain", label: "Island chain", status: "record-only", summary: "Multiple walkable islands connected across hazards." }),
+    Object.freeze({ key: "courtyard", label: "Courtyard", status: "record-only", summary: "An enclosed open center with perimeter structures." }),
+    Object.freeze({ key: "cavern-chambers", label: "Cavern chambers", status: "record-only", summary: "Organic chambers, narrow throats, and irregular boundaries." }),
+    Object.freeze({ key: "temple-terraces", label: "Temple terraces", status: "record-only", summary: "Ordered platforms, stairs, and ceremonial elevation." }),
+    Object.freeze({ key: "ridge", label: "Ridge", status: "record-only", summary: "A long high spine controlling movement and sight." }),
+    Object.freeze({ key: "basin", label: "Basin", status: "record-only", summary: "A low center surrounded by higher approaches." })
   ]);
+  var ARCHETYPES = Object.freeze(ARCHETYPE_DEFINITIONS.map(function (d) { return d.key; }));
+  var PARAMETER_DEFAULTS = Object.freeze({
+    roomCount: 8,
+    loopChance: 0.2,
+    decorDensity: 0.7,
+    heightMode: "tiered",
+    verticalityFt: 5,
+    party: 4,
+    foes: 5,
+    poolBlocks: false,
+    waterBlocks: true,
+    retries: 24
+  });
 
   function asUint32(value) {
     var n = Number(value);
@@ -97,6 +112,37 @@
   function numberOr(value, fallback) {
     var n = Number(value);
     return Number.isFinite(n) ? n : fallback;
+  }
+
+  function clampNumber(value, fallback, min, max) {
+    var n = numberOr(value, fallback);
+    if (min != null) n = Math.max(min, n);
+    if (max != null) n = Math.min(max, n);
+    return n;
+  }
+
+  function integerBetween(value, fallback, min, max) {
+    return Math.round(clampNumber(value, fallback, min, max));
+  }
+
+  function boolOr(value, fallback) {
+    return value == null ? !!fallback : !!value;
+  }
+
+  function heightMode(value) {
+    var v = value == null || value === "" ? PARAMETER_DEFAULTS.heightMode : String(value);
+    if (v !== "tiered" && v !== "flat") {
+      throw new Error("forge-generator-foundation: unknown height mode \"" + v + "\"");
+    }
+    return v;
+  }
+
+  function archetypeDefinition(value) {
+    var key = assertArchetype(value);
+    for (var i = 0; i < ARCHETYPE_DEFINITIONS.length; i++) {
+      if (ARCHETYPE_DEFINITIONS[i].key === key) return ARCHETYPE_DEFINITIONS[i];
+    }
+    return ARCHETYPE_DEFINITIONS[0];
   }
 
   /* Deep-clones to plain JSON with JSON.stringify semantics: functions and
@@ -239,15 +285,144 @@
     return restored;
   }
 
+  function hasParameterSchema(value) {
+    return !!value && typeof value === "object" && !Array.isArray(value) &&
+      value.schema === PARAMETER_SCHEMA;
+  }
+
+  function isParameterRecord(value) {
+    return hasParameterSchema(value) && Number(value.version) === PARAMETER_VERSION;
+  }
+
+  function legacySource(input) {
+    input = input || {};
+    if (hasParameterSchema(input)) return input;
+    if (hasParameterSchema(input.parameters)) return input.parameters;
+    if (hasParameterSchema(input.parameterRecord)) return input.parameterRecord;
+    return input;
+  }
+
+  function parameterRecord(input) {
+    input = input || {};
+    var source = legacySource(input);
+    if (source.schema === PARAMETER_SCHEMA && Number(source.version) !== PARAMETER_VERSION) {
+      throw new Error(
+        "forge-generator-foundation: unsupported parameter record version " +
+        String(source.version) + " (expected " + PARAMETER_VERSION + ")"
+      );
+    }
+
+    var sourceStages = source.stages || {};
+    var sourceValues = source.values || {};
+    var sliders = source.sliders || input.sliders || {};
+    var recordSource = hasParameterSchema(source);
+    var seed = asUint32(recordSource ? source.seed : (source.seed != null ? source.seed : input.seed));
+    var archetype = assertArchetype(recordSource ? source.archetype : (source.archetype != null ? source.archetype : input.archetype));
+    var theme = recordSource && Object.prototype.hasOwnProperty.call(source, "theme") ? source.theme
+      : (source.theme != null ? source.theme : (input.theme != null ? input.theme : (input.themeKey != null ? input.themeKey : null)));
+    var seeds = stageSeeds(seed, source.stageSeeds || input.stageSeeds);
+
+    var layout = sourceStages.layout || sourceValues.layout || {};
+    var height = sourceStages.height || sourceValues.height || {};
+    var decor = sourceStages.decor || sourceValues.decor || {};
+    var foes = sourceStages.foes || sourceValues.foes || {};
+    var rules = source.rules || sourceValues.rules || {};
+    var runtime = source.runtime || sourceValues.runtime || {};
+
+    var roomCount = layout.roomCount != null ? layout.roomCount :
+      (sliders.roomCount != null ? sliders.roomCount : input.roomCount);
+    var loopChance = layout.loopChance != null ? layout.loopChance :
+      (sliders.loopChance != null ? sliders.loopChance : input.loopChance);
+    var decorDensity = decor.density != null ? decor.density :
+      (decor.decorDensity != null ? decor.decorDensity :
+        (sliders.decorDensity != null ? sliders.decorDensity : input.decorDensity));
+    var hMode = height.mode != null ? height.mode :
+      (height.heightMode != null ? height.heightMode :
+        (sliders.heightMode != null ? sliders.heightMode : input.heightMode));
+    var verticalityFt = height.verticalityFt != null ? height.verticalityFt :
+      (height.verticality != null ? height.verticality :
+        (sliders.verticalityFt != null ? sliders.verticalityFt :
+          (sliders.verticality != null ? sliders.verticality : input.verticality)));
+    var party = foes.party != null ? foes.party :
+      (foes.partyCount != null ? foes.partyCount :
+        (sliders.party != null ? sliders.party : input.party));
+    var foeCount = foes.count != null ? foes.count :
+      (foes.foes != null ? foes.foes :
+        (sliders.foes != null ? sliders.foes : input.foes));
+    var poolBlocks = rules.poolBlocks != null ? rules.poolBlocks :
+      (sliders.poolBlocks != null ? sliders.poolBlocks : input.poolBlocks);
+    var waterBlocks = rules.waterBlocks != null ? rules.waterBlocks :
+      (sliders.waterBlocks != null ? sliders.waterBlocks : input.waterBlocks);
+    var retries = runtime.retries != null ? runtime.retries :
+      (sliders.retries != null ? sliders.retries : input.retries);
+
+    return {
+      schema: PARAMETER_SCHEMA,
+      version: PARAMETER_VERSION,
+      generatorVersion: GENERATOR_VERSION,
+      seed: seed,
+      theme: theme,
+      archetype: archetype,
+      /* Phase 2c records the requested archetype now. Until the next slice
+         makes stages own generation, every selection still runs through the
+         current legacy room-and-corridor grammar. */
+      generatorProfile: "legacy-dungeon",
+      stageSeeds: seeds,
+      stages: {
+        layout: {
+          roomCount: integerBetween(roomCount, PARAMETER_DEFAULTS.roomCount, 1, 64),
+          loopChance: clampNumber(loopChance, PARAMETER_DEFAULTS.loopChance, 0, 1)
+        },
+        height: {
+          mode: heightMode(hMode),
+          verticalityFt: clampNumber(verticalityFt, PARAMETER_DEFAULTS.verticalityFt, 0.5, 100)
+        },
+        semantics: {},
+        decor: {
+          density: clampNumber(decorDensity, PARAMETER_DEFAULTS.decorDensity, 0, 1)
+        },
+        foes: {
+          party: integerBetween(party, PARAMETER_DEFAULTS.party, 1, 64),
+          count: integerBetween(foeCount, PARAMETER_DEFAULTS.foes, 1, 64)
+        }
+      },
+      rules: {
+        poolBlocks: boolOr(poolBlocks, PARAMETER_DEFAULTS.poolBlocks),
+        waterBlocks: boolOr(waterBlocks, PARAMETER_DEFAULTS.waterBlocks)
+      },
+      runtime: {
+        retries: integerBetween(retries, PARAMETER_DEFAULTS.retries, 1, 256)
+      }
+    };
+  }
+
+  function slidersFromRecord(record) {
+    record = parameterRecord(record);
+    return {
+      roomCount: record.stages.layout.roomCount,
+      loopChance: record.stages.layout.loopChance,
+      decorDensity: record.stages.decor.density,
+      heightMode: record.stages.height.mode,
+      verticality: record.stages.height.verticalityFt,
+      party: record.stages.foes.party,
+      foes: record.stages.foes.count,
+      poolBlocks: record.rules.poolBlocks,
+      waterBlocks: record.rules.waterBlocks,
+      retries: record.runtime.retries
+    };
+  }
+
   function recipeParams(envelope) {
     if (!envelope || typeof envelope !== "object") {
       throw new Error("forge-generator-foundation: encounter envelope is unavailable");
     }
-    var out = clonePlain(envelope.sliders || {}) || {};
-    out.seed = asUint32(envelope.seed);
-    if (envelope.theme != null) out.themeKey = envelope.theme;
-    if (envelope.archetype != null) out.archetype = assertArchetype(envelope.archetype);
-    if (envelope.stageSeeds != null) out.stageSeeds = clonePlain(envelope.stageSeeds);
+    var record = parameterRecord(envelope);
+    var out = slidersFromRecord(record);
+    out.seed = record.seed;
+    if (record.theme != null) out.themeKey = record.theme;
+    out.archetype = record.archetype;
+    out.stageSeeds = clonePlain(record.stageSeeds);
+    out.parameters = clonePlain(record);
     return out;
   }
 
@@ -337,16 +512,15 @@
   }
 
   function normalizeParams(params) {
-    params = params || {};
-    var seed = asUint32(params.seed);
-    var archetype = assertArchetype(params.archetype);
+    var record = parameterRecord(params || {});
     return {
-      seed: seed,
-      theme: params.theme || params.themeKey || null,
-      sliders: clonePlain(params.sliders || {}),
-      archetype: archetype,
+      seed: record.seed,
+      theme: record.theme,
+      sliders: slidersFromRecord(record),
+      archetype: record.archetype,
       generatorVersion: GENERATOR_VERSION,
-      stageSeeds: stageSeeds(seed, params.stageSeeds)
+      stageSeeds: clonePlain(record.stageSeeds),
+      parameters: clonePlain(record)
     };
   }
 
@@ -366,6 +540,9 @@
       generatorVersion: p.generatorVersion,
       archetype: p.archetype,
       stageSeeds: p.stageSeeds,
+      parameterSchema: PARAMETER_SCHEMA,
+      parameterVersion: PARAMETER_VERSION,
+      parameters: clonePlain(p.parameters),
       mapSnapshot: snapshot,
       mapFingerprint: fingerprintSnapshot(snapshot),
       graph: graph
@@ -378,6 +555,9 @@
     map.meta = Object.assign({}, map.meta || {}, {
       generatorVersion: p.generatorVersion,
       archetype: p.archetype,
+      generatorProfile: p.parameters.generatorProfile,
+      parameterSchema: PARAMETER_SCHEMA,
+      parameterVersion: PARAMETER_VERSION,
       stageSeeds: p.stageSeeds,
       graph: dungeonOrGraph && Array.isArray(dungeonOrGraph.rooms)
         ? graphMetadata(dungeonOrGraph)
@@ -388,13 +568,20 @@
 
   return {
     GENERATOR_VERSION: GENERATOR_VERSION,
+    PARAMETER_SCHEMA: PARAMETER_SCHEMA,
+    PARAMETER_VERSION: PARAMETER_VERSION,
+    PARAMETER_DEFAULTS: PARAMETER_DEFAULTS,
     STAGES: STAGES,
     ARCHETYPES: ARCHETYPES,
+    ARCHETYPE_DEFINITIONS: ARCHETYPE_DEFINITIONS,
     hash32: hash32,
     deriveSeed: deriveSeed,
     stageSeeds: stageSeeds,
     assertArchetype: assertArchetype,
+    archetypeDefinition: archetypeDefinition,
     assertThemeKey: assertThemeKey,
+    parameterRecord: parameterRecord,
+    slidersFromRecord: slidersFromRecord,
     snapshotMap: snapshotMap,
     restoreMap: restoreMap,
     fingerprintSnapshot: fingerprintSnapshot,
