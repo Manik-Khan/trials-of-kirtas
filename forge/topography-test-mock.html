@@ -4,7 +4,7 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
 <title>Topography Test — Heightfield Diorama</title>
-<!-- Phase 2f: structural bridges + permanent damage evidence -->
+<!-- Phase 2f.2: structural bridges + canonical site-style damage pipeline -->
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,600;0,700;1,600&family=Oswald:wght@300;400;500;600&family=EB+Garamond:ital@0;1&display=swap" rel="stylesheet">
@@ -38,8 +38,9 @@
 <script src="../equip-slots.js?v=cc2"></script>
 <script src="../character-combat.js?v=cc2"></script>
 <script src="forge-kit-derive.js?v=b3"></script>
-<script src="forge-damage-evidence.js?v=fde2"></script>
-<script src="forge-feed-render.js?v=b3"></script>
+<script src="forge-action-damage.js?v=fad1"></script>
+<script src="forge-damage-evidence.js?v=fde3"></script>
+<script src="forge-feed-render.js?v=ffr3"></script>
 <script src="forge-hud.js?v=b2"></script>
 <script src="forge-table-correctness.js?v=fg2"></script>
 <script src="../item-icons.js?v=b3"></script>
@@ -856,11 +857,6 @@ body.forge-author-preview #partySelect{opacity:0;pointer-events:none}
 #fgFeed .fg-frow[hidden]{display:none!important}
 #fgFeed .ffr-dmg-detail{display:block!important}
   #fgFeed .forge-result-row .ffr-dmg-detail{display:none!important}
-  #fgFeed .forge-damage-evidence-v2{display:block!important;margin:6px 0 2px;padding:6px 8px;border-left:2px solid rgba(216,179,91,.65);background:rgba(0,0,0,.18);font:600 11px/1.45 ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;color:#efe3c5}
-  #fgFeed .forge-dmg-component{display:grid;grid-template-columns:minmax(0,1fr);gap:1px;margin:2px 0}
-  #fgFeed .forge-dmg-formula{color:#d8c48f}.forge-dmg-arithmetic{color:#fff3d2}
-  #fgFeed .forge-dmg-check{margin-top:3px;opacity:.68;font-size:10px}
-  #fgFeed .forge-damage-missing{display:block;margin-top:6px;padding:5px 7px;border:1px solid rgba(212,93,76,.7);background:rgba(111,34,28,.28);color:#ffd0c8;font:700 10px/1.4 ui-monospace,SFMono-Regular,Menlo,Consolas,monospace}
 #fgFeed .forge-dmg-formula{opacity:.58;margin-right:8px;font-size:10px}
 #fgFeed .forge-dmg-arithmetic{font-weight:700;color:var(--tk-ink)}
 </style>
@@ -3758,18 +3754,16 @@ function rollDamageComponent(diceExpr,bonus,type,crit){
   return {dice:String(diceExpr||"0"),rolls:rolls,bonus:(Number(bonus)||0)+p.bonus,type:type||"",total:total};
 }
 function rollActionDamage(a,crit,extras){
+  /* Phase 2f.2: one canonical roller owns both the total and the evidence.
+     `d` is passed through so the battle keeps the same RNG seam. */
+  if(typeof window!=="undefined"&&window.ForgeActionDamage&&typeof window.ForgeActionDamage.rollAction==="function")
+    return window.ForgeActionDamage.rollAction(a||{},!!crit,extras||[],function(sides){return d(sides);});
   a=a||{};var stack=Array.isArray(a.dmgStack)&&a.dmgStack.length?a.dmgStack:null,parts=[];
   if(stack)stack.forEach(function(c){parts.push(rollDamageComponent(c.dice||"0",c.bonus||0,c.type||"",!!crit));});
-  else{
-    var p=parseDmg(a.dmg||"0"),dice=p.n?(p.n+"d"+p.die):"0";
-    parts.push(rollDamageComponent(dice,p.bonus,a.dmgType||"",!!crit));
-  }
+  else{var p=parseDmg(a.dmg||"0"),dice=p.n?(p.n+"d"+p.die):"0";parts.push(rollDamageComponent(dice,p.bonus,a.dmgType||"",!!crit));}
   (extras||[]).forEach(function(c){parts.push(rollDamageComponent(c.dice||"0",c.bonus||0,c.type||"",!!(crit&&c.critDice!==false)));});
   var total=parts.reduce(function(n,c){return n+(Number(c.total)||0);},0);
-  var formula=parts.map(function(c){
-    var out=String(c.dice||"0"),b=Number(c.bonus)||0;if(b)out+=(b>=0?"+":"")+b;if(c.type)out+=" "+c.type;return out;
-  }).join(" + ");
-  return {total:total,parts:parts,formula:formula};
+  return {total:total,parts:parts,formula:parts.map(function(c){return String(c.dice||"0")+(c.bonus?((c.bonus>0?"+":"")+c.bonus):"")+(c.type?" "+c.type:"");}).join(" + ")};
 }
 function rangeFt(a){ return (a.rng||1)*5; }
 
@@ -4224,7 +4218,13 @@ function repairDerivedKit(kit,structural){
     if(Array.isArray(tabs))tabs.forEach(function(tab){if(tab&&Array.isArray(tab.actions))tab.actions=dedupeWeaponCantripArray(tab.actions);if(tab&&Array.isArray(tab.items))tab.items=dedupeWeaponCantripArray(tab.items);});
     else Object.keys(tabs).forEach(function(k){if(Array.isArray(tabs[k]))tabs[k]=dedupeWeaponCantripArray(tabs[k]);});
   }
-  return applyFinalDueling(kit,structural||{});
+  kit=applyFinalDueling(kit,structural||{});
+  /* The prior id-only repair missed the real final weapon-shaped tiles in the
+     browser. Canonical action damage now inspects `_src.dmgAbility`, ability
+     score, item bonus, handedness, and range, then SETS the expected modifier. */
+  if(window.ForgeActionDamage&&typeof window.ForgeActionDamage.repairKit==="function")
+    kit=window.ForgeActionDamage.repairKit(kit,structural||{});
+  return kit;
 }
 
 function loadLiveStats(){
@@ -5933,7 +5933,7 @@ function foeTurn(){
           awaitSettled().then(function(){renderHud();foeTurnDone();});
         });return;
       }
-      if(hs.hit){var foeFeedResolved=false;pipelineHit(u,atk,hs,tgt,function(){var damage=rollActionDamage(atk,false,[]),dmg=damage.total;tgt.hp-=dmg;
+      if(hs.hit){var foeFeedResolved=false;pipelineHit(u,atk,hs,tgt,function(){var damage=rollActionDamage(atk,hs.crit,[]),dmg=damage.total;tgt.hp-=dmg;
           var line=tgt.name+" takes "+dmg+" ("+Math.max(0,tgt.hp)+"/"+tgt.hpMax+")";
           flashHit(tgt);shake(0.2);floatAt(tgt,String(dmg),"dmg");
           if(tgt.hp<=0){floatAt(tgt,"DOWN","down");tgt.alive=false;removeToken(tgt);line+=" \u2014 <b>down</b>";}clog(line,false);
@@ -6134,10 +6134,9 @@ function clog(html,feed){ CB.log.unshift(html); if(CB.log.length>60)CB.log.pop()
     if(window.ForgeTableCorrectness&&window.ForgeTableCorrectness.isGeometryDiagnostic(html))window.ForgeTableCorrectness.pushDiagnostic(html);
     else window.addForgeRow(html);
   }catch(e){} }
-/* Phase 2f: damage evidence is a release gate. The event payload carries the
-   rolled component stack, and ForgeDamageEvidence independently decorates the
-   newest row after the legacy renderer runs. This makes the arithmetic visible
-   even when an older forge-feed-render.js only paints the total. */
+/* Phase 2f.2: the canonical feed renderer paints the same explicit damage math
+   used by the site Battle HUD. ForgeDamageEvidence only preserves component
+   payloads through the older table-event translation seam. */
 var FIELD_FEED_DECLARES=Object.create(null);
 function fieldEffectFacts(row,api){
   var p=row&&row.payload||{};(Array.isArray(p.effects)?p.effects:[]).forEach(function(op){
@@ -7453,7 +7452,7 @@ function netFoeAttack(u,atk,t,hs,adv,dis,hitMod,advReason,flankBonus){
       { target:t.unit, roll:hs.roll, adv:!!adv, dis:!!dis, crit:hs.crit, mode:atk.label, hitBonus:hitMod, cover:hs.acBonus||0, coverName:hs.acBonus===5?"three-quarters":hs.acBonus===2?"half":"none", advReason:advReason||null, flankBonus:flankBonus||0, hit:hs.hit },
       function(answers){
         var fhs=replayHitState({ roll:hs.roll, crit:hs.crit, hit:hs.hit, cover:hs.acBonus||0 }, answers);
-        var damage=fhs.hit?rollActionDamage(atk,false,[]):null,dmg=damage?damage.total:0;
+        var damage=fhs.hit?rollActionDamage(atk,fhs.crit,[]):null,dmg=damage?damage.total:0;
         if(!fhs.hit){
           if(hs.hit) clog("<i>"+atk.label+" — a reaction turned that hit into a miss.</i>");
           floatAt(t,"miss","miss");

@@ -59,6 +59,6 @@ has(html,'gf.normalizeParams(recipe)',"bridge seed search derives fresh stage se
 // 4. The obsolete post-render decorator must not remain.
 ok(!html.includes('D.decorateNewestRow(document,fact)'),"fragile post-render decoration is gone");
 has(html,'D.install(window)',"HTML installs the pre-render evidence seam");
-has(html,'forge-damage-evidence.js?v=fde2',"cache stamp is bumped");
+has(html,'forge-damage-evidence.js?v=fde3',"cache stamp is bumped");
 
 console.log("\n"+pass+" Phase 2f.1 audited field checks green");
