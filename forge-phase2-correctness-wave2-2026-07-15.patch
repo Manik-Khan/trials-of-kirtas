@@ -1,0 +1,2099 @@
+diff --git a/data/characters/cosmere.json b/data/characters/cosmere.json
+index cf2f31e..83399bc 100644
+--- a/data/characters/cosmere.json
++++ b/data/characters/cosmere.json
+@@ -445,9 +445,9 @@
+     ],
+     "classFeatures": {
+       "pactSlots": {
+-        "max": 1,
++        "max": 2,
+         "level": 1,
+-        "current": 1
++        "current": 2
+       },
+       "sorcererSlots": {
+         "1": {
+@@ -703,4 +703,4 @@
+   },
+   "notes": "Type in here...",
+   "lastUpdated": "2026-06-13T15:05:06.513926+00:00"
+-}
+\ No newline at end of file
++}
+diff --git a/forge/PHASE2_CORRECTNESS_WAVE2_2026-07-15.md b/forge/PHASE2_CORRECTNESS_WAVE2_2026-07-15.md
+new file mode 100644
+index 0000000..0490696
+--- /dev/null
++++ b/forge/PHASE2_CORRECTNESS_WAVE2_2026-07-15.md
+@@ -0,0 +1,153 @@
++# Forge Phase 2 correctness wave 2 · 2026-07-15
++
++This slice begins from the uploaded current `main` archive and the already-applied July 15 Phase 2 correctness-wave-1 handoff.
++
++## Baseline
++
++- uploaded archive: `trials-of-kirtas-main.zip`
++- archive SHA-256: `0834bd54245977ab90c976fc36f288424999be61b1ffcb7bd193313412d2d3fd`
++- canonical surface remains: `forge/topography-test-mock.html`
++- public promotion to `/forge` remains gated on the browser and multiplayer field pass below
++- structural bridges and connector work remain active Phase 2 after this correctness gate
++
++## Field issues closed in code
++
++### Sanctuary hostile-target gate
++
++Enemy attacks now enter the Sanctuary gate as explicit attack actions before hit resolution. The shared effect rule also defensively recognizes legacy/raw attack records without misclassifying healing dice as hostile damage.
++
++Sanctuary now applies to ordinary foe attacks and opportunity attacks. A failed Wisdom save prevents the attack; a successful save permits it. The existing offensive-action removal path remains intact.
++
++### Reducer-enforced one-payment resources
++
++Every authoritative resource payment can carry a `resource_spend_id`. Replay records applied payment identifiers and ignores a duplicate fact carrying the same identifier.
++
++This closes the Flurry of Blows concern at the reducer level: even if both strike publications accidentally repeat the same activation payment, the activation spends one Ki total. A later activation receives a new identifier and spends normally.
++
++### Kept and reaction die presentation
++
++The Chronicle renderer now styles its existing evidence classes:
++
++- `ffr-keep` receives an explicit restrained kept-die marker;
++- dropped dice remain visibly struck through;
++- reaction dice and their label receive dedicated spacing and presentation.
++
++### Spell-slot authority and Cosmere
++
++Cosmere's sheet now carries:
++
++- two first-level Pact Magic slots;
++- two first-level Sorcerer spell slots.
++
++Forge derivation preserves those as separate authoritative pools. Eligible spells can choose between an ordinary slot and a Pact slot, and the selected pool travels in the spend fact. Hex is represented as a replayable concentration effect rather than a generic buff.
++
++### 2014 bonus-action spell restriction
++
++Spell facts now record level and casting-time economy. Turn legality enforces the 2014 bonus-action spell restriction rather than a blanket one-leveled-spell rule:
++
++- action Bless followed by bonus-action Sanctuary is illegal;
++- bonus-action Sanctuary followed by an action cantrip is legal;
++- bonus-action Sanctuary followed by a leveled action spell is illegal;
++- multiple action spells remain possible when another feature supplies the action.
++
++### First-class Bless
++
++Bless now:
++
++- selects up to three allies at first level, plus one per upcast level;
++- creates replayable concentration effects for each selected target;
++- rolls and records an independent d4 on affected attacks and saving throws;
++- exposes the d4 in attack/save evidence and Chronicle math;
++- ends when concentration is replaced or broken.
++
++Concentration checks use `max(10, floor(damage / 2))`. Falling unconscious from damage breaks concentration without a save.
++
++### Multiplayer opportunity attacks
++
++Shared movement now detects each path transition that leaves a hostile creature's melee reach. The actual controller receives the opportunity-attack prompt, with overseer fallback for an unclaimed unit.
++
++The reaction is spent authoritatively and resolves before movement continues. Disengage suppresses the prompt. If the reaction drops the mover, the resolved path is truncated at the provoking boundary and every client animates and replays that same interrupted path.
++
++### Manual initiative authority
++
++The overseer can enter physical initiative results and edit the current order with explicit up/down controls. Mid-combat edits preserve the current active creature and do not refund spent action, bonus action, movement, or reaction state.
++
++### Soft-reality discovery presentation
++
++Player discovery now separates:
++
++1. detailed current perception — normal color and tactical detail;
++2. broader legitimate line of sight — desaturated, lower-contrast distant terrain;
++3. explored memory — dark subdued terrain without current tactical entities;
++4. unexplored space — topology absent.
++
++The old opaque overhead veil has been replaced by a ground-level neutral void mask, preventing the large dark roof seen in the July 15 3D field screenshot. Enemies, props, badges, interactions, and local tactical details still require detailed current perception.
++
++## Validation
++
++### Focused and module suites
++
++- `smoke-phase2-correctness-wave2.js`: **31 passed, 0 failed**
++- `smoke-forge-effects.js`: **39 green**
++- `smoke-forge-combat-rules.js`: **61 green**
++- `smoke-feed-render.js`: **66 passed, 0 failed**
++- `smoke-table-correctness.js`: **29 green**
++- changed JavaScript files: `node --check` clean
++- executable inline HTML scripts: syntax clean
++- updated Phase 1.5d–h contracts: green
++- updated Phase 2b.1 and Phase 2f.2 field/static contracts: green
++
++### Repository-wide comparison
++
++Wave-1 baseline:
++
++- **48** smoke scripts
++- **38 pass**
++- **9 fail**
++- **1 timeout**
++
++Wave 2:
++
++- **49** smoke scripts
++- **41 pass**
++- **7 fail**
++- **1 timeout**
++
++No new repository-wide failure was introduced. The two stale Phase 1.5 contract failures were corrected, and the new wave-2 focused suite passes.
++
++Inherited remaining failures:
++
++- `smoke-cover-contest.js`
++- `smoke-flora.js`
++- `smoke-forge-engine.js`
++- `smoke-pick-unit.js`
++- `smoke-tiers-rebase.js`
++- `smoke-token-rig-contract.js`
++- `smoke-unit-art.js`
++
++Inherited timeout:
++
++- `smoke-placement.js`
++
++These remain separately tracked baseline harness/calibration work and are not regressions from this slice.
++
++## Known boundary
++
++Opportunity attacks currently resolve as one authoritative movement reaction. They do **not** yet open a nested Shield, Silvery Barbs, or Hellish Rebuke reaction chain. The current protocol owns one pending prompt at a time; nested reactions require a deeper reaction-stack slice rather than another local exception.
++
++General non-damage incapacitation does not yet comprehensively terminate concentration. Damage, failed concentration saves, unconsciousness from damage, replacement concentration, replay, and refresh are covered here.
++
++## Required browser field pass
++
++1. Cast Sanctuary on Líadan and target her with a hostile goblin attack. Confirm the Wisdom save occurs before the attack on both clients; test both failure and success, then refresh.
++2. Use Flurry of Blows and confirm exactly one Ki is spent for both strikes on both clients. Use it again and confirm the new activation spends one additional Ki.
++3. Cast Bless, select three allies, and confirm separate d4 evidence on attacks and saving throws. Damage the caster and verify held/broken concentration plus refresh reconstruction.
++4. Confirm Bless followed by bonus-action Sanctuary is rejected; confirm Sanctuary followed by an action cantrip is permitted.
++5. Confirm Cosmere displays two Pact and two Sorcerer first-level slots. Cast Hex using each pool in separate tests.
++6. Walk out of hostile reach and confirm the reaction prompt, reaction spend, Chronicle result, refresh, and rewind. Confirm Disengage suppresses it and a downing hit interrupts movement.
++7. Enter physical initiative values, reorder mid-combat, and confirm the active creature retains spent action, movement, and reaction state.
++8. Inspect top-down and 3D fog: detailed nearby terrain, grey/soft distant line of sight, subdued explored memory, no unexplored topology, and no overhead dark slab.
++9. Confirm the kept advantage die has an explicit visual marker in addition to the discarded die strike-through.
++10. Complete one clean two-browser claim, move, attack, cast, refresh, reconnect, rewind, and replay round.
++
++Do not promote the route to `/forge` until this pass is clean.
+diff --git a/forge/forge-board.js b/forge/forge-board.js
+index 61c0b5c..b95ca44 100644
+--- a/forge/forge-board.js
++++ b/forge/forge-board.js
+@@ -65,8 +65,8 @@
+         // prefer the declared path; fall back to the path the resolve fact now
+         // carries itself (bite-1 fix, 2026-07-11: a lost move_declared row used
+         // to silently degrade the tween to a jump — facts are self-contained)
+-        var path = (before.pendingAction && before.pendingAction.unit === row.unit && before.pendingAction.path)
+-                || (row.payload && row.payload.path) || null;
++        var path = (row.payload && row.payload.path)
++                || (before.pendingAction && before.pendingAction.unit === row.unit && before.pendingAction.path) || null;
+         if (mv) verbs.push(path ? { t: "walk", unit: row.unit, path: path, to: { c: mv.pos.c, r: mv.pos.r } }
+                                 : { t: "jump", unit: row.unit, to: { c: mv.pos.c, r: mv.pos.r } });
+         verbs = verbs.concat(unitDiffs(before, after).filter(function (v) { return !(v.t === "jump" && v.unit === row.unit); }));
+diff --git a/forge/forge-combat-rules.js b/forge/forge-combat-rules.js
+index b95a534..0b0535e 100644
+--- a/forge/forge-combat-rules.js
++++ b/forge/forge-combat-rules.js
+@@ -8,7 +8,7 @@
+   else root.ForgeCombatRules=api;
+ })(typeof self!=="undefined"?self:this,function(){
+   "use strict";
+-  var VERSION="1.1.0";
++  var VERSION="1.2.0";
+   var FLANKING_MODES=Object.freeze(["advantage","plus2","plus5","off"]);
+   function clone(v){return v==null?v:JSON.parse(JSON.stringify(v));}
+   function norm(s){return String(s||"").toLowerCase().replace(/[’]/g,"'").trim();}
+@@ -48,6 +48,17 @@
+     var flank=flankingContribution(opts.flankingMode||"advantage",!!opts.flanked);adv=adv.concat(flank.advantageSources);
+     var reduced=reduceRollSources(adv,dis);reduced.attackBonus=flank.attackBonus;return reduced;
+   }
++  function spellCastShape(action){
++    action=action||{};return {spell:!!action.spell,slot:action.bonus?"bonus":(action.reaction?"reaction":(action.free?"free":"action")),level:Math.max(0,Number(action.castLevel!=null?action.castLevel:action.level)||0),label:action.label||"Spell"};
++  }
++  function canCastSpell(economy,action){
++    var next=spellCastShape(action);if(!next.spell)return {ok:true};
++    var prior=(economy&&economy.spellCasts||[]).slice(),hasBonus=prior.some(function(c){return c&&c.slot==="bonus";});
++    function actionCantrip(c){return c&&c.slot==="action"&&Number(c.level)===0;}
++    if(hasBonus&&!actionCantrip(next))return {ok:false,why:"after a bonus-action spell, only an action cantrip may be cast this turn"};
++    if(next.slot==="bonus"&&prior.some(function(c){return !actionCantrip(c);}))return {ok:false,why:"a bonus-action spell cannot follow another spell this turn except an action cantrip"};
++    return {ok:true};
++  }
+   function validDamageExpression(expr){
+     if(typeof expr==="number")return Number.isFinite(expr)&&expr>=0;
+     if(typeof expr!=="string"||!expr.trim())return false;
+@@ -95,7 +106,7 @@
+     FR.replayLog=function(roster,rows){var state=rawReplay(roster,rows),active=FR.activeUnit(state);if(!active||!state.economy)return state;var list=(rows||[]).slice().sort(function(a,b){return Number(a.seq||0)-Number(b.seq||0);}),start=0,corrections={};list.forEach(function(r){if(r.kind==="override"&&r.payload)corrections[r.payload.corrects_seq]=r.payload.correction||{};});for(var i=list.length-1;i>=0;i--){if(list[i].kind==="turn_ended"||list[i].kind==="initiative_set"||list[i].kind==="session_started"||list[i].kind==="restore"){start=i+1;break;}}var add=0;for(var j=start;j<list.length;j++)if(list[j].unit===active)add+=delta(list[j],corrections);state.economy.movedFt=Math.max(0,state.economy.movedFt+add);return state;};
+     FR.__phase15gMoveCosts=true;return true;
+   }
+-  var API=Object.freeze({VERSION:VERSION,FLANKING_MODES:FLANKING_MODES,assertFlankingMode:assertFlankingMode,reduceRollSources:reduceRollSources,hasCondition:hasCondition,incapacitated:incapacitated,isFlanked:isFlanked,flankingContribution:flankingContribution,attackRollSources:attackRollSources,validDamageExpression:validDamageExpression,requireDamage:requireDamage,tollDamage:tollDamage,auditKit:auditKit,categoryForHtml:categoryForHtml,proneStandCostSquares:proneStandCostSquares,crawlCostSquares:crawlCostSquares,effectOp:effectOp,addCondition:addCondition,installReplayMovementCosts:installReplayMovementCosts,_internals:{allActions:allActions,copyAttackShape:copyAttackShape,scaleDie:scaleDie}});
++  var API=Object.freeze({VERSION:VERSION,FLANKING_MODES:FLANKING_MODES,assertFlankingMode:assertFlankingMode,reduceRollSources:reduceRollSources,hasCondition:hasCondition,incapacitated:incapacitated,isFlanked:isFlanked,flankingContribution:flankingContribution,attackRollSources:attackRollSources,spellCastShape:spellCastShape,canCastSpell:canCastSpell,validDamageExpression:validDamageExpression,requireDamage:requireDamage,tollDamage:tollDamage,auditKit:auditKit,categoryForHtml:categoryForHtml,proneStandCostSquares:proneStandCostSquares,crawlCostSquares:crawlCostSquares,effectOp:effectOp,addCondition:addCondition,installReplayMovementCosts:installReplayMovementCosts,_internals:{allActions:allActions,copyAttackShape:copyAttackShape,scaleDie:scaleDie}});
+   if(typeof window!=="undefined")installReplayMovementCosts(window);
+   return API;
+ });
+diff --git a/forge/forge-effects.js b/forge/forge-effects.js
+index e34a89a..fe5ec70 100644
+--- a/forge/forge-effects.js
++++ b/forge/forge-effects.js
+@@ -7,18 +7,17 @@
+      {unit, add_effect:{id,kind,label,source,target,dc,duration,...}}
+      {unit, remove_effect:id, reason}
+ 
+-   The first complete effect is Sanctuary (2014): 1 minute/10 rounds; a direct
+-   attack or harmful targeted spell against the warded creature requires a WIS
+-   save. The ward ends when its creature attacks, deals damage, or casts a spell
+-   affecting an enemy. Area effects are deliberately outside the incoming
+-   direct-target gate. */
++   Sanctuary, Bless, and Hex are first-class ledger effects. Sanctuary uses its
++   direct-target Wisdom-save gate; Bless/Hex use the same ledger for duration,
++   concentration replacement, refresh, replay, and removal. Area effects remain
++   outside Sanctuary's incoming direct-target gate. */
+ (function(root,factory){
+   var api=factory();
+   if(typeof module!=="undefined"&&module.exports)module.exports=api;
+   else root.ForgeEffects=api;
+ })(typeof self!=="undefined"?self:this,function(){
+   "use strict";
+-  var VERSION="1.0.0";
++  var VERSION="1.2.0";
+ 
+   function plain(v){ return v==null?v:JSON.parse(JSON.stringify(v)); }
+   function n(v,d){ v=Number(v); return Number.isFinite(v)?v:d; }
+@@ -113,6 +112,42 @@
+     for(var i=0;i<a.length;i++)if(a[i].kind===kind)return a[i];
+     return null;
+   }
++  function blessId(source,target,nonce){return "bless:"+String(source)+":"+String(target)+":"+String(nonce==null?Date.now():nonce);}
++  function addBless(opts){
++    opts=opts||{};var source=String(opts.source||""),target=String(opts.target||"");
++    return {unit:target,add_effect:{
++      id:opts.id||blessId(source,target,opts.nonce),kind:"bless",label:"Bless",icon:"bless",
++      source:source,target:target,die:"1d4",concentration:true,group:opts.group||null,
++      duration:{kind:"source-turns",unit:source,count:Math.max(1,n(opts.turns,10))}
++    }};
++  }
++  function addBlessGroup(opts){
++    opts=opts||{};var nonce=opts.nonce==null?Date.now():opts.nonce,group=opts.group||("bless:"+String(opts.source||"")+":"+nonce);
++    return (opts.targets||[]).map(function(target,i){return addBless({source:opts.source,target:target,nonce:String(nonce)+":"+i,group:group,turns:opts.turns});});
++  }
++  function hexId(source,target,nonce){return "hex:"+String(source)+":"+String(target)+":"+String(nonce==null?Date.now():nonce);}
++  function addHex(opts){
++    opts=opts||{};var source=String(opts.source||""),target=String(opts.target||"");
++    return {unit:target,add_effect:{
++      id:opts.id||hexId(source,target,opts.nonce),kind:"hex",label:"Hex",icon:"hex",
++      source:source,target:target,die:"1d6",concentration:true,
++      duration:{kind:"source-turns",unit:source,count:Math.max(1,n(opts.turns,600))}
++    }};
++  }
++  function concentrationRemovals(state,source,reason){
++    var out=[];Object.keys(state&&state.effects||{}).forEach(function(id){var e=state.effects[id];
++      if(e&&e.source===source&&e.concentration)out.push(remove(id,reason||"concentration replaced",e.target,e));
++    });return out;
++  }
++  function modifierDie(state,unit,kind,roll){var e=find(state,unit,kind);if(!e)return null;return {effect:e,roll:Math.max(1,n(roll,1)),die:e.die||"1d4"};}
++  function concentrationSave(state,source,damage,mod,roll,opts){
++    opts=opts||{};var removals=concentrationRemovals(state,source,opts.reason||"concentration broken");
++    if(!removals.length)return {required:false,source:source,damage:Math.max(0,n(damage,0)),effects:[]};
++    var dmg=Math.max(0,n(damage,0)),dc=Math.max(10,Math.floor(dmg/2)),r=n(roll,1),m=n(mod,0),total=r+m;
++    var automatic=!!opts.incapacitated, saved=!automatic&&total>=dc;
++    return {required:true,source:source,damage:dmg,dc:dc,roll:r,mod:m,total:total,saved:saved,
++      automatic:automatic,effects:saved?[]:removals};
++  }
+   function sanctuaryId(source,target,nonce){ return "sanctuary:"+String(source)+":"+String(target)+":"+String(nonce==null?Date.now():nonce); }
+   function addSanctuary(opts){
+     opts=opts||{};
+@@ -130,7 +165,9 @@
+   }
+   function wisdomSave(effect,mod,roll){
+     roll=n(roll,1);mod=n(mod,0);var total=roll+mod,dc=n(effect&&effect.dc,10);
+-    return {roll:roll,mod:mod,total:total,dc:dc,saved:roll===20||(roll!==1&&total>=dc)};
++    /* Ability checks and saving throws do not auto-succeed on a natural 20 or
++       auto-fail on a natural 1 in the 2014 rules. Sanctuary uses the total. */
++    return {roll:roll,mod:mod,total:total,dc:dc,saved:total>=dc};
+   }
+   function isSanctuaryAction(a){
+     var label=String(a&&a.label||"").replace(/\s+\([^)]*\)\s*$/,"").toLowerCase();
+@@ -138,7 +175,17 @@
+   }
+   function harmfulDirect(a){
+     if(!a||a.aoe||a.area||a.template)return false;
+-    return a.kind==="attack"||a.kind==="save"||a.kind==="buff";
++    var kind=String(a.kind||"");
++    /* Explicitly non-hostile actions must stay non-hostile even when their
++       legacy record happens to use `dmg` as a generic dice field (healing did). */
++    if(kind==="heal"||kind==="buffAlly"||kind==="selfheal"||kind==="utility"||
++       kind==="universal"||kind==="stand"||kind==="monk-dodge"||kind==="monk-step")return false;
++    if(kind==="attack"||kind==="save"||kind==="buff"||kind==="damage")return true;
++    /* Defensive publisher normalisation: early foe/statblock adapters historically
++       passed {hit,dmg,rng} before assigning kind:"attack". Only an untyped record
++       may use this shape fallback; a typed friendly action must never be reclassified. */
++    if(kind)return false;
++    return a.hit!=null||a.dmg!=null||a.damage!=null||a.saveAbility!=null;
+   }
+   function breaksSanctuary(a){
+     if(!a)return false;
+@@ -164,7 +211,8 @@
+     return out.length?out:null;
+   }
+   return {VERSION:VERSION,effectiveRows:effectiveRows,replay:replay,forUnit:forUnit,find:find,
+-    addSanctuary:addSanctuary,remove:remove,wisdomSave:wisdomSave,isSanctuaryAction:isSanctuaryAction,
++    addSanctuary:addSanctuary,addBless:addBless,addBlessGroup:addBlessGroup,addHex:addHex,
++    concentrationRemovals:concentrationRemovals,concentrationSave:concentrationSave,modifierDie:modifierDie,remove:remove,wisdomSave:wisdomSave,isSanctuaryAction:isSanctuaryAction,
+     harmfulDirect:harmfulDirect,breaksSanctuary:breaksSanctuary,removalForActor:removalForActor,eventSummary:eventSummary,
+     _internals:{effectOps:effectOps,nextActive:nextActive}};
+ });
+diff --git a/forge/forge-feed-render.js b/forge/forge-feed-render.js
+index 7038b09..71981f5 100644
+--- a/forge/forge-feed-render.js
++++ b/forge/forge-feed-render.js
+@@ -6,7 +6,7 @@
+    success row when dmgParts are present. NO TARGET AC IS EVER SHOWN.          */
+ (function(root,factory){var api=factory();if(typeof module!=="undefined"&&module.exports)module.exports=api;else root.ForgeFeedRender=api;})(typeof self!=="undefined"?self:this,function(){
+   "use strict";
+-  var VERSION="3.0.0";
++  var VERSION="3.2.0";
+   function esc(s){return String(s==null?"":s).replace(/[&<>\"]/g,function(c){return {"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c];});}
+   var VERDICTS={critHit:{label:"✶ CRIT",cls:"ffr-v ffr-v-crit"},hit:{label:"HIT",cls:"ffr-v ffr-v-hit"},miss:{label:"MISS",cls:"ffr-v ffr-v-miss"},fail:{label:"FAIL",cls:"ffr-v ffr-v-fail"},save:{label:"SAVE",cls:"ffr-v ffr-v-save"},fumble:{label:"NAT 1",cls:"ffr-v ffr-v-miss"}};
+   function verdictBadge(f){if(f.kind==="save"||f.saveAbility)return f.saved?VERDICTS.save:VERDICTS.fail;if(f.crit&&f.hit)return VERDICTS.critHit;if(f.roll===1&&!f.hit)return VERDICTS.fumble;return f.hit?VERDICTS.hit:VERDICTS.miss;}
+@@ -23,7 +23,8 @@
+     if(reaction)p.push('<span class="ffr-reaction-dice">'+reaction+'</span>');
+     else if(f.dropped!=null)p.push('<span class="ffr-die ffr-drop">'+esc(f.dropped)+'</span>');
+     if(f.hitBonus!=null)p.push('<span class="ffr-mod-num">'+(Number(f.hitBonus)>=0?'+':'')+esc(f.hitBonus)+'</span>');
+-    if(f.roll!=null&&f.hitBonus!=null)p.push('<span class="ffr-total">= '+esc(Number(f.roll)+Number(f.hitBonus))+'</span>');
++    if(f.rollTotal!=null)p.push('<span class="ffr-total">= '+esc(f.rollTotal)+'</span>');
++    else if(f.roll!=null&&f.hitBonus!=null)p.push('<span class="ffr-total">= '+esc(Number(f.roll)+Number(f.hitBonus))+'</span>');
+     var tags=modTags(f);if(tags)p.push(tags);return '<div class="ffr-math">'+p.join(' ')+'</div>';
+   }
+   function rolledDice(part){
+@@ -49,19 +50,20 @@
+     return out+'</div>';
+   }
+   function headLine(f,ctx){ctx=ctx||{};var name=ctx.unitName||function(k){return k||"?";},v=verdictBadge(f),s='<span class="ffr-actor">'+esc(name(f.actor||f.unit))+'</span>';if(f.target)s+=' <span class="ffr-arrow">→</span> <span class="ffr-target">'+esc(name(f.target))+'</span>';s+=' <span class="ffr-mode">· '+esc(f.mode||f.ability||f.label||"Attack")+'</span> <span class="'+v.cls+'">'+v.label+'</span>';return '<div class="ffr-head">'+s+'</div>';}
+-  function saveLine(f){if(!f.saveAbility&&!f.dc)return "";var p=[];if(f.saveAbility)p.push(String(f.saveAbility).toUpperCase()+" save");if(f.saveRoll!=null)p.push(String(f.saveRoll));if(f.dc!=null)p.push("vs DC "+f.dc);return '<div class="ffr-save">'+esc(p.join(' '))+'</div>';}
++  function saveLine(f){if(!f.saveAbility&&!f.dc)return "";var p=[];if(f.saveAbility)p.push(String(f.saveAbility).toUpperCase()+" save");if(f.saveD20!=null)p.push(String(f.saveD20));if(f.saveBonus!=null)p.push((Number(f.saveBonus)>=0?"+":"")+String(f.saveBonus));(f.saveMods||[]).forEach(function(m){p.push(String(m.k||"mod")+" "+(Number(m.v)>=0?"+":"")+String(m.v));});if(f.saveTotal!=null)p.push("= "+f.saveTotal);else if(f.saveRoll!=null)p.push(String(f.saveRoll));if(f.dc!=null)p.push("vs DC "+f.dc);return '<div class="ffr-save">'+esc(p.join(' '))+'</div>';}
+   function healLine(f,ctx){if(f.heal==null)return "";ctx=ctx||{};var name=ctx.unitName||function(k){return k||"?";};return '<div class="ffr-heal">+'+esc(f.heal)+' hp'+(f.target?' → '+esc(name(f.target)):'')+'</div>';}
+-  function rollBody(f,ctx){if(!f)return "";var p=[headLine(f,ctx)];if(f.roll!=null)p.push(d20MathLine(f));if(f.saveAbility||f.dc)p.push(saveLine(f));if(f.hit||f.saved===false)p.push(dmgStackHtml(f));if(f.heal!=null)p.push(healLine(f,ctx));if(f.narration)p.push('<div class="ffr-narration">'+esc(f.narration)+'</div>');return '<div class="ffr-row">'+p.join('')+'</div>';}
++  function concentrationLine(f){var c=f&&f.concentration;if(!c||!c.required)return "";if(c.automatic)return '<div class="ffr-concentration broken"><b>Concentration:</b> broken on falling unconscious.</div>';var parts=['CON',c.roll];if(c.baseBonus)parts.push((Number(c.baseBonus)>=0?'+':'')+c.baseBonus);if(c.bless)parts.push('Bless +'+c.bless);parts.push('= '+c.total,'vs DC '+c.dc);return '<div class="ffr-concentration '+(c.saved?'held':'broken')+'"><b>Concentration:</b> '+esc(parts.join(' '))+' · '+(c.saved?'holds':'broken')+'</div>';}
++  function rollBody(f,ctx){if(!f)return "";var p=[headLine(f,ctx)];if(f.roll!=null)p.push(d20MathLine(f));if(f.saveAbility||f.dc)p.push(saveLine(f));if(f.hit||f.saved===false)p.push(dmgStackHtml(f));if(f.heal!=null)p.push(healLine(f,ctx));if(f.concentration)p.push(concentrationLine(f));if(f.narration)p.push('<div class="ffr-narration">'+esc(f.narration)+'</div>');return '<div class="ffr-row">'+p.join('')+'</div>';}
+   function abilityBody(f,ctx){if(!f)return "";ctx=ctx||{};var name=ctx.unitName||function(k){return k||"?";},p=['<div class="ffr-head"><span class="ffr-actor">'+esc(name(f.actor||f.unit))+'</span>'+(f.ability?' <span class="ffr-mode">· '+esc(f.ability)+'</span>':'')+'</div>'];(f.effects||[]).forEach(function(e){if(e.dmg)p.push('<div class="ffr-dmg-line"><b>Dmg:</b> '+esc(e.dmg)+' → '+esc(name(e.unit))+'</div>');if(e.heal)p.push('<div class="ffr-heal">+'+esc(e.heal)+' hp → '+esc(name(e.unit))+'</div>');});if(f.narration)p.push('<div class="ffr-narration">'+esc(f.narration)+'</div>');return '<div class="ffr-row">'+p.join('')+'</div>';}
+   function assertNoAC(html){return !/\bAC\b/.test(String(html||""));}
+   var CSS=[
+     ".ffr-row{font-size:13px;line-height:1.42;color:var(--tk-ink,#d4cdb8)}",
+     ".ffr-head{font-weight:600;margin-bottom:2px}.ffr-actor{color:var(--tk-gold,#c5a855)}.ffr-target,.ffr-mode,.ffr-arrow{color:var(--tk-ink-2,#a89f8a)}",
+     ".ffr-v{display:inline-block;padding:1px 6px;border-radius:3px;font-size:11px;font-weight:700;letter-spacing:.5px;margin-left:4px}.ffr-v-hit{background:#2a6a35;color:#b0e8b0}.ffr-v-crit{background:#7a5a10;color:#ffe680}.ffr-v-miss,.ffr-v-fail{background:#6a2a2a;color:#e8b0b0}.ffr-v-save{background:#2a4a6a;color:#b0d0e8}",
+-    ".ffr-math{margin:2px 0;font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;font-size:12px}.ffr-die{display:inline-block;background:rgba(200,190,160,.15);padding:0 4px;border-radius:2px;font-weight:700}.ffr-drop{text-decoration:line-through;opacity:.45}.ffr-total{font-weight:700}",
++    ".ffr-math{margin:2px 0;font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;font-size:12px}.ffr-die{display:inline-block;background:rgba(200,190,160,.15);padding:0 4px;border-radius:2px;font-weight:700}.ffr-keep{border:1px solid rgba(216,179,91,.88);box-shadow:inset 0 0 0 1px rgba(255,240,188,.12);color:#fff0bd}.ffr-drop{text-decoration:line-through;opacity:.45}.ffr-reaction-dice{display:inline-flex;align-items:center;gap:3px;padding-left:6px;margin-left:3px;border-left:1px solid rgba(176,160,224,.42)}.ffr-dice-label{font:800 9px/1 system-ui,sans-serif;letter-spacing:.09em;color:#b8a9e7}.ffr-total{font-weight:700}",
+     ".ffr-mod{display:inline-block;padding:0 4px;border-radius:2px;font-size:10px;margin-left:3px}.ffr-mod-adv{background:rgba(80,160,80,.25);color:#8ad88a}.ffr-mod-dis{background:rgba(160,80,80,.25);color:#d88a8a}.ffr-mod-cover{background:rgba(100,100,160,.25);color:#a0a0d0}.ffr-mod-bless{background:rgba(180,160,80,.25);color:#d8c860}.ffr-mod-sb{background:rgba(120,100,180,.25);color:#b0a0e0}",
+     ".ffr-dmg-wrap{margin:4px 0;padding:5px 7px;border-left:2px solid rgba(216,179,91,.62);background:rgba(0,0,0,.16)}.ffr-dmg-total{font-weight:800;color:#f1e2bd;font-size:14px;margin-bottom:2px}.ffr-dmg-line{font:700 12px/1.5 ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;color:#fff1cd}.ffr-dmg-bonus{color:#f4c965}.ffr-dmg-type{color:#d7c9aa;font-style:normal}.ffr-dmg-formula{font:600 10px/1.35 ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;color:#bdb39e;margin:0 0 3px 2px}.ffr-dmg-missing{color:#ffb5aa}",
+-    ".ffr-save{font-size:12px;opacity:.85;margin:2px 0}.ffr-heal{font-weight:700;color:#7bd18c;font-size:14px;margin:2px 0}.ffr-narration{font-style:italic;opacity:.75;margin:2px 0}"
++    ".ffr-save{font-size:12px;opacity:.85;margin:2px 0}.ffr-heal{font-weight:700;color:#7bd18c;font-size:14px;margin:2px 0}.ffr-concentration{margin:5px 0 1px;padding:4px 6px;border-left:2px solid rgba(216,179,91,.58);background:rgba(216,179,91,.08);font-size:11px}.ffr-concentration.held{color:#c9e6b8;border-left-color:#75aa68}.ffr-concentration.broken{color:#ffc0b2;border-left-color:#bf6654}.ffr-narration{font-style:italic;opacity:.75;margin:2px 0}"
+   ].join("\n");
+-  return {VERSION:VERSION,rollBody:rollBody,abilityBody:abilityBody,headLine:headLine,d20MathLine:d20MathLine,dmgStackHtml:dmgStackHtml,saveLine:saveLine,healLine:healLine,verdictBadge:verdictBadge,modTags:modTags,assertNoAC:assertNoAC,CSS:CSS,VERDICTS:VERDICTS};
++  return {VERSION:VERSION,rollBody:rollBody,abilityBody:abilityBody,headLine:headLine,d20MathLine:d20MathLine,dmgStackHtml:dmgStackHtml,saveLine:saveLine,healLine:healLine,concentrationLine:concentrationLine,verdictBadge:verdictBadge,modTags:modTags,assertNoAC:assertNoAC,CSS:CSS,VERDICTS:VERDICTS};
+ });
+diff --git a/forge/forge-kit-derive.js b/forge/forge-kit-derive.js
+index 6f0fc3d..3419f9a 100644
+--- a/forge/forge-kit-derive.js
++++ b/forge/forge-kit-derive.js
+@@ -38,7 +38,7 @@
+      flat resource keys (slot1, pact) that STARTER_KITS already established. */
+   function forgeResKey(key) {
+     if (!key) return key;
+-    var m = /^spell_(\d+)$/.exec(key);
++    var m = /^(?:spell|sorc)_(\d+)$/.exec(key);
+     if (m) return "slot" + m[1];
+     if (key === "pactSlots") return "pact";
+     if (key === "sorcery") return "sorcery";
+@@ -167,6 +167,13 @@ function combatErrorKit(charData, err) {
+           badge: "Lvl " + lvl, max: max, current: cur, tone: "class", kind: "slot" });
+       });
+     }
++    if (cf.sorcererSlots) {
++      Object.keys(cf.sorcererSlots).forEach(function(lk){
++        var lvl=parseInt(lk,10);if(!lvl)return;var rec=cf.sorcererSlots[lk]||{},max=rec.max||0;if(!max)return;
++        var raw="sorc_"+lvl,fk=forgeResKey(raw),cur=Math.max(0,max-(pip[raw]||0));
++        if(res[fk]==null){res[fk]=cur;pools.push({key:fk,rawKey:raw,level:lvl,label:"Sorcerer "+lvl,badge:"Lvl "+lvl,max:max,current:cur,tone:"class",kind:"slot"});}
++      });
++    }
+     if (!(sc.pools || []).length && cf.pactSlots && cf.pactSlots.max) {
+       var pMax = cf.pactSlots.max, pCur = Math.max(0, pMax - (pip.pactSlots || 0));
+       if (res.pact == null) {
+@@ -424,11 +431,11 @@ function combatErrorKit(charData, err) {
+     "hands of healing":   { kind: "heal", rng: 1 },
+ 
+     // ── buff (single-target enemy debuff) ──
+-    "hex":                { kind: "buff", rng: 18 },
++    "hex":                { kind: "buff", rng: 18, effectKind: "hex", concentration: true },
+     "hunter's mark":      { kind: "buff", rng: 18 },
+ 
+     // ── ally buff ──
+-    "bless":              { kind: "buffAlly", rng: 6 },
++    "bless":              { kind: "buffAlly", rng: 6, effectKind: "bless", targetCount: 3, concentration: true },
+     "guidance":           { kind: "buffAlly", rng: 1 },
+     "sanctuary":          { kind: "buffAlly", rng: 6 },
+     "aid":                { kind: "buffAlly", rng: 6 },
+@@ -664,6 +671,9 @@ function combatErrorKit(charData, err) {
+           cost:        cost,
+           origin:      sp.origin || "class",
+           rider:       rider,
++          effectKind:  proj && proj.effectKind || null,
++          targetCount: proj && proj.targetCount || null,
++          concentration: !!(proj && proj.concentration || sp.conc || sp.concentration),
+           greyed:      greyed || false,
+           greyReason:  greyReason || null,
+           _src:        sp
+@@ -1225,6 +1235,9 @@ function combatErrorKit(charData, err) {
+       free:   !!t.free,
+       spell:  !!t.spell,
+       conc:   !!t.conc,
++      effectKind: t.effectKind || null,
++      targetCount: t.targetCount || null,
++      concentration: !!(t.concentration || t.conc),
+       cost:   t.cost || null,
+       rider:  t.rider || null,
+       strikes: t.strikes || null,
+diff --git a/forge/forge-pipeline.js b/forge/forge-pipeline.js
+index cf8e444..a5a1d1d 100644
+--- a/forge/forge-pipeline.js
++++ b/forge/forge-pipeline.js
+@@ -177,9 +177,10 @@
+ 
+       /* overseer tools — the bus identity gate is the enforcement */
+       start: function () { return publish("__session", "session_started", {}); },
+-      setInitiative: function (order, resumeAt) {
++      setInitiative: function (order, resumeAt, preserveTurn) {
+         var payload = { order: order };
+-        if (resumeAt != null) payload.resume_at = resumeAt;   // reinforcements (FORGE_BOARD.md §6): resume, don't restart the round
++        if (resumeAt != null) payload.resume_at = resumeAt;   // reinforcements/manual edits: resume, don't restart the round
++        if (preserveTurn) payload.preserve_turn = true;       // keep the active creature's spent economy/reaction state
+         return publish("__session", "initiative_set", payload);
+       },
+       override: function (seq, correction) {
+diff --git a/forge/forge-replay.js b/forge/forge-replay.js
+index ab59082..758d34d 100644
+--- a/forge/forge-replay.js
++++ b/forge/forge-replay.js
+@@ -24,8 +24,10 @@
+     });
+     return out;
+   }
+-  function applyResourceSpend(state, unitKey, spend) {
++  function applyResourceSpend(state, unitKey, spend, spendId) {
+     var u = state.units[unitKey]; if (!u || !spend) return;
++    state.appliedResourceSpends = state.appliedResourceSpends || {};
++    if (spendId && state.appliedResourceSpends[spendId]) return;
+     u.resources = normalizeResources(u.resources || {});
+     var normalized = normalizeResources(spend);
+     Object.keys(normalized).forEach(function (key) {
+@@ -33,10 +35,12 @@
+       if (!amount) return;
+       u.resources[key] = Math.max(0, Number(u.resources[key] || 0) - amount);
+     });
++    if (spendId) state.appliedResourceSpends[spendId] = { unit: unitKey, spend: normalized };
+   }
+   function freshEconomy(unit) {
+     return { unit: unit || null, movedFt: 0, movementBonusFt: 0, movementCostFt: 0,
+-             usedAction: false, usedBonus: false, attacked: false };
++             usedAction: false, usedBonus: false, attacked: false,
++             spellCasts: [], bonusSpellCast: false };
+   }
+ 
+   function initialState(roster) {
+@@ -53,7 +57,7 @@
+     return {
+       status: "staging", units: units, rolls: {}, initiative: null,
+       turnsEnded: 0, pendingAction: null, pendingPrompt: null,
+-      chat: [], lastSeq: 0,
++      chat: [], lastSeq: 0, appliedResourceSpends: {},
+       economy: freshEconomy(null)
+     };
+   }
+@@ -75,6 +79,11 @@
+     if (!state.economy || unit !== state.economy.unit) return;
+     if (p.restores === "action") { state.economy.usedAction = false; return; }
+     var slot = p.slot || "action";
++    if (p.spell) {
++      var cast={slot:slot,level:Math.max(0,Number(p.spell_level)||0),ability:p.ability||p.mode||"Spell"};
++      state.economy.spellCasts.push(cast);
++      if(slot==="bonus")state.economy.bonusSpellCast=true;
++    }
+     if (slot === "bonus") { state.economy.usedBonus = true; }
+     else if (slot === "free") { /* no economy cost */ }
+     else { state.economy.usedAction = true; if (isAttack) state.economy.attacked = true; }
+@@ -84,7 +93,9 @@
+     return { unit: e.unit, movedFt: Number(e.movedFt) || 0,
+              movementBonusFt: Number(e.movementBonusFt) || 0,
+              movementCostFt: Number(e.movementCostFt) || 0,
+-             usedAction: !!e.usedAction, usedBonus: !!e.usedBonus, attacked: !!e.attacked };
++             usedAction: !!e.usedAction, usedBonus: !!e.usedBonus, attacked: !!e.attacked,
++             spellCasts: (e.spellCasts||[]).map(function(c){return Object.assign({},c);}),
++             bonusSpellCast: !!e.bonusSpellCast };
+   }
+   function round(state) {
+     if (!state.initiative) return 0;
+@@ -124,7 +135,8 @@
+       case "initiative_set": {
+         var prevRound = round(state);   // BEFORE overwriting order/turnsEnded
+         state.initiative = p.order.slice();
+-        if (p.resume_at != null && state.initiative.indexOf(p.resume_at) >= 0) {
++        var validResume = p.resume_at != null && state.initiative.indexOf(p.resume_at) >= 0;
++        if (validResume) {
+           // mid-fight re-order (FORGE_BOARD.md §6 reinforcements): resume at the
+           // named unit in the current round — a new goblin must not restart the round
+           state.turnsEnded = (Math.max(1, prevRound) - 1) * state.initiative.length
+@@ -133,8 +145,14 @@
+           if (p.resume_at != null) console.warn("[forge-replay] resume_at not in order — restarting round: " + p.resume_at);
+           state.turnsEnded = 0;
+         }
+-        Object.keys(state.units).forEach(function (k) { state.units[k].reactionUsed = false; });
+-        resetEconomy(state);   // a re-order re-seats the active unit; fresh economy
++        /* A manual/reslot edit during an established turn must not refund the
++           active creature's movement, action, bonus action, spell limit, or
++           reactions. Fight-start initiative and legacy reorder facts retain
++           their original fresh-turn behaviour unless preserve_turn is explicit. */
++        if (!(p.preserve_turn && validResume)) {
++          Object.keys(state.units).forEach(function (k) { state.units[k].reactionUsed = false; });
++          resetEconomy(state);
++        }
+         break;
+       }
+       case "turn_ended": {
+@@ -163,8 +181,8 @@
+         } else {
+           // economy: movement is a derived fact — sum the declared path length ×5
+           // for the active unit (path from the matching move_declared, else payload).
+-          var mpath = (state.pendingAction && state.pendingAction.kind === "move" &&
+-                       state.pendingAction.unit === row.unit) ? state.pendingAction.path : p.path;
++          var mpath = p.path || ((state.pendingAction && state.pendingAction.kind === "move" &&
++                       state.pendingAction.unit === row.unit) ? state.pendingAction.path : null);
+           if (state.economy && row.unit === state.economy.unit && mpath)
+             state.economy.movedFt += mpath.length * 5;
+         }
+@@ -179,14 +197,14 @@
+         if (p.hit && tgt && state.units[tgt]) applyDamage(state.units[tgt], p.dmg || 0);
+         consumeAdvGrant(state, row.unit);   // "next attack" grant is spent by attacking
+         applyEffects(state, p.effects);
+-        applyResourceSpend(state, row.unit, p.resource_spend);
++        applyResourceSpend(state, row.unit, p.resource_spend, p.resource_spend_id);
+         spendSlot(state, row.unit, p, true);   // an attack spends its slot (default action)
+         state.pendingAction = null;
+         break;
+       }
+       case "ability_used":
+         applyEffects(state, p.effects);
+-        applyResourceSpend(state, row.unit, p.resource_spend);
++        applyResourceSpend(state, row.unit, p.resource_spend, p.resource_spend_id);
+         if (state.economy && row.unit === state.economy.unit) {
+           state.economy.movementBonusFt = (Number(state.economy.movementBonusFt) || 0) + (Number(p.movement_bonus_ft) || 0);
+           state.economy.movementCostFt = (Number(state.economy.movementCostFt) || 0) + (Number(p.movement_cost_ft) || 0);
+@@ -219,6 +237,9 @@
+         var snap = JSON.parse(JSON.stringify(p.snapshot));
+         Object.keys(state).forEach(function (k) { delete state[k]; });
+         Object.assign(state, snap);
++        state.appliedResourceSpends = state.appliedResourceSpends || {};
++        if(!state.economy)resetEconomy(state);
++        if(!state.economy.spellCasts)state.economy.spellCasts=[];
+         break;
+       }
+       case "edit":
+diff --git a/forge/forge-table-correctness.js b/forge/forge-table-correctness.js
+index be5e291..adecf9a 100644
+--- a/forge/forge-table-correctness.js
++++ b/forge/forge-table-correctness.js
+@@ -22,7 +22,7 @@
+   else root.ForgeTableCorrectness=api;
+ })(typeof self!=="undefined"?self:this,function(root){
+   "use strict";
+-  var VERSION="1.3.0";
++  var VERSION="1.4.0";
+   var VIEW_KEY="tok-forge-view-mode-v1";
+ 
+   function esc(s){return String(s==null?"":s).replace(/[&<>"']/g,function(c){return {"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c];});}
+@@ -138,17 +138,22 @@
+     return out;
+   }
+   function factFromEvent(row,declared){
+-    if(!row||!(row.kind==="attack_resolved"||row.kind==="ability_used"))return null;
++    if(!row)return null;
++    if(row.kind==="prompt_answered"&&row.payload&&row.payload.context&&row.payload.context.kind==="opportunity-attack"){
++      var o=row.payload.context;return {kind:"attack",actor:o.actor||row.unit,target:o.target,mode:o.mode||"Opportunity Attack",roll:o.roll,rollTotal:o.roll_total,hitBonus:o.hitBonus,hit:!!o.hit,crit:!!o.crit,dmg:o.dmg,dmgParts:o.dmgParts,dmgFormula:o.dmgFormula,mods:o.mods||[],d20Rolls:o.d20_rolls,d20KeptIndex:o.d20_kept_index,narration:o.warded?"Sanctuary turned the opportunity attack aside.":null,concentration:o.concentration||row.payload.concentration||null};
++    }
++    if(!(row.kind==="attack_resolved"||row.kind==="ability_used"))return null;
+     var p=row.payload||{},ctx=p.context||{};
+     if(row.kind==="ability_used"){
+       if(ctx&&typeof ctx==="object"&&ctx.kind==="sanctuary-save")return {kind:"sanctuary-save",actor:row.unit,target:ctx.target,roll:ctx.roll,mod:ctx.mod,total:ctx.total,dc:ctx.dc,saved:!!ctx.saved};
++      if(ctx&&typeof ctx==="object"&&ctx.kind==="save")return {kind:"save",actor:row.unit,unit:row.unit,target:ctx.target,ability:p.ability||"Spell",saveAbility:ctx.ability,saveD20:ctx.d20,saveBonus:ctx.bonus,saveMods:ctx.mods||[],saveTotal:ctx.total,saveRoll:ctx.total,dc:ctx.dc,saved:!!ctx.saved,dmg:p.dmg,effects:p.effects||[],narration:ctx.narration||null,concentration:ctx.concentration||p.concentration||null};
+       var hasLedgerOp=(p.effects||[]).some(function(op){return op&&(op.add_effect||op.remove_effect);});
+       if(hasLedgerOp&&p.silent!==false)return null;
+       return {kind:"ability",actor:row.unit,unit:row.unit,ability:p.ability||p.mode||"Ability",target:p.target||(p.targets&&p.targets[0])||null,effects:p.effects||[],heal:p.heal,dmg:p.dmg,narration:typeof p.context==="string"?p.context:(p.narration||null)};
+     }
+     var d=declared||{}, all=Object.assign({},d,p);
+     var coverName=all.coverName||({0:"none",2:"half",5:"three-quarters"})[all.cover]||(all.cover===Infinity?"total":null);
+-    return {kind:"attack",actor:row.unit,unit:row.unit,target:all.target,mode:all.mode||"Attack",roll:all.roll,hitBonus:all.hitBonus,hit:!!p.hit,crit:p.crit!=null?!!p.crit:!!d.crit,dmg:p.dmg,dmgParts:p.dmgParts||all.dmgParts,dmgFormula:p.dmgFormula||all.dmgFormula,adv:!!all.adv,dis:!!all.dis,advReason:all.advReason,cover:all.cover,coverName:coverName,mods:all.mods||[],dropped:all.dropped,d20Rolls:all.d20_rolls||all.d20Rolls,d20KeptIndex:all.d20_kept_index!=null?all.d20_kept_index:all.d20KeptIndex,reactionD20Rolls:all.reaction_d20_rolls||all.reactionD20Rolls,reactionD20KeptIndex:all.reaction_d20_kept_index!=null?all.reaction_d20_kept_index:all.reactionD20KeptIndex};
++    return {kind:"attack",actor:row.unit,unit:row.unit,target:all.target,mode:all.mode||"Attack",roll:all.roll,hitBonus:all.hitBonus,hit:!!p.hit,crit:p.crit!=null?!!p.crit:!!d.crit,dmg:p.dmg,dmgParts:p.dmgParts||all.dmgParts,dmgFormula:p.dmgFormula||all.dmgFormula,adv:!!all.adv,dis:!!all.dis,advReason:all.advReason,cover:all.cover,coverName:coverName,mods:all.mods||[],rollTotal:all.roll_total!=null?all.roll_total:all.rollTotal,dropped:all.dropped,d20Rolls:all.d20_rolls||all.d20Rolls,d20KeptIndex:all.d20_kept_index!=null?all.d20_kept_index:all.d20KeptIndex,reactionD20Rolls:all.reaction_d20_rolls||all.reactionD20Rolls,reactionD20KeptIndex:all.reaction_d20_kept_index!=null?all.reaction_d20_kept_index:all.reactionD20KeptIndex,concentration:all.concentration||null};
+   }
+   function pushEvent(row){
+     if(!row)return "";
+diff --git a/forge/tests/smoke-camera-contract.js b/forge/tests/smoke-camera-contract.js
+index 64aa302..6ab898e 100644
+--- a/forge/tests/smoke-camera-contract.js
++++ b/forge/tests/smoke-camera-contract.js
+@@ -12,7 +12,7 @@ ok(s.includes('id="cameraViewToggle"'),"view toggle is present in the local came
+ ok(s.includes("camera.getWorldDirection(forward)"),"pan is camera-relative after orbit");
+ ok(s.includes("e.shiftKey||e.button===1"),"Shift-drag and middle-drag pan without stealing right-click targeting");
+ ok(s.includes("const cameraTouches=new Map()")&&s.includes("pinchGap/gap"),"touch supports two-finger pan and pinch zoom");
+-ok(s.includes("cameraFollowTurn(u);   // Phase 1.5"),"turn start re-engages active-unit follow");
++ok(s.includes("cameraFollowTurn(u);"),"turn start re-engages active-unit follow");
+ ok(s.includes("cameraFollowTick();   // Phase 1.5"),"follow tracks tweened movement continuously");
+ ok(s.includes("frameCameraPair(a,t)"),"target selection frames attacker and target");
+ ok(s.includes("Overview is available to the overseer only"),"full-map overview explains its player gate");
+diff --git a/forge/tests/smoke-forge-combat-rules.js b/forge/tests/smoke-forge-combat-rules.js
+index 0e8ea37..37c7b21 100644
+--- a/forge/tests/smoke-forge-combat-rules.js
++++ b/forge/tests/smoke-forge-combat-rules.js
+@@ -5,7 +5,7 @@ let pass=0;
+ function ok(v,m){if(!v)throw new Error("FAIL: "+m);console.log("ok",++pass,"-",m);}
+ function throws(fn,re,m){let e;try{fn();}catch(x){e=x;}ok(e&&re.test(e.message),m);}
+ 
+-ok(F.VERSION==="1.1.0","combat-rules version is pinned");
++ok(F.VERSION==="1.2.0","combat-rules version is pinned");
+ ok(F.FLANKING_MODES.join(",")==="advantage,plus2,plus5,off","all shared flanking modes are stable");
+ ok(F.assertFlankingMode()==="advantage","advantage is the compatibility/default flanking rule");
+ throws(()=>F.assertFlankingMode("double-dice"),/unknown flanking mode/,"unknown flanking rules fail loudly");
+@@ -35,6 +35,13 @@ ok(F.flankingContribution("plus2",true).attackBonus===2,"plus2 variant is numeri
+ ok(F.flankingContribution("plus5",true).attackBonus===5,"plus5 variant is numerical, not advantage");
+ ok(F.flankingContribution("off",true).attackBonus===0,"off mode contributes nothing");
+ 
++const actionSpell={label:"Bless",spell:true,level:1},bonusSpell={label:"Sanctuary",spell:true,level:1,bonus:true},actionCantrip={label:"Sacred Flame",spell:true,level:0};
++ok(F.spellCastShape(bonusSpell).slot==="bonus"&&F.spellCastShape(bonusSpell).level===1,"spell facts preserve casting-time economy and level");
++ok(!F.canCastSpell({spellCasts:[F.spellCastShape(actionSpell)]},bonusSpell).ok,"an action spell blocks a later bonus-action spell that turn");
++ok(F.canCastSpell({spellCasts:[F.spellCastShape(bonusSpell)]},actionCantrip).ok,"a bonus-action spell permits an action cantrip");
++ok(!F.canCastSpell({spellCasts:[F.spellCastShape(bonusSpell)]},actionSpell).ok,"a bonus-action spell blocks a later leveled action spell");
++ok(F.canCastSpell({spellCasts:[F.spellCastShape(actionSpell)]},{label:"Guiding Bolt",spell:true,level:1}).ok,"two action spells remain legal when another feature supplies the action");
++
+ const effectLookup=(u,k)=>!!(u._effects||[]).includes(k);
+ r=F.attackRollSources({attacker:{...A,_effects:["prone"]},target:T,action:{kind:"attack",rng:1},distanceFt:5,effectLookup});
+ ok(r.disadvantage&&r.disadvantageSources.includes("attacker prone"),"a prone creature makes attacks with disadvantage");
+diff --git a/forge/tests/smoke-forge-effects.js b/forge/tests/smoke-forge-effects.js
+index 8917e98..a1bed99 100644
+--- a/forge/tests/smoke-forge-effects.js
++++ b/forge/tests/smoke-forge-effects.js
+@@ -5,7 +5,7 @@ let pass=0;
+ function ok(v,label){if(!v)throw new Error("FAIL: "+label);pass++;console.log("ok",pass,"-",label);}
+ function row(seq,kind,unit,payload){return {seq,kind,unit,payload:payload||{}};}
+ 
+-ok(E.VERSION==="1.0.0","version pinned");
++ok(E.VERSION==="1.2.0","version pinned");
+ const add=E.addSanctuary({source:"liadan",target:"vesperian",dc:13,nonce:7});
+ ok(add.add_effect.kind==="sanctuary"&&add.add_effect.dc===13,"Sanctuary effect record carries kind and DC");
+ ok(add.add_effect.duration.count===10&&add.add_effect.duration.unit==="liadan","Sanctuary lasts ten source turns");
+@@ -13,6 +13,8 @@ ok(E.isSanctuaryAction({label:"Sanctuary (2nd)"}),"upcast-labelled Sanctuary is
+ ok(!E.isSanctuaryAction({label:"Shield of Faith"}),"other wards are not mistaken for Sanctuary");
+ ok(E.harmfulDirect({kind:"attack"})&&E.harmfulDirect({kind:"save"})&&E.harmfulDirect({kind:"buff"}),"direct harmful action kinds are gated");
+ ok(!E.harmfulDirect({kind:"heal"})&&!E.harmfulDirect({kind:"buffAlly"}),"heals and friendly buffs bypass the gate");
++ok(!E.harmfulDirect({kind:"heal",dmg:"1d4+3"}),"legacy healing dice never masquerade as hostile damage");
++ok(E.harmfulDirect({hit:4,dmg:"1d6+2",rng:1}),"untyped foe attack shapes are defensively recognized");
+ ok(!E.harmfulDirect({kind:"save",aoe:true}),"area effects bypass the direct-target ward gate");
+ 
+ let rows=[
+@@ -31,8 +33,23 @@ ok(ward.expires.startCount===11,"ten-round expiry is anchored to the caster turn
+ const saveFail=E.wisdomSave(ward,1,8),savePass=E.wisdomSave(ward,3,10);
+ ok(!saveFail.saved&&saveFail.total===9,"failed Wisdom save is deterministic");
+ ok(savePass.saved&&savePass.total===13,"successful Wisdom save meets the DC");
+-ok(E.wisdomSave(ward,-20,20).saved,"natural 20 succeeds");
+-ok(!E.wisdomSave(ward,20,1).saved,"natural 1 fails");
++ok(!E.wisdomSave(ward,-20,20).saved,"a natural 20 does not override an insufficient saving-throw total");
++ok(E.wisdomSave(ward,20,1).saved,"a natural 1 does not override a sufficient saving-throw total");
++
++
++const blessGroup=E.addBlessGroup({source:"liadan",targets:["liadan","caim","vesperian"],nonce:21});
++let blessed=E.replay([row(1,"initiative_set","dm",{order:["liadan","caim"]}),row(2,"ability_used","liadan",{effects:blessGroup})]);
++ok(blessGroup.length===3&&E.find(blessed,"caim","bless").die==="1d4","Bless creates replayable 1d4 effects for all selected targets");
++ok(E.modifierDie(blessed,"caim","bless",4).roll===4,"Bless modifier evidence preserves the rolled d4");
++let conc=E.concentrationSave(blessed,"liadan",7,2,9,{});
++ok(conc.required&&conc.dc===10&&conc.total===11&&conc.saved,"concentration save uses DC 10 for ordinary damage");
++conc=E.concentrationSave(blessed,"liadan",24,2,8,{});
++ok(conc.dc===12&&!conc.saved&&conc.effects.length===3,"failed concentration removes every effect from that casting");
++conc=E.concentrationSave(blessed,"liadan",1,99,20,{incapacitated:true});
++ok(conc.automatic&&!conc.saved&&conc.effects.length===3,"falling unconscious breaks concentration without a saving throw");
++const hex=E.addHex({source:"cosmere",target:"goblin",nonce:22});
++let hexed=E.replay([row(1,"initiative_set","dm",{order:["cosmere","goblin"]}),row(2,"ability_used","cosmere",{effects:[hex]})]);
++ok(E.find(hexed,"goblin","hex").die==="1d6"&&E.concentrationRemovals(hexed,"cosmere").length===1,"Hex is a replayable concentration effect");
+ 
+ const removal=E.removalForActor(st,"vesperian",{kind:"attack"});
+ ok(removal&&removal.remove_effect===ward.id,"warded creature attack yields a removal operation");
+diff --git a/forge/tests/smoke-phase15d-contract.js b/forge/tests/smoke-phase15d-contract.js
+index eb2a393..f382e87 100644
+--- a/forge/tests/smoke-phase15d-contract.js
++++ b/forge/tests/smoke-phase15d-contract.js
+@@ -1,16 +1,16 @@
+ #!/usr/bin/env node
+ "use strict";
+ const fs=require("fs"),path=require("path");const s=fs.readFileSync(path.join(__dirname,"..","topography-test-mock.html"),"utf8");let pass=0;function has(x,m){if(!s.includes(x))throw Error("FAIL: "+m);console.log("ok",++pass,"-",m);}
+-has('forge-table-correctness.js?v=fg1','correctness seam is loaded');
++has('forge-table-correctness.js?v=fg4','correctness seam is loaded');
+ has('forge-unit-art.js?v=ua2','unit-art cache stamp bumped');
+ has('id="sceneModeMenu"','Forge toggle owns the view menu');
+ has('id="sceneViewerMode"','Staff/Player View lives in Forge menu');
+ has('ForgeTableCorrectness.toggle','view toggle is local presentation state');
+ has("bestiary:{name:'Goblin',source:'MM'}",'fallback goblins carry bestiary identity');
+ has('No additional effect at higher levels.','non-scaling slot chooser explains higher slots');
+-has('else if(lvls.length>1&&!READYING)','every leveled spell asks when several slots are eligible');
++has('else if(choices.length>1&&!READYING)','every leveled spell asks when several slots are eligible');
+ has('ForgeTableCorrectness.pushEvent(viewerFeedEvent(r))','session feed paints authoritative resolved echoes through the viewer-safe seam');
+-has('+(hit?"":" \\u2014 miss"),false);','predictive attack narration does not duplicate rich row');
++has('+(hs.hit?"":" — miss"),false);','predictive attack narration does not duplicate rich row');
+ has('window.ForgeTableCorrectness.pushFact({actor:u.unit','sandbox attacks use rich feed renderer');
+ has('o.side==="foe"&&!staffView?""','player initiative hides enemy HP');
+ has('suppressEnemyHud ? null','player render receives no enemy kit');
+@@ -18,7 +18,7 @@ has('ForgeTableCorrectness.staffView(sess)','Player View hides overseer toolbar'
+ has('forge-modal-open','reinforcement modal rises over HUD');
+ has('document.body.classList.remove("forge-modal-open")','closing reinforcements restores HUD');
+ has('resolved.fallbackUrl','token loader retries direct art after proxy failure');
+-has('crit:hs.crit, roll:hs.roll','resolved attack facts repeat final display math');
++has('hit:hs.hit,crit:hs.crit,roll:hs.roll','resolved attack facts repeat final display math');
+ has('coverName:ro.coverName||null','resolved PC attacks preserve the cover word');
+ has('kind:"ability",actor:u.unit,ability:a.label,effects:[{unit:t.unit,heal:t.hp-was}]','sandbox healing uses structured effects');
+ console.log("\n",pass,"Phase 1.5d contract checks green");
+diff --git a/forge/tests/smoke-phase15e-contract.js b/forge/tests/smoke-phase15e-contract.js
+index 54d096b..0efdf86 100644
+--- a/forge/tests/smoke-phase15e-contract.js
++++ b/forge/tests/smoke-phase15e-contract.js
+@@ -4,7 +4,7 @@ const fs=require("fs"),path=require("path");
+ const html=fs.readFileSync(path.join(__dirname,"..","topography-test-mock.html"),"utf8");
+ const tc=fs.readFileSync(path.join(__dirname,"..","forge-table-correctness.js"),"utf8");
+ let pass=0;function has(text,needle,label){if(!text.includes(needle))throw Error("FAIL: "+label);console.log("ok",++pass,"-",label);}
+-has(html,'forge-effects.js?v=fe1','persistent-effect module is cache-stamped into the surface');
++has(html,'forge-effects.js?v=fe2','persistent-effect module is cache-stamped into the surface');
+ has(html,'var LOCAL_EFFECT_ROWS=[]','local sandbox uses the same event-shaped effect ledger');
+ has(html,'function refreshEffectState(trigger,silent)','effect state is rebuilt from the append-only log');
+ has(html,'refreshEffectState(r,false);','every shared echo refreshes effect state');
+@@ -15,7 +15,7 @@ has(html,'recordSanctuaryCheck(u,t,ward,result)','Sanctuary Wisdom saves are pub
+ has(html,'Choose another target','failed saves preserve RAW alternate-target choice');
+ has(html,'Lose attack','failed saves can consume the attempted action');
+ has(html,'if(harmfulDirect(a)){sanctuaryGate','player direct attacks and harmful spells are intercepted pre-roll');
+-has(html,'sanctuaryGate(u,atk,tgt,function rollStrike','foe AI checks Sanctuary before its attack roll');
++has(html,'sanctuaryGate(u,Object.assign({kind:"attack"},atk),tgt,function rollStrike','foe AI checks Sanctuary before its attack roll');
+ has(html,'withBreakOp([],u,atk)','foe attacks break the attacker’s own ward on the resolved fact');
+ has(html,'wardBreakPending=breakOpFor(u,a)','multi-strike attacks publish the ward break only once');
+ has(html,'addSanctuary({source:u.unit,target:t.unit','Sanctuary casting creates an authoritative effect record');
+diff --git a/forge/tests/smoke-phase15f-contract.js b/forge/tests/smoke-phase15f-contract.js
+index 6551165..20b2129 100644
+--- a/forge/tests/smoke-phase15f-contract.js
++++ b/forge/tests/smoke-phase15f-contract.js
+@@ -9,7 +9,7 @@ function ok(v,label){if(!v)throw new Error("FAIL: "+label);console.log("ok",++pa
+ function has(text,needle,label){ok(text.includes(needle),label);}
+ has(html,'forge-discovery.js?v=fd2','production surface loads the discovery module with a cache stamp');
+ has(html,'var fogGroup = new THREE.Group(); scene.add(fogGroup);','fog is a world-space three.js group');
+-has(html,'Player View sees the union of every living PC','party-shared vision contract is explicit');
++has(html,'Rules visibility and visual recognition are deliberately separate','party-shared vision contract is explicit');
+ has(html,"if(!discoveryHasSession())return false;   // local sandbox is the DM's workbench",'local sandbox remains omniscient');
+ has(html,'tc?tc.playerView(window.__forgeSession)','presentation mode, not account authority, selects player discovery');
+ has(html,"sess.pipe.events()",'explored memory reconstructs from the shared event log');
+diff --git a/forge/tests/smoke-phase15g-contract.js b/forge/tests/smoke-phase15g-contract.js
+index 750bc18..277e00f 100644
+--- a/forge/tests/smoke-phase15g-contract.js
++++ b/forge/tests/smoke-phase15g-contract.js
+@@ -6,8 +6,8 @@ const rules=fs.readFileSync(path.join(__dirname,"..","forge-combat-rules.js"),"u
+ const table=fs.readFileSync(path.join(__dirname,"..","forge-table-correctness.js"),"utf8");
+ let pass=0;function has(src,x,m){if(!src.includes(x))throw Error("FAIL: "+m);console.log("ok",++pass,"-",m);}function lacks(src,x,m){if(src.includes(x))throw Error("FAIL: "+m);console.log("ok",++pass,"-",m);}
+ 
+-has(html,'forge-combat-rules.js?v=fcr1','production surface loads the Phase 1.5g combat-rules seam');
+-has(html,'forge-table-correctness.js?v=fg1','feed/channel seam is cache-stamped');
++has(html,'forge-combat-rules.js?v=fcr2','production surface loads the Phase 1.5g combat-rules seam');
++has(html,'forge-table-correctness.js?v=fg4','feed/channel seam is cache-stamped');
+ has(table,'["table","system","all"]','feed exposes Table, System, and All filters');
+ has(table,'data-feed-channel','feed rows retain their category');
+ has(table,'.fg-frow:not([data-feed-channel])','rows that predate decorator installation are retroactively classified');
+diff --git a/forge/tests/smoke-phase15h-contract.js b/forge/tests/smoke-phase15h-contract.js
+index e8deb64..863db27 100644
+--- a/forge/tests/smoke-phase15h-contract.js
++++ b/forge/tests/smoke-phase15h-contract.js
+@@ -21,9 +21,10 @@ ok(html.indexOf("var DISCOVERY_RENDER={") < html.indexOf("resize(); rebuild();")
+ ok(html.indexOf('var SESSION_ID = new URLSearchParams(location.search).get("session");') < html.indexOf("resize(); rebuild();"),"session identity exists before initial rebuild");
+ ok(!html.includes("const SESSION_ID = qs.get('session');"),"session identity has no late lexical TDZ declaration");
+ has(html,"function buildFogVeil","unexplored masking is one continuous veil");
+-has(html,"depthTest:false,depthWrite:false","veil cannot z-fight with terrain tops");
++has(html,"depthTest:true,depthWrite:false","veil cannot z-fight with terrain tops");
++has(html,"veil.position.y=-BASE+.02","unexplored mask sits at terrain ground level instead of forming an overhead slab");
+ has(html,"tagDiscoveryObject","props, decals, and lights obey discovery state");
+-has(html,"q.mode==='visible-only'?st===2:st!==0","props, decals, and lights require current visibility while terrain memory may remain");
++has(html,"q.mode==='visible-only'?detailed:st!==0","props, decals, and lights require current visibility while terrain memory may remain");
+ has(html,"id=\"sceneCoverAudit\"","staff can run cover calibration from Forge menu");
+ has(html,"window.addForgeRow(html,{channel:'system'})","cover audit reports to System feed");
+ ok(!html.includes("obj.scale.set(1.025,height,1.025)"),"overlapping fog volumes are absent");
+diff --git a/forge/tests/smoke-phase2-correctness-wave2.js b/forge/tests/smoke-phase2-correctness-wave2.js
+new file mode 100644
+index 0000000..684c83a
+--- /dev/null
++++ b/forge/tests/smoke-phase2-correctness-wave2.js
+@@ -0,0 +1,94 @@
++/* Phase 2 correctness-wave 2 smokes · 2026-07-15
++   Run: node forge/tests/smoke-phase2-correctness-wave2.js */
++"use strict";
++const fs=require("fs");
++const path=require("path");
++const E=require("../forge-effects.js");
++const R=require("../forge-replay.js");
++const C=require("../forge-combat-rules.js");
++const K=require("../forge-kit-derive.js");
++const F=require("../forge-feed-render.js");
++const T=require("../forge-table-correctness.js");
++const B=require("../forge-board.js");
++let pass=0,fail=0;
++function ok(name,cond){if(cond){pass++;console.log("✓ "+name);}else{fail++;console.log("✗ "+name);}}
++const row=(seq,unit,kind,payload)=>({seq,unit,kind,payload:payload||{},created_at:seq});
++
++ok("raw foe attack shapes cannot bypass Sanctuary",E.harmfulDirect({hit:4,dmg:"1d6+2",rng:1}));
++ok("healing dice never trip Sanctuary's hostile fallback",!E.harmfulDirect({kind:"heal",dmg:"1d4+3"}));
++ok("area damage still bypasses direct-target Sanctuary",!E.harmfulDirect({kind:"save",dmg:"2d6",aoe:true}));
++
++const blessOps=E.addBlessGroup({source:"liadan",targets:["caim","vesperian","liadan"],nonce:7});
++let es=E.replay([row(1,"dm","initiative_set",{order:["liadan","caim"]}),row(2,"liadan","ability_used",{effects:blessOps})]);
++ok("Bless creates three independent target effects",blessOps.length===3&&["caim","vesperian","liadan"].every(k=>E.find(es,k,"bless")));
++ok("Bless records concentration and a 1d4 modifier",E.find(es,"caim","bless").concentration===true&&E.modifierDie(es,"caim","bless",3).roll===3);
++const hexOp=E.addHex({source:"cosmere",target:"goblin",nonce:8});
++es=E.replay([row(1,"dm","initiative_set",{order:["cosmere","goblin"]}),row(2,"cosmere","ability_used",{effects:[hexOp]})]);
++ok("Hex is a replayable concentration effect",E.find(es,"goblin","hex").source==="cosmere"&&E.find(es,"goblin","hex").die==="1d6");
++ok("starting another concentration spell yields removal facts",E.concentrationRemovals(es,"cosmere").length===1);
++let cs=E.concentrationSave(es,"cosmere",24,2,8,{});
++ok("failed concentration saves use half-damage DC and remove the casting",cs.required&&cs.dc===12&&!cs.saved&&cs.effects.length===1);
++
++const roster=[{unit:"caim",side:"pc",pos:{c:1,r:1},hp:30,maxHp:30,resources:{ki:4}},{unit:"goblin",side:"foe",pos:{c:2,r:1},hp:20,maxHp:20}];
++const setup=[row(1,"__session","session_started",{}),row(2,"__session","initiative_set",{order:["caim","goblin"]})];
++let rs=R.replayLog(roster,setup.concat([
++ row(3,"caim","attack_resolved",{target:"goblin",hit:true,dmg:2,slot:"bonus",resource_spend:{ki:1},resource_spend_id:"flurry:caim:1"}),
++ row(4,"caim","attack_resolved",{target:"goblin",hit:true,dmg:2,slot:"bonus",resource_spend:{ki:1},resource_spend_id:"flurry:caim:1"})
++]));
++ok("reducer enforces one payment per activation id",rs.units.caim.resources.ki===3&&rs.units.goblin.hp===16);
++rs=R.replayLog(roster,setup.concat([
++ row(3,"caim","ability_used",{slot:"bonus",resource_spend:{ki:1},resource_spend_id:"step:1"}),
++ row(4,"caim","ability_used",{slot:"free",resource_spend:{ki:1},resource_spend_id:"step:2"})
++]));
++ok("a new activation id spends normally",rs.units.caim.resources.ki===2);
++rs=R.replayLog(roster,setup.concat([row(3,"caim","ability_used",{ability:"Sanctuary",slot:"bonus",spell:true,spell_level:1})]));
++ok("spell casts are authoritative turn-economy facts",R.turnEconomy(rs).spellCasts.length===1&&R.turnEconomy(rs).bonusSpellCast);
++rs=R.replayLog(roster,setup.concat([
++ row(3,"caim","ability_used",{slot:"action"}),
++ row(4,"caim","reaction_declared",{effects:[]}),
++ row(5,"__session","initiative_set",{order:["goblin","caim"],resume_at:"caim",preserve_turn:true})
++]));
++ok("manual initiative edits preserve the active turn economy and reaction state",R.activeUnit(rs)==="caim"&&R.turnEconomy(rs).usedAction===true&&rs.units.caim.reactionUsed===true);
++
++const actionSpell={label:"Bless",spell:true,level:1};
++const bonusSpell={label:"Sanctuary",spell:true,level:1,bonus:true};
++const actionCantrip={label:"Sacred Flame",spell:true,level:0};
++ok("action Bless then bonus Sanctuary is illegal",!C.canCastSpell({spellCasts:[C.spellCastShape(actionSpell)]},bonusSpell).ok);
++ok("bonus Sanctuary then action cantrip is legal",C.canCastSpell({spellCasts:[C.spellCastShape(bonusSpell)]},actionCantrip).ok);
++ok("bonus Sanctuary then action leveled spell is illegal",!C.canCastSpell({spellCasts:[C.spellCastShape(bonusSpell)]},actionSpell).ok);
++ok("two action leveled spells remain legal when action economy permits",C.canCastSpell({spellCasts:[C.spellCastShape(actionSpell)]},{label:"Guiding Bolt",spell:true,level:1}).ok);
++
++const root=path.join(__dirname,"..","..");
++const cosmere=JSON.parse(fs.readFileSync(path.join(root,"data/characters/cosmere.json"),"utf8"));
++const liadan=JSON.parse(fs.readFileSync(path.join(root,"data/characters/liadan.json"),"utf8"));
++const ck=K.derive(cosmere,{}),lk=K.derive(liadan,{});
++const hex=(ck.tabs.spells||[]).find(a=>a.label==="Hex"),bless=(lk.tabs.spells||[]).find(a=>a.label==="Bless");
++ok("Cosmere derives two Pact and two Sorcerer first-level slots",ck.res.pact===2&&ck.res.slot1===2&&ck.pools.some(p=>p.key==="pact"&&p.current===2)&&ck.pools.some(p=>p.key==="slot1"&&p.current===2));
++ok("Hex carries first-class effect metadata",hex&&hex.effectKind==="hex"&&hex.concentration===true);
++ok("Bless carries three-target effect metadata",bless&&bless.effectKind==="bless"&&bless.targetCount===3&&bless.concentration===true);
++
++let html=F.rollBody({actor:"caim",target:"goblin",mode:"Strike",roll:18,rollTotal:24,hitBonus:3,hit:true,d20Rolls:[7,18],d20KeptIndex:1,mods:[{k:"bless",v:3}]},{unitName:k=>k});
++ok("kept die has an explicit visual class and Bless appears in math",html.includes("ffr-keep")&&html.includes("bless +3")&&F.CSS.includes(".ffr-keep{")&&F.CSS.includes(".ffr-reaction-dice{"));
++html=F.rollBody({actor:"goblin",target:"liadan",mode:"Scimitar",roll:16,rollTotal:20,hitBonus:4,hit:true,dmg:6,concentration:{required:true,roll:8,baseBonus:2,bless:3,total:13,dc:10,saved:true}},{unitName:k=>k});
++ok("concentration evidence is visible in the Chronicle",html.includes("Concentration:")&&html.includes("Bless +3")&&html.includes("holds"));
++const oa=T.factFromEvent({unit:"goblin",kind:"prompt_answered",payload:{use:true,context:{kind:"opportunity-attack",actor:"goblin",target:"caim",mode:"Scimitar",roll:15,roll_total:19,hitBonus:4,hit:true,dmg:5,d20_rolls:[15],d20_kept_index:0}}});
++ok("opportunity attacks become structured Chronicle facts",oa&&oa.kind==="attack"&&oa.mode==="Scimitar"&&oa.dmg===5&&oa.rollTotal===19);
++
++const before=R.replayLog(roster,setup.concat([row(3,"caim","move_declared",{path:[{c:2,r:1},{c:3,r:1},{c:4,r:1}]})]));
++const after=R.snapshot(before);R.applyEvent(after,row(4,"caim","move_resolved",{path:[{c:2,r:1}],final_cell:{c:2,r:1},interrupted_at:{c:2,r:1}}));
++const walk=B.verbsFor(row(4,"caim","move_resolved",{path:[{c:2,r:1}],final_cell:{c:2,r:1},interrupted_at:{c:2,r:1}}),before,after).find(v=>v.t==="walk");
++ok("interrupted movement animates only the resolved path",walk&&walk.path.length===1&&walk.to.c===2);
++
++const source=fs.readFileSync(path.join(root,"forge/topography-test-mock.html"),"utf8");
++const pipelineSource=fs.readFileSync(path.join(root,"forge/forge-pipeline.js"),"utf8");
++ok("foe attacks enter Sanctuary as explicit attacks",source.includes('sanctuaryGate(u,Object.assign({kind:"attack"},atk)'));
++ok("shared resource payments carry activation identifiers",source.includes("function resourceSpendIdFor")&&source.includes("resource_spend_id:spendFact?resourceSpendId:null"));
++ok("Cosmere can choose Pact or ordinary slots",source.includes("function castableSpellSources")&&source.includes('p.kind!=="slot"')&&source.includes("Choose which eligible pool pays for the spell"));
++ok("Bless has a three-target picker and replay effects",source.includes("function openBlessPicker")&&source.includes("E.addBlessGroup")&&source.includes("Choose up to "));
++ok("multiplayer movement asks opportunity-attack prompts",source.includes('declaredRow.kind==="move_declared"')&&source.includes('react:"opportunityAttack"')&&source.includes("interrupted_at"));
++ok("overseer can enter and reorder initiative without refunding the turn",source.includes("function setManualInitiative")&&source.includes("function moveInitiativeDraft")&&source.includes("setInitiative(order,resumeAt,!!st.initiative)")&&source.includes("cbInitCancel")&&source.includes("Apply order")&&pipelineSource.includes("payload.preserve_turn = true"));
++ok("soft-reality fog separates broad sight from detail",source.includes("discoveryBroadRadiusFt")&&source.includes("DISCOVERY.detail")&&source.includes("Soft-reality band"));
++ok("unknown fog is ground-level instead of an overhead slab",source.includes("veil.position.y=-BASE+.02")&&source.includes("depthTest:true")&&!source.includes("var maxFt=0;for(var i=0;i<CB.map.h.length"));
++
++console.log(`\n${pass} passed, ${fail} failed`);
++process.exitCode=fail?1:0;
+diff --git a/forge/tests/smoke-phase2b1-field-round.js b/forge/tests/smoke-phase2b1-field-round.js
+index 335f276..174786c 100644
+--- a/forge/tests/smoke-phase2b1-field-round.js
++++ b/forge/tests/smoke-phase2b1-field-round.js
+@@ -20,9 +20,9 @@ has(html,'function rollActionDamage(a,crit,extras)','attack resolution emits com
+ has(html,'dmgParts:damage?damage.parts:null','shared attack facts carry damage components');
+ has(html,'dmgParts:damage.parts','local attack facts carry damage components');
+ ok(/\.\.\/weapon-actions\.js\?v=fg(?:3|2e1|2f)/.test(html),'weapon-action import is cache-busted');
+-has(html,'forge-kit-derive.js?v=b3','kit derivation cache stamp bumped');
+-ok(/forge-feed-render\.js\?v=(?:b3|ffr4)/.test(html),'feed renderer cache stamp bumped');
+-has(html,'forge-table-correctness.js?v=fg3','table-correctness cache stamp bumped');
++has(html,'forge-kit-derive.js?v=b4','kit derivation cache stamp bumped');
++ok(/forge-feed-render\.js\?v=(?:b3|ffr5)/.test(html),'feed renderer cache stamp bumped');
++has(html,'forge-table-correctness.js?v=fg4','table-correctness cache stamp bumped');
+ ok(html.indexOf('var DISCOVERY_RENDER={') < html.indexOf('resize(); rebuild();'),'discovery renderer still initializes before the first terrain build');
+ ok(html.indexOf('var SESSION_ID') < html.indexOf('resize(); rebuild();'),'session id still initializes before the first terrain build');
+ 
+diff --git a/forge/tests/smoke-phase2f2-damage-pipeline.js b/forge/tests/smoke-phase2f2-damage-pipeline.js
+index a1c742e..2ec7a7b 100644
+--- a/forge/tests/smoke-phase2f2-damage-pipeline.js
++++ b/forge/tests/smoke-phase2f2-damage-pipeline.js
+@@ -45,5 +45,5 @@ const ebOut=FR.rollBody({kind:"attack",actor:"cosmere",target:"foe",mode:"Eldrit
+ 
+ const fact={kind:"attack",hit:true,dmg:11};DE.attachPayload(fact,{dmgParts:normal.parts,dmgFormula:normal.formula});eq(fact.dmgParts[0].rolls,[5],"protocol bridge preserves actual rolls");eq(fact.dmgParts[0].bonus,6,"protocol bridge preserves the modifier");ok(DE.arithmetic(fact.dmgParts[0])==="[5] +6 = 11 Slashing (booming)","compatibility evidence uses the same explicit math");
+ 
+-ok(html.includes('forge-action-damage.js?v=fad1'),"production loads canonical action-damage module");ok(html.includes('forge-feed-render.js?v=ffr4'),"production loads canonical feed renderer");ok(html.includes('forge-damage-evidence.js?v=fde3'),"production loads transport bridge v3");ok(html.includes('ForgeActionDamage.repairKit'),"production repairs the final combat kit, not an intermediate list");ok(html.includes('ForgeActionDamage.rollAction'),"production combat uses the canonical roller");ok(html.includes('rollActionDamage(atk,hs.crit,[])'),"local foe critical hits double their damage dice");ok(html.includes('rollActionDamage(atk,fhs.crit,[])'),"shared foe critical hits double their damage dice");
++ok(html.includes('forge-action-damage.js?v=fad1'),"production loads canonical action-damage module");ok(html.includes('forge-feed-render.js?v=ffr5'),"production loads canonical feed renderer");ok(html.includes('forge-damage-evidence.js?v=fde3'),"production loads transport bridge v3");ok(html.includes('ForgeActionDamage.repairKit'),"production repairs the final combat kit, not an intermediate list");ok(html.includes('ForgeActionDamage.rollAction'),"production combat uses the canonical roller");ok(html.includes('rollActionDamage(atk,hs.crit,[])'),"local foe critical hits double their damage dice");ok(html.includes('rollActionDamage(atk,fhs.crit,[])'),"shared foe critical hits double their damage dice");
+ console.log("\n"+pass+" Phase 2f.2 damage-pipeline checks green");
+diff --git a/forge/tests/smoke-table-correctness.js b/forge/tests/smoke-table-correctness.js
+index 4e2c42b..3642afb 100644
+--- a/forge/tests/smoke-table-correctness.js
++++ b/forge/tests/smoke-table-correctness.js
+@@ -7,7 +7,7 @@ const doc={body:{classList:{_s:new Set(),toggle(k,v){v?this._s.add(k):this._s.de
+ const ctx={console,document:doc,localStorage:{getItem:k=>mem[k]||null,setItem:(k,v)=>mem[k]=v},CustomEvent:function(n,o){this.type=n;this.detail=o&&o.detail;},ForgeKitDerive:{derive(){return {res:{kiPoints:3},pools:[{key:"kiPoints",rawKey:"kiPoints",current:3}],actions:[{cost:{ki:1}}]};}},ForgeFeedRender:{rollBody:f=>`ROLL:${f.actor}:${f.mode}:${f.roll}:${f.dmg==null?"":f.dmg}:${f.coverName||""}`,abilityBody:f=>`ABILITY:${f.actor}:${(f.effects||[]).map(e=>e.heal!=null?"heal"+e.heal:e.dmg!=null?"dmg"+e.dmg:"").join(",")}`},addForgeRow(h){rows.push(h);},setTimeout,clearTimeout};ctx.self=ctx;ctx.window=ctx;
+ vm.createContext(ctx);vm.runInContext(fs.readFileSync(path.join(__dirname,"..","forge-table-correctness.js"),"utf8"),ctx);
+ const F=ctx.ForgeTableCorrectness;
+-ok(F&&F.VERSION==="1.3.0","browser API loads");
++ok(F&&F.VERSION==="1.4.0","browser API loads");
+ ok(typeof F.installFeedInteraction==="function","feed damage-detail interaction is part of the public contract");
+ const k=ctx.ForgeKitDerive.derive({});
+ ok(k.res.ki===3,"kiPoints aliases to canonical ki");
+diff --git a/forge/topography-test-mock.html b/forge/topography-test-mock.html
+index ae4f519..a7b3974 100644
+--- a/forge/topography-test-mock.html
++++ b/forge/topography-test-mock.html
+@@ -27,22 +27,22 @@
+ <script src="forge-unit-art.js?v=ua2"></script>
+ <script src="forge-engine.js?v=fe6"></script>
+ <script src="forge-protocol.js?v=fb1"></script>
+-<script src="forge-replay.js?v=fb7"></script>
+-<script src="forge-combat-rules.js?v=fcr1"></script>
+-<script src="forge-effects.js?v=fe1"></script>
++<script src="forge-replay.js?v=fb8"></script>
++<script src="forge-combat-rules.js?v=fcr2"></script>
++<script src="forge-effects.js?v=fe2"></script>
+ <script src="forge-discovery.js?v=fd2"></script>
+ <script src="forge-bus.js?v=fb2"></script>
+-<script src="forge-pipeline.js?v=fb4"></script>
+-<script src="forge-board.js?v=fb5"></script>
++<script src="forge-pipeline.js?v=fb5"></script>
++<script src="forge-board.js?v=fb6"></script>
+ <script src="../armor-ac.js?v=cc2"></script>
+ <script src="../equip-slots.js?v=cc2"></script>
+ <script src="../character-combat.js?v=cc2"></script>
+-<script src="forge-kit-derive.js?v=b3"></script>
++<script src="forge-kit-derive.js?v=b4"></script>
+ <script src="forge-action-damage.js?v=fad1"></script>
+ <script src="forge-damage-evidence.js?v=fde3"></script>
+-<script src="forge-feed-render.js?v=ffr4"></script>
++<script src="forge-feed-render.js?v=ffr5"></script>
+ <script src="forge-hud.js?v=b2"></script>
+-<script src="forge-table-correctness.js?v=fg3"></script>
++<script src="forge-table-correctness.js?v=fg4"></script>
+ <script src="../item-icons.js?v=b3"></script>
+ <script src="../spell-icons.js?v=b3"></script>
+ <script src="../icon-picker.js?v=b3"></script>
+@@ -789,6 +789,10 @@ body.forge-author-preview #partySelect{opacity:0;pointer-events:none}
+ .cbInitVal{ display:flex; align-items:center; gap:8px; }
+ .cbInitRoll{ font-family:var(--f-util); text-transform:uppercase; letter-spacing:.1em; font-size:11px; color:#fff; background:var(--tk-gold); border:1px solid var(--tk-gold); padding:6px 10px; cursor:pointer; }
+ .cbInitRoll:disabled{ opacity:.4; cursor:not-allowed; }
++.cbInitScore{width:58px;box-sizing:border-box;background:rgba(16,25,23,.72);border:1px solid var(--tk-line);color:var(--tk-ink);padding:5px 6px;font:700 12px/1 var(--f-util);text-align:center;}
++.cbInitOrder{display:flex;gap:3px}.cbInitOrder button{border:1px solid var(--tk-line);background:var(--tk-panel-2);color:var(--tk-ink);padding:4px 6px;cursor:pointer}.cbInitOrder button:disabled{opacity:.3;cursor:not-allowed}
++.cbBlessTargets{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:6px;margin:12px 0}.cbBlessTarget{border:1px solid var(--tk-line);background:rgba(16,25,23,.72);color:var(--tk-ink);padding:8px;cursor:pointer;text-align:left}.cbBlessTarget.on{border-color:var(--tk-gold);background:rgba(201,162,75,.18);color:#fff1c8}
++
+ /* Field 2026-07-11: this lived at top-LEFT, stacked on the forgebar and the
+    map panel's column — engaging GOD MODE walled off the map options. The left
+    edge is four deep (masthead/forgebar/panel/log); the right-middle, between
+@@ -1134,10 +1138,11 @@ body.forge-author-preview #partySelect{opacity:0;pointer-events:none}
+          a fresh boot (syncInitiativeLobby), so a refresh mid-lobby recovers it. -->
+     <div class="cbReact" id="cbInitLobby" style="display:none">
+       <div class="cbReactCard cbInitLobbyCard">
+-        <div class="cbReactEy">Initiative</div>
+-        <div class="cbReactTitle">Roll for it</div>
++        <div class="cbReactEy" id="cbInitEy">Initiative</div>
++        <div class="cbReactTitle" id="cbInitTitle">Roll for it</div>
+         <div id="cbInitLobbyList"></div>
+         <div class="cbReactBtns" id="cbInitLobbyOverseerBtns" style="display:none">
++          <button class="cbReactSkip" id="cbInitCancel" style="display:none">Cancel</button>
+           <button class="cbReactSkip" id="cbInitRollRest">Roll for the rest</button>
+           <button class="cbReactUse" id="cbInitConfirm">Confirm order</button>
+         </div>
+@@ -1166,6 +1171,7 @@ body.forge-author-preview #partySelect{opacity:0;pointer-events:none}
+         <button id="ovRewind" title="Rewind to a turn boundary">Rewind</button>
+         <button id="ovGod" title="Move any unit by hand, edit HP">GOD MODE: off</button>
+         <button id="ovAddFoe" title="Bring a new foe into the fight">Add foe</button>
++        <button id="ovInitiative" title="Enter physical rolls or adjust the live turn order">Initiative</button>
+         <button id="ovEndFight" title="End this fight for everyone">End fight</button>
+       </div>
+       <div class="cbGodPanel" id="cbGodPanel" style="display:none"></div>
+@@ -3316,13 +3322,15 @@ var CB_ANIM = false;      // a walk tween is running — input waits for it
+ var READYING = false;     // "Ready" armed: the next attack picked is held, not thrown
+ 
+ /* ── PHASE 1.5f: party-shared world-space discovery ───────────────────
+-   Player View sees the union of every living PC's current sight. Explored
+-   memory is reconstructed from the shared movement log, so refresh/join does
+-   not reset the dungeon. Staff View stays omniscient; switching to Player
+-   View locally shows exactly the discovery presentation without changing
+-   account authority. Phase 1.5h replaces overlapping cell volumes with per-instance terrain state plus one continuous unexplored veil. Unseen room heights and props no longer sculpt the fog itself. */
+-var DISCOVERY={mapRef:null,mapSerial:0,cache:new Map(),visible:null,explored:null,states:null,
+-  ready:false,currentSig:'',historySig:'',fogSig:'',localTrail:[]};
++   Rules visibility and visual recognition are deliberately separate:
++     detail   = the party can identify creatures, props, badges and full colour;
++     visible  = unobstructed broad sight, rendered as subdued distant terrain;
++     explored = remembered terrain after it leaves current line of sight;
++     unknown  = no topology, represented by a ground-level neutral void.
++   Explored memory is reconstructed from the shared movement log, so refresh/
++   join does not reset the dungeon. Staff View remains omniscient. */
++var DISCOVERY={mapRef:null,mapSerial:0,cache:new Map(),detail:null,visible:null,explored:null,states:null,
++  ready:false,currentSig:'',detailSig:'',historySig:'',fogSig:'',localTrail:[]};
+ function resetDiscoveryRenderRegistry(){
+   if(!DISCOVERY_RENDER)return;DISCOVERY_RENDER.instanced=[];DISCOVERY_RENDER.objects=[];
+   if(DISCOVERY_RENDER.veil){fogGroup.remove(DISCOVERY_RENDER.veil);if(DISCOVERY_RENDER.veil.geometry)DISCOVERY_RENDER.veil.geometry.dispose();if(DISCOVERY_RENDER.veil.material)DISCOVERY_RENDER.veil.material.dispose();}
+@@ -3348,8 +3356,15 @@ function discoveryHistorySources(){
+   if(sess&&sess.pipe&&typeof sess.pipe.events==='function')return D.uniqueCells(D.historySources(sess.row&&sess.row.roster||[],sess.pipe.events(),discoverySideMap()).concat(current));
+   current.forEach(function(p){DISCOVERY.localTrail.push(p);});DISCOVERY.localTrail=D.uniqueCells(DISCOVERY.localTrail);return D.uniqueCells(DISCOVERY.localTrail.concat(current));
+ }
+-function discoveryMaskFor(src){
+-  var D=discoveryApi(),radius=src.radiusFt||D.DEFAULT_SIGHT_FT,key=DISCOVERY.mapSerial+'|'+src.c+','+src.r+'|'+radius;
++function discoveryBroadRadiusFt(){
++  if(!CB.map)return 60;
++  /* Broad vision is bounded by the map diagonal and canonical LoS, not an
++     arbitrary darkvision circle. Detail remains character/sense limited. */
++  return Math.ceil(Math.hypot(Number(CB.map.cols)||0,Number(CB.map.rows)||0)*5)+5;
++}
++function discoveryMaskFor(src,mode){
++  var D=discoveryApi(),detail=mode==='detail',radius=detail?(src.radiusFt||D.DEFAULT_SIGHT_FT):discoveryBroadRadiusFt();
++  var key=DISCOVERY.mapSerial+'|'+mode+'|'+src.c+','+src.r+'|'+radius;
+   if(!DISCOVERY.cache.has(key))DISCOVERY.cache.set(key,D.visibleFrom(CB.map,src,TG,{radiusFt:radius}));
+   return DISCOVERY.cache.get(key);
+ }
+@@ -3359,20 +3374,30 @@ function clearFogMeshes(){
+ }
+ function hiddenMatrix(base){var p=new THREE.Vector3(),q=new THREE.Quaternion(),sc=new THREE.Vector3();base.decompose(p,q,sc);sc.set(.0001,.0001,.0001);p.y=-BASE-20;return new THREE.Matrix4().compose(p,q,sc);}
+ function discoveryStateAt(c,r){var D=discoveryApi();return D&&DISCOVERY.ready?D.cellState(DISCOVERY.states,CB.map,c,r):2;}
++function discoveryDetailedAt(c,r){var D=discoveryApi(),i=D&&D.idx(CB.map,c,r);return !!(D&&DISCOVERY.ready&&DISCOVERY.detail&&i>=0&&DISCOVERY.detail[i]);}
+ function applyDiscoveryInstances(player){
+-  var visCol=new THREE.Color(),memCol=new THREE.Color(0.20,0.25,0.23);
++  var visCol=new THREE.Color(),memCol=new THREE.Color(0.16,0.20,0.19),farCol=new THREE.Color();
+   DISCOVERY_RENDER.instanced.forEach(function(entry){var mesh=entry.mesh;if(!mesh)return;
+     for(var i=0;i<entry.cells.length;i++){
+-      var cell=entry.cells[i],st=player?discoveryStateAt(cell.c,cell.r):2,base=entry.matrices[i];
+-      mesh.setMatrixAt(i,(st===0||entry.mode==='visible-only'&&st!==2)?hiddenMatrix(base):base);
++      var cell=entry.cells[i],st=player?discoveryStateAt(cell.c,cell.r):2,detailed=!player||discoveryDetailedAt(cell.c,cell.r),base=entry.matrices[i];
++      mesh.setMatrixAt(i,(st===0||entry.mode==='visible-only'&&!detailed)?hiddenMatrix(base):base);
+       if(entry.mode==='terrain'){
+         var original=entry.colors[i]||new THREE.Color(1,1,1);visCol.copy(original);
+-        mesh.setColorAt(i,st===1?memCol.clone().multiplyScalar(Math.max(.55,original.r)):visCol);
++        if(st===1){
++          var memoryLight=Math.max(.48,.2126*original.r+.7152*original.g+.0722*original.b);
++          mesh.setColorAt(i,memCol.clone().multiplyScalar(memoryLight));
++        }else if(st===2&&!detailed){
++          /* Soft-reality band: retain truthful terrain silhouette while removing
++             identifying colour/contrast. Haze rather than an opaque sight wall. */
++          var lum=.2126*original.r+.7152*original.g+.0722*original.b;
++          farCol.setRGB(.13+lum*.44,.16+lum*.45,.16+lum*.43);
++          mesh.setColorAt(i,farCol);
++        }else mesh.setColorAt(i,visCol);
+       }
+     }
+     mesh.instanceMatrix.needsUpdate=true;if(mesh.instanceColor)mesh.instanceColor.needsUpdate=true;
+   });
+-  DISCOVERY_RENDER.objects.forEach(function(obj){if(!obj||!obj.userData||!obj.userData.discoveryCell)return;var q=obj.userData.discoveryCell,st=player?discoveryStateAt(q.c,q.r):2;obj.visible=!player||(q.mode==='visible-only'?st===2:st!==0);});
++  DISCOVERY_RENDER.objects.forEach(function(obj){if(!obj||!obj.userData||!obj.userData.discoveryCell)return;var q=obj.userData.discoveryCell,st=player?discoveryStateAt(q.c,q.r):2,detailed=!player||discoveryDetailedAt(q.c,q.r);obj.visible=!player||(q.mode==='visible-only'?detailed:st!==0);});
+ }
+ function fogMaskCanvas(){
+   var scale=8,c=document.createElement('canvas');c.width=CB.map.cols*scale;c.height=CB.map.rows*scale;var x=c.getContext('2d');x.clearRect(0,0,c.width,c.height);
+@@ -3381,13 +3406,15 @@ function fogMaskCanvas(){
+ }
+ function buildFogVeil(){
+   var canvas=fogMaskCanvas(),tex=new THREE.CanvasTexture(canvas);tex.magFilter=THREE.NearestFilter;tex.minFilter=THREE.NearestFilter;tex.generateMipmaps=false;tex.needsUpdate=true;
+-  var maxFt=0;for(var i=0;i<CB.map.h.length;i++)maxFt=Math.max(maxFt,(CB.map.h[i]||0)+(CB.map.occ&&CB.map.occ[i]||0));
+-  var mat=new THREE.MeshBasicMaterial({map:tex,transparent:true,depthTest:false,depthWrite:false,toneMapped:false,fog:false,side:THREE.DoubleSide});
+-  var veil=new THREE.Mesh(new THREE.PlaneGeometry(CB.map.cols,CB.map.rows),mat);veil.rotation.x=-Math.PI/2;veil.position.y=(maxFt/5)*STEP+.75;veil.renderOrder=16;veil.frustumCulled=false;
++  /* The unknown mask is a floor beneath removed terrain, never an overhead
++     slab. Depth testing lets real terrain occlude it and keeps it out of the
++     camera/character volume in both top-down and 3D views. */
++  var mat=new THREE.MeshBasicMaterial({map:tex,transparent:true,depthTest:true,depthWrite:false,toneMapped:false,fog:false,side:THREE.DoubleSide});
++  var veil=new THREE.Mesh(new THREE.PlaneGeometry(CB.map.cols,CB.map.rows),mat);veil.rotation.x=-Math.PI/2;veil.position.y=-BASE+.02;veil.renderOrder=0;veil.frustumCulled=false;
+   fogGroup.add(veil);DISCOVERY_RENDER.veil=veil;DISCOVERY_RENDER.veilTexture=tex;
+ }
+ function applyDiscoveryFog(force){
+-  var player=discoveryPlayerView(),sig=(player?'player':'staff')+'|'+DISCOVERY.currentSig+'|'+DISCOVERY.historySig+'|'+STEP+'|'+DISCOVERY_RENDER.instanced.length;
++  var player=discoveryPlayerView(),sig=(player?'player':'staff')+'|'+DISCOVERY.currentSig+'|'+DISCOVERY.detailSig+'|'+DISCOVERY.historySig+'|'+STEP+'|'+DISCOVERY_RENDER.instanced.length;
+   if(!force&&sig===DISCOVERY.fogSig)return;DISCOVERY.fogSig=sig;clearFogMeshes();
+   if(!CB.active||!CB.map||!DISCOVERY.ready){applyDiscoveryInstances(false);return;}
+   applyDiscoveryInstances(player);if(player)buildFogVeil();
+@@ -3396,22 +3423,26 @@ function updateDiscoveryStatus(){
+   var el=document.getElementById('discoveryStatus');if(!el)return;
+   if(!CB.active||!DISCOVERY.ready){el.textContent='Discovery waits for combat.';return;}
+   if(!discoveryPlayerView()){el.textContent='Discovery: Staff View shows the full battlefield.';return;}
+-  var D=discoveryApi(),vis=0,exp=0,total=DISCOVERY.states.length;
+-  for(var i=0;i<total;i++){if(DISCOVERY.states[i]===D.VISIBLE)vis++;if(DISCOVERY.states[i]!==D.UNEXPLORED)exp++;}
+-  el.textContent='Party vision · '+vis+' visible · '+exp+'/'+total+' explored';
++  var D=discoveryApi(),vis=0,detail=0,exp=0,total=DISCOVERY.states.length;
++  for(var i=0;i<total;i++){if(DISCOVERY.states[i]===D.VISIBLE)vis++;if(DISCOVERY.detail&&DISCOVERY.detail[i])detail++;if(DISCOVERY.states[i]!==D.UNEXPLORED)exp++;}
++  el.textContent='Party vision · '+detail+' detailed · '+vis+' in sight · '+exp+'/'+total+' explored';
+ }
+ function refreshDiscovery(force){
+   var D=discoveryApi();if(!D||!CB.active||!CB.map){DISCOVERY.ready=false;clearFogMeshes();updateDiscoveryStatus();return;}
+-  if(DISCOVERY.mapRef!==CB.map){DISCOVERY.mapRef=CB.map;DISCOVERY.mapSerial++;DISCOVERY.cache.clear();DISCOVERY.visible=null;DISCOVERY.explored=null;DISCOVERY.states=null;DISCOVERY.localTrail=[];DISCOVERY.currentSig='';DISCOVERY.historySig='';DISCOVERY.fogSig='';force=true;}
++  if(DISCOVERY.mapRef!==CB.map){DISCOVERY.mapRef=CB.map;DISCOVERY.mapSerial++;DISCOVERY.cache.clear();DISCOVERY.detail=null;DISCOVERY.visible=null;DISCOVERY.explored=null;DISCOVERY.states=null;DISCOVERY.localTrail=[];DISCOVERY.currentSig='';DISCOVERY.detailSig='';DISCOVERY.historySig='';DISCOVERY.fogSig='';force=true;}
+   var current=discoveryCurrentSources(),history=discoveryHistorySources();
+-  var currentSig=current.map(function(p){return p.unit+':'+p.c+','+p.r+':'+p.radiusFt;}).sort().join('|');
++  var currentSig=current.map(function(p){return p.unit+':'+p.c+','+p.r;}).sort().join('|');
++  var detailSig=current.map(function(p){return p.unit+':'+p.c+','+p.r+':'+p.radiusFt;}).sort().join('|');
+   var historySig=history.map(function(p){return p.unit+':'+p.c+','+p.r;}).sort().join('|');
+-  if(force||currentSig!==DISCOVERY.currentSig){DISCOVERY.visible=D.unionMasks(current.map(discoveryMaskFor),CB.map.cols*CB.map.rows);DISCOVERY.currentSig=currentSig;}
+-  if(force||historySig!==DISCOVERY.historySig){DISCOVERY.explored=D.unionMasks(history.map(discoveryMaskFor),CB.map.cols*CB.map.rows);DISCOVERY.historySig=historySig;}
++  if(force||currentSig!==DISCOVERY.currentSig){DISCOVERY.visible=D.unionMasks(current.map(function(p){return discoveryMaskFor(p,'broad');}),CB.map.cols*CB.map.rows);DISCOVERY.currentSig=currentSig;}
++  if(force||detailSig!==DISCOVERY.detailSig){DISCOVERY.detail=D.unionMasks(current.map(function(p){return discoveryMaskFor(p,'detail');}),CB.map.cols*CB.map.rows);DISCOVERY.detailSig=detailSig;}
++  if(force||historySig!==DISCOVERY.historySig){DISCOVERY.explored=D.unionMasks(history.map(function(p){return discoveryMaskFor(p,'broad');}),CB.map.cols*CB.map.rows);DISCOVERY.historySig=historySig;}
+   DISCOVERY.explored=D.mergeExplored(DISCOVERY.explored,DISCOVERY.visible);DISCOVERY.states=D.composeStates(DISCOVERY.explored,DISCOVERY.visible);DISCOVERY.ready=true;
+   applyDiscoveryFog(force);updateDiscoveryStatus();
+ }
+-function discoveryCellVisible(c,r){var D=discoveryApi();return !!(D&&DISCOVERY.ready&&D.cellVisible(DISCOVERY.states,CB.map,c,r));}
++/* Gameplay identification requires detail. Broad sight is deliberately only
++   soft terrain awareness: it cannot reveal foes, props, badges or targets. */
++function discoveryCellVisible(c,r){return discoveryDetailedAt(c,r);}
+ document.addEventListener('forge:viewerMode',function(){refreshDiscovery(true);syncAllUnitVisuals();drawHi();drawSight();});
+ 
+ /* ── PHASE 1.5e: persistent effect ledger ─────────────────────────────
+@@ -3477,9 +3508,32 @@ function wisdomSaveMod(u){
+ }
+ function breakOpFor(u,a){var E=effectApi();return E?E.removalForActor(EFFECT_STATE,u.unit||u.key||u.id,a):null;}
+ function withBreakOp(effects,u,a){effects=effects||[];var op=breakOpFor(u,a);if(op)effects.push(op);return effects;}
++function concentrationBreakOps(u,reason){var E=effectApi();return E?E.concentrationRemovals(EFFECT_STATE,u.unit||u.key||u.id,reason||"concentration replaced"):[];}
++function blessEffectFor(u){return effectFor(u,"bless");}
++function blessRollFor(u){var E=effectApi(),ef=blessEffectFor(u);return E&&ef?E.modifierDie(EFFECT_STATE,u.unit||u.key||u.id,"bless",d(4)):null;}
++function hexEffectAgainst(u,t){var E=effectApi(),ef=E&&E.find(EFFECT_STATE,t.unit||t.key||t.id,"hex");return ef&&ef.source===(u.unit||u.key||u.id)?ef:null;}
++function saveModFor(u,ability){ability=String(ability||"").toLowerCase();if(u&&u.saveMods&&u.saveMods[ability]!=null)return Number(u.saveMods[ability])||0;var sb=u&&u.statblock||{};if(sb.save&&sb.save[ability]!=null)return parseInt(sb.save[ability],10)||0;if(sb[ability]!=null)return Math.floor(((Number(sb[ability])||10)-10)/2);return Number(u&&u.save)||0;}
++function concentrationCheckFor(u,dmg,hpBefore,reason){
++  var E=effectApi(),key=u&&(u.unit||u.key||u.id);if(!E||!key||!E.concentrationSave)return null;
++  var bless=blessRollFor(u),blessV=bless?bless.roll:0,base=saveModFor(u,"con"),willDown=Number(hpBefore)-Number(dmg)<=0;
++  var result=E.concentrationSave(EFFECT_STATE,key,dmg,base+blessV,d(20),{incapacitated:willDown,reason:reason||"concentration broken by damage"});
++  if(!result.required)return null;result.baseBonus=base;result.bless=blessV;return result;
++}
++function concentrationNarration(u,result){
++  if(!result)return "";var name=escapeHtml(u&&u.name||"Creature");
++  if(result.automatic)return name+" loses concentration on falling unconscious.";
++  return name+" concentration: CON "+result.roll+(result.baseBonus?((result.baseBonus>=0?"+":"")+result.baseBonus):"")+(result.bless?" + Bless "+result.bless:"")+" = "+result.total+" vs DC "+result.dc+(result.saved?" — holds.":" — broken.");
++}
++function localConcentrationAfterDamage(u,dmg,hpBefore,reason){
++  var result=concentrationCheckFor(u,dmg,hpBefore,reason);if(!result)return null;
++  clog("<i>"+concentrationNarration(u,result)+"</i>");
++  if(result.effects&&result.effects.length)localEffectEvent("ability_used",u.unit,{ability:"Concentration",effects:result.effects,slot:"free",silent:true,context:{kind:"concentration-save",roll:result.roll,baseBonus:result.baseBonus,bless:result.bless,total:result.total,dc:result.dc,saved:result.saved,automatic:result.automatic}},false);
++  return result;
++}
++
+ function localBreakWard(u,a){var op=breakOpFor(u,a);if(op)localEffectEvent("ability_used",u.unit,{ability:a.label,effects:[op],slot:"free",silent:true});}
+ function recordSanctuaryCheck(u,t,ward,result){
+-  var payload={ability:"Sanctuary ward",targets:[t.unit],effects:[],slot:"free",context:{kind:"sanctuary-save",target:t.unit,roll:result.roll,mod:result.mod,total:result.total,dc:result.dc,saved:result.saved}};
++  var payload={ability:"Sanctuary ward",targets:[t.unit],effects:[],slot:"free",context:{kind:"sanctuary-save",target:t.unit,roll:result.roll,mod:result.mod,total:result.total,dc:result.dc,saved:result.saved,mods:result.bless?[{k:"bless",v:result.bless}]:[]}};
+   var sess=window.__forgeSession;
+   if(!sess){localEffectEvent("ability_used",u.unit,payload);return Promise.resolve(true);}
+   __awaitingUnit=u.unit;__awaitingKind="ability_used";if(__awaitingCount++===0)__awaitingSince=Date.now();renderHud();
+@@ -3508,7 +3562,7 @@ function sanctuaryGate(u,a,t,onPass,onFail){
+   var E=effectApi(),ward=E&&harmfulDirect(a)?effectFor(t,"sanctuary"):null;
+   if(!ward){onPass();return;}
+   if(SANCTUARY_REJECT[t.unit]){if(onFail)onFail(ward,null,true);else openSanctuaryChoice(u,a,t,{total:"—",dc:ward.dc});return;}
+-  var result=E.wisdomSave(ward,wisdomSaveMod(u),d(20));
++  var wardBless=blessRollFor(u),wardBlessV=wardBless?wardBless.roll:0,result=E.wisdomSave(ward,wisdomSaveMod(u)+wardBlessV,d(20));result.bless=wardBlessV;
+   recordSanctuaryCheck(u,t,ward,result).then(function(ok){
+     if(!ok)return;
+     if(result.saved){onPass();return;}
+@@ -3702,7 +3756,7 @@ var STARTER_KITS = {
+ };
+ var CHAR = STARTER_KITS;   // alias — every existing CHAR[...] read site keeps working unchanged
+ var FOE = { name:"Goblin", hp:7, ac:15, speed:30, init:2, save:1, climb:true, atk:{ label:"Scimitar", rng:1, hit:4, dmg:"1d6+2" } };
+-var REACT_LABEL = { silveryBarbs:"Silvery Barbs", shield:"Shield", hellishRebuke:"Hellish Rebuke", cover:"Cover ruling" };
++var REACT_LABEL = { silveryBarbs:"Silvery Barbs", shield:"Shield", hellishRebuke:"Hellish Rebuke", opportunityAttack:"Opportunity Attack", cover:"Cover ruling" };
+ 
+ function d(n){ return 1+Math.floor(Math.random()*n); }
+ function rollD20Evidence(adv,dis){var rolls=[d(20)],kept=0;if((adv&&!dis)||(dis&&!adv)){rolls.push(d(20));kept=adv?(rolls[1]>rolls[0]?1:0):(rolls[1]<rolls[0]?1:0);}return {roll:rolls[kept],rolls:rolls,keptIndex:kept};}
+@@ -4026,6 +4080,10 @@ function removeToken(u,force){
+    climb,fly,actions,react,res / atk,save). */
+ function normalizeResourceRecord(res){return window.ForgeReplay&&window.ForgeReplay.normalizeResources?window.ForgeReplay.normalizeResources(res||{}):JSON.parse(JSON.stringify(res||{}));}
+ function resourceSpendFor(action){var out=normalizeResourceRecord(action&&action.cost||{});Object.keys(out).forEach(function(k){out[k]=Math.max(0,Number(out[k])||0);if(!out[k])delete out[k];});return out;}
++var RESOURCE_ACTIVATION_SEQ=0;
++function resourceSpendIdFor(u,a){var spend=resourceSpendFor(a);if(!Object.keys(spend).length)return null;return "resource:"+String(u&&u.unit||u&&u.key||"unit")+":"+Date.now()+":"+(++RESOURCE_ACTIVATION_SEQ);}
++function spellFactFields(a){if(!a||!a.spell)return {};var sh=window.ForgeCombatRules.spellCastShape(a);return {spell:true,spell_level:sh.level};}
++
+ function hudKitFor(u){var src=u&&kitFor(u.key);if(!src)return src;var kit=Object.assign({},src);kit.pools=(src.pools||[]).map(function(p){var q=Object.assign({},p),key=window.ForgeReplay&&window.ForgeReplay.canonicalResourceKey?window.ForgeReplay.canonicalResourceKey(q.key):q.key;if(u.res&&u.res[key]!=null)q.current=u.res[key];return q;});return kit;}
+ function buildUnit(kit, side, opts){
+   var isPc = side === "pc";
+@@ -4034,6 +4092,7 @@ function buildUnit(kit, side, opts){
+     c: opts.c, r: opts.r, hp: opts.hp, hpMax: opts.hpMax,
+     ac: kit && kit.ac, speed: (kit && kit.speed) || 30, initMod: (kit && kit.init) || 0,
+     climb: !!(kit && kit.climb), res: normalizeResourceRecord((kit && kit.res) || {}),
++    pools: JSON.parse(JSON.stringify((kit && kit.pools) || [])),
+     saveMods: JSON.parse(JSON.stringify((kit && kit.saveMods) || {})),
+     spellcasting: JSON.parse(JSON.stringify((kit && kit.spellcasting) || {})),
+     reacted: false, alive: opts.alive !== false, tokenArt: opts.tokenArt || null, bestiary: opts.bestiary || null };
+@@ -4392,6 +4451,7 @@ function applyLogEconomy(){
+   CB.st.usedAction=eco.usedAction;
+   CB.st.usedBonus=eco.usedBonus;
+   CB.st.attacked=eco.attacked;
++  CB.st.spellCasts=(eco.spellCasts||[]).map(function(c){return Object.assign({},c);});
+ }
+ function reconcileMovementPresentation(){var u=active();if(!u||!CB.st)return;applyLogEconomy();rebuildMoveReach(u);drawHi();}
+ /* mid-fight roster edit (an 'edit' event's add_unit) — `su` is the freshly
+@@ -4798,17 +4858,17 @@ function downedUnitAt(c,r){ return CB.units.filter(function(x){return !x.alive&&
+    fact, no scanning). Both must see byte-identical cleanup/budget/paint. */
+ function beginTurn(u){
+   if(!u) return;
+-  u.reacted=false;   // reaction refreshes at the start of your turn
++  u.reacted=false;
+   if(u.readied){ clog("<i>"+u.name+"'s readied "+u.readied.act.label
+-    +(u.readied.act.spell?" dissipates \u2014 the slot was spent when it was cast.":" lapses.")+"</i>"); u.readied=null; }
++    +(u.readied.act.spell?" dissipates — the slot was spent when it was cast.":" lapses.")+"</i>"); u.readied=null; }
+   READYING=false; if(RELEASING&&(!RELEASING.alive||!RELEASING.readied)) RELEASING=null;
+-  CB.units.forEach(function(x){ if(x.boomMark && x.boomMark.by===u.id) x.boomMark=null; });  // Booming Blade lapses at caster’s next turn
+-  CB.st={ moveMax:Math.floor(u.speed/5), moveLeft:Math.floor(u.speed/5), usedAction:false, usedBonus:false, attacked:false };
+-  CB.pending=null; CB.tgtKey=null; CONFIRM_TARGET=null; CONTEST_COVER=false;   // per-turn targeting state
++  CB.units.forEach(function(x){ if(x.boomMark && x.boomMark.by===u.id) x.boomMark=null; });
++  CB.st={ moveMax:Math.floor(u.speed/5), moveLeft:Math.floor(u.speed/5), usedAction:false, usedBonus:false, attacked:false, spellCasts:[] };
++  CB.pending=null; CB.tgtKey=null; CONFIRM_TARGET=null; CONTEST_COVER=false;
+   rebuildMoveReach(u);
+   snapshot("Turn: "+u.name, true); CB.turnStartPtr=CB.hptr;
+   drawHi(); drawSight(); renderHud();
+-  cameraFollowTurn(u);   // Phase 1.5: each new turn re-engages actor follow
++  cameraFollowTurn(u);
+ }
+ function nextTurn(){
+   if(CB.over) return;
+@@ -5066,20 +5126,26 @@ function explainBlock(u,t,v){
+ }
+ 
+ function canUse(u,a){
+-  if(!CB.st) return {ok:false,why:"turn not ready"};   // defense-in-depth: a HUD paint must never crash session boot
++  if(!CB.st) return {ok:false,why:"turn not ready"};
+   if(a.bonus&&CB.st.usedBonus) return {ok:false,why:"bonus action used"};
+   if(!a.bonus&&!a.free&&CB.st.usedAction) return {ok:false,why:"action used"};
+   if(a.needsAttack&&!CB.st.attacked) return {ok:false,why:"attack first"};
++  var spellRule=window.ForgeCombatRules.canCastSpell(CB.st,a);if(!spellRule.ok)return spellRule;
+   var costs=resourceSpendFor(a);for(var k in costs){ if((u.res[k]||0)<costs[k]) return {ok:false,why:"no "+k}; }
+   return {ok:true};
+ }
+-function spend(u,a){var costs=resourceSpendFor(a);for(var k in costs)u.res[k]=Math.max(0,(u.res[k]||0)-costs[k]);
+-  if(a.bonus) CB.st.usedBonus=true; else if(!a.free) CB.st.usedAction=true; if(a.kind==="attack") CB.st.attacked=true; }
++function spend(u,a){
++  var costs=resourceSpendFor(a);for(var k in costs)u.res[k]=Math.max(0,(u.res[k]||0)-costs[k]);
++  if(a.spell){CB.st.spellCasts=CB.st.spellCasts||[];CB.st.spellCasts.push(window.ForgeCombatRules.spellCastShape(a));}
++  if(a.bonus) CB.st.usedBonus=true; else if(!a.free) CB.st.usedAction=true; if(a.kind==="attack") CB.st.attacked=true;
++}
+ 
+ /* ── reaction pipeline (async; DM chooses) ──────────────────────────── */
+ function reactReady(u,key){ if(!u.alive||!u.react||!u.react[key]||u.reacted)return false;
+   var c=u.react[key].cost; if(c) for(var k in c) if((u.res[k]||0)<c[k]) return false; return true; }
+-function payReact(u,key){ var c=u.react[key].cost; if(c) for(var k in c) u.res[k]-=c[k]; u.reacted=true; }
++function payReact(u,key){
++  var c=u.react&&u.react[key]&&u.react[key].cost;if(c)for(var k in c)u.res[k]-=c[k];u.reacted=true;
++}
+ function promptGeneric(title,desc,onUse,onSkip){
+   var ov=document.getElementById("cbReact"); if(!ov){ onSkip&&onSkip(); return; }
+   document.getElementById("cbReactTitle").textContent=title;
+@@ -5107,13 +5173,13 @@ function pipelineHit(attacker, a, hs, target, applyDmg, done){
+     promptReaction(s.u,s.key,desc,
+       function(){ payReact(s.u,s.key);
+         if(s.key==="silveryBarbs"){ var orig=hs.roll,sb=sbRerollEvidence(orig); hs.roll=sb.roll;hs.reactionD20Rolls=sb.rolls;hs.reactionD20KeptIndex=sb.keptIndex; hs.crit=hs.roll===20;
+-          hs.hit=hs.crit||(hs.roll!==1 && hs.roll+a.hit>=target.ac+hs.acBonus);
++          hs.hit=hs.crit||(hs.roll!==1 && hs.roll+a.hit+(hs.rollBonus||0)>=target.ac+hs.acBonus);
+           clog("Silvery Barbs \u2014 "+attacker.name+" rerolls "+orig+" \u2192 "+hs.roll+" (lower stands)"+(hs.hit?"":" \u2192 miss"));
+           snapshot(REACT_LABEL[s.key]); renderHud();
+           // RAW rider: the caster then grants a chosen ally (or self) advantage
+           // on their next attack. Pick runs before the pipeline continues.
+           pickGrantTarget(s.u, function(){ run(i+1); }); return; }
+-        else { hs.acBonus+=5; hs.hit=hs.crit||(hs.roll!==1 && hs.roll+a.hit>=target.ac+hs.acBonus);
++        else { hs.acBonus+=5; hs.hit=hs.crit||(hs.roll!==1 && hs.roll+a.hit+(hs.rollBonus||0)>=target.ac+hs.acBonus);
+           clog("Shield \u2014 "+target.name+" AC "+(target.ac+hs.acBonus)+(hs.hit?"":" \u2192 the blow misses")); }
+         snapshot(REACT_LABEL[s.key]); renderHud(); run(i+1); },
+       function(){ run(i+1); });
+@@ -5124,8 +5190,8 @@ function pipelineHit(attacker, a, hs, target, applyDmg, done){
+     if(reactReady(target,"hellishRebuke")){
+       promptReaction(target,"hellishRebuke","Deal 2d10 fire to "+attacker.name+" (DEX save)?",
+         function(){ var rc=target.react.hellishRebuke; payReact(target,"hellishRebuke");
+-          var sv=d(20)+(attacker.save||0), dmg=rollDmg(rc.dmg); if(sv>=rc.dc) dmg=Math.floor(dmg/2);
+-          attacker.hp-=dmg; var line="Hellish Rebuke \u2014 "+attacker.name+" DEX save "+sv+" vs "+rc.dc+": "+dmg+" fire";
++          var saveD20=d(20),saveBonus=saveModFor(attacker,rc.saveAbility||"dex"),saveBless=blessRollFor(attacker),saveBlessV=saveBless?saveBless.roll:0,sv=saveD20+saveBonus+saveBlessV,dmg=rollDmg(rc.dmg); if(sv>=rc.dc) dmg=Math.floor(dmg/2);
++          var hpBefore=attacker.hp;attacker.hp-=dmg;localConcentrationAfterDamage(attacker,dmg,hpBefore,"Hellish Rebuke damage"); var line="Hellish Rebuke \u2014 "+attacker.name+" DEX save "+saveD20+(saveBonus?((saveBonus>=0?"+":"")+saveBonus):"")+(saveBlessV?" + Bless "+saveBlessV:"")+" = "+sv+" vs "+rc.dc+": "+dmg+" fire";
+           flashHit(attacker); shake(0.16); floatAt(attacker,String(dmg),"dmg");
+           if(attacker.hp<=0){ floatAt(attacker,"DOWN","down"); attacker.alive=false; removeToken(attacker); line+=" \u2014 <b>down</b>"; }
+           clog(line); snapshot("Hellish Rebuke"); renderHud(); done(true); },
+@@ -5163,36 +5229,41 @@ function wireReactReady(state,unitKey,key){
+    unit alone identifies which reaction an answer was for, no need to
+    thread a react tag through prompt_answered's payload. */
+ function replayHitState(payload,answers){
+-  var hs={ roll:payload.roll, crit:!!payload.crit, hit:!!payload.hit, acBonus:payload.cover||0,d20Rolls:payload.d20_rolls||null,d20KeptIndex:payload.d20_kept_index,reactionD20Rolls:payload.reaction_d20_rolls||null,reactionD20KeptIndex:payload.reaction_d20_kept_index };
+-  (answers||[]).forEach(function(row){
+-    var pl=row&&row.payload; if(!pl||!pl.use) return;
+-    var ku=unitByKey(row.unit), key=ku&&ku.react&&Object.keys(ku.react)[0];
+-    if(key==="silveryBarbs" && pl.roll!=null){ hs.roll=pl.roll; hs.crit=!!pl.crit; hs.hit=!!pl.hit;hs.reactionD20Rolls=pl.reaction_d20_rolls||hs.reactionD20Rolls;hs.reactionD20KeptIndex=pl.reaction_d20_kept_index!=null?pl.reaction_d20_kept_index:hs.reactionD20KeptIndex; }
+-    else if(key==="shield"){ hs.acBonus+=5; hs.hit=!!pl.hit; }
+-  });
+-  return hs;
++  var hs={roll:payload.roll,crit:!!payload.crit,hit:!!payload.hit,acBonus:payload.cover||0,rollBonus:Number(payload.roll_mod)||0,d20Rolls:payload.d20_rolls||null,d20KeptIndex:payload.d20_kept_index,reactionD20Rolls:payload.reaction_d20_rolls||null,reactionD20KeptIndex:payload.reaction_d20_kept_index};
++  (answers||[]).forEach(function(row){var pl=row&&row.payload;if(!pl||!pl.use)return;var ku=unitByKey(row.unit),key=ku&&ku.react&&Object.keys(ku.react)[0];if(key==="silveryBarbs"&&pl.roll!=null){hs.roll=pl.roll;hs.crit=!!pl.crit;hs.hit=!!pl.hit;hs.reactionD20Rolls=pl.reaction_d20_rolls||hs.reactionD20Rolls;hs.reactionD20KeptIndex=pl.reaction_d20_kept_index!=null?pl.reaction_d20_kept_index:hs.reactionD20KeptIndex;}else if(key==="shield"){hs.acBonus+=5;hs.hit=!!pl.hit;}});return hs;
+ }
+ function reactionCandidates(state,declaredRow,answers){
+-  if(!declaredRow || declaredRow.kind!=="attack_declared") return [];   // moves don't offer OA reactions yet (unwired, task-7/7b reports)
+-  var p=declaredRow.payload||{}, attacker=declaredRow.unit, target=p.target;
+-  if(!state.units || !state.units[attacker] || !state.units[target]) return [];
+-  var hs=replayHitState(p,answers);
+-  if(!hs.hit) return [];   // a confirmed miss never reaches Shield/Barbs/Rebuke; matches pipelineHit/preDmg
+-  var cands=[], aPos=state.units[attacker].pos, aSide=state.units[attacker].side;
++  if(!declaredRow||!state.units)return [];
++  var p=declaredRow.payload||{};
++  if(declaredRow.kind==="move_declared"){
++    var mover=declaredRow.unit,mu=state.units[mover],moverKit=unitByKey(mover),path=p.path||[];
++    if(!mu||mu.downed||!path.length||effectFor(moverKit,"disengaged"))return [];
++    var cands=[];
++    Object.keys(state.units).forEach(function(k){
++      var su=state.units[k],ku=unitByKey(k),act=ku&&meleeActOf(ku);
++      if(!su||!ku||su.downed||su.side===mu.side||su.reactionUsed||!act||window.ForgeCombatRules.incapacitated(ku,effectLookup))return;
++      var prev={c:mu.pos.c,r:mu.pos.r},reach=reachOf(ku);
++      for(var i=0;i<path.length;i++){
++        var next={c:path[i].c,r:path[i].r};
++        if(TG.chebyshev({c:su.pos.c,r:su.pos.r},prev)<=reach&&TG.chebyshev({c:su.pos.c,r:su.pos.r},next)>reach){
++          cands.push({to:k,react:"opportunityAttack",context:{kind:"opportunity-attack",attacker:k,target:mover,mover:mover,attack:Object.assign({kind:"attack",strikes:1},act),trigger_cell:prev,path_index:i}});break;
++        }
++        prev=next;
++      }
++    });
++    return cands;
++  }
++  if(declaredRow.kind!=="attack_declared")return [];
++  var attacker=declaredRow.unit,target=p.target;
++  if(!state.units[attacker]||!state.units[target])return [];
++  var hs=replayHitState(p,answers);if(!hs.hit)return [];
++  var cands=[],aPos=state.units[attacker].pos,aSide=state.units[attacker].side;
+   Object.keys(state.units).forEach(function(k){
+-    // hostile-to-the-attacker, not same-side-as-target: a PC hitting a foe must
+-    // never offer Líadan the barb. Keyed on the creature that succeeded.
+-    if(!wireReactReady(state,k,"silveryBarbs") || state.units[k].side===aSide) return;
+-    var ku=unitByKey(k);
+-    if(cbDist({c:state.units[k].pos.c,r:state.units[k].pos.r},{c:aPos.c,r:aPos.r})<=ku.react.silveryBarbs.range*5)
+-      cands.push({ to:k, react:"silveryBarbs",
+-        context:{ attacker:attacker, target:target, hitBonus:p.hitBonus||0, cover:p.cover||0, origRoll:hs.roll } });
++    if(!wireReactReady(state,k,"silveryBarbs")||state.units[k].side===aSide)return;
++    var ku=unitByKey(k);if(cbDist({c:state.units[k].pos.c,r:state.units[k].pos.r},{c:aPos.c,r:aPos.r})<=ku.react.silveryBarbs.range*5)cands.push({to:k,react:"silveryBarbs",context:{attacker:attacker,target:target,hitBonus:p.hitBonus||0,rollMod:Number(p.roll_mod)||0,cover:p.cover||0,origRoll:hs.roll}});
+   });
+-  if(wireReactReady(state,target,"shield"))
+-    cands.push({ to:target, react:"shield",
+-      context:{ attacker:attacker, hitBonus:p.hitBonus||0, roll:hs.roll, crit:hs.crit, cover:hs.acBonus } });
+-  if(wireReactReady(state,target,"hellishRebuke"))
+-    cands.push({ to:target, react:"hellishRebuke", context:{ attacker:attacker } });
++  if(wireReactReady(state,target,"shield"))cands.push({to:target,react:"shield",context:{attacker:attacker,hitBonus:p.hitBonus||0,rollMod:Number(p.roll_mod)||0,roll:hs.roll,crit:hs.crit,cover:hs.acBonus}});
++  if(wireReactReady(state,target,"hellishRebuke"))cands.push({to:target,react:"hellishRebuke",context:{attacker:attacker}});
+   return cands;
+ }
+ /* ── Task 9: prompt UX routed per spec (FORGE_BOARD.md §4 / FORGE_PROTOCOL.md §4) ──
+@@ -5253,34 +5324,36 @@ function clearPromptUI(){
+   PROMPT_UI.seq=null; PROMPT_UI.kind=null; PROMPT_UI.onUse=null; PROMPT_UI.onSkip=null;
+ }
+ function reactionDescFor(react,askerName){
+-  var label=REACT_LABEL[react]||react, desc=label;
+-  if(react==="silveryBarbs") desc="Force "+askerName+" to reroll and take the lower?";
+-  else if(react==="shield") desc="+5 AC vs "+askerName+"'s hit?";
+-  else if(react==="hellishRebuke") desc="Deal 2d10 fire to "+askerName+" (DEX save)?";
+-  return { label:label, desc:desc };
++  var label=REACT_LABEL[react]||react,desc=label;
++  if(react==="silveryBarbs")desc="Force "+askerName+" to reroll and take the lower?";
++  else if(react==="shield")desc="+5 AC vs "+askerName+"'s hit?";
++  else if(react==="hellishRebuke")desc="Deal 2d10 fire to "+askerName+" (DEX save)?";
++  else if(react==="opportunityAttack")desc=askerName+" is leaving your reach. Make one melee attack before they leave?";
++  return {label:label,desc:desc};
+ }
+ /* the SAME reaction math pipelineHit's onUse callbacks do (kit data —
+    CHAR/FOE — is identical static data on every device, so this device can
+    roll its own reaction dice/save exactly as the local sandbox would). */
+ function computeReactionExtra(react,ctx,u,askerU,askerName){
+-  var extra={}, clogLine=null;
++  var extra={},clogLine=null;
+   if(react==="silveryBarbs"){
+-    var orig=(ctx.origRoll!=null?ctx.origRoll:d(20)), sb=sbRerollEvidence(orig), roll=sb.roll, crit=roll===20;
+-    var tU=unitByKey(ctx.target), hit=crit||(roll!==1 && roll+(ctx.hitBonus||0)>=((tU&&tU.ac)||0)+(ctx.cover||0));
+-    extra={ roll:roll, crit:crit, hit:hit, reaction_d20_rolls:sb.rolls, reaction_d20_kept_index:sb.keptIndex };
+-    clogLine="Silvery Barbs — "+askerName+" rerolls "+orig+" → "+roll+" (lower stands)"+(hit?"":" → miss");
+-  } else if(react==="shield"){
+-    var hit2=!!ctx.crit || (ctx.roll!==1 && ctx.roll+(ctx.hitBonus||0)>=((u.ac||0)+5)+(ctx.cover||0));
+-    extra={ hit:hit2 };
+-    clogLine="Shield — "+u.name+" AC "+((u.ac||0)+5)+(hit2?"":" → the blow misses");
+-  } else if(react==="hellishRebuke"){
+-    var rc=u.react&&u.react.hellishRebuke;
+-    var sv=d(20)+((askerU&&askerU.save)||0), dmg=rc?rollDmg(rc.dmg):0;
+-    var final=(rc&&sv>=rc.dc)?Math.floor(dmg/2):dmg;
+-    extra={ dmg:final, sv:sv, dc:rc&&rc.dc };
+-    clogLine="Hellish Rebuke — "+askerName+" DEX save "+sv+" vs "+(rc&&rc.dc)+": "+final+" fire";
+-  }
+-  return { extra:extra, clogLine:clogLine };
++    var orig=(ctx.origRoll!=null?ctx.origRoll:d(20)),sb=sbRerollEvidence(orig),roll=sb.roll,crit=roll===20;
++    var tU=unitByKey(ctx.target),hit=crit||(roll!==1&&roll+(ctx.hitBonus||0)+(ctx.rollMod||0)>=((tU&&tU.ac)||0)+(ctx.cover||0));
++    extra={roll:roll,crit:crit,hit:hit,reaction_d20_rolls:sb.rolls,reaction_d20_kept_index:sb.keptIndex};clogLine="Silvery Barbs — "+askerName+" rerolls "+orig+" → "+roll+" (lower stands)"+(hit?"":" → miss");
++  }else if(react==="shield"){
++    var hit2=!!ctx.crit||(ctx.roll!==1&&ctx.roll+(ctx.hitBonus||0)+(ctx.rollMod||0)>=((u.ac||0)+5)+(ctx.cover||0));extra={hit:hit2};clogLine="Shield — "+u.name+" AC "+((u.ac||0)+5)+(hit2?"":" → the blow misses");
++  }else if(react==="hellishRebuke"){
++    var rc=u.react&&u.react.hellishRebuke,saveD20=d(20),saveBonus=saveModFor(askerU,rc&&rc.saveAbility||"dex"),saveBless=blessRollFor(askerU),saveBlessV=saveBless?saveBless.roll:0,sv=saveD20+saveBonus+saveBlessV,dmg=rc?rollDmg(rc.dmg):0,final=(rc&&sv>=rc.dc)?Math.floor(dmg/2):dmg,stateNow=window.__forgeSession&&window.__forgeSession.pipe.state(),hpBefore=stateNow&&stateNow.units&&stateNow.units[askerU.unit]?stateNow.units[askerU.unit].hp:askerU.hp,concentration=concentrationCheckFor(askerU,final,hpBefore,"Hellish Rebuke damage");extra={dmg:final,sv:sv,dc:rc&&rc.dc,save_d20:saveD20,save_bonus:saveBonus,save_mods:saveBlessV?[{k:"bless",v:saveBlessV}]:[],concentration:concentration};clogLine="Hellish Rebuke — "+askerName+" DEX save "+saveD20+(saveBonus?((saveBonus>=0?"+":"")+saveBonus):"")+(saveBlessV?" + Bless "+saveBlessV:"")+" = "+sv+" vs "+(rc&&rc.dc)+": "+final+" fire"+(concentration?" · "+concentrationNarration(askerU,concentration):"");
++  }else if(react==="opportunityAttack"){
++    var a=Object.assign({kind:"attack",strikes:1},ctx.attack||meleeActOf(u)||{}),target=unitByKey(ctx.target),ward=target&&effectFor(target,"sanctuary"),wardResult=null;
++    if(ward){var wardBless=blessRollFor(u),wardBlessV=wardBless?wardBless.roll:0;wardResult=effectApi().wisdomSave(ward,wisdomSaveMod(u)+wardBlessV,d(20));wardResult.bless=wardBlessV;if(!wardResult.saved){extra={reaction_kind:"opportunityAttack",context:{kind:"opportunity-attack",actor:u.unit,target:ctx.target,mode:a.label||"Opportunity Attack",warded:true,sanctuary:wardResult},hit:false,effects:[]};clogLine="Sanctuary turns aside "+u.name+"'s opportunity attack — Wisdom "+wardResult.total+" vs DC "+wardResult.dc+".";return {extra:extra,clogLine:clogLine};}}
++    var av=advPreview(u,target,a,null),bless=blessRollFor(u),blessV=bless?bless.roll:0,d20ev=rollD20Evidence(av.adv,av.dis),hitBonus=Number(a.hit)||0,total=d20ev.roll+hitBonus+blessV,crit=d20ev.roll===20,hit=crit||(d20ev.roll!==1&&total>=(target&&target.ac||10)),damage=hit?rollActionDamage(a,crit,(hexEffectAgainst(u,target)?[{dice:"1d6",bonus:0,type:"Hex"}]:[])):null,dmg=damage?damage.total:0;
++    var st=window.__forgeSession&&window.__forgeSession.pipe.state(),hp=st&&st.units&&st.units[ctx.target]&&st.units[ctx.target].hp,downed=hit&&Number(hp)<=dmg,concentration=hit?concentrationCheckFor(target,dmg,hp,a.label+" opportunity attack damage"):null,oaEffects=hit?[{unit:ctx.target,dmg:dmg}]:[];if(concentration&&concentration.effects&&concentration.effects.length)oaEffects=oaEffects.concat(concentration.effects);
++    extra={reaction_kind:"opportunityAttack",hit:hit,crit:crit,roll:d20ev.roll,roll_total:total,hitBonus:hitBonus,d20_rolls:d20ev.rolls,d20_kept_index:d20ev.keptIndex,mods:blessV?[{k:"bless",v:blessV}]:[],dmg:dmg,dmgParts:damage?damage.parts:null,dmgFormula:damage?damage.formula:null,effects:oaEffects,concentration:concentration,context:{kind:"opportunity-attack",actor:u.unit,target:ctx.target,mode:a.label||"Opportunity Attack",hit:hit,crit:crit,roll:d20ev.roll,roll_total:total,hitBonus:hitBonus,d20_rolls:d20ev.rolls,d20_kept_index:d20ev.keptIndex,mods:blessV?[{k:"bless",v:blessV}]:[],dmg:dmg,dmgParts:damage?damage.parts:null,dmgFormula:damage?damage.formula:null,sanctuary:wardResult,concentration:concentration}};
++    if(downed){extra.interrupted_at=ctx.trigger_cell;extra.path_index=ctx.path_index;}
++    clogLine=u.name+" — opportunity attack on "+askerName+": "+d20ev.roll+"+"+hitBonus+(blessV?" + Bless "+blessV:"")+" = "+total+(hit?" · "+dmg+" damage":" · miss");
++  }
++  return {extra:extra,clogLine:clogLine};
+ }
+ /* opts.fallback: the overseer answering as the unit after the 20s timeout
+    (pipeline's checkTimeouts → onPromptFallback). Same card, same answer
+@@ -5289,7 +5362,8 @@ function openReactionModal(prompt,opts){
+   opts=opts||{};
+   var u=unitByKey(prompt.to); if(!u) return;
+   var ctx=prompt.context||{};
+-  var askerU=unitByKey(ctx.attacker), askerName=askerU?askerU.name:"the attacker";
++  var askerKey=prompt.react==="opportunityAttack"?(ctx.mover||ctx.target):ctx.attacker;
++  var askerU=unitByKey(askerKey), askerName=askerU?askerU.name:(prompt.react==="opportunityAttack"?"the moving creature":"the attacker");
+   var info=reactionDescFor(prompt.react,askerName);
+ 
+   clearPromptUI();   // a fresh prompt (or a fallback transfer) replaces whatever was showing
+@@ -5541,29 +5615,27 @@ function onWirePromptFallback(p){
+ function resolveStrike(u,a,t,ro,done){
+   var valid=window.ForgeCombatRules.requireDamage(a);if(!valid.ok){clog('<b style="color:#c0553f">'+escapeHtml(valid.why)+' — action refused.</b>');done();return;}
+   if(u._ves) vesPlay(u, a.spell?"cast":"attack");
+-  var cover=ro.cover||0, av=advPreview(u,t,a,ro), hitMod=(Number(a.hit)||0)+(av.attackBonus||0);
++  var cover=ro.cover||0, av=advPreview(u,t,a,ro), bless=blessRollFor(u), blessV=bless?bless.roll:0, hitMod=(Number(a.hit)||0)+(av.attackBonus||0);
+   var adv=av.adv, dis=av.dis;
+-  var d20ev=rollD20Evidence(adv,dis),roll=d20ev.roll; if(u.inspired)u.inspired=false; if(u.advGrant)u.advGrant=null;
+-  var hs={ roll:roll, acBonus:cover, crit:roll===20, hit:false,d20Rolls:d20ev.rolls,d20KeptIndex:d20ev.keptIndex };
+-  hs.hit=hs.crit||(roll!==1 && roll+hitMod>=t.ac+cover);
++  var d20ev=rollD20Evidence(adv,dis),roll=d20ev.roll,rollTotal=roll+hitMod+blessV; if(u.inspired)u.inspired=false; if(u.advGrant)u.advGrant=null;
++  var hs={ roll:roll, rollBonus:blessV, acBonus:cover, crit:roll===20, hit:false,d20Rolls:d20ev.rolls,d20KeptIndex:d20ev.keptIndex };
++  hs.hit=hs.crit||(roll!==1 && rollTotal>=t.ac+cover);
+   var tag = adv?" adv"+(av.why.length?" ("+av.why.join(", ")+")":"") : dis?" disadv"+(av.why.length?" ("+av.why.join(", ")+")":"") : (av.cancelled?" normal (adv/dis cancel)":"");
+-  clog(u.name+" \u2192 "+t.name+": "+a.label+" ("+roll+"+"+hitMod+(cover?" \u00b7 cover":"")+tag+")"+(hs.hit?"":" \u2014 miss"),false);
+-  var rollAction=Object.assign({},a,{hit:hitMod});
+-  if(!hs.hit){ floatAt(t,"miss","miss"); if(window.ForgeTableCorrectness)window.ForgeTableCorrectness.pushFact({actor:u.unit,target:t.unit,mode:a.label,roll:roll,hitBonus:hitMod,hit:false,crit:false,adv:adv,dis:dis,cover:cover,coverName:ro.coverName||null,d20Rolls:d20ev.rolls,d20KeptIndex:d20ev.keptIndex}); done(); return; }
++  clog(u.name+" → "+t.name+": "+a.label+" ("+roll+"+"+hitMod+(blessV?" + Bless "+blessV:"")+(cover?" · cover":"")+tag+")"+(hs.hit?"":" — miss"),false);
++  var rollAction=Object.assign({},a,{hit:hitMod});var rollMods=blessV?[{k:"bless",v:blessV}]:[];
++  if(!hs.hit){ floatAt(t,"miss","miss"); if(window.ForgeTableCorrectness)window.ForgeTableCorrectness.pushFact({actor:u.unit,target:t.unit,mode:a.label,roll:roll,rollTotal:rollTotal,hitBonus:hitMod,hit:false,crit:false,adv:adv,dis:dis,cover:cover,coverName:ro.coverName||null,d20Rolls:d20ev.rolls,d20KeptIndex:d20ev.keptIndex,mods:rollMods}); done(); return; }
+   var feedResolved=false;
+   pipelineHit(u,rollAction,hs,t, function applyDmg(){
+     var extra=[];if(u.raging&&(a.rng||1)<=1)extra.push({dice:"0",bonus:2,type:"Rage",critDice:false});
+-    if(CB.hexed===t.id)extra.push({dice:"1d6",bonus:0,type:"Hex"});
+-    var damage=rollActionDamage(a,hs.crit,extra),dmg=damage.total;
+-    t.hp-=dmg; var line=(hs.crit?"<b>CRIT</b> ":"")+t.name+" takes "+dmg+" ("+Math.max(0,t.hp)+"/"+t.hpMax+")";
+-    flashHit(t); shake(hs.crit?0.34:0.16);
+-    floatAt(t,(hs.crit?"\u2736 ":"")+dmg,hs.crit?"crit":"dmg");
+-    if(t.hp<=0){ floatAt(t,"DOWN","down"); t.alive=false; removeToken(t); line+=" \u2014 <b>down</b>"; } clog(line,false);
+-    if(window.ForgeTableCorrectness)window.ForgeTableCorrectness.pushFact({actor:u.unit,target:t.unit,mode:a.label,roll:hs.roll,hitBonus:hitMod,hit:true,crit:hs.crit,dmg:dmg,dmgParts:damage.parts,dmgFormula:damage.formula,adv:adv,dis:dis,cover:cover,coverName:ro.coverName||null,d20Rolls:d20ev.rolls,d20KeptIndex:d20ev.keptIndex,reactionD20Rolls:hs.reactionD20Rolls,reactionD20KeptIndex:hs.reactionD20KeptIndex,dropped:hs.roll!==roll?roll:null,mods:hs.roll!==roll?[{k:"silvery_barbs"}]:[]});
+-    feedResolved=true;
+-    if(a.rider==="boom" && t.alive) t.boomMark={by:u.id};
++    if(hexEffectAgainst(u,t)||CB.hexed===t.id)extra.push({dice:"1d6",bonus:0,type:"Hex"});
++    var damage=rollActionDamage(a,hs.crit,extra),dmg=damage.total,hpBefore=t.hp;
++    t.hp-=dmg;var concentration=localConcentrationAfterDamage(t,dmg,hpBefore,a.label+" damage"); var line=(hs.crit?"<b>CRIT</b> ":"")+t.name+" takes "+dmg+" ("+Math.max(0,t.hp)+"/"+t.hpMax+")";
++    flashHit(t); shake(hs.crit?0.34:0.16);floatAt(t,(hs.crit?"✶ ":"")+dmg,hs.crit?"crit":"dmg");
++    if(t.hp<=0){ floatAt(t,"DOWN","down"); t.alive=false; removeToken(t); line+=" — <b>down</b>"; } clog(line,false);
++    if(window.ForgeTableCorrectness)window.ForgeTableCorrectness.pushFact({actor:u.unit,target:t.unit,mode:a.label,roll:hs.roll,rollTotal:hs.roll+hitMod+blessV,hitBonus:hitMod,hit:true,crit:hs.crit,dmg:dmg,dmgParts:damage.parts,dmgFormula:damage.formula,adv:adv,dis:dis,cover:cover,coverName:ro.coverName||null,d20Rolls:d20ev.rolls,d20KeptIndex:d20ev.keptIndex,reactionD20Rolls:hs.reactionD20Rolls,reactionD20KeptIndex:hs.reactionD20KeptIndex,dropped:hs.roll!==roll?roll:null,mods:rollMods.concat(hs.roll!==roll?[{k:"silvery_barbs"}]:[]),concentration:concentration});
++    feedResolved=true;if(a.rider==="boom" && t.alive) t.boomMark={by:u.id};
+   }, function(){
+-    if(!feedResolved&&window.ForgeTableCorrectness)window.ForgeTableCorrectness.pushFact({actor:u.unit,target:t.unit,mode:a.label,roll:hs.roll,hitBonus:hitMod,hit:false,crit:false,adv:adv,dis:dis,cover:cover,coverName:ro.coverName||null,d20Rolls:d20ev.rolls,d20KeptIndex:d20ev.keptIndex,reactionD20Rolls:hs.reactionD20Rolls,reactionD20KeptIndex:hs.reactionD20KeptIndex,dropped:hs.roll!==roll?roll:null,mods:hs.roll!==roll?[{k:"silvery_barbs"}]:[]});
++    if(!feedResolved&&window.ForgeTableCorrectness)window.ForgeTableCorrectness.pushFact({actor:u.unit,target:t.unit,mode:a.label,roll:hs.roll,rollTotal:hs.roll+hitMod+blessV,hitBonus:hitMod,hit:false,crit:false,adv:adv,dis:dis,cover:cover,coverName:ro.coverName||null,d20Rolls:d20ev.rolls,d20KeptIndex:d20ev.keptIndex,reactionD20Rolls:hs.reactionD20Rolls,reactionD20KeptIndex:hs.reactionD20KeptIndex,dropped:hs.roll!==roll?roll:null,mods:rollMods.concat(hs.roll!==roll?[{k:"silvery_barbs"}]:[])});
+     done();
+   });
+ }
+@@ -5573,15 +5645,14 @@ function doAttack(u,a,t,after){
+   (function strike(){ if(i>=n || !t.alive){ if(a.rider==="boom") clog("<i>Booming Blade set \u2014 +1d8 if "+t.name+" moves.</i>"); after(true); return; }
+     i++; resolveStrike(u,a,t,ro, strike); })();
+ }
+-function doSave(u,a,t){ var ro=reachOK(u,a,t); if(!ro.ok){ clog(u.name+" \u2014 "+ro.why+"."); return false; }
++function doSave(u,a,t){ var ro=reachOK(u,a,t); if(!ro.ok){ clog(u.name+" — "+ro.why+"."); return false; }
+   var saveAction=/toll the dead/i.test(a.label||"")?Object.assign({},a,{dmg:window.ForgeCombatRules.tollDamage(a,t).dmg}):a;
+   var valid=window.ForgeCombatRules.requireDamage(saveAction);if(!valid.ok){clog('<b style="color:#c0553f">'+escapeHtml(valid.why)+' — action refused.</b>');return false;}
+-  var sv=d(20)+(t.save||0), fail=sv<a.dc, line=u.name+" \u2192 "+t.name+": "+a.label+" ("+a.saveAbility.toUpperCase()+" save "+sv+" vs DC "+a.dc+") ";
+-  if(fail){ var dmg=rollDmg(saveAction.dmg); t.hp-=dmg; line+="fail "+dmg; if(a.rider==="vm"){ t.disadv=true; line+=" + disadvantage"; }
+-    flashHit(t); shake(0.14); floatAt(t,String(dmg),"dmg");
+-    if(t.hp<=0){ floatAt(t,"DOWN","down"); t.alive=false; removeToken(t); line+=" \u2014 <b>down</b>"; } }
++  var d20=d(20),bonus=saveModFor(t,a.saveAbility),bless=blessRollFor(t),blessV=bless?bless.roll:0,sv=d20+bonus+blessV,fail=sv<a.dc,line=u.name+" → "+t.name+": "+a.label+" ("+a.saveAbility.toUpperCase()+" save "+d20+(bonus?((bonus>=0?"+":"")+bonus):"")+(blessV?" + Bless "+blessV:"")+" = "+sv+" vs DC "+a.dc+") ";
++  if(fail){ var dmg=rollDmg(saveAction.dmg),hpBefore=t.hp; t.hp-=dmg;var concentration=localConcentrationAfterDamage(t,dmg,hpBefore,a.label+" damage"); line+="fail "+dmg; if(a.rider==="vm"){ t.disadv=true; line+=" + disadvantage"; }
++    flashHit(t); shake(0.14); floatAt(t,String(dmg),"dmg");if(t.hp<=0){ floatAt(t,"DOWN","down"); t.alive=false; removeToken(t); line+=" — <b>down</b>"; } }
+   else { line+="save"; floatAt(t,"save","miss"); } clog(line,false);
+-  if(window.ForgeTableCorrectness)window.ForgeTableCorrectness.pushFact({kind:"save",actor:u.unit,target:t.unit,mode:a.label,saveAbility:a.saveAbility,saveRoll:sv,dc:a.dc,saved:!fail,hit:fail,dmg:fail?dmg:0}); return true; }
++  if(window.ForgeTableCorrectness)window.ForgeTableCorrectness.pushFact({kind:"save",actor:u.unit,target:t.unit,mode:a.label,saveAbility:a.saveAbility,saveD20:d20,saveBonus:bonus,saveMods:blessV?[{k:"bless",v:blessV}]:[],saveTotal:sv,saveRoll:sv,dc:a.dc,saved:!fail,hit:fail,dmg:fail?dmg:0,concentration:fail?concentration:null}); return true; }
+ function doHeal(u,a,t){ var ro=reachOK(u,a,t); if(!ro.ok){ clog(u.name+" \u2014 "+ro.why+"."); return; }
+   var amt=rollDmg(a.dmg)+(a.disciple||0);
+   if(!t.alive) t.hp=Math.max(0,t.hp);   /* \u00a7F: the sandbox lets hp go negative on the way down; the heal counts from 0 */
+@@ -5606,44 +5677,47 @@ function doHeal(u,a,t){ var ro=reachOK(u,a,t); if(!ro.ok){ clog(u.name+" \u2014
+    isn't, the cast auto-promotes with a feed note (RAW). The chooser labels
+    non-scaling spells “No additional effect at higher levels.” */
+ var UPCAST_PICK=null;
+-function slotBaseOf(a){ if(!a||!a.cost) return null; for(var k in a.cost){ var m=/^slot(\d)$/.exec(k); if(m) return +m[1]; } return null; }
+-function castableLevels(u,base){ var out=[]; for(var L=base;L<=9;L++){ if((u.res["slot"+L]||0)>0) out.push(L); } return out; }
++function slotBaseOf(a){ if(!a||!a.cost) return a&&a.level>0?Number(a.level):null; for(var k in a.cost){ var m=/^slot(\d)$/.exec(k); if(m) return +m[1]; } return a&&a.level>0?Number(a.level):null; }
++function castableSpellSources(u,base){
++  var out=[],seen={};
++  for(var L=base;L<=9;L++){var key="slot"+L;if((u.res[key]||0)>0){out.push({key:key,level:L,label:"Level "+L});seen[key]=true;}}
++  (u.pools||[]).forEach(function(p){if(!p||p.kind!=="slot")return;var key=p.key,level=Number(p.level)||0;if(seen[key]||level<base||(u.res[key]||0)<=0)return;out.push({key:key,level:level,label:p.label||("Level "+level)});seen[key]=true;});
++  return out.sort(function(a,b){return a.level-b.level||String(a.label).localeCompare(String(b.label));});
++}
++function castableLevels(u,base){return castableSpellSources(u,base).map(function(x){return x.level;}).filter(function(v,i,a){return a.indexOf(v)===i;});}
+ function lvlOrdinal(n){ return n+(["th","st","nd","rd"][n%10]&&n%10<4&&(n<11||n>13)?["th","st","nd","rd"][n%10]:"th"); }
+-function upcastAction(a,base,L){
+-  if(L===base) return a;
+-  var eff=Object.assign({},a);
+-  eff.cost={}; eff.cost["slot"+L]=1;
++function upcastAction(a,base,choice){
++  choice=typeof choice==="number"?{key:"slot"+choice,level:choice,label:"Level "+choice}:choice;
++  var eff=Object.assign({},a),L=Number(choice&&choice.level)||base;
++  eff.cost={};eff.cost[(choice&&choice.key)||("slot"+L)]=1;
+   if(a.upPer&&a.dmg&&window.ForgeKitDerive) eff.dmg=window.ForgeKitDerive.upcastDmg(a.dmg,a.upPer,L-base);
+   if(a.disciple) eff.disciple=a.disciple+(L-base);
+-  eff.label=a.label+" ("+lvlOrdinal(L)+")";
+-  eff.castLevel=L; eff._base=a;
++  if(L!==base)eff.label=a.label+" ("+lvlOrdinal(L)+")";
++  eff.castLevel=L;eff.castPool=(choice&&choice.key)||("slot"+L);eff._base=a;
+   return eff;
+ }
+ function hideUpcastPick(){ if(UPCAST_PICK){ if(UPCAST_PICK.el) UPCAST_PICK.el.remove(); UPCAST_PICK=null; } }
+-function showUpcastPick(u,idx,a,base,lvls){
++function showUpcastPick(u,idx,a,base,choices){
+   hideUpcastPick();
+   var el=document.createElement("div");
+   el.style.cssText="position:fixed;left:50%;bottom:120px;transform:translateX(-50%);z-index:60;"+
+     "background:rgba(18,26,24,.94);border:1px solid #c9a24b;padding:8px 12px;display:flex;gap:8px;"+
+     "align-items:center;font:600 13px/1.2 sans-serif;color:#e8ddc4;";
+   var head=document.createElement("div");head.style.cssText="display:flex;flex-direction:column;gap:2px;margin-right:4px";
+-  var lab=document.createElement("span"); lab.textContent="Cast "+a.label+" at:"; head.appendChild(lab);
+-  var note=document.createElement("small");note.textContent=(a.upPer||a.disciple)?"Higher slots apply the listed scaling.":"No additional effect at higher levels.";
++  var lab=document.createElement("span"); lab.textContent="Cast "+a.label+" using:"; head.appendChild(lab);
++  var note=document.createElement("small");note.textContent=(a.upPer||a.disciple||a.effectKind==="bless")?"Higher-level slots apply the listed scaling.":"Choose which eligible pool pays for the spell.";
+   note.style.cssText="font:400 10px/1.25 sans-serif;color:#a99f8d";head.appendChild(note);el.appendChild(head);
+-  lvls.forEach(function(L){
++  choices.forEach(function(choice){
+     var b=document.createElement("button");
+-    b.textContent=lvlOrdinal(L)+" \u00b7 "+(u.res["slot"+L]||0);
++    b.textContent=choice.label+" · "+(u.res[choice.key]||0);
+     b.style.cssText="background:#243c36;border:1px solid #4c8f86;color:#e8ddc4;padding:4px 10px;cursor:pointer;font:inherit;";
+-    if(L===base) b.style.borderColor="#c9a24b";
+-    b.addEventListener("click",function(){ hideUpcastPick(); selectAction(idx,L); });
++    if(choice.level===base&&choice.key==="slot"+base) b.style.borderColor="#c9a24b";
++    b.addEventListener("click",function(){ hideUpcastPick(); selectAction(idx,choice.key); });
+     el.appendChild(b);
+   });
+-  var x=document.createElement("button"); x.textContent="\u2715";
++  var x=document.createElement("button"); x.textContent="✕";
+   x.style.cssText="background:none;border:none;color:#a99;cursor:pointer;font:inherit;padding:2px 4px;";
+-  x.addEventListener("click",hideUpcastPick);
+-  el.appendChild(x);
+-  document.body.appendChild(el);
+-  UPCAST_PICK={el:el,unit:u.unit};
++  x.addEventListener("click",hideUpcastPick);el.appendChild(x);document.body.appendChild(el);UPCAST_PICK={el:el,unit:u.unit};
+ }
+ 
+ function genericTurnEffect(u,kind,label,count){return window.ForgeCombatRules.effectOp({source:u.unit,target:u.unit,kind:kind,label:label,icon:kind,duration:{kind:"source-turns",unit:u.unit,count:count||1},nonce:Date.now()});}
+@@ -5661,38 +5735,35 @@ function coverContestAvailable(){
+   return !!(v&&v.canTarget&&Number.isFinite(b)&&b>0);
+ }
+ function clearConfirmTarget(){CONFIRM_TARGET=null;document.body.classList.remove("forge-target-confirm");}
+-function selectAction(idx,castLevel){
++function selectAction(idx,castChoice){
+   var u=active(); if(!u||u.side!=="pc"||CB.react||CB_ANIM) return; var a=u.actions[idx]; if(!a) return;
+-  var sess=window.__forgeSession;
+-  hideUpcastPick();
+-  /* Task 7b req 2: selfheal/surge fire with no target tap (unlike heal/save/
+-     buff/buffAlly, which go through combatClick's already-guarded pending-
+-     action tap) \u2014 same defense-in-depth gate Task 7 put on combatClick. */
++  var sess=window.__forgeSession;hideUpcastPick();
+   if(sess && (!window.ForgeBoard.controls(sess.me,u.unit) || __awaitingCount>0)) return;
+-  if(CB.pending===a||(CB.pending&&CB.pending._base===a)){ CB.pending=null;clearConfirmTarget();CB.tgtKey=null;CONTEST_COVER=false; drawHi(); drawSight(); renderHud(); return; }   // tap again = put it away (and disarm the contest toggle)
++  if(CB.pending===a||(CB.pending&&CB.pending._base===a)){ CB.pending=null;clearConfirmTarget();CB.tgtKey=null;CONTEST_COVER=false; drawHi(); drawSight(); renderHud(); return; }
+   var upBase=slotBaseOf(a);
+   if(upBase!=null&&a.spell){
+-    var lvls=castableLevels(u,upBase);
+-    if(!lvls.length){ clog("<i>"+a.label+": no spell slots left.</i>"); return; }
+-    if(castLevel!=null){
+-      if(lvls.indexOf(castLevel)===-1){ clog("<i>"+a.label+": no level "+castLevel+" slot.</i>"); return; }
+-      a=upcastAction(a,upBase,castLevel);
+-    }
+-    else if(lvls.length>1&&!READYING){ showUpcastPick(u,idx,a,upBase,lvls); return; }
+-    else if(lvls[0]!==upBase){
+-      a=upcastAction(a,upBase,lvls[0]);
+-      clog("<i>"+a._base.label+": cast from a level "+lvls[0]+" slot \u2014 no level "+upBase+" slots left.</i>");
+-    }
++    var choices=castableSpellSources(u,upBase);
++    if(!choices.length){ clog("<i>"+a.label+": no eligible spell slots left.</i>"); return; }
++    var chosen=null;
++    if(castChoice!=null){
++      if(typeof castChoice==="number")chosen=choices.filter(function(x){return x.level===castChoice;})[0];
++      else chosen=choices.filter(function(x){return x.key===castChoice;})[0];
++      if(!chosen){clog("<i>"+a.label+": that spell slot is unavailable.</i>");return;}
++    } else if(choices.length>1&&!READYING){showUpcastPick(u,idx,a,upBase,choices);return;}
++    else chosen=choices[0];
++    a=upcastAction(a,upBase,chosen);
++    if(chosen.level!==upBase||chosen.key!=="slot"+upBase)clog("<i>"+a._base.label+": cast using "+escapeHtml(chosen.label)+".</i>");
+   }
+   var cu=canUse(u,a); if(!cu.ok){ clog("<i>"+a.label+": "+cu.why+".</i>"); return; }
+   if(READYING){
+-    if(a.kind!=="attack"){ clog("<i>Ready holds an attack \u2014 melee, ranged, or an attack spell.</i>"); return; }
+-    if(a.bonus){ clog("<i>Ready takes your ACTION \u2014 a bonus-action attack can't be held.</i>"); return; }
+-    if(a.cost) for(var rk in a.cost) u.res[rk]-=a.cost[rk];   // RAW: a readied spell is cast NOW; the slot is spent whether or not it fires
++    if(a.kind!=="attack"){ clog("<i>Ready holds an attack — melee, ranged, or an attack spell.</i>"); return; }
++    if(a.bonus){ clog("<i>Ready takes your ACTION — a bonus-action attack can't be held.</i>"); return; }
++    if(a.cost) for(var rk in a.cost) u.res[rk]-=a.cost[rk];
++    if(a.spell){CB.st.spellCasts=CB.st.spellCasts||[];CB.st.spellCasts.push(window.ForgeCombatRules.spellCastShape(a));}
+     u.readied={act:a}; CB.st.usedAction=true; READYING=false;
+     clog(u.name+" <b>readies</b> "+a.label+(a.spell
+-      ? " \u2014 the spell is <b>cast and held</b>: the slot is spent, concentration keeps it burning. If it lapses or concentration breaks (\u2715 on the hold), the slot is lost."
+-      : " \u2014 it fires as a reaction when the trigger comes: automatically when a foe moves into range, or when the DM taps the hold."));
++      ? " — the spell is <b>cast and held</b>: the slot is spent, concentration keeps it burning. If it lapses or concentration breaks (✕ on the hold), the slot is lost."
++      : " — it fires as a reaction when the trigger comes: automatically when a foe moves into range, or when the DM taps the hold."));
+     snapshot("Ready"); drawHi(); drawSight(); renderHud(); return;
+   }
+   if(a.kind==="monk-step"){useMonkStep(u,a);return;}
+@@ -5702,10 +5773,24 @@ function selectAction(idx,castLevel){
+     var amt=rollDmg(a.dmg); u.hp=Math.min(u.hpMax,u.hp+amt); floatAt(u,"+"+amt,"heal"); clog(u.name+": "+a.label+" +"+amt+" ("+u.hp+"/"+u.hpMax+")"); spend(u,a); finishAction(); return; }
+   if(a.kind==="surge"){
+     if(sess){ netSurge(u,a); return; }
+-    CB.st.usedAction=false; clog(u.name+" \u2014 Action Surge: action regained."); spend(u,a); finishAction(); return; }
++    CB.st.usedAction=false; clog(u.name+" — Action Surge: action regained."); spend(u,a); finishAction(); return; }
++  if(a.effectKind==="bless"||/^bless(?:\s|$)/i.test(a.label||"")){openBlessPicker(u,a);return;}
+   CB.pending=a;clearConfirmTarget();CB.tgtKey=null;drawHi(); drawSight(); renderHud();
+ }
+ function finishAction(){ hideUpcastPick(); closeSanctuaryChoice(); CB.pending=null;clearConfirmTarget();CB.tgtKey=null; CONTEST_COVER=false; SANCTUARY_REJECT={}; snapshot("Action"); reconcileMovementPresentation(); drawSight(); renderHud(); maybeEnd(); }
++function blessAction(a){return !!(a&&(a.effectKind==="bless"||/^bless(?:\s|$)/i.test(a.label||"")));}
++function openBlessPicker(u,a){
++  var max=Math.max(1,Number(a.targetCount)||3)+Math.max(0,(Number(a.castLevel)||Number(a.level)||1)-(Number(a.level)||1));
++  var elig=CB.units.filter(function(x){return x.alive&&x.side===u.side&&cbDist({c:u.c,r:u.r},{c:x.c,r:x.r})<=rangeFt(a);});
++  if(!elig.length){clog("<i>Bless: no allies are in range.</i>");return;}
++  var picked={};
++  var ov=document.createElement("div");ov.className="cbReact";ov.innerHTML='<div class="cbReactCard cbBlessCard"><div class="cbReactEy">Bless · concentration</div><div class="cbReactTitle">Choose up to '+max+' creatures</div><div class="cbReactDesc">Each chosen creature adds 1d4 to attack rolls and saving throws while concentration lasts.</div><div class="cbBlessTargets"></div><div class="cbReactBtns"><button class="cbReactSkip" data-b-cancel>Cancel</button><button class="cbReactUse" data-b-confirm disabled>Cast Bless</button></div></div>';document.body.appendChild(ov);
++  var host=ov.querySelector('.cbBlessTargets'),confirm=ov.querySelector('[data-b-confirm]');
++  function paint(){host.innerHTML=elig.map(function(x){var on=!!picked[x.unit];return '<button type="button" class="cbBlessTarget'+(on?' on':'')+'" data-u="'+escapeHtml(x.unit)+'" aria-pressed="'+on+'">'+escapeHtml(x.name)+'</button>';}).join('');host.querySelectorAll('[data-u]').forEach(function(b){b.onclick=function(){var k=b.dataset.u;if(picked[k])delete picked[k];else if(Object.keys(picked).length<max)picked[k]=true;paint();};});confirm.disabled=Object.keys(picked).length===0;confirm.textContent='Cast Bless · '+Object.keys(picked).length+'/'+max;}
++  ov.querySelector('[data-b-cancel]').onclick=function(){ov.remove();};
++  confirm.onclick=function(){var targets=Object.keys(picked);if(!targets.length)return;ov.remove();var E=effectApi();if(!E){clog("<i>Bless cannot be applied — the effect ledger did not load.</i>");return;}var effects=concentrationBreakOps(u,"Bless replaced concentration").concat(E.addBlessGroup({source:u.unit,targets:targets,nonce:Date.now(),turns:10}));var ctx={kind:"bless",targets:targets,die:"1d4",concentration:true};if(window.__forgeSession)netUseAbility(u,a,targets,effects,{context:ctx});else{localEffectEvent("ability_used",u.unit,{ability:a.label,targets:targets,effects:effects,slot:a.bonus?"bonus":"action",spell:true,spell_level:Number(a.castLevel!=null?a.castLevel:a.level)||0,context:ctx});spend(u,a);finishAction();}};
++  paint();
++}
+ function resolveOn(u,a,t){
+   var sess=window.__forgeSession;
+   function commit(){
+@@ -5720,7 +5805,8 @@ function resolveOn(u,a,t){
+     if(a.kind==="heal"){if(sess){netHeal(u,a,t);return;}doHeal(u,a,t);spend(u,a);finishAction();return;}
+     if(a.kind==="buff"){
+       if(sess){netBuff(u,a,t);return;}
+-      CB.hexed=t.id;clog(u.name+" hexes "+t.name+" (+1d6 on hits vs it).");localBreakWard(u,a);spend(u,a);finishAction();return;
++      if(a.effectKind==="hex"||/^hex(?:\s|$)/i.test(a.label||"")){var E=effectApi();var ops=concentrationBreakOps(u,"Hex replaced concentration");if(E)ops.push(E.addHex({source:u.unit,target:t.unit,nonce:LOCAL_EFFECT_SEQ+1,turns:600}));localEffectEvent("ability_used",u.unit,{ability:a.label,targets:[t.unit],effects:withBreakOp(ops,u,a),slot:a.bonus?"bonus":"action",spell:true,spell_level:Number(a.castLevel!=null?a.castLevel:a.level)||0,context:{kind:"hex",target:t.unit,die:"1d6",concentration:true}});clog(u.name+" hexes "+t.name+" (+1d6 on hits vs it).");spend(u,a);finishAction();return;}
++      CB.hexed=t.id;clog(u.name+" uses "+a.label+" on "+t.name+".");localBreakWard(u,a);spend(u,a);finishAction();return;
+     }
+     if(a.kind==="buffAlly"){
+       if(sanctuaryAction(a)){
+@@ -5882,7 +5968,7 @@ function moveUnitTo(u,gx,gy){
+     });
+   });
+ }
+-function boomTrigger(u){ if(!u.boomMark) return; var dmg=rollDmg("1d8"); u.hp-=dmg;
++function boomTrigger(u){ if(!u.boomMark) return; var dmg=rollDmg("1d8"),hpBefore=u.hp; u.hp-=dmg;localConcentrationAfterDamage(u,dmg,hpBefore,"Booming Blade damage");
+   var line="Booming Blade — "+u.name+" moved: "+dmg+" thunder ("+Math.max(0,u.hp)+"/"+u.hpMax+")";
+   flashHit(u); shake(0.14); floatAt(u,String(dmg),"dmg");
+   u.boomMark=null; if(u.hp<=0){ floatAt(u,"DOWN","down"); u.alive=false; removeToken(u); line+=" — <b>down</b>"; } clog(line); }
+@@ -5925,7 +6011,7 @@ function foeTurn(){
+   function strikePhase(){
+     if(!u.alive){ renderHud(); foeTurnDone(); return; }
+     if(!tgt.alive||!canNow()){ renderHud(); foeTurnDone(); return; }
+-    sanctuaryGate(u,atk,tgt,function rollStrike(){
++    sanctuaryGate(u,Object.assign({kind:"attack"},atk),tgt,function rollStrike(){
+       if(!sess)localBreakWard(u,atk);
+       var fav=advPreview(u,tgt,Object.assign({kind:"attack"},atk),null), adv=fav.adv, dis=fav.dis;
+       if(u.disadv){
+@@ -5942,11 +6028,11 @@ function foeTurn(){
+           awaitSettled().then(function(){renderHud();foeTurnDone();});
+         });return;
+       }
+-      if(hs.hit){var foeFeedResolved=false;pipelineHit(u,atk,hs,tgt,function(){var damage=rollActionDamage(atk,hs.crit,[]),dmg=damage.total;tgt.hp-=dmg;
++      if(hs.hit){var foeFeedResolved=false;pipelineHit(u,atk,hs,tgt,function(){var damage=rollActionDamage(atk,hs.crit,[]),dmg=damage.total,hpBefore=tgt.hp;tgt.hp-=dmg;var concentration=localConcentrationAfterDamage(tgt,dmg,hpBefore,atk.label+" damage");
+           var line=tgt.name+" takes "+dmg+" ("+Math.max(0,tgt.hp)+"/"+tgt.hpMax+")";
+           flashHit(tgt);shake(0.2);floatAt(tgt,String(dmg),"dmg");
+           if(tgt.hp<=0){floatAt(tgt,"DOWN","down");tgt.alive=false;removeToken(tgt);line+=" \u2014 <b>down</b>";}clog(line,false);
+-          if(window.ForgeTableCorrectness)window.ForgeTableCorrectness.pushFact({actor:u.unit,target:tgt.unit,mode:atk.label,roll:hs.roll,hitBonus:foeHitMod,hit:true,crit:hs.crit,dmg:dmg,dmgParts:damage.parts,dmgFormula:damage.formula,adv:adv,dis:dis,d20Rolls:d20ev.rolls,d20KeptIndex:d20ev.keptIndex,reactionD20Rolls:hs.reactionD20Rolls,reactionD20KeptIndex:hs.reactionD20KeptIndex,dropped:hs.roll!==roll?roll:null,mods:hs.roll!==roll?[{k:"silvery_barbs"}]:[]});
++          if(window.ForgeTableCorrectness)window.ForgeTableCorrectness.pushFact({actor:u.unit,target:tgt.unit,mode:atk.label,roll:hs.roll,hitBonus:foeHitMod,hit:true,crit:hs.crit,dmg:dmg,dmgParts:damage.parts,dmgFormula:damage.formula,adv:adv,dis:dis,d20Rolls:d20ev.rolls,d20KeptIndex:d20ev.keptIndex,reactionD20Rolls:hs.reactionD20Rolls,reactionD20KeptIndex:hs.reactionD20KeptIndex,dropped:hs.roll!==roll?roll:null,mods:hs.roll!==roll?[{k:"silvery_barbs"}]:[],concentration:concentration});
+           foeFeedResolved=true;
+         },function(){
+           if(!foeFeedResolved&&window.ForgeTableCorrectness)window.ForgeTableCorrectness.pushFact({actor:u.unit,target:tgt.unit,mode:atk.label,roll:hs.roll,hitBonus:foeHitMod,hit:false,crit:false,adv:adv,dis:dis,d20Rolls:d20ev.rolls,d20KeptIndex:d20ev.keptIndex,reactionD20Rolls:hs.reactionD20Rolls,reactionD20KeptIndex:hs.reactionD20KeptIndex,dropped:hs.roll!==roll?roll:null,mods:hs.roll!==roll?[{k:"silvery_barbs"}]:[]});
+@@ -5969,12 +6055,11 @@ function foeTurn(){
+       var path=TG.pathTo(seen,{c:u.c,r:u.r},best.c,best.r); if(!path.length) path=[{c:best.c,r:best.r}];
+       clog(u.name+" advances.");
+       if(sess){
+-        /* Task 7b req 1: same fork as PC move (Task 7) \u2014 publish only, no
+-           local mutation. provokeOAs/checkReadied/boomTrigger are Task 8
+-           reaction territory (also unwired for PC session moves \u2014 Task 7
+-           report \u00a73), so a foe's session move never triggers them either;
+-           the walk paints, on every screen (mover's own included), only via
+-           the echo. strikePhase must wait for the WALK TWEEN to finish (not
++        /* Same fork as PC movement: publish only, no predictive mutation.
++           The shared move declaration now opens any opportunity-attack prompts;
++           its resolved path may be shortened when a reaction downs the mover.
++           The walk paints on every screen only via the echo. strikePhase must
++           wait for the WALK TWEEN to finish (not
+            merely the row to arrive) \u2014 canNow()/reachOK read u.c/u.r live,
+            and those are only current once the echo's walkPath callback has
+            run (see awaitWalkDone / applyVerb's "walk" case). */
+@@ -7133,7 +7218,7 @@ async function bootSession(sid){
+       // state.rolls / state.initiative, read straight off pipe.state() by
+       // renderInitiativeLobby).
+       if (r.kind === 'initiative_rolled') { delete __initPublishing[r.unit]; }
+-      else if (r.kind === 'initiative_set') { __initConfirming = false; }
++      else if (r.kind === 'initiative_set') { __initConfirming = false; __initEditing=false; __initDraftOrder=null; }
+       window.ForgeBoard.verbsFor(r, before, st).forEach(applyVerb);
+       if(window.ForgeTableCorrectness)window.ForgeTableCorrectness.pushEvent(viewerFeedEvent(r));
+       refreshEffectState(r,false);
+@@ -7270,17 +7355,13 @@ function netPublishFail(r){
+    sandbox does (unchanged TG.pathTo/budget math up the call chain), then
+    publish. The board does NOT mutate here — the echoed walk verb (applyVerb)
+    animates every screen, including this one, and only then spends budget. */
+-function netMove(u, path){
+-  var fin = path[path.length-1], moveCostFt=path.length*5*(effectFor(u,"prone")?2:1);
+-  __awaitingUnit = u.unit; __awaitingKind = 'move_resolved'; if(__awaitingCount++===0) __awaitingSince = Date.now(); renderHud();
+-  // Task 7b: returns the publish result so a caller can sequence a follow-up
+-  // (foeTurn's move → strike chain) off publish success/failure. Existing PC
+-  // callers (combatClick) don't use the return value — unaffected.
+-  // Bite-1 fix (2026-07-11): the resolve fact carries its own path (the same
+-  // idiom attack_resolved uses for target) — a device that silently lost the
+-  // move_declared row no longer degrades the tween to a jump.
+-  return window.__forgeSession.pipe.move(u.unit, path, function(){ return { final_cell: { c: fin.c, r: fin.r }, path: path, move_cost_ft:moveCostFt }; })
+-    .then(function(r){ netPublishFail(r); return r; });
++function netMove(u,path){
++  __awaitingUnit=u.unit;__awaitingKind='move_resolved';if(__awaitingCount++===0)__awaitingSince=Date.now();renderHud();
++  return window.__forgeSession.pipe.move(u.unit,path,function(answers){
++    var stops=(answers||[]).filter(function(row){return row&&row.payload&&row.payload.use&&row.payload.reaction_kind==="opportunityAttack"&&row.payload.interrupted_at;}).map(function(row){return row.payload;}).sort(function(a,b){return Number(a.path_index)-Number(b.path_index);});
++    var stop=stops[0]||null,effective=stop?path.slice(0,Math.max(0,Number(stop.path_index)||0)):path.slice(),fin=stop?stop.interrupted_at:(effective[effective.length-1]||{c:u.c,r:u.r}),moveCostFt=effective.length*5*(effectFor(u,"prone")?2:1);
++    return {final_cell:{c:fin.c,r:fin.r},interrupted_at:stop?{c:fin.c,r:fin.r}:undefined,path:effective,move_cost_ft:moveCostFt};
++  }).then(function(r){netPublishFail(r);return r;});
+ }
+ /* roll + hit math stay local (same functions/order the sandbox always used);
+    the local apply (t.hp -=) is removed — damage lands only via the echoed
+@@ -7336,69 +7417,25 @@ function contestThenAttack(u,a,t,ro){
+   });
+ }
+ function netAttackGo(u,a,t,ro){
+-  var n=a.strikes||1, i=0, hpLeft=t.hp, wardBreakPending=breakOpFor(u,a),resourceSpendPending=resourceSpendFor(a);
+-  __awaitingUnit = u.unit; __awaitingKind = 'attack_resolved'; renderHud();
++  var n=a.strikes||1,i=0,hpLeft=t.hp,wardBreakPending=breakOpFor(u,a),resourceSpendPending=resourceSpendFor(a),resourceSpendId=resourceSpendIdFor(u,a);
++  __awaitingUnit=u.unit;__awaitingKind='attack_resolved';renderHud();
+   (function strike(){
+-    if(i>=n || hpLeft<=0){
+-      // Finding 2: the guard is released purely by matching echoes/failures
+-      // (see __awaitingCount) — not by this local loop finishing, which used
+-      // to clear it after strike 1's echo while strikes 2..n were still publishing.
+-      if(a.rider==="boom") clog("<i>Booming Blade set — +1d8 if "+t.name+" moves.</i>");
+-      finishAction(); return;
+-    }
+-    i++;
+-    if(u._ves) vesPlay(u, a.spell?"cast":"attack");
+-    var cover=ro.cover||0, av=advPreview(u,t,a,ro), hitMod=(Number(a.hit)||0)+(av.attackBonus||0);
+-    var adv=av.adv, dis=av.dis;
+-    var d20ev=rollD20Evidence(adv,dis),roll=d20ev.roll; if(u.inspired)u.inspired=false;
+-    var crit=roll===20;
+-    var hit=crit||(roll!==1 && roll+hitMod>=t.ac+cover);
+-    var tag = adv?" adv"+(av.why.length?" ("+av.why.join(", ")+")":"") : dis?" disadv"+(av.why.length?" ("+av.why.join(", ")+")":"") : (av.cancelled?" normal (adv/dis cancel)":"");
+-    clog(u.name+" \u2192 "+t.name+": "+a.label+" ("+roll+"+"+hitMod+(cover?" \u00b7 cover":"")+tag+")"+(hit?"":" \u2014 miss"),false);
+-    if(__awaitingCount++===0) __awaitingSince = Date.now();   // Finding 2: one publish per strike — buttons re-enable only once every strike's echo (or failure) has landed
+-    renderHud();
+-    /* Task 8: hitBonus/cover/hit ride along on the declared payload as
+-       facts (validateEvent only requires target+roll) so reactionCandidates
+-       and the prompted device's onPrompt handler can recompute hit without
+-       re-deriving cover geometry on another screen. Damage is NOT rolled
+-       here — pipelineHit's local order rolls damage only once the hit is
+-       FINAL (post Silvery Barbs/Shield), so resolveFacts (below) rolls it
+-       only after askAll() has run every reaction prompt for this strike. */
+-    window.__forgeSession.pipe.attack(u.unit,
+-        { target: t.unit, roll: roll, d20_rolls:d20ev.rolls,d20_kept_index:d20ev.keptIndex, adv: adv, dis: dis, crit: crit, mode: a.label, hitBonus: hitMod, cover: cover, coverName:ro.coverName||null, advReason:av.why.join(", "), flankBonus:av.attackBonus||0, hit: hit },
+-        function(answers){
+-          var hs=replayHitState({ roll:roll, crit:crit, hit:hit, cover:cover,d20_rolls:d20ev.rolls,d20_kept_index:d20ev.keptIndex }, answers);
+-          var effects=wardBreakPending?[wardBreakPending]:[], dmg=0,damage=null; wardBreakPending=null;
+-          if(hs.hit){
+-            var extra=[];if(u.raging&&(a.rng||1)<=1)extra.push({dice:"0",bonus:2,type:"Rage",critDice:false});
+-            if(CB.hexed===t.id)extra.push({dice:"1d6",bonus:0,type:"Hex"});
+-            damage=rollActionDamage(a,hs.crit,extra);dmg=damage.total;
+-            hpLeft=Math.max(0,hpLeft-dmg);
+-            /* boomMark/CB.st are client-local bookkeeping (never part of the
+-               replayed state, same reasoning as the walk verb's budget update
+-               above) — safe to set immediately; nothing publishes it. boomTrigger
+-               itself isn't wired to netMove/session movement yet (flagged in the
+-               report), so this currently arms inertly in session play. */
+-            if(a.rider==="boom" && hpLeft>0) t.boomMark={by:u.id};
+-          } else {
+-            if(hit) clog("<i>"+a.label+" — a reaction turned that hit into a miss.</i>");
+-            floatAt(t,"miss","miss");
+-          }
+-          // Hellish Rebuke: the target's controller already rolled the (save-adjusted)
+-          // final damage and sent it in the answer's extra — fold it in as a fact,
+-          // same shape forge-replay's applyEffects expects ({unit,dmg}).
+-          var rb=(answers||[]).filter(function(row){
+-            if(!row||!row.payload) return false;
+-            var ku=unitByKey(row.unit); return ku&&ku.react&&Object.keys(ku.react)[0]==="hellishRebuke" && row.payload && row.payload.use;
+-          })[0];
+-          if(rb) effects.push({ unit:u.unit, dmg:rb.payload.dmg });
+-          // Resource spend is attached to the first resolved strike only: Flurry's
+-          // two attacks consume one Ki total, and failed/cancelled publication consumes none.
+-          var spendFact=resourceSpendPending;resourceSpendPending=null;
+-          return { hit: hs.hit, crit:hs.crit, roll:hs.roll, dmg: dmg, dmgParts:damage?damage.parts:null, dmgFormula:damage?damage.formula:null, effects: effects, slot: a.bonus ? "bonus" : "action",
+-            mode:a.label, hitBonus:hitMod, cover:cover, coverName:ro.coverName||null, adv:adv, dis:dis, advReason:av.why.join(", "), flankBonus:av.attackBonus||0,d20_rolls:d20ev.rolls,d20_kept_index:d20ev.keptIndex,reaction_d20_rolls:hs.reactionD20Rolls,reaction_d20_kept_index:hs.reactionD20KeptIndex,resource_spend:spendFact };
+-        })
+-      .then(function(r){ if (r && r.ok === false) { netPublishFail(r); return; } strike(); });
++    if(i>=n||hpLeft<=0){if(a.rider==="boom")clog("<i>Booming Blade set — +1d8 if "+t.name+" moves.</i>");finishAction();return;}
++    i++;if(u._ves)vesPlay(u,a.spell?"cast":"attack");
++    var cover=ro.cover||0,av=advPreview(u,t,a,ro),bless=blessRollFor(u),blessV=bless?bless.roll:0,hitMod=(Number(a.hit)||0)+(av.attackBonus||0),adv=av.adv,dis=av.dis;
++    var d20ev=rollD20Evidence(adv,dis),roll=d20ev.roll,rollTotal=roll+hitMod+blessV;if(u.inspired)u.inspired=false;var crit=roll===20,hit=crit||(roll!==1&&rollTotal>=t.ac+cover),mods=blessV?[{k:"bless",v:blessV}]:[];
++    var tag=adv?" adv"+(av.why.length?" ("+av.why.join(", ")+")":""):dis?" disadv"+(av.why.length?" ("+av.why.join(", ")+")":""):(av.cancelled?" normal (adv/dis cancel)":"");
++    clog(u.name+" → "+t.name+": "+a.label+" ("+roll+"+"+hitMod+(blessV?" + Bless "+blessV:"")+(cover?" · cover":"")+tag+")"+(hit?"":" — miss"),false);
++    if(__awaitingCount++===0)__awaitingSince=Date.now();renderHud();
++    var declared={target:t.unit,roll:roll,roll_total:rollTotal,roll_mod:blessV,mods:mods,d20_rolls:d20ev.rolls,d20_kept_index:d20ev.keptIndex,adv:adv,dis:dis,crit:crit,mode:a.label,hitBonus:hitMod,cover:cover,coverName:ro.coverName||null,advReason:av.why.join(", "),flankBonus:av.attackBonus||0,hit:hit};Object.assign(declared,spellFactFields(a));
++    window.__forgeSession.pipe.attack(u.unit,declared,function(answers){
++      var hs=replayHitState({roll:roll,crit:crit,hit:hit,cover:cover,roll_mod:blessV,d20_rolls:d20ev.rolls,d20_kept_index:d20ev.keptIndex},answers),effects=wardBreakPending?[wardBreakPending]:[],dmg=0,damage=null,concentration=null;wardBreakPending=null;
++      if(hs.hit){var extra=[];if(u.raging&&(a.rng||1)<=1)extra.push({dice:"0",bonus:2,type:"Rage",critDice:false});if(hexEffectAgainst(u,t)||CB.hexed===t.id)extra.push({dice:"1d6",bonus:0,type:"Hex"});damage=rollActionDamage(a,hs.crit,extra);dmg=damage.total;concentration=concentrationCheckFor(t,dmg,hpLeft,a.label+" damage");if(concentration){if(concentration.effects&&concentration.effects.length)effects=effects.concat(concentration.effects);clog("<i>"+concentrationNarration(t,concentration)+"</i>");}hpLeft=Math.max(0,hpLeft-dmg);if(a.rider==="boom"&&hpLeft>0)t.boomMark={by:u.id};}
++      else{if(hit)clog("<i>"+a.label+" — a reaction turned that hit into a miss.</i>");floatAt(t,"miss","miss");}
++      var rb=(answers||[]).filter(function(row){if(!row||!row.payload)return false;var ku=unitByKey(row.unit);return ku&&ku.react&&Object.keys(ku.react)[0]==="hellishRebuke"&&row.payload.use;})[0];if(rb){effects.push({unit:u.unit,dmg:rb.payload.dmg});if(rb.payload.concentration&&rb.payload.concentration.effects)effects=effects.concat(rb.payload.concentration.effects);}
++      var spendFact=resourceSpendPending;resourceSpendPending=null;
++      var resolved={hit:hs.hit,crit:hs.crit,roll:hs.roll,roll_total:hs.roll+hitMod+blessV,mods:mods,dmg:dmg,dmgParts:damage?damage.parts:null,dmgFormula:damage?damage.formula:null,effects:effects,slot:a.bonus?"bonus":"action",mode:a.label,hitBonus:hitMod,cover:cover,coverName:ro.coverName||null,adv:adv,dis:dis,advReason:av.why.join(", "),flankBonus:av.attackBonus||0,d20_rolls:d20ev.rolls,d20_kept_index:d20ev.keptIndex,reaction_d20_rolls:hs.reactionD20Rolls,reaction_d20_kept_index:hs.reactionD20KeptIndex,resource_spend:spendFact,resource_spend_id:spendFact?resourceSpendId:null,concentration:concentration};Object.assign(resolved,spellFactFields(a));return resolved;
++    }).then(function(r){if(r&&r.ok===false){netPublishFail(r);return;}strike();});
+   })();
+ }
+ /* End Turn: publish only. beginTurn's fresh budget/cleanup arrives via the
+@@ -7469,20 +7506,21 @@ function netFoeAttack(u,atk,t,hs,adv,dis,hitMod,advReason,flankBonus){
+       { target:t.unit, roll:hs.roll,d20_rolls:hs.d20Rolls,d20_kept_index:hs.d20KeptIndex, adv:!!adv, dis:!!dis, crit:hs.crit, mode:atk.label, hitBonus:hitMod, cover:hs.acBonus||0, coverName:hs.acBonus===5?"three-quarters":hs.acBonus===2?"half":"none", advReason:advReason||null, flankBonus:flankBonus||0, hit:hs.hit },
+       function(answers){
+         var fhs=replayHitState({ roll:hs.roll, crit:hs.crit, hit:hs.hit, cover:hs.acBonus||0,d20_rolls:hs.d20Rolls,d20_kept_index:hs.d20KeptIndex }, answers);
+-        var damage=fhs.hit?rollActionDamage(atk,fhs.crit,[]):null,dmg=damage?damage.total:0;
++        var damage=fhs.hit?rollActionDamage(atk,fhs.crit,[]):null,dmg=damage?damage.total:0,concentration=null;
+         if(!fhs.hit){
+           if(hs.hit) clog("<i>"+atk.label+" — a reaction turned that hit into a miss.</i>");
+           floatAt(t,"miss","miss");
+         }
+-        var effects=withBreakOp([],u,atk);
++        var effects=withBreakOp([],u,atk),stateNow=window.__forgeSession.pipe.state(),targetHp=stateNow&&stateNow.units&&stateNow.units[t.unit]?stateNow.units[t.unit].hp:t.hp;
++        if(fhs.hit){concentration=concentrationCheckFor(t,dmg,targetHp,atk.label+" damage");if(concentration){if(concentration.effects&&concentration.effects.length)effects=effects.concat(concentration.effects);clog("<i>"+concentrationNarration(t,concentration)+"</i>");}}
+         var rb=(answers||[]).filter(function(row){
+           if(!row||!row.payload) return false;
+           var ku=unitByKey(row.unit); return ku&&ku.react&&Object.keys(ku.react)[0]==="hellishRebuke" && row.payload && row.payload.use;
+         })[0];
+-        if(rb) effects.push({ unit:u.unit, dmg:rb.payload.dmg });
++        if(rb){effects.push({unit:u.unit,dmg:rb.payload.dmg});if(rb.payload.concentration&&rb.payload.concentration.effects)effects=effects.concat(rb.payload.concentration.effects);}
+         // Priority 2: foe attacks are actions (foe kits carry no bonus flag).
+         return { hit:fhs.hit, crit:fhs.crit, roll:fhs.roll, dmg:dmg, dmgParts:damage?damage.parts:null, dmgFormula:damage?damage.formula:null, effects:effects, slot: atk.bonus ? "bonus" : "action",
+-          mode:atk.label, hitBonus:hitMod, cover:hs.acBonus||0, coverName:hs.acBonus===5?"three-quarters":hs.acBonus===2?"half":"none", adv:!!adv, dis:!!dis, advReason:advReason||null, flankBonus:flankBonus||0,d20_rolls:hs.d20Rolls,d20_kept_index:hs.d20KeptIndex,reaction_d20_rolls:fhs.reactionD20Rolls,reaction_d20_kept_index:fhs.reactionD20KeptIndex };
++          mode:atk.label, hitBonus:hitMod, cover:hs.acBonus||0, coverName:hs.acBonus===5?"three-quarters":hs.acBonus===2?"half":"none", adv:!!adv, dis:!!dis, advReason:advReason||null, flankBonus:flankBonus||0,d20_rolls:hs.d20Rolls,d20_kept_index:hs.d20KeptIndex,reaction_d20_rolls:fhs.reactionD20Rolls,reaction_d20_kept_index:fhs.reactionD20KeptIndex,concentration:concentration };
+       })
+     .then(function(r){ if (r && r.ok===false) netPublishFail(r); return r; });
+ }
+@@ -7502,9 +7540,10 @@ function netFoeAttack(u,atk,t,hs,adv,dis,hitMod,advReason,flankBonus){
+ function netUseAbility(u,a,targets,effects,opts){
+   opts = opts || {};
+   __awaitingUnit=u.unit; __awaitingKind='ability_used'; if(__awaitingCount++===0) __awaitingSince = Date.now(); renderHud();
+-  var payload = { ability:a.label, targets:targets, effects:effects||[],
+-    slot: a.bonus ? "bonus" : (a.free ? "free" : "action"), resource_spend:resourceSpendFor(a) };   // Priority 2: economy slot rides the fact
+-  if (opts.restores) payload.restores = opts.restores;   // Action Surge: slot "free", restores "action"
++  var payload = { ability:opts.ability||a.label, targets:targets, effects:effects||[],
++    slot: a.bonus ? "bonus" : (a.free ? "free" : "action"), resource_spend:resourceSpendFor(a), resource_spend_id:opts.resource_spend_id||resourceSpendIdFor(u,a) };
++  Object.assign(payload,spellFactFields(a));
++  if (opts.restores) payload.restores = opts.restores;
+   if (opts.roll!=null) payload.roll = opts.roll;
+   if (opts.dmg!=null) payload.dmg = opts.dmg;
+   if (opts.context) payload.context = opts.context;
+@@ -7512,9 +7551,7 @@ function netUseAbility(u,a,targets,effects,opts){
+   if (opts.movement_cost_ft) payload.movement_cost_ft = opts.movement_cost_ft;
+   return window.__forgeSession.pipe.useAbility(u.unit, payload).then(function(r){
+     if (r && r.ok===false){ netPublishFail(r); return r; }
+-    if (opts.onSuccess) opts.onSuccess();
+-    finishAction();
+-    return r;
++    if (opts.onSuccess) opts.onSuccess();finishAction();return r;
+   });
+ }
+ /* save (Vicious Mockery) — roll/DC math is doSave's, unchanged; only the
+@@ -7532,18 +7569,10 @@ function netSave(u,a,t){
+   var ro=reachOK(u,a,t); if(!ro.ok){ clog(u.name+" — "+ro.why+"."); return; }
+   var saveAction=/toll the dead/i.test(a.label||"")?Object.assign({},a,{dmg:window.ForgeCombatRules.tollDamage(a,t).dmg}):a;
+   var valid=window.ForgeCombatRules.requireDamage(saveAction);if(!valid.ok){clog('<b style="color:#c0553f">'+escapeHtml(valid.why)+' — action refused.</b>');return;}
+-  var sv=d(20)+(t.save||0), fail=sv<a.dc, line=u.name+" → "+t.name+": "+a.label+" ("+a.saveAbility.toUpperCase()+" save "+sv+" vs DC "+a.dc+") ";
+-  var effects=withBreakOp([],u,a), dmg=0, ctx=null, applyDisadv=false;
+-  if(fail){
+-    dmg=rollDmg(saveAction.dmg); line+="fail "+dmg; effects.push({unit:t.unit,dmg:dmg});
+-    if(a.rider==="vm"){ applyDisadv=true; line+=" + disadvantage"; ctx="vm rider: "+t.name+" has disadvantage on its next attack (local only, not yet synced)"; }
+-  } else line+="save";
+-  clog(line);
+-  // M4 (final-review): t.disadv is a local-only flag (see block comment above) —
+-  // it must not arm on a failed publish, so it moves into the publish success
+-  // callback, same as CB.st.usedAction in netSurge. Narration stays predictive.
+-  netUseAbility(u,a,[t.unit],effects,{roll:sv, dmg:fail?dmg:undefined, context:ctx,
+-    onSuccess: applyDisadv ? function(){ t.disadv=true; } : undefined});
++  var d20=d(20),bonus=saveModFor(t,a.saveAbility),bless=blessRollFor(t),blessV=bless?bless.roll:0,sv=d20+bonus+blessV,fail=sv<a.dc,line=u.name+" → "+t.name+": "+a.label+" ("+a.saveAbility.toUpperCase()+" save "+d20+(bonus?((bonus>=0?"+":"")+bonus):"")+(blessV?" + Bless "+blessV:"")+" = "+sv+" vs DC "+a.dc+") ";
++  var effects=withBreakOp([],u,a), dmg=0,ctx={kind:"save",target:t.unit,ability:a.saveAbility,d20:d20,bonus:bonus,mods:blessV?[{k:"bless",v:blessV}]:[],total:sv,dc:a.dc,saved:!fail}, applyDisadv=false;
++  if(fail){dmg=rollDmg(saveAction.dmg);line+="fail "+dmg;effects.push({unit:t.unit,dmg:dmg});var stateNow=window.__forgeSession.pipe.state(),hpBefore=stateNow&&stateNow.units&&stateNow.units[t.unit]?stateNow.units[t.unit].hp:t.hp,concentration=concentrationCheckFor(t,dmg,hpBefore,a.label+" damage");if(concentration){ctx.concentration=concentration;if(concentration.effects&&concentration.effects.length)effects=effects.concat(concentration.effects);clog("<i>"+concentrationNarration(t,concentration)+"</i>");}if(a.rider==="vm"){applyDisadv=true;line+=" + disadvantage";ctx.narration="Vicious Mockery: disadvantage on the next attack.";}}else line+="save";
++  clog(line);netUseAbility(u,a,[t.unit],effects,{roll:sv,dmg:fail?dmg:undefined,context:ctx,onSuccess:applyDisadv?function(){t.disadv=true;}:undefined});
+ }
+ /* heal (Healing Word/Cure Wounds) — amount rolled locally exactly as
+    doHeal; the narration can't show the post-heal total (that arrives with
+@@ -7569,24 +7598,18 @@ function netSurge(u,a){
+   clog(u.name+" — Action Surge: action regained.");
+   netUseAbility(u,a,[u.unit],[],{ restores:"action" });
+ }
+-/* buff (Hex) / buffAlly (Bardic Inspiration) — CB.hexed and t.inspired are
+-   local combat-math flags with no replay-fact representation (no hp/
+-   condition change at all), exactly the case the brief calls out by name:
+-   publish what CAN be (the ability_used fact + a context note for the
+-   log), keep the flag local.
+-   // TODO(board): Hex's +1d6 bonus (CB.hexed) is never seen by other
+-   // screens — it's consumed only by THIS device's own netAttack/
+-   // resolveStrike math.
+-   // TODO(board): Bardic Inspiration's advantage flag (t.inspired) is set
+-   // on the CASTER's own copy of the ally's unit object — the ally's own
+-   // controlling device has a separate CB.units entry that never learns
+-   // it, so today this buff is inert for anyone but a self-target. */
++/* Hex is now a first-class replayed concentration effect; attacks consult
++   the shared ledger for its +1d6 rider. Other generic buffs still use their
++   older compatibility paths. Bardic Inspiration remains local-only until its
++   own die/pool/recipient authority is implemented. */
+ function netBuff(u,a,t){
+-  clog(u.name+" hexes "+t.name+" (+1d6 on hits vs it).");
+-  // M4 (final-review): CB.hexed is local-only (see block comment above) —
+-  // arm it on publish success only, so a failed publish leaves no phantom hex.
+-  netUseAbility(u,a,[t.unit],withBreakOp([],u,a),{ context:"hex — +1d6 on "+u.name+"'s hits vs "+t.name+" (local only, not yet synced)",
+-    onSuccess:function(){ CB.hexed=t.id; } });
++  if(a.effectKind==="hex"||/^hex(?:\s|$)/i.test(a.label||"")){
++    var E=effectApi();if(!E){clog("<i>Hex cannot be applied — the effect ledger did not load.</i>");return;}
++    var effects=concentrationBreakOps(u,"Hex replaced concentration");effects.push(E.addHex({source:u.unit,target:t.unit,nonce:Date.now(),turns:600}));effects=withBreakOp(effects,u,a);
++    clog(u.name+" hexes "+t.name+" (+1d6 on hits vs it).");
++    netUseAbility(u,a,[t.unit],effects,{context:{kind:"hex",target:t.unit,die:"1d6",concentration:true}});return;
++  }
++  clog(u.name+" uses "+a.label+" on "+t.name+".");netUseAbility(u,a,[t.unit],withBreakOp([],u,a),{context:{kind:"buff",target:t.unit}});
+ }
+ function netBuffAlly(u,a,t){
+   if(sanctuaryAction(a)){
+@@ -7628,6 +7651,8 @@ function controllerLabel(unitKey){
+    initConfirmFail). */
+ var __initPublishing = {};   // unitKey -> true while that unit's roll is in flight
+ var __initConfirming = false;
++var __initEditing = false;
++var __initDraftOrder = null;
+ /* Finding 4 (review): netPublishFail decrements __awaitingCount, a counter
+    this lobby path never increments (rollForUnit/confirmInitiative don't go
+    through netMove/netAttack/etc.'s guard) — routing a lobby failure through
+@@ -7661,59 +7686,46 @@ function rollForRest(){
+   var st=sess.pipe.state();
+   (sess.row.roster||[]).forEach(function(r){ if(st.rolls[r.unit]==null) rollForUnit(sess,r.unit); });
+ }
++function setManualInitiative(sess,unitKey,value){
++  var n=Number(value);if(!Number.isFinite(n)){clog("<i>Initiative must be a number.</i>");renderInitiativeLobby();return;}
++  __initPublishing[unitKey]=true;renderInitiativeLobby();clog("<i>Initiative — "+escapeHtml((unitByKey(unitKey)&&unitByKey(unitKey).name)||unitKey)+": "+n+" (entered)</i>");sess.pipe.rollInitiative(unitKey,n).then(function(r){initRollFail(unitKey,r);});
++}
++function moveInitiativeDraft(unitKey,delta){
++  if(!__initDraftOrder)return;var i=__initDraftOrder.indexOf(unitKey),j=i+delta;if(i<0||j<0||j>=__initDraftOrder.length)return;var t=__initDraftOrder[i];__initDraftOrder[i]=__initDraftOrder[j];__initDraftOrder[j]=t;renderInitiativeLobby();
++}
++function closeInitiativeEditor(){__initEditing=false;__initDraftOrder=null;hideInitiativeLobby();}
++function openInitiativeEditor(){
++  var sess=window.__forgeSession;if(!sess||!sess.me.overseer)return;var st=sess.pipe.state();
++  if(st.pendingPrompt||st.pendingAction){clog("<i>Finish the current move, attack, or reaction before editing initiative.</i>");return;}
++  __initEditing=true;__initDraftOrder=(st.initiative&&st.initiative.slice())||(sess.row.roster||[]).map(function(r){return r.unit;});showInitiativeLobby();
++}
++
+ function confirmInitiative(){
+-  var sess=window.__forgeSession; if(!sess||!sess.me.overseer) return;
+-  if(__initConfirming) return;   // a previous confirm hasn't echoed (or failed) yet
+-  var st=sess.pipe.state();
+-  var rows=(sess.row.roster||[]).slice();
+-  rows.sort(function(a,b){
+-    var ra=st.rolls[a.unit], rb=st.rolls[b.unit];
+-    ra=(ra==null)?-Infinity:ra; rb=(rb==null)?-Infinity:rb;
+-    if(ra!==rb) return rb-ra;
+-    var ua=unitByKey(a.unit), ub=unitByKey(b.unit);
+-    var ma=(ua&&ua.initMod)||0, mb=(ub&&ub.initMod)||0;
+-    if(ma!==mb) return mb-ma;
+-    return String(a.name||a.unit).localeCompare(String(b.name||b.unit));
+-  });
+-  var order=rows.map(function(r){ return r.unit; });
+-  __initConfirming=true;
+-  renderInitiativeLobby();   // one tap — paint "confirming…" now; the initiative_set echo dismisses the lobby entirely
+-  sess.pipe.setInitiative(order).then(initConfirmFail);
++  var sess=window.__forgeSession;if(!sess||!sess.me.overseer||__initConfirming)return;var st=sess.pipe.state(),order;
++  if(__initDraftOrder&&__initDraftOrder.length)order=__initDraftOrder.slice();
++  else{var rows=(sess.row.roster||[]).slice();rows.sort(function(a,b){var ra=st.rolls[a.unit],rb=st.rolls[b.unit];ra=(ra==null)?-Infinity:ra;rb=(rb==null)?-Infinity:rb;if(ra!==rb)return rb-ra;var ua=unitByKey(a.unit),ub=unitByKey(b.unit),ma=(ua&&ua.initMod)||0,mb=(ub&&ub.initMod)||0;if(ma!==mb)return mb-ma;return String(a.name||a.unit).localeCompare(String(b.name||b.unit));});order=rows.map(function(r){return r.unit;});}
++  __initConfirming=true;renderInitiativeLobby();var resumeAt=st.initiative?window.ForgeReplay.activeUnit(st):null;sess.pipe.setInitiative(order,resumeAt,!!st.initiative).then(initConfirmFail);
+ }
+ function renderInitiativeLobby(){
+-  var sess=window.__forgeSession; if(!sess) return;
+-  var st=sess.pipe.state();
+-  var box=document.getElementById("cbInitLobbyList"); if(!box) return;
+-  var rows=(sess.row.roster||[]);
+-  box.innerHTML=rows.map(function(r){
+-    var roll=st.rolls[r.unit], mine=window.ForgeBoard.controls(sess.me,r.unit);
+-    var rolling=!!__initPublishing[r.unit];
+-    var val = roll!=null ? "<b>"+roll+"</b>"
+-            : (mine ? '<button class="cbInitRoll" data-u="'+r.unit+'"'+(rolling?' disabled':'')+'>'+(rolling?'rolling…':'Roll')+'</button>' : "<i>waiting…</i>");
+-    return '<div class="cbInitRow"><span>'+escapeHtml(r.name||r.unit)+'</span><span class="cbInitVal">'+val+'</span></div>';
+-  }).join("");
+-  box.querySelectorAll(".cbInitRoll").forEach(function(b){
+-    b.addEventListener("click",function(){ rollForUnit(sess,b.dataset.u); });
+-  });
+-  var ob=document.getElementById("cbInitLobbyOverseerBtns");
+-  if(ob){
+-    ob.style.display=sess.me.overseer?"flex":"none";
+-    if(sess.me.overseer){
+-      var allRolled=rows.every(function(r){ return st.rolls[r.unit]!=null; });
+-      var rest=document.getElementById("cbInitRollRest"); if(rest) rest.disabled=allRolled;
+-      var conf=document.getElementById("cbInitConfirm");
+-      if(conf){ conf.disabled=__initConfirming||!(allRolled||sess.me.overseer); conf.textContent=__initConfirming?"confirming…":"Confirm order"; }
+-    }
+-  }
++  var sess=window.__forgeSession;if(!sess)return;var st=sess.pipe.state(),box=document.getElementById("cbInitLobbyList");if(!box)return;
++  var roster=sess.row.roster||[],by={};roster.forEach(function(r){by[r.unit]=r;});var keys=(__initDraftOrder&&__initDraftOrder.length?__initDraftOrder:roster.map(function(r){return r.unit;})).filter(function(k){return by[k];});
++  var ey=document.getElementById("cbInitEy"),title=document.getElementById("cbInitTitle");if(ey)ey.textContent=__initEditing?"Initiative · overseer":"Initiative";if(title)title.textContent=__initEditing?"Enter rolls and arrange turn order":"Roll for it";
++  box.innerHTML=keys.map(function(k,index){var r=by[k],roll=st.rolls[k],mine=window.ForgeBoard.controls(sess.me,k),rolling=!!__initPublishing[k],controls='';
++    if(sess.me.overseer){var orderButtons=__initEditing?'<span class="cbInitOrder"><button type="button" data-up="'+escapeHtml(k)+'"'+(index===0?' disabled':'')+' aria-label="Move earlier">↑</button><button type="button" data-down="'+escapeHtml(k)+'"'+(index===keys.length-1?' disabled':'')+' aria-label="Move later">↓</button></span>':'';controls=orderButtons+'<input class="cbInitScore" type="number" step="1" data-score="'+escapeHtml(k)+'" value="'+(roll!=null?escapeHtml(roll):'')+'" placeholder="—" aria-label="Initiative for '+escapeHtml(r.name||k)+'"><button class="cbInitRoll" data-u="'+escapeHtml(k)+'"'+(rolling?' disabled':'')+'>'+(rolling?'…':'Roll')+'</button>';
++    }else controls=roll!=null?'<b>'+roll+'</b>':(mine?'<button class="cbInitRoll" data-u="'+escapeHtml(k)+'"'+(rolling?' disabled':'')+'>'+(rolling?'rolling…':'Roll')+'</button>':'<i>waiting…</i>');
++    return '<div class="cbInitRow"><span>'+escapeHtml(r.name||k)+'</span><span class="cbInitVal">'+controls+'</span></div>';}).join('');
++  box.querySelectorAll('.cbInitRoll').forEach(function(b){b.onclick=function(){rollForUnit(sess,b.dataset.u);};});
++  box.querySelectorAll('[data-score]').forEach(function(inp){inp.onchange=function(){setManualInitiative(sess,inp.dataset.score,inp.value);};});
++  box.querySelectorAll('[data-up]').forEach(function(b){b.onclick=function(){moveInitiativeDraft(b.dataset.up,-1);};});box.querySelectorAll('[data-down]').forEach(function(b){b.onclick=function(){moveInitiativeDraft(b.dataset.down,1);};});
++  var ob=document.getElementById("cbInitLobbyOverseerBtns");if(ob){ob.style.display=sess.me.overseer?"flex":"none";if(sess.me.overseer){var allRolled=roster.every(function(r){return st.rolls[r.unit]!=null;}),cancel=document.getElementById("cbInitCancel"),rest=document.getElementById("cbInitRollRest");if(cancel)cancel.style.display=__initEditing?"":"none";if(rest){rest.disabled=allRolled;rest.style.display=__initEditing?"none":"";}var conf=document.getElementById("cbInitConfirm");if(conf){conf.disabled=__initConfirming;conf.textContent=__initConfirming?"confirming…":(st.initiative?"Apply order":"Confirm order");}}}
+ }
+ function showInitiativeLobby(){ initiativeLobbyOpen=true; var el=document.getElementById("cbInitLobby"); if(el) el.style.display="flex"; renderInitiativeLobby(); }
+-function hideInitiativeLobby(){ initiativeLobbyOpen=false; var el=document.getElementById("cbInitLobby"); if(el) el.style.display="none"; }
++function hideInitiativeLobby(){initiativeLobbyOpen=false;var el=document.getElementById("cbInitLobby");if(el)el.style.display="none";}
+ function syncInitiativeLobby(){
+-  var sess=window.__forgeSession; if(!sess) return;
+-  var st=sess.pipe.state();
+-  if(st.status==="active" && !st.initiative){ if(!initiativeLobbyOpen) showInitiativeLobby(); else renderInitiativeLobby(); }
+-  else if(initiativeLobbyOpen) hideInitiativeLobby();
+-  syncStagingPanel(sess,st);   // Task 11: same event/boot call sites drive the staging panel too
++  var sess=window.__forgeSession;if(!sess)return;var st=sess.pipe.state();
++  if(__initEditing){if(!initiativeLobbyOpen)showInitiativeLobby();else renderInitiativeLobby();}
++  else if(st.status==="active"&&!st.initiative){if(!initiativeLobbyOpen)showInitiativeLobby();else renderInitiativeLobby();}
++  else if(initiativeLobbyOpen)hideInitiativeLobby();syncStagingPanel(sess,st);
+ }
+ /* Task 11: shown between join and Start fight (state.status stays "staging"
+    — forge-replay's initialState default — until session_started flips it to
+@@ -8187,7 +8199,7 @@ function confirmSlotInitiative(){
+   var names=pending.map(function(k){ return escapeHtml((unitByKey(k)&&unitByKey(k).name)||k); }).join(", ");
+   closeSlotModal();
+   clog("<i>The DM slots "+names+" into the turn order.</i>");
+-  netSessionPublish("initiative_set", sess.pipe.setInitiative(order,resumeAt));
++  netSessionPublish("initiative_set", sess.pipe.setInitiative(order,resumeAt,true));
+ }
+ 
+ /* #4: only canvas clicks reach the board. This global listener used to run
+@@ -8250,6 +8262,8 @@ addEventListener("pointerup", function(e){ if(e.target!==renderer.domElement) re
+   /* Task 15: reinforcements */
+   wireAddFoeSearch();
+   if(g("ovAddFoe")) g("ovAddFoe").addEventListener("click",openAddFoeModal);
++  if(g("ovInitiative")) g("ovInitiative").addEventListener("click",openInitiativeEditor);
++  if(g("cbInitCancel")) g("cbInitCancel").addEventListener("click",closeInitiativeEditor);
+   if(g("afStartPlace")) g("afStartPlace").addEventListener("click",startAddFoePlacing);
+   if(g("afCancel")) g("afCancel").addEventListener("click",closeAddFoeModal);
+   if(g("cbSlotConfirm")) g("cbSlotConfirm").addEventListener("click",confirmSlotInitiative);

@@ -38,7 +38,7 @@
      flat resource keys (slot1, pact) that STARTER_KITS already established. */
   function forgeResKey(key) {
     if (!key) return key;
-    var m = /^spell_(\d+)$/.exec(key);
+    var m = /^(?:spell|sorc)_(\d+)$/.exec(key);
     if (m) return "slot" + m[1];
     if (key === "pactSlots") return "pact";
     if (key === "sorcery") return "sorcery";
@@ -165,6 +165,13 @@ function combatErrorKit(charData, err) {
         res[fk] = cur;
         pools.push({ key: fk, rawKey: raw, level: lvl, label: "Lvl " + lvl,
           badge: "Lvl " + lvl, max: max, current: cur, tone: "class", kind: "slot" });
+      });
+    }
+    if (cf.sorcererSlots) {
+      Object.keys(cf.sorcererSlots).forEach(function(lk){
+        var lvl=parseInt(lk,10);if(!lvl)return;var rec=cf.sorcererSlots[lk]||{},max=rec.max||0;if(!max)return;
+        var raw="sorc_"+lvl,fk=forgeResKey(raw),cur=Math.max(0,max-(pip[raw]||0));
+        if(res[fk]==null){res[fk]=cur;pools.push({key:fk,rawKey:raw,level:lvl,label:"Sorcerer "+lvl,badge:"Lvl "+lvl,max:max,current:cur,tone:"class",kind:"slot"});}
       });
     }
     if (!(sc.pools || []).length && cf.pactSlots && cf.pactSlots.max) {
@@ -424,11 +431,11 @@ function combatErrorKit(charData, err) {
     "hands of healing":   { kind: "heal", rng: 1 },
 
     // ── buff (single-target enemy debuff) ──
-    "hex":                { kind: "buff", rng: 18 },
+    "hex":                { kind: "buff", rng: 18, effectKind: "hex", concentration: true },
     "hunter's mark":      { kind: "buff", rng: 18 },
 
     // ── ally buff ──
-    "bless":              { kind: "buffAlly", rng: 6 },
+    "bless":              { kind: "buffAlly", rng: 6, effectKind: "bless", targetCount: 3, concentration: true },
     "guidance":           { kind: "buffAlly", rng: 1 },
     "sanctuary":          { kind: "buffAlly", rng: 6 },
     "aid":                { kind: "buffAlly", rng: 6 },
@@ -664,6 +671,9 @@ function combatErrorKit(charData, err) {
           cost:        cost,
           origin:      sp.origin || "class",
           rider:       rider,
+          effectKind:  proj && proj.effectKind || null,
+          targetCount: proj && proj.targetCount || null,
+          concentration: !!(proj && proj.concentration || sp.conc || sp.concentration),
           greyed:      greyed || false,
           greyReason:  greyReason || null,
           _src:        sp
@@ -1225,6 +1235,9 @@ function combatErrorKit(charData, err) {
       free:   !!t.free,
       spell:  !!t.spell,
       conc:   !!t.conc,
+      effectKind: t.effectKind || null,
+      targetCount: t.targetCount || null,
+      concentration: !!(t.concentration || t.conc),
       cost:   t.cost || null,
       rider:  t.rider || null,
       strikes: t.strikes || null,

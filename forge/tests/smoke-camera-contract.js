@@ -12,7 +12,7 @@ ok(s.includes('id="cameraViewToggle"'),"view toggle is present in the local came
 ok(s.includes("camera.getWorldDirection(forward)"),"pan is camera-relative after orbit");
 ok(s.includes("e.shiftKey||e.button===1"),"Shift-drag and middle-drag pan without stealing right-click targeting");
 ok(s.includes("const cameraTouches=new Map()")&&s.includes("pinchGap/gap"),"touch supports two-finger pan and pinch zoom");
-ok(s.includes("cameraFollowTurn(u);   // Phase 1.5"),"turn start re-engages active-unit follow");
+ok(s.includes("cameraFollowTurn(u);"),"turn start re-engages active-unit follow");
 ok(s.includes("cameraFollowTick();   // Phase 1.5"),"follow tracks tweened movement continuously");
 ok(s.includes("frameCameraPair(a,t)"),"target selection frames attacker and target");
 ok(s.includes("Overview is available to the overseer only"),"full-map overview explains its player gate");

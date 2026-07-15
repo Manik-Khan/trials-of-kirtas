@@ -21,9 +21,10 @@ ok(html.indexOf("var DISCOVERY_RENDER={") < html.indexOf("resize(); rebuild();")
 ok(html.indexOf('var SESSION_ID = new URLSearchParams(location.search).get("session");') < html.indexOf("resize(); rebuild();"),"session identity exists before initial rebuild");
 ok(!html.includes("const SESSION_ID = qs.get('session');"),"session identity has no late lexical TDZ declaration");
 has(html,"function buildFogVeil","unexplored masking is one continuous veil");
-has(html,"depthTest:false,depthWrite:false","veil cannot z-fight with terrain tops");
+has(html,"depthTest:true,depthWrite:false","veil cannot z-fight with terrain tops");
+has(html,"veil.position.y=-BASE+.02","unexplored mask sits at terrain ground level instead of forming an overhead slab");
 has(html,"tagDiscoveryObject","props, decals, and lights obey discovery state");
-has(html,"q.mode==='visible-only'?st===2:st!==0","props, decals, and lights require current visibility while terrain memory may remain");
+has(html,"q.mode==='visible-only'?detailed:st!==0","props, decals, and lights require current visibility while terrain memory may remain");
 has(html,"id=\"sceneCoverAudit\"","staff can run cover calibration from Forge menu");
 has(html,"window.addForgeRow(html,{channel:'system'})","cover audit reports to System feed");
 ok(!html.includes("obj.scale.set(1.025,height,1.025)"),"overlapping fog volumes are absent");

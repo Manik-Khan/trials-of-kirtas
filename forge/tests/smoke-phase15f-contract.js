@@ -9,7 +9,7 @@ function ok(v,label){if(!v)throw new Error("FAIL: "+label);console.log("ok",++pa
 function has(text,needle,label){ok(text.includes(needle),label);}
 has(html,'forge-discovery.js?v=fd2','production surface loads the discovery module with a cache stamp');
 has(html,'var fogGroup = new THREE.Group(); scene.add(fogGroup);','fog is a world-space three.js group');
-has(html,'Player View sees the union of every living PC','party-shared vision contract is explicit');
+has(html,'Rules visibility and visual recognition are deliberately separate','party-shared vision contract is explicit');
 has(html,"if(!discoveryHasSession())return false;   // local sandbox is the DM's workbench",'local sandbox remains omniscient');
 has(html,'tc?tc.playerView(window.__forgeSession)','presentation mode, not account authority, selects player discovery');
 has(html,"sess.pipe.events()",'explored memory reconstructs from the shared event log');

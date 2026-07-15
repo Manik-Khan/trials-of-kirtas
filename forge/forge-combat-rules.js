@@ -8,7 +8,7 @@
   else root.ForgeCombatRules=api;
 })(typeof self!=="undefined"?self:this,function(){
   "use strict";
-  var VERSION="1.1.0";
+  var VERSION="1.2.0";
   var FLANKING_MODES=Object.freeze(["advantage","plus2","plus5","off"]);
   function clone(v){return v==null?v:JSON.parse(JSON.stringify(v));}
   function norm(s){return String(s||"").toLowerCase().replace(/[’]/g,"'").trim();}
@@ -47,6 +47,17 @@
     if(opts.targetDodging||opts.attackerDodging)dis.push("target dodging");
     var flank=flankingContribution(opts.flankingMode||"advantage",!!opts.flanked);adv=adv.concat(flank.advantageSources);
     var reduced=reduceRollSources(adv,dis);reduced.attackBonus=flank.attackBonus;return reduced;
+  }
+  function spellCastShape(action){
+    action=action||{};return {spell:!!action.spell,slot:action.bonus?"bonus":(action.reaction?"reaction":(action.free?"free":"action")),level:Math.max(0,Number(action.castLevel!=null?action.castLevel:action.level)||0),label:action.label||"Spell"};
+  }
+  function canCastSpell(economy,action){
+    var next=spellCastShape(action);if(!next.spell)return {ok:true};
+    var prior=(economy&&economy.spellCasts||[]).slice(),hasBonus=prior.some(function(c){return c&&c.slot==="bonus";});
+    function actionCantrip(c){return c&&c.slot==="action"&&Number(c.level)===0;}
+    if(hasBonus&&!actionCantrip(next))return {ok:false,why:"after a bonus-action spell, only an action cantrip may be cast this turn"};
+    if(next.slot==="bonus"&&prior.some(function(c){return !actionCantrip(c);}))return {ok:false,why:"a bonus-action spell cannot follow another spell this turn except an action cantrip"};
+    return {ok:true};
   }
   function validDamageExpression(expr){
     if(typeof expr==="number")return Number.isFinite(expr)&&expr>=0;
@@ -95,7 +106,7 @@
     FR.replayLog=function(roster,rows){var state=rawReplay(roster,rows),active=FR.activeUnit(state);if(!active||!state.economy)return state;var list=(rows||[]).slice().sort(function(a,b){return Number(a.seq||0)-Number(b.seq||0);}),start=0,corrections={};list.forEach(function(r){if(r.kind==="override"&&r.payload)corrections[r.payload.corrects_seq]=r.payload.correction||{};});for(var i=list.length-1;i>=0;i--){if(list[i].kind==="turn_ended"||list[i].kind==="initiative_set"||list[i].kind==="session_started"||list[i].kind==="restore"){start=i+1;break;}}var add=0;for(var j=start;j<list.length;j++)if(list[j].unit===active)add+=delta(list[j],corrections);state.economy.movedFt=Math.max(0,state.economy.movedFt+add);return state;};
     FR.__phase15gMoveCosts=true;return true;
   }
-  var API=Object.freeze({VERSION:VERSION,FLANKING_MODES:FLANKING_MODES,assertFlankingMode:assertFlankingMode,reduceRollSources:reduceRollSources,hasCondition:hasCondition,incapacitated:incapacitated,isFlanked:isFlanked,flankingContribution:flankingContribution,attackRollSources:attackRollSources,validDamageExpression:validDamageExpression,requireDamage:requireDamage,tollDamage:tollDamage,auditKit:auditKit,categoryForHtml:categoryForHtml,proneStandCostSquares:proneStandCostSquares,crawlCostSquares:crawlCostSquares,effectOp:effectOp,addCondition:addCondition,installReplayMovementCosts:installReplayMovementCosts,_internals:{allActions:allActions,copyAttackShape:copyAttackShape,scaleDie:scaleDie}});
+  var API=Object.freeze({VERSION:VERSION,FLANKING_MODES:FLANKING_MODES,assertFlankingMode:assertFlankingMode,reduceRollSources:reduceRollSources,hasCondition:hasCondition,incapacitated:incapacitated,isFlanked:isFlanked,flankingContribution:flankingContribution,attackRollSources:attackRollSources,spellCastShape:spellCastShape,canCastSpell:canCastSpell,validDamageExpression:validDamageExpression,requireDamage:requireDamage,tollDamage:tollDamage,auditKit:auditKit,categoryForHtml:categoryForHtml,proneStandCostSquares:proneStandCostSquares,crawlCostSquares:crawlCostSquares,effectOp:effectOp,addCondition:addCondition,installReplayMovementCosts:installReplayMovementCosts,_internals:{allActions:allActions,copyAttackShape:copyAttackShape,scaleDie:scaleDie}});
   if(typeof window!=="undefined")installReplayMovementCosts(window);
   return API;
 });

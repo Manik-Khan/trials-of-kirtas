@@ -22,7 +22,7 @@
   else root.ForgeTableCorrectness=api;
 })(typeof self!=="undefined"?self:this,function(root){
   "use strict";
-  var VERSION="1.3.0";
+  var VERSION="1.4.0";
   var VIEW_KEY="tok-forge-view-mode-v1";
 
   function esc(s){return String(s==null?"":s).replace(/[&<>"']/g,function(c){return {"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c];});}
@@ -138,17 +138,22 @@
     return out;
   }
   function factFromEvent(row,declared){
-    if(!row||!(row.kind==="attack_resolved"||row.kind==="ability_used"))return null;
+    if(!row)return null;
+    if(row.kind==="prompt_answered"&&row.payload&&row.payload.context&&row.payload.context.kind==="opportunity-attack"){
+      var o=row.payload.context;return {kind:"attack",actor:o.actor||row.unit,target:o.target,mode:o.mode||"Opportunity Attack",roll:o.roll,rollTotal:o.roll_total,hitBonus:o.hitBonus,hit:!!o.hit,crit:!!o.crit,dmg:o.dmg,dmgParts:o.dmgParts,dmgFormula:o.dmgFormula,mods:o.mods||[],d20Rolls:o.d20_rolls,d20KeptIndex:o.d20_kept_index,narration:o.warded?"Sanctuary turned the opportunity attack aside.":null,concentration:o.concentration||row.payload.concentration||null};
+    }
+    if(!(row.kind==="attack_resolved"||row.kind==="ability_used"))return null;
     var p=row.payload||{},ctx=p.context||{};
     if(row.kind==="ability_used"){
       if(ctx&&typeof ctx==="object"&&ctx.kind==="sanctuary-save")return {kind:"sanctuary-save",actor:row.unit,target:ctx.target,roll:ctx.roll,mod:ctx.mod,total:ctx.total,dc:ctx.dc,saved:!!ctx.saved};
+      if(ctx&&typeof ctx==="object"&&ctx.kind==="save")return {kind:"save",actor:row.unit,unit:row.unit,target:ctx.target,ability:p.ability||"Spell",saveAbility:ctx.ability,saveD20:ctx.d20,saveBonus:ctx.bonus,saveMods:ctx.mods||[],saveTotal:ctx.total,saveRoll:ctx.total,dc:ctx.dc,saved:!!ctx.saved,dmg:p.dmg,effects:p.effects||[],narration:ctx.narration||null,concentration:ctx.concentration||p.concentration||null};
       var hasLedgerOp=(p.effects||[]).some(function(op){return op&&(op.add_effect||op.remove_effect);});
       if(hasLedgerOp&&p.silent!==false)return null;
       return {kind:"ability",actor:row.unit,unit:row.unit,ability:p.ability||p.mode||"Ability",target:p.target||(p.targets&&p.targets[0])||null,effects:p.effects||[],heal:p.heal,dmg:p.dmg,narration:typeof p.context==="string"?p.context:(p.narration||null)};
     }
     var d=declared||{}, all=Object.assign({},d,p);
     var coverName=all.coverName||({0:"none",2:"half",5:"three-quarters"})[all.cover]||(all.cover===Infinity?"total":null);
-    return {kind:"attack",actor:row.unit,unit:row.unit,target:all.target,mode:all.mode||"Attack",roll:all.roll,hitBonus:all.hitBonus,hit:!!p.hit,crit:p.crit!=null?!!p.crit:!!d.crit,dmg:p.dmg,dmgParts:p.dmgParts||all.dmgParts,dmgFormula:p.dmgFormula||all.dmgFormula,adv:!!all.adv,dis:!!all.dis,advReason:all.advReason,cover:all.cover,coverName:coverName,mods:all.mods||[],dropped:all.dropped,d20Rolls:all.d20_rolls||all.d20Rolls,d20KeptIndex:all.d20_kept_index!=null?all.d20_kept_index:all.d20KeptIndex,reactionD20Rolls:all.reaction_d20_rolls||all.reactionD20Rolls,reactionD20KeptIndex:all.reaction_d20_kept_index!=null?all.reaction_d20_kept_index:all.reactionD20KeptIndex};
+    return {kind:"attack",actor:row.unit,unit:row.unit,target:all.target,mode:all.mode||"Attack",roll:all.roll,hitBonus:all.hitBonus,hit:!!p.hit,crit:p.crit!=null?!!p.crit:!!d.crit,dmg:p.dmg,dmgParts:p.dmgParts||all.dmgParts,dmgFormula:p.dmgFormula||all.dmgFormula,adv:!!all.adv,dis:!!all.dis,advReason:all.advReason,cover:all.cover,coverName:coverName,mods:all.mods||[],rollTotal:all.roll_total!=null?all.roll_total:all.rollTotal,dropped:all.dropped,d20Rolls:all.d20_rolls||all.d20Rolls,d20KeptIndex:all.d20_kept_index!=null?all.d20_kept_index:all.d20KeptIndex,reactionD20Rolls:all.reaction_d20_rolls||all.reactionD20Rolls,reactionD20KeptIndex:all.reaction_d20_kept_index!=null?all.reaction_d20_kept_index:all.reactionD20KeptIndex,concentration:all.concentration||null};
   }
   function pushEvent(row){
     if(!row)return "";

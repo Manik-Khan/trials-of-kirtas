@@ -6,8 +6,8 @@ const rules=fs.readFileSync(path.join(__dirname,"..","forge-combat-rules.js"),"u
 const table=fs.readFileSync(path.join(__dirname,"..","forge-table-correctness.js"),"utf8");
 let pass=0;function has(src,x,m){if(!src.includes(x))throw Error("FAIL: "+m);console.log("ok",++pass,"-",m);}function lacks(src,x,m){if(src.includes(x))throw Error("FAIL: "+m);console.log("ok",++pass,"-",m);}
 
-has(html,'forge-combat-rules.js?v=fcr1','production surface loads the Phase 1.5g combat-rules seam');
-has(html,'forge-table-correctness.js?v=fg1','feed/channel seam is cache-stamped');
+has(html,'forge-combat-rules.js?v=fcr2','production surface loads the Phase 1.5g combat-rules seam');
+has(html,'forge-table-correctness.js?v=fg4','feed/channel seam is cache-stamped');
 has(table,'["table","system","all"]','feed exposes Table, System, and All filters');
 has(table,'data-feed-channel','feed rows retain their category');
 has(table,'.fg-frow:not([data-feed-channel])','rows that predate decorator installation are retroactively classified');

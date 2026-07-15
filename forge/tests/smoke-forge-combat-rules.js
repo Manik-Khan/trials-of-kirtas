@@ -5,7 +5,7 @@ let pass=0;
 function ok(v,m){if(!v)throw new Error("FAIL: "+m);console.log("ok",++pass,"-",m);}
 function throws(fn,re,m){let e;try{fn();}catch(x){e=x;}ok(e&&re.test(e.message),m);}
 
-ok(F.VERSION==="1.1.0","combat-rules version is pinned");
+ok(F.VERSION==="1.2.0","combat-rules version is pinned");
 ok(F.FLANKING_MODES.join(",")==="advantage,plus2,plus5,off","all shared flanking modes are stable");
 ok(F.assertFlankingMode()==="advantage","advantage is the compatibility/default flanking rule");
 throws(()=>F.assertFlankingMode("double-dice"),/unknown flanking mode/,"unknown flanking rules fail loudly");
@@ -34,6 +34,13 @@ ok(F.flankingContribution("advantage",true).advantageSources[0]==="flanking","de
 ok(F.flankingContribution("plus2",true).attackBonus===2,"plus2 variant is numerical, not advantage");
 ok(F.flankingContribution("plus5",true).attackBonus===5,"plus5 variant is numerical, not advantage");
 ok(F.flankingContribution("off",true).attackBonus===0,"off mode contributes nothing");
+
+const actionSpell={label:"Bless",spell:true,level:1},bonusSpell={label:"Sanctuary",spell:true,level:1,bonus:true},actionCantrip={label:"Sacred Flame",spell:true,level:0};
+ok(F.spellCastShape(bonusSpell).slot==="bonus"&&F.spellCastShape(bonusSpell).level===1,"spell facts preserve casting-time economy and level");
+ok(!F.canCastSpell({spellCasts:[F.spellCastShape(actionSpell)]},bonusSpell).ok,"an action spell blocks a later bonus-action spell that turn");
+ok(F.canCastSpell({spellCasts:[F.spellCastShape(bonusSpell)]},actionCantrip).ok,"a bonus-action spell permits an action cantrip");
+ok(!F.canCastSpell({spellCasts:[F.spellCastShape(bonusSpell)]},actionSpell).ok,"a bonus-action spell blocks a later leveled action spell");
+ok(F.canCastSpell({spellCasts:[F.spellCastShape(actionSpell)]},{label:"Guiding Bolt",spell:true,level:1}).ok,"two action spells remain legal when another feature supplies the action");
 
 const effectLookup=(u,k)=>!!(u._effects||[]).includes(k);
 r=F.attackRollSources({attacker:{...A,_effects:["prone"]},target:T,action:{kind:"attack",rng:1},distanceFt:5,effectLookup});

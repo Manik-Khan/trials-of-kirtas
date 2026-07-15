@@ -5,7 +5,7 @@ let pass=0;
 function ok(v,label){if(!v)throw new Error("FAIL: "+label);pass++;console.log("ok",pass,"-",label);}
 function row(seq,kind,unit,payload){return {seq,kind,unit,payload:payload||{}};}
 
-ok(E.VERSION==="1.0.0","version pinned");
+ok(E.VERSION==="1.2.0","version pinned");
 const add=E.addSanctuary({source:"liadan",target:"vesperian",dc:13,nonce:7});
 ok(add.add_effect.kind==="sanctuary"&&add.add_effect.dc===13,"Sanctuary effect record carries kind and DC");
 ok(add.add_effect.duration.count===10&&add.add_effect.duration.unit==="liadan","Sanctuary lasts ten source turns");
@@ -13,6 +13,8 @@ ok(E.isSanctuaryAction({label:"Sanctuary (2nd)"}),"upcast-labelled Sanctuary is 
 ok(!E.isSanctuaryAction({label:"Shield of Faith"}),"other wards are not mistaken for Sanctuary");
 ok(E.harmfulDirect({kind:"attack"})&&E.harmfulDirect({kind:"save"})&&E.harmfulDirect({kind:"buff"}),"direct harmful action kinds are gated");
 ok(!E.harmfulDirect({kind:"heal"})&&!E.harmfulDirect({kind:"buffAlly"}),"heals and friendly buffs bypass the gate");
+ok(!E.harmfulDirect({kind:"heal",dmg:"1d4+3"}),"legacy healing dice never masquerade as hostile damage");
+ok(E.harmfulDirect({hit:4,dmg:"1d6+2",rng:1}),"untyped foe attack shapes are defensively recognized");
 ok(!E.harmfulDirect({kind:"save",aoe:true}),"area effects bypass the direct-target ward gate");
 
 let rows=[
@@ -31,8 +33,23 @@ ok(ward.expires.startCount===11,"ten-round expiry is anchored to the caster turn
 const saveFail=E.wisdomSave(ward,1,8),savePass=E.wisdomSave(ward,3,10);
 ok(!saveFail.saved&&saveFail.total===9,"failed Wisdom save is deterministic");
 ok(savePass.saved&&savePass.total===13,"successful Wisdom save meets the DC");
-ok(E.wisdomSave(ward,-20,20).saved,"natural 20 succeeds");
-ok(!E.wisdomSave(ward,20,1).saved,"natural 1 fails");
+ok(!E.wisdomSave(ward,-20,20).saved,"a natural 20 does not override an insufficient saving-throw total");
+ok(E.wisdomSave(ward,20,1).saved,"a natural 1 does not override a sufficient saving-throw total");
+
+
+const blessGroup=E.addBlessGroup({source:"liadan",targets:["liadan","caim","vesperian"],nonce:21});
+let blessed=E.replay([row(1,"initiative_set","dm",{order:["liadan","caim"]}),row(2,"ability_used","liadan",{effects:blessGroup})]);
+ok(blessGroup.length===3&&E.find(blessed,"caim","bless").die==="1d4","Bless creates replayable 1d4 effects for all selected targets");
+ok(E.modifierDie(blessed,"caim","bless",4).roll===4,"Bless modifier evidence preserves the rolled d4");
+let conc=E.concentrationSave(blessed,"liadan",7,2,9,{});
+ok(conc.required&&conc.dc===10&&conc.total===11&&conc.saved,"concentration save uses DC 10 for ordinary damage");
+conc=E.concentrationSave(blessed,"liadan",24,2,8,{});
+ok(conc.dc===12&&!conc.saved&&conc.effects.length===3,"failed concentration removes every effect from that casting");
+conc=E.concentrationSave(blessed,"liadan",1,99,20,{incapacitated:true});
+ok(conc.automatic&&!conc.saved&&conc.effects.length===3,"falling unconscious breaks concentration without a saving throw");
+const hex=E.addHex({source:"cosmere",target:"goblin",nonce:22});
+let hexed=E.replay([row(1,"initiative_set","dm",{order:["cosmere","goblin"]}),row(2,"ability_used","cosmere",{effects:[hex]})]);
+ok(E.find(hexed,"goblin","hex").die==="1d6"&&E.concentrationRemovals(hexed,"cosmere").length===1,"Hex is a replayable concentration effect");
 
 const removal=E.removalForActor(st,"vesperian",{kind:"attack"});
 ok(removal&&removal.remove_effect===ward.id,"warded creature attack yields a removal operation");

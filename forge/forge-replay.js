@@ -24,8 +24,10 @@
     });
     return out;
   }
-  function applyResourceSpend(state, unitKey, spend) {
+  function applyResourceSpend(state, unitKey, spend, spendId) {
     var u = state.units[unitKey]; if (!u || !spend) return;
+    state.appliedResourceSpends = state.appliedResourceSpends || {};
+    if (spendId && state.appliedResourceSpends[spendId]) return;
     u.resources = normalizeResources(u.resources || {});
     var normalized = normalizeResources(spend);
     Object.keys(normalized).forEach(function (key) {
@@ -33,10 +35,12 @@
       if (!amount) return;
       u.resources[key] = Math.max(0, Number(u.resources[key] || 0) - amount);
     });
+    if (spendId) state.appliedResourceSpends[spendId] = { unit: unitKey, spend: normalized };
   }
   function freshEconomy(unit) {
     return { unit: unit || null, movedFt: 0, movementBonusFt: 0, movementCostFt: 0,
-             usedAction: false, usedBonus: false, attacked: false };
+             usedAction: false, usedBonus: false, attacked: false,
+             spellCasts: [], bonusSpellCast: false };
   }
 
   function initialState(roster) {
@@ -53,7 +57,7 @@
     return {
       status: "staging", units: units, rolls: {}, initiative: null,
       turnsEnded: 0, pendingAction: null, pendingPrompt: null,
-      chat: [], lastSeq: 0,
+      chat: [], lastSeq: 0, appliedResourceSpends: {},
       economy: freshEconomy(null)
     };
   }
@@ -75,6 +79,11 @@
     if (!state.economy || unit !== state.economy.unit) return;
     if (p.restores === "action") { state.economy.usedAction = false; return; }
     var slot = p.slot || "action";
+    if (p.spell) {
+      var cast={slot:slot,level:Math.max(0,Number(p.spell_level)||0),ability:p.ability||p.mode||"Spell"};
+      state.economy.spellCasts.push(cast);
+      if(slot==="bonus")state.economy.bonusSpellCast=true;
+    }
     if (slot === "bonus") { state.economy.usedBonus = true; }
     else if (slot === "free") { /* no economy cost */ }
     else { state.economy.usedAction = true; if (isAttack) state.economy.attacked = true; }
@@ -84,7 +93,9 @@
     return { unit: e.unit, movedFt: Number(e.movedFt) || 0,
              movementBonusFt: Number(e.movementBonusFt) || 0,
              movementCostFt: Number(e.movementCostFt) || 0,
-             usedAction: !!e.usedAction, usedBonus: !!e.usedBonus, attacked: !!e.attacked };
+             usedAction: !!e.usedAction, usedBonus: !!e.usedBonus, attacked: !!e.attacked,
+             spellCasts: (e.spellCasts||[]).map(function(c){return Object.assign({},c);}),
+             bonusSpellCast: !!e.bonusSpellCast };
   }
   function round(state) {
     if (!state.initiative) return 0;
@@ -124,7 +135,8 @@
       case "initiative_set": {
         var prevRound = round(state);   // BEFORE overwriting order/turnsEnded
         state.initiative = p.order.slice();
-        if (p.resume_at != null && state.initiative.indexOf(p.resume_at) >= 0) {
+        var validResume = p.resume_at != null && state.initiative.indexOf(p.resume_at) >= 0;
+        if (validResume) {
           // mid-fight re-order (FORGE_BOARD.md §6 reinforcements): resume at the
           // named unit in the current round — a new goblin must not restart the round
           state.turnsEnded = (Math.max(1, prevRound) - 1) * state.initiative.length
@@ -133,8 +145,14 @@
           if (p.resume_at != null) console.warn("[forge-replay] resume_at not in order — restarting round: " + p.resume_at);
           state.turnsEnded = 0;
         }
-        Object.keys(state.units).forEach(function (k) { state.units[k].reactionUsed = false; });
-        resetEconomy(state);   // a re-order re-seats the active unit; fresh economy
+        /* A manual/reslot edit during an established turn must not refund the
+           active creature's movement, action, bonus action, spell limit, or
+           reactions. Fight-start initiative and legacy reorder facts retain
+           their original fresh-turn behaviour unless preserve_turn is explicit. */
+        if (!(p.preserve_turn && validResume)) {
+          Object.keys(state.units).forEach(function (k) { state.units[k].reactionUsed = false; });
+          resetEconomy(state);
+        }
         break;
       }
       case "turn_ended": {
@@ -163,8 +181,8 @@
         } else {
           // economy: movement is a derived fact — sum the declared path length ×5
           // for the active unit (path from the matching move_declared, else payload).
-          var mpath = (state.pendingAction && state.pendingAction.kind === "move" &&
-                       state.pendingAction.unit === row.unit) ? state.pendingAction.path : p.path;
+          var mpath = p.path || ((state.pendingAction && state.pendingAction.kind === "move" &&
+                       state.pendingAction.unit === row.unit) ? state.pendingAction.path : null);
           if (state.economy && row.unit === state.economy.unit && mpath)
             state.economy.movedFt += mpath.length * 5;
         }
@@ -179,14 +197,14 @@
         if (p.hit && tgt && state.units[tgt]) applyDamage(state.units[tgt], p.dmg || 0);
         consumeAdvGrant(state, row.unit);   // "next attack" grant is spent by attacking
         applyEffects(state, p.effects);
-        applyResourceSpend(state, row.unit, p.resource_spend);
+        applyResourceSpend(state, row.unit, p.resource_spend, p.resource_spend_id);
         spendSlot(state, row.unit, p, true);   // an attack spends its slot (default action)
         state.pendingAction = null;
         break;
       }
       case "ability_used":
         applyEffects(state, p.effects);
-        applyResourceSpend(state, row.unit, p.resource_spend);
+        applyResourceSpend(state, row.unit, p.resource_spend, p.resource_spend_id);
         if (state.economy && row.unit === state.economy.unit) {
           state.economy.movementBonusFt = (Number(state.economy.movementBonusFt) || 0) + (Number(p.movement_bonus_ft) || 0);
           state.economy.movementCostFt = (Number(state.economy.movementCostFt) || 0) + (Number(p.movement_cost_ft) || 0);
@@ -219,6 +237,9 @@
         var snap = JSON.parse(JSON.stringify(p.snapshot));
         Object.keys(state).forEach(function (k) { delete state[k]; });
         Object.assign(state, snap);
+        state.appliedResourceSpends = state.appliedResourceSpends || {};
+        if(!state.economy)resetEconomy(state);
+        if(!state.economy.spellCasts)state.economy.spellCasts=[];
         break;
       }
       case "edit":

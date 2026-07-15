@@ -7,18 +7,17 @@
      {unit, add_effect:{id,kind,label,source,target,dc,duration,...}}
      {unit, remove_effect:id, reason}
 
-   The first complete effect is Sanctuary (2014): 1 minute/10 rounds; a direct
-   attack or harmful targeted spell against the warded creature requires a WIS
-   save. The ward ends when its creature attacks, deals damage, or casts a spell
-   affecting an enemy. Area effects are deliberately outside the incoming
-   direct-target gate. */
+   Sanctuary, Bless, and Hex are first-class ledger effects. Sanctuary uses its
+   direct-target Wisdom-save gate; Bless/Hex use the same ledger for duration,
+   concentration replacement, refresh, replay, and removal. Area effects remain
+   outside Sanctuary's incoming direct-target gate. */
 (function(root,factory){
   var api=factory();
   if(typeof module!=="undefined"&&module.exports)module.exports=api;
   else root.ForgeEffects=api;
 })(typeof self!=="undefined"?self:this,function(){
   "use strict";
-  var VERSION="1.0.0";
+  var VERSION="1.2.0";
 
   function plain(v){ return v==null?v:JSON.parse(JSON.stringify(v)); }
   function n(v,d){ v=Number(v); return Number.isFinite(v)?v:d; }
@@ -113,6 +112,42 @@
     for(var i=0;i<a.length;i++)if(a[i].kind===kind)return a[i];
     return null;
   }
+  function blessId(source,target,nonce){return "bless:"+String(source)+":"+String(target)+":"+String(nonce==null?Date.now():nonce);}
+  function addBless(opts){
+    opts=opts||{};var source=String(opts.source||""),target=String(opts.target||"");
+    return {unit:target,add_effect:{
+      id:opts.id||blessId(source,target,opts.nonce),kind:"bless",label:"Bless",icon:"bless",
+      source:source,target:target,die:"1d4",concentration:true,group:opts.group||null,
+      duration:{kind:"source-turns",unit:source,count:Math.max(1,n(opts.turns,10))}
+    }};
+  }
+  function addBlessGroup(opts){
+    opts=opts||{};var nonce=opts.nonce==null?Date.now():opts.nonce,group=opts.group||("bless:"+String(opts.source||"")+":"+nonce);
+    return (opts.targets||[]).map(function(target,i){return addBless({source:opts.source,target:target,nonce:String(nonce)+":"+i,group:group,turns:opts.turns});});
+  }
+  function hexId(source,target,nonce){return "hex:"+String(source)+":"+String(target)+":"+String(nonce==null?Date.now():nonce);}
+  function addHex(opts){
+    opts=opts||{};var source=String(opts.source||""),target=String(opts.target||"");
+    return {unit:target,add_effect:{
+      id:opts.id||hexId(source,target,opts.nonce),kind:"hex",label:"Hex",icon:"hex",
+      source:source,target:target,die:"1d6",concentration:true,
+      duration:{kind:"source-turns",unit:source,count:Math.max(1,n(opts.turns,600))}
+    }};
+  }
+  function concentrationRemovals(state,source,reason){
+    var out=[];Object.keys(state&&state.effects||{}).forEach(function(id){var e=state.effects[id];
+      if(e&&e.source===source&&e.concentration)out.push(remove(id,reason||"concentration replaced",e.target,e));
+    });return out;
+  }
+  function modifierDie(state,unit,kind,roll){var e=find(state,unit,kind);if(!e)return null;return {effect:e,roll:Math.max(1,n(roll,1)),die:e.die||"1d4"};}
+  function concentrationSave(state,source,damage,mod,roll,opts){
+    opts=opts||{};var removals=concentrationRemovals(state,source,opts.reason||"concentration broken");
+    if(!removals.length)return {required:false,source:source,damage:Math.max(0,n(damage,0)),effects:[]};
+    var dmg=Math.max(0,n(damage,0)),dc=Math.max(10,Math.floor(dmg/2)),r=n(roll,1),m=n(mod,0),total=r+m;
+    var automatic=!!opts.incapacitated, saved=!automatic&&total>=dc;
+    return {required:true,source:source,damage:dmg,dc:dc,roll:r,mod:m,total:total,saved:saved,
+      automatic:automatic,effects:saved?[]:removals};
+  }
   function sanctuaryId(source,target,nonce){ return "sanctuary:"+String(source)+":"+String(target)+":"+String(nonce==null?Date.now():nonce); }
   function addSanctuary(opts){
     opts=opts||{};
@@ -130,7 +165,9 @@
   }
   function wisdomSave(effect,mod,roll){
     roll=n(roll,1);mod=n(mod,0);var total=roll+mod,dc=n(effect&&effect.dc,10);
-    return {roll:roll,mod:mod,total:total,dc:dc,saved:roll===20||(roll!==1&&total>=dc)};
+    /* Ability checks and saving throws do not auto-succeed on a natural 20 or
+       auto-fail on a natural 1 in the 2014 rules. Sanctuary uses the total. */
+    return {roll:roll,mod:mod,total:total,dc:dc,saved:total>=dc};
   }
   function isSanctuaryAction(a){
     var label=String(a&&a.label||"").replace(/\s+\([^)]*\)\s*$/,"").toLowerCase();
@@ -138,7 +175,17 @@
   }
   function harmfulDirect(a){
     if(!a||a.aoe||a.area||a.template)return false;
-    return a.kind==="attack"||a.kind==="save"||a.kind==="buff";
+    var kind=String(a.kind||"");
+    /* Explicitly non-hostile actions must stay non-hostile even when their
+       legacy record happens to use `dmg` as a generic dice field (healing did). */
+    if(kind==="heal"||kind==="buffAlly"||kind==="selfheal"||kind==="utility"||
+       kind==="universal"||kind==="stand"||kind==="monk-dodge"||kind==="monk-step")return false;
+    if(kind==="attack"||kind==="save"||kind==="buff"||kind==="damage")return true;
+    /* Defensive publisher normalisation: early foe/statblock adapters historically
+       passed {hit,dmg,rng} before assigning kind:"attack". Only an untyped record
+       may use this shape fallback; a typed friendly action must never be reclassified. */
+    if(kind)return false;
+    return a.hit!=null||a.dmg!=null||a.damage!=null||a.saveAbility!=null;
   }
   function breaksSanctuary(a){
     if(!a)return false;
@@ -164,7 +211,8 @@
     return out.length?out:null;
   }
   return {VERSION:VERSION,effectiveRows:effectiveRows,replay:replay,forUnit:forUnit,find:find,
-    addSanctuary:addSanctuary,remove:remove,wisdomSave:wisdomSave,isSanctuaryAction:isSanctuaryAction,
+    addSanctuary:addSanctuary,addBless:addBless,addBlessGroup:addBlessGroup,addHex:addHex,
+    concentrationRemovals:concentrationRemovals,concentrationSave:concentrationSave,modifierDie:modifierDie,remove:remove,wisdomSave:wisdomSave,isSanctuaryAction:isSanctuaryAction,
     harmfulDirect:harmfulDirect,breaksSanctuary:breaksSanctuary,removalForActor:removalForActor,eventSummary:eventSummary,
     _internals:{effectOps:effectOps,nextActive:nextActive}};
 });

@@ -4,7 +4,7 @@ const fs=require("fs"),path=require("path");
 const html=fs.readFileSync(path.join(__dirname,"..","topography-test-mock.html"),"utf8");
 const tc=fs.readFileSync(path.join(__dirname,"..","forge-table-correctness.js"),"utf8");
 let pass=0;function has(text,needle,label){if(!text.includes(needle))throw Error("FAIL: "+label);console.log("ok",++pass,"-",label);}
-has(html,'forge-effects.js?v=fe1','persistent-effect module is cache-stamped into the surface');
+has(html,'forge-effects.js?v=fe2','persistent-effect module is cache-stamped into the surface');
 has(html,'var LOCAL_EFFECT_ROWS=[]','local sandbox uses the same event-shaped effect ledger');
 has(html,'function refreshEffectState(trigger,silent)','effect state is rebuilt from the append-only log');
 has(html,'refreshEffectState(r,false);','every shared echo refreshes effect state');
@@ -15,7 +15,7 @@ has(html,'recordSanctuaryCheck(u,t,ward,result)','Sanctuary Wisdom saves are pub
 has(html,'Choose another target','failed saves preserve RAW alternate-target choice');
 has(html,'Lose attack','failed saves can consume the attempted action');
 has(html,'if(harmfulDirect(a)){sanctuaryGate','player direct attacks and harmful spells are intercepted pre-roll');
-has(html,'sanctuaryGate(u,atk,tgt,function rollStrike','foe AI checks Sanctuary before its attack roll');
+has(html,'sanctuaryGate(u,Object.assign({kind:"attack"},atk),tgt,function rollStrike','foe AI checks Sanctuary before its attack roll');
 has(html,'withBreakOp([],u,atk)','foe attacks break the attacker’s own ward on the resolved fact');
 has(html,'wardBreakPending=breakOpFor(u,a)','multi-strike attacks publish the ward break only once');
 has(html,'addSanctuary({source:u.unit,target:t.unit','Sanctuary casting creates an authoritative effect record');

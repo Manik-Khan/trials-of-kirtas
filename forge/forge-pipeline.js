@@ -177,9 +177,10 @@
 
       /* overseer tools — the bus identity gate is the enforcement */
       start: function () { return publish("__session", "session_started", {}); },
-      setInitiative: function (order, resumeAt) {
+      setInitiative: function (order, resumeAt, preserveTurn) {
         var payload = { order: order };
-        if (resumeAt != null) payload.resume_at = resumeAt;   // reinforcements (FORGE_BOARD.md §6): resume, don't restart the round
+        if (resumeAt != null) payload.resume_at = resumeAt;   // reinforcements/manual edits: resume, don't restart the round
+        if (preserveTurn) payload.preserve_turn = true;       // keep the active creature's spent economy/reaction state
         return publish("__session", "initiative_set", payload);
       },
       override: function (seq, correction) {
