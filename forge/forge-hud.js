@@ -282,7 +282,7 @@ font-family:"Barlow Condensed",system-ui;font-size:12px;cursor:pointer;letter-sp
 
     // Move bar
     var moveLeft = eco.moveLeft != null ? eco.moveLeft : Math.floor((u.speed || 30) / 5);
-    var moveMax = Math.floor((u.speed || 30) / 5);
+    var moveMax = eco.moveMax != null ? eco.moveMax : Math.floor((u.speed || 30) / 5);
     var movePct = moveMax > 0 ? Math.round(100 * moveLeft / moveMax) : 0;
 
     el.innerHTML = '<div class="fg-chip">'

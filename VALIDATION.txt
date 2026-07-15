@@ -1,0 +1,31 @@
+Forge Phase 2 correctness wave · validation · 2026-07-15
+
+Guarded patcher test on fresh uploaded-main baseline:
+- patch applied and target hashes verified
+- smoke-phase2-correctness-wave: 22 passed, 0 failed
+- smoke-feed-render: 66 passed, 0 failed
+- smoke-phase2b1-field-round: 30 checks green
+- JavaScript syntax checks: passed
+- git diff --check: passed
+
+Relevant current-tree regression suites:
+- protocol: 56/56
+- replay: 35/35
+- Forge board: 26/26
+- effects: 31/31
+- discovery: 41/41
+- table correctness: 29/29
+- feed renderer: 66/66
+- Phase 1.5e: 25/25
+- Phase 2b.1: 30/30
+- Phase 2f: 40/40
+- Phase 2f.1: 21/21
+- Phase 2f.2: 39/39
+- correctness wave: 22/22
+- kit derive: 341/341
+- starter kits: 20/20
+
+Whole battery comparison:
+- uploaded baseline: 44 total, 33 pass, 10 fail, 1 timeout
+- this slice: 45 total, 35 pass, 9 fail, 1 timeout
+- no new whole-battery failures; feed renderer moved from failing to passing

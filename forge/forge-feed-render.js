@@ -10,8 +10,22 @@
   function esc(s){return String(s==null?"":s).replace(/[&<>\"]/g,function(c){return {"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c];});}
   var VERDICTS={critHit:{label:"✶ CRIT",cls:"ffr-v ffr-v-crit"},hit:{label:"HIT",cls:"ffr-v ffr-v-hit"},miss:{label:"MISS",cls:"ffr-v ffr-v-miss"},fail:{label:"FAIL",cls:"ffr-v ffr-v-fail"},save:{label:"SAVE",cls:"ffr-v ffr-v-save"},fumble:{label:"NAT 1",cls:"ffr-v ffr-v-miss"}};
   function verdictBadge(f){if(f.kind==="save"||f.saveAbility)return f.saved?VERDICTS.save:VERDICTS.fail;if(f.crit&&f.hit)return VERDICTS.critHit;if(f.roll===1&&!f.hit)return VERDICTS.fumble;return f.hit?VERDICTS.hit:VERDICTS.miss;}
-  function modTags(f){var t=[];if(f.adv)t.push('<span class="ffr-mod ffr-mod-adv">⇑ adv'+(f.advReason?'·'+esc(f.advReason):'')+'</span>');if(f.dis)t.push('<span class="ffr-mod ffr-mod-dis">⇓ dis</span>');if(f.coverName)t.push('<span class="ffr-mod ffr-mod-cover">'+esc(f.coverName)+'</span>');(f.mods||[]).forEach(function(m){var k=m.k||"mod",cl=/bless|guidance/.test(k)?"ffr-mod-bless":/silvery/i.test(k)?"ffr-mod-sb":"";t.push('<span class="ffr-mod '+cl+'">'+esc(k)+(m.v!=null?' '+esc(m.v):'')+'</span>');});return t.join(" ");}
-  function d20MathLine(f){var p=['<span class="ffr-die">'+esc(f.roll!=null?f.roll:"?")+'</span>'];if(f.dropped!=null)p.push('<span class="ffr-die ffr-drop">'+esc(f.dropped)+'</span>');if(f.hitBonus!=null)p.push('<span class="ffr-mod-num">'+(Number(f.hitBonus)>=0?'+':'')+esc(f.hitBonus)+'</span>');if(f.roll!=null&&f.hitBonus!=null)p.push('<span class="ffr-total">= '+esc(Number(f.roll)+Number(f.hitBonus))+'</span>');var tags=modTags(f);if(tags)p.push(tags);return '<div class="ffr-math">'+p.join(' ')+'</div>';}
+  function modTags(f){var t=[];if(f.adv)t.push('<span class="ffr-mod ffr-mod-adv">⇑ adv'+(f.advReason?'·'+esc(f.advReason):'')+'</span>');if(f.dis)t.push('<span class="ffr-mod ffr-mod-dis">⇓ dis</span>');if(f.coverName)t.push('<span class="ffr-mod ffr-mod-cover">'+esc(f.coverName)+'</span>');(f.mods||[]).forEach(function(m){var k=m.k||"mod",label=String(k).replace(/_/g," "),cl=/bless|guidance/.test(k)?"ffr-mod-bless":/silvery/i.test(k)?"ffr-mod-sb":"",v=m.v!=null?Number(m.v):null;t.push('<span class="ffr-mod '+cl+'">'+esc(label)+(m.v!=null?' '+(isFinite(v)&&v>=0?'+':'')+esc(m.v):'')+'</span>');});return t.join(" ");}
+  function diceEvidence(rolls,keptIndex,label){
+    if(!Array.isArray(rolls)||!rolls.length)return "";
+    var out=rolls.map(function(v,i){return '<span class="ffr-die '+(i===Number(keptIndex)?'ffr-keep':'ffr-drop')+'">'+esc(v)+'</span>';}).join(' ');
+    return (label?'<span class="ffr-dice-label">'+esc(label)+'</span> ':'')+out;
+  }
+  function d20MathLine(f){
+    var p=[],base=diceEvidence(f.d20Rolls,f.d20KeptIndex,null);
+    p.push(base||'<span class="ffr-die">'+esc(f.roll!=null?f.roll:"?")+'</span>');
+    var reaction=diceEvidence(f.reactionD20Rolls,f.reactionD20KeptIndex,"SB");
+    if(reaction)p.push('<span class="ffr-reaction-dice">'+reaction+'</span>');
+    else if(f.dropped!=null)p.push('<span class="ffr-die ffr-drop">'+esc(f.dropped)+'</span>');
+    if(f.hitBonus!=null)p.push('<span class="ffr-mod-num">'+(Number(f.hitBonus)>=0?'+':'')+esc(f.hitBonus)+'</span>');
+    if(f.roll!=null&&f.hitBonus!=null)p.push('<span class="ffr-total">= '+esc(Number(f.roll)+Number(f.hitBonus))+'</span>');
+    var tags=modTags(f);if(tags)p.push(tags);return '<div class="ffr-math">'+p.join(' ')+'</div>';
+  }
   function rolledDice(part){
     if(part&&part.rolledDice)return part.rolledDice;
     var d=String(part&&part.dice||""),m=/(\d+)d(\d+)/i.exec(d),count=(part&&part.rolls||[]).length;

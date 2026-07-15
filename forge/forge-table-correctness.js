@@ -148,7 +148,7 @@
     }
     var d=declared||{}, all=Object.assign({},d,p);
     var coverName=all.coverName||({0:"none",2:"half",5:"three-quarters"})[all.cover]||(all.cover===Infinity?"total":null);
-    return {kind:"attack",actor:row.unit,unit:row.unit,target:all.target,mode:all.mode||"Attack",roll:all.roll,hitBonus:all.hitBonus,hit:!!p.hit,crit:p.crit!=null?!!p.crit:!!d.crit,dmg:p.dmg,adv:!!all.adv,dis:!!all.dis,advReason:all.advReason,cover:all.cover,coverName:coverName,mods:all.mods||[],dropped:all.dropped};
+    return {kind:"attack",actor:row.unit,unit:row.unit,target:all.target,mode:all.mode||"Attack",roll:all.roll,hitBonus:all.hitBonus,hit:!!p.hit,crit:p.crit!=null?!!p.crit:!!d.crit,dmg:p.dmg,dmgParts:p.dmgParts||all.dmgParts,dmgFormula:p.dmgFormula||all.dmgFormula,adv:!!all.adv,dis:!!all.dis,advReason:all.advReason,cover:all.cover,coverName:coverName,mods:all.mods||[],dropped:all.dropped,d20Rolls:all.d20_rolls||all.d20Rolls,d20KeptIndex:all.d20_kept_index!=null?all.d20_kept_index:all.d20KeptIndex,reactionD20Rolls:all.reaction_d20_rolls||all.reactionD20Rolls,reactionD20KeptIndex:all.reaction_d20_kept_index!=null?all.reaction_d20_kept_index:all.reactionD20KeptIndex};
   }
   function pushEvent(row){
     if(!row)return "";

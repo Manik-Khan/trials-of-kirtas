@@ -9,8 +9,8 @@ let pass=0;function ok(v,l){if(!v)throw new Error("FAIL: "+l);console.log("ok",+
 has(html,'id="psPreview">Inspect map','authoring preview is reachable before local combat');
 has(html,'id="psReturn"','authoring preview has a return door to party selection');
 has(html,'window.__forgeVerticalScale.setAuthoring','preview exposes the otherwise-covered vertical inspection control');
-has(html,'if(window.__forgeSession) applyLogEconomy(); // echoed log already owns this spend','session move echo does not subtract movement twice');
-has(html,'drawHi(); renderHud(); // beginTurn painted the full budget','refresh repaints the reconciled movement budget');
+has(html,'if(window.__forgeSession) reconcileMovementPresentation();','session move echo derives budget and reachable tiles without subtracting twice');
+has(html,'reconcileMovementPresentation();\n  renderHud();','refresh repaints budget, reach, and highlights through one door');
 ok(!html.includes("Entering the fight\\u2026"),'claim success no longer auto-enters after the first character');
 has(html,'Choose another character or press Enter the fight.','claim screen remains open for multiple characters');
 has(html,'function coverContestAvailable()','cover-contest visibility is geometry-aware');
@@ -21,8 +21,8 @@ has(html,'dmgParts:damage?damage.parts:null','shared attack facts carry damage c
 has(html,'dmgParts:damage.parts','local attack facts carry damage components');
 ok(/\.\.\/weapon-actions\.js\?v=fg(?:3|2e1|2f)/.test(html),'weapon-action import is cache-busted');
 has(html,'forge-kit-derive.js?v=b3','kit derivation cache stamp bumped');
-ok(/forge-feed-render\.js\?v=(?:b3|ffr3)/.test(html),'feed renderer cache stamp bumped');
-has(html,'forge-table-correctness.js?v=fg2','table-correctness cache stamp bumped');
+ok(/forge-feed-render\.js\?v=(?:b3|ffr4)/.test(html),'feed renderer cache stamp bumped');
+has(html,'forge-table-correctness.js?v=fg3','table-correctness cache stamp bumped');
 ok(html.indexOf('var DISCOVERY_RENDER={') < html.indexOf('resize(); rebuild();'),'discovery renderer still initializes before the first terrain build');
 ok(html.indexOf('var SESSION_ID') < html.indexOf('resize(); rebuild();'),'session id still initializes before the first terrain build');
 

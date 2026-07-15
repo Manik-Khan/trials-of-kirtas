@@ -60,7 +60,7 @@ var ctx = { unitName: nameOf };
   ok("attack: has total (= 23)", html.indexOf("= 23") !== -1);
 
   // Damage
-  ok("attack: has damage total (12)", html.indexOf("12 dmg") !== -1);
+  ok("attack: has damage total (12)", html.indexOf("Dmg:") !== -1 && html.indexOf("= <b>12</b>") !== -1);
 
   // NO AC
   ok("attack: no AC in output", FFR.assertNoAC(html));
@@ -144,7 +144,7 @@ var ctx = { unitName: nameOf };
     mods: [{ k: "bless", v: 3 }], dmg: 10
   };
   var html = FFR.rollBody(fact, ctx);
-  ok("bless: has bless icon", html.indexOf("\ud83d\ude4f") !== -1);
+  ok("bless: has bless treatment", html.indexOf("ffr-mod-bless") !== -1);
   ok("bless: has bless value", html.indexOf("+3") !== -1);
   ok("bless: no AC", FFR.assertNoAC(html));
 })();
@@ -175,7 +175,7 @@ var ctx = { unitName: nameOf };
   ok("save: has FAIL badge", html.indexOf("FAIL") !== -1);
   ok("save: has save ability", html.indexOf("WIS") !== -1);
   ok("save: has DC", html.indexOf("DC 13") !== -1);
-  ok("save: has damage", html.indexOf("3 dmg") !== -1);
+  ok("save: has damage", html.indexOf("Dmg:") !== -1 && html.indexOf("= <b>3</b>") !== -1);
   ok("save: no AC", FFR.assertNoAC(html));
 })();
 
@@ -215,8 +215,8 @@ var ctx = { unitName: nameOf };
                { rolls: [4, 4], bonus: 0, type: "Slashing", total: 8 }]
   };
   var html = FFR.rollBody(fact, ctx);
-  ok("multi-dmg: has total", html.indexOf("28 dmg") !== -1);
-  ok("multi-dmg: has detail block", html.indexOf("ffr-dmg-detail") !== -1);
+  ok("multi-dmg: has total", html.indexOf("Combined damage: <b>28</b>") !== -1);
+  ok("multi-dmg: has detail block", html.indexOf("ffr-dmg-wrap") !== -1 && html.indexOf("Crit dmg:") !== -1);
   ok("multi-dmg: detail has individual rolls", html.indexOf("[5]") !== -1 && html.indexOf("[3]") !== -1);
   ok("multi-dmg: no AC", FFR.assertNoAC(html));
 })();

@@ -12,12 +12,40 @@
   else root.ForgeReplay = api;
 })(typeof self !== "undefined" ? self : this, function (FP) {
 
+  function canonicalResourceKey(key) {
+    return /^(ki|kiPoints|ki_points|focus|focusPoints|focus_points)$/i.test(String(key || "")) ? "ki" : String(key || "");
+  }
+  function normalizeResources(resources) {
+    var out = {};
+    Object.keys(resources || {}).forEach(function (key) {
+      var canonical = canonicalResourceKey(key), value = Number(resources[key]);
+      if (!canonical || !isFinite(value)) return;
+      if (out[canonical] == null || key === canonical) out[canonical] = value;
+    });
+    return out;
+  }
+  function applyResourceSpend(state, unitKey, spend) {
+    var u = state.units[unitKey]; if (!u || !spend) return;
+    u.resources = normalizeResources(u.resources || {});
+    var normalized = normalizeResources(spend);
+    Object.keys(normalized).forEach(function (key) {
+      var amount = Math.max(0, normalized[key]);
+      if (!amount) return;
+      u.resources[key] = Math.max(0, Number(u.resources[key] || 0) - amount);
+    });
+  }
+  function freshEconomy(unit) {
+    return { unit: unit || null, movedFt: 0, movementBonusFt: 0, movementCostFt: 0,
+             usedAction: false, usedBonus: false, attacked: false };
+  }
+
   function initialState(roster) {
     var units = {};
     (roster || []).forEach(function (u) {
       units[u.unit] = {
         side: u.side, pos: { c: u.pos.c, r: u.pos.r },
         hp: u.hp, maxHp: (u.maxHp != null ? u.maxHp : u.hp),
+        resources: normalizeResources(u.resources || u.res || {}),
         conditions: [], reacts: (u.reacts || []).slice(),
         reactionUsed: false, downed: false, advGrant: null
       };
@@ -26,7 +54,7 @@
       status: "staging", units: units, rolls: {}, initiative: null,
       turnsEnded: 0, pendingAction: null, pendingPrompt: null,
       chat: [], lastSeq: 0,
-      economy: { unit: null, movedFt: 0, usedAction: false, usedBonus: false, attacked: false }
+      economy: freshEconomy(null)
     };
   }
 
@@ -41,7 +69,7 @@
      publisher's `slot` (default "action" for legacy rows), a `restores:"action"`
      ability (Action Surge) refunds the action. */
   function resetEconomy(state) {
-    state.economy = { unit: activeUnit(state), movedFt: 0, usedAction: false, usedBonus: false, attacked: false };
+    state.economy = freshEconomy(activeUnit(state));
   }
   function spendSlot(state, unit, p, isAttack) {
     if (!state.economy || unit !== state.economy.unit) return;
@@ -52,9 +80,11 @@
     else { state.economy.usedAction = true; if (isAttack) state.economy.attacked = true; }
   }
   function turnEconomy(state) {
-    var e = state.economy || { unit: null, movedFt: 0, usedAction: false, usedBonus: false, attacked: false };
-    return { unit: e.unit, movedFt: e.movedFt, usedAction: e.usedAction,
-             usedBonus: e.usedBonus, attacked: e.attacked };
+    var e = state.economy || freshEconomy(null);
+    return { unit: e.unit, movedFt: Number(e.movedFt) || 0,
+             movementBonusFt: Number(e.movementBonusFt) || 0,
+             movementCostFt: Number(e.movementCostFt) || 0,
+             usedAction: !!e.usedAction, usedBonus: !!e.usedBonus, attacked: !!e.attacked };
   }
   function round(state) {
     if (!state.initiative) return 0;
@@ -149,12 +179,18 @@
         if (p.hit && tgt && state.units[tgt]) applyDamage(state.units[tgt], p.dmg || 0);
         consumeAdvGrant(state, row.unit);   // "next attack" grant is spent by attacking
         applyEffects(state, p.effects);
+        applyResourceSpend(state, row.unit, p.resource_spend);
         spendSlot(state, row.unit, p, true);   // an attack spends its slot (default action)
         state.pendingAction = null;
         break;
       }
       case "ability_used":
         applyEffects(state, p.effects);
+        applyResourceSpend(state, row.unit, p.resource_spend);
+        if (state.economy && row.unit === state.economy.unit) {
+          state.economy.movementBonusFt = (Number(state.economy.movementBonusFt) || 0) + (Number(p.movement_bonus_ft) || 0);
+          state.economy.movementCostFt = (Number(state.economy.movementCostFt) || 0) + (Number(p.movement_cost_ft) || 0);
+        }
         spendSlot(state, row.unit, p, false);   // action / bonus / free per payload.slot
         break;
       case "prompt":
@@ -197,6 +233,7 @@
             state.units[au.unit] = {
               side: au.side || "foe", pos: { c: au.pos.c, r: au.pos.r },
               hp: au.hp, maxHp: (au.maxHp != null ? au.maxHp : au.hp),
+              resources: normalizeResources(au.resources || au.res || {}),
               conditions: [], reacts: (au.reacts || []).slice(),
               reactionUsed: false, downed: false, advGrant: null,
               name: au.name || au.unit, statblock: au.statblock || null
@@ -236,6 +273,7 @@
   return {
     initialState: initialState, activeUnit: activeUnit, round: round,
     applyEvent: applyEvent, replayLog: replayLog, snapshot: snapshot,
-    turnEconomy: turnEconomy
+    turnEconomy: turnEconomy,
+    canonicalResourceKey: canonicalResourceKey, normalizeResources: normalizeResources
   };
 });
