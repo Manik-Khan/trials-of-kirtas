@@ -1,0 +1,14 @@
+{
+  "CONTEXT_Forge-update-2026-07-15a.md": {
+    "sha256": "fb42dfe89669fb764f37906f3883ac7d374d44f04f23cc5a814fbf168f8ab569",
+    "bytes": 11116
+  },
+  "README_NEW_SESSION_2026-07-15.md": {
+    "sha256": "a4a2b7d2f192f723ea053ee01f73ffd84009e3fda924b5a4a70f5d423fe3d88f",
+    "bytes": 5583
+  },
+  "FORGE_PHASE2_REMAINDER_2026-07-15.md": {
+    "sha256": "512781f6560d3244825da6bcc26f4c12daf0ac62df2ba9bbcd67b067337434cc",
+    "bytes": 4424
+  }
+}
