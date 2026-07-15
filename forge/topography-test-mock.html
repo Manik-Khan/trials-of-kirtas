@@ -4,7 +4,7 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
 <title>Topography Test — Heightfield Diorama</title>
-<!-- Phase 2e: bounded tactical elevations + first-class stairs, ramps, and ledges -->
+<!-- Phase 2e.1: field sync hotfix over bounded elevations/connectors -->
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,600;0,700;1,600&family=Oswald:wght@300;400;500;600&family=EB+Garamond:ital@0;1&display=swap" rel="stylesheet">
@@ -807,6 +807,13 @@ body.forge-author-preview #partySelect{opacity:0;pointer-events:none}
   body.forge-player-view #discoveryStatus{color:#7f998c}
   @media(max-width:660px){#firePreviewLegend{bottom:145px;font-size:10px;gap:7px}.fireLeg span:last-child{display:none}#firePreviewReadout{min-width:140px}}
 </style>
+
+<style id="phase2e1FieldCss">
+/* Phase 2e.1: external feed CSS used a later #fgFeed .fg-frow rule that
+   overrode [hidden]. Keep channels truly separate and damage evidence visible. */
+#fgFeed .fg-frow[hidden]{display:none!important}
+#fgFeed .ffr-dmg-detail{display:block!important}
+</style>
 </head>
 <body>
   <div id="partySelect">
@@ -1163,7 +1170,7 @@ body.forge-author-preview #partySelect{opacity:0;pointer-events:none}
   </div>
 <script type="module">
 import * as THREE from 'three';
-import { assembleActions } from '../weapon-actions.js?v=fg3';
+import { assembleActions, buildWeaponActions } from '../weapon-actions.js?v=fg2e1';
 /* Module scope changes what escapes this block. Two consequences, both handled:
    · No inline HTML on*= attributes exist in this file (all 19 matches are JS
      property assignments like `hs.oninput=`), so no handler needs a global.
@@ -1756,6 +1763,10 @@ const OUTLINE_MAT=new THREE.MeshBasicMaterial({color:0x1a140e,side:THREE.BackSid
    the later discovery helper block is reached. The registry must already exist
    when terrain/prop construction calls tagDiscoveryObject(). */
 var DISCOVERY_RENDER={instanced:[],objects:[],veil:null,veilTexture:null};
+/* Phase 2e.1 boot guard: renderField() calls drawVerticalOverlay() during the
+   first rebuild, so this registry must exist before resize(); rebuild(). */
+var verticalOverlayGroup = new THREE.Group(); scene.add(verticalOverlayGroup);
+var VERTICAL_OVERLAY=false;
 function addWorld(geo,col,x,y,z,rot,fogCell){ // mesh + optional inverted-hull outline shell
   const m=new THREE.Mesh(geo,stoneMat(col)); m.position.set(x,y,z);
   if(rot){if(rot.x)m.rotation.x=rot.x; if(rot.y)m.rotation.y=rot.y;} world.add(m);
@@ -3195,8 +3206,6 @@ var CB = { active:false, over:false, units:[], order:[], ti:0, map:null, seen:nu
            log:[], hist:[], hptr:-1, turnStartPtr:-1, react:null, selKey:null, tgtKey:null };
 var moveGroup = new THREE.Group(); scene.add(moveGroup);
 var sightGroup = new THREE.Group(); scene.add(sightGroup);
-var verticalOverlayGroup = new THREE.Group(); scene.add(verticalOverlayGroup);
-var VERTICAL_OVERLAY=false;
 function verticalEdgeLine(a,b,col){
   var pa=connectorPoint(a),pb=connectorPoint(b),g=new THREE.BufferGeometry().setFromPoints([pa,pb]);
   var m=new THREE.LineBasicMaterial({color:col,transparent:true,opacity:.9,depthTest:false,depthWrite:false});
@@ -4012,6 +4021,70 @@ var __liveStatsWarned = {};
 var __genericKitWarned = {};
 var USE_FORGE_BAR = true;       // flag-guarded: true = new BG3 bar, false = old cbPanel
 
+/* Phase 2e.1 field repair: GitHub file uploads do not execute the Phase 2b.1
+   Node patcher. Detect an already-patched weapon-actions.js and otherwise
+   project Dueling into eligible one-handed melee / weapon-cantrip actions here.
+   The movement grid stays five feet; this is action derivation only. */
+function structuralHasDueling(structural){
+  var seen=[];
+  function walk(v){
+    if(v==null)return false;
+    if(typeof v==='string')return /\bdueling\b/i.test(v);
+    if(typeof v!=='object'||seen.indexOf(v)>=0)return false;
+    seen.push(v);
+    if(Array.isArray(v))return v.some(walk);
+    return Object.keys(v).some(function(k){return /fighting.?style/i.test(k)&&walk(v[k]);})
+      || (Array.isArray(v.features)&&v.features.some(function(f){return /\bdueling\b/i.test(String((f&&f.name)||f||''));}));
+  }
+  return walk(structural&&structural.classFeatures)||walk(structural&&structural.features);
+}
+function externalWeaponActionsOwnDueling(){
+  try{return typeof buildWeaponActions==='function'&&/duelingBonus/.test(Function.prototype.toString.call(buildWeaponActions));}
+  catch(_e){return false;}
+}
+function applyRuntimeDueling(actions,structural){
+  if(externalWeaponActionsOwnDueling()||!structuralHasDueling(structural))return actions||[];
+  return (actions||[]).map(function(raw){
+    var a=Object.assign({},raw),id=String(a.id||''),label=String(a.label||'');
+    var weapon=/^wpn-/.test(id)&&!/-2h$/.test(id)&&!a.range&&!/two[- ]handed/i.test(label);
+    var cantrip=/^cant-(?:boomingblade|greenflameblade)/.test(id)&&!a.range;
+    if(weapon||cantrip)a.dmgBonus=(Number(a.dmgBonus)||0)+2;
+    return a;
+  });
+}
+function assembleForgeActions(inventory,structural){
+  var actions=(typeof assembleActions==='function')?assembleActions(inventory||[],structural||{}):((structural&&structural.actions)||[]);
+  return applyRuntimeDueling(actions,structural||{});
+}
+function weaponCantripBase(action){
+  var label=String(action&&action.label||'').toLowerCase().replace(/\u2019/g,"'").trim();
+  if(/^booming blade(?:\s*[·-].*)?$/.test(label))return 'booming blade';
+  if(/^green[- ]flame blade(?:\s*[·-].*)?$/.test(label))return 'green-flame blade';
+  return null;
+}
+function dedupeWeaponCantripArray(arr){
+  if(!Array.isArray(arr))return arr;var winners=Object.create(null),drop=[];
+  arr.forEach(function(a,i){var k=weaponCantripBase(a);if(!k)return;var prev=winners[k];
+    if(prev==null){winners[k]=i;return;}
+    var old=arr[prev],oldLive=/^cant-/.test(String(old&&old.id||''))||/·/.test(String(old&&old.label||''));
+    var newLive=/^cant-/.test(String(a&&a.id||''))||/·/.test(String(a&&a.label||''));
+    var win=newLive&&!oldLive?i:prev,lose=win===i?prev:i,w=arr[win],l=arr[lose];
+    if(w&&l&&/^cant-/.test(String(w.id||''))&&l.id){w._derivedId=w.id;w.id=l.id;}
+    winners[k]=win;drop.push(lose);
+  });
+  return arr.filter(function(_a,i){return drop.indexOf(i)<0;});
+}
+function repairDerivedKit(kit){
+  if(!kit||typeof kit!=='object')return kit;
+  if(Array.isArray(kit.actions))kit.actions=dedupeWeaponCantripArray(kit.actions);
+  var tabs=kit.tabs;
+  if(tabs&&typeof tabs==='object'){
+    if(Array.isArray(tabs))tabs.forEach(function(tab){if(tab&&Array.isArray(tab.actions))tab.actions=dedupeWeaponCantripArray(tab.actions);if(tab&&Array.isArray(tab.items))tab.items=dedupeWeaponCantripArray(tab.items);});
+    else Object.keys(tabs).forEach(function(k){if(Array.isArray(tabs[k]))tabs[k]=dedupeWeaponCantripArray(tabs[k]);});
+  }
+  return kit;
+}
+
 function loadLiveStats(){
   if (__derivedKits) return Promise.resolve(__derivedKits);
   if (__deriveLoading) return __deriveLoading;
@@ -4021,11 +4094,9 @@ function loadLiveStats(){
     (party || []).forEach(function(c){
       byKey[c.key] = c;
       try {
-        var actions = (typeof assembleActions === "function")
-          ? assembleActions(c.inventory || [], c.structural || {})
-          : (c.structural && c.structural.actions) || [];
+        var actions = assembleForgeActions(c.inventory || [], c.structural || {});
         derived[c.key] = window.ForgeKitDerive
-          ? window.ForgeKitDerive.derive(c, { assembledActions: actions, starterKits: STARTER_KITS })
+          ? repairDerivedKit(window.ForgeKitDerive.derive(c, { assembledActions: actions, starterKits: STARTER_KITS }))
           : null;
       } catch(e){
         clog('<i>' + escapeHtml(c.name || c.key) + ': derivation failed ('
@@ -4208,6 +4279,7 @@ function spawnFromState(state, row){
     if(!pos){ clog("<i>"+escapeHtml(r.name||r.unit)+" has nowhere to stand — skipped.</i>"); return; }
     var u=unitFromRosterRow(r, stateUnit);
     CB.units.push(u); makeToken(u);
+    if(!u.alive) removeToken(u);
   });
   if (state.initiative && state.initiative.length){
     CB.order = state.initiative.map(function(k){ return unitByKey(k); }).filter(Boolean);
@@ -4277,7 +4349,12 @@ function applyVerb(v){
          startFight() set it locally, so every OTHER device's row.status stayed
          "staging" forever (bootSession fetches it once, at join) and the claim
          screen's "is the fight active" read would have been stale on them. */
-      else if(v.status==="active"){ if(window.__forgeSession) window.__forgeSession.row.status="active"; syncRosterFacts(); }
+      else if(v.status==="active"){
+        if(window.__forgeSession) window.__forgeSession.row.status="active";
+        if(window.__forgeStaging) window.__forgeStaging.row.status="active";
+        document.dispatchEvent(new CustomEvent("forge:session-status",{detail:{status:"active"}}));
+        syncRosterFacts();
+      }
       break;   // Finding 3a (review): end fight must not leave an open reaction prompt (modal or banner) answerable
     case "chat":   clog("<i>"+escapeHtml(v.unit)+":</i> "+escapeHtml(v.text)); break;
     case "prompt":       routePrompt(v.prompt); break;         // banner for everyone but the responder (onWirePrompt owns their modal)
@@ -4287,11 +4364,12 @@ function applyVerb(v){
 }
 function resyncFromState(st){
   CB.units.forEach(function(u){ var s=(st.units||{})[u.unit]; if(!s){ removeToken(u); return; }
-    u.c=s.pos.c; u.r=s.pos.r; u.hp=s.hp; u.alive=!s.downed; positionToken(u);
+    var wasAlive=u.alive;u.c=s.pos.c; u.r=s.pos.r; u.hp=s.hp; u.alive=!s.downed;
+    if(!u.alive){if(wasAlive||u.sprite||u.topToken)removeToken(u);return;}
     // I2 (final-review): a token whose sprite was cleared (e.g. lost on a
     // prior downed pass, or never made on this device) must be recreated
     // here — resync is the one path every device converges through.
-    if(!u.sprite && s && !s.downed){ makeToken(u); positionToken(u); } });
+    if(!u.sprite){ makeToken(u); } positionToken(u); });
   CB.units=CB.units.filter(function(u){ return (st.units||{})[u.unit]; });
   CB.order=CB.order.filter(function(u){ return (st.units||{})[u.unit]; });
   // I2: units present in the replayed state but never spawned on this
@@ -5914,6 +5992,52 @@ function clog(html,feed){ CB.log.unshift(html); if(CB.log.length>60)CB.log.pop()
     if(window.ForgeTableCorrectness&&window.ForgeTableCorrectness.isGeometryDiagnostic(html))window.ForgeTableCorrectness.pushDiagnostic(html);
     else window.addForgeRow(html);
   }catch(e){} }
+/* Phase 2e.1: preserve the published damage evidence even when the repository's
+   external table-correctness copy predates dmgParts. The protocol log remains
+   authoritative; this wrapper only changes presentation. */
+var FIELD_FEED_DECLARES=Object.create(null);
+function fieldEffectFacts(row,base){
+  var p=row&&row.payload||{};(Array.isArray(p.effects)?p.effects:[]).forEach(function(op){
+    if(op&&op.add_effect)base.pushFact({kind:"effect",action:"add",actor:row.unit,target:op.add_effect.target||op.unit,effect:op.add_effect});
+    if(op&&op.remove_effect)base.pushFact({kind:"effect",action:"remove",actor:row.unit,target:op.unit,effect:{id:op.remove_effect,label:op.effect_label||"Effect",kind:op.effect_kind||"effect"},reason:op.reason||"removed"});
+  });
+}
+function installFieldFeedEvidence(){
+  var base=window.ForgeTableCorrectness;if(!base||base.__phase2e1Evidence)return;
+  var proxy=Object.assign({},base);
+  proxy.pushEvent=function(row){
+    if(!row)return "";
+    if(row.kind==="attack_declared"){FIELD_FEED_DECLARES[row.unit]=Object.assign({},row.payload||{});return "";}
+    if(row.kind==="attack_resolved"||row.kind==="ability_used"){
+      var declared=row.kind==="attack_resolved"?(FIELD_FEED_DECLARES[row.unit]||null):null;
+      if(row.kind==="attack_resolved")delete FIELD_FEED_DECLARES[row.unit];
+      var fact=base.factFromEvent(row,declared),p=row.payload||{};
+      if(fact&&p.dmgParts)fact.dmgParts=p.dmgParts;
+      var html=fact?base.pushFact(fact):"";fieldEffectFacts(row,base);return html;
+    }
+    return base.pushEvent(row);
+  };
+  proxy.__phase2e1Evidence=true;window.ForgeTableCorrectness=proxy;
+}
+function clearProtocolFeed(){
+  var body=document.querySelector("#fgFeed .fg-fbody");if(body)body.innerHTML="";
+  FIELD_FEED_DECLARES=Object.create(null);
+}
+function rebuildProtocolFeed(rows){
+  installFieldFeedEvidence();clearProtocolFeed();
+  (rows||[]).forEach(function(row){
+    if(row&&row.kind==="chat"){
+      if(window.addForgeRow)window.addForgeRow('<i>'+escapeHtml(row.unit)+':</i> '+escapeHtml((row.payload&&row.payload.text)||''),{channel:"table"});
+    }else if(window.ForgeTableCorrectness)window.ForgeTableCorrectness.pushEvent(viewerFeedEvent(row));
+  });
+  if(window.ForgeTableCorrectness){window.ForgeTableCorrectness.ensureFeedTabs();window.ForgeTableCorrectness.applyFeedView();}
+}
+function systemClog(html){
+  CB.log.unshift(html);if(CB.log.length>60)CB.log.pop();
+  var el=document.getElementById("cbLog");if(el)el.innerHTML=CB.log.map(function(l){return '<div class="cbLogRow">'+l+'</div>';}).join("");
+  if(window.addForgeRow)window.addForgeRow(html,{channel:"system"});
+}
+installFieldFeedEvidence();
 function banner(t){ var b=document.getElementById("cbBanner"); if(b){b.textContent=t;b.style.display="block";} }
 function refreshSceneMenu(){
   var tc=window.ForgeTableCorrectness,sess=window.__forgeSession;
@@ -6061,11 +6185,12 @@ function renderHud(){
   if (USE_FORGE_BAR && window.renderForgeBar) {
     if (cbPanelEl) cbPanelEl.style.display = "none";
     if (cbLogEl)   cbLogEl.style.display   = "none";
+    var contestAvailable=coverContestAvailable();if(!contestAvailable)CONTEST_COVER=false;
     window.renderForgeBar({
       active: u, order: hudOrder, iControl: iControl, waiting: waitingMe,
       economy: CB.st, pending: CB.pending, over: CB.over,
       selKey: CB.selKey, tgtKey: CB.tgtKey,
-      showSight: SHOW_SIGHT, contestCover: CONTEST_COVER, coverContestAvailable:coverContestAvailable(),
+      showSight: SHOW_SIGHT, contestCover: CONTEST_COVER, coverContestAvailable:contestAvailable,
       session: !!window.__forgeSession, viewerMode:disclosure.mode, suppressEnemyHud:suppressEnemyHud,
       kit: suppressEnemyHud ? null : (u && kitFor(u.key)),
       _structural: u && __liveStatsCache && __liveStatsCache[u.key] && __liveStatsCache[u.key].structural || null,
@@ -6076,6 +6201,7 @@ function renderHud(){
       canStand:!!(iControl&&u&&effectFor(u,"prone")&&CB.st&&CB.st.moveLeft>=window.ForgeCombatRules.proneStandCostSquares(u.speed)),
       standCostFt:u?window.ForgeCombatRules.proneStandCostSquares(u.speed)*5:0
     });
+    var oldContest=document.getElementById("fgContestNext");if(oldContest&&!contestAvailable)oldContest.remove();
   } else {
     if (cbPanelEl) cbPanelEl.style.display = "";
     if (cbLogEl)   cbLogEl.style.display   = "";
@@ -6117,6 +6243,7 @@ document.addEventListener("forge:toggleSight", function(){
   SHOW_SIGHT = !SHOW_SIGHT; drawSight(); renderHud();
 });
 document.addEventListener("forge:toggleContest", function(){
+  if(!coverContestAvailable()){CONTEST_COVER=false;renderHud();return;}
   CONTEST_COVER = !CONTEST_COVER; renderHud();
 });
 document.addEventListener("forge:confirmAttack",function(){var u=active(),a=CB.pending,t=targetForConfirm();if(!u||!a||!t||!directAttack(a))return;var ro=reachOK(u,a,t);if(!ro.ok){clog('<i>'+escapeHtml(a.label)+': '+escapeHtml(ro.why)+'. Move to a valid firing origin or choose another target.</i>');return;}resolveOn(u,a,t);});
@@ -6164,8 +6291,8 @@ document.addEventListener("forge:openIconPicker", function(e){
       // Re-derive and re-render
       if(window.ForgeKitDerive && __liveStatsCache[sheetRef]){
         try{
-          var actions = (typeof assembleActions === "function") ? assembleActions(c.inventory||[], s) : (s.actions||[]);
-          __derivedKits[sheetRef] = window.ForgeKitDerive.derive(c, { assembledActions: actions, starterKits: STARTER_KITS });
+          var actions = assembleForgeActions(c.inventory||[], s);
+          __derivedKits[sheetRef] = repairDerivedKit(window.ForgeKitDerive.derive(c, { assembledActions: actions, starterKits: STARTER_KITS }));
         }catch(e){}
       }
       window.IconPicker.close();
@@ -6188,8 +6315,8 @@ document.addEventListener("forge:hideTile", function(e){
   // Re-derive and re-render
   if(window.ForgeKitDerive && __liveStatsCache[sheetRef]){
     try{
-      var actions = (typeof assembleActions === "function") ? assembleActions(c.inventory||[], s) : (s.actions||[]);
-      __derivedKits[sheetRef] = window.ForgeKitDerive.derive(c, { assembledActions: actions, starterKits: STARTER_KITS });
+      var actions = assembleForgeActions(c.inventory||[], s);
+      __derivedKits[sheetRef] = repairDerivedKit(window.ForgeKitDerive.derive(c, { assembledActions: actions, starterKits: STARTER_KITS }));
     }catch(e){}
   }
   renderHud();
@@ -6711,6 +6838,21 @@ function deriveFightControllers(row, uid){
   }
   return out;
 }
+async function reconcileActiveCatchUp(pipe,row,sb,sid){
+  await pipe.catchUp();
+  if(pipe.state().status!=="staging")return;
+  try{
+    var fresh=await sb.from("forge_sessions").select("*").eq("id",sid).single();
+    if(!fresh.error&&fresh.data)Object.assign(row,fresh.data);
+  }catch(_e){}
+  if(row.status!=="active")return;
+  systemClog("<i>The session is active; catching up the start event…</i>");
+  for(var i=0;i<3&&pipe.state().status==="staging";i++){
+    await new Promise(function(resolve){setTimeout(resolve,[180,420,900][i]);});
+    await pipe.catchUp();
+  }
+  if(pipe.state().status==="staging")throw new Error("The session row is active, but its start event is not visible yet. Reload once rather than entering a half-synced fight.");
+}
 async function bootSession(sid){
   const { data:{ user } } = await sb.auth.getUser();
   if (!user) { var pc=document.getElementById('psCount'); if(pc) pc.innerHTML='<b>Sign in to join the fight.</b>';
@@ -6781,7 +6923,7 @@ async function bootSession(sid){
   /* Field 2026-07-11: transport drops narrate on the board, not in a console
      nobody has open at the table. */
   const conn = window.ForgeBus.makeSupabaseBus({ sb, sessionId: sid,
-    onTransport: function(m){ clog('<i>' + escapeHtml(m) + '</i>'); } }).connect();
+    onTransport: function(m){ systemClog('<i>' + escapeHtml(m) + '</i>'); } }).connect();
   // Task 13: lastState is module-level now (shared with syncRosterFacts/
   // checkEchoStall outside this function) — see its declaration near __pipe.
   const pipe = window.ForgePipeline.makePipeline({
@@ -6827,8 +6969,12 @@ async function bootSession(sid){
   __pipe = pipe;
   lastState = window.ForgeReplay.snapshot(pipe.state());
   const __bootMirrorBefore = lastState;
-  await pipe.catchUp();
+  await reconcileActiveCatchUp(pipe,row,sb,sid);
   lastState = window.ForgeReplay.snapshot(pipe.state());
+  /* A fast claim can land while catchUp is still running, before
+     window.__forgeSession exists and refreshControllers can mutate `me`.
+     Re-seat the same pipeline identity object from the shared row now. */
+  var bootMine=(row.controllers&&row.controllers[user.id])||[];me.units.length=0;Array.prototype.push.apply(me.units,bootMine);
   window.__fightControllers = deriveFightControllers(row, user.id);
   await loadLiveStats();   // Task 16: make sure the live-stats cache is settled before any PC unit is built, so ac/speed/init never race the board's first paint
   /* Field 2026-07-11 (refresh = fresh economy, every device): __forgeSession
@@ -6844,6 +6990,7 @@ async function bootSession(sid){
   if(window.ForgeTableCorrectness)window.ForgeTableCorrectness.applyBody(window.__forgeSession);
   refreshSceneMenu();
   spawnFromState(pipe.state(), row);
+  rebuildProtocolFeed(typeof pipe.events==="function"?pipe.events():[]);
   refreshEffectState(null,true);
   /* Finding 1a: a refresh mid-turn lands here with a state whose initiative
      is already active — spawnFromState places units and the order, but never
@@ -6878,7 +7025,7 @@ async function bootSession(sid){
     else showPromptBanner(bootPrompt);
   }
   setInterval(() => { pipe.checkTimeouts(); checkEchoStall(); }, 1000);
-  clog('<b>Joined fight ' + sid.slice(0, 8) + '</b> as ' + (me.overseer ? 'overseer' : me.units.join(', ') || 'spectator'));
+  clog('<b>Joined fight ' + sid.slice(0, 8) + '</b> as ' + (me.overseer ? 'overseer' : me.units.join(', ') || 'claim screen open'));
 }
 // echo-loss watchdog: publish succeeded but the echo never came — the log is truth, refetch it
 function checkEchoStall(){
@@ -6890,7 +7037,7 @@ function checkEchoStall(){
   // the instant the prompt clears, same as any other in-flight progress.
   if (__pipe && __pipe.state().pendingPrompt) { __awaitingSince = Date.now(); return; }
   if (__awaitingCount > 0 && __awaitingSince && (Date.now() - __awaitingSince) > 12000) {
-    clog('<i>The table isn\'t answering — re-syncing from the log…</i>');
+    systemClog('<i>The table isn\'t answering — re-syncing from the log…</i>');
     var parkedSettle = __awaitingSettled; __awaitingSettled = null;
     var parkedWalk = __pendingWalkDone; __pendingWalkDone = null;
     __awaitingCount = 0; __awaitingSince = 0; __awaitingUnit = null; __awaitingKind = null;
@@ -6898,6 +7045,7 @@ function checkEchoStall(){
       var before=lastState;
       lastState=window.ForgeReplay.snapshot(__pipe.state());
       resyncFromState(__pipe.state());
+      rebuildProtocolFeed(typeof __pipe.events==="function"?__pipe.events():[]);
       // I3 (final-review): mirror bootSession's post-catchUp prompt handling —
       // the watchdog's own resync can just as easily land on a state whose
       // prompt already cleared (stale modal/banner still open) or whose
@@ -6914,9 +7062,9 @@ function checkEchoStall(){
       if (parkedWalk) { try { parkedWalk.resolve(); } catch(e) { clog('<i>…resumed step failed — reload if the fight looks stuck.</i>'); } }
       if (parkedSettle) { try { parkedSettle(); } catch(e) { clog('<i>…resumed step failed — reload if the fight looks stuck.</i>'); } }
       renderHud();
-      clog('<i>Re-synced.</i>');
+      systemClog('<i>Re-synced.</i>');
       runMirror(before, lastState);   // Task 13: this re-sync can also change hp — mirror it, same as any other state change
-    }).catch(function(e){ clog('<b style="color:#c0553f">Re-sync failed — reload the page.</b>'); });
+    }).catch(function(e){ systemClog('<b style="color:#c0553f">Re-sync failed — reload the page.</b>'); });
   }
 }
 /* Every publish path gets the same failure narration (spec §8): nothing on
@@ -8101,8 +8249,13 @@ renderer.domElement.addEventListener("contextmenu", function(e){ if(ADD_FOE_PLAC
       cards = pcs;
     }
 
+    function updateEnterButton(){
+      var stg=window.__forgeStaging,b=document.getElementById("psForge");
+      if(b&&stg)b.textContent=stg.row.status==="active"?"Enter the fight →":"Enter the board →";
+    }
     function render(){
       var stg = window.__forgeStaging, uid = stg.uid, srow = stg.row, active = srow.status === "active";
+      updateEnterButton();
       var isOverseer = srow.overseer === uid;
       row.innerHTML = cards.map(function(r){
         var key = r.sheet_ref || r.unit, kit = window.kitFor && window.kitFor(key);
@@ -8216,6 +8369,9 @@ renderer.domElement.addEventListener("contextmenu", function(e){ if(ADD_FOE_PLAC
       render();
     }
 
+    document.addEventListener("forge:session-status",function(e){
+      if(e.detail&&e.detail.status==="active"&&window.__forgeStaging){window.__forgeStaging.row.status="active";updateEnterButton();render();}
+    });
     var charReady = !!window.CHAR, stagingReady = !!window.__forgeStaging, started = false;
     function tryStart(){ if (started || !(charReady && stagingReady)) return; started = true; init(); }
     if (!charReady) document.addEventListener("topo:ready", function(){ charReady = true; tryStart(); }, { once: true });

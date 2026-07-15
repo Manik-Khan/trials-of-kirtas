@@ -14,17 +14,17 @@ has(html,'drawHi(); renderHud(); // beginTurn painted the full budget','refresh 
 ok(!html.includes("Entering the fight\\u2026"),'claim success no longer auto-enters after the first character');
 has(html,'Choose another character or press Enter the fight.','claim screen remains open for multiple characters');
 has(html,'function coverContestAvailable()','cover-contest visibility is geometry-aware');
-has(html,'coverContestAvailable:coverContestAvailable()','Forge bar receives the cover gate');
+ok(html.includes('coverContestAvailable:coverContestAvailable()')||html.includes('coverContestAvailable:contestAvailable'),'Forge bar receives the cover gate');
 has(html,'CONTEST_COVER&&Number.isFinite(ro.cover)&&ro.cover>0','stale/no-cover contest toggles cannot pause a clear shot');
 has(html,'function rollActionDamage(a,crit,extras)','attack resolution emits component damage evidence');
 has(html,'dmgParts:damage?damage.parts:null','shared attack facts carry damage components');
 has(html,'dmgParts:damage.parts','local attack facts carry damage components');
-has(html,"../weapon-actions.js?v=fg3",'weapon-action import is cache-busted');
+ok(/\.\.\/weapon-actions\.js\?v=fg(?:3|2e1)/.test(html),'weapon-action import is cache-busted');
 has(html,'forge-kit-derive.js?v=b3','kit derivation cache stamp bumped');
 has(html,'forge-feed-render.js?v=b3','feed renderer cache stamp bumped');
 has(html,'forge-table-correctness.js?v=fg2','table-correctness cache stamp bumped');
 ok(html.indexOf('var DISCOVERY_RENDER={') < html.indexOf('resize(); rebuild();'),'discovery renderer still initializes before the first terrain build');
-ok(html.indexOf('const SESSION_ID=') < html.indexOf('resize(); rebuild();'),'session id still initializes before the first terrain build');
+ok(html.indexOf('var SESSION_ID') < html.indexOf('resize(); rebuild();'),'session id still initializes before the first terrain build');
 
 const wf=`function hasFeature(structural, frag) { return (structural.features || []).some(function (f) { return String((f && f.name) || f || '').toLowerCase().indexOf(frag) !== -1; }); } function weaponProfList(structural) { return []; } function x(){ var dmgB=0; function deck(id, lbl, dice) { var a={}; a.dmgBonus = dmgB; return a; } var a2h=deck('wpn-' + key + '-2h', label + ' (Two-Handed)', w.dmg2); } var atkB = (+item.atkBonus) || 0, dmgB = (+item.dmgBonus) || 0; var act={};`;
 const wp=patch.patchWeaponActions(wf);
