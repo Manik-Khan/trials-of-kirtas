@@ -1,0 +1,333 @@
+Battle Forge Phase 2f.1 audited field correction
+Generated: 2026-07-14
+
+===== smoke-snapshot-authority.js =====
+ok 1 - typed map arrays snapshot to plain JSON arrays
+ok 2 - opaque Infinity occlusion is encoded without JSON data loss
+ok 3 - rules-relevant sub-cell cover survives the snapshot
+ok 4 - recursive mapSnapshot metadata is stripped
+ok 5 - legacy x/y spawns normalize to c/r
+ok 6 - restore verifies and reproduces the canonical snapshot
+ok 7 - each restore is mutation-isolated
+ok 8 - fingerprint mismatch stops loudly
+ok 9 - malformed cell lengths are refused
+ok 10 - fractional dimensions are refused
+ok 11 - out-of-bounds spawns are refused
+ok 12 - present-but-invalid snapshot never falls back
+ok 13 - invalid snapshot does not call the legacy generator
+ok 14 - missing snapshot uses the legacy recipe exactly once
+ok 15 - engine loads a saved snapshot without regenerating the dungeon
+ok 16 - engine returns an isolated runtime map on each load
+ok 17 - engine regenerates only a genuinely legacy recipe
+ok 18 - engine propagates snapshot corruption instead of falling back
+ok 19 - production renderer holds an explicit saved-map authority
+ok 20 - session boot selects the snapshot read path
+ok 21 - snapshot presence, not truthiness, chooses authority
+ok 22 - new sessions retain the render-only data needed for faithful repainting
+ok 23 - combat geometry clones the authoritative snapshot instead of rebuilding it from art data
+ok 24 - changed runtime modules are cache-busted
+
+24 snapshot-authority checks green
+
+===== smoke-map-contract-render-truth.js =====
+ok 1 - contract preserves the 5-ft gameplay grid
+ok 2 - contract permits 2.5-ft authored vertical geometry
+ok 3 - contract separates edge walls from full cells
+ok 4 - contract forbids deceptive tactical exaggeration
+ok 5 - contract explicitly supports the future importer
+ok 6 - contract defines edge blockers
+ok 7 - contract defines first-class connectors
+ok 8 - UI names the control as inspection, not rules geometry
+ok 9 - inspection scale defaults to truthful 100 percent
+ok 10 - old ambiguous height-exaggeration label is absent
+ok 11 - renderer freezes one tactical world-unit step
+ok 12 - initial render starts truthful
+ok 13 - authoring-only scale has a named door
+ok 14 - tactical scale has a named enforcement door
+ok 15 - session and active combat lock the inspection control
+ok 16 - vertical-scale contract exposes a diagnostic seam
+ok 17 - local combat function is present before its lock call
+ok 18 - local combat locks scale before tokens are staged
+ok 19 - shared combat locks scale before tokens are staged
+ok 20 - session boot locks the view before loading the fight
+ok 21 - props use the same feet-to-world scale
+ok 22 - sight eyes use the same vertical scale
+ok 23 - terrain and occluders share the same scale
+
+23 Map Contract 2.0 / render-truth checks green
+
+===== smoke-phase2b1-field-round.js =====
+ok 1 - authoring preview is reachable before local combat
+ok 2 - authoring preview has a return door to party selection
+ok 3 - preview exposes the otherwise-covered vertical inspection control
+ok 4 - session move echo does not subtract movement twice
+ok 5 - refresh repaints the reconciled movement budget
+ok 6 - claim success no longer auto-enters after the first character
+ok 7 - claim screen remains open for multiple characters
+ok 8 - cover-contest visibility is geometry-aware
+ok 9 - Forge bar receives the cover gate
+ok 10 - stale/no-cover contest toggles cannot pause a clear shot
+ok 11 - attack resolution emits component damage evidence
+ok 12 - shared attack facts carry damage components
+ok 13 - local attack facts carry damage components
+ok 14 - weapon-action import is cache-busted
+ok 15 - kit derivation cache stamp bumped
+ok 16 - feed renderer cache stamp bumped
+ok 17 - table-correctness cache stamp bumped
+ok 18 - discovery renderer still initializes before the first terrain build
+ok 19 - session id still initializes before the first terrain build
+ok 20 - patcher derives Dueling from the character fighting style
+ok 21 - one-handed weapon actions receive Dueling
+ok 22 - versatile two-handed mode is excluded from Dueling
+ok 23 - weapon cantrips inherit one-handed Dueling
+ok 24 - derived Booming Blade and legacy label share one dedupe key
+ok 25 - derived math preserves the saved legacy default-slot id
+ok 26 - table facts preserve damage components
+ok 27 - headless Forge-bar button obeys the geometry cover gate
+ok 28 - damage arithmetic is visible without a hidden tap target
+ok 29 - production HTML still has three executable inline scripts
+ok 30 - all executable inline scripts parse
+
+30 Phase 2b.1 field-round checks green
+
+===== smoke-phase2c-archetype-params.js =====
+ok 1 - parameter records retain an explicit schema and advance canonically to version 2
+ok 2 - version-1 recipes remain readable after stage ownership
+ok 3 - selector vocabulary and saved archetype keys share one canonical list
+ok 4 - only the legacy room grammar claims to be implemented
+ok 5 - companion document freezes the current schema identity
+ok 6 - parameter documentation preserves snapshot authority
+ok 7 - documentation distinguishes requested archetype from actual generator profile
+ok 8 - documentation freezes legacy recipe migration
+ok 9 - legacy-shaped authoring inputs normalize into the canonical record
+ok 10 - new authoring inputs opt into the staged legacy profile
+ok 11 - layout and decor knobs live in named stage records
+ok 12 - height and encounter counts live in named stage records
+ok 13 - explicit stage overrides coexist with deterministic derived seeds
+ok 14 - rules and runtime controls remain versioned instead of hiding in sliders
+ok 15 - numeric parameter records normalize to safe canonical bounds
+ok 16 - height, roster, and retry bounds remain canonical
+ok 17 - future direct parameter versions stop loudly
+ok 18 - future nested parameter versions stop loudly
+ok 19 - unknown archetypes are refused rather than silently mapped
+ok 20 - version-1 records migrate in memory to the canonical shape
+ok 21 - version-1 snapshot-less recipes preserve monolithic regeneration by default
+ok 22 - an explicit legacy-record profile is never overwritten
+ok 23 - normalized parameters carry both canonical and compatibility shapes
+ok 24 - legacy slider consumers receive values projected from the canonical record
+ok 25 - session envelopes persist the complete current parameter record
+ok 26 - session envelopes retain the old top-level shape for existing readers
+ok 27 - the versioned record, not stale compatibility fields, owns recipe reads
+ok 28 - old envelopes migrate without a database migration and retain legacy profile
+ok 29 - map metadata records requested archetype and actual generator profile honestly
+ok 30 - Forge panel exposes an archetype selector
+ok 31 - selector comes from canonical definitions and labels unimplemented grammars honestly
+ok 32 - Forge saves normalized versioned parameters rather than hand-built metadata
+ok 33 - legacy session recipe fallback reads the versioned record
+ok 34 - saved snapshots load without requiring future recipe interpretation
+ok 35 - shared-session UI displays the archetype saved with the fight
+ok 36 - shared sessions lock the archetype with the rest of the map recipe
+ok 37 - non-overseer devices hide the DM-only archetype control
+ok 38 - staged fights identify their saved archetype
+ok 39 - current parameter and engine runtimes are cache-busted
+ok 40 - production HTML still has three executable inline scripts
+ok 41 - all executable inline scripts parse after parameter-version migration
+
+41 Phase 2c archetype/parameter regression checks green
+
+===== smoke-phase2d-stage-ownership.js =====
+ok 1 - generator version retains true stage ownership through vertical extensions
+ok 2 - parameter v2 is canonical while v1 remains readable
+ok 3 - generator profiles distinguish staged and monolithic recipes
+ok 4 - stage retries advance only their named stream
+ok 5 - attempt seeds are namespaced by stage
+ok 6 - unknown future parameter versions still stop loudly
+ok 7 - new authoring inputs opt into the staged profile
+ok 8 - version-1 recipes migrate canonically but preserve monolithic regeneration
+ok 9 - an explicit profile is never overwritten during migration
+ok 10 - recipe projection carries the generator profile into the engine
+ok 11 - engine uses staged profile for new records
+ok 12 - map metadata exposes the stage-ownership ledger
+ok 13 - returned diagnostics and saved metadata share one fingerprint record
+ok 14 - all five stages publish independent fingerprints
+ok 15 - foes stage owns requested party and foe placement counts
+ok 16 - record-only archetypes preserve intent without secretly changing the legacy layout grammar
+ok 17 - height seed changes height without rewriting other stage fingerprints
+ok 18 - decor seed changes decor without rewriting layout, height, semantics, or foes
+ok 19 - foes seed changes only spawn placement
+ok 20 - semantics seed cannot rewrite layout, heights, or spawn placement
+ok 21 - layout seed owns the generated topology
+ok 22 - layout produces a dense candidate pool before decor owns selection
+ok 23 - forge-dungeon receives the layout attempt seed rather than the root seed
+ok 24 - identical records replay every stage exactly
+ok 25 - version-1 snapshot-less recipes retain the old monolithic generator
+ok 26 - stage contract freezes pipeline order
+ok 27 - engine executes height before semantic labeling as the contract specifies
+ok 28 - stage contract records legacy-recipe compatibility
+ok 29 - stage contract states cross-stage isolation explicitly
+ok 30 - production preview consumes the canonical staged pipeline and decor stream
+ok 31 - authoring rebuild passes the complete parameter record instead of flattening away stage seeds
+ok 32 - session snapshots retain the stage-ownership diagnostic ledger
+ok 33 - stage-owned runtimes are cache-busted
+ok 34 - both known startup-order guards remain ahead of the initial rebuild
+ok 35 - production HTML still has three executable inline scripts
+ok 36 - all executable inline scripts parse after stage-pipeline integration
+
+36 Phase 2d stage-ownership checks green
+
+===== smoke-phase2e-elevations-connectors.js =====
+ok 1 - generator version retains bounded elevations and connectors through bridge extension
+ok 2 - connector slice does not invent an unnecessary parameter version
+ok 3 - foundation recognizes first-class stairs and ramps
+ok 4 - snapshots preserve connectors and ledges
+ok 5 - snapshot records preserve endpoint elevations and ledge linkage
+ok 6 - connector restores are mutation-isolated
+ok 7 - unknown connector kinds stop loudly
+ok 8 - ledges cannot reference missing connectors
+ok 9 - connector paths require a real traversal
+ok 10 - a 10-ft edge is not an ordinary step
+ok 11 - an open stair authorizes the same 10-ft edge
+ok 12 - movement reach consumes first-class connector traversal
+ok 13 - a closed connector stops authorizing movement
+ok 14 - climb/fly capability still handles unconnected cliffs
+ok 15 - generated land is bounded to truthful 5–15 ft elevations
+ok 16 - generated floor elevations remain D&D-readable 5-ft tiers
+ok 17 - height stage emits both stairs and ramps as first-class records
+ok 18 - steep 10-ft boundaries are explicit ledges
+ok 19 - map metadata narrates the vertical contract
+ok 20 - engine validates connector endpoints, rises, ledges, and bounded heights
+ok 21 - wall cells inherit the highest adjacent supporting floor instead of sinking to world zero
+ok 22 - ordinary-creature connectivity uses generated connectors
+ok 23 - no adjacent walk surfaces exceed one connector's 10-ft maximum rise
+ok 24 - height seed changes vertical records without perturbing other stages
+ok 25 - height fingerprint includes elevations, connectors, and ledges
+ok 26 - layout still produces a dense candidate pool before later stages
+ok 27 - production inline geometry is byte-identical to canonical connector-aware geometry
+ok 28 - renderer builds truthful stair and ramp meshes from connector records
+ok 29 - staff can inspect connector and ledge edges
+ok 30 - preview, session snapshot, and combat map carry connector authority end to end
+ok 31 - floor elevation no longer silently rewrites terrain into water
+ok 32 - vertical runtime modules are cache-busted
+ok 33 - both known startup-order guards remain ahead of initial rebuild
+ok 34 - guarded patcher updates both known old inline copies
+ok 35 - patcher synchronizes production geometry exactly
+ok 36 - patcher synchronizes reference battle geometry exactly
+ok 37 - patcher aborts rather than overwrite an unknown reference copy
+ok 38 - vertical contract freezes the gameplay grid and connector rise bound
+ok 39 - vertical contract names all Phase 2e structures
+
+39 Phase 2e elevation/connector checks green
+
+===== smoke-phase2e1-field-sync.js =====
+ok 1 - vertical overlay registry initializes before the first rebuild
+ok 2 - vertical overlay registry has one declaration
+ok 3 - discovery registry boot guard remains intact
+ok 4 - session identity boot guard remains intact
+ok 5 - field hotfix CSS is present
+ok 6 - feed tabs actually hide the other channels
+ok 7 - damage component math is visible by default
+ok 8 - weapon projection exposes a feature-detection seam
+ok 9 - runtime derivation can read the Dueling fighting style
+ok 10 - runtime repair can detect an already-patched module
+ok 11 - Dueling is enforced on the final kit combat consumes
+ok 12 - final weapon and bound cantrip actions receive the style bonus
+ok 13 - versatile two-handed attacks are excluded from Dueling
+ok 14 - runtime kit repair removes legacy/live weapon-cantrip duplicates
+ok 15 - live cantrip math preserves a saved legacy action id
+ok 16 - damage evidence installs at the table-correctness seam
+ok 17 - resolved rows are rendered with evidence before HUD insertion
+ok 18 - the visible encounter record can be rebuilt from the protocol log
+ok 19 - cold join/refresh restores the feed from authoritative events
+ok 20 - watchdog resync restores the feed from authoritative events
+ok 21 - transport and resync narration has an explicit System channel
+ok 22 - transport interruptions route to System
+ok 23 - active-row/start-event race has a bounded reconciliation path
+ok 24 - a half-active session refuses to open rather than desyncing silently
+ok 25 - start echoes notify the still-open claim screen
+ok 26 - claim UI reacts to a remote start without refresh
+ok 27 - pre-claim join narration no longer mislabels the player as a spectator
+ok 28 - claims made during cold catch-up are seated into the pipeline identity
+ok 29 - cold state build applies the defeated visual immediately
+ok 30 - resync removes stale defeated sprites
+ok 31 - cover contest disarms itself when geometry reports clear
+ok 32 - old HUD decorators cannot expose contest on a clear shot
+ok 33 - a stale external contest click cannot arm a clear shot
+ok 34 - production HTML still has three executable inline scripts
+ok 35 - all executable inline scripts parse
+
+35 Phase 2e.1 field-sync checks green
+
+===== smoke-phase2f-bridges-damage.js =====
+ok 1 - height stage emits one deterministic structural bridge
+ok 2 - bridge path owns every consecutive deck cell ([[1,1],[2,1],[3,1],[4,1],[5,1]] vs [[1,1],[2,1],[3,1],[4,1],[5,1]])
+ok 3 - bridge records under-clearance beneath its half-foot deck
+ok 4 - bridge records two-and-a-half-foot rails
+ok 5 - engine validates multi-cell bridge structure
+ok 6 - ordinary creature enters bridge at authored endpoint
+ok 7 - ordinary creature walks consecutive bridge deck cells
+ok 8 - side entry into bridge middle is refused
+ok 9 - geometry reports bridge deck as standing elevation
+ok 10 - open bridge surface overrides blocked pool for occupancy
+ok 11 - canonical movement enters bridge path
+ok 12 - canonical movement refuses diagonal/side bridge entry
+ok 13 - bridge deck blocks a ray through its slab
+ok 14 - under-clearance remains open below the deck
+ok 15 - bridge rail is a real sight/cover blocker
+ok 16 - broken bridge removes the walk surface
+ok 17 - snapshot preserves bridge deck thickness
+ok 18 - snapshot preserves bridge rails
+ok 19 - snapshot preserves complete bridge path
+ok 20 - bridge snapshot round-trip is fingerprint stable
+ok 21 - damage evidence spells the exact rolled arithmetic
+ok 22 - damage evidence spells the source formula
+ok 23 - resolved payload retains the damage modifier
+ok 24 - visible damage HTML contains the full breakdown
+ok 25 - evidence is inserted before the HUD receives the row
+ok 26 - Dueling is enforced on the final kit combat consumes
+ok 27 - Dueling is not misapplied to the spell-attack cantrip modifier branch
+ok 28 - production damage roller is extractable for a known-answer gate
+ok 29 - Vesperian known-answer damage keeps DEX plus Dueling as +6
+ok 30 - the exact Vesperian known-answer arithmetic reaches the feed evidence layer
+ok 31 - critical damage doubles the die but not the +6 modifier
+ok 32 - shared attack facts publish a human-readable damage formula
+ok 33 - feed installs the pre-render damage-evidence seam
+ok 34 - production renderer draws first-class bridges
+ok 35 - height overlay distinguishes bridge paths
+ok 36 - production inline geometry boundaries exist
+ok 37 - production inline geometry is byte-identical to canonical
+ok 38 - guarded Phase 2f patcher updates the Phase 2e reference geometry only
+ok 39 - patcher synchronizes bridge-aware geometry exactly
+ok 40 - patcher refuses an unknown edited geometry copy
+
+40 Phase 2f bridge/damage checks green
+
+===== smoke-phase2f1-field-audit.js =====
+ok 1 - damage evidence installs over the actual table seam
+ok 2 - resolved row carries evidence before HUD insertion
+ok 3 - formula is visible
+ok 4 - rolled arithmetic is visible
+ok 5 - damage row is a Table row
+ok 6 - scalar-only events fail visibly instead of masquerading as complete evidence
+ok 7 - missing evidence also reports to System
+ok 8 - final combat action receives Dueling
+ok 9 - final component stack receives Dueling
+ok 10 - Dueling is idempotent on the final action
+ok 11 - two-handed mode is excluded
+ok 12 - vertical diagnostics live in the left panel
+ok 13 - visible Show connectors button exists
+ok 14 - visible deterministic bridge-seed finder exists
+ok 15 - connector counts are painted
+ok 16 - zero-bridge maps say so explicitly
+ok 17 - bridge seed search is executable, not a checklist fiction
+ok 18 - bridge seed search derives fresh stage seeds for each candidate
+ok 19 - fragile post-render decoration is gone
+ok 20 - HTML installs the pre-render evidence seam
+ok 21 - cache stamp is bumped
+
+21 Phase 2f.1 audited field checks green
+
+===== syntax =====
+Runtime module syntax green
+
+TOTAL: 289 runnable checks green
+Not run in this reduced working set: full historical repository battery / live two-device Supabase field round.

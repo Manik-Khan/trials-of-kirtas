@@ -58,13 +58,11 @@ ok(DE.formula(part)==="1d8 + 6 Slashing","damage evidence spells the source form
 const fact=DE.attachPayload({dmg:9},{dmg:9,dmgParts:[part],dmgFormula:"1d8+6 Slashing"});
 ok(fact.dmgParts[0].bonus===6,"resolved payload retains the damage modifier");
 ok(/\[3\] \+6 = 9 Slashing/.test(DE.html(fact.dmgParts,fact.dmg)),"visible damage HTML contains the full breakdown");
-const fakeLine={inserted:"",querySelector(){return null;},insertAdjacentHTML(_where,value){this.inserted+=value;},setAttribute(){}};
-const fakeDetail={setAttribute(k,v){this[k]=v;}};
-const fakeRow={querySelector(sel){if(sel==='[data-damage-evidence="1"]')return null;if(sel==='.ffr-dmg-detail')return fakeDetail;return null;},querySelectorAll(sel){return sel==='.ffr-dmg-line'?[fakeLine]:[];}};
-ok(DE.decorateRow(fakeRow,fact)&&/1d8 \+ 6 Slashing/.test(fakeLine.inserted),"legacy total rows receive the visible source formula before their rolled arithmetic");
+const injected=DE.injectEvidence('<div class="forge-result-row"><div class="ffr-dmg-total">9 dmg</div></div>',fact);
+ok(/data-damage-evidence="2"/.test(injected)&&/1d8 \+ 6 Slashing/.test(injected),"evidence is inserted before the HUD receives the row");
 
 const html=fs.readFileSync(path.join(root,"topography-test-mock.html"),"utf8");
-ok(html.includes('if(weapon||cantrip)a.dmgBonus=(Number(a.dmgBonus)||0)+2'),"Dueling modifies normal weapons and bound weapon-cantrips on the shared damage-bonus property");
+ok(html.includes('function applyFinalDueling'),"Dueling is enforced on the final kit combat consumes");
 ok(!html.includes('if(cantrip)a.dmgMod='),"Dueling is not misapplied to the spell-attack cantrip modifier branch");
 const rollStart=html.indexOf('function parseDmg(s){'),rollEnd=html.indexOf('function rangeFt(a){',rollStart);
 ok(rollStart>=0&&rollEnd>rollStart,"production damage roller is extractable for a known-answer gate");
@@ -75,7 +73,7 @@ ok(DE.text(vesDamage.parts,vesDamage.total)==="[3] +6 = 9 Slashing","the exact V
 const critDamage=rollCtx.rollActionDamage({dmgStack:[{dice:"1d8",bonus:6,type:"Slashing"}]},true,[]);
 ok(critDamage.total===12&&critDamage.parts[0].rolls.length===2&&critDamage.parts[0].bonus===6,"critical damage doubles the die but not the +6 modifier");
 ok(html.includes('dmgFormula:damage?damage.formula:null'),"shared attack facts publish a human-readable damage formula");
-ok(html.includes('D.decorateNewestRow(document,fact)'),"feed independently enforces visible damage evidence");
+ok(html.includes('D.install(window)'),"feed installs the pre-render damage-evidence seam");
 ok(html.includes('function renderBridgeConnector(c)'),"production renderer draws first-class bridges");
 ok(html.includes("c.kind==='bridge'?0x68b7d1"),"height overlay distinguishes bridge paths");
 

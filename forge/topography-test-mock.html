@@ -38,7 +38,7 @@
 <script src="../equip-slots.js?v=cc2"></script>
 <script src="../character-combat.js?v=cc2"></script>
 <script src="forge-kit-derive.js?v=b3"></script>
-<script src="forge-damage-evidence.js?v=fde1"></script>
+<script src="forge-damage-evidence.js?v=fde2"></script>
 <script src="forge-feed-render.js?v=b3"></script>
 <script src="forge-hud.js?v=b2"></script>
 <script src="forge-table-correctness.js?v=fg2"></script>
@@ -571,7 +571,7 @@ global.TacticsGeo=API;
   #cbAddFoeModal #afPicked{flex:0 0 auto}
   #cbAddFoeModal .cbReactBtns{position:sticky;bottom:0;flex:0 0 auto;margin-top:10px;padding-top:10px;background:linear-gradient(180deg,rgba(229,221,203,0),var(--tk-panel-2) 28%)}
   /* Player presentation: privileged tools are absent, not merely disabled. */
-  body.forge-player-view #cbOverseer{display:none!important}
+  body.forge-player-view #cbOverseer,body.forge-player-view #verticalGeometryPanel{display:none!important}
   body.forge-player-view.forge-active-foe #fgBar{display:none!important}
 
   @media (max-width:660px){.panel{width:calc(100% - 40px)}.attrib{display:none}.masthead .dn{font-size:12px}}
@@ -855,6 +855,12 @@ body.forge-author-preview #partySelect{opacity:0;pointer-events:none}
    overrode [hidden]. Keep channels truly separate and damage evidence visible. */
 #fgFeed .fg-frow[hidden]{display:none!important}
 #fgFeed .ffr-dmg-detail{display:block!important}
+  #fgFeed .forge-result-row .ffr-dmg-detail{display:none!important}
+  #fgFeed .forge-damage-evidence-v2{display:block!important;margin:6px 0 2px;padding:6px 8px;border-left:2px solid rgba(216,179,91,.65);background:rgba(0,0,0,.18);font:600 11px/1.45 ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;color:#efe3c5}
+  #fgFeed .forge-dmg-component{display:grid;grid-template-columns:minmax(0,1fr);gap:1px;margin:2px 0}
+  #fgFeed .forge-dmg-formula{color:#d8c48f}.forge-dmg-arithmetic{color:#fff3d2}
+  #fgFeed .forge-dmg-check{margin-top:3px;opacity:.68;font-size:10px}
+  #fgFeed .forge-damage-missing{display:block;margin-top:6px;padding:5px 7px;border:1px solid rgba(212,93,76,.7);background:rgba(111,34,28,.28);color:#ffd0c8;font:700 10px/1.4 ui-monospace,SFMono-Regular,Menlo,Consolas,monospace}
 #fgFeed .forge-dmg-formula{opacity:.58;margin-right:8px;font-size:10px}
 #fgFeed .forge-dmg-arithmetic{font-weight:700;color:var(--tk-ink)}
 </style>
@@ -997,6 +1003,16 @@ body.forge-author-preview #partySelect{opacity:0;pointer-events:none}
       <input type="range" id="height" min="50" max="180" value="100"
         title="Authoring preview only; tactical play is locked to a truthful 100% vertical scale.">
       <div class="fname" id="heightScaleNote" style="margin-top:6px;white-space:normal">Authoring preview only. Combat and shared sessions lock to 100% so walls, eyes, props, and sight lines agree.</div>
+    </div>
+    <div id="verticalGeometryPanel">
+      <div class="divider"></div>
+      <div class="eyebrow" style="margin-bottom:6px">VERTICAL GEOMETRY</div>
+      <div class="improw" style="margin:0 0 6px">
+        <button class="filebtn" id="verticalOverlayPanelBtn" type="button">Show connectors</button>
+        <button class="filebtn" id="findBridgeSeed" type="button" title="Search nearby deterministic seeds for a generated structural bridge">Find bridge seed</button>
+      </div>
+      <div class="fname" id="verticalGeometryStatus" style="white-space:normal">Waiting for a generated map.</div>
+      <div class="fname" style="white-space:normal;margin-top:4px">Stairs, ramps, and bridges are generated automatically. “Find bridge seed” is a local authoring/test shortcut, not a combat rule.</div>
     </div>
     <div class="eyebrow" style="margin-bottom:6px">Shading</div>
     <div class="toggle-row" id="shadeToggle">
@@ -2829,6 +2845,7 @@ function rebuild(){
   if(F && !F.occ) F.occ=EMPTY_OCC(F.W*F.H);
   applyLook();
   renderField();
+  if(typeof refreshVerticalGeometryPanel==="function")refreshVerticalGeometryPanel();
   if(window.__fightRoster){ startCombat(); } else { placeRoster(); }
 }
 
@@ -4141,8 +4158,7 @@ function applyRuntimeDueling(actions,structural){
   });
 }
 function assembleForgeActions(inventory,structural){
-  var actions=(typeof assembleActions==='function')?assembleActions(inventory||[],structural||{}):((structural&&structural.actions)||[]);
-  return applyRuntimeDueling(actions,structural||{});
+  return (typeof assembleActions==='function')?assembleActions(inventory||[],structural||{}):((structural&&structural.actions)||[]);
 }
 function weaponCantripBase(action){
   var label=String(action&&action.label||'').toLowerCase().replace(/\u2019/g,"'").trim();
@@ -4162,7 +4178,45 @@ function dedupeWeaponCantripArray(arr){
   });
   return arr.filter(function(_a,i){return drop.indexOf(i)<0;});
 }
-function repairDerivedKit(kit){
+function finalDuelingId(a){
+  var src=a&&a._src||{},id=String((a&&a._tileId)||src.id||(a&&a.id)||"");
+  return id;
+}
+function finalDuelingEligible(a){
+  if(!a)return false;
+  var id=finalDuelingId(a),label=String(a.label||"");
+  if(/(?:-2h$|_2h$|two[- ]handed)/i.test(id+" "+label))return false;
+  return /^wpn-/.test(id)||/^cant-(?:boomingblade|greenflameblade)/.test(id);
+}
+function addDuelingToFinalAction(a){
+  if(!a||a._forgeDuelingFinal||!finalDuelingEligible(a))return a;
+  if(Array.isArray(a.dmgStack)&&a.dmgStack.length){
+    a.dmgStack=a.dmgStack.map(function(part,i){return i?part:Object.assign({},part,{bonus:(Number(part.bonus)||0)+2});});
+  }
+  if(a.dmg!=null){
+    var p=parseDmg(a.dmg),dice=p.n?(p.n+"d"+p.die):"0",bonus=p.bonus+2;
+    a.dmg=dice+(bonus?(bonus>0?"+":"")+bonus:"");
+  }
+  a._forgeDuelingFinal=true;
+  return a;
+}
+function applyFinalDueling(kit,structural){
+  if(!kit||!structuralHasDueling(structural))return kit;
+  /* If weapon-actions itself already owns Dueling, the final tiles already
+     contain the +2. Otherwise apply it exactly once to the FINAL actions that
+     buildUnit() and combat actually consume. */
+  if(externalWeaponActionsOwnDueling())return kit;
+  var seen=[];
+  function apply(a){if(a&&seen.indexOf(a)<0){seen.push(a);addDuelingToFinalAction(a);}return a;}
+  (kit.actions||[]).forEach(apply);
+  var tabs=kit.tabs;
+  if(tabs&&typeof tabs==='object'){
+    if(Array.isArray(tabs))tabs.forEach(function(tab){(tab&&tab.actions||[]).forEach(apply);(tab&&tab.items||[]).forEach(apply);});
+    else Object.keys(tabs).forEach(function(k){(tabs[k]||[]).forEach(apply);});
+  }
+  return kit;
+}
+function repairDerivedKit(kit,structural){
   if(!kit||typeof kit!=='object')return kit;
   if(Array.isArray(kit.actions))kit.actions=dedupeWeaponCantripArray(kit.actions);
   var tabs=kit.tabs;
@@ -4170,7 +4224,7 @@ function repairDerivedKit(kit){
     if(Array.isArray(tabs))tabs.forEach(function(tab){if(tab&&Array.isArray(tab.actions))tab.actions=dedupeWeaponCantripArray(tab.actions);if(tab&&Array.isArray(tab.items))tab.items=dedupeWeaponCantripArray(tab.items);});
     else Object.keys(tabs).forEach(function(k){if(Array.isArray(tabs[k]))tabs[k]=dedupeWeaponCantripArray(tabs[k]);});
   }
-  return kit;
+  return applyFinalDueling(kit,structural||{});
 }
 
 function loadLiveStats(){
@@ -4184,7 +4238,7 @@ function loadLiveStats(){
       try {
         var actions = assembleForgeActions(c.inventory || [], c.structural || {});
         derived[c.key] = window.ForgeKitDerive
-          ? repairDerivedKit(window.ForgeKitDerive.derive(c, { assembledActions: actions, starterKits: STARTER_KITS }))
+          ? repairDerivedKit(window.ForgeKitDerive.derive(c, { assembledActions: actions, starterKits: STARTER_KITS }), c.structural||{})
           : null;
       } catch(e){
         clog('<i>' + escapeHtml(c.name || c.key) + ': derivation failed ('
@@ -6092,30 +6146,13 @@ function fieldEffectFacts(row,api){
   });
 }
 function installFieldFeedEvidence(){
-  var base=window.ForgeTableCorrectness,D=window.ForgeDamageEvidence;if(!base||base.__phase2fEvidence)return;
-  var proxy=Object.assign({},base);
-  proxy.pushFact=function(fact){
-    var html=base.pushFact(fact);
-    if(D&&fact&&(fact.dmgParts||fact.dmg!=null))D.decorateNewestRow(document,fact);
-    return html;
-  };
-  proxy.pushEvent=function(row){
-    if(!row)return "";
-    if(row.kind==="attack_declared"){FIELD_FEED_DECLARES[row.unit]=Object.assign({},row.payload||{});return "";}
-    if(row.kind==="attack_resolved"||row.kind==="ability_used"){
-      var declared=row.kind==="attack_resolved"?(FIELD_FEED_DECLARES[row.unit]||null):null;
-      if(row.kind==="attack_resolved")delete FIELD_FEED_DECLARES[row.unit];
-      var fact=base.factFromEvent(row,declared),p=row.payload||{};
-      if(fact&&D)D.attachPayload(fact,p);else if(fact&&p.dmgParts)fact.dmgParts=p.dmgParts;
-      var html=fact?proxy.pushFact(fact):"";fieldEffectFacts(row,proxy);return html;
-    }
-    return base.pushEvent(row);
-  };
-  proxy.__phase2fEvidence=true;window.ForgeTableCorrectness=proxy;
+  var D=window.ForgeDamageEvidence;
+  return !!(D&&typeof D.install==="function"&&D.install(window));
 }
 function clearProtocolFeed(){
   var body=document.querySelector("#fgFeed .fg-fbody");if(body)body.innerHTML="";
   FIELD_FEED_DECLARES=Object.create(null);
+  if(window.ForgeTableCorrectness&&typeof window.ForgeTableCorrectness.resetDamageEvidence==="function")window.ForgeTableCorrectness.resetDamageEvidence();
 }
 function rebuildProtocolFeed(rows){
   installFieldFeedEvidence();clearProtocolFeed();
@@ -6133,6 +6170,39 @@ function systemClog(html){
 }
 installFieldFeedEvidence();
 function banner(t){ var b=document.getElementById("cbBanner"); if(b){b.textContent=t;b.style.display="block";} }
+function verticalGeometryCounts(){
+  var connectors=F&&Array.isArray(F.connectors)?F.connectors:[],ledges=F&&Array.isArray(F.ledges)?F.ledges:[];
+  var out={stairs:0,ramps:0,bridges:0,ledges:0};
+  connectors.forEach(function(c){if(c&&c.kind==="stairs")out.stairs++;else if(c&&c.kind==="ramp")out.ramps++;else if(c&&c.kind==="bridge")out.bridges++;});
+  ledges.forEach(function(l){if(l&&!l.connectorId)out.ledges++;});
+  return out;
+}
+function refreshVerticalGeometryPanel(){
+  var q=verticalGeometryCounts(),status=document.getElementById("verticalGeometryStatus"),btn=document.getElementById("verticalOverlayPanelBtn"),find=document.getElementById("findBridgeSeed");
+  if(status)status.textContent=q.stairs+" stairs · "+q.ramps+" ramps · "+q.bridges+" bridges · "+q.ledges+" open ledges"+(q.bridges?"":" · no structural bridge on this seed");
+  if(btn)btn.textContent=VERTICAL_OVERLAY?"Hide connectors":"Show connectors";
+  if(find){var locked=!!SESSION_ID||!!(typeof CB!=="undefined"&&CB&&CB.active);find.disabled=locked;find.title=locked?"Bridge-seed search is authoring-only.":"Search nearby deterministic seeds for a generated structural bridge.";}
+}
+function toggleVerticalGeometry(){VERTICAL_OVERLAY=!VERTICAL_OVERLAY;drawVerticalOverlay();refreshVerticalGeometryPanel();refreshSceneMenu();}
+function findNearbyBridgeSeed(){
+  if(SESSION_ID||(typeof CB!=="undefined"&&CB&&CB.active)){clog("<i>Bridge-seed search is authoring-only.</i>");return;}
+  var seedEl=document.getElementById("seed"),start=(parseInt(seedEl.value)||7)>>>0,base=forgeParams(),found=null,gf=window.ForgeGeneratorFoundation;
+  for(var step=1;step<=48;step++){
+    var candidate=(start+step)>>>0;
+    /* Re-normalize from the compatibility recipe so every candidate receives
+       stage seeds derived from ITS root seed. Reusing base.stageSeeds here
+       would silently test the same map forty-eight times. */
+    var recipe={seed:candidate,theme:base.theme,archetype:base.archetype,sliders:Object.assign({},base.sliders||{})};
+    var candidateParams=gf&&typeof gf.normalizeParams==="function"?gf.normalizeParams(recipe):recipe;
+    var detail=window.ForgeEngine.generateDetailed(candidateParams);
+    if(detail&&detail.map&&Array.isArray(detail.map.connectors)&&detail.map.connectors.some(function(c){return c&&c.kind==="bridge";})){found=candidate;break;}
+  }
+  if(found==null){systemClog("<i>Bridge diagnostics: no structural bridge found in the next 48 deterministic seeds.</i>");return;}
+  seedEl.value=found;mode="tiers";setActiveChip("tiers");document.getElementById("seedGroup").style.opacity="1";setImgOnly(false);rebuild();
+  systemClog("<i>Bridge diagnostics: loaded seed "+found+" with "+verticalGeometryCounts().bridges+" structural bridge(s).</i>");
+}
+var verticalOverlayPanelBtn=document.getElementById("verticalOverlayPanelBtn");if(verticalOverlayPanelBtn)verticalOverlayPanelBtn.addEventListener("click",toggleVerticalGeometry);
+var findBridgeSeedBtn=document.getElementById("findBridgeSeed");if(findBridgeSeedBtn)findBridgeSeedBtn.addEventListener("click",findNearbyBridgeSeed);
 function refreshSceneMenu(){
   var tc=window.ForgeTableCorrectness,sess=window.__forgeSession;
   var fc=document.querySelector('#sceneForgeControls b');if(fc)fc.textContent=document.body.classList.contains('forge-peek')?'shown':'hidden';
@@ -6143,6 +6213,7 @@ function refreshSceneMenu(){
   var ca=document.getElementById('sceneCoverAudit');if(ca)ca.hidden=!auth;
   if(!auth&&VERTICAL_OVERLAY){VERTICAL_OVERLAY=false;drawVerticalOverlay();}
   var vo=document.getElementById('sceneVerticalOverlay');if(vo){vo.hidden=!auth;var vb=vo.querySelector('b');if(vb)vb.textContent=VERTICAL_OVERLAY?'Hide connectors':'Show connectors';}
+  refreshVerticalGeometryPanel();
   var pr=document.getElementById('sceneProneToggle');if(pr){pr.hidden=!auth;var chosen=(typeof CB!=="undefined"&&CB)?unitByKey(CB.selKey):null;var pb=pr.querySelector('b');if(pb)pb.textContent=chosen?(effectFor(chosen,"prone")?'Clear Prone':'Apply Prone'):'Select unit';pr.disabled=!chosen;}
   if(tc)tc.applyBody(sess,typeof active==='function'&&typeof CB!=='undefined'&&CB&&CB.active?active():null);
 }
@@ -6164,7 +6235,7 @@ function runCoverAudit(){
   if(window.addForgeRow)window.addForgeRow(html,{channel:'system'});else clog(html,false);if(sceneModeMenu)sceneModeMenu.hidden=true;
 }
 const sceneCoverAudit=document.getElementById('sceneCoverAudit');if(sceneCoverAudit)sceneCoverAudit.addEventListener('click',runCoverAudit);
-const sceneVerticalOverlay=document.getElementById('sceneVerticalOverlay');if(sceneVerticalOverlay)sceneVerticalOverlay.addEventListener('click',function(){VERTICAL_OVERLAY=!VERTICAL_OVERLAY;drawVerticalOverlay();refreshSceneMenu();if(sceneModeMenu)sceneModeMenu.hidden=true;});
+const sceneVerticalOverlay=document.getElementById('sceneVerticalOverlay');if(sceneVerticalOverlay)sceneVerticalOverlay.addEventListener('click',function(){toggleVerticalGeometry();if(sceneModeMenu)sceneModeMenu.hidden=true;});
 const sceneProneToggle=document.getElementById('sceneProneToggle');if(sceneProneToggle)sceneProneToggle.addEventListener('click',function(){var sess=window.__forgeSession,u=(typeof CB!=="undefined"&&CB)?unitByKey(CB.selKey):null;if(!u)return;var old=effectFor(u,"prone"),op=old?effectApi().remove(old.id,"DM cleared Prone",u.unit,old):window.ForgeCombatRules.addCondition({source:"__overseer",target:u.unit,nonce:Date.now()});var act={label:old?"Clear Prone":"Apply Prone",kind:"condition-edit",free:true};if(sess&&sess.me.overseer)netUseAbility(u,act,[u.unit],[op],{context:{kind:"condition-edit",condition:"prone"}});else if(!sess){localEffectEvent("ability_used",u.unit,{ability:act.label,targets:[u.unit],effects:[op],slot:"free"});refreshEffectState(null,true);renderHud();}if(sceneModeMenu)sceneModeMenu.hidden=true;});
 document.addEventListener('click',function(e){var w=document.getElementById('sceneModeMenuWrap');if(sceneModeMenu&&w&&!w.contains(e.target)){sceneModeMenu.hidden=true;if(sceneModeToggle)sceneModeToggle.setAttribute('aria-expanded','false');}});
 function initBadge(u){ return u.badge||(u.side==="pc"?(ROSTER_INIT[u.key]||u.name[0]):"g"); }
@@ -6386,7 +6457,7 @@ document.addEventListener("forge:openIconPicker", function(e){
       if(window.ForgeKitDerive && __liveStatsCache[sheetRef]){
         try{
           var actions = assembleForgeActions(c.inventory||[], s);
-          __derivedKits[sheetRef] = repairDerivedKit(window.ForgeKitDerive.derive(c, { assembledActions: actions, starterKits: STARTER_KITS }));
+          __derivedKits[sheetRef] = repairDerivedKit(window.ForgeKitDerive.derive(c, { assembledActions: actions, starterKits: STARTER_KITS }), c.structural||{});
         }catch(e){}
       }
       window.IconPicker.close();
@@ -6410,7 +6481,7 @@ document.addEventListener("forge:hideTile", function(e){
   if(window.ForgeKitDerive && __liveStatsCache[sheetRef]){
     try{
       var actions = assembleForgeActions(c.inventory||[], s);
-      __derivedKits[sheetRef] = repairDerivedKit(window.ForgeKitDerive.derive(c, { assembledActions: actions, starterKits: STARTER_KITS }));
+      __derivedKits[sheetRef] = repairDerivedKit(window.ForgeKitDerive.derive(c, { assembledActions: actions, starterKits: STARTER_KITS }), c.structural||{});
     }catch(e){}
   }
   renderHud();

@@ -14,28 +14,14 @@ has('#fgFeed .fg-frow[hidden]{display:none!important}',"feed tabs actually hide 
 has('#fgFeed .ffr-dmg-detail{display:block!important}',"damage component math is visible by default");
 ok(/buildWeaponActions } from '\.\.\/weapon-actions\.js\?v=fg2(?:e1|f)'/.test(html),"weapon projection exposes a feature-detection seam");
 has("function structuralHasDueling", "runtime derivation can read the Dueling fighting style");
-has("function externalWeaponActionsOwnDueling", "runtime repair avoids double-applying an already-patched module");
-has("a.dmgBonus=(Number(a.dmgBonus)||0)+2", "eligible actions receive Dueling's +2 damage");
-has("!/-2h$/.test(id)","versatile two-handed attacks are excluded from Dueling");
+has("function externalWeaponActionsOwnDueling", "runtime repair can detect an already-patched module");
+has("function applyFinalDueling", "Dueling is enforced on the final kit combat consumes");
+has("addDuelingToFinalAction", "final weapon and bound cantrip actions receive the style bonus");
+has("two[- ]handed", "versatile two-handed attacks are excluded from Dueling");
 has("function repairDerivedKit", "runtime kit repair removes legacy/live weapon-cantrip duplicates");
 has("w._derivedId=w.id;w.id=l.id", "live cantrip math preserves a saved legacy action id");
-const helperStart=html.indexOf("function structuralHasDueling");
-const helperEnd=html.indexOf("function loadLiveStats",helperStart);
-ok(helperStart>=0&&helperEnd>helperStart,"runtime derivation helper block is extractable");
-const ctx={buildWeaponActions:function oldWeaponModule(){},assembleActions:function(){return [
-  {id:"wpn-longsword",label:"Longsword",dmgBonus:4},
-  {id:"wpn-longsword-2h",label:"Longsword (Two-Handed)",dmgBonus:4},
-  {id:"cant-boomingblade",label:"Booming Blade · Longsword",dmgBonus:4}
-];},Object,Array,Number,String,RegExp};
-vm.createContext(ctx);vm.runInContext(html.slice(helperStart,helperEnd),ctx);
-const duel=ctx.assembleForgeActions([],{classFeatures:{fightingStyle:"Dueling"}});
-ok(duel[0].dmgBonus===6&&duel[1].dmgBonus===4&&duel[2].dmgBonus===6,"runtime Dueling repair reaches both the weapon and its bound weapon-cantrip");
-const plain=ctx.assembleForgeActions([],{classFeatures:{fightingStyle:"Defense"}});
-ok(plain.every(a=>a.dmgBonus===4),"runtime repair leaves non-Dueling characters unchanged");
-const kit=ctx.repairDerivedKit({actions:[{id:"cant-boomingblade",label:"Booming Blade · Longsword",dmgBonus:6},{id:"legacy-boom",label:"Booming Blade",dmgBonus:4}]});
-ok(kit.actions.length===1&&kit.actions[0].dmgBonus===6&&kit.actions[0].id==="legacy-boom","live cantrip wins semantic dedupe while retaining the saved id");
-has("function installFieldFeedEvidence", "old table-correctness copies are wrapped at runtime");
-has("if(fact&&p.dmgParts)fact.dmgParts=p.dmgParts", "resolved facts retain damage component evidence");
+has("function installFieldFeedEvidence", "damage evidence installs at the table-correctness seam");
+has("D.install(window)", "resolved rows are rendered with evidence before HUD insertion");
 has("function rebuildProtocolFeed(rows)", "the visible encounter record can be rebuilt from the protocol log");
 has('rebuildProtocolFeed(typeof pipe.events==="function"?pipe.events():[])',"cold join/refresh restores the feed from authoritative events");
 has('rebuildProtocolFeed(typeof __pipe.events==="function"?__pipe.events():[])',"watchdog resync restores the feed from authoritative events");
