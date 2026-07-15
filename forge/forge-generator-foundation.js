@@ -16,7 +16,7 @@
 })(typeof self !== "undefined" ? self : this, function () {
   "use strict";
 
-  var GENERATOR_VERSION = "2.0.0-elevations.1";
+  var GENERATOR_VERSION = "2.0.0-bridges.1";
   var PARAMETER_SCHEMA = "forge-map-parameters";
   var PARAMETER_VERSION = 2;
   var SUPPORTED_PARAMETER_VERSIONS = Object.freeze([1, 2]);
@@ -257,6 +257,17 @@
     out.widthFt = clampNumber(connector.widthFt, 5, 0.5, 100);
     out.clearanceFt = connector.clearanceFt == null ? null : clampNumber(connector.clearanceFt, 0, 0, 1000);
     out.movementCostFt = connector.movementCostFt == null ? null : clampNumber(connector.movementCostFt, 0, 0, 1000);
+    out.deckThicknessFt = connector.deckThicknessFt == null ? (out.kind === "bridge" ? 0.5 : null)
+      : clampNumber(connector.deckThicknessFt, 0.5, 0.1, 10);
+    var rails = connector.rails || {};
+    out.rails = out.kind === "bridge" ? {
+      left: rails.left !== false,
+      right: rails.right !== false,
+      heightFt: clampNumber(rails.heightFt, 2.5, 0, 20),
+      thicknessFt: clampNumber(rails.thicknessFt, 0.25, 0.05, 5)
+    } : null;
+    out.supportsUnderpass = !!connector.supportsUnderpass;
+    out.surface = connector.surface == null ? (out.kind === "bridge" ? "bridge-deck" : null) : String(connector.surface);
     var req = connector.requires || {};
     out.requires = { climb: !!req.climb, jump: !!req.jump, swim: !!req.swim, fly: !!req.fly };
     out.oneWay = !!connector.oneWay;

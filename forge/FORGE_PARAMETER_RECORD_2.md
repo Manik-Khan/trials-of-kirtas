@@ -1,6 +1,6 @@
 # Forge Parameter Record 2
 
-Status: canonical recipe record (introduced Phase 2d; current generator Phase 2e).
+Status: Phase 2d canonical recipe record.
 
 Schema: `forge-map-parameters`  
 Version: `2`
@@ -12,7 +12,7 @@ Phase 2c archetype and save/load contract.
 {
   schema: "forge-map-parameters",
   version: 2,
-  generatorVersion: "2.0.0-elevations.1",
+  generatorVersion: "2.0.0-stages.1",
   seed: 12345,
   theme: "cavern",
   archetype: "canyon",

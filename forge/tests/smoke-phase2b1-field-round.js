@@ -19,7 +19,7 @@ has(html,'CONTEST_COVER&&Number.isFinite(ro.cover)&&ro.cover>0','stale/no-cover 
 has(html,'function rollActionDamage(a,crit,extras)','attack resolution emits component damage evidence');
 has(html,'dmgParts:damage?damage.parts:null','shared attack facts carry damage components');
 has(html,'dmgParts:damage.parts','local attack facts carry damage components');
-ok(/\.\.\/weapon-actions\.js\?v=fg(?:3|2e1)/.test(html),'weapon-action import is cache-busted');
+ok(/\.\.\/weapon-actions\.js\?v=fg(?:3|2e1|2f)/.test(html),'weapon-action import is cache-busted');
 has(html,'forge-kit-derive.js?v=b3','kit derivation cache stamp bumped');
 has(html,'forge-feed-render.js?v=b3','feed renderer cache stamp bumped');
 has(html,'forge-table-correctness.js?v=fg2','table-correctness cache stamp bumped');

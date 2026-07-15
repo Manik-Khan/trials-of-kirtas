@@ -2,12 +2,13 @@
    Battle Forge ENGINE. Turns forge-dungeon into one deterministic,
    validated combat-map pipeline.
 
-   Phase 2e keeps the five isolated streams and gives the height stage a
-   bounded tactical product: floor elevations, first-class stairs/ramps, and
-   explicit ledges. Ordinary creatures may cross no more than five vertical
-   feet unless an open connector authorizes the edge.
+   Phase 2f keeps the five isolated streams and extends the height stage with
+   multi-cell structural bridges. Bridge paths are first-class walk surfaces
+   over pool/hazard cells, with deck thickness, rails, and under-clearance.
+   Ordinary creatures may cross no more than five vertical feet unless an open
+   connector authorizes the exact path segment.
 
-     layout → height + connectors → semantics → decor → foes
+     layout → height + connectors/bridges → semantics → decor → foes
 
    Version-1 parameter records keep the old monolithic profile so snapshot-less
    legacy sessions remain reproducible. Snapshots remain authoritative on load.
@@ -74,24 +75,56 @@
   var MAX_CONNECTOR_RISE_FT = 10;
   var CARDINAL = [[1,0],[-1,0],[0,1],[0,-1]];
 
+  function connectorPath(connector) {
+    if (!connector) return [];
+    if (Array.isArray(connector.path) && connector.path.length >= 2) return connector.path;
+    return connector.from && connector.to ? [connector.from, connector.to] : [];
+  }
+
   function connectorBetween(map, fromC, fromR, toC, toR) {
     var list = map && map.connectors;
     if (!Array.isArray(list)) return null;
     for (var i = 0; i < list.length; i++) {
-      var c = list[i];
-      if (!c || c.state === "closed" || c.state === "broken") continue;
-      var f = c.from || {}, t = c.to || {};
-      if (f.c === fromC && f.r === fromR && t.c === toC && t.r === toR) return c;
-      if (!c.oneWay && f.c === toC && f.r === toR && t.c === fromC && t.r === fromR) return c;
+      var connector = list[i];
+      if (!connector || connector.state === "closed" || connector.state === "broken") continue;
+      var path = connectorPath(connector);
+      for (var j = 0; j < path.length - 1; j++) {
+        var f = path[j] || {}, t = path[j + 1] || {};
+        if (f.c === fromC && f.r === fromR && t.c === toC && t.r === toR) return connector;
+        if (!connector.oneWay && f.c === toC && f.r === toR && t.c === fromC && t.r === fromR) return connector;
+      }
     }
     return null;
   }
 
+  function bridgeSurfaceAt(map, c, r) {
+    var list = map && map.connectors;
+    if (!Array.isArray(list)) return null;
+    for (var i = 0; i < list.length; i++) {
+      var connector = list[i];
+      if (!connector || connector.kind !== "bridge" || connector.state === "closed" || connector.state === "broken") continue;
+      var path = connectorPath(connector);
+      for (var j = 0; j < path.length; j++) if (path[j].c === c && path[j].r === r) return { connector: connector, point: path[j], index: j };
+    }
+    return null;
+  }
+
+  function effectiveHeight(map, c, r) {
+    var bridge = bridgeSurfaceAt(map, c, r);
+    return bridge ? Number(bridge.point.elevationFt || 0) : Number(map.h[idx(map.cols, c, r)] || 0);
+  }
+
   function ordinaryStepAllowed(map, fromC, fromR, toC, toR) {
     if (toC < 0 || toR < 0 || toC >= map.cols || toR >= map.rows) return false;
-    if (map.wall[idx(map.cols, toC, toR)]) return false;
-    var dh = Math.abs(Number(map.h[idx(map.cols, toC, toR)] || 0) - Number(map.h[idx(map.cols, fromC, fromR)] || 0));
-    return dh <= MAX_UNCONNECTED_STEP_FT + 1e-9 || !!connectorBetween(map, fromC, fromR, toC, toR);
+    var bridgeFrom = bridgeSurfaceAt(map, fromC, fromR), bridgeTo = bridgeSurfaceAt(map, toC, toR);
+    var targetWall = !!map.wall[idx(map.cols, toC, toR)];
+    var segment = connectorBetween(map, fromC, fromR, toC, toR);
+    if (targetWall && !bridgeTo) return false;
+    /* A bridge deck over a blocked pool is enterable only along its authored
+       path. This closes diagonal/side-entry shortcuts into the middle span. */
+    if ((bridgeFrom || bridgeTo) && (targetWall || map.wall[idx(map.cols, fromC, fromR)]) && !segment) return false;
+    var dh = Math.abs(effectiveHeight(map, toC, toR) - effectiveHeight(map, fromC, fromR));
+    return dh <= MAX_UNCONNECTED_STEP_FT + 1e-9 || !!segment;
   }
 
   function bfsReach(map, start) {
@@ -130,17 +163,34 @@
       if (!Number.isFinite(h) || h < -1e-9 || h > MAX_ELEVATION_FT + 1e-9) return false;
     }
     var ids = {};
+    var bridgeCells = {};
     for (i = 0; i < map.connectors.length; i++) {
-      var c = map.connectors[i], f = c && c.from, t = c && c.to;
-      if (!c || !f || !t || ids[c.id] || (c.kind !== "stairs" && c.kind !== "ramp")) return false;
+      var c = map.connectors[i], f = c && c.from, t = c && c.to, path = connectorPath(c);
+      if (!c || !f || !t || ids[c.id] || ["stairs", "ramp", "bridge"].indexOf(c.kind) < 0) return false;
       ids[c.id] = true;
-      if (Math.abs(f.c - t.c) + Math.abs(f.r - t.r) !== 1) return false;
-      if (f.c < 0 || f.r < 0 || t.c < 0 || t.r < 0 || f.c >= map.cols || t.c >= map.cols || f.r >= map.rows || t.r >= map.rows) return false;
+      if (!Array.isArray(path) || path.length < 2) return false;
+      for (var pi = 0; pi < path.length; pi++) {
+        var point = path[pi];
+        if (!point || point.c < 0 || point.r < 0 || point.c >= map.cols || point.r >= map.rows || !Number.isFinite(Number(point.elevationFt))) return false;
+        if (pi && Math.abs(point.c - path[pi - 1].c) + Math.abs(point.r - path[pi - 1].r) !== 1) return false;
+      }
+      if (f.c !== path[0].c || f.r !== path[0].r || t.c !== path[path.length - 1].c || t.r !== path[path.length - 1].r) return false;
       if (map.wall[idx(map.cols, f.c, f.r)] || map.wall[idx(map.cols, t.c, t.r)]) return false;
       if (Math.abs(Number(map.h[idx(map.cols, f.c, f.r)]) - Number(f.elevationFt)) > 1e-9) return false;
       if (Math.abs(Number(map.h[idx(map.cols, t.c, t.r)]) - Number(t.elevationFt)) > 1e-9) return false;
-      var rise = Math.abs(Number(f.elevationFt) - Number(t.elevationFt));
-      if (!(rise > 0 && rise <= MAX_CONNECTOR_RISE_FT + 1e-9)) return false;
+      if (c.kind === "bridge") {
+        if (path.length < 3 || !(Number(c.widthFt) > 0) || !(Number(c.deckThicknessFt) > 0) || !(Number(c.clearanceFt) > 0)) return false;
+        for (pi = 1; pi < path.length - 1; pi++) {
+          var bk = key(path[pi].c, path[pi].r); if (bridgeCells[bk]) return false; bridgeCells[bk] = c.id;
+          if (!map.wall[idx(map.cols, path[pi].c, path[pi].r)]) return false;
+          var baseFt = Number(map.h[idx(map.cols, path[pi].c, path[pi].r)] || 0);
+          if (Number(path[pi].elevationFt) - Number(c.deckThicknessFt) <= baseFt + 1e-9) return false;
+        }
+      } else {
+        if (path.length !== 2 || Math.abs(f.c - t.c) + Math.abs(f.r - t.r) !== 1) return false;
+        var rise = Math.abs(Number(f.elevationFt) - Number(t.elevationFt));
+        if (!(rise > 0 && rise <= MAX_CONNECTOR_RISE_FT + 1e-9)) return false;
+      }
     }
     for (i = 0; i < map.ledges.length; i++) {
       var l = map.ledges[i];
@@ -530,7 +580,65 @@
     return GF && typeof GF.hash32 === "function" ? GF.hash32(seed + ":" + ac + "," + ar + ":" + bc + "," + br) : ((seed + ac * 73856093 + ar * 19349663 + bc * 83492791 + br) >>> 0);
   }
 
-  function verticalRecords(map, heightSeed) {
+  function bridgeCandidates(map, dungeon, heightSeed) {
+    if (!dungeon || !dungeon.grid || !MB || !MB.CELL) return [];
+    var POOL = MB.CELL.POOL, dirs = [[1,0],[0,1]], candidates = [], maxWaterCells = 4;
+    for (var r = 0; r < map.rows; r++) for (var c = 0; c < map.cols; c++) {
+      var startI = idx(map.cols, c, r); if (map.wall[startI]) continue;
+      for (var di = 0; di < dirs.length; di++) {
+        var dx = dirs[di][0], dy = dirs[di][1], water = [];
+        for (var step = 1; step <= maxWaterCells + 1; step++) {
+          var nc = c + dx * step, nr = r + dy * step;
+          if (nc < 0 || nr < 0 || nc >= map.cols || nr >= map.rows) break;
+          var ni = idx(map.cols, nc, nr), cell = dungeon.grid[ni];
+          if (cell === POOL) { water.push({ c: nc, r: nr }); continue; }
+          if (!water.length || map.wall[ni]) break;
+          var fromFt = Number(map.h[startI] || 0), toFt = Number(map.h[ni] || 0);
+          if (Math.abs(fromFt - toFt) > MAX_UNCONNECTED_STEP_FT + 1e-9) break;
+          var count = water.length, path = [{ c: c, r: r, elevationFt: fromFt }], clearance = Infinity;
+          for (var wi = 0; wi < count; wi++) {
+            var t = (wi + 1) / (count + 1), deckFt = Math.round((fromFt + (toFt - fromFt) * t) * 2) / 2;
+            var baseFt = Number(map.h[idx(map.cols, water[wi].c, water[wi].r)] || 0);
+            clearance = Math.min(clearance, deckFt - 0.5 - baseFt);
+            path.push({ c: water[wi].c, r: water[wi].r, elevationFt: deckFt });
+          }
+          path.push({ c: nc, r: nr, elevationFt: toFt });
+          if (!(clearance > 0)) break;
+          candidates.push({
+            hash: edgeHash((heightSeed ^ 0x51ed270b) >>> 0, path[0], path[path.length - 1]),
+            path: path,
+            clearanceFt: Math.round(clearance * 2) / 2
+          });
+          break;
+        }
+      }
+    }
+    return candidates.sort(function(a,b){return a.hash-b.hash;});
+  }
+
+  function selectBridges(map, dungeon, heightSeed) {
+    var candidates = bridgeCandidates(map, dungeon, heightSeed), used = {}, out = [];
+    var cap = Math.min(2, Math.max(0, Math.ceil(candidates.length / 10)));
+    for (var i = 0; i < candidates.length && out.length < cap; i++) {
+      var cand = candidates[i], clash = false;
+      for (var p = 0; p < cand.path.length; p++) if (used[key(cand.path[p].c, cand.path[p].r)]) { clash = true; break; }
+      if (clash) continue;
+      cand.path.forEach(function(q){used[key(q.c,q.r)] = true;});
+      var id = "height-bridge-" + out.length, first = cand.path[0], last = cand.path[cand.path.length - 1];
+      out.push({
+        id: id, kind: "bridge", from: copyObject(first), to: copyObject(last), path: copyObject(cand.path),
+        widthFt: 5, clearanceFt: cand.clearanceFt, movementCostFt: (cand.path.length - 1) * 5,
+        deckThicknessFt: 0.5, rails: { left: true, right: true, heightFt: 2.5, thicknessFt: 0.25 },
+        supportsUnderpass: false, surface: "bridge-deck",
+        requires: { climb: false, jump: false, swim: false, fly: false }, oneWay: false,
+        blocksWhenClosed: true, state: "open", deltaFt: Math.abs(Number(last.elevationFt) - Number(first.elevationFt)),
+        source: "height", render: { generated: true, material: "wood-stone" }
+      });
+    }
+    return out;
+  }
+
+  function verticalRecords(map, heightSeed, dungeon) {
     var edges = [], openIndex = {}, open = [], i;
     for (var r = 0; r < map.rows; r++) for (var c = 0; c < map.cols; c++) {
       i = idx(map.cols, c, r); if (map.wall[i]) continue; openIndex[key(c, r)] = open.length; open.push({ c: c, r: r });
@@ -574,6 +682,7 @@
         widthFt: 5, clearanceFt: null, movementCostFt: 5, requires: { climb: false, jump: false, swim: false, fly: false },
         oneWay: false, blocksWhenClosed: false, state: "open", deltaFt: edge.deltaFt, source: "height", render: { generated: true } });
     });
+    selectBridges(map, dungeon, heightSeed).forEach(function(bridge){ connectors.push(bridge); });
     var ledges = steep.map(function (edge, index) {
       var high = edge.a.elevationFt >= edge.b.elevationFt ? edge.a : edge.b, low = high === edge.a ? edge.b : edge.a;
       return { id: "height-ledge-" + index, a: copyObject(edge.a), b: copyObject(edge.b), high: copyObject(high), low: copyObject(low),
@@ -686,9 +795,9 @@
       applyDecor(d, candidateProps, candidateTorches, seeds.decor, p.decorDensity);
       var map = MB.dungeonToMap(d, { poolBlocks: !!(p.poolBlocks || p.waterBlocks) });
       for (var i = 0; i < heightPlan.h.length; i++) map.h[i] = map.wall[i] ? wallSupportHeight(map, heightPlan.h, i) : heightPlan.h[i];
-      var vertical = verticalRecords(map, seeds.height);
+      var vertical = verticalRecords(map, seeds.height, d);
       map.connectors = vertical.connectors; map.ledges = vertical.ledges;
-      map.meta = Object.assign(map.meta || {}, { vertical: { version: 1, maxElevationFt: MAX_ELEVATION_FT, orientation: heightPlan.orientation, connectors: map.connectors.length, ledges: map.ledges.length } });
+      map.meta = Object.assign(map.meta || {}, { vertical: { version: 2, maxElevationFt: MAX_ELEVATION_FT, orientation: heightPlan.orientation, connectors: map.connectors.length, bridges: map.connectors.filter(function(c){return c.kind === "bridge";}).length, ledges: map.ledges.length } });
 
       for (var foeAttempt = 0; foeAttempt < maxFoes; foeAttempt++) {
         placeSpawns(map, d, p, stageAttemptSeed(seeds.foes, "foes", foeAttempt));
@@ -699,7 +808,7 @@
           source: "forge-engine", seed: layoutSeed, requestedSeed: p.seed, biome: theme, name: d.name,
           heightMode: p.heightMode, party: p.party, foes: p.foes,
           attempts: layoutAttempt + 1,
-          vertical: { version: 1, maxElevationFt: MAX_ELEVATION_FT, orientation: heightPlan.orientation, connectors: map.connectors.length, ledges: map.ledges.length },
+          vertical: { version: 2, maxElevationFt: MAX_ELEVATION_FT, orientation: heightPlan.orientation, connectors: map.connectors.length, bridges: map.connectors.filter(function(c){return c.kind === "bridge";}).length, ledges: map.ledges.length },
           stageOwnership: { version: 1, profile: "stage-owned-legacy", seeds: copyObject(seeds), attempts: attempts, fingerprints: fingerprints }
         });
         var effective = Object.assign({}, p, { themeKey: theme, generatorProfile: "stage-owned-legacy" });
@@ -747,6 +856,8 @@
       heightField: heightField,
       boundedCellTiers: boundedCellTiers,
       verticalRecords: verticalRecords,
+      bridgeCandidates: bridgeCandidates,
+      selectBridges: selectBridges,
       validateVerticalRecords: validateVerticalRecords,
       connectorBetween: connectorBetween,
       ordinaryStepAllowed: ordinaryStepAllowed,

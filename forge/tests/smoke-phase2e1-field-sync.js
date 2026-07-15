@@ -12,7 +12,7 @@ ok(html.indexOf("var SESSION_ID")<html.indexOf("resize(); rebuild();"),"session 
 has('id="phase2e1FieldCss"',"field hotfix CSS is present");
 has('#fgFeed .fg-frow[hidden]{display:none!important}',"feed tabs actually hide the other channels");
 has('#fgFeed .ffr-dmg-detail{display:block!important}',"damage component math is visible by default");
-has("buildWeaponActions } from '../weapon-actions.js?v=fg2e1'","weapon projection exposes a feature-detection seam");
+ok(/buildWeaponActions } from '\.\.\/weapon-actions\.js\?v=fg2(?:e1|f)'/.test(html),"weapon projection exposes a feature-detection seam");
 has("function structuralHasDueling", "runtime derivation can read the Dueling fighting style");
 has("function externalWeaponActionsOwnDueling", "runtime repair avoids double-applying an already-patched module");
 has("a.dmgBonus=(Number(a.dmgBonus)||0)+2", "eligible actions receive Dueling's +2 damage");
@@ -29,7 +29,7 @@ const ctx={buildWeaponActions:function oldWeaponModule(){},assembleActions:funct
 ];},Object,Array,Number,String,RegExp};
 vm.createContext(ctx);vm.runInContext(html.slice(helperStart,helperEnd),ctx);
 const duel=ctx.assembleForgeActions([],{classFeatures:{fightingStyle:"Dueling"}});
-ok(duel[0].dmgBonus===6&&duel[1].dmgBonus===4&&duel[2].dmgBonus===6,"runtime Dueling repair adds +2 only to eligible one-handed attacks");
+ok(duel[0].dmgBonus===6&&duel[1].dmgBonus===4&&duel[2].dmgBonus===6,"runtime Dueling repair reaches both the weapon and its bound weapon-cantrip");
 const plain=ctx.assembleForgeActions([],{classFeatures:{fightingStyle:"Defense"}});
 ok(plain.every(a=>a.dmgBonus===4),"runtime repair leaves non-Dueling characters unchanged");
 const kit=ctx.repairDerivedKit({actions:[{id:"cant-boomingblade",label:"Booming Blade · Longsword",dmgBonus:6},{id:"legacy-boom",label:"Booming Blade",dmgBonus:4}]});

@@ -1,6 +1,6 @@
 # Forge Stage Ownership 1
 
-Status: canonical contract (introduced Phase 2d; extended by Phase 2e vertical records).
+Status: Phase 2d canonical contract.
 
 The active legacy grammar now runs as:
 
@@ -21,8 +21,7 @@ seed rather than reopening one shared random stream.
   stages consume the resulting topology; it is the sole topology owner.
 
 Every generated map records stage seeds, per-stage attempt counts, and
-fingerprints in `meta.stageOwnership`. Since Phase 2e, the height fingerprint
-owns the complete vertical product: `h[]`, `connectors[]`, and `ledges[]`.
+fingerprints in `meta.stageOwnership`.
 
 ## Retry rule
 
