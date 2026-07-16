@@ -192,6 +192,8 @@
   function ensureFlowButtons(state){
     if(!root.document)return;var bar=root.document.getElementById("fgBar");if(!bar)return;var host=bar.querySelector(".fg-hint")||bar;
     function btn(id,label,eventName,show,title){var b=root.document.getElementById(id);if(!show){if(b)b.remove();return null;}if(!b){b=root.document.createElement("button");b.id=id;b.type="button";b.className="fg-flow-btn";b.addEventListener("click",function(){root.document.dispatchEvent(new root.CustomEvent(eventName));});host.appendChild(b);}b.innerHTML=label;b.title=title||"";return b;}
+    var review=root.document.getElementById("fgRollReview"),showReview=!!(state&&state.confirmAttack&&state.rollReview);
+    if(!showReview){if(review)review.remove();}else{if(!review){review=root.document.createElement("div");review.id="fgRollReview";review.className="fg-roll-review";host.appendChild(review);}review.textContent="Roll review · "+state.rollReview;}
     btn("fgConfirmAttack","⚔ Confirm attack","forge:confirmAttack",!!(state&&state.confirmAttack),state&&state.confirmWhy||"Roll the armed attack against the selected target.");
     btn("fgUndoMove","↶ Undo move","forge:undoMove",!!(state&&state.undoMove),state&&state.undoWhy||"Undo your most recent move before another consequence occurs.");
     var stand=btn("fgStand","Stand up","forge:standProne",!!(state&&state.canStand),state&&state.standWhy||"Spend half your speed to stand from Prone.");if(stand&&state.standCostFt)stand.innerHTML="Stand up · "+state.standCostFt+" ft";
@@ -230,6 +232,7 @@
       (root.ForgeFeedRender&&root.ForgeFeedRender.CSS)||"",
       ".fg-contest-next{display:block;width:100%;margin-top:8px;padding:7px 10px;border:1px solid rgba(216,179,91,.55);background:rgba(216,179,91,.08);color:#d7c18a;font:700 11px/1.2 'Barlow Condensed',sans-serif;letter-spacing:.08em;text-transform:uppercase;cursor:pointer}",
       ".fg-flow-btn{display:inline-flex;margin:8px 5px 0 0;padding:8px 11px;border:1px solid rgba(111,190,157,.55);background:rgba(58,138,146,.16);color:#d9fff1;font:750 11px/1.2 'Barlow Condensed',sans-serif;letter-spacing:.08em;text-transform:uppercase;cursor:pointer}",
+      ".fg-roll-review{display:block;margin:8px 0 2px;padding:7px 9px;border-left:3px solid rgba(216,179,91,.82);background:rgba(216,179,91,.09);color:#f5e8bd;font:700 11px/1.35 'Barlow Condensed',sans-serif;letter-spacing:.035em}",
       "#fgConfirmAttack{border-color:rgba(216,179,91,.75);background:rgba(216,179,91,.20);color:#fff0bd}",
       "#fgUndoMove{border-color:rgba(150,177,196,.62);background:rgba(78,112,140,.17);color:#d9efff}",
       ".fg-feed-tabs{display:flex;gap:5px;padding:7px 10px;border-bottom:1px solid rgba(255,255,255,.09);background:rgba(0,0,0,.18)}",

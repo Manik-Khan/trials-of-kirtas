@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 "use strict";
 const fs=require("fs"),path=require("path");const s=fs.readFileSync(path.join(__dirname,"..","topography-test-mock.html"),"utf8");let pass=0;function has(x,m){if(!s.includes(x))throw Error("FAIL: "+m);console.log("ok",++pass,"-",m);}
-has('forge-table-correctness.js?v=fg4','correctness seam is loaded');
+has('forge-table-correctness.js?v=fg5','correctness seam is loaded');
 has('forge-unit-art.js?v=ua2','unit-art cache stamp bumped');
 has('id="sceneModeMenu"','Forge toggle owns the view menu');
 has('id="sceneViewerMode"','Staff/Player View lives in Forge menu');

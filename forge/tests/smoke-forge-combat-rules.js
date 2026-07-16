@@ -5,7 +5,7 @@ let pass=0;
 function ok(v,m){if(!v)throw new Error("FAIL: "+m);console.log("ok",++pass,"-",m);}
 function throws(fn,re,m){let e;try{fn();}catch(x){e=x;}ok(e&&re.test(e.message),m);}
 
-ok(F.VERSION==="1.2.0","combat-rules version is pinned");
+ok(F.VERSION==="1.3.0","combat-rules version is pinned");
 ok(F.FLANKING_MODES.join(",")==="advantage,plus2,plus5,off","all shared flanking modes are stable");
 ok(F.assertFlankingMode()==="advantage","advantage is the compatibility/default flanking rule");
 throws(()=>F.assertFlankingMode("double-dice"),/unknown flanking mode/,"unknown flanking rules fail loudly");
@@ -25,6 +25,8 @@ const T={id:"t",side:"foe",c:1,r:1,alive:true};
 const P={id:"p",side:"pc",c:2,r:1,alive:true};
 const canReach=()=>true;
 ok(F.isFlanked(A,T,[A,T,P],null,canReach),"opposite threatening ally establishes the existing table flank");
+const C={id:"c",side:"pc",c:1,r:0,alive:true};
+ok(F.isFlanked(C,T,[A,T,P,C],null,canReach),"a third melee attacker benefits when allies already flank the target");
 ok(!F.isFlanked(A,T,[A,T,{...P,c:2,r:2}],null,canReach),"adjacent but non-opposite ally does not flank");
 ok(!F.isFlanked(A,T,[A,T,{...P,alive:false}],null,canReach),"downed ally cannot provide a flank");
 ok(!F.isFlanked(A,T,[A,T,{...P,conditions:["incapacitated"]}],null,canReach),"incapacitated ally cannot provide a flank");

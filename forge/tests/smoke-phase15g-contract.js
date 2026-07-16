@@ -6,8 +6,8 @@ const rules=fs.readFileSync(path.join(__dirname,"..","forge-combat-rules.js"),"u
 const table=fs.readFileSync(path.join(__dirname,"..","forge-table-correctness.js"),"utf8");
 let pass=0;function has(src,x,m){if(!src.includes(x))throw Error("FAIL: "+m);console.log("ok",++pass,"-",m);}function lacks(src,x,m){if(src.includes(x))throw Error("FAIL: "+m);console.log("ok",++pass,"-",m);}
 
-has(html,'forge-combat-rules.js?v=fcr2','production surface loads the Phase 1.5g combat-rules seam');
-has(html,'forge-table-correctness.js?v=fg4','feed/channel seam is cache-stamped');
+has(html,'forge-combat-rules.js?v=fcr3','production surface loads the Phase 1.5g combat-rules seam');
+has(html,'forge-table-correctness.js?v=fg5','feed/channel seam is cache-stamped');
 has(table,'["table","system","all"]','feed exposes Table, System, and All filters');
 has(table,'data-feed-channel','feed rows retain their category');
 has(table,'.fg-frow:not([data-feed-channel])','rows that predate decorator installation are retroactively classified');
@@ -23,7 +23,7 @@ has(rules,'cancelled:adv.length>0&&dis.length>0','any advantage and disadvantage
 has(rules,'function incapacitated','threat eligibility recognizes incapacitating conditions');
 has(rules,'"unconscious","paralyzed","stunned","petrified"','downed/incapacitated flank exclusions are explicit');
 has(rules,'function isFlanked','flanking is headless and testable');
-has(rules,'oc=2*target.c-attacker.c','existing opposite-square flanking geometry is retained');
+has(rules,'a.c+b.c===2*target.c','opposite-square geometry is retained at target level');
 has(rules,'FLANKING_MODES','shared flanking variants are versioned data');
 has(html,'var FLANK_RULE="advantage"','advantage is on by default at this table');
 has(html,'envelope.rules={flanking:','new session envelopes persist the shared flanking rule');

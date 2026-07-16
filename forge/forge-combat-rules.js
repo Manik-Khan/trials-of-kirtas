@@ -8,7 +8,7 @@
   else root.ForgeCombatRules=api;
 })(typeof self!=="undefined"?self:this,function(){
   "use strict";
-  var VERSION="1.2.0";
+  var VERSION="1.3.0";
   var FLANKING_MODES=Object.freeze(["advantage","plus2","plus5","off"]);
   function clone(v){return v==null?v:JSON.parse(JSON.stringify(v));}
   function norm(s){return String(s||"").toLowerCase().replace(/[’]/g,"'").trim();}
@@ -27,12 +27,25 @@
   function incapacitated(unit,effectLookup){if(!unit||unit.alive===false)return true;var ks=["incapacitated","unconscious","paralyzed","stunned","petrified"];
     for(var i=0;i<ks.length;i++)if(hasCondition(unit,ks[i],effectLookup))return true;return false;}
   function cheb(a,b){return Math.max(Math.abs(a.c-b.c),Math.abs(a.r-b.r));}
+  /* Table flanking is a condition on the TARGET, not only on the two units
+     that established the line. Once two conscious allies threaten opposite
+     sides/corners, every allied melee attacker who also threatens that target
+     receives the selected flanking benefit. This preserves the table's
+     advantage / +2 / +5 modes while allowing a third attacker to join an
+     already-established flank. */
   function isFlanked(attacker,target,units,effectLookup,canReach){
     if(!attacker||!target||incapacitated(attacker,effectLookup)||incapacitated(target,effectLookup))return false;
     if(cheb(attacker,target)>1)return false;
     if(typeof canReach==="function"&&!canReach(attacker,target))return false;
-    var oc=2*target.c-attacker.c,orr=2*target.r-attacker.r;
-    return (units||[]).some(function(x){return x!==attacker&&x.side===attacker.side&&!incapacitated(x,effectLookup)&&x.c===oc&&x.r===orr&&(!canReach||canReach(x,target));});
+    var threatening=(units||[]).filter(function(x){
+      return x&&x!==target&&x.side===attacker.side&&!incapacitated(x,effectLookup)&&cheb(x,target)<=1&&(!canReach||canReach(x,target));
+    });
+    if(threatening.indexOf(attacker)<0)threatening.push(attacker);
+    for(var i=0;i<threatening.length;i++)for(var j=i+1;j<threatening.length;j++){
+      var a=threatening[i],b=threatening[j];
+      if(a.c+b.c===2*target.c&&a.r+b.r===2*target.r)return true;
+    }
+    return false;
   }
   function flankingContribution(mode,flanked){mode=assertFlankingMode(mode);if(!flanked||mode==="off")return {attackBonus:0,advantageSources:[]};if(mode==="advantage")return {attackBonus:0,advantageSources:["flanking"]};return {attackBonus:mode==="plus5"?5:2,advantageSources:[]};}
   function attackRollSources(opts){

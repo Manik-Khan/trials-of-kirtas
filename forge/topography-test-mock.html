@@ -28,7 +28,7 @@
 <script src="forge-engine.js?v=fe6"></script>
 <script src="forge-protocol.js?v=fb1"></script>
 <script src="forge-replay.js?v=fb10"></script>
-<script src="forge-combat-rules.js?v=fcr2"></script>
+<script src="forge-combat-rules.js?v=fcr3"></script>
 <script src="forge-effects.js?v=fe2"></script>
 <script src="forge-discovery.js?v=fd3"></script>
 <script src="forge-bus.js?v=fb2"></script>
@@ -42,7 +42,7 @@
 <script src="forge-damage-evidence.js?v=fde3"></script>
 <script src="forge-feed-render.js?v=ffr5"></script>
 <script src="forge-hud.js?v=b2"></script>
-<script src="forge-table-correctness.js?v=fg4"></script>
+<script src="forge-table-correctness.js?v=fg5"></script>
 <script src="../item-icons.js?v=b3"></script>
 <script src="../spell-icons.js?v=b3"></script>
 <script src="../icon-picker.js?v=b3"></script>
@@ -726,7 +726,9 @@ body.forge-author-preview #partySelect{opacity:0;pointer-events:none}
 .cbReactSkip{ font-family:var(--f-util); text-transform:uppercase; letter-spacing:.12em; font-size:13px; color:var(--tk-ink-dim); background:transparent; border:1px solid var(--tk-line); padding:11px 16px; cursor:pointer; }
 /* Task 9: session-only prompt modal (player/overseer-fallback) + waiting banner
    (everyone else). Same card idiom as .cbReact — see its comment above. */
-.cbPromptCard{ width:360px; text-align:center; }
+.cbPromptCard{ width:390px; text-align:center; }
+.cbPromptEvidence{display:none;margin:11px 0 2px;padding:9px 10px;border:1px solid rgba(201,162,75,.42);background:rgba(20,24,22,.42);color:var(--tk-ink);text-align:left;font:600 12px/1.45 var(--f-util);letter-spacing:.02em}
+.cbPromptEvidence.on{display:block}.cbPromptEvidence .rolls{font-size:14px;color:#fff1bf}.cbPromptEvidence .kept{display:inline-block;padding:0 4px;border:1px solid var(--tk-gold);background:rgba(201,162,75,.17)}.cbPromptEvidence .drop{text-decoration:line-through;opacity:.58}.cbPromptEvidence .forecast{display:block;margin-top:4px;color:var(--tk-ink-dim);font-size:11px}.cbPromptEvidence .warn{color:#b94b3d;font-weight:800}
 .cbPromptFlag{ font-family:var(--f-util); text-transform:uppercase; letter-spacing:.1em; font-size:11px; color:#a33b2e; margin-top:6px; }
 .cbPromptRing{ position:relative; width:64px; height:64px; margin:14px auto 4px; border-radius:50%;
   background:conic-gradient(var(--tk-gold) 0deg, rgba(168,159,138,.3) 0deg); display:flex; align-items:center; justify-content:center; }
@@ -1084,7 +1086,7 @@ body.forge-author-preview #partySelect{opacity:0;pointer-events:none}
         <button class="cbReset" id="cbReset" title="Reset the whole battle">Reset</button>
       </div>
       <div class="cbChipRow">
-        <button class="cbChipTog" id="cbFlank" title="House rule: attackers on opposite sides of a target in melee get advantage">Flank: off</button>
+        <button class="cbChipTog" id="cbFlank" title="House rule: once allies threaten opposite sides of a target, every allied melee attacker gains the selected flanking benefit">Flank: off</button>
         <button class="cbChipTog" id="cbReady" title="Hold an attack (weapon or attack spell) as a reaction; the DM releases it when the trigger comes">Ready</button>
         <button class="cbChipTog" id="cbVes" title="Vesperian animated sprite sheet (assets/sprites/vesperian/)">Ves: &hellip;</button>
       </div>
@@ -1109,6 +1111,7 @@ body.forge-author-preview #partySelect{opacity:0;pointer-events:none}
         <div class="cbReactEy" id="cbPromptEy">Reaction</div>
         <div class="cbReactTitle" id="cbPromptTitle"></div>
         <div class="cbReactDesc" id="cbPromptDesc"></div>
+        <div class="cbPromptEvidence" id="cbPromptEvidence" aria-live="polite"></div>
         <div class="cbPromptFlag" id="cbPromptFlag" style="display:none"></div>
         <div class="cbPromptRing" id="cbPromptRing"><span id="cbPromptRingNum"></span></div>
         <div class="cbReactBtns" id="cbPromptBtns"><button class="cbReactUse" id="cbPromptUse">Use</button><button class="cbReactSkip" id="cbPromptSkip">Pass</button></div>
@@ -4464,6 +4467,8 @@ function unitFromRosterRow(row, stateUnit){
   // the ★ save-back and future action-list rendering; only u.atk drives play.
   if(stateUnit&&stateUnit.resources)u.res=normalizeResourceRecord(stateUnit.resources);
   else if(row.resources)u.res=normalizeResourceRecord(row.resources);
+  u.advGrant=(stateUnit&&stateUnit.advGrant)?{reason:stateUnit.advGrant.reason||"granted"}:null;
+  u.reacted=!!(stateUnit&&stateUnit.reactionUsed);
   if (!isPc) { u.mActions = kit && kit.mActions; u.statblock = row.statblock || null; }
   else {
     var liveRow=__liveStatsCache&&__liveStatsCache[row.sheet_ref||row.unit];
@@ -4473,6 +4478,18 @@ function unitFromRosterRow(row, stateUnit){
   return u;
 }
 function unitByKey(k){ return CB.units.filter(function(u){ return u.unit === k; })[0] || null; }
+/* Shared combat flags live in replay state. Copy them through one reconciliation
+   door after every echo and on cold boot; otherwise a Silvery Barbs rider can
+   exist authoritatively in state.units while the attack preview reads a stale
+   CB unit and silently rolls normally. */
+function reconcileSharedUnitFacts(state){
+  state=state||(window.__forgeSession&&window.__forgeSession.pipe.state());if(!state||!state.units)return;
+  CB.units.forEach(function(cu){var su=state.units[cu.unit];if(!su)return;
+    if(su.resources)cu.res=normalizeResourceRecord(su.resources);
+    cu.advGrant=su.advGrant?{reason:su.advGrant.reason||"granted"}:null;
+    cu.reacted=!!su.reactionUsed;
+  });
+}
 function escapeHtml(s){ return String(s).replace(/[&<>"']/g, function(c){
   return { "&":"&amp;", "<":"&lt;", ">":"&gt;", '"':"&quot;", "'":"&#39;" }[c]; }); }
 /* the session's own initiative order (facts from the log) drives CB.order /
@@ -5222,9 +5239,11 @@ function pipelineHit(attacker, a, hs, target, applyDmg, done){
   if(reactReady(target,"shield")) steps.push({u:target,key:"shield"});
   (function run(i){
     if(i>=steps.length || !hs.hit){ preDmg(); return; }
-    var s=steps[i];
-    var desc = s.key==="silveryBarbs" ? ("Force "+attacker.name+" to reroll on "+target.name+" and take the lower?")
-             : ("+5 AC vs "+attacker.name+"'s hit?");
+    var s=steps[i],baseTotal=Number(hs.roll)+(Number(a.hit)||0)+(Number(hs.rollBonus)||0),defense=Number(target.ac||10)+Number(hs.acBonus||0);
+    var raw=(hs.d20Rolls&&hs.d20Rolls.length?hs.d20Rolls:[hs.roll]).map(function(v,j){return (j===hs.d20KeptIndex?'['+v+']':String(v));}).join(' · ');
+    var evidence="d20 "+raw+" · "+hs.roll+(Number(a.hit)?" + "+Number(a.hit):"")+(Number(hs.rollBonus)?" + "+Number(hs.rollBonus):"")+" = "+baseTotal+" vs defense "+defense+(hs.crit?" · CRITICAL HIT":" · HIT")+". ";
+    var desc = s.key==="silveryBarbs" ? (evidence+"Force "+attacker.name+" to reroll the kept d20 and take the lower?")
+             : (evidence+(hs.crit?"Shield cannot stop a critical hit.":"Shield raises defense to "+(defense+5)+(baseTotal<defense+5?" and turns this into a miss.":" but does not stop this hit.")));
     promptReaction(s.u,s.key,desc,
       function(){ payReact(s.u,s.key);
         if(s.key==="silveryBarbs"){ var orig=hs.roll,sb=sbRerollEvidence(orig); hs.roll=sb.roll;hs.reactionD20Rolls=sb.rolls;hs.reactionD20KeptIndex=sb.keptIndex; hs.crit=hs.roll===20;
@@ -5318,12 +5337,14 @@ function reactionCandidates(state,declaredRow,answers){
   var attacker=declaredRow.unit,target=p.target;
   if(!state.units[attacker]||!state.units[target])return [];
   var hs=replayHitState(p,answers);if(!hs.hit)return [];
-  var cands=[],aPos=state.units[attacker].pos,aSide=stateSideOf(state,attacker);
+  var cands=[],aPos=state.units[attacker].pos,aSide=stateSideOf(state,attacker),targetKit=unitByKey(target),targetAC=Number(targetKit&&targetKit.ac)||10;
+  var attackTotal=Number(hs.roll)+(Number(p.hitBonus)||0)+(Number(p.roll_mod)||0),shieldReady=wireReactReady(state,target,"shield");
+  var evidence={attacker:attacker,target:target,mode:p.mode||"Attack",hitBonus:Number(p.hitBonus)||0,rollMod:Number(p.roll_mod)||0,cover:Number(hs.acBonus)||0,origRoll:hs.roll,roll:hs.roll,crit:!!hs.crit,attackTotal:attackTotal,targetAC:targetAC,d20Rolls:hs.d20Rolls||p.d20_rolls||null,d20KeptIndex:hs.d20KeptIndex!=null?hs.d20KeptIndex:p.d20_kept_index,adv:!!p.adv,dis:!!p.dis,advReason:p.advReason||"",shieldReady:shieldReady,shieldAC:targetAC+(Number(hs.acBonus)||0)+5,shieldStops:shieldReady&&!hs.crit&&attackTotal<targetAC+(Number(hs.acBonus)||0)+5};
   Object.keys(state.units).forEach(function(k){
     if(!wireReactReady(state,k,"silveryBarbs")||stateSideOf(state,k)===aSide)return;
-    var ku=unitByKey(k);if(cbDist({c:state.units[k].pos.c,r:state.units[k].pos.r},{c:aPos.c,r:aPos.r})<=ku.react.silveryBarbs.range*5)cands.push({to:k,react:"silveryBarbs",context:{attacker:attacker,target:target,hitBonus:p.hitBonus||0,rollMod:Number(p.roll_mod)||0,cover:p.cover||0,origRoll:hs.roll}});
+    var ku=unitByKey(k);if(cbDist({c:state.units[k].pos.c,r:state.units[k].pos.r},{c:aPos.c,r:aPos.r})<=ku.react.silveryBarbs.range*5)cands.push({to:k,react:"silveryBarbs",context:Object.assign({},evidence)});
   });
-  if(wireReactReady(state,target,"shield"))cands.push({to:target,react:"shield",context:{attacker:attacker,hitBonus:p.hitBonus||0,rollMod:Number(p.roll_mod)||0,roll:hs.roll,crit:hs.crit,cover:hs.acBonus}});
+  if(shieldReady)cands.push({to:target,react:"shield",context:Object.assign({},evidence)});
   if(wireReactReady(state,target,"hellishRebuke"))cands.push({to:target,react:"hellishRebuke",context:{attacker:attacker}});
   return cands;
 }
@@ -5379,6 +5400,7 @@ function promptRemaining(prompt){
 function clearPromptUI(){
   if(PROMPT_UI.timerId){ clearInterval(PROMPT_UI.timerId); PROMPT_UI.timerId=null; }
   var modal=document.getElementById("cbPromptModal"); if(modal) modal.style.display="none";
+  var evidence=document.getElementById("cbPromptEvidence");if(evidence){evidence.innerHTML="";evidence.classList.remove("on");}
   var banner=document.getElementById("cbPromptBanner"); if(banner) banner.style.display="none";
   var cov=document.getElementById("cbCoverModal"); if(cov) cov.style.display="none";
   if(CONTEST_HI){ CONTEST_HI=null; drawHi(); }   // culprit-cell highlight lives exactly as long as the contest
@@ -5386,11 +5408,30 @@ function clearPromptUI(){
 }
 function reactionDescFor(react,askerName){
   var label=REACT_LABEL[react]||react,desc=label;
-  if(react==="silveryBarbs")desc="Force "+askerName+" to reroll and take the lower?";
-  else if(react==="shield")desc="+5 AC vs "+askerName+"'s hit?";
-  else if(react==="hellishRebuke")desc="Deal 2d10 fire to "+askerName+" (DEX save)?";
+  if(react==="silveryBarbs")desc="The attack succeeded. Force "+askerName+" to reroll the kept d20 and use the lower result?";
+  else if(react==="shield")desc="The attack succeeded. Raise your AC by 5 until the start of your next turn?";
+  else if(react==="hellishRebuke")desc="After taking damage, deal 2d10 fire to "+askerName+" (DEX save)?";
   else if(react==="opportunityAttack")desc=askerName+" is leaving your reach. Make one melee attack before they leave?";
   return {label:label,desc:desc};
+}
+function reactionEvidenceHtml(react,ctx){
+  ctx=ctx||{};if(react!=="silveryBarbs"&&react!=="shield")return "";
+  var rolls=Array.isArray(ctx.d20Rolls)&&ctx.d20Rolls.length?ctx.d20Rolls.slice():[ctx.origRoll!=null?ctx.origRoll:ctx.roll];
+  var kept=ctx.d20KeptIndex!=null?Number(ctx.d20KeptIndex):0;
+  var dice=rolls.map(function(v,i){return '<span class="'+(i===kept?'kept':'drop')+'">'+escapeHtml(v)+'</span>';}).join(' · ');
+  var roll=Number(ctx.origRoll!=null?ctx.origRoll:ctx.roll),hitBonus=Number(ctx.hitBonus)||0,rollMod=Number(ctx.rollMod)||0;
+  var total=ctx.attackTotal!=null?Number(ctx.attackTotal):roll+hitBonus+rollMod;
+  var defense=(Number(ctx.targetAC)||10)+(Number(ctx.cover)||0),crit=!!ctx.crit;
+  var math=roll+(hitBonus?((hitBonus>=0?' + ':' - ')+Math.abs(hitBonus)):'')+(rollMod?((rollMod>=0?' + ':' - ')+Math.abs(rollMod)):'')+' = '+total;
+  var verdict=crit?'<span class="warn">CRITICAL HIT</span>':(total>=defense?'HIT':'MISS');
+  var forecast='';
+  if(react==="silveryBarbs"&&ctx.shieldReady){
+    forecast=crit?'Shield is also available, but cannot stop a critical hit.':'Shield would raise the defense to '+Number(ctx.shieldAC||defense+5)+' and '+(ctx.shieldStops?'would turn this into a miss.':'would not stop this hit.');
+  }else if(react==="shield"){
+    forecast=crit?'Shield cannot stop this critical hit.':'Shield raises the defense to '+Number(ctx.shieldAC||defense+5)+' and '+(total<Number(ctx.shieldAC||defense+5)?'turns this into a miss.':'does not stop this hit.');
+  }
+  var source=ctx.advReason?'<span class="forecast">Roll sources: '+escapeHtml(ctx.advReason)+'</span>':'';
+  return '<span class="rolls">d20 '+dice+'</span><br>'+escapeHtml(math)+' vs defense '+escapeHtml(defense)+' · '+verdict+(forecast?'<span class="forecast">'+escapeHtml(forecast)+'</span>':'')+source;
 }
 /* the SAME reaction math pipelineHit's onUse callbacks do (kit data —
    CHAR/FOE — is identical static data on every device, so this device can
@@ -5479,12 +5520,13 @@ function openReactionModal(prompt,opts){
 
   var el=document.getElementById("cbPromptModal"); if(!el) return;
   var eyebrow=document.getElementById("cbPromptEy"), title=document.getElementById("cbPromptTitle"),
-      desc=document.getElementById("cbPromptDesc"), flag=document.getElementById("cbPromptFlag"),
+      desc=document.getElementById("cbPromptDesc"), evidence=document.getElementById("cbPromptEvidence"), flag=document.getElementById("cbPromptFlag"),
       ring=document.getElementById("cbPromptRing"), ringNum=document.getElementById("cbPromptRingNum"),
       btns=document.getElementById("cbPromptBtns"), timesUp=document.getElementById("cbPromptTimesUp");
   eyebrow.textContent = opts.fallback ? "Reaction — timed out" : "Reaction";
   title.textContent = u.name+" — "+info.label;
   desc.textContent = info.desc;
+  var evidenceHtml=reactionEvidenceHtml(prompt.react,ctx);if(evidence){evidence.innerHTML=evidenceHtml;evidence.classList.toggle("on",!!evidenceHtml);}
   btns.style.display="flex"; timesUp.style.display="none";
   if(opts.fallback){
     flag.textContent="answering as "+u.name+" (timed out)"; flag.style.display="block";
@@ -5843,6 +5885,17 @@ function coverContestAvailable(){
   if(!u||!t||!CB.pending||CB.pending.kind!=="attack"||u.side===t.side)return false;
   var v=sightTo(u,t),b=v&&v.acBonus;
   return !!(v&&v.canTarget&&Number.isFinite(b)&&b>0);
+}
+/* Compact pre-roll truth. Automatic sources are visible before commitment so a
+   missed effect is discovered before dice are rolled; a later overseer override
+   can attach to this same review door rather than mutating results after the fact. */
+function attackRollReview(u,a,t,ro){
+  if(!u||!a||!t)return "";ro=ro||reachOK(u,a,t,{silent:true});var av=advPreview(u,t,a,ro),mode=av.adv?"Advantage":av.dis?"Disadvantage":"Normal";
+  var sources=(av.why||[]).length?" ("+av.why.join(", ")+")":"",hit=(Number(a.hit)||0)+(Number(av.attackBonus)||0),defense=Number(t.ac||10)+(Number(ro&&ro.cover)||0);
+  var parts=[mode+sources,(hit>=0?"+":"")+hit+" to hit","vs defense "+defense];
+  if(blessEffectFor(u))parts.splice(2,0,"Bless 1d4");
+  if(ro&&ro.coverName&&ro.coverName!=="none")parts.push(ro.coverName+" cover");
+  return parts.join(" · ");
 }
 function clearConfirmTarget(){CONFIRM_TARGET=null;document.body.classList.remove("forge-target-confirm");}
 function selectAction(idx,castChoice){
@@ -6209,6 +6262,7 @@ function snapshot(label,turnStart){
     effectRows:LOCAL_EFFECT_ROWS.slice(), effectSeq:LOCAL_EFFECT_SEQ,
     units: CB.units.map(function(u){ return { id:u.id, c:u.c, r:u.r, hp:u.hp, alive:u.alive,
       res:JSON.parse(JSON.stringify(u.res||{})), reacted:!!u.reacted, raging:!!u.raging, inspired:!!u.inspired, disadv:!!u.disadv,
+      advGrant:u.advGrant?JSON.parse(JSON.stringify(u.advGrant)):null,
       readied:(u.readied&&u.actions)?u.actions.indexOf(u.readied.act):-1 }; }) };
   if(CB.hptr<CB.hist.length-1) CB.hist=CB.hist.slice(0,CB.hptr+1);
   CB.hist.push(st); CB.hptr=CB.hist.length-1; updateRewindUI();
@@ -6219,6 +6273,7 @@ function restore(st){
   var byId={}; CB.units.forEach(function(u){byId[u.id]=u;});
   st.units.forEach(function(su){ var u=byId[su.id]; if(!u)return; u.c=su.c;u.r=su.r;u.hp=su.hp;u.alive=su.alive;
     u.res=JSON.parse(JSON.stringify(su.res)); u.reacted=su.reacted; u.raging=su.raging; u.inspired=su.inspired; u.disadv=su.disadv;
+    u.advGrant=su.advGrant?JSON.parse(JSON.stringify(su.advGrant)):null;
     u.readied=(su.readied!=null&&su.readied>=0&&u.actions)?{act:u.actions[su.readied]}:null; });
   tokenGroup.clear(); CB.units.forEach(function(u){ if(u.alive) makeToken(u); else { u.sprite=null; u.shadow=null; u._ves=null; } });
   var u=active(); if(u&&u.side==="pc"&&CB.st) rebuildMoveReach(u); else CB.seen={};
@@ -6593,6 +6648,8 @@ function renderHud(){
     if (cbPanelEl) cbPanelEl.style.display = "none";
     if (cbLogEl)   cbLogEl.style.display   = "none";
     var contestAvailable=coverContestAvailable();if(!contestAvailable)CONTEST_COVER=false;
+    var confirmTarget=targetForConfirm(),confirmRo=(u&&CB.pending&&confirmTarget)?reachOK(u,CB.pending,confirmTarget,{silent:true}):null;
+    var rollReview=(u&&CB.pending&&confirmTarget&&directAttack(CB.pending))?attackRollReview(u,CB.pending,confirmTarget,confirmRo):"";
     window.renderForgeBar({
       active: u, order: hudOrder, iControl: iControl, waiting: waitingMe,
       economy: CB.st, pending: CB.pending, over: CB.over,
@@ -6603,7 +6660,7 @@ function renderHud(){
       _structural: u && __liveStatsCache && __liveStatsCache[u.key] && __liveStatsCache[u.key].structural || null,
       readying: READYING, releasing: RELEASING,
       sightReport: u && u.side === "pc" ? sightReport(u) : "",
-      confirmAttack:!!(iControl&&CB.pending&&directAttack(CB.pending)&&targetForConfirm()),confirmWhy:"Target a visible creature, review cover, then confirm.",
+      confirmAttack:!!(iControl&&CB.pending&&directAttack(CB.pending)&&confirmTarget),confirmWhy:"Target a visible creature, review the roll sources and cover, then confirm.",rollReview:rollReview,
       undoMove:!!myUndoableMove(),undoWhy:undoWhyDisabled(),
       canStand:!!(iControl&&u&&effectFor(u,"prone")&&CB.st&&CB.st.moveLeft>=window.ForgeCombatRules.proneStandCostSquares(u.speed)),
       standCostFt:u?window.ForgeCombatRules.proneStandCostSquares(u.speed)*5:0
@@ -7373,7 +7430,7 @@ async function bootSession(sid){
       refreshEffectState(r,false);
       if(r.kind==="edit")applyRuleRows();
       applyConnectorStateReplay(st,false);
-      CB.units.forEach(function(cu){var su=st.units&&st.units[cu.unit];if(su&&su.resources)cu.res=normalizeResourceRecord(su.resources);});
+      reconcileSharedUnitFacts(st);
       reconcileMovementPresentation();
       runMirror(before, lastState);   // Task 13: after every applied event, mirror any hp change I control back to its sheet
       renderHud();   // repaints the cleared guard even on a verb-less event (e.g. a miss)
@@ -7406,6 +7463,7 @@ async function bootSession(sid){
   refreshSceneMenu();
   applyConnectorStateReplay(pipe.state(),true);
   spawnFromState(pipe.state(), row);
+  reconcileSharedUnitFacts(pipe.state());
   rebuildProtocolFeed(typeof pipe.events==="function"?pipe.events():[]);
   refreshEffectState(null,true);
   /* Finding 1a: a refresh mid-turn lands here with a state whose initiative

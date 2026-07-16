@@ -1,74 +1,50 @@
 {
   "APPLY.md": {
-    "sha256": "c163f6c58ff55b7eb7978b28e57c488f7d69f51892d0da2bc6628c1d0e6cfdcd",
-    "bytes": 2445
+    "bytes": 2375,
+    "sha256": "6a3309cfeb2ccb3d9d786184e9f11321e657e940d3500436970b54b0cf35b556"
   },
-  "FORGE_PROTOCOL.md": {
-    "sha256": "cbe637093bf3c9e0503185489ceaa191af433a9e44719527c826f2043d3accab",
-    "bytes": 20207
+  "forge-phase2-correctness-wave4-2026-07-15.patch": {
+    "bytes": 105309,
+    "sha256": "1332d5a37a01419b31bd76b0ef9c2781024b127484b9660ea65b792d3b485d61"
   },
-  "data/characters/liadan.json": {
-    "sha256": "6761d0f9a58b7f4fd0276035e1ec9ba3b7d1c8e910ce82dae9f61599a295ac86",
-    "bytes": 19740
+  "forge/PHASE2_CORRECTNESS_WAVE4_2026-07-15.md": {
+    "bytes": 6536,
+    "sha256": "e88f4211ea190fd74a32f75d9d455a2d7aa64f441ea7b9b5879cd2f1eb65c67b"
   },
-  "forge/FORGE_STRUCTURAL_BRIDGES_1.md": {
-    "sha256": "bae4717d7f47cb092d3c679ef83711524f1ee5d09de673896bdfd71b82fac782",
-    "bytes": 5913
+  "forge/forge-combat-rules.js": {
+    "bytes": 12989,
+    "sha256": "181aaa93d3a6eca133f62b4368ab1b4806f32205bfa9cc33395890210edbddac"
   },
-  "forge/PHASE2_CORRECTNESS_WAVE3_2026-07-15.md": {
-    "sha256": "bf3352c108adc60d2c78f6f26280f7a76b0af5bda3bd1be4bc94ccf18a4aa8a9",
-    "bytes": 7409
+  "forge/forge-table-correctness.js": {
+    "bytes": 25832,
+    "sha256": "9957c7bfd25f057204336674aaab8be47d4a39e3aa09ddb363ffed74bee15438"
   },
-  "forge/forge-board.js": {
-    "sha256": "3f4ac77a642577a23617862922f2e505a4c9dd8b4155588dfbec746eb9357b6d",
-    "bytes": 6319
+  "forge/patch-phase2-correctness-wave4.js": {
+    "bytes": 61811,
+    "sha256": "73646d4e59cfbc19b2d45c996070354fef1e47f1e79fda37063ebe4c784a519d"
   },
-  "forge/forge-discovery.js": {
-    "sha256": "1a5ba99e6e6db1bbe9baead7acc5389b5b585388029dac63571a85998076c0af",
-    "bytes": 9695
+  "forge/tests/smoke-forge-combat-rules.js": {
+    "bytes": 10055,
+    "sha256": "11fde32308edc8ceeceb7cc14c3b78c493016a5e59a3c676c99e2303571ef058"
   },
-  "forge/forge-pipeline.js": {
-    "sha256": "1ed8b15e55b7fc562920e13948f59385aff7c57d44362f2f799095728350ea1a",
-    "bytes": 11338
+  "forge/tests/smoke-phase15d-contract.js": {
+    "bytes": 2075,
+    "sha256": "f4df108f0abcadd5c3a7b3dddb9b1b222ce9c28bae8fa77a658fa0eb9ffcc82d"
   },
-  "forge/forge-replay.js": {
-    "sha256": "22ef41a1c34a635cc34acd530f188f82d6444f990e3a3edd6772f6e54f7bf8fe",
-    "bytes": 16540
+  "forge/tests/smoke-phase15g-contract.js": {
+    "bytes": 7682,
+    "sha256": "c07634676bf7cc27f8be5430dc55b641a64f3f2cd9e2972c3c9e61e06bee5cd9"
   },
-  "forge/patch-phase2-correctness-wave3.js": {
-    "sha256": "8449f7b7e06c2fa0bbf5d29964a62860229095746939cff223ec4dcaf5650f4c",
-    "bytes": 130306
+  "forge/tests/smoke-phase2-correctness-wave4.js": {
+    "bytes": 4265,
+    "sha256": "dcfaedba9e2624e9bd1e31c0fb07d12427d7b5353a001d340f3d3b85aed6b79f"
   },
-  "forge/tactics-geometry.js": {
-    "sha256": "f89c6ee250d68fc288c914c7266b13eb48fa82d68b51d70d486bdf5c4ab4b0cd",
-    "bytes": 21453
-  },
-  "forge/tests/smoke-forge-discovery.js": {
-    "sha256": "366def8f2218d7cf96d979d44d98d78c42106be8d8881701f00dd437b75b5290",
-    "bytes": 6814
-  },
-  "forge/tests/smoke-phase15f-contract.js": {
-    "sha256": "1cc8f1100be55bcee0322b26a275af5db3df71d9642804f3cf48f571374ee5ef",
-    "bytes": 5927
-  },
-  "forge/tests/smoke-phase15h-contract.js": {
-    "sha256": "ae6d2a2eec583215c810b4c54bc242e5022c3a5d102c2307f1852944968aa4c5",
-    "bytes": 3405
-  },
-  "forge/tests/smoke-phase2-correctness-wave3.js": {
-    "sha256": "233c795b4f1763cf4661dd97ac4452bd63bb0c2833fd669791a43ef8b3526321",
-    "bytes": 8357
-  },
-  "forge/tests/smoke-phase2f-bridges-damage.js": {
-    "sha256": "ee87d47cc14b7d6a90566db920e12681b40f37c27e7d0d22ddafa2a1dac21f59",
-    "bytes": 8531
+  "forge/tests/smoke-phase2b1-field-round.js": {
+    "bytes": 5024,
+    "sha256": "747fe42dad96164dffeec708b3a9a036645b91372206ac2277ff5fb626facbf2"
   },
   "forge/topography-test-mock.html": {
-    "sha256": "790155bbf0e73739767036d4251a3443f1288cc49ed0c55903b3c1eb327d2d1f",
-    "bytes": 709170
-  },
-  "forge-phase2-correctness-wave3-2026-07-15.patch": {
-    "sha256": "c9b0d3b902e907265d01920b0983ad812ae64dc3484b2502b8d831061afc2528",
-    "bytes": 224228
+    "bytes": 715486,
+    "sha256": "d3e1466f25c204b9d37a06e547deb7cbdf2fcf6d410ac77dfa6ff001fe3fb325"
   }
 }
