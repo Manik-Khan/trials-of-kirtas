@@ -4,7 +4,7 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
 <title>Topography Test — Heightfield Diorama</title>
-<!-- Phase 2f.2: structural bridges + canonical site-style damage pipeline -->
+<!-- Phase 2f.3: replayable structural-bridge states + correctness repairs -->
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,600;0,700;1,600&family=Oswald:wght@300;400;500;600&family=EB+Garamond:ital@0;1&display=swap" rel="stylesheet">
@@ -27,13 +27,13 @@
 <script src="forge-unit-art.js?v=ua2"></script>
 <script src="forge-engine.js?v=fe6"></script>
 <script src="forge-protocol.js?v=fb1"></script>
-<script src="forge-replay.js?v=fb8"></script>
+<script src="forge-replay.js?v=fb10"></script>
 <script src="forge-combat-rules.js?v=fcr2"></script>
 <script src="forge-effects.js?v=fe2"></script>
-<script src="forge-discovery.js?v=fd2"></script>
+<script src="forge-discovery.js?v=fd3"></script>
 <script src="forge-bus.js?v=fb2"></script>
-<script src="forge-pipeline.js?v=fb5"></script>
-<script src="forge-board.js?v=fb6"></script>
+<script src="forge-pipeline.js?v=fb6"></script>
+<script src="forge-board.js?v=fb7"></script>
 <script src="../armor-ac.js?v=cc2"></script>
 <script src="../equip-slots.js?v=cc2"></script>
 <script src="../character-combat.js?v=cc2"></script>
@@ -142,13 +142,17 @@ function connectorBetween(map,fromC,fromR,toC,toR){
   }
   return null;
 }
-function bridgeSurfaceAt(map,c,r){
+function bridgeRecordAt(map,c,r){
   var list=map&&map.connectors;if(!Array.isArray(list))return null;
   for(var i=0;i<list.length;i++){
-    var connector=list[i];if(!connector||connector.kind!=='bridge'||connector.state==='closed'||connector.state==='broken')continue;
+    var connector=list[i];if(!connector||connector.kind!=='bridge')continue;
     var path=connectorPath(connector);for(var j=0;j<path.length;j++)if(path[j].c===c&&path[j].r===r)return{connector:connector,point:path[j],index:j,path:path};
   }
   return null;
+}
+function bridgeSurfaceAt(map,c,r){
+  var hit=bridgeRecordAt(map,c,r),state=hit&&String(hit.connector.state||'open').toLowerCase();
+  return hit&&state!=='closed'&&state!=='broken'?hit:null;
 }
 function connectorAllows(token,connector){
   if(!connector)return false;var req=connector.requires||{};
@@ -158,6 +162,8 @@ function connectorAllows(token,connector){
 }
 function stepAllowed(map, token, fromC, fromR, toC, toR) {
   if (!inBounds(map, toC, toR)) return false;
+  var targetBridge=bridgeRecordAt(map,toC,toR),targetState=targetBridge&&String(targetBridge.connector.state||'open').toLowerCase();
+  if(targetBridge&&(targetState==='closed'||targetState==='broken'))return false;
   var bf=bridgeSurfaceAt(map,fromC,fromR),bt=bridgeSurfaceAt(map,toC,toR),segment=connectorBetween(map,fromC,fromR,toC,toR);
   if (!!map.wall[idx(map,toC,toR)]&&!bt) return false;
   /* Bridge-only cells can be entered/exited only along consecutive authored
@@ -449,7 +455,7 @@ var API={
   SQUARE_FT:SQUARE_FT,STEP_FT:STEP_FT,EYE_FT:EYE_FT,FOOT_FT:FOOT_FT,DIRS:DIRS,
   BODY_LEVELS:BODY_LEVELS,BODY_SAMPLES:BODY_SAMPLES,
   makeMap:makeMap,idx:idx,inBounds:inBounds,baseHeightAt:baseHeightAt,heightAt:heightAt,isWall:isWall,occTop:occTop,chebyshev:chebyshev,
-  connectorPath:connectorPath,connectorBetween:connectorBetween,bridgeSurfaceAt:bridgeSurfaceAt,connectorAllows:connectorAllows,stepAllowed:stepAllowed,movementReach:movementReach,pathTo:pathTo,canReachMelee:canReachMelee,range3d:range3d,inRange:inRange,
+  connectorPath:connectorPath,connectorBetween:connectorBetween,bridgeRecordAt:bridgeRecordAt,bridgeSurfaceAt:bridgeSurfaceAt,connectorAllows:connectorAllows,stepAllowed:stepAllowed,movementReach:movementReach,pathTo:pathTo,canReachMelee:canReachMelee,range3d:range3d,inRange:inRange,
   coverShapeAt:coverShapeAt,pointInCoverShape:pointInCoverShape,bridgeBlockerAtPoint:bridgeBlocker,losVerdict:losVerdict,losRay:losRay,
   lipCorners:lipCorners,targetFacingEdges:targetFacingEdges,lowWallPeeks:lowWallPeeks,firingPoints:firingPoints,coverAudit:coverAudit
 };
@@ -1013,6 +1019,7 @@ body.forge-author-preview #partySelect{opacity:0;pointer-events:none}
         <button class="filebtn" id="findBridgeSeed" type="button" title="Search nearby deterministic seeds for a generated structural bridge">Find bridge seed</button>
       </div>
       <div class="fname" id="verticalGeometryStatus" style="white-space:normal">Waiting for a generated map.</div>
+      <div id="bridgeStateList" style="margin-top:7px"></div>
       <div class="fname" style="white-space:normal;margin-top:4px">Stairs, ramps, and bridges are generated automatically. “Find bridge seed” is a local authoring/test shortcut, not a combat rule.</div>
     </div>
     <div class="eyebrow" style="margin-bottom:6px">Shading</div>
@@ -1829,6 +1836,12 @@ var DISCOVERY_RENDER={instanced:[],objects:[],veil:null,veilTexture:null};
 /* Phase 2e.1 boot guard: renderField() calls drawVerticalOverlay() during the
    first rebuild, so this registry must exist before resize(); rebuild(). */
 var verticalOverlayGroup = new THREE.Group(); scene.add(verticalOverlayGroup);
+/* Connector meshes live outside `world` so a replayed bridge-state edit can
+   rebuild only the bridge/connector layer instead of regenerating the map. */
+var verticalConnectorRenderGroup = new THREE.Group(); scene.add(verticalConnectorRenderGroup);
+function clearVerticalConnectorRenderGroup(){
+  while(verticalConnectorRenderGroup.children.length){var o=verticalConnectorRenderGroup.children.pop();o.traverse(function(n){if(n.geometry&&n.geometry!==o.geometry)n.geometry.dispose();if(n.material)n.material.dispose();});if(o.geometry)o.geometry.dispose();if(o.material)o.material.dispose();}
+}
 var VERTICAL_OVERLAY=false;
 function addWorld(geo,col,x,y,z,rot,fogCell){ // mesh + optional inverted-hull outline shell
   const m=new THREE.Mesh(geo,stoneMat(col)); m.position.set(x,y,z);
@@ -2381,17 +2394,18 @@ function addWaterfalls(){const W=F.W,H=F.H;let made=0;
 }
 
 function connectorPoint(p){return new THREE.Vector3(wxc(p.c),Number(p.elevationFt||0)/STEP_FT*STEP+.07,wzc(p.r));}
+function connectorAdd(m,c,cell){if(cell)tagDiscoveryObject(m,cell.c,cell.r,'visible-only');verticalConnectorRenderGroup.add(m);return m;}
 function renderRampConnector(c){
   const a=connectorPoint(c.from),b=connectorPoint(c.to),mid=a.clone().add(b).multiplyScalar(.5),dir=b.clone().sub(a),len=dir.length();
   const g=new THREE.BoxGeometry(Math.max(.55,Number(c.widthFt||5)/5*.78),.10,len);
   const m=new THREE.Mesh(g,stoneMat(0xb78f54));m.position.copy(mid);m.quaternion.setFromUnitVectors(new THREE.Vector3(0,0,1),dir.clone().normalize());
-  m.castShadow=true;m.receiveShadow=true;tagDiscoveryObject(m,c.from.c,c.from.r,'visible-only');world.add(m);
+  m.castShadow=true;m.receiveShadow=true;connectorAdd(m,c,c.from);
 }
 function renderStairConnector(c){
   const a=connectorPoint(c.from),b=connectorPoint(c.to),steps=Math.max(3,Math.round(Math.abs((c.to.elevationFt||0)-(c.from.elevationFt||0))/2.5)),dx=(b.x-a.x)/steps,dz=(b.z-a.z)/steps;
   for(let i=0;i<steps;i++){const t=(i+.5)/steps,y=a.y+(b.y-a.y)*(i+1)/steps,depth=Math.max(.18,Math.hypot(dx,dz)*1.08);
     const g=new THREE.BoxGeometry(Math.max(.55,Number(c.widthFt||5)/5*.78),.12,depth),m=new THREE.Mesh(g,stoneMat(0xb9a27b));
-    m.position.set(a.x+(b.x-a.x)*t,y,a.z+(b.z-a.z)*t);m.rotation.y=Math.atan2(b.x-a.x,b.z-a.z);m.castShadow=true;m.receiveShadow=true;tagDiscoveryObject(m,c.from.c,c.from.r,'visible-only');world.add(m);}
+    m.position.set(a.x+(b.x-a.x)*t,y,a.z+(b.z-a.z)*t);m.rotation.y=Math.atan2(b.x-a.x,b.z-a.z);m.castShadow=true;m.receiveShadow=true;connectorAdd(m,c,c.from);}
 }
 function renderBridgeConnector(c){
   const path=Array.isArray(c.path)?c.path:[];if(path.length<2)return;
@@ -2402,12 +2416,12 @@ function renderBridgeConnector(c){
     const flat=new THREE.Vector3(dir.x,0,dir.z),flatLen=flat.length()||1,perp=new THREE.Vector3(-flat.z/flatLen,0,flat.x/flatLen);
     const deck=new THREE.Mesh(new THREE.BoxGeometry(width,thick,Math.max(.1,len*1.04)),stoneMat(0x876a42));
     deck.position.copy(mid);deck.position.y-=thick*.5-.02;deck.quaternion.setFromUnitVectors(new THREE.Vector3(0,0,1),dir.clone().normalize());
-    deck.castShadow=true;deck.receiveShadow=true;tagDiscoveryObject(deck,qa.c,qa.r,'visible-only');world.add(deck);
+    deck.castShadow=true;deck.receiveShadow=true;connectorAdd(deck,c,qa);
     if(railH>0){
       [[rails.left!==false,1],[rails.right!==false,-1]].forEach(function(spec){if(!spec[0])return;
         const rail=new THREE.Mesh(new THREE.BoxGeometry(railT,railH,Math.max(.1,len*.98)),stoneMat(0x6e593b));
         rail.position.copy(mid).addScaledVector(perp,spec[1]*(width*.5-railT*.5));rail.position.y+=railH*.5+.02;
-        rail.quaternion.copy(deck.quaternion);rail.castShadow=true;rail.receiveShadow=true;tagDiscoveryObject(rail,qa.c,qa.r,'visible-only');world.add(rail);
+        rail.quaternion.copy(deck.quaternion);rail.castShadow=true;rail.receiveShadow=true;connectorAdd(rail,c,qa);
       });
     }
   }
@@ -2417,10 +2431,20 @@ function renderBridgeConnector(c){
   for(let i=1;i<path.length-1;i++){
     const q=path[i],deckY=Number(q.elevationFt||0)/STEP_FT*STEP,baseY=(F.height[q.r*F.W+q.c]||0)*STEP,h=deckY-baseY;
     if(h<=.25)continue;const post=new THREE.Mesh(new THREE.CylinderGeometry(.075,.095,h,8),stoneMat(0x68543a));
-    post.position.set(wxc(q.c),baseY+h*.5,wzc(q.r));post.castShadow=true;post.receiveShadow=true;tagDiscoveryObject(post,q.c,q.r,'visible-only');world.add(post);
+    post.position.set(wxc(q.c),baseY+h*.5,wzc(q.r));post.castShadow=true;post.receiveShadow=true;connectorAdd(post,c,q);
   }
 }
-function renderVerticalConnectors(){(F.connectors||[]).forEach(c=>{if(!c||c.state==='closed'||c.state==='broken')return;if(c.kind==='bridge')renderBridgeConnector(c);else if(c.kind==='ramp')renderRampConnector(c);else renderStairConnector(c);});}
+function renderUnavailableBridgeConnector(c){
+  const path=Array.isArray(c.path)?c.path:[],broken=String(c.state).toLowerCase()==='broken',col=broken?0xc65345:0xd7a33a;if(path.length<2)return;
+  const pts=path.map(connectorPoint),g=new THREE.BufferGeometry().setFromPoints(pts),mat=new THREE.LineDashedMaterial({color:col,dashSize:.22,gapSize:.14,transparent:true,opacity:.92,depthTest:false,depthWrite:false});
+  const line=new THREE.Line(g,mat);line.computeLineDistances();line.renderOrder=981;connectorAdd(line,c,path[0]);
+  const mid=pts[(pts.length/2)|0],a=.28,xa=new THREE.BufferGeometry().setFromPoints([new THREE.Vector3(mid.x-a,mid.y+.08,mid.z-a),new THREE.Vector3(mid.x+a,mid.y+.08,mid.z+a)]),xb=new THREE.BufferGeometry().setFromPoints([new THREE.Vector3(mid.x-a,mid.y+.08,mid.z+a),new THREE.Vector3(mid.x+a,mid.y+.08,mid.z-a)]),xm=new THREE.LineBasicMaterial({color:col,depthTest:false,depthWrite:false,transparent:true,opacity:.94});
+  const l1=new THREE.Line(xa,xm),l2=new THREE.Line(xb,xm.clone());l1.renderOrder=l2.renderOrder=982;connectorAdd(l1,c,path[(path.length/2)|0]);connectorAdd(l2,c,path[(path.length/2)|0]);
+}
+function renderVerticalConnectors(){
+  clearVerticalConnectorRenderGroup();
+  (F.connectors||[]).forEach(c=>{if(!c)return;if(c.kind==='bridge'){if(c.state==='closed'||c.state==='broken')renderUnavailableBridgeConnector(c);else renderBridgeConnector(c);}else if(c.state!=='closed'&&c.state!=='broken'){if(c.kind==='ramp')renderRampConnector(c);else renderStairConnector(c);}});
+}
 
 function stoneMat(col){return surfMat({color:col});}
 function placeProp(p,waterY){const X=wxc(p.x),Z=wzc(p.y),topY=p.h*STEP;
@@ -2648,6 +2672,25 @@ function initialTokenTex(letter,color){
 const TOP_TOKEN_Y=0.105, TOP_TOKEN_R=0.49;
 const _topDiscGeo=new THREE.CircleGeometry(TOP_TOKEN_R,48);
 const _topRingGeo=new THREE.RingGeometry(TOP_TOKEN_R+0.025,TOP_TOKEN_R+0.105,48);
+/* Universal downed placeholder: bespoke fallen art can replace this later,
+   but no unconscious creature may disappear from either camera. */
+const _downedShardGeo=new THREE.OctahedronGeometry(.28,0);
+const _downedHaloGeo=new THREE.RingGeometry(.31,.48,40);
+function disposeDownedMarker(u){
+  if(!u||!u.downedMarker)return;tokenGroup.remove(u.downedMarker);
+  u.downedMarker.traverse(function(o){if(o.material)o.material.dispose();});u.downedMarker=null;
+}
+function makeDownedMarker(u){
+  if(!u)return null;disposeDownedMarker(u);
+  const col=u.side==='pc'?0x9fe8eb:0xc97868,g=new THREE.Group();
+  const shard=new THREE.Mesh(_downedShardGeo,new THREE.MeshBasicMaterial({color:col,transparent:true,opacity:.94,depthTest:false,depthWrite:false,toneMapped:false,blending:THREE.AdditiveBlending}));
+  shard.renderOrder=12;g.add(shard);
+  const halo=new THREE.Mesh(_downedHaloGeo,new THREE.MeshBasicMaterial({color:col,transparent:true,opacity:.46,depthTest:false,depthWrite:false,toneMapped:false,side:THREE.DoubleSide,blending:THREE.AdditiveBlending}));
+  halo.rotation.x=-Math.PI/2;halo.position.y=-.27;halo.renderOrder=11;g.add(halo);
+  g.userData.shard=shard;g.userData.halo=halo;g.userData.phase=u.bobPhase||0;
+  u.downedMarker=g;tokenGroup.add(g);positionDownedMarker(u);return g;
+}
+function positionDownedMarker(u){if(!u||!u.downedMarker)return;const y=tierY(u.c,u.r);u.downedMarker.position.set(wxc(u.c),y+.54,wzc(u.r));}
 function topInitialTexture(u){
   const c=document.createElement('canvas');c.width=c.height=256;const g=c.getContext('2d');
   const col=u.side==='pc'?'#9e7b31':'#8b3f35';
@@ -2707,13 +2750,13 @@ function unitRigVisible(u){
 }
 function unitMatchesKey(u,key){return !!u&&!!key&&(u.key===key||u.unit===key||u.id===key);}
 function syncUnitVisual(u){
-  if(!u)return;const top=typeof cam!=='undefined'&&cam.view===CAM_VIEW_TOP,allowed=unitRigVisible(u);
-  if(u.sprite)u.sprite.visible=allowed&&!top;
-  if(u.shadow)u.shadow.visible=allowed&&!top&&u.alive!==false;
-  if(u._glow)u._glow.visible=allowed&&!top;
+  if(!u)return;const top=typeof cam!=='undefined'&&cam.view===CAM_VIEW_TOP,allowed=unitRigVisible(u),down=u.alive===false;
+  if(u.sprite){u.sprite.visible=allowed&&!top;u.sprite.material.opacity=down?.34:1;u.sprite.material.transparent=true;u.sprite.material.color.setHex(down?0x8d918f:0xffffff);}
+  if(u.shadow)u.shadow.visible=allowed&&!top&&!down;
+  if(u._glow)u._glow.visible=allowed&&!top&&!down;
   if(u.topToken){
     if(u.sprite)u.topToken.position.set(u.sprite.position.x,u.sprite.position.y+TOP_TOKEN_Y,u.sprite.position.z);
-    u.topToken.visible=allowed&&top;u.topToken.material.opacity=u.alive===false?.48:1;u.topToken.material.transparent=u.alive===false;
+    u.topToken.visible=allowed&&top;u.topToken.material.opacity=down?.44:1;u.topToken.material.transparent=down;
   }
   if(u.topRing){
     if(u.topToken)u.topRing.position.set(u.topToken.position.x,u.topToken.position.y+.008,u.topToken.position.z);
@@ -2723,8 +2766,10 @@ function syncUnitVisual(u){
     u.topRing.material.color.set(targeted?GLOW_TGT:(u.side==='pc'?GLOW_SEL:GLOW_TGT));
     u.topRing.material.opacity=targeted?1:(selected||acting?.96:.58);
     const s=targeted?1.13:(selected||acting?1.07:1);u.topRing.scale.setScalar(s);
-    u.topRing.visible=allowed&&top;
+    u.topRing.visible=allowed&&top&&!down;
   }
+  if(down&&!u.downedMarker)makeDownedMarker(u);
+  if(u.downedMarker){positionDownedMarker(u);u.downedMarker.visible=allowed&&down;}
 }
 function syncAllUnitVisuals(){if(typeof CB!=='undefined'&&CB&&CB.units)CB.units.forEach(syncUnitVisual);}
 function pickTopToken(anyState){
@@ -3271,6 +3316,11 @@ function loop(){requestAnimationFrame(loop);const now=performance.now();const t=
       else if(u._glowTint&&u.sprite.material){ var p2=0.5+0.5*Math.sin(t*(isTgt?6.5:3.5)), c2=new THREE.Color(u._glowCol);
         u.sprite.material.color.setRGB(1-(1-c2.r)*p2,1-(1-c2.g)*p2,1-(1-c2.b)*p2); }
     });
+    CB.units.forEach(function(u){
+      var m=u.downedMarker;if(!m||!m.visible)return;
+      if(!REDUCED){m.rotation.y=t*.8+(m.userData.phase||0);m.position.y=tierY(u.c,u.r)+.54+Math.sin(t*1.7+(m.userData.phase||0))*.07;}
+      else{m.rotation.y=0;m.position.y=tierY(u.c,u.r)+.54;}
+    });
     trackBadges();
     trackEffectBadges();
     if(hoverGroup&&hoverGroup.children.length){hoverGroup.children.forEach(function(h){if(h.material&&h.material.transparent)h.material.opacity=REDUCED?0.44:(0.38+0.10*Math.sin(t*4.2));});}
@@ -3312,7 +3362,7 @@ function drawVerticalOverlay(){
   if(!VERTICAL_OVERLAY||!F)return;
   (F.ledges||[]).forEach(l=>verticalOverlayGroup.add(verticalEdgeLine(l.a,l.b,l.connectorId?0xd8b35b:0xc44f45)));
   (F.connectors||[]).forEach(function(c){
-    var path=Array.isArray(c.path)&&c.path.length>=2?c.path:[c.from,c.to],col=c.kind==='bridge'?0x68b7d1:(c.kind==='ramp'?0x4fc7c1:0xd8b35b);
+    var path=Array.isArray(c.path)&&c.path.length>=2?c.path:[c.from,c.to],state=String(c.state||'open').toLowerCase(),col=c.kind==='bridge'?(state==='broken'?0xc65345:(state==='closed'?0xd7a33a:0x68b7d1)):(c.kind==='ramp'?0x4fc7c1:0xd8b35b);
     for(var i=0;i<path.length-1;i++)verticalOverlayGroup.add(verticalEdgeLine(path[i],path[i+1],col));
   });
 }
@@ -3948,6 +3998,7 @@ function nudgeSprite(sp){
   };
 }
 function makeToken(u){
+  disposeDownedMarker(u);
   var X=wxc(u.c),Z=wzc(u.r),Y=tierY(u.c,u.r);
   u.bobPhase=u.bobPhase!=null?u.bobPhase:Math.random()*6.28;
   u.shadow=billboard(shadowTex,X,Y+0.05,Z,1.2,0.7,true); tokenGroup.add(u.shadow);
@@ -4035,7 +4086,7 @@ function syncAllGlow(){ if(typeof CB!=="undefined"&&CB.units) CB.units.forEach(s
 function setSel(key){ CB.selKey = (CB.selKey===key? null : key); drawHi&&drawHi();drawSight&&drawSight();renderHud&&renderHud(); }
 function setTgt(key){ CB.tgtKey=(CB.tgtKey===key?null:key); if(CB.tgtKey){var t=unitByKey(CB.tgtKey),a=active();if(a&&t)frameCameraPair(a,t);} drawHi&&drawHi();drawSight&&drawSight();renderHud&&renderHud(); }
 function clearSelTgt(){ if(CB.selKey||CB.tgtKey){ CB.selKey=null; CB.tgtKey=null; drawHi&&drawHi();drawSight&&drawSight();renderHud&&renderHud(); } }
-function positionToken(u){ var X=wxc(u.c),Z=wzc(u.r),Y=tierY(u.c,u.r); if(u.sprite)u.sprite.position.set(X,Y+0.02,Z); if(u.shadow)u.shadow.position.set(X,Y+0.05,Z); if(u._glow)u._glow.position.set(X,Y+0.02,Z); if(u.topToken)u.topToken.position.set(X,Y+TOP_TOKEN_Y,Z); if(u.topRing)u.topRing.position.set(X,Y+TOP_TOKEN_Y+.008,Z); syncUnitVisual(u); }
+function positionToken(u){ var X=wxc(u.c),Z=wzc(u.r),Y=tierY(u.c,u.r); if(u.sprite)u.sprite.position.set(X,Y+0.02,Z); if(u.shadow)u.shadow.position.set(X,Y+0.05,Z); if(u._glow)u._glow.position.set(X,Y+0.02,Z); if(u.topToken)u.topToken.position.set(X,Y+TOP_TOKEN_Y,Z); if(u.topRing)u.topRing.position.set(X,Y+TOP_TOKEN_Y+.008,Z); positionDownedMarker(u); syncUnitVisual(u); }
 
 /* ── §5.1 · the height slider rescales terrain and nothing else ──────────
    renderField() calls clearWorld(), which empties `world` and rebuilds it at
@@ -4060,18 +4111,22 @@ function restageForHeight(){
   if (typeof refreshDiscovery === "function") refreshDiscovery(true);
 }
 function removeToken(u,force){
-  /* Field 2026-07-11 (the sheet-swap ghost): the corpse branch below is for
-     DEATH — it deliberately leaves the sprite in the scene. rebuildVesToken's
-     sheet swap also routed through here, took the corpse branch, then
-     makeToken overwrote u.sprite — the old sprite stayed orphaned in
-     tokenGroup until a refresh rebuilt the scene. `force` is the swap door:
-     hard removal, no corpse. */
-  if(u._glow){ tokenGroup.remove(u._glow); u._glow=null; }   // #1: glow never outlives its token
-  if(!force&&u.topToken){u.alive=false;syncUnitVisual(u);}
-  if(force)disposeTopToken(u);
-  if(!force&&u._ves&&u.sprite){ vesPlay(u,"down");         // the body stays where it fell
-    if(u.shadow){ tokenGroup.remove(u.shadow); u.shadow=null; } return; }
-  if(u.sprite)tokenGroup.remove(u.sprite); if(u.shadow)tokenGroup.remove(u.shadow); u.sprite=null; u.shadow=null; }
+  /* Downed is a gameplay state, not a despawn. Keep both camera rigs in the
+     scene, dim them, and add a universal recovery shard. `force` is the only
+     hard-removal door (sheet swaps, true despawn, or roster reconciliation). */
+  if(!u)return;
+  if(u._glow){tokenGroup.remove(u._glow);u._glow=null;}
+  if(!force){
+    u.alive=false;
+    if(u._ves&&u.sprite)vesPlay(u,"down");
+    if(u.shadow){tokenGroup.remove(u.shadow);u.shadow=null;}
+    if(!u.downedMarker)makeDownedMarker(u);
+    syncUnitVisual(u);return;
+  }
+  disposeDownedMarker(u);disposeTopToken(u);
+  if(u.sprite)tokenGroup.remove(u.sprite);if(u.shadow)tokenGroup.remove(u.shadow);
+  u.sprite=null;u.shadow=null;u._ves=null;
+}
 
 /* ── MULTIPLAYER (Task 6): unit-building shared by the LOCAL sandbox
    (startCombat's PC/foe cellwork below) and the session boot (spawnFromState)
@@ -4536,7 +4591,7 @@ function applyVerb(v){
       else if(!wasAlive && u.alive){ removeToken(u,true); makeToken(u); positionToken(u); clog(escapeHtml(u.name)+" is back on their feet."); }
       } break;
     case "spawn":  spawnUnitFromState(v.unit, v.u); break;
-    case "despawn":if(u){ removeToken(u); CB.units=CB.units.filter(function(x){return x!==u;}); CB.order=CB.order.filter(function(x){return x!==u;}); } break;
+    case "despawn":if(u){ removeToken(u,true); CB.units=CB.units.filter(function(x){return x!==u;}); CB.order=CB.order.filter(function(x){return x!==u;}); } break;
     case "turn":   setActiveFromLog(v.unit, v.round); break;   // Task 8 fleshes the HUD side
     case "status": if(v.status==="ended"){ CB.over=true; clog("<b>Fight over.</b>");
       clearPromptUI(); if(window.__forgeSession) window.__forgeSession.row.status="ended";
@@ -4574,7 +4629,7 @@ function applyVerb(v){
   }
 }
 function resyncFromState(st){
-  CB.units.forEach(function(u){ var s=(st.units||{})[u.unit]; if(!s){ removeToken(u); return; }
+  CB.units.forEach(function(u){ var s=(st.units||{})[u.unit]; if(!s){ removeToken(u,true); return; }
     var wasAlive=u.alive;u.c=s.pos.c; u.r=s.pos.r; u.hp=s.hp;u.res=normalizeResourceRecord(s.resources||u.res); u.alive=!s.downed;
     if(!u.alive){if(wasAlive||u.sprite||u.topToken)removeToken(u);return;}
     // I2 (final-review): a token whose sprite was cleared (e.g. lost on a
@@ -5218,6 +5273,11 @@ function reactStateFor(state,unitKey){
   if(!su||!ku) return null;
   return { alive:!su.downed, reacted:!!su.reactionUsed, react:ku.react, res:ku.res };
 }
+function stateSideOf(state,unitKey){
+  var raw=state&&state.units&&state.units[unitKey]&&state.units[unitKey].side;
+  if(raw==null){var ku=unitByKey(unitKey);raw=ku&&ku.side;}
+  return window.ForgeReplay&&window.ForgeReplay.canonicalSide?window.ForgeReplay.canonicalSide(raw):(/foe|enemy|monster/i.test(String(raw||''))?'foe':'pc');
+}
 function wireReactReady(state,unitKey,key){
   var proxy=reactStateFor(state,unitKey);
   return !!proxy && reactReady(proxy,key);   // same helper the local sandbox uses, not forked
@@ -5225,12 +5285,13 @@ function wireReactReady(state,unitKey,key){
 /* Rebuilds pipelineHit's running hs {roll,crit,hit,acBonus} from the
    declared payload's pre-reaction facts plus every ACCEPTED answer so far,
    in the order they were asked (askAll enforces one prompt at a time).
-   Each unit in this roster has exactly one react key, so the answering
-   unit alone identifies which reaction an answer was for, no need to
-   thread a react tag through prompt_answered's payload. */
+   Reaction answers carry `reaction_kind` explicitly. That keeps replay
+   stable when a unit learns more than one reaction and lets the hit fold
+   identify Shield, Silvery Barbs, or later nested reactions without guessing
+   from whichever kit key happens to come first. */
 function replayHitState(payload,answers){
   var hs={roll:payload.roll,crit:!!payload.crit,hit:!!payload.hit,acBonus:payload.cover||0,rollBonus:Number(payload.roll_mod)||0,d20Rolls:payload.d20_rolls||null,d20KeptIndex:payload.d20_kept_index,reactionD20Rolls:payload.reaction_d20_rolls||null,reactionD20KeptIndex:payload.reaction_d20_kept_index};
-  (answers||[]).forEach(function(row){var pl=row&&row.payload;if(!pl||!pl.use)return;var ku=unitByKey(row.unit),key=ku&&ku.react&&Object.keys(ku.react)[0];if(key==="silveryBarbs"&&pl.roll!=null){hs.roll=pl.roll;hs.crit=!!pl.crit;hs.hit=!!pl.hit;hs.reactionD20Rolls=pl.reaction_d20_rolls||hs.reactionD20Rolls;hs.reactionD20KeptIndex=pl.reaction_d20_kept_index!=null?pl.reaction_d20_kept_index:hs.reactionD20KeptIndex;}else if(key==="shield"){hs.acBonus+=5;hs.hit=!!pl.hit;}});return hs;
+  (answers||[]).forEach(function(row){var pl=row&&row.payload;if(!pl||!pl.use)return;var ku=unitByKey(row.unit),key=pl.reaction_kind||(ku&&ku.react&&Object.keys(ku.react)[0]);if(key==="silveryBarbs"&&pl.roll!=null){hs.roll=pl.roll;hs.crit=!!pl.crit;hs.hit=!!pl.hit;hs.reactionD20Rolls=pl.reaction_d20_rolls||hs.reactionD20Rolls;hs.reactionD20KeptIndex=pl.reaction_d20_kept_index!=null?pl.reaction_d20_kept_index:hs.reactionD20KeptIndex;}else if(key==="shield"){hs.acBonus+=5;hs.hit=!!pl.hit;}});return hs;
 }
 function reactionCandidates(state,declaredRow,answers){
   if(!declaredRow||!state.units)return [];
@@ -5241,7 +5302,7 @@ function reactionCandidates(state,declaredRow,answers){
     var cands=[];
     Object.keys(state.units).forEach(function(k){
       var su=state.units[k],ku=unitByKey(k),act=ku&&meleeActOf(ku);
-      if(!su||!ku||su.downed||su.side===mu.side||su.reactionUsed||!act||window.ForgeCombatRules.incapacitated(ku,effectLookup))return;
+      if(!su||!ku||su.downed||stateSideOf(state,k)===stateSideOf(state,mover)||su.reactionUsed||!act||window.ForgeCombatRules.incapacitated(ku,effectLookup))return;
       var prev={c:mu.pos.c,r:mu.pos.r},reach=reachOf(ku);
       for(var i=0;i<path.length;i++){
         var next={c:path[i].c,r:path[i].r};
@@ -5257,9 +5318,9 @@ function reactionCandidates(state,declaredRow,answers){
   var attacker=declaredRow.unit,target=p.target;
   if(!state.units[attacker]||!state.units[target])return [];
   var hs=replayHitState(p,answers);if(!hs.hit)return [];
-  var cands=[],aPos=state.units[attacker].pos,aSide=state.units[attacker].side;
+  var cands=[],aPos=state.units[attacker].pos,aSide=stateSideOf(state,attacker);
   Object.keys(state.units).forEach(function(k){
-    if(!wireReactReady(state,k,"silveryBarbs")||state.units[k].side===aSide)return;
+    if(!wireReactReady(state,k,"silveryBarbs")||stateSideOf(state,k)===aSide)return;
     var ku=unitByKey(k);if(cbDist({c:state.units[k].pos.c,r:state.units[k].pos.r},{c:aPos.c,r:aPos.r})<=ku.react.silveryBarbs.range*5)cands.push({to:k,react:"silveryBarbs",context:{attacker:attacker,target:target,hitBonus:p.hitBonus||0,rollMod:Number(p.roll_mod)||0,cover:p.cover||0,origRoll:hs.roll}});
   });
   if(wireReactReady(state,target,"shield"))cands.push({to:target,react:"shield",context:{attacker:attacker,hitBonus:p.hitBonus||0,rollMod:Number(p.roll_mod)||0,roll:hs.roll,crit:hs.crit,cover:hs.acBonus}});
@@ -5355,6 +5416,53 @@ function computeReactionExtra(react,ctx,u,askerU,askerName){
   }
   return {extra:extra,clogLine:clogLine};
 }
+/* A multiplayer OA is a real nested attack, not damage smuggled inside
+   prompt_answered. This lets the ordinary attack pipeline offer Silvery
+   Barbs, Shield, and Hellish Rebuke before movement resumes. */
+var NESTED_OA_OUTER={};
+function finishOpportunityOuter(prompt,u,use,extra,clogLine){
+  extra=Object.assign({reaction_kind:'opportunityAttack'},extra||{});
+  return window.__forgeSession.pipe.answerPrompt(prompt.to,prompt.seq,use,extra).then(function(res){
+    delete NESTED_OA_OUTER[prompt.seq];__answeringPromptSeq=null;
+    if(res&&res.ok===false){netPublishFail(res);return res;}
+    if(use){payReact(u,'opportunityAttack');if(clogLine)clog(clogLine);snapshot('Opportunity Attack');renderHud();}
+    return res;
+  });
+}
+function resolveOpportunityAttackPrompt(prompt,u,askerU,askerName){
+  var sess=window.__forgeSession,ctx=prompt.context||{},a=Object.assign({kind:'attack',strikes:1},ctx.attack||meleeActOf(u)||{}),target=unitByKey(ctx.target);
+  if(!sess||!target)return finishOpportunityOuter(prompt,u,false,{},null);
+  NESTED_OA_OUTER[prompt.seq]=true;
+  return sess.pipe.declareReaction(u.unit,'opportunityAttack',prompt.seq,{kind:'opportunity-attack',target:target.unit,trigger_cell:ctx.trigger_cell,path_index:ctx.path_index}).then(function(dr){
+    if(!dr||dr.ok===false){delete NESTED_OA_OUTER[prompt.seq];__answeringPromptSeq=null;netPublishFail(dr||{why:'reaction publication failed'});return dr;}
+    var ward=effectFor(target,'sanctuary');
+    function afterWard(wardResult){
+      if(wardResult&&!wardResult.saved){
+        var line='Sanctuary turns aside '+u.name+"'s opportunity attack — Wisdom "+wardResult.total+' vs DC '+wardResult.dc+'.';
+        return finishOpportunityOuter(prompt,u,true,{hit:false,warded:true,context:{kind:'opportunity-attack',actor:u.unit,target:target.unit,mode:a.label||'Opportunity Attack',sanctuary:wardResult}},line);
+      }
+      var av=advPreview(u,target,a,null),bless=blessRollFor(u),blessV=bless?bless.roll:0,d20ev=rollD20Evidence(av.adv,av.dis),hitBonus=Number(a.hit)||0,total=d20ev.roll+hitBonus+blessV,crit=d20ev.roll===20,hit=crit||(d20ev.roll!==1&&total>=(target.ac||10));
+      var declared={target:target.unit,roll:d20ev.roll,roll_total:total,roll_mod:blessV,mods:blessV?[{k:'bless',v:blessV}]:[],d20_rolls:d20ev.rolls,d20_kept_index:d20ev.keptIndex,adv:av.adv,dis:av.dis,crit:crit,mode:a.label||'Opportunity Attack',hitBonus:hitBonus,cover:0,coverName:'none',advReason:av.why.join(', '),flankBonus:av.attackBonus||0,hit:hit,reaction_attack:true,trigger_seq:prompt.seq};
+      return sess.pipe.attack(u.unit,declared,function(answers){
+        var hs=replayHitState(declared,answers),effects=withBreakOp([],u,a),damage=hs.hit?rollActionDamage(a,hs.crit,(hexEffectAgainst(u,target)?[{dice:'1d6',bonus:0,type:'Hex'}]:[])):null,dmg=damage?damage.total:0;
+        var st=sess.pipe.state(),hpBefore=st&&st.units&&st.units[target.unit]?st.units[target.unit].hp:target.hp,concentration=hs.hit?concentrationCheckFor(target,dmg,hpBefore,(a.label||'Opportunity Attack')+' damage'):null;
+        if(concentration&&concentration.effects&&concentration.effects.length)effects=effects.concat(concentration.effects);
+        var rb=(answers||[]).filter(function(row){return row&&row.payload&&row.payload.use&&row.payload.reaction_kind==='hellishRebuke';})[0];
+        if(rb){effects.push({unit:u.unit,dmg:rb.payload.dmg});if(rb.payload.concentration&&rb.payload.concentration.effects)effects=effects.concat(rb.payload.concentration.effects);}
+        return {hit:hs.hit,crit:hs.crit,roll:hs.roll,roll_total:hs.roll+hitBonus+blessV,mods:declared.mods,dmg:dmg,dmgParts:damage?damage.parts:null,dmgFormula:damage?damage.formula:null,effects:effects,slot:'free',mode:a.label||'Opportunity Attack',hitBonus:hitBonus,cover:0,coverName:'none',adv:av.adv,dis:av.dis,advReason:av.why.join(', '),flankBonus:av.attackBonus||0,d20_rolls:d20ev.rolls,d20_kept_index:d20ev.keptIndex,reaction_d20_rolls:hs.reactionD20Rolls,reaction_d20_kept_index:hs.reactionD20KeptIndex,concentration:concentration,reaction_attack:true,trigger_seq:prompt.seq};
+      }).then(function(ar){
+        if(!ar||ar.ok===false){netPublishFail(ar||{why:'opportunity attack failed'});return finishOpportunityOuter(prompt,u,true,{hit:false,attack_failed:true},null);}
+        var after=sess.pipe.state(),downed=after&&after.units&&after.units[target.unit]&&after.units[target.unit].downed,extra={attack_seq:ar.seq,hit:hit};
+        if(downed){extra.interrupted_at=ctx.trigger_cell;extra.path_index=ctx.path_index;}
+        var line=u.name+' — opportunity attack on '+askerName+': '+d20ev.roll+'+'+hitBonus+(blessV?' + Bless '+blessV:'')+' = '+total+(hit?' · resolved':' · miss');
+        return finishOpportunityOuter(prompt,u,true,extra,line);
+      });
+    }
+    if(!ward)return afterWard(null);
+    var wardBless=blessRollFor(u),wardBlessV=wardBless?wardBless.roll:0,wardResult=effectApi().wisdomSave(ward,wisdomSaveMod(u)+wardBlessV,d(20));wardResult.bless=wardBlessV;
+    return recordSanctuaryCheck(u,target,ward,wardResult).then(function(ok){if(!ok){delete NESTED_OA_OUTER[prompt.seq];__answeringPromptSeq=null;return null;}return afterWard(wardResult);});
+  });
+}
 /* opts.fallback: the overseer answering as the unit after the 20s timeout
    (pipeline's checkTimeouts → onPromptFallback). Same card, same answer
    path — only the eyebrow/flag and the (already-spent) countdown differ. */
@@ -5389,8 +5497,9 @@ function openReactionModal(prompt,opts){
   function settle(use){
     clearPromptUI();   // closes on our own answer — don't wait for the echo round trip
     __answeringPromptSeq=prompt.seq;
-    var extra={}, clogLine=null;
-    if(use){ var r=computeReactionExtra(prompt.react,ctx,u,askerU,askerName); extra=r.extra; clogLine=r.clogLine; }
+    var extra={reaction_kind:prompt.react}, clogLine=null;
+    if(use&&prompt.react==="opportunityAttack"){resolveOpportunityAttackPrompt(prompt,u,askerU,askerName);return;}
+    if(use){ var r=computeReactionExtra(prompt.react,ctx,u,askerU,askerName); extra=Object.assign(extra,r.extra||{}); clogLine=r.clogLine; }
     // Silvery Barbs rider: bundle the advantage grant into the SAME answered fact
     // (no second prompt round-trip). The grant is an EFFECT (grant_advantage on
     // grantTo) — a fact the reducer replays deterministically on every device.
@@ -5505,6 +5614,7 @@ function overseerRoutePrompt(prompt){
    this only ever paints the banner (everyone else, asker included). */
 function routePrompt(prompt){
   if(!prompt) return;
+  if(NESTED_OA_OUTER[prompt.seq])return;   // this device is resolving that outer OA through a nested attack
   var sess=window.__forgeSession;
   if(prompt.react==="cover"){ routeCoverPrompt(prompt); return; }   // contest: menu on the overseer, banner for everyone else
   if(sess && sess.me && sess.me.overseer){ overseerRoutePrompt(prompt); return; }
@@ -6263,18 +6373,57 @@ function systemClog(html){
 }
 installFieldFeedEvidence();
 function banner(t){ var b=document.getElementById("cbBanner"); if(b){b.textContent=t;b.style.display="block";} }
+var __connectorStateSig='';
+function connectorById(list,id){return (list||[]).find(function(c){return c&&c.id===id;})||null;}
+function connectorStateSignature(states){return Object.keys(states||{}).sort().map(function(k){return k+':'+states[k];}).join('|');}
+function bridgeOccupied(conn){
+  var path=conn&&Array.isArray(conn.path)?conn.path:[],units=typeof CB!=='undefined'&&CB&&CB.units?CB.units:[];
+  return units.some(function(u){return path.some(function(q){return q&&q.c===u.c&&q.r===u.r;});});
+}
+function refreshConnectorAuthority(){
+  renderVerticalConnectors();drawVerticalOverlay();
+  if(typeof CB!=='undefined'&&CB&&CB.active){syncGeometryCreatures(CB.map);reconcileMovementPresentation();drawSight();refreshDiscovery(true);}
+  refreshVerticalGeometryPanel();
+}
+function applyConnectorStateReplay(st,force){
+  var states=st&&st.connectorStates||{},sig=connectorStateSignature(states);if(!force&&sig===__connectorStateSig)return false;__connectorStateSig=sig;
+  Object.keys(states).forEach(function(id){var c=connectorById(F&&F.connectors,id);if(c)c.state=states[id];var cm=connectorById(typeof CB!=='undefined'&&CB&&CB.map&&CB.map.connectors,id);if(cm)cm.state=states[id];});
+  refreshConnectorAuthority();return true;
+}
+function setBridgeState(id,next){
+  next=String(next||'').toLowerCase();var conn=connectorById(F&&F.connectors,id),sess=window.__forgeSession;
+  if(!conn||['open','closed','broken'].indexOf(next)<0)return;
+  if(sess&&!sess.me.overseer){systemClog('<i>Only the overseer can change a live bridge.</i>');return;}
+  if((next==='closed'||next==='broken')&&bridgeOccupied(conn)){systemClog('<i>'+escapeHtml(id)+' cannot '+(next==='closed'?'close':'break')+' while a creature occupies the span.</i>');return;}
+  if((typeof CB_ANIM!=='undefined'&&CB_ANIM)||__awaitingCount>0){systemClog('<i>Finish the current action before changing bridge state.</i>');return;}
+  if(String(conn.state||'open').toLowerCase()===next)return;
+  if(sess){
+    sess.pipe.edit([{connector_state:{id:id,state:next}}]).then(function(r){if(r&&r.ok===false)netPublishFail(r);});
+  }else{
+    conn.state=next;var cm=connectorById(typeof CB!=='undefined'&&CB&&CB.map&&CB.map.connectors,id);if(cm)cm.state=next;
+    __connectorStateSig='local:'+Date.now();refreshConnectorAuthority();systemClog('<i>'+escapeHtml(id)+' is now '+next+'.</i>');
+  }
+}
+function renderBridgeStateList(){
+  var host=document.getElementById('bridgeStateList');if(!host)return;var bridges=(F&&F.connectors||[]).filter(function(c){return c&&c.kind==='bridge';});
+  if(!bridges.length){host.innerHTML='';return;}
+  var canEdit=!window.__forgeSession||!!window.__forgeSession.me.overseer;
+  host.innerHTML=bridges.map(function(c,i){var state=String(c.state||'open').toLowerCase(),id=c.id||('bridge-'+(i+1));return '<div class="fname" style="margin:5px 0;padding:5px;border:1px solid rgba(86,67,38,.24)"><b>'+escapeHtml(id)+'</b> · '+escapeHtml(state)+'<div class="improw" style="margin-top:4px"><button class="filebtn bridgeStateBtn" data-bridge="'+escapeHtml(id)+'" data-state="open" '+(!canEdit||state==='open'?'disabled':'')+'>Open</button><button class="filebtn bridgeStateBtn" data-bridge="'+escapeHtml(id)+'" data-state="closed" '+(!canEdit||state==='closed'?'disabled':'')+'>Closed</button><button class="filebtn bridgeStateBtn" data-bridge="'+escapeHtml(id)+'" data-state="broken" '+(!canEdit||state==='broken'?'disabled':'')+'>Broken</button></div></div>';}).join('');
+  host.querySelectorAll('.bridgeStateBtn').forEach(function(btn){btn.addEventListener('click',function(){setBridgeState(btn.dataset.bridge,btn.dataset.state);});});
+}
 function verticalGeometryCounts(){
   var connectors=F&&Array.isArray(F.connectors)?F.connectors:[],ledges=F&&Array.isArray(F.ledges)?F.ledges:[];
-  var out={stairs:0,ramps:0,bridges:0,ledges:0};
-  connectors.forEach(function(c){if(c&&c.kind==="stairs")out.stairs++;else if(c&&c.kind==="ramp")out.ramps++;else if(c&&c.kind==="bridge")out.bridges++;});
+  var out={stairs:0,ramps:0,bridges:0,bridgeOpen:0,bridgeClosed:0,bridgeBroken:0,ledges:0};
+  connectors.forEach(function(c){if(c&&c.kind==="stairs")out.stairs++;else if(c&&c.kind==="ramp")out.ramps++;else if(c&&c.kind==="bridge"){out.bridges++;var st=String(c.state||'open').toLowerCase();if(st==='broken')out.bridgeBroken++;else if(st==='closed')out.bridgeClosed++;else out.bridgeOpen++;}});
   ledges.forEach(function(l){if(l&&!l.connectorId)out.ledges++;});
   return out;
 }
 function refreshVerticalGeometryPanel(){
   var q=verticalGeometryCounts(),status=document.getElementById("verticalGeometryStatus"),btn=document.getElementById("verticalOverlayPanelBtn"),find=document.getElementById("findBridgeSeed");
-  if(status)status.textContent=q.stairs+" stairs · "+q.ramps+" ramps · "+q.bridges+" bridges · "+q.ledges+" open ledges"+(q.bridges?"":" · no structural bridge on this seed");
+  if(status)status.textContent=q.stairs+" stairs · "+q.ramps+" ramps · "+q.bridges+" bridges ("+q.bridgeOpen+" open / "+q.bridgeClosed+" closed / "+q.bridgeBroken+" broken) · "+q.ledges+" open ledges"+(q.bridges?"":" · no structural bridge on this seed");
   if(btn)btn.textContent=VERTICAL_OVERLAY?"Hide connectors":"Show connectors";
   if(find){var locked=!!SESSION_ID||!!(typeof CB!=="undefined"&&CB&&CB.active);find.disabled=locked;find.title=locked?"Bridge-seed search is authoring-only.":"Search nearby deterministic seeds for a generated structural bridge.";}
+  renderBridgeStateList();
 }
 function toggleVerticalGeometry(){VERTICAL_OVERLAY=!VERTICAL_OVERLAY;drawVerticalOverlay();refreshVerticalGeometryPanel();refreshSceneMenu();}
 function findNearbyBridgeSeed(){
@@ -7223,6 +7372,7 @@ async function bootSession(sid){
       if(window.ForgeTableCorrectness)window.ForgeTableCorrectness.pushEvent(viewerFeedEvent(r));
       refreshEffectState(r,false);
       if(r.kind==="edit")applyRuleRows();
+      applyConnectorStateReplay(st,false);
       CB.units.forEach(function(cu){var su=st.units&&st.units[cu.unit];if(su&&su.resources)cu.res=normalizeResourceRecord(su.resources);});
       reconcileMovementPresentation();
       runMirror(before, lastState);   // Task 13: after every applied event, mirror any hp change I control back to its sheet
@@ -7254,6 +7404,7 @@ async function bootSession(sid){
   applyRuleRows();
   if(window.ForgeTableCorrectness)window.ForgeTableCorrectness.applyBody(window.__forgeSession);
   refreshSceneMenu();
+  applyConnectorStateReplay(pipe.state(),true);
   spawnFromState(pipe.state(), row);
   rebuildProtocolFeed(typeof pipe.events==="function"?pipe.events():[]);
   refreshEffectState(null,true);
@@ -7432,7 +7583,7 @@ function netAttackGo(u,a,t,ro){
       var hs=replayHitState({roll:roll,crit:crit,hit:hit,cover:cover,roll_mod:blessV,d20_rolls:d20ev.rolls,d20_kept_index:d20ev.keptIndex},answers),effects=wardBreakPending?[wardBreakPending]:[],dmg=0,damage=null,concentration=null;wardBreakPending=null;
       if(hs.hit){var extra=[];if(u.raging&&(a.rng||1)<=1)extra.push({dice:"0",bonus:2,type:"Rage",critDice:false});if(hexEffectAgainst(u,t)||CB.hexed===t.id)extra.push({dice:"1d6",bonus:0,type:"Hex"});damage=rollActionDamage(a,hs.crit,extra);dmg=damage.total;concentration=concentrationCheckFor(t,dmg,hpLeft,a.label+" damage");if(concentration){if(concentration.effects&&concentration.effects.length)effects=effects.concat(concentration.effects);clog("<i>"+concentrationNarration(t,concentration)+"</i>");}hpLeft=Math.max(0,hpLeft-dmg);if(a.rider==="boom"&&hpLeft>0)t.boomMark={by:u.id};}
       else{if(hit)clog("<i>"+a.label+" — a reaction turned that hit into a miss.</i>");floatAt(t,"miss","miss");}
-      var rb=(answers||[]).filter(function(row){if(!row||!row.payload)return false;var ku=unitByKey(row.unit);return ku&&ku.react&&Object.keys(ku.react)[0]==="hellishRebuke"&&row.payload.use;})[0];if(rb){effects.push({unit:u.unit,dmg:rb.payload.dmg});if(rb.payload.concentration&&rb.payload.concentration.effects)effects=effects.concat(rb.payload.concentration.effects);}
+      var rb=(answers||[]).filter(function(row){if(!row||!row.payload)return false;return row.payload.reaction_kind==="hellishRebuke"&&row.payload.use;})[0];if(rb){effects.push({unit:u.unit,dmg:rb.payload.dmg});if(rb.payload.concentration&&rb.payload.concentration.effects)effects=effects.concat(rb.payload.concentration.effects);}
       var spendFact=resourceSpendPending;resourceSpendPending=null;
       var resolved={hit:hs.hit,crit:hs.crit,roll:hs.roll,roll_total:hs.roll+hitMod+blessV,mods:mods,dmg:dmg,dmgParts:damage?damage.parts:null,dmgFormula:damage?damage.formula:null,effects:effects,slot:a.bonus?"bonus":"action",mode:a.label,hitBonus:hitMod,cover:cover,coverName:ro.coverName||null,adv:adv,dis:dis,advReason:av.why.join(", "),flankBonus:av.attackBonus||0,d20_rolls:d20ev.rolls,d20_kept_index:d20ev.keptIndex,reaction_d20_rolls:hs.reactionD20Rolls,reaction_d20_kept_index:hs.reactionD20KeptIndex,resource_spend:spendFact,resource_spend_id:spendFact?resourceSpendId:null,concentration:concentration};Object.assign(resolved,spellFactFields(a));return resolved;
     }).then(function(r){if(r&&r.ok===false){netPublishFail(r);return;}strike();});
@@ -7515,7 +7666,7 @@ function netFoeAttack(u,atk,t,hs,adv,dis,hitMod,advReason,flankBonus){
         if(fhs.hit){concentration=concentrationCheckFor(t,dmg,targetHp,atk.label+" damage");if(concentration){if(concentration.effects&&concentration.effects.length)effects=effects.concat(concentration.effects);clog("<i>"+concentrationNarration(t,concentration)+"</i>");}}
         var rb=(answers||[]).filter(function(row){
           if(!row||!row.payload) return false;
-          var ku=unitByKey(row.unit); return ku&&ku.react&&Object.keys(ku.react)[0]==="hellishRebuke" && row.payload && row.payload.use;
+          return row.payload && row.payload.reaction_kind==="hellishRebuke" && row.payload.use;
         })[0];
         if(rb){effects.push({unit:u.unit,dmg:rb.payload.dmg});if(rb.payload.concentration&&rb.payload.concentration.effects)effects=effects.concat(rb.payload.concentration.effects);}
         // Priority 2: foe attacks are actions (foe kits carry no bonus flag).

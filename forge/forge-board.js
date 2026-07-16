@@ -76,7 +76,8 @@
         verbs.push({ t: "prompt", prompt: after.pendingPrompt });
         break;
       case "prompt_answered":
-        if (before.pendingPrompt && !after.pendingPrompt) verbs.push({ t: "prompt_clear" });
+        if (before.pendingPrompt && (!after.pendingPrompt || before.pendingPrompt.seq !== after.pendingPrompt.seq)) verbs.push({ t: "prompt_clear" });
+        if (after.pendingPrompt && (!before.pendingPrompt || before.pendingPrompt.seq !== after.pendingPrompt.seq)) verbs.push({ t: "prompt", prompt: after.pendingPrompt });
         verbs = verbs.concat(unitDiffs(before, after));
         break;
       case "chat":

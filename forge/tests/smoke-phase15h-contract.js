@@ -29,7 +29,7 @@ has(html,"id=\"sceneCoverAudit\"","staff can run cover calibration from Forge me
 has(html,"window.addForgeRow(html,{channel:'system'})","cover audit reports to System feed");
 ok(!html.includes("obj.scale.set(1.025,height,1.025)"),"overlapping fog volumes are absent");
 has(disc,"geometry.losVerdict(map,origin,target,{ignoreCreatures:true})","terrain discovery ignores transient creature screens");
-ok(disc.includes('var VERSION="1.1.0"'),"discovery renderer contract version is bumped");
+ok(disc.includes('var VERSION="1.2.0"'),"discovery renderer contract version is bumped");
 /* Phase 2 must not regress the h.1 boot fix while changing session load. */
 has(html,"let SESSION_MAP_AUTHORITY=null","saved sessions have an explicit exact-map authority");
 has(html,"fieldFromSessionSnapshot(row.map)","session boot has a snapshot-first read path");

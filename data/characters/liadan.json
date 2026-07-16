@@ -187,6 +187,12 @@
           "castingTime": "1 reaction"
         },
         {
+          "name": "Silvery Barbs",
+          "range": "60 ft",
+          "duration": "Instantaneous",
+          "castingTime": "1 reaction"
+        },
+        {
           "name": "Sanctuary",
           "range": "30 ft",
           "duration": "1 minute",

@@ -12,6 +12,10 @@
   else root.ForgeReplay = api;
 })(typeof self !== "undefined" ? self : this, function (FP) {
 
+  function canonicalSide(value) {
+    var side=String(value==null?"pc":value).toLowerCase();
+    return /^(foe|enemy|monster|hostile|npc-hostile)$/.test(side)?"foe":"pc";
+  }
   function canonicalResourceKey(key) {
     return /^(ki|kiPoints|ki_points|focus|focusPoints|focus_points)$/i.test(String(key || "")) ? "ki" : String(key || "");
   }
@@ -47,7 +51,7 @@
     var units = {};
     (roster || []).forEach(function (u) {
       units[u.unit] = {
-        side: u.side, pos: { c: u.pos.c, r: u.pos.r },
+        side: canonicalSide(u.side != null ? u.side : u.kind), pos: { c: u.pos.c, r: u.pos.r },
         hp: u.hp, maxHp: (u.maxHp != null ? u.maxHp : u.hp),
         resources: normalizeResources(u.resources || u.res || {}),
         conditions: [], reacts: (u.reacts || []).slice(),
@@ -56,8 +60,8 @@
     });
     return {
       status: "staging", units: units, rolls: {}, initiative: null,
-      turnsEnded: 0, pendingAction: null, pendingPrompt: null,
-      chat: [], lastSeq: 0, appliedResourceSpends: {},
+      turnsEnded: 0, pendingAction: null, pendingPrompt: null, pendingPrompts: [],
+      chat: [], lastSeq: 0, appliedResourceSpends: {}, connectorStates: {},
       economy: freshEconomy(null)
     };
   }
@@ -211,18 +215,21 @@
         }
         spendSlot(state, row.unit, p, false);   // action / bonus / free per payload.slot
         break;
-      case "prompt":
-        state.pendingPrompt = {
-          seq: row.seq, asker: row.unit, to: p.to, react: p.react,
-          timeout: p.timeout, context: p.context || null, created_at: row.created_at
-        };
+      case "prompt": {
+        var nextPrompt = { seq: row.seq, asker: row.unit, to: p.to, react: p.react,
+          timeout: p.timeout, context: p.context || null, created_at: row.created_at };
+        state.pendingPrompts = state.pendingPrompts || [];
+        state.pendingPrompts.push(nextPrompt);state.pendingPrompt=nextPrompt;
         break;
+      }
       case "prompt_answered": {
-        var pp = state.pendingPrompt;
-        if (!pp || pp.seq !== p.prompt_seq || pp.to !== row.unit) break;   // stale/duplicate/foreign answer: inert
+        state.pendingPrompts = state.pendingPrompts || (state.pendingPrompt ? [state.pendingPrompt] : []);
+        var pi=-1;for(var px=state.pendingPrompts.length-1;px>=0;px--){var candidate=state.pendingPrompts[px];if(candidate.seq===p.prompt_seq&&candidate.to===row.unit){pi=px;break;}}
+        if(pi<0)break;   // stale/duplicate/foreign answer: inert
+        state.pendingPrompts.splice(pi,1);
         if (p.use && state.units[row.unit]) state.units[row.unit].reactionUsed = true;
         applyEffects(state, p.effects);
-        state.pendingPrompt = null;
+        state.pendingPrompt = state.pendingPrompts.length?state.pendingPrompts[state.pendingPrompts.length-1]:null;
         break;
       }
       case "reaction_declared":
@@ -238,12 +245,25 @@
         Object.keys(state).forEach(function (k) { delete state[k]; });
         Object.assign(state, snap);
         state.appliedResourceSpends = state.appliedResourceSpends || {};
+        state.connectorStates = state.connectorStates || {};
+        state.pendingPrompts = state.pendingPrompts || (state.pendingPrompt ? [state.pendingPrompt] : []);
+        state.pendingPrompt = state.pendingPrompts.length ? state.pendingPrompts[state.pendingPrompts.length-1] : null;
         if(!state.economy)resetEconomy(state);
         if(!state.economy.spellCasts)state.economy.spellCasts=[];
         break;
       }
       case "edit":
         (p.changes || []).forEach(function (ch) {
+          if (ch.connector_state) {
+            var cs = ch.connector_state, nextState = String(cs.state || "").toLowerCase();
+            if (!cs.id || ["open", "closed", "broken"].indexOf(nextState) < 0) {
+              console.warn("[forge-replay] connector_state ignored: invalid id/state");
+              return;
+            }
+            state.connectorStates = state.connectorStates || {};
+            state.connectorStates[cs.id] = nextState;
+            return;
+          }
           if (ch.add_unit) {
             var au = ch.add_unit;
             if (!au.unit || !au.pos || au.hp == null || state.units[au.unit]) {
@@ -252,7 +272,7 @@
               return;
             }
             state.units[au.unit] = {
-              side: au.side || "foe", pos: { c: au.pos.c, r: au.pos.r },
+              side: canonicalSide(au.side != null ? au.side : (au.kind != null ? au.kind : "foe")), pos: { c: au.pos.c, r: au.pos.r },
               hp: au.hp, maxHp: (au.maxHp != null ? au.maxHp : au.hp),
               resources: normalizeResources(au.resources || au.res || {}),
               conditions: [], reacts: (au.reacts || []).slice(),
@@ -295,6 +315,6 @@
     initialState: initialState, activeUnit: activeUnit, round: round,
     applyEvent: applyEvent, replayLog: replayLog, snapshot: snapshot,
     turnEconomy: turnEconomy,
-    canonicalResourceKey: canonicalResourceKey, normalizeResources: normalizeResources
+    canonicalSide: canonicalSide, canonicalResourceKey: canonicalResourceKey, normalizeResources: normalizeResources
   };
 });

@@ -75,13 +75,17 @@ function connectorBetween(map,fromC,fromR,toC,toR){
   }
   return null;
 }
-function bridgeSurfaceAt(map,c,r){
+function bridgeRecordAt(map,c,r){
   var list=map&&map.connectors;if(!Array.isArray(list))return null;
   for(var i=0;i<list.length;i++){
-    var connector=list[i];if(!connector||connector.kind!=='bridge'||connector.state==='closed'||connector.state==='broken')continue;
+    var connector=list[i];if(!connector||connector.kind!=='bridge')continue;
     var path=connectorPath(connector);for(var j=0;j<path.length;j++)if(path[j].c===c&&path[j].r===r)return{connector:connector,point:path[j],index:j,path:path};
   }
   return null;
+}
+function bridgeSurfaceAt(map,c,r){
+  var hit=bridgeRecordAt(map,c,r),state=hit&&String(hit.connector.state||'open').toLowerCase();
+  return hit&&state!=='closed'&&state!=='broken'?hit:null;
 }
 function connectorAllows(token,connector){
   if(!connector)return false;var req=connector.requires||{};
@@ -91,6 +95,8 @@ function connectorAllows(token,connector){
 }
 function stepAllowed(map, token, fromC, fromR, toC, toR) {
   if (!inBounds(map, toC, toR)) return false;
+  var targetBridge=bridgeRecordAt(map,toC,toR),targetState=targetBridge&&String(targetBridge.connector.state||'open').toLowerCase();
+  if(targetBridge&&(targetState==='closed'||targetState==='broken'))return false;
   var bf=bridgeSurfaceAt(map,fromC,fromR),bt=bridgeSurfaceAt(map,toC,toR),segment=connectorBetween(map,fromC,fromR,toC,toR);
   if (!!map.wall[idx(map,toC,toR)]&&!bt) return false;
   /* Bridge-only cells can be entered/exited only along consecutive authored
@@ -382,7 +388,7 @@ var API={
   SQUARE_FT:SQUARE_FT,STEP_FT:STEP_FT,EYE_FT:EYE_FT,FOOT_FT:FOOT_FT,DIRS:DIRS,
   BODY_LEVELS:BODY_LEVELS,BODY_SAMPLES:BODY_SAMPLES,
   makeMap:makeMap,idx:idx,inBounds:inBounds,baseHeightAt:baseHeightAt,heightAt:heightAt,isWall:isWall,occTop:occTop,chebyshev:chebyshev,
-  connectorPath:connectorPath,connectorBetween:connectorBetween,bridgeSurfaceAt:bridgeSurfaceAt,connectorAllows:connectorAllows,stepAllowed:stepAllowed,movementReach:movementReach,pathTo:pathTo,canReachMelee:canReachMelee,range3d:range3d,inRange:inRange,
+  connectorPath:connectorPath,connectorBetween:connectorBetween,bridgeRecordAt:bridgeRecordAt,bridgeSurfaceAt:bridgeSurfaceAt,connectorAllows:connectorAllows,stepAllowed:stepAllowed,movementReach:movementReach,pathTo:pathTo,canReachMelee:canReachMelee,range3d:range3d,inRange:inRange,
   coverShapeAt:coverShapeAt,pointInCoverShape:pointInCoverShape,bridgeBlockerAtPoint:bridgeBlocker,losVerdict:losVerdict,losRay:losRay,
   lipCorners:lipCorners,targetFacingEdges:targetFacingEdges,lowWallPeeks:lowWallPeeks,firingPoints:firingPoints,coverAudit:coverAudit
 };

@@ -74,8 +74,8 @@ const critDamage=rollCtx.rollActionDamage({dmgStack:[{dice:"1d8",bonus:6,type:"S
 ok(critDamage.total===12&&critDamage.parts[0].rolls.length===2&&critDamage.parts[0].bonus===6,"critical damage doubles the die but not the +6 modifier");
 ok(html.includes('dmgFormula:damage?damage.formula:null'),"shared attack facts publish a human-readable damage formula");
 ok(html.includes('D.install(window)'),"feed installs the pre-render damage-evidence seam");
-ok(html.includes('function renderBridgeConnector(c)'),"production renderer draws first-class bridges");
-ok(html.includes("c.kind==='bridge'?0x68b7d1"),"height overlay distinguishes bridge paths");
+ok(html.includes('function renderBridgeConnector(c)')&&html.includes('function renderUnavailableBridgeConnector(c)'),"production renderer draws open bridges and truthful unavailable-state markers");
+ok(html.includes("state==='broken'?0xc65345")&&html.includes("state==='closed'?0xd7a33a:0x68b7d1"),"height overlay distinguishes open, closed, and broken bridge paths");
 
 const canon=fs.readFileSync(path.join(root,"tactics-geometry.js"),"utf8").trim();
 const start=html.indexOf('/* ════════════════════════════════════════════════════════════════════');

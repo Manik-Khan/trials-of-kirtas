@@ -18,7 +18,7 @@
 })(typeof self!=="undefined"?self:this,function(){
   "use strict";
 
-  var VERSION="1.1.0";
+  var VERSION="1.2.0";
   var UNEXPLORED=0, EXPLORED=1, VISIBLE=2;
   var DEFAULT_SIGHT_FT=60;
 
@@ -58,6 +58,23 @@
     var hz=horizontalFt(a,b),vz=Math.abs(heightAt(map,a.c,a.r)-heightAt(map,b.c,b.r));
     return Math.hypot(hz,vz);
   }
+  /* Discovery uses strict eye-to-eye sight, not attack targeting. Attack LoS
+     may lean around lips/low walls to find a legal firing point; perception
+     should not reveal a room until the creature's actual eye has a clear ray.
+     The target cell itself remains visible because losRay ignores endpoints,
+     while high intervening walls cast truthful sight shadows. */
+  function lineVisible(map,origin,target,geometry){
+    if(!origin||!target)return false;
+    if(origin.c===target.c&&origin.r===target.r)return true;
+    if(geometry&&typeof geometry.losRay==="function"){
+      var eyeFt=Number(geometry.EYE_FT)||5;
+      var eye={x:origin.c+0.5,y:origin.r+0.5,z:heightAt(map,origin.c,origin.r)+eyeFt,peek:false,stepOut:false,ignore:null};
+      var ray=geometry.losRay(map,origin,target,eye,{ignoreCreatures:true});
+      return !(ray&&ray.blocked);
+    }
+    var verdict=geometry&&typeof geometry.losVerdict==="function"?geometry.losVerdict(map,origin,target,{ignoreCreatures:true}):{canTarget:true};
+    return !!(verdict&&verdict.canTarget);
+  }
   function visibleFrom(map,origin,geometry,opts){
     opts=opts||{};var d=dims(map),n=d.cols*d.rows,out=new Uint8Array(n);
     if(!d.cols||!d.rows||!origin||!inBounds(map,origin.c,origin.r))return out;
@@ -68,8 +85,7 @@
         var target={c:c,r:r};
         if(rangeFt(map,origin,target,geometry)>radius+1e-6)continue;
         if(c===origin.c&&r===origin.r){out[idx(map,c,r)]=1;continue;}
-        var verdict=geometry&&typeof geometry.losVerdict==="function"?geometry.losVerdict(map,origin,target,{ignoreCreatures:true}):{canTarget:true};
-        if(verdict&&verdict.canTarget)out[idx(map,c,r)]=1;
+        if(lineVisible(map,origin,target,geometry))out[idx(map,c,r)]=1;
       }
     }
     return out;
@@ -158,7 +174,7 @@
 
   return Object.freeze({VERSION:VERSION,UNEXPLORED:UNEXPLORED,EXPLORED:EXPLORED,VISIBLE:VISIBLE,
     DEFAULT_SIGHT_FT:DEFAULT_SIGHT_FT,dims:dims,idx:idx,inBounds:inBounds,uniqueCells:uniqueCells,
-    sightRadiusFt:sightRadiusFt,rangeFt:rangeFt,visibleFrom:visibleFrom,unionMasks:unionMasks,
+    sightRadiusFt:sightRadiusFt,rangeFt:rangeFt,lineVisible:lineVisible,visibleFrom:visibleFrom,unionMasks:unionMasks,
     partyVisible:partyVisible,mergeExplored:mergeExplored,composeStates:composeStates,
     cellState:cellState,cellVisible:cellVisible,historySources:historySources,
     classifyReachResult:classifyReachResult,classifyOrigins:classifyOrigins,stateColor:stateColor});

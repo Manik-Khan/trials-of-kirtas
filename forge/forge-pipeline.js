@@ -20,7 +20,7 @@
     var reactions = deps.reactions || function () { return []; };
     var events = [];
     var state = FR.initialState(roster);
-    var awaiting = null;   // {promptSeq, resolve} — this client asked and is paused
+    var awaitingTokens = [];   // nested {promptSeq, resolve} pauses; OA attacks can open their own reaction prompts
     var answeredEarly = {};   // prompt_seq -> answer row that arrived before we learned our own prompt's seq
 
     function controlsUnit(u) { return !!deps.me.overseer || deps.me.units.indexOf(u) >= 0; }
@@ -36,12 +36,11 @@
       if (row.kind === "override" || row.kind === "restore") rebuild();  // corrections rewrite the past
       else FR.applyEvent(state, row, null);
       if (row.kind === "prompt" && controlsUnit(row.payload.to) && deps.onPrompt) deps.onPrompt(row);
-      if (row.kind === "prompt_answered" && awaiting) {
-        if (row.payload.prompt_seq === awaiting.promptSeq) {
-          var done = awaiting; awaiting = null; done.resolve(row);
-        } else if (awaiting.promptSeq === null) {
-          answeredEarly[row.payload.prompt_seq] = row;   // answer beat our own publish echo — hold it
-        }
+      if (row.kind === "prompt_answered") {
+        var match=null;
+        for(var ai=awaitingTokens.length-1;ai>=0;ai--)if(awaitingTokens[ai].promptSeq===row.payload.prompt_seq){match=awaitingTokens[ai];awaitingTokens.splice(ai,1);break;}
+        if(match)match.resolve(row);
+        else if(awaitingTokens.some(function(t){return t.promptSeq===null;}))answeredEarly[row.payload.prompt_seq]=row;   // answer beat our own publish echo — hold it
       }
       if (deps.onEvent) deps.onEvent(row, state);
     }
@@ -57,23 +56,22 @@
     /* ask each candidate one at a time, in order (spec §4: chained prompts).
        The awaiting token is claimed BEFORE the prompt publishes, so an
        instant answer on a synchronous bus cannot slip past the pause. */
+    function removeAwaiting(token){var i=awaitingTokens.indexOf(token);if(i>=0)awaitingTokens.splice(i,1);}
     function ask(unit, cand) {
-      return new Promise(function (resolve) {
-        var token = { promptSeq: null, resolve: resolve };
-        awaiting = token;
+      var token={promptSeq:null,resolve:null},promise=new Promise(function (resolve) {
+        token.resolve=resolve;awaitingTokens.push(token);
         publish(unit, "prompt", { to: cand.to, react: cand.react,
           context: cand.context || {}, timeout: 20 })
           .then(function (r) {
-            if (!r.ok) { awaiting = null; resolve(null); return; }
+            if (!r.ok) { removeAwaiting(token); resolve(null); return; }
             token.promptSeq = r.seq;
             var early = answeredEarly[r.seq];
-            if (early && awaiting === token) {
-              delete answeredEarly[r.seq];
-              awaiting = null;
-              resolve(early);
+            if (early && awaitingTokens.indexOf(token)>=0) {
+              delete answeredEarly[r.seq];removeAwaiting(token);resolve(early);
             }
           });
       });
+      promise.awaitingToken=token;return promise;
     }
     function askAll(unit, declaredRow) {
       var answers = [], asked = {};
@@ -154,13 +152,13 @@
       contestCover: function (unit, context, timeoutMs) {
         return new Promise(function (resolve) {
           var settled = false;
+          var wait=ask(unit, { to: "__overseer", react: "cover", context: context || {} });
           var timer = setTimeout(function () {
             if (settled) return; settled = true;
-            awaiting = null;   // abandon the pause; the late answer echo is inert
+            removeAwaiting(wait.awaitingToken);   // abandon only this pause; nested prompts remain live
             resolve(null);
           }, timeoutMs != null ? timeoutMs : 20000);
-          ask(unit, { to: "__overseer", react: "cover", context: context || {} })
-            .then(function (row) {
+          wait.then(function (row) {
               if (settled) return; settled = true;
               clearTimeout(timer); resolve(row);
             });
@@ -170,6 +168,9 @@
       rollInitiative: function (unit, roll) { return publish(unit, "initiative_rolled", { roll: roll }); },
       endTurn: function (unit) { return publish(unit, "turn_ended", {}); },
       chat: function (unit, text) { return publish(unit, "chat", { text: text }); },
+      declareReaction: function (unit, react, triggerSeq, context) {
+        return publish(unit, "reaction_declared", { react: react, trigger_seq: triggerSeq, context: context || null });
+      },
       answerPrompt: function (unit, promptSeq, use, extra) {
         return publish(unit, "prompt_answered",
           Object.assign({ prompt_seq: promptSeq, use: !!use }, extra || {}));

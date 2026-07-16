@@ -66,11 +66,11 @@ round) is never stored — it is derived by replaying the log top to bottom.
 | `ability_used` | "I cast Healing Word on Caim." | `{ability, targets, roll?, dmg?, effects?}` | actor's controller |
 | `prompt` | "Cosmere — that would hit you. Shield?" | `{to, react, context, timeout:20}` | the mid-pipeline device (attacker/mover) |
 | `prompt_answered` | "Yes, Shield." / "No." | `{prompt_seq, use:bool, roll?}` | prompted unit's controller; overseer after timeout |
-| `reaction_declared` | reactions with no question pending (rare) | `{react, trigger_seq}` | reactor's controller |
+| `reaction_declared` | "I use my reaction." — the choice is now spent before its nested resolution | `{react, trigger_seq, context?}` | reactor's controller |
 | `chat` | anything said between actions | `{text}` | anyone, any time (not turn-gated by design) |
 | `override` | "DM says that actually missed." | `{corrects_seq, correction}` | overseer only |
 | `restore` | "Rewind to the top of round 2." | `{to_seq, snapshot}` (full board state inline) | overseer only |
-| `edit` | GOD MODE: the divine hand | `{changes:[{unit, pos?, hp?, conditions?, typed_roll?, typed_dmg?} \| {add_unit:{…}}]}` | overseer only |
+| `edit` | GOD MODE: the divine hand | `{changes:[{unit, pos?, hp?, conditions?, typed_roll?, typed_dmg?} \| {add_unit:{…}} \| {connector_state:{id,state}}]}` | overseer only |
 | `session_ended` | "Fight's over." | `{}` | overseer |
 
 - **`unit` on a `prompt` is the asking (acting) unit** — the prompted unit is
@@ -88,6 +88,15 @@ round) is never stored — it is derived by replaying the log top to bottom.
   dependency; nothing is fetched from the bestiary at replay time. Overseer-only,
   same privileged-kind guard as the rest of `edit` (RLS + the bus twin). A
   duplicate `unit` id is rejected and narrated, never silently dropped.
+- **`connector_state` (optional) on `edit`** — a live structural connector override:
+  `{id, state:'open'|'closed'|'broken'}`. The authored/snapshot connector remains the
+  baseline; replay applies this event as the current encounter state. The overseer is
+  the only writer. Refresh, reconnect, rewind, and correction reconstruct the same
+  state without mutating the map snapshot or fingerprint.
+- **`reaction_declared` is a payment/commit fact.** Asked opportunity attacks publish it
+  immediately after the controller accepts, before the nested attack begins. That makes
+  the reaction unavailable to every client while Sanctuary, attack rolls, Shield,
+  Silvery Barbs, Hellish Rebuke, damage, and movement interruption resolve.
 - **There is deliberately no `turn_started` event.** Turn start is derived: `initiative_set`
   order + count/position of `turn_ended` events (round increments on wrap). An explicit
   event would need a writer who doesn't control the incoming unit, which the identity gate
@@ -136,6 +145,11 @@ Walkthrough — goblin attacks Cosmere, who has Shield:
 
 Details:
 
+- **Prompts are a stack, not a singleton.** An accepted opportunity attack leaves its
+  movement prompt as the outer frame while the attack pipeline may open nested prompts
+  for Silvery Barbs, Shield, and Hellish Rebuke. `prompt_answered` removes the matching
+  frame by sequence; replay then exposes the next unanswered outer frame. Refresh at any
+  depth reconstructs the same top prompt and the same suspended action.
 - **Chained reactions** (Silvery Barbs → Shield → Hellish Rebuke) resolve one prompt/answer
   pair at a time, in the priority order the topo mock's pipeline already implements. The
   logic ports as-is; only the asking goes over the wire.
@@ -223,7 +237,8 @@ working browser.
   resolve; timeout → overseer) runs headless in Node **before any network exists**.
 - **`forge/tests/smoke-protocol.js`** (known-answer): scripted fight logs → exact expected
   final state. Cases: plain turn; attack + Shield; attack + timed-out prompt; OA mid-move
-  (full path, Sentinel stop, 0-HP stop); chained reactions in priority order; override;
+  (full path, Sentinel stop, 0-HP stop); an accepted OA with nested attack reactions;
+  chained reactions in priority order; connector open/closed/broken replay; override;
   edit; restore mid-log.
 - **Replay determinism smokes:** same log twice → identical state. Branch log → corrected
   state, dead branch skipped. Log ending on an unanswered prompt → state says "waiting on
@@ -254,6 +269,9 @@ working browser.
 | `turn_started` | **Does not exist** — derived from `initiative_set` + `turn_ended` (avoids an RLS hole and a race) |
 | `add_unit` | Full snapshot inline on `edit`; replay is self-contained (no outside dependency, no bestiary refetch); overseer-only via the same privileged-kind guard |
 | `resume_at` | Mid-fight re-order (`initiative_set`) resumes the round at the named unit instead of restarting it at position 0 |
+| Nested prompts | Replay keeps a prompt stack; answering a nested attack reaction restores the suspended outer OA/movement prompt |
+| Reaction commitment | Accepted OAs publish `reaction_declared` before the nested attack, so the reaction is spent exactly once across clients |
+| Connector state | Overseer `edit.connector_state` is a replayable live override; snapshot geometry remains immutable |
 
 ## §9 · Explicitly out of scope (unchanged from rev 2 §7)
 

@@ -1,7 +1,7 @@
 # Forge Structural Bridges 1
 
-**Phase:** 2f  
-**Generator:** `2.0.0-bridges.1`  
+**Phase:** 2f.3
+**Generator:** `2.0.0-bridges.1` (record contract unchanged; live-state layer added in 2f.3)
 **Depends on:** `FORGE_MAP_CONTRACT_2.md`, `FORGE_VERTICAL_GEOMETRY_1.md`
 
 This contract extends the Phase 2e connector vocabulary from single-edge stairs and ramps to multi-cell structural bridges. The bridge record is rules authority; the mesh is only its rendering.
@@ -90,11 +90,40 @@ The renderer consumes the same feet contract as geometry:
 
 Visual supports are decorative. They do not silently create movement or LoS blockers.
 
-## 6. Snapshot and stage ownership
+## 6. Snapshot, stage, and live encounter state
 
-`mapSnapshot.connectors[]` preserves the complete bridge record and participates in the map fingerprint. Snapshot load never regenerates or repairs a bridge.
+`mapSnapshot.connectors[]` preserves the complete authored bridge record and participates in the map fingerprint. Snapshot load never regenerates or repairs a bridge.
 
 Bridge selection is owned by the `height` stream. It therefore participates in the height-stage fingerprint and cannot alter layout, semantics, decor, or foes.
+
+The snapshot `state` is the encounter's baseline. During a live fight, the overseer may publish:
+
+```js
+{
+  kind: "edit",
+  payload: {
+    changes: [
+      { connector_state: { id: "height-bridge-0", state: "closed" } }
+    ]
+  }
+}
+```
+
+Replay stores the latest valid override in `connectorStates[id]`. Rendering, movement,
+sight/discovery reconciliation, refresh, reconnect, rewind, and correction all consume
+that replay-derived state. The live override does not mutate the map snapshot or its
+fingerprint.
+
+State edits are refused while an action/animation is unsettled or while any combatant
+occupies the bridge path. This prevents a controller from deleting the authoritative
+surface beneath a creature. Local Workshop authoring may change the baseline directly;
+live Table play uses replay facts only.
+
+State authority:
+
+- `open`: physical deck/rails/supports render; path is traversable; rail cover is active;
+- `closed`: no walk surface or rail cover; amber route marker remains for staff clarity;
+- `broken`: no walk surface or rail cover; red broken-route marker remains for staff clarity.
 
 ## 7. Validation
 
@@ -117,7 +146,7 @@ Invalid generated maps are refused rather than rendered approximately.
 Not included in Phase 2f:
 
 - doors, tunnels, and fords;
-- drawbridges or animated state changes;
+- animated/timed drawbridge transitions (instant replayable state changes are included);
 - destructible bridge hit points;
 - units moving beneath a bridge;
 - multi-lane or diagonal bridges;
