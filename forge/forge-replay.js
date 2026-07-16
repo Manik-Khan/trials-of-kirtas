@@ -236,12 +236,14 @@
         if(pi<0)break;   // stale/duplicate/foreign answer: inert
         state.pendingPrompts.splice(pi,1);
         if (p.use && state.units[row.unit]) state.units[row.unit].reactionUsed = true;
+        if (p.use) applyResourceSpend(state, row.unit, p.resource_spend, p.resource_spend_id);
         applyEffects(state, p.effects);
         state.pendingPrompt = state.pendingPrompts.length?state.pendingPrompts[state.pendingPrompts.length-1]:null;
         break;
       }
       case "reaction_declared":
         if (state.units[row.unit]) state.units[row.unit].reactionUsed = true;
+        applyResourceSpend(state, row.unit, p.resource_spend, p.resource_spend_id);
         applyEffects(state, p.effects);
         break;
       case "chat":

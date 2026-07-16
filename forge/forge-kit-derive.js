@@ -985,7 +985,7 @@ function combatErrorKit(charData, err) {
         // Reaction by time; a time-less live row (Caim's shape) counts by name
         if (sp.time && !isTimeCostReaction(sp.time)) return;
         var slotKey = "slot" + def.slotLevel;
-        var entry = { cost: {} };
+        var entry = { cost: {}, spellSlotLevel: def.slotLevel, spell: true };
         entry.cost[slotKey] = 1;
         if (def.range) entry.range = def.range;
         react[def.key] = entry;

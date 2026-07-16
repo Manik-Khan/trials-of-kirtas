@@ -27,7 +27,7 @@
 <script src="forge-unit-art.js?v=ua2"></script>
 <script src="forge-engine.js?v=fe6"></script>
 <script src="forge-protocol.js?v=fb1"></script>
-<script src="forge-replay.js?v=fb11"></script>
+<script src="forge-replay.js?v=fb12"></script>
 <script src="forge-combat-rules.js?v=fcr3"></script>
 <script src="forge-effects.js?v=fe4"></script>
 <script src="forge-initiative.js?v=fi1"></script>
@@ -38,12 +38,12 @@
 <script src="../armor-ac.js?v=cc2"></script>
 <script src="../equip-slots.js?v=cc2"></script>
 <script src="../character-combat.js?v=cc2"></script>
-<script src="forge-kit-derive.js?v=b5"></script>
+<script src="forge-kit-derive.js?v=b6"></script>
 <script src="forge-action-damage.js?v=fad1"></script>
 <script src="forge-damage-evidence.js?v=fde3"></script>
 <script src="forge-feed-render.js?v=ffr5"></script>
 <script src="forge-hud.js?v=b2"></script>
-<script src="forge-table-correctness.js?v=fg6"></script>
+<script src="forge-table-correctness.js?v=fg7"></script>
 <script src="../item-icons.js?v=b3"></script>
 <script src="../spell-icons.js?v=b3"></script>
 <script src="../icon-picker.js?v=b3"></script>
@@ -3800,7 +3800,7 @@ function vesTick(u,dt){
 // STARTER_KITS: curated bite-1 action bars — numbers below are FALLBACKS; live sheets override stats in session mode. Bite 2's derivation layer replaces this table.
 var STARTER_KITS = {
   vesperian:{ name:"Vesperian", hp:40, ac:18, speed:30, init:4, res:{secondWind:1,actionSurge:1,slot1:2},
-    react:{ shield:{cost:{slot1:1}} }, actions:[
+    react:{ shield:{cost:{slot1:1}, spellSlotLevel:1, spell:true} }, actions:[
     { label:"Longsword", kind:"attack", rng:1, hit:6, dmg:"1d8+6" },
     { label:"Shortbow", kind:"attack", rng:16, long:64, hit:6, dmg:"1d6+4" },
     { label:"Booming Blade", kind:"attack", rng:1, hit:6, dmg:"1d8+6", rider:"boom", spell:true },
@@ -3816,12 +3816,12 @@ var STARTER_KITS = {
     { label:"Step of the Wind", kind:"monk-step", bonus:true, cost:{ki:1}, choices:["dash","disengage"] },
     { label:"Hand of Healing", kind:"heal", rng:1, dmg:"1d4+3", cost:{ki:1} } ] },
   cosmere:{ name:"Cosmere", hp:20, ac:18, speed:30, init:2, res:{slot1:3},
-    react:{ shield:{cost:{slot1:1}} }, actions:[
+    react:{ shield:{cost:{slot1:1}, spellSlotLevel:1, spell:true} }, actions:[
     { label:"Eldritch Blast", kind:"attack", rng:24, hit:5, dmg:"1d10+3", spell:true },
     { label:"Longsword", kind:"attack", rng:1, hit:5, dmg:"1d8+3" },
     { label:"Hex", kind:"buff", buff:"hex", rng:18, bonus:true, cost:{slot1:1}, spell:true } ] },
   liadan:{ name:"Líadan", hp:31, ac:12, speed:30, init:1, res:{slot1:4,slot2:2,bardic:2},
-    react:{ silveryBarbs:{cost:{slot1:1}, range:12} }, actions:[
+    react:{ silveryBarbs:{cost:{slot1:1}, spellSlotLevel:1, spell:true, range:12} }, actions:[
     { label:"Sling", kind:"attack", rng:6, long:24, hit:3, dmg:"1d4+1" },
     { label:"Vicious Mockery", kind:"save", rng:12, dc:12, dmg:"1d4", saveAbility:"wis", rider:"vm", spell:true },
     { label:"Healing Word", kind:"heal", rng:12, dmg:"1d4+2", disciple:3, bonus:true, cost:{slot1:1}, spell:true },
@@ -4075,6 +4075,13 @@ function viewerFeedEvent(row){
   if(row.kind==='attack_declared'||row.kind==='attack_resolved')p.mode='Unseen attack';
   if(row.kind==='ability_used')p.ability='Unseen effect';
   return Object.assign({},row,{unit:'__unseen_foe__',payload:p});
+}
+function redactEnemyDefenseEvent(row){
+  if(!row||!discoveryPlayerView())return row;var p=Object.assign({},row.payload||{}),target=unitByKey(p.target||(p.context&&p.context.target));
+  if(!target||target.side!=='foe')return row;
+  delete p.targetAC;delete p.shieldAC;delete p.defense;delete p.ac;
+  if(p.context&&typeof p.context==='object'){p.context=Object.assign({},p.context);delete p.context.targetAC;delete p.context.shieldAC;delete p.context.defense;delete p.context.ac;}
+  return Object.assign({},row,{payload:p});
 }
 function glowColorFor(u){
   if(!u||!u.alive) return null;
@@ -5235,10 +5242,24 @@ function spend(u,a){
 }
 
 /* ── reaction pipeline (async; DM chooses) ──────────────────────────── */
-function reactReady(u,key){ if(!u.alive||!u.react||!u.react[key]||u.reacted)return false;
-  var c=u.react[key].cost; if(c) for(var k in c) if((u.res[k]||0)<c[k]) return false; return true; }
-function payReact(u,key){
-  var c=u.react&&u.react[key]&&u.react[key].cost;if(c)for(var k in c)u.res[k]-=c[k];u.reacted=true;
+function reactionSpendPlan(u,key,choiceKey){
+  var rc=u&&u.react&&u.react[key];if(!rc)return null;
+  var min=Number(rc.spellSlotLevel)||0;
+  if(min){
+    var choices=castableSpellSources(u,min),choice=choiceKey?choices.filter(function(x){return x.key===choiceKey;})[0]:choices[0];
+    if(!choice)return null;
+    var spend={};spend[choice.key]=1;
+    return {spend:spend,key:choice.key,level:choice.level,label:choice.label||('Level '+choice.level+' slot'),spell:true};
+  }
+  var fixed=resourceSpendFor({cost:rc.cost||{}});if(!Object.keys(fixed).length)return {spend:{},key:null,label:null,spell:false};
+  for(var k in fixed)if((u.res&&u.res[k]||0)<fixed[k])return null;
+  return {spend:fixed,key:Object.keys(fixed)[0]||null,label:null,spell:false};
+}
+function reactionSpendIdFor(u,key,promptSeq){return 'reaction:'+String(u&&u.unit||u&&u.key||'unit')+':'+String(key||'reaction')+':'+String(promptSeq==null?Date.now():promptSeq);}
+function reactionCostText(u,key){var p=reactionSpendPlan(u,key);return p&&p.spell?' Uses '+p.label+' ('+Number(u.res&&u.res[p.key]||0)+' remaining).':'';}
+function reactReady(u,key){ if(!u.alive||!u.react||!u.react[key]||u.reacted)return false;return !!reactionSpendPlan(u,key); }
+function payReact(u,key,plan){
+  plan=plan||reactionSpendPlan(u,key);if(plan&&plan.spend)for(var k in plan.spend)u.res[k]=Math.max(0,Number(u.res[k]||0)-Number(plan.spend[k]||0));u.reacted=true;
 }
 function promptGeneric(title,desc,onUse,onSkip){
   var ov=document.getElementById("cbReact"); if(!ov){ onSkip&&onSkip(); return; }
@@ -5261,11 +5282,11 @@ function pipelineHit(attacker, a, hs, target, applyDmg, done){
   if(reactReady(target,"shield")) steps.push({u:target,key:"shield"});
   (function run(i){
     if(i>=steps.length || !hs.hit){ preDmg(); return; }
-    var s=steps[i],baseTotal=Number(hs.roll)+(Number(a.hit)||0)+(Number(hs.rollBonus)||0),defense=Number(target.ac||10)+Number(hs.acBonus||0);
+    var s=steps[i],baseTotal=Number(hs.roll)+(Number(a.hit)||0)+(Number(hs.rollBonus)||0),defense=Number(target.ac||10)+Number(hs.acBonus||0),hideDefense=!!(discoveryPlayerView()&&target.side==='foe');
     var raw=(hs.d20Rolls&&hs.d20Rolls.length?hs.d20Rolls:[hs.roll]).map(function(v,j){return (j===hs.d20KeptIndex?'['+v+']':String(v));}).join(' · ');
-    var evidence="d20 "+raw+" · "+hs.roll+(Number(a.hit)?" + "+Number(a.hit):"")+(Number(hs.rollBonus)?" + "+Number(hs.rollBonus):"")+" = "+baseTotal+" vs defense "+defense+(hs.crit?" · CRITICAL HIT":" · HIT")+". ";
+    var evidence="d20 "+raw+" · "+hs.roll+(Number(a.hit)?" + "+Number(a.hit):"")+(Number(hs.rollBonus)?" + "+Number(hs.rollBonus):"")+" = "+baseTotal+(hideDefense?"":" vs defense "+defense)+(hs.crit?" · CRITICAL HIT":" · HIT")+". ";
     var desc = s.key==="silveryBarbs" ? (evidence+"Force "+attacker.name+" to reroll the kept d20 and take the lower?")
-             : (evidence+(hs.crit?"Shield cannot stop a critical hit.":"Shield raises defense to "+(defense+5)+(baseTotal<defense+5?" and turns this into a miss.":" but does not stop this hit.")));
+             : (evidence+(hs.crit?"This critical still hits; cast Shield only to protect against later attacks.":(hideDefense?"Shield raises defense by 5 for this and later attacks.":"Shield raises defense to "+(defense+5)+(baseTotal<defense+5?" and turns this into a miss.":" but does not stop this hit."))));
     promptReaction(s.u,s.key,desc,
       function(){ payReact(s.u,s.key);
         if(s.key==="silveryBarbs"){ var orig=hs.roll,sb=sbRerollEvidence(orig); hs.roll=sb.roll;hs.reactionD20Rolls=sb.rolls;hs.reactionD20KeptIndex=sb.keptIndex; hs.crit=hs.roll===20;
@@ -5276,7 +5297,7 @@ function pipelineHit(attacker, a, hs, target, applyDmg, done){
           // on their next attack. Pick runs before the pipeline continues.
           pickGrantTarget(s.u, function(){ run(i+1); }); return; }
         else { hs.acBonus+=5; hs.hit=hs.crit||(hs.roll!==1 && hs.roll+a.hit+(hs.rollBonus||0)>=target.ac+hs.acBonus);
-          clog("Shield \u2014 "+target.name+" AC "+(target.ac+hs.acBonus)+(hs.hit?"":" \u2192 the blow misses")); }
+          clog("Shield \u2014 "+target.name+(hideDefense?" raises defense by 5":" AC "+(target.ac+hs.acBonus))+(hs.hit?"":" \u2192 the blow misses")); }
         snapshot(REACT_LABEL[s.key]); renderHud(); run(i+1); },
       function(){ run(i+1); });
   })(0);
@@ -5312,7 +5333,8 @@ function pipelineHit(attacker, a, hs, target, applyDmg, done){
 function reactStateFor(state,unitKey){
   var su=state.units&&state.units[unitKey], ku=unitByKey(unitKey);
   if(!su||!ku) return null;
-  return { alive:!su.downed, reacted:!!su.reactionUsed, react:ku.react, res:ku.res };
+  return { alive:!su.downed, reacted:!!su.reactionUsed, react:ku.react,
+    res:normalizeResourceRecord(su.resources||ku.res||{}), pools:ku.pools||[] };
 }
 function stateSideOf(state,unitKey){
   var raw=state&&state.units&&state.units[unitKey]&&state.units[unitKey].side;
@@ -5361,7 +5383,7 @@ function reactionCandidates(state,declaredRow,answers){
   var hs=replayHitState(p,answers);if(!hs.hit)return [];
   var cands=[],aPos=state.units[attacker].pos,aSide=stateSideOf(state,attacker),targetKit=unitByKey(target),targetAC=Number(targetKit&&targetKit.ac)||10;
   var attackTotal=Number(hs.roll)+(Number(p.hitBonus)||0)+(Number(p.roll_mod)||0),shieldReady=wireReactReady(state,target,"shield");
-  var evidence={attacker:attacker,target:target,mode:p.mode||"Attack",hitBonus:Number(p.hitBonus)||0,rollMod:Number(p.roll_mod)||0,cover:Number(hs.acBonus)||0,origRoll:hs.roll,roll:hs.roll,crit:!!hs.crit,attackTotal:attackTotal,targetAC:targetAC,d20Rolls:hs.d20Rolls||p.d20_rolls||null,d20KeptIndex:hs.d20KeptIndex!=null?hs.d20KeptIndex:p.d20_kept_index,adv:!!p.adv,dis:!!p.dis,advReason:p.advReason||"",shieldReady:shieldReady,shieldAC:targetAC+(Number(hs.acBonus)||0)+5,shieldStops:shieldReady&&!hs.crit&&attackTotal<targetAC+(Number(hs.acBonus)||0)+5};
+  var evidence={attacker:attacker,target:target,mode:p.mode||"Attack",hitBonus:Number(p.hitBonus)||0,rollMod:Number(p.roll_mod)||0,cover:Number(hs.acBonus)||0,origRoll:hs.roll,roll:hs.roll,crit:!!hs.crit,hit:!!hs.hit,attackTotal:attackTotal,targetAC:targetAC,d20Rolls:hs.d20Rolls||p.d20_rolls||null,d20KeptIndex:hs.d20KeptIndex!=null?hs.d20KeptIndex:p.d20_kept_index,adv:!!p.adv,dis:!!p.dis,advReason:p.advReason||"",shieldReady:shieldReady,shieldAC:targetAC+(Number(hs.acBonus)||0)+5,shieldStops:shieldReady&&!hs.crit&&attackTotal<targetAC+(Number(hs.acBonus)||0)+5};
   Object.keys(state.units).forEach(function(k){
     if(!wireReactReady(state,k,"silveryBarbs")||stateSideOf(state,k)===aSide)return;
     var ku=unitByKey(k);if(cbDist({c:state.units[k].pos.c,r:state.units[k].pos.r},{c:aPos.c,r:aPos.r})<=ku.react.silveryBarbs.range*5)cands.push({to:k,react:"silveryBarbs",context:Object.assign({},evidence)});
@@ -5428,10 +5450,12 @@ function clearPromptUI(){
   if(CONTEST_HI){ CONTEST_HI=null; drawHi(); }   // culprit-cell highlight lives exactly as long as the contest
   PROMPT_UI.seq=null; PROMPT_UI.kind=null; PROMPT_UI.onUse=null; PROMPT_UI.onSkip=null;
 }
-function reactionDescFor(react,askerName){
-  var label=REACT_LABEL[react]||react,desc=label;
+function reactionDescFor(react,askerName,ctx){
+  var label=REACT_LABEL[react]||react,desc=label;ctx=ctx||{};
   if(react==="silveryBarbs")desc="The attack succeeded. Force "+askerName+" to reroll the kept d20 and use the lower result?";
-  else if(react==="shield")desc="The attack succeeded. Raise your AC by 5 until the start of your next turn?";
+  else if(react==="shield")desc=ctx.crit
+    ? "This natural 20 still hits. Cast Shield only to gain +5 AC against later attacks until the start of your next turn?"
+    : "The attack succeeded. Raise your AC by 5 until the start of your next turn?";
   else if(react==="hellishRebuke")desc="After taking damage, deal 2d10 fire to "+askerName+" (DEX save)?";
   else if(react==="opportunityAttack")desc=askerName+" is leaving your reach. Make one melee attack before they leave?";
   return {label:label,desc:desc};
@@ -5443,17 +5467,17 @@ function reactionEvidenceHtml(react,ctx){
   var dice=rolls.map(function(v,i){return '<span class="'+(i===kept?'kept':'drop')+'">'+escapeHtml(v)+'</span>';}).join(' · ');
   var roll=Number(ctx.origRoll!=null?ctx.origRoll:ctx.roll),hitBonus=Number(ctx.hitBonus)||0,rollMod=Number(ctx.rollMod)||0;
   var total=ctx.attackTotal!=null?Number(ctx.attackTotal):roll+hitBonus+rollMod;
-  var defense=(Number(ctx.targetAC)||10)+(Number(ctx.cover)||0),crit=!!ctx.crit;
+  var defense=(Number(ctx.targetAC)||10)+(Number(ctx.cover)||0),crit=!!ctx.crit,target=unitByKey(ctx.target),hideDefense=!!(discoveryPlayerView()&&target&&target.side==='foe');
   var math=roll+(hitBonus?((hitBonus>=0?' + ':' - ')+Math.abs(hitBonus)):'')+(rollMod?((rollMod>=0?' + ':' - ')+Math.abs(rollMod)):'')+' = '+total;
-  var verdict=crit?'<span class="warn">CRITICAL HIT</span>':(total>=defense?'HIT':'MISS');
+  var verdict=crit?'<span class="warn">CRITICAL HIT</span>':(ctx.hit===false?'MISS':'HIT');
   var forecast='';
   if(react==="silveryBarbs"&&ctx.shieldReady){
-    forecast=crit?'Shield is also available, but cannot stop a critical hit.':'Shield would raise the defense to '+Number(ctx.shieldAC||defense+5)+' and '+(ctx.shieldStops?'would turn this into a miss.':'would not stop this hit.');
+    forecast=crit?'Shield is also available only for later attacks; it cannot stop this critical hit.':(hideDefense?'Shield is also available; its exact defensive threshold is hidden.':'Shield would raise the defense to '+Number(ctx.shieldAC||defense+5)+' and '+(ctx.shieldStops?'would turn this into a miss.':'would not stop this hit.'));
   }else if(react==="shield"){
-    forecast=crit?'Shield cannot stop this critical hit.':'Shield raises the defense to '+Number(ctx.shieldAC||defense+5)+' and '+(total<Number(ctx.shieldAC||defense+5)?'turns this into a miss.':'does not stop this hit.');
+    forecast=crit?'This critical still hits. Shield applies only against later attacks until your next turn.':(hideDefense?'Shield raises the target’s defense by 5; the exact enemy defense remains hidden.':'Shield raises the defense to '+Number(ctx.shieldAC||defense+5)+' and '+(total<Number(ctx.shieldAC||defense+5)?'turns this into a miss.':'does not stop this hit.'));
   }
   var source=ctx.advReason?'<span class="forecast">Roll sources: '+escapeHtml(ctx.advReason)+'</span>':'';
-  return '<span class="rolls">d20 '+dice+'</span><br>'+escapeHtml(math)+' vs defense '+escapeHtml(defense)+' · '+verdict+(forecast?'<span class="forecast">'+escapeHtml(forecast)+'</span>':'')+source;
+  return '<span class="rolls">d20 '+dice+'</span><br>'+escapeHtml(math)+(hideDefense?'':' vs defense '+escapeHtml(defense))+' · '+verdict+(forecast?'<span class="forecast">'+escapeHtml(forecast)+'</span>':'')+source;
 }
 /* the SAME reaction math pipelineHit's onUse callbacks do (kit data —
    CHAR/FOE — is identical static data on every device, so this device can
@@ -5535,7 +5559,7 @@ function openReactionModal(prompt,opts){
   var ctx=prompt.context||{};
   var askerKey=prompt.react==="opportunityAttack"?(ctx.mover||ctx.target):ctx.attacker;
   var askerU=unitByKey(askerKey), askerName=askerU?askerU.name:(prompt.react==="opportunityAttack"?"the moving creature":"the attacker");
-  var info=reactionDescFor(prompt.react,askerName);
+  var info=reactionDescFor(prompt.react,askerName,ctx);
 
   clearPromptUI();   // a fresh prompt (or a fallback transfer) replaces whatever was showing
   PROMPT_UI.seq=prompt.seq; PROMPT_UI.kind=opts.fallback?"fallback":"modal";
@@ -5547,7 +5571,10 @@ function openReactionModal(prompt,opts){
       btns=document.getElementById("cbPromptBtns"), timesUp=document.getElementById("cbPromptTimesUp");
   eyebrow.textContent = opts.fallback ? "Reaction — timed out" : "Reaction";
   title.textContent = u.name+" — "+info.label;
-  desc.textContent = info.desc;
+  desc.textContent = info.desc+reactionCostText(u,prompt.react);
+  var useButton=document.getElementById("cbPromptUse"),skipButton=document.getElementById("cbPromptSkip");
+  if(useButton)useButton.textContent=(prompt.react==="shield"&&ctx.crit)?"Cast for later attacks":"Use";
+  if(skipButton)skipButton.textContent="Pass";
   var evidenceHtml=reactionEvidenceHtml(prompt.react,ctx);if(evidence){evidence.innerHTML=evidenceHtml;evidence.classList.toggle("on",!!evidenceHtml);}
   btns.style.display="flex"; timesUp.style.display="none";
   if(opts.fallback){
@@ -5561,8 +5588,10 @@ function openReactionModal(prompt,opts){
   function settle(use){
     clearPromptUI();   // closes on our own answer — don't wait for the echo round trip
     __answeringPromptSeq=prompt.seq;
-    var extra={reaction_kind:prompt.react}, clogLine=null;
+    var extra={reaction_kind:prompt.react}, clogLine=null,spendPlan=use?reactionSpendPlan(u,prompt.react):null;
+    if(use&&!spendPlan){use=false;clogLine=REACT_LABEL[prompt.react]+" is no longer available — no resource was spent.";}
     if(use&&prompt.react==="opportunityAttack"){resolveOpportunityAttackPrompt(prompt,u,askerU,askerName);return;}
+    if(use&&spendPlan&&Object.keys(spendPlan.spend||{}).length){extra.resource_spend=spendPlan.spend;extra.resource_spend_id=reactionSpendIdFor(u,prompt.react,prompt.seq);extra.resource_pool=spendPlan.key;}
     if(use){ var r=computeReactionExtra(prompt.react,ctx,u,askerU,askerName); extra=Object.assign(extra,r.extra||{}); clogLine=r.clogLine; }
     // Silvery Barbs rider: bundle the advantage grant into the SAME answered fact
     // (no second prompt round-trip). The grant is an EFFECT (grant_advantage on
@@ -5585,7 +5614,7 @@ function openReactionModal(prompt,opts){
       // resource spend / .reacted bookkeeping lands on THIS unit's OWN device
       // only (mirrors payReact's local role) — other devices learn reactionUsed
       // from the prompt_answered echo itself (forge-replay.js applyEvent).
-      if(use){ payReact(u,prompt.react); if(clogLine) clog(clogLine); snapshot(REACT_LABEL[prompt.react]); renderHud(); }
+      if(use){ payReact(u,prompt.react,spendPlan); if(clogLine) clog(clogLine); snapshot(REACT_LABEL[prompt.react]); renderHud(); }
     });
     }
   }
@@ -5913,9 +5942,10 @@ function coverContestAvailable(){
    can attach to this same review door rather than mutating results after the fact. */
 function attackRollReview(u,a,t,ro){
   if(!u||!a||!t)return "";ro=ro||reachOK(u,a,t,{silent:true});var av=advPreview(u,t,a,ro),mode=av.adv?"Advantage":av.dis?"Disadvantage":"Normal";
-  var sources=(av.why||[]).length?" ("+av.why.join(", ")+")":"",hit=(Number(a.hit)||0)+(Number(av.attackBonus)||0),defense=Number(t.ac||10)+(Number(ro&&ro.cover)||0);
-  var parts=[mode+sources,(hit>=0?"+":"")+hit+" to hit","vs defense "+defense];
-  if(blessEffectFor(u))parts.splice(2,0,"Bless 1d4");
+  var sources=(av.why||[]).length?" ("+av.why.join(", ")+")":"",hit=(Number(a.hit)||0)+(Number(av.attackBonus)||0),defense=Number(t.ac||10)+(Number(ro&&ro.cover)||0),hideDefense=!!(discoveryPlayerView()&&t.side==='foe');
+  var parts=[mode+sources,(hit>=0?"+":"")+hit+" to hit"];
+  if(blessEffectFor(u))parts.push("Bless 1d4");
+  if(!hideDefense)parts.push("vs defense "+defense);
   if(ro&&ro.coverName&&ro.coverName!=="none")parts.push(ro.coverName+" cover");
   return parts.join(" · ");
 }
@@ -7458,7 +7488,7 @@ async function bootSession(sid){
       if (r.kind === 'initiative_rolled') { delete __initPublishing[r.unit]; }
       else if (r.kind === 'initiative_set') { __initConfirming = false; __initEditing=false; __initDraftOrder=null; }
       window.ForgeBoard.verbsFor(r, before, st).forEach(applyVerb);
-      if(window.ForgeTableCorrectness)window.ForgeTableCorrectness.pushEvent(viewerFeedEvent(r));
+      if(window.ForgeTableCorrectness)window.ForgeTableCorrectness.pushEvent(redactEnemyDefenseEvent(viewerFeedEvent(r)));
       refreshEffectState(r,false);
       if(r.kind==="edit")applyRuleRows();
       applyConnectorStateReplay(st,false);

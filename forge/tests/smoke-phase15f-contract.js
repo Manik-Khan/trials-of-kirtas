@@ -25,7 +25,7 @@ has(html,'function foeVisible(u){','the established foeVisible seam is implement
 has(html,"return discoveryCellVisible(u.c,u.r)",'player-facing foe visibility is keyed to the foe map cell');
 has(html,"function viewerFeedEvent(row)",'hidden enemy outcomes have a Player View feed sanitizer');
 has(html,"unit:'__unseen_foe__'",'hidden attackers are anonymized rather than leaked through the feed');
-has(html,"pushEvent(viewerFeedEvent(r))",'authoritative echoes pass through the viewer-safe feed seam');
+has(html,"pushEvent(redactEnemyDefenseEvent(viewerFeedEvent(r)))",'authoritative echoes pass through the viewer-safe feed seam');
 has(html,'unitAt(c,r){ return CB.units.filter(function(u){return u.alive&&u.c===c&&u.r===r&&(u.side!=="foe"||foeVisible(u));})','hidden foes cannot be acquired through empty-cell picking');
 has(html,'if(!unitRigVisible(un)) return;                      // Player View: hidden foes never enter the mathematical fallback picker','hidden foes cannot be acquired through the standee-column fallback picker');
 has(html,'u.side!=="pc"||x.side!=="foe"||foeVisible(x)','player target pools exclude hidden foes');

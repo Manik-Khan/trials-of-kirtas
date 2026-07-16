@@ -65,7 +65,7 @@ round) is never stored — it is derived by replaying the log top to bottom.
 | `attack_resolved` | "…hits, 9 damage." | `{hit, dmg, effects?}` | attacker |
 | `ability_used` | "I cast Healing Word on Caim." | `{ability, targets, roll?, dmg?, effects?}` | actor's controller |
 | `prompt` | "Cosmere — that would hit you. Shield?" | `{to, react, context, timeout:20}` | the mid-pipeline device (attacker/mover) |
-| `prompt_answered` | "Yes, Shield." / "No." | `{prompt_seq, use:bool, roll?}` | prompted unit's controller; overseer after timeout |
+| `prompt_answered` | "Yes, Shield." / "No." | `{prompt_seq, use:bool, roll?, resource_spend?, resource_spend_id?}` | prompted unit's controller; overseer after timeout |
 | `reaction_declared` | "I use my reaction." — the choice is now spent before its nested resolution | `{react, trigger_seq, context?}` | reactor's controller |
 | `chat` | anything said between actions | `{text}` | anyone, any time (not turn-gated by design) |
 | `override` | "DM says that actually missed." | `{corrects_seq, correction}` | overseer only |
@@ -97,6 +97,11 @@ round) is never stored — it is derived by replaying the log top to bottom.
   immediately after the controller accepts, before the nested attack begins. That makes
   the reaction unavailable to every client while Sanctuary, attack rolls, Shield,
   Silvery Barbs, Hellish Rebuke, damage, and movement interruption resolve.
+- **Reaction-spell payment is replay authority.** An accepted Shield, Silvery Barbs,
+  Counterspell, or other slot-backed reaction carries `resource_spend` plus an idempotent
+  `resource_spend_id` on its accepted fact. Eligibility searches every spell-slot pool at
+  or above the spell's minimum level and pays the lowest eligible slot deterministically;
+  a dry 1st-level pool therefore does not hide Silvery Barbs while higher slots remain.
 - **There is deliberately no `turn_started` event.** Turn start is derived: `initiative_set`
   order + count/position of `turn_ended` events (round increments on wrap). An explicit
   event would need a writer who doesn't control the incoming unit, which the identity gate
@@ -158,6 +163,13 @@ Details:
 - **Chained reactions** (Silvery Barbs → Shield → Hellish Rebuke) resolve one prompt/answer
   pair at a time, in the priority order the topo mock's pipeline already implements. The
   logic ports as-is; only the asking goes over the wire.
+- **Critical-hit Shield wording is non-deceptive.** Shield remains a legal choice after a
+  natural 20 because its AC bonus can protect against later attacks, but the prompt and
+  roll evidence explicitly state that the triggering critical still hits.
+- **Defense values are presentation-scoped.** The authoritative event may retain target
+  defense for resolution and staff diagnostics. Player presentation omits exact enemy AC
+  from Roll Review, reaction evidence, feed copies, and notices; a defender may still see
+  their own AC and Shield forecast.
 - Within a single declared action, each `(unit, reaction)` pair is asked at most once — the
   pipeline enforces it, so a decline can never loop.
 - **A refresh can't lose a prompt.** Replay of a log ending in an unanswered prompt

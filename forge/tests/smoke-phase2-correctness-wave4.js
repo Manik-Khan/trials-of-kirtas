@@ -13,7 +13,7 @@ const tc=fs.readFileSync(path.join(root,"forge-table-correctness.js"),"utf8");
 ok("reaction modal has a dedicated roll-evidence region",html.includes('id="cbPromptEvidence"')&&html.includes("function reactionEvidenceHtml"));
 ok("reaction evidence shows raw d20s and marks kept/dropped dice",html.includes('class="'+"'+(i===kept?'kept':'drop')+")&&html.includes("d20Rolls:hs.d20Rolls"));
 ok("Silvery Barbs prompt receives the current attack total and Shield forecast",html.includes("attackTotal:attackTotal")&&html.includes("shieldStops:shieldReady")&&html.includes("Shield is also available"));
-ok("Shield prompt explains whether it can stop the current result",html.includes("Shield raises the defense to")&&html.includes("Shield cannot stop this critical hit"));
+ok("Shield prompt explains whether it can stop the current result",html.includes("Shield raises the defense to")&&html.includes("This critical still hits. Shield applies only against later attacks"));
 ok("local reaction prompts also include the triggering d20 and defense",html.includes('var evidence="d20 "+raw')&&html.includes("vs defense"));
 
 let st=R.initialState([{unit:"cosmere",side:"pc",pos:{c:0,r:0},hp:20},{unit:"g",side:"foe",pos:{c:1,r:0},hp:7}]);
@@ -35,6 +35,6 @@ ok("a target without an opposite threatening pair is not flanked",!F.isFlanked(C
 
 ok("attack confirmation computes an automatic pre-roll review",html.includes("function attackRollReview")&&html.includes("Bless 1d4")&&html.includes("rollReview:rollReview"));
 ok("HUD decorator renders the roll review before Confirm attack",tc.includes("fgRollReview")&&tc.includes("state.rollReview")&&tc.includes("Roll review · "));
-ok("cache stamps load the new rules and HUD decorator",html.includes("forge-combat-rules.js?v=fcr3")&&html.includes("forge-table-correctness.js?v=fg6"));
+ok("cache stamps load the new rules and HUD decorator",html.includes("forge-combat-rules.js?v=fcr3")&&html.includes("forge-table-correctness.js?v=fg7"));
 
 console.log(`\n${pass} passed, ${fail} failed`);process.exitCode=fail?1:0;
