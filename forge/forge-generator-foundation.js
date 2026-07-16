@@ -16,7 +16,7 @@
 })(typeof self !== "undefined" ? self : this, function () {
   "use strict";
 
-  var GENERATOR_VERSION = "2.0.0-bridges.1";
+  var GENERATOR_VERSION = "2.0.0-bridges.2";
   var PARAMETER_SCHEMA = "forge-map-parameters";
   var PARAMETER_VERSION = 2;
   var SUPPORTED_PARAMETER_VERSIONS = Object.freeze([1, 2]);

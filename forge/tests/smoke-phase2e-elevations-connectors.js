@@ -13,7 +13,7 @@ function ok(v,l){if(!v)throw new Error("FAIL: "+l);console.log("ok",++pass,"-",l
 function throws(fn,part,l){let e=null;try{fn();}catch(x){e=x;}ok(e&&String(e.message||e).includes(part),l);}
 function same(a,b){return JSON.stringify(a)===JSON.stringify(b);}
 
-ok(/^2\.0\.0-(?:elevations|bridges)\.1$/.test(GF.GENERATOR_VERSION),"generator version retains bounded elevations and connectors through bridge extension");
+ok(/^2\.0\.0-(?:elevations\.1|bridges\.[12])$/.test(GF.GENERATOR_VERSION),"generator version retains bounded elevations and connectors through bridge extension");
 ok(GF.PARAMETER_VERSION===2&&GF.SUPPORTED_PARAMETER_VERSIONS.join(",")==="1,2","connector slice does not invent an unnecessary parameter version");
 ok(GF.CONNECTOR_KINDS.includes("stairs")&&GF.CONNECTOR_KINDS.includes("ramp"),"foundation recognizes first-class stairs and ramps");
 
@@ -78,7 +78,7 @@ ok(html.includes("renderVerticalConnectors()")&&html.includes("renderRampConnect
 ok(html.includes('id="sceneVerticalOverlay"')&&html.includes("drawVerticalOverlay"),"staff can inspect connector and ledge edges");
 ok(html.includes("connectors:(stageMap.connectors||[])")&&html.includes("m.connectors=(F.connectors||[])"),"preview, session snapshot, and combat map carry connector authority end to end");
 ok(!html.includes("height[i]<=0 && type[i]!==T_ROCK) type[i]=T_WATER"),"floor elevation no longer silently rewrites terrain into water");
-ok(/forge-generator-foundation\.js\?v=g2(?:e1|f1)/.test(html)&&/forge-engine\.js\?v=fe(?:5|6)/.test(html),"vertical runtime modules are cache-busted");
+ok(/forge-generator-foundation\.js\?v=g2(?:e1|f1|f2)/.test(html)&&/forge-engine\.js\?v=fe(?:5|6|7)/.test(html),"vertical runtime modules are cache-busted");
 const firstRebuild=html.indexOf("resize(); rebuild();");
 ok(html.indexOf("var DISCOVERY_RENDER={")<firstRebuild&&html.indexOf("var SESSION_ID=new URLSearchParams")<firstRebuild,"both known startup-order guards remain ahead of initial rebuild");
 

@@ -23,11 +23,12 @@
 </script>
 <script src="forge-dungeon.js?v=fb1"></script>
 <script src="map-bridge.js?v=fb1"></script>
-<script src="forge-generator-foundation.js?v=g2f1"></script>
+<script src="forge-generator-foundation.js?v=g2f2"></script>
 <script src="forge-unit-art.js?v=ua2"></script>
-<script src="forge-engine.js?v=fe6"></script>
+<script src="forge-engine.js?v=fe7"></script>
+<script src="forge-bridge-authority.js?v=fba1"></script>
 <script src="forge-protocol.js?v=fb1"></script>
-<script src="forge-replay.js?v=fb12"></script>
+<script src="forge-replay.js?v=fb13"></script>
 <script src="forge-combat-rules.js?v=fcr3"></script>
 <script src="forge-effects.js?v=fe4"></script>
 <script src="forge-initiative.js?v=fi2"></script>
@@ -151,6 +152,9 @@ function bridgeRecordAt(map,c,r){
   }
   return null;
 }
+function bridgeInteriorAt(map,c,r){
+  var hit=bridgeRecordAt(map,c,r);return hit&&hit.index>0&&hit.index<hit.path.length-1?hit:null;
+}
 function bridgeSurfaceAt(map,c,r){
   var hit=bridgeRecordAt(map,c,r),state=hit&&String(hit.connector.state||'open').toLowerCase();
   return hit&&state!=='closed'&&state!=='broken'?hit:null;
@@ -163,8 +167,8 @@ function connectorAllows(token,connector){
 }
 function stepAllowed(map, token, fromC, fromR, toC, toR) {
   if (!inBounds(map, toC, toR)) return false;
-  var targetBridge=bridgeRecordAt(map,toC,toR),targetState=targetBridge&&String(targetBridge.connector.state||'open').toLowerCase();
-  if(targetBridge&&(targetState==='closed'||targetState==='broken'))return false;
+  var targetBridge=bridgeRecordAt(map,toC,toR),targetInterior=bridgeInteriorAt(map,toC,toR),targetState=targetBridge&&String(targetBridge.connector.state||'open').toLowerCase();
+  if(targetInterior&&(targetState==='closed'||targetState==='broken'))return false;
   var bf=bridgeSurfaceAt(map,fromC,fromR),bt=bridgeSurfaceAt(map,toC,toR),segment=connectorBetween(map,fromC,fromR,toC,toR);
   if (!!map.wall[idx(map,toC,toR)]&&!bt) return false;
   /* Bridge-only cells can be entered/exited only along consecutive authored
@@ -333,17 +337,22 @@ function traceTop(map,c,r,ignoreCell){
   return occTop(map,c,r);
 }
 function segAttrib(map,x0,y0,z0,x1,y1,z1,a,b,ignoreCell,opts){
-  var steps=240,blocked=false,graded=false,first=null,types={};
+  var steps=240,blocked=false,graded=false,first=null,types={},gradedTypes={};
   for(var s=1;s<steps;s++){
     var t=s/steps,x=x0+(x1-x0)*t,y=y0+(y1-y0)*t,z=z0+(z1-z0)*t;
-    var c=Math.floor(x),r=Math.floor(y);
-    if((c===a.c&&r===a.r)||(c===b.c&&r===b.r))continue;
-    var hit=blockerAtPoint(map,c,r,x,y,z,ignoreCell,opts);if(!hit)continue;
+    var c=Math.floor(x),r=Math.floor(y),targetCell=c===b.c&&r===b.r;
+    if(c===a.c&&r===a.r)continue;
+    /* The target cell is normally skipped so its own terrain/body cannot cover
+       itself. A bridge rail is different: it sits on the edge of the occupied
+       bridge square and must protect a creature standing behind it. */
+    var hit=targetCell?bridgeBlocker(map,c,r,x,y,z):blockerAtPoint(map,c,r,x,y,z,ignoreCell,opts);
+    if(targetCell&&hit&&hit.type!=='bridge-rail')hit=null;
+    if(!hit){if(targetCell)continue;else continue;}
     blocked=true;if(!first)first=hit;types[hit.type]=(types[hit.type]||0)+1;
     var cell={c:c,r:r};
-    if(chebyshev(cell,b)<=chebyshev(cell,a)){graded=true;break;}
+    if(chebyshev(cell,b)<=chebyshev(cell,a)){graded=true;gradedTypes[hit.type]=(gradedTypes[hit.type]||0)+1;break;}
   }
-  return {blocked:blocked,graded:graded,first:first,types:types};
+  return {blocked:blocked,graded:graded,first:first,types:types,gradedTypes:gradedTypes};
 }
 function segHitsWall(map,x0,y0,x1,y1,aC,aR,bC,bR){
   var z=heightAt(map,aC,aR)+EYE_FT;
@@ -407,18 +416,23 @@ function firingPoints(map,a,b){
 }
 function mergeTypes(dst,src){Object.keys(src||{}).forEach(function(k){dst[k]=(dst[k]||0)+src[k];});}
 function verdictFromEye(map,ax,ay,az,a,b,ignoreCell,opts){
-  var bh=heightAt(map,b.c,b.r),blocked=0,graded=0,types={},first=null;
+  var bh=heightAt(map,b.c,b.r),blocked=0,graded=0,types={},gradedTypes={},first=null;
   for(var zc=0;zc<BODY_LEVELS.length;zc++)for(var tc=0;tc<BODY_CORNERS.length;tc++){
     var q=BODY_CORNERS[tc],line=segAttrib(map,ax,ay,az,b.c+q[0],b.r+q[1],bh+BODY_LEVELS[zc],a,b,ignoreCell,opts);
-    if(line.blocked){blocked++;if(!first)first=line.first;if(line.graded)graded++;mergeTypes(types,line.types);}
+    if(line.blocked){blocked++;if(!first)first=line.first;if(line.graded)graded++;mergeTypes(types,line.types);mergeTypes(gradedTypes,line.gradedTypes);}
   }
   var cover,acBonus;
   if(blocked>=BODY_SAMPLES){cover='total';acBonus=Infinity;}
   else if(graded<6){cover='none';acBonus=0;}
   else if(graded<9){cover='half';acBonus=2;}
   else{cover='three-quarters';acBonus=5;}
+  /* A continuous waist-high bridge rail is authored tactical cover. The body
+     sampler sees its lower-band obstruction, but the generic six-sample cut
+     can underrate a rail by a single sample at oblique angles. Two or more
+     target-side rail samples therefore establish the intended half-cover floor. */
+  if(cover==='none'&&(gradedTypes['bridge-rail']||0)>=2){cover='half';acBonus=2;}
   return {cover:cover,acBonus:acBonus,blocked:blocked,graded:graded,samples:BODY_SAMPLES,
-    canTarget:cover!=='total',culprits:types,firstBlocker:first};
+    canTarget:cover!=='total',culprits:types,gradedCulprits:gradedTypes,firstBlocker:first};
 }
 function losVerdict(map,a,b,opts){
   opts=opts||{};var az=heightAt(map,a.c,a.r)+EYE_FT;
@@ -456,7 +470,7 @@ var API={
   SQUARE_FT:SQUARE_FT,STEP_FT:STEP_FT,EYE_FT:EYE_FT,FOOT_FT:FOOT_FT,DIRS:DIRS,
   BODY_LEVELS:BODY_LEVELS,BODY_SAMPLES:BODY_SAMPLES,
   makeMap:makeMap,idx:idx,inBounds:inBounds,baseHeightAt:baseHeightAt,heightAt:heightAt,isWall:isWall,occTop:occTop,chebyshev:chebyshev,
-  connectorPath:connectorPath,connectorBetween:connectorBetween,bridgeRecordAt:bridgeRecordAt,bridgeSurfaceAt:bridgeSurfaceAt,connectorAllows:connectorAllows,stepAllowed:stepAllowed,movementReach:movementReach,pathTo:pathTo,canReachMelee:canReachMelee,range3d:range3d,inRange:inRange,
+  connectorPath:connectorPath,connectorBetween:connectorBetween,bridgeRecordAt:bridgeRecordAt,bridgeInteriorAt:bridgeInteriorAt,bridgeSurfaceAt:bridgeSurfaceAt,connectorAllows:connectorAllows,stepAllowed:stepAllowed,movementReach:movementReach,pathTo:pathTo,canReachMelee:canReachMelee,range3d:range3d,inRange:inRange,
   coverShapeAt:coverShapeAt,pointInCoverShape:pointInCoverShape,bridgeBlockerAtPoint:bridgeBlocker,losVerdict:losVerdict,losRay:losRay,
   lipCorners:lipCorners,targetFacingEdges:targetFacingEdges,lowWallPeeks:lowWallPeeks,firingPoints:firingPoints,coverAudit:coverAudit
 };
@@ -1041,6 +1055,7 @@ body.forge-author-preview #partySelect{opacity:0;pointer-events:none}
       <div class="improw" style="margin:0 0 6px">
         <button class="filebtn" id="verticalOverlayPanelBtn" type="button">Show connectors</button>
         <button class="filebtn" id="findBridgeSeed" type="button" title="Search nearby deterministic seeds for a generated structural bridge">Find bridge seed</button>
+        <button class="filebtn" id="bridgeAuditBtn" type="button" title="Verify identity, movement, state, and rail cover for every bridge">Audit bridges</button>
       </div>
       <div class="fname" id="verticalGeometryStatus" style="white-space:normal">Waiting for a generated map.</div>
       <div id="bridgeStateList" style="margin-top:7px"></div>
@@ -1879,7 +1894,7 @@ var verticalConnectorRenderGroup = new THREE.Group(); scene.add(verticalConnecto
 function clearVerticalConnectorRenderGroup(){
   while(verticalConnectorRenderGroup.children.length){var o=verticalConnectorRenderGroup.children.pop();o.traverse(function(n){if(n.geometry&&n.geometry!==o.geometry)n.geometry.dispose();if(n.material)n.material.dispose();});if(o.geometry)o.geometry.dispose();if(o.material)o.material.dispose();}
 }
-var VERTICAL_OVERLAY=false;
+var VERTICAL_OVERLAY=false, BRIDGE_INSPECT_ID=null;
 function addWorld(geo,col,x,y,z,rot,fogCell){ // mesh + optional inverted-hull outline shell
   const m=new THREE.Mesh(geo,stoneMat(col)); m.position.set(x,y,z);
   if(rot){if(rot.x)m.rotation.x=rot.x; if(rot.y)m.rotation.y=rot.y;} world.add(m);
@@ -3410,8 +3425,9 @@ function drawVerticalOverlay(){
   if(!VERTICAL_OVERLAY||!F)return;
   (F.ledges||[]).forEach(l=>verticalOverlayGroup.add(verticalEdgeLine(l.a,l.b,l.connectorId?0xd8b35b:0xc44f45)));
   (F.connectors||[]).forEach(function(c){
-    var path=Array.isArray(c.path)&&c.path.length>=2?c.path:[c.from,c.to],state=String(c.state||'open').toLowerCase(),col=c.kind==='bridge'?(state==='broken'?0xc65345:(state==='closed'?0xd7a33a:0x68b7d1)):(c.kind==='ramp'?0x4fc7c1:0xd8b35b);
+    var path=Array.isArray(c.path)&&c.path.length>=2?c.path:[c.from,c.to],state=String(c.state||'open').toLowerCase(),selected=c.kind==='bridge'&&BRIDGE_INSPECT_ID===c.id,col=selected?0xfff0b5:(c.kind==='bridge'?(state==='broken'?0xc65345:(state==='closed'?0xd7a33a:0x68b7d1)):(c.kind==='ramp'?0x4fc7c1:0xd8b35b));
     for(var i=0;i<path.length-1;i++)verticalOverlayGroup.add(verticalEdgeLine(path[i],path[i+1],col));
+    if(selected)path.forEach(function(q,qi){var marker=new THREE.Mesh(new THREE.SphereGeometry((qi===0||qi===path.length-1) ? .13 : .09,10,8),new THREE.MeshBasicMaterial({color:col,depthTest:false,depthWrite:false,transparent:true,opacity:.96}));marker.position.copy(connectorPoint(q));marker.position.y+=.12;marker.renderOrder=983;verticalOverlayGroup.add(marker);});
   });
 }
 var fogGroup = new THREE.Group(); scene.add(fogGroup);
@@ -6543,43 +6559,86 @@ function systemClog(html){
 }
 installFieldFeedEvidence();
 function banner(t){ var b=document.getElementById("cbBanner"); if(b){b.textContent=t;b.style.display="block";} }
-var __connectorStateSig='';
+var __connectorStateSig='',__connectorBaselineFieldRef=null,__connectorBaselines={},__bridgeAuditResult=null;
+function bridgeAuthority(){return window.ForgeBridgeAuthority||null;}
 function connectorById(list,id){return (list||[]).find(function(c){return c&&c.id===id;})||null;}
-function connectorStateSignature(states){return Object.keys(states||{}).sort().map(function(k){return k+':'+states[k];}).join('|');}
+function connectorStateSignature(states,proofs){
+  var B=bridgeAuthority(),mapSig=B&&F?B.mapSignature(F.connectors||[]):'';
+  return mapSig+'||'+Object.keys(states||{}).sort().map(function(k){return k+':'+states[k]+':'+((proofs||{})[k]||'');}).join('|');
+}
+function ensureConnectorBaselines(){
+  var B=bridgeAuthority();if(!B||!F)return{};
+  if(__connectorBaselineFieldRef!==F){__connectorBaselineFieldRef=F;__connectorBaselines=B.captureBaselines(F.connectors||[],{});__bridgeAuditResult=null;__connectorStateSig='';}
+  else __connectorBaselines=B.captureBaselines(F.connectors||[],__connectorBaselines);
+  return __connectorBaselines;
+}
 function bridgeOccupied(conn){
-  var path=conn&&Array.isArray(conn.path)?conn.path:[],units=typeof CB!=='undefined'&&CB&&CB.units?CB.units:[];
-  return units.some(function(u){return path.some(function(q){return q&&q.c===u.c&&q.r===u.r;});});
+  var B=bridgeAuthority(),units=typeof CB!=='undefined'&&CB&&CB.units?CB.units:[];
+  return B&&B.occupiesInterior?B.occupiesInterior(conn,units):false;
+}
+function bridgeAuditMap(){
+  var map=typeof CB!=='undefined'&&CB&&CB.active&&CB.map?CB.map:combatMapFromF();
+  syncGeometryCreatures(map);return map;
 }
 function refreshConnectorAuthority(){
-  renderVerticalConnectors();drawVerticalOverlay();
+  renderVerticalConnectors();drawVerticalOverlay();__bridgeAuditResult=null;
   if(typeof CB!=='undefined'&&CB&&CB.active){syncGeometryCreatures(CB.map);reconcileMovementPresentation();drawSight();refreshDiscovery(true);}
   refreshVerticalGeometryPanel();
 }
 function applyConnectorStateReplay(st,force){
-  var states=st&&st.connectorStates||{},sig=connectorStateSignature(states);if(!force&&sig===__connectorStateSig)return false;__connectorStateSig=sig;
-  Object.keys(states).forEach(function(id){var c=connectorById(F&&F.connectors,id);if(c)c.state=states[id];var cm=connectorById(typeof CB!=='undefined'&&CB&&CB.map&&CB.map.connectors,id);if(cm)cm.state=states[id];});
+  var B=bridgeAuthority();if(B)ensureConnectorBaselines();
+  var states=st&&st.connectorStates||{},proofs=st&&st.connectorStateProofs||{},sig=connectorStateSignature(states,proofs);
+  if(!force&&sig===__connectorStateSig)return false;__connectorStateSig=sig;
+  if(B){
+    var base=ensureConnectorBaselines(),rf=B.applyStates(F&&F.connectors||[],states,base,proofs),rm={mismatched:[]};
+    if(typeof CB!=='undefined'&&CB&&CB.map)rm=B.applyStates(CB.map.connectors||[],states,base,proofs);
+    var mismatched=(rf.mismatched||[]).concat(rm.mismatched||[]),seen={};
+    mismatched.forEach(function(m){if(seen[m.id])return;seen[m.id]=true;systemClog('<i>Bridge state ignored for '+escapeHtml(m.id)+': its saved path identity does not match this battlefield.</i>');});
+  }else Object.keys(states).forEach(function(id){var c=connectorById(F&&F.connectors,id);if(c)c.state=states[id];var cm=connectorById(typeof CB!=='undefined'&&CB&&CB.map&&CB.map.connectors,id);if(cm)cm.state=states[id];});
   refreshConnectorAuthority();return true;
 }
 function setBridgeState(id,next){
-  next=String(next||'').toLowerCase();var conn=connectorById(F&&F.connectors,id),sess=window.__forgeSession;
-  if(!conn||['open','closed','broken'].indexOf(next)<0)return;
+  next=String(next||'').toLowerCase();var conn=connectorById(F&&F.connectors,id),sess=window.__forgeSession,B=bridgeAuthority();
+  if(!conn||['open','closed','broken'].indexOf(next)<0)return;ensureConnectorBaselines();
   if(sess&&!sess.me.overseer){systemClog('<i>Only the overseer can change a live bridge.</i>');return;}
   if((next==='closed'||next==='broken')&&bridgeOccupied(conn)){systemClog('<i>'+escapeHtml(id)+' cannot '+(next==='closed'?'close':'break')+' while a creature occupies the span.</i>');return;}
   if((typeof CB_ANIM!=='undefined'&&CB_ANIM)||__awaitingCount>0){systemClog('<i>Finish the current action before changing bridge state.</i>');return;}
   if(String(conn.state||'open').toLowerCase()===next)return;
+  var proof=B&&B.pathSignature?B.pathSignature(conn):null;
   if(sess){
-    sess.pipe.edit([{connector_state:{id:id,state:next}}]).then(function(r){if(r&&r.ok===false)netPublishFail(r);});
+    sess.pipe.edit([{connector_state:{id:id,state:next,path_signature:proof}}]).then(function(r){if(r&&r.ok===false)netPublishFail(r);});
   }else{
     conn.state=next;var cm=connectorById(typeof CB!=='undefined'&&CB&&CB.map&&CB.map.connectors,id);if(cm)cm.state=next;
     __connectorStateSig='local:'+Date.now();refreshConnectorAuthority();systemClog('<i>'+escapeHtml(id)+' is now '+next+'.</i>');
   }
 }
+function runBridgeAudit(announce){
+  var B=bridgeAuthority();if(!B||!F)return null;
+  try{__bridgeAuditResult=B.auditMap(bridgeAuditMap(),TG);}
+  catch(err){__bridgeAuditResult={ok:false,bridges:[],error:String(err&&err.message||err)};}
+  if(announce!==false){
+    if(__bridgeAuditResult.error)systemClog('<i>Bridge audit failed: '+escapeHtml(__bridgeAuditResult.error)+'</i>');
+    else systemClog('<i>Bridge audit: '+(__bridgeAuditResult.ok?'all structural bridges passed identity, movement, state, and rail-cover checks.':'one or more structural bridges need attention.')+'</i>');
+  }
+  refreshVerticalGeometryPanel();return __bridgeAuditResult;
+}
+function inspectBridge(id){BRIDGE_INSPECT_ID=BRIDGE_INSPECT_ID===id?null:id;if(BRIDGE_INSPECT_ID)VERTICAL_OVERLAY=true;drawVerticalOverlay();refreshVerticalGeometryPanel();refreshSceneMenu();}
+function auditForBridge(id){return __bridgeAuditResult&&(__bridgeAuditResult.bridges||[]).find(function(a){return a.id===id;})||null;}
+function bridgeAuditBadges(a){
+  if(!a)return '<span style="opacity:.66">not audited</span>';
+  var move=a.movement&&a.movement.open&&a.movement.closed&&a.movement.broken,rail=!a.rails.active||a.rails.cover;
+  return '<span style="color:'+(move?'#42764a':'#a33b2e')+'">'+(move?'movement ✓':'movement ✕')+'</span> · <span style="color:'+(rail?'#42764a':'#a33b2e')+'">'+(rail?'rail cover ✓':'rail cover ✕')+'</span> · <span style="color:'+(a.contiguous?'#42764a':'#a33b2e')+'">'+(a.identityStable?'stable ID ✓':'snapshot ID ✓')+'</span>';
+}
 function renderBridgeStateList(){
   var host=document.getElementById('bridgeStateList');if(!host)return;var bridges=(F&&F.connectors||[]).filter(function(c){return c&&c.kind==='bridge';});
-  if(!bridges.length){host.innerHTML='';return;}
-  var canEdit=!window.__forgeSession||!!window.__forgeSession.me.overseer;
-  host.innerHTML=bridges.map(function(c,i){var state=String(c.state||'open').toLowerCase(),id=c.id||('bridge-'+(i+1));return '<div class="fname" style="margin:5px 0;padding:5px;border:1px solid rgba(86,67,38,.24)"><b>'+escapeHtml(id)+'</b> · '+escapeHtml(state)+'<div class="improw" style="margin-top:4px"><button class="filebtn bridgeStateBtn" data-bridge="'+escapeHtml(id)+'" data-state="open" '+(!canEdit||state==='open'?'disabled':'')+'>Open</button><button class="filebtn bridgeStateBtn" data-bridge="'+escapeHtml(id)+'" data-state="closed" '+(!canEdit||state==='closed'?'disabled':'')+'>Closed</button><button class="filebtn bridgeStateBtn" data-bridge="'+escapeHtml(id)+'" data-state="broken" '+(!canEdit||state==='broken'?'disabled':'')+'>Broken</button></div></div>';}).join('');
+  if(!bridges.length){host.innerHTML='';BRIDGE_INSPECT_ID=null;return;}
+  var canEdit=!window.__forgeSession||!!window.__forgeSession.me.overseer,B=bridgeAuthority();
+  host.innerHTML=bridges.map(function(c,i){
+    var state=String(c.state||'open').toLowerCase(),id=c.id||('bridge-'+(i+1)),a=auditForBridge(id),points=B?B.path(c):c.path||[],span=Math.max(0,points.length-1)*5,occupied=bridgeOccupied(c),selected=BRIDGE_INSPECT_ID===id;
+    return '<div class="fname" style="margin:6px 0;padding:7px;border:1px solid rgba(86,67,38,.28);background:rgba(255,255,255,.13)"><div style="display:flex;justify-content:space-between;gap:8px;align-items:center"><b>Bridge '+(i+1)+'</b><span style="text-transform:uppercase;color:'+(state==='open'?'#39705a':state==='closed'?'#9a6b18':'#a33b2e')+'">'+escapeHtml(state)+'</span></div><div style="margin-top:2px;word-break:break-all">'+escapeHtml(id)+'</div><div style="margin-top:3px">'+span+' ft span · '+Number(c.clearanceFt||0)+' ft clearance · '+(occupied?'occupied span':'clear span')+'</div><div style="margin-top:3px">'+bridgeAuditBadges(a)+'</div><div class="improw" style="margin-top:5px"><button class="filebtn bridgeInspectBtn" data-bridge="'+escapeHtml(id)+'">'+(selected?'Clear inspect':'Inspect')+'</button><button class="filebtn bridgeStateBtn" data-bridge="'+escapeHtml(id)+'" data-state="open" '+(!canEdit||state==='open'?'disabled':'')+'>Open</button><button class="filebtn bridgeStateBtn" data-bridge="'+escapeHtml(id)+'" data-state="closed" '+(!canEdit||state==='closed'?'disabled':'')+'>Closed</button><button class="filebtn bridgeStateBtn" data-bridge="'+escapeHtml(id)+'" data-state="broken" '+(!canEdit||state==='broken'?'disabled':'')+'>Broken</button></div></div>';
+  }).join('');
   host.querySelectorAll('.bridgeStateBtn').forEach(function(btn){btn.addEventListener('click',function(){setBridgeState(btn.dataset.bridge,btn.dataset.state);});});
+  host.querySelectorAll('.bridgeInspectBtn').forEach(function(btn){btn.addEventListener('click',function(){inspectBridge(btn.dataset.bridge);});});
 }
 function verticalGeometryCounts(){
   var connectors=F&&Array.isArray(F.connectors)?F.connectors:[],ledges=F&&Array.isArray(F.ledges)?F.ledges:[];
@@ -6589,10 +6648,11 @@ function verticalGeometryCounts(){
   return out;
 }
 function refreshVerticalGeometryPanel(){
-  var q=verticalGeometryCounts(),status=document.getElementById("verticalGeometryStatus"),btn=document.getElementById("verticalOverlayPanelBtn"),find=document.getElementById("findBridgeSeed");
-  if(status)status.textContent=q.stairs+" stairs · "+q.ramps+" ramps · "+q.bridges+" bridges ("+q.bridgeOpen+" open / "+q.bridgeClosed+" closed / "+q.bridgeBroken+" broken) · "+q.ledges+" open ledges"+(q.bridges?"":" · no structural bridge on this seed");
+  var q=verticalGeometryCounts(),status=document.getElementById("verticalGeometryStatus"),btn=document.getElementById("verticalOverlayPanelBtn"),find=document.getElementById("findBridgeSeed"),audit=document.getElementById("bridgeAuditBtn");
+  if(status)status.textContent=q.stairs+" stairs · "+q.ramps+" ramps · "+q.bridges+" bridges ("+q.bridgeOpen+" open / "+q.bridgeClosed+" closed / "+q.bridgeBroken+" broken) · "+q.ledges+" open ledges"+(q.bridges?(__bridgeAuditResult?(__bridgeAuditResult.ok?" · audit passed":" · audit needs attention"):" · audit pending"):" · no structural bridge on this seed");
   if(btn)btn.textContent=VERTICAL_OVERLAY?"Hide connectors":"Show connectors";
   if(find){var locked=!!SESSION_ID||!!(typeof CB!=="undefined"&&CB&&CB.active);find.disabled=locked;find.title=locked?"Bridge-seed search is authoring-only.":"Search nearby deterministic seeds for a generated structural bridge.";}
+  if(audit)audit.disabled=!q.bridges;
   renderBridgeStateList();
 }
 function toggleVerticalGeometry(){VERTICAL_OVERLAY=!VERTICAL_OVERLAY;drawVerticalOverlay();refreshVerticalGeometryPanel();refreshSceneMenu();}
@@ -6615,6 +6675,7 @@ function findNearbyBridgeSeed(){
 }
 var verticalOverlayPanelBtn=document.getElementById("verticalOverlayPanelBtn");if(verticalOverlayPanelBtn)verticalOverlayPanelBtn.addEventListener("click",toggleVerticalGeometry);
 var findBridgeSeedBtn=document.getElementById("findBridgeSeed");if(findBridgeSeedBtn)findBridgeSeedBtn.addEventListener("click",findNearbyBridgeSeed);
+var bridgeAuditBtn=document.getElementById("bridgeAuditBtn");if(bridgeAuditBtn)bridgeAuditBtn.addEventListener("click",function(){runBridgeAudit(true);});
 function refreshSceneMenu(){
   var tc=window.ForgeTableCorrectness,sess=window.__forgeSession;
   var fc=document.querySelector('#sceneForgeControls b');if(fc)fc.textContent=document.body.classList.contains('forge-peek')?'shown':'hidden';

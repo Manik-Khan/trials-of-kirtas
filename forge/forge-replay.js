@@ -61,7 +61,7 @@
     return {
       status: "staging", units: units, rolls: {}, initiativeEvidence: {}, initiative: null,
       turnsEnded: 0, pendingAction: null, pendingPrompt: null, pendingPrompts: [],
-      chat: [], lastSeq: 0, appliedResourceSpends: {}, connectorStates: {},
+      chat: [], lastSeq: 0, appliedResourceSpends: {}, connectorStates: {}, connectorStateProofs: {},
       economy: freshEconomy(null)
     };
   }
@@ -256,6 +256,7 @@
         Object.assign(state, snap);
         state.appliedResourceSpends = state.appliedResourceSpends || {};
         state.connectorStates = state.connectorStates || {};
+        state.connectorStateProofs = state.connectorStateProofs || {};
         state.initiativeEvidence = state.initiativeEvidence || {};
         state.pendingPrompts = state.pendingPrompts || (state.pendingPrompt ? [state.pendingPrompt] : []);
         state.pendingPrompt = state.pendingPrompts.length ? state.pendingPrompts[state.pendingPrompts.length-1] : null;
@@ -272,7 +273,9 @@
               return;
             }
             state.connectorStates = state.connectorStates || {};
+            state.connectorStateProofs = state.connectorStateProofs || {};
             state.connectorStates[cs.id] = nextState;
+            if (cs.path_signature) state.connectorStateProofs[cs.id] = String(cs.path_signature);
             return;
           }
           if (ch.add_unit) {

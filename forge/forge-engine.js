@@ -616,15 +616,30 @@
     return candidates.sort(function(a,b){return a.hash-b.hash;});
   }
 
+  function bridgePathSignature(path) {
+    return (path || []).map(function (q) {
+      var h = Number(q && q.elevationFt); if (!Number.isFinite(h)) h = 0;
+      return Number(q && q.c) + "," + Number(q && q.r) + "@" + String(Math.round(h * 1000) / 1000);
+    }).join(">");
+  }
+
+  function bridgeStableId(path) {
+    var sig = bridgePathSignature(path), h = GF && typeof GF.hash32 === "function" ? GF.hash32("bridge:" + sig) >>> 0 : edgeHash(0x51ed270b, path[0], path[path.length - 1]);
+    return "height-bridge-" + h.toString(36).padStart(7, "0");
+  }
+
   function selectBridges(map, dungeon, heightSeed) {
-    var candidates = bridgeCandidates(map, dungeon, heightSeed), used = {}, out = [];
+    var candidates = bridgeCandidates(map, dungeon, heightSeed), used = {}, ids = {}, out = [];
     var cap = Math.min(2, Math.max(0, Math.ceil(candidates.length / 10)));
     for (var i = 0; i < candidates.length && out.length < cap; i++) {
       var cand = candidates[i], clash = false;
       for (var p = 0; p < cand.path.length; p++) if (used[key(cand.path[p].c, cand.path[p].r)]) { clash = true; break; }
       if (clash) continue;
       cand.path.forEach(function(q){used[key(q.c,q.r)] = true;});
-      var id = "height-bridge-" + out.length, first = cand.path[0], last = cand.path[cand.path.length - 1];
+      var id = bridgeStableId(cand.path), suffix = 1;
+      while (ids[id]) id = bridgeStableId(cand.path) + "-" + suffix++;
+      ids[id] = true;
+      var first = cand.path[0], last = cand.path[cand.path.length - 1];
       out.push({
         id: id, kind: "bridge", from: copyObject(first), to: copyObject(last), path: copyObject(cand.path),
         widthFt: 5, clearanceFt: cand.clearanceFt, movementCostFt: (cand.path.length - 1) * 5,
@@ -858,6 +873,8 @@
       verticalRecords: verticalRecords,
       bridgeCandidates: bridgeCandidates,
       selectBridges: selectBridges,
+      bridgePathSignature: bridgePathSignature,
+      bridgeStableId: bridgeStableId,
       validateVerticalRecords: validateVerticalRecords,
       connectorBetween: connectorBetween,
       ordinaryStepAllowed: ordinaryStepAllowed,

@@ -1,54 +1,74 @@
 {
-  "APPLY.md": {
-    "sha256": "6418432b15cd838aa3ef6cf088efec1c120b205f73315731d9025886d7c14572",
-    "bytes": 1754
+  "CONTEXT_Forge-update-2026-07-16c.md": {
+    "sha256": "be2a9f46e0c9f3ad37c112b2ab4ce75966b1c26a1388e62199a9fa55eebc614d",
+    "bytes": 3272
   },
-  "CONTEXT_Forge-update-2026-07-16b.md": {
-    "sha256": "e24eb5bd827e4decac45554ca86bce7374b34585f1214cca3c687edb302ca659",
-    "bytes": 2135
+  "forge/FORGE_STRUCTURAL_BRIDGES_1.md": {
+    "sha256": "39b370b2e9a55143966847827e965fa273b96fabf1fd6b14c6dd0a0dbcac8e09",
+    "bytes": 7960
   },
-  "forge/PHASE2_INITIATIVE_AUTHORITY_CLEANUP_2026-07-16.md": {
-    "sha256": "e89cb93cdc9b077097d77fdf39aa408bbb5c96330c99e49b6968732a6c84dc61",
-    "bytes": 3124
+  "forge/PHASE2F4_STRUCTURAL_BRIDGE_COMPLETION_2026-07-16.md": {
+    "sha256": "e6bc9050c7b38307ad5ec20d209ba45a7f343c9fd2a0726ad0cf94c878ec22e1",
+    "bytes": 4163
   },
-  "forge/forge-initiative.js": {
-    "sha256": "b98f01e53f12a16bd1ce404bf9e134640647a0fda64a51749d24214214136349",
-    "bytes": 9790
+  "forge/forge-bridge-authority.js": {
+    "sha256": "ad0f5f46a13d072df800e2f10e52d243b3987bc2d371a3037f7394c86061b25f",
+    "bytes": 9473
   },
-  "forge/forge-kit-derive.js": {
-    "sha256": "d7178288d035f650a9685de4d3a106c9d9046b5f00815ffa3cee05d261051393",
-    "bytes": 70249
+  "forge/forge-engine.js": {
+    "sha256": "34d37f3a96cfdf0ed4af7e2de62a94be8a660e3926dc477a7c3684b00bcffccd",
+    "bytes": 46172
+  },
+  "forge/forge-generator-foundation.js": {
+    "sha256": "7373c84a662c91cfa1edd8781ac1e55f4d9d2bd43425ff82cd24a93ade443693",
+    "bytes": 32025
+  },
+  "forge/forge-replay.js": {
+    "sha256": "24c7e274b81d4c2cd0fcf52f3301c3c6d00ee2636a84b0342149febced1a0ace",
+    "bytes": 17470
   },
   "forge/index.html": {
-    "sha256": "e7af7ab3dc5aee6288014a826568c6fe2d15a755f5bad3cb0fd8d9aa6889ebdb",
-    "bytes": 735103
+    "sha256": "2b5ad6a438012983e58a4bdeb96fa9b635f35d4a11987a3a7be91eca7986b8ae",
+    "bytes": 741332
   },
-  "forge/patch-phase2-initiative-authority-cleanup.js": {
-    "sha256": "de485cb719bedc72d0c8780e6f1ddec67becbb5c1e23be9a9cb62746643a8010",
-    "bytes": 1205149
+  "forge/tactics-geometry.js": {
+    "sha256": "2790ca2698832813547ccb4fdaa0a7bdbd08ff57d656096a74f138db33be64f3",
+    "bytes": 22610
   },
-  "forge/tests/smoke-kit-derive.js": {
-    "sha256": "f2ba4a6f8399b61e9b6c24fd05c949c238b515baca7bb659a6cc3062a8981a7f",
-    "bytes": 62239
+  "forge/tests/smoke-phase2-correctness-wave3.js": {
+    "sha256": "f16ca2be0a324a201b64991315d34dee97d5655626e4771743f483bb7c053cdb",
+    "bytes": 8381
   },
   "forge/tests/smoke-phase2-final-trust.js": {
-    "sha256": "43617589f835bf31e5ea7d50f50ced886e21be1668bc300d0d20a54a391b0704",
+    "sha256": "df49fa6a18425f42c5ac6c68d6e484dc18d2d7b5060c9230b0bd6462261a0919",
     "bytes": 3515
   },
-  "forge/tests/smoke-phase2-initiative-authority-cleanup.js": {
-    "sha256": "42d1ef1756039e18e54209633d92af236096e310ad7ff8362b69025f54658802",
-    "bytes": 2658
-  },
-  "forge/tests/smoke-phase2-promotion-visibility.js": {
-    "sha256": "058f9abd4b0cc1e9ae846006d5ffb82b23503f657b00b8960aca12f3b342e6bf",
-    "bytes": 3501
-  },
   "forge/tests/smoke-phase2-reaction-hidden-info-hardening.js": {
-    "sha256": "1117195048f3b5124a88b8f0629b68a6af7c21fa90fac32bdd0e9878fc824a06",
+    "sha256": "fe4e9a45278b2db3baca044876dcffb889f5731adb076dadce810b8df278e876",
     "bytes": 3781
   },
-  "forge/tests/smoke-phase2b1-field-round.js": {
-    "sha256": "d15060a35707323effee31a8f09f1e3544f9519685d515fc7ce5dad8ee893050",
-    "bytes": 5009
+  "forge/tests/smoke-phase2c-archetype-params.js": {
+    "sha256": "9b19aaf20d392fb890bd4cdafb53e8a56084c5338228c456a04e3acfbd86e367",
+    "bytes": 8714
+  },
+  "forge/tests/smoke-phase2d-stage-ownership.js": {
+    "sha256": "2c708e93ad2b47887aca83c2142c7644f043596b3f7e26b28e9876931fea6f77",
+    "bytes": 10961
+  },
+  "forge/tests/smoke-phase2e-elevations-connectors.js": {
+    "sha256": "7880e3c73155b95cce8e569a5a62655f0a57c8d01a3e9f5094af58e7bb979b9e",
+    "bytes": 10687
+  },
+  "forge/tests/smoke-phase2f4-bridge-completion.js": {
+    "sha256": "9ad14eb18e9b2dc3d15e3091f142d52b5d7affeda0acf0f32784a63a8d435a7d",
+    "bytes": 7170
+  },
+  "forge/tests/smoke-snapshot-authority.js": {
+    "sha256": "6ac0afae7c60d6e183286be70e357de99fc90607085155a4f4952782a6142fd4",
+    "bytes": 5652
+  },
+  "forge/patch-phase2f4-bridge-completion.js": {
+    "sha256": "3516e8b6d53a41f544e33ccfecefdd74b7b209a3e76eb52e619a32ac53aee788",
+    "bytes": 1262783
   }
 }

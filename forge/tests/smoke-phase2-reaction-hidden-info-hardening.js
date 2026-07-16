@@ -28,6 +28,6 @@ ok("Silvery Barbs prompt explains Shield cannot stop the critical",html.includes
 ok("player roll review omits exact enemy defense",html.includes("hideDefense=!!(discoveryPlayerView()&&t.side==='foe')")&&html.includes("if(!hideDefense)parts.push(\"vs defense \"+defense)"));
 ok("reaction evidence redacts exact enemy defense in player presentation",html.includes("hideDefense=!!(discoveryPlayerView()&&target&&target.side==='foe')")&&html.includes("(hideDefense?'':' vs defense '+escapeHtml(defense))"));
 ok("player-view event copies strip defense fields while authoritative rows remain intact",html.includes("function redactEnemyDefenseEvent")&&html.includes("delete p.targetAC")&&html.includes("redactEnemyDefenseEvent(viewerFeedEvent(r))"));
-ok("cache stamps load the hardened replay, derivation, and presentation files",html.includes("forge-replay.js?v=fb12")&&html.includes("forge-kit-derive.js?v=b8")&&html.includes("forge-table-correctness.js?v=fg7"));
+ok("cache stamps load the hardened replay, derivation, and presentation files",html.includes("forge-replay.js?v=fb13")&&html.includes("forge-kit-derive.js?v=b8")&&html.includes("forge-table-correctness.js?v=fg7"));
 
 console.log(`\n${pass} passed, ${fail} failed`);process.exitCode=fail?1:0;

@@ -83,6 +83,9 @@ function bridgeRecordAt(map,c,r){
   }
   return null;
 }
+function bridgeInteriorAt(map,c,r){
+  var hit=bridgeRecordAt(map,c,r);return hit&&hit.index>0&&hit.index<hit.path.length-1?hit:null;
+}
 function bridgeSurfaceAt(map,c,r){
   var hit=bridgeRecordAt(map,c,r),state=hit&&String(hit.connector.state||'open').toLowerCase();
   return hit&&state!=='closed'&&state!=='broken'?hit:null;
@@ -95,8 +98,8 @@ function connectorAllows(token,connector){
 }
 function stepAllowed(map, token, fromC, fromR, toC, toR) {
   if (!inBounds(map, toC, toR)) return false;
-  var targetBridge=bridgeRecordAt(map,toC,toR),targetState=targetBridge&&String(targetBridge.connector.state||'open').toLowerCase();
-  if(targetBridge&&(targetState==='closed'||targetState==='broken'))return false;
+  var targetBridge=bridgeRecordAt(map,toC,toR),targetInterior=bridgeInteriorAt(map,toC,toR),targetState=targetBridge&&String(targetBridge.connector.state||'open').toLowerCase();
+  if(targetInterior&&(targetState==='closed'||targetState==='broken'))return false;
   var bf=bridgeSurfaceAt(map,fromC,fromR),bt=bridgeSurfaceAt(map,toC,toR),segment=connectorBetween(map,fromC,fromR,toC,toR);
   if (!!map.wall[idx(map,toC,toR)]&&!bt) return false;
   /* Bridge-only cells can be entered/exited only along consecutive authored
@@ -265,17 +268,22 @@ function traceTop(map,c,r,ignoreCell){
   return occTop(map,c,r);
 }
 function segAttrib(map,x0,y0,z0,x1,y1,z1,a,b,ignoreCell,opts){
-  var steps=240,blocked=false,graded=false,first=null,types={};
+  var steps=240,blocked=false,graded=false,first=null,types={},gradedTypes={};
   for(var s=1;s<steps;s++){
     var t=s/steps,x=x0+(x1-x0)*t,y=y0+(y1-y0)*t,z=z0+(z1-z0)*t;
-    var c=Math.floor(x),r=Math.floor(y);
-    if((c===a.c&&r===a.r)||(c===b.c&&r===b.r))continue;
-    var hit=blockerAtPoint(map,c,r,x,y,z,ignoreCell,opts);if(!hit)continue;
+    var c=Math.floor(x),r=Math.floor(y),targetCell=c===b.c&&r===b.r;
+    if(c===a.c&&r===a.r)continue;
+    /* The target cell is normally skipped so its own terrain/body cannot cover
+       itself. A bridge rail is different: it sits on the edge of the occupied
+       bridge square and must protect a creature standing behind it. */
+    var hit=targetCell?bridgeBlocker(map,c,r,x,y,z):blockerAtPoint(map,c,r,x,y,z,ignoreCell,opts);
+    if(targetCell&&hit&&hit.type!=='bridge-rail')hit=null;
+    if(!hit){if(targetCell)continue;else continue;}
     blocked=true;if(!first)first=hit;types[hit.type]=(types[hit.type]||0)+1;
     var cell={c:c,r:r};
-    if(chebyshev(cell,b)<=chebyshev(cell,a)){graded=true;break;}
+    if(chebyshev(cell,b)<=chebyshev(cell,a)){graded=true;gradedTypes[hit.type]=(gradedTypes[hit.type]||0)+1;break;}
   }
-  return {blocked:blocked,graded:graded,first:first,types:types};
+  return {blocked:blocked,graded:graded,first:first,types:types,gradedTypes:gradedTypes};
 }
 function segHitsWall(map,x0,y0,x1,y1,aC,aR,bC,bR){
   var z=heightAt(map,aC,aR)+EYE_FT;
@@ -339,18 +347,23 @@ function firingPoints(map,a,b){
 }
 function mergeTypes(dst,src){Object.keys(src||{}).forEach(function(k){dst[k]=(dst[k]||0)+src[k];});}
 function verdictFromEye(map,ax,ay,az,a,b,ignoreCell,opts){
-  var bh=heightAt(map,b.c,b.r),blocked=0,graded=0,types={},first=null;
+  var bh=heightAt(map,b.c,b.r),blocked=0,graded=0,types={},gradedTypes={},first=null;
   for(var zc=0;zc<BODY_LEVELS.length;zc++)for(var tc=0;tc<BODY_CORNERS.length;tc++){
     var q=BODY_CORNERS[tc],line=segAttrib(map,ax,ay,az,b.c+q[0],b.r+q[1],bh+BODY_LEVELS[zc],a,b,ignoreCell,opts);
-    if(line.blocked){blocked++;if(!first)first=line.first;if(line.graded)graded++;mergeTypes(types,line.types);}
+    if(line.blocked){blocked++;if(!first)first=line.first;if(line.graded)graded++;mergeTypes(types,line.types);mergeTypes(gradedTypes,line.gradedTypes);}
   }
   var cover,acBonus;
   if(blocked>=BODY_SAMPLES){cover='total';acBonus=Infinity;}
   else if(graded<6){cover='none';acBonus=0;}
   else if(graded<9){cover='half';acBonus=2;}
   else{cover='three-quarters';acBonus=5;}
+  /* A continuous waist-high bridge rail is authored tactical cover. The body
+     sampler sees its lower-band obstruction, but the generic six-sample cut
+     can underrate a rail by a single sample at oblique angles. Two or more
+     target-side rail samples therefore establish the intended half-cover floor. */
+  if(cover==='none'&&(gradedTypes['bridge-rail']||0)>=2){cover='half';acBonus=2;}
   return {cover:cover,acBonus:acBonus,blocked:blocked,graded:graded,samples:BODY_SAMPLES,
-    canTarget:cover!=='total',culprits:types,firstBlocker:first};
+    canTarget:cover!=='total',culprits:types,gradedCulprits:gradedTypes,firstBlocker:first};
 }
 function losVerdict(map,a,b,opts){
   opts=opts||{};var az=heightAt(map,a.c,a.r)+EYE_FT;
@@ -388,7 +401,7 @@ var API={
   SQUARE_FT:SQUARE_FT,STEP_FT:STEP_FT,EYE_FT:EYE_FT,FOOT_FT:FOOT_FT,DIRS:DIRS,
   BODY_LEVELS:BODY_LEVELS,BODY_SAMPLES:BODY_SAMPLES,
   makeMap:makeMap,idx:idx,inBounds:inBounds,baseHeightAt:baseHeightAt,heightAt:heightAt,isWall:isWall,occTop:occTop,chebyshev:chebyshev,
-  connectorPath:connectorPath,connectorBetween:connectorBetween,bridgeRecordAt:bridgeRecordAt,bridgeSurfaceAt:bridgeSurfaceAt,connectorAllows:connectorAllows,stepAllowed:stepAllowed,movementReach:movementReach,pathTo:pathTo,canReachMelee:canReachMelee,range3d:range3d,inRange:inRange,
+  connectorPath:connectorPath,connectorBetween:connectorBetween,bridgeRecordAt:bridgeRecordAt,bridgeInteriorAt:bridgeInteriorAt,bridgeSurfaceAt:bridgeSurfaceAt,connectorAllows:connectorAllows,stepAllowed:stepAllowed,movementReach:movementReach,pathTo:pathTo,canReachMelee:canReachMelee,range3d:range3d,inRange:inRange,
   coverShapeAt:coverShapeAt,pointInCoverShape:pointInCoverShape,bridgeBlockerAtPoint:bridgeBlocker,losVerdict:losVerdict,losRay:losRay,
   lipCorners:lipCorners,targetFacingEdges:targetFacingEdges,lowWallPeeks:lowWallPeeks,firingPoints:firingPoints,coverAudit:coverAudit
 };

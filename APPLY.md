@@ -1,51 +1,43 @@
-# Apply · Forge initiative-authority cleanup · 2026-07-16
+# Apply Phase 2f.4 structural bridge completion
 
-## Expected baseline
+Baseline: the repository after `forge-phase2-initiative-authority-cleanup-2026-07-16`.
 
-Apply this to the July 16 **promotion/visibility** build—the build that introduced canonical `/forge/`, Workshop/Table modes, the Planned tab, the compact initiative editor, and widened long-range creature recognition.
+## Recommended guarded application
 
-## Preferred: guarded installer
-
-From anywhere:
+Copy this bundle over the repository root, then run:
 
 ```bash
-node /path/to/extracted/forge-phase2-initiative-authority-cleanup-2026-07-16/forge/patch-phase2-initiative-authority-cleanup.js /absolute/path/to/trials-of-kirtas
+node forge/patch-phase2f4-bridge-completion.js /absolute/path/to/trials-of-kirtas
 ```
 
-The installer checks every expected baseline hash before writing. It is idempotent: a second run reports that all files are already current.
+The installer verifies SHA-256 hashes for every existing baseline file, writes through temporary files, and refuses an unexpected or partially edited baseline. Running it a second time is safe and reports that every target is already current.
 
-## Alternative: standalone patch
+M may instead copy the repo-structured files directly or apply the standalone unified patch supplied beside this ZIP.
+
+## Focused validation
 
 From the repository root:
 
 ```bash
-git apply --check /path/to/forge-phase2-initiative-authority-cleanup-2026-07-16.patch
-git apply /path/to/forge-phase2-initiative-authority-cleanup-2026-07-16.patch
+node forge/tests/smoke-phase2f4-bridge-completion.js
+node forge/tests/smoke-phase2f-bridges-damage.js
+node forge/tests/smoke-replay.js
+node forge/tests/smoke-tactics-geometry.mjs
+node forge/tests/smoke-phase2d-stage-ownership.js
 ```
 
-## Verification
+Expected focused result: `33 passed, 0 failed` for Phase 2f.4.
 
-```bash
-node forge/tests/smoke-phase2-initiative-authority-cleanup.js
-node forge/tests/smoke-kit-derive.js
-node forge/tests/smoke-phase2-final-trust.js
-node forge/tests/smoke-phase2-promotion-visibility.js
-node forge/tests/smoke-phase2-reaction-hidden-info-hardening.js
-node forge/tests/smoke-phase2b1-field-round.js
-```
+## Browser verification
 
-Expected focused result:
+1. Generate a battlefield containing a bridge.
+2. Confirm both clients report the same stable bridge ID and path.
+3. Refresh/reconnect and confirm the identity and state persist.
+4. Cross the open bridge in both directions.
+5. Test rail cover from both sides.
+6. Close and break the span; its interior must become unavailable while the land endpoints remain usable.
+7. Confirm an interior occupant blocks the state edit but an endpoint occupant does not.
+8. Rewind/correct the edit and confirm the snapshot baseline returns.
+9. Run **Audit Bridges** and inspect the endpoint/path markers.
 
-```text
-14 passed, 0 failed
-```
-
-## Browser check
-
-1. Hard-refresh `/forge/` on both browsers.
-2. Open initiative and roll Líadan.
-3. Confirm the row shows `DEX +1` and `Jack of All Trades +1`.
-4. Confirm the total is `d20 + 2`.
-5. Confirm there is no `Other sheet bonuses -1` and no stale-sheet warning.
-6. Confirm the bright modal shows the math immediately.
-7. After closing the modal, confirm the feed contains one permanent initiative fact rather than duplicate narration.
+After this focused pass, begin doors.

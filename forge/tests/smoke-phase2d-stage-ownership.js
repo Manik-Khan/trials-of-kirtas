@@ -11,7 +11,7 @@ function ok(v,l){if(!v)throw new Error("FAIL: "+l);console.log("ok",++pass,"-",l
 function throws(fn,part,l){let e=null;try{fn();}catch(x){e=x;}ok(e&&String(e.message||e).includes(part),l);}
 function same(a,b){return JSON.stringify(a)===JSON.stringify(b);}
 
-ok(/^2\.0\.0-(?:elevations|bridges)\.1$/.test(GF.GENERATOR_VERSION),"generator version retains true stage ownership through vertical extensions");
+ok(/^2\.0\.0-(?:elevations\.1|bridges\.[12])$/.test(GF.GENERATOR_VERSION),"generator version retains true stage ownership through vertical extensions");
 ok(GF.PARAMETER_VERSION===2&&GF.SUPPORTED_PARAMETER_VERSIONS.join(",")==="1,2","parameter v2 is canonical while v1 remains readable");
 ok(GF.GENERATOR_PROFILES.STAGED==="stage-owned-legacy"&&GF.GENERATOR_PROFILES.LEGACY==="legacy-dungeon","generator profiles distinguish staged and monolithic recipes");
 ok(GF.stageAttemptSeed(44,"layout",0)!==GF.stageAttemptSeed(44,"layout",1),"stage retries advance only their named stream");
@@ -95,7 +95,7 @@ ok(spec.includes("Changing `height` cannot change layout, semantics, decor, or f
 ok(html.includes("ForgeEngine.generateDetailed")&&html.includes("const decorSeed=record.stageSeeds"),"production preview consumes the canonical staged pipeline and decor stream");
 ok(html.includes("F=buildTiersField(fp.seed, fp)"),"authoring rebuild passes the complete parameter record instead of flattening away stage seeds");
 ok(html.includes("stageOwnership:F.stageOwnership||null"),"session snapshots retain the stage-ownership diagnostic ledger");
-ok(/forge-generator-foundation\.js\?v=g2(?:e1|f1)/.test(html)&&/forge-engine\.js\?v=fe(?:5|6)/.test(html),"stage-owned runtimes are cache-busted");
+ok(/forge-generator-foundation\.js\?v=g2(?:e1|f1|f2)/.test(html)&&/forge-engine\.js\?v=fe(?:5|6|7)/.test(html),"stage-owned runtimes are cache-busted");
 const firstRebuild=html.indexOf("resize(); rebuild();");
 ok(html.indexOf("var DISCOVERY_RENDER={")<firstRebuild&&html.indexOf("var SESSION_ID=new URLSearchParams")<firstRebuild,"both known startup-order guards remain ahead of the initial rebuild");
 

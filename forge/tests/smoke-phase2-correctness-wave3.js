@@ -60,9 +60,9 @@ const row=(seq,unit,kind,payload)=>({seq,unit,kind,payload:payload||{},created_a
   ok("multiplayer OA resolves through the ordinary nested attack pipeline",html.includes("function resolveOpportunityAttackPrompt")&&html.includes("sess.pipe.attack(u.unit,declared")&&html.includes("declareReaction"));
   ok("pipeline tracks multiple nested waits",pipeSrc.includes("awaitingTokens = []")&&pipeSrc.includes("promise.awaitingToken=token"));
   ok("board restores an outer prompt after nested answer",boardSrc.includes('before.pendingPrompt.seq !== after.pendingPrompt.seq')&&boardSrc.includes('{ t: "prompt", prompt: after.pendingPrompt }'));
-  ok("bridge state controls are active and replay-backed",html.includes('id="bridgeStateList"')&&html.includes("connector_state:{id:id,state:next}")&&html.includes("applyConnectorStateReplay"));
+  ok("bridge state controls are active and replay-backed",html.includes('id="bridgeStateList"')&&html.includes("connector_state:{id:id,state:next,path_signature:proof}")&&html.includes("applyConnectorStateReplay"));
   ok("closed and broken bridges render without a false physical deck",html.includes("function renderUnavailableBridgeConnector")&&html.includes("LineDashedMaterial")&&html.includes("clearVerticalConnectorRenderGroup"));
-  ok("cache stamps identify the wave-three runtime",html.includes("forge-replay.js?v=fb12")&&html.includes("forge-discovery.js?v=fd5")&&html.includes("forge-pipeline.js?v=fb7")&&html.includes("forge-board.js?v=fb7"));
+  ok("cache stamps identify the wave-three runtime",html.includes("forge-replay.js?v=fb13")&&html.includes("forge-discovery.js?v=fd5")&&html.includes("forge-pipeline.js?v=fb7")&&html.includes("forge-board.js?v=fb7"));
 
   // Same-device nested wait: overseer moves a unit, answers the OA as a foe,
   // then handles Shield during the nested attack before resuming movement.

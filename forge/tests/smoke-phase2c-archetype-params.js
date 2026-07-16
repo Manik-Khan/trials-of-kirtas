@@ -69,7 +69,7 @@ ok(html.includes("window.__forgeArchetype.paint(savedArchetype,true)"),"shared-s
 ok(html.includes('["archetype","rooms","loops","decor","foes","seed"'),"shared sessions lock the archetype with the rest of the map recipe");
 ok(html.includes('w.querySelector("input,select")')&&html.includes('["archetype","rooms","loops","decor","foes"]'),"non-overseer devices hide the DM-only archetype control");
 ok(html.includes("m.parameters && m.parameters.archetype")&&html.includes("adef.label"),"staged fights identify their saved archetype");
-ok(/forge-generator-foundation\.js\?v=g2(?:e1|f1)/.test(html)&&/forge-engine\.js\?v=fe(?:5|6)/.test(html),"current parameter and engine runtimes are cache-busted");
+ok(/forge-generator-foundation\.js\?v=g2(?:e1|f1|f2)/.test(html)&&/forge-engine\.js\?v=fe(?:5|6|7)/.test(html),"current parameter and engine runtimes are cache-busted");
 
 const scripts=[...html.matchAll(/<script(?:\s+type="([^"]+)")?[^>]*>([\s\S]*?)<\/script>/g)]
   .filter(m=>!m[0].includes('type="importmap"')&&m[2].trim());
