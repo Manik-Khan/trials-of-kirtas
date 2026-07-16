@@ -9,7 +9,7 @@
      THE IMPORT MAP IS THE UPGRADE.
      three has shipped no browser UMD build since ~r160 (0.169's `main` is
      build/three.cjs), and examples/js/ was deleted at r148. So the classic
-     <script src=".../three.min.js"> tag in forge/topography-test-mock.html:11
+     <script src=".../three.min.js"> tag in forge/index.html:11
      cannot reach EffectComposer, GTAOPass or N8AO at ANY version. Moving to
      ESM + an import map is not a nicety; it is the only door.
 
@@ -227,7 +227,7 @@ window.__CDN = (() => {
    here is meant to be ported. It exists so the 243 KB file gets touched once.
 
    Every three.js call below is one we already make in
-   forge/topography-test-mock.html, rewritten for r185. The rewrites:
+   forge/index.html, rewritten for r185. The rewrites:
      renderer.outputEncoding = THREE.sRGBEncoding  →  .outputColorSpace = THREE.SRGBColorSpace
      texture.encoding        = THREE.sRGBEncoding  →  .colorSpace        = THREE.SRGBColorSpace
      gradient ramp                                 →  .colorSpace = THREE.NoColorSpace (explicit)

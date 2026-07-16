@@ -1,7 +1,7 @@
 /* smoke-placement.js — §5.2, the spread rule.
    Run: cd forge/tests && node smoke-placement.js
 
-   The functions under test live inline in topography-test-mock.html. They are
+   The functions under test live inline in index.html. They are
    EXTRACTED from that file at test time, not retyped here. A copy would pass
    while the mock stayed broken, which is the failure mode this project keeps
    hitting. The fields are real: ForgeEngine.generate() over 40 seeds.        */
@@ -10,7 +10,7 @@ const path = require('path');
 const TG   = require('../tactics-geometry.js');
 const Engine = require('../forge-engine.js');
 
-const MOCK = path.join(__dirname, '..', 'topography-test-mock.html');
+const MOCK = path.join(__dirname, '..', 'index.html');
 
 let pass = 0, fail = 0;
 function t(name, ok, detail) {

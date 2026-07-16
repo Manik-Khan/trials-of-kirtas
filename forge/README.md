@@ -20,7 +20,7 @@ unfinished job, tracked in `CONTEXT_Forge.md` §3.
 ## Modules (runtime — load these in the browser)
 
 - **forge-dungeon.js** — the procedural dungeon generator (rooms, corridors,
-  pools, depth), extracted verbatim from the topography mock. MIT attribution
+  pools, depth), extracted from the original topography prototype and now consumed by the canonical Forge surface. MIT attribution
   retained inside; core adapted from majidmanzarpour/threejs-procedural-dungeon.
   Global: `window.ForgeDungeon`. Its `THEMES` keys **are** the biome names.
 - **forge-engine.js** — control + completion + reliability. One call,
@@ -82,31 +82,27 @@ Every returned map is verified: valid contract, spawns on open floor, and
 PC↔foe mutually reachable. A failing seed is retried; a broken map is never
 returned.
 
-## ⚠ Inline-copy sync rule
+## Canonical product surface
 
-`tactics-geometry.js` is **inlined in two mocks** — `battle-tactics-geo-mock.html`
-and `topography-test-mock.html` — because they load it as a classic `<script>`
-block, not a module. Three copies exist. **The code must stay identical in all
-three; change one, change all three.**
+- **`forge/index.html`** — the canonical **The Forge** implementation, served at `/forge/`.
+- **`forge/topography-test-mock.html`** — compatibility redirect only. It preserves query/hash parameters so existing session and join links continue to work.
+- **Workshop** is the pre-session authoring mode; **Table** is the persistent shared encounter mode.
+- Supported controls live in the **Active** tab. Future work is represented by descriptive cards in **Planned**, not disabled fake controls.
 
-The rule used to say *byte*-identical. It isn't, and hasn't been: the two
-inlined copies still carry an older header comment. The code matches exactly.
-An invariant nobody can satisfy is one nobody checks — so the rule is
-**code-identical** (comments stripped), which the harness can actually assert.
+Historical mocks remain useful as design and port references, but none is a second production surface.
 
-## The four mocks (none supersedes another)
-
-| file | what it is |
+| file | current role |
 |---|---|
-| `topography-test-mock.html` | **the surface.** Heightfield, LoS/cover, reactions, rewind, sprites, shadow map, per-instance AO |
-| `battle-tactics-geo-mock.html` | flat box-tile combat. **The port source** for the combat system + feel layer |
-| `battle-forge-mock.html` | generator → tactics diorama. Source of the pixel sprites + portraits |
-| `battle-forge-biome-mock.html` | source of the biome art direction — `SKINS`: `wallH`, fog, light rigs, particles |
-| `r185-probe-mock.html` | renderer migration gate. Not a feature; answers one question and refuses others |
+| `index.html` | canonical 3D Forge product surface |
+| `topography-test-mock.html` | query-preserving legacy redirect |
+| `battle-tactics-geo-mock.html` | flat combat/feel reference |
+| `battle-forge-mock.html` | generator/token-art reference |
+| `battle-forge-biome-mock.html` | biome art-direction reference |
+| `r185-probe-mock.html` | renderer migration diagnostic |
 
 ## three.js
 
-`topography-test-mock.html` runs **r185**, loaded as ESM through an import map.
+`index.html` runs **r185**, loaded as ESM through an import map.
 It was on r128 (cdnjs UMD). three has shipped no browser UMD build since ~r160
 and deleted `examples/js/` at r148, so a classic `<script src>` tag can reach
 neither a modern version nor any addon — the import map is the only door.
@@ -152,7 +148,7 @@ The caps are already one 1×1 instance per cell, so a 1×1 quad on each cap top 
 5-ft square. One instanced transparent plane, a texture that is only a border, and
 `setGridOpacity()` writes `material.opacity` — the slider never rebuilds the field.
 
-`topography-test-mock.html` runs its renderer in a `type="module"` block. That block
+`index.html` runs its renderer in a `type="module"` block. That block
 is **deferred**, and its top-level `var`s are no longer globals. It exports `CHAR`
 and `__placeRoster` / `__enterForge` / `__startCombat` on `window`, and fires a
 `topo:ready` event that the classic party-select block waits for before painting.
@@ -170,8 +166,8 @@ node smoke-flora.js              # walls hard, flora clears them, every kind has
 ```
 
 124 assertions, all green. `smoke-placement.js` **extracts `clusterAround` and
-`foeAnchor` from the mock at test time** rather than copying them, and runs them over
-40 real `ForgeEngine.generate()` fields — a copy would pass while the mock stayed broken. `smoke-los-cover.js` is the arbiter: if a change
+`foeAnchor` from the canonical surface at test time** rather than copying them, and runs them over
+40 real `ForgeEngine.generate()` fields — a copy would pass while the product surface stayed broken. `smoke-los-cover.js` is the arbiter: if a change
 breaks it, the change is wrong until argued otherwise.
 
 The combat-rules smoke (reactions, rewind, action economy) lives with the

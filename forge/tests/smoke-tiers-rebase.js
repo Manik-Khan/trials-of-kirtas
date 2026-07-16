@@ -4,7 +4,7 @@
 const fs = require("fs"), path = require("path");
 const FD = require("../forge-dungeon.js");
 const MB = require("../map-bridge.js");
-const html = fs.readFileSync(path.join(__dirname, "..", "topography-test-mock.html"), "utf8");
+const html = fs.readFileSync(path.join(__dirname, "..", "index.html"), "utf8");
 
 let pass = 0, fail = 0;
 function ok(name, cond) { if (cond) { pass++; } else { fail++; console.log("  FAIL " + name); } }

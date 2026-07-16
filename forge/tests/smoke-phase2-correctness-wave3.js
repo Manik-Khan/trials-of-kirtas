@@ -50,9 +50,9 @@ const row=(seq,unit,kind,payload)=>({seq,unit,kind,payload:payload||{},created_a
   bm.connectors[0].state="closed";ok("closed bridge path refuses entry",!TG.stepAllowed(bm,{speed:30},0,0,1,0));
   bm.connectors[0].state="broken";ok("broken bridge path refuses entry",!TG.stepAllowed(bm,{speed:30},0,0,1,0));
 
-  const root=path.join(__dirname,".."),html=fs.readFileSync(path.join(root,"topography-test-mock.html"),"utf8"),pipeSrc=fs.readFileSync(path.join(root,"forge-pipeline.js"),"utf8"),boardSrc=fs.readFileSync(path.join(root,"forge-board.js"),"utf8");
+  const root=path.join(__dirname,".."),html=fs.readFileSync(path.join(root,"index.html"),"utf8"),pipeSrc=fs.readFileSync(path.join(root,"forge-pipeline.js"),"utf8"),boardSrc=fs.readFileSync(path.join(root,"forge-board.js"),"utf8");
   ok("downed units keep a universal recovery shard",html.includes("function makeDownedMarker")&&html.includes("OctahedronGeometry")&&html.includes("recovery shard"));
-  ok("downed sprite and top token remain dimmed",html.includes("u.sprite.material.opacity=down?.34:1")&&html.includes("u.topToken.material.opacity=down?.44:1"));
+  ok("downed sprite and top token remain dimmed",html.includes("u.sprite.material.opacity=down?.34:farOpacity")&&html.includes("u.topToken.material.opacity=down?.44:farOpacity"));
   ok("true despawn uses the force-removal door",html.includes('case "despawn":if(u){ removeToken(u,true)'));
   ok("downed marker motion respects reduced-motion",html.includes("if(!REDUCED){m.rotation.y")&&html.includes("else{m.rotation.y=0"));
   ok("OA and Silvery Barbs compare canonical sides",html.includes("function stateSideOf")&&html.includes("stateSideOf(state,k)===stateSideOf(state,mover)")&&html.includes("stateSideOf(state,k)===aSide"));

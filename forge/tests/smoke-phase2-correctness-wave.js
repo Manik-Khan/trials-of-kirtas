@@ -75,7 +75,7 @@ const fact=FTC.factFromEvent({unit:'caim',kind:'attack_resolved',payload:{target
 ok('Chronicle fact preserves raw and reaction d20 evidence',fact.d20Rolls.join(',')==='7,18'&&fact.d20KeptIndex===1&&fact.reactionD20Rolls.join(',')==='18,5'&&fact.reactionD20KeptIndex===1);
 ok('Chronicle fact preserves component damage alongside dice',fact.dmg===4&&fact.dmgParts&&fact.dmgParts[0].total===4);
 
-const source=fs.readFileSync(path.join(__dirname,'..','topography-test-mock.html'),'utf8');
+const source=fs.readFileSync(path.join(__dirname,'..','index.html'),'utf8');
 ok('shared attack payload carries raw d20 evidence',source.includes('d20_rolls:d20ev.rolls')&&source.includes('d20_kept_index:d20ev.keptIndex'));
 ok('resource spend is published as a replay fact',source.includes('resource_spend:spendFact')&&source.includes('resource_spend:resourceSpendFor(a)'));
 ok('movement reconciliation has one presentation door',source.includes('function reconcileMovementPresentation()')&&source.includes('reconcileMovementPresentation();\n      runMirror'));

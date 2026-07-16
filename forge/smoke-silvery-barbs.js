@@ -5,7 +5,7 @@ const FR = require("./forge-replay.js");
 let pass=0, fail=0;
 const ok=(n,c)=>{ c?pass++:fail++; console.log((c?"✓ ":"✗ ")+n); };
 
-/* ── pure logic mirrored from topography-test-mock.html ── */
+/* ── pure logic mirrored from index.html ── */
 function sbReroll(orig, newRoll){ return Math.min(orig, newRoll); }   // RAW: keep original, take lower
 // offer gate: SB offered to a caster hostile to the ATTACKER (the succeeder)
 function sbOffered(casterSide, attackerSide){ return casterSide !== attackerSide; }

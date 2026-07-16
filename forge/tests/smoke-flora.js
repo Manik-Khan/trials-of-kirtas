@@ -1,7 +1,7 @@
 /* smoke-flora.js — biome flora + wall hardness.
    Run: cd forge/tests && node smoke-flora.js
 
-   Everything under test is EXTRACTED from topography-test-mock.html at test
+   Everything under test is EXTRACTED from index.html at test
    time — the real inlined generator core, the real buildTiersField, the real
    FLORA table, the real PROP_FT. A copy would pass while the mock stayed
    broken (CONTEXT_Forge §7).
@@ -20,7 +20,7 @@ const TG = require('../tactics-geometry.js');
 const MB = require('../map-bridge.js');
 const FD = require('../forge-dungeon.js');
 
-const MOCK = path.join(__dirname, '..', 'topography-test-mock.html');
+const MOCK = path.join(__dirname, '..', 'index.html');
 const html = fs.readFileSync(MOCK, 'utf8');
 const LINES = html.split('\n');
 

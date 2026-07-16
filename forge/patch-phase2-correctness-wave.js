@@ -16,7 +16,7 @@ const baseline={
   "forge/tests/smoke-feed-render.js": "ba1f17190e70aa81d051004156d0e16bd05a53665993205bab827b96e1352db5",
   "forge/tests/smoke-phase2b1-field-round.js": "df56cb8b16e2088199714539a9453cb04acd6d896ef871a042e9249d3b143f7d",
   "forge/tests/smoke-phase2f2-damage-pipeline.js": "e1b2b3661dd6aa37cb8ef79bb029e343467a59e4ead753a8cbcda7db7291df58",
-  "forge/topography-test-mock.html": "cb9d802f56331af5676e3d3e693cd47683c9341ba0afc6202010d78de3f22589",
+  "forge/index.html": "cb9d802f56331af5676e3d3e693cd47683c9341ba0afc6202010d78de3f22589",
   "forge/PHASE2_CORRECTNESS_WAVE_2026-07-15.md": null,
   "forge/tests/smoke-phase2-correctness-wave.js": null
 };
@@ -28,7 +28,7 @@ const target={
   "forge/tests/smoke-feed-render.js": "e9f17caf0bfc79f4ae4052b13bd09f2818f62bbdcd7b998f56bba4380430c2ea",
   "forge/tests/smoke-phase2b1-field-round.js": "d521c4afea17158d7d397055ffd2302ba3d80ff01fdde0b1fcda8869a603a0eb",
   "forge/tests/smoke-phase2f2-damage-pipeline.js": "78385b831b82947012df27b5c5be124c5114daef0df36b80ab5f2a67a5786a70",
-  "forge/topography-test-mock.html": "cf4da290459f3776daeb3953c2487a5aacf47a4540b9b0537e9253a1fa0dc5e2",
+  "forge/index.html": "cf4da290459f3776daeb3953c2487a5aacf47a4540b9b0537e9253a1fa0dc5e2",
   "forge/PHASE2_CORRECTNESS_WAVE_2026-07-15.md": "aa8bd09826d29c5d42aa709abbdc99854a2e552566e9f109dc9d8dd591bfe4fe",
   "forge/tests/smoke-phase2-correctness-wave.js": "2964ad378408b2911dd37cd3aba9eea4bf3a82dbb905825676ba7497bd6cbabf"
 };

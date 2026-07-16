@@ -82,19 +82,28 @@ function combatStats(s, inventory, vitals, charData) {
   function featureNamed(rows,pattern){return rows.some(function(f){return pattern.test(String(f&&f.name||f||''));});}
   function equippedNamed(inventory,pattern){return (inventory||[]).some(function(it){return it&&it.equipped!==false&&pattern.test(String(it.name||''));});}
   function initiativeProfileFor(s,inventory,stats){
-    var dex=abilMod(s,'dex'),pb=profBonus(s),total=Number(stats&&stats.init)||0,rows=featureRows(s),remaining=total-dex;
+    var dex=abilMod(s,'dex'),pb=profBonus(s),declared=Number(stats&&stats.init),total=Number.isFinite(declared)?declared:dex,rows=featureRows(s),remaining=total-dex;
     var sources=[{key:'dexterity',label:'DEX',value:dex,source:'ability'}],warnings=[],candidates=[];
-    function candidate(key,label,value){value=Number(value)||0;if(value)candidates.push({key:key,label:label,value:value,source:'feature'});}
+    function candidate(key,label,value,group){value=Number(value)||0;if(value)candidates.push({key:key,label:label,value:value,source:'feature',group:group||key});}
     if(featureNamed(rows,/^alert$/i))candidate('alert','Alert',5);
-    if(featureNamed(rows,/jack of all trades/i))candidate('jack-of-all-trades','Jack of All Trades',Math.floor(pb/2));
-    if(featureNamed(rows,/remarkable athlete/i))candidate('remarkable-athlete','Remarkable Athlete',Math.ceil(pb/2));
+    if(featureNamed(rows,/jack of all trades/i))candidate('jack-of-all-trades','Jack of All Trades',Math.floor(pb/2),'half-proficiency');
+    if(featureNamed(rows,/remarkable athlete/i))candidate('remarkable-athlete','Remarkable Athlete',Math.ceil(pb/2),'half-proficiency');
     if(featureNamed(rows,/hare[- ]trigger/i))candidate('hare-trigger','Hare-Trigger',pb);
     if(featureNamed(rows,/tactical wit|temporal awareness/i))candidate('intelligence-initiative',featureNamed(rows,/temporal awareness/i)?'Temporal Awareness':'Tactical Wit',abilMod(s,'int'));
     if(featureNamed(rows,/dread ambusher/i))candidate('dread-ambusher','Dread Ambusher',abilMod(s,'wis'));
     if(featureNamed(rows,/rakish audacity/i))candidate('rakish-audacity','Rakish Audacity',abilMod(s,'cha'));
-    candidates.forEach(function(c){
+    /* Explicit initiative features outrank a stale cached sheet total. Reconcile
+       against the declared modifier when possible; when the sheet omitted a
+       recognized feature (the field case was Jack of All Trades), apply it and
+       record the repair rather than silently dropping the feature. Mutually
+       exclusive half-proficiency features share one group and only the strongest
+       one applies. */
+    var chosenByGroup=Object.create(null);
+    candidates.forEach(function(c){var prev=chosenByGroup[c.group];if(!prev||Math.abs(c.value)>Math.abs(prev.value))chosenByGroup[c.group]=c;});
+    Object.keys(chosenByGroup).forEach(function(group){
+      var c=chosenByGroup[group];
       if(c.value!==0&&remaining!==0&&Math.sign(c.value)===Math.sign(remaining)&&Math.abs(c.value)<=Math.abs(remaining)){sources.push(c);remaining-=c.value;}
-      else warnings.push(c.label+' is present but is not reflected in the sheet initiative total.');
+      else{sources.push(c);total+=c.value;warnings.push(c.label+' was missing from the sheet initiative total; Forge applied it.');}
     });
     if(remaining)sources.push({key:'sheet-remainder',label:'Other sheet bonuses',value:remaining,source:'character sheet'});
     var advantageSources=[],disadvantageSources=[];

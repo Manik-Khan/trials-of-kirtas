@@ -3,7 +3,7 @@
 const fs=require("fs"),path=require("path"),vm=require("vm");
 const root=path.resolve(__dirname,"..");
 const GF=require(path.join(root,"forge-generator-foundation.js"));
-const html=fs.readFileSync(path.join(root,"topography-test-mock.html"),"utf8");
+const html=fs.readFileSync(path.join(root,"index.html"),"utf8");
 const spec=fs.readFileSync(path.join(root,"FORGE_PARAMETER_RECORD_2.md"),"utf8");
 let pass=0;
 function ok(v,l){if(!v)throw new Error("FAIL: "+l);console.log("ok",++pass,"-",l);}

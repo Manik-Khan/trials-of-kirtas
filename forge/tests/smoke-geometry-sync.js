@@ -2,7 +2,7 @@
 "use strict";
 const fs=require("fs"),path=require("path");
 const root=path.resolve(__dirname,"..");
-const html=fs.readFileSync(path.join(root,"topography-test-mock.html"),"utf8");
+const html=fs.readFileSync(path.join(root,"index.html"),"utf8");
 const geo=fs.readFileSync(path.join(root,"tactics-geometry.js"),"utf8").trim();
 const start=html.indexOf("/* ════════════════════════════════════════════════════════════════════\n   tactics-geometry.js");
 const endMarker='})(typeof window !== "undefined" ? window : globalThis);';

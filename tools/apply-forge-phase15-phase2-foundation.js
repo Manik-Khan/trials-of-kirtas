@@ -45,7 +45,7 @@ function scheduleNew(rel) {
   schedule(rel, content);
 }
 
-let topo = read("forge/topography-test-mock.html");
+let topo = read("forge/index.html");
 let engine = read("forge/forge-engine.js");
 
 topo = replaceOnce(
@@ -153,7 +153,7 @@ engine = replaceRegexOnce(
   "forge-engine unknown-theme guard"
 );
 
-schedule("forge/topography-test-mock.html", topo);
+schedule("forge/index.html", topo);
 schedule("forge/forge-engine.js", engine);
 scheduleNew("forge/forge-generator-foundation.js");
 scheduleNew("forge/tests/smoke-generator-foundation.js");
@@ -162,7 +162,7 @@ scheduleNew("forge/camera-discovery-mock.html");
 /* Validate the whole plan before writing anything. */
 for (const [rel, content] of plan) {
   if (!content || typeof content !== "string") fail("empty output planned for " + rel);
-  if (rel.endsWith("topography-test-mock.html")) {
+  if (rel.endsWith("index.html")) {
     if (!content.includes("PARALLAX_ON=STORYBOOK_PARAMS.get('parallax')==='1'")) fail("parallax opt-in verification failed");
     if (!content.includes("map: __forgeSessionMap()")) fail("snapshot save verification failed");
     if (!content.includes("forge-generator-foundation.js?v=g2f1")) fail("foundation include verification failed");

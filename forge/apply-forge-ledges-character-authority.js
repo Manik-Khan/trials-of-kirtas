@@ -250,7 +250,7 @@ function geometryIife(src) {
 
 function syncGeometryIntoMocks(canonical) {
   const extracted = geometryIife(canonical);
-  ['forge/battle-tactics-geo-mock.html', 'forge/topography-test-mock.html'].forEach(rel => {
+  ['forge/battle-tactics-geo-mock.html', 'forge/index.html'].forEach(rel => {
     let html = get(rel);
     html = replaceExact(html, extracted.re, extracted.text, 1, `${rel} TacticsGeo inline`);
     stage(rel, html);
@@ -455,7 +455,7 @@ function validateStaged() {
   verifyScriptOrder();
   const geo = get('forge/tactics-geometry.js');
   const canon = geometryIife(geo).text.replace(/\s+/g, ' ').trim();
-  ['forge/battle-tactics-geo-mock.html', 'forge/topography-test-mock.html'].forEach(rel => {
+  ['forge/battle-tactics-geo-mock.html', 'forge/index.html'].forEach(rel => {
     const inline = geometryIife(get(rel)).text.replace(/\s+/g, ' ').trim();
     if (inline !== canon) fail(`${rel}: inline TacticsGeo differs from canonical after staging`);
   });

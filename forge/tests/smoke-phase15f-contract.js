@@ -2,7 +2,7 @@
 "use strict";
 const fs=require("fs"),path=require("path");
 const root=path.resolve(__dirname,"..");
-const html=fs.readFileSync(path.join(root,"topography-test-mock.html"),"utf8");
+const html=fs.readFileSync(path.join(root,"index.html"),"utf8");
 const moduleText=fs.readFileSync(path.join(root,"forge-discovery.js"),"utf8");
 let pass=0;
 function ok(v,label){if(!v)throw new Error("FAIL: "+label);console.log("ok",++pass,"-",label);}

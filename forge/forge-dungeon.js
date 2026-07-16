@@ -1,6 +1,6 @@
 /* ── forge-dungeon.js ─────────────────────────────────────────────────
    Battle Forge dungeon generator, extracted VERBATIM (headless, no THREE)
-   from topography-test-mock.html. MIT attribution retained per the repo
+   from index.html. MIT attribution retained per the repo
    LICENSE — core adapted from majidmanzarpour/threejs-procedural-dungeon.
    Exposes the proven generator so the engine can build on it, not beside it.
    ==================================================================== */

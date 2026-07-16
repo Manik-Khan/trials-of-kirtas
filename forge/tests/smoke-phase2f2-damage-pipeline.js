@@ -5,7 +5,7 @@ const root=path.resolve(__dirname,"..");
 const AD=require(path.join(root,"forge-action-damage.js"));
 const FR=require(path.join(root,"forge-feed-render.js"));
 const DE=require(path.join(root,"forge-damage-evidence.js"));
-const html=fs.readFileSync(path.join(root,"topography-test-mock.html"),"utf8");
+const html=fs.readFileSync(path.join(root,"index.html"),"utf8");
 let pass=0;function ok(v,l){if(!v)throw new Error("FAIL: "+l);console.log("ok",++pass,"-",l);}function eq(a,b,l){ok(JSON.stringify(a)===JSON.stringify(b),l+" ("+JSON.stringify(a)+")");}
 
 /* Grounded fixture: the current Vesperian record has DEX +4, PB +2,

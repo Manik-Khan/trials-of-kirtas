@@ -71,10 +71,10 @@ const topo=`<!doctype html><html><head>
     <div class="fname" id="camStatus">3D · free camera · Shift/middle-drag pans</div>
 <script>${js}</script></body></html>`;
 const original=topo.replace(/\r\n/g,"\n");
-fs.writeFileSync(path.join(root,"forge/topography-test-mock.html"),original);
+fs.writeFileSync(path.join(root,"forge/index.html"),original);
 const bundle=path.resolve(__dirname,"..");
 cp.execFileSync(process.execPath,[path.join(__dirname,"apply-forge-topdown-token-rig.js"),root],{stdio:"inherit"});
-const patched=fs.readFileSync(path.join(root,"forge/topography-test-mock.html"),"utf8");
+const patched=fs.readFileSync(path.join(root,"forge/index.html"),"utf8");
 const manifest=JSON.parse(fs.readFileSync(path.join(__dirname,"token-rig-patch.json"),"utf8"));
 function once(t,n,r,l){const i=t.indexOf(n);if(i<0)throw Error(l+": missing fixture anchor");if(t.indexOf(n,i+n.length)>=0)throw Error(l+": duplicate fixture anchor");return t.slice(0,i)+r+t.slice(i+n.length);}
 let browserEquivalent=original;

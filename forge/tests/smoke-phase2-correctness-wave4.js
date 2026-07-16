@@ -7,7 +7,7 @@ const F=require("../forge-combat-rules.js");
 const R=require("../forge-replay.js");
 let pass=0,fail=0;const ok=(n,c)=>{c?pass++:fail++;console.log((c?"✓ ":"✗ ")+n);};
 const root=path.join(__dirname,"..");
-const html=fs.readFileSync(path.join(root,"topography-test-mock.html"),"utf8");
+const html=fs.readFileSync(path.join(root,"index.html"),"utf8");
 const tc=fs.readFileSync(path.join(root,"forge-table-correctness.js"),"utf8");
 
 ok("reaction modal has a dedicated roll-evidence region",html.includes('id="cbPromptEvidence"')&&html.includes("function reactionEvidenceHtml"));

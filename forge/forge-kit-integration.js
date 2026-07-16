@@ -26,7 +26,7 @@
    ────────────────────────────────────────────────────────────────────────
    INTEGRATION INSTRUCTIONS:
 
-   1. Add to topography-test-mock.html's <head>, BEFORE the module block:
+   1. Add to index.html's <head>, BEFORE the module block:
         <script src="forge/forge-kit-derive.js"></script>
         <script src="forge/forge-feed-render.js"></script>
 

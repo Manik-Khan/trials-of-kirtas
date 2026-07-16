@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 "use strict";
 const fs=require("fs"),path=require("path");
-const html=fs.readFileSync(path.join(__dirname,"..","topography-test-mock.html"),"utf8");
+const html=fs.readFileSync(path.join(__dirname,"..","index.html"),"utf8");
 const rules=fs.readFileSync(path.join(__dirname,"..","forge-combat-rules.js"),"utf8");
 const table=fs.readFileSync(path.join(__dirname,"..","forge-table-correctness.js"),"utf8");
 let pass=0;function has(src,x,m){if(!src.includes(x))throw Error("FAIL: "+m);console.log("ok",++pass,"-",m);}function lacks(src,x,m){if(src.includes(x))throw Error("FAIL: "+m);console.log("ok",++pass,"-",m);}

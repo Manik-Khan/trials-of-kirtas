@@ -4,7 +4,7 @@ const fs=require("fs"),path=require("path"),vm=require("vm");
 const root=path.resolve(__dirname,"..");
 const GF=require(path.join(root,"forge-generator-foundation.js"));
 const engineSource=fs.readFileSync(path.join(root,"forge-engine.js"),"utf8");
-const html=fs.readFileSync(path.join(root,"topography-test-mock.html"),"utf8");
+const html=fs.readFileSync(path.join(root,"index.html"),"utf8");
 let pass=0;function ok(v,l){if(!v)throw new Error("FAIL: "+l);console.log("ok",++pass,"-",l);}
 function throws(fn,part,l){let e=null;try{fn();}catch(x){e=x;}ok(e&&String(e.message||e).includes(part),l);}
 

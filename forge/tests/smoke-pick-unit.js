@@ -7,7 +7,7 @@
    functions on the real field) and driven with known-answer geometry.
    Run: node forge/tests/smoke-pick-unit.js                                 */
 const fs = require("fs"), path = require("path");
-const html = fs.readFileSync(path.join(__dirname, "..", "topography-test-mock.html"), "utf8");
+const html = fs.readFileSync(path.join(__dirname, "..", "index.html"), "utf8");
 
 let pass = 0, fail = 0;
 const ok = (n, c) => { c ? pass++ : (fail++, console.log("  FAIL " + n)); };

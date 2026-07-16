@@ -2,7 +2,7 @@
 "use strict";
 const fs=require("fs"),path=require("path"),vm=require("vm");
 const root=path.resolve(__dirname,"..");
-const html=fs.readFileSync(path.join(root,"topography-test-mock.html"),"utf8");
+const html=fs.readFileSync(path.join(root,"index.html"),"utf8");
 const patch=require(path.join(root,"patch-phase2b1-field-round.js"));
 let pass=0;function ok(v,l){if(!v)throw new Error("FAIL: "+l);console.log("ok",++pass,"-",l);}function has(t,n,l){ok(t.includes(n),l);}
 
@@ -20,7 +20,7 @@ has(html,'function rollActionDamage(a,crit,extras)','attack resolution emits com
 has(html,'dmgParts:damage?damage.parts:null','shared attack facts carry damage components');
 has(html,'dmgParts:damage.parts','local attack facts carry damage components');
 ok(/\.\.\/weapon-actions\.js\?v=fg(?:3|2e1|2f)/.test(html),'weapon-action import is cache-busted');
-has(html,'forge-kit-derive.js?v=b6','kit derivation cache stamp bumped');
+has(html,'forge-kit-derive.js?v=b7','kit derivation cache stamp bumped');
 ok(/forge-feed-render\.js\?v=(?:b3|ffr5)/.test(html),'feed renderer cache stamp bumped');
 has(html,'forge-table-correctness.js?v=fg7','table-correctness cache stamp bumped');
 ok(html.indexOf('var DISCOVERY_RENDER={') < html.indexOf('resize(); rebuild();'),'discovery renderer still initializes before the first terrain build');

@@ -81,12 +81,12 @@ const engine=`function generate(params) {
     var p = Object.assign({}, DEFAULTS, params || {});
     var seed = 7;
 }`;
-fs.writeFileSync(path.join(root,'forge/topography-test-mock.html'),topo);fs.writeFileSync(path.join(root,'forge/forge-engine.js'),engine);
+fs.writeFileSync(path.join(root,'forge/index.html'),topo);fs.writeFileSync(path.join(root,'forge/forge-engine.js'),engine);
 const bundle=path.resolve(__dirname,'..');
 for(const rel of ['forge/forge-generator-foundation.js','forge/tests/smoke-generator-foundation.js','forge/tests/smoke-camera-contract.js','forge/camera-discovery-mock.html','forge/PHASE2_GENERATOR_FOUNDATION.md']){const d=path.join(root,rel);fs.mkdirSync(path.dirname(d),{recursive:true});if(fs.existsSync(path.join(bundle,rel)))fs.copyFileSync(path.join(bundle,rel),d);}
 cp.execFileSync(process.execPath,[path.join(__dirname,'apply-forge-phase15-camera-phase2-foundation.js'),root],{stdio:'inherit'});
-cp.execFileSync(process.execPath,[path.join(root,'forge/tests/smoke-camera-contract.js'),path.join(root,'forge/topography-test-mock.html')],{stdio:'inherit'});
-const s=fs.readFileSync(path.join(root,'forge/topography-test-mock.html'),'utf8');
+cp.execFileSync(process.execPath,[path.join(root,'forge/tests/smoke-camera-contract.js'),path.join(root,'forge/index.html')],{stdio:'inherit'});
+const s=fs.readFileSync(path.join(root,'forge/index.html'),'utf8');
 if(!s.includes("get('parallax')==='1'"))throw Error('art flag not patched');
 if(!s.includes('forge-generator-foundation.js?v=g2f2'))throw Error('cache stamp not patched');
 console.log('\nfixture patch checks green');fs.rmSync(root,{recursive:true,force:true});

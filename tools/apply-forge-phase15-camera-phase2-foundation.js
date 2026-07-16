@@ -11,7 +11,7 @@ function regexOnce(t,re,r,l){const flags=re.flags.includes("g")?re.flags:re.flag
 function schedule(rel,c){plan.set(rel,c);}
 function scheduleNew(rel){const s=path.join(bundleRoot,rel);if(!fs.existsSync(s))fail("bundle is incomplete: "+rel);const c=fs.readFileSync(s,"utf8"),d=path.join(repo,rel);if(fs.existsSync(d)&&fs.readFileSync(d,"utf8")!==c)fail(rel+" already exists with different content; reconcile it manually");schedule(rel,c);}
 function has(t,s){return t.indexOf(s)>=0;}
-let topo=read("forge/topography-test-mock.html"),engine=read("forge/forge-engine.js");
+let topo=read("forge/index.html"),engine=read("forge/forge-engine.js");
 
 /* Foundation.2: accept pristine main or the immediately previous foundation patch. */
 if(!has(topo,'forge-generator-foundation.js?v=g2f2')){
@@ -81,7 +81,7 @@ if(!has(topo,"focusUnit(tu,'focus')")) topo=once(topo,"if(tu && tu.alive && !(my
 if(!has(topo,'cameraFollowTurn(u);   // Phase 1.5')) topo=regexOnce(topo,/(function beginTurn\(u\)\{[\s\S]*?CB\.seen=TG\.movementReach\(CB\.map,u,occupied\(u\),CB\.st\.moveLeft\);\r?\n  snapshot\("Turn: "\+u\.name, true\); CB\.turnStartPtr=CB\.hptr;\r?\n  drawHi\(\); drawSight\(\); renderHud\(\);)(\r?\n\})/,'$1\n  cameraFollowTurn(u);   // Phase 1.5: each new turn re-engages actor follow$2','turn follow');
 if(!has(topo,'cameraFollowTick();   // Phase 1.5')) topo=once(topo,"    trackBadges();\n  }\n  if(shakeAmt>0.0005)","    trackBadges();\n  }\n  cameraFollowTick();   // Phase 1.5: track tweened movement without camera bob\n  if(shakeAmt>0.0005)",'follow tick');
 
-schedule('forge/topography-test-mock.html',topo);schedule('forge/forge-engine.js',engine);
+schedule('forge/index.html',topo);schedule('forge/forge-engine.js',engine);
 scheduleNew('forge/forge-generator-foundation.js');scheduleNew('forge/tests/smoke-generator-foundation.js');scheduleNew('forge/tests/smoke-camera-contract.js');scheduleNew('forge/camera-discovery-mock.html');scheduleNew('forge/PHASE2_GENERATOR_FOUNDATION.md');
 for(const [rel,c] of plan){if(!c||typeof c!=="string")fail('empty output '+rel);}
 if(!has(topo,"CAM_VIEW_3D='3d'")||!has(topo,'cameraFollowTurn(u);   // Phase 1.5')||!has(topo,"frameCameraPair(a,t)"))fail('camera verification failed');

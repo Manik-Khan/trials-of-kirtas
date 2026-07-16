@@ -2,7 +2,7 @@
 "use strict";
 const fs=require("fs"),path=require("path");let pass=0,fail=0;const ok=(n,c)=>{c?pass++:fail++;console.log((c?"✓ ":"✗ ")+n);};
 const root=path.join(__dirname,"..");
-const html=fs.readFileSync(path.join(root,"topography-test-mock.html"),"utf8");
+const html=fs.readFileSync(path.join(root,"index.html"),"utf8");
 const replay=fs.readFileSync(path.join(root,"forge-replay.js"),"utf8");
 const pipeline=fs.readFileSync(path.join(root,"forge-pipeline.js"),"utf8");
 const feed=fs.readFileSync(path.join(root,"forge-table-correctness.js"),"utf8");
@@ -12,9 +12,9 @@ const discovery=fs.readFileSync(path.join(root,"forge-discovery.js"),"utf8");
 ok("initiative evidence module is loaded",html.includes('forge-initiative.js?v=fi1'));
 ok("pipeline accepts structured initiative payloads",pipeline.includes("evidenceOrRoll")&&pipeline.includes("initiative_evidence"));
 ok("replay persists initiative evidence",replay.includes("initiativeEvidence: {}")&&replay.includes("p.initiative_evidence"));
-ok("initiative lobby offers digital roll and physical d20",html.includes("function setPhysicalInitiative")&&html.includes("Use d20"));
-ok("overseer may enter an opaque total",html.includes("function setManualInitiativeTotal")&&html.includes("Set total"));
-ok("initiative lobby renders component evidence",html.includes("function initiativeEvidenceHtml")&&html.includes("Roll with full evidence"));
+ok("initiative lobby offers digital roll and compact manual total",html.includes("function setManualInitiativeTotal")&&html.includes("Roll digitally or enter a final total")&&!html.includes("Use d20"));
+ok("controllers may enter an opaque total",html.includes("data-use-total")&&html.includes(">Enter</button>"));
+ok("initiative lobby renders component evidence",html.includes("function initiativeEvidenceHtml")&&html.includes("Roll digitally or enter a final total"));
 ok("initiative events render in the Chronicle feed",feed.includes('row.kind==="initiative_rolled"')&&feed.includes("function initiativeHtml"));
 ok("Gift of Alacrity is a first-class 1d8 effect",effects.includes("addGiftOfAlacrity")&&effects.includes('die:"1d8"'));
 ok("Guidance and Bardic Inspiration can contribute to initiative",effects.includes("addGuidance")&&effects.includes("addBardicInspiration"));
@@ -26,5 +26,5 @@ ok("current full-detail vision is personal rather than whole-party",html.include
 ok("shared history remains party-derived",html.includes("D.historySources")&&html.includes("party-explored"));
 ok("visibility specks are removed without revealing hidden cells",discovery.includes("function connectedMask")&&html.includes("D.connectedMask"));
 ok("unexplored presentation uses a continuous cloudy mask",html.includes("deterministic cloud field")&&html.includes("blur(")&&html.includes("THREE.LinearFilter"));
-ok("cache stamps load every changed authority",html.includes("forge-replay.js?v=fb12")&&html.includes("forge-effects.js?v=fe4")&&html.includes("forge-discovery.js?v=fd5")&&html.includes("forge-pipeline.js?v=fb7")&&html.includes("forge-kit-derive.js?v=b6")&&html.includes("forge-table-correctness.js?v=fg7"));
+ok("cache stamps load every changed authority",html.includes("forge-replay.js?v=fb12")&&html.includes("forge-effects.js?v=fe4")&&html.includes("forge-discovery.js?v=fd5")&&html.includes("forge-pipeline.js?v=fb7")&&html.includes("forge-kit-derive.js?v=b7")&&html.includes("forge-table-correctness.js?v=fg7"));
 console.log(`\n${pass} passed, ${fail} failed`);process.exitCode=fail?1:0;

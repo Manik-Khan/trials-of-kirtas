@@ -61,7 +61,7 @@ ok(/\[3\] \+6 = 9 Slashing/.test(DE.html(fact.dmgParts,fact.dmg)),"visible damag
 const injected=DE.injectEvidence('<div class="forge-result-row"><div class="ffr-dmg-total">9 dmg</div></div>',fact);
 ok(/data-damage-evidence="2"/.test(injected)&&/1d8 \+ 6 Slashing/.test(injected),"evidence is inserted before the HUD receives the row");
 
-const html=fs.readFileSync(path.join(root,"topography-test-mock.html"),"utf8");
+const html=fs.readFileSync(path.join(root,"index.html"),"utf8");
 ok(html.includes('function applyFinalDueling'),"Dueling is enforced on the final kit combat consumes");
 ok(!html.includes('if(cantrip)a.dmgMod='),"Dueling is not misapplied to the spell-attack cantrip modifier branch");
 const rollStart=html.indexOf('function parseDmg(s){'),rollEnd=html.indexOf('function rangeFt(a){',rollStart);
@@ -86,7 +86,7 @@ eq(html.slice(start,end).trim(),canon,"production inline geometry is byte-identi
 const tmp=fs.mkdtempSync(path.join(os.tmpdir(),"forge-phase2f-")),forgeDir=path.join(tmp,"forge");fs.mkdirSync(forgeDir);
 const oldGeo=fs.readFileSync(path.join(root,"tests","fixtures","tactics-geometry-phase2e.js"),"utf8");
 fs.writeFileSync(path.join(forgeDir,"tactics-geometry.js"),canon+"\n");
-fs.writeFileSync(path.join(forgeDir,"topography-test-mock.html"),html);
+fs.writeFileSync(path.join(forgeDir,"index.html"),html);
 fs.writeFileSync(path.join(forgeDir,"battle-tactics-geo-mock.html"),"<script>"+oldGeo+"</script>");
 const patched=patcher.patchFiles({forgeDir});
 ok(patched.changed.length===1,"guarded Phase 2f patcher updates the Phase 2e reference geometry only");

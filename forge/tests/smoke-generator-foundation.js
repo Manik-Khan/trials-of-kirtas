@@ -118,7 +118,7 @@ ok(!("mapSnapshot" in scoped.meta) && !("mapSnapshot" in scoped.meta.deep),
 
 /* ── pin the live contract: combatMapFromF() returns TG.makeMap's shape ──
    {cols, rows, h:Array, wall:Array} + occ, verified against the repo's
-   tactics-geometry.js makeMap and topography-test-mock.html combatMapFromF. ── */
+   tactics-geometry.js makeMap and index.html combatMapFromF. ── */
 const liveShape = { cols: 2, rows: 2,
   h: new Array(4).fill(0), wall: new Array(4).fill(false), occ: new Array(4).fill(0),
   spawns: [], props: [], meta: { source: "topography-test-mock", name: null } };

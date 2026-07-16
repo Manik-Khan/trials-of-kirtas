@@ -9,7 +9,7 @@ function read(rel){const p=path.join(repo,rel);if(!fs.existsSync(p))fail("missin
 function once(t,n,r,l){const i=t.indexOf(n);if(i<0)fail(l+": anchor not found (use the camera-patched live file)");if(t.indexOf(n,i+n.length)>=0)fail(l+": anchor appears more than once");return t.slice(0,i)+r+t.slice(i+n.length);}
 function schedule(rel,c){plan.set(rel,c);}
 function scheduleNew(rel){const src=path.join(bundleRoot,rel);if(!fs.existsSync(src))fail("bundle is incomplete: "+rel);const c=fs.readFileSync(src,"utf8"),dst=path.join(repo,rel);if(fs.existsSync(dst)&&fs.readFileSync(dst,"utf8")!==c)fail(rel+" already exists with different content; reconcile manually");schedule(rel,c);}
-let topo=read("forge/topography-test-mock.html");
+let topo=read("forge/index.html");
 if(topo.includes("forge-unit-art.js?v=ua1"))fail("top-down token rig is already present");
 if(!topo.includes("CAM_VIEW_3D='3d'")||!topo.includes('id="cameraViewToggle"'))fail("production 3D/top-down camera is not present; apply the July 13b camera bundle first");
 
@@ -259,7 +259,7 @@ topo=once(topo,
 /* Post-patch contract. */
 const must=['forge-unit-art.js?v=ua1','function makeTopToken(u)','function syncUnitVisual(u)','id="tokenArtEdit"','syncAllUnitVisuals();   // top token follows','tokenArt: opts.tokenArt || null','pickTopToken(healPending) || pickUnit','u.topToken===obj||u.topRing===obj'];
 for(const marker of must)if(!topo.includes(marker))fail('post-patch verification missing: '+marker);
-schedule('forge/topography-test-mock.html',topo);
+schedule('forge/index.html',topo);
 scheduleNew('forge/forge-unit-art.js');scheduleNew('forge/TOPDOWN_TOKEN_RIG.md');scheduleNew('forge/tests/smoke-unit-art.js');scheduleNew('forge/tests/smoke-token-rig-contract.js');
 const temps=[];try{for(const [rel,c] of plan){const abs=path.join(repo,rel);fs.mkdirSync(path.dirname(abs),{recursive:true});const tmp=abs+'.forge-tmp-'+process.pid;fs.writeFileSync(tmp,c,'utf8');temps.push([tmp,abs]);}for(const [tmp,abs] of temps)fs.renameSync(tmp,abs);}catch(e){for(const [tmp] of temps)try{fs.unlinkSync(tmp)}catch(_){}fail(e.message||String(e));}
 console.log('Applied Battle Forge top-down token rig:');for(const rel of plan.keys())console.log('  '+rel);console.log('\nNo commit or push was performed.');

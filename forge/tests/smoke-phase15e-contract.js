@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 "use strict";
 const fs=require("fs"),path=require("path");
-const html=fs.readFileSync(path.join(__dirname,"..","topography-test-mock.html"),"utf8");
+const html=fs.readFileSync(path.join(__dirname,"..","index.html"),"utf8");
 const tc=fs.readFileSync(path.join(__dirname,"..","forge-table-correctness.js"),"utf8");
 let pass=0;function has(text,needle,label){if(!text.includes(needle))throw Error("FAIL: "+label);console.log("ok",++pass,"-",label);}
 has(html,'forge-effects.js?v=fe4','persistent-effect module is cache-stamped into the surface');

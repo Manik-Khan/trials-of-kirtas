@@ -14,7 +14,7 @@ function inlineGeometry(html){
 function patchFiles(opts={}){
   const forgeDir=opts.forgeDir||__dirname;
   const canonical=opts.canonical||path.join(forgeDir,"tactics-geometry.js");
-  const topography=opts.topography||path.join(forgeDir,"topography-test-mock.html");
+  const topography=opts.topography||path.join(forgeDir,"index.html");
   let battle=opts.battle;
   if(!battle){
     const candidates=[path.join(forgeDir,"battle-tactics-geo-mock.html"),path.join(forgeDir,"..","battle-tactics-geo-mock.html")];

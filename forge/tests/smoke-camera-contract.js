@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 "use strict";
 const fs=require("fs"),path=require("path");
-const file=path.resolve(process.argv[2]||path.join(__dirname,"..","topography-test-mock.html"));
+const file=path.resolve(process.argv[2]||path.join(__dirname,"..","index.html"));
 const s=fs.readFileSync(file,"utf8");let n=0;
 function ok(v,m){if(!v)throw new Error("FAIL: "+m);console.log("ok",++n,"-",m);}
 ok(s.includes("new THREE.PerspectiveCamera(38,1,0.1,900)"),"existing perspective camera remains authoritative");

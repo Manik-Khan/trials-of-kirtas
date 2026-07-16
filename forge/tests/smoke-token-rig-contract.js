@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 "use strict";
 const fs=require("fs"),path=require("path");
-const file=path.resolve(__dirname,"../topography-test-mock.html");
+const file=path.resolve(__dirname,"../index.html");
 if(!fs.existsSync(file)){console.error("ABORT: run this smoke after applying the token-rig patch");process.exit(1);}
 const s=fs.readFileSync(file,"utf8");let pass=0;
 function ok(v,label){if(!v)throw new Error("FAIL: "+label);console.log("ok",++pass,"-",label);}

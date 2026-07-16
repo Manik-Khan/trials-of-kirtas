@@ -79,7 +79,7 @@ const after=R.snapshot(before);R.applyEvent(after,row(4,"caim","move_resolved",{
 const walk=B.verbsFor(row(4,"caim","move_resolved",{path:[{c:2,r:1}],final_cell:{c:2,r:1},interrupted_at:{c:2,r:1}}),before,after).find(v=>v.t==="walk");
 ok("interrupted movement animates only the resolved path",walk&&walk.path.length===1&&walk.to.c===2);
 
-const source=fs.readFileSync(path.join(root,"forge/topography-test-mock.html"),"utf8");
+const source=fs.readFileSync(path.join(root,"forge/index.html"),"utf8");
 const pipelineSource=fs.readFileSync(path.join(root,"forge/forge-pipeline.js"),"utf8");
 ok("foe attacks enter Sanctuary as explicit attacks",source.includes('sanctuaryGate(u,Object.assign({kind:"attack"},atk)'));
 ok("shared resource payments carry activation identifiers",source.includes("function resourceSpendIdFor")&&source.includes("resource_spend_id:spendFact?resourceSpendId:null"));

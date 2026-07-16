@@ -2,7 +2,7 @@
 "use strict";
 const fs=require("fs"),path=require("path"),vm=require("vm");
 const root=path.resolve(__dirname,"..");
-const html=fs.readFileSync(path.join(root,"topography-test-mock.html"),"utf8");
+const html=fs.readFileSync(path.join(root,"index.html"),"utf8");
 let pass=0;function ok(v,l){if(!v)throw new Error("FAIL: "+l);console.log("ok",++pass,"-",l);}function has(n,l){ok(html.includes(n),l);}
 
 ok(html.indexOf("var verticalOverlayGroup")<html.indexOf("resize(); rebuild();"),"vertical overlay registry initializes before the first rebuild");

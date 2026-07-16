@@ -1,7 +1,7 @@
 <!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Forge Phase 1.5 Camera + Phase 2 Patcher</title>
 <style>body{margin:0;background:#151813;color:#eee5d0;font:15px/1.5 system-ui,sans-serif}main{max-width:850px;margin:42px auto;padding:24px;background:#23271f;border:1px solid #625b49;border-radius:16px;box-shadow:0 20px 60px #0008}h1{font-family:Georgia,serif;margin:.1em 0}.sub{color:#b9ae94}.box{margin:18px 0;padding:16px;border:1px solid #5e5747;border-radius:10px;background:#1b1e19}label{font-weight:750;display:block;margin-bottom:8px}input{width:100%}button{background:#b8893e;color:#fff;border:0;border-radius:8px;padding:11px 16px;font-weight:800;cursor:pointer}button:disabled{opacity:.4}pre{white-space:pre-wrap;background:#10120f;padding:14px;border-radius:8px;color:#cdd9c1;min-height:100px}.note{font-size:13px;color:#b9ae94}code{color:#efd38d}</style></head><body><main>
 <div class="sub">OFFLINE · GUARDED · ACCEPTS LIVE OR FOUNDATION.2 INPUT</div><h1>Battle Forge production camera patcher</h1><p class="sub">Adds follow, focus, attacker/target framing, free pan, recenter, overseer Overview, and the 3D ↔ top-down tactical switch while retaining the existing perspective camera.</p>
-<div class="box"><label>Current <code>forge/topography-test-mock.html</code></label><input id="topo" type="file" accept=".html,text/html"></div>
+<div class="box"><label>Current <code>forge/index.html</code></label><input id="topo" type="file" accept=".html,text/html"></div>
 <div class="box"><label>Current <code>forge/forge-engine.js</code></label><input id="engine" type="file" accept=".js,text/javascript"></div>
 <button id="go" disabled>Validate, patch, and download replacements</button><p class="note">Upload the two downloaded replacements plus the five new repository files in <code>UPLOAD_MANIFEST.md</code>. Nothing leaves this browser.</p><pre id="log">Choose both files.</pre>
 <script>
@@ -85,6 +85,6 @@ if(!has(topo,'cameraFollowTick();   // Phase 1.5')) topo=once(topo,"    trackBad
 if(!has(topo,"CAM_VIEW_3D='3d'")||!has(topo,'cameraFollowTurn(u);   // Phase 1.5')||!has(topo,"frameCameraPair(a,t)"))throw Error('camera verification failed');
 return {topo,engine};
 }
-go.onclick=async function(){go.disabled=true;log.textContent='Validating anchors…';try{const r=transform(await ti.files[0].text(),await ei.files[0].text());download('topography-test-mock.html',r.topo,'text/html');setTimeout(()=>download('forge-engine.js',r.engine,'text/javascript'),220);log.textContent='Green. Downloaded both replacements.\n\n3D remains the default. Top-down is a local tactical view.\nNo upload, commit, or push occurred.';}catch(e){log.textContent='ABORTED — '+e.message;}finally{go.disabled=false;}};
+go.onclick=async function(){go.disabled=true;log.textContent='Validating anchors…';try{const r=transform(await ti.files[0].text(),await ei.files[0].text());download('index.html',r.topo,'text/html');setTimeout(()=>download('forge-engine.js',r.engine,'text/javascript'),220);log.textContent='Green. Downloaded both replacements.\n\n3D remains the default. Top-down is a local tactical view.\nNo upload, commit, or push occurred.';}catch(e){log.textContent='ABORTED — '+e.message;}finally{go.disabled=false;}};
 })();
 </script></main></body></html>

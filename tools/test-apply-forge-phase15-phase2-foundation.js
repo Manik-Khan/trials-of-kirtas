@@ -29,11 +29,11 @@ const engine=`function generate(params) {
     var p = Object.assign({}, DEFAULTS, params || {});
     var seed = 7;
 }`;
-fs.writeFileSync(path.join(root,'forge/topography-test-mock.html'),topo);
+fs.writeFileSync(path.join(root,'forge/index.html'),topo);
 fs.writeFileSync(path.join(root,'forge/forge-engine.js'),engine);
 const patcher=path.join(__dirname,'apply-forge-phase15-phase2-foundation.js');
 cp.execFileSync(process.execPath,[patcher,root],{stdio:'inherit'});
-const out=fs.readFileSync(path.join(root,'forge/topography-test-mock.html'),'utf8');
+const out=fs.readFileSync(path.join(root,'forge/index.html'),'utf8');
 const eng=fs.readFileSync(path.join(root,'forge/forge-engine.js'),'utf8');
 function assert(v,m){if(!v)throw new Error(m)}
 assert(out.includes("get('parallax')==='1'"),'parallax not inverted');
