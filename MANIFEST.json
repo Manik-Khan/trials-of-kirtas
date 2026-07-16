@@ -1,238 +1,54 @@
 {
   "APPLY.md": {
-    "sha256": "01cd6e71eacab5a12bf4bc561dd7f7316f64fbbcc508bc54d68a211379d5e748",
-    "bytes": 3264
+    "sha256": "6418432b15cd838aa3ef6cf088efec1c120b205f73315731d9025886d7c14572",
+    "bytes": 1754
   },
-  "CONTEXT_Forge-update-2026-07-16a.md": {
-    "sha256": "1d910695c006f1c58f606ceee4517160fa11424f4f02eb70b4c3958d7df4fcf4",
-    "bytes": 3093
+  "CONTEXT_Forge-update-2026-07-16b.md": {
+    "sha256": "e24eb5bd827e4decac45554ca86bce7374b34585f1214cca3c687edb302ca659",
+    "bytes": 2135
   },
-  "forge/PHASE2_PROMOTION_VISIBILITY_2026-07-16.md": {
-    "sha256": "c72e61b1133a9573051b77569b85f78d7a750f496becb74f254bddf956248d1d",
-    "bytes": 6489
+  "forge/PHASE2_INITIATIVE_AUTHORITY_CLEANUP_2026-07-16.md": {
+    "sha256": "e89cb93cdc9b077097d77fdf39aa408bbb5c96330c99e49b6968732a6c84dc61",
+    "bytes": 3124
   },
-  "forge/README.md": {
-    "sha256": "eebf9fa3363bd486d979a1d51bf0c4999a4a555243e00a5813598c04cd5c61b6",
-    "bytes": 10219
-  },
-  "forge/apply-forge-ledges-character-authority.js": {
-    "sha256": "b88678a9dfd59531b27c68358a9fe813d2a59be952c7554cb20a2380c4f43020",
-    "bytes": 21450
-  },
-  "forge/cover-contest-mock.html": {
-    "sha256": "f0ef947676f89a44e5faafcf0eafc99612e1e210867f6e95167088f0a170553d",
-    "bytes": 21260
-  },
-  "forge/forge-dungeon.js": {
-    "sha256": "8fd253acc7ba132911b465756a69e9b14bc1e04f543eef338f268ad99f1f6b64",
-    "bytes": 35863
+  "forge/forge-initiative.js": {
+    "sha256": "b98f01e53f12a16bd1ce404bf9e134640647a0fda64a51749d24214214136349",
+    "bytes": 9790
   },
   "forge/forge-kit-derive.js": {
-    "sha256": "13abe6369454c9b2c260f7afd83f1d056fa93de764b3ad1b5c0743ffe9ec8980",
-    "bytes": 70193
-  },
-  "forge/forge-kit-integration.js": {
-    "sha256": "71af6d678a03065ecc153f64d9fa988b9cc5f7d7d6f7c787d24c47f61aaa5c68",
-    "bytes": 7500
+    "sha256": "d7178288d035f650a9685de4d3a106c9d9046b5f00815ffa3cee05d261051393",
+    "bytes": 70249
   },
   "forge/index.html": {
-    "sha256": "897ecebd5dd9a85dbabed96d282c4d603c41f29dbcd5902087575ecf4d5b185e",
-    "bytes": 734463
+    "sha256": "e7af7ab3dc5aee6288014a826568c6fe2d15a755f5bad3cb0fd8d9aa6889ebdb",
+    "bytes": 735103
   },
-  "forge/patch-phase2-correctness-wave.js": {
-    "sha256": "cc6cce84dac4fd5ca9e5966bc54c5c7ed85fae9ac901d720f9c18355ea18bb18",
-    "bytes": 112227
+  "forge/patch-phase2-initiative-authority-cleanup.js": {
+    "sha256": "de485cb719bedc72d0c8780e6f1ddec67becbb5c1e23be9a9cb62746643a8010",
+    "bytes": 1205149
   },
-  "forge/patch-phase2-correctness-wave3.js": {
-    "sha256": "e1e59b7d1aa2add5a2933c4d9a79f3dbc431953cbd07f32a2395280655ba6e7f",
-    "bytes": 130276
-  },
-  "forge/patch-phase2-correctness-wave4.js": {
-    "sha256": "fa140890ddb4321b38ab994b44eaef4f566476ed089f51f88d366f1cd46b0c70",
-    "bytes": 61781
-  },
-  "forge/patch-phase2-promotion-visibility.js": {
-    "sha256": "161f09db0e05fb98b302bdde78c576492892cf7e9b8745ef6daaaf7a7b5d9299",
-    "bytes": 2379836
-  },
-  "forge/patch-phase2e-geometry-sync.js": {
-    "sha256": "3ce1528ecd15ec69b696d99cd3d3f81a1ba7d0855ee258a4eaecae20f03fb570",
-    "bytes": 2817
-  },
-  "forge/patch-phase2f-geometry-sync.js": {
-    "sha256": "4146cb1eee51d792facabb2024e32d214ccde39f31cc7901798a94657af3c209",
-    "bytes": 3026
-  },
-  "forge/r185-probe-mock.html": {
-    "sha256": "dc55f22d044205066fb7ab5f29847e31596aff259eb29a33428aae9d9935af79",
-    "bytes": 32091
-  },
-  "forge/smoke-silvery-barbs.js": {
-    "sha256": "172d9a7223564d031f349db0a71dd7b93d705c2f311411f49fb8ebcce047fbbe",
-    "bytes": 3980
-  },
-  "forge/tests/smoke-camera-contract.js": {
-    "sha256": "d903d97c11cd8a1ae918d8e1480171cb1bd4f4a72670451aea07fab08e2847d9",
-    "bytes": 1847
-  },
-  "forge/tests/smoke-flora.js": {
-    "sha256": "6e01989dc609a8f28eb6f6766e643b6b3700910652c22a1000fbe92444cb2069",
-    "bytes": 9436
-  },
-  "forge/tests/smoke-generator-foundation.js": {
-    "sha256": "bbab7602179c022f90b6eb30d588ba4af1c73e587d9f7d245dc4b8d5324eda8d",
-    "bytes": 7272
-  },
-  "forge/tests/smoke-geometry-sync.js": {
-    "sha256": "5e297dc4cd04f0b172f9c2774b7545f32a4ca7a097e0ef31aaebfdfe23268a44",
-    "bytes": 1022
-  },
-  "forge/tests/smoke-map-contract-render-truth.js": {
-    "sha256": "9d9e5e7a3195c300346848d1618121cda55756740222144e754570071ee45049",
-    "bytes": 3433
-  },
-  "forge/tests/smoke-phase15d-contract.js": {
-    "sha256": "80802ca1780018b397c0ff1351025f1c6c6ba3be0b498c1817f133b70a5f8dc6",
-    "bytes": 2085
-  },
-  "forge/tests/smoke-phase15e-contract.js": {
-    "sha256": "c76ba2f9ae8af4eff69c6e2d91199cf019d9c064118f734deeb12db79792a295",
-    "bytes": 2852
-  },
-  "forge/tests/smoke-phase15f-contract.js": {
-    "sha256": "bd3e48517a99d73cf818f8d21f6a703f3522902e561e1fd449b2596f9010fbeb",
-    "bytes": 5937
-  },
-  "forge/tests/smoke-phase15g-contract.js": {
-    "sha256": "1cc0283148e7509263b589731e21f9c037709fb29f85fbb351ec70132fba9676",
-    "bytes": 7667
-  },
-  "forge/tests/smoke-phase15h-contract.js": {
-    "sha256": "662a5b59e76070bca1db0709f9114bf0e3edb2aa203883c59ea4ac3d5f25828c",
-    "bytes": 3390
-  },
-  "forge/tests/smoke-phase2-correctness-wave.js": {
-    "sha256": "aeb9d316427ef58f793b43708c335822c00d6ccf3812fb1ac7560f50501121f4",
-    "bytes": 6117
-  },
-  "forge/tests/smoke-phase2-correctness-wave2.js": {
-    "sha256": "c33d912648c88730b4031d90c75d462e0536f73e4ba92a7ac1c973f50af80c33",
-    "bytes": 8883
-  },
-  "forge/tests/smoke-phase2-correctness-wave3.js": {
-    "sha256": "d340b36173c3f6c881ad34ce92ce0fe65f06cfe995df885c46874b6e5fb2c847",
-    "bytes": 8360
-  },
-  "forge/tests/smoke-phase2-correctness-wave4.js": {
-    "sha256": "62acd5e6ce6fab4e7623ebe9af14724b5c65bcc72f9659cb1c7f6b5e30097cad",
-    "bytes": 4281
+  "forge/tests/smoke-kit-derive.js": {
+    "sha256": "f2ba4a6f8399b61e9b6c24fd05c949c238b515baca7bb659a6cc3062a8981a7f",
+    "bytes": 62239
   },
   "forge/tests/smoke-phase2-final-trust.js": {
-    "sha256": "8d0fea420287d6bb3a8e1323d987fcf6b32e64ca0e563b48061f2f9bcabb1d5e",
+    "sha256": "43617589f835bf31e5ea7d50f50ced886e21be1668bc300d0d20a54a391b0704",
     "bytes": 3515
   },
+  "forge/tests/smoke-phase2-initiative-authority-cleanup.js": {
+    "sha256": "42d1ef1756039e18e54209633d92af236096e310ad7ff8362b69025f54658802",
+    "bytes": 2658
+  },
   "forge/tests/smoke-phase2-promotion-visibility.js": {
-    "sha256": "5bfb4dcbf6567ccd5f1e68aebe2cb0c582d24f3c93fdd45ea34e0d4dbf60cdc2",
-    "bytes": 3431
+    "sha256": "058f9abd4b0cc1e9ae846006d5ffb82b23503f657b00b8960aca12f3b342e6bf",
+    "bytes": 3501
   },
   "forge/tests/smoke-phase2-reaction-hidden-info-hardening.js": {
-    "sha256": "cd503a2cc2072832e3743e0a66bcdbadfe7f94b3a3f6879caaee5222b585fb11",
+    "sha256": "1117195048f3b5124a88b8f0629b68a6af7c21fa90fac32bdd0e9878fc824a06",
     "bytes": 3781
   },
   "forge/tests/smoke-phase2b1-field-round.js": {
-    "sha256": "e872b7b6403eceeb2392b79dab40f3ac48b8552087a6ff35a76e584feb356d7f",
+    "sha256": "d15060a35707323effee31a8f09f1e3544f9519685d515fc7ce5dad8ee893050",
     "bytes": 5009
-  },
-  "forge/tests/smoke-phase2c-archetype-params.js": {
-    "sha256": "974ec04e2818cd4a45bf0b1f1b4cffad024ddc09e0945ecfa98a966c0ddf2199",
-    "bytes": 8709
-  },
-  "forge/tests/smoke-phase2d-stage-ownership.js": {
-    "sha256": "aa9eab77a8b5b32b4aa7527da7dc04599706027e41560342f9f45bb691ca571a",
-    "bytes": 10950
-  },
-  "forge/tests/smoke-phase2e-elevations-connectors.js": {
-    "sha256": "e2fdadbef1784d0d6c92789ad2f16256a616ae104dab27caa91bd9b734eaa6b9",
-    "bytes": 10676
-  },
-  "forge/tests/smoke-phase2e1-field-sync.js": {
-    "sha256": "b629a598aed38f1186891ab0f98a93124ca05d6e0b0d2646accac09ae8ab1424",
-    "bytes": 4552
-  },
-  "forge/tests/smoke-phase2f-bridges-damage.js": {
-    "sha256": "ac41c689cae53dd2e8704b55854e89dca6767ebac5ead422cc65741ca1146c87",
-    "bytes": 8501
-  },
-  "forge/tests/smoke-phase2f1-field-audit.js": {
-    "sha256": "b7a5cc2eed762e9daff58657fa9d39f83d3d86f8565fe2bfac5c7bb7e4a08f15",
-    "bytes": 4815
-  },
-  "forge/tests/smoke-phase2f2-damage-pipeline.js": {
-    "sha256": "edccebdb8eda0b7f4d3c17c70354a6e2710890af9aa879a149f288d8e87b5a78",
-    "bytes": 6721
-  },
-  "forge/tests/smoke-pick-unit.js": {
-    "sha256": "c92a167be42828c4d683d2762459d5defa189c1eae3345c225bfc8774a1721cd",
-    "bytes": 4029
-  },
-  "forge/tests/smoke-placement.js": {
-    "sha256": "067d8c6e36bb2d41fad7ca7d75adcb81bb4e23dd26f1184f72c12f30ecbdb316",
-    "bytes": 8474
-  },
-  "forge/tests/smoke-snapshot-authority.js": {
-    "sha256": "18b22c763c7f4c61cd6ded455b4d36d04a8b154e271452f193291cd6aebb3d60",
-    "bytes": 5647
-  },
-  "forge/tests/smoke-starter-kits.js": {
-    "sha256": "ac763d9ac8baa0dc70893d858288529d4899444df6e0ffac3233837fb1cb5083",
-    "bytes": 6605
-  },
-  "forge/tests/smoke-tiers-rebase.js": {
-    "sha256": "4b17a757c469958986d246bbd52ba4cc841300852665419cb5f1c0ef7a8c2f65",
-    "bytes": 2776
-  },
-  "forge/tests/smoke-token-rig-contract.js": {
-    "sha256": "7ed38b49fc3db40300bf3446f05400cf3c990e57dc0bb222ef2e2c6044e515f4",
-    "bytes": 3085
-  },
-  "forge/topography-test-mock.html": {
-    "sha256": "72658561bef3c710ef94afc8b20f349415925982dd0f4416b6ee7f2eedcbda69",
-    "bytes": 571
-  },
-  "tools/apply-forge-phase15-camera-phase2-foundation.js": {
-    "sha256": "42229de88f380b1dd59e8ac3a6e7be737e9a284b2f1c46893d54604ca60cedf9",
-    "bytes": 21733
-  },
-  "tools/apply-forge-phase15-phase2-foundation.js": {
-    "sha256": "7e48e077ce3fb3e20ec64a3938f9823a8100c6c805b12263e678f01bbd5ea7e8",
-    "bytes": 9142
-  },
-  "tools/apply-forge-topdown-token-rig.js": {
-    "sha256": "8a818fec2f5aa5510569df5849d69d9f697f71bca1d427bbc14f90a6437bdd2c",
-    "bytes": 20870
-  },
-  "tools/forge-phase15-camera-phase2-browser-patcher.html": {
-    "sha256": "2f6266a602f323ac71889cd6d2d2ec09f9a68bcce6359b13dfd76966775d7569",
-    "bytes": 22903
-  },
-  "tools/forge-phase15-phase2-browser-patcher.html": {
-    "sha256": "167ea5cf9bf3e927e1f8b8f53499426f1da664b38981880708ef54998e65c35c",
-    "bytes": 9298
-  },
-  "tools/forge-topdown-token-rig-browser-patcher.html": {
-    "sha256": "57f84fffff8c148b3e96e035d6b0b5141c24131960237a7269c5575e31bd7eca",
-    "bytes": 21242
-  },
-  "tools/test-apply-forge-phase15-camera-phase2-foundation.js": {
-    "sha256": "28bbc97cb308918cd4f6f43cff8eec011512c14ea0f5301b24e3c06445822829",
-    "bytes": 5678
-  },
-  "tools/test-apply-forge-phase15-phase2-foundation.js": {
-    "sha256": "566fb1651fe5ff64727fab915d746783b2b896249357834de965b59cb8ddc8ca",
-    "bytes": 2955
-  },
-  "tools/test-apply-forge-topdown-token-rig.js": {
-    "sha256": "667ded59657aa57436568ec6e61e071470da44bdb352be0022f2b30911e84103",
-    "bytes": 4619
   }
 }

@@ -30,7 +30,7 @@
 <script src="forge-replay.js?v=fb12"></script>
 <script src="forge-combat-rules.js?v=fcr3"></script>
 <script src="forge-effects.js?v=fe4"></script>
-<script src="forge-initiative.js?v=fi1"></script>
+<script src="forge-initiative.js?v=fi2"></script>
 <script src="forge-discovery.js?v=fd5"></script>
 <script src="forge-bus.js?v=fb2"></script>
 <script src="forge-pipeline.js?v=fb7"></script>
@@ -38,7 +38,7 @@
 <script src="../armor-ac.js?v=cc2"></script>
 <script src="../equip-slots.js?v=cc2"></script>
 <script src="../character-combat.js?v=cc2"></script>
-<script src="forge-kit-derive.js?v=b7"></script>
+<script src="forge-kit-derive.js?v=b8"></script>
 <script src="forge-action-damage.js?v=fad1"></script>
 <script src="forge-damage-evidence.js?v=fde3"></script>
 <script src="forge-feed-render.js?v=ffr5"></script>
@@ -814,7 +814,7 @@ body.forge-author-preview #partySelect{opacity:0;pointer-events:none}
 .cbInitRoll,.cbInitMini{font-family:var(--f-util);text-transform:uppercase;letter-spacing:.08em;font-size:10px;color:#fff;background:#aa762d;border:1px solid #8e6025;padding:7px 9px;cursor:pointer}
 .cbInitMini{background:#f6f0e4;color:#34291d;border-color:#9b8c72}.cbInitRoll:disabled,.cbInitMini:disabled{opacity:.4;cursor:not-allowed}
 .cbInitScore{width:70px;box-sizing:border-box;background:#fffaf0;border:1px solid #8d8069;color:#211a12;padding:6px 7px;font:700 13px/1 var(--f-util);text-align:center}
-.cbInitEntry{display:inline-flex;align-items:center;gap:4px}.cbInitTotal{font:700 18px/1 var(--f-util);color:#8b5f22;min-width:28px;text-align:center}.cbInitEvidence{grid-column:1/-1;font:600 12px/1.5 var(--f-util);color:#574b3c;padding:3px 2px 0}.cbInitEvidence b{color:#211a12}.cbInitEvidenceWarn{display:block;color:#8f451f;font-weight:600;margin-top:3px}.cbInitSource{display:inline-block;border:1px solid rgba(98,78,48,.42);background:rgba(255,255,255,.34);color:#403426;padding:2px 5px;margin:3px 3px 0 0}.cbInitOrder{display:flex;gap:3px}.cbInitOrder button{border:1px solid #9b8c72;background:#f6f0e4;color:#2b251d;padding:5px 7px;cursor:pointer}.cbInitOrder button:disabled{opacity:.3;cursor:not-allowed}
+.cbInitEntry{display:inline-flex;align-items:center;gap:4px}.cbInitTotal{font:700 18px/1 var(--f-util);color:#8b5f22;min-width:28px;text-align:center}.cbInitEvidence{grid-column:1/-1;font:600 12px/1.5 var(--f-util);color:#3f3428;padding:7px 9px;margin-top:2px;background:rgba(255,255,255,.42);border-left:3px solid rgba(166,112,38,.58)}.cbInitEvidence>span:first-child{font-weight:700;color:#241d14}.cbInitEvidence b{color:#211a12}.cbInitEvidenceWarn{display:block;color:#8f451f;font-weight:600;margin-top:3px}.cbInitSource{display:inline-block;border:1px solid rgba(98,78,48,.42);background:rgba(255,255,255,.34);color:#403426;padding:2px 5px;margin:3px 3px 0 0}.cbInitOrder{display:flex;gap:3px}.cbInitOrder button{border:1px solid #9b8c72;background:#f6f0e4;color:#2b251d;padding:5px 7px;cursor:pointer}.cbInitOrder button:disabled{opacity:.3;cursor:not-allowed}
 .cbBlessTargets{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:6px;margin:12px 0}.cbBlessTarget{border:1px solid var(--tk-line);background:rgba(16,25,23,.72);color:var(--tk-ink);padding:8px;cursor:pointer;text-align:left}.cbBlessTarget.on{border-color:var(--tk-gold);background:rgba(201,162,75,.18);color:#fff1c8}.cbBlessTarget:disabled{opacity:.48;cursor:not-allowed}.cbBlessMeta{display:block;font:10px/1.35 var(--f-util);color:var(--tk-ink-dim);margin-top:3px}.cbBlessTarget.blocked .cbBlessMeta{color:#b36b5a}.cbBlessTarget.out .cbBlessMeta{color:#9a8061}
 @media(max-width:700px){.cbInitLobbyCard{padding-left:12px;padding-right:12px}.cbInitRow{grid-template-columns:1fr}.cbInitVal{justify-content:flex-start}.cbBlessTargets{grid-template-columns:1fr}#cbInitLobby .cbReactBtns{margin-left:-12px;margin-right:-12px;padding-left:12px;padding-right:12px}}
 
@@ -3871,7 +3871,7 @@ var STARTER_KITS = {
     { label:"Eldritch Blast", kind:"attack", rng:24, hit:5, dmg:"1d10+3", spell:true },
     { label:"Longsword", kind:"attack", rng:1, hit:5, dmg:"1d8+3" },
     { label:"Hex", kind:"buff", buff:"hex", rng:18, bonus:true, cost:{slot1:1}, spell:true } ] },
-  liadan:{ name:"Líadan", hp:31, ac:12, speed:30, init:1, res:{slot1:4,slot2:2,bardic:2},
+  liadan:{ name:"Líadan", hp:31, ac:12, speed:30, init:2, res:{slot1:4,slot2:2,bardic:2},
     react:{ silveryBarbs:{cost:{slot1:1}, spellSlotLevel:1, spell:true, range:12} }, actions:[
     { label:"Sling", kind:"attack", rng:6, long:24, hit:3, dmg:"1d4+1" },
     { label:"Vicious Mockery", kind:"save", rng:12, dc:12, dmg:"1d4", saveAbility:"wis", rider:"vm", spell:true },
@@ -4224,11 +4224,13 @@ function spellFactFields(a){if(!a||!a.spell)return {};var sh=window.ForgeCombatR
 function hudKitFor(u){var src=u&&kitFor(u.key);if(!src)return src;var kit=Object.assign({},src);kit.pools=(src.pools||[]).map(function(p){var q=Object.assign({},p),key=window.ForgeReplay&&window.ForgeReplay.canonicalResourceKey?window.ForgeReplay.canonicalResourceKey(q.key):q.key;if(u.res&&u.res[key]!=null)q.current=u.res[key];return q;});return kit;}
 function buildUnit(kit, side, opts){
   var isPc = side === "pc";
+  var initiativeProfile=JSON.parse(JSON.stringify((kit&&kit.initiativeProfile)||{modifier:(kit&&kit.init)||0,staticSources:[],advantageSources:[],disadvantageSources:[],diceSources:[],auras:[],warnings:[]}));
+  var initiativeMod=Number(initiativeProfile.modifier);if(!Number.isFinite(initiativeMod))initiativeMod=Number(kit&&kit.init)||0;
   var u = { id: opts.id, key: opts.key, unit: opts.unit, side: side,
     name: opts.name || (kit && kit.name) || opts.key,
     c: opts.c, r: opts.r, hp: opts.hp, hpMax: opts.hpMax,
-    ac: kit && kit.ac, speed: (kit && kit.speed) || 30, initMod: (kit && kit.init) || 0,
-    initiativeProfile: JSON.parse(JSON.stringify((kit && kit.initiativeProfile) || {modifier:(kit&&kit.init)||0,staticSources:[],advantageSources:[],disadvantageSources:[],diceSources:[],auras:[],warnings:[]})),
+    ac: kit && kit.ac, speed: (kit && kit.speed) || 30, initMod: initiativeMod,
+    initiativeProfile: initiativeProfile,
     climb: !!(kit && kit.climb), res: normalizeResourceRecord((kit && kit.res) || {}),
     pools: JSON.parse(JSON.stringify((kit && kit.pools) || [])),
     saveMods: JSON.parse(JSON.stringify((kit && kit.saveMods) || {})),
@@ -7536,7 +7538,7 @@ async function bootSession(sid){
       // kinds carry no ForgeBoard verb of their own (rolls/order live in
       // state.rolls / state.initiative, read straight off pipe.state() by
       // renderInitiativeLobby).
-      if (r.kind === 'initiative_rolled') { delete __initPublishing[r.unit]; }
+      if (r.kind === 'initiative_rolled') { delete __initPublishing[r.unit]; delete __initPreview[r.unit]; }
       else if (r.kind === 'initiative_set') { __initConfirming = false; __initEditing=false; __initDraftOrder=null; }
       window.ForgeBoard.verbsFor(r, before, st).forEach(applyVerb);
       if(window.ForgeTableCorrectness)window.ForgeTableCorrectness.pushEvent(redactEnemyDefenseEvent(viewerFeedEvent(r)));
@@ -7972,6 +7974,7 @@ function controllerLabel(unitKey){
    the matching echo (onEvent below) or on a publish failure (initRollFail /
    initConfirmFail). */
 var __initPublishing = {};   // unitKey -> true while that unit's roll is in flight
+var __initPreview = {};      // immediate bright-panel evidence while the publish echo is in flight
 var __initConfirming = false;
 var __initEditing = false;
 var __initDraftOrder = null;
@@ -7983,7 +7986,7 @@ var __initDraftOrder = null;
    shared netPublishFail (which several other guarded paths rely on as-is). */
 function initRollFail(unitKey,r){
   if(r && r.ok===false){
-    delete __initPublishing[unitKey];
+    delete __initPublishing[unitKey];delete __initPreview[unitKey];
     clog('<b style="color:#c0553f">Couldn’t reach the table — try that again.</b> <i>(' + (r.why || 'publish failed') + ')</i>');
     renderInitiativeLobby();
   }
@@ -8007,8 +8010,10 @@ function initiativeEvidenceFor(u,mode,value){
 }
 function publishInitiativeEvidence(sess,unitKey,evidence){
   var FI=window.ForgeInitiative,u=unitByKey(unitKey);if(!FI||!evidence){delete __initPublishing[unitKey];clog('<i>Initiative evidence could not be built.</i>');renderInitiativeLobby();return;}
-  __initPublishing[unitKey]=true;renderInitiativeLobby();
-  clog('<i>Initiative — '+escapeHtml((u&&u.name)||unitKey)+': '+escapeHtml(FI.componentText(evidence))+'</i>');
+  __initPublishing[unitKey]=true;__initPreview[unitKey]=evidence;renderInitiativeLobby();
+  /* The modal is intentionally the bright, authoritative roll surface while
+     the rest of the page is dimmed. The replay/feed still records the final
+     initiative fact once; do not add a second local narration row here. */
   sess.pipe.rollInitiative(unitKey,FI.payload(evidence)).then(function(r){initRollFail(unitKey,r);});
 }
 function rollForUnit(sess,unitKey){
@@ -8058,7 +8063,7 @@ function renderInitiativeLobby(){
   var roster=sess.row.roster||[],by={};roster.forEach(function(r){by[r.unit]=r;});var keys=(__initDraftOrder&&__initDraftOrder.length?__initDraftOrder:roster.map(function(r){return r.unit;})).filter(function(k){return by[k];});
   var ey=document.getElementById("cbInitEy"),title=document.getElementById("cbInitTitle");if(ey)ey.textContent=__initEditing?"Initiative · overseer":"Initiative";if(title)title.textContent=__initEditing?"Enter totals and arrange turn order":"Roll digitally or enter a final total";
   box.innerHTML=keys.map(function(k,index){
-    var r=by[k],roll=st.rolls[k],evidence=st.initiativeEvidence&&st.initiativeEvidence[k],mine=window.ForgeBoard.controls(sess.me,k),rolling=!!__initPublishing[k],canAct=sess.me.overseer||mine,controls='';
+    var r=by[k],roll=st.rolls[k],evidence=__initPreview[k]||(st.initiativeEvidence&&st.initiativeEvidence[k]),mine=window.ForgeBoard.controls(sess.me,k),rolling=!!__initPublishing[k],canAct=sess.me.overseer||mine,controls='';
     var orderButtons=sess.me.overseer&&__initEditing?'<span class="cbInitOrder"><button type="button" data-up="'+escapeHtml(k)+'"'+(index===0?' disabled':'')+' aria-label="Move earlier">↑</button><button type="button" data-down="'+escapeHtml(k)+'"'+(index===keys.length-1?' disabled':'')+' aria-label="Move later">↓</button></span>':'';
     if(canAct){
       controls=orderButtons+'<span class="cbInitTotal">'+(roll!=null?escapeHtml(roll):'—')+'</span><button class="cbInitRoll" data-u="'+escapeHtml(k)+'"'+(rolling?' disabled':'')+'>'+(rolling?'…':'Roll')+'</button>'+
@@ -8648,7 +8653,7 @@ renderer.domElement.addEventListener("contextmenu", function(e){ if(ADD_FOE_PLAC
     { key:"caim",       name:"Caim",             cls:"Monk",                  epi:"Urchin",              hp:24, max:24, ac:16,   init:3, portrait:"img/portraits/caim.png" },
     { key:"chonkalius", name:"Chonkalius",       cls:"Barbarian 3",           epi:'Outlander "Wizard?"', hp:35, max:35, ac:12,   init:0, portrait:null },
     { key:"cosmere",    name:"Cosmere Runestar", cls:"Warlock 2 / Sorcerer 1",epi:"Captain",             hp:20, max:20, ac:18,   init:2, portrait:"img/portraits/cosmere.png" },
-    { key:"liadan",     name:"Líadan Luchóg",    cls:"Bard 3 / Cleric 1",     epi:"Entertainer",         hp:24, max:31, ac:12,   init:1, portrait:"img/portraits/liadan.png" },
+    { key:"liadan",     name:"Líadan Luchóg",    cls:"Bard 3 / Cleric 1",     epi:"Entertainer",         hp:24, max:31, ac:12,   init:2, portrait:"img/portraits/liadan.png" },
     { key:"thewiz",     name:"The Wiz",          cls:"Wizard 3",              epi:"Dimir Operative",     hp:17, max:17, ac:null, init:4, portrait:null },
     { key:"vesperian",  name:"Vesperian Vale",   cls:"Fighter 4",             epi:"Dimir Operative",     hp:31, max:40, ac:null, init:4, portrait:"img/portraits/vesperian.jpg" }
   ];

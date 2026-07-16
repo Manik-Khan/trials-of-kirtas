@@ -17,13 +17,13 @@ ok("prototype residue is hidden rather than greyed out",html.includes(".prototyp
 ok("initiative editor owns the viewport above the HUD",html.includes("body.forge-initiative-open #combatHud{z-index:180}")&&html.includes("#cbInitLobby{z-index:190"));
 ok("initiative card scrolls without falling behind the HUD",html.includes("max-height:calc(100dvh - 28px)")&&html.includes("#cbInitLobbyList{overflow:auto"));
 ok("initiative uses one compact manual-total entry",html.includes("Roll digitally or enter a final total")&&html.includes("Final initiative total")&&!html.includes("Use d20"));
-ok("initiative evidence uses high-contrast presentation",html.includes(".cbInitEvidence{grid-column:1/-1;font:600 12px")&&html.includes("color:#574b3c"));
-ok("new derivation cache stamp is present",html.includes("forge-kit-derive.js?v=b7"));
+ok("initiative evidence uses high-contrast presentation",html.includes(".cbInitEvidence{grid-column:1/-1;font:600 12px")&&html.includes("color:#3f3428"));
+ok("new derivation cache stamp is present",html.includes("forge-kit-derive.js?v=b8"));
 
 const stale={level:4,proficiencyBonus:2,abilities:{dex:{score:12,mod:1}},features:[{name:"Jack of All Trades"}]};
 const joat=FK.initiativeProfileFor(stale,[],{init:1});
 ok("Jack of All Trades repairs a stale sheet total",joat.modifier===2&&joat.staticSources.some(s=>s.key==="jack-of-all-trades"&&s.value===1));
-ok("initiative repair remains auditable",joat.warnings.some(w=>/Forge applied it/.test(w)));
+ok("recognized initiative features repair stale totals without a false warning",joat.warnings.length===0&&!joat.staticSources.some(s=>s.key==="sheet-remainder"));
 
 ok("foes use broad wall-aware line of sight instead of the 60-ft detail mask",html.includes("function discoveryCellVisible(c,r){var D=discoveryApi();return !!(D&&DISCOVERY.ready&&discoveryStateAt(c,r)===D.VISIBLE)")&&html.includes("function foeVisible(u)"));
 ok("distant foes remain visible but soften",html.includes("CREATURE_CLEAR_FT=100")&&html.includes("CREATURE_SOFT_MAX_FT=240")&&html.includes("discoveryCreatureClarityAt"));

@@ -28,7 +28,12 @@
   }
   function sumValues(list){return (list||[]).reduce(function(n,s){return n+num(s&&s.value,0);},0);}
   function normalizeStatic(unit){
-    unit=unit||{};var meta=unit.initiativeProfile||{},total=num(unit.initMod!=null?unit.initMod:meta.modifier,0);
+    unit=unit||{};var meta=unit.initiativeProfile||{},metaTotal=Number(meta.modifier),unitTotal=Number(unit.initMod);
+    /* The component profile is the canonical initiative authority. A live unit
+       can still carry a stale cached `initMod` from an older roster/fallback;
+       never manufacture a negative "Other sheet bonuses" term to force the
+       newer component evidence back down to that stale number. */
+    var total=Number.isFinite(metaTotal)?metaTotal:(Number.isFinite(unitTotal)?unitTotal:0);
     var src=clone(meta.staticSources||[]),sum=sumValues(src);
     if(sum!==total)src.push({key:"sheet-remainder",label:sum?"Other sheet bonuses":"Initiative modifier",value:total-sum,source:"character sheet"});
     return {total:total,sources:src.filter(function(s){return num(s.value,0)!==0||s.key==="dexterity";}),warnings:clone(meta.warnings||[])};

@@ -103,7 +103,7 @@ function combatStats(s, inventory, vitals, charData) {
     Object.keys(chosenByGroup).forEach(function(group){
       var c=chosenByGroup[group];
       if(c.value!==0&&remaining!==0&&Math.sign(c.value)===Math.sign(remaining)&&Math.abs(c.value)<=Math.abs(remaining)){sources.push(c);remaining-=c.value;}
-      else{sources.push(c);total+=c.value;warnings.push(c.label+' was missing from the sheet initiative total; Forge applied it.');}
+      else{sources.push(c);total+=c.value;} /* Recognized class/equipment authority repairs stale cached totals silently. */
     });
     if(remaining)sources.push({key:'sheet-remainder',label:'Other sheet bonuses',value:remaining,source:'character sheet'});
     var advantageSources=[],disadvantageSources=[];
@@ -1210,6 +1210,8 @@ function combatErrorKit(charData, err) {
     var hp    = stats.hp;
     var maxHp = stats.maxHp;
 
+    var initiativeProfile = initiativeProfileFor(s, inv, stats);
+
     return {
       key:          charData.key || null,
       name:         charData.name || s.name || charData.key || "Unknown",
@@ -1219,8 +1221,8 @@ function combatErrorKit(charData, err) {
       acSource:     stats.acSource || null,
       sourceUpdatedAt: stats.sourceUpdatedAt || charData.updatedAt || charData.updated_at || null,
       speed:        stats.speed,
-      init:         stats.init,
-      initiativeProfile: initiativeProfileFor(s, inv, stats),
+      init:         initiativeProfile.modifier,
+      initiativeProfile: initiativeProfile,
       fly:          stats.fly,
       climb:        stats.climb,
       res:          rp.res,

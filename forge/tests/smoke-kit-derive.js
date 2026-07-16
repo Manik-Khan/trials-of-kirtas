@@ -328,7 +328,7 @@ const LIADAN_CHAR = {
 (function testLiadan() {
   var kit = FKD.derive(LIADAN_CHAR);
   ok("lia: ac=12", kit.ac === 12);
-  ok("lia: init=1", kit.init === 1);
+  ok("lia: canonical initiative includes Jack of All Trades", kit.init === 2);
 
   // Multiclass slots: 4 lvl-1 (1 spent → 3 current), 2 lvl-2
   ok("lia: res.slot1 = 3 (1 spent)", kit.res.slot1 === 3);

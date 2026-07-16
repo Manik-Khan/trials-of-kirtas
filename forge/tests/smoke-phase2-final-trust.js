@@ -9,7 +9,7 @@ const feed=fs.readFileSync(path.join(root,"forge-table-correctness.js"),"utf8");
 const derive=fs.readFileSync(path.join(root,"forge-kit-derive.js"),"utf8");
 const effects=fs.readFileSync(path.join(root,"forge-effects.js"),"utf8");
 const discovery=fs.readFileSync(path.join(root,"forge-discovery.js"),"utf8");
-ok("initiative evidence module is loaded",html.includes('forge-initiative.js?v=fi1'));
+ok("initiative evidence module is loaded",html.includes('forge-initiative.js?v=fi2'));
 ok("pipeline accepts structured initiative payloads",pipeline.includes("evidenceOrRoll")&&pipeline.includes("initiative_evidence"));
 ok("replay persists initiative evidence",replay.includes("initiativeEvidence: {}")&&replay.includes("p.initiative_evidence"));
 ok("initiative lobby offers digital roll and compact manual total",html.includes("function setManualInitiativeTotal")&&html.includes("Roll digitally or enter a final total")&&!html.includes("Use d20"));
@@ -26,5 +26,5 @@ ok("current full-detail vision is personal rather than whole-party",html.include
 ok("shared history remains party-derived",html.includes("D.historySources")&&html.includes("party-explored"));
 ok("visibility specks are removed without revealing hidden cells",discovery.includes("function connectedMask")&&html.includes("D.connectedMask"));
 ok("unexplored presentation uses a continuous cloudy mask",html.includes("deterministic cloud field")&&html.includes("blur(")&&html.includes("THREE.LinearFilter"));
-ok("cache stamps load every changed authority",html.includes("forge-replay.js?v=fb12")&&html.includes("forge-effects.js?v=fe4")&&html.includes("forge-discovery.js?v=fd5")&&html.includes("forge-pipeline.js?v=fb7")&&html.includes("forge-kit-derive.js?v=b7")&&html.includes("forge-table-correctness.js?v=fg7"));
+ok("cache stamps load every changed authority",html.includes("forge-replay.js?v=fb12")&&html.includes("forge-effects.js?v=fe4")&&html.includes("forge-discovery.js?v=fd5")&&html.includes("forge-pipeline.js?v=fb7")&&html.includes("forge-kit-derive.js?v=b8")&&html.includes("forge-table-correctness.js?v=fg7"));
 console.log(`\n${pass} passed, ${fail} failed`);process.exitCode=fail?1:0;
