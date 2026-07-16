@@ -7,7 +7,7 @@ const moduleText=fs.readFileSync(path.join(root,"forge-discovery.js"),"utf8");
 let pass=0;
 function ok(v,label){if(!v)throw new Error("FAIL: "+label);console.log("ok",++pass,"-",label);}
 function has(text,needle,label){ok(text.includes(needle),label);}
-has(html,'forge-discovery.js?v=fd3','production surface loads the discovery module with a cache stamp');
+has(html,'forge-discovery.js?v=fd5','production surface loads the discovery module with a cache stamp');
 has(html,'var fogGroup = new THREE.Group(); scene.add(fogGroup);','fog is a world-space three.js group');
 has(html,'Rules visibility and visual recognition are deliberately separate','party-shared vision contract is explicit');
 has(html,"if(!discoveryHasSession())return false;   // local sandbox is the DM's workbench",'local sandbox remains omniscient');

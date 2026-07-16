@@ -9,7 +9,7 @@ const openGeo={
   range3d:(m,a,b)=>Math.hypot(Math.max(Math.abs(a.c-b.c),Math.abs(a.r-b.r))*5,0),
   losVerdict:()=>({canTarget:true,cover:"none",acBonus:0})
 };
-ok(D.VERSION==="1.2.0","module version is pinned");
+ok(D.VERSION==="1.3.0","module version is pinned");
 ok(D.UNEXPLORED===0&&D.EXPLORED===1&&D.VISIBLE===2,"three discovery states are stable");
 ok(D.dims({W:3,H:4}).cols===3&&D.dims({W:3,H:4}).rows===4,"legacy W/H map dimensions normalize");
 ok(D.idx(map(),2,3)===17,"cell index is row-major");
@@ -28,6 +28,11 @@ ok(vis.length===25,"visibility mask matches map size");
 ok(vis[D.idx(map(),2,2)]===1,"origin cell is always visible");
 ok(vis[D.idx(map(),3,2)]===1,"adjacent cell inside sight radius is visible");
 ok(vis[D.idx(map(),4,2)]===0,"cell outside sight radius stays hidden");
+const speckMap=map(),specks=new Uint8Array(25);specks[D.idx(speckMap,2,2)]=1;specks[D.idx(speckMap,2,3)]=1;specks[D.idx(speckMap,0,0)]=1;
+const clean=D.connectedMask(specks,speckMap,[{c:2,r:2}]);
+ok(clean[D.idx(speckMap,2,2)]===1&&clean[D.idx(speckMap,2,3)]===1,"connected visibility remains visible");
+ok(clean[D.idx(speckMap,0,0)]===0,"isolated visibility specks are removed");
+ok(Array.from(clean).every((v,i)=>!v||specks[i]),"connected cleanup never reveals a hidden cell");
 let losCalls=0;
 const blockGeo={range3d:openGeo.range3d,losVerdict:(m,a,b)=>{losCalls++;return {canTarget:!(b.c===4&&b.r===2)};}};
 const blocked=D.visibleFrom(map(),{c:2,r:2},blockGeo,{radiusFt:15});

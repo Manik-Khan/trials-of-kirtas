@@ -87,7 +87,7 @@ ok("Cosmere can choose Pact or ordinary slots",source.includes("function castabl
 ok("Bless has a three-target picker and replay effects",source.includes("function openBlessPicker")&&source.includes("E.addBlessGroup")&&source.includes("Choose up to "));
 ok("multiplayer movement asks opportunity-attack prompts",source.includes('declaredRow.kind==="move_declared"')&&source.includes('react:"opportunityAttack"')&&source.includes("interrupted_at"));
 ok("overseer can enter and reorder initiative without refunding the turn",source.includes("function setManualInitiative")&&source.includes("function moveInitiativeDraft")&&source.includes("setInitiative(order,resumeAt,!!st.initiative)")&&source.includes("cbInitCancel")&&source.includes("Apply order")&&pipelineSource.includes("payload.preserve_turn = true"));
-ok("soft-reality fog separates broad sight from detail",source.includes("discoveryBroadRadiusFt")&&source.includes("DISCOVERY.detail")&&source.includes("Soft-reality band"));
+ok("soft-reality fog separates broad sight from detail",source.includes("discoveryBroadRadiusFt")&&source.includes("DISCOVERY.detail")&&source.includes("Soft-reality recognition"));
 ok("unknown fog is ground-level instead of an overhead slab",source.includes("veil.position.y=-BASE+.02")&&source.includes("depthTest:true")&&!source.includes("var maxFt=0;for(var i=0;i<CB.map.h.length"));
 
 console.log(`\n${pass} passed, ${fail} failed`);

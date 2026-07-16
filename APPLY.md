@@ -1,71 +1,52 @@
-# Apply Forge correctness wave 4
+# Apply Forge Phase 2 final trust slice · 2026-07-15
 
-This handoff expects the exact **correctness wave 3 / structural bridges 2f.3** repository state as its baseline.
+This bundle targets the exact repository state produced by **Forge correctness Wave 4**.
 
 ## Recommended: guarded patcher
 
-Unzip this bundle anywhere, then run:
+Copy the bundle into the repository while preserving its folder structure, then run:
 
 ```bash
-node forge/patch-phase2-correctness-wave4.js /absolute/path/to/trials-of-kirtas
+node forge/patch-phase2-final-trust.js /absolute/path/to/trials-of-kirtas
 ```
 
-The target must be a Git working tree. The patcher:
+The patcher:
 
-1. verifies the SHA-256 of every file it will modify;
-2. refuses an unknown or independently edited baseline;
-3. runs `git apply --check`;
-4. applies the implementation patch;
-5. verifies every resulting target SHA-256;
-6. exits cleanly when wave four is already applied.
+- verifies that the target is a Git working tree;
+- verifies every relevant Wave 4 baseline hash;
+- refuses an unknown or independently edited baseline;
+- applies the embedded patch;
+- verifies every target hash afterward;
+- exits safely when run a second time.
 
-The patcher itself is a delivery helper and is not written into the target repository by its embedded patch.
+## Alternative: copy the repo-structured files
 
-## Alternative: unified patch
+The bundle mirrors repository paths. You may copy the included files over the matching files in the repository. The new files are:
 
-From the repository root:
+- `forge/forge-initiative.js`
+- `forge/tests/smoke-forge-initiative.js`
+- `forge/tests/smoke-phase2-final-trust.js`
+- `forge/PHASE2_FINAL_TRUST_SLICE_2026-07-15.md`
+
+## Standalone patch
+
+A separate `forge-phase2-final-trust-2026-07-15.patch` is provided alongside this ZIP. From the Wave 4 repository root:
 
 ```bash
-git apply --check --whitespace=nowarn /path/to/forge-phase2-correctness-wave4-2026-07-15.patch
-git apply --whitespace=nowarn /path/to/forge-phase2-correctness-wave4-2026-07-15.patch
+git apply --check /path/to/forge-phase2-final-trust-2026-07-15.patch
+git apply /path/to/forge-phase2-final-trust-2026-07-15.patch
 ```
-
-The standalone patch includes the delivery patcher as a repository file. Remove it before committing when delivery helpers should not remain in production.
-
-## Alternative: direct overlay
-
-The bundle contains repo-structured copies of every changed implementation file. Copy the `forge/` directory over the repository only when intentionally replacing the corresponding files.
 
 ## Focused validation
 
-From the repository root:
-
 ```bash
-node forge/tests/smoke-phase2-correctness-wave4.js
-node forge/tests/smoke-forge-combat-rules.js
-node forge/tests/smoke-replay.js
-node forge/tests/smoke-feed-render.js
+node forge/tests/smoke-forge-initiative.js
+node forge/tests/smoke-phase2-final-trust.js
 node forge/tests/smoke-table-correctness.js
-node forge/tests/smoke-phase15d-contract.js
-node forge/tests/smoke-phase15g-contract.js
-node forge/tests/smoke-phase2b1-field-round.js
+node forge/tests/smoke-forge-discovery.js
+node forge/tests/smoke-forge-effects.js
 ```
 
-Expected headline results:
+Then perform the two-browser initiative, Bless, and player-vision checklist in `forge/PHASE2_FINAL_TRUST_SLICE_2026-07-15.md`.
 
-- wave four: **17 passed, 0 failed**
-- combat rules: **62 green**
-- replay: **35 passed, 0 failed**
-- feed renderer: **66 passed, 0 failed**
-- table correctness: **29 green**
-- Phase 1.5d: **20 green**
-- Phase 1.5g: **76 green**
-- Phase 2b.1 field round: **30 green**
-
-The implementation report and browser/two-device checklist are in:
-
-```text
-forge/PHASE2_CORRECTNESS_WAVE4_2026-07-15.md
-```
-
-Do not promote the old mock route to `/forge` until the reaction-evidence, Silvery Barbs grant, and joining-attacker flanking checks pass cleanly on two devices.
+Do not promote the route to `/forge` until that field pass is clean.

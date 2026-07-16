@@ -26,6 +26,9 @@ const secret=F.displayUnit({unit:"g",side:"foe",name:"Goblin",hp:7,hpMax:7,ac:15
 ok(secret.name==="Goblin"&&secret.hp===""&&secret.ac===null,"visible foe identity remains but vitals are masked");
 ok(!("statblock" in secret)&&secret.actions.length===0,"enemy internals are removed from player HUD state");
 const snap=F.viewerSnapshot(player,{side:"foe"});ok(snap.suppressEnemyHud,"enemy active HUD is suppressed for players");
+const init=F.factFromEvent({kind:"initiative_rolled",unit:"vesperian",payload:{roll:19,initiative_evidence:{mode:"rolled",total:19,d20:12,d20Rolls:[12],d20KeptIndex:0,staticSources:[{label:"DEX",value:4}],dice:[{label:"Gift of Alacrity",die:"1d8",roll:3}],advantageSources:[],disadvantageSources:[]}}});
+ok(init.kind==="initiative"&&init.evidence.d20===12,"initiative event preserves its evidence shape");
+ok(F.factHtml(init).includes("Gift of Alacrity")&&F.factHtml(init).includes("DEX +4")&&F.factHtml(init).includes(">19<"),"initiative feed displays every component and total");
 const atk=F.factFromEvent({kind:"attack_resolved",unit:"caim",payload:{target:"g",mode:"Longbow",roll:17,hitBonus:5,hit:true,dmg:8,cover:2}});
 ok(atk.coverName==="half"&&atk.dmg===8,"self-contained resolved attack becomes a structured feed fact");
 ok(F.factHtml(atk).includes("forge-result-hit")&&F.factHtml(atk).includes("ROLL:caim:Longbow:17:8:half"),"hit row receives soft hit tone and damage");

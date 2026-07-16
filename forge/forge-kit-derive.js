@@ -64,6 +64,55 @@ function combatStats(s, inventory, vitals, charData) {
   }
   return cc.derive(charData || { structural: s, inventory: inventory || [], vitals: vitals || {} });
 }
+
+  // ── initiative evidence metadata ────────────────────────────────────────
+  /* `structural.combat.initiative` remains the authoritative static total.
+     This projection explains that total when the sheet contains recognizable
+     sources, and labels any remainder instead of silently guessing. Dynamic
+     auras/effects are applied later by forge-initiative.js at the actual roll. */
+  function featureRows(s) {
+    var out=(s.features||[]).concat(s.customFeatures||[]).slice(),cf=s.classFeatures||{};
+    Object.keys(cf).forEach(function(k){
+      var v=cf[k];if(v===false||v==null)return;
+      if(v&&typeof v==='object'&&v.name)out.push(v);
+      else out.push({name:titleCase(k.replace(/([a-z])([A-Z])/g,'$1 $2')),desc:typeof v==='string'?v:'',source:'class feature'});
+    });
+    return out;
+  }
+  function featureNamed(rows,pattern){return rows.some(function(f){return pattern.test(String(f&&f.name||f||''));});}
+  function equippedNamed(inventory,pattern){return (inventory||[]).some(function(it){return it&&it.equipped!==false&&pattern.test(String(it.name||''));});}
+  function initiativeProfileFor(s,inventory,stats){
+    var dex=abilMod(s,'dex'),pb=profBonus(s),total=Number(stats&&stats.init)||0,rows=featureRows(s),remaining=total-dex;
+    var sources=[{key:'dexterity',label:'DEX',value:dex,source:'ability'}],warnings=[],candidates=[];
+    function candidate(key,label,value){value=Number(value)||0;if(value)candidates.push({key:key,label:label,value:value,source:'feature'});}
+    if(featureNamed(rows,/^alert$/i))candidate('alert','Alert',5);
+    if(featureNamed(rows,/jack of all trades/i))candidate('jack-of-all-trades','Jack of All Trades',Math.floor(pb/2));
+    if(featureNamed(rows,/remarkable athlete/i))candidate('remarkable-athlete','Remarkable Athlete',Math.ceil(pb/2));
+    if(featureNamed(rows,/hare[- ]trigger/i))candidate('hare-trigger','Hare-Trigger',pb);
+    if(featureNamed(rows,/tactical wit|temporal awareness/i))candidate('intelligence-initiative',featureNamed(rows,/temporal awareness/i)?'Temporal Awareness':'Tactical Wit',abilMod(s,'int'));
+    if(featureNamed(rows,/dread ambusher/i))candidate('dread-ambusher','Dread Ambusher',abilMod(s,'wis'));
+    if(featureNamed(rows,/rakish audacity/i))candidate('rakish-audacity','Rakish Audacity',abilMod(s,'cha'));
+    candidates.forEach(function(c){
+      if(c.value!==0&&remaining!==0&&Math.sign(c.value)===Math.sign(remaining)&&Math.abs(c.value)<=Math.abs(remaining)){sources.push(c);remaining-=c.value;}
+      else warnings.push(c.label+' is present but is not reflected in the sheet initiative total.');
+    });
+    if(remaining)sources.push({key:'sheet-remainder',label:'Other sheet bonuses',value:remaining,source:'character sheet'});
+    var advantageSources=[],disadvantageSources=[];
+    if(equippedNamed(inventory,/^sentinel shield$/i))advantageSources.push({key:'sentinel-shield',label:'Sentinel Shield',source:'equipment'});
+    if(equippedNamed(inventory,/weapon of warning/i))advantageSources.push({key:'weapon-of-warning',label:'Weapon of Warning',source:'equipment'});
+    if(featureNamed(rows,/feral instinct/i))advantageSources.push({key:'feral-instinct',label:'Feral Instinct',source:'feature'});
+    var auras=[],diceSources=[],watchers=featureNamed(rows,/aura of the sentinel/i)||(/watchers/i.test(String(s.subclass||''))&&Number(s.level)>=7);
+    if(watchers)auras.push({key:'aura-of-the-sentinel',label:'Aura of the Sentinel',value:pb,rangeFt:Number(s.level)>=18?30:10});
+    (s.initiativeModifiers||[]).forEach(function(m){
+      if(!m)return;var type=String(m.type||'static').toLowerCase();
+      if(type==='advantage')advantageSources.push({key:m.key||m.label,label:m.label||'Initiative advantage',source:m.source||'custom'});
+      else if(type==='disadvantage')disadvantageSources.push({key:m.key||m.label,label:m.label||'Initiative disadvantage',source:m.source||'custom'});
+      else if(type==='die')diceSources.push({key:m.key||m.label,label:m.label||'Initiative die',die:m.die||'1d4',source:m.source||'custom',consume:false});
+      else if(type==='aura')auras.push({key:m.key||m.label,label:m.label||'Initiative aura',value:Number(m.value)||0,rangeFt:Number(m.rangeFt)||10});
+      else if(type==='static'){var v=Number(m.value)||0;sources.push({key:m.key||m.label,label:m.label||'Initiative bonus',value:v,source:m.source||'custom'});total+=v;}
+    });
+    return {modifier:total,dexModifier:dex,proficiencyBonus:pb,staticSources:sources,advantageSources:advantageSources,disadvantageSources:disadvantageSources,diceSources:diceSources,auras:auras,warnings:warnings};
+  }
 function escapeCombatError(s) {
   return String(s == null ? '' : s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;').replace(/'/g, '&#39;');
 }
@@ -436,7 +485,8 @@ function combatErrorKit(charData, err) {
 
     // ── ally buff ──
     "bless":              { kind: "buffAlly", rng: 6, effectKind: "bless", targetCount: 3, concentration: true },
-    "guidance":           { kind: "buffAlly", rng: 1 },
+    "guidance":           { kind: "buffAlly", rng: 1, effectKind: "guidance", concentration: true },
+    "gift of alacrity":   { kind: "buffAlly", rng: 1, effectKind: "gift-of-alacrity" },
     "sanctuary":          { kind: "buffAlly", rng: 6 },
     "aid":                { kind: "buffAlly", rng: 6 },
     "shield of faith":    { kind: "buffAlly", rng: 12 },
@@ -1161,6 +1211,7 @@ function combatErrorKit(charData, err) {
       sourceUpdatedAt: stats.sourceUpdatedAt || charData.updatedAt || charData.updated_at || null,
       speed:        stats.speed,
       init:         stats.init,
+      initiativeProfile: initiativeProfileFor(s, inv, stats),
       fly:          stats.fly,
       climb:        stats.climb,
       res:          rp.res,
@@ -1236,6 +1287,7 @@ function combatErrorKit(charData, err) {
       spell:  !!t.spell,
       conc:   !!t.conc,
       effectKind: t.effectKind || null,
+      die: t.die || null,
       targetCount: t.targetCount || null,
       concentration: !!(t.concentration || t.conc),
       cost:   t.cost || null,
@@ -1319,6 +1371,7 @@ function combatErrorKit(charData, err) {
     featTiles:     featTiles,
     actionTiles:   actionTiles,
     classFeatureTiles: classFeatureTiles,
+    initiativeProfileFor: initiativeProfileFor,
     bonusTiles:    bonusTiles,
     wrapStarterKit: wrapStarterKit,
     forgeResKey:   forgeResKey,

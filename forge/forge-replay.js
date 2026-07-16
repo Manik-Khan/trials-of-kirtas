@@ -59,7 +59,7 @@
       };
     });
     return {
-      status: "staging", units: units, rolls: {}, initiative: null,
+      status: "staging", units: units, rolls: {}, initiativeEvidence: {}, initiative: null,
       turnsEnded: 0, pendingAction: null, pendingPrompt: null, pendingPrompts: [],
       chat: [], lastSeq: 0, appliedResourceSpends: {}, connectorStates: {},
       economy: freshEconomy(null)
@@ -135,7 +135,15 @@
     if (corrections && corrections[row.seq]) p = Object.assign({}, p, corrections[row.seq]);
     switch (row.kind) {
       case "session_started": state.status = "active"; resetEconomy(state); break;
-      case "initiative_rolled": state.rolls[row.unit] = p.roll; break;
+      case "initiative_rolled":
+        state.rolls[row.unit] = p.roll;
+        state.initiativeEvidence = state.initiativeEvidence || {};
+        state.initiativeEvidence[row.unit] = p.initiative_evidence || {
+          version: "legacy", kind: "initiative", mode: "legacy-total",
+          unit: row.unit, roll: p.roll, total: p.roll, opaque: true,
+          warnings: ["Legacy initiative total — component evidence unavailable."]
+        };
+        break;
       case "initiative_set": {
         var prevRound = round(state);   // BEFORE overwriting order/turnsEnded
         state.initiative = p.order.slice();
@@ -246,6 +254,7 @@
         Object.assign(state, snap);
         state.appliedResourceSpends = state.appliedResourceSpends || {};
         state.connectorStates = state.connectorStates || {};
+        state.initiativeEvidence = state.initiativeEvidence || {};
         state.pendingPrompts = state.pendingPrompts || (state.pendingPrompt ? [state.pendingPrompt] : []);
         state.pendingPrompt = state.pendingPrompts.length ? state.pendingPrompts[state.pendingPrompts.length-1] : null;
         if(!state.economy)resetEconomy(state);

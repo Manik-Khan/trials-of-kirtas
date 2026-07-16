@@ -27,22 +27,23 @@
 <script src="forge-unit-art.js?v=ua2"></script>
 <script src="forge-engine.js?v=fe6"></script>
 <script src="forge-protocol.js?v=fb1"></script>
-<script src="forge-replay.js?v=fb10"></script>
+<script src="forge-replay.js?v=fb11"></script>
 <script src="forge-combat-rules.js?v=fcr3"></script>
-<script src="forge-effects.js?v=fe2"></script>
-<script src="forge-discovery.js?v=fd3"></script>
+<script src="forge-effects.js?v=fe4"></script>
+<script src="forge-initiative.js?v=fi1"></script>
+<script src="forge-discovery.js?v=fd5"></script>
 <script src="forge-bus.js?v=fb2"></script>
-<script src="forge-pipeline.js?v=fb6"></script>
+<script src="forge-pipeline.js?v=fb7"></script>
 <script src="forge-board.js?v=fb7"></script>
 <script src="../armor-ac.js?v=cc2"></script>
 <script src="../equip-slots.js?v=cc2"></script>
 <script src="../character-combat.js?v=cc2"></script>
-<script src="forge-kit-derive.js?v=b4"></script>
+<script src="forge-kit-derive.js?v=b5"></script>
 <script src="forge-action-damage.js?v=fad1"></script>
 <script src="forge-damage-evidence.js?v=fde3"></script>
 <script src="forge-feed-render.js?v=ffr5"></script>
 <script src="forge-hud.js?v=b2"></script>
-<script src="forge-table-correctness.js?v=fg5"></script>
+<script src="forge-table-correctness.js?v=fg6"></script>
 <script src="../item-icons.js?v=b3"></script>
 <script src="../spell-icons.js?v=b3"></script>
 <script src="../icon-picker.js?v=b3"></script>
@@ -791,15 +792,16 @@ body.forge-author-preview #partySelect{opacity:0;pointer-events:none}
 .cbRel.on .cbRelX{ color:#fff; }
 .cbRelX{ color:#a33b2e; font-weight:700; padding:0 3px; cursor:pointer; }
 /* Task 10: initiative lobby + overseer toolbar (FORGE_PROTOCOL.md §3/§5) */
-.cbInitLobbyCard{ width:380px; max-width:90vw; max-height:80vh; overflow:auto; }
-.cbInitRow{ display:flex; justify-content:space-between; align-items:center; gap:10px; padding:7px 0; border-bottom:1px solid rgba(168,159,138,.3); font-family:var(--f-util); font-size:13px; color:var(--tk-ink); }
+.cbInitLobbyCard{ width:640px; max-width:94vw; max-height:84vh; overflow:auto; }
+.cbInitRow{ display:grid; grid-template-columns:minmax(120px,1fr) minmax(260px,auto); align-items:start; gap:10px; padding:9px 0; border-bottom:1px solid rgba(168,159,138,.3); font-family:var(--f-util); font-size:13px; color:var(--tk-ink); }
 .cbInitRow:last-child{ border-bottom:none; }
-.cbInitVal{ display:flex; align-items:center; gap:8px; }
-.cbInitRoll{ font-family:var(--f-util); text-transform:uppercase; letter-spacing:.1em; font-size:11px; color:#fff; background:var(--tk-gold); border:1px solid var(--tk-gold); padding:6px 10px; cursor:pointer; }
-.cbInitRoll:disabled{ opacity:.4; cursor:not-allowed; }
-.cbInitScore{width:58px;box-sizing:border-box;background:rgba(16,25,23,.72);border:1px solid var(--tk-line);color:var(--tk-ink);padding:5px 6px;font:700 12px/1 var(--f-util);text-align:center;}
-.cbInitOrder{display:flex;gap:3px}.cbInitOrder button{border:1px solid var(--tk-line);background:var(--tk-panel-2);color:var(--tk-ink);padding:4px 6px;cursor:pointer}.cbInitOrder button:disabled{opacity:.3;cursor:not-allowed}
-.cbBlessTargets{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:6px;margin:12px 0}.cbBlessTarget{border:1px solid var(--tk-line);background:rgba(16,25,23,.72);color:var(--tk-ink);padding:8px;cursor:pointer;text-align:left}.cbBlessTarget.on{border-color:var(--tk-gold);background:rgba(201,162,75,.18);color:#fff1c8}
+.cbInitName{font-weight:700;padding-top:5px}.cbInitVal{ display:flex; align-items:center; justify-content:flex-end; flex-wrap:wrap; gap:6px; }
+.cbInitRoll,.cbInitMini{ font-family:var(--f-util); text-transform:uppercase; letter-spacing:.08em; font-size:10px; color:#fff; background:var(--tk-gold); border:1px solid var(--tk-gold); padding:6px 8px; cursor:pointer; }
+.cbInitMini{background:transparent;color:var(--tk-ink);border-color:var(--tk-line)}.cbInitRoll:disabled,.cbInitMini:disabled{ opacity:.4; cursor:not-allowed; }
+.cbInitScore{width:54px;box-sizing:border-box;background:rgba(16,25,23,.72);border:1px solid var(--tk-line);color:var(--tk-ink);padding:5px 6px;font:700 12px/1 var(--f-util);text-align:center;}
+.cbInitEntry{display:inline-flex;align-items:center;gap:3px}.cbInitTotal{font-size:17px;color:var(--tk-gold);min-width:24px;text-align:center}.cbInitEvidence{grid-column:1/-1;font:11px/1.45 var(--f-util);color:var(--tk-ink-dim);padding:2px 0 0 2px}.cbInitEvidence b{color:var(--tk-ink)}.cbInitEvidenceWarn{display:block;color:#a76632;margin-top:2px}.cbInitSource{display:inline-block;border:1px solid rgba(168,159,138,.38);padding:1px 4px;margin:2px 3px 0 0}.cbInitOrder{display:flex;gap:3px}.cbInitOrder button{border:1px solid var(--tk-line);background:var(--tk-panel-2);color:var(--tk-ink);padding:4px 6px;cursor:pointer}.cbInitOrder button:disabled{opacity:.3;cursor:not-allowed}
+.cbBlessTargets{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:6px;margin:12px 0}.cbBlessTarget{border:1px solid var(--tk-line);background:rgba(16,25,23,.72);color:var(--tk-ink);padding:8px;cursor:pointer;text-align:left}.cbBlessTarget.on{border-color:var(--tk-gold);background:rgba(201,162,75,.18);color:#fff1c8}.cbBlessTarget:disabled{opacity:.48;cursor:not-allowed}.cbBlessMeta{display:block;font:10px/1.35 var(--f-util);color:var(--tk-ink-dim);margin-top:3px}.cbBlessTarget.blocked .cbBlessMeta{color:#b36b5a}.cbBlessTarget.out .cbBlessMeta{color:#9a8061}
+@media(max-width:700px){.cbInitRow{grid-template-columns:1fr}.cbInitVal{justify-content:flex-start}.cbBlessTargets{grid-template-columns:1fr}}
 
 /* Field 2026-07-11: this lived at top-LEFT, stacked on the forgebar and the
    map panel's column — engaging GOD MODE walled off the map options. The left
@@ -3383,7 +3385,7 @@ var READYING = false;     // "Ready" armed: the next attack picked is held, not 
    Explored memory is reconstructed from the shared movement log, so refresh/
    join does not reset the dungeon. Staff View remains omniscient. */
 var DISCOVERY={mapRef:null,mapSerial:0,cache:new Map(),detail:null,visible:null,explored:null,states:null,
-  ready:false,currentSig:'',detailSig:'',historySig:'',fogSig:'',localTrail:[]};
+  ready:false,currentSig:'',detailSig:'',historySig:'',fogSig:'',localTrail:[],currentSources:[]};
 function resetDiscoveryRenderRegistry(){
   if(!DISCOVERY_RENDER)return;DISCOVERY_RENDER.instanced=[];DISCOVERY_RENDER.objects=[];
   if(DISCOVERY_RENDER.veil){fogGroup.remove(DISCOVERY_RENDER.veil);if(DISCOVERY_RENDER.veil.geometry)DISCOVERY_RENDER.veil.geometry.dispose();if(DISCOVERY_RENDER.veil.material)DISCOVERY_RENDER.veil.material.dispose();}
@@ -3403,7 +3405,17 @@ function discoveryPlayerView(){
   var tc=window.ForgeTableCorrectness;return tc?tc.playerView(window.__forgeSession):!(window.__forgeSession&&window.__forgeSession.me&&window.__forgeSession.me.overseer);
 }
 function discoverySideMap(){var out={};(CB.units||[]).forEach(function(u){out[u.unit||u.key||u.id]=u.side;});return out;}
-function discoveryCurrentSources(){return (CB.units||[]).filter(function(u){return u.side==='pc'&&u.alive;}).map(function(u){return {unit:u.unit||u.key||u.id,c:u.c,r:u.r,radiusFt:discoveryApi().sightRadiusFt(u)};});}
+function discoveryPartySources(){return (CB.units||[]).filter(function(u){return u.side==='pc'&&u.alive;}).map(function(u){return {unit:u.unit||u.key||u.id,c:u.c,r:u.r,radiusFt:discoveryApi().sightRadiusFt(u)};});}
+function discoveryCurrentSources(){
+  var all=discoveryPartySources(),sess=window.__forgeSession;if(!discoveryPlayerView()||!sess)return all;
+  var wanted=(sess.me&&sess.me.units||[]).slice();
+  if(sess.me&&sess.me.overseer){
+    var selected=unitByKey(CB.selKey),st=sess.pipe&&sess.pipe.state&&sess.pipe.state(),activeKey=st&&window.ForgeReplay&&window.ForgeReplay.activeUnit(st),activePc=unitByKey(activeKey);
+    wanted=[];if(selected&&selected.side==='pc'&&selected.alive)wanted.push(selected.unit||selected.key||selected.id);else if(activePc&&activePc.side==='pc'&&activePc.alive)wanted.push(activePc.unit||activePc.key||activePc.id);
+  }
+  if(!wanted.length&&all.length)wanted=[all[0].unit];
+  var set={};wanted.forEach(function(k){set[k]=true;});return all.filter(function(p){return !!set[p.unit];});
+}
 function discoveryHistorySources(){
   var D=discoveryApi(),sess=window.__forgeSession,current=discoveryCurrentSources();if(!D)return current;
   if(sess&&sess.pipe&&typeof sess.pipe.events==='function')return D.uniqueCells(D.historySources(sess.row&&sess.row.roster||[],sess.pipe.events(),discoverySideMap()).concat(current));
@@ -3428,6 +3440,9 @@ function clearFogMeshes(){
 function hiddenMatrix(base){var p=new THREE.Vector3(),q=new THREE.Quaternion(),sc=new THREE.Vector3();base.decompose(p,q,sc);sc.set(.0001,.0001,.0001);p.y=-BASE-20;return new THREE.Matrix4().compose(p,q,sc);}
 function discoveryStateAt(c,r){var D=discoveryApi();return D&&DISCOVERY.ready?D.cellState(DISCOVERY.states,CB.map,c,r):2;}
 function discoveryDetailedAt(c,r){var D=discoveryApi(),i=D&&D.idx(CB.map,c,r);return !!(D&&DISCOVERY.ready&&DISCOVERY.detail&&i>=0&&DISCOVERY.detail[i]);}
+function discoveryRecognitionAt(c,r){
+  var D=discoveryApi(),best=0;(DISCOVERY.currentSources||[]).forEach(function(src){var radius=Math.max(5,Number(src.radiusFt)||D.DEFAULT_SIGHT_FT),dist=D.rangeFt(CB.map,src,{c:c,r:r},TG),recognition=Math.max(0,Math.min(1,(1.35-dist/radius)/.65));if(recognition>best)best=recognition;});return best;
+}
 function applyDiscoveryInstances(player){
   var visCol=new THREE.Color(),memCol=new THREE.Color(0.16,0.20,0.19),farCol=new THREE.Color();
   DISCOVERY_RENDER.instanced.forEach(function(entry){var mesh=entry.mesh;if(!mesh)return;
@@ -3439,12 +3454,12 @@ function applyDiscoveryInstances(player){
         if(st===1){
           var memoryLight=Math.max(.48,.2126*original.r+.7152*original.g+.0722*original.b);
           mesh.setColorAt(i,memCol.clone().multiplyScalar(memoryLight));
-        }else if(st===2&&!detailed){
-          /* Soft-reality band: retain truthful terrain silhouette while removing
-             identifying colour/contrast. Haze rather than an opaque sight wall. */
-          var lum=.2126*original.r+.7152*original.g+.0722*original.b;
-          farCol.setRGB(.13+lum*.44,.16+lum*.45,.16+lum*.43);
-          mesh.setColorAt(i,farCol);
+        }else if(st===2){
+          /* Soft-reality recognition is a radial falloff inside truthful LoS,
+             not a hard vision circle. Terrain gradually loses colour/detail;
+             creature authority still uses the exact detail mask below. */
+          var lum=.2126*original.r+.7152*original.g+.0722*original.b,recognition=player?discoveryRecognitionAt(cell.c,cell.r):1;
+          farCol.setRGB(.13+lum*.44,.16+lum*.45,.16+lum*.43);visCol.lerp(farCol,1-recognition);mesh.setColorAt(i,visCol);
         }else mesh.setColorAt(i,visCol);
       }
     }
@@ -3453,12 +3468,16 @@ function applyDiscoveryInstances(player){
   DISCOVERY_RENDER.objects.forEach(function(obj){if(!obj||!obj.userData||!obj.userData.discoveryCell)return;var q=obj.userData.discoveryCell,st=player?discoveryStateAt(q.c,q.r):2,detailed=!player||discoveryDetailedAt(q.c,q.r);obj.visible=!player||(q.mode==='visible-only'?detailed:st!==0);});
 }
 function fogMaskCanvas(){
-  var scale=8,c=document.createElement('canvas');c.width=CB.map.cols*scale;c.height=CB.map.rows*scale;var x=c.getContext('2d');x.clearRect(0,0,c.width,c.height);
-  for(var r=0;r<CB.map.rows;r++)for(var col=0;col<CB.map.cols;col++)if(discoveryStateAt(col,r)===0){x.fillStyle='rgba(5,11,9,.98)';x.fillRect(col*scale,r*scale,scale,scale);}
-  return c;
+  var scale=12,w=CB.map.cols*scale,h=CB.map.rows*scale,mask=document.createElement('canvas');mask.width=w;mask.height=h;var mx=mask.getContext('2d');
+  mx.fillStyle='rgba(255,255,255,1)';for(var r=0;r<CB.map.rows;r++)for(var col=0;col<CB.map.cols;col++)if(discoveryStateAt(col,r)===0)mx.fillRect(col*scale,r*scale,scale,scale);
+  var c=document.createElement('canvas');c.width=w;c.height=h;var x=c.getContext('2d'),grad=x.createLinearGradient(0,0,w,h);grad.addColorStop(0,'rgba(20,31,29,.96)');grad.addColorStop(.48,'rgba(31,43,40,.93)');grad.addColorStop(1,'rgba(13,24,23,.97)');x.fillStyle=grad;x.fillRect(0,0,w,h);
+  /* A low-frequency deterministic cloud field makes unexplored space feel like
+     atmosphere rather than missing square tiles. It carries no topology. */
+  for(var i=0;i<Math.ceil((w*h)/(scale*scale*18));i++){var px=(i*97%Math.max(1,w)),py=(i*53%Math.max(1,h)),rad=scale*(1.4+(i%5)*.45),g=x.createRadialGradient(px,py,0,px,py,rad);g.addColorStop(0,'rgba(132,151,145,.10)');g.addColorStop(1,'rgba(132,151,145,0)');x.fillStyle=g;x.fillRect(px-rad,py-rad,rad*2,rad*2);}
+  x.globalCompositeOperation='destination-in';x.filter='blur('+Math.max(4,Math.round(scale*.7))+'px)';x.drawImage(mask,0,0);x.filter='none';x.globalCompositeOperation='source-over';return c;
 }
 function buildFogVeil(){
-  var canvas=fogMaskCanvas(),tex=new THREE.CanvasTexture(canvas);tex.magFilter=THREE.NearestFilter;tex.minFilter=THREE.NearestFilter;tex.generateMipmaps=false;tex.needsUpdate=true;
+  var canvas=fogMaskCanvas(),tex=new THREE.CanvasTexture(canvas);tex.magFilter=THREE.LinearFilter;tex.minFilter=THREE.LinearFilter;tex.generateMipmaps=false;tex.needsUpdate=true;
   /* The unknown mask is a floor beneath removed terrain, never an overhead
      slab. Depth testing lets real terrain occlude it and keeps it out of the
      camera/character volume in both top-down and 3D views. */
@@ -3478,18 +3497,18 @@ function updateDiscoveryStatus(){
   if(!discoveryPlayerView()){el.textContent='Discovery: Staff View shows the full battlefield.';return;}
   var D=discoveryApi(),vis=0,detail=0,exp=0,total=DISCOVERY.states.length;
   for(var i=0;i<total;i++){if(DISCOVERY.states[i]===D.VISIBLE)vis++;if(DISCOVERY.detail&&DISCOVERY.detail[i])detail++;if(DISCOVERY.states[i]!==D.UNEXPLORED)exp++;}
-  el.textContent='Party vision · '+detail+' detailed · '+vis+' in sight · '+exp+'/'+total+' explored';
+  el.textContent='Personal vision · '+detail+' detailed · '+vis+' in sight · '+exp+'/'+total+' party-explored';
 }
 function refreshDiscovery(force){
   var D=discoveryApi();if(!D||!CB.active||!CB.map){DISCOVERY.ready=false;clearFogMeshes();updateDiscoveryStatus();return;}
-  if(DISCOVERY.mapRef!==CB.map){DISCOVERY.mapRef=CB.map;DISCOVERY.mapSerial++;DISCOVERY.cache.clear();DISCOVERY.detail=null;DISCOVERY.visible=null;DISCOVERY.explored=null;DISCOVERY.states=null;DISCOVERY.localTrail=[];DISCOVERY.currentSig='';DISCOVERY.detailSig='';DISCOVERY.historySig='';DISCOVERY.fogSig='';force=true;}
-  var current=discoveryCurrentSources(),history=discoveryHistorySources();
+  if(DISCOVERY.mapRef!==CB.map){DISCOVERY.mapRef=CB.map;DISCOVERY.mapSerial++;DISCOVERY.cache.clear();DISCOVERY.detail=null;DISCOVERY.visible=null;DISCOVERY.explored=null;DISCOVERY.states=null;DISCOVERY.localTrail=[];DISCOVERY.currentSources=[];DISCOVERY.currentSig='';DISCOVERY.detailSig='';DISCOVERY.historySig='';DISCOVERY.fogSig='';force=true;}
+  var current=discoveryCurrentSources(),history=discoveryHistorySources();DISCOVERY.currentSources=current.slice();
   var currentSig=current.map(function(p){return p.unit+':'+p.c+','+p.r;}).sort().join('|');
   var detailSig=current.map(function(p){return p.unit+':'+p.c+','+p.r+':'+p.radiusFt;}).sort().join('|');
   var historySig=history.map(function(p){return p.unit+':'+p.c+','+p.r;}).sort().join('|');
-  if(force||currentSig!==DISCOVERY.currentSig){DISCOVERY.visible=D.unionMasks(current.map(function(p){return discoveryMaskFor(p,'broad');}),CB.map.cols*CB.map.rows);DISCOVERY.currentSig=currentSig;}
-  if(force||detailSig!==DISCOVERY.detailSig){DISCOVERY.detail=D.unionMasks(current.map(function(p){return discoveryMaskFor(p,'detail');}),CB.map.cols*CB.map.rows);DISCOVERY.detailSig=detailSig;}
-  if(force||historySig!==DISCOVERY.historySig){DISCOVERY.explored=D.unionMasks(history.map(function(p){return discoveryMaskFor(p,'broad');}),CB.map.cols*CB.map.rows);DISCOVERY.historySig=historySig;}
+  if(force||currentSig!==DISCOVERY.currentSig){var broad=D.unionMasks(current.map(function(p){return discoveryMaskFor(p,'broad');}),CB.map.cols*CB.map.rows);DISCOVERY.visible=D.connectedMask?D.connectedMask(broad,CB.map,current):broad;DISCOVERY.currentSig=currentSig;}
+  if(force||detailSig!==DISCOVERY.detailSig){var near=D.unionMasks(current.map(function(p){return discoveryMaskFor(p,'detail');}),CB.map.cols*CB.map.rows);DISCOVERY.detail=D.connectedMask?D.connectedMask(near,CB.map,current):near;DISCOVERY.detailSig=detailSig;}
+  if(force||historySig!==DISCOVERY.historySig){var memory=D.unionMasks(history.map(function(p){return discoveryMaskFor(p,'broad');}),CB.map.cols*CB.map.rows);DISCOVERY.explored=D.connectedMask?D.connectedMask(memory,CB.map,history):memory;DISCOVERY.historySig=historySig;}
   DISCOVERY.explored=D.mergeExplored(DISCOVERY.explored,DISCOVERY.visible);DISCOVERY.states=D.composeStates(DISCOVERY.explored,DISCOVERY.visible);DISCOVERY.ready=true;
   applyDiscoveryFog(force);updateDiscoveryStatus();
 }
@@ -3550,6 +3569,8 @@ function resetLocalEffects(order){
   if(order&&order.length)localEffectEvent("initiative_set","__local",{order:order},true);else syncEffectBadges();
 }
 function sanctuaryAction(a){var E=effectApi();return !!(E&&E.isSanctuaryAction(a));}
+function initiativeBuffKind(a){var k=String(a&&a.effectKind||"").toLowerCase();if(k)return k;var l=String(a&&a.label||"").toLowerCase();if(/^gift of alacrity(?:\s|$)/.test(l))return "gift-of-alacrity";if(/^guidance(?:\s|$)/.test(l))return "guidance";if(/^bardic inspiration(?:\s|$)/.test(l))return "bardic-inspiration";return "";}
+function initiativeBuffOps(u,a,t,nonce){var E=effectApi(),k=initiativeBuffKind(a),ops=[];if(!E||!k)return null;if(k==="guidance")ops=concentrationBreakOps(u,"Guidance replaced concentration");var op=k==="gift-of-alacrity"?E.addGiftOfAlacrity({source:u.unit,target:t.unit,nonce:nonce}):k==="guidance"?E.addGuidance({source:u.unit,target:t.unit,nonce:nonce}):E.addBardicInspiration({source:u.unit,target:t.unit,nonce:nonce,die:a.die||"1d6"});ops.push(op);return ops;}
 function harmfulDirect(a){var E=effectApi();return !!(E&&E.harmfulDirect(a));}
 function wisdomSaveMod(u){
   if(!u)return 0;
@@ -4149,6 +4170,7 @@ function buildUnit(kit, side, opts){
     name: opts.name || (kit && kit.name) || opts.key,
     c: opts.c, r: opts.r, hp: opts.hp, hpMax: opts.hpMax,
     ac: kit && kit.ac, speed: (kit && kit.speed) || 30, initMod: (kit && kit.init) || 0,
+    initiativeProfile: JSON.parse(JSON.stringify((kit && kit.initiativeProfile) || {modifier:(kit&&kit.init)||0,staticSources:[],advantageSources:[],disadvantageSources:[],diceSources:[],auras:[],warnings:[]})),
     climb: !!(kit && kit.climb), res: normalizeResourceRecord((kit && kit.res) || {}),
     pools: JSON.parse(JSON.stringify((kit && kit.pools) || [])),
     saveMods: JSON.parse(JSON.stringify((kit && kit.saveMods) || {})),
@@ -5943,17 +5965,26 @@ function selectAction(idx,castChoice){
 function finishAction(){ hideUpcastPick(); closeSanctuaryChoice(); CB.pending=null;clearConfirmTarget();CB.tgtKey=null; CONTEST_COVER=false; SANCTUARY_REJECT={}; snapshot("Action"); reconcileMovementPresentation(); drawSight(); renderHud(); maybeEnd(); }
 function blessAction(a){return !!(a&&(a.effectKind==="bless"||/^bless(?:\s|$)/i.test(a.label||"")));}
 function openBlessPicker(u,a){
-  var max=Math.max(1,Number(a.targetCount)||3)+Math.max(0,(Number(a.castLevel)||Number(a.level)||1)-(Number(a.level)||1));
-  var elig=CB.units.filter(function(x){return x.alive&&x.side===u.side&&cbDist({c:u.c,r:u.r},{c:x.c,r:x.r})<=rangeFt(a);});
-  if(!elig.length){clog("<i>Bless: no allies are in range.</i>");return;}
+  var max=Math.max(1,Number(a.targetCount)||3)+Math.max(0,(Number(a.castLevel)||Number(a.level)||1)-(Number(a.level)||1)),spellRange=rangeFt(a);
+  syncGeometryCreatures();
+  var choices=CB.units.filter(function(x){return x.alive&&x.side===u.side;}).map(function(x){
+    var dist=cbDist({c:u.c,r:u.r},{c:x.c,r:x.r}),inRange=dist<=spellRange+1e-6,clear=true,why="";
+    if(x!==u){var v=TG.losVerdict(CB.map,{c:u.c,r:u.r},{c:x.c,r:x.r},{ignoreCreatures:true});clear=!!(v&&v.canTarget);if(!clear)why="blocked by total cover";}
+    return {unit:x.unit,name:x.name,dist:dist,inRange:inRange,clear:clear,canPick:inRange&&clear,why:why};
+  });
+  if(!choices.some(function(x){return x.canPick;})){clog("<i>Bless: no allies are both within "+spellRange+" ft and reachable through a clear spell path.</i>");return;}
   var picked={};
-  var ov=document.createElement("div");ov.className="cbReact";ov.innerHTML='<div class="cbReactCard cbBlessCard"><div class="cbReactEy">Bless · concentration</div><div class="cbReactTitle">Choose up to '+max+' creatures</div><div class="cbReactDesc">Each chosen creature adds 1d4 to attack rolls and saving throws while concentration lasts.</div><div class="cbBlessTargets"></div><div class="cbReactBtns"><button class="cbReactSkip" data-b-cancel>Cancel</button><button class="cbReactUse" data-b-confirm disabled>Cast Bless</button></div></div>';document.body.appendChild(ov);
+  var ov=document.createElement("div");ov.className="cbReact";ov.innerHTML='<div class="cbReactCard cbBlessCard"><div class="cbReactEy">Bless · concentration · '+spellRange+' ft</div><div class="cbReactTitle">Choose up to '+max+' creatures</div><div class="cbReactDesc">Distance and total cover are checked before casting. Each chosen creature adds 1d4 to attack rolls and saving throws while concentration lasts.</div><div class="cbBlessTargets"></div><div class="cbReactBtns"><button class="cbReactSkip" data-b-cancel>Cancel</button><button class="cbReactUse" data-b-confirm disabled>Cast Bless</button></div></div>';document.body.appendChild(ov);
   var host=ov.querySelector('.cbBlessTargets'),confirm=ov.querySelector('[data-b-confirm]');
-  function paint(){host.innerHTML=elig.map(function(x){var on=!!picked[x.unit];return '<button type="button" class="cbBlessTarget'+(on?' on':'')+'" data-u="'+escapeHtml(x.unit)+'" aria-pressed="'+on+'">'+escapeHtml(x.name)+'</button>';}).join('');host.querySelectorAll('[data-u]').forEach(function(b){b.onclick=function(){var k=b.dataset.u;if(picked[k])delete picked[k];else if(Object.keys(picked).length<max)picked[k]=true;paint();};});confirm.disabled=Object.keys(picked).length===0;confirm.textContent='Cast Bless · '+Object.keys(picked).length+'/'+max;}
+  function paint(){
+    host.innerHTML=choices.map(function(x){var on=!!picked[x.unit],status=x.canPick?(Math.round(x.dist)+' ft'):(x.inRange?('Blocked · '+Math.round(x.dist)+' ft'):('Out of range · '+Math.round(x.dist)+' ft')),cls=!x.inRange?' out':(!x.clear?' blocked':'');return '<button type="button" class="cbBlessTarget'+cls+(on?' on':'')+'" data-u="'+escapeHtml(x.unit)+'" aria-pressed="'+on+'"'+(x.canPick?'':' disabled')+'>'+escapeHtml(x.name)+'<span class="cbBlessMeta">'+escapeHtml(status)+'</span></button>';}).join('');
+    host.querySelectorAll('[data-u]:not(:disabled)').forEach(function(b){b.onclick=function(){var k=b.dataset.u;if(picked[k])delete picked[k];else if(Object.keys(picked).length<max)picked[k]=true;paint();};});confirm.disabled=Object.keys(picked).length===0;confirm.textContent='Cast Bless · '+Object.keys(picked).length+'/'+max;
+  }
   ov.querySelector('[data-b-cancel]').onclick=function(){ov.remove();};
-  confirm.onclick=function(){var targets=Object.keys(picked);if(!targets.length)return;ov.remove();var E=effectApi();if(!E){clog("<i>Bless cannot be applied — the effect ledger did not load.</i>");return;}var effects=concentrationBreakOps(u,"Bless replaced concentration").concat(E.addBlessGroup({source:u.unit,targets:targets,nonce:Date.now(),turns:10}));var ctx={kind:"bless",targets:targets,die:"1d4",concentration:true};if(window.__forgeSession)netUseAbility(u,a,targets,effects,{context:ctx});else{localEffectEvent("ability_used",u.unit,{ability:a.label,targets:targets,effects:effects,slot:a.bonus?"bonus":"action",spell:true,spell_level:Number(a.castLevel!=null?a.castLevel:a.level)||0,context:ctx});spend(u,a);finishAction();}};
+  confirm.onclick=function(){var targets=Object.keys(picked);if(!targets.length)return;ov.remove();var E=effectApi();if(!E){clog("<i>Bless cannot be applied — the effect ledger did not load.</i>");return;}var evidence=choices.filter(function(x){return targets.indexOf(x.unit)>=0;}).map(function(x){return {unit:x.unit,distance_ft:x.dist,line_of_effect:x.clear};});var effects=concentrationBreakOps(u,"Bless replaced concentration").concat(E.addBlessGroup({source:u.unit,targets:targets,nonce:Date.now(),turns:10}));var ctx={kind:"bless",targets:targets,target_evidence:evidence,range_ft:spellRange,die:"1d4",concentration:true};if(window.__forgeSession)netUseAbility(u,a,targets,effects,{context:ctx});else{localEffectEvent("ability_used",u.unit,{ability:a.label,targets:targets,effects:effects,slot:a.bonus?"bonus":"action",spell:true,spell_level:Number(a.castLevel!=null?a.castLevel:a.level)||0,context:ctx});spend(u,a);finishAction();}};
   paint();
 }
+
 function resolveOn(u,a,t){
   var sess=window.__forgeSession;
   function commit(){
@@ -5979,6 +6010,7 @@ function resolveOn(u,a,t){
         localEffectEvent("ability_used",u.unit,{ability:a.label,targets:[t.unit],effects:[op],slot:a.bonus?"bonus":"action"});
         spend(u,a);finishAction();return;
       }
+      var ibk=initiativeBuffKind(a);if(ibk){if(sess){netBuffAlly(u,a,t);return;}var iops=initiativeBuffOps(u,a,t,LOCAL_EFFECT_SEQ+1);if(!iops){clog("<i>"+escapeHtml(a.label)+" cannot be applied — the effect ledger did not load.</i>");return;}localEffectEvent("ability_used",u.unit,{ability:a.label,targets:[t.unit],effects:iops,slot:a.bonus?"bonus":"action",spell:!!a.spell,spell_level:Number(a.level)||0,context:{kind:ibk,target:t.unit,die:a.die||(ibk==="gift-of-alacrity"?"1d8":ibk==="guidance"?"1d4":"1d6")}});spend(u,a);finishAction();return;}
       if(sess){netBuffAlly(u,a,t);return;}t.inspired=true;clog(u.name+" inspires "+t.name+" (advantage on next attack).");spend(u,a);finishAction();return;
     }
   }
@@ -7827,9 +7859,9 @@ function netBuffAlly(u,a,t){
     var op=E.addSanctuary({source:u.unit,target:t.unit,dc:wardDc,nonce:Date.now()});
     netUseAbility(u,a,[t.unit],[op],{context:"Sanctuary wards "+t.name+" for up to 1 minute."});return;
   }
+  var ibk=initiativeBuffKind(a);if(ibk){var ops=initiativeBuffOps(u,a,t,Date.now());if(!ops){clog("<i>"+escapeHtml(a.label)+" cannot be applied — the effect ledger did not load.</i>");return;}clog(u.name+" grants "+a.label+" to "+t.name+".");netUseAbility(u,a,[t.unit],ops,{context:{kind:ibk,target:t.unit,die:a.die||(ibk==="gift-of-alacrity"?"1d8":ibk==="guidance"?"1d4":"1d6")}});return;}
   clog(u.name+" inspires "+t.name+" (advantage on next attack).");
-  // M4 (final-review): t.inspired is local-only — arm it on publish success only.
-  netUseAbility(u,a,[t.unit],[],{ context:"bardic inspiration — advantage on "+t.name+"'s next attack (local only, not yet synced)",
+  netUseAbility(u,a,[t.unit],[],{ context:"inspiration — advantage on "+t.name+"'s next attack",
     onSuccess:function(){ t.inspired=true; } });
 }
 /* the unit key of who controls the active seat — "the DM" for foes/unclaimed
@@ -7882,22 +7914,47 @@ function initConfirmFail(r){
     renderInitiativeLobby();
   }
 }
+function initiativeProfileForUnit(u){
+  var FI=window.ForgeInitiative;if(!FI||!u)return null;
+  return FI.profile(u,{effects:effectList(u),units:CB.units||[],distanceFt:function(a,b){return cbDist({c:a.c,r:a.r},{c:b.c,r:b.r});}});
+}
+function initiativeEvidenceFor(u,mode,value){
+  var FI=window.ForgeInitiative,profile=initiativeProfileForUnit(u);if(!FI||!profile)return null;
+  if(mode==="manual-total")return FI.resolve(profile,{mode:mode,total:value});
+  if(mode==="physical-d20")return FI.resolve(profile,{mode:mode,d20:value,rng:function(sides){return d(sides);}});
+  return FI.resolve(profile,{mode:"rolled",rng:function(sides){return d(sides);}});
+}
+function publishInitiativeEvidence(sess,unitKey,evidence){
+  var FI=window.ForgeInitiative,u=unitByKey(unitKey);if(!FI||!evidence){delete __initPublishing[unitKey];clog('<i>Initiative evidence could not be built.</i>');renderInitiativeLobby();return;}
+  __initPublishing[unitKey]=true;renderInitiativeLobby();
+  clog('<i>Initiative — '+escapeHtml((u&&u.name)||unitKey)+': '+escapeHtml(FI.componentText(evidence))+'</i>');
+  sess.pipe.rollInitiative(unitKey,FI.payload(evidence)).then(function(r){initRollFail(unitKey,r);});
+}
 function rollForUnit(sess,unitKey){
-  if(__initPublishing[unitKey]) return;   // a previous tap for this unit hasn't echoed (or failed) yet
-  __initPublishing[unitKey]=true;
-  renderInitiativeLobby();   // paint "rolling…" immediately, don't wait for the next event
-  var u=unitByKey(unitKey), mod=u?u.initMod:0, total=d(20)+mod;
-  clog("<i>Initiative — "+escapeHtml((u&&u.name)||unitKey)+": "+total+"</i>");
-  sess.pipe.rollInitiative(unitKey,total).then(function(r){ initRollFail(unitKey,r); });
+  if(__initPublishing[unitKey])return;
+  var u=unitByKey(unitKey);publishInitiativeEvidence(sess,unitKey,initiativeEvidenceFor(u,"rolled"));
 }
 function rollForRest(){
-  var sess=window.__forgeSession; if(!sess||!sess.me.overseer) return;
-  var st=sess.pipe.state();
-  (sess.row.roster||[]).forEach(function(r){ if(st.rolls[r.unit]==null) rollForUnit(sess,r.unit); });
+  var sess=window.__forgeSession;if(!sess||!sess.me.overseer)return;var st=sess.pipe.state();
+  (sess.row.roster||[]).forEach(function(r){if(st.rolls[r.unit]==null)rollForUnit(sess,r.unit);});
 }
-function setManualInitiative(sess,unitKey,value){
-  var n=Number(value);if(!Number.isFinite(n)){clog("<i>Initiative must be a number.</i>");renderInitiativeLobby();return;}
-  __initPublishing[unitKey]=true;renderInitiativeLobby();clog("<i>Initiative — "+escapeHtml((unitByKey(unitKey)&&unitByKey(unitKey).name)||unitKey)+": "+n+" (entered)</i>");sess.pipe.rollInitiative(unitKey,n).then(function(r){initRollFail(unitKey,r);});
+function setPhysicalInitiative(sess,unitKey,value){
+  if(__initPublishing[unitKey])return;var n=Number(value);
+  if(!Number.isFinite(n)||n<1||n>20){clog('<i>Physical initiative must be the kept d20 result, from 1 to 20.</i>');renderInitiativeLobby();return;}
+  publishInitiativeEvidence(sess,unitKey,initiativeEvidenceFor(unitByKey(unitKey),"physical-d20",Math.floor(n)));
+}
+function setManualInitiativeTotal(sess,unitKey,value){
+  if(__initPublishing[unitKey])return;var n=Number(value);
+  if(!Number.isFinite(n)){clog('<i>Initiative total must be a number.</i>');renderInitiativeLobby();return;}
+  publishInitiativeEvidence(sess,unitKey,initiativeEvidenceFor(unitByKey(unitKey),"manual-total",n));
+}
+function initiativeEvidenceHtml(e){
+  if(!e)return '<span class="cbInitEvidenceWarn">No component evidence yet.</span>';
+  var FI=window.ForgeInitiative,text=FI&&FI.componentText?FI.componentText(e):('Total '+(e.total!=null?e.total:e.roll));
+  var sources=[];(e.advantageSources||[]).forEach(function(x){sources.push('Advantage: '+(x.label||x.key));});(e.disadvantageSources||[]).forEach(function(x){sources.push('Disadvantage: '+(x.label||x.key));});
+  var html='<span>'+escapeHtml(text)+'</span>';
+  if(sources.length)html+='<div>'+sources.map(function(x){return '<span class="cbInitSource">'+escapeHtml(x)+'</span>';}).join('')+'</div>';
+  (e.warnings||[]).forEach(function(w){html+='<span class="cbInitEvidenceWarn">'+escapeHtml(w)+'</span>';});return html;
 }
 function moveInitiativeDraft(unitKey,delta){
   if(!__initDraftOrder)return;var i=__initDraftOrder.indexOf(unitKey),j=i+delta;if(i<0||j<0||j>=__initDraftOrder.length)return;var t=__initDraftOrder[i];__initDraftOrder[i]=__initDraftOrder[j];__initDraftOrder[j]=t;renderInitiativeLobby();
@@ -7918,13 +7975,21 @@ function confirmInitiative(){
 function renderInitiativeLobby(){
   var sess=window.__forgeSession;if(!sess)return;var st=sess.pipe.state(),box=document.getElementById("cbInitLobbyList");if(!box)return;
   var roster=sess.row.roster||[],by={};roster.forEach(function(r){by[r.unit]=r;});var keys=(__initDraftOrder&&__initDraftOrder.length?__initDraftOrder:roster.map(function(r){return r.unit;})).filter(function(k){return by[k];});
-  var ey=document.getElementById("cbInitEy"),title=document.getElementById("cbInitTitle");if(ey)ey.textContent=__initEditing?"Initiative · overseer":"Initiative";if(title)title.textContent=__initEditing?"Enter rolls and arrange turn order":"Roll for it";
-  box.innerHTML=keys.map(function(k,index){var r=by[k],roll=st.rolls[k],mine=window.ForgeBoard.controls(sess.me,k),rolling=!!__initPublishing[k],controls='';
-    if(sess.me.overseer){var orderButtons=__initEditing?'<span class="cbInitOrder"><button type="button" data-up="'+escapeHtml(k)+'"'+(index===0?' disabled':'')+' aria-label="Move earlier">↑</button><button type="button" data-down="'+escapeHtml(k)+'"'+(index===keys.length-1?' disabled':'')+' aria-label="Move later">↓</button></span>':'';controls=orderButtons+'<input class="cbInitScore" type="number" step="1" data-score="'+escapeHtml(k)+'" value="'+(roll!=null?escapeHtml(roll):'')+'" placeholder="—" aria-label="Initiative for '+escapeHtml(r.name||k)+'"><button class="cbInitRoll" data-u="'+escapeHtml(k)+'"'+(rolling?' disabled':'')+'>'+(rolling?'…':'Roll')+'</button>';
-    }else controls=roll!=null?'<b>'+roll+'</b>':(mine?'<button class="cbInitRoll" data-u="'+escapeHtml(k)+'"'+(rolling?' disabled':'')+'>'+(rolling?'rolling…':'Roll')+'</button>':'<i>waiting…</i>');
-    return '<div class="cbInitRow"><span>'+escapeHtml(r.name||k)+'</span><span class="cbInitVal">'+controls+'</span></div>';}).join('');
+  var ey=document.getElementById("cbInitEy"),title=document.getElementById("cbInitTitle");if(ey)ey.textContent=__initEditing?"Initiative · overseer":"Initiative";if(title)title.textContent=__initEditing?"Enter rolls and arrange turn order":"Roll with full evidence";
+  box.innerHTML=keys.map(function(k,index){
+    var r=by[k],roll=st.rolls[k],evidence=st.initiativeEvidence&&st.initiativeEvidence[k],mine=window.ForgeBoard.controls(sess.me,k),rolling=!!__initPublishing[k],canAct=sess.me.overseer||mine,controls='';
+    var orderButtons=sess.me.overseer&&__initEditing?'<span class="cbInitOrder"><button type="button" data-up="'+escapeHtml(k)+'"'+(index===0?' disabled':'')+' aria-label="Move earlier">↑</button><button type="button" data-down="'+escapeHtml(k)+'"'+(index===keys.length-1?' disabled':'')+' aria-label="Move later">↓</button></span>':'';
+    if(canAct){
+      controls=orderButtons+'<span class="cbInitTotal">'+(roll!=null?escapeHtml(roll):'—')+'</span><button class="cbInitRoll" data-u="'+escapeHtml(k)+'"'+(rolling?' disabled':'')+'>'+(rolling?'…':'Roll')+'</button>'+
+        '<span class="cbInitEntry"><input class="cbInitScore" type="number" min="1" max="20" step="1" data-d20="'+escapeHtml(k)+'" placeholder="d20" aria-label="Physical d20 for '+escapeHtml(r.name||k)+'"><button class="cbInitMini" data-use-d20="'+escapeHtml(k)+'"'+(rolling?' disabled':'')+'>Use d20</button></span>';
+      if(sess.me.overseer)controls+='<span class="cbInitEntry"><input class="cbInitScore" type="number" step="1" data-total="'+escapeHtml(k)+'" placeholder="total" aria-label="Manual total for '+escapeHtml(r.name||k)+'"><button class="cbInitMini" data-use-total="'+escapeHtml(k)+'"'+(rolling?' disabled':'')+'>Set total</button></span>';
+    }else controls=roll!=null?'<span class="cbInitTotal">'+escapeHtml(roll)+'</span>':'<i>waiting…</i>';
+    return '<div class="cbInitRow"><span class="cbInitName">'+escapeHtml(r.name||k)+'</span><span class="cbInitVal">'+controls+'</span><div class="cbInitEvidence">'+initiativeEvidenceHtml(evidence)+'</div></div>';
+  }).join('');
   box.querySelectorAll('.cbInitRoll').forEach(function(b){b.onclick=function(){rollForUnit(sess,b.dataset.u);};});
-  box.querySelectorAll('[data-score]').forEach(function(inp){inp.onchange=function(){setManualInitiative(sess,inp.dataset.score,inp.value);};});
+  box.querySelectorAll('[data-use-d20]').forEach(function(b){b.onclick=function(){var inp=box.querySelector('[data-d20="'+CSS.escape(b.dataset.useD20)+'"]');setPhysicalInitiative(sess,b.dataset.useD20,inp&&inp.value);};});
+  box.querySelectorAll('[data-use-total]').forEach(function(b){b.onclick=function(){var inp=box.querySelector('[data-total="'+CSS.escape(b.dataset.useTotal)+'"]');setManualInitiativeTotal(sess,b.dataset.useTotal,inp&&inp.value);};});
+  box.querySelectorAll('[data-d20],[data-total]').forEach(function(inp){inp.onkeydown=function(ev){if(ev.key!=="Enter")return;var key=inp.dataset.d20||inp.dataset.total;if(inp.dataset.d20!=null)setPhysicalInitiative(sess,key,inp.value);else setManualInitiativeTotal(sess,key,inp.value);};});
   box.querySelectorAll('[data-up]').forEach(function(b){b.onclick=function(){moveInitiativeDraft(b.dataset.up,-1);};});box.querySelectorAll('[data-down]').forEach(function(b){b.onclick=function(){moveInitiativeDraft(b.dataset.down,1);};});
   var ob=document.getElementById("cbInitLobbyOverseerBtns");if(ob){ob.style.display=sess.me.overseer?"flex":"none";if(sess.me.overseer){var allRolled=roster.every(function(r){return st.rolls[r.unit]!=null;}),cancel=document.getElementById("cbInitCancel"),rest=document.getElementById("cbInitRollRest");if(cancel)cancel.style.display=__initEditing?"":"none";if(rest){rest.disabled=allRolled;rest.style.display=__initEditing?"none":"";}var conf=document.getElementById("cbInitConfirm");if(conf){conf.disabled=__initConfirming;conf.textContent=__initConfirming?"confirming…":(st.initiative?"Apply order":"Confirm order");}}}
 }

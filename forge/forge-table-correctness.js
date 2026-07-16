@@ -118,9 +118,24 @@
     if(f.action==="add")return '<div class="ffr-head"><b>'+label+'</b> <span class="ffr-verdict effect">APPLIED</span></div><div class="ffr-primary">'+target+' is warded'+(e.dc!=null?' · Wisdom save DC '+esc(e.dc):'')+'.</div>';
     return '<div class="ffr-head"><b>'+label+'</b> <span class="ffr-verdict miss">ENDED</span></div><div class="ffr-primary">'+target+(f.reason?' · '+esc(f.reason):'')+'.</div>';
   }
+  function initiativeHtml(f){
+    var e=f.evidence||{},name=esc(unitName(f.actor||e.unit||""));
+    if(e.opaque||e.mode==="manual-total"||e.mode==="legacy-total"){
+      return '<div class="ffr-head"><b>'+name+'</b> · Initiative <span class="ffr-verdict neutral">'+esc(e.total!=null?e.total:f.total)+'</span></div>'+
+        '<div class="ffr-primary">'+esc((e.warnings&&e.warnings[0])||"Manually entered total — component evidence unavailable.")+'</div>';
+    }
+    var rolls=e.d20Rolls||[],kept=e.d20KeptIndex==null?0:e.d20KeptIndex,d20=rolls.length?rolls.map(function(v,i){return '<span class="ffr-die '+(i===kept?'ffr-keep':'ffr-drop')+'">'+esc(v)+'</span>';}).join(' '):esc(e.d20||"");
+    var parts=[];(e.staticSources||[]).forEach(function(x){var v=Number(x.value)||0;if(v)parts.push(esc(x.label||x.key)+' '+(v>=0?'+':'')+esc(v));});
+    (e.dice||[]).forEach(function(x){parts.push(esc(x.label||x.key)+' '+esc(x.die)+' → <b>'+esc(x.roll)+'</b>');});
+    var adv=[];(e.advantageSources||[]).forEach(function(x){adv.push(esc(x.label||x.key));});(e.disadvantageSources||[]).forEach(function(x){adv.push('Disadvantage: '+esc(x.label||x.key));});
+    return '<div class="ffr-head"><b>'+name+'</b> · Initiative <span class="ffr-verdict save">'+esc(e.total)+'</span></div>'+
+      '<div class="ffr-math">'+d20+(parts.length?' · '+parts.join(' · '):'')+' = <b>'+esc(e.total)+'</b></div>'+
+      (adv.length?'<div class="ffr-primary">'+adv.join(' · ')+'</div>':'');
+  }
   function factHtml(fact){
     var body="";
     if(fact.kind==="effect"||fact.kind==="sanctuary-save")body=effectHtml(fact);
+    else if(fact.kind==="initiative")body=initiativeHtml(fact);
     else{
       var fr=root.ForgeFeedRender;if(!fr)return "";
       body=(fact.kind==="ability"||fact.ability&&!fact.roll&&!fact.saveAbility)?fr.abilityBody(fact,{unitName:unitName}):fr.rollBody(fact,{unitName:unitName});
@@ -139,6 +154,10 @@
   }
   function factFromEvent(row,declared){
     if(!row)return null;
+    if(row.kind==="initiative_rolled"){
+      var ip=row.payload||{},ie=ip.initiative_evidence||{mode:"legacy-total",total:ip.roll,roll:ip.roll,opaque:true,warnings:["Legacy initiative total — component evidence unavailable."]};
+      return {kind:"initiative",actor:row.unit,total:ip.roll,evidence:ie};
+    }
     if(row.kind==="prompt_answered"&&row.payload&&row.payload.context&&row.payload.context.kind==="opportunity-attack"){
       var o=row.payload.context;return {kind:"attack",actor:o.actor||row.unit,target:o.target,mode:o.mode||"Opportunity Attack",roll:o.roll,rollTotal:o.roll_total,hitBonus:o.hitBonus,hit:!!o.hit,crit:!!o.crit,dmg:o.dmg,dmgParts:o.dmgParts,dmgFormula:o.dmgFormula,mods:o.mods||[],d20Rolls:o.d20_rolls,d20KeptIndex:o.d20_kept_index,narration:o.warded?"Sanctuary turned the opportunity attack aside.":null,concentration:o.concentration||row.payload.concentration||null};
     }

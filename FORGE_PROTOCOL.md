@@ -56,7 +56,7 @@ round) is never stored — it is derived by replaying the log top to bottom.
 | kind | said at the table | payload sketch | writer |
 |---|---|---|---|
 | `session_started` | "We're fighting — map and roster locked." | `{}` (map/roster live on the session row) | overseer |
-| `initiative_rolled` | "I rolled a 14." | `{roll}` | each player (own device); overseer for foes/absent |
+| `initiative_rolled` | "I rolled a 14." | `{roll, initiative_evidence?, effects?}` | each player (own device); overseer for foes/absent |
 | `initiative_set` | "Order is: Caim, goblin 2, Cosmere…" | `{order:[unit,...], resume_at?}` | overseer |
 | `turn_ended` | "Done." | `{}` | active player; overseer may force (actor shows who) |
 | `move_declared` | "I move along this path." | `{path}` | mover |
@@ -110,8 +110,13 @@ round) is never stored — it is derived by replaying the log top to bottom.
 ## §3 · Turn flow
 
 - **Initiative:** fight start → each player's device shows their roll button; taps publish
-  `initiative_rolled`. Overseer rolls foes, and rolls for anyone absent (fallback pattern,
-  same as prompt timeout). When all in, overseer publishes `initiative_set`; round 1 begins.
+  `initiative_rolled`. New rows include `initiative_evidence`: raw d20s, kept index,
+  advantage/disadvantage sources, named static modifiers, rolled modifier dice, entry mode,
+  warnings, and the final total. `effects` carries one-use modifier removals such as Guidance
+  or Bardic Inspiration. A physical-d20 entry still applies known Forge modifiers; an
+  overseer-entered final total is explicitly marked opaque. Legacy `{roll}` rows remain
+  replayable and are labeled as totals without component evidence. Overseer rolls foes and
+  anyone absent. When all results are in, overseer publishes `initiative_set`; round 1 begins.
 - **Active unit:** highlighted on every board; only its controller's device shows action
   buttons (client turn gating). The overseer view always has controls.
 - **End/force:** active player taps End Turn → `turn_ended`. Overseer can force-advance;

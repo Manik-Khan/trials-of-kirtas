@@ -165,7 +165,15 @@
         });
       },
       useAbility: function (unit, facts) { return publish(unit, "ability_used", facts); },
-      rollInitiative: function (unit, roll) { return publish(unit, "initiative_rolled", { roll: roll }); },
+      rollInitiative: function (unit, evidenceOrRoll) {
+        var payload;
+        if (evidenceOrRoll && typeof evidenceOrRoll === "object") {
+          payload = Object.assign({}, evidenceOrRoll);
+          if (payload.initiative_evidence && payload.roll == null)
+            payload.roll = Number(payload.initiative_evidence.total != null ? payload.initiative_evidence.total : payload.initiative_evidence.roll) || 0;
+        } else payload = { roll: Number(evidenceOrRoll) || 0 };
+        return publish(unit, "initiative_rolled", payload);
+      },
       endTurn: function (unit) { return publish(unit, "turn_ended", {}); },
       chat: function (unit, text) { return publish(unit, "chat", { text: text }); },
       declareReaction: function (unit, react, triggerSeq, context) {

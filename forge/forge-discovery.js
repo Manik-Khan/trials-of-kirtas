@@ -18,7 +18,7 @@
 })(typeof self!=="undefined"?self:this,function(){
   "use strict";
 
-  var VERSION="1.2.0";
+  var VERSION="1.3.0";
   var UNEXPLORED=0, EXPLORED=1, VISIBLE=2;
   var DEFAULT_SIGHT_FT=60;
 
@@ -93,6 +93,18 @@
   function unionMasks(masks,n){
     var out=new Uint8Array(n||0);
     (masks||[]).forEach(function(mask){if(!mask)return;for(var i=0;i<out.length&&i<mask.length;i++)if(mask[i])out[i]=1;});
+    return out;
+  }
+  /* Presentation cleanup without inventing visibility. Keep only visible cells
+     connected to a current eye source. This removes isolated sampling specks
+     while never changing a hidden cell to visible. Eight-way connectivity lets
+     truthful diagonal doorway wedges remain intact. */
+  function connectedMask(mask,map,origins){
+    var d=dims(map),out=new Uint8Array(d.cols*d.rows),seen=new Uint8Array(d.cols*d.rows),q=[],head=0;
+    if(!mask||!d.cols||!d.rows)return out;
+    (origins||[]).forEach(function(o){if(!o||!inBounds(map,o.c,o.r))return;var i=idx(map,o.c,o.r);if(mask[i]&&!seen[i]){seen[i]=1;out[i]=1;q.push({c:o.c,r:o.r});}});
+    var dirs=[[-1,-1],[0,-1],[1,-1],[-1,0],[1,0],[-1,1],[0,1],[1,1]];
+    while(head<q.length){var p=q[head++];for(var k=0;k<dirs.length;k++){var c=p.c+dirs[k][0],r=p.r+dirs[k][1];if(!inBounds(map,c,r))continue;var j=idx(map,c,r);if(mask[j]&&!seen[j]){seen[j]=1;out[j]=1;q.push({c:c,r:r});}}}
     return out;
   }
   function partyVisible(map,units,geometry,opts){
@@ -174,7 +186,7 @@
 
   return Object.freeze({VERSION:VERSION,UNEXPLORED:UNEXPLORED,EXPLORED:EXPLORED,VISIBLE:VISIBLE,
     DEFAULT_SIGHT_FT:DEFAULT_SIGHT_FT,dims:dims,idx:idx,inBounds:inBounds,uniqueCells:uniqueCells,
-    sightRadiusFt:sightRadiusFt,rangeFt:rangeFt,lineVisible:lineVisible,visibleFrom:visibleFrom,unionMasks:unionMasks,
+    sightRadiusFt:sightRadiusFt,rangeFt:rangeFt,lineVisible:lineVisible,visibleFrom:visibleFrom,unionMasks:unionMasks,connectedMask:connectedMask,
     partyVisible:partyVisible,mergeExplored:mergeExplored,composeStates:composeStates,
     cellState:cellState,cellVisible:cellVisible,historySources:historySources,
     classifyReachResult:classifyReachResult,classifyOrigins:classifyOrigins,stateColor:stateColor});

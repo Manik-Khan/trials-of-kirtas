@@ -5,7 +5,7 @@ let pass=0;
 function ok(v,label){if(!v)throw new Error("FAIL: "+label);pass++;console.log("ok",pass,"-",label);}
 function row(seq,kind,unit,payload){return {seq,kind,unit,payload:payload||{}};}
 
-ok(E.VERSION==="1.2.0","version pinned");
+ok(E.VERSION==="1.3.0","version pinned");
 const add=E.addSanctuary({source:"liadan",target:"vesperian",dc:13,nonce:7});
 ok(add.add_effect.kind==="sanctuary"&&add.add_effect.dc===13,"Sanctuary effect record carries kind and DC");
 ok(add.add_effect.duration.count===10&&add.add_effect.duration.unit==="liadan","Sanctuary lasts ten source turns");
@@ -89,6 +89,12 @@ const reordered=E.replay([row(1,"initiative_set","dm",{order:["liadan","caim"]})
 ok(reordered.active==="liadan"&&reordered.starts.liadan===1,"reinforcement reorders resume without inventing a new turn start");
 const droppedActive=E.replay([row(1,"initiative_set","dm",{order:["a","b"]}),row(2,"initiative_set","dm",{order:["b","c"]})]);
 ok(droppedActive.active==="b","initiative replacement falls back when the former active unit leaves the order");
+const gift=E.addGiftOfAlacrity({source:"liadan",target:"vesperian",nonce:21});
+const guidance=E.addGuidance({source:"liadan",target:"vesperian",nonce:22});
+const bardic=E.addBardicInspiration({source:"bard",target:"vesperian",nonce:23,die:"1d8"});
+ok(gift.add_effect.kind==="gift-of-alacrity"&&gift.add_effect.die==="1d8"&&!gift.add_effect.consumeOnUse,"Gift of Alacrity is persistent 1d8 initiative evidence");
+ok(guidance.add_effect.kind==="guidance"&&guidance.add_effect.die==="1d4"&&guidance.add_effect.consumeOnUse&&guidance.add_effect.concentration,"Guidance is a one-use concentration die");
+ok(bardic.add_effect.kind==="bardic-inspiration"&&bardic.add_effect.die==="1d8"&&bardic.add_effect.consumeOnUse,"Bardic Inspiration preserves its class die");
 const remSummary=E.eventSummary(row(20,"ability_used","vesperian",{effects:[removal]}));
 ok(remSummary[0].label==="Sanctuary"&&remSummary[0].effectKind==="sanctuary","effect-removal summary keeps its label and kind");
 console.log("\n"+pass+" Forge effect checks green");
