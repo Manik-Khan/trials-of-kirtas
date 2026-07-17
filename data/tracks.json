@@ -756,6 +756,13 @@
           "id": "mr7b8ip01s7x"
         }
       ]
+    },
+    {
+      "label": "Exploration",
+      "sigil": "ti-mountain",
+      "color": "#3a6a3a",
+      "id": "mrpcqk6il7y4",
+      "tracks": []
     }
   ],
   "scenes": [
