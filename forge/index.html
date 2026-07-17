@@ -4,7 +4,7 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
 <title>The Forge — Trials of Kirtas</title>
-<!-- Phase 2f.3: replayable structural-bridge states + correctness repairs -->
+<!-- Phase 2f.4: structural-bridge authority + Workshop diagnostics visibility -->
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,600;0,700;1,600&family=Oswald:wght@300;400;500;600&family=EB+Garamond:ital@0;1&display=swap" rel="stylesheet">
@@ -601,8 +601,13 @@ global.TacticsGeo=API;
   #cbAddFoeModal #afShelf{flex:1 1 28%}
   #cbAddFoeModal #afPicked{flex:0 0 auto}
   #cbAddFoeModal .cbReactBtns{position:sticky;bottom:0;flex:0 0 auto;margin-top:10px;padding-top:10px;background:linear-gradient(180deg,rgba(229,221,203,0),var(--tk-panel-2) 28%)}
-  /* Player presentation: privileged tools are absent, not merely disabled. */
-  body.forge-player-view #cbOverseer,body.forge-player-view #verticalGeometryPanel{display:none!important}
+  /* Player presentation: privileged live-table tools are absent, not merely disabled.
+     Workshop authoring is deliberately session-independent: ForgeTableCorrectness
+     installs before account/session authority is ready and may temporarily mark the
+     page as Player View. Do not let that early presentation mask hide the bridge
+     diagnostics before Roll Initiative, where Find bridge seed is actually usable. */
+  body.forge-player-view #cbOverseer{display:none!important}
+  body.combat-mode.forge-player-view #verticalGeometryPanel{display:none!important}
   body.forge-player-view.forge-active-foe #fgBar{display:none!important}
 
   @media (max-width:660px){.panel{width:calc(100% - 40px)}.attrib{display:none}.masthead .dn{font-size:12px}}
@@ -917,7 +922,7 @@ body.forge-author-preview #partySelect{opacity:0;pointer-events:none}
     <div class="psFoot">
       <div class="psCount" id="psCount"></div>
       <div class="psFootBtns">
-        <button class="psEveryone" id="psPreview">Inspect map</button>
+        <button class="psEveryone" id="psPreview" title="Inspect and author the battlefield before starting combat">Open Workshop</button>
         <button class="psEveryone" id="psEveryone">Everyone plays their own</button>
         <button class="psForge" id="psForge">Enter the Forge &rarr;</button>
       </div>
@@ -8800,6 +8805,10 @@ renderer.domElement.addEventListener("contextmenu", function(e){ if(ADD_FOE_PLAC
     document.body.classList.add("forge-author-preview");
     host.classList.add("gone");
     if(window.__forgeVerticalScale)window.__forgeVerticalScale.setAuthoring(document.getElementById("height").value);
+    /* Refresh authoring-only diagnostics now that the Workshop is visible.
+       This path intentionally does not require a shared session or staff role. */
+    if(typeof refreshVerticalGeometryPanel==="function")refreshVerticalGeometryPanel();
+    if(typeof refreshSceneMenu==="function")refreshSceneMenu();
   }
   function returnToParty(){
     document.body.classList.remove("forge-author-preview");
