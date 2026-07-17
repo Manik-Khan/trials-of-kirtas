@@ -1,5 +1,14 @@
 # Database migrations — Trials of Kirtas
 
+## Project documentation
+
+- [Project context](CONTEXT.md)
+- [Forge context](CONTEXT_Forge.md)
+- [Current Forge handoff](docs/handoffs/forge/README_NEW_SESSION_2026-07-16.md)
+- [Durable guides](docs/README.md)
+- [Historical records](archive/README.md)
+- [Test map](tests/README.md)
+
 This folder is the version-controlled home for **every schema / RLS / function /
 data change applied to the live Supabase project**. The live database is the
 source of truth today, but it is not reproducible from this repo unless the SQL

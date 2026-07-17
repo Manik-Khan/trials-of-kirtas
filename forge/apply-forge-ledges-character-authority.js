@@ -493,7 +493,7 @@ function main() {
   stageBundle('character-combat.js');
   stageBundle('forge/tests/smoke-character-combat.js');
   stageBundle('forge/tests/smoke-ledge-fire.js');
-  stageBundle('CONTEXT_Forge-update-2026-07-12f.md');
+  stageBundle('archive/context/forge/CONTEXT_Forge-update-2026-07-12f.md');
 
   const canonical = patchGeometry();
   syncGeometryIntoMocks(canonical);
@@ -503,7 +503,7 @@ function main() {
   validateStaged();
   commitStaged();
 
-  console.log('\nPatch applied without committing or pushing. Run README_APPLY.md, inspect git diff, then M commits/pushes.');
+  console.log('\nPatch applied without committing or pushing. Run archive/patches/forge/README_APPLY.md, inspect git diff, then M commits/pushes.');
 }
 
 try { main(); }

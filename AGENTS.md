@@ -1,11 +1,11 @@
-# CLAUDE.md — Trials of Kirtas
+# AGENTS.md — Trials of Kirtas
 
 Custom D&D 5e virtual tabletop. Live: **trials-of-kirtas.netlify.app** ·
 Repo: `Manik-Khan/trials-of-kirtas` (public).
 Stack: vanilla JS/HTML/CSS + Supabase + Netlify + GitHub. Walled React/Vite/TipTap
 corner at `journal/`. three.js battle mocks under `forge/`.
 
-The maintainer is **M** (Manik). Claude assists; **M deploys by hand.**
+The maintainer is **M** (Manik). Codex assists; **M deploys by hand.**
 
 ---
 
@@ -13,9 +13,9 @@ The maintainer is **M** (Manik). Claude assists; **M deploys by hand.**
 
 1. **Never `git push`.** Pushing `main` deploys the live site via Netlify — that
    button is M's alone. Since 2026-07-10 M commits and pushes himself (web upload
-   retired); Claude may `git commit` **only when M explicitly asks**, staging
-   files by name (never sweep in `.claude/` — it's gitignored; keep it so).
-   Otherwise Claude's job still ends at validated files + a one-line deploy note.
+   retired); Codex may `git commit` **only when M explicitly asks**, staging
+   files by name (never sweep in `.Codex/` — it's gitignored; keep it so).
+   Otherwise Codex's job still ends at validated files + a one-line deploy note.
 2. **Read the actual repo source before editing any file.** A plausible hypothesis
    is not a diagnosis. Most wasted motion in this project's history came from
    theorizing instead of reading. Open the file; grep the callers; then edit.
@@ -80,15 +80,15 @@ work from the file M is actually looking at.
 (browser `window.*` **and** Node `module.exports`), so the same code runs in both.
 
 ```
-node --check <file>.js              # syntax gate on everything you touch
-node forge/tests/smoke-los-cover.js # forge smokes (CommonJS .js and ESM .mjs both run under node)
-node tests/smoke/smoke-<name>.mjs   # root-application jsdom / known-answer smokes
+node --check <file>.js                         # syntax gate on everything you touch
+node forge/tests/smoke-los-cover.js            # Forge known-answer smoke
+node tests/smoke/smoke-sheet-mount.mjs         # root-application known-answer smoke
 ```
 
 Forge smokes (all known-answer, extract the real functions): `smoke-forge-engine.js`,
 `smoke-map-bridge.mjs`, `smoke-tactics-geometry.mjs`, `smoke-los-cover.js`,
-`smoke-placement.js`, `smoke-flora.js`. `tests/smoke/` holds the root-application
-smokes for the sheet, gear, shards, rail, and bardic systems.
+`smoke-placement.js`, `smoke-flora.js`. `tests/smoke/` covers the sheet, gear,
+shards, rail, appearance, Chronicle, and other root-application systems.
 
 For `.jsx` (the `journal/` React app), **the Vite build IS the check** — run it in
 `journal/`. `@babel/parser` also validates syntax.
@@ -101,7 +101,7 @@ For `.jsx` (the `journal/` React app), **the Vite build IS the check** — run i
 
 ## Deploy protocol
 
-- Claude produces **bare-filename files** (or a folder-structured zip for nested
+- Codex produces **bare-filename files** (or a folder-structured zip for nested
   paths) plus a **one-line deploy note** (which file → which destination, and any
   SQL). M uploads via GitHub web.
 - **Cache-stamp every module include and bump on change** — `?v=<token>` (e.g.

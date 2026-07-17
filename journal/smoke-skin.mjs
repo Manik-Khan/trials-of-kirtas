@@ -24,7 +24,7 @@ const t = (n, c) => { c ? (pass++, console.log('  ✓ ' + n)) : (fail++, console
 const sleep = ms => new Promise(r => setTimeout(r, ms))
 
 // .jsx can't be imported by node directly — smoke runs against an esbuild
-// bundle of the real sources (rebuild with the npx esbuild line in DEPLOY.md)
+// bundle of the real sources (rebuild with the npx esbuild line in docs/guides/DEPLOY.md)
 const { React, act, createRoot, App } = await import('./.smoke-app.mjs')
 
 console.log('smoke-skin')

@@ -1,0 +1,26 @@
+{
+  "CONTEXT.md": {
+    "sha256": "1cb5757f011bae5adebdbced87f80ec6de1e0992b2b3e5f401958137520f1e7a",
+    "bytes": 37468
+  },
+  "docs/handoffs/forge/CONTEXT_Forge-update-2026-07-16c.md": {
+    "sha256": "9c715a2f443841b4071a45dc21ceaf2e7b2d0c5574b22d45fc99baf7e7c39317",
+    "bytes": 7106
+  },
+  "CONTEXT_Forge.md": {
+    "sha256": "bd2a218d89b53032a0c5e7e1f3e1d7c55aac10464203fe20895be49622a1cb67",
+    "bytes": 52447
+  },
+  "docs/handoffs/forge/FORGE_PHASE2_REMAINDER_2026-07-16.md": {
+    "sha256": "0dc921c7187fa9539f451b5c34d04402f5ab24fc8475e7e4b72bbe259ab9aa0a",
+    "bytes": 5481
+  },
+  "docs/handoffs/forge/PHASE2F4_STRUCTURAL_BRIDGE_COMPLETION_2026-07-16.md": {
+    "sha256": "e6bc9050c7b38307ad5ec20d209ba45a7f343c9fd2a0726ad0cf94c878ec22e1",
+    "bytes": 4163
+  },
+  "docs/handoffs/forge/README_NEW_SESSION_2026-07-16.md": {
+    "sha256": "bd318f93d0412a6b280532e54daf1853f5b587e0cbbd48dcb02666ce2e991e07",
+    "bytes": 5638
+  }
+}

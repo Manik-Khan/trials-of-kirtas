@@ -4,14 +4,14 @@ Custom D&D 5e virtual tabletop. Live: **trials-of-kirtas.netlify.app**
 Repo: `Manik-Khan/trials-of-kirtas` · vanilla JS/HTML/CSS + Supabase + Netlify + GitHub.
 Walled React/Vite/TipTap corner at `journal/`.
 
-Updated: **July 13, 2026 (Battle Forge Phase 1.5 complete through geometry/fog calibration;
-active Phase 2 generator terrain is next).** Supersedes the earlier July 13 project handoff.
-The non-Forge sections stand as written there; the Forge section now carries July 10–13h.
-Reconciled sources include `CONTEXT_Forge.md`, the July 12g ledge/character-authority record,
-all July 13 a–h Forge handoffs, `FORGE_PROTOCOL.md`, `FORGE_BOARD.md`, and
-`FORGE_COVER_CONTEST.md`.
+Updated: **July 16, 2026 (Battle Forge Phase 2 through structural-bridge completion;
+current concise handoff 16c).** Supersedes the earlier July 13 project handoff.
+The non-Forge sections stand as written there; the current Forge execution state lives in
+`docs/handoffs/forge/`. Reconciled sources include `CONTEXT_Forge.md`, the July 16c handoff,
+`FORGE_PROTOCOL.md`, `FORGE_BOARD.md`, and `FORGE_COVER_CONTEST.md`.
 
-**Companion docs: `CONTEXT_Forge.md` and `CONTEXT_Forge-update-2026-07-13h.md` — read both before touching the Forge.** The canonical subsystem doc carries the port
+**Companion docs: `CONTEXT_Forge.md` and
+`docs/handoffs/forge/CONTEXT_Forge-update-2026-07-16c.md` — read both before touching the Forge.** The canonical subsystem doc carries the port
 manifest (what the combat system consists of, and which parts exist where), the settled geometry
 decisions, and the open bugs. This doc is the project; that one is the subsystem.
 
@@ -203,11 +203,11 @@ independent syncs), not the offset jumping.
 
 ---
 
-## 🟡 Battle Forge — Phase 1.5 complete; calibrated geometry/fog shipped in bundle; active Phase 2 next (July 8 → 13h)
+## 🟡 Battle Forge — Phase 2 active through structural-bridge completion (July 8 → 16c)
 
-**Current authority:** `CONTEXT_Forge-update-2026-07-13h.md` plus the refreshed
-`CONTEXT_Forge.md`. The older July 13 material below is historical progression; where it
-conflicts with the h handoff, h wins.
+**Current authority:** `docs/handoffs/forge/CONTEXT_Forge-update-2026-07-16c.md`
+plus `CONTEXT_Forge.md`. The older July 13 material below is historical progression; where it
+conflicts with the 16c handoff, 16c wins.
 
 ### July 13h — geometry and fog calibration closes Phase 1.5
 
@@ -249,7 +249,8 @@ encounter. **Optional layer that extends theatre-of-the-mind — never replaces 
 
 ### July 13 — visual pass, storybook backgrounds, and the next architecture
 
-Sixth Forge session (full handoff: `CONTEXT_Forge-update-2026-07-13a.md`). The topography
+Sixth Forge session (full handoff:
+`archive/context/forge/CONTEXT_Forge-update-2026-07-13a.md`). The topography
 surface received a real art/feel pass: authored biome fog, scale-correct flora tied to
 `PROP_FT`, lighter toon/AO/outline balance, cliff strata and decals, bounded magical
 PointLights, combat-mode chrome, visible sight lines, verdict badges, hit flash, shake, idle
@@ -281,7 +282,8 @@ The next approved architecture order is:
 
 ### July 12 (late) — ledge firing, database character authority, and the ranged-weapon fix
 
-Fifth Forge session of the day (full record: `CONTEXT_Forge-update-2026-07-12g.md`). Three
+Fifth Forge session of the day (full record:
+`archive/context/forge/CONTEXT_Forge-update-2026-07-12g.md`). Three
 things went live, each table-relevant:
 
 - **Ledge firing (M's ruling 2026-07-12, now §4-settled in `CONTEXT_Forge.md`):** a shooter

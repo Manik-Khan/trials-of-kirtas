@@ -1,4 +1,4 @@
-# CONTEXT — Battle Forge — updated 2026-07-13, PHASE 1.5h COMPLETE (camera, token rigs, feed/effects, discovery, combat-flow corrections, calibrated body-cover geometry, and non-leaking fog renderer shipped in bundles; current handoff: `CONTEXT_Forge-update-2026-07-13h.md`)
+# CONTEXT — Battle Forge — current authority through 2026-07-16c
 
 > This doc exists because the same failure kept happening: a session would read
 > *part* of the material, conclude a feature "was never there," and rebuild
@@ -9,7 +9,16 @@
 
 ---
 
-## CURRENT ADDENDUM · 2026-07-13h — read before the older sections
+## CURRENT AUTHORITY · 2026-07-16c
+
+Read `docs/handoffs/forge/CONTEXT_Forge-update-2026-07-16c.md` before the
+historical sections below. It carries the field verdict and execution order
+through structural-bridge completion. The embedded 2026-07-13h addendum remains
+the Phase 1.5 record, not the current handoff.
+
+---
+
+## HISTORICAL ADDENDUM · 2026-07-13h
 
 Phase 1.5 is complete through the field-driven geometry/fog calibration. The current
 production line now includes:
@@ -36,7 +45,7 @@ and live two-device testing remain field gates.
 
 **Current next phase:** active Phase 2 generator terrain. Do not restart Phase 1.5 design
 unless a real browser field report demonstrates a regression. See §8 and
-`CONTEXT_Forge-update-2026-07-13h.md`.
+`archive/context/forge/CONTEXT_Forge-update-2026-07-13h.md`.
 
 ---
 
@@ -668,7 +677,8 @@ real placement. **These are decisions, not hypotheses.**
 
 ## §8 · SUGGESTED NEXT SESSION
 
-**Current handoff: `CONTEXT_Forge-update-2026-07-13h.md`. Read it first.**
+**Current handoff:
+`docs/handoffs/forge/CONTEXT_Forge-update-2026-07-16c.md`. Read it first.**
 
 ### Release gate for Phase 1.5h
 
