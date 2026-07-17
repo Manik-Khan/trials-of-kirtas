@@ -25,7 +25,7 @@
 <script src="map-bridge.js?v=fb1"></script>
 <script src="forge-generator-foundation.js?v=g2f2"></script>
 <script src="forge-unit-art.js?v=ua2"></script>
-<script src="forge-engine.js?v=fe7"></script>
+<script src="forge-engine.js?v=fe8"></script>
 <script src="forge-bridge-authority.js?v=fba1"></script>
 <script src="forge-protocol.js?v=fb1"></script>
 <script src="forge-replay.js?v=fb13"></script>
@@ -168,7 +168,8 @@ function connectorAllows(token,connector){
 function stepAllowed(map, token, fromC, fromR, toC, toR) {
   if (!inBounds(map, toC, toR)) return false;
   var targetBridge=bridgeRecordAt(map,toC,toR),targetInterior=bridgeInteriorAt(map,toC,toR),targetState=targetBridge&&String(targetBridge.connector.state||'open').toLowerCase();
-  if(targetInterior&&(targetState==='closed'||targetState==='broken'))return false;
+  var sourceInterior=bridgeInteriorAt(map,fromC,fromR),sourceState=sourceInterior&&String(sourceInterior.connector.state||'open').toLowerCase();
+  if((targetInterior&&(targetState==='closed'||targetState==='broken'))||(sourceInterior&&(sourceState==='closed'||sourceState==='broken')))return false;
   var bf=bridgeSurfaceAt(map,fromC,fromR),bt=bridgeSurfaceAt(map,toC,toR),segment=connectorBetween(map,fromC,fromR,toC,toR);
   if (!!map.wall[idx(map,toC,toR)]&&!bt) return false;
   /* Bridge-only cells can be entered/exited only along consecutive authored
@@ -495,7 +496,7 @@ global.TacticsGeo=API;
   .masthead h1{font-family:var(--f-display);font-weight:700;font-size:20px}
   .masthead .sub{font-family:var(--f-util);font-weight:300;text-transform:uppercase;letter-spacing:2.5px;font-size:10px;color:var(--tk-ink-dim)}
   .masthead .dn{margin-left:auto;font-family:var(--f-display);font-style:italic;font-weight:600;font-size:15px;color:var(--tk-gold);text-align:right}
-  .forgebar{position:fixed;top:60px;left:20px;z-index:10;display:flex;gap:6px;align-items:center;flex-wrap:wrap}
+  .forgebar{display:flex;gap:6px;align-items:center;flex-wrap:wrap}
   /* In-session badge: the session previously lived only in the URL — nothing
      on screen named it, so a second device had no door in (field 2026-07-11). */
   .sessionBadge{display:flex;gap:8px;align-items:center;font-family:var(--f-util);font-size:11px;color:var(--tk-ink);
@@ -507,7 +508,7 @@ global.TacticsGeo=API;
     background:var(--tk-panel);border:1px solid var(--tk-line);padding:8px 12px;cursor:pointer;transition:.16s}
   .fbtn:hover{color:var(--tk-ink);border-color:var(--tk-ink-dim)}
   .fbtn.primary{background:var(--tk-gold);color:#fff;border-color:var(--tk-gold);font-weight:500}
-  .panel{position:fixed;left:20px;bottom:20px;z-index:10;width:262px;background:linear-gradient(180deg,var(--tk-panel),var(--tk-panel-2));
+  .panel{width:262px;background:linear-gradient(180deg,var(--tk-panel),var(--tk-panel-2));
     border:1px solid var(--tk-line);padding:14px;box-shadow:0 14px 40px rgba(60,50,30,.25);
     /* The panel must never outgrow the screen — the signed-in foe picker once
        pushed every control above it out of reach (field report 2026-07-11). */
@@ -555,37 +556,37 @@ global.TacticsGeo=API;
   .attrib{position:fixed;right:20px;bottom:20px;z-index:10;text-align:right;font-family:var(--f-util);font-weight:300;
     text-transform:uppercase;letter-spacing:1.4px;font-size:9px;color:var(--tk-ink-dim);line-height:1.9;pointer-events:none}
   .attrib .k{color:var(--tk-ink)}
-  /* Visual pass: Forge authoring chrome gives way to a focused combat frame.
-     The small hammer button is always the door back; no controls are removed. */
-  #sceneModeToggle{position:fixed;left:20px;top:18px;z-index:28;display:none;align-items:center;gap:7px;
+  /* Workshop and combat share one top-left door. The body is the same panel in
+     both modes; combat begins collapsed so it cannot cover the battlefield. */
+  #forgeShell{position:fixed;left:20px;top:18px;z-index:130;width:262px;display:none;pointer-events:auto}
+  body.forge-author-preview #forgeShell,body.combat-mode #forgeShell{display:block}
+  #sceneModeToggle{display:flex;align-items:center;gap:7px;width:auto;
     font-family:var(--f-util);font-size:10px;text-transform:uppercase;letter-spacing:1.4px;color:#f3ead8;
     background:rgba(20,16,11,.86);border:1px solid rgba(184,134,58,.72);padding:8px 11px;cursor:pointer;
     box-shadow:0 8px 28px rgba(20,14,8,.35);backdrop-filter:blur(8px)}
   #sceneModeToggle:hover{border-color:#d6ad62;color:#fff}
-  body.combat-mode #sceneModeToggle{display:flex}
-  body.combat-mode .masthead,body.combat-mode .forgebar,body.combat-mode .panel,
-  body.combat-mode .attrib,body.combat-mode .orbit-btns{transition:opacity .28s ease,transform .28s ease}
-  body.combat-mode:not(.forge-peek) .masthead,body.combat-mode:not(.forge-peek) .forgebar,
-  body.combat-mode:not(.forge-peek) .panel,body.combat-mode:not(.forge-peek) .attrib,
-  body.combat-mode:not(.forge-peek) .orbit-btns{opacity:0;pointer-events:none}
-  body.combat-mode:not(.forge-peek) .panel{transform:translateX(-18px)}
-  body.combat-mode:not(.forge-peek) .masthead,body.combat-mode:not(.forge-peek) .forgebar{transform:translateY(-12px)}
+  body.forge-panel-open #sceneModeToggle{width:100%;justify-content:space-between}
+  #forgeShell #forgePanel{position:static;display:none;width:262px;max-height:calc(100dvh - 66px);overflow-y:auto;transform:none}
+  body.forge-panel-open #forgeShell #forgePanel{display:block}
+  #forgeShell .forgebar{position:static;display:block;padding:0 0 10px}
+  #forgeShell #seedGroup{width:100%}
+  #forgeShell #forgeBtn{flex:1;padding-left:7px;padding-right:7px}
+  #forgeTableSettings{display:none}
+  body.combat-mode #forgeTableSettings{display:block}
+  #forgeTableSettings .sceneMenuBtn{color:var(--tk-ink-dim);border-bottom:1px solid rgba(86,67,38,.22);padding:8px 0}
+  #forgeTableSettings .sceneMenuBtn:hover{color:var(--tk-ink);background:rgba(184,134,58,.08);border-color:rgba(184,134,58,.38)}
+  #forgeTableSettings .sceneMenuBtn b{color:var(--tk-gold)}
+  #forgeTableSettings .sceneMenuNote{color:var(--tk-ink-dim);padding:7px 0 0;border-top:0}
+  body.combat-mode .masthead,body.combat-mode .attrib,body.combat-mode .orbit-btns{transition:opacity .28s ease,transform .28s ease}
+  body.combat-mode .masthead,body.combat-mode .attrib,body.combat-mode .orbit-btns{opacity:0;pointer-events:none}
+  body.combat-mode .masthead{transform:translateY(-12px)}
   body.combat-mode .vignette{background:radial-gradient(ellipse at center,transparent 50%,rgba(20,14,8,.30) 100%)}
-  @media (max-width:660px){#sceneModeToggle{left:12px;top:12px}}
-  /* Phase 1.5d: Forge is now a compact local-view menu. Authority never
-     changes here — Staff/Player View only masks privileged presentation. */
-  #sceneModeMenuWrap{position:fixed;left:20px;top:18px;z-index:130;display:none;pointer-events:auto}
-  body.combat-mode #sceneModeMenuWrap{display:block}
-  #sceneModeMenuWrap #sceneModeToggle{position:static;display:flex}
-  #sceneModeMenu{position:absolute;left:0;top:calc(100% + 6px);width:218px;padding:6px;background:rgba(20,16,11,.96);
-    border:1px solid rgba(184,134,58,.72);box-shadow:0 16px 34px rgba(0,0,0,.42);backdrop-filter:blur(10px)}
-  #sceneModeMenu[hidden]{display:none}
   .sceneMenuBtn{width:100%;display:flex;justify-content:space-between;gap:10px;text-align:left;font-family:var(--f-util);
     text-transform:uppercase;letter-spacing:1.1px;font-size:10px;color:#e8ddc4;background:transparent;border:1px solid transparent;padding:9px 10px;cursor:pointer}
   .sceneMenuBtn:hover{background:rgba(184,134,58,.12);border-color:rgba(184,134,58,.38)}
   .sceneMenuBtn b{color:#d6ad62;font-weight:600}
   .sceneMenuNote{padding:6px 10px 4px;font:italic 11px/1.35 var(--f-body);color:#a99f8d;border-top:1px solid rgba(184,134,58,.2)}
-  @media (max-width:660px){#sceneModeMenuWrap{left:12px;top:12px}}
+  @media (max-width:660px){#forgeShell{left:12px;top:12px;width:calc(100% - 24px)}#forgeShell #forgePanel{width:100%;max-height:calc(100dvh - 60px)}}
   .cbU-eff.prone{color:#8b5d32;border-color:#8b5d32}.cbTag.prone{color:#8b5d32!important;border-color:#8b5d32!important}
   body.forge-target-confirm #stage canvas{cursor:crosshair}
   .fg-flow-btn[data-kind="confirm"]{border-color:#d8b35b;background:rgba(216,179,91,.14)}
@@ -690,7 +691,7 @@ global.TacticsGeo=API;
 #partySelect .pcChip.sit{ color:var(--fg-dim); letter-spacing:.1em; }
 #partySelect .psFoot{ display:flex; align-items:center; justify-content:space-between; padding:14px 26px; gap:16px; }
 #partySelect .psFootBtns{ display:flex; align-items:center; gap:10px; }
-#psReturn{position:fixed;left:20px;top:104px;z-index:32;display:none}
+#psReturn{position:static;width:100%;margin:0 0 10px;display:none}
 body.forge-author-preview #psReturn{display:block}
 body.forge-author-preview #partySelect{opacity:0;pointer-events:none}
 #partySelect .psEveryone{ font-family:'Barlow Condensed',sans-serif; text-transform:uppercase; letter-spacing:.14em; font-size:12px; color:var(--fg-dim); background:transparent; border:1px solid var(--line); padding:11px 16px; cursor:pointer; transition:.16s; }
@@ -928,7 +929,6 @@ body.forge-author-preview #partySelect{opacity:0;pointer-events:none}
       </div>
     </div>
   </div>
-  <button class="fbtn" id="psReturn" type="button">Choose party / start fight</button>
   <div id="stage"></div>
   <div class="overlay vignette"></div>
   <div class="masthead">
@@ -936,30 +936,21 @@ body.forge-author-preview #partySelect{opacity:0;pointer-events:none}
     <span class="sub" id="forgeProductMode">Workshop</span>
     <span class="dn" id="dungeonName">—</span>
   </div>
-  <div class="forgebar">
-    <div id="seedGroup">
-      <input id="seed" value="7" aria-label="Seed">
-      <button class="fbtn" id="dice" title="Random seed">🎲</button>
-      <button class="fbtn primary" id="forgeBtn">Forge battlefield</button>
-    </div>
-  </div>
   <div class="orbit-btns">
     <button id="orbitL" title="Orbit left">‹</button>
     <button id="orbitR" title="Orbit right">›</button>
   </div>
-  <div id="sceneModeMenuWrap">
-    <button id="sceneModeToggle" type="button" title="Forge and view options" aria-haspopup="true" aria-expanded="false">⚒ <span>Forge</span> ▾</button>
-    <div id="sceneModeMenu" hidden>
-      <button class="sceneMenuBtn" id="sceneForgeControls" type="button"><span>Forge controls</span><b>hidden</b></button>
-      <button class="sceneMenuBtn" id="sceneViewerMode" type="button" hidden><span>Presentation</span><b>Staff View</b></button>
-      <button class="sceneMenuBtn" id="sceneFlankingRule" type="button" hidden><span>Flanking</span><b>Advantage</b></button>
-      <button class="sceneMenuBtn" id="sceneCoverAudit" type="button" hidden><span>Geometry</span><b>Run cover audit</b></button>
-      <button class="sceneMenuBtn" id="sceneVerticalOverlay" type="button" hidden><span>Height</span><b>Show connectors</b></button>
-      <button class="sceneMenuBtn" id="sceneProneToggle" type="button" hidden><span>Selected condition</span><b>Toggle Prone</b></button>
-      <div class="sceneMenuNote" id="sceneViewerNote">Player View hides DM tools and enemy internals locally. Combat rules are shared with the table.</div>
+  <div id="forgeShell">
+    <button id="sceneModeToggle" type="button" title="Forge and view options" aria-controls="forgePanel" aria-expanded="true">⚒ <span>Forge</span> <b>▴</b></button>
+    <div class="panel" id="forgePanel">
+    <div class="forgebar">
+      <div id="seedGroup">
+        <input id="seed" value="7" aria-label="Seed">
+        <button class="fbtn" id="dice" title="Random seed">🎲</button>
+        <button class="fbtn primary" id="forgeBtn">Forge battlefield</button>
+      </div>
     </div>
-  </div>
-  <div class="panel" id="forgePanel">
+    <button class="fbtn" id="psReturn" type="button">Choose party / start fight</button>
     <div class="forgePanelTabs" role="tablist" aria-label="Forge panel">
       <button type="button" class="active" id="forgeActiveTab" role="tab" aria-selected="true">Active</button>
       <button type="button" id="forgePlannedTab" role="tab" aria-selected="false">Planned</button>
@@ -1066,6 +1057,16 @@ body.forge-author-preview #partySelect{opacity:0;pointer-events:none}
       <div id="bridgeStateList" style="margin-top:7px"></div>
       <div class="fname" style="white-space:normal;margin-top:4px">Stairs, ramps, and bridges are generated automatically. “Find bridge seed” is a local authoring/test shortcut, not a combat rule.</div>
     </div>
+    <div id="forgeTableSettings">
+      <div class="divider"></div>
+      <div class="eyebrow">TABLE SETTINGS</div>
+      <button class="sceneMenuBtn" id="sceneViewerMode" type="button" hidden><span>Presentation</span><b>Staff View</b></button>
+      <button class="sceneMenuBtn" id="sceneFlankingRule" type="button" hidden><span>Flanking</span><b>Advantage</b></button>
+      <button class="sceneMenuBtn" id="sceneCoverAudit" type="button" hidden><span>Geometry</span><b>Run cover audit</b></button>
+      <button class="sceneMenuBtn" id="sceneVerticalOverlay" type="button" hidden><span>Height</span><b>Show connectors</b></button>
+      <button class="sceneMenuBtn" id="sceneProneToggle" type="button" hidden><span>Selected condition</span><b>Toggle Prone</b></button>
+      <div class="sceneMenuNote" id="sceneViewerNote">Player View hides DM tools and enemy internals locally. Combat rules are shared with the table.</div>
+    </div>
     <div class="eyebrow prototypeResidue" style="margin-bottom:6px" aria-hidden="true">Shading</div>
     <div class="toggle-row prototypeResidue" id="shadeToggle" aria-hidden="true">
       <button data-toon="1" class="active">Toon</button>
@@ -1116,7 +1117,8 @@ body.forge-author-preview #partySelect{opacity:0;pointer-events:none}
       <div class="plannedCard"><b>Advanced Visual Profiles</b><span>Supported authored looks rather than ambiguous prototype shader switches.</span><em>Experimental later</em></div>
       <div class="plannedCard"><b>Authoring Inspection</b><span>Full vertical and diagnostic inspection tools in a dedicated Workshop mode.</span><em>Planned</em></div>
     </div>
-  </div>
+    </div>
+  </div><!-- /forgeShell -->
   <div class="attrib">
     <span class="k">Drag</span> orbit · <span class="k">Wheel</span> zoom · <span class="k">Active / Planned</span> workshop tools<br>
     Reference: Chen Yue, 2018 · traced by hand<br>
@@ -2967,6 +2969,7 @@ function setForgePanelTab(tab){
 }
 (function(){var at=document.getElementById('forgeActiveTab'),pt=document.getElementById('forgePlannedTab');if(at)at.onclick=function(){setForgePanelTab('active');};if(pt)pt.onclick=function(){setForgePanelTab('planned');};var mode=document.getElementById('forgeProductMode');if(mode)mode.textContent=SESSION_ID?'Table':'Workshop';document.body.classList.toggle('forge-table-mode',!!SESSION_ID);})();
 /* biome picker — the look, not the geometry */
+function paintBiomeControl(key){document.querySelectorAll('#biomeChips .chip').forEach(function(x){x.classList.toggle('active',x.dataset.b===key);});}
 (function(){
   const host=document.getElementById('chips'); if(!host) return;
   const bar=document.createElement('div'); bar.className='chips'; bar.id='biomeChips';
@@ -2978,7 +2981,7 @@ function setForgePanelTab(tab){
     // session mode it belongs to the fight, same narrated lock as the knobs.
     if(SESSION_ID){ clog('<i>The map belongs to the fight — the biome is locked during a session.</i>'); return; }
     const was=BIOME; BIOME=b.dataset.b;
-    bar.querySelectorAll('.chip').forEach(x=>x.classList.toggle('active',x===b));
+    paintBiomeControl(BIOME);
     applyLook(); if(F) renderField();
     /* Paint changes now; species change on the next re-forge, because a kind
        carries an occluder height and the sight lines were computed from it. */
@@ -6663,27 +6666,18 @@ function refreshVerticalGeometryPanel(){
 function toggleVerticalGeometry(){VERTICAL_OVERLAY=!VERTICAL_OVERLAY;drawVerticalOverlay();refreshVerticalGeometryPanel();refreshSceneMenu();}
 function findNearbyBridgeSeed(){
   if(SESSION_ID||(typeof CB!=="undefined"&&CB&&CB.active)){clog("<i>Bridge-seed search is authoring-only.</i>");return;}
-  var seedEl=document.getElementById("seed"),start=(parseInt(seedEl.value)||7)>>>0,base=forgeParams(),found=null,gf=window.ForgeGeneratorFoundation;
-  for(var step=1;step<=48;step++){
-    var candidate=(start+step)>>>0;
-    /* Re-normalize from the compatibility recipe so every candidate receives
-       stage seeds derived from ITS root seed. Reusing base.stageSeeds here
-       would silently test the same map forty-eight times. */
-    var recipe={seed:candidate,theme:base.theme,archetype:base.archetype,sliders:Object.assign({},base.sliders||{})};
-    var candidateParams=gf&&typeof gf.normalizeParams==="function"?gf.normalizeParams(recipe):recipe;
-    var detail=window.ForgeEngine.generateDetailed(candidateParams);
-    if(detail&&detail.map&&Array.isArray(detail.map.connectors)&&detail.map.connectors.some(function(c){return c&&c.kind==="bridge";})){found=candidate;break;}
-  }
-  if(found==null){systemClog("<i>Bridge diagnostics: no structural bridge found in the next 48 deterministic seeds.</i>");return;}
-  seedEl.value=found;mode="tiers";setActiveChip("tiers");document.getElementById("seedGroup").style.opacity="1";setImgOnly(false);rebuild();
-  systemClog("<i>Bridge diagnostics: loaded seed "+found+" with "+verticalGeometryCounts().bridges+" structural bridge(s).</i>");
+  var seedEl=document.getElementById("seed"),base=forgeParams(),engine=window.ForgeEngine;
+  var found=engine&&typeof engine.findBridgeRecipe==="function"?engine.findBridgeRecipe(base,{maxSeeds:48}):null;
+  if(!found){systemClog("<i>Bridge diagnostics: no structural bridge recipe was found; the current battlefield is unchanged.</i>");return;}
+  seedEl.value=found.seed;BIOME=found.themeKey;mode="tiers";setActiveChip("tiers");paintBiomeControl(BIOME);
+  document.getElementById("seedGroup").style.opacity="1";setImgOnly(false);rebuild();
+  systemClog("<i>Bridge diagnostics: loaded "+escapeHtml(BIOME)+" seed "+found.seed+" with "+verticalGeometryCounts().bridges+" structural bridge(s).</i>");
 }
 var verticalOverlayPanelBtn=document.getElementById("verticalOverlayPanelBtn");if(verticalOverlayPanelBtn)verticalOverlayPanelBtn.addEventListener("click",toggleVerticalGeometry);
 var findBridgeSeedBtn=document.getElementById("findBridgeSeed");if(findBridgeSeedBtn)findBridgeSeedBtn.addEventListener("click",findNearbyBridgeSeed);
 var bridgeAuditBtn=document.getElementById("bridgeAuditBtn");if(bridgeAuditBtn)bridgeAuditBtn.addEventListener("click",function(){runBridgeAudit(true);});
 function refreshSceneMenu(){
   var tc=window.ForgeTableCorrectness,sess=window.__forgeSession;
-  var fc=document.querySelector('#sceneForgeControls b');if(fc)fc.textContent=document.body.classList.contains('forge-peek')?'shown':'hidden';
   var vm=document.getElementById('sceneViewerMode');
   var auth=tc&&tc.privileged(sess);
   if(vm){vm.hidden=!auth;if(auth){var b=vm.querySelector('b');if(b)b.textContent=tc.staffView(sess)?'Staff View':'Player View';}}
@@ -6695,12 +6689,16 @@ function refreshSceneMenu(){
   var pr=document.getElementById('sceneProneToggle');if(pr){pr.hidden=!auth;var chosen=(typeof CB!=="undefined"&&CB)?unitByKey(CB.selKey):null;var pb=pr.querySelector('b');if(pb)pb.textContent=chosen?(effectFor(chosen,"prone")?'Clear Prone':'Apply Prone'):'Select unit';pr.disabled=!chosen;}
   if(tc)tc.applyBody(sess,typeof active==='function'&&typeof CB!=='undefined'&&CB&&CB.active?active():null);
 }
-function setSceneMode(combat){document.body.classList.toggle('combat-mode',!!combat);if(!combat)document.body.classList.remove('forge-peek');refreshSceneMenu();}
+function setForgePanelOpen(open){
+  document.body.classList.toggle('forge-panel-open',!!open);
+  if(sceneModeToggle){sceneModeToggle.setAttribute('aria-expanded',open?'true':'false');var mark=sceneModeToggle.querySelector('b');if(mark)mark.textContent=open?'▴':'▾';}
+}
+window.setForgePanelOpen=setForgePanelOpen;
+function setSceneMode(combat){document.body.classList.toggle('combat-mode',!!combat);if(combat)setForgePanelOpen(false);refreshSceneMenu();}
 function showHud(on){ var h=document.getElementById("combatHud"); if(h)h.style.display=on?"block":"none"; var b=document.getElementById("cbBanner"); if(b)b.style.display="none"; setSceneMode(on); if(on)refreshDiscovery(true);else clearFogMeshes(); }
-const sceneModeToggle=document.getElementById('sceneModeToggle'),sceneModeMenu=document.getElementById('sceneModeMenu');
-if(sceneModeToggle)sceneModeToggle.addEventListener('click',function(e){e.stopPropagation();var open=sceneModeMenu&&sceneModeMenu.hidden; if(sceneModeMenu)sceneModeMenu.hidden=!open;this.setAttribute('aria-expanded',open?'true':'false');refreshSceneMenu();});
-const sceneForgeControls=document.getElementById('sceneForgeControls');if(sceneForgeControls)sceneForgeControls.addEventListener('click',function(){document.body.classList.toggle('forge-peek');refreshSceneMenu();if(sceneModeMenu)sceneModeMenu.hidden=true;if(sceneModeToggle)sceneModeToggle.setAttribute('aria-expanded','false');});
-const sceneViewerMode=document.getElementById('sceneViewerMode');if(sceneViewerMode)sceneViewerMode.addEventListener('click',function(){if(window.ForgeTableCorrectness)window.ForgeTableCorrectness.toggle(window.__forgeSession);refreshSceneMenu();if(sceneModeMenu)sceneModeMenu.hidden=true;if(sceneModeToggle)sceneModeToggle.setAttribute('aria-expanded','false');});
+const sceneModeToggle=document.getElementById('sceneModeToggle');
+if(sceneModeToggle)sceneModeToggle.addEventListener('click',function(e){e.stopPropagation();setForgePanelOpen(!document.body.classList.contains('forge-panel-open'));refreshSceneMenu();});
+const sceneViewerMode=document.getElementById('sceneViewerMode');if(sceneViewerMode)sceneViewerMode.addEventListener('click',function(){if(window.ForgeTableCorrectness)window.ForgeTableCorrectness.toggle(window.__forgeSession);refreshSceneMenu();});
 const sceneFlankingRule=document.getElementById('sceneFlankingRule');if(sceneFlankingRule)sceneFlankingRule.addEventListener('click',function(){var next=nextFlankingRule(),sess=window.__forgeSession;if(sess&&sess.me.overseer){netSessionPublish("edit",sess.pipe.edit([{rule:{name:"flanking",value:next}}]));}else if(!sess){FLANK_RULE=next;renderHud();}refreshSceneMenu();});
 function runCoverAudit(){
   if(!CB||!CB.active||!CB.map||!TG.coverAudit)return;syncGeometryCreatures();var cells=[];
@@ -6710,12 +6708,11 @@ function runCoverAudit(){
   for(var k=0;k<limit*8&&pairs.length<limit;k++){var a=cells[(rnd()*cells.length)|0],b=cells[(rnd()*cells.length)|0];if(!a||!b)continue;var d=TG.range3d(CB.map,a,b);if(d<15||d>120)continue;pairs.push({a:a,b:b});}
   var q=TG.coverAudit(CB.map,pairs),p=q.percent,types=Object.keys(q.culprits).sort(function(a,b){return q.culprits[b]-q.culprits[a];}).slice(0,5).map(function(k){return k+' '+q.culprits[k];}).join(' · ')||'none';
   var html='<details class="forge-geometry-group" open><summary>Cover audit · '+q.total+' sampled shots</summary><div class="forge-geometry-line">Clear '+p.none+'% · Half '+p.half+'% · ¾ '+p['three-quarters']+'% · Total '+p.total+'%<br>Culprits: '+types+'</div></details>';
-  if(window.addForgeRow)window.addForgeRow(html,{channel:'system'});else clog(html,false);if(sceneModeMenu)sceneModeMenu.hidden=true;
+  if(window.addForgeRow)window.addForgeRow(html,{channel:'system'});else clog(html,false);
 }
 const sceneCoverAudit=document.getElementById('sceneCoverAudit');if(sceneCoverAudit)sceneCoverAudit.addEventListener('click',runCoverAudit);
-const sceneVerticalOverlay=document.getElementById('sceneVerticalOverlay');if(sceneVerticalOverlay)sceneVerticalOverlay.addEventListener('click',function(){toggleVerticalGeometry();if(sceneModeMenu)sceneModeMenu.hidden=true;});
-const sceneProneToggle=document.getElementById('sceneProneToggle');if(sceneProneToggle)sceneProneToggle.addEventListener('click',function(){var sess=window.__forgeSession,u=(typeof CB!=="undefined"&&CB)?unitByKey(CB.selKey):null;if(!u)return;var old=effectFor(u,"prone"),op=old?effectApi().remove(old.id,"DM cleared Prone",u.unit,old):window.ForgeCombatRules.addCondition({source:"__overseer",target:u.unit,nonce:Date.now()});var act={label:old?"Clear Prone":"Apply Prone",kind:"condition-edit",free:true};if(sess&&sess.me.overseer)netUseAbility(u,act,[u.unit],[op],{context:{kind:"condition-edit",condition:"prone"}});else if(!sess){localEffectEvent("ability_used",u.unit,{ability:act.label,targets:[u.unit],effects:[op],slot:"free"});refreshEffectState(null,true);renderHud();}if(sceneModeMenu)sceneModeMenu.hidden=true;});
-document.addEventListener('click',function(e){var w=document.getElementById('sceneModeMenuWrap');if(sceneModeMenu&&w&&!w.contains(e.target)){sceneModeMenu.hidden=true;if(sceneModeToggle)sceneModeToggle.setAttribute('aria-expanded','false');}});
+const sceneVerticalOverlay=document.getElementById('sceneVerticalOverlay');if(sceneVerticalOverlay)sceneVerticalOverlay.addEventListener('click',toggleVerticalGeometry);
+const sceneProneToggle=document.getElementById('sceneProneToggle');if(sceneProneToggle)sceneProneToggle.addEventListener('click',function(){var sess=window.__forgeSession,u=(typeof CB!=="undefined"&&CB)?unitByKey(CB.selKey):null;if(!u)return;var old=effectFor(u,"prone"),op=old?effectApi().remove(old.id,"DM cleared Prone",u.unit,old):window.ForgeCombatRules.addCondition({source:"__overseer",target:u.unit,nonce:Date.now()});var act={label:old?"Clear Prone":"Apply Prone",kind:"condition-edit",free:true};if(sess&&sess.me.overseer)netUseAbility(u,act,[u.unit],[op],{context:{kind:"condition-edit",condition:"prone"}});else if(!sess){localEffectEvent("ability_used",u.unit,{ability:act.label,targets:[u.unit],effects:[op],slot:"free"});refreshEffectState(null,true);renderHud();}});
 function initBadge(u){ return u.badge||(u.side==="pc"?(ROSTER_INIT[u.key]||u.name[0]):"g"); }
 function seatCol(u){ return (window.__fightControllers&&window.__fightControllers[u.key]&&window.__fightControllers[u.key].color)||(u.side==="pc"?(ROSTER_COL[u.key]||"#b8863a"):"#7a2e2e"); }
 function renderHud(){
@@ -8803,6 +8800,7 @@ renderer.domElement.addEventListener("contextmenu", function(e){ if(ADD_FOE_PLAC
   }
   function previewMap(){
     document.body.classList.add("forge-author-preview");
+    window.setForgePanelOpen(true);
     host.classList.add("gone");
     if(window.__forgeVerticalScale)window.__forgeVerticalScale.setAuthoring(document.getElementById("height").value);
     /* Refresh authoring-only diagnostics now that the Workshop is visible.
@@ -8812,6 +8810,7 @@ renderer.domElement.addEventListener("contextmenu", function(e){ if(ADD_FOE_PLAC
   }
   function returnToParty(){
     document.body.classList.remove("forge-author-preview");
+    window.setForgePanelOpen(false);
     host.classList.remove("gone");
   }
   function forge(){
@@ -8821,6 +8820,7 @@ renderer.domElement.addEventListener("contextmenu", function(e){ if(ADD_FOE_PLAC
     window.__fightControllers = {};
     j.forEach(function(k){ window.__fightControllers[k] = { player:currentUser, badge:badges[k], color:SEATCOL[currentUser] }; });
     document.body.classList.remove("forge-author-preview");
+    window.setForgePanelOpen(false);
     host.classList.add("gone");
     if(window.__enterForge) window.__enterForge();
   }

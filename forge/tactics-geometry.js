@@ -99,7 +99,8 @@ function connectorAllows(token,connector){
 function stepAllowed(map, token, fromC, fromR, toC, toR) {
   if (!inBounds(map, toC, toR)) return false;
   var targetBridge=bridgeRecordAt(map,toC,toR),targetInterior=bridgeInteriorAt(map,toC,toR),targetState=targetBridge&&String(targetBridge.connector.state||'open').toLowerCase();
-  if(targetInterior&&(targetState==='closed'||targetState==='broken'))return false;
+  var sourceInterior=bridgeInteriorAt(map,fromC,fromR),sourceState=sourceInterior&&String(sourceInterior.connector.state||'open').toLowerCase();
+  if((targetInterior&&(targetState==='closed'||targetState==='broken'))||(sourceInterior&&(sourceState==='closed'||sourceState==='broken')))return false;
   var bf=bridgeSurfaceAt(map,fromC,fromR),bt=bridgeSurfaceAt(map,toC,toR),segment=connectorBetween(map,fromC,fromR,toC,toR);
   if (!!map.wall[idx(map,toC,toR)]&&!bt) return false;
   /* Bridge-only cells can be entered/exited only along consecutive authored

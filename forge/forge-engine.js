@@ -809,7 +809,11 @@
       applySemantics(d, seeds.semantics, facts);
       applyDecor(d, candidateProps, candidateTorches, seeds.decor, p.decorDensity);
       var map = MB.dungeonToMap(d, { poolBlocks: !!(p.poolBlocks || p.waterBlocks) });
-      for (var i = 0; i < heightPlan.h.length; i++) map.h[i] = map.wall[i] ? wallSupportHeight(map, heightPlan.h, i) : heightPlan.h[i];
+      for (var i = 0; i < heightPlan.h.length; i++) {
+        var cell = d.grid[i];
+        var supportedWall = cell === MB.CELL.WALL || cell === MB.CELL.VOID;
+        map.h[i] = supportedWall ? wallSupportHeight(map, heightPlan.h, i) : heightPlan.h[i];
+      }
       var vertical = verticalRecords(map, seeds.height, d);
       map.connectors = vertical.connectors; map.ledges = vertical.ledges;
       map.meta = Object.assign(map.meta || {}, { vertical: { version: 2, maxElevationFt: MAX_ELEVATION_FT, orientation: heightPlan.orientation, connectors: map.connectors.length, bridges: map.connectors.filter(function(c){return c.kind === "bridge";}).length, ledges: map.ledges.length } });
@@ -841,6 +845,29 @@
     return generateStagedDetailed(p);
   }
 
+  function findBridgeRecipe(params, options) {
+    var base = generationParams(params), opts = options || {};
+    var maxSeeds = Math.max(1, Math.min(512, Number(opts.maxSeeds) || 48));
+    var currentTheme = chooseTheme(base);
+    var requestedThemes = Array.isArray(opts.themeKeys) ? opts.themeKeys : FD.THEME_KEYS;
+    var themes = [currentTheme];
+    requestedThemes.forEach(function (theme) {
+      if (FD.THEME_KEYS.indexOf(theme) >= 0 && themes.indexOf(theme) < 0) themes.push(theme);
+    });
+    for (var ti = 0; ti < themes.length; ti++) {
+      for (var step = 1; step <= maxSeeds; step++) {
+        var seed = (base.seed + step) >>> 0;
+        var candidate = Object.assign({}, base, { seed: seed, themeKey: themes[ti], stageSeeds: null });
+        delete candidate.parameters;
+        var detail = generateDetailed(candidate);
+        if ((detail.map.connectors || []).some(function (c) { return c && c.kind === "bridge"; })) {
+          return { seed: seed, themeKey: themes[ti], parameters: detail.parameters, detail: detail };
+        }
+      }
+    }
+    return null;
+  }
+
   function generate(params) { return generateDetailed(params).map; }
 
   function loadEncounter(envelope) {
@@ -859,6 +886,7 @@
   return {
     generate: generate,
     generateDetailed: generateDetailed,
+    findBridgeRecipe: findBridgeRecipe,
     loadEncounter: loadEncounter,
     randomSeed: randomSeed,
     THEME_KEYS: FD.THEME_KEYS,

@@ -15,6 +15,7 @@ function loadEngine(){
   return {E:context.self.ForgeEngine,MB};
 }
 const {E,MB}=loadEngine();
+const RealEngine=require(path.join(root,"forge-engine.js"));
 const cols=9,rows=5,n=cols*rows,idx=(c,r)=>r*cols+c;
 const map={cols,rows,h:new Array(n).fill(10),wall:new Array(n).fill(false),occ:new Array(n).fill(0),coverShape:new Array(n).fill(null),connectors:[],ledges:[],spawns:[],props:[],meta:{vertical:{version:1}}};
 const grid=new Array(n).fill(MB.CELL.FLOOR);
@@ -70,6 +71,25 @@ ok("replay stores connector state",replay.connectorStates[bridge.id]==="closed")
 ok("replay stores the bridge path proof",replay.connectorStateProofs[bridge.id]===sig);
 const restoredState=FR.initialState([]);FR.applyEvent(restoredState,{seq:1,kind:"restore",unit:"dm",payload:{snapshot:FR.snapshot(replay)}} ,{});
 ok("restore preserves connector path proofs",restoredState.connectorStateProofs[bridge.id]===sig);
+
+const realParams=GF.normalizeParams({
+  seed:1,theme:"swamp",archetype:"legacy-dungeon",
+  sliders:{roomCount:8,loopChance:.2,decorDensity:.7,heightMode:"tiered",verticality:5,party:4,foes:5}
+});
+const realDetail=RealEngine.generateDetailed(realParams);
+const realBridges=(realDetail.map.connectors||[]).filter(c=>c&&c.kind==="bridge");
+ok("real staged generation emits a structural bridge",realBridges.length>0);
+
+const searchInput=GF.normalizeParams({
+  seed:7,theme:"grass",archetype:"legacy-dungeon",
+  sliders:{roomCount:8,loopChance:.2,decorDensity:.7,heightMode:"tiered",verticality:5,party:4,foes:5}
+});
+const hasFinder=typeof RealEngine.findBridgeRecipe==="function";
+ok("bridge finder is exported",hasFinder);
+const found=hasFinder?RealEngine.findBridgeRecipe(searchInput,{maxSeeds:48}):null;
+ok("bridge finder returns a real generated recipe",!!found&&(found.detail.map.connectors||[]).some(c=>c.kind==="bridge"));
+ok("bridge finder returns a recipe that passes the live audit",!!found&&BA.auditMap(found.detail.map,TG).ok);
+ok("bridge finder does not mutate its input",searchInput.seed===7&&searchInput.theme==="grass");
 
 const html=fs.readFileSync(path.join(root,"index.html"),"utf8");
 ok("production loads bridge authority with fresh cache stamp",html.includes('forge-bridge-authority.js?v=fba1'));

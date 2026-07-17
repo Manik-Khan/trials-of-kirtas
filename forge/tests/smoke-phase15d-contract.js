@@ -3,7 +3,7 @@
 const fs=require("fs"),path=require("path");const s=fs.readFileSync(path.join(__dirname,"..","index.html"),"utf8");let pass=0;function has(x,m){if(!s.includes(x))throw Error("FAIL: "+m);console.log("ok",++pass,"-",m);}
 has('forge-table-correctness.js?v=fg7','correctness seam is loaded');
 has('forge-unit-art.js?v=ua2','unit-art cache stamp bumped');
-has('id="sceneModeMenu"','Forge toggle owns the view menu');
+has('id="forgeShell"','Forge toggle owns the unified settings panel');
 has('id="sceneViewerMode"','Staff/Player View lives in Forge menu');
 has('ForgeTableCorrectness.toggle','view toggle is local presentation state');
 has("bestiary:{name:'Goblin',source:'MM'}",'fallback goblins carry bestiary identity');

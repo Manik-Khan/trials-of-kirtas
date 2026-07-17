@@ -3,6 +3,7 @@
 const fs=require("fs"),path=require("path"),vm=require("vm");
 const root=path.resolve(__dirname,"..");
 const html=fs.readFileSync(path.join(root,"index.html"),"utf8");
+const engine=fs.readFileSync(path.join(root,"forge-engine.js"),"utf8");
 const Damage=require(path.join(root,"forge-damage-evidence.js"));
 let pass=0;function ok(v,l){if(!v)throw new Error("FAIL: "+l);console.log("ok",++pass,"-",l);}function has(t,n,l){ok(t.includes(n),l);}
 
@@ -54,7 +55,7 @@ has(html,'id="findBridgeSeed"',"visible deterministic bridge-seed finder exists"
 has(html,'function refreshVerticalGeometryPanel()',"connector counts are painted");
 has(html,'no structural bridge on this seed',"zero-bridge maps say so explicitly");
 has(html,'function findNearbyBridgeSeed()',"bridge seed search is executable, not a checklist fiction");
-has(html,'gf.normalizeParams(recipe)',"bridge seed search derives fresh stage seeds for each candidate");
+ok(html.includes('engine.findBridgeRecipe(base')&&engine.includes('stageSeeds: null'),"bridge seed search derives fresh stage seeds for each candidate");
 
 // 4. The obsolete post-render decorator must not remain.
 ok(!html.includes('D.decorateNewestRow(document,fact)'),"fragile post-render decoration is gone");
