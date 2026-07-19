@@ -36,7 +36,7 @@
 <script src="forge-initiative.js?v=fi2"></script>
 <script src="forge-discovery.js?v=fd5"></script>
 <script src="forge-render-power.js?v=frp1"></script>
-<script src="forge-architecture.js?v=fa3"></script>
+<script src="forge-architecture.js?v=fa4"></script>
 <script src="forge-bus.js?v=fb2"></script>
 <script src="forge-pipeline.js?v=fb7"></script>
 <script src="forge-board.js?v=fb7"></script>
@@ -1097,7 +1097,7 @@ body.forge-author-preview #partySelect{opacity:0;pointer-events:none}
       <div class="divider"></div>
       <div class="eyebrow" style="margin-bottom:6px">ARCHITECTURE · PREVIEW</div>
       <div class="architectureTools" id="architectureTools">
-        <button class="filebtn active" data-architecture-tool="wall" type="button">10-ft wall</button>
+        <button class="filebtn active" data-architecture-tool="wall" type="button">10-ft wall / raise</button>
         <button class="filebtn" data-architecture-tool="parapet" type="button">5-ft parapet</button>
         <button class="filebtn" data-architecture-tool="gate" type="button">Gate block</button>
         <button class="filebtn" data-architecture-tool="erase" type="button">Erase</button>
@@ -1111,7 +1111,7 @@ body.forge-author-preview #partySelect{opacity:0;pointer-events:none}
         <button class="filebtn" id="architectureFogAdvance" type="button">Advance region</button>
       </div>
       <div class="architectureAudit" id="architectureAudit">Required ascent clear · 0 authored blocks.</div>
-      <div class="fname" id="architectureMessage" style="white-space:normal">Choose a block, then click a battlefield cell. Generated Temple retaining walls remain truthful 10.5-ft obstructions.</div>
+      <div class="fname" id="architectureMessage" style="white-space:normal">Open cells accept a 10-ft wall. Click a seeded retaining wall to raise it another 10 feet.</div>
     </div>
     <div id="forgeTableSettings">
       <div class="divider"></div>
@@ -3322,8 +3322,8 @@ function clearArchitectureMeshes(){var retired=new Set();while(architectureRende
 function architectureAdd(mesh,edit){tagDiscoveryObject(mesh,edit.c,edit.r,'terrain');mesh.castShadow=true;mesh.receiveShadow=true;architectureRenderGroup.add(mesh);return mesh;}
 function architectureGateAxis(edit){var blocking={};ARCHITECTURE_RECORD.blocks.forEach(function(b){if(ARCHITECTURE_API.KINDS[b.kind].blocks)blocking[b.c+','+b.r]=true;});return blocking[(edit.c-1)+','+edit.r]||blocking[(edit.c+1)+','+edit.r]?'x':'z';}
 function renderArchitectureBlock(edit){
-  var def=ARCHITECTURE_API.KINDS[edit.kind],base=tierY(edit.c,edit.r),mat=stoneMat(edit.kind==='parapet'?0x8d8067:0x746750);
-  if(def.blocks){var h=def.heightFt/STEP_FT*STEP,m=new THREE.Mesh(new THREE.BoxGeometry(.94,h,.94),mat);m.position.set(wxc(edit.c),base+h/2,wzc(edit.r));architectureAdd(m,edit);return;}
+  var def=ARCHITECTURE_API.KINDS[edit.kind],i=edit.r*F.W+edit.c,seedHeightFt=Math.max(0,Number(F.occ&&F.occ[i])||0),base=tierY(edit.c,edit.r),mat=stoneMat(edit.kind==='parapet'?0x8d8067:0x746750);
+  if(def.blocks){var targetHeightFt=ARCHITECTURE_API.heightFt(edit),fromFt=Math.min(seedHeightFt,targetHeightFt),h=(targetHeightFt-fromFt)/STEP_FT*STEP;if(h<=0)return;base+=fromFt/STEP_FT*STEP;var m=new THREE.Mesh(new THREE.BoxGeometry(.94,h,.94),mat);m.position.set(wxc(edit.c),base+h/2,wzc(edit.r));architectureAdd(m,edit);return;}
   var axis=architectureGateAxis(edit),postH=2*STEP,postGeo=new THREE.BoxGeometry(.16,postH,.16),offset=.38;
   [-1,1].forEach(function(side){var post=new THREE.Mesh(postGeo.clone(),mat.clone());post.position.set(wxc(edit.c)+(axis==='x'?side*offset:0),base+postH/2,wzc(edit.r)+(axis==='z'?side*offset:0));architectureAdd(post,edit);});
   var lintel=new THREE.Mesh(new THREE.BoxGeometry(axis==='x'?.94:.18,.18,axis==='z'?.94:.18),mat.clone());lintel.position.set(wxc(edit.c),base+postH-.09,wzc(edit.r));architectureAdd(lintel,edit);
@@ -3346,10 +3346,13 @@ function applyArchitectureAt(c,r,kind){
   if(c<0||r<0||c>=F.W||r>=F.H){architectureSay('That cell is outside the battlefield.',true);return;}
   if(kind==='erase'){ARCHITECTURE_RECORD=ARCHITECTURE_API.eraseRecord(ARCHITECTURE_RECORD,c,r);architectureSay(prior?'Authored block erased. The seeded cell is restored.':'There is no authored block on that cell.',!prior);}
   else{
-    if((!F.foot[i]||F.type[i]===T_WATER||F.type[i]===T_ROCK)&&!prior){architectureSay('Choose an open platform cell. Generated walls, water, and void remain seed-owned.',true);return;}
+    var seededWall=!!F.foot[i]&&F.type[i]===T_ROCK;
+    if(!F.foot[i]||F.type[i]===T_WATER){architectureSay('Water and void cannot support an authored wall.',true);return;}
+    if(seededWall&&kind!=='wall'){architectureSay('Use 10-ft wall / raise on a seeded retaining wall, or Erase to restore its seed height.',true);return;}
     if(architectureOccupied(c,r)){architectureSay('Move the deployment flag or combatant before building on that cell.',true);return;}
-    ARCHITECTURE_RECORD=ARCHITECTURE_API.editRecord(ARCHITECTURE_RECORD,{c:c,r:r,kind:kind});
-    var audit=architectureAudit();architectureSay((kind==='wall'?'10-ft wall':kind==='parapet'?'5-ft parapet':'Passable gate')+' placed at '+c+','+r+'.'+(audit.ok?' Required ascent remains open.':' '+audit.errors.join(' ')),!audit.ok);
+    var edit={c:c,r:r,kind:kind};if(seededWall&&kind==='wall')edit.heightFt=(Number(F.occ&&F.occ[i])||0)+10;
+    ARCHITECTURE_RECORD=ARCHITECTURE_API.editRecord(ARCHITECTURE_RECORD,edit);
+    var audit=architectureAudit(),label=seededWall?'Seeded retaining wall raised 10 ft to '+ARCHITECTURE_API.heightFt(edit)+' ft':(kind==='wall'?'10-ft wall':kind==='parapet'?'5-ft parapet':'Passable gate');architectureSay(label+' at '+c+','+r+'.'+(audit.ok?' Required ascent remains open.':' '+audit.errors.join(' ')),!audit.ok);
   }
   renderArchitectureBlocks();refreshDeploymentPanel();
 }
@@ -3815,7 +3818,7 @@ function clearFogMeshes(){
 function hiddenMatrix(base){var p=new THREE.Vector3(),q=new THREE.Quaternion(),sc=new THREE.Vector3();base.decompose(p,q,sc);sc.set(.0001,.0001,.0001);p.y=-BASE-20;return new THREE.Matrix4().compose(p,q,sc);}
 function discoveryStateAt(c,r){var D=discoveryApi();return D&&DISCOVERY.ready?D.cellState(DISCOVERY.states,CB.map,c,r):2;}
 function architectureRegionFog(){return !!(architectureActive()&&ARCHITECTURE_RECORD.fog==='region-grey'&&F&&F.intent);}
-function architectureDiscoveryStateAt(c,r){return architectureRegionFog()&&ARCHITECTURE_REGION_INDEX?ARCHITECTURE_API.regionStateAt(ARCHITECTURE_REGION_INDEX,ARCHITECTURE_REGION_STATES,c,r):discoveryStateAt(c,r);}
+function architectureDiscoveryStateAt(c,r){if(!architectureRegionFog()||!ARCHITECTURE_REGION_INDEX)return discoveryStateAt(c,r);var D=discoveryApi();if(D&&DISCOVERY.ready&&discoveryStateAt(c,r)===D.VISIBLE)return 2;return ARCHITECTURE_API.regionStateAt(ARCHITECTURE_REGION_INDEX,ARCHITECTURE_REGION_STATES,c,r);}
 function discoveryDetailedAt(c,r){if(architectureRegionFog())return architectureDiscoveryStateAt(c,r)===2;var D=discoveryApi(),i=D&&D.idx(CB.map,c,r);return !!(D&&DISCOVERY.ready&&DISCOVERY.detail&&i>=0&&DISCOVERY.detail[i]);}
 function discoveryRecognitionAt(c,r){
   var D=discoveryApi(),best=0;(DISCOVERY.currentSources||[]).forEach(function(src){var radius=Math.max(5,Number(src.radiusFt)||D.DEFAULT_SIGHT_FT),dist=D.rangeFt(CB.map,src,{c:c,r:r},TG),recognition=Math.max(0,Math.min(1,(1.35-dist/radius)/.65));if(recognition>best)best=recognition;});return best;
@@ -3912,7 +3915,7 @@ function refreshDiscovery(force){
 /* Creature identification follows truthful broad line of sight. Terrain props,
    badges and interactions still require the tighter detail mask, but a creature
    does not vanish merely because it is 65 feet away in open daylight. */
-function discoveryCellVisible(c,r){if(architectureRegionFog())return architectureDiscoveryStateAt(c,r)===2;var D=discoveryApi();return !!(D&&DISCOVERY.ready&&discoveryStateAt(c,r)===D.VISIBLE);}
+function discoveryCellVisible(c,r){var D=discoveryApi();return !!(D&&DISCOVERY.ready&&discoveryStateAt(c,r)===D.VISIBLE);}
 document.addEventListener('forge:viewerMode',function(){refreshDiscovery(true);syncAllUnitVisuals();drawHi();drawSight();});
 
 /* ── PHASE 1.5e: persistent effect ledger ─────────────────────────────
@@ -7889,6 +7892,8 @@ async function bootSession(sid){
       ?window.ForgeGeneratorFoundation.recipeParams(row.map||{}):Object.assign({seed:row.map.seed,themeKey:row.map.theme},row.map.sliders||{});
     F=buildTiersField(sessionRecipe.seed,Object.assign({themeKey:sessionRecipe.themeKey},sessionRecipe));
   }
+  ARCHITECTURE_RECORD=F&&F.architecture?ARCHITECTURE_API.normalizeRecord(F.architecture):ARCHITECTURE_API.record([]);
+  ARCHITECTURE_REGION_INDEX=null;ARCHITECTURE_REGION_STATES={};
   if(!F.occ)F.occ=EMPTY_OCC(F.W*F.H);
   WALL_FT=MapBridge.wallFeetFor(BIOME);applyLook();renderField();
   /* Task 12: publish the claim-screen handshake only after the battlefield

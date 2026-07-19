@@ -97,7 +97,7 @@ with explicit sheet text taking precedence. The Vesperian fixture proves `1d10+4
 without a separate action row; the cache stamp is `forge-kit-derive.js?v=b9`.
 
 The approved mock is now implemented on the canonical Forge behind
-`?architecture=regions1`. `forge-architecture.js?v=fa3` owns one exact,
+`?architecture=regions1`. `forge-architecture.js?v=fa4` owns one exact,
 snapshot-safe record of wall, parapet, gate, and erase blocks. Ten-foot walls
 block movement and sight; five-foot parapets carry their own cover height; gates
 remain passable. The required ascent is audited before local combat, Save for
@@ -117,6 +117,31 @@ one-frame invalidation, and a real hidden-tab pause. High Fidelity preserves the
 earlier 1.75 ceiling, 2048px shadows, ambient motion, and continuous rendering as
 an explicit local choice. The canonical browser pass confirmed both quality
 controls, idle scheduling, region advance, optional-bypass sealing, and reset.
+
+## Midnight field correction · 2026-07-19
+
+The first live save exposed a repaint omission: the exact snapshot retained the
+architecture record, but session boot did not restore that record before
+`renderField()`, so authored meshes disappeared on reopen. Session boot now
+re-seats the version-2 record before rendering. Version-1 records migrate in
+memory. Architecture height is absolute and idempotent, so a restored snapshot
+cannot apply the same raise twice.
+
+The wall tool now works on seeded Temple retaining-wall cells. An open cell gets
+a 10-ft wall; a seeded retaining wall gets a 10-ft upward extension and absolute
+movement/sight authority at its new total height. Water and void remain invalid,
+and seeded walls cannot silently become gates or short parapets.
+
+Region grey is presentation, never creature authority. A whole occupied region
+still restores full colour, but any cell visible through canonical line of sight
+also restores colour across a region boundary. Enemies through an open doorway
+therefore appear before the party enters their room; walls still hide them.
+
+Correction validation: architecture **33/33**, performance/architecture
+integration **20/20**, promotion visibility **17/17**, and discovery **48/48**.
+The focused gate is **20/22 suites green, 916 checks green**. Its two red suites
+are the unchanged inherited `flat mode is level ground` engine case and the
+older Phase 2b.1 authoring-preview ordering assertion.
 
 ## Required field checklist
 
@@ -149,5 +174,5 @@ Do not begin `bridge-crossing` by re-enabling random legacy bridge selection. Pu
 M reviews, commits, and pushes. Codex does not push. Current slice stamps:
 `forge-deployment.js?v=fd1`, `forge-generator-foundation.js?v=g2g1`,
 `forge-temple-terraces.js?v=tt1`, `forge-engine.js?v=fe10`,
-`forge-render-power.js?v=frp1`, `forge-architecture.js?v=fa3`, and
+`forge-render-power.js?v=frp1`, `forge-architecture.js?v=fa4`, and
 `forge-kit-derive.js?v=b9`.

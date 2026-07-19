@@ -1,4 +1,4 @@
-/* Forge authored-architecture authority · version 1
+/* Forge authored-architecture authority · version 2
    Small, snapshot-safe wall/gate layer plus Temple region discovery. Pure data;
    the canonical Forge surface owns THREE meshes and authoring controls. */
 (function (root, factory) {
@@ -8,7 +8,7 @@
 })(typeof self !== "undefined" ? self : this, function () {
   "use strict";
 
-  var VERSION = 1;
+  var VERSION = 2;
   var SCHEMA = "forge-architecture";
   var KINDS = Object.freeze({ wall: { heightFt: 10, blocks: true }, parapet: { heightFt: 5, blocks: true }, gate: { heightFt: 0, blocks: false } });
 
@@ -19,7 +19,9 @@
   function normalizeEdit(edit) {
     var c = integer(edit && edit.c), r = integer(edit && edit.r), kind = String(edit && edit.kind || "").toLowerCase();
     if (c == null || r == null || !KINDS[kind]) return null;
-    return { c: c, r: r, kind: kind };
+    var out = { c: c, r: r, kind: kind }, heightFt = Number(edit && edit.heightFt);
+    if (KINDS[kind].blocks && Number.isFinite(heightFt) && heightFt > 0) out.heightFt = Math.max(KINDS[kind].heightFt, Math.min(60, Math.round(heightFt * 2) / 2));
+    return out;
   }
 
   function record(edits) {
@@ -32,8 +34,13 @@
   }
 
   function normalizeRecord(value) {
-    if (!value || value.schema !== SCHEMA || Number(value.version) !== VERSION) return record([]);
+    if (!value || value.schema !== SCHEMA || [1, VERSION].indexOf(Number(value.version)) < 0) return record([]);
     return record(value.blocks);
+  }
+
+  function heightFt(edit) {
+    var normalized = normalizeEdit(edit), def = normalized && KINDS[normalized.kind];
+    return def ? Number(normalized.heightFt != null ? normalized.heightFt : def.heightFt) : 0;
   }
 
   function editRecord(value, edit) {
@@ -61,10 +68,10 @@
     var out = cloneMap(map), normalized = normalizeRecord(value), blocking = {}, required = requiredConnectorCells(map);
     normalized.blocks.forEach(function (edit) {
       if (!inBounds(out, edit.c, edit.r)) return;
-      var i = edit.r * out.cols + edit.c, def = KINDS[edit.kind];
+      var i = edit.r * out.cols + edit.c, def = KINDS[edit.kind], targetHeightFt = heightFt(edit);
       out.wall[i] = !!def.blocks;
-      out.occ[i] = def.heightFt;
-      out.coverShape[i] = def.blocks ? { kind: "full", source: "authored-" + edit.kind, heightFt: def.heightFt } : null;
+      out.occ[i] = targetHeightFt;
+      out.coverShape[i] = def.blocks ? { kind: "full", source: "authored-" + edit.kind, heightFt: targetHeightFt } : null;
       if (def.blocks) blocking[key(edit.c, edit.r)] = true;
     });
     out.connectors.forEach(function (connector) {
@@ -162,7 +169,7 @@
 
   return {
     VERSION: VERSION, SCHEMA: SCHEMA, KINDS: KINDS,
-    normalizeEdit: normalizeEdit, record: record, normalizeRecord: normalizeRecord, editRecord: editRecord, eraseRecord: eraseRecord,
+    normalizeEdit: normalizeEdit, record: record, normalizeRecord: normalizeRecord, editRecord: editRecord, eraseRecord: eraseRecord, heightFt: heightFt,
     apply: apply, audit: audit, requiredConnectorCells: requiredConnectorCells,
     regionIndex: regionIndex, regionStates: regionStates, regionStateAt: regionStateAt
   };

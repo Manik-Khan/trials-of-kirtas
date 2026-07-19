@@ -22,7 +22,8 @@ const map = {
   ], meta: { intent }
 };
 
-ok('architecture version is pinned', A.VERSION === 1 && A.SCHEMA === 'forge-architecture');
+ok('architecture version is pinned', A.VERSION === 2 && A.SCHEMA === 'forge-architecture');
+ok('version-1 records migrate without losing blocks', A.normalizeRecord({ schema: A.SCHEMA, version: 1, blocks: [{ c: 1, r: 1, kind: 'wall' }] }).blocks.length === 1);
 ok('invalid blocks are discarded', A.record([{ c: 1, r: 1, kind: 'dragon' }]).blocks.length === 0);
 ok('last edit owns a cell', A.record([{ c: 1, r: 1, kind: 'wall' }, { c: 1, r: 1, kind: 'gate' }]).blocks[0].kind === 'gate');
 const wallRecord = A.record([{ c: 1, r: 1, kind: 'wall' }]);
@@ -43,6 +44,10 @@ ok('required stair block is rejected by audit', !A.audit(map, blockedPrimary).ok
 ok('required stair error narrates the exact cell', A.audit(map, blockedPrimary).errors.some(e => e.includes('0,1')));
 ok('gate repairs a required stair block', A.audit(map, A.editRecord(blockedPrimary, { c: 0, r: 1, kind: 'gate' })).ok);
 ok('erase restores the seed-owned cell', A.eraseRecord(wallRecord, 1, 1).blocks.length === 0);
+const raisedRecord = A.record([{ c: 2, r: 0, kind: 'wall', heightFt: 20.5 }]);
+const raisedMap = A.apply(map, raisedRecord);
+ok('seeded retaining walls accept an absolute raised height', raisedMap.wall[2] && raisedMap.occ[2] === 20.5 && raisedMap.coverShape[2].heightFt === 20.5);
+ok('raised wall application is idempotent across saved snapshots', A.apply(raisedMap, raisedRecord).occ[2] === 20.5);
 
 const regions = A.regionIndex(intent);
 ok('region index identifies authored platform cells', regions.at(1, 2) === 'lower-court');
@@ -53,6 +58,13 @@ ok('prior region becomes grey memory', A.regionStateAt(regions, states, 0, 0) ==
 ok('unentered regions default to grey unknown', A.regionStateAt(regions, {}, 0, 2) === 0);
 
 const temple = Engine.generateDetailed({ seed: 7, themeKey: 'temple', generatorProfile: 'intentional-archetype', archetype: 'temple-terraces', roomCount: 8 }).map;
+const seededWallIndex = temple.wall.findIndex((blocked, i) => blocked && Number.isFinite(Number(temple.occ[i])) && Number(temple.occ[i]) > 0);
+const seededWallEdit = { c: seededWallIndex % temple.cols, r: Math.floor(seededWallIndex / temple.cols), kind: 'wall', heightFt: temple.occ[seededWallIndex] + 10 };
+const raisedTemple = A.apply(temple, A.record([seededWallEdit]));
+const restoredRaisedTemple = Foundation.restoreMap(Foundation.snapshotMap(raisedTemple));
+ok('real seeded Temple wall gains ten feet of sight authority', raisedTemple.occ[seededWallIndex] === temple.occ[seededWallIndex] + 10);
+ok('raised seeded-wall height survives the exact snapshot', restoredRaisedTemple.meta.architecture.blocks[0].heightFt === seededWallEdit.heightFt && restoredRaisedTemple.occ[seededWallIndex] === seededWallEdit.heightFt);
+ok('restoring and reapplying a raised wall cannot double its height', A.apply(restoredRaisedTemple, restoredRaisedTemple.meta.architecture).occ[seededWallIndex] === seededWallEdit.heightFt);
 const optionalRoute = temple.meta.intent.routes.find(route => !route.required);
 const optionalConnector = temple.connectors.find(connector => connector.id === optionalRoute.connectorIds[0]);
 const optionalMiddle = optionalConnector.path[1];
