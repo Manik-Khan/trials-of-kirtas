@@ -11,7 +11,7 @@ ok('Balanced is the initial selected profile', /data-render-quality="balanced" c
 ok('hidden tabs pause the frame scheduler', html.includes("FORGE_RENDER_SCHEDULER.setPaused(document.hidden)"));
 ok('old unconditional animation loop is gone', !html.includes('function loop(){requestAnimationFrame(loop)'));
 ok('runtime scheduler owns the real THREE render step', html.includes('step:forgeRenderFrame') && html.includes('renderer.render(scene,camera)'));
-ok('architecture stays behind the explicit regions1 flag', html.includes("get('architecture')==='regions1'"));
+ok('every Temple activates architecture without a query flag', html.includes("function architectureActive(){return !!(F&&F.intent&&F.intent.archetype==='temple-terraces');}") && !html.includes('ARCHITECTURE_QUERY'));
 ok('authored architecture is saved beside the exact map snapshot', html.includes('envelope.architecture=ARCHITECTURE_API.normalizeRecord(ARCHITECTURE_RECORD)'));
 ok('saved architecture restores from the envelope or map metadata', html.includes('envelope.architecture||(map.meta&&map.meta.architecture)'));
 const boot = html.slice(html.indexOf('async function bootSession'), html.indexOf('/* Task 12: publish the claim-screen handshake'));

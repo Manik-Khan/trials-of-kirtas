@@ -96,16 +96,16 @@ Second Wind now owns `1d10 + fighter level` directly on the derived feature tile
 with explicit sheet text taking precedence. The Vesperian fixture proves `1d10+4`
 without a separate action row; the cache stamp is `forge-kit-derive.js?v=b9`.
 
-The approved mock is now implemented on the canonical Forge behind
-`?architecture=regions1`. `forge-architecture.js?v=fa4` owns one exact,
+The approved mock is now implemented by default on every Temple battlefield.
+`forge-architecture.js?v=fa4` owns one exact,
 snapshot-safe record of wall, parapet, gate, and erase blocks. Ten-foot walls
 block movement and sight; five-foot parapets carry their own cover height; gates
 remain passable. The required ascent is audited before local combat, Save for
 later, or a shared Table can open. Sealing an optional stair explicitly closes
 that connector, while the primary ascent remains immutable.
 
-The same preview flag replaces cell removal with region-grey discovery for
-Temple maps. The current region is fully colored, entered regions become grey
+The same Temple path replaces cell removal with region-grey discovery. The
+current region is fully colored, entered regions become grey
 memory, and unentered regions remain darker grey; terrain, walls, props, and
 architectural blocks stay physically present. Workshop exposes the same real
 render path through **Preview region fog** and **Advance region**, so it can be
@@ -137,6 +137,13 @@ still restores full colour, but any cell visible through canonical line of sight
 also restores colour across a region boundary. Enemies through an open doorway
 therefore appear before the party enters their room; walls still hide them.
 
+The 12:45 AM live field pass proved the preview query itself was a product bug:
+normal Temple URLs omitted the builder and fell back to the legacy terrain-removal
+fog, recreating the blank cyan void. Architecture and region-grey discovery now
+activate from Temple intent alone, including historical Temple sessions with no
+architecture record. The ordinary `/forge/` browser path, with no architecture
+parameter, shows the builder and retains the complete grey battlefield.
+
 Correction validation: architecture **33/33**, performance/architecture
 integration **20/20**, promotion visibility **17/17**, and discovery **48/48**.
 The focused gate is **20/22 suites green, 916 checks green**. Its two red suites
@@ -152,7 +159,7 @@ older Phase 2b.1 authoring-preview ordering assertion.
 5. Save for later, reopen, and repeat the exact-position check.
 6. Save/reload a legacy encounter and confirm historical placement remains unchanged.
 7. Compare Volcanic construction once a Workshop Volcanic selector is exposed; the renderer profile exists, but the current biome control does not expose it.
-8. Repeat with `?architecture=regions1`: save one optional-bypass wall, reconnect,
+8. On a normal Temple URL with no architecture flag, save one optional-bypass wall, reconnect,
    and confirm its 10-ft movement/sight authority and closed connector restore.
 9. In Player View, move from approach through each Temple region and confirm the
    whole current region restores color while every other region remains present.

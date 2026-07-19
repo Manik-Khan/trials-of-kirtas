@@ -1981,7 +1981,6 @@ var deploymentRenderGroup=new THREE.Group();scene.add(deploymentRenderGroup);
 var DEPLOYMENT_GROUPS=[],DEPLOYMENT_PLANS=null,DEPLOYMENT_PLACE_GROUP=null,DEPLOYMENT_MANUAL=null,DEPLOYMENT_FOCUS=null;
 const ARCHITECTURE_API=window.ForgeArchitecture;
 if(!ARCHITECTURE_API)throw new Error('Forge architecture authority did not load');
-const ARCHITECTURE_QUERY=new URLSearchParams(location.search).get('architecture')==='regions1';
 var architectureRenderGroup=new THREE.Group();scene.add(architectureRenderGroup);
 var ARCHITECTURE_RECORD=ARCHITECTURE_API.record([]),ARCHITECTURE_TOOL=null,ARCHITECTURE_REGION_INDEX=null,ARCHITECTURE_REGION_STATES={},ARCHITECTURE_FOG_PREVIEW=false,ARCHITECTURE_PREVIEW_REGION=0;
 /* Phase 2 snapshot authority: while a saved session is open, this exact map
@@ -3314,7 +3313,7 @@ var deploymentAddGroup=document.getElementById("deploymentAddGroup");if(deployme
 /* Approved Temple architecture preview. Generator output remains immutable;
    this small record is applied after generation and saved beside the exact map
    snapshot. The required-route audit is the promotion gate. */
-function architectureActive(){return !!(F&&F.intent&&F.intent.archetype==='temple-terraces'&&(ARCHITECTURE_QUERY||F.architecture||SESSION_ID&&ARCHITECTURE_RECORD.blocks.length));}
+function architectureActive(){return !!(F&&F.intent&&F.intent.archetype==='temple-terraces');}
 function architectureAudit(){return F&&architectureActive()?ARCHITECTURE_API.audit(rawCombatMapFromF(),ARCHITECTURE_RECORD):{ok:true,errors:[],record:ARCHITECTURE_RECORD};}
 function architecturePending(){return architectureActive()&&!architectureAudit().ok;}
 function architectureSay(text,bad){var el=document.getElementById('architectureMessage');if(el){el.textContent=text;el.style.color=bad?'#a04b3a':'';}}
