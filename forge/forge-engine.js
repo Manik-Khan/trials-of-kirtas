@@ -13,16 +13,17 @@
    Version-1 parameter records keep the old monolithic profile so snapshot-less
    legacy sessions remain reproducible. Snapshots remain authoritative on load.
 
-   Depends on forge-dungeon.js, map-bridge.js, and
-   forge-generator-foundation.js. Dual browser/Node export.               */
+   Depends on forge-dungeon.js, map-bridge.js, forge-generator-foundation.js,
+   and forge-temple-terraces.js. Dual browser/Node export.                */
 (function (root, factory) {
   var FD = (typeof require !== "undefined") ? require("./forge-dungeon.js") : root.ForgeDungeon;
   var MB = (typeof require !== "undefined") ? require("./map-bridge.js") : root.MapBridge;
   var GF = (typeof require !== "undefined") ? require("./forge-generator-foundation.js") : root.ForgeGeneratorFoundation;
-  var api = factory(FD, MB, GF);
+  var TT = (typeof require !== "undefined") ? require("./forge-temple-terraces.js") : root.ForgeTempleTerraces;
+  var api = factory(FD, MB, GF, TT);
   if (typeof module !== "undefined" && module.exports) module.exports = api;
   else root.ForgeEngine = api;
-})(typeof self !== "undefined" ? self : this, function (FD, MB, GF) {
+})(typeof self !== "undefined" ? self : this, function (FD, MB, GF, TT) {
   "use strict";
 
   function mulberry32(a) {
@@ -157,10 +158,12 @@
 
   function validateVerticalRecords(map) {
     var n = map.cols * map.rows, i;
+    var maxElevationFt = map.meta && map.meta.vertical && Number(map.meta.vertical.maxElevationFt);
+    if (!Number.isFinite(maxElevationFt)) maxElevationFt = MAX_ELEVATION_FT;
     if (!Array.isArray(map.connectors) || !Array.isArray(map.ledges)) return false;
     for (i = 0; i < n; i++) {
       var h = Number(map.h[i]);
-      if (!Number.isFinite(h) || h < -1e-9 || h > MAX_ELEVATION_FT + 1e-9) return false;
+      if (!Number.isFinite(h) || h < -1e-9 || h > maxElevationFt + 1e-9) return false;
     }
     var ids = {};
     var bridgeCells = {};
@@ -186,6 +189,14 @@
           var baseFt = Number(map.h[idx(map.cols, path[pi].c, path[pi].r)] || 0);
           if (Number(path[pi].elevationFt) - Number(c.deckThicknessFt) <= baseFt + 1e-9) return false;
         }
+      } else if (c.source === "archetype-intent") {
+        if (path.length < 3) return false;
+        for (pi = 0; pi < path.length; pi++) {
+          var si = idx(map.cols, path[pi].c, path[pi].r);
+          if (map.wall[si] || Math.abs(Number(map.h[si]) - Number(path[pi].elevationFt)) > 1e-9) return false;
+        }
+        var authoredRise = Math.abs(Number(f.elevationFt) - Number(t.elevationFt));
+        if (!(authoredRise > 0)) return false;
       } else {
         if (path.length !== 2 || Math.abs(f.c - t.c) + Math.abs(f.r - t.r) !== 1) return false;
         var rise = Math.abs(Number(f.elevationFt) - Number(t.elevationFt));
@@ -223,6 +234,14 @@
     })) return false;
     var reach = verticalContract ? bfsReach(map, pcs[0]) : bfsReachLegacy(map, pcs[0]);
     return map.spawns.every(function (s) { return reach.has(key(s.c, s.r)); });
+  }
+
+  function verifyIntentionalScene(map) {
+    var validation = MB.validate(map);
+    if (!validation || !validation.ok) return false;
+    if (!validateVerticalRecords(map)) return false;
+    var intent = map.meta && map.meta.intent;
+    return !!(intent && intent.archetype === "temple-terraces" && Array.isArray(map.spawns) && map.spawns.length === 0);
   }
 
   function randomSeed() { return (Math.random() * 0xffffffff) >>> 0; }
@@ -680,12 +699,6 @@
       if (edge.deltaFt > MAX_CONNECTOR_RISE_FT + 1e-9) return;
       if (join(openIndex[key(edge.a.c, edge.a.r)], openIndex[key(edge.b.c, edge.b.r)])) selected.push(edge);
     });
-    var gentle = edges.filter(function (edge) { return edge.deltaFt === MAX_UNCONNECTED_STEP_FT; }).sort(function (a, b) { return a.hash - b.hash; });
-    /* A map with smooth 5-ft terraces still records a small number of authored
-       transitions so the renderer/importer share real stairs and ramps rather
-       than treating every rise as anonymous terrain. */
-    var gentleCap = Math.min(4, Math.max(0, Math.ceil(open.length / 900)));
-    for (i = 0; i < gentle.length && i < gentleCap; i++) selected.push(gentle[i]);
     var selectedKey = {}, connectors = [];
     selected.sort(function (a, b) { return a.hash - b.hash; }).forEach(function (edge, index) {
       var low = edge.a.elevationFt <= edge.b.elevationFt ? edge.a : edge.b;
@@ -697,7 +710,6 @@
         widthFt: 5, clearanceFt: null, movementCostFt: 5, requires: { climb: false, jump: false, swim: false, fly: false },
         oneWay: false, blocksWhenClosed: false, state: "open", deltaFt: edge.deltaFt, source: "height", render: { generated: true } });
     });
-    selectBridges(map, dungeon, heightSeed).forEach(function(bridge){ connectors.push(bridge); });
     var ledges = steep.map(function (edge, index) {
       var high = edge.a.elevationFt >= edge.b.elevationFt ? edge.a : edge.b, low = high === edge.a ? edge.b : edge.a;
       return { id: "height-ledge-" + index, a: copyObject(edge.a), b: copyObject(edge.b), high: copyObject(high), low: copyObject(low),
@@ -839,32 +851,85 @@
     throw new Error("forge-engine: no valid staged combat map after " + p.retries + " layout attempts (seed " + p.seed + ")");
   }
 
+  function suggestedDeploymentRegions(intent, semanticsSeed) {
+    var ids = (intent.regions || []).map(function (region) { return region.id; });
+    if (!ids.length) return [];
+    var shift = (Number(semanticsSeed) >>> 0) % ids.length;
+    return ids.slice(shift).concat(ids.slice(0, shift)).map(function (regionId, index) {
+      return { regionId: regionId, priority: index + 1 };
+    });
+  }
+
+  function intentionalFingerprints(scene, map) {
+    var layoutGrid = Array.from(scene.dungeon.grid || []);
+    (map.connectors || []).forEach(function (connector) {
+      var path = connectorPath(connector);
+      for (var i = 1; i < path.length - 1; i++) layoutGrid[idx(map.cols, path[i].c, path[i].r)] = MB.CELL.WALL;
+    });
+    return {
+      layout: fp({ grid: layoutGrid, regions: scene.intent.regions.map(function (region) {
+        return { id: region.id, cells: region.cells };
+      }), variant: scene.intent.variant }),
+      height: fp({ h: Array.from(map.h), connectors: map.connectors, ledges: map.ledges }),
+      semantics: fp({ routes: scene.intent.routes, connectorPurposes: scene.intent.connectorPurposes,
+        suggestedDeploymentRegions: scene.intent.suggestedDeploymentRegions }),
+      decor: fp(map.props || []),
+      foes: fp("deployment-unresolved")
+    };
+  }
+
+  function generateIntentionalDetailed(p) {
+    if (!TT || typeof TT.generate !== "function") throw new Error("forge-engine: intentional archetype generator did not load");
+    var theme = chooseTheme(p), seeds = p.stageSeeds;
+    var scene = TT.generate({
+      layoutSeed: seeds.layout,
+      heightSeed: seeds.height,
+      semanticsSeed: seeds.semantics,
+      decorSeed: seeds.decor,
+      themeKey: theme,
+      roomCount: p.roomCount,
+      decorDensity: p.decorDensity
+    });
+    scene.intent.suggestedDeploymentRegions = suggestedDeploymentRegions(scene.intent, seeds.semantics);
+    var sceneValidation = TT.validateScene(scene);
+    if (!sceneValidation || !sceneValidation.ok) {
+      throw new Error("forge-engine: intentional Temple scene failed validation — " + (sceneValidation && sceneValidation.errors || []).join("; "));
+    }
+    var d = scene.dungeon;
+    var map = MB.dungeonToMap(d, { themeKey: theme, poolBlocks: false });
+    map.h = Array.from(scene.h);
+    map.connectors = copyObject(scene.connectors || []);
+    map.ledges = copyObject(scene.ledges || []);
+    map.props = copyObject(d.props || []);
+    map.spawns = [];
+    var attempts = { layout: 1, height: 1, semantics: 1, decor: 1, foes: 1 };
+    map.meta = Object.assign(map.meta || {}, {
+      source: "forge-engine", seed: seeds.layout, requestedSeed: p.seed, biome: theme, name: d.name,
+      heightMode: p.heightMode, party: 0, foes: 0,
+      intent: copyObject(scene.intent), constructionProfile: scene.constructionProfile,
+      vertical: { version: 3, maxElevationFt: 15, orientation: scene.intent.variant,
+        connectors: map.connectors.length, bridges: 0, ledges: map.ledges.length }
+    });
+    var fingerprints = intentionalFingerprints(scene, map);
+    map.meta.stageOwnership = { version: 1, profile: GF.GENERATOR_PROFILES.INTENTIONAL,
+      seeds: copyObject(seeds), attempts: attempts, fingerprints: fingerprints };
+    var effective = Object.assign({}, p, { themeKey: theme, generatorProfile: GF.GENERATOR_PROFILES.INTENTIONAL });
+    if (GF && typeof GF.attachMeta === "function") GF.attachMeta(map, effective, d);
+    if (!verifyIntentionalScene(map)) throw new Error("forge-engine: generated intentional Temple scene is invalid");
+    return { map: map, dungeon: d, parameters: GF ? GF.parameterRecord(effective) : effective,
+      stageAttempts: attempts, stageFingerprints: fingerprints };
+  }
+
   function generateDetailed(params) {
     var p = generationParams(params);
-    if (p.generatorProfile === "legacy-dungeon") return generateLegacyDetailed(p);
+    if (p.generatorProfile === GF.GENERATOR_PROFILES.LEGACY) return generateLegacyDetailed(p);
+    if (p.generatorProfile === GF.GENERATOR_PROFILES.INTENTIONAL) return generateIntentionalDetailed(p);
     return generateStagedDetailed(p);
   }
 
   function findBridgeRecipe(params, options) {
-    var base = generationParams(params), opts = options || {};
-    var maxSeeds = Math.max(1, Math.min(512, Number(opts.maxSeeds) || 48));
-    var currentTheme = chooseTheme(base);
-    var requestedThemes = Array.isArray(opts.themeKeys) ? opts.themeKeys : FD.THEME_KEYS;
-    var themes = [currentTheme];
-    requestedThemes.forEach(function (theme) {
-      if (FD.THEME_KEYS.indexOf(theme) >= 0 && themes.indexOf(theme) < 0) themes.push(theme);
-    });
-    for (var ti = 0; ti < themes.length; ti++) {
-      for (var step = 1; step <= maxSeeds; step++) {
-        var seed = (base.seed + step) >>> 0;
-        var candidate = Object.assign({}, base, { seed: seed, themeKey: themes[ti], stageSeeds: null });
-        delete candidate.parameters;
-        var detail = generateDetailed(candidate);
-        if ((detail.map.connectors || []).some(function (c) { return c && c.kind === "bridge"; })) {
-          return { seed: seed, themeKey: themes[ti], parameters: detail.parameters, detail: detail };
-        }
-      }
-    }
+    /* No active intentional archetype owns bridge placement yet. Keep the
+       finder API stable without forcing bridge geometry into legacy maps. */
     return null;
   }
 
@@ -910,6 +975,8 @@
       placeSpawns: placeSpawns,
       stageFingerprints: stageFingerprints,
       verify: verify,
+      verifyIntentionalScene: verifyIntentionalScene,
+      generateIntentionalDetailed: generateIntentionalDetailed,
       bfsReach: bfsReach,
       legacyTierField: legacyTierField
     }

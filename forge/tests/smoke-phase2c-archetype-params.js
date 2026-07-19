@@ -24,6 +24,14 @@ const legacy={seed:42,theme:"temple",archetype:"canyon",stageSeeds:{decor:1234},
 const record=GF.parameterRecord(legacy);
 ok(record.schema===GF.PARAMETER_SCHEMA&&record.version===2&&record.archetype==="canyon","legacy-shaped authoring inputs normalize into the canonical record");
 ok(record.generatorProfile===GF.GENERATOR_PROFILES.STAGED,"new authoring inputs opt into the staged legacy profile");
+ok(GF.GENERATOR_VERSION==="2.1.0-temple.1","generator version names the first intentional archetype");
+ok(GF.GENERATOR_PROFILES.INTENTIONAL==="intentional-archetype","foundation exports the intentional archetype profile");
+const templeDef=GF.archetypeDefinition("temple-terraces");
+ok(templeDef.status==="preview","Temple Terraces is honestly preview-ready rather than record-only or combat-ready");
+const templeFresh=GF.parameterRecord({seed:81,theme:"temple",archetype:"temple-terraces"});
+ok(templeFresh.generatorProfile===GF.GENERATOR_PROFILES.INTENTIONAL,"new Temple authoring selects the intentional profile");
+const oldTemple=GF.parameterRecord({schema:GF.PARAMETER_SCHEMA,version:2,seed:81,theme:"temple",archetype:"temple-terraces",generatorProfile:GF.GENERATOR_PROFILES.STAGED,stages:templeFresh.stages,rules:templeFresh.rules,runtime:templeFresh.runtime});
+ok(oldTemple.generatorProfile===GF.GENERATOR_PROFILES.STAGED,"an existing explicit Temple recipe keeps its historical staged-legacy grammar");
 ok(record.stages.layout.roomCount===11&&record.stages.layout.loopChance===.35&&record.stages.decor.density===.55,"layout and decor knobs live in named stage records");
 ok(record.stages.height.verticalityFt===5&&record.stages.foes.party===3&&record.stages.foes.count===7,"height and encounter counts live in named stage records");
 ok(record.stageSeeds.decor===1234&&record.stageSeeds.layout===GF.stageSeeds(42).layout,"explicit stage overrides coexist with deterministic derived seeds");
@@ -69,7 +77,7 @@ ok(html.includes("window.__forgeArchetype.paint(savedArchetype,true)"),"shared-s
 ok(html.includes('["archetype","rooms","loops","decor","foes","seed"'),"shared sessions lock the archetype with the rest of the map recipe");
 ok(html.includes('w.querySelector("input,select")')&&html.includes('["archetype","rooms","loops","decor","foes"]'),"non-overseer devices hide the DM-only archetype control");
 ok(html.includes("m.parameters && m.parameters.archetype")&&html.includes("adef.label"),"staged fights identify their saved archetype");
-ok(/forge-generator-foundation\.js\?v=g2(?:e1|f1|f2)/.test(html)&&/forge-engine\.js\?v=fe(?:5|6|7|8)/.test(html),"current parameter and engine runtimes are cache-busted");
+ok(/forge-generator-foundation\.js\?v=g2g1/.test(html)&&/forge-engine\.js\?v=fe9/.test(html),"current parameter and engine runtimes are cache-busted");
 
 const scripts=[...html.matchAll(/<script(?:\s+type="([^"]+)")?[^>]*>([\s\S]*?)<\/script>/g)]
   .filter(m=>!m[0].includes('type="importmap"')&&m[2].trim());

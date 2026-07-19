@@ -1,4 +1,4 @@
-# CONTEXT — Battle Forge — current authority through 2026-07-16c
+# CONTEXT — Battle Forge — current authority through 2026-07-18
 
 > This doc exists because the same failure kept happening: a session would read
 > *part* of the material, conclude a feature "was never there," and rebuild
@@ -9,12 +9,21 @@
 
 ---
 
-## CURRENT AUTHORITY · 2026-07-16c
+## CURRENT AUTHORITY · 2026-07-18
 
-Read `docs/handoffs/forge/CONTEXT_Forge-update-2026-07-16c.md` before the
-historical sections below. It carries the field verdict and execution order
-through structural-bridge completion. The embedded 2026-07-13h addendum remains
-the Phase 1.5 record, not the current handoff.
+Read `docs/handoffs/forge/CONTEXT_Forge-update-2026-07-18.md` before the
+historical sections below. It carries the intentional Temple Terraces preview,
+the removal of purposeless legacy connectors, and the current execution order.
+The embedded 2026-07-13h addendum remains the Phase 1.5 record, not the current
+handoff.
+
+Temple Terraces is the first implemented intent-owned archetype. It is a
+Workshop preview, not an active encounter grammar: generation and rendering are
+live, but `spawns: []` is authoritative and combat/save doors refuse promotion
+until the separate DM deployment-group slice lands. Staged legacy generation no
+longer samples decorative 5-ft connectors or produces bridges. Bridge authority
+remains available for the later `bridge-crossing` archetype. Runtime contract:
+`forge/FORGE_TEMPLE_TERRACES_1.md`.
 
 ---
 
@@ -121,7 +130,8 @@ greyed out in the select and must never be silently dropped.
 | `forge/tactics-geometry.js` | **canonical rules module.** Chebyshev, movement, 3D LoS, twelve-sample body cover, target-side attribution, sub-cell `coverShape[]`, intervening creatures, ledge/parapet eyes, cover audit | canonical · Phase 1.5h |
 | `forge/map-bridge.js` | generator/heightfield → MAP document `{cols,rows,h,wall,occ,spawns,props}` | canonical |
 | `forge/forge-dungeon.js` | generator. **THEMES keys are the biome names**: `grass druidic tundra swamp temple cavern volcanic` | canonical |
-| `forge/forge-engine.js` | seeded generate → validated map | canonical |
+| `forge/forge-engine.js` | versioned profile router: staged legacy combat maps or intentional Temple preview; five stage fingerprints | canonical |
+| `forge/forge-temple-terraces.js` | pure intentional Temple generator: broad 0/5/10/15-ft regions, three variants, route-owned stairs, construction profiles, semantic validation, no spawns | canonical preview |
 | `forge/forge-board.js` | translator: wire↔board verbs (turn loop, prompt routing, initiative, overseer toolbar incl. GOD MODE/rewind/Add-foe). Move verbs self-contained: walk prefers the declared path, falls back to `payload.path` (2026-07-11). `deadFoeSkip(state)` — pure dead-foe-holds-the-turn decision; the mock's overseer device publishes the skip (`?v=fb5`) | canonical |
 | `schema_delta_forge_board.sql` | append-only migration: `forge_claim_unit()` claim RPC + session visibility for players | **presumed applied to live Supabase** (M's bite-1 field rounds ran two-device, which needs it — confirm with M, do not assert) |
 | `forge/tests/smoke-tiers-rebase.js` | rebase smoke: canonical `ForgeEngine.generate()` on real seeds, §4-geometry invariants hold | canonical |
@@ -145,7 +155,7 @@ greyed out in the select and must never be silently dropped.
 | `forge/forge-replay.js` | reducer: log → state. Facts only, never rules. Override pre-scan, restore branch, GOD-MODE edit. Since 2026-07-11: per-turn action economy derived from the log (`turnEconomy()`, facts carry `slot`; `undo_of` refunds a retracted move) | canonical |
 | `forge/forge-bus.js` | transport: MemoryBus (headless, mirrors the RLS identity+kind gate) + SupabaseBus | canonical |
 | `forge/forge-pipeline.js` | acting-client pipeline: declared→resolved, cross-device prompts, timeout→overseer. Since 2026-07-11: `undoMove()` (player retracts own last move, compensating fact) + `contestCover()` (pre-roll cover-contest pause, `FORGE_COVER_CONTEST.md`) | canonical |
-| `forge/forge-generator-foundation.js` | generator version, independent stage seeds, archetype vocabulary, graph metadata, exact map snapshots, fingerprints, encounter envelopes | canonical foundation.2 |
+| `forge/forge-generator-foundation.js` | generator `2.1.0-temple.1`, independent stage seeds, intentional/staged/legacy profiles, archetype vocabulary, graph metadata, exact map snapshots, fingerprints, encounter envelopes | canonical |
 | `forge/forge-unit-art.js` | PC/bestiary token-art resolver, safe URL/local overrides, per-combatant and per-kind precedence | canonical Phase 1.5c |
 | `forge/forge-table-correctness.js` | Staff/Player presentation disclosure, feed channels, slot/resource/privacy and table-correctness seams | canonical Phase 1.5d–g |
 | `forge/forge-effects.js` | pure replayable persistent-effect ledger; Sanctuary and conditions reconstruct from event facts | canonical Phase 1.5e |

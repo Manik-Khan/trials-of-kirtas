@@ -9,7 +9,8 @@ lets a generated map become a rules-enforced combat encounter. This is an
 ```
 params ─▶ forge-engine ─▶ (map-bridge contract) ─▶ tactics-geometry ─▶ combat
              │
-             └─ uses forge-dungeon (the generator core)
+             ├─ uses forge-dungeon (staged legacy grammar)
+             └─ uses forge-temple-terraces (intentional Temple grammar)
 ```
 
 `map-bridge.js` bridges the generator to the **map document**. It does *not*
@@ -24,16 +25,22 @@ unfinished job, tracked in `CONTEXT_Forge.md` §3.
   retained inside; core adapted from majidmanzarpour/threejs-procedural-dungeon.
   Global: `window.ForgeDungeon`. Its `THEMES` keys **are** the biome names.
 - **forge-engine.js** — control + completion + reliability. One call,
-  `ForgeEngine.generate(params)`, returns a finished, verified combat map:
-  walls + per-tile heights + occluders + PC/foe spawns. Depends on
-  forge-dungeon + map-bridge. Global: `window.ForgeEngine`.
+  `ForgeEngine.generate(params)`, returns a finished, verified map. Legacy
+  profiles include PC/foe spawns; intentional Temple preview deliberately
+  returns none until the DM deployment slice. Depends on forge-dungeon,
+  forge-temple-terraces, map-bridge, and forge-generator-foundation.
+  Global: `window.ForgeEngine`.
+- **forge-temple-terraces.js** — pure intent-owned Temple generator. Produces
+  broad 0/5/10/15-ft regions, axial/switchback/ring variants, route-owned
+  multi-point stairs, construction profiles, and semantic validation. It never
+  places combatants or bridges. Global: `window.ForgeTempleTerraces`.
 - **map-bridge.js** — the seam. Converts generator output (dungeon grid or
   topography heightfield) into the combat map contract. Global: `window.MapBridge`.
 - **tactics-geometry.js** — the combat rules module (movement, cliffs, LoS,
   cover, ranges). The **canonical source of truth** for this file.
   Global: `window.TacticsGeo`.
 
-All four are dual-export (browser `window.*` **and** Node `module.exports`), so
+All five are dual-export (browser `window.*` **and** Node `module.exports`), so
 the Node test harness and the browser game share the exact same code.
 
 ## The map document
@@ -78,9 +85,23 @@ The biome names were renamed once (`ancient/molten/frost/grim/verdant` →
 the list above). An unrecognised `themeKey` currently dies with a `TypeError`
 deep inside `forge-dungeon.js` rather than narrating. Worth a guard.
 
-Every returned map is verified: valid contract, spawns on open floor, and
-PC↔foe mutually reachable. A failing seed is retried; a broken map is never
-returned.
+Every staged legacy combat map is verified: valid contract, spawns on open
+floor, and PC↔foe mutually reachable. A failing seed is retried; a broken map
+is never returned. Intentional Temple preview uses its own scene validator and
+requires zero generated spawns.
+
+### Temple Terraces preview
+
+Fresh `temple-terraces` records select generator version
+`2.1.0-temple.1` and profile `intentional-archetype`. Workshop renders the
+purpose-built terrain and labels it `preview`; local combat, Roll Initiative,
+and Save for later narrate that DM deployment groups are still required.
+Temple returns `spawns: []`. Explicit old recipe profiles and saved snapshots
+retain their historical authority. Full contract: `FORGE_TEMPLE_TERRACES_1.md`.
+
+Staged legacy generation no longer decorates ordinary 5-ft edges with stairs
+or forces pool bridges. The proven bridge substrate remains available for a
+future intent-owned `bridge-crossing` archetype.
 
 ## Canonical product surface
 
@@ -163,6 +184,7 @@ node smoke-tactics-geometry.mjs  # geometry: cliffs, LoS, movement budget       
 node smoke-los-cover.js          # heightfield LoS + graded cover, one case per stated rule      (27)
 node smoke-placement.js          # spread rule: no blobs, no stacking, foes in the 40-90 ft band (19)
 node smoke-flora.js              # walls hard, flora clears them, every kind has a height + depth (22)
+node smoke-temple-terraces.js    # intentional variants, routes, rendering, preview safety (35)
 ```
 
 124 assertions, all green. `smoke-placement.js` **extracts `clusterAround` and

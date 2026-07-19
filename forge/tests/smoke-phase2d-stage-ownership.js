@@ -11,9 +11,9 @@ function ok(v,l){if(!v)throw new Error("FAIL: "+l);console.log("ok",++pass,"-",l
 function throws(fn,part,l){let e=null;try{fn();}catch(x){e=x;}ok(e&&String(e.message||e).includes(part),l);}
 function same(a,b){return JSON.stringify(a)===JSON.stringify(b);}
 
-ok(/^2\.0\.0-(?:elevations\.1|bridges\.[12])$/.test(GF.GENERATOR_VERSION),"generator version retains true stage ownership through vertical extensions");
+ok(GF.GENERATOR_VERSION==="2.1.0-temple.1","generator version names the intentional Temple extension");
 ok(GF.PARAMETER_VERSION===2&&GF.SUPPORTED_PARAMETER_VERSIONS.join(",")==="1,2","parameter v2 is canonical while v1 remains readable");
-ok(GF.GENERATOR_PROFILES.STAGED==="stage-owned-legacy"&&GF.GENERATOR_PROFILES.LEGACY==="legacy-dungeon","generator profiles distinguish staged and monolithic recipes");
+ok(GF.GENERATOR_PROFILES.STAGED==="stage-owned-legacy"&&GF.GENERATOR_PROFILES.LEGACY==="legacy-dungeon"&&GF.GENERATOR_PROFILES.INTENTIONAL==="intentional-archetype","generator profiles distinguish staged, monolithic, and intentional recipes");
 ok(GF.stageAttemptSeed(44,"layout",0)!==GF.stageAttemptSeed(44,"layout",1),"stage retries advance only their named stream");
 ok(GF.stageAttemptSeed(44,"layout",0)!==GF.stageAttemptSeed(44,"foes",0),"attempt seeds are namespaced by stage");
 throws(()=>GF.parameterRecord({schema:GF.PARAMETER_SCHEMA,version:3}),"unsupported parameter record version","unknown future parameter versions still stop loudly");
@@ -44,9 +44,10 @@ function makeDungeon(opts){
     entrance:0,boss:3,maxDepth:4,props,torches,spawns:[],stats:{critLen:0}};
 }
 const FD={THEME_KEYS:["grass","temple"],THEMES:{grass:{},temple:{}},TYPE,CELL,generateDungeon(opts){calls.push({...opts});return makeDungeon(opts);}};
+const TT={generate(){throw new Error("Temple stub must not run for legacy-profile tests");},validateScene(){return {ok:true,errors:[]};}};
 const MB={CELL,dungeonToMap(d){const n=d.W*d.H;return {cols:d.W,rows:d.H,h:new Float32Array(n),wall:new Array(n).fill(false),occ:new Float32Array(n),coverShape:new Array(n).fill(null),props:(d.props||[]).map(p=>({...p})),spawns:[],meta:{}};},
   validate(m){return {ok:!!m&&m.cols>0&&m.rows>0&&m.h.length===m.cols*m.rows&&m.wall.length===m.cols*m.rows};}};
-const sandbox={module:{exports:{}},exports:{},require(id){if(id==="./forge-dungeon.js")return FD;if(id==="./map-bridge.js")return MB;if(id==="./forge-generator-foundation.js")return GF;throw new Error(id);},
+const sandbox={module:{exports:{}},exports:{},require(id){if(id==="./forge-dungeon.js")return FD;if(id==="./map-bridge.js")return MB;if(id==="./forge-generator-foundation.js")return GF;if(id==="./forge-temple-terraces.js")return TT;throw new Error(id);},
   console,Math,Set,Float32Array,Int32Array,Uint8Array,Number,Object,Array,Error,JSON};
 vm.runInNewContext(engineSource,sandbox,{filename:"forge-engine.js"});
 const Engine=sandbox.module.exports;
@@ -95,7 +96,7 @@ ok(spec.includes("Changing `height` cannot change layout, semantics, decor, or f
 ok(html.includes("ForgeEngine.generateDetailed")&&html.includes("const decorSeed=record.stageSeeds"),"production preview consumes the canonical staged pipeline and decor stream");
 ok(html.includes("F=buildTiersField(fp.seed, fp)"),"authoring rebuild passes the complete parameter record instead of flattening away stage seeds");
 ok(html.includes("stageOwnership:F.stageOwnership||null"),"session snapshots retain the stage-ownership diagnostic ledger");
-ok(/forge-generator-foundation\.js\?v=g2(?:e1|f1|f2)/.test(html)&&/forge-engine\.js\?v=fe(?:5|6|7|8)/.test(html),"stage-owned runtimes are cache-busted");
+ok(/forge-generator-foundation\.js\?v=g2g1/.test(html)&&/forge-engine\.js\?v=fe9/.test(html),"stage-owned runtimes are cache-busted");
 const firstRebuild=html.indexOf("resize(); rebuild();");
 ok(html.indexOf("var DISCOVERY_RENDER={")<firstRebuild&&html.indexOf("var SESSION_ID=new URLSearchParams")<firstRebuild,"both known startup-order guards remain ahead of the initial rebuild");
 

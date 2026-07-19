@@ -3,6 +3,7 @@
 const fs=require("fs"),path=require("path"),vm=require("vm");
 const root=path.resolve(__dirname,"..");
 const GF=require(path.join(root,"forge-generator-foundation.js"));
+const RealEngine=require(path.join(root,"forge-engine.js"));
 const engineSource=fs.readFileSync(path.join(root,"forge-engine.js"),"utf8");
 const html=fs.readFileSync(path.join(root,"index.html"),"utf8");
 let pass=0;function ok(v,l){if(!v)throw new Error("FAIL: "+l);console.log("ok",++pass,"-",l);}
@@ -33,6 +34,13 @@ ok(legacyCalls===0,"invalid snapshot does not call the legacy generator");
 const legacy=GF.resolveEncounter({seed:7,theme:"grass",sliders:{party:1}},p=>{legacyCalls++;return {p};});
 ok(legacy.source==="legacy-recipe"&&legacy.map.p.themeKey==="grass"&&legacy.map.p.party===1,"missing snapshot uses the legacy recipe exactly once");
 
+const temple=RealEngine.generateDetailed(GF.normalizeParams({seed:81,theme:"temple",archetype:"temple-terraces",sliders:{roomCount:8,decorDensity:.7,party:4,foes:5}}));
+const templeSnap=GF.snapshotMap(temple.map);
+const templeRestored=GF.restoreMap(templeSnap,GF.fingerprintSnapshot(templeSnap));
+ok(templeRestored.meta.intent.variant===temple.map.meta.intent.variant,"Temple variant survives exact snapshot restore");
+ok(templeRestored.meta.constructionProfile===temple.map.meta.constructionProfile,"Temple construction profile survives exact snapshot restore");
+ok(JSON.stringify(templeRestored.meta.intent.connectorPurposes)===JSON.stringify(temple.map.meta.intent.connectorPurposes),"Temple connector purpose survives exact snapshot restore");
+
 /* Exercise the uploaded engine in a VM with tiny deterministic dependencies. */
 let dungeonCalls=0;
 const FD={THEME_KEYS:["grass"],generateDungeon(opts){dungeonCalls++;return {valid:true,seed:opts.seed,name:"Stub",W:3,H:1,maxDepth:1,
@@ -40,7 +48,8 @@ const FD={THEME_KEYS:["grass"],generateDungeon(opts){dungeonCalls++;return {vali
   spawns:[{x:2,y:0,roomId:1,tier:0}],boss:1,props:[]};}};
 const MB={CELL:{FLOOR:1,POOL:2,WALL:3,VOID:0},dungeonToMap(){return {cols:3,rows:1,h:[0,0,0],wall:[false,false,false],occ:[0,0,0],props:[],spawns:[],meta:{}};},
   validate(map){const n=map.cols*map.rows;return {ok:!!map&&map.h.length===n&&map.wall.length===n&&map.occ.length===n};}};
-const sandbox={module:{exports:{}},exports:{},require(id){if(id==="./forge-dungeon.js")return FD;if(id==="./map-bridge.js")return MB;if(id==="./forge-generator-foundation.js")return GF;throw new Error(id);},
+const TT={generate(){throw new Error("Temple stub must not run for legacy snapshot tests");},validateScene(){return {ok:true,errors:[]};}};
+const sandbox={module:{exports:{}},exports:{},require(id){if(id==="./forge-dungeon.js")return FD;if(id==="./map-bridge.js")return MB;if(id==="./forge-generator-foundation.js")return GF;if(id==="./forge-temple-terraces.js")return TT;throw new Error(id);},
   console,Math,Set,Float32Array,Number,Object,Array,Error};
 vm.runInNewContext(engineSource,sandbox,{filename:"forge-engine.js"});
 const Engine=sandbox.module.exports;
@@ -57,5 +66,5 @@ ok(html.includes("fieldFromSessionSnapshot(row.map)"),"session boot selects the 
 ok(html.includes("Object.prototype.hasOwnProperty.call(row.map,'mapSnapshot')"),"snapshot presence, not truthiness, chooses authority");
 ok(html.includes("renderField:renderFieldSnapshot(F)"),"new sessions retain the render-only data needed for faithful repainting");
 ok(html.includes("var saved=gf.restoreMap(SESSION_MAP_AUTHORITY)"),"combat geometry clones the authoritative snapshot instead of rebuilding it from art data");
-ok(/forge-generator-foundation\.js\?v=g2(?:e1|f1|f2)/.test(html)&&/forge-engine\.js\?v=fe(?:5|6|7|8)/.test(html),"changed runtime modules are cache-busted");
+ok(/forge-generator-foundation\.js\?v=g2g1/.test(html)&&/forge-engine\.js\?v=fe9/.test(html),"changed runtime modules are cache-busted");
 console.log("\n"+pass+" snapshot-authority checks green");

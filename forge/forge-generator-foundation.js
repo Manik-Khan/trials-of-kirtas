@@ -16,13 +16,14 @@
 })(typeof self !== "undefined" ? self : this, function () {
   "use strict";
 
-  var GENERATOR_VERSION = "2.0.0-bridges.2";
+  var GENERATOR_VERSION = "2.1.0-temple.1";
   var PARAMETER_SCHEMA = "forge-map-parameters";
   var PARAMETER_VERSION = 2;
   var SUPPORTED_PARAMETER_VERSIONS = Object.freeze([1, 2]);
   var GENERATOR_PROFILES = Object.freeze({
     LEGACY: "legacy-dungeon",
-    STAGED: "stage-owned-legacy"
+    STAGED: "stage-owned-legacy",
+    INTENTIONAL: "intentional-archetype"
   });
   var STAGES = Object.freeze(["layout", "height", "semantics", "decor", "foes"]);
   var ARCHETYPE_DEFINITIONS = Object.freeze([
@@ -36,7 +37,7 @@
     Object.freeze({ key: "island-chain", label: "Island chain", status: "record-only", summary: "Multiple walkable islands connected across hazards." }),
     Object.freeze({ key: "courtyard", label: "Courtyard", status: "record-only", summary: "An enclosed open center with perimeter structures." }),
     Object.freeze({ key: "cavern-chambers", label: "Cavern chambers", status: "record-only", summary: "Organic chambers, narrow throats, and irregular boundaries." }),
-    Object.freeze({ key: "temple-terraces", label: "Temple terraces", status: "record-only", summary: "Ordered platforms, stairs, and ceremonial elevation." }),
+    Object.freeze({ key: "temple-terraces", label: "Temple terraces", status: "preview", summary: "Purpose-built tiered temple platforms with authored stair routes; deployment flags are required before combat." }),
     Object.freeze({ key: "ridge", label: "Ridge", status: "record-only", summary: "A long high spine controlling movement and sight." }),
     Object.freeze({ key: "basin", label: "Basin", status: "record-only", summary: "A low center surrounded by higher approaches." })
   ]);
@@ -101,7 +102,7 @@
 
   function assertGeneratorProfile(value) {
     var v = value == null || value === "" ? GENERATOR_PROFILES.STAGED : String(value);
-    if (v !== GENERATOR_PROFILES.LEGACY && v !== GENERATOR_PROFILES.STAGED) {
+    if (v !== GENERATOR_PROFILES.LEGACY && v !== GENERATOR_PROFILES.STAGED && v !== GENERATOR_PROFILES.INTENTIONAL) {
       throw new Error("forge-generator-foundation: unknown generator profile \"" + v + "\"");
     }
     return v;
@@ -437,11 +438,14 @@
     var seeds = stageSeeds(seed, source.stageSeeds || input.stageSeeds);
     /* Version 1 recipes predate real stage ownership. Preserve their legacy
        generator profile so snapshot-less old sessions regenerate faithfully.
-       New/unversioned authoring inputs opt into the staged legacy grammar. */
+       New/unversioned authoring inputs select the archetype's current grammar. */
+    var defaultProfile = archetype === "temple-terraces"
+      ? GENERATOR_PROFILES.INTENTIONAL
+      : GENERATOR_PROFILES.STAGED;
     var profile = assertGeneratorProfile(
       source.generatorProfile != null ? source.generatorProfile :
         (input.generatorProfile != null ? input.generatorProfile :
-          (sourceVersion === 1 ? GENERATOR_PROFILES.LEGACY : GENERATOR_PROFILES.STAGED))
+          (sourceVersion === 1 ? GENERATOR_PROFILES.LEGACY : defaultProfile))
     );
 
     var layout = sourceStages.layout || sourceValues.layout || {};

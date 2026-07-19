@@ -55,7 +55,7 @@ has(html,'id="findBridgeSeed"',"visible deterministic bridge-seed finder exists"
 has(html,'function refreshVerticalGeometryPanel()',"connector counts are painted");
 has(html,'no structural bridge on this seed',"zero-bridge maps say so explicitly");
 has(html,'function findNearbyBridgeSeed()',"bridge seed search is executable, not a checklist fiction");
-ok(html.includes('engine.findBridgeRecipe(base')&&engine.includes('stageSeeds: null'),"bridge seed search derives fresh stage seeds for each candidate");
+ok(html.includes('engine.findBridgeRecipe(base')&&engine.includes('No active intentional archetype owns bridge placement yet'),"bridge seed search remains available but cannot force a bridge into a legacy map");
 
 // 4. The obsolete post-render decorator must not remain.
 ok(!html.includes('D.decorateNewestRow(document,fact)'),"fragile post-render decoration is gone");

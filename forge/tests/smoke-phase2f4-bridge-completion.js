@@ -21,10 +21,10 @@ const map={cols,rows,h:new Array(n).fill(10),wall:new Array(n).fill(false),occ:n
 const grid=new Array(n).fill(MB.CELL.FLOOR);
 [[3,2],[4,2],[5,2]].forEach(([c,r])=>{grid[idx(c,r)]=MB.CELL.POOL;map.wall[idx(c,r)]=true;map.h[idx(c,r)]=0;});
 const dungeon={W:cols,H:rows,grid};
-const vertical=E._internals.verticalRecords(map,12345,dungeon);map.connectors=vertical.connectors;map.ledges=vertical.ledges;
+map.connectors=E._internals.selectBridges(map,dungeon,12345);map.ledges=[];
 const bridge=map.connectors.find(c=>c.kind==="bridge");
 ok("generator emits a structural bridge",!!bridge);
-ok("generator version advances to stable bridge identity",GF.GENERATOR_VERSION==="2.0.0-bridges.2");
+ok("generator version retains stable bridge identity through Temple extension",GF.GENERATOR_VERSION==="2.1.0-temple.1");
 ok("generated bridge ID is path-derived",bridge.id===BA.stableId(bridge));
 ok("engine and bridge authority agree on path signature",E._internals.bridgePathSignature(bridge.path)===BA.pathSignature(bridge));
 ok("stable identity is independent of list position",E._internals.bridgeStableId(bridge.path)===bridge.id);
@@ -77,8 +77,7 @@ const realParams=GF.normalizeParams({
   sliders:{roomCount:8,loopChance:.2,decorDensity:.7,heightMode:"tiered",verticality:5,party:4,foes:5}
 });
 const realDetail=RealEngine.generateDetailed(realParams);
-const realBridges=(realDetail.map.connectors||[]).filter(c=>c&&c.kind==="bridge");
-ok("real staged generation emits a structural bridge",realBridges.length>0);
+ok("legacy staged generation does not invent structural bridges",!(realDetail.map.connectors||[]).some(c=>c&&c.kind==="bridge"));
 
 const searchInput=GF.normalizeParams({
   seed:7,theme:"grass",archetype:"legacy-dungeon",
@@ -87,8 +86,7 @@ const searchInput=GF.normalizeParams({
 const hasFinder=typeof RealEngine.findBridgeRecipe==="function";
 ok("bridge finder is exported",hasFinder);
 const found=hasFinder?RealEngine.findBridgeRecipe(searchInput,{maxSeeds:48}):null;
-ok("bridge finder returns a real generated recipe",!!found&&(found.detail.map.connectors||[]).some(c=>c.kind==="bridge"));
-ok("bridge finder returns a recipe that passes the live audit",!!found&&BA.auditMap(found.detail.map,TG).ok);
+ok("bridge finder does not force a bridge into a non-bridge archetype",found===null);
 ok("bridge finder does not mutate its input",searchInput.seed===7&&searchInput.theme==="grass");
 
 const html=fs.readFileSync(path.join(root,"index.html"),"utf8");

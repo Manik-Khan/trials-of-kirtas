@@ -13,7 +13,7 @@ function ok(v,l){if(!v)throw new Error("FAIL: "+l);console.log("ok",++pass,"-",l
 function throws(fn,part,l){let e=null;try{fn();}catch(x){e=x;}ok(e&&String(e.message||e).includes(part),l);}
 function same(a,b){return JSON.stringify(a)===JSON.stringify(b);}
 
-ok(/^2\.0\.0-(?:elevations\.1|bridges\.[12])$/.test(GF.GENERATOR_VERSION),"generator version retains bounded elevations and connectors through bridge extension");
+ok(GF.GENERATOR_VERSION==="2.1.0-temple.1","generator version retains bounded elevations through the intentional Temple extension");
 ok(GF.PARAMETER_VERSION===2&&GF.SUPPORTED_PARAMETER_VERSIONS.join(",")==="1,2","connector slice does not invent an unnecessary parameter version");
 ok(GF.CONNECTOR_KINDS.includes("stairs")&&GF.CONNECTOR_KINDS.includes("ramp"),"foundation recognizes first-class stairs and ramps");
 
@@ -50,15 +50,18 @@ function makeDungeon(opts){
   return {valid:true,params:{themeKey:opts.themeKey},seed:opts.seed,name:"Vertical Stub",W,H,grid,roomId,corridor:new Uint8Array(W*H),doorway:new Uint8Array(W*H),rooms,edges,props:[],torches:[],spawns:[],stats:{}};
 }
 const FD={THEME_KEYS:["grass"],THEMES:{grass:{}},TYPE,CELL,generateDungeon(opts){calls.push({...opts});return makeDungeon(opts);}};
+const TT={generate(){throw new Error("Temple stub must not run for legacy-profile tests");},validateScene(){return {ok:true,errors:[]};}};
 const MB={CELL,dungeonToMap(d,opts){const n=d.W*d.H;return {cols:d.W,rows:d.H,h:new Float32Array(n),wall:new Array(n).fill(false),occ:new Float32Array(n),coverShape:new Array(n).fill(null),props:[],spawns:[],meta:{poolBlocks:!!opts.poolBlocks}};},validate(m){return {ok:!!m&&m.h.length===m.cols*m.rows&&m.wall.length===m.cols*m.rows};}};
-const sandbox={module:{exports:{}},exports:{},require(id){if(id==="./forge-dungeon.js")return FD;if(id==="./map-bridge.js")return MB;if(id==="./forge-generator-foundation.js")return GF;throw new Error(id);},console,Math,Set,Float32Array,Int32Array,Uint8Array,Number,Object,Array,Error,JSON};
+const sandbox={module:{exports:{}},exports:{},require(id){if(id==="./forge-dungeon.js")return FD;if(id==="./map-bridge.js")return MB;if(id==="./forge-generator-foundation.js")return GF;if(id==="./forge-temple-terraces.js")return TT;throw new Error(id);},console,Math,Set,Float32Array,Int32Array,Uint8Array,Number,Object,Array,Error,JSON};
 vm.runInNewContext(engineSource,sandbox,{filename:"forge-engine.js"});
 const Engine=sandbox.module.exports;
 function build(heightSeed){return Engine.generateDetailed(GF.parameterRecord({seed:7,theme:"grass",stageSeeds:{layout:11,height:heightSeed,semantics:33,decor:44,foes:55},sliders:{roomCount:8,party:2,foes:3,retries:3}}));}
 const built=build(5),map=built.map;
 ok(Math.min(...map.h)>=5&&Math.max(...map.h)<=15,"generated land is bounded to truthful 5–15 ft elevations");
 ok(map.h.every(v=>v%5===0),"generated floor elevations remain D&D-readable 5-ft tiers");
-ok(map.connectors.length>=2&&map.connectors.some(c=>c.kind==="stairs")&&map.connectors.some(c=>c.kind==="ramp"),"height stage emits both stairs and ramps as first-class records");
+const gentle=(built.map.connectors||[]).filter(c=>c.kind!=="bridge"&&Number(c.deltaFt)<=5);
+ok(gentle.length===0,"legacy generation no longer samples ordinary 5-ft edges as decorative connectors");
+ok((built.map.connectors||[]).filter(c=>c.kind!=="bridge").every(c=>Number(c.deltaFt)>5),"every remaining legacy stair or ramp repairs a movement-blocking rise");
 ok(map.ledges.length>0&&map.ledges.every(l=>l.dropFt===10),"steep 10-ft boundaries are explicit ledges");
 ok(map.meta.vertical&&map.meta.vertical.maxElevationFt===15,"map metadata narrates the vertical contract");
 ok(Engine._internals.validateVerticalRecords(map),"engine validates connector endpoints, rises, ledges, and bounded heights");
@@ -78,7 +81,7 @@ ok(html.includes("renderVerticalConnectors()")&&html.includes("renderRampConnect
 ok(html.includes('id="sceneVerticalOverlay"')&&html.includes("drawVerticalOverlay"),"staff can inspect connector and ledge edges");
 ok(html.includes("connectors:(stageMap.connectors||[])")&&html.includes("m.connectors=(F.connectors||[])"),"preview, session snapshot, and combat map carry connector authority end to end");
 ok(!html.includes("height[i]<=0 && type[i]!==T_ROCK) type[i]=T_WATER"),"floor elevation no longer silently rewrites terrain into water");
-ok(/forge-generator-foundation\.js\?v=g2(?:e1|f1|f2)/.test(html)&&/forge-engine\.js\?v=fe(?:5|6|7|8)/.test(html),"vertical runtime modules are cache-busted");
+ok(/forge-generator-foundation\.js\?v=g2g1/.test(html)&&/forge-engine\.js\?v=fe9/.test(html),"vertical runtime modules are cache-busted");
 const firstRebuild=html.indexOf("resize(); rebuild();");
 ok(html.indexOf("var DISCOVERY_RENDER={")<firstRebuild&&html.indexOf("var SESSION_ID=new URLSearchParams")<firstRebuild,"both known startup-order guards remain ahead of initial rebuild");
 
