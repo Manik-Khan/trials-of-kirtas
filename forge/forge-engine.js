@@ -191,9 +191,10 @@
         }
       } else if (c.source === "archetype-intent") {
         if (path.length < 3) return false;
+        var architectureClosed = c.architectureClosed === true && c.state === "closed" && map.meta && map.meta.architecture;
         for (pi = 0; pi < path.length; pi++) {
           var si = idx(map.cols, path[pi].c, path[pi].r);
-          if (map.wall[si] || Math.abs(Number(map.h[si]) - Number(path[pi].elevationFt)) > 1e-9) return false;
+          if ((!architectureClosed && map.wall[si]) || Math.abs(Number(map.h[si]) - Number(path[pi].elevationFt)) > 1e-9) return false;
         }
         var authoredRise = Math.abs(Number(f.elevationFt) - Number(t.elevationFt));
         if (!(authoredRise > 0)) return false;
