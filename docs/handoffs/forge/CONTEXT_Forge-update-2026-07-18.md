@@ -96,12 +96,27 @@ Second Wind now owns `1d10 + fighter level` directly on the derived feature tile
 with explicit sheet text taking precedence. The Vesperian fixture proves `1d10+4`
 without a separate action row; the cache stamp is `forge-kit-derive.js?v=b9`.
 
-The mock-first architecture candidate is
-`_edits/mock-forge-builder-region-fog.html`. It keeps all map geometry present,
-greys whole unexplored regions, reveals a whole region on entry, distinguishes a
-full 10-foot movement/sight-blocking wall from a 5-foot defensive parapet, and
-offers wall, parapet, gate, and erase blocks with a required-route audit. It is a
-review surface only; no production terrain, fog, or builder behavior has changed.
+The approved mock is now implemented on the canonical Forge behind
+`?architecture=regions1`. `forge-architecture.js?v=fa3` owns one exact,
+snapshot-safe record of wall, parapet, gate, and erase blocks. Ten-foot walls
+block movement and sight; five-foot parapets carry their own cover height; gates
+remain passable. The required ascent is audited before local combat, Save for
+later, or a shared Table can open. Sealing an optional stair explicitly closes
+that connector, while the primary ascent remains immutable.
+
+The same preview flag replaces cell removal with region-grey discovery for
+Temple maps. The current region is fully colored, entered regions become grey
+memory, and unentered regions remain darker grey; terrain, walls, props, and
+architectural blocks stay physically present. Workshop exposes the same real
+render path through **Preview region fog** and **Advance region**, so it can be
+field-checked before a shared session.
+
+The thermal pass is also active. `forge-render-power.js?v=frp1` makes Balanced
+the default: 1.25 pixel-density ceiling, 1024px shadows, no ambient idle motion,
+one-frame invalidation, and a real hidden-tab pause. High Fidelity preserves the
+earlier 1.75 ceiling, 2048px shadows, ambient motion, and continuous rendering as
+an explicit local choice. The canonical browser pass confirmed both quality
+controls, idle scheduling, region advance, optional-bypass sealing, and reset.
 
 ## Required field checklist
 
@@ -112,13 +127,17 @@ review surface only; no production terrain, fog, or builder behavior has changed
 5. Save for later, reopen, and repeat the exact-position check.
 6. Save/reload a legacy encounter and confirm historical placement remains unchanged.
 7. Compare Volcanic construction once a Workshop Volcanic selector is exposed; the renderer profile exists, but the current biome control does not expose it.
+8. Repeat with `?architecture=regions1`: save one optional-bypass wall, reconnect,
+   and confirm its 10-ft movement/sight authority and closed connector restore.
+9. In Player View, move from approach through each Temple region and confirm the
+   whole current region restores color while every other region remains present.
+10. Compare laptop heat/fan behavior in default Balanced against High Fidelity.
 
 ## Immediate execution order
 
-1. Review the region-fog/builder mock and settle the defensive wall profile.
-2. After approval, implement the smallest region-grey discovery path and authored
-   block record behind an explicit preview flag.
-3. Run the signed-in shared-table/reconnect deployment field checklist.
+1. Run the signed-in shared-table/reconnect deployment and architecture checklist.
+2. Compare Balanced and High Fidelity on M's actual laptop during a full round.
+3. Remove the architecture flag only after saved-block and region-fog reconnects pass.
 4. Promote Temple from `preview` to `active` only after those checks pass.
 5. Expose/settle the Volcanic Workshop construction control.
 6. Build `bridge-crossing` on the same intent contract.
@@ -127,4 +146,8 @@ Do not begin `bridge-crossing` by re-enabling random legacy bridge selection. Pu
 
 ## Deployment discipline
 
-M reviews, commits, and pushes. Codex does not push. The deployment runtime is cache-stamped as `forge-deployment.js?v=fd1`; the earlier Temple slice remains `forge-generator-foundation.js?v=g2g1`, `forge-temple-terraces.js?v=tt1`, and `forge-engine.js?v=fe9`.
+M reviews, commits, and pushes. Codex does not push. Current slice stamps:
+`forge-deployment.js?v=fd1`, `forge-generator-foundation.js?v=g2g1`,
+`forge-temple-terraces.js?v=tt1`, `forge-engine.js?v=fe10`,
+`forge-render-power.js?v=frp1`, `forge-architecture.js?v=fa3`, and
+`forge-kit-derive.js?v=b9`.

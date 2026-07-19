@@ -81,7 +81,7 @@ ok(html.includes("renderVerticalConnectors()")&&html.includes("renderRampConnect
 ok(html.includes('id="sceneVerticalOverlay"')&&html.includes("drawVerticalOverlay"),"staff can inspect connector and ledge edges");
 ok(html.includes("connectors:(stageMap.connectors||[])")&&html.includes("m.connectors=(F.connectors||[])"),"preview, session snapshot, and combat map carry connector authority end to end");
 ok(!html.includes("height[i]<=0 && type[i]!==T_ROCK) type[i]=T_WATER"),"floor elevation no longer silently rewrites terrain into water");
-ok(/forge-generator-foundation\.js\?v=g2g1/.test(html)&&/forge-engine\.js\?v=fe9/.test(html),"vertical runtime modules are cache-busted");
+ok(/forge-generator-foundation\.js\?v=g2g1/.test(html)&&/forge-engine\.js\?v=fe10/.test(html),"vertical runtime modules are cache-busted");
 const firstRebuild=html.indexOf("resize(); rebuild();");
 ok(html.indexOf("var DISCOVERY_RENDER={")<firstRebuild&&html.indexOf("var SESSION_ID=new URLSearchParams")<firstRebuild,"both known startup-order guards remain ahead of initial rebuild");
 

@@ -36,7 +36,7 @@
 <script src="forge-initiative.js?v=fi2"></script>
 <script src="forge-discovery.js?v=fd5"></script>
 <script src="forge-render-power.js?v=frp1"></script>
-<script src="forge-architecture.js?v=fa2"></script>
+<script src="forge-architecture.js?v=fa3"></script>
 <script src="forge-bus.js?v=fb2"></script>
 <script src="forge-pipeline.js?v=fb7"></script>
 <script src="forge-board.js?v=fb7"></script>
@@ -3318,7 +3318,7 @@ function architectureActive(){return !!(F&&F.intent&&F.intent.archetype==='templ
 function architectureAudit(){return F&&architectureActive()?ARCHITECTURE_API.audit(rawCombatMapFromF(),ARCHITECTURE_RECORD):{ok:true,errors:[],record:ARCHITECTURE_RECORD};}
 function architecturePending(){return architectureActive()&&!architectureAudit().ok;}
 function architectureSay(text,bad){var el=document.getElementById('architectureMessage');if(el){el.textContent=text;el.style.color=bad?'#a04b3a':'';}}
-function clearArchitectureMeshes(){while(architectureRenderGroup.children.length){var o=architectureRenderGroup.children[0];architectureRenderGroup.remove(o);o.traverse(function(n){if(n.geometry)n.geometry.dispose();if(n.material)n.material.dispose();});}}
+function clearArchitectureMeshes(){var retired=new Set();while(architectureRenderGroup.children.length){var o=architectureRenderGroup.children[0];architectureRenderGroup.remove(o);o.traverse(function(n){retired.add(n);if(n.geometry)n.geometry.dispose();if(n.material)n.material.dispose();});}if(typeof DISCOVERY_RENDER!=='undefined'&&DISCOVERY_RENDER)DISCOVERY_RENDER.objects=DISCOVERY_RENDER.objects.filter(function(obj){return !retired.has(obj);});}
 function architectureAdd(mesh,edit){tagDiscoveryObject(mesh,edit.c,edit.r,'terrain');mesh.castShadow=true;mesh.receiveShadow=true;architectureRenderGroup.add(mesh);return mesh;}
 function architectureGateAxis(edit){var blocking={};ARCHITECTURE_RECORD.blocks.forEach(function(b){if(ARCHITECTURE_API.KINDS[b.kind].blocks)blocking[b.c+','+b.r]=true;});return blocking[(edit.c-1)+','+edit.r]||blocking[(edit.c+1)+','+edit.r]?'x':'z';}
 function renderArchitectureBlock(edit){

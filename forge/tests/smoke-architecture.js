@@ -1,5 +1,6 @@
 const A = require('../forge-architecture.js');
 const Engine = require('../forge-engine.js');
+const Foundation = require('../forge-generator-foundation.js');
 
 let pass = 0, fail = 0;
 function ok(name, cond) { if (cond) pass++; else { fail++; console.log('FAIL: ' + name); } }
@@ -56,8 +57,13 @@ const optionalRoute = temple.meta.intent.routes.find(route => !route.required);
 const optionalConnector = temple.connectors.find(connector => connector.id === optionalRoute.connectorIds[0]);
 const optionalMiddle = optionalConnector.path[1];
 const authoredTemple = A.apply(temple, A.record([{ c: optionalMiddle.c, r: optionalMiddle.r, kind: 'wall' }]));
+ok('authored cover authority spans the full battlefield', authoredTemple.coverShape.length === authoredTemple.cols * authoredTemple.rows);
 ok('real Temple optional connector closes under an authored wall', authoredTemple.connectors.find(c => c.id === optionalConnector.id).state === 'closed');
 ok('real vertical contract accepts the explicit optional closure', Engine._internals.validateVerticalRecords(authoredTemple));
+const restoredTemple = Foundation.restoreMap(Foundation.snapshotMap(authoredTemple));
+ok('authored block record survives the exact map snapshot', restoredTemple.meta.architecture.blocks.some(b => b.c === optionalMiddle.c && b.r === optionalMiddle.r && b.kind === 'wall'));
+ok('authored wall movement and sight authority survive restore', restoredTemple.wall[optionalMiddle.r * restoredTemple.cols + optionalMiddle.c] && restoredTemple.occ[optionalMiddle.r * restoredTemple.cols + optionalMiddle.c] === 10);
+ok('optional connector closure survives restore', restoredTemple.connectors.find(c => c.id === optionalConnector.id).state === 'closed' && restoredTemple.connectors.find(c => c.id === optionalConnector.id).architectureClosed === true);
 
 console.log(`smoke-architecture: ${pass} passed, ${fail} failed`);
 process.exitCode = fail ? 1 : 0;

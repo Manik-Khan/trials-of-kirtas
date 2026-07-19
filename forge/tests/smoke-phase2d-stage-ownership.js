@@ -96,7 +96,7 @@ ok(spec.includes("Changing `height` cannot change layout, semantics, decor, or f
 ok(html.includes("ForgeEngine.generateDetailed")&&html.includes("const decorSeed=record.stageSeeds"),"production preview consumes the canonical staged pipeline and decor stream");
 ok(html.includes("F=buildTiersField(fp.seed, fp)"),"authoring rebuild passes the complete parameter record instead of flattening away stage seeds");
 ok(html.includes("stageOwnership:F.stageOwnership||null"),"session snapshots retain the stage-ownership diagnostic ledger");
-ok(/forge-generator-foundation\.js\?v=g2g1/.test(html)&&/forge-engine\.js\?v=fe9/.test(html),"stage-owned runtimes are cache-busted");
+ok(/forge-generator-foundation\.js\?v=g2g1/.test(html)&&/forge-engine\.js\?v=fe10/.test(html),"stage-owned runtimes are cache-busted");
 const firstRebuild=html.indexOf("resize(); rebuild();");
 ok(html.indexOf("var DISCOVERY_RENDER={")<firstRebuild&&html.indexOf("var SESSION_ID=new URLSearchParams")<firstRebuild,"both known startup-order guards remain ahead of the initial rebuild");
 

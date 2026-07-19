@@ -48,8 +48,9 @@
   }
 
   function cloneMap(map) {
-    var out = Object.assign({}, map);
-    ["h", "wall", "occ", "coverShape"].forEach(function (name) { out[name] = Array.from(map[name] || []); });
+    var out = Object.assign({}, map), n = Number(map.cols) * Number(map.rows);
+    ["h", "wall", "occ"].forEach(function (name) { out[name] = Array.from(map[name] || []); });
+    out.coverShape = map.coverShape == null ? new Array(n).fill(null) : Array.from(map.coverShape);
     out.connectors = copy(map.connectors || []); out.ledges = copy(map.ledges || []); out.meta = copy(map.meta || {});
     return out;
   }
