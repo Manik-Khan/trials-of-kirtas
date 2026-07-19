@@ -1,0 +1,112 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>Forge architecture builder + region fog mock</title>
+  <style>
+    :root{--ink:#201c17;--muted:#756c60;--paper:#eee8dc;--paper2:#f7f2e8;--line:#b9ad99;--gold:#b88736;--green:#657a61;--red:#984f45;--blue:#4c7778}
+    *{box-sizing:border-box}html,body{height:100%;margin:0}body{overflow:hidden;background:#171c1b;color:var(--ink);font-family:Georgia,serif}
+    button,select{font:700 10px/1.1 Arial,sans-serif;letter-spacing:.07em;text-transform:uppercase;color:inherit}
+    button{cursor:pointer}.app{height:100%;display:grid;grid-template-columns:350px 1fr}.panel{position:relative;z-index:2;display:flex;min-height:0;flex-direction:column;background:var(--paper);border-right:1px solid #4a4338;box-shadow:8px 0 25px #0007}
+    .head{padding:18px 20px 15px;background:#25231f;color:#eee5d5;border-bottom:3px solid var(--gold)}.eyebrow{font:700 9px Arial,sans-serif;letter-spacing:.16em;text-transform:uppercase;color:#c8a45c}.head h1{margin:5px 0 4px;font-size:25px}.head p{margin:0;color:#bfb7a9;font-size:12px;line-height:1.4}
+    .scroll{overflow:auto;padding:14px 14px 26px}.section{margin-bottom:14px;padding-bottom:13px;border-bottom:1px solid var(--line)}.section:last-child{border:0}.kicker{display:flex;justify-content:space-between;align-items:center;margin-bottom:7px;font:700 9px Arial,sans-serif;letter-spacing:.15em;text-transform:uppercase;color:#6d5d42}
+    .toolgrid{display:grid;grid-template-columns:1fr 1fr;gap:6px}.tool,.wide,.viewbtn{min-height:38px;border:1px solid var(--line);background:var(--paper2);padding:8px}.tool.on,.viewbtn.on{border-color:var(--gold);box-shadow:inset 3px 0 var(--gold);background:#fff8e8}.tool small{display:block;margin-top:4px;font:9px Arial,sans-serif;letter-spacing:0;text-transform:none;color:var(--muted)}
+    .wide{width:100%;margin-top:6px}.wide.gold{border-color:#8f6b2f;background:#ddbd7d}.wide.danger{color:#8b4439}.viewrow{display:grid;grid-template-columns:1fr 1fr;gap:6px}.viewbtn{min-height:34px}.copy{font-size:11px;line-height:1.45;color:#5d554b}.copy b{color:var(--ink)}
+    .audit{padding:9px 10px;background:#e2dccf;border-left:3px solid var(--gold);font:11px/1.35 Arial,sans-serif}.audit.good{border-color:#53775b;background:#dde6dc}.audit.bad{border-color:#9a4f43;background:#ecdcd7}.audit b{display:block;margin-bottom:2px;text-transform:uppercase;font-size:9px;letter-spacing:.08em}
+    .legend{display:grid;gap:6px;font:10px/1.25 Arial,sans-serif;color:#5e574c}.legend span{display:flex;align-items:center;gap:7px}.swatch{width:18px;height:12px;border:1px solid #625b50}.swatch.current{background:#8ea073}.swatch.memory{background:#8f938d}.swatch.unknown{background:#555b59}.swatch.wall{height:8px;background:#695139;box-shadow:0 4px #372b21}
+    .stage{position:relative;min-width:0;background:radial-gradient(circle at 65% 12%,#b8d2c4 0,#76978d 33%,#384c49 72%,#263532 100%)}canvas{display:block;width:100%;height:100%}.mast{position:absolute;top:22px;right:27px;text-align:right;color:#f2e8d5;text-shadow:0 2px 8px #000}.mast h2{margin:0;font-size:23px}.mast p{margin:4px 0;font:10px Arial,sans-serif;letter-spacing:.1em;text-transform:uppercase;color:#d3c6b0}.mode{position:absolute;left:24px;top:22px;max-width:410px;padding:9px 12px;background:#211f1be8;border:1px solid #8d713f;color:#ede3d0;font:11px/1.35 Arial,sans-serif;box-shadow:0 5px 20px #0006}.cellread{position:absolute;left:24px;bottom:22px;padding:8px 11px;background:#211f1bd9;color:#d7cebf;border-left:3px solid var(--gold);font:10px Arial,sans-serif}.badge{display:inline-block;margin-left:6px;padding:2px 5px;border:1px solid #a88f61;color:#d8bd83}
+    .profile{position:absolute;right:22px;bottom:20px;width:286px;padding:9px 10px 7px;background:#211f1be8;border:1px solid #89744e;color:#e8ddca;box-shadow:0 5px 20px #0006}.profile b{display:block;margin-bottom:3px;font:700 9px Arial,sans-serif;letter-spacing:.14em;text-transform:uppercase;color:#d8b66e}.profile svg{display:block;width:100%;height:116px}.profile text{font:9px Arial,sans-serif;fill:#d8cdb8}.profile .measure{fill:#e2bd69;font-weight:700}
+    @media(max-width:800px){.app{grid-template-columns:300px 1fr}.head{padding:13px}.scroll{padding:10px}.mast{display:none}}
+  </style>
+</head>
+<body>
+<main class="app">
+  <aside class="panel">
+    <header class="head"><div class="eyebrow">The Forge · architectural mock</div><h1>Build the Defense</h1><p>Keep the seed. Correct the one route that makes it tactically weak.</p></header>
+    <div class="scroll">
+      <section class="section">
+        <div class="kicker"><span>Building blocks</span><span id="editCount">0 edits</span></div>
+        <div class="toolgrid">
+          <button class="tool on" data-tool="wall10">10-ft wall<small>Full movement + sight blocker</small></button>
+          <button class="tool" data-tool="parapet">5-ft parapet<small>Defensive cover at an edge</small></button>
+          <button class="tool" data-tool="gate">Gate block<small>Passable authored opening</small></button>
+          <button class="tool" data-tool="erase">Erase<small>Remove one placed block</small></button>
+        </div>
+        <button class="wide gold" id="sealBypass">Seal the easy bypass</button>
+        <button class="wide danger" id="resetEdits">Reset custom blocks</button>
+      </section>
+      <section class="section">
+        <div class="kicker"><span>Fog presentation</span><span id="regionName">Approach</span></div>
+        <div class="viewrow"><button class="viewbtn on" data-view="player">Player fog</button><button class="viewbtn" data-view="staff">Staff view</button></div>
+        <button class="wide" id="advance">Advance party to lower court ↑</button>
+        <p class="copy"><b>Player fog keeps the entire battlefield present.</b> The current region is fully colored; places outside the party’s current view are grey, never cut out.</p>
+        <div class="legend"><span><i class="swatch current"></i>Current region · full color</span><span><i class="swatch memory"></i>Previously entered · pale grey</span><span><i class="swatch unknown"></i>Not entered · dark grey, geometry intact</span><span><i class="swatch wall"></i>10-ft defensive wall</span></div>
+      </section>
+      <section class="section">
+        <div class="kicker"><span>Route audit</span></div>
+        <div class="audit good" id="audit"><b>Battlefield playable</b>Primary ascent remains open. The side bypass is still available.</div>
+        <p class="copy">Required stairs may be protected with a gate, but a solid wall cannot silently erase the only route. Optional paths can be sealed deliberately.</p>
+      </section>
+      <section class="section">
+        <div class="kicker"><span>Proposed Temple rule</span></div>
+        <p class="copy"><b>Generated retaining faces read as a full 10 feet.</b> Upper defenders stand on the terrace behind a low firing parapet, while buildable 10-ft blocks are true obstacles. Geometry, picture, movement, and sight all use the same block record.</p>
+      </section>
+    </div>
+  </aside>
+  <section class="stage">
+    <canvas id="map" aria-label="Interactive Temple wall builder and region fog mock"></canvas>
+    <div class="mast"><h2>Temple Terraces</h2><p>Seed 7 · axial defense study</p></div>
+    <div class="mode" id="mode">10-ft wall selected. Click an open square to place one.</div>
+    <div class="cellread" id="cellRead">Hover a square <span class="badge">5-ft grid</span></div>
+    <div class="profile"><b>Defensive section · proposed</b><svg viewBox="0 0 266 116" aria-label="Ten-foot retaining wall with a low firing parapet">
+      <path d="M8 91H105V105H8Z" fill="#71866b"/><path d="M105 45H257V105H105Z" fill="#879474"/><path d="M100 43H111V105H100Z" fill="#624a34"/><path d="M100 39H111V47H100Z" fill="#b18b58"/>
+      <path d="M111 31H126V45H111Z" fill="#705339"/><path d="M111 27H126V33H111Z" fill="#b18b58"/>
+      <circle cx="44" cy="76" r="6" fill="#b88736"/><path d="M44 82V94M38 89H50" stroke="#e7c77f" stroke-width="3"/><circle cx="155" cy="24" r="6" fill="#9b4f45"/><path d="M155 30V44M149 37H161" stroke="#f0d5cd" stroke-width="3"/>
+      <path d="M151 31Q113 46 63 69" fill="none" stroke="#ddbd70" stroke-width="2" stroke-dasharray="4 3"/><path d="M65 65L58 72L68 72" fill="#ddbd70"/>
+      <path d="M91 45V91M87 45H95M87 91H95" stroke="#e2bd69"/><text class="measure" x="67" y="70">10-ft face</text><text x="131" y="58">upper terrace</text><text x="11" y="106">lower approach</text><text class="measure" x="116" y="22">low firing parapet</text>
+    </svg></div>
+  </section>
+</main>
+<script>
+(function(){
+  "use strict";
+  var canvas=document.getElementById("map"),ctx=canvas.getContext("2d"),tool="wall10",view="player",partyRegion=0;
+  var cols=22,rows=17,cell=34,ox=0,oy=0,hover=null,edits={},regionIds=["approach","lower","upper","summit"];
+  var regions=[
+    {id:"approach",name:"Approach",x:6,y:13,w:10,h:3,e:0,color:"#72866a"},
+    {id:"lower",name:"Lower court",x:2,y:9,w:18,h:4,e:10,color:"#84916e"},
+    {id:"upper",name:"Upper court",x:5,y:5,w:12,h:4,e:20,color:"#8b9874"},
+    {id:"summit",name:"Summit sanctuary",x:8,y:2,w:6,h:3,e:30,color:"#a29b78"}
+  ];
+  var primary=["10,13","10,12","10,11","10,9","10,8","10,7","10,5","10,4","10,3"];
+  var bypass=["16,9","17,9","18,9"],seedWalls=[];
+  function k(c,r){return c+","+r;}function inRect(q,c,r){return c>=q.x&&c<q.x+q.w&&r>=q.y&&r<q.y+q.h;}
+  function regionAt(c,r){for(var i=regions.length-1;i>=0;i--)if(inRect(regions[i],c,r))return regions[i];return null;}
+  function boundary(q,c,r){return inRect(q,c,r)&&(c===q.x||c===q.x+q.w-1||r===q.y||r===q.y+q.h-1);}
+  function buildSeedWalls(){seedWalls=[];regions.slice(1).forEach(function(q){for(var r=q.y;r<q.y+q.h;r++)for(var c=q.x;c<q.x+q.w;c++){if(boundary(q,c,r)&&primary.indexOf(k(c,r))<0&&bypass.indexOf(k(c,r))<0)seedWalls.push({c:c,r:r,kind:"retaining"});}});}
+  function resize(){var dpr=Math.min(2,devicePixelRatio||1),rect=canvas.getBoundingClientRect();canvas.width=Math.round(rect.width*dpr);canvas.height=Math.round(rect.height*dpr);ctx.setTransform(dpr,0,0,dpr,0,0);cell=Math.max(23,Math.min(42,Math.floor(Math.min(rect.width/(cols+2),rect.height/(rows+2)))));ox=Math.round((rect.width-cols*cell)/2);oy=Math.round((rect.height-rows*cell)/2)+12;draw();}
+  function floorColor(q){return q?q.color:"#4a625c";}function grey(hex,amount){var n=parseInt(hex.slice(1),16),r=n>>16,g=n>>8&255,b=n&255,l=(r+g+b)/3;r=Math.round(r*(1-amount)+l*amount);g=Math.round(g*(1-amount)+l*amount);b=Math.round(b*(1-amount)+l*amount);return "rgb("+r+","+g+","+b+")";}
+  function fogState(q){if(view==="staff"||!q)return "current";var i=regionIds.indexOf(q.id);return i===partyRegion?"current":i<partyRegion?"memory":"unknown";}
+  function paintFloor(c,r,q){var x=ox+c*cell,y=oy+r*cell,state=fogState(q),base=floorColor(q);ctx.fillStyle=state==="current"?base:(state==="memory"?grey(base,.92):"#59605d");ctx.fillRect(x,y,cell,cell);ctx.strokeStyle=state==="current"?"rgba(32,27,20,.22)":"rgba(220,220,214,.12)";ctx.strokeRect(x+.5,y+.5,cell-1,cell-1);if(q&&state!=="current"){ctx.fillStyle=state==="memory"?"rgba(210,210,202,.14)":"rgba(33,39,38,.36)";ctx.fillRect(x,y,cell,cell);}}
+  function wallBlock(c,r,kind,custom){var x=ox+c*cell,y=oy+r*cell,q=regionAt(c,r),state=fogState(q),dark=state==="unknown";var h=kind==="parapet"?Math.max(4,cell*.14):Math.max(7,cell*.25);ctx.fillStyle=dark?"#454947":(kind==="gate"?"#927947":kind==="parapet"?"#8d7859":"#6d5338");ctx.fillRect(x+2,y+cell-h-2,cell-4,h);ctx.fillStyle=dark?"#595d5b":"#b29262";ctx.fillRect(x+2,y+cell-h-5,cell-4,4);ctx.fillStyle="rgba(20,16,12,.38)";ctx.fillRect(x+5,y+cell-2,cell-4,4);if(kind==="gate"){ctx.fillStyle="#27241f";ctx.fillRect(x+cell*.38,y+cell-h-2,cell*.24,h);}if(custom){ctx.strokeStyle="#dfb75f";ctx.lineWidth=2;ctx.strokeRect(x+1,y+cell-h-6,cell-2,h+7);ctx.lineWidth=1;}}
+  function drawStairs(){primary.concat(bypass).forEach(function(key){var p=key.split(",").map(Number),x=ox+p[0]*cell,y=oy+p[1]*cell,q=regionAt(p[0],p[1]),state=fogState(q);ctx.fillStyle=state==="current"?"#d4c39e":"#777b77";ctx.fillRect(x+4,y+4,cell-8,cell-8);ctx.strokeStyle=state==="current"?"#6f6148":"#555957";for(var i=0;i<3;i++){ctx.beginPath();ctx.moveTo(x+5,y+8+i*7);ctx.lineTo(x+cell-5,y+8+i*7);ctx.stroke();}});}
+  function drawUnits(){var q=regions[partyRegion],c=Math.round(q.x+q.w/2),r=q.y+q.h-2,x=ox+(c+.5)*cell,y=oy+(r+.5)*cell;ctx.fillStyle="#c99a38";ctx.beginPath();ctx.arc(x,y,cell*.26,0,Math.PI*2);ctx.fill();ctx.strokeStyle="#fff1c8";ctx.lineWidth=3;ctx.stroke();ctx.lineWidth=1;ctx.fillStyle="#201c17";ctx.font="bold "+Math.round(cell*.32)+"px Arial";ctx.textAlign="center";ctx.textBaseline="middle";ctx.fillText("P",x,y+1);var s=regions[3],foes=[[s.x+1,s.y+1],[s.x+s.w-2,s.y+1]];foes.forEach(function(p){var fx=ox+(p[0]+.5)*cell,fy=oy+(p[1]+.5)*cell,state=fogState(s);ctx.fillStyle=state==="current"?"#9d4e43":"#555a58";ctx.beginPath();ctx.arc(fx,fy,cell*.23,0,7);ctx.fill();if(state==="current"||view==="staff"){ctx.fillStyle="#f4dfd4";ctx.font="bold "+Math.round(cell*.27)+"px Arial";ctx.fillText("E",fx,fy);}});}
+  function draw(){ctx.clearRect(0,0,canvas.width,canvas.height);ctx.fillStyle="#314744";ctx.fillRect(0,0,canvas.clientWidth,canvas.clientHeight);for(var r=0;r<rows;r++)for(var c=0;c<cols;c++){var q=regionAt(c,r);if(q)paintFloor(c,r,q);}drawStairs();seedWalls.forEach(function(w){wallBlock(w.c,w.r,"wall10",false);});Object.keys(edits).forEach(function(key){var p=key.split(",").map(Number);wallBlock(p[0],p[1],edits[key],true);});drawUnits();if(hover){var x=ox+hover.c*cell,y=oy+hover.r*cell;ctx.strokeStyle=hover.legal?"#f2c96c":"#d76757";ctx.lineWidth=3;ctx.strokeRect(x+2,y+2,cell-4,cell-4);ctx.lineWidth=1;}}
+  function routeAudit(){var primaryBlocked=primary.some(function(key){return edits[key]==="wall10"||edits[key]==="parapet";}),bypassBlocked=bypass.some(function(key){return edits[key]==="wall10"||edits[key]==="parapet";}),el=document.getElementById("audit");if(primaryBlocked){el.className="audit bad";el.innerHTML="<b>Required ascent blocked</b>Replace the solid block with a gate or erase it. The map cannot be promoted.";}else if(bypassBlocked){el.className="audit good";el.innerHTML="<b>Battlefield playable</b>Primary ascent remains open. The easy side bypass is deliberately sealed.";}else{el.className="audit good";el.innerHTML="<b>Battlefield playable</b>Primary ascent remains open. The side bypass is still available.";}}
+  function legal(c,r){return !!regionAt(c,r)&&seedWalls.every(function(w){return w.c!==c||w.r!==r;});}
+  function pointer(e){var rect=canvas.getBoundingClientRect();return{c:Math.floor((e.clientX-rect.left-ox)/cell),r:Math.floor((e.clientY-rect.top-oy)/cell)};}
+  canvas.addEventListener("pointermove",function(e){var p=pointer(e),q=regionAt(p.c,p.r);hover={c:p.c,r:p.r,legal:legal(p.c,p.r)};document.getElementById("cellRead").innerHTML=q?(q.name+" · "+q.e+" ft <span class=\"badge\">"+(edits[k(p.c,p.r)]||"open cell")+"</span>"):"Outside the authored battlefield";draw();});
+  canvas.addEventListener("pointerleave",function(){hover=null;draw();});
+  canvas.addEventListener("click",function(e){var p=pointer(e),key=k(p.c,p.r);if(!legal(p.c,p.r)){document.getElementById("mode").textContent="That square belongs to generated architecture and is locked in this mock.";return;}if(tool==="erase")delete edits[key];else edits[key]=tool;document.getElementById("mode").textContent=(tool==="erase"?"Block removed.":(tool==="wall10"?"10-ft wall placed. It blocks movement and sight.":tool==="parapet"?"5-ft parapet placed. It grants defensive cover.":"Gate placed. The route stays passable."));paint();});
+  document.querySelectorAll("[data-tool]").forEach(function(b){b.onclick=function(){tool=b.dataset.tool;document.querySelectorAll("[data-tool]").forEach(function(x){x.classList.toggle("on",x===b);});document.getElementById("mode").textContent=(tool==="erase"?"Erase selected. Click a custom block.":tool==="wall10"?"10-ft wall selected. Click an open square to place one.":tool==="parapet"?"5-ft parapet selected. Click an edge or open square.":"Gate selected. Use it where a required route must remain passable.");};});
+  document.querySelectorAll("[data-view]").forEach(function(b){b.onclick=function(){view=b.dataset.view;document.querySelectorAll("[data-view]").forEach(function(x){x.classList.toggle("on",x===b);});draw();};});
+  document.getElementById("sealBypass").onclick=function(){bypass.forEach(function(key){edits[key]="wall10";});document.getElementById("mode").textContent="The easy bypass is sealed with three authored 10-ft blocks. The primary stairs remain open.";paint();};
+  document.getElementById("resetEdits").onclick=function(){edits={};document.getElementById("mode").textContent="Custom architecture cleared. The seed is unchanged.";paint();};
+  document.getElementById("advance").onclick=function(){partyRegion=(partyRegion+1)%regions.length;var q=regions[partyRegion],next=regions[(partyRegion+1)%regions.length];document.getElementById("regionName").textContent=q.name;this.textContent=partyRegion===regions.length-1?"Return party to approach ↺":"Advance party to "+next.name+" ↑";document.getElementById("mode").textContent=q.name+" entered: the whole region is now in full color. Other geometry stays present in grey.";draw();};
+  function paint(){document.getElementById("editCount").textContent=Object.keys(edits).length+" edit"+(Object.keys(edits).length===1?"":"s");routeAudit();draw();}
+  buildSeedWalls();addEventListener("resize",resize);resize();paint();
+})();
+</script>
+</body>
+</html>

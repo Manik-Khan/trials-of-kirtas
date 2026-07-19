@@ -78,6 +78,31 @@ The Temple candidate produces **50 pass / 8 fail / 0 timeout / 58 total**. Its r
 
 No new whole-battery failure remains.
 
+## Evening field report · 2026-07-18
+
+M's Temple Terraces play pass established five concrete facts:
+
+- Dash plus Step of the Wind correctly gave Caim 120 feet of total movement;
+- Vesperian's Second Wind incorrectly rolled 0 because the derived class-feature
+  tile could reach combat without its own damage formula;
+- the Temple wall contract is already 10.5 feet, but the upper defensive edge
+  reads as a short wall rather than a consequential 10-foot ascent;
+- discovery currently removes undiscovered terrain/object instances, producing
+  cyan cutouts and irregular object-shaped holes instead of readable fog;
+- seeded maps need a small authored-block layer so a DM can close an unwanted
+  bypass without changing the generator seed.
+
+Second Wind now owns `1d10 + fighter level` directly on the derived feature tile,
+with explicit sheet text taking precedence. The Vesperian fixture proves `1d10+4`
+without a separate action row; the cache stamp is `forge-kit-derive.js?v=b9`.
+
+The mock-first architecture candidate is
+`_edits/mock-forge-builder-region-fog.html`. It keeps all map geometry present,
+greys whole unexplored regions, reveals a whole region on entry, distinguishes a
+full 10-foot movement/sight-blocking wall from a 5-foot defensive parapet, and
+offers wall, parapet, gate, and erase blocks with a required-route audit. It is a
+review surface only; no production terrain, fog, or builder behavior has changed.
+
 ## Required field checklist
 
 1. On the live signed-in site, open a Temple Table with at least Party and Enemy flags.
@@ -90,10 +115,13 @@ No new whole-battery failure remains.
 
 ## Immediate execution order
 
-1. Run the signed-in shared-table/reconnect deployment field checklist.
-2. Promote Temple from `preview` to `active` only after those checks pass.
-3. Expose/settle the Volcanic Workshop construction control.
-4. Build `bridge-crossing` on the same intent contract.
+1. Review the region-fog/builder mock and settle the defensive wall profile.
+2. After approval, implement the smallest region-grey discovery path and authored
+   block record behind an explicit preview flag.
+3. Run the signed-in shared-table/reconnect deployment field checklist.
+4. Promote Temple from `preview` to `active` only after those checks pass.
+5. Expose/settle the Volcanic Workshop construction control.
+6. Build `bridge-crossing` on the same intent contract.
 
 Do not begin `bridge-crossing` by re-enabling random legacy bridge selection. Purpose and archetype ownership come first.
 

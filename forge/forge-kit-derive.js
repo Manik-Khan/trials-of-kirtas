@@ -879,8 +879,17 @@ function combatErrorKit(charData, err) {
      key: lowercase name match, tab: where the tile lives,
      bonus/free: action economy, cost: resource key + count,
      kind: pipeline kind for the event. */
+  function secondWindDice(s, feature) {
+    var text = String(feature && (feature.desc || feature.entries) || "");
+    var explicit = text.match(/(\d+d\d+)\s*\+\s*(\d+)/i);
+    if (explicit) return explicit[1].toLowerCase() + "+" + explicit[2];
+    var fighter = (s && s.classes || []).find(function (c) { return has(c && c.name, "fighter"); });
+    var labeled = String(s && s.classLabel || "").match(/fighter\s+(\d+)/i);
+    var level = fighter && fighter.level != null ? fighter.level : (labeled ? labeled[1] : (s && s.level));
+    return "1d10+" + Math.max(1, Math.floor(Number(level) || 1));
+  }
   var CLASS_FEATURE_ACTIONS = [
-    { match: "second wind",       id: "cf_second_wind",    label: "Second Wind",       kind: "selfheal",   tab: "actions", bonus: true,  free: false, cost: { secondWind: 1 },    desc: "Regain 1d10+level HP as a bonus action." },
+    { match: "second wind",       id: "cf_second_wind",    label: "Second Wind",       kind: "selfheal",   tab: "actions", bonus: true,  free: false, cost: { secondWind: 1 },    dmg: secondWindDice, desc: "Regain 1d10+level HP as a bonus action." },
     { match: "action surge",      id: "cf_action_surge",   label: "Action Surge",      kind: "surge",      tab: "actions", bonus: false, free: true,  cost: { actionSurge: 1 },   desc: "Take one additional action this turn." },
     { match: "flurry of blows",   id: "cf_flurry",         label: "Flurry of Blows",   kind: "attack",     tab: "actions", bonus: true,  free: false, cost: { ki: 1 },            desc: "After Attack action: 2 unarmed strikes as a bonus action." },
     { match: "patient defense",   id: "cf_patient_defense",label: "Patient Defense",   kind: "dodge",      tab: "actions", bonus: true,  free: false, cost: { ki: 1 },            desc: "Dodge as a bonus action." },
@@ -896,11 +905,13 @@ function combatErrorKit(charData, err) {
 
     CLASS_FEATURE_ACTIONS.forEach(function (cfa) {
       // Check if the character has this feature
-      var found = featNames.some(function (n) { return n.indexOf(cfa.match) !== -1; });
+      var foundIndex = featNames.findIndex(function (n) { return n.indexOf(cfa.match) !== -1; });
+      var found = foundIndex >= 0 ? feats[foundIndex] : null;
       if (!found) return;
       tiles.push({
         id: cfa.id, label: cfa.label, kind: cfa.kind, tab: cfa.tab,
         desc: cfa.desc, rng: null,
+        dmg: typeof cfa.dmg === "function" ? cfa.dmg(s, found) : (cfa.dmg || null),
         bonus: !!cfa.bonus, free: !!cfa.free, spell: false, conc: false,
         cost: cfa.cost, classFeature: true
       });

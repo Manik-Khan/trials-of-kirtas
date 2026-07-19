@@ -250,6 +250,13 @@ const LIADAN_CHAR = {
   ok("ves: actions tab has Second Wind", kit.tabs.actions.some(function (a) { return a.label === "Second Wind"; }));
   ok("ves: Second Wind is bonus action", kit.tabs.actions.some(function (a) { return a.label === "Second Wind" && a.bonus; }));
   ok("ves: Second Wind costs secondWind:1", kit.tabs.actions.some(function (a) { return a.label === "Second Wind" && a.cost && a.cost.secondWind === 1; }));
+  ok("ves: Second Wind owns 1d10+4 even without a separate sheet action row", kit.actions.some(function (a) { return a.label === "Second Wind" && a.dmg === "1d10+4"; }));
+  var multiclass = JSON.parse(JSON.stringify(VES_CHAR));
+  multiclass.structural.level = 5;
+  multiclass.structural.classLabel = "Fighter 3 / Rogue 2";
+  multiclass.structural.classes = [{ name: "Fighter", level: 3 }, { name: "Rogue", level: 2 }];
+  multiclass.structural.features[1].desc = "Regain hit points as a bonus action.";
+  ok("ves: Second Wind fallback uses fighter level rather than total level", FKD.derive(multiclass).actions.some(function (a) { return a.label === "Second Wind" && a.dmg === "1d10+3"; }));
   ok("ves: actions tab has Action Surge", kit.tabs.actions.some(function (a) { return a.label === "Action Surge"; }));
   ok("ves: Action Surge is free action", kit.tabs.actions.some(function (a) { return a.label === "Action Surge" && a.free; }));
   ok("ves: Action Surge costs actionSurge:1", kit.tabs.actions.some(function (a) { return a.label === "Action Surge" && a.cost && a.cost.actionSurge === 1; }));
