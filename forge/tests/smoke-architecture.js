@@ -65,6 +65,11 @@ const restoredRaisedTemple = Foundation.restoreMap(Foundation.snapshotMap(raised
 ok('real seeded Temple wall gains ten feet of sight authority', raisedTemple.occ[seededWallIndex] === temple.occ[seededWallIndex] + 10);
 ok('raised seeded-wall height survives the exact snapshot', restoredRaisedTemple.meta.architecture.blocks[0].heightFt === seededWallEdit.heightFt && restoredRaisedTemple.occ[seededWallIndex] === seededWallEdit.heightFt);
 ok('restoring and reapplying a raised wall cannot double its height', A.apply(restoredRaisedTemple, restoredRaisedTemple.meta.architecture).occ[seededWallIndex] === seededWallEdit.heightFt);
+const seededParapetEdit = { c: seededWallIndex % temple.cols, r: Math.floor(seededWallIndex / temple.cols), kind: 'parapet', heightFt: temple.occ[seededWallIndex] + 5 };
+const parapetedTemple = A.apply(temple, A.record([seededParapetEdit]));
+const restoredParapetedTemple = Foundation.restoreMap(Foundation.snapshotMap(parapetedTemple));
+ok('real seeded Temple wall accepts a five-foot parapet extension', parapetedTemple.occ[seededWallIndex] === temple.occ[seededWallIndex] + 5 && parapetedTemple.coverShape[seededWallIndex].source === 'authored-parapet');
+ok('seeded parapet height survives the exact snapshot without doubling', restoredParapetedTemple.occ[seededWallIndex] === seededParapetEdit.heightFt && A.apply(restoredParapetedTemple, restoredParapetedTemple.meta.architecture).occ[seededWallIndex] === seededParapetEdit.heightFt);
 const optionalRoute = temple.meta.intent.routes.find(route => !route.required);
 const optionalConnector = temple.connectors.find(connector => connector.id === optionalRoute.connectorIds[0]);
 const optionalMiddle = optionalConnector.path[1];

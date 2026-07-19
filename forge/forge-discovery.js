@@ -18,7 +18,7 @@
 })(typeof self!=="undefined"?self:this,function(){
   "use strict";
 
-  var VERSION="1.3.0";
+  var VERSION="1.4.0";
   var UNEXPLORED=0, EXPLORED=1, VISIBLE=2;
   var DEFAULT_SIGHT_FT=60;
 
@@ -58,22 +58,23 @@
     var hz=horizontalFt(a,b),vz=Math.abs(heightAt(map,a.c,a.r)-heightAt(map,b.c,b.r));
     return Math.hypot(hz,vz);
   }
-  /* Discovery uses strict eye-to-eye sight, not attack targeting. Attack LoS
-     may lean around lips/low walls to find a legal firing point; perception
-     should not reveal a room until the creature's actual eye has a clear ray.
-     The target cell itself remains visible because losRay ignores endpoints,
-     while high intervening walls cast truthful sight shadows. */
+  /* Creature discovery and attack targeting share one canonical sight ruling.
+     If combat can legally target through a doorway or around partial cover,
+     Player View must disclose that target too. Total cover still hides it. */
   function lineVisible(map,origin,target,geometry){
     if(!origin||!target)return false;
     if(origin.c===target.c&&origin.r===target.r)return true;
+    if(geometry&&typeof geometry.losVerdict==="function"){
+      var verdict=geometry.losVerdict(map,origin,target,{ignoreCreatures:true});
+      return !!(verdict&&verdict.canTarget);
+    }
     if(geometry&&typeof geometry.losRay==="function"){
       var eyeFt=Number(geometry.EYE_FT)||5;
       var eye={x:origin.c+0.5,y:origin.r+0.5,z:heightAt(map,origin.c,origin.r)+eyeFt,peek:false,stepOut:false,ignore:null};
       var ray=geometry.losRay(map,origin,target,eye,{ignoreCreatures:true});
       return !(ray&&ray.blocked);
     }
-    var verdict=geometry&&typeof geometry.losVerdict==="function"?geometry.losVerdict(map,origin,target,{ignoreCreatures:true}):{canTarget:true};
-    return !!(verdict&&verdict.canTarget);
+    return true;
   }
   function visibleFrom(map,origin,geometry,opts){
     opts=opts||{};var d=dims(map),n=d.cols*d.rows,out=new Uint8Array(n);

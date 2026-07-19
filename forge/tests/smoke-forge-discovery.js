@@ -9,7 +9,7 @@ const openGeo={
   range3d:(m,a,b)=>Math.hypot(Math.max(Math.abs(a.c-b.c),Math.abs(a.r-b.r))*5,0),
   losVerdict:()=>({canTarget:true,cover:"none",acBonus:0})
 };
-ok(D.VERSION==="1.3.0","module version is pinned");
+ok(D.VERSION==="1.4.0","module version is pinned");
 ok(D.UNEXPLORED===0&&D.EXPLORED===1&&D.VISIBLE===2,"three discovery states are stable");
 ok(D.dims({W:3,H:4}).cols===3&&D.dims({W:3,H:4}).rows===4,"legacy W/H map dimensions normalize");
 ok(D.idx(map(),2,3)===17,"cell index is row-major");
@@ -38,13 +38,17 @@ const blockGeo={range3d:openGeo.range3d,losVerdict:(m,a,b)=>{losCalls++;return {
 const blocked=D.visibleFrom(map(),{c:2,r:2},blockGeo,{radiusFt:15});
 ok(blocked[D.idx(map(),4,2)]===0,"canonical LoS denial hides a candidate cell");
 ok(losCalls>0,"visibility delegates to the supplied canonical LoS function");
+const sharedVerdictGeo={losVerdict:()=>({canTarget:true,cover:"half",acBonus:2}),losRay:()=>({blocked:true})};
+ok(D.lineVisible(map(),{c:0,r:0},{c:1,r:0},sharedVerdictGeo),"a combat-legal covered target is also disclosed to Player View");
+sharedVerdictGeo.losVerdict=()=>({canTarget:false,cover:"total",acBonus:Infinity});
+ok(!D.lineVisible(map(),{c:0,r:0},{c:1,r:0},sharedVerdictGeo),"canonical total cover still hides a target");
 const wallMap=map(5,3),wi=D.idx(wallMap,2,1);wallMap.wall[wi]=true;wallMap.occ[wi]=10;
 let wallVis=D.visibleFrom(wallMap,{c:0,r:1},TG,{radiusFt:30});
 ok(wallVis[D.idx(wallMap,2,1)]===1,"the blocking wall itself remains visible");
 ok(wallVis[D.idx(wallMap,3,1)]===0&&wallVis[D.idx(wallMap,4,1)]===0,"a high wall casts a strict discovery shadow");
 wallMap.wall[wi]=false;wallMap.occ[wi]=0;wallVis=D.visibleFrom(wallMap,{c:0,r:1},TG,{radiusFt:30});
 ok(wallVis[D.idx(wallMap,4,1)]===1,"an open doorway reveals truthful straight sight beyond the wall line");
-ok(D.lineVisible(wallMap,{c:0,r:1},{c:4,r:1},TG),"lineVisible exposes the strict perception seam");
+ok(D.lineVisible(wallMap,{c:0,r:1},{c:4,r:1},TG),"lineVisible exposes the shared combat sight seam");
 const party=D.partyVisible(map(),[
   {unit:"a",side:"pc",alive:true,c:0,r:0,sightFt:5},
   {unit:"b",side:"pc",alive:true,c:4,r:4,sightFt:5},

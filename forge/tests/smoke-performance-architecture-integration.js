@@ -18,12 +18,14 @@ const boot = html.slice(html.indexOf('async function bootSession'), html.indexOf
 ok('session repaint restores authored blocks before rendering the field', boot.includes('ARCHITECTURE_RECORD=F&&F.architecture?') && boot.indexOf('ARCHITECTURE_RECORD=F&&F.architecture?') < boot.indexOf('renderField()'));
 ok('combat map applies the same pure authored block record', html.includes('ARCHITECTURE_API.apply(map,ARCHITECTURE_RECORD)'));
 ok('route failures block local and shared combat doors', html.includes('if(architecturePending())') && html.includes('Repair the required ascent before opening or saving'));
-ok('region fog keeps instance matrices instead of hiding geometry', html.includes('mesh.setMatrixAt(i,regionMode?base:'));
-ok('region fog does not build the old void veil', html.includes('if(player&&!regionMode)buildFogVeil()'));
-ok('honest line of sight overrides grey-region presentation', html.includes('discoveryStateAt(c,r)===D.VISIBLE)return 2'));
+ok('geometry fog keeps every instance matrix instead of hiding terrain', html.includes('mesh.setMatrixAt(i,geometryMode?base:'));
+ok('geometry fog does not build the old void veil', html.includes('if(player&&!geometryMode)buildFogVeil()'));
+ok('visible geometry returns to full authored colour', html.includes('recognition=geometryMode?1:'));
+ok('Temple presentation reads the real per-cell discovery state', html.includes('return discoveryStateAt(c,r);') && !html.includes('ARCHITECTURE_API.regionStateAt'));
 ok('creature disclosure remains canonical line of sight', html.includes('function discoveryCellVisible(c,r){var D=discoveryApi();return !!(D&&DISCOVERY.ready&&discoveryStateAt(c,r)===D.VISIBLE)'));
 ok('production builder exposes wall, parapet, gate, and erase blocks', ['wall', 'parapet', 'gate', 'erase'].every(k => html.includes(`data-architecture-tool="${k}"`)));
-ok('seeded retaining walls can be raised by the real wall tool', html.includes("seededWall&&kind==='wall'") && html.includes('Seeded retaining wall raised 10 ft'));
+ok('seeded retaining walls accept both blocking extension tools', html.includes('if(seededWall&&def&&def.blocks)edit.heightFt=') && html.includes("kind==='parapet'?'5-ft parapet'"));
+ok('Workshop preview uses canonical cell sight rather than authored regions', html.includes('D.visibleFrom(map,source,TG') && html.includes('Preview sight fog') && !html.includes('Preview region fog'));
 ok('optional bypass sealing is a first-class authored action', html.includes('function sealOptionalBypass()'));
 
 console.log(`smoke-performance-architecture-integration: ${pass} passed, ${fail} failed`);

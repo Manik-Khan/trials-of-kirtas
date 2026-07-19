@@ -34,7 +34,7 @@
 <script src="forge-combat-rules.js?v=fcr3"></script>
 <script src="forge-effects.js?v=fe4"></script>
 <script src="forge-initiative.js?v=fi2"></script>
-<script src="forge-discovery.js?v=fd5"></script>
+<script src="forge-discovery.js?v=fd6"></script>
 <script src="forge-render-power.js?v=frp1"></script>
 <script src="forge-architecture.js?v=fa4"></script>
 <script src="forge-bus.js?v=fb2"></script>
@@ -1107,11 +1107,11 @@ body.forge-author-preview #partySelect{opacity:0;pointer-events:none}
         <button class="filebtn" id="architectureReset" type="button">Reset blocks</button>
       </div>
       <div class="improw" style="margin:0 0 6px">
-        <button class="filebtn" id="architectureFogPreview" type="button">Preview region fog</button>
-        <button class="filebtn" id="architectureFogAdvance" type="button">Advance region</button>
+        <button class="filebtn" id="architectureFogPreview" type="button">Preview sight fog</button>
+        <button class="filebtn" id="architectureFogAdvance" type="button">Move preview eye</button>
       </div>
       <div class="architectureAudit" id="architectureAudit">Required ascent clear · 0 authored blocks.</div>
-      <div class="fname" id="architectureMessage" style="white-space:normal">Open cells accept a 10-ft wall. Click a seeded retaining wall to raise it another 10 feet.</div>
+      <div class="fname" id="architectureMessage" style="white-space:normal">Open cells accept blocks. Seeded retaining walls accept a 10-ft wall or 5-ft parapet extension.</div>
     </div>
     <div id="forgeTableSettings">
       <div class="divider"></div>
@@ -1982,7 +1982,7 @@ var DEPLOYMENT_GROUPS=[],DEPLOYMENT_PLANS=null,DEPLOYMENT_PLACE_GROUP=null,DEPLO
 const ARCHITECTURE_API=window.ForgeArchitecture;
 if(!ARCHITECTURE_API)throw new Error('Forge architecture authority did not load');
 var architectureRenderGroup=new THREE.Group();scene.add(architectureRenderGroup);
-var ARCHITECTURE_RECORD=ARCHITECTURE_API.record([]),ARCHITECTURE_TOOL=null,ARCHITECTURE_REGION_INDEX=null,ARCHITECTURE_REGION_STATES={},ARCHITECTURE_FOG_PREVIEW=false,ARCHITECTURE_PREVIEW_REGION=0;
+var ARCHITECTURE_RECORD=ARCHITECTURE_API.record([]),ARCHITECTURE_TOOL=null,ARCHITECTURE_FOG_PREVIEW=false,ARCHITECTURE_PREVIEW_REGION=0,ARCHITECTURE_PREVIEW_STATES=null,ARCHITECTURE_PREVIEW_EXPLORED=null;
 /* Phase 2 snapshot authority: while a saved session is open, this exact map
    document — not a regenerated recipe — is the geometry source of truth. */
 /* Session identity is needed by the very first rebuild(). Keep this ahead of
@@ -3071,7 +3071,7 @@ function rebuild(){
     document.getElementById('dungeonName').textContent='Flat (no elevation) — contrast'; }
   if(F && !F.occ) F.occ=EMPTY_OCC(F.W*F.H);
   ARCHITECTURE_RECORD=SESSION_ID&&F&&F.architecture?ARCHITECTURE_API.normalizeRecord(F.architecture):ARCHITECTURE_API.record([]);
-  ARCHITECTURE_REGION_INDEX=null;ARCHITECTURE_REGION_STATES={};
+  ARCHITECTURE_PREVIEW_STATES=null;ARCHITECTURE_PREVIEW_EXPLORED=null;
   applyLook();
   renderField();
   refreshDeploymentPanel();
@@ -3331,11 +3331,20 @@ function renderArchitecturePanel(){
   var panel=document.getElementById('architecturePanel');if(!panel)return;var show=architectureActive()&&!SESSION_ID&&!(typeof CB!=='undefined'&&CB&&CB.active);panel.style.display=show?'block':'none';
   document.querySelectorAll('[data-architecture-tool]').forEach(function(b){b.classList.toggle('active',b.dataset.architectureTool===ARCHITECTURE_TOOL);});
   var audit=architectureAudit(),el=document.getElementById('architectureAudit');if(el){el.classList.toggle('bad',!audit.ok);el.textContent=audit.ok?'Required ascent clear · '+ARCHITECTURE_RECORD.blocks.length+' authored block'+(ARCHITECTURE_RECORD.blocks.length===1?'':'s')+'.':audit.errors.join(' · ');}
-  var fog=document.getElementById('architectureFogPreview'),advance=document.getElementById('architectureFogAdvance');if(fog){fog.classList.toggle('active',ARCHITECTURE_FOG_PREVIEW);fog.textContent=ARCHITECTURE_FOG_PREVIEW?'Staff view':'Preview region fog';}if(advance)advance.disabled=!ARCHITECTURE_FOG_PREVIEW;
+  var fog=document.getElementById('architectureFogPreview'),advance=document.getElementById('architectureFogAdvance');if(fog){fog.classList.toggle('active',ARCHITECTURE_FOG_PREVIEW);fog.textContent=ARCHITECTURE_FOG_PREVIEW?'Staff view':'Preview sight fog';}if(advance)advance.disabled=!ARCHITECTURE_FOG_PREVIEW;
+}
+function architecturePreviewSource(map){
+  var regions=F&&F.intent&&F.intent.regions||[],region=regions[ARCHITECTURE_PREVIEW_REGION],cells=region&&region.cells||[];
+  for(var i=0;i<cells.length;i++){var p=cells[i],j=p.r*map.cols+p.c;if(p.c>=0&&p.r>=0&&p.c<map.cols&&p.r<map.rows&&!map.wall[j])return {unit:'preview-eye',c:p.c,r:p.r};}
+  return null;
 }
 function applyArchitectureFogPreview(){
-  if(!architectureActive()||!F||!F.intent)return;ARCHITECTURE_REGION_INDEX=ARCHITECTURE_API.regionIndex(F.intent);ARCHITECTURE_REGION_STATES={};
-  if(ARCHITECTURE_FOG_PREVIEW){ARCHITECTURE_REGION_INDEX.ids.forEach(function(id,i){if(i<ARCHITECTURE_PREVIEW_REGION)ARCHITECTURE_REGION_STATES[id]=1;else if(i===ARCHITECTURE_PREVIEW_REGION)ARCHITECTURE_REGION_STATES[id]=2;});applyDiscoveryInstances(true);}else applyDiscoveryInstances(false);
+  if(!architectureActive()||!F||!F.intent)return;
+  if(ARCHITECTURE_FOG_PREVIEW){
+    var D=discoveryApi(),map=ARCHITECTURE_API.apply(rawCombatMapFromF(),ARCHITECTURE_RECORD),source=architecturePreviewSource(map),visible=source&&D?D.visibleFrom(map,source,TG,{radiusFt:Math.ceil(Math.hypot(map.cols,map.rows)*5)+5}):new Uint8Array(map.cols*map.rows);
+    if(D&&D.connectedMask)visible=D.connectedMask(visible,map,source?[source]:[]);
+    ARCHITECTURE_PREVIEW_EXPLORED=D.mergeExplored(ARCHITECTURE_PREVIEW_EXPLORED,visible);ARCHITECTURE_PREVIEW_STATES=D.composeStates(ARCHITECTURE_PREVIEW_EXPLORED,visible);applyDiscoveryInstances(true);
+  }else{ARCHITECTURE_PREVIEW_STATES=null;ARCHITECTURE_PREVIEW_EXPLORED=null;applyDiscoveryInstances(false);}
   requestForgeRender();
 }
 function renderArchitectureBlocks(){clearArchitectureMeshes();if(!architectureActive()){renderArchitecturePanel();requestForgeRender();return;}ARCHITECTURE_RECORD.blocks.forEach(renderArchitectureBlock);renderArchitecturePanel();if(typeof applyDiscoveryInstances==='function')applyArchitectureFogPreview();requestForgeRender();}
@@ -3347,11 +3356,12 @@ function applyArchitectureAt(c,r,kind){
   else{
     var seededWall=!!F.foot[i]&&F.type[i]===T_ROCK;
     if(!F.foot[i]||F.type[i]===T_WATER){architectureSay('Water and void cannot support an authored wall.',true);return;}
-    if(seededWall&&kind!=='wall'){architectureSay('Use 10-ft wall / raise on a seeded retaining wall, or Erase to restore its seed height.',true);return;}
+    var def=ARCHITECTURE_API.KINDS[kind];
+    if(seededWall&&!(def&&def.blocks)){architectureSay('Seeded retaining walls accept a 10-ft wall or 5-ft parapet extension. Erase restores the seed height.',true);return;}
     if(architectureOccupied(c,r)){architectureSay('Move the deployment flag or combatant before building on that cell.',true);return;}
-    var edit={c:c,r:r,kind:kind};if(seededWall&&kind==='wall')edit.heightFt=(Number(F.occ&&F.occ[i])||0)+10;
+    var edit={c:c,r:r,kind:kind};if(seededWall&&def&&def.blocks)edit.heightFt=(Number(F.occ&&F.occ[i])||0)+def.heightFt;
     ARCHITECTURE_RECORD=ARCHITECTURE_API.editRecord(ARCHITECTURE_RECORD,edit);
-    var audit=architectureAudit(),label=seededWall?'Seeded retaining wall raised 10 ft to '+ARCHITECTURE_API.heightFt(edit)+' ft':(kind==='wall'?'10-ft wall':kind==='parapet'?'5-ft parapet':'Passable gate');architectureSay(label+' at '+c+','+r+'.'+(audit.ok?' Required ascent remains open.':' '+audit.errors.join(' ')),!audit.ok);
+    var audit=architectureAudit(),label=seededWall?'Seeded retaining wall raised '+def.heightFt+' ft to '+ARCHITECTURE_API.heightFt(edit)+' ft':(kind==='wall'?'10-ft wall':kind==='parapet'?'5-ft parapet':'Passable gate');architectureSay(label+' at '+c+','+r+'.'+(audit.ok?' Required ascent remains open.':' '+audit.errors.join(' ')),!audit.ok);
   }
   renderArchitectureBlocks();refreshDeploymentPanel();
 }
@@ -3368,8 +3378,8 @@ function sealOptionalBypass(){
 (function wireArchitecturePanel(){
   document.querySelectorAll('[data-architecture-tool]').forEach(function(b){b.onclick=function(){ARCHITECTURE_TOOL=ARCHITECTURE_TOOL===b.dataset.architectureTool?null:b.dataset.architectureTool;DEPLOYMENT_PLACE_GROUP=null;DEPLOYMENT_MANUAL=null;renderArchitecturePanel();architectureSay(ARCHITECTURE_TOOL?'Click a battlefield cell to place '+b.textContent.toLowerCase()+'.':'Building tool released.');};});
   var seal=document.getElementById('architectureSealBypass'),reset=document.getElementById('architectureReset'),fog=document.getElementById('architectureFogPreview'),advance=document.getElementById('architectureFogAdvance');if(seal)seal.onclick=sealOptionalBypass;if(reset)reset.onclick=function(){ARCHITECTURE_RECORD=ARCHITECTURE_API.record([]);architectureSay('All authored blocks cleared. The seeded Temple is restored.');renderArchitectureBlocks();refreshDeploymentPanel();};
-  if(fog)fog.onclick=function(){ARCHITECTURE_FOG_PREVIEW=!ARCHITECTURE_FOG_PREVIEW;ARCHITECTURE_PREVIEW_REGION=0;applyArchitectureFogPreview();renderArchitecturePanel();architectureSay(ARCHITECTURE_FOG_PREVIEW?'Region preview: approach in full colour; the rest remains present and grey.':'Staff view restored.');};
-  if(advance)advance.onclick=function(){if(!ARCHITECTURE_FOG_PREVIEW)return;var count=(F&&F.intent&&F.intent.regions||[]).length;ARCHITECTURE_PREVIEW_REGION=count?(ARCHITECTURE_PREVIEW_REGION+1)%count:0;applyArchitectureFogPreview();architectureSay('Region preview advanced to '+(ARCHITECTURE_REGION_INDEX.ids[ARCHITECTURE_PREVIEW_REGION]||'the map')+'.');};
+  if(fog)fog.onclick=function(){ARCHITECTURE_FOG_PREVIEW=!ARCHITECTURE_FOG_PREVIEW;ARCHITECTURE_PREVIEW_REGION=0;ARCHITECTURE_PREVIEW_EXPLORED=null;applyArchitectureFogPreview();renderArchitecturePanel();architectureSay(ARCHITECTURE_FOG_PREVIEW?'Sight preview: visible cells are coloured; out-of-sight geometry remains grey.':'Staff view restored.');};
+  if(advance)advance.onclick=function(){if(!ARCHITECTURE_FOG_PREVIEW)return;var regions=F&&F.intent&&F.intent.regions||[],count=regions.length;ARCHITECTURE_PREVIEW_REGION=count?(ARCHITECTURE_PREVIEW_REGION+1)%count:0;applyArchitectureFogPreview();architectureSay('Preview eye moved to '+(regions[ARCHITECTURE_PREVIEW_REGION]&&regions[ARCHITECTURE_PREVIEW_REGION].id||'the map')+'. Previously seen cells remain grey.');};
 })();
 window.__forgeArchitecture={active:architectureActive,get record(){return ARCHITECTURE_API.normalizeRecord(ARCHITECTURE_RECORD);},audit:architectureAudit,place:applyArchitectureAt,reset:function(){ARCHITECTURE_RECORD=ARCHITECTURE_API.record([]);renderArchitectureBlocks();}};
 
@@ -3816,36 +3826,39 @@ function clearFogMeshes(){
 }
 function hiddenMatrix(base){var p=new THREE.Vector3(),q=new THREE.Quaternion(),sc=new THREE.Vector3();base.decompose(p,q,sc);sc.set(.0001,.0001,.0001);p.y=-BASE-20;return new THREE.Matrix4().compose(p,q,sc);}
 function discoveryStateAt(c,r){var D=discoveryApi();return D&&DISCOVERY.ready?D.cellState(DISCOVERY.states,CB.map,c,r):2;}
-function architectureRegionFog(){return !!(architectureActive()&&ARCHITECTURE_RECORD.fog==='region-grey'&&F&&F.intent);}
-function architectureDiscoveryStateAt(c,r){if(!architectureRegionFog()||!ARCHITECTURE_REGION_INDEX)return discoveryStateAt(c,r);var D=discoveryApi();if(D&&DISCOVERY.ready&&discoveryStateAt(c,r)===D.VISIBLE)return 2;return ARCHITECTURE_API.regionStateAt(ARCHITECTURE_REGION_INDEX,ARCHITECTURE_REGION_STATES,c,r);}
-function discoveryDetailedAt(c,r){if(architectureRegionFog())return architectureDiscoveryStateAt(c,r)===2;var D=discoveryApi(),i=D&&D.idx(CB.map,c,r);return !!(D&&DISCOVERY.ready&&DISCOVERY.detail&&i>=0&&DISCOVERY.detail[i]);}
+function architectureGeometryFog(){return !!(architectureActive()&&ARCHITECTURE_RECORD.fog==='region-grey'&&F&&F.intent);}
+function architectureDiscoveryStateAt(c,r){
+  var D=discoveryApi();if(ARCHITECTURE_FOG_PREVIEW&&ARCHITECTURE_PREVIEW_STATES&&D)return D.cellState(ARCHITECTURE_PREVIEW_STATES,{cols:F.W,rows:F.H},c,r);
+  return discoveryStateAt(c,r);
+}
+function discoveryDetailedAt(c,r){if(architectureGeometryFog())return architectureDiscoveryStateAt(c,r)===2;var D=discoveryApi(),i=D&&D.idx(CB.map,c,r);return !!(D&&DISCOVERY.ready&&DISCOVERY.detail&&i>=0&&DISCOVERY.detail[i]);}
 function discoveryRecognitionAt(c,r){
   var D=discoveryApi(),best=0;(DISCOVERY.currentSources||[]).forEach(function(src){var radius=Math.max(5,Number(src.radiusFt)||D.DEFAULT_SIGHT_FT),dist=D.rangeFt(CB.map,src,{c:c,r:r},TG),recognition=Math.max(0,Math.min(1,(1.35-dist/radius)/.65));if(recognition>best)best=recognition;});return best;
 }
 var CREATURE_CLEAR_FT=100,CREATURE_SOFT_MAX_FT=240;
 function discoveryCreatureClarityAt(c,r){
-  if(architectureRegionFog())return architectureDiscoveryStateAt(c,r)===2?1:.32;
+  if(architectureGeometryFog())return architectureDiscoveryStateAt(c,r)===2?1:.32;
   var D=discoveryApi(),nearest=Infinity;(DISCOVERY.currentSources||[]).forEach(function(src){var dist=D.rangeFt(CB.map,src,{c:c,r:r},TG);if(dist<nearest)nearest=dist;});
   if(!Number.isFinite(nearest)||nearest<=CREATURE_CLEAR_FT)return 1;
   if(nearest>=CREATURE_SOFT_MAX_FT)return .32;
   var t=(nearest-CREATURE_CLEAR_FT)/(CREATURE_SOFT_MAX_FT-CREATURE_CLEAR_FT);return 1-t*.68;
 }
-function discoveryObjectTone(obj,state,player,regionMode){
+function discoveryObjectTone(obj,state,player,geometryMode){
   if(!obj||!obj.userData)return;var original=obj.userData.discoveryToneOriginal;
   if(!original){original=obj.userData.discoveryToneOriginal={intensity:obj.intensity};if(obj.material){var mats=Array.isArray(obj.material)?obj.material:[obj.material];obj.material=Array.isArray(obj.material)?mats.map(function(m){return m.clone();}):mats[0].clone();mats=Array.isArray(obj.material)?obj.material:[obj.material];original.materials=mats.map(function(m){return {color:m.color&&m.color.clone(),emissive:m.emissive&&m.emissive.clone(),opacity:m.opacity};});}}
-  if(obj.intensity!=null&&original.intensity!=null)obj.intensity=player&&regionMode?(state===2?original.intensity:(state===1?original.intensity*.28:0)):original.intensity;
+  if(obj.intensity!=null&&original.intensity!=null)obj.intensity=player&&geometryMode?(state===2?original.intensity:(state===1?original.intensity*.28:0)):original.intensity;
   var materials=obj.material?(Array.isArray(obj.material)?obj.material:[obj.material]):[],grey=new THREE.Color(state===0?0x343a38:0x737976),mix=state===0?.82:(state===1?.62:0);
-  materials.forEach(function(m,i){var saved=original.materials&&original.materials[i];if(!saved)return;if(m.color&&saved.color)m.color.copy(saved.color).lerp(grey,player&&regionMode?mix:0);if(m.emissive&&saved.emissive)m.emissive.copy(saved.emissive).multiplyScalar(player&&regionMode?(state===2?1:(state===1?.18:0)):1);m.opacity=saved.opacity;});
+  materials.forEach(function(m,i){var saved=original.materials&&original.materials[i];if(!saved)return;if(m.color&&saved.color)m.color.copy(saved.color).lerp(grey,player&&geometryMode?mix:0);if(m.emissive&&saved.emissive)m.emissive.copy(saved.emissive).multiplyScalar(player&&geometryMode?(state===2?1:(state===1?.18:0)):1);m.opacity=saved.opacity;});
 }
 function applyDiscoveryInstances(player){
-  var regionMode=player&&architectureRegionFog(),visCol=new THREE.Color(),memCol=new THREE.Color(0.30,0.33,0.32),unknownCol=new THREE.Color(0.16,0.18,0.18),farCol=new THREE.Color();
+  var geometryMode=player&&architectureGeometryFog(),visCol=new THREE.Color(),memCol=new THREE.Color(0.30,0.33,0.32),unknownCol=new THREE.Color(0.16,0.18,0.18),farCol=new THREE.Color();
   DISCOVERY_RENDER.instanced.forEach(function(entry){var mesh=entry.mesh;if(!mesh)return;
     for(var i=0;i<entry.cells.length;i++){
-      var cell=entry.cells[i],st=player?(regionMode?architectureDiscoveryStateAt(cell.c,cell.r):discoveryStateAt(cell.c,cell.r)):2,detailed=!player||discoveryDetailedAt(cell.c,cell.r),base=entry.matrices[i];
-      mesh.setMatrixAt(i,regionMode?base:((st===0||entry.mode==='visible-only'&&!detailed)?hiddenMatrix(base):base));
+      var cell=entry.cells[i],st=player?(geometryMode?architectureDiscoveryStateAt(cell.c,cell.r):discoveryStateAt(cell.c,cell.r)):2,detailed=!player||discoveryDetailedAt(cell.c,cell.r),base=entry.matrices[i];
+      mesh.setMatrixAt(i,geometryMode?base:((st===0||entry.mode==='visible-only'&&!detailed)?hiddenMatrix(base):base));
       if(entry.mode==='terrain'){
         var original=entry.colors[i]||new THREE.Color(1,1,1);visCol.copy(original);
-        if(regionMode&&st===0){
+        if(geometryMode&&st===0){
           var unknownLight=Math.max(.34,.2126*original.r+.7152*original.g+.0722*original.b);mesh.setColorAt(i,unknownCol.clone().multiplyScalar(unknownLight));
         }else if(st===1){
           var memoryLight=Math.max(.48,.2126*original.r+.7152*original.g+.0722*original.b);
@@ -3854,14 +3867,14 @@ function applyDiscoveryInstances(player){
           /* Soft-reality recognition is a radial falloff inside truthful LoS,
              not a hard vision circle. Terrain gradually loses colour/detail;
              creature authority still uses the exact detail mask below. */
-          var lum=.2126*original.r+.7152*original.g+.0722*original.b,recognition=player?discoveryRecognitionAt(cell.c,cell.r):1;
+          var lum=.2126*original.r+.7152*original.g+.0722*original.b,recognition=geometryMode?1:(player?discoveryRecognitionAt(cell.c,cell.r):1);
           farCol.setRGB(.13+lum*.44,.16+lum*.45,.16+lum*.43);visCol.lerp(farCol,1-recognition);mesh.setColorAt(i,visCol);
         }else mesh.setColorAt(i,visCol);
       }
     }
     mesh.instanceMatrix.needsUpdate=true;if(mesh.instanceColor)mesh.instanceColor.needsUpdate=true;
   });
-  DISCOVERY_RENDER.objects.forEach(function(obj){if(!obj||!obj.userData||!obj.userData.discoveryCell)return;var q=obj.userData.discoveryCell,st=player?(regionMode?architectureDiscoveryStateAt(q.c,q.r):discoveryStateAt(q.c,q.r)):2,detailed=!player||discoveryDetailedAt(q.c,q.r);obj.visible=regionMode?true:(!player||(q.mode==='visible-only'?detailed:st!==0));if(regionMode||obj.userData.discoveryToneOriginal)discoveryObjectTone(obj,st,player,regionMode);});
+  DISCOVERY_RENDER.objects.forEach(function(obj){if(!obj||!obj.userData||!obj.userData.discoveryCell)return;var q=obj.userData.discoveryCell,st=player?(geometryMode?architectureDiscoveryStateAt(q.c,q.r):discoveryStateAt(q.c,q.r)):2,detailed=!player||discoveryDetailedAt(q.c,q.r);obj.visible=geometryMode?true:(!player||(q.mode==='visible-only'?detailed:st!==0));if(geometryMode||obj.userData.discoveryToneOriginal)discoveryObjectTone(obj,st,player,geometryMode);});
 }
 function fogMaskCanvas(){
   var scale=12,w=CB.map.cols*scale,h=CB.map.rows*scale,mask=document.createElement('canvas');mask.width=w;mask.height=h;var mx=mask.getContext('2d');
@@ -3883,16 +3896,16 @@ function buildFogVeil(){
 }
 function applyDiscoveryFog(force){
   requestForgeRender();
-  var player=discoveryPlayerView(),regionMode=player&&architectureRegionFog(),sig=(player?'player':'staff')+'|'+(regionMode?'regions':'cells')+'|'+DISCOVERY.currentSig+'|'+DISCOVERY.detailSig+'|'+DISCOVERY.historySig+'|'+STEP+'|'+DISCOVERY_RENDER.instanced.length;
+  var player=discoveryPlayerView(),geometryMode=player&&architectureGeometryFog(),sig=(player?'player':'staff')+'|'+(geometryMode?'geometry-grey':'legacy-mask')+'|'+DISCOVERY.currentSig+'|'+DISCOVERY.detailSig+'|'+DISCOVERY.historySig+'|'+STEP+'|'+DISCOVERY_RENDER.instanced.length;
   if(!force&&sig===DISCOVERY.fogSig)return;DISCOVERY.fogSig=sig;clearFogMeshes();
   if(!CB.active||!CB.map||!DISCOVERY.ready){applyDiscoveryInstances(false);return;}
-  applyDiscoveryInstances(player);if(player&&!regionMode)buildFogVeil();
+  applyDiscoveryInstances(player);if(player&&!geometryMode)buildFogVeil();
 }
 function updateDiscoveryStatus(){
   var el=document.getElementById('discoveryStatus');if(!el)return;
   if(!CB.active||!DISCOVERY.ready){el.textContent='Discovery waits for combat.';return;}
   if(!discoveryPlayerView()){el.textContent='Discovery: Staff View shows the full battlefield.';return;}
-  if(architectureRegionFog()){var current=Object.keys(ARCHITECTURE_REGION_STATES).filter(function(id){return ARCHITECTURE_REGION_STATES[id]===2;});el.textContent='Region fog · '+(current.join(', ')||'no current region')+' in full colour · all other geometry remains grey';return;}
+  if(architectureGeometryFog()){el.textContent='Geometry fog · visible cells in full colour · out-of-sight terrain remains grey';return;}
   var D=discoveryApi(),vis=0,detail=0,exp=0,total=DISCOVERY.states.length;
   for(var i=0;i<total;i++){if(DISCOVERY.states[i]===D.VISIBLE)vis++;if(DISCOVERY.detail&&DISCOVERY.detail[i])detail++;if(DISCOVERY.states[i]!==D.UNEXPLORED)exp++;}
   el.textContent='Personal vision · '+detail+' detailed · '+vis+' in line of sight · distant foes soften after '+CREATURE_CLEAR_FT+' ft · '+exp+'/'+total+' party-explored';
@@ -3901,7 +3914,6 @@ function refreshDiscovery(force){
   var D=discoveryApi();if(!D||!CB.active||!CB.map){DISCOVERY.ready=false;clearFogMeshes();updateDiscoveryStatus();return;}
   if(DISCOVERY.mapRef!==CB.map){DISCOVERY.mapRef=CB.map;DISCOVERY.mapSerial++;DISCOVERY.cache.clear();DISCOVERY.detail=null;DISCOVERY.visible=null;DISCOVERY.explored=null;DISCOVERY.states=null;DISCOVERY.localTrail=[];DISCOVERY.currentSources=[];DISCOVERY.currentSig='';DISCOVERY.detailSig='';DISCOVERY.historySig='';DISCOVERY.fogSig='';force=true;}
   var current=discoveryCurrentSources(),history=discoveryHistorySources();DISCOVERY.currentSources=current.slice();
-  if(architectureRegionFog()){ARCHITECTURE_REGION_INDEX=ARCHITECTURE_API.regionIndex(F.intent);ARCHITECTURE_REGION_STATES=ARCHITECTURE_API.regionStates(ARCHITECTURE_REGION_INDEX,current,history);}
   var currentSig=current.map(function(p){return p.unit+':'+p.c+','+p.r;}).sort().join('|');
   var detailSig=current.map(function(p){return p.unit+':'+p.c+','+p.r+':'+p.radiusFt;}).sort().join('|');
   var historySig=history.map(function(p){return p.unit+':'+p.c+','+p.r;}).sort().join('|');
@@ -7892,7 +7904,7 @@ async function bootSession(sid){
     F=buildTiersField(sessionRecipe.seed,Object.assign({themeKey:sessionRecipe.themeKey},sessionRecipe));
   }
   ARCHITECTURE_RECORD=F&&F.architecture?ARCHITECTURE_API.normalizeRecord(F.architecture):ARCHITECTURE_API.record([]);
-  ARCHITECTURE_REGION_INDEX=null;ARCHITECTURE_REGION_STATES={};
+  ARCHITECTURE_PREVIEW_STATES=null;ARCHITECTURE_PREVIEW_EXPLORED=null;
   if(!F.occ)F.occ=EMPTY_OCC(F.W*F.H);
   WALL_FT=MapBridge.wallFeetFor(BIOME);applyLook();renderField();
   /* Task 12: publish the claim-screen handshake only after the battlefield

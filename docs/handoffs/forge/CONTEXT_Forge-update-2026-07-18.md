@@ -104,12 +104,12 @@ remain passable. The required ascent is audited before local combat, Save for
 later, or a shared Table can open. Sealing an optional stair explicitly closes
 that connector, while the primary ascent remains immutable.
 
-The same Temple path replaces cell removal with region-grey discovery. The
-current region is fully colored, entered regions become grey
-memory, and unentered regions remain darker grey; terrain, walls, props, and
-architectural blocks stay physically present. Workshop exposes the same real
-render path through **Preview region fog** and **Advance region**, so it can be
-field-checked before a shared session.
+The same Temple path replaces cell removal with geometry-preserving discovery.
+Each cell follows canonical combat line of sight: visible cells are colored,
+previously seen cells become grey memory, and unseen cells remain darker grey;
+terrain, walls, props, and architectural blocks stay physically present.
+Workshop exposes the same real sight calculation through **Preview sight fog**
+and **Move preview eye**, so it can be field-checked before a shared session.
 
 The thermal pass is also active. `forge-render-power.js?v=frp1` makes Balanced
 the default: 1.25 pixel-density ceiling, 1024px shadows, no ambient idle motion,
@@ -127,28 +127,34 @@ re-seats the version-2 record before rendering. Version-1 records migrate in
 memory. Architecture height is absolute and idempotent, so a restored snapshot
 cannot apply the same raise twice.
 
-The wall tool now works on seeded Temple retaining-wall cells. An open cell gets
-a 10-ft wall; a seeded retaining wall gets a 10-ft upward extension and absolute
-movement/sight authority at its new total height. Water and void remain invalid,
-and seeded walls cannot silently become gates or short parapets.
+The wall tools now work on seeded Temple retaining-wall cells. An open cell gets
+the selected block; a seeded retaining wall accepts either a 10-ft wall or 5-ft
+parapet upward extension with absolute movement/sight authority at its new total
+height. Water and void remain invalid, and seeded walls cannot become gates.
 
-Region grey is presentation, never creature authority. A whole occupied region
-still restores full colour, but any cell visible through canonical line of sight
-also restores colour across a region boundary. Enemies through an open doorway
-therefore appear before the party enters their room; walls still hide them.
+Geometry grey is presentation, never creature authority. Region and terrace
+membership no longer participate. Creature disclosure now uses the same
+`losVerdict` as attack targeting: if Staff View can legally target an enemy from
+a player cell, Player View discloses it; total cover still hides it.
 
 The 12:45 AM live field pass proved the preview query itself was a product bug:
 normal Temple URLs omitted the builder and fell back to the legacy terrain-removal
-fog, recreating the blank cyan void. Architecture and region-grey discovery now
+fog, recreating the blank cyan void. Architecture and geometry-grey discovery now
 activate from Temple intent alone, including historical Temple sessions with no
 architecture record. The ordinary `/forge/` browser path, with no architecture
 parameter, shows the builder and retains the complete grey battlefield.
 
-Correction validation: architecture **33/33**, performance/architecture
-integration **20/20**, promotion visibility **17/17**, and discovery **48/48**.
-The focused gate is **20/22 suites green, 916 checks green**. Its two red suites
-are the unchanged inherited `flat mode is level ground` engine case and the
-older Phase 2b.1 authoring-preview ordering assertion.
+The 9:05 AM field pass rejected region fog outright: it made nearby terrain grey
+while distant terraces remained colored, and the earlier strict perception ray
+could hide foes that combat already allowed players to attack. The live path now
+uses per-cell discovery states only and discovery authority is `1.4.0`
+(`forge-discovery.js?v=fd6`).
+
+Correction validation: **450 checks green across 13 focused suites**. The real
+Workshop render kept the whole Temple present, moved the colored sight footprint
+cell-by-cell when the preview eye moved, and retained grey memory behind it.
+The broader correctness-wave suite remains **30/31** on its unrelated inherited
+reduced-motion marker string assertion.
 
 ## Required field checklist
 
@@ -161,15 +167,17 @@ older Phase 2b.1 authoring-preview ordering assertion.
 7. Compare Volcanic construction once a Workshop Volcanic selector is exposed; the renderer profile exists, but the current biome control does not expose it.
 8. On a normal Temple URL with no architecture flag, save one optional-bypass wall, reconnect,
    and confirm its 10-ft movement/sight authority and closed connector restore.
-9. In Player View, move from approach through each Temple region and confirm the
-   whole current region restores color while every other region remains present.
-10. Compare laptop heat/fan behavior in default Balanced against High Fidelity.
+9. In Player View, confirm visible cells restore color across terrace boundaries,
+   out-of-sight cells remain grey, and no terrain disappears.
+10. Confirm any foe Staff View permits a PC to target is visible to that PC in
+    Player View, while a foe behind total cover remains hidden.
+11. Compare laptop heat/fan behavior in default Balanced against High Fidelity.
 
 ## Immediate execution order
 
 1. Run the signed-in shared-table/reconnect deployment and architecture checklist.
 2. Compare Balanced and High Fidelity on M's actual laptop during a full round.
-3. Remove the architecture flag only after saved-block and region-fog reconnects pass.
+3. Recheck saved-block and geometry-fog reconnects on the normal Temple URL.
 4. Promote Temple from `preview` to `active` only after those checks pass.
 5. Expose/settle the Volcanic Workshop construction control.
 6. Build `bridge-crossing` on the same intent contract.
@@ -182,4 +190,4 @@ M reviews, commits, and pushes. Codex does not push. Current slice stamps:
 `forge-deployment.js?v=fd1`, `forge-generator-foundation.js?v=g2g1`,
 `forge-temple-terraces.js?v=tt1`, `forge-engine.js?v=fe10`,
 `forge-render-power.js?v=frp1`, `forge-architecture.js?v=fa4`, and
-`forge-kit-derive.js?v=b9`.
+`forge-discovery.js?v=fd6`, `forge-kit-derive.js?v=b9`.
