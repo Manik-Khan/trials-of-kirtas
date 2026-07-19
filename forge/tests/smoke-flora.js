@@ -19,6 +19,7 @@ const path = require('path');
 const TG = require('../tactics-geometry.js');
 const MB = require('../map-bridge.js');
 const FD = require('../forge-dungeon.js');
+const FE = require('../forge-engine.js');
 
 const MOCK = path.join(__dirname, '..', 'index.html');
 const html = fs.readFileSync(MOCK, 'utf8');
@@ -64,12 +65,18 @@ const GEN = LINES.slice(genStart, genEnd).join('\n');
 const SRC = [
   GEN,
   obj('const PROP_FT = {') || obj('const PROP_FT={'),
+  obj('const PROP_COVER_SHAPE={'),
   fn('propOccFt'),
+  fn('propCoverShape'),
   obj('const FLORA = {'),
   'const flora = () => FLORA[BIOME] || FLORA.grass;',
   "const FLORA_KINDS = new Set(['tree','cypress','pine','snowpine','poplar','bush','bare','reed','mushroom']);",
   fn('buildTiersField'),
   fn('walkableCells'),
+  'const SESSION_MAP_AUTHORITY = null, ARCHITECTURE_API = null, ARCHITECTURE_RECORD = null;',
+  'function architectureActive(){ return false; }',
+  fn('rawCombatMapFromF'),
+  fn('syncGeometryCreatures'),
   fn('combatMapFromF'),
   'return { buildTiersField, walkableCells, combatMapFromF, FLORA, PROP_FT, FLORA_KINDS, propOccFt };',
 ].join('\n');
@@ -78,7 +85,7 @@ const T_WATER = 0, T_GRASS = 1, T_STONE = 2, T_PLAZA = 3, T_ROCK = 4;
 const WALL_FT = 7, STEP_FT = 5;
 const EMPTY_OCC = n => new Float32Array(n);
 const documentStub = { getElementById: () => ({ textContent: '' }) };
-const windowStub = { performance: { now: () => Date.now() } };
+const windowStub = { performance: { now: () => Date.now() }, ForgeEngine: FE };
 
 function build(seed, biome) {
   let F = null;
@@ -183,7 +190,7 @@ console.log('\n\u2500\u2500 no sprite becomes an invisible wall \u2500\u2500');
     mats.some(m => /depthWrite\s*:\s*false/.test(m.flags)));
 
   /* And the rules half: a prop is cover, never a barrier. */
-  const cm = fn('combatMapFromF');
+  const cm = fn('rawCombatMapFromF');
   t('combatMapFromF writes wall[] only from terrain, never from props',
     /m\.wall\[i\]\s*=\s*gap\s*\|\|/.test(cm) && !/props[\s\S]*m\.wall/.test(cm));
   t('props contribute to occ[] only', /if\s*\(?ft\s*>\s*m\.occ\[j\]\)?\s*m\.occ\[j\]\s*=\s*ft/.test(cm.replace(/\s+/g, ' ')) ||

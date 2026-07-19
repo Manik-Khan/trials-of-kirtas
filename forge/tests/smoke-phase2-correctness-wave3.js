@@ -54,7 +54,7 @@ const row=(seq,unit,kind,payload)=>({seq,unit,kind,payload:payload||{},created_a
   ok("downed units keep a universal recovery shard",html.includes("function makeDownedMarker")&&html.includes("OctahedronGeometry")&&html.includes("recovery shard"));
   ok("downed sprite and top token remain dimmed",html.includes("u.sprite.material.opacity=down?.34:farOpacity")&&html.includes("u.topToken.material.opacity=down?.44:farOpacity"));
   ok("true despawn uses the force-removal door",html.includes('case "despawn":if(u){ removeToken(u,true)'));
-  ok("downed marker motion respects reduced-motion",html.includes("if(!REDUCED){m.rotation.y")&&html.includes("else{m.rotation.y=0"));
+  ok("downed marker motion respects reduced-motion",html.includes("RENDER_SETTINGS.ambientMotion&&!REDUCED")&&html.includes("else{m.rotation.y=0"));
   ok("OA and Silvery Barbs compare canonical sides",html.includes("function stateSideOf")&&html.includes("stateSideOf(state,k)===stateSideOf(state,mover)")&&html.includes("stateSideOf(state,k)===aSide"));
   ok("reaction answers name their rule explicitly",html.includes("reaction_kind:prompt.react")&&html.includes("pl.reaction_kind"));
   ok("multiplayer OA resolves through the ordinary nested attack pipeline",html.includes("function resolveOpportunityAttackPrompt")&&html.includes("sess.pipe.attack(u.unit,declared")&&html.includes("declareReaction"));
@@ -62,7 +62,7 @@ const row=(seq,unit,kind,payload)=>({seq,unit,kind,payload:payload||{},created_a
   ok("board restores an outer prompt after nested answer",boardSrc.includes('before.pendingPrompt.seq !== after.pendingPrompt.seq')&&boardSrc.includes('{ t: "prompt", prompt: after.pendingPrompt }'));
   ok("bridge state controls are active and replay-backed",html.includes('id="bridgeStateList"')&&html.includes("connector_state:{id:id,state:next,path_signature:proof}")&&html.includes("applyConnectorStateReplay"));
   ok("closed and broken bridges render without a false physical deck",html.includes("function renderUnavailableBridgeConnector")&&html.includes("LineDashedMaterial")&&html.includes("clearVerticalConnectorRenderGroup"));
-  ok("cache stamps identify the wave-three runtime",html.includes("forge-replay.js?v=fb13")&&html.includes("forge-discovery.js?v=fd7")&&html.includes("forge-pipeline.js?v=fb7")&&html.includes("forge-board.js?v=fb7"));
+  ok("cache stamps identify the wave-three runtime",html.includes("forge-replay.js?v=fb14")&&html.includes("forge-discovery.js?v=fd7")&&html.includes("forge-pipeline.js?v=fb7")&&html.includes("forge-board.js?v=fb7"));
 
   // Same-device nested wait: overseer moves a unit, answers the OA as a foe,
   // then handles Shield during the nested attack before resuming movement.

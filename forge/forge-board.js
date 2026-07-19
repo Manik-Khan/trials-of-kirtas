@@ -107,6 +107,15 @@
     return k;
   }
 
+  /* Stable or dead PCs no longer owe a death save. The overseer may advance
+     their inert initiative seat; an unconscious PC with unresolved saves must
+     keep the seat so their controller can roll. */
+  function settledPcSkip(state){
+    if(!state||state.status!=="active")return null;var k=FR.activeUnit(state),u=k&&state.units&&state.units[k],ds=u&&u.deathSaves;
+    if(!u||u.side!=="pc"||!u.downed||!ds||(!ds.stable&&!ds.dead))return null;
+    return k;
+  }
+
   /* Sheet mirror (FORGE_BOARD.md §5): my units only, absolute hp. */
   function mirrorPlan(before, after, myUnits, rosterByUnit) {
     var out = [];
@@ -118,5 +127,5 @@
     return out;
   }
 
-  return { verbsFor: verbsFor, controls: controls, canClaim: canClaim, mirrorPlan: mirrorPlan, deadFoeSkip: deadFoeSkip };
+  return { verbsFor: verbsFor, controls: controls, canClaim: canClaim, mirrorPlan: mirrorPlan, deadFoeSkip: deadFoeSkip, settledPcSkip:settledPcSkip };
 });

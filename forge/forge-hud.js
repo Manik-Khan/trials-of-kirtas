@@ -206,7 +206,7 @@ font-family:"Barlow Condensed",system-ui;font-size:12px;cursor:pointer;letter-sp
     var foe=!!(s&&s.active&&s.active.side==="foe");
     el.innerHTML = TABS.map(function (t) {
       var cls = "fg-tab" + (t.key === activeTab ? " active" : "") + (t.end ? " end" : "");
-      var dis = t.end && (!s || !s.iControl || s.waiting || s.over || (foe && s.foeAutomatic)) ? ' disabled title="Not your turn"' : "";
+      var dis = t.end && (!s || !s.iControl || s.waiting || s.over || s.downed || (foe && s.foeAutomatic)) ? ' disabled title="Not available right now"' : "";
       return '<button class="' + cls + '" data-tab="' + t.key + '"' + dis + '>'
         + '<span class="ico" style="color:' + (t.icoColor || "var(--hud-fg)") + '">' + t.ico + '</span>'
         + '<span class="lbl">' + (foe&&!t.end?(FOE_LABELS[t.key]||t.label):t.label) + '</span></button>';
@@ -320,6 +320,13 @@ font-family:"Barlow Condensed",system-ui;font-size:12px;cursor:pointer;letter-sp
       return;
     }
 
+    if(s.downed){
+      var ds=s.deathSave||{},settled=!!(ds.stable||ds.dead),marks='<b style="color:#72b67d">'+(Number(ds.successes)||0)+' successes</b> · <b style="color:#c76b62">'+(Number(ds.failures)||0)+' failures</b>';
+      el.innerHTML='<div class="fg-foePlan" style="border-left-color:'+(ds.dead?'#a33b2e':ds.stable?'#5a9a6a':'#d8b35b')+'"><b>'+(ds.dead?'Dead':ds.stable?'Stable':'Unconscious · death saving throw')+'</b>'+marks+(settled?'<div style="margin-top:7px">No death save is required. The initiative seat will advance.</div>':'<div style="margin-top:7px">1d20 · 10+ succeeds · natural 1 adds two failures · natural 20 restores 1 HP.</div>')+'</div>'+(settled?'':'<button class="fg-foeGo" id="fgDeathSave"'+(s.waiting?' disabled':'')+'>Roll death saving throw</button>');
+      var deathBtn=document.getElementById('fgDeathSave');if(deathBtn)deathBtn.addEventListener('click',function(){document.dispatchEvent(new CustomEvent('forge:deathSave'));});
+      return;
+    }
+
     // Resources tab: render cards instead of tiles
     if (activeTab === "resources") {
       renderResources(s);
@@ -353,7 +360,8 @@ font-family:"Barlow Condensed",system-ui;font-size:12px;cursor:pointer;letter-sp
     }
 
     el.innerHTML = tiles.map(function (t, i) {
-      var isSelected = s.pending && s.pending._tileId === t.id;
+      var tileId=t._tileId||t.id||"";
+      var isSelected = s.pending && s.pending._tileId === tileId;
       var cls = "fg-tile";
       if (isSelected) cls += " sel";
       if (t.greyed) cls += " greyed";
@@ -385,7 +393,7 @@ font-family:"Barlow Condensed",system-ui;font-size:12px;cursor:pointer;letter-sp
         cost = '<span class="cost">' + (keys.length ? t.cost[keys[0]] : "") + '</span>';
       }
 
-      return '<div class="' + cls + '" data-tip="' + tip + '" data-tile-idx="' + i + '" data-tile-id="' + esc(t.id || "") + '">'
+      return '<div class="' + cls + '" data-tip="' + tip + '" data-tile-idx="' + i + '" data-tile-id="' + esc(tileId) + '">'
         + iconHtml + bns + cost + '</div>';
     }).join("");
 
@@ -442,6 +450,7 @@ font-family:"Barlow Condensed",system-ui;font-size:12px;cursor:pointer;letter-sp
     if (!s || !s.active || !s.iControl) { el.style.display = "none"; return; }
     el.style.display = "";
     var u = s.active;
+    if(s.downed){var ds=s.deathSave||{};el.innerHTML=ds.dead?'Dead.':ds.stable?'Stable — unconscious, but no longer making death saves.':'Unconscious — roll the death saving throw. All attacks, spells, movement, and self-healing are unavailable.';return;}
     if (u.side !== "pc" && s.foeAutomatic) { el.innerHTML = "Automatic enemy turn · the choice is narrated in the feed."; return; }
 
     if (s.waiting) {

@@ -1,0 +1,66 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Forge · Line Builder Mock</title>
+<style>
+  :root{--ink:#2d2a24;--paper:#e9dfca;--gold:#b78334;--teal:#3e7772;--wall:#d8bd83;--wall-edge:#8c6737;--grid:rgba(73,57,35,.18)}
+  *{box-sizing:border-box}html,body{margin:0;min-height:100%;background:#92b8b2;color:var(--ink);font-family:Georgia,serif}
+  body{display:grid;grid-template-columns:300px 1fr;background:radial-gradient(circle at 75% 15%,#dce2c7 0,#8fb1a7 45%,#557c77 100%)}
+  aside{height:100vh;padding:22px 20px;background:rgba(239,229,207,.96);border-right:1px solid #866b43;box-shadow:8px 0 28px rgba(35,38,31,.22);overflow:auto}
+  h1{font-size:18px;letter-spacing:.18em;text-transform:uppercase;margin:0 0 22px}.eyebrow{font:700 11px/1.2 Arial,sans-serif;letter-spacing:.18em;text-transform:uppercase;color:#8c632b;margin-top:20px}
+  p{font-size:14px;line-height:1.5}.tool{display:grid;grid-template-columns:1fr 1fr;gap:7px}.tool button,.actions button{padding:10px 8px;border:1px solid #9c835d;background:#f5eddc;color:#40372c;cursor:pointer;text-transform:uppercase;font:700 10px Arial,sans-serif;letter-spacing:.1em}.tool button.on{background:#b78334;color:white;border-color:#805a25}.actions{display:flex;gap:7px;margin-top:16px}.actions button{flex:1}.status{padding:12px;margin-top:16px;border-left:3px solid var(--teal);background:rgba(255,255,255,.45);font:12px/1.45 Arial,sans-serif}
+  main{position:relative;min-width:0;display:grid;place-items:center;overflow:hidden}.board-wrap{position:relative;padding:48px}.board{--cell:min(4.25vw,54px);position:relative;display:grid;grid-template-columns:repeat(14,var(--cell));grid-template-rows:repeat(10,var(--cell));transform:perspective(1000px) rotateX(46deg) rotateZ(-1deg);transform-style:preserve-3d;box-shadow:0 50px 70px rgba(23,33,28,.3)}
+  .cell{border-right:1px solid var(--grid);border-bottom:1px solid var(--grid);background:linear-gradient(135deg,#9db56d,#819b58);position:relative}.cell.seed:after,.cell.block:after,.cell.preview:after{content:"";position:absolute;inset:5px;background:linear-gradient(145deg,#ead7a8,#c59c5c);border:1px solid var(--wall-edge);box-shadow:0 8px 0 #876137,0 11px 14px rgba(52,38,22,.35);transform:translateZ(12px)}.cell.seed:after{background:linear-gradient(145deg,#a58a5d,#745634)}.cell.seed.block:after{background:linear-gradient(145deg,#ead7a8,#c59c5c)}.cell.block.parapet:after{inset:13px 5px 5px;box-shadow:0 4px 0 #876137,0 7px 10px rgba(52,38,22,.3)}.cell.preview:after{background:rgba(238,205,126,.7);outline:3px solid #f8dc8c;outline-offset:2px}
+  .handles{position:absolute;z-index:8;pointer-events:none;transform:perspective(1000px) rotateX(46deg) rotateZ(-1deg);transform-style:preserve-3d}.arrow{position:absolute;width:42px;height:42px;border-radius:50%;border:2px solid white;background:var(--gold);color:white;box-shadow:0 4px 13px rgba(43,34,19,.4);display:grid;place-items:center;font:900 22px Arial,sans-serif;pointer-events:auto;cursor:grab;user-select:none;touch-action:none}.arrow:hover{background:#d39b3d;transform:scale(1.08)}.arrow[data-dir="n"]{left:-21px;top:-72px}.arrow[data-dir="s"]{left:-21px;top:30px}.arrow[data-dir="w"]{left:-72px;top:-21px}.arrow[data-dir="e"]{left:30px;top:-21px}
+  .tip{position:absolute;right:28px;top:24px;padding:10px 14px;background:rgba(28,34,30,.82);color:#f4ead5;border:1px solid rgba(218,180,105,.6);font:12px Arial,sans-serif;letter-spacing:.03em}.legend{display:flex;gap:13px;position:absolute;bottom:22px;right:28px;padding:9px 12px;background:rgba(239,229,207,.9);font:11px Arial,sans-serif}.sw{display:inline-block;width:10px;height:10px;margin-right:5px;border:1px solid #695435}.sw.seed{background:#80603c}.sw.new{background:#d6b26d}.sw.prev{background:#f2d681}
+  @media(max-width:850px){body{grid-template-columns:1fr}aside{height:auto}.board-wrap{padding:85px 10px 30px}.board{--cell:min(6.3vw,45px)}}
+</style>
+</head>
+<body>
+<aside>
+  <h1>Forge Builder</h1>
+  <div class="eyebrow">Block</div>
+  <div class="tool"><button class="on" data-tool="wall">5 ft wall</button><button data-tool="parapet">5 ft parapet</button></div>
+  <div class="eyebrow">Line placement</div>
+  <p>Place one block. Four direction arrows appear. Press an arrow and hold to keep building; drag farther before releasing to choose the exact length.</p>
+  <div class="status" id="status">Place an anchor block anywhere—even on seeded territory.</div>
+  <div class="actions"><button id="undo">Undo line</button><button id="clear">Clear new</button></div>
+  <div class="eyebrow">Proposed controls</div>
+  <p><b>Click:</b> one block<br><b>Press + hold arrow:</b> continuous line<br><b>Drag arrow:</b> preview length, release to commit<br><b>Escape/right-click:</b> cancel preview</p>
+</aside>
+<main>
+  <div class="tip">Standalone interaction mock · seeded walls remain editable</div>
+  <div class="board-wrap"><div class="board" id="board"></div><div class="handles" id="handles" hidden>
+    <div class="arrow" data-dir="n">↑</div><div class="arrow" data-dir="e">→</div><div class="arrow" data-dir="s">↓</div><div class="arrow" data-dir="w">←</div>
+  </div></div>
+  <div class="legend"><span><i class="sw seed"></i>seeded</span><span><i class="sw new"></i>new</span><span><i class="sw prev"></i>preview</span></div>
+</main>
+<script>
+(()=>{
+  const W=14,H=10,board=document.querySelector('#board'),handles=document.querySelector('#handles'),status=document.querySelector('#status');
+  const cells=[],placed=new Map(),history=[];let anchor=null,preview=[],holdTimer=null,holdStep=1,drag=null,tool='wall';
+  const key=(c,r)=>c+','+r,inside=(c,r)=>c>=0&&r>=0&&c<W&&r<H;
+  const seeded=new Set();for(let c=2;c<=11;c++){seeded.add(key(c,2));seeded.add(key(c,7))}for(let r=2;r<=7;r++){seeded.add(key(2,r));seeded.add(key(11,r))}seeded.delete(key(6,7));seeded.delete(key(7,2));
+  for(let r=0;r<H;r++)for(let c=0;c<W;c++){const el=document.createElement('button');el.className='cell'+(seeded.has(key(c,r))?' seed':'');el.dataset.c=c;el.dataset.r=r;el.setAttribute('aria-label',`cell ${c}, ${r}`);board.append(el);cells.push(el)}
+  function cell(c,r){return cells[r*W+c]}function paint(){cells.forEach(el=>{const k=key(+el.dataset.c,+el.dataset.r),kind=placed.get(k);el.classList.toggle('block',!!kind);el.classList.toggle('parapet',kind==='parapet');el.classList.toggle('preview',preview.includes(k))})}
+  function positionHandles(){if(!anchor){handles.hidden=true;return}const el=cell(anchor.c,anchor.r),b=board.getBoundingClientRect(),q=el.getBoundingClientRect(),wrap=document.querySelector('.board-wrap').getBoundingClientRect();handles.hidden=false;handles.style.left=(q.left-wrap.left+q.width/2)+'px';handles.style.top=(q.top-wrap.top+q.height/2)+'px'}
+  function setAnchor(c,r){anchor={c,r};positionHandles();status.textContent='Anchor selected. Hold or drag a gold arrow to extend a wall line.'}
+  function placeOne(c,r){const k=key(c,r),before=placed.get(k)||null;placed.set(k,tool);history.push([{key:k,before:before}]);setAnchor(c,r);paint()}
+  function line(dir,n){const d={n:[0,-1],e:[1,0],s:[0,1],w:[-1,0]}[dir],out=[];for(let i=1;i<=n;i++){const c=anchor.c+d[0]*i,r=anchor.r+d[1]*i;if(!inside(c,r))break;out.push(key(c,r))}return out}
+  function show(dir,n){preview=line(dir,n).filter(k=>!placed.has(k));paint();status.textContent=`Preview: ${preview.length} new block${preview.length===1?'':'s'}. Release to build.`}
+  function commit(){if(!preview.length){cancel();return}const changed=preview.map(k=>({key:k,before:placed.get(k)||null}));preview.forEach(k=>placed.set(k,tool));history.push(changed);const last=preview[preview.length-1].split(',').map(Number);anchor={c:last[0],r:last[1]};preview=[];paint();positionHandles();status.textContent=`Built ${history.at(-1).length} ${tool} block${history.at(-1).length===1?'':'s'} as one undoable line.`}
+  function cancel(){preview=[];drag=null;clearInterval(holdTimer);holdTimer=null;paint();if(anchor)status.textContent='Line cancelled. The anchor is still selected.'}
+  board.addEventListener('click',e=>{const el=e.target.closest('.cell');if(el)placeOne(+el.dataset.c,+el.dataset.r)});
+  document.querySelectorAll('[data-tool]').forEach(btn=>btn.addEventListener('click',()=>{tool=btn.dataset.tool;document.querySelectorAll('[data-tool]').forEach(b=>b.classList.toggle('on',b===btn));status.textContent=`${btn.textContent} selected. Place an anchor or extend the current line.`}));
+  handles.addEventListener('pointerdown',e=>{const a=e.target.closest('.arrow');if(!a||!anchor)return;e.preventDefault();a.setPointerCapture(e.pointerId);drag={dir:a.dataset.dir,startX:e.clientX,startY:e.clientY};holdStep=1;show(drag.dir,1);holdTimer=setInterval(()=>{holdStep++;show(drag.dir,holdStep)},240)});
+  handles.addEventListener('pointermove',e=>{if(!drag)return;const dx=e.clientX-drag.startX,dy=e.clientY-drag.startY,dist=Math.max(Math.abs(dx),Math.abs(dy));if(dist>20){clearInterval(holdTimer);holdTimer=null;show(drag.dir,Math.max(1,Math.round(dist/38)))}});
+  handles.addEventListener('pointerup',()=>{clearInterval(holdTimer);holdTimer=null;drag=null;commit()});
+  document.querySelector('#undo').onclick=()=>{const last=history.pop()||[];last.forEach(change=>change.before?placed.set(change.key,change.before):placed.delete(change.key));paint();status.textContent=last.length?`Undid ${last.length} blocks.`:'Nothing to undo.'};
+  document.querySelector('#clear').onclick=()=>{placed.clear();history.length=0;preview=[];anchor=null;paint();positionHandles();status.textContent='Cleared new blocks. Seeded geometry remains.'};
+  document.addEventListener('keydown',e=>{if(e.key==='Escape')cancel()});document.addEventListener('contextmenu',e=>{if(drag||preview.length){e.preventDefault();cancel()}});window.addEventListener('resize',positionHandles);
+})();
+</script>
+</body>
+</html>

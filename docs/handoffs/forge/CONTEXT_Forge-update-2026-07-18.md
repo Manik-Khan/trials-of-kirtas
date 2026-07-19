@@ -253,6 +253,49 @@ Current field follow-up: run one live Archer and one spellcaster through Staff
 View, confirm the Archer chooses Longbow in real terrain, inspect every reference
 tab, then exercise Manual movement/attack/End Turn in a signed-in DM session.
 
+## Late-afternoon field correction · death saves, party sight, and class resources
+
+The next play pass exposed a shared cause behind the remaining visibility
+unfairness: creature disclosure still asked only the current player's sight
+source, while enemy planning considered the party. Player View now discloses a
+foe when any conscious party member has clear or reciprocal combat sight. That
+party disclosure affects recognition only; the current character's own sight
+still decides whether their attack is legal.
+
+Downed player characters now enter the 5e death-save loop instead of retaining
+their normal HUD. Movement, attacks, spells, items, and self-healing are locked;
+their turn offers one d20 death save. A natural 1 adds two failures, 10+ adds one
+success, three successes stabilize, three failures mark the character dead, and
+a natural 20 restores 1 HP. The counters are replayable, survive reconnect and
+rewind, and stable/dead initiative seats skip normally.
+
+Liadan's Bardic Inspiration pool and executable bonus-action tile are restored.
+Hexblade's Curse is a persistent 30-ft curse with expanded critical range,
+proficiency damage, and kill-healing. Hex retains its one-hour concentration
+record and can move from a defeated target without another spell slot. GOD MODE
+can now add or remove tracked resource uses or restore every tracked resource on
+a combatant through the authoritative edit event.
+
+Incomplete seeded Goblin records receive their canonical Scimitar and Shortbow
+fallback, and Manual enemy control now remains visible while the DM tests through
+Player View. HUD tiles dispatch the runtime action identity, and initiative-strip
+targeting uses the real camera-pair helper. The browser pass selected a real
+Goblin Shortbow, selected Caim from initiative, and reached the explicit attack
+review without a fresh console error.
+
+The requested hold-and-drag wall-line workflow is staged for approval in
+`_edits/mock-forge-line-builder.html`. It edits seeded cells, previews each line,
+repeats while an arrow is held, and commits a whole line as one undo operation.
+It is intentionally not wired into production until the mock is approved.
+
+Focused validation is green: death saves **16/16**, effects **44/44**, kit
+derivation **346/346**, manual foe HUD **14/14**, table correctness **31/31**,
+board **26/26**, engine **14/14**, map bridge **16/16**, tactics geometry
+**26/26**, line of sight/cover **50/50**, placement **19/19**, and flora
+**22/22**. The two stale harness expectations noted earlier were updated to the
+current stage-owned engine and reduced-motion implementation; they now execute
+the real production functions rather than failing on obsolete source strings.
+
 ## Required field checklist
 
 1. On the live signed-in site, open a Temple Table with at least Party and Enemy flags.

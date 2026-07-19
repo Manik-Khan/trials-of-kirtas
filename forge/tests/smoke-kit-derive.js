@@ -306,6 +306,7 @@ const LIADAN_CHAR = {
   ok("cos: res.slot1 = 1 (sorcerer)", kit.res.slot1 === 1);
   ok("cos: pools has pact", kit.pools.some(function (p) { return p.key === "pact" && p.max === 2; }));
   ok("cos: pools has slot1", kit.pools.some(function (p) { return p.key === "slot1" && p.max === 1; }));
+  ok("cos: Hexblade's Curse is a tracked short-rest resource",kit.res.hexbladeCurse===1&&kit.pools.some(function(p){return p.key==="hexbladeCurse"&&p.recharge==="short rest";}));
 
   // Shield reaction
   ok("cos: react.shield exists", !!kit.react && !!kit.react.shield);
@@ -318,6 +319,8 @@ const LIADAN_CHAR = {
 
   // Hex should also appear in the bonus tab (filter)
   ok("cos: bonus tab has Hex", kit.tabs.bonus.some(function (t) { return t.label === "Hex"; }));
+  var curse=kit.tabs.actions.find(function(t){return /hexblade/i.test(t.label);});
+  ok("cos: Hexblade's Curse is a 30-ft executable bonus action",curse&&curse.kind==="buff"&&curse.rng===6&&curse.bonus&&curse.effectKind==="hexblade-curse"&&curse.cost.hexbladeCurse===1);
 
   // Shield is a reaction → not in spells tab
   ok("cos: spells tab omits Shield", !kit.tabs.spells.some(function (s) { return s.label === "Shield"; }));
@@ -344,6 +347,8 @@ const LIADAN_CHAR = {
   // Bardic Inspiration
   ok("lia: res.bardicInspiration exists", kit.res.bardicInspiration != null);
   ok("lia: pools has bardic", kit.pools.some(function (p) { return /bard/i.test(p.label); }));
+  var bardic=kit.tabs.actions.find(function(a){return a.label==="Bardic Inspiration";});
+  ok("lia: Bardic Inspiration is an executable 60-ft bonus action",bardic&&bardic.kind==="buffAlly"&&bardic.rng===12&&bardic.cost.bardicInspiration===1&&bardic.die==="1d6");
 
   // Silvery Barbs reaction
   ok("lia: react.silveryBarbs exists", !!kit.react && !!kit.react.silveryBarbs);

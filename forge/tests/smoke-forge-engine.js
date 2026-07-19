@@ -32,11 +32,12 @@ const pc0 = map.spawns.find(s => s.side === "pc");
 const reach = Engine._internals.bfsReach(map, { c: pc0.c, r: pc0.r });
 ok("every spawn is mutually reachable from a PC start", map.spawns.every(s => reach.has(s.c + "," + s.r)));
 
-// ── COMPLETION: heights come baked in (tiered) or off (flat) ──
+// ── COMPLETION: heights come baked in (tiered) or share one floor datum (flat) ──
 const tiered = Engine.generate({ seed: 7, heightMode: "tiered" });
 ok("tiered mode bakes in real elevation", tiered.h.some(v => v > 0));
 const flat = Engine.generate({ seed: 7, heightMode: "flat" });
-ok("flat mode is level ground", flat.h.every(v => v === 0));
+ok("flat mode keeps every traversable cell on one floor datum",
+   flat.h.every((v, i) => flat.wall[i] || v === 5));
 const tall = Engine.generate({ seed: 7, heightMode: "tiered", verticality: 10 });
 ok("verticality scales the elevation", Math.max(...tall.h) >= Math.max(...tiered.h));
 

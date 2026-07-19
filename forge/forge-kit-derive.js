@@ -279,6 +279,11 @@ function combatErrorKit(charData, err) {
         tone: "class", kind: "resource",
         recharge: "short rest", die: null, tag: null, origin: "class", source: "class", custom: false });
     }
+    var featureText=(s.features||[]).map(function(f){return String(f&&f.name||f||"");}).join(" | ");
+    if(!seen.hexbladeCurse&&has(featureText,"hexblade")&&has(featureText,"curse")){
+      res.hexbladeCurse=Math.max(0,1-(pip.hexbladeCurse||0));
+      pools.push({key:"hexbladeCurse",rawKey:"hexbladeCurse",level:0,label:"Hexblade's Curse",badge:"1",max:1,current:res.hexbladeCurse,tone:"subclass",kind:"resource",recharge:"short rest",die:null,tag:null,origin:"subclass",source:"subclass",custom:false});
+    }
     // Hellish Rebuke (Tiefling racial, once per long rest)
     if (!seen.rebuke && has(s.race, "tiefling")) {
       res.rebuke = Math.max(0, 1 - (pip.rebuke || 0));
@@ -888,6 +893,12 @@ function combatErrorKit(charData, err) {
     var level = fighter && fighter.level != null ? fighter.level : (labeled ? labeled[1] : (s && s.level));
     return "1d10+" + Math.max(1, Math.floor(Number(level) || 1));
   }
+  function bardicDie(s,feature){
+    var text=String(feature&&(feature.desc||feature.entries)||""),m=text.match(/\bd(\d+)\b/i);if(m)return "1d"+m[1];
+    var resources=s&&s.resources||[],pool=resources.find(function(r){return r&&/bardic inspiration/i.test(String(r.label||r.id||""));});
+    return pool&&pool.die?String(pool.die).replace(/^d/i,"1d"):String(s&&s.classFeatures&&s.classFeatures.bardicInspirationDie||"1d6").replace(/^d/i,"1d");
+  }
+  function warlockLevel(s){var found=(s&&s.classes||[]).find(function(c){return has(c&&c.name,"warlock");}),m=String(s&&s.classLabel||"").match(/warlock\s+(\d+)/i);return Math.max(1,Number(found&&found.level||(m&&m[1]))||1);}
   var CLASS_FEATURE_ACTIONS = [
     { match: "second wind",       id: "cf_second_wind",    label: "Second Wind",       kind: "selfheal",   tab: "actions", bonus: true,  free: false, cost: { secondWind: 1 },    dmg: secondWindDice, desc: "Regain 1d10+level HP as a bonus action." },
     { match: "action surge",      id: "cf_action_surge",   label: "Action Surge",      kind: "surge",      tab: "actions", bonus: false, free: true,  cost: { actionSurge: 1 },   desc: "Take one additional action this turn." },
@@ -895,7 +906,8 @@ function combatErrorKit(charData, err) {
     { match: "patient defense",   id: "cf_patient_defense",label: "Patient Defense",   kind: "dodge",      tab: "actions", bonus: true,  free: false, cost: { ki: 1 },            desc: "Dodge as a bonus action." },
     { match: "step of the wind",  id: "cf_step_wind",      label: "Step of the Wind",  kind: "dash",       tab: "actions", bonus: true,  free: false, cost: { ki: 1 },            desc: "Dash or Disengage as a bonus action." },
     { match: "hands of healing",  id: "cf_hands_heal",     label: "Hands of Healing",  kind: "heal",       tab: "actions", bonus: false, free: false, cost: { ki: 1 },            desc: "Heal 1d4+WIS as an action (1 ki)." },
-    { match: "hexblade",          id: "cf_hex_curse",      label: "Hexblade\u2019s Curse", kind: "buff",   tab: "actions", bonus: true,  free: false, cost: null,                 desc: "Bonus action: bonus to hit, crit on 19–20 vs one target." }
+    { match: "bardic inspiration",id: "cf_bardic",         label: "Bardic Inspiration", kind: "buffAlly",  tab: "actions", bonus: true,  free: false, cost: { bardicInspiration: 1 }, rng:12,effectKind:"bardic-inspiration",die:bardicDie,desc:"Grant an inspiration die to one ally within 60 feet." },
+    { match: "hexblade",          id: "cf_hex_curse",      label: "Hexblade\u2019s Curse", kind: "buff",   tab: "actions", bonus: true,  free: false, cost: {hexbladeCurse:1}, rng:6,effectKind:"hexblade-curse",bonusDamage:function(s){return profBonus(s);},heal:function(s){return warlockLevel(s)+abilMod(s,"cha");},desc: "Bonus action: curse one creature within 30 feet for 1 minute; add proficiency to damage and crit on 19–20." }
   ];
 
   function classFeatureTiles(s) {
@@ -910,7 +922,10 @@ function combatErrorKit(charData, err) {
       if (!found) return;
       tiles.push({
         id: cfa.id, label: cfa.label, kind: cfa.kind, tab: cfa.tab,
-        desc: cfa.desc, rng: null,
+        desc: cfa.desc, rng: cfa.rng||null,effectKind:cfa.effectKind||null,
+        die:typeof cfa.die==="function"?cfa.die(s,found):(cfa.die||null),
+        bonusDamage:typeof cfa.bonusDamage==="function"?cfa.bonusDamage(s,found):(cfa.bonusDamage||null),
+        heal:typeof cfa.heal==="function"?cfa.heal(s,found):(cfa.heal||null),
         dmg: typeof cfa.dmg === "function" ? cfa.dmg(s, found) : (cfa.dmg || null),
         bonus: !!cfa.bonus, free: !!cfa.free, spell: false, conc: false,
         cost: cfa.cost, classFeature: true

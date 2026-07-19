@@ -30,10 +30,11 @@
 <script src="forge-deployment.js?v=fd2"></script>
 <script src="forge-bridge-authority.js?v=fba1"></script>
 <script src="forge-protocol.js?v=fb1"></script>
-<script src="forge-replay.js?v=fb13"></script>
+<script src="forge-replay.js?v=fb14"></script>
 <script src="forge-combat-rules.js?v=fcr3"></script>
+<script src="forge-death-saves.js?v=fds1"></script>
 <script src="forge-foe-ai.js?v=fai1"></script>
-<script src="forge-effects.js?v=fe4"></script>
+<script src="forge-effects.js?v=fe5"></script>
 <script src="forge-initiative.js?v=fi2"></script>
 <script src="forge-discovery.js?v=fd7"></script>
 <script src="forge-render-power.js?v=frp1"></script>
@@ -44,12 +45,12 @@
 <script src="../armor-ac.js?v=cc2"></script>
 <script src="../equip-slots.js?v=cc2"></script>
 <script src="../character-combat.js?v=cc2"></script>
-<script src="forge-kit-derive.js?v=b9"></script>
+<script src="forge-kit-derive.js?v=b10"></script>
 <script src="forge-action-damage.js?v=fad1"></script>
 <script src="forge-damage-evidence.js?v=fde3"></script>
 <script src="forge-feed-render.js?v=ffr5"></script>
-<script src="forge-hud.js?v=b3"></script>
-<script src="forge-table-correctness.js?v=fg7"></script>
+<script src="forge-hud.js?v=b5"></script>
+<script src="forge-table-correctness.js?v=fg8"></script>
 <script src="../item-icons.js?v=b3"></script>
 <script src="../spell-icons.js?v=b3"></script>
 <script src="../icon-picker.js?v=b3"></script>
@@ -614,7 +615,7 @@ global.TacticsGeo=API;
      diagnostics before Roll Initiative, where Find bridge seed is actually usable. */
   body.forge-player-view #cbOverseer{display:none!important}
   body.combat-mode.forge-player-view #verticalGeometryPanel{display:none!important}
-  body.forge-player-view.forge-active-foe #fgBar{display:none!important}
+  body.forge-player-view.forge-active-foe:not(.forge-manual-foe) #fgBar{display:none!important}
 
   @media (max-width:660px){.panel{width:calc(100% - 40px)}.attrib{display:none}.masthead .dn{font-size:12px}}
   /* Task 11: session lifecycle — Roll Initiative / Save for later / staged list */
@@ -3948,7 +3949,7 @@ function refreshDiscovery(force){
    badges and interactions still require the tighter detail mask, but a creature
    does not vanish merely because it is 65 feet away in open daylight. */
 function discoveryCellVisible(c,r){var D=discoveryApi();return !!(D&&DISCOVERY.ready&&discoveryStateAt(c,r)===D.VISIBLE);}
-function discoveryCreatureDisclosure(c,r){var D=discoveryApi();return D&&DISCOVERY.ready&&D.creatureDisclosure?D.creatureDisclosure(CB.map,DISCOVERY.currentSources||[],{c:c,r:r},TG,{clearFt:CREATURE_CLEAR_FT,softMaxFt:CREATURE_SOFT_MAX_FT}):{state:"hidden",canTarget:false,clarity:0};}
+function discoveryCreatureDisclosure(c,r,sources){var D=discoveryApi();return D&&DISCOVERY.ready&&D.creatureDisclosure?D.creatureDisclosure(CB.map,sources||DISCOVERY.currentSources||[],{c:c,r:r},TG,{clearFt:CREATURE_CLEAR_FT,softMaxFt:CREATURE_SOFT_MAX_FT}):{state:"hidden",canTarget:false,clarity:0};}
 function discoveryCellTargetable(c,r){return !!discoveryCreatureDisclosure(c,r).canTarget;}
 document.addEventListener('forge:viewerMode',function(){refreshDiscovery(true);syncAllUnitVisuals();drawHi();drawSight();});
 
@@ -4021,6 +4022,14 @@ function concentrationBreakOps(u,reason){var E=effectApi();return E?E.concentrat
 function blessEffectFor(u){return effectFor(u,"bless");}
 function blessRollFor(u){var E=effectApi(),ef=blessEffectFor(u);return E&&ef?E.modifierDie(EFFECT_STATE,u.unit||u.key||u.id,"bless",d(4)):null;}
 function hexEffectAgainst(u,t){var E=effectApi(),ef=E&&E.find(EFFECT_STATE,t.unit||t.key||t.id,"hex");return ef&&ef.source===(u.unit||u.key||u.id)?ef:null;}
+function hexbladeCurseAgainst(u,t){var E=effectApi(),ef=E&&E.find(EFFECT_STATE,t.unit||t.key||t.id,"hexblade-curse");return ef&&ef.source===(u.unit||u.key||u.id)?ef:null;}
+function transferableHexFor(u){
+  var key=u&&(u.unit||u.key||u.id),found=null;
+  if(!key)return null;
+  Object.keys(EFFECT_STATE&&EFFECT_STATE.effects||{}).some(function(id){var ef=EFFECT_STATE.effects[id],target=ef&&unitByKey(ef.target);if(ef&&ef.kind==="hex"&&ef.source===key&&target&&!target.alive){found=ef;return true;}return false;});
+  return found;
+}
+function hexbladeDefeatOps(u,t,hpAfter){var E=effectApi(),curse=hexbladeCurseAgainst(u,t);if(!E||!curse||hpAfter>0)return [];return [{unit:u.unit,heal:curse.heal||1},E.remove(curse.id,"cursed target defeated",t.unit,curse)];}
 function saveModFor(u,ability){ability=String(ability||"").toLowerCase();if(u&&u.saveMods&&u.saveMods[ability]!=null)return Number(u.saveMods[ability])||0;var sb=u&&u.statblock||{};if(sb.save&&sb.save[ability]!=null)return parseInt(sb.save[ability],10)||0;if(sb[ability]!=null)return Math.floor(((Number(sb[ability])||10)-10)/2);return Number(u&&u.save)||0;}
 function concentrationCheckFor(u,dmg,hpBefore,reason){
   var E=effectApi(),key=u&&(u.unit||u.key||u.id);if(!E||!key||!E.concentrationSave)return null;
@@ -4255,16 +4264,21 @@ var STARTER_KITS = {
     { label:"Eldritch Blast", kind:"attack", rng:24, hit:5, dmg:"1d10+3", spell:true },
     { label:"Longsword", kind:"attack", rng:1, hit:5, dmg:"1d8+3" },
     { label:"Hex", kind:"buff", buff:"hex", rng:18, bonus:true, cost:{slot1:1}, spell:true } ] },
-  liadan:{ name:"Líadan", hp:31, ac:12, speed:30, init:2, res:{slot1:4,slot2:2,bardic:2},
+  liadan:{ name:"Líadan", hp:31, ac:12, speed:30, init:2, res:{slot1:4,slot2:2,bardicInspiration:2},
     react:{ silveryBarbs:{cost:{slot1:1}, spellSlotLevel:1, spell:true, range:12} }, actions:[
     { label:"Sling", kind:"attack", rng:6, long:24, hit:3, dmg:"1d4+1" },
     { label:"Vicious Mockery", kind:"save", rng:12, dc:12, dmg:"1d4", saveAbility:"wis", rider:"vm", spell:true },
     { label:"Healing Word", kind:"heal", rng:12, dmg:"1d4+2", disciple:3, bonus:true, cost:{slot1:1}, spell:true },
     { label:"Cure Wounds", kind:"heal", rng:1, dmg:"1d8+2", disciple:3, cost:{slot1:1}, spell:true },
-    { label:"Bardic Inspiration", kind:"buffAlly", rng:12, bonus:true, cost:{bardic:1} } ] }
+    { label:"Bardic Inspiration", kind:"buffAlly", rng:12, bonus:true, cost:{bardicInspiration:1}, effectKind:"bardic-inspiration", die:"1d6" } ] }
 };
 var CHAR = STARTER_KITS;   // alias — every existing CHAR[...] read site keeps working unchanged
-var FOE = { name:"Goblin", hp:7, ac:15, speed:30, init:2, save:1, climb:true, atk:{ label:"Scimitar", rng:1, hit:4, dmg:"1d6+2" } };
+var FOE = { name:"Goblin", hp:7, ac:15, speed:30, init:2, save:1, climb:true,
+  atk:{id:"generic-scimitar",_tileId:"foe-generic-scimitar",label:"Scimitar",kind:"attack",tab:"attacks",rng:1,hit:4,dmg:"1d6+2"},
+  actions:[
+    {id:"generic-scimitar",_tileId:"foe-generic-scimitar",label:"Scimitar",kind:"attack",tab:"attacks",rng:1,hit:4,dmg:"1d6+2"},
+    {id:"generic-shortbow",_tileId:"foe-generic-shortbow",label:"Shortbow",kind:"attack",tab:"attacks",rng:16,long:64,hit:4,dmg:"1d6+2"}
+  ] };
 var REACT_LABEL = { silveryBarbs:"Silvery Barbs", shield:"Shield", hellishRebuke:"Hellish Rebuke", opportunityAttack:"Opportunity Attack", cover:"Cover ruling" };
 
 function d(n){ return 1+Math.floor(Math.random()*n); }
@@ -4514,9 +4528,9 @@ function makeToken(u){
    then a selected unit takes its side colour; then the ACTIVE unit glows on its
    turn — gold if a PC, red if a foe (so you can see which enemy is attacking),
    the foe-red gated on visibility for the not-yet-built hidden system. */
-function foeDisclosure(u){if(!u||u.side!=='foe'||!discoveryPlayerView())return {state:"clear",canTarget:true,clarity:1};return discoveryCreatureDisclosure(u.c,u.r);}
+function foeDisclosure(u){if(!u||u.side!=='foe'||!discoveryPlayerView())return {state:"clear",canTarget:true,clarity:1};return discoveryCreatureDisclosure(u.c,u.r,discoveryPartySources());}
 function foeVisible(u){return foeDisclosure(u).state!=="hidden";}
-function foeTargetable(u){return !!foeDisclosure(u).canTarget;}
+function foeTargetable(u){if(!u||u.side!=="foe"||!discoveryPlayerView())return true;return !!discoveryCreatureDisclosure(u.c,u.r,DISCOVERY.currentSources||[]).canTarget;}
 /* A hidden foe may still change a visible PC's HP. Player View narrates that
    consequence without leaking the attacker's identity or bespoke action name.
    This is presentation-only; the authoritative row and replay remain intact. */
@@ -4637,7 +4651,7 @@ function buildUnit(kit, side, opts){
     pools: JSON.parse(JSON.stringify((kit && kit.pools) || [])),
     saveMods: JSON.parse(JSON.stringify((kit && kit.saveMods) || {})),
     spellcasting: JSON.parse(JSON.stringify((kit && kit.spellcasting) || {})),
-    reacted: false, alive: opts.alive !== false, tokenArt: opts.tokenArt || null, bestiary: opts.bestiary || null };
+    reacted: false, alive: opts.alive !== false,deathSaves:window.ForgeDeathSaves?window.ForgeDeathSaves.normalize(opts.deathSaves):{successes:0,failures:0,stable:false,dead:false}, tokenArt: opts.tokenArt || null, bestiary: opts.bestiary || null };
   if (isPc) { u.fly = !!(kit && kit.fly); u.actions = (kit && kit.actions) || []; u.react = (kit && kit.react) || null; u.badge = opts.badge || null; }
   else {
     u.save = kit && kit.save; u.atk = kit && kit.atk;
@@ -4700,7 +4714,9 @@ function foeKitFromStatblock(row){
     return null;
   }
   var combat = mc.combat || {};
-  var actions=(mc.actions||[]).map(foeActionFromMonster).filter(Boolean),atk=actions[0]||null;
+  var actions=(mc.actions||[]).map(foeActionFromMonster).filter(Boolean);
+  if(!actions.length&&/^goblin(?:\s|$)/i.test(mc.name||row.name||""))actions=FOE.actions.map(function(a){return Object.assign({},a);});
+  var atk=actions[0]||null;
   return {
     name: mc.name, hp: combat.hp, hpMax: combat.hpMax, ac: combat.ac, speed: combat.speed, init: combat.initiative,
     atk: atk, actions:actions, mActions: mc.actions, reference:mc.reference, foeHud:foeHudFrom(mc,actions),
@@ -4951,7 +4967,7 @@ function unitFromRosterRow(row, stateUnit){
   var badge = (window.__fightControllers && window.__fightControllers[row.unit] && window.__fightControllers[row.unit].badge) || null;
   var u = buildUnit(kit, side, { id: row.unit, key: isPc ? (row.sheet_ref || row.unit) : row.unit,
     unit: row.unit, name: row.name || (kit && kit.name) || row.unit,
-    c: pos.c, r: pos.r, hp: hp, hpMax: hpMax, alive: alive, badge: badge,
+    c: pos.c, r: pos.r, hp: hp, hpMax: hpMax, alive: alive,deathSaves:stateUnit&&stateUnit.deathSaves, badge: badge,
     tokenArt: (stateUnit&&stateUnit.tokenArt)||row.tokenArt||row.token_url||null,
     bestiary: row.bestiary || (row.statblock&&{name:row.statblock.name||row.name,source:row.statblock.source}) || null });
   if(stateUnit&&stateUnit.resources)u.res=normalizeResourceRecord(stateUnit.resources);
@@ -4975,6 +4991,7 @@ function reconcileSharedUnitFacts(state){
   state=state||(window.__forgeSession&&window.__forgeSession.pipe.state());if(!state||!state.units)return;
   CB.units.forEach(function(cu){var su=state.units[cu.unit];if(!su)return;
     if(su.resources)cu.res=normalizeResourceRecord(su.resources);
+    if(su.deathSaves)cu.deathSaves=window.ForgeDeathSaves?window.ForgeDeathSaves.normalize(su.deathSaves):JSON.parse(JSON.stringify(su.deathSaves));
     cu.advGrant=su.advGrant?{reason:su.advGrant.reason||"granted"}:null;
     cu.reacted=!!su.reactionUsed;
   });
@@ -5000,7 +5017,7 @@ function setActiveFromLog(unitKey, round){
    correct move/action/bonus. No session (local sandbox) \u2192 this no-ops and the
    old local spend() path is untouched. */
 function moveBudget(u){return effectFor(u,"prone")?Math.floor(CB.st.moveLeft/2):CB.st.moveLeft;}
-function rebuildMoveReach(u){var canMove=u&&(u.side==="pc"||(u.side==="foe"&&!FOE_AUTOMATION));CB.seen=(canMove&&CB.st&&CB.st.moveLeft>0)?TG.movementReach(CB.map,u,occupied(u),moveBudget(u)):{};}
+function rebuildMoveReach(u){var canMove=u&&u.alive&&(u.side==="pc"||(u.side==="foe"&&!FOE_AUTOMATION));CB.seen=(canMove&&CB.st&&CB.st.moveLeft>0)?TG.movementReach(CB.map,u,occupied(u),moveBudget(u)):{};}
 function applyLogEconomy(){
   if(!window.__forgeSession || !CB.st) return;
   var u=active(); if(!u) return;
@@ -5137,7 +5154,7 @@ function applyVerb(v){
 }
 function resyncFromState(st){
   CB.units.forEach(function(u){ var s=(st.units||{})[u.unit]; if(!s){ removeToken(u,true); return; }
-    var wasAlive=u.alive;u.c=s.pos.c; u.r=s.pos.r; u.hp=s.hp;u.res=normalizeResourceRecord(s.resources||u.res); u.alive=!s.downed;
+    var wasAlive=u.alive;u.c=s.pos.c; u.r=s.pos.r; u.hp=s.hp;u.res=normalizeResourceRecord(s.resources||u.res); u.alive=!s.downed;u.deathSaves=window.ForgeDeathSaves?window.ForgeDeathSaves.normalize(s.deathSaves):u.deathSaves;
     if(!u.alive){if(wasAlive||u.sprite||u.topToken)removeToken(u);return;}
     // I2 (final-review): a token whose sprite was cleared (e.g. lost on a
     // prior downed pass, or never made on this device) must be recreated
@@ -5453,7 +5470,8 @@ function beginTurn(u){
     +(u.readied.act.spell?" dissipates — the slot was spent when it was cast.":" lapses.")+"</i>"); u.readied=null; }
   READYING=false; if(RELEASING&&(!RELEASING.alive||!RELEASING.readied)) RELEASING=null;
   CB.units.forEach(function(x){ if(x.boomMark && x.boomMark.by===u.id) x.boomMark=null; });
-  CB.st={ moveMax:Math.floor(u.speed/5), moveLeft:Math.floor(u.speed/5), usedAction:false, usedBonus:false, attacked:false, spellCasts:[] };
+  var conscious=!!u.alive;
+  CB.st={ moveMax:conscious?Math.floor(u.speed/5):0, moveLeft:conscious?Math.floor(u.speed/5):0, usedAction:!conscious, usedBonus:!conscious, attacked:false, spellCasts:[] };
   CB.pending=null; CB.tgtKey=null; CONFIRM_TARGET=null; CONTEST_COVER=false;
   rebuildMoveReach(u);
   snapshot("Turn: "+u.name, true); CB.turnStartPtr=CB.hptr;
@@ -5463,7 +5481,7 @@ function beginTurn(u){
 function nextTurn(){
   if(CB.over) return;
   var ended=active();
-  for(var g=0; g<=CB.order.length; g++){ CB.ti=(CB.ti+1)%CB.order.length; if(active()&&active().alive) break; }
+  for(var g=0; g<=CB.order.length; g++){ CB.ti=(CB.ti+1)%CB.order.length;var q=active(),ds=q&&q.deathSaves;if(q&&(q.alive||(q.side==="pc"&&ds&&!ds.stable&&!ds.dead))) break; }
   if(!window.__forgeSession&&ended)localEffectEvent("turn_ended",ended.unit||ended.key||ended.id,{},true);
   beginTurn(active());
   // foe turns are stepped by the DM (“Foe acts”) so rewind never races a timer
@@ -5719,6 +5737,7 @@ function explainBlock(u,t,v){
 
 function canUse(u,a){
   if(!CB.st) return {ok:false,why:"turn not ready"};
+  if(!u.alive)return {ok:false,why:"unconscious — roll a death saving throw"};
   if(a.bonus&&CB.st.usedBonus) return {ok:false,why:"bonus action used"};
   if(!a.bonus&&!a.free&&CB.st.usedAction) return {ok:false,why:"action used"};
   if(a.needsAttack&&!CB.st.attacked) return {ok:false,why:"attack first"};
@@ -6311,8 +6330,8 @@ function resolveStrike(u,a,t,ro,done){
   if(u._ves) vesPlay(u, a.spell?"cast":"attack");
   var cover=ro.cover||0, av=advPreview(u,t,a,ro), bless=blessRollFor(u), blessV=bless?bless.roll:0, hitMod=(Number(a.hit)||0)+(av.attackBonus||0);
   var adv=av.adv, dis=av.dis;
-  var d20ev=rollD20Evidence(adv,dis),roll=d20ev.roll,rollTotal=roll+hitMod+blessV; if(u.inspired)u.inspired=false; if(u.advGrant)u.advGrant=null;
-  var hs={ roll:roll, rollBonus:blessV, acBonus:cover, crit:roll===20, hit:false,d20Rolls:d20ev.rolls,d20KeptIndex:d20ev.keptIndex };
+  var d20ev=rollD20Evidence(adv,dis),roll=d20ev.roll,rollTotal=roll+hitMod+blessV,curse=hexbladeCurseAgainst(u,t); if(u.inspired)u.inspired=false; if(u.advGrant)u.advGrant=null;
+  var hs={ roll:roll, rollBonus:blessV, acBonus:cover, crit:roll===20||!!(curse&&roll>=curse.critMin), hit:false,d20Rolls:d20ev.rolls,d20KeptIndex:d20ev.keptIndex };
   hs.hit=hs.crit||(roll!==1 && rollTotal>=t.ac+cover);
   var tag = adv?" adv"+(av.why.length?" ("+av.why.join(", ")+")":"") : dis?" disadv"+(av.why.length?" ("+av.why.join(", ")+")":"") : (av.cancelled?" normal (adv/dis cancel)":"");
   clog(u.name+" → "+t.name+": "+a.label+" ("+roll+"+"+hitMod+(blessV?" + Bless "+blessV:"")+(cover?" · cover":"")+tag+")"+(hs.hit?"":" — miss"),false);
@@ -6322,10 +6341,11 @@ function resolveStrike(u,a,t,ro,done){
   pipelineHit(u,rollAction,hs,t, function applyDmg(){
     var extra=[];if(u.raging&&(a.rng||1)<=1)extra.push({dice:"0",bonus:2,type:"Rage",critDice:false});
     if(hexEffectAgainst(u,t)||CB.hexed===t.id)extra.push({dice:"1d6",bonus:0,type:"Hex"});
+    if(curse)extra.push({dice:"0",bonus:curse.bonusDamage||1,type:"Hexblade's Curse",critDice:false});
     var damage=rollActionDamage(a,hs.crit,extra),dmg=damage.total,hpBefore=t.hp;
     t.hp-=dmg;var concentration=localConcentrationAfterDamage(t,dmg,hpBefore,a.label+" damage"); var line=(hs.crit?"<b>CRIT</b> ":"")+t.name+" takes "+dmg+" ("+Math.max(0,t.hp)+"/"+t.hpMax+")";
     flashHit(t); shake(hs.crit?0.34:0.16);floatAt(t,(hs.crit?"✶ ":"")+dmg,hs.crit?"crit":"dmg");
-    if(t.hp<=0){ floatAt(t,"DOWN","down"); t.alive=false; removeToken(t); line+=" — <b>down</b>"; } clog(line,false);
+    if(t.hp<=0){ floatAt(t,"DOWN","down"); t.alive=false;t.deathSaves=window.ForgeDeathSaves?window.ForgeDeathSaves.normalize():t.deathSaves; removeToken(t); line+=" — <b>down</b>";var defeatOps=hexbladeDefeatOps(u,t,t.hp);if(defeatOps.length){var restored=Math.min(u.hpMax,u.hp+(curse.heal||1))-u.hp;u.hp+=restored;localEffectEvent("ability_used",u.unit,{ability:"Hexblade's Curse — target defeated",targets:[u.unit],effects:defeatOps,slot:"free"},true);if(restored>0){floatAt(u,"+"+restored,"heal");line+=" · "+u.name+" heals "+restored;}} } clog(line,false);
     if(window.ForgeTableCorrectness)window.ForgeTableCorrectness.pushFact({actor:u.unit,target:t.unit,mode:a.label,roll:hs.roll,rollTotal:hs.roll+hitMod+blessV,hitBonus:hitMod,hit:true,crit:hs.crit,dmg:dmg,dmgParts:damage.parts,dmgFormula:damage.formula,adv:adv,dis:dis,cover:cover,coverName:ro.coverName||null,d20Rolls:d20ev.rolls,d20KeptIndex:d20ev.keptIndex,reactionD20Rolls:hs.reactionD20Rolls,reactionD20KeptIndex:hs.reactionD20KeptIndex,dropped:hs.roll!==roll?roll:null,mods:rollMods.concat(hs.roll!==roll?[{k:"silvery_barbs"}]:[]),concentration:concentration});
     feedResolved=true;if(a.rider==="boom" && t.alive) t.boomMark={by:u.id};
   }, function(){
@@ -6352,7 +6372,7 @@ function doHeal(u,a,t){ var ro=reachOK(u,a,t); if(!ro.ok){ clog(u.name+" \u2014 
   if(!t.alive) t.hp=Math.max(0,t.hp);   /* \u00a7F: the sandbox lets hp go negative on the way down; the heal counts from 0 */
   var was=t.hp; t.hp=Math.min(t.hpMax,t.hp+amt);
   if(!t.alive&&t.hp>0){                 /* \u00a7F (M's ruling): up at the healed HP, unconscious cleared */
-    t.alive=true; removeToken(t,true); makeToken(t); positionToken(t);
+    t.alive=true;t.deathSaves=window.ForgeDeathSaves?window.ForgeDeathSaves.normalize():t.deathSaves; removeToken(t,true); makeToken(t); positionToken(t);
     floatAt(t,"+"+(t.hp-was),"heal");
     clog(u.name+" \u2192 "+t.name+": "+a.label+" +"+(t.hp-was)+" ("+t.hp+"/"+t.hpMax+") \u2014 <b>"+escapeHtml(t.name)+" is back on their feet.</b>");
     return; }
@@ -6442,10 +6462,12 @@ function attackRollReview(u,a,t,ro){
 }
 function clearConfirmTarget(){CONFIRM_TARGET=null;document.body.classList.remove("forge-target-confirm");}
 function selectAction(idx,castChoice){
-  var u=active(); if(!u||(u.side!=="pc"&&(u.side!=="foe"||FOE_AUTOMATION))||CB.react||CB_ANIM) return; var a=u.actions[idx]; if(!a) return;
+  var u=active(); if(!u||!u.alive||(u.side!=="pc"&&(u.side!=="foe"||FOE_AUTOMATION))||CB.react||CB_ANIM) return; var a=u.actions[idx]; if(!a) return;
   var sess=window.__forgeSession;hideUpcastPick();
   if(sess && (!window.ForgeBoard.controls(sess.me,u.unit) || __awaitingCount>0)) return;
   if(CB.pending===a||(CB.pending&&CB.pending._base===a)){ CB.pending=null;clearConfirmTarget();CB.tgtKey=null;CONTEST_COVER=false; drawHi(); drawSight(); renderHud(); return; }
+  var oldHex=(a.effectKind==="hex"||/^hex(?:\s|$)/i.test(a.label||""))?transferableHexFor(u):null;
+  if(oldHex)a=Object.assign({},a,{label:"Transfer Hex",spell:false,cost:null,effectKind:"hex-transfer",_hexTransfer:oldHex,_base:a});
   var upBase=slotBaseOf(a);
   if(upBase!=null&&a.spell){
     var choices=castableSpellSources(u,upBase);
@@ -6484,6 +6506,16 @@ function selectAction(idx,castChoice){
   CB.pending=a;clearConfirmTarget();CB.tgtKey=null;drawHi(); drawSight(); renderHud();
 }
 function finishAction(){ hideUpcastPick(); closeSanctuaryChoice(); CB.pending=null;clearConfirmTarget();CB.tgtKey=null; CONTEST_COVER=false; SANCTUARY_REJECT={}; snapshot("Action"); reconcileMovementPresentation(); drawSight(); renderHud(); maybeEnd(); }
+function deathSaveNarration(u,result){var lead=escapeHtml(u.name)+" rolls a death saving throw: <b>"+result.roll+"</b>. ";if(result.outcome==="critical-success")return lead+"Natural 20 — 1 HP, conscious again.";if(result.dead)return lead+"Three failures — <b>dead</b>.";if(result.stable)return lead+"Three successes — <b>stable</b>.";return lead+(result.outcome==="critical-failure"?"Natural 1 — two failures.":result.outcome==="success"?"Success.":"Failure.")+" <span class=\"cbTag\">"+result.successes+" saves · "+result.failures+" fails</span>";}
+function rollDeathSave(){
+  var u=active(),D=window.ForgeDeathSaves,sess=window.__forgeSession;if(!u||!D||!D.required(u)||CB.react||CB_ANIM)return;
+  if(sess&&(!window.ForgeBoard.controls(sess.me,u.unit)||__awaitingCount>0))return;
+  var result=D.resolve(u.deathSaves,d(20)),effects=result.reviveHp?[{unit:u.unit,heal:result.reviveHp}]:[],payload={ability:"Death Saving Throw",targets:[u.unit],effects:effects,slot:"free",context:{kind:"death-save",roll:result.roll,outcome:result.outcome,successes:result.successes,failures:result.failures,stable:result.stable,dead:result.dead}};
+  clog(deathSaveNarration(u,result),false);
+  if(!sess){u.deathSaves=D.normalize(result);localEffectEvent("ability_used",u.unit,payload,true);if(result.reviveHp){u.hp=1;u.alive=true;u.deathSaves=D.normalize();removeToken(u,true);makeToken(u);positionToken(u);CB.st={moveMax:Math.floor(u.speed/5),moveLeft:Math.floor(u.speed/5),usedAction:false,usedBonus:false,attacked:false,spellCasts:[]};rebuildMoveReach(u);renderHud();}else if(!maybeEnd())nextTurn();return;}
+  __awaitingUnit=u.unit;__awaitingKind="ability_used";if(__awaitingCount++===0)__awaitingSince=Date.now();renderHud();
+  sess.pipe.useAbility(u.unit,payload).then(function(r){if(r&&r.ok===false){netPublishFail(r);return;}awaitSettled().then(function(){if(result.reviveHp)renderHud();else netEndTurn(u);});});
+}
 function blessAction(a){return !!(a&&(a.effectKind==="bless"||/^bless(?:\s|$)/i.test(a.label||"")));}
 function openBlessPicker(u,a){
   var max=Math.max(1,Number(a.targetCount)||3)+Math.max(0,(Number(a.castLevel)||Number(a.level)||1)-(Number(a.level)||1)),spellRange=rangeFt(a);
@@ -6520,6 +6552,8 @@ function resolveOn(u,a,t){
     if(a.kind==="heal"){if(sess){netHeal(u,a,t);return;}doHeal(u,a,t);spend(u,a);finishAction();return;}
     if(a.kind==="buff"){
       if(sess){netBuff(u,a,t);return;}
+      if(a.effectKind==="hex-transfer"&&a._hexTransfer){var TE=effectApi(),tops=TE&&TE.transferHex(a._hexTransfer,t.unit);if(!tops||!tops.length){clog("<i>Hex cannot be transferred — the effect ledger did not load.</i>");return;}localEffectEvent("ability_used",u.unit,{ability:a.label,targets:[t.unit],effects:tops,slot:a.bonus?"bonus":"action",context:{kind:"hex-transfer",from:a._hexTransfer.target,target:t.unit,concentration:true}});clog(u.name+" transfers Hex to "+t.name+" without spending another spell slot.");spend(u,a);finishAction();return;}
+      if(a.effectKind==="hexblade-curse"){var CE=effectApi(),cop=CE&&CE.addHexbladeCurse({source:u.unit,target:t.unit,nonce:LOCAL_EFFECT_SEQ+1,bonusDamage:a.bonusDamage,heal:a.heal});if(!cop){clog("<i>Hexblade's Curse cannot be applied — the effect ledger did not load.</i>");return;}localEffectEvent("ability_used",u.unit,{ability:a.label,targets:[t.unit],effects:withBreakOp([cop],u,a),slot:a.bonus?"bonus":"action",context:{kind:"hexblade-curse",target:t.unit,bonusDamage:a.bonusDamage,critMin:19,heal:a.heal}});clog(u.name+" places Hexblade's Curse on "+t.name+".");spend(u,a);finishAction();return;}
       if(a.effectKind==="hex"||/^hex(?:\s|$)/i.test(a.label||"")){var E=effectApi();var ops=concentrationBreakOps(u,"Hex replaced concentration");if(E)ops.push(E.addHex({source:u.unit,target:t.unit,nonce:LOCAL_EFFECT_SEQ+1,turns:600}));localEffectEvent("ability_used",u.unit,{ability:a.label,targets:[t.unit],effects:withBreakOp(ops,u,a),slot:a.bonus?"bonus":"action",spell:true,spell_level:Number(a.castLevel!=null?a.castLevel:a.level)||0,context:{kind:"hex",target:t.unit,die:"1d6",concentration:true}});clog(u.name+" hexes "+t.name+" (+1d6 on hits vs it).");spend(u,a);finishAction();return;}
       CB.hexed=t.id;clog(u.name+" uses "+a.label+" on "+t.name+".");localBreakWard(u,a);spend(u,a);finishAction();return;
     }
@@ -6582,7 +6616,7 @@ function combatClick(cx,cy){
      answers "who is that" on ANY turn, from ANY device (same name the
      strip tooltip already leaks; hidden units, when they exist, will have
      no sprite to hit). Targeting a pending action still wins on my turn. */
-  var myTurn = !!u && (u.side==="pc"||(u.side==="foe"&&!FOE_AUTOMATION)) && (!sess || (window.ForgeBoard.controls(sess.me,u.unit) && __awaitingCount===0));
+  var myTurn = !!u && u.alive && (u.side==="pc"||(u.side==="foe"&&!FOE_AUTOMATION)) && (!sess || (window.ForgeBoard.controls(sess.me,u.unit) && __awaitingCount===0));
   /* ── WYSIWYG targeting (field fix, 2026-07-12 table round 3b) ──────────
      The old picker took the NEAREST sprite quad — but quads are 1.5–2 units
      wide on 1-unit cells and THREE.Sprite raycasting ignores alphaTest, so
@@ -6691,6 +6725,7 @@ function boomTrigger(u){ if(!u.boomMark) return; var dmg=rollDmg("1d8"),hpBefore
 function endTurn(){
   if(!CB.active||CB.over||CB.react||CB_ANIM) return;
   var u=active(); if(!u) return;
+  if(window.ForgeDeathSaves&&window.ForgeDeathSaves.required(u)){clog("<i>"+escapeHtml(u.name)+" must roll a death saving throw before the turn can end.</i>");return;}
   var sess=window.__forgeSession;
   if(sess && ((u.side!=="pc"&&(u.side!=="foe"||FOE_AUTOMATION)) || !window.ForgeBoard.controls(sess.me,u.unit) || __awaitingCount>0)) return;
   clearBadges(); moveGroup.clear(); sightGroup.clear();
@@ -6723,7 +6758,7 @@ function foeTurn(){
     clog("<i>Only the DM runs a foe's turn.</i>"); return;
   }
   if(sess && __awaitingCount>0) return;   // this foe's own previous publish hasn't echoed yet
-  var pcs=CB.units.filter(function(x){return x.alive&&x.side==="pc";}); if(!pcs.length){ maybeEnd(); return; }
+  var pcs=CB.units.filter(function(x){return x.alive&&x.side==="pc";}); if(!pcs.length){ foeTurnDone(); return; }
   var plan=foePlanFor(u),tgt=plan&&plan.target,atk=plan&&plan.action;
   u._foePlanText=plan&&plan.why||'';
   if(plan&&plan.why)clog('<i><b>'+escapeHtml(u.name)+' · Tactical choice:</b> '+escapeHtml(plan.why)+'</i>');
@@ -6814,7 +6849,7 @@ function foeTurn(){
   strikePhase();
 }
 function maybeEnd(){
-  var pc=CB.units.filter(function(u){return u.alive&&u.side==="pc";}).length, fo=CB.units.filter(function(u){return u.alive&&u.side==="foe";}).length;
+  var pc=CB.units.filter(function(u){return u.side==="pc"&&!(u.deathSaves&&u.deathSaves.dead);}).length, fo=CB.units.filter(function(u){return u.alive&&u.side==="foe";}).length;
   if(!fo){ CB.over=true; moveGroup.clear(); sightGroup.clear(); clearBadges(); clog("<b>Victory.</b> The field is yours."); banner("Victory"); renderHud(); return true; }
   if(!pc){ CB.over=true; moveGroup.clear(); sightGroup.clear(); clearBadges(); clog("<b>Defeat.</b> The party falls."); banner("Defeat"); renderHud(); return true; }
   return false;
@@ -6825,7 +6860,7 @@ function snapshot(label,turnStart){
   var st={ label:label, turnStart:!!turnStart, ti:CB.ti, hexed:CB.hexed,
     turn: CB.st?JSON.parse(JSON.stringify(CB.st)):null, log:CB.log.slice(),
     effectRows:LOCAL_EFFECT_ROWS.slice(), effectSeq:LOCAL_EFFECT_SEQ,
-    units: CB.units.map(function(u){ return { id:u.id, c:u.c, r:u.r, hp:u.hp, alive:u.alive,
+    units: CB.units.map(function(u){ return { id:u.id, c:u.c, r:u.r, hp:u.hp, alive:u.alive, deathSaves:JSON.parse(JSON.stringify(u.deathSaves||{})),
       res:JSON.parse(JSON.stringify(u.res||{})), reacted:!!u.reacted, raging:!!u.raging, inspired:!!u.inspired, disadv:!!u.disadv,
       advGrant:u.advGrant?JSON.parse(JSON.stringify(u.advGrant)):null,
       readied:(u.readied&&u.actions)?u.actions.indexOf(u.readied.act):-1 }; }) };
@@ -6836,7 +6871,7 @@ function restore(st){
   RELEASING=null;closeSanctuaryChoice();SANCTUARY_REJECT={};CB.ti=st.ti; CB.hexed=st.hexed; CB.st=st.turn?JSON.parse(JSON.stringify(st.turn)):null; CB.log=st.log.slice(); CB.over=false; CB.pending=null;
   LOCAL_EFFECT_ROWS=(st.effectRows||[]).slice();LOCAL_EFFECT_SEQ=st.effectSeq||0;refreshEffectState(null,true);
   var byId={}; CB.units.forEach(function(u){byId[u.id]=u;});
-  st.units.forEach(function(su){ var u=byId[su.id]; if(!u)return; u.c=su.c;u.r=su.r;u.hp=su.hp;u.alive=su.alive;
+  st.units.forEach(function(su){ var u=byId[su.id]; if(!u)return; u.c=su.c;u.r=su.r;u.hp=su.hp;u.alive=su.alive;u.deathSaves=window.ForgeDeathSaves?window.ForgeDeathSaves.normalize(su.deathSaves):su.deathSaves;
     u.res=JSON.parse(JSON.stringify(su.res)); u.reacted=su.reacted; u.raging=su.raging; u.inspired=su.inspired; u.disadv=su.disadv;
     u.advGrant=su.advGrant?JSON.parse(JSON.stringify(su.advGrant)):null;
     u.readied=(su.readied!=null&&su.readied>=0&&u.actions)?{act:u.actions[su.readied]}:null; });
@@ -7165,6 +7200,8 @@ function renderHud(){
      No session \u2192 unchanged (local sandbox is single-operator, always true).
      Overseer always controls (ForgeBoard.controls). */
   var iControl = !sess || window.ForgeBoard.controls(sess.me, u && u.unit);
+  var manualFoeControl=!!(u&&u.side==="foe"&&!FOE_AUTOMATION&&iControl);if(manualFoeControl)suppressEnemyHud=false;
+  document.body.classList.toggle("forge-manual-foe",manualFoeControl);
   var waitingMe = iControl && __awaitingCount > 0;   // MY tap(s) are published, not every echo is back yet
   var strip=document.getElementById("cbInit");
   if(strip) strip.innerHTML=hudOrder.map(function(o){ var glowc=glowColorFor(o);
@@ -7181,7 +7218,7 @@ function renderHud(){
       var o=unitByKey(ch.dataset.unit);if(!o)return;
       var a=CB.pending;
       if(a&&directAttack(a)&&active()&&o.side!==active().side&&foeTargetable(o)){
-        setSel(o.key);setTgt(o.key);CONFIRM_TARGET=o.unit;focusPair(active(),o);drawHi();drawSight();renderHud();return;
+        setSel(o.key);setTgt(o.key);CONFIRM_TARGET=o.unit;frameCameraPair(active(),o);drawHi();drawSight();renderHud();return;
       }
       setSel(o.key);focusUnit(o);
     });
@@ -7270,7 +7307,7 @@ function renderHud(){
       selKey: CB.selKey, tgtKey: CB.tgtKey,
       showSight: SHOW_SIGHT, contestCover: CONTEST_COVER, coverContestAvailable:contestAvailable,
       session: !!window.__forgeSession, viewerMode:disclosure.mode, suppressEnemyHud:suppressEnemyHud,
-      kit: suppressEnemyHud ? null : hudKitFor(u),
+      kit: suppressEnemyHud ? null : hudKitFor(u),downed:!!(u&&u.side==="pc"&&!u.alive),deathSave:u&&u.deathSaves||null,
       _structural: u && __liveStatsCache && __liveStatsCache[u.key] && __liveStatsCache[u.key].structural || null,
       readying: READYING, releasing: RELEASING,
       sightReport: u && u.side === "pc" ? sightReport(u) : "",
@@ -7318,6 +7355,7 @@ document.addEventListener("forge:endTurn", function(){
   if(et && !et.disabled) et.click();   // reuse the existing end-turn logic
 });
 document.addEventListener("forge:runFoe", function(){ runFoe(); });
+document.addEventListener("forge:deathSave",function(){rollDeathSave();});
 document.addEventListener("forge:toggleSight", function(){
   SHOW_SIGHT = !SHOW_SIGHT; drawSight(); renderHud();
 });
@@ -8050,7 +8088,7 @@ async function bootSession(sid){
       runMirror(before, lastState);   // Task 13: after every applied event, mirror any hp change I control back to its sheet
       renderHud();   // repaints the cleared guard even on a verb-less event (e.g. a miss)
       syncInitiativeLobby();   // Task 10: initiative_rolled/initiative_set/session_started all pass through here
-      maybeAutoSkip();   // #2: turn seated on a dead foe (advanced onto it, or it died mid-turn) → overseer publishes the narrated skip
+      if(!maybeEnd())maybeAutoSkip();   // dead/stable seats cannot strand the initiative loop
     }
   });
   __pipe = pipe;
@@ -8247,14 +8285,14 @@ function netAttackGo(u,a,t,ro){
     if(i>=n||hpLeft<=0){if(a.rider==="boom")clog("<i>Booming Blade set — +1d8 if "+t.name+" moves.</i>");finishAction();return;}
     i++;if(u._ves)vesPlay(u,a.spell?"cast":"attack");
     var cover=ro.cover||0,av=advPreview(u,t,a,ro),bless=blessRollFor(u),blessV=bless?bless.roll:0,hitMod=(Number(a.hit)||0)+(av.attackBonus||0),adv=av.adv,dis=av.dis;
-    var d20ev=rollD20Evidence(adv,dis),roll=d20ev.roll,rollTotal=roll+hitMod+blessV;if(u.inspired)u.inspired=false;var crit=roll===20,hit=crit||(roll!==1&&rollTotal>=t.ac+cover),mods=blessV?[{k:"bless",v:blessV}]:[];
+    var d20ev=rollD20Evidence(adv,dis),roll=d20ev.roll,rollTotal=roll+hitMod+blessV,curse=hexbladeCurseAgainst(u,t);if(u.inspired)u.inspired=false;var crit=roll===20||!!(curse&&roll>=curse.critMin),hit=crit||(roll!==1&&rollTotal>=t.ac+cover),mods=blessV?[{k:"bless",v:blessV}]:[];
     var tag=adv?" adv"+(av.why.length?" ("+av.why.join(", ")+")":""):dis?" disadv"+(av.why.length?" ("+av.why.join(", ")+")":""):(av.cancelled?" normal (adv/dis cancel)":"");
     clog(u.name+" → "+t.name+": "+a.label+" ("+roll+"+"+hitMod+(blessV?" + Bless "+blessV:"")+(cover?" · cover":"")+tag+")"+(hit?"":" — miss"),false);
     if(__awaitingCount++===0)__awaitingSince=Date.now();renderHud();
     var declared={target:t.unit,roll:roll,roll_total:rollTotal,roll_mod:blessV,mods:mods,d20_rolls:d20ev.rolls,d20_kept_index:d20ev.keptIndex,adv:adv,dis:dis,crit:crit,mode:a.label,hitBonus:hitMod,cover:cover,coverName:ro.coverName||null,advReason:av.why.join(", "),flankBonus:av.attackBonus||0,hit:hit};Object.assign(declared,spellFactFields(a));
     window.__forgeSession.pipe.attack(u.unit,declared,function(answers){
       var hs=replayHitState({roll:roll,crit:crit,hit:hit,cover:cover,roll_mod:blessV,d20_rolls:d20ev.rolls,d20_kept_index:d20ev.keptIndex},answers),effects=wardBreakPending?[wardBreakPending]:[],dmg=0,damage=null,concentration=null;wardBreakPending=null;
-      if(hs.hit){var extra=[];if(u.raging&&(a.rng||1)<=1)extra.push({dice:"0",bonus:2,type:"Rage",critDice:false});if(hexEffectAgainst(u,t)||CB.hexed===t.id)extra.push({dice:"1d6",bonus:0,type:"Hex"});damage=rollActionDamage(a,hs.crit,extra);dmg=damage.total;concentration=concentrationCheckFor(t,dmg,hpLeft,a.label+" damage");if(concentration){if(concentration.effects&&concentration.effects.length)effects=effects.concat(concentration.effects);clog("<i>"+concentrationNarration(t,concentration)+"</i>");}hpLeft=Math.max(0,hpLeft-dmg);if(a.rider==="boom"&&hpLeft>0)t.boomMark={by:u.id};}
+      if(hs.hit){var extra=[];if(u.raging&&(a.rng||1)<=1)extra.push({dice:"0",bonus:2,type:"Rage",critDice:false});if(hexEffectAgainst(u,t)||CB.hexed===t.id)extra.push({dice:"1d6",bonus:0,type:"Hex"});if(curse)extra.push({dice:"0",bonus:curse.bonusDamage||1,type:"Hexblade's Curse",critDice:false});damage=rollActionDamage(a,hs.crit,extra);dmg=damage.total;concentration=concentrationCheckFor(t,dmg,hpLeft,a.label+" damage");if(concentration){if(concentration.effects&&concentration.effects.length)effects=effects.concat(concentration.effects);clog("<i>"+concentrationNarration(t,concentration)+"</i>");}hpLeft=Math.max(0,hpLeft-dmg);effects=effects.concat(hexbladeDefeatOps(u,t,hpLeft));if(a.rider==="boom"&&hpLeft>0)t.boomMark={by:u.id};}
       else{if(hit)clog("<i>"+a.label+" — a reaction turned that hit into a miss.</i>");floatAt(t,"miss","miss");}
       var rb=(answers||[]).filter(function(row){if(!row||!row.payload)return false;return row.payload.reaction_kind==="hellishRebuke"&&row.payload.use;})[0];if(rb){effects.push({unit:u.unit,dmg:rb.payload.dmg});if(rb.payload.concentration&&rb.payload.concentration.effects)effects=effects.concat(rb.payload.concentration.effects);}
       var spendFact=resourceSpendPending;resourceSpendPending=null;
@@ -8294,10 +8332,11 @@ function maybeAutoSkip(){
   var sess=window.__forgeSession;
   if(!sess||!sess.me.overseer) return;
   if(!CB.active||CB.over||__awaitingCount>0) return;
-  var k=window.ForgeBoard.deadFoeSkip(sess.pipe.state());
+  var state=sess.pipe.state(),k=window.ForgeBoard.deadFoeSkip(state),settled=false;
+  if(!k&&window.ForgeBoard.settledPcSkip){k=window.ForgeBoard.settledPcSkip(state);settled=!!k;}
   if(!k) return;
   var u=unitByKey(k); if(!u) return;
-  clog("<i>\u2620 "+escapeHtml(u.name)+" is down \u2014 turn skipped.</i>");
+  clog(settled?("<i>\u2620 "+escapeHtml(u.name)+(u.deathSaves&&u.deathSaves.dead?" is dead":" is stable")+" \u2014 turn skipped.</i>"):("<i>\u2620 "+escapeHtml(u.name)+" is down \u2014 turn skipped.</i>"));
   netEndTurn(u);
 }
 /* Task 7b: shared tail for every foeTurn() exit path (dead attacker, dead/
@@ -8422,11 +8461,11 @@ function netSurge(u,a){
   clog(u.name+" — Action Surge: action regained.");
   netUseAbility(u,a,[u.unit],[],{ restores:"action" });
 }
-/* Hex is now a first-class replayed concentration effect; attacks consult
-   the shared ledger for its +1d6 rider. Other generic buffs still use their
-   older compatibility paths. Bardic Inspiration remains local-only until its
-   own die/pool/recipient authority is implemented. */
+/* Hex and Hexblade's Curse are first-class replayed effects. Class-feature
+   buffs such as Bardic Inspiration use the same authority through netBuffAlly. */
 function netBuff(u,a,t){
+  if(a.effectKind==="hex-transfer"&&a._hexTransfer){var TE=effectApi(),tops=TE&&TE.transferHex(a._hexTransfer,t.unit);if(!tops||!tops.length){clog("<i>Hex cannot be transferred — the effect ledger did not load.</i>");return;}clog(u.name+" transfers Hex to "+t.name+" without spending another spell slot.");netUseAbility(u,a,[t.unit],tops,{context:{kind:"hex-transfer",from:a._hexTransfer.target,target:t.unit,concentration:true}});return;}
+  if(a.effectKind==="hexblade-curse"){var CE=effectApi(),cop=CE&&CE.addHexbladeCurse({source:u.unit,target:t.unit,nonce:Date.now(),bonusDamage:a.bonusDamage,heal:a.heal});if(!cop){clog("<i>Hexblade's Curse cannot be applied — the effect ledger did not load.</i>");return;}clog(u.name+" places Hexblade's Curse on "+t.name+".");netUseAbility(u,a,[t.unit],withBreakOp([cop],u,a),{context:{kind:"hexblade-curse",target:t.unit,bonusDamage:a.bonusDamage,critMin:19,heal:a.heal}});return;}
   if(a.effectKind==="hex"||/^hex(?:\s|$)/i.test(a.label||"")){
     var E=effectApi();if(!E){clog("<i>Hex cannot be applied — the effect ledger did not load.</i>");return;}
     var effects=concentrationBreakOps(u,"Hex replaced concentration");effects.push(E.addHex({source:u.unit,target:t.unit,nonce:Date.now(),turns:600}));effects=withBreakOp(effects,u,a);
@@ -8841,14 +8880,33 @@ function godAdjustHp(delta){
   clog("<i>The DM sets "+escapeHtml(name)+"'s HP to "+hp+".</i>");
   netGodEdit([{ unit:unit, hp:hp }]);
 }
+function godResourcePools(){
+  if(!godSel)return [];
+  var byKey={};(godSel.pools||[]).forEach(function(p){if(p&&p.key)byKey[p.key]=p;});
+  return Object.keys(godSel.res||{}).map(function(key){var p=byKey[key]||{};return {key:key,label:p.label||key,max:Number.isFinite(Number(p.max))?Math.max(0,Number(p.max)):Math.max(0,Number(godSel.res[key])||0),current:Math.max(0,Number(godSel.res[key])||0)};}).filter(function(p){return p.max>0;});
+}
+function godAdjustResource(key,delta){
+  if(!godSel||!key)return;var pool=godResourcePools().filter(function(p){return p.key===key;})[0];if(!pool)return;
+  var resources=normalizeResourceRecord(godSel.res||{}),next=Math.max(0,Math.min(pool.max,(resources[key]||0)+delta));resources[key]=next;
+  clog("<i>The DM sets "+escapeHtml(godSel.name)+"'s "+escapeHtml(pool.label)+" to "+next+"/"+pool.max+".</i>");
+  netGodEdit([{unit:godSel.unit,resources:resources}]);
+}
+function godRestoreResources(){
+  if(!godSel)return;var pools=godResourcePools(),resources=normalizeResourceRecord(godSel.res||{});if(!pools.length){clog("<i>"+escapeHtml(godSel.name)+" has no tracked resources to restore.</i>");return;}
+  pools.forEach(function(p){resources[p.key]=p.max;});clog("<i>The DM restores all tracked resources for "+escapeHtml(godSel.name)+".</i>");netGodEdit([{unit:godSel.unit,resources:resources}]);
+}
 function renderGodPanel(){
   var el=document.getElementById("cbGodPanel"); if(!el) return;
   if(!GOD_MODE||!godSel){ el.style.display="none"; el.innerHTML=""; return; }
   el.style.display="block";
+  var pools=godResourcePools();
   el.innerHTML='<div class="cbGodName">'+escapeHtml(godSel.name)+' — HP '+Math.max(0,godSel.hp)+'/'+godSel.hpMax+'</div>'
     +'<div class="cbGodBtns"><button data-d="-5">-5</button><button data-d="-1">-1</button><button data-d="1">+1</button><button data-d="5">+5</button></div>'
+    +(pools.length?'<div class="cbGodName">Resources <button data-restore style="float:right">Restore all</button></div>'+pools.map(function(p){return '<div class="cbGodBtns"><span style="flex:2;padding:6px 0">'+escapeHtml(p.label)+' · '+p.current+'/'+p.max+'</span><button data-r="'+escapeHtml(p.key)+'" data-rd="-1">−</button><button data-r="'+escapeHtml(p.key)+'" data-rd="1">+</button></div>';}).join(''):'')
     +'<div class="cbHint">Tap a cell to move '+escapeHtml(godSel.name)+'. Tap another unit to switch.</div>';
   el.querySelectorAll("button[data-d]").forEach(function(b){ b.addEventListener("click",function(){ godAdjustHp(+b.dataset.d); }); });
+  el.querySelectorAll("button[data-r]").forEach(function(b){b.addEventListener("click",function(){godAdjustResource(b.dataset.r,+b.dataset.rd);});});
+  var restore=el.querySelector("button[data-restore]");if(restore)restore.addEventListener("click",godRestoreResources);
 }
 function endFightClicked(){
   var sess=window.__forgeSession; if(!sess||!sess.me.overseer) return;

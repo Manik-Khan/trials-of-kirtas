@@ -28,6 +28,8 @@
     });
     return out;
   }
+  function freshDeathSaves(){return {successes:0,failures:0,stable:false,dead:false};}
+  function normalizeDeathSaves(value){value=value||{};return {successes:Math.max(0,Math.min(3,Number(value.successes)||0)),failures:Math.max(0,Math.min(3,Number(value.failures)||0)),stable:!!value.stable,dead:!!value.dead};}
   function applyResourceSpend(state, unitKey, spend, spendId) {
     var u = state.units[unitKey]; if (!u || !spend) return;
     state.appliedResourceSpends = state.appliedResourceSpends || {};
@@ -55,7 +57,7 @@
         hp: u.hp, maxHp: (u.maxHp != null ? u.maxHp : u.hp),
         resources: normalizeResources(u.resources || u.res || {}),
         conditions: [], reacts: (u.reacts || []).slice(),
-        reactionUsed: false, downed: false, advGrant: null
+        reactionUsed: false, downed: false, advGrant: null, deathSaves:freshDeathSaves()
       };
     });
     return {
@@ -106,12 +108,12 @@
     return Math.floor(state.turnsEnded / state.initiative.length) + 1;
   }
 
-  function applyDamage(u, dmg) { u.hp = Math.max(0, u.hp - dmg); u.downed = (u.hp === 0); }
+  function applyDamage(u, dmg) {var wasUp=u.hp>0;u.hp = Math.max(0, u.hp - dmg); u.downed = (u.hp === 0);if(wasUp&&u.downed)u.deathSaves=freshDeathSaves();}
   function applyEffects(state, effects) {
     (effects || []).forEach(function (e) {
       var u = state.units[e.unit]; if (!u) return;
       if (e.dmg) applyDamage(u, e.dmg);
-      if (e.heal) { u.hp = Math.min(u.maxHp, u.hp + e.heal); if (u.hp > 0) u.downed = false; }
+      if (e.heal) { u.hp = Math.min(u.maxHp, u.hp + e.heal); if (u.hp > 0) {u.downed = false;u.deathSaves=freshDeathSaves();} }
       if (e.add_condition && u.conditions.indexOf(e.add_condition) < 0) u.conditions.push(e.add_condition);
       if (e.remove_condition) u.conditions = u.conditions.filter(function (c) { return c !== e.remove_condition; });
       // advantage-on-next-attack grant (Silvery Barbs rider now; Help/familiars
@@ -216,6 +218,10 @@
       }
       case "ability_used":
         applyEffects(state, p.effects);
+        if(p.context&&p.context.kind==="death-save"&&state.units[row.unit]){
+          var du=state.units[row.unit],ds=normalizeDeathSaves(p.context);
+          du.deathSaves=du.hp>0?freshDeathSaves():ds;
+        }
         applyResourceSpend(state, row.unit, p.resource_spend, p.resource_spend_id);
         if (state.economy && row.unit === state.economy.unit) {
           state.economy.movementBonusFt = (Number(state.economy.movementBonusFt) || 0) + (Number(p.movement_bonus_ft) || 0);
@@ -290,14 +296,16 @@
               hp: au.hp, maxHp: (au.maxHp != null ? au.maxHp : au.hp),
               resources: normalizeResources(au.resources || au.res || {}),
               conditions: [], reacts: (au.reacts || []).slice(),
-              reactionUsed: false, downed: false, advGrant: null,
+              reactionUsed: false, downed: false, advGrant: null, deathSaves:freshDeathSaves(),
               name: au.name || au.unit, statblock: au.statblock || null
             };
             return;
           }
           var t = state.units[ch.unit]; if (!t) return;
           if (ch.pos) t.pos = { c: ch.pos.c, r: ch.pos.r };
-          if (ch.hp != null) { t.hp = Math.max(0, Math.min(t.maxHp, ch.hp)); t.downed = (t.hp === 0); }
+          if (ch.hp != null) { t.hp = Math.max(0, Math.min(t.maxHp, ch.hp)); t.downed = (t.hp === 0);if(!t.downed)t.deathSaves=freshDeathSaves(); }
+          if(ch.deathSaves)t.deathSaves=normalizeDeathSaves(ch.deathSaves);
+          if(ch.resources)t.resources=normalizeResources(ch.resources);
           if (ch.conditions) t.conditions = ch.conditions.slice();
         });
         break;
@@ -329,6 +337,7 @@
     initialState: initialState, activeUnit: activeUnit, round: round,
     applyEvent: applyEvent, replayLog: replayLog, snapshot: snapshot,
     turnEconomy: turnEconomy,
-    canonicalSide: canonicalSide, canonicalResourceKey: canonicalResourceKey, normalizeResources: normalizeResources
+    canonicalSide: canonicalSide, canonicalResourceKey: canonicalResourceKey, normalizeResources: normalizeResources,
+    normalizeDeathSaves:normalizeDeathSaves
   };
 });

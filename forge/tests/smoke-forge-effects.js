@@ -5,7 +5,7 @@ let pass=0;
 function ok(v,label){if(!v)throw new Error("FAIL: "+label);pass++;console.log("ok",pass,"-",label);}
 function row(seq,kind,unit,payload){return {seq,kind,unit,payload:payload||{}};}
 
-ok(E.VERSION==="1.3.0","version pinned");
+ok(E.VERSION==="1.4.0","version pinned");
 const add=E.addSanctuary({source:"liadan",target:"vesperian",dc:13,nonce:7});
 ok(add.add_effect.kind==="sanctuary"&&add.add_effect.dc===13,"Sanctuary effect record carries kind and DC");
 ok(add.add_effect.duration.count===10&&add.add_effect.duration.unit==="liadan","Sanctuary lasts ten source turns");
@@ -50,6 +50,12 @@ ok(conc.automatic&&!conc.saved&&conc.effects.length===3,"falling unconscious bre
 const hex=E.addHex({source:"cosmere",target:"goblin",nonce:22});
 let hexed=E.replay([row(1,"initiative_set","dm",{order:["cosmere","goblin"]}),row(2,"ability_used","cosmere",{effects:[hex]})]);
 ok(E.find(hexed,"goblin","hex").die==="1d6"&&E.concentrationRemovals(hexed,"cosmere").length===1,"Hex is a replayable concentration effect");
+const movedOps=E.transferHex(E.find(hexed,"goblin","hex"),"hobgoblin");
+const moved=E.replay([row(1,"initiative_set","dm",{order:["cosmere","goblin"]}),row(2,"ability_used","cosmere",{effects:[hex]}),row(3,"ability_used","cosmere",{effects:movedOps})]);
+ok(!E.find(moved,"goblin","hex")&&E.find(moved,"hobgoblin","hex").expires.startCount===E.find(hexed,"goblin","hex").expires.startCount,"Hex transfer preserves its original duration and concentration casting");
+const curse=E.addHexbladeCurse({source:"cosmere",target:"goblin",nonce:23,bonusDamage:2,heal:5});
+const cursed=E.replay([row(1,"initiative_set","dm",{order:["cosmere","goblin"]}),row(2,"ability_used","cosmere",{effects:[curse]})]);
+ok(E.find(cursed,"goblin","hexblade-curse").critMin===19&&E.find(cursed,"goblin","hexblade-curse").bonusDamage===2,"Hexblade's Curse carries its critical and damage rules");
 
 const removal=E.removalForActor(st,"vesperian",{kind:"attack"});
 ok(removal&&removal.remove_effect===ward.id,"warded creature attack yields a removal operation");

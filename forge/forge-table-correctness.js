@@ -22,7 +22,7 @@
   else root.ForgeTableCorrectness=api;
 })(typeof self!=="undefined"?self:this,function(root){
   "use strict";
-  var VERSION="1.4.0";
+  var VERSION="1.4.1";
   var VIEW_KEY="tok-forge-view-mode-v1";
 
   function esc(s){return String(s==null?"":s).replace(/[&<>"']/g,function(c){return {"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c];});}
@@ -234,11 +234,12 @@
     var raw=root.renderForgeBar;
     var wrapped=function(state){
       state=state||{};var sess=session();var snap=viewerSnapshot(sess,state.active);applyBody(sess,state.active);
-      var outState=Object.assign({},state,{viewerMode:snap.mode,suppressEnemyHud:snap.suppressEnemyHud});
-      if(snap.playerView){outState.order=(state.order||[]).map(function(u){return displayUnit(u,sess);});outState.active=displayUnit(state.active,sess);if(snap.suppressEnemyHud)outState.kit=null;}
+      var manualFoe=!!(state.active&&state.active.side==="foe"&&!state.foeAutomatic&&state.iControl),suppress=snap.suppressEnemyHud&&!manualFoe;
+      var outState=Object.assign({},state,{viewerMode:snap.mode,suppressEnemyHud:suppress});
+      if(snap.playerView){outState.order=(state.order||[]).map(function(u){return manualFoe&&u===state.active?u:displayUnit(u,sess);});outState.active=manualFoe?state.active:displayUnit(state.active,sess);if(suppress)outState.kit=null;}
       var out=raw(outState);
       if(root.document){var bar=root.document.getElementById("fgBar"),feed=root.document.getElementById("fgFeed");
-        if(bar)bar.style.display=snap.suppressEnemyHud?"none":"";
+        if(bar)bar.style.display=suppress?"none":"";
         if(feed)feed.style.display="";
       }
       ensureContestButton(outState);ensureFlowButtons(outState);return out;
@@ -286,7 +287,7 @@
       ".cbUnit{position:relative}",
       ".cbSanctuaryCard{border-color:#d8b35b!important}",
       "body.forge-player-view #cbOverseer{display:none!important}",
-      "body.forge-player-view.forge-active-foe #fgBar{display:none!important}"
+      "body.forge-player-view.forge-active-foe:not(.forge-manual-foe) #fgBar{display:none!important}"
     ].join("\n");root.document.head.appendChild(s);
   }
   function installFeedInteraction(){

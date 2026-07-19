@@ -17,7 +17,7 @@
   else root.ForgeEffects=api;
 })(typeof self!=="undefined"?self:this,function(){
   "use strict";
-  var VERSION="1.3.0";
+  var VERSION="1.4.0";
 
   function plain(v){ return v==null?v:JSON.parse(JSON.stringify(v)); }
   function n(v,d){ v=Number(v); return Number.isFinite(v)?v:d; }
@@ -134,6 +134,15 @@
       duration:{kind:"source-turns",unit:source,count:Math.max(1,n(opts.turns,600))}
     }};
   }
+  function transferHex(effect,target){
+    if(!effect||effect.kind!=="hex"||!target)return [];
+    var moved=plain(effect);delete moved.duration;moved.target=String(target);
+    return [remove(effect.id,"Hex transferred after its target fell",effect.target,effect),{unit:String(target),add_effect:moved}];
+  }
+  function addHexbladeCurse(opts){
+    opts=opts||{};var source=String(opts.source||""),target=String(opts.target||"");
+    return {unit:target,add_effect:{id:opts.id||("hexblade-curse:"+source+":"+target+":"+(opts.nonce==null?Date.now():opts.nonce)),kind:"hexblade-curse",label:"Hexblade's Curse",icon:"hex-curse",source:source,target:target,bonusDamage:Math.max(1,n(opts.bonusDamage,2)),critMin:19,heal:Math.max(1,n(opts.heal,3)),concentration:false,duration:{kind:"source-turns",unit:source,count:10}}};
+  }
   function concentrationRemovals(state,source,reason){
     var out=[];Object.keys(state&&state.effects||{}).forEach(function(id){var e=state.effects[id];
       if(e&&e.source===source&&e.concentration)out.push(remove(id,reason||"concentration replaced",e.target,e));
@@ -219,7 +228,7 @@
     return out.length?out:null;
   }
   return {VERSION:VERSION,effectiveRows:effectiveRows,replay:replay,forUnit:forUnit,find:find,
-    addSanctuary:addSanctuary,addBless:addBless,addBlessGroup:addBlessGroup,addHex:addHex,
+    addSanctuary:addSanctuary,addBless:addBless,addBlessGroup:addBlessGroup,addHex:addHex,transferHex:transferHex,addHexbladeCurse:addHexbladeCurse,
     addInitiativeDie:addInitiativeDie,addGiftOfAlacrity:addGiftOfAlacrity,addGuidance:addGuidance,addBardicInspiration:addBardicInspiration,
     concentrationRemovals:concentrationRemovals,concentrationSave:concentrationSave,modifierDie:modifierDie,remove:remove,wisdomSave:wisdomSave,isSanctuaryAction:isSanctuaryAction,
     harmfulDirect:harmfulDirect,breaksSanctuary:breaksSanctuary,removalForActor:removalForActor,eventSummary:eventSummary,

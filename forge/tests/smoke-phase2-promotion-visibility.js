@@ -18,14 +18,14 @@ ok("initiative editor owns the viewport above the HUD",html.includes("body.forge
 ok("initiative card scrolls without falling behind the HUD",html.includes("max-height:calc(100dvh - 28px)")&&html.includes("#cbInitLobbyList{overflow:auto"));
 ok("initiative uses one compact manual-total entry",html.includes("Roll digitally or enter a final total")&&html.includes("Final initiative total")&&!html.includes("Use d20"));
 ok("initiative evidence uses high-contrast presentation",html.includes(".cbInitEvidence{grid-column:1/-1;font:600 12px")&&html.includes("color:#3f3428"));
-ok("new derivation cache stamp is present",html.includes("forge-kit-derive.js?v=b9"));
+ok("new derivation cache stamp is present",html.includes("forge-kit-derive.js?v=b10"));
 
 const stale={level:4,proficiencyBonus:2,abilities:{dex:{score:12,mod:1}},features:[{name:"Jack of All Trades"}]};
 const joat=FK.initiativeProfileFor(stale,[],{init:1});
 ok("Jack of All Trades repairs a stale sheet total",joat.modifier===2&&joat.staticSources.some(s=>s.key==="jack-of-all-trades"&&s.value===1));
 ok("recognized initiative features repair stale totals without a false warning",joat.warnings.length===0&&!joat.staticSources.some(s=>s.key==="sheet-remainder"));
 
-ok("foes use direct wall-aware combat sight instead of the cleaned terrain mask",html.includes("function discoveryCreatureDisclosure(c,r)")&&html.includes("D.creatureDisclosure(CB.map,DISCOVERY.currentSources"));
+ok("foes use direct wall-aware party sight instead of the cleaned terrain mask",html.includes("function discoveryCreatureDisclosure(c,r,sources)")&&html.includes("discoveryCreatureDisclosure(u.c,u.r,discoveryPartySources())"));
 ok("distant and reciprocal-sight foes remain visible but soften",html.includes("CREATURE_CLEAR_FT=100")&&html.includes("CREATURE_SOFT_MAX_FT=240")&&html.includes("function foeDisclosure(u)"));
 ok("weapon range remains separate from visual recognition",html.includes("weapon range still decides")&&html.includes("a creature\n   does not vanish merely because it is 65 feet away"));
 

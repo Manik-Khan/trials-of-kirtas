@@ -20,8 +20,12 @@ const plan=AI.planTurn({actions:kit.actions,targets:[caim],origins:[{c:0,r:0,cos
 ok(plan.action.label==='Longbow','real Archer row reaches the planner and selects Longbow at 55 ft');
 ok(html.includes('id="sceneEnemyTurns"')&&html.includes("setFoeAutomation(!FOE_AUTOMATION)"),'real Forge exposes the approved Automatic / Manual table control');
 ok(html.includes("u.side===\"foe\"&&!FOE_AUTOMATION")&&html.includes('scheduleAutomatedFoeTurn(u)'),'Manual foe control and automatic turn-start scheduling are wired');
+ok(html.includes('id:"generic-shortbow"')&&html.includes('label:"Shortbow"')&&html.includes('rng:16,long:64'),'fallback Goblins expose a manually usable shortbow');
+ok(html.includes('forge-manual-foe')&&html.includes('actions=FOE.actions.map'),'manual Player View reveals the controlled foe HUD and repairs incomplete seeded Goblin attacks');
+ok(!html.includes('focusPair(active(),o)')&&html.includes('frameCameraPair(active(),o)'),'initiative-strip targeting uses the real camera-pair helper');
 ok(hud.includes('tile && tile.reference')&&hud.includes('FOE_LABELS'),'enemy reference tiles open through the real HUD drawer and use foe labels');
-ok(html.includes('forge-foe-ai.js?v=fai1')&&html.includes('forge-hud.js?v=b3')&&html.includes('monster-actor.js?v=ma2'),'changed modules have fresh production cache stamps');
+ok(hud.includes('var tileId=t._tileId||t.id||""')&&hud.includes('data-tile-id="\' + esc(tileId)'),'enemy tiles dispatch the runtime action identity used by Manual mode');
+ok(html.includes('forge-foe-ai.js?v=fai1')&&html.includes('forge-hud.js?v=b5')&&html.includes('monster-actor.js?v=ma2'),'changed modules have fresh production cache stamps');
 
 if(fail){console.error('\n'+fail+' foe-HUD checks failed');process.exit(1);}
 console.log('\n'+n+' foe-HUD checks green');

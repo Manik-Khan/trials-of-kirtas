@@ -7,7 +7,7 @@ const doc={body:{classList:{_s:new Set(),toggle(k,v){v?this._s.add(k):this._s.de
 const ctx={console,document:doc,localStorage:{getItem:k=>mem[k]||null,setItem:(k,v)=>mem[k]=v},CustomEvent:function(n,o){this.type=n;this.detail=o&&o.detail;},ForgeKitDerive:{derive(){return {res:{kiPoints:3},pools:[{key:"kiPoints",rawKey:"kiPoints",current:3}],actions:[{cost:{ki:1}}]};}},ForgeFeedRender:{rollBody:f=>`ROLL:${f.actor}:${f.mode}:${f.roll}:${f.dmg==null?"":f.dmg}:${f.coverName||""}`,abilityBody:f=>`ABILITY:${f.actor}:${(f.effects||[]).map(e=>e.heal!=null?"heal"+e.heal:e.dmg!=null?"dmg"+e.dmg:"").join(",")}`},addForgeRow(h){rows.push(h);},setTimeout,clearTimeout};ctx.self=ctx;ctx.window=ctx;
 vm.createContext(ctx);vm.runInContext(fs.readFileSync(path.join(__dirname,"..","forge-table-correctness.js"),"utf8"),ctx);
 const F=ctx.ForgeTableCorrectness;
-ok(F&&F.VERSION==="1.4.0","browser API loads");
+ok(F&&F.VERSION==="1.4.1","browser API loads");
 ok(typeof F.installFeedInteraction==="function","feed damage-detail interaction is part of the public contract");
 const k=ctx.ForgeKitDerive.derive({});
 ok(k.res.ki===3,"kiPoints aliases to canonical ki");
