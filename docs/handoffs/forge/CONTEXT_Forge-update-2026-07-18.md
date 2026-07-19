@@ -4,7 +4,7 @@ Supersedes `CONTEXT_Forge-update-2026-07-16c.md` as the current concise Forge au
 
 ## Current field verdict
 
-Temple Terraces is implemented as the first intent-owned Forge archetype and is deliberately labeled **preview**.
+Temple Terraces is implemented as the first intent-owned Forge archetype and remains deliberately labeled **preview** while its shared-table/reconnect field pass is outstanding.
 
 Implemented in this slice:
 
@@ -17,17 +17,21 @@ Implemented in this slice:
 - Temple/Druidic/Tundra/Volcanic/Cavern/Grass/Swamp construction materials;
 - real engine, renderer, Vertical Geometry diagnostics, snapshot, and cache-stamped production integration;
 - no Temple bridges and no automatic combatant placement;
-- one narrated preview gate for local combat, Roll Initiative, and Save for later;
+- approved DM deployment cards for any number of Party, Ally/NPC, and Enemy groups;
+- DM-authored regional flags, deterministic per-group formations, per-unit manual pins, split groups, and local reseeding;
+- exact versioned deployment persistence in the map envelope and staged roster;
+- exact authored placement at local combat and shared-session start, with the legacy placement path retained for old rows;
+- one narrated preview gate while any active group is unresolved;
 - staged legacy generation no longer samples decorative 5-ft connectors or selects structural bridges;
 - bridge identity/movement/cover/state/replay/audit and explicit selection remain intact for a future bridge-owned archetype.
 
-The approved browser mock preceded implementation. At M's direction, no additional web preview was opened for this non-mock implementation pass. The field checklist below remains required before promotion.
+The approved browser mock preceded implementation. The integrated Workshop was then field-tested in the browser: two groups resolved all 9/9 combatants, Vesperian was manually pinned and survived a party-only reseed, and local combat placed Vesperian in `approach` with five goblins in `summit-sanctuary`. The shared-table/reconnect checklist below remains required before promotion.
 
 ## Exact preview boundary
 
-Temple returns `spawns: []`. `window.__forgeDeploymentReady` is intentionally absent/false in this slice, so `templeDeploymentPending()` refuses all encounter-promotion doors while leaving the Workshop terrain and controls visible.
+Temple still returns `spawns: []`; terrain generation never places combatants. `forge-deployment.js` resolves only DM-authored groups against the accepted map's intent regions. `templeDeploymentPending()` refuses encounter-promotion doors until every active group has a legal flag and every assigned combatant has one exact non-overlapping cell.
 
-DM deployment flags are **not implemented here**. Do not replace the gate with highest-tier, lowest-tier, visibility-band, or random placement. The next slice must support any number of Party, Ally/NPC, and Enemy groups, each positioned by a DM flag and deterministically formed around that flag.
+Deployment records are versioned and preserve groups, roles, controller policies, flags, formation seeds, manual pins, and resolved positions. Fresh Temple local combat and shared-session start consume those exact positions. Historical rows without a deployment record keep the established one-time compatibility placement.
 
 Old records remain safe:
 
@@ -40,14 +44,15 @@ Old records remain safe:
 
 Focused results:
 
-- Temple Terraces: **35/35**;
+- Temple Terraces: **37/37**;
+- deployment groups: **16/16**;
 - parameter/archetype record: **46/46**;
 - stage ownership: **36/36**;
 - elevations/connectors: **40/40**;
 - structural bridge completion: **37/37**;
 - bridge/damage: **40/40**;
 - snapshot authority: **27/27**;
-- unified Forge panel: **16/16**;
+- unified Forge panel: **22/22**;
 - map bridge: **16/16**;
 - tactics geometry: **26/26**;
 - line of sight/cover: **50/50**;
@@ -75,26 +80,23 @@ No new whole-battery failure remains.
 
 ## Required field checklist
 
-1. Select Temple Terraces and confirm `preview` plus the deployment note.
-2. Inspect known axial, switchback, and ring seeds.
-3. Confirm broad platforms, continuous stair runs, and usable landings.
-4. Match each stair's purpose diagnostic to the visible regions.
-5. Compare Temple, Druidic, Tundra, and Volcanic construction.
-6. Confirm Temple and generic legacy maps produce no bridge.
-7. Confirm legacy maps no longer receive decorative 5-ft stairs/ramps.
-8. Attempt local combat, Roll Initiative, and Save for later; confirm each narrates the deployment dependency.
-9. Save/reload a legacy encounter and confirm historical behavior is unchanged.
+1. On the live signed-in site, open a Temple Table with at least Party and Enemy flags.
+2. Confirm the staged row retains exact group roles, controller policies, and positions.
+3. Roll Initiative and confirm every unit appears on its authored cell on two devices.
+4. Reconnect both devices and confirm the same positions reconstruct from the saved row/replay state.
+5. Save for later, reopen, and repeat the exact-position check.
+6. Save/reload a legacy encounter and confirm historical placement remains unchanged.
+7. Compare Volcanic construction once a Workshop Volcanic selector is exposed; the renderer profile exists, but the current biome control does not expose it.
 
 ## Immediate execution order
 
-1. Field-test Temple scene variants and purposeful stair rendering.
-2. Implement DM deployment groups and flags.
-3. Integrate exact deployment into save/session start.
-4. Promote Temple from `preview` to `active` only after those checks pass.
-5. Build `bridge-crossing` on the same intent contract.
+1. Run the signed-in shared-table/reconnect deployment field checklist.
+2. Promote Temple from `preview` to `active` only after those checks pass.
+3. Expose/settle the Volcanic Workshop construction control.
+4. Build `bridge-crossing` on the same intent contract.
 
 Do not begin `bridge-crossing` by re-enabling random legacy bridge selection. Purpose and archetype ownership come first.
 
 ## Deployment discipline
 
-M reviews, commits, and pushes. Codex does not push. Cache-stamped runtime files in this slice are `forge-generator-foundation.js?v=g2g1`, `forge-temple-terraces.js?v=tt1`, and `forge-engine.js?v=fe9`.
+M reviews, commits, and pushes. Codex does not push. The deployment runtime is cache-stamped as `forge-deployment.js?v=fd1`; the earlier Temple slice remains `forge-generator-foundation.js?v=g2g1`, `forge-temple-terraces.js?v=tt1`, and `forge-engine.js?v=fe9`.

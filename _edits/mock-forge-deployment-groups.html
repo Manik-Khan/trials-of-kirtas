@@ -1,0 +1,248 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>Forge deployment groups — interaction mock</title>
+  <style>
+    :root{
+      --ink:#241d15;--muted:#756a5d;--paper:#ece7db;--paper2:#ddd5c5;
+      --line:#aa9c86;--gold:#b78a34;--gold2:#e4ca78;--good:#476b51;
+      --bad:#a54e3b;--party:#c99a38;--ally:#4f8a72;--enemy:#a14c43;
+    }
+    *{box-sizing:border-box}
+    html,body{width:100%;height:100%;margin:0;overflow:hidden}
+    body{font-family:Georgia,"Times New Roman",serif;color:var(--ink);background:#101612}
+    button,select,input{font:inherit;color:inherit}
+    button{cursor:pointer}
+    .app{display:grid;grid-template-columns:370px minmax(0,1fr);width:100%;height:100%}
+    .panel{position:relative;z-index:2;display:flex;flex-direction:column;min-height:0;background:
+      linear-gradient(90deg,rgba(255,255,255,.24),transparent 28%),var(--paper);border-right:1px solid #665a49;box-shadow:10px 0 32px #0008}
+    .panel-head{flex:0 0 auto;padding:15px 18px 13px;background:#191713;color:#efe8d9;border-bottom:3px double #9e8b68}
+    .eyebrow,.section-kicker,.role-tag,.status,.mock-chip{font-family:Arial,sans-serif;text-transform:uppercase;letter-spacing:.13em;font-weight:700}
+    .eyebrow{font-size:9px;color:#bca778}
+    h1{margin:3px 0 2px;font-size:21px;font-weight:400;letter-spacing:.05em}
+    .head-sub{font:11px/1.35 Arial,sans-serif;color:#bdb4a5}
+    .summary{display:grid;grid-template-columns:1fr auto;align-items:center;gap:10px;padding:11px 16px;border-bottom:1px solid var(--line);background:#e4ddcf}
+    .summary b{font-size:13px;font-weight:400}
+    .summary small{display:block;margin-top:2px;font:10px/1.25 Arial,sans-serif;color:var(--muted)}
+    .summary-count{font:700 10px Arial,sans-serif;color:var(--gold);letter-spacing:.08em}
+    .groups{flex:1 1 auto;min-height:0;overflow:auto;padding:10px 10px 22px;scrollbar-color:#a99b84 transparent}
+    .section-row{display:flex;align-items:center;justify-content:space-between;padding:2px 4px 8px}
+    .section-kicker{font-size:9px;color:#665a4a}
+    .add-group{border:0;background:transparent;color:#765f2e;font:700 10px Arial,sans-serif;padding:4px}
+    .group{margin-bottom:9px;border:1px solid var(--line);background:#f3efe6;box-shadow:0 2px 0 #c9beaa}
+    .group.focus{outline:2px solid var(--gold);outline-offset:1px}
+    .group-head{display:grid;grid-template-columns:24px 1fr auto;align-items:center;gap:8px;padding:9px 10px 7px;border-bottom:1px solid #c9beaa}
+    .flag-mark{position:relative;width:19px;height:19px;border-radius:50%;border:2px solid currentColor}
+    .flag-mark:after{content:"";position:absolute;left:8px;bottom:15px;width:2px;height:12px;background:currentColor;transform:rotate(-8deg)}
+    .flag-mark:before{content:"";position:absolute;left:9px;bottom:22px;border-left:8px solid currentColor;border-top:4px solid transparent;border-bottom:4px solid transparent}
+    .group.party{color:var(--party)}.group.ally{color:var(--ally)}.group.enemy{color:var(--enemy)}
+    .group-title{min-width:0;color:var(--ink)}
+    .group-title input{width:100%;padding:0;border:0;border-bottom:1px solid transparent;background:transparent;font-size:14px;font-weight:700;outline:0}
+    .group-title input:focus{border-color:var(--gold)}
+    .role-tag{font-size:8px;color:currentColor}
+    .status{font-size:8px;padding:4px 6px;border:1px solid currentColor;color:currentColor;background:#fff8}
+    .group-body{padding:8px 10px 9px;color:var(--ink)}
+    .row{display:grid;grid-template-columns:80px 1fr;align-items:center;gap:7px;margin-bottom:7px}
+    .row label{font:700 9px Arial,sans-serif;text-transform:uppercase;letter-spacing:.08em;color:#756a5d}
+    select{width:100%;padding:5px 23px 5px 7px;border:1px solid #b9ad99;background:#eee8dc;font:10px Arial,sans-serif}
+    .units{display:flex;flex-wrap:wrap;gap:4px;margin:1px 0 7px}
+    .unit{border:1px solid #b8aa95;background:#e5ddcf;padding:4px 6px;font:10px Arial,sans-serif;color:#4b4237}
+    .unit.manual{border-color:var(--gold);box-shadow:inset 0 -2px var(--gold)}
+    .unit.pick{outline:2px solid var(--gold2)}
+    .group-meta{display:flex;justify-content:space-between;gap:8px;margin:3px 0 8px;font:10px/1.3 Arial,sans-serif;color:#6f6558}
+    .group-meta .bad{color:var(--bad);font-weight:700}.group-meta .good{color:var(--good);font-weight:700}
+    .actions{display:grid;grid-template-columns:1.2fr 1fr 1fr;gap:5px}
+    .actions button,.table-actions button{min-height:31px;border:1px solid #9f927d;background:#e5ded1;font:700 9px Arial,sans-serif;text-transform:uppercase;letter-spacing:.06em}
+    .actions .primary{background:#d0ad5a;border-color:#9f7223;color:#2a2112}
+    .actions button:hover,.table-actions button:hover{filter:brightness(.96)}
+    .split{margin-top:6px;border:0;background:none;padding:2px;font:10px Arial,sans-serif;color:#766541;text-decoration:underline}
+    .table{flex:0 0 auto;border-top:3px double #a99a82;padding:10px 14px 13px;background:var(--paper2)}
+    .table-actions{display:grid;grid-template-columns:1fr 1fr;gap:7px;margin-top:7px}
+    .table-actions .roll{background:#24211b;color:#f1e4c8;border-color:#17140f}
+    .message{min-height:30px;margin-top:8px;padding:7px 8px;border-left:3px solid var(--gold);background:#f0eadf;font:10px/1.4 Arial,sans-serif;color:#5e5448}
+    .message.bad{border-color:var(--bad);color:#7e392d}.message.good{border-color:var(--good);color:#355840}
+    .stage{position:relative;min-width:0;background:radial-gradient(circle at 60% 30%,#71806f,#27352f 48%,#101712 100%)}
+    canvas{display:block;width:100%;height:100%;touch-action:none}
+    .mast{position:absolute;left:25px;top:22px;color:#f1ead8;text-shadow:0 2px 8px #000}
+    .mast h2{margin:0;font-size:22px;font-weight:400;letter-spacing:.12em}
+    .mast p{margin:4px 0 0;font:9px Arial,sans-serif;text-transform:uppercase;letter-spacing:.18em;color:#d6c99f}
+    .mock-chip{position:absolute;right:18px;top:18px;padding:7px 9px;border:1px solid #d6c99f88;background:#111a15aa;color:#e0d4af;font-size:8px}
+    .legend{position:absolute;right:18px;bottom:18px;width:232px;padding:10px 12px;background:#141a16d9;color:#e7dfcf;border:1px solid #8f826a;font:10px/1.45 Arial,sans-serif;box-shadow:0 8px 26px #0008}
+    .legend b{display:block;margin-bottom:4px;font-family:Georgia,serif;font-size:13px;font-weight:400;color:#f5e4b4}
+    .legend i{display:inline-block;width:8px;height:8px;border-radius:50%;margin-right:5px}
+    .legend .party{background:var(--party)}.legend .ally{background:var(--ally)}.legend .enemy{background:var(--enemy)}
+    .mode-banner{position:absolute;left:50%;top:18px;transform:translateX(-50%);max-width:440px;padding:8px 13px;background:#1b1812e8;border:1px solid var(--gold2);color:#f4e8c8;font:11px/1.35 Arial,sans-serif;text-align:center;box-shadow:0 6px 18px #0008}
+    .mode-banner[hidden]{display:none}
+    @media(max-width:820px){.app{grid-template-columns:minmax(300px,44vw) 1fr}.legend{display:none}.mast{left:14px}.mock-chip{right:10px}}
+  </style>
+</head>
+<body>
+  <main class="app">
+    <aside class="panel">
+      <header class="panel-head">
+        <div class="eyebrow">The Forge · Workshop preview</div>
+        <h1>Deployment</h1>
+        <div class="head-sub">The map chooses the place. You choose where every group begins.</div>
+      </header>
+      <div class="summary">
+        <div><b id="summaryTitle">Deployment incomplete</b><small id="summaryNote">Place every active group before opening the Table.</small></div>
+        <div class="summary-count" id="summaryCount">—</div>
+      </div>
+      <section class="groups" id="groups">
+        <div class="section-row"><span class="section-kicker">Active groups</span><button class="add-group" id="addGroup">＋ Add group</button></div>
+        <div id="groupCards"></div>
+      </section>
+      <footer class="table">
+        <div class="section-kicker">The Table</div>
+        <div class="table-actions"><button id="saveLater">Save for later</button><button class="roll" id="rollInitiative">Roll Initiative</button></div>
+        <div class="message" id="message">North Gate Raiders has no flag. Its four combatants are not positioned.</div>
+      </footer>
+    </aside>
+    <section class="stage">
+      <canvas id="map" aria-label="Temple Terraces deployment map"></canvas>
+      <div class="mast"><h2>Temple Terraces</h2><p>Ring variant · top-down authoring view</p></div>
+      <div class="mock-chip">Standalone interaction mock · nothing is saved</div>
+      <div class="mode-banner" id="modeBanner" hidden></div>
+      <div class="legend">
+        <b>Flag authoring</b>
+        <div><i class="party"></i>Party &nbsp; <i class="ally"></i>Ally / NPC &nbsp; <i class="enemy"></i>Enemy</div>
+        <div style="margin-top:5px;color:#bdb5a5">Choose <em>Place flag</em>, then click a platform. Click a combatant name to pin a manual position.</div>
+      </div>
+    </section>
+  </main>
+  <script>
+  (function(){
+    "use strict";
+    var canvas=document.getElementById("map"),ctx=canvas.getContext("2d");
+    var groupsEl=document.getElementById("groupCards"),messageEl=document.getElementById("message"),banner=document.getElementById("modeBanner");
+    var palette={party:"#c99a38",ally:"#4f8a72",enemy:"#a14c43"};
+    var roleLabel={party:"Party",ally:"Ally / NPC",enemy:"Enemy"};
+    var regions=[
+      {id:"approach",name:"Approach",x:2,y:12,w:16,h:3,e:0,color:"#71866b"},
+      {id:"lower-court",name:"Lower court",x:2,y:9,w:16,h:3,e:5,color:"#7c8e72"},
+      {id:"upper-court",name:"Upper court",x:4,y:5,w:12,h:4,e:10,color:"#829176"},
+      {id:"summit-sanctuary",name:"Summit sanctuary",x:7,y:2,w:6,h:3,e:15,color:"#8e967a"}
+    ];
+    var stairs=[{c:6,r:12},{c:6,r:11},{c:6,r:10},{c:14,r:9},{c:14,r:8},{c:14,r:7},{c:8,r:5},{c:8,r:4},{c:8,r:3}];
+    var groups=[
+      {id:"party-main",label:"Main Party",role:"party",controllerPolicy:"unit-owners",unitIds:["Caim","Cosmere","Líadan","Vesperian"],anchor:{c:5,r:13},formationSeed:21,manualPositions:{}},
+      {id:"ally-wardens",label:"Sanctuary Wardens",role:"ally",controllerPolicy:"overseer",unitIds:["Sister Avel","Temple Guard"],anchor:{c:12,r:7},formationSeed:8,manualPositions:{"Sister Avel":{c:12,r:7}}},
+      {id:"enemy-raiders",label:"North Gate Raiders",role:"enemy",controllerPolicy:"overseer",unitIds:["Goblin 1","Goblin 2","Goblin 3","Goblin 4"],anchor:null,formationSeed:13,manualPositions:{}}
+    ];
+    var placingGroup=null,manualPick=null,cellSize=34,origin={x:0,y:0},focused="enemy-raiders";
+
+    function key(p){return p.c+","+p.r;}
+    function regionAt(c,r){return regions.filter(function(x){return c>=x.x&&c<x.x+x.w&&r>=x.y&&r<x.y+x.h;})[0]||null;}
+    function isStair(c,r){return stairs.some(function(s){return s.c===c&&s.r===r;});}
+    function showMessage(text,tone){messageEl.textContent=text;messageEl.className="message"+(tone?" "+tone:"");}
+    function showMode(text){banner.textContent=text;banner.hidden=false;}
+    function clearMode(){banner.hidden=true;banner.textContent="";}
+    function hash(text){var h=2166136261;for(var i=0;i<text.length;i++){h^=text.charCodeAt(i);h=Math.imul(h,16777619);}return h>>>0;}
+    function reserved(exceptGroup){
+      var out={};
+      groups.forEach(function(g){if(g.id===exceptGroup)return;Object.keys(g.positions||{}).forEach(function(u){out[key(g.positions[u])]=true;});});
+      return out;
+    }
+    function planGroup(g){
+      g.positions={};g.capacity=0;g.compressed=false;g.why="";
+      if(!g.anchor){g.why="Place a flag";return;}
+      var reg=regionAt(g.anchor.c,g.anchor.r);
+      if(!reg){g.why="Flag is not on a deployment platform";return;}
+      var used=reserved(g.id),manual=g.manualPositions||{};
+      Object.keys(manual).forEach(function(unit){var p=manual[unit];if(regionAt(p.c,p.r)===reg&&!isStair(p.c,p.r)&&!used[key(p)]){g.positions[unit]=p;used[key(p)]=true;}});
+      var cells=[];
+      for(var r=reg.y;r<reg.y+reg.h;r++)for(var c=reg.x;c<reg.x+reg.w;c++){
+        if(isStair(c,r)||used[c+","+r])continue;
+        var d=Math.max(Math.abs(c-g.anchor.c),Math.abs(r-g.anchor.r));
+        cells.push({c:c,r:r,d:d,j:hash(g.id+"|"+g.formationSeed+"|"+c+"|"+r)});
+      }
+      cells.sort(function(a,b){return a.d-b.d||a.j-b.j;});g.capacity=cells.length+Object.keys(g.positions).length;
+      var remaining=g.unitIds.filter(function(u){return !g.positions[u];}),placed=[];
+      [1,0].some(function(sep){
+        placed=[];
+        for(var i=0;i<cells.length&&placed.length<remaining.length;i++){
+          var p=cells[i],clash=placed.some(function(q){return Math.max(Math.abs(p.c-q.c),Math.abs(p.r-q.r))<=sep;});
+          if(!clash)placed.push(p);
+        }
+        if(placed.length>=remaining.length){g.compressed=sep===0;return true;}return false;
+      });
+      remaining.forEach(function(u,i){if(placed[i])g.positions[u]={c:placed[i].c,r:placed[i].r};});
+      if(Object.keys(g.positions).length<g.unitIds.length)g.why="Only "+Object.keys(g.positions).length+" of "+g.unitIds.length+" units fit";
+    }
+    function ready(g){return !!g.anchor&&Object.keys(g.positions||{}).length===g.unitIds.length&&!g.why;}
+    function planAll(){groups.forEach(planGroup);}
+    function escapeHtml(s){return String(s).replace(/[&<>\"]/g,function(ch){return{"&":"&amp;","<":"&lt;",">":"&gt;","\"":"&quot;"}[ch];});}
+    function renderCards(){
+      groupsEl.innerHTML=groups.map(function(g){
+        var ok=ready(g),pos=Object.keys(g.positions||{}).length,reg=g.anchor&&regionAt(g.anchor.c,g.anchor.r);
+        var units=g.unitIds.map(function(u){var manual=g.manualPositions&&g.manualPositions[u],pick=manualPick&&manualPick.groupId===g.id&&manualPick.unit===u;
+          return '<button class="unit'+(manual?' manual':'')+(pick?' pick':'')+'" data-unit="'+escapeHtml(u)+'" data-gid="'+g.id+'" title="Click, then choose a map cell">'+escapeHtml(u)+(manual?' · pinned':'')+'</button>';}).join("");
+        return '<article class="group '+g.role+(focused===g.id?' focus':'')+'" data-gid="'+g.id+'">'
+          +'<header class="group-head"><span class="flag-mark"></span><div class="group-title"><input data-name="'+g.id+'" value="'+escapeHtml(g.label)+'"><div class="role-tag">'+roleLabel[g.role]+'</div></div><span class="status">'+(ok?'ready':'unresolved')+'</span></header>'
+          +'<div class="group-body"><div class="row"><label>Role</label><select data-role="'+g.id+'"><option value="party"'+(g.role==='party'?' selected':'')+'>Party</option><option value="ally"'+(g.role==='ally'?' selected':'')+'>Ally / NPC</option><option value="enemy"'+(g.role==='enemy'?' selected':'')+'>Enemy</option></select></div>'
+          +'<div class="row"><label>Control</label><select data-policy="'+g.id+'"><option value="unit-owners"'+(g.controllerPolicy==='unit-owners'?' selected':'')+'>Unit owners</option><option value="overseer"'+(g.controllerPolicy==='overseer'?' selected':'')+'>Overseer</option></select></div>'
+          +'<div class="units">'+units+'</div>'
+          +'<div class="group-meta"><span>'+(reg?reg.name:'No flag placed')+' · seed '+g.formationSeed+'</span><span class="'+(ok?'good':'bad')+'">'+pos+'/'+g.unitIds.length+' positioned'+(g.compressed?' · compressed':'')+'</span></div>'
+          +'<div class="actions"><button class="primary" data-flag="'+g.id+'">'+(g.anchor?'Move flag':'Place flag')+'</button><button data-reseed="'+g.id+'">Reseed</button><button data-clear="'+g.id+'">Clear pins</button></div>'
+          +(g.unitIds.length>1?'<button class="split" data-split="'+g.id+'">Split selected units into a new group →</button>':'')+'</div></article>';
+      }).join("");
+      bindCards();updateSummary();draw();
+    }
+    function findGroup(id){return groups.filter(function(g){return g.id===id;})[0];}
+    function bindCards(){
+      groupsEl.querySelectorAll("[data-flag]").forEach(function(b){b.onclick=function(){placingGroup=b.dataset.flag;manualPick=null;focused=placingGroup;showMode("Click a legal platform to place "+findGroup(placingGroup).label+"'s flag.");renderCards();};});
+      groupsEl.querySelectorAll("[data-reseed]").forEach(function(b){b.onclick=function(){var g=findGroup(b.dataset.reseed);g.formationSeed++;planAll();showMessage(g.label+" reseeded. No other group moved.","good");renderCards();};});
+      groupsEl.querySelectorAll("[data-clear]").forEach(function(b){b.onclick=function(){var g=findGroup(b.dataset.clear);g.manualPositions={};planAll();showMessage(g.label+" manual positions cleared.","");renderCards();};});
+      groupsEl.querySelectorAll("[data-unit]").forEach(function(b){b.onclick=function(){manualPick={groupId:b.dataset.gid,unit:b.dataset.unit};placingGroup=null;focused=b.dataset.gid;showMode("Click a legal cell to pin "+b.dataset.unit+". Its group flag will stay put.");renderCards();};});
+      groupsEl.querySelectorAll("[data-role]").forEach(function(s){s.onchange=function(){var g=findGroup(s.dataset.role);g.role=s.value;planAll();renderCards();};});
+      groupsEl.querySelectorAll("[data-policy]").forEach(function(s){s.onchange=function(){findGroup(s.dataset.policy).controllerPolicy=s.value;};});
+      groupsEl.querySelectorAll("[data-name]").forEach(function(i){i.onchange=function(){findGroup(i.dataset.name).label=i.value||"Unnamed group";renderCards();};});
+      groupsEl.querySelectorAll("[data-split]").forEach(function(b){b.onclick=function(){var g=findGroup(b.dataset.split),take=g.unitIds.splice(Math.ceil(g.unitIds.length/2));if(!take.length)return;var id="group-"+Date.now();groups.push({id:id,label:g.label+" II",role:g.role,controllerPolicy:g.controllerPolicy,unitIds:take,anchor:null,formationSeed:g.formationSeed+1,manualPositions:{}});focused=id;planAll();showMessage("New group created. Place its flag independently.","");renderCards();};});
+    }
+    function updateSummary(){
+      var readyCount=groups.filter(ready).length,totalUnits=groups.reduce(function(n,g){return n+g.unitIds.length;},0),placed=groups.reduce(function(n,g){return n+Object.keys(g.positions||{}).length;},0);
+      document.getElementById("summaryTitle").textContent=readyCount===groups.length?"Deployment ready":"Deployment incomplete";
+      document.getElementById("summaryNote").textContent=readyCount===groups.length?"Every active combatant has one exact position.":"Place every active group before opening the Table.";
+      document.getElementById("summaryCount").textContent=readyCount+" / "+groups.length+" groups · "+placed+" / "+totalUnits+" units";
+    }
+    function resize(){var dpr=Math.min(2,window.devicePixelRatio||1),rect=canvas.getBoundingClientRect();canvas.width=Math.round(rect.width*dpr);canvas.height=Math.round(rect.height*dpr);ctx.setTransform(dpr,0,0,dpr,0,0);cellSize=Math.max(22,Math.min(40,Math.floor(Math.min(rect.width/23,rect.height/19))));origin.x=Math.round((rect.width-20*cellSize)/2);origin.y=Math.round((rect.height-17*cellSize)/2)+10;draw();}
+    function cellRect(c,r){return{x:origin.x+c*cellSize,y:origin.y+r*cellSize,w:cellSize,h:cellSize};}
+    function draw(){
+      var rect=canvas.getBoundingClientRect();ctx.clearRect(0,0,rect.width,rect.height);
+      ctx.save();ctx.translate(0,3);ctx.shadowColor="#0008";ctx.shadowBlur=22;ctx.shadowOffsetY=12;ctx.fillStyle="#29352e";ctx.fillRect(origin.x+cellSize,origin.y+cellSize,18*cellSize,15*cellSize);ctx.restore();
+      regions.forEach(function(reg){
+        for(var r=reg.y;r<reg.y+reg.h;r++)for(var c=reg.x;c<reg.x+reg.w;c++){
+          var q=cellRect(c,r),shade=((c+r)&1)?-7:4;ctx.fillStyle=shadeColor(reg.color,shade);ctx.fillRect(q.x,q.y,q.w,q.h);ctx.strokeStyle="#d6cda31f";ctx.strokeRect(q.x+.5,q.y+.5,q.w-1,q.h-1);
+        }
+        var a=cellRect(reg.x,reg.y);ctx.fillStyle="#f4ebcfaa";ctx.font="700 9px Arial";ctx.fillText(reg.name.toUpperCase()+" · "+reg.e+" FT",a.x+5,a.y+13);
+      });
+      stairs.forEach(function(s){var q=cellRect(s.c,s.r);ctx.fillStyle="#cbbf9b";ctx.fillRect(q.x+3,q.y+2,q.w-6,q.h-4);ctx.strokeStyle="#75694f";for(var n=1;n<4;n++){ctx.beginPath();ctx.moveTo(q.x+5,q.y+n*q.h/4);ctx.lineTo(q.x+q.w-5,q.y+n*q.h/4);ctx.stroke();}});
+      groups.forEach(function(g){
+        if(g.anchor){var aq=cellRect(g.anchor.c,g.anchor.r),col=palette[g.role];ctx.save();ctx.strokeStyle=col;ctx.fillStyle=col+"22";ctx.lineWidth=2;ctx.beginPath();ctx.arc(aq.x+aq.w/2,aq.y+aq.h/2,cellSize*1.8,0,Math.PI*2);ctx.fill();ctx.stroke();ctx.restore();drawFlag(aq.x+aq.w/2,aq.y+aq.h/2,col,g.label);}
+        Object.keys(g.positions||{}).forEach(function(unit){var p=g.positions[unit],q=cellRect(p.c,p.r),manual=g.manualPositions&&g.manualPositions[unit];drawToken(q.x+q.w/2,q.y+q.h/2,palette[g.role],unit,manual);});
+      });
+      if(placingGroup||manualPick){ctx.fillStyle="#f4e7b444";ctx.fillRect(origin.x,origin.y,20*cellSize,17*cellSize);}
+    }
+    function shadeColor(hex,amt){var n=parseInt(hex.slice(1),16),r=Math.max(0,Math.min(255,(n>>16)+amt)),g=Math.max(0,Math.min(255,((n>>8)&255)+amt)),b=Math.max(0,Math.min(255,(n&255)+amt));return"rgb("+r+","+g+","+b+")";}
+    function drawFlag(x,y,col,label){ctx.save();ctx.strokeStyle="#17130d";ctx.lineWidth=4;ctx.beginPath();ctx.moveTo(x,y+13);ctx.lineTo(x,y-22);ctx.stroke();ctx.strokeStyle=col;ctx.lineWidth=2;ctx.stroke();ctx.fillStyle=col;ctx.beginPath();ctx.moveTo(x+1,y-22);ctx.lineTo(x+20,y-15);ctx.lineTo(x+1,y-8);ctx.closePath();ctx.fill();ctx.fillStyle="#16120d";ctx.font="700 8px Arial";ctx.fillText(label.toUpperCase(),x+24,y-12);ctx.restore();}
+    function drawToken(x,y,col,label,manual){ctx.save();ctx.fillStyle="#15130f";ctx.beginPath();ctx.arc(x,y,cellSize*.27+2,0,Math.PI*2);ctx.fill();ctx.fillStyle=col;ctx.beginPath();ctx.arc(x,y,cellSize*.27,0,Math.PI*2);ctx.fill();if(manual){ctx.strokeStyle="#fff0ba";ctx.lineWidth=2;ctx.stroke();}ctx.fillStyle="#17130f";ctx.font="700 9px Arial";ctx.textAlign="center";ctx.textBaseline="middle";ctx.fillText(label.charAt(0),x,y+.5);ctx.restore();}
+    canvas.addEventListener("click",function(e){
+      if(!placingGroup&&!manualPick){showMessage("Choose Place flag, or click a combatant name for manual placement.","");return;}
+      var rect=canvas.getBoundingClientRect(),c=Math.floor((e.clientX-rect.left-origin.x)/cellSize),r=Math.floor((e.clientY-rect.top-origin.y)/cellSize),reg=regionAt(c,r);
+      if(!reg||isStair(c,r)){showMessage("That cell is not legal: choose an open platform cell, not a stair or retaining wall.","bad");return;}
+      if(placingGroup){var g=findGroup(placingGroup);g.anchor={c:c,r:r};placingGroup=null;clearMode();planAll();showMessage(g.label+" flag placed in "+reg.name+". Formation preview resolved around that flag.","good");renderCards();return;}
+      var mg=findGroup(manualPick.groupId);if(!mg.anchor||regionAt(mg.anchor.c,mg.anchor.r)!==reg){showMessage("Manual positions stay inside the group's flagged region. Move the flag or choose a cell in "+(mg.anchor?regionAt(mg.anchor.c,mg.anchor.r).name:"its deployment region")+".","bad");return;}
+      mg.manualPositions[manualPick.unit]={c:c,r:r};var name=manualPick.unit;manualPick=null;clearMode();planAll();showMessage(name+" pinned. Reseeding the group will preserve this position.","good");renderCards();
+    });
+    document.getElementById("addGroup").onclick=function(){var n=groups.length+1,id="group-"+Date.now();groups.push({id:id,label:"Enemy Group "+n,role:"enemy",controllerPolicy:"overseer",unitIds:["New combatant"],anchor:null,formationSeed:n*11,manualPositions:{}});focused=id;planAll();showMessage("Group added. Assign its members, then place a flag.","");renderCards();};
+    function attemptDoor(kind){var unresolved=groups.filter(function(g){return !ready(g);});if(unresolved.length){showMessage(kind+" blocked: "+unresolved.map(function(g){return g.label+" ("+(g.why||"not fully positioned")+")";}).join("; ")+".","bad");return;}showMessage(kind+" is ready: the exact flags, groups, manual overrides, and resolved positions would be saved.","good");}
+    document.getElementById("saveLater").onclick=function(){attemptDoor("Save for later");};
+    document.getElementById("rollInitiative").onclick=function(){attemptDoor("Roll Initiative");};
+    window.addEventListener("resize",resize);
+    planAll();renderCards();resize();
+  })();
+  </script>
+</body>
+</html>

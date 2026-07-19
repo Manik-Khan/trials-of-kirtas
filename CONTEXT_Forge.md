@@ -17,10 +17,12 @@ the removal of purposeless legacy connectors, and the current execution order.
 The embedded 2026-07-13h addendum remains the Phase 1.5 record, not the current
 handoff.
 
-Temple Terraces is the first implemented intent-owned archetype. It is a
-Workshop preview, not an active encounter grammar: generation and rendering are
-live, but `spawns: []` is authoritative and combat/save doors refuse promotion
-until the separate DM deployment-group slice lands. Staged legacy generation no
+Temple Terraces is the first implemented intent-owned archetype. It remains a
+Workshop preview pending the signed-in shared-table/reconnect field gate.
+Generation still returns authoritative `spawns: []`; the separate versioned
+deployment authority now supports multiple Party, Ally/NPC, and Enemy groups,
+DM flags, deterministic formations, manual pins, exact save/session positions,
+and local combat. Unresolved groups refuse promotion. Staged legacy generation no
 longer samples decorative 5-ft connectors or produces bridges. Bridge authority
 remains available for the later `bridge-crossing` archetype. Runtime contract:
 `forge/FORGE_TEMPLE_TERRACES_1.md`.
@@ -132,6 +134,7 @@ greyed out in the select and must never be silently dropped.
 | `forge/forge-dungeon.js` | generator. **THEMES keys are the biome names**: `grass druidic tundra swamp temple cavern volcanic` | canonical |
 | `forge/forge-engine.js` | versioned profile router: staged legacy combat maps or intentional Temple preview; five stage fingerprints | canonical |
 | `forge/forge-temple-terraces.js` | pure intentional Temple generator: broad 0/5/10/15-ft regions, three variants, route-owned stairs, construction profiles, semantic validation, no spawns | canonical preview |
+| `forge/forge-deployment.js` | versioned DM deployment authority: group roles/policies, regional flags, deterministic formations, manual pins, exact roster/session positions | canonical preview |
 | `forge/forge-board.js` | translator: wire↔board verbs (turn loop, prompt routing, initiative, overseer toolbar incl. GOD MODE/rewind/Add-foe). Move verbs self-contained: walk prefers the declared path, falls back to `payload.path` (2026-07-11). `deadFoeSkip(state)` — pure dead-foe-holds-the-turn decision; the mock's overseer device publishes the skip (`?v=fb5`) | canonical |
 | `schema_delta_forge_board.sql` | append-only migration: `forge_claim_unit()` claim RPC + session visibility for players | **presumed applied to live Supabase** (M's bite-1 field rounds ran two-device, which needs it — confirm with M, do not assert) |
 | `forge/tests/smoke-tiers-rebase.js` | rebase smoke: canonical `ForgeEngine.generate()` on real seeds, §4-geometry invariants hold | canonical |

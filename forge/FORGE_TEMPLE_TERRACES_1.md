@@ -1,6 +1,6 @@
 # Forge Temple Terraces contract · version 1
 
-Status: **Workshop preview**. The intentional terrain generator is implemented; DM deployment groups and encounter promotion are not part of this slice.
+Status: **Workshop preview**. Intentional terrain and DM deployment groups are implemented; shared-table/reconnect field approval remains the promotion gate.
 
 ## Identity
 
@@ -125,7 +125,9 @@ One bounded local repair may clear obstructing decor and restore declared stair 
 
 Temple Terraces is visible and inspectable in Workshop, including route-purpose diagnostics. It cannot start local combat, Roll Initiative, or Save for later while `templeDeploymentPending()` is true. Those doors remain visible and narrate that DM deployment flags are required.
 
-This slice does **not** implement deployment flags. Promotion from `preview` to `active` requires the separate deployment-group and encounter-integration plans: any number of Party, Ally/NPC, and Enemy groups, DM-authored flags, deterministic formation around each flag, exact persistence, and reconnect/replay reconstruction.
+`forge-deployment.js` implements any number of Party, Ally/NPC, and Enemy groups, DM-authored regional flags, deterministic local formations, per-unit manual pins, and exact versioned persistence. Local combat and shared-session start consume the resolved positions; rows without a versioned deployment record retain the historical compatibility placement.
+
+Promotion from `preview` to `active` now requires the signed-in two-device field pass: staged-row inspection, Roll Initiative, reconnect/replay reconstruction, Save for later/reopen, and one legacy-row regression check.
 
 ## Legacy connectors and bridges
 
@@ -142,7 +144,8 @@ Staged legacy generation does not select structural bridges, and `findBridgeReci
 5. Compare Temple, Druidic, Tundra, and Volcanic construction.
 6. Confirm no bridge appears in Temple or staged legacy generation.
 7. Confirm staged legacy maps no longer receive decorative 5-foot connectors.
-8. Attempt local combat, Roll Initiative, and Save for later; confirm each narrates the deployment dependency.
-9. Save/reload a legacy encounter and confirm historical behavior remains unchanged.
+8. Confirm unresolved groups narrate the dependency; then place all flags and verify exact local-combat positions.
+9. On two signed-in devices, verify exact shared start, reconnect, and Save for later/reopen positions.
+10. Save/reload a legacy encounter and confirm historical behavior remains unchanged.
 
 Browser observation is the field gate. Automated checks prove deterministic contracts, not visual usability.

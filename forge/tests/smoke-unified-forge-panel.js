@@ -15,9 +15,15 @@ has('window.setForgePanelOpen(false);',"combat or party transitions collapse the
 has('id="forgeTableSettings"',"combat settings live inside the unified panel");
 has('setActiveChip("tiers");paintBiomeControl(BIOME)',"bridge search leaves its fallback biome visibly selected");
 has('forge-temple-terraces.js?v=tt1',"unified Workshop loads the intentional Temple generator");
+has('forge-deployment.js?v=fd1',"unified Workshop loads the deployment authority");
 has('Purpose-built Temple terrain is active in Workshop preview.',"Temple preview status is narrated inside the unified Forge panel");
 has('function templeDeploymentPending',"one predicate owns the Temple deployment gate");
 has('Place deployment groups before opening or saving this Temple battlefield.',"shared Temple doors narrate their deployment dependency");
+has('id="deploymentPanel"',"approved deployment cards live in the unified Workshop");
+has('envelope.deployment=deployment',"saved map envelope carries the exact deployment record");
+has('savedRoster=rosterWithDeployment(buildRoster(),savedMap.deployment)',"staged roster receives the exact authored positions");
+has('savedDeployment&&savedDeployment.version===1',"shared start consumes versioned deployment records");
+has('Historical rows keep the established one-time compatibility placement.',"legacy shared rows retain their placement fallback");
 notHas('id="sceneModeMenu"',"the competing black flyout is removed");
 notHas('id="sceneForgeControls"',"the Forge-controls indirection is removed");
 notHas('forge-peek',"the second-panel reveal state is retired");

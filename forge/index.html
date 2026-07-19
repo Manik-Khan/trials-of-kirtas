@@ -27,6 +27,7 @@
 <script src="forge-unit-art.js?v=ua2"></script>
 <script src="forge-temple-terraces.js?v=tt1"></script>
 <script src="forge-engine.js?v=fe9"></script>
+<script src="forge-deployment.js?v=fd1"></script>
 <script src="forge-bridge-authority.js?v=fba1"></script>
 <script src="forge-protocol.js?v=fb1"></script>
 <script src="forge-replay.js?v=fb13"></script>
@@ -618,6 +619,17 @@ global.TacticsGeo=API;
   .fbStagedRow .fname{margin-bottom:0;flex:1;white-space:normal}
   .fbStagedRow .filebtn{flex:none;padding:6px 8px}
   #fbLifecycleMsg{min-height:1.4em;word-break:break-word;white-space:normal}
+  /* Temple deployment authoring — approved standalone mock, 2026-07-18. */
+  #deploymentPanel{display:none}.deploySummary{padding:7px 8px;margin-bottom:7px;border-left:3px solid var(--tk-gold);background:rgba(184,134,58,.08);font:11px/1.35 var(--f-util)}
+  .deployGroup{margin-bottom:8px;padding:8px;border:1px solid var(--tk-line);background:var(--tk-panel-2)}
+  .deployGroup.focus{border-color:var(--tk-gold);box-shadow:inset 3px 0 var(--tk-gold)}
+  .deployHead{display:grid;grid-template-columns:1fr auto;gap:6px;align-items:center;margin-bottom:6px}.deployHead input{min-width:0;width:100%;border:0;border-bottom:1px solid var(--tk-line);background:transparent;color:var(--tk-ink);font:600 12px var(--f-body)}
+  .deployStatus{font:600 8px var(--f-util);text-transform:uppercase;letter-spacing:.1em;color:#a04b3a}.deployStatus.ready{color:#477050}
+  .deploySelects{display:grid;grid-template-columns:1fr 1fr;gap:5px;margin-bottom:6px}.deploySelects select{margin:0;padding:5px;font-size:9px}
+  .deployUnits,.deployUnassigned{display:flex;flex-wrap:wrap;gap:4px;margin:5px 0}.deployUnit{border:1px solid var(--tk-line);background:var(--tk-panel);color:var(--tk-ink);padding:4px 6px;font:9px var(--f-util);cursor:pointer}.deployUnit.manual{border-color:var(--tk-gold);box-shadow:inset 0 -2px var(--tk-gold)}
+  .deployMeta{display:flex;justify-content:space-between;gap:6px;margin:5px 0;color:var(--tk-ink-dim);font:9px/1.3 var(--f-util)}.deployMeta .bad{color:#a04b3a}.deployMeta .good{color:#477050}
+  .deployActions{display:grid;grid-template-columns:1.2fr 1fr 1fr;gap:4px}.deployActions .filebtn{padding:6px 3px;font-size:8px}.deployActions .primary{border-color:var(--tk-gold);background:rgba(184,134,58,.16);color:var(--tk-ink)}
+  .deployMinor{border:0;background:transparent;color:var(--tk-ink-dim);padding:5px 0 0;font:9px var(--f-util);text-decoration:underline;cursor:pointer}.deployMode{color:var(--tk-gold);font-style:italic}
   /* Task 14: foe picker (search the books + shelf strip + picked list) */
   #fpSearch{width:100%;box-sizing:border-box;font-family:var(--f-util);font-size:11px;color:var(--tk-ink);
     background:var(--tk-panel);border:1px solid var(--tk-line);padding:7px 8px;margin-bottom:4px}
@@ -987,6 +999,16 @@ body.forge-author-preview #partySelect{opacity:0;pointer-events:none}
       <label>Foes <span class="val" id="foesVal">5</span></label>
       <input type="range" id="foes" min="1" max="8" value="5">
       <div class="fname" style="margin-top:2px">Fallback headcount — generic goblins, used only when nothing is picked below.</div>
+    </div>
+    <div id="deploymentPanel">
+      <div class="divider"></div>
+      <div class="eyebrow" style="margin-bottom:6px">DEPLOYMENT</div>
+      <div class="deploySummary" id="deploymentSummary">Place every active group before opening the Table.</div>
+      <div id="deploymentGroups"></div>
+      <button class="filebtn" id="deploymentAddGroup" type="button">+ Add group</button>
+      <div class="eyebrow" style="margin:9px 0 5px">Unassigned</div>
+      <div class="deployUnassigned" id="deploymentUnassigned"></div>
+      <div class="fname" id="deploymentMessage" style="white-space:normal">Flags choose the region. Formation seeds only arrange units around that flag.</div>
     </div>
     <!-- Task 11: the two doors (FORGE_BOARD.md §3) — hidden until we know the
          viewer is signed in AND not already inside a session (initLifecyclePanel
@@ -1913,6 +1935,8 @@ function addWorld(geo,col,x,y,z,rot,fogCell){ // mesh + optional inverted-hull o
 
 /* ---- FIELD: {W,H,height,type,footprint,props[]} ---- */
 let F=null;
+var deploymentRenderGroup=new THREE.Group();scene.add(deploymentRenderGroup);
+var DEPLOYMENT_GROUPS=[],DEPLOYMENT_PLANS=null,DEPLOYMENT_PLACE_GROUP=null,DEPLOYMENT_MANUAL=null,DEPLOYMENT_FOCUS=null;
 /* Phase 2 snapshot authority: while a saved session is open, this exact map
    document — not a regenerated recipe — is the geometry source of truth. */
 /* Session identity is needed by the very first rebuild(). Keep this ahead of
@@ -2984,7 +3008,7 @@ window.__enterForge = function(){
 
 function templeDeploymentPending(){
   const intent=F&&F.intent;
-  return !!(intent&&intent.archetype==="temple-terraces"&&!window.__forgeDeploymentReady);
+  return !!(intent&&intent.archetype==="temple-terraces"&&!deploymentReady());
 }
 
 function rebuild(){
@@ -2998,6 +3022,7 @@ function rebuild(){
   if(F && !F.occ) F.occ=EMPTY_OCC(F.W*F.H);
   applyLook();
   renderField();
+  refreshDeploymentPanel();
   if(typeof refreshVerticalGeometryPanel==="function")refreshVerticalGeometryPanel();
   if(window.__fightRoster){
     if(templeDeploymentPending())clog('<i>Temple Terraces needs DM deployment flags before combat can start.</i>');
@@ -3136,10 +3161,98 @@ function forgeSessionMap(){
   map.meta=Object.assign({},map.meta||{},{source:'topography-test-mock',name:F.name||null,renderField:renderFieldSnapshot(F),vertical:F.verticalMeta||null,stageOwnership:F.stageOwnership||null,
     intent:F.intent?JSON.parse(JSON.stringify(F.intent)):null,constructionProfile:F.constructionProfile||null});
   const envelope=gf.encounterEnvelope(map,params,F.generatorMeta||null);
+  const deployment=currentDeploymentRecord();if(deployment)envelope.deployment=deployment;
   envelope.rules={flanking:(typeof FLANK_RULE!=="undefined"?FLANK_RULE:"advantage")};
   return envelope;
 }
 window.__forgeSessionMap=forgeSessionMap;
+
+/* DM-authored Temple deployment. The pure ForgeDeployment module owns every
+   legality and formation decision; this block only edits records and paints
+   its returned facts. Historical maps keep their established placement path. */
+function templeField(){return !!(F&&F.intent&&F.intent.archetype==="temple-terraces");}
+function deploymentMap(){
+  if(!F)return null;var map=combatMapFromF();map.props=(F.props||[]).map(function(p){return Object.assign({},p);});
+  map.meta=Object.assign({},map.meta||{},{intent:F.intent?JSON.parse(JSON.stringify(F.intent)):null});return map;
+}
+function deploymentRosterSource(){return typeof buildRoster==="function"?buildRoster():[];}
+function ensureDeploymentGroups(){
+  if(!templeField()||DEPLOYMENT_GROUPS.length)return;
+  var roster=deploymentRosterSource(),pcs=roster.filter(function(r){return(r.kind||"pc")==="pc";}).map(function(r){return r.unit;}),foes=roster.filter(function(r){return r.kind==="foe";}).map(function(r){return r.unit;});
+  DEPLOYMENT_GROUPS=[
+    {id:"party-main",label:"Main Party",role:"party",controllerPolicy:"unit-owners",unitIds:pcs,anchor:null,formationSeed:window.ForgeDeployment.hash32("party-main"),manualPositions:{}},
+    {id:"enemy-main",label:"Enemies",role:"enemy",controllerPolicy:"overseer",unitIds:foes,anchor:null,formationSeed:window.ForgeDeployment.hash32("enemy-main"),manualPositions:{}}
+  ];DEPLOYMENT_FOCUS="party-main";
+}
+function reconcileDeploymentRoster(){
+  if(!DEPLOYMENT_GROUPS.length)return;var available={};deploymentRosterSource().forEach(function(r){available[r.unit]=true;});
+  DEPLOYMENT_GROUPS.forEach(function(g){g.unitIds=(g.unitIds||[]).filter(function(unit){return available[unit];});Object.keys(g.manualPositions||{}).forEach(function(unit){if(g.unitIds.indexOf(unit)<0)delete g.manualPositions[unit];});});
+}
+function computeDeployment(){
+  if(!templeField()||!window.ForgeDeployment)return null;ensureDeploymentGroups();reconcileDeploymentRoster();
+  DEPLOYMENT_PLANS=window.ForgeDeployment.planDraft(deploymentMap(),DEPLOYMENT_GROUPS);return DEPLOYMENT_PLANS;
+}
+function deploymentReady(){var draft=computeDeployment();return !!(draft&&draft.ok&&draft.groups.length);}
+function currentDeploymentRecord(){
+  if(!templeField())return null;var draft=computeDeployment();return draft?window.ForgeDeployment.deploymentRecord(DEPLOYMENT_GROUPS,draft):null;
+}
+function rosterWithDeployment(roster,record){
+  return window.ForgeDeployment.applyToRoster(roster,record);
+}
+function deploymentColor(role){return role==="party"?0xc99a38:role==="ally"?0x4f8a72:0xa14c43;}
+function clearDeploymentMarkers(){while(deploymentRenderGroup.children.length){var o=deploymentRenderGroup.children[0];deploymentRenderGroup.remove(o);o.traverse(function(n){if(n.geometry)n.geometry.dispose();if(n.material)n.material.dispose();});}}
+function deploymentMarker(at,color,radius){
+  var ring=new THREE.Mesh(new THREE.RingGeometry(radius*.48,radius,20),new THREE.MeshBasicMaterial({color:color,transparent:true,opacity:.94,side:THREE.DoubleSide,depthWrite:false,depthTest:false}));
+  ring.rotation.x=-Math.PI/2;ring.position.set(wxc(at.c),tierY(at.c,at.r)+.09,wzc(at.r));ring.renderOrder=6;return ring;
+}
+function flagMesh(at,color){
+  var y=tierY(at.c,at.r),group=new THREE.Group(),pole=new THREE.Mesh(new THREE.CylinderGeometry(.025,.025,.9,8),new THREE.MeshBasicMaterial({color:0x231b12}));
+  pole.position.set(wxc(at.c),y+.45,wzc(at.r));var flag=new THREE.Mesh(new THREE.PlaneGeometry(.48,.27),new THREE.MeshBasicMaterial({color:color,side:THREE.DoubleSide,depthTest:false}));
+  flag.position.set(wxc(at.c)+.25,y+.76,wzc(at.r));flag.renderOrder=7;group.add(deploymentMarker(at,color,.52),pole,flag);return group;
+}
+function renderDeploymentMarkers(){
+  clearDeploymentMarkers();if(!templeField()||SESSION_ID||(typeof CB!=="undefined"&&CB&&CB.active))return;var draft=DEPLOYMENT_PLANS||computeDeployment();if(!draft)return;
+  draft.plans.forEach(function(plan){var color=deploymentColor(plan.group.role);if(plan.group.anchor)deploymentRenderGroup.add(flagMesh(plan.group.anchor,color));
+    Object.keys(plan.positions||{}).forEach(function(unit){deploymentRenderGroup.add(deploymentMarker(plan.positions[unit],color,.34));});});
+}
+function deploymentUnitName(unit){var row=deploymentRosterSource().filter(function(r){return r.unit===unit;})[0];return row&&row.name||unit.replace(/^foe-/,'').replace(/-/g,' ');}
+function deploymentSay(text,bad){var el=document.getElementById("deploymentMessage");if(el){el.textContent=text;el.style.color=bad?"#a04b3a":"";}}
+function renderDeploymentPanel(){
+  var panel=document.getElementById("deploymentPanel");if(!panel)return;panel.style.display=templeField()&&!SESSION_ID?"block":"none";if(panel.style.display==="none"){clearDeploymentMarkers();return;}
+  var draft=computeDeployment(),host=document.getElementById("deploymentGroups"),assigned={},ready=0,placed=0,total=0;
+  draft.plans.forEach(function(p){p.group.unitIds.forEach(function(unit){assigned[unit]=true;});if(p.ok)ready++;placed+=p.placedCount;total+=p.requestedCount;});
+  document.getElementById("deploymentSummary").textContent=(draft.ok?"Deployment ready — ":"Deployment incomplete — ")+ready+" / "+draft.plans.length+" groups · "+placed+" / "+total+" combatants positioned.";
+  host.innerHTML=draft.plans.map(function(p){var g=p.group,region=p.regionId||"No flag",focus=DEPLOYMENT_FOCUS===g.id;
+    var units=g.unitIds.map(function(unit){var manual=g.manualPositions&&g.manualPositions[unit];return '<span><button class="deployUnit'+(manual?' manual':'')+'" data-manual-unit="'+escapeHtml(unit)+'" data-gid="'+g.id+'" title="Pin this combatant on the map">'+escapeHtml(deploymentUnitName(unit))+(manual?' · pinned':'')+'</button><button class="deployMinor" data-unassign="'+escapeHtml(unit)+'" data-gid="'+g.id+'" title="Unassign"> ×</button></span>';}).join('');
+    return '<div class="deployGroup'+(focus?' focus':'')+'" data-gid="'+g.id+'"><div class="deployHead"><input data-deploy-name="'+g.id+'" value="'+escapeHtml(g.label)+'"><span class="deployStatus'+(p.ok?' ready':'')+'">'+(p.ok?'ready':'unresolved')+'</span></div>'
+      +'<div class="deploySelects"><select data-deploy-role="'+g.id+'"><option value="party"'+(g.role==='party'?' selected':'')+'>Party</option><option value="ally"'+(g.role==='ally'?' selected':'')+'>Ally / NPC</option><option value="enemy"'+(g.role==='enemy'?' selected':'')+'>Enemy</option></select><select data-deploy-policy="'+g.id+'"><option value="unit-owners"'+(g.controllerPolicy==='unit-owners'?' selected':'')+'>Unit owners</option><option value="overseer"'+(g.controllerPolicy==='overseer'?' selected':'')+'>Overseer</option></select></div>'
+      +'<div class="deployUnits">'+(units||'<span class="fname">No combatants assigned.</span>')+'</div><div class="deployMeta"><span>'+escapeHtml(region)+' · seed '+g.formationSeed+'</span><span class="'+(p.ok?'good':'bad')+'">'+p.placedCount+'/'+p.requestedCount+' positioned</span></div>'
+      +'<div class="deployActions"><button class="filebtn primary" data-deploy-flag="'+g.id+'">'+(g.anchor?'Move flag':'Place flag')+'</button><button class="filebtn" data-deploy-reseed="'+g.id+'">Reseed</button><button class="filebtn" data-deploy-clear="'+g.id+'">Clear pins</button></div>'
+      +(g.unitIds.length>1?'<button class="deployMinor" data-deploy-split="'+g.id+'">Split group →</button>':'')+'</div>';
+  }).join('');
+  var unassigned=deploymentRosterSource().filter(function(r){return !assigned[r.unit];});document.getElementById("deploymentUnassigned").innerHTML=unassigned.length?unassigned.map(function(r){return '<button class="deployUnit" data-deploy-assign="'+escapeHtml(r.unit)+'">'+escapeHtml(r.name||r.unit)+'</button>';}).join(''):'<span class="fname">Everyone is assigned once.</span>';
+  bindDeploymentPanel();renderDeploymentMarkers();
+}
+function refreshDeploymentPanel(){renderDeploymentPanel();}
+function deploymentGroup(id){return DEPLOYMENT_GROUPS.filter(function(g){return g.id===id;})[0];}
+function bindDeploymentPanel(){var host=document.getElementById("deploymentPanel");if(!host)return;
+  host.querySelectorAll("[data-deploy-flag]").forEach(function(b){b.onclick=function(){DEPLOYMENT_PLACE_GROUP=b.dataset.deployFlag;DEPLOYMENT_MANUAL=null;DEPLOYMENT_FOCUS=DEPLOYMENT_PLACE_GROUP;deploymentSay("Click an open platform cell to place "+deploymentGroup(DEPLOYMENT_PLACE_GROUP).label+"'s flag.");renderDeploymentPanel();};});
+  host.querySelectorAll("[data-deploy-reseed]").forEach(function(b){b.onclick=function(){var g=deploymentGroup(b.dataset.deployReseed);g.formationSeed=(g.formationSeed+1)>>>0;deploymentSay(g.label+" reseeded. No other group moved.");renderDeploymentPanel();};});
+  host.querySelectorAll("[data-deploy-clear]").forEach(function(b){b.onclick=function(){var g=deploymentGroup(b.dataset.deployClear);g.manualPositions={};deploymentSay(g.label+" manual positions cleared.");renderDeploymentPanel();};});
+  host.querySelectorAll("[data-manual-unit]").forEach(function(b){b.onclick=function(){DEPLOYMENT_MANUAL={groupId:b.dataset.gid,unit:b.dataset.manualUnit};DEPLOYMENT_PLACE_GROUP=null;DEPLOYMENT_FOCUS=b.dataset.gid;deploymentSay("Click a legal cell to pin "+deploymentUnitName(b.dataset.manualUnit)+". The group flag stays put.");renderDeploymentPanel();};});
+  host.querySelectorAll("[data-unassign]").forEach(function(b){b.onclick=function(){var g=deploymentGroup(b.dataset.gid);g.unitIds=g.unitIds.filter(function(unit){return unit!==b.dataset.unassign;});delete g.manualPositions[b.dataset.unassign];deploymentSay(deploymentUnitName(b.dataset.unassign)+" is unassigned.");renderDeploymentPanel();};});
+  host.querySelectorAll("[data-deploy-role]").forEach(function(s){s.onchange=function(){deploymentGroup(s.dataset.deployRole).role=s.value;renderDeploymentPanel();};});host.querySelectorAll("[data-deploy-policy]").forEach(function(s){s.onchange=function(){deploymentGroup(s.dataset.deployPolicy).controllerPolicy=s.value;renderDeploymentPanel();};});
+  host.querySelectorAll("[data-deploy-name]").forEach(function(i){i.onchange=function(){deploymentGroup(i.dataset.deployName).label=i.value||"Unnamed group";renderDeploymentPanel();};});
+  host.querySelectorAll("[data-deploy-split]").forEach(function(b){b.onclick=function(){var g=deploymentGroup(b.dataset.deploySplit),units=g.unitIds.splice(Math.ceil(g.unitIds.length/2));if(!units.length)return;var id="deployment-group-"+(DEPLOYMENT_GROUPS.length+1);DEPLOYMENT_GROUPS.push({id:id,label:g.label+" II",role:g.role,controllerPolicy:g.controllerPolicy,unitIds:units,anchor:null,formationSeed:window.ForgeDeployment.hash32(id),manualPositions:{}});DEPLOYMENT_FOCUS=id;deploymentSay("New group created. Place its flag independently.");renderDeploymentPanel();};});
+  host.querySelectorAll("[data-deploy-assign]").forEach(function(b){b.onclick=function(){var g=deploymentGroup(DEPLOYMENT_FOCUS)||DEPLOYMENT_GROUPS[0];if(!g){deploymentSay("Add or select a group first.",true);return;}g.unitIds.push(b.dataset.deployAssign);deploymentSay(deploymentUnitName(b.dataset.deployAssign)+" assigned to "+g.label+".");renderDeploymentPanel();};});
+}
+function placeDeploymentAtPointer(e){
+  var rect=renderer.domElement.getBoundingClientRect();ndc.x=((e.clientX-rect.left)/rect.width)*2-1;ndc.y=-((e.clientY-rect.top)/rect.height)*2+1;ray.setFromCamera(ndc,camera);var hit=ray.intersectObjects(world.children,true)[0];if(!hit){deploymentSay("No battlefield cell there.",true);return;}
+  var at={c:Math.round(hit.point.x+F.W/2-.5),r:Math.round(hit.point.z+F.H/2-.5)},map=deploymentMap();
+  if(DEPLOYMENT_PLACE_GROUP){var g=deploymentGroup(DEPLOYMENT_PLACE_GROUP),before=g.anchor;g.anchor=at;var trial=window.ForgeDeployment.planGroup(map,g);if(trial.errors.some(function(x){return x.indexOf("flag is illegal")>=0||x.indexOf("outside an authored")>=0;})){g.anchor=before;deploymentSay(trial.errors.join(" "),true);return;}DEPLOYMENT_PLACE_GROUP=null;deploymentSay(g.label+" flag placed in "+(trial.regionId||"the map")+"."+(trial.ok?" Formation resolved.":" "+trial.errors.join(" ")),!trial.ok);renderDeploymentPanel();return;}
+  if(DEPLOYMENT_MANUAL){var mg=deploymentGroup(DEPLOYMENT_MANUAL.groupId),old=mg.manualPositions[DEPLOYMENT_MANUAL.unit];mg.manualPositions[DEPLOYMENT_MANUAL.unit]=at;var check=window.ForgeDeployment.planGroup(map,mg);if(check.errors.some(function(x){return x.indexOf(DEPLOYMENT_MANUAL.unit+" manual position is illegal")>=0;})){if(old)mg.manualPositions[DEPLOYMENT_MANUAL.unit]=old;else delete mg.manualPositions[DEPLOYMENT_MANUAL.unit];deploymentSay(check.errors.join(" "),true);return;}var name=deploymentUnitName(DEPLOYMENT_MANUAL.unit);DEPLOYMENT_MANUAL=null;deploymentSay(name+" pinned. Reseeding preserves this cell.");renderDeploymentPanel();}
+}
+var deploymentAddGroup=document.getElementById("deploymentAddGroup");if(deploymentAddGroup)deploymentAddGroup.onclick=function(){var id="deployment-group-"+(DEPLOYMENT_GROUPS.length+1);DEPLOYMENT_GROUPS.push({id:id,label:"New group",role:"enemy",controllerPolicy:"overseer",unitIds:[],anchor:null,formationSeed:window.ForgeDeployment.hash32(id),manualPositions:{}});DEPLOYMENT_FOCUS=id;deploymentSay("Group added. Assign combatants, then place its flag.");renderDeploymentPanel();};
 
 document.getElementById('forgeBtn').onclick=()=>{
   if(SESSION_ID){ clog('<i>The map belongs to the fight — re-forge is disabled during a session.</i>'); return; }
@@ -3288,6 +3401,7 @@ renderer.domElement.addEventListener('pointerdown',e=>{
   drag=true;dragPan=e.shiftKey||e.button===1;lx=e.clientX;ly=e.clientY;moved=0;
 });
 addEventListener('pointerup',e=>{ cameraTouches.delete(e.pointerId); if(cameraTouches.size<2){pinchGap=0;pinchMid=null;} drag=false;
+  if((DEPLOYMENT_PLACE_GROUP||DEPLOYMENT_MANUAL)&&moved<6&&e.target===renderer.domElement){placeDeploymentAtPointer(e);return;}
   if(selectedSprite && moved<6){                       // a click (not an orbit/pan) → place
     const rect=renderer.domElement.getBoundingClientRect();
     ndc.x=((e.clientX-rect.left)/rect.width)*2-1; ndc.y=-((e.clientY-rect.top)/rect.height)*2+1;
@@ -4592,6 +4706,7 @@ function kitFor(key){
    kit — this is the one door kit sourcing widens through. */
 function unitFromRosterRow(row, stateUnit){
   var isPc = (row.kind || "pc") === "pc";
+  var side = ((stateUnit&&stateUnit.side)||row.side||(isPc?"pc":"foe")) === "foe" ? "foe" : "pc";
   var foeKit = isPc ? null : foeKitFromStatblock(row);
   var kit = isPc ? (kitFor(row.sheet_ref) || kitFor(row.unit)) : (foeKit || FOE);
   // Task 16 (bite 1): session-mode live ac/speed/init overlay — unitFromRosterRow
@@ -4611,7 +4726,7 @@ function unitFromRosterRow(row, stateUnit){
   var hpMax = (stateUnit && stateUnit.maxHp != null) ? stateUnit.maxHp : (row.maxHp != null ? row.maxHp : (kit && (kit.hpMax != null ? kit.hpMax : kit.hp)));
   var alive = stateUnit ? !stateUnit.downed : true;
   var badge = (window.__fightControllers && window.__fightControllers[row.unit] && window.__fightControllers[row.unit].badge) || null;
-  var u = buildUnit(kit, isPc ? "pc" : "foe", { id: row.unit, key: isPc ? (row.sheet_ref || row.unit) : row.unit,
+  var u = buildUnit(kit, side, { id: row.unit, key: isPc ? (row.sheet_ref || row.unit) : row.unit,
     unit: row.unit, name: row.name || (kit && kit.name) || row.unit,
     c: pos.c, r: pos.r, hp: hp, hpMax: hpMax, alive: alive, badge: badge,
     tokenArt: (stateUnit&&stateUnit.tokenArt)||row.tokenArt||row.token_url||null,
@@ -5002,6 +5117,15 @@ function startCombatNow(){
   CB={ active:true, over:false, units:[], order:[], ti:-1, map:combatMapFromF(), seen:null, st:null, pending:null, hexed:null,
        log:[], hist:[], hptr:-1, turnStartPtr:-1, react:null };
   var cells=walkable(); if(!cells.length){ CB.active=false; return; }
+  var authored=currentDeploymentRecord();
+  if(templeField()&&authored&&authored.resolved){
+    var selected=window.__fightRoster||[],rows=rosterWithDeployment(buildRoster(),authored).filter(function(row){return(row.kind||"pc")!=="pc"||!selected.length||selected.indexOf(row.unit)>=0;});
+    var missing=rows.filter(function(row){return !row.pos;});if(missing.length){CB.active=false;clog("<i>Deployment is incomplete for "+missing.map(function(row){return escapeHtml(row.name||row.unit);}).join(", ")+".</i>");return;}
+    rows.forEach(function(row){var sourcePc=(row.kind||"pc")==="pc",kit=sourcePc?(kitFor(row.sheet_ref||row.unit)||CHAR[row.sheet_ref||row.unit]):(foeKitFromStatblock(row)||FOE);if(!kit)return;
+      var badge=(window.__fightControllers&&window.__fightControllers[row.unit]&&window.__fightControllers[row.unit].badge)||null;
+      var u=buildUnit(kit,row.side==="foe"?"foe":"pc",{id:row.unit,key:sourcePc?(row.sheet_ref||row.unit):row.unit,unit:row.unit,name:row.name||kit.name,c:row.pos.c,r:row.pos.r,hp:kit.hp,hpMax:(kit.hpMax!=null?kit.hpMax:kit.hp),badge:badge});
+      if(!sourcePc){u.mActions=kit.mActions;u.statblock=row.statblock||null;}CB.units.push(u);makeToken(u);});
+  }else{
   var maxH=cells.reduce(function(m,c){return Math.max(m,c.h);},0), minH=cells.reduce(function(m,c){return Math.min(m,c.h);},99);
   var hi=cells.filter(function(c){return c.h===maxH;}), lo=cells.filter(function(c){return c.h===minH;});
   var taken={}, roster=window.__fightRoster||[];
@@ -5026,6 +5150,7 @@ function startCombatNow(){
   foeCells.forEach(function(cell,i){
     var u=buildUnit(FOE,"foe",{id:"foe"+i,key:"goblin"+i,unit:"foe"+i,name:FOE.name+" "+(i+1),c:cell.x,r:cell.y,hp:FOE.hp,hpMax:FOE.hp});
     CB.units.push(u); makeToken(u); });
+  }
   CB.units.forEach(function(u){ u.init=d(20)+u.initMod; });
   CB.order=CB.units.slice().sort(function(a,b){ return b.init-a.init||b.initMod-a.initMod; });
   resetLocalEffects(CB.order.map(function(x){return x.unit||x.key||x.id;}));
@@ -7294,7 +7419,7 @@ function renderFoePicked(){
     var total = FOE_PICKED.reduce(function(s, p){ return s + p.count; }, 0);
     headEl.textContent = total ? '— ' + total + ' picked' : '— nothing picked';
   }
-  if (!FOE_PICKED.length) { el.innerHTML = '<div class="fname">Nothing picked — the Foes slider above fills in generic goblins.</div>'; return; }
+  if (!FOE_PICKED.length) { el.innerHTML = '<div class="fname">Nothing picked — the Foes slider above fills in generic goblins.</div>'; refreshDeploymentPanel(); return; }
   el.innerHTML = FOE_PICKED.map(function(p, i){
     return '<div class="fpRow"><span class="fpName" title="' + escapeHtml(p.name) + '">' + escapeHtml(p.name) + '</span>'
       + '<button class="fpStep" data-i="' + i + '" data-d="-1">−</button>'
@@ -7316,6 +7441,7 @@ function renderFoePicked(){
   el.querySelectorAll('.fpStar').forEach(function(btn){
     btn.onclick = function(){ var p = FOE_PICKED[+btn.dataset.i]; saveFoeToShelf(p.name, p.statblock, btn); };
   });
+  refreshDeploymentPanel();
 }
 // ★ save-back (FORGE_BOARD.md §6): additive, matching combat.html's
 // saveMonsterCopy — every press inserts a fresh saved_monsters row (no
@@ -7409,8 +7535,9 @@ function buildRoster(){
    swapped for the real generator output. Shared by both doors. */
 async function openTable(uid){
   try {
+    var savedMap=__forgeSessionMap(),savedRoster=rosterWithDeployment(buildRoster(),savedMap.deployment);
     var ins = await sb.from('forge_sessions').insert({
-      overseer: uid, map: __forgeSessionMap(), roster: buildRoster(), controllers: {}, status: 'staging'
+      overseer: uid, map: savedMap, roster: savedRoster, controllers: {}, status: 'staging'
     }).select('id').single();
     if (ins.error) return { ok: false, why: ins.error.message };
     return { ok: true, id: ins.data.id };
@@ -8270,20 +8397,29 @@ async function startFight(){
       }
       var resKit=kitFor(r.sheet_ref||r.unit)||CHAR[r.sheet_ref||r.unit];r.resources=normalizeResourceRecord(resKit&&resKit.res||r.resources||{});
     });
-    // b) placements, computed once here (not replayed — the overseer's own roll)
-    var cells=walkable();
-    if(!cells.length) throw new Error("no walkable cells on this map");
-    var maxH=cells.reduce(function(m,c){return Math.max(m,c.h);},0), minH=cells.reduce(function(m,c){return Math.min(m,c.h);},99);
-    var hi=cells.filter(function(c){return c.h===maxH;}), lo=cells.filter(function(c){return c.h===minH;});
-    var pcRows=roster.filter(function(r){return (r.kind||"pc")==="pc";});
-    var foeRows=roster.filter(function(r){return r.kind==="foe";});
-    var taken={};
-    var pcCells=clusterAround(cells, hi[(hi.length/2)|0]||cells[0], pcRows.length, taken, PC_SPREAD);
-    var foeCells=clusterAround(cells, foeAnchor(cells,pcCells,taken)||lo[(lo.length/2)|0]||cells[cells.length-1], foeRows.length, taken, FOE_SPREAD);
-    if(pcCells.short) clog("<i>Only "+pcCells.length+" of "+pcRows.length+" party cells found; the rest sit this one out.</i>");
-    if(foeCells.short) clog("<i>Only "+foeCells.length+" of "+foeRows.length+" foe cells found.</i>");
-    pcRows.forEach(function(r,i){ var cell=pcCells[i]; if(cell) r.pos={c:cell.x,r:cell.y}; });
-    foeRows.forEach(function(r,i){ var cell=foeCells[i]; if(cell) r.pos={c:cell.x,r:cell.y}; });
+    // b) New authored encounters already carry exact DM-approved deployment.
+    // Historical rows keep the established one-time compatibility placement.
+    var savedDeployment=sess.row.map&&sess.row.map.deployment;
+    if(savedDeployment&&savedDeployment.version===1){
+      if(!savedDeployment.resolved)throw new Error("saved deployment is unresolved");
+      roster=rosterWithDeployment(roster,savedDeployment);
+      var missing=roster.filter(function(r){return !r.pos;});
+      if(missing.length)throw new Error("deployment has no exact position for "+missing.map(function(r){return r.name||r.unit;}).join(", "));
+    }else{
+      var cells=walkable();
+      if(!cells.length) throw new Error("no walkable cells on this map");
+      var maxH=cells.reduce(function(m,c){return Math.max(m,c.h);},0), minH=cells.reduce(function(m,c){return Math.min(m,c.h);},99);
+      var hi=cells.filter(function(c){return c.h===maxH;}), lo=cells.filter(function(c){return c.h===minH;});
+      var pcRows=roster.filter(function(r){return (r.kind||"pc")==="pc";});
+      var foeRows=roster.filter(function(r){return r.kind==="foe";});
+      var taken={};
+      var pcCells=clusterAround(cells, hi[(hi.length/2)|0]||cells[0], pcRows.length, taken, PC_SPREAD);
+      var foeCells=clusterAround(cells, foeAnchor(cells,pcCells,taken)||lo[(lo.length/2)|0]||cells[cells.length-1], foeRows.length, taken, FOE_SPREAD);
+      if(pcCells.short) clog("<i>Only "+pcCells.length+" of "+pcRows.length+" party cells found; the rest sit this one out.</i>");
+      if(foeCells.short) clog("<i>Only "+foeCells.length+" of "+foeRows.length+" foe cells found.</i>");
+      pcRows.forEach(function(r,i){ var cell=pcCells[i]; if(cell) r.pos={c:cell.x,r:cell.y}; });
+      foeRows.forEach(function(r,i){ var cell=foeCells[i]; if(cell) r.pos={c:cell.x,r:cell.y}; });
+    }
     // c) commit: row first (unlocks event writes — RLS blocks forge_events
     //    inserts on a non-active session, §3), then the session_started event
     var upd=await sess.sb.from("forge_sessions").update({ roster:roster, status:"active" }).eq("id", sess.row.id);

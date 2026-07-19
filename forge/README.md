@@ -27,20 +27,24 @@ unfinished job, tracked in `CONTEXT_Forge.md` §3.
 - **forge-engine.js** — control + completion + reliability. One call,
   `ForgeEngine.generate(params)`, returns a finished, verified map. Legacy
   profiles include PC/foe spawns; intentional Temple preview deliberately
-  returns none until the DM deployment slice. Depends on forge-dungeon,
+  returns none because placement belongs to the separate DM deployment record. Depends on forge-dungeon,
   forge-temple-terraces, map-bridge, and forge-generator-foundation.
   Global: `window.ForgeEngine`.
 - **forge-temple-terraces.js** — pure intent-owned Temple generator. Produces
   broad 0/5/10/15-ft regions, axial/switchback/ring variants, route-owned
   multi-point stairs, construction profiles, and semantic validation. It never
   places combatants or bridges. Global: `window.ForgeTempleTerraces`.
+- **forge-deployment.js** — pure versioned deployment authority. Resolves
+  Party, Ally/NPC, and Enemy groups around DM flags inside authored intent
+  regions; preserves manual pins; serializes exact positions; and applies them
+  to local/shared rosters. Global: `window.ForgeDeployment`.
 - **map-bridge.js** — the seam. Converts generator output (dungeon grid or
   topography heightfield) into the combat map contract. Global: `window.MapBridge`.
 - **tactics-geometry.js** — the combat rules module (movement, cliffs, LoS,
   cover, ranges). The **canonical source of truth** for this file.
   Global: `window.TacticsGeo`.
 
-All five are dual-export (browser `window.*` **and** Node `module.exports`), so
+All six are dual-export (browser `window.*` **and** Node `module.exports`), so
 the Node test harness and the browser game share the exact same code.
 
 ## The map document
@@ -94,9 +98,11 @@ requires zero generated spawns.
 
 Fresh `temple-terraces` records select generator version
 `2.1.0-temple.1` and profile `intentional-archetype`. Workshop renders the
-purpose-built terrain and labels it `preview`; local combat, Roll Initiative,
-and Save for later narrate that DM deployment groups are still required.
-Temple returns `spawns: []`. Explicit old recipe profiles and saved snapshots
+purpose-built terrain and labels it `preview`. Its Deployment section authors
+any number of groups, flags, seeded formations, and manual pins; unresolved
+groups narrate and block local/shared promotion. Resolved positions are stored
+exactly in the map envelope and roster and consumed at combat start. Temple
+still returns `spawns: []`. Explicit old recipe profiles and saved snapshots
 retain their historical authority. Full contract: `FORGE_TEMPLE_TERRACES_1.md`.
 
 Staged legacy generation no longer decorates ordinary 5-ft edges with stairs
