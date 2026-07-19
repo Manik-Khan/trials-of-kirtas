@@ -25,7 +25,7 @@ const joat=FK.initiativeProfileFor(stale,[],{init:1});
 ok("Jack of All Trades repairs a stale sheet total",joat.modifier===2&&joat.staticSources.some(s=>s.key==="jack-of-all-trades"&&s.value===1));
 ok("recognized initiative features repair stale totals without a false warning",joat.warnings.length===0&&!joat.staticSources.some(s=>s.key==="sheet-remainder"));
 
-ok("foes use broad wall-aware line of sight instead of the 60-ft detail mask",html.includes("function discoveryCellVisible(c,r){var D=discoveryApi();return !!(D&&DISCOVERY.ready&&discoveryStateAt(c,r)===D.VISIBLE)")&&html.includes("function foeVisible(u)"));
+ok("foes use direct wall-aware combat sight instead of the cleaned terrain mask",html.includes("function discoveryCellTargetable(c,r)")&&html.includes("return discoveryCellTargetable(u.c,u.r)"));
 ok("distant foes remain visible but soften",html.includes("CREATURE_CLEAR_FT=100")&&html.includes("CREATURE_SOFT_MAX_FT=240")&&html.includes("discoveryCreatureClarityAt"));
 ok("weapon range remains separate from visual recognition",html.includes("weapon range still decides")&&html.includes("a creature\n   does not vanish merely because it is 65 feet away"));
 

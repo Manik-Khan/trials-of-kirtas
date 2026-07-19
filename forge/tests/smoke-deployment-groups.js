@@ -15,12 +15,18 @@ function anchor(map,regionId,taken){
 }
 function group(id,label,role,units,at,seed,manual){return{id,label,role,controllerPolicy:role==="party"?"unit-owners":"overseer",unitIds:units,anchor:at,formationSeed:seed,manualPositions:manual||{}};}
 
-ok("deployment module is dual-exported",Deploy.VERSION===1&&typeof Deploy.planGroup==="function"&&globalThis.ForgeDeployment===Deploy);
+ok("deployment module is dual-exported",Deploy.VERSION===2&&typeof Deploy.planGroup==="function"&&globalThis.ForgeDeployment===Deploy);
 ok("deployment roles map onto existing combat sides",Deploy.roleSide("party")==="pc"&&Deploy.roleSide("ally")==="pc"&&Deploy.roleSide("enemy")==="foe");
 const map=temple(5),partyAnchor=anchor(map,"approach"),allyAnchor=anchor(map,"upper-court"),enemyAnchor=anchor(map,"lower-court");
 const party=group("party-main","Main Party","party",["caim","cosmere","liadan","vesperian"],partyAnchor,21);
 const ally=group("ally-wardens","Sanctuary Wardens","ally",["avel","guard"],allyAnchor,8,{avel:allyAnchor});
 const enemy=group("enemy-raiders","North Gate Raiders","enemy",["g1","g2","g3","g4"],enemyAnchor,13);
+const moved=Deploy.assignUnit([party,enemy],"caim","enemy-raiders");
+ok("one assignment moves a combatant between groups without duplication",moved[0].unitIds.indexOf("caim")<0&&moved[1].unitIds.filter(u=>u==="caim").length===1);
+const unassigned=Deploy.assignUnit(moved,"caim","");
+ok("unassigning removes the combatant from every group",unassigned.every(g=>g.unitIds.indexOf("caim")<0));
+const removedGroup=Deploy.removeGroup([party,enemy],"enemy-raiders");
+ok("removing a group leaves its combatants safely unassigned",removedGroup.length===1&&removedGroup[0].id==="party-main"&&!removedGroup.some(g=>g.unitIds.indexOf("g1")>=0));
 const a=Deploy.planDraft(map,[party,ally,enemy]),replay=Deploy.planDraft(map,[party,ally,enemy]);
 ok("multiple Party Ally and Enemy groups resolve together",a.ok&&a.plans.length===3&&Object.keys(a.positions).length===10);
 ok("identical flags and formation seeds repeat exactly",same(a,replay));

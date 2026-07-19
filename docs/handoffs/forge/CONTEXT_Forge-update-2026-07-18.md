@@ -18,7 +18,7 @@ Implemented in this slice:
 - real engine, renderer, Vertical Geometry diagnostics, snapshot, and cache-stamped production integration;
 - no Temple bridges and no automatic combatant placement;
 - approved DM deployment cards for any number of Party, Ally/NPC, and Enemy groups;
-- DM-authored regional flags, deterministic per-group formations, per-unit manual pins, split groups, and local reseeding;
+- DM-authored regional flags, deterministic per-group formations, per-unit manual pins, explicit per-unit group menus, removable/split groups, and local reseeding;
 - exact versioned deployment persistence in the map envelope and staged roster;
 - exact authored placement at local combat and shared-session start, with the legacy placement path retained for old rows;
 - one narrated preview gate while any active group is unresolved;
@@ -150,6 +150,16 @@ could hide foes that combat already allowed players to attack. The live path now
 uses per-cell discovery states only and discovery authority is `1.4.0`
 (`forge-discovery.js?v=fd6`).
 
+The 10:18 AM deployment pass rejected focus-dependent membership and the old
+bestiary-replaces-fallback rule. Deployment authority v2 gives every assigned
+or unassigned combatant an explicit group menu; moving a unit removes it from
+its prior group, and removing a group leaves its units safely unassigned. Base
+goblins now remain stable while bestiary picks are added with collision-free
+IDs; the base count can be set to zero for a fully custom roster. The 10:22 AM
+window test also proved the connected terrain mask was still an improper
+creature gate. Terrain keeps that visual cleanup, while foes now use a direct
+`losVerdict` from the current player sight source.
+
 Correction validation: **450 checks green across 13 focused suites**. The real
 Workshop render kept the whole Temple present, moved the colored sight footprint
 cell-by-cell when the preview eye moved, and retained grey memory behind it.
@@ -187,7 +197,7 @@ Do not begin `bridge-crossing` by re-enabling random legacy bridge selection. Pu
 ## Deployment discipline
 
 M reviews, commits, and pushes. Codex does not push. Current slice stamps:
-`forge-deployment.js?v=fd1`, `forge-generator-foundation.js?v=g2g1`,
+`forge-deployment.js?v=fd2`, `forge-generator-foundation.js?v=g2g1`,
 `forge-temple-terraces.js?v=tt1`, `forge-engine.js?v=fe10`,
 `forge-render-power.js?v=frp1`, `forge-architecture.js?v=fa4`, and
 `forge-discovery.js?v=fd6`, `forge-kit-derive.js?v=b9`.

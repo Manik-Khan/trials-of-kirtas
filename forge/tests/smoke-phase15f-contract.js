@@ -22,7 +22,7 @@ has(html,'function buildFogVeil','unexplored space uses one continuous mask veil
 has(html,'new THREE.CanvasTexture(canvas)','the veil is driven by one map-space state texture');
 ok(!html.includes('obj.scale.set(1.025,height,1.025)'), 'overlapping tall fog boxes were removed');
 has(html,'function foeVisible(u){','the established foeVisible seam is implemented');
-has(html,"return discoveryCellVisible(u.c,u.r)",'player-facing foe visibility is keyed to the foe map cell');
+has(html,"return discoveryCellTargetable(u.c,u.r)",'player-facing foe visibility uses the direct combat sight verdict');
 has(html,"function viewerFeedEvent(row)",'hidden enemy outcomes have a Player View feed sanitizer');
 has(html,"unit:'__unseen_foe__'",'hidden attackers are anonymized rather than leaked through the feed');
 has(html,"pushEvent(redactEnemyDefenseEvent(viewerFeedEvent(r)))",'authoritative echoes pass through the viewer-safe feed seam');

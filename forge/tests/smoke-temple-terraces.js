@@ -67,6 +67,6 @@ ok("Temple selector labels preview honestly",html.includes("def.status==='previe
 ok("Temple preview exposes a deployment guard",html.includes("function templeDeploymentPending"));
 ok("local start refuses automatic Temple placement until authored",html.includes("Temple Terraces needs DM deployment flags before combat can start."));
 ok("local start consumes exact authored Temple positions",html.includes("templeField()&&authored&&authored.resolved")&&html.includes("c:row.pos.c,r:row.pos.r"));
-ok("shared start consumes exact saved Temple positions",html.includes("savedDeployment&&savedDeployment.version===1")&&html.includes("deployment has no exact position for"));
+ok("shared start consumes exact saved Temple positions",html.includes("savedDeployment&&[1,2].indexOf(Number(savedDeployment.version))>=0")&&html.includes("deployment has no exact position for"));
 ok("shared table creation refuses unresolved Temple deployment",html.includes("Place deployment groups before opening or saving this Temple battlefield."));
 console.log("\n"+pass+" Temple Terraces checks green");

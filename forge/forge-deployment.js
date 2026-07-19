@@ -1,4 +1,4 @@
-/* Forge deployment-group authority · version 1
+/* Forge deployment-group authority · version 2
    Pure deterministic planning over an accepted map snapshot. The map authors
    regions and routes; the DM-authored flag is the only regional anchor. */
 (function (root, factory) {
@@ -8,7 +8,7 @@
 })(typeof window !== "undefined" ? window : globalThis, function () {
   "use strict";
 
-  var VERSION = 1;
+  var VERSION = 2;
   var ROLES = Object.freeze({ PARTY: "party", ALLY: "ally", ENEMY: "enemy" });
   var CONTROLLER_POLICIES = Object.freeze({ UNIT_OWNERS: "unit-owners", OVERSEER: "overseer" });
 
@@ -56,6 +56,23 @@
       formationSeed: Number.isFinite(Number(input.formationSeed)) ? Number(input.formationSeed) >>> 0 : hash32(id),
       manualPositions: manual
     };
+  }
+
+  function assignUnit(inputs, unit, groupId) {
+    unit = String(unit || "").trim(); groupId = String(groupId || "").trim();
+    var target = null, groups = (Array.isArray(inputs) ? inputs : []).map(normalizeGroup);
+    groups.forEach(function (group) {
+      group.unitIds = group.unitIds.filter(function (id) { return id !== unit; });
+      delete group.manualPositions[unit];
+      if (group.id === groupId) target = group;
+    });
+    if (unit && target) target.unitIds.push(unit);
+    return groups;
+  }
+
+  function removeGroup(inputs, groupId) {
+    groupId = String(groupId || "").trim();
+    return (Array.isArray(inputs) ? inputs : []).map(normalizeGroup).filter(function (group) { return group.id !== groupId; });
   }
 
   function mapIntent(map) { return map && map.meta && map.meta.intent || map && map.intent || null; }
@@ -248,6 +265,8 @@
     ROLES: ROLES,
     CONTROLLER_POLICIES: CONTROLLER_POLICIES,
     normalizeGroup: normalizeGroup,
+    assignUnit: assignUnit,
+    removeGroup: removeGroup,
     regionForPoint: regionForPoint,
     deploymentBlocked: deploymentBlocked,
     cellLegality: cellLegality,

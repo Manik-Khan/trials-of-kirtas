@@ -27,7 +27,7 @@
 <script src="forge-unit-art.js?v=ua2"></script>
 <script src="forge-temple-terraces.js?v=tt1"></script>
 <script src="forge-engine.js?v=fe10"></script>
-<script src="forge-deployment.js?v=fd1"></script>
+<script src="forge-deployment.js?v=fd2"></script>
 <script src="forge-bridge-authority.js?v=fba1"></script>
 <script src="forge-protocol.js?v=fb1"></script>
 <script src="forge-replay.js?v=fb13"></script>
@@ -628,10 +628,10 @@ global.TacticsGeo=API;
   .deployHead{display:grid;grid-template-columns:1fr auto;gap:6px;align-items:center;margin-bottom:6px}.deployHead input{min-width:0;width:100%;border:0;border-bottom:1px solid var(--tk-line);background:transparent;color:var(--tk-ink);font:600 12px var(--f-body)}
   .deployStatus{font:600 8px var(--f-util);text-transform:uppercase;letter-spacing:.1em;color:#a04b3a}.deployStatus.ready{color:#477050}
   .deploySelects{display:grid;grid-template-columns:1fr 1fr;gap:5px;margin-bottom:6px}.deploySelects select{margin:0;padding:5px;font-size:9px}
-  .deployUnits,.deployUnassigned{display:flex;flex-wrap:wrap;gap:4px;margin:5px 0}.deployUnit{border:1px solid var(--tk-line);background:var(--tk-panel);color:var(--tk-ink);padding:4px 6px;font:9px var(--f-util);cursor:pointer}.deployUnit.manual{border-color:var(--tk-gold);box-shadow:inset 0 -2px var(--tk-gold)}
+  .deployUnits,.deployUnassigned{display:flex;flex-direction:column;gap:4px;margin:5px 0}.deployMember{display:grid;grid-template-columns:minmax(0,1fr) minmax(92px,.9fr);gap:4px;align-items:center}.deployMember select{min-width:0;margin:0;padding:4px;font-size:8px}.deployUnit{min-width:0;border:1px solid var(--tk-line);background:var(--tk-panel);color:var(--tk-ink);padding:4px 6px;font:9px var(--f-util);cursor:pointer;text-align:left;overflow:hidden;text-overflow:ellipsis}.deployUnit.manual{border-color:var(--tk-gold);box-shadow:inset 0 -2px var(--tk-gold)}
   .deployMeta{display:flex;justify-content:space-between;gap:6px;margin:5px 0;color:var(--tk-ink-dim);font:9px/1.3 var(--f-util)}.deployMeta .bad{color:#a04b3a}.deployMeta .good{color:#477050}
   .deployActions{display:grid;grid-template-columns:1.2fr 1fr 1fr;gap:4px}.deployActions .filebtn{padding:6px 3px;font-size:8px}.deployActions .primary{border-color:var(--tk-gold);background:rgba(184,134,58,.16);color:var(--tk-ink)}
-  .deployMinor{border:0;background:transparent;color:var(--tk-ink-dim);padding:5px 0 0;font:9px var(--f-util);text-decoration:underline;cursor:pointer}.deployMode{color:var(--tk-gold);font-style:italic}
+  .deployMinor{border:0;background:transparent;color:var(--tk-ink-dim);padding:5px 0 0;margin-right:8px;font:9px var(--f-util);text-decoration:underline;cursor:pointer}.deployMode{color:var(--tk-gold);font-style:italic}
   /* Approved Temple architecture preview: small authored blocks, not a second generator. */
   #architecturePanel{display:none}.architectureTools{display:grid;grid-template-columns:1fr 1fr;gap:5px;margin-bottom:6px}
   .architectureTools .filebtn{padding:7px 3px}.architectureTools .active{border-color:var(--tk-gold);background:rgba(184,134,58,.18);color:var(--tk-ink)}
@@ -1003,9 +1003,9 @@ body.forge-author-preview #partySelect{opacity:0;pointer-events:none}
       <input type="range" id="decor" min="0" max="100" value="70">
     </div>
     <div class="slider-wrap">
-      <label>Foes <span class="val" id="foesVal">5</span></label>
-      <input type="range" id="foes" min="1" max="8" value="5">
-      <div class="fname" style="margin-top:2px">Fallback headcount — generic goblins, used only when nothing is picked below.</div>
+      <label>Base goblins <span class="val" id="foesVal">5</span></label>
+      <input type="range" id="foes" min="0" max="8" value="5">
+      <div class="fname" style="margin-top:2px">Base encounter count. Bestiary picks are added without clearing these goblins or their group.</div>
     </div>
     <div id="deploymentPanel">
       <div class="divider"></div>
@@ -1041,14 +1041,14 @@ body.forge-author-preview #partySelect{opacity:0;pointer-events:none}
            style="margin-bottom:6px;cursor:pointer;user-select:none">
         <span id="fpArrow">▸</span> Bestiary <span id="fpHeadCount" style="opacity:.6;font-weight:400;text-transform:none;letter-spacing:0">— nothing picked</span></div>
       <div id="fpBody" style="display:none">
-        <div class="fname" style="margin-bottom:4px">Picked foes replace the Foes-slider goblins at Start fight.</div>
+        <div class="fname" style="margin-bottom:4px">Picked foes are added to the base goblins. Assign each new foe to any deployment group below.</div>
         <input id="fpSearch" type="text" placeholder="Search the bestiary…" autocomplete="off">
         <div class="fname" id="fpSearchStatus"></div>
         <div id="fpBookResults"></div>
         <div class="eyebrow" style="margin:9px 0 6px">Shelf</div>
         <div id="fpShelf"><div class="fname">Loading…</div></div>
         <div class="eyebrow" style="margin:9px 0 6px">Picked</div>
-        <div id="fpPicked"><div class="fname">Nothing picked — the Foes slider above fills in generic goblins.</div></div>
+        <div id="fpPicked"><div class="fname">No extra foes picked.</div></div>
       </div>
     </div>
     <div class="divider"></div>
@@ -3273,20 +3273,24 @@ function renderDeploymentMarkers(){
 }
 function deploymentUnitName(unit){var row=deploymentRosterSource().filter(function(r){return r.unit===unit;})[0];return row&&row.name||unit.replace(/^foe-/,'').replace(/-/g,' ');}
 function deploymentSay(text,bad){var el=document.getElementById("deploymentMessage");if(el){el.textContent=text;el.style.color=bad?"#a04b3a":"";}}
+function deploymentMembershipOptions(selected,prompt){
+  var first=prompt?'<option value="" selected>Choose group…</option>':'<option value="">Unassigned</option>';
+  return first+DEPLOYMENT_GROUPS.map(function(g){return '<option value="'+escapeHtml(g.id)+'"'+(g.id===selected?' selected':'')+'>'+escapeHtml(g.label)+'</option>';}).join('');
+}
 function renderDeploymentPanel(){
   var panel=document.getElementById("deploymentPanel");if(!panel)return;panel.style.display=templeField()&&!SESSION_ID?"block":"none";if(panel.style.display==="none"){clearDeploymentMarkers();return;}
   var draft=computeDeployment(),host=document.getElementById("deploymentGroups"),assigned={},ready=0,placed=0,total=0;
   draft.plans.forEach(function(p){p.group.unitIds.forEach(function(unit){assigned[unit]=true;});if(p.ok)ready++;placed+=p.placedCount;total+=p.requestedCount;});
   document.getElementById("deploymentSummary").textContent=(draft.ok?"Deployment ready — ":"Deployment incomplete — ")+ready+" / "+draft.plans.length+" groups · "+placed+" / "+total+" combatants positioned.";
   host.innerHTML=draft.plans.map(function(p){var g=p.group,region=p.regionId||"No flag",focus=DEPLOYMENT_FOCUS===g.id;
-    var units=g.unitIds.map(function(unit){var manual=g.manualPositions&&g.manualPositions[unit];return '<span><button class="deployUnit'+(manual?' manual':'')+'" data-manual-unit="'+escapeHtml(unit)+'" data-gid="'+g.id+'" title="Pin this combatant on the map">'+escapeHtml(deploymentUnitName(unit))+(manual?' · pinned':'')+'</button><button class="deployMinor" data-unassign="'+escapeHtml(unit)+'" data-gid="'+g.id+'" title="Unassign"> ×</button></span>';}).join('');
+    var units=g.unitIds.map(function(unit){var manual=g.manualPositions&&g.manualPositions[unit],name=deploymentUnitName(unit);return '<div class="deployMember"><button class="deployUnit'+(manual?' manual':'')+'" data-manual-unit="'+escapeHtml(unit)+'" data-gid="'+escapeHtml(g.id)+'" title="Pin this combatant on the map">'+escapeHtml(name)+(manual?' · pinned':'')+'</button><select data-deploy-membership="'+escapeHtml(unit)+'" aria-label="Group for '+escapeHtml(name)+'">'+deploymentMembershipOptions(g.id,false)+'</select></div>';}).join('');
     return '<div class="deployGroup'+(focus?' focus':'')+'" data-gid="'+g.id+'"><div class="deployHead"><input data-deploy-name="'+g.id+'" value="'+escapeHtml(g.label)+'"><span class="deployStatus'+(p.ok?' ready':'')+'">'+(p.ok?'ready':'unresolved')+'</span></div>'
       +'<div class="deploySelects"><select data-deploy-role="'+g.id+'"><option value="party"'+(g.role==='party'?' selected':'')+'>Party</option><option value="ally"'+(g.role==='ally'?' selected':'')+'>Ally / NPC</option><option value="enemy"'+(g.role==='enemy'?' selected':'')+'>Enemy</option></select><select data-deploy-policy="'+g.id+'"><option value="unit-owners"'+(g.controllerPolicy==='unit-owners'?' selected':'')+'>Unit owners</option><option value="overseer"'+(g.controllerPolicy==='overseer'?' selected':'')+'>Overseer</option></select></div>'
       +'<div class="deployUnits">'+(units||'<span class="fname">No combatants assigned.</span>')+'</div><div class="deployMeta"><span>'+escapeHtml(region)+' · seed '+g.formationSeed+'</span><span class="'+(p.ok?'good':'bad')+'">'+p.placedCount+'/'+p.requestedCount+' positioned</span></div>'
       +'<div class="deployActions"><button class="filebtn primary" data-deploy-flag="'+g.id+'">'+(g.anchor?'Move flag':'Place flag')+'</button><button class="filebtn" data-deploy-reseed="'+g.id+'">Reseed</button><button class="filebtn" data-deploy-clear="'+g.id+'">Clear pins</button></div>'
-      +(g.unitIds.length>1?'<button class="deployMinor" data-deploy-split="'+g.id+'">Split group →</button>':'')+'</div>';
+      +(g.unitIds.length>1?'<button class="deployMinor" data-deploy-split="'+g.id+'">Split group →</button>':'')+(DEPLOYMENT_GROUPS.length>1?'<button class="deployMinor" data-deploy-remove="'+g.id+'">Remove group</button>':'')+'</div>';
   }).join('');
-  var unassigned=deploymentRosterSource().filter(function(r){return !assigned[r.unit];});document.getElementById("deploymentUnassigned").innerHTML=unassigned.length?unassigned.map(function(r){return '<button class="deployUnit" data-deploy-assign="'+escapeHtml(r.unit)+'">'+escapeHtml(r.name||r.unit)+'</button>';}).join(''):'<span class="fname">Everyone is assigned once.</span>';
+  var unassigned=deploymentRosterSource().filter(function(r){return !assigned[r.unit];});document.getElementById("deploymentUnassigned").innerHTML=unassigned.length?unassigned.map(function(r){var name=r.name||r.unit;return '<div class="deployMember"><span class="deployUnit">'+escapeHtml(name)+'</span><select data-deploy-membership="'+escapeHtml(r.unit)+'" aria-label="Group for '+escapeHtml(name)+'">'+deploymentMembershipOptions(null,true)+'</select></div>';}).join(''):'<span class="fname">Everyone is assigned once.</span>';
   bindDeploymentPanel();renderDeploymentMarkers();
 }
 function refreshDeploymentPanel(){renderDeploymentPanel();}
@@ -3296,11 +3300,11 @@ function bindDeploymentPanel(){var host=document.getElementById("deploymentPanel
   host.querySelectorAll("[data-deploy-reseed]").forEach(function(b){b.onclick=function(){var g=deploymentGroup(b.dataset.deployReseed);g.formationSeed=(g.formationSeed+1)>>>0;deploymentSay(g.label+" reseeded. No other group moved.");renderDeploymentPanel();};});
   host.querySelectorAll("[data-deploy-clear]").forEach(function(b){b.onclick=function(){var g=deploymentGroup(b.dataset.deployClear);g.manualPositions={};deploymentSay(g.label+" manual positions cleared.");renderDeploymentPanel();};});
   host.querySelectorAll("[data-manual-unit]").forEach(function(b){b.onclick=function(){ARCHITECTURE_TOOL=null;renderArchitecturePanel();DEPLOYMENT_MANUAL={groupId:b.dataset.gid,unit:b.dataset.manualUnit};DEPLOYMENT_PLACE_GROUP=null;DEPLOYMENT_FOCUS=b.dataset.gid;deploymentSay("Click a legal cell to pin "+deploymentUnitName(b.dataset.manualUnit)+". The group flag stays put.");renderDeploymentPanel();};});
-  host.querySelectorAll("[data-unassign]").forEach(function(b){b.onclick=function(){var g=deploymentGroup(b.dataset.gid);g.unitIds=g.unitIds.filter(function(unit){return unit!==b.dataset.unassign;});delete g.manualPositions[b.dataset.unassign];deploymentSay(deploymentUnitName(b.dataset.unassign)+" is unassigned.");renderDeploymentPanel();};});
+  host.querySelectorAll("[data-deploy-membership]").forEach(function(s){s.onchange=function(){var unit=s.dataset.deployMembership,target=s.value;DEPLOYMENT_GROUPS=window.ForgeDeployment.assignUnit(DEPLOYMENT_GROUPS,unit,target);if(target)DEPLOYMENT_FOCUS=target;deploymentSay(deploymentUnitName(unit)+(target?' assigned to '+deploymentGroup(target).label+'.':' is unassigned.'));renderDeploymentPanel();};});
   host.querySelectorAll("[data-deploy-role]").forEach(function(s){s.onchange=function(){deploymentGroup(s.dataset.deployRole).role=s.value;renderDeploymentPanel();};});host.querySelectorAll("[data-deploy-policy]").forEach(function(s){s.onchange=function(){deploymentGroup(s.dataset.deployPolicy).controllerPolicy=s.value;renderDeploymentPanel();};});
   host.querySelectorAll("[data-deploy-name]").forEach(function(i){i.onchange=function(){deploymentGroup(i.dataset.deployName).label=i.value||"Unnamed group";renderDeploymentPanel();};});
-  host.querySelectorAll("[data-deploy-split]").forEach(function(b){b.onclick=function(){var g=deploymentGroup(b.dataset.deploySplit),units=g.unitIds.splice(Math.ceil(g.unitIds.length/2));if(!units.length)return;var id="deployment-group-"+(DEPLOYMENT_GROUPS.length+1);DEPLOYMENT_GROUPS.push({id:id,label:g.label+" II",role:g.role,controllerPolicy:g.controllerPolicy,unitIds:units,anchor:null,formationSeed:window.ForgeDeployment.hash32(id),manualPositions:{}});DEPLOYMENT_FOCUS=id;deploymentSay("New group created. Place its flag independently.");renderDeploymentPanel();};});
-  host.querySelectorAll("[data-deploy-assign]").forEach(function(b){b.onclick=function(){var g=deploymentGroup(DEPLOYMENT_FOCUS)||DEPLOYMENT_GROUPS[0];if(!g){deploymentSay("Add or select a group first.",true);return;}g.unitIds.push(b.dataset.deployAssign);deploymentSay(deploymentUnitName(b.dataset.deployAssign)+" assigned to "+g.label+".");renderDeploymentPanel();};});
+  host.querySelectorAll("[data-deploy-split]").forEach(function(b){b.onclick=function(){var g=deploymentGroup(b.dataset.deploySplit),units=g.unitIds.splice(Math.ceil(g.unitIds.length/2));if(!units.length)return;var id=nextDeploymentGroupId();DEPLOYMENT_GROUPS.push({id:id,label:g.label+" II",role:g.role,controllerPolicy:g.controllerPolicy,unitIds:units,anchor:null,formationSeed:window.ForgeDeployment.hash32(id),manualPositions:{}});DEPLOYMENT_FOCUS=id;deploymentSay("New group created. Place its flag independently.");renderDeploymentPanel();};});
+  host.querySelectorAll("[data-deploy-remove]").forEach(function(b){b.onclick=function(){var g=deploymentGroup(b.dataset.deployRemove),count=g&&g.unitIds.length||0;DEPLOYMENT_GROUPS=window.ForgeDeployment.removeGroup(DEPLOYMENT_GROUPS,b.dataset.deployRemove);DEPLOYMENT_FOCUS=DEPLOYMENT_GROUPS[0]&&DEPLOYMENT_GROUPS[0].id||null;deploymentSay((g&&g.label||'Group')+' removed. '+count+' combatant'+(count===1?' is':'s are')+' now unassigned.');renderDeploymentPanel();};});
 }
 function placeDeploymentAtPointer(e){
   var rect=renderer.domElement.getBoundingClientRect();ndc.x=((e.clientX-rect.left)/rect.width)*2-1;ndc.y=-((e.clientY-rect.top)/rect.height)*2+1;ray.setFromCamera(ndc,camera);var hit=ray.intersectObjects(world.children,true)[0];if(!hit){deploymentSay("No battlefield cell there.",true);return;}
@@ -3308,7 +3312,8 @@ function placeDeploymentAtPointer(e){
   if(DEPLOYMENT_PLACE_GROUP){var g=deploymentGroup(DEPLOYMENT_PLACE_GROUP),before=g.anchor;g.anchor=at;var trial=window.ForgeDeployment.planGroup(map,g);if(trial.errors.some(function(x){return x.indexOf("flag is illegal")>=0||x.indexOf("outside an authored")>=0;})){g.anchor=before;deploymentSay(trial.errors.join(" "),true);return;}DEPLOYMENT_PLACE_GROUP=null;deploymentSay(g.label+" flag placed in "+(trial.regionId||"the map")+"."+(trial.ok?" Formation resolved.":" "+trial.errors.join(" ")),!trial.ok);renderDeploymentPanel();return;}
   if(DEPLOYMENT_MANUAL){var mg=deploymentGroup(DEPLOYMENT_MANUAL.groupId),old=mg.manualPositions[DEPLOYMENT_MANUAL.unit];mg.manualPositions[DEPLOYMENT_MANUAL.unit]=at;var check=window.ForgeDeployment.planGroup(map,mg);if(check.errors.some(function(x){return x.indexOf(DEPLOYMENT_MANUAL.unit+" manual position is illegal")>=0;})){if(old)mg.manualPositions[DEPLOYMENT_MANUAL.unit]=old;else delete mg.manualPositions[DEPLOYMENT_MANUAL.unit];deploymentSay(check.errors.join(" "),true);return;}var name=deploymentUnitName(DEPLOYMENT_MANUAL.unit);DEPLOYMENT_MANUAL=null;deploymentSay(name+" pinned. Reseeding preserves this cell.");renderDeploymentPanel();}
 }
-var deploymentAddGroup=document.getElementById("deploymentAddGroup");if(deploymentAddGroup)deploymentAddGroup.onclick=function(){var id="deployment-group-"+(DEPLOYMENT_GROUPS.length+1);DEPLOYMENT_GROUPS.push({id:id,label:"New group",role:"enemy",controllerPolicy:"overseer",unitIds:[],anchor:null,formationSeed:window.ForgeDeployment.hash32(id),manualPositions:{}});DEPLOYMENT_FOCUS=id;deploymentSay("Group added. Assign combatants, then place its flag.");renderDeploymentPanel();};
+function nextDeploymentGroupId(){var n=1;while(deploymentGroup('deployment-group-'+n))n++;return 'deployment-group-'+n;}
+var deploymentAddGroup=document.getElementById("deploymentAddGroup");if(deploymentAddGroup)deploymentAddGroup.onclick=function(){var id=nextDeploymentGroupId();DEPLOYMENT_GROUPS.push({id:id,label:"New group",role:"enemy",controllerPolicy:"overseer",unitIds:[],anchor:null,formationSeed:window.ForgeDeployment.hash32(id),manualPositions:{}});DEPLOYMENT_FOCUS=id;deploymentSay("Group added. Use each combatant's group menu, then place its flag.");renderDeploymentPanel();};
 
 /* Approved Temple architecture preview. Generator output remains immutable;
    this small record is applied after generation and saved beside the exact map
@@ -3927,6 +3932,7 @@ function refreshDiscovery(force){
    badges and interactions still require the tighter detail mask, but a creature
    does not vanish merely because it is 65 feet away in open daylight. */
 function discoveryCellVisible(c,r){var D=discoveryApi();return !!(D&&DISCOVERY.ready&&discoveryStateAt(c,r)===D.VISIBLE);}
+function discoveryCellTargetable(c,r){var D=discoveryApi(),target={c:c,r:r};return !!(D&&DISCOVERY.ready&&(DISCOVERY.currentSources||[]).some(function(src){return D.lineVisible(CB.map,src,target,TG);}));}
 document.addEventListener('forge:viewerMode',function(){refreshDiscovery(true);syncAllUnitVisuals();drawHi();drawSight();});
 
 /* ── PHASE 1.5e: persistent effect ledger ─────────────────────────────
@@ -4481,7 +4487,7 @@ function makeToken(u){
    then a selected unit takes its side colour; then the ACTIVE unit glows on its
    turn — gold if a PC, red if a foe (so you can see which enemy is attacking),
    the foe-red gated on visibility for the not-yet-built hidden system. */
-function foeVisible(u){ if(!u||u.side!=='foe')return true; if(!discoveryPlayerView())return true; return discoveryCellVisible(u.c,u.r); }
+function foeVisible(u){ if(!u||u.side!=='foe')return true; if(!discoveryPlayerView())return true; return discoveryCellTargetable(u.c,u.r); }
 /* A hidden foe may still change a visible PC's HP. Player View narrates that
    consequence without leaking the attacker's identity or bespoke action name.
    This is presentation-only; the authoritative row and replay remain intact. */
@@ -7606,7 +7612,7 @@ function renderFoePicked(){
     var total = FOE_PICKED.reduce(function(s, p){ return s + p.count; }, 0);
     headEl.textContent = total ? '— ' + total + ' picked' : '— nothing picked';
   }
-  if (!FOE_PICKED.length) { el.innerHTML = '<div class="fname">Nothing picked — the Foes slider above fills in generic goblins.</div>'; refreshDeploymentPanel(); return; }
+  if (!FOE_PICKED.length) { el.innerHTML = '<div class="fname">No extra foes picked.</div>'; refreshDeploymentPanel(); return; }
   el.innerHTML = FOE_PICKED.map(function(p, i){
     return '<div class="fpRow"><span class="fpName" title="' + escapeHtml(p.name) + '">' + escapeHtml(p.name) + '</span>'
       + '<button class="fpStep" data-i="' + i + '" data-d="-1">−</button>'
@@ -7692,29 +7698,21 @@ function wireFoePicker(){
   });
 }
 
-/* Task 14's real roster: PC rows unchanged (every CHAR key, as before);
-   foe rows come from the picked list (shelf/book taps in the panel above),
-   COPIED (deep-cloned) statblocks so a fight never changes because a source
-   file updated (spec FORGE_BOARD.md §6). Nothing picked → falls back to the
-   old N generic goblins sized by the Foes slider (labelled as a fallback in
-   the panel). Replace wholesale, not incrementally: nothing else in this
-   file should grow its own opinion about roster shape. */
+/* Task 14's real roster: PC rows unchanged (every CHAR key, as before). The
+   base slider owns generic goblins; bestiary picks add deep-cloned statblocks
+   without deleting those goblins or their authored deployment membership. */
 function buildRoster(){
   var pcs = Object.keys(CHAR).map(function(key){ return { unit: key, kind: 'pc', sheet_ref: key }; });
-  var foes = [];
-  if (FOE_PICKED.length){
-    FOE_PICKED.forEach(function(p){
-      var slug = foeSlug(p.name);
-      for (var n = 1; n <= p.count; n++){
-        foes.push({ unit: 'foe-' + slug + '-' + n, kind: 'foe', name: p.name + ' ' + n,
-          statblock: JSON.parse(JSON.stringify(p.statblock)) });
-      }
-    });
-  } else {
-    var foeN = Math.max(1, +document.getElementById('foes').value || 1);
-    for (var i = 1; i <= foeN; i++) foes.push({ unit: 'foe-goblin-' + i, kind: 'foe', name: 'Goblin ' + i,
-      bestiary:{name:'Goblin',source:'MM'} });
-  }
+  var foes = [], foeN = Math.max(0, +document.getElementById('foes').value || 0);
+  for (var i = 1; i <= foeN; i++) foes.push({ unit: 'foe-goblin-' + i, kind: 'foe', name: 'Goblin ' + i,
+    bestiary:{name:'Goblin',source:'MM'} });
+  FOE_PICKED.forEach(function(p){
+    var slug = foeSlug(p.name);
+    for (var n = 1; n <= p.count; n++){
+      foes.push({ unit: 'foe-picked-' + slug + '-' + n, kind: 'foe', name: p.name + ' ' + n,
+        statblock: JSON.parse(JSON.stringify(p.statblock)) });
+    }
+  });
   return pcs.concat(foes);
 }
 /* Task 11: insert one forge_sessions row, status 'staging' — the exact shape
@@ -8591,7 +8589,7 @@ async function startFight(){
     // b) New authored encounters already carry exact DM-approved deployment.
     // Historical rows keep the established one-time compatibility placement.
     var savedDeployment=sess.row.map&&sess.row.map.deployment;
-    if(savedDeployment&&savedDeployment.version===1){
+    if(savedDeployment&&[1,2].indexOf(Number(savedDeployment.version))>=0){
       if(!savedDeployment.resolved)throw new Error("saved deployment is unresolved");
       roster=rosterWithDeployment(roster,savedDeployment);
       var missing=roster.filter(function(r){return !r.pos;});
