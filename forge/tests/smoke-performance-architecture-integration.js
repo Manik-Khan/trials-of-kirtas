@@ -5,7 +5,7 @@ let pass = 0, fail = 0;
 function ok(name, cond) { if (cond) pass++; else { fail++; console.log('FAIL: ' + name); } }
 
 ok('render-power authority is cache stamped', html.includes('forge-render-power.js?v=frp1'));
-ok('architecture authority is cache stamped', html.includes('forge-architecture.js?v=fa1'));
+ok('architecture authority is cache stamped', html.includes('forge-architecture.js?v=fa2'));
 ok('Balanced and High Fidelity are visible local choices', html.includes('data-render-quality="balanced"') && html.includes('data-render-quality="high"'));
 ok('Balanced is the initial selected profile', /data-render-quality="balanced" class="active"/.test(html));
 ok('hidden tabs pause the frame scheduler', html.includes("FORGE_RENDER_SCHEDULER.setPaused(document.hidden)"));

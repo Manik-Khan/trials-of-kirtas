@@ -1,4 +1,5 @@
 const A = require('../forge-architecture.js');
+const Engine = require('../forge-engine.js');
 
 let pass = 0, fail = 0;
 function ok(name, cond) { if (cond) pass++; else { fail++; console.log('FAIL: ' + name); } }
@@ -49,6 +50,14 @@ const states = A.regionStates(regions, [{ c: 1, r: 2 }], [{ c: 0, r: 0 }]);
 ok('current region becomes fully visible', A.regionStateAt(regions, states, 1, 2) === 2);
 ok('prior region becomes grey memory', A.regionStateAt(regions, states, 0, 0) === 1);
 ok('unentered regions default to grey unknown', A.regionStateAt(regions, {}, 0, 2) === 0);
+
+const temple = Engine.generateDetailed({ seed: 7, themeKey: 'temple', generatorProfile: 'intentional-archetype', archetype: 'temple-terraces', roomCount: 8 }).map;
+const optionalRoute = temple.meta.intent.routes.find(route => !route.required);
+const optionalConnector = temple.connectors.find(connector => connector.id === optionalRoute.connectorIds[0]);
+const optionalMiddle = optionalConnector.path[1];
+const authoredTemple = A.apply(temple, A.record([{ c: optionalMiddle.c, r: optionalMiddle.r, kind: 'wall' }]));
+ok('real Temple optional connector closes under an authored wall', authoredTemple.connectors.find(c => c.id === optionalConnector.id).state === 'closed');
+ok('real vertical contract accepts the explicit optional closure', Engine._internals.validateVerticalRecords(authoredTemple));
 
 console.log(`smoke-architecture: ${pass} passed, ${fail} failed`);
 process.exitCode = fail ? 1 : 0;

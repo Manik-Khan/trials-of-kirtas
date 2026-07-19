@@ -59,7 +59,7 @@ ok("decor seed changes props only",decorScene.stageFingerprints.decor!==engineSc
 const foesScene=detail({foes:baseSeeds.foes+1});
 ok("foes seed cannot place units before deployment",same(foesScene.stageFingerprints,engineScene.stageFingerprints)&&foesScene.map.spawns.length===0);
 const html=fs.readFileSync(path.join(root,"index.html"),"utf8");
-ok("production loads the Temple module before the engine",html.indexOf("forge-temple-terraces.js?v=tt1")>=0&&html.indexOf("forge-temple-terraces.js?v=tt1")<html.indexOf("forge-engine.js?v=fe9"));
+ok("production loads the Temple module before the engine",html.indexOf("forge-temple-terraces.js?v=tt1")>=0&&html.indexOf("forge-temple-terraces.js?v=tt1")<html.indexOf("forge-engine.js?v=fe10"));
 ok("stair renderer consumes the complete connector path",html.includes("function stairConnectorPath")&&html.includes("for(let segment=0;segment<path.length-1;segment++)"));
 ok("connector rendering consumes saved construction profiles",html.includes("connectorConstructionMaterial")&&html.includes("constructionProfile"));
 ok("Vertical Geometry reports route purpose",html.includes("purposeLabel")&&html.includes("primary ascent"));
