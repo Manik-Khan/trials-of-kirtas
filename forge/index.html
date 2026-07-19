@@ -32,6 +32,7 @@
 <script src="forge-protocol.js?v=fb1"></script>
 <script src="forge-replay.js?v=fb13"></script>
 <script src="forge-combat-rules.js?v=fcr3"></script>
+<script src="forge-foe-ai.js?v=fai1"></script>
 <script src="forge-effects.js?v=fe4"></script>
 <script src="forge-initiative.js?v=fi2"></script>
 <script src="forge-discovery.js?v=fd7"></script>
@@ -47,7 +48,7 @@
 <script src="forge-action-damage.js?v=fad1"></script>
 <script src="forge-damage-evidence.js?v=fde3"></script>
 <script src="forge-feed-render.js?v=ffr5"></script>
-<script src="forge-hud.js?v=b2"></script>
+<script src="forge-hud.js?v=b3"></script>
 <script src="forge-table-correctness.js?v=fg7"></script>
 <script src="../item-icons.js?v=b3"></script>
 <script src="../spell-icons.js?v=b3"></script>
@@ -69,7 +70,7 @@
      is available before the module body below runs; unitFromRosterRow reads
      it lazily (at spawn time), so load order relative to the module tag
      doesn't matter beyond "before first spawn". -->
-<script src="../monster-actor.js?v=fb1"></script>
+<script src="../monster-actor.js?v=ma2"></script>
 <script>/* ── inlined canonical forge/tactics-geometry.js — MUST stay code-identical ── */
 /* ════════════════════════════════════════════════════════════════════
    tactics-geometry.js — pure map-geometry rules over the MAP DOCUMENT.
@@ -1118,6 +1119,7 @@ body.forge-author-preview #partySelect{opacity:0;pointer-events:none}
       <div class="divider"></div>
       <div class="eyebrow">TABLE SETTINGS</div>
       <button class="sceneMenuBtn" id="sceneViewerMode" type="button" hidden><span>Presentation</span><b>Staff View</b></button>
+      <button class="sceneMenuBtn" id="sceneEnemyTurns" type="button" hidden><span>Enemy turns</span><b>Automatic</b></button>
       <button class="sceneMenuBtn" id="sceneFlankingRule" type="button" hidden><span>Flanking</span><b>Advantage</b></button>
       <button class="sceneMenuBtn" id="sceneCoverAudit" type="button" hidden><span>Geometry</span><b>Run cover audit</b></button>
       <button class="sceneMenuBtn" id="sceneVerticalOverlay" type="button" hidden><span>Height</span><b>Show connectors</b></button>
@@ -2748,7 +2750,20 @@ var SPRITES = {
 };
 
 const ROSTER_SPRITE = { cosmere:"knight", caim:"monk", liadan:"bard", vesperian:"fighter" };
-const FOE_SPRITE = "goblin";
+function foeSpriteKey(u){
+  var text=String(u&&u.name||'')+' '+String(u&&u.statblock&&u.statblock.name||'');
+  if(!/goblin/i.test(text))return null;
+  if(/chief|chieftain|boss/i.test(text))return 'chief';
+  if(/archer|bow/i.test(text)||u&&u.actions&&u.actions.some(function(a){return /bow/i.test(a.label||'');}))return 'gobArcher';
+  return 'goblin';
+}
+function foeSpriteVariant(u){var s=String(u&&u.unit||u&&u.id||u&&u.name||'g');var h=0;for(var i=0;i<s.length;i++)h=(Math.imul(h,31)+s.charCodeAt(i))>>>0;return h%4;}
+function variantPalette(pal,variant){
+  var p=Object.assign({},pal);if(!variant)return p;
+  var skin=[null,'#6f9548','#4f834b','#71833f'][variant],cloth=[null,'#665039','#465a43','#5d3f39'][variant];
+  ['e','E','g'].forEach(function(k){if(p[k])p[k]=skin;});if(p.G)p.G=[null,'#526f38','#3f6841','#59672f'][variant];
+  if(p.c)p.c=cloth;if(p.v)p.v=[null,'#443329','#303b2d','#452d2a'][variant];return p;
+}
 
 /* ── #1 · SPRITE OUTLINES (baked) + SELECTION/TARGET GLOW ───────────────
    Stacked sprites on adjacent squares were unreadable. Each sprite now
@@ -2799,15 +2814,15 @@ function glowPixelCanvas(rows,palette,px,color){
   paintOutline(c.getContext("2d"),m,px,color); return c;
 }
 const _spriteTex={};
-function spriteTex(key){
-  if(_spriteTex[key]) return _spriteTex[key];
+function spriteTex(key,variant){
+  var cacheKey=key+'@'+(variant||0);if(_spriteTex[cacheKey]) return _spriteTex[cacheKey];
   const spr=SPRITES[key]; if(!spr) return null;
-  const t=new THREE.CanvasTexture(outlinedPixelCanvas(spr.px, spr.pal, 8, OUTLINE_INK));   // #1: baked ink contour
+  const t=new THREE.CanvasTexture(outlinedPixelCanvas(spr.px, variantPalette(spr.pal,variant||0), 8, OUTLINE_INK));   // #1: baked ink contour
   t.magFilter=THREE.NearestFilter; t.minFilter=THREE.NearestFilter;   // pixels stay pixels
   t.generateMipmaps=false;
   // aspect accounts for the +2 padding the outline mask adds all round
-  _spriteTex[key]={ tex:t, aspect:(spr.px[0].length+2)/(spr.px.length+2) };
-  return _spriteTex[key];
+  _spriteTex[cacheKey]={ tex:t, aspect:(spr.px[0].length+2)/(spr.px.length+2) };
+  return _spriteTex[cacheKey];
 }
 const GLOW_SEL="#e8b53a", GLOW_TGT="#c0402f";
 const _glowTex={};
@@ -4445,13 +4460,21 @@ function nudgeSprite(sp){
     sp.matrixWorld.elements[14]-=__nudgeDir.z;
   };
 }
+function loadFoeStandeeArt(u,sp){
+  var resolved=u._tokenArtResolved||unitArtResolution(u);if(!resolved||!resolved.url)return;
+  function load(url,onFail){new THREE.TextureLoader().load(url,function(tex){
+    if(u.sprite!==sp){tex.dispose();return;}tex.colorSpace=THREE.SRGBColorSpace;tex.magFilter=THREE.LinearFilter;tex.minFilter=THREE.LinearMipmapLinearFilter;
+    var image=tex.image||{},aspect=(Number(image.width)||1)/(Number(image.height)||1),old=sp.material.map;sp.material.map=tex;sp.material.needsUpdate=true;sp.scale.set(2.05*aspect,2.05,1);if(old&&old!==tex)old.dispose();requestForgeRender();
+  },undefined,onFail);}
+  load(resolved.url,function(){if(resolved.fallbackUrl&&resolved.fallbackUrl!==resolved.url)load(resolved.fallbackUrl,function(){});});
+}
 function makeToken(u){
   requestForgeRender();
   disposeDownedMarker(u);
   var X=wxc(u.c),Z=wzc(u.r),Y=tierY(u.c,u.r);
   u.bobPhase=u.bobPhase!=null?u.bobPhase:Math.random()*6.28;
   u.shadow=billboard(shadowTex,X,Y+0.05,Z,1.2,0.7,true); tokenGroup.add(u.shadow);
-  u._ves=null;
+  u._ves=null;u._spr=null;
   makeTopToken(u);
   if(u.key==="vesperian" && VES.state==="ready"){
     var aspW=VES.atlas.cell_w/VES.atlas.cell_h, vH=2.15;
@@ -4461,8 +4484,8 @@ function makeToken(u){
     u.sprite.renderOrder=4; nudgeSprite(u.sprite); tokenGroup.add(u.sprite);
     return;
   }
-  var key = u.side==="pc" ? ROSTER_SPRITE[u.key] : FOE_SPRITE;
-  var st  = key && spriteTex(key);
+  var key = u.side==="pc" ? ROSTER_SPRITE[u.key] : foeSpriteKey(u);
+  var st  = key && spriteTex(key,u.side==="foe"?foeSpriteVariant(u):0);
   if(st){
     /* The forge mock used a plane under a fixed camera. This scene orbits,
        so a Sprite — which always faces the camera — is the right primitive.
@@ -4474,8 +4497,10 @@ function makeToken(u){
     u.sprite.position.set(X,Y+0.02,Z);
     u._spr=key; u._glowH=hW;   // #1: remember the sprite key so the glow overlay can be (re)built on select
   } else {
-    // nobody drew this one (Chonkalius, The Wiz) → lettered standee, and it shows
+    // Non-goblins use their already-resolved 5e.tools token as an upright
+    // standee; initials remain the narrated, zero-network fallback.
     u.sprite=billboard(initialTokenTex(u.badge||ROSTER_INIT[u.key]||u.name.charAt(0),seatCol(u)), X,Y+0.02,Z, 2.6, 2/3, false);
+    if(u.side==="foe")loadFoeStandeeArt(u,u.sprite);
   }
   u.sprite.renderOrder=4; nudgeSprite(u.sprite); tokenGroup.add(u.sprite);
   syncGlow(u);   // #1: (re)build the selection/target glow to match current CB.selKey/tgtKey
@@ -4598,7 +4623,7 @@ var RESOURCE_ACTIVATION_SEQ=0;
 function resourceSpendIdFor(u,a){var spend=resourceSpendFor(a);if(!Object.keys(spend).length)return null;return "resource:"+String(u&&u.unit||u&&u.key||"unit")+":"+Date.now()+":"+(++RESOURCE_ACTIVATION_SEQ);}
 function spellFactFields(a){if(!a||!a.spell)return {};var sh=window.ForgeCombatRules.spellCastShape(a);return {spell:true,spell_level:sh.level};}
 
-function hudKitFor(u){var src=u&&kitFor(u.key);if(!src)return src;var kit=Object.assign({},src);kit.pools=(src.pools||[]).map(function(p){var q=Object.assign({},p),key=window.ForgeReplay&&window.ForgeReplay.canonicalResourceKey?window.ForgeReplay.canonicalResourceKey(q.key):q.key;if(u.res&&u.res[key]!=null)q.current=u.res[key];return q;});return kit;}
+function hudKitFor(u){var src=u&&(u.side==='foe'?u.foeHud:kitFor(u.key));if(!src)return src;var kit=Object.assign({},src);kit.pools=(src.pools||[]).map(function(p){var q=Object.assign({},p),key=window.ForgeReplay&&window.ForgeReplay.canonicalResourceKey?window.ForgeReplay.canonicalResourceKey(q.key):q.key;if(u.res&&u.res[key]!=null)q.current=u.res[key];return q;});return kit;}
 function buildUnit(kit, side, opts){
   var isPc = side === "pc";
   var initiativeProfile=JSON.parse(JSON.stringify((kit&&kit.initiativeProfile)||{modifier:(kit&&kit.init)||0,staticSources:[],advantageSources:[],disadvantageSources:[],diceSources:[],auras:[],warnings:[]}));
@@ -4614,7 +4639,11 @@ function buildUnit(kit, side, opts){
     spellcasting: JSON.parse(JSON.stringify((kit && kit.spellcasting) || {})),
     reacted: false, alive: opts.alive !== false, tokenArt: opts.tokenArt || null, bestiary: opts.bestiary || null };
   if (isPc) { u.fly = !!(kit && kit.fly); u.actions = (kit && kit.actions) || []; u.react = (kit && kit.react) || null; u.badge = opts.badge || null; }
-  else { u.save = kit && kit.save; u.atk = kit && kit.atk; }
+  else {
+    u.save = kit && kit.save; u.atk = kit && kit.atk;
+    u.actions = (kit && kit.actions && kit.actions.length) ? kit.actions : (u.atk ? [Object.assign({_tileId:'foe-'+String(u.atk.label||'attack').toLowerCase().replace(/[^a-z0-9]+/g,'-'),kind:'attack'},u.atk)] : []);
+    u.foeHud = kit && kit.foeHud || {foe:true,actions:u.actions,tabs:{attacks:u.actions,spells:[],items:[],feats:[],bonus:[],actions:[]},pools:[]};
+  }
   return u;
 }
 // Task 14: an attack action's note carries "reach 5 ft." / "range 30/120 ft."
@@ -4633,22 +4662,31 @@ function rangeFromNote(note){
   if (m[3]) out.long = Math.max(1, Math.round(Number(m[3]) / 5));
   return out;
 }
-/* Task 14: adapt a roster row's raw 5etools statblock (row.statblock) into
-   the FOE-shaped kit buildUnit already expects — via monster-actor.js
-   (MonsterActor.toCharacter), the same adapter combat.html's HUD will use.
-   Bridges TWO shapes onto the resulting unit:
-     kit.atk     — {label,rng,hit,dmg}, the shape the EXISTING foe AI
-                   (foeTurn) already eats; taken from the adapter's first
-                   attack-type action. No attack-type action parses (e.g. a
-                   pure spellcaster/multiattack-only block) → kit.atk stays
-                   null; foeTurn() narrates a utility note and stands down
-                   rather than throwing (never a broken button).
-     kit.mActions — the adapter's FULL parsed action list, carried onto the
-                   unit as u.mActions for the overseer's foe HUD.
-                   // TODO(bite 2): full foe action HUD — only .atk drives
-                   // play today; mActions is read-only narration fodder.
-   MonsterActor missing/unparseable → null (caller falls back to FOE), same
-   graceful-degradation contract the adapter itself documents. */
+function foeActionFromMonster(a){
+  if(!a||a.type!=='attack')return null;var rf=rangeFromNote(a.note),dmg=a.dmgDice+(a.dmgMod?(a.dmgMod>0?'+':'')+a.dmgMod:'');
+  var out={id:a.id,_tileId:'foe-'+a.id,label:a.label,kind:'attack',tab:'attacks',rng:(rf&&rf.rng)||1,hit:a.hitMod,dmg:dmg,dmgType:a.dmgType||'',desc:a.note||''};
+  if(rf&&rf.long!=null)out.long=rf.long;return out;
+}
+function foeReferenceTile(entry,tab){
+  return {id:'ref-'+tab+'-'+entry.id,_tileId:'ref-'+tab+'-'+entry.id,label:entry.label,tab:tab,reference:true,spell:!!entry.spell,level:entry.level||0,desc:entry.desc||(entry.usage?entry.usage:''),_src:entry.spell?{name:entry.label}:({name:entry.label,entries:entry.entries||[]})};
+}
+function foeHudFrom(mc,actions){
+  var ref=mc.reference||{},actionNames={};actions.forEach(function(a){actionNames[String(a.label||'').toLowerCase()]=true;});
+  var other=(ref.actions||[]).filter(function(a){return !actionNames[String(a.label||'').toLowerCase()];});
+  var extras=other.concat(ref.reactions||[],ref.legendaryActions||[]);
+  return {foe:true,actions:actions,pools:[],tabs:{
+    attacks:actions,
+    spells:(ref.spells||[]).map(function(x){return foeReferenceTile(x,'spells');}),
+    items:(ref.profile||[]).map(function(x){return foeReferenceTile(x,'items');}),
+    feats:(ref.traits||[]).map(function(x){return foeReferenceTile(x,'feats');}),
+    bonus:(ref.bonusActions||[]).map(function(x){return foeReferenceTile(x,'bonus');}),
+    actions:extras.map(function(x){return foeReferenceTile(x,'actions');})
+  }};
+}
+/* Adapt a roster row's raw 5etools statblock into one shared foe kit. Every
+   parsed attack is executable by both the automatic planner and Manual HUD;
+   prose-only actions, traits, spell lists, reactions, and creature details
+   remain readable reference tiles rather than pretending to be resolved rules. */
 function foeKitFromStatblock(row){
   if (!row.statblock) return null;
   if (!window.MonsterActor) {
@@ -4662,17 +4700,10 @@ function foeKitFromStatblock(row){
     return null;
   }
   var combat = mc.combat || {};
-  var atkAction = (mc.actions || []).filter(function(a){ return a.type === 'attack'; })[0];
-  var rf = atkAction ? rangeFromNote(atkAction.note) : null;
-  var atk = atkAction ? {
-    label: atkAction.label, rng: (rf && rf.rng) || 1,
-    hit: atkAction.hitMod,
-    dmg: atkAction.dmgDice + (atkAction.dmgMod ? (atkAction.dmgMod > 0 ? '+' : '') + atkAction.dmgMod : ''),
-  } : null;
-  if (atk && rf && rf.long != null) atk.long = rf.long;
+  var actions=(mc.actions||[]).map(foeActionFromMonster).filter(Boolean),atk=actions[0]||null;
   return {
     name: mc.name, hp: combat.hp, hpMax: combat.hpMax, ac: combat.ac, speed: combat.speed, init: combat.initiative,
-    atk: atk, mActions: mc.actions,
+    atk: atk, actions:actions, mActions: mc.actions, reference:mc.reference, foeHud:foeHudFrom(mc,actions),
   };
 }
 /* Task 16 (bite 1): session-mode live-stats overlay. STARTER_KITS' ac/speed/
@@ -4923,13 +4954,11 @@ function unitFromRosterRow(row, stateUnit){
     c: pos.c, r: pos.r, hp: hp, hpMax: hpMax, alive: alive, badge: badge,
     tokenArt: (stateUnit&&stateUnit.tokenArt)||row.tokenArt||row.token_url||null,
     bestiary: row.bestiary || (row.statblock&&{name:row.statblock.name||row.name,source:row.statblock.source}) || null });
-  // TODO(bite 2): full foe action HUD — u.mActions/u.statblock ride along for
-  // the ★ save-back and future action-list rendering; only u.atk drives play.
   if(stateUnit&&stateUnit.resources)u.res=normalizeResourceRecord(stateUnit.resources);
   else if(row.resources)u.res=normalizeResourceRecord(row.resources);
   u.advGrant=(stateUnit&&stateUnit.advGrant)?{reason:stateUnit.advGrant.reason||"granted"}:null;
   u.reacted=!!(stateUnit&&stateUnit.reactionUsed);
-  if (!isPc) { u.mActions = kit && kit.mActions; u.statblock = row.statblock || null; }
+  if (!isPc) { u.mActions = kit && kit.mActions; u.foeReference=kit&&kit.reference;u.statblock = row.statblock || null; }
   else {
     var liveRow=__liveStatsCache&&__liveStatsCache[row.sheet_ref||row.unit];
     var saves=liveRow&&liveRow.structural&&liveRow.structural.saves;
@@ -4971,7 +5000,7 @@ function setActiveFromLog(unitKey, round){
    correct move/action/bonus. No session (local sandbox) \u2192 this no-ops and the
    old local spend() path is untouched. */
 function moveBudget(u){return effectFor(u,"prone")?Math.floor(CB.st.moveLeft/2):CB.st.moveLeft;}
-function rebuildMoveReach(u){CB.seen=(u&&u.side==="pc"&&CB.st&&CB.st.moveLeft>0)?TG.movementReach(CB.map,u,occupied(u),moveBudget(u)):{};}
+function rebuildMoveReach(u){var canMove=u&&(u.side==="pc"||(u.side==="foe"&&!FOE_AUTOMATION));CB.seen=(canMove&&CB.st&&CB.st.moveLeft>0)?TG.movementReach(CB.map,u,occupied(u),moveBudget(u)):{};}
 function applyLogEconomy(){
   if(!window.__forgeSession || !CB.st) return;
   var u=active(); if(!u) return;
@@ -5396,6 +5425,22 @@ function allies(u){ return CB.units.filter(function(x){return x.alive&&x.side===
    drops only the sprite), so the heal target pool simply stops filtering. */
 function alliesForHeal(u){ return CB.units.filter(function(x){return x.side===u.side;}); }
 function downedUnitAt(c,r){ return CB.units.filter(function(x){return !x.alive&&x.c===c&&x.r===r;})[0]||null; }
+
+var FOE_AUTOMATION=(function(){try{return localStorage.getItem('forge.enemyTurns')!=='manual';}catch(_e){return true;}})();
+var FOE_AUTO_TIMER=null,FOE_AUTO_KEY=null;
+function setFoeAutomation(on){
+  FOE_AUTOMATION=!!on;try{localStorage.setItem('forge.enemyTurns',FOE_AUTOMATION?'automatic':'manual');}catch(_e){}
+  if(FOE_AUTO_TIMER){clearTimeout(FOE_AUTO_TIMER);FOE_AUTO_TIMER=null;}FOE_AUTO_KEY=null;
+  rebuildMoveReach(active());refreshSceneMenu();renderHud();
+}
+function scheduleAutomatedFoeTurn(u){
+  var sess=window.__forgeSession;
+  if(!u||u.side!=='foe'){FOE_AUTO_KEY=null;return;}
+  if(!FOE_AUTOMATION||!u.alive||CB.over||CB.react||CB_ANIM||__awaitingCount>0)return;
+  if(sess&&!sess.me.overseer)return;
+  var key=String(u.unit||u.key)+'|'+CB.ti;if(FOE_AUTO_KEY===key)return;FOE_AUTO_KEY=key;
+  FOE_AUTO_TIMER=setTimeout(function(){FOE_AUTO_TIMER=null;if(!FOE_AUTOMATION||!CB.active||CB.over||active()!==u||CB.react||CB_ANIM||__awaitingCount>0)return;runFoe();},420);
+}
 
 /* the shared "a turn begins for u" body \u2014 LOCAL (nextTurn) picks u
    itself by scanning CB.order for the next alive combatant; SESSION
@@ -6397,7 +6442,7 @@ function attackRollReview(u,a,t,ro){
 }
 function clearConfirmTarget(){CONFIRM_TARGET=null;document.body.classList.remove("forge-target-confirm");}
 function selectAction(idx,castChoice){
-  var u=active(); if(!u||u.side!=="pc"||CB.react||CB_ANIM) return; var a=u.actions[idx]; if(!a) return;
+  var u=active(); if(!u||(u.side!=="pc"&&(u.side!=="foe"||FOE_AUTOMATION))||CB.react||CB_ANIM) return; var a=u.actions[idx]; if(!a) return;
   var sess=window.__forgeSession;hideUpcastPick();
   if(sess && (!window.ForgeBoard.controls(sess.me,u.unit) || __awaitingCount>0)) return;
   if(CB.pending===a||(CB.pending&&CB.pending._base===a)){ CB.pending=null;clearConfirmTarget();CB.tgtKey=null;CONTEST_COVER=false; drawHi(); drawSight(); renderHud(); return; }
@@ -6537,7 +6582,7 @@ function combatClick(cx,cy){
      answers "who is that" on ANY turn, from ANY device (same name the
      strip tooltip already leaks; hidden units, when they exist, will have
      no sprite to hit). Targeting a pending action still wins on my turn. */
-  var myTurn = !!u && u.side==="pc" && (!sess || (window.ForgeBoard.controls(sess.me,u.unit) && __awaitingCount===0));
+  var myTurn = !!u && (u.side==="pc"||(u.side==="foe"&&!FOE_AUTOMATION)) && (!sess || (window.ForgeBoard.controls(sess.me,u.unit) && __awaitingCount===0));
   /* ── WYSIWYG targeting (field fix, 2026-07-12 table round 3b) ──────────
      The old picker took the NEAREST sprite quad — but quads are 1.5–2 units
      wide on 1-unit cells and THREE.Sprite raycasting ignores alphaTest, so
@@ -6647,9 +6692,23 @@ function endTurn(){
   if(!CB.active||CB.over||CB.react||CB_ANIM) return;
   var u=active(); if(!u) return;
   var sess=window.__forgeSession;
-  if(sess && (u.side!=="pc" || !window.ForgeBoard.controls(sess.me,u.unit) || __awaitingCount>0)) return;
+  if(sess && ((u.side!=="pc"&&(u.side!=="foe"||FOE_AUTOMATION)) || !window.ForgeBoard.controls(sess.me,u.unit) || __awaitingCount>0)) return;
   clearBadges(); moveGroup.clear(); sightGroup.clear();
   if(sess) netEndTurn(u); else nextTurn();
+}
+
+function foePlanFor(u){
+  if(!window.ForgeFoeAI)return null;syncGeometryCreatures();
+  var targets=CB.units.filter(function(x){return x.alive&&x.side==='pc';});
+  var seen=TG.movementReach(CB.map,u,occupied(u),CB.st?moveBudget(u):Math.floor(u.speed/5));
+  var origins=[{c:u.c,r:u.r,cost:0}];
+  Object.keys(seen).forEach(function(k){var p=k.split(',').map(Number);if((p[0]===u.c&&p[1]===u.r)||unitAt(p[0],p[1]))return;origins.push({c:p[0],r:p[1],cost:Number(seen[k].d)||TG.chebyshev(u,{c:p[0],r:p[1]})});});
+  var plan=window.ForgeFoeAI.planTurn({
+    actions:u.actions||[],targets:targets,origins:origins,
+    evaluate:function(origin,action,target){var oldC=u.c,oldR=u.r,ro;try{u.c=origin.c;u.r=origin.r;ro=reachOK(u,action,target,{silent:true});}finally{u.c=oldC;u.r=oldR;}return Object.assign({},ro,{distanceFt:cbDist(origin,target)});},
+    distance:function(origin,target){return cbDist(origin,target);}
+  });
+  syncGeometryCreatures();return plan;
 }
 
 function foeTurn(){
@@ -6665,19 +6724,19 @@ function foeTurn(){
   }
   if(sess && __awaitingCount>0) return;   // this foe's own previous publish hasn't echoed yet
   var pcs=CB.units.filter(function(x){return x.alive&&x.side==="pc";}); if(!pcs.length){ maybeEnd(); return; }
-  pcs.sort(function(a,b){return TG.chebyshev(u,a)-TG.chebyshev(u,b);});
-  var tgt=pcs[0], atk=u.atk;
-  /* Task 14: exotic statblocks (no parseable attack-type action — pure
-     spellcasters, multiattack-only blocks) degrade to a readable stand-down
-     note instead of throwing on the atk.rng read below — never a broken
-     button, per FORGE_BOARD.md §8. */
+  var plan=foePlanFor(u),tgt=plan&&plan.target,atk=plan&&plan.action;
+  u._foePlanText=plan&&plan.why||'';
+  if(plan&&plan.why)clog('<i><b>'+escapeHtml(u.name)+' · Tactical choice:</b> '+escapeHtml(plan.why)+'</i>');
+  /* Statblocks with no mechanically parsed attack still expose all prose,
+     spells, and traits in the Manual HUD. Automatic mode narrates why it
+     stands rather than manufacturing rules from descriptive text. */
   if(!atk){
     var first=(u.mActions&&u.mActions[0])||null;
     var note=first?(first.label+(first.note?": "+first.note:"")):"has nothing to attack with";
-    clog(u.name+" stands its ground — "+escapeHtml(note)+" <i>(no parsed attack — TODO bite 2 full foe action HUD)</i>");
+    clog(u.name+" stands its ground — "+escapeHtml(note)+" <i>(no executable attack parsed; the full stat block remains in the HUD)</i>");
     renderHud(); foeTurnDone(); return;
   }
-  var canTargetNow=function(target){syncGeometryCreatures();var A={c:u.c,r:u.r},T={c:target.c,r:target.r}; return ((atk.rng||1)<=1?TG.canReachMelee(CB.map,A,T,5):TG.inRange(CB.map,A,T,rangeFt(atk)))&&TG.losVerdict(CB.map,A,T).canTarget; };
+  var canTargetNow=function(target){syncGeometryCreatures();return reachOK(u,atk,target,{silent:true}).ok;};
   var canNow=function(){return canTargetNow(tgt);};
   function strikePhase(){
     if(!u.alive){ renderHud(); foeTurnDone(); return; }
@@ -6720,39 +6779,37 @@ function foeTurn(){
       sanctuaryLostAction(u,atk,old,function(){if(sess)awaitSettled().then(function(){renderHud();foeTurnDone();});else{renderHud();foeTurnDone();}});
     });
   }
-  if(!canNow()){ var seen=TG.movementReach(CB.map,u,occupied(u),Math.floor(u.speed/5)),best=null,bd=1e9;
-    Object.keys(seen).forEach(function(k){var p=k.split(",").map(Number);if(unitAt(p[0],p[1]))return;var dd=TG.chebyshev({c:p[0],r:p[1]},tgt);if(dd<bd){bd=dd;best={c:p[0],r:p[1]};}});
-    if(best){
-      var path=TG.pathTo(seen,{c:u.c,r:u.r},best.c,best.r); if(!path.length) path=[{c:best.c,r:best.r}];
-      clog(u.name+" advances.");
-      if(sess){
-        /* Same fork as PC movement: publish only, no predictive mutation.
-           The shared move declaration now opens any opportunity-attack prompts;
-           its resolved path may be shortened when a reaction downs the mover.
-           The walk paints on every screen only via the echo. strikePhase must
-           wait for the WALK TWEEN to finish (not
-           merely the row to arrive) \u2014 canNow()/reachOK read u.c/u.r live,
-           and those are only current once the echo's walkPath callback has
-           run (see awaitWalkDone / applyVerb's "walk" case). */
-        var walkDone=awaitWalkDone(u.unit);
-        netMove(u,path).then(function(r){
-          if (r && r.ok===false){ __pendingWalkDone=null; return; }   // narrated by netPublishFail; no echo is coming \u2014 this foe's turn stalls here (re-run via the button)
-          walkDone.then(strikePhase);
-        });
-        return;
-      }
-      var before=enemiesThreatening(u);
-      walkPath(u,path,function(){
-        provokeOAs(u,before,function(){          // leaving a PC's reach costs
-          checkReadied(u,function(){             // arriving in a readied sight costs too
-            if(u.alive) boomTrigger(u);
-            snapshot("Foe move");
-            strikePhase();
-          });
-        });
+  var best=plan&&plan.origin&&(plan.origin.c!==u.c||plan.origin.r!==u.r)?{c:plan.origin.c,r:plan.origin.r}:null;
+  if(best){ var seen=TG.movementReach(CB.map,u,occupied(u),CB.st?moveBudget(u):Math.floor(u.speed/5));
+    var path=TG.pathTo(seen,{c:u.c,r:u.r},best.c,best.r); if(!path.length) path=[{c:best.c,r:best.r}];
+    clog(u.name+" moves "+Math.round(cbDist(u,best))+" ft for the chosen position.");
+    if(sess){
+      /* Same fork as PC movement: publish only, no predictive mutation.
+         The shared move declaration now opens any opportunity-attack prompts;
+         its resolved path may be shortened when a reaction downs the mover.
+         The walk paints on every screen only via the echo. strikePhase must
+         wait for the WALK TWEEN to finish (not
+         merely the row to arrive) \u2014 canNow()/reachOK read u.c/u.r live,
+         and those are only current once the echo's walkPath callback has
+         run (see awaitWalkDone / applyVerb's "walk" case). */
+      var walkDone=awaitWalkDone(u.unit);
+      netMove(u,path).then(function(r){
+        if (r && r.ok===false){ __pendingWalkDone=null; return; }   // narrated by netPublishFail; no echo is coming \u2014 this foe's turn stalls here (re-run via the button)
+        walkDone.then(strikePhase);
       });
       return;
     }
+    var before=enemiesThreatening(u);
+    walkPath(u,path,function(){
+      provokeOAs(u,before,function(){          // leaving a PC's reach costs
+        checkReadied(u,function(){             // arriving in a readied sight costs too
+          if(u.alive) boomTrigger(u);
+          snapshot("Foe move");
+          strikePhase();
+        });
+      });
+    });
+    return;
   }
   strikePhase();
 }
@@ -7057,6 +7114,7 @@ function refreshSceneMenu(){
   var vm=document.getElementById('sceneViewerMode');
   var auth=tc&&tc.privileged(sess);
   if(vm){vm.hidden=!auth;if(auth){var b=vm.querySelector('b');if(b)b.textContent=tc.staffView(sess)?'Staff View':'Player View';}}
+  var enemyTurns=document.getElementById('sceneEnemyTurns');if(enemyTurns){enemyTurns.hidden=!auth;var eb=enemyTurns.querySelector('b');if(eb)eb.textContent=FOE_AUTOMATION?'Automatic':'Manual';}
   var fr=document.getElementById('sceneFlankingRule');if(fr){fr.hidden=!auth;var fb=fr.querySelector('b');if(fb)fb.textContent=flankingLabel();}
   var ca=document.getElementById('sceneCoverAudit');if(ca)ca.hidden=!auth;
   if(!auth&&VERTICAL_OVERLAY){VERTICAL_OVERLAY=false;drawVerticalOverlay();}
@@ -7075,6 +7133,7 @@ function showHud(on){ var h=document.getElementById("combatHud"); if(h)h.style.d
 const sceneModeToggle=document.getElementById('sceneModeToggle');
 if(sceneModeToggle)sceneModeToggle.addEventListener('click',function(e){e.stopPropagation();setForgePanelOpen(!document.body.classList.contains('forge-panel-open'));refreshSceneMenu();});
 const sceneViewerMode=document.getElementById('sceneViewerMode');if(sceneViewerMode)sceneViewerMode.addEventListener('click',function(){if(window.ForgeTableCorrectness)window.ForgeTableCorrectness.toggle(window.__forgeSession);refreshSceneMenu();});
+const sceneEnemyTurns=document.getElementById('sceneEnemyTurns');if(sceneEnemyTurns)sceneEnemyTurns.addEventListener('click',function(){setFoeAutomation(!FOE_AUTOMATION);});
 const sceneFlankingRule=document.getElementById('sceneFlankingRule');if(sceneFlankingRule)sceneFlankingRule.addEventListener('click',function(){var next=nextFlankingRule(),sess=window.__forgeSession;if(sess&&sess.me.overseer){netSessionPublish("edit",sess.pipe.edit([{rule:{name:"flanking",value:next}}]));}else if(!sess){FLANK_RULE=next;renderHud();}refreshSceneMenu();});
 function runCoverAudit(){
   if(!CB||!CB.active||!CB.map||!TG.coverAudit)return;syncGeometryCreatures();var cells=[];
@@ -7164,7 +7223,7 @@ function renderHud(){
       if(fst) fst.addEventListener("click",function(){ saveFoeToShelf((u.statblock&&u.statblock.name)||u.name,u.statblock,fst); }); }
   }
   var et=document.getElementById("cbEnd");
-  if(et){ et.disabled=(u&&u.side!=="pc")||CB.over||!!CB.react||(sess&&!iControl)||waitingMe;
+  if(et){ et.disabled=(u&&u.side!=="pc"&&(u.side!=="foe"||FOE_AUTOMATION))||CB.over||!!CB.react||(sess&&!iControl)||waitingMe;
     et.title = waitingMe ? "Waiting for the table\u2026" : ""; }
   var rb=document.getElementById("cbReady");
   if(rb){ /* Ready/Release isn't wired to the pipeline this task \u2014 a readied
@@ -7207,6 +7266,7 @@ function renderHud(){
     window.renderForgeBar({
       active: u, order: hudOrder, iControl: iControl, waiting: waitingMe,
       economy: CB.st, pending: CB.pending, over: CB.over,
+      foeAutomatic:FOE_AUTOMATION,foePlan:u&&u._foePlanText||'',
       selKey: CB.selKey, tgtKey: CB.tgtKey,
       showSight: SHOW_SIGHT, contestCover: CONTEST_COVER, coverContestAvailable:contestAvailable,
       session: !!window.__forgeSession, viewerMode:disclosure.mode, suppressEnemyHud:suppressEnemyHud,
@@ -7224,6 +7284,7 @@ function renderHud(){
     if (cbPanelEl) cbPanelEl.style.display = "";
     if (cbLogEl)   cbLogEl.style.display   = "";
   }
+  scheduleAutomatedFoeTurn(u);
 }
 
 function runFoe(){ if(CB.active&&!CB.over&&!CB.react&&active()&&active().side==="foe") foeTurn(); }

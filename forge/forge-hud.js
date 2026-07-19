@@ -97,6 +97,8 @@ display:flex;flex-direction:column;align-items:center;gap:4px;cursor:pointer;tra
 .fg-foeGo{display:block;width:100%;padding:12px;background:var(--hud-bg2);border:1px solid var(--hud-line);\
 color:var(--hud-gold);font-family:"Barlow Condensed",system-ui;font-size:15px;font-weight:600;cursor:pointer;letter-spacing:.06em}\n\
 .fg-foeGo:hover{background:var(--hud-line)}\n\
+.fg-foePlan{flex:1;border-left:4px solid var(--hud-gold);padding:8px 12px;background:var(--hud-bg2);font-size:12px;color:var(--hud-dim)}\n\
+.fg-foePlan b{display:block;color:var(--hud-gold);font-size:10px;letter-spacing:.1em;text-transform:uppercase;margin-bottom:3px}\n\
 /* ═══ FEED (bottom right) ═══ */\n\
 #fgFeed{--hud-bg:#0d0d14;--hud-bg2:#111018;--hud-line:#1a1a28;--hud-fg:#f0ece4;--hud-dim:#555;--hud-dim2:#444;\
 --hud-gold:#b8952a;--hud-green:#5a9a6a;--pc-name:#8fb0e0;--foe-name:#e0a08f;\
@@ -196,16 +198,18 @@ font-family:"Barlow Condensed",system-ui;font-size:12px;cursor:pointer;letter-sp
     { key: "resources", ico: "\u2b21", label: "Resources", icoColor: "var(--hud-dim2)" },
     { key: "__end",     ico: "\u27f3", label: "End Turn",  end: true }
   ];
+  var FOE_LABELS = { attacks:"Attacks", spells:"Spells", items:"Info", feats:"Traits", bonus:"Bonus", actions:"Other", resources:"Resources" };
 
   function renderTabs(s) {
     var el = document.getElementById("fgTabs");
     if (!el) return;
+    var foe=!!(s&&s.active&&s.active.side==="foe");
     el.innerHTML = TABS.map(function (t) {
       var cls = "fg-tab" + (t.key === activeTab ? " active" : "") + (t.end ? " end" : "");
-      var dis = t.end && (!s || !s.iControl || s.waiting || s.over || (s.active && s.active.side !== "pc")) ? ' disabled title="Not your turn"' : "";
+      var dis = t.end && (!s || !s.iControl || s.waiting || s.over || (foe && s.foeAutomatic)) ? ' disabled title="Not your turn"' : "";
       return '<button class="' + cls + '" data-tab="' + t.key + '"' + dis + '>'
         + '<span class="ico" style="color:' + (t.icoColor || "var(--hud-fg)") + '">' + t.ico + '</span>'
-        + '<span class="lbl">' + t.label + '</span></button>';
+        + '<span class="lbl">' + (foe&&!t.end?(FOE_LABELS[t.key]||t.label):t.label) + '</span></button>';
     }).join("");
   }
 
@@ -325,11 +329,13 @@ font-family:"Barlow Condensed",system-ui;font-size:12px;cursor:pointer;letter-sp
     var u = s.active;
     var isPc = u.side === "pc";
 
-    // Foe turn: show the ▶ Run button
-    if (!isPc) {
-      el.innerHTML = '<button class="fg-foeGo" id="fgFoeGo"'
-        + (s.waiting ? ' disabled title="Waiting\u2026"' : '') + '>\u25b6 Run '
-        + esc(u.name) + '\u2019s turn</button>';
+    // Automatic foe turn: show the narrated planner state and an explicit
+    // run-now fallback. Manual mode falls through to the same tiles PCs use.
+    if (!isPc && s.foeAutomatic) {
+      el.innerHTML = '<div class="fg-foePlan"><b>Automatic · real stat block</b>'
+        + esc(s.foePlan || 'The Forge will choose movement, target, and attack when this turn begins.') + '</div>'
+        + '<button class="fg-foeGo" id="fgFoeGo"'
+        + (s.waiting ? ' disabled title="Waiting\u2026"' : '') + '>\u25b6 Run now</button>';
       var fBtn = document.getElementById("fgFoeGo");
       if (fBtn) fBtn.addEventListener("click", function () {
         document.dispatchEvent(new CustomEvent("forge:runFoe"));
@@ -391,11 +397,13 @@ font-family:"Barlow Condensed",system-ui;font-size:12px;cursor:pointer;letter-sp
         // Find the index in u.actions by matching _tileId
         var idx = -1;
         (u.actions || []).forEach(function (a, i) { if (a._tileId === tileId) idx = i; });
-        if (idx >= 0) {
+        var tile = tiles[+tEl.dataset.tileIdx];
+        if (tile && tile.reference) {
+          openDrawer(tile, s._structural || {});
+        } else if (idx >= 0) {
           document.dispatchEvent(new CustomEvent("forge:selectAction", { detail: { idx: idx } }));
         } else {
           // Universal actions (dash, disengage, etc.) — dispatch by kind
-          var tile = tiles[+tEl.dataset.tileIdx];
           if (tile && tile.universal) {
             document.dispatchEvent(new CustomEvent("forge:universalAction", { detail: { kind: tile.kind, tile: tile } }));
           }
@@ -434,7 +442,7 @@ font-family:"Barlow Condensed",system-ui;font-size:12px;cursor:pointer;letter-sp
     if (!s || !s.active || !s.iControl) { el.style.display = "none"; return; }
     el.style.display = "";
     var u = s.active;
-    if (u.side !== "pc") { el.innerHTML = ""; el.style.display = "none"; return; }
+    if (u.side !== "pc" && s.foeAutomatic) { el.innerHTML = "Automatic enemy turn · the choice is narrated in the feed."; return; }
 
     if (s.waiting) {
       el.innerHTML = "<i>Waiting for the table\u2026</i>";
@@ -442,7 +450,7 @@ font-family:"Barlow Condensed",system-ui;font-size:12px;cursor:pointer;letter-sp
       el.innerHTML = "<b>" + esc(s.pending.label) + "</b> \u2014 "
         + ((s.pending.rng || 1) > 1 ? "red = in range \u00b7 amber = long (disadv) \u00b7 grey = unreachable" : "click a highlighted target");
     } else {
-      el.innerHTML = "Move on teal \u00b7 pick an action, then a target.";
+      el.innerHTML = u.side === "foe" ? "Manual enemy turn · move on teal, choose a stat-block attack, then select a player." : "Move on teal \u00b7 pick an action, then a target.";
     }
   }
 
@@ -547,7 +555,7 @@ font-family:"Barlow Condensed",system-ui;font-size:12px;cursor:pointer;letter-sp
     var desc = "";
     if (tile.greyed && tile.greyReason) {
       desc = '<p class="fg-dw-grey">' + esc(tile.greyReason) + '</p>';
-    } else if (!tile.spell && tile._src && tile._src.entries) {
+    } else if (!tile.spell && tile._src && tile._src.entries && tile._src.entries.length) {
       // Feature/feat with 5etools entries array — render rich text
       desc = _renderSpellEntries(tile._src);
     } else if (tile.desc) {
@@ -565,7 +573,7 @@ font-family:"Barlow Condensed",system-ui;font-size:12px;cursor:pointer;letter-sp
     }
 
     // For spells: attempt to load full text if we haven't already
-    if (tile.spell && tile._src && tile._src.name && !tile.desc) {
+    if (tile.spell && tile._src && tile._src.name && (!tile.desc || tile.reference)) {
       var spellName = tile._src.name;
       if (_spellTextCache[spellName]) {
         desc = _renderSpellEntries(_spellTextCache[spellName]);
@@ -581,10 +589,13 @@ font-family:"Barlow Condensed",system-ui;font-size:12px;cursor:pointer;letter-sp
     }
 
     // ── actions row ──
-    var actionsHtml = '<div class="fg-dw-actions">';
-    actionsHtml += '<button class="fg-dw-btn" data-dw-action="icon">\u270e Change icon</button>';
-    actionsHtml += '<button class="fg-dw-btn" data-dw-action="hide">\u2716 Hide from bar</button>';
-    actionsHtml += '</div>';
+    var actionsHtml = '';
+    if (!tile.reference) {
+      actionsHtml = '<div class="fg-dw-actions">';
+      actionsHtml += '<button class="fg-dw-btn" data-dw-action="icon">\u270e Change icon</button>';
+      actionsHtml += '<button class="fg-dw-btn" data-dw-action="hide">\u2716 Hide from bar</button>';
+      actionsHtml += '</div>';
+    }
 
     dw.innerHTML = '<div class="fg-dw-head"><span class="fg-dw-name">' + esc(tile.label || tile.name || "?") + '</span>'
       + '<span class="fg-dw-cost">' + costParts.join(' \u00b7 ') + ' ' + concBadge + '</span></div>'

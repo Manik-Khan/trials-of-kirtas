@@ -202,6 +202,57 @@ correctness-wave suite remains at its inherited **30/31** reduced-motion marker
 string assertion. Browser validation covered the real prep deletion flow and
 both Automatic and Manual states of the standalone enemy-turn mock.
 
+## Afternoon enemy-turn implementation · 2026-07-19
+
+The approved Automatic/Manual enemy-turn mock is now integrated. The exact
+Archer failure was an adapter loss, not missing bestiary data: `MonsterActor`
+parsed Shortsword and Longbow, while the Forge retained only the first attack.
+`monster-actor.js?v=ma2` now preserves every parsed attack and a normalized DM
+reference record for creature profile, lore, senses, defenses, traits,
+spellcasting, bonus actions, reactions, and legendary actions.
+
+`forge-foe-ai.js?v=fai1` is a pure planner. It evaluates every parsed attack,
+living player target, and legally reachable firing origin through the real
+`reachOK()` geometry. Expected damage, cover, long-range disadvantage,
+movement cost, and target wounds contribute to the choice. The feed narrates
+weapon, range, cover, and movement before the ordinary attack/reaction
+pipeline runs. A real Archer known answer selects Longbow at 55 feet instead
+of advancing with Shortsword.
+
+The Forge Table Settings now owns **Enemy turns: Automatic / Manual** as a
+local DM preference. Automatic schedules on enemy turn start, including while
+the DM is testing through Player View. Manual exposes the same Forge HUD used
+by player characters: executable parsed attacks plus Info, Traits, Spells,
+Bonus, and Other reference tabs; movement, target selection, action, and End
+Turn remain under DM control. Player View continues to mask the active enemy
+HUD intentionally.
+
+Reference is not false automation. Attack entries with parseable hit and
+damage mechanics are executable now. Multiattack prose, save abilities,
+complex spellcasting, reactions, and legendary actions remain readable in the
+drawer until each has a real rules projection. This preserves the full
+statblock without inventing mechanics.
+
+Goblin, goblin-archer, and chieftain sprites now select by statblock/name and
+receive deterministic palette variants. Other monster types use their existing
+resolved 5e.tools token as an upright 3D standee, with initials as the offline
+fallback. `assets/CREDITS.md` records additional official CC0 character-pack
+candidates; none were imported in this slice.
+
+Validation for the new authority is **30/30** known answers across the foe AI,
+MonsterActor, and real production adapter/HUD extraction. A focused 23-suite
+matrix produced 19 green suites and four inherited reds: the two established
+reduced-motion string assertions plus stale discovery/unit-art cache-marker
+contracts. Core geometry remained 4/6 suites green, with only the documented
+`flat mode is level ground` and extracted flora harness failures. The browser
+pass loaded all three new cache stamps, ran multiple automatic goblin turns,
+narrated tactical choices, paused correctly for Shield, held a foe in Manual,
+and resumed Automatic without a reload.
+
+Current field follow-up: run one live Archer and one spellcaster through Staff
+View, confirm the Archer chooses Longbow in real terrain, inspect every reference
+tab, then exercise Manual movement/attack/End Turn in a signed-in DM session.
+
 ## Required field checklist
 
 1. On the live signed-in site, open a Temple Table with at least Party and Enemy flags.
@@ -236,4 +287,6 @@ M reviews, commits, and pushes. Codex does not push. Current slice stamps:
 `forge-deployment.js?v=fd2`, `forge-generator-foundation.js?v=g2g1`,
 `forge-temple-terraces.js?v=tt1`, `forge-engine.js?v=fe10`,
 `forge-render-power.js?v=frp1`, `forge-architecture.js?v=fa4`, and
-`forge-discovery.js?v=fd7`, `forge-kit-derive.js?v=b9`.
+`forge-discovery.js?v=fd7`, `forge-kit-derive.js?v=b9`,
+`forge-foe-ai.js?v=fai1`, `forge-hud.js?v=b3`, and
+`monster-actor.js?v=ma2`.

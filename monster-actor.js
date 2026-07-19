@@ -1,5 +1,5 @@
 /* ════════════════════════════════════════════════════════════════════
-   MONSTER-ACTOR-V1 — 5etools statblock → HUD actor adapter (Phase M1).
+   MONSTER-ACTOR-V2 — 5etools statblock → HUD actor adapter.
 
    Turns a `combatants` row (whose `statblock` jsonb holds the raw
    5etools monster JSON the Bestiary dropped) into exactly the shape
@@ -30,6 +30,7 @@
   'use strict';
 
   const KEY_PREFIX = 'mon:';
+  const VERSION = '2.0.0';
 
   function abilityMod(score) {
     const n = Number(score);
@@ -173,6 +174,101 @@
     return out;
   }
 
+  function namedEntries(list, section) {
+    return (Array.isArray(list) ? list : []).map((entry, idx) => ({
+      id: slug(section + '_' + (entry && entry.name || idx)),
+      label: cleanText(entry && entry.name || section),
+      desc: entriesText(entry && entry.entries || []),
+      entries: entry && entry.entries || [],
+      section,
+    }));
+  }
+  function spellName(raw) {
+    const tagged = String(raw || '').match(/\{@spell\s+([^|}]+)/i);
+    return cleanText(tagged ? tagged[1] : raw).replace(/^[*•\s]+|[*\s]+$/g, '');
+  }
+  function spellRefs(sb) {
+    const out = [], seen = new Set();
+    function add(raw, usage, level) {
+      const name = spellName(raw);
+      const key = name.toLowerCase() + '|' + usage;
+      if (!name || seen.has(key)) return;
+      seen.add(key);
+      out.push({ id: slug('spell_' + usage + '_' + name), label: name, usage, level, spell: true });
+    }
+    (Array.isArray(sb && sb.spellcasting) ? sb.spellcasting : []).forEach(caster => {
+      ['constant', 'will', 'ritual'].forEach(k => (caster[k] || []).forEach(s => add(s, k === 'will' ? 'At will' : k.charAt(0).toUpperCase() + k.slice(1), 0)));
+      ['daily', 'rest', 'weekly', 'monthly', 'yearly'].forEach(k => {
+        const groups = caster[k] || {};
+        const period = { daily:'day', rest:'rest', weekly:'week', monthly:'month', yearly:'year' }[k];
+        Object.keys(groups).forEach(uses => (groups[uses] || []).forEach(s => add(s, uses.replace(/e$/i, '') + '/' + period, 0)));
+      });
+      Object.keys(caster.spells || {}).forEach(level => {
+        const group = caster.spells[level] || {};
+        const usage = Number(level) === 0 ? 'Cantrip' : ('Level ' + level + (group.slots != null ? ' · ' + group.slots + ' slots' : ''));
+        (group.spells || []).forEach(s => add(s, usage, Number(level) || 0));
+      });
+    });
+    return out;
+  }
+  function typeText(type) {
+    if (typeof type === 'string') return cleanText(type);
+    if (!type || typeof type !== 'object') return '';
+    const base = cleanText(type.type || '');
+    const tags = (type.tags || []).map(t => cleanText(typeof t === 'string' ? t : t.tag || '')).filter(Boolean);
+    return base + (tags.length ? ' (' + tags.join(', ') + ')' : '');
+  }
+  function alignmentText(alignment) {
+    const names = { L:'lawful', N:'neutral', C:'chaotic', G:'good', E:'evil', U:'unaligned', A:'any alignment' };
+    return (Array.isArray(alignment) ? alignment : []).map(a => names[typeof a === 'string' ? a : a && a.alignment && a.alignment[0]] || '').filter(Boolean).join(' ');
+  }
+  function fieldText(value) {
+    if (Array.isArray(value)) return value.map(fieldText).filter(Boolean).join(', ');
+    if (value && typeof value === 'object') {
+      const direct = cleanText(value.note || value.special || value.type || '');
+      if (direct) return direct;
+      return Object.keys(value).map(k => cleanText(k) + ' ' + fieldText(value[k])).filter(Boolean).join(', ');
+    }
+    return cleanText(value || '');
+  }
+  function referenceFrom(sb) {
+    sb = sb || {};
+    const sizeNames = { T:'Tiny', S:'Small', M:'Medium', L:'Large', H:'Huge', G:'Gargantuan', V:'Varies' };
+    const size = sizeNames[(Array.isArray(sb.size) ? sb.size[0] : sb.size)] || fieldText(sb.size);
+    const identity = [size, typeText(sb.type), alignmentText(sb.alignment)].filter(Boolean).join(' · ');
+    const defense = [
+      fieldText(sb.senses) && 'Senses: ' + fieldText(sb.senses),
+      fieldText(sb.languages) && 'Languages: ' + fieldText(sb.languages),
+      fieldText(sb.skill) && 'Skills: ' + fieldText(sb.skill),
+      fieldText(sb.save) && 'Saves: ' + fieldText(sb.save),
+      fieldText(sb.resist) && 'Resistances: ' + fieldText(sb.resist),
+      fieldText(sb.immune) && 'Immunities: ' + fieldText(sb.immune),
+      fieldText(sb.conditionImmune) && 'Condition immunities: ' + fieldText(sb.conditionImmune),
+      fieldText(sb.vulnerable) && 'Vulnerabilities: ' + fieldText(sb.vulnerable),
+    ].filter(Boolean).join(' · ');
+    const spellcasting = (Array.isArray(sb.spellcasting) ? sb.spellcasting : []).map((entry, idx) => ({
+      id: slug('spellcasting_' + (entry && entry.name || idx)),
+      label: cleanText(entry && entry.name || 'Spellcasting'),
+      desc: entriesText([].concat(entry && entry.headerEntries || [], entry && entry.footerEntries || [])),
+      entries: [].concat(entry && entry.headerEntries || [], entry && entry.footerEntries || []),
+      section: 'Spellcasting',
+    }));
+    const bio = entriesText(sb.fluff && sb.fluff.entries || sb.fluffEntries || []);
+    return {
+      profile: [
+        { id:'monster_profile', label:'Creature profile', desc:identity || 'Creature details unavailable.', section:'Profile' },
+        defense && { id:'monster_defenses', label:'Senses & defenses', desc:defense, section:'Profile' },
+        bio && { id:'monster_bio', label:'Lore & behavior', desc:bio, section:'Profile' },
+      ].filter(Boolean),
+      traits: namedEntries(sb.trait, 'Trait').concat(spellcasting),
+      actions: namedEntries(sb.action, 'Action'),
+      bonusActions: namedEntries(sb.bonus, 'Bonus Action'),
+      reactions: namedEntries(sb.reaction, 'Reaction'),
+      legendaryActions: namedEntries(sb.legendary, 'Legendary Action'),
+      spells: spellRefs(sb),
+    };
+  }
+
   // ── statblock field helpers ──
   function acFrom(sb) {
     const ac = sb && sb.ac;
@@ -208,6 +304,7 @@
         initiative: abilityMod(sb.dex),
       },
       actions,
+      reference: referenceFrom(sb),
       // Primary tab: everything the statblock leads with (multiattack + attacks),
       // capped so the HUD row stays sane; All tab shows the rest.
       defaultSlots: actions.slice(0, 6).map(a => a.id),
@@ -216,10 +313,12 @@
     };
   }
 
-  window.MonsterActor = {
-    toCharacter, parseActions, abilityMod, cleanText,
+  const API = {
+    VERSION, toCharacter, parseActions, referenceFrom, abilityMod, cleanText,
     isMonsterKey: k => typeof k === 'string' && k.indexOf(KEY_PREFIX) === 0,
     idFromKey: k => String(k).slice(KEY_PREFIX.length),
     keyFor: id => KEY_PREFIX + id,
   };
+  if (typeof window !== 'undefined') window.MonsterActor = API;
+  if (typeof module !== 'undefined' && module.exports) module.exports = API;
 })();
