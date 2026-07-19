@@ -1,0 +1,51 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Forge enemy-turn control mock</title>
+<style>
+  :root{--paper:#eee6d6;--paper2:#ded2bb;--ink:#29251f;--dim:#6d6557;--line:#a99d86;--gold:#b8893d;--red:#8d4038;--teal:#3e8d91;--night:#181917;--hud:rgba(24,22,20,.94)}
+  *{box-sizing:border-box}html,body{height:100%;margin:0;overflow:hidden;color:var(--ink);font-family:Georgia,serif;background:#7d987c}
+  body{background:radial-gradient(circle at 70% 12%,rgba(255,238,178,.45),transparent 25%),linear-gradient(#9dc2bd 0 18%,#76937b 18% 100%)}
+  .field{position:absolute;left:17%;right:8%;top:12%;bottom:9%;transform:perspective(900px) rotateX(52deg);transform-origin:50% 100%;background-color:#8b9d71;background-image:linear-gradient(rgba(55,64,43,.36) 1px,transparent 1px),linear-gradient(90deg,rgba(55,64,43,.36) 1px,transparent 1px);background-size:44px 44px;border:16px solid #77684e;box-shadow:0 30px 60px rgba(20,22,17,.35)}
+  .wall{position:absolute;left:36%;top:30%;width:39%;height:58px;background:#c8af7f;border:1px solid #89704e;box-shadow:0 18px 0 #776246}.window{position:absolute;left:47%;width:82px;height:62px;background:#566a55;border-left:16px solid #c8af7f;border-right:16px solid #c8af7f}
+  .token{position:absolute;width:72px;height:92px;display:grid;place-items:center;color:#fff;font:700 24px monospace;border:7px solid #eee0bf;filter:drop-shadow(0 10px 5px rgba(0,0,0,.26));z-index:2}.pc{left:49%;top:62%;background:#9b6462}.foe{left:56%;top:28%;background:#67735c;border-color:#9e9076;filter:grayscale(.72) opacity(.72) drop-shadow(0 10px 5px rgba(0,0,0,.26))}.soft{position:absolute;left:52.5%;top:23%;color:#eee5d3;background:#35413a;padding:5px 8px;font:10px Arial,sans-serif;letter-spacing:.08em;text-transform:uppercase}.soft b{color:#d9bd7a}
+  .panel{position:absolute;left:20px;top:20px;width:300px;max-height:calc(100% - 40px);overflow:auto;background:linear-gradient(var(--paper),var(--paper2));border:1px solid var(--line);box-shadow:0 14px 35px rgba(38,30,20,.26)}
+  .panel h1{margin:0;padding:13px 16px;background:#2d2a23;color:#f5ead5;font:600 13px Arial,sans-serif;letter-spacing:.16em;text-transform:uppercase}.body{padding:15px}.eyebrow{margin:14px 0 8px;font:700 10px Arial,sans-serif;letter-spacing:.18em;text-transform:uppercase;color:var(--dim)}.eyebrow:first-child{margin-top:0}
+  .toggle{display:grid;grid-template-columns:1fr 1fr;border:1px solid var(--line)}.toggle button{border:0;padding:10px 5px;background:transparent;color:var(--dim);font:700 10px Arial,sans-serif;letter-spacing:.1em;text-transform:uppercase;cursor:pointer}.toggle button.on{background:var(--gold);color:#fff}.help{font-size:12px;line-height:1.35;color:var(--dim);margin:8px 0 0}.rule{height:1px;background:var(--line);margin:15px 0}
+  .switch{display:flex;justify-content:space-between;align-items:center;font:700 10px Arial,sans-serif;text-transform:uppercase;letter-spacing:.12em}.switch b{color:var(--gold)}
+  .feed{position:absolute;right:18px;top:42%;width:340px;background:rgba(25,26,22,.9);border:1px solid #7c6b4c;color:#e9dfcb}.feed h2{margin:0;padding:12px 14px;border-bottom:1px solid #5f584a;color:#d1a855;font:700 11px Arial,sans-serif;letter-spacing:.18em}.row{padding:12px 14px;border-bottom:1px solid #504b41;font-size:13px}.row b{color:#dcad55}.choice{border-left:4px solid var(--gold);background:rgba(133,106,50,.14)}.roll{font-family:monospace;color:#f5ead5;margin-top:5px}
+  .hud{position:absolute;left:26%;right:25%;bottom:18px;min-height:190px;background:var(--hud);border:1px solid #4c463d;color:#e7ddc9;box-shadow:0 18px 40px rgba(0,0,0,.35)}.hudTop{display:flex;align-items:center;gap:12px;padding:13px 16px;border-bottom:1px solid #3f3a34}.badge{width:38px;height:38px;display:grid;place-items:center;border:2px solid var(--red);color:#e9c05f;font:bold 18px Georgia}.name{font:700 16px Arial,sans-serif}.tag{color:#d1786d;font:700 9px Arial,sans-serif;text-transform:uppercase;letter-spacing:.13em}.mode{margin-left:auto;color:#d2bea0;font:700 10px Arial,sans-serif;text-transform:uppercase;letter-spacing:.1em}.mode b{color:#e7bd63}
+  .autoBox{padding:15px 16px}.plan{border-left:4px solid var(--gold);padding:8px 12px;background:rgba(183,137,61,.09);font-size:13px}.plan strong{display:block;color:#e4bd6b;font:700 11px Arial,sans-serif;text-transform:uppercase;letter-spacing:.11em;margin-bottom:5px}.autoBox .hint{color:#a99f90;font-size:12px;margin-top:10px}.manualBox{display:none;padding:13px 16px}.actions{display:grid;grid-template-columns:repeat(3,1fr);gap:7px}.action{padding:10px 7px;border:1px solid #5f5648;background:#282622;color:#eadcc2;text-align:left;cursor:pointer}.action b{display:block;font:700 11px Arial,sans-serif;text-transform:uppercase}.action span{display:block;color:#aaa08f;font-size:10px;margin-top:5px}.action.primary{border-color:var(--gold);box-shadow:inset 0 -3px var(--gold)}.manualHint{color:#aaa08f;font-size:12px;margin-top:10px}.manual .autoBox{display:none}.manual .manualBox{display:block}
+  .note{position:absolute;right:22px;top:20px;color:#604c2b;font-style:italic;font-weight:700}.deleteDemo{margin-top:8px;width:100%;padding:9px;border:1px solid #a95b50;background:transparent;color:#8d4038;font:700 10px Arial,sans-serif;text-transform:uppercase;letter-spacing:.11em;cursor:pointer}
+</style>
+</head>
+<body>
+  <div class="field"><div class="wall"><div class="window"></div></div></div>
+  <div class="token pc">C</div><div class="token foe">A</div><div class="soft"><b>Grey sight</b> · seen, no clear shot</div>
+  <aside class="panel">
+    <h1>✣ Forge</h1>
+    <div class="body">
+      <div class="eyebrow">Enemy turns</div>
+      <div class="toggle"><button id="auto" class="on">Automatic</button><button id="manual">Manual</button></div>
+      <p class="help" id="modeHelp">The Forge moves and attacks for enemies using their imported 5e.tools stat blocks. The DM can interrupt by switching to Manual.</p>
+      <div class="rule"></div>
+      <div class="switch"><span>Decision detail</span><b>Show in feed</b></div>
+      <p class="help">Automatic turns explain the chosen target, weapon, range, cover, and why movement was needed.</p>
+      <div class="eyebrow">Prep group example</div>
+      <div class="switch"><span>Archers</span><b>Ready</b></div>
+      <button class="deleteDemo">Delete group</button>
+      <p class="help">Deleting the group leaves its combatants safely unassigned.</p>
+    </div>
+  </aside>
+  <div class="note">Temple Terraces · enemy-turn control mock</div>
+  <aside class="feed"><h2>GAME FEED</h2><div class="row choice"><b>Archer 1 · Tactical choice</b><br>Longbow has a legal shot on Caim at 55 ft. No movement needed.<div class="roll">Longbow · +6 · 1d8+4 piercing · half cover</div></div><div class="row">Player View keeps Archer 1 grey because the foe can see Caim through the opening, but Caim does not have a clear return shot.</div></aside>
+  <section class="hud" id="hud"><div class="hudTop"><div class="badge">A</div><div><div class="name">ARCHER 1 <span class="tag">foe</span></div><div class="tag">HP 16 / 16 · AC 16 · MOVE 30 FT</div></div><div class="mode">Enemy turn · <b id="modeLabel">Automatic</b></div></div><div class="autoBox"><div class="plan"><strong>Chosen from the real stat block</strong>Longbow → Caim · 55 ft · half cover · attack +6 · damage 1d8+4 piercing</div><div class="hint">Runs when Archer 1’s turn begins—even while the DM is testing in Player View.</div></div><div class="manualBox"><div class="actions"><button class="action"><b>Shortsword</b><span>+6 · 1d6+4 · reach 5 ft</span></button><button class="action primary"><b>Longbow</b><span>+6 · 1d8+4 · 150/600 ft</span></button><button class="action"><b>Multiattack</b><span>Choose two attacks</span></button></div><div class="manualHint">Move on teal, select a target, then choose the enemy’s action. End Turn remains under the DM’s control.</div></div></section>
+<script>
+  var auto=document.getElementById('auto'),manual=document.getElementById('manual'),hud=document.getElementById('hud'),label=document.getElementById('modeLabel'),help=document.getElementById('modeHelp');
+  function setMode(mode){var isAuto=mode==='auto';auto.classList.toggle('on',isAuto);manual.classList.toggle('on',!isAuto);hud.classList.toggle('manual',!isAuto);label.textContent=isAuto?'Automatic':'Manual';help.textContent=isAuto?'The Forge moves and attacks for enemies using their imported 5e.tools stat blocks. The DM can interrupt by switching to Manual.':'The DM chooses the enemy’s movement, target, and stat-block action. Nothing advances automatically.';}
+  auto.onclick=function(){setMode('auto');};manual.onclick=function(){setMode('manual');};
+</script>
+</body>
+</html>

@@ -23,6 +23,7 @@ has('id="deploymentPanel"',"approved deployment cards live in the unified Worksh
 has('data-deploy-membership=',"every assigned and unassigned combatant exposes an explicit group menu");
 has('ForgeDeployment.assignUnit',"group changes use the deployment membership authority");
 has('data-deploy-remove=',"groups can be removed without deleting their combatants");
+has('class="deployDelete"',"group deletion is an explicit header control rather than a buried text link");
 has('id="foes" min="0" max="8"',"base goblins can be reduced to zero when a fully custom bestiary roster is wanted");
 has("unit: 'foe-picked-' + slug + '-' + n","picked foes have stable IDs distinct from base goblins");
 has('Bestiary picks are added without clearing these goblins or their group.',"bestiary additions narrate their additive roster behavior");

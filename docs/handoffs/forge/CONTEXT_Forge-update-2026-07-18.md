@@ -166,6 +166,42 @@ cell-by-cell when the preview eye moved, and retained grey memory behind it.
 The broader correctness-wave suite remains **30/31** on its unrelated inherited
 reduced-motion marker string assertion.
 
+## 11:25 AM field correction · reciprocal sight and foe-turn direction
+
+The next live pass proved that the direct creature gate was still too binary.
+It reused one boolean for both rendering and legal targeting, so a foe with a
+one-way line on the player disappeared completely until the player crossed the
+exact sampling boundary. Discovery authority is now `1.5.0`
+(`forge-discovery.js?v=fd7`) and returns three creature states:
+
+- **clear** — the player has canonical combat sight and may target the foe;
+- **soft** — distant legal sight, or a reverse-only sightline where the foe can
+  see the player; the token remains grey/subdued, but reverse-only sight does
+  not manufacture a legal player shot;
+- **hidden** — total cover in both directions.
+
+Prep deletion is no longer a small link below the formation controls. Every
+group card has an explicit **Delete** control in its header. Deleting a group
+leaves its members under Unassigned; the final required group keeps a disabled
+Delete control with a reason instead of silently removing the last assignment
+destination. The real Workshop browser pass deleted the five-foe Enemies group
+and preserved all five goblins under Unassigned.
+
+The same field report exposed the exact Archer failure. `MonsterActor` already
+parses every 5e.tools attack, including the longbow, but `foeKitFromStatblock()`
+currently keeps only the first attack as `u.atk`. Archer stat blocks lead with a
+melee attack, so `foeTurn()` advances instead of considering its ranged weapon.
+The approved-next UX is staged in
+`_edits/mock-forge-enemy-turn-control.html`: Automatic runs a narrated real-
+stat-block choice on enemy turn start, including in Player View; Manual exposes
+the foe's parsed actions and leaves movement, target, action, and End Turn to
+the DM. Do not wire this control into production until M approves the mock.
+
+This correction is **337/337 green across 10 focused suites**. The broader
+correctness-wave suite remains at its inherited **30/31** reduced-motion marker
+string assertion. Browser validation covered the real prep deletion flow and
+both Automatic and Manual states of the standalone enemy-turn mock.
+
 ## Required field checklist
 
 1. On the live signed-in site, open a Temple Table with at least Party and Enemy flags.
@@ -200,4 +236,4 @@ M reviews, commits, and pushes. Codex does not push. Current slice stamps:
 `forge-deployment.js?v=fd2`, `forge-generator-foundation.js?v=g2g1`,
 `forge-temple-terraces.js?v=tt1`, `forge-engine.js?v=fe10`,
 `forge-render-power.js?v=frp1`, `forge-architecture.js?v=fa4`, and
-`forge-discovery.js?v=fd6`, `forge-kit-derive.js?v=b9`.
+`forge-discovery.js?v=fd7`, `forge-kit-derive.js?v=b9`.

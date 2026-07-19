@@ -7,7 +7,7 @@ const moduleText=fs.readFileSync(path.join(root,"forge-discovery.js"),"utf8");
 let pass=0;
 function ok(v,label){if(!v)throw new Error("FAIL: "+label);console.log("ok",++pass,"-",label);}
 function has(text,needle,label){ok(text.includes(needle),label);}
-has(html,'forge-discovery.js?v=fd6','production surface loads the discovery module with a cache stamp');
+has(html,'forge-discovery.js?v=fd7','production surface loads the discovery module with a cache stamp');
 has(html,'var fogGroup = new THREE.Group(); scene.add(fogGroup);','fog is a world-space three.js group');
 has(html,'Rules visibility and visual recognition are deliberately separate','party-shared vision contract is explicit');
 has(html,"if(!discoveryHasSession())return false;   // local sandbox is the DM's workbench",'local sandbox remains omniscient');
@@ -22,13 +22,14 @@ has(html,'function buildFogVeil','unexplored space uses one continuous mask veil
 has(html,'new THREE.CanvasTexture(canvas)','the veil is driven by one map-space state texture');
 ok(!html.includes('obj.scale.set(1.025,height,1.025)'), 'overlapping tall fog boxes were removed');
 has(html,'function foeVisible(u){','the established foeVisible seam is implemented');
-has(html,"return discoveryCellTargetable(u.c,u.r)",'player-facing foe visibility uses the direct combat sight verdict');
+has(html,'function foeDisclosure(u)','player-facing foe disclosure has clear, soft, and hidden states');
+has(html,'function foeTargetable(u)','target acquisition remains separate from visual disclosure');
 has(html,"function viewerFeedEvent(row)",'hidden enemy outcomes have a Player View feed sanitizer');
 has(html,"unit:'__unseen_foe__'",'hidden attackers are anonymized rather than leaked through the feed');
 has(html,"pushEvent(redactEnemyDefenseEvent(viewerFeedEvent(r)))",'authoritative echoes pass through the viewer-safe feed seam');
 has(html,'unitAt(c,r){ return CB.units.filter(function(u){return u.alive&&u.c===c&&u.r===r&&(u.side!=="foe"||foeVisible(u));})','hidden foes cannot be acquired through empty-cell picking');
 has(html,'if(!unitRigVisible(un)) return;                      // Player View: hidden foes never enter the mathematical fallback picker','hidden foes cannot be acquired through the standee-column fallback picker');
-has(html,'u.side!=="pc"||x.side!=="foe"||foeVisible(x)','player target pools exclude hidden foes');
+has(html,'u.side!=="pc"||x.side!=="foe"||foeTargetable(x)','player target pools exclude soft but non-targetable foes');
 has(html,'refreshDiscovery();\n  syncAllGlow();','discovery updates before HUD/glow disclosure');
 has(html,"document.addEventListener('forge:viewerMode'",'staff/player presentation switches repaint discovery locally');
 has(html,"function cameraFocusAllowed(u)",'camera focus has a visibility gate');

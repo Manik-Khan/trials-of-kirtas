@@ -34,7 +34,7 @@
 <script src="forge-combat-rules.js?v=fcr3"></script>
 <script src="forge-effects.js?v=fe4"></script>
 <script src="forge-initiative.js?v=fi2"></script>
-<script src="forge-discovery.js?v=fd6"></script>
+<script src="forge-discovery.js?v=fd7"></script>
 <script src="forge-render-power.js?v=frp1"></script>
 <script src="forge-architecture.js?v=fa4"></script>
 <script src="forge-bus.js?v=fb2"></script>
@@ -625,7 +625,8 @@ global.TacticsGeo=API;
   #deploymentPanel{display:none}.deploySummary{padding:7px 8px;margin-bottom:7px;border-left:3px solid var(--tk-gold);background:rgba(184,134,58,.08);font:11px/1.35 var(--f-util)}
   .deployGroup{margin-bottom:8px;padding:8px;border:1px solid var(--tk-line);background:var(--tk-panel-2)}
   .deployGroup.focus{border-color:var(--tk-gold);box-shadow:inset 3px 0 var(--tk-gold)}
-  .deployHead{display:grid;grid-template-columns:1fr auto;gap:6px;align-items:center;margin-bottom:6px}.deployHead input{min-width:0;width:100%;border:0;border-bottom:1px solid var(--tk-line);background:transparent;color:var(--tk-ink);font:600 12px var(--f-body)}
+  .deployHead{display:grid;grid-template-columns:1fr auto auto;gap:6px;align-items:center;margin-bottom:6px}.deployHead input{min-width:0;width:100%;border:0;border-bottom:1px solid var(--tk-line);background:transparent;color:var(--tk-ink);font:600 12px var(--f-body)}
+  .deployDelete{border:1px solid #b67468;background:transparent;color:#944a3f;padding:3px 5px;font:8px var(--f-util);text-transform:uppercase;letter-spacing:.06em;cursor:pointer}.deployDelete:hover{background:#944a3f;color:#fff}.deployDelete:disabled{opacity:.42;cursor:not-allowed;background:transparent;color:var(--tk-ink-dim);border-color:var(--tk-line)}
   .deployStatus{font:600 8px var(--f-util);text-transform:uppercase;letter-spacing:.1em;color:#a04b3a}.deployStatus.ready{color:#477050}
   .deploySelects{display:grid;grid-template-columns:1fr 1fr;gap:5px;margin-bottom:6px}.deploySelects select{margin:0;padding:5px;font-size:9px}
   .deployUnits,.deployUnassigned{display:flex;flex-direction:column;gap:4px;margin:5px 0}.deployMember{display:grid;grid-template-columns:minmax(0,1fr) minmax(92px,.9fr);gap:4px;align-items:center}.deployMember select{min-width:0;margin:0;padding:4px;font-size:8px}.deployUnit{min-width:0;border:1px solid var(--tk-line);background:var(--tk-panel);color:var(--tk-ink);padding:4px 6px;font:9px var(--f-util);cursor:pointer;text-align:left;overflow:hidden;text-overflow:ellipsis}.deployUnit.manual{border-color:var(--tk-gold);box-shadow:inset 0 -2px var(--tk-gold)}
@@ -2923,7 +2924,7 @@ function syncUnitVisual(u){
      creature at the old 60-ft detail boundary. Nearby foes remain full colour;
      distant foes become a subdued silhouette while weapon range still decides
      whether an attack is legal. Walls and unexplored space still hide them. */
-  const player=typeof discoveryPlayerView==='function'&&discoveryPlayerView(),clarity=(allowed&&player&&u.side==='foe'&&typeof discoveryCreatureClarityAt==='function')?discoveryCreatureClarityAt(u.c,u.r):1;
+  const player=typeof discoveryPlayerView==='function'&&discoveryPlayerView(),disclosure=(allowed&&player&&u.side==='foe'&&typeof foeDisclosure==='function')?foeDisclosure(u):null,clarity=disclosure?disclosure.clarity:1;
   const farTint=.46+.54*clarity,farOpacity=.54+.46*clarity;
   if(u.sprite){u.sprite.visible=allowed&&!top;u.sprite.material.opacity=down?.34:farOpacity;u.sprite.material.transparent=true;if(down)u.sprite.material.color.setHex(0x8d918f);else u.sprite.material.color.setRGB(farTint,farTint,farTint);}
   if(u.shadow)u.shadow.visible=allowed&&!top&&!down&&clarity>.5;
@@ -3284,11 +3285,11 @@ function renderDeploymentPanel(){
   document.getElementById("deploymentSummary").textContent=(draft.ok?"Deployment ready — ":"Deployment incomplete — ")+ready+" / "+draft.plans.length+" groups · "+placed+" / "+total+" combatants positioned.";
   host.innerHTML=draft.plans.map(function(p){var g=p.group,region=p.regionId||"No flag",focus=DEPLOYMENT_FOCUS===g.id;
     var units=g.unitIds.map(function(unit){var manual=g.manualPositions&&g.manualPositions[unit],name=deploymentUnitName(unit);return '<div class="deployMember"><button class="deployUnit'+(manual?' manual':'')+'" data-manual-unit="'+escapeHtml(unit)+'" data-gid="'+escapeHtml(g.id)+'" title="Pin this combatant on the map">'+escapeHtml(name)+(manual?' · pinned':'')+'</button><select data-deploy-membership="'+escapeHtml(unit)+'" aria-label="Group for '+escapeHtml(name)+'">'+deploymentMembershipOptions(g.id,false)+'</select></div>';}).join('');
-    return '<div class="deployGroup'+(focus?' focus':'')+'" data-gid="'+g.id+'"><div class="deployHead"><input data-deploy-name="'+g.id+'" value="'+escapeHtml(g.label)+'"><span class="deployStatus'+(p.ok?' ready':'')+'">'+(p.ok?'ready':'unresolved')+'</span></div>'
+    return '<div class="deployGroup'+(focus?' focus':'')+'" data-gid="'+g.id+'"><div class="deployHead"><input data-deploy-name="'+g.id+'" value="'+escapeHtml(g.label)+'"><span class="deployStatus'+(p.ok?' ready':'')+'">'+(p.ok?'ready':'unresolved')+'</span><button class="deployDelete" data-deploy-remove="'+g.id+'"'+(DEPLOYMENT_GROUPS.length>1?'':' disabled title="At least one deployment group is required"')+'>Delete</button></div>'
       +'<div class="deploySelects"><select data-deploy-role="'+g.id+'"><option value="party"'+(g.role==='party'?' selected':'')+'>Party</option><option value="ally"'+(g.role==='ally'?' selected':'')+'>Ally / NPC</option><option value="enemy"'+(g.role==='enemy'?' selected':'')+'>Enemy</option></select><select data-deploy-policy="'+g.id+'"><option value="unit-owners"'+(g.controllerPolicy==='unit-owners'?' selected':'')+'>Unit owners</option><option value="overseer"'+(g.controllerPolicy==='overseer'?' selected':'')+'>Overseer</option></select></div>'
       +'<div class="deployUnits">'+(units||'<span class="fname">No combatants assigned.</span>')+'</div><div class="deployMeta"><span>'+escapeHtml(region)+' · seed '+g.formationSeed+'</span><span class="'+(p.ok?'good':'bad')+'">'+p.placedCount+'/'+p.requestedCount+' positioned</span></div>'
       +'<div class="deployActions"><button class="filebtn primary" data-deploy-flag="'+g.id+'">'+(g.anchor?'Move flag':'Place flag')+'</button><button class="filebtn" data-deploy-reseed="'+g.id+'">Reseed</button><button class="filebtn" data-deploy-clear="'+g.id+'">Clear pins</button></div>'
-      +(g.unitIds.length>1?'<button class="deployMinor" data-deploy-split="'+g.id+'">Split group →</button>':'')+(DEPLOYMENT_GROUPS.length>1?'<button class="deployMinor" data-deploy-remove="'+g.id+'">Remove group</button>':'')+'</div>';
+      +(g.unitIds.length>1?'<button class="deployMinor" data-deploy-split="'+g.id+'">Split group →</button>':'')+'</div>';
   }).join('');
   var unassigned=deploymentRosterSource().filter(function(r){return !assigned[r.unit];});document.getElementById("deploymentUnassigned").innerHTML=unassigned.length?unassigned.map(function(r){var name=r.name||r.unit;return '<div class="deployMember"><span class="deployUnit">'+escapeHtml(name)+'</span><select data-deploy-membership="'+escapeHtml(r.unit)+'" aria-label="Group for '+escapeHtml(name)+'">'+deploymentMembershipOptions(null,true)+'</select></div>';}).join(''):'<span class="fname">Everyone is assigned once.</span>';
   bindDeploymentPanel();renderDeploymentMarkers();
@@ -3932,7 +3933,8 @@ function refreshDiscovery(force){
    badges and interactions still require the tighter detail mask, but a creature
    does not vanish merely because it is 65 feet away in open daylight. */
 function discoveryCellVisible(c,r){var D=discoveryApi();return !!(D&&DISCOVERY.ready&&discoveryStateAt(c,r)===D.VISIBLE);}
-function discoveryCellTargetable(c,r){var D=discoveryApi(),target={c:c,r:r};return !!(D&&DISCOVERY.ready&&(DISCOVERY.currentSources||[]).some(function(src){return D.lineVisible(CB.map,src,target,TG);}));}
+function discoveryCreatureDisclosure(c,r){var D=discoveryApi();return D&&DISCOVERY.ready&&D.creatureDisclosure?D.creatureDisclosure(CB.map,DISCOVERY.currentSources||[],{c:c,r:r},TG,{clearFt:CREATURE_CLEAR_FT,softMaxFt:CREATURE_SOFT_MAX_FT}):{state:"hidden",canTarget:false,clarity:0};}
+function discoveryCellTargetable(c,r){return !!discoveryCreatureDisclosure(c,r).canTarget;}
 document.addEventListener('forge:viewerMode',function(){refreshDiscovery(true);syncAllUnitVisuals();drawHi();drawSight();});
 
 /* ── PHASE 1.5e: persistent effect ledger ─────────────────────────────
@@ -4487,7 +4489,9 @@ function makeToken(u){
    then a selected unit takes its side colour; then the ACTIVE unit glows on its
    turn — gold if a PC, red if a foe (so you can see which enemy is attacking),
    the foe-red gated on visibility for the not-yet-built hidden system. */
-function foeVisible(u){ if(!u||u.side!=='foe')return true; if(!discoveryPlayerView())return true; return discoveryCellTargetable(u.c,u.r); }
+function foeDisclosure(u){if(!u||u.side!=='foe'||!discoveryPlayerView())return {state:"clear",canTarget:true,clarity:1};return discoveryCreatureDisclosure(u.c,u.r);}
+function foeVisible(u){return foeDisclosure(u).state!=="hidden";}
+function foeTargetable(u){return !!foeDisclosure(u).canTarget;}
 /* A hidden foe may still change a visible PC's HP. Player View narrates that
    consequence without leaking the attacker's identity or bespoke action name.
    This is presentation-only; the authoritative row and replay remain intact. */
@@ -5384,7 +5388,7 @@ function foeAnchor(cells,pcCells,taken){
 function occupied(except){ var s=new Set(); CB.units.forEach(function(u){ if(u.alive&&u!==except)s.add(u.c+","+u.r); }); return s; }
 function active(){ return CB.order[CB.ti]; }
 function unitAt(c,r){ return CB.units.filter(function(u){return u.alive&&u.c===c&&u.r===r&&(u.side!=="foe"||foeVisible(u));})[0]||null; }
-function enemies(u){ return CB.units.filter(function(x){return x.alive&&x.side!==u.side&&(u.side!=="pc"||x.side!=="foe"||foeVisible(x));}); }
+function enemies(u){ return CB.units.filter(function(x){return x.alive&&x.side!==u.side&&(u.side!=="pc"||x.side!=="foe"||foeTargetable(x));}); }
 function allies(u){ return CB.units.filter(function(x){return x.alive&&x.side===u.side;}); }
 /* Round-3 §F (M's ruling): a heal on a downed ally brings it up at the
    healed HP, unconscious cleared. allies() filters `alive`, which made the
@@ -5492,7 +5496,7 @@ function firingTargetFor(u,a){
   if(!u||!a||a.kind!=='attack'||(a.rng||1)<=1)return null;
   var t=unitByKey(CB.tgtKey)||unitByKey(CB.selKey);
   if(!t||!t.alive||t.side===u.side)return null;
-  if(u.side==='pc'&&t.side==='foe'&&!foeVisible(t))return null;
+  if(u.side==='pc'&&t.side==='foe'&&!foeTargetable(t))return null;
   return t;
 }
 function previewOrigins(u){
@@ -7117,12 +7121,12 @@ function renderHud(){
     ch.addEventListener("click",function(){
       var o=unitByKey(ch.dataset.unit);if(!o)return;
       var a=CB.pending;
-      if(a&&directAttack(a)&&active()&&o.side!==active().side&&foeVisible(o)){
+      if(a&&directAttack(a)&&active()&&o.side!==active().side&&foeTargetable(o)){
         setSel(o.key);setTgt(o.key);CONFIRM_TARGET=o.unit;focusPair(active(),o);drawHi();drawSight();renderHud();return;
       }
       setSel(o.key);focusUnit(o);
     });
-    ch.addEventListener("contextmenu",function(e){e.preventDefault();var o=unitByKey(ch.dataset.unit);if(o&&foeVisible(o))setTgt(o.key);}); });
+    ch.addEventListener("contextmenu",function(e){e.preventDefault();var o=unitByKey(ch.dataset.unit);if(o&&foeTargetable(o))setTgt(o.key);}); });
   var panel=document.getElementById("cbActive");
   if(panel&&suppressEnemyHud)panel.innerHTML="";
   if(panel&&u&&!suppressEnemyHud){ var isPc=u.side==="pc";

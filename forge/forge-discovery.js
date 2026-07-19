@@ -18,7 +18,7 @@
 })(typeof self!=="undefined"?self:this,function(){
   "use strict";
 
-  var VERSION="1.4.0";
+  var VERSION="1.5.0";
   var UNEXPLORED=0, EXPLORED=1, VISIBLE=2;
   var DEFAULT_SIGHT_FT=60;
 
@@ -75,6 +75,27 @@
       return !(ray&&ray.blocked);
     }
     return true;
+  }
+  /* Creature disclosure is not the same authority as target acquisition.
+     A player-to-foe ray grants a legal target. A reverse-only ray means the
+     foe has a fair line on the player, so Player View keeps a subdued token
+     instead of pretending no creature is there. Total cover in both
+     directions still hides the foe completely. */
+  function creatureDisclosure(map,sources,target,geometry,opts){
+    opts=opts||{};var clearFt=Number(opts.clearFt)||100,softMaxFt=Number(opts.softMaxFt)||240;
+    var best={state:"hidden",canTarget:false,clarity:0,distanceFt:Infinity,reason:"total cover"};
+    (sources||[]).forEach(function(src){
+      if(!src||!target)return;var dist=rangeFt(map,src,target,geometry),forward=lineVisible(map,src,target,geometry),reverse=lineVisible(map,target,src,geometry);
+      if(forward){
+        var clarity=dist<=clearFt?1:(dist>=softMaxFt ? .32 : 1-((dist-clearFt)/(softMaxFt-clearFt))*.68);
+        var candidate={state:clarity>=.999?"clear":"soft",canTarget:true,clarity:clarity,distanceFt:dist,reason:clarity>=.999?"clear line of sight":"distant line of sight"};
+        if(!best.canTarget||candidate.clarity>best.clarity)best=candidate;
+      }else if(reverse&&dist<=softMaxFt&&!best.canTarget){
+        var reverseClarity=Math.max(.32,.58-(dist/softMaxFt)*.26);
+        if(best.state==="hidden"||reverseClarity>best.clarity)best={state:"soft",canTarget:false,clarity:reverseClarity,distanceFt:dist,reason:"foe has reciprocal sight"};
+      }
+    });
+    return best;
   }
   function visibleFrom(map,origin,geometry,opts){
     opts=opts||{};var d=dims(map),n=d.cols*d.rows,out=new Uint8Array(n);
@@ -187,7 +208,7 @@
 
   return Object.freeze({VERSION:VERSION,UNEXPLORED:UNEXPLORED,EXPLORED:EXPLORED,VISIBLE:VISIBLE,
     DEFAULT_SIGHT_FT:DEFAULT_SIGHT_FT,dims:dims,idx:idx,inBounds:inBounds,uniqueCells:uniqueCells,
-    sightRadiusFt:sightRadiusFt,rangeFt:rangeFt,lineVisible:lineVisible,visibleFrom:visibleFrom,unionMasks:unionMasks,connectedMask:connectedMask,
+    sightRadiusFt:sightRadiusFt,rangeFt:rangeFt,lineVisible:lineVisible,creatureDisclosure:creatureDisclosure,visibleFrom:visibleFrom,unionMasks:unionMasks,connectedMask:connectedMask,
     partyVisible:partyVisible,mergeExplored:mergeExplored,composeStates:composeStates,
     cellState:cellState,cellVisible:cellVisible,historySources:historySources,
     classifyReachResult:classifyReachResult,classifyOrigins:classifyOrigins,stateColor:stateColor});

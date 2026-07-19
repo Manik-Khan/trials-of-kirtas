@@ -9,7 +9,7 @@ const openGeo={
   range3d:(m,a,b)=>Math.hypot(Math.max(Math.abs(a.c-b.c),Math.abs(a.r-b.r))*5,0),
   losVerdict:()=>({canTarget:true,cover:"none",acBonus:0})
 };
-ok(D.VERSION==="1.4.0","module version is pinned");
+ok(D.VERSION==="1.5.0","module version is pinned");
 ok(D.UNEXPLORED===0&&D.EXPLORED===1&&D.VISIBLE===2,"three discovery states are stable");
 ok(D.dims({W:3,H:4}).cols===3&&D.dims({W:3,H:4}).rows===4,"legacy W/H map dimensions normalize");
 ok(D.idx(map(),2,3)===17,"cell index is row-major");
@@ -42,6 +42,15 @@ const sharedVerdictGeo={losVerdict:()=>({canTarget:true,cover:"half",acBonus:2})
 ok(D.lineVisible(map(),{c:0,r:0},{c:1,r:0},sharedVerdictGeo),"a combat-legal covered target is also disclosed to Player View");
 sharedVerdictGeo.losVerdict=()=>({canTarget:false,cover:"total",acBonus:Infinity});
 ok(!D.lineVisible(map(),{c:0,r:0},{c:1,r:0},sharedVerdictGeo),"canonical total cover still hides a target");
+const oneWayGeo={range3d:openGeo.range3d,losVerdict:(m,a,b)=>({canTarget:a.c>b.c})};
+const reciprocal=D.creatureDisclosure(map(),[{c:0,r:0}],{c:4,r:0},oneWayGeo,{clearFt:100,softMaxFt:240});
+ok(reciprocal.state==="soft"&&!reciprocal.canTarget&&reciprocal.clarity>0,"reverse-only enemy sight preserves a subdued, non-targetable token");
+const hidden=D.creatureDisclosure(map(),[{c:0,r:0}],{c:4,r:0},{range3d:openGeo.range3d,losVerdict:()=>({canTarget:false})});
+ok(hidden.state==="hidden"&&!hidden.canTarget,"total cover in both directions keeps a foe hidden");
+const distant=D.creatureDisclosure(map(40,2),[{c:0,r:0}],{c:30,r:0},openGeo,{clearFt:100,softMaxFt:240});
+ok(distant.state==="soft"&&distant.canTarget&&distant.clarity<1,"a distant legal target remains targetable with softened recognition");
+const near=D.creatureDisclosure(map(),[{c:0,r:0}],{c:4,r:0},openGeo,{clearFt:100,softMaxFt:240});
+ok(near.state==="clear"&&near.canTarget&&near.clarity===1,"near legal sight stays clear and targetable");
 const wallMap=map(5,3),wi=D.idx(wallMap,2,1);wallMap.wall[wi]=true;wallMap.occ[wi]=10;
 let wallVis=D.visibleFrom(wallMap,{c:0,r:1},TG,{radiusFt:30});
 ok(wallVis[D.idx(wallMap,2,1)]===1,"the blocking wall itself remains visible");

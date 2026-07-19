@@ -22,7 +22,7 @@ ok('geometry fog keeps every instance matrix instead of hiding terrain', html.in
 ok('geometry fog does not build the old void veil', html.includes('if(player&&!geometryMode)buildFogVeil()'));
 ok('visible geometry returns to full authored colour', html.includes('recognition=geometryMode?1:'));
 ok('Temple presentation reads the real per-cell discovery state', html.includes('return discoveryStateAt(c,r);') && !html.includes('ARCHITECTURE_API.regionStateAt'));
-ok('creature disclosure uses direct canonical combat sight', html.includes('function discoveryCellTargetable(c,r)') && html.includes('return discoveryCellTargetable(u.c,u.r)'));
+ok('creature disclosure uses direct canonical combat sight with a reciprocal soft state', html.includes('function discoveryCreatureDisclosure(c,r)') && html.includes('D.creatureDisclosure(CB.map,DISCOVERY.currentSources'));
 ok('production builder exposes wall, parapet, gate, and erase blocks', ['wall', 'parapet', 'gate', 'erase'].every(k => html.includes(`data-architecture-tool="${k}"`)));
 ok('seeded retaining walls accept both blocking extension tools', html.includes('if(seededWall&&def&&def.blocks)edit.heightFt=') && html.includes("kind==='parapet'?'5-ft parapet'"));
 ok('Workshop preview uses canonical cell sight rather than authored regions', html.includes('D.visibleFrom(map,source,TG') && html.includes('Preview sight fog') && !html.includes('Preview region fog'));
