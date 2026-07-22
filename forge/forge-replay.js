@@ -7,10 +7,11 @@
    gate). Dual export: browser (window.ForgeReplay) + node.                */
 (function (root, factory) {
   var FP = (typeof require !== "undefined") ? require("./forge-protocol.js") : root.ForgeProtocol;
-  var api = factory(FP);
+  var FER = (typeof require !== "undefined") ? require("./forge-encounter-regions.js") : root.ForgeEncounterRegions;
+  var api = factory(FP, FER);
   if (typeof module !== "undefined" && module.exports) module.exports = api;
   else root.ForgeReplay = api;
-})(typeof self !== "undefined" ? self : this, function (FP) {
+})(typeof self !== "undefined" ? self : this, function (FP, FER) {
 
   function canonicalSide(value) {
     var side=String(value==null?"pc":value).toLowerCase();
@@ -64,7 +65,7 @@
       status: "staging", units: units, rolls: {}, initiativeEvidence: {}, initiative: null,
       turnsEnded: 0, pendingAction: null, pendingPrompt: null, pendingPrompts: [],
       chat: [], lastSeq: 0, appliedResourceSpends: {}, connectorStates: {}, connectorStateProofs: {},
-      economy: freshEconomy(null)
+      economy: freshEconomy(null), encounterRegions: FER ? FER.groupsFromRoster(roster) : null
     };
   }
 
@@ -108,6 +109,23 @@
     return Math.floor(state.turnsEnded / state.initiative.length) + 1;
   }
 
+  function applyInitiative(state, p) {
+    var prevRound = round(state);   // BEFORE overwriting order/turnsEnded
+    state.initiative = p.order.slice();
+    var validResume = p.resume_at != null && state.initiative.indexOf(p.resume_at) >= 0;
+    if (validResume) {
+      state.turnsEnded = (Math.max(1, prevRound) - 1) * state.initiative.length
+                       + state.initiative.indexOf(p.resume_at);
+    } else {
+      if (p.resume_at != null) console.warn("[forge-replay] resume_at not in order — restarting round: " + p.resume_at);
+      state.turnsEnded = 0;
+    }
+    if (!(p.preserve_turn && validResume)) {
+      Object.keys(state.units).forEach(function (k) { state.units[k].reactionUsed = false; });
+      resetEconomy(state);
+    }
+  }
+
   function applyDamage(u, dmg) {var wasUp=u.hp>0;u.hp = Math.max(0, u.hp - dmg); u.downed = (u.hp === 0);if(wasUp&&u.downed)u.deathSaves=freshDeathSaves();}
   function applyEffects(state, effects) {
     (effects || []).forEach(function (e) {
@@ -146,27 +164,12 @@
           warnings: ["Legacy initiative total — component evidence unavailable."]
         };
         break;
-      case "initiative_set": {
-        var prevRound = round(state);   // BEFORE overwriting order/turnsEnded
-        state.initiative = p.order.slice();
-        var validResume = p.resume_at != null && state.initiative.indexOf(p.resume_at) >= 0;
-        if (validResume) {
-          // mid-fight re-order (FORGE_BOARD.md §6 reinforcements): resume at the
-          // named unit in the current round — a new goblin must not restart the round
-          state.turnsEnded = (Math.max(1, prevRound) - 1) * state.initiative.length
-                           + state.initiative.indexOf(p.resume_at);
-        } else {
-          if (p.resume_at != null) console.warn("[forge-replay] resume_at not in order — restarting round: " + p.resume_at);
-          state.turnsEnded = 0;
-        }
-        /* A manual/reslot edit during an established turn must not refund the
-           active creature's movement, action, bonus action, spell limit, or
-           reactions. Fight-start initiative and legacy reorder facts retain
-           their original fresh-turn behaviour unless preserve_turn is explicit. */
-        if (!(p.preserve_turn && validResume)) {
-          Object.keys(state.units).forEach(function (k) { state.units[k].reactionUsed = false; });
-          resetEconomy(state);
-        }
+      case "initiative_set": applyInitiative(state, p); break;
+      case "encounter_region_activated": {
+        var activation = state.encounterRegions && state.encounterRegions.groups && state.encounterRegions.groups[p.group_id];
+        if (!activation || activation.state !== "waiting") break;
+        activation.state = "active"; activation.reason = p.reason; activation.activatedSeq = row.seq;
+        applyInitiative(state, p);
         break;
       }
       case "turn_ended": {
@@ -264,6 +267,7 @@
         state.connectorStates = state.connectorStates || {};
         state.connectorStateProofs = state.connectorStateProofs || {};
         state.initiativeEvidence = state.initiativeEvidence || {};
+        if(state.encounterRegions===undefined)state.encounterRegions=null;
         state.pendingPrompts = state.pendingPrompts || (state.pendingPrompt ? [state.pendingPrompt] : []);
         state.pendingPrompt = state.pendingPrompts.length ? state.pendingPrompts[state.pendingPrompts.length-1] : null;
         if(!state.economy)resetEconomy(state);

@@ -15,8 +15,9 @@
 // window.CharacterData) and never auto-runs.
 // ---------------------------------------------------------------------------
 
-import { wireInspiration } from './sheet-actions.js?v=ma1';
+import { wireInspiration } from './sheet-actions.js?v=ma2';
 import { assembleActions } from './weapon-actions.js';
+import { applySpellCorrections } from './sheet-corrections.js?v=ca1';
 
 function esc(x){ return String(x==null?'':x).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); }
 function sgn(n){ n=Number(n)||0; return (n>=0?'+':'\u2212')+Math.abs(n); }
@@ -108,16 +109,18 @@ function fmtCt(t){
 }
 function spellHTML(sp, glvl){
   sp=sp||{};
-  var oMap={ "class":"o-class", subclass:"o-sub", race:"o-race", feat:"o-feat", expanded:"o-sub" };
-  var tMap={ "class":"t-class", subclass:"t-sub", race:"t-race", feat:"t-feat", expanded:"t-exp" };
+  var oMap={ "class":"o-class", subclass:"o-sub", race:"o-race", feat:"o-feat", expanded:"o-sub", manual:"o-manual" };
+  var tMap={ "class":"t-class", subclass:"t-sub", race:"t-race", feat:"t-feat", expanded:"t-exp", manual:"t-manual" };
   var o=sp.origin||'class';
   // the cast handler reads data-level; a forged spell may not carry its own level, so fall
   // back to the group's level (passed by groupHTML) instead of defaulting every spell to 0
   // (which made leveled spells log as "cantrip").
   var lvl = sp.level!=null ? sp.level : (glvl!=null ? glvl : 0);
-  return '<div class="spell '+(oMap[o]||'o-class')+'" data-spell="'+esc(sp.name)+'" data-level="'+lvl+'"'+(sp.conc?' data-conc="1"':'')+'><span class="s-car">\u25B8</span><span class="s-n">'+esc(sp.name)+(sp.conc?' <span class="s-conc" title="Concentration">C</span>':'')+'</span>'
+  var corr=sp.correctionId ? (' data-correction-id="'+esc(sp.correctionId)+'"') : '';
+  var review=sp.correctionId ? ('<span class="s-corr '+(sp.correctionStatus==='confirmed'?'confirmed':'')+'">'+(sp.correctionStatus==='confirmed'?'Confirmed':'Review')+'</span>') : '';
+  return '<div class="spell '+(oMap[o]||'o-class')+'" data-spell="'+esc(sp.name)+'" data-level="'+lvl+'"'+corr+(sp.conc?' data-conc="1"':'')+'><span class="s-car">\u25B8</span><span class="s-n">'+esc(sp.name)+(sp.conc?' <span class="s-conc" title="Concentration">C</span>':'')+'</span>'
        + '<span class="s-tag '+(tMap[o]||'t-class')+'">'+esc(sp.source)+'</span>'
-       + '<span class="s-ct">'+esc(fmtCt(sp.time))+'</span></div>';
+       + review+'<span class="s-ct">'+esc(fmtCt(sp.time))+'</span></div>';
 }
 function groupHTML(g){
   g=g||{};
@@ -152,6 +155,13 @@ function renderSpellcasting(root, sc){
   setF('castAtk', sc.attackBonus!=null?sgn(sc.attackBonus):dash);
   setF('castType', sc.prepared===true?'Prepared':(sc.prepared===false?'Known':(sc.castType||dash)));
   setF('featNote', sc.featNote);
+  var cs=sc.correctionSummary||{}, hb=root.querySelector('[data-corr-audit]'), hc=root.querySelector('[data-corr-health]');
+  if(hb){
+    hb.classList.toggle('attention', !!cs.unreviewed);
+    hb.classList.toggle('has-corrections', !!cs.active && !cs.unreviewed);
+    hb.setAttribute('aria-label', cs.unreviewed ? (cs.unreviewed+' spell correction'+(cs.unreviewed===1?'':'s')+' need review') : 'Character correction history');
+  }
+  if(hc) hc.textContent = cs.unreviewed ? (cs.unreviewed+' need'+(cs.unreviewed===1?'s':'')+' review') : (cs.active ? (cs.active+' active correction'+(cs.active===1?'':'s')) : (cs.history ? (cs.history+' history event'+(cs.history===1?'':'s')) : 'No corrections'));
   var gb=root.querySelector('[data-list="spellGroups"]');
   if(gb) gb.innerHTML=casts?(sc.groups||[]).map(groupHTML).join(''):'<p class="spell-none" style="opacity:.55;font-style:italic;margin:10px 2px">This character doesn\u2019t cast spells.</p>';
   var db=root.querySelector('[data-list="detail"]');       if(db) db.innerHTML=detailHTML(sc.detail);
@@ -594,6 +604,7 @@ function toRenderShape(cd){
   // current recomputed from spent) so pips deplete + stay spendable — even for characters
   // forged before pools carried a key. Same helper the cast path uses → they never drift.
   if(s.spellcasting){ var livePools=slotPoolsLive(s, v); s.spellcasting=Object.assign({}, s.spellcasting, { pools:livePools }); }
+  s.spellcasting=applySpellCorrections(s.spellcasting||{}, s);
   if(!s.resources) s.resources=buildResources(s, v);
   if(v.inspiration==null && s.inspiration!=null) v.inspiration=s.inspiration;
   // ── Display inventory: assign equipment slots so the paper-doll is populated
@@ -1125,6 +1136,11 @@ var SHEET_TEMPLATE = `<main class="tok-sheet">
             <span><i class="l-class"></i>Class</span><span><i class="l-sub"></i>Subclass</span>
             <span><i class="l-race"></i>Species</span><span><i class="l-feat"></i>Feat</span>
             <span class="none" data-f="featNote">— no feat spells at this level</span>
+          </div>
+
+          <div class="corr-bar">
+            <button class="corr-health" type="button" data-corr-audit><span class="corr-dot"></span><span data-corr-health>No corrections</span></button>
+            <button class="corr-add" type="button" data-corr-add>+ Add spell</button>
           </div>
 
           <div data-list="spellGroups"></div>

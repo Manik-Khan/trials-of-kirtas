@@ -57,7 +57,11 @@
         verbs.push({ t: "status", status: after.status });
         verbs = verbs.concat(turnVerb(before, after));
         break;
-      case "initiative_set": case "turn_ended":
+      case "initiative_set": case "encounter_region_activated":
+        verbs.push({ t: "order", order: (after.initiative || []).slice(), active: FR.activeUnit(after) });
+        verbs = verbs.concat(turnVerb(before, after));
+        break;
+      case "turn_ended":
         verbs = verbs.concat(turnVerb(before, after));
         break;
       case "move_resolved": {

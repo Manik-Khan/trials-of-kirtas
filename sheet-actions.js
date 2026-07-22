@@ -30,6 +30,7 @@
 
 import { assembleActions, meleeWeaponOptions } from './weapon-actions.js';
 import { spellDetailHTML, feedSummary } from './spell-detail.js';
+import { addSpellCorrection, classNamesOf, closeCorrection, correctionLedger, spellExists } from './sheet-corrections.js?v=ca1';
 
 // ── ResourceDerive resolver (browser global, set by resource-derive.js) ──
 function rd() {
@@ -462,6 +463,148 @@ export function wireInspiration({ root, characterData, key, depsReady } = {}) {
     try { var saved = await characterData.save(key, { currency: currency }); currency = (saved && saved.currency) ? saved.currency : currency; }
     catch (e) { currency = prev; refresh(); showStat('error', "couldn't save \u00B7 tap to retry", false); }
     finally { busy(false); }
+  }
+
+  // ── Character corrections: manual spell additions + append-only audit.
+  // Generated spells remain build-owned. Active corrections live in their own
+  // structural ledger and are overlaid by sheet-mount, so reforging cannot wipe
+  // them. Validation is deliberately soft: a catalog miss explains what ToK
+  // checked, but Add anyway always remains available.
+  var corrOverlay = null, corrEditable = false, corrDraft = null, corrEscHandler = null;
+  function baseSpellcasting() {
+    if (structural.spellcasting) return structural.spellcasting;
+    var api = sheetApi();
+    return api.buildSpellcasting ? api.buildSpellcasting(structural, vitals) : { groups: [] };
+  }
+  function closeCorrOverlay() {
+    if (corrOverlay && corrOverlay.parentNode) corrOverlay.parentNode.removeChild(corrOverlay);
+    if (corrEscHandler) doc.removeEventListener('keydown', corrEscHandler);
+    corrEscHandler = null;
+    corrOverlay = null; corrDraft = null;
+  }
+  function corrShell(title, eyebrow) {
+    closeCorrOverlay();
+    corrOverlay = doc.createElement('div'); corrOverlay.className = 'corr-overlay';
+    corrOverlay.innerHTML = '<section class="corr-modal" role="dialog" aria-modal="true" aria-label="' + esc(title) + '">'
+      + '<header class="corr-modal-head"><div><span class="corr-kicker">' + esc(eyebrow) + '</span><h3>' + esc(title) + '</h3></div>'
+      + '<button class="corr-x" type="button" data-corr-close aria-label="Close">\u00d7</button></header>'
+      + '<div class="corr-modal-body" data-corr-body></div></section>';
+    (doc.body || root).appendChild(corrOverlay);
+    corrOverlay.addEventListener('click', function (e) {
+      if (e.target === corrOverlay || e.target.closest('[data-corr-close]')) closeCorrOverlay();
+    });
+    corrEscHandler = function (e) { if (e.key === 'Escape' && corrOverlay) closeCorrOverlay(); };
+    doc.addEventListener('keydown', corrEscHandler);
+    return corrOverlay.querySelector('[data-corr-body]');
+  }
+  function classOptions(selected) {
+    var names = classNamesOf(structural);
+    return names.map(function (n) { return '<option' + (n === selected ? ' selected' : '') + '>' + esc(n) + '</option>'; }).join('')
+      + '<option' + (selected === 'Manual' ? ' selected' : '') + '>Manual</option>';
+  }
+  async function currentCorrectionActor() {
+    try {
+      var tok = (typeof window !== 'undefined') && window.__tok;
+      var me = tok && tok.ready ? await tok.ready : null;
+      return (me && (me.displayName || me.username || me.email)) || 'Character editor';
+    } catch (_) { return 'Character editor'; }
+  }
+  function openCorrectionAdd() {
+    if (!corrEditable || !doc) return;
+    var body = corrShell('Add a spell', 'Character correction');
+    body.innerHTML = '<p class="corr-intro">Enter the spell exactly as it appears in the compendium. ToK will check every class in this build, explain what it finds, and never hard-lock the choice.</p>'
+      + '<label class="corr-label" for="corr-spell-name">Spell name</label><input class="corr-input" id="corr-spell-name" value="" autocomplete="off" placeholder="Shield">'
+      + '<div class="corr-actions"><button class="corr-btn ghost" type="button" data-corr-close>Cancel</button><button class="corr-btn primary" type="button" data-corr-check>Check access</button></div>'
+      + '<div data-corr-result></div>';
+    var input = body.querySelector('#corr-spell-name'), check = body.querySelector('[data-corr-check]');
+    if (input) input.focus();
+    async function runCheck() {
+      var name = String(input && input.value || '').trim(); if (!name) { input.focus(); return; }
+      var result = body.querySelector('[data-corr-result]');
+      check.disabled = true; check.textContent = 'Checking\u2026';
+      result.innerHTML = '<div class="corr-checking">Checking the compendium and this build\u2026</div>';
+      var SSD = (typeof window !== 'undefined') ? window.SoulShardsData : null;
+      var meta = null, sources = [], catalogError = false, classes = classNamesOf(structural);
+      try {
+        if (!SSD || !SSD.loadSpellMeta || !SSD.loadClassSpellList) throw new Error('catalog unavailable');
+        var found = await SSD.loadSpellMeta([name], { detail: true }); meta = found && found[0] || null;
+        var lists = await Promise.all(classes.map(function (cls) { return SSD.loadClassSpellList(cls).catch(function () { return []; }); }));
+        lists.forEach(function (list, i) { if ((list || []).some(function (sp) { return String(sp.name || '').toLowerCase() === name.toLowerCase(); })) sources.push(classes[i]); });
+      } catch (_) { catalogError = true; }
+      var exact = meta ? meta.name : name, eligible = sources.length > 0, already = spellExists(baseSpellcasting(), exact);
+      corrDraft = {
+        name: exact, level: meta && meta.level != null ? meta.level : 0,
+        source: eligible ? sources[0] : (classes[0] || 'Manual'),
+        status: eligible ? 'confirmed' : 'unreviewed',
+        validator: { result: eligible ? 'eligible' : (catalogError ? 'offline' : 'unverified'), sources: sources, checkedClasses: classes, rulesVersion: '5etools 2014', engine: 'sheet-corrections-v1', checkedAt: new Date().toISOString() },
+        spell: meta || {}
+      };
+      var tone = eligible ? 'ok' : 'warn';
+      var heading = eligible ? 'ToK found a valid source' : 'ToK can\u2019t verify this choice';
+      var message = eligible
+        ? (esc(exact) + ' appears on the <b>' + esc(sources.join(' and ')) + '</b> spell list' + (already ? ' and is already present on this sheet.' : '. If automation omitted it, this will be saved as a confirmed correction.'))
+        : (catalogError ? 'The spell catalog could not be checked right now. You can still add the spell and leave a reviewable explanation.' : 'No matching grant was found on the class spell lists ToK could check. This may be incomplete rules data, a subclass grant, or a table ruling.');
+      result.innerHTML = '<div class="corr-verdict ' + tone + '"><h4>' + heading + '</h4><p>' + message + '</p><span>Checked: ' + esc(classes.length ? classes.join(', ') : 'no class metadata') + '</span></div>'
+        + '<div class="corr-grid"><label><span class="corr-label">Spell level</span><select class="corr-select" data-corr-level>'
+        + Array.from({length:10}, function (_, i) { return '<option value="' + i + '"' + (i === corrDraft.level ? ' selected' : '') + '>' + (i === 0 ? 'Cantrip' : ('Level ' + i)) + '</option>'; }).join('') + '</select></label>'
+        + '<label><span class="corr-label">Source</span><select class="corr-select" data-corr-source>' + classOptions(corrDraft.source) + '</select></label></div>'
+        + '<label><span class="corr-label">Why is this being added?</span><select class="corr-select" data-corr-reason>'
+        + '<option>Missing automation or rules data</option><option>Granted by class or subclass</option><option>House rule</option><option>Imported character</option><option>Temporary ruling</option><option>Magic item or story reward</option><option>Other</option></select></label>'
+        + '<label><span class="corr-label">Table note <i>optional</i></span><textarea class="corr-input corr-note" data-corr-note placeholder="What should the table know later?"></textarea></label>'
+        + '<div class="corr-actions"><button class="corr-btn ghost" type="button" data-corr-close>Cancel</button><button class="corr-btn primary" type="button" data-corr-add-anyway>' + (eligible ? 'Add confirmed correction' : 'Add anyway') + '</button></div>';
+      check.disabled = false; check.textContent = 'Check again';
+      var add = result.querySelector('[data-corr-add-anyway]');
+      add.addEventListener('click', async function () {
+        if (!corrDraft || saving) return;
+        corrDraft.level = parseInt(result.querySelector('[data-corr-level]').value, 10) || 0;
+        corrDraft.source = result.querySelector('[data-corr-source]').value;
+        corrDraft.reason = result.querySelector('[data-corr-reason]').value;
+        corrDraft.note = result.querySelector('[data-corr-note]').value.trim();
+        corrDraft.actor = await currentCorrectionActor();
+        var prev = structural; structural = addSpellCorrection(structural, corrDraft);
+        closeCorrOverlay(); refresh(); persistStructural(prev);
+      });
+    }
+    check.addEventListener('click', runCheck);
+    input.addEventListener('keydown', function (e) { if (e.key === 'Enter') { e.preventDefault(); runCheck(); } });
+  }
+  function eventTitle(ev) {
+    if (ev.kind === 'resolved') return 'Correction resolved';
+    if (ev.kind === 'removed') return 'Correction removed';
+    return 'Manual spell added';
+  }
+  function openCorrectionAudit() {
+    if (!doc) return;
+    var body = corrShell('Character corrections', 'Audit and review');
+    var ledger = correctionLedger(structural), base = baseSpellcasting();
+    var active = ledger.active.map(function (c) {
+      var canResolve = c.kind === 'spell' && spellExists(base, c.name);
+      return '<article class="corr-card"><div class="corr-card-head"><div><h4>' + esc(c.name) + '</h4><span class="corr-status ' + (c.status === 'confirmed' ? 'ok' : 'warn') + '">' + (c.status === 'confirmed' ? 'Confirmed source' : 'Needs review') + '</span></div><span class="corr-kind">Active spell</span></div>'
+        + '<dl><div><dt>Source</dt><dd>' + esc(c.source || 'Manual') + '</dd></div><div><dt>Reason</dt><dd>' + esc(c.reason || '—') + '</dd></div><div><dt>Player note</dt><dd>' + esc(c.note || 'No note supplied') + '</dd></div><div><dt>Added by</dt><dd>' + esc(c.actor || 'Character editor') + '</dd></div><div><dt>Validator</dt><dd>' + esc(((c.validator || {}).result || 'unverified')) + ' · ' + esc(((c.validator || {}).rulesVersion || 'rules version unrecorded')) + '</dd></div></dl>'
+        + (corrEditable ? '<div class="corr-card-actions">' + (canResolve ? '<button class="corr-btn primary" type="button" data-corr-resolve="' + esc(c.id) + '">Resolve to generated</button>' : '') + '<button class="corr-btn danger" type="button" data-corr-remove="' + esc(c.id) + '">Remove correction</button></div>' : '') + '</article>';
+    }).join('');
+    var history = ledger.history.slice().reverse().map(function (ev) {
+      var when = ev.at ? new Date(ev.at).toLocaleString() : 'Unknown time';
+      return '<li><span class="corr-event-dot"></span><div><b>' + esc(eventTitle(ev)) + ' · ' + esc(ev.subject || '') + '</b><p>' + esc(ev.detail || '') + '</p><time>' + esc(when) + ' · ' + esc(ev.actor || 'Character editor') + '</time></div></li>';
+    }).join('');
+    body.innerHTML = '<div class="corr-totals"><span><b>' + ledger.active.length + '</b> active</span><span><b>' + ledger.active.filter(function (c) { return c.status === 'unreviewed'; }).length + '</b> need review</span><span><b>' + ledger.history.length + '</b> history events</span></div>'
+      + (active || '<div class="corr-empty">No active corrections. Past decisions remain in the history below.</div>')
+      + '<section class="corr-history"><h4>History</h4><ol>' + (history || '<li><span class="corr-event-dot"></span><div><b>No activity yet</b><p>Manual corrections and review decisions will appear here.</p></div></li>') + '</ol></section>';
+    body.addEventListener('click', function (e) {
+      var rm = e.target.closest('[data-corr-remove]'), rs = e.target.closest('[data-corr-resolve]'); if (!rm && !rs) return;
+      var prev = structural, id = (rm || rs).getAttribute(rm ? 'data-corr-remove' : 'data-corr-resolve');
+      structural = closeCorrection(structural, id, rs ? 'resolved' : 'removed', rs ? 'The generated spell list now carries this spell; the manual overlay was retired.' : 'Removed from the active sheet by a character editor.');
+      closeCorrOverlay(); refresh(); persistStructural(prev);
+    });
+  }
+  function bindCorrections(editable) {
+    corrEditable = !!editable;
+    var sec = root.querySelector('[data-sec="spells"]'); if (sec) sec.classList.toggle('corr-enabled', corrEditable);
+    root.addEventListener('click', function (e) {
+      var add = e.target.closest('[data-corr-add]'), audit = e.target.closest('[data-corr-audit]');
+      if (add) { e.stopPropagation(); openCorrectionAdd(); }
+      else if (audit) { e.stopPropagation(); openCorrectionAudit(); }
+    });
   }
 
   // ── equipment slots: equip / unequip / attune all write item.slot / item.attuned
@@ -2044,6 +2187,7 @@ export function wireInspiration({ root, characterData, key, depsReady } = {}) {
       bindTrackers(true);
       bindCustomFeatures(true);
       bindSpellcasting(true);
+      bindCorrections(true);
       bindAttacks(true);
       bindActionEditor();
       bindPortraitPicker();
@@ -2063,6 +2207,7 @@ export function wireInspiration({ root, characterData, key, depsReady } = {}) {
       bindTrackers(false);
       bindCustomFeatures(false);
       bindSpellcasting(false);
+      bindCorrections(false);
       bindAttacks(false);
     }
   })();

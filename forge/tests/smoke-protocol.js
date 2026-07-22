@@ -7,11 +7,11 @@ const FR = require("../forge-replay.js");
 let pass = 0, fail = 0;
 const ok = (n, c) => { c ? pass++ : fail++; console.log((c ? "✓ " : "✗ ") + n); };
 
-// ── §2: the vocabulary is exactly 17 kinds, and there is no turn_started ──
-ok("17 event kinds", FP.KINDS.length === 17);
+// ── §2: the vocabulary is exactly 18 kinds, and there is no turn_started ──
+ok("18 event kinds", FP.KINDS.length === 18);
 ok("no turn_started (derived, spec §2)", FP.KINDS.indexOf("turn_started") < 0);
 ok("all spec kinds present", ["session_started","initiative_rolled","initiative_set",
-  "turn_ended","move_declared","move_resolved","attack_declared","attack_resolved",
+  "encounter_region_activated","turn_ended","move_declared","move_resolved","attack_declared","attack_resolved",
   "ability_used","prompt","prompt_answered","reaction_declared","chat",
   "override","restore","edit","session_ended"].every(k => FP.KINDS.indexOf(k) >= 0));
 
@@ -22,6 +22,8 @@ ok("missing unit rejected", FP.validateEvent({ kind: "chat", payload: { text: "h
 ok("missing payload field rejected, named",
   FP.validateEvent(FP.makeEvent("caim", "attack_declared", { target: "foe1" })).why.indexOf("roll") >= 0);
 ok("valid event passes", FP.validateEvent(FP.makeEvent("caim", "chat", { text: "hi" })).ok === true);
+ok("activation requires its replay facts", FP.validateEvent(FP.makeEvent("caim", "encounter_region_activated",
+  { group_id: "summit-guard", reason: "region-entry", order: ["caim", "guard"] })).ok === true);
 ok("overseer-only kinds flagged", !!(FP.OVERSEER_ONLY.override && FP.OVERSEER_ONLY.restore &&
   FP.OVERSEER_ONLY.edit && FP.OVERSEER_ONLY.initiative_set));
 

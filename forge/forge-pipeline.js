@@ -174,6 +174,9 @@
         } else payload = { roll: Number(evidenceOrRoll) || 0 };
         return publish(unit, "initiative_rolled", payload);
       },
+      activateEncounterRegion: function (unit, payload) {
+        return publish(unit, "encounter_region_activated", payload);
+      },
       endTurn: function (unit) { return publish(unit, "turn_ended", {}); },
       chat: function (unit, text) { return publish(unit, "chat", { text: text }); },
       declareReaction: function (unit, react, triggerSeq, context) {

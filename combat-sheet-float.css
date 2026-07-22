@@ -50,7 +50,7 @@
 .sf-winbtn:hover{ color:#ece2cd; background:rgba(20,34,31,.6) }
 .sf-winbtn.sf-close:hover{ color:#e0584a; background:rgba(224,88,74,.14) }
 
-.sf-stack{ flex:1 1 auto; position:relative; overflow:hidden }
+.sf-stack{ flex:1 1 auto; min-height:0; position:relative; overflow:hidden }
 .sf-page{ position:absolute; inset:0; overflow:hidden; display:none; container-type:inline-size }
 .sf-page.active{ display:block }
 
@@ -64,7 +64,8 @@
    --bg-* / --fx-* vars. Without this block the layers fall into normal flow and pile
    up as a band at the top (the "background only paints the top third" symptom). */
 .sf-bg{ position:absolute; inset:0; z-index:0; overflow:hidden; pointer-events:none; }
-.sf-scroll{ position:absolute; inset:0; z-index:1; overflow-y:auto; overflow-x:hidden; overscroll-behavior:contain; }
+.sf-scroll{ position:absolute; inset:0; z-index:1; overflow-y:auto; overflow-x:hidden; overscroll-behavior:contain;
+  -webkit-overflow-scrolling:touch; touch-action:pan-y; }
 .sf-bg .tok-bg{ position:absolute; inset:0; z-index:0; pointer-events:none;
   background-position:center; background-size:cover; background-repeat:no-repeat;
   filter:hue-rotate(var(--bg-hue,0deg)) saturate(var(--bg-sat,1)) blur(var(--bg-blur,0px)) var(--bg-chroma,grayscale(0)); }

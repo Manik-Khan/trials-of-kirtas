@@ -48,7 +48,7 @@ forge_events
   **The log wins, always** (rev 2 §8).
 - Schema ships as one append-only migration file per repo SQL rules.
 
-## §2 · Event vocabulary — 17 kinds
+## §2 · Event vocabulary — 18 kinds
 
 Every event is a sentence said at the table. State (HP, positions, whose turn, resources,
 round) is never stored — it is derived by replaying the log top to bottom.
@@ -58,6 +58,7 @@ round) is never stored — it is derived by replaying the log top to bottom.
 | `session_started` | "We're fighting — map and roster locked." | `{}` (map/roster live on the session row) | overseer |
 | `initiative_rolled` | "I rolled a 14." | `{roll, initiative_evidence?, effects?}` | each player (own device); overseer for foes/absent |
 | `initiative_set` | "Order is: Caim, goblin 2, Cosmere…" | `{order:[unit,...], resume_at?}` | overseer |
+| `encounter_region_activated` | "The summit guard joins the fight." | `{group_id, reason, order:[unit,...], resume_at, preserve_turn:true}` | triggering unit's controller; overseer for manual activation |
 | `turn_ended` | "Done." | `{}` | active player; overseer may force (actor shows who) |
 | `move_declared` | "I move along this path." | `{path}` | mover |
 | `move_resolved` | "…and arrive." (or stop short) | `{final_cell, interrupted_at?}` | mover |
@@ -81,6 +82,15 @@ round) is never stored — it is derived by replaying the log top to bottom.
   and the order is re-confirmed mid-fight (slotting a reinforcement into the turn
   order, FORGE_BOARD.md §6), naming the currently-active unit here resumes the round
   in place instead of restarting it at position 0. Omit it for fight start.
+- **Encounter-region activation is additive initiative authority.** Every authored
+  combatant rolls before round 1, but only groups marked `active` receive initial
+  seats. An `enter` or `dm` group retains its exact deployment and held roll while
+  waiting. Activation inserts those units by held total, carries the current unit in
+  `resume_at`, and preserves the current turn's economy/reaction state. Replaying or
+  restoring the log reconstructs the same waiting/active boundary. Discovery remains
+  independent: activation does not reveal a hidden unit, and visibility does not
+  activate a group. A legal hostile action against a waiting unit publishes activation
+  before the attack facts.
 - **`add_unit` (optional) on `edit`** — the one protocol extension for mid-fight
   reinforcements (FORGE_BOARD.md §6): `{unit, name, kind:'foe', statblock, pos,
   disposition?, size?}`. The event carries the **full snapshot inline**, so any
@@ -289,6 +299,7 @@ working browser.
 | Nested prompts | Replay keeps a prompt stack; answering a nested attack reaction restores the suspended outer OA/movement prompt |
 | Reaction commitment | Accepted OAs publish `reaction_declared` before the nested attack, so the reaction is spent exactly once across clients |
 | Connector state | Overseer `edit.connector_state` is a replayable live override; snapshot geometry remains immutable |
+| Encounter regions | Deployment keeps exact positions; a separate authored activation record selects active-at-start, party-enters-region, or DM activation. Held initiative joins without restarting the current turn |
 
 ## §9 · Explicitly out of scope (unchanged from rev 2 §7)
 

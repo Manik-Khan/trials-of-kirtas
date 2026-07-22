@@ -320,6 +320,35 @@ new browser error appeared. A visible difficulty scale was deliberately not
 added without an approved mock. Encounter-region activation remains the next
 architectural phase.
 
+## Encounter-region activation · 2026-07-22
+
+The approved standalone mock at
+`_edits/mock-forge-encounter-region-activation.html` is now implemented on the
+shared Table path. `forge-encounter-regions.js?v=fer1` is the pure authority.
+Deployment still owns exact positions; a separate `encounterRegions` record saved
+with the session owns only when each group joins initiative. Defaults are party and
+allies active at initiative, enemies activated when a conscious party unit first
+enters their selected intent region. Each group can instead be authored as active at
+initiative or DM-activated in the existing deployment card.
+
+All combatants roll before round 1. Waiting groups remain on their authored cells and
+keep those results, but do not receive initiative seats. Region entry, a legal hostile
+action against a waiting member, or the overseer's Encounter regions control publishes
+`encounter_region_activated`. Replay inserts the held seats without reordering existing
+seats, resumes the same active creature, and preserves spent movement/action/bonus and
+reaction state. Duplicate activation facts are inert; restore rewinds activation.
+Historical rosters without encounter-group fields retain the old all-active behavior.
+
+Activation and discovery are deliberately independent. Activating a hidden group does
+not reveal it; seeing a group does not activate it. Player View receives the generic
+“Another group joins the fight” system line, while Staff View names the group and cause.
+
+Focused validation is **438/438 green** across encounter activation, protocol, replay,
+board verbs, effects, deployment, initiative, engine, map bridge, tactical geometry,
+line of sight/cover, placement, flora, and the current Phase 2 trust/privacy harnesses.
+The local Temple Workshop rendered both activation modes with no browser errors. The
+signed-in two-device Table remains the field gate because localhost has no site session.
+
 ## Required field checklist
 
 1. On the live signed-in site, open a Temple Table with at least Party and Enemy flags.
@@ -339,12 +368,13 @@ architectural phase.
 
 ## Immediate execution order
 
-1. Run the signed-in shared-table/reconnect deployment and architecture checklist.
-2. Compare Balanced and High Fidelity on M's actual laptop during a full round.
-3. Recheck saved-block and geometry-fog reconnects on the normal Temple URL.
-4. Promote Temple from `preview` to `active` only after those checks pass.
-5. Expose/settle the Volcanic Workshop construction control.
-6. Build `bridge-crossing` on the same intent contract.
+1. Run the signed-in two-device activation checklist: held rolls, region entry, hostile-action activation, DM activation, reconnect, and Player View narration.
+2. Run the signed-in shared-table/reconnect deployment and architecture checklist.
+3. Compare Balanced and High Fidelity on M's actual laptop during a full round.
+4. Recheck saved-block and geometry-fog reconnects on the normal Temple URL.
+5. Promote Temple from `preview` to `active` only after those checks pass.
+6. Expose/settle the Volcanic Workshop construction control.
+7. Build `bridge-crossing` on the same intent contract.
 
 Do not begin `bridge-crossing` by re-enabling random legacy bridge selection. Purpose and archetype ownership come first.
 
@@ -356,4 +386,7 @@ M reviews, commits, and pushes. Codex does not push. Current slice stamps:
 `forge-render-power.js?v=frp1`, `forge-architecture.js?v=fa4`, and
 `forge-discovery.js?v=fd7`, `forge-kit-derive.js?v=b9`,
 `forge-foe-ai.js?v=fai2`, `forge-hud.js?v=b3`, and
-`monster-actor.js?v=ma2`.
+`monster-actor.js?v=ma2`. Encounter activation adds
+`forge-encounter-regions.js?v=fer1` and bumps `forge-protocol.js?v=fpr2`,
+`forge-replay.js?v=fb15`, `forge-effects.js?v=fe6`,
+`forge-pipeline.js?v=fb8`, and `forge-board.js?v=fb8`.

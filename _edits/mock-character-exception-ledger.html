@@ -1,0 +1,679 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>ToK Mock — Character Corrections &amp; Audit</title>
+  <style>
+    :root {
+      color-scheme: dark;
+      --ground: #09110f;
+      --panel: #111e1b;
+      --panel-2: #172723;
+      --cream: #eee3cf;
+      --muted: #aaab9f;
+      --gold: #c99c50;
+      --gold-2: #efd18c;
+      --red: #de6758;
+      --teal: #5bc5be;
+      --green: #87b982;
+      --line: rgba(231, 194, 121, .24);
+      --shadow: 0 28px 90px rgba(0, 0, 0, .45);
+    }
+
+    * { box-sizing: border-box; }
+
+    body {
+      margin: 0;
+      min-height: 100vh;
+      color: var(--cream);
+      background:
+        radial-gradient(circle at 83% 7%, rgba(91, 197, 190, .12), transparent 26rem),
+        radial-gradient(circle at 8% 28%, rgba(201, 156, 80, .1), transparent 30rem),
+        var(--ground);
+      font-family: Georgia, "Times New Roman", serif;
+    }
+
+    button, input, select, textarea { font: inherit; }
+    button { color: inherit; }
+    [hidden] { display: none !important; }
+
+    .eyebrow,
+    .button,
+    .pill,
+    .nav-tab,
+    label,
+    .stat-label,
+    .spell-level,
+    .status-kicker {
+      font-family: Arial, Helvetica, sans-serif;
+      font-weight: 700;
+      letter-spacing: .09em;
+      text-transform: uppercase;
+    }
+
+    .app-shell { max-width: 1240px; margin: 0 auto; padding: 28px; }
+
+    .demo-note {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 18px;
+      margin-bottom: 16px;
+      padding: 10px 14px;
+      color: #cbd0c6;
+      background: rgba(255, 255, 255, .035);
+      border: 1px dashed rgba(255, 255, 255, .15);
+      border-radius: 10px;
+      font: 13px/1.45 Arial, Helvetica, sans-serif;
+    }
+
+    .demo-note strong { color: var(--gold-2); }
+
+    .sheet {
+      overflow: hidden;
+      border: 1px solid var(--line);
+      border-radius: 18px;
+      background: linear-gradient(145deg, rgba(22, 37, 33, .98), rgba(10, 18, 16, .99));
+      box-shadow: var(--shadow);
+    }
+
+    .sheet-head {
+      position: relative;
+      display: grid;
+      grid-template-columns: 1fr auto;
+      gap: 28px;
+      padding: 28px 32px 24px;
+      border-bottom: 1px solid var(--line);
+      background: linear-gradient(90deg, rgba(201, 156, 80, .09), transparent 48%);
+    }
+
+    .sheet-head::after {
+      content: "";
+      position: absolute;
+      right: 31px;
+      bottom: -1px;
+      width: 92px;
+      height: 2px;
+      background: var(--red);
+    }
+
+    .eyebrow { margin: 0 0 7px; color: var(--teal); font-size: 11px; }
+    h1 { margin: 0; font-size: clamp(36px, 5vw, 64px); font-weight: 500; line-height: .95; }
+    .identity { margin: 12px 0 0; color: #d3ccb9; font-size: 16px; }
+
+    .health-button {
+      align-self: center;
+      min-width: 190px;
+      padding: 13px 15px;
+      text-align: left;
+      border: 1px solid rgba(222, 103, 88, .48);
+      border-radius: 12px;
+      background: rgba(222, 103, 88, .09);
+      cursor: pointer;
+    }
+
+    .health-button[data-state="clear"] {
+      border-color: rgba(135, 185, 130, .45);
+      background: rgba(135, 185, 130, .08);
+    }
+
+    .status-kicker { display: block; margin-bottom: 4px; color: var(--muted); font-size: 9px; }
+    .health-copy { display: flex; align-items: center; gap: 9px; font: 700 14px Arial, sans-serif; }
+    .status-dot { width: 9px; height: 9px; border-radius: 50%; background: var(--red); box-shadow: 0 0 0 4px rgba(222, 103, 88, .12); }
+    .health-button[data-state="clear"] .status-dot { background: var(--green); box-shadow: 0 0 0 4px rgba(135, 185, 130, .12); }
+
+    .sheet-nav { display: flex; gap: 8px; padding: 12px 32px; border-bottom: 1px solid rgba(255,255,255,.06); }
+    .nav-tab { padding: 8px 11px; color: #878e85; border: 0; border-radius: 7px; background: transparent; font-size: 10px; }
+    .nav-tab.active { color: var(--gold-2); background: rgba(201, 156, 80, .1); }
+
+    .sheet-body { display: grid; grid-template-columns: 270px minmax(0, 1fr); min-height: 590px; }
+
+    .sidebar { padding: 26px 22px; border-right: 1px solid var(--line); background: rgba(0,0,0,.12); }
+    .portrait {
+      display: grid;
+      place-items: center;
+      width: 128px;
+      height: 128px;
+      margin: 0 auto 22px;
+      border: 1px solid rgba(231, 194, 121, .48);
+      border-radius: 50%;
+      background: radial-gradient(circle at 38% 32%, #355b55, #172420 58%, #080e0c 60%);
+      box-shadow: inset 0 0 0 7px rgba(0, 0, 0, .25), 0 0 40px rgba(91,197,190,.1);
+      color: var(--gold-2);
+      font-size: 44px;
+    }
+
+    .stats { display: grid; grid-template-columns: repeat(2, 1fr); gap: 10px; }
+    .stat { padding: 12px; border: 1px solid rgba(255,255,255,.07); border-radius: 10px; background: rgba(255,255,255,.025); }
+    .stat-label { display: block; color: var(--muted); font-size: 9px; }
+    .stat strong { display: block; margin-top: 4px; color: var(--gold-2); font: 500 25px Georgia, serif; }
+
+    .sidebar-rule { height: 1px; margin: 22px 0; background: linear-gradient(90deg, transparent, var(--line), transparent); }
+    .sidebar h2 { margin: 0 0 10px; color: var(--gold-2); font-size: 17px; font-weight: 500; }
+    .sidebar p { margin: 0; color: var(--muted); font: 13px/1.55 Arial, sans-serif; }
+
+    .content { min-width: 0; padding: 26px 28px 34px; }
+    .section-head { display: flex; align-items: center; justify-content: space-between; gap: 18px; margin-bottom: 18px; }
+    .section-head h2 { margin: 0; font-size: 28px; font-weight: 500; }
+    .section-head p { margin: 4px 0 0; color: var(--muted); font: 13px Arial, sans-serif; }
+
+    .button {
+      min-height: 39px;
+      padding: 10px 14px;
+      border: 1px solid rgba(231, 194, 121, .3);
+      border-radius: 8px;
+      background: rgba(201, 156, 80, .11);
+      cursor: pointer;
+      font-size: 10px;
+    }
+    .button:hover { border-color: var(--gold); background: rgba(201, 156, 80, .17); }
+    .button.primary { color: #15150e; border-color: var(--gold-2); background: var(--gold-2); }
+    .button.danger { border-color: rgba(222,103,88,.4); background: rgba(222,103,88,.1); }
+    .button.ghost { border-color: rgba(255,255,255,.11); background: transparent; }
+    .button:focus-visible, input:focus-visible, select:focus-visible, textarea:focus-visible, .health-button:focus-visible { outline: 2px solid var(--teal); outline-offset: 2px; }
+
+    .spell-list { display: grid; gap: 9px; }
+    .spell-row {
+      display: grid;
+      grid-template-columns: 42px minmax(0, 1fr) auto;
+      gap: 13px;
+      align-items: center;
+      min-height: 65px;
+      padding: 10px 13px;
+      border: 1px solid rgba(255,255,255,.075);
+      border-radius: 11px;
+      background: rgba(255,255,255,.025);
+    }
+    .spell-row.exception { border-color: rgba(222,103,88,.34); background: linear-gradient(90deg, rgba(222,103,88,.08), rgba(255,255,255,.02)); }
+    .spell-row.resolved { border-color: rgba(135,185,130,.25); }
+    .spell-level { display: grid; place-items: center; width: 39px; height: 39px; border: 1px solid var(--line); border-radius: 50%; color: var(--gold-2); font-size: 11px; }
+    .spell-name { font-size: 18px; }
+    .spell-source { margin-top: 4px; color: var(--muted); font: 12px Arial, sans-serif; }
+    .pill { display: inline-flex; align-items: center; gap: 5px; padding: 5px 8px; border: 1px solid rgba(255,255,255,.13); border-radius: 999px; color: #b6b9af; font-size: 8px; }
+    .pill.warning { color: #f0ada4; border-color: rgba(222,103,88,.38); background: rgba(222,103,88,.09); }
+    .pill.ok { color: #b9d8b5; border-color: rgba(135,185,130,.36); background: rgba(135,185,130,.08); }
+
+    .simulation {
+      display: flex;
+      flex-wrap: wrap;
+      align-items: center;
+      gap: 10px;
+      margin-top: 24px;
+      padding-top: 18px;
+      border-top: 1px solid rgba(255,255,255,.07);
+    }
+    .simulation-copy { flex: 1 1 260px; color: var(--muted); font: 12px/1.45 Arial, sans-serif; }
+
+    .toast {
+      position: fixed;
+      right: 22px;
+      bottom: 22px;
+      z-index: 50;
+      max-width: min(420px, calc(100vw - 44px));
+      padding: 13px 16px;
+      border: 1px solid rgba(91,197,190,.4);
+      border-radius: 9px;
+      color: #e8f5f3;
+      background: #17322e;
+      box-shadow: var(--shadow);
+      font: 13px/1.45 Arial, sans-serif;
+    }
+
+    .scrim { position: fixed; inset: 0; z-index: 20; background: rgba(1, 5, 4, .72); backdrop-filter: blur(4px); }
+    .dialog {
+      position: fixed;
+      top: 50%;
+      left: 50%;
+      z-index: 21;
+      width: min(660px, calc(100vw - 28px));
+      max-height: min(780px, calc(100vh - 28px));
+      overflow: auto;
+      transform: translate(-50%, -50%);
+      border: 1px solid var(--line);
+      border-radius: 16px;
+      background: #111d1a;
+      box-shadow: 0 34px 120px #000;
+    }
+    .dialog.wide { width: min(780px, calc(100vw - 28px)); }
+    .dialog-head { display: flex; align-items: flex-start; justify-content: space-between; gap: 18px; padding: 22px 24px 18px; border-bottom: 1px solid rgba(255,255,255,.07); }
+    .dialog-head h2 { margin: 2px 0 0; font-size: 27px; font-weight: 500; }
+    .icon-button { width: 34px; height: 34px; border: 1px solid rgba(255,255,255,.1); border-radius: 50%; background: transparent; cursor: pointer; font: 18px Arial, sans-serif; }
+    .dialog-body { padding: 22px 24px 24px; }
+    .dialog-actions { display: flex; justify-content: flex-end; gap: 9px; padding: 17px 24px; border-top: 1px solid rgba(255,255,255,.07); background: rgba(0,0,0,.12); }
+
+    label { display: block; margin-bottom: 7px; color: #babeb4; font-size: 9px; }
+    input, select, textarea {
+      width: 100%;
+      color: var(--cream);
+      border: 1px solid rgba(255,255,255,.15);
+      border-radius: 8px;
+      background: #0b1513;
+      padding: 11px 12px;
+    }
+    textarea { min-height: 78px; resize: vertical; }
+    .field + .field { margin-top: 15px; }
+    .field-help { margin: 6px 0 0; color: var(--muted); font: 11px/1.4 Arial, sans-serif; }
+
+    .search-result {
+      display: flex;
+      justify-content: space-between;
+      gap: 16px;
+      margin-top: 12px;
+      padding: 14px;
+      width: 100%;
+      color: inherit;
+      text-align: left;
+      border: 1px solid var(--line);
+      border-radius: 10px;
+      background: rgba(201,156,80,.06);
+      cursor: pointer;
+    }
+    .search-result strong { display: block; font-size: 18px; }
+    .search-result span { color: var(--muted); font: 12px Arial, sans-serif; }
+
+    .warning-card {
+      margin: 4px 0 18px;
+      padding: 16px;
+      border: 1px solid rgba(222,103,88,.4);
+      border-left: 3px solid var(--red);
+      border-radius: 9px;
+      background: rgba(222,103,88,.075);
+    }
+    .warning-card h3 { margin: 0 0 6px; color: #f2c0b9; font-size: 18px; }
+    .warning-card p { margin: 0; color: #d2c9bd; font: 13px/1.5 Arial, sans-serif; }
+    .checks { display: grid; gap: 7px; margin: 14px 0 0; padding: 0; list-style: none; }
+    .checks li { display: grid; grid-template-columns: 14px 1fr; gap: 8px; color: var(--muted); font: 12px/1.35 Arial, sans-serif; }
+    .checks li::before { content: "•"; color: var(--red); }
+
+    .audit-summary { display: grid; grid-template-columns: repeat(3, 1fr); gap: 9px; margin-bottom: 19px; }
+    .audit-stat { padding: 12px; border: 1px solid rgba(255,255,255,.07); border-radius: 9px; background: rgba(255,255,255,.025); }
+    .audit-stat strong { display: block; color: var(--gold-2); font-size: 22px; }
+    .audit-stat span { color: var(--muted); font: 10px Arial, sans-serif; }
+
+    .active-card { padding: 15px; border: 1px solid rgba(222,103,88,.28); border-radius: 10px; background: rgba(222,103,88,.05); }
+    .active-card h3, .audit-section h3 { margin: 0 0 10px; font-size: 17px; font-weight: 500; }
+    .active-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px 20px; }
+    .detail-label { display: block; color: var(--muted); font: 9px Arial, sans-serif; text-transform: uppercase; letter-spacing: .08em; }
+    .detail-value { display: block; margin-top: 3px; font: 13px/1.4 Arial, sans-serif; }
+
+    .resolution-offer { margin-top: 13px; padding: 13px; border: 1px solid rgba(135,185,130,.36); border-radius: 9px; background: rgba(135,185,130,.08); }
+    .resolution-offer p { margin: 0 0 10px; color: #cfdec9; font: 12px/1.45 Arial, sans-serif; }
+    .audit-section { margin-top: 20px; }
+    .timeline { margin: 0; padding: 0; list-style: none; }
+    .timeline li { position: relative; margin-left: 6px; padding: 0 0 18px 22px; border-left: 1px solid rgba(231,194,121,.22); }
+    .timeline li:last-child { padding-bottom: 0; }
+    .timeline li::before { content: ""; position: absolute; top: 2px; left: -5px; width: 9px; height: 9px; border-radius: 50%; background: var(--gold); }
+    .timeline strong { display: block; font: 700 12px Arial, sans-serif; }
+    .timeline span { display: block; margin-top: 4px; color: var(--muted); font: 11px/1.45 Arial, sans-serif; }
+
+    .empty-audit { padding: 30px 10px; color: var(--muted); text-align: center; font: 13px/1.5 Arial, sans-serif; }
+
+    @media (max-width: 760px) {
+      .app-shell { padding: 12px; }
+      .demo-note { align-items: flex-start; flex-direction: column; }
+      .sheet-head { grid-template-columns: 1fr; padding: 23px 20px; }
+      .health-button { width: 100%; }
+      .sheet-nav { overflow-x: auto; padding-inline: 18px; }
+      .sheet-body { display: block; }
+      .sidebar { display: none; }
+      .content { padding: 22px 17px 28px; }
+      .section-head { align-items: flex-start; }
+      .spell-row { grid-template-columns: 38px minmax(0, 1fr); }
+      .spell-row > .pill { grid-column: 2; justify-self: start; }
+      .dialog-head, .dialog-body { padding-inline: 18px; }
+      .dialog-actions { flex-wrap: wrap; padding-inline: 18px; }
+      .dialog-actions .button { flex: 1 1 auto; }
+      .audit-summary { grid-template-columns: 1fr; }
+      .active-grid { grid-template-columns: 1fr; }
+    }
+  </style>
+</head>
+<body>
+  <main class="app-shell">
+    <div class="demo-note">
+      <span><strong>Interaction mock:</strong> a safe correction path when ToK’s rules data and the table disagree. Nothing here saves to a real character.</span>
+      <button class="button ghost" id="reset-demo" type="button">Restart demo</button>
+    </div>
+
+    <article class="sheet" aria-label="Cosmere character sheet mock">
+      <header class="sheet-head">
+        <div>
+          <p class="eyebrow">Level 3 · Astral Elf</p>
+          <h1>Cosmere</h1>
+          <p class="identity">Warlock 2 <b>· The Hexblade</b> &nbsp;/&nbsp; Sorcerer 1 <b>· Shadow Magic</b></p>
+        </div>
+        <button class="health-button" id="open-audit" type="button" data-state="clear" aria-haspopup="dialog">
+          <span class="status-kicker">Character health</span>
+          <span class="health-copy"><span class="status-dot"></span><span id="health-label">No active exceptions</span></span>
+        </button>
+      </header>
+
+      <nav class="sheet-nav" aria-label="Character sheet sections">
+        <button class="nav-tab" type="button">Combat</button>
+        <button class="nav-tab active" type="button">Spells</button>
+        <button class="nav-tab" type="button">Features</button>
+        <button class="nav-tab" type="button">Inventory</button>
+        <button class="nav-tab" type="button">Notes</button>
+      </nav>
+
+      <div class="sheet-body">
+        <aside class="sidebar">
+          <div class="portrait" aria-hidden="true">C</div>
+          <div class="stats">
+            <div class="stat"><span class="stat-label">Armor Class</span><strong>18</strong></div>
+            <div class="stat"><span class="stat-label">Speed</span><strong>30</strong></div>
+            <div class="stat"><span class="stat-label">Spell DC</span><strong>14</strong></div>
+            <div class="stat"><span class="stat-label">Spell Attack</span><strong>+6</strong></div>
+          </div>
+          <div class="sidebar-rule"></div>
+          <h2>Rule confidence</h2>
+          <p>ToK checks what it can, explains what it found, and keeps the player in control when the source data is incomplete.</p>
+        </aside>
+
+        <section class="content">
+          <div class="section-head">
+            <div>
+              <h2>Spells</h2>
+              <p>Prepared, known, and manually granted spells</p>
+            </div>
+            <button class="button primary" id="add-spell" type="button">+ Add spell</button>
+          </div>
+
+          <div class="spell-list" id="spell-list" aria-live="polite"></div>
+
+          <div class="simulation">
+            <span class="simulation-copy">Demo controls show what happens after a rebuild or after ToK’s catalog is corrected.</span>
+            <button class="button" id="simulate-reforge" type="button" disabled>Simulate reforge</button>
+            <button class="button" id="simulate-fix" type="button" disabled>Simulate generator fix</button>
+          </div>
+        </section>
+      </div>
+    </article>
+  </main>
+
+  <div class="toast" id="toast" role="status" hidden></div>
+  <div class="scrim" id="scrim" hidden></div>
+
+  <section class="dialog" id="add-dialog" role="dialog" aria-modal="true" aria-labelledby="add-dialog-title" hidden>
+    <header class="dialog-head">
+      <div>
+        <p class="eyebrow">Add to Cosmere</p>
+        <h2 id="add-dialog-title">Find a spell</h2>
+      </div>
+      <button class="icon-button close-dialog" type="button" aria-label="Close">×</button>
+    </header>
+    <div class="dialog-body" id="add-dialog-body">
+      <div class="field">
+        <label for="spell-search">Spell name</label>
+        <input id="spell-search" type="search" value="Shield" autocomplete="off">
+      </div>
+      <button class="search-result" id="select-shield" type="button">
+        <span><strong>Shield</strong><span>1st-level abjuration · Reaction</span></span>
+        <span>View eligibility →</span>
+      </button>
+    </div>
+  </section>
+
+  <section class="dialog" id="warning-dialog" role="dialog" aria-modal="true" aria-labelledby="warning-dialog-title" hidden>
+    <header class="dialog-head">
+      <div>
+        <p class="eyebrow">Soft rules check</p>
+        <h2 id="warning-dialog-title">Add Shield?</h2>
+      </div>
+      <button class="icon-button close-dialog" type="button" aria-label="Close">×</button>
+    </header>
+    <div class="dialog-body">
+      <div class="warning-card">
+        <h3>ToK found a valid source</h3>
+        <p><b>Shield</b> appears on the Sorcerer spell list, but it is missing from Cosmere’s generated sheet. Add it as a confirmed correction?</p>
+        <ul class="checks">
+          <li>Build checked: Warlock 2 (The Hexblade) / Sorcerer 1</li>
+          <li>Sources checked: Warlock and Sorcerer spell lists</li>
+          <li>Catalog result: eligible through Sorcerer</li>
+        </ul>
+      </div>
+      <div class="field">
+        <label for="exception-reason">Why should this be added?</label>
+        <select id="exception-reason">
+          <option value="Granted by class or subclass">Granted by class or subclass</option>
+          <option value="Missing automation or rules data" selected>Missing automation or rules data</option>
+          <option value="House rule">House rule</option>
+          <option value="Imported character">Imported character</option>
+          <option value="Temporary ruling">Temporary ruling</option>
+          <option value="Magic item or story reward">Magic item or story reward</option>
+          <option value="Other">Other</option>
+        </select>
+      </div>
+      <div class="field">
+        <label for="exception-note">Table note <span aria-hidden="true">·</span> optional</label>
+        <textarea id="exception-note">Sorcerer multiclass spell omitted after reforge.</textarea>
+        <p class="field-help">This appears in Cosmere’s audit history so the table can understand the correction later.</p>
+      </div>
+    </div>
+    <footer class="dialog-actions">
+      <button class="button ghost" id="back-to-search" type="button">Back</button>
+      <button class="button primary" id="confirm-add" type="button">Add anyway</button>
+    </footer>
+  </section>
+
+  <section class="dialog wide" id="audit-dialog" role="dialog" aria-modal="true" aria-labelledby="audit-dialog-title" hidden>
+    <header class="dialog-head">
+      <div>
+        <p class="eyebrow">Character health</p>
+        <h2 id="audit-dialog-title">Cosmere’s corrections</h2>
+      </div>
+      <button class="icon-button close-dialog" type="button" aria-label="Close">×</button>
+    </header>
+    <div class="dialog-body" id="audit-body"></div>
+    <footer class="dialog-actions">
+      <button class="button ghost close-dialog" type="button">Close</button>
+    </footer>
+  </section>
+
+  <script>
+    (() => {
+      const baseSpells = [
+        { level: "C", name: "Eldritch Blast", source: "Warlock" },
+        { level: "C", name: "Mage Hand", source: "Astral Elf" },
+        { level: "1", name: "Hex", source: "Warlock" },
+        { level: "1", name: "Armor of Agathys", source: "Warlock" }
+      ];
+
+      const initialState = () => ({
+        shield: false,
+        status: "none",
+        reason: "",
+        note: "",
+        catalogFixed: false,
+        history: []
+      });
+
+      let state = initialState();
+      let activeDialog = null;
+      let lastTrigger = null;
+      let toastTimer = null;
+
+      const $ = selector => document.querySelector(selector);
+      const spellList = $("#spell-list");
+      const healthButton = $("#open-audit");
+      const healthLabel = $("#health-label");
+      const scrim = $("#scrim");
+
+      function escapeHTML(value) {
+        return String(value).replace(/[&<>'"]/g, character => ({
+          "&": "&amp;", "<": "&lt;", ">": "&gt;", "'": "&#39;", '"': "&quot;"
+        })[character]);
+      }
+
+      function spellRow(spell) {
+        return `
+          <article class="spell-row">
+            <span class="spell-level">${spell.level}</span>
+            <div><div class="spell-name">${spell.name}</div><div class="spell-source">${spell.source}</div></div>
+            <span class="pill">Verified</span>
+          </article>`;
+      }
+
+      function renderSheet() {
+        let rows = baseSpells.map(spellRow).join("");
+        if (state.shield) {
+          const isException = state.status === "confirmed";
+          rows += `
+            <article class="spell-row ${isException ? "exception" : "resolved"}" data-spell="shield">
+              <span class="spell-level">1</span>
+              <div>
+                <div class="spell-name">Shield</div>
+                <div class="spell-source">${isException ? "Manual · Sorcerer" : "Sorcerer · Multiclass"}</div>
+              </div>
+              <span class="pill ok">${isException ? "Confirmed correction" : "Verified"}</span>
+            </article>`;
+        }
+        spellList.innerHTML = rows;
+
+        const hasException = state.status === "confirmed";
+        healthButton.dataset.state = hasException ? "attention" : "clear";
+        healthLabel.textContent = hasException ? "1 confirmed correction" : (state.status === "resolved" ? "All corrections resolved" : "No active exceptions");
+        $("#simulate-reforge").disabled = !state.shield;
+        $("#simulate-fix").disabled = !hasException || state.catalogFixed;
+      }
+
+      function nowLabel() {
+        return "Just now · Mock user";
+      }
+
+      function historyItem(title, detail) {
+        state.history.unshift({ title, detail, time: nowLabel() });
+      }
+
+      function renderAudit() {
+        const active = state.status === "confirmed";
+        const resolved = state.status === "resolved";
+        const activeMarkup = active ? `
+          <section class="active-card">
+            <h3>Shield <span class="pill ok">Confirmed source</span></h3>
+            <div class="active-grid">
+              <div><span class="detail-label">Correction</span><span class="detail-value">Spell added manually</span></div>
+              <div><span class="detail-label">Reason</span><span class="detail-value">${escapeHTML(state.reason)}</span></div>
+              <div><span class="detail-label">Player note</span><span class="detail-value">${escapeHTML(state.note || "No note supplied")}</span></div>
+              <div><span class="detail-label">Validator</span><span class="detail-value">Eligible through Sorcerer</span></div>
+            </div>
+            ${state.catalogFixed ? `
+              <div class="resolution-offer">
+                <p><b>The generator now includes Shield.</b> Convert this correction to an ordinary Sorcerer spell while preserving its history?</p>
+                <button class="button primary" id="resolve-exception" type="button">Resolve to automatic</button>
+              </div>` : ""}
+          </section>` : `
+          <div class="empty-audit">${resolved ? "There are no active exceptions. Shield is now verified, and the correction remains in the history below." : "No manual corrections have been made in this demo."}</div>`;
+
+        const timeline = state.history.length ? state.history.map(item => `
+          <li><strong>${escapeHTML(item.title)}</strong><span>${escapeHTML(item.detail)}<br>${escapeHTML(item.time)}</span></li>`).join("") :
+          "<li><strong>No activity yet</strong><span>Manual changes and review decisions will appear here.</span></li>";
+
+        $("#audit-body").innerHTML = `
+          <div class="audit-summary">
+            <div class="audit-stat"><strong>${active ? "1" : "0"}</strong><span>Active exceptions</span></div>
+            <div class="audit-stat"><strong>${resolved ? "1" : "0"}</strong><span>Resolved corrections</span></div>
+            <div class="audit-stat"><strong>${state.history.length}</strong><span>History events</span></div>
+          </div>
+          ${activeMarkup}
+          <section class="audit-section">
+            <h3>History</h3>
+            <ol class="timeline">${timeline}</ol>
+          </section>`;
+
+        const resolveButton = $("#resolve-exception");
+        if (resolveButton) resolveButton.addEventListener("click", resolveException);
+      }
+
+      function openDialog(dialog, trigger) {
+        closeDialog(false);
+        lastTrigger = trigger || document.activeElement;
+        activeDialog = dialog;
+        scrim.hidden = false;
+        dialog.hidden = false;
+        requestAnimationFrame(() => {
+          const focusTarget = dialog.querySelector("input, select, textarea, button");
+          if (focusTarget) focusTarget.focus();
+        });
+      }
+
+      function closeDialog(restoreFocus = true) {
+        if (activeDialog) activeDialog.hidden = true;
+        scrim.hidden = true;
+        activeDialog = null;
+        if (restoreFocus && lastTrigger) lastTrigger.focus();
+      }
+
+      function showToast(message) {
+        const toast = $("#toast");
+        toast.textContent = message;
+        toast.hidden = false;
+        clearTimeout(toastTimer);
+        toastTimer = setTimeout(() => { toast.hidden = true; }, 4200);
+      }
+
+      function confirmAdd() {
+        state.shield = true;
+        state.status = "confirmed";
+        state.reason = $("#exception-reason").value;
+        state.note = $("#exception-note").value.trim();
+        historyItem(
+          "Shield added as a manual exception",
+          `Reason: ${state.reason}. Validator: eligible through Sorcerer. Before: absent. After: known spell.`
+        );
+        renderSheet();
+        closeDialog();
+        showToast("Shield was added. The correction is active, reviewable, and will survive reforge.");
+      }
+
+      function simulateReforge() {
+        historyItem("Reforge completed", "Automatic spell choices were rebuilt. The active manual Shield correction was preserved.");
+        renderSheet();
+        showToast("Reforge complete. Shield stayed on Cosmere because it is an active correction.");
+      }
+
+      function simulateCatalogFix() {
+        state.catalogFixed = true;
+        historyItem("Generator rechecked", "The rebuilt Sorcerer spell list now includes Shield. Resolution is available; nothing changed automatically.");
+        renderSheet();
+        renderAudit();
+        openDialog($("#audit-dialog"), $("#simulate-fix"));
+      }
+
+      function resolveException() {
+        state.status = "resolved";
+        historyItem("Correction resolved to automatic", "Shield is now sourced from Sorcerer. The spell remained on the sheet and the original manual history was preserved.");
+        renderSheet();
+        renderAudit();
+        showToast("Shield is now verified. The original correction remains in Cosmere’s history.");
+      }
+
+      function resetDemo() {
+        state = initialState();
+        $("#exception-reason").selectedIndex = 1;
+        $("#exception-note").value = "Sorcerer multiclass spell omitted after reforge.";
+        renderSheet();
+        renderAudit();
+        closeDialog(false);
+        showToast("Demo restarted.");
+      }
+
+      $("#add-spell").addEventListener("click", event => openDialog($("#add-dialog"), event.currentTarget));
+      $("#select-shield").addEventListener("click", event => openDialog($("#warning-dialog"), event.currentTarget));
+      $("#back-to-search").addEventListener("click", event => openDialog($("#add-dialog"), event.currentTarget));
+      $("#confirm-add").addEventListener("click", confirmAdd);
+      $("#open-audit").addEventListener("click", event => { renderAudit(); openDialog($("#audit-dialog"), event.currentTarget); });
+      $("#simulate-reforge").addEventListener("click", simulateReforge);
+      $("#simulate-fix").addEventListener("click", simulateCatalogFix);
+      $("#reset-demo").addEventListener("click", resetDemo);
+      scrim.addEventListener("click", () => closeDialog());
+      document.querySelectorAll(".close-dialog").forEach(button => button.addEventListener("click", () => closeDialog()));
+      document.addEventListener("keydown", event => { if (event.key === "Escape" && activeDialog) closeDialog(); });
+
+      renderSheet();
+      renderAudit();
+    })();
+  </script>
+</body>
+</html>

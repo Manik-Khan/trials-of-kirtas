@@ -1,0 +1,134 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>Forge encounter-region activation mock</title>
+  <style>
+    :root{--ink:#211d18;--muted:#71685b;--paper:#eee7d9;--paper2:#f8f3e9;--line:#b8aa92;--gold:#b98636;--gold2:#dfbd76;--red:#994c43;--red2:#d57a6c;--green:#4f755d;--teal:#3d7777;--night:#171a18;--hud:#24231f;--fog:#59615e}
+    *{box-sizing:border-box}html,body{height:100%;margin:0}body{overflow:hidden;background:var(--night);color:var(--ink);font-family:Georgia,serif}button,select{font:700 10px/1.15 Arial,sans-serif;letter-spacing:.08em;text-transform:uppercase;color:inherit}button{cursor:pointer}
+    .app{height:100%;display:grid;grid-template-columns:330px minmax(520px,1fr) 310px;background:#314744}.panel{position:relative;z-index:3;min-height:0;background:linear-gradient(135deg,var(--paper2),var(--paper));box-shadow:8px 0 28px #0007}.panel.right{box-shadow:-8px 0 28px #0007}.panelScroll{height:100%;overflow:auto;padding-bottom:28px}.head{padding:17px 19px 15px;background:#25231f;color:#eee5d5;border-bottom:3px solid var(--gold)}.eyebrow{font:700 9px Arial,sans-serif;letter-spacing:.18em;text-transform:uppercase;color:#c9a65f}.head h1{margin:5px 0 4px;font-size:24px}.head p{margin:0;color:#bfb6a7;font-size:12px;line-height:1.4}.section{padding:14px 15px;border-bottom:1px solid var(--line)}.kicker{display:flex;justify-content:space-between;gap:8px;margin-bottom:8px;font:700 9px Arial,sans-serif;letter-spacing:.15em;text-transform:uppercase;color:#6c5b3e}.copy{margin:8px 0 0;font-size:11px;line-height:1.45;color:#5f574c}.copy b{color:var(--ink)}
+    .toggle{display:grid;grid-template-columns:1fr 1fr;border:1px solid var(--line)}.toggle button{min-height:34px;border:0;background:var(--paper2);color:var(--muted)}.toggle button.on{background:var(--gold);color:white}.controls{display:grid;grid-template-columns:1fr 1fr;gap:6px}.wide{width:100%;min-height:36px;border:1px solid var(--line);background:var(--paper2);padding:8px}.wide.gold{background:#d8b66e;border-color:#8e682b}.wide:disabled{cursor:not-allowed;color:#958d80;background:#ddd5c7}.message{margin-top:7px;padding:9px 10px;border-left:3px solid var(--gold);background:#e2dacc;font:11px/1.4 Arial,sans-serif}.message.bad{border-color:var(--red);background:#ead8d3}.message.good{border-color:var(--green);background:#dbe5dc}
+    .group{margin-top:8px;border:1px solid var(--line);background:#f7f1e5}.group:first-of-type{margin-top:0}.groupHead{display:flex;align-items:center;gap:8px;padding:9px 10px;border-bottom:1px solid #cfc3af}.groupDot{width:10px;height:10px;border-radius:50%;background:var(--red)}.groupDot.party{background:var(--gold)}.groupName{min-width:0;flex:1;font-weight:700;font-size:13px}.status{padding:3px 5px;border:1px solid #b29f80;color:#786b56;font:700 8px Arial,sans-serif;letter-spacing:.1em;text-transform:uppercase}.status.active{border-color:#587a61;background:#dce9dd;color:#3e6649}.status.cleared{border-color:#777;background:#e1e0dc;color:#666}.groupBody{padding:9px 10px}.meta{display:flex;justify-content:space-between;gap:7px;margin-bottom:7px;color:var(--muted);font:10px Arial,sans-serif}.fieldLabel{display:block;margin:7px 0 4px;color:#786a52;font:700 8px Arial,sans-serif;letter-spacing:.12em;text-transform:uppercase}.group select{width:100%;min-height:31px;border:1px solid #b7aa95;background:#fffaf0;padding:5px}.groupActions{display:grid;grid-template-columns:1fr 1fr;gap:5px;margin-top:7px}.minor{min-height:30px;border:1px solid var(--line);background:transparent;padding:6px}.minor.activate{border-color:#8a6632;color:#78501d}.minor:disabled{cursor:not-allowed;color:#a0988c;border-color:#d2c7b7}
+    .stage{position:relative;min-width:0;background:radial-gradient(circle at 65% 8%,#c5d5c2 0,#8aa397 25%,#435c57 66%,#283936 100%)}canvas{display:block;width:100%;height:100%}.mast{position:absolute;top:18px;left:21px;padding:9px 12px;background:#201f1bdf;border-left:3px solid var(--gold);color:#eee4d2;box-shadow:0 7px 20px #0005}.mast b{display:block;font-size:17px}.mast span{font:9px Arial,sans-serif;letter-spacing:.12em;text-transform:uppercase;color:#c9b99f}.viewBadge{position:absolute;top:20px;right:22px;padding:7px 10px;background:#201f1be8;border:1px solid #8b744a;color:#dfc788;font:700 9px Arial,sans-serif;letter-spacing:.15em;text-transform:uppercase}.banner{position:absolute;left:50%;top:17%;transform:translate(-50%,-12px);min-width:310px;max-width:76%;padding:12px 16px;background:#251f19ed;border:1px solid var(--gold);color:#f1e5d1;text-align:center;box-shadow:0 10px 30px #0008;opacity:0;pointer-events:none;transition:.22s}.banner.show{opacity:1;transform:translate(-50%,0)}.banner b{display:block;color:#e2b85e;font:700 10px Arial,sans-serif;letter-spacing:.17em;text-transform:uppercase;margin-bottom:4px}.mapHint{position:absolute;left:20px;bottom:20px;max-width:390px;padding:8px 10px;background:#211f1bdf;border-left:3px solid var(--gold2);color:#e6dccb;font:10px/1.35 Arial,sans-serif}.legend{position:absolute;right:20px;bottom:20px;padding:8px 10px;background:#211f1bdf;color:#ded2bd;font:9px Arial,sans-serif}.legend span{display:flex;align-items:center;gap:6px;margin:4px 0}.sw{width:14px;height:9px;border:1px solid #c6baa4}.sw.region{border:2px dashed #e0bd74;background:transparent}.sw.wait{border-radius:50%;background:#75635d}.sw.live{border-radius:50%;background:var(--red2)}
+    .initiative{display:flex;flex-wrap:wrap;gap:5px}.seat{min-width:44px;padding:6px 7px;border:1px solid #aa9c87;background:#f8f2e6;text-align:center;font:700 9px Arial,sans-serif}.seat b{display:block;font-size:13px;color:#76511d}.seat.foe{border-color:#b77970}.seat.foe b{color:#8e4038}.seat.current{box-shadow:inset 0 -3px var(--gold)}.empty{padding:10px;border:1px dashed var(--line);color:var(--muted);font-size:11px}.ledgerRow{display:grid;grid-template-columns:12px 1fr auto;gap:7px;align-items:start;padding:9px 0;border-bottom:1px solid #c9bdab}.ledgerRow:last-child{border:0}.ledgerDot{width:9px;height:9px;margin-top:3px;border-radius:50%;background:#8b8275}.ledgerDot.active{background:var(--green);box-shadow:0 0 0 3px #cbd8cd}.ledgerDot.cleared{background:#777}.ledgerName{font-size:12px;font-weight:700}.ledgerSub{margin-top:2px;color:var(--muted);font:9px/1.3 Arial,sans-serif}.ledgerState{color:#745a30;font:700 8px Arial,sans-serif;letter-spacing:.09em;text-transform:uppercase}.feed{background:#272621;color:#e8decc}.feedHead{padding:10px 12px;border-bottom:1px solid #49443b;color:#d6ad5d;font:700 9px Arial,sans-serif;letter-spacing:.16em}.feedRows{max-height:245px;overflow:auto}.feedRow{padding:10px 12px;border-bottom:1px solid #454139;font-size:11px;line-height:1.4}.feedRow b{color:#dfb35e}.feedRow.system{border-left:3px solid var(--gold)}.feedRow.redacted{color:#aaa295;font-style:italic}.contract{display:grid;gap:6px}.contract div{padding:7px 8px;background:#e4ddcf;border-left:3px solid #8c7753;font:10px/1.35 Arial,sans-serif}.contract b{display:block;margin-bottom:2px;font-size:9px;text-transform:uppercase;letter-spacing:.08em}
+    @media(max-width:1100px){.app{grid-template-columns:300px minmax(450px,1fr) 280px}}@media(max-width:860px){body{overflow:auto}.app{height:auto;min-height:100%;grid-template-columns:290px minmax(500px,1fr)}.panel.right{grid-column:1/-1;height:auto}.panelScroll{height:auto}.stage{min-height:700px}.app>.panel:first-child{height:700px}}
+  </style>
+</head>
+<body>
+<main class="app">
+  <aside class="panel">
+    <div class="panelScroll">
+      <header class="head"><div class="eyebrow">The Forge · architecture mock</div><h1>Encounter Regions</h1><p>One battlefield. Groups join the fight when their authored moment arrives.</p></header>
+      <section class="section">
+        <div class="kicker"><span>Preview surface</span><span id="regionRead">Approach</span></div>
+        <div class="toggle"><button class="on" data-view="staff">Staff preview</button><button data-view="player">Player preview</button></div>
+        <p class="copy"><b>Activation and visibility stay separate.</b> Player preview still uses ordinary Forge sight; a waiting group does not become visible merely because its region is armed.</p>
+      </section>
+      <section class="section">
+        <div class="kicker"><span>Run the sequence</span><span id="stepRead">0 / 3</span></div>
+        <div class="controls"><button class="wide gold" id="advance">Enter Lower Court ↑</button><button class="wide" id="reset">Reset preview</button></div>
+        <button class="wide" id="earlyAttack">Attack Gate Watch early</button>
+        <div class="message" id="message">The party starts active. Waiting groups keep their exact deployment cells but hold no initiative seats.</div>
+      </section>
+      <section class="section">
+        <div class="kicker"><span>Authored groups</span><span>Exact positions kept</span></div>
+        <div id="groups"></div>
+      </section>
+      <section class="section">
+        <div class="kicker"><span>First-slice ruling</span></div>
+        <p class="copy"><b>Three explicit doors only:</b> active when initiative is rolled, the first conscious party unit enters a named intent region, or the DM activates the group. A legal hostile action against a waiting group activates it first. No sound radius, adjacency wake-up, or hidden difficulty slider yet.</p>
+      </section>
+    </div>
+  </aside>
+
+  <section class="stage">
+    <canvas id="map" aria-label="Interactive Temple Terraces encounter-region activation mock"></canvas>
+    <div class="mast"><b>Temple Terraces</b><span>One session · four intent regions</span></div>
+    <div class="viewBadge" id="viewBadge">Staff preview · triggers visible</div>
+    <div class="banner" id="banner"><b>Region activated</b><span></span></div>
+    <div class="mapHint" id="mapHint">Gold outlines are staff-only activation regions. Terrain discovery and legal targeting remain under the existing per-cell sight authority.</div>
+    <div class="legend" id="legend"><span><i class="sw region"></i>Authored trigger region</span><span><i class="sw wait"></i>Waiting deployment</span><span><i class="sw live"></i>Active enemy</span></div>
+  </section>
+
+  <aside class="panel right">
+    <div class="panelScroll">
+      <header class="head"><div class="eyebrow">Live encounter preview</div><h1>Activation Ledger</h1><p>Region state reconstructs from facts; initiative resumes at the current seat.</p></header>
+      <section class="section">
+        <div class="kicker"><span>Initiative</span><span id="initiativeCount">4 active</span></div>
+        <div class="initiative" id="initiative"></div>
+        <p class="copy" id="initiativeNote">Waiting combatants were rolled once at Table start. Their held results cannot be rerolled by delaying activation.</p>
+      </section>
+      <section class="section">
+        <div class="kicker"><span>Regions</span><span id="activeCount">1 active</span></div>
+        <div id="ledger"></div>
+      </section>
+      <section class="feed">
+        <div class="feedHead">GAME FEED · ACTIVATION FACTS</div>
+        <div class="feedRows" id="activationFeed"></div>
+      </section>
+      <section class="section">
+        <div class="kicker"><span>Proposed contract</span></div>
+        <div class="contract">
+          <div><b>Saved authority</b>Group, trigger mode, trigger region, exact positions, and held initiative result persist with the encounter draft.</div>
+          <div><b>Live authority</b>A single narrated activation fact moves the group from waiting to active. Reconnect and rewind derive the same ledger.</div>
+          <div><b>Turn continuity</b>New seats enter after the current turn; the round never restarts and the acting unit keeps control.</div>
+          <div><b>Privacy</b>Player devices receive only player-safe narration. Existing discovery decides whether any token can be seen or targeted.</div>
+        </div>
+      </section>
+    </div>
+  </aside>
+</main>
+<script>
+(function(){
+  "use strict";
+  var canvas=document.getElementById("map"),ctx=canvas.getContext("2d"),view="staff",partyRegion=0,bannerTimer=null;
+  var cols=22,rows=17,cell=34,ox=0,oy=0;
+  var regions=[
+    {id:"approach",name:"Approach",x:6,y:13,w:10,h:3,e:0,color:"#71856a"},
+    {id:"lower-court",name:"Lower Court",x:2,y:9,w:18,h:4,e:5,color:"#83906e"},
+    {id:"upper-court",name:"Upper Court",x:5,y:5,w:12,h:4,e:10,color:"#8d9876"},
+    {id:"summit-sanctuary",name:"Summit Sanctuary",x:8,y:2,w:6,h:3,e:15,color:"#a29a78"}
+  ];
+  var groups=[
+    {id:"party",name:"The Party",role:"party",home:"approach",count:4,rule:"start",trigger:"approach",initiative:18,state:"active",units:["V","C","L","R"]},
+    {id:"watch",name:"Gate Watch",role:"enemy",home:"lower-court",count:3,rule:"enter",trigger:"lower-court",initiative:14,state:"waiting",units:["G","G","G"]},
+    {id:"archers",name:"Upper Archers",role:"enemy",home:"upper-court",count:3,rule:"enter",trigger:"upper-court",initiative:12,state:"waiting",units:["A","A","A"]},
+    {id:"keeper",name:"Sanctuary Keeper",role:"enemy",home:"summit-sanctuary",count:1,rule:"dm",trigger:"summit-sanctuary",initiative:17,state:"waiting",units:["K"]}
+  ];
+  var activationFeed=[];
+  var stairs=["10,13","10,12","10,11","10,9","10,8","10,7","10,5","10,4","10,3"];
+  var placements={party:[[9,14],[10,14],[11,14],[10,15]],watch:[[8,11],[10,10],[12,11]],archers:[[7,6],[10,6],[14,6]],keeper:[[10,3]]};
+  function byId(id){return groups.filter(function(g){return g.id===id;})[0];}
+  function region(id){return regions.filter(function(r){return r.id===id;})[0];}
+  function escapeHtml(value){return String(value).replace(/[&<>\"]/g,function(ch){return{"&":"&amp;","<":"&lt;",">":"&gt;","\"":"&quot;"}[ch];});}
+  function ruleLabel(group){if(group.rule==="start")return"At initiative";if(group.rule==="dm")return"DM activates";return"Party enters "+region(group.trigger).name;}
+  function reset(){partyRegion=0;groups.forEach(function(g){g.state=g.id==="party"?"active":"waiting";});activationFeed=[{kind:"system",staff:"Initiative is rolled once. The Party enters active; seven enemy seats are held.",player:"Initiative begins with the party."}];paint("Preview reset. Waiting groups returned to their exact authored cells.","good");}
+  function activate(group,reason){if(!group||group.state!=="waiting")return;group.state="active";var seats=group.units.length,place=seats+" held initiative seat"+(seats===1?"":"s")+(seats===1?" joins":" join")+" after the current turn.";activationFeed.unshift({kind:"system",staff:group.name+" activated — "+reason+" "+place,player:"The encounter shifts. A hostile group becomes active."});showBanner(group.name+" · "+reason);paint(group.name+" is active. "+place,"good");}
+  function showBanner(text){var el=document.getElementById("banner");el.querySelector("span").textContent=text;el.classList.add("show");clearTimeout(bannerTimer);bannerTimer=setTimeout(function(){el.classList.remove("show");},2200);}
+  function paint(message,tone){if(message){var el=document.getElementById("message");el.textContent=message;el.className="message"+(tone?" "+tone:"");}renderGroups();renderLedger();renderInitiative();renderFeed();draw();}
+  function renderGroups(){var host=document.getElementById("groups");host.innerHTML=groups.map(function(g){var regionsOptions=regions.map(function(r){return'<option value="'+r.id+'"'+(r.id===g.trigger?' selected':'')+'>'+r.name+'</option>';}).join("");return'<article class="group" data-group="'+g.id+'"><div class="groupHead"><i class="groupDot '+(g.role==="party"?'party':'')+'"></i><span class="groupName">'+escapeHtml(g.name)+'</span><span class="status '+g.state+'">'+g.state+'</span></div><div class="groupBody"><div class="meta"><span>'+g.count+' combatant'+(g.count===1?'':'s')+' · '+region(g.home).name+'</span><span>held '+g.initiative+'</span></div><label class="fieldLabel" for="rule-'+g.id+'">Activation</label><select id="rule-'+g.id+'" data-rule="'+g.id+'"'+(g.id==="party"?' disabled':'')+'><option value="start"'+(g.rule==="start"?' selected':'')+'>Active at initiative</option><option value="enter"'+(g.rule==="enter"?' selected':'')+'>Party enters region</option><option value="dm"'+(g.rule==="dm"?' selected':'')+'>DM activates</option></select>'+(g.rule==="enter"?'<label class="fieldLabel" for="trigger-'+g.id+'">Trigger region</label><select id="trigger-'+g.id+'" data-trigger="'+g.id+'">'+regionsOptions+'</select>':'')+'<div class="groupActions"><button class="minor activate" data-activate="'+g.id+'"'+(g.state!=="waiting"?' disabled':'')+'>Activate now</button><button class="minor" data-clear="'+g.id+'"'+(g.state!=="active"||g.id==="party"?' disabled':'')+'>Mark cleared</button></div></div></article>';}).join("");
+    host.querySelectorAll("[data-rule]").forEach(function(s){s.onchange=function(){var g=byId(s.dataset.rule);g.rule=s.value;if(g.rule==="start"&&g.state==="waiting")activate(g,"authored active-at-start rule");else{paint(g.name+" now waits for: "+ruleLabel(g)+".");}};});
+    host.querySelectorAll("[data-trigger]").forEach(function(s){s.onchange=function(){var g=byId(s.dataset.trigger);g.trigger=s.value;paint(g.name+" will activate when the party enters "+region(g.trigger).name+".");};});
+    host.querySelectorAll("[data-activate]").forEach(function(b){b.onclick=function(){activate(byId(b.dataset.activate),"DM activation");};});
+    host.querySelectorAll("[data-clear]").forEach(function(b){b.onclick=function(){var g=byId(b.dataset.clear);g.state="cleared";activationFeed.unshift({kind:"system",staff:g.name+" cleared. Its deployment stays in the encounter record; its initiative seats close.",player:g.name+" is cleared."});paint(g.name+" marked cleared.","good");};});
+  }
+  function renderLedger(){var active=groups.filter(function(g){return g.state==="active";}).length;document.getElementById("activeCount").textContent=active+" active";document.getElementById("ledger").innerHTML=regions.map(function(r){var here=groups.filter(function(g){return g.home===r.id;}),states=here.map(function(g){return g.state;}),state=states.indexOf("active")>=0?"active":states.length&&states.every(function(s){return s==="cleared";})?"cleared":"waiting";var label=view==="player"&&state==="waiting"?"No revealed threat":here.length?here.map(function(g){return g.name;}).join(", "):"No encounter group";return'<div class="ledgerRow"><i class="ledgerDot '+state+'"></i><div><div class="ledgerName">'+r.name+'</div><div class="ledgerSub">'+label+'</div></div><span class="ledgerState">'+(view==="player"&&state==="waiting"?'quiet':state)+'</span></div>';}).join("");}
+  function renderInitiative(){var seats=[{name:"Ves",n:18,side:"pc",current:true},{name:"Caim",n:16,side:"pc"},{name:"Lía",n:13,side:"pc"},{name:"Cos",n:11,side:"pc"}];groups.filter(function(g){return g.role==="enemy"&&g.state==="active";}).forEach(function(g){g.units.forEach(function(_,i){seats.push({name:g.units[i]+(i+1),n:g.initiative,side:"foe"});});});seats.sort(function(a,b){return b.n-a.n;});document.getElementById("initiative").innerHTML=seats.map(function(s){return'<div class="seat '+(s.side==="foe"?'foe ':'')+(s.current?'current':'')+'"><b>'+s.n+'</b>'+s.name+'</div>';}).join("");document.getElementById("initiativeCount").textContent=seats.length+" active";}
+  function renderFeed(){document.getElementById("activationFeed").innerHTML=activationFeed.map(function(row){var text=view==="staff"?row.staff:row.player;return'<div class="feedRow '+(row.kind||'')+(view==="player"&&text!==row.staff?' redacted':'')+'">'+text+'</div>';}).join("");}
+  function resize(){var dpr=Math.min(2,window.devicePixelRatio||1),rect=canvas.getBoundingClientRect();canvas.width=Math.round(rect.width*dpr);canvas.height=Math.round(rect.height*dpr);ctx.setTransform(dpr,0,0,dpr,0,0);cell=Math.max(22,Math.min(40,Math.floor(Math.min(rect.width/(cols+3),rect.height/(rows+3)))));ox=Math.round((rect.width-cols*cell)/2);oy=Math.round((rect.height-rows*cell)/2)+15;draw();}
+  function draw(){var rect=canvas.getBoundingClientRect();ctx.clearRect(0,0,rect.width,rect.height);ctx.fillStyle="#314744";ctx.fillRect(0,0,rect.width,rect.height);regions.forEach(function(q){for(var r=q.y;r<q.y+q.h;r++)for(var c=q.x;c<q.x+q.w;c++)drawCell(q,c,r);});drawStairs();drawWalls();if(view==="staff")drawTriggers();drawUnits();document.getElementById("regionRead").textContent=regions[partyRegion].name;document.getElementById("stepRead").textContent=partyRegion+" / 3";document.getElementById("viewBadge").textContent=view==="staff"?"Staff preview · triggers visible":"Player preview · trigger rules hidden";document.getElementById("mapHint").textContent=view==="staff"?"Gold outlines are staff-only activation regions. Terrain discovery and legal targeting remain under the existing per-cell sight authority.":"Player View does not expose waiting groups, trigger borders, or staff-only activation reasons. Normal per-cell discovery remains unchanged.";document.getElementById("legend").style.display=view==="staff"?"block":"none";}
+  function drawCell(q,c,r){var x=ox+c*cell,y=oy+r*cell;ctx.fillStyle=q.color;ctx.fillRect(x,y,cell,cell);ctx.strokeStyle="rgba(31,28,22,.22)";ctx.strokeRect(x+.5,y+.5,cell-1,cell-1);if(q.e){ctx.fillStyle="rgba(255,239,190,"+(q.e/90)+")";ctx.fillRect(x+2,y+2,cell-4,cell-4);}}
+  function drawStairs(){stairs.forEach(function(k){var p=k.split(",").map(Number),x=ox+p[0]*cell,y=oy+p[1]*cell;ctx.fillStyle="#c8b993";ctx.fillRect(x+4,y+3,cell-8,cell-6);ctx.strokeStyle="#6d6049";for(var i=0;i<3;i++){ctx.beginPath();ctx.moveTo(x+5,y+7+i*7);ctx.lineTo(x+cell-5,y+7+i*7);ctx.stroke();}});}
+  function drawWalls(){regions.slice(1).forEach(function(q){for(var c=q.x;c<q.x+q.w;c++){var key=c+","+(q.y+q.h-1);if(stairs.indexOf(key)>=0)continue;var x=ox+c*cell,y=oy+(q.y+q.h-1)*cell;ctx.fillStyle="#66513b";ctx.fillRect(x+2,y+cell-8,cell-4,8);ctx.fillStyle="#aa895c";ctx.fillRect(x+2,y+cell-11,cell-4,4);}});}
+  function drawTriggers(){groups.filter(function(g){return g.role==="enemy"&&g.state==="waiting"&&g.rule==="enter";}).forEach(function(g){var q=region(g.trigger),x=ox+q.x*cell,y=oy+q.y*cell;ctx.save();ctx.strokeStyle="#e2bd6e";ctx.lineWidth=3;ctx.setLineDash([8,6]);ctx.strokeRect(x+3,y+3,q.w*cell-6,q.h*cell-6);ctx.setLineDash([]);ctx.fillStyle="#211d18dd";ctx.fillRect(x+8,y+8,Math.min(q.w*cell-16,190),22);ctx.fillStyle="#e6c77f";ctx.font="bold 9px Arial";ctx.textBaseline="middle";ctx.fillText("TRIGGER · "+g.name.toUpperCase(),x+15,y+19);ctx.restore();});}
+  function drawUnits(){groups.forEach(function(g){var visible=g.id==="party"||g.state==="active"||g.state==="cleared"||view==="staff";if(!visible)return;(placements[g.id]||[]).forEach(function(p,i){var x=ox+(p[0]+.5)*cell,y=oy+(p[1]+.5)*cell,waiting=g.state==="waiting";ctx.save();ctx.globalAlpha=waiting?.48:g.state==="cleared"?.25:1;ctx.fillStyle=g.role==="party"?"#c99a38":"#9e4e44";ctx.beginPath();ctx.arc(x,y,cell*.25,0,Math.PI*2);ctx.fill();ctx.lineWidth=waiting?2:3;ctx.strokeStyle=waiting?"#d7c6ac":"#f0ddbd";if(waiting)ctx.setLineDash([3,3]);ctx.stroke();ctx.setLineDash([]);ctx.fillStyle="#fff1d8";ctx.font="bold "+Math.max(9,Math.round(cell*.27))+"px Arial";ctx.textAlign="center";ctx.textBaseline="middle";ctx.fillText(g.units[i]||"?",x,y+1);ctx.restore();});});var q=regions[partyRegion],px=ox+(q.x+q.w/2)*cell,py=oy+(q.y+q.h-1.5)*cell;ctx.strokeStyle="#ffe09a";ctx.lineWidth=3;ctx.beginPath();ctx.arc(px,py,cell*.38,0,Math.PI*2);ctx.stroke();}
+  document.querySelectorAll("[data-view]").forEach(function(b){b.onclick=function(){view=b.dataset.view;document.querySelectorAll("[data-view]").forEach(function(x){x.classList.toggle("on",x===b);});paint(view==="staff"?"Staff preview shows waiting groups and authored trigger borders.":"Player preview hides staff-only trigger state. Visibility still belongs to ordinary Forge sight.");};});
+  document.getElementById("advance").onclick=function(){if(partyRegion>=regions.length-1)return;partyRegion++;var q=regions[partyRegion];groups.forEach(function(g){if(g.state==="waiting"&&g.rule==="enter"&&g.trigger===q.id)activate(g,"party entered "+q.name);});var next=regions[partyRegion+1],button=document.getElementById("advance");button.textContent=next?"Enter "+next.name+" ↑":"Summit reached";button.disabled=!next;paint("The party entered "+q.name+". Only groups bound to this region activate.","good");};
+  document.getElementById("reset").onclick=function(){document.getElementById("advance").disabled=false;document.getElementById("advance").textContent="Enter Lower Court ↑";reset();};
+  document.getElementById("earlyAttack").onclick=function(){var g=byId("watch");if(g.state!=="waiting"){paint("Gate Watch is already "+g.state+". No duplicate activation fact is written.","bad");return;}activate(g,"legal hostile action from outside its trigger region");};
+  window.addEventListener("resize",resize);reset();resize();
+})();
+</script>
+</body>
+</html>

@@ -81,7 +81,7 @@
     branch.forEach(function(row){
       if(!row||row.kind==="override")return;
       var p=Object.assign({},row.payload||{},corrections[row.seq]||{});
-      if(row.kind==="initiative_set"){
+      if(row.kind==="initiative_set"||row.kind==="encounter_region_activated"){
         var first=!state.order.length;
         state.order=(p.order||p.initiative||[]).slice();
         state.active=(p.resume_at&&state.order.indexOf(p.resume_at)>=0)?p.resume_at:(first||state.order.indexOf(state.active)<0?state.order[0]:state.active);

@@ -28,20 +28,21 @@
 <script src="forge-temple-terraces.js?v=tt1"></script>
 <script src="forge-engine.js?v=fe10"></script>
 <script src="forge-deployment.js?v=fd2"></script>
+<script src="forge-encounter-regions.js?v=fer1"></script>
 <script src="forge-bridge-authority.js?v=fba1"></script>
-<script src="forge-protocol.js?v=fb1"></script>
-<script src="forge-replay.js?v=fb14"></script>
+<script src="forge-protocol.js?v=fpr2"></script>
+<script src="forge-replay.js?v=fb15"></script>
 <script src="forge-combat-rules.js?v=fcr3"></script>
 <script src="forge-death-saves.js?v=fds1"></script>
 <script src="forge-foe-ai.js?v=fai2"></script>
-<script src="forge-effects.js?v=fe5"></script>
+<script src="forge-effects.js?v=fe6"></script>
 <script src="forge-initiative.js?v=fi2"></script>
 <script src="forge-discovery.js?v=fd7"></script>
 <script src="forge-render-power.js?v=frp1"></script>
 <script src="forge-architecture.js?v=fa5"></script>
 <script src="forge-bus.js?v=fb2"></script>
-<script src="forge-pipeline.js?v=fb7"></script>
-<script src="forge-board.js?v=fb7"></script>
+<script src="forge-pipeline.js?v=fb8"></script>
+<script src="forge-board.js?v=fb8"></script>
 <script src="../armor-ac.js?v=um1"></script>
 <script src="../equip-slots.js?v=cc2"></script>
 <script src="../character-combat.js?v=um1"></script>
@@ -642,6 +643,7 @@ global.TacticsGeo=API;
   .deployDelete{border:1px solid #b67468;background:transparent;color:#944a3f;padding:3px 5px;font:8px var(--f-util);text-transform:uppercase;letter-spacing:.06em;cursor:pointer}.deployDelete:hover{background:#944a3f;color:#fff}.deployDelete:disabled{opacity:.42;cursor:not-allowed;background:transparent;color:var(--tk-ink-dim);border-color:var(--tk-line)}
   .deployStatus{font:600 8px var(--f-util);text-transform:uppercase;letter-spacing:.1em;color:#a04b3a}.deployStatus.ready{color:#477050}
   .deploySelects{display:grid;grid-template-columns:1fr 1fr;gap:5px;margin-bottom:6px}.deploySelects select{margin:0;padding:5px;font-size:9px}
+  .deployActivation{display:grid;grid-template-columns:1fr 1fr;gap:5px;margin:0 0 6px;padding:6px;border-left:2px solid var(--tk-gold);background:rgba(184,134,58,.07)}.deployActivation select{min-width:0;margin:0;padding:5px;font-size:9px}.deployActivation.one{grid-template-columns:1fr}
   .deployUnits,.deployUnassigned{display:flex;flex-direction:column;gap:4px;margin:5px 0}.deployMember{display:grid;grid-template-columns:minmax(0,1fr) minmax(92px,.9fr);gap:4px;align-items:center}.deployMember select{min-width:0;margin:0;padding:4px;font-size:8px}.deployUnit{min-width:0;border:1px solid var(--tk-line);background:var(--tk-panel);color:var(--tk-ink);padding:4px 6px;font:9px var(--f-util);cursor:pointer;text-align:left;overflow:hidden;text-overflow:ellipsis}.deployUnit.manual{border-color:var(--tk-gold);box-shadow:inset 0 -2px var(--tk-gold)}
   .deployMeta{display:flex;justify-content:space-between;gap:6px;margin:5px 0;color:var(--tk-ink-dim);font:9px/1.3 var(--f-util)}.deployMeta .bad{color:#a04b3a}.deployMeta .good{color:#477050}
   .deployActions{display:grid;grid-template-columns:1.2fr 1fr 1fr;gap:4px}.deployActions .filebtn{padding:6px 3px;font-size:8px}.deployActions .primary{border-color:var(--tk-gold);background:rgba(184,134,58,.16);color:var(--tk-ink)}
@@ -889,6 +891,7 @@ body.forge-author-preview #partySelect{opacity:0;pointer-events:none}
 .cbOverseerBtns button:disabled{ opacity:.35; cursor:not-allowed; }
 .cbOverseerBtns button.on{ background:#b34a38; color:#fff; border-color:#b34a38; }
 .cbGodPanel{ margin-top:10px; padding-top:10px; border-top:1px solid rgba(168,159,138,.3); font-family:var(--f-util); font-size:11.5px; color:var(--tk-ink); }
+.cbRegionPanel{margin-top:10px;padding-top:10px;border-top:1px solid rgba(168,159,138,.3);font:11px/1.35 var(--f-util);color:var(--tk-ink)}.cbRegionGroup{padding:7px;margin-bottom:6px;border:1px solid var(--tk-line);background:var(--tk-panel-2)}.cbRegionGroup b,.cbRegionGroup span{display:block}.cbRegionGroup span{margin:2px 0 6px;color:var(--tk-ink-dim)}.cbRegionGroup button{width:100%;padding:6px;border:1px solid var(--tk-gold);background:rgba(184,134,58,.12);color:var(--tk-ink);font:10px var(--f-util);text-transform:uppercase;cursor:pointer}.cbRegionGroup button:disabled{opacity:.4;cursor:not-allowed}.cbInitHeld{margin-left:5px;color:var(--tk-gold);font:italic 9px var(--f-util)}
 .cbGodName{ font-weight:600; margin-bottom:6px; }
 .cbGodBtns{ display:flex; gap:5px; margin:6px 0; }
 .cbGodBtns button{ flex:1; font-family:var(--f-util); font-size:11px; color:var(--tk-ink); background:var(--tk-panel-2); border:1px solid var(--tk-line); padding:6px 0; cursor:pointer; }
@@ -1320,10 +1323,12 @@ body.forge-author-preview #partySelect{opacity:0;pointer-events:none}
         <button id="ovRewind" title="Rewind to a turn boundary">Rewind</button>
         <button id="ovGod" title="Move any unit by hand, edit HP">GOD MODE: off</button>
         <button id="ovAddFoe" title="Bring a new foe into the fight">Add foe</button>
+        <button id="ovRegions" title="Inspect or activate authored encounter groups">Encounter regions</button>
         <button id="ovInitiative" title="Enter totals or adjust the live turn order">Initiative</button>
         <button id="ovEndFight" title="End this fight for everyone">End fight</button>
       </div>
       <div class="cbGodPanel" id="cbGodPanel" style="display:none"></div>
+      <div class="cbRegionPanel" id="cbRegionPanel" style="display:none"></div>
       <!-- Task 15: shown once an add_unit arrival isn't in state.initiative yet -->
       <div class="cbSlotChip" id="cbSlotChip" style="display:none"></div>
     </div>
@@ -2006,7 +2011,7 @@ function addWorld(geo,col,x,y,z,rot,fogCell){ // mesh + optional inverted-hull o
 /* ---- FIELD: {W,H,height,type,footprint,props[]} ---- */
 let F=null;
 var deploymentRenderGroup=new THREE.Group();scene.add(deploymentRenderGroup);
-var DEPLOYMENT_GROUPS=[],DEPLOYMENT_PLANS=null,DEPLOYMENT_PLACE_GROUP=null,DEPLOYMENT_MANUAL=null,DEPLOYMENT_FOCUS=null;
+var DEPLOYMENT_GROUPS=[],DEPLOYMENT_PLANS=null,DEPLOYMENT_PLACE_GROUP=null,DEPLOYMENT_MANUAL=null,DEPLOYMENT_FOCUS=null,ENCOUNTER_REGION_RULES={};
 const ARCHITECTURE_API=window.ForgeArchitecture;
 if(!ARCHITECTURE_API)throw new Error('Forge architecture authority did not load');
 var architectureRenderGroup=new THREE.Group();scene.add(architectureRenderGroup);
@@ -3259,6 +3264,7 @@ function forgeSessionMap(){
     intent:F.intent?JSON.parse(JSON.stringify(F.intent)):null,constructionProfile:F.constructionProfile||null,architecture:architectureActive()?ARCHITECTURE_API.normalizeRecord(ARCHITECTURE_RECORD):null});
   const envelope=gf.encounterEnvelope(map,params,F.generatorMeta||null);
   const deployment=currentDeploymentRecord();if(deployment)envelope.deployment=deployment;
+  const encounterRegions=deployment&&currentEncounterRegionRecord(deployment);if(encounterRegions)envelope.encounterRegions=encounterRegions;
   if(architectureActive())envelope.architecture=ARCHITECTURE_API.normalizeRecord(ARCHITECTURE_RECORD);
   envelope.rules={flanking:(typeof FLANK_RULE!=="undefined"?FLANK_RULE:"advantage")};
   return envelope;
@@ -3294,8 +3300,15 @@ function deploymentReady(){var draft=computeDeployment();return !!(draft&&draft.
 function currentDeploymentRecord(){
   if(!templeField())return null;var draft=computeDeployment();return draft?window.ForgeDeployment.deploymentRecord(DEPLOYMENT_GROUPS,draft):null;
 }
+function currentEncounterRegionRecord(deployment){
+  if(!templeField()||!window.ForgeEncounterRegions)return null;
+  return window.ForgeEncounterRegions.buildRecord(deployment||currentDeploymentRecord(),deploymentMap(),ENCOUNTER_REGION_RULES);
+}
 function rosterWithDeployment(roster,record){
   return window.ForgeDeployment.applyToRoster(roster,record);
+}
+function rosterWithEncounterRegions(roster,record){
+  return window.ForgeEncounterRegions?window.ForgeEncounterRegions.applyToRoster(roster,record):roster;
 }
 function deploymentColor(role){return role==="party"?0xc99a38:role==="ally"?0x4f8a72:0xa14c43;}
 function clearDeploymentMarkers(){while(deploymentRenderGroup.children.length){var o=deploymentRenderGroup.children[0];deploymentRenderGroup.remove(o);o.traverse(function(n){if(n.geometry)n.geometry.dispose();if(n.material)n.material.dispose();});}}
@@ -3320,15 +3333,23 @@ function deploymentMembershipOptions(selected,prompt){
   var first=prompt?'<option value="" selected>Choose group…</option>':'<option value="">Unassigned</option>';
   return first+DEPLOYMENT_GROUPS.map(function(g){return '<option value="'+escapeHtml(g.id)+'"'+(g.id===selected?' selected':'')+'>'+escapeHtml(g.label)+'</option>';}).join('');
 }
+function encounterRegionOptions(selected){
+  var regions=F&&F.intent&&Array.isArray(F.intent.regions)?F.intent.regions:[];
+  return (selected?'':'<option value="" selected disabled>Place flag first…</option>')+regions.map(function(region){var id=String(region.id||"");return '<option value="'+escapeHtml(id)+'"'+(id===selected?' selected':'')+'>'+escapeHtml(id.replace(/-/g,' '))+'</option>';}).join('');
+}
+function encounterRuleForGroup(group,homeRegionId){
+  return window.ForgeEncounterRegions.normalizeRule(ENCOUNTER_REGION_RULES[group.id],group,homeRegionId);
+}
 function renderDeploymentPanel(){
   var panel=document.getElementById("deploymentPanel");if(!panel)return;panel.style.display=templeField()&&!SESSION_ID?"block":"none";if(panel.style.display==="none"){clearDeploymentMarkers();return;}
   var draft=computeDeployment(),host=document.getElementById("deploymentGroups"),assigned={},ready=0,placed=0,total=0;
   draft.plans.forEach(function(p){p.group.unitIds.forEach(function(unit){assigned[unit]=true;});if(p.ok)ready++;placed+=p.placedCount;total+=p.requestedCount;});
   document.getElementById("deploymentSummary").textContent=(draft.ok?"Deployment ready — ":"Deployment incomplete — ")+ready+" / "+draft.plans.length+" groups · "+placed+" / "+total+" combatants positioned.";
-  host.innerHTML=draft.plans.map(function(p){var g=p.group,region=p.regionId||"No flag",focus=DEPLOYMENT_FOCUS===g.id;
+  host.innerHTML=draft.plans.map(function(p){var g=p.group,region=p.regionId||"No flag",focus=DEPLOYMENT_FOCUS===g.id,activation=encounterRuleForGroup(g,p.regionId);
     var units=g.unitIds.map(function(unit){var manual=g.manualPositions&&g.manualPositions[unit],name=deploymentUnitName(unit);return '<div class="deployMember"><button class="deployUnit'+(manual?' manual':'')+'" data-manual-unit="'+escapeHtml(unit)+'" data-gid="'+escapeHtml(g.id)+'" title="Pin this combatant on the map">'+escapeHtml(name)+(manual?' · pinned':'')+'</button><select data-deploy-membership="'+escapeHtml(unit)+'" aria-label="Group for '+escapeHtml(name)+'">'+deploymentMembershipOptions(g.id,false)+'</select></div>';}).join('');
     return '<div class="deployGroup'+(focus?' focus':'')+'" data-gid="'+g.id+'"><div class="deployHead"><input data-deploy-name="'+g.id+'" value="'+escapeHtml(g.label)+'"><span class="deployStatus'+(p.ok?' ready':'')+'">'+(p.ok?'ready':'unresolved')+'</span><button class="deployDelete" data-deploy-remove="'+g.id+'"'+(DEPLOYMENT_GROUPS.length>1?'':' disabled title="At least one deployment group is required"')+'>Delete</button></div>'
       +'<div class="deploySelects"><select data-deploy-role="'+g.id+'"><option value="party"'+(g.role==='party'?' selected':'')+'>Party</option><option value="ally"'+(g.role==='ally'?' selected':'')+'>Ally / NPC</option><option value="enemy"'+(g.role==='enemy'?' selected':'')+'>Enemy</option></select><select data-deploy-policy="'+g.id+'"><option value="unit-owners"'+(g.controllerPolicy==='unit-owners'?' selected':'')+'>Unit owners</option><option value="overseer"'+(g.controllerPolicy==='overseer'?' selected':'')+'>Overseer</option></select></div>'
+      +'<div class="deployActivation'+(activation.mode==='enter'?'':' one')+'"><select data-activation-mode="'+g.id+'"><option value="active"'+(activation.mode==='active'?' selected':'')+'>Active at initiative</option><option value="enter"'+(activation.mode==='enter'?' selected':'')+'>Party enters region</option><option value="dm"'+(activation.mode==='dm'?' selected':'')+'>DM activates</option></select>'+(activation.mode==='enter'?'<select data-activation-region="'+g.id+'" aria-label="Entry region for '+escapeHtml(g.label)+'">'+encounterRegionOptions(activation.triggerRegionId)+'</select>':'')+'</div>'
       +'<div class="deployUnits">'+(units||'<span class="fname">No combatants assigned.</span>')+'</div><div class="deployMeta"><span>'+escapeHtml(region)+' · seed '+g.formationSeed+'</span><span class="'+(p.ok?'good':'bad')+'">'+p.placedCount+'/'+p.requestedCount+' positioned</span></div>'
       +'<div class="deployActions"><button class="filebtn primary" data-deploy-flag="'+g.id+'">'+(g.anchor?'Move flag':'Place flag')+'</button><button class="filebtn" data-deploy-reseed="'+g.id+'">Reseed</button><button class="filebtn" data-deploy-clear="'+g.id+'">Clear pins</button></div>'
       +(g.unitIds.length>1?'<button class="deployMinor" data-deploy-split="'+g.id+'">Split group →</button>':'')+'</div>';
@@ -3345,9 +3366,11 @@ function bindDeploymentPanel(){var host=document.getElementById("deploymentPanel
   host.querySelectorAll("[data-manual-unit]").forEach(function(b){b.onclick=function(){ARCHITECTURE_TOOL=null;renderArchitecturePanel();DEPLOYMENT_MANUAL={groupId:b.dataset.gid,unit:b.dataset.manualUnit};DEPLOYMENT_PLACE_GROUP=null;DEPLOYMENT_FOCUS=b.dataset.gid;deploymentSay("Click a legal cell to pin "+deploymentUnitName(b.dataset.manualUnit)+". The group flag stays put.");renderDeploymentPanel();};});
   host.querySelectorAll("[data-deploy-membership]").forEach(function(s){s.onchange=function(){var unit=s.dataset.deployMembership,target=s.value;DEPLOYMENT_GROUPS=window.ForgeDeployment.assignUnit(DEPLOYMENT_GROUPS,unit,target);if(target)DEPLOYMENT_FOCUS=target;deploymentSay(deploymentUnitName(unit)+(target?' assigned to '+deploymentGroup(target).label+'.':' is unassigned.'));renderDeploymentPanel();};});
   host.querySelectorAll("[data-deploy-role]").forEach(function(s){s.onchange=function(){deploymentGroup(s.dataset.deployRole).role=s.value;renderDeploymentPanel();};});host.querySelectorAll("[data-deploy-policy]").forEach(function(s){s.onchange=function(){deploymentGroup(s.dataset.deployPolicy).controllerPolicy=s.value;renderDeploymentPanel();};});
+  host.querySelectorAll("[data-activation-mode]").forEach(function(s){s.onchange=function(){var g=deploymentGroup(s.dataset.activationMode),plan=(DEPLOYMENT_PLANS&&DEPLOYMENT_PLANS.plans||[]).filter(function(p){return p.group.id===g.id;})[0];ENCOUNTER_REGION_RULES[g.id]={mode:s.value,triggerRegionId:s.value==='enter'&&plan?plan.regionId:null};renderDeploymentPanel();};});
+  host.querySelectorAll("[data-activation-region]").forEach(function(s){s.onchange=function(){var id=s.dataset.activationRegion,rule=ENCOUNTER_REGION_RULES[id]||{};ENCOUNTER_REGION_RULES[id]={mode:'enter',triggerRegionId:s.value||rule.triggerRegionId||null};renderDeploymentPanel();};});
   host.querySelectorAll("[data-deploy-name]").forEach(function(i){i.onchange=function(){deploymentGroup(i.dataset.deployName).label=i.value||"Unnamed group";renderDeploymentPanel();};});
-  host.querySelectorAll("[data-deploy-split]").forEach(function(b){b.onclick=function(){var g=deploymentGroup(b.dataset.deploySplit),units=g.unitIds.splice(Math.ceil(g.unitIds.length/2));if(!units.length)return;var id=nextDeploymentGroupId();DEPLOYMENT_GROUPS.push({id:id,label:g.label+" II",role:g.role,controllerPolicy:g.controllerPolicy,unitIds:units,anchor:null,formationSeed:window.ForgeDeployment.hash32(id),manualPositions:{}});DEPLOYMENT_FOCUS=id;deploymentSay("New group created. Place its flag independently.");renderDeploymentPanel();};});
-  host.querySelectorAll("[data-deploy-remove]").forEach(function(b){b.onclick=function(){var g=deploymentGroup(b.dataset.deployRemove),count=g&&g.unitIds.length||0;DEPLOYMENT_GROUPS=window.ForgeDeployment.removeGroup(DEPLOYMENT_GROUPS,b.dataset.deployRemove);DEPLOYMENT_FOCUS=DEPLOYMENT_GROUPS[0]&&DEPLOYMENT_GROUPS[0].id||null;deploymentSay((g&&g.label||'Group')+' removed. '+count+' combatant'+(count===1?' is':'s are')+' now unassigned.');renderDeploymentPanel();};});
+  host.querySelectorAll("[data-deploy-split]").forEach(function(b){b.onclick=function(){var g=deploymentGroup(b.dataset.deploySplit),units=g.unitIds.splice(Math.ceil(g.unitIds.length/2));if(!units.length)return;var id=nextDeploymentGroupId();DEPLOYMENT_GROUPS.push({id:id,label:g.label+" II",role:g.role,controllerPolicy:g.controllerPolicy,unitIds:units,anchor:null,formationSeed:window.ForgeDeployment.hash32(id),manualPositions:{}});if(ENCOUNTER_REGION_RULES[g.id])ENCOUNTER_REGION_RULES[id]=Object.assign({},ENCOUNTER_REGION_RULES[g.id]);DEPLOYMENT_FOCUS=id;deploymentSay("New group created. Place its flag independently.");renderDeploymentPanel();};});
+  host.querySelectorAll("[data-deploy-remove]").forEach(function(b){b.onclick=function(){var id=b.dataset.deployRemove,g=deploymentGroup(id),count=g&&g.unitIds.length||0;DEPLOYMENT_GROUPS=window.ForgeDeployment.removeGroup(DEPLOYMENT_GROUPS,id);delete ENCOUNTER_REGION_RULES[id];DEPLOYMENT_FOCUS=DEPLOYMENT_GROUPS[0]&&DEPLOYMENT_GROUPS[0].id||null;deploymentSay((g&&g.label||'Group')+' removed. '+count+' combatant'+(count===1?' is':'s are')+' now unassigned.');renderDeploymentPanel();};});
 }
 function placeDeploymentAtPointer(e){
   var rect=renderer.domElement.getBoundingClientRect();ndc.x=((e.clientX-rect.left)/rect.width)*2-1;ndc.y=-((e.clientY-rect.top)/rect.height)*2+1;ray.setFromCamera(ndc,camera);var hit=ray.intersectObjects(world.children,true)[0];if(!hit){deploymentSay("No battlefield cell there.",true);return;}
@@ -5181,6 +5204,7 @@ function applyVerb(v){
     case "spawn":  spawnUnitFromState(v.unit, v.u); break;
     case "despawn":if(u){ removeToken(u,true); CB.units=CB.units.filter(function(x){return x!==u;}); CB.order=CB.order.filter(function(x){return x!==u;}); } break;
     case "turn":   setActiveFromLog(v.unit, v.round); break;   // Task 8 fleshes the HUD side
+    case "order":  CB.order=(v.order||[]).map(function(k){return unitByKey(k);}).filter(Boolean);if(v.active){var oi=CB.order.indexOf(unitByKey(v.active));if(oi>=0)CB.ti=oi;}reconcileMovementPresentation();renderHud();break;
     case "status": if(v.status==="ended"){ CB.over=true; clog("<b>Fight over.</b>");
       clearPromptUI(); if(window.__forgeSession) window.__forgeSession.row.status="ended";
       // Task 15: end fight must not leave a placement wave hanging (Esc/right-click
@@ -7111,6 +7135,8 @@ function rebuildProtocolFeed(rows){
   (rows||[]).forEach(function(row){
     if(row&&row.kind==="chat"){
       if(window.addForgeRow)window.addForgeRow('<i>'+escapeHtml(row.unit)+':</i> '+escapeHtml((row.payload&&row.payload.text)||''),{channel:"table"});
+    }else if(row&&row.kind==="encounter_region_activated"){
+      pushEncounterActivationFeed(row,false);
     }else if(window.ForgeTableCorrectness)window.ForgeTableCorrectness.pushEvent(viewerFeedEvent(row));
   });
   if(window.ForgeTableCorrectness){window.ForgeTableCorrectness.ensureFeedTabs();window.ForgeTableCorrectness.applyFeedView();}
@@ -7917,7 +7943,7 @@ function buildRoster(){
    swapped for the real generator output. Shared by both doors. */
 async function openTable(uid){
   try {
-    var savedMap=__forgeSessionMap(),savedRoster=rosterWithDeployment(buildRoster(),savedMap.deployment);
+    var savedMap=__forgeSessionMap(),savedRoster=rosterWithEncounterRegions(rosterWithDeployment(buildRoster(),savedMap.deployment),savedMap.encounterRegions);
     var ins = await sb.from('forge_sessions').insert({
       overseer: uid, map: savedMap, roster: savedRoster, controllers: {}, status: 'staging'
     }).select('id').single();
@@ -8174,8 +8200,10 @@ async function bootSession(sid){
       // renderInitiativeLobby).
       if (r.kind === 'initiative_rolled') { delete __initPublishing[r.unit]; delete __initPreview[r.unit]; }
       else if (r.kind === 'initiative_set') { __initConfirming = false; __initEditing=false; __initDraftOrder=null; }
+      else if (r.kind === 'encounter_region_activated') { delete ACTIVATION_PUBLISHING[(r.payload||{}).group_id]; }
       window.ForgeBoard.verbsFor(r, before, st).forEach(applyVerb);
       if(window.ForgeTableCorrectness)window.ForgeTableCorrectness.pushEvent(redactEnemyDefenseEvent(viewerFeedEvent(r)));
+      if(r.kind==='encounter_region_activated')pushEncounterActivationFeed(r,true);
       refreshEffectState(r,false);
       if(r.kind==="edit")applyRuleRows();
       applyConnectorStateReplay(st,false);
@@ -8184,6 +8212,7 @@ async function bootSession(sid){
       runMirror(before, lastState);   // Task 13: after every applied event, mirror any hp change I control back to its sheet
       renderHud();   // repaints the cleared guard even on a verb-less event (e.g. a miss)
       syncInitiativeLobby();   // Task 10: initiative_rolled/initiative_set/session_started all pass through here
+      if(r.kind==='move_resolved')maybeActivateFromMove(r,st);
       if(!maybeEnd())maybeAutoSkip();   // dead/stable seats cannot strand the initiative loop
     }
   });
@@ -8321,6 +8350,38 @@ function netMove(u,path){
     return {final_cell:{c:fin.c,r:fin.r},interrupted_at:stop?{c:fin.c,r:fin.r}:undefined,path:effective,move_cost_ft:moveCostFt};
   }).then(function(r){netPublishFail(r);return r;});
 }
+var ACTIVATION_PUBLISHING={},REGION_PANEL_OPEN=false;
+function activationGroup(state,groupId){return state&&state.encounterRegions&&state.encounterRegions.groups&&state.encounterRegions.groups[groupId]||null;}
+function activationReasonText(payload){
+  if(payload.reason==='region-entry')return 'the party entered '+String(payload.trigger_region_id||'its trigger region').replace(/-/g,' ');
+  if(payload.reason==='hostile-action')return 'a waiting member was targeted';
+  return 'the DM called them in';
+}
+function pushEncounterActivationFeed(row,live){
+  var p=row&&row.payload||{},player=discoveryPlayerView();
+  var html=player?'<i>Another group joins the fight.</i>':'<i><b>'+escapeHtml(p.group_label||p.group_id||'Encounter group')+'</b> activates — '+escapeHtml(activationReasonText(p))+'.</i>';
+  if(live)systemClog(html);else if(window.addForgeRow)window.addForgeRow(html,{channel:'system'});
+}
+function publishEncounterActivation(groupId,unit,reason,extra){
+  var sess=window.__forgeSession,st=sess&&sess.pipe.state(),group=activationGroup(st,groupId);
+  if(!sess||!group||group.state!=='waiting')return Promise.resolve({ok:true,skipped:true});
+  if(!st.initiative){clog('<i>Confirm initiative before activating encounter groups.</i>');return Promise.resolve({ok:false,why:'initiative is not set'});}
+  if(ACTIVATION_PUBLISHING[groupId])return Promise.resolve({ok:true,pending:true});
+  var payload=window.ForgeEncounterRegions.activationPayload(st,groupId,reason);
+  payload.group_label=group.label;payload.trigger_region_id=group.triggerRegionId||null;Object.assign(payload,extra||{});
+  ACTIVATION_PUBLISHING[groupId]=true;renderOverseerToolbar();
+  return sess.pipe.activateEncounterRegion(unit,payload).then(function(res){
+    if(res&&res.ok===false){delete ACTIVATION_PUBLISHING[groupId];clog('<b style="color:#c0553f">Couldn’t activate '+escapeHtml(group.label)+' — try again.</b> <i>('+escapeHtml(res.why||'publish failed')+')</i>');renderOverseerToolbar();}
+    return res;
+  });
+}
+function maybeActivateFromMove(row,state){
+  var sess=window.__forgeSession;if(!sess||!window.ForgeEncounterRegions)return;
+  var mine=(sess.me.units||[]).indexOf(row.unit)>=0,unclaimedDm=sess.me.overseer&&!isUnitClaimed(row.unit);
+  if(!mine&&!unclaimedDm)return;
+  var unit=state.units&&state.units[row.unit],regionId=unit&&window.ForgeEncounterRegions.regionIdForPoint(deploymentMap(),unit.pos);
+  window.ForgeEncounterRegions.groupsTriggeredByEntry(state,row.unit,regionId).forEach(function(group){publishEncounterActivation(group.id,row.unit,'region-entry',{trigger_region_id:regionId});});
+}
 /* roll + hit math stay local (same functions/order the sandbox always used);
    the local apply (t.hp -=) is removed — damage lands only via the echoed
    hp verb. Multi-strike actions publish one declare/resolve pair per strike,
@@ -8330,6 +8391,11 @@ function netMove(u,path){
 function netAttack(u,a,t){
   var valid=window.ForgeCombatRules.requireDamage(a);if(!valid.ok){clog('<b style="color:#c0553f">'+escapeHtml(valid.why)+' — action refused.</b>');return;}
   var ro=reachOK(u,a,t); if(!ro.ok){ clog(u.name+" — "+ro.why+"."); return; }
+  var sess=window.__forgeSession,waiting=sess&&window.ForgeEncounterRegions.hostileWaitingGroup(sess.pipe.state(),u.unit,t.unit);
+  if(waiting){publishEncounterActivation(waiting.id,u.unit,'hostile-action').then(function(res){if(!res||res.ok!==false)netAttackReady(u,a,t,ro);});return;}
+  netAttackReady(u,a,t,ro);
+}
+function netAttackReady(u,a,t,ro){
   if(CONTEST_COVER&&Number.isFinite(ro.cover)&&ro.cover>0){ CONTEST_COVER=false; contestThenAttack(u,a,t,ro); return; }
   CONTEST_COVER=false; // a moved target/attacker may have erased the cover after the toggle was armed
   netAttackGo(u,a,t,ro);
@@ -8692,7 +8758,7 @@ function openInitiativeEditor(){
 function confirmInitiative(){
   var sess=window.__forgeSession;if(!sess||!sess.me.overseer||__initConfirming)return;var st=sess.pipe.state(),order;
   if(__initDraftOrder&&__initDraftOrder.length)order=__initDraftOrder.slice();
-  else{var rows=(sess.row.roster||[]).slice();rows.sort(function(a,b){var ra=st.rolls[a.unit],rb=st.rolls[b.unit];ra=(ra==null)?-Infinity:ra;rb=(rb==null)?-Infinity:rb;if(ra!==rb)return rb-ra;var ua=unitByKey(a.unit),ub=unitByKey(b.unit),ma=(ua&&ua.initMod)||0,mb=(ub&&ub.initMod)||0;if(ma!==mb)return mb-ma;return String(a.name||a.unit).localeCompare(String(b.name||b.unit));});order=rows.map(function(r){return r.unit;});}
+  else{var activeKeys=window.ForgeEncounterRegions.initialInitiativeUnits(sess.row.roster||[]),activeSet={};activeKeys.forEach(function(k){activeSet[k]=true;});var rows=(sess.row.roster||[]).filter(function(r){return activeSet[r.unit];});rows.sort(function(a,b){var ra=st.rolls[a.unit],rb=st.rolls[b.unit];ra=(ra==null)?-Infinity:ra;rb=(rb==null)?-Infinity:rb;if(ra!==rb)return rb-ra;var ua=unitByKey(a.unit),ub=unitByKey(b.unit),ma=(ua&&ua.initMod)||0,mb=(ub&&ub.initMod)||0;if(ma!==mb)return mb-ma;return String(a.name||a.unit).localeCompare(String(b.name||b.unit));});order=rows.map(function(r){return r.unit;});}
   __initConfirming=true;renderInitiativeLobby();var resumeAt=st.initiative?window.ForgeReplay.activeUnit(st):null;sess.pipe.setInitiative(order,resumeAt,!!st.initiative).then(initConfirmFail);
 }
 function renderInitiativeLobby(){
@@ -8706,7 +8772,8 @@ function renderInitiativeLobby(){
       controls=orderButtons+'<span class="cbInitTotal">'+(roll!=null?escapeHtml(roll):'—')+'</span><button class="cbInitRoll" data-u="'+escapeHtml(k)+'"'+(rolling?' disabled':'')+'>'+(rolling?'…':'Roll')+'</button>'+
         '<span class="cbInitEntry"><input class="cbInitScore" type="number" step="1" data-total="'+escapeHtml(k)+'" placeholder="total" aria-label="Final initiative total for '+escapeHtml(r.name||k)+'"><button class="cbInitMini" data-use-total="'+escapeHtml(k)+'"'+(rolling?' disabled':'')+'>Enter</button></span>';
     }else controls=roll!=null?'<span class="cbInitTotal">'+escapeHtml(roll)+'</span>':'<i>waiting…</i>';
-    return '<div class="cbInitRow"><span class="cbInitName">'+escapeHtml(r.name||k)+'</span><span class="cbInitVal">'+controls+'</span><div class="cbInitEvidence">'+initiativeEvidenceHtml(evidence)+'</div></div>';
+    var group=window.ForgeEncounterRegions.groupForUnit(st,k),held=group&&group.state==='waiting';
+    return '<div class="cbInitRow"><span class="cbInitName">'+escapeHtml(r.name||k)+(held?'<em class="cbInitHeld">held</em>':'')+'</span><span class="cbInitVal">'+controls+'</span><div class="cbInitEvidence">'+initiativeEvidenceHtml(evidence)+'</div></div>';
   }).join('');
   box.querySelectorAll('.cbInitRoll').forEach(function(b){b.onclick=function(){rollForUnit(sess,b.dataset.u);};});
   box.querySelectorAll('[data-use-total]').forEach(function(b){b.onclick=function(){var inp=box.querySelector('[data-total="'+CSS.escape(b.dataset.useTotal)+'"]');setManualInitiativeTotal(sess,b.dataset.useTotal,inp&&inp.value);};});
@@ -9033,8 +9100,20 @@ function renderOverseerToolbar(){
   var af=document.getElementById("ovAddFoe");
   if(af){ af.disabled=ended||busy||ADD_FOE_PLACING||!st.initiative;
     af.title = !st.initiative ? "Roll initiative first" : (ADD_FOE_PLACING ? "Placing — tap the board, or Esc/right-click to stop" : "Bring a new foe into the fight"); }
+  var rg=document.getElementById("ovRegions"),groups=st.encounterRegions&&st.encounterRegions.groups;
+  if(rg){rg.disabled=ended||!groups;rg.classList.toggle('on',REGION_PANEL_OPEN);rg.textContent='Encounter regions'+(groups?' · '+Object.keys(groups).filter(function(id){return groups[id].state==='waiting';}).length+' waiting':'');}
   renderGodPanel();
+  renderEncounterRegionPanel();
   renderSlotChip();
+}
+function toggleEncounterRegions(){REGION_PANEL_OPEN=!REGION_PANEL_OPEN;renderOverseerToolbar();}
+function renderEncounterRegionPanel(){
+  var el=document.getElementById('cbRegionPanel'),sess=window.__forgeSession;if(!el)return;
+  if(!REGION_PANEL_OPEN||!sess||!sess.me.overseer){el.style.display='none';el.innerHTML='';return;}
+  var st=sess.pipe.state(),groups=st.encounterRegions&&st.encounterRegions.groups||{};el.style.display='block';
+  var ids=Object.keys(groups);if(!ids.length){el.innerHTML='<i>No authored encounter groups on this battlefield.</i>';return;}
+  el.innerHTML=ids.map(function(id){var g=groups[id],waiting=g.state==='waiting',trigger=g.mode==='enter'?'Party enters '+String(g.triggerRegionId||'region').replace(/-/g,' '):g.mode==='dm'?'DM activates':'Active at initiative';return '<div class="cbRegionGroup"><b>'+escapeHtml(g.label)+'</b><span>'+escapeHtml(waiting?'Waiting · '+trigger:'Active'+(g.reason?' · '+activationReasonText({reason:g.reason,trigger_region_id:g.triggerRegionId}):''))+'</span><button data-region-activate="'+escapeHtml(id)+'"'+(!waiting||!st.initiative||ACTIVATION_PUBLISHING[id]?' disabled':'')+'>'+(ACTIVATION_PUBLISHING[id]?'Activating…':waiting?'Activate now':'Already active')+'</button></div>';}).join('');
+  el.querySelectorAll('[data-region-activate]').forEach(function(b){b.onclick=function(){publishEncounterActivation(b.dataset.regionActivate,'__session','dm');};});
 }
 
 /* ══ Task 15: Reinforcements — Add foe mid-fight (FORGE_BOARD.md §6) ════════════════════════════════
@@ -9070,7 +9149,7 @@ function unslottedUnits(){
   var sess=window.__forgeSession; if(!sess) return [];
   var st=sess.pipe.state(); if(!st.initiative) return [];
   var have={}; st.initiative.forEach(function(k){ have[k]=true; });
-  return Object.keys(st.units||{}).filter(function(k){ return !have[k] && st.units[k] && !st.units[k].downed; });
+  return Object.keys(st.units||{}).filter(function(k){var group=window.ForgeEncounterRegions&&window.ForgeEncounterRegions.groupForUnit(st,k);return !have[k]&&st.units[k]&&!st.units[k].downed&&!(group&&group.state==='waiting');});
 }
 
 /* ── Add-foe modal: shelf + search, pick ONE kind, count 1..4 ─────────── */
@@ -9285,6 +9364,7 @@ addEventListener("pointerup", function(e){ if(e.target!==renderer.domElement) re
   /* Task 15: reinforcements */
   wireAddFoeSearch();
   if(g("ovAddFoe")) g("ovAddFoe").addEventListener("click",openAddFoeModal);
+  if(g("ovRegions")) g("ovRegions").addEventListener("click",toggleEncounterRegions);
   if(g("ovInitiative")) g("ovInitiative").addEventListener("click",openInitiativeEditor);
   if(g("cbInitCancel")) g("cbInitCancel").addEventListener("click",closeInitiativeEditor);
   if(g("afStartPlace")) g("afStartPlace").addEventListener("click",startAddFoePlacing);

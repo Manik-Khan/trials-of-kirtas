@@ -16,6 +16,13 @@ const ok = (n, c) => { if (c) { pass++; } else { fail++; console.error('FAIL:', 
   const registered = [];
   win.TokRail = { ready: true, registerTab: (spec) => registered.push(spec), show: () => {} };
   win.__tok = { ready: Promise.resolve({ role: 'overseer' }) };
+  win.CharacterData = {
+    loadParty: () => Promise.resolve([{ key: 'cosmere', name: 'Cosmere', structural: { classLabel: 'Wizard 5' } }]),
+    loadLayout: () => Promise.resolve({}),
+    saveLayout: () => Promise.resolve(),
+    markDeletion: () => Promise.resolve(),
+    remove: () => Promise.resolve()
+  };
   win.eval(fs.readFileSync('characters-tab.js', 'utf8'));
 
   // registration
@@ -24,6 +31,27 @@ const ok = (n, c) => { if (c) { pass++; } else { fail++; console.error('FAIL:', 
   ok('tab id is characters', spec.id === 'characters');
   ok('tab order 15 (between feed=10 and sheet=20)', spec.order === 15);
   ok('tab has onMount + onShow', typeof spec.onMount === 'function' && typeof spec.onShow === 'function');
+  ok('full-page href encodes the character key', win.CharactersTab.sheetPageHref('sable north') === 'sheet-v2.html?character=sable%20north');
+
+  // mounted roster: touch-visible actions + two-destination picker
+  const pane = win.document.createElement('div');
+  pane.id = 'tok-rail'; win.document.body.appendChild(pane);
+  spec.onMount(pane);
+  await new Promise(r => setTimeout(r, 0));
+  await new Promise(r => setTimeout(r, 0));
+  ok('top action opens the shared sheet picker', !!pane.querySelector('[data-act="picker"]'));
+  ok('Shard Reforger remains a smaller secondary action', !!pane.querySelector('[data-act="forge"].ch-reforge'));
+  ok('character row exposes a visible actions button', !!pane.querySelector('.ch-more[data-act="actions"]'));
+  pane.querySelector('[data-act="picker"]').dispatchEvent(new win.MouseEvent('click', { bubbles: true }));
+  await new Promise(r => setTimeout(r, 0));
+  await new Promise(r => setTimeout(r, 0));
+  ok('picker opens as a dialog', !!win.document.querySelector('.ch-picker[role="dialog"]'));
+  ok('picker offers mounted sheet action', !!win.document.querySelector('[data-pick-mounted="cosmere"]'));
+  ok('picker offers full character page', win.document.querySelector('.ch-pick-full')?.getAttribute('href') === 'sheet-v2.html?character=cosmere');
+  win.document.querySelector('[data-picker-close]').dispatchEvent(new win.MouseEvent('click', { bubbles: true }));
+  win.document.dispatchEvent(new win.CustomEvent('combatsheets:add'));
+  await new Promise(r => setTimeout(r, 0));
+  ok('mounted-sheet add event opens the same picker', !!win.document.querySelector('.ch-picker[role="dialog"]'));
 
   // groupRoster
   const G = win.CharactersTab.groupRoster;

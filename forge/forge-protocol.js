@@ -1,7 +1,7 @@
 /* ── forge-protocol.js ────────────────────────────────────────────────
    Battle Forge event VOCABULARY (FORGE_PROTOCOL.md §2). Every event is a
    fact said at the table; state is derived by replaying them in order.
-   17 kinds. No turn_started — turn start is derived (spec §2).
+   18 kinds. No turn_started — turn start is derived (spec §2).
    Dual export: browser (window.ForgeProtocol) + node.                    */
 (function (root, factory) {
   var api = factory();
@@ -10,7 +10,7 @@
 })(typeof self !== "undefined" ? self : this, function () {
 
   var KINDS = [
-    "session_started", "initiative_rolled", "initiative_set", "turn_ended",
+    "session_started", "initiative_rolled", "initiative_set", "encounter_region_activated", "turn_ended",
     "move_declared", "move_resolved", "attack_declared", "attack_resolved",
     "ability_used", "prompt", "prompt_answered", "reaction_declared", "chat",
     "override", "restore", "edit", "session_ended"
@@ -25,6 +25,7 @@
   /* required payload fields per kind — presence checks on facts, not rules */
   var REQ = {
     initiative_rolled: ["roll"], initiative_set: ["order"],
+    encounter_region_activated: ["group_id", "reason", "order"],
     move_declared: ["path"], move_resolved: ["final_cell"],
     attack_declared: ["target", "roll"], attack_resolved: ["hit"],
     ability_used: ["ability", "targets"],

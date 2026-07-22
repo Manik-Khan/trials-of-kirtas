@@ -38,13 +38,17 @@ unfinished job, tracked in `CONTEXT_Forge.md` §3.
   Party, Ally/NPC, and Enemy groups around DM flags inside authored intent
   regions; preserves manual pins; serializes exact positions; and applies them
   to local/shared rosters. Global: `window.ForgeDeployment`.
+- **forge-encounter-regions.js** — pure versioned activation authority. Keeps
+  deployment and discovery independent while deriving active/waiting groups,
+  entry triggers, held-initiative insertion, and hostile-target activation.
+  Global: `window.ForgeEncounterRegions`.
 - **map-bridge.js** — the seam. Converts generator output (dungeon grid or
   topography heightfield) into the combat map contract. Global: `window.MapBridge`.
 - **tactics-geometry.js** — the combat rules module (movement, cliffs, LoS,
   cover, ranges). The **canonical source of truth** for this file.
   Global: `window.TacticsGeo`.
 
-All six are dual-export (browser `window.*` **and** Node `module.exports`), so
+All seven are dual-export (browser `window.*` **and** Node `module.exports`), so
 the Node test harness and the browser game share the exact same code.
 
 ## The map document
@@ -206,7 +210,7 @@ Extract the real functions and run them on the real generated field.
 
 ## Protocol (multiplayer spine)
 
-`forge-protocol.js → forge-replay.js → forge-bus.js → forge-pipeline.js`.
+`forge-protocol.js + forge-encounter-regions.js → forge-replay.js → forge-bus.js → forge-pipeline.js`.
 Design: `FORGE_PROTOCOL.md` (repo root). State is derived by replaying the
 append-only `forge_events` log; the bus is swappable (memory in smokes,
 Supabase live); RLS enforces identity only — turn order is client-gated.

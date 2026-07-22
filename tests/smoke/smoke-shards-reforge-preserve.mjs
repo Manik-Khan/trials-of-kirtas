@@ -38,6 +38,7 @@ const cur = { structural: {
   inspiration: true,
   rollerFlags: { advantage:false },
   defaultSlots: [4,3,0,0],
+  corrections: { version:1, active:[{ id:'corr_shield', kind:'spell', name:'Shield', source:'Sorcerer' }], history:[{ kind:'added', subject:'Shield' }] },
   abilities: { STR:{ score:8, mod:-1 } },
   name: 'Vesperian (old)'
 }};
@@ -59,6 +60,7 @@ ok('appearance block preserved', merged.appearance && merged.appearance.eyes ===
 ok('inspiration preserved', merged.inspiration === true);
 ok('rollerFlags preserved', merged.rollerFlags && merged.rollerFlags.advantage === false);
 ok('defaultSlots preserved', JSON.stringify(merged.defaultSlots) === JSON.stringify([4,3,0,0]));
+ok('manual correction ledger preserved', merged.corrections && merged.corrections.active[0].source === 'Sorcerer' && merged.corrections.history.length === 1);
 // build-derived fields DO get overwritten by the new build
 ok('abilities overwritten by the new build', merged.abilities.STR.score === 10);
 ok('name overwritten by the new build', merged.name === 'Vesperian');
