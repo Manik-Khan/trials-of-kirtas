@@ -302,8 +302,9 @@
 
    MAP DOCUMENT (the shared contract the generator will emit):
      { cols, rows,
-       h:    Int[rows*cols]   terrain height in FEET (0,5,10,15…),
-       wall: bool[rows*cols]  full-height opaque sight+move blocker }
+       h:    Number[rows*cols] base terrain height in FEET,
+       wall: bool[rows*cols]  base movement blocker,
+       connectors: Connector[] stairs/ramps/bridges authorizing path segments }
 
    Everything here is ENFORCE-layer (deterministic, one right answer).
    The ADJUDICATE layer (which OAs trigger, soft/narrative cover, the DM's
@@ -327,15 +328,26 @@ function makeMap(cols, rows) {
 }
 function idx(map, c, r) { return r * map.cols + c; }
 function inBounds(map, c, r) { return c >= 0 && c < map.cols && r >= 0 && r < map.rows; }
-function heightAt(map, c, r) { return inBounds(map, c, r) ? map.h[idx(map, c, r)] : 0; }
-function isWall(map, c, r) { return inBounds(map, c, r) && !!map.wall[idx(map, c, r)]; }
-/* The top of whatever stands in this cell, in feet. Off-map is opaque.
-   With no occ[], a wall is infinitely tall — v1 behaviour, unchanged. */
+function baseHeightAt(map,c,r){return inBounds(map,c,r)?Number(map.h[idx(map,c,r)]||0):0;}
+function heightAt(map, c, r) {
+  if(!inBounds(map,c,r))return 0;
+  var bridge=bridgeSurfaceAt(map,c,r);
+  return bridge?Number(bridge.point.elevationFt||0):baseHeightAt(map,c,r);
+}
+function isWall(map, c, r) {
+  if(!inBounds(map,c,r))return false;
+  return !!map.wall[idx(map,c,r)]&&!bridgeSurfaceAt(map,c,r);
+}
+/* The top of whatever stands in this cell, in feet. Bridge cells keep their
+   base terrain/void separate from the deck and rails. */
 function occTop(map, c, r) {
   if (!inBounds(map, c, r)) return Infinity;
-  var i = idx(map, c, r);
-  if (map.occ && map.occ[i] != null) return map.h[i] + map.occ[i];
-  return map.wall[i] ? Infinity : map.h[i];
+  var i = idx(map, c, r), base=baseHeightAt(map,c,r), top;
+  if (map.occ && map.occ[i] != null) top=base+(map.occ[i]===Infinity?Infinity:(Number(map.occ[i])||0));
+  else top=map.wall[i]&&!bridgeSurfaceAt(map,c,r)?Infinity:base;
+  var bridge=bridgeSurfaceAt(map,c,r);
+  if(bridge){var rails=bridge.connector.rails||{},rail=Number(rails.heightFt)||0;top=Math.max(top,Number(bridge.point.elevationFt||0)+rail);}
+  return top;
 }
 function chebyshev(a, b) { return Math.max(Math.abs(a.c - b.c), Math.abs(a.r - b.r)); }
 
@@ -345,12 +357,65 @@ function chebyshev(a, b) { return Math.max(Math.abs(a.c - b.c), Math.abs(a.r - b
    (Climb cost = still 1 square here; real 5e 2×-cost climb is a later refinement.)
    `occupied` is a Set of "c,r" strings for other creatures.               */
 var DIRS = [[1,0],[-1,0],[0,1],[0,-1],[1,1],[1,-1],[-1,1],[-1,-1]];
+function connectorPath(connector){if(!connector)return[];if(Array.isArray(connector.path)&&connector.path.length>=2)return connector.path;return connector.from&&connector.to?[connector.from,connector.to]:[];}
+function connectorBetween(map,fromC,fromR,toC,toR){
+  var list=map&&map.connectors;if(!Array.isArray(list))return null;
+  for(var i=0;i<list.length;i++){
+    var connector=list[i];if(!connector||connector.state==='closed'||connector.state==='broken')continue;
+    var path=connectorPath(connector);
+    for(var j=0;j<path.length-1;j++){
+      var f=path[j]||{},t=path[j+1]||{};
+      if(f.c===fromC&&f.r===fromR&&t.c===toC&&t.r===toR)return connector;
+      if(!connector.oneWay&&f.c===toC&&f.r===toR&&t.c===fromC&&t.r===fromR)return connector;
+    }
+  }
+  return null;
+}
+function bridgeRecordAt(map,c,r){
+  var list=map&&map.connectors;if(!Array.isArray(list))return null;
+  for(var i=0;i<list.length;i++){
+    var connector=list[i];if(!connector||connector.kind!=='bridge')continue;
+    var path=connectorPath(connector);for(var j=0;j<path.length;j++)if(path[j].c===c&&path[j].r===r)return{connector:connector,point:path[j],index:j,path:path};
+  }
+  return null;
+}
+function bridgeInteriorAt(map,c,r){
+  var hit=bridgeRecordAt(map,c,r);return hit&&hit.index>0&&hit.index<hit.path.length-1?hit:null;
+}
+function bridgeSurfaceAt(map,c,r){
+  var hit=bridgeRecordAt(map,c,r),state=hit&&String(hit.connector.state||'open').toLowerCase();
+  return hit&&state!=='closed'&&state!=='broken'?hit:null;
+}
+function connectorAllows(token,connector){
+  if(!connector)return false;var req=connector.requires||{};
+  if(req.fly&&!token.fly)return false;if(req.climb&&!token.climb)return false;
+  if(req.swim&&!token.swim)return false;if(req.jump&&!token.jump)return false;
+  return true;
+}
 function stepAllowed(map, token, fromC, fromR, toC, toR) {
   if (!inBounds(map, toC, toR)) return false;
-  if (isWall(map, toC, toR)) return false;
+  var targetBridge=bridgeRecordAt(map,toC,toR),targetInterior=bridgeInteriorAt(map,toC,toR),targetState=targetBridge&&String(targetBridge.connector.state||'open').toLowerCase();
+  var sourceInterior=bridgeInteriorAt(map,fromC,fromR),sourceState=sourceInterior&&String(sourceInterior.connector.state||'open').toLowerCase();
+  if((targetInterior&&(targetState==='closed'||targetState==='broken'))||(sourceInterior&&(sourceState==='closed'||sourceState==='broken')))return false;
+  var bf=bridgeSurfaceAt(map,fromC,fromR),bt=bridgeSurfaceAt(map,toC,toR),segment=connectorBetween(map,fromC,fromR,toC,toR);
+  if (!!map.wall[idx(map,toC,toR)]&&!bt) return false;
+  /* Bridge-only cells can be entered/exited only along consecutive authored
+     path points. This prevents diagonal or side access into the middle span. */
+  if((bf||bt)&&(map.wall[idx(map,fromC,fromR)]||map.wall[idx(map,toC,toR)])&&!segment)return false;
   var dh = Math.abs(heightAt(map, toC, toR) - heightAt(map, fromC, fromR));
-  if (token.fly || token.climb) return true;      // wings / climb kit ignore the cliff
-  return dh <= STEP_FT;                            // otherwise a cliff is a hard no
+  if (token.fly || token.climb) return true;
+  if (dh <= STEP_FT && (!segment || connectorAllows(token,segment))) return true;
+  return connectorAllows(token,segment);
+}
+/* Open-ground diagonals stay legal. A creature may not squeeze through the
+   diagonal seam only when BOTH orthogonal side cells are solid: wall/off-map
+   terrain or another creature. This makes a creature holding a one-cell
+   doorway matter without turning every occupied side cell into a corner. */
+function cornerBlocked(map,occupied,c,r){return !inBounds(map,c,r)||isWall(map,c,r)||occupied.has(c+","+r);}
+function diagonalSqueezeBlocked(map,occupied,fromC,fromR,toC,toR){
+  var dc=toC-fromC,dr=toR-fromR;
+  if(Math.abs(dc)!==1||Math.abs(dr)!==1)return false;
+  return cornerBlocked(map,occupied,fromC+dc,fromR)&&cornerBlocked(map,occupied,fromC,fromR+dr);
 }
 function movementReach(map, token, occupied, budgetSquares) {
   occupied = occupied || new Set();
@@ -365,6 +430,7 @@ function movementReach(map, token, occupied, budgetSquares) {
       var c = n.c + DIRS[i][0], r = n.r + DIRS[i][1], k = c + "," + r;
       if (seen[k] !== undefined) continue;
       if (occupied.has(k)) continue;
+      if (diagonalSqueezeBlocked(map, occupied, n.c, n.r, c, r)) continue;
       if (!stepAllowed(map, token, n.c, n.r, c, r)) continue;
       seen[k] = { d: n.d + 1, from: n.c + "," + n.r };
       q.push({ c: c, r: r, d: n.d + 1 });
@@ -450,16 +516,29 @@ function pointInCoverShape(shape,lx,ly){
 }
 function addedBlocker(map,c,r,x,y,z,ignoreCell){
   if(!inBounds(map,c,r))return {c:c,r:r,type:'off-map'};
-  var i=idx(map,c,r),ground=heightAt(map,c,r);
+  var i=idx(map,c,r),ground=baseHeightAt(map,c,r),bridge=bridgeSurfaceAt(map,c,r);
   if(ground>z+1e-9)return {c:c,r:r,type:'terrain'};
   if(ignoreCell&&c===ignoreCell.c&&r===ignoreCell.r)return null;
   var occ;
-  if(map.occ&&map.occ[i]!=null)occ=Number(map.occ[i])||0;
-  else occ=map.wall[i]?Infinity:0;
+  if(map.occ&&map.occ[i]!=null)occ=map.occ[i]===Infinity?Infinity:(Number(map.occ[i])||0);
+  else occ=map.wall[i]&&!bridge?Infinity:0;
   if(!(ground+occ>z+1e-9))return null;
   var shape=coverShapeAt(map,c,r);
   if(shape&&!pointInCoverShape(shape,x-c,y-r))return null;
-  return {c:c,r:r,type:(shape&&shape.source)||((map.wall&&map.wall[i])?'wall':'occluder')};
+  return {c:c,r:r,type:(shape&&shape.source)||((map.wall&&map.wall[i]&&!bridge)?'wall':'occluder')};
+}
+function bridgeBlocker(map,c,r,x,y,z){
+  var b=bridgeSurfaceAt(map,c,r);if(!b)return null;
+  var conn=b.connector,deck=Number(b.point.elevationFt||0),thick=Number(conn.deckThicknessFt)||0.5;
+  if(z>=deck-thick-1e-9&&z<=deck+1e-9)return{c:c,r:r,type:'bridge-deck',connectorId:conn.id};
+  var rails=conn.rails||{},railH=Number(rails.heightFt)||0;if(!(railH>0)||z<deck-1e-9||z>deck+railH+1e-9)return null;
+  var path=b.path,prev=path[Math.max(0,b.index-1)],next=path[Math.min(path.length-1,b.index+1)];
+  var dx=next.c-prev.c,dy=next.r-prev.r,len=Math.hypot(dx,dy)||1;dx/=len;dy/=len;
+  var px=x-(c+0.5),py=y-(r+0.5),perp=-dy*px+dx*py;
+  var half=Math.min(0.49,Math.max(0.05,(Number(conn.widthFt)||5)/10)),rt=Math.max(0.01,(Number(rails.thicknessFt)||0.25)/5);
+  if(rails.left!==false&&Math.abs(perp-half)<=rt+1e-9)return{c:c,r:r,type:'bridge-rail',side:'left',connectorId:conn.id};
+  if(rails.right!==false&&Math.abs(perp+half)<=rt+1e-9)return{c:c,r:r,type:'bridge-rail',side:'right',connectorId:conn.id};
+  return null;
 }
 function creatureBlocker(map,c,r,x,y,z,opts){
   if(opts&&opts.ignoreCreatures)return null;
@@ -477,7 +556,7 @@ function creatureBlocker(map,c,r,x,y,z,opts){
   return null;
 }
 function blockerAtPoint(map,c,r,x,y,z,ignoreCell,opts){
-  return addedBlocker(map,c,r,x,y,z,ignoreCell)||creatureBlocker(map,c,r,x,y,z,opts);
+  return addedBlocker(map,c,r,x,y,z,ignoreCell)||bridgeBlocker(map,c,r,x,y,z)||creatureBlocker(map,c,r,x,y,z,opts);
 }
 function segBlocker(map,x0,y0,z0,x1,y1,z1,aC,aR,bC,bR,ignoreCell,opts){
   var steps=240;
@@ -497,17 +576,22 @@ function traceTop(map,c,r,ignoreCell){
   return occTop(map,c,r);
 }
 function segAttrib(map,x0,y0,z0,x1,y1,z1,a,b,ignoreCell,opts){
-  var steps=240,blocked=false,graded=false,first=null,types={};
+  var steps=240,blocked=false,graded=false,first=null,types={},gradedTypes={};
   for(var s=1;s<steps;s++){
     var t=s/steps,x=x0+(x1-x0)*t,y=y0+(y1-y0)*t,z=z0+(z1-z0)*t;
-    var c=Math.floor(x),r=Math.floor(y);
-    if((c===a.c&&r===a.r)||(c===b.c&&r===b.r))continue;
-    var hit=blockerAtPoint(map,c,r,x,y,z,ignoreCell,opts);if(!hit)continue;
+    var c=Math.floor(x),r=Math.floor(y),targetCell=c===b.c&&r===b.r;
+    if(c===a.c&&r===a.r)continue;
+    /* The target cell is normally skipped so its own terrain/body cannot cover
+       itself. A bridge rail is different: it sits on the edge of the occupied
+       bridge square and must protect a creature standing behind it. */
+    var hit=targetCell?bridgeBlocker(map,c,r,x,y,z):blockerAtPoint(map,c,r,x,y,z,ignoreCell,opts);
+    if(targetCell&&hit&&hit.type!=='bridge-rail')hit=null;
+    if(!hit){if(targetCell)continue;else continue;}
     blocked=true;if(!first)first=hit;types[hit.type]=(types[hit.type]||0)+1;
     var cell={c:c,r:r};
-    if(chebyshev(cell,b)<=chebyshev(cell,a)){graded=true;break;}
+    if(chebyshev(cell,b)<=chebyshev(cell,a)){graded=true;gradedTypes[hit.type]=(gradedTypes[hit.type]||0)+1;break;}
   }
-  return {blocked:blocked,graded:graded,first:first,types:types};
+  return {blocked:blocked,graded:graded,first:first,types:types,gradedTypes:gradedTypes};
 }
 function segHitsWall(map,x0,y0,x1,y1,aC,aR,bC,bR){
   var z=heightAt(map,aC,aR)+EYE_FT;
@@ -571,18 +655,23 @@ function firingPoints(map,a,b){
 }
 function mergeTypes(dst,src){Object.keys(src||{}).forEach(function(k){dst[k]=(dst[k]||0)+src[k];});}
 function verdictFromEye(map,ax,ay,az,a,b,ignoreCell,opts){
-  var bh=heightAt(map,b.c,b.r),blocked=0,graded=0,types={},first=null;
+  var bh=heightAt(map,b.c,b.r),blocked=0,graded=0,types={},gradedTypes={},first=null;
   for(var zc=0;zc<BODY_LEVELS.length;zc++)for(var tc=0;tc<BODY_CORNERS.length;tc++){
     var q=BODY_CORNERS[tc],line=segAttrib(map,ax,ay,az,b.c+q[0],b.r+q[1],bh+BODY_LEVELS[zc],a,b,ignoreCell,opts);
-    if(line.blocked){blocked++;if(!first)first=line.first;if(line.graded)graded++;mergeTypes(types,line.types);}
+    if(line.blocked){blocked++;if(!first)first=line.first;if(line.graded)graded++;mergeTypes(types,line.types);mergeTypes(gradedTypes,line.gradedTypes);}
   }
   var cover,acBonus;
   if(blocked>=BODY_SAMPLES){cover='total';acBonus=Infinity;}
   else if(graded<6){cover='none';acBonus=0;}
   else if(graded<9){cover='half';acBonus=2;}
   else{cover='three-quarters';acBonus=5;}
+  /* A continuous waist-high bridge rail is authored tactical cover. The body
+     sampler sees its lower-band obstruction, but the generic six-sample cut
+     can underrate a rail by a single sample at oblique angles. Two or more
+     target-side rail samples therefore establish the intended half-cover floor. */
+  if(cover==='none'&&(gradedTypes['bridge-rail']||0)>=2){cover='half';acBonus=2;}
   return {cover:cover,acBonus:acBonus,blocked:blocked,graded:graded,samples:BODY_SAMPLES,
-    canTarget:cover!=='total',culprits:types,firstBlocker:first};
+    canTarget:cover!=='total',culprits:types,gradedCulprits:gradedTypes,firstBlocker:first};
 }
 function losVerdict(map,a,b,opts){
   opts=opts||{};var az=heightAt(map,a.c,a.r)+EYE_FT;
@@ -619,9 +708,9 @@ function coverAudit(map,pairs,opts){
 var API={
   SQUARE_FT:SQUARE_FT,STEP_FT:STEP_FT,EYE_FT:EYE_FT,FOOT_FT:FOOT_FT,DIRS:DIRS,
   BODY_LEVELS:BODY_LEVELS,BODY_SAMPLES:BODY_SAMPLES,
-  makeMap:makeMap,idx:idx,inBounds:inBounds,heightAt:heightAt,isWall:isWall,occTop:occTop,chebyshev:chebyshev,
-  stepAllowed:stepAllowed,movementReach:movementReach,pathTo:pathTo,canReachMelee:canReachMelee,range3d:range3d,inRange:inRange,
-  coverShapeAt:coverShapeAt,pointInCoverShape:pointInCoverShape,losVerdict:losVerdict,losRay:losRay,
+  makeMap:makeMap,idx:idx,inBounds:inBounds,baseHeightAt:baseHeightAt,heightAt:heightAt,isWall:isWall,occTop:occTop,chebyshev:chebyshev,
+  connectorPath:connectorPath,connectorBetween:connectorBetween,bridgeRecordAt:bridgeRecordAt,bridgeInteriorAt:bridgeInteriorAt,bridgeSurfaceAt:bridgeSurfaceAt,connectorAllows:connectorAllows,stepAllowed:stepAllowed,diagonalSqueezeBlocked:diagonalSqueezeBlocked,movementReach:movementReach,pathTo:pathTo,canReachMelee:canReachMelee,range3d:range3d,inRange:inRange,
+  coverShapeAt:coverShapeAt,pointInCoverShape:pointInCoverShape,bridgeBlockerAtPoint:bridgeBlocker,losVerdict:losVerdict,losRay:losRay,
   lipCorners:lipCorners,targetFacingEdges:targetFacingEdges,lowWallPeeks:lowWallPeeks,firingPoints:firingPoints,coverAudit:coverAudit
 };
 if(typeof module!=="undefined"&&module.exports)module.exports=API;

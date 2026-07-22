@@ -5,7 +5,8 @@
 //   • the accordion reducer: single-open, toggle-closes, key boundaries
 //   • AXIS INDEPENDENCE (pinned lesson 10): ink vars never carry paper;
 //     paper vars never carry ink or accent
-import { chaptersToVolumes, chapterToVolume, nextOpen, keyOpen, clamp } from './src/shelf/shelfModel.js'
+import fs from 'node:fs'
+import { chaptersToVolumes, chapterToVolume, flattenVolumeEntries, nextOpen, keyOpen, clamp } from './src/shelf/shelfModel.js'
 import { INKS, PAPERS, FLOOR, inkVars, paperVars, lookVars, resolveInk, resolvePaper, DEFAULT_LOOK, contrastRatio, isFloored, nearestLegibleInk, resolveLookFor } from './src/shelf/shelfTheme.js'
 import { buildBook } from './src/data/bookModel.js'
 
@@ -48,8 +49,21 @@ t('intro prefers the first narrator entry', vols[2].intro === 'We take off with 
   || vols[2].intro.length > 0) // s2 has no narrator row: falls back to first entry
 t('entries pass through untouched in narrative order',
   vols[1].entries.length === 2 && vols[1].entries[0].kind === 'narrator')
+t('Index result volume indexes follow the chronological shelf, not freshest-first chapters', (() => {
+  const flat = flattenVolumeEntries(vols)
+  return flat.find(e => e.id === '1')._vol === 0
+    && flat.find(e => e.id === '4')._vol === 2
+})())
 t('clamp cuts on a word boundary with an ellipsis',
   clamp('a'.repeat(10) + ' word tail here', 14).endsWith('…'))
+
+const css = fs.readFileSync(new URL('./src/styles.css', import.meta.url), 'utf8')
+t('phone reading panel fits beside its spine without clipping',
+  css.includes('--sh-panel-w: min(86vw, calc(100vw - var(--sh-spine-w)))'))
+const shell = fs.readFileSync(new URL('./index.html', import.meta.url), 'utf8')
+t('tooltips boot after <body> exists and before the Journal module',
+  shell.indexOf('<body>') < shell.indexOf('src="tooltips.js"')
+  && shell.indexOf('src="tooltips.js"') < shell.indexOf('src="/src/main.jsx"'))
 
 // untitled non-zero session
 const v = chapterToVolume({ session: 7, title: '', date: 'Jul 1', entries: [] })

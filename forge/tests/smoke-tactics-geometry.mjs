@@ -45,6 +45,21 @@ function setW(m, c, r) { m.wall[Geo.idx(m, c, r)] = true; }
   ok("a 2-square budget only reaches 2", !!partial["2,0"] && !partial["3,0"]);
 })();
 
+/* ── MOVEMENT: diagonal choke seams ──────────────────────────────── */
+(function () {
+  const open = Geo.makeMap(3, 3), token = { c: 0, r: 0, speed: 5 };
+  ok("open-ground diagonal remains legal", !!Geo.movementReach(open, token)["1,1"]);
+  ok("one occupied side cell does not ban an otherwise-open diagonal",
+    !!Geo.movementReach(open, token, new Set(["1,0"]))["1,1"]);
+
+  const choke = Geo.makeMap(3, 3); setW(choke, 0, 1);
+  ok("creature plus wall seal the diagonal seam",
+    !Geo.movementReach(choke, token, new Set(["1,0"]))["1,1"]);
+
+  const hardCorner = Geo.makeMap(3, 3); setW(hardCorner, 1, 0); setW(hardCorner, 0, 1);
+  ok("two wall faces seal the diagonal seam", !Geo.movementReach(hardCorner, token)["1,1"]);
+})();
+
 /* ── MELEE: vertical reach ───────────────────────────────────────── */
 (function () {
   const m = Geo.makeMap(4, 4);

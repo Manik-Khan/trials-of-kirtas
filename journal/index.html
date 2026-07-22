@@ -9,6 +9,9 @@
   <!-- on-site shell (repo-root relative; the standalone preview strips these) -->
   <link rel="stylesheet" href="theme.css" data-tok-shell>
   <script src="nav.js" data-tok-shell></script>
+</head>
+<body>
+  <div id="journal-root"></div>
   <script src="tooltips.js" data-tok-shell></script>
   <script data-tok-shell>
     // tooltips.js declares NPC_DATA/LOCATION_DATA as global-lexical consts;
@@ -18,9 +21,6 @@
       locations: typeof LOCATION_DATA !== 'undefined' ? LOCATION_DATA : {},
     };
   </script>
-</head>
-<body>
-  <div id="journal-root"></div>
   <script type="module" src="/src/main.jsx"></script>
 </body>
 </html>

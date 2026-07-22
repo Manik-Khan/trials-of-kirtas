@@ -49,8 +49,8 @@
 <script src="forge-action-damage.js?v=fad1"></script>
 <script src="forge-damage-evidence.js?v=fde3"></script>
 <script src="forge-feed-render.js?v=ffr5"></script>
-<script src="forge-hud.js?v=b5"></script>
-<script src="forge-table-correctness.js?v=fg8"></script>
+<script src="forge-hud.js?v=b6"></script>
+<script src="forge-table-correctness.js?v=fg9"></script>
 <script src="../item-icons.js?v=b3"></script>
 <script src="../spell-icons.js?v=b3"></script>
 <script src="../icon-picker.js?v=b3"></script>
@@ -186,6 +186,16 @@ function stepAllowed(map, token, fromC, fromR, toC, toR) {
   if (dh <= STEP_FT && (!segment || connectorAllows(token,segment))) return true;
   return connectorAllows(token,segment);
 }
+/* Open-ground diagonals stay legal. A creature may not squeeze through the
+   diagonal seam only when BOTH orthogonal side cells are solid: wall/off-map
+   terrain or another creature. This makes a creature holding a one-cell
+   doorway matter without turning every occupied side cell into a corner. */
+function cornerBlocked(map,occupied,c,r){return !inBounds(map,c,r)||isWall(map,c,r)||occupied.has(c+","+r);}
+function diagonalSqueezeBlocked(map,occupied,fromC,fromR,toC,toR){
+  var dc=toC-fromC,dr=toR-fromR;
+  if(Math.abs(dc)!==1||Math.abs(dr)!==1)return false;
+  return cornerBlocked(map,occupied,fromC+dc,fromR)&&cornerBlocked(map,occupied,fromC,fromR+dr);
+}
 function movementReach(map, token, occupied, budgetSquares) {
   occupied = occupied || new Set();
   var budget = (budgetSquares != null) ? budgetSquares : Math.floor(token.speed / SQUARE_FT);
@@ -199,6 +209,7 @@ function movementReach(map, token, occupied, budgetSquares) {
       var c = n.c + DIRS[i][0], r = n.r + DIRS[i][1], k = c + "," + r;
       if (seen[k] !== undefined) continue;
       if (occupied.has(k)) continue;
+      if (diagonalSqueezeBlocked(map, occupied, n.c, n.r, c, r)) continue;
       if (!stepAllowed(map, token, n.c, n.r, c, r)) continue;
       seen[k] = { d: n.d + 1, from: n.c + "," + n.r };
       q.push({ c: c, r: r, d: n.d + 1 });
@@ -477,7 +488,7 @@ var API={
   SQUARE_FT:SQUARE_FT,STEP_FT:STEP_FT,EYE_FT:EYE_FT,FOOT_FT:FOOT_FT,DIRS:DIRS,
   BODY_LEVELS:BODY_LEVELS,BODY_SAMPLES:BODY_SAMPLES,
   makeMap:makeMap,idx:idx,inBounds:inBounds,baseHeightAt:baseHeightAt,heightAt:heightAt,isWall:isWall,occTop:occTop,chebyshev:chebyshev,
-  connectorPath:connectorPath,connectorBetween:connectorBetween,bridgeRecordAt:bridgeRecordAt,bridgeInteriorAt:bridgeInteriorAt,bridgeSurfaceAt:bridgeSurfaceAt,connectorAllows:connectorAllows,stepAllowed:stepAllowed,movementReach:movementReach,pathTo:pathTo,canReachMelee:canReachMelee,range3d:range3d,inRange:inRange,
+  connectorPath:connectorPath,connectorBetween:connectorBetween,bridgeRecordAt:bridgeRecordAt,bridgeInteriorAt:bridgeInteriorAt,bridgeSurfaceAt:bridgeSurfaceAt,connectorAllows:connectorAllows,stepAllowed:stepAllowed,diagonalSqueezeBlocked:diagonalSqueezeBlocked,movementReach:movementReach,pathTo:pathTo,canReachMelee:canReachMelee,range3d:range3d,inRange:inRange,
   coverShapeAt:coverShapeAt,pointInCoverShape:pointInCoverShape,bridgeBlockerAtPoint:bridgeBlocker,losVerdict:losVerdict,losRay:losRay,
   lipCorners:lipCorners,targetFacingEdges:targetFacingEdges,lowWallPeeks:lowWallPeeks,firingPoints:firingPoints,coverAudit:coverAudit
 };
@@ -4632,6 +4643,13 @@ function removeToken(u,force){
    two copies. `kit` is a CHAR[...] / FOE-shaped sheet (name,hp,ac,speed,init,
    climb,fly,actions,react,res / atk,save). */
 function normalizeResourceRecord(res){return window.ForgeReplay&&window.ForgeReplay.normalizeResources?window.ForgeReplay.normalizeResources(res||{}):JSON.parse(JSON.stringify(res||{}));}
+/* Old active rosters can predate a newly-derived class pool. Seed only keys
+   that are absent; an explicit 0 is a spent resource and must stay 0. Replay
+   then reapplies any historical spends against the enriched starting facts. */
+function mergeResourceDefaults(current,defaults){
+  var out=normalizeResourceRecord(defaults||{}),known=normalizeResourceRecord(current||{});
+  Object.keys(known).forEach(function(k){out[k]=known[k];});return out;
+}
 function resourceSpendFor(action){var out=normalizeResourceRecord(action&&action.cost||{});Object.keys(out).forEach(function(k){out[k]=Math.max(0,Number(out[k])||0);if(!out[k])delete out[k];});return out;}
 var RESOURCE_ACTIVATION_SEQ=0;
 function resourceSpendIdFor(u,a){var spend=resourceSpendFor(a);if(!Object.keys(spend).length)return null;return "resource:"+String(u&&u.unit||u&&u.key||"unit")+":"+Date.now()+":"+(++RESOURCE_ACTIVATION_SEQ);}
@@ -5753,6 +5771,9 @@ function spend(u,a){
 
 /* ── reaction pipeline (async; DM chooses) ──────────────────────────── */
 function reactionSpendPlan(u,key,choiceKey){
+  /* Opportunity attacks spend the once-per-round reaction itself, but have
+     no spell slot or named resource pool on either PC or monster kits. */
+  if(key==="opportunityAttack")return {spend:{},key:null,label:null,spell:false};
   var rc=u&&u.react&&u.react[key];if(!rc)return null;
   var min=Number(rc.spellSlotLevel)||0;
   if(min){
@@ -6060,6 +6081,23 @@ function resolveOpportunityAttackPrompt(prompt,u,askerU,askerName){
     return recordSanctuaryCheck(u,target,ward,wardResult).then(function(ok){if(!ok){delete NESTED_OA_OUTER[prompt.seq];__answeringPromptSeq=null;return null;}return afterWard(wardResult);});
   });
 }
+/* Automatic foes own their own reactions. The overseer's device resolves the
+   same nested attack pipeline the manual Use button calls; player devices may
+   briefly show a waiting banner, but never receive the enemy's decision. */
+var AUTOMATIC_FOE_PROMPTS={};
+function routeAutomaticFoePrompt(prompt){
+  var sess=window.__forgeSession,u=prompt&&unitByKey(prompt.to);
+  if(!sess||!sess.me||!sess.me.overseer||!FOE_AUTOMATION||!prompt||prompt.react!=="opportunityAttack"||!u||u.side!=="foe")return false;
+  if(AUTOMATIC_FOE_PROMPTS[prompt.seq])return true;
+  AUTOMATIC_FOE_PROMPTS[prompt.seq]=true;clearPromptUI();__answeringPromptSeq=prompt.seq;
+  var ctx=prompt.context||{},askerKey=ctx.mover||ctx.target,askerU=unitByKey(askerKey),askerName=askerU?askerU.name:"the moving creature";
+  clog("<i>"+escapeHtml(u.name)+" automatically uses its opportunity attack.</i>");
+  Promise.resolve(resolveOpportunityAttackPrompt(prompt,u,askerU,askerName)).catch(function(e){
+    delete NESTED_OA_OUTER[prompt.seq];delete AUTOMATIC_FOE_PROMPTS[prompt.seq];__answeringPromptSeq=null;
+    clog('<b style="color:#c0553f">'+escapeHtml(u.name)+'’s opportunity attack could not resolve.</b> <i>('+escapeHtml((e&&e.message)||e)+')</i>');renderHud();
+  });
+  return true;
+}
 /* opts.fallback: the overseer answering as the unit after the 20s timeout
    (pipeline's checkTimeouts → onPromptFallback). Same card, same answer
    path — only the eyebrow/flag and the (already-spent) countdown differ. */
@@ -6220,6 +6258,7 @@ function routePrompt(prompt){
   if(NESTED_OA_OUTER[prompt.seq])return;   // this device is resolving that outer OA through a nested attack
   var sess=window.__forgeSession;
   if(prompt.react==="cover"){ routeCoverPrompt(prompt); return; }   // contest: menu on the overseer, banner for everyone else
+  if(routeAutomaticFoePrompt(prompt))return;
   if(sess && sess.me && sess.me.overseer){ overseerRoutePrompt(prompt); return; }
   if(promptRole(prompt.to)==="modal") return;
   showPromptBanner(prompt);
@@ -6305,6 +6344,7 @@ function onWirePrompt(row){
   var sess=window.__forgeSession, prompt=sess && sess.pipe.state().pendingPrompt;
   if(!prompt || prompt.seq!==row.seq) return;   // superseded by a later prompt already
   if(prompt.react==="cover"){ routeCoverPrompt(prompt); return; }   // contest: no controllers refresh needed — the sentinel routes by role alone
+  if(routeAutomaticFoePrompt(prompt))return;
   if(sess.me.overseer){ overseerRoutePrompt(prompt); return; }
   if(promptRole(prompt.to)!=="modal") return;
   openReactionModal(prompt,{});
@@ -6315,6 +6355,7 @@ function onWirePrompt(row){
 function onWirePromptFallback(p){
   if(!p) return;
   if(p.react==="cover") return;   // cover contest: the ruling menu is ALREADY on the overseer's screen; the 20s default fires asker-side (FORGE_COVER_CONTEST.md §4)
+  if(routeAutomaticFoePrompt(p))return;
   if(__answeringPromptSeq===p.seq) return;                              // already answering — echo just hasn't landed yet
   // Finding 2b (review): a modal for this prompt already open on THIS device —
   // of ANY kind, not just "fallback" — means we're already the responder (e.g.
@@ -6363,10 +6404,10 @@ function doSave(u,a,t){ var ro=reachOK(u,a,t); if(!ro.ok){ clog(u.name+" — "+r
   var saveAction=/toll the dead/i.test(a.label||"")?Object.assign({},a,{dmg:window.ForgeCombatRules.tollDamage(a,t).dmg}):a;
   var valid=window.ForgeCombatRules.requireDamage(saveAction);if(!valid.ok){clog('<b style="color:#c0553f">'+escapeHtml(valid.why)+' — action refused.</b>');return false;}
   var d20=d(20),bonus=saveModFor(t,a.saveAbility),bless=blessRollFor(t),blessV=bless?bless.roll:0,sv=d20+bonus+blessV,fail=sv<a.dc,line=u.name+" → "+t.name+": "+a.label+" ("+a.saveAbility.toUpperCase()+" save "+d20+(bonus?((bonus>=0?"+":"")+bonus):"")+(blessV?" + Bless "+blessV:"")+" = "+sv+" vs DC "+a.dc+") ";
-  if(fail){ var dmg=rollDmg(saveAction.dmg),hpBefore=t.hp; t.hp-=dmg;var concentration=localConcentrationAfterDamage(t,dmg,hpBefore,a.label+" damage"); line+="fail "+dmg; if(a.rider==="vm"){ t.disadv=true; line+=" + disadvantage"; }
+  if(fail){ var damage=rollActionDamage(saveAction,false,[]),dmg=damage.total,hpBefore=t.hp; t.hp-=dmg;var concentration=localConcentrationAfterDamage(t,dmg,hpBefore,a.label+" damage"); line+="fail "+dmg; if(a.rider==="vm"){ t.disadv=true; line+=" + disadvantage"; }
     flashHit(t); shake(0.14); floatAt(t,String(dmg),"dmg");if(t.hp<=0){ floatAt(t,"DOWN","down"); t.alive=false; removeToken(t); line+=" — <b>down</b>"; } }
   else { line+="save"; floatAt(t,"save","miss"); } clog(line,false);
-  if(window.ForgeTableCorrectness)window.ForgeTableCorrectness.pushFact({kind:"save",actor:u.unit,target:t.unit,mode:a.label,saveAbility:a.saveAbility,saveD20:d20,saveBonus:bonus,saveMods:blessV?[{k:"bless",v:blessV}]:[],saveTotal:sv,saveRoll:sv,dc:a.dc,saved:!fail,hit:fail,dmg:fail?dmg:0,concentration:fail?concentration:null}); return true; }
+  if(window.ForgeTableCorrectness)window.ForgeTableCorrectness.pushFact({kind:"save",actor:u.unit,target:t.unit,mode:a.label,saveAbility:a.saveAbility,saveD20:d20,saveBonus:bonus,saveMods:blessV?[{k:"bless",v:blessV}]:[],saveTotal:sv,saveRoll:sv,dc:a.dc,saved:!fail,hit:fail,dmg:fail?dmg:0,dmgParts:fail?damage.parts:null,dmgFormula:fail?damage.formula:null,concentration:fail?concentration:null}); return true; }
 function doHeal(u,a,t){ var ro=reachOK(u,a,t); if(!ro.ok){ clog(u.name+" \u2014 "+ro.why+"."); return; }
   var amt=rollDmg(a.dmg)+(a.disciple||0);
   if(!t.alive) t.hp=Math.max(0,t.hp);   /* \u00a7F: the sandbox lets hp go negative on the way down; the heal counts from 0 */
@@ -8038,7 +8079,8 @@ async function bootSession(sid){
       }
     }
     if (out.maxHp == null) out.maxHp = out.hp;
-    if(!out.resources){var rk=(out.kind||'pc')==='pc'?(kitFor(out.sheet_ref||out.unit)||CHAR[out.sheet_ref||out.unit]):(foeKitFromStatblock(out)||FOE);out.resources=normalizeResourceRecord(rk&&rk.res||{});}
+    var rk=(out.kind||'pc')==='pc'?(kitFor(out.sheet_ref||out.unit)||CHAR[out.sheet_ref||out.unit]):(foeKitFromStatblock(out)||FOE);
+    out.resources=mergeResourceDefaults(out.resources,rk&&rk.res||{});
     return out;
   });
   if (row.status === 'staging') clog('<b>Fight is forming</b> — waiting for the DM to start.');
@@ -8409,6 +8451,8 @@ function netUseAbility(u,a,targets,effects,opts){
   if (opts.restores) payload.restores = opts.restores;
   if (opts.roll!=null) payload.roll = opts.roll;
   if (opts.dmg!=null) payload.dmg = opts.dmg;
+  if (opts.dmgParts) payload.dmgParts = opts.dmgParts;
+  if (opts.dmgFormula) payload.dmgFormula = opts.dmgFormula;
   if (opts.context) payload.context = opts.context;
   if (opts.movement_bonus_ft) payload.movement_bonus_ft = opts.movement_bonus_ft;
   if (opts.movement_cost_ft) payload.movement_cost_ft = opts.movement_cost_ft;
@@ -8433,9 +8477,9 @@ function netSave(u,a,t){
   var saveAction=/toll the dead/i.test(a.label||"")?Object.assign({},a,{dmg:window.ForgeCombatRules.tollDamage(a,t).dmg}):a;
   var valid=window.ForgeCombatRules.requireDamage(saveAction);if(!valid.ok){clog('<b style="color:#c0553f">'+escapeHtml(valid.why)+' — action refused.</b>');return;}
   var d20=d(20),bonus=saveModFor(t,a.saveAbility),bless=blessRollFor(t),blessV=bless?bless.roll:0,sv=d20+bonus+blessV,fail=sv<a.dc,line=u.name+" → "+t.name+": "+a.label+" ("+a.saveAbility.toUpperCase()+" save "+d20+(bonus?((bonus>=0?"+":"")+bonus):"")+(blessV?" + Bless "+blessV:"")+" = "+sv+" vs DC "+a.dc+") ";
-  var effects=withBreakOp([],u,a), dmg=0,ctx={kind:"save",target:t.unit,ability:a.saveAbility,d20:d20,bonus:bonus,mods:blessV?[{k:"bless",v:blessV}]:[],total:sv,dc:a.dc,saved:!fail}, applyDisadv=false;
-  if(fail){dmg=rollDmg(saveAction.dmg);line+="fail "+dmg;effects.push({unit:t.unit,dmg:dmg});var stateNow=window.__forgeSession.pipe.state(),hpBefore=stateNow&&stateNow.units&&stateNow.units[t.unit]?stateNow.units[t.unit].hp:t.hp,concentration=concentrationCheckFor(t,dmg,hpBefore,a.label+" damage");if(concentration){ctx.concentration=concentration;if(concentration.effects&&concentration.effects.length)effects=effects.concat(concentration.effects);clog("<i>"+concentrationNarration(t,concentration)+"</i>");}if(a.rider==="vm"){applyDisadv=true;line+=" + disadvantage";ctx.narration="Vicious Mockery: disadvantage on the next attack.";}}else line+="save";
-  clog(line);netUseAbility(u,a,[t.unit],effects,{roll:sv,dmg:fail?dmg:undefined,context:ctx,onSuccess:applyDisadv?function(){t.disadv=true;}:undefined});
+  var effects=withBreakOp([],u,a), dmg=0,damage=null,ctx={kind:"save",target:t.unit,ability:a.saveAbility,d20:d20,bonus:bonus,mods:blessV?[{k:"bless",v:blessV}]:[],total:sv,dc:a.dc,saved:!fail}, applyDisadv=false;
+  if(fail){damage=rollActionDamage(saveAction,false,[]);dmg=damage.total;line+="fail "+dmg;effects.push({unit:t.unit,dmg:dmg});var stateNow=window.__forgeSession.pipe.state(),hpBefore=stateNow&&stateNow.units&&stateNow.units[t.unit]?stateNow.units[t.unit].hp:t.hp,concentration=concentrationCheckFor(t,dmg,hpBefore,a.label+" damage");if(concentration){ctx.concentration=concentration;if(concentration.effects&&concentration.effects.length)effects=effects.concat(concentration.effects);clog("<i>"+concentrationNarration(t,concentration)+"</i>");}if(a.rider==="vm"){applyDisadv=true;line+=" + disadvantage";ctx.narration="Vicious Mockery: disadvantage on the next attack.";}}else line+="save";
+  clog(line);netUseAbility(u,a,[t.unit],effects,{roll:sv,dmg:fail?dmg:undefined,dmgParts:damage?damage.parts:null,dmgFormula:damage?damage.formula:null,context:ctx,onSuccess:applyDisadv?function(){t.disadv=true;}:undefined});
 }
 /* heal (Healing Word/Cure Wounds) — amount rolled locally exactly as
    doHeal; the narration can't show the post-heal total (that arrives with

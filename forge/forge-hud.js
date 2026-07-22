@@ -112,6 +112,11 @@ body.fg-parch #fgFeed{--hud-bg:var(--tk-panel);--hud-bg2:var(--tk-panel-2);--hud
 box-shadow:0 14px 40px rgba(60,50,30,.3)}\n\
 .fg-fhd{display:flex;align-items:center;justify-content:space-between;padding:7px 12px;border-bottom:1px solid var(--hud-line)}\n\
 .fg-fhd .t{font-size:10px;font-weight:700;letter-spacing:.25em;text-transform:uppercase;color:var(--hud-gold)}\n\
+.fg-fcollapse{width:27px;height:24px;padding:0;border:1px solid var(--hud-line);background:var(--hud-bg2);color:var(--hud-fg);font:700 16px/1 system-ui;cursor:pointer}\n\
+.fg-fcollapse:hover{border-color:var(--hud-gold);color:var(--hud-gold)}\n\
+#fgFeed.fg-collapsed{max-height:none}\n\
+#fgFeed.fg-collapsed .fg-fhd{border-bottom:none}\n\
+#fgFeed.fg-collapsed .fg-feed-tabs,#fgFeed.fg-collapsed .fg-fbody{display:none!important}\n\
 .fg-fbody{overflow:auto;flex:1;padding:4px 0}\n\
 .fg-frow{display:flex;gap:8px;padding:7px 12px;border-bottom:1px solid var(--hud-line)}\n\
 .fg-frow:hover{background:var(--hud-bg2)}\n\
@@ -154,6 +159,14 @@ font-family:"Barlow Condensed",system-ui;font-size:12px;cursor:pointer;letter-sp
 ';
 
   // ── HTML ──────────────────────────────────────────────────────────────
+  var FEED_COLLAPSE_KEY = "tok-forge-feed-collapsed-v1";
+  function savedFeedCollapsed(){try{return localStorage.getItem(FEED_COLLAPSE_KEY)==="1";}catch(_e){return false;}}
+  function setFeedCollapsed(on){
+    var feed=document.getElementById("fgFeed"),button=document.getElementById("fgFeedCollapse");
+    if(!feed)return;feed.classList.toggle("fg-collapsed",!!on);
+    if(button){button.textContent=on?"+":"−";button.setAttribute("aria-expanded",on?"false":"true");button.title=on?"Expand game feed":"Minimize game feed";}
+    try{localStorage.setItem(FEED_COLLAPSE_KEY,on?"1":"0");}catch(_e){}
+  }
   function injectHud() {
     if (hudInjected) return;
     hudInjected = true;
@@ -177,9 +190,11 @@ font-family:"Barlow Condensed",system-ui;font-size:12px;cursor:pointer;letter-sp
     // Feed HTML
     var feed = document.createElement("div");
     feed.id = "fgFeed";
-    feed.innerHTML = '<div class="fg-fhd"><span class="t">Game Feed</span></div>'
+    feed.innerHTML = '<div class="fg-fhd"><span class="t">Game Feed</span><button type="button" class="fg-fcollapse" id="fgFeedCollapse" aria-label="Toggle game feed"></button></div>'
       + '<div class="fg-fbody" id="fgFeedBody"></div>';
     document.body.appendChild(feed);
+    setFeedCollapsed(savedFeedCollapsed());
+    document.getElementById("fgFeedCollapse").addEventListener("click",function(){setFeedCollapsed(!feed.classList.contains("fg-collapsed"));});
 
     // Tab clicks
     wireTabs();

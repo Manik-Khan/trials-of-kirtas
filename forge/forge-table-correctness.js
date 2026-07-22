@@ -165,7 +165,7 @@
     var p=row.payload||{},ctx=p.context||{};
     if(row.kind==="ability_used"){
       if(ctx&&typeof ctx==="object"&&ctx.kind==="sanctuary-save")return {kind:"sanctuary-save",actor:row.unit,target:ctx.target,roll:ctx.roll,mod:ctx.mod,total:ctx.total,dc:ctx.dc,saved:!!ctx.saved};
-      if(ctx&&typeof ctx==="object"&&ctx.kind==="save")return {kind:"save",actor:row.unit,unit:row.unit,target:ctx.target,ability:p.ability||"Spell",saveAbility:ctx.ability,saveD20:ctx.d20,saveBonus:ctx.bonus,saveMods:ctx.mods||[],saveTotal:ctx.total,saveRoll:ctx.total,dc:ctx.dc,saved:!!ctx.saved,dmg:p.dmg,effects:p.effects||[],narration:ctx.narration||null,concentration:ctx.concentration||p.concentration||null};
+      if(ctx&&typeof ctx==="object"&&ctx.kind==="save")return {kind:"save",actor:row.unit,unit:row.unit,target:ctx.target,ability:p.ability||"Spell",saveAbility:ctx.ability,saveD20:ctx.d20,saveBonus:ctx.bonus,saveMods:ctx.mods||[],saveTotal:ctx.total,saveRoll:ctx.total,dc:ctx.dc,saved:!!ctx.saved,dmg:p.dmg,dmgParts:p.dmgParts,dmgFormula:p.dmgFormula,effects:p.effects||[],narration:ctx.narration||null,concentration:ctx.concentration||p.concentration||null};
       var hasLedgerOp=(p.effects||[]).some(function(op){return op&&(op.add_effect||op.remove_effect);});
       if(hasLedgerOp&&p.silent!==false)return null;
       return {kind:"ability",actor:row.unit,unit:row.unit,ability:p.ability||p.mode||"Ability",target:p.target||(p.targets&&p.targets[0])||null,effects:p.effects||[],heal:p.heal,dmg:p.dmg,narration:typeof p.context==="string"?p.context:(p.narration||null)};

@@ -73,6 +73,15 @@ export function chaptersToVolumes(chapters, titles = {}) {
     chapterToVolume(ch, { isNew: chrono.length > 0 && i === chrono.length - 1, titles }))
 }
 
+// Index results open a VOLUME, so their index must come from the shelf's
+// chronological order — never bookModel's freshest-first chapter order.
+export function flattenVolumeEntries(volumes) {
+  const out = []
+  ;(volumes || []).forEach((vol, i) =>
+    (vol.entries || []).forEach(e => out.push({ ...e, _vol: i })))
+  return out
+}
+
 // The accordion, as a reducer: a single volume open at a time; clicking
 // the open one closes it. null = shelf fully closed.
 export function nextOpen(current, clicked) {

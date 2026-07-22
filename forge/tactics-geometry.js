@@ -111,6 +111,16 @@ function stepAllowed(map, token, fromC, fromR, toC, toR) {
   if (dh <= STEP_FT && (!segment || connectorAllows(token,segment))) return true;
   return connectorAllows(token,segment);
 }
+/* Open-ground diagonals stay legal. A creature may not squeeze through the
+   diagonal seam only when BOTH orthogonal side cells are solid: wall/off-map
+   terrain or another creature. This makes a creature holding a one-cell
+   doorway matter without turning every occupied side cell into a corner. */
+function cornerBlocked(map,occupied,c,r){return !inBounds(map,c,r)||isWall(map,c,r)||occupied.has(c+","+r);}
+function diagonalSqueezeBlocked(map,occupied,fromC,fromR,toC,toR){
+  var dc=toC-fromC,dr=toR-fromR;
+  if(Math.abs(dc)!==1||Math.abs(dr)!==1)return false;
+  return cornerBlocked(map,occupied,fromC+dc,fromR)&&cornerBlocked(map,occupied,fromC,fromR+dr);
+}
 function movementReach(map, token, occupied, budgetSquares) {
   occupied = occupied || new Set();
   var budget = (budgetSquares != null) ? budgetSquares : Math.floor(token.speed / SQUARE_FT);
@@ -124,6 +134,7 @@ function movementReach(map, token, occupied, budgetSquares) {
       var c = n.c + DIRS[i][0], r = n.r + DIRS[i][1], k = c + "," + r;
       if (seen[k] !== undefined) continue;
       if (occupied.has(k)) continue;
+      if (diagonalSqueezeBlocked(map, occupied, n.c, n.r, c, r)) continue;
       if (!stepAllowed(map, token, n.c, n.r, c, r)) continue;
       seen[k] = { d: n.d + 1, from: n.c + "," + n.r };
       q.push({ c: c, r: r, d: n.d + 1 });
@@ -402,7 +413,7 @@ var API={
   SQUARE_FT:SQUARE_FT,STEP_FT:STEP_FT,EYE_FT:EYE_FT,FOOT_FT:FOOT_FT,DIRS:DIRS,
   BODY_LEVELS:BODY_LEVELS,BODY_SAMPLES:BODY_SAMPLES,
   makeMap:makeMap,idx:idx,inBounds:inBounds,baseHeightAt:baseHeightAt,heightAt:heightAt,isWall:isWall,occTop:occTop,chebyshev:chebyshev,
-  connectorPath:connectorPath,connectorBetween:connectorBetween,bridgeRecordAt:bridgeRecordAt,bridgeInteriorAt:bridgeInteriorAt,bridgeSurfaceAt:bridgeSurfaceAt,connectorAllows:connectorAllows,stepAllowed:stepAllowed,movementReach:movementReach,pathTo:pathTo,canReachMelee:canReachMelee,range3d:range3d,inRange:inRange,
+  connectorPath:connectorPath,connectorBetween:connectorBetween,bridgeRecordAt:bridgeRecordAt,bridgeInteriorAt:bridgeInteriorAt,bridgeSurfaceAt:bridgeSurfaceAt,connectorAllows:connectorAllows,stepAllowed:stepAllowed,diagonalSqueezeBlocked:diagonalSqueezeBlocked,movementReach:movementReach,pathTo:pathTo,canReachMelee:canReachMelee,range3d:range3d,inRange:inRange,
   coverShapeAt:coverShapeAt,pointInCoverShape:pointInCoverShape,bridgeBlockerAtPoint:bridgeBlocker,losVerdict:losVerdict,losRay:losRay,
   lipCorners:lipCorners,targetFacingEdges:targetFacingEdges,lowWallPeeks:lowWallPeeks,firingPoints:firingPoints,coverAudit:coverAudit
 };

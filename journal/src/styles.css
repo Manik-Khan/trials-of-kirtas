@@ -1045,7 +1045,7 @@ body:not(:has(#site-nav)) .sh-scope { height: 100dvh; } /* standalone preview */
 
 /* ── narrow fallback (players on tablets) ── */
 @media (max-width: 900px) {
-  .sh-scope { --sh-rail: 230px; --sh-spine-w: 74px; --sh-panel-w: 86vw; }
+  .sh-scope { --sh-rail: 230px; --sh-spine-w: 74px; --sh-panel-w: min(86vw, calc(100vw - var(--sh-spine-w))); }
   .sh-intro-spine { display: none; }
   .sh-frame { display: none; }
   .j-know { grid-template-columns: 1fr; }

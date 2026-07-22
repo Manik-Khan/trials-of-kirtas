@@ -12,7 +12,7 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react'
 import { CHRONICLE } from './data/chronicleSample.js'
 import { buildBook, buildFights, fightsBySession, facetCounts, filterBookEntries, indexActive } from './data/bookModel.js'
-import { chaptersToVolumes, nextOpen, keyOpen } from './shelf/shelfModel.js'
+import { chaptersToVolumes, flattenVolumeEntries, nextOpen, keyOpen } from './shelf/shelfModel.js'
 import { seatColor } from './comments/accents.js'
 
 const fmtTime = ts => new Date(ts).toLocaleTimeString(undefined, { hour: 'numeric', minute: '2-digit' })
@@ -315,11 +315,7 @@ export default function ChronicleView({ live = false, store = null, accents = {}
   const [ixOpen, setIxOpen] = useState(false)
   const [fs, setFs] = useState({ author: null, tags: {}, npcs: {}, q: '' })
   const [scrolled, setScrolled] = useState(false)
-  const flat = useMemo(() => {
-    const out = []
-    chapters.forEach((ch, i) => (ch.entries || []).forEach(e => out.push({ ...e, _vol: i })))
-    return out
-  }, [chapters])
+  const flat = useMemo(() => flattenVolumeEntries(volumes), [volumes])
   const facets = useMemo(() => facetCounts(flat), [flat])
   const seatNames = useMemo(() => {
     const m = {}
