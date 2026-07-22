@@ -23,6 +23,7 @@ win.SoulShardsEngine = Engine; win.SoulShardsSpellcasting = SC; win.SoulShardsDe
 globalThis.SoulShardsDerive = Derive;
 globalThis.SoulShardsSpellcasting = SC;
 globalThis.effectiveAbilities = () => ({ str: 13, dex: 14, con: 14, int: 8, wis: 11, cha: 17 });
+globalThis.bgDisplayName = () => 'Captain';
 globalThis.draft = { name: 'Cosmere Runestar', level: 2, subclass: { n: 'The Hexblade' }, subrace: null, bg: { n: 'Captain' }, hp: undefined };
 
 // minimal-but-correct models the engine/derive read
@@ -49,11 +50,13 @@ const ASTRAL_ELF = {
 
 // pull the REAL buildStructuralPreview out of shards.html
 const html = readFileSync('shards.html', 'utf-8');
-const m = html.match(/function buildStructuralPreview\(model, race\)\{[\s\S]*?\n\}/);
+const m = html.match(/function buildStructuralPreview\(classEntries, race\)\{[\s\S]*?\n\}/);
 if (!m) { console.log('could not extract buildStructuralPreview'); process.exit(1); }
 const buildStructuralPreview = (new Function('return (' + m[0] + ')'))();
 
-const out = buildStructuralPreview(WARLOCK, ASTRAL_ELF);
+const out = buildStructuralPreview([
+  { model: WARLOCK, level: 2, subclassShortName: 'Hexblade' }
+], ASTRAL_ELF);
 
 let pass = 0, fail = 0;
 const ok = (n, c) => { if (c) pass++; else { fail++; console.log('  FAIL: ' + n + '  ->  ' + JSON.stringify(out && out[n.split(' ')[0]])); } };

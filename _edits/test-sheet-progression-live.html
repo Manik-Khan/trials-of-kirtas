@@ -6,6 +6,7 @@
   <title>ToK · Live Sheet Progression Field Test</title>
   <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@400;600;800&family=EB+Garamond:wght@400;500;600&family=Oswald:wght@400;600;700&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="../sheet-mount.css?v=ca1">
+  <link rel="stylesheet" href="../combat-sheet-float.css?v=touch1">
   <style>html,body{margin:0;min-height:100%;background:#182826}body{overflow-x:hidden}</style>
 </head>
 <body>
@@ -38,7 +39,12 @@
     const clone = value => JSON.parse(JSON.stringify(value));
     const CD = { loadCharacter:async()=>clone(row), canEdit:async()=>true, save:async(_key,patch)=>Object.assign(clone(row),patch) };
     window.CharacterData = CD;
-    await mountSheet(document.getElementById('sheet-root'),'liadan',{characterData:CD}).ready;
+    let root = document.getElementById('sheet-root');
+    if (new URLSearchParams(location.search).get('mounted') === '1') {
+      root.outerHTML = '<section class="sheet-float" style="display:flex"><header class="sf-ribbon"><div class="sf-grip-l">⠿</div><div class="sf-tabs"><div class="sf-tab active"><span class="chip"></span><span class="tname">Líadan Luchóg</span></div></div></header><div class="sf-stack"><div class="sf-page active"><div class="sf-scroll" id="sheet-root"></div></div></div></section>';
+      root = document.getElementById('sheet-root');
+    }
+    await mountSheet(root,'liadan',{characterData:CD}).ready;
   </script>
 </body>
 </html>

@@ -8,7 +8,7 @@ function esc(value) {
 function ensureCss(doc) {
   if (!doc || doc.querySelector('link[href*="sheet-progression.css"]')) return;
   var link = doc.createElement('link');
-  link.rel = 'stylesheet'; link.href = 'sheet-progression.css?v=facets1';
+  link.rel = 'stylesheet'; link.href = new URL('./sheet-progression.css?v=facets1', import.meta.url).href;
   (doc.head || doc.documentElement).appendChild(link);
 }
 
@@ -71,7 +71,7 @@ function mountSheetProgression(options) {
   function renderLineage() {
     var lineage = lineageOf(character), fragments = lineage.fragments;
     panel.innerHTML = '<div class="sfp-note"><b>The Shift</b> reveals known incarnations of the enduring soul and the Refractions carried between them.</div>'
-      + '<div class="sfp-lineage"><div class="sfp-soul">' + esc(lineage.name) + '</div><div class="sfp-fragments">'
+      + '<div class="sfp-lineage"><div class="sfp-soul"><span>' + esc(lineage.name) + '</span></div><div class="sfp-fragments">'
       + fragments.map(function (f) { return '<article class="sfp-fragment' + (f.current ? ' current' : '') + '"><h3>' + esc(f.name || 'Soul Fragment') + '</h3><p>' + esc(f.campaign || 'Unknown reality') + '</p><span>' + esc(f.current ? 'Current Soul Fragment' : (f.status || 'Known Fragment')) + '</span></article>'; }).join('')
       + '</div>' + (lineage.refractions.length ? '<div class="sfp-refractions"><b>Refractions</b>' + lineage.refractions.map(function (r) { return '<span>' + esc(r.name || r) + '</span>'; }).join('') + '</div>' : '<p class="sfp-empty">No Refractions or additional Soul Fragments have been linked yet.</p>') + '</div>';
   }
