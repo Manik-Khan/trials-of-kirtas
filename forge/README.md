@@ -42,13 +42,18 @@ unfinished job, tracked in `CONTEXT_Forge.md` §3.
   deployment and discovery independent while deriving active/waiting groups,
   entry triggers, held-initiative insertion, and hostile-target activation.
   Global: `window.ForgeEncounterRegions`.
+- **forge-encounter-read.js** — pure pre-fight encounter authority. Compares
+  the selected party and authored roster through CR benchmark, adjusted XP,
+  action count, current hit points, map elevation, and opening/full activation
+  state; it also derives related-creature suggestions from Bestiary metadata.
+  Global: `window.ForgeEncounterRead`.
 - **map-bridge.js** — the seam. Converts generator output (dungeon grid or
   topography heightfield) into the combat map contract. Global: `window.MapBridge`.
 - **tactics-geometry.js** — the combat rules module (movement, cliffs, LoS,
   cover, ranges). The **canonical source of truth** for this file.
   Global: `window.TacticsGeo`.
 
-All seven are dual-export (browser `window.*` **and** Node `module.exports`), so
+All eight are dual-export (browser `window.*` **and** Node `module.exports`), so
 the Node test harness and the browser game share the exact same code.
 
 ## The map document

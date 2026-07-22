@@ -3241,7 +3241,7 @@ document.getElementById('autoDress').onchange=()=>{if(mode==='image'&&imgHeight)
   el.oninput=()=>{
     if(SESSION_ID){ clog('<i>The map belongs to the fight — re-forge is disabled during a session.</i>'); return; }
     document.getElementById(id+'Val').textContent=el.value+((id==='loops'||id==='decor')?'%':'');
-    if(mode==='tiers')rebuild();};});
+    if(mode==='tiers')rebuild();if(id==='foes'&&typeof refreshEncounterReadPanel==='function')refreshEncounterReadPanel();};});
 
 /* Archetype intent is versioned and all five generator stages own independent
    deterministic streams. Preview grammars render but cannot open a Table yet. */
@@ -3378,7 +3378,7 @@ function encounterRuleForGroup(group,homeRegionId){
   return window.ForgeEncounterRegions.normalizeRule(ENCOUNTER_REGION_RULES[group.id],group,homeRegionId);
 }
 function renderDeploymentPanel(){
-  var panel=document.getElementById("deploymentPanel");if(!panel)return;panel.style.display=templeField()&&!SESSION_ID?"block":"none";if(panel.style.display==="none"){clearDeploymentMarkers();return;}
+  var panel=document.getElementById("deploymentPanel");if(!panel)return;panel.style.display=templeField()&&!SESSION_ID?"block":"none";if(panel.style.display==="none"){clearDeploymentMarkers();if(typeof refreshEncounterReadPanel==='function')refreshEncounterReadPanel();return;}
   var draft=computeDeployment(),host=document.getElementById("deploymentGroups"),assigned={},ready=0,placed=0,total=0;
   draft.plans.forEach(function(p){p.group.unitIds.forEach(function(unit){assigned[unit]=true;});if(p.ok)ready++;placed+=p.placedCount;total+=p.requestedCount;});
   document.getElementById("deploymentSummary").textContent=(draft.ok?"Deployment ready — ":"Deployment incomplete — ")+ready+" / "+draft.plans.length+" groups · "+placed+" / "+total+" combatants positioned.";
@@ -3392,7 +3392,7 @@ function renderDeploymentPanel(){
       +(g.unitIds.length>1?'<button class="deployMinor" data-deploy-split="'+g.id+'">Split group →</button>':'')+'</div>';
   }).join('');
   var unassigned=deploymentRosterSource().filter(function(r){return !assigned[r.unit];});document.getElementById("deploymentUnassigned").innerHTML=unassigned.length?unassigned.map(function(r){var name=r.name||r.unit;return '<div class="deployMember"><span class="deployUnit">'+escapeHtml(name)+'</span><select data-deploy-membership="'+escapeHtml(r.unit)+'" aria-label="Group for '+escapeHtml(name)+'">'+deploymentMembershipOptions(null,true)+'</select></div>';}).join(''):'<span class="fname">Everyone is assigned once.</span>';
-  bindDeploymentPanel();renderDeploymentMarkers();
+  bindDeploymentPanel();renderDeploymentMarkers();if(typeof refreshEncounterReadPanel==='function')refreshEncounterReadPanel();
 }
 function refreshDeploymentPanel(){renderDeploymentPanel();}
 function deploymentGroup(id){return DEPLOYMENT_GROUPS.filter(function(g){return g.id===id;})[0];}
@@ -7860,7 +7860,7 @@ function addPickedFoe(name, statblock){
   var existing = FOE_PICKED.filter(function(p){ return p.name === name; })[0];
   if (existing) existing.count++;
   else FOE_PICKED.push({ name: name, statblock: statblock, count: 1 });
-  renderFoePicked();
+  renderFoePicked();refreshDeploymentPanel();refreshEncounterReadPanel();
 }
 function renderFoePicked(){
   var el = document.getElementById('fpPicked');
@@ -7872,7 +7872,7 @@ function renderFoePicked(){
     var total = FOE_PICKED.reduce(function(s, p){ return s + p.count; }, 0);
     headEl.textContent = total ? '— ' + total + ' picked' : '— nothing picked';
   }
-  if (!FOE_PICKED.length) { el.innerHTML = '<div class="fname">No extra foes picked.</div>'; refreshDeploymentPanel(); return; }
+  if (!FOE_PICKED.length) { el.innerHTML = '<div class="fname">No extra foes picked.</div>'; refreshDeploymentPanel(); refreshEncounterReadPanel(); return; }
   el.innerHTML = FOE_PICKED.map(function(p, i){
     return '<div class="fpRow"><span class="fpName" title="' + escapeHtml(p.name) + '">' + escapeHtml(p.name) + '</span>'
       + '<button class="fpStep" data-i="' + i + '" data-d="-1">−</button>'
@@ -7894,7 +7894,7 @@ function renderFoePicked(){
   el.querySelectorAll('.fpStar').forEach(function(btn){
     btn.onclick = function(){ var p = FOE_PICKED[+btn.dataset.i]; saveFoeToShelf(p.name, p.statblock, btn); };
   });
-  refreshDeploymentPanel();
+  refreshDeploymentPanel();refreshEncounterReadPanel();
 }
 // ★ save-back (FORGE_BOARD.md §6): additive, matching combat.html's
 // saveMonsterCopy — every press inserts a fresh saved_monsters row (no
@@ -7975,6 +7975,94 @@ function buildRoster(){
   });
   return pcs.concat(foes);
 }
+
+/* Approved Encounter Read: the pure module owns every number and relationship;
+   this adapter supplies live sheets, the authored roster, deployment, and the
+   already-existing Bestiary catalogue. No value is saved to a session yet. */
+var ENCOUNTER_READ_VIEW='opening',ENCOUNTER_SUGGEST_MODE='related',ENCOUNTER_SUGGEST_OPEN=false;
+var ENCOUNTER_SUGGEST_ROWS=[],ENCOUNTER_BOOK_LOAD_STARTED=false;
+var ENCOUNTER_LEVEL_FALLBACK={vesperian:4,caim:4,cosmere:3,liadan:4};
+function encounterSelectedParty(){var selected=window.__fightRoster;if(!Array.isArray(selected)||!selected.length)return null;var out={};selected.forEach(function(key){out[key]=true;});return out;}
+function encounterRosterWithDraftRegions(roster,record){
+  var byUnit={};(record&&record.groups||[]).forEach(function(group){(group.unitIds||[]).forEach(function(unit){byUnit[unit]=group;});});
+  return roster.map(function(row){var group=byUnit[row.unit];return group?Object.assign({},row,{encounterActivationMode:group.mode}):row;});
+}
+function encounterPreparedRoster(){
+  var roster=buildRoster(),deployment=null,regions=null,map=null;
+  if(templeField()){
+    try{map=deploymentMap();deployment=currentDeploymentRecord();if(deployment&&deployment.resolved)roster=rosterWithDeployment(roster,deployment);regions=deployment&&currentEncounterRegionRecord(deployment);if(regions)roster=regions.resolved?rosterWithEncounterRegions(roster,regions):encounterRosterWithDraftRegions(roster,regions);}catch(_e){}
+  }
+  var chosen=encounterSelectedParty();
+  return {map:map,rows:roster.filter(function(row){return row.kind!=='pc'||!chosen||chosen[row.sheet_ref||row.unit];})};
+}
+function encounterPartyFact(row){
+  var key=row.sheet_ref||row.unit,live=__liveStatsCache&&__liveStatsCache[key],structural=live&&live.structural||{},vitals=live&&live.vitals||{},combat=structural.combat||{},kit=kitFor(key)||CHAR[key]||{};
+  var level=window.ForgeEncounterRead.levelOf(structural)||ENCOUNTER_LEVEL_FALLBACK[key]||null;
+  var maxHp=combat.hpMax!=null?Number(combat.hpMax):Number(kit.hpMax!=null?kit.hpMax:kit.hp),currentHp=vitals.hp!=null?Number(vitals.hp):(combat.hp!=null?Number(combat.hp):Number(kit.hp));
+  return {unit:row.unit,name:structural.name||live&&live.name||kit.name||key,level:level,currentHp:currentHp,maxHp:maxHp,pos:row.pos||null,structural:structural};
+}
+function encounterEnemyFact(row){
+  var statblock=row.statblock||null,name=statblock&&statblock.name||row.bestiary&&row.bestiary.name||String(row.name||row.unit).replace(/\s+\d+$/,'');
+  var cr=statblock&&statblock.cr;if(cr==null&&/^goblin$/i.test(name))cr='1/4';
+  return {unit:row.unit,name:name,cr:cr,statblock:statblock||{name:name,cr:cr,type:/^goblin$/i.test(name)?{type:'humanoid',tags:['goblinoid']}:null},pos:row.pos||null,active:!row.encounterActivationMode||row.encounterActivationMode==='active'};
+}
+function currentEncounterRead(){
+  if(!window.ForgeEncounterRead)return null;var prepared=encounterPreparedRoster(),party=[],enemies=[];
+  prepared.rows.forEach(function(row){if((row.kind||'pc')==='pc')party.push(encounterPartyFact(row));else enemies.push(encounterEnemyFact(row));});
+  return {read:window.ForgeEncounterRead.analyze({party:party,enemies:enemies,map:prepared.map}),party:party,enemies:enemies};
+}
+function encounterNumber(value){return Number(value||0).toLocaleString();}
+function encounterHeadline(read){var opening=read.opening.difficulty,full=read.full.difficulty;if(ENCOUNTER_READ_VIEW==='opening')return opening+' opening'+(opening!==full?' · '+full+' overall':'');return full+' overall'+(opening!==full?' · '+opening+' opening':'');}
+function renderEncounterWarnings(read){
+  var host=document.getElementById('encounterReadWarnings');if(!host)return;
+  host.innerHTML=read.warnings.slice(0,4).map(function(w){return '<div class="erWarning '+escapeHtml(w.tone||'neutral')+'"><i></i><div><b>'+escapeHtml(w.title)+'</b><span>'+escapeHtml(w.copy)+'</span></div></div>';}).join('');
+}
+function encounterSelectedCreatures(enemies){var seen={},out=[];enemies.forEach(function(row){var name=String(row.name||'').toLowerCase();if(!name||seen[name])return;seen[name]=true;out.push({name:row.name,statblock:row.statblock});});return out;}
+function encounterCatalogue(){return (FOE_BOOKS_CACHE||[]).map(function(entry){return{name:entry.name,raw:entry.raw,cr:window.ForgeEncounterRead.crNumber(entry.raw&&entry.raw.cr)};});}
+function dedupeEncounterCandidates(rows){var seen={};return(rows||[]).filter(function(row){var key=String(row.name||'').toLowerCase();if(!key||seen[key])return false;seen[key]=true;return true;});}
+function encounterAnyCandidates(read,catalogue){
+  var side=read[ENCOUNTER_READ_VIEW],thresholds=read.party.thresholds,target=side.difficulty==='None'||side.difficulty==='Below easy'?thresholds.easy:side.difficulty==='Easy'?thresholds.medium:side.difficulty==='Medium'?thresholds.hard:thresholds.deadly;
+  var rows=dedupeEncounterCandidates(catalogue).map(function(row){var impact=window.ForgeEncounterRead.impactWithCreature(side,read.party.count,row.raw.cr);return Object.assign({},row,{impact:impact,distance:impact?Math.abs(impact.adjustedXp-target):Infinity,relatedKeys:[]});});
+  var bands=[];rows.forEach(function(row){var band=bands.filter(function(item){return item.cr===row.cr;})[0];if(!band){band={cr:row.cr,distance:row.distance,rows:[]};bands.push(band);}band.distance=Math.min(band.distance,row.distance);band.rows.push(row);});
+  bands.forEach(function(band){band.rows.sort(function(a,b){return a.name.localeCompare(b.name);});});bands.sort(function(a,b){return a.distance-b.distance||a.cr-b.cr;});
+  rows=[];bands.slice(0,6).forEach(function(band){rows=rows.concat(band.rows.slice(0,4));});rows.sort(function(a,b){return a.cr-b.cr||a.name.localeCompare(b.name);});return rows;
+}
+function encounterRelatedRoots(selected){var host=document.getElementById('encounterRelatedRoots');if(!host)return;host.style.display=ENCOUNTER_SUGGEST_MODE==='related'?'flex':'none';host.innerHTML=selected.map(function(row){return '<span class="erRoot">'+escapeHtml(row.name)+'</span>';}).join('');}
+function encounterCandidateReason(row){if(row.relatedKeys&&row.relatedKeys.length)return 'Related through '+row.relatedKeys.map(function(key){return key.replace(/-/g,' ');}).join(', ')+'.';return 'Any creature near the next calculated XP band.';}
+function renderEncounterSuggestionRows(read,selected){
+  var host=document.getElementById('encounterSuggestionList'),status=document.getElementById('encounterSuggestionStatus');if(!host)return;
+  encounterRelatedRoots(selected);
+  if(!FOE_BOOKS_CACHE){host.innerHTML='<div class="erStatus">Loading creature catalogue…</div>';if(status)status.textContent='Related and CR-organized suggestions load from the existing Bestiary.';if(!ENCOUNTER_BOOK_LOAD_STARTED){ENCOUNTER_BOOK_LOAD_STARTED=true;ensureFoeBooksLoaded(function(msg){if(status)status.textContent=msg;}).then(function(){ENCOUNTER_BOOK_LOAD_STARTED=false;refreshEncounterReadPanel();});}return;}
+  var catalogue=encounterCatalogue(),rows=ENCOUNTER_SUGGEST_MODE==='related'?window.ForgeEncounterRead.relatedCreatures(selected,catalogue,{limit:24}):encounterAnyCandidates(read,catalogue);
+  ENCOUNTER_SUGGEST_ROWS=rows;if(!rows.length){host.innerHTML='<div class="erStatus">No related creatures found in the loaded books. Try Any creature or browse the full Bestiary.</div>';return;}
+  var groups=[];rows.forEach(function(row){var label=window.ForgeEncounterRead.crLabel(row.raw&&row.raw.cr),group=groups.filter(function(g){return g.label===label;})[0];if(!group){group={label:label,rows:[]};groups.push(group);}group.rows.push(row);});
+  var side=read[ENCOUNTER_READ_VIEW];host.innerHTML=groups.map(function(group){var impact=window.ForgeEncounterRead.impactWithCreature(side,read.party.count,group.rows[0].raw.cr),difficulty=impact?window.ForgeEncounterRead.difficultyFor(impact.adjustedXp,read.party.thresholds):'Unknown';return '<div class="erCrGroup"><div class="erCrHead"><span>CR '+escapeHtml(group.label)+'</span><span>+1 → '+escapeHtml(difficulty)+(impact?' · '+encounterNumber(impact.adjustedXp)+' XP':'')+'</span></div>'+group.rows.slice(0,5).map(function(row){var index=ENCOUNTER_SUGGEST_ROWS.indexOf(row);return '<div class="erCreature"><div><b>'+escapeHtml(row.name)+'</b><small>'+escapeHtml(encounterCandidateReason(row))+'</small></div><button data-encounter-add="'+index+'">+ Add</button></div>';}).join('')+'</div>';}).join('');
+  host.querySelectorAll('[data-encounter-add]').forEach(function(button){button.onclick=function(){var row=ENCOUNTER_SUGGEST_ROWS[Number(button.dataset.encounterAdd)];if(!row)return;addPickedFoe(row.name,row.raw);var msg=document.getElementById('encounterSuggestionStatus');if(msg)msg.textContent=row.name+' added to the authored roster. Assign its deployment group below.';};});
+  if(status)status.textContent=ENCOUNTER_SUGGEST_MODE==='related'?'Relationships come from selected creature families and Bestiary metadata.':'Any creature is organized by CR impact; use the full Bestiary for complete search.';
+}
+function renderEncounterReadPanel(){
+  var panel=document.getElementById('encounterReadPanel');if(!panel)return;var show=!SESSION_ID&&!(typeof CB!=='undefined'&&CB&&CB.active);panel.style.display=show?'block':'none';if(!show||!window.ForgeEncounterRead||!CHAR||!Array.isArray(FOE_PICKED))return;
+  var payload=currentEncounterRead();if(!payload||!payload.read)return;var read=payload.read,side=read[ENCOUNTER_READ_VIEW],benchmark=read.party.crBenchmark;
+  document.getElementById('encounterReadHeadline').textContent=encounterHeadline(read);
+  document.getElementById('encounterReadBenchmark').textContent=side.totalCr<=benchmark?'Within CR benchmark':'Above CR benchmark';
+  document.getElementById('encounterReadWhy').textContent=encounterNumber(side.adjustedXp)+' adjusted XP. Monster CR '+side.totalCr+' against a party benchmark of '+benchmark+'.';
+  document.getElementById('encounterReadCr').textContent=side.totalCr+' / '+benchmark;
+  document.getElementById('encounterReadXp').textContent=encounterNumber(side.adjustedXp);
+  document.getElementById('encounterReadActions').textContent=side.count+' : '+read.party.count;
+  document.querySelectorAll('[data-encounter-read]').forEach(function(button){button.classList.toggle('active',button.dataset.encounterRead===ENCOUNTER_READ_VIEW);});
+  document.querySelectorAll('[data-encounter-suggest]').forEach(function(button){button.classList.toggle('active',button.dataset.encounterSuggest===ENCOUNTER_SUGGEST_MODE);});
+  renderEncounterWarnings(read);if(ENCOUNTER_SUGGEST_OPEN)renderEncounterSuggestionRows(read,encounterSelectedCreatures(payload.enemies));
+  if(__liveStatsCache==null&&!__deriveLoading)loadLiveStats().then(function(){refreshEncounterReadPanel();});
+}
+function refreshEncounterReadPanel(){renderEncounterReadPanel();}
+function bindEncounterReadPanel(){
+  var panel=document.getElementById('encounterReadPanel');if(!panel||panel.dataset.wired)return;panel.dataset.wired='1';
+  panel.querySelectorAll('[data-encounter-read]').forEach(function(button){button.onclick=function(){ENCOUNTER_READ_VIEW=button.dataset.encounterRead;refreshEncounterReadPanel();};});
+  panel.querySelectorAll('[data-encounter-suggest]').forEach(function(button){button.onclick=function(){ENCOUNTER_SUGGEST_MODE=button.dataset.encounterSuggest;refreshEncounterReadPanel();};});
+  document.getElementById('encounterSuggestionsToggle').onclick=function(){ENCOUNTER_SUGGEST_OPEN=!ENCOUNTER_SUGGEST_OPEN;document.getElementById('encounterSuggestions').style.display=ENCOUNTER_SUGGEST_OPEN?'block':'none';this.textContent=ENCOUNTER_SUGGEST_OPEN?'Hide creature suggestions':'Show creature suggestions';refreshEncounterReadPanel();};
+  document.getElementById('encounterOpenBestiary').onclick=function(){var toggle=document.getElementById('fpToggle'),status=document.getElementById('encounterSuggestionStatus');if(!toggle){if(status)status.textContent='Sign in on the live site to use the full Bestiary and save a shared encounter.';return;}var body=document.getElementById('fpBody');if(body&&body.style.display==='none')toggle.click();var input=document.getElementById('fpSearch');if(input)input.focus();var forgePanel=document.getElementById('forgePanel');if(forgePanel)forgePanel.scrollTop=Math.max(0,toggle.offsetTop-30);};
+}
+bindEncounterReadPanel();refreshEncounterReadPanel();
 /* Task 11: insert one forge_sessions row, status 'staging' — the exact shape
    protocol-harness-mock.html's own insert uses (harness ~78-83), roster/map
    swapped for the real generator output. Shared by both doors. */
@@ -9526,6 +9614,7 @@ renderer.domElement.addEventListener("contextmenu", function(e){ if(ADD_FOE_PLAC
        This path intentionally does not require a shared session or staff role. */
     if(typeof refreshVerticalGeometryPanel==="function")refreshVerticalGeometryPanel();
     if(typeof refreshSceneMenu==="function")refreshSceneMenu();
+    if(typeof refreshEncounterReadPanel==="function")refreshEncounterReadPanel();
   }
   function returnToParty(){
     document.body.classList.remove("forge-author-preview");

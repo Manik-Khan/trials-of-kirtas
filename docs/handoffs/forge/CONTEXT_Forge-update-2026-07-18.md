@@ -349,6 +349,33 @@ line of sight/cover, placement, flora, and the current Phase 2 trust/privacy har
 The local Temple Workshop rendered both activation modes with no browser errors. The
 signed-in two-device Table remains the field gate because localhost has no site session.
 
+## Encounter Read Workshop integration · 2026-07-22
+
+The approved `_edits/mock-forge-encounter-read.html` is now integrated into the
+canonical Workshop. `forge-encounter-read.js?v=fread1` is the pure dual-export
+authority; `forge/index.html` is only its live-data and presentation adapter.
+The read uses the selected combat-ready party's actual levels and current/max HP,
+the authored foe roster's real stat-block CR, standard adjusted-XP thresholds,
+enemy/party action count, map elevation, and Encounter Region activation state.
+
+Opening wave and Full roster are separate views. Explicitly waiting Temple groups
+are omitted from the opening estimate even while their deployment is still a draft;
+the session path remains stricter and saves/applies encounter-region fields only
+after deployment resolves. Warnings narrate the meaningful context the numbers do
+not: action advantage, held waves, party HP readiness, elevation, and missing CR.
+There is no named “lazy line” and no rehearsal simulator in this phase.
+
+Creature suggestions reuse the existing Bestiary. Related enemies derive from the
+selected roster's creature-family metadata (for example goblin, hobgoblin, bugbear,
+and worg relationships), while Any creature samples several nearby CR bands. Every
+group shows the calculated effect of adding one creature before `+ Add`; the full
+Bestiary remains the complete search door. Suggestions do not silently add foes.
+
+Focused validation is **31/31 green** for the pure calculator and production
+contract. Local browser checks covered real party levels/HP, related and Any creature
+lists, explicit add-to-roster recalculation, full-Bestiary narration, and the Temple
+opening/full split. A clean fresh-tab run reported no browser errors.
+
 ## Required field checklist
 
 1. On the live signed-in site, open a Temple Table with at least Party and Enemy flags.
@@ -365,16 +392,19 @@ signed-in two-device Table remains the field gate because localhost has no site 
 10. Confirm any foe Staff View permits a PC to target is visible to that PC in
     Player View, while a foe behind total cover remains hidden.
 11. Compare laptop heat/fan behavior in default Balanced against High Fidelity.
+12. On the live signed-in Workshop, open Related enemies, add one suggestion, then
+    open the full Bestiary and confirm both doors use the shared authored roster.
 
 ## Immediate execution order
 
 1. Run the signed-in two-device activation checklist: held rolls, region entry, hostile-action activation, DM activation, reconnect, and Player View narration.
-2. Run the signed-in shared-table/reconnect deployment and architecture checklist.
-3. Compare Balanced and High Fidelity on M's actual laptop during a full round.
-4. Recheck saved-block and geometry-fog reconnects on the normal Temple URL.
-5. Promote Temple from `preview` to `active` only after those checks pass.
-6. Expose/settle the Volcanic Workshop construction control.
-7. Build `bridge-crossing` on the same intent contract.
+2. Run the signed-in Encounter Read Bestiary/add-to-roster field check.
+3. Run the signed-in shared-table/reconnect deployment and architecture checklist.
+4. Compare Balanced and High Fidelity on M's actual laptop during a full round.
+5. Recheck saved-block and geometry-fog reconnects on the normal Temple URL.
+6. Promote Temple from `preview` to `active` only after those checks pass.
+7. Expose/settle the Volcanic Workshop construction control.
+8. Build `bridge-crossing` on the same intent contract.
 
 Do not begin `bridge-crossing` by re-enabling random legacy bridge selection. Purpose and archetype ownership come first.
 
@@ -389,4 +419,5 @@ M reviews, commits, and pushes. Codex does not push. Current slice stamps:
 `monster-actor.js?v=ma2`. Encounter activation adds
 `forge-encounter-regions.js?v=fer1` and bumps `forge-protocol.js?v=fpr2`,
 `forge-replay.js?v=fb15`, `forge-effects.js?v=fe6`,
-`forge-pipeline.js?v=fb8`, and `forge-board.js?v=fb8`.
+`forge-pipeline.js?v=fb8`, and `forge-board.js?v=fb8`. Encounter Read adds
+`forge-encounter-read.js?v=fread1`.

@@ -57,5 +57,14 @@ const impact = Read.impactWithCreature(read.opening, read.party.count, "1/2");
 ok("one added CR one-half creature recalculates adjusted XP", impact.adjustedXp === 1250);
 ok("recalculated impact crosses into Medium", Read.difficultyFor(impact.adjustedXp, read.party.thresholds) === "Medium");
 
+const fs = require("fs"), path = require("path");
+const html = fs.readFileSync(path.join(__dirname,"../index.html"),"utf8");
+ok("Workshop loads the cache-stamped authority", html.includes('forge-encounter-read.js?v=fread1'));
+ok("Workshop exposes opening and full-roster reads", html.includes('data-encounter-read="opening"') && html.includes('data-encounter-read="full"'));
+ok("adapter consumes authored activation instead of assuming all-at-once", html.includes("encounterActivationMode==='active'") && html.includes("currentEncounterRegionRecord(deployment)"));
+ok("related suggestions use the existing Bestiary catalogue", html.includes("ForgeEncounterRead.relatedCreatures") && html.includes("ensureFoeBooksLoaded"));
+ok("full Bestiary remains a separate browse-all door", html.includes('id="encounterOpenBestiary"') && html.includes("document.getElementById('fpToggle')"));
+ok("retired benchmark nickname is absent", !/lazy line/i.test(html));
+
 console.log(`\n${pass} passed, ${fail} failed`);
 if (fail) process.exit(1);
