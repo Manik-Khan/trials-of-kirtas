@@ -11,7 +11,7 @@
 // (sheet-mount.js, via window.ArmorAC), the plain-script Forge derive
 // (soul-shards-derive.js), and the Node smokes can all share one source.
 //
-// deriveAC(inventory, structural) -> {
+// deriveAC(inventory, structural, vitals) -> {
 //   ac,                  // final Armour Class
 //   source,              // subtitle line: "Scale Mail + Shield" / "Unarmored Defense (Monk)"
 //   speedPenalty,        // 0 or 10 — worn Str-requirement armour the wearer's Str can't meet
@@ -150,8 +150,9 @@
     return null;
   }
 
-  function deriveAC(inventory, structural) {
+  function deriveAC(inventory, structural, vitals) {
     structural = structural || {};
+    vitals = vitals || {};
     inventory = inventory || [];
     var dex = abilMod(structural, 'dex');
 
@@ -190,15 +191,24 @@
         out.speedPenalty = 10; out.speedReason = body.name + ' requires Str ' + body.str;
       }
     } else {
-      // no body armour — Unarmored Defense (if any) or bare 10 + Dex.
+      // no body armour — Mage Armor, Unarmored Defense, or bare 10 + Dex.
+      // These are competing base-AC calculations, not bonuses, so use the best
+      // one. A shield can still add to the selected calculation.
       // A Monk loses Unarmored Defense while wielding a shield (it requires no shield);
       // a Barbarian keeps it with a shield.
       var kind = unarmoredKind(structural);
       var udBonus = 0;
       if (kind === 'Monk' && !shield) udBonus = abilMod(structural, 'wis');
       else if (kind === 'Barbarian') udBonus = abilMod(structural, 'con');
-      out.ac = 10 + dex + udBonus + shieldBonus;
-      out.source = (udBonus ? ('Unarmored Defense (' + kind + ')') : 'Unarmored') + (shield ? ' + Shield' : '');
+      var unarmored = 10 + dex + udBonus;
+      var mageArmor = !!vitals.mageArmor;
+      if (mageArmor && 13 + dex > unarmored) {
+        out.ac = 13 + dex + shieldBonus;
+        out.source = 'Mage Armor' + (shield ? ' + Shield' : '');
+      } else {
+        out.ac = unarmored + shieldBonus;
+        out.source = (udBonus ? ('Unarmored Defense (' + kind + ')') : 'Unarmored') + (shield ? ' + Shield' : '');
+      }
     }
 
     // Non-proficiency: wearing body armour you lack proficiency with, OR a shield

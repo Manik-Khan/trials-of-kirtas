@@ -116,6 +116,41 @@
 #tok-rail .feed-text img{ display:block; max-width:100%!important; max-height:120px; width:auto!important; height:auto; object-fit:cover; margin:5px 0; border:1px solid var(--frame); cursor:zoom-in; }
 #tok-rail .feed-empty{ font-family:"EB Garamond",Georgia,serif; font-style:italic; font-size:13px; color:var(--cream-fnt); text-align:center; padding:18px 0; }
 
+/* ── Chronicle structure: staff-only action above the composer ── */
+#tok-rail .tr-section-control{ display:none; align-items:center; justify-content:space-between; gap:10px; padding:7px 12px; border-top:1px solid var(--hair); background:rgba(15,27,25,.92); flex:none; }
+#tok-rail .tr-section-control.on{ display:flex; }
+#tok-rail .tr-section-control button{ padding:5px 9px; border:1px solid var(--frame); background:transparent; color:var(--gold-br); font-family:"Oswald",sans-serif; font-size:8.5px; font-weight:600; letter-spacing:.16em; text-transform:uppercase; cursor:pointer; }
+#tok-rail .tr-section-control button:hover, #tok-rail .tr-section-control button:focus-visible{ border-color:var(--gold); background:rgba(231,194,121,.08); outline:none; }
+#tok-rail .tr-section-control span{ color:var(--cream-fnt); font-size:11px; font-style:italic; white-space:nowrap; }
+
+/* Contained by the rail: marking a beat never blankets the table surface. */
+#tok-rail .tr-section-veil{ position:absolute; inset:0; z-index:70; display:none; align-items:flex-end; justify-content:center; padding:12px; background:rgba(3,6,5,.7); backdrop-filter:blur(3px); }
+#tok-rail .tr-section-veil.on{ display:flex; }
+#tok-rail .tr-section-dialog{ position:relative; width:100%; max-height:calc(100% - 18px); overflow-y:auto; border:1px solid var(--frame); background:#111d1b; box-shadow:0 20px 55px rgba(0,0,0,.72); }
+#tok-rail .tr-section-dialog::before{ content:""; position:absolute; inset:5px; border:1px solid rgba(199,154,74,.08); pointer-events:none; }
+#tok-rail .tr-section-head{ padding:18px 18px 14px; border-bottom:1px solid var(--hair); }
+#tok-rail .tr-section-head .k{ color:var(--gold); font-family:"Oswald",sans-serif; font-size:8px; font-weight:600; letter-spacing:.22em; text-transform:uppercase; }
+#tok-rail .tr-section-head h2{ margin:6px 0 0; color:var(--cream-hi); font-family:"Playfair Display",Georgia,serif; font-size:24px; font-weight:500; }
+#tok-rail .tr-section-head p{ margin:7px 0 0; color:var(--cream-fnt); font-size:12px; line-height:1.45; }
+#tok-rail .tr-section-body{ padding:15px 18px 17px; }
+#tok-rail .tr-section-chip{ display:inline-flex; align-items:center; gap:7px; padding:5px 8px; border:1px solid var(--hair); color:var(--cream-dim); font-family:"Oswald",sans-serif; font-size:8px; letter-spacing:.12em; text-transform:uppercase; }
+#tok-rail .tr-section-chip::before{ content:""; width:6px; height:6px; border-radius:50%; background:var(--gold); }
+#tok-rail .tr-section-body label{ display:block; margin-top:14px; color:var(--gold); font-family:"Oswald",sans-serif; font-size:8px; font-weight:600; letter-spacing:.2em; text-transform:uppercase; }
+#tok-rail .tr-section-body input{ width:100%; margin-top:7px; padding:10px 11px; border:1px solid var(--frame); border-radius:0; outline:none; background:rgba(5,10,9,.5); color:var(--cream-hi); font-family:"EB Garamond",Georgia,serif; font-size:16px; }
+#tok-rail .tr-section-body input:focus{ border-color:var(--gold); box-shadow:0 0 0 2px rgba(199,154,74,.09); }
+#tok-rail .tr-section-body input::placeholder{ color:var(--cream-fnt); }
+#tok-rail .tr-section-note{ min-height:15px; margin-top:5px; color:var(--cream-fnt); font-size:10px; font-style:italic; }
+#tok-rail .tr-section-note.error{ color:#e07b6d; font-style:normal; }
+#tok-rail .tr-section-preview{ margin-top:12px; padding:11px 12px; border:1px solid var(--hair); background:rgba(7,12,11,.35); }
+#tok-rail .tr-section-preview .l{ color:var(--cream-fnt); font-family:"Oswald",sans-serif; font-size:7px; letter-spacing:.18em; text-transform:uppercase; }
+#tok-rail .tr-section-preview .v{ margin-top:8px; padding-bottom:7px; border-bottom:1px solid var(--frame); color:var(--gold-br); font-family:"Oswald",sans-serif; font-size:9px; font-weight:600; letter-spacing:.22em; text-transform:uppercase; }
+#tok-rail .tr-section-actions{ display:flex; justify-content:flex-end; gap:7px; margin-top:15px; }
+#tok-rail .tr-section-actions button{ min-width:102px; padding:8px 10px; border:1px solid var(--frame); background:transparent; color:var(--cream-fnt); font-family:"Oswald",sans-serif; font-size:8px; font-weight:600; letter-spacing:.16em; text-transform:uppercase; cursor:pointer; }
+#tok-rail .tr-section-actions button:hover, #tok-rail .tr-section-actions button:focus-visible{ border-color:var(--gold); color:var(--cream-dim); outline:none; }
+#tok-rail .tr-section-actions button.primary{ border-color:var(--gold); color:var(--gold-br); background:rgba(199,154,74,.1); }
+#tok-rail .tr-section-actions button.primary:hover{ background:rgba(199,154,74,.2); }
+#tok-rail .tr-section-actions button:disabled{ opacity:.55; cursor:wait; }
+
 /* ── feed: quick-dice + composer ── */
 #tok-rail .tr-dice{ display:flex; flex-wrap:wrap; gap:4px; padding:7px 12px; border-top:1px solid var(--hair); flex:none; }
 #tok-rail .tr-die{ font-family:"Oswald",sans-serif; font-size:10.5px; letter-spacing:.04em; color:var(--cream-dim); border:1px solid var(--hair); background:transparent; padding:3px 7px; cursor:pointer; }
@@ -203,4 +238,5 @@
 @media (max-width:480px){
   #tok-rail{ width:100vw; }
   .tr-handle.tr-open{ right:calc(100vw - 22px); }
+  #tok-rail .tr-section-dialog{ max-height:calc(100vh - 24px); }
 }

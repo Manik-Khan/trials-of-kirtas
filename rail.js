@@ -41,6 +41,7 @@
 
   var LS_KEY = 'tok.rail.v1';
   var RAIL_W = 384;
+  var RAIL_ASSET_V = 'section1';
 
   // ── dependency bootstrap (idempotent) ──────────────────────────────
   function linkOnce(id, attrs) {
@@ -54,7 +55,7 @@
     linkOnce('tok-rail-fonts-pre1', { rel: 'preconnect', href: 'https://fonts.googleapis.com' });
     linkOnce('tok-rail-fonts-pre2', { rel: 'preconnect', href: 'https://fonts.gstatic.com', crossorigin: '' });
     linkOnce('tok-rail-fonts', { rel: 'stylesheet', href: 'https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,500;0,700;0,900;1,600&family=EB+Garamond:ital@0;1&family=Oswald:wght@300;400;500;600&display=swap' });
-    linkOnce('tok-rail-css', { rel: 'stylesheet', href: 'rail.css' });
+    linkOnce('tok-rail-css', { rel: 'stylesheet', href: 'rail.css?v=' + RAIL_ASSET_V });
     // Characters roster tab — registers itself against the seam on tok-rail:ready.
     // Loaded non-blocking (boot doesn't wait on it); it handles either load order.
     if (!window.__tokCharactersTab && !document.querySelector('script[src$="characters-tab.js"]')) {
@@ -103,7 +104,7 @@
 
     // ── feed state ──
     var FEED = [], feedListEl = null, feedTab = 'combat', feedPostHidden = false;
-    var CTX = { session: 0, encId: null, encName: '', at: 0 };
+    var CTX = { session: 0, sessionTitle: '', encId: null, encName: '', at: 0 };
     var FR = null, FEEDRT = null;
 
     var esc = window.FeedRender ? window.FeedRender.escapeHtml : function (s) { return String(s == null ? '' : s).replace(/[&<>"]/g, function (c) { return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]; }); };
@@ -168,11 +169,17 @@
       if (Date.now() - CTX.at < 30000) return Promise.resolve(CTX);
       return Promise.all([
         SB.from('campaign').select('current_session').eq('id', 1).maybeSingle(),
-        SB.from('encounters').select('id, name').eq('status', 'active').maybeSingle()
+        SB.from('encounters').select('id, name').eq('status', 'active').maybeSingle(),
+        SB.from('session_titles').select('session, title')
       ]).then(function (res) {
         if (res[0] && res[0].data) CTX.session = res[0].data.current_session;
         if (res[1] && res[1].data) { CTX.encId = res[1].data.id; CTX.encName = res[1].data.name || ''; }
         else { CTX.encId = null; CTX.encName = ''; }
+        CTX.sessionTitle = '';
+        if (res[2] && !res[2].error) {
+          var titleRow = (res[2].data || []).find(function (r) { return r.session == CTX.session; });
+          if (titleRow) CTX.sessionTitle = titleRow.title || '';
+        }
         CTX.at = Date.now();
         paintHeader();
         return CTX;
@@ -185,7 +192,9 @@
         .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'feed' }, function (p) { if (p.new) onFeedInsert(p.new); })
         .on('postgres_changes', { event: 'UPDATE', schema: 'public', table: 'feed' }, function (p) { if (p.new) onFeedUpdate(p.new); })
         .on('postgres_changes', { event: 'DELETE', schema: 'public', table: 'feed' }, function (p) { if (p.old && p.old.id != null) onFeedDelete(p.old.id); })
-        .on('postgres_changes', { event: 'UPDATE', schema: 'public', table: 'campaign' }, function (p) { if (p.new) { CTX.session = p.new.current_session; paintHeader(); } })
+        .on('postgres_changes', { event: 'UPDATE', schema: 'public', table: 'campaign' }, function (p) {
+          if (p.new) { CTX.session = p.new.current_session; CTX.at = 0; loadContext(); }
+        })
         .subscribe();
     }
     function loadFeed() {
@@ -197,13 +206,19 @@
     }
     function feedInsert(partial) {
       var a = feedActor();
-      loadContext().then(function (c) {
+      return loadContext().then(function (c) {
         var row = Object.assign(
           { actor_key: a.key, actor_name: a.name, channel: 'combat', kind: 'roll', hidden: false,
             encounter_id: c.encId, session: c.session },
           partial);
         return SB.from('feed').insert(row);
-      }).then(function (r) { if (r && r.error) console.warn('[rail] feed insert failed:', r.error.message); });
+      }).then(function (r) {
+        if (r && r.error) console.warn('[rail] feed insert failed:', r.error.message);
+        return r;
+      }).catch(function (e) {
+        console.warn('[rail] feed insert failed:', e && e.message);
+        return { error: e || new Error('Feed insert failed') };
+      });
     }
 
     // ── dice (NdM, +K, multiple terms, khN/klN) — combat.html's parser ──
@@ -275,6 +290,24 @@
       if (!hasRS) root.classList.add('tr-no-rs');
 
       var hideBtn = IS_STAFF ? '<button class="tr-hide" title="Post hidden (DM only)">hide</button>' : '';
+      var sectionControl = IS_STAFF
+        ? '<div class="tr-section-control"><button type="button" data-rail="newsection">+ New Section</button><span>Adds an outline marker</span></div>'
+        : '';
+      var sectionDialog = IS_STAFF
+        ? '<div class="tr-section-veil" data-rail="sectionveil">'
+            + '<section class="tr-section-dialog" role="dialog" aria-modal="true" aria-labelledby="tr-section-title">'
+              + '<div class="tr-section-head"><div class="k">Chronicle structure</div><h2 id="tr-section-title">Mark a new section</h2><p>Adds a shared heading at this point in the current session and to the Chronicle book’s outline.</p></div>'
+              + '<form class="tr-section-body" data-rail="sectionform">'
+                + '<span class="tr-section-chip" data-rail="sectionchip">Session —</span>'
+                + '<label for="tr-section-input">Section heading</label>'
+                + '<input id="tr-section-input" data-rail="sectioninput" maxlength="80" autocomplete="off" placeholder="The Parlay">'
+                + '<div class="tr-section-note" data-rail="sectionnote">Keep it brief—this becomes an outline label.</div>'
+                + '<div class="tr-section-preview"><div class="l">How it will read</div><div class="v" data-rail="sectionpreview">Section heading</div></div>'
+                + '<div class="tr-section-actions"><button type="button" data-rail="sectioncancel">Cancel</button><button class="primary" type="submit" data-rail="sectioninsert">Insert section</button></div>'
+              + '</form>'
+            + '</section>'
+          + '</div>'
+        : '';
 
       root.innerHTML =
         '<div class="tr-head">'
@@ -296,6 +329,7 @@
               + '<button class="tr-mod" data-m="guidance">Guidance</button>'
             + '</div>'
             + '<div class="tr-feed" data-rail="feedlist"></div>'
+            + sectionControl
             + '<div class="tr-composer">' + hideBtn
               + '<div class="tr-mc-host" data-rail="mchost"><div class="mc-count" data-rail="mccount"></div></div>'
               + '<button class="tr-send" data-rail="dicebtn" title="Roll dice"><svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.3"><rect x="2.5" y="2.5" width="11" height="11" rx="1.5"/><circle cx="5.5" cy="5.5" r=".9" fill="currentColor"/><circle cx="10.5" cy="5.5" r=".9" fill="currentColor"/><circle cx="8" cy="8" r=".9" fill="currentColor"/><circle cx="5.5" cy="10.5" r=".9" fill="currentColor"/><circle cx="10.5" cy="10.5" r=".9" fill="currentColor"/></svg></button>'
@@ -305,6 +339,7 @@
           + '<section class="tr-pane" data-rail-pane="codex"><div class="tr-soon"><div class="h">Codex</div><div class="p">Lore, rules, and references — coming in a later pass.</div></div></section>'
           + '<section class="tr-pane" data-rail-pane="settings"><div class="tr-soon"><div class="h">Settings</div><div class="p">Appearance and preferences — coming in a later pass.</div></div></section>'
         + '</div>';
+      root.innerHTML += sectionDialog;
       document.body.appendChild(root);
 
       handle = document.createElement('div');
@@ -430,8 +465,90 @@
         b.addEventListener('click', function () {
           feedTab = b.dataset.railChan;
           root.querySelectorAll('[data-rail-chan]').forEach(function (x) { x.classList.toggle('on', x === b); });
+          paintSectionControl();
           renderFeed();
         });
+      });
+
+      // Staff can mark structural beats from the shared Chronicle composer.
+      // The target is always the campaign's current session, narrated in the
+      // display-only chip. Section rows are deliberately not encounter-bound.
+      var sectionControl = root.querySelector('.tr-section-control');
+      var sectionVeil = root.querySelector('[data-rail="sectionveil"]');
+      var sectionInput = root.querySelector('[data-rail="sectioninput"]');
+      var sectionNote = root.querySelector('[data-rail="sectionnote"]');
+      var sectionPreview = root.querySelector('[data-rail="sectionpreview"]');
+      var sectionInsert = root.querySelector('[data-rail="sectioninsert"]');
+      var sectionCancel = root.querySelector('[data-rail="sectioncancel"]');
+
+      function paintSectionControl() {
+        if (sectionControl) sectionControl.classList.toggle('on', IS_STAFF && feedTab === 'chronicle');
+      }
+      function resetSectionNote() {
+        if (!sectionNote) return;
+        sectionNote.textContent = 'Keep it brief—this becomes an outline label.';
+        sectionNote.classList.remove('error');
+      }
+      function updateSectionPreview() {
+        if (!sectionPreview || !sectionInput) return;
+        sectionPreview.textContent = sectionInput.value.trim() || 'Section heading';
+        resetSectionNote();
+      }
+      function closeSectionDialog() {
+        if (sectionVeil) sectionVeil.classList.remove('on');
+      }
+      function openSectionDialog() {
+        if (!sectionVeil || !sectionInput) return;
+        loadContext().then(function (c) {
+          var chip = root.querySelector('[data-rail="sectionchip"]');
+          if (chip) chip.textContent = 'Session ' + c.session + (c.sessionTitle ? ' · ' + c.sessionTitle : '');
+          sectionInput.value = '';
+          updateSectionPreview();
+          sectionVeil.classList.add('on');
+          setTimeout(function () { sectionInput.focus(); }, 0);
+        });
+      }
+      function submitSection(event) {
+        event.preventDefault();
+        var title = sectionInput ? sectionInput.value.trim() : '';
+        if (!title) {
+          sectionNote.textContent = 'Give this section a heading before inserting it.';
+          sectionNote.classList.add('error');
+          sectionInput.focus();
+          return;
+        }
+        sectionInsert.disabled = true;
+        sectionCancel.disabled = true;
+        sectionInsert.textContent = 'Inserting…';
+        sectionNote.textContent = 'Adding this heading to the Chronicle…';
+        sectionNote.classList.remove('error');
+        feedInsert({
+          channel: 'chronicle', kind: 'message', encounter_id: null, hidden: false,
+          body: '<p><strong>' + esc(title) + '</strong></p>', meta: { section: title }
+        }).then(function (r) {
+          sectionInsert.disabled = false;
+          sectionCancel.disabled = false;
+          sectionInsert.textContent = 'Insert section';
+          if (r && r.error) {
+            sectionNote.textContent = 'Could not add section: ' + (r.error.message || 'write blocked');
+            sectionNote.classList.add('error');
+            sectionInput.focus();
+            return;
+          }
+          closeSectionDialog();
+          toast('Section added · visible in the Chronicle outline');
+        });
+      }
+
+      paintSectionControl();
+      if (sectionControl) sectionControl.querySelector('button').addEventListener('click', openSectionDialog);
+      if (sectionInput) sectionInput.addEventListener('input', updateSectionPreview);
+      if (sectionCancel) sectionCancel.addEventListener('click', closeSectionDialog);
+      if (sectionVeil) sectionVeil.addEventListener('mousedown', function (e) { if (e.target === sectionVeil) closeSectionDialog(); });
+      var sectionForm = root.querySelector('[data-rail="sectionform"]');
+      if (sectionForm) sectionForm.addEventListener('submit', submitSection);
+      document.addEventListener('keydown', function (e) {
+        if (e.key === 'Escape' && sectionVeil && sectionVeil.classList.contains('on')) closeSectionDialog();
       });
 
       // ── the writing surface (MENTION-COMPOSER swap, with fallback) ──

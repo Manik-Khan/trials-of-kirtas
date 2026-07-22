@@ -76,7 +76,7 @@ export function planRest(kind, structural, vitals) {
   if (kind === 'long') {
     var cmb = structural.combat || {};
     var max = (cmb.hpMax || 0) + (v.hpBonus || 0);
-    v.hp = max; v.hpTemp = 0; v.concentration = null; v.pipState = {};
+    v.hp = max; v.hpTemp = 0; v.concentration = null; v.pipState = {}; delete v.mageArmor;
     var hd = R.deriveHitDice ? R.deriveHitDice(structural) : { pools: [], total: 0 };
     var cap = Math.max(1, Math.floor((hd.total || 0) / 2));
     var got = regainHitDice(hd, v.hitDiceSpent || {}, cap);
@@ -94,6 +94,19 @@ export function rollHitDie(faces, conMod, rng) {
   rng = rng || Math.random;
   var roll = 1 + Math.floor(rng() * faces);
   return { roll: roll, gain: Math.max(0, roll + (conMod || 0)) };
+}
+
+export function mageArmorActive(vitals) {
+  return !!(vitals && vitals.mageArmor);
+}
+
+// PURE: set or clear the sheet-owned Mage Armor flag without disturbing the
+// rest of vitals (CharacterData saves this whole JSON column at once).
+export function setMageArmor(vitals, active) {
+  var v = JSON.parse(JSON.stringify(vitals || {}));
+  if (active) v.mageArmor = true;
+  else delete v.mageArmor;
+  return v;
 }
 
 // PURE: vitals after an HP adjustment (never mutates the input). Mirrors the party
@@ -275,7 +288,7 @@ export function wireInspiration({ root, characterData, key, depsReady } = {}) {
     const label = kind === 'long' ? 'Long rest' : 'Short rest';
     const n = longRegainCount(structural);
     const lines = kind === 'long'
-      ? ['Restore all HP', 'Clear temp HP & concentration', 'Restore every resource & spell slot', 'Regain ' + n + ' hit ' + (n === 1 ? 'die' : 'dice')]
+      ? ['Restore all HP', 'Clear temp HP & concentration' + (mageArmorActive(vitals) ? ' \u00B7 end Mage Armor' : ''), 'Restore every resource & spell slot', 'Regain ' + n + ' hit ' + (n === 1 ? 'die' : 'dice')]
       : ['Restore short-rest resources', 'Leaves spell slots & HP untouched'];
     const pop = mkPop('sa-confirm');
     pop.innerHTML = '<div class="sa-pop-t">' + esc(label) + '?</div>'
@@ -429,6 +442,18 @@ export function wireInspiration({ root, characterData, key, depsReady } = {}) {
     catch (e) { inventory = prev; refresh(); showStat('error', "couldn't save \u00B7 tap to retry", false); }
     finally { busy(false); }
   }
+  async function persistArmoredEquip(prevInventory, prevVitals) {
+    busy(true);
+    try {
+      var saved = await characterData.save(key, { inventory: inventory, vitals: vitals });
+      inventory = (saved && saved.inventory) ? saved.inventory : inventory;
+      vitals = (saved && saved.vitals) ? saved.vitals : vitals;
+      refresh();
+    } catch (e) {
+      inventory = prevInventory; vitals = prevVitals; refresh();
+      showStat('error', "couldn't save \u00B7 tap to retry", false);
+    } finally { busy(false); }
+  }
   async function persistCurrency(prev) {
     busy(true);
     // no refresh() on success: it would rebuild the coin inputs and steal focus
@@ -473,10 +498,18 @@ export function wireInspiration({ root, characterData, key, depsReady } = {}) {
     if (!eq && !un && !at) return;
     e.stopPropagation();
     var prev = JSON.parse(JSON.stringify(inventory));
+    var prevVitals = vitals;
+    var endedMageArmor = false;
     if (eq) { if (eq.classList.contains('capped')) return; doEquip(parseInt(eq.getAttribute('data-eq'), 10)); }
     else if (un) { doUnequip(un.getAttribute('data-un')); }
     else if (at) { if (at.classList.contains('capped')) return; doAttune(parseInt(at.getAttribute('data-at'), 10)); }
-    refresh(); persistInventory(prev);
+    if (eq && mageArmorActive(vitals)) {
+      var equipped = inventory[parseInt(eq.getAttribute('data-eq'), 10)];
+      if (equipped && equipped.slot === 'ARMOUR') { vitals = setMageArmor(vitals, false); endedMageArmor = true; }
+    }
+    refresh();
+    if (endedMageArmor) persistArmoredEquip(prev, prevVitals);
+    else persistInventory(prev);
   }
   function bindEquip() {
     var sec = root.querySelector('[data-sec="inventory"]'); if (sec) sec.classList.add('can-edit');
@@ -1303,6 +1336,12 @@ export function wireInspiration({ root, characterData, key, depsReady } = {}) {
   function ordn(n) { return ({ 1:'1st',2:'2nd',3:'3rd',4:'4th',5:'5th',6:'6th',7:'7th',8:'8th',9:'9th' })[n] || (n + 'th'); }
   function poolDot(tone) { return tone === 'subclass' ? '#55c4c0' : '#e7c279'; }
   function feedPost(name, main) { postFeed({ actorKey: key, name: name, main: main }); }
+  function isMageArmorSpell(name) { return String(name || '').trim().toLowerCase() === 'mage armor'; }
+  function wearingBodyArmor() {
+    var AAC = armorAPI();
+    if (!AAC || typeof AAC.deriveAC !== 'function') return null;
+    return !!AAC.deriveAC(inventory, structural, vitals).body;
+  }
 
   function spendSlot(slotKey, i) {
     if (saving) return;
@@ -1315,6 +1354,11 @@ export function wireInspiration({ root, characterData, key, depsReady } = {}) {
 
   function doCast(spellName, base, isConc, poolKey) {
     if (saving) return;
+    if (isMageArmorSpell(spellName)) {
+      var armored = wearingBodyArmor();
+      if (armored === null) { showStat('hint', 'armor rules unavailable', true); return; }
+      if (armored) { showStat('hint', 'remove body armor first', true); return; }
+    }
     var p = null;
     if (base >= 1) {
       p = poolKey ? poolByKey(poolKey) : null;
@@ -1340,11 +1384,19 @@ export function wireInspiration({ root, characterData, key, depsReady } = {}) {
       main = 'cast \u00B7 cantrip';
     }
     if (isConc) nv.concentration = { name: spellName, duration: '' };
-    vitals = nv; refresh(); persistVitals(prev);
+    if (isMageArmorSpell(spellName)) nv = setMageArmor(nv, true);
+    closeSpellDrawer(); vitals = nv; refresh(); persistVitals(prev);
     // richer feed when we have the fetched detail (we always do when casting from the drawer)
     var rich = spellDetailCache[spellName] ? feedSummary(spellDetailCache[spellName]) : null;
     var line = rich ? (rich + ((base >= 1 && p && p.level > base) ? ' \u00B7 upcast to ' + ordn(p.level) + '-level' : '')) : main;
     feedPost(spellName, line + (isConc ? ' \u00B7 concentration' : ''));
+  }
+
+  function dismissMageArmor() {
+    if (saving || !mageArmorActive(vitals)) return;
+    var prev = vitals;
+    closeSpellDrawer(); vitals = setMageArmor(vitals, false); refresh(); persistVitals(prev);
+    feedPost('Mage Armor', 'dismissed');
   }
 
   function dropConcentration() {
@@ -1384,14 +1436,15 @@ export function wireInspiration({ root, characterData, key, depsReady } = {}) {
     if (spellDrawerName) { var prev = spellEl(spellDrawerName); if (prev) prev.classList.remove('open'); }
     spellDrawerEl = null; spellDrawerName = null;
   }
-  function castBlockHTML(name, level) {
-    var at = level === 0 ? 'cantrip \u2014 no slot spent' : 'spends a slot \u2014 you pick the level on cast';
-    return '<div class="sd-cast"><button type="button" class="sd-castbtn" data-spell-go="' + esc(name) + '">Cast</button><span class="sd-at">' + at + '</span></div>';
+  function castBlockHTML(name, level, active) {
+    var at = active ? 'active \u2014 dismiss without spending a slot' : (level === 0 ? 'cantrip \u2014 no slot spent' : 'spends a slot \u2014 you pick the level on cast');
+    return '<div class="sd-cast"><button type="button" class="sd-castbtn" data-spell-go="' + esc(name) + '">' + (active ? 'Dismiss' : 'Cast') + '</button><span class="sd-at">' + at + '</span></div>';
   }
   function renderSpellDrawer(dr, detail, name, level, isConc) {
-    dr.innerHTML = spellDetailHTML(detail) + castBlockHTML(name, level);
+    var mageActive = isMageArmorSpell(name) && mageArmorActive(vitals);
+    dr.innerHTML = spellDetailHTML(detail) + castBlockHTML(name, level, mageActive);
     var b = dr.querySelector('[data-spell-go]');
-    if (b) b.addEventListener('click', function (e) { e.stopPropagation(); doCast(name, level, isConc, null); });
+    if (b) b.addEventListener('click', function (e) { e.stopPropagation(); if (mageActive) dismissMageArmor(); else doCast(name, level, isConc, null); });
   }
   function fillSpellDrawer(dr, rowEl, name) {
     var level = parseInt(rowEl.getAttribute('data-level'), 10) || 0, isConc = rowEl.getAttribute('data-conc') === '1';

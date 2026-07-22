@@ -82,7 +82,7 @@
     requireApis(armorAC, equipSlots);
 
     var projectedInventory = backfillInventory(inventory, armorAC, equipSlots);
-    var armor = armorAC.deriveAC(projectedInventory, structural);
+    var armor = armorAC.deriveAC(projectedInventory, structural, vitals);
     var derivedAc = armor && Number(armor.ac);
     if (!Number.isFinite(derivedAc)) {
       var err = new Error('ArmorAC.deriveAC returned no finite AC');

@@ -54,10 +54,14 @@ function makeSb(state) {
     return b;
   }
   function result(b) {
-    if (b._op === 'insert') { state.inserts.push(b._row); return { data: null, error: null }; }
+    if (b._op === 'insert') {
+      if (state.nextInsertError) { const message = state.nextInsertError; state.nextInsertError = null; return { data: null, error: { message } }; }
+      state.inserts.push(b._row); return { data: null, error: null };
+    }
     if (b._op === 'delete') { state.deletes.push(true); return { data: null, error: null }; }
     if (b._t === 'campaign') return { data: { current_session: 14 }, error: null };
     if (b._t === 'encounters') return { data: { id: 'enc1', name: 'The Sunken Vault' }, error: null };
+    if (b._t === 'session_titles') return { data: [{ session: 14, title: 'The Shattered Gate' }], error: null };
     if (b._t === 'feed') return { data: state.feedRows, error: null };
     return { data: null, error: null };
   }
@@ -73,7 +77,7 @@ async function makeRail({ role, characterKey, withBattle = true }) {
   // deterministic randomness in BOTH realms
   window.Math.random = () => 0.5; Math.random = () => 0.5;
   window.CHARACTERS = CHARACTERS;
-  const state = { inserts: [], deletes: [], feedRows: feedRows() };
+  const state = { inserts: [], deletes: [], feedRows: feedRows(), nextInsertError: null };
   const profile = { userId: 'u-cos', characterKey, role, username: 'tester', grants: [] };
   window.__tok = { sb: makeSb(state), session: { user: { id: 'u-cos' } }, ready: Promise.resolve(profile), profile };
   const toggled = [];
@@ -101,6 +105,7 @@ async function makeRail({ role, characterKey, withBattle = true }) {
   ok(rail.querySelectorAll('.tr-tab.future').length === 1, 'A: Codex disabled (Settings is a live tab)');
   ok(!rail.classList.contains('tr-no-rs'), 'A: RS seam present → mods live');
   ok(!rail.querySelector('.tr-hide'), 'A: no hide-toggle for a player');
+  ok(!rail.querySelector('.tr-section-control'), 'A: player gets no New Section control');
 
   const list = rail.querySelector('[data-rail="feedlist"]');
   const rows = list.querySelectorAll('.feed-row');
@@ -118,6 +123,8 @@ async function makeRail({ role, characterKey, withBattle = true }) {
   const { document, state } = await makeRail({ role: 'dm', characterKey: null });
   const rail = document.getElementById('tok-rail');
   ok(!!rail.querySelector('.tr-hide'), 'B: staff gets the hidden-post toggle');
+  const sectionControl = rail.querySelector('.tr-section-control');
+  ok(!!sectionControl && !sectionControl.classList.contains('on'), 'B: staff New Section control starts hidden on Combat');
   const list = rail.querySelector('[data-rail="feedlist"]');
   // combat channel, staff → includes the hidden DM row (3 combat rows total)
   const rows = list.querySelectorAll('.feed-row');
@@ -143,6 +150,41 @@ async function makeRail({ role, characterKey, withBattle = true }) {
   const roll = state.inserts.find(r => r.kind === 'roll' && r.formula === '1d20+5');
   ok(!!roll, 'B: /roll posts a roll row');
   ok(roll && roll.channel === 'combat' && /ft-tot/.test(roll.body), 'B: roll row is combat-channel with a rendered total');
+
+  // Chronicle-only structural action → display-only session chip + section row.
+  rail.querySelector('[data-rail-chan="chronicle"]').dispatchEvent(new document.defaultView.MouseEvent('click', { bubbles: true }));
+  ok(sectionControl.classList.contains('on'), 'B: New Section control appears on Chronicle');
+  sectionControl.querySelector('button').dispatchEvent(new document.defaultView.MouseEvent('click', { bubbles: true }));
+  await settle();
+  const veil = rail.querySelector('[data-rail="sectionveil"]');
+  ok(veil.classList.contains('on'), 'B: New Section opens the contained rail dialog');
+  ok(rail.querySelector('[data-rail="sectionchip"]').textContent === 'Session 14 · The Shattered Gate', 'B: chip narrates canonical session + title');
+  ok(rail.querySelector('[data-rail="sectionchip"]').tagName === 'SPAN', 'B: session chip is display-only');
+
+  const sectionForm = rail.querySelector('[data-rail="sectionform"]');
+  const sectionInput = rail.querySelector('[data-rail="sectioninput"]');
+  sectionForm.dispatchEvent(new document.defaultView.Event('submit', { bubbles: true, cancelable: true }));
+  ok(/Give this section/.test(rail.querySelector('[data-rail="sectionnote"]').textContent), 'B: empty section heading narrates inline');
+  sectionInput.value = 'The Parley';
+  sectionInput.dispatchEvent(new document.defaultView.Event('input', { bubbles: true }));
+  ok(rail.querySelector('[data-rail="sectionpreview"]').textContent === 'The Parley', 'B: section preview follows the heading');
+  sectionForm.dispatchEvent(new document.defaultView.Event('submit', { bubbles: true, cancelable: true }));
+  await settle();
+  const section = state.inserts.find(r => r.meta && r.meta.section === 'The Parley');
+  ok(!!section && section.channel === 'chronicle' && section.kind === 'message', 'B: section writes chronicle/message + meta.section');
+  ok(section && section.session === 14 && section.encounter_id === null, 'B: section targets current session, never the active encounter');
+  ok(!veil.classList.contains('on') && rail.querySelector('.tr-toast').classList.contains('on'), 'B: success closes and narrates');
+
+  // RLS/insert failure stays open and explains itself rather than dying silently.
+  sectionControl.querySelector('button').dispatchEvent(new document.defaultView.MouseEvent('click', { bubbles: true }));
+  await settle();
+  sectionInput.value = 'Blocked Beat';
+  state.nextInsertError = 'write blocked';
+  sectionForm.dispatchEvent(new document.defaultView.Event('submit', { bubbles: true, cancelable: true }));
+  await settle();
+  ok(veil.classList.contains('on') && /write blocked/.test(rail.querySelector('[data-rail="sectionnote"]').textContent), 'B: blocked section write stays open with inline reason');
+  document.dispatchEvent(new document.defaultView.KeyboardEvent('keydown', { key: 'Escape', bubbles: true }));
+  ok(!veil.classList.contains('on'), 'B: Escape closes the section dialog');
 }
 
 // ── Scenario C: tabs, collapse, channel toggle, mods, no-battle ─────

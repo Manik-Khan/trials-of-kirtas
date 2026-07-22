@@ -34,6 +34,7 @@ const ok = (c, l) => { if (c) pass++; else { fail++; console.log('  FAIL: ' + l)
 const dom = new JSDOM('<!doctype html><html><body></body></html>', { runScripts: 'outside-only', pretendToBeVisual: true });
 global.window = dom.window; global.document = dom.window.document;
 window.eval(readFileSync(new URL('../../resource-derive.js', import.meta.url), 'utf8'));
+window.SoulShardsData = { loadSpellMeta: (names) => Promise.resolve([{ name: names[0], level: 1, school: 'A', entries: ['Test spell.'] }]) };
 
 // feed sink + confirm stub (reassigned per scenario where needed)
 let feedLog = [];
@@ -69,6 +70,12 @@ async function mount(row) {
 }
 function cleanup(container) { if (container) container.remove(); document.querySelectorAll('.sa-pop').forEach(p => p.remove()); }
 const spell = (c, name) => { const els = c.querySelectorAll('.spell[data-spell]'); for (const e of els) if (e.getAttribute('data-spell') === name) return e; return null; };
+async function beginCast(c, name) {
+  fire(spell(c, name), 'click'); await settle();
+  const buttons = c.querySelectorAll('[data-spell-go]');
+  const cast = [...buttons].find(b => b.getAttribute('data-spell-go') === name);
+  fire(cast, 'click'); await settle();
+}
 
 // ── SHAPE ──
 {
@@ -100,8 +107,8 @@ const spell = (c, name) => { const els = c.querySelectorAll('.spell[data-spell]'
 {
   feedLog = [];
   const { container, saved } = await mount(cosmereRow); await settle();
-  fire(spell(container, 'Minor Illusion'), 'click'); await settle();
-  ok(feedLog.length === 1 && /Minor Illusion/.test(feedLog[0].body) && /cantrip/.test(feedLog[0].body), 'utility cantrip posted to feed as a cantrip (no bridge)');
+  await beginCast(container, 'Minor Illusion');
+  ok(feedLog.length === 1 && /Minor Illusion/.test(feedLog[0].body), 'utility cantrip posted to feed (no action-roll bridge)');
   const v = lastVitals(saved);
   ok(!v || !v.pipState || Object.keys(v.pipState).length === 0, 'cantrip spent no slot');
   ok(!v || !v.concentration, 'cantrip set no concentration');
@@ -112,7 +119,7 @@ const spell = (c, name) => { const els = c.querySelectorAll('.spell[data-spell]'
 {
   feedLog = [];
   const { container, saved } = await mount(cosmereRow); await settle();
-  fire(spell(container, 'Hex'), 'click'); await settle();      // 1st-level, conc; pact + sorc both pay
+  await beginCast(container, 'Hex');                            // 1st-level, conc; pact + sorc both pay
   const pop = document.querySelector('.sa-cast');
   ok(pop, 'two paying pools → .sa-cast picker popover appears');
   const btns = pop ? pop.querySelectorAll('.scp-btn[data-pk]') : [];
@@ -142,7 +149,7 @@ const spell = (c, name) => { const els = c.querySelectorAll('.spell[data-spell]'
 {
   feedLog = [];
   const { container, saved } = await mount(liadanRow); await settle();
-  fire(spell(container, 'Aid'), 'click'); await settle();      // base 2 → only spell_2 pays
+  await beginCast(container, 'Aid');                            // base 2 → only spell_2 pays
   ok(!document.querySelector('.sa-cast'), 'one paying pool → no picker');
   const v = lastVitals(saved);
   ok(v && v.pipState && v.pipState.spell_2 === 1, 'Aid spent spell_2 directly');
@@ -153,7 +160,7 @@ const spell = (c, name) => { const els = c.querySelectorAll('.spell[data-spell]'
 {
   feedLog = [];
   const { container, saved } = await mount(liadanRow); await settle();
-  fire(spell(container, 'Cure Wounds'), 'click'); await settle();  // base 1 → spell_1 + spell_2(upcast)
+  await beginCast(container, 'Cure Wounds');                       // base 1 → spell_1 + spell_2(upcast)
   const pop = document.querySelector('.sa-cast');
   ok(pop, 'Cure Wounds opens picker (two slot levels available)');
   const btns = pop ? [...pop.querySelectorAll('.scp-btn[data-pk]')] : [];
@@ -173,12 +180,12 @@ const spell = (c, name) => { const els = c.querySelectorAll('.spell[data-spell]'
   window.confirm = () => { confirmCount++; return true; };
   const { container, saved } = await mount(liadanRow); await settle();
   // cast Bless (conc) at 1st level
-  fire(spell(container, 'Bless'), 'click'); await settle();
+  await beginCast(container, 'Bless');
   fire([...document.querySelectorAll('.sa-cast .scp-btn[data-pk]')].find(b => b.getAttribute('data-pk') === 'spell_1'), 'click'); await settle();
   ok(lastVitals(saved).concentration.name === 'Bless', 'Bless concentration established');
   ok(confirmCount === 0, 'no confirm when nothing was being concentrated on');
   // cast Detect Magic (conc) over Bless → one confirm at commit
-  fire(spell(container, 'Detect Magic'), 'click'); await settle();
+  await beginCast(container, 'Detect Magic');
   ok(confirmCount === 0, 'opening the picker does NOT prompt the guard');
   fire([...document.querySelectorAll('.sa-cast .scp-btn[data-pk]')].find(b => b.getAttribute('data-pk') === 'spell_1'), 'click'); await settle();
   ok(confirmCount === 1, 'replace-guard prompted exactly once (commit-time)');
