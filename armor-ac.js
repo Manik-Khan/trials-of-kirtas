@@ -21,6 +21,9 @@
 //   profReason,          // "Not proficient with Heavy Armor"
 //   body, shield         // the chosen body-armour name / whether a shield is worn (debug + tests)
 // }
+// deriveSpeed(storedSpeed, structural, armor) -> {
+//   speed, bonus, penalty, note, reason
+// }
 // ---------------------------------------------------------------------------
 (function (global) {
   'use strict';
@@ -150,6 +153,56 @@
     return null;
   }
 
+  function monkLevel(structural) {
+    structural = structural || {};
+    var classes = structural.classes || [];
+    for (var i = 0; i < classes.length; i++) {
+      if (/\bMonk\b/i.test(String(classes[i].name || classes[i].className || ''))) return +classes[i].level || 0;
+    }
+    var label = String(structural.classLabel || '');
+    var match = label.match(/\bMonk\s+(\d+)\b/i);
+    if (match) return +match[1] || 0;
+    return /\bMonk\b/i.test(label) ? (+structural.level || 0) : 0;
+  }
+  function unarmoredMovementBonus(structural) {
+    var level = monkLevel(structural);
+    if (level >= 18) return 30;
+    if (level >= 14) return 25;
+    if (level >= 10) return 20;
+    if (level >= 6) return 15;
+    return level >= 2 ? 10 : 0;
+  }
+  // Monk speed is a live equipment consequence just like heavy-armour speed loss:
+  // no bonus while wearing body armour or wielding a shield. New Forge rows carry
+  // combat.baseSpeed so every racial speed is unambiguous. The 30/40 fallback keeps
+  // Caim's pre-marker database row and older hand-imported mirror from double-adding.
+  function deriveSpeed(storedSpeed, structural, armor) {
+    structural = structural || {};
+    armor = armor || {};
+    var combat = structural.combat || {};
+    var stored = Number(storedSpeed);
+    if (!Number.isFinite(stored)) stored = 30;
+    var bonus = unarmoredMovementBonus(structural);
+    var base = Number(combat.baseSpeed);
+    var hasBase = combat.baseSpeed != null && combat.baseSpeed !== '' && Number.isFinite(base);
+    if (!hasBase) {
+      base = stored;
+      if (bonus && (stored === 30 + bonus || combat.speedIncludesUnarmoredMovement === true)) {
+        base = Math.max(0, stored - bonus);
+        hasBase = true;
+      } else if (bonus && stored === 30) {
+        hasBase = true;
+      }
+    }
+    var eligible = !!bonus && !armor.body && !armor.shield;
+    var appliedBonus = eligible && hasBase ? bonus : 0;
+    var penalty = +armor.speedPenalty || 0;
+    var speed = Math.max(0, base + appliedBonus - penalty);
+    var note = appliedBonus ? ('+' + appliedBonus + ' ft') : (penalty ? ('\u2212' + penalty + ' ft') : '');
+    var reason = appliedBonus ? 'Unarmored Movement (Monk)' : (armor.speedReason || '');
+    return { speed: speed, bonus: appliedBonus, penalty: penalty, note: note, reason: reason };
+  }
+
   function deriveAC(inventory, structural, vitals) {
     structural = structural || {};
     vitals = vitals || {};
@@ -222,7 +275,7 @@
     return out;
   }
 
-  var API = { ARMOR: ARMOR, deriveAC: deriveAC, classifyArmor: classifyArmor };
+  var API = { ARMOR: ARMOR, deriveAC: deriveAC, deriveSpeed: deriveSpeed, classifyArmor: classifyArmor };
   if (typeof module !== 'undefined' && module.exports) module.exports = API;
   if (global) global.ArmorAC = API;
 })(typeof window !== 'undefined' ? window : (typeof globalThis !== 'undefined' ? globalThis : this));

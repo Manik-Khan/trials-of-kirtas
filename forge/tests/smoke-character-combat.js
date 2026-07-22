@@ -64,6 +64,22 @@ test('speed is derived from the same armor consequence', () => {
   assert.strictEqual(out.speedPenalty, 0);
 });
 
+test('Caim live base speed receives Monk Unarmored Movement once', () => {
+  const caim = {
+    key: 'caim', structural: {
+      classLabel: 'Monk', level: 3,
+      abilities: { dex: { mod: 4 }, wis: { mod: 3 } },
+      combat: { speed: 30 }
+    }, vitals: {}, inventory: []
+  };
+  const out = CharacterCombat.derive(caim, { ArmorAC, EquipSlots });
+  assert.strictEqual(out.speed, 40);
+  assert.strictEqual(out.speedBonus, 10);
+  assert.match(out.speedReason, /Unarmored Movement/);
+  caim.structural.combat.speed = 40;
+  assert.strictEqual(CharacterCombat.derive(caim, { ArmorAC, EquipSlots }).speed, 40);
+});
+
 test('missing ArmorAC fails closed instead of returning cached AC', () => {
   assert.throws(
     () => CharacterCombat.derive(liadan, { ArmorAC: {}, EquipSlots }),
@@ -81,6 +97,7 @@ test('missing EquipSlots fails closed instead of changing projection semantics',
 test('invalid armor projection fails closed', () => {
   const badArmor = {
     classifyArmor: ArmorAC.classifyArmor,
+    deriveSpeed: ArmorAC.deriveSpeed,
     deriveAC() { return { ac: NaN, source: 'broken test double' }; }
   };
   assert.throws(

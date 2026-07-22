@@ -39,8 +39,8 @@
   }
 
   function requireApis(armorAC, equipSlots) {
-    if (!armorAC || typeof armorAC.deriveAC !== 'function' || typeof armorAC.classifyArmor !== 'function') {
-      throw dependencyError('ArmorAC', 'deriveAC/classifyArmor unavailable');
+    if (!armorAC || typeof armorAC.deriveAC !== 'function' || typeof armorAC.deriveSpeed !== 'function' || typeof armorAC.classifyArmor !== 'function') {
+      throw dependencyError('ArmorAC', 'deriveAC/deriveSpeed/classifyArmor unavailable');
     }
     if (!equipSlots || typeof equipSlots.canEquip !== 'function' || typeof equipSlots.backfillSlots !== 'function') {
       throw dependencyError('EquipSlots', 'canEquip/backfillSlots unavailable');
@@ -90,8 +90,7 @@
       throw err;
     }
 
-    var baseSpeed = finiteOr(combat.speed, 30);
-    var speedPenalty = finiteOr(armor.speedPenalty, 0);
+    var movement = armorAC.deriveSpeed(finiteOr(combat.speed, 30), structural, armor);
     var maxHpFallback = finiteOr(combat.maxHp, finiteOr(combat.hpMax, 10));
     var maxHp = finiteOr(vitals.maxHp, maxHpFallback);
     var hp = finiteOr(vitals.hp, maxHp);
@@ -101,9 +100,10 @@
       maxHp: maxHp,
       ac: derivedAc,
       acSource: armor.source || 'inventory',
-      speed: Math.max(0, baseSpeed - speedPenalty),
-      speedPenalty: speedPenalty,
-      speedReason: armor.speedReason || null,
+      speed: movement.speed,
+      speedBonus: movement.bonus,
+      speedPenalty: movement.penalty,
+      speedReason: movement.reason || null,
       init: finiteOr(combat.initiative, 0),
       fly: !!combat.fly,
       climb: !!combat.climb,

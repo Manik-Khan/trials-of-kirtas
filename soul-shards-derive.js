@@ -216,7 +216,7 @@
       })[0] || null;
       var walk = (sub && sub.speed && sub.speed.walk != null) ? sub.speed.walk
                : (race.speed && race.speed.walk != null ? race.speed.walk : null);
-      if (walk != null) combat.speed = walk;
+      if (walk != null) { combat.baseSpeed = walk; combat.speed = walk; }
       var dv = (sub && sub.darkvision != null) ? sub.darkvision : (race.darkvision != null ? race.darkvision : null);
       if (dv != null) combat.senses = { darkvision: dv };
       (race.traits || []).forEach(function (t) { features.push({ name: t.name, source: 'race:' + raceName, desc: joinEntries(t.entries) }); });
@@ -270,7 +270,14 @@
     if (acFromArmor) {
       combat.ac = acFromArmor.ac;
       combat.acSource = acFromArmor.source;
-      if (combat.speed != null && acFromArmor.speedPenalty) combat.speed = combat.speed - acFromArmor.speedPenalty;
+    }
+    if (AAC && AAC.deriveSpeed && combat.speed != null) {
+      var speedFromFeatures = AAC.deriveSpeed(combat.speed, {
+        abilities: abilOut, proficiencies: proficiencies, classLabel: classLabel,
+        classes: classesArr, level: totalLevel, combat: combat
+      }, acFromArmor || {});
+      combat.speed = speedFromFeatures.speed;
+      if (speedFromFeatures.bonus) combat.speedIncludesUnarmoredMovement = true;
     }
 
     // ── honest gaps ──

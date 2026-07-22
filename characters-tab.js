@@ -70,7 +70,7 @@
       .then(function () { return window.CharacterData ? null : loadScript('character-data.js'); })
       .then(function () { return window.ResourceDerive ? null : loadScript('resource-derive.js'); })
       .then(function () { return existsScript('dice-engine.js') ? null : loadScript('dice-engine.js'); })
-      .then(function () { return window.mountSheet ? null : loadScript('sheet-mount.js', true); })
+      .then(function () { return window.mountSheet ? null : loadScript('sheet-mount.js?v=um1', true); })
       .then(function () { return waitFor(function () { return !!window.mountSheet; }, 5000); });
   }
 

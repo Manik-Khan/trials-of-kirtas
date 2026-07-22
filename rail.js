@@ -58,8 +58,8 @@
     linkOnce('tok-rail-css', { rel: 'stylesheet', href: 'rail.css?v=' + RAIL_ASSET_V });
     // Characters roster tab — registers itself against the seam on tok-rail:ready.
     // Loaded non-blocking (boot doesn't wait on it); it handles either load order.
-    if (!window.__tokCharactersTab && !document.querySelector('script[src$="characters-tab.js"]')) {
-      var ct = document.createElement('script'); ct.src = 'characters-tab.js';
+    if (!window.__tokCharactersTab && !document.querySelector('script[src*="characters-tab.js"]')) {
+      var ct = document.createElement('script'); ct.src = 'characters-tab.js?v=um1';
       ct.onerror = function () { console.warn('[rail] characters-tab.js failed to load'); };
       document.head.appendChild(ct);
     }

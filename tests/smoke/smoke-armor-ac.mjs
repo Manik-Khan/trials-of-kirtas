@@ -18,6 +18,7 @@ const ok = (c, l) => { if (c) pass++; else { fail++; console.log('  FAIL: ' + l)
 const eq = (a, b, l) => ok(a === b, l + (a === b ? '' : '  (got ' + JSON.stringify(a) + ', exp ' + JSON.stringify(b) + ')'));
 
 ok(ArmorAC && typeof ArmorAC.deriveAC === 'function', 'ArmorAC.deriveAC exposed');
+ok(ArmorAC && typeof ArmorAC.deriveSpeed === 'function', 'ArmorAC.deriveSpeed exposed');
 
 // ── 1. the four live PCs: computed AC === static combat.ac ──
 const dir = 'data/characters';
@@ -155,6 +156,30 @@ const C = (over) => Object.assign({ abilities: { str: { score: 10, mod: 0 }, dex
   const r = ArmorAC.deriveAC([{ name: 'Plate' }, { name: 'Leather' }],
     C({ abilities: { dex: { mod: 2 } }, proficiencies: { armor: 'All Armor' } }));
   eq(r.ac, 18, 'no slots anywhere -> fallback to best body (Plate 18) — shipped behaviour preserved');
+}
+
+// ── 12. Monk Unarmored Movement: apply the level-scaled bonus live, but do
+//      not double-add Caim's older hand-imported speed 40 mirror. ──
+{
+  const monk = C({ classLabel: 'Monk', level: 3, combat: { speed: 30 } });
+  const live = ArmorAC.deriveSpeed(30, monk, ArmorAC.deriveAC([], monk));
+  eq(live.speed, 40, 'Monk 3 live base speed 30 -> 40');
+  eq(live.bonus, 10, 'Monk 3 Unarmored Movement bonus is +10');
+  ok(/Unarmored Movement/.test(live.reason), 'speed reason names Unarmored Movement');
+  const legacy = ArmorAC.deriveSpeed(40, Object.assign({}, monk, { combat: { speed: 40 } }), ArmorAC.deriveAC([], monk));
+  eq(legacy.speed, 40, 'legacy Caim speed 40 is not double-added to 50');
+}
+{
+  const monk6 = C({ classLabel: 'Monk 6', level: 6, combat: { baseSpeed: 35, speed: 50 } });
+  const r = ArmorAC.deriveSpeed(50, monk6, ArmorAC.deriveAC([], monk6));
+  eq(r.speed, 50, 'explicit base speed supports Monk 6 racial 35 + 15');
+}
+{
+  const monk = C({ classLabel: 'Monk 3', level: 3, combat: { baseSpeed: 30, speed: 40 } });
+  const armor = ArmorAC.deriveAC([{ name: 'Leather', slot: 'ARMOUR' }], monk);
+  eq(ArmorAC.deriveSpeed(40, monk, armor).speed, 30, 'body armor suppresses Unarmored Movement');
+  const shield = ArmorAC.deriveAC([{ name: 'Shield', slot: 'OFFHAND' }], monk);
+  eq(ArmorAC.deriveSpeed(40, monk, shield).speed, 30, 'a shield suppresses Unarmored Movement');
 }
 
 console.log((fail === 0 ? 'PASS' : 'FAIL') + ' smoke-armor-ac: ' + pass + ' passed, ' + fail + ' failed');

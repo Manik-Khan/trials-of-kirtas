@@ -611,7 +611,7 @@ function toRenderShape(cd){
   if(AAC){
     var ac=AAC.deriveAC(inv, s, v), cbA=Object.assign({}, s.combat||{});
     cbA.ac=ac.ac; cbA.acSource=ac.source;
-    if(cbA.speed!=null && ac.speedPenalty){ cbA.speed=cbA.speed-ac.speedPenalty; cbA.speedNote='\u2212'+ac.speedPenalty+' ft'; cbA.speedReason=ac.speedReason||''; }
+    if(cbA.speed!=null && AAC.deriveSpeed){ var move=AAC.deriveSpeed(cbA.speed, s, ac); cbA.speed=move.speed; cbA.speedNote=move.note; cbA.speedReason=move.reason; }
     if(ac.notProficient){ cbA.acWarn='not proficient'; cbA.acWarnFull=(ac.profReason||'Not proficient')+' \u2014 disadvantage on Str/Dex rolls; can\u2019t cast'; }
     s.combat=cbA;
     if(ac.stealthDisadvantage){ s.skills=(s.skills||[]).map(function(sk){ return sk.name==='Stealth'?Object.assign({}, sk, { dis:true, disReason:ac.disReason||((ac.body||'Worn armour')+' \u2014 Stealth disadvantage') }):sk; }); }
@@ -1286,7 +1286,7 @@ function ensureDeps(doc){
     });
   }
   var jobs = [];
-  if(!w.ArmorAC)    jobs.push(loadScript('armor-ac.js?v=ma1'));
+  if(!w.ArmorAC)    jobs.push(loadScript('armor-ac.js?v=um1'));
   if(!w.EquipSlots) jobs.push(loadScript('equip-slots.js'));
   if(!w.GearManager) jobs.push(loadScript('gear-manager.js'));
   if(!w.ItemIcons)  jobs.push(loadScript('item-icons.js'));
