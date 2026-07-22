@@ -296,6 +296,30 @@ board **26/26**, engine **14/14**, map bridge **16/16**, tactics geometry
 current stage-owned engine and reduced-motion implementation; they now execute
 the real production functions rather than failing on obsolete source strings.
 
+## Positional enemy-planner pass · 2026-07-21
+
+`forge-foe-ai.js?v=fai2` now distinguishes a legal shot from a tactically sound
+firing position. Ranged choices value safe normal-range distance and elevation,
+avoid squares threatened by a player, penalize cover and long-range disadvantage
+more strongly, and keep an existing firing lane when movement would only expose
+the attacker. Melee choices still close through the canonical movement and
+diagonal-choke geometry.
+
+Automatic planning receives only opponents the active foe can presently see
+through terrain. It does not receive player spell lists, resource counts, or
+hidden positions. A foe with executable attacks but no perceived opponent holds
+position and says why; this is distinct from the existing fail-closed narration
+for a stat block with no mechanically parsed attack. Automatic/Manual ownership
+and the ordinary attack, reaction, and replay pipelines are unchanged.
+
+Focused validation is **182/182 green** across foe AI/HUD, tactics geometry,
+line of sight and cover, combat rules, and Fix Pack A. In the real local Forge,
+three Goblins kept 50–60-foot firing lanes and used Shortbows through the full
+attack/Shield/damage flow. The feed narrated the chosen range and reason, and no
+new browser error appeared. A visible difficulty scale was deliberately not
+added without an approved mock. Encounter-region activation remains the next
+architectural phase.
+
 ## Required field checklist
 
 1. On the live signed-in site, open a Temple Table with at least Party and Enemy flags.
@@ -331,5 +355,5 @@ M reviews, commits, and pushes. Codex does not push. Current slice stamps:
 `forge-temple-terraces.js?v=tt1`, `forge-engine.js?v=fe10`,
 `forge-render-power.js?v=frp1`, `forge-architecture.js?v=fa4`, and
 `forge-discovery.js?v=fd7`, `forge-kit-derive.js?v=b9`,
-`forge-foe-ai.js?v=fai1`, `forge-hud.js?v=b3`, and
+`forge-foe-ai.js?v=fai2`, `forge-hud.js?v=b3`, and
 `monster-actor.js?v=ma2`.

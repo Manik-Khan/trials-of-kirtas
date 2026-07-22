@@ -4,7 +4,7 @@ const AI=require("../forge-foe-ai.js");
 let pass=0;function ok(v,label){if(!v)throw new Error("FAIL: "+label);console.log("ok",++pass,"-",label);}
 const archer={unit:"archer",name:"Archer",c:0,r:0},caim={unit:"caim",name:"Caim",c:11,r:0,hp:24,hpMax:24,alive:true};
 const sword={label:"Shortsword",kind:"attack",rng:1,hit:6,dmg:"1d6+4"},bow={label:"Longbow",kind:"attack",rng:30,long:120,hit:6,dmg:"1d8+4"};
-ok(AI.VERSION==="1.0.0","planner version is pinned");
+ok(AI.VERSION==="1.1.0","planner version is pinned");
 ok(AI.avgFormula("2d6+3")===10,"average damage reads dice and flat bonuses");
 ok(AI.actionRangeFt(bow)===600,"long range is retained for planning");
 const archerPlan=AI.planTurn({actions:[sword,bow],targets:[caim],origins:[{c:0,r:0,cost:0}],evaluate:(o,a)=>a===bow?{ok:true,distanceFt:55,cover:2,coverName:"half"}:{ok:false},distance:()=>55});
@@ -15,6 +15,11 @@ ok(meleePlan.kind==="move-attack"&&meleePlan.origin.c===10,"melee foe moves to a
 ok(/legal attack/.test(meleePlan.why)&&!/legal shot/.test(meleePlan.why),"melee narration calls the choice an attack rather than a shot");
 const clear=AI.planTurn({actions:[bow],targets:[caim],origins:[{c:0,r:0,cost:0},{c:1,r:0,cost:1}],evaluate:(o)=>o.c?{ok:true,distanceFt:50,cover:0,coverName:"none"}:{ok:true,distanceFt:55,cover:5,coverName:"three-quarters"},distance:()=>50});
 ok(clear.origin.c===1,"planner may spend movement to improve a heavily covered shot");
+const holdHigh=AI.planTurn({actions:[sword,bow],targets:[caim],origins:[{c:0,r:0,cost:0},{c:6,r:0,cost:6}],evaluate:(o,a)=>a===bow?{ok:true,distanceFt:o.c?25:55,cover:0,coverName:"none",originElevationFt:o.c?0:10,targetElevationFt:0,threatCount:o.c?1:0}:{ok:o.c===6,distanceFt:5,cover:0,coverName:"none",originElevationFt:0,targetElevationFt:0,threatCount:1},distance:()=>25});
+ok(holdHigh.action===bow&&holdHigh.origin.c===0,"ranged foe holds a safe elevated firing lane instead of rushing into melee");
+ok(/safe firing distance/.test(holdHigh.why)&&/high ground/.test(holdHigh.why),"tactical narration explains distance and elevation without hidden player facts");
+const escape=AI.planTurn({actions:[bow],targets:[caim],origins:[{c:0,r:0,cost:0},{c:4,r:0,cost:4}],evaluate:(o)=>({ok:true,distanceFt:o.c?35:5,cover:0,coverName:"none",originElevationFt:0,targetElevationFt:0,threatCount:o.c?0:1}),distance:()=>35});
+ok(escape.origin.c===4,"threatened ranged foe repositions to a legal safe firing square");
 const approach=AI.planTurn({actions:[sword],targets:[caim],origins:[{c:0,r:0,cost:0},{c:4,r:0,cost:4}],evaluate:()=>({ok:false}),distance:(o)=>Math.abs(11-o.c)*5});
 ok(approach.kind==="move"&&approach.origin.c===4,"when no attack is possible the foe approaches as far as it legally can");
 ok(AI.planTurn({actions:[],targets:[],origins:[]}).kind==="stand","empty turns degrade to an explicit stand decision");

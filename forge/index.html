@@ -33,7 +33,7 @@
 <script src="forge-replay.js?v=fb14"></script>
 <script src="forge-combat-rules.js?v=fcr3"></script>
 <script src="forge-death-saves.js?v=fds1"></script>
-<script src="forge-foe-ai.js?v=fai1"></script>
+<script src="forge-foe-ai.js?v=fai2"></script>
 <script src="forge-effects.js?v=fe5"></script>
 <script src="forge-initiative.js?v=fi2"></script>
 <script src="forge-discovery.js?v=fd7"></script>
@@ -6821,13 +6821,15 @@ function endTurn(){
 
 function foePlanFor(u){
   if(!window.ForgeFoeAI)return null;syncGeometryCreatures();
-  var targets=CB.units.filter(function(x){return x.alive&&x.side==='pc';});
+  /* A foe may plan from positions, terrain, and opponents it can presently
+     perceive. Player resources and hidden positions never enter this input. */
+  var targets=CB.units.filter(function(x){return x.alive&&x.side==='pc'&&TG.losVerdict(CB.map,{c:u.c,r:u.r},{c:x.c,r:x.r},{ignoreCreatures:true}).canTarget;});
   var seen=TG.movementReach(CB.map,u,occupied(u),CB.st?moveBudget(u):Math.floor(u.speed/5));
   var origins=[{c:u.c,r:u.r,cost:0}];
   Object.keys(seen).forEach(function(k){var p=k.split(',').map(Number);if((p[0]===u.c&&p[1]===u.r)||unitAt(p[0],p[1]))return;origins.push({c:p[0],r:p[1],cost:Number(seen[k].d)||TG.chebyshev(u,{c:p[0],r:p[1]})});});
   var plan=window.ForgeFoeAI.planTurn({
     actions:u.actions||[],targets:targets,origins:origins,
-    evaluate:function(origin,action,target){var oldC=u.c,oldR=u.r,ro;try{u.c=origin.c;u.r=origin.r;ro=reachOK(u,action,target,{silent:true});}finally{u.c=oldC;u.r=oldR;}return Object.assign({},ro,{distanceFt:cbDist(origin,target)});},
+    evaluate:function(origin,action,target){var oldC=u.c,oldR=u.r,ro;try{u.c=origin.c;u.r=origin.r;ro=reachOK(u,action,target,{silent:true});}finally{u.c=oldC;u.r=oldR;}return Object.assign({},ro,{distanceFt:cbDist(origin,target),originElevationFt:tTier(origin.c,origin.r)*5,targetElevationFt:tTier(target.c,target.r)*5,threatCount:targets.filter(function(x){return TG.canReachMelee(CB.map,{c:origin.c,r:origin.r},{c:x.c,r:x.r},5);}).length});},
     distance:function(origin,target){return cbDist(origin,target);}
   });
   syncGeometryCreatures();return plan;
@@ -6853,6 +6855,11 @@ function foeTurn(){
      spells, and traits in the Manual HUD. Automatic mode narrates why it
      stands rather than manufacturing rules from descriptive text. */
   if(!atk){
+    var executable=(u.actions||[]).filter(function(a){return a&&a.kind==='attack'&&a.dmg;});
+    if(executable.length){
+      clog(u.name+' holds position — no opponent is presently visible to it.');
+      renderHud(); foeTurnDone(); return;
+    }
     var first=(u.mActions&&u.mActions[0])||null;
     var note=first?(first.label+(first.note?": "+first.note:"")):"has nothing to attack with";
     clog(u.name+" stands its ground — "+escapeHtml(note)+" <i>(no executable attack parsed; the full stat block remains in the HUD)</i>");
