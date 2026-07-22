@@ -1312,7 +1312,7 @@ function ensureDeps(doc){
   // sheet-v2.html loads it statically; the rail loader and the combat float mount the
   // sheet on pages that don't — without it, tapping a spell shows "compendium isn't
   // loaded on this page." Self-heal it here like the four above (plain script → window).
-  if(!w.SoulShardsData) jobs.push(loadScript('soul-shards-data.js'));
+  if(!w.SoulShardsData) jobs.push(loadScript('soul-shards-data.js?v=caim1'));
   __depPromise = Promise.all(jobs).then(function(){ return new Promise(function(r){ setTimeout(r, 0); }); });  // let the IIFEs register on window
   return __depPromise;
 }

@@ -219,7 +219,10 @@
       if (walk != null) { combat.baseSpeed = walk; combat.speed = walk; }
       var dv = (sub && sub.darkvision != null) ? sub.darkvision : (race.darkvision != null ? race.darkvision : null);
       if (dv != null) combat.senses = { darkvision: dv };
-      (race.traits || []).forEach(function (t) { features.push({ name: t.name, source: 'race:' + raceName, desc: joinEntries(t.entries) }); });
+      var overwritten = (sub && sub.overwrites) || [];
+      (race.traits || []).filter(function (t) { return overwritten.indexOf(t.name) === -1; }).forEach(function (t) {
+        features.push({ name: t.name, source: 'race:' + raceName, desc: joinEntries(t.entries) });
+      });
       if (sub) (sub.traits || []).forEach(function (t) { features.push({ name: t.name, source: 'race:' + raceName, desc: joinEntries(t.entries) }); });
     } else if (race) {
       incomplete.push('race traits (speed / senses / traits) \u2014 pass the loadRace model, not just { name }');

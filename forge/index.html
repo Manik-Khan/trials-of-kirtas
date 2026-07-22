@@ -29,6 +29,7 @@
 <script src="forge-engine.js?v=fe10"></script>
 <script src="forge-deployment.js?v=fd2"></script>
 <script src="forge-encounter-regions.js?v=fer1"></script>
+<script src="forge-encounter-read.js?v=fread1"></script>
 <script src="forge-bridge-authority.js?v=fba1"></script>
 <script src="forge-protocol.js?v=fpr2"></script>
 <script src="forge-replay.js?v=fb15"></script>
@@ -59,7 +60,7 @@
      soul-shards-data.js exports window.SoulShardsData; forge-hud's _loadSpellText
      calls .loadSpellMeta([name],{detail:true}) on drawer open — see §C of the
      2026-07-12 fix plan. Fetches from 5etools CDN, no Supabase dependency. -->
-<script src="../soul-shards-data.js?v=b4"></script>
+<script src="../soul-shards-data.js?v=caim1"></script>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <!-- Task 11: Start fight reads live PC vitals off the real sheet. character-data.js
      normally waits on nav.js's window.__tok — this mock doesn't carry nav.js's full
@@ -648,6 +649,16 @@ global.TacticsGeo=API;
   .deployMeta{display:flex;justify-content:space-between;gap:6px;margin:5px 0;color:var(--tk-ink-dim);font:9px/1.3 var(--f-util)}.deployMeta .bad{color:#a04b3a}.deployMeta .good{color:#477050}
   .deployActions{display:grid;grid-template-columns:1.2fr 1fr 1fr;gap:4px}.deployActions .filebtn{padding:6px 3px;font-size:8px}.deployActions .primary{border-color:var(--tk-gold);background:rgba(184,134,58,.16);color:var(--tk-ink)}
   .deployMinor{border:0;background:transparent;color:var(--tk-ink-dim);padding:5px 0 0;margin-right:8px;font:9px var(--f-util);text-decoration:underline;cursor:pointer}.deployMode{color:var(--tk-gold);font-style:italic}
+  /* Approved Encounter Read mock, integrated as Workshop evidence rather than
+     one authoritative difficulty number. */
+  #encounterReadPanel{display:none}.erSummary{padding:9px;border:1px solid var(--tk-line);background:var(--tk-panel-2)}
+  .erHeadline{display:flex;justify-content:space-between;gap:8px;align-items:flex-start}.erHeadline b{font:600 14px/1.2 var(--f-body);color:var(--tk-ink)}.erHeadline span{border:1px solid var(--tk-line);padding:3px 5px;font:600 8px var(--f-util);text-transform:uppercase;letter-spacing:.07em;color:var(--tk-ink-dim);white-space:nowrap}
+  .erWhy{margin-top:4px;font:10px/1.35 var(--f-util);color:var(--tk-ink-dim)}.erFacts{display:grid;grid-template-columns:repeat(3,1fr);gap:4px;margin-top:7px}.erFact{padding:6px 3px;border:1px solid var(--tk-line);background:var(--tk-panel);text-align:center}.erFact b{display:block;font:600 12px var(--f-body);color:var(--tk-ink)}.erFact span{display:block;margin-top:2px;font:600 7px var(--f-util);letter-spacing:.06em;text-transform:uppercase;color:var(--tk-ink-dim)}
+  .erWarnings{margin-top:7px}.erWarning{display:grid;grid-template-columns:8px 1fr;gap:6px;padding:6px 0;border-top:1px solid var(--tk-line)}.erWarning i{width:7px;height:7px;margin-top:3px;border-radius:50%;background:var(--tk-gold)}.erWarning.harder i{background:#a04b3a}.erWarning.easier i{background:#477050}.erWarning b{display:block;font:600 10px/1.25 var(--f-util);color:var(--tk-ink)}.erWarning span{display:block;margin-top:1px;font:9px/1.3 var(--f-util);color:var(--tk-ink-dim)}
+  .erSuggestionTools{display:grid;grid-template-columns:1fr 1fr;gap:4px;margin-top:7px}.erSuggestionTools button{padding:6px 3px;border:1px solid var(--tk-line);background:transparent;color:var(--tk-ink-dim);font:600 8px var(--f-util);text-transform:uppercase;letter-spacing:.06em;cursor:pointer}.erSuggestionTools button.active{border-color:var(--tk-gold);background:rgba(184,134,58,.14);color:var(--tk-ink)}
+  .erRoots{display:flex;gap:4px;flex-wrap:wrap;margin:7px 0 2px}.erRoot{padding:3px 5px;border:1px solid var(--tk-line);background:var(--tk-panel);font:600 8px var(--f-util);color:var(--tk-ink-dim)}
+  .erCrGroup{margin-top:7px;border-top:1px solid var(--tk-line)}.erCrHead{display:flex;justify-content:space-between;gap:6px;padding:6px 0 3px;font:600 8px var(--f-util);text-transform:uppercase;letter-spacing:.06em;color:var(--tk-gold)}.erCrHead span:last-child{color:var(--tk-ink-dim);text-align:right}.erCreature{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:5px;align-items:center;padding:5px 0;border-top:1px dotted rgba(86,67,38,.25)}.erCreature b{display:block;font:600 10px var(--f-util);color:var(--tk-ink)}.erCreature small{display:block;font:8.5px/1.25 var(--f-util);color:var(--tk-ink-dim)}.erCreature button{padding:5px 6px;border:1px solid var(--tk-line);background:var(--tk-panel);font:600 8px var(--f-util);color:var(--tk-ink);cursor:pointer}.erCreature button:hover{border-color:var(--tk-gold)}
+  .erBestiary{width:100%;margin-top:8px;padding:7px;border:1px solid var(--tk-ink);background:var(--tk-ink);color:var(--tk-panel);font:600 9px var(--f-util);text-transform:uppercase;letter-spacing:.07em;cursor:pointer}.erStatus{margin-top:6px;white-space:normal;font:9px/1.35 var(--f-util);color:var(--tk-ink-dim)}
   /* Approved Temple architecture preview: small authored blocks, not a second generator. */
   #architecturePanel{display:none}.architectureTools{display:grid;grid-template-columns:1fr 1fr;gap:5px;margin-bottom:6px}
   .architectureTools .filebtn{padding:7px 3px}.architectureTools .active{border-color:var(--tk-gold);background:rgba(184,134,58,.18);color:var(--tk-ink)}
@@ -1044,6 +1055,32 @@ body.forge-author-preview #partySelect{opacity:0;pointer-events:none}
       <div class="eyebrow" style="margin:9px 0 5px">Unassigned</div>
       <div class="deployUnassigned" id="deploymentUnassigned"></div>
       <div class="fname" id="deploymentMessage" style="white-space:normal">Flags choose the region. Formation seeds only arrange units around that flag.</div>
+    </div>
+    <div id="encounterReadPanel">
+      <div class="divider"></div>
+      <div class="eyebrow" style="margin-bottom:6px">ENCOUNTER READ</div>
+      <div class="toggle-row" id="encounterReadToggle" style="margin-bottom:6px">
+        <button data-encounter-read="opening" class="active">Opening wave</button>
+        <button data-encounter-read="full">Full roster</button>
+      </div>
+      <div class="erSummary">
+        <div class="erHeadline"><b id="encounterReadHeadline">Reading encounter…</b><span id="encounterReadBenchmark">CR benchmark —</span></div>
+        <div class="erWhy" id="encounterReadWhy">Waiting for party levels and creature CR.</div>
+        <div class="erFacts">
+          <div class="erFact"><b id="encounterReadCr">—</b><span>CR / benchmark</span></div>
+          <div class="erFact"><b id="encounterReadXp">—</b><span>Adjusted XP</span></div>
+          <div class="erFact"><b id="encounterReadActions">—</b><span>Enemy : party</span></div>
+        </div>
+        <div class="erWarnings" id="encounterReadWarnings"></div>
+      </div>
+      <button class="filebtn" id="encounterSuggestionsToggle" type="button" style="width:100%;margin-top:7px">Show creature suggestions</button>
+      <div id="encounterSuggestions" style="display:none">
+        <div class="erSuggestionTools" id="encounterSuggestionModes"><button class="active" data-encounter-suggest="related">Related enemies</button><button data-encounter-suggest="any">Any creature</button></div>
+        <div class="erRoots" id="encounterRelatedRoots"></div>
+        <div id="encounterSuggestionList"></div>
+        <button class="erBestiary" id="encounterOpenBestiary" type="button">Browse full Bestiary</button>
+        <div class="erStatus" id="encounterSuggestionStatus">Related and CR-organized suggestions are shortcuts; the Bestiary remains the complete catalogue.</div>
+      </div>
     </div>
     <!-- Task 11: the two doors (FORGE_BOARD.md §3) — hidden until we know the
          viewer is signed in AND not already inside a session (initLifecyclePanel

@@ -1,0 +1,308 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>Forge Encounter Read mock</title>
+  <style>
+    :root{
+      --ink:#211d18;--muted:#71685b;--paper:#eee7d9;--paper2:#f8f3e9;
+      --line:#b8aa92;--gold:#b98636;--gold2:#dfbd76;--red:#994c43;
+      --red2:#d57a6c;--green:#4f755d;--teal:#3d7777;--night:#171a18;
+      --easy:#66826a;--medium:#a88742;--hard:#a15f42;--deadly:#853e3d;
+    }
+    *{box-sizing:border-box}
+    html,body{height:100%;margin:0}
+    body{overflow:hidden;background:var(--night);color:var(--ink);font-family:Georgia,serif}
+    button,select{font:700 10px/1.15 Arial,sans-serif;letter-spacing:.07em;text-transform:uppercase;color:inherit}
+    button{cursor:pointer}
+    .app{height:100%;display:grid;grid-template-columns:350px minmax(520px,1fr) 350px;background:#314744}
+    .panel{position:relative;z-index:3;min-height:0;background:linear-gradient(135deg,var(--paper2),var(--paper));box-shadow:8px 0 28px #0007}
+    .panel.right{box-shadow:-8px 0 28px #0007}
+    .scroll{height:100%;overflow:auto;padding-bottom:28px}
+    .head{padding:17px 19px 15px;background:#25231f;color:#eee5d5;border-bottom:3px solid var(--gold)}
+    .eyebrow{font:700 9px Arial,sans-serif;letter-spacing:.18em;text-transform:uppercase;color:#c9a65f}
+    .head h1{margin:5px 0 4px;font-size:24px}
+    .head p{margin:0;color:#bfb6a7;font-size:12px;line-height:1.4}
+    .section{padding:14px 15px;border-bottom:1px solid var(--line)}
+    .kicker{display:flex;justify-content:space-between;gap:8px;margin-bottom:8px;font:700 9px Arial,sans-serif;letter-spacing:.15em;text-transform:uppercase;color:#6c5b3e}
+    .copy{margin:7px 0 0;font-size:11px;line-height:1.45;color:#5f574c}
+    .copy b{color:var(--ink)}
+    .toggle{display:grid;grid-template-columns:1fr 1fr;border:1px solid var(--line)}
+    .toggle.three{grid-template-columns:repeat(3,1fr)}
+    .toggle button{min-height:34px;border:0;border-right:1px solid var(--line);background:var(--paper2);color:var(--muted);padding:7px 5px}
+    .toggle button:last-child{border-right:0}
+    .toggle button.on{background:var(--gold);color:white}
+    .selectRow{display:grid;grid-template-columns:108px 1fr;gap:8px;align-items:center;margin-top:7px}
+    .selectRow label{font:700 9px Arial,sans-serif;letter-spacing:.08em;text-transform:uppercase;color:#75674f}
+    .selectRow select{width:100%;min-height:31px;border:1px solid #b7aa95;background:#fffaf0;padding:5px}
+    .party{display:grid;grid-template-columns:repeat(4,1fr);gap:5px}
+    .pc{padding:7px 4px;border:1px solid #bfae90;background:#f8f1e4;text-align:center}
+    .pc b{display:block;font-size:11px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+    .pc span{display:block;margin-top:3px;color:#7b6c55;font:700 8px Arial,sans-serif;text-transform:uppercase;letter-spacing:.08em}
+    .group{margin-top:7px;border:1px solid var(--line);background:#f7f1e5}
+    .group:first-child{margin-top:0}
+    .groupHead{display:grid;grid-template-columns:10px 1fr auto;gap:8px;align-items:center;padding:9px 10px;border-bottom:1px solid #cfc3af}
+    .dot{width:10px;height:10px;border-radius:50%;background:var(--red)}
+    .groupName{font-weight:700;font-size:13px}
+    .groupState{padding:3px 5px;border:1px solid #b29f80;color:#786b56;font:700 8px Arial,sans-serif;letter-spacing:.1em;text-transform:uppercase}
+    .groupState.active{border-color:#587a61;background:#dce9dd;color:#3e6649}
+    .groupBody{padding:8px 10px}
+    .groupLine{display:flex;justify-content:space-between;gap:8px;color:var(--muted);font:10px/1.35 Arial,sans-serif}
+    .groupLine+.groupLine{margin-top:4px}
+    .groupLine b{color:#5e4e38}
+    .statusNote{margin-top:8px;padding:8px 9px;border-left:3px solid var(--gold);background:#e5ddcf;color:#554c41;font:10px/1.4 Arial,sans-serif}
+    .stage{position:relative;min-width:0;background:radial-gradient(circle at 65% 8%,#c5d5c2 0,#8aa397 25%,#435c57 66%,#283936 100%)}
+    canvas{display:block;width:100%;height:100%}
+    .mast{position:absolute;top:18px;left:21px;padding:9px 12px;background:#201f1bdf;border-left:3px solid var(--gold);color:#eee4d2;box-shadow:0 7px 20px #0005}
+    .mast b{display:block;font-size:17px}
+    .mast span{font:9px Arial,sans-serif;letter-spacing:.12em;text-transform:uppercase;color:#c9b99f}
+    .mockBadge{position:absolute;top:20px;right:22px;padding:7px 10px;background:#201f1be8;border:1px solid #8b744a;color:#dfc788;font:700 9px Arial,sans-serif;letter-spacing:.15em;text-transform:uppercase}
+    .mapCard{position:absolute;left:22px;right:22px;bottom:22px;display:grid;grid-template-columns:1fr auto;gap:12px;align-items:center;padding:12px 14px;background:#211f1bea;border:1px solid #8b744a;color:#eee4d2;box-shadow:0 10px 30px #0007}
+    .mapCard b{display:block;color:#e4bd6d;font-size:14px}
+    .mapCard span{font:10px/1.35 Arial,sans-serif;color:#cfc5b2}
+    .mapCard button{min-height:34px;padding:7px 11px;border:1px solid #bb9650;background:#d6af62;color:#251d10}
+    .readHero{padding:13px;border:1px solid #a99573;background:#f8f2e7;box-shadow:inset 0 0 0 3px #eee3d1}
+    .heroTop{display:flex;align-items:flex-start;justify-content:space-between;gap:10px}
+    .heroLabel{font:700 9px Arial,sans-serif;letter-spacing:.14em;text-transform:uppercase;color:#76654a}
+    .heroVerdict{margin-top:4px;font-size:24px;color:#7b3f32}
+    .heroMode{padding:4px 6px;border:1px solid #b7a581;color:#765a30;font:700 8px Arial,sans-serif;text-transform:uppercase;letter-spacing:.08em}
+    .heroWhy{margin-top:5px;color:#5e5548;font:11px/1.4 Arial,sans-serif}
+    .meter{position:relative;height:14px;margin-top:12px;display:grid;grid-template-columns:40fr 20fr 20fr 20fr;border:1px solid #8e816c;background:#ddd}
+    .meter i:nth-child(1){background:var(--easy)}.meter i:nth-child(2){background:var(--medium)}.meter i:nth-child(3){background:var(--hard)}.meter i:nth-child(4){background:var(--deadly)}
+    .marker{position:absolute;top:-5px;width:2px;height:24px;background:#17140f;box-shadow:0 0 0 2px #f8edcf;transform:translateX(-1px)}
+    .meterLabels{display:grid;grid-template-columns:40fr 20fr 20fr 20fr;margin-top:4px;color:#756a58;font:700 7px Arial,sans-serif;text-transform:uppercase;letter-spacing:.05em;text-align:center}
+    .facts{display:grid;grid-template-columns:repeat(3,1fr);gap:6px;margin-top:9px}
+    .fact{padding:8px 5px;border:1px solid #c1b39c;background:#ebe4d8;text-align:center}
+    .fact b{display:block;font-size:14px;color:#5c4630}.fact span{display:block;margin-top:2px;color:#776b59;font:700 7px Arial,sans-serif;text-transform:uppercase;letter-spacing:.08em}
+    .warning{display:grid;grid-template-columns:10px 1fr;gap:8px;padding:9px 0;border-bottom:1px solid #c9bdab}
+    .warning:last-child{border-bottom:0}
+    .warning i{width:9px;height:9px;margin-top:3px;border-radius:50%;background:var(--gold)}
+    .warning.harder i{background:var(--red)}.warning.easier i{background:var(--green)}
+    .warning b{display:block;font-size:12px}.warning span{display:block;margin-top:2px;color:var(--muted);font:9px/1.35 Arial,sans-serif}
+    .suggestion{padding:9px 0;border-bottom:1px solid #c9bdab}
+    .suggestion:last-child{border-bottom:0}
+    .suggestTop{display:flex;justify-content:space-between;gap:9px}
+    .suggestTop b{font-size:12px}.tag{color:#795b2c;font:700 8px Arial,sans-serif;text-transform:uppercase;letter-spacing:.08em;white-space:nowrap}
+    .suggestion p{margin:3px 0 0;color:var(--muted);font:9px/1.35 Arial,sans-serif}
+    .suggestion button{margin-top:6px;padding:5px 7px;border:1px solid #a99a83;background:transparent;color:#66583f}
+    .suggestion button.added{border-color:#59775f;background:#dce8dd;color:#3f6347}
+    .relatedRoots{display:flex;align-items:center;gap:5px;flex-wrap:wrap;margin:8px 0 2px;color:#756a58;font:700 8px Arial,sans-serif;text-transform:uppercase;letter-spacing:.06em}
+    .relatedRoots b{margin-right:2px;color:#554933}
+    .rootChip{padding:4px 6px;border:1px solid #b9aa8e;background:#eee6d8;color:#6d5635}
+    .crGroup{margin-top:9px;border-top:1px solid #b8aa92}
+    .crHead{display:flex;justify-content:space-between;gap:8px;padding:7px 0 2px;color:#72572f;font:700 8px Arial,sans-serif;text-transform:uppercase;letter-spacing:.09em}
+    .crHead span:last-child{color:#7b7061;text-align:right}
+    .bestiaryDoor{margin-top:11px;padding:10px;border:1px solid #aa9a80;background:#e8e0d3}
+    .bestiaryDoor button{width:100%;min-height:35px;border:1px solid #211d18;background:#2b2822;color:#efe3cb;padding:7px}
+    .bestiaryDoor p{margin:6px 0 0;color:#6e6455;font:9px/1.4 Arial,sans-serif}
+    .rehearse{width:100%;min-height:40px;border:1px solid #191611;background:#25221d;color:#f0e2c5;padding:8px}
+    .rehearseNote{margin-top:6px;color:#756b5e;font:9px/1.4 Arial,sans-serif}
+    .toast{position:fixed;z-index:20;left:50%;top:20px;transform:translate(-50%,-12px);max-width:440px;padding:10px 13px;background:#251f19f2;border:1px solid var(--gold);color:#f1e5d1;text-align:center;font:11px/1.4 Arial,sans-serif;box-shadow:0 10px 30px #0008;opacity:0;pointer-events:none;transition:.2s}
+    .toast.show{opacity:1;transform:translate(-50%,0)}
+    @media(max-width:1120px){.app{grid-template-columns:320px minmax(430px,1fr) 320px}}
+    @media(max-width:880px){body{overflow:auto}.app{height:auto;min-height:100%;grid-template-columns:minmax(290px,42vw) minmax(500px,1fr)}.panel.right{grid-column:1/-1}.scroll{height:auto}.stage{min-height:720px}.app>.panel:first-child{height:720px}}
+  </style>
+</head>
+<body>
+<main class="app">
+  <aside class="panel">
+    <div class="scroll">
+      <header class="head">
+        <div class="eyebrow">The Forge · Workshop mock</div>
+        <h1>Build the Encounter</h1>
+        <p>The roster, battlefield, and activation plan contribute separate evidence.</p>
+      </header>
+      <section class="section">
+        <div class="kicker"><span>Party read</span><span>16 total levels</span></div>
+        <div class="party">
+          <div class="pc"><b>Caim</b><span>Level 4</span></div>
+          <div class="pc"><b>Cosmere</b><span>Level 4</span></div>
+          <div class="pc"><b>Líadan</b><span>Level 4</span></div>
+          <div class="pc"><b>Vesperian</b><span>Level 4</span></div>
+        </div>
+        <div class="selectRow"><label for="readiness">Readiness</label><select id="readiness"><option value="fresh">Fresh / well rested</option><option value="worn">Worn down</option><option value="depleted">Badly depleted</option></select></div>
+      </section>
+      <section class="section">
+        <div class="kicker"><span>Encounter intent</span><span>Optional context</span></div>
+        <div class="selectRow"><label for="objective">Objective</label><select id="objective"><option value="defeat">Defeat every foe</option><option value="breakthrough">Break through the gate</option><option value="rescue">Rescue a captive</option><option value="ritual">Stop the ritual</option></select></div>
+        <div class="selectRow"><label for="position">Position</label><select id="position"><option value="foes">Foes hold high ground</option><option value="even">No clear advantage</option><option value="party">Terrain favors party</option></select></div>
+        <div class="selectRow"><label for="surprise">Opening</label><select id="surprise"><option value="none">Neither side surprised</option><option value="party">Party has surprise</option><option value="foes">Foes have surprise</option></select></div>
+      </section>
+      <section class="section">
+        <div class="kicker"><span>Authored groups</span><span>7 enemies</span></div>
+        <div class="group">
+          <div class="groupHead"><i class="dot"></i><span class="groupName">Gate Watch</span><span class="groupState active">Opening</span></div>
+          <div class="groupBody"><div class="groupLine"><span>4 Goblins · 2 Orcs</span><b>CR total 2</b></div><div class="groupLine"><span>Approach + Lower Court</span><span>6 actions</span></div></div>
+        </div>
+        <div class="group">
+          <div class="groupHead"><i class="dot"></i><span class="groupName">Bugbear Captain</span><span class="groupState">Waiting</span></div>
+          <div class="groupBody"><div class="groupLine"><span>1 Bugbear</span><b>CR total 1</b></div><div class="groupLine"><span>Summit Sanctuary</span><span>DM activates</span></div></div>
+        </div>
+        <div class="statusNote">Opening wave and full roster are deliberately shown separately. A waiting group is not treated as six more seconds of immediate pressure.</div>
+      </section>
+      <section class="section">
+        <div class="kicker"><span>Threat view</span></div>
+        <div class="toggle" id="threatToggle"><button class="on" data-threat="opening">Opening wave</button><button data-threat="full">Full roster</button></div>
+        <p class="copy"><b>This changes the arithmetic window, not the authored encounter.</b> Activation remains under Encounter Regions.</p>
+      </section>
+    </div>
+  </aside>
+
+  <section class="stage">
+    <canvas id="map" aria-label="Temple Terraces threat analysis mock"></canvas>
+    <div class="mast"><b>Temple Terraces</b><span>Goblinoid gate raid · top-down read</span></div>
+    <div class="mockBadge">Standalone interaction mock</div>
+    <div class="mapCard">
+      <div><b id="mapReadTitle">Opening pressure: six enemy turns</b><span id="mapReadCopy">The Gate Watch begins active below the party. The Bugbear Captain is deployed but does not join initiative until the DM activates it.</span></div>
+      <button id="mapView">Show full roster</button>
+    </div>
+  </section>
+
+  <aside class="panel right">
+    <div class="scroll">
+      <header class="head">
+        <div class="eyebrow">Encounter Read</div>
+        <h1 id="headline">Easy opening · Hard overall</h1>
+        <p>A fast numerical boundary, followed by the reasons this battlefield may play differently.</p>
+      </header>
+      <section class="section">
+        <div class="readHero">
+          <div class="heroTop"><div><div class="heroLabel" id="heroLabel">Opening wave</div><div class="heroVerdict" id="heroVerdict">Easy by XP</div></div><span class="heroMode" id="heroMode">Within CR benchmark</span></div>
+          <div class="heroWhy" id="heroWhy">800 adjusted XP. Total monster CR 2 is below the party's potential-deadly benchmark of 4.</div>
+          <div class="meter"><i></i><i></i><i></i><i></i><span class="marker" id="marker"></span></div>
+          <div class="meterLabels"><span>Easy</span><span>Medium</span><span>Hard</span><span>Deadly</span></div>
+          <div class="facts"><div class="fact"><b id="crFact">2 / 4</b><span>CR / benchmark</span></div><div class="fact"><b id="xpFact">800</b><span>Adjusted XP</span></div><div class="fact"><b id="actionFact">6 : 4</b><span>Enemy : party</span></div></div>
+        </div>
+        <p class="copy">The meter is the familiar 2014 XP view. The CR line is shown beside it; Forge does not blend both into a false precision score.</p>
+      </section>
+      <section class="section">
+        <div class="kicker"><span>Why this may play differently</span><span id="warningCount">3 reads</span></div>
+        <div id="warnings"></div>
+      </section>
+      <section class="section">
+        <div class="kicker"><span>Encounter suggestions</span><span id="suggestModeRead">Related to roster</span></div>
+        <div class="toggle" id="suggestToggle"><button class="on" data-suggest="related">Related enemies</button><button data-suggest="any">Any creature</button></div>
+        <div class="relatedRoots" id="relatedRoots"><b>Based on picks</b><span class="rootChip">Goblin</span><span class="rootChip">Orc</span><span class="rootChip">Bugbear</span></div>
+        <div id="suggestions"></div>
+        <p class="copy">Suggestions are grouped by CR and show how one added creature changes the current threat read. Trying one remains a private what-if.</p>
+        <div class="bestiaryDoor"><button id="fullBestiary">Browse full Bestiary</button><p>Every available monster remains searchable here. Related and CR-organized suggestions are shortcuts, not filters on the Bestiary.</p></div>
+      </section>
+      <section class="section">
+        <div class="kicker"><span>Disposable rehearsal</span><span>Next architecture</span></div>
+        <button class="rehearse" id="rehearse">Preview rehearsal handoff</button>
+        <div class="rehearseNote">Would clone this exact map, roster, positions, visibility, and activation rules. The result would report rounds, damage, downs, and resources—not a fabricated win percentage.</div>
+      </section>
+    </div>
+  </aside>
+</main>
+<div class="toast" id="toast"></div>
+
+<script>
+(function(){
+  "use strict";
+  var threat="opening",suggestMode="related",toastTimer=null;
+  var canvas=document.getElementById("map"),ctx=canvas.getContext("2d"),cell=34,ox=0,oy=0;
+  var thresholds={easy:500,medium:1000,hard:1500,deadly:2000};
+  var scenes={
+    opening:{label:"Opening wave",cr:2,xp:800,baseXp:400,monsters:6,actions:6,verdict:"Easy by XP",mode:"Within CR benchmark",title:"Opening pressure: six enemy turns",copy:"The Gate Watch begins active below the party. The Bugbear Captain is deployed but does not join initiative until the DM activates it."},
+    full:{label:"Full roster",cr:3,xp:1500,baseXp:600,monsters:7,actions:7,verdict:"Hard by XP",mode:"Within CR benchmark",title:"Full roster: seven enemies",copy:"If every authored group contributes, the monster-count multiplier raises the encounter to the Hard threshold. The activation plan still determines whether that pressure arrives together."}
+  };
+  var suggestions={
+    related:[
+      {name:"Hobgoblin",cr:"1/2",xp:100,role:"defender",why:"Related to Goblin and Bugbear · disciplined goblinoid front line."},
+      {name:"Worg",cr:"1/2",xp:100,role:"skirmisher",why:"Related to Goblin · traditional mount and hunting companion."},
+      {name:"Goblin Boss",cr:"1",xp:200,role:"leader",why:"Related to Goblin · command role for the existing gate watch."}
+    ],
+    any:[
+      {name:"Dire Wolf",cr:"1",xp:200,role:"controller",why:"Trip pressure and mobility; use any campaign relationship that fits."},
+      {name:"Ogre",cr:"2",xp:450,role:"bruiser",why:"A heavier damage-and-HP profile; plausible as hired muscle or an independent threat."},
+      {name:"Human Veteran",cr:"3",xp:700,role:"leader",why:"A mechanical match when the story supports a mercenary, rival, or temporary alliance."}
+    ]
+  };
+  var regions=[
+    {name:"APPROACH · 0 FT",x:4,y:13,w:14,h:3,color:"#71856a"},
+    {name:"LOWER COURT · 5 FT",x:2,y:9,w:18,h:4,color:"#83906e"},
+    {name:"UPPER COURT · 10 FT",x:5,y:5,w:12,h:4,color:"#8d9876"},
+    {name:"SUMMIT · 15 FT",x:8,y:2,w:6,h:3,color:"#a29a78"}
+  ];
+  var stairs=[[10,13],[10,12],[10,11],[10,9],[10,8],[10,7],[10,5],[10,4],[10,3]];
+  var tokens={party:[[9,14,"C"],[10,14,"V"],[11,14,"L"],[10,15,"R"]],watch:[[7,11,"G"],[9,10,"G"],[11,10,"G"],[13,11,"G"],[8,9,"O"],[14,9,"O"]],captain:[[10,3,"B"]]};
+
+  function shade(hex,amount){var n=parseInt(hex.slice(1),16),r=Math.max(0,Math.min(255,(n>>16)+amount)),g=Math.max(0,Math.min(255,((n>>8)&255)+amount)),b=Math.max(0,Math.min(255,(n&255)+amount));return"rgb("+r+","+g+","+b+")";}
+  function difficulty(xp){if(xp>=thresholds.deadly)return"Deadly";if(xp>=thresholds.hard)return"Hard";if(xp>=thresholds.medium)return"Medium";return"Easy";}
+  function encounterMultiplier(count){if(count<=1)return 1;if(count===2)return 1.5;if(count<=6)return 2;if(count<=10)return 2.5;if(count<=14)return 3;return 4;}
+  function suggestionImpact(item){var s=scene(),adjusted=Math.round((s.baseXp+item.xp)*encounterMultiplier(s.monsters+1));return{xp:adjusted,label:difficulty(adjusted)};}
+  function qualitativeWarnings(){
+    var out=[];
+    if(scene().actions>4)out.push({tone:"harder",title:"Enemies win the action count",copy:scene().actions+" active enemy turns against four party turns. The XP multiplier notices this even though raw CR does not."});
+    if(document.getElementById("position").value==="foes")out.push({tone:"harder",title:"Foes own elevation and approach lanes",copy:"The authored map places enemy positions above the party with a constrained ascent."});
+    if(document.getElementById("position").value==="party")out.push({tone:"easier",title:"Terrain favors the party",copy:"Cover, movement lanes, or elevation give the characters the positional advantage."});
+    var ready=document.getElementById("readiness").value;
+    if(ready==="fresh")out.push({tone:"easier",title:"The party begins fresh",copy:"Full hit points and class resources make the numerical boundary more forgiving."});
+    if(ready==="worn")out.push({tone:"harder",title:"The party is worn down",copy:"Missing hit points or class resources raise the practical danger without changing monster CR."});
+    if(ready==="depleted")out.push({tone:"harder",title:"The party is badly depleted",copy:"A nominally fair roster may become lethal when recovery and defensive resources are gone."});
+    var opening=document.getElementById("surprise").value;
+    if(opening==="party")out.push({tone:"easier",title:"The party controls the opening",copy:"Surprise can remove the enemy's first opportunity to exploit its action advantage."});
+    if(opening==="foes")out.push({tone:"harder",title:"The foes control the opening",copy:"Enemy surprise compounds the action-count and high-ground pressure."});
+    var objective=document.getElementById("objective").value;
+    if(objective!=="defeat")out.push({tone:"easier",title:"Victory does not require clearing the map",copy:{breakthrough:"The party can win by crossing the gate line.",rescue:"The party can win by reaching the captive and escaping.",ritual:"The party can win by interrupting the ritual."}[objective]+" Forge should judge that objective separately from total enemy HP."});
+    if(threat==="opening")out.push({tone:"easier",title:"The captain is a later pressure spike",copy:"Encounter Regions holds the bugbear's initiative seat until the DM activates the summit group."});
+    return out.slice(0,5);
+  }
+  function scene(){return scenes[threat];}
+  function setThreat(next){threat=next;document.querySelectorAll("[data-threat]").forEach(function(button){button.classList.toggle("on",button.dataset.threat===next);});render();renderSuggestions();}
+  function markerPosition(xp){var max=thresholds.deadly*1.25;return Math.max(2,Math.min(98,xp/max*100));}
+  function render(){
+    var s=scene(),diff=difficulty(s.xp),other=threat==="opening"?scenes.full:scenes.opening;
+    document.getElementById("heroLabel").textContent=s.label;
+    document.getElementById("heroVerdict").textContent=s.verdict;
+    document.getElementById("heroMode").textContent=s.mode;
+    document.getElementById("heroWhy").textContent=s.xp.toLocaleString()+" adjusted XP. Total monster CR "+s.cr+" is below the party's potential-deadly benchmark of 4.";
+    document.getElementById("marker").style.left=markerPosition(s.xp)+"%";
+    document.getElementById("crFact").textContent=s.cr+" / 4";
+    document.getElementById("xpFact").textContent=s.xp.toLocaleString();
+    document.getElementById("actionFact").textContent=s.actions+" : 4";
+    document.getElementById("headline").textContent=threat==="opening"?diff+" opening · "+difficulty(other.xp)+" overall":diff+" overall · "+difficulty(other.xp)+" opening";
+    document.getElementById("mapReadTitle").textContent=s.title;
+    document.getElementById("mapReadCopy").textContent=s.copy;
+    document.getElementById("mapView").textContent=threat==="opening"?"Show full roster":"Show opening wave";
+    var warnings=qualitativeWarnings();
+    document.getElementById("warningCount").textContent=warnings.length+" reads";
+    document.getElementById("warnings").innerHTML=warnings.map(function(w){return'<div class="warning '+w.tone+'"><i></i><div><b>'+w.title+'</b><span>'+w.copy+'</span></div></div>';}).join("");
+    draw();
+  }
+  function renderSuggestions(){
+    document.getElementById("suggestModeRead").textContent=suggestMode==="related"?"Related to roster":"All creatures by CR";
+    document.querySelectorAll("[data-suggest]").forEach(function(button){button.classList.toggle("on",button.dataset.suggest===suggestMode);});
+    document.getElementById("relatedRoots").style.display=suggestMode==="related"?"flex":"none";
+    var groups=[];
+    suggestions[suggestMode].forEach(function(item){var group=groups.filter(function(row){return row.cr===item.cr;})[0];if(!group){group={cr:item.cr,items:[]};groups.push(group);}group.items.push(item);});
+    document.getElementById("suggestions").innerHTML=groups.map(function(group){var impact=suggestionImpact(group.items[0]);return'<section class="crGroup"><div class="crHead"><span>CR '+group.cr+'</span><span>+1 reads '+impact.label+' · '+impact.xp.toLocaleString()+' XP</span></div>'+group.items.map(function(item){return'<article class="suggestion"><div class="suggestTop"><b>'+item.name+'</b><span class="tag">'+item.role+'</span></div><p>'+item.why+'</p><button data-try="'+item.name+'">Try in read</button></article>';}).join("")+'</section>';}).join("");
+    document.querySelectorAll("[data-try]").forEach(function(button){button.onclick=function(){button.classList.add("added");button.textContent="Previewed";showToast(button.dataset.try+" added only to a private what-if. The authored roster remains unchanged.");};});
+  }
+  function showToast(text){var el=document.getElementById("toast");el.textContent=text;el.classList.add("show");clearTimeout(toastTimer);toastTimer=setTimeout(function(){el.classList.remove("show");},2800);}
+  function resize(){var dpr=Math.min(2,window.devicePixelRatio||1),rect=canvas.getBoundingClientRect();canvas.width=Math.round(rect.width*dpr);canvas.height=Math.round(rect.height*dpr);ctx.setTransform(dpr,0,0,dpr,0,0);cell=Math.max(22,Math.min(38,Math.floor(Math.min(rect.width/25,rect.height/21))));ox=Math.round((rect.width-22*cell)/2);oy=Math.round((rect.height-18*cell)/2)-5;draw();}
+  function rect(c,r){return{x:ox+c*cell,y:oy+r*cell,w:cell,h:cell};}
+  function drawToken(entry,color,waiting){var q=rect(entry[0],entry[1]),x=q.x+q.w/2,y=q.y+q.h/2;ctx.save();ctx.fillStyle="#181510";ctx.beginPath();ctx.arc(x,y,cell*.29+2,0,Math.PI*2);ctx.fill();ctx.globalAlpha=waiting ? .58 : 1;ctx.fillStyle=color;ctx.beginPath();ctx.arc(x,y,cell*.29,0,Math.PI*2);ctx.fill();ctx.globalAlpha=1;if(waiting){ctx.setLineDash([3,2]);ctx.strokeStyle="#ead9b8";ctx.lineWidth=2;ctx.stroke();}ctx.fillStyle="#17130e";ctx.font="700 "+Math.max(8,cell*.27)+"px Arial";ctx.textAlign="center";ctx.textBaseline="middle";ctx.fillText(entry[2],x,y+.5);ctx.restore();}
+  function draw(){
+    var bounds=canvas.getBoundingClientRect();ctx.clearRect(0,0,bounds.width,bounds.height);
+    ctx.save();ctx.shadowColor="#0008";ctx.shadowBlur=24;ctx.shadowOffsetY=12;ctx.fillStyle="#29352e";ctx.fillRect(ox+cell,oy+cell,20*cell,16*cell);ctx.restore();
+    regions.forEach(function(reg){for(var r=reg.y;r<reg.y+reg.h;r++)for(var c=reg.x;c<reg.x+reg.w;c++){var q=rect(c,r);ctx.fillStyle=shade(reg.color,((c+r)&1)?-7:4);ctx.fillRect(q.x,q.y,q.w,q.h);ctx.strokeStyle="#e9dfbd22";ctx.strokeRect(q.x+.5,q.y+.5,q.w-1,q.h-1);}var label=rect(reg.x,reg.y);ctx.fillStyle="#f4ebcfbb";ctx.font="700 9px Arial";ctx.fillText(reg.name,label.x+5,label.y+13);});
+    stairs.forEach(function(s){var q=rect(s[0],s[1]);ctx.fillStyle="#cbbf9b";ctx.fillRect(q.x+3,q.y+2,q.w-6,q.h-4);ctx.strokeStyle="#75694f";for(var n=1;n<4;n++){ctx.beginPath();ctx.moveTo(q.x+5,q.y+n*q.h/4);ctx.lineTo(q.x+q.w-5,q.y+n*q.h/4);ctx.stroke();}});
+    tokens.party.forEach(function(t){drawToken(t,"#c99a38",false);});tokens.watch.forEach(function(t){drawToken(t,"#d57a6c",false);});tokens.captain.forEach(function(t){drawToken(t,"#c7695d",threat==="opening");});
+    ctx.save();var cap=rect(8,2);ctx.strokeStyle=threat==="opening"?"#dfbd76":"#d57a6c";ctx.lineWidth=2;ctx.setLineDash(threat==="opening"?[7,5]:[]);ctx.strokeRect(cap.x+2,cap.y+2,6*cell-4,3*cell-4);ctx.fillStyle="#f0dfbe";ctx.font="700 8px Arial";ctx.fillText(threat==="opening"?"WAITING GROUP":"COUNTED IN FULL READ",cap.x+6,cap.y+3*cell-8);ctx.restore();
+  }
+
+  document.getElementById("threatToggle").onclick=function(event){var button=event.target.closest("[data-threat]");if(button)setThreat(button.dataset.threat);};
+  document.getElementById("mapView").onclick=function(){setThreat(threat==="opening"?"full":"opening");};
+  ["readiness","objective","position","surprise"].forEach(function(id){document.getElementById(id).onchange=render;});
+  document.getElementById("suggestToggle").onclick=function(event){var button=event.target.closest("[data-suggest]");if(!button)return;suggestMode=button.dataset.suggest;renderSuggestions();};
+  document.getElementById("fullBestiary").onclick=function(){showToast("The full Bestiary remains the browse-everything source. Suggestions only provide faster related and CR-organized paths into it.");};
+  document.getElementById("rehearse").onclick=function(){showToast("Rehearsal would open a disposable copy and return one observed outcome—not odds. No campaign state would be written.");};
+  window.addEventListener("resize",resize);
+  renderSuggestions();render();resize();
+})();
+</script>
+</body>
+</html>

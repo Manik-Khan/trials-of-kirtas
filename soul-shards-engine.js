@@ -51,6 +51,34 @@
   }
 
   // ── feature collection (origin-stamped) ─────────────────────────────────────
+  function collectLinkedFeatures(entries, out) {
+    if (!entries) return;
+    if (Array.isArray(entries)) { entries.forEach(function (e) { collectLinkedFeatures(e, out); }); return; }
+    if (typeof entries !== 'object') return;
+    if (entries._featureRef && entries.name) out.push(entries);
+    if (entries.entries) collectLinkedFeatures(entries.entries, out);
+    if (entries.items) collectLinkedFeatures(entries.items, out);
+  }
+
+  function appendLinkedFeatures(out, parent, model, subclass) {
+    var linked = [];
+    collectLinkedFeatures(parent.entries, linked);
+    linked.forEach(function (f) {
+      var originType = f._featureRef === 'subclass' ? 'subclass' : 'class';
+      var originName = originType === 'subclass' && subclass ? subclass.name : model.name;
+      var featureLevel = f.level || parent.level;
+      var duplicate = out.some(function (x) {
+        return x.name === f.name && x.level === featureLevel && x.originType === originType;
+      });
+      if (duplicate) return;
+      out.push({
+        level: featureLevel, name: f.name, source: f.source || parent.source,
+        originType: originType, origin: originType + ':' + originName,
+        entries: f.entries || [], unresolved: false,
+      });
+    });
+  }
+
   // Walks 1..N, taking class features always and subclass features only once the
   // subclass is unlocked AND chosen. Every entry carries where it came from — the
   // seed of the provenance model (race/feat origins join later).
@@ -58,19 +86,23 @@
     var out = [];
     for (var L = 1; L <= level; L++) {
       (model.featuresByLevel[L] || []).forEach(function (f) {
-        out.push({
+        var granted = {
           level: L, name: f.name, source: f.source,
           originType: 'class', origin: 'class:' + model.name,
           gainSubclass: !!f.gainSubclass, entries: f.entries, unresolved: f.unresolved,
-        });
+        };
+        out.push(granted);
+        appendLinkedFeatures(out, granted, model, subclass);
       });
       if (subclass) {
         (subclass.featuresByLevel[L] || []).forEach(function (f) {
-          out.push({
+          var granted = {
             level: L, name: f.name, source: f.source,
             originType: 'subclass', origin: 'subclass:' + subclass.name,
             entries: f.entries, unresolved: f.unresolved,
-          });
+          };
+          out.push(granted);
+          appendLinkedFeatures(out, granted, model, subclass);
         });
       }
     }

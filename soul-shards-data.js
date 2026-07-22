@@ -72,13 +72,13 @@
         var p = parseSubclassFeatureRef(entries.subclassFeature, srcDefault);
         var obj = scfList.find(function (f) { return f.name === p.name && f.subclassShortName === p.subclassShort && f.level === p.level && (!p.subclassSource || f.source === p.subclassSource); })
                || scfList.find(function (f) { return f.name === p.name && f.subclassShortName === p.subclassShort && f.level === p.level; });
-        return obj ? { type: 'entries', name: obj.name, entries: resolveNestedRefs(obj.entries || [], scfList, cfList, srcDefault, depth + 1) } : entries;
+        return obj ? { type: 'entries', name: obj.name, source: obj.source, level: obj.level, _featureRef: 'subclass', entries: resolveNestedRefs(obj.entries || [], scfList, cfList, srcDefault, depth + 1) } : entries;
       }
       if (entries.type === 'refClassFeature' && entries.classFeature) {
         var q2 = parseClassFeatureRef(entries.classFeature, srcDefault);
         var cobj = cfList.find(function (f) { return f.name === q2.name && f.level === q2.level && (!q2.source || f.source === q2.source); })
                 || cfList.find(function (f) { return f.name === q2.name && f.level === q2.level; });
-        return cobj ? { type: 'entries', name: cobj.name, entries: resolveNestedRefs(cobj.entries || [], scfList, cfList, srcDefault, depth + 1) } : entries;
+        return cobj ? { type: 'entries', name: cobj.name, source: cobj.source, level: cobj.level, _featureRef: 'class', entries: resolveNestedRefs(cobj.entries || [], scfList, cfList, srcDefault, depth + 1) } : entries;
       }
       if (Array.isArray(entries.entries)) {
         var clone = Object.assign({}, entries);
@@ -509,6 +509,11 @@
     const sz = parseSize(resolved.size);
     const subraces = (subraceEntries || []).map(sr => {
       const sab = parseAbility(sr.ability);
+      const overwrites = (sr.entries || []).reduce((out, e) => {
+        const name = e && e.data && e.data.overwrite;
+        if (name && out.indexOf(name) === -1) out.push(name);
+        return out;
+      }, []);
       return {
         name: sr.name || null, label: sr.name || 'Standard', source: sr.source,
         abilityBonuses: sab.fixed, abilityChoices: sab.choices,
@@ -517,6 +522,8 @@
         resist: sr.resist || [], traits: collectTraits(sr.entries, sr.source),
         skillProficiencies: parseProfChoose(sr.skillProficiencies),
         additionalSpells: sr.additionalSpells || null,
+        overwrites,
+        replacesAdditionalSpells: !!(sr.additionalSpells && overwrites.length),
       };
     });
     return {

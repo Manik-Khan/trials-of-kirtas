@@ -551,7 +551,7 @@
 <!-- shared site nav (theme switcher + party menu). Mounts into #nav-root and gates
      the page on a Supabase session (nav.js redirects to login when signed out). -->
 <div id="nav-root"></div>
-<script src="nav.js?v=um1"></script>
+<script src="nav.js?v=caim1"></script>
 <svg class="sp-defs" aria-hidden="true" style="position:absolute;width:0;height:0"><defs><filter id="rough" x="-15%" y="-40%" width="130%" height="180%"><feTurbulence type="fractalNoise" baseFrequency="0.02 0.05" numOctaves="2" seed="4" result="r"/><feDisplacementMap in="SourceGraphic" in2="r" scale="4"/></filter></defs></svg>
 <div class="app">
 
@@ -613,11 +613,11 @@
 </div>
 
 <!-- engine + data + write-path modules (deployed alongside this page) -->
-<script src="soul-shards-data.js?v=sf1"></script>
-<script src="soul-shards-engine.js?v=sf1"></script>
+<script src="soul-shards-data.js?v=caim1"></script>
+<script src="soul-shards-engine.js?v=caim1"></script>
 <script src="soul-shards-spellcasting.js?v=sf1"></script>
 <script src="armor-ac.js?v=um1"></script>
-<script src="soul-shards-derive.js?v=um1"></script>
+<script src="soul-shards-derive.js?v=caim1"></script>
 <script src="character-data.js?v=sf1"></script>
 <script src="homebrew-races.js?v=sf1"></script>
 <script src="soul-shards-persona.js?v=sf1"></script>
@@ -2405,21 +2405,23 @@ var SpellsUI = (function () {
   // CHOICE (Astral Elf's dancing lights / light / sacred flame), not three grants.
   function spellSourcesFor(race){
     var srcs = [];
-    if (race && race.additionalSpells) srcs.push({ id:'race', label:raceName(), blocks: Array.isArray(race.additionalSpells) ? race.additionalSpells : [race.additionalSpells] });
+    var sr = null;
     if (race && draft.subrace){
-      var sr = (race.subraces || []).filter(function(s){ return s.name === draft.subrace.n || s.label === draft.subrace.n; })[0];
-      if (sr && sr.additionalSpells) srcs.push({ id:'subrace', label:(draft.subrace.n || 'Subrace'), blocks: Array.isArray(sr.additionalSpells) ? sr.additionalSpells : [sr.additionalSpells] });
+      sr = (race.subraces || []).filter(function(s){ return s.name === draft.subrace.n || s.label === draft.subrace.n; })[0];
     }
+    if (race && race.additionalSpells && !(sr && sr.replacesAdditionalSpells)) srcs.push({ id:'race', label:raceName(), blocks: Array.isArray(race.additionalSpells) ? race.additionalSpells : [race.additionalSpells] });
+    if (sr && sr.additionalSpells) srcs.push({ id:'subrace', label:(draft.subrace.n || 'Subrace'), blocks: Array.isArray(sr.additionalSpells) ? sr.additionalSpells : [sr.additionalSpells] });
     return srcs;
   }
   function raceSpellPick(id, n){ var p = (draft.raceSpellPicks || {})[id]; p = (p == null ? 0 : p); return (p >= 0 && p < n) ? p : 0; }
   function collectAdditional(race){
     var out = [];
-    if (race && race.additionalSpells) out = out.concat(Array.isArray(race.additionalSpells) ? race.additionalSpells : [race.additionalSpells]);
+    var sr = null;
     if (race && draft.subrace){
-      var sr = (race.subraces || []).filter(function(s){ return s.name === draft.subrace.n || s.label === draft.subrace.n; })[0];
-      if (sr && sr.additionalSpells) out = out.concat(Array.isArray(sr.additionalSpells) ? sr.additionalSpells : [sr.additionalSpells]);
+      sr = (race.subraces || []).filter(function(s){ return s.name === draft.subrace.n || s.label === draft.subrace.n; })[0];
     }
+    if (race && race.additionalSpells && !(sr && sr.replacesAdditionalSpells)) out = out.concat(Array.isArray(race.additionalSpells) ? race.additionalSpells : [race.additionalSpells]);
+    if (sr && sr.additionalSpells) out = out.concat(Array.isArray(sr.additionalSpells) ? sr.additionalSpells : [sr.additionalSpells]);
     return out;
   }
   function loadGrantsFrom(race){
