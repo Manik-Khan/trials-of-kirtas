@@ -1122,6 +1122,7 @@ var SHEET_TEMPLATE = `<main class="tok-sheet">
             <button class="rmod" type="button" data-rmod="bless">Bless</button>
           </div>
           <div class="actionlist" data-list="actions"></div>
+          <div class="actionresult" data-list="actionResult"><div class="rcard-empty">Tap an action to roll &mdash; the result lands here, and on the feed.</div></div>
         </div>
       </div>
 

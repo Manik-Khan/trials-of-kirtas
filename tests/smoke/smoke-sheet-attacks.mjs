@@ -49,6 +49,9 @@ const mockSB = {
   }),
 };
 window.__tok = { sb: mockSB };
+window.SoulShardsData = {
+  loadSpellMeta: (names) => Promise.resolve(names.map(name => ({ name, entries: ['Smoke-test spell detail.'] }))),
+};
 
 const { mountSheet } = await import('../../sheet-mount.js');
 const S = window.__sheet;
@@ -186,13 +189,16 @@ const C = await mount(cosmere); await settle();
   ok(!adv.classList.contains('on'), 'check: toggle consumed after a check');
 }
 
-// ── BRIDGE: tapping a damage cantrip in the Spellcasting list rolls its action ──
+// ── BRIDGE: opening a cantrip and pressing Cast rolls its matching action ──
 {
   feedLog = [];
   const eb = [...C.querySelectorAll('.spell[data-spell]')].find(e => e.getAttribute('data-spell') === 'Eldritch Blast');
   ok(eb, 'bridge: Eldritch Blast cantrip present in Spellcasting');
   setDice([rq(15, 20), rq(3, 20), rq(7, 10)]);   // kept 15 +5 = 20, dmg [7]
   fire(eb, 'click'); await settle();
+  const cast = C.querySelector('[data-spell-drawer="Eldritch Blast"] [data-spell-go]');
+  ok(cast, 'bridge: Eldritch Blast drawer offers Cast');
+  fire(cast, 'click'); await settle();
   ok(feedLog.length === 1, 'bridge: one feed post from the cantrip tap');
   ok(/^Eldritch Blast:/.test(feedLog[0].body) && !/cast/.test(feedLog[0].body), 'bridge: damage cantrip ROLLS (not "cast")');
   ok(/= 20\b/.test(feedLog[0].body) && /Dmg/.test(feedLog[0].body), 'bridge: body carries to-hit + damage');
@@ -202,7 +208,10 @@ const C = await mount(cosmere); await settle();
   const mi = [...C.querySelectorAll('.spell[data-spell]')].find(e => e.getAttribute('data-spell') === 'Minor Illusion');
   ok(mi, 'bridge: Minor Illusion cantrip present');
   fire(mi, 'click'); await settle();
-  ok(feedLog.length === 1 && /cast \u00B7 cantrip/.test(feedLog[0].body), 'bridge: utility cantrip still announces (no roll)');
+  const cast = C.querySelector('[data-spell-drawer="Minor Illusion"] [data-spell-go]');
+  ok(cast, 'bridge: Minor Illusion drawer offers Cast');
+  fire(cast, 'click'); await settle();
+  ok(feedLog.length === 1 && /^Minor Illusion:/.test(feedLog[0].body) && !/Dmg/.test(feedLog[0].body), 'bridge: utility cantrip still announces (no roll)');
 }
 
 Math.random = realGlobal; window.Math.random = realWin;
