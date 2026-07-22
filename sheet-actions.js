@@ -30,7 +30,7 @@
 
 import { assembleActions, meleeWeaponOptions } from './weapon-actions.js';
 import { spellDetailHTML, feedSummary } from './spell-detail.js';
-import { addSpellCorrection, classNamesOf, closeCorrection, correctionLedger, spellExists } from './sheet-corrections.js?v=ca1';
+import { addFeatureCorrection, addSpellCorrection, addSuppressionCorrection, classNamesOf, closeCorrection, correctionLedger, spellExists } from './sheet-corrections.js?v=sup1';
 
 // ── ResourceDerive resolver (browser global, set by resource-derive.js) ──
 function rd() {
@@ -502,6 +502,15 @@ export function wireInspiration({ root, characterData, key, depsReady } = {}) {
     return names.map(function (n) { return '<option' + (n === selected ? ' selected' : '') + '>' + esc(n) + '</option>'; }).join('')
       + '<option' + (selected === 'Manual' ? ' selected' : '') + '>Manual</option>';
   }
+  function featureSourceOptions(selected) {
+    var names = classNamesOf(structural);
+    [structural.subclass, structural.race, 'Manual'].forEach(function (n) { if (n && names.indexOf(n) < 0) names.push(n); });
+    return names.map(function (n) { return '<option' + (n === selected ? ' selected' : '') + '>' + esc(n) + '</option>'; }).join('');
+  }
+  function displaySource(source) {
+    source = String(source || 'Generated build'); var at = source.indexOf(':');
+    return at >= 0 ? source.slice(at + 1) : source;
+  }
   async function currentCorrectionActor() {
     try {
       var tok = (typeof window !== 'undefined') && window.__tok;
@@ -568,20 +577,75 @@ export function wireInspiration({ root, characterData, key, depsReady } = {}) {
     check.addEventListener('click', runCheck);
     input.addEventListener('keydown', function (e) { if (e.key === 'Enter') { e.preventDefault(); runCheck(); } });
   }
+  function openFeatureAdd() {
+    if (!corrEditable || !doc) return;
+    var body = corrShell('Add a missing feature', 'Character correction');
+    body.innerHTML = '<p class="corr-intro">Add a class feature, ancestry trait, feat benefit, or table-granted feature that automation missed. This remains reviewable and survives reforges.</p>'
+      + '<label><span class="corr-label">Feature name</span><input class="corr-input" data-corr-feature-name maxlength="80" placeholder="Flurry of Blows"></label>'
+      + '<label><span class="corr-label">Description</span><textarea class="corr-input corr-note" data-corr-feature-desc placeholder="What does this feature do?"></textarea></label>'
+      + '<div class="corr-grid"><label><span class="corr-label">Source</span><select class="corr-select" data-corr-feature-source>' + featureSourceOptions('Manual') + '</select></label>'
+      + '<label><span class="corr-label">Why is this being added?</span><select class="corr-select" data-corr-reason><option>Missing automation or rules data</option><option>Granted by class or subclass</option><option>Species or ancestry trait</option><option>Feat or item benefit</option><option>House rule</option><option>Other</option></select></label></div>'
+      + '<label><span class="corr-label">Table note <i>optional</i></span><textarea class="corr-input corr-note" data-corr-note placeholder="What should the table know later?"></textarea></label>'
+      + '<div class="corr-verdict warn"><h4>ToK will not block this addition</h4><p>The feature catalog is not a complete validator yet. The entry will be marked for review with your explanation attached.</p></div>'
+      + '<div class="corr-actions"><button class="corr-btn ghost" type="button" data-corr-close>Cancel</button><button class="corr-btn primary" type="button" data-corr-feature-save>Add with correction</button></div>';
+    var name = body.querySelector('[data-corr-feature-name]'); if (name) name.focus();
+    body.querySelector('[data-corr-feature-save]').addEventListener('click', async function () {
+      var featureName = String(name && name.value || '').trim(); if (!featureName || saving) { if (name) name.focus(); return; }
+      var prev = structural;
+      structural = addFeatureCorrection(structural, {
+        name: featureName,
+        desc: body.querySelector('[data-corr-feature-desc]').value.trim(),
+        source: body.querySelector('[data-corr-feature-source]').value,
+        reason: body.querySelector('[data-corr-reason]').value,
+        note: body.querySelector('[data-corr-note]').value.trim(),
+        actor: await currentCorrectionActor(), status: 'unreviewed',
+        validator: { result: 'unverified', rulesVersion: '5etools 2014', engine: 'sheet-corrections-v2', checkedAt: new Date().toISOString() }
+      });
+      closeCorrOverlay(); refresh(); persistStructural(prev);
+    });
+  }
+  function openSuppression(kind, name, source) {
+    if (!corrEditable || !doc || !name) return;
+    var label = kind === 'feature' ? 'feature' : 'spell';
+    var body = corrShell('Hide generated ' + label, 'Manual suppression');
+    body.innerHTML = '<div class="corr-target"><b>' + esc(name) + '</b><span>' + esc(label.charAt(0).toUpperCase() + label.slice(1)) + ' · generated from ' + esc(displaySource(source)) + '</span></div>'
+      + '<div class="corr-verdict warn"><h4>Generated by the current build</h4><p>This is a warning, not a lock. The ' + label + ' will disappear from the sheet while remaining visible in the correction audit.</p></div>'
+      + '<label><span class="corr-label">Why should this be hidden?</span><select class="corr-select" data-corr-reason><option>Wrong species or subrace grant</option><option>Wrong class or subclass grant</option><option>Replaced by another rule</option><option>Table ruling</option><option>Duplicate entry</option><option>Other</option></select></label>'
+      + '<label><span class="corr-label">Table note <i>optional</i></span><textarea class="corr-input corr-note" data-corr-note placeholder="What should the table know later?"></textarea></label>'
+      + '<div class="corr-actions"><button class="corr-btn ghost" type="button" data-corr-close>Cancel</button><button class="corr-btn danger" type="button" data-corr-suppress-save>Hide with correction</button></div>';
+    var note = body.querySelector('[data-corr-note]'); if (note) note.focus();
+    body.querySelector('[data-corr-suppress-save]').addEventListener('click', async function () {
+      if (saving) return;
+      var prev = structural;
+      structural = addSuppressionCorrection(structural, {
+        kind: label, name: name, source: source,
+        reason: body.querySelector('[data-corr-reason]').value,
+        note: body.querySelector('[data-corr-note]').value.trim(),
+        actor: await currentCorrectionActor(),
+        validator: { result: 'generated', rulesVersion: 'Saved character build', engine: 'sheet-corrections-v2', checkedAt: new Date().toISOString() }
+      });
+      closeCorrOverlay(); refresh(); persistStructural(prev);
+    });
+  }
   function eventTitle(ev) {
     if (ev.kind === 'resolved') return 'Correction resolved';
     if (ev.kind === 'removed') return 'Correction removed';
-    return 'Manual spell added';
+    if (ev.kind === 'suppressed') return 'Generated entry hidden';
+    if (ev.kind === 'restored') return 'Generated entry restored';
+    return 'Manual entry added';
   }
   function openCorrectionAudit() {
     if (!doc) return;
     var body = corrShell('Character corrections', 'Audit and review');
     var ledger = correctionLedger(structural), base = baseSpellcasting();
     var active = ledger.active.map(function (c) {
-      var canResolve = c.kind === 'spell' && spellExists(base, c.name);
-      return '<article class="corr-card"><div class="corr-card-head"><div><h4>' + esc(c.name) + '</h4><span class="corr-status ' + (c.status === 'confirmed' ? 'ok' : 'warn') + '">' + (c.status === 'confirmed' ? 'Confirmed source' : 'Needs review') + '</span></div><span class="corr-kind">Active spell</span></div>'
-        + '<dl><div><dt>Source</dt><dd>' + esc(c.source || 'Manual') + '</dd></div><div><dt>Reason</dt><dd>' + esc(c.reason || '—') + '</dd></div><div><dt>Player note</dt><dd>' + esc(c.note || 'No note supplied') + '</dd></div><div><dt>Added by</dt><dd>' + esc(c.actor || 'Character editor') + '</dd></div><div><dt>Validator</dt><dd>' + esc(((c.validator || {}).result || 'unverified')) + ' · ' + esc(((c.validator || {}).rulesVersion || 'rules version unrecorded')) + '</dd></div></dl>'
-        + (corrEditable ? '<div class="corr-card-actions">' + (canResolve ? '<button class="corr-btn primary" type="button" data-corr-resolve="' + esc(c.id) + '">Resolve to generated</button>' : '') + '<button class="corr-btn danger" type="button" data-corr-remove="' + esc(c.id) + '">Remove correction</button></div>' : '') + '</article>';
+      var action = c.action || 'add', suppress = action === 'suppress';
+      var canResolve = !suppress && c.kind === 'spell' && spellExists(base, c.name);
+      var kindLabel = suppress ? ('Hidden generated ' + c.kind) : ('Active ' + c.kind);
+      var statusLabel = suppress ? 'Confirmed generated entry' : (c.status === 'confirmed' ? 'Confirmed source' : 'Needs review');
+      return '<article class="corr-card"><div class="corr-card-head"><div><h4>' + esc(c.name) + '</h4><span class="corr-status ' + (c.status === 'confirmed' ? 'ok' : 'warn') + '">' + esc(statusLabel) + '</span></div><span class="corr-kind">' + esc(kindLabel) + '</span></div>'
+        + '<dl><div><dt>Source</dt><dd>' + esc(displaySource(c.source || 'Manual')) + '</dd></div><div><dt>Reason</dt><dd>' + esc(c.reason || '—') + '</dd></div><div><dt>Player note</dt><dd>' + esc(c.note || 'No note supplied') + '</dd></div><div><dt>Changed by</dt><dd>' + esc(c.actor || 'Character editor') + '</dd></div><div><dt>Validator</dt><dd>' + esc(((c.validator || {}).result || 'unverified')) + ' · ' + esc(((c.validator || {}).rulesVersion || 'rules version unrecorded')) + '</dd></div></dl>'
+        + (corrEditable ? '<div class="corr-card-actions">' + (suppress ? '<button class="corr-btn primary" type="button" data-corr-restore="' + esc(c.id) + '">Restore to generated</button>' : ((canResolve ? '<button class="corr-btn primary" type="button" data-corr-resolve="' + esc(c.id) + '">Resolve to generated</button>' : '') + '<button class="corr-btn danger" type="button" data-corr-remove="' + esc(c.id) + '">Remove correction</button>')) + '</div>' : '') + '</article>';
     }).join('');
     var history = ledger.history.slice().reverse().map(function (ev) {
       var when = ev.at ? new Date(ev.at).toLocaleString() : 'Unknown time';
@@ -591,20 +655,25 @@ export function wireInspiration({ root, characterData, key, depsReady } = {}) {
       + (active || '<div class="corr-empty">No active corrections. Past decisions remain in the history below.</div>')
       + '<section class="corr-history"><h4>History</h4><ol>' + (history || '<li><span class="corr-event-dot"></span><div><b>No activity yet</b><p>Manual corrections and review decisions will appear here.</p></div></li>') + '</ol></section>';
     body.addEventListener('click', function (e) {
-      var rm = e.target.closest('[data-corr-remove]'), rs = e.target.closest('[data-corr-resolve]'); if (!rm && !rs) return;
-      var prev = structural, id = (rm || rs).getAttribute(rm ? 'data-corr-remove' : 'data-corr-resolve');
-      structural = closeCorrection(structural, id, rs ? 'resolved' : 'removed', rs ? 'The generated spell list now carries this spell; the manual overlay was retired.' : 'Removed from the active sheet by a character editor.');
+      var rm = e.target.closest('[data-corr-remove]'), rs = e.target.closest('[data-corr-resolve]'), rr = e.target.closest('[data-corr-restore]'); if (!rm && !rs && !rr) return;
+      var prev = structural, el = rm || rs || rr, id = el.getAttribute(rm ? 'data-corr-remove' : (rs ? 'data-corr-resolve' : 'data-corr-restore'));
+      var closeKind = rr ? 'restored' : (rs ? 'resolved' : 'removed');
+      structural = closeCorrection(structural, id, closeKind, rr ? 'Generated entry restored to the sheet by a character editor.' : (rs ? 'The generated spell list now carries this spell; the manual overlay was retired.' : 'Removed from the active sheet by a character editor.'));
       closeCorrOverlay(); refresh(); persistStructural(prev);
     });
   }
   function bindCorrections(editable) {
     corrEditable = !!editable;
-    var sec = root.querySelector('[data-sec="spells"]'); if (sec) sec.classList.toggle('corr-enabled', corrEditable);
+    ['spells', 'features'].forEach(function (name) { var sec = root.querySelector('[data-sec="' + name + '"]'); if (sec) sec.classList.toggle('corr-enabled', corrEditable); });
     root.addEventListener('click', function (e) {
-      var add = e.target.closest('[data-corr-add]'), audit = e.target.closest('[data-corr-audit]');
-      if (add) { e.stopPropagation(); openCorrectionAdd(); }
-      else if (audit) { e.stopPropagation(); openCorrectionAudit(); }
-    });
+      var suppress = e.target.closest('[data-corr-suppress]'), add = e.target.closest('[data-corr-add]'), featureAdd = e.target.closest('[data-cf-add]'), audit = e.target.closest('[data-corr-audit]');
+      if (suppress) {
+        e.preventDefault(); e.stopPropagation();
+        openSuppression(suppress.getAttribute('data-corr-suppress'), suppress.getAttribute('data-corr-name'), suppress.getAttribute('data-corr-source'));
+      } else if (add) { e.preventDefault(); e.stopPropagation(); openCorrectionAdd(); }
+      else if (featureAdd) { e.preventDefault(); e.stopPropagation(); openFeatureAdd(); }
+      else if (audit) { e.preventDefault(); e.stopPropagation(); openCorrectionAudit(); }
+    }, true);
   }
 
   // ── equipment slots: equip / unequip / attune all write item.slot / item.attuned

@@ -65,12 +65,12 @@
   // don't load these, so we inject the missing ones the first time a sheet opens.
   function ensureSheetDeps() {
     if (window.mountSheet) return Promise.resolve();
-    loadCssOnce('sheet-mount.css?v=ca1');
+    loadCssOnce('sheet-mount.css?v=sup1');
     return Promise.resolve()
       .then(function () { return window.CharacterData ? null : loadScript('character-data.js'); })
       .then(function () { return window.ResourceDerive ? null : loadScript('resource-derive.js'); })
       .then(function () { return existsScript('dice-engine.js') ? null : loadScript('dice-engine.js'); })
-      .then(function () { return window.mountSheet ? null : loadScript('sheet-mount.js?v=facets3', true); })
+      .then(function () { return window.mountSheet ? null : loadScript('sheet-mount.js?v=sup1', true); })
       .then(function () { return waitFor(function () { return !!window.mountSheet; }, 5000); });
   }
 

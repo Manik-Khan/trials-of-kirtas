@@ -1,10 +1,10 @@
 // smoke-sheet-custom-features.mjs
 // ---------------------------------------------------------------------------
-// Proves the sheet-side custom (passive) feature add / remove, end-to-end, on a
+// Proves legacy custom-feature compatibility plus audited feature additions,
 // live mountSheet with a recording save — the same harness the tracker smoke uses.
 //   • RENDER   — derived features stay read-only (no ✕); custom ones (from
 //                structural.customFeatures) render with a remove control.
-//   • ADD      — flyout → structural.customFeatures (id/name/desc), panel updates.
+//   • ADD      — correction modal → structural.corrections, panel updates.
 //   • SEPARATE — add/remove never touch structural.features (the derive's field),
 //                so a hand-added feature survives re-forging.
 //   • REMOVE   — ✕ filters the row out of customFeatures.
@@ -71,23 +71,24 @@ const panel = (c) => c.querySelector('[data-list="features"]');
   container.remove();
 }
 
-// ── ADD: flyout → customFeatures; derived features untouched ──
+// ── ADD: audited correction → rendered feature; derived features untouched ──
 {
   const { container, saved } = await mount(base());
   await settle();
-  const featsBefore = clone(real('cosmere').structural.features || DERIVED);  // reference for separation check
   fire(container.querySelector('[data-cf-add]'), 'click'); await settle();
-  ok(!container.querySelector('[data-cf-form]').hidden, 'add button opens the form');
-  container.querySelector('[data-cf-name]').value = 'Oath of the Wanderer';
-  container.querySelector('[data-cf-desc]').value = 'Reroll a failed save vs charm/fright once per long rest.';
-  fire(container.querySelector('[data-cf-save]'), 'click'); await settle();
+  const modal = document.querySelector('.corr-overlay');
+  ok(!!modal, 'add button opens the audited correction modal');
+  modal.querySelector('[data-corr-feature-name]').value = 'Oath of the Wanderer';
+  modal.querySelector('[data-corr-feature-desc]').value = 'Reroll a failed save vs charm/fright once per long rest.';
+  fire(modal.querySelector('[data-corr-feature-save]'), 'click'); await settle();
   const st = lastStruct(saved);
-  ok(st && (st.customFeatures || []).length === 1, 'add wrote exactly one customFeature');
-  ok(st.customFeatures[0].name === 'Oath of the Wanderer' && /charm\/fright/.test(st.customFeatures[0].desc), 'name + desc persisted');
-  ok(/^cf_/.test(st.customFeatures[0].id), 'custom feature got a cf_ id');
+  const active = st && st.corrections && st.corrections.active;
+  ok(active && active.length === 1 && active[0].kind === 'feature' && active[0].action === 'add', 'add wrote one audited feature correction');
+  ok(active && active[0].name === 'Oath of the Wanderer' && /charm\/fright/.test(active[0].desc), 'name + description persisted');
+  ok(st.corrections.history.length === 1 && st.corrections.history[0].kind === 'added', 'feature addition appended audit history');
   ok(JSON.stringify(st.features) === JSON.stringify(DERIVED), 'structural.features UNTOUCHED by the add (reforge-safe separation)');
-  ok(/Oath of the Wanderer/.test(panel(container).textContent), 'panel re-rendered with the new custom feature');
-  ok(container.querySelector('[data-cf-form]').hidden, 'form closed after save');
+  ok(/Oath of the Wanderer/.test(panel(container).textContent), 'panel re-rendered with the corrected feature');
+  ok(!document.querySelector('.corr-overlay'), 'modal closed after save');
   container.remove();
 }
 
@@ -127,8 +128,9 @@ const panel = (c) => c.querySelector('[data-list="features"]');
   const { container, saved } = await mount(base(), { saveThrows: true });
   await settle();
   fire(container.querySelector('[data-cf-add]'), 'click'); await settle();
-  container.querySelector('[data-cf-name]').value = 'Doomed Feature';
-  fire(container.querySelector('[data-cf-save]'), 'click'); await settle();
+  const modal = document.querySelector('.corr-overlay');
+  modal.querySelector('[data-corr-feature-name]').value = 'Doomed Feature';
+  fire(modal.querySelector('[data-corr-feature-save]'), 'click'); await settle();
   ok(saved.length === 1, 'save was attempted');
   ok(!/Doomed Feature/.test(panel(container).textContent), 'optimistic feature reverted after the save threw');
   container.remove();

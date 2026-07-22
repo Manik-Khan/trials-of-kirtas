@@ -15,9 +15,9 @@
 // window.CharacterData) and never auto-runs.
 // ---------------------------------------------------------------------------
 
-import { wireInspiration } from './sheet-actions.js?v=ma2';
+import { wireInspiration } from './sheet-actions.js?v=sup1';
 import { assembleActions } from './weapon-actions.js';
-import { applySpellCorrections } from './sheet-corrections.js?v=ca1';
+import { applyFeatureCorrections, applySpellCorrections } from './sheet-corrections.js?v=sup1';
 import { mountSheetProgression } from './sheet-progression.js?v=facets1';
 
 function esc(x){ return String(x==null?'':x).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); }
@@ -26,7 +26,7 @@ function clamp(n){ return Math.max(0,Math.min(100,n)); }
 function parseSource(src){
   src=String(src||''); var i=src.indexOf(':');
   var type=i>=0?src.slice(0,i):'class', label=i>=0?src.slice(i+1):src;
-  var map={ "class":"t-class", subclass:"t-sub", race:"t-race", feat:"t-feat" };
+  var map={ "class":"t-class", subclass:"t-sub", race:"t-race", feat:"t-feat", custom:"t-custom" };
   return { cls: map[type]||'t-class', label: label };
 }
 function renderSubline(root, s){
@@ -71,7 +71,9 @@ function renderFeatures(root, feats, custom){
   var box=root.querySelector('[data-list="features"]'); if(!box) return;
   var derived=(feats||[]).map(function(fobj){
     var p=parseSource(fobj.source);
-    return '<div class="feat"><span class="f-tag '+p.cls+'">'+esc(p.label)+'</span><div><div class="f-n">'+esc(fobj.name)+'</div><div class="f-d">'+esc(fobj.desc)+'</div></div></div>';
+    var corr=fobj.correctionId ? (' data-correction-id="'+esc(fobj.correctionId)+'"') : '';
+    var hide=fobj.correctionId ? '' : '<button class="corr-hide" type="button" data-corr-suppress="feature" data-corr-name="'+esc(fobj.name)+'" data-corr-source="'+esc(fobj.source)+'" aria-label="Hide '+esc(fobj.name)+'">Hide</button>';
+    return '<div class="feat'+(fobj.correctionId?' is-correction':'')+'"'+corr+'><span class="f-tag '+p.cls+'">'+esc(p.label)+'</span><div class="f-body"><div class="f-n">'+esc(fobj.name)+'</div><div class="f-d">'+esc(fobj.desc)+'</div></div>'+hide+'</div>';
   }).join('');
   var added=(custom||[]).map(function(cf){
     return '<div class="feat is-custom"><span class="f-tag t-custom">Custom</span><div class="f-body"><div class="f-n">'+esc(cf.name)+'</div><div class="f-d">'+esc(cf.desc)+'</div></div>'
@@ -119,9 +121,10 @@ function spellHTML(sp, glvl){
   var lvl = sp.level!=null ? sp.level : (glvl!=null ? glvl : 0);
   var corr=sp.correctionId ? (' data-correction-id="'+esc(sp.correctionId)+'"') : '';
   var review=sp.correctionId ? ('<span class="s-corr '+(sp.correctionStatus==='confirmed'?'confirmed':'')+'">'+(sp.correctionStatus==='confirmed'?'Confirmed':'Review')+'</span>') : '';
+  var hide=sp.correctionId ? '' : '<button class="corr-hide" type="button" data-corr-suppress="spell" data-corr-name="'+esc(sp.name)+'" data-corr-source="'+esc(sp.source)+'" aria-label="Hide '+esc(sp.name)+'">Hide</button>';
   return '<div class="spell '+(oMap[o]||'o-class')+'" data-spell="'+esc(sp.name)+'" data-level="'+lvl+'"'+corr+(sp.conc?' data-conc="1"':'')+'><span class="s-car">\u25B8</span><span class="s-n">'+esc(sp.name)+(sp.conc?' <span class="s-conc" title="Concentration">C</span>':'')+'</span>'
        + '<span class="s-tag '+(tMap[o]||'t-class')+'">'+esc(sp.source)+'</span>'
-       + review+'<span class="s-ct">'+esc(fmtCt(sp.time))+'</span></div>';
+       + review+'<span class="s-ct">'+esc(fmtCt(sp.time))+'</span>'+hide+'</div>';
 }
 function groupHTML(g){
   g=g||{};
@@ -606,6 +609,7 @@ function toRenderShape(cd){
   // forged before pools carried a key. Same helper the cast path uses → they never drift.
   if(s.spellcasting){ var livePools=slotPoolsLive(s, v); s.spellcasting=Object.assign({}, s.spellcasting, { pools:livePools }); }
   s.spellcasting=applySpellCorrections(s.spellcasting||{}, s);
+  var featureDisplay=applyFeatureCorrections(s.features||[], s); s.features=featureDisplay.features;
   if(!s.resources) s.resources=buildResources(s, v);
   if(v.inspiration==null && s.inspiration!=null) v.inspiration=s.inspiration;
   // ── Display inventory: assign equipment slots so the paper-doll is populated

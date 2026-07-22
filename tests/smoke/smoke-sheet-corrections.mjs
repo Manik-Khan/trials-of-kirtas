@@ -1,6 +1,6 @@
 // Durable manual spell corrections: model, overlay, audit history, and provenance.
 import {
-  addSpellCorrection, applySpellCorrections, classNamesOf, closeCorrection,
+  addFeatureCorrection, addSpellCorrection, addSuppressionCorrection, applyFeatureCorrections, applySpellCorrections, classNamesOf, closeCorrection,
   correctionLedger, correctionSummary, spellExists
 } from '../../sheet-corrections.js';
 
@@ -46,6 +46,52 @@ ok('generated spell is never duplicated by the overlay', noDouble.groups[0].spel
 const resolved = closeCorrection(withShield, ledger.active[0].id, 'resolved', 'Generator now carries Shield.', '2026-07-22T13:00:00.000Z');
 ok('resolve removes the active correction', correctionLedger(resolved).active.length === 0);
 ok('resolve preserves prior history and appends a resolution', correctionLedger(resolved).history.length === 2 && correctionLedger(resolved).history[1].kind === 'resolved');
+
+const caim = {
+  features: [
+    { name: 'Infernal Legacy', source: 'race:Tiefling', desc: 'Hellish Rebuke and Darkness.' },
+    { name: 'Legacy of Avernus', source: 'race:Tiefling', desc: 'Searing Smite and Branding Smite.' }
+  ],
+  spellcasting: { groups: [{ heading: '1st Level', level: 1, spells: [
+    { name: 'Hellish Rebuke', origin: 'race', source: 'Tiefling' },
+    { name: 'Searing Smite', origin: 'race', source: 'Tiefling' }
+  ] }] }
+};
+const hideHellish = addSuppressionCorrection(caim, {
+  kind: 'spell', name: 'Hellish Rebuke', source: 'Tiefling', reason: 'Replaced by another rule',
+  note: 'Zariel replaces Infernal Legacy.', actor: 'Caim player'
+}, '2026-07-22T14:00:00.000Z');
+ok('spell suppression is active and confirmed', correctionLedger(hideHellish).active[0].action === 'suppress' && correctionLedger(hideHellish).active[0].status === 'confirmed');
+ok('spell suppression appends a suppressed audit event', correctionLedger(hideHellish).history[0].kind === 'suppressed');
+const caimSpells = applySpellCorrections(caim.spellcasting, hideHellish);
+ok('suppressed Hellish Rebuke is absent from display', !spellExists(caimSpells, 'Hellish Rebuke'));
+ok('unrelated generated Searing Smite remains', spellExists(caimSpells, 'Searing Smite'));
+ok('generated spellcasting input stays untouched', spellExists(caim.spellcasting, 'Hellish Rebuke'));
+ok('suppressed correction id is reported', caimSpells.correctionIdsSuppressed.length === 1);
+ok('duplicate suppression is ignored', correctionLedger(addSuppressionCorrection(hideHellish, { kind:'spell', name:'hellish rebuke', source:'Tiefling' })).active.length === 1);
+
+const hideTrait = addSuppressionCorrection(hideHellish, {
+  kind: 'feature', name: 'Infernal Legacy', source: 'race:Tiefling', reason: 'Replaced by another rule'
+}, '2026-07-22T14:05:00.000Z');
+const caimFeatures = applyFeatureCorrections(caim.features, hideTrait);
+ok('suppressed Infernal Legacy is absent from feature display', !caimFeatures.features.some(f => f.name === 'Infernal Legacy'));
+ok('unrelated Legacy of Avernus remains', caimFeatures.features.some(f => f.name === 'Legacy of Avernus'));
+ok('generated feature input stays untouched', caim.features.some(f => f.name === 'Infernal Legacy'));
+
+const withFlurry = addFeatureCorrection(hideTrait, {
+  name: 'Flurry of Blows', source: 'Monk', desc: 'Spend 1 ki point to make two unarmed strikes.',
+  reason: 'Missing automation or rules data', actor: 'Caim player'
+}, '2026-07-22T14:10:00.000Z');
+const featureDisplay = applyFeatureCorrections(caim.features, withFlurry);
+const flurry = featureDisplay.features.find(f => f.name === 'Flurry of Blows');
+ok('manual feature correction is overlaid', !!flurry);
+ok('manual feature carries custom provenance and correction id', flurry && flurry.source === 'custom:Monk' && !!flurry.correctionId, flurry);
+ok('summary counts spell + feature additions and suppressions', correctionSummary(withFlurry).active === 3, correctionSummary(withFlurry));
+
+const restoredHellish = closeCorrection(withFlurry, correctionLedger(withFlurry).active[0].id, 'restored', '', '2026-07-22T15:00:00.000Z');
+ok('restore removes only the suppression', correctionLedger(restoredHellish).active.length === 2);
+ok('restore appends a restored history event', correctionLedger(restoredHellish).history.slice(-1)[0].kind === 'restored');
+ok('restored generated spell returns to display', spellExists(applySpellCorrections(caim.spellcasting, restoredHellish), 'Hellish Rebuke'));
 
 console.log('\nsmoke-sheet-corrections: ' + pass + ' passed, ' + fail + ' failed');
 if (fail) process.exit(1);
