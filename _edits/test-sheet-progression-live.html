@@ -1,0 +1,44 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>ToK · Live Sheet Progression Field Test</title>
+  <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@400;600;800&family=EB+Garamond:wght@400;500;600&family=Oswald:wght@400;600;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="../sheet-mount.css?v=ca1">
+  <style>html,body{margin:0;min-height:100%;background:#182826}body{overflow-x:hidden}</style>
+</head>
+<body>
+  <div id="sheet-root"></div>
+  <script src="../resource-derive.js"></script>
+  <script src="../armor-ac.js?v=um1"></script>
+  <script src="../equip-slots.js"></script>
+  <script src="../item-icons.js"></script>
+  <script src="../gear-manager.js"></script>
+  <script src="../soul-shards-data.js"></script>
+  <script type="module">
+    import { mountSheet } from '../sheet-mount.js?v=facets1';
+    const row = {
+      key:'liadan', name:'Líadan Luchóg',
+      structural:{
+        name:'Líadan Luchóg', race:'Astral Elf', level:6, alignment:'Neutral Good',
+        classes:[{name:'Bard',level:5,subclass:'College of Lore',starting:true},{name:'Cleric',level:1,subclass:'Life Domain'}],
+        _build:{classes:[{n:'Bard',level:5,starting:true},{n:'Cleric',level:1}]}, proficiencyBonus:3,
+        abilities:{str:{score:8,mod:-1},dex:{score:16,mod:3},con:{score:14,mod:2},int:{score:12,mod:1},wis:{score:15,mod:2},cha:{score:18,mod:4}},
+        saves:{str:{bonus:-1},dex:{bonus:3},con:{bonus:2},int:{bonus:1},wis:{bonus:5,proficient:true},cha:{bonus:7,proficient:true}},
+        skills:[{name:'Performance',attr:'cha',bonus:7,prof:true},{name:'Persuasion',attr:'cha',bonus:7,prof:true},{name:'Perception',attr:'wis',bonus:5,prof:true}],
+        combat:{ac:16,acSource:'studded leather',hpMax:51,initiative:3,speed:30,spellSaveDC:15,spellAttackBonus:7,senses:{darkvision:60}},
+        features:[{name:'Cutting Words',source:'subclass:College of Lore',desc:'Reduce an attack, check, or damage roll.'},{name:'Font of Inspiration',source:'class:Bard',desc:'Bardic Inspiration returns on a short rest.'}],
+        spellcasting:{groups:[{heading:'Cantrips',level:0,spells:[{name:'Vicious Mockery',source:'Bard'}]},{heading:'1st Level',level:1,spells:[{name:'Healing Word',source:'Bard'},{name:'Bless',source:'Cleric'}]}]},
+        soulFacets:{schema:1,items:[{id:'facet-5',level:5,classSummary:'Bard 4 / Cleric 1',createdAt:'2026-07-08T12:00:00.000Z',label:'Prior session',counts:{features:4,spells:7},signature:'field-test',snapshot:{schema:1,structural:{},vitals:{},inventory:[],equipment:{},currency:{}}}]},
+        soulLineage:{fragments:[{characterKey:'second-reality',name:'Second Reality Fragment',campaign:'The Second Reality',status:'Essence salvaged'}],refractions:[{name:'Borrowed Resolve'}]}
+      },
+      vitals:{hp:45,hpTemp:0,conditions:[],pipState:{}}, inventory:[{name:'Rapier',detail:'1d8 piercing'}], equipment:{}, currency:{gp:17}, notes:''
+    };
+    const clone = value => JSON.parse(JSON.stringify(value));
+    const CD = { loadCharacter:async()=>clone(row), canEdit:async()=>true, save:async(_key,patch)=>Object.assign(clone(row),patch) };
+    window.CharacterData = CD;
+    await mountSheet(document.getElementById('sheet-root'),'liadan',{characterData:CD}).ready;
+  </script>
+</body>
+</html>

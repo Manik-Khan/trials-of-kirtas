@@ -621,6 +621,7 @@
 <script src="character-data.js?v=sf1"></script>
 <script src="homebrew-races.js?v=sf1"></script>
 <script src="soul-shards-persona.js?v=sf1"></script>
+<script type="module" src="soul-facets.js?v=facets1"></script>
 <script>
 'use strict';
 
@@ -1168,7 +1169,9 @@ function totalLevel(){ return (draft.classes || []).reduce(function(n, c){ retur
 // keep the legacy single-class fields pointed at the STARTING class so the
 // spells / feats / ASI / choices steps (still single-class) operate on it.
 function syncClassMirror(){
-  var s = startingClassEntry();
+  var s = draft._levelUp && draft._levelUp.className
+    ? (draft.classes || []).filter(function(c){ return c.n === draft._levelUp.className; })[0]
+    : startingClassEntry();
   if (!s){ draft.cls = null; draft.subclass = null; return; }
   var def = classDef(s.n); if (def) draft.cls = def;
   draft.subclass = s.subclass || null;
@@ -1185,7 +1188,7 @@ var mcAddOpen = false;   // transient: "+ Add class" picker open state (not pers
 function buildSnapshot(){
   var snap = {};
   Object.keys(draft).forEach(function(k){
-    if (k === 'stepId' || k === '_editKey' || k === '_editName' || k === '_editSource') return;
+    if (k === 'stepId' || k === '_editKey' || k === '_editName' || k === '_editSource' || k === '_levelUp') return;
     snap[k] = draft[k];
   });
   return snap;
@@ -3878,9 +3881,10 @@ function reverseMapStructural(s){
   }
   return build;
 }
-function loadIntoBuilder(key){
-  if (!key || typeof CharacterData === 'undefined' || !CharacterData.loadCharacter) return;
-  CharacterData.loadCharacter(key).then(function(row){
+function loadIntoBuilder(key, opts){
+  opts = opts || {};
+  if (!key || typeof CharacterData === 'undefined' || !CharacterData.loadCharacter) return Promise.resolve(null);
+  return CharacterData.loadCharacter(key).then(function(row){
     if (!row) return;
     var s = row.structural || {};
     var source, build;
@@ -3890,10 +3894,27 @@ function loadIntoBuilder(key){
     draft._editKey = row.key || key;
     draft._editName = row.name || build.name || 'character';
     draft._editSource = source;
-    draft.stepId = 'abilities';
+    if (opts.advanceClass){
+      var ce = (draft.classes || []).filter(function(c){ return c.n === opts.advanceClass; })[0];
+      if (!ce) throw new Error('The chosen class is not present on this character.');
+      var before = totalLevel(), fromClass = ce.level || 1;
+      if (before >= 20) throw new Error('This character is already Level 20.');
+      ce.level = Math.min(20, fromClass + 1);
+      draft._levelUp = { characterKey: row.key || key, className: ce.n, fromLevel: before, toLevel: before + 1, fromClassLevel: fromClass, toClassLevel: ce.level };
+      syncClassMirror();
+      draft.stepId = 'class';
+    } else {
+      delete draft._levelUp;
+      draft.stepId = 'abilities';
+    }
     saveDraft(); renderAll();
     var ps = q('.panel-scroll'); if (ps) ps.scrollTop = 0;
-  }).catch(function(){ /* a failed read leaves the current draft untouched */ });
+    return row;
+  }).catch(function(err){
+    console.error('[shards] load character:', err);
+    var body = q('#body'); if (body) body.innerHTML = '<div class="fx-warn">Could not load this character for ' + (opts.advanceClass ? 'Level Up' : 'reforging') + ': ' + esc((err && err.message) || 'unknown error') + '</div>';
+    return null;
+  });
 }
 // the "Editing <name>" strip under the topbar — also the reforge target indicator.
 function renderEditStrip(){
@@ -3909,7 +3930,7 @@ function renderEditStrip(){
     '<button class="bld-detach" id="bld-detach" type="button">\u2715 detach</button>';
   var d = q('#bld-detach');
   if (d) d.addEventListener('click', function(){
-    delete draft._editKey; delete draft._editName; delete draft._editSource;
+    delete draft._editKey; delete draft._editName; delete draft._editSource; delete draft._levelUp;
     saveDraft(); renderAll();
   });
 }
@@ -4131,8 +4152,13 @@ function forgeCommit(){
   if (typeof CharacterData === 'undefined'){ fxStatus('err', 'Character data module not loaded.'); return; }
   var mode = forgeMode();
   var existingKey = (q('#fx-existing') || {}).value || '';
+  // Level Up is always pinned to the loaded character, even if the review roster
+  // failed to populate. It must never fall through to "Create new character."
+  if (draft._levelUp && draft._editKey){ mode = 'existing'; existingKey = draft._editKey; }
   if (mode === 'existing' && !existingKey){ fxStatus('err', 'Pick which character to update.'); return; }
   if (typeof SoulShardsData === 'undefined' || typeof SoulShardsEngine === 'undefined'){ fxStatus('err', 'Engine modules not loaded.'); return; }
+  var levelUp = draft._levelUp && draft._levelUp.characterKey === existingKey ? Object.assign({}, draft._levelUp) : null;
+  if (levelUp && (!window.SoulFacets || typeof window.SoulFacets.appendFacet !== 'function')){ fxStatus('err', 'The Facet history is still loading. Wait a moment, then try again.'); return; }
 
   fxStatus('busy', 'Assembling the structural\u2026');
   // The class + race are load-critical (the derive can't assemble without them) so a failure
@@ -4176,6 +4202,10 @@ function forgeCommit(){
         var mergedStruct = Object.assign({}, prevStruct, structural);
         if (!structural.portrait && prevStruct.portrait) mergedStruct.portrait = prevStruct.portrait;
         var patch = { structural: mergedStruct };
+        if (levelUp && cur){
+          var faceted = window.SoulFacets.appendFacet(cur, { reason: 'level-up', label: 'Preserved before Level ' + levelUp.toLevel });
+          mergedStruct.soulFacets = faceted.structural.soulFacets;
+        }
         // If a rebuild LOWERED max HP (an HP-rule fix, a CON drop, a level change),
         // a played character could end up with current HP above the new max. Clamp it
         // DOWN to the new max — never heal on reforge, and copy-merge so every other
@@ -4190,9 +4220,12 @@ function forgeCommit(){
         return CharacterData.save(existingKey, patch).then(function(row){
           var who = (row && row.name) ? row.name : existingKey;
           var hpNote = hpClamped ? (' Current HP was above the new max, so it was set to ' + newMaxHp + '.') : '';
-          fxStatus('ok', (filled
-            ? ('Updated ' + who + ' \u2014 starting gear added (inventory was empty). Current resources kept.')
-            : ('Updated ' + who + '. The sheet now reads from this build (current HP / resources / gear kept).')) + hpNote);
+          fxStatus('ok', levelUp
+            ? ('Level Up complete \u2014 ' + who + ' is now ' + levelUp.className + ' ' + levelUp.toClassLevel + '. Level ' + levelUp.fromLevel + ' was preserved in Facets of the Shard.')
+            : ((filled
+              ? ('Updated ' + who + ' \u2014 starting gear added (inventory was empty). Current resources kept.')
+              : ('Updated ' + who + '. The sheet now reads from this build (current HP / resources / gear kept).')) + hpNote));
+          delete draft._levelUp;
           draft._editKey = existingKey; draft._editName = who; draft._editSource = 'saved'; saveDraft(); renderEditStrip();
         });
       });
@@ -4323,6 +4356,13 @@ document.addEventListener('keydown', function(e){
 mountForgeControls();
 renderAll();
 if (loadDraft()) flashDraft();
+(function bootRequestedCharacter(){
+  var params = new URLSearchParams(window.location.search);
+  var key = params.get('character') || params.get('reforge');
+  if (!key) return;
+  var levelMode = params.get('mode') === 'level-up';
+  loadIntoBuilder(key, { advanceClass: levelMode ? params.get('class') : null });
+})();
 </script>
 </body>
 </html>

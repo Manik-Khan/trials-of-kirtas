@@ -18,6 +18,7 @@
 import { wireInspiration } from './sheet-actions.js?v=ma2';
 import { assembleActions } from './weapon-actions.js';
 import { applySpellCorrections } from './sheet-corrections.js?v=ca1';
+import { mountSheetProgression } from './sheet-progression.js?v=facets1';
 
 function esc(x){ return String(x==null?'':x).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); }
 function sgn(n){ n=Number(n)||0; return (n>=0?'+':'\u2212')+Math.abs(n); }
@@ -1327,6 +1328,7 @@ function mountSheet(container, key, opts){
     if(!cd){ showError(container, 'No character "'+key+'"'); return; }
     renderSheet(container, toRenderShape(cd));
     applyExtras(container, cd);
+    mountSheetProgression({ root: container, character: cd, characterData: CD, key: key });
   }).catch(function(e){ console.error('[sheet] mount:', e); showError(container, (e&&e.message)?e.message:'Could not load character'); });
   // inspiration + equipment write-affordances, scoped to this container (sheet-actions.js);
   // depsReady lets the controller's slot backfill wait for EquipSlots so it never races the load.

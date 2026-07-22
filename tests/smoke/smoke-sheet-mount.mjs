@@ -70,6 +70,10 @@ function mockCD({ canEdit = true } = {}) {
   ok(!!slot.querySelector('.portrait .frame img'), 'portrait image painted by applyExtras');
   ok(slot.querySelector('.portrait').classList.contains('inspired'), 'portrait halo reflects inspired state');
   ok(!!dom.window.document.getElementById('rough'), 'filter defs injected into the host document');
+  ok(slot.querySelectorAll('[data-sfp-open]').length === 3, 'sheet header exposes Level Up, Facets, and the Shift');
+  slot.querySelector('[data-sfp-open="facets"]').dispatchEvent(new dom.window.Event('click', { bubbles: true }));
+  ok(dom.window.document.querySelector('.sfp-veil').classList.contains('open'), 'Facets action opens the progression drawer');
+  ok(/Current form/.test(dom.window.document.querySelector('[data-sfp-panel]').textContent), 'Facets drawer renders the current mechanical form');
 
   // inspiration wired, scoped to THIS container: a click writes a full-vitals merge
   const toggle = slot.querySelector('#insp-toggle');
@@ -99,6 +103,8 @@ function mockCD({ canEdit = true } = {}) {
   toggle.dispatchEvent(new dom.window.Event('click'));
   await settle();
   ok(cd.calls.save.length === 0, 'non-editable: click does NOT write');
+  slot.querySelector('[data-sfp-open="level"]').dispatchEvent(new dom.window.Event('click', { bubbles: true }));
+  ok(dom.window.document.querySelector('[data-sfp-continue]').disabled, 'non-editable: Level Up explains itself through a disabled continue action');
 }
 
 // ── scenario 3: error paths render into the container, never throw ───────────
