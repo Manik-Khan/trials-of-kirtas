@@ -25,7 +25,7 @@ ok(html.includes('forge-manual-foe')&&html.includes('actions=FOE.actions.map'),'
 ok(!html.includes('focusPair(active(),o)')&&html.includes('frameCameraPair(active(),o)'),'initiative-strip targeting uses the real camera-pair helper');
 ok(hud.includes('tile && tile.reference')&&hud.includes('FOE_LABELS'),'enemy reference tiles open through the real HUD drawer and use foe labels');
 ok(hud.includes('var tileId=t._tileId||t.id||""')&&hud.includes('data-tile-id="\' + esc(tileId)'),'enemy tiles dispatch the runtime action identity used by Manual mode');
-ok(html.includes('forge-foe-ai.js?v=fai1')&&html.includes('forge-hud.js?v=b5')&&html.includes('monster-actor.js?v=ma2'),'changed modules have fresh production cache stamps');
+ok(html.includes('forge-foe-ai.js?v=fai1')&&html.includes('forge-hud.js?v=b6')&&html.includes('monster-actor.js?v=ma2'),'changed modules have fresh production cache stamps');
 
 if(fail){console.error('\n'+fail+' foe-HUD checks failed');process.exit(1);}
 console.log('\n'+n+' foe-HUD checks green');

@@ -38,7 +38,7 @@
 <script src="forge-initiative.js?v=fi2"></script>
 <script src="forge-discovery.js?v=fd7"></script>
 <script src="forge-render-power.js?v=frp1"></script>
-<script src="forge-architecture.js?v=fa4"></script>
+<script src="forge-architecture.js?v=fa5"></script>
 <script src="forge-bus.js?v=fb2"></script>
 <script src="forge-pipeline.js?v=fb7"></script>
 <script src="forge-board.js?v=fb7"></script>
@@ -651,6 +651,11 @@ global.TacticsGeo=API;
   .architectureTools .filebtn{padding:7px 3px}.architectureTools .active{border-color:var(--tk-gold);background:rgba(184,134,58,.18);color:var(--tk-ink)}
   .architectureAudit{padding:7px 8px;margin:7px 0;border-left:3px solid #477050;background:rgba(71,112,80,.09);font:10px/1.35 var(--f-util);white-space:normal}
   .architectureAudit.bad{border-left-color:#a04b3a;background:rgba(160,75,58,.08);color:#8d3328}
+  #architectureLineHandles{position:fixed;inset:0;z-index:48;pointer-events:none}
+  #architectureLineHandles[hidden]{display:none}
+  .architectureLineHandle{position:absolute;width:42px;height:42px;border-radius:50%;border:2px solid #fff;background:var(--tk-gold);color:#fff;box-shadow:0 4px 14px rgba(35,25,14,.48);display:grid;place-items:center;font:900 22px/1 Arial,sans-serif;pointer-events:auto;cursor:grab;user-select:none;touch-action:none}
+  .architectureLineHandle:hover,.architectureLineHandle:focus-visible{background:#d39b3d;outline:2px solid rgba(255,239,188,.8);outline-offset:2px}
+  .architectureLineHandle:active{cursor:grabbing}
   /* Task 14: foe picker (search the books + shelf strip + picked list) */
   #fpSearch{width:100%;box-sizing:border-box;font-family:var(--f-util);font-size:11px;color:var(--tk-ink);
     background:var(--tk-panel);border:1px solid var(--tk-line);padding:7px 8px;margin-bottom:4px}
@@ -964,6 +969,12 @@ body.forge-author-preview #partySelect{opacity:0;pointer-events:none}
     </div>
   </div>
   <div id="stage"></div>
+  <div id="architectureLineHandles" hidden aria-label="Wall line directions">
+    <button class="architectureLineHandle" data-architecture-line="n" type="button" aria-label="Build north">↑</button>
+    <button class="architectureLineHandle" data-architecture-line="e" type="button" aria-label="Build east">↑</button>
+    <button class="architectureLineHandle" data-architecture-line="s" type="button" aria-label="Build south">↑</button>
+    <button class="architectureLineHandle" data-architecture-line="w" type="button" aria-label="Build west">↑</button>
+  </div>
   <div class="overlay vignette"></div>
   <div class="masthead">
     <h1>The Forge</h1>
@@ -1118,6 +1129,7 @@ body.forge-author-preview #partySelect{opacity:0;pointer-events:none}
       </div>
       <div class="improw" style="margin:0 0 6px">
         <button class="filebtn" id="architectureSealBypass" type="button">Seal optional bypass</button>
+        <button class="filebtn" id="architectureUndo" type="button">Undo line</button>
         <button class="filebtn" id="architectureReset" type="button">Reset blocks</button>
       </div>
       <div class="improw" style="margin:0 0 6px">
@@ -1559,6 +1571,7 @@ function placeCam(){
   camera.position.set(cam.tgt.x+cam.r*sp*Math.sin(cam.theta),cam.tgt.y+cam.r*cp,cam.tgt.z+cam.r*sp*Math.cos(cam.theta));
   camera.lookAt(cam.tgt);
   if(typeof updateStorybookBackdrop==='function') updateStorybookBackdrop();
+  if(typeof positionArchitectureHandles==='function') positionArchitectureHandles();
   syncCameraControls();
   requestForgeRender();
 }
@@ -1997,7 +2010,8 @@ var DEPLOYMENT_GROUPS=[],DEPLOYMENT_PLANS=null,DEPLOYMENT_PLACE_GROUP=null,DEPLO
 const ARCHITECTURE_API=window.ForgeArchitecture;
 if(!ARCHITECTURE_API)throw new Error('Forge architecture authority did not load');
 var architectureRenderGroup=new THREE.Group();scene.add(architectureRenderGroup);
-var ARCHITECTURE_RECORD=ARCHITECTURE_API.record([]),ARCHITECTURE_TOOL=null,ARCHITECTURE_FOG_PREVIEW=false,ARCHITECTURE_PREVIEW_REGION=0,ARCHITECTURE_PREVIEW_STATES=null,ARCHITECTURE_PREVIEW_EXPLORED=null;
+var architecturePreviewGroup=new THREE.Group();scene.add(architecturePreviewGroup);
+var ARCHITECTURE_RECORD=ARCHITECTURE_API.record([]),ARCHITECTURE_TOOL=null,ARCHITECTURE_ANCHOR=null,ARCHITECTURE_LINE_PREVIEW=[],ARCHITECTURE_HISTORY=[],ARCHITECTURE_LINE_DRAG=null,ARCHITECTURE_HOLD_TIMER=null,ARCHITECTURE_FOG_PREVIEW=false,ARCHITECTURE_PREVIEW_REGION=0,ARCHITECTURE_PREVIEW_STATES=null,ARCHITECTURE_PREVIEW_EXPLORED=null;
 /* Phase 2 snapshot authority: while a saved session is open, this exact map
    document — not a regenerated recipe — is the geometry source of truth. */
 /* Session identity is needed by the very first rebuild(). Keep this ahead of
@@ -3099,6 +3113,7 @@ function rebuild(){
     document.getElementById('dungeonName').textContent='Flat (no elevation) — contrast'; }
   if(F && !F.occ) F.occ=EMPTY_OCC(F.W*F.H);
   ARCHITECTURE_RECORD=SESSION_ID&&F&&F.architecture?ARCHITECTURE_API.normalizeRecord(F.architecture):ARCHITECTURE_API.record([]);
+  ARCHITECTURE_ANCHOR=null;ARCHITECTURE_LINE_PREVIEW=[];ARCHITECTURE_HISTORY=[];architectureLineCancel(false);
   ARCHITECTURE_PREVIEW_STATES=null;ARCHITECTURE_PREVIEW_EXPLORED=null;
   applyLook();
   renderField();
@@ -3352,6 +3367,16 @@ function architecturePending(){return architectureActive()&&!architectureAudit()
 function architectureSay(text,bad){var el=document.getElementById('architectureMessage');if(el){el.textContent=text;el.style.color=bad?'#a04b3a':'';}}
 function clearArchitectureMeshes(){var retired=new Set();while(architectureRenderGroup.children.length){var o=architectureRenderGroup.children[0];architectureRenderGroup.remove(o);o.traverse(function(n){retired.add(n);if(n.geometry)n.geometry.dispose();if(n.material)n.material.dispose();});}if(typeof DISCOVERY_RENDER!=='undefined'&&DISCOVERY_RENDER)DISCOVERY_RENDER.objects=DISCOVERY_RENDER.objects.filter(function(obj){return !retired.has(obj);});}
 function architectureAdd(mesh,edit){tagDiscoveryObject(mesh,edit.c,edit.r,'terrain');mesh.castShadow=true;mesh.receiveShadow=true;architectureRenderGroup.add(mesh);return mesh;}
+function clearArchitecturePreview(){while(architecturePreviewGroup.children.length){var o=architecturePreviewGroup.children[0];architecturePreviewGroup.remove(o);if(o.geometry)o.geometry.dispose();if(o.material)o.material.dispose();}}
+function architectureToolBuildsLines(){var def=ARCHITECTURE_API.KINDS[ARCHITECTURE_TOOL];return !!(def&&def.blocks);}
+function architectureTopFt(c,r){var i=r*F.W+c,top=Math.max(Number(F.occ&&F.occ[i])||0,0),authored=ARCHITECTURE_RECORD.blocks.filter(function(b){return b.c===c&&b.r===r;})[0];return Math.max(top,authored?ARCHITECTURE_API.heightFt(authored):0);}
+function architectureScreenPoint(c,r,heightFt){var rect=renderer.domElement.getBoundingClientRect(),p=new THREE.Vector3(wxc(c),tierY(c,r)+(Number(heightFt)||0)/STEP_FT*STEP+.25,wzc(r));p.project(camera);return {x:rect.left+(p.x+1)*rect.width/2,y:rect.top+(1-p.y)*rect.height/2};}
+function positionArchitectureHandles(){
+  var host=document.getElementById('architectureLineHandles');if(!host)return;var show=architectureActive()&&!SESSION_ID&&ARCHITECTURE_ANCHOR&&architectureToolBuildsLines()&&F&&ARCHITECTURE_ANCHOR.c>=0&&ARCHITECTURE_ANCHOR.r>=0&&ARCHITECTURE_ANCHOR.c<F.W&&ARCHITECTURE_ANCHOR.r<F.H;
+  host.hidden=!show;if(!show)return;var a=ARCHITECTURE_ANCHOR,top=architectureTopFt(a.c,a.r),center=architectureScreenPoint(a.c,a.r,top),dirs={n:[0,-1],e:[1,0],s:[0,1],w:[-1,0]};
+  host.querySelectorAll('[data-architecture-line]').forEach(function(button){var d=dirs[button.dataset.architectureLine],q=architectureScreenPoint(a.c+d[0],a.r+d[1],top),dx=q.x-center.x,dy=q.y-center.y,len=Math.max(1,Math.hypot(dx,dy)),ux=dx/len,uy=dy/len,angle=Math.atan2(uy,ux)*180/Math.PI+90;button.style.left=(center.x+ux*54)+'px';button.style.top=(center.y+uy*54)+'px';button.style.transform='translate(-50%,-50%) rotate('+angle+'deg)';button.dataset.screenX=String(ux);button.dataset.screenY=String(uy);button.dataset.stepPx=String(Math.max(24,len));});
+}
+function renderArchitecturePreview(){clearArchitecturePreview();if(!F||!architectureToolBuildsLines())return;ARCHITECTURE_LINE_PREVIEW.forEach(function(placement){var edit=placement.edit,i=edit.r*F.W+edit.c,seedHeightFt=Math.max(0,Number(F.occ&&F.occ[i])||0),targetHeightFt=ARCHITECTURE_API.heightFt(edit),fromFt=Math.min(seedHeightFt,targetHeightFt),h=Math.max(.12,(targetHeightFt-fromFt)/STEP_FT*STEP),base=tierY(edit.c,edit.r)+fromFt/STEP_FT*STEP,mat=new THREE.MeshBasicMaterial({color:0xf2cf78,transparent:true,opacity:.56,depthWrite:false}),m=new THREE.Mesh(new THREE.BoxGeometry(.82,h,.82),mat);m.position.set(wxc(edit.c),base+h/2,wzc(edit.r));m.renderOrder=8;architecturePreviewGroup.add(m);});requestForgeRender();}
 function architectureGateAxis(edit){var blocking={};ARCHITECTURE_RECORD.blocks.forEach(function(b){if(ARCHITECTURE_API.KINDS[b.kind].blocks)blocking[b.c+','+b.r]=true;});return blocking[(edit.c-1)+','+edit.r]||blocking[(edit.c+1)+','+edit.r]?'x':'z';}
 function renderArchitectureBlock(edit){
   var def=ARCHITECTURE_API.KINDS[edit.kind],i=edit.r*F.W+edit.c,seedHeightFt=Math.max(0,Number(F.occ&&F.occ[i])||0),base=tierY(edit.c,edit.r),mat=stoneMat(edit.kind==='parapet'?0x8d8067:0x746750);
@@ -3364,7 +3389,7 @@ function renderArchitecturePanel(){
   var panel=document.getElementById('architecturePanel');if(!panel)return;var show=architectureActive()&&!SESSION_ID&&!(typeof CB!=='undefined'&&CB&&CB.active);panel.style.display=show?'block':'none';
   document.querySelectorAll('[data-architecture-tool]').forEach(function(b){b.classList.toggle('active',b.dataset.architectureTool===ARCHITECTURE_TOOL);});
   var audit=architectureAudit(),el=document.getElementById('architectureAudit');if(el){el.classList.toggle('bad',!audit.ok);el.textContent=audit.ok?'Required ascent clear · '+ARCHITECTURE_RECORD.blocks.length+' authored block'+(ARCHITECTURE_RECORD.blocks.length===1?'':'s')+'.':audit.errors.join(' · ');}
-  var fog=document.getElementById('architectureFogPreview'),advance=document.getElementById('architectureFogAdvance');if(fog){fog.classList.toggle('active',ARCHITECTURE_FOG_PREVIEW);fog.textContent=ARCHITECTURE_FOG_PREVIEW?'Staff view':'Preview sight fog';}if(advance)advance.disabled=!ARCHITECTURE_FOG_PREVIEW;
+  var fog=document.getElementById('architectureFogPreview'),advance=document.getElementById('architectureFogAdvance'),undo=document.getElementById('architectureUndo');if(fog){fog.classList.toggle('active',ARCHITECTURE_FOG_PREVIEW);fog.textContent=ARCHITECTURE_FOG_PREVIEW?'Staff view':'Preview sight fog';}if(advance)advance.disabled=!ARCHITECTURE_FOG_PREVIEW;if(undo)undo.disabled=!ARCHITECTURE_HISTORY.length;positionArchitectureHandles();
 }
 function architecturePreviewSource(map){
   var regions=F&&F.intent&&F.intent.regions||[],region=regions[ARCHITECTURE_PREVIEW_REGION],cells=region&&region.cells||[];
@@ -3382,22 +3407,36 @@ function applyArchitectureFogPreview(){
 }
 function renderArchitectureBlocks(){clearArchitectureMeshes();if(!architectureActive()){renderArchitecturePanel();requestForgeRender();return;}ARCHITECTURE_RECORD.blocks.forEach(renderArchitectureBlock);renderArchitecturePanel();if(typeof applyDiscoveryInstances==='function')applyArchitectureFogPreview();requestForgeRender();}
 function architectureOccupied(c,r){var occupied=false,draft=computeDeployment();(draft&&draft.plans||[]).forEach(function(plan){if(plan.group.anchor&&plan.group.anchor.c===c&&plan.group.anchor.r===r)occupied=true;Object.keys(plan.positions||{}).forEach(function(unit){var p=plan.positions[unit];if(p.c===c&&p.r===r)occupied=true;});});return occupied;}
-function applyArchitectureAt(c,r,kind){
-  if(!F||!architectureActive())return;var prior=ARCHITECTURE_RECORD.blocks.filter(function(b){return b.c===c&&b.r===r;})[0],i=r*F.W+c;
-  if(c<0||r<0||c>=F.W||r>=F.H){architectureSay('That cell is outside the battlefield.',true);return;}
-  if(kind==='erase'){ARCHITECTURE_RECORD=ARCHITECTURE_API.eraseRecord(ARCHITECTURE_RECORD,c,r);architectureSay(prior?'Authored block erased. The seeded cell is restored.':'There is no authored block on that cell.',!prior);}
-  else{
-    var seededWall=!!F.foot[i]&&F.type[i]===T_ROCK;
-    if(!F.foot[i]||F.type[i]===T_WATER){architectureSay('Water and void cannot support an authored wall.',true);return;}
-    var def=ARCHITECTURE_API.KINDS[kind];
-    if(seededWall&&!(def&&def.blocks)){architectureSay('Seeded retaining walls accept a 10-ft wall or 5-ft parapet extension. Erase restores the seed height.',true);return;}
-    if(architectureOccupied(c,r)){architectureSay('Move the deployment flag or combatant before building on that cell.',true);return;}
-    var edit={c:c,r:r,kind:kind};if(seededWall&&def&&def.blocks)edit.heightFt=(Number(F.occ&&F.occ[i])||0)+def.heightFt;
-    ARCHITECTURE_RECORD=ARCHITECTURE_API.editRecord(ARCHITECTURE_RECORD,edit);
-    var audit=architectureAudit(),label=seededWall?'Seeded retaining wall raised '+def.heightFt+' ft to '+ARCHITECTURE_API.heightFt(edit)+' ft':(kind==='wall'?'10-ft wall':kind==='parapet'?'5-ft parapet':'Passable gate');architectureSay(label+' at '+c+','+r+'.'+(audit.ok?' Required ascent remains open.':' '+audit.errors.join(' ')),!audit.ok);
-  }
-  renderArchitectureBlocks();refreshDeploymentPanel();
+function architecturePlacement(c,r,kind){
+  if(!F||!architectureActive())return {ok:false,message:'Architecture tools are not available on this battlefield.'};c=Number(c);r=Number(r);var prior=ARCHITECTURE_RECORD.blocks.filter(function(b){return b.c===c&&b.r===r;})[0],i=r*F.W+c;
+  if(c<0||r<0||c>=F.W||r>=F.H)return {ok:false,message:'That cell is outside the battlefield.'};
+  if(kind==='erase')return prior?{ok:true,erase:true,c:c,r:r,prior:prior}:{ok:false,message:'There is no authored block on that cell.'};
+  var seededWall=!!F.foot[i]&&F.type[i]===T_ROCK,def=ARCHITECTURE_API.KINDS[kind];
+  if(!F.foot[i]||F.type[i]===T_WATER)return {ok:false,message:'Water and void cannot support an authored wall.'};
+  if(!def)return {ok:false,message:'Choose a wall, parapet, gate, or erase tool.'};
+  if(seededWall&&!def.blocks)return {ok:false,message:'Seeded retaining walls accept a 10-ft wall or 5-ft parapet extension. Erase restores the seed height.'};
+  if(architectureOccupied(c,r))return {ok:false,message:'Move the deployment flag or combatant before building on that cell.'};
+  var edit={c:c,r:r,kind:kind};if(seededWall&&def.blocks)edit.heightFt=(Number(F.occ&&F.occ[i])||0)+def.heightFt;
+  var same=prior&&prior.kind===edit.kind&&Number(prior.heightFt||0)===Number(edit.heightFt||0);return {ok:true,c:c,r:r,prior:prior,edit:edit,seededWall:seededWall,def:def,changed:!same};
 }
+function architectureRemember(){ARCHITECTURE_HISTORY.push(ARCHITECTURE_API.normalizeRecord(ARCHITECTURE_RECORD));if(ARCHITECTURE_HISTORY.length>50)ARCHITECTURE_HISTORY.shift();}
+function applyArchitectureAt(c,r,kind,options){
+  var placement=architecturePlacement(c,r,kind);if(!placement.ok){architectureSay(placement.message,true);return false;}options=options||{};if(options.remember!==false)architectureRemember();
+  if(placement.erase){ARCHITECTURE_RECORD=ARCHITECTURE_API.eraseRecord(ARCHITECTURE_RECORD,c,r);architectureSay('Authored block erased. The seeded cell is restored.');}
+  else{ARCHITECTURE_RECORD=ARCHITECTURE_API.editRecord(ARCHITECTURE_RECORD,placement.edit);if(placement.def.blocks)ARCHITECTURE_ANCHOR={c:c,r:r};var audit=architectureAudit(),label=placement.seededWall?'Seeded retaining wall raised '+placement.def.heightFt+' ft to '+ARCHITECTURE_API.heightFt(placement.edit)+' ft':(kind==='wall'?'10-ft wall':kind==='parapet'?'5-ft parapet':'Passable gate');architectureSay(label+' at '+c+','+r+'.'+(audit.ok?' Hold a gold arrow to extend it.':' '+audit.errors.join(' ')),!audit.ok);}
+  ARCHITECTURE_LINE_PREVIEW=[];clearArchitecturePreview();renderArchitectureBlocks();refreshDeploymentPanel();return true;
+}
+function architectureLinePlacements(direction,length){
+  var out=[],blocked=null;if(!ARCHITECTURE_ANCHOR||!architectureToolBuildsLines())return {placements:out,blocked:blocked};var cells=ARCHITECTURE_API.lineCells(ARCHITECTURE_ANCHOR,direction,length,F.W,F.H);
+  for(var i=0;i<cells.length;i++){var p=architecturePlacement(cells[i].c,cells[i].r,ARCHITECTURE_TOOL);if(!p.ok){blocked=p.message;break;}out.push(p);}return {placements:out,blocked:blocked};
+}
+function architectureLineShow(direction,length){var line=architectureLinePlacements(direction,length);ARCHITECTURE_LINE_PREVIEW=line.placements;renderArchitecturePreview();var changed=line.placements.filter(function(p){return p.changed;}).length;architectureSay('Preview: '+changed+' block'+(changed===1?'':'s')+'. Release to build.'+(line.blocked?' Stops where '+line.blocked.toLowerCase():''),!!line.blocked&&!line.placements.length);}
+function architectureLineCancel(message){ARCHITECTURE_LINE_PREVIEW=[];ARCHITECTURE_LINE_DRAG=null;if(ARCHITECTURE_HOLD_TIMER)clearInterval(ARCHITECTURE_HOLD_TIMER);ARCHITECTURE_HOLD_TIMER=null;clearArchitecturePreview();if(message!==false&&ARCHITECTURE_ANCHOR)architectureSay('Line cancelled. The anchor remains selected.');}
+function architectureLineCommit(){
+  if(ARCHITECTURE_HOLD_TIMER)clearInterval(ARCHITECTURE_HOLD_TIMER);ARCHITECTURE_HOLD_TIMER=null;var placements=ARCHITECTURE_LINE_PREVIEW.slice(),changed=placements.filter(function(p){return p.changed;});ARCHITECTURE_LINE_DRAG=null;ARCHITECTURE_LINE_PREVIEW=[];clearArchitecturePreview();if(!placements.length){architectureSay('No legal cells in that direction.',true);return;}
+  if(changed.length){architectureRemember();changed.forEach(function(p){ARCHITECTURE_RECORD=ARCHITECTURE_API.editRecord(ARCHITECTURE_RECORD,p.edit);});}var last=placements[placements.length-1];ARCHITECTURE_ANCHOR={c:last.c,r:last.r};var audit=architectureAudit();architectureSay(changed.length?'Built '+changed.length+' '+ARCHITECTURE_TOOL+' block'+(changed.length===1?'':'s')+' as one undoable line.'+(audit.ok?' Required ascent remains open.':' '+audit.errors.join(' ')):'That line already matches the selected blocks. The anchor moved to its end.',!audit.ok);renderArchitectureBlocks();refreshDeploymentPanel();
+}
+function undoArchitectureLine(){var prior=ARCHITECTURE_HISTORY.pop();if(!prior){architectureSay('Nothing to undo.',true);return;}ARCHITECTURE_RECORD=ARCHITECTURE_API.normalizeRecord(prior);architectureLineCancel(false);architectureSay('Undid the last block or line.');renderArchitectureBlocks();refreshDeploymentPanel();}
 function placeArchitectureAtPointer(e){
   var rect=renderer.domElement.getBoundingClientRect();ndc.x=((e.clientX-rect.left)/rect.width)*2-1;ndc.y=-((e.clientY-rect.top)/rect.height)*2+1;ray.setFromCamera(ndc,camera);var hit=ray.intersectObjects(world.children,true)[0];
   if(!hit){architectureSay('No battlefield cell there.',true);return;}applyArchitectureAt(Math.round(hit.point.x+F.W/2-.5),Math.round(hit.point.z+F.H/2-.5),ARCHITECTURE_TOOL);
@@ -3409,12 +3448,19 @@ function sealOptionalBypass(){
   architectureSay('The optional bypass has no clear editable cell.',true);
 }
 (function wireArchitecturePanel(){
-  document.querySelectorAll('[data-architecture-tool]').forEach(function(b){b.onclick=function(){ARCHITECTURE_TOOL=ARCHITECTURE_TOOL===b.dataset.architectureTool?null:b.dataset.architectureTool;DEPLOYMENT_PLACE_GROUP=null;DEPLOYMENT_MANUAL=null;renderArchitecturePanel();architectureSay(ARCHITECTURE_TOOL?'Click a battlefield cell to place '+b.textContent.toLowerCase()+'.':'Building tool released.');};});
-  var seal=document.getElementById('architectureSealBypass'),reset=document.getElementById('architectureReset'),fog=document.getElementById('architectureFogPreview'),advance=document.getElementById('architectureFogAdvance');if(seal)seal.onclick=sealOptionalBypass;if(reset)reset.onclick=function(){ARCHITECTURE_RECORD=ARCHITECTURE_API.record([]);architectureSay('All authored blocks cleared. The seeded Temple is restored.');renderArchitectureBlocks();refreshDeploymentPanel();};
+  document.querySelectorAll('[data-architecture-tool]').forEach(function(b){b.onclick=function(){architectureLineCancel(false);ARCHITECTURE_TOOL=ARCHITECTURE_TOOL===b.dataset.architectureTool?null:b.dataset.architectureTool;DEPLOYMENT_PLACE_GROUP=null;DEPLOYMENT_MANUAL=null;renderArchitecturePanel();architectureSay(ARCHITECTURE_TOOL?(architectureToolBuildsLines()?'Click a battlefield cell to place an anchor, then hold or drag a gold arrow.':'Click a battlefield cell to place '+b.textContent.toLowerCase()+'.'):'Building tool released.');};});
+  var seal=document.getElementById('architectureSealBypass'),undo=document.getElementById('architectureUndo'),reset=document.getElementById('architectureReset'),fog=document.getElementById('architectureFogPreview'),advance=document.getElementById('architectureFogAdvance');if(seal)seal.onclick=sealOptionalBypass;if(undo)undo.onclick=undoArchitectureLine;if(reset)reset.onclick=function(){ARCHITECTURE_RECORD=ARCHITECTURE_API.record([]);ARCHITECTURE_HISTORY=[];ARCHITECTURE_ANCHOR=null;architectureLineCancel(false);architectureSay('All authored blocks cleared. The seeded Temple is restored.');renderArchitectureBlocks();refreshDeploymentPanel();};
   if(fog)fog.onclick=function(){ARCHITECTURE_FOG_PREVIEW=!ARCHITECTURE_FOG_PREVIEW;ARCHITECTURE_PREVIEW_REGION=0;ARCHITECTURE_PREVIEW_EXPLORED=null;applyArchitectureFogPreview();renderArchitecturePanel();architectureSay(ARCHITECTURE_FOG_PREVIEW?'Sight preview: visible cells are coloured; out-of-sight geometry remains grey.':'Staff view restored.');};
   if(advance)advance.onclick=function(){if(!ARCHITECTURE_FOG_PREVIEW)return;var regions=F&&F.intent&&F.intent.regions||[],count=regions.length;ARCHITECTURE_PREVIEW_REGION=count?(ARCHITECTURE_PREVIEW_REGION+1)%count:0;applyArchitectureFogPreview();architectureSay('Preview eye moved to '+(regions[ARCHITECTURE_PREVIEW_REGION]&&regions[ARCHITECTURE_PREVIEW_REGION].id||'the map')+'. Previously seen cells remain grey.');};
+  var handles=document.getElementById('architectureLineHandles');if(handles){
+    handles.addEventListener('pointerdown',function(e){var button=e.target.closest('[data-architecture-line]');if(!button||!ARCHITECTURE_ANCHOR||!architectureToolBuildsLines())return;e.preventDefault();try{button.setPointerCapture(e.pointerId);}catch(_e){}ARCHITECTURE_LINE_DRAG={direction:button.dataset.architectureLine,startX:e.clientX,startY:e.clientY,screenX:Number(button.dataset.screenX)||0,screenY:Number(button.dataset.screenY)||-1,stepPx:Number(button.dataset.stepPx)||38,length:1};architectureLineShow(ARCHITECTURE_LINE_DRAG.direction,1);ARCHITECTURE_HOLD_TIMER=setInterval(function(){if(!ARCHITECTURE_LINE_DRAG)return;ARCHITECTURE_LINE_DRAG.length++;architectureLineShow(ARCHITECTURE_LINE_DRAG.direction,ARCHITECTURE_LINE_DRAG.length);},240);});
+    handles.addEventListener('pointermove',function(e){if(!ARCHITECTURE_LINE_DRAG)return;var d=ARCHITECTURE_LINE_DRAG,travel=(e.clientX-d.startX)*d.screenX+(e.clientY-d.startY)*d.screenY;if(travel>12){if(ARCHITECTURE_HOLD_TIMER)clearInterval(ARCHITECTURE_HOLD_TIMER);ARCHITECTURE_HOLD_TIMER=null;var length=Math.max(1,1+Math.round(travel/d.stepPx));if(length!==d.length){d.length=length;architectureLineShow(d.direction,d.length);}}});
+    handles.addEventListener('pointerup',function(){if(ARCHITECTURE_LINE_DRAG)architectureLineCommit();});handles.addEventListener('pointercancel',function(){architectureLineCancel();});
+  }
+  document.addEventListener('keydown',function(e){if(e.key==='Escape'&&(ARCHITECTURE_LINE_DRAG||ARCHITECTURE_LINE_PREVIEW.length))architectureLineCancel();});
+  document.addEventListener('contextmenu',function(e){if(ARCHITECTURE_LINE_DRAG||ARCHITECTURE_LINE_PREVIEW.length){e.preventDefault();architectureLineCancel();}});
 })();
-window.__forgeArchitecture={active:architectureActive,get record(){return ARCHITECTURE_API.normalizeRecord(ARCHITECTURE_RECORD);},audit:architectureAudit,place:applyArchitectureAt,reset:function(){ARCHITECTURE_RECORD=ARCHITECTURE_API.record([]);renderArchitectureBlocks();}};
+window.__forgeArchitecture={active:architectureActive,get record(){return ARCHITECTURE_API.normalizeRecord(ARCHITECTURE_RECORD);},audit:architectureAudit,place:applyArchitectureAt,line:function(direction,length){architectureLineShow(direction,length);architectureLineCommit();},undo:undoArchitectureLine,reset:function(){ARCHITECTURE_RECORD=ARCHITECTURE_API.record([]);ARCHITECTURE_HISTORY=[];ARCHITECTURE_ANCHOR=null;architectureLineCancel(false);renderArchitectureBlocks();}};
 
 document.getElementById('forgeBtn').onclick=()=>{
   if(SESSION_ID){ clog('<i>The map belongs to the fight — re-forge is disabled during a session.</i>'); return; }
@@ -8046,6 +8092,7 @@ async function bootSession(sid){
     F=buildTiersField(sessionRecipe.seed,Object.assign({themeKey:sessionRecipe.themeKey},sessionRecipe));
   }
   ARCHITECTURE_RECORD=F&&F.architecture?ARCHITECTURE_API.normalizeRecord(F.architecture):ARCHITECTURE_API.record([]);
+  ARCHITECTURE_ANCHOR=null;ARCHITECTURE_LINE_PREVIEW=[];ARCHITECTURE_HISTORY=[];architectureLineCancel(false);
   ARCHITECTURE_PREVIEW_STATES=null;ARCHITECTURE_PREVIEW_EXPLORED=null;
   if(!F.occ)F.occ=EMPTY_OCC(F.W*F.H);
   WALL_FT=MapBridge.wallFeetFor(BIOME);applyLook();renderField();

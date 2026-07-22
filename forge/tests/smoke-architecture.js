@@ -26,6 +26,10 @@ ok('architecture version is pinned', A.VERSION === 2 && A.SCHEMA === 'forge-arch
 ok('version-1 records migrate without losing blocks', A.normalizeRecord({ schema: A.SCHEMA, version: 1, blocks: [{ c: 1, r: 1, kind: 'wall' }] }).blocks.length === 1);
 ok('invalid blocks are discarded', A.record([{ c: 1, r: 1, kind: 'dragon' }]).blocks.length === 0);
 ok('last edit owns a cell', A.record([{ c: 1, r: 1, kind: 'wall' }, { c: 1, r: 1, kind: 'gate' }]).blocks[0].kind === 'gate');
+ok('line builder walks north from the anchor', JSON.stringify(A.lineCells({ c: 2, r: 2 }, 'n', 2, 5, 5)) === JSON.stringify([{ c: 2, r: 1 }, { c: 2, r: 0 }]));
+ok('line builder walks east from the anchor', JSON.stringify(A.lineCells({ c: 1, r: 2 }, 'e', 3, 5, 5)) === JSON.stringify([{ c: 2, r: 2 }, { c: 3, r: 2 }, { c: 4, r: 2 }]));
+ok('line builder stops cleanly at the field edge', A.lineCells({ c: 3, r: 3 }, 's', 9, 5, 5).length === 1);
+ok('line builder rejects an unknown direction', A.lineCells({ c: 2, r: 2 }, 'uphill', 3, 5, 5).length === 0);
 const wallRecord = A.record([{ c: 1, r: 1, kind: 'wall' }]);
 const wallMap = A.apply(map, wallRecord);
 ok('10-foot wall blocks movement', wallMap.wall[4] === true);

@@ -4,6 +4,7 @@
    ③ session excluded from draft save/restore  ③b realtime repaint guard
    ④ clipboard-pipeline loads (Quill delta sync)
    ⑤ chip guard on editEntry
+   ⑥ New Section dialog targets the viewed session and narrates failures
    Harness note: stubs are injected as a real <script> BEFORE the page's inline
    script (runScripts:'dangerously') so the page's top-level let/const land in
    the global lexical environment — indirect eval() scopes lexicals to itself,
@@ -187,6 +188,32 @@ const settle = () => new Promise(r => setTimeout(r, 30)); // let the async init 
             if (!editingEntryId) document.getElementById('d-session').value = currentSession;`);
     eq(w.eval(`document.getElementById('d-session').value`), '7', 'no repaint while editing');
   });
+
+  // ── ⑥ New Section dialog ───────────────────────────────────────────────
+  {
+    const w = boot({ data: [], error: null }); await settle();
+    await T('newSection: All Entries targets current session, chip is display-only', () => {
+      w.eval(`currentSession = 5; activeFilters.session = null; activeChannel = null;
+              allEntries = [{ session:5, sessionTitle:'The Fort Siege' }]; newSection();`);
+      eq(w.eval(`document.getElementById('section-dialog').dataset.session`), '5');
+      eq(w.eval(`document.getElementById('section-session-chip').textContent`), 'Session 5 · The Fort Siege');
+      eq(w.eval(`document.getElementById('section-session-chip').tagName`), 'SPAN');
+      ok(!w.eval(`document.getElementById('section-dialog').classList.contains('hidden')`), 'dialog opens');
+    });
+    await T('newSection: viewed Chronicle session overrides current session', () => {
+      w.eval(`activeFilters.session = 3; allEntries = [{ session:3, sessionTitle:'The Long Road' }]; newSection();`);
+      eq(w.eval(`document.getElementById('section-dialog').dataset.session`), '3');
+      eq(w.eval(`document.getElementById('section-session-chip').textContent`), 'Session 3 · The Long Road');
+    });
+    await T('newSection: empty heading and write failure narrate inline', async () => {
+      w.eval(`document.getElementById('section-title-input').value = '';`);
+      await w.eval(`submitNewSection({ preventDefault(){} })`);
+      ok(w.eval(`/Give this section/.test(document.getElementById('section-dialog-note').textContent)`), 'empty state explained');
+      w.eval(`SB = null; document.getElementById('section-title-input').value = 'The Parlay';`);
+      await w.eval(`submitNewSection({ preventDefault(){} })`);
+      ok(w.eval(`/Could not add section: No Supabase client/.test(document.getElementById('section-dialog-note').textContent)`), 'write failure explained inline');
+    });
+  }
 
   // ── source-level assertions on the patched file ────────────────────────
   await T('source assertions: desync loads gone, verify + gate present', () => {

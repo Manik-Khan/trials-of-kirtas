@@ -54,6 +54,18 @@
     return record(current.blocks.filter(function (b) { return b.c !== col || b.r !== row; }));
   }
 
+  function lineCells(anchor, direction, length, cols, rows) {
+    var startC = integer(anchor && anchor.c), startR = integer(anchor && anchor.r), count = Math.max(0, integer(length) || 0);
+    var step = { n: [0, -1], e: [1, 0], s: [0, 1], w: [-1, 0] }[String(direction || "").toLowerCase()], out = [];
+    if (startC == null || startR == null || !step) return out;
+    for (var i = 1; i <= count; i++) {
+      var c = startC + step[0] * i, r = startR + step[1] * i;
+      if (c < 0 || r < 0 || c >= Number(cols) || r >= Number(rows)) break;
+      out.push({ c: c, r: r });
+    }
+    return out;
+  }
+
   function cloneMap(map) {
     var out = Object.assign({}, map), n = Number(map.cols) * Number(map.rows);
     ["h", "wall", "occ"].forEach(function (name) { out[name] = Array.from(map[name] || []); });
@@ -169,7 +181,7 @@
 
   return {
     VERSION: VERSION, SCHEMA: SCHEMA, KINDS: KINDS,
-    normalizeEdit: normalizeEdit, record: record, normalizeRecord: normalizeRecord, editRecord: editRecord, eraseRecord: eraseRecord, heightFt: heightFt,
+    normalizeEdit: normalizeEdit, record: record, normalizeRecord: normalizeRecord, editRecord: editRecord, eraseRecord: eraseRecord, heightFt: heightFt, lineCells: lineCells,
     apply: apply, audit: audit, requiredConnectorCells: requiredConnectorCells,
     regionIndex: regionIndex, regionStates: regionStates, regionStateAt: regionStateAt
   };

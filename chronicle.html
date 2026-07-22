@@ -975,6 +975,36 @@
     .id-confirm:hover { background: rgba(184,149,42,0.22); }
     .id-confirm:disabled { opacity: 0.35; cursor: default; }
 
+    /* ── New section dialog ── */
+    .section-dialog-backdrop { position: fixed; inset: 0; z-index: 600; display: flex; align-items: center; justify-content: center; padding: 20px; background: rgba(3,6,5,0.72); backdrop-filter: blur(4px); }
+    .section-dialog-backdrop.hidden { display: none; }
+    .section-dialog { position: relative; width: min(470px,100%); max-height: calc(100vh - 40px); overflow-y: auto; background: var(--section-bg); border: 1px solid var(--gold-dim); box-shadow: 0 26px 80px rgba(0,0,0,0.72); }
+    .section-dialog::before { content: ''; position: absolute; inset: 5px; border: 1px solid rgba(184,149,42,0.08); pointer-events: none; }
+    .section-dialog-head { padding: 1.6rem 1.75rem 1.25rem; border-bottom: 1px solid rgba(184,149,42,0.16); }
+    .section-dialog-kicker { font-family: var(--font-title); color: var(--gold); font-size: 0.72rem; letter-spacing: 0.24em; text-transform: uppercase; }
+    .section-dialog-title { margin: 0.45rem 0 0; font-family: var(--font-display); color: var(--parchment); font-size: 1.65rem; font-weight: 400; }
+    .section-dialog-copy { margin: 0.55rem 0 0; color: var(--muted); font-size: 0.86rem; line-height: 1.5; }
+    .section-dialog-body { padding: 1.35rem 1.75rem 1.5rem; }
+    .section-session-chip { display: inline-flex; align-items: center; gap: 0.5rem; padding: 0.38rem 0.55rem; border: 1px solid rgba(184,149,42,0.2); background: rgba(255,255,255,0.025); color: var(--aged); font-family: var(--font-title); font-size: 0.72rem; letter-spacing: 0.14em; text-transform: uppercase; }
+    .section-session-chip::before { content: ''; width: 6px; height: 6px; border-radius: 50%; background: var(--gold); }
+    .section-dialog-label { display: block; margin-top: 1.15rem; color: var(--gold); font-family: var(--font-title); font-size: 0.72rem; letter-spacing: 0.22em; text-transform: uppercase; }
+    .section-dialog-input { display: block; width: 100%; margin-top: 0.5rem; padding: 0.75rem 0.8rem; border: 1px solid var(--gold-dim); border-radius: 0; outline: none; background: rgba(0,0,0,0.22); color: var(--parchment); font-family: var(--font-body); font-size: 1rem; }
+    .section-dialog-input:focus { border-color: var(--gold); box-shadow: 0 0 0 2px rgba(184,149,42,0.09); }
+    .section-dialog-input::placeholder { color: var(--muted); }
+    .section-dialog-note { min-height: 1rem; margin-top: 0.4rem; color: var(--muted); font-size: 0.74rem; font-style: italic; }
+    .section-dialog-note.error { color: #e07b6d; font-style: normal; }
+    .section-dialog-preview { margin-top: 1rem; padding: 0.85rem 0.9rem; border: 1px solid rgba(184,149,42,0.16); background: rgba(0,0,0,0.16); }
+    .section-dialog-preview-label { color: var(--muted); font-family: var(--font-title); font-size: 0.68rem; letter-spacing: 0.2em; text-transform: uppercase; }
+    .section-dialog-preview-line { margin-top: 0.7rem; padding-bottom: 0.5rem; border-bottom: 1px solid var(--gold-dim); color: var(--gold-light); font-family: var(--font-title); font-size: 0.76rem; letter-spacing: 0.24em; text-transform: uppercase; }
+    .section-dialog-actions { display: flex; justify-content: flex-end; gap: 0.55rem; margin-top: 1.35rem; }
+    .section-dialog-btn { min-width: 116px; padding: 0.6rem 0.8rem; border: 1px solid var(--gold-dim); background: transparent; color: var(--muted); font-family: var(--font-title); font-size: 0.72rem; letter-spacing: 0.18em; text-transform: uppercase; cursor: pointer; }
+    .section-dialog-btn:hover, .section-dialog-btn:focus-visible { border-color: var(--gold); color: var(--aged); outline: none; }
+    .section-dialog-btn.primary { border-color: var(--gold); background: rgba(184,149,42,0.12); color: var(--gold-light); }
+    .section-dialog-btn.primary:hover { background: rgba(184,149,42,0.22); }
+    .section-dialog-btn:disabled { opacity: 0.55; cursor: wait; }
+    .section-dialog-toast { position: fixed; z-index: 650; left: 50%; bottom: 24px; transform: translate(-50%,16px); padding: 0.6rem 0.9rem; border: 1px solid rgba(112,170,135,0.45); background: #17251f; color: #a8d4b8; opacity: 0; pointer-events: none; transition: opacity 0.16s, transform 0.16s; font-family: var(--font-title); font-size: 0.72rem; letter-spacing: 0.16em; text-transform: uppercase; white-space: nowrap; }
+    .section-dialog-toast.show { opacity: 1; transform: translate(-50%,0); }
+
     /* ── Session prompt modal ── */
     .session-prompt-backdrop { position: fixed; inset: 0; background: rgba(0,0,0,0.7); z-index: 400; display: flex; align-items: center; justify-content: center; backdrop-filter: blur(4px); }
     .session-prompt-backdrop.hidden { display: none; }
@@ -1031,6 +1061,14 @@
 
       /* Safe area bottom for editor drawer */
       .c-editor-wrap { padding-bottom: env(safe-area-inset-bottom); }
+
+      .section-dialog-backdrop { padding: 16px; }
+      .section-dialog-head { padding: 1.35rem 1.35rem 1rem; }
+      .section-dialog-body { padding: 1.15rem 1.35rem 1.3rem; }
+      .section-dialog-title { font-size: 1.5rem; }
+      .section-dialog-actions { flex-direction: column-reverse; }
+      .section-dialog-btn { width: 100%; }
+      .section-dialog-toast { bottom: 16px; max-width: calc(100vw - 32px); white-space: normal; text-align: center; }
     }
     /* ════ Server browser (Phase 3A): channel tree, combat pane, search ════ */
     .sv-scope { display: flex; gap: 4px; padding: 0 1.1rem 0.5rem; }
@@ -1190,6 +1228,32 @@
     </div>
   </div>
 </div>
+
+<!-- Staff: insert a structural heading into the session being viewed -->
+<div class="section-dialog-backdrop hidden" id="section-dialog" onclick="closeSectionDialogFromBackdrop(event)">
+  <section class="section-dialog" role="dialog" aria-modal="true" aria-labelledby="section-dialog-title">
+    <div class="section-dialog-head">
+      <div class="section-dialog-kicker">Chronicle structure</div>
+      <h2 class="section-dialog-title" id="section-dialog-title">Mark a new section</h2>
+      <p class="section-dialog-copy">Creates a heading at this point in the selected session. It will also appear in the Chronicle book’s outline.</p>
+    </div>
+    <form class="section-dialog-body" onsubmit="submitNewSection(event)">
+      <span class="section-session-chip" id="section-session-chip">Session —</span>
+      <label class="section-dialog-label" for="section-title-input">Section heading</label>
+      <input class="section-dialog-input" id="section-title-input" maxlength="80" autocomplete="off" placeholder="The Parlay" oninput="updateSectionPreview()">
+      <div class="section-dialog-note" id="section-dialog-note">Keep it brief—this becomes an outline label.</div>
+      <div class="section-dialog-preview">
+        <div class="section-dialog-preview-label">How it will read</div>
+        <div class="section-dialog-preview-line" id="section-dialog-preview">Section heading</div>
+      </div>
+      <div class="section-dialog-actions">
+        <button class="section-dialog-btn" type="button" id="section-dialog-cancel" onclick="closeSectionDialog()">Cancel</button>
+        <button class="section-dialog-btn primary" type="submit" id="section-dialog-insert">Insert section</button>
+      </div>
+    </form>
+  </section>
+</div>
+<div class="section-dialog-toast" id="section-dialog-toast" role="status">Section added · visible in the book outline</div>
 
 <!-- Inline dropdown (@ and #) -->
 <div class="inline-dropdown" id="inline-dropdown"></div>
@@ -3040,17 +3104,65 @@ async function submitEntry() {
   }
 }
 
-// Post a section heading: a chronicle row flagged meta.section. The new book
-// renders it as an in-stream heading and lists it in the per-session outline;
-// the old chronicle just shows the bolded title. Session comes from the drawer
-// field (falls back to the current session).
-async function newSection() {
-  const title = (window.prompt('Section heading (e.g. "The Parlay"):') || '').trim();
-  if (!title) return;
-  const parsed = parseInt(document.getElementById('d-session').value, 10);
-  const session = Number.isFinite(parsed) ? parsed : currentSession;
+// A section belongs to the Chronicle session being viewed. From All Entries,
+// use the campaign's current session; the dialog chip narrates that target.
+function sectionTargetSession() {
+  if (activeChannel && Number.isFinite(Number(activeChannel.session))) return Number(activeChannel.session);
+  if (activeFilters.session !== null && Number.isFinite(Number(activeFilters.session))) return Number(activeFilters.session);
+  return currentSession;
+}
+function sectionSessionTitle(session) {
+  const entry = allEntries.find(e => e.session == session && e.sessionTitle);
+  return entry ? entry.sessionTitle : '';
+}
+function newSection() {
+  const session = sectionTargetSession();
+  const sessionTitle = sectionSessionTitle(session);
+  const input = document.getElementById('section-title-input');
+  const note = document.getElementById('section-dialog-note');
+  document.getElementById('section-session-chip').textContent = `Session ${session}${sessionTitle ? ' · ' + sessionTitle : ''}`;
+  document.getElementById('section-dialog').dataset.session = String(session);
+  input.value = '';
+  note.textContent = 'Keep it brief—this becomes an outline label.';
+  note.classList.remove('error');
+  updateSectionPreview();
+  document.getElementById('section-dialog').classList.remove('hidden');
+  setTimeout(() => input.focus(), 0);
+}
+function closeSectionDialog() {
+  document.getElementById('section-dialog').classList.add('hidden');
+}
+function closeSectionDialogFromBackdrop(event) {
+  if (event.target.id === 'section-dialog') closeSectionDialog();
+}
+function updateSectionPreview() {
+  const title = document.getElementById('section-title-input').value.trim();
+  document.getElementById('section-dialog-preview').textContent = title || 'Section heading';
+  const note = document.getElementById('section-dialog-note');
+  note.textContent = 'Keep it brief—this becomes an outline label.';
+  note.classList.remove('error');
+}
+async function submitNewSection(event) {
+  event.preventDefault();
+  const input = document.getElementById('section-title-input');
+  const note = document.getElementById('section-dialog-note');
+  const insertBtn = document.getElementById('section-dialog-insert');
+  const cancelBtn = document.getElementById('section-dialog-cancel');
+  const title = input.value.trim();
+  if (!title) {
+    note.textContent = 'Give this section a heading before inserting it.';
+    note.classList.add('error');
+    input.focus();
+    return;
+  }
+  const session = Number(document.getElementById('section-dialog').dataset.session);
   const actorKey = currentIdentity && currentIdentity.playerId === 'dm' ? null : (currentIdentity && currentIdentity.playerId) || null;
   const esc = t => String(t).replace(/[&<>]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;' }[c]));
+  insertBtn.disabled = true;
+  cancelBtn.disabled = true;
+  insertBtn.textContent = 'Inserting…';
+  note.textContent = 'Adding this heading to the Chronicle…';
+  note.classList.remove('error');
   try {
     if (!SB) throw new Error('No Supabase client');
     const { data, error } = await SB.from('feed').insert({
@@ -3062,10 +3174,25 @@ async function newSection() {
     if (error) throw new Error(error.message);
     if (!allEntries.some(e => e._rowId === data.id)) allEntries = [rowToEntry(data), ...allEntries];
     renderSidebar(); renderEntries();
+    closeSectionDialog();
+    const toast = document.getElementById('section-dialog-toast');
+    toast.classList.add('show');
+    setTimeout(() => toast.classList.remove('show'), 2200);
   } catch (e) {
-    alert('Could not add section: ' + e.message);
+    note.textContent = 'Could not add section: ' + e.message;
+    note.classList.add('error');
+    input.focus();
+  } finally {
+    insertBtn.disabled = false;
+    cancelBtn.disabled = false;
+    insertBtn.textContent = 'Insert section';
   }
 }
+
+document.addEventListener('keydown', event => {
+  const dialog = document.getElementById('section-dialog');
+  if (event.key === 'Escape' && dialog && !dialog.classList.contains('hidden')) closeSectionDialog();
+});
 
 // ── Export the durable archive (staff): regenerate data/chronicle.json from
 // the feed via the feed-export Netlify function. The git-committed JSON stays

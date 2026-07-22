@@ -1,0 +1,289 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Chronicle — New Section approval mock</title>
+  <style>
+    :root {
+      --ground: #111917;
+      --panel: #182522;
+      --panel-2: #1d2c28;
+      --ink: #ece2cd;
+      --aged: #c2b99f;
+      --muted: #8d8675;
+      --gold: #c79a4a;
+      --gold-br: #e7c279;
+      --gold-dim: rgba(199, 154, 74, 0.32);
+      --hair: rgba(236, 226, 205, 0.13);
+      --red: #cf3b2c;
+      --good: #70aa87;
+      --display: Georgia, 'Times New Roman', serif;
+      --utility: 'Arial Narrow', Arial, sans-serif;
+      --body: Georgia, 'Times New Roman', serif;
+    }
+
+    * { box-sizing: border-box; }
+    html, body { height: 100%; }
+    body {
+      margin: 0;
+      overflow: hidden;
+      color: var(--ink);
+      background:
+        radial-gradient(circle at 72% 22%, rgba(65, 104, 92, 0.13), transparent 30rem),
+        var(--ground);
+      font-family: var(--body);
+    }
+
+    button, input { font: inherit; }
+    button { color: inherit; }
+    .shell { height: 100%; display: grid; grid-template-rows: 48px minmax(0, 1fr); }
+    .topbar {
+      display: flex; align-items: center; justify-content: space-between;
+      padding: 0 22px; border-bottom: 1px solid var(--hair);
+      background: rgba(8, 12, 11, 0.78);
+      font-family: var(--utility); text-transform: uppercase;
+    }
+    .brand { color: var(--red); letter-spacing: 0.26em; font-size: 12px; font-weight: 700; }
+    .mock-note { color: var(--muted); letter-spacing: 0.18em; font-size: 9px; }
+
+    .layout { min-height: 0; display: grid; grid-template-columns: 250px minmax(0, 1fr); }
+    .sidebar {
+      position: relative; z-index: 1; display: flex; flex-direction: column; min-height: 0;
+      border-right: 1px solid var(--hair); background: rgba(17, 27, 24, 0.92);
+    }
+    .side-head { padding: 24px 20px 18px; border-bottom: 1px solid var(--hair); }
+    .side-title { font-family: var(--display); font-size: 27px; line-height: 1; }
+    .side-sub { margin-top: 6px; color: var(--muted); font-style: italic; font-size: 13px; }
+    .channels { padding: 20px; flex: 1; }
+    .eyebrow {
+      font-family: var(--utility); color: var(--muted); text-transform: uppercase;
+      letter-spacing: 0.22em; font-size: 9px; font-weight: 700;
+    }
+    .channel { margin-top: 12px; padding: 11px 12px; border-left: 2px solid var(--gold); background: rgba(199,154,74,0.07); }
+    .channel b { display: block; font-family: var(--utility); font-size: 12px; letter-spacing: 0.08em; text-transform: uppercase; }
+    .channel span { display: block; margin-top: 4px; color: var(--muted); font-size: 12px; }
+
+    .session-ctrl { padding: 16px 18px 18px; border-top: 1px solid var(--hair); }
+    .session-row { display: flex; align-items: center; justify-content: space-between; gap: 10px; margin-top: 8px; }
+    .session-value { font-family: var(--utility); color: var(--aged); font-size: 11px; letter-spacing: 0.12em; text-transform: uppercase; }
+    .side-btn {
+      width: 100%; margin-top: 9px; padding: 9px 11px; cursor: pointer;
+      border: 1px solid var(--gold-dim); background: transparent;
+      font-family: var(--utility); color: var(--aged); text-transform: uppercase;
+      letter-spacing: 0.16em; font-size: 10px; font-weight: 700;
+    }
+    .side-btn:hover, .side-btn:focus-visible { border-color: var(--gold); color: var(--gold-br); background: rgba(199,154,74,0.08); outline: none; }
+
+    .feed { min-width: 0; min-height: 0; position: relative; overflow: hidden; }
+    .feed-scroll { height: 100%; overflow: auto; padding: 34px clamp(24px, 7vw, 104px) 120px; }
+    .feed-kicker { font-family: var(--utility); color: var(--gold); letter-spacing: 0.2em; text-transform: uppercase; font-size: 10px; font-weight: 700; }
+    .feed-title { margin: 8px 0 30px; font-family: var(--display); font-size: clamp(34px, 4vw, 60px); font-weight: 400; }
+    .entry { max-width: 760px; display: grid; grid-template-columns: 40px 1fr; gap: 15px; padding: 21px 0; border-top: 1px solid var(--hair); }
+    .avatar { width: 34px; height: 34px; border-radius: 50%; display: grid; place-items: center; background: #6f9fc9; font-family: var(--utility); font-weight: 700; font-size: 11px; }
+    .entry-head { display: flex; align-items: baseline; justify-content: space-between; gap: 15px; }
+    .entry-who { font-family: var(--utility); color: #8db8df; letter-spacing: 0.14em; text-transform: uppercase; font-size: 10px; font-weight: 700; }
+    .entry-time { color: var(--muted); font-family: var(--utility); font-size: 9px; letter-spacing: 0.14em; }
+    .entry p { margin: 10px 0 0; color: var(--aged); font-size: 16px; line-height: 1.55; }
+    .section-row { max-width: 760px; margin: 18px 0 6px; padding: 11px 0 9px; border-bottom: 1px solid var(--gold-dim); color: var(--gold-br); font-family: var(--utility); font-size: 11px; font-weight: 700; letter-spacing: 0.24em; text-transform: uppercase; }
+    .composer {
+      position: absolute; left: 0; right: 0; bottom: 0; height: 72px;
+      display: flex; align-items: center; justify-content: space-between; padding: 0 28px;
+      border-top: 1px solid var(--hair); background: rgba(17, 25, 23, 0.96);
+    }
+    .composer b { font-family: var(--utility); letter-spacing: 0.14em; text-transform: uppercase; font-size: 10px; }
+    .composer span { color: var(--muted); font-size: 13px; font-style: italic; }
+
+    .veil {
+      position: fixed; inset: 0; z-index: 20; display: grid; place-items: center;
+      padding: 20px; background: rgba(3, 6, 5, 0.72); backdrop-filter: blur(4px);
+      transition: opacity 150ms ease;
+    }
+    .veil.hidden { opacity: 0; pointer-events: none; }
+    .dialog {
+      width: min(470px, 100%); background: var(--panel); border: 1px solid var(--gold-dim);
+      box-shadow: 0 26px 80px rgba(0,0,0,0.72); position: relative;
+    }
+    .dialog::before { content: ''; position: absolute; inset: 5px; border: 1px solid rgba(199,154,74,0.08); pointer-events: none; }
+    .dialog-head { padding: 26px 28px 20px; border-bottom: 1px solid var(--hair); }
+    .dialog-kicker { font-family: var(--utility); color: var(--gold); font-size: 9px; letter-spacing: 0.24em; text-transform: uppercase; font-weight: 700; }
+    .dialog-title { margin: 7px 0 0; font-family: var(--display); font-size: 30px; font-weight: 400; }
+    .dialog-copy { margin: 8px 0 0; color: var(--muted); font-size: 14px; line-height: 1.45; }
+    .dialog-body { padding: 22px 28px 24px; }
+    .session-chip { display: inline-flex; align-items: center; gap: 8px; padding: 6px 9px; border: 1px solid var(--hair); background: rgba(236,226,205,0.035); font-family: var(--utility); color: var(--aged); font-size: 9px; letter-spacing: 0.14em; text-transform: uppercase; }
+    .session-chip::before { content: ''; width: 6px; height: 6px; background: var(--gold); border-radius: 50%; }
+    label { display: block; margin-top: 19px; font-family: var(--utility); color: var(--gold); font-size: 9px; font-weight: 700; letter-spacing: 0.22em; text-transform: uppercase; }
+    .title-input {
+      display: block; width: 100%; margin-top: 8px; padding: 12px 13px;
+      border: 1px solid var(--gold-dim); border-radius: 0; outline: none;
+      background: rgba(7,12,10,0.42); color: var(--ink); font-size: 18px;
+    }
+    .title-input:focus { border-color: var(--gold); box-shadow: 0 0 0 2px rgba(199,154,74,0.09); }
+    .title-input::placeholder { color: #696456; }
+    .field-note { min-height: 17px; margin-top: 6px; color: var(--muted); font-size: 11px; font-style: italic; }
+    .field-note.error { color: #e07b6d; font-style: normal; }
+    .preview { margin-top: 17px; padding: 14px 15px; border: 1px solid var(--hair); background: var(--panel-2); }
+    .preview-label { font-family: var(--utility); color: var(--muted); font-size: 8px; letter-spacing: 0.2em; text-transform: uppercase; }
+    .preview-line { margin-top: 11px; padding-bottom: 8px; border-bottom: 1px solid var(--gold-dim); color: var(--gold-br); font-family: var(--utility); font-size: 10px; font-weight: 700; letter-spacing: 0.24em; text-transform: uppercase; }
+    .dialog-actions { display: flex; justify-content: flex-end; gap: 9px; margin-top: 22px; }
+    .action {
+      min-width: 116px; padding: 10px 13px; cursor: pointer; border: 1px solid var(--gold-dim);
+      background: transparent; font-family: var(--utility); font-size: 9px; font-weight: 700; letter-spacing: 0.18em; text-transform: uppercase;
+    }
+    .action:hover, .action:focus-visible { border-color: var(--gold); outline: none; }
+    .action.primary { border-color: var(--gold); background: rgba(199,154,74,0.12); color: var(--gold-br); }
+    .action.primary:hover { background: rgba(199,154,74,0.22); }
+    .action:disabled { cursor: wait; opacity: 0.62; }
+    .toast {
+      position: fixed; z-index: 30; left: 50%; bottom: 24px; transform: translate(-50%, 16px);
+      padding: 10px 15px; border: 1px solid rgba(112,170,135,0.45); background: #17251f;
+      color: #a8d4b8; opacity: 0; pointer-events: none; transition: opacity 160ms ease, transform 160ms ease;
+      font-family: var(--utility); font-size: 9px; letter-spacing: 0.16em; text-transform: uppercase;
+    }
+    .toast.show { opacity: 1; transform: translate(-50%, 0); }
+
+    @media (max-width: 700px) {
+      .topbar { padding: 0 14px; }
+      .mock-note { display: none; }
+      .layout { grid-template-columns: 1fr; }
+      .sidebar { display: none; }
+      .feed-scroll { padding: 25px 20px 105px; }
+      .feed-title { margin-bottom: 20px; }
+      .composer { height: 64px; padding: 0 18px; }
+      .dialog-head { padding: 22px 22px 17px; }
+      .dialog-body { padding: 19px 22px 22px; }
+      .dialog-title { font-size: 27px; }
+      .dialog-actions { display: grid; grid-template-columns: 1fr 1fr; }
+      .action { min-width: 0; }
+    }
+  </style>
+</head>
+<body>
+  <div class="shell" aria-hidden="false">
+    <header class="topbar">
+      <span class="brand">Kirtas</span>
+      <span class="mock-note">Standalone approval mock · nothing persists</span>
+    </header>
+    <div class="layout">
+      <aside class="sidebar">
+        <div class="side-head">
+          <div class="side-title">Chronicle</div>
+          <div class="side-sub">The Trials of Kirtas</div>
+        </div>
+        <div class="channels">
+          <div class="eyebrow">Channels</div>
+          <div class="channel"><b>Session 5</b><span>The Fort Siege</span></div>
+        </div>
+        <div class="session-ctrl">
+          <div class="eyebrow">Current Session</div>
+          <div class="session-row"><span class="session-value">Session 5</span><span class="session-value">Staff</span></div>
+          <button class="side-btn" type="button" data-open>+ New Section</button>
+        </div>
+      </aside>
+
+      <main class="feed">
+        <div class="feed-scroll" id="feed-scroll">
+          <div class="feed-kicker">Session 5 · July 7</div>
+          <h1 class="feed-title">The Fort Siege</h1>
+          <article class="entry">
+            <div class="avatar">V</div>
+            <div><div class="entry-head"><span class="entry-who">Vesperian Vale</span><span class="entry-time">9:14 PM</span></div><p>We meet Chonkalius. He wants to join us in the fight against the goblins and take back the fort.</p></div>
+          </article>
+          <div id="section-anchor"></div>
+          <article class="entry">
+            <div class="avatar">V</div>
+            <div><div class="entry-head"><span class="entry-who">Vesperian Vale</span><span class="entry-time">9:16 PM</span></div><p>We take a rest after the fight, but notice a group of goblins across the hillside.</p></div>
+          </article>
+        </div>
+        <div class="composer"><div><b>Vesperian Vale</b><br><span>Add to the chronicle…</span></div><button class="side-btn" type="button" data-open style="width:auto;margin:0">+ New Section</button></div>
+      </main>
+    </div>
+  </div>
+
+  <div class="veil" id="veil">
+    <section class="dialog" role="dialog" aria-modal="true" aria-labelledby="dialog-title">
+      <div class="dialog-head">
+        <div class="dialog-kicker">Chronicle structure</div>
+        <h2 class="dialog-title" id="dialog-title">Mark a new section</h2>
+        <p class="dialog-copy">Creates a heading at this point in the current session. It will also appear in the Chronicle book’s outline.</p>
+      </div>
+      <form class="dialog-body" id="section-form">
+        <span class="session-chip">Session 5 · The Fort Siege</span>
+        <label for="section-title">Section heading</label>
+        <input class="title-input" id="section-title" maxlength="80" autocomplete="off" placeholder="The Parlay" autofocus>
+        <div class="field-note" id="field-note">Keep it brief—this becomes an outline label.</div>
+        <div class="preview">
+          <div class="preview-label">How it will read</div>
+          <div class="preview-line" id="preview-line">Section heading</div>
+        </div>
+        <div class="dialog-actions">
+          <button class="action" type="button" id="cancel">Cancel</button>
+          <button class="action primary" type="submit" id="insert">Insert section</button>
+        </div>
+      </form>
+    </section>
+  </div>
+  <div class="toast" id="toast" role="status">Section added · visible in the book outline</div>
+
+  <script>
+    const veil = document.getElementById('veil');
+    const form = document.getElementById('section-form');
+    const input = document.getElementById('section-title');
+    const note = document.getElementById('field-note');
+    const preview = document.getElementById('preview-line');
+    const insert = document.getElementById('insert');
+    const toast = document.getElementById('toast');
+    const anchor = document.getElementById('section-anchor');
+
+    function openDialog() {
+      veil.classList.remove('hidden');
+      note.textContent = 'Keep it brief—this becomes an outline label.';
+      note.classList.remove('error');
+      setTimeout(() => input.focus(), 0);
+    }
+
+    function closeDialog() {
+      veil.classList.add('hidden');
+    }
+
+    input.addEventListener('input', () => {
+      preview.textContent = input.value.trim() || 'Section heading';
+      note.classList.remove('error');
+      note.textContent = 'Keep it brief—this becomes an outline label.';
+    });
+
+    form.addEventListener('submit', e => {
+      e.preventDefault();
+      const title = input.value.trim();
+      if (!title) {
+        note.textContent = 'Give this section a heading before inserting it.';
+        note.classList.add('error');
+        input.focus();
+        return;
+      }
+      insert.disabled = true;
+      insert.textContent = 'Inserting…';
+      setTimeout(() => {
+        let row = document.getElementById('mock-section-row');
+        if (!row) {
+          row = document.createElement('div');
+          row.className = 'section-row';
+          row.id = 'mock-section-row';
+          anchor.replaceWith(row);
+        }
+        row.textContent = title;
+        insert.disabled = false;
+        insert.textContent = 'Insert section';
+        closeDialog();
+        toast.classList.add('show');
+        setTimeout(() => toast.classList.remove('show'), 2200);
+      }, 450);
+    });
+
+    document.querySelectorAll('[data-open]').forEach(btn => btn.addEventListener('click', openDialog));
+    document.getElementById('cancel').addEventListener('click', closeDialog);
+    veil.addEventListener('mousedown', e => { if (e.target === veil) closeDialog(); });
+    document.addEventListener('keydown', e => { if (e.key === 'Escape') closeDialog(); });
+  </script>
+</body>
+</html>
