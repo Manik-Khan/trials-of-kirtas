@@ -1,6 +1,9 @@
-/* Forge Encounter Read authority · version 2
+/* Forge Encounter Read authority · version 3
    Pure encounter arithmetic and roster-derived creature relationships.
-   The Workshop owns presentation; this module owns the repeatable facts. */
+   The Workshop owns presentation; this module owns the repeatable facts.
+   Role vocabulary and encounter concepts are informed by The Lazy GM's 5e
+   Monster Builder Resource Document by Teos Abadía, Scott Fitzgerald Gray,
+   and Michael E. Shea, available under CC BY 4.0. */
 (function (root, factory) {
   var api = factory();
   if (typeof module !== "undefined" && module.exports) module.exports = api;
@@ -8,7 +11,7 @@
 })(typeof window !== "undefined" ? window : globalThis, function () {
   "use strict";
 
-  var VERSION = 2;
+  var VERSION = 3;
   var LEVEL_THRESHOLDS = [
     null,
     [25,50,75,100],[50,100,150,200],[75,150,225,400],[125,250,375,500],
@@ -33,7 +36,12 @@
     { key:"drow", re:/\bdrow\b|drider/i },
     { key:"duergar", re:/duergar/i },
     { key:"yuan-ti", re:/yuan[- ]ti/i },
-    { key:"undead", re:/skeleton|zombie|wight|wraith|ghoul|vampire|lich|mummy/i }
+    { key:"undead", re:/skeleton|zombie|wight|wraith|ghoul|vampire|lich|mummy/i },
+    { key:"primate", re:/\bape\b|\bbaboon\b/i },
+    { key:"canine", re:/wolf|worg|death dog|jackal|hyena/i },
+    { key:"ursine", re:/\bbear\b/i },
+    { key:"serpent", re:/snake|serpent|yuan[- ]ti/i },
+    { key:"spider", re:/spider|ettercap/i }
   ];
 
   function number(value, fallback) { value = Number(value); return Number.isFinite(value) ? value : fallback; }
@@ -171,7 +179,7 @@
   }
   function relationKeys(creature) {
     var raw = creature && (creature.statblock || creature.raw || creature) || {}, name = text(creature && creature.name || raw.name).toLowerCase();
-    var keys = typeTags(raw).filter(function (tag) { return tag !== "human"; });
+    var keys = typeTags(raw).filter(function (tag) { return ["human","any","any race"].indexOf(tag) < 0; });
     RELATION_PATTERNS.forEach(function (entry) { if (entry.re.test(name)) keys.push(entry.key); });
     return unique(keys);
   }
@@ -186,6 +194,96 @@
     rows.sort(function (a,b) { return b.score-a.score || a.cr-b.cr || a.name.localeCompare(b.name); });
     return rows.slice(0, Math.max(1, number(options.limit, 24)));
   }
+  function creatureType(raw) {
+    raw = raw && (raw.statblock || raw.raw || raw) || {};
+    var type = raw.type && typeof raw.type === "object" ? raw.type.type : raw.type;
+    return text(type).toLowerCase();
+  }
+  function creatureEnvironments(raw) {
+    raw = raw && (raw.statblock || raw.raw || raw) || {};
+    return unique((Array.isArray(raw.environment) ? raw.environment : []).map(function (value) {
+      return text(value).toLowerCase();
+    }));
+  }
+  function compositionKeys(creature) {
+    var raw=creature&&[creature.statblock,creature.raw,creature].filter(Boolean)[0]||{},type=creatureType(raw),keys=relationKeys(creature).map(function(key){return"relation:"+key;});
+    if(type&&type!=="humanoid")keys.push("type:"+type);
+    creatureEnvironments(raw).forEach(function(environment){if(type)keys.push("habitat:"+type+":"+environment);});
+    return unique(keys);
+  }
+  function sharedCompositionKeys(a,b) {
+    var right=compositionKeys(b);return compositionKeys(a).filter(function(key){return right.indexOf(key)>=0;});
+  }
+  function actionText(raw) {
+    raw=raw&&[raw.statblock,raw.raw,raw].filter(Boolean)[0]||{};
+    try{return JSON.stringify([raw.action,raw.trait,raw.reaction,raw.legendary,raw.spellcasting]).toLowerCase();}catch(_e){return"";}
+  }
+  function combatRole(creature) {
+    var raw=creature&&[creature.statblock,creature.raw,creature].filter(Boolean)[0]||{},name=text(creature&&creature.name||raw.name),body=actionText(raw),speed=raw.speed||{},values=[];
+    if(typeof speed==="number")values=[speed];else if(speed&&typeof speed==="object")Object.keys(speed).forEach(function(key){var value=speed[key];if(value&&typeof value==="object")value=value.number;value=Number(value);if(Number.isFinite(value))values.push(value);});
+    if(/\b(?:captain|chief|king|queen|lord|warlord|boss|archmage|priest)\b/i.test(name)||raw.legendary||raw.mythic)return"leader";
+    if(raw.spellcasting||/charm|frighten|restrain|stun|paraly|slow|command/i.test(body))return"controller";
+    if(/ranged (?:weapon|spell) attack|range \d+|shortbow|longbow|crossbow/i.test(body))return"artillery";
+    if(values.some(function(value){return value>35;})||speed.fly)return"skirmisher";
+    var acRaw=Array.isArray(raw.ac)?raw.ac[0]:raw.ac;if(acRaw&&typeof acRaw==="object")acRaw=acRaw.ac;var ac=number(acRaw,0);
+    if(ac>=17)return"defender";
+    return"bruiser";
+  }
+  function normalizeCompositionCatalogue(catalogue) {
+    var seen={};
+    return(catalogue||[]).map(function(entry){
+      var raw=entry.raw||entry.statblock||entry,name=text(entry.name||raw&&raw.name),cr=crNumber(entry.cr!=null?entry.cr:raw&&raw.cr),xp=xpForCr(cr);
+      return{name:name,raw:raw,cr:cr,xp:xp,role:combatRole({name:name,raw:raw})};
+    }).filter(function(entry){var key=entry.name.toLowerCase();if(!entry.name||entry.cr==null||entry.xp==null||seen[key])return false;seen[key]=true;return true;});
+  }
+  function compactComposition(entries) {
+    var byName={},out=[];
+    (entries||[]).forEach(function(entry){var key=text(entry.name).toLowerCase(),count=Math.max(0,Math.floor(number(entry.count,1)));if(!key||!count)return;if(byName[key])byName[key].count+=count;else{var copy=Object.assign({},entry,{count:count});byName[key]=copy;out.push(copy);}});
+    return out;
+  }
+  function compositionSide(entries,thresholds,partyCount) {
+    var rows=[];compactComposition(entries).forEach(function(entry){for(var i=0;i<entry.count;i++)rows.push({name:entry.name,cr:entry.cr});});
+    return sideRead(rows,thresholds,partyCount);
+  }
+  function conceptLabel(kind) {
+    return kind==="leader"?"Leader and retinue":kind==="team"?"Two-role team":kind==="anchored"?"Story-rooted reinforcements":kind==="solo"?"Solo threat":"One-stat-block squad";
+  }
+  function cleanCompositionKey(key){return text(key).replace(/^(?:relation|type):/,"").replace(/^habitat:/,"").replace(/:/g," / ").replace(/-/g," ");}
+  function suggestRoster(options) {
+    options=options||{};
+    var thresholds=options.thresholds||{},partyCount=Math.max(1,Math.floor(number(options.partyCount,4))),band=targetBand(thresholds,options.target),center=band.max==null?band.min*1.15:(band.min+band.max)/2;
+    var singleLimit=Math.max(0,number(options.singleMonsterBenchmark,Infinity)),maxTotal=Math.max(3,Math.min(6,partyCount+2)),maxSame=Math.max(2,Math.min(4,partyCount));
+    var catalogue=normalizeCompositionCatalogue(options.catalogue).filter(function(entry){return entry.cr<=Math.max(1,singleLimit);}),anchors=compactComposition((options.anchors||[]).map(function(entry){
+      var raw=entry.raw||entry.statblock||entry,cr=crNumber(entry.cr!=null?entry.cr:raw&&raw.cr);return{name:text(entry.name||raw&&raw.name),raw:raw,cr:cr,xp:xpForCr(cr),role:combatRole({name:entry.name,raw:raw}),count:entry.count};
+    }).filter(function(entry){return entry.name&&entry.cr!=null&&entry.xp!=null;}));
+    var best=null;
+    function consider(entries,kind,reason,sharedKey){
+      entries=compactComposition(entries);var side=compositionSide(entries,thresholds,partyCount),inside=side.adjustedXp>=band.min&&(band.max==null||side.adjustedXp<=band.max),uniqueCount=entries.length,total=side.count,maxCount=entries.reduce(function(max,entry){return Math.max(max,entry.count);},0);
+      var highest=entries.reduce(function(max,entry){return Math.max(max,entry.cr);},0),roles=unique(entries.map(function(entry){return entry.role;}));
+      var themeBonus=sharedKey&&sharedKey.indexOf("relation:")===0?-160:sharedKey&&sharedKey.indexOf("habitat:")===0?-45:0;
+      var namedLeaderBonus=kind==="leader"&&entries.some(function(entry){return entry.count===1&&entry.role==="leader";})?-60:0;
+      var score=(inside?0:1000000)+Math.abs(side.adjustedXp-center)+(uniqueCount===1?650:0)+(kind==="leader"?0:kind==="team"?35:kind==="anchored"?15:180)+Math.max(0,total-maxTotal)*100000+Math.max(0,maxCount-maxSame)*100000+(highest>singleLimit?500000:0)-Math.max(0,roles.length-1)*20+themeBonus+namedLeaderBonus;
+      var candidate={entries:entries,concept:conceptLabel(kind),reason:reason,sharedKey:sharedKey||null,adjustedXp:side.adjustedXp,baseXp:side.baseXp,count:side.count,difficulty:difficultyFor(side.adjustedXp,thresholds),insideTarget:inside,score:score};
+      var names=entries.map(function(entry){return entry.name;}).join("|"),bestNames=best&&best.entries.map(function(entry){return entry.name;}).join("|");
+      if(!best||candidate.score<best.score||(candidate.score===best.score&&(candidate.count<best.count||(candidate.count===best.count&&names.localeCompare(bestNames)<0))))best=candidate;
+    }
+    if(anchors.length){
+      consider(anchors,"anchored","Keeps the creatures you already chose.",null);
+      var anchorKeys=unique([].concat.apply([],anchors.map(compositionKeys))),room=Math.max(0,maxTotal-anchors.reduce(function(sum,entry){return sum+entry.count;},0));
+      catalogue.forEach(function(entry){if(anchors.some(function(anchor){return anchor.name.toLowerCase()===entry.name.toLowerCase();}))return;var shared=compositionKeys(entry).filter(function(key){return anchorKeys.indexOf(key)>=0;});if(!shared.length)return;for(var count=1;count<=Math.min(maxSame,room);count++)consider(anchors.concat([Object.assign({},entry,{count:count})]),"anchored","Keeps your chosen creatures and adds a related "+entry.role+".",shared[0]);});
+    }else{
+      catalogue.forEach(function(entry){consider([Object.assign({},entry,{count:1})],"solo","One creature carries the whole encounter.",null);for(var count=2;count<=maxSame;count++)consider([Object.assign({},entry,{count:count})],"squad","A deliberately simple one-stat-block squad.",null);});
+      for(var i=0;i<catalogue.length;i++)for(var j=i+1;j<catalogue.length;j++){
+        var a=catalogue[i],b=catalogue[j],shared=sharedCompositionKeys(a,b);if(!shared.length)continue;
+        var high=a.cr>=b.cr?a:b,low=high===a?b:a;
+        if(high.cr>low.cr)for(var minions=2;minions<=Math.min(maxSame,maxTotal-1);minions++)consider([Object.assign({},high,{count:1}),Object.assign({},low,{count:minions})],"leader","One higher-CR leader with lower-CR support.",shared[0]);
+        for(var ac=1;ac<=Math.min(3,maxSame);ac++)for(var bc=1;bc<=Math.min(3,maxSame);bc++){if(ac+bc<3||ac+bc>maxTotal)continue;consider([Object.assign({},a,{count:ac}),Object.assign({},b,{count:bc})],"team","Two related creature types with complementary "+a.role+" and "+b.role+" jobs.",shared[0]);}
+      }
+    }
+    if(!best)return null;
+    var theme=best.sharedKey?cleanCompositionKey(best.sharedKey):null;
+    best.reason+=(theme?" Shared theme: "+theme+".":"");return best;
+  }
   function impactWithCreature(side, partyCount, rawCr) {
     var xp = xpForCr(rawCr); if (xp == null) return null;
     var baseXp = number(side && side.baseXp, 0) + xp, count = number(side && side.count, 0) + 1;
@@ -198,6 +296,7 @@
     levelOf:levelOf, crNumber:crNumber, crLabel:crLabel, xpForCr:xpForCr,
     partyThresholds:partyThresholds, crBenchmark:crBenchmark, singleMonsterBenchmark:singleMonsterBenchmark,
     encounterMultiplier:encounterMultiplier, difficultyFor:difficultyFor, targetBand:targetBand, sideRead:sideRead, analyze:analyze,
-    relationKeys:relationKeys, relatedCreatures:relatedCreatures, impactWithCreature:impactWithCreature
+    relationKeys:relationKeys, relatedCreatures:relatedCreatures, creatureType:creatureType, compositionKeys:compositionKeys,
+    combatRole:combatRole, suggestRoster:suggestRoster, impactWithCreature:impactWithCreature
   });
 });

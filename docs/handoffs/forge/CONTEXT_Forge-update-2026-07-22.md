@@ -417,8 +417,9 @@ opens first. Recipe changes remain pending until **Generate map** is pressed.
 There is no implicit base-goblin encounter. Every enemy is chosen for this
 encounter from the existing Bestiary or saved shelf, and newly chosen enemies
 join the existing Enemy placement group without disturbing a deliberate manual
-unassignment. Encounter Read authority is version 2
-(`forge-encounter-read.js?v=fread2`). Easy, Medium, Hard, and Deadly targets
+unassignment. Encounter Read authority entered this phase at version 2; the
+current composition correction is version 3
+(`forge-encounter-read.js?v=fread3`). Easy, Medium, Hard, and Deadly targets
 expose their standard adjusted-XP bands as a visible budget. The roster
 suggestion uses actual Bestiary CR and the same count multiplier; in Related
 mode, an existing creature family narrows the candidates. Suggestions remain
@@ -481,6 +482,40 @@ state and removal of the static roster, but cannot read the private
 `roster_layout` row. The signed-in live folder/selection round trip is therefore
 the remaining field gate.
 
+## Story-shaped roster composition correction · 2026-07-23
+
+The first live target-roster field pass exposed that the version-2 adapter did
+not compose encounters. It tested one Bestiary row at a time against counts 1
+through 12, then chose the numerically closest result. Seven Apes was therefore
+the expected output of the code even though it was a poor encounter suggestion.
+
+`forge-encounter-read.js?v=fread3` now owns roster composition as a pure,
+known-answer function. The XP wallet remains a guardrail, not the source of the
+story. Automatic suggestions evaluate explicit encounter concepts:
+
+- one higher-CR leader with a lower-CR retinue;
+- a two-role team of related creature types;
+- a solo threat;
+- a capped one-stat-block squad only when no mixed concept is a better fit.
+
+The composer infers readable combat roles (leader, controller, artillery,
+skirmisher, defender, or bruiser) from the actual 5etools stat block. Explicit
+families such as goblinoid, gnoll, undead, demon, primate, and canine outrank
+broad type or habitat matches. Generic humanoid tags such as `any race` are not
+story relationships. Existing authored creatures are preserved as story roots,
+and completion adds only compatible reinforcements. Automatic compositions cap
+the whole encounter at six creatures and any one repeated stat block at four;
+the UI reports the concept, roles, relationship, adjusted XP, and whether the
+result actually lands inside the requested band.
+
+The four-level-party known answer replaces the former seven-Ape result with one
+Bugbear Chief and three Goblins at 1,700 adjusted XP. A real 450-monster Monster
+Manual pass completed in 96–145 ms and produced coherent family concepts across
+Easy, Medium, Hard, and Deadly. Encounter Read validation is **41/41 green**.
+The role vocabulary and encounter-concept approach are attributed in source to
+*The Lazy GM's 5e Monster Builder Resource Document* by Teos Abadía, Scott
+Fitzgerald Gray, and Michael E. Shea (CC BY 4.0).
+
 ## Required field checklist
 
 1. On the live signed-in Workshop, confirm the party selector shows only active
@@ -508,7 +543,9 @@ the remaining field gate.
 16. Generate an ordinary non-region map, place Party and Enemy flags, save, reopen,
     and confirm the exact version-3 positions survive on two devices.
 17. Use each Easy/Medium/Hard/Deadly target once and confirm the suggested roster,
-    editable picked list, related-family filter, and adjusted-XP wallet agree.
+    encounter concept, editable picked list, related-family filter, role labels,
+    and adjusted-XP wallet agree; no automatic roster may exceed four copies of
+    one stat block or six total creatures.
 
 ## Immediate execution order
 
@@ -537,5 +574,5 @@ M reviews, commits, and pushes. Codex does not push. Current slice stamps:
 `forge-encounter-regions.js?v=fer1` and bumps `forge-protocol.js?v=fpr2`,
 `forge-replay.js?v=fb15`, `forge-effects.js?v=fe6`,
 `forge-pipeline.js?v=fb8`, and `forge-board.js?v=fb8`. Encounter Read adds
-`forge-encounter-read.js?v=fread2`. Explicit local party authority adds
+`forge-encounter-read.js?v=fread3`. Explicit local party authority adds
 `forge-party-selection.js?v=fps1`.

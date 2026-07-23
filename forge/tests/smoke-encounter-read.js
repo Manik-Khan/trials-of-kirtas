@@ -5,7 +5,7 @@ const Read = require("../forge-encounter-read.js");
 let pass = 0, fail = 0;
 function ok(name, condition) { condition ? pass++ : fail++; console.log((condition ? "✓ " : "✗ ") + name); }
 
-ok("module is dual-export ready", Read.VERSION === 2);
+ok("module is dual-export ready", Read.VERSION === 3);
 ok("fractional CR parses from strings and 5etools objects", Read.crNumber("1/4") === .25 && Read.crNumber({cr:"1/2"}) === .5);
 ok("CR maps to standard encounter XP", Read.xpForCr("1/4") === 50 && Read.xpForCr(3) === 700);
 ok("multiclass level sums classes", Read.levelOf({classes:[{level:3},{level:2}]}) === 5);
@@ -58,13 +58,38 @@ const impact = Read.impactWithCreature(read.opening, read.party.count, "1/2");
 ok("one added CR one-half creature recalculates adjusted XP", impact.adjustedXp === 1250);
 ok("recalculated impact crosses into Medium", Read.difficultyFor(impact.adjustedXp, read.party.thresholds) === "Medium");
 
+const compositionCatalogue = [
+  {name:"Ape",raw:{name:"Ape",cr:"1/2",type:"beast",environment:["forest"]}},
+  {name:"Baboon",raw:{name:"Baboon",cr:0,type:"beast",environment:["forest"]}},
+  {name:"Bugbear Chief",raw:{name:"Bugbear Chief",cr:3,type:{type:"humanoid",tags:["goblinoid"]}}},
+  {name:"Goblin",raw:{name:"Goblin",cr:"1/4",type:{type:"humanoid",tags:["goblinoid"]},action:[{name:"Shortbow",entries:["Ranged Weapon Attack"]}]}},
+  {name:"Human Guard",raw:{name:"Human Guard",cr:"1/8",type:{type:"humanoid",tags:["human"]}}}
+];
+const composed = Read.suggestRoster({thresholds:read.party.thresholds,partyCount:4,singleMonsterBenchmark:4,target:"hard",catalogue:compositionCatalogue});
+ok("hard roster chooses an encounter concept rather than seven identical apes",
+  composed.concept === "Leader and retinue" && composed.entries.length === 2 && composed.count <= 6);
+ok("leader and retinue share a story family",
+  composed.entries.some(x => x.name === "Bugbear Chief" && x.count === 1) && composed.entries.some(x => x.name === "Goblin" && x.count === 3));
+ok("composed roster lands inside the requested band", composed.insideTarget && composed.adjustedXp === 1700 && composed.difficulty === "Hard");
+ok("stat-block signals produce useful combat roles",
+  Read.combatRole(compositionCatalogue[2]) === "leader" && Read.combatRole(compositionCatalogue[3]) === "artillery");
+const apeOnly = Read.suggestRoster({thresholds:read.party.thresholds,partyCount:4,singleMonsterBenchmark:4,target:"hard",catalogue:compositionCatalogue.slice(0,1)});
+ok("one-species fallback is capped instead of spending the wallet on a horde",
+  apeOnly.entries.length === 1 && apeOnly.entries[0].count === 4 && !apeOnly.insideTarget);
+const anchored = Read.suggestRoster({thresholds:read.party.thresholds,partyCount:4,singleMonsterBenchmark:4,target:"hard",catalogue:compositionCatalogue,anchors:[{name:"Goblin",raw:compositionCatalogue[3].raw,count:2}]});
+ok("chosen story roots survive roster completion",
+  anchored.entries.some(x => x.name === "Goblin" && x.count === 2) && anchored.entries.some(x => x.name === "Bugbear Chief") && anchored.insideTarget);
+
 const fs = require("fs"), path = require("path");
 const html = fs.readFileSync(path.join(__dirname,"../index.html"),"utf8");
-ok("Workshop loads the cache-stamped authority", html.includes('forge-encounter-read.js?v=fread2'));
+ok("Workshop loads the cache-stamped authority", html.includes('forge-encounter-read.js?v=fread3'));
 ok("Workshop exposes the four target-wallet choices", ["easy","medium","hard","deadly"].every(x => html.includes('data-encounter-target="'+x+'"')) && html.includes('id="encounterBuildTarget"'));
 ok("Workshop exposes opening and full-roster reads", html.includes('data-encounter-read="opening"') && html.includes('data-encounter-read="full"'));
 ok("adapter consumes authored activation instead of assuming all-at-once", html.includes("encounterActivationMode==='active'") && html.includes("currentEncounterRegionRecord(deployment)"));
 ok("related suggestions use the existing Bestiary catalogue", html.includes("ForgeEncounterRead.relatedCreatures") && html.includes("ensureFoeBooksLoaded"));
+ok("full-roster suggestion delegates composition to the pure authority", html.includes("ForgeEncounterRead.suggestRoster") && html.includes("pick.entries.forEach"));
+ok("re-suggesting is stable until the DM edits a generated row",
+  html.includes("filter(function(row){return!row.suggested;})") && html.includes("count:entry.count,suggested:true") && html.includes("FOE_PICKED[i].suggested = false"));
 ok("full Bestiary remains a separate browse-all door", html.includes('id="encounterOpenBestiary"') && html.includes("document.getElementById('fpToggle')"));
 ok("retired benchmark nickname is absent", !/lazy line/i.test(html));
 

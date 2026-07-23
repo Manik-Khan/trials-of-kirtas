@@ -30,7 +30,7 @@
 <script src="forge-deployment.js?v=fd3"></script>
 <script src="forge-party-selection.js?v=fps1"></script>
 <script src="forge-encounter-regions.js?v=fer1"></script>
-<script src="forge-encounter-read.js?v=fread2"></script>
+<script src="forge-encounter-read.js?v=fread3"></script>
 <script src="forge-bridge-authority.js?v=fba1"></script>
 <script src="forge-protocol.js?v=fpr2"></script>
 <script src="forge-replay.js?v=fb15"></script>
@@ -8022,7 +8022,7 @@ function renderFoeShelf(){
 function addPickedFoe(name, statblock){
   if (!statblock) { clog('<i>Could not add ' + escapeHtml(name || 'that monster') + ' — no statblock.</i>'); return; }
   var existing = FOE_PICKED.filter(function(p){ return p.name === name; })[0];
-  if (existing) existing.count++;
+  if (existing) { existing.count++; existing.suggested = false; }
   else FOE_PICKED.push({ name: name, statblock: statblock, count: 1 });
   renderFoePicked();refreshDeploymentPanel();refreshEncounterReadPanel();
 }
@@ -8048,6 +8048,7 @@ function renderFoePicked(){
     btn.onclick = function(){
       var i = +btn.dataset.i, d = +btn.dataset.d;
       FOE_PICKED[i].count = Math.max(1, FOE_PICKED[i].count + d);
+      FOE_PICKED[i].suggested = false;
       renderFoePicked();
     };
   });
@@ -8182,16 +8183,17 @@ function renderEncounterWallet(read){
   document.getElementById('encounterWalletFill').style.width=Math.min(100,side.adjustedXp/ceiling*100)+'%';
   document.getElementById('encounterBuildTarget').textContent='Suggest a '+label+' roster';
 }
-function encounterSuggestedRoster(read,catalogue,selected){
-  var band=window.ForgeEncounterRead.targetBand(read.party.thresholds,ENCOUNTER_TARGET),pool=ENCOUNTER_SUGGEST_MODE==='related'&&selected.length?window.ForgeEncounterRead.relatedCreatures(selected,catalogue,{limit:80}):catalogue.map(function(row){return{name:row.name,raw:row.raw,cr:row.cr};});
-  var center=band.max==null?band.min*1.15:(band.min+band.max)/2,best=null;
-  pool.forEach(function(row){var xp=window.ForgeEncounterRead.xpForCr(row.raw&&row.raw.cr);if(xp==null)return;for(var count=1;count<=12;count++){var adjusted=Math.round(xp*count*window.ForgeEncounterRead.encounterMultiplier(count,read.party.count)),inside=adjusted>=band.min&&(band.max==null||adjusted<=band.max),score=(inside?0:1000000)+Math.abs(adjusted-center)+Math.abs(count-4)*3;if(!best||score<best.score)best={name:row.name,raw:row.raw,count:count,adjusted:adjusted,score:score};}});
-  return best;
+function encounterSuggestedRoster(read,catalogue){
+  return window.ForgeEncounterRead.suggestRoster({
+    thresholds:read.party.thresholds,partyCount:read.party.count,singleMonsterBenchmark:read.party.singleMonsterBenchmark,
+    target:ENCOUNTER_TARGET,mode:ENCOUNTER_SUGGEST_MODE,catalogue:catalogue,
+    anchors:FOE_PICKED.filter(function(row){return!row.suggested;}).map(function(row){return{name:row.name,raw:row.statblock,count:row.count};})
+  });
 }
 function buildEncounterTargetRoster(){
   var status=document.getElementById('encounterSuggestionStatus'),payload=currentEncounterRead();if(!payload||!payload.read||!payload.read.party.count){if(status)status.textContent='Choose a combat-ready party before asking for a roster.';return;}
   if(status)status.textContent='Reading the Bestiary against the selected budget…';
-  ensureFoeBooksLoaded(function(msg){if(status)status.textContent=msg;}).then(function(){var catalogue=encounterCatalogue(),selected=encounterSelectedCreatures(payload.enemies),pick=encounterSuggestedRoster(payload.read,catalogue,selected);if(!pick){if(status)status.textContent='No creature with usable CR data fits that target. Browse the full Bestiary instead.';return;}FOE_PICKED.length=0;FOE_PICKED.push({name:pick.name,statblock:pick.raw,count:pick.count});renderFoePicked();ENCOUNTER_SUGGEST_OPEN=true;var suggestions=document.getElementById('encounterSuggestions');if(suggestions)suggestions.style.display='block';var toggle=document.getElementById('encounterSuggestionsToggle');if(toggle)toggle.textContent='Hide creature suggestions';if(status)status.textContent=pick.count+' × '+pick.name+' suggested at '+encounterNumber(pick.adjusted)+' adjusted XP. Adjust, replace, or browse the full Bestiary.';});
+  ensureFoeBooksLoaded(function(msg){if(status)status.textContent=msg;}).then(function(){var catalogue=encounterCatalogue(),pick=encounterSuggestedRoster(payload.read,catalogue);if(!pick){if(status)status.textContent='No story-shaped roster with usable CR data fits that target. Choose a creature theme or browse the full Bestiary.';return;}FOE_PICKED.length=0;pick.entries.forEach(function(entry){FOE_PICKED.push({name:entry.name,statblock:entry.raw,count:entry.count,suggested:true});});renderFoePicked();ENCOUNTER_SUGGEST_OPEN=true;var suggestions=document.getElementById('encounterSuggestions');if(suggestions)suggestions.style.display='block';var toggle=document.getElementById('encounterSuggestionsToggle');if(toggle)toggle.textContent='Hide creature suggestions';var composition=pick.entries.map(function(entry){return entry.count+' × '+entry.name+' ('+entry.role+')';}).join(' + '),fit=pick.insideTarget?'within the '+ENCOUNTER_TARGET+' target':'the closest story-shaped fit';if(status)status.textContent=pick.concept+': '+composition+'. '+pick.reason+' '+encounterNumber(pick.adjustedXp)+' adjusted XP — '+fit+'. Adjust, replace, or browse the full Bestiary.';});
 }
 function renderEncounterWarnings(read){
   var host=document.getElementById('encounterReadWarnings');if(!host)return;
