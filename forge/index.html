@@ -27,9 +27,9 @@
 <script src="forge-unit-art.js?v=ua2"></script>
 <script src="forge-temple-terraces.js?v=tt1"></script>
 <script src="forge-engine.js?v=fe10"></script>
-<script src="forge-deployment.js?v=fd2"></script>
+<script src="forge-deployment.js?v=fd3"></script>
 <script src="forge-encounter-regions.js?v=fer1"></script>
-<script src="forge-encounter-read.js?v=fread1"></script>
+<script src="forge-encounter-read.js?v=fread2"></script>
 <script src="forge-bridge-authority.js?v=fba1"></script>
 <script src="forge-protocol.js?v=fpr2"></script>
 <script src="forge-replay.js?v=fb15"></script>
@@ -685,6 +685,7 @@ global.TacticsGeo=API;
   .deployStatus{font:600 8px var(--f-util);text-transform:uppercase;letter-spacing:.1em;color:#a04b3a}.deployStatus.ready{color:#477050}
   .deploySelects{display:grid;grid-template-columns:1fr 1fr;gap:5px;margin-bottom:6px}.deploySelects select{margin:0;padding:5px;font-size:9px}
   .deployActivation{display:grid;grid-template-columns:1fr 1fr;gap:5px;margin:0 0 6px;padding:6px;border-left:2px solid var(--tk-gold);background:rgba(184,134,58,.07)}.deployActivation select{min-width:0;margin:0;padding:5px;font-size:9px}.deployActivation.one{grid-template-columns:1fr}
+  .deployAutomation{margin:0 0 6px;padding:6px;border-left:2px solid var(--tk-line);background:rgba(86,67,38,.04)}.deployAutomation>label{display:flex;align-items:center;gap:6px;font:600 9px var(--f-util);color:var(--tk-ink)}.deployAutomation input{margin:0}.deployAutomation .deployActivation{margin:6px 0 0}
   .deployUnits,.deployUnassigned{display:flex;flex-direction:column;gap:4px;margin:5px 0}.deployMember{display:grid;grid-template-columns:minmax(0,1fr) minmax(92px,.9fr);gap:4px;align-items:center}.deployMember select{min-width:0;margin:0;padding:4px;font-size:8px}.deployUnit{min-width:0;border:1px solid var(--tk-line);background:var(--tk-panel);color:var(--tk-ink);padding:4px 6px;font:9px var(--f-util);cursor:pointer;text-align:left;overflow:hidden;text-overflow:ellipsis}.deployUnit.manual{border-color:var(--tk-gold);box-shadow:inset 0 -2px var(--tk-gold)}
   .deployMeta{display:flex;justify-content:space-between;gap:6px;margin:5px 0;color:var(--tk-ink-dim);font:9px/1.3 var(--f-util)}.deployMeta .bad{color:#a04b3a}.deployMeta .good{color:#477050}
   .deployActions{display:grid;grid-template-columns:1.2fr 1fr 1fr;gap:4px}.deployActions .filebtn{padding:6px 3px;font-size:8px}.deployActions .primary{border-color:var(--tk-gold);background:rgba(184,134,58,.16);color:var(--tk-ink)}
@@ -694,6 +695,7 @@ global.TacticsGeo=API;
   #encounterReadPanel{display:none}.erSummary{padding:9px;border:1px solid var(--tk-line);background:var(--tk-panel-2)}
   .erHeadline{display:flex;justify-content:space-between;gap:8px;align-items:flex-start}.erHeadline b{font:600 14px/1.2 var(--f-body);color:var(--tk-ink)}.erHeadline span{border:1px solid var(--tk-line);padding:3px 5px;font:600 8px var(--f-util);text-transform:uppercase;letter-spacing:.07em;color:var(--tk-ink-dim);white-space:nowrap}
   .erWhy{margin-top:4px;font:10px/1.35 var(--f-util);color:var(--tk-ink-dim)}.erFacts{display:grid;grid-template-columns:repeat(3,1fr);gap:4px;margin-top:7px}.erFact{padding:6px 3px;border:1px solid var(--tk-line);background:var(--tk-panel);text-align:center}.erFact b{display:block;font:600 12px var(--f-body);color:var(--tk-ink)}.erFact span{display:block;margin-top:2px;font:600 7px var(--f-util);letter-spacing:.06em;text-transform:uppercase;color:var(--tk-ink-dim)}
+  .erTargets{display:grid;grid-template-columns:repeat(4,1fr);gap:4px;margin:7px 0}.erTargets button{padding:6px 2px;border:1px solid var(--tk-line);background:transparent;color:var(--tk-ink-dim);font:600 8px var(--f-util);text-transform:uppercase;letter-spacing:.05em;cursor:pointer}.erTargets button.active{border-color:var(--tk-gold);background:rgba(184,134,58,.14);color:var(--tk-ink)}.erWallet{margin-top:7px}.erWalletHead{display:flex;justify-content:space-between;gap:8px;font:9px/1.3 var(--f-util);color:var(--tk-ink-dim)}.erWalletTrack{height:9px;margin-top:4px;background:rgba(86,67,38,.12);overflow:hidden}.erWalletFill{height:100%;width:0;background:var(--tk-gold);transition:width .18s ease}.erBuildTarget{width:100%;margin-top:6px;padding:7px;border:1px solid var(--tk-gold);background:rgba(184,134,58,.13);color:var(--tk-ink);font:600 9px var(--f-util);text-transform:uppercase;letter-spacing:.06em;cursor:pointer}
   .erWarnings{margin-top:7px}.erWarning{display:grid;grid-template-columns:8px 1fr;gap:6px;padding:6px 0;border-top:1px solid var(--tk-line)}.erWarning i{width:7px;height:7px;margin-top:3px;border-radius:50%;background:var(--tk-gold)}.erWarning.harder i{background:#a04b3a}.erWarning.easier i{background:#477050}.erWarning b{display:block;font:600 10px/1.25 var(--f-util);color:var(--tk-ink)}.erWarning span{display:block;margin-top:1px;font:9px/1.3 var(--f-util);color:var(--tk-ink-dim)}
   .erSuggestionTools{display:grid;grid-template-columns:1fr 1fr;gap:4px;margin-top:7px}.erSuggestionTools button{padding:6px 3px;border:1px solid var(--tk-line);background:transparent;color:var(--tk-ink-dim);font:600 8px var(--f-util);text-transform:uppercase;letter-spacing:.06em;cursor:pointer}.erSuggestionTools button.active{border-color:var(--tk-gold);background:rgba(184,134,58,.14);color:var(--tk-ink)}
   .erRoots{display:flex;gap:4px;flex-wrap:wrap;margin:7px 0 2px}.erRoot{padding:3px 5px;border:1px solid var(--tk-line);background:var(--tk-panel);font:600 8px var(--f-util);color:var(--tk-ink-dim)}
@@ -1055,26 +1057,25 @@ body.forge-author-preview #partySelect{opacity:0;pointer-events:none}
     <div id="forgeActivePanel">
     <div class="forgeWorkshopLayout">
     <nav class="forgeWorkshopNav" aria-label="Workshop sections">
-      <button type="button" data-workshop-nav="encounter" aria-selected="true"><span class="forgeWorkshopIndex">1</span><span><b>Encounter</b><small>Party, enemies, threat</small></span></button>
-      <button type="button" data-workshop-nav="battlefield" aria-selected="false"><span class="forgeWorkshopIndex">2</span><span><b>Battlefield</b><small>Map, biome, generation</small></span></button>
-      <button type="button" data-workshop-nav="deployment" aria-selected="false"><span class="forgeWorkshopIndex">3</span><span><b>Deployment</b><small id="forgeDeploymentNavStatus">Requires regions</small></span></button>
-      <button type="button" data-workshop-nav="advanced" aria-selected="false"><span class="forgeWorkshopIndex">4</span><span><b>Advanced</b><small>Camera and diagnostics</small></span></button>
+      <button type="button" data-workshop-nav="battlefield" aria-selected="true"><span class="forgeWorkshopIndex">1</span><span><b>Map</b><small>Layout, biome, generation</small></span></button>
+      <button type="button" data-workshop-nav="encounter" aria-selected="false"><span class="forgeWorkshopIndex">2</span><span><b>Encounter</b><small>Party, enemies, threat</small></span></button>
+      <button type="button" data-workshop-nav="deployment" aria-selected="false"><span class="forgeWorkshopIndex">3</span><span><b>Placement</b><small id="forgeDeploymentNavStatus">Place group flags</small></span></button>
+      <button type="button" data-workshop-nav="advanced" aria-selected="false"><span class="forgeWorkshopIndex">⚙</span><span><b>Settings</b><small>View, camera, diagnostics</small></span></button>
     </nav>
     <div class="forgeWorkshopSteps">
-    <section class="forgeWorkshopStep" data-workshop-step="encounter">
-      <div class="forgeWorkshopHead"><div><h2>Build the encounter</h2><p>Party, enemies, and Encounter Read are available before a battlefield is generated.</p></div><span class="forgeWorkshopStatus">Ready</span></div>
+    <section class="forgeWorkshopStep" data-workshop-step="encounter" hidden>
+      <div class="forgeWorkshopHead"><div><h2>Build the encounter</h2><p>Choose the party, set the intended difficulty, then spend the encounter budget.</p></div><span class="forgeWorkshopStatus">Ready</span></div>
       <button class="fbtn" id="psReturn" type="button">Choose party</button>
       <div class="forgeWorkshopParty" id="forgeWorkshopPartyStatus"><span>Choose a party to see its combat-ready members.</span></div>
-      <div class="forgeWorkshopSection">
-        <div class="eyebrow" style="margin-bottom:6px">ENEMIES</div>
-        <div class="slider-wrap">
-          <label>Base goblins <span class="val" id="foesVal">5</span></label>
-          <input type="range" id="foes" min="0" max="8" value="5">
-          <div class="fname" style="margin-top:2px">Bestiary picks are added without clearing these goblins or their group.</div>
-        </div>
-      </div>
+      <input type="hidden" id="foes" value="0">
     <div id="encounterReadPanel" class="forgeWorkshopSection">
       <div class="eyebrow" style="margin-bottom:6px">ENCOUNTER READ</div>
+      <div class="erTargets" id="encounterDifficultyTargets" aria-label="Intended encounter difficulty">
+        <button type="button" data-encounter-target="easy">Easy</button>
+        <button type="button" data-encounter-target="medium" class="active">Medium</button>
+        <button type="button" data-encounter-target="hard">Hard</button>
+        <button type="button" data-encounter-target="deadly">Deadly</button>
+      </div>
       <div class="toggle-row" id="encounterReadToggle" style="margin-bottom:6px">
         <button data-encounter-read="opening" class="active">Opening wave</button>
         <button data-encounter-read="full">Full roster</button>
@@ -1086,6 +1087,11 @@ body.forge-author-preview #partySelect{opacity:0;pointer-events:none}
           <div class="erFact"><b id="encounterReadCr">—</b><span>CR / benchmark</span></div>
           <div class="erFact"><b id="encounterReadXp">—</b><span>Adjusted XP</span></div>
           <div class="erFact"><b id="encounterReadActions">—</b><span>Enemy : party</span></div>
+        </div>
+        <div class="erWallet">
+          <div class="erWalletHead"><span id="encounterWalletRead">Choose a party to calculate a budget.</span><span id="encounterWalletRemaining">—</span></div>
+          <div class="erWalletTrack" aria-label="Adjusted XP budget used"><div class="erWalletFill" id="encounterWalletFill"></div></div>
+          <button class="erBuildTarget" id="encounterBuildTarget" type="button">Suggest a Medium roster</button>
         </div>
         <div class="erWarnings" id="encounterReadWarnings"></div>
       </div>
@@ -1113,28 +1119,27 @@ body.forge-author-preview #partySelect{opacity:0;pointer-events:none}
       <div class="eyebrow" style="margin:9px 0 6px">Staged fights</div>
       <div id="fbStagedList"></div>
       <div class="divider" style="margin-top:13px"></div>
-      <!-- Task 14: foe picker — replaces the generic Foes-slider goblins in
-           buildRoster() once anything is picked here (slider stays as the
-           fallback, labelled above). Books lazy-load on first search.
+      <!-- Task 14: the Bestiary and saved shelf own the authored foe roster.
+           Books lazy-load on first search.
            Collapsed by default: expanded it dominates the panel (field
            report 2026-07-11) — the header always shows the picked count. -->
       <div class="eyebrow" id="fpToggle" role="button" tabindex="0" aria-expanded="false"
            style="margin-bottom:6px;cursor:pointer;user-select:none">
         <span id="fpArrow">▸</span> Bestiary <span id="fpHeadCount" style="opacity:.6;font-weight:400;text-transform:none;letter-spacing:0">— nothing picked</span></div>
       <div id="fpBody" style="display:none">
-        <div class="fname" style="margin-bottom:4px">Picked foes are added to the base goblins. Assign each new foe to any deployment group below.</div>
+        <div class="fname" style="margin-bottom:4px">Choose any creature for this encounter. Assign each foe to a placement group below.</div>
         <input id="fpSearch" type="text" placeholder="Search the bestiary…" autocomplete="off">
         <div class="fname" id="fpSearchStatus"></div>
         <div id="fpBookResults"></div>
         <div class="eyebrow" style="margin:9px 0 6px">Shelf</div>
         <div id="fpShelf"><div class="fname">Loading…</div></div>
         <div class="eyebrow" style="margin:9px 0 6px">Picked</div>
-        <div id="fpPicked"><div class="fname">No extra foes picked.</div></div>
+        <div id="fpPicked"><div class="fname">No foes picked.</div></div>
       </div>
     </div>
     </section>
-    <section class="forgeWorkshopStep" data-workshop-step="battlefield" hidden>
-      <div class="forgeWorkshopHead"><div><h2>Choose the battlefield</h2><p>Selections remain pending until Generate battlefield is pressed.</p></div><span class="forgeWorkshopStatus" id="forgeBattlefieldBadge">Current</span></div>
+    <section class="forgeWorkshopStep" data-workshop-step="battlefield">
+      <div class="forgeWorkshopHead"><div><h2>Choose the map</h2><p>Pick the layout and look first. Selections remain pending until Generate map is pressed.</p></div><span class="forgeWorkshopStatus" id="forgeBattlefieldBadge">Current</span></div>
       <div class="forgeBattlefieldState" id="forgeBattlefieldState">The current battlefield remains active while you adjust its next recipe.</div>
       <div class="forgeWorkshopSection">
         <div class="eyebrow">BIOME</div>
@@ -1167,17 +1172,17 @@ body.forge-author-preview #partySelect{opacity:0;pointer-events:none}
           <div id="seedGroup">
             <input id="seed" value="7" aria-label="Seed">
             <button class="fbtn" id="dice" title="Randomize pending seed">🎲</button>
-            <button class="fbtn primary" id="forgeBtn">Generate battlefield</button>
+            <button class="fbtn primary" id="forgeBtn">Generate map</button>
           </div>
         </div>
       </div>
     </section>
     <section class="forgeWorkshopStep" data-workshop-step="deployment" hidden>
-      <div class="forgeWorkshopHead"><div><h2>Place encounter groups</h2><p>Deployment remains visible and explains when the current battlefield cannot support authored regions.</p></div><span class="forgeWorkshopStatus" id="forgeDeploymentBadge">Unavailable</span></div>
+      <div class="forgeWorkshopHead"><div><h2>Place encounter groups</h2><p>Use the existing group flags, formations, membership menus, and manual pins on any generated map.</p></div><span class="forgeWorkshopStatus" id="forgeDeploymentBadge">Needs placement</span></div>
       <div id="deploymentPanel">
         <div class="forgeDeploymentGate" id="forgeDeploymentGate">
-          <b id="forgeDeploymentGateTitle">This battlefield has no authored regions.</b>
-          <span id="forgeDeploymentGateText">Choose Temple Terraces or another region-aware battlefield. The encounter will remain intact.</span>
+          <b id="forgeDeploymentGateTitle">Generate a map before placing groups.</b>
+          <span id="forgeDeploymentGateText">Your encounter choices will remain intact.</span>
           <button class="filebtn" id="forgeChooseTemple" type="button">Choose Temple Terraces</button>
         </div>
         <div id="deploymentAuthoring" hidden>
@@ -1186,12 +1191,12 @@ body.forge-author-preview #partySelect{opacity:0;pointer-events:none}
           <button class="filebtn" id="deploymentAddGroup" type="button">+ Add group</button>
           <div class="eyebrow" style="margin:9px 0 5px">Unassigned</div>
           <div class="deployUnassigned" id="deploymentUnassigned"></div>
-          <div class="fname" id="deploymentMessage" style="white-space:normal">Flags choose the region. Formation seeds only arrange units around that flag.</div>
+          <div class="fname" id="deploymentMessage" style="white-space:normal">Flags choose the placement area. Authored regions help when present; otherwise nearby connected ground is used.</div>
         </div>
       </div>
     </section>
     <section class="forgeWorkshopStep" data-workshop-step="advanced" hidden>
-      <div class="forgeWorkshopHead"><div><h2>Advanced tools</h2><p>Local view controls and authoring diagnostics stay out of the encounter path.</p></div><span class="forgeWorkshopStatus">Optional</span></div>
+      <div class="forgeWorkshopHead"><div><h2>Forge settings</h2><p>Perspective, rendering, table rules, and diagnostics remain available whenever you need them.</p></div><span class="forgeWorkshopStatus">Always available</span></div>
     <details class="forgeAdvancedGroup">
     <summary>Camera</summary>
     <div class="forgeAdvancedBody">
@@ -2148,7 +2153,7 @@ function addWorld(geo,col,x,y,z,rot,fogCell){ // mesh + optional inverted-hull o
 /* ---- FIELD: {W,H,height,type,footprint,props[]} ---- */
 let F=null;
 var deploymentRenderGroup=new THREE.Group();scene.add(deploymentRenderGroup);
-var DEPLOYMENT_GROUPS=[],DEPLOYMENT_PLANS=null,DEPLOYMENT_PLACE_GROUP=null,DEPLOYMENT_MANUAL=null,DEPLOYMENT_FOCUS=null,ENCOUNTER_REGION_RULES={};
+var DEPLOYMENT_GROUPS=[],DEPLOYMENT_PLANS=null,DEPLOYMENT_PLACE_GROUP=null,DEPLOYMENT_MANUAL=null,DEPLOYMENT_FOCUS=null,DEPLOYMENT_KNOWN_UNITS={},ENCOUNTER_REGION_RULES={};
 const ARCHITECTURE_API=window.ForgeArchitecture;
 if(!ARCHITECTURE_API)throw new Error('Forge architecture authority did not load');
 var architectureRenderGroup=new THREE.Group();scene.add(architectureRenderGroup);
@@ -3237,13 +3242,13 @@ window.__enterForge = function(){
   if(SESSION_ID){ clog('<i>The map belongs to the fight — re-forge is disabled during a session.</i>'); return; }
   mode='tiers'; setActiveChip('tiers');
   document.getElementById('seedGroup').style.opacity='1'; setImgOnly(false);
-  rebuild();setForgeWorkshopStep('encounter');   // forges generated tiers → renderField → placeRoster
+  rebuild();setForgeWorkshopStep('battlefield');   // map-first Workshop → renderField → placeRoster
 };
 
-function templeDeploymentPending(){
-  const intent=F&&F.intent;
-  return !!(intent&&intent.archetype==="temple-terraces"&&!deploymentReady());
+function forgeDeploymentPending(){
+  return !!(F&&deploymentRosterSource().length&&!deploymentReady());
 }
+function templeDeploymentPending(){return forgeDeploymentPending();}
 
 function rebuild(){
   if(!SESSION_ID)SESSION_MAP_AUTHORITY=null;
@@ -3265,17 +3270,18 @@ function rebuild(){
   if(typeof refreshVerticalGeometryPanel==="function")refreshVerticalGeometryPanel();
   if(window.__fightRoster){
     if(architecturePending())clog('<i>Temple architecture needs repair before combat can start — '+escapeHtml(architectureAudit().errors.join(' '))+'</i>');
-    else if(templeDeploymentPending())clog('<i>Temple Terraces needs DM deployment flags before combat can start.</i>');
+    else if(forgeDeploymentPending())clog('<i>Place the encounter-group flags before combat can start.</i>');
     else startCombat();
   } else { placeRoster(); }
 }
 
 /* ---- UI ---- */
-var WORKSHOP_MAP_DIRTY=false,WORKSHOP_STEP='encounter';
+var WORKSHOP_MAP_DIRTY=false,WORKSHOP_STEP='battlefield';
 function setForgeWorkshopStep(step){
   WORKSHOP_STEP=step;
   document.querySelectorAll('[data-workshop-nav]').forEach(function(button){button.setAttribute('aria-selected',String(button.dataset.workshopNav===step));});
   document.querySelectorAll('[data-workshop-step]').forEach(function(panel){panel.hidden=panel.dataset.workshopStep!==step;});
+  if(step==='deployment'&&typeof refreshDeploymentPanel==='function')refreshDeploymentPanel();
 }
 function setForgePanelTab(tab){
   setForgeWorkshopStep(tab==='planned'?'advanced':tab==='active'?'encounter':tab);
@@ -3300,7 +3306,7 @@ function markForgeBattlefieldPending(){WORKSHOP_MAP_DIRTY=true;refreshForgeBattl
 (function(){
   document.querySelectorAll('[data-workshop-nav]').forEach(function(button){button.onclick=function(){setForgeWorkshopStep(button.dataset.workshopNav);};});
   var mode=document.getElementById('forgeProductMode');if(mode)mode.textContent=SESSION_ID?'Table':'Workshop';document.body.classList.toggle('forge-table-mode',!!SESSION_ID);if(SESSION_ID)setForgeWorkshopStep('advanced');
-  var review=document.getElementById('forgeReviewOpen');if(review)review.onclick=function(){if(WORKSHOP_MAP_DIRTY)setForgeWorkshopStep('battlefield');else if(templeField()&&!deploymentReady())setForgeWorkshopStep('deployment');else setForgeWorkshopStep('encounter');};
+  var review=document.getElementById('forgeReviewOpen');if(review)review.onclick=function(){if(WORKSHOP_MAP_DIRTY)setForgeWorkshopStep('battlefield');else if(!deploymentReady())setForgeWorkshopStep('deployment');else setForgeWorkshopStep('encounter');};
   var temple=document.getElementById('forgeChooseTemple');if(temple)temple.onclick=function(){if(archetypeEl){archetypeEl.value='temple-terraces';paintArchetypeControl(archetypeEl.value,false);}markForgeBattlefieldPending();setForgeWorkshopStep('battlefield');};
 })();
 /* biome picker — the look, not the geometry */
@@ -3352,12 +3358,11 @@ document.getElementById('autoDress').onchange=()=>{if(mode==='image'&&imgHeight)
 // Finding 2 (review): in session mode the map belongs to the fight — SESSION_ID
 // (declared below) is read at call time, well after the whole script has run,
 // so these closures see its real value by the time a user can ever fire them.
-['rooms','loops','decor','foes'].forEach(id=>{const el=document.getElementById(id);
+['rooms','loops','decor'].forEach(id=>{const el=document.getElementById(id);
   el.oninput=()=>{
     if(SESSION_ID){ clog('<i>The map belongs to the fight — re-forge is disabled during a session.</i>'); return; }
     document.getElementById(id+'Val').textContent=el.value+((id==='loops'||id==='decor')?'%':'');
-    if(id==='foes'){if(typeof refreshEncounterReadPanel==='function')refreshEncounterReadPanel();}
-    else markForgeBattlefieldPending();};});
+    markForgeBattlefieldPending();};});
 
 /* Archetype intent is versioned and all five generator stages own independent
    deterministic streams. Preview grammars render but cannot open a Table yet. */
@@ -3425,38 +3430,46 @@ function forgeSessionMap(){
 }
 window.__forgeSessionMap=forgeSessionMap;
 
-/* DM-authored Temple deployment. The pure ForgeDeployment module owns every
+/* DM-authored flag deployment. The pure ForgeDeployment module owns every
    legality and formation decision; this block only edits records and paints
-   its returned facts. Historical maps keep their established placement path. */
+   its returned facts. Authored regions remain strict when a map provides them;
+   other maps use the flag's connected walkable ground. */
 function templeField(){return !!(F&&F.intent&&F.intent.archetype==="temple-terraces");}
 function deploymentMap(){
   if(!F)return null;var map=combatMapFromF();map.props=(F.props||[]).map(function(p){return Object.assign({},p);});
   map.meta=Object.assign({},map.meta||{},{intent:F.intent?JSON.parse(JSON.stringify(F.intent)):null});return map;
 }
-function deploymentRosterSource(){return typeof buildRoster==="function"?buildRoster():[];}
+function deploymentRosterSource(){return typeof CHAR!=="undefined"&&CHAR&&typeof buildRoster==="function"?buildRoster():[];}
 function ensureDeploymentGroups(){
-  if(!templeField()||DEPLOYMENT_GROUPS.length)return;
+  if(!F||DEPLOYMENT_GROUPS.length)return;
   var roster=deploymentRosterSource(),pcs=roster.filter(function(r){return(r.kind||"pc")==="pc";}).map(function(r){return r.unit;}),foes=roster.filter(function(r){return r.kind==="foe";}).map(function(r){return r.unit;});
   DEPLOYMENT_GROUPS=[
     {id:"party-main",label:"Main Party",role:"party",controllerPolicy:"unit-owners",unitIds:pcs,anchor:null,formationSeed:window.ForgeDeployment.hash32("party-main"),manualPositions:{}},
     {id:"enemy-main",label:"Enemies",role:"enemy",controllerPolicy:"overseer",unitIds:foes,anchor:null,formationSeed:window.ForgeDeployment.hash32("enemy-main"),manualPositions:{}}
-  ];DEPLOYMENT_FOCUS="party-main";
+  ];roster.forEach(function(row){DEPLOYMENT_KNOWN_UNITS[row.unit]=true;});DEPLOYMENT_FOCUS="party-main";
 }
 function reconcileDeploymentRoster(){
-  if(!DEPLOYMENT_GROUPS.length)return;var available={};deploymentRosterSource().forEach(function(r){available[r.unit]=true;});
+  if(!DEPLOYMENT_GROUPS.length)return;var roster=deploymentRosterSource(),available={},assigned={};roster.forEach(function(r){available[r.unit]=true;});
   DEPLOYMENT_GROUPS.forEach(function(g){g.unitIds=(g.unitIds||[]).filter(function(unit){return available[unit];});Object.keys(g.manualPositions||{}).forEach(function(unit){if(g.unitIds.indexOf(unit)<0)delete g.manualPositions[unit];});});
+  Object.keys(DEPLOYMENT_KNOWN_UNITS).forEach(function(unit){if(!available[unit])delete DEPLOYMENT_KNOWN_UNITS[unit];});
+  DEPLOYMENT_GROUPS.forEach(function(g){g.unitIds.forEach(function(unit){assigned[unit]=true;});});
+  roster.forEach(function(row){if(DEPLOYMENT_KNOWN_UNITS[row.unit]||assigned[row.unit])return;var role=(row.kind||"pc")==="pc"?"party":"enemy",target=DEPLOYMENT_GROUPS.filter(function(g){return g.role===role;})[0];if(target)target.unitIds.push(row.unit);DEPLOYMENT_KNOWN_UNITS[row.unit]=true;});
+  Object.keys(available).forEach(function(unit){DEPLOYMENT_KNOWN_UNITS[unit]=true;});
 }
 function computeDeployment(){
-  if(!templeField()||!window.ForgeDeployment)return null;ensureDeploymentGroups();reconcileDeploymentRoster();
+  if(!F||!TG||!window.ForgeDeployment)return null;ensureDeploymentGroups();reconcileDeploymentRoster();
   DEPLOYMENT_PLANS=window.ForgeDeployment.planDraft(deploymentMap(),DEPLOYMENT_GROUPS);return DEPLOYMENT_PLANS;
 }
 function deploymentReady(){var draft=computeDeployment();return !!(draft&&draft.ok&&draft.groups.length);}
 function currentDeploymentRecord(){
-  if(!templeField())return null;var draft=computeDeployment();return draft?window.ForgeDeployment.deploymentRecord(DEPLOYMENT_GROUPS,draft):null;
+  if(!F)return null;var draft=computeDeployment();return draft?window.ForgeDeployment.deploymentRecord(DEPLOYMENT_GROUPS,draft):null;
+}
+function encounterRulesForDeployment(deployment){
+  var rules={};(deployment&&deployment.groups||[]).forEach(function(group){rules[group.id]=ENCOUNTER_REGION_RULES[group.id]||{mode:"active",triggerRegionId:null};});return rules;
 }
 function currentEncounterRegionRecord(deployment){
-  if(!templeField()||!window.ForgeEncounterRegions)return null;
-  return window.ForgeEncounterRegions.buildRecord(deployment||currentDeploymentRecord(),deploymentMap(),ENCOUNTER_REGION_RULES);
+  if(!F||!window.ForgeEncounterRegions)return null;deployment=deployment||currentDeploymentRecord();
+  return window.ForgeEncounterRegions.buildRecord(deployment,deploymentMap(),encounterRulesForDeployment(deployment));
 }
 function rosterWithDeployment(roster,record){
   return window.ForgeDeployment.applyToRoster(roster,record);
@@ -3477,7 +3490,7 @@ function flagMesh(at,color){
 }
 function renderDeploymentMarkers(){
   requestForgeRender();
-  clearDeploymentMarkers();if(!templeField()||SESSION_ID||(typeof CB!=="undefined"&&CB&&CB.active))return;var draft=DEPLOYMENT_PLANS||computeDeployment();if(!draft)return;
+  clearDeploymentMarkers();if(!F||SESSION_ID||(typeof CB!=="undefined"&&CB&&CB.active))return;var draft=DEPLOYMENT_PLANS||computeDeployment();if(!draft)return;
   draft.plans.forEach(function(plan){var color=deploymentColor(plan.group.role);if(plan.group.anchor)deploymentRenderGroup.add(flagMesh(plan.group.anchor,color));
     Object.keys(plan.positions||{}).forEach(function(unit){deploymentRenderGroup.add(deploymentMarker(plan.positions[unit],color,.34));});});
 }
@@ -3492,22 +3505,22 @@ function encounterRegionOptions(selected){
   return (selected?'':'<option value="" selected disabled>Place flag first…</option>')+regions.map(function(region){var id=String(region.id||"");return '<option value="'+escapeHtml(id)+'"'+(id===selected?' selected':'')+'>'+escapeHtml(id.replace(/-/g,' '))+'</option>';}).join('');
 }
 function encounterRuleForGroup(group,homeRegionId){
-  return window.ForgeEncounterRegions.normalizeRule(ENCOUNTER_REGION_RULES[group.id],group,homeRegionId);
+  return window.ForgeEncounterRegions.normalizeRule(ENCOUNTER_REGION_RULES[group.id]||{mode:"active"},group,homeRegionId);
 }
 function renderDeploymentPanel(){
   var panel=document.getElementById("deploymentPanel"),gate=document.getElementById("forgeDeploymentGate"),authoring=document.getElementById("deploymentAuthoring"),badge=document.getElementById("forgeDeploymentBadge"),nav=document.getElementById("forgeDeploymentNavStatus");if(!panel)return;panel.style.display=!SESSION_ID?"block":"none";
   if(SESSION_ID){clearDeploymentMarkers();return;}
-  if(!templeField()){if(gate)gate.hidden=false;if(authoring)authoring.hidden=true;if(badge)badge.textContent="Unavailable";if(nav)nav.textContent="Requires regions";var title=document.getElementById("forgeDeploymentGateTitle"),copy=document.getElementById("forgeDeploymentGateText");if(title)title.textContent=forgeWorkshopMapName()+" has no authored regions.";if(copy)copy.textContent="Choose Temple Terraces or another region-aware battlefield. The encounter will remain intact.";clearDeploymentMarkers();if(typeof refreshEncounterReadPanel==='function')refreshEncounterReadPanel();return;}
+  if(!F||!TG){if(gate)gate.hidden=false;if(authoring)authoring.hidden=true;if(badge)badge.textContent=F?"Loading":"Generate map";if(nav)nav.textContent=F?"Preparing placement":"Generate map first";clearDeploymentMarkers();if(typeof refreshEncounterReadPanel==='function')refreshEncounterReadPanel();return;}
   if(gate)gate.hidden=true;if(authoring)authoring.hidden=false;
   var draft=computeDeployment(),host=document.getElementById("deploymentGroups"),assigned={},ready=0,placed=0,total=0;
   draft.plans.forEach(function(p){p.group.unitIds.forEach(function(unit){assigned[unit]=true;});if(p.ok)ready++;placed+=p.placedCount;total+=p.requestedCount;});
   document.getElementById("deploymentSummary").textContent=(draft.ok?"Deployment ready — ":"Deployment incomplete — ")+ready+" / "+draft.plans.length+" groups · "+placed+" / "+total+" combatants positioned.";
   if(badge)badge.textContent=draft.ok?"Ready to place":"Needs placement";if(nav)nav.textContent=draft.ok?draft.plans.length+" groups ready":draft.plans.length+" groups to place";
-  host.innerHTML=draft.plans.map(function(p){var g=p.group,region=p.regionId||"No flag",focus=DEPLOYMENT_FOCUS===g.id,activation=encounterRuleForGroup(g,p.regionId);
+  host.innerHTML=draft.plans.map(function(p){var g=p.group,region=p.regionId==="map"?"Nearby walkable ground":p.regionId||"No flag",focus=DEPLOYMENT_FOCUS===g.id,automated=Object.prototype.hasOwnProperty.call(ENCOUNTER_REGION_RULES,g.id),activation=encounterRuleForGroup(g,p.regionId==="map"?null:p.regionId),hasRegions=!!(F&&F.intent&&Array.isArray(F.intent.regions)&&F.intent.regions.length);
     var units=g.unitIds.map(function(unit){var manual=g.manualPositions&&g.manualPositions[unit],name=deploymentUnitName(unit);return '<div class="deployMember"><button class="deployUnit'+(manual?' manual':'')+'" data-manual-unit="'+escapeHtml(unit)+'" data-gid="'+escapeHtml(g.id)+'" title="Pin this combatant on the map">'+escapeHtml(name)+(manual?' · pinned':'')+'</button><select data-deploy-membership="'+escapeHtml(unit)+'" aria-label="Group for '+escapeHtml(name)+'">'+deploymentMembershipOptions(g.id,false)+'</select></div>';}).join('');
     return '<div class="deployGroup'+(focus?' focus':'')+'" data-gid="'+g.id+'"><div class="deployHead"><input data-deploy-name="'+g.id+'" value="'+escapeHtml(g.label)+'"><span class="deployStatus'+(p.ok?' ready':'')+'">'+(p.ok?'ready':'unresolved')+'</span><button class="deployDelete" data-deploy-remove="'+g.id+'"'+(DEPLOYMENT_GROUPS.length>1?'':' disabled title="At least one deployment group is required"')+'>Delete</button></div>'
       +'<div class="deploySelects"><select data-deploy-role="'+g.id+'"><option value="party"'+(g.role==='party'?' selected':'')+'>Party</option><option value="ally"'+(g.role==='ally'?' selected':'')+'>Ally / NPC</option><option value="enemy"'+(g.role==='enemy'?' selected':'')+'>Enemy</option></select><select data-deploy-policy="'+g.id+'"><option value="unit-owners"'+(g.controllerPolicy==='unit-owners'?' selected':'')+'>Unit owners</option><option value="overseer"'+(g.controllerPolicy==='overseer'?' selected':'')+'>Overseer</option></select></div>'
-      +'<div class="deployActivation'+(activation.mode==='enter'?'':' one')+'"><select data-activation-mode="'+g.id+'"><option value="active"'+(activation.mode==='active'?' selected':'')+'>Active at initiative</option><option value="enter"'+(activation.mode==='enter'?' selected':'')+'>Party enters region</option><option value="dm"'+(activation.mode==='dm'?' selected':'')+'>DM activates</option></select>'+(activation.mode==='enter'?'<select data-activation-region="'+g.id+'" aria-label="Entry region for '+escapeHtml(g.label)+'">'+encounterRegionOptions(activation.triggerRegionId)+'</select>':'')+'</div>'
+      +'<div class="deployAutomation"><label><input type="checkbox" data-activation-auto="'+g.id+'"'+(automated?' checked':'')+'> Automate this flag</label>'+(automated?'<div class="deployActivation'+(activation.mode==='enter'?'':' one')+'"><select data-activation-mode="'+g.id+'">'+(hasRegions?'<option value="enter"'+(activation.mode==='enter'?' selected':'')+'>Party enters region</option>':'')+'<option value="dm"'+(activation.mode==='dm'?' selected':'')+'>DM activates</option></select>'+(activation.mode==='enter'?'<select data-activation-region="'+g.id+'" aria-label="Entry region for '+escapeHtml(g.label)+'">'+encounterRegionOptions(activation.triggerRegionId)+'</select>':'')+'</div>':'')+'</div>'
       +'<div class="deployUnits">'+(units||'<span class="fname">No combatants assigned.</span>')+'</div><div class="deployMeta"><span>'+escapeHtml(region)+' · seed '+g.formationSeed+'</span><span class="'+(p.ok?'good':'bad')+'">'+p.placedCount+'/'+p.requestedCount+' positioned</span></div>'
       +'<div class="deployActions"><button class="filebtn primary" data-deploy-flag="'+g.id+'">'+(g.anchor?'Move flag':'Place flag')+'</button><button class="filebtn" data-deploy-reseed="'+g.id+'">Reseed</button><button class="filebtn" data-deploy-clear="'+g.id+'">Clear pins</button></div>'
       +(g.unitIds.length>1?'<button class="deployMinor" data-deploy-split="'+g.id+'">Split group →</button>':'')+'</div>';
@@ -3524,6 +3537,7 @@ function bindDeploymentPanel(){var host=document.getElementById("deploymentPanel
   host.querySelectorAll("[data-manual-unit]").forEach(function(b){b.onclick=function(){ARCHITECTURE_TOOL=null;renderArchitecturePanel();DEPLOYMENT_MANUAL={groupId:b.dataset.gid,unit:b.dataset.manualUnit};DEPLOYMENT_PLACE_GROUP=null;DEPLOYMENT_FOCUS=b.dataset.gid;deploymentSay("Click a legal cell to pin "+deploymentUnitName(b.dataset.manualUnit)+". The group flag stays put.");renderDeploymentPanel();};});
   host.querySelectorAll("[data-deploy-membership]").forEach(function(s){s.onchange=function(){var unit=s.dataset.deployMembership,target=s.value;DEPLOYMENT_GROUPS=window.ForgeDeployment.assignUnit(DEPLOYMENT_GROUPS,unit,target);if(target)DEPLOYMENT_FOCUS=target;deploymentSay(deploymentUnitName(unit)+(target?' assigned to '+deploymentGroup(target).label+'.':' is unassigned.'));renderDeploymentPanel();};});
   host.querySelectorAll("[data-deploy-role]").forEach(function(s){s.onchange=function(){deploymentGroup(s.dataset.deployRole).role=s.value;renderDeploymentPanel();};});host.querySelectorAll("[data-deploy-policy]").forEach(function(s){s.onchange=function(){deploymentGroup(s.dataset.deployPolicy).controllerPolicy=s.value;renderDeploymentPanel();};});
+  host.querySelectorAll("[data-activation-auto]").forEach(function(input){input.onchange=function(){var id=input.dataset.activationAuto,plan=(DEPLOYMENT_PLANS&&DEPLOYMENT_PLANS.plans||[]).filter(function(p){return p.group.id===id;})[0],hasRegions=!!(F&&F.intent&&Array.isArray(F.intent.regions)&&F.intent.regions.length);if(input.checked)ENCOUNTER_REGION_RULES[id]={mode:hasRegions?"enter":"dm",triggerRegionId:hasRegions&&plan&&plan.regionId!=="map"?plan.regionId:null};else delete ENCOUNTER_REGION_RULES[id];renderDeploymentPanel();};});
   host.querySelectorAll("[data-activation-mode]").forEach(function(s){s.onchange=function(){var g=deploymentGroup(s.dataset.activationMode),plan=(DEPLOYMENT_PLANS&&DEPLOYMENT_PLANS.plans||[]).filter(function(p){return p.group.id===g.id;})[0];ENCOUNTER_REGION_RULES[g.id]={mode:s.value,triggerRegionId:s.value==='enter'&&plan?plan.regionId:null};renderDeploymentPanel();};});
   host.querySelectorAll("[data-activation-region]").forEach(function(s){s.onchange=function(){var id=s.dataset.activationRegion,rule=ENCOUNTER_REGION_RULES[id]||{};ENCOUNTER_REGION_RULES[id]={mode:'enter',triggerRegionId:s.value||rule.triggerRegionId||null};renderDeploymentPanel();};});
   host.querySelectorAll("[data-deploy-name]").forEach(function(i){i.onchange=function(){deploymentGroup(i.dataset.deployName).label=i.value||"Unnamed group";renderDeploymentPanel();};});
@@ -3533,7 +3547,7 @@ function bindDeploymentPanel(){var host=document.getElementById("deploymentPanel
 function placeDeploymentAtPointer(e){
   var rect=renderer.domElement.getBoundingClientRect();ndc.x=((e.clientX-rect.left)/rect.width)*2-1;ndc.y=-((e.clientY-rect.top)/rect.height)*2+1;ray.setFromCamera(ndc,camera);var hit=ray.intersectObjects(world.children,true)[0];if(!hit){deploymentSay("No battlefield cell there.",true);return;}
   var at={c:Math.round(hit.point.x+F.W/2-.5),r:Math.round(hit.point.z+F.H/2-.5)},map=deploymentMap();
-  if(DEPLOYMENT_PLACE_GROUP){var g=deploymentGroup(DEPLOYMENT_PLACE_GROUP),before=g.anchor;g.anchor=at;var trial=window.ForgeDeployment.planGroup(map,g);if(trial.errors.some(function(x){return x.indexOf("flag is illegal")>=0||x.indexOf("outside an authored")>=0;})){g.anchor=before;deploymentSay(trial.errors.join(" "),true);return;}DEPLOYMENT_PLACE_GROUP=null;deploymentSay(g.label+" flag placed in "+(trial.regionId||"the map")+"."+(trial.ok?" Formation resolved.":" "+trial.errors.join(" ")),!trial.ok);renderDeploymentPanel();return;}
+  if(DEPLOYMENT_PLACE_GROUP){var g=deploymentGroup(DEPLOYMENT_PLACE_GROUP),before=g.anchor;g.anchor=at;var trial=window.ForgeDeployment.planGroup(map,g);if(trial.errors.some(function(x){return x.indexOf(g.label+" flag")===0;})){g.anchor=before;deploymentSay(trial.errors.join(" "),true);return;}DEPLOYMENT_PLACE_GROUP=null;deploymentSay(g.label+" flag placed in "+(trial.regionId==="map"?"nearby walkable ground":trial.regionId||"the map")+"."+(trial.ok?" Formation resolved.":" "+trial.errors.join(" ")),!trial.ok);renderDeploymentPanel();return;}
   if(DEPLOYMENT_MANUAL){var mg=deploymentGroup(DEPLOYMENT_MANUAL.groupId),old=mg.manualPositions[DEPLOYMENT_MANUAL.unit];mg.manualPositions[DEPLOYMENT_MANUAL.unit]=at;var check=window.ForgeDeployment.planGroup(map,mg);if(check.errors.some(function(x){return x.indexOf(DEPLOYMENT_MANUAL.unit+" manual position is illegal")>=0;})){if(old)mg.manualPositions[DEPLOYMENT_MANUAL.unit]=old;else delete mg.manualPositions[DEPLOYMENT_MANUAL.unit];deploymentSay(check.errors.join(" "),true);return;}var name=deploymentUnitName(DEPLOYMENT_MANUAL.unit);DEPLOYMENT_MANUAL=null;deploymentSay(name+" pinned. Reseeding preserves this cell.");renderDeploymentPanel();}
 }
 function nextDeploymentGroupId(){var n=1;while(deploymentGroup('deployment-group-'+n))n++;return 'deployment-group-'+n;}
@@ -5608,7 +5622,7 @@ async function drainMirror(){
    kitFor falls to the wrapped starter kits, which now carry tabs. */
 function startCombat(){
   if(architecturePending()){clog('<i>Temple architecture needs repair before combat can start — '+escapeHtml(architectureAudit().errors.join(' '))+'</i>');return;}
-  if(templeDeploymentPending()){clog('<i>Temple Terraces needs DM deployment flags before combat can start.</i>');return;}
+  if(forgeDeploymentPending()){clog('<i>Place the encounter-group flags before combat can start.</i>');return;}
   loadLiveStats().then(startCombatNow);
 }
 function startCombatNow(){
@@ -5623,7 +5637,7 @@ function startCombatNow(){
        log:[], hist:[], hptr:-1, turnStartPtr:-1, react:null };
   var cells=walkable(); if(!cells.length){ CB.active=false; return; }
   var authored=currentDeploymentRecord();
-  if(templeField()&&authored&&authored.resolved){
+  if(authored&&authored.resolved){
     var selected=window.__fightRoster||[],rows=rosterWithDeployment(buildRoster(),authored).filter(function(row){return(row.kind||"pc")!=="pc"||!selected.length||selected.indexOf(row.unit)>=0;});
     var missing=rows.filter(function(row){return !row.pos;});if(missing.length){CB.active=false;clog("<i>Deployment is incomplete for "+missing.map(function(row){return escapeHtml(row.name||row.unit);}).join(", ")+".</i>");return;}
     rows.forEach(function(row){var sourcePc=(row.kind||"pc")==="pc",sheetKey=sourcePc?resolveLiveSheetRef(row.sheet_ref||row.unit):row.unit,kit=sourcePc?(kitFor(sheetKey)||CHAR[row.sheet_ref||row.unit]):(foeKitFromStatblock(row)||FOE);if(!kit)return;
@@ -7933,8 +7947,7 @@ else initLifecyclePanel().catch(e => {
    Reuses combat.html's DM bestiary picker (~3166-3280) and saved_monsters
    shelf (~3610-3660) patterns, pointed at the Forge panel instead of the
    board. FOE_PICKED is the session-local "what will buildRoster() spawn"
-   list; empty → buildRoster() falls back to the Foes-slider goblins (spec
-   FORGE_BOARD.md §6). Statblocks here are the FULL raw 5etools JSON — the
+   list. Statblocks here are the FULL raw 5etools JSON — the
    same snapshot-on-pick discipline combat.html's dropMonster uses. */
 var FOE_PICKED = [];              // [{ name, statblock, count }]
 var FOE_SHELF = [];               // saved_monsters rows: {id,name,statblock,tags}
@@ -8009,14 +8022,13 @@ function addPickedFoe(name, statblock){
 function renderFoePicked(){
   var el = document.getElementById('fpPicked');
   if (!el) return;
-  // The collapsed header must still say what's inside — a hidden pick list
-  // that silently overrides the Foes slider would read as a haunted map.
+  // The collapsed header must still say what's inside.
   var headEl = document.getElementById('fpHeadCount');
   if (headEl){
     var total = FOE_PICKED.reduce(function(s, p){ return s + p.count; }, 0);
     headEl.textContent = total ? '— ' + total + ' picked' : '— nothing picked';
   }
-  if (!FOE_PICKED.length) { el.innerHTML = '<div class="fname">No extra foes picked.</div>'; refreshDeploymentPanel(); refreshEncounterReadPanel(); return; }
+  if (!FOE_PICKED.length) { el.innerHTML = '<div class="fname">No foes picked.</div>'; refreshDeploymentPanel(); refreshEncounterReadPanel(); return; }
   el.innerHTML = FOE_PICKED.map(function(p, i){
     return '<div class="fpRow"><span class="fpName" title="' + escapeHtml(p.name) + '">' + escapeHtml(p.name) + '</span>'
       + '<button class="fpStep" data-i="' + i + '" data-d="-1">−</button>'
@@ -8103,16 +8115,13 @@ function wireFoePicker(){
 }
 
 /* Task 14's real roster: live CharacterData rows own PC identity. The starter
-   keys remain only as a cold/offline fallback and for old-session aliases. The
-   base slider owns generic goblins; bestiary picks add deep-cloned statblocks
-   without deleting those goblins or their authored deployment membership. */
+   keys remain only as a cold/offline fallback and for old-session aliases.
+   Every foe is chosen for this encounter from the Bestiary or saved shelf. */
 function buildRoster(){
   var pcs = forgePartyRows();
   if(!pcs.length)pcs=Object.keys(CHAR).map(function(key){ return { unit: key, kind: 'pc', sheet_ref: key }; });
-  var foes = [], foeN = Math.max(0, +document.getElementById('foes').value || 0);
-  for (var i = 1; i <= foeN; i++) foes.push({ unit: 'foe-goblin-' + i, kind: 'foe', name: 'Goblin ' + i,
-    bestiary:{name:'Goblin',source:'MM'} });
-  FOE_PICKED.forEach(function(p){
+  var foes = [];
+  (FOE_PICKED||[]).forEach(function(p){
     var slug = foeSlug(p.name);
     for (var n = 1; n <= p.count; n++){
       foes.push({ unit: 'foe-picked-' + slug + '-' + n, kind: 'foe', name: p.name + ' ' + n,
@@ -8125,7 +8134,7 @@ function buildRoster(){
 /* Approved Encounter Read: the pure module owns every number and relationship;
    this adapter supplies live sheets, the authored roster, deployment, and the
    already-existing Bestiary catalogue. No value is saved to a session yet. */
-var ENCOUNTER_READ_VIEW='opening',ENCOUNTER_SUGGEST_MODE='related',ENCOUNTER_SUGGEST_OPEN=false;
+var ENCOUNTER_READ_VIEW='opening',ENCOUNTER_SUGGEST_MODE='related',ENCOUNTER_SUGGEST_OPEN=false,ENCOUNTER_TARGET='medium';
 var ENCOUNTER_SUGGEST_ROWS=[],ENCOUNTER_BOOK_LOAD_STARTED=false;
 var ENCOUNTER_LEVEL_FALLBACK={vesperian:4,caim:4,cosmere:3,liadan:4};
 function encounterSelectedParty(){var selected=window.__fightRoster;if(!Array.isArray(selected)||!selected.length)return null;var out={};selected.forEach(function(key){out[key]=true;});return out;}
@@ -8135,7 +8144,7 @@ function encounterRosterWithDraftRegions(roster,record){
 }
 function encounterPreparedRoster(){
   var roster=buildRoster(),deployment=null,regions=null,map=null;
-  if(templeField()){
+  if(F){
     try{map=deploymentMap();deployment=currentDeploymentRecord();if(deployment&&deployment.resolved)roster=rosterWithDeployment(roster,deployment);regions=deployment&&currentEncounterRegionRecord(deployment);if(regions)roster=regions.resolved?rosterWithEncounterRegions(roster,regions):encounterRosterWithDraftRegions(roster,regions);}catch(_e){}
   }
   var chosen=encounterSelectedParty();
@@ -8159,6 +8168,25 @@ function currentEncounterRead(){
 }
 function encounterNumber(value){return Number(value||0).toLocaleString();}
 function encounterHeadline(read){var opening=read.opening.difficulty,full=read.full.difficulty;if(ENCOUNTER_READ_VIEW==='opening')return opening+' opening'+(opening!==full?' · '+full+' overall':'');return full+' overall'+(opening!==full?' · '+opening+' opening':'');}
+function renderEncounterWallet(read){
+  var side=read[ENCOUNTER_READ_VIEW],band=window.ForgeEncounterRead.targetBand(read.party.thresholds,ENCOUNTER_TARGET),label=ENCOUNTER_TARGET.charAt(0).toUpperCase()+ENCOUNTER_TARGET.slice(1),ceiling=band.max==null?Math.max(1,band.min*1.25):Math.max(1,band.max);
+  document.querySelectorAll('[data-encounter-target]').forEach(function(button){button.classList.toggle('active',button.dataset.encounterTarget===ENCOUNTER_TARGET);});
+  document.getElementById('encounterWalletRead').textContent=side.adjustedXp?side.difficulty+' · '+encounterNumber(side.adjustedXp)+' adjusted XP':'Add enemies to begin spending the '+label+' budget.';
+  document.getElementById('encounterWalletRemaining').textContent=side.adjustedXp<band.min?encounterNumber(band.min-side.adjustedXp)+' XP to '+label:band.max!=null&&side.adjustedXp<=band.max?encounterNumber(band.max-side.adjustedXp)+' XP before '+band.next:band.max==null?'Deadly threshold reached':'Above '+label+' target';
+  document.getElementById('encounterWalletFill').style.width=Math.min(100,side.adjustedXp/ceiling*100)+'%';
+  document.getElementById('encounterBuildTarget').textContent='Suggest a '+label+' roster';
+}
+function encounterSuggestedRoster(read,catalogue,selected){
+  var band=window.ForgeEncounterRead.targetBand(read.party.thresholds,ENCOUNTER_TARGET),pool=ENCOUNTER_SUGGEST_MODE==='related'&&selected.length?window.ForgeEncounterRead.relatedCreatures(selected,catalogue,{limit:80}):catalogue.map(function(row){return{name:row.name,raw:row.raw,cr:row.cr};});
+  var center=band.max==null?band.min*1.15:(band.min+band.max)/2,best=null;
+  pool.forEach(function(row){var xp=window.ForgeEncounterRead.xpForCr(row.raw&&row.raw.cr);if(xp==null)return;for(var count=1;count<=12;count++){var adjusted=Math.round(xp*count*window.ForgeEncounterRead.encounterMultiplier(count,read.party.count)),inside=adjusted>=band.min&&(band.max==null||adjusted<=band.max),score=(inside?0:1000000)+Math.abs(adjusted-center)+Math.abs(count-4)*3;if(!best||score<best.score)best={name:row.name,raw:row.raw,count:count,adjusted:adjusted,score:score};}});
+  return best;
+}
+function buildEncounterTargetRoster(){
+  var status=document.getElementById('encounterSuggestionStatus'),payload=currentEncounterRead();if(!payload||!payload.read||!payload.read.party.count){if(status)status.textContent='Choose a combat-ready party before asking for a roster.';return;}
+  if(status)status.textContent='Reading the Bestiary against the selected budget…';
+  ensureFoeBooksLoaded(function(msg){if(status)status.textContent=msg;}).then(function(){var catalogue=encounterCatalogue(),selected=encounterSelectedCreatures(payload.enemies),pick=encounterSuggestedRoster(payload.read,catalogue,selected);if(!pick){if(status)status.textContent='No creature with usable CR data fits that target. Browse the full Bestiary instead.';return;}FOE_PICKED.length=0;FOE_PICKED.push({name:pick.name,statblock:pick.raw,count:pick.count});renderFoePicked();ENCOUNTER_SUGGEST_OPEN=true;var suggestions=document.getElementById('encounterSuggestions');if(suggestions)suggestions.style.display='block';var toggle=document.getElementById('encounterSuggestionsToggle');if(toggle)toggle.textContent='Hide creature suggestions';if(status)status.textContent=pick.count+' × '+pick.name+' suggested at '+encounterNumber(pick.adjusted)+' adjusted XP. Adjust, replace, or browse the full Bestiary.';});
+}
 function renderEncounterWarnings(read){
   var host=document.getElementById('encounterReadWarnings');if(!host)return;
   host.innerHTML=read.warnings.slice(0,4).map(function(w){return '<div class="erWarning '+escapeHtml(w.tone||'neutral')+'"><i></i><div><b>'+escapeHtml(w.title)+'</b><span>'+escapeHtml(w.copy)+'</span></div></div>';}).join('');
@@ -8198,7 +8226,7 @@ function renderEncounterReadPanel(){
   document.querySelectorAll('[data-encounter-read]').forEach(function(button){button.classList.toggle('active',button.dataset.encounterRead===ENCOUNTER_READ_VIEW);});
   document.querySelectorAll('[data-encounter-suggest]').forEach(function(button){button.classList.toggle('active',button.dataset.encounterSuggest===ENCOUNTER_SUGGEST_MODE);});
   refreshForgeWorkshopSummary(payload);
-  renderEncounterWarnings(read);if(ENCOUNTER_SUGGEST_OPEN)renderEncounterSuggestionRows(read,encounterSelectedCreatures(payload.enemies));
+  renderEncounterWallet(read);renderEncounterWarnings(read);if(ENCOUNTER_SUGGEST_OPEN)renderEncounterSuggestionRows(read,encounterSelectedCreatures(payload.enemies));
   if(__liveStatsCache==null&&!__deriveLoading)loadLiveStats().then(function(){refreshEncounterReadPanel();});
 }
 function refreshEncounterReadPanel(){renderEncounterReadPanel();}
@@ -8206,6 +8234,8 @@ function bindEncounterReadPanel(){
   var panel=document.getElementById('encounterReadPanel');if(!panel||panel.dataset.wired)return;panel.dataset.wired='1';
   panel.querySelectorAll('[data-encounter-read]').forEach(function(button){button.onclick=function(){ENCOUNTER_READ_VIEW=button.dataset.encounterRead;refreshEncounterReadPanel();};});
   panel.querySelectorAll('[data-encounter-suggest]').forEach(function(button){button.onclick=function(){ENCOUNTER_SUGGEST_MODE=button.dataset.encounterSuggest;refreshEncounterReadPanel();};});
+  panel.querySelectorAll('[data-encounter-target]').forEach(function(button){button.onclick=function(){ENCOUNTER_TARGET=button.dataset.encounterTarget;refreshEncounterReadPanel();};});
+  document.getElementById('encounterBuildTarget').onclick=buildEncounterTargetRoster;
   document.getElementById('encounterSuggestionsToggle').onclick=function(){ENCOUNTER_SUGGEST_OPEN=!ENCOUNTER_SUGGEST_OPEN;document.getElementById('encounterSuggestions').style.display=ENCOUNTER_SUGGEST_OPEN?'block':'none';this.textContent=ENCOUNTER_SUGGEST_OPEN?'Hide creature suggestions':'Show creature suggestions';refreshEncounterReadPanel();};
   document.getElementById('encounterOpenBestiary').onclick=function(){var toggle=document.getElementById('fpToggle'),status=document.getElementById('encounterSuggestionStatus');if(!toggle){if(status)status.textContent='Sign in on the live site to use the full Bestiary and save a shared encounter.';return;}var body=document.getElementById('fpBody');if(body&&body.style.display==='none')toggle.click();var input=document.getElementById('fpSearch');if(input)input.focus();var forgePanel=document.getElementById('forgePanel');if(forgePanel)forgePanel.scrollTop=Math.max(0,toggle.offsetTop-30);};
 }
@@ -8255,7 +8285,7 @@ async function initLifecyclePanel(){
 
   document.getElementById('fbOpenTable').onclick = async function(){
     if(architecturePending()){say('Repair the required ascent before opening or saving this Temple battlefield.',true);return;}
-    if(templeDeploymentPending()){say('Place deployment groups before opening or saving this Temple battlefield.',true);return;}
+    if(forgeDeploymentPending()){say('Place every active encounter-group flag before opening or saving this table.',true);return;}
     say('rolling initiative…');
     var res = await openTable(user.id);
     if (!res.ok) { say('couldn’t create the table — ' + res.why, true); return; }
@@ -8265,7 +8295,7 @@ async function initLifecyclePanel(){
   };
   document.getElementById('fbSaveLater').onclick = async function(){
     if(architecturePending()){say('Repair the required ascent before opening or saving this Temple battlefield.',true);return;}
-    if(templeDeploymentPending()){say('Place deployment groups before opening or saving this Temple battlefield.',true);return;}
+    if(forgeDeploymentPending()){say('Place every active encounter-group flag before opening or saving this table.',true);return;}
     say('saving for later…');
     var res = await openTable(user.id);
     if (!res.ok) { say('couldn’t save the fight — ' + res.why, true); return; }
@@ -9131,7 +9161,7 @@ async function startFight(){
     // b) New authored encounters already carry exact DM-approved deployment.
     // Historical rows keep the established one-time compatibility placement.
     var savedDeployment=sess.row.map&&sess.row.map.deployment;
-    if(savedDeployment&&[1,2].indexOf(Number(savedDeployment.version))>=0){
+    if(savedDeployment&&[1,2,3].indexOf(Number(savedDeployment.version))>=0){
       if(!savedDeployment.resolved)throw new Error("saved deployment is unresolved");
       roster=rosterWithDeployment(roster,savedDeployment);
       var missing=roster.filter(function(r){return !r.pos;});

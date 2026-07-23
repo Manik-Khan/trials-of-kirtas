@@ -15,20 +15,21 @@ has('data-workshop-nav="battlefield"', "Battlefield is a first-class Workshop st
 has('data-workshop-nav="deployment"', "Deployment is a first-class Workshop step");
 has('data-workshop-nav="advanced"', "Advanced tools are a first-class Workshop step");
 has('data-workshop-step="encounter"', "Encounter owns an independent content pane");
-has('Party, enemies, and Encounter Read are available before a battlefield is generated.', "Encounter availability is narrated independently of map generation");
+has('Choose the party, set the intended difficulty, then spend the encounter budget.', "Encounter follows map selection with an explicit budget");
 has('id="biomeSelect"', "Battlefield uses one compact biome selector");
-has('id="forgeBtn">Generate battlefield</button>', "Map replacement requires an explicit generation action");
+has('id="forgeBtn">Generate map</button>', "Map replacement requires an explicit generation action");
 has('function markForgeBattlefieldPending(){WORKSHOP_MAP_DIRTY=true;', "Battlefield selections have an explicit pending state");
-has("else markForgeBattlefieldPending();", "Generator sliders mark changes pending");
+has("markForgeBattlefieldPending();};});", "Generator sliders mark changes pending");
 notHas("if(mode==='tiers')rebuild();if(id==='foes'", "Generator sliders no longer silently rebuild the map");
 has("markForgeBattlefieldPending();setForgeWorkshopStep('battlefield');", "Temple shortcut selects the recipe without silently generating it");
 has('id="forgeDeploymentGate"', "Unsupported deployment remains visible with an explanation");
-has('if(!templeField()){if(gate)gate.hidden=false;', "Deployment gating narrates unsupported maps instead of removing the step");
+has('if(!F||!TG){if(gate)gate.hidden=false;', "Placement waits only for a generated map and initialized geometry");
+has("other maps use the flag's connected walkable ground", "Regionless maps use the existing flag system");
 has('<summary>Camera</summary>', "Camera controls are collapsed under Advanced");
 has('<summary>Rendering</summary>', "Rendering controls are collapsed under Advanced");
 has('<summary>Vertical geometry</summary>', "Vertical diagnostics are collapsed under Advanced");
 has('<summary>Architecture preview</summary>', "Architecture tools are collapsed under Advanced");
-has("rebuild();setForgeWorkshopStep('encounter');", "Workshop entry returns to encounter-first authoring");
+has("rebuild();setForgeWorkshopStep('battlefield');", "Workshop entry returns to map-first authoring");
 
 console.log(`\n${pass} passed, ${fail} failed`);
 process.exitCode = fail ? 1 : 0;

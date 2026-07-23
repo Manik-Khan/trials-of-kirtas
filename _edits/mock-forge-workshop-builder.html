@@ -1,0 +1,1612 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="referrer" content="no-referrer">
+<meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'unsafe-inline' 'unsafe-eval' 'wasm-unsafe-eval' blob: data: https://cdnjs.cloudflare.com https://cdn.jsdelivr.net https://esm.sh https://fonts.bunny.net https://fonts.googleapis.com https://fonts.gstatic.com https://unpkg.com; style-src 'unsafe-inline' blob: data: https://cdnjs.cloudflare.com https://cdn.jsdelivr.net https://esm.sh https://fonts.bunny.net https://fonts.googleapis.com https://fonts.gstatic.com https://unpkg.com; img-src blob: data: https://cdnjs.cloudflare.com https://cdn.jsdelivr.net https://esm.sh https://fonts.bunny.net https://fonts.googleapis.com https://fonts.gstatic.com https://unpkg.com; font-src blob: data: https://cdnjs.cloudflare.com https://cdn.jsdelivr.net https://esm.sh https://fonts.bunny.net https://fonts.googleapis.com https://fonts.gstatic.com https://unpkg.com; media-src blob: data: https://cdnjs.cloudflare.com https://cdn.jsdelivr.net https://esm.sh https://fonts.bunny.net https://fonts.googleapis.com https://fonts.gstatic.com https://unpkg.com; worker-src blob:; connect-src blob: data:; frame-src 'self'; object-src 'none'; base-uri 'none'; form-action 'none'">
+<title>Forge Workshop Builder</title>
+<style>:root{color-scheme:light dark;background:light-dark(rgb(255 255 255), rgb(24 24 24))}html,body{margin:0}body{box-sizing:border-box;padding:1rem;background:inherit}iframe{display:block;width:100%;max-width:736px;height:calc(100vh - 2rem);margin:0 auto;border:0}</style>
+</head>
+<body>
+<iframe sandbox="allow-scripts" referrerpolicy="no-referrer" title="Forge Workshop Builder" srcdoc="&lt;!doctype html&gt;
+&lt;html lang=&quot;en&quot;&gt;
+&lt;head&gt;
+&lt;meta charset=&quot;utf-8&quot;&gt;
+&lt;meta name=&quot;viewport&quot; content=&quot;width=device-width, initial-scale=1&quot;&gt;
+&lt;meta name=&quot;referrer&quot; content=&quot;no-referrer&quot;&gt;
+&lt;meta http-equiv=&quot;Content-Security-Policy&quot; content=&quot;default-src &#x27;none&#x27;; script-src &#x27;unsafe-inline&#x27; &#x27;unsafe-eval&#x27; &#x27;wasm-unsafe-eval&#x27; blob: data: https://cdnjs.cloudflare.com https://cdn.jsdelivr.net https://esm.sh https://fonts.bunny.net https://fonts.googleapis.com https://fonts.gstatic.com https://unpkg.com; style-src &#x27;unsafe-inline&#x27; blob: data: https://cdnjs.cloudflare.com https://cdn.jsdelivr.net https://esm.sh https://fonts.bunny.net https://fonts.googleapis.com https://fonts.gstatic.com https://unpkg.com; img-src blob: data: https://cdnjs.cloudflare.com https://cdn.jsdelivr.net https://esm.sh https://fonts.bunny.net https://fonts.googleapis.com https://fonts.gstatic.com https://unpkg.com; font-src blob: data: https://cdnjs.cloudflare.com https://cdn.jsdelivr.net https://esm.sh https://fonts.bunny.net https://fonts.googleapis.com https://fonts.gstatic.com https://unpkg.com; media-src blob: data: https://cdnjs.cloudflare.com https://cdn.jsdelivr.net https://esm.sh https://fonts.bunny.net https://fonts.googleapis.com https://fonts.gstatic.com https://unpkg.com; worker-src blob:; connect-src blob: data:; frame-src &#x27;none&#x27;; object-src &#x27;none&#x27;; base-uri &#x27;none&#x27;; form-action &#x27;none&#x27;&quot;&gt;
+&lt;title&gt;Forge Workshop Builder&lt;/title&gt;
+&lt;style&gt;:root {
+  color-scheme: light dark;
+  background-color: var(--background) !important;
+
+  /* Agent-facing contract; keep in sync with SKILL.md. */
+  --background: light-dark(rgb(255 255 255), rgb(24 24 24));
+  --foreground: light-dark(rgb(26 28 31), rgb(255 255 255));
+  --card: color-mix(in oklab, var(--foreground) 5%, transparent);
+  --card-foreground: var(--foreground);
+  --popover: light-dark(rgb(255 255 255), rgb(45 45 45));
+  --popover-foreground: var(--foreground);
+  --primary: light-dark(rgb(51 156 255), rgb(131 195 255));
+  --primary-foreground: light-dark(rgb(255 255 255), rgb(13 13 13));
+  --secondary: light-dark(rgb(255 255 255 / 96%), rgb(54 54 54 / 96%));
+  --secondary-foreground: var(--foreground);
+  --muted: color-mix(in srgb, var(--foreground) 10%, transparent);
+  --muted-foreground: light-dark(
+    rgb(26 28 31 / 49.4%),
+    rgb(255 255 255 / 49.8%)
+  );
+  --accent: light-dark(rgb(229 242 255), rgb(13 39 63));
+  --accent-foreground: var(--primary);
+  --destructive: light-dark(rgb(226 85 7), rgb(255 133 73));
+  --border: light-dark(rgb(26 28 31 / 8%), rgb(255 255 255 / 8.2%));
+  --input: light-dark(
+    rgb(26 28 31 / 11.8%),
+    color-mix(in oklab, rgb(0 0 0) 10%, transparent)
+  );
+  --ring: light-dark(rgb(51 156 255), rgb(131 195 255 / 76%));
+  --font-size-base: 14px;
+  --viz-series-1: var(--primary);
+  --viz-series-2: light-dark(rgb(243 136 59), rgb(245 154 86));
+  --viz-series-3: light-dark(rgb(93 201 119), rgb(116 213 139));
+  --viz-series-4: light-dark(rgb(235 119 177), rgb(240 143 192));
+  --viz-series-5: light-dark(rgb(155 121 236), rgb(170 145 239));
+  --viz-series-6: light-dark(rgb(58 185 177), rgb(90 203 194));
+
+  /* Internal implementation variables; not part of the agent contract. */
+  --font-sans: -apple-system, system-ui, &quot;Segoe UI&quot;, sans-serif;
+  --font-mono:
+    ui-monospace, SFMono-Regular, &quot;SF Mono&quot;, Menlo, Consolas, &quot;Liberation Mono&quot;,
+    monospace;
+  --font-size-normal: max(11px, var(--font-size-base));
+  --font-size-tooltip: calc(var(--font-size-base) - 1px);
+  --font-size-small: max(11px, calc(var(--font-size-base) - 2px));
+  --font-size-h1: calc(var(--font-size-normal) * 1.7142857143);
+  --font-size-h2: calc(var(--font-size-normal) * 1.4285714286);
+  --font-size-h3: calc(var(--font-size-normal) * 1.2857142857);
+  --font-weight-normal: 430;
+  --font-weight-medium: 500;
+  --line-height-normal: calc(var(--font-size-normal) * 1.5);
+  --line-height-tooltip: calc(var(--font-size-tooltip) * 1.4285714286);
+  --line-height-small: calc(var(--font-size-small) + 4px);
+  --radius: 12.5px;
+  --radius-sm: calc(var(--radius) * 0.6);
+  --radius-md: calc(var(--radius) * 0.8);
+  --radius-lg: var(--radius);
+  --radius-2xl: calc(var(--radius) * 1.6);
+  --radius-full: 9999px;
+  --shadow-sm: 0 1px 2px -1px rgb(0 0 0 / 8%);
+  --checkmark-image: url(&quot;data:image/svg+xml,%3Csvg xmlns=&#x27;http://www.w3.org/2000/svg&#x27; viewBox=&#x27;0 0 17 17&#x27;%3E%3Cpath d=&#x27;M12.8961 3.64101C13.1297 3.41418 13.4984 3.37523 13.7779 3.56581C14.0571 3.75635 14.1554 4.11331 14.0299 4.41347L13.9615 4.53847L7.71151 13.7045C7.59411 13.8767 7.4063 13.9877 7.19881 14.0072C6.99136 14.0267 6.78564 13.9533 6.63826 13.806L2.88826 10.056L2.79842 9.9457C2.6192 9.67407 2.64927 9.30496 2.88826 9.06581C3.12738 8.82669 3.49647 8.79676 3.76815 8.97597L3.8785 9.06581L7.03084 12.2182L12.8053 3.74941L12.8961 3.64101Z&#x27;/%3E%3C/svg%3E&quot;);
+
+  /* Legacy aliases; not part of the current agent contract. */
+  --viz-bg: transparent;
+  --viz-panel: var(--card);
+  --viz-border: var(--border);
+  --viz-text: var(--foreground);
+  --viz-muted: var(--muted-foreground);
+  --viz-accent: var(--primary);
+  --viz-accent-text: var(--primary-foreground);
+  --viz-accent-bg: var(--accent);
+  --viz-font-size: var(--font-size-base);
+  --viz-warning: var(--destructive);
+  --color-background-primary: var(--background);
+  --color-text-primary: var(--foreground);
+  --color-border-secondary: var(--border);
+}
+
+:root[data-theme=&quot;light&quot;] {
+  color-scheme: light;
+}
+
+:root[data-theme=&quot;dark&quot;] {
+  color-scheme: dark;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+html &gt; body {
+  margin: 0;
+  padding: 5px;
+  color: var(--foreground);
+  background: transparent !important;
+  font-family: var(--font-sans);
+  font-size: var(--font-size-normal);
+  font-weight: var(--font-weight-normal);
+  line-height: var(--line-height-normal);
+}
+
+a {
+  color: color-mix(in srgb, var(--viz-accent) 80%, var(--viz-text) 20%);
+  cursor: pointer;
+  font-weight: var(--viz-font-weight-medium);
+  text-decoration: none;
+  text-underline-offset: 2px;
+}
+
+a:is(:hover, :focus-visible) {
+  text-decoration-line: underline;
+  text-decoration-style: dashed;
+  text-decoration-thickness: 0.5px;
+}
+
+h1,
+h2,
+h3,
+h4,
+h5,
+h6,
+p {
+  margin-block: 0;
+}
+
+h1 {
+  font-size: var(--font-size-h1);
+  font-weight: var(--font-weight-medium);
+  line-height: 1.25;
+}
+
+h2 {
+  font-size: var(--font-size-h2);
+  font-weight: var(--font-weight-medium);
+  line-height: 1.25;
+}
+
+h3,
+h4,
+h5,
+h6 {
+  font-size: var(--font-size-h3);
+  font-weight: var(--font-weight-medium);
+  line-height: 1.3;
+}
+
+b,
+strong,
+th {
+  font-weight: var(--font-weight-medium);
+}
+
+code:not(pre code) {
+  display: inline;
+  padding: 1px 6px;
+  border-radius: var(--radius-sm);
+  corner-shape: superellipse(1.5);
+  background: var(--muted);
+  font-family: var(--font-mono);
+  font-size: 0.92em;
+  overflow-wrap: anywhere;
+  -webkit-box-decoration-break: clone;
+  box-decoration-break: clone;
+  word-break: break-word;
+}
+
+.table-responsive {
+  width: 100%;
+  overflow-x: auto;
+  scrollbar-width: thin;
+}
+
+.table {
+  width: 100%;
+  border-collapse: collapse;
+  color: var(--foreground);
+  font: inherit;
+  text-align: start;
+}
+
+.table :is(th, td) {
+  padding-block: 10px;
+  padding-inline: 0 24px;
+  overflow-wrap: anywhere;
+  border-bottom: 1px solid var(--border);
+  text-align: start;
+  vertical-align: top;
+}
+
+.table-responsive &gt; .table :is(th, td) {
+  overflow-wrap: break-word;
+}
+
+.table :is(th, td):last-child {
+  padding-inline-end: 0;
+}
+
+.table :is(caption, thead th) {
+  font-weight: 600;
+}
+
+.table thead th {
+  padding-block: 8px;
+  border-bottom-color: color-mix(in srgb, var(--foreground) 16%, transparent);
+}
+
+.table tbody tr:last-child :is(th, td) {
+  border-bottom: 0;
+}
+
+.table.table-sm :is(th, td) {
+  padding-block: 6px;
+}
+
+.table.table-sm :is(th, td):not(:last-child) {
+  padding-inline-end: 16px;
+}
+
+.table :is(.text-end, [align=&quot;right&quot;]) {
+  text-align: end;
+  font-variant-numeric: tabular-nums;
+}
+
+.table :is(.text-center, [align=&quot;center&quot;]) {
+  text-align: center;
+}
+
+.table .text-nowrap {
+  white-space: nowrap;
+}
+
+#widget {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  width: 100%;
+  padding: 0;
+  background: transparent !important;
+}
+
+.card {
+  min-width: 0;
+  padding: 12px;
+  overflow: hidden;
+  overflow-wrap: break-word;
+  border-radius: var(--radius-2xl);
+  corner-shape: superellipse(1.5);
+  color: var(--card-foreground);
+  background: var(--card);
+}
+
+#widget &gt; :not(.card) {
+  width: 100% !important;
+  max-width: none !important;
+  margin: 0 !important;
+  padding: 0 !important;
+  border: 0 !important;
+  border-radius: 0 !important;
+  background: transparent !important;
+  box-shadow: none !important;
+}
+
+.tooltip {
+  position: fixed;
+  z-index: 50;
+  top: 0;
+  left: 0;
+  width: max-content;
+  max-width: min(
+    20rem,
+    var(--tooltip-available-width, calc(100vw - 10px)),
+    calc(100vw - 10px)
+  );
+  max-height: min(
+    var(--tooltip-available-height, calc(100vh - 10px)),
+    calc(100vh - 10px)
+  );
+  padding: 4px 8px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  corner-shape: superellipse(1.5);
+  color: var(--popover-foreground);
+  background: var(--popover);
+  box-shadow: none;
+  font-size: var(--font-size-tooltip);
+  line-height: var(--line-height-tooltip);
+  overflow-wrap: break-word;
+  white-space: normal;
+  pointer-events: none;
+  user-select: none;
+}
+
+.viz-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(max(180px, 24%), 1fr));
+  gap: 10px;
+}
+
+.viz-stat {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.viz-stat-value {
+  font-size: var(--font-size-h2);
+  font-weight: var(--font-weight-medium);
+  line-height: 1.25;
+}
+
+.viz-row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 10px;
+}
+
+.viz-badge {
+  padding: 3px 8px;
+  border-radius: var(--radius-full);
+  color: var(--accent-foreground);
+  background: var(--accent);
+  font-weight: var(--font-weight-medium);
+}
+
+small,
+.text-small,
+.viz-badge {
+  font-size: var(--font-size-small);
+  line-height: var(--line-height-small);
+}
+
+.text-muted {
+  color: var(--muted-foreground);
+}
+
+.sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border: 0;
+}
+
+.viz-controls {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+}
+
+.viz-controls &gt; .form-label {
+  display: grid;
+  min-width: min(100%, 260px);
+  flex: 1 1 280px;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: baseline;
+  gap: 2px 12px;
+  margin-bottom: 0;
+}
+
+.viz-controls &gt; .form-label &gt; :is(.form-control, .form-range, .form-select) {
+  grid-column: 1 / -1;
+}
+
+.btn,
+.form-check-input,
+.form-control,
+.form-range,
+.form-select {
+  font: inherit;
+}
+
+.btn {
+  appearance: button;
+  display: inline-flex;
+  inline-size: fit-content;
+  max-inline-size: 100%;
+  min-height: 28px;
+  align-items: center;
+  justify-content: center;
+  gap: 4px;
+  margin: 0;
+  padding: 0 8px;
+  -webkit-app-region: no-drag;
+  border: 1px solid var(--input);
+  border-radius: var(--radius-lg);
+  corner-shape: superellipse(1.5);
+  color: var(--secondary-foreground);
+  background: var(--secondary);
+  cursor: var(--cursor-interaction, pointer);
+  text-align: center;
+  text-decoration: none;
+  white-space: nowrap;
+  user-select: none;
+  -webkit-font-smoothing: antialiased;
+}
+
+.btn:is(.btn-block, .viz-tile) {
+  inline-size: 100%;
+}
+
+.btn.viz-tile {
+  min-width: 0;
+  overflow-wrap: anywhere;
+  white-space: normal;
+}
+
+a.btn {
+  cursor: pointer;
+  text-decoration: none;
+}
+
+.btn:not(:disabled):hover {
+  background: color-mix(in srgb, var(--foreground) 6%, var(--secondary));
+}
+
+.btn-primary {
+  border-color: transparent;
+  color: var(--primary-foreground);
+  background: var(--foreground);
+  background-clip: padding-box;
+}
+
+.btn-primary .text-muted {
+  color: color-mix(in srgb, var(--primary-foreground) 50%, transparent);
+}
+
+.btn-primary:not(:disabled):hover {
+  background: color-mix(in srgb, var(--foreground) 80%, transparent);
+  background-clip: padding-box;
+}
+
+.btn-ghost {
+  border-color: transparent;
+  color: var(--muted-foreground);
+  background: transparent;
+}
+
+.btn-ghost:not(:disabled):hover {
+  color: var(--foreground);
+  background: color-mix(in srgb, var(--foreground) 6%, var(--secondary));
+}
+
+.btn:disabled {
+  cursor: not-allowed;
+  opacity: 0.4;
+}
+
+[data-lucide] {
+  stroke-width: 1.6;
+}
+
+.form-label {
+  display: block;
+  margin-bottom: 6px;
+  color: var(--foreground);
+}
+
+.form-control {
+  display: block;
+  width: 100%;
+  min-height: 28px;
+  padding: 0 8px;
+  outline: none;
+  border: 1px solid var(--input);
+  border-radius: var(--radius-lg);
+  corner-shape: superellipse(1.5);
+  color: var(--foreground);
+  background: var(--secondary);
+}
+
+.form-control::placeholder {
+  color: var(--muted-foreground);
+}
+
+.form-control[type=&quot;file&quot;] {
+  padding: 0;
+  overflow: hidden;
+  cursor: var(--cursor-interaction, pointer);
+}
+
+.form-control[type=&quot;file&quot;]::file-selector-button {
+  min-height: 26px;
+  margin-right: 8px;
+  padding: 0 8px;
+  border: 0;
+  border-right: 1px solid var(--input);
+  color: var(--secondary-foreground);
+  background: var(--secondary);
+  cursor: inherit;
+  font: inherit;
+}
+
+.form-control[type=&quot;file&quot;]:not(:disabled):hover::file-selector-button {
+  background: color-mix(in srgb, var(--foreground) 6%, var(--secondary));
+}
+
+.form-control-color[type=&quot;color&quot;] {
+  width: 40px;
+  height: 28px;
+  padding: 3px;
+  cursor: var(--cursor-interaction, pointer);
+}
+
+.form-control-color[type=&quot;color&quot;]::-webkit-color-swatch-wrapper {
+  padding: 0;
+}
+
+.form-control-color[type=&quot;color&quot;]::-webkit-color-swatch {
+  border: 0;
+  border-radius: calc(var(--radius-lg) - 4px);
+  corner-shape: superellipse(1.5);
+}
+
+textarea.form-control {
+  height: auto;
+  min-height: 72px;
+  padding: 8px 10px;
+  resize: vertical;
+}
+
+.form-control:focus-visible {
+  border-color: var(--ring);
+  box-shadow: inset 0 0 0 1px var(--ring);
+}
+
+.form-control:disabled,
+.form-select:disabled {
+  cursor: not-allowed;
+  opacity: 0.4;
+}
+
+.form-select {
+  appearance: none;
+  display: block;
+  width: 100%;
+  min-height: 28px;
+  margin: 0;
+  padding: 0 32px 0 8px;
+  outline: none;
+  border: 1px solid var(--input);
+  border-radius: var(--radius-lg);
+  corner-shape: superellipse(1.5);
+  color: var(--foreground);
+  background-color: var(--secondary);
+  background-image:
+    linear-gradient(45deg, transparent 50%, var(--muted-foreground) 50%),
+    linear-gradient(135deg, var(--muted-foreground) 50%, transparent 50%);
+  background-position:
+    calc(100% - 14px) 50%,
+    calc(100% - 10px) 50%;
+  background-repeat: no-repeat;
+  background-size: 4px 4px;
+  cursor: var(--cursor-interaction, default);
+}
+
+.form-select:not(:disabled):hover {
+  background-color: color-mix(in srgb, var(--foreground) 6%, var(--secondary));
+}
+
+.form-select:focus-visible {
+  border-color: var(--ring);
+  box-shadow: inset 0 0 0 1px var(--ring);
+}
+
+.form-check {
+  display: flex;
+  min-height: 20px;
+  align-items: center;
+  gap: 6px;
+}
+
+.form-check-input {
+  appearance: none;
+  width: 14px;
+  height: 14px;
+  flex: 0 0 auto;
+  margin: 0;
+  border: 1px solid var(--input);
+  color: var(--primary-foreground);
+  background-color: transparent;
+  cursor: var(--cursor-interaction, default);
+  transition:
+    background-color 150ms,
+    border-color 150ms,
+    box-shadow 150ms;
+}
+
+.form-check:not(.form-switch) .form-check-input[type=&quot;checkbox&quot;] {
+  border-color: var(--input);
+  border-radius: var(--radius-sm);
+  corner-shape: superellipse(1.5);
+  background-color: var(--secondary);
+  box-shadow: var(--shadow-sm);
+}
+
+.form-check:not(.form-switch)
+  .form-check-input:not(:disabled):not(:checked):hover {
+  background-color: var(--card);
+}
+
+.form-check:not(.form-switch) .form-check-input[type=&quot;checkbox&quot;]:checked {
+  border-color: var(--primary);
+  background-color: var(--primary);
+}
+
+.form-check:not(.form-switch)
+  .form-check-input[type=&quot;checkbox&quot;]:checked::before {
+  display: block;
+  width: 100%;
+  height: 100%;
+  background: var(--primary-foreground);
+  content: &quot;&quot;;
+  mask: var(--checkmark-image) center / 12px 12px no-repeat;
+}
+
+.form-check-input[type=&quot;radio&quot;] {
+  width: 14px;
+  height: 14px;
+  border-radius: var(--radius-full);
+}
+
+.form-check-input[type=&quot;radio&quot;]:checked {
+  border: 2px solid var(--primary);
+  background:
+    radial-gradient(circle, var(--primary-foreground) 0 2.5px, transparent 3px),
+    var(--primary);
+}
+
+.form-check:not(.form-switch) .form-check-input:focus-visible {
+  outline: 2px solid var(--ring);
+  outline-offset: 2px;
+}
+
+.form-check:not(.form-switch) .form-check-input:disabled {
+  cursor: not-allowed;
+  pointer-events: none;
+}
+
+.form-check:not(.form-switch) .form-check-input:disabled + .form-check-label {
+  cursor: not-allowed;
+}
+
+.form-switch .form-check-input:disabled,
+.form-switch .form-check-input:disabled + .form-check-label {
+  cursor: not-allowed;
+  opacity: 0.6;
+}
+
+.form-check-label {
+  color: var(--foreground);
+  cursor: var(--cursor-interaction, default);
+}
+
+.form-switch .form-check-input {
+  position: relative;
+  width: 32px;
+  height: 20px;
+  border: 0;
+  border-radius: var(--radius-full);
+  background: var(--muted);
+  box-shadow: none;
+  transition: background-color 200ms cubic-bezier(0, 0, 0.2, 1);
+}
+
+.form-switch .form-check-input::before {
+  position: absolute;
+  top: 50%;
+  left: 0;
+  width: 16px;
+  height: 16px;
+  box-sizing: border-box;
+  border: 1px solid light-dark(var(--primary-foreground), var(--foreground));
+  border-radius: var(--radius-full);
+  background: light-dark(var(--primary-foreground), var(--foreground));
+  box-shadow: var(--shadow-sm);
+  content: &quot;&quot;;
+  transform: translate(2px, -50%);
+  transition: transform 200ms cubic-bezier(0, 0, 0.2, 1);
+}
+
+.form-switch .form-check-input:checked {
+  background: var(--primary);
+}
+
+.form-switch .form-check-input:checked::before {
+  transform: translate(14px, -50%);
+}
+
+.form-switch .form-check-input:focus-visible {
+  box-shadow: 0 0 0 2px var(--ring);
+}
+
+.form-range {
+  appearance: none;
+  display: block;
+  width: 100%;
+  height: 28px;
+  flex: 1;
+  margin: 0;
+  padding: 0;
+  outline: none;
+  border: 0;
+  accent-color: var(--primary);
+  background: linear-gradient(
+      color-mix(in srgb, var(--foreground) 7%, transparent),
+      color-mix(in srgb, var(--foreground) 7%, transparent)
+    )
+    center / 100% 2px no-repeat;
+}
+
+.form-range::-webkit-slider-runnable-track {
+  height: 28px;
+  background: transparent;
+}
+
+.form-range::-webkit-slider-thumb {
+  appearance: none;
+  width: 20px;
+  height: 20px;
+  margin-top: 4px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-full);
+  background: light-dark(var(--primary-foreground), var(--foreground));
+}
+
+.form-range:focus-visible::-webkit-slider-thumb {
+  border-color: var(--ring);
+  box-shadow: inset 0 0 0 1px var(--ring);
+}
+
+.form-range::-moz-range-track {
+  height: 28px;
+  background: transparent;
+}
+
+.form-range::-moz-range-thumb {
+  width: 20px;
+  height: 20px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-full);
+  background: light-dark(var(--primary-foreground), var(--foreground));
+}
+
+.form-range:focus-visible::-moz-range-thumb {
+  border-color: var(--ring);
+  box-shadow: inset 0 0 0 1px var(--ring);
+}
+
+.form-range:disabled {
+  cursor: not-allowed;
+  opacity: 0.4;
+}
+
+.btn:not(.btn-primary, .viz-tile):is(
+    [aria-pressed=&quot;true&quot;],
+    [aria-selected=&quot;true&quot;],
+    .is-selected
+  ) {
+  border-color: var(--primary);
+  color: var(--primary-foreground);
+  background: var(--primary);
+}
+
+.btn.viz-tile:is([aria-pressed=&quot;true&quot;], [aria-selected=&quot;true&quot;], .is-selected) {
+  border-color: var(--primary);
+  box-shadow: inset 0 0 0 1px var(--primary);
+}
+
+.btn:focus-visible {
+  outline: 2px solid var(--ring);
+  outline-offset: 2px;
+}
+
+svg {
+  display: block;
+  max-width: 100%;
+  height: auto;
+}
+
+#widget &gt; svg {
+  width: 100%;
+}
+
+.text-warning,
+.text-destructive {
+  color: var(--destructive);
+}
+
+html&gt;body{padding:0}&lt;/style&gt;
+&lt;/head&gt;
+&lt;body&gt;
+&lt;div id=&quot;forge-workshop-builder&quot;&gt;
+  &lt;style&gt;
+    #forge-workshop-builder{color:var(--foreground);background:var(--background);padding:14px}
+    #forge-workshop-builder *{box-sizing:border-box}
+    #forge-workshop-builder [hidden]{display:none!important}
+    #forge-workshop-builder .fw-top{display:flex;justify-content:space-between;align-items:flex-start;gap:12px;padding-bottom:12px;margin-bottom:14px;border-bottom:1px solid var(--border)}
+    #forge-workshop-builder .fw-steps{display:flex;gap:6px;flex-wrap:wrap}
+    #forge-workshop-builder .fw-step{display:flex;align-items:center;gap:6px}
+    #forge-workshop-builder .fw-step span{display:grid;place-items:center;width:22px;height:22px;border-radius:50%;background:var(--muted);color:var(--muted-foreground)}
+    #forge-workshop-builder .fw-step[aria-selected=&quot;true&quot;] span{background:var(--primary);color:var(--primary-foreground)}
+    #forge-workshop-builder .fw-settings{position:relative}
+    #forge-workshop-builder .fw-settings summary{list-style:none}
+    #forge-workshop-builder .fw-settings summary::-webkit-details-marker{display:none}
+    #forge-workshop-builder .fw-settings-body{position:absolute;right:0;top:38px;z-index:4;width:min(310px,calc(100vw - 42px));padding:12px;background:var(--popover);color:var(--popover-foreground);border:1px solid var(--border);box-shadow:0 10px 28px color-mix(in srgb,var(--foreground) 16%,transparent)}
+    #forge-workshop-builder .fw-settings-body h3{margin:0 0 9px}
+    #forge-workshop-builder .fw-settings-body details{padding:7px 0;border-top:1px solid var(--border)}
+    #forge-workshop-builder .fw-settings-body details summary{cursor:pointer;font-weight:500}
+    #forge-workshop-builder .fw-settings-body .viz-controls{margin-top:8px}
+    #forge-workshop-builder .fw-head{display:flex;justify-content:space-between;align-items:flex-start;gap:10px;margin-bottom:12px}
+    #forge-workshop-builder .fw-head h2{margin:0}
+    #forge-workshop-builder .fw-head p{margin:4px 0 0;color:var(--muted-foreground)}
+    #forge-workshop-builder .fw-layout{display:grid;grid-template-columns:minmax(220px,.82fr) minmax(0,1.35fr);gap:14px;align-items:start}
+    #forge-workshop-builder .fw-stack{display:grid;gap:11px}
+    #forge-workshop-builder .fw-field{display:grid;gap:5px}
+    #forge-workshop-builder .fw-field-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:9px}
+    #forge-workshop-builder .fw-actions{display:flex;gap:7px;justify-content:flex-end;flex-wrap:wrap}
+    #forge-workshop-builder .fw-map{min-height:330px;display:grid;place-items:center;position:relative;overflow:hidden}
+    #forge-workshop-builder .fw-map-grid{width:min(94%,470px);aspect-ratio:16/10;display:grid;grid-template-columns:repeat(14,1fr);grid-template-rows:repeat(9,1fr);gap:1px;padding:8px;background:color-mix(in srgb,var(--foreground) 16%,transparent)}
+    #forge-workshop-builder .fw-cell{background:color-mix(in srgb,var(--viz-series-2) 28%,var(--card))}
+    #forge-workshop-builder .fw-cell.high{background:color-mix(in srgb,var(--viz-series-3) 36%,var(--card))}
+    #forge-workshop-builder .fw-cell.wall{background:color-mix(in srgb,var(--foreground) 38%,var(--card))}
+    #forge-workshop-builder .fw-cell.water{background:color-mix(in srgb,var(--viz-series-6) 38%,var(--card))}
+    #forge-workshop-builder .fw-map-label{position:absolute;left:10px;top:10px;padding:5px 7px;background:var(--card);color:var(--card-foreground)}
+    #forge-workshop-builder .fw-map-note{position:absolute;left:10px;right:10px;bottom:10px;padding:6px 8px;background:var(--card);color:var(--card-foreground)}
+    #forge-workshop-builder .fw-party{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:6px}
+    #forge-workshop-builder .fw-party .btn{min-width:0;text-align:left}
+    #forge-workshop-builder .fw-party .btn small{display:block;color:var(--muted-foreground)}
+    #forge-workshop-builder .fw-party .btn:disabled{opacity:.46}
+    #forge-workshop-builder .fw-targets{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:6px}
+    #forge-workshop-builder .fw-targets .btn{min-width:0}
+    #forge-workshop-builder .fw-wallet-head{display:flex;justify-content:space-between;gap:8px;align-items:flex-end}
+    #forge-workshop-builder .fw-wallet-value{font-weight:500}
+    #forge-workshop-builder .fw-wallet-track{height:12px;background:var(--muted);position:relative;overflow:hidden}
+    #forge-workshop-builder .fw-wallet-fill{height:100%;width:0;background:var(--viz-series-1);transition:width .18s ease}
+    #forge-workshop-builder .fw-wallet-marks{display:grid;grid-template-columns:450fr 450fr 450fr 550fr;margin-top:4px;color:var(--muted-foreground)}
+    #forge-workshop-builder .fw-wallet-marks span{border-left:1px solid var(--border);padding-left:4px}
+    #forge-workshop-builder .fw-wallet-marks span:last-child{border-right:1px solid var(--border)}
+    #forge-workshop-builder .fw-quick{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:6px}
+    #forge-workshop-builder .fw-pick{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:7px;align-items:center;padding:7px 0;border-bottom:1px solid var(--border)}
+    #forge-workshop-builder .fw-pick:last-child{border-bottom:0}
+    #forge-workshop-builder .fw-pick strong{font-weight:500}
+    #forge-workshop-builder .fw-pick small{display:block;color:var(--muted-foreground)}
+    #forge-workshop-builder .fw-roster-empty{padding:12px 0;color:var(--muted-foreground)}
+    #forge-workshop-builder .fw-roster-row{display:grid;grid-template-columns:minmax(0,1fr) auto auto;gap:7px;align-items:center;padding:7px 0;border-bottom:1px solid var(--border)}
+    #forge-workshop-builder .fw-roster-row:last-child{border-bottom:0}
+    #forge-workshop-builder .fw-roster-step{display:flex;align-items:center;gap:4px}
+    #forge-workshop-builder .fw-roster-step .btn{padding-inline:8px}
+    #forge-workshop-builder .fw-suggestion-tabs{display:flex;gap:6px;margin-bottom:5px}
+    #forge-workshop-builder .fw-placement-layout{display:grid;grid-template-columns:minmax(260px,.9fr) minmax(0,1.1fr);gap:14px;align-items:start}
+    #forge-workshop-builder .fw-deploy-group{display:grid;gap:7px}
+    #forge-workshop-builder .fw-deploy-head{display:grid;grid-template-columns:minmax(0,1fr) auto auto;gap:7px;align-items:center}
+    #forge-workshop-builder .fw-deploy-head input{min-width:0}
+    #forge-workshop-builder .fw-deploy-selects{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:7px}
+    #forge-workshop-builder .fw-deploy-member{display:grid;grid-template-columns:minmax(0,1fr) minmax(112px,.8fr);gap:6px;align-items:center}
+    #forge-workshop-builder .fw-deploy-member .btn{text-align:left;min-width:0}
+    #forge-workshop-builder .fw-deploy-member .is-pinned{box-shadow:inset 0 -2px var(--viz-series-1)}
+    #forge-workshop-builder .fw-deploy-meta{display:flex;justify-content:space-between;gap:7px;color:var(--muted-foreground)}
+    #forge-workshop-builder .fw-deploy-actions{display:grid;grid-template-columns:1.2fr 1fr 1fr;gap:6px}
+    #forge-workshop-builder .fw-deploy-actions .btn{min-width:0}
+    #forge-workshop-builder .fw-automation{padding-left:8px;border-left:2px solid var(--border)}
+    #forge-workshop-builder .fw-automation-fields{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:7px;margin-top:7px}
+    #forge-workshop-builder .fw-placement-map{min-height:360px;display:grid;place-items:center;position:relative;overflow:hidden}
+    #forge-workshop-builder .fw-place-grid{width:min(94%,520px);aspect-ratio:16/10;display:grid;grid-template-columns:repeat(14,1fr);grid-template-rows:repeat(9,1fr);gap:1px;padding:8px;background:color-mix(in srgb,var(--foreground) 16%,transparent)}
+    #forge-workshop-builder .fw-place-cell{appearance:none;border:0;padding:0;min-width:0;background:color-mix(in srgb,var(--viz-series-2) 28%,var(--card));color:var(--card-foreground);display:grid;place-items:center}
+    #forge-workshop-builder .fw-place-cell.high{background:color-mix(in srgb,var(--viz-series-3) 36%,var(--card))}
+    #forge-workshop-builder .fw-place-cell.wall{background:color-mix(in srgb,var(--foreground) 38%,var(--card))}
+    #forge-workshop-builder .fw-place-cell.water{background:color-mix(in srgb,var(--viz-series-6) 38%,var(--card))}
+    #forge-workshop-builder .fw-place-cell.flagged{box-shadow:inset 0 0 0 2px var(--primary)}
+    #forge-workshop-builder .fw-place-cell.pinned{box-shadow:inset 0 0 0 2px var(--viz-series-1)}
+    #forge-workshop-builder .fw-place-cell:disabled{cursor:not-allowed}
+    #forge-workshop-builder .fw-live-head{display:flex;justify-content:space-between;align-items:center;gap:8px;flex-wrap:wrap}
+    #forge-workshop-builder .fw-live-grid{display:grid;grid-template-columns:minmax(0,1.1fr) minmax(220px,.9fr);gap:14px;align-items:start}
+    #forge-workshop-builder .fw-tray-row{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:7px;align-items:center;padding:7px 0;border-bottom:1px solid var(--border)}
+    #forge-workshop-builder .fw-tray-row:last-child{border-bottom:0}
+    #forge-workshop-builder .fw-tray-row small{display:block;color:var(--muted-foreground)}
+    #forge-workshop-builder .fw-live-roster{display:grid;gap:4px}
+    #forge-workshop-builder .fw-live-unit{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:7px;align-items:center;padding:6px 0;border-bottom:1px solid var(--border)}
+    #forge-workshop-builder .fw-live-unit:last-child{border-bottom:0}
+    #forge-workshop-builder .fw-live-empty{color:var(--muted-foreground);padding:8px 0}
+    #forge-workshop-builder .fw-status{color:var(--muted-foreground)}
+    @media(max-width:700px){
+      #forge-workshop-builder{padding:10px}
+      #forge-workshop-builder .fw-top{align-items:stretch}
+      #forge-workshop-builder .fw-steps{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));flex:1}
+      #forge-workshop-builder .fw-step{justify-content:flex-start;min-width:0}
+      #forge-workshop-builder .fw-layout{grid-template-columns:1fr}
+      #forge-workshop-builder .fw-placement-layout{grid-template-columns:1fr}
+      #forge-workshop-builder .fw-live-grid{grid-template-columns:1fr}
+      #forge-workshop-builder .fw-map{min-height:250px}
+    }
+    @media(max-width:440px){
+      #forge-workshop-builder .fw-top{flex-direction:column}
+      #forge-workshop-builder .fw-settings-body{left:0;right:auto}
+      #forge-workshop-builder .fw-step{display:grid;justify-items:center;text-align:center}
+      #forge-workshop-builder .fw-step span{display:none}
+      #forge-workshop-builder .fw-field-grid,#forge-workshop-builder .fw-party,#forge-workshop-builder .fw-quick{grid-template-columns:1fr}
+      #forge-workshop-builder .fw-targets{grid-template-columns:repeat(2,minmax(0,1fr))}
+      #forge-workshop-builder .fw-deploy-head{grid-template-columns:minmax(0,1fr) auto}
+      #forge-workshop-builder .fw-deploy-head [data-group-remove]{grid-column:1/-1}
+      #forge-workshop-builder .fw-deploy-selects,#forge-workshop-builder .fw-automation-fields{grid-template-columns:1fr}
+      #forge-workshop-builder .fw-deploy-member{grid-template-columns:1fr}
+      #forge-workshop-builder .fw-deploy-actions{grid-template-columns:1fr}
+    }
+  &lt;/style&gt;
+
+  &lt;div class=&quot;fw-top&quot;&gt;
+    &lt;nav class=&quot;fw-steps&quot; aria-label=&quot;Workshop sequence&quot;&gt;
+      &lt;button class=&quot;btn fw-step&quot; type=&quot;button&quot; data-step=&quot;map&quot; aria-selected=&quot;true&quot;&gt;&lt;span&gt;1&lt;/span&gt;Map&lt;/button&gt;
+      &lt;button class=&quot;btn fw-step&quot; type=&quot;button&quot; data-step=&quot;encounter&quot; aria-selected=&quot;false&quot;&gt;&lt;span&gt;2&lt;/span&gt;Encounter&lt;/button&gt;
+      &lt;button class=&quot;btn fw-step&quot; type=&quot;button&quot; data-step=&quot;table&quot; aria-selected=&quot;false&quot;&gt;&lt;span&gt;3&lt;/span&gt;Placement&lt;/button&gt;
+    &lt;/nav&gt;
+    &lt;details class=&quot;fw-settings&quot;&gt;
+      &lt;summary class=&quot;btn&quot;&gt;&lt;i data-lucide=&quot;settings-2&quot; aria-hidden=&quot;true&quot;&gt;&lt;/i&gt; Forge settings&lt;/summary&gt;
+      &lt;div class=&quot;fw-settings-body&quot;&gt;
+        &lt;h3&gt;Always available&lt;/h3&gt;
+        &lt;details open&gt;&lt;summary&gt;Perspective&lt;/summary&gt;&lt;div class=&quot;viz-controls&quot;&gt;&lt;button class=&quot;btn btn-primary&quot; type=&quot;button&quot;&gt;3D&lt;/button&gt;&lt;button class=&quot;btn&quot; type=&quot;button&quot;&gt;Top-down&lt;/button&gt;&lt;button class=&quot;btn&quot; type=&quot;button&quot;&gt;Follow active&lt;/button&gt;&lt;/div&gt;&lt;/details&gt;
+        &lt;details&gt;&lt;summary&gt;Presentation&lt;/summary&gt;&lt;div class=&quot;viz-controls&quot;&gt;&lt;button class=&quot;btn btn-primary&quot; type=&quot;button&quot;&gt;Staff view&lt;/button&gt;&lt;button class=&quot;btn&quot; type=&quot;button&quot;&gt;Player view&lt;/button&gt;&lt;/div&gt;&lt;/details&gt;
+        &lt;details&gt;&lt;summary&gt;Rendering&lt;/summary&gt;&lt;div class=&quot;viz-controls&quot;&gt;&lt;button class=&quot;btn btn-primary&quot; type=&quot;button&quot;&gt;Balanced&lt;/button&gt;&lt;button class=&quot;btn&quot; type=&quot;button&quot;&gt;High fidelity&lt;/button&gt;&lt;/div&gt;&lt;/details&gt;
+        &lt;details&gt;&lt;summary&gt;Grid and diagnostics&lt;/summary&gt;&lt;div class=&quot;viz-controls&quot;&gt;&lt;button class=&quot;btn&quot; type=&quot;button&quot;&gt;Grid 50%&lt;/button&gt;&lt;button class=&quot;btn&quot; type=&quot;button&quot;&gt;Connectors&lt;/button&gt;&lt;button class=&quot;btn&quot; type=&quot;button&quot;&gt;Cover audit&lt;/button&gt;&lt;/div&gt;&lt;/details&gt;
+      &lt;/div&gt;
+    &lt;/details&gt;
+  &lt;/div&gt;
+
+  &lt;section data-panel=&quot;map&quot;&gt;
+    &lt;div class=&quot;fw-head&quot;&gt;&lt;div&gt;&lt;h2&gt;Build the battlefield&lt;/h2&gt;&lt;p&gt;Choose the generator recipe first, then build the encounter for this map.&lt;/p&gt;&lt;/div&gt;&lt;span class=&quot;viz-badge&quot; id=&quot;fw-map-status&quot;&gt;Generated&lt;/span&gt;&lt;/div&gt;
+    &lt;div class=&quot;fw-layout&quot;&gt;
+      &lt;div class=&quot;fw-stack&quot;&gt;
+        &lt;div class=&quot;card fw-stack&quot;&gt;
+          &lt;div class=&quot;fw-field-grid&quot;&gt;
+            &lt;label class=&quot;fw-field form-label&quot; for=&quot;fw-layout&quot;&gt;Layout&lt;select class=&quot;form-select&quot; id=&quot;fw-layout&quot;&gt;&lt;option value=&quot;temple&quot;&gt;Temple terraces&lt;/option&gt;&lt;option value=&quot;legacy&quot;&gt;Dungeon rooms&lt;/option&gt;&lt;option value=&quot;courtyard&quot;&gt;Courtyard&lt;/option&gt;&lt;option value=&quot;cavern&quot;&gt;Cavern chambers&lt;/option&gt;&lt;option value=&quot;bridge&quot;&gt;Bridge crossing&lt;/option&gt;&lt;/select&gt;&lt;/label&gt;
+            &lt;label class=&quot;fw-field form-label&quot; for=&quot;fw-terrain&quot;&gt;Terrain&lt;select class=&quot;form-select&quot; id=&quot;fw-terrain&quot;&gt;&lt;option value=&quot;grass&quot;&gt;Verdant field&lt;/option&gt;&lt;option value=&quot;druidic&quot;&gt;Druidic sanctum&lt;/option&gt;&lt;option value=&quot;tundra&quot;&gt;Frostbound waste&lt;/option&gt;&lt;option value=&quot;swamp&quot;&gt;Mireheart bog&lt;/option&gt;&lt;option value=&quot;temple&quot;&gt;Sunken temple&lt;/option&gt;&lt;option value=&quot;cavern&quot;&gt;Weeping cavern&lt;/option&gt;&lt;/select&gt;&lt;/label&gt;
+            &lt;label class=&quot;fw-field form-label&quot; for=&quot;fw-size&quot;&gt;Size&lt;select class=&quot;form-select&quot; id=&quot;fw-size&quot;&gt;&lt;option&gt;Standard&lt;/option&gt;&lt;option&gt;Compact&lt;/option&gt;&lt;option&gt;Large&lt;/option&gt;&lt;/select&gt;&lt;/label&gt;
+            &lt;label class=&quot;fw-field form-label&quot; for=&quot;fw-seed&quot;&gt;Seed&lt;input class=&quot;form-control&quot; id=&quot;fw-seed&quot; value=&quot;7&quot; inputmode=&quot;numeric&quot;&gt;&lt;/label&gt;
+          &lt;/div&gt;
+          &lt;div class=&quot;fw-actions&quot;&gt;&lt;button class=&quot;btn&quot; type=&quot;button&quot; id=&quot;fw-random-seed&quot;&gt;&lt;i data-lucide=&quot;dices&quot; aria-hidden=&quot;true&quot;&gt;&lt;/i&gt; Random seed&lt;/button&gt;&lt;button class=&quot;btn btn-primary&quot; type=&quot;button&quot; id=&quot;fw-generate&quot;&gt;&lt;i data-lucide=&quot;sparkles&quot; aria-hidden=&quot;true&quot;&gt;&lt;/i&gt; Generate map&lt;/button&gt;&lt;/div&gt;
+          &lt;div class=&quot;fw-status&quot; id=&quot;fw-map-help&quot;&gt;Seed 7 is active. Press Enter in the seed field or Generate map to rebuild it.&lt;/div&gt;
+        &lt;/div&gt;
+        &lt;button class=&quot;btn btn-primary btn-block&quot; type=&quot;button&quot; id=&quot;fw-to-encounter&quot;&gt;Use this map and build the encounter&lt;/button&gt;
+      &lt;/div&gt;
+      &lt;div class=&quot;card fw-map&quot; aria-label=&quot;Generated battlefield preview&quot;&gt;
+        &lt;div class=&quot;fw-map-label&quot; id=&quot;fw-map-label&quot;&gt;Temple terraces · Verdant field · seed 7&lt;/div&gt;
+        &lt;div class=&quot;fw-map-grid&quot; id=&quot;fw-map-grid&quot; aria-hidden=&quot;true&quot;&gt;&lt;/div&gt;
+        &lt;div class=&quot;fw-map-note&quot; id=&quot;fw-map-note&quot;&gt;0 / 5 / 10 / 15 ft · place flags anywhere the scene needs them&lt;/div&gt;
+      &lt;/div&gt;
+    &lt;/div&gt;
+  &lt;/section&gt;
+
+  &lt;section data-panel=&quot;encounter&quot; hidden&gt;
+    &lt;div class=&quot;fw-head&quot;&gt;&lt;div&gt;&lt;h2&gt;Build the encounter&lt;/h2&gt;&lt;p&gt;Choose the party, set the intended difficulty, then spend the encounter budget.&lt;/p&gt;&lt;/div&gt;&lt;span class=&quot;viz-badge&quot; id=&quot;fw-difficulty-badge&quot;&gt;No enemies&lt;/span&gt;&lt;/div&gt;
+    &lt;div class=&quot;fw-stack&quot;&gt;
+      &lt;div class=&quot;card fw-stack&quot;&gt;
+        &lt;div class=&quot;fw-head&quot;&gt;&lt;div&gt;&lt;h3&gt;Party&lt;/h3&gt;&lt;p&gt;Click a combat-ready character to include or remove them.&lt;/p&gt;&lt;/div&gt;&lt;span class=&quot;viz-badge&quot; id=&quot;fw-party-count&quot;&gt;4 selected&lt;/span&gt;&lt;/div&gt;
+        &lt;div class=&quot;fw-party&quot; id=&quot;fw-party&quot;&gt;&lt;/div&gt;
+      &lt;/div&gt;
+      &lt;div class=&quot;card fw-stack&quot;&gt;
+        &lt;div class=&quot;fw-head&quot;&gt;&lt;div&gt;&lt;h3&gt;Encounter budget&lt;/h3&gt;&lt;p&gt;Adjusted XP recalculates for enemy count and action economy.&lt;/p&gt;&lt;/div&gt;&lt;span class=&quot;fw-wallet-value&quot; id=&quot;fw-wallet-value&quot;&gt;0 / 900 XP&lt;/span&gt;&lt;/div&gt;
+        &lt;div class=&quot;fw-targets&quot; id=&quot;fw-targets&quot;&gt;
+          &lt;button class=&quot;btn&quot; type=&quot;button&quot; data-target=&quot;easy&quot;&gt;Easy&lt;/button&gt;
+          &lt;button class=&quot;btn btn-primary&quot; type=&quot;button&quot; data-target=&quot;medium&quot;&gt;Medium&lt;/button&gt;
+          &lt;button class=&quot;btn&quot; type=&quot;button&quot; data-target=&quot;hard&quot;&gt;Hard&lt;/button&gt;
+          &lt;button class=&quot;btn&quot; type=&quot;button&quot; data-target=&quot;deadly&quot;&gt;Deadly&lt;/button&gt;
+        &lt;/div&gt;
+        &lt;div class=&quot;fw-wallet-head&quot;&gt;&lt;span id=&quot;fw-wallet-read&quot;&gt;Add enemies to begin.&lt;/span&gt;&lt;span class=&quot;text-muted&quot; id=&quot;fw-wallet-remaining&quot;&gt;900 XP available&lt;/span&gt;&lt;/div&gt;
+        &lt;div class=&quot;fw-wallet-track&quot; aria-label=&quot;Encounter budget used&quot;&gt;&lt;div class=&quot;fw-wallet-fill&quot; id=&quot;fw-wallet-fill&quot;&gt;&lt;/div&gt;&lt;/div&gt;
+        &lt;div class=&quot;fw-wallet-marks text-small&quot;&gt;&lt;span&gt;Easy&lt;/span&gt;&lt;span&gt;Medium&lt;/span&gt;&lt;span&gt;Hard&lt;/span&gt;&lt;span&gt;Deadly&lt;/span&gt;&lt;/div&gt;
+        &lt;div class=&quot;fw-actions&quot;&gt;&lt;button class=&quot;btn btn-primary&quot; type=&quot;button&quot; id=&quot;fw-build-target&quot;&gt;Suggest a Medium roster&lt;/button&gt;&lt;/div&gt;
+      &lt;/div&gt;
+      &lt;div class=&quot;fw-layout&quot;&gt;
+        &lt;div class=&quot;fw-stack&quot;&gt;
+          &lt;div class=&quot;card fw-stack&quot;&gt;
+            &lt;div class=&quot;fw-head&quot;&gt;&lt;div&gt;&lt;h3&gt;Quick picks&lt;/h3&gt;&lt;p&gt;Your starred creatures.&lt;/p&gt;&lt;/div&gt;&lt;button class=&quot;btn&quot; type=&quot;button&quot; id=&quot;fw-bestiary&quot;&gt;&lt;i data-lucide=&quot;book-open&quot; aria-hidden=&quot;true&quot;&gt;&lt;/i&gt; Full Bestiary&lt;/button&gt;&lt;/div&gt;
+            &lt;div class=&quot;fw-quick&quot; id=&quot;fw-quick&quot;&gt;&lt;/div&gt;
+            &lt;div class=&quot;fw-status&quot; id=&quot;fw-bestiary-status&quot;&gt;Every creature remains available through the Bestiary.&lt;/div&gt;
+          &lt;/div&gt;
+          &lt;div class=&quot;card fw-stack&quot;&gt;
+            &lt;div class=&quot;fw-head&quot;&gt;&lt;div&gt;&lt;h3&gt;Suggestions&lt;/h3&gt;&lt;p&gt;Organized by CR impact against the remaining budget.&lt;/p&gt;&lt;/div&gt;&lt;/div&gt;
+            &lt;div class=&quot;fw-suggestion-tabs&quot;&gt;&lt;button class=&quot;btn btn-primary&quot; type=&quot;button&quot; data-suggest=&quot;related&quot;&gt;Related enemies&lt;/button&gt;&lt;button class=&quot;btn&quot; type=&quot;button&quot; data-suggest=&quot;any&quot;&gt;Any creature&lt;/button&gt;&lt;/div&gt;
+            &lt;div id=&quot;fw-suggestions&quot;&gt;&lt;/div&gt;
+          &lt;/div&gt;
+        &lt;/div&gt;
+        &lt;div class=&quot;card fw-stack&quot;&gt;
+          &lt;div class=&quot;fw-head&quot;&gt;&lt;div&gt;&lt;h3&gt;Enemy roster&lt;/h3&gt;&lt;p&gt;Nothing is added until you choose it.&lt;/p&gt;&lt;/div&gt;&lt;span class=&quot;viz-badge&quot; id=&quot;fw-enemy-count&quot;&gt;0 enemies&lt;/span&gt;&lt;/div&gt;
+          &lt;div id=&quot;fw-roster&quot;&gt;&lt;/div&gt;
+          &lt;button class=&quot;btn btn-primary btn-block&quot; type=&quot;button&quot; id=&quot;fw-to-table&quot;&gt;Place encounter groups&lt;/button&gt;
+        &lt;/div&gt;
+      &lt;/div&gt;
+    &lt;/div&gt;
+  &lt;/section&gt;
+
+  &lt;section data-panel=&quot;table&quot; hidden&gt;
+    &lt;div class=&quot;fw-head&quot;&gt;&lt;div&gt;&lt;h2&gt;Place encounter groups&lt;/h2&gt;&lt;p&gt;Use the existing group flags, formations, membership menus, and manual pins.&lt;/p&gt;&lt;/div&gt;&lt;span class=&quot;viz-badge&quot; id=&quot;fw-table-badge&quot;&gt;Needs placement&lt;/span&gt;&lt;/div&gt;
+    &lt;div class=&quot;fw-stack&quot;&gt;
+      &lt;div class=&quot;fw-placement-layout&quot;&gt;
+        &lt;div class=&quot;fw-stack&quot;&gt;
+          &lt;div class=&quot;fw-status&quot; id=&quot;fw-deployment-summary&quot;&gt;Deployment incomplete.&lt;/div&gt;
+          &lt;div class=&quot;fw-stack&quot; id=&quot;fw-deployment-groups&quot;&gt;&lt;/div&gt;
+          &lt;button class=&quot;btn&quot; type=&quot;button&quot; id=&quot;fw-add-group&quot;&gt;+ Add group&lt;/button&gt;
+          &lt;div&gt;
+            &lt;strong&gt;Unassigned&lt;/strong&gt;
+            &lt;div class=&quot;fw-stack&quot; id=&quot;fw-unassigned&quot;&gt;&lt;/div&gt;
+          &lt;/div&gt;
+          &lt;div class=&quot;fw-status&quot; id=&quot;fw-placement-message&quot;&gt;Choose Place flag, then click a legal cell on the map.&lt;/div&gt;
+        &lt;/div&gt;
+        &lt;div class=&quot;card fw-placement-map&quot;&gt;
+          &lt;div class=&quot;fw-map-label&quot;&gt;Flag placement · click the battlefield&lt;/div&gt;
+          &lt;div class=&quot;fw-place-grid&quot; id=&quot;fw-place-grid&quot; aria-label=&quot;Battlefield flag placement grid&quot;&gt;&lt;/div&gt;
+          &lt;div class=&quot;fw-map-note&quot;&gt;Authored regions help formation planning when present; maps without them use the exact legal flag cell and nearby walkable ground.&lt;/div&gt;
+        &lt;/div&gt;
+      &lt;/div&gt;
+      &lt;div class=&quot;card fw-stack&quot;&gt;
+        &lt;div class=&quot;fw-head&quot;&gt;&lt;div&gt;&lt;h3&gt;Initial table&lt;/h3&gt;&lt;p&gt;Your current party and encounter roster are a starting point, not a lock.&lt;/p&gt;&lt;/div&gt;&lt;span class=&quot;viz-badge&quot; id=&quot;fw-table-count&quot;&gt;4 characters · 0 enemies&lt;/span&gt;&lt;/div&gt;
+        &lt;div class=&quot;fw-status&quot;&gt;Every active group needs a legal flag. After opening, combatants can still be added, removed, dragged, or assigned to another existing group flag.&lt;/div&gt;
+        &lt;div class=&quot;fw-actions&quot;&gt;&lt;button class=&quot;btn&quot; type=&quot;button&quot; data-step-jump=&quot;encounter&quot;&gt;Back to encounter&lt;/button&gt;&lt;button class=&quot;btn btn-primary&quot; type=&quot;button&quot; id=&quot;fw-open-table&quot;&gt;Open Table&lt;/button&gt;&lt;/div&gt;
+      &lt;/div&gt;
+      &lt;div class=&quot;card fw-stack&quot; id=&quot;fw-live&quot; hidden&gt;
+        &lt;div class=&quot;fw-live-head&quot;&gt;&lt;div&gt;&lt;h3&gt;Live encounter controls&lt;/h3&gt;&lt;div class=&quot;fw-status&quot;&gt;The same add/remove pattern already used by the combat table.&lt;/div&gt;&lt;/div&gt;&lt;span class=&quot;viz-badge&quot; id=&quot;fw-live-difficulty&quot;&gt;No active enemies&lt;/span&gt;&lt;/div&gt;
+        &lt;label class=&quot;form-label&quot; for=&quot;fw-active-flag&quot;&gt;Place new combatants at existing flag&lt;select class=&quot;form-select&quot; id=&quot;fw-active-flag&quot;&gt;&lt;/select&gt;&lt;/label&gt;
+        &lt;div class=&quot;fw-live-grid&quot;&gt;
+          &lt;div class=&quot;fw-stack&quot;&gt;
+            &lt;div&gt;&lt;strong&gt;Party&lt;/strong&gt;&lt;div id=&quot;fw-live-party&quot;&gt;&lt;/div&gt;&lt;/div&gt;
+            &lt;div&gt;&lt;strong&gt;Saved monsters&lt;/strong&gt;&lt;div id=&quot;fw-live-monsters&quot;&gt;&lt;/div&gt;&lt;/div&gt;
+            &lt;button class=&quot;btn&quot; type=&quot;button&quot; id=&quot;fw-live-bestiary&quot;&gt;&lt;i data-lucide=&quot;book-open&quot; aria-hidden=&quot;true&quot;&gt;&lt;/i&gt; Full Bestiary&lt;/button&gt;
+          &lt;/div&gt;
+          &lt;div&gt;
+            &lt;div class=&quot;fw-head&quot;&gt;&lt;div&gt;&lt;strong&gt;On the map&lt;/strong&gt;&lt;div class=&quot;fw-status&quot; id=&quot;fw-live-count&quot;&gt;0 combatants&lt;/div&gt;&lt;/div&gt;&lt;/div&gt;
+            &lt;div class=&quot;fw-live-roster&quot; id=&quot;fw-live-roster&quot;&gt;&lt;/div&gt;
+          &lt;/div&gt;
+        &lt;/div&gt;
+        &lt;div class=&quot;fw-status&quot; id=&quot;fw-live-status&quot;&gt;The table is open. Additions appear at the selected flag and remain draggable.&lt;/div&gt;
+      &lt;/div&gt;
+    &lt;/div&gt;
+  &lt;/section&gt;
+
+  &lt;script&gt;
+    (function(){
+      &quot;use strict&quot;;
+      var root=document.getElementById(&quot;forge-workshop-builder&quot;);
+      var layouts={temple:&quot;Temple terraces&quot;,legacy:&quot;Dungeon rooms&quot;,courtyard:&quot;Courtyard&quot;,cavern:&quot;Cavern chambers&quot;,bridge:&quot;Bridge crossing&quot;};
+      var terrains={grass:&quot;Verdant field&quot;,druidic:&quot;Druidic sanctum&quot;,tundra:&quot;Frostbound waste&quot;,swamp:&quot;Mireheart bog&quot;,temple:&quot;Sunken temple&quot;,cavern:&quot;Weeping cavern&quot;};
+      var monsters={
+        goblin:{name:&quot;Goblin&quot;,cr:&quot;1/4&quot;,xp:50,related:[&quot;hobgoblin&quot;,&quot;bugbear&quot;,&quot;worg&quot;]},
+        hobgoblin:{name:&quot;Hobgoblin&quot;,cr:&quot;1/2&quot;,xp:100,related:[&quot;goblin&quot;,&quot;bugbear&quot;,&quot;worg&quot;]},
+        bugbear:{name:&quot;Bugbear&quot;,cr:&quot;1&quot;,xp:200,related:[&quot;goblin&quot;,&quot;hobgoblin&quot;,&quot;worg&quot;]},
+        worg:{name:&quot;Worg&quot;,cr:&quot;1/2&quot;,xp:100,related:[&quot;goblin&quot;,&quot;hobgoblin&quot;,&quot;bugbear&quot;]},
+        skeleton:{name:&quot;Skeleton&quot;,cr:&quot;1/4&quot;,xp:50,related:[]},
+        direwolf:{name:&quot;Dire Wolf&quot;,cr:&quot;1&quot;,xp:200,related:[]},
+        ogre:{name:&quot;Ogre&quot;,cr:&quot;2&quot;,xp:450,related:[]}
+      };
+      var party=[
+        {id:&quot;caim&quot;,name:&quot;Caim&quot;,level:4,active:true},
+        {id:&quot;cosmere&quot;,name:&quot;Cosmere&quot;,level:3,active:true},
+        {id:&quot;liadan&quot;,name:&quot;Líadan&quot;,level:4,active:true},
+        {id:&quot;vesperian&quot;,name:&quot;Vesperian&quot;,level:4,active:true},
+        {id:&quot;chonkalius&quot;,name:&quot;Chonkalius&quot;,level:4,active:false,disabled:true}
+      ];
+      var enemies={},target=&quot;medium&quot;,suggestMode=&quot;related&quot;,liveOpen=false,onBoardParty={},onBoardEnemies={},placementMode=null,groupSerial=2,explicitUnassigned={};
+      var groups=[
+        {id:&quot;party-main&quot;,label:&quot;Main Party&quot;,role:&quot;party&quot;,controller:&quot;unit-owners&quot;,unitIds:[&quot;caim&quot;,&quot;cosmere&quot;,&quot;liadan&quot;,&quot;vesperian&quot;],anchor:null,seed:21,manual:{},automated:false,trigger:&quot;Door opens&quot;,action:&quot;Reveal creatures and prompt initiative&quot;},
+        {id:&quot;enemy-main&quot;,label:&quot;Enemies&quot;,role:&quot;enemy&quot;,controller:&quot;overseer&quot;,unitIds:[],anchor:null,seed:13,manual:{},automated:false,trigger:&quot;Door opens&quot;,action:&quot;Reveal creatures and prompt initiative&quot;}
+      ];
+      function showStep(step){
+        root.querySelectorAll(&quot;[data-step]&quot;).forEach(function(button){button.setAttribute(&quot;aria-selected&quot;,String(button.dataset.step===step));});
+        root.querySelectorAll(&quot;[data-panel]&quot;).forEach(function(panel){panel.hidden=panel.dataset.panel!==step;});
+      }
+      function activeParty(){return party.filter(function(row){return row.active&amp;&amp;!row.disabled;});}
+      function thresholds(){
+        var out={easy:0,medium:0,hard:0,deadly:0};
+        activeParty().forEach(function(row){var values=row.level===3?[75,150,225,400]:[125,250,375,500];out.easy+=values[0];out.medium+=values[1];out.hard+=values[2];out.deadly+=values[3];});
+        return out;
+      }
+      function enemyCount(){return Object.keys(enemies).reduce(function(total,key){return total+enemies[key];},0);}
+      function adjustedFor(roster){
+        var keys=Object.keys(roster),raw=keys.reduce(function(total,key){return total+monsters[key].xp*roster[key];},0),count=keys.reduce(function(total,key){return total+roster[key];},0),mult=count&lt;=1?1:count===2?1.5:count&lt;=6?2:count&lt;=10?2.5:3;
+        return Math.round(raw*mult);
+      }
+      function adjustedXp(){return adjustedFor(enemies);}
+      function difficulty(xp,t,count){
+        if(!(count==null?enemyCount():count))return &quot;No enemies&quot;;
+        if(xp&lt;t.easy)return &quot;Below easy&quot;;
+        if(xp&lt;t.medium)return &quot;Easy&quot;;
+        if(xp&lt;t.hard)return &quot;Medium&quot;;
+        if(xp&lt;t.deadly)return &quot;Hard&quot;;
+        return &quot;Deadly&quot;;
+      }
+      function targetBand(t){
+        if(target===&quot;easy&quot;)return {min:t.easy,max:t.medium-1,next:&quot;Medium&quot;};
+        if(target===&quot;medium&quot;)return {min:t.medium,max:t.hard-1,next:&quot;Hard&quot;};
+        if(target===&quot;hard&quot;)return {min:t.hard,max:t.deadly-1,next:&quot;Deadly&quot;};
+        return {min:t.deadly,max:null,next:null};
+      }
+      function renderMap(){
+        var grid=root.querySelector(&quot;#fw-map-grid&quot;),layout=root.querySelector(&quot;#fw-layout&quot;).value,terrain=root.querySelector(&quot;#fw-terrain&quot;).value,seed=Number(root.querySelector(&quot;#fw-seed&quot;).value)||7;
+        grid.innerHTML=&quot;&quot;;
+        for(var i=0;i&lt;126;i++){
+          var cell=document.createElement(&quot;span&quot;),high=layout===&quot;temple&quot;?(i%14&gt;7&amp;&amp;Math.floor(i/14)&lt;6):(layout===&quot;courtyard&quot;?(i%14&lt;3||i%14&gt;10):((i+seed)%11&lt;3)),wall=layout===&quot;legacy&quot;?((i+seed)%17===0):layout===&quot;courtyard&quot;?(Math.floor(i/14)===1||Math.floor(i/14)===7):layout===&quot;bridge&quot;?(i%14===6||i%14===7):((i+seed)%29===0),water=terrain===&quot;swamp&quot;&amp;&amp;((i+seed)%13&lt;2);
+          cell.className=&quot;fw-cell&quot;+(high?&quot; high&quot;:&quot;&quot;)+(wall?&quot; wall&quot;:&quot;&quot;)+(water?&quot; water&quot;:&quot;&quot;);grid.appendChild(cell);
+        }
+        root.querySelector(&quot;#fw-map-label&quot;).textContent=layouts[layout]+&quot; · &quot;+terrains[terrain]+&quot; · seed &quot;+seed;
+        root.querySelector(&quot;#fw-map-note&quot;).textContent=layout===&quot;temple&quot;?&quot;0 / 5 / 10 / 15 ft · place flags anywhere the scene needs them&quot;:layout===&quot;bridge&quot;?&quot;Bridge objective · place flags on either approach or anywhere else&quot;:&quot;Generated tactical field · flags can be placed anywhere&quot;;
+        root.querySelector(&quot;#fw-map-status&quot;).textContent=&quot;Generated&quot;;
+        root.querySelector(&quot;#fw-map-help&quot;).textContent=&quot;Seed &quot;+seed+&quot; is active. Press Enter in the seed field or Generate map to rebuild it.&quot;;
+      }
+      function markMapPending(){root.querySelector(&quot;#fw-map-status&quot;).textContent=&quot;Ready to generate&quot;;root.querySelector(&quot;#fw-map-help&quot;).textContent=&quot;The recipe changed. Generate map to apply it.&quot;;}
+      function renderParty(){
+        var host=root.querySelector(&quot;#fw-party&quot;);
+        host.innerHTML=party.map(function(row){return &#x27;&lt;button class=&quot;btn&#x27;+(row.active&amp;&amp;!row.disabled?&#x27; btn-primary&#x27;:&#x27;&#x27;)+&#x27;&quot; type=&quot;button&quot; data-party=&quot;&#x27;+row.id+&#x27;&quot;&#x27;+(row.disabled?&#x27; disabled&#x27;:&#x27;&#x27;)+&#x27;&gt;&#x27;+row.name+&#x27;&lt;small&gt;&#x27;+(row.disabled?&#x27;No combat sheet&#x27;:&quot;Level &quot;+row.level)+&#x27;&lt;/small&gt;&lt;/button&gt;&#x27;;}).join(&quot;&quot;);
+        host.querySelectorAll(&quot;[data-party]&quot;).forEach(function(button){button.onclick=function(){var row=party.filter(function(item){return item.id===button.dataset.party;})[0];row.active=!row.active;renderParty();renderWallet();renderTableSummary();};});
+        root.querySelector(&quot;#fw-party-count&quot;).textContent=activeParty().length+&quot; selected&quot;;
+      }
+      function renderQuick(){
+        var host=root.querySelector(&quot;#fw-quick&quot;),keys=[&quot;goblin&quot;,&quot;hobgoblin&quot;,&quot;bugbear&quot;,&quot;worg&quot;];
+        host.innerHTML=keys.map(function(key){var row=monsters[key];return &#x27;&lt;button class=&quot;btn&quot; type=&quot;button&quot; data-quick=&quot;&#x27;+key+&#x27;&quot;&gt;★ &#x27;+row.name+&#x27; · CR &#x27;+row.cr+&#x27;&lt;/button&gt;&#x27;;}).join(&quot;&quot;);
+        host.querySelectorAll(&quot;[data-quick]&quot;).forEach(function(button){button.onclick=function(){addEnemy(button.dataset.quick,1);};});
+      }
+      function addEnemy(key,delta){enemies[key]=Math.max(0,(enemies[key]||0)+delta);if(!enemies[key])delete enemies[key];renderRoster();renderWallet();renderSuggestions();renderTableSummary();}
+      function renderRoster(){
+        var host=root.querySelector(&quot;#fw-roster&quot;),keys=Object.keys(enemies);
+        if(!keys.length)host.innerHTML=&#x27;&lt;div class=&quot;fw-roster-empty&quot;&gt;No default enemy. Add a starred creature, use a suggestion, or browse the Bestiary.&lt;/div&gt;&#x27;;
+        else host.innerHTML=keys.map(function(key){var row=monsters[key];return &#x27;&lt;div class=&quot;fw-roster-row&quot;&gt;&lt;div&gt;&lt;strong&gt;&#x27;+row.name+&#x27;&lt;/strong&gt;&lt;small&gt;CR &#x27;+row.cr+&#x27; · &#x27;+row.xp+&#x27; XP each&lt;/small&gt;&lt;/div&gt;&lt;div class=&quot;fw-roster-step&quot;&gt;&lt;button class=&quot;btn&quot; type=&quot;button&quot; data-minus=&quot;&#x27;+key+&#x27;&quot;&gt;−&lt;/button&gt;&lt;span&gt;× &#x27;+enemies[key]+&#x27;&lt;/span&gt;&lt;button class=&quot;btn&quot; type=&quot;button&quot; data-plus=&quot;&#x27;+key+&#x27;&quot;&gt;+&lt;/button&gt;&lt;/div&gt;&lt;span&gt;&#x27;+row.xp*enemies[key]+&#x27; XP&lt;/span&gt;&lt;/div&gt;&#x27;;}).join(&quot;&quot;);
+        host.querySelectorAll(&quot;[data-minus]&quot;).forEach(function(button){button.onclick=function(){addEnemy(button.dataset.minus,-1);};});
+        host.querySelectorAll(&quot;[data-plus]&quot;).forEach(function(button){button.onclick=function(){addEnemy(button.dataset.plus,1);};});
+        var count=enemyCount();root.querySelector(&quot;#fw-enemy-count&quot;).textContent=count+&quot; enem&quot;+(count===1?&quot;y&quot;:&quot;ies&quot;);
+      }
+      function renderWallet(){
+        var t=thresholds(),xp=adjustedXp(),band=targetBand(t),label=difficulty(xp,t),ceiling=Math.max(1,t.deadly),range=band.max==null?band.min.toLocaleString()+&quot;+ XP&quot;:band.min.toLocaleString()+&quot;–&quot;+band.max.toLocaleString()+&quot; XP&quot;;
+        root.querySelector(&quot;#fw-wallet-value&quot;).textContent=xp.toLocaleString()+&quot; XP · &quot;+target.charAt(0).toUpperCase()+target.slice(1)+&quot; &quot;+range;
+        root.querySelector(&quot;#fw-wallet-read&quot;).textContent=label+(enemyCount()?&quot; encounter · &quot;+enemyCount()+&quot; enemy actions&quot;:&quot;&quot;);
+        root.querySelector(&quot;#fw-wallet-remaining&quot;).textContent=xp&lt;band.min?(band.min-xp).toLocaleString()+&quot; XP to &quot;+target:band.max!=null&amp;&amp;xp&lt;=band.max?(band.max-xp).toLocaleString()+&quot; XP before &quot;+band.next:band.max==null?&quot;Deadly threshold reached&quot;:&quot;Above &quot;+target+&quot; target&quot;;
+        root.querySelector(&quot;#fw-wallet-fill&quot;).style.width=Math.min(100,xp/ceiling*100)+&quot;%&quot;;
+        root.querySelector(&quot;#fw-difficulty-badge&quot;).textContent=label;
+        root.querySelectorAll(&quot;[data-target]&quot;).forEach(function(button){button.classList.toggle(&quot;btn-primary&quot;,button.dataset.target===target);});
+        root.querySelector(&quot;#fw-build-target&quot;).textContent=&quot;Suggest a &quot;+target.charAt(0).toUpperCase()+target.slice(1)+&quot; roster&quot;;
+      }
+      function renderSuggestions(){
+        var host=root.querySelector(&quot;#fw-suggestions&quot;),selected=Object.keys(enemies),keys;
+        if(suggestMode===&quot;related&quot;&amp;&amp;selected.length){var seen={};keys=[];selected.forEach(function(key){monsters[key].related.forEach(function(other){if(!enemies[other]&amp;&amp;!seen[other]){seen[other]=true;keys.push(other);}});});}
+        else if(suggestMode===&quot;related&quot;)keys=[&quot;goblin&quot;,&quot;hobgoblin&quot;,&quot;bugbear&quot;];
+        else keys=[&quot;skeleton&quot;,&quot;direwolf&quot;,&quot;ogre&quot;];
+        host.innerHTML=keys.slice(0,3).map(function(key){var row=monsters[key],trial=Object.assign({},enemies);trial[key]=(trial[key]||0)+1;var impact=adjustedFor(trial);return &#x27;&lt;div class=&quot;fw-pick&quot;&gt;&lt;div&gt;&lt;strong&gt;&#x27;+row.name+&#x27; · CR &#x27;+row.cr+&#x27;&lt;/strong&gt;&lt;small&gt;&#x27;+(suggestMode===&quot;related&quot;?&quot;Fits the selected creature family.&quot;:&quot;Available across the Bestiary.&quot;)+&#x27; New total &#x27;+impact.toLocaleString()+&#x27; adjusted XP.&lt;/small&gt;&lt;/div&gt;&lt;button class=&quot;btn&quot; type=&quot;button&quot; data-suggestion=&quot;&#x27;+key+&#x27;&quot;&gt;+ Add&lt;/button&gt;&lt;/div&gt;&#x27;;}).join(&quot;&quot;);
+        host.querySelectorAll(&quot;[data-suggestion]&quot;).forEach(function(button){button.onclick=function(){addEnemy(button.dataset.suggestion,1);};});
+        root.querySelectorAll(&quot;[data-suggest]&quot;).forEach(function(button){button.classList.toggle(&quot;btn-primary&quot;,button.dataset.suggest===suggestMode);});
+      }
+      function buildTarget(){
+        var goal=targetBand(thresholds()).min||0,best=null,bestScore=Infinity;
+        for(var g=0;g&lt;=5;g++)for(var h=0;h&lt;=5;h++)for(var b=0;b&lt;=5;b++)for(var w=0;w&lt;=5;w++){
+          var count=g+h+b+w;if(!count||count&gt;8)continue;
+          var trial={};if(g)trial.goblin=g;if(h)trial.hobgoblin=h;if(b)trial.bugbear=b;if(w)trial.worg=w;
+          var xp=adjustedFor(trial),types=Object.keys(trial).length,score=(xp&gt;=goal?xp-goal:100000+goal-xp)+(4-types)*.01;
+          if(score&lt;bestScore){bestScore=score;best=trial;}
+        }
+        enemies=best||{};renderRoster();renderWallet();renderSuggestions();renderTableSummary();
+      }
+      function renderTableSummary(){
+        var pcs=activeParty().length,count=enemyCount();
+        root.querySelector(&quot;#fw-table-count&quot;).textContent=pcs+&quot; character&quot;+(pcs===1?&quot;&quot;:&quot;s&quot;)+&quot; · &quot;+count+&quot; enem&quot;+(count===1?&quot;y&quot;:&quot;ies&quot;);
+        syncDeploymentUnits();
+        renderDeployment();
+      }
+      function availableUnits(){
+        var rows=activeParty().map(function(row){return {id:row.id,name:row.name,kind:&quot;party&quot;};});
+        Object.keys(enemies).forEach(function(key){for(var i=1;i&lt;=enemies[key];i++)rows.push({id:key+&quot;-&quot;+i,name:monsters[key].name+(enemies[key]&gt;1?&quot; &quot;+i:&quot;&quot;),kind:&quot;enemy&quot;});});
+        return rows;
+      }
+      function groupById(id){return groups.filter(function(group){return group.id===id;})[0];}
+      function unitById(id){return availableUnits().filter(function(unit){return unit.id===id;})[0];}
+      function syncDeploymentUnits(){
+        var available={},assigned={};availableUnits().forEach(function(unit){available[unit.id]=unit;});
+        groups.forEach(function(group){
+          group.unitIds=group.unitIds.filter(function(id){return !!available[id];});
+          Object.keys(group.manual).forEach(function(id){if(!available[id]||group.unitIds.indexOf(id)&lt;0)delete group.manual[id];});
+          group.unitIds.forEach(function(id){assigned[id]=true;});
+        });
+        availableUnits().forEach(function(unit){
+          if(assigned[unit.id]||explicitUnassigned[unit.id])return;
+          var preferred=groups.filter(function(group){return unit.kind===&quot;party&quot;?group.role===&quot;party&quot;:group.role===&quot;enemy&quot;;})[0]||groups[0];
+          if(preferred)preferred.unitIds.push(unit.id);
+        });
+      }
+      function assignUnit(id,groupId){
+        groups.forEach(function(group){group.unitIds=group.unitIds.filter(function(unit){return unit!==id;});delete group.manual[id];});
+        if(groupId){groupById(groupId).unitIds.push(id);delete explicitUnassigned[id];}
+        else explicitUnassigned[id]=true;
+      }
+      function cellClass(index){
+        var layout=root.querySelector(&quot;#fw-layout&quot;).value,terrain=root.querySelector(&quot;#fw-terrain&quot;).value,seed=Number(root.querySelector(&quot;#fw-seed&quot;).value)||7;
+        var high=layout===&quot;temple&quot;?(index%14&gt;7&amp;&amp;Math.floor(index/14)&lt;6):(layout===&quot;courtyard&quot;?(index%14&lt;3||index%14&gt;10):((index+seed)%11&lt;3));
+        var wall=layout===&quot;legacy&quot;?((index+seed)%17===0):layout===&quot;courtyard&quot;?(Math.floor(index/14)===1||Math.floor(index/14)===7):layout===&quot;bridge&quot;?(index%14===6||index%14===7):((index+seed)%29===0);
+        var water=terrain===&quot;swamp&quot;&amp;&amp;((index+seed)%13&lt;2);
+        return (high?&quot; high&quot;:&quot;&quot;)+(wall?&quot; wall&quot;:&quot;&quot;)+(water?&quot; water&quot;:&quot;&quot;);
+      }
+      function legalCell(index){return index&gt;=0&amp;&amp;index&lt;126&amp;&amp;cellClass(index).indexOf(&quot; wall&quot;)&lt;0;}
+      function cellLabel(index){return &quot;c&quot;+(index%14+1)+&quot;, r&quot;+(Math.floor(index/14)+1);}
+      function formationFor(group){
+        var out={},used={},offsets=[0,-1,1,-14,14,-15,-13,13,15,-2,2,-28,28],anchor=group.anchor;
+        Object.keys(group.manual).forEach(function(id){out[id]=group.manual[id];used[group.manual[id]]=true;});
+        if(anchor==null)return out;
+        var rotated=offsets.slice(group.seed%offsets.length).concat(offsets.slice(0,group.seed%offsets.length));
+        group.unitIds.filter(function(id){return out[id]==null;}).forEach(function(id){
+          var found=null;
+          for(var i=0;i&lt;rotated.length;i++){var at=anchor+rotated[i];if(legalCell(at)&amp;&amp;!used[at]&amp;&amp;Math.abs(at%14-anchor%14)&lt;=2){found=at;break;}}
+          if(found==null)found=anchor;out[id]=found;used[found]=true;
+        });
+        return out;
+      }
+      function activeGroups(){return groups.filter(function(group){return group.unitIds.length;});}
+      function groupReady(group){return group.unitIds.length&gt;0&amp;&amp;group.anchor!=null&amp;&amp;Object.keys(formationFor(group)).length===group.unitIds.length;}
+      function deploymentReady(){var active=activeGroups();return active.length&gt;0&amp;&amp;active.every(groupReady);}
+      function membershipOptions(selected,prompt){
+        var first=prompt?&#x27;&lt;option value=&quot;&quot; selected&gt;Choose group…&lt;/option&gt;&#x27;:&#x27;&lt;option value=&quot;&quot;&gt;Unassigned&lt;/option&gt;&#x27;;
+        return first+groups.map(function(group){return &#x27;&lt;option value=&quot;&#x27;+group.id+&#x27;&quot;&#x27;+(group.id===selected?&quot; selected&quot;:&quot;&quot;)+&#x27;&gt;&#x27;+group.label+&#x27;&lt;/option&gt;&#x27;;}).join(&quot;&quot;);
+      }
+      function renderPlacementMap(){
+        var host=root.querySelector(&quot;#fw-place-grid&quot;);if(!host)return;
+        var anchors={},pins={},positions={};
+        groups.forEach(function(group){if(group.anchor!=null)anchors[group.anchor]=(anchors[group.anchor]||&quot;&quot;)+&quot;⚑&quot;;Object.keys(group.manual).forEach(function(id){pins[group.manual[id]]=true;});var plan=formationFor(group);Object.keys(plan).forEach(function(id){positions[plan[id]]=true;});});
+        host.innerHTML=&quot;&quot;;
+        for(var i=0;i&lt;126;i++){
+          var cell=document.createElement(&quot;button&quot;);cell.type=&quot;button&quot;;cell.className=&quot;fw-place-cell&quot;+cellClass(i)+(anchors[i]?&quot; flagged&quot;:&quot;&quot;)+(pins[i]?&quot; pinned&quot;:&quot;&quot;);cell.dataset.cell=String(i);cell.setAttribute(&quot;aria-label&quot;,cellLabel(i)+(anchors[i]?&quot; deployment flag&quot;:&quot;&quot;));cell.disabled=!legalCell(i);cell.textContent=anchors[i]||pins[i]?&quot;◆&quot;:positions[i]?&quot;•&quot;:&quot;&quot;;host.appendChild(cell);
+        }
+        host.querySelectorAll(&quot;[data-cell]&quot;).forEach(function(cell){cell.onclick=function(){placeDeploymentAt(Number(cell.dataset.cell));};});
+      }
+      function placeDeploymentAt(index){
+        if(!placementMode){root.querySelector(&quot;#fw-placement-message&quot;).textContent=&quot;Choose Place flag or a combatant name first.&quot;;return;}
+        var group=groupById(placementMode.groupId);if(!group)return;
+        if(placementMode.type===&quot;flag&quot;){group.anchor=index;root.querySelector(&quot;#fw-placement-message&quot;).textContent=group.label+&quot; flag placed at &quot;+cellLabel(index)+&quot;. Formation resolved around it.&quot;;}
+        else{group.manual[placementMode.unit]=index;root.querySelector(&quot;#fw-placement-message&quot;).textContent=(unitById(placementMode.unit)||{name:placementMode.unit}).name+&quot; pinned at &quot;+cellLabel(index)+&quot;. Reseeding will preserve this cell.&quot;;}
+        placementMode=null;renderDeployment();
+      }
+      function renderDeployment(){
+        var host=root.querySelector(&quot;#fw-deployment-groups&quot;);if(!host)return;
+        var assigned={};groups.forEach(function(group){group.unitIds.forEach(function(id){assigned[id]=true;});});
+        host.innerHTML=groups.map(function(group){
+          var ready=groupReady(group),positions=formationFor(group),status=group.unitIds.length?(ready?&quot;Ready&quot;:&quot;Unresolved&quot;):&quot;Empty&quot;;
+          var automation=group.automated?&#x27;&lt;div class=&quot;fw-automation-fields&quot;&gt;&lt;label class=&quot;form-label&quot;&gt;When&lt;select class=&quot;form-select&quot; data-group-trigger=&quot;&#x27;+group.id+&#x27;&quot;&gt;&lt;option&#x27;+(group.trigger===&quot;Door opens&quot;?&quot; selected&quot;:&quot;&quot;)+&#x27;&gt;Door opens&lt;/option&gt;&lt;option&#x27;+(group.trigger===&quot;Token enters range&quot;?&quot; selected&quot;:&quot;&quot;)+&#x27;&gt;Token enters range&lt;/option&gt;&lt;option&#x27;+(group.trigger===&quot;DM arms flag&quot;?&quot; selected&quot;:&quot;&quot;)+&#x27;&gt;DM arms flag&lt;/option&gt;&lt;/select&gt;&lt;/label&gt;&lt;label class=&quot;form-label&quot;&gt;Then&lt;select class=&quot;form-select&quot; data-group-action=&quot;&#x27;+group.id+&#x27;&quot;&gt;&lt;option&#x27;+(group.action===&quot;Reveal creatures and prompt initiative&quot;?&quot; selected&quot;:&quot;&quot;)+&#x27;&gt;Reveal creatures and prompt initiative&lt;/option&gt;&lt;option&#x27;+(group.action===&quot;Reveal creatures only&quot;?&quot; selected&quot;:&quot;&quot;)+&#x27;&gt;Reveal creatures only&lt;/option&gt;&lt;option&#x27;+(group.action===&quot;Add creatures to initiative&quot;?&quot; selected&quot;:&quot;&quot;)+&#x27;&gt;Add creatures to initiative&lt;/option&gt;&lt;/select&gt;&lt;/label&gt;&lt;/div&gt;&#x27;:&quot;&quot;;
+          var members=group.unitIds.map(function(id){var unit=unitById(id)||{name:id},pinned=group.manual[id]!=null;return &#x27;&lt;div class=&quot;fw-deploy-member&quot;&gt;&lt;button class=&quot;btn&#x27;+(pinned?&quot; is-pinned&quot;:&quot;&quot;)+&#x27;&quot; type=&quot;button&quot; data-pin-unit=&quot;&#x27;+id+&#x27;&quot; data-pin-group=&quot;&#x27;+group.id+&#x27;&quot;&gt;&#x27;+unit.name+(pinned?&quot; · pinned&quot;:&quot;&quot;)+&#x27;&lt;/button&gt;&lt;select class=&quot;form-select&quot; data-membership=&quot;&#x27;+id+&#x27;&quot; aria-label=&quot;Group for &#x27;+unit.name+&#x27;&quot;&gt;&#x27;+membershipOptions(group.id,false)+&#x27;&lt;/select&gt;&lt;/div&gt;&#x27;;}).join(&quot;&quot;);
+          var header=&#x27;&lt;div class=&quot;fw-deploy-head&quot;&gt;&lt;input class=&quot;form-control&quot; data-group-name=&quot;&#x27;+group.id+&#x27;&quot; value=&quot;&#x27;+group.label+&#x27;&quot; aria-label=&quot;Group name&quot;&gt;&lt;span class=&quot;viz-badge&quot;&gt;&#x27;+status+&#x27;&lt;/span&gt;&lt;button class=&quot;btn btn-ghost&quot; type=&quot;button&quot; data-group-remove=&quot;&#x27;+group.id+&#x27;&quot;&#x27;+(groups.length===1?&quot; disabled&quot;:&quot;&quot;)+&#x27;&gt;Delete&lt;/button&gt;&lt;/div&gt;&#x27;;
+          var selects=&#x27;&lt;div class=&quot;fw-deploy-selects&quot;&gt;&lt;select class=&quot;form-select&quot; data-group-role=&quot;&#x27;+group.id+&#x27;&quot; aria-label=&quot;Group role&quot;&gt;&lt;option value=&quot;party&quot;&#x27;+(group.role===&quot;party&quot;?&quot; selected&quot;:&quot;&quot;)+&#x27;&gt;Party&lt;/option&gt;&lt;option value=&quot;ally&quot;&#x27;+(group.role===&quot;ally&quot;?&quot; selected&quot;:&quot;&quot;)+&#x27;&gt;Ally / NPC&lt;/option&gt;&lt;option value=&quot;enemy&quot;&#x27;+(group.role===&quot;enemy&quot;?&quot; selected&quot;:&quot;&quot;)+&#x27;&gt;Enemy&lt;/option&gt;&lt;/select&gt;&lt;select class=&quot;form-select&quot; data-group-controller=&quot;&#x27;+group.id+&#x27;&quot; aria-label=&quot;Group controller&quot;&gt;&lt;option value=&quot;unit-owners&quot;&#x27;+(group.controller===&quot;unit-owners&quot;?&quot; selected&quot;:&quot;&quot;)+&#x27;&gt;Unit owners&lt;/option&gt;&lt;option value=&quot;overseer&quot;&#x27;+(group.controller===&quot;overseer&quot;?&quot; selected&quot;:&quot;&quot;)+&#x27;&gt;Overseer&lt;/option&gt;&lt;/select&gt;&lt;/div&gt;&#x27;;
+          var autoBlock=&#x27;&lt;div class=&quot;fw-automation&quot;&gt;&lt;label class=&quot;form-check form-switch&quot;&gt;&lt;input class=&quot;form-check-input&quot; type=&quot;checkbox&quot; data-group-auto=&quot;&#x27;+group.id+&#x27;&quot;&#x27;+(group.automated?&quot; checked&quot;:&quot;&quot;)+&#x27;&gt;&lt;span class=&quot;form-check-label&quot;&gt;Automate this flag&lt;/span&gt;&lt;/label&gt;&#x27;+automation+&#x27;&lt;/div&gt;&#x27;;
+          var meta=&#x27;&lt;div class=&quot;fw-deploy-meta&quot;&gt;&lt;span&gt;&#x27;+(group.anchor==null?&quot;No flag&quot;:cellLabel(group.anchor))+&#x27; · seed &#x27;+group.seed+&#x27;&lt;/span&gt;&lt;span&gt;&#x27;+Object.keys(positions).length+&quot;/&quot;+group.unitIds.length+&#x27; positioned&lt;/span&gt;&lt;/div&gt;&#x27;;
+          var actions=&#x27;&lt;div class=&quot;fw-deploy-actions&quot;&gt;&lt;button class=&quot;btn btn-primary&quot; type=&quot;button&quot; data-place-flag=&quot;&#x27;+group.id+&#x27;&quot;&gt;&#x27;+(group.anchor==null?&quot;Place flag&quot;:&quot;Move flag&quot;)+&#x27;&lt;/button&gt;&lt;button class=&quot;btn&quot; type=&quot;button&quot; data-reseed=&quot;&#x27;+group.id+&#x27;&quot;&gt;Reseed&lt;/button&gt;&lt;button class=&quot;btn&quot; type=&quot;button&quot; data-clear-pins=&quot;&#x27;+group.id+&#x27;&quot;&gt;Clear pins&lt;/button&gt;&lt;/div&gt;&#x27;;
+          var split=group.unitIds.length&gt;1?&#x27;&lt;button class=&quot;btn btn-ghost&quot; type=&quot;button&quot; data-split-group=&quot;&#x27;+group.id+&#x27;&quot;&gt;Split group →&lt;/button&gt;&#x27;:&quot;&quot;;
+          return &#x27;&lt;div class=&quot;card fw-deploy-group&quot;&gt;&#x27;+header+selects+autoBlock+&#x27;&lt;div class=&quot;fw-stack&quot;&gt;&#x27;+(members||&#x27;&lt;div class=&quot;fw-status&quot;&gt;No combatants assigned.&lt;/div&gt;&#x27;)+&#x27;&lt;/div&gt;&#x27;+meta+actions+split+&#x27;&lt;/div&gt;&#x27;;
+        }).join(&quot;&quot;);
+        var unassigned=availableUnits().filter(function(unit){return !assigned[unit.id];});
+        root.querySelector(&quot;#fw-unassigned&quot;).innerHTML=unassigned.length?unassigned.map(function(unit){return &#x27;&lt;div class=&quot;fw-deploy-member&quot;&gt;&lt;span&gt;&#x27;+unit.name+&#x27;&lt;/span&gt;&lt;select class=&quot;form-select&quot; data-membership=&quot;&#x27;+unit.id+&#x27;&quot; aria-label=&quot;Group for &#x27;+unit.name+&#x27;&quot;&gt;&#x27;+membershipOptions(null,true)+&#x27;&lt;/select&gt;&lt;/div&gt;&#x27;;}).join(&quot;&quot;):&#x27;&lt;div class=&quot;fw-status&quot;&gt;Everyone is assigned once.&lt;/div&gt;&#x27;;
+        var active=activeGroups(),ready=active.filter(groupReady).length,positioned=active.reduce(function(total,group){return total+Object.keys(formationFor(group)).length;},0),units=active.reduce(function(total,group){return total+group.unitIds.length;},0);
+        root.querySelector(&quot;#fw-deployment-summary&quot;).textContent=(deploymentReady()?&quot;Deployment ready — &quot;:&quot;Deployment incomplete — &quot;)+ready+&quot; / &quot;+active.length+&quot; groups · &quot;+positioned+&quot; / &quot;+units+&quot; combatants positioned.&quot;;
+        root.querySelector(&quot;#fw-table-badge&quot;).textContent=deploymentReady()?&quot;Ready&quot;:&quot;Needs placement&quot;;
+        root.querySelector(&quot;#fw-open-table&quot;).disabled=!deploymentReady()||liveOpen;
+        bindDeployment();renderPlacementMap();renderLiveFlagOptions();
+      }
+      function bindDeployment(){
+        var host=root.querySelector(&quot;[data-panel=&#x27;table&#x27;]&quot;);
+        host.querySelectorAll(&quot;[data-place-flag]&quot;).forEach(function(button){button.onclick=function(){placementMode={type:&quot;flag&quot;,groupId:button.dataset.placeFlag};root.querySelector(&quot;#fw-placement-message&quot;).textContent=&quot;Click an open battlefield cell to place &quot;+groupById(button.dataset.placeFlag).label+&quot;&#x27;s flag.&quot;;renderPlacementMap();};});
+        host.querySelectorAll(&quot;[data-pin-unit]&quot;).forEach(function(button){button.onclick=function(){placementMode={type:&quot;pin&quot;,groupId:button.dataset.pinGroup,unit:button.dataset.pinUnit};root.querySelector(&quot;#fw-placement-message&quot;).textContent=&quot;Click a legal cell to pin &quot;+(unitById(button.dataset.pinUnit)||{name:button.dataset.pinUnit}).name+&quot;. The group flag stays put.&quot;;};});
+        host.querySelectorAll(&quot;[data-membership]&quot;).forEach(function(select){select.onchange=function(){assignUnit(select.dataset.membership,select.value);renderDeployment();};});
+        host.querySelectorAll(&quot;[data-group-name]&quot;).forEach(function(input){input.onchange=function(){groupById(input.dataset.groupName).label=input.value||&quot;Unnamed group&quot;;renderDeployment();};});
+        host.querySelectorAll(&quot;[data-group-role]&quot;).forEach(function(select){select.onchange=function(){groupById(select.dataset.groupRole).role=select.value;renderDeployment();};});
+        host.querySelectorAll(&quot;[data-group-controller]&quot;).forEach(function(select){select.onchange=function(){groupById(select.dataset.groupController).controller=select.value;renderDeployment();};});
+        host.querySelectorAll(&quot;[data-group-auto]&quot;).forEach(function(input){input.onchange=function(){groupById(input.dataset.groupAuto).automated=input.checked;renderDeployment();};});
+        host.querySelectorAll(&quot;[data-group-trigger]&quot;).forEach(function(select){select.onchange=function(){groupById(select.dataset.groupTrigger).trigger=select.value;};});
+        host.querySelectorAll(&quot;[data-group-action]&quot;).forEach(function(select){select.onchange=function(){groupById(select.dataset.groupAction).action=select.value;};});
+        host.querySelectorAll(&quot;[data-reseed]&quot;).forEach(function(button){button.onclick=function(){var group=groupById(button.dataset.reseed);group.seed+=1;root.querySelector(&quot;#fw-placement-message&quot;).textContent=group.label+&quot; reseeded. Manual pins stayed put.&quot;;renderDeployment();};});
+        host.querySelectorAll(&quot;[data-clear-pins]&quot;).forEach(function(button){button.onclick=function(){groupById(button.dataset.clearPins).manual={};renderDeployment();};});
+        host.querySelectorAll(&quot;[data-split-group]&quot;).forEach(function(button){button.onclick=function(){var group=groupById(button.dataset.splitGroup),moved=group.unitIds.splice(Math.ceil(group.unitIds.length/2)),id=&quot;group-&quot;+(++groupSerial);groups.push({id:id,label:group.label+&quot; II&quot;,role:group.role,controller:group.controller,unitIds:moved,anchor:null,seed:group.seed+1,manual:{},automated:group.automated,trigger:group.trigger,action:group.action});renderDeployment();};});
+        host.querySelectorAll(&quot;[data-group-remove]&quot;).forEach(function(button){button.onclick=function(){var group=groupById(button.dataset.groupRemove);group.unitIds.forEach(function(id){explicitUnassigned[id]=true;});groups=groups.filter(function(row){return row.id!==group.id;});renderDeployment();};});
+      }
+      function renderLiveFlagOptions(){
+        var select=root.querySelector(&quot;#fw-active-flag&quot;),current=select.value;
+        var placed=groups.filter(function(group){return group.anchor!=null;});
+        select.innerHTML=placed.length?placed.map(function(group){return &#x27;&lt;option value=&quot;&#x27;+group.id+&#x27;&quot;&gt;&#x27;+group.label+&#x27; · &#x27;+cellLabel(group.anchor)+&#x27;&lt;/option&gt;&#x27;;}).join(&quot;&quot;):&#x27;&lt;option value=&quot;&quot;&gt;No placed group flags&lt;/option&gt;&#x27;;
+        if(placed.some(function(group){return group.id===current;}))select.value=current;
+      }
+      function boardPartyRows(){return party.filter(function(row){return onBoardParty[row.id]&amp;&amp;!row.disabled;});}
+      function boardEnemyCount(){return Object.keys(onBoardEnemies).reduce(function(total,key){return total+onBoardEnemies[key];},0);}
+      function boardThresholds(){
+        var out={easy:0,medium:0,hard:0,deadly:0};
+        boardPartyRows().forEach(function(row){var values=row.level===3?[75,150,225,400]:[125,250,375,500];out.easy+=values[0];out.medium+=values[1];out.hard+=values[2];out.deadly+=values[3];});
+        return out;
+      }
+      function liveFlagName(){
+        var id=root.querySelector(&quot;#fw-active-flag&quot;).value,group=groupById(id);
+        return group?group.label+&quot; flag&quot;:&quot;the cursor&quot;;
+      }
+      function setLiveParty(id,on){
+        if(on)onBoardParty[id]=true;else delete onBoardParty[id];
+        renderLive();
+        root.querySelector(&quot;#fw-live-status&quot;).textContent=(on?&quot;Added to &quot;:&quot;Removed from &quot;)+&quot;the live table&quot;+(on?&quot; at &quot;+liveFlagName()+&quot;.&quot;:&quot;.&quot;);
+      }
+      function setLiveEnemy(key,delta){
+        onBoardEnemies[key]=Math.max(0,(onBoardEnemies[key]||0)+delta);if(!onBoardEnemies[key])delete onBoardEnemies[key];
+        renderLive();
+        root.querySelector(&quot;#fw-live-status&quot;).textContent=delta&gt;0?monsters[key].name+&quot; added at &quot;+liveFlagName()+&quot;.&quot;:monsters[key].name+&quot; removed from the live table.&quot;;
+      }
+      function renderLive(){
+        if(!liveOpen)return;
+        var partyHost=root.querySelector(&quot;#fw-live-party&quot;),monsterHost=root.querySelector(&quot;#fw-live-monsters&quot;),rosterHost=root.querySelector(&quot;#fw-live-roster&quot;);
+        partyHost.innerHTML=party.map(function(row){var on=!!onBoardParty[row.id];return &#x27;&lt;div class=&quot;fw-tray-row&quot;&gt;&lt;div&gt;&lt;strong&gt;&#x27;+row.name+&#x27;&lt;/strong&gt;&lt;small&gt;&#x27;+(row.disabled?&quot;No combat sheet&quot;:&quot;Level &quot;+row.level)+&#x27;&lt;/small&gt;&lt;/div&gt;&lt;button class=&quot;btn&#x27;+(on?&quot; btn-primary&quot;:&quot;&quot;)+&#x27;&quot; type=&quot;button&quot; data-live-party=&quot;&#x27;+row.id+&#x27;&quot;&#x27;+(row.disabled?&quot; disabled&quot;:&quot;&quot;)+&#x27;&gt;&#x27;+(on?&quot;✓ On map&quot;:&quot;+ Add&quot;)+&#x27;&lt;/button&gt;&lt;/div&gt;&#x27;;}).join(&quot;&quot;);
+        monsterHost.innerHTML=[&quot;goblin&quot;,&quot;hobgoblin&quot;,&quot;bugbear&quot;,&quot;worg&quot;].map(function(key){var row=monsters[key];return &#x27;&lt;div class=&quot;fw-tray-row&quot;&gt;&lt;div&gt;&lt;strong&gt;&#x27;+row.name+&#x27;&lt;/strong&gt;&lt;small&gt;CR &#x27;+row.cr+&#x27; · &#x27;+(onBoardEnemies[key]||0)+&#x27; on map&lt;/small&gt;&lt;/div&gt;&lt;button class=&quot;btn&quot; type=&quot;button&quot; data-live-monster=&quot;&#x27;+key+&#x27;&quot;&gt;+ Add&lt;/button&gt;&lt;/div&gt;&#x27;;}).join(&quot;&quot;);
+        var rows=boardPartyRows().map(function(row){return &#x27;&lt;div class=&quot;fw-live-unit&quot;&gt;&lt;span&gt;&#x27;+row.name+&#x27; &lt;span class=&quot;text-muted&quot;&gt;Party&lt;/span&gt;&lt;/span&gt;&lt;button class=&quot;btn btn-ghost&quot; type=&quot;button&quot; data-live-remove-party=&quot;&#x27;+row.id+&#x27;&quot;&gt;Remove&lt;/button&gt;&lt;/div&gt;&#x27;;});
+        Object.keys(onBoardEnemies).forEach(function(key){for(var i=0;i&lt;onBoardEnemies[key];i++)rows.push(&#x27;&lt;div class=&quot;fw-live-unit&quot;&gt;&lt;span&gt;&#x27;+monsters[key].name+(onBoardEnemies[key]&gt;1?&quot; &quot;+(i+1):&quot;&quot;)+&#x27; &lt;span class=&quot;text-muted&quot;&gt;Enemy&lt;/span&gt;&lt;/span&gt;&lt;button class=&quot;btn btn-ghost&quot; type=&quot;button&quot; data-live-remove-monster=&quot;&#x27;+key+&#x27;&quot;&gt;Remove&lt;/button&gt;&lt;/div&gt;&#x27;);});
+        rosterHost.innerHTML=rows.length?rows.join(&quot;&quot;):&#x27;&lt;div class=&quot;fw-live-empty&quot;&gt;No combatants are currently on the map.&lt;/div&gt;&#x27;;
+        partyHost.querySelectorAll(&quot;[data-live-party]&quot;).forEach(function(button){button.onclick=function(){setLiveParty(button.dataset.liveParty,!onBoardParty[button.dataset.liveParty]);};});
+        monsterHost.querySelectorAll(&quot;[data-live-monster]&quot;).forEach(function(button){button.onclick=function(){setLiveEnemy(button.dataset.liveMonster,1);};});
+        rosterHost.querySelectorAll(&quot;[data-live-remove-party]&quot;).forEach(function(button){button.onclick=function(){setLiveParty(button.dataset.liveRemoveParty,false);};});
+        rosterHost.querySelectorAll(&quot;[data-live-remove-monster]&quot;).forEach(function(button){button.onclick=function(){setLiveEnemy(button.dataset.liveRemoveMonster,-1);};});
+        var pcs=boardPartyRows().length,foes=boardEnemyCount(),xp=adjustedFor(onBoardEnemies),label=foes?difficulty(xp,boardThresholds(),foes):&quot;No active enemies&quot;;
+        root.querySelector(&quot;#fw-live-count&quot;).textContent=(pcs+foes)+&quot; combatant&quot;+(pcs+foes===1?&quot;&quot;:&quot;s&quot;);
+        root.querySelector(&quot;#fw-live-difficulty&quot;).textContent=foes?label+&quot; · &quot;+xp.toLocaleString()+&quot; adjusted XP&quot;:label;
+      }
+      function openTable(){
+        if(!deploymentReady()){root.querySelector(&quot;#fw-placement-message&quot;).textContent=&quot;Place every active group flag before opening the Table.&quot;;return;}
+        if(!liveOpen){
+          activeParty().forEach(function(row){onBoardParty[row.id]=true;});
+          onBoardEnemies=Object.assign({},enemies);
+          liveOpen=true;
+        }
+        root.querySelector(&quot;#fw-live&quot;).hidden=false;
+        root.querySelector(&quot;#fw-table-badge&quot;).textContent=&quot;Table open&quot;;
+        root.querySelector(&quot;#fw-open-table&quot;).textContent=&quot;Table open&quot;;
+        root.querySelector(&quot;#fw-open-table&quot;).disabled=true;
+        renderLiveFlagOptions();renderLive();
+      }
+      root.querySelectorAll(&quot;[data-step]&quot;).forEach(function(button){button.onclick=function(){showStep(button.dataset.step);};});
+      root.querySelectorAll(&quot;[data-step-jump]&quot;).forEach(function(button){button.onclick=function(){showStep(button.dataset.stepJump);};});
+      root.querySelector(&quot;#fw-layout&quot;).onchange=markMapPending;root.querySelector(&quot;#fw-terrain&quot;).onchange=markMapPending;root.querySelector(&quot;#fw-size&quot;).onchange=markMapPending;
+      root.querySelector(&quot;#fw-seed&quot;).oninput=markMapPending;root.querySelector(&quot;#fw-seed&quot;).onkeydown=function(event){if(event.key===&quot;Enter&quot;)renderMap();};
+      root.querySelector(&quot;#fw-random-seed&quot;).onclick=function(){root.querySelector(&quot;#fw-seed&quot;).value=String(1000+Math.floor(Math.random()*89000));renderMap();};
+      root.querySelector(&quot;#fw-generate&quot;).onclick=renderMap;
+      root.querySelector(&quot;#fw-to-encounter&quot;).onclick=function(){showStep(&quot;encounter&quot;);};
+      root.querySelectorAll(&quot;[data-target]&quot;).forEach(function(button){button.onclick=function(){target=button.dataset.target;renderWallet();};});
+      root.querySelector(&quot;#fw-build-target&quot;).onclick=buildTarget;
+      root.querySelectorAll(&quot;[data-suggest]&quot;).forEach(function(button){button.onclick=function(){suggestMode=button.dataset.suggest;renderSuggestions();};});
+      root.querySelector(&quot;#fw-bestiary&quot;).onclick=function(){root.querySelector(&quot;#fw-bestiary-status&quot;).textContent=&quot;The full Bestiary opens without replacing the current roster or budget target.&quot;;};
+      root.querySelector(&quot;#fw-to-table&quot;).onclick=function(){showStep(&quot;table&quot;);renderTableSummary();};
+      root.querySelector(&quot;#fw-add-group&quot;).onclick=function(){var id=&quot;group-&quot;+(++groupSerial);groups.push({id:id,label:&quot;New group&quot;,role:&quot;enemy&quot;,controller:&quot;overseer&quot;,unitIds:[],anchor:null,seed:groupSerial*11,manual:{},automated:false,trigger:&quot;Door opens&quot;,action:&quot;Reveal creatures and prompt initiative&quot;});renderDeployment();};
+      root.querySelector(&quot;#fw-open-table&quot;).onclick=openTable;
+      root.querySelector(&quot;#fw-live-bestiary&quot;).onclick=function(){root.querySelector(&quot;#fw-live-status&quot;).textContent=&quot;The full Bestiary opens without interrupting the live encounter.&quot;;};
+      renderMap();renderParty();renderQuick();renderRoster();renderWallet();renderSuggestions();renderTableSummary();renderLiveFlagOptions();
+    })();
+  &lt;/script&gt;
+&lt;/div&gt;
+
+&lt;script src=&quot;https://unpkg.com/@floating-ui/core@1.7.3/dist/floating-ui.core.umd.min.js&quot;&gt;&lt;/script&gt;
+&lt;script src=&quot;https://unpkg.com/@floating-ui/dom@1.7.4/dist/floating-ui.dom.umd.min.js&quot;&gt;&lt;/script&gt;
+&lt;script&gt;
+(() =&gt; {
+  if (window.FloatingUIDOM == null) {
+    return;
+  }
+  const { autoUpdate, computePosition, flip, offset, shift, size } =
+    window.FloatingUIDOM;
+  const tooltipPlacements = new Set([&quot;top&quot;, &quot;right&quot;, &quot;bottom&quot;, &quot;left&quot;]);
+  const tooltipId = `codex-visualization-tooltip-${
+    window.crypto?.randomUUID?.() ?? Date.now().toString(36)
+  }`;
+  const tooltipGap = 5;
+  const hoverDelay = 700;
+  const skipDelay = 300;
+  let activeTrigger = null;
+  let pendingTrigger = null;
+  let tooltip = null;
+  let openTimeout = null;
+  let autoUpdateCleanup = null;
+  let positionRequest = 0;
+  let skipDelayUntil = 0;
+
+  const getTrigger = (target) =&gt;
+    target?.nodeType === Node.ELEMENT_NODE
+      ? target.closest(&quot;[data-tooltip]&quot;)
+      : null;
+  const containsTarget = (trigger, target) =&gt;
+    target?.nodeType != null &amp;&amp; trigger.contains(target);
+  const getContent = (trigger) =&gt;
+    trigger.getAttribute(&quot;data-tooltip&quot;)?.trim() ?? &quot;&quot;;
+  const getPlacement = (trigger) =&gt; {
+    const placement = trigger.getAttribute(&quot;data-tooltip-placement&quot;);
+    return tooltipPlacements.has(placement) ? placement : &quot;top&quot;;
+  };
+  const getTooltip = () =&gt; {
+    if (tooltip == null) {
+      tooltip = document.createElement(&quot;div&quot;);
+      tooltip.id = tooltipId;
+      tooltip.className = &quot;tooltip&quot;;
+      tooltip.setAttribute(&quot;role&quot;, &quot;tooltip&quot;);
+    }
+    return tooltip;
+  };
+  const setDescribedBy = (trigger, described) =&gt; {
+    const ids = new Set(
+      (trigger.getAttribute(&quot;aria-describedby&quot;) ?? &quot;&quot;)
+        .split(/\s+/)
+        .filter(Boolean),
+    );
+    if (described) {
+      ids.add(tooltipId);
+    } else {
+      ids.delete(tooltipId);
+    }
+    if (ids.size === 0) {
+      trigger.removeAttribute(&quot;aria-describedby&quot;);
+    } else {
+      trigger.setAttribute(&quot;aria-describedby&quot;, [...ids].join(&quot; &quot;));
+    }
+  };
+  const clearOpenTimeout = () =&gt; {
+    if (openTimeout != null) {
+      window.clearTimeout(openTimeout);
+      openTimeout = null;
+    }
+    pendingTrigger = null;
+  };
+  const closeTooltip = (activateSkipDelay = true) =&gt; {
+    clearOpenTimeout();
+    positionRequest += 1;
+    autoUpdateCleanup?.();
+    autoUpdateCleanup = null;
+    if (activeTrigger == null) {
+      return;
+    }
+    setDescribedBy(activeTrigger, false);
+    activeTrigger = null;
+    tooltip?.remove();
+    if (activateSkipDelay) {
+      skipDelayUntil = Date.now() + skipDelay;
+    }
+  };
+  const updatePosition = (trigger, floating) =&gt; {
+    const request = ++positionRequest;
+    void computePosition(trigger, floating, {
+      middleware: [
+        offset(tooltipGap),
+        flip({ padding: tooltipGap }),
+        shift({ padding: tooltipGap }),
+        size({
+          padding: tooltipGap,
+          apply({ availableHeight, availableWidth, elements }) {
+            elements.floating.style.setProperty(
+              &quot;--tooltip-available-width&quot;,
+              `${Math.max(0, availableWidth)}px`,
+            );
+            elements.floating.style.setProperty(
+              &quot;--tooltip-available-height&quot;,
+              `${Math.max(0, availableHeight)}px`,
+            );
+          },
+        }),
+      ],
+      placement: getPlacement(trigger),
+      strategy: &quot;fixed&quot;,
+    })
+      .then(({ x, y }) =&gt; {
+        if (activeTrigger !== trigger || request !== positionRequest) {
+          return;
+        }
+        const scale = window.devicePixelRatio || 1;
+        floating.style.transform = `translate(${Math.round(x * scale) / scale}px, ${Math.round(y * scale) / scale}px)`;
+        floating.style.visibility = &quot;visible&quot;;
+      })
+      .catch(() =&gt; {
+        if (activeTrigger === trigger &amp;&amp; request === positionRequest) {
+          closeTooltip(false);
+        }
+      });
+  };
+  const openTooltip = (trigger) =&gt; {
+    const content = getContent(trigger);
+    if (!trigger.isConnected || content.length === 0) {
+      return;
+    }
+    clearOpenTimeout();
+    if (activeTrigger === trigger) {
+      return;
+    }
+    closeTooltip();
+    const floating = getTooltip();
+    floating.textContent = content;
+    floating.style.visibility = &quot;hidden&quot;;
+    floating.style.transform = &quot;translate(0, 0)&quot;;
+    document.body.appendChild(floating);
+    activeTrigger = trigger;
+    setDescribedBy(trigger, true);
+    autoUpdateCleanup = autoUpdate(trigger, floating, () =&gt; {
+      updatePosition(trigger, floating);
+    });
+  };
+  const requestOpen = (trigger, immediate = false) =&gt; {
+    if (
+      getContent(trigger).length === 0 ||
+      activeTrigger === trigger ||
+      pendingTrigger === trigger
+    ) {
+      return;
+    }
+    clearOpenTimeout();
+    pendingTrigger = trigger;
+    const delay =
+      immediate || activeTrigger != null || Date.now() &lt; skipDelayUntil
+        ? 0
+        : hoverDelay;
+    if (delay === 0) {
+      openTooltip(trigger);
+      return;
+    }
+    openTimeout = window.setTimeout(() =&gt; {
+      openTimeout = null;
+      pendingTrigger = null;
+      openTooltip(trigger);
+    }, delay);
+  };
+  const handlePointerOpen = (event) =&gt; {
+    if (event.pointerType === &quot;touch&quot;) {
+      return;
+    }
+    const trigger = getTrigger(event.target);
+    if (trigger == null || containsTarget(trigger, event.relatedTarget)) {
+      return;
+    }
+    requestOpen(trigger);
+  };
+  const handleLeave = (event) =&gt; {
+    const trigger = getTrigger(event.target);
+    if (trigger == null || containsTarget(trigger, event.relatedTarget)) {
+      return;
+    }
+    if (activeTrigger === trigger || pendingTrigger === trigger) {
+      closeTooltip();
+    }
+  };
+  const handleFocusIn = (event) =&gt; {
+    const trigger = getTrigger(event.target);
+    if (trigger?.matches(&quot;:focus-visible&quot;)) {
+      requestOpen(trigger, true);
+    }
+  };
+  const handleKeyDown = (event) =&gt; {
+    if (event.key === &quot;Escape&quot;) {
+      closeTooltip();
+    }
+  };
+  const handleContextMenu = (event) =&gt; {
+    const trigger = getTrigger(event.target);
+    if (activeTrigger === trigger || pendingTrigger === trigger) {
+      closeTooltip();
+    }
+  };
+  const destroy = () =&gt; {
+    closeTooltip(false);
+    document.removeEventListener(&quot;pointerover&quot;, handlePointerOpen);
+    document.removeEventListener(&quot;pointerout&quot;, handleLeave);
+    document.removeEventListener(&quot;focusin&quot;, handleFocusIn);
+    document.removeEventListener(&quot;focusout&quot;, handleLeave);
+    document.removeEventListener(&quot;keydown&quot;, handleKeyDown);
+    document.removeEventListener(&quot;contextmenu&quot;, handleContextMenu);
+    tooltip = null;
+  };
+
+  document.addEventListener(&quot;pointerover&quot;, handlePointerOpen);
+  document.addEventListener(&quot;pointerout&quot;, handleLeave);
+  document.addEventListener(&quot;focusin&quot;, handleFocusIn);
+  document.addEventListener(&quot;focusout&quot;, handleLeave);
+  document.addEventListener(&quot;keydown&quot;, handleKeyDown);
+  document.addEventListener(&quot;contextmenu&quot;, handleContextMenu);
+  window.addEventListener(&quot;pagehide&quot;, destroy, { once: true });
+})();
+&lt;/script&gt;
+&lt;script id=&quot;codex-visualization-lucide&quot; async src=&quot;https://unpkg.com/lucide@1.17.0/dist/umd/lucide.js&quot;&gt;&lt;/script&gt;
+&lt;script&gt;
+(() =&gt; {
+  const initialize = () =&gt; {
+    globalThis.lucide?.createIcons({ attrs: { width: 16, height: 16 } });
+  };
+  if (globalThis.lucide != null) {
+    initialize();
+    return;
+  }
+  document
+    .getElementById(&quot;codex-visualization-lucide&quot;)
+    ?.addEventListener(&quot;load&quot;, initialize, { once: true });
+})();
+&lt;/script&gt;
+
+&lt;/body&gt;
+&lt;/html&gt;
+"></iframe>
+</body>
+</html>

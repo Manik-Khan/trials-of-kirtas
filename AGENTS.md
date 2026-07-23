@@ -46,7 +46,7 @@ These are the source of truth. Do not summarize from memory; open them.
 - **`CONTEXT_Forge.md`** — the Battle Forge subsystem. **Read before touching the
   Forge.** §0 protocol, §2 file map, §3 port manifest (the actual to-do list with
   source line numbers), §4 settled geometry, §5 known bugs.
-- **`docs/handoffs/forge/CONTEXT_Forge-update-2026-07-16c.md`** — the current
+- **`docs/handoffs/forge/CONTEXT_Forge-update-2026-07-22.md`** — the current
   concise Forge field authority and execution order.
 - **`FORGE_GAME_MODE.md`** — the Forge multiplayer game-mode design (event protocol,
   client roles, build order). The forward plan.

@@ -1,4 +1,4 @@
-# CONTEXT — Battle Forge — current authority through 2026-07-18
+# CONTEXT — Battle Forge — current authority through 2026-07-22
 
 > This doc exists because the same failure kept happening: a session would read
 > *part* of the material, conclude a feature "was never there," and rebuild
@@ -9,15 +9,18 @@
 
 ---
 
-## CURRENT AUTHORITY · 2026-07-18
+## CURRENT AUTHORITY · 2026-07-22
 
-Read `docs/handoffs/forge/CONTEXT_Forge-update-2026-07-18.md` before the
+Read `docs/handoffs/forge/CONTEXT_Forge-update-2026-07-22.md` before the
 historical sections below. It carries the intentional Temple Terraces preview,
 the removal of purposeless legacy connectors, and the current execution order.
 The embedded 2026-07-13h addendum remains the Phase 1.5 record, not the current
 handoff.
 
-Temple Terraces is the first implemented intent-owned archetype. It remains a
+The Workshop is now Map → Encounter → Placement, with Settings always reachable.
+Encounter targets use an adjusted-XP budget and explicitly chosen Bestiary foes;
+deployment v3 uses the established group flags on both region-aware and ordinary
+connected maps. Temple Terraces is the first implemented intent-owned archetype. It remains a
 Workshop preview pending the signed-in shared-table/reconnect field gate.
 Generation still returns authoritative `spawns: []`; the separate versioned
 deployment authority now supports multiple Party, Ally/NPC, and Enemy groups,

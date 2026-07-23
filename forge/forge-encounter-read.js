@@ -1,4 +1,4 @@
-/* Forge Encounter Read authority · version 1
+/* Forge Encounter Read authority · version 2
    Pure encounter arithmetic and roster-derived creature relationships.
    The Workshop owns presentation; this module owns the repeatable facts. */
 (function (root, factory) {
@@ -8,7 +8,7 @@
 })(typeof window !== "undefined" ? window : globalThis, function () {
   "use strict";
 
-  var VERSION = 1;
+  var VERSION = 2;
   var LEVEL_THRESHOLDS = [
     null,
     [25,50,75,100],[50,100,150,200],[75,150,225,400],[125,250,375,500],
@@ -101,6 +101,18 @@
     if (adjustedXp >= thresholds.easy) return "Easy";
     return "Below easy";
   }
+  function targetBand(thresholds, target) {
+    thresholds = thresholds || {}; target = text(target).toLowerCase();
+    var order = ["easy","medium","hard","deadly"], index = order.indexOf(target);
+    if (index < 0) index = 1;
+    var key = order[index], next = order[index + 1] || null;
+    return {
+      key:key,
+      min:Math.max(0, number(thresholds[key], 0)),
+      max:next ? Math.max(0, number(thresholds[next], 0) - 1) : null,
+      next:next
+    };
+  }
   function enemyCr(row) { return crNumber(row && (row.cr != null ? row.cr : row.statblock && row.statblock.cr)); }
   function sideRead(rows, thresholds, partyCount) {
     var known = [], unknown = [];
@@ -185,7 +197,7 @@
     VERSION:VERSION, LEVEL_THRESHOLDS:LEVEL_THRESHOLDS, XP_BY_CR:XP_BY_CR,
     levelOf:levelOf, crNumber:crNumber, crLabel:crLabel, xpForCr:xpForCr,
     partyThresholds:partyThresholds, crBenchmark:crBenchmark, singleMonsterBenchmark:singleMonsterBenchmark,
-    encounterMultiplier:encounterMultiplier, difficultyFor:difficultyFor, sideRead:sideRead, analyze:analyze,
+    encounterMultiplier:encounterMultiplier, difficultyFor:difficultyFor, targetBand:targetBand, sideRead:sideRead, analyze:analyze,
     relationKeys:relationKeys, relatedCreatures:relatedCreatures, impactWithCreature:impactWithCreature
   });
 });

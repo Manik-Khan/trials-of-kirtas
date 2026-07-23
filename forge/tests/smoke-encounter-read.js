@@ -5,7 +5,7 @@ const Read = require("../forge-encounter-read.js");
 let pass = 0, fail = 0;
 function ok(name, condition) { condition ? pass++ : fail++; console.log((condition ? "✓ " : "✗ ") + name); }
 
-ok("module is dual-export ready", Read.VERSION === 1);
+ok("module is dual-export ready", Read.VERSION === 2);
 ok("fractional CR parses from strings and 5etools objects", Read.crNumber("1/4") === .25 && Read.crNumber({cr:"1/2"}) === .5);
 ok("CR maps to standard encounter XP", Read.xpForCr("1/4") === 50 && Read.xpForCr(3) === 700);
 ok("multiclass level sums classes", Read.levelOf({classes:[{level:3},{level:2}]}) === 5);
@@ -20,6 +20,7 @@ const read = Read.analyze({party,enemies:goblins.concat(orcs,captain),map});
 
 ok("four level-four characters total sixteen levels", read.party.totalLevels === 16 && read.party.count === 4);
 ok("party XP thresholds sum exactly", read.party.thresholds.easy === 500 && read.party.thresholds.medium === 1000 && read.party.thresholds.hard === 1500 && read.party.thresholds.deadly === 2000);
+ok("target wallet exposes bounded and open-ended bands", Read.targetBand(read.party.thresholds,"medium").min === 1000 && Read.targetBand(read.party.thresholds,"medium").max === 1499 && Read.targetBand(read.party.thresholds,"deadly").max === null);
 ok("CR benchmark is four", read.party.crBenchmark === 4);
 ok("single-monster benchmark is CR four", read.party.singleMonsterBenchmark === 4);
 ok("opening wave excludes waiting captain", read.opening.count === 6 && read.opening.totalCr === 2);
@@ -59,7 +60,8 @@ ok("recalculated impact crosses into Medium", Read.difficultyFor(impact.adjusted
 
 const fs = require("fs"), path = require("path");
 const html = fs.readFileSync(path.join(__dirname,"../index.html"),"utf8");
-ok("Workshop loads the cache-stamped authority", html.includes('forge-encounter-read.js?v=fread1'));
+ok("Workshop loads the cache-stamped authority", html.includes('forge-encounter-read.js?v=fread2'));
+ok("Workshop exposes the four target-wallet choices", ["easy","medium","hard","deadly"].every(x => html.includes('data-encounter-target="'+x+'"')) && html.includes('id="encounterBuildTarget"'));
 ok("Workshop exposes opening and full-roster reads", html.includes('data-encounter-read="opening"') && html.includes('data-encounter-read="full"'));
 ok("adapter consumes authored activation instead of assuming all-at-once", html.includes("encounterActivationMode==='active'") && html.includes("currentEncounterRegionRecord(deployment)"));
 ok("related suggestions use the existing Bestiary catalogue", html.includes("ForgeEncounterRead.relatedCreatures") && html.includes("ensureFoeBooksLoaded"));

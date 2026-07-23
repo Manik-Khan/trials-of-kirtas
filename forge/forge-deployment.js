@@ -1,6 +1,7 @@
-/* Forge deployment-group authority · version 2
+/* Forge deployment-group authority · version 3
    Pure deterministic planning over an accepted map snapshot. The map authors
-   regions and routes; the DM-authored flag is the only regional anchor. */
+   regions and routes when available; otherwise the DM-authored flag anchors
+   formation inside its connected walkable ground. */
 (function (root, factory) {
   var api = factory();
   if (typeof module !== "undefined" && module.exports) module.exports = api;
@@ -8,7 +9,7 @@
 })(typeof window !== "undefined" ? window : globalThis, function () {
   "use strict";
 
-  var VERSION = 2;
+  var VERSION = 3;
   var ROLES = Object.freeze({ PARTY: "party", ALLY: "ally", ENEMY: "enemy" });
   var CONTROLLER_POLICIES = Object.freeze({ UNIT_OWNERS: "unit-owners", OVERSEER: "overseer" });
 
@@ -140,9 +141,24 @@
     return out;
   }
 
+  function connectedScope(map, anchor, blocked) {
+    if (!inBounds(map, anchor) || map.wall && map.wall[cellIndex(map, anchor)] || blocked[pointKey(anchor)]) return null;
+    var cells = [], seen = {}, queue = [copy(anchor)];
+    seen[pointKey(anchor)] = true;
+    while (queue.length) {
+      var at = queue.shift(); cells.push(at);
+      [{c:at.c+1,r:at.r},{c:at.c-1,r:at.r},{c:at.c,r:at.r+1},{c:at.c,r:at.r-1}].forEach(function (next) {
+        var key = pointKey(next);
+        if (seen[key] || !inBounds(map, next) || map.wall && map.wall[cellIndex(map, next)] || blocked[key]) return;
+        seen[key] = true; queue.push(next);
+      });
+    }
+    return { id: "map", role: "map", elevationFt: 0, cells: cells, cellSet: seen };
+  }
+
   function cellLegality(map, at, region, blocked, occupied) {
     if (!inBounds(map, at)) return "cell is outside the battlefield";
-    if (!region || !region.cellSet[pointKey(at)]) return "cell is outside the group's flagged region";
+    if (!region || !region.cellSet[pointKey(at)]) return "cell is outside the group's flagged placement area";
     if (map.wall && map.wall[cellIndex(map, at)]) return "cell is blocked by terrain";
     if (blocked[pointKey(at)]) return "cell is reserved for a connector, landing, prop, or hazard";
     if (occupied && occupied[pointKey(at)]) return "cell is already reserved by another combatant";
@@ -159,8 +175,9 @@
     if (!map || !Number.isInteger(map.cols) || !Number.isInteger(map.rows)) errors.push("battlefield map is missing");
     if (!group.unitIds.length) errors.push(group.label + " has no combatants");
     if (!group.anchor) errors.push(group.label + " needs a deployment flag");
-    var region = group.anchor && regionForPoint(map, group.anchor);
-    if (group.anchor && !region) errors.push(group.label + " flag is outside an authored deployment region");
+    var authored = intentRegions(map), region = group.anchor && regionForPoint(map, group.anchor);
+    if (group.anchor && !region && !authored.length) region = connectedScope(map, group.anchor, blocked);
+    if (group.anchor && !region) errors.push(group.label + (authored.length ? " flag is outside an authored deployment region" : " flag is not on connected walkable ground"));
     if (region) {
       var flagWhy = cellLegality(map, group.anchor, region, blocked, null);
       if (flagWhy) errors.push(group.label + " flag is illegal: " + flagWhy);
@@ -203,7 +220,7 @@
     if (actual < want && Object.keys(positions).length === group.unitIds.length)
       warnings.push(group.label + " formation compressed from " + want + " to " + actual + " clear square(s)");
     if (Object.keys(positions).length < group.unitIds.length)
-      errors.push(group.label + " fits " + Object.keys(positions).length + " of " + group.unitIds.length + " combatants in " + (region ? region.id : "no region"));
+      errors.push(group.label + " fits " + Object.keys(positions).length + " of " + group.unitIds.length + " combatants in " + (region ? region.id : "no placement area"));
 
     return {
       ok: errors.length === 0,
@@ -268,6 +285,7 @@
     assignUnit: assignUnit,
     removeGroup: removeGroup,
     regionForPoint: regionForPoint,
+    connectedScope: connectedScope,
     deploymentBlocked: deploymentBlocked,
     cellLegality: cellLegality,
     planGroup: planGroup,

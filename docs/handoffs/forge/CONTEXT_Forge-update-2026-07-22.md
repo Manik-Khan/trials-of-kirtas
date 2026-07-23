@@ -1,4 +1,4 @@
-# CONTEXT Forge update · 2026-07-18
+# CONTEXT Forge update · 2026-07-22
 
 Supersedes `CONTEXT_Forge-update-2026-07-16c.md` as the current concise Forge authority. Read with `CONTEXT.md`, `CONTEXT_Forge.md`, and `forge/FORGE_TEMPLE_TERRACES_1.md`.
 
@@ -407,6 +407,48 @@ Temple deployment reveal, unsupported-map deployment narration, the Temple
 shortcut, collapsed Advanced tools, and the 390px layout with no new console
 error.
 
+## Map-first encounter and placement correction · 2026-07-22
+
+The approved `_edits/mock-forge-workshop-builder.html` is now integrated into
+the canonical Workshop. The core order is **Map → Encounter → Placement**, with
+Settings continuously reachable from the same top-left Forge menu. The Map step
+opens first. Recipe changes remain pending until **Generate map** is pressed.
+
+There is no implicit base-goblin encounter. Every enemy is chosen for this
+encounter from the existing Bestiary or saved shelf, and newly chosen enemies
+join the existing Enemy placement group without disturbing a deliberate manual
+unassignment. Encounter Read authority is version 2
+(`forge-encounter-read.js?v=fread2`). Easy, Medium, Hard, and Deadly targets
+expose their standard adjusted-XP bands as a visible budget. The roster
+suggestion uses actual Bestiary CR and the same count multiplier; in Related
+mode, an existing creature family narrows the candidates. Suggestions remain
+editable, and Any creature plus the full Bestiary remain available.
+
+Deployment authority is version 3 (`forge-deployment.js?v=fd3`). The existing
+group cards, membership menus, Party/Ally/Enemy roles, controller policy, map
+flags, deterministic formation seeds, manual pins, reseed, split, delete, and
+unassigned list are unchanged. Authored intent regions remain strict when a map
+provides them. A map with no authored regions now derives a connected walkable
+placement area from the exact flag cell; it does not invent a starting region.
+Local combat and shared staging consume the same exact deployment record on
+every generated map, while version 1 and 2 saved records remain readable.
+
+Encounter activation is optional metadata on a flag, not a required placement
+step. Flags are active at initiative by default. **Automate this flag** reveals
+the supported activation controls only when checked: region-aware maps may use
+party entry or DM activation; regionless maps expose DM activation. The
+encounter-region authority and saved record remain separate from positional
+deployment.
+
+Focused validation is **321 checks green** across deployment, Encounter Read,
+Workshop flow, unified panel, Temple, encounter regions, engine, map bridge,
+tactical geometry, line of sight/cover, placement, and flora. The real local
+Forge browser pass proved Map-first entry, Medium→Hard budget switching, a
+four-creature Hard roster suggestion, automatic assignment into the existing
+Enemy group, optional automation disclosure, and a regionless party flag
+resolving 4/4 positions on connected walkable ground. No new runtime error
+appeared after the corrected reload.
+
 ## Required field checklist
 
 1. On the live signed-in site, open a Temple Table with at least Party and Enemy flags.
@@ -425,24 +467,29 @@ error.
 11. Compare laptop heat/fan behavior in default Balanced against High Fidelity.
 12. On the live signed-in Workshop, open Related enemies, add one suggestion, then
     open the full Bestiary and confirm both doors use the shared authored roster.
+13. Generate an ordinary non-region map, place Party and Enemy flags, save, reopen,
+    and confirm the exact version-3 positions survive on two devices.
+14. Use each Easy/Medium/Hard/Deadly target once and confirm the suggested roster,
+    editable picked list, related-family filter, and adjusted-XP wallet agree.
 
 ## Immediate execution order
 
-1. Run the signed-in two-device activation checklist: held rolls, region entry, hostile-action activation, DM activation, reconnect, and Player View narration.
-2. Run the signed-in Encounter Read Bestiary/add-to-roster field check.
-3. Run the signed-in shared-table/reconnect deployment and architecture checklist.
-4. Compare Balanced and High Fidelity on M's actual laptop during a full round.
-5. Recheck saved-block and geometry-fog reconnects on the normal Temple URL.
-6. Promote Temple from `preview` to `active` only after those checks pass.
-7. Expose/settle the Volcanic Workshop construction control.
-8. Build `bridge-crossing` on the same intent contract.
+1. Run the signed-in map-first Workshop check on an ordinary non-region map and Temple Terraces.
+2. Run the signed-in Encounter Read target-wallet, related roster, and full-Bestiary check.
+3. Run the signed-in two-device activation checklist: held rolls, region entry, hostile-action activation, DM activation, reconnect, and Player View narration.
+4. Run the signed-in shared-table/reconnect deployment and architecture checklist.
+5. Compare Balanced and High Fidelity on M's actual laptop during a full round.
+6. Recheck saved-block and geometry-fog reconnects on the normal Temple URL.
+7. Promote Temple from `preview` to `active` only after those checks pass.
+8. Expose/settle the Volcanic Workshop construction control.
+9. Build `bridge-crossing` on the same intent contract.
 
 Do not begin `bridge-crossing` by re-enabling random legacy bridge selection. Purpose and archetype ownership come first.
 
 ## Deployment discipline
 
 M reviews, commits, and pushes. Codex does not push. Current slice stamps:
-`forge-deployment.js?v=fd2`, `forge-generator-foundation.js?v=g2g1`,
+`forge-deployment.js?v=fd3`, `forge-generator-foundation.js?v=g2g1`,
 `forge-temple-terraces.js?v=tt1`, `forge-engine.js?v=fe10`,
 `forge-render-power.js?v=frp1`, `forge-architecture.js?v=fa4`, and
 `forge-discovery.js?v=fd7`, `forge-kit-derive.js?v=b9`,
@@ -451,4 +498,4 @@ M reviews, commits, and pushes. Codex does not push. Current slice stamps:
 `forge-encounter-regions.js?v=fer1` and bumps `forge-protocol.js?v=fpr2`,
 `forge-replay.js?v=fb15`, `forge-effects.js?v=fe6`,
 `forge-pipeline.js?v=fb8`, and `forge-board.js?v=fb8`. Encounter Read adds
-`forge-encounter-read.js?v=fread1`.
+`forge-encounter-read.js?v=fread2`.

@@ -15,7 +15,7 @@ function anchor(map,regionId,taken){
 }
 function group(id,label,role,units,at,seed,manual){return{id,label,role,controllerPolicy:role==="party"?"unit-owners":"overseer",unitIds:units,anchor:at,formationSeed:seed,manualPositions:manual||{}};}
 
-ok("deployment module is dual-exported",Deploy.VERSION===2&&typeof Deploy.planGroup==="function"&&globalThis.ForgeDeployment===Deploy);
+ok("deployment module is dual-exported",Deploy.VERSION===3&&typeof Deploy.planGroup==="function"&&globalThis.ForgeDeployment===Deploy);
 ok("deployment roles map onto existing combat sides",Deploy.roleSide("party")==="pc"&&Deploy.roleSide("ally")==="pc"&&Deploy.roleSide("enemy")==="foe");
 const map=temple(5),partyAnchor=anchor(map,"approach"),allyAnchor=anchor(map,"upper-court"),enemyAnchor=anchor(map,"lower-court");
 const party=group("party-main","Main Party","party",["caim","cosmere","liadan","vesperian"],partyAnchor,21);
@@ -37,6 +37,15 @@ const reseeded=Deploy.planDraft(map,[party,ally,Object.assign({},enemy,{formatio
 ok("reseed changes only that group's local arrangement",same(a.plans[0].positions,reseeded.plans[0].positions)&&same(a.plans[1].positions,reseeded.plans[1].positions)&&!same(a.plans[2].positions,reseeded.plans[2].positions));
 const noFlag=Deploy.planGroup(map,Object.assign({},enemy,{anchor:null}));
 ok("a missing flag narrates and never invents a region",!noFlag.ok&&noFlag.regionId===null&&noFlag.errors.some(e=>e.includes("needs a deployment flag")));
+const openMap={cols:5,rows:4,h:new Array(20).fill(0),wall:new Array(20).fill(false),props:[],connectors:[],meta:{}};
+openMap.wall[2]=true;openMap.wall[7]=true;openMap.wall[12]=true;openMap.wall[17]=true;
+const openGroup=group("road","Road Patrol","enemy",["r1","r2","r3"],{c:0,r:1},9);
+const openPlan=Deploy.planGroup(openMap,openGroup);
+ok("a regionless map uses the flag's connected walkable ground",openPlan.ok&&openPlan.regionId==="map"&&openPlan.placedCount===3&&Object.values(openPlan.positions).every(at=>at.c<2));
+const openReplay=Deploy.planGroup(openMap,openGroup);
+ok("regionless flag formations remain deterministic",same(openPlan.positions,openReplay.positions));
+const isolatedFlag=Deploy.planGroup(openMap,Object.assign({},openGroup,{anchor:{c:2,r:1}}));
+ok("a regionless flag still rejects blocked ground",!isolatedFlag.ok&&isolatedFlag.errors.some(e=>e.includes("not on connected walkable ground")));
 const stair=map.connectors[0].path[0],stairFlag=Deploy.planGroup(map,Object.assign({},enemy,{anchor:stair}));
 ok("a flag cannot occupy a required connector landing",!stairFlag.ok&&stairFlag.errors.some(e=>e.includes("connector, landing")));
 const duplicate=Deploy.planDraft(map,[party,group("second","Second Party","party",["caim"],partyAnchor,3)]);
