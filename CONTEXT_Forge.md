@@ -1,4 +1,4 @@
-# CONTEXT — Battle Forge — current authority through 2026-07-22
+# CONTEXT — Battle Forge — current authority through 2026-07-23
 
 > This doc exists because the same failure kept happening: a session would read
 > *part* of the material, conclude a feature "was never there," and rebuild
@@ -9,7 +9,7 @@
 
 ---
 
-## CURRENT AUTHORITY · 2026-07-22
+## CURRENT AUTHORITY · 2026-07-23
 
 Read `docs/handoffs/forge/CONTEXT_Forge-update-2026-07-22.md` before the
 historical sections below. It carries the intentional Temple Terraces preview,
@@ -29,6 +29,16 @@ and local combat. Unresolved groups refuse promotion. Staged legacy generation n
 longer samples decorative 5-ft connectors or produces bridges. Bridge authority
 remains available for the later `bridge-crossing` archetype. Runtime contract:
 `forge/FORGE_TEMPLE_TERRACES_1.md`.
+
+The cinematic selector remains the sole authority for which PCs enter a fight.
+Selected identities then resolve to current Supabase `CharacterData` rows before
+roster construction and sheet derivation. `character-sheet-projection.js?v=cp1`
+is the shared effective-data read: modern `structural.spellcasting` wins over
+retired `structural.spells`, then durable spell/feature corrections apply.
+Cosmere's current key is `cosmererunestar-ae1a`; old sessions may still carry the
+compatibility identity `cosmere`, but new tables save the current key. Full
+details and the signed-in field checklist are in the July 22 handoff's
+2026-07-23 character-source addendum.
 
 ---
 
@@ -122,7 +132,8 @@ bridge the generator to the *combat system*. The combat system is the thing in
 §3, and porting it is a separate, unfinished job.
 
 Party (live via `CharacterData`/Supabase): **Caim** (Monk), **Cosmere Runestar**
-(Warlock 2/Sorc 1), **Líadan Luchóg** (Bard 3/Cleric 1), **Vesperian Vale**
+(Warlock 3/Sorc 1; current key `cosmererunestar-ae1a`, legacy alias `cosmere`),
+**Líadan Luchóg** (Bard 3/Cleric 1), **Vesperian Vale**
 (Fighter 4). **Chonkalius** and **The Wiz** have no combat sheet — they are
 greyed out in the select and must never be silently dropped.
 
@@ -154,7 +165,8 @@ greyed out in the select and must never be silently dropped.
 | `battle-tactics-geo-mock.html` | flat box-tile combat mock. **The source of the combat system and the feel layer.** NOT superseded — it is the port source | reference |
 | `battle-forge-mock.html` | *"the dream one."* generator → tactics diorama. **Source of the pixel sprites + portraits** | reference |
 | `battle-forge-biome-mock.html` | **source of the biome art direction.** `SKINS` table: `wallH`, fog, light rigs, particles, flavour scatter | reference |
-| `forge/forge-kit-derive.js` | **sheet→actions derivation** (the BG3 HUD's engine): `derive(charData)` → kit with `tabs` (attacks/spells/items/feats/bonus/actions), flat pipeline actions, res pools, reactions. `spellGroupsFrom` reads BOTH spell shapes (forged `spellcasting.groups` + legacy level-keyed `structural.spells` with inconsistent keys); SPELL_COMBAT projection table (~70 spells, label decides the kind); dedupe (derived wins, sheet folds to `_folded`); Disciple of Life; `upcastDmg` + `per` scaling; legacy `classFeatures` slot/resource ledger fallback; 5etools item-type codes | canonical |
+| `character-sheet-projection.js` | shared sheet/Party/Forge effective-data read: modern `structural.spellcasting` authority, genuine-old-row legacy fallback, durable spell/feature corrections | canonical root module |
+| `forge/forge-kit-derive.js` | **sheet→actions derivation** (the BG3 HUD's engine): `derive(charData)` → kit with `tabs` (attacks/spells/items/feats/bonus/actions), flat pipeline actions, res pools, reactions. Consumes `CharacterSheetProjection` before `spellGroupsFrom`; SPELL_COMBAT projection table (~70 spells, label decides the kind); dedupe (derived wins, sheet folds to `_folded`); Disciple of Life; `upcastDmg` + `per` scaling; legacy `classFeatures` slot/resource ledger fallback; 5etools item-type codes | canonical |
 | `forge/forge-feed-render.js` | Chat Feed renderer (headless): roll rows, full math, verdict badges, NO AC EVER | canonical |
 | `forge/forge-hud.js` | the BG3 bar: tab shelf, icon tiles, drawer (`_renderSpellEntries`), bonus-corner economy marks; dispatches `forge:selectAction` | canonical |
 | `forge/forge-protocol.js` | event vocabulary: 17 kinds, envelope validation. No `turn_started` — derived | canonical |
@@ -651,10 +663,12 @@ real placement. **These are decisions, not hypotheses.**
   working — repair the anchor, never force the replacement. Corollary: a
   whole-body function replacement must carry the original's dated ruling
   comments verbatim; rulings live in-code.
-- **`data/characters/*.json` is the live-truth mirror, at most one night stale**
-  (`characters-export-nightly` — service-role, complete row). Use it for gear/
-  abilities diagnosis before asking M or touching Supabase; only distrust it for
-  same-day sheet edits (the 12g fight ran on a Vesperian newer than the export).
+- **Supabase `characters` rows are live truth.** `data/characters/*.json` is the
+  nightly version-controlled backup, not a competing runtime authority.
+  The exporter writes each canonical current-key file and refreshes familiar
+  compatibility aliases with an explicit `sourceKey`; either may lag until the
+  exporter next runs. Use JSON for historical diagnosis, but inspect the live row
+  when current sheet identity or same-day edits matter.
 - **Never write a synthetic test and call it proof.** Extract the real functions
   and run them on the real generated field. Headless tests that pass while the
   browser stays broken are the failure mode this project keeps hitting.
@@ -694,7 +708,7 @@ real placement. **These are decisions, not hypotheses.**
 ## §8 · SUGGESTED NEXT SESSION
 
 **Current handoff:
-`docs/handoffs/forge/CONTEXT_Forge-update-2026-07-16c.md`. Read it first.**
+`docs/handoffs/forge/CONTEXT_Forge-update-2026-07-22.md`. Read it first.**
 
 ### Release gate for Phase 1.5h
 

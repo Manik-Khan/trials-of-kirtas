@@ -4,14 +4,14 @@ Custom D&D 5e virtual tabletop. Live: **trials-of-kirtas.netlify.app**
 Repo: `Manik-Khan/trials-of-kirtas` · vanilla JS/HTML/CSS + Supabase + Netlify + GitHub.
 Walled React/Vite/TipTap corner at `journal/`.
 
-Updated: **July 16, 2026 (Battle Forge Phase 2 through structural-bridge completion;
-current concise handoff 16c).** Supersedes the earlier July 13 project handoff.
-The non-Forge sections stand as written there; the current Forge execution state lives in
-`docs/handoffs/forge/`. Reconciled sources include `CONTEXT_Forge.md`, the July 16c handoff,
-`FORGE_PROTOCOL.md`, `FORGE_BOARD.md`, and `FORGE_COVER_CONTEST.md`.
+Updated: **July 23, 2026 (current Forge handoff plus character-sheet source
+alignment).** Supersedes the earlier July 16 project handoff. The current Forge
+execution state lives in `docs/handoffs/forge/`. Reconciled sources include
+`CONTEXT_Forge.md`, the July 22 handoff, `FORGE_PROTOCOL.md`, `FORGE_BOARD.md`,
+and `FORGE_COVER_CONTEST.md`.
 
 **Companion docs: `CONTEXT_Forge.md` and
-`docs/handoffs/forge/CONTEXT_Forge-update-2026-07-16c.md` — read both before touching the Forge.** The canonical subsystem doc carries the port
+`docs/handoffs/forge/CONTEXT_Forge-update-2026-07-22.md` — read both before touching the Forge.** The canonical subsystem doc carries the port
 manifest (what the combat system consists of, and which parts exist where), the settled geometry
 decisions, and the open bugs. This doc is the project; that one is the subsystem.
 
@@ -19,6 +19,71 @@ decisions, and the open bugs. This doc is the project; that one is the subsystem
 deploy). Claude commits **only when M explicitly asks**, staging files by name, and **never
 pushes**. Otherwise Claude's job ends at validated files + a one-line deploy note.
 Cache-stamp every module include (`?v=`) — non-negotiable on iOS.
+
+---
+
+## 🟡 Character-sheet source alignment — staged July 23
+
+The live field reports were one source-authority bug expressed several ways:
+Caim's full mounted sheet and Party disagreed about Hellish Rebuke, Cosmere's
+renamed character row could not reliably reach Forge, and a familiar backup
+filename could outlive the live row that replaced it.
+
+The source contract is now explicit:
+
+- The Supabase `characters` row is live truth. `sheet-v2.html` and the right-rail
+  mounted sheet remain the canonical full-sheet surface.
+- `character-sheet-projection.js?v=cp1` is the shared read projection.
+  `structural.spellcasting` is authoritative whenever it is a modern object;
+  retired `structural.spells` is only a fallback for genuinely old/null rows.
+  Durable spell/feature additions and suppressions are applied by the same
+  projection before Party, the mounted sheet, or Forge derives anything.
+- `party.html` now imports the full sheet's `toRenderShape()` instead of
+  maintaining a second spell path. Character realtime refreshes replace the
+  full row, not only vitals. Reopening an already-mounted sheet refreshes it.
+- A modern Soul Shards reforge deletes carried-forward `structural.spells`.
+  `schema_delta_character_spell_source_cleanup.sql` performs the matching
+  one-time cleanup for existing modern rows without changing any other
+  structural field.
+- Forge's cinematic selector remains the sole authority for **which** selected
+  PCs enter an encounter. Its selected legacy identities are resolved against
+  the current live rows before `buildRoster()` and derivation. New sessions
+  persist current keys; existing sessions may still use compatibility aliases.
+- Cosmere's current live key is `cosmererunestar-ae1a`. `cosmere` is a retired
+  compatibility identity, not a second live sheet. His Shield spell is valid
+  through Sorcerer multiclass provenance, not the Hexblade list.
+- `data/characters/<current-key>.json` is a versioned backup, not runtime
+  authority. The exporter now also refreshes familiar compatibility files such
+  as `cosmere.json`; an alias payload records `sourceKey` so it cannot masquerade
+  as the canonical row.
+
+The player escape hatch is deliberately soft, not a rules lock.
+`sheet-actions.js` can add a missing spell or feature, hide a generated
+spell/feature, ask for a reason and player note, show the validator's finding,
+and save the decision in `structural.corrections`. Active corrections survive a
+reforge; the audit separates active/unreviewed decisions from append-only
+history and allows restore, remove, or resolve-to-generated. A spell-list miss
+warns and asks for explanation but still permits the addition. Manual feature
+addition is the current path for a missing class/subclass/species/feat benefit;
+it is **not yet a catalog-backed feat picker**.
+
+The sheet's direct math paths are also explicit:
+
+- `ArmorAC.deriveAC()` treats Mage Armor as a saved active effect and chooses the
+  best valid base calculation before shields. Casting spends a slot and repaints
+  AC; dismissal, long rest, or equipping body armor ends the effect.
+- `ArmorAC.deriveSpeed()` applies level-scaled Monk Unarmored Movement from base
+  speed while unarmored and without a shield. Monk 3 with base speed 30 renders
+  40, and the legacy already-stored 40 path is guarded against becoming 50.
+
+This slice is **staged, not live until M deploys it**. Relevant source-alignment,
+sheet, reforge, AC, Forge derivation/identity, exporter, and canonical Forge
+smokes total **748 known-answer checks green**; all touched JavaScript passed
+`node --check`, and `git diff --check` is clean. The older
+`smoke-sheet-mount.mjs` could not run in this checkout because `jsdom` is not
+installed, so a deployed signed-in Party/mounted-sheet/old-session field pass
+remains required. Run the cleanup SQL once after deployment, then run or wait for
+the character exporter so canonical and compatibility JSON mirrors converge.
 
 ---
 
@@ -203,11 +268,11 @@ independent syncs), not the offset jumping.
 
 ---
 
-## 🟡 Battle Forge — Phase 2 active through structural-bridge completion (July 8 → 16c)
+## 🟡 Battle Forge — current through Workshop, encounter composition, and source alignment
 
-**Current authority:** `docs/handoffs/forge/CONTEXT_Forge-update-2026-07-16c.md`
+**Current authority:** `docs/handoffs/forge/CONTEXT_Forge-update-2026-07-22.md`
 plus `CONTEXT_Forge.md`. The older July 13 material below is historical progression; where it
-conflicts with the 16c handoff, 16c wins.
+conflicts with the July 22 handoff, the current handoff wins.
 
 ### July 13h — geometry and fog calibration closes Phase 1.5
 
@@ -306,8 +371,10 @@ things went live, each table-relevant:
 
 Process notes that earned their pin: the 12f patch bundle's guards correctly **aborted** on
 real main (fixture-verified regexes vs. actual repo formatting — anchors are now verified
-against a fresh clone); and `data/characters/*.json` is the **nightly live-truth mirror** of
-the Supabase rows, good for diagnosis, stale only against same-day sheet edits.
+against a fresh clone). The July 12 description of `data/characters/*.json` as a
+"live-truth mirror" is superseded by the July 23 source contract above: Supabase
+is live truth; the JSON files are nightly versioned backups and compatibility
+mirrors.
 
 ### July 10–11 — the protocol spine, bite 1, and the field-day fix waves
 
@@ -530,7 +597,8 @@ whole story of the missing sprites, the missing flanking, and the missing feel.
 
 ## Stable ToK systems
 
-Roles: overseer / dm / player. Party: Cosmere Runestar (`cosmere`/ianakira), Caim (jayvanmidde),
+Roles: overseer / dm / player. Party: Cosmere Runestar
+(`cosmererunestar-ae1a`; legacy alias `cosmere`; ianakira), Caim (jayvanmidde),
 Líadan (nazanroseaktas), Vesperian Vale (thebraveruby, M's character). DM: hagakuredisc.
 Supabase tables: `profiles`, `encounters`, `combatants`, `characters`, `journal_pages`,
 `journal_refs`, `entities`, `entity_aliases`, `journal_comments`, `drawings`, `scenes`, `feed`,
@@ -538,6 +606,9 @@ Supabase tables: `profiles`, `encounters`, `combatants`, `characters`, `journal_
 
 - **Character sheet v11** (`sheet-v2.html`/`sheet-mount.js`) — primary play surface; full rolling
   (`dice-engine.js`), gear manager, combat float, appearance system, rest/hit-dice.
+  `character-sheet-projection.js` is the canonical effective-data read path for
+  the full sheet, Party, and Forge; do not create another consumer-specific
+  spell/feature projection.
 - **Soul Shards charactermancer** (`shards.html`, `soul-shards-*.js`) — full builder off the
   5etools 2014 JSON mirror; multiclass spellcasting, provenance-colored spell picker.
 - **Chronicle book + TipTap journal** (walled `journal/` Vite+React) — see the top section.

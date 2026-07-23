@@ -516,6 +516,40 @@ The role vocabulary and encounter-concept approach are attributed in source to
 *The Lazy GM's 5e Monster Builder Resource Document* by Teos Abadía, Scott
 Fitzgerald Gray, and Michael E. Shea (CC BY 4.0).
 
+## Character-sheet source alignment · 2026-07-23
+
+The Caim/Cosmere field reports exposed an identity and projection split, not a
+second party-authority design. `forge-party-selection.js?v=fps1` still owns the
+exact selected subset. Forge now resolves those selected keys against the
+current live `CharacterData` rows before `buildRoster()` and kit derivation.
+
+The current contracts are:
+
+- `character-sheet-projection.js?v=cp1` owns the effective structural read.
+  Modern `structural.spellcasting` wins over a stale legacy
+  `structural.spells`; durable spell/feature corrections apply once there.
+- `forge-kit-derive.js?v=b11` consumes that projection. A modern Zariel Tiefling
+  no longer regains hard-coded Hellish Rebuke after the authoritative list
+  removes it. Genuine old rows can still use the legacy fallback.
+- Cosmere's current Supabase key is `cosmererunestar-ae1a`; `cosmere` is a
+  compatibility identity only. Existing sessions using the retired key resolve
+  to the current row, while new tables await live character identity and save
+  the current key. Shield remains valid through his Sorcerer multiclass
+  provenance, not Hexblade.
+- The nightly character export writes the canonical current-key backup and
+  refreshes stable compatibility aliases with an explicit `sourceKey`. JSON
+  backups are not a competing runtime source.
+- Modern Soul Shards reforges remove carried-forward `structural.spells`;
+  `schema_delta_character_spell_source_cleanup.sql` is the matching one-time
+  cleanup for already-saved modern rows.
+
+Relevant source-alignment, sheet, reforge, Forge identity/derivation, exporter,
+and canonical Forge smokes total **748 known-answer checks green**. All touched
+JavaScript passed `node --check`. The older jsdom sheet-mount smoke is unavailable
+in this checkout because `jsdom` is not installed. Local Forge loaded; local
+Party redirected to login, so signed-in deployed verification remains the field
+gate.
+
 ## Required field checklist
 
 1. On the live signed-in Workshop, confirm the party selector shows only active
@@ -546,19 +580,34 @@ Fitzgerald Gray, and Michael E. Shea (CC BY 4.0).
     encounter concept, editable picked list, related-family filter, role labels,
     and adjusted-XP wallet agree; no automatic roster may exceed four copies of
     one stat block or six total creatures.
+18. On signed-in Party, confirm Caim shows 40-ft movement, Searing Smite, and
+    Branding Smite, with no Hellish Rebuke; reopen his mounted sheet and confirm
+    the already-open tab refreshes to the same result. On Vesperian's mounted
+    sheet, cast Mage Armor and confirm the sheet and Party both show his expected
+    AC 19 and its source.
+19. Reopen an old Forge session that names `cosmere`; confirm it resolves to
+    `cosmererunestar-ae1a`, derives the intact Warlock 3 / Sorcerer 1 sheet, and
+    keeps Shield with Sorcerer provenance.
+20. Create a new table with Cosmere selected and confirm the saved roster uses
+    `cosmererunestar-ae1a`, not the retired alias.
+21. Run the one-time structural spell cleanup, then run or await the character
+    exporter and confirm both the canonical current-key JSON and `cosmere.json`
+    contain the current spellcasting data, with the alias recording `sourceKey`.
 
 ## Immediate execution order
 
-1. Run the signed-in player-folder and explicit party-subset round trip.
-2. Run the signed-in map-first Workshop check on an ordinary non-region map and Temple Terraces.
-3. Run the signed-in Encounter Read target-wallet, related roster, and full-Bestiary check.
-4. Run the signed-in two-device activation checklist: held rolls, region entry, hostile-action activation, DM activation, reconnect, and Player View narration.
-5. Run the signed-in shared-table/reconnect deployment and architecture checklist.
-6. Compare Balanced and High Fidelity on M's actual laptop during a full round.
-7. Recheck saved-block and geometry-fog reconnects on the normal Temple URL.
-8. Promote Temple from `preview` to `active` only after those checks pass.
-9. Expose/settle the Volcanic Workshop construction control.
-10. Build `bridge-crossing` on the same intent contract.
+1. Deploy the character-source slice, run its one-time SQL, and complete checklist
+   items 18–21 before treating Party, JSON, or Forge identity as converged.
+2. Run the signed-in player-folder and explicit party-subset round trip.
+3. Run the signed-in map-first Workshop check on an ordinary non-region map and Temple Terraces.
+4. Run the signed-in Encounter Read target-wallet, related roster, and full-Bestiary check.
+5. Run the signed-in two-device activation checklist: held rolls, region entry, hostile-action activation, DM activation, reconnect, and Player View narration.
+6. Run the signed-in shared-table/reconnect deployment and architecture checklist.
+7. Compare Balanced and High Fidelity on M's actual laptop during a full round.
+8. Recheck saved-block and geometry-fog reconnects on the normal Temple URL.
+9. Promote Temple from `preview` to `active` only after those checks pass.
+10. Expose/settle the Volcanic Workshop construction control.
+11. Build `bridge-crossing` on the same intent contract.
 
 Do not begin `bridge-crossing` by re-enabling random legacy bridge selection. Purpose and archetype ownership come first.
 
@@ -568,11 +617,15 @@ M reviews, commits, and pushes. Codex does not push. Current slice stamps:
 `forge-deployment.js?v=fd3`, `forge-generator-foundation.js?v=g2g1`,
 `forge-temple-terraces.js?v=tt1`, `forge-engine.js?v=fe10`,
 `forge-render-power.js?v=frp1`, `forge-architecture.js?v=fa4`, and
-`forge-discovery.js?v=fd7`, `forge-kit-derive.js?v=b9`,
+`forge-discovery.js?v=fd7`, `forge-kit-derive.js?v=b11`,
 `forge-foe-ai.js?v=fai2`, `forge-hud.js?v=b3`, and
 `monster-actor.js?v=ma2`. Encounter activation adds
 `forge-encounter-regions.js?v=fer1` and bumps `forge-protocol.js?v=fpr2`,
 `forge-replay.js?v=fb15`, `forge-effects.js?v=fe6`,
 `forge-pipeline.js?v=fb8`, and `forge-board.js?v=fb8`. Encounter Read adds
 `forge-encounter-read.js?v=fread3`. Explicit local party authority adds
-`forge-party-selection.js?v=fps1`.
+`forge-party-selection.js?v=fps1`. Character-source alignment adds root
+`character-sheet-projection.js?v=cp1`, `sheet-mount.js?v=src1`, and
+`combat-sheet-float.js?v=src1`, plus
+`schema_delta_character_spell_source_cleanup.sql` and the character-exporter
+update.
