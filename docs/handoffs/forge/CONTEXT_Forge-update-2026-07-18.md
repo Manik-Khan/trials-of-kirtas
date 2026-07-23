@@ -376,6 +376,37 @@ contract. Local browser checks covered real party levels/HP, related and Any cre
 lists, explicit add-to-roster recalculation, full-Bestiary narration, and the Temple
 opening/full split. A clean fresh-tab run reported no browser errors.
 
+## Workshop workflow correction · 2026-07-22
+
+The approved `_edits/mock-forge-workshop-flow.html` is now integrated into the
+canonical Workshop without changing the generator, deployment, Encounter Read,
+or combat authorities. The pre-session panel is organized as **Encounter →
+Battlefield → Deployment → Advanced**, with a persistent party/enemy/threat/map
+summary.
+
+Encounter Read, creature suggestions, and the full Bestiary are available on the
+ordinary traced/legacy Workshop before a generated map exists. Battlefield recipe
+changes now become visibly pending; biome, archetype, rooms, loops, decor, and seed
+do not replace the current field until **Generate battlefield** is pressed. The base
+foe count remains an encounter edit and recalculates immediately.
+
+Deployment no longer disappears on an unsupported field. It explains that the
+current map lacks authored regions and offers a Temple Terraces shortcut which
+selects, but does not silently generate, that recipe. Once Temple is generated the
+same step reveals the existing exact group/flag/activation authoring. Camera,
+rendering, vertical diagnostics, architecture, experimental imports, and roadmap
+cards are collapsed under Advanced. Shared Table mode retains its narrower combat
+settings path.
+
+Validation is **20/20** for the new workflow contract and **30/30** for the
+updated unified-panel contract. The focused Workshop/generator/deployment matrix
+is **326/326** green; the four canonical engine/geometry/cover/flora suites add
+**116/116**. The real browser pass covered ordinary traced Encounter Read,
+pending Temple selection without map replacement, explicit Temple generation,
+Temple deployment reveal, unsupported-map deployment narration, the Temple
+shortcut, collapsed Advanced tools, and the 390px layout with no new console
+error.
+
 ## Required field checklist
 
 1. On the live signed-in site, open a Temple Table with at least Party and Enemy flags.

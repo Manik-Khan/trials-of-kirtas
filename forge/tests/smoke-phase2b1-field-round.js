@@ -6,7 +6,7 @@ const html=fs.readFileSync(path.join(root,"index.html"),"utf8");
 const patch=require(path.join(root,"patch-phase2b1-field-round.js"));
 let pass=0;function ok(v,l){if(!v)throw new Error("FAIL: "+l);console.log("ok",++pass,"-",l);}function has(t,n,l){ok(t.includes(n),l);}
 
-has(html,'id="psPreview">Inspect map','authoring preview is reachable before local combat');
+has(html,'id="psPreview" title="Inspect and author the battlefield before starting combat">Open Workshop','authoring preview is reachable before local combat');
 has(html,'id="psReturn"','authoring preview has a return door to party selection');
 has(html,'window.__forgeVerticalScale.setAuthoring','preview exposes the otherwise-covered vertical inspection control');
 has(html,'if(window.__forgeSession) reconcileMovementPresentation();','session move echo derives budget and reachable tiles without subtracting twice');
@@ -20,9 +20,9 @@ has(html,'function rollActionDamage(a,crit,extras)','attack resolution emits com
 has(html,'dmgParts:damage?damage.parts:null','shared attack facts carry damage components');
 has(html,'dmgParts:damage.parts','local attack facts carry damage components');
 ok(/\.\.\/weapon-actions\.js\?v=fg(?:3|2e1|2f)/.test(html),'weapon-action import is cache-busted');
-has(html,'forge-kit-derive.js?v=b10','kit derivation cache stamp bumped');
+has(html,'forge-kit-derive.js?v=b11','kit derivation cache stamp bumped');
 ok(/forge-feed-render\.js\?v=(?:b3|ffr5)/.test(html),'feed renderer cache stamp bumped');
-has(html,'forge-table-correctness.js?v=fg8','table-correctness cache stamp bumped');
+has(html,'forge-table-correctness.js?v=fg9','table-correctness cache stamp bumped');
 ok(html.indexOf('var DISCOVERY_RENDER={') < html.indexOf('resize(); rebuild();'),'discovery renderer still initializes before the first terrain build');
 ok(html.indexOf('var SESSION_ID') < html.indexOf('resize(); rebuild();'),'session id still initializes before the first terrain build');
 

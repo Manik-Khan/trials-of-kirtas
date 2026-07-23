@@ -4202,6 +4202,10 @@ function forgeCommit(){
         // without the guard below a rebuild would blank the portrait every single time.
         var prevStruct = (cur && cur.structural) || {};
         var mergedStruct = Object.assign({}, prevStruct, structural);
+        // Modern forge output owns its spell list in spellcasting.groups.
+        // Carrying the retired structural.spells map forward resurrects old
+        // racial/class spells in legacy consumers after every reforge.
+        if (Object.prototype.hasOwnProperty.call(structural, 'spellcasting')) delete mergedStruct.spells;
         if (!structural.portrait && prevStruct.portrait) mergedStruct.portrait = prevStruct.portrait;
         var patch = { structural: mergedStruct };
         if (levelUp && cur){

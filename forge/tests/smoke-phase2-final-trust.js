@@ -26,5 +26,5 @@ ok("current full-detail vision is personal rather than whole-party",html.include
 ok("shared history remains party-derived",html.includes("D.historySources")&&html.includes("party-explored"));
 ok("visibility specks are removed without revealing hidden cells",discovery.includes("function connectedMask")&&html.includes("D.connectedMask"));
 ok("unexplored presentation uses a continuous cloudy mask",html.includes("deterministic cloud field")&&html.includes("blur(")&&html.includes("THREE.LinearFilter"));
-ok("cache stamps load every changed authority",html.includes("forge-replay.js?v=fb15")&&html.includes("forge-effects.js?v=fe6")&&html.includes("forge-discovery.js?v=fd7")&&html.includes("forge-pipeline.js?v=fb8")&&html.includes("forge-kit-derive.js?v=b10")&&html.includes("forge-table-correctness.js?v=fg9"));
+ok("cache stamps load every changed authority",html.includes("forge-replay.js?v=fb15")&&html.includes("forge-effects.js?v=fe6")&&html.includes("forge-discovery.js?v=fd7")&&html.includes("forge-pipeline.js?v=fb8")&&html.includes("forge-kit-derive.js?v=b11")&&html.includes("forge-table-correctness.js?v=fg9"));
 console.log(`\n${pass} passed, ${fail} failed`);process.exitCode=fail?1:0;

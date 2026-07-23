@@ -20,6 +20,12 @@ const OWNER  = 'Manik-Khan';
 const REPO   = 'trials-of-kirtas';
 const BRANCH = 'main';
 const DIR    = 'data/characters';
+const STABLE_ALIASES = {
+  caim: 'caim',
+  cosmere: 'cosmere',
+  liadan: 'liadan',
+  vesperian: 'vesperian',
+};
 
 const SUPABASE_URL = 'https://cfthwspwpcfamgbfqzuq.supabase.co';
 const SERVICE_KEY  = process.env.SUPABASE_SERVICE_ROLE_KEY;
@@ -54,6 +60,22 @@ function rowToFile(r) {
     notes:       (r.notes == null ? '' : r.notes),
     lastUpdated: r.updated_at,
   };
+}
+
+function normIdentity(value) {
+  return String(value || '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase().replace(/[^a-z0-9]/g, '');
+}
+
+// Stable filenames remain compatibility mirrors for older readers and for
+// humans accustomed to data/characters/cosmere.json. The canonical key file is
+// always written too; an alias copy records which live row supplied it.
+function stableAliasFor(r) {
+  const live = normIdentity(r && r.structural && r.structural.name);
+  return Object.keys(STABLE_ALIASES).find(alias => live === alias || live.startsWith(alias)) || null;
+}
+
+function rowToAliasFile(r, alias) {
+  return { ...rowToFile(r), key: alias, sourceKey: r.key };
 }
 
 // GET (for sha + current content) → compare → PUT. Mirrors the legacy pattern;
@@ -107,10 +129,14 @@ async function runCharactersExport() {
   const rows = await res.json();
 
   const files = [];
-  for (const r of rows) files.push(await commitFile(r.key, rowToFile(r)));
+  for (const r of rows) {
+    files.push(await commitFile(r.key, rowToFile(r)));
+    const alias = stableAliasFor(r);
+    if (alias && alias !== r.key) files.push(await commitFile(alias, rowToAliasFile(r, alias)));
+  }
 
   const committed = files.filter(f => f.committed).length;
   return { success: true, committed, unchanged: committed === 0, files };
 }
 
-module.exports = { runCharactersExport, SUPABASE_URL, SERVICE_KEY };
+module.exports = { runCharactersExport, rowToFile, rowToAliasFile, stableAliasFor, SUPABASE_URL, SERVICE_KEY };

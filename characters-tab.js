@@ -70,7 +70,7 @@
       .then(function () { return window.CharacterData ? null : loadScript('character-data.js'); })
       .then(function () { return window.ResourceDerive ? null : loadScript('resource-derive.js'); })
       .then(function () { return existsScript('dice-engine.js') ? null : loadScript('dice-engine.js'); })
-      .then(function () { return window.mountSheet ? null : loadScript('sheet-mount.js?v=sup1', true); })
+      .then(function () { return window.mountSheet ? null : loadScript('sheet-mount.js?v=src1', true); })
       .then(function () { return waitFor(function () { return !!window.mountSheet; }, 5000); });
   }
 
@@ -367,7 +367,7 @@
     return ensureSheetDeps().then(function () {
       loadCssOnce('combat-sheet-float.css?v=touch1');
       if (window.CombatSheets && window.CombatSheets.open) return null;
-      return loadScript('combat-sheet-float.js').then(function () { return waitFor(function () { return !!(window.CombatSheets && window.CombatSheets.open); }, 5000); });
+      return loadScript('combat-sheet-float.js?v=src1').then(function () { return waitFor(function () { return !!(window.CombatSheets && window.CombatSheets.open); }, 5000); });
     });
   }
   function openSheet(key, name) {

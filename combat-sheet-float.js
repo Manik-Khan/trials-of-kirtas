@@ -112,7 +112,7 @@
     ensureWindow();
     win.classList.remove('minimized');
     showWindow();
-    if (tabs[key]) { activate(key); return; }
+    if (tabs[key]) { activate(key); refresh(key); return; }
 
     var tab = document.createElement('div');
     tab.className = 'sf-tab';
@@ -195,6 +195,17 @@
     });
   }
 
+  function refresh(key) {
+    var t = tabs[key];
+    if (!t || !t.scroll || !window.__sheet || !window.__sheet.renderSheet || !window.CharacterData) return;
+    window.CharacterData.loadCharacter(key).then(function (cd) {
+      if (!cd || !tabs[key]) return;                       // tab closed while we loaded
+      var shape = window.__sheet.toRenderShape ? window.__sheet.toRenderShape(cd) : cd;
+      try { window.__sheet.renderSheet(t.scroll, shape); }
+      catch (e) { console.warn('[sheetfloat] refresh failed:', e && e.message); }
+    }).catch(function () {});
+  }
+
   var API = {
     open: open,
     close: hideWindow,
@@ -205,16 +216,7 @@
     // display lists, and the wired affordances (inspiration / rests / hit dice) sit
     // on stable nodes it never replaces — so this is flicker-free, keeps scroll, and
     // doesn't duplicate handlers. A self-echo repaints identical values = invisible.
-    refresh: function (key) {
-      var t = tabs[key];
-      if (!t || !t.scroll || !window.__sheet || !window.__sheet.renderSheet || !window.CharacterData) return;
-      window.CharacterData.loadCharacter(key).then(function (cd) {
-        if (!cd || !tabs[key]) return;                       // tab closed while we loaded
-        var shape = window.__sheet.toRenderShape ? window.__sheet.toRenderShape(cd) : cd;
-        try { window.__sheet.renderSheet(t.scroll, shape); }
-        catch (e) { console.warn('[sheetfloat] refresh failed:', e && e.message); }
-      }).catch(function () {});
-    },
+    refresh: refresh,
     onAdd: null
   };
   window.CombatSheets = API;

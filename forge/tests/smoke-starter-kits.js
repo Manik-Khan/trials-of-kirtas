@@ -23,7 +23,7 @@ function makeSandbox(STARTER_KITS, characterData, forgeKitDerive) {
     "window", "STARTER_KITS", "clog", "escapeHtml",
     m[1] + "\nreturn { loadLiveStats: loadLiveStats, liveStatsFor: liveStatsFor, " +
       "kitFor: kitFor, GENERIC_PC_KIT: GENERIC_PC_KIT, __liveStatsWarned: __liveStatsWarned, " +
-      "__genericKitWarned: __genericKitWarned };"
+      "__genericKitWarned: __genericKitWarned, resolveLiveSheetRef: resolveLiveSheetRef, forgePartyRows: forgePartyRows };"
   );
   return fn(win, STARTER_KITS, clog, escapeHtml);
 }
@@ -115,6 +115,20 @@ async function main() {
   }
 
   // 6. kitFor/liveStatsFor never mutate STARTER_KITS across every scenario above.
+  {
+    const party = [{ key: "cosmererunestar-ae1a", name: "Cosmere Runestar",
+      structural: { combat: { ac: 13, speed: 30, initiative: 2 } } }];
+    const sb = makeSandbox(STARTER_KITS, { loadParty: () => Promise.resolve(party) });
+    await sb.loadLiveStats();
+    ok("retired Cosmere key resolves to current Supabase key",
+      sb.resolveLiveSheetRef("cosmere") === "cosmererunestar-ae1a");
+    ok("old-session Cosmere reads current live stats",
+      deepEq(sb.liveStatsFor("cosmere"), { ac: 13, speed: 30, init: 2 }));
+    ok("new Forge rosters persist the current Supabase key",
+      deepEq(sb.forgePartyRows(), [{ unit:"cosmererunestar-ae1a", kind:"pc", sheet_ref:"cosmererunestar-ae1a", name:"Cosmere Runestar" }]));
+  }
+
+  // 7. kitFor/liveStatsFor never mutate STARTER_KITS across every scenario above.
   const after = JSON.stringify(STARTER_KITS);
   ok("STARTER_KITS never mutated by liveStatsFor/kitFor", before === after);
 

@@ -15,9 +15,9 @@
 // window.CharacterData) and never auto-runs.
 // ---------------------------------------------------------------------------
 
-import { wireInspiration } from './sheet-actions.js?v=sup1';
+import { wireInspiration } from './sheet-actions.js?v=cp1';
 import { assembleActions } from './weapon-actions.js';
-import { applyFeatureCorrections, applySpellCorrections } from './sheet-corrections.js?v=sup1';
+import { applyFeatureCorrections, applySpellCorrections } from './sheet-corrections.js?v=cp1';
 import { mountSheetProgression } from './sheet-progression.js?v=facets1';
 
 function esc(x){ return String(x==null?'':x).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); }
@@ -1346,4 +1346,4 @@ if (typeof window !== 'undefined') {
   window.__sheet = { renderSheet: renderSheet, toRenderShape: toRenderShape, renderEquipment: renderEquipment, renderStory: renderStory, wireSheetTabs: wireSheetTabs, buildSpellcasting: buildSpellcasting, renderSpellcasting: renderSpellcasting, slotPoolsLive: slotPoolsLive, buildResources: buildResources, renderResources: renderResources, renderTrackers: renderTrackers, trackerSpecs: trackerSpecs, renderConcentration: renderConcentration, renderActions: renderActions, actionMeta: actionMetaInner, renderActionResult: renderActionResult, deriveActionMods: deriveActionMods, renderHitDice: renderHitDice, applyExtras: applyExtras, mountSheet: mountSheet };
 }
 
-export { mountSheet };
+export { mountSheet, toRenderShape };

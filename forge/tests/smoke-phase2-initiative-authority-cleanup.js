@@ -23,7 +23,7 @@ ok("component text stays clean",FI.componentText(evidence)==="d20 12 · DEX +1 �
 
 ok("fallback combat kit uses Liadan +2",html.includes('liadan:{ name:"Líadan", hp:31, ac:12, speed:30, init:2'));
 ok("party staging card uses Liadan +2",html.includes('name:"Líadan Luchóg",    cls:"Bard 3 / Cleric 1",     epi:"Entertainer",         hp:24, max:31, ac:12,   init:2'));
-ok("initiative scripts carry fresh cache stamps",html.includes('forge-initiative.js?v=fi2')&&html.includes('forge-kit-derive.js?v=b10'));
+ok("initiative scripts carry fresh cache stamps",html.includes('forge-initiative.js?v=fi2')&&html.includes('forge-kit-derive.js?v=b11'));
 ok("modal previews evidence before the network echo",html.includes('var __initPreview = {}')&&html.includes('__initPreview[unitKey]=evidence'));
 ok("initiative math is rendered in the bright modal",html.includes('evidence=__initPreview[k]||(st.initiativeEvidence&&st.initiativeEvidence[k])')&&html.includes('.cbInitEvidence>span:first-child{font-weight:700'));
 ok("local duplicate initiative narration is gone",!html.includes("clog('<i>Initiative — "));

@@ -27,13 +27,13 @@ has('class="deployDelete"',"group deletion is an explicit header control rather 
 has('id="foes" min="0" max="8"',"base goblins can be reduced to zero when a fully custom bestiary roster is wanted");
 has("unit: 'foe-picked-' + slug + '-' + n","picked foes have stable IDs distinct from base goblins");
 has('Bestiary picks are added without clearing these goblins or their group.',"bestiary additions narrate their additive roster behavior");
-const rosterStart=html.indexOf('function buildRoster(){'),rosterEnd=html.indexOf('/* Task 11: insert one forge_sessions row',rosterStart);
-const rosterFactory=new Function('CHAR','FOE_PICKED','foeSlug','document',html.slice(rosterStart,rosterEnd)+'\nreturn buildRoster;');
-const roster=rosterFactory({caim:{}},[{name:'Archer',count:1,statblock:{name:'Archer',hp:{average:16}}}],name=>name.toLowerCase(),{getElementById:()=>({value:'2'})})();
+const rosterStart=html.indexOf('function buildRoster(){'),rosterEnd=html.indexOf('/* Approved Encounter Read:',rosterStart);
+const rosterFactory=new Function('CHAR','FOE_PICKED','foeSlug','forgePartyRows','document',html.slice(rosterStart,rosterEnd)+'\nreturn buildRoster;');
+const roster=rosterFactory({caim:{}},[{name:'Archer',count:1,statblock:{name:'Archer',hp:{average:16}}}],name=>name.toLowerCase(),()=>[{unit:'caim',kind:'pc',sheet_ref:'caim'}],{getElementById:()=>({value:'2'})})();
 const foes=roster.filter(row=>row.kind==='foe');
 ok("the real roster builder adds picked foes without replacing base goblins",foes.length===3&&foes.map(row=>row.unit).join(',')==='foe-goblin-1,foe-goblin-2,foe-picked-archer-1'&&new Set(foes.map(row=>row.unit)).size===3);
 has('envelope.deployment=deployment',"saved map envelope carries the exact deployment record");
-has('savedRoster=rosterWithDeployment(buildRoster(),savedMap.deployment)',"staged roster receives the exact authored positions");
+has('savedRoster=rosterWithEncounterRegions(rosterWithDeployment(buildRoster(),savedMap.deployment),savedMap.encounterRegions)',"staged roster receives exact authored positions and activation rules");
 has('savedDeployment&&[1,2].indexOf(Number(savedDeployment.version))>=0',"shared start consumes current and historical deployment records");
 has('Historical rows keep the established one-time compatibility placement.',"legacy shared rows retain their placement fallback");
 notHas('id="sceneModeMenu"',"the competing black flyout is removed");

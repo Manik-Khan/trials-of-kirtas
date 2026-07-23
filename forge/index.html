@@ -47,7 +47,8 @@
 <script src="../armor-ac.js?v=um1"></script>
 <script src="../equip-slots.js?v=cc2"></script>
 <script src="../character-combat.js?v=um1"></script>
-<script src="forge-kit-derive.js?v=b10"></script>
+<script src="../character-sheet-projection.js?v=cp1"></script>
+<script src="forge-kit-derive.js?v=b11"></script>
 <script src="forge-action-damage.js?v=fad1"></script>
 <script src="forge-damage-evidence.js?v=fde3"></script>
 <script src="forge-feed-render.js?v=ffr5"></script>
@@ -590,6 +591,45 @@ global.TacticsGeo=API;
   #forgeShell .forgebar{position:static;display:block;padding:0 0 10px}
   #forgeShell #seedGroup{width:100%}
   #forgeShell #forgeBtn{flex:1;padding-left:7px;padding-right:7px}
+  body.forge-author-preview #forgeShell{width:min(760px,calc(100vw - 40px))}
+  body.forge-author-preview #forgeShell #forgePanel{width:100%;padding:16px;max-height:calc(100dvh - 66px)}
+  .forgeWorkshopSummary{display:flex;align-items:center;justify-content:space-between;gap:10px;padding-bottom:12px;margin-bottom:13px;border-bottom:1px solid var(--tk-line)}
+  .forgeWorkshopFacts{display:flex;align-items:center;gap:5px;flex-wrap:wrap;font:10px var(--f-util);color:var(--tk-ink-dim)}
+  .forgeWorkshopFacts strong{color:var(--tk-ink);font:600 12px var(--f-body);margin-right:3px}
+  .forgeWorkshopFact{padding:4px 6px;border:1px solid var(--tk-line);background:var(--tk-panel-2);white-space:nowrap}
+  .forgeWorkshopReview{flex:none;font-family:var(--f-util);font-size:9px;text-transform:uppercase;letter-spacing:.08em;color:#fff;background:var(--tk-gold);border:1px solid var(--tk-gold);padding:7px 9px;cursor:pointer}
+  .forgeWorkshopLayout{display:grid;grid-template-columns:176px minmax(0,1fr);gap:15px;align-items:start}
+  .forgeWorkshopNav{display:grid;gap:5px;position:sticky;top:0}
+  .forgeWorkshopNav button{display:grid;grid-template-columns:23px minmax(0,1fr);gap:7px;align-items:center;width:100%;padding:8px;border:1px solid var(--tk-line);background:transparent;color:var(--tk-ink-dim);text-align:left;cursor:pointer}
+  .forgeWorkshopNav button[aria-selected="true"]{border-color:var(--tk-gold);background:rgba(184,134,58,.12);color:var(--tk-ink)}
+  .forgeWorkshopIndex{display:grid;place-items:center;width:22px;height:22px;border-radius:50%;background:rgba(86,67,38,.09);font:600 9px var(--f-util)}
+  .forgeWorkshopNav button[aria-selected="true"] .forgeWorkshopIndex{background:var(--tk-gold);color:#fff}
+  .forgeWorkshopNav b{display:block;font:600 10px/1.2 var(--f-util);text-transform:uppercase;letter-spacing:.07em}
+  .forgeWorkshopNav small{display:block;margin-top:2px;font:9px/1.25 var(--f-util);color:var(--tk-ink-dim)}
+  .forgeWorkshopSteps{min-width:0}
+  .forgeWorkshopStep[hidden]{display:none!important}
+  .forgeWorkshopHead{display:flex;align-items:flex-start;justify-content:space-between;gap:8px;margin-bottom:11px}
+  .forgeWorkshopHead h2{margin:0;font:600 17px/1.2 var(--f-body);color:var(--tk-ink)}
+  .forgeWorkshopHead p{margin:3px 0 0;font:10px/1.35 var(--f-util);color:var(--tk-ink-dim)}
+  .forgeWorkshopStatus{flex:none;padding:4px 6px;border:1px solid var(--tk-line);font:600 8px var(--f-util);text-transform:uppercase;letter-spacing:.07em;color:var(--tk-ink-dim)}
+  .forgeWorkshopParty{display:flex;gap:5px;flex-wrap:wrap;margin-bottom:9px}
+  .forgeWorkshopParty span{padding:5px 7px;border:1px solid var(--tk-line);background:var(--tk-panel-2);font:10px var(--f-util);color:var(--tk-ink)}
+  .forgeWorkshopSection{padding:10px;border:1px solid var(--tk-line);background:rgba(255,255,255,.16);margin-bottom:9px}
+  .forgeWorkshopSection>.eyebrow:first-child{margin-top:0}
+  .forgeBattlefieldState{padding:7px 8px;margin:0 0 9px;border-left:3px solid var(--tk-gold);background:rgba(184,134,58,.08);font:10px/1.35 var(--f-util);color:var(--tk-ink-dim)}
+  .forgeBattlefieldState.pending{border-left-color:#a04b3a;background:rgba(160,75,58,.07)}
+  .forgeBattlefieldActions{display:flex;gap:6px;align-items:center;margin-top:9px}
+  .forgeBattlefieldActions #seedGroup{flex:1}
+  .forgeDeploymentGate{padding:14px 10px;border:1px solid var(--tk-line);background:var(--tk-panel-2);text-align:center;font:10px/1.4 var(--f-util);color:var(--tk-ink-dim)}
+  .forgeDeploymentGate b{display:block;margin-bottom:4px;font:600 13px var(--f-body);color:var(--tk-ink)}
+  .forgeDeploymentGate .filebtn{display:block;width:100%;margin-top:9px}
+  .forgeAdvancedGroup{border-bottom:1px solid var(--tk-line);padding:8px 0}
+  .forgeAdvancedGroup>summary{cursor:pointer;font:600 10px var(--f-util);text-transform:uppercase;letter-spacing:.08em;color:var(--tk-ink)}
+  .forgeAdvancedBody{padding-top:9px}
+  body.forge-table-mode .forgeWorkshopSummary,body.forge-table-mode .forgeWorkshopNav{display:none}
+  body.forge-table-mode .forgeWorkshopLayout{display:block}
+  body.forge-table-mode .forgeWorkshopStep:not([data-workshop-step="advanced"]){display:none!important}
+  body.forge-table-mode .forgeWorkshopStep[data-workshop-step="advanced"]{display:block!important}
   #forgeTableSettings{display:none}
   body.combat-mode #forgeTableSettings{display:block}
   #forgeTableSettings .sceneMenuBtn{color:var(--tk-ink-dim);border-bottom:1px solid rgba(86,67,38,.22);padding:8px 0}
@@ -605,7 +645,7 @@ global.TacticsGeo=API;
   .sceneMenuBtn:hover{background:rgba(184,134,58,.12);border-color:rgba(184,134,58,.38)}
   .sceneMenuBtn b{color:#d6ad62;font-weight:600}
   .sceneMenuNote{padding:6px 10px 4px;font:italic 11px/1.35 var(--f-body);color:#a99f8d;border-top:1px solid rgba(184,134,58,.2)}
-  @media (max-width:660px){#forgeShell{left:12px;top:12px;width:calc(100% - 24px)}#forgeShell #forgePanel{width:100%;max-height:calc(100dvh - 60px)}}
+  @media (max-width:660px){#forgeShell,body.forge-author-preview #forgeShell{left:12px;top:12px;width:calc(100% - 24px)}#forgeShell #forgePanel,body.forge-author-preview #forgeShell #forgePanel{width:100%;max-height:calc(100dvh - 60px)}.forgeWorkshopLayout{grid-template-columns:1fr}.forgeWorkshopNav{position:static;grid-template-columns:repeat(2,minmax(0,1fr))}.forgeWorkshopSummary{align-items:flex-start;flex-direction:column}.forgeWorkshopReview{width:100%}}
   .cbU-eff.prone{color:#8b5d32;border-color:#8b5d32}.cbTag.prone{color:#8b5d32!important;border-color:#8b5d32!important}
   body.forge-target-confirm #stage canvas{cursor:crosshair}
   .fg-flow-btn[data-kind="confirm"]{border-color:#d8b35b;background:rgba(216,179,91,.14)}
@@ -1002,62 +1042,38 @@ body.forge-author-preview #partySelect{opacity:0;pointer-events:none}
   <div id="forgeShell">
     <button id="sceneModeToggle" type="button" title="Forge and view options" aria-controls="forgePanel" aria-expanded="true">⚒ <span>Forge</span> <b>▴</b></button>
     <div class="panel" id="forgePanel">
-    <div class="forgebar">
-      <div id="seedGroup">
-        <input id="seed" value="7" aria-label="Seed">
-        <button class="fbtn" id="dice" title="Random seed">🎲</button>
-        <button class="fbtn primary" id="forgeBtn">Forge battlefield</button>
+    <div class="forgeWorkshopSummary" id="forgeWorkshopSummary" aria-live="polite">
+      <div class="forgeWorkshopFacts">
+        <strong>Workshop</strong>
+        <span class="forgeWorkshopFact" id="forgeSummaryParty">Party —</span>
+        <span class="forgeWorkshopFact" id="forgeSummaryEnemies">Enemies —</span>
+        <span class="forgeWorkshopFact" id="forgeSummaryThreat">Encounter read —</span>
+        <span class="forgeWorkshopFact" id="forgeSummaryMap">Current battlefield</span>
       </div>
-    </div>
-    <button class="fbtn" id="psReturn" type="button">Choose party / start fight</button>
-    <div class="forgePanelTabs" role="tablist" aria-label="Forge panel">
-      <button type="button" class="active" id="forgeActiveTab" role="tab" aria-selected="true">Active</button>
-      <button type="button" id="forgePlannedTab" role="tab" aria-selected="false">Planned</button>
+      <button class="forgeWorkshopReview" id="forgeReviewOpen" type="button">Review and open Table</button>
     </div>
     <div id="forgeActivePanel">
-    <div class="eyebrow">Biome</div>
-    <div class="chips prototypeResidue" id="chips" aria-hidden="true"></div>
-    <div class="improw prototypeResidue" aria-hidden="true">
-      <button class="filebtn" id="loadHeight">Load heightmap</button>
-      <button class="filebtn" id="loadType">Type map</button>
-    </div>
-    <div class="fname prototypeResidue" id="fnames" aria-hidden="true">No image loaded — greyscale = height</div>
-    <div class="divider"></div>
-    <div class="eyebrow" style="margin-bottom:6px">DUNGEON</div>
-    <div class="slider-wrap" id="archetypeWrap">
-      <label for="archetype">Archetype <span class="val" id="archetypeStatus">active</span></label>
-      <select id="archetype" aria-describedby="archetypeNote"></select>
-      <div class="fname" id="archetypeNote" style="margin-top:4px">Current room-and-corridor generator.</div>
-    </div>
-    <div class="slider-wrap">
-      <label>Rooms <span class="val" id="roomsVal">8</span></label>
-      <input type="range" id="rooms" min="4" max="16" value="8">
-    </div>
-    <div class="slider-wrap">
-      <label>Loops <span class="val" id="loopsVal">20%</span></label>
-      <input type="range" id="loops" min="0" max="100" value="20">
-    </div>
-    <div class="slider-wrap">
-      <label>Decor <span class="val" id="decorVal">70%</span></label>
-      <input type="range" id="decor" min="0" max="100" value="70">
-    </div>
-    <div class="slider-wrap">
-      <label>Base goblins <span class="val" id="foesVal">5</span></label>
-      <input type="range" id="foes" min="0" max="8" value="5">
-      <div class="fname" style="margin-top:2px">Base encounter count. Bestiary picks are added without clearing these goblins or their group.</div>
-    </div>
-    <div id="deploymentPanel">
-      <div class="divider"></div>
-      <div class="eyebrow" style="margin-bottom:6px">DEPLOYMENT</div>
-      <div class="deploySummary" id="deploymentSummary">Place every active group before opening the Table.</div>
-      <div id="deploymentGroups"></div>
-      <button class="filebtn" id="deploymentAddGroup" type="button">+ Add group</button>
-      <div class="eyebrow" style="margin:9px 0 5px">Unassigned</div>
-      <div class="deployUnassigned" id="deploymentUnassigned"></div>
-      <div class="fname" id="deploymentMessage" style="white-space:normal">Flags choose the region. Formation seeds only arrange units around that flag.</div>
-    </div>
-    <div id="encounterReadPanel">
-      <div class="divider"></div>
+    <div class="forgeWorkshopLayout">
+    <nav class="forgeWorkshopNav" aria-label="Workshop sections">
+      <button type="button" data-workshop-nav="encounter" aria-selected="true"><span class="forgeWorkshopIndex">1</span><span><b>Encounter</b><small>Party, enemies, threat</small></span></button>
+      <button type="button" data-workshop-nav="battlefield" aria-selected="false"><span class="forgeWorkshopIndex">2</span><span><b>Battlefield</b><small>Map, biome, generation</small></span></button>
+      <button type="button" data-workshop-nav="deployment" aria-selected="false"><span class="forgeWorkshopIndex">3</span><span><b>Deployment</b><small id="forgeDeploymentNavStatus">Requires regions</small></span></button>
+      <button type="button" data-workshop-nav="advanced" aria-selected="false"><span class="forgeWorkshopIndex">4</span><span><b>Advanced</b><small>Camera and diagnostics</small></span></button>
+    </nav>
+    <div class="forgeWorkshopSteps">
+    <section class="forgeWorkshopStep" data-workshop-step="encounter">
+      <div class="forgeWorkshopHead"><div><h2>Build the encounter</h2><p>Party, enemies, and Encounter Read are available before a battlefield is generated.</p></div><span class="forgeWorkshopStatus">Ready</span></div>
+      <button class="fbtn" id="psReturn" type="button">Choose party</button>
+      <div class="forgeWorkshopParty" id="forgeWorkshopPartyStatus"><span>Choose a party to see its combat-ready members.</span></div>
+      <div class="forgeWorkshopSection">
+        <div class="eyebrow" style="margin-bottom:6px">ENEMIES</div>
+        <div class="slider-wrap">
+          <label>Base goblins <span class="val" id="foesVal">5</span></label>
+          <input type="range" id="foes" min="0" max="8" value="5">
+          <div class="fname" style="margin-top:2px">Bestiary picks are added without clearing these goblins or their group.</div>
+        </div>
+      </div>
+    <div id="encounterReadPanel" class="forgeWorkshopSection">
       <div class="eyebrow" style="margin-bottom:6px">ENCOUNTER READ</div>
       <div class="toggle-row" id="encounterReadToggle" style="margin-bottom:6px">
         <button data-encounter-read="opening" class="active">Opening wave</button>
@@ -1116,8 +1132,69 @@ body.forge-author-preview #partySelect{opacity:0;pointer-events:none}
         <div id="fpPicked"><div class="fname">No extra foes picked.</div></div>
       </div>
     </div>
-    <div class="divider"></div>
-    <div class="eyebrow" style="margin-bottom:6px">CAMERA (local)</div>
+    </section>
+    <section class="forgeWorkshopStep" data-workshop-step="battlefield" hidden>
+      <div class="forgeWorkshopHead"><div><h2>Choose the battlefield</h2><p>Selections remain pending until Generate battlefield is pressed.</p></div><span class="forgeWorkshopStatus" id="forgeBattlefieldBadge">Current</span></div>
+      <div class="forgeBattlefieldState" id="forgeBattlefieldState">The current battlefield remains active while you adjust its next recipe.</div>
+      <div class="forgeWorkshopSection">
+        <div class="eyebrow">BIOME</div>
+        <div class="chips prototypeResidue" id="chips" aria-hidden="true"></div>
+        <div class="improw prototypeResidue" aria-hidden="true">
+          <button class="filebtn" id="loadHeight">Load heightmap</button>
+          <button class="filebtn" id="loadType">Type map</button>
+        </div>
+        <div class="fname prototypeResidue" id="fnames" aria-hidden="true">No image loaded — greyscale = height</div>
+        <div class="divider"></div>
+        <div class="eyebrow" style="margin-bottom:6px">DUNGEON</div>
+        <div class="slider-wrap" id="archetypeWrap">
+          <label for="archetype">Archetype <span class="val" id="archetypeStatus">active</span></label>
+          <select id="archetype" aria-describedby="archetypeNote"></select>
+          <div class="fname" id="archetypeNote" style="margin-top:4px">Current room-and-corridor generator.</div>
+        </div>
+        <div class="slider-wrap">
+          <label>Rooms <span class="val" id="roomsVal">8</span></label>
+          <input type="range" id="rooms" min="4" max="16" value="8">
+        </div>
+        <div class="slider-wrap">
+          <label>Loops <span class="val" id="loopsVal">20%</span></label>
+          <input type="range" id="loops" min="0" max="100" value="20">
+        </div>
+        <div class="slider-wrap">
+          <label>Decor <span class="val" id="decorVal">70%</span></label>
+          <input type="range" id="decor" min="0" max="100" value="70">
+        </div>
+        <div class="forgeBattlefieldActions">
+          <div id="seedGroup">
+            <input id="seed" value="7" aria-label="Seed">
+            <button class="fbtn" id="dice" title="Randomize pending seed">🎲</button>
+            <button class="fbtn primary" id="forgeBtn">Generate battlefield</button>
+          </div>
+        </div>
+      </div>
+    </section>
+    <section class="forgeWorkshopStep" data-workshop-step="deployment" hidden>
+      <div class="forgeWorkshopHead"><div><h2>Place encounter groups</h2><p>Deployment remains visible and explains when the current battlefield cannot support authored regions.</p></div><span class="forgeWorkshopStatus" id="forgeDeploymentBadge">Unavailable</span></div>
+      <div id="deploymentPanel">
+        <div class="forgeDeploymentGate" id="forgeDeploymentGate">
+          <b id="forgeDeploymentGateTitle">This battlefield has no authored regions.</b>
+          <span id="forgeDeploymentGateText">Choose Temple Terraces or another region-aware battlefield. The encounter will remain intact.</span>
+          <button class="filebtn" id="forgeChooseTemple" type="button">Choose Temple Terraces</button>
+        </div>
+        <div id="deploymentAuthoring" hidden>
+          <div class="deploySummary" id="deploymentSummary">Place every active group before opening the Table.</div>
+          <div id="deploymentGroups"></div>
+          <button class="filebtn" id="deploymentAddGroup" type="button">+ Add group</button>
+          <div class="eyebrow" style="margin:9px 0 5px">Unassigned</div>
+          <div class="deployUnassigned" id="deploymentUnassigned"></div>
+          <div class="fname" id="deploymentMessage" style="white-space:normal">Flags choose the region. Formation seeds only arrange units around that flag.</div>
+        </div>
+      </div>
+    </section>
+    <section class="forgeWorkshopStep" data-workshop-step="advanced" hidden>
+      <div class="forgeWorkshopHead"><div><h2>Advanced tools</h2><p>Local view controls and authoring diagnostics stay out of the encounter path.</p></div><span class="forgeWorkshopStatus">Optional</span></div>
+    <details class="forgeAdvancedGroup">
+    <summary>Camera</summary>
+    <div class="forgeAdvancedBody">
     <div class="toggle-row" id="cameraViewToggle" style="margin-bottom:7px">
       <button data-camera-view="3d" class="active">3D</button>
       <button data-camera-view="top">Top-down</button>
@@ -1129,7 +1206,11 @@ body.forge-author-preview #partySelect{opacity:0;pointer-events:none}
     </div>
     <div class="fname" id="camStatus">3D · free camera · Shift/middle-drag pans</div>
     <div class="fname" id="discoveryStatus">Discovery waits for combat.</div>
-    <div class="eyebrow" style="margin:9px 0 6px">RENDERING (local)</div>
+    </div>
+    </details>
+    <details class="forgeAdvancedGroup">
+    <summary>Rendering</summary>
+    <div class="forgeAdvancedBody">
     <div class="toggle-row" id="renderQualityToggle" style="margin-bottom:6px">
       <button data-render-quality="balanced" class="active">Balanced</button>
       <button data-render-quality="high">High fidelity</button>
@@ -1146,9 +1227,12 @@ body.forge-author-preview #partySelect{opacity:0;pointer-events:none}
         title="Authoring preview only; tactical play is locked to a truthful 100% vertical scale.">
       <div class="fname" id="heightScaleNote" style="margin-top:6px;white-space:normal">Authoring preview only. Combat and shared sessions lock to 100% so walls, eyes, props, and sight lines agree.</div>
     </div>
+    </div>
+    </details>
+    <details class="forgeAdvancedGroup">
+    <summary>Vertical geometry</summary>
+    <div class="forgeAdvancedBody">
     <div id="verticalGeometryPanel">
-      <div class="divider"></div>
-      <div class="eyebrow" style="margin-bottom:6px">VERTICAL GEOMETRY</div>
       <div class="improw" style="margin:0 0 6px">
         <button class="filebtn" id="verticalOverlayPanelBtn" type="button">Show connectors</button>
         <button class="filebtn" id="findBridgeSeed" type="button" title="Search nearby deterministic seeds for a generated structural bridge">Find bridge seed</button>
@@ -1158,9 +1242,12 @@ body.forge-author-preview #partySelect{opacity:0;pointer-events:none}
       <div id="bridgeStateList" style="margin-top:7px"></div>
       <div class="fname" style="white-space:normal;margin-top:4px">Stairs, ramps, and bridges are generated automatically. “Find bridge seed” is a local authoring/test shortcut, not a combat rule.</div>
     </div>
+    </div>
+    </details>
+    <details class="forgeAdvancedGroup" id="forgeArchitectureGroup">
+    <summary>Architecture preview</summary>
+    <div class="forgeAdvancedBody">
     <div id="architecturePanel">
-      <div class="divider"></div>
-      <div class="eyebrow" style="margin-bottom:6px">ARCHITECTURE · PREVIEW</div>
       <div class="architectureTools" id="architectureTools">
         <button class="filebtn active" data-architecture-tool="wall" type="button">10-ft wall / raise</button>
         <button class="filebtn" data-architecture-tool="parapet" type="button">5-ft parapet</button>
@@ -1179,6 +1266,8 @@ body.forge-author-preview #partySelect{opacity:0;pointer-events:none}
       <div class="architectureAudit" id="architectureAudit">Required ascent clear · 0 authored blocks.</div>
       <div class="fname" id="architectureMessage" style="white-space:normal">Open cells accept blocks. Seeded retaining walls accept a 10-ft wall or 5-ft parapet extension.</div>
     </div>
+    </div>
+    </details>
     <div id="forgeTableSettings">
       <div class="divider"></div>
       <div class="eyebrow">TABLE SETTINGS</div>
@@ -1190,6 +1279,9 @@ body.forge-author-preview #partySelect{opacity:0;pointer-events:none}
       <button class="sceneMenuBtn" id="sceneProneToggle" type="button" hidden><span>Selected condition</span><b>Toggle Prone</b></button>
       <div class="sceneMenuNote" id="sceneViewerNote">Player View hides DM tools and enemy internals locally. Combat rules are shared with the table.</div>
     </div>
+    <details class="forgeAdvancedGroup">
+    <summary>Grid and experimental tools</summary>
+    <div class="forgeAdvancedBody">
     <div class="eyebrow prototypeResidue" style="margin-bottom:6px" aria-hidden="true">Shading</div>
     <div class="toggle-row prototypeResidue" id="shadeToggle" aria-hidden="true">
       <button data-toon="1" class="active">Toon</button>
@@ -1231,7 +1323,10 @@ body.forge-author-preview #partySelect{opacity:0;pointer-events:none}
     <input type="file" id="heightFile" accept="image/*" hidden>
     <input type="file" id="typeFile" accept="image/*" hidden>
     </div>
-    <div id="forgePlannedPanel" hidden>
+    </details>
+    <details class="forgeAdvancedGroup" id="forgePlannedPanel">
+      <summary>Future work</summary>
+      <div class="forgeAdvancedBody">
       <div class="plannedIntro">These are roadmap cards, not disabled controls. Active combat and connector tools stay under Active.</div>
       <div class="plannedCard"><b>Asset Library</b><span>Authored tactical props, edge blockers, rotations, and movement effects.</span><em>Planned</em></div>
       <div class="plannedCard"><b>Image-to-Dungeon Import</b><span>Calibrated top-down maps converted into the Forge map contract.</span><em>After connectors</em></div>
@@ -1239,8 +1334,13 @@ body.forge-author-preview #partySelect{opacity:0;pointer-events:none}
       <div class="plannedCard"><b>Auto-Dress</b><span>Biome-aware art dressing after tactical authority and validation are complete.</span><em>Planned</em></div>
       <div class="plannedCard"><b>Advanced Visual Profiles</b><span>Supported authored looks rather than ambiguous prototype shader switches.</span><em>Experimental later</em></div>
       <div class="plannedCard"><b>Authoring Inspection</b><span>Full vertical and diagnostic inspection tools in a dedicated Workshop mode.</span><em>Planned</em></div>
-    </div>
-    </div>
+      </div>
+    </details>
+    </section>
+    </div><!-- /forgeWorkshopSteps -->
+    </div><!-- /forgeWorkshopLayout -->
+    </div><!-- /forgeActivePanel -->
+    </div><!-- /forgePanel -->
   </div><!-- /forgeShell -->
   <div class="attrib">
     <span class="k">Drag</span> orbit · <span class="k">Wheel</span> zoom · <span class="k">Active / Planned</span> workshop tools<br>
@@ -3137,7 +3237,7 @@ window.__enterForge = function(){
   if(SESSION_ID){ clog('<i>The map belongs to the fight — re-forge is disabled during a session.</i>'); return; }
   mode='tiers'; setActiveChip('tiers');
   document.getElementById('seedGroup').style.opacity='1'; setImgOnly(false);
-  rebuild();   // forges generated tiers → renderField → placeRoster
+  rebuild();setForgeWorkshopStep('encounter');   // forges generated tiers → renderField → placeRoster
 };
 
 function templeDeploymentPending(){
@@ -3159,6 +3259,8 @@ function rebuild(){
   ARCHITECTURE_PREVIEW_STATES=null;ARCHITECTURE_PREVIEW_EXPLORED=null;
   applyLook();
   renderField();
+  WORKSHOP_MAP_DIRTY=false;
+  refreshForgeBattlefieldState();
   refreshDeploymentPanel();
   if(typeof refreshVerticalGeometryPanel==="function")refreshVerticalGeometryPanel();
   if(window.__fightRoster){
@@ -3169,33 +3271,46 @@ function rebuild(){
 }
 
 /* ---- UI ---- */
-function setForgePanelTab(tab){
-  var planned=tab==='planned',a=document.getElementById('forgeActivePanel'),p=document.getElementById('forgePlannedPanel'),at=document.getElementById('forgeActiveTab'),pt=document.getElementById('forgePlannedTab');
-  if(a)a.hidden=planned;if(p)p.hidden=!planned;if(at){at.classList.toggle('active',!planned);at.setAttribute('aria-selected',String(!planned));}if(pt){pt.classList.toggle('active',planned);pt.setAttribute('aria-selected',String(planned));}
+var WORKSHOP_MAP_DIRTY=false,WORKSHOP_STEP='encounter';
+function setForgeWorkshopStep(step){
+  WORKSHOP_STEP=step;
+  document.querySelectorAll('[data-workshop-nav]').forEach(function(button){button.setAttribute('aria-selected',String(button.dataset.workshopNav===step));});
+  document.querySelectorAll('[data-workshop-step]').forEach(function(panel){panel.hidden=panel.dataset.workshopStep!==step;});
 }
-(function(){var at=document.getElementById('forgeActiveTab'),pt=document.getElementById('forgePlannedTab');if(at)at.onclick=function(){setForgePanelTab('active');};if(pt)pt.onclick=function(){setForgePanelTab('planned');};var mode=document.getElementById('forgeProductMode');if(mode)mode.textContent=SESSION_ID?'Table':'Workshop';document.body.classList.toggle('forge-table-mode',!!SESSION_ID);})();
+function setForgePanelTab(tab){
+  setForgeWorkshopStep(tab==='planned'?'advanced':tab==='active'?'encounter':tab);
+  var planned=document.getElementById('forgePlannedPanel');if(tab==='planned'&&planned)planned.open=true;
+}
+function forgeWorkshopMapName(){
+  if(F&&F.intent&&F.intent.archetype==='temple-terraces')return 'Temple Terraces';
+  var name=document.getElementById('dungeonName');return name&&name.textContent&&name.textContent!=='—'?name.textContent:'Current battlefield';
+}
+function refreshForgeWorkshopSummary(payload){
+  var party=document.getElementById('forgeSummaryParty'),enemies=document.getElementById('forgeSummaryEnemies'),threat=document.getElementById('forgeSummaryThreat'),map=document.getElementById('forgeSummaryMap'),partyStatus=document.getElementById('forgeWorkshopPartyStatus');
+  if(payload&&payload.read){if(party)party.textContent=payload.read.party.count+' hero'+(payload.read.party.count===1?'':'es');if(enemies)enemies.textContent=payload.enemies.length+' enem'+(payload.enemies.length===1?'y':'ies');if(threat)threat.textContent=encounterHeadline(payload.read);if(partyStatus)partyStatus.innerHTML=payload.party.map(function(row){return '<span>'+escapeHtml(row.name)+(row.level?' · level '+row.level:'')+'</span>';}).join('')||'<span>No combat-ready party selected.</span>';}
+  if(map)map.textContent=forgeWorkshopMapName();
+}
+function refreshForgeBattlefieldState(){
+  var badge=document.getElementById('forgeBattlefieldBadge'),state=document.getElementById('forgeBattlefieldState');
+  if(badge)badge.textContent=WORKSHOP_MAP_DIRTY?'Changes pending':'Current';
+  if(state){state.classList.toggle('pending',WORKSHOP_MAP_DIRTY);state.textContent=WORKSHOP_MAP_DIRTY?'Your selections are pending. The current battlefield remains unchanged until you generate it.':forgeWorkshopMapName()+' is generated and ready. Encounter choices remain available if you replace it.';}
+  refreshForgeWorkshopSummary();
+}
+function markForgeBattlefieldPending(){WORKSHOP_MAP_DIRTY=true;refreshForgeBattlefieldState();}
+(function(){
+  document.querySelectorAll('[data-workshop-nav]').forEach(function(button){button.onclick=function(){setForgeWorkshopStep(button.dataset.workshopNav);};});
+  var mode=document.getElementById('forgeProductMode');if(mode)mode.textContent=SESSION_ID?'Table':'Workshop';document.body.classList.toggle('forge-table-mode',!!SESSION_ID);if(SESSION_ID)setForgeWorkshopStep('advanced');
+  var review=document.getElementById('forgeReviewOpen');if(review)review.onclick=function(){if(WORKSHOP_MAP_DIRTY)setForgeWorkshopStep('battlefield');else if(templeField()&&!deploymentReady())setForgeWorkshopStep('deployment');else setForgeWorkshopStep('encounter');};
+  var temple=document.getElementById('forgeChooseTemple');if(temple)temple.onclick=function(){if(archetypeEl){archetypeEl.value='temple-terraces';paintArchetypeControl(archetypeEl.value,false);}markForgeBattlefieldPending();setForgeWorkshopStep('battlefield');};
+})();
 /* biome picker — the look, not the geometry */
-function paintBiomeControl(key){document.querySelectorAll('#biomeChips .chip').forEach(function(x){x.classList.toggle('active',x.dataset.b===key);});}
+function paintBiomeControl(key){document.querySelectorAll('#biomeChips .chip').forEach(function(x){x.classList.toggle('active',x.dataset.b===key);});var select=document.getElementById('biomeSelect');if(select&&select.value!==key)select.value=key;}
 (function(){
   const host=document.getElementById('chips'); if(!host) return;
-  const bar=document.createElement('div'); bar.className='chips'; bar.id='biomeChips';
-  bar.style.marginTop='0';
-  bar.innerHTML=Object.keys(LOOK).map(k=>'<button class="chip'+(k===BIOME?' active':'')+'" data-b="'+k+'">'+LOOK[k].name+'</button>').join('');
+  const bar=document.createElement('div');bar.id='biomeChips';bar.className='slider-wrap';
+  bar.innerHTML='<label for="biomeSelect">Biome <span class="val">look + materials</span></label><select id="biomeSelect">'+Object.keys(LOOK).map(k=>'<option value="'+k+'"'+(k===BIOME?' selected':'')+'>'+LOOK[k].name+'</option>').join('')+'</select>';
   host.parentNode.insertBefore(bar,host.nextSibling);
-  bar.querySelectorAll('.chip').forEach(b=>b.onclick=()=>{
-    // Bite-1 fix (2026-07-11): the biome feeds forgeParams + flora reseed — in
-    // session mode it belongs to the fight, same narrated lock as the knobs.
-    if(SESSION_ID){ clog('<i>The map belongs to the fight — the biome is locked during a session.</i>'); return; }
-    const was=BIOME; BIOME=b.dataset.b;
-    paintBiomeControl(BIOME);
-    applyLook(); if(F) renderField();
-    /* Paint changes now; species change on the next re-forge, because a kind
-       carries an occluder height and the sight lines were computed from it. */
-    if(F && was!==BIOME && (F.props||[]).some(p=>FLORA_KINDS.has(p.kind))){
-      const el=document.getElementById('dungeonName');
-      if(el) el.textContent = LOOK[BIOME].name + ' \u00b7 re-forge to reseed the flora';
-    }
-  });
+  const select=bar.querySelector('select');select.onchange=()=>{if(SESSION_ID){clog('<i>The map belongs to the fight — the biome is locked during a session.</i>');paintBiomeControl(BIOME);return;}BIOME=select.value;markForgeBattlefieldPending();};
 })();
 const MODES=[['traced','Traced art'],['tiers','Generated tiers'],['flat','Flat (contrast)'],['image','Imported map']];
 const chipsEl=document.getElementById('chips');
@@ -3241,7 +3356,8 @@ document.getElementById('autoDress').onchange=()=>{if(mode==='image'&&imgHeight)
   el.oninput=()=>{
     if(SESSION_ID){ clog('<i>The map belongs to the fight — re-forge is disabled during a session.</i>'); return; }
     document.getElementById(id+'Val').textContent=el.value+((id==='loops'||id==='decor')?'%':'');
-    if(mode==='tiers')rebuild();if(id==='foes'&&typeof refreshEncounterReadPanel==='function')refreshEncounterReadPanel();};});
+    if(id==='foes'){if(typeof refreshEncounterReadPanel==='function')refreshEncounterReadPanel();}
+    else markForgeBattlefieldPending();};});
 
 /* Archetype intent is versioned and all five generator stages own independent
    deterministic streams. Preview grammars render but cannot open a Table yet. */
@@ -3273,9 +3389,10 @@ function paintArchetypeControl(key,sessionLocked){
   archetypeEl.onchange=()=>{
     if(SESSION_ID){clog('<i>The map belongs to the fight — its archetype is locked.</i>');return;}
     const def=paintArchetypeControl(archetypeEl.value,false);
+    markForgeBattlefieldPending();
     clog(def.status==='preview'
-      ?'<i>'+escapeHtml(def.label)+' preview loaded. Place deployment groups before opening a Table.</i>'
-      :'<i>'+escapeHtml(def.label)+' archetype recorded. The staged generator is active; this selection still uses Legacy dungeon layout grammar until archetype terrain lands.</i>');
+      ?'<i>'+escapeHtml(def.label)+' selected. Generate the battlefield to load its preview.</i>'
+      :'<i>'+escapeHtml(def.label)+' selected. The current battlefield remains unchanged until Generate battlefield.</i>');
   };
   paintArchetypeControl('legacy-dungeon',false);
 })();
@@ -3378,10 +3495,14 @@ function encounterRuleForGroup(group,homeRegionId){
   return window.ForgeEncounterRegions.normalizeRule(ENCOUNTER_REGION_RULES[group.id],group,homeRegionId);
 }
 function renderDeploymentPanel(){
-  var panel=document.getElementById("deploymentPanel");if(!panel)return;panel.style.display=templeField()&&!SESSION_ID?"block":"none";if(panel.style.display==="none"){clearDeploymentMarkers();if(typeof refreshEncounterReadPanel==='function')refreshEncounterReadPanel();return;}
+  var panel=document.getElementById("deploymentPanel"),gate=document.getElementById("forgeDeploymentGate"),authoring=document.getElementById("deploymentAuthoring"),badge=document.getElementById("forgeDeploymentBadge"),nav=document.getElementById("forgeDeploymentNavStatus");if(!panel)return;panel.style.display=!SESSION_ID?"block":"none";
+  if(SESSION_ID){clearDeploymentMarkers();return;}
+  if(!templeField()){if(gate)gate.hidden=false;if(authoring)authoring.hidden=true;if(badge)badge.textContent="Unavailable";if(nav)nav.textContent="Requires regions";var title=document.getElementById("forgeDeploymentGateTitle"),copy=document.getElementById("forgeDeploymentGateText");if(title)title.textContent=forgeWorkshopMapName()+" has no authored regions.";if(copy)copy.textContent="Choose Temple Terraces or another region-aware battlefield. The encounter will remain intact.";clearDeploymentMarkers();if(typeof refreshEncounterReadPanel==='function')refreshEncounterReadPanel();return;}
+  if(gate)gate.hidden=true;if(authoring)authoring.hidden=false;
   var draft=computeDeployment(),host=document.getElementById("deploymentGroups"),assigned={},ready=0,placed=0,total=0;
   draft.plans.forEach(function(p){p.group.unitIds.forEach(function(unit){assigned[unit]=true;});if(p.ok)ready++;placed+=p.placedCount;total+=p.requestedCount;});
   document.getElementById("deploymentSummary").textContent=(draft.ok?"Deployment ready — ":"Deployment incomplete — ")+ready+" / "+draft.plans.length+" groups · "+placed+" / "+total+" combatants positioned.";
+  if(badge)badge.textContent=draft.ok?"Ready to place":"Needs placement";if(nav)nav.textContent=draft.ok?draft.plans.length+" groups ready":draft.plans.length+" groups to place";
   host.innerHTML=draft.plans.map(function(p){var g=p.group,region=p.regionId||"No flag",focus=DEPLOYMENT_FOCUS===g.id,activation=encounterRuleForGroup(g,p.regionId);
     var units=g.unitIds.map(function(unit){var manual=g.manualPositions&&g.manualPositions[unit],name=deploymentUnitName(unit);return '<div class="deployMember"><button class="deployUnit'+(manual?' manual':'')+'" data-manual-unit="'+escapeHtml(unit)+'" data-gid="'+escapeHtml(g.id)+'" title="Pin this combatant on the map">'+escapeHtml(name)+(manual?' · pinned':'')+'</button><select data-deploy-membership="'+escapeHtml(unit)+'" aria-label="Group for '+escapeHtml(name)+'">'+deploymentMembershipOptions(g.id,false)+'</select></div>';}).join('');
     return '<div class="deployGroup'+(focus?' focus':'')+'" data-gid="'+g.id+'"><div class="deployHead"><input data-deploy-name="'+g.id+'" value="'+escapeHtml(g.label)+'"><span class="deployStatus'+(p.ok?' ready':'')+'">'+(p.ok?'ready':'unresolved')+'</span><button class="deployDelete" data-deploy-remove="'+g.id+'"'+(DEPLOYMENT_GROUPS.length>1?'':' disabled title="At least one deployment group is required"')+'>Delete</button></div>'
@@ -3528,11 +3649,11 @@ document.getElementById('forgeBtn').onclick=()=>{
 document.getElementById('dice').onclick=()=>{
   if(SESSION_ID){ clog('<i>The map belongs to the fight — re-forge is disabled during a session.</i>'); return; }
   document.getElementById('seed').value=Math.floor(Math.random()*99999);
-  mode='tiers';setActiveChip('tiers');document.getElementById('seedGroup').style.opacity='1';setImgOnly(false);rebuild();};
+  mode='tiers';setActiveChip('tiers');document.getElementById('seedGroup').style.opacity='1';setImgOnly(false);markForgeBattlefieldPending();};
 document.getElementById('seed').addEventListener('keydown',e=>{
   if(e.key!=='Enter')return;
   if(SESSION_ID){ clog('<i>The map belongs to the fight — re-forge is disabled during a session.</i>'); return; }
-  mode='tiers';rebuild();});
+  mode='tiers';markForgeBattlefieldPending();});
 const hs=document.getElementById('height'),heightValEl=document.getElementById('heightVal'),heightScaleNote=document.getElementById('heightScaleNote');
 function verticalScaleLocked(){
   return !!SESSION_ID || !!(typeof CB!=="undefined"&&CB&&CB.active);
@@ -4868,10 +4989,23 @@ function foeKitFromStatblock(row){
 var __derivedKits = null;       // null = never loaded; {} or populated once boot settles
 var __deriveLoading = null;     // in-flight promise — concurrent callers share one load
 var __liveStatsCache = null;    // kept for liveStatsFor backward compat
+var __livePartyRows = [];       // real Supabase rows only; never legacy aliases
+var __sheetRefAliases = {};     // retired roster key -> current Supabase key
 var __liveStatsLoading = null;
 var __liveStatsWarned = {};
 var __genericKitWarned = {};
 var USE_FORGE_BAR = true;       // flag-guarded: true = new BG3 bar, false = old cbPanel
+
+function identityName(value){return String(value||'').toLowerCase().replace(/[^a-z0-9]/g,'');}
+function legacySheetKeyFor(character){
+  var live=identityName(character&&character.name),keys=Object.keys(STARTER_KITS),hit=null;
+  keys.some(function(key){var old=identityName(STARTER_KITS[key]&&STARTER_KITS[key].name);if(live&&old&&(live===old||live.indexOf(old)===0||old.indexOf(live)===0)){hit=key;return true;}return false;});
+  return hit;
+}
+function resolveLiveSheetRef(sheetRef){return (__sheetRefAliases&&__sheetRefAliases[sheetRef])||sheetRef;}
+function forgePartyRows(){
+  return (__livePartyRows||[]).map(function(c){return {unit:c.key,kind:'pc',sheet_ref:c.key,name:c.name||c.key};});
+}
 
 /* Phase 2e.1 field repair: GitHub file uploads do not execute the Phase 2b.1
    Node patcher. Detect an already-patched weapon-actions.js and otherwise
@@ -4988,9 +5122,9 @@ function repairDerivedKit(kit,structural){
 function loadLiveStats(){
   if (__derivedKits) return Promise.resolve(__derivedKits);
   if (__deriveLoading) return __deriveLoading;
-  if (!window.CharacterData) { __derivedKits = {}; __liveStatsCache = {}; return Promise.resolve(__derivedKits); }
+  if (!window.CharacterData) { __derivedKits = {}; __liveStatsCache = {}; __livePartyRows=[]; __sheetRefAliases={}; return Promise.resolve(__derivedKits); }
   __deriveLoading = window.CharacterData.loadParty().then(function(party){
-    var byKey = {}, derived = {};
+    var byKey = {}, derived = {}, aliases = {};
     (party || []).forEach(function(c){
       byKey[c.key] = c;
       try {
@@ -5003,18 +5137,21 @@ function loadLiveStats(){
           + escapeHtml((e && e.message) || e) + ') — using kit fallback.</i>');
         derived[c.key] = null;
       }
+      var legacy=legacySheetKeyFor(c);if(legacy&&legacy!==c.key)aliases[legacy]=c.key;
     });
+    __livePartyRows = (party||[]).slice(); __sheetRefAliases = aliases;
     __derivedKits = derived; __liveStatsCache = byKey; __deriveLoading = null;
     return __derivedKits;
   }).catch(function(e){
     clog('<i>Sheet read failed (' + escapeHtml((e && e.message) || e) + ') — using kit numbers.</i>');
-    __derivedKits = {}; __liveStatsCache = {}; __deriveLoading = null; return __derivedKits;
+    __derivedKits = {}; __liveStatsCache = {}; __livePartyRows=[]; __sheetRefAliases={}; __deriveLoading = null; return __derivedKits;
   });
   return __deriveLoading;
 }
 
 function liveStatsFor(sheetRef){
   if (!sheetRef) return null;
+  sheetRef = resolveLiveSheetRef(sheetRef);
   // If we have a derived kit, its stats are already live — no overlay needed.
   if (__derivedKits && __derivedKits[sheetRef]) return null;
   var c = __liveStatsCache && __liveStatsCache[sheetRef];
@@ -5041,6 +5178,7 @@ var GENERIC_PC_KIT = { ac: 10, speed: 30, init: 0,
 
 function kitFor(key){
   if (!key) return null;
+  key = resolveLiveSheetRef(key);
   // 1. Derived kit (full live-data derivation)
   if (__derivedKits && __derivedKits[key]) return __derivedKits[key];
   // 2. STARTER_KITS fallback (hand-tuned) — wrapped so `tabs` always exist
@@ -5069,14 +5207,15 @@ function kitFor(key){
    kit — this is the one door kit sourcing widens through. */
 function unitFromRosterRow(row, stateUnit){
   var isPc = (row.kind || "pc") === "pc";
+  var sheetKey = isPc ? resolveLiveSheetRef(row.sheet_ref || row.unit) : row.unit;
   var side = ((stateUnit&&stateUnit.side)||row.side||(isPc?"pc":"foe")) === "foe" ? "foe" : "pc";
   var foeKit = isPc ? null : foeKitFromStatblock(row);
-  var kit = isPc ? (kitFor(row.sheet_ref) || kitFor(row.unit)) : (foeKit || FOE);
+  var kit = isPc ? (kitFor(sheetKey) || kitFor(row.unit)) : (foeKit || FOE);
   // Task 16 (bite 1): session-mode live ac/speed/init overlay — unitFromRosterRow
   // is only ever called from session paths (spawnFromState/spawnUnitFromState),
   // never the local sandbox's startCombat(), so this is naturally session-only.
   if (isPc && kit) {
-    var live = liveStatsFor(row.sheet_ref || row.unit);
+    var live = liveStatsFor(sheetKey);
     if (live) kit = Object.assign({}, kit, live);
   }
   var pos = (stateUnit && stateUnit.pos) || row.pos;
@@ -5089,7 +5228,7 @@ function unitFromRosterRow(row, stateUnit){
   var hpMax = (stateUnit && stateUnit.maxHp != null) ? stateUnit.maxHp : (row.maxHp != null ? row.maxHp : (kit && (kit.hpMax != null ? kit.hpMax : kit.hp)));
   var alive = stateUnit ? !stateUnit.downed : true;
   var badge = (window.__fightControllers && window.__fightControllers[row.unit] && window.__fightControllers[row.unit].badge) || null;
-  var u = buildUnit(kit, side, { id: row.unit, key: isPc ? (row.sheet_ref || row.unit) : row.unit,
+  var u = buildUnit(kit, side, { id: row.unit, key: sheetKey,
     unit: row.unit, name: row.name || (kit && kit.name) || row.unit,
     c: pos.c, r: pos.r, hp: hp, hpMax: hpMax, alive: alive,deathSaves:stateUnit&&stateUnit.deathSaves, badge: badge,
     tokenArt: (stateUnit&&stateUnit.tokenArt)||row.tokenArt||row.token_url||null,
@@ -5100,7 +5239,7 @@ function unitFromRosterRow(row, stateUnit){
   u.reacted=!!(stateUnit&&stateUnit.reactionUsed);
   if (!isPc) { u.mActions = kit && kit.mActions; u.foeReference=kit&&kit.reference;u.statblock = row.statblock || null; }
   else {
-    var liveRow=__liveStatsCache&&__liveStatsCache[row.sheet_ref||row.unit];
+    var liveRow=__liveStatsCache&&__liveStatsCache[sheetKey];
     var saves=liveRow&&liveRow.structural&&liveRow.structural.saves;
     if(saves) Object.keys(saves).forEach(function(k){var v=saves[k];u.saveMods[k]=+(v&&v.bonus!=null?v.bonus:v)||0;});
   }
@@ -5352,7 +5491,7 @@ function rosterMaps(sess){
   var byUnit={}, unitForKey={};
   (sess.row.roster||[]).forEach(function(r){
     byUnit[r.unit]=r;
-    if (r.sheet_ref) unitForKey[r.sheet_ref]=r.unit;
+    if (r.sheet_ref) { unitForKey[r.sheet_ref]=r.unit; unitForKey[resolveLiveSheetRef(r.sheet_ref)]=r.unit; }
   });
   return { byUnit:byUnit, unitForKey:unitForKey };
 }
@@ -5370,8 +5509,8 @@ function runMirror(before, after, sess){
   var maps=rosterMaps(sess);
   var plan=window.ForgeBoard.mirrorPlan(before, after, myMirrorUnits(sess), maps.byUnit);
   plan.forEach(function(p){
-    var unit=maps.unitForKey[p.key];
-    if (unit) __mirrorQueue.set(p.key, unit);   // latest-wins: overwrite, value re-read at drain
+    var key=resolveLiveSheetRef(p.key),unit=maps.unitForKey[key]||maps.unitForKey[p.key];
+    if (unit) __mirrorQueue.set(key, unit);   // latest-wins: overwrite, value re-read at drain
   });
 }
 /* One queued key → one write. Reads pipe.state() FRESH here (not the value
@@ -5487,9 +5626,9 @@ function startCombatNow(){
   if(templeField()&&authored&&authored.resolved){
     var selected=window.__fightRoster||[],rows=rosterWithDeployment(buildRoster(),authored).filter(function(row){return(row.kind||"pc")!=="pc"||!selected.length||selected.indexOf(row.unit)>=0;});
     var missing=rows.filter(function(row){return !row.pos;});if(missing.length){CB.active=false;clog("<i>Deployment is incomplete for "+missing.map(function(row){return escapeHtml(row.name||row.unit);}).join(", ")+".</i>");return;}
-    rows.forEach(function(row){var sourcePc=(row.kind||"pc")==="pc",kit=sourcePc?(kitFor(row.sheet_ref||row.unit)||CHAR[row.sheet_ref||row.unit]):(foeKitFromStatblock(row)||FOE);if(!kit)return;
+    rows.forEach(function(row){var sourcePc=(row.kind||"pc")==="pc",sheetKey=sourcePc?resolveLiveSheetRef(row.sheet_ref||row.unit):row.unit,kit=sourcePc?(kitFor(sheetKey)||CHAR[row.sheet_ref||row.unit]):(foeKitFromStatblock(row)||FOE);if(!kit)return;
       var badge=(window.__fightControllers&&window.__fightControllers[row.unit]&&window.__fightControllers[row.unit].badge)||null;
-      var u=buildUnit(kit,row.side==="foe"?"foe":"pc",{id:row.unit,key:sourcePc?(row.sheet_ref||row.unit):row.unit,unit:row.unit,name:row.name||kit.name,c:row.pos.c,r:row.pos.r,hp:kit.hp,hpMax:(kit.hpMax!=null?kit.hpMax:kit.hp),badge:badge});
+      var u=buildUnit(kit,row.side==="foe"?"foe":"pc",{id:row.unit,key:sheetKey,unit:row.unit,name:row.name||kit.name,c:row.pos.c,r:row.pos.r,hp:kit.hp,hpMax:(kit.hpMax!=null?kit.hpMax:kit.hp),badge:badge});
       if(!sourcePc){u.mActions=kit.mActions;u.statblock=row.statblock||null;}CB.units.push(u);makeToken(u);});
   }else{
   var maxH=cells.reduce(function(m,c){return Math.max(m,c.h);},0), minH=cells.reduce(function(m,c){return Math.min(m,c.h);},99);
@@ -7502,6 +7641,8 @@ window.renderHud = renderHud;
 window.kitFor = kitFor;
 window.liveStatsFor = liveStatsFor;
 window.loadLiveStats = loadLiveStats;
+window.resolveLiveSheetRef = resolveLiveSheetRef;
+window.forgePartyRows = forgePartyRows;
 
 /* ── Bite 2: bridge forge-bar custom events to module-scoped functions ── */
 document.addEventListener("forge:selectAction", function(e){
@@ -7628,14 +7769,14 @@ SESSION_ID = qs.get('session');
 if (SESSION_ID) {
   enforceTacticalVerticalScale('session');
   var SESSION_LOCK_TITLE = "The map belongs to the fight — re-forge is disabled during a session.";
-  ["archetype","rooms","loops","decor","foes","seed","dice","forgeBtn","loadHeight","loadType"].forEach(function(id){
+  ["archetype","biomeSelect","rooms","loops","decor","foes","seed","dice","forgeBtn","loadHeight","loadType"].forEach(function(id){
     var el = document.getElementById(id);
     if (el) { el.disabled = true; el.title = SESSION_LOCK_TITLE; }
   });
   // Bite-1 fix (2026-07-11): the mode + biome chips bypassed this lock (their
   // handlers call rebuild()/applyLook with no gate) — now inert AND look it,
   // same belt-and-suspenders the knobs get; handlers also narrate the no-op.
-  document.querySelectorAll("#chips .chip, #biomeChips .chip").forEach(function(el){
+  document.querySelectorAll("#chips .chip, #biomeChips .chip, #biomeSelect").forEach(function(el){
     el.disabled = true; el.title = SESSION_LOCK_TITLE; el.style.opacity = "0.4";
   });
   /* C2 (final-review): the combat HUD's local time-travel cluster (rewind/
@@ -7707,6 +7848,9 @@ if (SESSION_ID) {
    panel's lifecycle doors (Roll Initiative / Save for later / staged list)
    share it, so "signed in" means the same thing everywhere on this page. */
 const sb = window.supabase.createClient(SUPA_URL, SUPA_KEY);
+// Forge is a standalone surface without nav.js, but CharacterData remains the
+// character authority in both local authoring and shared-session modes.
+window.__tok = window.__tok || { sb: sb, ready: Promise.resolve(true) };
 let __pipe = null;
 /* Task 13: sheet mirror (FORGE_BOARD.md §5) — module-level (not bootSession-
    local) so both onEvent (inside bootSession) and syncRosterFacts/
@@ -7958,11 +8102,13 @@ function wireFoePicker(){
   });
 }
 
-/* Task 14's real roster: PC rows unchanged (every CHAR key, as before). The
+/* Task 14's real roster: live CharacterData rows own PC identity. The starter
+   keys remain only as a cold/offline fallback and for old-session aliases. The
    base slider owns generic goblins; bestiary picks add deep-cloned statblocks
    without deleting those goblins or their authored deployment membership. */
 function buildRoster(){
-  var pcs = Object.keys(CHAR).map(function(key){ return { unit: key, kind: 'pc', sheet_ref: key }; });
+  var pcs = forgePartyRows();
+  if(!pcs.length)pcs=Object.keys(CHAR).map(function(key){ return { unit: key, kind: 'pc', sheet_ref: key }; });
   var foes = [], foeN = Math.max(0, +document.getElementById('foes').value || 0);
   for (var i = 1; i <= foeN; i++) foes.push({ unit: 'foe-goblin-' + i, kind: 'foe', name: 'Goblin ' + i,
     bestiary:{name:'Goblin',source:'MM'} });
@@ -7996,7 +8142,7 @@ function encounterPreparedRoster(){
   return {map:map,rows:roster.filter(function(row){return row.kind!=='pc'||!chosen||chosen[row.sheet_ref||row.unit];})};
 }
 function encounterPartyFact(row){
-  var key=row.sheet_ref||row.unit,live=__liveStatsCache&&__liveStatsCache[key],structural=live&&live.structural||{},vitals=live&&live.vitals||{},combat=structural.combat||{},kit=kitFor(key)||CHAR[key]||{};
+  var rosterKey=row.sheet_ref||row.unit,key=resolveLiveSheetRef(rosterKey),live=__liveStatsCache&&__liveStatsCache[key],structural=live&&live.structural||{},vitals=live&&live.vitals||{},combat=structural.combat||{},kit=kitFor(key)||CHAR[rosterKey]||{};
   var level=window.ForgeEncounterRead.levelOf(structural)||ENCOUNTER_LEVEL_FALLBACK[key]||null;
   var maxHp=combat.hpMax!=null?Number(combat.hpMax):Number(kit.hpMax!=null?kit.hpMax:kit.hp),currentHp=vitals.hp!=null?Number(vitals.hp):(combat.hp!=null?Number(combat.hp):Number(kit.hp));
   return {unit:row.unit,name:structural.name||live&&live.name||kit.name||key,level:level,currentHp:currentHp,maxHp:maxHp,pos:row.pos||null,structural:structural};
@@ -8051,6 +8197,7 @@ function renderEncounterReadPanel(){
   document.getElementById('encounterReadActions').textContent=side.count+' : '+read.party.count;
   document.querySelectorAll('[data-encounter-read]').forEach(function(button){button.classList.toggle('active',button.dataset.encounterRead===ENCOUNTER_READ_VIEW);});
   document.querySelectorAll('[data-encounter-suggest]').forEach(function(button){button.classList.toggle('active',button.dataset.encounterSuggest===ENCOUNTER_SUGGEST_MODE);});
+  refreshForgeWorkshopSummary(payload);
   renderEncounterWarnings(read);if(ENCOUNTER_SUGGEST_OPEN)renderEncounterSuggestionRows(read,encounterSelectedCreatures(payload.enemies));
   if(__liveStatsCache==null&&!__deriveLoading)loadLiveStats().then(function(){refreshEncounterReadPanel();});
 }
@@ -8068,6 +8215,7 @@ bindEncounterReadPanel();refreshEncounterReadPanel();
    swapped for the real generator output. Shared by both doors. */
 async function openTable(uid){
   try {
+    await loadLiveStats();
     var savedMap=__forgeSessionMap(),savedRoster=rosterWithEncounterRegions(rosterWithDeployment(buildRoster(),savedMap.deployment),savedMap.encounterRegions);
     var ins = await sb.from('forge_sessions').insert({
       overseer: uid, map: savedMap, roster: savedRoster, controllers: {}, status: 'staging'
@@ -8968,7 +9116,7 @@ async function startFight(){
         }
         return;
       }
-      var c=byKey[r.sheet_ref||r.unit];
+      var liveKey=resolveLiveSheetRef(r.sheet_ref||r.unit),c=byKey[liveKey];
       if(c){
         var cmb=(c.structural&&c.structural.combat)||{}, v=c.vitals||{};
         r.hp=(v.hp!=null)?v.hp:(cmb.hp||0);
@@ -8978,7 +9126,7 @@ async function startFight(){
         r.hp=kit?kit.hp:(r.hp||1); r.maxHp=kit?kit.hp:(r.maxHp||r.hp||1);
         clog("<i>"+escapeHtml(r.name||r.unit)+": no character sheet — using kit HP.</i>");
       }
-      var resKit=kitFor(r.sheet_ref||r.unit)||CHAR[r.sheet_ref||r.unit];r.resources=normalizeResourceRecord(resKit&&resKit.res||r.resources||{});
+      var resKit=kitFor(liveKey)||CHAR[r.sheet_ref||r.unit];r.resources=normalizeResourceRecord(resKit&&resKit.res||r.resources||{});
     });
     // b) New authored encounters already carry exact DM-approved deployment.
     // Historical rows keep the established one-time compatibility placement.

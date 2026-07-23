@@ -30,7 +30,7 @@
 
 import { assembleActions, meleeWeaponOptions } from './weapon-actions.js';
 import { spellDetailHTML, feedSummary } from './spell-detail.js';
-import { addFeatureCorrection, addSpellCorrection, addSuppressionCorrection, classNamesOf, closeCorrection, correctionLedger, spellExists } from './sheet-corrections.js?v=sup1';
+import { addFeatureCorrection, addSpellCorrection, addSuppressionCorrection, classNamesOf, closeCorrection, correctionLedger, spellExists } from './sheet-corrections.js?v=cp1';
 
 // ── ResourceDerive resolver (browser global, set by resource-derive.js) ──
 function rd() {

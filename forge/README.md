@@ -123,7 +123,12 @@ future intent-owned `bridge-crossing` archetype.
 - **`forge/index.html`** — the canonical **The Forge** implementation, served at `/forge/`.
 - **`forge/topography-test-mock.html`** — compatibility redirect only. It preserves query/hash parameters so existing session and join links continue to work.
 - **Workshop** is the pre-session authoring mode; **Table** is the persistent shared encounter mode.
-- Supported controls live in the **Active** tab. Future work is represented by descriptive cards in **Planned**, not disabled fake controls.
+- Workshop is organized as **Encounter → Battlefield → Deployment → Advanced**.
+  Encounter Read and the Bestiary remain available before map generation;
+  battlefield recipe changes stay pending until **Generate battlefield**;
+  Deployment remains visible and narrates when the current map has no authored
+  regions; camera, rendering, geometry, architecture, imports, and future-work
+  cards remain collapsed under Advanced.
 
 Historical mocks remain useful as design and port references, but none is a second production surface.
 

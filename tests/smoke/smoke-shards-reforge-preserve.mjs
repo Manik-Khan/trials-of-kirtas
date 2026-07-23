@@ -39,6 +39,7 @@ const cur = { structural: {
   rollerFlags: { advantage:false },
   defaultSlots: [4,3,0,0],
   corrections: { version:1, active:[{ id:'corr_shield', kind:'spell', name:'Shield', source:'Sorcerer' }], history:[{ kind:'added', subject:'Shield' }] },
+  spells: { 1:[{ name:'Hellish Rebuke' }] },
   abilities: { STR:{ score:8, mod:-1 } },
   name: 'Vesperian (old)'
 }};
@@ -65,6 +66,7 @@ ok('manual correction ledger preserved', merged.corrections && merged.correction
 ok('abilities overwritten by the new build', merged.abilities.STR.score === 10);
 ok('name overwritten by the new build', merged.name === 'Vesperian');
 ok('spellcasting comes from the new build', !!merged.spellcasting && Array.isArray(merged.spellcasting.groups));
+ok('modern reforge removes the stale legacy spells map', !Object.prototype.hasOwnProperty.call(merged, 'spells'));
 ok('_build snapshot comes from the new build', merged._build && merged._build.method === 'manual');
 
 // when the derive DOES carry a portrait, it wins

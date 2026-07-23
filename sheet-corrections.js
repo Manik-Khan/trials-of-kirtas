@@ -6,6 +6,8 @@
 // a reforge's top-level merge preserves them. The render layer applies corrections
 // to a clone; it never rewrites generated data. History is append-only.
 
+import './character-sheet-projection.js?v=cp1';
+
 function clone(x) { return JSON.parse(JSON.stringify(x == null ? {} : x)); }
 function normName(x) { return String(x == null ? '' : x).trim().toLowerCase(); }
 
@@ -143,62 +145,9 @@ export function spellExists(spellcasting, name) {
 }
 
 export function applySpellCorrections(spellcasting, structural) {
-  var out = clone(spellcasting || {}), ledger = correctionLedger(structural), added = [], suppressed = [];
-  out.groups = Array.isArray(out.groups) ? out.groups : [];
-  var hides = ledger.active.filter(function (c) { return c && c.kind === 'spell' && correctionAction(c) === 'suppress'; });
-  out.groups.forEach(function (g) {
-    g.spells = (g.spells || []).filter(function (sp) {
-      var hit = hides.filter(function (c) { return sameTarget(c, 'spell', 'suppress', sp && sp.name, sp && sp.source); })[0];
-      if (hit) suppressed.push(hit.id);
-      return !hit;
-    });
-  });
-  out.groups = out.groups.filter(function (g) { return (g.spells || []).length; });
-  ledger.active.forEach(function (c) {
-    if (!c || c.kind !== 'spell' || correctionAction(c) !== 'add' || !c.name || spellExists(out, c.name)) return;
-    var level = Math.max(0, Math.min(9, parseInt(c.level, 10) || 0));
-    var group = out.groups.filter(function (g) { return parseInt(g.level, 10) === level; })[0];
-    if (!group) {
-      var ord = ['', '1st', '2nd', '3rd', '4th', '5th', '6th', '7th', '8th', '9th'];
-      group = { heading: level === 0 ? 'Cantrips · At Will' : ((ord[level] || (level + 'th')) + ' Level'), level: level, spells: [] };
-      out.groups.push(group);
-    }
-    var meta = c.spell || {};
-    group.spells.push({
-      name: c.name,
-      origin: 'manual',
-      source: c.source || 'Manual',
-      time: meta.time || meta.castingTime || '',
-      level: level,
-      conc: !!meta.concentration,
-      ritual: !!meta.ritual,
-      correctionId: c.id,
-      correctionStatus: c.status || 'unreviewed'
-    });
-    added.push(c.id);
-  });
-  out.groups.sort(function (a, b) { return (parseInt(a.level, 10) || 0) - (parseInt(b.level, 10) || 0); });
-  out.correctionSummary = correctionSummary(structural);
-  out.correctionIdsRendered = added;
-  out.correctionIdsSuppressed = suppressed;
-  return out;
+  return globalThis.CharacterSheetProjection.applySpellCorrections(spellcasting, structural);
 }
 
 export function applyFeatureCorrections(features, structural) {
-  var out = clone(Array.isArray(features) ? features : []), ledger = correctionLedger(structural), suppressed = [];
-  var hides = ledger.active.filter(function (c) { return c && c.kind === 'feature' && correctionAction(c) === 'suppress'; });
-  out = out.filter(function (f) {
-    var hit = hides.filter(function (c) { return sameTarget(c, 'feature', 'suppress', f && f.name, f && f.source); })[0];
-    if (hit) suppressed.push(hit.id);
-    return !hit;
-  });
-  ledger.active.forEach(function (c) {
-    if (!c || c.kind !== 'feature' || correctionAction(c) !== 'add' || !c.name) return;
-    if (out.some(function (f) { return normName(f && f.name) === normName(c.name); })) return;
-    out.push({
-      name: c.name, desc: c.desc || c.note || '', source: 'custom:' + (c.source || 'Manual'),
-      correctionId: c.id, correctionStatus: c.status || 'unreviewed'
-    });
-  });
-  return { features: out, correctionIdsSuppressed: suppressed };
+  return globalThis.CharacterSheetProjection.applyFeatureCorrections(features, structural);
 }

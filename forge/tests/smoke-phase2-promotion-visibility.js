@@ -18,7 +18,7 @@ ok("initiative editor owns the viewport above the HUD",html.includes("body.forge
 ok("initiative card scrolls without falling behind the HUD",html.includes("max-height:calc(100dvh - 28px)")&&html.includes("#cbInitLobbyList{overflow:auto"));
 ok("initiative uses one compact manual-total entry",html.includes("Roll digitally or enter a final total")&&html.includes("Final initiative total")&&!html.includes("Use d20"));
 ok("initiative evidence uses high-contrast presentation",html.includes(".cbInitEvidence{grid-column:1/-1;font:600 12px")&&html.includes("color:#3f3428"));
-ok("new derivation cache stamp is present",html.includes("forge-kit-derive.js?v=b10"));
+ok("new derivation cache stamp is present",html.includes("forge-kit-derive.js?v=b11"));
 
 const stale={level:4,proficiencyBonus:2,abilities:{dex:{score:12,mod:1}},features:[{name:"Jack of All Trades"}]};
 const joat=FK.initiativeProfileFor(stale,[],{init:1});

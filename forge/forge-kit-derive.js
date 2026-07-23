@@ -33,6 +33,13 @@
     return 2 + Math.floor((Math.max(1, structural.level || 1) - 1) / 4);
   }
   function has(s, frag) { return (s || "").toLowerCase().indexOf(frag) !== -1; }
+  function characterProjectionApi() {
+    if (typeof globalThis !== "undefined" && globalThis.CharacterSheetProjection) return globalThis.CharacterSheetProjection;
+    if (typeof require === "function") {
+      try { return require('../character-sheet-projection.js'); } catch (_err) {}
+    }
+    return null;
+  }
   function titleCase(s) { return String(s || "").replace(/\b\w/g, function (c) { return c.toUpperCase(); }); }
   /* Pool-key normaliser: map live data keys (spell_1, pactSlots) to the forge's
      flat resource keys (slot1, pact) that STARTER_KITS already established. */
@@ -1029,7 +1036,10 @@ function combatErrorKit(charData, err) {
 
     // Hellish Rebuke via racial (Tiefling): not a spell slot cost — uses the
     // once/long-rest racial resource. Check structural.features or race.
-    if (has(s.race, "tiefling")) {
+    var hasRacialRebuke = spellGroupsFrom(s).some(function (g) {
+      return (g.spells || []).some(function (sp) { return has(sp && sp.name, "hellish rebuke"); });
+    });
+    if (has(s.race, "tiefling") && (!s._canonicalSpellcastingAuthored || hasRacialRebuke)) {
       // Derive DC from Constitution (Infernal Legacy variant) or Charisma
       var hrDc = 8 + profBonus(s) + abilMod(s, has(s.race, "feral") ? "con" : "cha");
       react.hellishRebuke = { cost: { rebuke: 1 }, dc: hrDc, dmg: "2d10", saveAbility: "dex" };
@@ -1173,7 +1183,9 @@ function combatErrorKit(charData, err) {
       return wrapGenericKit(charData);
     }
 
-    var s = charData.structural || {};
+    var rawStructural = charData.structural || {}, projection = characterProjectionApi();
+    var s = projection ? projection.projectStructural(rawStructural) : rawStructural;
+    s._canonicalSpellcastingAuthored = !!(rawStructural.spellcasting && Array.isArray(rawStructural.spellcasting.groups));
     var v = charData.vitals     || {};
     var inv = charData.inventory || [];
 

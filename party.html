@@ -250,7 +250,8 @@
   <script src="battle.js"></script>
   <script src="combatants-backend.js"></script>
   <script src="feed-bridge.js"></script>
-  <script>
+  <script type="module">
+  import { toRenderShape } from './sheet-mount.js?v=src1';
   /* ============ PARTY MENU app — read-only v1, live data ============ */
   (function () {
     'use strict';
@@ -293,25 +294,27 @@
 
     const S = { party: [], pi: 0, si: 0, storyTab: 'bio', focus: 'rail', ci: 0 };
 
-    const curHp = c => (c.vitals && c.vitals.hp != null) ? c.vitals.hp : ((c.structural.combat || {}).hp || 0);
-    const maxHp = c => ((c.structural.combat || {}).hpMax || 0) + ((c.vitals && c.vitals.hpBonus) || 0);
+    const sheetView = c => toRenderShape(c);
+    const sheetStructural = c => sheetView(c).structural;
+    const curHp = c => (c.vitals && c.vitals.hp != null) ? c.vitals.hp : ((sheetStructural(c).combat || {}).hp || 0);
+    const maxHp = c => ((sheetStructural(c).combat || {}).hpMax || 0) + ((c.vitals && c.vitals.hpBonus) || 0);
     const classLine = c => {
-      const s = c.structural;
+      const s = sheetStructural(c);
       return [s.classLabel, s.subclass && '(' + s.subclass + ')', s.level && 'Level ' + s.level, s.race]
         .filter(Boolean).join(' \u00B7 ');
     };
 
     function renderParty() {
       $('#pm-row').innerHTML = S.party.map((c, i) => {
-        const cmb = c.structural.combat || {};
+        const s = sheetStructural(c), cmb = s.combat || {};
         const max = maxHp(c), hp = curHp(c), pct = max ? Math.round(100 * hp / max) : 0;
-        const portrait = c.structural.portrait
-          ? '<div class="portrait" style="background-image:url(\'' + esc(c.structural.portrait) + '\')'
+        const portrait = s.portrait
+          ? '<div class="portrait" style="background-image:url(\'' + esc(s.portrait) + '\')'
             + (PORT_POS[c.key] ? ';background-position:' + PORT_POS[c.key] : '') + '"></div>' : '';
         return '<div class="pcard ' + (i === S.pi ? 'sel' : 'dim') + '" data-i="' + i + '" tabindex="0" role="button" aria-label="Open ' + esc(c.name) + '">'
           + portrait + '<div class="initial">' + esc((c.name || '?')[0]) + '</div><div class="wash"></div>'
-          + '<div class="badge">' + esc(c.structural.classLabel || '') + '</div><div class="slash"></div>'
-          + '<div class="plate"><div class="nm">' + esc(c.name) + '</div><div class="epi">' + esc(c.structural.background || c.structural.race || '') + '</div>'
+          + '<div class="badge">' + esc(s.classLabel || '') + '</div><div class="slash"></div>'
+          + '<div class="plate"><div class="nm">' + esc(c.name) + '</div><div class="epi">' + esc(s.background || s.race || '') + '</div>'
           + '<div class="vit"><div class="hpwrap"><div class="hplabel"><span>HP</span><span>' + hp + ' / ' + max + '</span></div>'
           + '<div class="hpbar"><i style="width:' + pct + '%"></i></div></div>'
           + '<div class="stat"><b>' + (cmb.ac != null ? cmb.ac : '\u2014') + '</b><span>AC</span></div>'
@@ -338,10 +341,11 @@
     }
     function renderSheet() {
       const c = S.party[S.pi];
+      const s = sheetStructural(c);
       $('#pm-nm').textContent = c.name;
       $('#pm-cls').textContent = classLine(c);
       $('#pm-ghost').textContent = (c.name || '?')[0];
-      $('#pm-pbg').style.backgroundImage = c.structural.portrait ? "url('" + c.structural.portrait + "')" : 'none';
+      $('#pm-pbg').style.backgroundImage = s.portrait ? "url('" + s.portrait + "')" : 'none';
       $('#pm-pbg').style.backgroundPosition = PORT_POS[c.key] || '';
       $('#pm-words').innerHTML = SECTIONS.map((s, i) =>
         '<button class="word ' + (i === S.si ? 'sel' : '') + '" data-i="' + i + '">' + s.word + '<span class="sub">' + s.sub + '</span></button>').join('');
@@ -399,7 +403,7 @@
     // ── HP tracker (ported from sheet.html → characters.vitals) ──
     let _hpSaveTimer = null, _hpPendingStructural = false;
     function pmHpState(c) {
-      const cmb = c.structural.combat || {}, v = c.vitals || {};
+      const cmb = sheetStructural(c).combat || {}, v = c.vitals || {};
       const m0 = cmb.hpMax || 0, bonus = v.hpBonus || 0, temp = v.hpTemp || 0;
       const cur = (v.hp != null) ? v.hp : (cmb.hp != null ? cmb.hp : (m0 + bonus));
       return { m0, bonus, temp, cur };
@@ -502,7 +506,7 @@
 
     const WORK = {
       stats(c) {
-        const s = c.structural, cmb = s.combat || {}, ab = s.abilities || {};
+        const s = sheetStructural(c), cmb = s.combat || {}, ab = s.abilities || {};
         const order = ['str','dex','con','int','wis','cha'];
         const vbig = (cls, val, lab) => '<div class="vbig ' + cls + '"><b>' + val + '</b><span>' + lab + '</span></div>';
         return head('STATS') +
@@ -517,14 +521,14 @@
           + '<div class="abil">' + order.map(k => { const a = ab[k] || {}; return '<div class="ab" data-ab="' + k + '"><div class="lbl">' + k.toUpperCase() + '</div><div class="mod">' + (a.mod != null ? sgn(a.mod) : '\u2014') + '</div><div class="raw">' + (a.score != null ? a.score : '\u2014') + '</div></div>'; }).join('') + '</div>';
       },
       skills(c) {
-        const sk = c.structural.skills || [];
+        const sk = sheetStructural(c).skills || [];
         return head('SKILLS') + sk.map((row, i) => {
           const pro = row.prof && row.prof !== 'none' && row.prof !== '';
           return '<div class="lrow ' + (pro ? 'pro' : '') + '" data-sk="' + i + '"><span class="nm3">' + esc(row.name) + '</span><span class="v">' + sgn(row.bonus || 0) + '</span></div>';
         }).join('');
       },
       features(c) {
-        const fs = c.structural.features || [];
+        const fs = sheetStructural(c).features || [];
         const bySrc = {};
         fs.forEach((f, i) => { const k = f.source || 'Other'; (bySrc[k] = bySrc[k] || []).push(i); });
         return head('FEATURES') + Object.keys(bySrc).map(src =>
@@ -533,7 +537,7 @@
         ).join('');
       },
       spells(c) {
-        const sp = c.structural.spells || {}, cf = c.structural.classFeatures || {};
+        const s = sheetStructural(c), sc = s.spellcasting || {}, cf = s.classFeatures || {};
         const slots = [];
         Object.keys(cf).forEach(k => {
           const v = cf[k];
@@ -543,12 +547,12 @@
         const slotHtml = slots.map(([lab, cur, max]) =>
           '<div class="grp-title" style="margin-top:0">' + esc(String(lab).replace(/([A-Z])/g, ' $1').toUpperCase()) + '<span class="pips">'
           + Array.from({ length: max }, (_, k) => '<span class="pip ' + (k < (max - cur) ? 'full' : '') + '"></span>').join('') + '</span></div>').join('');
-        const order = Object.keys(sp).sort((a, b) => (a === 'cantrip' ? -1 : b === 'cantrip' ? 1 : a - b));
-        const lists = order.map(lvl => {
-          const arr = sp[lvl] || [];
-          const label = lvl === 'cantrip' ? 'CANTRIPS' : 'LEVEL ' + lvl;
-          return '<div class="grp-title">' + label + '</div>' + arr.map((s2, i) =>
-            '<div class="lrow" data-sp="' + lvl + ':' + i + '"><span class="nm3">' + esc(s2.name) + '</span><span class="v" style="min-width:auto;font-size:12px;color:var(--fg-dim)">' + esc(s2.castingTime || '') + '</span></div>').join('');
+        const groups = (sc.groups || []).slice().sort((a, b) => (Number(a.level) || 0) - (Number(b.level) || 0));
+        const lists = groups.map((group, gi) => {
+          const arr = group.spells || [], lvl = Number(group.level) || 0;
+          const label = group.heading || (lvl === 0 ? 'CANTRIPS' : 'LEVEL ' + lvl);
+          return '<div class="grp-title">' + esc(label.toUpperCase()) + '</div>' + arr.map((s2, i) =>
+            '<div class="lrow" data-sp="' + gi + ':' + i + '"><span class="nm3">' + esc(s2.name) + '</span><span class="v" style="min-width:auto;font-size:12px;color:var(--fg-dim)">' + esc(s2.time || s2.castingTime || '') + '</span></div>').join('');
         }).join('');
         return head('SPELLS') + slotHtml + (slotHtml ? '<div style="height:14px"></div>' : '') + (lists || '<div style="color:var(--fg-dim);font-size:14px">No spells.</div>');
       },
@@ -580,7 +584,7 @@
 
     const WIRE = {
       stats(w, c) {
-        const ab = c.structural.abilities || {}, sk = c.structural.skills || [], sv = c.structural.saves || {};
+        const s = sheetStructural(c), ab = s.abilities || {}, sk = s.skills || [], sv = s.saves || {};
         w.querySelectorAll('.ab').forEach(el => el.addEventListener('click', () => {
           selOne(w, el); const k = el.dataset.ab, a = ab[k] || {}, save = sv[k] || {};
           const linked = sk.filter(s => (s.attr || '').toLowerCase() === k).map(s => s.name).join(', ');
@@ -590,7 +594,7 @@
         const _hp = w.querySelector('.pm-hp'); if (_hp) wireHp(_hp, c);
       },
       skills(w, c) {
-        const sk = c.structural.skills || [];
+        const sk = sheetStructural(c).skills || [];
         w.querySelectorAll('.lrow').forEach(el => el.addEventListener('click', () => {
           selOne(w, el); const row = sk[+el.dataset.sk] || {};
           const desc = SKILL_DESC[row.name] || '';
@@ -599,7 +603,7 @@
         }));
       },
       features(w, c) {
-        const fs = c.structural.features || [];
+        const fs = sheetStructural(c).features || [];
         w.querySelectorAll('.lrow').forEach(el => el.addEventListener('click', () => {
           selOne(w, el); const f = fs[+el.dataset.ft] || {};
           setDetail('<div class="d-head"><span class="d-name">' + esc(f.name) + '</span><span class="d-type">' + esc(f.source || '') + '</span></div>'
@@ -607,12 +611,12 @@
         }));
       },
       spells(w, c) {
-        const sp = c.structural.spells || {};
+        const groups = (sheetStructural(c).spellcasting || {}).groups || [];
         w.querySelectorAll('.lrow').forEach(el => el.addEventListener('click', () => {
-          selOne(w, el); const parts = el.dataset.sp.split(':'); const s = (sp[parts[0]] || [])[+parts[1]] || {};
-          const meta = [parts[0] === 'cantrip' ? 'Cantrip' : 'Level ' + parts[0], s.castingTime, s.range, s.duration].filter(Boolean).join(' \u00B7 ');
+          selOne(w, el); const parts = el.dataset.sp.split(':'), group = groups[+parts[0]] || {}, s = (group.spells || [])[+parts[1]] || {}, lvl = Number(group.level) || 0;
+          const meta = [lvl === 0 ? 'Cantrip' : 'Level ' + lvl, s.time || s.castingTime, s.range, s.duration].filter(Boolean).join(' \u00B7 ');
           setDetail('<div class="d-head"><span class="d-name">' + esc(s.name) + '</span><span class="d-type">' + esc(meta) + '</span></div>'
-            + '<div class="d-body">Casting time ' + esc(s.castingTime || '\u2014') + ' \u00B7 range ' + esc(s.range || '\u2014') + ' \u00B7 duration ' + esc(s.duration || '\u2014') + '.</div>');
+            + '<div class="d-body">Casting time ' + esc(s.time || s.castingTime || '\u2014') + ' \u00B7 range ' + esc(s.range || '\u2014') + ' \u00B7 duration ' + esc(s.duration || '\u2014') + '.</div>');
         }));
       },
       gear(w, c) {
@@ -741,7 +745,15 @@
       if (_dispCh) return;
       _dispCh = _sb.channel('party-display')
         .on('postgres_changes', { event: 'UPDATE', schema: 'public', table: 'characters' },
-          ({ new: row }) => { const v = vitalsRow(row); if (v) refreshSheetVitals(row.key, v); })
+          ({ new: row }) => {
+            const m = row && S.party.find(p => p.key === row.key); if (!m) return;
+            const s = row.structural && typeof row.structural === 'object' ? row.structural : m.structural;
+            m.structural = s;
+            m.name = (s && s.name) || m.name;
+            ['vitals','inventory','equipment','currency','bio','notes'].forEach(k => { if (row[k] != null) m[k] = row[k]; });
+            renderParty();
+            if (S.party[S.pi] && S.party[S.pi].key === row.key && $('#pm-sheet').classList.contains('on')) renderSheet();
+          })
         .subscribe();
     }
 
