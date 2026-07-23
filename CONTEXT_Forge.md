@@ -38,7 +38,12 @@ retired `structural.spells`, then durable spell/feature corrections apply.
 Cosmere's current key is `cosmererunestar-ae1a`; old sessions may still carry the
 compatibility identity `cosmere`, but new tables save the current key. Full
 details and the signed-in field checklist are in the July 22 handoff's
-2026-07-23 character-source addendum.
+2026-07-23 character-source addendum. Internal character/foe keys are never
+presentation: the feed resolves the mounted unit or saved roster display name.
+Forge also preserves the assembled sheet action's exact attack-cantrip math when
+folding duplicate shelf tiles, including Cosmere's Agonizing Blast modifier.
+Derivation exceptions remain disabled error kits rather than silent starter-kit
+substitutions.
 
 ---
 

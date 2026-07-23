@@ -49,12 +49,12 @@
 <script src="../equip-slots.js?v=cc2"></script>
 <script src="../character-combat.js?v=um1"></script>
 <script src="../character-sheet-projection.js?v=cp1"></script>
-<script src="forge-kit-derive.js?v=b11"></script>
+<script src="forge-kit-derive.js?v=b12"></script>
 <script src="forge-action-damage.js?v=fad1"></script>
 <script src="forge-damage-evidence.js?v=fde3"></script>
 <script src="forge-feed-render.js?v=ffr5"></script>
 <script src="forge-hud.js?v=b6"></script>
-<script src="forge-table-correctness.js?v=fg9"></script>
+<script src="forge-table-correctness.js?v=fg10"></script>
 <script src="../item-icons.js?v=b3"></script>
 <script src="../spell-icons.js?v=b3"></script>
 <script src="../icon-picker.js?v=b3"></script>
@@ -5154,9 +5154,10 @@ function loadLiveStats(){
           ? repairDerivedKit(window.ForgeKitDerive.derive(c, { assembledActions: actions, starterKits: STARTER_KITS }), c.structural||{})
           : null;
       } catch(e){
-        clog('<i>' + escapeHtml(c.name || c.key) + ': derivation failed ('
-          + escapeHtml((e && e.message) || e) + ') — using kit fallback.</i>');
-        derived[c.key] = null;
+        derived[c.key] = window.ForgeKitDerive&&window.ForgeKitDerive.combatErrorKit
+          ? window.ForgeKitDerive.combatErrorKit(c,e) : null;
+        if(!derived[c.key])clog('<i>' + escapeHtml(c.name || c.key) + ': derivation failed ('
+          + escapeHtml((e && e.message) || e) + ') — combat data unavailable.</i>');
       }
       var legacy=legacySheetKeyFor(c);if(legacy&&legacy!==c.key)aliases[legacy]=c.key;
     });
@@ -5267,6 +5268,15 @@ function unitFromRosterRow(row, stateUnit){
   return u;
 }
 function unitByKey(k){ return CB.units.filter(function(u){ return u.unit === k; })[0] || null; }
+/* Presentation-only identity seam for classic helper modules. `CB` is scoped
+   to this module, so publishing the whole combat state would be both leaky and
+   unnecessary; the feed receives only the display name it needs. */
+window.__forgeUnitName=function(key){
+  var u=unitByKey(key);if(u&&u.name)return u.name;
+  var sess=window.__forgeSession,roster=sess&&sess.row&&sess.row.roster;
+  var row=Array.isArray(roster)&&roster.filter(function(r){return r&&(r.unit===key||r.sheet_ref===key);})[0];
+  return row&&row.name||key;
+};
 /* Shared combat flags live in replay state. Copy them through one reconciliation
    door after every echo and on cold boot; otherwise a Silvery Barbs rider can
    exist authoritatively in state.units while the attack preview reads a stale

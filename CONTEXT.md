@@ -49,6 +49,10 @@ The source contract is now explicit:
   PCs enter an encounter. Its selected legacy identities are resolved against
   the current live rows before `buildRoster()` and derivation. New sessions
   persist current keys; existing sessions may still use compatibility aliases.
+- Character keys remain protocol/database identity only. Forge presentation
+  resolves combatants through the mounted unit or saved roster name, so the
+  feed renders **Cosmere Runestar**, **Vesperian Vale**, and creature display
+  names rather than keys such as `cosmererunestar-ae1a` or `foe-picked-*`.
 - Cosmere's current live key is `cosmererunestar-ae1a`. `cosmere` is a retired
   compatibility identity, not a second live sheet. His Shield spell is valid
   through Sorcerer multiclass provenance, not the Hexblade list.
@@ -75,6 +79,10 @@ The sheet's direct math paths are also explicit:
 - `ArmorAC.deriveSpeed()` applies level-scaled Monk Unarmored Movement from base
   speed while unarmored and without a shield. Monk 3 with base speed 30 renders
   40, and the legacy already-stored 40 path is guarded against becoming 50.
+- The assembled sheet action owns exact attack-cantrip math after Forge folds
+  duplicate shelf representations. This preserves Agonizing Blast's Charisma
+  modifier on Cosmere's Eldritch Blast; a derivation exception now stays a loud
+  disabled error kit instead of silently becoming a starter kit.
 
 This slice is **staged, not live until M deploys it**. Relevant source-alignment,
 sheet, reforge, AC, Forge derivation/identity, exporter, and canonical Forge

@@ -528,7 +528,7 @@ The current contracts are:
 - `character-sheet-projection.js?v=cp1` owns the effective structural read.
   Modern `structural.spellcasting` wins over a stale legacy
   `structural.spells`; durable spell/feature corrections apply once there.
-- `forge-kit-derive.js?v=b11` consumes that projection. A modern Zariel Tiefling
+- `forge-kit-derive.js?v=b12` consumes that projection. A modern Zariel Tiefling
   no longer regains hard-coded Hellish Rebuke after the authoritative list
   removes it. Genuine old rows can still use the legacy fallback.
 - Cosmere's current Supabase key is `cosmererunestar-ae1a`; `cosmere` is a
@@ -549,6 +549,33 @@ JavaScript passed `node --check`. The older jsdom sheet-mount smoke is unavailab
 in this checkout because `jsdom` is not installed. Local Forge loaded; local
 Party redirected to login, so signed-in deployed verification remains the field
 gate.
+
+## Character presentation and derivation follow-up · 2026-07-23
+
+The combat-feed identity leak was a module boundary, not a character rename.
+`CB` is intentionally scoped inside the Forge module, while the classic
+table-correctness helper attempted to read `window.CB` and therefore fell back
+to raw keys. The production surface now publishes only a narrow display-name
+resolver; table correctness also consults the saved roster during cold session
+mount. `cosmererunestar-ae1a` and `foe-picked-*` remain protocol/database keys,
+while the feed renders **Cosmere Runestar** and the creature's authored name.
+
+The source audit also found that `weapon-actions.js` correctly derived
+Agonizing Blast's Charisma modifier, but the final Forge dedupe allowed the
+generic Spells-tab Eldritch Blast tile to discard that exact assembled action
+math. The surviving tile now retains the assembled attack-cantrip hit, damage,
+damage-stack, and critical-dice fields. Cosmere's level-4 known answer remains
+`1d10+3`. A live-row derivation exception now remains a narrated disabled error
+kit instead of silently dropping into a familiar starter kit.
+
+Focused identity/source validation is green: table correctness **35/35**,
+starter/live-source selection **28/28**, Agonizing Blast **8/8**, canonical
+projection **12/12**, and Forge kit derivation **346/346**. The canonical engine,
+map bridge, tactical geometry, line of sight/cover, placement, and flora suites
+add **151/151**. All touched JavaScript passed `node --check`; inline production
+scripts parse and `git diff --check` is clean. The signed-in live-row/browser
+round remains the deployment field gate, and the older sheet-mount smoke still
+cannot run because `jsdom` is absent.
 
 ## Required field checklist
 
@@ -617,12 +644,13 @@ M reviews, commits, and pushes. Codex does not push. Current slice stamps:
 `forge-deployment.js?v=fd3`, `forge-generator-foundation.js?v=g2g1`,
 `forge-temple-terraces.js?v=tt1`, `forge-engine.js?v=fe10`,
 `forge-render-power.js?v=frp1`, `forge-architecture.js?v=fa4`, and
-`forge-discovery.js?v=fd7`, `forge-kit-derive.js?v=b11`,
-`forge-foe-ai.js?v=fai2`, `forge-hud.js?v=b3`, and
+`forge-discovery.js?v=fd7`, `forge-kit-derive.js?v=b12`,
+`forge-foe-ai.js?v=fai2`, `forge-hud.js?v=b6`, and
 `monster-actor.js?v=ma2`. Encounter activation adds
 `forge-encounter-regions.js?v=fer1` and bumps `forge-protocol.js?v=fpr2`,
 `forge-replay.js?v=fb15`, `forge-effects.js?v=fe6`,
-`forge-pipeline.js?v=fb8`, and `forge-board.js?v=fb8`. Encounter Read adds
+`forge-pipeline.js?v=fb8`, `forge-board.js?v=fb8`, and
+`forge-table-correctness.js?v=fg10`. Encounter Read adds
 `forge-encounter-read.js?v=fread3`. Explicit local party authority adds
 `forge-party-selection.js?v=fps1`. Character-source alignment adds root
 `character-sheet-projection.js?v=cp1`, `sheet-mount.js?v=src1`, and

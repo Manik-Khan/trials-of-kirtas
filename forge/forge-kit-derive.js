@@ -1307,6 +1307,16 @@ function combatErrorKit(charData, err) {
         // fold the loser into the winner
         w._folded = w._folded || [];
         w._folded.push(t._src || t);
+        // The Spells-tab projection owns slot/origin presentation, but the
+        // assembled sheet action owns exact attack-cantrip math. Preserve
+        // invocation and item modifiers (Agonizing Blast is the field case)
+        // when the two representations fold into one tile.
+        if (t._src && t._src.type === "attack-cantrip") {
+          w.hit = t.hit;
+          w.dmg = t.dmg;
+          w.dmgStack = t.dmgStack;
+          w.critDice = t.critDice;
+        }
         // adopt missing damage dice from a folded sheet row (Second Wind)
         if (!w.dmg && t._src && t._src.dmgDice) {
           var fm = t._src.dmgMod || 0;
@@ -1422,6 +1432,7 @@ function combatErrorKit(charData, err) {
     classFeatureTiles: classFeatureTiles,
     initiativeProfileFor: initiativeProfileFor,
     bonusTiles:    bonusTiles,
+    combatErrorKit: combatErrorKit,
     wrapStarterKit: wrapStarterKit,
     forgeResKey:   forgeResKey,
     UNIVERSALS:    UNIVERSALS,

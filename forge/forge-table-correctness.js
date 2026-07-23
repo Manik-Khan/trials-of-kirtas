@@ -22,7 +22,7 @@
   else root.ForgeTableCorrectness=api;
 })(typeof self!=="undefined"?self:this,function(root){
   "use strict";
-  var VERSION="1.4.1";
+  var VERSION="1.4.2";
   var VIEW_KEY="tok-forge-view-mode-v1";
 
   function esc(s){return String(s==null?"":s).replace(/[&<>"']/g,function(c){return {"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c];});}
@@ -105,7 +105,17 @@
   }
   function unitName(key){
     if(key==="__unseen_foe__")return "Unseen foe";
-    try{var u=root.CB&&root.CB.units&&(root.CB.units.find(function(x){return x.unit===key||x.key===key||x.id===key;}));return u?u.name:key;}catch(_e){return key;}
+    try{
+      if(typeof root.__forgeUnitName==="function"){
+        var resolved=root.__forgeUnitName(key);
+        if(resolved&&resolved!==key)return resolved;
+      }
+      var u=root.CB&&root.CB.units&&(root.CB.units.find(function(x){return x.unit===key||x.key===key||x.id===key;}));
+      if(u&&u.name)return u.name;
+      var roster=root.__forgeSession&&root.__forgeSession.row&&root.__forgeSession.row.roster;
+      var row=Array.isArray(roster)&&roster.find(function(x){return x&&(x.unit===key||x.sheet_ref===key);});
+      return row&&row.name||key;
+    }catch(_e){return key;}
   }
   function effectHtml(f){
     var actor=esc(unitName(f.actor||"")),target=esc(unitName(f.target||""));
@@ -304,5 +314,5 @@
   function install(){injectCss();installKitAlias();installHudDecorator();installFeedInteraction();installFeedChannels();ensureFeedTabs();applyBody();return true;}
   install();
   if(root.document)root.document.addEventListener("DOMContentLoaded",install,{once:true});
-  return Object.freeze({VERSION:VERSION,VIEW_KEY:VIEW_KEY,privileged:privileged,mode:mode,staffView:staffView,playerView:playerView,setMode:setMode,toggle:toggle,applyBody:applyBody,visibleOrder:visibleOrder,displayUnit:displayUnit,viewerSnapshot:viewerSnapshot,normalizeKit:normalizeKit,installKitAlias:installKitAlias,factFromEvent:factFromEvent,factHtml:factHtml,pushFact:pushFact,pushEvent:pushEvent,isGeometryDiagnostic:isGeometryDiagnostic,diagnosticHtml:diagnosticHtml,pushDiagnostic:pushDiagnostic,feedView:feedView,setFeedView:setFeedView,applyFeedView:applyFeedView,installFeedChannels:installFeedChannels,ensureFeedTabs:ensureFeedTabs,installHudDecorator:installHudDecorator,installFeedInteraction:installFeedInteraction,ensureFlowButtons:ensureFlowButtons,install:install});
+  return Object.freeze({VERSION:VERSION,VIEW_KEY:VIEW_KEY,privileged:privileged,mode:mode,staffView:staffView,playerView:playerView,setMode:setMode,toggle:toggle,applyBody:applyBody,visibleOrder:visibleOrder,displayUnit:displayUnit,viewerSnapshot:viewerSnapshot,normalizeKit:normalizeKit,installKitAlias:installKitAlias,unitName:unitName,factFromEvent:factFromEvent,factHtml:factHtml,pushFact:pushFact,pushEvent:pushEvent,isGeometryDiagnostic:isGeometryDiagnostic,diagnosticHtml:diagnosticHtml,pushDiagnostic:pushDiagnostic,feedView:feedView,setFeedView:setFeedView,applyFeedView:applyFeedView,installFeedChannels:installFeedChannels,ensureFeedTabs:ensureFeedTabs,installHudDecorator:installHudDecorator,installFeedInteraction:installFeedInteraction,ensureFlowButtons:ensureFlowButtons,install:install});
 });

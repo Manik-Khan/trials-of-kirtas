@@ -146,7 +146,23 @@ async function main() {
     ok("delete-marked character has no derived or generic combat kit", stale.kitFor("deleted") === null);
   }
 
-  // 8. kitFor/liveStatsFor never mutate STARTER_KITS across every scenario above.
+  // 8. A present live row whose derivation throws must remain a loud error kit;
+  //    it may not silently become the familiar hand-tuned starter.
+  {
+    const party = [{ key: "cosmere", name: "Cosmere Runestar", structural: { combat: {} } }];
+    const errorKit = { key:"cosmere", name:"⚠ Cosmere Runestar", fallback:"error", unavailable:true, actions:[] };
+    const derive = {
+      derive() { throw new Error("projection failed"); },
+      combatErrorKit(c) { return Object.assign({}, errorKit, { key:c.key }); }
+    };
+    const sb = makeSandbox(STARTER_KITS, { loadParty: () => Promise.resolve(party) }, derive, ["cosmere"]);
+    await sb.loadLiveStats();
+    const kit = sb.kitFor("cosmere");
+    ok("live derivation failure remains an error kit", !!kit && kit.fallback === "error" && kit.unavailable === true);
+    ok("live derivation failure never becomes the starter kit", kit !== STARTER_KITS.cosmere && kit.name === "⚠ Cosmere Runestar");
+  }
+
+  // 9. kitFor/liveStatsFor never mutate STARTER_KITS across every scenario above.
   const after = JSON.stringify(STARTER_KITS);
   ok("STARTER_KITS never mutated by liveStatsFor/kitFor", before === after);
 
