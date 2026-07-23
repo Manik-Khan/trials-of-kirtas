@@ -1,4 +1,4 @@
-# CONTEXT Forge update · 2026-07-18
+# CONTEXT Forge update · 2026-07-22
 
 Supersedes `CONTEXT_Forge-update-2026-07-16c.md` as the current concise Forge authority. Read with `CONTEXT.md`, `CONTEXT_Forge.md`, and `forge/FORGE_TEMPLE_TERRACES_1.md`.
 
