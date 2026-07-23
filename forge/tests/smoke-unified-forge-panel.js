@@ -27,6 +27,8 @@ has('class="deployDelete"',"group deletion is an explicit header control rather 
 has('type="hidden" id="foes" value="0"',"legacy generator parameter remains neutral without a base-enemy UI");
 has("unit: 'foe-picked-' + slug + '-' + n","picked foes have stable IDs");
 has('Choose any creature for this encounter.',"Bestiary is the encounter roster authority");
+has('forge-party-selection.js?v=fps1',"Forge loads the active player-folder selection authority");
+has("var pcs = forgePartyRows();\n  var foes = [];","roster construction has no all-character fallback");
 const rosterStart=html.indexOf('function buildRoster(){'),rosterEnd=html.indexOf('/* Approved Encounter Read:',rosterStart);
 const rosterFactory=new Function('CHAR','FOE_PICKED','foeSlug','forgePartyRows','document',html.slice(rosterStart,rosterEnd)+'\nreturn buildRoster;');
 const roster=rosterFactory({caim:{}},[{name:'Archer',count:1,statblock:{name:'Archer',hp:{average:16}}}],name=>name.toLowerCase(),()=>[{unit:'caim',kind:'pc',sheet_ref:'caim'}],{getElementById:()=>({value:'2'})})();

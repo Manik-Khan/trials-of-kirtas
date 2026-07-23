@@ -15,10 +15,11 @@ function deepEq(a, b) { return JSON.stringify(a) === JSON.stringify(b); }
 const m = html.match(/\/\*SK-START\*\/([\s\S]*?)\/\*SK-END\*\//);
 ok("liveStatsFor/kitFor/loadLiveStats extractable", !!m);
 
-function makeSandbox(STARTER_KITS, characterData, forgeKitDerive) {
+function makeSandbox(STARTER_KITS, characterData, forgeKitDerive, selected) {
   const clog = function () {};              // narration UI — not under test here
   const escapeHtml = function (s) { return String(s); };
-  const win = { CharacterData: characterData, ForgeKitDerive: forgeKitDerive };
+  const win = { CharacterData: characterData, ForgeKitDerive: forgeKitDerive,
+    ForgePartySelection: require("../forge-party-selection.js"), __fightRoster: selected || [] };
   const fn = new Function(
     "window", "STARTER_KITS", "clog", "escapeHtml",
     m[1] + "\nreturn { loadLiveStats: loadLiveStats, liveStatsFor: liveStatsFor, " +
@@ -118,7 +119,7 @@ async function main() {
   {
     const party = [{ key: "cosmererunestar-ae1a", name: "Cosmere Runestar",
       structural: { combat: { ac: 13, speed: 30, initiative: 2 } } }];
-    const sb = makeSandbox(STARTER_KITS, { loadParty: () => Promise.resolve(party) });
+    const sb = makeSandbox(STARTER_KITS, { loadParty: () => Promise.resolve(party) }, null, ["cosmererunestar-ae1a"]);
     await sb.loadLiveStats();
     ok("retired Cosmere key resolves to current Supabase key",
       sb.resolveLiveSheetRef("cosmere") === "cosmererunestar-ae1a");
@@ -128,7 +129,24 @@ async function main() {
       deepEq(sb.forgePartyRows(), [{ unit:"cosmererunestar-ae1a", kind:"pc", sheet_ref:"cosmererunestar-ae1a", name:"Cosmere Runestar" }]));
   }
 
-  // 7. kitFor/liveStatsFor never mutate STARTER_KITS across every scenario above.
+  // 7. The character table is not an encounter party: no explicit selection
+  //    means no PCs, and delete-marked rows remain unavailable even if stale
+  //    selection state names their key.
+  {
+    const party = [
+      { key: "active", name: "Active", structural: { combat: {} } },
+      { key: "deleted", name: "Deleted", deleteMarked: true, structural: { combat: {} } }
+    ];
+    const none = makeSandbox(STARTER_KITS, { loadParty: () => Promise.resolve(party) });
+    await none.loadLiveStats();
+    ok("live character cache does not become an implicit encounter party", deepEq(none.forgePartyRows(), []));
+    const stale = makeSandbox(STARTER_KITS, { loadParty: () => Promise.resolve(party) }, null, ["deleted"]);
+    await stale.loadLiveStats();
+    ok("delete-marked character cannot re-enter through stale selection", deepEq(stale.forgePartyRows(), []));
+    ok("delete-marked character has no derived or generic combat kit", stale.kitFor("deleted") === null);
+  }
+
+  // 8. kitFor/liveStatsFor never mutate STARTER_KITS across every scenario above.
   const after = JSON.stringify(STARTER_KITS);
   ok("STARTER_KITS never mutated by liveStatsFor/kitFor", before === after);
 

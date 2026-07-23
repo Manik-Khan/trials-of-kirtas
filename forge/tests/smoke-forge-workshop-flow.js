@@ -16,6 +16,10 @@ has('data-workshop-nav="deployment"', "Deployment is a first-class Workshop step
 has('data-workshop-nav="advanced"', "Advanced tools are a first-class Workshop step");
 has('data-workshop-step="encounter"', "Encounter owns an independent content pane");
 has('Choose the party, set the intended difficulty, then spend the encounter budget.', "Encounter follows map selection with an explicit budget");
+has('window.__fightRoster = j;', "the chosen party becomes explicit encounter state");
+has('if(window.__applyForgePartySelection)window.__applyForgePartySelection();', "party confirmation returns to the populated Workshop");
+has('window.loadLiveStats().then(function(){if(window.__applyForgePartySelection)window.__applyForgePartySelection();});', "party and placement refresh again after live sheets settle");
+notHas('if(window.__enterForge) window.__enterForge();', "party confirmation no longer enters the old empty-map preview path");
 has('id="biomeSelect"', "Battlefield uses one compact biome selector");
 has('id="forgeBtn">Generate map</button>', "Map replacement requires an explicit generation action");
 has('function markForgeBattlefieldPending(){WORKSHOP_MAP_DIRTY=true;', "Battlefield selections have an explicit pending state");

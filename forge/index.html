@@ -28,6 +28,7 @@
 <script src="forge-temple-terraces.js?v=tt1"></script>
 <script src="forge-engine.js?v=fe10"></script>
 <script src="forge-deployment.js?v=fd3"></script>
+<script src="forge-party-selection.js?v=fps1"></script>
 <script src="forge-encounter-regions.js?v=fer1"></script>
 <script src="forge-encounter-read.js?v=fread2"></script>
 <script src="forge-bridge-authority.js?v=fba1"></script>
@@ -778,6 +779,7 @@ global.TacticsGeo=API;
 #partySelect .psCard:not(.joined) .pPlate{ opacity:.72; }
 #partySelect .pCtrlRow{ display:none; flex-wrap:wrap; gap:5px; margin-top:10px; }
 #partySelect .psCard.sel .pCtrlRow{ display:flex; }
+#partySelect .psEmpty{margin:auto;padding:32px;max-width:620px;text-align:center;font-family:'Crimson Pro',serif;font-size:18px;line-height:1.5;color:var(--fg-dim)}
 #partySelect .pCtrlLbl{ width:100%; font-family:'Barlow Condensed',sans-serif; text-transform:uppercase; letter-spacing:.16em; font-size:10px; color:var(--fg-dim); margin-bottom:1px; }
 #partySelect .pcChip{ font-family:'Barlow Condensed',sans-serif; font-weight:700; font-size:12px; min-width:26px; padding:4px 7px; background:rgba(13,10,7,.72); color:var(--fg); border:1px solid var(--line); cursor:pointer; }
 #partySelect .pcChip:hover{ border-color:var(--fg-dim); }
@@ -1010,7 +1012,7 @@ body.forge-author-preview #partySelect{opacity:0;pointer-events:none}
     <div class="psHead">
       <div class="psHeadL">
         <div class="psTitle">Assemble the <b>Party</b></div>
-        <div class="psSub"><kbd>&larr;</kbd><kbd>&rarr;</kbd> browse&nbsp;&middot;&nbsp;<kbd>space</kbd> / click to join&nbsp;&middot;&nbsp;<kbd>&crarr;</kbd> forge</div>
+        <div class="psSub"><kbd>&larr;</kbd><kbd>&rarr;</kbd> browse&nbsp;&middot;&nbsp;<kbd>space</kbd> / click to select&nbsp;&middot;&nbsp;<kbd>&crarr;</kbd> confirm party</div>
       </div>
       <div class="psLogin" id="psLogin"></div>
     </div>
@@ -1019,8 +1021,8 @@ body.forge-author-preview #partySelect{opacity:0;pointer-events:none}
       <div class="psCount" id="psCount"></div>
       <div class="psFootBtns">
         <button class="psEveryone" id="psPreview" title="Inspect and author the battlefield before starting combat">Open Workshop</button>
-        <button class="psEveryone" id="psEveryone">Everyone plays their own</button>
-        <button class="psForge" id="psForge">Enter the Forge &rarr;</button>
+        <button class="psEveryone" id="psEveryone">Select all party</button>
+        <button class="psForge" id="psForge">Use selected party &rarr;</button>
       </div>
     </div>
   </div>
@@ -5018,7 +5020,11 @@ function legacySheetKeyFor(character){
 }
 function resolveLiveSheetRef(sheetRef){return (__sheetRefAliases&&__sheetRefAliases[sheetRef])||sheetRef;}
 function forgePartyRows(){
-  return (__livePartyRows||[]).map(function(c){return {unit:c.key,kind:'pc',sheet_ref:c.key,name:c.name||c.key};});
+  var selected=Array.isArray(window.__fightRoster)?window.__fightRoster:[],live={};
+  (__livePartyRows||[]).forEach(function(c){live[c.key]=c;});
+  return selected.map(resolveLiveSheetRef).filter(function(key,index,keys){
+    return !!live[key]&&keys.indexOf(key)===index;
+  }).map(function(key){var c=live[key];return {unit:key,kind:'pc',sheet_ref:key,name:c.name||key};});
 }
 
 /* Phase 2e.1 field repair: GitHub file uploads do not execute the Phase 2b.1
@@ -5138,6 +5144,7 @@ function loadLiveStats(){
   if (__deriveLoading) return __deriveLoading;
   if (!window.CharacterData) { __derivedKits = {}; __liveStatsCache = {}; __livePartyRows=[]; __sheetRefAliases={}; return Promise.resolve(__derivedKits); }
   __deriveLoading = window.CharacterData.loadParty().then(function(party){
+    party=window.ForgePartySelection?window.ForgePartySelection.activeRows(party):(party||[]).filter(function(c){return c&&!c.deleteMarked;});
     var byKey = {}, derived = {}, aliases = {};
     (party || []).forEach(function(c){
       byKey[c.key] = c;
@@ -8119,7 +8126,6 @@ function wireFoePicker(){
    Every foe is chosen for this encounter from the Bestiary or saved shelf. */
 function buildRoster(){
   var pcs = forgePartyRows();
-  if(!pcs.length)pcs=Object.keys(CHAR).map(function(key){ return { unit: key, kind: 'pc', sheet_ref: key }; });
   var foes = [];
   (FOE_PICKED||[]).forEach(function(p){
     var slug = foeSlug(p.name);
@@ -8240,6 +8246,11 @@ function bindEncounterReadPanel(){
   document.getElementById('encounterOpenBestiary').onclick=function(){var toggle=document.getElementById('fpToggle'),status=document.getElementById('encounterSuggestionStatus');if(!toggle){if(status)status.textContent='Sign in on the live site to use the full Bestiary and save a shared encounter.';return;}var body=document.getElementById('fpBody');if(body&&body.style.display==='none')toggle.click();var input=document.getElementById('fpSearch');if(input)input.focus();var forgePanel=document.getElementById('forgePanel');if(forgePanel)forgePanel.scrollTop=Math.max(0,toggle.offsetTop-30);};
 }
 bindEncounterReadPanel();refreshEncounterReadPanel();
+window.__applyForgePartySelection=function(){
+  setForgeWorkshopStep('encounter');
+  refreshDeploymentPanel();
+  refreshEncounterReadPanel();
+};
 /* Task 11: insert one forge_sessions row, status 'staging' — the exact shape
    protocol-harness-mock.html's own insert uses (harness ~78-83), roster/map
    swapped for the real generator output. Shared by both doors. */
@@ -9683,13 +9694,8 @@ renderer.domElement.addEventListener("contextmenu", function(e){ if(ADD_FOE_PLAC
 <script>
 /* ════════════════════════════════════════════════════════════════════
    PARTY SELECT — party.html cinematic banner on the Forge.
-   The differentiator is WHO YOU'RE LOGGED IN AS (this computer). You pick
-   which characters this login is driving; they all carry your badge —
-   just "V" for one, or V1/V2/V3/V4… when one login drives several (one
-   human can hold all four). Other computers log in as their own player and
-   pick theirs. The "logged in as" switcher here is a mock-only preview of
-   what each computer sees. Seed matches live party.html; swap PARTY for
-   CharacterData.loadParty() in-app (same shape).
+   Local authoring chooses the active player-folder characters entering this
+   encounter. Shared-session mode below remains the ownership claim screen.
    ════════════════════════════════════════════════════════════════════ */
 (function(){
   /* Task 12: ?session= present → the claim screen replaces local join
@@ -9697,22 +9703,9 @@ renderer.domElement.addEventListener("contextmenu", function(e){ if(ADD_FOE_PLAC
      location.search rather than the module's early `SESSION_ID` —
      that variable is module-scoped and invisible to this classic script. */
   var SESSION_ID = new URLSearchParams(location.search).get("session");
-  var PARTY = [
-    { key:"caim",       name:"Caim",             cls:"Monk",                  epi:"Urchin",              hp:24, max:24, ac:16,   init:3, portrait:"img/portraits/caim.png" },
-    { key:"chonkalius", name:"Chonkalius",       cls:"Barbarian 3",           epi:'Outlander "Wizard?"', hp:35, max:35, ac:12,   init:0, portrait:null },
-    { key:"cosmere",    name:"Cosmere Runestar", cls:"Warlock 2 / Sorcerer 1",epi:"Captain",             hp:20, max:20, ac:18,   init:2, portrait:"img/portraits/cosmere.png" },
-    { key:"liadan",     name:"Líadan Luchóg",    cls:"Bard 3 / Cleric 1",     epi:"Entertainer",         hp:24, max:31, ac:12,   init:2, portrait:"img/portraits/liadan.png" },
-    { key:"thewiz",     name:"The Wiz",          cls:"Wizard 3",              epi:"Dimir Operative",     hp:17, max:17, ac:null, init:4, portrait:null },
-    { key:"vesperian",  name:"Vesperian Vale",   cls:"Fighter 4",             epi:"Dimir Operative",     hp:31, max:40, ac:null, init:4, portrait:"img/portraits/vesperian.jpg" }
-  ];
+  var PARTY = [], partyLoadMessage = "Loading active party\u2026";
   var PORT_POS = { liadan:"center 18%" };
-  var PLAYERS  = ["vesperian","cosmere","liadan","caim","chonkalius","thewiz"]; // logins (seat = home character)
-  var INIT     = { vesperian:"V", cosmere:"CR", liadan:"L", caim:"C", chonkalius:"Ch", thewiz:"W" };
-  var SEATCOL  = { vesperian:"#b8863a", cosmere:"#3a8a92", liadan:"#a05fa0", caim:"#b34a38", chonkalius:"#8a6d3b", thewiz:"#4a6ac0" };
-  var ORDER    = PARTY.map(function(p){ return p.key; });
-
-  var currentUser = "vesperian";   // who this computer is logged in as (mock default: admin as Vesperian)
-  var pi = 0, joined = {};         // charKey -> true when this login is driving it
+  var ORDER = [], pi = 0, joined = {};
 
   var host = document.getElementById("partySelect"), row = document.getElementById("psRow");
   function sgn(n){ return n==null ? "\u2014" : (n>=0?"+"+n:""+n); }
@@ -9721,28 +9714,45 @@ renderer.domElement.addEventListener("contextmenu", function(e){ if(ADD_FOE_PLAC
   /* A character with no CHAR entry has no combat sheet. It used to be dropped
      silently inside startCombat (`if(!s) return;`) — no token, no initiative
      row, no log line. Block it here and say why. */
-  function ready(k){ return !!(window.CHAR && window.CHAR[k]); }
-
-  // badges: your login's letter; numbered when you drive >1, own character first
-  function computeBadges(){
-    var js = joinList().slice().sort(function(a,b){ return a===currentUser?-1 : b===currentUser?1 : ORDER.indexOf(a)-ORDER.indexOf(b); });
-    var out = {};
-    if(js.length===1) out[js[0]] = INIT[currentUser];
-    else js.forEach(function(k,i){ out[k] = INIT[currentUser] + (i+1); });
-    return out;
+  function ready(k){
+    var live=PARTY.filter(function(p){return p.key===k;})[0];
+    return !!((live&&live.sheetReady)||(window.kitFor&&window.kitFor(k))||(window.CHAR&&window.CHAR[k]));
   }
 
-  function buildLogin(){
-    var el = document.getElementById("psLogin"); if(!el) return;
-    el.innerHTML = '<span class="psLoginLbl">Logged in as</span>' + PLAYERS.map(function(pl){
-      return '<button class="psLoginChip'+(pl===currentUser?" on":"")+'" data-pl="'+pl+'" title="'+esc(PARTY.filter(function(p){return p.key===pl;})[0].name)+'">'+INIT[pl]+'</button>';
-    }).join("");
-    el.querySelectorAll(".psLoginChip").forEach(function(ch){
-      ch.addEventListener("click", function(){ currentUser = ch.dataset.pl; build(); });
+  function partyCard(c){
+    var s=c.structural||{},cmb=s.combat||{},v=c.vitals||{},hpMax=Number(cmb.hpMax||0)+Number(v.hpBonus||0);
+    var hp=v.hp!=null?Number(v.hp):(cmb.hp!=null?Number(cmb.hp):hpMax);
+    return {key:c.key,name:c.name||s.name||c.key,sheetReady:!!(c.structural&&c.structural.combat),
+      cls:[s.classLabel,s.subclass,s.level&&"level "+s.level,s.race].filter(Boolean).join(" \u00b7 ")||"Adventurer",
+      epi:s.background||s.race||"",hp:hp,max:hpMax,ac:cmb.ac,init:cmb.initiative,portrait:s.portrait||null};
+  }
+  function loadPartyCandidates(){
+    if(!window.CharacterData||!window.ForgePartySelection){
+      partyLoadMessage="The active party could not be loaded. Reload after the Forge finishes starting.";
+      PARTY=[];ORDER=[];build();return Promise.resolve();
+    }
+    return Promise.all([window.CharacterData.loadParty(),window.CharacterData.loadLayout()]).then(function(values){
+      var result=window.ForgePartySelection.candidates(values[0],values[1]),selected=Array.isArray(window.__fightRoster)?window.__fightRoster:[];
+      PARTY=result.rows.map(partyCard);ORDER=PARTY.map(function(p){return p.key;});pi=Math.min(pi,Math.max(0,PARTY.length-1));
+      joined={};window.ForgePartySelection.selectedKeys(result.rows,selected).forEach(function(key){joined[key]=true;});
+      partyLoadMessage=result.ok?(PARTY.length?"":"The player-character folder has no active characters."):(result.reason+" Add active combatants to that folder, then reload.");
+      build();
+    }).catch(function(e){
+      PARTY=[];ORDER=[];joined={};
+      partyLoadMessage="The active party could not be loaded"+(e&&e.message?": "+e.message:".");
+      build();
     });
   }
+  window.__reloadForgePartyCandidates=loadPartyCandidates;
+
+  // Local authoring selects an encounter party, not player ownership.
+  function computeBadges(){
+    var out={};joinList().forEach(function(k,i){out[k]=String(i+1);});return out;
+  }
   function build(){
-    var badges = computeBadges(), col = SEATCOL[currentUser];
+    var login=document.getElementById("psLogin");if(login)login.style.display="none";
+    if(!PARTY.length){row.innerHTML='<div class="psEmpty">'+esc(partyLoadMessage)+'</div>';updateFoot();return;}
+    var badges = computeBadges(), col = "#b8863a";
     row.innerHTML = PARTY.map(function(p,i){
       var pos = PORT_POS[p.key] || "top center";
       var portrait = p.portrait ? '<div class="pPortrait" style="background-image:url(\''+p.portrait+'\');background-position:'+pos+'"></div>' : '';
@@ -9769,19 +9779,21 @@ renderer.domElement.addEventListener("contextmenu", function(e){ if(ADD_FOE_PLAC
         if(!ready(k)){ document.getElementById("psCount").innerHTML='<b style="color:var(--fg)">'+esc(PARTY[+el.dataset.i].name)+'</b> has no combat sheet yet \u2014 not selectable.'; return; }
         toggle(k); });
     });
-    var lb=document.getElementById("psLogin"); if(lb && !lb.dataset.wired){ buildLogin(); lb.dataset.wired="1"; }
-    else { document.querySelectorAll("#psLogin .psLoginChip").forEach(function(c){ c.classList.toggle("on", c.dataset.pl===currentUser); }); }
     updateFoot();
   }
   function paint(){ row.querySelectorAll(".psCard").forEach(function(el,i){ el.classList.toggle("sel", i===pi); }); }
   function toggle(k){ if(joined[k]) delete joined[k]; else joined[k]=true; build(); paint(); }
+  function toggleAll(){
+    var readyRows=PARTY.filter(function(p){return ready(p.key);}),all=readyRows.length&&readyRows.every(function(p){return joined[p.key];});
+    readyRows.forEach(function(p){if(all)delete joined[p.key];else joined[p.key]=true;});build();
+  }
   function updateFoot(){
-    var n = joinList().length, badges = computeBadges();
-    var labels = joinList().slice().sort(function(a,b){ return a===currentUser?-1:b===currentUser?1:ORDER.indexOf(a)-ORDER.indexOf(b); }).map(function(k){ return badges[k]; });
+    var n = joinList().length,allButton=document.getElementById("psEveryone");
     document.getElementById("psCount").innerHTML = n
-      ? ('<b style="color:var(--fg)">'+n+'</b> joining as '+esc(labels.join(", ")))
-      : 'select who this computer ('+INIT[currentUser]+') is driving \u2014 tap a character';
+      ? ('<b style="color:var(--fg)">'+n+'</b> selected for this combat')
+      : (PARTY.length?'Choose the characters entering this combat.':'');
     document.getElementById("psForge").disabled = n === 0;
+    if(allButton){var selectable=PARTY.filter(function(p){return ready(p.key);});allButton.disabled=!selectable.length;allButton.textContent=selectable.length&&selectable.every(function(p){return joined[p.key];})?"Clear party":"Select all party";}
   }
   function previewMap(){
     document.body.classList.add("forge-author-preview");
@@ -9798,17 +9810,19 @@ renderer.domElement.addEventListener("contextmenu", function(e){ if(ADD_FOE_PLAC
     document.body.classList.remove("forge-author-preview");
     window.setForgePanelOpen(false);
     host.classList.remove("gone");
+    build();
   }
   function forge(){
     var j = joinList(); if(!j.length) return;
     var badges = computeBadges();
     window.__fightRoster = j;
     window.__fightControllers = {};
-    j.forEach(function(k){ window.__fightControllers[k] = { player:currentUser, badge:badges[k], color:SEATCOL[currentUser] }; });
-    document.body.classList.remove("forge-author-preview");
-    window.setForgePanelOpen(false);
+    j.forEach(function(k){ window.__fightControllers[k] = { player:"local", badge:badges[k], color:"#b8863a" }; });
+    document.body.classList.add("forge-author-preview");
+    window.setForgePanelOpen(true);
     host.classList.add("gone");
-    if(window.__enterForge) window.__enterForge();
+    if(window.__applyForgePartySelection)window.__applyForgePartySelection();
+    if(window.loadLiveStats)window.loadLiveStats().then(function(){if(window.__applyForgePartySelection)window.__applyForgePartySelection();});
   }
   /* ── Task 12: session claim mode ─────────────────────────────────────
      Same #partySelect/#psRow scene, driven by the session roster ∩ the
@@ -9999,6 +10013,7 @@ renderer.domElement.addEventListener("contextmenu", function(e){ if(ADD_FOE_PLAC
 
   document.addEventListener("keydown", function(e){
     if(host.classList.contains("gone")) return;
+    if(!PARTY.length)return;
     if(e.key==="ArrowRight"){ pi=(pi+1)%PARTY.length; paint(); e.preventDefault(); }
     else if(e.key==="ArrowLeft"){ pi=(pi-1+PARTY.length)%PARTY.length; paint(); e.preventDefault(); }
     else if(e.key===" "){ if(ready(PARTY[pi].key)) toggle(PARTY[pi].key); e.preventDefault(); }
@@ -10007,15 +10022,16 @@ renderer.domElement.addEventListener("contextmenu", function(e){ if(ADD_FOE_PLAC
   document.getElementById("psForge").addEventListener("click", forge);
   document.getElementById("psPreview").addEventListener("click", previewMap);
   document.getElementById("psReturn").addEventListener("click", returnToParty);
+  document.getElementById("psEveryone").addEventListener("click", toggleAll);
 
   /* The renderer block is an ES module now, therefore deferred. It defines CHAR,
      which ready() needs. Painting now would grey out the whole party. Wait for
      topo:ready; if it never comes the module failed to load, and that must say
      so rather than showing six characters with no sheets. */
-  if (window.CHAR) build();
+  if (window.CHAR) { build(); loadPartyCandidates(); }
   else {
     var painted = false;
-    var go = function(){ if (painted) return; painted = true; build(); };
+    var go = function(){ if (painted) return; painted = true; build(); loadPartyCandidates(); };
     document.addEventListener("topo:ready", go, { once:true });
     setTimeout(function(){
       if (painted) return;

@@ -449,40 +449,79 @@ Enemy group, optional automation disclosure, and a regionless party flag
 resolving 4/4 positions on connected walkable ground. No new runtime error
 appeared after the corrected reload.
 
+## Explicit party authority correction · 2026-07-22
+
+The live Workshop field report exposed two independent party sources. Encounter
+Read treated every `characters` table row as the party, including delete-marked
+and out-of-folder rows, while the cinematic selector still rendered a static
+six-character mock. Its **Enter the Forge** door also called the old re-forge
+path, which regenerated the map and could enter an empty combat preview instead
+of returning to Workshop authoring.
+
+`forge-party-selection.js?v=fps1` is now the pure selection authority. The local
+selector loads current `CharacterData` rows and the shared roster layout, removes
+delete-marked and duplicate keys, and offers only active members of the folder
+named `Campaign Characters`, `Player Characters`, `Player`, or `Players`.
+Missing folder/layout access fails closed with a narrated empty selector; it
+never falls back to every database row or the old static roster. **Select all
+party** means all eligible rows in that folder.
+
+The selected keys are now the sole PC input to `buildRoster()`, Encounter Read,
+CR thresholds, Workshop summary, and deployment reconciliation. An empty
+selection remains zero heroes. Confirming the party returns directly to the
+Encounter step on the current map, refreshes the existing placement groups and
+flags, and does not call the old `__enterForge`/map-regeneration path.
+
+Focused party/Workshop/Encounter/deployment validation is **183 checks green**.
+All **56** currently green Forge suites remain green. The wider battery still
+contains 15 inherited/stale red suites (cache-stamp contracts, extracted harness
+dependencies, and the known boulder-cover expectation); none touches the party
+authority files. The unsigned localhost browser proved the new fail-closed
+state and removal of the static roster, but cannot read the private
+`roster_layout` row. The signed-in live folder/selection round trip is therefore
+the remaining field gate.
+
 ## Required field checklist
 
-1. On the live signed-in site, open a Temple Table with at least Party and Enemy flags.
-2. Confirm the staged row retains exact group roles, controller policies, and positions.
-3. Roll Initiative and confirm every unit appears on its authored cell on two devices.
-4. Reconnect both devices and confirm the same positions reconstruct from the saved row/replay state.
-5. Save for later, reopen, and repeat the exact-position check.
-6. Save/reload a legacy encounter and confirm historical placement remains unchanged.
-7. Compare Volcanic construction once a Workshop Volcanic selector is exposed; the renderer profile exists, but the current biome control does not expose it.
-8. On a normal Temple URL with no architecture flag, save one optional-bypass wall, reconnect,
+1. On the live signed-in Workshop, confirm the party selector shows only active
+   player-folder characters; deleted, test, and out-of-folder rows must be absent.
+2. Select a strict subset, return to Workshop, and confirm the summary, CR wallet,
+   and Party placement group contain exactly that subset on the current map.
+3. Reopen **Choose party**, change the subset, and confirm deselected characters
+   leave CR and placement while the map and existing flags remain intact.
+4. On the live signed-in site, open a Temple Table with at least Party and Enemy flags.
+5. Confirm the staged row retains exact group roles, controller policies, and positions.
+6. Roll Initiative and confirm every unit appears on its authored cell on two devices.
+7. Reconnect both devices and confirm the same positions reconstruct from the saved row/replay state.
+8. Save for later, reopen, and repeat the exact-position check.
+9. Save/reload a legacy encounter and confirm historical placement remains unchanged.
+10. Compare Volcanic construction once a Workshop Volcanic selector is exposed; the renderer profile exists, but the current biome control does not expose it.
+11. On a normal Temple URL with no architecture flag, save one optional-bypass wall, reconnect,
    and confirm its 10-ft movement/sight authority and closed connector restore.
-9. In Player View, confirm visible cells restore color across terrace boundaries,
+12. In Player View, confirm visible cells restore color across terrace boundaries,
    out-of-sight cells remain grey, and no terrain disappears.
-10. Confirm any foe Staff View permits a PC to target is visible to that PC in
+13. Confirm any foe Staff View permits a PC to target is visible to that PC in
     Player View, while a foe behind total cover remains hidden.
-11. Compare laptop heat/fan behavior in default Balanced against High Fidelity.
-12. On the live signed-in Workshop, open Related enemies, add one suggestion, then
+14. Compare laptop heat/fan behavior in default Balanced against High Fidelity.
+15. On the live signed-in Workshop, open Related enemies, add one suggestion, then
     open the full Bestiary and confirm both doors use the shared authored roster.
-13. Generate an ordinary non-region map, place Party and Enemy flags, save, reopen,
+16. Generate an ordinary non-region map, place Party and Enemy flags, save, reopen,
     and confirm the exact version-3 positions survive on two devices.
-14. Use each Easy/Medium/Hard/Deadly target once and confirm the suggested roster,
+17. Use each Easy/Medium/Hard/Deadly target once and confirm the suggested roster,
     editable picked list, related-family filter, and adjusted-XP wallet agree.
 
 ## Immediate execution order
 
-1. Run the signed-in map-first Workshop check on an ordinary non-region map and Temple Terraces.
-2. Run the signed-in Encounter Read target-wallet, related roster, and full-Bestiary check.
-3. Run the signed-in two-device activation checklist: held rolls, region entry, hostile-action activation, DM activation, reconnect, and Player View narration.
-4. Run the signed-in shared-table/reconnect deployment and architecture checklist.
-5. Compare Balanced and High Fidelity on M's actual laptop during a full round.
-6. Recheck saved-block and geometry-fog reconnects on the normal Temple URL.
-7. Promote Temple from `preview` to `active` only after those checks pass.
-8. Expose/settle the Volcanic Workshop construction control.
-9. Build `bridge-crossing` on the same intent contract.
+1. Run the signed-in player-folder and explicit party-subset round trip.
+2. Run the signed-in map-first Workshop check on an ordinary non-region map and Temple Terraces.
+3. Run the signed-in Encounter Read target-wallet, related roster, and full-Bestiary check.
+4. Run the signed-in two-device activation checklist: held rolls, region entry, hostile-action activation, DM activation, reconnect, and Player View narration.
+5. Run the signed-in shared-table/reconnect deployment and architecture checklist.
+6. Compare Balanced and High Fidelity on M's actual laptop during a full round.
+7. Recheck saved-block and geometry-fog reconnects on the normal Temple URL.
+8. Promote Temple from `preview` to `active` only after those checks pass.
+9. Expose/settle the Volcanic Workshop construction control.
+10. Build `bridge-crossing` on the same intent contract.
 
 Do not begin `bridge-crossing` by re-enabling random legacy bridge selection. Purpose and archetype ownership come first.
 
@@ -498,4 +537,5 @@ M reviews, commits, and pushes. Codex does not push. Current slice stamps:
 `forge-encounter-regions.js?v=fer1` and bumps `forge-protocol.js?v=fpr2`,
 `forge-replay.js?v=fb15`, `forge-effects.js?v=fe6`,
 `forge-pipeline.js?v=fb8`, and `forge-board.js?v=fb8`. Encounter Read adds
-`forge-encounter-read.js?v=fread2`.
+`forge-encounter-read.js?v=fread2`. Explicit local party authority adds
+`forge-party-selection.js?v=fps1`.
