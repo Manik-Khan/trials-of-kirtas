@@ -4,8 +4,8 @@ Custom D&D 5e virtual tabletop. Live: **trials-of-kirtas.netlify.app**
 Repo: `Manik-Khan/trials-of-kirtas` · vanilla JS/HTML/CSS + Supabase + Netlify + GitHub.
 Walled React/Vite/TipTap corner at `journal/`.
 
-Updated: **July 23, 2026 (current Forge handoff plus character-sheet source
-alignment).** Supersedes the earlier July 16 project handoff. The current Forge
+Updated: **July 23, 2026 (current Forge handoff plus character-sheet source,
+progression, and rail alignment).** Supersedes the earlier July 16 project handoff. The current Forge
 execution state lives in `docs/handoffs/forge/`. Reconciled sources include
 `CONTEXT_Forge.md`, the July 22 handoff, `FORGE_PROTOCOL.md`, `FORGE_BOARD.md`,
 and `FORGE_COVER_CONTEST.md`.
@@ -22,7 +22,7 @@ Cache-stamp every module include (`?v=`) — non-negotiable on iOS.
 
 ---
 
-## 🟡 Character-sheet source alignment — staged July 23
+## 🟡 Character-sheet source alignment — merged July 23; signed-in field gate remains
 
 The live field reports were one source-authority bug expressed several ways:
 Caim's full mounted sheet and Party disagreed about Hellish Rebuke, Cosmere's
@@ -84,14 +84,90 @@ The sheet's direct math paths are also explicit:
   modifier on Cosmere's Eldritch Blast; a derivation exception now stays a loud
   disabled error kit instead of silently becoming a starter kit.
 
-This slice is **staged, not live until M deploys it**. Relevant source-alignment,
-sheet, reforge, AC, Forge derivation/identity, exporter, and canonical Forge
-smokes total **748 known-answer checks green**; all touched JavaScript passed
-`node --check`, and `git diff --check` is clean. The older
-`smoke-sheet-mount.mjs` could not run in this checkout because `jsdom` is not
-installed, so a deployed signed-in Party/mounted-sheet/old-session field pass
-remains required. Run the cleanup SQL once after deployment, then run or wait for
-the character exporter so canonical and compatibility JSON mirrors converge.
+This slice is merged to `main`/`origin/main`. Relevant source-alignment, sheet,
+reforge, AC, Forge derivation/identity, exporter, and canonical Forge smokes
+total **748 known-answer checks green**; all touched JavaScript passed
+`node --check`, and `git diff --check` was clean. The later progression pass ran
+`smoke-sheet-mount.mjs` **30/30** with a temporary jsdom dependency, but the
+root project still does not declare jsdom, so a clean checkout cannot run that
+suite without supplying it. A deployed signed-in Party/mounted-sheet/old-session
+field pass remains required. Run the cleanup SQL once after deployment, then
+run or wait for the character exporter so canonical and compatibility JSON
+mirrors converge.
+
+---
+
+## 🟢 Character-sheet progression and rail field pass — July 22–23
+
+This is a separate layer from the source-projection correction above. The source
+projection decides what the current character means to the sheet, Party, and
+Forge. Progression changes that same current `characters` row and preserves the
+prior mechanical form as history; it does not create a second character source.
+
+### Level Up, Facets of the Shard, and Soul Lineage
+
+- The approved `_edits/mock-sheet-soul-facets.html` was ported to the real full
+  and mounted v11 sheets through `sheet-progression.js` /
+  `sheet-progression.css`. Both surfaces expose **Level Up**, **Facets of the
+  Shard**, and **Enter the Shift**.
+- **Level Up** routes to
+  `shards.html?mode=level-up&character=<key>&class=<class>`. It loads the
+  character's saved `_build`, advances exactly the selected class by one level,
+  remains pinned to the existing character key, and finishes through the normal
+  Shard Reforger review/save path. Level 20 refuses. A legacy character without
+  a lossless `_build` reconstructs what it can and narrates that abilities and
+  spell choices need confirmation.
+- Immediately before a successful Level Up write, `soul-facets.js` snapshots
+  the prior form into `structural.soulFacets`. A snapshot contains structural
+  rules, vitals, inventory, equipment, and currency; it deliberately excludes
+  notes, biography/Journal prose, Soul Lineage, and prior Facets. Identical
+  snapshots deduplicate and history is capped at the latest **40** forms.
+- Reforge/Level Up merges generated fields into the existing structural object,
+  so durable `structural.corrections`, `structural.soulLineage`, appearance,
+  authored actions, and other non-generated sheet work survive. Modern
+  `structural.spellcasting` still removes the retired `structural.spells` field
+  per the source-alignment contract.
+- **Facets are currently read-only history.** The stored payload can support a
+  later restore/rollback design, but no restore control or write path is built.
+- **Soul Lineage is currently a read-only projection.** It always derives the
+  current Soul Fragment and can display optional
+  `structural.soulLineage.fragments` and `.refractions`. Cross-campaign linking,
+  Shift authoring, and Refraction unlock rules are not built yet. The Second
+  Reality data shown in the field harness is illustrative, not live character
+  data.
+- No schema migration is required: both records live inside the existing
+  `characters.structural` JSON. The tradeoff is row growth; the 40-Facet cap
+  prevents unbounded history, but restoration and retention policy should be
+  settled before the cap is ever approached.
+
+Forge compatibility is intentionally simple. A **new** fight resolves the same
+current character row and derives its newly leveled effective structural through
+`CharacterSheetProjection`; `soulFacets` and `soulLineage` are inert metadata to
+Forge. An already-active fight remains event-log authoritative and does not
+import a mid-fight level automatically.
+
+### Right rail and Chronicle clarification
+
+- The rail's **Characters** tab now owns its own touch-scrolling list on iPad.
+  Every visible character action offers both the floating mounted sheet and the
+  full `sheet-v2.html?character=<key>` page; the sheet float's add button opens
+  the same two-destination picker. This does not change the account's represented
+  character.
+- The right-rail **Feed** is the in-the-moment table composer/log. Its Combat and
+  Chronicle channels are not the nav **Feed** page (`chronicle.html`). Plain
+  Chronicle writing is joint campaign record; personal writing remains in the
+  Journal.
+- Staff can insert **+ New Section** from the rail's Chronicle channel. The
+  displayed session chip is informational, not a session switcher; the row is
+  stamped to the campaign's current session with `meta.section` and no encounter.
+  The full Feed page retains the actual session controls.
+
+Session validation: Soul Facets **17/17**, Level Up **10/10**, Shards Forge
+**18/18**, reforge preservation **20/20**, sheet mount **30/30**, sheet attacks
+**49/49**, Characters tab **26/26**, sheet corrections **16/16**, and rail
+**59/59** — **245/245 focused checks**. The real browser field harness verified
+the full and mounted drawers, multiclass choice, Soul Lineage presentation,
+iPad-contained mounted layout, and a real on-sheet Rapier result card.
 
 ---
 
@@ -463,15 +539,17 @@ occluder height in feet above its terrain, and `losVerdict` traces the 5e corner
   the ledge or Ready an action. Earlier attempts "over-blocked"; they were correct.
 - **Standing back and standing high are opposite levers.** Backing off a wall raises the ray *at
   the wall* only when the target is above you. A flat ray cannot rise.
-- **Cover is graded** — 8 corner-lines (4 corners × head/feet): `0 none · 1–4 half (+2) ·
-  5–7 three-quarters (+5) · 8 total`. A 4.5 ft boulder = ¾. A 10.5 ft temple wall = total.
+- **Cover is graded** — Phase 1.5h uses 12 inset body samples across lower body,
+  torso, and head/shoulders: `0–5 none · 6–8 half (+2) · 9–11
+  three-quarters (+5) · 12 total`. This supersedes the older 8-corner
+  head/feet model recorded in earlier handoffs.
   **Two dated July-11 amendments** (M's table rulings — `CONTEXT_Forge.md` §4 is canonical):
   *ledge peek* (lip-corner alternate eyes) and *attribution by side* (only blockers at least
   as close to the target as to the attacker grade half/¾; total is unchanged).
 - **Occluder heights come from the generator**, not thin air: `map-bridge.BIOME_WALL_UNITS`
   mirrors `SKINS.wallH` × 5 ft. Props: rock 4.5 · tree 5.5 · reed 3.5 · column 15. Moss, bones,
   cracks, banners occlude nothing.
-- `forge/tests/smoke-los-cover.js` (37 known-answer cases as of July 11) encodes all of the above.
+- `forge/tests/smoke-los-cover.js` (50 known-answer cases in Phase 1.5h) encodes all of the above.
 
 ⚠ **Inline-copy sync rule:** `tactics-geometry.js` is inlined in **two** mocks —
 `battle-tactics-geo-mock.html` **and** `topography-test-mock.html`. Three copies total, all
@@ -509,10 +587,16 @@ whole story of the missing sprites, the missing flanking, and the missing feel.
   checkerboard/matte masking and stay off.
 - **Now ported:** DOM verdict badges, hit flash, camera shake, idle bob, floating combat text,
   nameplates, visible sight lines, and bounded magical PointLights.
-- **Still not ported:** flanking → advantage and opportunity attacks.
-- **Still exists nowhere:** Ready an action and post-processing.
-- **New architecture backlog:** camera follow/pan/framing, world-space party-shared fog of war,
-  graph-based generator Phase 2, and tactical map props with footprints + `occFt`.
+- **Now ported:** flanking modes and opportunity attacks, including the shared
+  move-reaction path.
+- **Ready exists locally, not yet as shared protocol authority.** The local
+  combat path can hold and release an attack; reconnect/replay-safe multiplayer
+  Ready remains carried work. Post-processing still exists nowhere.
+- **Architecture now present:** follow/focus/pair/free camera behavior,
+  party-shared three-state discovery, generator foundation, Temple Terraces,
+  and authored architecture blocks. The remaining backlog is broader
+  archetypes/connectors, bridge-crossing, deeper tactical-prop contracts, and
+  promotion field gates.
 - ~~topo's inlined generator is stale~~ **fixed in bite 1** — the mock now runs canonical
   `ForgeEngine.generate()` (`CONTEXT_Forge.md` §5.5; `smoke-tiers-rebase.js` 32 green).
 - ~~Agreed next build: wire Forge to load a generated map + character-select entrance~~ —
@@ -616,9 +700,12 @@ Supabase tables: `profiles`, `encounters`, `combatants`, `characters`, `journal_
   (`dice-engine.js`), gear manager, combat float, appearance system, rest/hit-dice.
   `character-sheet-projection.js` is the canonical effective-data read path for
   the full sheet, Party, and Forge; do not create another consumer-specific
-  spell/feature projection.
+  spell/feature projection. `sheet-progression.js` adds Level Up, read-only
+  Facets of the Shard, and the read-only Soul Lineage drawer to both full and
+  mounted sheets.
 - **Soul Shards charactermancer** (`shards.html`, `soul-shards-*.js`) — full builder off the
-  5etools 2014 JSON mirror; multiclass spellcasting, provenance-colored spell picker.
+  5etools 2014 JSON mirror; multiclass spellcasting, provenance-colored spell
+  picker, existing-character Level Up, and pre-level mechanical Facet capture.
 - **Chronicle book + TipTap journal** (walled `journal/` Vite+React) — see the top section.
   `tokMention`/`pageLink` nodes, backlinks, `/` menu, image-by-URL. Gotcha: `nav.js` publishes
   `characterKey` (camel) vs DB `character_key` (snake) — grep `profile.character_key` when
@@ -627,7 +714,10 @@ Supabase tables: `profiles`, `encounters`, `combatants`, `characters`, `journal_
   every HUD roll (session + `encounter_id` stamped) from any page. `feed-render.js` draws rolls.
 - **Combat/rail** — site-wide right rail (`rail.js`), `advance_turn()` RPC, monster integration,
   `combatants-backend.js` shared by `combat.html`/`party.html`. **The right edge belongs to the
-  rail** — don't put drawers there (this killed the first Index placement).
+  rail** — don't put page drawers there (this killed the first Index placement).
+  The rail Characters list scrolls independently on touch and opens either the
+  mounted sheet or full sheet page. Rail Chronicle posting is the table's
+  in-the-moment joint feed; the Journal remains personal.
 - **Theming** — CSS custom props from `look-derive.js`, settings flyout, per-page/per-player scope.
 - **v11 visual language:** dark teal-green `#182826`, Playfair Display / Oswald / EB Garamond,
   hard edges, grain+vignette. Origin colors: gold=class, teal=subclass, red=race, purple=feat.

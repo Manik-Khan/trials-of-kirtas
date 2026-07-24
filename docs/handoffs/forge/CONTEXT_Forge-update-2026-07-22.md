@@ -2,6 +2,12 @@
 
 Supersedes `CONTEXT_Forge-update-2026-07-16c.md` as the current concise Forge authority. Read with `CONTEXT.md`, `CONTEXT_Forge.md`, and `forge/FORGE_TEMPLE_TERRACES_1.md`.
 
+Reconciled **July 23, 2026** against the current `main`/`origin/main` source and
+the character-sheet progression/rail field pass. The dated validation paragraphs
+below preserve the order in which slices landed; later focused results supersede
+earlier inherited-red statements for the same suite. Source merged to Git is not
+by itself proof of a signed-in Netlify field pass.
+
 ## Current field verdict
 
 Temple Terraces is implemented as the first intent-owned Forge archetype and remains deliberately labeled **preview** while its shared-table/reconnect field pass is outstanding.
@@ -577,6 +583,54 @@ scripts parse and `git diff --check` is clean. The signed-in live-row/browser
 round remains the deployment field gate, and the older sheet-mount smoke still
 cannot run because `jsdom` is absent.
 
+## Character progression and rail reconciliation · 2026-07-23
+
+The approved Soul Facets sheet mock has been built on the real full and mounted
+v11 sheets. This does **not** create a new Forge character authority:
+
+- `sheet-progression.js?v=facets1` exposes **Level Up**, **Facets of the
+  Shard**, and **Enter the Shift** on both sheet surfaces.
+- Level Up enters the existing Shard Reforger with the same character key and
+  one selected class. A successful save advances that class once and updates
+  the existing `characters` row.
+- `soul-facets.js?v=facets1` stores the prior mechanical form in
+  `structural.soulFacets`. Facets exclude prose, prior Facets, and Soul Lineage;
+  identical forms deduplicate and retention is capped at the latest 40.
+- `structural.soulLineage` can display the current Soul Fragment plus optional
+  Fragments and Refractions. It and Facets are read-only today: restore,
+  cross-campaign linking, Shift authoring, and unlock rules are not built.
+- Durable corrections, Soul Lineage, appearance, authored actions, and other
+  non-generated sheet work survive the Level Up/Reforge merge. Modern
+  spellcasting still removes the retired `structural.spells` field.
+- A new Forge encounter reads the same current character row through
+  `CharacterSheetProjection` and therefore sees the new level. Facet/Lineage
+  metadata is inert to kit derivation. An active fight does not silently import
+  a mid-fight level; its event log remains authoritative.
+- No progression SQL is required. Facets and Lineage live in the existing
+  structural JSON. The separate one-time spell-source cleanup SQL below is
+  still required for old modern rows.
+
+The rail changes are adjacent site work, not Forge protocol work. The Characters
+tab now scrolls independently on iPad and offers either a mounted sheet or the
+full sheet page. The rail Feed is the in-the-moment table composer/log, distinct
+from the full `chronicle.html` Feed page; its session chip displays the current
+session but does not switch it. Staff **+ New Section** writes a joint Chronicle
+section in that current session.
+
+Focused progression/rail validation is **245/245**: Facets 17, Level Up 10,
+Shards Forge 18, reforge preservation 20, sheet mount 30, sheet attacks 49,
+Characters tab 26, sheet corrections 16, and rail 59. The sheet-mount result
+used a temporary jsdom dependency; the root project still does not declare
+jsdom, so that smoke is not portable from a clean checkout without supplying
+it. The browser field harness covered full/mounted drawers, multiclass choice,
+Lineage presentation, iPad-contained mounting, and a real Rapier result card.
+
+One merge-audit defect remains: `forge/index.html` LoS refusal narration and two
+diagnostic fixtures still say **8 corners**, while canonical geometry now uses
+12 body samples. The ruling/math is 12-sample; the narration is stale. Track it
+as `CONTEXT_Forge.md` §5.33 and change the production label and fixtures
+together.
+
 ## Required field checklist
 
 1. On the live signed-in Workshop, confirm the party selector shows only active
@@ -620,21 +674,29 @@ cannot run because `jsdom` is absent.
 21. Run the one-time structural spell cleanup, then run or await the character
     exporter and confirm both the canonical current-key JSON and `cosmere.json`
     contain the current spellcasting data, with the alias recording `sourceKey`.
+22. On a disposable signed-in character, compare the full and mounted progression
+    drawers, Level Up one chosen class, and confirm the key is unchanged, the
+    prior form appears once in Facets, corrections/Lineage survive, and a new
+    Forge encounter sees the new level. Confirm an already-active encounter does
+    not change underneath its event log.
 
 ## Immediate execution order
 
-1. Deploy the character-source slice, run its one-time SQL, and complete checklist
-   items 18–21 before treating Party, JSON, or Forge identity as converged.
-2. Run the signed-in player-folder and explicit party-subset round trip.
-3. Run the signed-in map-first Workshop check on an ordinary non-region map and Temple Terraces.
-4. Run the signed-in Encounter Read target-wallet, related roster, and full-Bestiary check.
-5. Run the signed-in two-device activation checklist: held rolls, region entry, hostile-action activation, DM activation, reconnect, and Player View narration.
-6. Run the signed-in shared-table/reconnect deployment and architecture checklist.
-7. Compare Balanced and High Fidelity on M's actual laptop during a full round.
-8. Recheck saved-block and geometry-fog reconnects on the normal Temple URL.
-9. Promote Temple from `preview` to `active` only after those checks pass.
-10. Expose/settle the Volcanic Workshop construction control.
-11. Build `bridge-crossing` on the same intent contract.
+1. Confirm the merged character-source slice is the deployed copy, run its
+   one-time SQL, and complete checklist items 18–21 before treating Party, JSON,
+   or Forge identity as converged.
+2. Run the disposable-character progression check in item 22.
+3. Run the signed-in player-folder and explicit party-subset round trip.
+4. Run the signed-in map-first Workshop check on an ordinary non-region map and Temple Terraces.
+5. Run the signed-in Encounter Read target-wallet, related roster, and full-Bestiary check.
+6. Run the signed-in two-device activation checklist: held rolls, region entry, hostile-action activation, DM activation, reconnect, and Player View narration.
+7. Run the signed-in shared-table/reconnect deployment and architecture checklist.
+8. Compare Balanced and High Fidelity on M's actual laptop during a full round.
+9. Recheck saved-block and geometry-fog reconnects on the normal Temple URL.
+10. Correct the 8-corner LoS diagnostic label and its two fixtures.
+11. Promote Temple from `preview` to `active` only after those checks pass.
+12. Expose/settle the Volcanic Workshop construction control.
+13. Build `bridge-crossing` on the same intent contract.
 
 Do not begin `bridge-crossing` by re-enabling random legacy bridge selection. Purpose and archetype ownership come first.
 
@@ -656,4 +718,6 @@ M reviews, commits, and pushes. Codex does not push. Current slice stamps:
 `character-sheet-projection.js?v=cp1`, `sheet-mount.js?v=src1`, and
 `combat-sheet-float.js?v=src1`, plus
 `schema_delta_character_spell_source_cleanup.sql` and the character-exporter
-update.
+update. Character progression adds `soul-facets.js?v=facets1`,
+`sheet-progression.js?v=facets1`, and `sheet-progression.css?v=facets1`; it
+requires no additional SQL.

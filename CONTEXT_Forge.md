@@ -45,6 +45,16 @@ folding duplicate shelf tiles, including Cosmere's Agonizing Blast modifier.
 Derivation exceptions remain disabled error kits rather than silent starter-kit
 substitutions.
 
+The July 22 character-sheet progression build is compatible with this contract
+and does not add a second Forge character source. **Level Up** updates the same
+current character key through the Shard Reforger and records the prior
+mechanical form in `structural.soulFacets`; `structural.soulLineage` holds
+optional cross-reality display metadata. Both fields are inert to
+`CharacterSheetProjection` and Forge kit derivation. A new encounter reads the
+new current level; an active encounter remains event-log authoritative. Facet
+restore, cross-campaign Lineage authoring, and mid-fight sheet import are not
+built.
+
 ---
 
 ## HISTORICAL ADDENDUM · 2026-07-13h
@@ -171,6 +181,8 @@ greyed out in the select and must never be silently dropped.
 | `battle-forge-mock.html` | *"the dream one."* generator → tactics diorama. **Source of the pixel sprites + portraits** | reference |
 | `battle-forge-biome-mock.html` | **source of the biome art direction.** `SKINS` table: `wallH`, fog, light rigs, particles, flavour scatter | reference |
 | `character-sheet-projection.js` | shared sheet/Party/Forge effective-data read: modern `structural.spellcasting` authority, genuine-old-row legacy fallback, durable spell/feature corrections | canonical root module |
+| `soul-facets.js` | pure character-progression history helpers: immutable mechanical snapshot, signature dedupe, 40-Facet cap, read-only Soul Lineage projection; prose excluded | canonical root module; inert to Forge derivation |
+| `sheet-progression.js` | full/mounted sheet UI for Level Up, Facets of the Shard, and Soul Lineage; Level Up routes into the existing Shard Reforger by current key + selected class | canonical root module; cross-system entry only |
 | `forge/forge-kit-derive.js` | **sheet→actions derivation** (the BG3 HUD's engine): `derive(charData)` → kit with `tabs` (attacks/spells/items/feats/bonus/actions), flat pipeline actions, res pools, reactions. Consumes `CharacterSheetProjection` before `spellGroupsFrom`; SPELL_COMBAT projection table (~70 spells, label decides the kind); dedupe (derived wins, sheet folds to `_folded`); Disciple of Life; `upcastDmg` + `per` scaling; legacy `classFeatures` slot/resource ledger fallback; 5etools item-type codes | canonical |
 | `forge/forge-feed-render.js` | Chat Feed renderer (headless): roll rows, full math, verdict badges, NO AC EVER | canonical |
 | `forge/forge-hud.js` | the BG3 bar: tab shelf, icon tiles, drawer (`_renderSpellEntries`), bonus-corner economy marks; dispatches `forge:selectAction` | canonical |
@@ -205,7 +217,7 @@ the contract for "port the battle mock." **Everything marked ✗ is the job.**
 ### Rules
 | feature | tactics | forge | topo | notes |
 |---|---|---|---|---|
-| dungeon generator | – | ✔ | ✔ | topo's copy is stale |
+| dungeon generator | – | ✔ | ✔ | topo consumes canonical `ForgeEngine.generate()` |
 | heightfield / tiers | – | – | ✔ | topo only |
 | line of sight (3D ray) | ✔ | – | ✔ | canonical |
 | graded cover ½ / ¾ / total | ✔ | – | ✔ | canonical |
@@ -216,8 +228,8 @@ the contract for "port the battle mock." **Everything marked ✗ is the job.**
 | reaction pipeline | – | – | ✔ | Silvery Barbs → Shield → Rebuke |
 | rewind / snapshot | – | – | ✔ | session-aware 2026-07-11: HUD cluster publishes protocol facts (overseer `restore`; player `undo_of` move retraction). Sandbox keeps local time-travel |
 | **flanking** | ✔ | – | ✔ | shared rule modes: advantage default, +2, +5, Off; named adv/dis sources cancel normally; incapacitated/downed units do not flank |
-| **opportunity attacks** | ✔ | – | **✗** | `battle-tactics` ~L1319–1340: fires mid-move, can drop the mover before they arrive |
-| **ready / held action** | ✗ | ✗ | ✗ | **exists nowhere.** Required by the geometry: if you can't see the enemy below the cliff, you Ready |
+| **opportunity attacks** | ✔ | – | ✔ | local and shared move paths prompt before the mover leaves reach; a hit can stop the remaining path |
+| **ready / held action** | ✗ | ✗ | ~ | local combat can hold/release an attack; not yet a reconnect/replay-safe shared protocol fact |
 
 ### Feel — the layer that makes it a game
 | feature | tactics | forge | topo | notes |
@@ -516,12 +528,12 @@ real placement. **These are decisions, not hypotheses.**
    grant/self-grant, consume, replay determinism. Known SB truth for future
    sessions: the spell is *famously strong by design* — reroll-lower AND the
    rider off a 1st-level slot. "Triggers a lot" is the spell, not a bug.
-22. **Hidden/invisibility system does not exist — but its seam does.**
-   `foeVisible(u)` (returns `true` today, one TODO-marked function) gates every
-   foe glow: turn-red, target-red, select-red. When hidden lands, that function
-   is the single plug point — a hidden foe stops glowing without touching the
-   colour logic; making its *token* not render is the rest of that future bite.
-   Deliberately not stubbed further (the system's shape isn't designed yet).
+22. ~~Hidden-by-terrain disclosure existed only as a seam.~~ **Superseded by
+   Phase 1.5 discovery.** `foeDisclosure()` now returns clear/soft/hidden from
+   party combat sight and `foeVisible()` gates the unit rig, picking, glows,
+   targeting, HUD order, and Player View feed disclosure. Magical invisibility
+   and a creature's deliberate Hide action remain separate, undesigned rules;
+   do not confuse those future conditions with implemented terrain discovery.
 23. ~~Round 3: heals painted enemies, "wrong target" spam, zero spell tiles in
    production.~~ **Fixed (plan v2 §A/B/C, 2026-07-12d).** Two production facts the
    fixtures never modeled: `structural.spellcasting` is None on every live sheet
@@ -585,20 +597,31 @@ real placement. **These are decisions, not hypotheses.**
     extraction displays white rectangular blocks in the real browser. M's A/B is decisive:
     `?parallax=0&landmarks=0` looks strong. Make those systems opt-in (`=1`) or remove the
     broken derived PNGs from runtime until regenerated with genuine transparency.
-29. **Camera opens on the map, not the actor.** `frameField()` resets `cam.tgt` to the
-    field centre and fits almost the entire map. `focusUnit()` exists, but drag only orbits;
-    there is no terrain pan, follow state, target-pair framing, recenter, or player bounds.
-30. **Fog of war does not exist yet.** Camera limits alone are not authority. Build
-    party-shared `visibleNow` + accumulated `explored`, keyed to map cells and canonical
-    height/LoS; gate enemy sprites/hover/badges/targeting through `foeVisible()`.
+29. ~~Camera opens on the map with no combat framing.~~ **Fixed in Phase 1.5.**
+    Follow/focus/pair/free modes, recenter, overview, terrain pan, tween-follow,
+    and player-safe bounds are present. Hidden enemies cannot become a camera
+    disclosure channel.
+30. ~~Fog of war does not exist yet.~~ **Fixed through discovery authority
+    1.5.0 plus the Phase 1.5h render.** Party-shared visible/explored history is
+    cell-based and replay-derived; terrain remains physically present, explored
+    memory greys, current detail gates props/lights/interactions, one continuous
+    veil masks unexplored space, and creature disclosure is clear/soft/hidden.
 31. **The horizon is camera-relative.** Camera orbit is correct (the scene root is not
     spinning), but a fixed painted composition behind an orbiting board can read like a
     model rotating on a studio table. Sky may stay camera-locked; later consider a
     cylindrical or world-aligned horizon panorama.
-32. **The generator lacks macro variety and encounter semantics.** It deterministically
-    emits a heightfield, but maps still begin from the same broad grammar. Phase 2 is the
-    archetype + graph + semantics + constrained elevation + connector + validate/repair
-    pipeline in §8 and the 2026-07-13a session record.
+32. ~~The generator has no intent-owned archetype or encounter semantics.~~
+    **Partially closed.** Temple Terraces is the first intent-owned archetype
+    with regions, routes, construction profiles, semantic validation, exact
+    deployment, and encounter activation. Broader macro variety, additional
+    archetypes, first-class connector families, and local-repair depth remain
+    active Phase 2 work.
+33. **The LoS refusal narration still names the retired 8-corner model.**
+    `explainBlock()` in `forge/index.html` reports `blocked/8 corners` and the
+    table-correctness/category fixtures still use that phrase, while canonical
+    `tactics-geometry.js` now evaluates **12 body samples**. This is a stale
+    diagnostic label, not evidence that the geometry reverted. Update the
+    production narration and both diagnostic fixtures together.
 
 ## §6 · ART, ASSETS, LICENSING
 
@@ -756,7 +779,7 @@ real placement. **These are decisions, not hypotheses.**
 - Broader condition enforcement and old combat.html condition UI migration.
 - AoE templates/affected cells.
 - Mid-fight sheet import fact.
-- Thrown/reach weapons, opportunity attacks, and generalized Ready/ruling flows.
+- Thrown/reach weapons and reconnect-safe generalized Ready/ruling flows.
 
 ### Deploy rule
 
