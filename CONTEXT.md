@@ -4,8 +4,8 @@ Custom D&D 5e virtual tabletop. Live: **trials-of-kirtas.netlify.app**
 Repo: `Manik-Khan/trials-of-kirtas` · vanilla JS/HTML/CSS + Supabase + Netlify + GitHub.
 Walled React/Vite/TipTap corner at `journal/`.
 
-Updated: **July 24, 2026 (Forge field-report correction candidate, approved
-reaction/cover integration, and disposable Test Fight proposal, plus character-
+Updated: **July 24, 2026 (Forge field-report correction, approved
+reaction/cover integration, and disposable Test Fight production candidate, plus character-
 sheet source, progression, and rail alignment).** Supersedes the earlier July 16 project handoff. The current Forge
 execution state lives in `docs/handoffs/forge/`. Reconciled sources include
 `CONTEXT_Forge.md`, the July 22 handoff, `FORGE_PROTOCOL.md`, `FORGE_BOARD.md`,
@@ -72,21 +72,22 @@ in the real geometry smoke. The original fight row/URL would still distinguish
 that historical shot's exact camera impression from its saved cells.
 
 Caim's missing Ki may have been legitimate current campaign state after the
-last session, rather than an absent pool. Campaign combat should continue from
-live HP/resources. A separate approved-workflow mock at
-`_edits/mock-forge-test-fight.html` proposes a disposable TEST snapshot with
-independent Health (full/current/50%/25%/custom), Resources
-(full/current/empty/custom), and Effects (clear/current) controls. It is
-deliberately not integrated until M approves the mock; its defining invariant
-is no campaign-sheet write-back.
+last session, rather than an absent pool. Campaign combat continues from live
+HP/resources. M approved `_edits/mock-forge-test-fight.html`; the production
+candidate now creates a disposable TEST snapshot with independent Health
+(full/current/50%/25%/custom), Resources (full/current/empty/custom), and
+Effects (clear/current) controls. The selected config persists in the existing
+map JSON, is applied only to the roster snapshot at Start fight, labels staged
+and active TEST sessions, and refuses every combat-to-character mirror. No SQL
+or schema change is required. Campaign sessions carry no TEST flag and retain
+their existing live/current and writeback behavior.
 
 After deployment, run a signed-in two-device OA/Silvery Barbs/cover-privacy
 round and confirm each difficulty button updates the visible editable roster
-before placement. The full Forge battery now passes **73/73 suites and
-2,311/2,311 known-answer checks**; seven affected root action suites add
-**124/124**. All touched JavaScript and all three inline production scripts
-parse cleanly. Browser validation covered the Test Fight presets/state
-isolation and a clean unsigned Forge boot (no new console errors).
+before placement. For Test Fight, create and reopen a staged TEST row, confirm
+Full HP + Empty resources in combat, damage and restore resources, and verify
+the real character sheets never change. Validation counts for the current
+candidate are recorded after the full local gate below.
 
 ---
 

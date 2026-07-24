@@ -740,8 +740,9 @@ Open field gates:
    context/feed, Player View tactic privacy, and staff-only cover rulings.
 4. Confirm each difficulty button immediately updates the visible editable
    roster before placement.
-5. Obtain M's approval on `_edits/mock-forge-test-fight.html` before integrating
-   disposable combat snapshots.
+5. **Approved and integrated as a production candidate.** Field-test staged
+   TEST creation/reopen, preset values in combat, and no character-sheet
+   writeback.
 
 Candidate validation is **73/73 Forge suites, 2,311/2,311 known-answer checks**.
 It includes the canonical engine, map bridge, tactics geometry, LoS/cover,
@@ -752,34 +753,56 @@ weapon/spell-action suites add **124/124**. Both classic inline scripts and the
 production module script parsed successfully. The unsigned local Forge booted
 without a new console error.
 
-## Disposable Test Fight mock · 2026-07-24
+## Disposable Test Fight production candidate · 2026-07-24
 
 The missing-Ki report exposed two valid but incompatible use cases. Campaign
 combat should continue from the character's current live HP, resources, and
 effects. Difficulty testing needs a copy that can be freely depleted, healed,
 or discarded without changing that campaign state.
 
-`_edits/mock-forge-test-fight.html` is the mock-first proposal. It keeps Health
+M approved `_edits/mock-forge-test-fight.html`. The production setup keeps Health
 (Full/Current/50%/25%/Custom), Resources (Full/Current/Empty/Custom), and Effects
 (Clear/Current) as independent axes, so “full health, empty resources” is a
 first-class test. Each character preview makes the copied HP and every limited
 pool explicit. TEST identity and “no sheet write-back” are visible before the
 table is created.
 
-The production invariant, if approved, is stronger than a visual badge:
-construct a roster snapshot from the current projected characters, transform
-only that snapshot by the selected presets, persist the TEST mode/config with
-the encounter, and refuse every combat-to-character mirror for that session.
-Campaign mode retains the existing live/current behavior. No production file or
-schema change belongs to this slice until M approves the mock.
+The production invariant is stronger than a visual badge:
 
-Browser validation proved:
+- `forge/forge-test-fight.js` owns config normalization and the pure roster
+  transformation.
+- The selected config persists as `map.testFight` in the existing JSONB map;
+  no SQL or schema change is required.
+- Start fight first reads the same current sheets Campaign uses, then applies
+  presets only to the TEST roster snapshot.
+- Full/current/half/quarter/custom HP and full/current/empty/custom limited
+  resources are independent.
+- Clear removes copied conditions/concentration. Current copies sheet condition
+  labels and its concentration record without inventing targets absent from the
+  sheet.
+- TEST sessions are labeled in the staged list and session badge and are
+  refused at enqueue, drain, and timer-start sheet-mirror boundaries.
+- Campaign mode carries no TEST flag and retains the existing live/current
+  behavior and normal sheet writeback.
+
+Approved-mock browser validation proved:
 
 - Full health + Empty resources keeps Caim at 37/37 HP with Ki 0/4.
 - Campaign mode hides the preset controls and explicitly says normal sheet
   mirroring.
 - Returning to Test Fight restores the isolated preset and its no-write-back
   summary.
+
+Production field gates still required:
+
+- Create and reopen a signed-in staged TEST table; confirm its TEST label and
+  saved presets survive the round trip.
+- Start Full health + Empty resources and confirm Caim is 37/37 with Ki 0/4
+  using the current live sheet maxima.
+- Damage, heal, spend, restore, rewind, and end the TEST fight; confirm no
+  character HP, `pipState`, conditions, or concentration changed.
+- Create an ordinary Campaign table immediately afterward and confirm current
+  HP/resources plus normal HP writeback are unchanged.
 
 ## Required field checklist
 

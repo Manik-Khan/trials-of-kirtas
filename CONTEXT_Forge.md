@@ -633,11 +633,13 @@ real placement. **These are decisions, not hypotheses.**
     cover had used `.29/.31`. The canonical cover footprint now matches the
     visible stone base, and the real LoS/cover authority proves an aligned
     pillar grants cover.
-35. **Campaign state and difficulty-testing state need different contracts.**
-    A Campaign table must preserve current live HP/resources, including
-    legitimately spent Ki. `_edits/mock-forge-test-fight.html` proposes a
-    disposable TEST snapshot with independent health, resource, and effect
-    presets and no sheet write-back. It remains mock-only until M approves it.
+35. ~~Campaign state and difficulty-testing state need different contracts.~~
+    **Production candidate integrated after M approved the mock.** Campaign
+    tables remain unflagged and preserve current live HP/resources plus normal
+    sheet mirroring. TEST tables persist their health/resource/effect presets
+    in `map.testFight`, transform only the Start-fight roster snapshot, label
+    staged and active sessions, and refuse every sheet mirror. The signed-in
+    create/reopen/no-write field gate remains.
 
 ## §6 · ART, ASSETS, LICENSING
 

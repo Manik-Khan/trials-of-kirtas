@@ -144,6 +144,10 @@ One character, two windows.
 - Mirror failure never stalls a fight: log stays authoritative, mirror retries, small
   "sheet catching up" note. Narrated, per house rule.
 - Foes have no sheets; their HP lives only in the fight (their home is §6's shelf).
+- **Explicit TEST exception.** A disposable Test Fight persists its presets in
+  `map.testFight`, transforms only the roster snapshot at Start fight, and
+  never starts or drains the sheet-mirror queue. Campaign rows carry no TEST
+  flag, so this exception cannot silently change an ordinary table.
 
 ## §6 · Foes — the shelf, the books, and reinforcements
 

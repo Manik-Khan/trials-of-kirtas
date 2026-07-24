@@ -57,7 +57,7 @@
         side: canonicalSide(u.side != null ? u.side : u.kind), pos: { c: u.pos.c, r: u.pos.r },
         hp: u.hp, maxHp: (u.maxHp != null ? u.maxHp : u.hp),
         resources: normalizeResources(u.resources || u.res || {}),
-        conditions: [], reacts: (u.reacts || []).slice(),
+        conditions: (u.conditions || []).slice(), reacts: (u.reacts || []).slice(),
         reactionUsed: false, downed: false, advGrant: null, boomMark:null, deathSaves:freshDeathSaves()
       };
     });

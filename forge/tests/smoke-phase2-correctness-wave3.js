@@ -62,7 +62,7 @@ const row=(seq,unit,kind,payload)=>({seq,unit,kind,payload:payload||{},created_a
   ok("board restores an outer prompt after nested answer",boardSrc.includes('before.pendingPrompt.seq !== after.pendingPrompt.seq')&&boardSrc.includes('{ t: "prompt", prompt: after.pendingPrompt }'));
   ok("bridge state controls are active and replay-backed",html.includes('id="bridgeStateList"')&&html.includes("connector_state:{id:id,state:next,path_signature:proof}")&&html.includes("applyConnectorStateReplay"));
   ok("closed and broken bridges render without a false physical deck",html.includes("function renderUnavailableBridgeConnector")&&html.includes("LineDashedMaterial")&&html.includes("clearVerticalConnectorRenderGroup"));
-  ok("cache stamps identify the wave-three runtime",html.includes("forge-replay.js?v=fb16")&&html.includes("forge-discovery.js?v=fd7")&&html.includes("forge-pipeline.js?v=fb9")&&html.includes("forge-board.js?v=fb9"));
+  ok("cache stamps identify the wave-three runtime",html.includes("forge-replay.js?v=fb17")&&html.includes("forge-discovery.js?v=fd7")&&html.includes("forge-pipeline.js?v=fb9")&&html.includes("forge-board.js?v=fb9"));
 
   // Same-device nested wait: overseer moves a unit, answers the OA as a foe,
   // then handles Shield during the nested attack before resuming movement.
