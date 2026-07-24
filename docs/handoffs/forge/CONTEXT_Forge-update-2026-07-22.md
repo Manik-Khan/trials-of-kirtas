@@ -631,6 +631,32 @@ diagnostic fixtures still say **8 corners**, while canonical geometry now uses
 as `CONTEXT_Forge.md` §5.33 and change the production label and fixtures
 together.
 
+## Signed-in character-source field pass · 2026-07-23
+
+The deployed Party and Forge pages carry the expected source-alignment stamps:
+Party imports `sheet-mount.js?v=src1`; Forge loads
+`character-sheet-projection.js?v=cp1`, `forge-kit-derive.js?v=b12`, and
+`forge-party-selection.js?v=fps1`.
+
+The live Forge selector showed exactly Caim, Chonkalius, Cosmere Runestar,
+Líadan Luchóg, and Vesperian Vale. It excluded the unfiled Wiz and the
+delete-marked duplicate visible elsewhere in the signed-in rail. This clears
+the initial player-folder eligibility check; the select/change/reopen subset
+round trip remains open.
+
+The signed-in Party/full-sheet comparison confirmed Caim at 40-ft movement with
+Searing Smite and no Hellish Rebuke. Branding Smite is correctly absent at his
+current level 4; Zariel Tiefling grants it at level 5. The earlier checklist
+expectation that level-4 Caim should already show Branding Smite was wrong.
+
+The field pass exposed one presentation defect: Party serialized the raw
+5etools casting-time record as `[object Object]`, although the full sheet already
+rendered `1 bonus action`. The local Party correction now runs the same
+string/array normalization for its row and detail views. It remains
+undeployed. The repository's `data/characters/caim.json` backup still contains
+the retired Hellish Rebuke data, so the cleanup/export convergence gate remains
+open.
+
 ## Required field checklist
 
 1. On the live signed-in Workshop, confirm the party selector shows only active
@@ -661,11 +687,13 @@ together.
     encounter concept, editable picked list, related-family filter, role labels,
     and adjusted-XP wallet agree; no automatic roster may exceed four copies of
     one stat block or six total creatures.
-18. On signed-in Party, confirm Caim shows 40-ft movement, Searing Smite, and
-    Branding Smite, with no Hellish Rebuke; reopen his mounted sheet and confirm
-    the already-open tab refreshes to the same result. On Vesperian's mounted
-    sheet, cast Mage Armor and confirm the sheet and Party both show his expected
-    AC 19 and its source.
+18. On signed-in Party, confirm Caim shows 40-ft movement and Searing Smite, with
+    no Hellish Rebuke or level-5 Branding Smite; reopen his mounted sheet and
+    confirm the already-open tab refreshes to the same result. After deploying
+    the Party casting-time correction, confirm Searing Smite says
+    `1 bonus action`, never `[object Object]`. On Vesperian's mounted sheet, cast
+    Mage Armor and confirm the sheet and Party both show his expected AC 19 and
+    its source.
 19. Reopen an old Forge session that names `cosmere`; confirm it resolves to
     `cosmererunestar-ae1a`, derives the intact Warlock 3 / Sorcerer 1 sheet, and
     keeps Shield with Sorcerer provenance.

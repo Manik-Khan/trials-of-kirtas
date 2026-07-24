@@ -258,6 +258,15 @@
     const $ = s => document.querySelector(s);
     const esc = s => String(s == null ? '' : s).replace(/[&<>"]/g, c => ({ '&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;' }[c]));
     const sgn = n => (n >= 0 ? '+' : '') + n;
+    function fmtCt(t) {
+      if (!t) return '';
+      if (typeof t === 'string') return t;
+      if (Array.isArray(t) && t[0]) {
+        const x = t[0], u = x.unit === 'bonus' ? 'bonus action' : x.unit;
+        return (x.number != null ? x.number + ' ' : '') + u + (x.number > 1 && u ? 's' : '');
+      }
+      return '';
+    }
     // Per-character portrait framing (background-position). Full-body art often
     // wants a slight downward nudge vs the default 'top center'; tune the value.
     const PORT_POS = { liadan: 'center 18%' };
@@ -552,7 +561,7 @@
           const arr = group.spells || [], lvl = Number(group.level) || 0;
           const label = group.heading || (lvl === 0 ? 'CANTRIPS' : 'LEVEL ' + lvl);
           return '<div class="grp-title">' + esc(label.toUpperCase()) + '</div>' + arr.map((s2, i) =>
-            '<div class="lrow" data-sp="' + gi + ':' + i + '"><span class="nm3">' + esc(s2.name) + '</span><span class="v" style="min-width:auto;font-size:12px;color:var(--fg-dim)">' + esc(s2.time || s2.castingTime || '') + '</span></div>').join('');
+            '<div class="lrow" data-sp="' + gi + ':' + i + '"><span class="nm3">' + esc(s2.name) + '</span><span class="v" style="min-width:auto;font-size:12px;color:var(--fg-dim)">' + esc(fmtCt(s2.time || s2.castingTime)) + '</span></div>').join('');
         }).join('');
         return head('SPELLS') + slotHtml + (slotHtml ? '<div style="height:14px"></div>' : '') + (lists || '<div style="color:var(--fg-dim);font-size:14px">No spells.</div>');
       },
@@ -614,9 +623,10 @@
         const groups = (sheetStructural(c).spellcasting || {}).groups || [];
         w.querySelectorAll('.lrow').forEach(el => el.addEventListener('click', () => {
           selOne(w, el); const parts = el.dataset.sp.split(':'), group = groups[+parts[0]] || {}, s = (group.spells || [])[+parts[1]] || {}, lvl = Number(group.level) || 0;
-          const meta = [lvl === 0 ? 'Cantrip' : 'Level ' + lvl, s.time || s.castingTime, s.range, s.duration].filter(Boolean).join(' \u00B7 ');
+          const castTime = fmtCt(s.time || s.castingTime);
+          const meta = [lvl === 0 ? 'Cantrip' : 'Level ' + lvl, castTime, s.range, s.duration].filter(Boolean).join(' \u00B7 ');
           setDetail('<div class="d-head"><span class="d-name">' + esc(s.name) + '</span><span class="d-type">' + esc(meta) + '</span></div>'
-            + '<div class="d-body">Casting time ' + esc(s.time || s.castingTime || '\u2014') + ' \u00B7 range ' + esc(s.range || '\u2014') + ' \u00B7 duration ' + esc(s.duration || '\u2014') + '.</div>');
+            + '<div class="d-body">Casting time ' + esc(castTime || '\u2014') + ' \u00B7 range ' + esc(s.range || '\u2014') + ' \u00B7 duration ' + esc(s.duration || '\u2014') + '.</div>');
         }));
       },
       gear(w, c) {

@@ -95,6 +95,18 @@ field pass remains required. Run the cleanup SQL once after deployment, then
 run or wait for the character exporter so canonical and compatibility JSON
 mirrors converge.
 
+The first signed-in July 23 pass confirmed the deployed projection stamps and
+Caim's 40-ft speed, Searing Smite, and removal of Hellish Rebuke on both Party
+and the full sheet. Branding Smite is a level-5 Zariel Tiefling grant and is
+correctly absent from level-4 Caim; the earlier Forge checklist expectation was
+corrected. Party exposed a narrower presentation bug by printing the raw
+casting-time structure as `[object Object]`; the local correction formats it as
+`1 bonus action` in both the row and detail. That correction is not deployed
+yet. The live Forge selector also filtered the signed-in roster to the five
+active player-folder characters, excluding the unfiled and delete-marked rows;
+the subset round trip remains open. SQL/export convergence and the remaining
+signed-in checks are still open.
+
 ---
 
 ## 🟢 Character-sheet progression and rail field pass — July 22–23

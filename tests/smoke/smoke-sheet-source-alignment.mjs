@@ -22,8 +22,14 @@ ok('real full-sheet render shape keeps Caim speed 40', shape.structural.combat.s
 const party = readFileSync(new URL('../../party.html', import.meta.url), 'utf8');
 const float = readFileSync(new URL('../../combat-sheet-float.js', import.meta.url), 'utf8');
 const forge = readFileSync(new URL('../../forge/index.html', import.meta.url), 'utf8');
+const fmtMatch = party.match(/    function fmtCt\(t\) \{[\s\S]*?^    \}/m);
+const partyFmtCt = fmtMatch ? Function(fmtMatch[0] + '\nreturn fmtCt;')() : null;
 ok('Party imports the full-sheet render shape', party.includes("import { toRenderShape } from './sheet-mount.js?v=src1'"));
 ok('Party receives full character-row realtime updates', party.includes("['vitals','inventory','equipment','currency','bio','notes']"));
+ok('Party extracts its real casting-time formatter', typeof partyFmtCt === 'function');
+ok('Party formats a raw bonus-action casting time', partyFmtCt && partyFmtCt([{number:1,unit:'bonus'}]) === '1 bonus action');
+ok('Party formats plural raw casting times', partyFmtCt && partyFmtCt([{number:2,unit:'action'}]) === '2 actions');
+ok('Party spell rows use the casting-time formatter', party.includes('esc(fmtCt(s2.time || s2.castingTime))'));
 ok('reopening a mounted sheet refreshes it', float.includes('if (tabs[key]) { activate(key); refresh(key); return; }'));
 ok('new Forge tables await live character identity', forge.includes('await loadLiveStats();\n    var savedMap='));
 ok('Forge roster uses current live rows', forge.includes('var pcs = forgePartyRows();'));
