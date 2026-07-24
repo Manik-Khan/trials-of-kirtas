@@ -61,6 +61,21 @@ When a claim contradicts one of these, the doc wins until argued otherwise.
 
 ---
 
+## Session synchronization — required before editing
+
+Before acting, synchronize with the repository. Read `AGENTS.md`, `CONTEXT.md`,
+and the current subsystem handoff; inspect the current commit, working-tree
+state, and changes since the last recorded checkpoint. Report the baseline
+commit, dependencies changed by other projects, intended file ownership, and
+remaining field gates before editing.
+
+Do not rely on another session's conversational summary as project authority.
+Read the changed source and handoff files directly. Do not begin overlapping
+work when another session has uncommitted changes in the same files or shared
+seams.
+
+---
+
 ## 🔴 Never claim something is missing without grepping for it
 
 The single most expensive failure in this project's history. "X doesn't exist" is a
@@ -101,9 +116,10 @@ For `.jsx` (the `journal/` React app), **the Vite build IS the check** — run i
 
 ## Deploy protocol
 
-- Codex produces **bare-filename files** (or a folder-structured zip for nested
-  paths) plus a **one-line deploy note** (which file → which destination, and any
-  SQL). M uploads via GitHub web.
+- Codex leaves validated files in the repository plus a **one-line deploy note**
+  (which file changed, its destination, and any SQL). M reviews, commits, and
+  pushes himself. Codex may commit only when M explicitly requests it and never
+  pushes.
 - **Cache-stamp every module include and bump on change** — `?v=<token>` (e.g.
   `?v=sf1`). Non-negotiable on iOS: a stale cache masquerades as a bug. Bump the
   stamp constant whenever the underlying file changes.

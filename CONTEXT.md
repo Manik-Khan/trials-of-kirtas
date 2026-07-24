@@ -16,8 +16,8 @@ manifest (what the combat system consists of, and which parts exist where), the 
 decisions, and the open bugs. This doc is the project; that one is the subsystem.
 
 **Deploy rule (changed 2026-07-10): M commits and pushes himself** (`git push` = Netlify live
-deploy). Claude commits **only when M explicitly asks**, staging files by name, and **never
-pushes**. Otherwise Claude's job ends at validated files + a one-line deploy note.
+deploy). Codex commits **only when M explicitly asks**, staging files by name, and **never
+pushes**. Otherwise Codex's job ends at validated files + a one-line deploy note.
 Cache-stamp every module include (`?v=`) — non-negotiable on iOS.
 
 ---
@@ -640,8 +640,9 @@ whole story of the missing sprites, the missing flanking, and the missing feel.
   the v2 generated atlases remain disabled until real-alpha replacements exist.
 - **Background versus map props:** background art is visual-only. Tactical landmarks require
   footprint, movement/blocking, `occFt`, placement clearance, and directional/rotational art.
-- M currently commits through GitHub's browser; preserve folder structure in ZIP handoffs and
-  provide an upload manifest.
+- M reviews, commits, and pushes himself. Codex leaves validated files in their repository
+  paths and provides a one-line deploy note; it commits only when M explicitly requests it
+  and never pushes.
 
 ---
 
@@ -683,7 +684,7 @@ whole story of the missing sprites, the missing flanking, and the missing feel.
 - **Never change a theme CSS var to fix a per-page issue** (clear the override chip instead).
 - **`scrollIntoView` is banned in the Chronicle shelf** — it scrolls the page, not the container.
   Move `.sh-shelf.scrollLeft` / the panel's own `scrollTop` by computed offset.
-- Claude never commits/pushes; M deploys manually.
+- Codex commits only when M explicitly requests it and never pushes; M deploys manually.
 
 ---
 
