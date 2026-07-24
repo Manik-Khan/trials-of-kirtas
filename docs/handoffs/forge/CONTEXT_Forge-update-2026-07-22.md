@@ -651,11 +651,15 @@ expectation that level-4 Caim should already show Branding Smite was wrong.
 
 The field pass exposed one presentation defect: Party serialized the raw
 5etools casting-time record as `[object Object]`, although the full sheet already
-rendered `1 bonus action`. The local Party correction now runs the same
-string/array normalization for its row and detail views. It remains
-undeployed. The repository's `data/characters/caim.json` backup still contains
-the retired Hellish Rebuke data, so the cleanup/export convergence gate remains
-open.
+rendered `1 bonus action`. The deployed Party correction now runs the same
+string/array normalization for its row and detail views; the signed-in live row
+was verified as `Searing Smite · 1 bonus action`.
+
+M ran `schema_delta_character_spell_source_cleanup.sql` once on July 23. The
+nightly exporter has not run since that cleanup: the repository's
+`data/characters/caim.json` and `cosmere.json` backups still contain retired
+spell data, `cosmere.json` does not record `sourceKey`, and the canonical
+`cosmererunestar-ae1a.json` is absent. Export convergence remains open.
 
 ## Required field checklist
 

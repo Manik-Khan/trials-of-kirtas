@@ -100,11 +100,14 @@ Caim's 40-ft speed, Searing Smite, and removal of Hellish Rebuke on both Party
 and the full sheet. Branding Smite is a level-5 Zariel Tiefling grant and is
 correctly absent from level-4 Caim; the earlier Forge checklist expectation was
 corrected. Party exposed a narrower presentation bug by printing the raw
-casting-time structure as `[object Object]`; the local correction formats it as
-`1 bonus action` in both the row and detail. That correction is not deployed
-yet. The live Forge selector also filtered the signed-in roster to the five
+casting-time structure as `[object Object]`; the deployed correction now formats
+it as `1 bonus action` in both the row and detail, verified live. The live Forge
+selector also filtered the signed-in roster to the five
 active player-folder characters, excluding the unfiled and delete-marked rows;
-the subset round trip remains open. SQL/export convergence and the remaining
+the subset round trip remains open. M ran the one-time structural spell cleanup
+SQL on July 23. The nightly exporter has not run since that cleanup:
+`caim.json`/`cosmere.json` remain stale and the canonical
+`cosmererunestar-ae1a.json` is not present. Export convergence and the remaining
 signed-in checks are still open.
 
 ---
