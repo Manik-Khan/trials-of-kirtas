@@ -661,6 +661,16 @@ nightly exporter has not run since that cleanup: the repository's
 spell data, `cosmere.json` does not record `sourceKey`, and the canonical
 `cosmererunestar-ae1a.json` is absent. Export convergence remains open.
 
+A follow-up source/live audit separated implementation from field proof.
+Vesperian's full and mounted sheets already render
+**AC 19 · Mage Armor + Shield**. Mage Armor state/AC, old-session `cosmere`
+resolution, new-roster current-key persistence, and exporter alias generation
+are implemented and green. Party's top-level Vesperian card alone still showed
+AC `—` because it called `toRenderShape()` before the mounted-sheet dependency
+loader installed `ArmorAC` and `EquipSlots`. The local Party correction now
+loads both cache-stamped authorities before its module projection; deployment
+verification of the card remains.
+
 ## Required field checklist
 
 1. On the live signed-in Workshop, confirm the party selector shows only active
@@ -695,9 +705,10 @@ spell data, `cosmere.json` does not record `sourceKey`, and the canonical
     no Hellish Rebuke or level-5 Branding Smite; reopen his mounted sheet and
     confirm the already-open tab refreshes to the same result. After deploying
     the Party casting-time correction, confirm Searing Smite says
-    `1 bonus action`, never `[object Object]`. On Vesperian's mounted sheet, cast
-    Mage Armor and confirm the sheet and Party both show his expected AC 19 and
-    its source.
+    `1 bonus action`, never `[object Object]`. Vesperian's full and mounted
+    sheets are already verified at `AC 19 · Mage Armor + Shield`; after deploying
+    the Party dependency correction, confirm his Party card also shows 19. No
+    recast is required.
 19. Reopen an old Forge session that names `cosmere`; confirm it resolves to
     `cosmererunestar-ae1a`, derives the intact Warlock 3 / Sorcerer 1 sheet, and
     keeps Shield with Sorcerer provenance.

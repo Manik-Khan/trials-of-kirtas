@@ -1,4 +1,5 @@
 import { readFileSync } from 'fs';
+import { createRequire } from 'module';
 import { toRenderShape } from '../../sheet-mount.js';
 
 let pass = 0, fail = 0;
@@ -19,6 +20,21 @@ ok('real full-sheet render shape ignores stale Hellish Rebuke', !spellNames.incl
 ok('real full-sheet render shape keeps Branding Smite', spellNames.includes('Branding Smite'));
 ok('real full-sheet render shape keeps Caim speed 40', shape.structural.combat.speed === 40);
 
+const require = createRequire(import.meta.url);
+globalThis.ArmorAC = require('../../armor-ac.js');
+globalThis.EquipSlots = require('../../equip-slots.js');
+const vesperian = toRenderShape({
+  key:'vesperian', name:'Vesperian Vale',
+  structural:{
+    name:'Vesperian Vale', classLabel:'Fighter 4', abilities:{dex:{score:18,mod:4}},
+    proficiencies:{armor:['Shields']}, combat:{hpMax:40,speed:30,initiative:4}
+  },
+  vitals:{hp:40,mageArmor:true},
+  inventory:[{name:'Shield',type:'S',ac:2,slot:'OFFHAND'}]
+});
+ok('real Party projection derives Vesperian Mage Armor plus Shield as AC 19', vesperian.structural.combat.ac === 19);
+ok('real Party projection names the Vesperian AC source', vesperian.structural.combat.acSource === 'Mage Armor + Shield');
+
 const party = readFileSync(new URL('../../party.html', import.meta.url), 'utf8');
 const float = readFileSync(new URL('../../combat-sheet-float.js', import.meta.url), 'utf8');
 const forge = readFileSync(new URL('../../forge/index.html', import.meta.url), 'utf8');
@@ -26,6 +42,11 @@ const fmtMatch = party.match(/    function fmtCt\(t\) \{[\s\S]*?^    \}/m);
 const partyFmtCt = fmtMatch ? Function(fmtMatch[0] + '\nreturn fmtCt;')() : null;
 ok('Party imports the full-sheet render shape', party.includes("import { toRenderShape } from './sheet-mount.js?v=src1'"));
 ok('Party receives full character-row realtime updates', party.includes("['vitals','inventory','equipment','currency','bio','notes']"));
+const armorInclude = party.indexOf('<script src="armor-ac.js?v=um1"></script>');
+const slotsInclude = party.indexOf('<script src="equip-slots.js?v=cc2"></script>');
+const projectionImport = party.indexOf("import { toRenderShape } from './sheet-mount.js?v=src1'");
+ok('Party loads the live AC authority before projecting cards', armorInclude >= 0 && armorInclude < projectionImport);
+ok('Party loads the equipment-slot authority before projecting cards', slotsInclude >= 0 && slotsInclude < projectionImport);
 ok('Party extracts its real casting-time formatter', typeof partyFmtCt === 'function');
 ok('Party formats a raw bonus-action casting time', partyFmtCt && partyFmtCt([{number:1,unit:'bonus'}]) === '1 bonus action');
 ok('Party formats plural raw casting times', partyFmtCt && partyFmtCt([{number:2,unit:'action'}]) === '2 actions');

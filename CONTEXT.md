@@ -110,6 +110,15 @@ SQL on July 23. The nightly exporter has not run since that cleanup:
 `cosmererunestar-ae1a.json` is not present. Export convergence and the remaining
 signed-in checks are still open.
 
+A follow-up source/live audit confirmed Vesperian's full and mounted sheets
+already render **AC 19 · Mage Armor + Shield**, and the underlying state,
+projection, old-Cosmere resolution, and new-roster identity paths are built and
+green. Party's top-level card alone still rendered AC `—`: it called
+`toRenderShape()` before the mounted-sheet dependency loader had installed
+`ArmorAC` and `EquipSlots`. The local Party correction now loads those two
+cache-stamped authorities before its module projection. A deployed Party-card
+check remains; this is not a missing Mage Armor mechanic.
+
 ---
 
 ## 🟢 Character-sheet progression and rail field pass — July 22–23
