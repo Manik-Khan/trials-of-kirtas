@@ -5,7 +5,7 @@ const file=path.resolve(__dirname,"../index.html");
 if(!fs.existsSync(file)){console.error("ABORT: run this smoke after applying the token-rig patch");process.exit(1);}
 const s=fs.readFileSync(file,"utf8");let pass=0;
 function ok(v,label){if(!v)throw new Error("FAIL: "+label);console.log("ok",++pass,"-",label);}
-ok(s.includes('forge-unit-art.js?v=ua1'),"unit-art module is cache-stamped");
+ok(s.includes('forge-unit-art.js?v=ua2'),"unit-art module is cache-stamped");
 ok(s.includes('function makeTopToken(u)'),"flat token constructor exists");
 ok(s.includes('new THREE.CircleGeometry(TOP_TOKEN_R,48)'),"top token is a map-space circle");
 ok(s.includes("disc.rotation.x=-Math.PI/2"),"token lies flat on the battlefield");
@@ -15,7 +15,7 @@ ok(s.includes("u.topToken.visible=allowed&&top"),"flat token is the top-down rep
 ok(s.includes("typeof foeVisible==='function'&&!foeVisible(u)"),"future fog seam gates the entire unit rig");
 ok(s.includes('syncAllUnitVisuals();   // top token follows'),"token follows the existing movement tween");
 ok(s.includes('if(u.topToken)u.topToken.position.set'),"height restage positions token discs");
-ok(s.includes('if(force)disposeTopToken(u);'),"forced sprite swaps do not leave token ghosts");
+ok(s.includes('disposeDownedMarker(u);disposeTopToken(u);'),"forced sprite swaps do not leave token ghosts");
 ok(s.includes('tokenArt: opts.tokenArt || null'),"authoritative token-art metadata rides on units");
 ok(s.includes('(stateUnit&&stateUnit.tokenArt)||row.tokenArt||row.token_url||null'),"session/roster art metadata is honored");
 ok(s.includes('id="tokenArtEdit"')&&s.includes('id="tokenArtAuto"'),"customization controls exist");

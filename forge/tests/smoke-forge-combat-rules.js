@@ -96,7 +96,7 @@ ok(Array.isArray(minimal.actions)&&Array.isArray(minimal.tabs.bonus),"Monk audit
 ok(F.proneStandCostSquares(40)===4,"standing from Prone costs half Caim's 40-foot speed");
 ok(F.proneStandCostSquares(30)===3,"standing rounds to half speed in grid squares");
 ok(F.crawlCostSquares(3)===6,"crawling doubles movement cost");
-ok(F.categoryForHtml("Occluder at 3,4; 8 corners blocked")==="system","geometry diagnostics route to System");
+ok(F.categoryForHtml("Occluder at 3,4; 12 body samples blocked")==="system","geometry diagnostics route to System");
 ok(F.categoryForHtml("Longsword — HIT · 8 damage")==="table","combat outcomes stay in Table");
 const op=F.addCondition({source:"__overseer",target:"caim",nonce:7});
 ok(op.add_effect.kind==="prone"&&op.add_effect.condition,"Prone is represented as a replayable condition effect");

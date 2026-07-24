@@ -22,7 +22,7 @@
   else root.ForgeTableCorrectness=api;
 })(typeof self!=="undefined"?self:this,function(root){
   "use strict";
-  var VERSION="1.4.2";
+  var VERSION="1.6.0";
   var VIEW_KEY="tok-forge-view-mode-v1";
 
   function esc(s){return String(s==null?"":s).replace(/[&<>"']/g,function(c){return {"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c];});}
@@ -56,6 +56,7 @@
     body.classList.toggle("forge-staff-view",!pv);
     body.classList.toggle("forge-active-foe",!!(active&&active.side==="foe"));
     body.dataset.forgeViewerMode=pv?"player":"staff";
+    applyFeedView();
   }
   function visibleOrder(order,foeVisible,sess){
     var pv=playerView(sess);
@@ -125,7 +126,10 @@
         '<div class="ffr-primary">'+(f.saved?'The attack may proceed.':'Choose another target or lose the attack.')+'</div>';
     }
     var e=f.effect||{}, label=esc(e.label||e.kind||"Effect");
-    if(f.action==="add")return '<div class="ffr-head"><b>'+label+'</b> <span class="ffr-verdict effect">APPLIED</span></div><div class="ffr-primary">'+target+' is warded'+(e.dc!=null?' · Wisdom save DC '+esc(e.dc):'')+'.</div>';
+    if(f.action==="add"){
+      var state=e.kind==="hex"?" is hexed":e.kind==="hexblade-curse"?" is cursed":e.kind==="sanctuary"?" is warded":" is affected";
+      return '<div class="ffr-head"><b>'+label+'</b> <span class="ffr-verdict effect">APPLIED</span></div><div class="ffr-primary">'+target+state+(e.dc!=null?' · Wisdom save DC '+esc(e.dc):'')+'.</div>';
+    }
     return '<div class="ffr-head"><b>'+label+'</b> <span class="ffr-verdict miss">ENDED</span></div><div class="ffr-primary">'+target+(f.reason?' · '+esc(f.reason):'')+'.</div>';
   }
   function initiativeHtml(f){
@@ -168,6 +172,13 @@
       var ip=row.payload||{},ie=ip.initiative_evidence||{mode:"legacy-total",total:ip.roll,roll:ip.roll,opaque:true,warnings:["Legacy initiative total — component evidence unavailable."]};
       return {kind:"initiative",actor:row.unit,total:ip.roll,evidence:ie};
     }
+    if(row.kind==="prompt_answered"&&row.payload&&row.payload.use&&row.payload.reaction_kind==="silveryBarbs"){
+      var rc=row.payload.reaction_context||{},from=rc.origRoll,to=row.payload.roll;
+      return {kind:"ability",actor:row.unit,target:rc.attacker||null,ability:"Silvery Barbs",narration:(rc.attacker_name||unitName(rc.attacker||"The attacker"))+"'s "+(rc.mode||"attack")+" against "+(rc.target_name||unitName(rc.target||"the target"))+": "+from+" → "+to+"; the lower result stands."};
+    }
+    if(row.kind==="move_resolved"&&row.payload&&row.payload.boom_trigger){
+      var bt=row.payload.boom_trigger;return {kind:"ability",actor:bt.source||row.unit,target:row.unit,ability:"Booming Blade",effects:[{unit:row.unit,dmg:bt.dmg}],narration:unitName(row.unit)+" willingly moved and triggered the thunder rider."};
+    }
     if(row.kind==="prompt_answered"&&row.payload&&row.payload.context&&row.payload.context.kind==="opportunity-attack"){
       var o=row.payload.context;return {kind:"attack",actor:o.actor||row.unit,target:o.target,mode:o.mode||"Opportunity Attack",roll:o.roll,rollTotal:o.roll_total,hitBonus:o.hitBonus,hit:!!o.hit,crit:!!o.crit,dmg:o.dmg,dmgParts:o.dmgParts,dmgFormula:o.dmgFormula,mods:o.mods||[],d20Rolls:o.d20_rolls,d20KeptIndex:o.d20_kept_index,narration:o.warded?"Sanctuary turned the opportunity attack aside.":null,concentration:o.concentration||row.payload.concentration||null};
     }
@@ -175,7 +186,7 @@
     var p=row.payload||{},ctx=p.context||{};
     if(row.kind==="ability_used"){
       if(ctx&&typeof ctx==="object"&&ctx.kind==="sanctuary-save")return {kind:"sanctuary-save",actor:row.unit,target:ctx.target,roll:ctx.roll,mod:ctx.mod,total:ctx.total,dc:ctx.dc,saved:!!ctx.saved};
-      if(ctx&&typeof ctx==="object"&&ctx.kind==="save")return {kind:"save",actor:row.unit,unit:row.unit,target:ctx.target,ability:p.ability||"Spell",saveAbility:ctx.ability,saveD20:ctx.d20,saveBonus:ctx.bonus,saveMods:ctx.mods||[],saveTotal:ctx.total,saveRoll:ctx.total,dc:ctx.dc,saved:!!ctx.saved,dmg:p.dmg,dmgParts:p.dmgParts,dmgFormula:p.dmgFormula,effects:p.effects||[],narration:ctx.narration||null,concentration:ctx.concentration||p.concentration||null};
+      if(ctx&&typeof ctx==="object"&&ctx.kind==="save")return {kind:"save",actor:row.unit,unit:row.unit,target:ctx.target,ability:p.ability||"Spell",mode:p.ability||"Spell",roll:ctx.d20,rollTotal:ctx.total,hitBonus:ctx.bonus,mods:ctx.mods||[],saveAbility:ctx.ability,saveD20:ctx.d20,saveBonus:ctx.bonus,saveMods:ctx.mods||[],saveTotal:ctx.total,saveRoll:ctx.total,dc:ctx.dc,saved:!!ctx.saved,dmg:p.dmg,dmgParts:p.dmgParts,dmgFormula:p.dmgFormula,effects:p.effects||[],narration:ctx.narration||null,concentration:ctx.concentration||p.concentration||null};
       var hasLedgerOp=(p.effects||[]).some(function(op){return op&&(op.add_effect||op.remove_effect);});
       if(hasLedgerOp&&p.silent!==false)return null;
       return {kind:"ability",actor:row.unit,unit:row.unit,ability:p.ability||p.mode||"Ability",target:p.target||(p.targets&&p.targets[0])||null,effects:p.effects||[],heal:p.heal,dmg:p.dmg,narration:typeof p.context==="string"?p.context:(p.narration||null)};
@@ -210,14 +221,14 @@
   function feedView(){var s=storage(),v="table";try{v=s&&s.getItem(FEED_VIEW_KEY)||"table";}catch(_e){}return /^(table|system|all)$/.test(v)?v:"table";}
   function setFeedView(v){if(!/^(table|system|all)$/.test(v))v="table";var s=storage();try{if(s)s.setItem(FEED_VIEW_KEY,v);}catch(_e){}applyFeedView(v);return v;}
   function rowChannel(html,opts){if(opts&&opts.channel)return opts.channel;if(root.ForgeCombatRules&&root.ForgeCombatRules.categoryForHtml)return root.ForgeCombatRules.categoryForHtml(html);return isGeometryDiagnostic(html)?"system":"table";}
-  function applyFeedView(v){if(!root.document)return;v=v||feedView();var feed=root.document.getElementById("fgFeed");if(!feed)return;feed.dataset.feedView=v;feed.querySelectorAll(".fg-feed-tab").forEach(function(b){b.classList.toggle("on",b.dataset.view===v);});feed.querySelectorAll(".fg-frow[data-feed-channel]").forEach(function(r){r.hidden=!(v==="all"||r.dataset.feedChannel===v);});}
+  function applyFeedView(v){if(!root.document)return;v=v||feedView();var feed=root.document.getElementById("fgFeed");if(!feed)return;feed.dataset.feedView=v;feed.querySelectorAll(".fg-feed-tab").forEach(function(b){b.classList.toggle("on",b.dataset.view===v);});feed.querySelectorAll(".fg-frow[data-feed-channel]").forEach(function(r){var staffOnly=r.dataset.feedVisibility==="staff"&&playerView(session());r.hidden=staffOnly||!(v==="all"||r.dataset.feedChannel===v);});}
   function ensureFeedTabs(){if(!root.document)return false;var feed=root.document.getElementById("fgFeed");if(!feed)return false;var tabs=root.document.getElementById("fgFeedTabs");if(!tabs){tabs=root.document.createElement("div");tabs.id="fgFeedTabs";tabs.className="fg-feed-tabs";["table","system","all"].forEach(function(v){var b=root.document.createElement("button");b.type="button";b.className="fg-feed-tab";b.dataset.view=v;b.textContent=v.charAt(0).toUpperCase()+v.slice(1);b.onclick=function(){setFeedView(v);};tabs.appendChild(b);});var head=feed.firstElementChild;feed.insertBefore(tabs,head?head.nextSibling:feed.firstChild);}
     /* Rows that arrived before this decorator installed still need a channel;
        otherwise System filtering would leave old geometry diagnostics visible. */
     feed.querySelectorAll(".fg-frow:not([data-feed-channel])").forEach(function(r){r.dataset.feedChannel=rowChannel(r.innerHTML);});
     applyFeedView();return true;}
-  function markNewestFeedRow(channel){if(!root.document)return;var feed=root.document.getElementById("fgFeed");if(!feed)return;var rows=feed.querySelectorAll(".fg-frow:not([data-feed-channel])");if(!rows.length)return;var row=rows[0];row.dataset.feedChannel=channel||"table";applyFeedView();}
-  function installFeedChannels(){if(typeof root.addForgeRow!=="function"||root.addForgeRow.__feedChannels)return false;var raw=root.addForgeRow;var wrapped=function(html,opts){var ch=rowChannel(html,opts);var out=raw.apply(this,arguments);/* Stamp the just-added row before retro-classifying older rows, so an explicit opts.channel always wins. */markNewestFeedRow(ch);ensureFeedTabs();return out;};wrapped.__feedChannels=true;wrapped._raw=raw;root.addForgeRow=wrapped;ensureFeedTabs();return true;}
+  function markNewestFeedRow(channel,visibility){if(!root.document)return;var feed=root.document.getElementById("fgFeed");if(!feed)return;var rows=feed.querySelectorAll(".fg-frow:not([data-feed-channel])");if(!rows.length)return;var row=rows[0];row.dataset.feedChannel=channel||"table";if(visibility)row.dataset.feedVisibility=visibility;applyFeedView();}
+  function installFeedChannels(){if(typeof root.addForgeRow!=="function"||root.addForgeRow.__feedChannels)return false;var raw=root.addForgeRow;var wrapped=function(html,opts){var ch=rowChannel(html,opts);var out=raw.apply(this,arguments);/* Stamp the just-added row before retro-classifying older rows, so an explicit opts.channel always wins. */markNewestFeedRow(ch,opts&&opts.visibility);ensureFeedTabs();return out;};wrapped.__feedChannels=true;wrapped._raw=raw;root.addForgeRow=wrapped;ensureFeedTabs();return true;}
   function ensureFlowButtons(state){
     if(!root.document)return;var bar=root.document.getElementById("fgBar");if(!bar)return;var host=bar.querySelector(".fg-hint")||bar;
     function btn(id,label,eventName,show,title){var b=root.document.getElementById(id);if(!show){if(b)b.remove();return null;}if(!b){b=root.document.createElement("button");b.id=id;b.type="button";b.className="fg-flow-btn";b.addEventListener("click",function(){root.document.dispatchEvent(new root.CustomEvent(eventName));});host.appendChild(b);}b.innerHTML=label;b.title=title||"";return b;}

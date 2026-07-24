@@ -304,7 +304,7 @@ the real production functions rather than failing on obsolete source strings.
 
 ## Positional enemy-planner pass · 2026-07-21
 
-`forge-foe-ai.js?v=fai2` now distinguishes a legal shot from a tactically sound
+`forge-foe-ai.js?v=fai3` now distinguishes a legal shot from a tactically sound
 firing position. Ranged choices value safe normal-range distance and elevation,
 avoid squares threatened by a player, penalize cover and long-range disadvantage
 more strongly, and keep an existing firing lane when movement would only expose
@@ -625,11 +625,9 @@ jsdom, so that smoke is not portable from a clean checkout without supplying
 it. The browser field harness covered full/mounted drawers, multiclass choice,
 Lineage presentation, iPad-contained mounting, and a real Rapier result card.
 
-One merge-audit defect remains: `forge/index.html` LoS refusal narration and two
-diagnostic fixtures still say **8 corners**, while canonical geometry now uses
-12 body samples. The ruling/math is 12-sample; the narration is stale. Track it
-as `CONTEXT_Forge.md` §5.33 and change the production label and fixtures
-together.
+The July 24 candidate closes the merge-audit label defect:
+`forge/index.html` LoS refusal narration and its two diagnostic fixtures now
+say **12 body samples**, matching canonical geometry.
 
 ## Signed-in character-source field pass · 2026-07-23
 
@@ -684,6 +682,104 @@ Forge card read cached `structural.combat.ac`, so Vesperian displayed AC `—`
 even though the live combat authority derived 19. The local Forge correction
 now projects chooser AC through `CharacterCombat`, the same authority used by
 the combat kit. Deployment verification remains.
+
+## Combat field-report correction candidate · 2026-07-24
+
+Baseline was `4342cf0` on `main`, clean and equal to `origin/main`. The only
+change since the recorded `79fd7f9` checkpoint was the character-source/handoff
+alignment commit already described above; no other project owned or dirtied the
+Forge files in this slice.
+
+The signed-in character read showed that the screenshot's `24` for Caim and
+`20` for Cosmere were **current HP**, not level or maximum HP. The current rows
+are Caim level 4, 37 max HP, AC 17, initiative +4 and Cosmere level 4, 30 max
+HP, AC 13, initiative +2. The candidate makes the strip say `current / max` and
+routes current character keys through the legacy presentation aliases so
+Cosmere's authored sprite/portrait/color survives the rename.
+
+The same candidate:
+
+- resolves a targeted spell against an already-highlighted legal target; Hex
+  now spends/applies on that first action and narrates the target as “hexed”;
+- carries target saving-throw evidence into the feed and names the full attack
+  context for Silvery Barbs;
+- applies War Caster advantage to concentration checks;
+- marks enemy tactical reasoning as staff-only evidence;
+- requires the overseer to rule contested cover from Staff View;
+- animates shared movement to the opportunity trigger cell before the prompt,
+  then resumes only the unplayed route;
+- penalizes movement through hostile reach, prefers defensive cover when no
+  attack is legal, and lets ranged foes search reachable firing origins while
+  canonical geometry remains the legality gate;
+- exposes the editable Encounter roster beside the difficulty read rather than
+  hiding it in the Bestiary; and
+- replaces the stale 8-corner diagnostic label with 12 body samples.
+
+M approved `_edits/mock-forge-reaction-choices.html`. The candidate now offers
+War Caster's ordinary weapon plus eligible at-will single-target attack
+cantrips. Booming Blade applies a replayable mark after a hit and rolls its
+movement rider only when the marked target later moves willingly. Repelling
+Blast offers 0/5/10 feet directly away from the caster, shortens at walls or
+occupied cells, replays/animates as forced movement, and never opens an
+opportunity prompt.
+
+The pillar report also had a concrete WYSIWYG mismatch: the visible cylinder
+base used a 0.40-cell radius while combat cover used 0.29/0.31. The candidate
+uses the visible 0.40 footprint; the real cover authority now proves a directly
+aligned full-height pillar grants cover.
+
+Open field gates:
+
+1. If the original fight row/URL is available, replay it to distinguish its
+   exact saved cells from the screenshot impression; independently confirm the
+   corrected pillar footprint on the deployed field.
+2. Inspect/replay that same fight to determine whether Caim's Ki was legitimately
+   depleted by the prior campaign fight or absent from the serialized state.
+3. Run a signed-in two-device round covering opportunity timing, War Caster
+   Booming Blade, Repelling Blast, Silvery Barbs
+   context/feed, Player View tactic privacy, and staff-only cover rulings.
+4. Confirm each difficulty button immediately updates the visible editable
+   roster before placement.
+5. Obtain M's approval on `_edits/mock-forge-test-fight.html` before integrating
+   disposable combat snapshots.
+
+Candidate validation is **73/73 Forge suites, 2,311/2,311 known-answer checks**.
+It includes the canonical engine, map bridge, tactics geometry, LoS/cover,
+placement, and flora smokes plus derivation, feed, reaction/privacy, foe AI,
+cover contest, field-report, replay, board, and protocol contracts. Every
+touched JavaScript file passed `node --check`; seven affected root
+weapon/spell-action suites add **124/124**. Both classic inline scripts and the
+production module script parsed successfully. The unsigned local Forge booted
+without a new console error.
+
+## Disposable Test Fight mock · 2026-07-24
+
+The missing-Ki report exposed two valid but incompatible use cases. Campaign
+combat should continue from the character's current live HP, resources, and
+effects. Difficulty testing needs a copy that can be freely depleted, healed,
+or discarded without changing that campaign state.
+
+`_edits/mock-forge-test-fight.html` is the mock-first proposal. It keeps Health
+(Full/Current/50%/25%/Custom), Resources (Full/Current/Empty/Custom), and Effects
+(Clear/Current) as independent axes, so “full health, empty resources” is a
+first-class test. Each character preview makes the copied HP and every limited
+pool explicit. TEST identity and “no sheet write-back” are visible before the
+table is created.
+
+The production invariant, if approved, is stronger than a visual badge:
+construct a roster snapshot from the current projected characters, transform
+only that snapshot by the selected presets, persist the TEST mode/config with
+the encounter, and refuse every combat-to-character mirror for that session.
+Campaign mode retains the existing live/current behavior. No production file or
+schema change belongs to this slice until M approves the mock.
+
+Browser validation proved:
+
+- Full health + Empty resources keeps Caim at 37/37 HP with Ki 0/4.
+- Campaign mode hides the preset controls and explicitly says normal sheet
+  mirroring.
+- Returning to Test Fight restores the isolated preset and its no-write-back
+  summary.
 
 ## Required field checklist
 
@@ -748,10 +844,11 @@ the combat kit. Deployment verification remains.
 6. Run the signed-in shared-table/reconnect deployment and architecture checklist.
 7. Compare Balanced and High Fidelity on M's actual laptop during a full round.
 8. Recheck saved-block and geometry-fog reconnects on the normal Temple URL.
-9. Correct the 8-corner LoS diagnostic label and its two fixtures.
-10. Promote Temple from `preview` to `active` only after those checks pass.
-11. Expose/settle the Volcanic Workshop construction control.
-12. Build `bridge-crossing` on the same intent contract.
+9. Approve or revise the War Caster/Repelling Blast reaction-choice mock.
+10. Replay the July 24 fight for the exact pillar-cover and serialized-Ki facts.
+11. Promote Temple from `preview` to `active` only after those checks pass.
+12. Expose/settle the Volcanic Workshop construction control.
+13. Build `bridge-crossing` on the same intent contract.
 
 Do not begin `bridge-crossing` by re-enabling random legacy bridge selection. Purpose and archetype ownership come first.
 
@@ -761,13 +858,14 @@ M reviews, commits, and pushes. Codex does not push. Current slice stamps:
 `forge-deployment.js?v=fd3`, `forge-generator-foundation.js?v=g2g1`,
 `forge-temple-terraces.js?v=tt1`, `forge-engine.js?v=fe10`,
 `forge-render-power.js?v=frp1`, `forge-architecture.js?v=fa4`, and
-`forge-discovery.js?v=fd7`, `forge-kit-derive.js?v=b12`,
-`forge-foe-ai.js?v=fai2`, `forge-hud.js?v=b6`, and
+`forge-discovery.js?v=fd7`, `forge-kit-derive.js?v=b13`,
+`forge-foe-ai.js?v=fai3`, `forge-feed-render.js?v=ffr6`,
+`forge-hud.js?v=b6`, and
 `monster-actor.js?v=ma2`. Encounter activation adds
 `forge-encounter-regions.js?v=fer1` and bumps `forge-protocol.js?v=fpr2`,
 `forge-replay.js?v=fb15`, `forge-effects.js?v=fe6`,
 `forge-pipeline.js?v=fb8`, `forge-board.js?v=fb8`, and
-`forge-table-correctness.js?v=fg10`. Encounter Read adds
+`forge-table-correctness.js?v=fg11`. Encounter Read adds
 `forge-encounter-read.js?v=fread3`. Explicit local party authority adds
 `forge-party-selection.js?v=fps1`. Character-source alignment adds root
 `character-sheet-projection.js?v=cp1`, `sheet-mount.js?v=src1`, and

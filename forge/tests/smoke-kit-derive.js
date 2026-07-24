@@ -70,6 +70,17 @@ const VES_CHAR = {
   ]
 };
 
+(function featureFlagProjection(){
+  var ves=JSON.parse(JSON.stringify(VES_CHAR));
+  ves.structural.features.push({name:"War Caster",source:"feat"});
+  var vk=FKD.derive(ves);
+  ok("feature flags: War Caster projects from authored sheet features",vk.featureFlags&&vk.featureFlags.warCaster===true);
+  var cos=JSON.parse(JSON.stringify(ves));
+  cos.structural.features=[{name:"Eldritch Invocation: Repelling Blast",source:"Warlock"}];
+  var ck=FKD.derive(cos);
+  ok("feature flags: Repelling Blast projects from authored invocations",ck.featureFlags&&ck.featureFlags.repellingBlast===true);
+})();
+
 // Caim — Monk 4 (Way of Mercy), Tiefling
 const CAIM_CHAR = {
   key: "caim", name: "Caim",
@@ -952,6 +963,8 @@ const RESOLVABLE = { attack:1, save:1, heal:1, buff:1, buffAlly:1, selfheal:1,
   const bbA = tile(ves, "attacks", "Booming Blade");
   ok("live/ves: one real BB in attacks, kind=attack hit=+6",
      bbA && bbA.kind === "attack" && bbA.hit === 6 && !bbA.greyed);
+  ok("live/ves: Booming Blade is a cantrip attack with its movement rider",
+     bbA && bbA.spell === true && bbA.level === 0 && bbA.rider === "boom");
   ok("live/ves: BB carries the folded spells-tab source", bbA && Array.isArray(bbA._folded) && bbA._folded.length === 1);
   const mi = tile(ves, "spells", "Minor Illusion");
   ok("live/ves: DC 12 rides combat.spellSaveDC (guess path would say 10)", mi && mi.dc === 12);

@@ -1,4 +1,4 @@
-# CONTEXT — Battle Forge — current authority through 2026-07-23
+# CONTEXT — Battle Forge — current authority through 2026-07-24
 
 > This doc exists because the same failure kept happening: a session would read
 > *part* of the material, conclude a feature "was never there," and rebuild
@@ -9,7 +9,7 @@
 
 ---
 
-## CURRENT AUTHORITY · 2026-07-23
+## CURRENT AUTHORITY · 2026-07-24
 
 Read `docs/handoffs/forge/CONTEXT_Forge-update-2026-07-22.md` before the
 historical sections below. It carries the intentional Temple Terraces preview,
@@ -28,6 +28,14 @@ DM flags, deterministic formations, manual pins, exact save/session positions,
 and local combat. Unresolved groups refuse promotion. Staged legacy generation no
 longer samples decorative 5-ft connectors or produces bridges. Bridge authority
 remains available for the later `bridge-crossing` archetype. Runtime contract:
+
+The uncommitted July 24 correction also owns the current combat field-report
+slice: current/max HP presentation, current-key character art aliases,
+first-click Hex targeting, save/Silvery Barbs evidence, staff-only tactics and
+cover rulings, real-time opportunity timing, ranged foe positioning, visible
+Encounter rosters, War Caster opportunity choices, Booming Blade movement
+riders, Repelling Blast forced movement, and a pillar cover footprint matching
+the visible stone base. See the current handoff for exact validation and gates.
 `forge/FORGE_TEMPLE_TERRACES_1.md`.
 
 The cinematic selector remains the sole authority for which PCs enter a fight.
@@ -228,7 +236,7 @@ the contract for "port the battle mock." **Everything marked ✗ is the job.**
 | reaction pipeline | – | – | ✔ | Silvery Barbs → Shield → Rebuke |
 | rewind / snapshot | – | – | ✔ | session-aware 2026-07-11: HUD cluster publishes protocol facts (overseer `restore`; player `undo_of` move retraction). Sandbox keeps local time-travel |
 | **flanking** | ✔ | – | ✔ | shared rule modes: advantage default, +2, +5, Off; named adv/dis sources cancel normally; incapacitated/downed units do not flank |
-| **opportunity attacks** | ✔ | – | ✔ | local and shared move paths prompt before the mover leaves reach; a hit can stop the remaining path |
+| **opportunity attacks** | ✔ | – | ✔ | local/shared paths detect the boundary first; shared presentation now animates to the last safe cell before prompting, then resumes the remaining path. A hit can stop that path. War Caster's spell choice remains mock-gated |
 | **ready / held action** | ✗ | ✗ | ~ | local combat can hold/release an attack; not yet a reconnect/replay-safe shared protocol fact |
 
 ### Feel — the layer that makes it a game
@@ -616,12 +624,20 @@ real placement. **These are decisions, not hypotheses.**
     deployment, and encounter activation. Broader macro variety, additional
     archetypes, first-class connector families, and local-repair depth remain
     active Phase 2 work.
-33. **The LoS refusal narration still names the retired 8-corner model.**
-    `explainBlock()` in `forge/index.html` reports `blocked/8 corners` and the
-    table-correctness/category fixtures still use that phrase, while canonical
-    `tactics-geometry.js` now evaluates **12 body samples**. This is a stale
-    diagnostic label, not evidence that the geometry reverted. Update the
-    production narration and both diagnostic fixtures together.
+33. ~~The LoS refusal narration still named the retired 8-corner model.~~
+    **Fixed in the July 24 candidate.** `explainBlock()` and the
+    table-correctness/category fixtures now report the canonical
+    **12 body samples**. The geometry itself never reverted.
+34. ~~A visually aligned full-height pillar could report no cover.~~ **Fixed in
+    the July 24 candidate.** The cylinder renders at radius `.40`, but attack
+    cover had used `.29/.31`. The canonical cover footprint now matches the
+    visible stone base, and the real LoS/cover authority proves an aligned
+    pillar grants cover.
+35. **Campaign state and difficulty-testing state need different contracts.**
+    A Campaign table must preserve current live HP/resources, including
+    legitimately spent Ki. `_edits/mock-forge-test-fight.html` proposes a
+    disposable TEST snapshot with independent health, resource, and effect
+    presets and no sheet write-back. It remains mock-only until M approves it.
 
 ## §6 · ART, ASSETS, LICENSING
 

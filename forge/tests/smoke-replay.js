@@ -117,6 +117,14 @@ s = FR.replayLog(ROSTER, setup.concat([
 ok("OA hits en route, move completes anyway", s.units.caim.hp === 26 &&
   s.units.caim.pos.c === 6 && s.units.goblin1.reactionUsed === true);
 
+s = FR.replayLog(ROSTER, setup.concat([
+  row(5,"cosmere","attack_resolved",{target:"goblin1",hit:true,dmg:1,effects:[{unit:"goblin1",add_boom:{by:"cosmere",die:"1d8"}}]}),
+  row(6,"goblin1","move_resolved",{final_cell:{c:7,r:8},effects:[{unit:"goblin1",dmg:3,remove_boom:true}]})
+]));
+ok("Booming Blade mark replays, damages on movement, and clears",s.units.goblin1.hp===3&&s.units.goblin1.boomMark===null);
+s=FR.replayLog(ROSTER,setup.concat([row(5,"cosmere","attack_resolved",{target:"goblin1",hit:true,dmg:1,effects:[{unit:"goblin1",forced_move:{path:[{c:9,r:8}],to:{c:9,r:8},source:"Repelling Blast"}}]})]));
+ok("forced movement is a replayed position fact",s.units.goblin1.pos.c===9&&s.units.goblin1.pos.r===8);
+
 // chat is part of the fight's story
 s = FR.replayLog(ROSTER, setup.concat([row(5, "cosmere", "chat", { text: "bait the OA!" })]));
 ok("chat lands in the transcript", s.chat.length === 1 && s.chat[0].unit === "cosmere");

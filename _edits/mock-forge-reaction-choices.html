@@ -1,0 +1,54 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Forge reaction choices mock</title>
+<style>
+:root{--ink:#e7dfcd;--dim:#aaa08d;--gold:#d6b45f;--green:#6fb490;--red:#c46b5c;--panel:#161916;--line:#5e5749}
+*{box-sizing:border-box}body{margin:0;min-height:100vh;background:radial-gradient(circle at 50% 18%,#31473c 0,#17221e 35%,#090c0b 100%);color:var(--ink);font:15px/1.45 system-ui,sans-serif;display:grid;place-items:center;padding:24px}
+.shell{width:min(760px,100%)}.tabs{display:flex;gap:8px;margin:0 0 12px}.tabs button{flex:1;padding:10px;border:1px solid var(--line);background:#171914;color:var(--dim);text-transform:uppercase;letter-spacing:.12em;font-weight:800;cursor:pointer}.tabs button.on{border-color:var(--gold);color:#fff1c3;background:#302a18}
+.card{display:none;position:relative;overflow:hidden;border:1px solid #736847;background:linear-gradient(145deg,rgba(34,36,29,.98),rgba(15,18,16,.98));box-shadow:0 28px 80px #000a;padding:22px}.card.on{display:block}.ey{color:var(--gold);font-size:11px;font-weight:850;letter-spacing:.16em;text-transform:uppercase}.card h1{font:700 28px/1.1 Georgia,serif;margin:5px 0 8px}.desc{color:#d2c8b4}.evidence{margin:15px 0;padding:12px;border:1px solid #5d5134;background:#10130f}.evidence b{color:#fff1bf}.math{margin-top:5px;font:700 13px/1.5 ui-monospace,monospace;color:#eee4ce}.die{display:inline-block;border:1px solid var(--gold);padding:0 5px}.choices{display:grid;grid-template-columns:repeat(2,1fr);gap:9px;margin-top:14px}.choice{padding:13px;text-align:left;border:1px solid #5d584b;background:#20231e;color:var(--ink);cursor:pointer}.choice b,.choice span{display:block}.choice span{color:var(--dim);font-size:12px;margin-top:3px}.choice.on{border-color:var(--gold);box-shadow:inset 0 0 0 1px #d6b45f55;background:#312b1b}.choice.on:after{content:"SELECTED";float:right;margin-top:-31px;color:var(--gold);font-size:9px;font-weight:900;letter-spacing:.12em}
+.push-grid{grid-template-columns:repeat(3,1fr)}.direction{display:grid;grid-template-columns:1fr auto 1fr;align-items:center;gap:12px;margin:14px 0;color:var(--dim);text-align:center}.token{width:50px;height:50px;border-radius:50%;display:grid;place-items:center;border:3px solid var(--gold);background:#443927;color:#fff;font-weight:900}.token.foe{border-color:var(--red);background:#4b2823}.arrow{font-size:28px;color:var(--green)}.actions{display:flex;gap:10px;margin-top:18px}.actions button{flex:1;padding:12px;border:1px solid #5c5648;background:#23251f;color:var(--ink);font-weight:850;cursor:pointer}.actions .use{border-color:var(--gold);background:#493c1c;color:#fff0bd}.note{margin-top:12px;color:var(--dim);font-size:12px;text-align:center}
+@media(max-width:600px){.choices,.push-grid{grid-template-columns:1fr}.card{padding:17px}.card h1{font-size:23px}}
+</style>
+</head>
+<body>
+<main class="shell">
+  <div class="tabs">
+    <button class="on" data-show="war">War Caster OA</button>
+    <button data-show="push">Repelling Blast</button>
+  </div>
+  <section class="card on" id="war">
+    <div class="ey">Reaction · War Caster</div>
+    <h1>Vesperian — Opportunity Attack</h1>
+    <div class="desc">Giant Hyena 1 has reached the edge of Vesperian’s reach and is about to leave it. Choose the reaction attack.</div>
+    <div class="evidence"><b>Giant Hyena 1 is moving toward Líadan.</b><div class="math">Trigger cell: adjacent · reaction available · target in melee range</div></div>
+    <div class="choices">
+      <button class="choice" data-group="war"><b>Longsword</b><span>Melee weapon attack · +6 · 1d8+6 slashing</span></button>
+      <button class="choice on" data-group="war"><b>Booming Blade · Longsword</b><span>Single-target cantrip · +6 · hit plus movement rider</span></button>
+    </div>
+    <div class="actions"><button>Pass</button><button class="use">Use Booming Blade</button></div>
+    <div class="note">The creature is shown at the trigger cell before this card opens. If the hit lands, continuing the move can trigger Booming Blade.</div>
+  </section>
+  <section class="card" id="push">
+    <div class="ey">On hit · Eldritch Invocation</div>
+    <h1>Repelling Blast</h1>
+    <div class="desc">Cosmere hit Gnoll Pack Lord 1 with Eldritch Blast. Choose whether to drive it directly away from Cosmere.</div>
+    <div class="direction"><span class="token">CR</span><span class="arrow">⟶</span><span class="token foe">G1</span></div>
+    <div class="evidence"><b>Clear forced-movement path</b><div class="math">5 ft: legal · 10 ft: legal · no opportunity attacks</div></div>
+    <div class="choices push-grid">
+      <button class="choice" data-group="push"><b>No push</b><span>Leave the target in place</span></button>
+      <button class="choice" data-group="push"><b>Push 5 ft</b><span>One square directly away</span></button>
+      <button class="choice on" data-group="push"><b>Push 10 ft</b><span>Two squares directly away</span></button>
+    </div>
+    <div class="actions"><button>Skip</button><button class="use">Push 10 ft</button></div>
+    <div class="note">Blocked or occupied destinations are disabled. The push never curves around a wall or creature.</div>
+  </section>
+</main>
+<script>
+document.querySelectorAll("[data-show]").forEach(function(button){button.onclick=function(){document.querySelectorAll("[data-show]").forEach(function(x){x.classList.toggle("on",x===button);});document.querySelectorAll(".card").forEach(function(x){x.classList.toggle("on",x.id===button.dataset.show);});};});
+document.querySelectorAll(".choice").forEach(function(button){button.onclick=function(){document.querySelectorAll('.choice[data-group="'+button.dataset.group+'"]').forEach(function(x){x.classList.remove("on");});button.classList.add("on");var use=button.closest(".card").querySelector(".use");use.textContent=button.querySelector("b").textContent==="No push"?"Continue":button.querySelector("b").textContent.indexOf("Push")===0?button.querySelector("b").textContent:"Use "+button.querySelector("b").textContent.split(" · ")[0];};});
+</script>
+</body>
+</html>

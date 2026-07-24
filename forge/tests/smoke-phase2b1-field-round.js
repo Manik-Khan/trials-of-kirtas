@@ -19,10 +19,10 @@ has(html,'CONTEST_COVER&&Number.isFinite(ro.cover)&&ro.cover>0','stale/no-cover 
 has(html,'function rollActionDamage(a,crit,extras)','attack resolution emits component damage evidence');
 has(html,'dmgParts:damage?damage.parts:null','shared attack facts carry damage components');
 has(html,'dmgParts:damage.parts','local attack facts carry damage components');
-ok(/\.\.\/weapon-actions\.js\?v=fg(?:3|2e1|2f)/.test(html),'weapon-action import is cache-busted');
-has(html,'forge-kit-derive.js?v=b12','kit derivation cache stamp bumped');
-ok(/forge-feed-render\.js\?v=(?:b3|ffr5)/.test(html),'feed renderer cache stamp bumped');
-has(html,'forge-table-correctness.js?v=fg10','table-correctness cache stamp bumped');
+ok(/\.\.\/weapon-actions\.js\?v=fg(?:3|2e1|2f|2g)/.test(html),'weapon-action import is cache-busted');
+has(html,'forge-kit-derive.js?v=b14','kit derivation cache stamp bumped');
+ok(/forge-feed-render\.js\?v=(?:b3|ffr6)/.test(html),'feed renderer cache stamp bumped');
+has(html,'forge-table-correctness.js?v=fg12','table-correctness cache stamp bumped');
 ok(html.indexOf('var DISCOVERY_RENDER={') < html.indexOf('resize(); rebuild();'),'discovery renderer still initializes before the first terrain build');
 ok(html.indexOf('var SESSION_ID') < html.indexOf('resize(); rebuild();'),'session id still initializes before the first terrain build');
 

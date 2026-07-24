@@ -8,7 +8,7 @@ function memory(){const d={};return {getItem:k=>Object.prototype.hasOwnProperty.
 const pc={side:"pc",unit:"caim-live",key:"caim",name:"Caim"};
 const gob1={side:"foe",unit:"goblin-1",name:"Goblin 1",statblock:{name:"Goblin",source:"MM"}};
 const gob2={side:"foe",unit:"goblin-2",name:"Goblin 2",statblock:{name:"Goblin",source:"MM"}};
-ok(A.VERSION==="1.0.0","module version is pinned");
+ok(A.VERSION==="1.1.0","module version is pinned");
 ok(A.initials("Mire Shaman")==="MS","two-word initials");
 ok(A.initials("Goblin")==="GO","single-word initials stay legible");
 ok(A.safeUrl("https://example.com/a.webp").startsWith("https://"),"https art accepted");
@@ -37,7 +37,7 @@ ok(explicit.source==="unit-field","authoritative unit field has highest preceden
 const stat=A.resolve({...gob1,statblock:{name:"Goblin",source:"MM",tokenUrl:"https://example.com/stat.webp"}},{storage:memory()});
 ok(stat.source==="statblock-art","explicit statblock token art is honored");
 const auto=A.resolve(gob1,{storage:memory()});
-ok(auto.source==="5etools-token"&&auto.url.includes("/MM/Goblin.webp"),"5etools token URL derives from source and name");
+ok(auto.source==="5etools-token"&&auto.url.includes("source=MM&name=Goblin")&&auto.fallbackUrl.includes("/MM/Goblin.webp"),"proxied 5etools token URL and direct fallback derive from source and name");
 const fallback=A.resolve({side:"foe",unit:"mystery",name:"Mire Shaman"},{storage:memory()});
 ok(fallback.fallback&&fallback.initials==="MS","missing art degrades to initials");
 const localStore=memory();A.setOverride(pc,"unit","https://example.com/local.webp",localStore);

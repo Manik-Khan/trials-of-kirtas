@@ -40,13 +40,13 @@ function extract(name){
 
   let resolved=0,logs=[];
   const foe={unit:"goblin",name:"Goblin",side:"foe"},mover={unit:"caim",name:"Caim",side:"pc"};
-  const auto=new Function("window","FOE_AUTOMATION","unitByKey","clearPromptUI","escapeHtml","clog","resolveOpportunityAttackPrompt","renderHud","AUTOMATIC_FOE_PROMPTS","NESTED_OA_OUTER","__answeringPromptSeq",extract("routeAutomaticFoePrompt")+";return routeAutomaticFoePrompt;")(
-    {__forgeSession:{me:{overseer:true}}},true,k=>k==="goblin"?foe:mover,()=>{},String,s=>logs.push(s),()=>{resolved++;return Promise.resolve({ok:true});},()=>{}, {},{},null);
+  const auto=new Function("window","FOE_AUTOMATION","unitByKey","stageOpportunityPrompt","clearPromptUI","escapeHtml","clog","resolveOpportunityAttackPrompt","renderHud","AUTOMATIC_FOE_PROMPTS","NESTED_OA_OUTER","__answeringPromptSeq",extract("routeAutomaticFoePrompt")+";return routeAutomaticFoePrompt;")(
+    {__forgeSession:{me:{overseer:true}}},true,k=>k==="goblin"?foe:mover,()=>false,()=>{},String,s=>logs.push(s),()=>{resolved++;return Promise.resolve({ok:true});},()=>{}, {},{},null);
   const prompt={seq:42,to:"goblin",react:"opportunityAttack",context:{mover:"caim",target:"caim"}};
   ok("automatic foe OA is claimed by the overseer route",auto(prompt)===true);
   ok("duplicate prompt signals cannot roll the OA twice",auto(prompt)===true&&resolved===1);
-  const playerRoute=new Function("window","FOE_AUTOMATION","unitByKey","clearPromptUI","escapeHtml","clog","resolveOpportunityAttackPrompt","renderHud","AUTOMATIC_FOE_PROMPTS","NESTED_OA_OUTER","__answeringPromptSeq",extract("routeAutomaticFoePrompt")+";return routeAutomaticFoePrompt;")(
-    {__forgeSession:{me:{overseer:false}}},true,k=>k==="goblin"?foe:mover,()=>{},String,()=>{},()=>Promise.resolve(),()=>{}, {},{},null);
+  const playerRoute=new Function("window","FOE_AUTOMATION","unitByKey","stageOpportunityPrompt","clearPromptUI","escapeHtml","clog","resolveOpportunityAttackPrompt","renderHud","AUTOMATIC_FOE_PROMPTS","NESTED_OA_OUTER","__answeringPromptSeq",extract("routeAutomaticFoePrompt")+";return routeAutomaticFoePrompt;")(
+    {__forgeSession:{me:{overseer:false}}},true,k=>k==="goblin"?foe:mover,()=>false,()=>{},String,()=>{},()=>Promise.resolve(),()=>{}, {},{},null);
   ok("a player device cannot choose an enemy's automatic reaction",playerRoute(prompt)===false);
 
   const hud=fs.readFileSync(path.join(root,"forge-hud.js"),"utf8");

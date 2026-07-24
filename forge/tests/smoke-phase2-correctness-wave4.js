@@ -35,6 +35,6 @@ ok("a target without an opposite threatening pair is not flanked",!F.isFlanked(C
 
 ok("attack confirmation computes an automatic pre-roll review",html.includes("function attackRollReview")&&html.includes("Bless 1d4")&&html.includes("rollReview:rollReview"));
 ok("HUD decorator renders the roll review before Confirm attack",tc.includes("fgRollReview")&&tc.includes("state.rollReview")&&tc.includes("Roll review · "));
-ok("cache stamps load the new rules and HUD decorator",html.includes("forge-combat-rules.js?v=fcr3")&&html.includes("forge-table-correctness.js?v=fg8"));
+ok("cache stamps load the new rules and HUD decorator",html.includes("forge-combat-rules.js?v=fcr3")&&html.includes("forge-table-correctness.js?v=fg12"));
 
 console.log(`\n${pass} passed, ${fail} failed`);process.exitCode=fail?1:0;

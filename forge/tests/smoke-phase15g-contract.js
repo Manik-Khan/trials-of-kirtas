@@ -7,11 +7,11 @@ const table=fs.readFileSync(path.join(__dirname,"..","forge-table-correctness.js
 let pass=0;function has(src,x,m){if(!src.includes(x))throw Error("FAIL: "+m);console.log("ok",++pass,"-",m);}function lacks(src,x,m){if(src.includes(x))throw Error("FAIL: "+m);console.log("ok",++pass,"-",m);}
 
 has(html,'forge-combat-rules.js?v=fcr3','production surface loads the Phase 1.5g combat-rules seam');
-has(html,'forge-table-correctness.js?v=fg8','feed/channel seam is cache-stamped');
+has(html,'forge-table-correctness.js?v=fg12','feed/channel seam is cache-stamped');
 has(table,'["table","system","all"]','feed exposes Table, System, and All filters');
 has(table,'data-feed-channel','feed rows retain their category');
 has(table,'.fg-frow:not([data-feed-channel])','rows that predate decorator installation are retroactively classified');
-has(table,'markNewestFeedRow(ch);ensureFeedTabs()','explicit feed-channel options stamp the new row before older rows are inferred');
+has(table,'markNewestFeedRow(ch,opts&&opts.visibility);ensureFeedTabs()','explicit feed-channel options stamp the new row before older rows are inferred');
 has(table,'categoryForHtml','automatic feed routing delegates to combat rules');
 has(table,'fg-feed-tabs','feed tabs have a dedicated presentation layer');
 has(table,'ensureFlowButtons','confirm, undo, and Stand controls share one HUD seam');

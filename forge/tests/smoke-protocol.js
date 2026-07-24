@@ -119,6 +119,9 @@ const ROSTER = [
   await bobP.attack("caim", { target: "goblin1", roll: 17, mode: "melee" },
     () => ({ hit: true, dmg: 5 }));
   ok("attack resolves and damages on every client", dmP.state().units.goblin1.hp === 2);
+  await bobP.attack("caim",{target:"goblin1",roll:17,mode:"repelling test"},
+    async()=>({hit:false,effects:[{unit:"goblin1",forced_move:{path:[{c:9,r:8}],to:{c:9,r:8},source:"test"}}]}));
+  ok("pipeline awaits an asynchronous resolution choice before publishing",dmP.state().units.goblin1.pos.c===9);
 
   await bobP.endTurn("caim");
   ok("turn advances everywhere", bobP.activeUnit() === "goblin1" && dmP.activeUnit() === "goblin1");

@@ -42,7 +42,7 @@ ok('Quarterstaff versatile -> 1d6 / 1d8', find(wActs, 'Quarterstaff').dmgDice ==
 ok('"+1 Longsword" -> longsword', normalizeWeaponName('+1 Longsword') === 'longsword');
 ok('"Longsword (your choice)" -> longsword', normalizeWeaponName('Longsword (your choice)') === 'longsword');
 ok('"Longsword of Warning" -> longsword', normalizeWeaponName('Longsword of Warning') === 'longsword');
-ok('a +1 weapon still yields an attack', !!find(buildWeaponActions([{ name: '+1 Longsword', qty: 1 }], fighter), 'Longsword'));
+ok('a +1 weapon still yields an attack and keeps its item label', !!find(buildWeaponActions([{ name: '+1 Longsword', qty: 1 }], fighter), '+1 Longsword'));
 
 // non-weapons and damage-less weapons are ignored
 const mixed = buildWeaponActions([{ name: 'Backpack', qty: 1 }, { name: 'Net', qty: 1 }, { name: 'Rations (1 day)', qty: 5 }, { name: 'Greatsword', qty: 1 }], fighter);

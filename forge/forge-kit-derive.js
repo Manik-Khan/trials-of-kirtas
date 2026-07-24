@@ -366,7 +366,8 @@ function combatErrorKit(charData, err) {
         }
 
         var spRng  = (proj && proj.rng) ? proj.rng : (a.type === "attack-cantrip" ? 24 : 12);
-        var spRider = (proj && proj.rider) || null;
+        var spRider = (proj && proj.rider)
+          || (spName === "booming blade" ? "boom" : null);
 
         tiles.push({
           id:          a.id || ("atk_" + tiles.length),
@@ -380,6 +381,7 @@ function combatErrorKit(charData, err) {
           saveAbility: spKind === "save" ? (a.saveAbility || (proj && proj.save) || null) : null,
           dmg:         spDmgExpr,
           dmgStack:    [{ dice: a.dmgDice || "1d4", bonus: spDmgMod, type: a.dmgType || "" }],
+          level:       a.level != null ? a.level : (a.type === "attack-cantrip" ? 0 : null),
           bonus:       !!a.bonus,
           free:        !!a.free,
           spell:       true,
@@ -433,6 +435,7 @@ function combatErrorKit(charData, err) {
         hit:      hitTotal,
         dmg:      dmgExpr,
         dmgStack: stack,
+        level:    a.level != null ? a.level : null,
         bonus:    !!a.bonus,
         free:     !!a.free,
         spell:    !!a.spell,
@@ -1249,6 +1252,11 @@ function combatErrorKit(charData, err) {
     var maxHp = stats.maxHp;
 
     var initiativeProfile = initiativeProfileFor(s, inv, stats);
+    var authoredFeatures = featureRows(s);
+    var featureFlags = {
+      warCaster: featureNamed(authoredFeatures, /^war caster$/i),
+      repellingBlast: featureNamed(authoredFeatures, /repelling blast/i)
+    };
 
     return {
       key:          charData.key || null,
@@ -1269,6 +1277,7 @@ function combatErrorKit(charData, err) {
       tabs:         tabs,
       pools:        rp.pools,
       spellcasting: scInfo,
+      featureFlags: featureFlags,
       derived:      true   // flag: this kit came from the derivation layer, not STARTER_KITS
     };
   }

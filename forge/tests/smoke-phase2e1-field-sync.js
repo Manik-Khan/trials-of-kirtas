@@ -12,7 +12,7 @@ ok(html.indexOf("var SESSION_ID")<html.indexOf("resize(); rebuild();"),"session 
 has('id="phase2e1FieldCss"',"field hotfix CSS is present");
 has('#fgFeed .fg-frow[hidden]{display:none!important}',"feed tabs actually hide the other channels");
 has('#fgFeed .ffr-dmg-detail{display:block!important}',"damage component math is visible by default");
-ok(/buildWeaponActions } from '\.\.\/weapon-actions\.js\?v=fg2(?:e1|f)'/.test(html),"weapon projection exposes a feature-detection seam");
+ok(/buildWeaponActions } from '\.\.\/weapon-actions\.js\?v=fg2(?:e1|f|g)'/.test(html),"weapon projection exposes a feature-detection seam");
 has("function structuralHasDueling", "runtime derivation can read the Dueling fighting style");
 has("function externalWeaponActionsOwnDueling", "runtime repair can detect an already-patched module");
 has("function applyFinalDueling", "Dueling is enforced on the final kit combat consumes");

@@ -33,28 +33,29 @@
 <script src="forge-encounter-read.js?v=fread3"></script>
 <script src="forge-bridge-authority.js?v=fba1"></script>
 <script src="forge-protocol.js?v=fpr2"></script>
-<script src="forge-replay.js?v=fb15"></script>
+<script src="forge-replay.js?v=fb16"></script>
 <script src="forge-combat-rules.js?v=fcr3"></script>
 <script src="forge-death-saves.js?v=fds1"></script>
-<script src="forge-foe-ai.js?v=fai2"></script>
+<script src="forge-foe-ai.js?v=fai3"></script>
 <script src="forge-effects.js?v=fe6"></script>
 <script src="forge-initiative.js?v=fi2"></script>
 <script src="forge-discovery.js?v=fd7"></script>
 <script src="forge-render-power.js?v=frp1"></script>
 <script src="forge-architecture.js?v=fa5"></script>
 <script src="forge-bus.js?v=fb2"></script>
-<script src="forge-pipeline.js?v=fb8"></script>
-<script src="forge-board.js?v=fb8"></script>
+<script src="forge-pipeline.js?v=fb9"></script>
+<script src="forge-board.js?v=fb9"></script>
 <script src="../armor-ac.js?v=um1"></script>
 <script src="../equip-slots.js?v=cc2"></script>
 <script src="../character-combat.js?v=um1"></script>
 <script src="../character-sheet-projection.js?v=cp1"></script>
-<script src="forge-kit-derive.js?v=b12"></script>
+<script src="forge-kit-derive.js?v=b14"></script>
 <script src="forge-action-damage.js?v=fad1"></script>
+<script src="forge-reaction-choices.js?v=frc1"></script>
 <script src="forge-damage-evidence.js?v=fde3"></script>
-<script src="forge-feed-render.js?v=ffr5"></script>
+<script src="forge-feed-render.js?v=ffr6"></script>
 <script src="forge-hud.js?v=b6"></script>
-<script src="forge-table-correctness.js?v=fg10"></script>
+<script src="forge-table-correctness.js?v=fg12"></script>
 <script src="../item-icons.js?v=b3"></script>
 <script src="../spell-icons.js?v=b3"></script>
 <script src="../icon-picker.js?v=b3"></script>
@@ -855,6 +856,7 @@ body.forge-author-preview #partySelect{opacity:0;pointer-events:none}
 .cbPromptCard{ width:390px; text-align:center; }
 .cbPromptEvidence{display:none;margin:11px 0 2px;padding:9px 10px;border:1px solid rgba(201,162,75,.42);background:rgba(20,24,22,.42);color:var(--tk-ink);text-align:left;font:600 12px/1.45 var(--f-util);letter-spacing:.02em}
 .cbPromptEvidence.on{display:block}.cbPromptEvidence .rolls{font-size:14px;color:#fff1bf}.cbPromptEvidence .kept{display:inline-block;padding:0 4px;border:1px solid var(--tk-gold);background:rgba(201,162,75,.17)}.cbPromptEvidence .drop{text-decoration:line-through;opacity:.58}.cbPromptEvidence .forecast{display:block;margin-top:4px;color:var(--tk-ink-dim);font-size:11px}.cbPromptEvidence .warn{color:#b94b3d;font-weight:800}
+.cbPromptChoices{display:none;grid-template-columns:1fr 1fr;gap:7px;margin-top:12px}.cbPromptChoices.on{display:grid}.cbPromptChoice{border:1px solid var(--tk-line);background:rgba(18,27,25,.7);color:var(--tk-ink);padding:9px 7px;cursor:pointer;font:600 11px/1.25 var(--f-util)}.cbPromptChoice b{display:block;color:#fff1bf}.cbPromptChoice small{display:block;margin-top:3px;color:var(--tk-ink-dim);font-size:9px}
 .cbPromptFlag{ font-family:var(--f-util); text-transform:uppercase; letter-spacing:.1em; font-size:11px; color:#a33b2e; margin-top:6px; }
 .cbPromptRing{ position:relative; width:64px; height:64px; margin:14px auto 4px; border-radius:50%;
   background:conic-gradient(var(--tk-gold) 0deg, rgba(168,159,138,.3) 0deg); display:flex; align-items:center; justify-content:center; }
@@ -1097,6 +1099,8 @@ body.forge-author-preview #partySelect{opacity:0;pointer-events:none}
         </div>
         <div class="erWarnings" id="encounterReadWarnings"></div>
       </div>
+      <div class="eyebrow" style="margin:10px 0 6px">ENCOUNTER ROSTER</div>
+      <div id="fpPicked"><div class="fname">No foes picked.</div></div>
       <button class="filebtn" id="encounterSuggestionsToggle" type="button" style="width:100%;margin-top:7px">Show creature suggestions</button>
       <div id="encounterSuggestions" style="display:none">
         <div class="erSuggestionTools" id="encounterSuggestionModes"><button class="active" data-encounter-suggest="related">Related enemies</button><button data-encounter-suggest="any">Any creature</button></div>
@@ -1135,8 +1139,6 @@ body.forge-author-preview #partySelect{opacity:0;pointer-events:none}
         <div id="fpBookResults"></div>
         <div class="eyebrow" style="margin:9px 0 6px">Shelf</div>
         <div id="fpShelf"><div class="fname">Loading…</div></div>
-        <div class="eyebrow" style="margin:9px 0 6px">Picked</div>
-        <div id="fpPicked"><div class="fname">No foes picked.</div></div>
       </div>
     </div>
     </section>
@@ -1398,6 +1400,7 @@ body.forge-author-preview #partySelect{opacity:0;pointer-events:none}
         <div class="cbReactTitle" id="cbPromptTitle"></div>
         <div class="cbReactDesc" id="cbPromptDesc"></div>
         <div class="cbPromptEvidence" id="cbPromptEvidence" aria-live="polite"></div>
+        <div class="cbPromptChoices" id="cbPromptChoices"></div>
         <div class="cbPromptFlag" id="cbPromptFlag" style="display:none"></div>
         <div class="cbPromptRing" id="cbPromptRing"><span id="cbPromptRingNum"></span></div>
         <div class="cbReactBtns" id="cbPromptBtns"><button class="cbReactUse" id="cbPromptUse">Use</button><button class="cbReactSkip" id="cbPromptSkip">Pass</button></div>
@@ -1531,7 +1534,7 @@ body.forge-author-preview #partySelect{opacity:0;pointer-events:none}
   </div>
 <script type="module">
 import * as THREE from 'three';
-import { assembleActions, buildWeaponActions } from '../weapon-actions.js?v=fg2f';
+import { assembleActions, buildWeaponActions } from '../weapon-actions.js?v=fg2g';
 /* Module scope changes what escapes this block. Two consequences, both handled:
    · No inline HTML on*= attributes exist in this file (all 19 matches are JS
      property assignments like `hs.oninput=`), so no handler needs a global.
@@ -1893,7 +1896,9 @@ const PROP_FT = {             // world-unit height × 5. Absent ⇒ flat dressin
    coverShape supplies the missing horizontal footprint. Terrain walls remain
    full-cell; narrow trunks and columns only block rays that cross their mass. */
 const PROP_COVER_SHAPE={
-  column:{kind:'circle',radius:.29},pillar:{kind:'circle',radius:.31},
+  /* The rendered stone cylinder reaches a .40-cell base radius. Keep its
+     rules footprint WYSIWYG so a shot visibly crossing the pillar earns cover. */
+  column:{kind:'circle',radius:.40},pillar:{kind:'circle',radius:.40},
   rock:{kind:'circle',radius:.37},boulder:{kind:'circle',radius:.40},
   tree:{kind:'circle',radius:.18},cypress:{kind:'circle',radius:.17},snowpine:{kind:'circle',radius:.19},
   bare:{kind:'circle',radius:.16},poplar:{kind:'circle',radius:.15},pine:{kind:'circle',radius:.18},
@@ -3065,7 +3070,7 @@ function topInitialTexture(u){
 function tokenArtStorage(){try{return window.localStorage;}catch(_e){return null;}}
 function unitArtResolution(u){
   const ua=window.ForgeUnitArt;
-  return ua?ua.resolve(u,{storage:tokenArtStorage(),portraits:PORTRAITS}):{url:null,source:'initials',fallback:true};
+  return ua?ua.resolve(u,{storage:tokenArtStorage(),portraits:presentationPortraits()}):{url:null,source:'initials',fallback:true};
 }
 function cropTokenTexture(t){
   const im=t.image||{},w=Number(im.width)||1,h=Number(im.height)||1,asp=w/h;
@@ -3221,11 +3226,11 @@ function walkableCells(){
 function placeToken(key,cell){
   const X=wxc(cell.x), Z=wzc(cell.y), Y=cell.h*STEP;
   tokenGroup.add(billboard(shadowTex, X, Y+0.05, Z, 1.25, 0.7, true));
-  const st = spriteTex(ROSTER_SPRITE[key]);
+  const displayKey=presentationKeyFor(key),st = spriteTex(ROSTER_SPRITE[displayKey]);
   let s;
   if(st){ s=new THREE.Sprite(new THREE.SpriteMaterial({map:st.tex,transparent:true,alphaTest:ALPHA_CUT,toneMapped:false}));
     s.scale.set(2.05*st.aspect,2.05,1); s.center.set(0.5,0); s.position.set(X,Y+0.02,Z); }
-  else { s=billboard(initialTokenTex(ROSTER_INIT[key]||key.charAt(0).toUpperCase(), ROSTER_COL[key]||'#b8863a'), X,Y+0.02,Z, 2.6, 2/3, false); }
+  else { s=billboard(initialTokenTex(ROSTER_INIT[displayKey]||key.charAt(0).toUpperCase(), ROSTER_COL[displayKey]||'#b8863a'), X,Y+0.02,Z, 2.6, 2/3, false); }
   s.renderOrder=4; tokenGroup.add(s);
 }
 function placeRoster(){
@@ -4205,7 +4210,11 @@ function refreshDiscovery(force){
 function discoveryCellVisible(c,r){var D=discoveryApi();return !!(D&&DISCOVERY.ready&&discoveryStateAt(c,r)===D.VISIBLE);}
 function discoveryCreatureDisclosure(c,r,sources){var D=discoveryApi();return D&&DISCOVERY.ready&&D.creatureDisclosure?D.creatureDisclosure(CB.map,sources||DISCOVERY.currentSources||[],{c:c,r:r},TG,{clearFt:CREATURE_CLEAR_FT,softMaxFt:CREATURE_SOFT_MAX_FT}):{state:"hidden",canTarget:false,clarity:0};}
 function discoveryCellTargetable(c,r){return !!discoveryCreatureDisclosure(c,r).canTarget;}
-document.addEventListener('forge:viewerMode',function(){refreshDiscovery(true);syncAllUnitVisuals();drawHi();drawSight();});
+document.addEventListener('forge:viewerMode',function(){
+  refreshDiscovery(true);syncAllUnitVisuals();drawHi();drawSight();
+  var sess=window.__forgeSession,state=sess&&sess.pipe&&sess.pipe.state(),prompt=state&&state.pendingPrompt;
+  if(prompt&&prompt.react==="cover")routeCoverPrompt(prompt);
+});
 
 /* ── PHASE 1.5e: persistent effect ledger ─────────────────────────────
    Effects are facts inside the existing payload.effects array. ForgeReplay
@@ -4287,14 +4296,15 @@ function hexbladeDefeatOps(u,t,hpAfter){var E=effectApi(),curse=hexbladeCurseAga
 function saveModFor(u,ability){ability=String(ability||"").toLowerCase();if(u&&u.saveMods&&u.saveMods[ability]!=null)return Number(u.saveMods[ability])||0;var sb=u&&u.statblock||{};if(sb.save&&sb.save[ability]!=null)return parseInt(sb.save[ability],10)||0;if(sb[ability]!=null)return Math.floor(((Number(sb[ability])||10)-10)/2);return Number(u&&u.save)||0;}
 function concentrationCheckFor(u,dmg,hpBefore,reason){
   var E=effectApi(),key=u&&(u.unit||u.key||u.id);if(!E||!key||!E.concentrationSave)return null;
-  var bless=blessRollFor(u),blessV=bless?bless.roll:0,base=saveModFor(u,"con"),willDown=Number(hpBefore)-Number(dmg)<=0;
-  var result=E.concentrationSave(EFFECT_STATE,key,dmg,base+blessV,d(20),{incapacitated:willDown,reason:reason||"concentration broken by damage"});
-  if(!result.required)return null;result.baseBonus=base;result.bless=blessV;return result;
+  var bless=blessRollFor(u),blessV=bless?bless.roll:0,base=saveModFor(u,"con"),willDown=Number(hpBefore)-Number(dmg)<=0,warCaster=!!(u.featureFlags&&u.featureFlags.warCaster),d20ev=rollD20Evidence(warCaster,false);
+  var result=E.concentrationSave(EFFECT_STATE,key,dmg,base+blessV,d20ev.roll,{incapacitated:willDown,reason:reason||"concentration broken by damage"});
+  if(!result.required)return null;result.baseBonus=base;result.bless=blessV;result.adv=warCaster;result.advReason=warCaster?"War Caster":null;result.d20Rolls=d20ev.rolls;result.d20KeptIndex=d20ev.keptIndex;return result;
 }
 function concentrationNarration(u,result){
   if(!result)return "";var name=escapeHtml(u&&u.name||"Creature");
   if(result.automatic)return name+" loses concentration on falling unconscious.";
-  return name+" concentration: CON "+result.roll+(result.baseBonus?((result.baseBonus>=0?"+":"")+result.baseBonus):"")+(result.bless?" + Bless "+result.bless:"")+" = "+result.total+" vs DC "+result.dc+(result.saved?" — holds.":" — broken.");
+  var dice=result.d20Rolls&&result.d20Rolls.length?result.d20Rolls.join(" / "):result.roll;
+  return name+" concentration: CON "+dice+(result.adv?" (War Caster advantage)":"")+(result.baseBonus?((result.baseBonus>=0?"+":"")+result.baseBonus):"")+(result.bless?" + Bless "+result.bless:"")+" = "+result.total+" vs DC "+result.dc+(result.saved?" — holds.":" — broken.");
 }
 function localConcentrationAfterDamage(u,dmg,hpBefore,reason){
   var result=concentrationCheckFor(u,dmg,hpBefore,reason);if(!result)return null;
@@ -4694,8 +4704,8 @@ function bridgeFieldPoint(c,r){
   return null;
 }
 function tierY(c,r){ var bridge=bridgeFieldPoint(c,r);return ((bridge?Number(bridge.elevationFt||0)/STEP_FT:(F.height[r*F.W+c]||0))*STEP); }
-function tokenTex(key){ if(ROSTER_ART[key]){var t=new THREE.TextureLoader().load(ROSTER_ART[key]);t.minFilter=THREE.LinearFilter;return t;}
-  return initialTokenTex((ROSTER_INIT[key]||key.charAt(0).toUpperCase()), ROSTER_COL[key]||"#b8863a"); }
+function tokenTex(key){ var displayKey=presentationKeyFor(key);if(ROSTER_ART[displayKey]){var t=new THREE.TextureLoader().load(ROSTER_ART[displayKey]);t.minFilter=THREE.LinearFilter;return t;}
+  return initialTokenTex((ROSTER_INIT[displayKey]||key.charAt(0).toUpperCase()), ROSTER_COL[displayKey]||"#b8863a"); }
 /* Field 2026-07-11: a standee's card is wider than its 1-square cell, so a
    token beside a wall poked into the stone and the renderer swallowed half
    the art (§5.3c). At draw time only, the card slides TOKEN_NUDGE world units
@@ -4752,7 +4762,7 @@ function makeToken(u){
     u.sprite.renderOrder=4; nudgeSprite(u.sprite); tokenGroup.add(u.sprite);
     return;
   }
-  var key = u.side==="pc" ? ROSTER_SPRITE[u.key] : foeSpriteKey(u);
+  var displayKey=presentationKeyFor(u.key,u.name),key = u.side==="pc" ? ROSTER_SPRITE[displayKey] : foeSpriteKey(u);
   var st  = key && spriteTex(key,u.side==="foe"?foeSpriteVariant(u):0);
   if(st){
     /* The forge mock used a plane under a fixed camera. This scene orbits,
@@ -4767,7 +4777,7 @@ function makeToken(u){
   } else {
     // Non-goblins use their already-resolved 5e.tools token as an upright
     // standee; initials remain the narrated, zero-network fallback.
-    u.sprite=billboard(initialTokenTex(u.badge||ROSTER_INIT[u.key]||u.name.charAt(0),seatCol(u)), X,Y+0.02,Z, 2.6, 2/3, false);
+    u.sprite=billboard(initialTokenTex(u.badge||ROSTER_INIT[displayKey]||u.name.charAt(0),seatCol(u)), X,Y+0.02,Z, 2.6, 2/3, false);
     if(u.side==="foe")loadFoeStandeeArt(u,u.sprite);
   }
   u.sprite.renderOrder=4; nudgeSprite(u.sprite); tokenGroup.add(u.sprite);
@@ -4910,6 +4920,7 @@ function buildUnit(kit, side, opts){
     initiativeProfile: initiativeProfile,
     climb: !!(kit && kit.climb), res: normalizeResourceRecord((kit && kit.res) || {}),
     pools: JSON.parse(JSON.stringify((kit && kit.pools) || [])),
+    featureFlags: JSON.parse(JSON.stringify((kit && kit.featureFlags) || {})),
     saveMods: JSON.parse(JSON.stringify((kit && kit.saveMods) || {})),
     spellcasting: JSON.parse(JSON.stringify((kit && kit.spellcasting) || {})),
     reacted: false, alive: opts.alive !== false,deathSaves:window.ForgeDeathSaves?window.ForgeDeathSaves.normalize(opts.deathSaves):{successes:0,failures:0,stable:false,dead:false}, tokenArt: opts.tokenArt || null, bestiary: opts.bestiary || null };
@@ -5019,6 +5030,16 @@ function legacySheetKeyFor(character){
   return hit;
 }
 function resolveLiveSheetRef(sheetRef){return (__sheetRefAliases&&__sheetRefAliases[sheetRef])||sheetRef;}
+function presentationKeyFor(key,name){
+  var hit=null;
+  Object.keys(__sheetRefAliases||{}).some(function(legacy){if(__sheetRefAliases[legacy]===key){hit=legacy;return true;}return false;});
+  return hit||legacySheetKeyFor({name:name||key})||key;
+}
+function presentationPortraits(){
+  var out=Object.assign({},PORTRAITS);
+  Object.keys(__sheetRefAliases||{}).forEach(function(legacy){var current=__sheetRefAliases[legacy];if(PORTRAITS[legacy]&&!out[current])out[current]=PORTRAITS[legacy];});
+  return out;
+}
 function forgePartyRows(){
   var selected=Array.isArray(window.__fightRoster)?window.__fightRoster:[],live={};
   (__livePartyRows||[]).forEach(function(c){live[c.key]=c;});
@@ -5287,6 +5308,7 @@ function reconcileSharedUnitFacts(state){
     if(su.resources)cu.res=normalizeResourceRecord(su.resources);
     if(su.deathSaves)cu.deathSaves=window.ForgeDeathSaves?window.ForgeDeathSaves.normalize(su.deathSaves):JSON.parse(JSON.stringify(su.deathSaves));
     cu.advGrant=su.advGrant?{reason:su.advGrant.reason||"granted"}:null;
+    cu.boomMark=su.boomMark?Object.assign({},su.boomMark):null;
     cu.reacted=!!su.reactionUsed;
   });
 }
@@ -5380,8 +5402,8 @@ function applyVerb(v){
   requestForgeRender(450);
   var u = v.unit && unitByKey(v.unit);
   switch(v.t){
-    case "walk":   if(u){ var steps=v.path.map(function(p){return {c:p.c,r:p.r};}); CB_ANIM=true;
-      walkPath(u, steps, function(){ CB_ANIM=false;
+    case "walk":   if(u){ var steps=v.path.map(function(p){return {c:p.c,r:p.r};}),stagedAt=steps.findIndex(function(p){return p.c===u.c&&p.r===u.r;});if(stagedAt>=0)steps=steps.slice(stagedAt+1);CB_ANIM=true;
+      var finishWalk=function(){ CB_ANIM=false;
         /* Shared movement is reconstructed from the echoed replay facts;
            local sandbox movement still spends only after the tween lands.
            Both paths re-enter the same presentation reconciliation door so
@@ -5396,7 +5418,10 @@ function applyVerb(v){
            phase \u2014 see awaitWalkDone. */
         // assumes the walking unit still exists at echo time; a despawn mid-walk would strand the foe chain (no such path today)
         if(__pendingWalkDone && __pendingWalkDone.unit===v.unit){ var w=__pendingWalkDone; __pendingWalkDone=null; w.resolve(); }
-      }); } break;
+      };
+      if(steps.length)walkPath(u,steps,finishWalk);else{u.c=v.to.c;u.r=v.to.r;positionToken(u);finishWalk();}
+      } break;
+    case "push":   if(u){var pushPath=(v.path||[]).map(function(p){return {c:p.c,r:p.r};});if(pushPath.length)walkPath(u,pushPath,function(){drawHi();drawSight();renderHud();});else if(v.to){u.c=v.to.c;u.r=v.to.r;positionToken(u);renderHud();}}break;
     case "jump":   if(u){ u.c=v.to.c; u.r=v.to.r; positionToken(u); } break;
     case "hp":     if(u){ var wasAlive=u.alive; u.hp=v.hp; if(v.maxHp!=null) u.hpMax=v.maxHp; u.alive=!v.downed; renderHud();
       if(!u.alive){ removeToken(u); maybeEnd(); }
@@ -6020,14 +6045,15 @@ function explainBlock(u,t,v){
     __losExplained[key]=true;
     var prop=occluderKindAt(hit.at.c,hit.at.r);
     var name=prop?prop.kind:(CB.map.occ[j]>0?"occluder":"terrain");
+    var samples=v.samples||12;
     clog("<i>No line of sight \u2014 "+escapeHtml(name)+" at ("+hit.at.c+","+hit.at.r+"), "
       +(CB.map.h[j]+CB.map.occ[j])+" ft ("+CB.map.h[j]+" terrain + "+CB.map.occ[j]+" occluder), "
-      +v.blocked+"/8 corners blocked.</i>");
+      +v.blocked+"/"+samples+" body samples blocked.</i>");
   }
   console.log("[LoS] "+u.name+" ("+u.c+","+u.r+") h"+CB.map.h[j===0?0:u.r*F.W+u.c]+
     " → "+t.name+" ("+t.c+","+t.r+")  blocked at ("+hit.at.c+","+hit.at.r+")"+
     "  terrain "+CB.map.h[j]+" ft + occluder "+CB.map.occ[j]+" ft = "+(CB.map.h[j]+CB.map.occ[j])+" ft"+
-    "   [8-corner blocked: "+v.blocked+"/8]");
+    "   [body samples blocked: "+v.blocked+"/"+(v.samples||12)+"]");
 }
 
 function canUse(u,a){
@@ -6178,7 +6204,7 @@ function reactionCandidates(state,declaredRow,answers){
       for(var i=0;i<path.length;i++){
         var next={c:path[i].c,r:path[i].r};
         if(TG.chebyshev({c:su.pos.c,r:su.pos.r},prev)<=reach&&TG.chebyshev({c:su.pos.c,r:su.pos.r},next)>reach){
-          cands.push({to:k,react:"opportunityAttack",context:{kind:"opportunity-attack",attacker:k,target:mover,mover:mover,attack:Object.assign({kind:"attack",strikes:1},act),trigger_cell:prev,path_index:i}});break;
+          cands.push({to:k,react:"opportunityAttack",context:{kind:"opportunity-attack",attacker:k,target:mover,mover:mover,attack:Object.assign({kind:"attack",strikes:1},act),trigger_cell:prev,path_index:i,path_prefix:path.slice(0,i)}});break;
         }
         prev=next;
       }
@@ -6218,6 +6244,20 @@ function reactionCandidates(state,declaredRow,answers){
    is untouched and keeps serving the no-session path. */
 var PROMPT_UI = { seq:null, kind:null, timerId:null, onUse:null, onSkip:null };
 var __answeringPromptSeq = null;   // guards the fallback modal from reopening while OUR OWN answer is in flight
+var OA_MOVE_STAGE={};
+function stageOpportunityPrompt(prompt,done){
+  var ctx=prompt&&prompt.context||{},prefix=ctx.path_prefix,mover=unitByKey(ctx.mover||ctx.target);
+  if(!prompt||prompt.react!=="opportunityAttack"||!mover||!Array.isArray(prefix)||!prefix.length)return false;
+  var rec=OA_MOVE_STAGE[prompt.seq];
+  if(rec==="done")return false;
+  if(rec&&rec.wait){rec.wait.push(done);return true;}
+  var stagedAt=prefix.findIndex(function(p){return p.c===mover.c&&p.r===mover.r;});
+  if(stagedAt>=0)prefix=prefix.slice(stagedAt+1);
+  if(!prefix.length){OA_MOVE_STAGE[prompt.seq]="done";return false;}
+  rec=OA_MOVE_STAGE[prompt.seq]={wait:[done]};CB_ANIM=true;
+  walkPath(mover,prefix,function(){CB_ANIM=false;OA_MOVE_STAGE[prompt.seq]="done";rec.wait.forEach(function(cb){cb();});});
+  return true;
+}
 /* Cover contest (FORGE_COVER_CONTEST.md): CONTEST_COVER is the player's
    per-attack pre-roll toggle (armed on the HUD, consumed by the next attack);
    CONTEST_HI is the culprit cell {c,r} drawHi keeps lit gold while a contest
@@ -6253,14 +6293,24 @@ function clearPromptUI(){
   if(PROMPT_UI.timerId){ clearInterval(PROMPT_UI.timerId); PROMPT_UI.timerId=null; }
   var modal=document.getElementById("cbPromptModal"); if(modal) modal.style.display="none";
   var evidence=document.getElementById("cbPromptEvidence");if(evidence){evidence.innerHTML="";evidence.classList.remove("on");}
+  var choices=document.getElementById("cbPromptChoices");if(choices){choices.innerHTML="";choices.classList.remove("on");}
   var banner=document.getElementById("cbPromptBanner"); if(banner) banner.style.display="none";
   var cov=document.getElementById("cbCoverModal"); if(cov) cov.style.display="none";
   if(CONTEST_HI){ CONTEST_HI=null; drawHi(); }   // culprit-cell highlight lives exactly as long as the contest
   PROMPT_UI.seq=null; PROMPT_UI.kind=null; PROMPT_UI.onUse=null; PROMPT_UI.onSkip=null;
 }
+function warCasterOpportunityActions(u,target,ctx){
+  var api=window.ForgeReactionChoices,base=Object.assign({kind:"attack",strikes:1},ctx&&ctx.attack||meleeActOf(u)||{});
+  if(!api)return [{kind:"weapon",label:base.label||"Opportunity Attack",action:base}];
+  return api.warCasterChoices(u,base).filter(function(choice){
+    var action=Object.assign({},choice.action,{strikes:1}),ro=target&&reachOK(u,action,target,{silent:true});
+    return !target||!!(ro&&ro.ok);
+  });
+}
 function reactionDescFor(react,askerName,ctx){
   var label=REACT_LABEL[react]||react,desc=label;ctx=ctx||{};
-  if(react==="silveryBarbs")desc="The attack succeeded. Force "+askerName+" to reroll the kept d20 and use the lower result?";
+  var target=unitByKey(ctx.target),targetName=target?target.name:(ctx.target||"the target"),mode=ctx.mode||"attack";
+  if(react==="silveryBarbs")desc=askerName+" attacked "+targetName+" with "+mode+" and succeeded. Force the attacker to reroll the kept d20 and use the lower result?";
   else if(react==="shield")desc=ctx.crit
     ? "This natural 20 still hits. Cast Shield only to gain +5 AC against later attacks until the start of your next turn?"
     : "The attack succeeded. Raise your AC by 5 until the start of your next turn?";
@@ -6285,7 +6335,8 @@ function reactionEvidenceHtml(react,ctx){
     forecast=crit?'This critical still hits. Shield applies only against later attacks until your next turn.':(hideDefense?'Shield raises the target’s defense by 5; the exact enemy defense remains hidden.':'Shield raises the defense to '+Number(ctx.shieldAC||defense+5)+' and '+(total<Number(ctx.shieldAC||defense+5)?'turns this into a miss.':'does not stop this hit.'));
   }
   var source=ctx.advReason?'<span class="forecast">Roll sources: '+escapeHtml(ctx.advReason)+'</span>':'';
-  return '<span class="rolls">d20 '+dice+'</span><br>'+escapeHtml(math)+(hideDefense?'':' vs defense '+escapeHtml(defense))+' · '+verdict+(forecast?'<span class="forecast">'+escapeHtml(forecast)+'</span>':'')+source;
+  var attacker=unitByKey(ctx.attacker),targetName=target&&target.name||ctx.target||"target",who=(attacker&&attacker.name||ctx.attacker||"Attacker")+" → "+targetName+" · "+(ctx.mode||"Attack");
+  return '<span class="forecast">'+escapeHtml(who)+'</span><span class="rolls">d20 '+dice+'</span><br>'+escapeHtml(math)+(hideDefense?'':' vs defense '+escapeHtml(defense))+' · '+verdict+(forecast?'<span class="forecast">'+escapeHtml(forecast)+'</span>':'')+source;
 }
 /* the SAME reaction math pipelineHit's onUse callbacks do (kit data —
    CHAR/FOE — is identical static data on every device, so this device can
@@ -6324,8 +6375,8 @@ function finishOpportunityOuter(prompt,u,use,extra,clogLine){
     return res;
   });
 }
-function resolveOpportunityAttackPrompt(prompt,u,askerU,askerName){
-  var sess=window.__forgeSession,ctx=prompt.context||{},a=Object.assign({kind:'attack',strikes:1},ctx.attack||meleeActOf(u)||{}),target=unitByKey(ctx.target);
+function resolveOpportunityAttackPrompt(prompt,u,askerU,askerName,chosenAction){
+  var sess=window.__forgeSession,ctx=prompt.context||{},a=Object.assign({kind:'attack'},chosenAction||ctx.attack||meleeActOf(u)||{},{strikes:1}),target=unitByKey(ctx.target);
   if(!sess||!target)return finishOpportunityOuter(prompt,u,false,{},null);
   NESTED_OA_OUTER[prompt.seq]=true;
   return sess.pipe.declareReaction(u.unit,'opportunityAttack',prompt.seq,{kind:'opportunity-attack',target:target.unit,trigger_cell:ctx.trigger_cell,path_index:ctx.path_index}).then(function(dr){
@@ -6342,6 +6393,7 @@ function resolveOpportunityAttackPrompt(prompt,u,askerU,askerName){
         var hs=replayHitState(declared,answers),effects=withBreakOp([],u,a),damage=hs.hit?rollActionDamage(a,hs.crit,(hexEffectAgainst(u,target)?[{dice:'1d6',bonus:0,type:'Hex'}]:[])):null,dmg=damage?damage.total:0;
         var st=sess.pipe.state(),hpBefore=st&&st.units&&st.units[target.unit]?st.units[target.unit].hp:target.hp,concentration=hs.hit?concentrationCheckFor(target,dmg,hpBefore,(a.label||'Opportunity Attack')+' damage'):null;
         if(concentration&&concentration.effects&&concentration.effects.length)effects=effects.concat(concentration.effects);
+        if(hs.hit&&a.rider==='boom'&&Number(hpBefore)>dmg)effects.push({unit:target.unit,add_boom:{by:u.unit,die:'1d8',trigger_path_index:ctx.path_index}});
         var rb=(answers||[]).filter(function(row){return row&&row.payload&&row.payload.use&&row.payload.reaction_kind==='hellishRebuke';})[0];
         if(rb){effects.push({unit:u.unit,dmg:rb.payload.dmg});if(rb.payload.concentration&&rb.payload.concentration.effects)effects=effects.concat(rb.payload.concentration.effects);}
         return {hit:hs.hit,crit:hs.crit,roll:hs.roll,roll_total:hs.roll+hitBonus+blessV,mods:declared.mods,dmg:dmg,dmgParts:damage?damage.parts:null,dmgFormula:damage?damage.formula:null,effects:effects,slot:'free',mode:a.label||'Opportunity Attack',hitBonus:hitBonus,cover:0,coverName:'none',adv:av.adv,dis:av.dis,advReason:av.why.join(', '),flankBonus:av.attackBonus||0,d20_rolls:d20ev.rolls,d20_kept_index:d20ev.keptIndex,reaction_d20_rolls:hs.reactionD20Rolls,reaction_d20_kept_index:hs.reactionD20KeptIndex,concentration:concentration,reaction_attack:true,trigger_seq:prompt.seq};
@@ -6365,6 +6417,7 @@ var AUTOMATIC_FOE_PROMPTS={};
 function routeAutomaticFoePrompt(prompt){
   var sess=window.__forgeSession,u=prompt&&unitByKey(prompt.to);
   if(!sess||!sess.me||!sess.me.overseer||!FOE_AUTOMATION||!prompt||prompt.react!=="opportunityAttack"||!u||u.side!=="foe")return false;
+  if(stageOpportunityPrompt(prompt,function(){routeAutomaticFoePrompt(prompt);})){return true;}
   if(AUTOMATIC_FOE_PROMPTS[prompt.seq])return true;
   AUTOMATIC_FOE_PROMPTS[prompt.seq]=true;clearPromptUI();__answeringPromptSeq=prompt.seq;
   var ctx=prompt.context||{},askerKey=ctx.mover||ctx.target,askerU=unitByKey(askerKey),askerName=askerU?askerU.name:"the moving creature";
@@ -6380,6 +6433,7 @@ function routeAutomaticFoePrompt(prompt){
    path — only the eyebrow/flag and the (already-spent) countdown differ. */
 function openReactionModal(prompt,opts){
   opts=opts||{};
+  if(stageOpportunityPrompt(prompt,function(){openReactionModal(prompt,opts);})){return;}
   var u=unitByKey(prompt.to); if(!u) return;
   var ctx=prompt.context||{};
   var askerKey=prompt.react==="opportunityAttack"?(ctx.mover||ctx.target):ctx.attacker;
@@ -6391,14 +6445,14 @@ function openReactionModal(prompt,opts){
 
   var el=document.getElementById("cbPromptModal"); if(!el) return;
   var eyebrow=document.getElementById("cbPromptEy"), title=document.getElementById("cbPromptTitle"),
-      desc=document.getElementById("cbPromptDesc"), evidence=document.getElementById("cbPromptEvidence"), flag=document.getElementById("cbPromptFlag"),
+      desc=document.getElementById("cbPromptDesc"), evidence=document.getElementById("cbPromptEvidence"), choiceHost=document.getElementById("cbPromptChoices"), flag=document.getElementById("cbPromptFlag"),
       ring=document.getElementById("cbPromptRing"), ringNum=document.getElementById("cbPromptRingNum"),
       btns=document.getElementById("cbPromptBtns"), timesUp=document.getElementById("cbPromptTimesUp");
   eyebrow.textContent = opts.fallback ? "Reaction — timed out" : "Reaction";
   title.textContent = u.name+" — "+info.label;
   desc.textContent = info.desc+reactionCostText(u,prompt.react);
   var useButton=document.getElementById("cbPromptUse"),skipButton=document.getElementById("cbPromptSkip");
-  if(useButton)useButton.textContent=(prompt.react==="shield"&&ctx.crit)?"Cast for later attacks":"Use";
+  if(useButton){useButton.style.display="";useButton.textContent=(prompt.react==="shield"&&ctx.crit)?"Cast for later attacks":"Use";}
   if(skipButton)skipButton.textContent="Pass";
   var evidenceHtml=reactionEvidenceHtml(prompt.react,ctx);if(evidence){evidence.innerHTML=evidenceHtml;evidence.classList.toggle("on",!!evidenceHtml);}
   btns.style.display="flex"; timesUp.style.display="none";
@@ -6410,14 +6464,16 @@ function openReactionModal(prompt,opts){
   }
   el.style.display="flex";
 
-  function settle(use){
+  function settle(use,opportunityAction){
     clearPromptUI();   // closes on our own answer — don't wait for the echo round trip
     __answeringPromptSeq=prompt.seq;
     var extra={reaction_kind:prompt.react}, clogLine=null,spendPlan=use?reactionSpendPlan(u,prompt.react):null;
     if(use&&!spendPlan){use=false;clogLine=REACT_LABEL[prompt.react]+" is no longer available — no resource was spent.";}
-    if(use&&prompt.react==="opportunityAttack"){resolveOpportunityAttackPrompt(prompt,u,askerU,askerName);return;}
+    if(use&&prompt.react==="opportunityAttack"){resolveOpportunityAttackPrompt(prompt,u,askerU,askerName,opportunityAction);return;}
     if(use&&spendPlan&&Object.keys(spendPlan.spend||{}).length){extra.resource_spend=spendPlan.spend;extra.resource_spend_id=reactionSpendIdFor(u,prompt.react,prompt.seq);extra.resource_pool=spendPlan.key;}
-    if(use){ var r=computeReactionExtra(prompt.react,ctx,u,askerU,askerName); extra=Object.assign(extra,r.extra||{}); clogLine=r.clogLine; }
+    if(use){ var r=computeReactionExtra(prompt.react,ctx,u,askerU,askerName); extra=Object.assign(extra,r.extra||{}); clogLine=r.clogLine;
+      extra.reaction_context={attacker:ctx.attacker||null,target:ctx.target||null,mode:ctx.mode||"Attack",origRoll:ctx.origRoll!=null?ctx.origRoll:ctx.roll,attacker_name:askerName,target_name:(unitByKey(ctx.target)||{}).name||ctx.target||"the target"};
+    }
     // Silvery Barbs rider: bundle the advantage grant into the SAME answered fact
     // (no second prompt round-trip). The grant is an EFFECT (grant_advantage on
     // grantTo) — a fact the reducer replays deterministically on every device.
@@ -6445,6 +6501,15 @@ function openReactionModal(prompt,opts){
   }
   PROMPT_UI.onUse=function(){ settle(true); };
   PROMPT_UI.onSkip=function(){ settle(false); };
+  if(prompt.react==="opportunityAttack"&&u.featureFlags&&u.featureFlags.warCaster&&choiceHost){
+    var oaChoices=warCasterOpportunityActions(u,askerU,ctx);
+    if(oaChoices.length>1){
+      choiceHost.innerHTML=oaChoices.map(function(choice,index){return '<button class="cbPromptChoice" type="button" data-oa-choice="'+index+'"><b>'+escapeHtml(choice.label)+'</b><small>'+(choice.kind==="cantrip"?"War Caster spell":"Melee weapon")+'</small></button>';}).join("");
+      choiceHost.classList.add("on");if(useButton)useButton.style.display="none";
+      choiceHost.querySelectorAll("[data-oa-choice]").forEach(function(button){button.onclick=function(){settle(true,oaChoices[Number(button.dataset.oaChoice)].action);};});
+      desc.textContent=askerName+" is leaving your reach. Choose the attack to make before they leave.";
+    }
+  }
 
   if(!opts.fallback){
     var tick=function(){
@@ -6464,7 +6529,7 @@ function openReactionModal(prompt,opts){
         } else {
           // this device's countdown is spent; the fallback fires on the OVERSEER's
           // tick (pipe.checkTimeouts()), not this one — just say so and wait
-          btns.style.display="none"; ring.style.display="none"; timesUp.style.display="block";
+          btns.style.display="none";if(choiceHost)choiceHost.classList.remove("on");ring.style.display="none"; timesUp.style.display="block";
         }
       }
     };
@@ -6473,6 +6538,7 @@ function openReactionModal(prompt,opts){
   }
 }
 function showPromptBanner(prompt){
+  if(stageOpportunityPrompt(prompt,function(){showPromptBanner(prompt);})){return;}
   clearPromptUI();
   PROMPT_UI.seq=prompt.seq; PROMPT_UI.kind="banner";
   var el=document.getElementById("cbPromptBanner"); if(!el) return;
@@ -6549,7 +6615,7 @@ function routePrompt(prompt){
    can write (the identity gate rejects a player forging "__overseer"). */
 function routeCoverPrompt(prompt){
   var sess=window.__forgeSession; if(!sess) return;
-  if(sess.me.overseer){ openCoverRuling(prompt); return; }
+  if(sess.me.overseer&&!discoveryPlayerView()){ openCoverRuling(prompt); return; }
   showPromptBanner(prompt);   // controllerLabel("__overseer") → "the DM"
 }
 function openCoverRuling(prompt){
@@ -6642,6 +6708,29 @@ function onWirePromptFallback(p){
   openReactionModal(p,{ fallback:true });
 }
 
+function repellingBlastApplies(u,a,t,hit){
+  return !!(hit&&u&&t&&t.alive&&u.featureFlags&&u.featureFlags.repellingBlast&&/\beldritch blast\b/i.test(String(a&&a.label||"")));
+}
+function repellingBlastPath(u,t){
+  var api=window.ForgeReactionChoices;
+  return api?api.repellingPath({map:CB.map,geometry:TG,caster:u,target:t,occupied:occupied(t),maxSquares:2}):[];
+}
+function chooseRepellingBlast(u,t){
+  var legal=repellingBlastPath(u,t);
+  if(!legal.length)return Promise.resolve([]);
+  return new Promise(function(resolve){
+    var ov=document.createElement("div");ov.className="cbReact";
+    var options=[{feet:0,count:0},{feet:5,count:1}];if(legal.length>1)options.push({feet:10,count:2});
+    ov.innerHTML='<div class="cbReactCard cbPromptCard"><div class="cbReactEy">Repelling Blast</div><div class="cbReactTitle">Push '+escapeHtml(t.name)+'?</div><div class="cbReactDesc">Choose up to 10 feet directly away from '+escapeHtml(u.name)+'. Forced movement does not provoke opportunity attacks.</div><div class="cbPromptChoices on">'+options.map(function(o){return '<button class="cbPromptChoice" type="button" data-push-count="'+o.count+'"><b>'+(o.feet?o.feet+" ft":"No push")+'</b><small>'+(o.feet?"legal path":"leave in place")+'</small></button>';}).join("")+'</div></div>';
+    document.body.appendChild(ov);
+    ov.querySelectorAll("[data-push-count]").forEach(function(button){button.onclick=function(){var count=Number(button.dataset.pushCount)||0,path=legal.slice(0,count);ov.remove();resolve(path);};});
+  });
+}
+function forcedMoveEffect(target,path,source){
+  if(!target||!path||!path.length)return null;var to=path[path.length-1];
+  return {unit:target.unit,forced_move:{path:path.map(function(p){return {c:p.c,r:p.r};}),to:{c:to.c,r:to.r},source:source||"forced movement"}};
+}
+
 /* ── resolution ─────────────────────────────────────────────────────── */
 function resolveStrike(u,a,t,ro,done){
   var valid=window.ForgeCombatRules.requireDamage(a);if(!valid.ok){clog('<b style="color:#c0553f">'+escapeHtml(valid.why)+' — action refused.</b>');done();return;}
@@ -6668,7 +6757,7 @@ function resolveStrike(u,a,t,ro,done){
     feedResolved=true;if(a.rider==="boom" && t.alive) t.boomMark={by:u.id};
   }, function(){
     if(!feedResolved&&window.ForgeTableCorrectness)window.ForgeTableCorrectness.pushFact({actor:u.unit,target:t.unit,mode:a.label,roll:hs.roll,rollTotal:hs.roll+hitMod+blessV,hitBonus:hitMod,hit:false,crit:false,adv:adv,dis:dis,cover:cover,coverName:ro.coverName||null,d20Rolls:d20ev.rolls,d20KeptIndex:d20ev.keptIndex,reactionD20Rolls:hs.reactionD20Rolls,reactionD20KeptIndex:hs.reactionD20KeptIndex,dropped:hs.roll!==roll?roll:null,mods:rollMods.concat(hs.roll!==roll?[{k:"silvery_barbs"}]:[])});
-    done();
+    if(repellingBlastApplies(u,a,t,feedResolved))chooseRepellingBlast(u,t).then(function(path){if(!path.length){done();return;}clog(u.name+" repels "+t.name+" "+(path.length*5)+" ft.");walkPath(t,path,function(){snapshot("Repelling Blast");drawHi();drawSight();renderHud();done();});});else done();
   });
 }
 function doAttack(u,a,t,after){
@@ -6781,7 +6870,7 @@ function attackRollReview(u,a,t,ro){
 function clearConfirmTarget(){CONFIRM_TARGET=null;document.body.classList.remove("forge-target-confirm");}
 function selectAction(idx,castChoice){
   var u=active(); if(!u||!u.alive||(u.side!=="pc"&&(u.side!=="foe"||FOE_AUTOMATION))||CB.react||CB_ANIM) return; var a=u.actions[idx]; if(!a) return;
-  var sess=window.__forgeSession;hideUpcastPick();
+  var sess=window.__forgeSession,preselected=unitByKey(CB.tgtKey)||unitByKey(CB.selKey);hideUpcastPick();
   if(sess && (!window.ForgeBoard.controls(sess.me,u.unit) || __awaitingCount>0)) return;
   if(CB.pending===a||(CB.pending&&CB.pending._base===a)){ CB.pending=null;clearConfirmTarget();CB.tgtKey=null;CONTEST_COVER=false; drawHi(); drawSight(); renderHud(); return; }
   var oldHex=(a.effectKind==="hex"||/^hex(?:\s|$)/i.test(a.label||""))?transferableHexFor(u):null;
@@ -6821,7 +6910,19 @@ function selectAction(idx,castChoice){
     if(sess){ netSurge(u,a); return; }
     CB.st.usedAction=false; clog(u.name+" — Action Surge: action regained."); spend(u,a); finishAction(); return; }
   if(a.effectKind==="bless"||/^bless(?:\s|$)/i.test(a.label||"")){openBlessPicker(u,a);return;}
-  CB.pending=a;clearConfirmTarget();CB.tgtKey=null;drawHi(); drawSight(); renderHud();
+  CB.pending=a;clearConfirmTarget();
+  if(preselected&&preselected.alive){
+    var wantsAlly=a.kind==="heal"||a.kind==="buffAlly",rightSide=wantsAlly?preselected.side===u.side:preselected.side!==u.side;
+    if(rightSide){
+      var ro=reachOK(u,a,preselected);
+      if(directAttack(a)){
+        CB.tgtKey=preselected.key;CONFIRM_TARGET=preselected.unit;document.body.classList.add("forge-target-confirm");frameCameraPair(u,preselected);drawHi();drawSight();renderHud();return;
+      }
+      if(ro.ok&&(a.kind==="save"||a.kind==="heal"||a.kind==="buff"||a.kind==="buffAlly")){resolveOn(u,a,preselected);return;}
+      if(!ro.ok)clog("<i>"+a.label+": "+ro.why+".</i>");
+    }
+  }
+  CB.tgtKey=null;drawHi(); drawSight(); renderHud();
 }
 function finishAction(){ hideUpcastPick(); closeSanctuaryChoice(); CB.pending=null;clearConfirmTarget();CB.tgtKey=null; CONTEST_COVER=false; SANCTUARY_REJECT={}; snapshot("Action"); reconcileMovementPresentation(); drawSight(); renderHud(); maybeEnd(); }
 function deathSaveNarration(u,result){var lead=escapeHtml(u.name)+" rolls a death saving throw: <b>"+result.roll+"</b>. ";if(result.outcome==="critical-success")return lead+"Natural 20 — 1 HP, conscious again.";if(result.dead)return lead+"Three failures — <b>dead</b>.";if(result.stable)return lead+"Three successes — <b>stable</b>.";return lead+(result.outcome==="critical-failure"?"Natural 1 — two failures.":result.outcome==="success"?"Success.":"Failure.")+" <span class=\"cbTag\">"+result.successes+" saves · "+result.failures+" fails</span>";}
@@ -7052,19 +7153,31 @@ function endTurn(){
 
 function foePlanFor(u){
   if(!window.ForgeFoeAI)return null;syncGeometryCreatures();
-  /* A foe may plan from positions, terrain, and opponents it can presently
-     perceive. Player resources and hidden positions never enter this input. */
-  var targets=CB.units.filter(function(x){return x.alive&&x.side==='pc'&&TG.losVerdict(CB.map,{c:u.c,r:u.r},{c:x.c,r:x.r},{ignoreCreatures:true}).canTarget;});
+  /* A foe may search reachable firing origins against combatants on the
+     battlefield. Player resources never enter this input; geometry still
+     decides whether any candidate origin actually has a legal shot. */
+  var targets=CB.units.filter(function(x){return x.alive&&x.side==='pc';});
   var seen=TG.movementReach(CB.map,u,occupied(u),CB.st?moveBudget(u):Math.floor(u.speed/5));
-  var origins=[{c:u.c,r:u.r,cost:0}];
-  Object.keys(seen).forEach(function(k){var p=k.split(',').map(Number);if((p[0]===u.c&&p[1]===u.r)||unitAt(p[0],p[1]))return;origins.push({c:p[0],r:p[1],cost:Number(seen[k].d)||TG.chebyshev(u,{c:p[0],r:p[1]})});});
+  function defensiveFacts(origin){
+    var cover=0,visible=0;
+    targets.forEach(function(pc){var v=TG.losVerdict(CB.map,{c:pc.c,r:pc.r},{c:origin.c,r:origin.r},{ignoreCreatures:true});if(v.canTarget)visible++;cover+=v.acBonus===Infinity?5:(Number(v.acBonus)||0);});
+    return {defensiveCover:targets.length?cover/targets.length:0,visibilityCount:visible};
+  }
+  function routeThreats(path){
+    var count=0;(path||[]).forEach(function(cell){if(targets.some(function(pc){return TG.canReachMelee(CB.map,{c:pc.c,r:pc.r},cell,5);})){count++;}});
+    return count;
+  }
+  var currentDefense=defensiveFacts(u),origins=[Object.assign({c:u.c,r:u.r,cost:0,path:[],pathThreatCount:0},currentDefense)];
+  Object.keys(seen).forEach(function(k){var p=k.split(',').map(Number);if((p[0]===u.c&&p[1]===u.r)||unitAt(p[0],p[1]))return;var path=TG.pathTo(seen,{c:u.c,r:u.r},p[0],p[1]);origins.push(Object.assign({c:p[0],r:p[1],cost:Number(seen[k].d)||TG.chebyshev(u,{c:p[0],r:p[1]}),path:path,pathThreatCount:routeThreats(path)},defensiveFacts({c:p[0],r:p[1]})));});
   var plan=window.ForgeFoeAI.planTurn({
     actions:u.actions||[],targets:targets,origins:origins,
     evaluate:function(origin,action,target){var oldC=u.c,oldR=u.r,ro;try{u.c=origin.c;u.r=origin.r;ro=reachOK(u,action,target,{silent:true});}finally{u.c=oldC;u.r=oldR;}return Object.assign({},ro,{distanceFt:cbDist(origin,target),originElevationFt:tTier(origin.c,origin.r)*5,targetElevationFt:tTier(target.c,target.r)*5,threatCount:targets.filter(function(x){return TG.canReachMelee(CB.map,{c:origin.c,r:origin.r},{c:x.c,r:x.r},5);}).length});},
-    distance:function(origin,target){return cbDist(origin,target);}
+    distance:function(origin,target){return cbDist(origin,target);},
+    currentDefensiveCover:currentDefense.defensiveCover,currentVisibilityCount:currentDefense.visibilityCount
   });
   syncGeometryCreatures();return plan;
 }
+function staffTactic(html){if(window.addForgeRow)window.addForgeRow(html,{channel:"system",visibility:"staff"});}
 
 function foeTurn(){
   var u=active(); if(!u||!u.alive||u.side!=="foe"||CB_ANIM){ return; }
@@ -7081,7 +7194,7 @@ function foeTurn(){
   var pcs=CB.units.filter(function(x){return x.alive&&x.side==="pc";}); if(!pcs.length){ foeTurnDone(); return; }
   var plan=foePlanFor(u),tgt=plan&&plan.target,atk=plan&&plan.action;
   u._foePlanText=plan&&plan.why||'';
-  if(plan&&plan.why)clog('<i><b>'+escapeHtml(u.name)+' · Tactical choice:</b> '+escapeHtml(plan.why)+'</i>');
+  if(plan&&plan.why)staffTactic('<i><b>'+escapeHtml(u.name)+' · Tactical choice:</b> '+escapeHtml(plan.why)+'</i>');
   /* Statblocks with no mechanically parsed attack still expose all prose,
      spells, and traits in the Manual HUD. Automatic mode narrates why it
      stands rather than manufacturing rules from descriptive text. */
@@ -7142,7 +7255,7 @@ function foeTurn(){
   var best=plan&&plan.origin&&(plan.origin.c!==u.c||plan.origin.r!==u.r)?{c:plan.origin.c,r:plan.origin.r}:null;
   if(best){ var seen=TG.movementReach(CB.map,u,occupied(u),CB.st?moveBudget(u):Math.floor(u.speed/5));
     var path=TG.pathTo(seen,{c:u.c,r:u.r},best.c,best.r); if(!path.length) path=[{c:best.c,r:best.r}];
-    clog(u.name+" moves "+Math.round(cbDist(u,best))+" ft for the chosen position.");
+    clog(u.name+" moves "+Math.round(cbDist(u,best))+" ft.");
     if(sess){
       /* Same fork as PC movement: publish only, no predictive mutation.
          The shared move declaration now opens any opportunity-attack prompts;
@@ -7510,8 +7623,8 @@ function runCoverAudit(){
 const sceneCoverAudit=document.getElementById('sceneCoverAudit');if(sceneCoverAudit)sceneCoverAudit.addEventListener('click',runCoverAudit);
 const sceneVerticalOverlay=document.getElementById('sceneVerticalOverlay');if(sceneVerticalOverlay)sceneVerticalOverlay.addEventListener('click',toggleVerticalGeometry);
 const sceneProneToggle=document.getElementById('sceneProneToggle');if(sceneProneToggle)sceneProneToggle.addEventListener('click',function(){var sess=window.__forgeSession,u=(typeof CB!=="undefined"&&CB)?unitByKey(CB.selKey):null;if(!u)return;var old=effectFor(u,"prone"),op=old?effectApi().remove(old.id,"DM cleared Prone",u.unit,old):window.ForgeCombatRules.addCondition({source:"__overseer",target:u.unit,nonce:Date.now()});var act={label:old?"Clear Prone":"Apply Prone",kind:"condition-edit",free:true};if(sess&&sess.me.overseer)netUseAbility(u,act,[u.unit],[op],{context:{kind:"condition-edit",condition:"prone"}});else if(!sess){localEffectEvent("ability_used",u.unit,{ability:act.label,targets:[u.unit],effects:[op],slot:"free"});refreshEffectState(null,true);renderHud();}});
-function initBadge(u){ return u.badge||(u.side==="pc"?(ROSTER_INIT[u.key]||u.name[0]):"g"); }
-function seatCol(u){ return (window.__fightControllers&&window.__fightControllers[u.key]&&window.__fightControllers[u.key].color)||(u.side==="pc"?(ROSTER_COL[u.key]||"#b8863a"):"#7a2e2e"); }
+function initBadge(u){ var key=presentationKeyFor(u.key,u.name);return u.badge||(u.side==="pc"?(ROSTER_INIT[key]||u.name[0]):"g"); }
+function seatCol(u){ var key=presentationKeyFor(u.key,u.name);return (window.__fightControllers&&window.__fightControllers[u.key]&&window.__fightControllers[u.key].color)||(u.side==="pc"?(ROSTER_COL[key]||"#b8863a"):"#7a2e2e"); }
 function renderHud(){
   if(!CB.active) return; var u=active();
   refreshDiscovery();
@@ -7533,7 +7646,7 @@ function renderHud(){
   var strip=document.getElementById("cbInit");
   if(strip) strip.innerHTML=hudOrder.map(function(o){ var glowc=glowColorFor(o);
     var ring=(glowc===GLOW_SEL?" selq":glowc===GLOW_TGT?" tgtq":"");
-    var hpText=!o.alive?"\u2620":(o.side==="foe"&&!staffView?"":Math.max(0,o.hp));
+    var hpText=!o.alive?"\u2620":(o.side==="foe"&&!staffView?"":Math.max(0,o.hp)+" / "+Math.max(0,o.hpMax));
     var ward=effectFor(o,"sanctuary"),prone=effectFor(o,"prone");
     return '<div class="cbUnit'+(o===u?" act":"")+(o.alive?"":" dead")+ring+'" data-unit="'+escapeHtml(o.unit||o.key||o.id)+'" title="'+escapeHtml(o.name)+(ward?' · Sanctuary':'')+'">'
     +'<span class="cbU-b" style="background:'+seatCol(o)+'">'+initBadge(o)+'</span>'+(ward?'<span class="cbU-eff" aria-label="Sanctuary">⬡</span>':'')+(prone?'<span class="cbU-eff prone" aria-label="Prone">↘</span>':'')+'<span class="cbU-hp">'+hpText+'</span></div>'; }).join("");
@@ -7556,7 +7669,7 @@ function renderHud(){
     var acts=(isPc&&iControl)? u.actions.map(function(a,i){ var cu=waitingMe?{ok:false,why:"waiting for the table"}:canUse(u,a), sel=CB.pending===a;
       return '<button class="cbAct'+(sel?" sel":"")+'" data-i="'+i+'"'+(cu.ok?"":" disabled title=\""+cu.why+"\"")+'>'+a.label
         +(a.cost?' <span class="cbCost">'+Object.keys(a.cost).map(function(k){return u.res[k]+"\u00b7"+k;}).join(" ")+'</span>':'')+'</button>'; }).join("") : '';
-    var port = (isPc && PORTRAITS[u.key]) ? '<div class="cbPort" style="background-image:url(\''+PORTRAITS[u.key]+'\')"></div>' : '';
+    var portraitKey=presentationKeyFor(u.key,u.name),port = (isPc && PORTRAITS[portraitKey]) ? '<div class="cbPort" style="background-image:url(\''+PORTRAITS[portraitKey]+'\')"></div>' : '';
     var turnBanner = '<div class="cbHint">'+escapeHtml(u.name)+'\u2019s turn \u2014 '+escapeHtml(controllerLabel(u.unit))+' is acting.</div>';
     panel.innerHTML=port+'<div class="cbName">'+u.name+(isPc?'':' <span class="cbTag">foe</span>'+((u.statblock&&iControl)?' <button class="cbFoeStar" id="cbFoeStar" title="Save to the shelf">☆</button>':''))+(u.raging?' <span class="cbTag" style="color:#b34a38;border-color:#b34a38">RAGE</span>':'')
       +(u.readied?' <span class="cbTag" style="color:#8a6a1f;border-color:#8a6a1f">readied: '+u.readied.act.label+'</span>':'')
@@ -8673,7 +8786,13 @@ function netMove(u,path){
   return window.__forgeSession.pipe.move(u.unit,path,function(answers){
     var stops=(answers||[]).filter(function(row){return row&&row.payload&&row.payload.use&&row.payload.reaction_kind==="opportunityAttack"&&row.payload.interrupted_at;}).map(function(row){return row.payload;}).sort(function(a,b){return Number(a.path_index)-Number(b.path_index);});
     var stop=stops[0]||null,effective=stop?path.slice(0,Math.max(0,Number(stop.path_index)||0)):path.slice(),fin=stop?stop.interrupted_at:(effective[effective.length-1]||{c:u.c,r:u.r}),moveCostFt=effective.length*5*(effectFor(u,"prone")?2:1);
-    return {final_cell:{c:fin.c,r:fin.r},interrupted_at:stop?{c:fin.c,r:fin.r}:undefined,path:effective,move_cost_ft:moveCostFt};
+    var stateNow=window.__forgeSession.pipe.state(),moving=stateNow&&stateNow.units&&stateNow.units[u.unit],mark=moving&&moving.boomMark,effects=[],boom=null,triggerIndex=mark&&mark.trigger_path_index;
+    if(mark&&effective.length>0&&(triggerIndex==null||effective.length>Number(triggerIndex))){
+      var dmg=rollDmg(mark.die||"1d8"),hpBefore=Number(moving.hp),concentration=concentrationCheckFor(u,dmg,hpBefore,"Booming Blade movement damage");
+      effects.push({unit:u.unit,dmg:dmg,remove_boom:true});if(concentration&&concentration.effects)effects=effects.concat(concentration.effects);
+      boom={dmg:dmg,source:mark.by||null,concentration:concentration};clog("Booming Blade — "+u.name+" moved: "+dmg+" thunder.");
+    }
+    return {final_cell:{c:fin.c,r:fin.r},interrupted_at:stop?{c:fin.c,r:fin.r}:undefined,path:effective,move_cost_ft:moveCostFt,effects:effects,boom_trigger:boom};
   }).then(function(r){netPublishFail(r);return r;});
 }
 var ACTIVATION_PUBLISHING={},REGION_PANEL_OPEN=false;
@@ -8780,11 +8899,13 @@ function netAttackGo(u,a,t,ro){
     var declared={target:t.unit,roll:roll,roll_total:rollTotal,roll_mod:blessV,mods:mods,d20_rolls:d20ev.rolls,d20_kept_index:d20ev.keptIndex,adv:adv,dis:dis,crit:crit,mode:a.label,hitBonus:hitMod,cover:cover,coverName:ro.coverName||null,advReason:av.why.join(", "),flankBonus:av.attackBonus||0,hit:hit};Object.assign(declared,spellFactFields(a));
     window.__forgeSession.pipe.attack(u.unit,declared,function(answers){
       var hs=replayHitState({roll:roll,crit:crit,hit:hit,cover:cover,roll_mod:blessV,d20_rolls:d20ev.rolls,d20_kept_index:d20ev.keptIndex},answers),effects=wardBreakPending?[wardBreakPending]:[],dmg=0,damage=null,concentration=null;wardBreakPending=null;
-      if(hs.hit){var extra=[];if(u.raging&&(a.rng||1)<=1)extra.push({dice:"0",bonus:2,type:"Rage",critDice:false});if(hexEffectAgainst(u,t)||CB.hexed===t.id)extra.push({dice:"1d6",bonus:0,type:"Hex"});if(curse)extra.push({dice:"0",bonus:curse.bonusDamage||1,type:"Hexblade's Curse",critDice:false});damage=rollActionDamage(a,hs.crit,extra);dmg=damage.total;concentration=concentrationCheckFor(t,dmg,hpLeft,a.label+" damage");if(concentration){if(concentration.effects&&concentration.effects.length)effects=effects.concat(concentration.effects);clog("<i>"+concentrationNarration(t,concentration)+"</i>");}hpLeft=Math.max(0,hpLeft-dmg);effects=effects.concat(hexbladeDefeatOps(u,t,hpLeft));if(a.rider==="boom"&&hpLeft>0)t.boomMark={by:u.id};}
+      if(hs.hit){var extra=[];if(u.raging&&(a.rng||1)<=1)extra.push({dice:"0",bonus:2,type:"Rage",critDice:false});if(hexEffectAgainst(u,t)||CB.hexed===t.id)extra.push({dice:"1d6",bonus:0,type:"Hex"});if(curse)extra.push({dice:"0",bonus:curse.bonusDamage||1,type:"Hexblade's Curse",critDice:false});damage=rollActionDamage(a,hs.crit,extra);dmg=damage.total;concentration=concentrationCheckFor(t,dmg,hpLeft,a.label+" damage");if(concentration){if(concentration.effects&&concentration.effects.length)effects=effects.concat(concentration.effects);clog("<i>"+concentrationNarration(t,concentration)+"</i>");}hpLeft=Math.max(0,hpLeft-dmg);effects=effects.concat(hexbladeDefeatOps(u,t,hpLeft));if(a.rider==="boom"&&hpLeft>0)effects.push({unit:t.unit,add_boom:{by:u.unit,die:"1d8"}});}
       else{if(hit)clog("<i>"+a.label+" — a reaction turned that hit into a miss.</i>");floatAt(t,"miss","miss");}
       var rb=(answers||[]).filter(function(row){if(!row||!row.payload)return false;return row.payload.reaction_kind==="hellishRebuke"&&row.payload.use;})[0];if(rb){effects.push({unit:u.unit,dmg:rb.payload.dmg});if(rb.payload.concentration&&rb.payload.concentration.effects)effects=effects.concat(rb.payload.concentration.effects);}
       var spendFact=resourceSpendPending;resourceSpendPending=null;
-      var resolved={hit:hs.hit,crit:hs.crit,roll:hs.roll,roll_total:hs.roll+hitMod+blessV,mods:mods,dmg:dmg,dmgParts:damage?damage.parts:null,dmgFormula:damage?damage.formula:null,effects:effects,slot:a.bonus?"bonus":"action",mode:a.label,hitBonus:hitMod,cover:cover,coverName:ro.coverName||null,adv:adv,dis:dis,advReason:av.why.join(", "),flankBonus:av.attackBonus||0,d20_rolls:d20ev.rolls,d20_kept_index:d20ev.keptIndex,reaction_d20_rolls:hs.reactionD20Rolls,reaction_d20_kept_index:hs.reactionD20KeptIndex,resource_spend:spendFact,resource_spend_id:spendFact?resourceSpendId:null,concentration:concentration};Object.assign(resolved,spellFactFields(a));return resolved;
+      var resolved={hit:hs.hit,crit:hs.crit,roll:hs.roll,roll_total:hs.roll+hitMod+blessV,mods:mods,dmg:dmg,dmgParts:damage?damage.parts:null,dmgFormula:damage?damage.formula:null,effects:effects,slot:a.bonus?"bonus":"action",mode:a.label,hitBonus:hitMod,cover:cover,coverName:ro.coverName||null,adv:adv,dis:dis,advReason:av.why.join(", "),flankBonus:av.attackBonus||0,d20_rolls:d20ev.rolls,d20_kept_index:d20ev.keptIndex,reaction_d20_rolls:hs.reactionD20Rolls,reaction_d20_kept_index:hs.reactionD20KeptIndex,resource_spend:spendFact,resource_spend_id:spendFact?resourceSpendId:null,concentration:concentration};Object.assign(resolved,spellFactFields(a));
+      if(!repellingBlastApplies(u,a,t,hs.hit)||hpLeft<=0)return resolved;
+      return chooseRepellingBlast(u,t).then(function(path){var effect=forcedMoveEffect(t,path,"Repelling Blast");if(effect){resolved.effects.push(effect);resolved.forced_move={unit:t.unit,path:path,to:path[path.length-1],feet:path.length*5,source:"Repelling Blast"};clog(u.name+" repels "+t.name+" "+(path.length*5)+" ft.");}return resolved;});
     }).then(function(r){if(r&&r.ok===false){netPublishFail(r);return;}strike();});
   })();
 }

@@ -1,0 +1,57 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Forge · Test Fight Setup Mock</title>
+<style>
+:root{--ink:#27231d;--dim:#736b5e;--line:#b9ac94;--paper:#eee6d5;--paper2:#e1d6c0;--gold:#a87526;--teal:#203a37;--red:#914b3d}
+*{box-sizing:border-box}body{margin:0;min-height:100vh;background:radial-gradient(circle at 75% 12%,#3d6259 0,#1d3532 38%,#112321 100%);color:var(--ink);font-family:Georgia,serif}
+.shell{width:min(980px,calc(100% - 28px));margin:24px auto;background:linear-gradient(135deg,var(--paper),var(--paper2));border:1px solid #765f39;box-shadow:0 20px 70px #0008}
+header{display:flex;justify-content:space-between;gap:18px;padding:20px 22px;border-bottom:1px solid var(--line)}h1{margin:0;font-size:25px}header p{margin:5px 0 0;color:var(--dim);font-size:14px}.mode{display:flex;align-items:center;gap:5px}.mode button,.seg button{border:1px solid var(--line);background:#f4eddf;color:var(--dim);padding:8px 10px;text-transform:uppercase;letter-spacing:.08em;font:700 10px Arial;cursor:pointer}.mode button.on,.seg button.on{border-color:var(--gold);background:#b1843b22;color:var(--ink)}
+.body{padding:18px 22px 22px}.notice{display:flex;gap:10px;align-items:flex-start;padding:11px 12px;border-left:4px solid var(--teal);background:#d8e1d7;font:13px/1.4 Arial;color:#31433f}.notice b{display:block;color:#172d2a}.grid{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-top:15px}.card{border:1px solid var(--line);background:#f5efe3aa;padding:12px}.ey{font:700 10px Arial;text-transform:uppercase;letter-spacing:.11em;color:var(--gold)}.card h2{margin:5px 0 3px;font-size:18px}.card p{margin:0 0 10px;color:var(--dim);font:12px/1.35 Arial}.seg{display:flex;gap:5px;flex-wrap:wrap}
+.roster{margin-top:15px;border-top:1px solid var(--line)}.unit{display:grid;grid-template-columns:minmax(150px,1.2fr) 1fr 1.3fr;gap:12px;align-items:center;padding:12px 4px;border-bottom:1px solid var(--line)}.name{display:flex;gap:9px;align-items:center}.badge{width:34px;height:34px;display:grid;place-items:center;background:var(--teal);color:#f6e9c7;border:2px solid var(--gold);font:bold 15px Georgia}.name b{display:block}.name small,.meta{color:var(--dim);font:11px Arial}.hp b,.res b{display:block;font:700 12px Arial}.bar{height:7px;background:#bdb29e55;margin-top:5px}.bar i{display:block;height:100%;background:#49756b}.reschips{display:flex;gap:4px;flex-wrap:wrap;margin-top:5px}.chip{border:1px solid var(--line);background:#fff5;padding:4px 6px;font:700 10px Arial}.chip.zero{border-color:#b98377;color:var(--red);background:#9b4e4014}
+.custom{display:none;margin-top:8px;grid-template-columns:1fr 1fr;gap:6px}.custom.on{display:grid}.custom label{font:10px Arial;color:var(--dim)}.custom input{display:block;width:100%;margin-top:3px;padding:6px;border:1px solid var(--line);background:#f9f4ea}
+footer{display:flex;justify-content:space-between;gap:14px;align-items:center;padding:14px 22px;border-top:1px solid var(--line);background:#d9ccb5}.summary{font:12px/1.35 Arial;color:var(--dim)}.summary b{color:var(--ink)}.start{border:1px solid #614716;background:var(--gold);color:white;padding:11px 16px;text-transform:uppercase;letter-spacing:.09em;font:700 11px Arial;cursor:pointer}.campaign-note{display:none;padding:20px;color:var(--dim);font:14px/1.5 Arial}
+@media(max-width:720px){header,.unit,footer{display:block}.mode{margin-top:12px}.grid{grid-template-columns:1fr}.unit>*{margin:8px 0}.start{width:100%;margin-top:10px}}
+</style>
+</head>
+<body>
+<main class="shell">
+<header><div><div class="ey">Encounter setup</div><h1>Choose how this fight begins</h1><p>Campaign tables use the live adventuring state. Test tables use an isolated copy.</p></div><div class="mode"><button data-mode="campaign">Campaign</button><button class="on" data-mode="test">Test fight</button></div></header>
+<section class="body" id="testBody">
+  <div class="notice"><span>◇</span><div><b>Disposable combat snapshot</b>HP, slots, Ki, effects, inventory, and every combat result remain inside this test table. Ending or deleting it never writes anything back to the character sheets or campaign table.</div></div>
+  <div class="grid">
+    <div class="card"><div class="ey">Starting health</div><h2>How hurt is the party?</h2><p>Health and resources are separate, so you can test fresh bodies with empty reserves.</p><div class="seg" data-group="health"><button class="on" data-value="full">Full</button><button data-value="current">Current</button><button data-value="half">50%</button><button data-value="quarter">25%</button><button data-value="custom">Custom</button></div></div>
+    <div class="card"><div class="ey">Starting resources</div><h2>How much is left?</h2><p>Controls spell slots, Pact slots, Ki, inspiration, Second Wind, and similar limited uses.</p><div class="seg" data-group="resources"><button class="on" data-value="full">Full</button><button data-value="current">Current</button><button data-value="empty">Empty</button><button data-value="custom">Custom</button></div></div>
+    <div class="card"><div class="ey">Ongoing effects</div><h2>Carry conditions?</h2><p>Choose whether the copy starts clean or inherits current concentration and conditions.</p><div class="seg" data-group="effects"><button class="on" data-value="clear">Clear</button><button data-value="current">Current</button></div></div>
+    <div class="card"><div class="ey">Test identity</div><h2>Easy to recognize and discard</h2><p>The table is labeled TEST, excluded from campaign sheet mirroring, and can be duplicated for A/B comparisons.</p><div class="meta">Example: “Temple siege · empty resources · TEST”</div></div>
+  </div>
+  <div class="roster" id="roster"></div>
+</section>
+<section class="campaign-note" id="campaignNote"><b>Campaign mode</b><br>This uses the party’s current live HP, resources, and effects and mirrors authoritative changes through the normal table workflow.</section>
+<footer><div class="summary" id="summary"><b>Test copy:</b> full health · full resources · effects cleared · no sheet write-back</div><button class="start" id="start">Create disposable test table</button></footer>
+</main>
+<script>
+const units=[
+ {n:"Caim",c:"Monk 4",b:"C",max:37,current:24,res:[["Ki",4,0],["Hellish Rebuke",1,1]]},
+ {n:"Cosmere Runestar",c:"Warlock 3 / Sorcerer 1",b:"C",max:30,current:20,res:[["Pact",2,1],["Sorcery",2,2],["Hexblade's Curse",1,1]]},
+ {n:"Líadan Luchóg",c:"Bard 3 / Cleric 1",b:"L",max:31,current:31,res:[["Lvl 1",4,2],["Lvl 2",3,1],["Inspiration",2,1]]},
+ {n:"Vesperian Vale",c:"Fighter 3 / Wizard 1",b:"V",max:40,current:40,res:[["Lvl 1",2,1],["Second Wind",1,0],["Action Surge",1,0]]}
+];
+const state={mode:"test",health:"full",resources:"full",effects:"clear"};
+function hpFor(u){return state.health==="current"?u.current:state.health==="half"?Math.ceil(u.max/2):state.health==="quarter"?Math.ceil(u.max/4):u.max}
+function resFor(x){return state.resources==="current"?x[2]:state.resources==="empty"?0:x[1]}
+function render(){
+ document.getElementById("roster").innerHTML=units.map((u,i)=>{const hp=hpFor(u);return `<div class="unit"><div class="name"><span class="badge">${u.b}</span><span><b>${u.n}</b><small>${u.c}</small></span></div><div class="hp"><b>${hp} / ${u.max} HP</b><div class="bar"><i style="width:${100*hp/u.max}%"></i></div></div><div class="res"><b>Limited resources</b><div class="reschips">${u.res.map(x=>{const v=resFor(x);return `<span class="chip ${v===0?"zero":""}">${x[0]} ${v}/${x[1]}</span>`}).join("")}</div><div class="custom ${state.health==="custom"||state.resources==="custom"?"on":""}"><label>HP<input type="number" value="${hp}" min="0" max="${u.max}"></label><label>Resource overrides<input value="edit individually"></label></div></div></div>`}).join("");
+ document.getElementById("summary").innerHTML=state.mode==="test"
+  ?`<b>Test copy:</b> ${state.health} health · ${state.resources} resources · effects ${state.effects} · no sheet write-back`
+  :"<b>Campaign state:</b> current health · current resources · current effects · normal sheet mirroring";
+}
+document.querySelectorAll("[data-group] button").forEach(b=>b.onclick=()=>{const g=b.parentElement.dataset.group;state[g]=b.dataset.value;b.parentElement.querySelectorAll("button").forEach(x=>x.classList.toggle("on",x===b));render()});
+document.querySelectorAll("[data-mode]").forEach(b=>b.onclick=()=>{state.mode=b.dataset.mode;document.querySelectorAll("[data-mode]").forEach(x=>x.classList.toggle("on",x===b));document.getElementById("testBody").style.display=state.mode==="test"?"block":"none";document.getElementById("campaignNote").style.display=state.mode==="campaign"?"block":"none";document.getElementById("start").textContent=state.mode==="test"?"Create disposable test table":"Continue with campaign state";render()});
+document.getElementById("start").onclick=()=>document.getElementById("summary").innerHTML=state.mode==="test"?"<b>Ready:</b> isolated TEST roster captured. Campaign sheets remain untouched.":"<b>Ready:</b> campaign state will be used.";
+render();
+</script>
+</body>
+</html>

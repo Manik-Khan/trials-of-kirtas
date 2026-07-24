@@ -20,6 +20,7 @@ if (!m) { console.log("smoke-pick-unit: " + pass + " passed, " + fail + " failed
    units mirroring the screenshot (PC surrounded by goblins). */
 function makePick(units) {
   const env = "var wxc=function(c){return c;}, wzc=function(r){return r;}, tierY=function(){return 0;};" +
+    "var unitRigVisible=function(){return true;};" +
     "var CB={units:" + JSON.stringify(units) + "};" +
     "var ray={ray:{origin:null,direction:null}};";
   return new Function("o", "d", "anyState",

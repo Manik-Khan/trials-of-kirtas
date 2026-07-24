@@ -232,7 +232,8 @@ export function buildCantripAttacks(inventory, structural) {
       id: 'cant-' + cn.replace(/[^a-z]+/g, ''),
       type: 'attack', label: nice + ' \u00B7 ' + wLabel,
       ability: pr.ability, proficient: pr.proficient, atkBonus: atkB,
-      dmgAbility: true, dmgBonus: dmgB, dmgDice: w.dmg1, dmgType: note
+      dmgAbility: true, dmgBonus: dmgB, dmgDice: w.dmg1, dmgType: note,
+      spell: true, level: 0, rider: spec.rider === 'thunder' ? 'boom' : null
     };
     if (item.extraDmg && item.extraDmg.dice) act.extraDamage = [{ dice: item.extraDmg.dice, bonus: 0, type: item.extraDmg.type || '' }];
     out.push(act);

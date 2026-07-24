@@ -32,6 +32,8 @@ ok("move_resolved → walk with declared path", verbs[3].some(v=>v.t==="walk"&&v
 ok("prompt → prompt verb", verbs[5].some(v=>v.t==="prompt"&&v.prompt.to==="gob1"));
 ok("answer → prompt_clear", verbs[6].some(v=>v.t==="prompt_clear"));
 ok("attack_resolved → hp verb delta -3", verbs[7].some(v=>v.t==="hp"&&v.unit==="gob1"&&v.hp===4&&v.delta===-3));
+const pushed=run([{seq:1,kind:"ability_used",unit:"caim",payload:{ability:"Repelling Blast",effects:[{unit:"gob1",forced_move:{path:[{c:6,r:5},{c:7,r:5}],to:{c:7,r:5},source:"Repelling Blast"}}]}}]);
+ok("forced movement → animated push verb instead of jump",pushed.verbs[0].some(v=>v.t==="push"&&v.path.length===2)&&!pushed.verbs[0].some(v=>v.t==="jump"&&v.unit==="gob1"));
 ok("turn_ended → turn verb gob1", verbs[8].some(v=>v.t==="turn"&&v.unit==="gob1"));
 ok("add_unit → spawn verb", verbs[9].some(v=>v.t==="spawn"&&v.unit==="gob2"));
 // restore → resync

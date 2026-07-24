@@ -80,7 +80,7 @@ ok('shared attack payload carries raw d20 evidence',source.includes('d20_rolls:d
 ok('resource spend is published as a replay fact',source.includes('resource_spend:spendFact')&&source.includes('resource_spend:resourceSpendFor(a)'));
 ok('movement reconciliation has one presentation door',source.includes('function reconcileMovementPresentation()')&&source.includes('reconcileMovementPresentation();\n      runMirror'));
 ok('Roll Initiative and 50% local grid decisions are present',source.includes('id="fbOpenTable">Roll Initiative')&&source.includes('GRID_PREF_KEY=\'tok-forge-grid-opacity-v1\'')&&source.includes('id="gridVal">50%'));
-ok('selected destination pulse is presentation-only and reduced-motion safe',source.includes('hoverGroup.children.forEach')&&source.includes('REDUCED?0.44')&&source.includes('Math.sin(t*4.2)'));
+ok('selected destination pulse is presentation-only and reduced-motion safe',source.includes('hoverGroup.children.forEach')&&source.includes('||REDUCED)?0.44')&&source.includes('Math.sin(t*4.2)'));
 ok('fog mask uses a feathered continuous cloud boundary',source.includes('tex.magFilter=THREE.LinearFilter;tex.minFilter=THREE.LinearFilter;tex.generateMipmaps=false')&&source.includes("x.filter='blur("));
 
 console.log(`\n${pass} passed, ${fail} failed`);

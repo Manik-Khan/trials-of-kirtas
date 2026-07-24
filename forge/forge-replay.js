@@ -58,7 +58,7 @@
         hp: u.hp, maxHp: (u.maxHp != null ? u.maxHp : u.hp),
         resources: normalizeResources(u.resources || u.res || {}),
         conditions: [], reacts: (u.reacts || []).slice(),
-        reactionUsed: false, downed: false, advGrant: null, deathSaves:freshDeathSaves()
+        reactionUsed: false, downed: false, advGrant: null, boomMark:null, deathSaves:freshDeathSaves()
       };
     });
     return {
@@ -134,6 +134,9 @@
       if (e.heal) { u.hp = Math.min(u.maxHp, u.hp + e.heal); if (u.hp > 0) {u.downed = false;u.deathSaves=freshDeathSaves();} }
       if (e.add_condition && u.conditions.indexOf(e.add_condition) < 0) u.conditions.push(e.add_condition);
       if (e.remove_condition) u.conditions = u.conditions.filter(function (c) { return c !== e.remove_condition; });
+      if(e.add_boom)u.boomMark=Object.assign({},e.add_boom);
+      if(e.remove_boom)u.boomMark=null;
+      if(e.forced_move&&e.forced_move.to)u.pos={c:Number(e.forced_move.to.c),r:Number(e.forced_move.to.r)};
       // advantage-on-next-attack grant (Silvery Barbs rider now; Help/familiars
       // later). A fact, not a roll — replays identically. `advGrant.reason` is
       // display only. Consumed when the unit's own attack resolves (below).
@@ -188,6 +191,7 @@
         var mv = state.units[row.unit];
         var stop = p.interrupted_at || p.final_cell;
         if (mv && stop) mv.pos = { c: stop.c, r: stop.r };
+        applyEffects(state,p.effects);
         if (p.undo_of != null) {
           // a player's own Undo-move (Priority 3): a self-published compensating
           // move_resolved that returns the unit to its pre-move cell (final_cell)

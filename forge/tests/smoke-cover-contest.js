@@ -79,15 +79,15 @@ const row = (seq, unit, kind, payload) => ({ seq, unit, actor: "u-" + unit, kind
     v.cover === "three-quarters" && v.canTarget === true);
   ok("losRay along the verdict's eye names the wall cell (6,6)",
     at && at.c === 6 && at.r === 6);
-  // a 4.5 ft boulder clips only the FEET lines: the eye-to-eye ray clears it,
-  // so there is no single blocker to light — the card narrates instead
+  // a 4.5 ft boulder blocks eight of twelve body samples: the eye-to-eye ray
+  // clears it, so there is no single centre-ray blocker to light.
   const map2 = TG.makeMap(12, 3);
   map2.occ = new Array(12 * 3).fill(0);
   map2.occ[1 * 12 + 7] = 4.5;
   const v2 = TG.losVerdict(map2, { c: 1, r: 1 }, { c: 8, r: 1 });
   const at2 = TG.losRay(map2, { c: 1, r: 1 }, { c: 8, r: 1 }, v2.eye).at;
-  ok("boulder: three-quarters from feet-corner clips, centre ray clear → culprit null (card narrates 'partial cover from the angle')",
-    v2.cover === "three-quarters" && at2 === null);
+  ok("boulder: eight of twelve body samples grade half cover while the centre ray stays clear",
+    v2.cover === "half" && v2.blocked === 8 && at2 === null);
 }
 
 /* ── §8.1/.2/.3/.4 — the live flow over the bus: pause, ruling, timeout, total ── */

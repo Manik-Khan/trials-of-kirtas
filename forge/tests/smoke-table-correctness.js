@@ -7,7 +7,7 @@ const doc={body:{classList:{_s:new Set(),toggle(k,v){v?this._s.add(k):this._s.de
 const ctx={console,document:doc,localStorage:{getItem:k=>mem[k]||null,setItem:(k,v)=>mem[k]=v},CustomEvent:function(n,o){this.type=n;this.detail=o&&o.detail;},ForgeKitDerive:{derive(){return {res:{kiPoints:3},pools:[{key:"kiPoints",rawKey:"kiPoints",current:3}],actions:[{cost:{ki:1}}]};}},ForgeFeedRender:{rollBody:(f,o)=>`ROLL:${o.unitName(f.actor)}:${o.unitName(f.target)}:${f.mode}:${f.roll}:${f.dmg==null?"":f.dmg}:${f.coverName||""}`,abilityBody:(f,o)=>`ABILITY:${o.unitName(f.actor)}:${(f.effects||[]).map(e=>e.heal!=null?"heal"+e.heal:e.dmg!=null?"dmg"+e.dmg:"").join(",")}`},addForgeRow(h){rows.push(h);},setTimeout,clearTimeout};ctx.self=ctx;ctx.window=ctx;
 vm.createContext(ctx);vm.runInContext(fs.readFileSync(path.join(__dirname,"..","forge-table-correctness.js"),"utf8"),ctx);
 const F=ctx.ForgeTableCorrectness;
-ok(F&&F.VERSION==="1.4.2","browser API loads");
+ok(F&&F.VERSION==="1.6.0","browser API loads");
 ok(typeof F.installFeedInteraction==="function","feed damage-detail interaction is part of the public contract");
 const k=ctx.ForgeKitDerive.derive({});
 ok(k.res.ki===3,"kiPoints aliases to canonical ki");
@@ -54,7 +54,7 @@ ok(rows.length===before+1&&rows.at(-1).includes("ROLL:caim:g:Shortbow:13:6:three
 const ability=F.factFromEvent({kind:"ability_used",unit:"liadan",payload:{ability:"Healing Word",targets:["caim"],effects:[{unit:"caim",heal:6}]}});
 ok(ability.kind==="ability"&&ability.target==="caim","ability echo becomes structured fact");
 ok(F.factHtml(ability).includes("forge-result-heal")&&F.factHtml(ability).includes("ABILITY:liadan:heal6"),"healing effect receives a soft heal tone");
-ok(F.isGeometryDiagnostic("No line of sight — occluder at (25,31), 8/8 corners blocked."),"geometry diagnostics are recognized for collapse");
+ok(F.isGeometryDiagnostic("No line of sight — occluder at (25,31), 12/12 body samples blocked."),"geometry diagnostics are recognized for collapse");
 ok(F.diagnosticHtml("occluder at (2,3)").includes("<details")&&F.diagnosticHtml("occluder at (2,3)").includes("Geometry details"),"geometry diagnostics render as disclosure rows");
 const wardSave=F.factFromEvent({kind:"ability_used",unit:"goblin",payload:{context:{kind:"sanctuary-save",target:"liadan",roll:8,mod:1,total:9,dc:13,saved:false}}});
 ok(wardSave.kind==="sanctuary-save"&&!wardSave.saved,"Sanctuary save facts get a dedicated presentation shape");
@@ -65,4 +65,12 @@ ok(rows.length===n0+1&&rows.at(-1).includes("APPLIED"),"effect-ledger facts pain
 const n1=rows.length;
 F.pushEvent({kind:"ability_used",unit:"vesperian",payload:{ability:"Longsword",effects:[{unit:"vesperian",remove_effect:"s1",effect_label:"Sanctuary",effect_kind:"sanctuary",reason:"attacked"}]}});
 ok(rows.length===n1+1&&rows.at(-1).includes("Sanctuary")&&rows.at(-1).includes("ENDED"),"effect removal keeps the effect name in the feed");
+const hexHtml=F.factHtml({kind:"effect",action:"add",actor:"cosmere",target:"g",effect:{kind:"hex",label:"Hex",target:"g"}});
+ok(hexHtml.includes("is hexed")&&!hexHtml.includes("is warded"),"Hex is described as a curse rather than a protective ward");
+const toll=F.factFromEvent({kind:"ability_used",unit:"liadan",payload:{ability:"Toll the Dead",dmg:7,context:{kind:"save",target:"g",ability:"wis",d20:6,bonus:1,mods:[],total:7,dc:13,saved:false}}});
+ok(toll.roll===6&&toll.saveD20===6&&toll.saveTotal===7&&toll.dc===13,"Toll the Dead preserves the enemy d20, bonus, total, and DC");
+const sb=F.factFromEvent({kind:"prompt_answered",unit:"liadan",payload:{use:true,reaction_kind:"silveryBarbs",roll:7,reaction_context:{attacker:"g",target:"caim",mode:"Longbow",origRoll:18,attacker_name:"Gnoll",target_name:"Caim"}}});
+ok(sb&&sb.ability==="Silvery Barbs"&&/Gnoll/.test(sb.narration)&&/Caim/.test(sb.narration),"Silvery Barbs becomes a named feed fact with attacker and target");
+const boom=F.factFromEvent({kind:"move_resolved",unit:"g",payload:{boom_trigger:{source:"vesperian",dmg:6}}});
+ok(boom&&boom.ability==="Booming Blade"&&boom.effects[0].dmg===6,"Booming Blade movement damage becomes a feed fact");
 console.log("\n",pass,"table-correctness checks green");

@@ -9,7 +9,7 @@
 })(typeof self!=="undefined"?self:this,function(){
   "use strict";
 
-  var VERSION="1.1.0";
+  var VERSION="1.2.0";
   function avgFormula(formula){
     var total=0,ok=false;
     String(formula||"").replace(/(\d+)d(\d+)|([+-]?\d+)/gi,function(_,n,f,flat){
@@ -27,8 +27,10 @@
   function score(entry){
     var ro=entry.reach||{},action=entry.action||{},target=entry.target||{};
     var damage=avgFormula(action.dmg),cover=Number(ro.cover)||0,moveCost=Number(entry.origin&&entry.origin.cost)||0;
+    var pathThreats=Number(ro.pathThreatCount!=null?ro.pathThreatCount:entry.origin&&entry.origin.pathThreatCount)||0;
+    var defensiveCover=Number(entry.origin&&entry.origin.defensiveCover)||0,visibleTo=Number(entry.origin&&entry.origin.visibilityCount)||0;
     var wounded=target.hpMax?Math.max(0,1-Number(target.hp)/Number(target.hpMax)):0;
-    var total=damage*12-cover*3.5-(ro.dis?16:0)-moveCost*.35+wounded*4+(moveCost===0?3:0);
+    var total=damage*12-cover*3.5-(ro.dis?16:0)-moveCost*.35-pathThreats*36+defensiveCover*2-visibleTo*2+wounded*4+(moveCost===0?3:0);
     var elevation=(Number(ro.originElevationFt)||0)-(Number(ro.targetElevationFt)||0);
     if(rangedAction(action)){
       var distance=Number(ro.distanceFt)||0,normal=Math.max(10,Number(action.rng)*5),threats=Number(ro.threatCount)||0;
@@ -59,8 +61,8 @@
     legal.sort(function(a,b){return b.score-a.score||Number(a.origin.cost||0)-Number(b.origin.cost||0)||String(a.action.label||"").localeCompare(String(b.action.label||""));});
     if(legal.length){var best=legal[0],dist=Number(best.reach.distanceFt),noun=rangedAction(best.action)?"shot":"attack",reasons=tacticalReasons(best);return Object.assign(best,{kind:best.origin.cost?"move-attack":"attack",why:(best.action.label||"Attack")+" has a legal "+(best.reach.dis?"long-range ":"")+noun+(Number.isFinite(dist)?" at "+Math.round(dist)+" ft":"")+(best.reach.coverName&&best.reach.coverName!=="none"?" through "+best.reach.coverName+" cover":"")+(reasons.length?"; "+reasons.join(" and "):"")+"."});}
     var approach=null;
-    origins.forEach(function(origin){targets.forEach(function(target){var d=typeof input.distance==="function"?input.distance(origin,target):Infinity;if(!Number.isFinite(d))return;var candidate={kind:"move",origin:origin,target:target,action:actions[0]||null,distanceFt:d,score:-d-Number(origin.cost||0)*.05};if(!approach||candidate.score>approach.score)approach=candidate;});});
-    if(approach)approach.why="No attack is legal this turn; move toward "+(approach.target.name||"the nearest target")+".";
+    origins.forEach(function(origin){targets.forEach(function(target){var d=typeof input.distance==="function"?input.distance(origin,target):Infinity;if(!Number.isFinite(d))return;var pathThreats=Number(origin.pathThreatCount)||0,defense=Number(origin.defensiveCover)||0,visibleTo=Number(origin.visibilityCount)||0;var candidate={kind:"move",origin:origin,target:target,action:actions[0]||null,distanceFt:d,score:-d-Number(origin.cost||0)*.05-pathThreats*36+defense*2-visibleTo*2};if(!approach||candidate.score>approach.score)approach=candidate;});});
+    if(approach){var coverMove=Number(approach.origin&&approach.origin.defensiveCover)>Number(input.currentDefensiveCover)||Number(approach.origin&&approach.origin.visibilityCount)<Number(input.currentVisibilityCount);approach.why="No attack is legal this turn; "+(coverMove?"move toward cover while closing on ":"move toward ")+(approach.target.name||"the nearest target")+".";}
     return approach||{kind:"stand",origin:origins[0]||null,action:null,target:null,why:"No legal target or movement remains."};
   }
 

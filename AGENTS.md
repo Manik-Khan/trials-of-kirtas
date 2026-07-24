@@ -34,6 +34,14 @@ The maintainer is **M** (Manik). Codex assists; **M deploys by hand.**
    surrounding code's style, naming, and comment density. Don't refactor unbidden.
 6. **Mock-first for anything visual or architectural.** Standalone, no-deps, renders
    on its own → M approves → then build. Never ship UX straight to a real page.
+7. **Synchronize every task before editing.** Read `AGENTS.md`, `CONTEXT.md`, and
+   the subsystem's current handoff; inspect `HEAD`, the working tree, and changes
+   since the handoff's recorded checkpoint. Report the baseline commit,
+   dependencies changed by other work, intended file ownership, and remaining
+   field gates. Parallel tasks may share a repository only with explicit,
+   non-overlapping ownership. Refresh that baseline before absorbing another
+   task's changes; never overwrite a dirty file on the assumption that another
+   session is stale.
 
 ---
 

@@ -93,7 +93,7 @@
         if (!r.ok) return r;
         var declaredRow = { seq: r.seq, unit: unit, kind: declareKind, payload: declarePayload };
         return askAll(unit, declaredRow).then(function (answers) {
-          return publish(unit, resolveKind, resolveFacts(answers));
+          return Promise.resolve(resolveFacts(answers)).then(function(facts){return publish(unit,resolveKind,facts);});
         });
       });
     }
@@ -139,7 +139,9 @@
         // resolutions are self-contained facts: carry the declared target so
         // replay never depends on the shared pendingAction slot
         return act(unit, "attack_declared", facts, "attack_resolved", function (answers) {
-          return Object.assign({ target: facts.target }, resolveFacts(answers));
+          return Promise.resolve(resolveFacts(answers)).then(function (resolved) {
+            return Object.assign({ target: facts.target }, resolved);
+          });
         });
       },
       /* Cover contest (FORGE_COVER_CONTEST.md §3): a pre-roll pause reusing the

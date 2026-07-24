@@ -74,7 +74,7 @@ ok(html.includes("return gf&&typeof gf.normalizeParams==='function'?gf.normalize
 ok(html.includes("window.ForgeGeneratorFoundation.recipeParams(row.map||{})"),"legacy session recipe fallback reads the versioned record");
 ok(html.includes("if(hasSavedSnapshot)")&&html.includes("future parameter version merely to repaint an already-saved map"),"saved snapshots load without requiring future recipe interpretation");
 ok(html.includes("window.__forgeArchetype.paint(savedArchetype,true)"),"shared-session UI displays the archetype saved with the fight");
-ok(html.includes('["archetype","rooms","loops","decor","foes","seed"'),"shared sessions lock the archetype with the rest of the map recipe");
+ok(html.includes('["archetype","biomeSelect","rooms","loops","decor","foes","seed"'),"shared sessions lock the archetype and biome with the rest of the map recipe");
 ok(html.includes('w.querySelector("input,select")')&&html.includes('["archetype","rooms","loops","decor","foes"]'),"non-overseer devices hide the DM-only archetype control");
 ok(html.includes("m.parameters && m.parameters.archetype")&&html.includes("adef.label"),"staged fights identify their saved archetype");
 ok(/forge-generator-foundation\.js\?v=g2g1/.test(html)&&/forge-engine\.js\?v=fe10/.test(html),"current parameter and engine runtimes are cache-busted");

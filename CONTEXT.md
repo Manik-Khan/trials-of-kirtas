@@ -4,8 +4,9 @@ Custom D&D 5e virtual tabletop. Live: **trials-of-kirtas.netlify.app**
 Repo: `Manik-Khan/trials-of-kirtas` · vanilla JS/HTML/CSS + Supabase + Netlify + GitHub.
 Walled React/Vite/TipTap corner at `journal/`.
 
-Updated: **July 23, 2026 (current Forge handoff plus character-sheet source,
-progression, and rail alignment).** Supersedes the earlier July 16 project handoff. The current Forge
+Updated: **July 24, 2026 (Forge field-report correction candidate, approved
+reaction/cover integration, and disposable Test Fight proposal, plus character-
+sheet source, progression, and rail alignment).** Supersedes the earlier July 16 project handoff. The current Forge
 execution state lives in `docs/handoffs/forge/`. Reconciled sources include
 `CONTEXT_Forge.md`, the July 22 handoff, `FORGE_PROTOCOL.md`, `FORGE_BOARD.md`,
 and `FORGE_COVER_CONTEST.md`.
@@ -19,6 +20,73 @@ decisions, and the open bugs. This doc is the project; that one is the subsystem
 deploy). Codex commits **only when M explicitly asks**, staging files by name, and **never
 pushes**. Otherwise Codex's job ends at validated files + a one-line deploy note.
 Cache-stamp every module include (`?v=`) — non-negotiable on iOS.
+
+---
+
+## 🟡 Forge field-report correction candidate — July 24
+
+The July 24 screenshots did not show a reverted live Caim sheet. A signed-in
+read of the current character rows showed Caim at level 4, **37 max HP**, AC 17,
+initiative +4, and Cosmere at level 4, **30 max HP**, AC 13, initiative +2. The
+initiative strip displayed current HP only (`24` and `20`), which made those
+values look like stale maxima. The candidate now displays `current / max`.
+`data/characters/caim.json` and `cosmere.json` remain stale exporter mirrors,
+but they are not Forge runtime authority.
+
+This uncommitted candidate also:
+
+- resolves current Supabase character keys back through legacy presentation
+  aliases for sprites, portraits, token art, initials, and seat colors;
+- accepts an already-highlighted legal target when a targeted spell is chosen,
+  so Hex spends its Pact slot and applies on the first cast attempt; Hex now
+  narrates “is hexed,” not “is warded”;
+- includes the saving throw die, modifier, total, and DC in spell-save feed
+  facts, and names attacker, target, and attack mode in Silvery Barbs prompts
+  and feed evidence;
+- gives War Caster concentration checks advantage and names both dice in the
+  feed;
+- makes automatic foe tactics staff-only, routes cover contests to the DM only
+  in Staff View, and keeps Player View waiting for the DM's ruling;
+- animates movement to the actual opportunity-attack trigger cell before
+  presenting the reaction, resumes the remaining route afterward, and penalizes
+  automatic paths that cross a hostile reach;
+- lets ranged foes search reachable firing positions against all living
+  battlefield opponents while still requiring canonical geometry to approve
+  each shot; no-shot movement now prefers safer/covered cells;
+- keeps the editable enemy roster visible directly in Encounter Read, before
+  the collapsible creature-suggestion list; and
+- corrects the retired “8 corners” diagnostic to the canonical 12 body samples.
+
+M approved `_edits/mock-forge-reaction-choices.html`; both choices are now in
+the uncommitted production candidate. War Caster opportunity attacks offer the
+ordinary weapon or an eligible at-will single-target attack cantrip. Booming
+Blade marks the target and applies its movement rider only when the target later
+moves willingly. Repelling Blast offers no push, 5 feet, or 10 feet along the
+caster-to-target line, stops at the last legal cell, replays/animates as forced
+movement, and does not trigger opportunity attacks.
+
+The pillar discrepancy was real: the rendered stone base used a 0.40-cell
+radius while attack cover used a smaller 0.29/0.31-cell footprint. The candidate
+now uses the visible 0.40 footprint; an aligned full-height pillar grants cover
+in the real geometry smoke. The original fight row/URL would still distinguish
+that historical shot's exact camera impression from its saved cells.
+
+Caim's missing Ki may have been legitimate current campaign state after the
+last session, rather than an absent pool. Campaign combat should continue from
+live HP/resources. A separate approved-workflow mock at
+`_edits/mock-forge-test-fight.html` proposes a disposable TEST snapshot with
+independent Health (full/current/50%/25%/custom), Resources
+(full/current/empty/custom), and Effects (clear/current) controls. It is
+deliberately not integrated until M approves the mock; its defining invariant
+is no campaign-sheet write-back.
+
+After deployment, run a signed-in two-device OA/Silvery Barbs/cover-privacy
+round and confirm each difficulty button updates the visible editable roster
+before placement. The full Forge battery now passes **73/73 suites and
+2,311/2,311 known-answer checks**; seven affected root action suites add
+**124/124**. All touched JavaScript and all three inline production scripts
+parse cleanly. Browser validation covered the Test Fight presets/state
+isolation and a clean unsigned Forge boot (no new console errors).
 
 ---
 

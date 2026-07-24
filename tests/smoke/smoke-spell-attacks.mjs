@@ -1,5 +1,5 @@
 // smoke-spell-attacks.mjs — exercises the live spell-damage derivation in weapon-actions.js
-import { buildSpellAttacks, assembleActions } from '/mnt/user-data/outputs/weapon-actions.js';
+import { buildSpellAttacks, assembleActions } from '../../weapon-actions.js';
 
 let pass = 0, fail = 0;
 const ok = (n, c, d) => { if (c) pass++; else { fail++; console.log('  FAIL: ' + n + (d !== undefined ? '  -> ' + JSON.stringify(d) : '')); } };

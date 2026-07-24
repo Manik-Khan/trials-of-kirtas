@@ -16,6 +16,7 @@ m=map();put(m,6,2,4.9);v=shot(m);ok(v.cover==="three-quarters"||v.cover==="total
 m=map();put(m,6,2,5);ok(shot(m).cover==="total","five-foot solid beside equal-height target gives total cover");
 
 m=map();put(m,6,2,5,{kind:"circle",radius:.18,source:"tree"});v=shot(m);ok(v.cover==="none","narrow trunk no longer fills the entire five-foot cell");
+m=map();put(m,6,2,15,{kind:"circle",radius:.40,source:"pillar"});v=shot(m);ok(v.cover!=="none","a visually aligned full-height pillar grants cover");
 m=map();put(m,6,2,4.5,{kind:"circle",radius:.40,source:"boulder"});v=shot(m);ok(v.cover!=="total","boulder footprint does not become a full-cell wall");
 
 m=map();m.creatures=[{id:"screen",c:6,r:2,heightFt:5,radius:.35,alive:true}];v=shot(m);ok(v.cover==="half"&&v.culprits.creature,"intervening Medium creature can provide half cover");

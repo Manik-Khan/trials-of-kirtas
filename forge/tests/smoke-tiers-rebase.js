@@ -4,6 +4,7 @@
 const fs = require("fs"), path = require("path");
 const FD = require("../forge-dungeon.js");
 const MB = require("../map-bridge.js");
+const FE = require("../forge-engine.js");
 const html = fs.readFileSync(path.join(__dirname, "..", "index.html"), "utf8");
 
 let pass = 0, fail = 0;
@@ -22,14 +23,14 @@ if (m) {
   const documentStub = { getElementById: () => ({ textContent: "", style: {} }) };
   const fn = new Function(
     "window", "document", "ForgeDungeon", "MapBridge",
-    "T_WATER", "T_GRASS", "T_STONE", "T_PLAZA", "T_ROCK", "BIOME", "flora", "mulberry32",
+    "T_WATER", "T_GRASS", "T_STONE", "T_PLAZA", "T_ROCK", "STEP_FT", "BIOME", "flora", "mulberry32",
     m[1] + "\nreturn buildTiersField;"
   );
   const flora = () => ({ kinds: ["tree", "rock"], pal: {}, density: 1 });
   const mulberry32 = a => { a = a >>> 0; return function () { a |= 0; a = (a + 0x6D2B79F5) | 0;
     let t = Math.imul(a ^ (a >>> 15), 1 | a); t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t;
     return ((t ^ (t >>> 14)) >>> 0) / 4294967296; }; };
-  const build = fn({}, documentStub, FD, MB, T_WATER, T_GRASS, T_STONE, T_PLAZA, T_ROCK, "grass", flora, mulberry32);
+  const build = fn({ ForgeEngine: FE }, documentStub, FD, MB, T_WATER, T_GRASS, T_STONE, T_PLAZA, T_ROCK, 5, "grass", flora, mulberry32);
 
   for (const theme of FD.THEME_KEYS) {
     const a = build(1234, { themeKey: theme }), b = build(1234, { themeKey: theme });

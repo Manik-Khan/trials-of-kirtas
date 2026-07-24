@@ -179,6 +179,15 @@ var ctx = { unitName: nameOf };
   ok("save: no AC", FFR.assertNoAC(html));
 })();
 
+(function testWarCasterConcentration() {
+  var html = FFR.concentrationLine({ concentration: {
+    required: true, d20Rolls: [7, 16], d20KeptIndex: 1, roll: 16,
+    adv: true, baseBonus: 2, total: 18, dc: 10, saved: true
+  }});
+  ok("concentration: shows both War Caster dice", html.indexOf("7 / 16") !== -1);
+  ok("concentration: names War Caster advantage", html.indexOf("War Caster advantage") !== -1);
+})();
+
 // ── 11. HEAL ────────────────────────────────────────────────────────────
 (function testHealBody() {
   var fact = {
