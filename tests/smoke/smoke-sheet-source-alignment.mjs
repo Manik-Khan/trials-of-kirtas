@@ -23,7 +23,7 @@ ok('real full-sheet render shape keeps Caim speed 40', shape.structural.combat.s
 const require = createRequire(import.meta.url);
 globalThis.ArmorAC = require('../../armor-ac.js');
 globalThis.EquipSlots = require('../../equip-slots.js');
-const vesperian = toRenderShape({
+const vesperianRow = {
   key:'vesperian', name:'Vesperian Vale',
   structural:{
     name:'Vesperian Vale', classLabel:'Fighter 4', abilities:{dex:{score:18,mod:4}},
@@ -31,7 +31,8 @@ const vesperian = toRenderShape({
   },
   vitals:{hp:40,mageArmor:true},
   inventory:[{name:'Shield',type:'S',ac:2,slot:'OFFHAND'}]
-});
+};
+const vesperian = toRenderShape(vesperianRow);
 ok('real Party projection derives Vesperian Mage Armor plus Shield as AC 19', vesperian.structural.combat.ac === 19);
 ok('real Party projection names the Vesperian AC source', vesperian.structural.combat.acSource === 'Mage Armor + Shield');
 
@@ -45,8 +46,17 @@ ok('Party receives full character-row realtime updates', party.includes("['vital
 const armorInclude = party.indexOf('<script src="armor-ac.js?v=um1"></script>');
 const slotsInclude = party.indexOf('<script src="equip-slots.js?v=cc2"></script>');
 const projectionImport = party.indexOf("import { toRenderShape } from './sheet-mount.js?v=src1'");
+const forgePartyCardMatch = forge.match(/  function partyCard\(c\)\{[\s\S]*?^  \}/m);
+const forgePartyCard = forgePartyCardMatch
+  ? Function('window', forgePartyCardMatch[0] + '\nreturn partyCard;')({
+      CharacterCombat: require('../../character-combat.js')
+    })
+  : null;
+const forgeVesperianCard = forgePartyCard && forgePartyCard(vesperianRow);
 ok('Party loads the live AC authority before projecting cards', armorInclude >= 0 && armorInclude < projectionImport);
 ok('Party loads the equipment-slot authority before projecting cards', slotsInclude >= 0 && slotsInclude < projectionImport);
+ok('Forge extracts its real party-card projection', typeof forgePartyCard === 'function');
+ok('Forge party card derives Vesperian Mage Armor plus Shield as AC 19', forgeVesperianCard && forgeVesperianCard.ac === 19);
 ok('Party extracts its real casting-time formatter', typeof partyFmtCt === 'function');
 ok('Party formats a raw bonus-action casting time', partyFmtCt && partyFmtCt([{number:1,unit:'bonus'}]) === '1 bonus action');
 ok('Party formats plural raw casting times', partyFmtCt && partyFmtCt([{number:2,unit:'action'}]) === '2 actions');

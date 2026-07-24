@@ -9734,9 +9734,10 @@ renderer.domElement.addEventListener("contextmenu", function(e){ if(ADD_FOE_PLAC
   function partyCard(c){
     var s=c.structural||{},cmb=s.combat||{},v=c.vitals||{},hpMax=Number(cmb.hpMax||0)+Number(v.hpBonus||0);
     var hp=v.hp!=null?Number(v.hp):(cmb.hp!=null?Number(cmb.hp):hpMax);
+    var liveCombat=window.CharacterCombat.derive(c);
     return {key:c.key,name:c.name||s.name||c.key,sheetReady:!!(c.structural&&c.structural.combat),
       cls:[s.classLabel,s.subclass,s.level&&"level "+s.level,s.race].filter(Boolean).join(" \u00b7 ")||"Adventurer",
-      epi:s.background||s.race||"",hp:hp,max:hpMax,ac:cmb.ac,init:cmb.initiative,portrait:s.portrait||null};
+      epi:s.background||s.race||"",hp:hp,max:hpMax,ac:liveCombat.ac,init:cmb.initiative,portrait:s.portrait||null};
   }
   function loadPartyCandidates(){
     if(!window.CharacterData||!window.ForgePartySelection){

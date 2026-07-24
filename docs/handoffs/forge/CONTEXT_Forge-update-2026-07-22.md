@@ -665,20 +665,34 @@ A follow-up source/live audit separated implementation from field proof.
 Vesperian's full and mounted sheets already render
 **AC 19 · Mage Armor + Shield**. Mage Armor state/AC, old-session `cosmere`
 resolution, new-roster current-key persistence, and exporter alias generation
-are implemented and green. Party's top-level Vesperian card alone still showed
+are implemented and green. Party's top-level Vesperian card had shown
 AC `—` because it called `toRenderShape()` before the mounted-sheet dependency
-loader installed `ArmorAC` and `EquipSlots`. The local Party correction now
-loads both cache-stamped authorities before its module projection; deployment
-verification of the card remains.
+loader installed `ArmorAC` and `EquipSlots`. The deployed Party correction
+loads both cache-stamped authorities before its module projection, and the live
+card is now verified at AC 19.
+
+The signed-in Forge subset round trip is also verified. The selector exposed
+only Caim, Chonkalius, Cosmere Runestar, Líadan Luchóg, and Vesperian Vale. A
+Caim/Cosmere/Vesperian subset produced a 3-hero summary, CR benchmark 3, and
+exactly those three in Main Party. Reopening **Choose party** and changing to
+Chonkalius/Líadan updated the summary and benchmark to 2 and removed the prior
+three from placement while preserving the Chen Yue map and both group seeds.
+No table was created or saved.
+
+That pass exposed one remaining chooser-only presentation defect: the initial
+Forge card read cached `structural.combat.ac`, so Vesperian displayed AC `—`
+even though the live combat authority derived 19. The local Forge correction
+now projects chooser AC through `CharacterCombat`, the same authority used by
+the combat kit. Deployment verification remains.
 
 ## Required field checklist
 
-1. On the live signed-in Workshop, confirm the party selector shows only active
-   player-folder characters; deleted, test, and out-of-folder rows must be absent.
-2. Select a strict subset, return to Workshop, and confirm the summary, CR wallet,
-   and Party placement group contain exactly that subset on the current map.
-3. Reopen **Choose party**, change the subset, and confirm deselected characters
-   leave CR and placement while the map and existing flags remain intact.
+1. **Passed July 23.** The live selector showed only the five active
+   player-folder characters; deleted, test, and out-of-folder rows were absent.
+2. **Passed July 23.** A strict subset produced matching summary, CR wallet, and
+   Main Party placement membership on the current map.
+3. **Passed July 23.** Reopening and changing the subset removed deselected
+   characters from CR and placement while preserving the map and group seeds.
 4. On the live signed-in site, open a Temple Table with at least Party and Enemy flags.
 5. Confirm the staged row retains exact group roles, controller policies, and positions.
 6. Roll Initiative and confirm every unit appears on its authored cell on two devices.
@@ -725,21 +739,19 @@ verification of the card remains.
 
 ## Immediate execution order
 
-1. Confirm the merged character-source slice is the deployed copy, run its
-   one-time SQL, and complete checklist items 18–21 before treating Party, JSON,
-   or Forge identity as converged.
+1. Deploy and field-check the Forge chooser AC correction, then complete
+   checklist items 19–21 before treating JSON or Forge identity as converged.
 2. Run the disposable-character progression check in item 22.
-3. Run the signed-in player-folder and explicit party-subset round trip.
-4. Run the signed-in map-first Workshop check on an ordinary non-region map and Temple Terraces.
-5. Run the signed-in Encounter Read target-wallet, related roster, and full-Bestiary check.
-6. Run the signed-in two-device activation checklist: held rolls, region entry, hostile-action activation, DM activation, reconnect, and Player View narration.
-7. Run the signed-in shared-table/reconnect deployment and architecture checklist.
-8. Compare Balanced and High Fidelity on M's actual laptop during a full round.
-9. Recheck saved-block and geometry-fog reconnects on the normal Temple URL.
-10. Correct the 8-corner LoS diagnostic label and its two fixtures.
-11. Promote Temple from `preview` to `active` only after those checks pass.
-12. Expose/settle the Volcanic Workshop construction control.
-13. Build `bridge-crossing` on the same intent contract.
+3. Run the signed-in map-first Workshop check on an ordinary non-region map and Temple Terraces.
+4. Run the signed-in Encounter Read target-wallet, related roster, and full-Bestiary check.
+5. Run the signed-in two-device activation checklist: held rolls, region entry, hostile-action activation, DM activation, reconnect, and Player View narration.
+6. Run the signed-in shared-table/reconnect deployment and architecture checklist.
+7. Compare Balanced and High Fidelity on M's actual laptop during a full round.
+8. Recheck saved-block and geometry-fog reconnects on the normal Temple URL.
+9. Correct the 8-corner LoS diagnostic label and its two fixtures.
+10. Promote Temple from `preview` to `active` only after those checks pass.
+11. Expose/settle the Volcanic Workshop construction control.
+12. Build `bridge-crossing` on the same intent contract.
 
 Do not begin `bridge-crossing` by re-enabling random legacy bridge selection. Purpose and archetype ownership come first.
 

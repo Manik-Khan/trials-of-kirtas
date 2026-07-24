@@ -104,8 +104,12 @@ casting-time structure as `[object Object]`; the deployed correction now formats
 it as `1 bonus action` in both the row and detail, verified live. The live Forge
 selector also filtered the signed-in roster to the five
 active player-folder characters, excluding the unfiled and delete-marked rows;
-the subset round trip remains open. M ran the one-time structural spell cleanup
-SQL on July 23. The nightly exporter has not run since that cleanup:
+the strict-subset round trip is now verified. Caim, Cosmere, and Vesperian
+produced a 3-hero summary, CR benchmark 3, and exactly those three in Main
+Party. Reopening and changing to Chonkalius and Líadan updated the summary and
+benchmark to 2 and removed the prior three from placement without changing the
+map or group seeds. M ran the one-time structural spell cleanup SQL on July 23.
+The nightly exporter has not run since that cleanup:
 `caim.json`/`cosmere.json` remain stale and the canonical
 `cosmererunestar-ae1a.json` is not present. Export convergence and the remaining
 signed-in checks are still open.
@@ -113,11 +117,15 @@ signed-in checks are still open.
 A follow-up source/live audit confirmed Vesperian's full and mounted sheets
 already render **AC 19 · Mage Armor + Shield**, and the underlying state,
 projection, old-Cosmere resolution, and new-roster identity paths are built and
-green. Party's top-level card alone still rendered AC `—`: it called
+green. Party's top-level card had rendered AC `—`: it called
 `toRenderShape()` before the mounted-sheet dependency loader had installed
-`ArmorAC` and `EquipSlots`. The local Party correction now loads those two
-cache-stamped authorities before its module projection. A deployed Party-card
-check remains; this is not a missing Mage Armor mechanic.
+`ArmorAC` and `EquipSlots`. The deployed Party correction loads those two
+cache-stamped authorities before its module projection, and the live card is
+now verified at AC 19. The same field pass found the Forge's initial party
+chooser still reading the cached `structural.combat.ac`, so Vesperian displayed
+AC `—` there even though the combat kit derived 19. The local Forge correction
+now sends chooser cards through the shared `CharacterCombat` authority; its
+deployed browser check remains. This is not a missing Mage Armor mechanic.
 
 ---
 
