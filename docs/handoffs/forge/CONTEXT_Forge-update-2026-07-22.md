@@ -744,12 +744,13 @@ Open field gates:
    TEST creation/reopen, preset values in combat, and no character-sheet
    writeback.
 
-Candidate validation is **73/73 Forge suites, 2,311/2,311 known-answer checks**.
+Candidate validation is **74/74 Forge suites, 2,328/2,328 known-answer checks**.
 It includes the canonical engine, map bridge, tactics geometry, LoS/cover,
 placement, and flora smokes plus derivation, feed, reaction/privacy, foe AI,
 cover contest, field-report, replay, board, and protocol contracts. Every
 touched JavaScript file passed `node --check`; seven affected root
-weapon/spell-action suites add **124/124**. Both classic inline scripts and the
+weapon/spell-action suites remain at **124/124**; the two directly affected
+root suites were rerun at **56/56**. Both classic inline scripts and the
 production module script parsed successfully. The unsigned local Forge booted
 without a new console error.
 

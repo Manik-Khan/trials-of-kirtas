@@ -29,11 +29,11 @@ The July 24 screenshots did not show a reverted live Caim sheet. A signed-in
 read of the current character rows showed Caim at level 4, **37 max HP**, AC 17,
 initiative +4, and Cosmere at level 4, **30 max HP**, AC 13, initiative +2. The
 initiative strip displayed current HP only (`24` and `20`), which made those
-values look like stale maxima. The candidate now displays `current / max`.
+values look like stale maxima. The integrated correction displays `current / max`.
 `data/characters/caim.json` and `cosmere.json` remain stale exporter mirrors,
 but they are not Forge runtime authority.
 
-This uncommitted candidate also:
+That integrated correction also:
 
 - resolves current Supabase character keys back through legacy presentation
   aliases for sprites, portraits, token art, initials, and seat colors;
@@ -86,8 +86,10 @@ After deployment, run a signed-in two-device OA/Silvery Barbs/cover-privacy
 round and confirm each difficulty button updates the visible editable roster
 before placement. For Test Fight, create and reopen a staged TEST row, confirm
 Full HP + Empty resources in combat, damage and restore resources, and verify
-the real character sheets never change. Validation counts for the current
-candidate are recorded after the full local gate below.
+the real character sheets never change. The full Forge battery now passes
+**74/74 suites and 2,328/2,328 known-answer checks** (the previous 73/2,311
+plus the 17-check Test Fight contract). The two directly affected root
+weapon/spell-action suites add **56/56**.
 
 ---
 
