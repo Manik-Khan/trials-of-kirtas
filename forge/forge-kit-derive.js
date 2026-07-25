@@ -306,6 +306,15 @@ function combatErrorKit(charData, err) {
         tone: "race", kind: "resource",
         recharge: "long rest", die: null, tag: null, origin: "race", source: "race", custom: false });
     }
+    if (!seen.starlightStep && has(featureText, "starlight step")) {
+      var stepMax=profBonus(s);
+      res.starlightStep=Math.max(0,stepMax-(pip.starlightStep||0));
+      pools.push({key:"starlightStep",rawKey:"starlightStep",level:0,label:"Starlight Step",badge:String(stepMax),max:stepMax,current:res.starlightStep,tone:"race",kind:"resource",recharge:"long rest",die:null,tag:"Step",origin:"race",source:"race",custom:false});
+    }
+    if (!seen.blessingRavenQueen && has(featureText, "blessing of the raven queen")) {
+      res.blessingRavenQueen=Math.max(0,1-(pip.blessingRavenQueen||0));
+      pools.push({key:"blessingRavenQueen",rawKey:"blessingRavenQueen",level:0,label:"Blessing of the Raven Queen",badge:"1",max:1,current:res.blessingRavenQueen,tone:"race",kind:"resource",recharge:"long rest",die:null,tag:"Raven",origin:"race",source:"race",custom:false});
+    }
 
     return { res: res, pools: pools };
   }
@@ -924,7 +933,9 @@ function combatErrorKit(charData, err) {
     { match: "step of the wind",  id: "cf_step_wind",      label: "Step of the Wind",  kind: "dash",       tab: "actions", bonus: true,  free: false, cost: { ki: 1 },            desc: "Dash or Disengage as a bonus action." },
     { match: "hands of healing",  id: "cf_hands_heal",     label: "Hands of Healing",  kind: "heal",       tab: "actions", bonus: false, free: false, cost: { ki: 1 },            desc: "Heal 1d4+WIS as an action (1 ki)." },
     { match: "bardic inspiration",id: "cf_bardic",         label: "Bardic Inspiration", kind: "buffAlly",  tab: "actions", bonus: true,  free: false, cost: { bardicInspiration: 1 }, rng:12,effectKind:"bardic-inspiration",die:bardicDie,desc:"Grant an inspiration die to one ally within 60 feet." },
-    { match: "hexblade",          id: "cf_hex_curse",      label: "Hexblade\u2019s Curse", kind: "buff",   tab: "actions", bonus: true,  free: false, cost: {hexbladeCurse:1}, rng:6,effectKind:"hexblade-curse",bonusDamage:function(s){return profBonus(s);},heal:function(s){return warlockLevel(s)+abilMod(s,"cha");},desc: "Bonus action: curse one creature within 30 feet for 1 minute; add proficiency to damage and crit on 19–20." }
+    { match: "hexblade",          id: "cf_hex_curse",      label: "Hexblade\u2019s Curse", kind: "buff",   tab: "actions", bonus: true,  free: false, cost: {hexbladeCurse:1}, rng:6,effectKind:"hexblade-curse",bonusDamage:function(s){return profBonus(s);},heal:function(s){return warlockLevel(s)+abilMod(s,"cha");},desc: "Bonus action: curse one creature within 30 feet for 1 minute; add proficiency to damage and crit on 19–20." },
+    { match: "starlight step",    id: "cf_starlight_step", label: "Starlight Step", kind: "teleport", tab: "actions", bonus: true, free: false, cost: {starlightStep:1}, rng:6, effectKind:"teleport", desc:"Bonus action: teleport to an unoccupied space you can see within 30 feet." },
+    { match: "blessing of the raven queen", id: "cf_raven_step", label: "Blessing of the Raven Queen", kind: "teleport", tab: "actions", bonus: true, free: false, cost: {blessingRavenQueen:1}, rng:6, effectKind:"raven-teleport", desc:"Bonus action: teleport 30 feet; resist all damage until the start of your next turn." }
   ];
 
   function classFeatureTiles(s) {

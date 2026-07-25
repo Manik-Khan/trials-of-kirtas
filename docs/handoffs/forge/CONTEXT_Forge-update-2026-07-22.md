@@ -805,12 +805,12 @@ Production field gates still required:
 - Create an ordinary Campaign table immediately afterward and confirm current
   HP/resources plus normal HP writeback are unchanged.
 
-## Shared character capability foundation · 2026-07-24
+## Shared character capability foundation + first resolver slice · 2026-07-24
 
 M approved `_edits/mock-forge-shared-capability-contract.html`. The approved
-architecture is now integrated as a behavior-preserving character foundation.
-`forge/forge-capabilities.js?v=fc1` defines the versioned
-`forge-capability/v1` contract; `forge-kit-derive.js?v=b15` attaches the
+architecture is now integrated as the character foundation.
+`forge/forge-capabilities.js?v=fc2` defines the versioned
+`forge-capability/v1` contract; `forge-kit-derive.js?v=b16` attaches the
 normalized ledger and audit to each successfully derived character kit, and
 `buildUnit()` retains both on the combat unit.
 
@@ -827,28 +827,32 @@ The current exported character mirrors derive:
 - Caim: 32 capabilities;
 - Cosmere: 40;
 - Líadan: 38; and
-- Vesperian: 26.
+- Vesperian: 27.
 
 All four report zero unaccounted source records and zero invalid capabilities.
 Ki and `Ki Points` fold into one resource-backed, field-gated capability.
 Repelling Blast and Silvery Barbs are executable with their open field-proof
-marker. Hand of Harm, Absorb Elements, Aid, Spare the Dying, and the
-Green-Flame Blade secondary rider remain held. Teleports, passive typed
-defenses, senses, Feather Fall, Deflect Missiles, Creation riders, and Weapon
-Bond remain explicitly missing.
+marker. `forge-capability-resolver.js?v=fcrs1` now makes Caim's fire resistance,
+Vesperian's necrotic resistance, Cosmere's Starlight Step, and Vesperian's
+Blessing of the Raven Queen executable. Damage defenses resolve the typed
+components before final HP, concentration, feed evidence, and replay. Blessing
+adds all-damage resistance through the start of Vesperian's next turn. Both
+teleports spend their real long-rest pool, select only visible unoccupied cells
+within 30 feet, and replay without movement spend or opportunity attacks.
 
-This foundation does **not** change combat resolution or expose a new
-player-facing tracker yet. The next character-first implementation slice is
-typed defenses plus teleport resolution; post-hit/reaction riders follow.
-Only after those character rules use the shared resolver should
+Hand of Harm, Absorb Elements, Aid, Spare the Dying, and the Green-Flame Blade
+secondary rider remain held. Senses, Feather Fall, Deflect Missiles, Creation
+riders, and Weapon Bond remain explicitly missing. Post-hit/reaction riders are
+the next character-first slice. Only after those character rules use the shared resolver should
 `monster-actor.js` project Babau/Manes defenses, spells, Multiattack, and
 special actions into the same contract.
 
-Validation is **633/633** focused known answers. Every touched JavaScript file
-passes `node --check`. The unsigned real Forge browser boot loaded
-`forge-capabilities.js?v=fc1` before `forge-kit-derive.js?v=b15`, reached
-Workshop, and produced no new script error. The expected protected-roster
-permission refusal and inherited three.js warnings remain.
+Validation is **649/649** focused known answers. Every touched JavaScript file
+passes `node --check`, and the production module block passes Node's module
+syntax gate. The unsigned real Forge browser boot loaded every new cache stamp
+with HTTP 200, reached Workshop, and produced no new script error. The expected
+protected-roster permission refusal prevents local combat entry, so live
+teleport/resistance, two-device replay, and reconnect remain field gates.
 
 ## Required field checklist
 
@@ -915,9 +919,10 @@ permission refusal and inherited three.js warnings remain.
 8. Recheck saved-block and geometry-fog reconnects on the normal Temple URL.
 9. Field-check the integrated War Caster/Repelling Blast reaction choices.
 10. Replay the July 24 fight for the exact pillar-cover and serialized-Ki facts.
-11. Implement the character-first shared resolver: typed defenses and
-    teleports, then held post-hit/reaction riders.
-12. Adapt full monster defenses, spells, Multiattack, and special actions to
+11. Field-check Caim/Vesperian typed resistance, both racial teleports,
+    Blessing expiry, resource spend, reconnect, and two-device replay.
+12. Implement the held character post-hit/reaction riders, then adapt full
+    monster defenses, spells, Multiattack, and special actions to
     the same contract; Babau is the complex acceptance case and Manes the
     simple control.
 13. Promote Temple from `preview` to `active` only after those checks pass.
@@ -932,14 +937,14 @@ M reviews, commits, and pushes. Codex does not push. Current slice stamps:
 `forge-deployment.js?v=fd3`, `forge-generator-foundation.js?v=g2g1`,
 `forge-temple-terraces.js?v=tt1`, `forge-engine.js?v=fe10`,
 `forge-render-power.js?v=frp1`, `forge-architecture.js?v=fa5`, and
-`forge-discovery.js?v=fd7`, `forge-capabilities.js?v=fc1`,
-`forge-kit-derive.js?v=b15`,
+`forge-discovery.js?v=fd7`, `forge-capabilities.js?v=fc2`,
+`forge-capability-resolver.js?v=fcrs1`, `forge-kit-derive.js?v=b16`,
 `forge-foe-ai.js?v=fai3`, `forge-feed-render.js?v=ffr6`,
 `forge-hud.js?v=b6`, `forge-test-fight.js?v=tf1`, and
 `monster-actor.js?v=ma2`. Encounter activation adds
 `forge-encounter-regions.js?v=fer1` and bumps `forge-protocol.js?v=fpr2`,
-`forge-replay.js?v=fb17`, `forge-effects.js?v=fe6`,
-`forge-pipeline.js?v=fb9`, `forge-board.js?v=fb9`, and
+`forge-replay.js?v=fb18`, `forge-effects.js?v=fe7`,
+`forge-pipeline.js?v=fb9`, `forge-board.js?v=fb10`, and
 `forge-table-correctness.js?v=fg12`. Encounter Read adds
 `forge-encounter-read.js?v=fread3`. Explicit local party authority adds
 `forge-party-selection.js?v=fps1`. Character-source alignment adds root

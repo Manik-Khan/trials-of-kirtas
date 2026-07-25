@@ -34,6 +34,8 @@ ok("answer → prompt_clear", verbs[6].some(v=>v.t==="prompt_clear"));
 ok("attack_resolved → hp verb delta -3", verbs[7].some(v=>v.t==="hp"&&v.unit==="gob1"&&v.hp===4&&v.delta===-3));
 const pushed=run([{seq:1,kind:"ability_used",unit:"caim",payload:{ability:"Repelling Blast",effects:[{unit:"gob1",forced_move:{path:[{c:6,r:5},{c:7,r:5}],to:{c:7,r:5},source:"Repelling Blast"}}]}}]);
 ok("forced movement → animated push verb instead of jump",pushed.verbs[0].some(v=>v.t==="push"&&v.path.length===2)&&!pushed.verbs[0].some(v=>v.t==="jump"&&v.unit==="gob1"));
+const teleported=run([{seq:1,kind:"ability_used",unit:"caim",payload:{ability:"Starlight Step",effects:[{unit:"caim",teleport:{to:{c:4,r:3},source:"Starlight Step"}}]}}]);
+ok("teleport effect → teleport verb instead of walk or jump",teleported.st.units.caim.pos.c===4&&teleported.verbs[0].some(v=>v.t==="teleport"&&v.to.r===3)&&!teleported.verbs[0].some(v=>v.t==="walk"||v.t==="jump"));
 ok("turn_ended → turn verb gob1", verbs[8].some(v=>v.t==="turn"&&v.unit==="gob1"));
 ok("add_unit → spawn verb", verbs[9].some(v=>v.t==="spawn"&&v.unit==="gob2"));
 // restore → resync

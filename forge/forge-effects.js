@@ -17,7 +17,7 @@
   else root.ForgeEffects=api;
 })(typeof self!=="undefined"?self:this,function(){
   "use strict";
-  var VERSION="1.4.0";
+  var VERSION="1.5.0";
 
   function plain(v){ return v==null?v:JSON.parse(JSON.stringify(v)); }
   function n(v,d){ v=Number(v); return Number.isFinite(v)?v:d; }
@@ -156,6 +156,10 @@
   function addGiftOfAlacrity(opts){opts=opts||{};return addInitiativeDie({kind:"gift-of-alacrity",label:"Gift of Alacrity",icon:"hourglass",source:opts.source,target:opts.target,nonce:opts.nonce,die:"1d8",consumeOnUse:false,concentration:false,turns:Math.max(1,n(opts.turns,4800))});}
   function addGuidance(opts){opts=opts||{};return addInitiativeDie({kind:"guidance",label:"Guidance",icon:"sparkles",source:opts.source,target:opts.target,nonce:opts.nonce,die:"1d4",consumeOnUse:true,concentration:true,turns:Math.max(1,n(opts.turns,10))});}
   function addBardicInspiration(opts){opts=opts||{};return addInitiativeDie({kind:"bardic-inspiration",label:"Bardic Inspiration",icon:"musical-notes",source:opts.source,target:opts.target,nonce:opts.nonce,die:opts.die||"1d6",consumeOnUse:true,concentration:false,turns:Math.max(1,n(opts.turns,100))});}
+  function addRavenResistance(opts){
+    opts=opts||{};var source=String(opts.source||"");
+    return {unit:source,add_effect:{id:opts.id||("raven-resistance:"+source+":"+(opts.nonce==null?Date.now():opts.nonce)),kind:"raven-resistance",label:"Blessing of the Raven Queen",icon:"raven",source:source,target:source,damageResistance:"all",duration:{kind:"source-turns",unit:source,count:1}}};
+  }
   function modifierDie(state,unit,kind,roll){var e=find(state,unit,kind);if(!e)return null;return {effect:e,roll:Math.max(1,n(roll,1)),die:e.die||"1d4"};}
   function concentrationSave(state,source,damage,mod,roll,opts){
     opts=opts||{};var removals=concentrationRemovals(state,source,opts.reason||"concentration broken");
@@ -229,7 +233,7 @@
   }
   return {VERSION:VERSION,effectiveRows:effectiveRows,replay:replay,forUnit:forUnit,find:find,
     addSanctuary:addSanctuary,addBless:addBless,addBlessGroup:addBlessGroup,addHex:addHex,transferHex:transferHex,addHexbladeCurse:addHexbladeCurse,
-    addInitiativeDie:addInitiativeDie,addGiftOfAlacrity:addGiftOfAlacrity,addGuidance:addGuidance,addBardicInspiration:addBardicInspiration,
+    addInitiativeDie:addInitiativeDie,addGiftOfAlacrity:addGiftOfAlacrity,addGuidance:addGuidance,addBardicInspiration:addBardicInspiration,addRavenResistance:addRavenResistance,
     concentrationRemovals:concentrationRemovals,concentrationSave:concentrationSave,modifierDie:modifierDie,remove:remove,wisdomSave:wisdomSave,isSanctuaryAction:isSanctuaryAction,
     harmfulDirect:harmfulDirect,breaksSanctuary:breaksSanctuary,removalForActor:removalForActor,eventSummary:eventSummary,
     _internals:{effectOps:effectOps,nextActive:nextActive}};

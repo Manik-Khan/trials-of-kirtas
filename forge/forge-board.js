@@ -52,6 +52,11 @@
     effects.some(function(e){if(e&&e.forced_move&&Array.isArray(e.forced_move.path)){hit=e;return true;}return false;});
     return hit?{t:"push",unit:hit.unit,path:hit.forced_move.path,to:hit.forced_move.to,source:hit.forced_move.source||"forced movement"}:null;
   }
+  function teleportVerb(row){
+    var effects=row&&row.payload&&row.payload.effects||[],hit=null;
+    effects.some(function(e){if(e&&e.teleport&&e.teleport.to){hit=e;return true;}return false;});
+    return hit?{t:"teleport",unit:hit.unit,to:hit.teleport.to,source:hit.teleport.source||"teleport"}:null;
+  }
 
   function verbsFor(row, before, after) {
     var verbs = [];
@@ -93,9 +98,10 @@
         verbs.push({ t: "chat", unit: row.unit, text: (row.payload || {}).text });
         break;
       default:   // attack_resolved, ability_used, edit, initiative_rolled, declares…
-        var forced=forcedMoveVerb(row),diffs=unitDiffs(before,after);
+        var forced=forcedMoveVerb(row),teleport=teleportVerb(row),diffs=unitDiffs(before,after);
         if(forced)diffs=diffs.filter(function(v){return !(v.t==="jump"&&v.unit===forced.unit);});
-        verbs = verbs.concat(diffs);if(forced)verbs.push(forced);
+        if(teleport)diffs=diffs.filter(function(v){return !(v.t==="jump"&&v.unit===teleport.unit);});
+        verbs = verbs.concat(diffs);if(forced)verbs.push(forced);if(teleport)verbs.push(teleport);
         break;
     }
     return verbs;

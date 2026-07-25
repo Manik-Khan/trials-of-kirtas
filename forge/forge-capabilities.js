@@ -9,7 +9,7 @@
   else root.ForgeCapabilities=api;
 })(typeof self!=="undefined"?self:this,function(){
   "use strict";
-  var VERSION="1.0.0",SCHEMA="forge-capability/v1";
+  var VERSION="1.1.0",SCHEMA="forge-capability/v1";
   var STATUSES=["executable","held","missing","reference"];
   var CONSUMERS=["player-hud","dm-hud","enemy-ai","feed","replay"];
 
@@ -69,16 +69,16 @@
     {re:/^disciple of life$/i,status:"executable",kind:"healing-rider",group:"riders",effects:"2 + spell level healing"},
     {re:/repelling blast/i,status:"executable",verification:"field",kind:"post-hit-rider",group:"riders",effects:"forced move up to 10 ft"},
     {re:/^war caster$/i,status:"executable",verification:"field",kind:"reaction-passive",group:"reactions",effects:"OA cantrip choice + concentration advantage"},
-    {re:/^starlight step$/i,status:"missing",kind:"teleport",group:"movement",effects:"30 ft teleport",reason:"Teleport destination and limited-use resolver not wired."},
-    {re:/blessing of the raven queen/i,status:"missing",kind:"teleport-defense",group:"movement",effects:"30 ft teleport + temporary resistance",reason:"Teleport and all-damage resistance rider not wired."},
+    {re:/^starlight step$/i,status:"executable",kind:"teleport",group:"movement",effects:"30 ft teleport",tags:["teleport:30"]},
+    {re:/blessing of the raven queen/i,status:"executable",kind:"teleport-defense",group:"movement",effects:"30 ft teleport + temporary resistance",tags:["teleport:30","effect:raven-resistance"]},
     {re:/^deflect missiles$/i,status:"missing",kind:"reaction",group:"reactions",effects:"reduce ranged weapon damage; optional return",reason:"Incoming-hit reduction and return-attack branch not wired."},
     {re:/^hand of harm$/i,status:"held",kind:"post-hit-rider",group:"riders",effects:"extra necrotic damage",reason:"Post-hit choice remains deliberately blocked."},
     {re:/^magical inspiration$/i,status:"missing",kind:"inspiration-rider",group:"riders",reason:"Spell damage/healing consumption branch not wired."},
     {re:/^mote of potential$/i,status:"missing",kind:"inspiration-rider",group:"riders",reason:"Check, attack, and save branches are not structured."},
     {re:/^performance of creation$/i,status:"missing",kind:"creation-action",group:"actions",reason:"Created-object workflow is not represented in combat."},
     {re:/^weapon bond$/i,status:"missing",kind:"equipment-feature",group:"traits",reason:"Disarm protection and recall action are not represented."},
-    {re:/^hellish resistance$/i,status:"missing",kind:"damage-resistance",group:"defenses",tags:["resistance:fire"],reason:"Typed damage does not consult actor resistances yet."},
-    {re:/necrotic resistance/i,status:"missing",kind:"damage-resistance",group:"defenses",tags:["resistance:necrotic"],reason:"Typed damage does not consult actor resistances yet."},
+    {re:/^hellish resistance$/i,status:"executable",kind:"damage-resistance",group:"defenses",tags:["resistance:fire"]},
+    {re:/necrotic resistance/i,status:"executable",kind:"damage-resistance",group:"defenses",tags:["resistance:necrotic"]},
     {re:/^darkvision$|eyes of the dark/i,status:"missing",kind:"sense",group:"senses",tags:["sense:darkvision"],reason:"Visibility does not consume actor senses yet."},
     {re:/^fey ancestry$/i,status:"missing",kind:"save-defense",group:"defenses",tags:["advantage:charmed"],reason:"Saving throws do not consume passive defense sources yet."},
     {re:/^jack of all trades$/i,status:"held",kind:"check-passive",group:"traits",reason:"Initiative is projected; general ability-check consumption is not."}
@@ -108,6 +108,7 @@
     (s.features||[]).forEach(function(f){add(f,text(f&&f.source)||"feature");});
     (s.customFeatures||[]).forEach(function(f){add(f,text(f&&f.source)||"custom feature");});
     Object.keys(s.classFeatures||{}).forEach(function(k){var v=s.classFeatures[k];if(v!==false&&v!=null)add({name:titleCase(k),value:v},"class feature");});
+    if(/\bshadar[\s-]?kai\b/i.test(text(s.race)))add({name:"Necrotic Resistance",source:"Shadar-kai"},"race-derived");
     return out;
   }
   function spellRows(s){

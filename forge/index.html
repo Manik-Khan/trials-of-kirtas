@@ -34,24 +34,25 @@
 <script src="forge-test-fight.js?v=tf1"></script>
 <script src="forge-bridge-authority.js?v=fba1"></script>
 <script src="forge-protocol.js?v=fpr2"></script>
-<script src="forge-replay.js?v=fb17"></script>
+<script src="forge-replay.js?v=fb18"></script>
 <script src="forge-combat-rules.js?v=fcr3"></script>
 <script src="forge-death-saves.js?v=fds1"></script>
 <script src="forge-foe-ai.js?v=fai3"></script>
-<script src="forge-effects.js?v=fe6"></script>
+<script src="forge-effects.js?v=fe7"></script>
 <script src="forge-initiative.js?v=fi2"></script>
 <script src="forge-discovery.js?v=fd7"></script>
 <script src="forge-render-power.js?v=frp1"></script>
 <script src="forge-architecture.js?v=fa5"></script>
 <script src="forge-bus.js?v=fb2"></script>
 <script src="forge-pipeline.js?v=fb9"></script>
-<script src="forge-board.js?v=fb9"></script>
+<script src="forge-board.js?v=fb10"></script>
 <script src="../armor-ac.js?v=um1"></script>
 <script src="../equip-slots.js?v=cc2"></script>
 <script src="../character-combat.js?v=um1"></script>
 <script src="../character-sheet-projection.js?v=cp1"></script>
-<script src="forge-capabilities.js?v=fc1"></script>
-<script src="forge-kit-derive.js?v=b15"></script>
+<script src="forge-capabilities.js?v=fc2"></script>
+<script src="forge-capability-resolver.js?v=fcrs1"></script>
+<script src="forge-kit-derive.js?v=b16"></script>
 <script src="forge-action-damage.js?v=fad1"></script>
 <script src="forge-reaction-choices.js?v=frc1"></script>
 <script src="forge-damage-evidence.js?v=fde3"></script>
@@ -4658,6 +4659,21 @@ function rollActionDamage(a,crit,extras){
   var total=parts.reduce(function(n,c){return n+(Number(c.total)||0);},0);
   return {total:total,parts:parts,formula:parts.map(function(c){return String(c.dice||"0")+(c.bonus?((c.bonus>0?"+":"")+c.bonus):"")+(c.type?" "+c.type:"");}).join(" + ")};
 }
+function resolveIncomingDamage(target,damage,type){
+  var R=window.ForgeCapabilityResolver;
+  if(!R)return Object.assign({rawTotal:Number(damage&&damage.total)||0,evidence:[]},damage||{total:0,parts:[]});
+  return R.resolveDamage(target,damage||{total:0,parts:[]},{type:type||null,effects:effectList(target)});
+}
+function damageDefenseText(result){
+  return (result&&result.evidence||[]).map(function(e){
+    var verb=e.rule==="resistance"?"halves":e.rule==="vulnerability"?"doubles":"reduces";
+    return e.rule+" "+verb+" "+e.raw+" to "+e.total+" "+e.type;
+  }).join(" · ");
+}
+function damageWithDefenseNarration(target,result){
+  var note=damageDefenseText(result);if(note)clog("<i>"+escapeHtml(target.name)+": "+escapeHtml(note)+".</i>");
+}
+function primaryDamageType(a){return String(a&&a.dmgType||(a&&a.dmgStack&&a.dmgStack[0]&&a.dmgStack[0].type)||"").toLowerCase();}
 function rangeFt(a){ return (a.rng||1)*5; }
 
 /* The MAP contract: h[] = terrain feet, wall[] = MOVEMENT blocker,
@@ -5468,6 +5484,7 @@ function applyVerb(v){
       if(steps.length)walkPath(u,steps,finishWalk);else{u.c=v.to.c;u.r=v.to.r;positionToken(u);finishWalk();}
       } break;
     case "push":   if(u){var pushPath=(v.path||[]).map(function(p){return {c:p.c,r:p.r};});if(pushPath.length)walkPath(u,pushPath,function(){drawHi();drawSight();renderHud();});else if(v.to){u.c=v.to.c;u.r=v.to.r;positionToken(u);renderHud();}}break;
+    case "teleport": if(u&&v.to)teleportVisual(u,{c:v.to.c,r:v.to.r});break;
     case "jump":   if(u){ u.c=v.to.c; u.r=v.to.r; positionToken(u); } break;
     case "hp":     if(u){ var wasAlive=u.alive; u.hp=v.hp; if(v.maxHp!=null) u.hpMax=v.maxHp; u.alive=!v.downed; renderHud();
       if(!u.alive){ removeToken(u); maybeEnd(); }
@@ -5977,7 +5994,9 @@ function drawHi(){
   if(previewTarget&&showFiringPreview(u,previewAction,previewTarget))return;
   if(u.side!=="pc")return;
   if(CB.pending){ var pa=CB.pending;
-    if(pa.kind==="heal"||pa.kind==="buffAlly"){
+    if(pa.kind==="teleport"){
+      teleportDestinations(u,pa).forEach(function(cell){moveGroup.add(tileFlat(cell.c,cell.r,0x8067c8,0.55,true));});
+    }else if(pa.kind==="heal"||pa.kind==="buffAlly"){
       var hiCol = pa.kind==="heal" ? 0x2da84f : 0xc9a24b;   // green for heal, gold for buffAlly
       validTargets(u,pa).forEach(function(t){ moveGroup.add(tileFlat(t.c,t.r,hiCol,0.5,true)); });
       (pa.kind==="heal"?alliesForHeal(u):allies(u)).forEach(function(t){ if(t===u&&(pa.rng||1)<1)return; var ro=reachOK(u,pa,t); if(!ro.ok) badgeFor(u,t,pa,ro); }); }
@@ -6193,7 +6212,8 @@ function pipelineHit(attacker, a, hs, target, applyDmg, done){
     if(reactReady(target,"hellishRebuke")){
       promptReaction(target,"hellishRebuke","Deal 2d10 fire to "+attacker.name+" (DEX save)?",
         function(){ var rc=target.react.hellishRebuke; payReact(target,"hellishRebuke");
-          var saveD20=d(20),saveBonus=saveModFor(attacker,rc.saveAbility||"dex"),saveBless=blessRollFor(attacker),saveBlessV=saveBless?saveBless.roll:0,sv=saveD20+saveBonus+saveBlessV,dmg=rollDmg(rc.dmg); if(sv>=rc.dc) dmg=Math.floor(dmg/2);
+          var saveD20=d(20),saveBonus=saveModFor(attacker,rc.saveAbility||"dex"),saveBless=blessRollFor(attacker),saveBlessV=saveBless?saveBless.roll:0,sv=saveD20+saveBonus+saveBlessV,rawDmg=rollDmg(rc.dmg); if(sv>=rc.dc) rawDmg=Math.floor(rawDmg/2);
+          var defended=resolveIncomingDamage(attacker,{total:rawDmg,parts:[{dice:rc.dmg,rolls:[],bonus:0,type:"fire",total:rawDmg}],formula:rc.dmg+" fire"},"fire"),dmg=defended.total;damageWithDefenseNarration(attacker,defended);
           var hpBefore=attacker.hp;attacker.hp-=dmg;localConcentrationAfterDamage(attacker,dmg,hpBefore,"Hellish Rebuke damage"); var line="Hellish Rebuke \u2014 "+attacker.name+" DEX save "+saveD20+(saveBonus?((saveBonus>=0?"+":"")+saveBonus):"")+(saveBlessV?" + Bless "+saveBlessV:"")+" = "+sv+" vs "+rc.dc+": "+dmg+" fire";
           flashHit(attacker); shake(0.16); floatAt(attacker,String(dmg),"dmg");
           if(attacker.hp<=0){ floatAt(attacker,"DOWN","down"); attacker.alive=false; removeToken(attacker); line+=" \u2014 <b>down</b>"; }
@@ -6402,11 +6422,11 @@ function computeReactionExtra(react,ctx,u,askerU,askerName){
   }else if(react==="shield"){
     var hit2=!!ctx.crit||(ctx.roll!==1&&ctx.roll+(ctx.hitBonus||0)+(ctx.rollMod||0)>=((u.ac||0)+5)+(ctx.cover||0));extra={hit:hit2};clogLine="Shield — "+u.name+" AC "+((u.ac||0)+5)+(hit2?"":" → the blow misses");
   }else if(react==="hellishRebuke"){
-    var rc=u.react&&u.react.hellishRebuke,saveD20=d(20),saveBonus=saveModFor(askerU,rc&&rc.saveAbility||"dex"),saveBless=blessRollFor(askerU),saveBlessV=saveBless?saveBless.roll:0,sv=saveD20+saveBonus+saveBlessV,dmg=rc?rollDmg(rc.dmg):0,final=(rc&&sv>=rc.dc)?Math.floor(dmg/2):dmg,stateNow=window.__forgeSession&&window.__forgeSession.pipe.state(),hpBefore=stateNow&&stateNow.units&&stateNow.units[askerU.unit]?stateNow.units[askerU.unit].hp:askerU.hp,concentration=concentrationCheckFor(askerU,final,hpBefore,"Hellish Rebuke damage");extra={dmg:final,sv:sv,dc:rc&&rc.dc,save_d20:saveD20,save_bonus:saveBonus,save_mods:saveBlessV?[{k:"bless",v:saveBlessV}]:[],concentration:concentration};clogLine="Hellish Rebuke — "+askerName+" DEX save "+saveD20+(saveBonus?((saveBonus>=0?"+":"")+saveBonus):"")+(saveBlessV?" + Bless "+saveBlessV:"")+" = "+sv+" vs "+(rc&&rc.dc)+": "+final+" fire"+(concentration?" · "+concentrationNarration(askerU,concentration):"");
+    var rc=u.react&&u.react.hellishRebuke,saveD20=d(20),saveBonus=saveModFor(askerU,rc&&rc.saveAbility||"dex"),saveBless=blessRollFor(askerU),saveBlessV=saveBless?saveBless.roll:0,sv=saveD20+saveBonus+saveBlessV,rolled=rc?rollDmg(rc.dmg):0,rawFinal=(rc&&sv>=rc.dc)?Math.floor(rolled/2):rolled,defended=resolveIncomingDamage(askerU,{total:rawFinal,parts:[{dice:rc&&rc.dmg||"0",rolls:[],bonus:0,type:"fire",total:rawFinal}],formula:(rc&&rc.dmg||"0")+" fire"},"fire"),final=defended.total,stateNow=window.__forgeSession&&window.__forgeSession.pipe.state(),hpBefore=stateNow&&stateNow.units&&stateNow.units[askerU.unit]?stateNow.units[askerU.unit].hp:askerU.hp,concentration=concentrationCheckFor(askerU,final,hpBefore,"Hellish Rebuke damage");extra={dmg:final,dmgParts:defended.parts,damage_defense:defended.evidence,sv:sv,dc:rc&&rc.dc,save_d20:saveD20,save_bonus:saveBonus,save_mods:saveBlessV?[{k:"bless",v:saveBlessV}]:[],concentration:concentration};clogLine="Hellish Rebuke — "+askerName+" DEX save "+saveD20+(saveBonus?((saveBonus>=0?"+":"")+saveBonus):"")+(saveBlessV?" + Bless "+saveBlessV:"")+" = "+sv+" vs "+(rc&&rc.dc)+": "+final+" fire"+(damageDefenseText(defended)?" · "+damageDefenseText(defended):"")+(concentration?" · "+concentrationNarration(askerU,concentration):"");
   }else if(react==="opportunityAttack"){
     var a=Object.assign({kind:"attack",strikes:1},ctx.attack||meleeActOf(u)||{}),target=unitByKey(ctx.target),ward=target&&effectFor(target,"sanctuary"),wardResult=null;
     if(ward){var wardBless=blessRollFor(u),wardBlessV=wardBless?wardBless.roll:0;wardResult=effectApi().wisdomSave(ward,wisdomSaveMod(u)+wardBlessV,d(20));wardResult.bless=wardBlessV;if(!wardResult.saved){extra={reaction_kind:"opportunityAttack",context:{kind:"opportunity-attack",actor:u.unit,target:ctx.target,mode:a.label||"Opportunity Attack",warded:true,sanctuary:wardResult},hit:false,effects:[]};clogLine="Sanctuary turns aside "+u.name+"'s opportunity attack — Wisdom "+wardResult.total+" vs DC "+wardResult.dc+".";return {extra:extra,clogLine:clogLine};}}
-    var av=advPreview(u,target,a,null),bless=blessRollFor(u),blessV=bless?bless.roll:0,d20ev=rollD20Evidence(av.adv,av.dis),hitBonus=Number(a.hit)||0,total=d20ev.roll+hitBonus+blessV,crit=d20ev.roll===20,hit=crit||(d20ev.roll!==1&&total>=(target&&target.ac||10)),damage=hit?rollActionDamage(a,crit,(hexEffectAgainst(u,target)?[{dice:"1d6",bonus:0,type:"Hex"}]:[])):null,dmg=damage?damage.total:0;
+    var av=advPreview(u,target,a,null),bless=blessRollFor(u),blessV=bless?bless.roll:0,d20ev=rollD20Evidence(av.adv,av.dis),hitBonus=Number(a.hit)||0,total=d20ev.roll+hitBonus+blessV,crit=d20ev.roll===20,hit=crit||(d20ev.roll!==1&&total>=(target&&target.ac||10)),damage=hit?resolveIncomingDamage(target,rollActionDamage(a,crit,(hexEffectAgainst(u,target)?[{dice:"1d6",bonus:0,type:"necrotic"}]:[]))):null,dmg=damage?damage.total:0;
     var st=window.__forgeSession&&window.__forgeSession.pipe.state(),hp=st&&st.units&&st.units[ctx.target]&&st.units[ctx.target].hp,downed=hit&&Number(hp)<=dmg,concentration=hit?concentrationCheckFor(target,dmg,hp,a.label+" opportunity attack damage"):null,oaEffects=hit?[{unit:ctx.target,dmg:dmg}]:[];if(concentration&&concentration.effects&&concentration.effects.length)oaEffects=oaEffects.concat(concentration.effects);
     extra={reaction_kind:"opportunityAttack",hit:hit,crit:crit,roll:d20ev.roll,roll_total:total,hitBonus:hitBonus,d20_rolls:d20ev.rolls,d20_kept_index:d20ev.keptIndex,mods:blessV?[{k:"bless",v:blessV}]:[],dmg:dmg,dmgParts:damage?damage.parts:null,dmgFormula:damage?damage.formula:null,effects:oaEffects,concentration:concentration,context:{kind:"opportunity-attack",actor:u.unit,target:ctx.target,mode:a.label||"Opportunity Attack",hit:hit,crit:crit,roll:d20ev.roll,roll_total:total,hitBonus:hitBonus,d20_rolls:d20ev.rolls,d20_kept_index:d20ev.keptIndex,mods:blessV?[{k:"bless",v:blessV}]:[],dmg:dmg,dmgParts:damage?damage.parts:null,dmgFormula:damage?damage.formula:null,sanctuary:wardResult,concentration:concentration}};
     if(downed){extra.interrupted_at=ctx.trigger_cell;extra.path_index=ctx.path_index;}
@@ -6442,7 +6462,7 @@ function resolveOpportunityAttackPrompt(prompt,u,askerU,askerName,chosenAction){
       var av=advPreview(u,target,a,null),bless=blessRollFor(u),blessV=bless?bless.roll:0,d20ev=rollD20Evidence(av.adv,av.dis),hitBonus=Number(a.hit)||0,total=d20ev.roll+hitBonus+blessV,crit=d20ev.roll===20,hit=crit||(d20ev.roll!==1&&total>=(target.ac||10));
       var declared={target:target.unit,roll:d20ev.roll,roll_total:total,roll_mod:blessV,mods:blessV?[{k:'bless',v:blessV}]:[],d20_rolls:d20ev.rolls,d20_kept_index:d20ev.keptIndex,adv:av.adv,dis:av.dis,crit:crit,mode:a.label||'Opportunity Attack',hitBonus:hitBonus,cover:0,coverName:'none',advReason:av.why.join(', '),flankBonus:av.attackBonus||0,hit:hit,reaction_attack:true,trigger_seq:prompt.seq};
       return sess.pipe.attack(u.unit,declared,function(answers){
-        var hs=replayHitState(declared,answers),effects=withBreakOp([],u,a),damage=hs.hit?rollActionDamage(a,hs.crit,(hexEffectAgainst(u,target)?[{dice:'1d6',bonus:0,type:'Hex'}]:[])):null,dmg=damage?damage.total:0;
+        var hs=replayHitState(declared,answers),effects=withBreakOp([],u,a),damage=hs.hit?resolveIncomingDamage(target,rollActionDamage(a,hs.crit,(hexEffectAgainst(u,target)?[{dice:'1d6',bonus:0,type:'necrotic'}]:[]))):null,dmg=damage?damage.total:0;if(damage)damageWithDefenseNarration(target,damage);
         var st=sess.pipe.state(),hpBefore=st&&st.units&&st.units[target.unit]?st.units[target.unit].hp:target.hp,concentration=hs.hit?concentrationCheckFor(target,dmg,hpBefore,(a.label||'Opportunity Attack')+' damage'):null;
         if(concentration&&concentration.effects&&concentration.effects.length)effects=effects.concat(concentration.effects);
         if(hs.hit&&a.rider==='boom'&&Number(hpBefore)>dmg)effects.push({unit:target.unit,add_boom:{by:u.unit,die:'1d8',trigger_path_index:ctx.path_index}});
@@ -6782,6 +6802,28 @@ function forcedMoveEffect(target,path,source){
   if(!target||!path||!path.length)return null;var to=path[path.length-1];
   return {unit:target.unit,forced_move:{path:path.map(function(p){return {c:p.c,r:p.r};}),to:{c:to.c,r:to.r},source:source||"forced movement"}};
 }
+function teleportDestinations(u,a){
+  var R=window.ForgeCapabilityResolver;if(!R||!u||!CB.map)return [];
+  var blocked=new Set();CB.units.forEach(function(other){if(other!==u)blocked.add(other.c+","+other.r);});
+  return R.teleportCells({map:CB.map,from:{c:u.c,r:u.r},range:a&&a.rng||6,occupied:blocked,visible:function(cell){
+    var verdict=TG.losVerdict(CB.map,{c:u.c,r:u.r},cell,{ignoreCreatures:true});
+    return !!(verdict&&verdict.canTarget);
+  }});
+}
+function teleportVisual(u,to,done){
+  CB_ANIM=true;u.c=to.c;u.r=to.r;positionToken(u);floatAt(u,"✦","heal");requestForgeRender(420);
+  tween(180,function(e){if(u.sprite&&u.sprite.material)u.sprite.material.opacity=.35+.65*e;}).then(function(){if(u.sprite&&u.sprite.material)u.sprite.material.opacity=1;CB_ANIM=false;drawHi();drawSight();renderHud();if(done)done();});
+}
+function useTeleport(u,a,to){
+  var R=window.ForgeCapabilityResolver,E=effectApi();if(!R)return;
+  var effects=[R.teleportEffect(u.unit,to,a.label)],raven=a.effectKind==="raven-teleport";
+  if(raven&&E&&E.addRavenResistance)effects.push(E.addRavenResistance({source:u.unit,nonce:Date.now()}));
+  var context={kind:"teleport",to:{c:to.c,r:to.r},range_ft:(a.rng||6)*5,resistance_until_next_turn:raven};
+  clog("<b>"+escapeHtml(u.name)+"</b> uses "+escapeHtml(a.label)+" — teleports to ("+to.c+","+to.r+")"+(raven?" and resists all damage until their next turn.":"."));
+  if(window.__forgeSession){netUseAbility(u,a,[u.unit],effects,{context:context});return;}
+  localEffectEvent("ability_used",u.unit,{ability:a.label,targets:[u.unit],effects:effects,slot:a.bonus?"bonus":"action",resource_spend:resourceSpendFor(a),context:context});
+  spend(u,a);teleportVisual(u,to,finishAction);
+}
 
 /* ── resolution ─────────────────────────────────────────────────────── */
 function resolveStrike(u,a,t,ro,done){
@@ -6798,10 +6840,10 @@ function resolveStrike(u,a,t,ro,done){
   if(!hs.hit){ floatAt(t,"miss","miss"); if(window.ForgeTableCorrectness)window.ForgeTableCorrectness.pushFact({actor:u.unit,target:t.unit,mode:a.label,roll:roll,rollTotal:rollTotal,hitBonus:hitMod,hit:false,crit:false,adv:adv,dis:dis,cover:cover,coverName:ro.coverName||null,d20Rolls:d20ev.rolls,d20KeptIndex:d20ev.keptIndex,mods:rollMods}); done(); return; }
   var feedResolved=false;
   pipelineHit(u,rollAction,hs,t, function applyDmg(){
-    var extra=[];if(u.raging&&(a.rng||1)<=1)extra.push({dice:"0",bonus:2,type:"Rage",critDice:false});
-    if(hexEffectAgainst(u,t)||CB.hexed===t.id)extra.push({dice:"1d6",bonus:0,type:"Hex"});
-    if(curse)extra.push({dice:"0",bonus:curse.bonusDamage||1,type:"Hexblade's Curse",critDice:false});
-    var damage=rollActionDamage(a,hs.crit,extra),dmg=damage.total,hpBefore=t.hp;
+    var extra=[],baseType=primaryDamageType(a);if(u.raging&&(a.rng||1)<=1)extra.push({dice:"0",bonus:2,type:baseType,critDice:false});
+    if(hexEffectAgainst(u,t)||CB.hexed===t.id)extra.push({dice:"1d6",bonus:0,type:"necrotic"});
+    if(curse)extra.push({dice:"0",bonus:curse.bonusDamage||1,type:baseType,critDice:false});
+    var damage=resolveIncomingDamage(t,rollActionDamage(a,hs.crit,extra)),dmg=damage.total,hpBefore=t.hp;damageWithDefenseNarration(t,damage);
     t.hp-=dmg;var concentration=localConcentrationAfterDamage(t,dmg,hpBefore,a.label+" damage"); var line=(hs.crit?"<b>CRIT</b> ":"")+t.name+" takes "+dmg+" ("+Math.max(0,t.hp)+"/"+t.hpMax+")";
     flashHit(t); shake(hs.crit?0.34:0.16);floatAt(t,(hs.crit?"✶ ":"")+dmg,hs.crit?"crit":"dmg");
     if(t.hp<=0){ floatAt(t,"DOWN","down"); t.alive=false;t.deathSaves=window.ForgeDeathSaves?window.ForgeDeathSaves.normalize():t.deathSaves; removeToken(t); line+=" — <b>down</b>";var defeatOps=hexbladeDefeatOps(u,t,t.hp);if(defeatOps.length){var restored=Math.min(u.hpMax,u.hp+(curse.heal||1))-u.hp;u.hp+=restored;localEffectEvent("ability_used",u.unit,{ability:"Hexblade's Curse — target defeated",targets:[u.unit],effects:defeatOps,slot:"free"},true);if(restored>0){floatAt(u,"+"+restored,"heal");line+=" · "+u.name+" heals "+restored;}} } clog(line,false);
@@ -6822,7 +6864,7 @@ function doSave(u,a,t){ var ro=reachOK(u,a,t); if(!ro.ok){ clog(u.name+" — "+r
   var saveAction=/toll the dead/i.test(a.label||"")?Object.assign({},a,{dmg:window.ForgeCombatRules.tollDamage(a,t).dmg}):a;
   var valid=window.ForgeCombatRules.requireDamage(saveAction);if(!valid.ok){clog('<b style="color:#c0553f">'+escapeHtml(valid.why)+' — action refused.</b>');return false;}
   var d20=d(20),bonus=saveModFor(t,a.saveAbility),bless=blessRollFor(t),blessV=bless?bless.roll:0,sv=d20+bonus+blessV,fail=sv<a.dc,line=u.name+" → "+t.name+": "+a.label+" ("+a.saveAbility.toUpperCase()+" save "+d20+(bonus?((bonus>=0?"+":"")+bonus):"")+(blessV?" + Bless "+blessV:"")+" = "+sv+" vs DC "+a.dc+") ";
-  if(fail){ var damage=rollActionDamage(saveAction,false,[]),dmg=damage.total,hpBefore=t.hp; t.hp-=dmg;var concentration=localConcentrationAfterDamage(t,dmg,hpBefore,a.label+" damage"); line+="fail "+dmg; if(a.rider==="vm"){ t.disadv=true; line+=" + disadvantage"; }
+  if(fail){ var damage=resolveIncomingDamage(t,rollActionDamage(saveAction,false,[])),dmg=damage.total,hpBefore=t.hp;damageWithDefenseNarration(t,damage); t.hp-=dmg;var concentration=localConcentrationAfterDamage(t,dmg,hpBefore,a.label+" damage"); line+="fail "+dmg; if(a.rider==="vm"){ t.disadv=true; line+=" + disadvantage"; }
     flashHit(t); shake(0.14); floatAt(t,String(dmg),"dmg");if(t.hp<=0){ floatAt(t,"DOWN","down"); t.alive=false; removeToken(t); line+=" — <b>down</b>"; } }
   else { line+="save"; floatAt(t,"save","miss"); } clog(line,false);
   if(window.ForgeTableCorrectness)window.ForgeTableCorrectness.pushFact({kind:"save",actor:u.unit,target:t.unit,mode:a.label,saveAbility:a.saveAbility,saveD20:d20,saveBonus:bonus,saveMods:blessV?[{k:"bless",v:blessV}]:[],saveTotal:sv,saveRoll:sv,dc:a.dc,saved:!fail,hit:fail,dmg:fail?dmg:0,dmgParts:fail?damage.parts:null,dmgFormula:fail?damage.formula:null,concentration:fail?concentration:null}); return true; }
@@ -7110,6 +7152,12 @@ function combatClick(cx,cy){
   var tu = pickTopToken(healPending) || pickUnit(healPending) || cellUnit;   // top disc in tactical view; field-tested column/cell picker in 3D
   if(tu && tu.alive && !(myTurn && CB.pending)){ setSel(tu.key); focusUnit(tu,'focus'); inspectUnit(tu); return; }   // #1: click a token → select (gold) + nameplate
   if(!myTurn) return;   // not my seat / not a PC turn / a tap of mine hasn't echoed yet
+  if(CB.pending&&CB.pending.kind==="teleport"){
+    if(gx==null){CB.pending=null;drawHi();renderHud();return;}
+    var landing=teleportDestinations(u,CB.pending).filter(function(cell){return cell.c===gx&&cell.r===gy;})[0];
+    if(!landing){clog("<i>"+CB.pending.label+": choose a purple unoccupied space you can see within "+((CB.pending.rng||6)*5)+" feet.</i>");return;}
+    useTeleport(u,CB.pending,landing);return;
+  }
   if(tu&&CB.pending){ var pa=CB.pending, wantAlly=(pa.kind==="heal"||pa.kind==="buffAlly");
     if((wantAlly&&tu.side!==u.side)||(!wantAlly&&tu.side===u.side)){ clog("<i>"+pa.label+": wrong target.</i>"); return; }
     if(!tu.alive&&pa.kind!=="heal"){ clog("<i>"+pa.label+": they're already down.</i>"); return; }
@@ -7189,7 +7237,7 @@ function moveUnitTo(u,gx,gy){
     });
   });
 }
-function boomTrigger(u){ if(!u.boomMark) return; var dmg=rollDmg("1d8"),hpBefore=u.hp; u.hp-=dmg;localConcentrationAfterDamage(u,dmg,hpBefore,"Booming Blade damage");
+function boomTrigger(u){ if(!u.boomMark) return; var damage=resolveIncomingDamage(u,{total:rollDmg("1d8"),parts:[],formula:"1d8 thunder"},"thunder"),dmg=damage.total,hpBefore=u.hp;damageWithDefenseNarration(u,damage); u.hp-=dmg;localConcentrationAfterDamage(u,dmg,hpBefore,"Booming Blade damage");
   var line="Booming Blade — "+u.name+" moved: "+dmg+" thunder ("+Math.max(0,u.hp)+"/"+u.hpMax+")";
   flashHit(u); shake(0.14); floatAt(u,String(dmg),"dmg");
   u.boomMark=null; if(u.hp<=0){ floatAt(u,"DOWN","down"); u.alive=false; removeToken(u); line+=" — <b>down</b>"; } clog(line); }
@@ -7283,7 +7331,7 @@ function foeTurn(){
           awaitSettled().then(function(){renderHud();foeTurnDone();});
         });return;
       }
-      if(hs.hit){var foeFeedResolved=false;pipelineHit(u,atk,hs,tgt,function(){var damage=rollActionDamage(atk,hs.crit,[]),dmg=damage.total,hpBefore=tgt.hp;tgt.hp-=dmg;var concentration=localConcentrationAfterDamage(tgt,dmg,hpBefore,atk.label+" damage");
+      if(hs.hit){var foeFeedResolved=false;pipelineHit(u,atk,hs,tgt,function(){var damage=resolveIncomingDamage(tgt,rollActionDamage(atk,hs.crit,[])),dmg=damage.total,hpBefore=tgt.hp;damageWithDefenseNarration(tgt,damage);tgt.hp-=dmg;var concentration=localConcentrationAfterDamage(tgt,dmg,hpBefore,atk.label+" damage");
           var line=tgt.name+" takes "+dmg+" ("+Math.max(0,tgt.hp)+"/"+tgt.hpMax+")";
           flashHit(tgt);shake(0.2);floatAt(tgt,String(dmg),"dmg");
           if(tgt.hp<=0){floatAt(tgt,"DOWN","down");tgt.alive=false;removeToken(tgt);line+=" \u2014 <b>down</b>";}clog(line,false);
@@ -7730,7 +7778,7 @@ function renderHud(){
       +'<div class="cbHpwrap"><div class="cbHplbl"><span>HP</span><span>'+Math.max(0,u.hp)+' / '+u.hpMax+'</span></div><div class="cbHpbar"><i style="width:'+Math.max(0,Math.round(100*u.hp/u.hpMax))+'%"></i></div></div>'
       +'<div class="cbStats"><span>Move <b>'+(CB.st?CB.st.moveLeft*5:0)+' ft</b></span><span>Action <b>'+(CB.st&&CB.st.usedAction?"used":"ready")+'</b></span><span>Bonus <b>'+(CB.st&&CB.st.usedBonus?"used":"ready")+'</b></span></div>'
       +(isPc?(iControl
-          ?'<div class="cbActs">'+acts+'</div><div class="cbHint">'+(waitingMe?'<i>Waiting for the table\u2026</i>':(CB.pending?('<b>'+CB.pending.label+'</b> \u2014 '+((CB.pending.kind==='attack'&&(CB.pending.rng||1)>1&&(unitByKey(CB.tgtKey)||unitByKey(CB.selKey)))?'green/yellow/orange = firing origins \u00b7 dark = no shot':((CB.pending.rng||1)>1?'red = in range \u00b7 amber = long (disadv) \u00b7 grey = unreachable':'click a highlighted target'))):'Move on teal \u00b7 select a foe, then pick a ranged attack to preview firing positions.'))+'</div>'
+          ?'<div class="cbActs">'+acts+'</div><div class="cbHint">'+(waitingMe?'<i>Waiting for the table\u2026</i>':(CB.pending?('<b>'+CB.pending.label+'</b> \u2014 '+(CB.pending.kind==='teleport'?'click a purple unoccupied space you can see':((CB.pending.kind==='attack'&&(CB.pending.rng||1)>1&&(unitByKey(CB.tgtKey)||unitByKey(CB.selKey)))?'green/yellow/orange = firing origins \u00b7 dark = no shot':((CB.pending.rng||1)>1?'red = in range \u00b7 amber = long (disadv) \u00b7 grey = unreachable':'click a highlighted target')))):'Move on teal \u00b7 select a foe, then pick a ranged attack to preview firing positions.'))+'</div>'
             +(sess&&CB.pending&&CB.pending.kind==="attack"&&!waitingMe&&coverContestAvailable()
               ?'<button class="cbContestTog'+(CONTEST_COVER?' on':'')+'" id="cbContestTog" title="Pause before the roll: the DM re-rules existing cover for this one attack (20s, or the grid stands)">Contest cover: '+(CONTEST_COVER?'<b>on</b> \u2014 the DM rules before you roll':'off')+'</button>':'')
             +'<div class="cbSight"><div class="cbSightHd"><span>SIGHT</span><button id="cbSightTog">'+(SHOW_SIGHT?'hide lines':'show lines')+'</button></div>'+sightReport(u)+'</div>'
@@ -8916,7 +8964,7 @@ function netMove(u,path){
     var stop=stops[0]||null,effective=stop?path.slice(0,Math.max(0,Number(stop.path_index)||0)):path.slice(),fin=stop?stop.interrupted_at:(effective[effective.length-1]||{c:u.c,r:u.r}),moveCostFt=effective.length*5*(effectFor(u,"prone")?2:1);
     var stateNow=window.__forgeSession.pipe.state(),moving=stateNow&&stateNow.units&&stateNow.units[u.unit],mark=moving&&moving.boomMark,effects=[],boom=null,triggerIndex=mark&&mark.trigger_path_index;
     if(mark&&effective.length>0&&(triggerIndex==null||effective.length>Number(triggerIndex))){
-      var dmg=rollDmg(mark.die||"1d8"),hpBefore=Number(moving.hp),concentration=concentrationCheckFor(u,dmg,hpBefore,"Booming Blade movement damage");
+      var defended=resolveIncomingDamage(u,{total:rollDmg(mark.die||"1d8"),parts:[],formula:(mark.die||"1d8")+" thunder"},"thunder"),dmg=defended.total,hpBefore=Number(moving.hp),concentration=concentrationCheckFor(u,dmg,hpBefore,"Booming Blade movement damage");damageWithDefenseNarration(u,defended);
       effects.push({unit:u.unit,dmg:dmg,remove_boom:true});if(concentration&&concentration.effects)effects=effects.concat(concentration.effects);
       boom={dmg:dmg,source:mark.by||null,concentration:concentration};clog("Booming Blade — "+u.name+" moved: "+dmg+" thunder.");
     }
@@ -9027,7 +9075,7 @@ function netAttackGo(u,a,t,ro){
     var declared={target:t.unit,roll:roll,roll_total:rollTotal,roll_mod:blessV,mods:mods,d20_rolls:d20ev.rolls,d20_kept_index:d20ev.keptIndex,adv:adv,dis:dis,crit:crit,mode:a.label,hitBonus:hitMod,cover:cover,coverName:ro.coverName||null,advReason:av.why.join(", "),flankBonus:av.attackBonus||0,hit:hit};Object.assign(declared,spellFactFields(a));
     window.__forgeSession.pipe.attack(u.unit,declared,function(answers){
       var hs=replayHitState({roll:roll,crit:crit,hit:hit,cover:cover,roll_mod:blessV,d20_rolls:d20ev.rolls,d20_kept_index:d20ev.keptIndex},answers),effects=wardBreakPending?[wardBreakPending]:[],dmg=0,damage=null,concentration=null;wardBreakPending=null;
-      if(hs.hit){var extra=[];if(u.raging&&(a.rng||1)<=1)extra.push({dice:"0",bonus:2,type:"Rage",critDice:false});if(hexEffectAgainst(u,t)||CB.hexed===t.id)extra.push({dice:"1d6",bonus:0,type:"Hex"});if(curse)extra.push({dice:"0",bonus:curse.bonusDamage||1,type:"Hexblade's Curse",critDice:false});damage=rollActionDamage(a,hs.crit,extra);dmg=damage.total;concentration=concentrationCheckFor(t,dmg,hpLeft,a.label+" damage");if(concentration){if(concentration.effects&&concentration.effects.length)effects=effects.concat(concentration.effects);clog("<i>"+concentrationNarration(t,concentration)+"</i>");}hpLeft=Math.max(0,hpLeft-dmg);effects=effects.concat(hexbladeDefeatOps(u,t,hpLeft));if(a.rider==="boom"&&hpLeft>0)effects.push({unit:t.unit,add_boom:{by:u.unit,die:"1d8"}});}
+      if(hs.hit){var extra=[],baseType=primaryDamageType(a);if(u.raging&&(a.rng||1)<=1)extra.push({dice:"0",bonus:2,type:baseType,critDice:false});if(hexEffectAgainst(u,t)||CB.hexed===t.id)extra.push({dice:"1d6",bonus:0,type:"necrotic"});if(curse)extra.push({dice:"0",bonus:curse.bonusDamage||1,type:baseType,critDice:false});damage=resolveIncomingDamage(t,rollActionDamage(a,hs.crit,extra));dmg=damage.total;damageWithDefenseNarration(t,damage);concentration=concentrationCheckFor(t,dmg,hpLeft,a.label+" damage");if(concentration){if(concentration.effects&&concentration.effects.length)effects=effects.concat(concentration.effects);clog("<i>"+concentrationNarration(t,concentration)+"</i>");}hpLeft=Math.max(0,hpLeft-dmg);effects=effects.concat(hexbladeDefeatOps(u,t,hpLeft));if(a.rider==="boom"&&hpLeft>0)effects.push({unit:t.unit,add_boom:{by:u.unit,die:"1d8"}});}
       else{if(hit)clog("<i>"+a.label+" — a reaction turned that hit into a miss.</i>");floatAt(t,"miss","miss");}
       var rb=(answers||[]).filter(function(row){if(!row||!row.payload)return false;return row.payload.reaction_kind==="hellishRebuke"&&row.payload.use;})[0];if(rb){effects.push({unit:u.unit,dmg:rb.payload.dmg});if(rb.payload.concentration&&rb.payload.concentration.effects)effects=effects.concat(rb.payload.concentration.effects);}
       var spendFact=resourceSpendPending;resourceSpendPending=null;
@@ -9106,7 +9154,7 @@ function netFoeAttack(u,atk,t,hs,adv,dis,hitMod,advReason,flankBonus){
       { target:t.unit, roll:hs.roll,d20_rolls:hs.d20Rolls,d20_kept_index:hs.d20KeptIndex, adv:!!adv, dis:!!dis, crit:hs.crit, mode:atk.label, hitBonus:hitMod, cover:hs.acBonus||0, coverName:hs.acBonus===5?"three-quarters":hs.acBonus===2?"half":"none", advReason:advReason||null, flankBonus:flankBonus||0, hit:hs.hit },
       function(answers){
         var fhs=replayHitState({ roll:hs.roll, crit:hs.crit, hit:hs.hit, cover:hs.acBonus||0,d20_rolls:hs.d20Rolls,d20_kept_index:hs.d20KeptIndex }, answers);
-        var damage=fhs.hit?rollActionDamage(atk,fhs.crit,[]):null,dmg=damage?damage.total:0,concentration=null;
+        var damage=fhs.hit?resolveIncomingDamage(t,rollActionDamage(atk,fhs.crit,[])):null,dmg=damage?damage.total:0,concentration=null;if(damage)damageWithDefenseNarration(t,damage);
         if(!fhs.hit){
           if(hs.hit) clog("<i>"+atk.label+" — a reaction turned that hit into a miss.</i>");
           floatAt(t,"miss","miss");
@@ -9173,7 +9221,7 @@ function netSave(u,a,t){
   var valid=window.ForgeCombatRules.requireDamage(saveAction);if(!valid.ok){clog('<b style="color:#c0553f">'+escapeHtml(valid.why)+' — action refused.</b>');return;}
   var d20=d(20),bonus=saveModFor(t,a.saveAbility),bless=blessRollFor(t),blessV=bless?bless.roll:0,sv=d20+bonus+blessV,fail=sv<a.dc,line=u.name+" → "+t.name+": "+a.label+" ("+a.saveAbility.toUpperCase()+" save "+d20+(bonus?((bonus>=0?"+":"")+bonus):"")+(blessV?" + Bless "+blessV:"")+" = "+sv+" vs DC "+a.dc+") ";
   var effects=withBreakOp([],u,a), dmg=0,damage=null,ctx={kind:"save",target:t.unit,ability:a.saveAbility,d20:d20,bonus:bonus,mods:blessV?[{k:"bless",v:blessV}]:[],total:sv,dc:a.dc,saved:!fail}, applyDisadv=false;
-  if(fail){damage=rollActionDamage(saveAction,false,[]);dmg=damage.total;line+="fail "+dmg;effects.push({unit:t.unit,dmg:dmg});var stateNow=window.__forgeSession.pipe.state(),hpBefore=stateNow&&stateNow.units&&stateNow.units[t.unit]?stateNow.units[t.unit].hp:t.hp,concentration=concentrationCheckFor(t,dmg,hpBefore,a.label+" damage");if(concentration){ctx.concentration=concentration;if(concentration.effects&&concentration.effects.length)effects=effects.concat(concentration.effects);clog("<i>"+concentrationNarration(t,concentration)+"</i>");}if(a.rider==="vm"){applyDisadv=true;line+=" + disadvantage";ctx.narration="Vicious Mockery: disadvantage on the next attack.";}}else line+="save";
+  if(fail){damage=resolveIncomingDamage(t,rollActionDamage(saveAction,false,[]));dmg=damage.total;damageWithDefenseNarration(t,damage);line+="fail "+dmg;effects.push({unit:t.unit,dmg:dmg});ctx.damage_defense=damage.evidence;var stateNow=window.__forgeSession.pipe.state(),hpBefore=stateNow&&stateNow.units&&stateNow.units[t.unit]?stateNow.units[t.unit].hp:t.hp,concentration=concentrationCheckFor(t,dmg,hpBefore,a.label+" damage");if(concentration){ctx.concentration=concentration;if(concentration.effects&&concentration.effects.length)effects=effects.concat(concentration.effects);clog("<i>"+concentrationNarration(t,concentration)+"</i>");}if(a.rider==="vm"){applyDisadv=true;line+=" + disadvantage";ctx.narration="Vicious Mockery: disadvantage on the next attack.";}}else line+="save";
   clog(line);netUseAbility(u,a,[t.unit],effects,{roll:sv,dmg:fail?dmg:undefined,dmgParts:damage?damage.parts:null,dmgFormula:damage?damage.formula:null,context:ctx,onSuccess:applyDisadv?function(){t.disadv=true;}:undefined});
 }
 /* heal (Healing Word/Cure Wounds) — amount rolled locally exactly as

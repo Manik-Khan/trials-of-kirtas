@@ -137,6 +137,7 @@
       if(e.add_boom)u.boomMark=Object.assign({},e.add_boom);
       if(e.remove_boom)u.boomMark=null;
       if(e.forced_move&&e.forced_move.to)u.pos={c:Number(e.forced_move.to.c),r:Number(e.forced_move.to.r)};
+      if(e.teleport&&e.teleport.to)u.pos={c:Number(e.teleport.to.c),r:Number(e.teleport.to.r)};
       // advantage-on-next-attack grant (Silvery Barbs rider now; Help/familiars
       // later). A fact, not a roll — replays identically. `advGrant.reason` is
       // display only. Consumed when the unit's own attack resolves (below).

@@ -21,7 +21,7 @@ function match(kit,re){return (kit.capabilities||[]).find(c=>re.test(c.label))||
   }
   const party={caim:derive("caim"),cosmere:derive("cosmere"),liadan:derive("liadan"),vesperian:derive("vesperian")};
 
-  ok("shared capability schema is versioned",Cap.VERSION==="1.0.0"&&Cap.SCHEMA==="forge-capability/v1");
+  ok("shared capability schema is versioned",Cap.VERSION==="1.1.0"&&Cap.SCHEMA==="forge-capability/v1");
   Object.keys(party).forEach(key=>{
     const kit=party[key],audit=kit.capabilityAudit||{},ids=(kit.capabilities||[]).map(c=>c.id);
     ok(key+" derives a non-empty shared capability ledger",kit.capabilitySchema===Cap.SCHEMA&&ids.length>0);
@@ -36,12 +36,12 @@ function match(kit,re){return (kit.capabilities||[]).find(c=>re.test(c.label))||
     match(caim,/^ki points?$/i).status==="executable"&&match(caim,/^ki points?$/i).verification==="field");
   ok("Caim keeps Hand of Harm visible but non-executable",find(caim,"Hand of Harm").status==="held");
   ok("Caim projects Deflect Missiles as a missing reaction",find(caim,"Deflect Missiles").status==="missing"&&find(caim,"Deflect Missiles").group==="reactions");
-  ok("Caim projects fire resistance and Darkvision as missing passive mechanics",
-    find(caim,"Hellish Resistance").status==="missing"&&find(caim,"Darkvision").status==="missing");
+  ok("Caim projects executable fire resistance while Darkvision remains missing",
+    find(caim,"Hellish Resistance").status==="executable"&&find(caim,"Hellish Resistance").tags.includes("resistance:fire")&&find(caim,"Darkvision").status==="missing");
 
   ok("Cosmere projects Repelling Blast as executable but awaiting field proof",
     match(cosmere,/repelling blast/i).status==="executable"&&match(cosmere,/repelling blast/i).verification==="field");
-  ok("Cosmere projects Starlight Step as a missing teleport",find(cosmere,"Starlight Step").status==="missing"&&find(cosmere,"Starlight Step").kind==="teleport");
+  ok("Cosmere projects Starlight Step as an executable teleport",find(cosmere,"Starlight Step").status==="executable"&&find(cosmere,"Starlight Step").kind==="teleport"&&cosmere.res.starlightStep===2);
   ok("Cosmere keeps Absorb Elements held instead of pretending it resolves",find(cosmere,"Absorb Elements").status==="held");
 
   ok("Líadan projects Silvery Barbs as executable but awaiting field proof",
@@ -51,8 +51,10 @@ function match(kit,re){return (kit.capabilities||[]).find(c=>re.test(c.label))||
   ok("Líadan holds Aid and Spare the Dying behind truthful reasons",
     find(liadan,"Aid").status==="held"&&find(liadan,"Spare the Dying").status==="held");
 
-  ok("Vesperian projects Blessing of the Raven Queen as a missing teleport-defense capability",
-    find(vesperian,"Blessing of the Raven Queen").status==="missing"&&find(vesperian,"Blessing of the Raven Queen").kind==="teleport-defense");
+  ok("Vesperian projects Blessing of the Raven Queen as an executable teleport-defense capability",
+    find(vesperian,"Blessing of the Raven Queen").status==="executable"&&find(vesperian,"Blessing of the Raven Queen").kind==="teleport-defense"&&vesperian.res.blessingRavenQueen===1);
+  ok("Vesperian derives executable Necrotic Resistance from the authored Shadar-kai race",
+    find(vesperian,"Necrotic Resistance").status==="executable"&&find(vesperian,"Necrotic Resistance").tags.includes("resistance:necrotic"));
   ok("Vesperian projects Weapon Bond as missing equipment behavior",find(vesperian,"Weapon Bond").status==="missing");
 
   Object.keys(party).forEach(key=>{
@@ -62,7 +64,7 @@ function match(kit,re){return (kit.capabilities||[]).find(c=>re.test(c.label))||
 
   const html=fs.readFileSync(path.join(root,"forge","index.html"),"utf8");
   ok("production loads the capability contract before fresh kit derivation",
-    html.indexOf("forge-capabilities.js?v=fc1")<html.indexOf("forge-kit-derive.js?v=b15"));
+    html.indexOf("forge-capabilities.js?v=fc2")<html.indexOf("forge-capability-resolver.js?v=fcrs1")&&html.indexOf("forge-capability-resolver.js?v=fcrs1")<html.indexOf("forge-kit-derive.js?v=b16"));
   ok("combat units retain the normalized ledger and audit",
     html.includes("capabilities: JSON.parse(JSON.stringify((kit && kit.capabilities) || []))")&&
     html.includes("capabilityAudit: JSON.parse(JSON.stringify((kit && kit.capabilityAudit) || {}))"));

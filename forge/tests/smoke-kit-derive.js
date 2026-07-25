@@ -884,7 +884,7 @@ function liveChar(key) {
 }
 const RESOLVABLE = { attack:1, save:1, heal:1, buff:1, buffAlly:1, selfheal:1,
                      surge:1, dash:1, disengage:1, dodge:1, help:1, ready:1,
-                     potion:1, item:1 };
+                     potion:1, item:1, teleport:1 };
 
 (async function liveFixtureSection() {
   const WA = await import("../../weapon-actions.js");

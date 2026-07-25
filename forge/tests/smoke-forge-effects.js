@@ -5,7 +5,7 @@ let pass=0;
 function ok(v,label){if(!v)throw new Error("FAIL: "+label);pass++;console.log("ok",pass,"-",label);}
 function row(seq,kind,unit,payload){return {seq,kind,unit,payload:payload||{}};}
 
-ok(E.VERSION==="1.4.0","version pinned");
+ok(E.VERSION==="1.5.0","version pinned");
 const add=E.addSanctuary({source:"liadan",target:"vesperian",dc:13,nonce:7});
 ok(add.add_effect.kind==="sanctuary"&&add.add_effect.dc===13,"Sanctuary effect record carries kind and DC");
 ok(add.add_effect.duration.count===10&&add.add_effect.duration.unit==="liadan","Sanctuary lasts ten source turns");
@@ -56,6 +56,11 @@ ok(!E.find(moved,"goblin","hex")&&E.find(moved,"hobgoblin","hex").expires.startC
 const curse=E.addHexbladeCurse({source:"cosmere",target:"goblin",nonce:23,bonusDamage:2,heal:5});
 const cursed=E.replay([row(1,"initiative_set","dm",{order:["cosmere","goblin"]}),row(2,"ability_used","cosmere",{effects:[curse]})]);
 ok(E.find(cursed,"goblin","hexblade-curse").critMin===19&&E.find(cursed,"goblin","hexblade-curse").bonusDamage===2,"Hexblade's Curse carries its critical and damage rules");
+const raven=E.addRavenResistance({source:"vesperian",nonce:24});
+let ravenState=E.replay([row(1,"initiative_set","dm",{order:["vesperian","goblin"]}),row(2,"ability_used","vesperian",{effects:[raven]}),row(3,"turn_ended","vesperian",{})]);
+ok(!!E.find(ravenState,"vesperian","raven-resistance"),"Raven Queen resistance survives the rest of its activation round");
+ravenState=E.replay([row(1,"initiative_set","dm",{order:["vesperian","goblin"]}),row(2,"ability_used","vesperian",{effects:[raven]}),row(3,"turn_ended","vesperian",{}),row(4,"turn_ended","goblin",{})]);
+ok(!E.find(ravenState,"vesperian","raven-resistance"),"Raven Queen resistance expires at Vesperian's next turn start");
 
 const removal=E.removalForActor(st,"vesperian",{kind:"attack"});
 ok(removal&&removal.remove_effect===ward.id,"warded creature attack yields a removal operation");
