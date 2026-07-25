@@ -40,6 +40,13 @@
     }
     return null;
   }
+  function capabilityApi() {
+    if (typeof globalThis !== "undefined" && globalThis.ForgeCapabilities) return globalThis.ForgeCapabilities;
+    if (typeof require === "function") {
+      try { return require('./forge-capabilities.js'); } catch (_err) {}
+    }
+    return null;
+  }
   function titleCase(s) { return String(s || "").replace(/\b\w/g, function (c) { return c.toUpperCase(); }); }
   /* Pool-key normaliser: map live data keys (spell_1, pactSlots) to the forge's
      flat resource keys (slot1, pact) that STARTER_KITS already established. */
@@ -1258,7 +1265,7 @@ function combatErrorKit(charData, err) {
       repellingBlast: featureNamed(authoredFeatures, /repelling blast/i)
     };
 
-    return {
+    var kit = {
       key:          charData.key || null,
       name:         charData.name || s.name || charData.key || "Unknown",
       hp:           hp,
@@ -1280,6 +1287,8 @@ function combatErrorKit(charData, err) {
       featureFlags: featureFlags,
       derived:      true   // flag: this kit came from the derivation layer, not STARTER_KITS
     };
+    var capabilities = capabilityApi();
+    return capabilities ? capabilities.attachToKit(charData, kit, { structural: s }) : kit;
   }
 
   /* ── round-3 §C: normalized-label dedupe across attacks/spells/actions ──

@@ -805,6 +805,51 @@ Production field gates still required:
 - Create an ordinary Campaign table immediately afterward and confirm current
   HP/resources plus normal HP writeback are unchanged.
 
+## Shared character capability foundation · 2026-07-24
+
+M approved `_edits/mock-forge-shared-capability-contract.html`. The approved
+architecture is now integrated as a behavior-preserving character foundation.
+`forge/forge-capabilities.js?v=fc1` defines the versioned
+`forge-capability/v1` contract; `forge-kit-derive.js?v=b15` attaches the
+normalized ledger and audit to each successfully derived character kit, and
+`buildUnit()` retains both on the combat unit.
+
+The contract records status, verification gate, action economy, targeting,
+roll, cost, effects, trigger, duration, tags, automation state, source
+provenance, and authorized consumers. The source adapter accounts for every
+authored feature, spell, and resource. Unsupported rules remain visible as
+`held`, `missing`, or `reference`, while only `executable` records may enter an
+execution consumer. This prevents both silent feature loss and prose-only
+monster rules becoming fake attacks.
+
+The current exported character mirrors derive:
+
+- Caim: 32 capabilities;
+- Cosmere: 40;
+- Líadan: 38; and
+- Vesperian: 26.
+
+All four report zero unaccounted source records and zero invalid capabilities.
+Ki and `Ki Points` fold into one resource-backed, field-gated capability.
+Repelling Blast and Silvery Barbs are executable with their open field-proof
+marker. Hand of Harm, Absorb Elements, Aid, Spare the Dying, and the
+Green-Flame Blade secondary rider remain held. Teleports, passive typed
+defenses, senses, Feather Fall, Deflect Missiles, Creation riders, and Weapon
+Bond remain explicitly missing.
+
+This foundation does **not** change combat resolution or expose a new
+player-facing tracker yet. The next character-first implementation slice is
+typed defenses plus teleport resolution; post-hit/reaction riders follow.
+Only after those character rules use the shared resolver should
+`monster-actor.js` project Babau/Manes defenses, spells, Multiattack, and
+special actions into the same contract.
+
+Validation is **633/633** focused known answers. Every touched JavaScript file
+passes `node --check`. The unsigned real Forge browser boot loaded
+`forge-capabilities.js?v=fc1` before `forge-kit-derive.js?v=b15`, reached
+Workshop, and produced no new script error. The expected protected-roster
+permission refusal and inherited three.js warnings remain.
+
 ## Required field checklist
 
 1. **Passed July 23.** The live selector showed only the five active
@@ -868,11 +913,16 @@ Production field gates still required:
 6. Run the signed-in shared-table/reconnect deployment and architecture checklist.
 7. Compare Balanced and High Fidelity on M's actual laptop during a full round.
 8. Recheck saved-block and geometry-fog reconnects on the normal Temple URL.
-9. Approve or revise the War Caster/Repelling Blast reaction-choice mock.
+9. Field-check the integrated War Caster/Repelling Blast reaction choices.
 10. Replay the July 24 fight for the exact pillar-cover and serialized-Ki facts.
-11. Promote Temple from `preview` to `active` only after those checks pass.
-12. Expose/settle the Volcanic Workshop construction control.
-13. Build `bridge-crossing` on the same intent contract.
+11. Implement the character-first shared resolver: typed defenses and
+    teleports, then held post-hit/reaction riders.
+12. Adapt full monster defenses, spells, Multiattack, and special actions to
+    the same contract; Babau is the complex acceptance case and Manes the
+    simple control.
+13. Promote Temple from `preview` to `active` only after those checks pass.
+14. Expose/settle the Volcanic Workshop construction control.
+15. Build `bridge-crossing` on the same intent contract.
 
 Do not begin `bridge-crossing` by re-enabling random legacy bridge selection. Purpose and archetype ownership come first.
 
@@ -881,15 +931,16 @@ Do not begin `bridge-crossing` by re-enabling random legacy bridge selection. Pu
 M reviews, commits, and pushes. Codex does not push. Current slice stamps:
 `forge-deployment.js?v=fd3`, `forge-generator-foundation.js?v=g2g1`,
 `forge-temple-terraces.js?v=tt1`, `forge-engine.js?v=fe10`,
-`forge-render-power.js?v=frp1`, `forge-architecture.js?v=fa4`, and
-`forge-discovery.js?v=fd7`, `forge-kit-derive.js?v=b13`,
+`forge-render-power.js?v=frp1`, `forge-architecture.js?v=fa5`, and
+`forge-discovery.js?v=fd7`, `forge-capabilities.js?v=fc1`,
+`forge-kit-derive.js?v=b15`,
 `forge-foe-ai.js?v=fai3`, `forge-feed-render.js?v=ffr6`,
-`forge-hud.js?v=b6`, and
+`forge-hud.js?v=b6`, `forge-test-fight.js?v=tf1`, and
 `monster-actor.js?v=ma2`. Encounter activation adds
 `forge-encounter-regions.js?v=fer1` and bumps `forge-protocol.js?v=fpr2`,
-`forge-replay.js?v=fb15`, `forge-effects.js?v=fe6`,
-`forge-pipeline.js?v=fb8`, `forge-board.js?v=fb8`, and
-`forge-table-correctness.js?v=fg11`. Encounter Read adds
+`forge-replay.js?v=fb17`, `forge-effects.js?v=fe6`,
+`forge-pipeline.js?v=fb9`, `forge-board.js?v=fb9`, and
+`forge-table-correctness.js?v=fg12`. Encounter Read adds
 `forge-encounter-read.js?v=fread3`. Explicit local party authority adds
 `forge-party-selection.js?v=fps1`. Character-source alignment adds root
 `character-sheet-projection.js?v=cp1`, `sheet-mount.js?v=src1`, and

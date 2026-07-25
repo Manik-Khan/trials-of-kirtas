@@ -1,0 +1,261 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Forge · Shared Combat Capability Contract</title>
+<style>
+  :root{
+    --paper:#eee5d3;--paper2:#d9ccb5;--ink:#25221d;--dim:#756c5e;--line:#b3a58d;
+    --night:#171917;--night2:#24251f;--gold:#b48636;--teal:#356f70;--red:#91493f;
+    --amber:#9a6b21;--green:#3e7356;--blue:#446d82;--violet:#765d86;
+  }
+  *{box-sizing:border-box}
+  html,body{min-height:100%;margin:0}
+  body{background:radial-gradient(circle at 78% 4%,#45635b 0,#243c38 34%,#142521 78%);color:var(--ink);font-family:Georgia,serif}
+  button{font:inherit}
+  .app{width:min(1500px,calc(100% - 28px));min-height:calc(100vh - 28px);margin:14px auto;display:grid;grid-template-columns:270px minmax(0,1fr) 360px;background:linear-gradient(135deg,var(--paper),var(--paper2));border:1px solid #78613d;box-shadow:0 24px 80px #0008}
+  .rail{background:linear-gradient(180deg,#20211d,#131512);color:#e9dfcd;border-right:1px solid #655638;display:flex;flex-direction:column;min-height:0}
+  .brand{padding:18px;border-bottom:1px solid #464138}.ey{font:700 9px Arial,sans-serif;letter-spacing:.18em;text-transform:uppercase;color:#c69c51}.brand h1{font-size:19px;margin:6px 0 5px}.brand p{margin:0;color:#aaa294;font:11px/1.45 Arial,sans-serif}
+  .pipeline{margin:15px 14px 12px;padding:10px;border:1px solid #4d493f;background:#181a17}.pipeStep{display:flex;gap:8px;align-items:center;color:#beb5a5;font:10px/1.25 Arial,sans-serif}.pipeStep b{color:#ead8b8}.pipeStep+.pipeStep:before{content:"↓";display:block;width:14px;text-align:center;color:var(--gold)}.pipeStep+.pipeStep{margin-top:7px}
+  .actorTitle{padding:0 16px 7px;color:#81796b;font:700 9px Arial,sans-serif;letter-spacing:.16em;text-transform:uppercase}
+  .actors{overflow:auto;padding:0 8px 12px}.actor{width:100%;display:grid;grid-template-columns:34px 1fr auto;gap:9px;align-items:center;border:1px solid transparent;background:transparent;color:#ded4c2;padding:8px;margin:0 0 4px;text-align:left;cursor:pointer}.actor:hover{background:#ffffff08}.actor.on{border-color:#8d713f;background:#b4863618}.avatar{width:34px;height:34px;display:grid;place-items:center;border:1px solid #6e6250;background:#34352e;color:#e9bf6c;font-weight:bold}.actor.on .avatar{border-color:var(--gold)}.actor b{display:block;font:700 11px Arial,sans-serif}.actor small{display:block;color:#8f897e;font:9px/1.3 Arial,sans-serif;margin-top:2px}.side{border:1px solid #5c554a;color:#aaa294;padding:3px 5px;font:700 8px Arial,sans-serif;text-transform:uppercase;letter-spacing:.08em}.side.foe{color:#d08378;border-color:#6d4b46}
+  .railFoot{margin-top:auto;border-top:1px solid #464138;padding:12px 15px;color:#979084;font:10px/1.45 Arial,sans-serif}.railFoot b{color:#dfc17e}
+  .main{min-width:0;display:flex;flex-direction:column}
+  .top{padding:18px 20px 14px;border-bottom:1px solid var(--line);background:#f3ebdc99}.titleLine{display:flex;justify-content:space-between;gap:14px;align-items:flex-start}.titleLine h2{margin:4px 0 3px;font-size:24px}.titleLine p{margin:0;color:var(--dim);font:12px/1.4 Arial,sans-serif}.seg{display:flex;gap:4px;flex-wrap:wrap}.seg button{border:1px solid var(--line);background:#f7f0e5;color:var(--dim);padding:7px 9px;cursor:pointer;font:700 9px Arial,sans-serif;text-transform:uppercase;letter-spacing:.08em}.seg button.on{border-color:var(--gold);background:#b4863620;color:var(--ink)}
+  .summary{display:grid;grid-template-columns:repeat(5,1fr);gap:7px;padding:12px 20px;border-bottom:1px solid var(--line)}.metric{border:1px solid var(--line);background:#f8f1e5aa;padding:8px}.metric b{display:block;font:700 18px Arial,sans-serif}.metric span{display:block;margin-top:2px;color:var(--dim);font:700 8px Arial,sans-serif;text-transform:uppercase;letter-spacing:.08em}.metric.field b{color:var(--blue)}.metric.held b{color:var(--amber)}.metric.missing b{color:var(--red)}
+  .contractBar{display:flex;justify-content:space-between;gap:12px;align-items:center;padding:10px 20px;border-bottom:1px solid var(--line);background:#d7dfd6}.contractBar b{font:700 10px Arial,sans-serif;text-transform:uppercase;letter-spacing:.08em}.contractBar span{color:#4f625b;font:11px/1.35 Arial,sans-serif}.checks{white-space:nowrap;color:var(--green)!important;font-weight:bold!important}
+  .tableWrap{overflow:auto;min-height:0;padding:0 20px 20px}.group{margin-top:17px}.groupHead{display:flex;align-items:center;gap:8px;padding-bottom:6px;border-bottom:1px solid #8f826d}.groupHead h3{margin:0;font:700 11px Arial,sans-serif;text-transform:uppercase;letter-spacing:.11em}.groupHead span{color:var(--dim);font:10px Arial,sans-serif}
+  .cap{display:grid;grid-template-columns:minmax(170px,1.25fr) 106px minmax(190px,1.45fr) 95px;gap:10px;align-items:center;width:100%;padding:9px 7px;border:0;border-bottom:1px solid #c5b9a5;background:transparent;color:var(--ink);text-align:left;cursor:pointer}.cap:hover{background:#fff7}.cap.on{background:#b4863613;box-shadow:inset 3px 0 var(--gold)}.capName b{display:block;font-size:13px}.capName small,.source{display:block;margin-top:2px;color:var(--dim);font:10px/1.35 Arial,sans-serif}.kind{color:#4f4a41;font:700 9px Arial,sans-serif;text-transform:uppercase;letter-spacing:.08em}.consumer{display:flex;gap:3px;flex-wrap:wrap}.consumer i{font-style:normal;border:1px solid #aaa08e;color:#71695d;padding:2px 4px;font:700 7px Arial,sans-serif;text-transform:uppercase}.status{justify-self:end;padding:4px 6px;border:1px solid currentColor;font:700 8px Arial,sans-serif;text-transform:uppercase;letter-spacing:.08em}.status.wired{color:var(--green)}.status.field{color:var(--blue)}.status.held{color:var(--amber)}.status.missing{color:var(--red)}.status.reference{color:var(--violet)}
+  .empty{margin-top:20px;padding:22px;border:1px dashed var(--line);color:var(--dim);text-align:center;font:12px Arial,sans-serif}
+  .detail{min-width:0;background:linear-gradient(180deg,#23241f,#171916);color:#e9dfcd;border-left:1px solid #655638;padding:18px;overflow:auto}.detailTop{display:flex;justify-content:space-between;gap:10px}.detail h2{margin:5px 0 4px;font-size:21px}.detail .desc{margin:0;color:#afa799;font:12px/1.5 Arial,sans-serif}.statusBig{align-self:flex-start;white-space:nowrap;padding:5px 7px;border:1px solid currentColor;font:700 8px Arial,sans-serif;text-transform:uppercase;letter-spacing:.08em}.why{margin:14px 0;padding:10px;border-left:3px solid var(--gold);background:#b4863612;color:#d5c7b0;font:11px/1.45 Arial,sans-serif}.why b{color:#e7bd70}
+  .schema{margin-top:16px}.schema h3,.consumers h3,.principles h3{margin:0 0 7px;color:#c59a50;font:700 9px Arial,sans-serif;letter-spacing:.14em;text-transform:uppercase}.fieldRow{display:grid;grid-template-columns:84px 1fr;gap:8px;padding:6px 0;border-bottom:1px solid #3b3a33;font:10px/1.35 Arial,sans-serif}.fieldRow b{color:#938b7e;font-family:monospace;font-weight:normal}.fieldRow span{color:#dfd4c1}.fieldRow .unset{color:#7e786e;font-style:italic}
+  .consumers{margin-top:16px}.consumerGrid{display:grid;grid-template-columns:1fr 1fr;gap:5px}.consumerCard{border:1px solid #48463d;padding:7px;color:#a9a194;font:9px/1.35 Arial,sans-serif}.consumerCard.on{border-color:#687c67;background:#3e735613;color:#d7dfd3}.consumerCard b{display:block;color:#dfd4c1;font:700 9px Arial,sans-serif;text-transform:uppercase;margin-bottom:2px}
+  .principles{margin-top:17px;padding-top:13px;border-top:1px solid #49463d}.principle{display:flex;gap:8px;margin:0 0 8px;color:#aaa295;font:10px/1.4 Arial,sans-serif}.principle i{width:18px;height:18px;flex:0 0 18px;display:grid;place-items:center;border:1px solid #6f634e;color:#d4ab60;font-style:normal;font-size:9px}.principle b{color:#ddd1bd}
+  .legend{display:flex;gap:8px;flex-wrap:wrap;margin-top:12px;color:#9d9588;font:9px Arial,sans-serif}.legend span:before{content:"";display:inline-block;width:7px;height:7px;margin-right:4px;background:currentColor}.legend .l-wired{color:var(--green)}.legend .l-field{color:var(--blue)}.legend .l-held{color:var(--amber)}.legend .l-missing{color:var(--red)}.legend .l-reference{color:var(--violet)}
+  @media(max-width:1120px){.app{grid-template-columns:230px minmax(0,1fr)}.detail{grid-column:1/-1;border-left:0;border-top:1px solid #655638}.consumerGrid{grid-template-columns:repeat(5,1fr)}}
+  @media(max-width:760px){.app{display:block;margin:0;width:100%;min-height:100vh}.rail{min-height:auto}.pipeline,.railFoot{display:none}.actors{display:flex;overflow:auto}.actor{min-width:180px}.titleLine{display:block}.titleLine .seg{margin-top:12px}.summary{grid-template-columns:repeat(3,1fr)}.contractBar{display:block}.checks{display:block;margin-top:4px}.cap{grid-template-columns:1fr 84px}.source,.consumer{display:none}.consumerGrid{grid-template-columns:1fr 1fr}}
+</style>
+</head>
+<body>
+<main class="app">
+  <aside class="rail">
+    <header class="brand">
+      <div class="ey">Architecture approval lab</div>
+      <h1>One combat language</h1>
+      <p>Character sheets and monster statblocks enter through different adapters, then share the same rules contract.</p>
+    </header>
+    <div class="pipeline" aria-label="Combat actor pipeline">
+      <div class="pipeStep"><span>①</span><span><b>Source adapter</b><br>PC sheet or monster statblock</span></div>
+      <div class="pipeStep"><span>②</span><span><b>Combat actor</b><br>Vitals, resources, capabilities</span></div>
+      <div class="pipeStep"><span>③</span><span><b>Shared resolver</b><br>Costs, targets, rolls, effects</span></div>
+      <div class="pipeStep"><span>④</span><span><b>Consumers</b><br>HUD, AI, feed, replay</span></div>
+    </div>
+    <div class="actorTitle">Coverage subjects</div>
+    <div class="actors" id="actors"></div>
+    <div class="railFoot"><b>Mock boundary:</b> this surface defines the contract and build ledger only. It does not alter the live Forge, sheets, monsters, or campaign state.</div>
+  </aside>
+
+  <section class="main">
+    <header class="top">
+      <div class="titleLine">
+        <div>
+          <div class="ey" id="actorEy">Character sheet adapter</div>
+          <h2 id="actorName">Caim</h2>
+          <p id="actorSub">Monk 4 · current source coverage versus the shared target contract</p>
+        </div>
+        <div class="seg" id="filters">
+          <button class="on" data-filter="all">All</button>
+          <button data-filter="attention">Needs work</button>
+          <button data-filter="executable">Executable</button>
+          <button data-filter="defense">Defense</button>
+        </div>
+      </div>
+      <div class="legend">
+        <span class="l-wired">Wired</span><span class="l-field">Field proof</span><span class="l-held">Held safely</span><span class="l-missing">Missing</span><span class="l-reference">Reference only</span>
+      </div>
+    </header>
+    <div class="summary" id="summary"></div>
+    <div class="contractBar">
+      <span><b>Contract promise:</b> unsupported rules stay visible and explain why they cannot execute; no feature silently vanishes.</span>
+      <span class="checks" id="checks">✓ 8 invariants</span>
+    </div>
+    <div class="tableWrap" id="ledger"></div>
+  </section>
+
+  <aside class="detail" id="detail"></aside>
+</main>
+
+<script>
+(function(){
+  "use strict";
+  var STATUS={
+    wired:{label:"Wired",note:"Executable through the current Forge path."},
+    field:{label:"Needs field proof",note:"A production path exists, but the signed-in browser gate is still open."},
+    held:{label:"Held safely",note:"Visible, but deliberately blocked from execution until its rules are complete."},
+    missing:{label:"Missing",note:"Present in the source or required by the rules, but not projected into combat yet."},
+    reference:{label:"Reference only",note:"Readable to the DM, but not yet structured for the resolver or AI."}
+  };
+  var consumers=["Player HUD","DM HUD","Enemy AI","Game feed","Replay"];
+  function cap(id,label,group,kind,status,source,desc,fields,uses){
+    return {id:id,label:label,group:group,kind:kind,status:status,source:source,desc:desc,fields:fields||{},uses:uses||[]};
+  }
+  var actors=[
+    {
+      id:"caim",name:"Caim",badge:"C",side:"pc",adapter:"Character sheet adapter",sub:"Monk 4 · Way of Mercy · Tiefling",
+      caps:[
+        cap("caim-ki","Ki","Resources","limited resource","field","Sheet feature + current pips","The pool is projected in code as current/max Ki. The original browser symptom still needs the signed-in replay gate.",{economy:"—",cost:"consumed by Monk features",effects:"resource_spend",trigger:"short-rest pool",automation:"shared spend guard"},[0,1,3,4]),
+        cap("caim-flurry","Flurry of Blows","Actions","bonus · multi-strike","wired","Class feature","Composes two canonical Unarmed Strikes after the Attack action and spends 1 Ki.",{economy:"bonus action",cost:"Ki 1",targeting:"melee creature",roll:"2 attack rolls",effects:"two weapon hits",trigger:"after Attack"},[0,1,3,4]),
+        cap("caim-step","Step of the Wind","Actions","bonus · movement","wired","Class feature","Offers Dash or Disengage, spends Ki, and publishes the resulting movement state.",{economy:"bonus action",cost:"Ki 1",targeting:"self",effects:"Dash or Disengage",duration:"current turn"},[0,1,3,4]),
+        cap("caim-harm","Hand of Harm","Riders","post-hit rider","held","Way of Mercy feature","The Forge correctly refuses to fake this as a separate attack. The post-hit choice and extra necrotic damage still need wiring.",{economy:"free rider",cost:"Ki 1",targeting:"creature just hit",trigger:"successful unarmed strike",effects:"extra necrotic damage",automation:"blocked with explanation"},[0,1]),
+        cap("caim-deflect","Deflect Missiles","Reactions","reaction","missing","Sheet feature","Needs an incoming-ranged-hit prompt, damage reduction, optional Ki spend, and return-attack branch.",{economy:"reaction",cost:"Ki 0 or 1",targeting:"incoming ranged weapon",trigger:"hit by ranged weapon",effects:"reduce damage; optional return"},[]),
+        cap("caim-fall","Slow Fall","Reactions","reaction","missing","Level entitlement not authored in mirror","Requires source confirmation, then a fall-damage reaction reducer. The adapter must report the absent source row instead of inventing it.",{economy:"reaction",trigger:"taking fall damage",effects:"reduce fall damage",automation:"await source confirmation"},[]),
+        cap("caim-fire","Hellish Resistance","Defenses","damage resistance","missing","Tiefling feature","The source feature is visible, but fire damage is not currently reduced by a shared typed-damage defense resolver.",{economy:"passive",trigger:"incoming fire damage",effects:"halve fire damage",tags:"resistance:fire"},[]),
+        cap("caim-dark","Darkvision","Senses","sense","missing","Tiefling feature","The feature is on the sheet; Forge visibility does not yet consume actor senses.",{economy:"passive",range:"60 ft",effects:"vision authority",tags:"sense:darkvision"},[])
+      ]
+    },
+    {
+      id:"cosmere",name:"Cosmere Runestar",badge:"C",side:"pc",adapter:"Character sheet adapter",sub:"Warlock 3 / Sorcerer 1 · Astral Elf",
+      caps:[
+        cap("cos-eb","Eldritch Blast","Actions","spell attack","wired","Spellcasting","Uses the authored attack bonus, range, force damage, and normal attack pipeline.",{economy:"action",cost:"no slot",targeting:"creature · 120 ft",roll:"spell attack",effects:"1d10 force",tags:"cantrip"},[0,1,3,4]),
+        cap("cos-repel","Repelling Blast","Riders","post-hit forced move","field","Eldritch invocation","The choice prompt and caster-relative 0/5/10-foot legal push path are in production; the signed-in field gate remains.",{economy:"free rider",cost:"—",trigger:"Eldritch Blast hit",targeting:"hit creature",effects:"forced move up to 10 ft"},[0,1,3,4]),
+        cap("cos-hex","Hex","Actions","bonus · concentration","field","Pact spell","Target-first casting, Pact-slot spend, concentration, curse ledger, and extra damage are wired; the original browser replay remains a field gate.",{economy:"bonus action",cost:"Pact slot 1",targeting:"creature · 90 ft",effects:"Hex condition + 1d6 rider",duration:"concentration"},[0,1,3,4]),
+        cap("cos-step","Starlight Step","Actions","bonus · teleport","missing","Astral Elf feature","The sheet has the feature, but Forge has no limited-use teleport tile or legal destination picker.",{economy:"bonus action",cost:"proficiency uses / long rest",targeting:"empty space · 30 ft",effects:"teleport",tags:"movement:teleport"},[]),
+        cap("cos-absorb","Absorb Elements","Reactions","reaction","held","Spellcasting","The name is recognized as a reaction, but no incoming elemental-damage prompt, temporary resistance, or next-hit rider resolves.",{economy:"reaction",cost:"Pact or spell slot",trigger:"acid/cold/fire/lightning/thunder damage",effects:"temporary resistance + next melee rider",automation:"blocked"},[0]),
+        cap("cos-gfb","Green-Flame Blade","Riders","weapon cantrip rider","held","Spellcasting + weapon action","The weapon attack can be shown, but the second-creature fire leap is not a structured post-hit selection.",{economy:"action",cost:"—",targeting:"melee target + nearby second target",roll:"weapon attack",effects:"weapon hit + fire leap"},[0,1]),
+        cap("cos-curse","Hexblade’s Curse","Actions","bonus · effect","wired","Subclass feature","Applies the curse ledger, bonus damage, expanded critical range, short-rest spend, and defeat healing.",{economy:"bonus action",cost:"1 / short rest",targeting:"creature · 30 ft",effects:"damage bonus, crit 19–20, defeat heal"},[0,1,3,4]),
+        cap("cos-fey","Fey Ancestry + Darkvision","Defenses","save defense + sense","missing","Astral Elf features","Both source features are visible, but neither the charm-save rule nor actor-sense visibility is shared combat data yet.",{economy:"passive",trigger:"charm save / visibility",effects:"advantage vs charm; darkvision",tags:"defense:charm · sense:darkvision"},[])
+      ]
+    },
+    {
+      id:"liadan",name:"Líadan Luchóg",badge:"L",side:"pc",adapter:"Character sheet adapter",sub:"Bard 3 / Cleric 1 · College of Creation",
+      caps:[
+        cap("lia-barbs","Silvery Barbs","Reactions","reaction spell","field","Spellcasting","The prompt now names attacker, target, attack mode, and roll evidence; signed-in prompt/privacy replay remains open.",{economy:"reaction",cost:"Level 1 slot",trigger:"successful attack",targeting:"attacker + ally",effects:"reroll kept d20; grant advantage"},[0,1,3,4]),
+        cap("lia-feather","Feather Fall","Reactions","reaction spell","missing","Spellcasting","The spell is excluded from the ordinary shelf correctly, but there is no falling-creature reaction trigger or descent effect.",{economy:"reaction",cost:"Level 1 slot",trigger:"creature begins falling",targeting:"up to 5 creatures",effects:"controlled descent"},[]),
+        cap("lia-inspire","Bardic Inspiration","Actions","bonus · ally buff","wired","Class feature","Spends the authored pool and grants a die-bearing effect. Each future roll consumer must draw from the same effect record.",{economy:"bonus action",cost:"Bardic Inspiration 1",targeting:"ally · 60 ft",effects:"inspiration die"},[0,1,3,4]),
+        cap("lia-magical","Magical Inspiration","Riders","inspiration rider","missing","Bard feature","The feature is on the sheet but spell damage/healing does not yet consume Bardic Inspiration through its alternate rule.",{economy:"rider",cost:"inspiration die",trigger:"spell damage or healing",effects:"add die to damage/healing"},[]),
+        cap("lia-mote","Mote of Potential","Riders","inspiration rider","missing","College of Creation feature","Requires roll-context branches for ability checks, attacks, and saving throws rather than one generic bonus.",{economy:"rider",cost:"consumes inspiration die",trigger:"Bardic Inspiration use",effects:"context-specific mote effect"},[]),
+        cap("lia-aid","Aid","Actions","spell · max HP","held","Spellcasting","The tile is present, but a generic ally buff cannot substitute for increasing current and maximum HP on three creatures.",{economy:"action",cost:"Level 2 slot",targeting:"3 creatures · 30 ft",effects:"increase current + max HP",automation:"blocked pending max-HP effect"},[0]),
+        cap("lia-spare","Spare the Dying","Actions","touch cantrip","held","Spellcasting","A zero-point heal is not stabilization. The condition/death-save resolver needs an explicit stabilize effect.",{economy:"action",cost:"—",targeting:"living creature at 0 HP · touch",effects:"stable condition",automation:"blocked"},[0]),
+        cap("lia-life","Disciple of Life","Riders","healing passive","wired","Life Domain feature","Known healing spells carry the extra 2 + spell-level restoration through the derived tile.",{economy:"passive",trigger:"levelled healing spell",effects:"bonus healing",tags:"healing modifier"},[0,1,3,4])
+      ]
+    },
+    {
+      id:"vesperian",name:"Vesperian Vale",badge:"V",side:"pc",adapter:"Character sheet adapter",sub:"Fighter 3 / Wizard 1 · Shadar-kai",
+      caps:[
+        cap("ves-war","War Caster","Reactions","opportunity spell","field","Feat","The OA prompt offers legal at-will attack cantrips, and concentration gains advantage; signed-in timing proof remains open.",{economy:"reaction",cost:"—",trigger:"creature leaves reach",targeting:"provoking creature",effects:"cast eligible cantrip; concentration advantage"},[0,1,3,4]),
+        cap("ves-blessing","Blessing of the Raven Queen","Actions","bonus · teleport","missing","Shadar-kai feature","Needs a limited-use teleport destination picker plus the post-teleport all-damage resistance rider.",{economy:"bonus action",cost:"proficiency uses / long rest",targeting:"empty space · 30 ft",effects:"teleport + all-damage resistance",duration:"until next turn"},[]),
+        cap("ves-boom","Booming Blade","Actions","weapon cantrip","wired","Spellcasting + weapon action","Uses the weapon attack and stores the movement-triggered thunder rider in the effect ledger.",{economy:"action",cost:"—",targeting:"melee creature",roll:"weapon attack",effects:"weapon damage + movement rider"},[0,1,3,4]),
+        cap("ves-armor","Mage Armor state","Defenses","AC calculation","held","Mounted character state","The source sheet can calculate and name Mage Armor AC, but Forge’s generic spell mapping is not a valid AC effect path.",{economy:"action to cast",cost:"Level 1 slot",targeting:"unarmored creature",effects:"base AC 13 + DEX",automation:"no generic self-heal substitution"},[0]),
+        cap("ves-absorb","Absorb Elements","Reactions","reaction","held","Wizard spell availability","The shared reaction name exists, but the incoming-damage resistance and next-melee-hit rider do not resolve.",{economy:"reaction",cost:"Level 1 slot",trigger:"elemental damage",effects:"temporary resistance + next melee rider",automation:"blocked"},[0]),
+        cap("ves-bond","Weapon Bond","Traits","equipment feature","missing","Eldritch Knight feature","The sheet feature is present; disarm immunity and bonus-action recall are not represented in combat.",{economy:"passive / bonus action",targeting:"bonded weapon",effects:"cannot be disarmed; recall weapon"},[]),
+        cap("ves-necro","Necrotic Resistance","Defenses","damage resistance","missing","Shadar-kai feature entitlement","Typed incoming damage does not yet consult actor resistances. Source authorship should be confirmed in the live sheet.",{economy:"passive",trigger:"incoming necrotic damage",effects:"halve necrotic damage",tags:"resistance:necrotic"},[]),
+        cap("ves-dark","Darkvision + Fey Ancestry","Defenses","sense + save defense","missing","Shadar-kai features","Visibility and charm-save advantage are not projected as shared passive capabilities.",{economy:"passive",trigger:"visibility / charm save",effects:"darkvision; advantage vs charm"},[])
+      ]
+    },
+    {
+      id:"babau",name:"Babau",badge:"B",side:"foe",adapter:"5e.tools statblock adapter",sub:"Imported full statblock · complex monster acceptance case",
+      caps:[
+        cap("babau-claw","Claw / weapon attacks","Actions","monster attack","wired","Statblock actions","Parseable to-hit and primary damage become executable attacks for both the DM HUD and automatic planner.",{economy:"action",targeting:"creature in reach",roll:"attack roll",effects:"primary typed damage"},[1,2,3,4]),
+        cap("babau-multi","Multiattack","Actions","multi-strike","reference","Statblock action prose","The statblock row remains visible, but the adapter does not structure its component sequence and the AI executes only one attack.",{economy:"action",targeting:"one or more creatures",roll:"ordered component attacks",effects:"declared attack sequence",automation:"reference only"},[1]),
+        cap("babau-spells","Innate Spellcasting","Spells","monster spellcasting","reference","Statblock spellcasting","Spell names and usage are readable in the DM drawer, but slots/uses, DC, targeting, and effects do not become executable capabilities.",{economy:"varies",cost:"at-will / per-day uses",targeting:"per spell",roll:"spell attack or save",automation:"reference only"},[1]),
+        cap("babau-gaze","Special save action","Actions","save ability","reference","Statblock action","A prose save ability is not yet normalized into DC, save ability, targets, duration, and effect operations.",{economy:"action",targeting:"creature in range",roll:"saving throw",effects:"condition or stat change",automation:"reference only"},[1]),
+        cap("babau-magic","Magic Resistance","Defenses","save defense","reference","Statblock trait","Visible in Traits, but saving throws do not consult it as an advantage source.",{economy:"passive",trigger:"save against spell or magical effect",effects:"advantage on save",tags:"defense:magic"},[1]),
+        cap("babau-resist","Damage defenses","Defenses","resistance / immunity","reference","Statblock resist + immune fields","The profile preserves the words, but typed damage does not apply resistance, immunity, or condition immunity.",{economy:"passive",trigger:"incoming typed damage or condition",effects:"reduce/prevent outcome",tags:"resistance · immunity · condition immunity"},[1]),
+        cap("babau-senses","Senses + movement","Senses","sense / movement","reference","Statblock senses + speed","Walk speed reaches the token, while special senses and any additional movement modes remain descriptive rather than rules authority.",{economy:"passive",effects:"movement and perception authority",tags:"speed · senses"},[1])
+      ]
+    },
+    {
+      id:"manes",name:"Manes",badge:"M",side:"foe",adapter:"5e.tools statblock adapter",sub:"Imported full statblock · simple monster control case",
+      caps:[
+        cap("manes-claw","Claws","Actions","monster attack","wired","Statblock action","The simple parseable attack is executable through the current foe HUD and AI.",{economy:"action",targeting:"creature in reach",roll:"attack roll",effects:"typed damage"},[1,2,3,4]),
+        cap("manes-resist","Damage defenses","Defenses","resistance / immunity","reference","Statblock resist + immune fields","The source defenses are readable but do not modify incoming damage.",{economy:"passive",trigger:"incoming typed damage",effects:"reduce or prevent damage"},[1]),
+        cap("manes-cond","Condition immunities","Defenses","condition immunity","reference","Statblock conditionImmune field","The conditions remain text in the profile; the condition resolver does not reject an immune condition.",{economy:"passive",trigger:"condition application",effects:"prevent condition"},[1]),
+        cap("manes-dark","Darkvision","Senses","sense","reference","Statblock senses","The source sense is readable to the DM, but the visibility engine does not consume it.",{economy:"passive",effects:"vision authority",tags:"sense:darkvision"},[1])
+      ]
+    }
+  ];
+
+  var state={actor:"caim",filter:"all",cap:"caim-ki"};
+  function actor(){return actors.find(function(a){return a.id===state.actor;})||actors[0];}
+  function selected(){var a=actor();return a.caps.find(function(c){return c.id===state.cap;})||a.caps[0];}
+  function filtered(c){
+    if(state.filter==="attention")return c.status!=="wired";
+    if(state.filter==="executable")return c.status==="wired"||c.status==="field";
+    if(state.filter==="defense")return c.group==="Defenses"||c.group==="Senses";
+    return true;
+  }
+  function ensureSelection(){
+    var a=actor(),visible=a.caps.filter(filtered);
+    if(!visible.some(function(c){return c.id===state.cap;}))state.cap=(visible[0]||a.caps[0]).id;
+  }
+  function renderActors(){
+    document.getElementById("actors").innerHTML=actors.map(function(a){
+      return '<button class="actor '+(a.id===state.actor?"on":"")+'" data-actor="'+a.id+'"><span class="avatar">'+a.badge+'</span><span><b>'+a.name+'</b><small>'+a.sub.split(" · ")[0]+'</small></span><span class="side '+a.side+'">'+(a.side==="pc"?"PC":"Foe")+'</span></button>';
+    }).join("");
+    Array.from(document.querySelectorAll("[data-actor]")).forEach(function(btn){btn.onclick=function(){
+      state.actor=btn.getAttribute("data-actor");state.cap=actor().caps[0].id;render();
+    };});
+  }
+  function renderHeader(){
+    var a=actor();document.getElementById("actorEy").textContent=a.adapter;document.getElementById("actorName").textContent=a.name;document.getElementById("actorSub").textContent=a.sub+" · current coverage versus the shared target contract";
+    var counts={wired:0,field:0,held:0,missing:0,reference:0};a.caps.forEach(function(c){counts[c.status]++;});
+    document.getElementById("summary").innerHTML=[
+      ["Capabilities",a.caps.length,""],["Wired",counts.wired,""],["Field proof",counts.field,"field"],["Held / reference",counts.held+counts.reference,"held"],["Missing",counts.missing,"missing"]
+    ].map(function(x){return '<div class="metric '+x[2]+'"><b>'+x[1]+'</b><span>'+x[0]+'</span></div>';}).join("");
+  }
+  function renderLedger(){
+    var a=actor(),groups=[];a.caps.filter(filtered).forEach(function(c){if(groups.indexOf(c.group)<0)groups.push(c.group);});
+    if(!groups.length){document.getElementById("ledger").innerHTML='<div class="empty">No capabilities match this filter.</div>';return;}
+    document.getElementById("ledger").innerHTML=groups.map(function(g){
+      var rows=a.caps.filter(function(c){return filtered(c)&&c.group===g;});
+      return '<section class="group"><div class="groupHead"><h3>'+g+'</h3><span>'+rows.length+'</span></div>'+rows.map(function(c){
+        return '<button class="cap '+(c.id===state.cap?"on":"")+'" data-cap="'+c.id+'"><span class="capName"><b>'+c.label+'</b><small>'+c.source+'</small></span><span class="kind">'+c.kind+'</span><span class="consumer">'+c.uses.map(function(i){return '<i>'+consumers[i].replace("Player ","P. ").replace("Enemy ","").replace("Game ","")+'</i>';}).join("")+'</span><span class="status '+c.status+'">'+STATUS[c.status].label+'</span></button>';
+      }).join("")+'</section>';
+    }).join("");
+    Array.from(document.querySelectorAll("[data-cap]")).forEach(function(btn){btn.onclick=function(){state.cap=btn.getAttribute("data-cap");renderLedger();renderDetail();};});
+  }
+  function field(label,value){
+    return '<div class="fieldRow"><b>'+label+'</b><span class="'+(value?"":"unset")+'">'+(value||"not yet structured")+'</span></div>';
+  }
+  function renderDetail(){
+    var c=selected(),s=STATUS[c.status],defaults={id:c.id,kind:c.kind,economy:null,targeting:null,roll:null,cost:null,effects:null,trigger:null,duration:null,tags:null,automation:null};
+    var f=Object.assign(defaults,c.fields||{});
+    document.getElementById("detail").innerHTML=
+      '<div class="detailTop"><div><div class="ey">'+c.group+' · normalized capability</div><h2>'+c.label+'</h2></div><span class="statusBig status '+c.status+'">'+s.label+'</span></div>'+
+      '<p class="desc">'+c.desc+'</p><div class="why"><b>Current truth:</b> '+s.note+'</div>'+
+      '<section class="schema"><h3>Common contract fields</h3>'+
+      field("id",f.id)+field("kind",f.kind)+field("economy",f.economy)+field("targeting",f.targeting)+field("roll",f.roll)+field("cost",f.cost)+field("effects",f.effects)+field("trigger",f.trigger)+field("duration",f.duration)+field("tags",f.tags)+field("automation",f.automation)+'</section>'+
+      '<section class="consumers"><h3>Consumers of this same record</h3><div class="consumerGrid">'+consumers.map(function(name,i){var on=c.uses.indexOf(i)>=0;return '<div class="consumerCard '+(on?"on":"")+'"><b>'+(on?"✓ ":"— ")+name+'</b>'+(on?"consumes structured facts":"not connected yet")+'</div>';}).join("")+'</div></section>'+
+      '<section class="principles"><h3>Resolver invariants</h3>'+
+      '<div class="principle"><i>1</i><span><b>Adapters translate; they do not decide rules.</b> PC sheets and monster blocks produce the same capability shape.</span></div>'+
+      '<div class="principle"><i>2</i><span><b>One resolver for both sides.</b> Costs, rolls, defenses, conditions, and movement cannot fork by actor type.</span></div>'+
+      '<div class="principle"><i>3</i><span><b>AI sees only executable choices.</b> Reference-only prose remains available to the DM without becoming a fake attack.</span></div>'+
+      '<div class="principle"><i>4</i><span><b>Every outcome becomes replayable facts.</b> The HUD, feed, reconnect, and undo describe the same effects.</span></div></section>';
+  }
+  function renderFilters(){
+    Array.from(document.querySelectorAll("[data-filter]")).forEach(function(btn){btn.classList.toggle("on",btn.getAttribute("data-filter")===state.filter);btn.onclick=function(){state.filter=btn.getAttribute("data-filter");ensureSelection();renderFilters();renderLedger();renderDetail();};});
+  }
+  function assertions(){
+    var ids={},ok=true;
+    actors.forEach(function(a){a.caps.forEach(function(c){if(ids[c.id]||!STATUS[c.status]||!c.group||!c.kind)ok=false;ids[c.id]=1;if(c.status==="reference"&&c.uses.indexOf(2)>=0)ok=false;});});
+    var promises=[
+      actors.length===6,
+      actors.filter(function(a){return a.side==="pc";}).length===4,
+      actors.filter(function(a){return a.side==="foe";}).length===2,
+      actors.every(function(a){return a.caps.length>0;}),
+      Object.keys(ids).length===actors.reduce(function(n,a){return n+a.caps.length;},0),
+      actors.some(function(a){return a.caps.some(function(c){return c.status==="held";});}),
+      actors.some(function(a){return a.caps.some(function(c){return c.status==="reference";});}),
+      ok
+    ];
+    var pass=promises.filter(Boolean).length;document.getElementById("checks").textContent=(pass===promises.length?"✓ ":"⚠ ")+pass+" / "+promises.length+" invariants";
+    return {pass:pass,total:promises.length};
+  }
+  function render(){ensureSelection();renderActors();renderHeader();renderFilters();renderLedger();renderDetail();assertions();}
+  window.ForgeCapabilityMock={actors:actors,status:STATUS,assertions:assertions};
+  render();
+})();
+</script>
+</body>
+</html>

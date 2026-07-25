@@ -50,7 +50,8 @@
 <script src="../equip-slots.js?v=cc2"></script>
 <script src="../character-combat.js?v=um1"></script>
 <script src="../character-sheet-projection.js?v=cp1"></script>
-<script src="forge-kit-derive.js?v=b14"></script>
+<script src="forge-capabilities.js?v=fc1"></script>
+<script src="forge-kit-derive.js?v=b15"></script>
 <script src="forge-action-damage.js?v=fad1"></script>
 <script src="forge-reaction-choices.js?v=frc1"></script>
 <script src="forge-damage-evidence.js?v=fde3"></script>
@@ -4963,6 +4964,8 @@ function buildUnit(kit, side, opts){
     initiativeProfile: initiativeProfile,
     climb: !!(kit && kit.climb), res: normalizeResourceRecord((kit && kit.res) || {}),
     pools: JSON.parse(JSON.stringify((kit && kit.pools) || [])),
+    capabilities: JSON.parse(JSON.stringify((kit && kit.capabilities) || [])),
+    capabilityAudit: JSON.parse(JSON.stringify((kit && kit.capabilityAudit) || {})),
     featureFlags: JSON.parse(JSON.stringify((kit && kit.featureFlags) || {})),
     saveMods: JSON.parse(JSON.stringify((kit && kit.saveMods) || {})),
     spellcasting: JSON.parse(JSON.stringify((kit && kit.spellcasting) || {})),

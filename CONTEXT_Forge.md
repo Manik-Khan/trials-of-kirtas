@@ -53,6 +53,17 @@ folding duplicate shelf tiles, including Cosmere's Agonizing Blast modifier.
 Derivation exceptions remain disabled error kits rather than silent starter-kit
 substitutions.
 
+M approved the standalone shared-capability architecture mock on July 24.
+`forge/forge-capabilities.js?v=fc1` is now the versioned character-side
+contract. `forge-kit-derive.js?v=b15` attaches a `forge-capability/v1` ledger
+and audit to every successfully derived character kit, and `buildUnit()` keeps
+both records on the combat unit. The adapter accounts for every authored
+feature, spell, and resource; unsupported mechanics remain explicit as
+`held`, `missing`, or `reference`, and never enter an execution consumer.
+This foundation changes no combat resolution yet. It is the character-first
+precedent for later monster defenses, spellcasting, Multiattack, reactions,
+and legendary actions.
+
 The July 22 character-sheet progression build is compatible with this contract
 and does not add a second Forge character source. **Level Up** updates the same
 current character key through the Shard Reforger and records the prior
@@ -192,6 +203,7 @@ greyed out in the select and must never be silently dropped.
 | `soul-facets.js` | pure character-progression history helpers: immutable mechanical snapshot, signature dedupe, 40-Facet cap, read-only Soul Lineage projection; prose excluded | canonical root module; inert to Forge derivation |
 | `sheet-progression.js` | full/mounted sheet UI for Level Up, Facets of the Shard, and Soul Lineage; Level Up routes into the existing Shard Reforger by current key + selected class | canonical root module; cross-system entry only |
 | `forge/forge-kit-derive.js` | **sheet→actions derivation** (the BG3 HUD's engine): `derive(charData)` → kit with `tabs` (attacks/spells/items/feats/bonus/actions), flat pipeline actions, res pools, reactions. Consumes `CharacterSheetProjection` before `spellGroupsFrom`; SPELL_COMBAT projection table (~70 spells, label decides the kind); dedupe (derived wins, sheet folds to `_folded`); Disciple of Life; `upcastDmg` + `per` scaling; legacy `classFeatures` slot/resource ledger fallback; 5etools item-type codes | canonical |
+| `forge/forge-capabilities.js` | **shared combat capability contract**: character features/spells/resources/actions → versioned `forge-capability/v1` records with source provenance, status, economy, targeting, rolls, costs, effects, triggers, tags, automation, and consumer gates. Unsupported mechanics remain visible and non-executable; `attachToKit()` adds the ledger + no-silent-loss audit | canonical character-side foundation; monster adapter is next |
 | `forge/forge-feed-render.js` | Chat Feed renderer (headless): roll rows, full math, verdict badges, NO AC EVER | canonical |
 | `forge/forge-hud.js` | the BG3 bar: tab shelf, icon tiles, drawer (`_renderSpellEntries`), bonus-corner economy marks; dispatches `forge:selectAction` | canonical |
 | `forge/forge-protocol.js` | event vocabulary: 17 kinds, envelope validation. No `turn_started` — derived | canonical |
@@ -640,6 +652,13 @@ real placement. **These are decisions, not hypotheses.**
     in `map.testFight`, transform only the Start-fight roster snapshot, label
     staged and active sessions, and refuse every sheet mirror. The signed-in
     create/reopen/no-write field gate remains.
+36. ~~Character and monster rules had no shared typed capability contract.~~
+    **Character-side foundation integrated after M approved the mock.**
+    `forge-capabilities.js` accounts for every authored character action,
+    spell, resource, and feature and separates executable, held, missing, and
+    reference mechanics. Combat resolution is intentionally unchanged; typed
+    defenses, teleports, post-hit riders, and the monster adapter remain the
+    next implementation slices.
 
 ## §6 · ART, ASSETS, LICENSING
 

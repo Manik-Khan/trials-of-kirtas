@@ -5,7 +5,8 @@ Repo: `Manik-Khan/trials-of-kirtas` · vanilla JS/HTML/CSS + Supabase + Netlify 
 Walled React/Vite/TipTap corner at `journal/`.
 
 Updated: **July 24, 2026 (Forge field-report correction, approved
-reaction/cover integration, and disposable Test Fight production candidate, plus character-
+reaction/cover integration, disposable Test Fight production candidate, and
+shared character capability contract, plus character-
 sheet source, progression, and rail alignment).** Supersedes the earlier July 16 project handoff. The current Forge
 execution state lives in `docs/handoffs/forge/`. Reconciled sources include
 `CONTEXT_Forge.md`, the July 22 handoff, `FORGE_PROTOCOL.md`, `FORGE_BOARD.md`,
@@ -20,6 +21,38 @@ decisions, and the open bugs. This doc is the project; that one is the subsystem
 deploy). Codex commits **only when M explicitly asks**, staging files by name, and **never
 pushes**. Otherwise Codex's job ends at validated files + a one-line deploy note.
 Cache-stamp every module include (`?v=`) — non-negotiable on iOS.
+
+---
+
+## 🟡 Shared Forge capability contract — July 24
+
+M approved `_edits/mock-forge-shared-capability-contract.html`. The first
+production foundation is integrated without changing existing combat behavior.
+`forge/forge-capabilities.js?v=fc1` now projects each real character sheet into
+one versioned `forge-capability/v1` ledger before
+`forge-kit-derive.js?v=b15` finishes the combat kit. Actions, spells, resources,
+features, passives, reactions, riders, movement, senses, and defenses share the
+same fields for status, action economy, targeting, roll, cost, effects,
+triggers, tags, automation, source provenance, and consumers.
+
+Unsupported rules cannot silently disappear or become fake actions. They remain
+explicitly `held`, `missing`, or `reference`; only `executable` capabilities
+may enter an execution consumer. The real JSON mirrors currently produce Caim
+32, Cosmere 40, Líadan 38, and Vesperian 26 normalized capabilities with zero
+unaccounted source rows or invalid records. Ki/`Ki Points` normalize to one
+resource-backed capability. Repelling Blast and Silvery Barbs are executable
+but retain their signed-in field-proof marker; Hand of Harm, Absorb Elements,
+Aid, Spare the Dying, and Green-Flame Blade's secondary rider remain held;
+teleports, typed passive defenses, senses, Feather Fall, Deflect Missiles,
+Creation riders, and Weapon Bond remain visibly missing.
+
+The normalized ledger and audit now travel on the built combat unit, but no new
+resolver behavior or player-facing tracker was enabled in this foundation
+slice. The next character-first resolver slice should consume typed damage
+defenses and teleport capabilities before adapting the same contract to
+monster defenses, spellcasting, and Multiattack. Focused validation is
+**633/633** plus a real local Forge browser boot with both fresh cache stamps
+and no new script error.
 
 ---
 
