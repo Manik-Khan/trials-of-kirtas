@@ -75,6 +75,7 @@ const SRC = [
   fn('walkableCells'),
   'const SESSION_MAP_AUTHORITY = null, ARCHITECTURE_API = null, ARCHITECTURE_RECORD = null;',
   'function architectureActive(){ return false; }',
+  'function architectureAvailable(){ return false; }',
   fn('rawCombatMapFromF'),
   fn('syncGeometryCreatures'),
   fn('combatMapFromF'),

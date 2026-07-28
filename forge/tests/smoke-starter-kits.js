@@ -24,7 +24,8 @@ function makeSandbox(STARTER_KITS, characterData, forgeKitDerive, selected) {
     "window", "STARTER_KITS", "clog", "escapeHtml",
     m[1] + "\nreturn { loadLiveStats: loadLiveStats, liveStatsFor: liveStatsFor, " +
       "kitFor: kitFor, GENERIC_PC_KIT: GENERIC_PC_KIT, __liveStatsWarned: __liveStatsWarned, " +
-      "__genericKitWarned: __genericKitWarned, resolveLiveSheetRef: resolveLiveSheetRef, forgePartyRows: forgePartyRows };"
+      "__genericKitWarned: __genericKitWarned, resolveLiveSheetRef: resolveLiveSheetRef, forgePartyRows: forgePartyRows, " +
+      "missingForgePartyRows: missingForgePartyRows, requireForgePartyRows: requireForgePartyRows };"
   );
   return fn(win, STARTER_KITS, clog, escapeHtml);
 }
@@ -163,6 +164,35 @@ async function main() {
   }
 
   // 9. kitFor/liveStatsFor never mutate STARTER_KITS across every scenario above.
+  {
+    let reads = 0;
+    const party = [{ key: "cosmere", name: "Cosmere Runestar", structural: { combat: {} } }];
+    const sb = makeSandbox(STARTER_KITS, { loadParty: () => Promise.resolve(reads++ ? party : []) }, null, ["cosmere"]);
+    await sb.loadLiveStats();
+    ok("empty RLS result leaves an explicitly selected character unresolved",
+      deepEq(sb.missingForgePartyRows(), ["cosmere"]));
+    await sb.loadLiveStats();
+    ok("selected party forces a retry after an early empty RLS result", reads === 2);
+    ok("retry restores the selected party row", sb.requireForgePartyRows()[0].unit === "cosmere");
+  }
+
+  // 10. Session creation must fail loudly instead of silently persisting an
+  //     empty roster, which would leave Player View with no discovery sources.
+  {
+    const none = makeSandbox(STARTER_KITS, { loadParty: () => Promise.resolve([]) }, null, []);
+    await none.loadLiveStats();
+    let emptyError = "";
+    try { none.requireForgePartyRows(); } catch (e) { emptyError = e.message; }
+    ok("session party gate refuses no explicit selection", emptyError.includes("Choose at least one"));
+
+    const missing = makeSandbox(STARTER_KITS, { loadParty: () => Promise.resolve([]) }, null, ["cosmere"]);
+    await missing.loadLiveStats();
+    let missingError = "";
+    try { missing.requireForgePartyRows(); } catch (e) { missingError = e.message; }
+    ok("session party gate refuses a selected sheet that did not load", missingError.includes("Party data is not ready"));
+  }
+
+  // 11. kitFor/liveStatsFor never mutate STARTER_KITS across every scenario above.
   const after = JSON.stringify(STARTER_KITS);
   ok("STARTER_KITS never mutated by liveStatsFor/kitFor", before === after);
 

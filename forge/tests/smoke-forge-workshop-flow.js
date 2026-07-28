@@ -25,6 +25,11 @@ has('id="forgeBtn">Generate map</button>', "Map replacement requires an explicit
 has('function markForgeBattlefieldPending(){WORKSHOP_MAP_DIRTY=true;', "Battlefield selections have an explicit pending state");
 has("markForgeBattlefieldPending();};});", "Generator sliders mark changes pending");
 notHas("if(mode==='tiers')rebuild();if(id==='foes'", "Generator sliders no longer silently rebuild the map");
+has("if(!F)throw new Error('Generate a battlefield before opening the table.');", "a table cannot be created before its battlefield exists");
+has("if(WORKSHOP_MAP_DIRTY)throw new Error('Generate the pending battlefield changes before opening the table.');", "a pending seed or recipe cannot be mislabeled as the saved snapshot");
+has("!savedMap.mapSnapshot.meta.renderField", "new tables require an exact render snapshot");
+has("This fight was saved without a party. Return to the Forge Workshop and create it again.", "legacy empty-party rows stop loudly before opening a blank Player View");
+has("const forgeAuthReady = sb.auth.getSession()", "party reads wait for persisted Supabase auth restoration");
 has("markForgeBattlefieldPending();setForgeWorkshopStep('battlefield');", "Temple shortcut selects the recipe without silently generating it");
 has('id="forgeDeploymentGate"', "Unsupported deployment remains visible with an explanation");
 has('if(!F||!TG){if(gate)gate.hidden=false;', "Placement waits only for a generated map and initialized geometry");

@@ -896,6 +896,64 @@ and doorway placement, repeated-click 90-degree rotation, and right-click
 removal with no new script error. Signed-in two-device publish, reconnect, and
 rewind proof remains open.
 
+### July 27 session-creation regression correction
+
+Baseline: clean `45cadea` on `main`, equal to `origin/main`. The intervening
+`c122ca5` live-battlefield-editing slice and its architecture replay/cache-stamp
+changes are dependencies. This correction owns only the Forge session-start
+seam, its focused smokes, stale cache-stamp expectations, and this handoff; it
+does not change the generator, discovery rules, character records, protocol,
+or architecture authority.
+
+The field report combined two session-creation failures into one visual symptom:
+
+- the standalone Forge declared character auth ready before Supabase had
+  restored the persisted token, so an RLS-protected party read could settle as
+  an empty success; the empty cache was then treated as permanent even after
+  the player explicitly selected visible character cards;
+- the map-first Workshop allowed **Roll Initiative / Save for later** while no
+  battlefield existed, or while a changed seed/recipe was still pending. That
+  could persist a recipe without the exact render snapshot or pair a new seed
+  label with the prior rendered field.
+
+An empty shared roster gives Player View no discovery sources. Discovery then
+correctly hides every unexplored terrain instance, but the decorative water
+plane is not terrain discovery geometry, so the result looks like a broken
+all-water world. The generator was not producing the same flooded map for
+different seeds.
+
+Production now waits for Supabase session restoration before the canonical
+character read, retries an empty/missing party cache when an explicit selection
+exists, and refuses to create a table unless every selected PC resolves to a
+live row. The table doors remain visibly gated until a battlefield has been
+generated and all pending seed/recipe changes have been applied. Session
+creation also requires the exact `mapSnapshot.meta.renderField` payload.
+Historical empty-party rows stop before rendering with a narrated instruction
+to recreate the fight instead of opening the blank Player View.
+
+Validation: the production module block passes Node's module syntax gate; every
+touched JavaScript file passes `node --check`; **77/77 Forge smoke scripts**
+pass. Focused results include **33/33** starter/party-cache checks, **30/30**
+Workshop-flow checks, **27/27** snapshot-authority checks, **10/10** party
+selection checks, and **54/54** discovery checks. The stale flora and runtime
+cache-stamp smoke expectations left by `c122ca5` were aligned with the current
+`architectureAvailable`, `forge-replay.js?v=fb19`, and
+`forge-board.js?v=fb11` authorities.
+
+Remaining field gate: on the signed-in working copy, select at least one party
+member, confirm the table doors say **Generate required**, generate two distinct
+seeds, and create one staged fight from each. Each row must retain the selected
+PCs and its own exact rendered layout; entering Player View must show terrain
+from a party sight source rather than the water-only failure. The in-app browser
+security policy blocked direct `file://` access during this correction, and the
+deployed site does not yet contain the candidate, so this gate is not claimed.
+
+After this correction began, `origin/main` advanced from `45cadea` to
+`227a91e`. The sole incoming change adds `bardic-host-clock-wave1.2.html`; it
+does not overlap the Forge-owned files above and is not a dependency of this
+candidate. The working branch remains at the inspected `45cadea` baseline; no
+pull, merge, commit, or push was performed.
+
 1. **Passed July 23.** The live selector showed only the five active
    player-folder characters; deleted, test, and out-of-folder rows were absent.
 2. **Passed July 23.** A strict subset produced matching summary, CR wallet, and

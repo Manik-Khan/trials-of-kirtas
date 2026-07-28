@@ -3354,9 +3354,11 @@ function refreshForgeWorkshopSummary(payload){
   if(map)map.textContent=forgeWorkshopMapName();
 }
 function refreshForgeBattlefieldState(){
-  var badge=document.getElementById('forgeBattlefieldBadge'),state=document.getElementById('forgeBattlefieldState');
-  if(badge)badge.textContent=WORKSHOP_MAP_DIRTY?'Changes pending':'Current';
-  if(state){state.classList.toggle('pending',WORKSHOP_MAP_DIRTY);state.textContent=WORKSHOP_MAP_DIRTY?'Your selections are pending. The current battlefield remains unchanged until you generate it.':forgeWorkshopMapName()+' is generated and ready. Encounter choices remain available if you replace it.';}
+  var badge=document.getElementById('forgeBattlefieldBadge'),state=document.getElementById('forgeBattlefieldState'),ready=!!F&&!WORKSHOP_MAP_DIRTY;
+  if(badge)badge.textContent=!F?'Generate required':WORKSHOP_MAP_DIRTY?'Changes pending':'Current';
+  if(state){state.classList.toggle('pending',!ready);state.textContent=!F?'No battlefield has been generated for this table yet. Choose a recipe and press Generate map.':WORKSHOP_MAP_DIRTY?'Your selections are pending. The current battlefield remains unchanged until you generate it.':forgeWorkshopMapName()+' is generated and ready. Encounter choices remain available if you replace it.';}
+  ['fbOpenTable','fbSaveLater'].forEach(function(id){var button=document.getElementById(id);if(button){button.disabled=!ready;button.title=ready?'':(!F?'Generate a battlefield before opening the table.':'Generate the pending battlefield changes before opening the table.');}});
+  var lifecycle=document.getElementById('fbLifecycleMsg');if(lifecycle){if(!ready){lifecycle.dataset.battlefieldGate='1';lifecycle.textContent=!F?'Generate a battlefield before opening or saving this table.':'Generate the pending battlefield changes before opening or saving this table.';}else if(lifecycle.dataset.battlefieldGate){delete lifecycle.dataset.battlefieldGate;lifecycle.textContent='';}}
   refreshForgeWorkshopSummary();
 }
 function markForgeBattlefieldPending(){WORKSHOP_MAP_DIRTY=true;refreshForgeBattlefieldState();}
@@ -3365,6 +3367,7 @@ function markForgeBattlefieldPending(){WORKSHOP_MAP_DIRTY=true;refreshForgeBattl
   var mode=document.getElementById('forgeProductMode');if(mode)mode.textContent=SESSION_ID?'Table':'Workshop';document.body.classList.toggle('forge-table-mode',!!SESSION_ID);if(SESSION_ID)setForgeWorkshopStep('advanced');
   var review=document.getElementById('forgeReviewOpen');if(review)review.onclick=function(){if(WORKSHOP_MAP_DIRTY)setForgeWorkshopStep('battlefield');else if(!deploymentReady())setForgeWorkshopStep('deployment');else setForgeWorkshopStep('encounter');};
   var temple=document.getElementById('forgeChooseTemple');if(temple)temple.onclick=function(){if(archetypeEl){archetypeEl.value='temple-terraces';paintArchetypeControl(archetypeEl.value,false);}markForgeBattlefieldPending();setForgeWorkshopStep('battlefield');};
+  refreshForgeBattlefieldState();
 })();
 /* biome picker — the look, not the geometry */
 function paintBiomeControl(key){document.querySelectorAll('#biomeChips .chip').forEach(function(x){x.classList.toggle('active',x.dataset.b===key);});var select=document.getElementById('biomeSelect');if(select&&select.value!==key)select.value=key;}
@@ -5158,6 +5161,20 @@ function forgePartyRows(){
     return !!live[key]&&keys.indexOf(key)===index;
   }).map(function(key){var c=live[key];return {unit:key,kind:'pc',sheet_ref:key,name:c.name||key};});
 }
+function missingForgePartyRows(){
+  var selected=Array.isArray(window.__fightRoster)?window.__fightRoster:[],present={};
+  forgePartyRows().forEach(function(row){present[row.sheet_ref||row.unit]=true;});
+  return selected.map(resolveLiveSheetRef).filter(function(key,index,keys){
+    return keys.indexOf(key)===index&&!present[key];
+  });
+}
+function requireForgePartyRows(){
+  var selected=Array.isArray(window.__fightRoster)?window.__fightRoster:[];
+  if(!selected.length)throw new Error('Choose at least one combat-ready character before opening the table.');
+  var missing=missingForgePartyRows();
+  if(missing.length)throw new Error('Party data is not ready for '+missing.join(', ')+'. Reload the party and try again.');
+  return forgePartyRows();
+}
 
 /* Phase 2e.1 field repair: GitHub file uploads do not execute the Phase 2b.1
    Node patcher. Detect an already-patched weapon-actions.js and otherwise
@@ -5272,7 +5289,10 @@ function repairDerivedKit(kit,structural){
 }
 
 function loadLiveStats(){
-  if (__derivedKits) return Promise.resolve(__derivedKits);
+  /* An auth-restoration race can return an empty RLS result without throwing.
+     Once the player has explicitly chosen a party, an empty/missing cache is
+     not a settled success: retry the canonical read before a table can open. */
+  if (__derivedKits && !missingForgePartyRows().length) return Promise.resolve(__derivedKits);
   if (__deriveLoading) return __deriveLoading;
   if (!window.CharacterData) { __derivedKits = {}; __liveStatsCache = {}; __livePartyRows=[]; __sheetRefAliases={}; return Promise.resolve(__derivedKits); }
   __deriveLoading = window.CharacterData.loadParty().then(function(party){
@@ -8144,8 +8164,11 @@ if (SESSION_ID) {
    share it, so "signed in" means the same thing everywhere on this page. */
 const sb = window.supabase.createClient(SUPA_URL, SUPA_KEY);
 // Forge is a standalone surface without nav.js, but CharacterData remains the
-// character authority in both local authoring and shared-session modes.
-window.__tok = window.__tok || { sb: sb, ready: Promise.resolve(true) };
+// character authority in both local authoring and shared-session modes. Wait
+// for Supabase to restore its persisted token before allowing RLS reads; an
+// immediate resolved promise can make a signed-in party look genuinely empty.
+const forgeAuthReady = sb.auth.getSession().then(function(){ return true; }, function(){ return true; });
+window.__tok = window.__tok || { sb: sb, ready: forgeAuthReady };
 let __pipe = null;
 /* Task 13: sheet mirror (FORGE_BOARD.md §5) — module-level (not bootSession-
    local) so both onEvent (inside bootSession) and syncRosterFacts/
@@ -8606,7 +8629,13 @@ function bindTestFightSetup(){
 async function openTable(uid,config){
   try {
     await loadLiveStats();
-    var savedMap=window.ForgeTestFight.attachToMap(__forgeSessionMap(),config),savedRoster=rosterWithEncounterRegions(rosterWithDeployment(buildRoster(),savedMap.deployment),savedMap.encounterRegions);
+    requireForgePartyRows();
+    if(!F)throw new Error('Generate a battlefield before opening the table.');
+    if(WORKSHOP_MAP_DIRTY)throw new Error('Generate the pending battlefield changes before opening the table.');
+    var savedMap=window.ForgeTestFight.attachToMap(__forgeSessionMap(),config);
+    if(!savedMap.mapSnapshot||!savedMap.mapSnapshot.meta||!savedMap.mapSnapshot.meta.renderField)
+      throw new Error('The generated battlefield is missing its exact render snapshot. Generate it again before opening the table.');
+    var savedRoster=rosterWithEncounterRegions(rosterWithDeployment(buildRoster(),savedMap.deployment),savedMap.encounterRegions);
     var ins = await sb.from('forge_sessions').insert({
       overseer: uid, map: savedMap, roster: savedRoster, controllers: {}, status: 'staging'
     }).select('id').single();
@@ -8773,6 +8802,8 @@ async function bootSession(sid){
   loadLiveStats();   // Task 16: kick off the live ac/speed/init read now (session mode only) — claimMode's init() and spawnFromState below await this same cached promise
   const { data: row, error } = await sb.from('forge_sessions').select('*').eq('id', sid).single();
   if (error || !row) throw new Error(error ? error.message : 'no such session');
+  if(!(row.roster||[]).some(function(r){return (r.kind||'pc')==='pc';}))
+    throw new Error('This fight was saved without a party. Return to the Forge Workshop and create it again.');
   /* Phase 2: mapSnapshot is authoritative whenever the key is present.
      Missing means a legacy recipe; malformed or mismatched means stop loudly. */
   mode='tiers';WATERLEVEL=0.6;
