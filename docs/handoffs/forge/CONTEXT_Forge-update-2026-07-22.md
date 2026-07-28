@@ -856,6 +856,38 @@ teleport/resistance, two-device replay, and reconnect remain field gates.
 
 ## Required field checklist
 
+### July 25 trust correction + live battlefield editing mock
+
+Baseline: clean `823f84d` on `main`, equal to `origin/main`. The character
+capability, Test Fight, reaction, and source-alignment commits since the
+recorded `79fd7f9` checkpoint were treated as dependencies; no other session
+owned or dirtied the touched files.
+
+The local production candidate now:
+
+- uses the shared `CharacterCombat` projection at fight start for both current
+  and maximum HP, including the live `combat.maxHp` spelling;
+- persists feed channel and `visibility:"staff"` in `forge-hud.js`'s feed
+  model so repainting cannot disclose an older tactic row; and
+- lets enemy groups inherit the encounter authority's waiting default. Authored
+  region maps use entry activation, ordinary maps use DM activation, and an
+  unchecked automation control records an explicit active-at-start override.
+
+M requested live staff obstacle editing. The required standalone mock is
+`_edits/mock-forge-live-battlefield-editing.html`. It keeps draft geometry
+staff-local, hides it in Player Preview, stores a normalized quarter-turn angle
+(`0/90/180/270`) on directional objects such as doorways, and publishes or removes the batch as one
+table update. Production integration remains gated on M's mock approval.
+When approved, the event must be reversible and rebuild movement, sight, and
+cover from the same record. Spell-created walls and illusions should later add
+source/duration/concentration/expiry metadata to that same seam.
+
+Validation: **180/180** focused known-answer checks, every touched JavaScript
+file passes `node --check`, the production inline scripts parse, and a real
+browser interaction round proved draft privacy, directional rotation, atomic
+publish, and removal.
+Signed-in and two-device proof remains open.
+
 1. **Passed July 23.** The live selector showed only the five active
    player-folder characters; deleted, test, and out-of-folder rows were absent.
 2. **Passed July 23.** A strict subset produced matching summary, CR wallet, and
@@ -940,7 +972,7 @@ M reviews, commits, and pushes. Codex does not push. Current slice stamps:
 `forge-discovery.js?v=fd7`, `forge-capabilities.js?v=fc2`,
 `forge-capability-resolver.js?v=fcrs1`, `forge-kit-derive.js?v=b16`,
 `forge-foe-ai.js?v=fai3`, `forge-feed-render.js?v=ffr6`,
-`forge-hud.js?v=b6`, `forge-test-fight.js?v=tf1`, and
+`forge-hud.js?v=b7`, `forge-test-fight.js?v=tf1`, and
 `monster-actor.js?v=ma2`. Encounter activation adds
 `forge-encounter-regions.js?v=fer1` and bumps `forge-protocol.js?v=fpr2`,
 `forge-replay.js?v=fb18`, `forge-effects.js?v=fe7`,

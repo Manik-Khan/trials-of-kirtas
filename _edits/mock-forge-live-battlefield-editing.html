@@ -1,0 +1,184 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Forge — Live Battlefield Editing Mock</title>
+<style>
+  :root{--ink:#eee7d8;--muted:#a39a88;--panel:#171715;--panel2:#211f1a;--line:#4a4233;--gold:#d3a63b;--teal:#5ba89d;--red:#b65445;--stone:#756b59;--floor:#594d3c}
+  *{box-sizing:border-box} html,body{margin:0;min-height:100%;background:#101714;color:var(--ink);font-family:Inter,ui-sans-serif,system-ui,sans-serif}
+  button,select,input{font:inherit}
+  button{color:inherit}
+  .app{min-height:100vh;background:radial-gradient(circle at 32% 20%,#30483e 0,#172721 34%,#0d1512 75%)}
+  .topbar{height:62px;display:flex;align-items:center;gap:18px;padding:0 22px;background:rgba(13,14,12,.94);border-bottom:1px solid #413b2f;position:relative;z-index:4}
+  .brand{font-family:Georgia,serif;letter-spacing:.18em;font-size:14px;color:#e1c16e}.brand b{font-size:20px;margin-right:10px}
+  .live{font-size:10px;text-transform:uppercase;letter-spacing:.14em;color:#d1c7b3;border-left:1px solid #514a3c;padding-left:18px}.live i{display:inline-block;width:7px;height:7px;border-radius:50%;background:#69bb78;margin-right:7px;box-shadow:0 0 9px #69bb78}
+  .turn{font-size:12px;color:var(--muted)}
+  .viewToggle{margin-left:auto;display:flex;border:1px solid #4f4636}.viewToggle button{border:0;background:#171713;padding:9px 13px;font-size:11px;text-transform:uppercase;letter-spacing:.08em}.viewToggle button.on{background:#d0aa52;color:#18140b}
+  .editToggle{border:1px solid #9c7b32;background:#221d12;padding:9px 14px;text-transform:uppercase;letter-spacing:.09em;font-size:11px}.editToggle.on{background:#d0aa52;color:#18140b}
+  .workspace{height:calc(100vh - 62px);display:grid;grid-template-columns:minmax(0,1fr) 348px}
+  .stage{position:relative;overflow:hidden;display:grid;place-items:center;padding:34px}
+  .stage:before{content:"";position:absolute;inset:0;background:linear-gradient(115deg,transparent 0 54%,rgba(72,132,115,.09) 54% 100%),radial-gradient(circle at 50% 55%,transparent 0 34%,rgba(0,0,0,.35) 88%);pointer-events:none}
+  .mapWrap{position:relative;z-index:1;padding:26px;background:#322a20;border:1px solid #77674c;box-shadow:0 30px 70px #0009,0 0 0 9px #1a1814}
+  .map{display:grid;grid-template-columns:repeat(15,48px);grid-template-rows:repeat(10,48px);background:#1b211c;border:1px solid #171b17;transform:rotateX(4deg) rotateZ(-1deg)}
+  .cell{position:relative;background:linear-gradient(135deg,#605342,#4d4234);border:1px solid rgba(195,167,113,.18);cursor:default;user-select:none}
+  .cell.alt{background:linear-gradient(135deg,#695a47,#534535)}
+  .cell.void{background:#16231f;border-color:#16231f;box-shadow:inset 0 0 24px #09100e;pointer-events:none}
+  .cell.seeded:before{content:"";position:absolute;inset:5px;background:#756c5d;border:1px solid #9a8e78;box-shadow:inset 0 -9px #5f574b,0 8px 10px #0007}
+  .edit .cell:not(.void){cursor:crosshair}.edit .cell:not(.void):hover{outline:2px solid #f2ca63;outline-offset:-3px;z-index:2}
+  .obj{position:absolute;inset:7px;z-index:2;display:grid;place-items:center;font-size:9px;font-weight:800;letter-spacing:.05em;text-transform:uppercase;color:#e7dec9;text-shadow:0 1px 2px #000}
+  .obj.wall{inset:4px;background:linear-gradient(90deg,#877961,#615745);border:1px solid #ac9a79;box-shadow:inset 0 -10px #564d3f,0 7px 9px #0008}
+  .obj.low{inset:14px 3px;background:#8b7a5d;border:1px solid #b7a581;box-shadow:0 4px 6px #0007}
+  .obj.block{inset:9px;background:#8a6a42;border:1px solid #c19a63;box-shadow:inset -7px -7px #6d5134,0 6px 8px #0008}
+  .obj.gate{inset:4px 15px;border-left:4px solid #9b8767;border-right:4px solid #9b8767;border-top:5px solid #b19c79;transform-origin:center}
+  .obj.gate.ew{transform:rotate(90deg)}
+  .obj.draft{opacity:.56;filter:saturate(.45);outline:2px dashed #efc862;outline-offset:2px}.obj.draft:after{content:"DRAFT";position:absolute;top:-16px;font-size:7px;color:#f4d779;background:#2c2415;padding:2px 4px}
+  .obj.remove{background:repeating-linear-gradient(135deg,transparent 0 6px,#b95b4eaa 6px 9px);border:2px solid #dc7567}.obj.remove:after{content:"REMOVE";font-size:8px;background:#4d1f1b;padding:2px 4px}
+  .token{position:absolute;z-index:3;width:34px;height:34px;border-radius:50%;left:7px;top:7px;display:grid;place-items:center;border:3px solid #d6b75b;background:#2e594f;box-shadow:0 5px 9px #0008;font-family:Georgia,serif;font-weight:800}
+  .token.foe{border-color:#a94f42;background:#5a2824}.token.active{box-shadow:0 0 0 3px #f3da8b,0 5px 10px #000}
+  .draftBadge{position:absolute;left:26px;top:22px;z-index:2;background:#17150f;border:1px solid #a9873c;color:#e9d29b;padding:8px 11px;font-size:11px;letter-spacing:.05em;display:none}.edit .draftBadge{display:block}
+  .toast{position:absolute;left:50%;bottom:24px;transform:translateX(-50%);z-index:4;background:#171713;border:1px solid #66583d;padding:11px 15px;font-size:12px;box-shadow:0 8px 26px #0008;opacity:0;transition:.18s;pointer-events:none}.toast.show{opacity:1}
+  .tray{background:rgba(20,19,16,.97);border-left:1px solid #4f4636;overflow:auto;position:relative;z-index:3}
+  .trayHead{padding:21px 20px 16px;border-bottom:1px solid #3d382f}.eyebrow{font-size:9px;letter-spacing:.19em;text-transform:uppercase;color:#c79a39}.trayHead h1{font:22px/1.1 Georgia,serif;margin:6px 0}.trayHead p{margin:0;color:var(--muted);font-size:12px;line-height:1.45}
+  .section{padding:16px 20px;border-bottom:1px solid #39342b}.sectionTitle{display:flex;justify-content:space-between;align-items:center;margin-bottom:10px;font-size:10px;text-transform:uppercase;letter-spacing:.13em;color:#cfc3ad}.safe{color:#68b48b;font-size:9px}
+  .source{display:grid;grid-template-columns:1fr 1fr;gap:7px}.source button,.tool{border:1px solid #4e473a;background:#211f1a;padding:9px 8px;text-align:left}.source button{font-size:10px;text-align:center}.source button.on,.tool.on{border-color:#d2aa4e;background:#322914;color:#f1d890}
+  .tools{display:grid;grid-template-columns:1fr 1fr;gap:8px}.tool{min-height:61px;cursor:pointer}.tool b{display:block;font-family:Georgia,serif;font-size:13px}.tool span{display:block;color:#948b7c;font-size:9px;margin-top:4px;line-height:1.25}.tool.erase{border-color:#684039}.tool.erase.on{background:#3c211e;border-color:#c96c5d;color:#f2b3a8}
+  .facing{display:none;margin-top:10px;border:1px solid #574d3a;background:#1c1a16;padding:10px}.facing.show{display:block}.facingRead{display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;font-size:10px;color:#bdb29e}.facingRead b{color:#e5ce91}.rotate{display:grid;grid-template-columns:1fr 1fr;gap:7px}.rotate button{border:1px solid #65573d;background:#2b261d;padding:8px;font-size:10px;text-transform:uppercase;letter-spacing:.06em;cursor:pointer}.rotate button:hover{border-color:#d4ad52;color:#f0d68f}
+  .legend{display:grid;gap:8px}.legend div{display:grid;grid-template-columns:16px 1fr;gap:8px;align-items:start;font-size:10px;color:#aaa190;line-height:1.35}.legend i{width:14px;height:14px;border:1px solid #b6a47c;background:#716550}.legend i.cover{height:6px;margin-top:4px}.legend i.gate{background:transparent;border-width:0 3px 3px}
+  .draftList{display:grid;gap:6px;min-height:46px}.empty{font-size:11px;color:#7f776b;font-style:italic}.change{display:flex;justify-content:space-between;gap:8px;font-size:10px;background:#25221c;border-left:2px solid #d2aa4e;padding:7px 8px}.change button{border:0;background:transparent;color:#c97869;padding:0;cursor:pointer}
+  .publish{position:sticky;bottom:0;padding:14px 20px 20px;background:linear-gradient(transparent,#141310 22%);display:grid;grid-template-columns:1fr auto;gap:8px}.publish button{border:1px solid #554b38;background:#201d16;padding:11px 12px;text-transform:uppercase;font-size:10px;letter-spacing:.09em;cursor:pointer}.publish .primary{background:#cba447;color:#18130a;border-color:#e2c06c;font-weight:800}.publish button:disabled{opacity:.35;cursor:not-allowed}
+  .playerNote{display:none;margin:22px;padding:18px;border:1px solid #554b38;background:#211f1a;color:#b7ae9f;font-size:12px;line-height:1.5}.player .tray>*{display:none}.player .tray .playerNote{display:block}.player .editToggle{display:none}.player .draft{display:none}.player .draftBadge{display:none}
+  .rule{font-size:10px;color:#a99e8b;line-height:1.5}.rule b{color:#dbc276}
+  @media(max-width:1100px){.map{grid-template-columns:repeat(15,38px);grid-template-rows:repeat(10,38px)}.token{width:28px;height:28px;left:5px;top:5px}.workspace{grid-template-columns:minmax(0,1fr) 320px}}
+</style>
+</head>
+<body>
+<main class="app" id="app">
+  <header class="topbar">
+    <div class="brand"><b>✦</b> THE FORGE</div>
+    <div class="live"><i></i>Live table</div>
+    <div class="turn">Round 3 · Vesperian Vale</div>
+    <div class="viewToggle"><button class="on" data-view="staff">Staff view</button><button data-view="player">Player preview</button></div>
+    <button class="editToggle on" id="editToggle">Finish editing</button>
+  </header>
+  <div class="workspace">
+    <section class="stage edit" id="stage">
+      <div class="draftBadge" id="draftBadge">STAFF DRAFT · Players still see the published battlefield</div>
+      <div class="mapWrap"><div class="map" id="map" aria-label="Battlefield editing mock"></div></div>
+      <div class="toast" id="toast"></div>
+    </section>
+    <aside class="tray">
+      <div class="playerNote"><b>Player preview</b><br><br>The editing tray and every unpublished change are staff-only. Published obstacles remain visible whenever the room itself is visible.</div>
+      <div class="trayHead">
+        <div class="eyebrow">Staff tool · Live combat</div>
+        <h1>Edit battlefield</h1>
+        <p>Draft obstacles without interrupting the turn. Publish once to update movement, sight, and cover for the whole table.</p>
+      </div>
+      <div class="section">
+        <div class="sectionTitle">Change source <span class="safe">STAFF ONLY</span></div>
+        <div class="source"><button class="on">Scene edit</button><button title="The same geometry event will later be authored by spells and features.">Spell / feature ↗</button></div>
+      </div>
+      <div class="section">
+        <div class="sectionTitle">Place or remove</div>
+        <div class="tools">
+          <button class="tool on" data-tool="block"><b>Obstacle</b><span>5-ft crate · blocks movement · half cover</span></button>
+          <button class="tool" data-tool="wall"><b>Stone wall</b><span>10-ft high · blocks movement and sight</span></button>
+          <button class="tool" data-tool="low"><b>Low wall</b><span>5-ft high · cover without hiding the room</span></button>
+          <button class="tool" data-tool="gate"><b>Doorway</b><span>Passable opening through an authored wall</span></button>
+          <button class="tool erase" data-tool="erase"><b>Remove</b><span>Erase a staff-authored obstacle</span></button>
+        </div>
+        <div class="facing" id="facingPanel">
+          <div class="facingRead"><span>Doorway orientation</span><b id="facingLabel">North–South opening</b></div>
+          <div class="rotate"><button data-rotate="-1">↶ Rotate left</button><button data-rotate="1">Rotate right ↷</button></div>
+        </div>
+      </div>
+      <div class="section">
+        <div class="sectionTitle">Rules preview</div>
+        <div class="legend">
+          <div><i></i><span><b>Solid geometry</b><br>Movement and line of sight recalculate when published.</span></div>
+          <div><i class="cover"></i><span><b>Low geometry</b><br>Cover changes immediately; elevation still decides sight.</span></div>
+          <div><i class="gate"></i><span><b>Open geometry</b><br>Passable and visible, but remains part of the authored scene.</span></div>
+        </div>
+      </div>
+      <div class="section">
+        <div class="sectionTitle">Draft changes <span id="draftCount">0</span></div>
+        <div class="draftList" id="draftList"><div class="empty">Choose a tool, then click an open square.</div></div>
+      </div>
+      <div class="section rule"><b>Atomic table update.</b> Players never see a wall one square at a time. Publishing records one reversible battlefield event with the author, source, affected cells, and resulting geometry fingerprint.</div>
+      <div class="publish"><button id="discard" disabled>Discard</button><button class="primary" id="publish" disabled>Publish 0 changes</button></div>
+    </aside>
+  </div>
+</main>
+<script>
+(function(){
+  var cols=15,rows=10,tool="block",rotation=0,editing=true,draft={},published={
+    "8,3":{kind:"wall"},"8,4":{kind:"wall"},"8,5":{kind:"gate",rotation:0},"8,6":{kind:"wall"},"4,6":{kind:"block"}
+  };
+  var tokens={"5,4":["C","pc"],"6,5":["V","pc active"],"10,4":["g","foe"],"11,6":["g","foe"]};
+  var voids=new Set(["0,0","1,0","2,0","12,0","13,0","14,0","0,1","1,1","13,1","14,1","0,8","0,9","1,9","13,9","14,9"]);
+  var seeded=new Set(["3,2","4,2","5,2","9,7","10,7","11,7"]);
+  var names={block:"Obstacle",wall:"Stone wall",low:"Low wall",gate:"Doorway",erase:"Remove"};
+  var app=document.getElementById("app"),stage=document.getElementById("stage"),map=document.getElementById("map"),toast=document.getElementById("toast");
+  function key(c,r){return c+","+r}
+  function recordKind(value){return value&&value.kind||value}
+  function recordRotation(value){var n=Number(value&&value.rotation)||0;return((n%360)+360)%360}
+  function rotationAxis(value){return recordRotation(value)%180===90?"ew":"ns"}
+  function rotationLabel(value){var n=recordRotation(value);return n+"° · "+(n%180===90?"East–West opening":"North–South opening")}
+  function showToast(text){toast.textContent=text;toast.classList.add("show");clearTimeout(showToast.t);showToast.t=setTimeout(function(){toast.classList.remove("show")},1800)}
+  function draftKeys(){return Object.keys(draft)}
+  function paint(){
+    map.innerHTML="";
+    for(var r=0;r<rows;r++)for(var c=0;c<cols;c++){
+      var k=key(c,r),cell=document.createElement("div");cell.className="cell"+((c+r)%3===0?" alt":"")+(voids.has(k)?" void":"")+(seeded.has(k)?" seeded":"");cell.dataset.key=k;
+      var kind=recordKind(published[k]);if(kind){var obj=document.createElement("div");obj.className="obj "+kind+(kind==="gate"?" "+rotationAxis(published[k]):"");obj.textContent=kind==="block"?"crate":"";cell.appendChild(obj)}
+      if(draft[k]){
+        var draftKind=recordKind(draft[k]),d=document.createElement("div");d.className="obj "+(draftKind==="erase"?"remove":draftKind)+(draftKind==="gate"?" "+rotationAxis(draft[k]):"")+" draft";if(draftKind==="block")d.textContent="crate";cell.appendChild(d)
+      }
+      if(tokens[k]){var t=document.createElement("div");t.className="token "+tokens[k][1];t.textContent=tokens[k][0];cell.appendChild(t)}
+      if(!voids.has(k))cell.onclick=function(){editCell(this.dataset.key)};
+      map.appendChild(cell)
+    }
+    renderDraft()
+  }
+  function editCell(k){
+    if(!editing)return;
+    if(tokens[k]){showToast("Move the combatant before building on that square.");return}
+    if(seeded.has(k)){showToast("Seeded architecture is locked in live mode.");return}
+    if(tool==="erase"){
+      if(!published[k]&&recordKind(draft[k])!=="erase"){showToast("There is no staff-authored obstacle there.");return}
+      if(draft[k]&&recordKind(draft[k])!=="erase")delete draft[k];else draft[k]={kind:"erase"};
+    }else{
+      var next={kind:tool};if(tool==="gate")next.rotation=rotation;
+      if(tool==="gate"&&recordKind(draft[k])==="gate"){draft[k].rotation=(recordRotation(draft[k])+90)%360;}
+      else if(recordKind(draft[k])===tool)delete draft[k];
+      else draft[k]=next;
+    }
+    paint()
+  }
+  function renderDraft(){
+    var keys=draftKeys(),list=document.getElementById("draftList"),count=document.getElementById("draftCount"),publish=document.getElementById("publish"),discard=document.getElementById("discard");
+    count.textContent=keys.length;publish.textContent="Publish "+keys.length+" change"+(keys.length===1?"":"s");publish.disabled=!keys.length;discard.disabled=!keys.length;
+    list.innerHTML=keys.length?keys.map(function(k){var kind=recordKind(draft[k]),direction=kind==="gate"?" · "+rotationLabel(draft[k]):"";return '<div class="change"><span>'+names[kind]+direction+' · square '+k+'</span><button data-drop="'+k+'">×</button></div>'}).join(""):'<div class="empty">Choose a tool, then click an open square.</div>';
+    list.querySelectorAll("[data-drop]").forEach(function(b){b.onclick=function(){delete draft[b.dataset.drop];paint()}});
+  }
+  function renderFacing(){document.getElementById("facingPanel").classList.toggle("show",tool==="gate");document.getElementById("facingLabel").textContent=rotationLabel({rotation:rotation})}
+  function rotateFacing(step){rotation=(rotation+(Number(step)||1)*90+360)%360;renderFacing();showToast("Doorway rotated to "+rotationLabel({rotation:rotation})+".")}
+  document.querySelectorAll("[data-tool]").forEach(function(b){b.onclick=function(){tool=b.dataset.tool;document.querySelectorAll("[data-tool]").forEach(function(x){x.classList.toggle("on",x===b)});renderFacing()}});
+  document.querySelectorAll("[data-rotate]").forEach(function(b){b.onclick=function(){rotateFacing(b.dataset.rotate)}});
+  document.addEventListener("keydown",function(e){if(editing&&tool==="gate"&&String(e.key).toLowerCase()==="r")rotateFacing(1)});
+  document.getElementById("discard").onclick=function(){draft={};paint();showToast("Draft discarded. The table did not change.")};
+  document.getElementById("publish").onclick=function(){
+    var count=draftKeys().length;draftKeys().forEach(function(k){if(recordKind(draft[k])==="erase")delete published[k];else published[k]=Object.assign({},draft[k])});draft={};paint();showToast(count+" battlefield change"+(count===1?"":"s")+" published to the table.")
+  };
+  document.getElementById("editToggle").onclick=function(){
+    editing=!editing;stage.classList.toggle("edit",editing);this.classList.toggle("on",editing);this.textContent=editing?"Finish editing":"Edit battlefield"
+  };
+  document.querySelectorAll("[data-view]").forEach(function(b){b.onclick=function(){
+    var player=b.dataset.view==="player";app.classList.toggle("player",player);document.querySelectorAll("[data-view]").forEach(function(x){x.classList.toggle("on",x===b)});
+    if(player){stage.classList.remove("edit");showToast("Player preview: staff draft and tools are hidden.")}else stage.classList.toggle("edit",editing)
+  }});
+  renderFacing();paint()
+})();
+</script>
+</body>
+</html>

@@ -4,11 +4,12 @@ Custom D&D 5e virtual tabletop. Live: **trials-of-kirtas.netlify.app**
 Repo: `Manik-Khan/trials-of-kirtas` · vanilla JS/HTML/CSS + Supabase + Netlify + GitHub.
 Walled React/Vite/TipTap corner at `journal/`.
 
-Updated: **July 24, 2026 (Forge field-report correction, approved
+Updated: **July 25, 2026 (Forge field-report correction, approved
 reaction/cover integration, disposable Test Fight production candidate,
 shared character capability contract, and the first typed-defense/teleport
-resolver slice, plus character-
-sheet source, progression, and rail alignment).** Supersedes the earlier July 16 project handoff. The current Forge
+resolver slice, character-sheet source/progression alignment, and the first
+July 25 trust corrections plus staff live-battlefield-editing mock).**
+Supersedes the earlier July 16 project handoff. The current Forge
 execution state lives in `docs/handoffs/forge/`. Reconciled sources include
 `CONTEXT_Forge.md`, the July 22 handoff, `FORGE_PROTOCOL.md`, `FORGE_BOARD.md`,
 and `FORGE_COVER_CONTEST.md`.
@@ -22,6 +23,35 @@ decisions, and the open bugs. This doc is the project; that one is the subsystem
 deploy). Codex commits **only when M explicitly asks**, staging files by name, and **never
 pushes**. Otherwise Codex's job ends at validated files + a one-line deploy note.
 Cache-stamp every module include (`?v=`) — non-negotiable on iOS.
+
+---
+
+## 🟡 Forge July 25 trust correction + live editing mock
+
+The next local candidate fixes three field-trust failures without changing the
+event protocol:
+
+- fight start reads current and maximum HP from the shared `CharacterCombat`
+  projection, so a live `combat.maxHp` row cannot become `30 / 1`;
+- the HUD feed model retains channel and staff-only visibility metadata across
+  every repaint, so later public rows cannot make prior enemy reasoning visible
+  in Player View; and
+- enemy deployment groups now wait by default. Region maps use their authored
+  entry trigger; ordinary maps wait for DM activation. Explicitly disabling
+  automation remains an active-at-start override.
+
+M requested staff live battlefield editing. The required standalone mock is
+`_edits/mock-forge-live-battlefield-editing.html`; it is not production wiring
+yet. Staff drafts remain local, Player Preview hides them, directional objects
+carry an explicit orientation, and Publish applies one atomic battlefield
+change designed to be reversible in the protocol. That event shape is intended to
+become the shared seam for later spell-created geometry carrying source,
+duration, concentration, and expiry. M approval of the mock remains the gate
+before adapting the existing Temple architecture record and shared replay.
+
+Focused validation is **180/180** known answers plus real-browser mock rounds
+covering staff draft privacy, directional rotation, publish, and removal. Signed-in/two-device field
+proof remains required.
 
 ---
 

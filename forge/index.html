@@ -57,7 +57,7 @@
 <script src="forge-reaction-choices.js?v=frc1"></script>
 <script src="forge-damage-evidence.js?v=fde3"></script>
 <script src="forge-feed-render.js?v=ffr6"></script>
-<script src="forge-hud.js?v=b6"></script>
+<script src="forge-hud.js?v=b7"></script>
 <script src="forge-table-correctness.js?v=fg12"></script>
 <script src="../item-icons.js?v=b3"></script>
 <script src="../spell-icons.js?v=b3"></script>
@@ -3512,8 +3512,12 @@ function deploymentReady(){var draft=computeDeployment();return !!(draft&&draft.
 function currentDeploymentRecord(){
   if(!F)return null;var draft=computeDeployment();return draft?window.ForgeDeployment.deploymentRecord(DEPLOYMENT_GROUPS,draft):null;
 }
+function defaultEncounterRuleForGroup(group){
+  var hasRegions=!!(F&&F.intent&&Array.isArray(F.intent.regions)&&F.intent.regions.length);
+  return group&&group.role==="enemy"&&!hasRegions?{mode:"dm",triggerRegionId:null}:undefined;
+}
 function encounterRulesForDeployment(deployment){
-  var rules={};(deployment&&deployment.groups||[]).forEach(function(group){rules[group.id]=ENCOUNTER_REGION_RULES[group.id]||{mode:"active",triggerRegionId:null};});return rules;
+  var rules={};(deployment&&deployment.groups||[]).forEach(function(group){rules[group.id]=Object.prototype.hasOwnProperty.call(ENCOUNTER_REGION_RULES,group.id)?ENCOUNTER_REGION_RULES[group.id]:defaultEncounterRuleForGroup(group);});return rules;
 }
 function currentEncounterRegionRecord(deployment){
   if(!F||!window.ForgeEncounterRegions)return null;deployment=deployment||currentDeploymentRecord();
@@ -3553,7 +3557,8 @@ function encounterRegionOptions(selected){
   return (selected?'':'<option value="" selected disabled>Place flag first…</option>')+regions.map(function(region){var id=String(region.id||"");return '<option value="'+escapeHtml(id)+'"'+(id===selected?' selected':'')+'>'+escapeHtml(id.replace(/-/g,' '))+'</option>';}).join('');
 }
 function encounterRuleForGroup(group,homeRegionId){
-  return window.ForgeEncounterRegions.normalizeRule(ENCOUNTER_REGION_RULES[group.id]||{mode:"active"},group,homeRegionId);
+  var rule=Object.prototype.hasOwnProperty.call(ENCOUNTER_REGION_RULES,group.id)?ENCOUNTER_REGION_RULES[group.id]:defaultEncounterRuleForGroup(group);
+  return window.ForgeEncounterRegions.normalizeRule(rule,group,homeRegionId);
 }
 function renderDeploymentPanel(){
   var panel=document.getElementById("deploymentPanel"),gate=document.getElementById("forgeDeploymentGate"),authoring=document.getElementById("deploymentAuthoring"),badge=document.getElementById("forgeDeploymentBadge"),nav=document.getElementById("forgeDeploymentNavStatus");if(!panel)return;panel.style.display=!SESSION_ID?"block":"none";
@@ -3564,7 +3569,7 @@ function renderDeploymentPanel(){
   draft.plans.forEach(function(p){p.group.unitIds.forEach(function(unit){assigned[unit]=true;});if(p.ok)ready++;placed+=p.placedCount;total+=p.requestedCount;});
   document.getElementById("deploymentSummary").textContent=(draft.ok?"Deployment ready — ":"Deployment incomplete — ")+ready+" / "+draft.plans.length+" groups · "+placed+" / "+total+" combatants positioned.";
   if(badge)badge.textContent=draft.ok?"Ready to place":"Needs placement";if(nav)nav.textContent=draft.ok?draft.plans.length+" groups ready":draft.plans.length+" groups to place";
-  host.innerHTML=draft.plans.map(function(p){var g=p.group,region=p.regionId==="map"?"Nearby walkable ground":p.regionId||"No flag",focus=DEPLOYMENT_FOCUS===g.id,automated=Object.prototype.hasOwnProperty.call(ENCOUNTER_REGION_RULES,g.id),activation=encounterRuleForGroup(g,p.regionId==="map"?null:p.regionId),hasRegions=!!(F&&F.intent&&Array.isArray(F.intent.regions)&&F.intent.regions.length);
+  host.innerHTML=draft.plans.map(function(p){var g=p.group,region=p.regionId==="map"?"Nearby walkable ground":p.regionId||"No flag",focus=DEPLOYMENT_FOCUS===g.id,activation=encounterRuleForGroup(g,p.regionId==="map"?null:p.regionId),automated=activation.mode!=="active",hasRegions=!!(F&&F.intent&&Array.isArray(F.intent.regions)&&F.intent.regions.length);
     var units=g.unitIds.map(function(unit){var manual=g.manualPositions&&g.manualPositions[unit],name=deploymentUnitName(unit);return '<div class="deployMember"><button class="deployUnit'+(manual?' manual':'')+'" data-manual-unit="'+escapeHtml(unit)+'" data-gid="'+escapeHtml(g.id)+'" title="Pin this combatant on the map">'+escapeHtml(name)+(manual?' · pinned':'')+'</button><select data-deploy-membership="'+escapeHtml(unit)+'" aria-label="Group for '+escapeHtml(name)+'">'+deploymentMembershipOptions(g.id,false)+'</select></div>';}).join('');
     return '<div class="deployGroup'+(focus?' focus':'')+'" data-gid="'+g.id+'"><div class="deployHead"><input data-deploy-name="'+g.id+'" value="'+escapeHtml(g.label)+'"><span class="deployStatus'+(p.ok?' ready':'')+'">'+(p.ok?'ready':'unresolved')+'</span><button class="deployDelete" data-deploy-remove="'+g.id+'"'+(DEPLOYMENT_GROUPS.length>1?'':' disabled title="At least one deployment group is required"')+'>Delete</button></div>'
       +'<div class="deploySelects"><select data-deploy-role="'+g.id+'"><option value="party"'+(g.role==='party'?' selected':'')+'>Party</option><option value="ally"'+(g.role==='ally'?' selected':'')+'>Ally / NPC</option><option value="enemy"'+(g.role==='enemy'?' selected':'')+'>Enemy</option></select><select data-deploy-policy="'+g.id+'"><option value="unit-owners"'+(g.controllerPolicy==='unit-owners'?' selected':'')+'>Unit owners</option><option value="overseer"'+(g.controllerPolicy==='overseer'?' selected':'')+'>Overseer</option></select></div>'
@@ -3585,7 +3590,7 @@ function bindDeploymentPanel(){var host=document.getElementById("deploymentPanel
   host.querySelectorAll("[data-manual-unit]").forEach(function(b){b.onclick=function(){ARCHITECTURE_TOOL=null;renderArchitecturePanel();DEPLOYMENT_MANUAL={groupId:b.dataset.gid,unit:b.dataset.manualUnit};DEPLOYMENT_PLACE_GROUP=null;DEPLOYMENT_FOCUS=b.dataset.gid;deploymentSay("Click a legal cell to pin "+deploymentUnitName(b.dataset.manualUnit)+". The group flag stays put.");renderDeploymentPanel();};});
   host.querySelectorAll("[data-deploy-membership]").forEach(function(s){s.onchange=function(){var unit=s.dataset.deployMembership,target=s.value;DEPLOYMENT_GROUPS=window.ForgeDeployment.assignUnit(DEPLOYMENT_GROUPS,unit,target);if(target)DEPLOYMENT_FOCUS=target;deploymentSay(deploymentUnitName(unit)+(target?' assigned to '+deploymentGroup(target).label+'.':' is unassigned.'));renderDeploymentPanel();};});
   host.querySelectorAll("[data-deploy-role]").forEach(function(s){s.onchange=function(){deploymentGroup(s.dataset.deployRole).role=s.value;renderDeploymentPanel();};});host.querySelectorAll("[data-deploy-policy]").forEach(function(s){s.onchange=function(){deploymentGroup(s.dataset.deployPolicy).controllerPolicy=s.value;renderDeploymentPanel();};});
-  host.querySelectorAll("[data-activation-auto]").forEach(function(input){input.onchange=function(){var id=input.dataset.activationAuto,plan=(DEPLOYMENT_PLANS&&DEPLOYMENT_PLANS.plans||[]).filter(function(p){return p.group.id===id;})[0],hasRegions=!!(F&&F.intent&&Array.isArray(F.intent.regions)&&F.intent.regions.length);if(input.checked)ENCOUNTER_REGION_RULES[id]={mode:hasRegions?"enter":"dm",triggerRegionId:hasRegions&&plan&&plan.regionId!=="map"?plan.regionId:null};else delete ENCOUNTER_REGION_RULES[id];renderDeploymentPanel();};});
+  host.querySelectorAll("[data-activation-auto]").forEach(function(input){input.onchange=function(){var id=input.dataset.activationAuto,plan=(DEPLOYMENT_PLANS&&DEPLOYMENT_PLANS.plans||[]).filter(function(p){return p.group.id===id;})[0],hasRegions=!!(F&&F.intent&&Array.isArray(F.intent.regions)&&F.intent.regions.length);if(input.checked)ENCOUNTER_REGION_RULES[id]={mode:hasRegions?"enter":"dm",triggerRegionId:hasRegions&&plan&&plan.regionId!=="map"?plan.regionId:null};else ENCOUNTER_REGION_RULES[id]={mode:"active",triggerRegionId:null};renderDeploymentPanel();};});
   host.querySelectorAll("[data-activation-mode]").forEach(function(s){s.onchange=function(){var g=deploymentGroup(s.dataset.activationMode),plan=(DEPLOYMENT_PLANS&&DEPLOYMENT_PLANS.plans||[]).filter(function(p){return p.group.id===g.id;})[0];ENCOUNTER_REGION_RULES[g.id]={mode:s.value,triggerRegionId:s.value==='enter'&&plan?plan.regionId:null};renderDeploymentPanel();};});
   host.querySelectorAll("[data-activation-region]").forEach(function(s){s.onchange=function(){var id=s.dataset.activationRegion,rule=ENCOUNTER_REGION_RULES[id]||{};ENCOUNTER_REGION_RULES[id]={mode:'enter',triggerRegionId:s.value||rule.triggerRegionId||null};renderDeploymentPanel();};});
   host.querySelectorAll("[data-deploy-name]").forEach(function(i){i.onchange=function(){deploymentGroup(i.dataset.deployName).label=i.value||"Unnamed group";renderDeploymentPanel();};});
@@ -9468,9 +9473,9 @@ async function startFight(){
       }
       var liveKey=resolveLiveSheetRef(r.sheet_ref||r.unit),c=byKey[liveKey];
       if(c){
-        var cmb=(c.structural&&c.structural.combat)||{}, v=c.vitals||{};
-        r.hp=(v.hp!=null)?v.hp:(cmb.hp||0);
-        r.maxHp=(cmb.hpMax||0)+(v.hpBonus||0);
+        var liveCombat=window.CharacterCombat.derive(c);
+        r.hp=liveCombat.hp;
+        r.maxHp=liveCombat.maxHp;
       } else {
         var kit=CHAR[r.sheet_ref||r.unit];
         r.hp=kit?kit.hp:(r.hp||1); r.maxHp=kit?kit.hp:(r.maxHp||r.hp||1);

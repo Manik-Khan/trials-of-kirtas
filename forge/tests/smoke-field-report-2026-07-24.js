@@ -29,6 +29,14 @@ ok("approved War Caster and Repelling Blast choices are wired to production",
   html.includes("forge-reaction-choices.js?v=frc1"));
 ok("pillar cover footprint matches the rendered stone base",
   html.includes("column:{kind:'circle',radius:.40},pillar:{kind:'circle',radius:.40}"));
+ok("fight start reads both current and maximum HP from the shared live combat projection",
+  html.includes("var liveCombat=window.CharacterCombat.derive(c);")&&
+  html.includes("r.hp=liveCombat.hp;")&&html.includes("r.maxHp=liveCombat.maxHp;"));
+ok("enemy deployment groups inherit the encounter authority's waiting default",
+  html.includes('return group&&group.role==="enemy"&&!hasRegions?{mode:"dm",triggerRegionId:null}:undefined;')&&
+  html.includes("defaultEncounterRuleForGroup(group)")&&
+  html.includes("automated=activation.mode!==\"active\"")&&
+  html.includes('ENCOUNTER_REGION_RULES[id]={mode:"active",triggerRegionId:null}'));
 
 console.log("\n"+pass+" field-report checks green"+(fail?" · "+fail+" failed":""));
 process.exitCode=fail?1:0;

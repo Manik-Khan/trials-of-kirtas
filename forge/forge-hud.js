@@ -480,15 +480,24 @@ font-family:"Barlow Condensed",system-ui;font-size:12px;cursor:pointer;letter-sp
 
   // ── FEED ────────────────────────────────────────────────────────────
   var feedLog = [];
-  function addFeedRow(html) {
-    feedLog.unshift(html);
+  function addFeedRow(html, opts) {
+    opts = opts || {};
+    feedLog.unshift({
+      html: html,
+      channel: /^(table|system)$/.test(opts.channel) ? opts.channel : null,
+      visibility: opts.visibility === "staff" ? "staff" : null
+    });
     if (feedLog.length > 80) feedLog.pop();
     renderFeed();
   }
   function renderFeed() {
     var el = document.getElementById("fgFeedBody");
     if (!el) return;
-    el.innerHTML = feedLog.map(function (h) { return '<div class="fg-frow">' + h + '</div>'; }).join("");
+    el.innerHTML = feedLog.map(function (row) {
+      var attrs = (row.channel ? ' data-feed-channel="' + row.channel + '"' : "")
+        + (row.visibility ? ' data-feed-visibility="' + row.visibility + '"' : "");
+      return '<div class="fg-frow"' + attrs + '>' + row.html + '</div>';
+    }).join("");
   }
 
   // ── RESOURCES TAB (⬡) ───────────────────────────────────────────────

@@ -1,4 +1,4 @@
-# CONTEXT — Battle Forge — current authority through 2026-07-24
+# CONTEXT — Battle Forge — current authority through 2026-07-25
 
 > This doc exists because the same failure kept happening: a session would read
 > *part* of the material, conclude a feature "was never there," and rebuild
@@ -9,7 +9,7 @@
 
 ---
 
-## CURRENT AUTHORITY · 2026-07-24
+## CURRENT AUTHORITY · 2026-07-25
 
 Read `docs/handoffs/forge/CONTEXT_Forge-update-2026-07-22.md` before the
 historical sections below. It carries the intentional Temple Terraces preview,
@@ -78,6 +78,22 @@ optional cross-reality display metadata. Both fields are inert to
 new current level; an active encounter remains event-log authoritative. Facet
 restore, cross-campaign Lineage authoring, and mid-fight sheet import are not
 built.
+
+The July 25 local trust candidate starts from clean `823f84d`, equal to
+`origin/main`. Fight start now consumes `CharacterCombat` for both current and
+maximum HP; HUD feed entries retain channel/staff metadata in their durable
+model; and enemy flags default to waiting (region entry on authored maps, DM
+activation on ordinary maps) unless the author explicitly makes them active.
+
+M also requested live staff obstacle editing. The standalone, no-dependency
+approval artifact is `_edits/mock-forge-live-battlefield-editing.html`. It
+proves staff-local drafting, Player Preview privacy, directional-object
+rotation, atomic publish, and removal.
+Production live editing is deliberately not wired before mock approval. The
+approved direction should publish a reversible battlefield edit through replay
+and rebuild the canonical movement/sight/cover map together; future
+spell-created geometry uses the same event with source/duration/concentration
+metadata rather than a second decorative system.
 
 ---
 
