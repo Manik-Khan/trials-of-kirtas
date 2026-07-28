@@ -1930,7 +1930,7 @@ const waterMeshes=[];
    Authoring may temporarily inspect an exaggerated field, but combat/session
    play always returns to STEP=1 before any rules-facing view is shown. */
 const TACTICAL_STEP=1;
-let STEP=TACTICAL_STEP, WATERLEVEL=0.6, mode='traced';
+let STEP=TACTICAL_STEP, WATERLEVEL=0.6, mode='tiers';
 const T_WATER=0,T_GRASS=1,T_STONE=2,T_PLAZA=3,T_ROCK=4;
 /* ── OCCLUDER HEIGHTS (feet, above the cell's terrain tier) ──────────────
    Mirrors forge/map-bridge.js. Sight is decided by (tier×5 + occ) against
@@ -3382,7 +3382,7 @@ const MODES=[['traced','Traced art'],['tiers','Generated tiers'],['flat','Flat (
 const chipsEl=document.getElementById('chips');
 function setActiveChip(k){document.querySelectorAll('.chip').forEach(c=>c.classList.toggle('active',c.dataset.k===k));}
 function setImgOnly(on){document.querySelectorAll('.imgonly').forEach(e=>e.classList.toggle('on',on));}
-MODES.forEach(([k,label])=>{const el=document.createElement('button');el.className='chip'+(k==='traced'?' active':'')+(k==='image'?' disabled':'');el.dataset.k=k;
+MODES.forEach(([k,label])=>{const el=document.createElement('button');el.className='chip'+(k==='tiers'?' active':'')+(k==='image'?' disabled':'');el.dataset.k=k;
   el.textContent=label;el.style.opacity=(k==='image')?'0.4':'';
   el.onclick=()=>{ if(k==='image'&&!imgHeight)return;
     // Bite-1 fix (2026-07-11): mode chips call rebuild() — a player tap used to
@@ -4098,7 +4098,7 @@ FORGE_RENDER_SCHEDULER=RENDER_POWER.createScheduler({
 });
 document.addEventListener('visibilitychange',function(){FORGE_RENDER_SCHEDULER.setPaused(document.hidden);});
 window.__forgeRenderPower={get profile(){return RENDER_PROFILE;},get settings(){return Object.assign({},RENDER_SETTINGS);},state:function(){return FORGE_RENDER_SCHEDULER.state();},setProfile:applyRenderQuality,request:requestForgeRender};
-document.getElementById('seedGroup').style.opacity='0.35';
+document.getElementById('seedGroup').style.opacity='1';
 resize(); rebuild(); fetchLibrary(); requestForgeRender();
 /* vesApply() boots at the END of this module — its VES/VES_MODES vars are
    declared far below, and a call from here would read them pre-assignment. */

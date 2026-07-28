@@ -390,11 +390,11 @@ or combat authorities. The pre-session panel is organized as **Encounter →
 Battlefield → Deployment → Advanced**, with a persistent party/enemy/threat/map
 summary.
 
-Encounter Read, creature suggestions, and the full Bestiary are available on the
-ordinary traced/legacy Workshop before a generated map exists. Battlefield recipe
-changes now become visibly pending; biome, archetype, rooms, loops, decor, and seed
-do not replace the current field until **Generate battlefield** is pressed. The base
-foe count remains an encounter edit and recalculates immediately.
+Encounter Read, creature suggestions, and the full Bestiary are available before a
+replacement map is generated. Battlefield recipe changes now become visibly pending;
+biome, archetype, rooms, loops, decor, and seed do not replace the current field until
+**Generate map** is pressed. The base foe count remains an encounter edit and
+recalculates immediately.
 
 Deployment no longer disappears on an unsupported field. It explains that the
 current map lacks authored regions and offers a Temple Terraces shortcut which
@@ -407,11 +407,25 @@ settings path.
 Validation is **20/20** for the new workflow contract and **30/30** for the
 updated unified-panel contract. The focused Workshop/generator/deployment matrix
 is **326/326** green; the four canonical engine/geometry/cover/flora suites add
-**116/116**. The real browser pass covered ordinary traced Encounter Read,
+**116/116**. The real browser pass covered the initial Encounter Read,
 pending Temple selection without map replacement, explicit Temple generation,
 Temple deployment reveal, unsupported-map deployment narration, the Temple
 shortcut, collapsed Advanced tools, and the 390px layout with no new console
 error.
+
+## Generated-field startup correction · 2026-07-28
+
+The live `/forge/` and `/forge/index.html` routes were correctly serving the same
+document, and party confirmation correctly restored all five selected heroes. The
+remaining “broken world” report was the startup height source: production still
+booted `mode='traced'`, immediately rebuilt the Chen Yue reference prototype, and
+then mislabeled that submerged experimental field as the current generated map.
+
+The Forge now boots the existing generated-tiers path with seed controls active.
+The Chen Yue traced art remains available among the existing experimental height
+sources; it is no longer the battlefield a normal Workshop or new table inherits.
+Changing a recipe still marks it pending, and **Generate map** still performs the
+explicit replacement.
 
 ## Map-first encounter and placement correction · 2026-07-22
 

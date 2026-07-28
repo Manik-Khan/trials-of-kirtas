@@ -22,6 +22,9 @@ has('window.loadLiveStats().then(function(){if(window.__applyForgePartySelection
 notHas('if(window.__enterForge) window.__enterForge();', "party confirmation no longer enters the old empty-map preview path");
 has('id="biomeSelect"', "Battlefield uses one compact biome selector");
 has('id="forgeBtn">Generate map</button>', "Map replacement requires an explicit generation action");
+has("let STEP=TACTICAL_STEP, WATERLEVEL=0.6, mode='tiers';", "Forge boots on a generated battlefield rather than the submerged traced prototype");
+has("el.className='chip'+(k==='tiers'?' active':'')", "Generated tiers is the active startup height source");
+has("document.getElementById('seedGroup').style.opacity='1';\nresize(); rebuild();", "Generated startup exposes its seed before the first rebuild");
 has('function markForgeBattlefieldPending(){WORKSHOP_MAP_DIRTY=true;', "Battlefield selections have an explicit pending state");
 has("markForgeBattlefieldPending();};});", "Generator sliders mark changes pending");
 notHas("if(mode==='tiers')rebuild();if(id==='foes'", "Generator sliders no longer silently rebuild the map");
