@@ -136,6 +136,12 @@ const ROSTER = [
   await dmP.edit([{ unit: "goblin1", hp: 7, pos: { c: 5, r: 5 } }]);
   ok("GOD MODE edit lands everywhere", aliceP.state().units.goblin1.hp === 7 &&
     bobP.state().units.goblin1.pos.c === 5);
+  const sharedArchitecture = { schema: "forge-architecture", version: 3, fog: "region-grey",
+    blocks: [{ c: 4, r: 5, kind: "parapet", rotation: 90 }] };
+  await dmP.edit([{ architecture_state: { record: sharedArchitecture } }]);
+  ok("battlefield architecture lands identically on every connected replay",
+    JSON.stringify(dmP.state().architectureRecord) === JSON.stringify(aliceP.state().architectureRecord) &&
+    JSON.stringify(dmP.state().architectureRecord) === JSON.stringify(bobP.state().architectureRecord));
   await dmP.override(dmP.events().find(e => e.kind === "attack_resolved").seq,
     { hit: true, dmg: 1 });
   ok("override triggers a rebuild with the correction",

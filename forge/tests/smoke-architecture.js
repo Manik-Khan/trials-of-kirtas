@@ -22,7 +22,17 @@ const map = {
   ], meta: { intent }
 };
 
-ok('architecture version is pinned', A.VERSION === 2 && A.SCHEMA === 'forge-architecture');
+ok('architecture version is pinned', A.VERSION === 3 && A.SCHEMA === 'forge-architecture');
+const rotated = A.record([
+  { c: 1, r: 1, kind: 'parapet', rotation: 90 },
+  { c: 2, r: 1, kind: 'gate', rotation: 450 },
+  { c: 3, r: 1, kind: 'wall', rotation: 90 }
+]);
+ok('low walls and gates retain quarter-turn rotation while square walls ignore it',
+  rotated.blocks[0].rotation === 90 && rotated.blocks[1].rotation === 90 && rotated.blocks[2].rotation == null);
+ok('directional axes are explicit and stable', A.axisFor(rotated.blocks[0]) === 'x' && A.axisFor({ c: 1, r: 1, kind: 'parapet', rotation: 180 }) === 'z');
+const legacyRotation = A.normalizeRecord({ schema: A.SCHEMA, version: 2, fog: 'region-grey', blocks: [{ c: 4, r: 4, kind: 'gate' }] });
+ok('version-two maps remain readable without inventing a gate direction', legacyRotation.blocks.length === 1 && legacyRotation.blocks[0].rotation == null);
 ok('version-1 records migrate without losing blocks', A.normalizeRecord({ schema: A.SCHEMA, version: 1, blocks: [{ c: 1, r: 1, kind: 'wall' }] }).blocks.length === 1);
 ok('invalid blocks are discarded', A.record([{ c: 1, r: 1, kind: 'dragon' }]).blocks.length === 0);
 ok('last edit owns a cell', A.record([{ c: 1, r: 1, kind: 'wall' }, { c: 1, r: 1, kind: 'gate' }]).blocks[0].kind === 'gate');
@@ -38,6 +48,10 @@ ok('wall cover shape is explicit', wallMap.coverShape[4].source === 'authored-wa
 const parapetMap = A.apply(map, A.record([{ c: 1, r: 1, kind: 'parapet' }]));
 ok('parapet blocks its cell', parapetMap.wall[4] === true);
 ok('parapet owns 5 feet of occlusion', parapetMap.occ[4] === 5);
+const parapetEW = A.apply(map, A.record([{ c: 1, r: 1, kind: 'parapet', rotation: 90 }])).coverShape[4];
+const parapetNS = A.apply(map, A.record([{ c: 1, r: 1, kind: 'parapet', rotation: 0 }])).coverShape[4];
+ok('rotated low-wall cover uses its narrow east-west footprint', parapetEW.kind === 'box' && parapetEW.halfX > parapetEW.halfY);
+ok('north-south low-wall cover rotates the same footprint', parapetNS.kind === 'box' && parapetNS.halfY > parapetNS.halfX);
 const gateMap = A.apply(wallMap, A.record([{ c: 1, r: 1, kind: 'gate' }]));
 ok('gate is passable', gateMap.wall[4] === false);
 ok('gate does not occlude sight', gateMap.occ[4] === 0 && gateMap.coverShape[4] === null);

@@ -1,4 +1,4 @@
-# CONTEXT — Battle Forge — current authority through 2026-07-25
+# CONTEXT — Battle Forge — current authority through 2026-07-27
 
 > This doc exists because the same failure kept happening: a session would read
 > *part* of the material, conclude a feature "was never there," and rebuild
@@ -9,7 +9,7 @@
 
 ---
 
-## CURRENT AUTHORITY · 2026-07-25
+## CURRENT AUTHORITY · 2026-07-27
 
 Read `docs/handoffs/forge/CONTEXT_Forge-update-2026-07-22.md` before the
 historical sections below. It carries the intentional Temple Terraces preview,
@@ -85,15 +85,22 @@ maximum HP; HUD feed entries retain channel/staff metadata in their durable
 model; and enemy flags default to waiting (region entry on authored maps, DM
 activation on ordinary maps) unless the author explicitly makes them active.
 
-M also requested live staff obstacle editing. The standalone, no-dependency
-approval artifact is `_edits/mock-forge-live-battlefield-editing.html`. It
-proves staff-local drafting, Player Preview privacy, directional-object
-rotation, atomic publish, and removal.
-Production live editing is deliberately not wired before mock approval. The
-approved direction should publish a reversible battlefield edit through replay
-and rebuild the canonical movement/sight/cover map together; future
+M approved the standalone artifact
+`_edits/mock-forge-live-battlefield-editing.html`, and that contract is now a
+production candidate. The overseer opens **Edit battlefield**, drafts locally,
+rotates doorways/low walls by repeated left-click, removes authored objects by
+right-click, and publishes the whole normalized record as one
+`edit.architecture_state` replay fact. A rotated low-wall anchor exposes only
+the matching mass-build axis. The echoed fact rebuilds the canonical
+rendering/movement/sight/cover map together on every client; reconnect and
+rewind read the same replay state. Future
 spell-created geometry uses the same event with source/duration/concentration
 metadata rather than a second decorative system.
+
+Local production validation is **333/333** focused checks. The actual Forge
+Temple canvas passed low-wall and doorway placement, 90-degree repeated-click
+rotation, and right-click removal with no new runtime error. Signed-in
+two-device publish/reconnect/rewind remains the field gate.
 
 ---
 

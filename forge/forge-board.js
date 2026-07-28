@@ -57,6 +57,10 @@
     effects.some(function(e){if(e&&e.teleport&&e.teleport.to){hit=e;return true;}return false;});
     return hit?{t:"teleport",unit:hit.unit,to:hit.teleport.to,source:hit.teleport.source||"teleport"}:null;
   }
+  function architectureVerb(before, after) {
+    var a = before && before.architectureRecord, b = after && after.architectureRecord;
+    return JSON.stringify(a) === JSON.stringify(b) ? null : { t: "architecture", record: b };
+  }
 
   function verbsFor(row, before, after) {
     var verbs = [];
@@ -102,6 +106,7 @@
         if(forced)diffs=diffs.filter(function(v){return !(v.t==="jump"&&v.unit===forced.unit);});
         if(teleport)diffs=diffs.filter(function(v){return !(v.t==="jump"&&v.unit===teleport.unit);});
         verbs = verbs.concat(diffs);if(forced)verbs.push(forced);if(teleport)verbs.push(teleport);
+        var architecture=architectureVerb(before,after);if(architecture)verbs.push(architecture);
         break;
     }
     return verbs;

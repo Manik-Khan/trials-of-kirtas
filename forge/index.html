@@ -34,7 +34,7 @@
 <script src="forge-test-fight.js?v=tf1"></script>
 <script src="forge-bridge-authority.js?v=fba1"></script>
 <script src="forge-protocol.js?v=fpr2"></script>
-<script src="forge-replay.js?v=fb18"></script>
+<script src="forge-replay.js?v=fb19"></script>
 <script src="forge-combat-rules.js?v=fcr3"></script>
 <script src="forge-death-saves.js?v=fds1"></script>
 <script src="forge-foe-ai.js?v=fai3"></script>
@@ -42,10 +42,10 @@
 <script src="forge-initiative.js?v=fi2"></script>
 <script src="forge-discovery.js?v=fd7"></script>
 <script src="forge-render-power.js?v=frp1"></script>
-<script src="forge-architecture.js?v=fa5"></script>
+<script src="forge-architecture.js?v=fa6"></script>
 <script src="forge-bus.js?v=fb2"></script>
 <script src="forge-pipeline.js?v=fb9"></script>
-<script src="forge-board.js?v=fb10"></script>
+<script src="forge-board.js?v=fb11"></script>
 <script src="../armor-ac.js?v=um1"></script>
 <script src="../equip-slots.js?v=cc2"></script>
 <script src="../character-combat.js?v=um1"></script>
@@ -741,6 +741,10 @@ global.TacticsGeo=API;
   .architectureLineHandle{position:absolute;width:42px;height:42px;border-radius:50%;border:2px solid #fff;background:var(--tk-gold);color:#fff;box-shadow:0 4px 14px rgba(35,25,14,.48);display:grid;place-items:center;font:900 22px/1 Arial,sans-serif;pointer-events:auto;cursor:grab;user-select:none;touch-action:none}
   .architectureLineHandle:hover,.architectureLineHandle:focus-visible{background:#d39b3d;outline:2px solid rgba(255,239,188,.8);outline-offset:2px}
   .architectureLineHandle:active{cursor:grabbing}
+  body.forge-live-architecture #architecturePanel{display:block!important;position:fixed;top:72px;right:260px;z-index:52;width:276px;box-sizing:border-box;padding:12px;background:linear-gradient(180deg,var(--tk-panel),var(--tk-panel-2));border:1px solid var(--tk-gold);box-shadow:0 14px 40px rgba(60,50,30,.3)}
+  .architectureLiveActions{display:none;grid-template-columns:1fr 1fr;gap:5px;margin-top:7px}
+  body.forge-live-architecture .architectureLiveActions{display:grid}
+  body.forge-live-architecture #architectureSealBypass,body.forge-live-architecture #architectureReset,body.forge-live-architecture #architectureFogPreview,body.forge-live-architecture #architectureFogAdvance{display:none}
   /* Task 14: foe picker (search the books + shelf strip + picked list) */
   #fpSearch{width:100%;box-sizing:border-box;font-family:var(--f-util);font-size:11px;color:var(--tk-ink);
     background:var(--tk-panel);border:1px solid var(--tk-line);padding:7px 8px;margin-bottom:4px}
@@ -1300,8 +1304,8 @@ body.forge-author-preview #partySelect{opacity:0;pointer-events:none}
     <div id="architecturePanel">
       <div class="architectureTools" id="architectureTools">
         <button class="filebtn active" data-architecture-tool="wall" type="button">10-ft wall / raise</button>
-        <button class="filebtn" data-architecture-tool="parapet" type="button">5-ft parapet</button>
-        <button class="filebtn" data-architecture-tool="gate" type="button">Gate block</button>
+        <button class="filebtn" data-architecture-tool="parapet" type="button">5-ft low wall</button>
+        <button class="filebtn" data-architecture-tool="gate" type="button">Doorway</button>
         <button class="filebtn" data-architecture-tool="erase" type="button">Erase</button>
       </div>
       <div class="improw" style="margin:0 0 6px">
@@ -1315,6 +1319,10 @@ body.forge-author-preview #partySelect{opacity:0;pointer-events:none}
       </div>
       <div class="architectureAudit" id="architectureAudit">Required ascent clear · 0 authored blocks.</div>
       <div class="fname" id="architectureMessage" style="white-space:normal">Open cells accept blocks. Seeded retaining walls accept a 10-ft wall or 5-ft parapet extension.</div>
+      <div class="architectureLiveActions">
+        <button class="filebtn" id="architectureDiscard" type="button">Discard draft</button>
+        <button class="filebtn primary" id="architecturePublish" type="button">Publish changes</button>
+      </div>
     </div>
     </div>
     </details>
@@ -1510,6 +1518,7 @@ body.forge-author-preview #partySelect{opacity:0;pointer-events:none}
         <button id="ovCorrect" title="Correct the last resolved attack / move / ability">Correct last</button>
         <button id="ovRewind" title="Rewind to a turn boundary">Rewind</button>
         <button id="ovGod" title="Move any unit by hand, edit HP">GOD MODE: off</button>
+        <button id="ovEditBattlefield" title="Draft walls, low walls, and doorways, then publish them to everyone">Edit battlefield</button>
         <button id="ovAddFoe" title="Bring a new foe into the fight">Add foe</button>
         <button id="ovRegions" title="Inspect or activate authored encounter groups">Encounter regions</button>
         <button id="ovInitiative" title="Enter totals or adjust the live turn order">Initiative</button>
@@ -2206,7 +2215,7 @@ const ARCHITECTURE_API=window.ForgeArchitecture;
 if(!ARCHITECTURE_API)throw new Error('Forge architecture authority did not load');
 var architectureRenderGroup=new THREE.Group();scene.add(architectureRenderGroup);
 var architecturePreviewGroup=new THREE.Group();scene.add(architecturePreviewGroup);
-var ARCHITECTURE_RECORD=ARCHITECTURE_API.record([]),ARCHITECTURE_TOOL=null,ARCHITECTURE_ANCHOR=null,ARCHITECTURE_LINE_PREVIEW=[],ARCHITECTURE_HISTORY=[],ARCHITECTURE_LINE_DRAG=null,ARCHITECTURE_HOLD_TIMER=null,ARCHITECTURE_FOG_PREVIEW=false,ARCHITECTURE_PREVIEW_REGION=0,ARCHITECTURE_PREVIEW_STATES=null,ARCHITECTURE_PREVIEW_EXPLORED=null;
+var ARCHITECTURE_RECORD=ARCHITECTURE_API.record([]),ARCHITECTURE_DRAFT=null,LIVE_ARCHITECTURE_EDIT=false,ARCHITECTURE_PANEL_HOME=null,ARCHITECTURE_TOOL=null,ARCHITECTURE_ANCHOR=null,ARCHITECTURE_LINE_PREVIEW=[],ARCHITECTURE_HISTORY=[],ARCHITECTURE_LINE_DRAG=null,ARCHITECTURE_HOLD_TIMER=null,ARCHITECTURE_FOG_PREVIEW=false,ARCHITECTURE_PREVIEW_REGION=0,ARCHITECTURE_PREVIEW_STATES=null,ARCHITECTURE_PREVIEW_EXPLORED=null;
 /* Phase 2 snapshot authority: while a saved session is open, this exact map
    document — not a regenerated recipe — is the geometry source of truth. */
 /* Session identity is needed by the very first rebuild(). Keep this ahead of
@@ -3610,33 +3619,38 @@ var deploymentAddGroup=document.getElementById("deploymentAddGroup");if(deployme
    this small record is applied after generation and saved beside the exact map
    snapshot. The required-route audit is the promotion gate. */
 function architectureActive(){return !!(F&&F.intent&&F.intent.archetype==='temple-terraces');}
-function architectureAudit(){return F&&architectureActive()?ARCHITECTURE_API.audit(rawCombatMapFromF(),ARCHITECTURE_RECORD):{ok:true,errors:[],record:ARCHITECTURE_RECORD};}
+function architectureAvailable(){return !!(F&&(architectureActive()||SESSION_ID));}
+function architectureWorkingRecord(){return LIVE_ARCHITECTURE_EDIT&&ARCHITECTURE_DRAFT?ARCHITECTURE_DRAFT:ARCHITECTURE_RECORD;}
+function architectureSetWorkingRecord(record){record=ARCHITECTURE_API.normalizeRecord(record);if(LIVE_ARCHITECTURE_EDIT)ARCHITECTURE_DRAFT=record;else ARCHITECTURE_RECORD=record;}
+function architectureBlockAt(record,c,r){return (record&&record.blocks||[]).filter(function(b){return b.c===c&&b.r===r;})[0]||null;}
+function architectureAudit(){var record=architectureWorkingRecord();return F&&architectureAvailable()?ARCHITECTURE_API.audit(rawCombatMapFromF(),record):{ok:true,errors:[],record:record};}
 function architecturePending(){return architectureActive()&&!architectureAudit().ok;}
 function architectureSay(text,bad){var el=document.getElementById('architectureMessage');if(el){el.textContent=text;el.style.color=bad?'#a04b3a':'';}}
 function clearArchitectureMeshes(){var retired=new Set();while(architectureRenderGroup.children.length){var o=architectureRenderGroup.children[0];architectureRenderGroup.remove(o);o.traverse(function(n){retired.add(n);if(n.geometry)n.geometry.dispose();if(n.material)n.material.dispose();});}if(typeof DISCOVERY_RENDER!=='undefined'&&DISCOVERY_RENDER)DISCOVERY_RENDER.objects=DISCOVERY_RENDER.objects.filter(function(obj){return !retired.has(obj);});}
 function architectureAdd(mesh,edit){tagDiscoveryObject(mesh,edit.c,edit.r,'terrain');mesh.castShadow=true;mesh.receiveShadow=true;architectureRenderGroup.add(mesh);return mesh;}
 function clearArchitecturePreview(){while(architecturePreviewGroup.children.length){var o=architecturePreviewGroup.children[0];architecturePreviewGroup.remove(o);if(o.geometry)o.geometry.dispose();if(o.material)o.material.dispose();}}
 function architectureToolBuildsLines(){var def=ARCHITECTURE_API.KINDS[ARCHITECTURE_TOOL];return !!(def&&def.blocks);}
-function architectureTopFt(c,r){var i=r*F.W+c,top=Math.max(Number(F.occ&&F.occ[i])||0,0),authored=ARCHITECTURE_RECORD.blocks.filter(function(b){return b.c===c&&b.r===r;})[0];return Math.max(top,authored?ARCHITECTURE_API.heightFt(authored):0);}
+function architectureTopFt(c,r){var i=r*F.W+c,top=Math.max(Number(F.occ&&F.occ[i])||0,0),authored=architectureBlockAt(architectureWorkingRecord(),c,r);return Math.max(top,authored?ARCHITECTURE_API.heightFt(authored):0);}
 function architectureScreenPoint(c,r,heightFt){var rect=renderer.domElement.getBoundingClientRect(),p=new THREE.Vector3(wxc(c),tierY(c,r)+(Number(heightFt)||0)/STEP_FT*STEP+.25,wzc(r));p.project(camera);return {x:rect.left+(p.x+1)*rect.width/2,y:rect.top+(1-p.y)*rect.height/2};}
 function positionArchitectureHandles(){
-  var host=document.getElementById('architectureLineHandles');if(!host)return;var show=architectureActive()&&!SESSION_ID&&ARCHITECTURE_ANCHOR&&architectureToolBuildsLines()&&F&&ARCHITECTURE_ANCHOR.c>=0&&ARCHITECTURE_ANCHOR.r>=0&&ARCHITECTURE_ANCHOR.c<F.W&&ARCHITECTURE_ANCHOR.r<F.H;
+  var host=document.getElementById('architectureLineHandles');if(!host)return;var show=architectureAvailable()&&(!SESSION_ID||LIVE_ARCHITECTURE_EDIT)&&ARCHITECTURE_ANCHOR&&architectureToolBuildsLines()&&F&&ARCHITECTURE_ANCHOR.c>=0&&ARCHITECTURE_ANCHOR.r>=0&&ARCHITECTURE_ANCHOR.c<F.W&&ARCHITECTURE_ANCHOR.r<F.H;
   host.hidden=!show;if(!show)return;var a=ARCHITECTURE_ANCHOR,top=architectureTopFt(a.c,a.r),center=architectureScreenPoint(a.c,a.r,top),dirs={n:[0,-1],e:[1,0],s:[0,1],w:[-1,0]};
-  host.querySelectorAll('[data-architecture-line]').forEach(function(button){var d=dirs[button.dataset.architectureLine],q=architectureScreenPoint(a.c+d[0],a.r+d[1],top),dx=q.x-center.x,dy=q.y-center.y,len=Math.max(1,Math.hypot(dx,dy)),ux=dx/len,uy=dy/len,angle=Math.atan2(uy,ux)*180/Math.PI+90;button.style.left=(center.x+ux*54)+'px';button.style.top=(center.y+uy*54)+'px';button.style.transform='translate(-50%,-50%) rotate('+angle+'deg)';button.dataset.screenX=String(ux);button.dataset.screenY=String(uy);button.dataset.stepPx=String(Math.max(24,len));});
+  var anchorEdit=architectureBlockAt(architectureWorkingRecord(),a.c,a.r),axis=ARCHITECTURE_API.axisFor(anchorEdit);
+  host.querySelectorAll('[data-architecture-line]').forEach(function(button){var direction=button.dataset.architectureLine;button.hidden=!!axis&&(axis==='x'?'ns':'ew').indexOf(direction)>=0;if(button.hidden)return;var d=dirs[direction],q=architectureScreenPoint(a.c+d[0],a.r+d[1],top),dx=q.x-center.x,dy=q.y-center.y,len=Math.max(1,Math.hypot(dx,dy)),ux=dx/len,uy=dy/len,angle=Math.atan2(uy,ux)*180/Math.PI+90;button.style.left=(center.x+ux*54)+'px';button.style.top=(center.y+uy*54)+'px';button.style.transform='translate(-50%,-50%) rotate('+angle+'deg)';button.dataset.screenX=String(ux);button.dataset.screenY=String(uy);button.dataset.stepPx=String(Math.max(24,len));});
 }
-function renderArchitecturePreview(){clearArchitecturePreview();if(!F||!architectureToolBuildsLines())return;ARCHITECTURE_LINE_PREVIEW.forEach(function(placement){var edit=placement.edit,i=edit.r*F.W+edit.c,seedHeightFt=Math.max(0,Number(F.occ&&F.occ[i])||0),targetHeightFt=ARCHITECTURE_API.heightFt(edit),fromFt=Math.min(seedHeightFt,targetHeightFt),h=Math.max(.12,(targetHeightFt-fromFt)/STEP_FT*STEP),base=tierY(edit.c,edit.r)+fromFt/STEP_FT*STEP,mat=new THREE.MeshBasicMaterial({color:0xf2cf78,transparent:true,opacity:.56,depthWrite:false}),m=new THREE.Mesh(new THREE.BoxGeometry(.82,h,.82),mat);m.position.set(wxc(edit.c),base+h/2,wzc(edit.r));m.renderOrder=8;architecturePreviewGroup.add(m);});requestForgeRender();}
-function architectureGateAxis(edit){var blocking={};ARCHITECTURE_RECORD.blocks.forEach(function(b){if(ARCHITECTURE_API.KINDS[b.kind].blocks)blocking[b.c+','+b.r]=true;});return blocking[(edit.c-1)+','+edit.r]||blocking[(edit.c+1)+','+edit.r]?'x':'z';}
+function renderArchitecturePreview(){clearArchitecturePreview();if(!F||!architectureToolBuildsLines())return;ARCHITECTURE_LINE_PREVIEW.forEach(function(placement){var edit=placement.edit,i=edit.r*F.W+edit.c,seedHeightFt=Math.max(0,Number(F.occ&&F.occ[i])||0),targetHeightFt=ARCHITECTURE_API.heightFt(edit),fromFt=Math.min(seedHeightFt,targetHeightFt),h=Math.max(.12,(targetHeightFt-fromFt)/STEP_FT*STEP),base=tierY(edit.c,edit.r)+fromFt/STEP_FT*STEP,mat=new THREE.MeshBasicMaterial({color:0xf2cf78,transparent:true,opacity:.56,depthWrite:false}),axis=ARCHITECTURE_API.axisFor(edit),geo=new THREE.BoxGeometry(axis==='x'?.82:axis==='z'?.22:.82,h,axis==='z'?.82:axis==='x'?.22:.82),m=new THREE.Mesh(geo,mat);m.position.set(wxc(edit.c),base+h/2,wzc(edit.r));m.renderOrder=8;architecturePreviewGroup.add(m);});requestForgeRender();}
+function architectureGateAxis(edit){var explicit=ARCHITECTURE_API.axisFor(edit);if(explicit)return explicit;var blocking={};architectureWorkingRecord().blocks.forEach(function(b){if(ARCHITECTURE_API.KINDS[b.kind].blocks)blocking[b.c+','+b.r]=true;});return blocking[(edit.c-1)+','+edit.r]||blocking[(edit.c+1)+','+edit.r]?'x':'z';}
 function renderArchitectureBlock(edit){
   var def=ARCHITECTURE_API.KINDS[edit.kind],i=edit.r*F.W+edit.c,seedHeightFt=Math.max(0,Number(F.occ&&F.occ[i])||0),base=tierY(edit.c,edit.r),mat=stoneMat(edit.kind==='parapet'?0x8d8067:0x746750);
-  if(def.blocks){var targetHeightFt=ARCHITECTURE_API.heightFt(edit),fromFt=Math.min(seedHeightFt,targetHeightFt),h=(targetHeightFt-fromFt)/STEP_FT*STEP;if(h<=0)return;base+=fromFt/STEP_FT*STEP;var m=new THREE.Mesh(new THREE.BoxGeometry(.94,h,.94),mat);m.position.set(wxc(edit.c),base+h/2,wzc(edit.r));architectureAdd(m,edit);return;}
+  if(def.blocks){var targetHeightFt=ARCHITECTURE_API.heightFt(edit),fromFt=Math.min(seedHeightFt,targetHeightFt),h=(targetHeightFt-fromFt)/STEP_FT*STEP;if(h<=0)return;base+=fromFt/STEP_FT*STEP;var pa=edit.kind==='parapet'&&ARCHITECTURE_API.axisFor(edit),m=new THREE.Mesh(new THREE.BoxGeometry(pa==='x'?.94:pa==='z'?.22:.94,h,pa==='z'?.94:pa==='x'?.22:.94),mat);m.position.set(wxc(edit.c),base+h/2,wzc(edit.r));architectureAdd(m,edit);return;}
   var axis=architectureGateAxis(edit),postH=2*STEP,postGeo=new THREE.BoxGeometry(.16,postH,.16),offset=.38;
   [-1,1].forEach(function(side){var post=new THREE.Mesh(postGeo.clone(),mat.clone());post.position.set(wxc(edit.c)+(axis==='x'?side*offset:0),base+postH/2,wzc(edit.r)+(axis==='z'?side*offset:0));architectureAdd(post,edit);});
   var lintel=new THREE.Mesh(new THREE.BoxGeometry(axis==='x'?.94:.18,.18,axis==='z'?.94:.18),mat.clone());lintel.position.set(wxc(edit.c),base+postH-.09,wzc(edit.r));architectureAdd(lintel,edit);
 }
 function renderArchitecturePanel(){
-  var panel=document.getElementById('architecturePanel');if(!panel)return;var show=architectureActive()&&!SESSION_ID&&!(typeof CB!=='undefined'&&CB&&CB.active);panel.style.display=show?'block':'none';
+  var panel=document.getElementById('architecturePanel');if(!panel)return;var show=(architectureActive()&&!SESSION_ID&&!(typeof CB!=='undefined'&&CB&&CB.active))||LIVE_ARCHITECTURE_EDIT;panel.style.display=show?'block':'none';
   document.querySelectorAll('[data-architecture-tool]').forEach(function(b){b.classList.toggle('active',b.dataset.architectureTool===ARCHITECTURE_TOOL);});
-  var audit=architectureAudit(),el=document.getElementById('architectureAudit');if(el){el.classList.toggle('bad',!audit.ok);el.textContent=audit.ok?'Required ascent clear · '+ARCHITECTURE_RECORD.blocks.length+' authored block'+(ARCHITECTURE_RECORD.blocks.length===1?'':'s')+'.':audit.errors.join(' · ');}
+  var record=architectureWorkingRecord(),audit=architectureAudit(),el=document.getElementById('architectureAudit');if(el){el.classList.toggle('bad',!audit.ok);el.textContent=audit.ok?(LIVE_ARCHITECTURE_EDIT?'Draft safe · ':'Required ascent clear · ')+record.blocks.length+' authored object'+(record.blocks.length===1?'':'s')+'.':audit.errors.join(' · ');}
   var fog=document.getElementById('architectureFogPreview'),advance=document.getElementById('architectureFogAdvance'),undo=document.getElementById('architectureUndo');if(fog){fog.classList.toggle('active',ARCHITECTURE_FOG_PREVIEW);fog.textContent=ARCHITECTURE_FOG_PREVIEW?'Staff view':'Preview sight fog';}if(advance)advance.disabled=!ARCHITECTURE_FOG_PREVIEW;if(undo)undo.disabled=!ARCHITECTURE_HISTORY.length;positionArchitectureHandles();
 }
 function architecturePreviewSource(map){
@@ -3653,10 +3667,10 @@ function applyArchitectureFogPreview(){
   }else{ARCHITECTURE_PREVIEW_STATES=null;ARCHITECTURE_PREVIEW_EXPLORED=null;applyDiscoveryInstances(false);}
   requestForgeRender();
 }
-function renderArchitectureBlocks(){clearArchitectureMeshes();if(!architectureActive()){renderArchitecturePanel();requestForgeRender();return;}ARCHITECTURE_RECORD.blocks.forEach(renderArchitectureBlock);renderArchitecturePanel();if(typeof applyDiscoveryInstances==='function')applyArchitectureFogPreview();requestForgeRender();}
-function architectureOccupied(c,r){var occupied=false,draft=computeDeployment();(draft&&draft.plans||[]).forEach(function(plan){if(plan.group.anchor&&plan.group.anchor.c===c&&plan.group.anchor.r===r)occupied=true;Object.keys(plan.positions||{}).forEach(function(unit){var p=plan.positions[unit];if(p.c===c&&p.r===r)occupied=true;});});return occupied;}
-function architecturePlacement(c,r,kind){
-  if(!F||!architectureActive())return {ok:false,message:'Architecture tools are not available on this battlefield.'};c=Number(c);r=Number(r);var prior=ARCHITECTURE_RECORD.blocks.filter(function(b){return b.c===c&&b.r===r;})[0],i=r*F.W+c;
+function renderArchitectureBlocks(){clearArchitectureMeshes();if(!architectureAvailable()){renderArchitecturePanel();requestForgeRender();return;}architectureWorkingRecord().blocks.forEach(renderArchitectureBlock);renderArchitecturePanel();if(typeof applyDiscoveryInstances==='function')applyArchitectureFogPreview();requestForgeRender();}
+function architectureOccupied(c,r){var occupied=false;if(typeof CB!=='undefined'&&CB&&CB.active){(CB.units||[]).forEach(function(u){if(u.alive!==false&&u.c===c&&u.r===r)occupied=true;});return occupied;}var draft=computeDeployment();(draft&&draft.plans||[]).forEach(function(plan){if(plan.group.anchor&&plan.group.anchor.c===c&&plan.group.anchor.r===r)occupied=true;Object.keys(plan.positions||{}).forEach(function(unit){var p=plan.positions[unit];if(p.c===c&&p.r===r)occupied=true;});});return occupied;}
+function architecturePlacement(c,r,kind,rotation){
+  if(!F||!architectureAvailable())return {ok:false,message:'Architecture tools are not available on this battlefield.'};c=Number(c);r=Number(r);var prior=architectureBlockAt(architectureWorkingRecord(),c,r),i=r*F.W+c;
   if(c<0||r<0||c>=F.W||r>=F.H)return {ok:false,message:'That cell is outside the battlefield.'};
   if(kind==='erase')return prior?{ok:true,erase:true,c:c,r:r,prior:prior}:{ok:false,message:'There is no authored block on that cell.'};
   var seededWall=!!F.foot[i]&&F.type[i]===T_ROCK,def=ARCHITECTURE_API.KINDS[kind];
@@ -3664,30 +3678,57 @@ function architecturePlacement(c,r,kind){
   if(!def)return {ok:false,message:'Choose a wall, parapet, gate, or erase tool.'};
   if(seededWall&&!def.blocks)return {ok:false,message:'Seeded retaining walls accept a 10-ft wall or 5-ft parapet extension. Erase restores the seed height.'};
   if(architectureOccupied(c,r))return {ok:false,message:'Move the deployment flag or combatant before building on that cell.'};
-  var edit={c:c,r:r,kind:kind};if(seededWall&&def.blocks)edit.heightFt=(Number(F.occ&&F.occ[i])||0)+def.heightFt;
-  var same=prior&&prior.kind===edit.kind&&Number(prior.heightFt||0)===Number(edit.heightFt||0);return {ok:true,c:c,r:r,prior:prior,edit:edit,seededWall:seededWall,def:def,changed:!same};
+  var edit={c:c,r:r,kind:kind};if(def.directional)edit.rotation=ARCHITECTURE_API.normalizeRotation(rotation==null?0:rotation);if(seededWall&&def.blocks)edit.heightFt=(Number(F.occ&&F.occ[i])||0)+def.heightFt;
+  var same=prior&&prior.kind===edit.kind&&Number(prior.heightFt||0)===Number(edit.heightFt||0)&&Number(prior.rotation||0)===Number(edit.rotation||0);return {ok:true,c:c,r:r,prior:prior,edit:edit,seededWall:seededWall,def:def,changed:!same};
 }
-function architectureRemember(){ARCHITECTURE_HISTORY.push(ARCHITECTURE_API.normalizeRecord(ARCHITECTURE_RECORD));if(ARCHITECTURE_HISTORY.length>50)ARCHITECTURE_HISTORY.shift();}
+function architectureRemember(){ARCHITECTURE_HISTORY.push(ARCHITECTURE_API.normalizeRecord(architectureWorkingRecord()));if(ARCHITECTURE_HISTORY.length>50)ARCHITECTURE_HISTORY.shift();}
 function applyArchitectureAt(c,r,kind,options){
-  var placement=architecturePlacement(c,r,kind);if(!placement.ok){architectureSay(placement.message,true);return false;}options=options||{};if(options.remember!==false)architectureRemember();
-  if(placement.erase){ARCHITECTURE_RECORD=ARCHITECTURE_API.eraseRecord(ARCHITECTURE_RECORD,c,r);architectureSay('Authored block erased. The seeded cell is restored.');}
-  else{ARCHITECTURE_RECORD=ARCHITECTURE_API.editRecord(ARCHITECTURE_RECORD,placement.edit);if(placement.def.blocks)ARCHITECTURE_ANCHOR={c:c,r:r};var audit=architectureAudit(),label=placement.seededWall?'Seeded retaining wall raised '+placement.def.heightFt+' ft to '+ARCHITECTURE_API.heightFt(placement.edit)+' ft':(kind==='wall'?'10-ft wall':kind==='parapet'?'5-ft parapet':'Passable gate');architectureSay(label+' at '+c+','+r+'.'+(audit.ok?' Hold a gold arrow to extend it.':' '+audit.errors.join(' ')),!audit.ok);}
+  options=options||{};var current=architectureWorkingRecord(),prior=architectureBlockAt(current,c,r),def=ARCHITECTURE_API.KINDS[kind],rotation=options.rotation;
+  if(rotation==null&&prior&&def&&def.directional&&prior.kind===kind)rotation=Number(prior.rotation||0)+90;
+  var placement=architecturePlacement(c,r,kind,rotation);if(!placement.ok){architectureSay(placement.message,true);return false;}if(options.remember!==false)architectureRemember();
+  if(placement.erase){architectureSetWorkingRecord(ARCHITECTURE_API.eraseRecord(current,c,r));architectureSay('Authored object removed. The seeded cell is restored.');}
+  else{architectureSetWorkingRecord(ARCHITECTURE_API.editRecord(current,placement.edit));if(placement.def.blocks)ARCHITECTURE_ANCHOR={c:c,r:r};var audit=architectureAudit(),label=placement.seededWall?'Seeded retaining wall raised '+placement.def.heightFt+' ft to '+ARCHITECTURE_API.heightFt(placement.edit)+' ft':(kind==='wall'?'10-ft wall':kind==='parapet'?'5-ft low wall':'Passable doorway'),rotated=prior&&prior.kind===kind&&placement.def.directional;architectureSay((rotated?label+' rotated to '+placement.edit.rotation+'°':label+' at '+c+','+r+'.')+(audit.ok?(placement.def.blocks?' Hold a gold arrow to extend it.':''):' '+audit.errors.join(' ')),!audit.ok);}
   ARCHITECTURE_LINE_PREVIEW=[];clearArchitecturePreview();renderArchitectureBlocks();refreshDeploymentPanel();return true;
 }
 function architectureLinePlacements(direction,length){
-  var out=[],blocked=null;if(!ARCHITECTURE_ANCHOR||!architectureToolBuildsLines())return {placements:out,blocked:blocked};var cells=ARCHITECTURE_API.lineCells(ARCHITECTURE_ANCHOR,direction,length,F.W,F.H);
-  for(var i=0;i<cells.length;i++){var p=architecturePlacement(cells[i].c,cells[i].r,ARCHITECTURE_TOOL);if(!p.ok){blocked=p.message;break;}out.push(p);}return {placements:out,blocked:blocked};
+  var out=[],blocked=null;if(!ARCHITECTURE_ANCHOR||!architectureToolBuildsLines())return {placements:out,blocked:blocked};var cells=ARCHITECTURE_API.lineCells(ARCHITECTURE_ANCHOR,direction,length,F.W,F.H),anchorEdit=architectureBlockAt(architectureWorkingRecord(),ARCHITECTURE_ANCHOR.c,ARCHITECTURE_ANCHOR.r),rotation=anchorEdit&&anchorEdit.rotation;
+  for(var i=0;i<cells.length;i++){var p=architecturePlacement(cells[i].c,cells[i].r,ARCHITECTURE_TOOL,rotation);if(!p.ok){blocked=p.message;break;}out.push(p);}return {placements:out,blocked:blocked};
 }
 function architectureLineShow(direction,length){var line=architectureLinePlacements(direction,length);ARCHITECTURE_LINE_PREVIEW=line.placements;renderArchitecturePreview();var changed=line.placements.filter(function(p){return p.changed;}).length;architectureSay('Preview: '+changed+' block'+(changed===1?'':'s')+'. Release to build.'+(line.blocked?' Stops where '+line.blocked.toLowerCase():''),!!line.blocked&&!line.placements.length);}
 function architectureLineCancel(message){ARCHITECTURE_LINE_PREVIEW=[];ARCHITECTURE_LINE_DRAG=null;if(ARCHITECTURE_HOLD_TIMER)clearInterval(ARCHITECTURE_HOLD_TIMER);ARCHITECTURE_HOLD_TIMER=null;clearArchitecturePreview();if(message!==false&&ARCHITECTURE_ANCHOR)architectureSay('Line cancelled. The anchor remains selected.');}
 function architectureLineCommit(){
   if(ARCHITECTURE_HOLD_TIMER)clearInterval(ARCHITECTURE_HOLD_TIMER);ARCHITECTURE_HOLD_TIMER=null;var placements=ARCHITECTURE_LINE_PREVIEW.slice(),changed=placements.filter(function(p){return p.changed;});ARCHITECTURE_LINE_DRAG=null;ARCHITECTURE_LINE_PREVIEW=[];clearArchitecturePreview();if(!placements.length){architectureSay('No legal cells in that direction.',true);return;}
-  if(changed.length){architectureRemember();changed.forEach(function(p){ARCHITECTURE_RECORD=ARCHITECTURE_API.editRecord(ARCHITECTURE_RECORD,p.edit);});}var last=placements[placements.length-1];ARCHITECTURE_ANCHOR={c:last.c,r:last.r};var audit=architectureAudit();architectureSay(changed.length?'Built '+changed.length+' '+ARCHITECTURE_TOOL+' block'+(changed.length===1?'':'s')+' as one undoable line.'+(audit.ok?' Required ascent remains open.':' '+audit.errors.join(' ')):'That line already matches the selected blocks. The anchor moved to its end.',!audit.ok);renderArchitectureBlocks();refreshDeploymentPanel();
+  if(changed.length){architectureRemember();var next=architectureWorkingRecord();changed.forEach(function(p){next=ARCHITECTURE_API.editRecord(next,p.edit);});architectureSetWorkingRecord(next);}var last=placements[placements.length-1];ARCHITECTURE_ANCHOR={c:last.c,r:last.r};var audit=architectureAudit();architectureSay(changed.length?'Built '+changed.length+' '+ARCHITECTURE_TOOL+' block'+(changed.length===1?'':'s')+' as one undoable line.'+(audit.ok?' Required ascent remains open.':' '+audit.errors.join(' ')):'That line already matches the selected blocks. The anchor moved to its end.',!audit.ok);renderArchitectureBlocks();refreshDeploymentPanel();
 }
-function undoArchitectureLine(){var prior=ARCHITECTURE_HISTORY.pop();if(!prior){architectureSay('Nothing to undo.',true);return;}ARCHITECTURE_RECORD=ARCHITECTURE_API.normalizeRecord(prior);architectureLineCancel(false);architectureSay('Undid the last block or line.');renderArchitectureBlocks();refreshDeploymentPanel();}
+function undoArchitectureLine(){var prior=ARCHITECTURE_HISTORY.pop();if(!prior){architectureSay('Nothing to undo.',true);return;}architectureSetWorkingRecord(prior);architectureLineCancel(false);architectureSay('Undid the last block or line.');renderArchitectureBlocks();refreshDeploymentPanel();}
 function placeArchitectureAtPointer(e){
-  var rect=renderer.domElement.getBoundingClientRect();ndc.x=((e.clientX-rect.left)/rect.width)*2-1;ndc.y=-((e.clientY-rect.top)/rect.height)*2+1;ray.setFromCamera(ndc,camera);var hit=ray.intersectObjects(world.children,true)[0];
-  if(!hit){architectureSay('No battlefield cell there.',true);return;}applyArchitectureAt(Math.round(hit.point.x+F.W/2-.5),Math.round(hit.point.z+F.H/2-.5),ARCHITECTURE_TOOL);
+  var at=architectureCellAtPointer(e);if(!at){architectureSay('No battlefield cell there.',true);return;}applyArchitectureAt(at.c,at.r,ARCHITECTURE_TOOL);
+}
+function architectureCellAtPointer(e){var rect=renderer.domElement.getBoundingClientRect();ndc.x=((e.clientX-rect.left)/rect.width)*2-1;ndc.y=-((e.clientY-rect.top)/rect.height)*2+1;ray.setFromCamera(ndc,camera);var hit=ray.intersectObjects(world.children,true)[0];return hit?{c:Math.round(hit.point.x+F.W/2-.5),r:Math.round(hit.point.z+F.H/2-.5)}:null;}
+function architectureRecordsEqual(a,b){return JSON.stringify(ARCHITECTURE_API.normalizeRecord(a))===JSON.stringify(ARCHITECTURE_API.normalizeRecord(b));}
+function closeLiveArchitectureEditor(message){
+  LIVE_ARCHITECTURE_EDIT=false;ARCHITECTURE_DRAFT=null;ARCHITECTURE_TOOL=null;ARCHITECTURE_ANCHOR=null;ARCHITECTURE_HISTORY=[];architectureLineCancel(false);document.body.classList.remove('forge-live-architecture');
+  var panel=document.getElementById('architecturePanel');if(panel&&ARCHITECTURE_PANEL_HOME)ARCHITECTURE_PANEL_HOME.appendChild(panel);
+  if(message)systemClog('<i>'+escapeHtml(message)+'</i>');renderArchitectureBlocks();renderOverseerToolbar();
+}
+function toggleLiveArchitectureEditor(){
+  var sess=window.__forgeSession;if(!sess||!sess.me.overseer||!CB.active)return;
+  if(LIVE_ARCHITECTURE_EDIT){closeLiveArchitectureEditor('Battlefield draft discarded.');return;}
+  var panel=document.getElementById('architecturePanel');if(!panel)return;ARCHITECTURE_PANEL_HOME=ARCHITECTURE_PANEL_HOME||panel.parentNode;document.body.appendChild(panel);
+  LIVE_ARCHITECTURE_EDIT=true;ARCHITECTURE_DRAFT=ARCHITECTURE_API.normalizeRecord(ARCHITECTURE_RECORD);ARCHITECTURE_HISTORY=[];ARCHITECTURE_TOOL='wall';document.body.classList.add('forge-live-architecture');
+  architectureSay('Staff draft only. Left-click places; click a low wall or doorway again to rotate it. Right-click an authored object to remove it.');renderArchitectureBlocks();renderOverseerToolbar();
+}
+function publishLiveArchitecture(){
+  var sess=window.__forgeSession;if(!LIVE_ARCHITECTURE_EDIT||!sess||!sess.me.overseer||__awaitingCount>0)return;
+  var audit=architectureAudit();if(!audit.ok){architectureSay('Cannot publish: '+audit.errors.join(' '),true);return;}
+  if(architectureRecordsEqual(ARCHITECTURE_DRAFT,ARCHITECTURE_RECORD)){closeLiveArchitectureEditor('No battlefield changes to publish.');return;}
+  architectureSay('Publishing one battlefield update to the table…');
+  netSessionPublish('edit',sess.pipe.edit([{architecture_state:{record:ARCHITECTURE_API.normalizeRecord(ARCHITECTURE_DRAFT)}}])).catch(function(){architectureSay('The battlefield update did not publish. Your draft is still here.',true);});
+}
+function applySharedArchitectureRecord(record){
+  if(!record)return;ARCHITECTURE_RECORD=ARCHITECTURE_API.normalizeRecord(record);
+  if(LIVE_ARCHITECTURE_EDIT&&architectureRecordsEqual(ARCHITECTURE_DRAFT,ARCHITECTURE_RECORD))closeLiveArchitectureEditor('Battlefield changes published.');else renderArchitectureBlocks();
+  if(typeof CB!=='undefined'&&CB&&CB.active){CB.map=combatMapFromF();syncGeometryCreatures(CB.map);reconcileMovementPresentation();drawSight();refreshDiscovery(true);}
 }
 function sealOptionalBypass(){
   var route=(F&&F.intent&&F.intent.routes||[]).filter(function(r){return !r.required;})[0],connectorById={};(F&&F.connectors||[]).forEach(function(c){connectorById[c.id]=c;});
@@ -3697,7 +3738,7 @@ function sealOptionalBypass(){
 }
 (function wireArchitecturePanel(){
   document.querySelectorAll('[data-architecture-tool]').forEach(function(b){b.onclick=function(){architectureLineCancel(false);ARCHITECTURE_TOOL=ARCHITECTURE_TOOL===b.dataset.architectureTool?null:b.dataset.architectureTool;DEPLOYMENT_PLACE_GROUP=null;DEPLOYMENT_MANUAL=null;renderArchitecturePanel();architectureSay(ARCHITECTURE_TOOL?(architectureToolBuildsLines()?'Click a battlefield cell to place an anchor, then hold or drag a gold arrow.':'Click a battlefield cell to place '+b.textContent.toLowerCase()+'.'):'Building tool released.');};});
-  var seal=document.getElementById('architectureSealBypass'),undo=document.getElementById('architectureUndo'),reset=document.getElementById('architectureReset'),fog=document.getElementById('architectureFogPreview'),advance=document.getElementById('architectureFogAdvance');if(seal)seal.onclick=sealOptionalBypass;if(undo)undo.onclick=undoArchitectureLine;if(reset)reset.onclick=function(){ARCHITECTURE_RECORD=ARCHITECTURE_API.record([]);ARCHITECTURE_HISTORY=[];ARCHITECTURE_ANCHOR=null;architectureLineCancel(false);architectureSay('All authored blocks cleared. The seeded Temple is restored.');renderArchitectureBlocks();refreshDeploymentPanel();};
+  var seal=document.getElementById('architectureSealBypass'),undo=document.getElementById('architectureUndo'),reset=document.getElementById('architectureReset'),fog=document.getElementById('architectureFogPreview'),advance=document.getElementById('architectureFogAdvance'),publish=document.getElementById('architecturePublish'),discard=document.getElementById('architectureDiscard');if(seal)seal.onclick=sealOptionalBypass;if(undo)undo.onclick=undoArchitectureLine;if(reset)reset.onclick=function(){architectureSetWorkingRecord(ARCHITECTURE_API.record([]));ARCHITECTURE_HISTORY=[];ARCHITECTURE_ANCHOR=null;architectureLineCancel(false);architectureSay('All authored blocks cleared. The seeded Temple is restored.');renderArchitectureBlocks();refreshDeploymentPanel();};if(publish)publish.onclick=publishLiveArchitecture;if(discard)discard.onclick=function(){closeLiveArchitectureEditor('Battlefield draft discarded.');};
   if(fog)fog.onclick=function(){ARCHITECTURE_FOG_PREVIEW=!ARCHITECTURE_FOG_PREVIEW;ARCHITECTURE_PREVIEW_REGION=0;ARCHITECTURE_PREVIEW_EXPLORED=null;applyArchitectureFogPreview();renderArchitecturePanel();architectureSay(ARCHITECTURE_FOG_PREVIEW?'Sight preview: visible cells are coloured; out-of-sight geometry remains grey.':'Staff view restored.');};
   if(advance)advance.onclick=function(){if(!ARCHITECTURE_FOG_PREVIEW)return;var regions=F&&F.intent&&F.intent.regions||[],count=regions.length;ARCHITECTURE_PREVIEW_REGION=count?(ARCHITECTURE_PREVIEW_REGION+1)%count:0;applyArchitectureFogPreview();architectureSay('Preview eye moved to '+(regions[ARCHITECTURE_PREVIEW_REGION]&&regions[ARCHITECTURE_PREVIEW_REGION].id||'the map')+'. Previously seen cells remain grey.');};
   var handles=document.getElementById('architectureLineHandles');if(handles){
@@ -3705,7 +3746,7 @@ function sealOptionalBypass(){
     handles.addEventListener('pointermove',function(e){if(!ARCHITECTURE_LINE_DRAG)return;var d=ARCHITECTURE_LINE_DRAG,travel=(e.clientX-d.startX)*d.screenX+(e.clientY-d.startY)*d.screenY;if(travel>12){if(ARCHITECTURE_HOLD_TIMER)clearInterval(ARCHITECTURE_HOLD_TIMER);ARCHITECTURE_HOLD_TIMER=null;var length=Math.max(1,1+Math.round(travel/d.stepPx));if(length!==d.length){d.length=length;architectureLineShow(d.direction,d.length);}}});
     handles.addEventListener('pointerup',function(){if(ARCHITECTURE_LINE_DRAG)architectureLineCommit();});handles.addEventListener('pointercancel',function(){architectureLineCancel();});
   }
-  document.addEventListener('keydown',function(e){if(e.key==='Escape'&&(ARCHITECTURE_LINE_DRAG||ARCHITECTURE_LINE_PREVIEW.length))architectureLineCancel();});
+  document.addEventListener('keydown',function(e){if(e.key==='Escape'&&(ARCHITECTURE_LINE_DRAG||ARCHITECTURE_LINE_PREVIEW.length))architectureLineCancel();else if(e.key==='Escape'&&LIVE_ARCHITECTURE_EDIT)closeLiveArchitectureEditor('Battlefield draft discarded.');});
   document.addEventListener('contextmenu',function(e){if(ARCHITECTURE_LINE_DRAG||ARCHITECTURE_LINE_PREVIEW.length){e.preventDefault();architectureLineCancel();}});
 })();
 window.__forgeArchitecture={active:architectureActive,get record(){return ARCHITECTURE_API.normalizeRecord(ARCHITECTURE_RECORD);},audit:architectureAudit,place:applyArchitectureAt,line:function(direction,length){architectureLineShow(direction,length);architectureLineCommit();},undo:undoArchitectureLine,reset:function(){ARCHITECTURE_RECORD=ARCHITECTURE_API.record([]);ARCHITECTURE_HISTORY=[];ARCHITECTURE_ANCHOR=null;architectureLineCancel(false);renderArchitectureBlocks();}};
@@ -3867,7 +3908,10 @@ function populatePropPicker(){ const sel=document.getElementById('propSel');
 
 let drag=false,dragPan=false,lx=0,ly=0,moved=0;
 const cameraTouches=new Map();let pinchGap=0,pinchMid=null;
-renderer.domElement.addEventListener('contextmenu',function(e){if(moved>=6)e.preventDefault();});
+renderer.domElement.addEventListener('contextmenu',function(e){
+  if(ARCHITECTURE_TOOL&&architectureAvailable()&&moved<6){var at=architectureCellAtPointer(e),prior=at&&architectureBlockAt(architectureWorkingRecord(),at.c,at.r);if(prior){e.preventDefault();architectureRemember();architectureSetWorkingRecord(ARCHITECTURE_API.eraseRecord(architectureWorkingRecord(),at.c,at.r));ARCHITECTURE_ANCHOR=null;architectureSay(LIVE_ARCHITECTURE_EDIT?(architectureBlockAt(ARCHITECTURE_RECORD,at.c,at.r)?'Published object marked for removal. Publish when the draft is ready.':'Unpublished draft object cancelled.'):'Authored object removed.');renderArchitectureBlocks();return;}}
+  if(moved>=6)e.preventDefault();
+});
 renderer.domElement.addEventListener('pointerdown',e=>{
   cameraTouches.set(e.pointerId,{x:e.clientX,y:e.clientY});
   if(e.pointerType==='touch'&&cameraTouches.size===2){
@@ -3877,7 +3921,7 @@ renderer.domElement.addEventListener('pointerdown',e=>{
   drag=true;dragPan=e.shiftKey||e.button===1;lx=e.clientX;ly=e.clientY;moved=0;
 });
 addEventListener('pointerup',e=>{ cameraTouches.delete(e.pointerId); if(cameraTouches.size<2){pinchGap=0;pinchMid=null;} drag=false;
-  if(architectureActive()&&ARCHITECTURE_TOOL&&moved<6&&e.target===renderer.domElement){placeArchitectureAtPointer(e);return;}
+  if(e.button===0&&architectureAvailable()&&ARCHITECTURE_TOOL&&moved<6&&e.target===renderer.domElement){placeArchitectureAtPointer(e);return;}
   if((DEPLOYMENT_PLACE_GROUP||DEPLOYMENT_MANUAL)&&moved<6&&e.target===renderer.domElement){placeDeploymentAtPointer(e);return;}
   if(selectedSprite && moved<6){                       // a click (not an orbit/pan) → place
     const rect=renderer.domElement.getBoundingClientRect();
@@ -4710,7 +4754,7 @@ function rawCombatMapFromF(){
 }
 function combatMapFromF(){
   var map=rawCombatMapFromF();
-  return architectureActive()?ARCHITECTURE_API.apply(map,ARCHITECTURE_RECORD):map;
+  return architectureAvailable()?ARCHITECTURE_API.apply(map,ARCHITECTURE_RECORD):map;
 }
 function syncGeometryCreatures(map){
   map=map||(typeof CB!=='undefined'&&CB&&CB.map);if(!map)return map;
@@ -4719,7 +4763,7 @@ function syncGeometryCreatures(map){
     return {unit:u.unit||u.key||u.id,c:u.c,r:u.r,alive:u.alive!==false,heightFt:/G|H/.test(size)?10:/L/.test(size)?8:5,radius:rad};
   });return map;
 }
-function walkable(){ var out=[],blocked={};if(architectureActive())ARCHITECTURE_RECORD.blocks.forEach(function(b){if(ARCHITECTURE_API.KINDS[b.kind].blocks)blocked[b.c+','+b.r]=true;});for(var y=0;y<F.H;y++)for(var x=0;x<F.W;x++){ var i=y*F.W+x;
+function walkable(){ var out=[],blocked={};if(architectureAvailable())ARCHITECTURE_RECORD.blocks.forEach(function(b){if(ARCHITECTURE_API.KINDS[b.kind].blocks)blocked[b.c+','+b.r]=true;});for(var y=0;y<F.H;y++)for(var x=0;x<F.W;x++){ var i=y*F.W+x;
   if(!blocked[x+','+y]&&F.foot[i]&&F.height[i]>=0&&(F.type[i]===T_GRASS||F.type[i]===T_STONE||F.type[i]===T_PLAZA)) out.push({x:x,y:y,h:F.height[i]}); } return out; }
 /* ── §5.2 · nobody stands on top of anybody ──────────────────────────────
    The old rule sorted every free cell by distance to a seed and took the first
@@ -5503,6 +5547,7 @@ function applyVerb(v){
       } break;
     case "spawn":  spawnUnitFromState(v.unit, v.u); break;
     case "despawn":if(u){ removeToken(u,true); CB.units=CB.units.filter(function(x){return x!==u;}); CB.order=CB.order.filter(function(x){return x!==u;}); } break;
+    case "architecture": applySharedArchitectureRecord(v.record); break;
     case "turn":   setActiveFromLog(v.unit, v.round); break;   // Task 8 fleshes the HUD side
     case "order":  CB.order=(v.order||[]).map(function(k){return unitByKey(k);}).filter(Boolean);if(v.active){var oi=CB.order.indexOf(unitByKey(v.active));if(oi>=0)CB.ti=oi;}reconcileMovementPresentation();renderHud();break;
     case "status": if(v.status==="ended"){ CB.over=true; clog("<b>Fight over.</b>");
@@ -5541,6 +5586,7 @@ function applyVerb(v){
   }
 }
 function resyncFromState(st){
+  if(st.architectureRecord)applySharedArchitectureRecord(st.architectureRecord);
   CB.units.forEach(function(u){ var s=(st.units||{})[u.unit]; if(!s){ removeToken(u,true); return; }
     var wasAlive=u.alive;u.c=s.pos.c; u.r=s.pos.r; u.hp=s.hp;u.res=normalizeResourceRecord(s.resources||u.res); u.alive=!s.downed;u.deathSaves=window.ForgeDeathSaves?window.ForgeDeathSaves.normalize(s.deathSaves):u.deathSaves;
     if(!u.alive){if(wasAlive||u.sprite||u.topToken)removeToken(u);return;}
@@ -9732,6 +9778,8 @@ function renderOverseerToolbar(){
   var rw=document.getElementById("ovRewind"); if(rw) rw.disabled=busy||!turnBoundaries().length;
   var gm=document.getElementById("ovGod");
   if(gm){ gm.disabled=ended; gm.textContent="GOD MODE: "+(GOD_MODE?"on":"off"); gm.classList.toggle("on",GOD_MODE); }
+  var eb=document.getElementById("ovEditBattlefield");
+  if(eb){eb.disabled=ended||busy;eb.classList.toggle("on",LIVE_ARCHITECTURE_EDIT);eb.textContent=LIVE_ARCHITECTURE_EDIT?"Editing battlefield · close":"Edit battlefield";}
   var ef=document.getElementById("ovEndFight"); if(ef) ef.disabled=ended||busy;
   // Task 15: reinforcements need a confirmed order to slot into (spec's "mid-fight"
   // framing) — gating here, not on the click handler, keeps the reason visible.
@@ -9995,6 +10043,7 @@ addEventListener("pointerup", function(e){ if(e.target!==renderer.domElement) re
   if(g("ovCorrect")) g("ovCorrect").addEventListener("click",openCorrectLast);
   if(g("ovRewind")) g("ovRewind").addEventListener("click",openRewind);
   if(g("ovGod")) g("ovGod").addEventListener("click",toggleGodMode);
+  if(g("ovEditBattlefield")) g("ovEditBattlefield").addEventListener("click",toggleLiveArchitectureEditor);
   if(g("ovEndFight")) g("ovEndFight").addEventListener("click",endFightClicked);
   if(g("cbCorrectSave")) g("cbCorrectSave").addEventListener("click",submitCorrect);
   if(g("cbCorrectCancel")) g("cbCorrectCancel").addEventListener("click",closeCorrect);

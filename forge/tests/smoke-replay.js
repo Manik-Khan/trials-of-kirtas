@@ -144,6 +144,13 @@ s = FR.replayLog(ROSTER, setup.concat([
 ]));
 ok("edit moves units, sets hp, sets conditions", s.units.goblin1.pos.c === 4 &&
   s.units.goblin1.hp === 3 && s.units.caim.conditions[0] === "prone");
+const architectureRecord = { schema: "forge-architecture", version: 3, fog: "region-grey",
+  blocks: [{ c: 3, r: 4, kind: "parapet", rotation: 90 }] };
+s = FR.replayLog(ROSTER, setup.concat([
+  row(5, "__session", "edit", { changes: [{ architecture_state: { record: architectureRecord } }] })
+]));
+ok("battlefield edits are replayed as shared snapshot facts",
+  s.architectureRecord.blocks[0].rotation === 90 && s.architectureRecord !== architectureRecord);
 
 // ── restore: hard branch — snapshot erases the dead branch's effects (spec §5) ──
 const preBranch = FR.replayLog(ROSTER, fight);           // goblin1 at 2 hp

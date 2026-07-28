@@ -28,10 +28,15 @@
   .edit .cell:not(.void){cursor:crosshair}.edit .cell:not(.void):hover{outline:2px solid #f2ca63;outline-offset:-3px;z-index:2}
   .obj{position:absolute;inset:7px;z-index:2;display:grid;place-items:center;font-size:9px;font-weight:800;letter-spacing:.05em;text-transform:uppercase;color:#e7dec9;text-shadow:0 1px 2px #000}
   .obj.wall{inset:4px;background:linear-gradient(90deg,#877961,#615745);border:1px solid #ac9a79;box-shadow:inset 0 -10px #564d3f,0 7px 9px #0008}
-  .obj.low{inset:14px 3px;background:#8b7a5d;border:1px solid #b7a581;box-shadow:0 4px 6px #0007}
+  .obj.low{inset:3px 14px;background:#8b7a5d;border:1px solid #b7a581;box-shadow:0 4px 6px #0007;transform-origin:center}
+  .obj.low.ew{transform:rotate(90deg)}
   .obj.block{inset:9px;background:#8a6a42;border:1px solid #c19a63;box-shadow:inset -7px -7px #6d5134,0 6px 8px #0008}
   .obj.gate{inset:4px 15px;border-left:4px solid #9b8767;border-right:4px solid #9b8767;border-top:5px solid #b19c79;transform-origin:center}
   .obj.gate.ew{transform:rotate(90deg)}
+  .obj.gate.draft:before{content:"↕";position:absolute;left:50%;top:50%;transform:translate(-50%,-50%);color:#ffe28a;font-size:25px;text-shadow:0 1px 4px #000}
+  .obj.gate.ew.draft:before{content:"↔";transform:translate(-50%,-50%) rotate(-90deg)}
+  .obj.low.draft:before{content:"↕";position:absolute;left:50%;top:50%;transform:translate(-50%,-50%);color:#ffe28a;font-size:25px;text-shadow:0 1px 4px #000}
+  .obj.low.ew.draft:before{content:"↔";transform:translate(-50%,-50%) rotate(-90deg)}
   .obj.draft{opacity:.56;filter:saturate(.45);outline:2px dashed #efc862;outline-offset:2px}.obj.draft:after{content:"DRAFT";position:absolute;top:-16px;font-size:7px;color:#f4d779;background:#2c2415;padding:2px 4px}
   .obj.remove{background:repeating-linear-gradient(135deg,transparent 0 6px,#b95b4eaa 6px 9px);border:2px solid #dc7567}.obj.remove:after{content:"REMOVE";font-size:8px;background:#4d1f1b;padding:2px 4px}
   .token{position:absolute;z-index:3;width:34px;height:34px;border-radius:50%;left:7px;top:7px;display:grid;place-items:center;border:3px solid #d6b75b;background:#2e594f;box-shadow:0 5px 9px #0008;font-family:Georgia,serif;font-weight:800}
@@ -43,7 +48,7 @@
   .section{padding:16px 20px;border-bottom:1px solid #39342b}.sectionTitle{display:flex;justify-content:space-between;align-items:center;margin-bottom:10px;font-size:10px;text-transform:uppercase;letter-spacing:.13em;color:#cfc3ad}.safe{color:#68b48b;font-size:9px}
   .source{display:grid;grid-template-columns:1fr 1fr;gap:7px}.source button,.tool{border:1px solid #4e473a;background:#211f1a;padding:9px 8px;text-align:left}.source button{font-size:10px;text-align:center}.source button.on,.tool.on{border-color:#d2aa4e;background:#322914;color:#f1d890}
   .tools{display:grid;grid-template-columns:1fr 1fr;gap:8px}.tool{min-height:61px;cursor:pointer}.tool b{display:block;font-family:Georgia,serif;font-size:13px}.tool span{display:block;color:#948b7c;font-size:9px;margin-top:4px;line-height:1.25}.tool.erase{border-color:#684039}.tool.erase.on{background:#3c211e;border-color:#c96c5d;color:#f2b3a8}
-  .facing{display:none;margin-top:10px;border:1px solid #574d3a;background:#1c1a16;padding:10px}.facing.show{display:block}.facingRead{display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;font-size:10px;color:#bdb29e}.facingRead b{color:#e5ce91}.rotate{display:grid;grid-template-columns:1fr 1fr;gap:7px}.rotate button{border:1px solid #65573d;background:#2b261d;padding:8px;font-size:10px;text-transform:uppercase;letter-spacing:.06em;cursor:pointer}.rotate button:hover{border-color:#d4ad52;color:#f0d68f}
+  .facing{display:none;margin-top:10px;border:1px solid #574d3a;background:#1c1a16;padding:10px}.facing.show{display:block}.facingRead{display:flex;justify-content:space-between;align-items:center;margin-bottom:7px;font-size:10px;color:#bdb29e}.facingRead b{color:#e5ce91}.gesture{font-size:9px;color:#9f9687;line-height:1.45}.gesture b{color:#dbc276}
   .legend{display:grid;gap:8px}.legend div{display:grid;grid-template-columns:16px 1fr;gap:8px;align-items:start;font-size:10px;color:#aaa190;line-height:1.35}.legend i{width:14px;height:14px;border:1px solid #b6a47c;background:#716550}.legend i.cover{height:6px;margin-top:4px}.legend i.gate{background:transparent;border-width:0 3px 3px}
   .draftList{display:grid;gap:6px;min-height:46px}.empty{font-size:11px;color:#7f776b;font-style:italic}.change{display:flex;justify-content:space-between;gap:8px;font-size:10px;background:#25221c;border-left:2px solid #d2aa4e;padding:7px 8px}.change button{border:0;background:transparent;color:#c97869;padding:0;cursor:pointer}
   .publish{position:sticky;bottom:0;padding:14px 20px 20px;background:linear-gradient(transparent,#141310 22%);display:grid;grid-template-columns:1fr auto;gap:8px}.publish button{border:1px solid #554b38;background:#201d16;padding:11px 12px;text-transform:uppercase;font-size:10px;letter-spacing:.09em;cursor:pointer}.publish .primary{background:#cba447;color:#18130a;border-color:#e2c06c;font-weight:800}.publish button:disabled{opacity:.35;cursor:not-allowed}
@@ -85,11 +90,10 @@
           <button class="tool" data-tool="wall"><b>Stone wall</b><span>10-ft high · blocks movement and sight</span></button>
           <button class="tool" data-tool="low"><b>Low wall</b><span>5-ft high · cover without hiding the room</span></button>
           <button class="tool" data-tool="gate"><b>Doorway</b><span>Passable opening through an authored wall</span></button>
-          <button class="tool erase" data-tool="erase"><b>Remove</b><span>Erase a staff-authored obstacle</span></button>
         </div>
         <div class="facing" id="facingPanel">
-          <div class="facingRead"><span>Doorway orientation</span><b id="facingLabel">North–South opening</b></div>
-          <div class="rotate"><button data-rotate="-1">↶ Rotate left</button><button data-rotate="1">Rotate right ↷</button></div>
+          <div class="facingRead"><span id="facingName">Directional alignment</span><b id="facingLabel">0° · North–South</b></div>
+          <div class="gesture"><b>Left-click the placed object again</b> to rotate 90°. <b>Right-click</b> any authored object to remove it. The gold mass-build preview continues along this alignment.</div>
         </div>
       </div>
       <div class="section">
@@ -121,51 +125,55 @@
   var app=document.getElementById("app"),stage=document.getElementById("stage"),map=document.getElementById("map"),toast=document.getElementById("toast");
   function key(c,r){return c+","+r}
   function recordKind(value){return value&&value.kind||value}
+  function directional(kind){return kind==="gate"||kind==="low"}
   function recordRotation(value){var n=Number(value&&value.rotation)||0;return((n%360)+360)%360}
   function rotationAxis(value){return recordRotation(value)%180===90?"ew":"ns"}
-  function rotationLabel(value){var n=recordRotation(value);return n+"° · "+(n%180===90?"East–West opening":"North–South opening")}
+  function rotationLabel(value){var n=recordRotation(value);return n+"° · "+(n%180===90?"East–West":"North–South")}
   function showToast(text){toast.textContent=text;toast.classList.add("show");clearTimeout(showToast.t);showToast.t=setTimeout(function(){toast.classList.remove("show")},1800)}
   function draftKeys(){return Object.keys(draft)}
   function paint(){
     map.innerHTML="";
     for(var r=0;r<rows;r++)for(var c=0;c<cols;c++){
       var k=key(c,r),cell=document.createElement("div");cell.className="cell"+((c+r)%3===0?" alt":"")+(voids.has(k)?" void":"")+(seeded.has(k)?" seeded":"");cell.dataset.key=k;
-      var kind=recordKind(published[k]);if(kind){var obj=document.createElement("div");obj.className="obj "+kind+(kind==="gate"?" "+rotationAxis(published[k]):"");obj.textContent=kind==="block"?"crate":"";cell.appendChild(obj)}
+      var kind=recordKind(published[k]);if(kind){var obj=document.createElement("div");obj.className="obj "+kind+(directional(kind)?" "+rotationAxis(published[k]):"");obj.textContent=kind==="block"?"crate":"";cell.appendChild(obj)}
       if(draft[k]){
-        var draftKind=recordKind(draft[k]),d=document.createElement("div");d.className="obj "+(draftKind==="erase"?"remove":draftKind)+(draftKind==="gate"?" "+rotationAxis(draft[k]):"")+" draft";if(draftKind==="block")d.textContent="crate";cell.appendChild(d)
+        var draftKind=recordKind(draft[k]),d=document.createElement("div");d.className="obj "+(draftKind==="erase"?"remove":draftKind)+(directional(draftKind)?" "+rotationAxis(draft[k]):"")+" draft";if(draftKind==="block")d.textContent="crate";cell.appendChild(d)
       }
       if(tokens[k]){var t=document.createElement("div");t.className="token "+tokens[k][1];t.textContent=tokens[k][0];cell.appendChild(t)}
-      if(!voids.has(k))cell.onclick=function(){editCell(this.dataset.key)};
+      if(!voids.has(k)){cell.onclick=function(){editCell(this.dataset.key)};cell.oncontextmenu=function(e){if(published[this.dataset.key]||draft[this.dataset.key]){e.preventDefault();removeCell(this.dataset.key)}}}
       map.appendChild(cell)
     }
     renderDraft()
   }
   function editCell(k){
-    if(!editing)return;
+    if(!editing||app.classList.contains("player"))return;
     if(tokens[k]){showToast("Move the combatant before building on that square.");return}
     if(seeded.has(k)){showToast("Seeded architecture is locked in live mode.");return}
-    if(tool==="erase"){
-      if(!published[k]&&recordKind(draft[k])!=="erase"){showToast("There is no staff-authored obstacle there.");return}
-      if(draft[k]&&recordKind(draft[k])!=="erase")delete draft[k];else draft[k]={kind:"erase"};
+    var existing=recordKind(draft[k])!=="erase"&&(draft[k]||published[k]);
+    if(directional(tool)&&recordKind(existing)===tool){
+      rotation=(recordRotation(existing)+90)%360;draft[k]={kind:tool,rotation:rotation};showToast(names[tool]+" rotated. Line continuation now follows "+rotationLabel(draft[k])+".");
+    }else if(existing&&recordKind(existing)===tool){
+      showToast("Right-click an authored object to remove it.");
     }else{
-      var next={kind:tool};if(tool==="gate")next.rotation=rotation;
-      if(tool==="gate"&&recordKind(draft[k])==="gate"){draft[k].rotation=(recordRotation(draft[k])+90)%360;}
-      else if(recordKind(draft[k])===tool)delete draft[k];
-      else draft[k]=next;
+      draft[k]={kind:tool};if(directional(tool))draft[k].rotation=rotation;
     }
     paint()
+  }
+  function removeCell(k){
+    if(!editing||app.classList.contains("player"))return;
+    if(tokens[k]){showToast("Move the combatant before changing that square.");return}
+    if(draft[k]&&!published[k]){delete draft[k];paint();showToast("Unpublished draft removed.");return}
+    if(published[k]){draft[k]={kind:"erase"};paint();showToast("Removal drafted. Publish to update the table.");return}
+    if(draft[k]){delete draft[k];paint();showToast("Draft cleared.");return}
   }
   function renderDraft(){
     var keys=draftKeys(),list=document.getElementById("draftList"),count=document.getElementById("draftCount"),publish=document.getElementById("publish"),discard=document.getElementById("discard");
     count.textContent=keys.length;publish.textContent="Publish "+keys.length+" change"+(keys.length===1?"":"s");publish.disabled=!keys.length;discard.disabled=!keys.length;
-    list.innerHTML=keys.length?keys.map(function(k){var kind=recordKind(draft[k]),direction=kind==="gate"?" · "+rotationLabel(draft[k]):"";return '<div class="change"><span>'+names[kind]+direction+' · square '+k+'</span><button data-drop="'+k+'">×</button></div>'}).join(""):'<div class="empty">Choose a tool, then click an open square.</div>';
+    list.innerHTML=keys.length?keys.map(function(k){var kind=recordKind(draft[k]),direction=directional(kind)?" · "+rotationLabel(draft[k]):"";return '<div class="change"><span>'+names[kind]+direction+' · square '+k+'</span><button data-drop="'+k+'">×</button></div>'}).join(""):'<div class="empty">Choose a tool, then click an open square.</div>';
     list.querySelectorAll("[data-drop]").forEach(function(b){b.onclick=function(){delete draft[b.dataset.drop];paint()}});
   }
-  function renderFacing(){document.getElementById("facingPanel").classList.toggle("show",tool==="gate");document.getElementById("facingLabel").textContent=rotationLabel({rotation:rotation})}
-  function rotateFacing(step){rotation=(rotation+(Number(step)||1)*90+360)%360;renderFacing();showToast("Doorway rotated to "+rotationLabel({rotation:rotation})+".")}
+  function renderFacing(){document.getElementById("facingPanel").classList.toggle("show",directional(tool));document.getElementById("facingName").textContent=(names[tool]||"Directional object")+" alignment";document.getElementById("facingLabel").textContent=rotationLabel({rotation:rotation})}
   document.querySelectorAll("[data-tool]").forEach(function(b){b.onclick=function(){tool=b.dataset.tool;document.querySelectorAll("[data-tool]").forEach(function(x){x.classList.toggle("on",x===b)});renderFacing()}});
-  document.querySelectorAll("[data-rotate]").forEach(function(b){b.onclick=function(){rotateFacing(b.dataset.rotate)}});
-  document.addEventListener("keydown",function(e){if(editing&&tool==="gate"&&String(e.key).toLowerCase()==="r")rotateFacing(1)});
   document.getElementById("discard").onclick=function(){draft={};paint();showToast("Draft discarded. The table did not change.")};
   document.getElementById("publish").onclick=function(){
     var count=draftKeys().length;draftKeys().forEach(function(k){if(recordKind(draft[k])==="erase")delete published[k];else published[k]=Object.assign({},draft[k])});draft={};paint();showToast(count+" battlefield change"+(count===1?"":"s")+" published to the table.")

@@ -1,4 +1,4 @@
-/* Forge authored-architecture authority · version 2
+/* Forge authored-architecture authority · version 3
    Small, snapshot-safe wall/gate layer plus Temple region discovery. Pure data;
    the canonical Forge surface owns THREE meshes and authoring controls. */
 (function (root, factory) {
@@ -8,19 +8,34 @@
 })(typeof self !== "undefined" ? self : this, function () {
   "use strict";
 
-  var VERSION = 2;
+  var VERSION = 3;
   var SCHEMA = "forge-architecture";
-  var KINDS = Object.freeze({ wall: { heightFt: 10, blocks: true }, parapet: { heightFt: 5, blocks: true }, gate: { heightFt: 0, blocks: false } });
+  var KINDS = Object.freeze({
+    wall: { heightFt: 10, blocks: true, directional: false },
+    parapet: { heightFt: 5, blocks: true, directional: true },
+    gate: { heightFt: 0, blocks: false, directional: true }
+  });
 
   function key(c, r) { return c + "," + r; }
   function copy(value) { return value == null ? value : JSON.parse(JSON.stringify(value)); }
   function integer(value) { var n = Number(value); return Number.isInteger(n) ? n : null; }
+  function normalizeRotation(value) {
+    var n = Number(value);
+    if (!Number.isFinite(n)) return null;
+    return ((Math.round(n / 90) * 90) % 360 + 360) % 360;
+  }
+  function axisFor(edit) {
+    var normalized = normalizeEdit(edit);
+    if (!normalized || !KINDS[normalized.kind].directional || normalized.rotation == null) return null;
+    return normalized.rotation % 180 === 0 ? "z" : "x";
+  }
 
   function normalizeEdit(edit) {
     var c = integer(edit && edit.c), r = integer(edit && edit.r), kind = String(edit && edit.kind || "").toLowerCase();
     if (c == null || r == null || !KINDS[kind]) return null;
-    var out = { c: c, r: r, kind: kind }, heightFt = Number(edit && edit.heightFt);
+    var out = { c: c, r: r, kind: kind }, heightFt = Number(edit && edit.heightFt), rotation = normalizeRotation(edit && edit.rotation);
     if (KINDS[kind].blocks && Number.isFinite(heightFt) && heightFt > 0) out.heightFt = Math.max(KINDS[kind].heightFt, Math.min(60, Math.round(heightFt * 2) / 2));
+    if (KINDS[kind].directional && rotation != null) out.rotation = rotation;
     return out;
   }
 
@@ -34,7 +49,7 @@
   }
 
   function normalizeRecord(value) {
-    if (!value || value.schema !== SCHEMA || [1, VERSION].indexOf(Number(value.version)) < 0) return record([]);
+    if (!value || value.schema !== SCHEMA || [1, 2, VERSION].indexOf(Number(value.version)) < 0) return record([]);
     return record(value.blocks);
   }
 
@@ -83,7 +98,11 @@
       var i = edit.r * out.cols + edit.c, def = KINDS[edit.kind], targetHeightFt = heightFt(edit);
       out.wall[i] = !!def.blocks;
       out.occ[i] = targetHeightFt;
-      out.coverShape[i] = def.blocks ? { kind: "full", source: "authored-" + edit.kind, heightFt: targetHeightFt } : null;
+      if (edit.kind === "parapet" && axisFor(edit)) {
+        out.coverShape[i] = axisFor(edit) === "x"
+          ? { kind: "box", source: "authored-parapet", heightFt: targetHeightFt, halfX: 0.47, halfY: 0.11 }
+          : { kind: "box", source: "authored-parapet", heightFt: targetHeightFt, halfX: 0.11, halfY: 0.47 };
+      } else out.coverShape[i] = def.blocks ? { kind: "full", source: "authored-" + edit.kind, heightFt: targetHeightFt } : null;
       if (def.blocks) blocking[key(edit.c, edit.r)] = true;
     });
     out.connectors.forEach(function (connector) {
@@ -181,7 +200,8 @@
 
   return {
     VERSION: VERSION, SCHEMA: SCHEMA, KINDS: KINDS,
-    normalizeEdit: normalizeEdit, record: record, normalizeRecord: normalizeRecord, editRecord: editRecord, eraseRecord: eraseRecord, heightFt: heightFt, lineCells: lineCells,
+    normalizeEdit: normalizeEdit, normalizeRotation: normalizeRotation, axisFor: axisFor,
+    record: record, normalizeRecord: normalizeRecord, editRecord: editRecord, eraseRecord: eraseRecord, heightFt: heightFt, lineCells: lineCells,
     apply: apply, audit: audit, requiredConnectorCells: requiredConnectorCells,
     regionIndex: regionIndex, regionStates: regionStates, regionStateAt: regionStateAt
   };

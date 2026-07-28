@@ -71,7 +71,7 @@ round) is never stored — it is derived by replaying the log top to bottom.
 | `chat` | anything said between actions | `{text}` | anyone, any time (not turn-gated by design) |
 | `override` | "DM says that actually missed." | `{corrects_seq, correction}` | overseer only |
 | `restore` | "Rewind to the top of round 2." | `{to_seq, snapshot}` (full board state inline) | overseer only |
-| `edit` | GOD MODE: the divine hand | `{changes:[{unit, pos?, hp?, conditions?, typed_roll?, typed_dmg?} \| {add_unit:{…}} \| {connector_state:{id,state}}]}` | overseer only |
+| `edit` | GOD MODE: the divine hand | `{changes:[{unit, pos?, hp?, conditions?, typed_roll?, typed_dmg?} \| {add_unit:{…}} \| {connector_state:{id,state}} \| {architecture_state:{record}}]}` | overseer only |
 | `session_ended` | "Fight's over." | `{}` | overseer |
 
 - **`unit` on a `prompt` is the asking (acting) unit** — the prompted unit is
@@ -103,6 +103,13 @@ round) is never stored — it is derived by replaying the log top to bottom.
   baseline; replay applies this event as the current encounter state. The overseer is
   the only writer. Refresh, reconnect, rewind, and correction reconstruct the same
   state without mutating the map snapshot or fingerprint.
+- **`architecture_state` (optional) on `edit`** — one atomic authored-battlefield
+  snapshot: `{record:{schema:'forge-architecture',version,blocks:[…]}}`. Staff
+  gestures remain a local draft until Publish. Replay then replaces the current
+  architecture record as one ordered fact, and the board rebuilds rendering,
+  movement, sight, and cover from that same record. Refresh, reconnect, rewind,
+  and late join therefore reconstruct the same walls, low-wall direction, and
+  doorways without replaying UI clicks.
 - **`reaction_declared` is a payment/commit fact.** Asked opportunity attacks publish it
   immediately after the controller accepts, before the nested attack begins. That makes
   the reaction unavailable to every client while Sanctuary, attack rolls, Shield,

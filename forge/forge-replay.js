@@ -64,7 +64,7 @@
     return {
       status: "staging", units: units, rolls: {}, initiativeEvidence: {}, initiative: null,
       turnsEnded: 0, pendingAction: null, pendingPrompt: null, pendingPrompts: [],
-      chat: [], lastSeq: 0, appliedResourceSpends: {}, connectorStates: {}, connectorStateProofs: {},
+      chat: [], lastSeq: 0, appliedResourceSpends: {}, connectorStates: {}, connectorStateProofs: {}, architectureRecord: null,
       economy: freshEconomy(null), encounterRegions: FER ? FER.groupsFromRoster(roster) : null
     };
   }
@@ -271,6 +271,7 @@
         state.appliedResourceSpends = state.appliedResourceSpends || {};
         state.connectorStates = state.connectorStates || {};
         state.connectorStateProofs = state.connectorStateProofs || {};
+        if(state.architectureRecord===undefined)state.architectureRecord=null;
         state.initiativeEvidence = state.initiativeEvidence || {};
         if(state.encounterRegions===undefined)state.encounterRegions=null;
         state.pendingPrompts = state.pendingPrompts || (state.pendingPrompt ? [state.pendingPrompt] : []);
@@ -281,6 +282,15 @@
       }
       case "edit":
         (p.changes || []).forEach(function (ch) {
+          if (ch.architecture_state) {
+            var ar = ch.architecture_state.record;
+            if (!ar || ar.schema !== "forge-architecture" || !Array.isArray(ar.blocks)) {
+              console.warn("[forge-replay] architecture_state ignored: invalid record");
+              return;
+            }
+            state.architectureRecord = JSON.parse(JSON.stringify(ar));
+            return;
+          }
           if (ch.connector_state) {
             var cs = ch.connector_state, nextState = String(cs.state || "").toLowerCase();
             if (!cs.id || ["open", "closed", "broken"].indexOf(nextState) < 0) {

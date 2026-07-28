@@ -38,6 +38,9 @@ const teleported=run([{seq:1,kind:"ability_used",unit:"caim",payload:{ability:"S
 ok("teleport effect → teleport verb instead of walk or jump",teleported.st.units.caim.pos.c===4&&teleported.verbs[0].some(v=>v.t==="teleport"&&v.to.r===3)&&!teleported.verbs[0].some(v=>v.t==="walk"||v.t==="jump"));
 ok("turn_ended → turn verb gob1", verbs[8].some(v=>v.t==="turn"&&v.unit==="gob1"));
 ok("add_unit → spawn verb", verbs[9].some(v=>v.t==="spawn"&&v.unit==="gob2"));
+const architecture=run([{seq:1,kind:"edit",unit:"__session",payload:{changes:[{architecture_state:{record:{schema:"forge-architecture",version:3,fog:"region-grey",blocks:[{c:2,r:2,kind:"gate",rotation:90}]}}}]}}]);
+ok("shared battlefield edit → architecture repaint verb",
+  architecture.verbs[0].some(v=>v.t==="architecture"&&v.record.blocks[0].rotation===90));
 // restore → resync
 const rows2=rows.concat([{seq:11,kind:"restore",unit:"__session",payload:{to_seq:2,snapshot:FR.snapshot(FR.replayLog(roster,rows.slice(0,2)))}}]);
 ok("restore → resync verb", run(rows2).verbs[10].some(v=>v.t==="resync"));

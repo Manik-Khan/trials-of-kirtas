@@ -4,11 +4,11 @@ Custom D&D 5e virtual tabletop. Live: **trials-of-kirtas.netlify.app**
 Repo: `Manik-Khan/trials-of-kirtas` · vanilla JS/HTML/CSS + Supabase + Netlify + GitHub.
 Walled React/Vite/TipTap corner at `journal/`.
 
-Updated: **July 25, 2026 (Forge field-report correction, approved
+Updated: **July 27, 2026 (Forge field-report correction, approved
 reaction/cover integration, disposable Test Fight production candidate,
 shared character capability contract, and the first typed-defense/teleport
 resolver slice, character-sheet source/progression alignment, and the first
-July 25 trust corrections plus staff live-battlefield-editing mock).**
+July 25 trust corrections plus the July 27 staff live-battlefield-editing production candidate).**
 Supersedes the earlier July 16 project handoff. The current Forge
 execution state lives in `docs/handoffs/forge/`. Reconciled sources include
 `CONTEXT_Forge.md`, the July 22 handoff, `FORGE_PROTOCOL.md`, `FORGE_BOARD.md`,
@@ -26,7 +26,7 @@ Cache-stamp every module include (`?v=`) — non-negotiable on iOS.
 
 ---
 
-## 🟡 Forge July 25 trust correction + live editing mock
+## 🟡 Forge July 25 trust correction + July 27 live editing production candidate
 
 The next local candidate fixes three field-trust failures without changing the
 event protocol:
@@ -40,18 +40,23 @@ event protocol:
   entry trigger; ordinary maps wait for DM activation. Explicitly disabling
   automation remains an active-at-start override.
 
-M requested staff live battlefield editing. The required standalone mock is
-`_edits/mock-forge-live-battlefield-editing.html`; it is not production wiring
-yet. Staff drafts remain local, Player Preview hides them, directional objects
-carry an explicit orientation, and Publish applies one atomic battlefield
-change designed to be reversible in the protocol. That event shape is intended to
+M approved `_edits/mock-forge-live-battlefield-editing.html`; its interaction
+contract is now wired into the production Forge candidate. Staff drafts remain
+local until Publish, so players and combat rules continue using the last
+published battlefield. Only directional
+objects rotate: repeated left-clicks turn doorways and low walls 90 degrees, while
+right-click drafts removal for any authored object. A rotated line anchor moves
+the mass-build continuation onto its new axis without rotating prior cells.
+Publish emits one overseer-only replayed `edit.architecture_state` containing the
+complete normalized architecture record. Rendering, movement, sight, cover,
+reconnect, and rewind consume that same fact. The event shape is intended to
 become the shared seam for later spell-created geometry carrying source,
-duration, concentration, and expiry. M approval of the mock remains the gate
-before adapting the existing Temple architecture record and shared replay.
+duration, concentration, and expiry.
 
-Focused validation is **180/180** known answers plus real-browser mock rounds
-covering staff draft privacy, directional rotation, publish, and removal. Signed-in/two-device field
-proof remains required.
+Focused production validation is **333/333** known answers. A real-browser
+Temple round proved low-wall and doorway placement, repeated-click rotation,
+and right-click removal on the actual Forge canvas with no new script error.
+Signed-in/two-device publish, reconnect, and rewind proof remains required.
 
 ---
 

@@ -856,12 +856,18 @@ teleport/resistance, two-device replay, and reconnect remain field gates.
 
 ## Required field checklist
 
-### July 25 trust correction + live battlefield editing mock
+### July 25 trust correction + July 27 live battlefield editing mock
 
 Baseline: clean `823f84d` on `main`, equal to `origin/main`. The character
 capability, Test Fight, reaction, and source-alignment commits since the
 recorded `79fd7f9` checkpoint were treated as dependencies; no other session
 owned or dirtied the touched files.
+
+The July 27 production slice started from clean `3435dee`, equal to
+`origin/main`; the prior trust/mock slice was the only commit since `823f84d`.
+This slice owns the architecture authority/replay/board adapter, the Forge
+surface and focused smokes, the approved mock, protocol, and these context
+records.
 
 The local production candidate now:
 
@@ -873,20 +879,22 @@ The local production candidate now:
   region maps use entry activation, ordinary maps use DM activation, and an
   unchecked automation control records an explicit active-at-start override.
 
-M requested live staff obstacle editing. The required standalone mock is
-`_edits/mock-forge-live-battlefield-editing.html`. It keeps draft geometry
-staff-local, hides it in Player Preview, stores a normalized quarter-turn angle
-(`0/90/180/270`) on directional objects such as doorways, and publishes or removes the batch as one
-table update. Production integration remains gated on M's mock approval.
-When approved, the event must be reversible and rebuild movement, sight, and
-cover from the same record. Spell-created walls and illusions should later add
-source/duration/concentration/expiry metadata to that same seam.
+M approved `_edits/mock-forge-live-battlefield-editing.html`. Production now
+keeps draft geometry staff-local, stores normalized quarter turns only on
+doorways and low walls, rotates them by repeated left-click, removes authored
+objects by right-click, and publishes the complete record as one overseer-only
+`edit.architecture_state`. Replay stores that exact record; the board verb
+rebuilds rendering, movement, sight, and cover together. Reconnect, late join,
+restore, and rewind therefore share one authority. Mass-build follows the
+rotated low-wall anchor axis while earlier cells retain their own orientation.
+Spell-created walls and illusions should later add
+source/duration/concentration/expiry metadata to that seam.
 
-Validation: **180/180** focused known-answer checks, every touched JavaScript
-file passes `node --check`, the production inline scripts parse, and a real
-browser interaction round proved draft privacy, directional rotation, atomic
-publish, and removal.
-Signed-in and two-device proof remains open.
+Validation: **333/333** focused known-answer checks and every touched JavaScript
+file passes `node --check`. The real production Temple canvas passed low-wall
+and doorway placement, repeated-click 90-degree rotation, and right-click
+removal with no new script error. Signed-in two-device publish, reconnect, and
+rewind proof remains open.
 
 1. **Passed July 23.** The live selector showed only the five active
    player-folder characters; deleted, test, and out-of-folder rows were absent.
@@ -968,15 +976,15 @@ Do not begin `bridge-crossing` by re-enabling random legacy bridge selection. Pu
 M reviews, commits, and pushes. Codex does not push. Current slice stamps:
 `forge-deployment.js?v=fd3`, `forge-generator-foundation.js?v=g2g1`,
 `forge-temple-terraces.js?v=tt1`, `forge-engine.js?v=fe10`,
-`forge-render-power.js?v=frp1`, `forge-architecture.js?v=fa5`, and
+`forge-render-power.js?v=frp1`, `forge-architecture.js?v=fa6`, and
 `forge-discovery.js?v=fd7`, `forge-capabilities.js?v=fc2`,
 `forge-capability-resolver.js?v=fcrs1`, `forge-kit-derive.js?v=b16`,
 `forge-foe-ai.js?v=fai3`, `forge-feed-render.js?v=ffr6`,
 `forge-hud.js?v=b7`, `forge-test-fight.js?v=tf1`, and
 `monster-actor.js?v=ma2`. Encounter activation adds
 `forge-encounter-regions.js?v=fer1` and bumps `forge-protocol.js?v=fpr2`,
-`forge-replay.js?v=fb18`, `forge-effects.js?v=fe7`,
-`forge-pipeline.js?v=fb9`, `forge-board.js?v=fb10`, and
+`forge-replay.js?v=fb19`, `forge-effects.js?v=fe7`,
+`forge-pipeline.js?v=fb9`, `forge-board.js?v=fb11`, and
 `forge-table-correctness.js?v=fg12`. Encounter Read adds
 `forge-encounter-read.js?v=fread3`. Explicit local party authority adds
 `forge-party-selection.js?v=fps1`. Character-source alignment adds root
