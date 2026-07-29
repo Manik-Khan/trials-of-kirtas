@@ -1,0 +1,175 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<meta name="robots" content="noindex">
+<title>Forge Blueprint · Ruined Abbey proof</title>
+<script type="importmap">
+{
+  "imports": {
+    "three": "https://cdn.jsdelivr.net/npm/three@0.185.1/build/three.module.js",
+    "three/addons/": "https://cdn.jsdelivr.net/npm/three@0.185.1/examples/jsm/"
+  }
+}
+</script>
+<link rel="stylesheet" href="mock-forge-blueprint-diorama.css?v=bp5">
+</head>
+<body>
+<header class="masthead">
+  <div class="brand">
+    <span class="eyebrow">Battle Forge · architecture proof</span>
+    <h1>Ruined Abbey</h1>
+  </div>
+  <div class="view-switch" role="group" aria-label="Blueprint view">
+    <button type="button" class="seg active" data-view="diorama">Diorama</button>
+    <button type="button" class="seg" data-view="scrawl">Scrawl</button>
+  </div>
+  <div class="quality-switch" role="group" aria-label="Rendering quality">
+    <button type="button" class="quality" data-quality="basic">Basic</button>
+    <button type="button" class="quality active" data-quality="balanced">Balanced</button>
+    <button type="button" class="quality" data-quality="cinematic">Cinematic</button>
+  </div>
+</header>
+
+<main>
+  <section class="stage-shell" aria-label="Forge Blueprint rendering">
+    <div id="threeStage" class="stage-panel"></div>
+    <canvas id="scrawlStage" class="stage-panel" aria-label="Top-down Scrawl view"></canvas>
+    <div class="stage-wash"></div>
+    <div class="map-caption">
+      <span id="topologyLabel">linear procession</span>
+      <strong id="mapName">Processional Abbey</strong>
+      <span id="discoveryLabel">1 of 3 regions discovered</span>
+    </div>
+    <div class="mini-legend">
+      <span><i class="dot pc"></i>Party</span>
+      <span><i class="dot foe"></i>Foe</span>
+      <span><i class="swatch unknown"></i>Unexplored</span>
+      <span><i class="swatch cover"></i>Cover</span>
+    </div>
+    <div id="fatal" role="alert"></div>
+  </section>
+
+  <aside class="workbench">
+    <section class="panel intro">
+      <span class="kicker">Forge Blueprint / v1</span>
+      <h2>One map. Two readings.</h2>
+      <p>The authored document is the source. Scrawl, diorama, and the tactical field are three consumers—not three maps.</p>
+    </section>
+
+    <section class="panel">
+      <div class="section-head">
+        <div>
+          <span class="step">01</span>
+          <h3>Topology fixture</h3>
+        </div>
+        <span class="status good" id="connectivityStatus">connected</span>
+      </div>
+      <div class="fixture-list" role="group" aria-label="Topology fixture">
+        <button type="button" class="fixture active" data-fixture="processional">
+          <span class="roman">I</span><span><strong>Processional Abbey</strong><small>Linear gate → nave → choir</small></span>
+        </button>
+        <button type="button" class="fixture" data-fixture="vault">
+          <span class="roman">II</span><span><strong>Loop / Hub Vault</strong><small>Four spokes · two bypasses</small></span>
+        </button>
+        <button type="button" class="fixture" data-fixture="warren">
+          <span class="roman">III</span><span><strong>Branching Warren</strong><small>Asymmetric cellar tree</small></span>
+        </button>
+      </div>
+    </section>
+
+    <section class="panel">
+      <div class="section-head">
+        <div>
+          <span class="step">02</span>
+          <h3>Discovery proof</h3>
+        </div>
+        <span class="status" id="idleStatus">idle</span>
+      </div>
+      <p class="hint">Unexplored rooms remain flat grey footprints. Discovery restores their material, elevation, light, and architecture.</p>
+      <div class="row">
+        <button type="button" class="action primary" id="revealNext">Reveal next room</button>
+        <button type="button" class="action" id="resetDiscovery">Reset</button>
+        <button type="button" class="action" id="focusHero" disabled title="Reveal the Raised Choir first">Focus Choir</button>
+      </div>
+    </section>
+
+    <section class="panel">
+      <div class="section-head">
+        <div>
+          <span class="step">03</span>
+          <h3>Local authoring</h3>
+        </div>
+        <span class="status" id="chunkStatus">no rebuild</span>
+      </div>
+      <div class="tool-row" role="group" aria-label="Architecture tool">
+        <button type="button" class="tool active" data-tool="wall">Wall</button>
+        <button type="button" class="tool" data-tool="lowWall">Low wall</button>
+        <button type="button" class="tool" data-tool="door">Door</button>
+        <button type="button" class="tool danger" data-tool="erase">Erase</button>
+      </div>
+      <div class="rotation-row">
+        <span id="rotationLabel">Placement angle</span>
+        <button type="button" class="rotate" id="rotateLeft" aria-label="Rotate left">↺</button>
+        <strong id="rotationValue">0°</strong>
+        <button type="button" class="rotate" id="rotateRight" aria-label="Rotate right">↻</button>
+      </div>
+      <p class="hint">Click an existing wall, low wall, or door to select it; the arrows rotate that piece in place. Click an empty playable cell to place the active tool. Only its 5×5-cell chunk rebuilds.</p>
+      <div class="zone-grid">
+        <label>Region
+          <select id="zoneRegion"></select>
+        </label>
+        <label>Elevation
+          <select id="zoneElevation">
+            <option value="0">0 ft</option>
+            <option value="5">5 ft</option>
+            <option value="10">10 ft</option>
+          </select>
+        </label>
+        <label>Material
+          <select id="zoneMaterial">
+            <option value="nave">Nave stone</option>
+            <option value="cloister">Mossed stone</option>
+            <option value="crypt">Crypt stone</option>
+            <option value="timber">Old oak</option>
+            <option value="water">Holy channel</option>
+          </select>
+        </label>
+        <button type="button" class="action" id="applyZone">Apply zone</button>
+      </div>
+    </section>
+
+    <section class="panel metrics">
+      <div class="section-head">
+        <div>
+          <span class="step">04</span>
+          <h3>Measured evidence</h3>
+        </div>
+        <span class="status good" id="contractStatus">field valid</span>
+      </div>
+      <dl>
+        <div><dt>Draw calls</dt><dd id="metricCalls">—</dd></div>
+        <div><dt>Triangles</dt><dd id="metricTriangles">—</dd></div>
+        <div><dt>Textures</dt><dd id="metricTextures">0</dd></div>
+        <div><dt>Frame</dt><dd id="metricFrame">— ms</dd></div>
+        <div><dt>Chunks</dt><dd id="metricChunks">—</dd></div>
+        <div><dt>Tactical cells</dt><dd id="metricCells">—</dd></div>
+      </dl>
+      <details>
+        <summary>Compiler contract</summary>
+        <code>{cols, rows, h, wall, occ, coverShape, spawns, props, meta}</code>
+      </details>
+    </section>
+
+    <footer>
+      <span>Code-native geometry · no imported assets</span>
+      <span>Three.js r185.1 · proof only</span>
+    </footer>
+  </aside>
+</main>
+
+<script src="mock-forge-blueprint-diorama-core.js?v=bp5"></script>
+<script type="module" src="mock-forge-blueprint-diorama.js?v=bp5"></script>
+</body>
+</html>
