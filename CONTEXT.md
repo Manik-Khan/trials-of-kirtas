@@ -4,7 +4,8 @@ Custom D&D 5e virtual tabletop. Live: **trials-of-kirtas.netlify.app**
 Repo: `Manik-Khan/trials-of-kirtas` · vanilla JS/HTML/CSS + Supabase + Netlify + GitHub.
 Walled React/Vite/TipTap corner at `journal/`.
 
-Updated: **July 27, 2026 (Forge field-report correction, approved
+Updated: **July 28, 2026 (approved Forge Blueprint → Scrawl → modular-diorama
+vertical-proof contract, Forge field-report correction, approved
 reaction/cover integration, disposable Test Fight production candidate,
 shared character capability contract, and the first typed-defense/teleport
 resolver slice, character-sheet source/progression alignment, and the first
@@ -23,6 +24,27 @@ decisions, and the open bugs. This doc is the project; that one is the subsystem
 deploy). Codex commits **only when M explicitly asks**, staging files by name, and **never
 pushes**. Otherwise Codex's job ends at validated files + a one-line deploy note.
 Cache-stamp every module include (`?v=`) — non-negotiable on iOS.
+
+---
+
+## 🟡 Forge Blueprint → Scrawl → Diorama proof approved — July 28
+
+M approved replacing the next “more random cubes” step with a neutral
+`forge-blueprint/v1` architecture. Drawing, later import/tracing, and the future
+graph-first generator will produce the same document; top-down Scrawl and a
+low-poly modular diorama will consume it. The existing tactical field remains
+movement/LoS/cover authority during migration, with Blueprint compiling to its
+current shape.
+
+The next session owns one isolated Ruined Abbey vertical proof in `_edits/`:
+the same Blueprint in Scrawl and diorama views, three genuinely different
+topologies, local wall/door/low-wall/elevation edits, grey unexplored rooms,
+discovery-driven raised/color architecture, cutaway walls, three quality
+modes, and real performance counters. It does **not** touch the live Forge,
+combat, protocol, current generator, character, or monster files. Production
+editor/generator/renderer work begins only after M approves that real proof.
+Exact ownership, exclusions, and acceptance gates are in `CONTEXT_Forge.md`
+and the current Forge handoff.
 
 ---
 
@@ -65,7 +87,7 @@ Signed-in/two-device publish, reconnect, and rewind proof remains required.
 M approved `_edits/mock-forge-shared-capability-contract.html`. The first
 production foundation is integrated. `forge/forge-capabilities.js?v=fc2` now projects each real character sheet into
 one versioned `forge-capability/v1` ledger before
-`forge-kit-derive.js?v=b16` finishes the combat kit. Actions, spells, resources,
+`forge-kit-derive.js?v=b17` finishes the combat kit. Actions, spells, resources,
 features, passives, reactions, riders, movement, senses, and defenses share the
 same fields for status, action economy, targeting, roll, cost, effects,
 triggers, tags, automation, source provenance, and consumers.
@@ -560,9 +582,11 @@ the Dead corrections, explicit target→confirm flow, player move undo, flanking
 advantage/disadvantage, and Prone.
 
 The cumulative Phase 1.5h bundle has **426 green checks**. Browser/WebGL and live two-device
-field tests remain required. After that, begin active Phase 2: snapshot-first load, archetype
-parameters, stage-owned random streams, constrained elevations/connectors, semantic spawns and
-objectives, validation/local repair, debug overlays, and authored tactical prop footprints.
+field tests remain required. The first active Phase 2 slice is now the approved
+standalone Blueprint/Diorama proof. After it is visually and technically
+accepted, continue with the production editor, graph-first generator,
+snapshot/version integration, stable stage sub-seeds, validation/local repair,
+and renderer flag described in `CONTEXT_Forge.md`.
 
 **`forge/README.md` + `CONTEXT_Forge.md` are canonical for this subsystem.** Read both.
 For the cover-contest mechanism, `FORGE_COVER_CONTEST.md`; for the event protocol,
@@ -600,10 +624,15 @@ The next approved architecture order is:
    overview, and player camera bounds;
 2. party-shared three-state fog of war in **world/map space**, with enemies and interactions gated
    through `foeVisible()`;
-3. generator Phase 2: versioning + snapshots + stable stage sub-seeds + map archetypes, then
-   scatter/separate/Delaunay/MST+loops/semantics/constrained elevations/connectors/spawns,
-   followed by validate/repair and separate rules-relevant versus visual decoration;
-4. a dedicated tactical-prop art/data pack after the map contract is ready.
+3. Blueprint/Diorama vertical proof: neutral authored map document, Ruined
+   Abbey modular kit, dual Scrawl/diorama views, three topology fixtures,
+   editing/discovery/readability, and measured browser performance;
+4. after proof approval, production Blueprint/compiler + Scrawl editor +
+   graph-first generator with versioned snapshots, stable stage sub-seeds,
+   semantics, constrained elevations/connectors/spawns, validation/repair, and
+   separate rules-relevant versus visual decoration;
+5. production diorama behind an explicit renderer flag, followed later by
+   spell-created terrain on the existing architecture-event seam.
 
 ### July 12 (late) — ledge firing, database character authority, and the ranged-weapon fix
 

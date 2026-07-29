@@ -1047,6 +1047,87 @@ fresh signed-in test fight; provide the exact saved-fight URL for the reported
 HP and LoS cases; then build usable Rage/Wild Magic and the monster behavior
 adapter as separate production slices.
 
+## Approved Forge Blueprint / Diorama vertical proof · 2026-07-28
+
+Baseline: clean `140122b` on `main`, equal to `origin/main`. The committed
+character-resource and attack-shape correction is the only new Forge dependency
+since `e03930e`. No uncommitted files or overlapping project ownership were
+present when this contract was recorded.
+
+M approved the low-poly modular direction demonstrated in the visual
+exploration. The next session is a **real standalone vertical proof**, not a
+production renderer port and not a beautification pass on the current cube
+generator.
+
+### Ownership
+
+The slice owns only new proof files:
+
+- `_edits/mock-forge-blueprint-diorama.html`;
+- optional companion CSS/JS/fixture files sharing
+  `mock-forge-blueprint-diorama` in their name; and
+- one focused Blueprint/compiler known-answer smoke if the compiler is kept in
+  an importable companion module.
+
+It may add a tightly scoped local proof-asset directory only after recording
+every asset's source, author, license, and required attribution. Public-repo
+assets must be CC0 or CC-BY. The slice does **not** own or edit
+`forge/index.html`, generator/deployment/map-bridge/tactics-geometry modules,
+the event protocol/replay/board, character/monster authorities, shared theme
+tokens, or deployed cache stamps.
+
+### Build order
+
+1. Define the smallest `forge-blueprint/v1` inside the proof: grid and metadata;
+   room/space polygons and corridors; walls/openings; doors/windows/stairs;
+   elevation/material zones; discovery/encounter regions; props; and lights.
+2. Define a modular-kit manifest with footprint, connector faces, legal
+   quarter-turn rotation, height, cover, opacity, theme, and variants.
+3. Implement a compiler export to the existing tactical field shape
+   `{cols, rows, h, wall, occ, coverShape, spawns, props, meta}`. It is an
+   adapter to the current authority, not a parallel combat geometry engine.
+4. Build a code-native or clearly licensed **Ruined Abbey** kit: floors,
+   straight/corner/ruined/low walls, doorway/arch/window, stairs,
+   pillar/broken pillar, rubble, crates/barrels, brazier, pool/channel, decals,
+   and a restrained stone/wood/metal palette.
+5. Render the same Blueprint as top-down Scrawl and 2.5D/3D diorama. Provide
+   processional abbey, loop/hub vault, and branching warren fixtures so
+   structural variety is visible without changing the document contract.
+6. Prove local authoring: place/erase/quarter-turn walls, low walls, and doors;
+   change an elevation/material zone; rebuild only the affected chunk.
+7. Prove table readability: unexplored rooms are flat neutral-grey footprints,
+   discovery raises and colors the modules, nearby walls cut away/fade, and
+   cells/minis/doors/stairs/cover remain legible.
+8. Add Basic/Balanced/Cinematic switches and visible draw-call, triangle,
+   texture, and frame-time evidence. Batch/instance repeated modules, keep
+   Balanced to one or two atlases and one shadow-casting directional light,
+   and stop the render loop when the scene is idle.
+
+### Exit gates
+
+The slice is ready for M's review only when:
+
+- one Blueprint—not duplicated hand-authored data—drives both views;
+- all three fixtures are connected, traversable, and topologically distinct;
+- quarter-turn rotation, local chunk rebuild, discovery transition, and
+  cutaway readability work in the actual mock;
+- a focused smoke proves compiler determinism, connectivity, rotations,
+  occupancy, and cover output using the real exported functions;
+- each touched JavaScript file passes `node --check`;
+- the proof records asset provenance and measured results on M's laptop; and
+- M approves the rendered target.
+
+Do not begin the full Scrawl editor, graph-first generator, production renderer
+flag, multiplayer/replay integration, spell-created geometry, or live combat
+changes within this slice. After approval, promote the settled Blueprint and
+compiler, build editor and generator producers, then integrate the diorama
+behind an explicit flag while retaining the current renderer.
+
+This visual proof does not close the signed-in Forge field gates. Caim/Líadan/
+Chonkalius resources, exact saved-session HP and LoS cases, monster
+Multiattack/spells/traits, architecture publish/reconnect/rewind, and the
+two-device combat checklist remain separate work.
+
 1. **Passed July 23.** The live selector showed only the five active
    player-folder characters; deleted, test, and out-of-folder rows were absent.
 2. **Passed July 23.** A strict subset produced matching summary, CR wallet, and
@@ -1099,28 +1180,23 @@ adapter as separate production slices.
 
 ## Immediate execution order
 
-1. Deploy and field-check the Forge chooser AC correction, then complete
-   checklist items 19–21 before treating JSON or Forge identity as converged.
-2. Run the disposable-character progression check in item 22.
-3. Run the signed-in map-first Workshop check on an ordinary non-region map and Temple Terraces.
-4. Run the signed-in Encounter Read target-wallet, related roster, and full-Bestiary check.
-5. Run the signed-in two-device activation checklist: held rolls, region entry, hostile-action activation, DM activation, reconnect, and Player View narration.
-6. Run the signed-in shared-table/reconnect deployment and architecture checklist.
-7. Compare Balanced and High Fidelity on M's actual laptop during a full round.
-8. Recheck saved-block and geometry-fog reconnects on the normal Temple URL.
-9. Field-check the integrated War Caster/Repelling Blast reaction choices.
-10. Replay the July 24 fight for the exact pillar-cover and serialized-Ki facts.
-11. Field-check Caim/Vesperian typed resistance, both racial teleports,
-    Blessing expiry, resource spend, reconnect, and two-device replay.
-12. Implement the held character post-hit/reaction riders, then adapt full
-    monster defenses, spells, Multiattack, and special actions to
-    the same contract; Babau is the complex acceptance case and Manes the
-    simple control.
-13. Promote Temple from `preview` to `active` only after those checks pass.
-14. Expose/settle the Volcanic Workshop construction control.
-15. Build `bridge-crossing` on the same intent contract.
+1. Resynchronize from `AGENTS.md`, `CONTEXT.md`, `CONTEXT_Forge.md`, this
+   handoff, current `HEAD`, and the working tree.
+2. Build only the approved standalone Blueprint/Diorama vertical proof in the
+   ownership boundary above.
+3. Run its syntax and known-answer gates, then measure Basic/Balanced/Cinematic
+   on M's actual laptop.
+4. Stop for M's visual/interaction approval. Do not promote proof code into
+   production during the same slice.
+5. After approval, record the settled Blueprint/compiler contract here before
+   assigning production editor, generator, or renderer ownership.
 
-Do not begin `bridge-crossing` by re-enabling random legacy bridge selection. Purpose and archetype ownership come first.
+The signed-in field checklist, character post-hit/reaction riders, and monster
+behavior adapter remain a separate queue. They may run in another task only
+with explicit non-overlapping file ownership; their results do not authorize
+that task to absorb the proof or edit its files. Do not build
+`bridge-crossing`, re-enable random legacy bridge selection, or promote Temple
+while this visual architecture is being settled.
 
 ## Deployment discipline
 

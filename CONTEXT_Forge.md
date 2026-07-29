@@ -1,4 +1,4 @@
-# CONTEXT — Battle Forge — current authority through 2026-07-27
+# CONTEXT — Battle Forge — current authority through 2026-07-28
 
 > This doc exists because the same failure kept happening: a session would read
 > *part* of the material, conclude a feature "was never there," and rebuild
@@ -9,7 +9,7 @@
 
 ---
 
-## CURRENT AUTHORITY · 2026-07-27
+## CURRENT AUTHORITY · 2026-07-28
 
 Read `docs/handoffs/forge/CONTEXT_Forge-update-2026-07-22.md` before the
 historical sections below. It carries the intentional Temple Terraces preview,
@@ -29,7 +29,7 @@ and local combat. Unresolved groups refuse promotion. Staged legacy generation n
 longer samples decorative 5-ft connectors or produces bridges. Bridge authority
 remains available for the later `bridge-crossing` archetype. Runtime contract:
 
-The uncommitted July 24 correction also owns the current combat field-report
+The July 24 correction also owns the current combat field-report
 slice: current/max HP presentation, current-key character art aliases,
 first-click Hex targeting, save/Silvery Barbs evidence, staff-only tactics and
 cover rulings, real-time opportunity timing, ranged foe positioning, visible
@@ -104,6 +104,86 @@ two-device publish/reconnect/rewind remains the field gate.
 
 ---
 
+## APPROVED NEXT VISUAL ARCHITECTURE · 2026-07-28
+
+M approved the **Forge Blueprint → Scrawl → Diorama** direction. The next
+generator step is not another cosmetic pass over the current cubes and is not
+an RNG patch to Temple Terraces. Temple is an authored intent grammar with
+shallow variants; a genuinely varied map system needs a neutral authored map
+document before either procedural generation or presentation owns the result.
+
+The neutral document is `forge-blueprint/v1`. It describes spaces/room
+polygons, corridors, walls and openings, doors/windows/stairs, elevation and
+material zones, discovery/encounter regions, props, and lights. A module
+manifest adds footprint, connectors, legal quarter-turn rotation, height,
+cover, opacity, theme, and visual variants. Drawing, procedural generation,
+and later import/tracing are producers of this document. The top-down Scrawl
+view and low-poly 2.5D/3D diorama are consumers.
+
+During migration, the existing tactical field remains rules authority. The
+Blueprint compiler must emit the current field contract
+`{cols, rows, h, wall, occ, coverShape, spawns, props, meta}` so movement,
+line of sight, cover, placement, replay, and live architecture edits do not
+fork into visual-only substitutes.
+
+### Next build slice: one real modular vertical proof
+
+Build one new standalone, no-production-coupling mock:
+`_edits/mock-forge-blueprint-diorama.html`. It may use companion files with the
+same basename if keeping the source legible, but it must not edit
+`forge/index.html`, the current generator, map bridge, tactics geometry,
+protocol, character, or monster runtime. Use the production Three.js r185
+generation and a single **Ruined Abbey** kit:
+
+- floor center/edge/corner;
+- straight/corner/ruined/low walls;
+- doorway/arch/window and stairs;
+- pillar/broken pillar, rubble, crates/barrels, brazier, and pool/channel;
+- a restrained stone/wood/metal material set with decals and warm local light.
+
+The same Blueprint fixture must switch between readable top-down Scrawl and
+the finished diorama. The proof must show three structurally distinct layouts
+(processional abbey, loop/hub vault, and branching warren), not three dressing
+seeds on one route. It must also prove one local edit path: place/erase/rotate
+a wall, low wall, or doorway; change one elevation/material zone; and rebuild
+only the affected chunk. Undiscovered rooms remain as flat neutral-grey
+footprints; discovery raises and colors their architecture. Near walls cut
+away or fade so miniatures and playable cells remain legible.
+
+The mock exposes Basic, Balanced, and Cinematic quality modes plus measured
+draw calls, triangles, texture count, and frame time. Balanced is designed
+around one or two atlases, one shadow-casting directional light, batched or
+instanced repeated modules, and invalidation-driven rendering when the camera
+and scene are idle. Any imported asset must be local, optimized, and have
+recorded CC0/CC-BY provenance; ripped game assets and license-unclear packs are
+not candidates.
+
+### Approval gates for that proof
+
+1. One Blueprint renders both views without hand-maintained duplicate maps.
+2. All three fixtures are recognizably different in topology and remain
+   traversable.
+3. Doors and low walls rotate in quarter turns; editing one chunk does not
+   rebuild the whole board.
+4. Grey unexplored rooms, discovered color/elevation, wall cutaway, minis,
+   doors, stairs, and cover objects stay readable in both views.
+5. The compiler export satisfies the current tactical field shape; a focused
+   known-answer smoke checks connectivity, rotations, occupancy, and cover.
+6. Performance evidence is shown on M's actual laptop for all three quality
+   modes; idle rendering stops rather than burning a continuous frame loop.
+7. Asset provenance is recorded beside the proof.
+8. M approves the real rendered result before any production integration.
+
+Explicitly out of this slice: the full drawing editor, graph-first procedural
+generator, production renderer switch, multiplayer/replay integration, live
+combat changes, spell-created terrain, and monster behavior. Those begin only
+after the proof settles the document, kit, readability, and performance.
+Existing HP/resource/LoS/monster and signed-in two-device field gates remain
+open and are not evidence against or completion criteria for this isolated
+visual proof.
+
+---
+
 ## HISTORICAL ADDENDUM · 2026-07-13h
 
 Phase 1.5 is complete through the field-driven geometry/fog calibration. The current
@@ -129,8 +209,10 @@ production line now includes:
 **Current validation:** 426 cumulative checks green in the handoff bundle. Browser/WebGL
 and live two-device testing remain field gates.
 
-**Current next phase:** active Phase 2 generator terrain. Do not restart Phase 1.5 design
-unless a real browser field report demonstrates a regression. See §8 and
+**Historical next phase:** active Phase 2 generator terrain. The approved
+2026-07-28 Blueprint/Diorama proof above now defines the first Phase 2 slice.
+Do not restart Phase 1.5 design unless a real browser field report demonstrates
+a regression. See §8 and
 `archive/context/forge/CONTEXT_Forge-update-2026-07-13h.md`.
 
 ---
@@ -818,27 +900,35 @@ real placement. **These are decisions, not hypotheses.**
    evidence, not from one dramatic shot.
 6. Run the full repository smoke battery and a two-device session.
 
-### Then begin active Phase 2 generator terrain
+### Next: approved Blueprint/Diorama vertical proof
 
-1. **Snapshot-first session loading:** exact `mapSnapshot` authoritative; legacy recipe
-   fallback for old sessions.
-2. **Archetype selector + versioned parameters:** valley, canyon, central hill, ring,
-   split plateau, bridge crossing, island chain, courtyard, cavern chambers, temple
-   terraces, ridge, basin, plus compatibility `legacy-dungeon`.
-3. **Stage ownership:** make `layout`, `height`, `semantics`, `decor`, and `foes` seeds
-   actually own independent deterministic streams.
-4. **Constrained height assignment:** bounded tiers, no unavoidable low-ground spawn trap,
-   mandatory normal-creature route.
-5. **First-class connectors:** ramps, stairs, bridges, doors, tunnels, ledges, and fords,
-   with movement/access semantics.
-6. **Semantic spawns/objectives:** critical path, entrance, boss, side rooms, encounter intent.
-7. **Validation and local repair:** connectivity, spawn distance, immediate LoS, cover within
-   one move, route count, elevation advantage, choke width, sightline lengths, melee access
-   to ranged positions, and objective access. Retry only the failed stage when repair fails.
-8. **Debug overlays:** graph, critical path, semantics, height bands, connectors, cover density,
-   spawn influence, and reachable routes.
-9. **Tactical prop contract:** deepen Phase 1.5h `coverShape` into authored footprint,
-   rotation/view art, movement effect, and `occFt`; keep visual-only decoration separate.
+1. Define the minimum `forge-blueprint/v1` and modular-kit manifest inside the
+   standalone proof; do not create a second live tactical authority.
+2. Build the Ruined Abbey kit and render the same Blueprint as Scrawl and
+   low-poly diorama.
+3. Add the three topology fixtures, local chunk editing, discovery
+   grey→raised/color transition, cutaway walls, and quality/performance readout.
+4. Export the current tactical field shape and run the focused contract smoke.
+5. Field-test all quality modes on M's laptop and obtain visual approval.
+
+### After approval: active Phase 2 production terrain
+
+1. Promote the settled Blueprint/compiler as a versioned production module and
+   keep exact `mapSnapshot` authoritative with a legacy recipe fallback.
+2. Build the Scrawl editor: room/corridor/wall/door/stairs/elevation/prop tools,
+   rotate/remove, semantics, and undo.
+3. Build the graph-first generator:
+   graph → semantics → room shapes → corridors/connectors → elevation →
+   validate/local repair → dressing.
+4. Give `layout`, `height`, `semantics`, `decor`, and `foes` stable independent
+   sub-seeds, including dressing-only regeneration.
+5. Add archetype/version parameters, constrained elevation, first-class
+   connectors, semantic spawns/objectives, validation/repair, and debug
+   overlays.
+6. Integrate the diorama behind an explicit renderer flag while the current
+   renderer remains available.
+7. Only then extend the published architecture seam to spell-created and
+   duration/concentration-owned terrain.
 
 ### Carried later work
 
