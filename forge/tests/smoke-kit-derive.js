@@ -6,6 +6,8 @@
    Drives the REAL derive() with fixture data shaped after the live party.
    No DOM, no Supabase — pure logic.                                       */
 const FKD = require("../forge-kit-derive.js");
+const fs = require("fs");
+const vm = require("vm");
 
 let pass = 0, fail = 0;
 function ok(name, cond) { if (cond) { pass++; } else { fail++; console.log("  FAIL " + name); } }
@@ -24,6 +26,20 @@ const STARTER_KITS = {
     react: { hellishRebuke: { cost: { rebuke: 1 }, dc: 11, dmg: "2d10", saveAbility: "dex" } }, actions: [
     { label: "Shortsword", kind: "attack", rng: 1, hit: 5, dmg: "1d6+3" } ] }
 };
+
+(function derivedResourceSeam(){
+  var resourceWindow={};
+  vm.runInNewContext(fs.readFileSync(require.resolve("../../resource-derive.js"),"utf8"),{window:resourceWindow});
+  globalThis.ResourceDerive=resourceWindow.ResourceDerive;
+  var monk=FKD.derive({key:"modern-monk",name:"Modern Monk",structural:{name:"Modern Monk",level:4,classLabel:"Monk 4",abilities:{dex:{mod:3},wis:{mod:3}},combat:{maxHp:30,ac:16,speed:40},features:[],resources:[{id:"homebrewPool",label:"Homebrew Pool",max:2}]},vitals:{hp:30,pipState:{ki:1}},inventory:[]});
+  var bard=FKD.derive({key:"modern-bard",name:"Modern Bard",structural:{name:"Modern Bard",level:4,classLabel:"Bard 4",abilities:{cha:{mod:3}},combat:{maxHp:28,ac:14,speed:30},features:[],resources:[]},vitals:{hp:28,pipState:{bardicInspiration:1}},inventory:[]});
+  var barbarian=FKD.derive({key:"modern-barbarian",name:"Modern Barbarian",structural:{name:"Modern Barbarian",level:4,classLabel:"Barbarian 4",subclass:"Path of Wild Magic",abilities:{str:{mod:4}},combat:{maxHp:44,ac:15,speed:30},features:[],resources:[]},vitals:{hp:44,pipState:{rage:1}},inventory:[]});
+  ok("derived resource seam: modern Monk gets Ki without legacy classFeatures",monk.res.ki===3&&monk.pools.some(function(p){return p.key==="ki";}));
+  ok("derived resource seam: explicit custom resources survive missing-class-resource merge",monk.pools.some(function(p){return p.key==="homebrewPool"&&p.max===2;}));
+  ok("derived resource seam: modern Bard gets Bardic Inspiration without legacy classFeatures",bard.res.bardicInspiration===2&&bard.pools.some(function(p){return p.key==="bardicInspiration";}));
+  ok("derived resource seam: modern Barbarian 4 gets 3 Rage uses",barbarian.res.rage===2&&barbarian.pools.some(function(p){return p.key==="rage"&&p.max===3;}));
+  delete globalThis.ResourceDerive;
+})();
 
 // Vesperian Vale — Fighter 4 (Eldritch Knight)
 const VES_CHAR = {
@@ -839,19 +855,19 @@ const LIADAN_CHAR = {
   var eb3 = (cosKit.tabs.spells || []).filter(function (t) { return t.label === "Eldritch Blast"; })[0];
   ok("cantrip-scale: EB at level 3 = 1d10", eb3 && eb3.dmg === "1d10");
 
-  // Level 5 → mult=2 (2d10)
+  // Level 5 → two separate beams, each 1d10
   var lvl5 = JSON.parse(JSON.stringify(COSMERE_CHAR));
   lvl5.structural.level = 5;
   var kit5 = FKD.derive(lvl5);
   var eb5 = (kit5.tabs.spells || []).filter(function (t) { return t.label === "Eldritch Blast"; })[0];
-  ok("cantrip-scale: EB at level 5 = 2d10", eb5 && eb5.dmg === "2d10");
+  ok("cantrip-scale: EB at level 5 = 2 × 1d10 beams", eb5 && eb5.dmg === "1d10" && eb5.strikes === 2);
 
-  // Level 11 → mult=3 (3d10)
+  // Level 11 → three separate beams, each 1d10
   var lvl11 = JSON.parse(JSON.stringify(COSMERE_CHAR));
   lvl11.structural.level = 11;
   var kit11 = FKD.derive(lvl11);
   var eb11 = (kit11.tabs.spells || []).filter(function (t) { return t.label === "Eldritch Blast"; })[0];
-  ok("cantrip-scale: EB at level 11 = 3d10", eb11 && eb11.dmg === "3d10");
+  ok("cantrip-scale: EB at level 11 = 3 × 1d10 beams", eb11 && eb11.dmg === "1d10" && eb11.strikes === 3);
 
   // VM at level 4 → 1d4 (mult=1)
   var liaKit = FKD.derive(LIADAN_CHAR);
@@ -874,7 +890,7 @@ const LIADAN_CHAR = {
 // the round-3 table test caught the fixtures lying about.
 //   charData mapping mirrors the legacy JSON layout: the file's top-level
 //   `combat` block ({hp,hpTemp,pipState,…}) is the vitals-equivalent.
-const fs = require("fs"), path = require("path");
+const path = require("path");
 function liveChar(key) {
   const j = JSON.parse(fs.readFileSync(
     path.join(__dirname, "..", "..", "data", "characters", key + ".json"), "utf8"));

@@ -55,7 +55,7 @@ substitutions.
 
 M approved the standalone shared-capability architecture mock on July 24.
 `forge/forge-capabilities.js?v=fc2` is now the versioned character-side
-contract. `forge-kit-derive.js?v=b16` attaches a `forge-capability/v1` ledger
+contract. `forge-kit-derive.js?v=b17` attaches a `forge-capability/v1` ledger
 and audit to every successfully derived character kit, and `buildUnit()` keeps
 both records on the combat unit. The adapter accounts for every authored
 feature, spell, and resource; unsupported mechanics remain explicit as

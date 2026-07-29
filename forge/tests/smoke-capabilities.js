@@ -64,7 +64,7 @@ function match(kit,re){return (kit.capabilities||[]).find(c=>re.test(c.label))||
 
   const html=fs.readFileSync(path.join(root,"forge","index.html"),"utf8");
   ok("production loads the capability contract before fresh kit derivation",
-    html.indexOf("forge-capabilities.js?v=fc2")<html.indexOf("forge-capability-resolver.js?v=fcrs1")&&html.indexOf("forge-capability-resolver.js?v=fcrs1")<html.indexOf("forge-kit-derive.js?v=b16"));
+    html.indexOf("forge-capabilities.js?v=fc2")<html.indexOf("forge-capability-resolver.js?v=fcrs1")&&html.indexOf("forge-capability-resolver.js?v=fcrs1")<html.indexOf("forge-kit-derive.js?v=b17"));
   ok("combat units retain the normalized ledger and audit",
     html.includes("capabilities: JSON.parse(JSON.stringify((kit && kit.capabilities) || []))")&&
     html.includes("capabilityAudit: JSON.parse(JSON.stringify((kit && kit.capabilityAudit) || {}))"));

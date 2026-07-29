@@ -3,7 +3,7 @@
 // entry with the larger die; finesse picks the better of Str/Dex; ranged uses Dex;
 // proficiency resolves from Simple/Martial categories AND specific (plural) class profs;
 // inventory decoration ("+1", "(your choice)", magic names) still matches the base weapon.
-import { buildWeaponActions, normalizeWeaponName, WEAPONS } from '../../weapon-actions.js';
+import { buildWeaponActions, buildSpellAttacks, normalizeWeaponName, WEAPONS } from '../../weapon-actions.js';
 
 let pass = 0, fail = 0;
 const ok = (n, c) => { if (c) pass++; else { fail++; console.log('  FAIL: ' + n); } };
@@ -29,6 +29,12 @@ const rActs = buildWeaponActions([{ name: 'Rapier', qty: 1 }, { name: 'Dagger', 
 ok('finesse Rapier picks Dex (better mod)', find(rActs, 'Rapier').ability === 'dex');
 ok('Rapier proficient via specific (plural) prof', find(rActs, 'Rapier').proficient === true);
 ok('simple Dagger proficient via Simple Weapons', find(rActs, 'Dagger').proficient === true);
+ok('Dagger keeps a melee action and gains a thrown action', !!find(rActs, 'Dagger') && !!find(rActs, 'Dagger (Thrown)'));
+ok('Dagger thrown action carries 20/60 ft', find(rActs, 'Dagger (Thrown)').range === '20/60');
+
+const javelinActs = buildWeaponActions([{ name: 'Javelin', qty: 4 }], fighter);
+ok('Javelin keeps its melee attack', !!find(javelinActs, 'Javelin') && !find(javelinActs, 'Javelin').range);
+ok('Javelin gains a distinct thrown attack at 30/120 ft', find(javelinActs, 'Javelin (Thrown)').range === '30/120');
 
 // Wizard: dagger proficiency comes plural ("Daggers"); NOT proficient with martial Longsword
 const wizard = { abilities: { str: { mod: 0 }, dex: { mod: 2 } }, proficiencyBonus: 2, proficiencies: { weapons: ['Daggers', 'Quarterstaffs', 'Light Crossbows'] } };
@@ -61,6 +67,16 @@ const legActs = buildWeaponActions([{ name: 'Longsword', qty: 1 }, { name: 'Dagg
 ok('legacy string weapons proficiency does not throw + resolves', legActs.length >= 2);
 ok('legacy: martial Longsword proficient via string', find(legActs, 'Longsword').proficient === true);
 ok('legacy: simple Dagger proficient via string', find(legActs, 'Dagger').proficient === true);
+
+const beamCaster = {
+  level: 5, proficiencyBonus: 3,
+  combat: { spellAttackBonus: 6 },
+  features: [{ name: 'Agonizing Blast' }],
+  spells: { cantrips: [{ name: 'Eldritch Blast' }] }
+};
+const beamAction = buildSpellAttacks(beamCaster).find(a => /^Eldritch Blast/.test(a.label));
+ok('level-5 Eldritch Blast remains 1d10 per beam', beamAction && beamAction.dmgDice === '1d10');
+ok('level-5 Eldritch Blast projects two separate strikes', beamAction && beamAction.strikes === 2);
 
 console.log(`\nweapon actions: ${pass}/${pass + fail} checks pass` + (fail ? ` — ${fail} FAILED` : ' \u2713'));
 process.exit(fail ? 1 : 0);

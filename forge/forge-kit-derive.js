@@ -47,6 +47,9 @@
     }
     return null;
   }
+  function resourceDeriveApi() {
+    return (typeof globalThis !== "undefined" && globalThis.ResourceDerive) || null;
+  }
   function titleCase(s) { return String(s || "").replace(/\b\w/g, function (c) { return c.toUpperCase(); }); }
   /* Pool-key normaliser: map live data keys (spell_1, pactSlots) to the forge's
      flat resource keys (slot1, pact) that STARTER_KITS already established. */
@@ -199,7 +202,17 @@ function combatErrorKit(charData, err) {
     // otherwise fall through (bare structural may not carry .resources at all).
     // Full passthrough (§1 of the icons/resources spec): recharge, die, tag,
     // origin, source, custom all ride through — the Resources tab consumes them.
-    var resources = s.resources || [];
+    var resources = Array.isArray(s.resources) ? s.resources.slice() : [];
+    var resourceApi = resourceDeriveApi();
+    if (resourceApi && typeof resourceApi.derive === "function") {
+      var explicitResourceIds = {};
+      resources.forEach(function (r) { if (r && r.id) explicitResourceIds[r.id] = true; });
+      (resourceApi.derive(s) || []).forEach(function (r) {
+        if (!r || !r.id || explicitResourceIds[r.id]) return;
+        explicitResourceIds[r.id] = true;
+        resources.push(r);
+      });
+    }
     resources.forEach(function (r) {
       if (!r || !r.id) return;
       var fk  = forgeResKey(r.id);
@@ -405,7 +418,7 @@ function combatErrorKit(charData, err) {
           cost:        a.cost || null,
           rider:       spRider,
           critDice:    a.critDice || null,
-          strikes:     null,
+          strikes:     a.strikes || null,
           needsAttack: false,
           greyed:      spGreyed,
           greyReason:  spGreyReason,
@@ -485,7 +498,7 @@ function combatErrorKit(charData, err) {
   //   attackTiles also references this table for range/save on spell-attack rows.
   var SPELL_COMBAT = {
     // ── attack cantrips (scale by character level) ──
-    "eldritch blast":     { kind: "attack", rng: 24, baseDmg: "1d10", scale: "cantrip" },
+    "eldritch blast":     { kind: "attack", rng: 24, baseDmg: "1d10", scale: "cantrip", beams: true },
     "fire bolt":          { kind: "attack", rng: 24, baseDmg: "1d10", scale: "cantrip" },
     "ray of frost":       { kind: "attack", rng: 12, baseDmg: "1d8",  scale: "cantrip" },
     "shocking grasp":     { kind: "attack", rng: 1,  baseDmg: "1d8",  scale: "cantrip" },
@@ -707,7 +720,7 @@ function combatErrorKit(charData, err) {
         var spKey = (sp.name || "").toLowerCase().replace(/\u2019/g, "'");
         var proj  = SPELL_COMBAT[spKey];
 
-        var kind, rng, dmg, saveAbility, rider, greyed, greyReason;
+        var kind, rng, dmg, saveAbility, rider, strikes, greyed, greyReason;
 
         if (!proj || proj.kind === null || proj.kind === undefined) {
           // Unknown or utility spell → greyed
@@ -718,19 +731,21 @@ function combatErrorKit(charData, err) {
           dmg         = null;
           saveAbility = null;
           rider       = null;
+          strikes     = null;
         } else {
           // Resolvable combat spell
           kind        = proj.kind;
           rng         = proj.rng || 1;
           saveAbility = proj.save || null;
           rider       = proj.rider || null;
+          strikes     = proj.beams ? _cantripMult(clvl) : null;
           greyed      = false;
           greyReason  = null;
 
           // Compute damage / healing expression
           if (proj.baseDmg) {
             var rawDmg = proj.baseDmg;
-            if (proj.scale === "cantrip") rawDmg = _scaleDice(rawDmg, _cantripMult(clvl));
+            if (proj.scale === "cantrip" && !proj.beams) rawDmg = _scaleDice(rawDmg, _cantripMult(clvl));
             var bonus = 0;
             if (proj.healMod || proj.addMod) bonus += castMod;
             if (bonus > 0) dmg = rawDmg + "+" + bonus;
@@ -761,6 +776,7 @@ function combatErrorKit(charData, err) {
           cost:        cost,
           origin:      sp.origin || "class",
           rider:       rider,
+          strikes:     strikes,
           effectKind:  proj && proj.effectKind || null,
           targetCount: proj && proj.targetCount || null,
           concentration: !!(proj && proj.concentration || sp.conc || sp.concentration),
@@ -1308,7 +1324,8 @@ function combatErrorKit(charData, err) {
      Resolvable (non-greyed) always outranks greyed. Universals and greyed
      placeholder actions (Grapple/Shove) never join the contest. */
   function _dedupeKey(label) {
-    return String(label || "").toLowerCase().replace(/\u2019/g, "'").replace(/\s+/g, " ").trim();
+    return String(label || "").toLowerCase().replace(/\u2019/g, "'")
+      .replace(/\s*\(\u00d7\d+\s+beams?\)\s*$/i, "").replace(/\s+/g, " ").trim();
   }
   function _provRank(t) {
     if (t.classFeature) return 4;
@@ -1345,6 +1362,7 @@ function combatErrorKit(charData, err) {
           w.dmg = t.dmg;
           w.dmgStack = t.dmgStack;
           w.critDice = t.critDice;
+          w.strikes = t.strikes;
         }
         // adopt missing damage dice from a folded sheet row (Second Wind)
         if (!w.dmg && t._src && t._src.dmgDice) {

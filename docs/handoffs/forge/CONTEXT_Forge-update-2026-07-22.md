@@ -843,7 +843,7 @@ Production field gates still required:
 M approved `_edits/mock-forge-shared-capability-contract.html`. The approved
 architecture is now integrated as the character foundation.
 `forge/forge-capabilities.js?v=fc2` defines the versioned
-`forge-capability/v1` contract; `forge-kit-derive.js?v=b16` attaches the
+`forge-capability/v1` contract; `forge-kit-derive.js?v=b17` attaches the
 normalized ledger and audit to each successfully derived character kit, and
 `buildUnit()` retains both on the combat unit.
 
@@ -987,6 +987,66 @@ does not overlap the Forge-owned files above and is not a dependency of this
 candidate. The working branch remains at the inspected `45cadea` baseline; no
 pull, merge, commit, or push was performed.
 
+## Character-resource and attack-shape correction · 2026-07-28
+
+Baseline: clean `e03930e` on `main`, equal to `origin/main`. The generated-field
+and saved-session bootstrap corrections above are dependencies. This slice owns
+only shared character resource derivation, weapon/spell action projection,
+Forge kit assembly, their focused smokes, cache stamps, and this handoff.
+
+The live Forge did not load `resource-derive.js`, so current character rows with
+modern class data but no legacy `classFeatures` resource copy could enter combat
+without Ki or Bardic Inspiration. Forge now loads the shared authority before
+kit derivation and fills missing shared pool IDs without replacing explicit or
+custom resources.
+Barbarian Rage is now part of that shared resource authority; Chonkalius can
+receive the level-4 three-use pool. This adds the counter only: the usable Rage
+action, Rage state/riders, and Path of Wild Magic surge table remain held work.
+
+Thrown melee weapons now keep their melee action and gain a distinct ranged
+action. Javelin therefore projects both melee and `Javelin (Thrown) 30/120`.
+Eldritch Blast now projects separate one-die strikes at levels 5, 11, and 17
+instead of one multiplied damage expression. Each successful strike reaches the
+existing per-hit Repelling Blast choice. At Cosmere's current level 4, the
+cantrip still has one beam by rule.
+
+The field reports also establish three unresolved boundaries:
+
+- The supplied screenshot renders Caim as `28/37`; it does not expose the
+  reported `37/24` surface. The exact saved-session URL and surface are required
+  before changing current/max HP authority.
+- The LoS evidence reports one tree cell blocking all 12 body samples. Existing
+  known-answer geometry proves a narrow trunk is not automatically total cover,
+  but the exact saved map is required to distinguish a legitimately aligned
+  trunk/terrain block from a render-to-geometry mismatch.
+- `monster-actor.js` parses full stat-block reference material, but only ordinary
+  attack entries become executable actions. Multiattack, spells, traits, bonus
+  actions, reactions, and legendary actions are still reference-only, and the
+  foe AI deliberately selects one executable action. Babau remains the complex
+  acceptance case and Manes the simple control for the next behavior adapter.
+
+Generator verification separated two systems that had been conflated. Legacy
+seeds 7 and 8 produced different live maps and names. Temple seeds 7 and 8
+produced the same authored `Temple Terraces` route summary; Temple is a fixed
+intent grammar with shallow variants, not the legacy random generator. A
+generator redesign or neutral room/corridor import therefore needs its own
+mock-first architecture slice rather than an RNG patch.
+
+Validation: every touched JavaScript/ES module passes `node --check`; the focused
+Forge/root suites pass **591/591 checks**. A real local browser boot fetched
+`resource-derive.js?v=fr1`, `forge-kit-derive.js?v=b17`, and
+`weapon-actions.js?v=fg2h`, opened Workshop, demonstrated different legacy seed
+7/8 maps, and reproduced the same Temple seed 7/8 route summary. The broader
+DOM sheet-resource smoke could not start because `jsdom` is absent from the
+repository/runtime; the real resource authority is instead loaded directly by
+the 352-check Forge kit suite.
+
+Remaining field gates: verify Caim's Ki, Líadan's Bardic Inspiration,
+Chonkalius's Rage counter, Javelin (Thrown), and multi-beam Repelling Blast in a
+fresh signed-in test fight; provide the exact saved-fight URL for the reported
+HP and LoS cases; then build usable Rage/Wild Magic and the monster behavior
+adapter as separate production slices.
+
 1. **Passed July 23.** The live selector showed only the five active
    player-folder characters; deleted, test, and out-of-folder rows were absent.
 2. **Passed July 23.** A strict subset produced matching summary, CR wallet, and
@@ -1069,7 +1129,7 @@ M reviews, commits, and pushes. Codex does not push. Current slice stamps:
 `forge-temple-terraces.js?v=tt1`, `forge-engine.js?v=fe10`,
 `forge-render-power.js?v=frp1`, `forge-architecture.js?v=fa6`, and
 `forge-discovery.js?v=fd7`, `forge-capabilities.js?v=fc2`,
-`forge-capability-resolver.js?v=fcrs1`, `forge-kit-derive.js?v=b16`,
+`forge-capability-resolver.js?v=fcrs1`, `forge-kit-derive.js?v=b17`,
 `forge-foe-ai.js?v=fai3`, `forge-feed-render.js?v=ffr6`,
 `forge-hud.js?v=b7`, `forge-test-fight.js?v=tf1`, and
 `monster-actor.js?v=ma2`. Encounter activation adds
@@ -1084,4 +1144,7 @@ M reviews, commits, and pushes. Codex does not push. Current slice stamps:
 `schema_delta_character_spell_source_cleanup.sql` and the character-exporter
 update. Character progression adds `soul-facets.js?v=facets1`,
 `sheet-progression.js?v=facets1`, and `sheet-progression.css?v=facets1`; it
-requires no additional SQL.
+requires no additional SQL. The July 28 character-resource and attack-shape
+slice adds root `resource-derive.js?v=fr1`, bumps
+`forge-kit-derive.js?v=b17`, and bumps the module import to
+`weapon-actions.js?v=fg2h`; it requires no SQL.

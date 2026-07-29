@@ -29,6 +29,7 @@
     return 2 + Math.floor((Math.max(1, structural.level || 1) - 1) / 4);
   }
   function bardDie(L) { return L >= 15 ? 'd12' : L >= 10 ? 'd10' : L >= 5 ? 'd8' : 'd6'; }
+  function rageCount(L) { return L >= 17 ? 6 : L >= 12 ? 5 : L >= 6 ? 4 : L >= 3 ? 3 : 2; }
   function bmCount(L) { return L >= 15 ? 6 : L >= 7 ? 5 : 4; }
   function bmDie(L) { return L >= 18 ? 'd12' : L >= 10 ? 'd10' : 'd8'; }
   function has(s, frag) { return (s || '').toLowerCase().indexOf(frag) !== -1; }
@@ -79,6 +80,9 @@
       }
       if (has(name, 'bard')) {
         out.push({ id: 'bardicInspiration', label: 'Bardic Inspiration', tag: 'Bard', max: Math.max(1, abilMod(structural, 'cha')), die: bardDie(L), recharge: L >= 5 ? 'short or long rest' : 'long rest', tone: 'class', source: 'class', origin: 'class' });
+      }
+      if (has(name, 'barbarian') && L >= 1) {
+        out.push({ id: 'rage', label: 'Rage', tag: 'Rage', max: rageCount(L), unlimited: L >= 20, die: null, recharge: 'long rest', tone: 'class', source: 'class', origin: 'class' });
       }
       if (has(name, 'fighter') && (has(sub, 'battle master') || has(sub, 'battlemaster')) && L >= 3) {
         out.push({ id: 'superiorityDice', label: 'Superiority Dice', tag: 'Sup', max: bmCount(L), die: bmDie(L), recharge: 'short or long rest', tone: 'subclass', source: 'subclass', origin: 'subclass' });
@@ -140,6 +144,6 @@
     derive: derive,
     deriveHitDice: deriveHitDice,
     // exposed for tests / reuse
-    _fn: { bardDie: bardDie, bmCount: bmCount, bmDie: bmDie, profBonus: profBonus, abilMod: abilMod, resolveMax: resolveMax, tagFromLabel: tagFromLabel, rechargeText: rechargeText, slug: slug, hdFacesForClass: hdFacesForClass, classesFrom: classesFrom }
+    _fn: { bardDie: bardDie, rageCount: rageCount, bmCount: bmCount, bmDie: bmDie, profBonus: profBonus, abilMod: abilMod, resolveMax: resolveMax, tagFromLabel: tagFromLabel, rechargeText: rechargeText, slug: slug, hdFacesForClass: hdFacesForClass, classesFrom: classesFrom }
   };
 })();

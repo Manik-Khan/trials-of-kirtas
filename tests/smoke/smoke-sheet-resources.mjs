@@ -33,6 +33,11 @@ const liadan = { classes: [{ name: 'Bard', level: 10, subclass: 'Lore' }], level
 pools = S.buildResources(liadan, { pipState: {} });
 ok(pools[0].label === 'Bardic Inspiration' && pools[0].max === 4 && pools[0].badge === 'd10', 'Bard 10 / CHA+4 → Bardic d10 ×4');
 
+const chonkalius = { classes: [{ name: 'Barbarian', level: 4, subclass: 'Path of Wild Magic' }], level: 4, abilities: {} };
+pools = S.buildResources(chonkalius, { pipState: { rage: 1 } });
+ok(pools.length === 1 && pools[0].label === 'Rage', 'Barbarian → one Rage pool');
+ok(pools[0].max === 3 && pools[0].current === 2, 'Barbarian 4 → 3 rages, 2 left after 1 spent');
+
 const astral = { classes: [{ name: 'Warlock', level: 3, subclass: 'Fiend' }], level: 3, race: 'Astral Elf', proficiencyBonus: 2, abilities: { cha: { mod: 3 } } };
 pools = S.buildResources(astral, { pipState: { starlightStep: 1 } });
 ok(pools.length === 1 && pools[0].label === 'Starlight Step' && pools[0].max === 2 && pools[0].current === 1, 'Astral Elf → Starlight Step PB=2, 1 left');

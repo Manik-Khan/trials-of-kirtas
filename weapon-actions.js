@@ -139,13 +139,19 @@ export function buildWeaponActions(inventory, structural) {
       // Ranged weapons carry their range onto the action ("80/320" feet) so the
       // Forge's reach gate sees a ranged attack instead of a defaulted melee
       // one (forge-kit-derive already parses a.range into squares). Item data
-      // wins over the base table (magic bows). Deliberately ranged-only: a
-      // thrown melee weapon keeps its melee identity here.
+      // wins over the base table (magic bows). Thrown melee weapons keep this
+      // melee entry and receive a separate ranged entry below.
       if (w.ranged) a.range = (it && it.range) || w.range || null;
       if (hasExtra) a.extraDamage = [{ dice: it.extraDmg.dice, bonus: 0, type: it.extraDmg.type || '' }];
       return a;
     }
     out.push(deck('wpn-' + key, label, w.dmg1));
+    if (w.thrown && w.range) {
+      var thrown = deck('wpn-' + key + '-thrown', label + ' (Thrown)', w.dmg1);
+      thrown.range = (it && it.range) || w.range;
+      thrown.thrown = true;
+      out.push(thrown);
+    }
     // The versatile two-handed mode is a real derived attack, but it ships HIDDEN so it
     // lives in the swap pile (one clean row per weapon); swap it in when you two-hand.
     if (w.versatile && w.dmg2) { var a2h = deck('wpn-' + key + '-2h', label + ' (Two-Handed)', w.dmg2); a2h.defaultHidden = true; out.push(a2h); }
@@ -445,7 +451,8 @@ export function buildSpellAttacks(structural) {
     if (sp.key === 'eldritch blast' && agonizing) dmgBonus += spellMod;   // Agonizing Blast
 
     if (spec.kind === 'atk') {
-      out.push({ id: id, type: 'attack-cantrip', label: label, hitMod: atk, dmgMod: dmgBonus, dmgDice: dice, critDice: doubleDice(dice), dmgType: typeLabel });
+      out.push({ id: id, type: 'attack-cantrip', label: label, hitMod: atk, dmgMod: dmgBonus, dmgDice: dice, critDice: doubleDice(dice), dmgType: typeLabel,
+                 strikes: spec.beams ? cantripMult(clvl) : null });
     } else {
       out.push({ id: id, type: 'damage-only', label: label, dmgMod: dmgBonus, dmgDice: dice, dmgType: typeLabel, saveAbility: spec.save || null });
     }
