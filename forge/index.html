@@ -3626,7 +3626,7 @@ function architectureAvailable(){return !!(F&&(architectureActive()||SESSION_ID)
 function architectureWorkingRecord(){return LIVE_ARCHITECTURE_EDIT&&ARCHITECTURE_DRAFT?ARCHITECTURE_DRAFT:ARCHITECTURE_RECORD;}
 function architectureSetWorkingRecord(record){record=ARCHITECTURE_API.normalizeRecord(record);if(LIVE_ARCHITECTURE_EDIT)ARCHITECTURE_DRAFT=record;else ARCHITECTURE_RECORD=record;}
 function architectureBlockAt(record,c,r){return (record&&record.blocks||[]).filter(function(b){return b.c===c&&b.r===r;})[0]||null;}
-function architectureAudit(){var record=architectureWorkingRecord();return F&&architectureAvailable()?ARCHITECTURE_API.audit(rawCombatMapFromF(),record):{ok:true,errors:[],record:record};}
+function architectureAudit(){var record=architectureWorkingRecord();return F&&architectureAvailable()&&TG&&typeof TG.makeMap==='function'?ARCHITECTURE_API.audit(rawCombatMapFromF(),record):{ok:true,errors:[],record:record};}
 function architecturePending(){return architectureActive()&&!architectureAudit().ok;}
 function architectureSay(text,bad){var el=document.getElementById('architectureMessage');if(el){el.textContent=text;el.style.color=bad?'#a04b3a':'';}}
 function clearArchitectureMeshes(){var retired=new Set();while(architectureRenderGroup.children.length){var o=architectureRenderGroup.children[0];architectureRenderGroup.remove(o);o.traverse(function(n){retired.add(n);if(n.geometry)n.geometry.dispose();if(n.material)n.material.dispose();});}if(typeof DISCOVERY_RENDER!=='undefined'&&DISCOVERY_RENDER)DISCOVERY_RENDER.objects=DISCOVERY_RENDER.objects.filter(function(obj){return !retired.has(obj);});}

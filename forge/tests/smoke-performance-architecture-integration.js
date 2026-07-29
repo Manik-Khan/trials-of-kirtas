@@ -1,4 +1,5 @@
 const fs = require('fs');
+const vm = require('vm');
 const html = fs.readFileSync(require('path').join(__dirname, '..', 'index.html'), 'utf8');
 
 let pass = 0, fail = 0;
@@ -14,6 +15,21 @@ ok('runtime scheduler owns the real THREE render step', html.includes('step:forg
 ok('every Temple activates architecture without a query flag', html.includes("function architectureActive(){return !!(F&&F.intent&&F.intent.archetype==='temple-terraces');}") && !html.includes('ARCHITECTURE_QUERY'));
 ok('authored architecture is saved beside the exact map snapshot', html.includes('envelope.architecture=ARCHITECTURE_API.normalizeRecord(ARCHITECTURE_RECORD)'));
 ok('saved architecture restores from the envelope or map metadata', html.includes('envelope.architecture||(map.meta&&map.meta.architecture)'));
+const auditSource = html.match(/function architectureAudit\(\)\{[^\n]+\}/)[0];
+const auditSandbox = {
+  F: {}, TG: undefined, architectureWorkingRecord: () => ({ blocks: [] }), architectureAvailable: () => true,
+  ARCHITECTURE_API: { audit: () => { throw new Error('audit ran before tactical geometry initialized'); } },
+  rawCombatMapFromF: () => { throw new Error('map conversion ran before tactical geometry initialized'); }
+};
+vm.runInNewContext(auditSource + ';result=architectureAudit();', auditSandbox);
+ok('session bootstrap defers architecture audit until tactical geometry initializes',
+  auditSandbox.result.ok === true && auditSandbox.result.errors.length === 0);
+auditSandbox.TG = { makeMap: () => ({}) };
+auditSandbox.rawCombatMapFromF = () => ({ saved: true });
+auditSandbox.ARCHITECTURE_API.audit = (map, record) => ({ ok: map.saved, errors: [], record });
+vm.runInNewContext('readyResult=architectureAudit();', auditSandbox);
+ok('architecture audit resumes against the restored combat map once geometry is ready',
+  auditSandbox.readyResult.ok === true && auditSandbox.readyResult.record.blocks.length === 0);
 const boot = html.slice(html.indexOf('async function bootSession'), html.indexOf('/* Task 12: publish the claim-screen handshake'));
 ok('session repaint restores authored blocks before rendering the field', boot.includes('ARCHITECTURE_RECORD=F&&F.architecture?') && boot.indexOf('ARCHITECTURE_RECORD=F&&F.architecture?') < boot.indexOf('renderField()'));
 ok('combat map applies the same pure authored block record', html.includes('ARCHITECTURE_API.apply(map,ARCHITECTURE_RECORD)'));

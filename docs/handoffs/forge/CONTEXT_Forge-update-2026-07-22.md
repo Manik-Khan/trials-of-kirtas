@@ -427,6 +427,25 @@ sources; it is no longer the battlefield a normal Workshop or new table inherits
 Changing a recipe still marks it pending, and **Generate map** still performs the
 explicit replacement.
 
+## Saved-session bootstrap correction · 2026-07-28
+
+The supplied live session
+`b3bbb4c8-b062-48ad-b4bb-791dd60c21b3` isolated the remaining broken-world
+report. The saved row never reached snapshot restoration. Because session
+identity is available before the initial field paint, Table mode exposed the
+architecture audit during that paint; `rawCombatMapFromF()` then called
+`TG.makeMap` before the later tactical block had assigned `TG`. The resulting
+startup exception left the party handshake waiting until its six-second timeout
+and exposed only the placeholder world.
+
+`architectureAudit()` now remains inert until `TacticsGeo.makeMap` exists. Once
+geometry is initialized, the same function resumes the canonical audit against
+the restored combat map; snapshot, architecture, discovery, and replay authority
+are unchanged. The extracted production-function regression proves both the
+pre-geometry no-op and post-geometry audit path. The focused architecture suite
+is **29/29** and the complete Forge smoke battery is **77/77 scripts**. The exact
+signed-in session URL remains the post-deploy browser gate.
+
 ## Map-first encounter and placement correction · 2026-07-22
 
 The approved `_edits/mock-forge-workshop-builder.html` is now integrated into
