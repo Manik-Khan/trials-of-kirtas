@@ -1054,6 +1054,10 @@ character-resource and attack-shape correction is the only new Forge dependency
 since `e03930e`. No uncommitted files or overlapping project ownership were
 present when this contract was recorded.
 
+Status: implemented in committed `267f5b8` and approved as the visual/editor
+direction. The future-tense contract below is retained as its historical build
+record; the July 30 Map Foundry section supersedes its next-session boundary.
+
 M approved the low-poly modular direction demonstrated in the visual
 exploration. The next session is a **real standalone vertical proof**, not a
 production renderer port and not a beautification pass on the current cube
@@ -1128,6 +1132,77 @@ Chonkalius resources, exact saved-session HP and LoS cases, monster
 Multiattack/spells/traits, architecture publish/reconnect/rewind, and the
 two-device combat checklist remain separate work.
 
+## Map Foundry approval + next-session correction · 2026-07-30
+
+Baseline at review: committed `267f5b8` on `main`. The Blueprint/Diorama proof
+files and 80-check contract are committed there. The next creation-flow mock
+exists as four isolated uncommitted files:
+
+- `_edits/mock-forge-blueprint-diorama-creation.html`;
+- `_edits/mock-forge-blueprint-diorama-creation.css`;
+- `_edits/mock-forge-blueprint-diorama-creation.js`; and
+- `forge/tests/smoke-blueprint-diorama-creation.js`.
+
+No production Forge, shared geometry, protocol, character, or monster file is
+dirty. The creation mock passed **17/17**, the Blueprint/Diorama dependency
+passed **80/80**, and the six canonical engine/map/geometry/LoS/placement/flora
+suites passed **151/151**. Automated control could not navigate to the new
+local `file://` page; M supplied the visual field review directly.
+
+M approved the creation UX: Map Foundry is its own streamlined opening section,
+and Generate, Templates, Import, and Blank converge on one editable Blueprint
+before the later Map/Populate/Play work. Two functional gaps prevent sign-off:
+
+- Generate is still `produceSeeded()` selecting one of the three fixtures.
+  Processional, vault, and warren belong under Templates; they are not evidence
+  of a real procedural generator.
+- Blank is one starter block and the handoff does not enter the actual Build
+  tools. A DM cannot begin empty and draw the map.
+
+### Next-session ownership
+
+The next session owns only the creation proof, the existing
+`mock-forge-blueprint-diorama*` proof files needed for an exact Build handoff,
+and their two focused smokes. It does not own or edit the production Forge,
+current production generators, map bridge, tactics geometry, protocol/replay,
+characters, monsters, shared theme, or SQL.
+
+### Required next slice
+
+1. Preserve the three fixtures as explicitly labeled Templates.
+2. Build a deterministic graph-first proof producer:
+   graph → semantics → room footprints → corridor/opening routing → constrained
+   elevation → connectivity/validity audit → local repair → Blueprint.
+3. Make the simple controls—size, topology, density, verticality, seed—real.
+   The freeform brief remains a note unless code genuinely consumes it.
+4. Offer three structurally different candidates, support exact seed replay,
+   and keep any chosen/locked structure without silently substituting a
+   fixture.
+5. Carry the exact Generate, Template, or reviewed Import Blueprint into the
+   approved Build workspace with identity/fingerprint unchanged.
+6. Make Blank genuinely empty. Enter Build armed with Room selected; draw the
+   first room, then use passage, wall, ledge, door, erase, directional repeat,
+   and undo without leaving the flow. Narrate that a first room is required
+   before the tactical field can validate.
+
+### Acceptance
+
+- repeated generation produces visible structural variety beyond three maps;
+- identical seed + controls yields byte-identical Blueprint/fingerprint output;
+- each candidate trio has pairwise-distinct structural fingerprints;
+- accepted generated maps are connected, traversable, and compile to the
+  current tactical field shape;
+- every non-Blank producer enters Build with its exact Blueprint unchanged;
+- Blank starts with zero rooms and successfully draws/undoes its first room and
+  subsequent architecture;
+- focused smokes extract the real generator/handoff functions, every touched
+  script passes `node --check`, and M field-tests the local browser flow.
+
+Real image recognition, natural-language generation, production persistence,
+multiplayer/replay, renderer promotion, and combat integration remain outside
+this slice. The existing Import review/confidence/source-rights UX remains and
+only needs an exact accepted-Blueprint handoff in the next proof.
+
 1. **Passed July 23.** The live selector showed only the five active
    player-folder characters; deleted, test, and out-of-folder rows were absent.
 2. **Passed July 23.** A strict subset produced matching summary, CR wallet, and
@@ -1182,14 +1257,16 @@ two-device combat checklist remain separate work.
 
 1. Resynchronize from `AGENTS.md`, `CONTEXT.md`, `CONTEXT_Forge.md`, this
    handoff, current `HEAD`, and the working tree.
-2. Build only the approved standalone Blueprint/Diorama vertical proof in the
-   ownership boundary above.
-3. Run its syntax and known-answer gates, then measure Basic/Balanced/Cinematic
-   on M's actual laptop.
-4. Stop for M's visual/interaction approval. Do not promote proof code into
-   production during the same slice.
-5. After approval, record the settled Blueprint/compiler contract here before
-   assigning production editor, generator, or renderer ownership.
+2. Treat current uncommitted creation-flow files as M-owned work; read them and
+   the committed Blueprint proof before editing.
+3. Build only the July 30 isolated graph-generator → exact Blueprint → Build
+   slice within its ownership boundary.
+4. Run both focused Blueprint smokes, `node --check` every touched script, the
+   six canonical Forge smokes, and the real browser interaction path.
+5. Stop for M's generator-variety, Blank-build, and handoff approval. Do not
+   promote proof code into production during the same slice.
+6. After approval, record the settled producer/editor handoff contract here
+   before assigning production module and persistence ownership.
 
 The signed-in field checklist, character post-hit/reaction riders, and monster
 behavior adapter remain a separate queue. They may run in another task only

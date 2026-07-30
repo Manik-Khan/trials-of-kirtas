@@ -4,8 +4,9 @@ Custom D&D 5e virtual tabletop. Live: **trials-of-kirtas.netlify.app**
 Repo: `Manik-Khan/trials-of-kirtas` · vanilla JS/HTML/CSS + Supabase + Netlify + GitHub.
 Walled React/Vite/TipTap corner at `journal/`.
 
-Updated: **July 28, 2026 (approved Forge Blueprint → Scrawl → modular-diorama
-vertical-proof contract, Forge field-report correction, approved
+Updated: **July 30, 2026 (approved Forge Blueprint → Scrawl → modular-diorama
+proof, approved Map Foundry creation UX, next-session graph-generator → real
+Build handoff contract, Forge field-report correction, approved
 reaction/cover integration, disposable Test Fight production candidate,
 shared character capability contract, and the first typed-defense/teleport
 resolver slice, character-sheet source/progression alignment, and the first
@@ -27,7 +28,7 @@ Cache-stamp every module include (`?v=`) — non-negotiable on iOS.
 
 ---
 
-## 🟡 Forge Blueprint → Scrawl → Diorama proof approved — July 28
+## 🟡 Forge Blueprint/Diorama + Map Foundry direction approved — July 28–30
 
 M approved replacing the next “more random cubes” step with a neutral
 `forge-blueprint/v1` architecture. Drawing, later import/tracing, and the future
@@ -36,15 +37,35 @@ low-poly modular diorama will consume it. The existing tactical field remains
 movement/LoS/cover authority during migration, with Blueprint compiling to its
 current shape.
 
-The next session owns one isolated Ruined Abbey vertical proof in `_edits/`:
-the same Blueprint in Scrawl and diorama views, three genuinely different
-topologies, local wall/door/low-wall/elevation edits, grey unexplored rooms,
-discovery-driven raised/color architecture, cutaway walls, three quality
-modes, and real performance counters. It does **not** touch the live Forge,
-combat, protocol, current generator, character, or monster files. Production
-editor/generator/renderer work begins only after M approves that real proof.
-Exact ownership, exclusions, and acceptance gates are in `CONTEXT_Forge.md`
-and the current Forge handoff.
+The isolated Ruined Abbey proof is now implemented and visually approved as the
+direction: one Blueprint drives top-down artwork/board/Blueprint views and a
+modular diorama; Build keeps Shape, Look, Objects, and Areas within reach; local
+room/passage/wall/ledge/door/object/area editing, authoring visibility,
+cutaway, discovery, grid, undo/redo, and quality evidence share that document.
+
+M also approved the streamlined Map Foundry creation UX as its own opening
+section. `_edits/mock-forge-blueprint-diorama-creation.html` presents Generate,
+Templates, Import, and Blank as four equal producers that converge on
+`forge-blueprint/v1` before Build. That UX approval is **not** approval of its
+current functional placeholders:
+
+- Generate currently chooses among the three authored topology fixtures; it is
+  not yet a graph-first generator producing new maps.
+- Blank currently returns one starter block and does not open the actual Build
+  tools on a genuinely empty grid.
+- the handoff explains Blueprint → Build but does not yet carry the exact
+  selected document into the working editor.
+
+The next session owns one isolated end-to-end correction. Templates retain the
+three authored fixtures. Generate becomes a deterministic graph-first producer
+with real structural variety, connectivity validation/local repair, and exact
+seed replay. Generate, Template, Import, and a truly Blank grid must all carry
+the exact chosen Blueprint into the approved Build workspace. Blank opens with
+Build armed and the Room brush ready; the DM can draw the first room, then use
+passage/wall/door/ledge/erase/undo without leaving the flow. This remains proof
+work only: do not touch the live Forge, combat, protocol, production generator,
+character, or monster files. Exact ownership and acceptance gates are in
+`CONTEXT_Forge.md` and the current Forge handoff.
 
 ---
 
@@ -582,11 +603,12 @@ the Dead corrections, explicit target→confirm flow, player move undo, flanking
 advantage/disadvantage, and Prone.
 
 The cumulative Phase 1.5h bundle has **426 green checks**. Browser/WebGL and live two-device
-field tests remain required. The first active Phase 2 slice is now the approved
-standalone Blueprint/Diorama proof. After it is visually and technically
-accepted, continue with the production editor, graph-first generator,
-snapshot/version integration, stable stage sub-seeds, validation/local repair,
-and renderer flag described in `CONTEXT_Forge.md`.
+field tests remain required. The standalone Blueprint/Diorama direction is now
+approved. The next isolated Phase 2 proof is the real graph-first
+Generate → Blueprint → Build slice and true Blank → Build entry described
+above. Production promotion, snapshot/version integration, stable stage
+sub-seeds, and the renderer flag remain later work described in
+`CONTEXT_Forge.md`.
 
 **`forge/README.md` + `CONTEXT_Forge.md` are canonical for this subsystem.** Read both.
 For the cover-contest mechanism, `FORGE_COVER_CONTEST.md`; for the event protocol,
@@ -626,12 +648,16 @@ The next approved architecture order is:
    through `foeVisible()`;
 3. Blueprint/Diorama vertical proof: neutral authored map document, Ruined
    Abbey modular kit, dual Scrawl/diorama views, three topology fixtures,
-   editing/discovery/readability, and measured browser performance;
-4. after proof approval, production Blueprint/compiler + Scrawl editor +
-   graph-first generator with versioned snapshots, stable stage sub-seeds,
-   semantics, constrained elevations/connectors/spawns, validation/repair, and
-   separate rules-relevant versus visual decoration;
-5. production diorama behind an explicit renderer flag, followed later by
+   editing/discovery/readability, and measured browser performance — direction
+   approved July 28–30;
+4. isolated graph-first creation proof: deterministically varied Generate
+   layouts beyond the three Templates, exact Blueprint handoff into Build, and
+   a truly Blank grid that can draw its first room with the approved tools;
+5. after that proof, production Blueprint/compiler + editor + generator with
+   versioned snapshots, stable stage sub-seeds, semantics, constrained
+   elevations/connectors/spawns, validation/repair, and separate
+   rules-relevant versus visual decoration;
+6. production diorama behind an explicit renderer flag, followed later by
    spell-created terrain on the existing architecture-event seam.
 
 ### July 12 (late) — ledge firing, database character authority, and the ranged-weapon fix

@@ -1,0 +1,245 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<meta name="robots" content="noindex">
+<title>Forge Map Foundry · creation flow proof</title>
+<link rel="stylesheet" href="mock-forge-blueprint-diorama-creation.css?v=cf1">
+</head>
+<body>
+<header class="masthead">
+  <div class="brand">
+    <span>Battle Forge · creation flow proof</span>
+    <h1>Map Foundry</h1>
+  </div>
+  <nav class="journey" aria-label="Map creation progress">
+    <button type="button" class="active" data-journey="source"><b>01</b><span>Start</span></button>
+    <i></i>
+    <button type="button" data-journey="directions"><b>02</b><span>Directions</span></button>
+    <i></i>
+    <button type="button" data-journey="blueprint"><b>03</b><span>Blueprint</span></button>
+    <i></i>
+    <button type="button" data-journey="build"><b>04</b><span>Build</span></button>
+  </nav>
+  <div class="schema-mark"><span>One document</span><strong>forge-blueprint/v1</strong></div>
+</header>
+
+<main class="foundry">
+  <aside class="source-rail">
+    <div class="rail-heading">
+      <span class="kicker">Begin anywhere</span>
+      <h2>How should this map begin?</h2>
+      <p>Every path becomes the same editable Blueprint.</p>
+    </div>
+    <nav class="source-methods" aria-label="Map starting method">
+      <button type="button" class="active" data-method="generate">
+        <b>✦</b><span><strong>Generate</strong><small>Describe the experience</small></span><i>›</i>
+      </button>
+      <button type="button" data-method="template">
+        <b>▦</b><span><strong>Templates</strong><small>Start from a proven structure</small></span><i>›</i>
+      </button>
+      <button type="button" data-method="import">
+        <b>◫</b><span><strong>Import a map</strong><small>Trace a top-down image</small></span><i>›</i>
+      </button>
+      <button type="button" data-method="blank">
+        <b>□</b><span><strong>Blank map</strong><small>Draw it directly</small></span><i>›</i>
+      </button>
+    </nav>
+    <div class="rail-promise">
+      <span>Nothing is a dead end.</span>
+      <p>Generate, import, and templates never lock the result. Shape, Look, Objects, and Areas remain available afterward.</p>
+    </div>
+  </aside>
+
+  <section class="stage" aria-label="Map creation preview">
+    <div class="stage-head">
+      <div>
+        <span class="kicker" id="stageKicker">Generated directions</span>
+        <h2 id="stageTitle">Three ways this idea could play.</h2>
+      </div>
+      <div class="view-tools" id="viewTools" role="group" aria-label="Preview layer">
+        <button type="button" class="active" data-layer="blueprint">Blueprint</button>
+        <button type="button" data-layer="source">Source</button>
+        <button type="button" class="active" id="gridToggle" aria-pressed="true">⌗ Grid</button>
+      </div>
+    </div>
+    <div class="map-frame">
+      <canvas id="mapCanvas" aria-label="Selected map preview"></canvas>
+      <div class="map-vignette"></div>
+      <div class="preview-badge"><span id="previewKind">Generated</span><strong id="previewName">Processional Abbey</strong></div>
+      <div class="map-legend" id="mapLegend">
+        <span><i class="floor"></i>Playable</span>
+        <span><i class="wall"></i>Boundary</span>
+        <span><i class="door"></i>Opening</span>
+        <span><i class="uncertain"></i>Needs review</span>
+      </div>
+      <div class="stage-toast" id="stageToast" aria-live="polite"></div>
+    </div>
+
+    <div class="candidate-deck" id="candidateDeck" aria-label="Generated map directions"></div>
+    <div class="template-deck" id="templateDeck" hidden aria-label="Map templates">
+      <button type="button" class="template-card active" data-template="processional">
+        <canvas width="210" height="116"></canvas><span><b>Processional Abbey</b><small>Linear ceremony · strong reveal order</small></span>
+      </button>
+      <button type="button" class="template-card" data-template="vault">
+        <canvas width="210" height="116"></canvas><span><b>Loop &amp; Hub Vault</b><small>Choice, flanking routes, central return</small></span>
+      </button>
+      <button type="button" class="template-card" data-template="warren">
+        <canvas width="210" height="116"></canvas><span><b>Branching Warren</b><small>Asymmetric forks · exploration pressure</small></span>
+      </button>
+    </div>
+
+    <footer class="blueprint-receipt">
+      <div><span>Producer</span><strong id="receiptProducer">Seeded generator</strong></div>
+      <div><span>Topology</span><strong id="receiptTopology">Linear</strong></div>
+      <div><span>Structure</span><strong id="receiptStructure">3 rooms · 2 passages</strong></div>
+      <div><span>Rules field</span><strong id="receiptField">Connected · valid</strong></div>
+    </footer>
+  </section>
+
+  <aside class="workbench">
+    <div class="workbench-head">
+      <span class="kicker">Creation guide</span>
+      <h2 id="guideTitle">Describe the experience.</h2>
+      <p id="guideCopy">A few strong choices are enough. The Forge will offer different structures, not cosmetic rerolls.</p>
+    </div>
+
+    <section class="method-panel active" data-method-panel="generate">
+      <label class="brief-field">
+        <span>What should happen here?</span>
+        <textarea id="generationBrief" rows="3">A ruined abbey where the party enters through a narrow gate, crosses a dramatic central room, and discovers a raised choir.</textarea>
+      </label>
+      <fieldset>
+        <legend>Encounter shape</legend>
+        <div class="choice-row" data-choice-group="shape">
+          <button type="button" class="active" data-value="surprise">Surprise me</button>
+          <button type="button" data-value="processional">Linear</button>
+          <button type="button" data-value="vault">Looping</button>
+          <button type="button" data-value="warren">Branching</button>
+        </div>
+      </fieldset>
+      <fieldset>
+        <legend>Table size</legend>
+        <div class="choice-row" data-choice-group="size">
+          <button type="button" data-value="small">Small</button>
+          <button type="button" class="active" data-value="medium">Medium</button>
+          <button type="button" data-value="large">Large</button>
+        </div>
+      </fieldset>
+      <button type="button" class="primary wide" id="generateDirections">Create three directions</button>
+      <div class="refine-row">
+        <input id="refineRequest" placeholder="Try: a wider central chamber">
+        <button type="button" id="refineDirections">Refine</button>
+      </div>
+      <button type="button" class="lock-action" id="lockDirection" aria-pressed="false"><b>◇</b><span><strong>Keep this layout</strong><small>Regenerate around the parts you like.</small></span></button>
+      <details class="advanced">
+        <summary>Advanced controls <span>optional</span></summary>
+        <label>Layout seed <input id="layoutSeed" type="number" value="1847"></label>
+        <label>Room density <input id="roomDensity" type="range" min="3" max="9" value="6"><output id="roomDensityValue">6</output></label>
+        <label>Verticality
+          <select id="verticality"><option>Subtle</option><option selected>Meaningful</option><option>Dramatic</option></select>
+        </label>
+        <label class="check"><input id="separateDecorSeed" type="checkbox" checked><span>Keep decoration on its own seed</span></label>
+      </details>
+    </section>
+
+    <section class="method-panel" data-method-panel="template" hidden>
+      <div class="template-intro"><strong>A template is a recipe, not a fixed map.</strong><p>Choose a proven spatial idea, then regenerate, resize, or edit any part of it.</p></div>
+      <fieldset>
+        <legend>Best for</legend>
+        <div class="choice-row compact" data-choice-group="template-purpose">
+          <button type="button" class="active" data-value="all">All</button>
+          <button type="button" data-value="exploration">Explore</button>
+          <button type="button" data-value="combat">Combat</button>
+          <button type="button" data-value="social">Social</button>
+        </div>
+      </fieldset>
+      <div class="template-detail">
+        <span id="templateTag">Ruined Abbey · linear</span>
+        <h3 id="templateName">Processional Abbey</h3>
+        <p id="templateDescription">A legible arrival, nave, and destination. Excellent for staged discovery and ceremonial encounters.</p>
+        <ul><li>Every room remains editable</li><li>Materials and furnishings are replaceable</li><li>Seeded variants can preserve the same intent</li></ul>
+      </div>
+      <button type="button" class="primary wide" id="useTemplate">Use as a starting point</button>
+    </section>
+
+    <section class="method-panel" data-method-panel="import" hidden>
+      <ol class="import-steps" aria-label="Import progress">
+        <li class="done"><b>1</b><span>Image</span></li>
+        <li class="active"><b>2</b><span>Grid</span></li>
+        <li><b>3</b><span>Interpret</span></li>
+        <li><b>4</b><span>Review</span></li>
+      </ol>
+      <div class="import-source">
+        <span>Code-native proof image</span><strong>Painted Abbey Study</strong>
+        <button type="button" id="useSampleMap">Reset sample</button>
+      </div>
+      <div class="calibration">
+        <div><label>Grid size<input id="importCellPx" type="number" value="28" min="4"></label><span>px</span></div>
+        <div><label>X origin<input id="importOriginX" type="number" value="0"></label><span>px</span></div>
+        <div><label>Y origin<input id="importOriginY" type="number" value="0"></label><span>px</span></div>
+      </div>
+      <button type="button" class="secondary wide" id="interpretMap">Interpret this map</button>
+      <div class="finding-list" id="findingList"></div>
+      <div class="import-actions">
+        <button type="button" id="acceptClearFindings">Accept clear findings</button>
+        <button type="button" class="primary" id="createImportedBlueprint" disabled>Create Blueprint</button>
+      </div>
+      <p class="privacy-note"><b>Source choice remains visible.</b> In production, keep the original artwork, use it only as a guide, or translate it into the modular kit. Rights travel with the source receipt.</p>
+    </section>
+
+    <section class="method-panel" data-method-panel="blank" hidden>
+      <div class="blank-intro"><b>Start empty without starting unsupported.</b><p>The grid, Blueprint contract, undo history, and direct Build tools are ready immediately.</p></div>
+      <fieldset>
+        <legend>Canvas</legend>
+        <div class="choice-row" data-choice-group="blank-size">
+          <button type="button" data-value="small">20 × 14</button>
+          <button type="button" class="active" data-value="medium">28 × 20</button>
+          <button type="button" data-value="large">40 × 28</button>
+        </div>
+      </fieldset>
+      <fieldset>
+        <legend>Give me</legend>
+        <div class="blank-options">
+          <button type="button" class="active" data-blank-start="room"><b>□</b><span><strong>One open room</strong><small>A foothold to reshape</small></span></button>
+        </div>
+      </fieldset>
+      <button type="button" class="primary wide" id="startBlank">Open blank Blueprint</button>
+    </section>
+
+    <div class="selection-cta">
+      <div><span id="selectionEyebrow">Selected direction</span><strong id="selectionTitle">Processional Abbey</strong><small id="selectionDetail">Everything remains editable.</small></div>
+      <button type="button" class="primary" id="approveBlueprint">Use this map <b>→</b></button>
+    </div>
+  </aside>
+</main>
+
+<div class="handoff" id="handoff" hidden role="dialog" aria-modal="true" aria-labelledby="handoffTitle">
+  <div class="handoff-card">
+    <button type="button" class="close" id="closeHandoff" aria-label="Close">×</button>
+    <span class="kicker">Blueprint ready</span>
+    <h2 id="handoffTitle">This map is ready to become yours.</h2>
+    <p id="handoffCopy">The creation method has disappeared into one editable map document. Nothing is flattened or locked.</p>
+    <div class="handoff-flow">
+      <div><b id="handoffSourceIcon">✦</b><span>Source</span><strong id="handoffSource">Generate</strong></div><i>→</i>
+      <div class="gold"><b>▦</b><span>Neutral document</span><strong>forge-blueprint/v1</strong></div><i>→</i>
+      <div><b>⌁</b><span>Next workspace</span><strong>Build</strong></div>
+    </div>
+    <div class="handoff-facts">
+      <span>✓ Shape remains editable</span><span>✓ Artwork can remain top-down</span>
+      <span>✓ 3D uses the same rooms</span><span>✓ Rules field already validates</span>
+    </div>
+    <div class="handoff-actions">
+      <button type="button" id="keepRefining">Keep refining</button>
+      <button type="button" class="primary" id="enterBuild">Enter Build workspace →</button>
+    </div>
+    <p class="proof-boundary" id="proofBoundary">This standalone proof stops at the handoff; the approved Build mock is the next surface.</p>
+  </div>
+</div>
+
+<div class="fatal" id="fatal" role="alert"></div>
+<script src="mock-forge-blueprint-diorama-core.js?v=bp13"></script>
+<script src="mock-forge-blueprint-diorama-creation.js?v=cf1"></script>
+</body>
+</html>

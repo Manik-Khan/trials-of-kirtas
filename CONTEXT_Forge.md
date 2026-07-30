@@ -1,4 +1,4 @@
-# CONTEXT — Battle Forge — current authority through 2026-07-28
+# CONTEXT — Battle Forge — current authority through 2026-07-30
 
 > This doc exists because the same failure kept happening: a session would read
 > *part* of the material, conclude a feature "was never there," and rebuild
@@ -9,7 +9,7 @@
 
 ---
 
-## CURRENT AUTHORITY · 2026-07-28
+## CURRENT AUTHORITY · 2026-07-30
 
 Read `docs/handoffs/forge/CONTEXT_Forge-update-2026-07-22.md` before the
 historical sections below. It carries the intentional Temple Terraces preview,
@@ -104,7 +104,7 @@ two-device publish/reconnect/rewind remains the field gate.
 
 ---
 
-## APPROVED NEXT VISUAL ARCHITECTURE · 2026-07-28
+## APPROVED BLUEPRINT / DIORAMA ARCHITECTURE · 2026-07-28
 
 M approved the **Forge Blueprint → Scrawl → Diorama** direction. The next
 generator step is not another cosmetic pass over the current cubes and is not
@@ -126,7 +126,11 @@ Blueprint compiler must emit the current field contract
 line of sight, cover, placement, replay, and live architecture edits do not
 fork into visual-only substitutes.
 
-### Next build slice: one real modular vertical proof
+### Approved vertical proof contract · implemented at `267f5b8`
+
+The contract below is retained as the acceptance record for the implemented
+Blueprint/Diorama proof. Its out-of-slice boundary applied to that July 28
+build; the July 30 Map Foundry section below now owns the next isolated work.
 
 Build one new standalone, no-production-coupling mock:
 `_edits/mock-forge-blueprint-diorama.html`. It may use companion files with the
@@ -181,6 +185,93 @@ after the proof settles the document, kit, readability, and performance.
 Existing HP/resource/LoS/monster and signed-in two-device field gates remain
 open and are not evidence against or completion criteria for this isolated
 visual proof.
+
+---
+
+## APPROVED NEXT MAP-CREATION SLICE · 2026-07-30
+
+M approved the Map Foundry creation experience as a separate opening section:
+**Generate**, **Templates**, **Import a map**, and **Blank map** are four
+equally visible starting doors, and every door converges on the same editable
+`forge-blueprint/v1` before Map → Populate → Play. Beginner controls come
+first; optional advanced controls expose seeds and deeper structure without
+making them prerequisites.
+
+The standalone UX proof is
+`_edits/mock-forge-blueprint-diorama-creation.html` with same-basename CSS/JS.
+It reuses the real proof authority and passes its focused contract, but M's
+field review rejected two placeholders:
+
+1. `produceSeeded()` currently selects processional, vault, or warren by seed.
+   Those are valid **Templates**, but three fixtures are not a generator.
+2. `produceBlank()` currently supplies one starter room, while the creation
+   proof's Build handoff is explanatory only. Blank must be genuinely empty and
+   immediately buildable with the approved tools.
+
+Do not describe the present creation mock as a working graph generator, blank
+editor, or real Blueprint handoff. The next session is an isolated functional
+vertical slice, not another cosmetic pass:
+
+### Ownership
+
+The slice may edit only:
+
+- `_edits/mock-forge-blueprint-diorama-creation.html` and same-basename
+  companions;
+- `_edits/mock-forge-blueprint-diorama.html` and its existing same-basename
+  proof core/CSS/JS, only as needed to receive an exact Blueprint and enter
+  Build; and
+- the two focused `smoke-blueprint-diorama*.js` proofs.
+
+It does not own production `forge/index.html`, `forge-engine.js`,
+`forge-dungeon.js`, generator foundation, map bridge, tactics geometry,
+protocol/replay/board, character/monster authorities, or shared theme tokens.
+No proof code promotes to production in this slice.
+
+### Build order
+
+1. Keep the three approved fixtures under **Templates**. Do not use their names
+   or seeded selection as evidence of procedural variety.
+2. Add a deterministic graph-first proof producer:
+   graph → room semantics → room footprints → corridor/opening routing →
+   constrained elevation → validate/connectivity audit → local repair →
+   `forge-blueprint/v1`.
+3. Generate three pairwise-distinct structural candidates from the user's
+   explicit size/topology/density/verticality choices. A freeform brief remains
+   an authored note until a real parser consumes it; do not fake semantic
+   influence.
+4. Preserve exact seed replay. Stable layout/height/semantics/decor sub-seeds
+   may be proven here when they materially support locking/regeneration, but do
+   not add production versioning machinery.
+5. Carry the exact selected Blueprint—Generate, Template, or Import—into the
+   approved Build workspace without regenerating or substituting a fixture.
+6. Make Blank a genuinely empty grid. Enter Build armed with Room selected;
+   drag the first footprint, then prove passage, wall, ledge, door, erase, and
+   undo without leaving the flow. The tactical compiler may narrate “first room
+   required” until playable floor exists.
+
+### Exit gates
+
+- repeated Generate actions visibly produce maps beyond the three Templates;
+- the same seed and controls reproduce byte-identical Blueprint/fingerprint
+  output;
+- each offered trio has pairwise-distinct structural fingerprints;
+- every accepted generated candidate compiles to a valid connected tactical
+  field, with failures repaired or clearly narrated;
+- the selected candidate enters Build with the same Blueprint identity and
+  fingerprint;
+- Template and reviewed Import selections also arrive unchanged;
+- Blank begins with no starter room, opens the real Build tools, and can draw
+  its first valid room plus a passage/wall/door run with undo;
+- focused known answers extract the real producer/handoff functions, all
+  touched JavaScript passes `node --check`, and the browser flow is field-tested
+  before review.
+
+Real image recognition/tracing, natural-language semantic generation,
+production persistence, multiplayer/replay, renderer promotion, and live
+combat integration remain later slices. Import must keep its visible
+confidence/review contract and source-rights receipt; the next session only
+needs to prove that an accepted imported Blueprint reaches Build unchanged.
 
 ---
 
@@ -900,7 +991,7 @@ real placement. **These are decisions, not hypotheses.**
    evidence, not from one dramatic shot.
 6. Run the full repository smoke battery and a two-device session.
 
-### Next: approved Blueprint/Diorama vertical proof
+### Approved Blueprint/Diorama vertical proof
 
 1. Define the minimum `forge-blueprint/v1` and modular-kit manifest inside the
    standalone proof; do not create a second live tactical authority.
@@ -911,7 +1002,16 @@ real placement. **These are decisions, not hypotheses.**
 4. Export the current tactical field shape and run the focused contract smoke.
 5. Field-test all quality modes on M's laptop and obtain visual approval.
 
-### After approval: active Phase 2 production terrain
+### Current next proof before production promotion
+
+1. Replace the creation mock's three-fixture Generate placeholder with the
+   deterministic graph-first producer described in the July 30 section above.
+2. Carry Generate, Template, Import, and truly Blank Blueprints into the actual
+   proof Build workspace.
+3. Field-test generator variety, exact seed replay, empty-grid first-room
+   drawing, and exact Blueprint identity across the handoff.
+
+### After that proof: active Phase 2 production terrain
 
 1. Promote the settled Blueprint/compiler as a versioned production module and
    keep exact `mapSnapshot` authoritative with a legacy recipe fallback.
