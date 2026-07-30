@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
 <meta name="robots" content="noindex">
-<title>Forge Blueprint · Ruined Abbey proof</title>
+<title>Forge Map Foundry · creation workflow proof</title>
 <script type="importmap">
 {
   "imports": {
@@ -13,17 +13,18 @@
   }
 }
 </script>
-<link rel="stylesheet" href="mock-forge-blueprint-diorama.css?v=bp5">
+<link rel="stylesheet" href="mock-forge-blueprint-diorama.css?v=bp13">
 </head>
 <body>
 <header class="masthead">
   <div class="brand">
-    <span class="eyebrow">Battle Forge · architecture proof</span>
-    <h1>Ruined Abbey</h1>
+    <span class="eyebrow">Battle Forge · map foundry proof</span>
+    <h1>From idea to table</h1>
   </div>
   <div class="view-switch" role="group" aria-label="Blueprint view">
-    <button type="button" class="seg active" data-view="diorama">Diorama</button>
-    <button type="button" class="seg" data-view="scrawl">Scrawl</button>
+    <button type="button" class="seg" data-view="artwork">Artwork</button>
+    <button type="button" class="seg active" data-view="board">Board</button>
+    <button type="button" class="seg" data-view="blueprint">Blueprint</button>
   </div>
   <div class="quality-switch" role="group" aria-label="Rendering quality">
     <button type="button" class="quality" data-quality="basic">Basic</button>
@@ -35,8 +36,78 @@
 <main>
   <section class="stage-shell" aria-label="Forge Blueprint rendering">
     <div id="threeStage" class="stage-panel"></div>
-    <canvas id="scrawlStage" class="stage-panel" aria-label="Top-down Scrawl view"></canvas>
+    <canvas id="artworkStage" class="stage-panel" aria-label="Imported battle map artwork view"></canvas>
+    <canvas id="scrawlStage" class="stage-panel" aria-label="Top-down Blueprint view"></canvas>
     <div class="stage-wash"></div>
+    <div class="authoring-bar" aria-label="Map interaction mode and history">
+      <div class="mode-switch" role="group" aria-label="Map interaction mode">
+        <button type="button" class="mode active" id="browseMode">Browse</button>
+        <button type="button" class="mode" id="buildMode">Build</button>
+      </div>
+      <button type="button" class="history-action" id="undoAction" disabled title="Nothing to undo">↶ <span>Undo</span></button>
+      <button type="button" class="history-action" id="redoAction" disabled title="Nothing to redo">↷ <span>Redo</span></button>
+      <button type="button" class="compare-hold" id="compareHold" title="Press and hold to compare the source artwork">◩ <span>Hold source</span></button>
+      <button type="button" class="grid-action active" id="gridToggle" aria-pressed="true" title="Show or hide the calibrated grid">⌗ <span>Grid</span></button>
+    </div>
+    <div class="mode-narration" id="modeNarration"><strong>Browse safe</strong><span>Orbit, inspect, or place an armed group flag. Building is off.</span></div>
+    <nav class="pin-rail" aria-label="Pinned Forge tools">
+      <span>Pinned</span>
+      <button type="button" id="pinnedBuild" title="Toggle Build mode and open structure tools"><b>⌁</b><span>Build</span></button>
+      <button type="button" data-open-workflow="encounter" title="Open creature and discovery staging"><b>♟</b>Creatures</button>
+      <button type="button" id="pinnedReveal" title="Reveal the next room"><b>◐</b>Reveal</button>
+      <div class="pin-history" role="group" aria-label="Pinned history">
+        <button type="button" id="pinnedUndo" disabled title="Nothing to undo"><b>↶</b><span>Undo</span></button>
+        <button type="button" id="pinnedRedo" disabled title="Nothing to redo"><b>↷</b><span>Redo</span></button>
+      </div>
+    </nav>
+    <nav class="build-brush-rail" id="buildBrushRail" hidden aria-label="Build brush palette">
+      <div class="brush-title"><span id="brushTitle">Layout</span><button type="button" id="brushExitBuild" aria-label="Exit Build mode">×</button></div>
+      <div class="brush-context-tabs" role="tablist" aria-label="Build categories">
+        <button type="button" class="active" data-map-tab="layout" role="tab"><b>▦</b><span>Shape</span></button>
+        <button type="button" data-map-tab="appearance" role="tab"><b>◒</b><span>Look</span></button>
+        <button type="button" data-map-tab="objects" role="tab"><b>♜</b><span>Objects</span></button>
+        <button type="button" data-map-tab="areas" role="tab"><b>◫</b><span>Areas</span></button>
+      </div>
+      <button type="button" class="active" data-brush-context="layout" data-layout-tool="select"><b>⌖</b><span>Select</span><kbd>V</kbd></button>
+      <button type="button" data-brush-context="layout" data-layout-tool="room"><b>▣</b><span>Room</span><kbd>R</kbd></button>
+      <button type="button" data-brush-context="layout" data-layout-tool="corridor"><b>━</b><span>Passage</span><kbd>P</kbd></button>
+      <button type="button" data-brush-context="layout" data-layout-tool="wall"><b>▥</b><span>Wall</span><kbd>W</kbd></button>
+      <button type="button" data-brush-context="layout" data-layout-tool="lowWall"><b>▤</b><span>Ledge</span><kbd>L</kbd></button>
+      <button type="button" data-brush-context="layout" data-layout-tool="door"><b>▯</b><span>Door</span><kbd>D</kbd></button>
+      <button type="button" class="danger" data-brush-context="layout" data-layout-tool="erase"><b>⌫</b><span>Erase</span><kbd>E</kbd></button>
+      <button type="button" class="active" data-brush-context="objects" data-object-kind="pew" hidden><b>▭</b><span>Pew</span></button>
+      <button type="button" data-brush-context="objects" data-object-kind="pillar" hidden><b>●</b><span>Pillar</span></button>
+      <button type="button" data-brush-context="objects" data-object-kind="altar" hidden><b>▰</b><span>Altar</span></button>
+      <button type="button" data-brush-context="objects" data-object-kind="brazier" hidden><b>✦</b><span>Brazier</span></button>
+      <button type="button" data-brush-context="objects" data-object-kind="rubble" hidden><b>⟡</b><span>Rubble</span></button>
+      <button type="button" data-brush-context="objects" data-object-kind="statue" hidden><b>♜</b><span>Statue</span></button>
+      <button type="button" data-brush-context="appearance" data-context-select="appearance" hidden><b>⌖</b><span>Choose room</span></button>
+      <button type="button" data-brush-context="areas" data-context-select="areas" hidden><b>⌖</b><span>Choose rooms</span></button>
+      <small id="brushContextHint">Right-click the map for the radial menu.</small>
+      <div class="brush-history" role="group" aria-label="Build history">
+        <button type="button" id="brushUndo" disabled><b>↶</b><span>Undo</span></button>
+        <button type="button" id="brushRedo" disabled><b>↷</b><span>Redo</span></button>
+      </div>
+    </nav>
+    <div class="build-radial" id="buildRadial" hidden role="menu" aria-label="Build options">
+      <button type="button" class="radial-tool r-select" data-radial-tool="select" role="menuitem"><b>⌖</b><span>Select</span></button>
+      <button type="button" class="radial-tool r-room" data-radial-tool="room" role="menuitem"><b>▣</b><span>Room</span></button>
+      <button type="button" class="radial-tool r-passage" data-radial-tool="corridor" role="menuitem"><b>━</b><span>Passage</span></button>
+      <button type="button" class="radial-tool r-wall" data-radial-tool="wall" role="menuitem"><b>▥</b><span>Wall</span></button>
+      <button type="button" class="radial-tool r-ledge" data-radial-tool="lowWall" role="menuitem"><b>▤</b><span>Ledge</span></button>
+      <button type="button" class="radial-tool r-door" data-radial-tool="door" role="menuitem"><b>▯</b><span>Door</span></button>
+      <button type="button" class="radial-tool r-erase" data-radial-tool="erase" role="menuitem"><b>⌫</b><span>Erase</span></button>
+      <button type="button" class="radial-history r-undo" id="radialUndo" role="menuitem" disabled><b>↶</b><span>Undo</span></button>
+      <button type="button" class="radial-history r-redo" id="radialRedo" role="menuitem" disabled><b>↷</b><span>Redo</span></button>
+      <div class="radial-center"><span id="radialToolLabel">Select</span><small>brush</small></div>
+    </div>
+    <div class="area-stage-label" id="areaStageLabel" hidden><span>Selected area</span><strong>Processional Nave</strong><small>80 cells · 2 connected areas</small></div>
+    <div class="build-handles" id="buildHandles" hidden aria-label="Repeat placement direction">
+      <button type="button" data-build-direction="n" aria-label="Repeat north">↑</button>
+      <button type="button" data-build-direction="e" aria-label="Repeat east">→</button>
+      <button type="button" data-build-direction="s" aria-label="Repeat south">↓</button>
+      <button type="button" data-build-direction="w" aria-label="Repeat west">←</button>
+    </div>
     <div class="map-caption">
       <span id="topologyLabel">linear procession</span>
       <strong id="mapName">Processional Abbey</strong>
@@ -52,124 +123,344 @@
   </section>
 
   <aside class="workbench">
-    <section class="panel intro">
+    <section class="workbench-heading">
       <span class="kicker">Forge Blueprint / v1</span>
-      <h2>One map. Two readings.</h2>
-      <p>The authored document is the source. Scrawl, diorama, and the tactical field are three consumers—not three maps.</p>
+      <h2>Map Foundry</h2>
+      <p id="workflowStatus">Choose how this battlefield begins.</p>
     </section>
+    <nav class="workflow-tabs primary-workflow" aria-label="Forge workspace">
+      <button type="button" class="active" data-workflow="map"><span>01</span>Map</button>
+      <button type="button" data-workflow="encounter"><span>02</span>Populate</button>
+      <button type="button" data-workflow="present"><span>03</span>Play</button>
+    </nav>
 
-    <section class="panel">
-      <div class="section-head">
-        <div>
-          <span class="step">01</span>
-          <h3>Topology fixture</h3>
-        </div>
-        <span class="status good" id="connectivityStatus">connected</span>
+    <div class="workflow-page workspace-page active" data-workflow-page="map">
+      <nav class="map-tabs" aria-label="Map tools">
+        <button type="button" class="active" data-map-tab="layout">Layout</button>
+        <button type="button" data-map-tab="appearance">Appearance</button>
+        <button type="button" data-map-tab="objects">Objects</button>
+        <button type="button" data-map-tab="areas">Areas <small>advanced</small></button>
+      </nav>
+
+      <div class="map-tab-page active" data-map-tab-page="layout">
+        <section class="panel intro compact-intro">
+          <span class="kicker">Shape the playable place</span>
+          <h2>Build the battlefield.</h2>
+          <p>Choose a tool, touch the map, and change the actual rooms and paths. Appearance and reveal behavior follow that same selection.</p>
+        </section>
+        <section class="panel quick-start">
+          <div class="section-head"><div><span class="step">↳</span><h3>Starting point</h3></div><span class="status">optional</span></div>
+          <div class="quick-start-row">
+            <button type="button" data-quick-map="processional">Abbey</button>
+            <button type="button" data-quick-map="vault">Vault</button>
+            <button type="button" data-quick-map="warren">Warren</button>
+            <button type="button" data-quick-map="blank">Blank</button>
+          </div>
+          <small>Import and generation remain starting options—not separate stages you must complete.</small>
+        </section>
+        <section class="panel direct-builder">
+          <div class="section-head"><div><span class="step">01</span><h3>Direct build</h3></div><span class="status" id="directBuildStatus">Browse safe</span></div>
+          <button type="button" class="build-gate" id="directBuildMode"><strong>Enter Build mode</strong><span>Nothing changes until this is armed.</span></button>
+          <div class="layout-tools" role="group" aria-label="Map building tool">
+            <button type="button" class="layout-tool active" data-layout-tool="select"><b>⌖</b><span>Select</span></button>
+            <button type="button" class="layout-tool" data-layout-tool="room"><b>▣</b><span>Room</span></button>
+            <button type="button" class="layout-tool" data-layout-tool="corridor"><b>━</b><span>Passage</span></button>
+            <button type="button" class="layout-tool" data-layout-tool="wall"><b>▥</b><span>Wall</span></button>
+            <button type="button" class="layout-tool" data-layout-tool="lowWall"><b>▤</b><span>Ledge</span></button>
+            <button type="button" class="layout-tool" data-layout-tool="door"><b>▯</b><span>Door</span></button>
+            <button type="button" class="layout-tool danger" data-layout-tool="erase"><b>⌫</b><span>Erase</span></button>
+          </div>
+          <p class="tool-guidance" id="layoutToolGuidance"><strong>Select:</strong> click a room or passage. Shift-click adds a second room so you can connect exactly those two.</p>
+          <div class="mass-build-callout" id="massBuildCallout">
+            <b>Repeat in a direction</b>
+            <span>Walls snap to square edges. Click an end arrow for one more segment, hold to repeat, or drag for an exact run. Release commits one Undo.</span>
+          </div>
+          <div class="rotation-row direct-rotation">
+            <span>Placement angle</span>
+            <button type="button" class="rotate" id="directRotateLeft" aria-label="Rotate left">↺</button>
+            <strong id="directRotationValue">0°</strong>
+            <button type="button" class="rotate" id="directRotateRight" aria-label="Rotate right">↻</button>
+          </div>
+        </section>
+        <section class="panel selection-inspector">
+          <div class="section-head"><div><span class="step">⌖</span><h3>Selection</h3></div><button type="button" class="text-action" id="clearLayoutSelection">Clear</button></div>
+          <strong id="layoutSelectionTitle">Nothing selected</strong>
+          <p id="layoutSelectionDetail">Select a room to divide it, or select two rooms to draw a passage between them.</p>
+          <div class="context-actions">
+            <button type="button" class="action" id="divideVertical" disabled>Divide ↕</button>
+            <button type="button" class="action" id="divideHorizontal" disabled>Divide ↔</button>
+            <button type="button" class="action primary" id="connectSelected" disabled>Connect rooms</button>
+            <button type="button" class="action danger" id="removeSelectedPassage" disabled>Remove passage</button>
+            <button type="button" class="action danger" id="removeSelectedArchitecture" disabled>Remove piece</button>
+          </div>
+          <small id="selectionActionNote">Contextual actions appear here; they never hide in another menu.</small>
+        </section>
+        <details class="panel map-details">
+          <summary>Grid & source alignment <span id="directGridStatus">28.0 px · 28×20</span></summary>
+          <p>Use the calibrated grid from Combat when importing an existing battle map.</p>
+          <button type="button" class="action" id="openLegacyGrid">Open alignment controls</button>
+        </details>
       </div>
-      <div class="fixture-list" role="group" aria-label="Topology fixture">
-        <button type="button" class="fixture active" data-fixture="processional">
-          <span class="roman">I</span><span><strong>Processional Abbey</strong><small>Linear gate → nave → choir</small></span>
+
+      <div class="map-tab-page" data-map-tab-page="appearance" hidden>
+        <section class="panel intro compact-intro">
+          <span class="kicker">Same map · chosen character</span>
+          <h2>Make the selected room belong here.</h2>
+          <p>Materials and elevation apply to the room you selected on the map—not an unexplained region name.</p>
+        </section>
+        <section class="panel theme-list">
+          <button type="button" class="theme-card active" data-theme="abbey"><i class="theme-swatch abbey"></i><span><strong>Ruined Abbey</strong><small>Pale stone · oak · iron · votive light</small></span><b>Ready</b></button>
+          <button type="button" class="theme-card" data-theme="moss"><i class="theme-swatch moss"></i><span><strong>Mossbound Cloister</strong><small>Green stone · water · cool shadow</small></span><b>Apply</b></button>
+          <button type="button" class="theme-card" data-theme="bare"><i class="theme-swatch bare"></i><span><strong>Bare Structure</strong><small>No furnishings · neutral stone</small></span><b>Apply</b></button>
+        </section>
+        <section class="panel">
+          <div class="section-head"><div><span class="step">⌖</span><h3 id="appearanceSelectionTitle">Select a room</h3></div><span class="status">local</span></div>
+          <div class="zone-grid">
+            <label>Elevation<select id="selectedElevation"><option value="0">0 ft</option><option value="5">5 ft</option><option value="10">10 ft</option></select></label>
+            <label>Material<select id="selectedMaterial"><option value="nave">Nave stone</option><option value="cloister">Mossed stone</option><option value="crypt">Crypt stone</option><option value="timber">Old oak</option><option value="water">Holy channel</option></select></label>
+            <button type="button" class="action primary" id="applySelectedAppearance" disabled>Apply to selected room</button>
+          </div>
+        </section>
+      </div>
+
+      <div class="map-tab-page" data-map-tab-page="objects" hidden>
+        <section class="panel intro compact-intro">
+          <span class="kicker">Furnish the space</span>
+          <h2>Place what the scene needs.</h2>
+          <p>Choose an abbey object, then place it directly. The same nearby rotation control stays available.</p>
+        </section>
+        <section class="panel">
+          <div class="object-palette" role="group" aria-label="Abbey objects">
+            <button type="button" class="object-tool active" data-object-kind="pew"><b>▭</b><span>Pew</span></button>
+            <button type="button" class="object-tool" data-object-kind="pillar"><b>●</b><span>Pillar</span></button>
+            <button type="button" class="object-tool" data-object-kind="altar"><b>▰</b><span>Altar</span></button>
+            <button type="button" class="object-tool" data-object-kind="brazier"><b>✦</b><span>Brazier</span></button>
+            <button type="button" class="object-tool" data-object-kind="rubble"><b>⟡</b><span>Rubble</span></button>
+            <button type="button" class="object-tool" data-object-kind="statue"><b>♜</b><span>Statue</span></button>
+          </div>
+          <p class="tool-guidance" id="objectToolGuidance"><strong>Pew armed.</strong> Enter Build mode, then click a playable cell to place it.</p>
+        </section>
+      </div>
+
+      <div class="map-tab-page" data-map-tab-page="areas" hidden>
+        <section class="panel intro compact-intro">
+          <span class="kicker">Optional · player reveal</span>
+          <h2>Group rooms only when the reveal needs it.</h2>
+          <p>Areas do not create walls, doors, or passages. They only decide what players discover together.</p>
+        </section>
+        <section class="panel reveal-area-proof">
+          <strong id="revealSelectionTitle">Select two or more rooms on the map.</strong>
+          <p id="revealSelectionDetail">Their physical layout stays untouched.</p>
+          <button type="button" class="action primary wide" id="groupRevealSelected" disabled>Reveal selected rooms together</button>
+        </section>
+      </div>
+    </div>
+
+    <nav class="workflow-tabs legacy-workflow-tabs" aria-label="Legacy proof workflow">
+      <button type="button" class="active" data-workflow="source"><span>01</span>Source</button>
+      <button type="button" data-workflow="structure"><span>02</span>Structure</button>
+      <button type="button" data-workflow="dress"><span>03</span>Dress</button>
+      <button type="button" data-workflow="encounter"><span>04</span>Encounter</button>
+      <button type="button" data-workflow="present"><span>05</span>Present</button>
+    </nav>
+
+    <div class="workflow-page active" data-workflow-page="source">
+      <section class="panel intro">
+        <span class="kicker">Begin anywhere</span>
+        <h2>What do you already have?</h2>
+        <p>Every door produces the same editable Blueprint. The rest of the Forge never needs to know where it began.</p>
+      </section>
+      <section class="panel source-choices">
+        <button type="button" class="source-card active" data-source-choice="generate">
+          <b>✦</b><span><strong>Generate a layout</strong><small>Reproducible seed · topology study</small></span>
         </button>
-        <button type="button" class="fixture" data-fixture="vault">
-          <span class="roman">II</span><span><strong>Loop / Hub Vault</strong><small>Four spokes · two bypasses</small></span>
+        <button type="button" class="source-card" data-source-choice="import">
+          <b>▧</b><span><strong>Import a map</strong><small>Keep its art · confirm its meaning</small></span>
         </button>
-        <button type="button" class="fixture" data-fixture="warren">
-          <span class="roman">III</span><span><strong>Branching Warren</strong><small>Asymmetric cellar tree</small></span>
+        <button type="button" class="source-card" data-source-choice="blank">
+          <b>＋</b><span><strong>Begin empty</strong><small>Build a set piece by hand</small></span>
         </button>
-      </div>
-    </section>
-
-    <section class="panel">
-      <div class="section-head">
-        <div>
-          <span class="step">02</span>
-          <h3>Discovery proof</h3>
+      </section>
+      <section class="panel source-detail active" data-source-detail="generate">
+        <div class="section-head"><div><span class="step">A</span><h3>Seeded layout study</h3></div><span class="status good">reproducible</span></div>
+        <div class="source-form">
+          <label>Seed<input id="seedInput" type="number" value="1847" min="0" inputmode="numeric"></label>
+          <label>Shape<select id="seedTopology">
+            <option value="auto">Let the seed decide</option>
+            <option value="processional">Processional</option>
+            <option value="vault">Loop / hub</option>
+            <option value="warren">Branching</option>
+          </select></label>
         </div>
-        <span class="status" id="idleStatus">idle</span>
-      </div>
-      <p class="hint">Unexplored rooms remain flat grey footprints. Discovery restores their material, elevation, light, and architecture.</p>
-      <div class="row">
-        <button type="button" class="action primary" id="revealNext">Reveal next room</button>
-        <button type="button" class="action" id="resetDiscovery">Reset</button>
-        <button type="button" class="action" id="focusHero" disabled title="Reveal the Raised Choir first">Focus Choir</button>
-      </div>
-    </section>
+        <p class="hint">This proof uses deterministic topology studies at the future graph-generator seam. The producer can later be replaced without changing the editor or renderer.</p>
+        <button type="button" class="action primary wide" id="createSeeded">Generate Blueprint</button>
+      </section>
+      <section class="panel source-detail" data-source-detail="import" hidden>
+        <div class="section-head"><div><span class="step">B</span><h3>Assisted import study</h3></div><span class="status">sample flow</span></div>
+        <div class="map-study" aria-label="Code-native painted abbey map study"><i></i><i></i><i></i><b>Painted Abbey Study</b><small>Code-native proof artwork · 28 × 20 cells</small></div>
+        <p class="hint">Forge keeps the source artwork underneath and proposes floors, walls, openings, and elevation. The DM confirms meaning before anything becomes rules authority.</p>
+        <button type="button" class="action primary wide" id="analyzeSample">Analyze sample map</button>
+      </section>
+      <section class="panel source-detail" data-source-detail="blank" hidden>
+        <div class="section-head"><div><span class="step">C</span><h3>Blank battlefield</h3></div><span class="status">manual</span></div>
+        <div class="blank-study"><span>12 × 10 room</span></div>
+        <p class="hint">Begin with one open sanctum, then shape its walls, doors, elevation, material, creatures, and presentation.</p>
+        <button type="button" class="action primary wide" id="createBlank">Create empty Blueprint</button>
+      </section>
+      <section class="panel receipt">
+        <span class="kicker">Current document</span>
+        <strong id="sourceReceipt">Topology study · Processional Abbey</strong>
+        <small id="sourceReceiptDetail">forge-blueprint/v1 · connected · field valid</small>
+      </section>
+    </div>
 
-    <section class="panel">
-      <div class="section-head">
-        <div>
-          <span class="step">03</span>
-          <h3>Local authoring</h3>
+    <div class="workflow-page" data-workflow-page="structure" hidden>
+      <section class="panel">
+        <div class="section-head"><div><span class="step">02</span><h3>Review structure</h3></div><span class="status good" id="connectivityStatus">connected</span></div>
+        <p class="hint">Blueprint is the universal review surface. Imported proposals stay visibly provisional until the DM accepts them.</p>
+        <div id="reviewFindings" class="review-findings"><p>No uncertain import findings. This Blueprint is ready to edit.</p></div>
+        <div class="row">
+          <button type="button" class="action" id="toggleUnderlay">Source underlay unavailable</button>
+          <button type="button" class="action" id="acceptAllFindings" disabled>Accept all</button>
         </div>
-        <span class="status" id="chunkStatus">no rebuild</span>
-      </div>
-      <div class="tool-row" role="group" aria-label="Architecture tool">
-        <button type="button" class="tool active" data-tool="wall">Wall</button>
-        <button type="button" class="tool" data-tool="lowWall">Low wall</button>
-        <button type="button" class="tool" data-tool="door">Door</button>
-        <button type="button" class="tool danger" data-tool="erase">Erase</button>
-      </div>
-      <div class="rotation-row">
-        <span id="rotationLabel">Placement angle</span>
-        <button type="button" class="rotate" id="rotateLeft" aria-label="Rotate left">↺</button>
-        <strong id="rotationValue">0°</strong>
-        <button type="button" class="rotate" id="rotateRight" aria-label="Rotate right">↻</button>
-      </div>
-      <p class="hint">Click an existing wall, low wall, or door to select it; the arrows rotate that piece in place. Click an empty playable cell to place the active tool. Only its 5×5-cell chunk rebuilds.</p>
-      <div class="zone-grid">
-        <label>Region
-          <select id="zoneRegion"></select>
-        </label>
-        <label>Elevation
-          <select id="zoneElevation">
-            <option value="0">0 ft</option>
-            <option value="5">5 ft</option>
-            <option value="10">10 ft</option>
-          </select>
-        </label>
-        <label>Material
-          <select id="zoneMaterial">
-            <option value="nave">Nave stone</option>
-            <option value="cloister">Mossed stone</option>
-            <option value="crypt">Crypt stone</option>
-            <option value="timber">Old oak</option>
-            <option value="water">Holy channel</option>
-          </select>
-        </label>
-        <button type="button" class="action" id="applyZone">Apply zone</button>
-      </div>
-    </section>
-
-    <section class="panel metrics">
-      <div class="section-head">
-        <div>
-          <span class="step">04</span>
-          <h3>Measured evidence</h3>
+      </section>
+      <section class="panel">
+        <div class="section-head"><div><span class="step">↳</span><h3>Try another topology</h3></div><span class="status">studies</span></div>
+        <div class="fixture-list" role="group" aria-label="Topology fixture">
+          <button type="button" class="fixture active" data-fixture="processional"><span class="roman">I</span><span><strong>Processional Abbey</strong><small>Linear gate → nave → choir</small></span></button>
+          <button type="button" class="fixture" data-fixture="vault"><span class="roman">II</span><span><strong>Loop / Hub Vault</strong><small>Four spokes · two bypasses</small></span></button>
+          <button type="button" class="fixture" data-fixture="warren"><span class="roman">III</span><span><strong>Branching Warren</strong><small>Asymmetric cellar tree</small></span></button>
         </div>
-        <span class="status good" id="contractStatus">field valid</span>
-      </div>
-      <dl>
-        <div><dt>Draw calls</dt><dd id="metricCalls">—</dd></div>
-        <div><dt>Triangles</dt><dd id="metricTriangles">—</dd></div>
-        <div><dt>Textures</dt><dd id="metricTextures">0</dd></div>
-        <div><dt>Frame</dt><dd id="metricFrame">— ms</dd></div>
-        <div><dt>Chunks</dt><dd id="metricChunks">—</dd></div>
-        <div><dt>Tactical cells</dt><dd id="metricCells">—</dd></div>
-      </dl>
-      <details>
-        <summary>Compiler contract</summary>
-        <code>{cols, rows, h, wall, occ, coverShape, spawns, props, meta}</code>
-      </details>
-    </section>
+      </section>
+      <section class="panel">
+        <div class="section-head"><div><span class="step">↳</span><h3>Build directly</h3></div><span class="status" id="chunkStatus">no rebuild</span></div>
+        <button type="button" class="build-gate" id="buildModeInline"><strong>Enter Build mode</strong><span>Map clicks are safe until this is armed.</span></button>
+        <div class="tool-row" role="group" aria-label="Architecture tool">
+          <button type="button" class="tool active" data-tool="wall">Wall</button>
+          <button type="button" class="tool" data-tool="lowWall">Low wall</button>
+          <button type="button" class="tool" data-tool="door">Door</button>
+          <button type="button" class="tool danger" data-tool="erase">Erase</button>
+        </div>
+        <div class="rotation-row">
+          <span id="rotationLabel">Placement angle</span>
+          <button type="button" class="rotate" id="rotateLeft" aria-label="Rotate left">↺</button>
+          <strong id="rotationValue">0°</strong>
+          <button type="button" class="rotate" id="rotateRight" aria-label="Rotate right">↻</button>
+        </div>
+        <p class="hint">Click a piece to bring its controls close. Click an empty playable cell to place the active tool. Only that 5 × 5 chunk rebuilds.</p>
+      </section>
+      <section class="panel">
+        <div class="section-head"><div><span class="step">⌗</span><h3>Grid calibration</h3></div><span class="status good" id="gridStatus">28.0 px · 28×20</span></div>
+        <p class="hint">Imported art keeps its native image. Draw across a known run of squares in production; here, nudge the same cell-size and origin values used by Combat.</p>
+        <div class="calibration-grid">
+          <label>Cell px<input id="gridCellPx" type="number" value="28" min="4" step=".1"></label>
+          <label>Origin X<input id="gridOriginX" type="number" value="0" step="1"></label>
+          <label>Origin Y<input id="gridOriginY" type="number" value="0" step="1"></label>
+          <button type="button" class="action" id="applyGrid">Preview grid</button>
+        </div>
+        <div class="calibration-nudges" aria-label="Grid origin nudges">
+          <button type="button" data-grid-nudge="x:-1">← X</button>
+          <button type="button" data-grid-nudge="x:1">X →</button>
+          <button type="button" data-grid-nudge="y:-1">↑ Y</button>
+          <button type="button" data-grid-nudge="y:1">Y ↓</button>
+        </div>
+      </section>
+      <section class="panel next-step"><span>Structure reads correctly?</span><button type="button" class="action primary" data-continue="dress">Choose its materials →</button></section>
+    </div>
 
-    <footer>
-      <span>Code-native geometry · no imported assets</span>
-      <span>Three.js r185.1 · proof only</span>
-    </footer>
+    <div class="workflow-page" data-workflow-page="dress" hidden>
+      <section class="panel intro"><span class="kicker">Visual identity</span><h2>Dress the same structure.</h2><p>The map’s rules remain stable while its material and furnishing language changes.</p></section>
+      <section class="panel theme-list">
+        <button type="button" class="theme-card active" data-theme="abbey"><i class="theme-swatch abbey"></i><span><strong>Ruined Abbey</strong><small>Pale stone · oak · iron · votive light</small></span><b>Ready</b></button>
+        <button type="button" class="theme-card" data-theme="moss"><i class="theme-swatch moss"></i><span><strong>Mossbound Cloister</strong><small>Green stone · water · cool shadow</small></span><b>Apply</b></button>
+        <button type="button" class="theme-card" data-theme="bare"><i class="theme-swatch bare"></i><span><strong>Bare Structure</strong><small>No furnishings · neutral stone</small></span><b>Apply</b></button>
+      </section>
+      <section class="panel">
+        <div class="section-head"><div><span class="step">↳</span><h3>Understand this area</h3></div><span class="status good" id="areaBoundaryStatus">derived boundary</span></div>
+        <p class="hint">An area is the named footprint you are editing. Selecting one highlights every cell and every connection without moving the camera.</p>
+        <div class="area-picker">
+          <label>Area<select id="zoneRegion"></select></label>
+          <button type="button" class="area-highlight active" id="toggleAreaHighlight" aria-pressed="true">◉ Highlight</button>
+        </div>
+        <div class="area-identity">
+          <label>Name<input id="areaName" type="text" value=""></label>
+          <button type="button" class="action" id="renameArea">Rename</button>
+          <div><span>Named by</span><strong id="areaProvenance">Authored topology study</strong></div>
+          <div><span>Footprint</span><strong id="areaFootprint">—</strong></div>
+        </div>
+        <div class="area-links" aria-label="Area layer links">
+          <label><input id="areaDressTogether" type="checkbox" checked><span><strong>Dress together</strong><small>Material and elevation share this footprint.</small></span></label>
+          <label><input id="areaRevealTogether" type="checkbox" checked><span><strong>Reveal together</strong><small>Players discover the whole area at once.</small></span></label>
+        </div>
+        <div class="boundary-report">
+          <div><span class="kicker">Boundary health</span><strong id="areaConnectionSummary">Every connection accounted for</strong></div>
+          <ul id="areaConnections"></ul>
+          <p id="areaBoundaryNote">Markers are derived from membership, so a missing doorway marker cannot silently merge areas.</p>
+        </div>
+        <div class="area-edit-actions">
+          <button type="button" class="action" id="splitArea">Split largest room</button>
+          <label>Merge with<select id="areaMergeTarget"></select></label>
+          <button type="button" class="action" id="mergeArea">Merge areas</button>
+        </div>
+      </section>
+      <section class="panel">
+        <div class="section-head"><div><span class="step">↳</span><h3>Dress this area</h3></div><span class="status">local</span></div>
+        <div class="zone-grid">
+          <label>Elevation<select id="zoneElevation"><option value="0">0 ft</option><option value="5">5 ft</option><option value="10">10 ft</option></select></label>
+          <label>Material<select id="zoneMaterial"><option value="nave">Nave stone</option><option value="cloister">Mossed stone</option><option value="crypt">Crypt stone</option><option value="timber">Old oak</option><option value="water">Holy channel</option></select></label>
+          <button type="button" class="action primary" id="applyZone">Apply to highlighted area</button>
+        </div>
+      </section>
+      <section class="panel next-step"><span>Art direction settled?</span><button type="button" class="action primary" data-continue="encounter">Stage the encounter →</button></section>
+    </div>
+
+    <div class="workflow-page" data-workflow-page="encounter" hidden>
+      <section class="panel intro"><span class="kicker">Run the idea</span><h2>Stage what happens here.</h2><p>Creatures, discovery, and reveal order sit on the finished environment without changing its structure.</p></section>
+      <section class="panel encounter-card">
+        <div class="section-head"><div><span class="step">04</span><h3>Encounter groups</h3></div><span class="status good" id="spawnStatus">2 / 2 flags placed</span></div>
+        <p class="hint">The existing Forge flow stays intact: choose membership and role, then place one group flag. Formation resolves around it without placing every creature by hand.</p>
+        <div id="deploymentGroups" class="deployment-groups"></div>
+        <p class="flag-message" id="flagMessage">Choose “Move flag” to restage a group. Browse mode remains safe for normal inspection.</p>
+      </section>
+      <section class="panel">
+        <div class="section-head"><div><span class="step">↳</span><h3>Discovery sequence</h3></div><span class="status" id="idleStatus">idle</span></div>
+        <p class="hint">Staff sees the full authoring footprint. Player presentation can begin in darkness and restore each room’s material, elevation, light, and architecture on entry.</p>
+        <div class="row">
+          <button type="button" class="action primary" id="revealNext">Reveal next room</button>
+          <button type="button" class="action" id="resetDiscovery">Player darkness</button>
+          <button type="button" class="action" id="focusHero" disabled title="Reveal the Raised Choir first">Focus Choir</button>
+        </div>
+      </section>
+      <section class="panel next-step"><span>Ready for players?</span><button type="button" class="action primary" data-continue="present">Choose presentation →</button></section>
+    </div>
+
+    <div class="workflow-page" data-workflow-page="present" hidden>
+      <section class="panel intro"><span class="kicker">One map · several experiences</span><h2>How should this location read?</h2><p>The DM recommends a composition; players retain the practical top-down view.</p></section>
+      <section class="panel presentation-list">
+        <button type="button" class="presentation active" data-presentation="table"><b>◫</b><span><strong>Table</strong><small>Rotatable orthographic-style diorama</small></span></button>
+        <button type="button" class="presentation" data-presentation="topdown"><b>⌗</b><span><strong>Top-down board</strong><small>The actual 3D map and calibrated grid</small></span></button>
+        <button type="button" class="presentation" data-presentation="beauty"><b>✧</b><span><strong>Beauty shot</strong><small>Frames only what players have discovered</small></span></button>
+      </section>
+      <section class="panel metrics">
+        <div class="section-head"><div><span class="step">05</span><h3>Measured evidence</h3></div><span class="status good" id="contractStatus">field valid</span></div>
+        <dl>
+          <div><dt>Draw calls</dt><dd id="metricCalls">—</dd></div>
+          <div><dt>Triangles</dt><dd id="metricTriangles">—</dd></div>
+          <div><dt>Textures</dt><dd id="metricTextures">0</dd></div>
+          <div><dt>Frame</dt><dd id="metricFrame">— ms</dd></div>
+          <div><dt>Chunks</dt><dd id="metricChunks">—</dd></div>
+          <div><dt>Tactical cells</dt><dd id="metricCells">—</dd></div>
+        </dl>
+        <details><summary>Compiler contract</summary><code>{cols, rows, h, wall, occ, coverShape, spawns, props, meta}</code></details>
+      </section>
+      <section class="panel receipt"><span class="kicker">Ready to hand to the Table</span><strong>Blueprint, renderer, and tactical field agree.</strong><small>The production integration remains intentionally outside this proof.</small></section>
+    </div>
+
+    <footer><span>Code-native sample artwork · no imported assets</span><span>Three.js r185.1 · proof only</span></footer>
   </aside>
 </main>
 
-<script src="mock-forge-blueprint-diorama-core.js?v=bp5"></script>
-<script type="module" src="mock-forge-blueprint-diorama.js?v=bp5"></script>
+<script src="mock-forge-blueprint-diorama-core.js?v=bp13"></script>
+<script type="module" src="mock-forge-blueprint-diorama.js?v=bp13"></script>
 </body>
 </html>

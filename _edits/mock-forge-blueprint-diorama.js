@@ -16,26 +16,66 @@ const PALETTE = Object.freeze({
 });
 const ui = {};
 [
-  "threeStage", "scrawlStage", "fatal", "mapName", "topologyLabel", "discoveryLabel",
+  "threeStage", "artworkStage", "scrawlStage", "fatal", "mapName", "topologyLabel", "discoveryLabel",
   "connectivityStatus", "idleStatus", "chunkStatus", "contractStatus",
   "revealNext", "resetDiscovery", "focusHero", "rotationLabel", "rotationValue", "rotateLeft", "rotateRight",
-  "zoneRegion", "zoneElevation", "zoneMaterial", "applyZone",
-  "metricCalls", "metricTriangles", "metricTextures", "metricFrame", "metricChunks", "metricCells"
+  "zoneRegion", "zoneElevation", "zoneMaterial", "applyZone", "areaStageLabel", "areaBoundaryStatus",
+  "toggleAreaHighlight", "areaName", "renameArea", "areaProvenance", "areaFootprint",
+  "areaDressTogether", "areaRevealTogether", "areaConnectionSummary", "areaConnections",
+  "areaBoundaryNote", "areaMergeTarget", "splitArea", "mergeArea",
+  "metricCalls", "metricTriangles", "metricTextures", "metricFrame", "metricChunks", "metricCells",
+  "workflowStatus", "seedInput", "seedTopology", "createSeeded", "analyzeSample", "createBlank",
+  "sourceReceipt", "sourceReceiptDetail", "reviewFindings", "toggleUnderlay", "acceptAllFindings",
+  "pinnedReveal", "pinnedBuild", "pinnedUndo", "pinnedRedo", "browseMode", "buildMode", "buildModeInline", "modeNarration",
+  "undoAction", "redoAction", "compareHold", "gridToggle", "gridCellPx", "gridOriginX", "gridOriginY",
+  "applyGrid", "gridStatus", "deploymentGroups", "flagMessage", "spawnStatus",
+  "buildHandles", "directBuildStatus", "directBuildMode", "layoutToolGuidance", "massBuildCallout",
+  "buildBrushRail", "brushTitle", "brushContextHint", "brushExitBuild", "brushUndo", "brushRedo",
+  "buildRadial", "radialUndo", "radialRedo", "radialToolLabel",
+  "directRotateLeft", "directRotateRight", "directRotationValue", "clearLayoutSelection",
+  "layoutSelectionTitle", "layoutSelectionDetail", "selectionActionNote", "divideVertical",
+  "divideHorizontal", "connectSelected", "removeSelectedPassage", "removeSelectedArchitecture", "directGridStatus", "openLegacyGrid",
+  "appearanceSelectionTitle", "selectedElevation", "selectedMaterial", "applySelectedAppearance",
+  "objectToolGuidance", "revealSelectionTitle", "revealSelectionDetail", "groupRevealSelected"
 ].forEach((id) => { ui[id] = document.getElementById(id); });
 
 const state = {
   fixtureKey: "processional",
-  blueprint: BP.copy(BP.FIXTURES.processional),
+  blueprint: BP.withSource(BP.FIXTURES.processional, "fixture", { fixtureKey: "processional" }),
   map: null,
   edits: {},
   discovered: new Set(["gate"]),
-  view: "diorama",
+  view: "board",
+  mode: "browse",
   quality: "balanced",
   tool: "wall",
   rotation: 0,
   selected: null,
+  workflow: "map",
+  mapTab: "layout",
+  layoutTool: "select",
+  layoutSpaces: [],
+  layoutPassage: null,
+  objectKind: "pew",
+  buildAnchor: null,
+  linePreview: [],
+  roomPreview: null,
+  sourceUnderlay: false,
+  areaFocus: "gate",
+  areaHighlight: false,
+  gridVisible: true,
+  calibration: BP.normalizeGridCalibration({ cellPx: 28, originX: 0, originY: 0, nativeW: 784, nativeH: 560 }),
+  groups: [
+    { id: "party-main", label: "Main Party", role: "party", formation: "wedge", unitIds: ["Vesperian", "Caim"], anchor: { c: 4, r: 10 }, seed: 3 },
+    { id: "enemy-main", label: "Reliquary Guard", role: "enemy", formation: "cluster", unitIds: ["Abbey Wight"], anchor: { c: 22, r: 11 }, seed: 7 }
+  ],
+  flagPlacement: null,
+  history: null,
+  compareActive: false,
+  themeBase: BP.withSource(BP.FIXTURES.processional, "fixture", { fixtureKey: "processional" }),
   chunks: new Map(),
   scrawlTransform: null,
+  artworkTransform: null,
   renderPending: false,
   renderUntil: 0,
   lastFrameMs: 0,
@@ -66,6 +106,7 @@ controls.target.set(0, 0, 0);
 controls.addEventListener("change", () => {
   state.lastActivity = performance.now();
   updateCutaway();
+  positionBuildHandles();
   requestRender(80);
 });
 
@@ -87,7 +128,10 @@ scene.add(sun.target);
 const boardRoot = new THREE.Group();
 const lightRoot = new THREE.Group();
 const selectionRoot = new THREE.Group();
-scene.add(boardRoot, lightRoot, selectionRoot);
+const gridRoot = new THREE.Group();
+const flagRoot = new THREE.Group();
+const areaRoot = new THREE.Group();
+scene.add(boardRoot, lightRoot, gridRoot, flagRoot, areaRoot, selectionRoot);
 
 const ambientPlane = new THREE.Mesh(
   new THREE.PlaneGeometry(80, 64),
@@ -186,6 +230,7 @@ function worldZ(r) { return r - state.blueprint.grid.rows / 2 + 0.5; }
 function rise(elevationFt) { return Number(elevationFt || 0) * 0.1; }
 function cellInfo(c, r) { return state.map.meta.regions[BP.idx(state.map.cols, c, r)]; }
 function isDiscovered(region) { return region && state.discovered.has(region); }
+function isAuthoringVisible(info) { return !!info && (isDiscovered(info.region) || state.mode === "build"); }
 function chunkBounds(chunkC, chunkR) {
   const size = state.blueprint.grid.chunkSize;
   return {
@@ -211,6 +256,7 @@ function addInstances(group, geometry, materialValue, records, transform) {
   mesh.receiveShadow = true;
   mesh.userData.cells = records.map((record) => ({ c: record.c, r: record.r }));
   mesh.userData.pickableFloor = records[0] && records[0].floor === true;
+  mesh.userData.cutaway = materialValue === mats.cutaway;
   mesh.userData.sharedGeometry = true;
   group.add(mesh);
   return mesh;
@@ -264,27 +310,44 @@ function boundaryEdges(c, r) {
   });
   return edges;
 }
-function explicitArchitectureAt(c, r) {
-  return (state.map.meta.architecture || []).find((item) => item.c === c && item.r === r) || null;
+function explicitArchitectureItemsAt(c, r) {
+  return (state.map.meta.architecture || []).filter((item) => item.c === c && item.r === r);
+}
+function explicitArchitectureAt(c, r, edge) {
+  const items = explicitArchitectureItemsAt(c, r);
+  return edge ? items.find((item) => BP.normalizeEdge(item.edge) === BP.normalizeEdge(edge)) || null : items[0] || null;
+}
+function explicitArchitectureBoundaryAt(c, r, edge) {
+  for (const ref of BP.edgeReferences(c, r, edge)) {
+    const item = explicitArchitectureAt(ref.c, ref.r, ref.edge);
+    if (item) return { item, c: ref.c, r: ref.r, edge: ref.edge };
+  }
+  return null;
+}
+function isDerivedBoundary(c, r, edge) {
+  return boundaryEdges(c, r).includes(String(edge || "").toLowerCase());
 }
 function architectureSets(bounds) {
   const out = { wallsNS: [], wallsEW: [], cutNS: [], cutEW: [], lowNS: [], lowEW: [], doorsNS: [], doorsEW: [] };
   for (let r = bounds.minR; r < bounds.maxR; r++) for (let c = bounds.minC; c < bounds.maxC; c++) {
     const info = cellInfo(c, r);
-    if (!info || !isDiscovered(info.region)) continue;
+    if (!isAuthoringVisible(info)) continue;
     const y = rise(info.elevationFt);
     boundaryEdges(c, r).forEach((side) => {
+      if (explicitArchitectureBoundaryAt(c, r, side)) return;
       const near = side === "s" || side === "e";
       const record = { c, r, side, y };
       if (side === "n" || side === "s") out[near ? "cutNS" : "wallsNS"].push(record);
       else out[near ? "cutEW" : "wallsEW"].push(record);
     });
-    const item = explicitArchitectureAt(c, r);
-    if (!item) continue;
-    const eastWest = BP.normalizeRotation(item.rotation) % 180 === 0;
-    if (item.kind === "lowWall") out[eastWest ? "lowNS" : "lowEW"].push({ c, r, y });
-    if (item.kind === "door" || item.kind === "arch") out[eastWest ? "doorsNS" : "doorsEW"].push({ c, r, y, kind: item.kind });
-    if (item.kind === "wall" || item.kind === "window") out[eastWest ? "wallsNS" : "wallsEW"].push({ c, r, y, centered: true });
+    explicitArchitectureItemsAt(c, r).forEach((item) => {
+      const edge = BP.normalizeEdge(item.edge);
+      const eastWest = edge ? ["N", "S"].includes(edge) : BP.normalizeRotation(item.rotation) % 180 === 0;
+      const record = { c, r, y, side: edge ? edge.toLowerCase() : undefined, centered: !edge };
+      if (item.kind === "lowWall") out[eastWest ? "lowNS" : "lowEW"].push(record);
+      if (item.kind === "door" || item.kind === "arch") out[eastWest ? "doorsNS" : "doorsEW"].push({ ...record, kind: item.kind });
+      if (item.kind === "wall" || item.kind === "window") out[eastWest ? "wallsNS" : "wallsEW"].push(record);
+    });
   }
   return out;
 }
@@ -334,7 +397,7 @@ function stoneCourses(records, orientation, rowCount) {
 function doorFrameCourses(records, orientation) {
   const out = [];
   records.forEach((record) => {
-    const origin = wallOrigin(record, 0);
+    const origin = wallOrigin(record, record.centered ? 0 : 0.46);
     [-0.42, 0.42].forEach((along, sideIndex) => {
       for (let row = 0; row < 4; row++) out.push({
         c: record.c, r: record.r,
@@ -428,7 +491,7 @@ function buildChunk(chunkC, chunkR, animate = false) {
   for (let r = bounds.minR; r < bounds.maxR; r++) for (let c = bounds.minC; c < bounds.maxC; c++) {
     const info = cellInfo(c, r);
     if (!info) continue;
-    const record = { c, r, floor: true, y: isDiscovered(info.region) ? rise(info.elevationFt) : 0 };
+    const record = { c, r, floor: true, y: isAuthoringVisible(info) ? rise(info.elevationFt) : 0 };
     if (!isDiscovered(info.region)) unknown.push(record);
     else (floors[info.material] || (floors[info.material] = [])).push(record);
   }
@@ -451,16 +514,16 @@ function buildChunk(chunkC, chunkR, animate = false) {
   }
   addInstances(group, stoneBlockNS, mats.cutaway, stoneCourses(sets.cutNS, "ns", 1), (m, value) => m.makeTranslation(value.x, value.y, value.z));
   addInstances(group, stoneBlockEW, mats.cutaway, stoneCourses(sets.cutEW, "ew", 1), (m, value) => m.makeTranslation(value.x, value.y, value.z));
-  addInstances(group, lowWallGeometryNS, mats.lowWall, sets.lowNS, (m, value) => wallTransform(m, value, 0.56, 0));
-  addInstances(group, lowWallGeometryEW, mats.lowWall, sets.lowEW, (m, value) => wallTransform(m, value, 0.56, 0));
-  addInstances(group, doorGeometryNS, mats.wood, sets.doorsNS.filter((value) => value.kind === "door"), (m, value) => wallTransform(m, value, 1.22, 0));
-  addInstances(group, doorGeometryEW, mats.wood, sets.doorsEW.filter((value) => value.kind === "door"), (m, value) => wallTransform(m, value, 1.22, 0));
+  addInstances(group, lowWallGeometryNS, mats.lowWall, sets.lowNS, (m, value) => wallTransform(m, value, 0.56, 0.46));
+  addInstances(group, lowWallGeometryEW, mats.lowWall, sets.lowEW, (m, value) => wallTransform(m, value, 0.56, 0.46));
+  addInstances(group, doorGeometryNS, mats.wood, sets.doorsNS.filter((value) => value.kind === "door"), (m, value) => wallTransform(m, value, 1.22, 0.46));
+  addInstances(group, doorGeometryEW, mats.wood, sets.doorsEW.filter((value) => value.kind === "door"), (m, value) => wallTransform(m, value, 1.22, 0.46));
   addInstances(group, stoneBlockNS, mats.wallTop, doorFrameCourses(sets.doorsNS, "ns"), (m, value) => m.makeTranslation(value.x, value.y, value.z));
   addInstances(group, stoneBlockEW, mats.wallTop, doorFrameCourses(sets.doorsEW, "ew"), (m, value) => m.makeTranslation(value.x, value.y, value.z));
 
   const chunkProps = (state.blueprint.props || []).filter((item) => {
     const info = cellInfo(item.c, item.r);
-    return item.c >= bounds.minC && item.c < bounds.maxC && item.r >= bounds.minR && item.r < bounds.maxR && info && isDiscovered(info.region);
+    return item.c >= bounds.minC && item.c < bounds.maxC && item.r >= bounds.minR && item.r < bounds.maxR && isAuthoringVisible(info);
   });
   const byKind = {};
   chunkProps.forEach((item) => (byKind[item.kind] || (byKind[item.kind] = [])).push(item));
@@ -509,6 +572,157 @@ function buildLights() {
     lightRoot.add(lamp);
   });
 }
+function clearOwnedRoot(root) {
+  while (root.children.length) {
+    const child = root.children[0];
+    root.remove(child);
+    child.traverse((node) => {
+      if (node.geometry) node.geometry.dispose();
+      if (node.material) {
+        if (Array.isArray(node.material)) node.material.forEach((value) => value.dispose());
+        else node.material.dispose();
+      }
+    });
+  }
+}
+function buildGrid() {
+  clearOwnedRoot(gridRoot);
+  if (!state.gridVisible) return;
+  const points = [];
+  for (let r = 0; r < state.map.rows; r++) for (let c = 0; c < state.map.cols; c++) {
+    const info = cellInfo(c, r);
+    if (!isAuthoringVisible(info)) continue;
+    const x = worldX(c), z = worldZ(r), y = rise(info.elevationFt) + 0.075;
+    points.push(
+      x - 0.47, y, z - 0.47, x + 0.47, y, z - 0.47,
+      x + 0.47, y, z - 0.47, x + 0.47, y, z + 0.47,
+      x + 0.47, y, z + 0.47, x - 0.47, y, z + 0.47,
+      x - 0.47, y, z + 0.47, x - 0.47, y, z - 0.47
+    );
+  }
+  const geometry = new THREE.BufferGeometry();
+  geometry.setAttribute("position", new THREE.Float32BufferAttribute(points, 3));
+  const lines = new THREE.LineSegments(geometry, new THREE.LineBasicMaterial({
+    color: 0xe5d29a, transparent: true, opacity: 0.34, depthWrite: false
+  }));
+  lines.renderOrder = 12;
+  gridRoot.add(lines);
+}
+function groupColor(group) {
+  return group.role === "party" ? 0xc99a38 : (group.role === "ally" ? 0x4f8a72 : 0xa14c43);
+}
+function buildFlags() {
+  clearOwnedRoot(flagRoot);
+  state.groups.forEach((group) => {
+    if (!group.anchor) return;
+    const info = cellInfo(group.anchor.c, group.anchor.r);
+    if (!info || !isDiscovered(info.region)) return;
+    const color = groupColor(group), y = rise(info.elevationFt) + 0.1;
+    const pole = new THREE.Mesh(
+      new THREE.CylinderGeometry(0.035, 0.045, 1.35, 7),
+      new THREE.MeshStandardMaterial({ color: 0x3d3328, roughness: 0.8 })
+    );
+    pole.position.set(worldX(group.anchor.c), y + 0.68, worldZ(group.anchor.r));
+    const cloth = new THREE.Mesh(
+      new THREE.PlaneGeometry(0.54, 0.34),
+      new THREE.MeshStandardMaterial({ color, side: THREE.DoubleSide, roughness: 0.72 })
+    );
+    cloth.position.set(worldX(group.anchor.c) + 0.28, y + 1.08, worldZ(group.anchor.r));
+    cloth.rotation.y = -0.22;
+    flagRoot.add(pole, cloth);
+  });
+}
+function buildAreaOverlay() {
+  clearOwnedRoot(areaRoot);
+  if (!state.areaHighlight || !state.areaFocus || !state.map) return;
+  const cells = [], points = [], bars = [], thresholds = [];
+  for (let r = 0; r < state.map.rows; r++) for (let c = 0; c < state.map.cols; c++) {
+    const info = cellInfo(c, r);
+    if (!info || info.region !== state.areaFocus) continue;
+    const y = rise(info.elevationFt) + 0.1, x = worldX(c), z = worldZ(r);
+    cells.push({ c, r, y });
+    [
+      { dc: 0, dr: -1, a: [x - 0.48, z - 0.48], b: [x + 0.48, z - 0.48], rotation: 0 },
+      { dc: 1, dr: 0, a: [x + 0.48, z - 0.48], b: [x + 0.48, z + 0.48], rotation: Math.PI / 2 },
+      { dc: 0, dr: 1, a: [x + 0.48, z + 0.48], b: [x - 0.48, z + 0.48], rotation: 0 },
+      { dc: -1, dr: 0, a: [x - 0.48, z + 0.48], b: [x - 0.48, z - 0.48], rotation: Math.PI / 2 }
+    ].forEach((edge) => {
+      const nc = c + edge.dc, nr = r + edge.dr;
+      const neighbor = nc >= 0 && nr >= 0 && nc < state.map.cols && nr < state.map.rows ? cellInfo(nc, nr) : null;
+      if (neighbor?.region === state.areaFocus) return;
+      points.push(edge.a[0], y + 0.018, edge.a[1], edge.b[0], y + 0.018, edge.b[1]);
+      bars.push({
+        x: (edge.a[0] + edge.b[0]) / 2,
+        z: (edge.a[1] + edge.b[1]) / 2,
+        y: y + 0.035,
+        rotation: edge.rotation
+      });
+    });
+  }
+  BP.areaSummary(state.blueprint, state.areaFocus).thresholds.forEach((threshold) => {
+    const info = cellInfo(threshold.sourceC, threshold.sourceR);
+    thresholds.push({
+      x: threshold.markerC - state.map.cols / 2,
+      z: threshold.markerR - state.map.rows / 2,
+      y: rise(info?.elevationFt || 0) + 0.24
+    });
+  });
+  if (cells.length) {
+    const geometry = new THREE.PlaneGeometry(0.86, 0.86);
+    const materialValue = new THREE.MeshBasicMaterial({
+      color: 0xe8b84e, transparent: true, opacity: 0.34, depthWrite: false, depthTest: false, side: THREE.DoubleSide
+    });
+    const mesh = new THREE.InstancedMesh(geometry, materialValue, cells.length);
+    const matrix = new THREE.Matrix4();
+    cells.forEach((cell, index) => {
+      matrix.makeRotationX(-Math.PI / 2);
+      matrix.setPosition(worldX(cell.c), cell.y, worldZ(cell.r));
+      mesh.setMatrixAt(index, matrix);
+    });
+    mesh.instanceMatrix.needsUpdate = true;
+    mesh.renderOrder = 30;
+    areaRoot.add(mesh);
+  }
+  if (bars.length) {
+    const geometry = new THREE.BoxGeometry(0.98, 0.035, 0.055);
+    const materialValue = new THREE.MeshBasicMaterial({ color: 0xf6ce69, depthTest: false });
+    const mesh = new THREE.InstancedMesh(geometry, materialValue, bars.length);
+    const matrix = new THREE.Matrix4();
+    const rotation = new THREE.Matrix4();
+    bars.forEach((bar, index) => {
+      matrix.makeTranslation(bar.x, bar.y, bar.z);
+      rotation.makeRotationY(bar.rotation);
+      matrix.multiply(rotation);
+      mesh.setMatrixAt(index, matrix);
+    });
+    mesh.instanceMatrix.needsUpdate = true;
+    mesh.renderOrder = 32;
+    areaRoot.add(mesh);
+  }
+  if (thresholds.length) {
+    const geometry = new THREE.OctahedronGeometry(0.13, 0);
+    const materialValue = new THREE.MeshBasicMaterial({ color: 0xffe29a, depthTest: false });
+    const mesh = new THREE.InstancedMesh(geometry, materialValue, thresholds.length);
+    const matrix = new THREE.Matrix4();
+    thresholds.forEach((threshold, index) => {
+      matrix.makeRotationY(Math.PI / 4);
+      matrix.setPosition(threshold.x, threshold.y, threshold.z);
+      mesh.setMatrixAt(index, matrix);
+    });
+    mesh.instanceMatrix.needsUpdate = true;
+    mesh.renderOrder = 33;
+    areaRoot.add(mesh);
+  }
+  if (points.length) {
+    const geometry = new THREE.BufferGeometry();
+    geometry.setAttribute("position", new THREE.Float32BufferAttribute(points, 3));
+    const lines = new THREE.LineSegments(geometry, new THREE.LineBasicMaterial({
+      color: 0xffd878, transparent: true, opacity: 0.96, depthTest: false
+    }));
+    lines.renderOrder = 31;
+    areaRoot.add(lines);
+  }
+}
 function rebuildAll() {
   state.chunks.forEach((group) => { boardRoot.remove(group); disposeObject(group); });
   state.chunks.clear();
@@ -517,6 +731,9 @@ function rebuildAll() {
     for (let c = 0; c < state.blueprint.grid.cols; c += size) buildChunk(Math.floor(c / size), Math.floor(r / size));
   }
   buildLights();
+  buildGrid();
+  buildFlags();
+  buildAreaOverlay();
   drawSelection();
   requestRender();
 }
@@ -532,11 +749,17 @@ function rebuildRegion(regionId, animate) {
     buildChunk(c, r, animate);
   });
   buildLights();
+  buildGrid();
+  buildFlags();
+  buildAreaOverlay();
   requestRender(animate ? 520 : 0);
 }
 function rebuildCellChunk(c, r) {
   const chunk = BP.chunkFor(state.blueprint, c, r);
   buildChunk(chunk.c, chunk.r);
+  buildGrid();
+  buildFlags();
+  buildAreaOverlay();
   ui.chunkStatus.textContent = "chunk " + chunk.key + " · 1/" + BP.chunkCount(state.blueprint);
   ui.chunkStatus.className = "status good";
   requestRender();
@@ -544,31 +767,90 @@ function rebuildCellChunk(c, r) {
 
 function updateCutaway() {
   const dir = camera.position.clone().sub(controls.target).normalize();
+  const authoring = state.mode === "build";
+  mats.cutaway.transparent = !authoring;
+  mats.cutaway.depthWrite = authoring;
+  mats.cutaway.opacity = authoring ? 1 : (Math.abs(dir.y) > 0.86 ? 0.42 : 0.24);
+  mats.cutaway.needsUpdate = true;
   boardRoot.traverse((child) => {
     if (!child.userData.cutaway || !child.material) return;
-    child.material.opacity = Math.abs(dir.y) > 0.86 ? 0.42 : 0.24;
+    child.material.opacity = mats.cutaway.opacity;
   });
+}
+function edgeWorld(c, r, edge) {
+  const offset = { N: [0, -0.5], E: [0.5, 0], S: [0, 0.5], W: [-0.5, 0] }[BP.normalizeEdge(edge)] || [0, 0];
+  return { x: worldX(c) + offset[0], z: worldZ(r) + offset[1] };
+}
+function edgeSelectionMesh(c, r, edge, y, material) {
+  const horizontal = ["N", "S"].includes(BP.normalizeEdge(edge));
+  const mesh = new THREE.Mesh(new THREE.PlaneGeometry(horizontal ? 0.92 : 0.13, horizontal ? 0.13 : 0.92), material);
+  const at = edgeWorld(c, r, edge);
+  mesh.rotation.x = -Math.PI / 2;
+  mesh.position.set(at.x, y, at.z);
+  mesh.renderOrder = 42;
+  return mesh;
 }
 function drawSelection() {
   while (selectionRoot.children.length) selectionRoot.remove(selectionRoot.children[0]);
-  if (!state.selected) return;
+  const selectedCells = [];
+  for (let r = 0; r < state.map.rows; r++) for (let c = 0; c < state.map.cols; c++) {
+    const info = cellInfo(c, r);
+    if (!info) continue;
+    if (state.layoutSpaces.includes(info.space) || state.layoutPassage === info.corridor) selectedCells.push({ c, r, info });
+  }
+  selectedCells.forEach((cell) => {
+    const area = new THREE.Mesh(new THREE.PlaneGeometry(0.82, 0.82), mats.select);
+    area.rotation.x = -Math.PI / 2;
+    area.position.set(worldX(cell.c), rise(cell.info.elevationFt) + 0.085, worldZ(cell.r));
+    area.renderOrder = 39;
+    selectionRoot.add(area);
+  });
+  const previewCells = state.linePreview.concat(state.roomPreview ? roomPreviewCells() : []);
+  previewCells.forEach((cell) => {
+    const info = cellInfo(cell.c, cell.r);
+    const y = rise(info?.elevationFt || 0) + 0.11;
+    const preview = cell.edge
+      ? edgeSelectionMesh(cell.c, cell.r, cell.edge, y, mats.selectAxis)
+      : new THREE.Mesh(new THREE.PlaneGeometry(0.76, 0.76), mats.selectAxis);
+    if (!cell.edge) {
+      preview.rotation.x = -Math.PI / 2;
+      preview.position.set(worldX(cell.c), y, worldZ(cell.r));
+      preview.renderOrder = 42;
+    }
+    selectionRoot.add(preview);
+  });
+  if (!state.selected) {
+    positionBuildHandles();
+    return;
+  }
   const info = cellInfo(state.selected.c, state.selected.r);
-  if (!info) return;
-  const mesh = new THREE.Mesh(new THREE.PlaneGeometry(0.8, 0.8), mats.select);
-  mesh.rotation.x = -Math.PI / 2;
-  mesh.position.set(worldX(state.selected.c), (isDiscovered(info.region) ? rise(info.elevationFt) : 0) + 0.09, worldZ(state.selected.r));
-  mesh.renderOrder = 40;
+  if (!info) {
+    positionBuildHandles();
+    return;
+  }
+  const selectedY = (isDiscovered(info.region) ? rise(info.elevationFt) : 0) + 0.09;
+  const mesh = state.selected.edge
+    ? edgeSelectionMesh(state.selected.c, state.selected.r, state.selected.edge, selectedY, mats.select)
+    : new THREE.Mesh(new THREE.PlaneGeometry(0.8, 0.8), mats.select);
+  if (!state.selected.edge) {
+    mesh.rotation.x = -Math.PI / 2;
+    mesh.position.set(worldX(state.selected.c), selectedY, worldZ(state.selected.r));
+    mesh.renderOrder = 40;
+  }
   selectionRoot.add(mesh);
-  const item = explicitArchitectureAt(state.selected.c, state.selected.r);
+  const item = explicitArchitectureAt(state.selected.c, state.selected.r, state.selected.edge);
   if (item && ["wall", "lowWall", "door"].includes(item.kind)) {
     const axis = new THREE.Mesh(selectionAxisGeometry, mats.selectAxis);
     axis.position.copy(mesh.position);
     axis.position.y += 0.035;
-    axis.rotation.y = BP.normalizeRotation(item.rotation) % 180 === 0 ? 0 : Math.PI / 2;
+    axis.rotation.y = ["E", "W"].includes(BP.normalizeEdge(item.edge))
+      ? Math.PI / 2
+      : (BP.normalizeRotation(item.rotation) % 180 === 0 ? 0 : Math.PI / 2);
     axis.renderOrder = 41;
     axis.userData.sharedGeometry = true;
     selectionRoot.add(axis);
   }
+  positionBuildHandles();
 }
 function requestRender(duration = 0) {
   state.renderUntil = Math.max(state.renderUntil, performance.now() + duration);
@@ -613,6 +895,7 @@ function resize() {
   camera.aspect = rect.width / rect.height;
   camera.updateProjectionMatrix();
   sizeScrawl();
+  positionBuildHandles();
   requestRender();
 }
 function applyQuality(key) {
@@ -649,17 +932,221 @@ function audit() {
 }
 
 function sizeScrawl() {
-  const rect = ui.scrawlStage.getBoundingClientRect();
-  const ratio = Math.min(window.devicePixelRatio || 1, 2);
-  ui.scrawlStage.width = Math.max(1, Math.round(rect.width * ratio));
-  ui.scrawlStage.height = Math.max(1, Math.round(rect.height * ratio));
+  [ui.scrawlStage, ui.artworkStage].forEach((canvas) => {
+    const rect = canvas.getBoundingClientRect();
+    const ratio = Math.min(window.devicePixelRatio || 1, 2);
+    canvas.width = Math.max(1, Math.round(rect.width * ratio));
+    canvas.height = Math.max(1, Math.round(rect.height * ratio));
+  });
   drawScrawl();
+  drawArtwork();
 }
 function scrawlColor(materialKey) {
   return {
     nave: "#b8ae98", cloister: "#7e8a70", crypt: "#7a858a",
     timber: "#846b4f", water: "#557d83"
   }[materialKey] || "#aaa18d";
+}
+function drawSourceStudy(ctx, cell, ox, oy, force = false) {
+  if (!force && (!state.sourceUnderlay || state.blueprint.source?.kind !== "imported")) return;
+  ctx.save();
+  ctx.fillStyle = "#b0a68e";
+  ctx.fillRect(0, 0, ctx.canvas.width, ctx.canvas.height);
+  for (let r = 0; r < state.map.rows; r++) for (let c = 0; c < state.map.cols; c++) {
+    const info = cellInfo(c, r);
+    if (!info) continue;
+    const tone = (c * 19 + r * 37) % 4;
+    ctx.fillStyle = ["#c9bfa4", "#bfb59a", "#aea88e", "#d0c5aa"][tone];
+    ctx.globalAlpha = 0.76;
+    ctx.fillRect(ox + c * cell - 0.6, oy + r * cell - 0.6, cell + 1.2, cell + 1.2);
+    if ((c * 11 + r * 7) % 9 === 0) {
+      ctx.strokeStyle = "rgba(75,70,56,.32)";
+      ctx.lineWidth = Math.max(1, cell * 0.08);
+      ctx.beginPath();
+      ctx.moveTo(ox + c * cell, oy + (r + 0.8) * cell);
+      ctx.lineTo(ox + (c + 0.7) * cell, oy + r * cell);
+      ctx.stroke();
+    }
+  }
+  ctx.globalAlpha = 0.24;
+  ctx.fillStyle = "#657b59";
+  ctx.beginPath();
+  ctx.arc(ox + 23 * cell, oy + 7 * cell, cell * 2.8, 0, Math.PI * 2);
+  ctx.fill();
+  ctx.restore();
+}
+function drawCalibratedGrid(ctx, ox, oy, mapWidth, mapHeight) {
+  if (!state.gridVisible) return;
+  const cal = state.calibration;
+  const sx = mapWidth / cal.nativeW, sy = mapHeight / cal.nativeH;
+  ctx.save();
+  ctx.strokeStyle = "rgba(245,226,169,.52)";
+  ctx.lineWidth = Math.max(1, Math.min(mapWidth, mapHeight) * 0.0014);
+  ctx.beginPath();
+  for (let x = cal.originX; x <= cal.nativeW; x += cal.cellPx) {
+    ctx.moveTo(ox + x * sx, oy);
+    ctx.lineTo(ox + x * sx, oy + mapHeight);
+  }
+  for (let y = cal.originY; y <= cal.nativeH; y += cal.cellPx) {
+    ctx.moveTo(ox, oy + y * sy);
+    ctx.lineTo(ox + mapWidth, oy + y * sy);
+  }
+  ctx.stroke();
+  ctx.restore();
+}
+function drawAreaOverlay(ctx, cell, ox, oy) {
+  if (!state.areaHighlight || !state.areaFocus) return;
+  const selected = state.blueprint.discoveryRegions.find((region) => region.id === state.areaFocus);
+  const cells = [];
+  ctx.save();
+  ctx.fillStyle = "rgba(238,194,93,.26)";
+  for (let r = 0; r < state.map.rows; r++) for (let c = 0; c < state.map.cols; c++) {
+    const info = cellInfo(c, r);
+    if (!info || info.region !== state.areaFocus) continue;
+    cells.push({ c, r });
+    ctx.fillRect(ox + c * cell + 1, oy + r * cell + 1, cell - 2, cell - 2);
+  }
+  cells.forEach(({ c, r }) => {
+    const x = ox + c * cell, y = oy + r * cell;
+    [
+      { dc: 0, dr: -1, a: [x, y], b: [x + cell, y] },
+      { dc: 1, dr: 0, a: [x + cell, y], b: [x + cell, y + cell] },
+      { dc: 0, dr: 1, a: [x + cell, y + cell], b: [x, y + cell] },
+      { dc: -1, dr: 0, a: [x, y + cell], b: [x, y] }
+    ].forEach((edge) => {
+      const nc = c + edge.dc, nr = r + edge.dr;
+      const neighbor = nc >= 0 && nr >= 0 && nc < state.map.cols && nr < state.map.rows ? cellInfo(nc, nr) : null;
+      if (neighbor?.region === state.areaFocus) return;
+      const connected = !!neighbor?.region;
+      ctx.strokeStyle = connected ? "#f4c960" : "rgba(111,87,38,.76)";
+      ctx.lineWidth = Math.max(2, cell * (connected ? 0.18 : 0.1));
+      ctx.beginPath(); ctx.moveTo(edge.a[0], edge.a[1]); ctx.lineTo(edge.b[0], edge.b[1]); ctx.stroke();
+    });
+  });
+  BP.areaSummary(state.blueprint, state.areaFocus).thresholds.forEach((threshold) => {
+    const mx = ox + threshold.markerC * cell, my = oy + threshold.markerR * cell, d = Math.max(3, cell * 0.17);
+    ctx.fillStyle = "#f8df91";
+    ctx.beginPath(); ctx.moveTo(mx, my - d); ctx.lineTo(mx + d, my); ctx.lineTo(mx, my + d); ctx.lineTo(mx - d, my); ctx.closePath(); ctx.fill();
+  });
+  if (cells.length && selected) {
+    const cx = cells.reduce((sum, value) => sum + value.c + 0.5, 0) / cells.length;
+    const cy = cells.reduce((sum, value) => sum + value.r + 0.5, 0) / cells.length;
+    const label = selected.label.toUpperCase();
+    ctx.font = "bold " + Math.max(10, cell * 0.48) + "px Arial";
+    const width = ctx.measureText(label).width + cell * 0.8;
+    ctx.fillStyle = "rgba(18,23,21,.88)";
+    ctx.fillRect(ox + cx * cell - width / 2, oy + cy * cell - cell * 0.55, width, cell * 0.82);
+    ctx.fillStyle = "#f8df91";
+    ctx.textAlign = "center";
+    ctx.fillText(label, ox + cx * cell, oy + cy * cell);
+    ctx.textAlign = "left";
+  }
+  ctx.restore();
+}
+function drawCanvasFlags(ctx, cell, ox, oy) {
+  state.groups.forEach((group) => {
+    if (!group.anchor) return;
+    const info = cellInfo(group.anchor.c, group.anchor.r);
+    if (!info || !isDiscovered(info.region)) return;
+    const x = ox + (group.anchor.c + 0.5) * cell, y = oy + (group.anchor.r + 0.5) * cell;
+    ctx.save();
+    ctx.strokeStyle = "#3d3328"; ctx.lineWidth = Math.max(1, cell * 0.11);
+    ctx.beginPath(); ctx.moveTo(x, y + cell * 0.34); ctx.lineTo(x, y - cell * 0.38); ctx.stroke();
+    ctx.fillStyle = group.role === "party" ? "#c99a38" : (group.role === "ally" ? "#4f8a72" : "#a14c43");
+    ctx.beginPath(); ctx.moveTo(x, y - cell * 0.38); ctx.lineTo(x + cell * 0.43, y - cell * 0.23);
+    ctx.lineTo(x + cell * 0.12, y - cell * 0.04); ctx.lineTo(x, y + cell * 0.06); ctx.closePath(); ctx.fill();
+    ctx.restore();
+  });
+}
+function roomPreviewCells() {
+  if (!state.roomPreview) return [];
+  const minC = Math.min(state.roomPreview.from.c, state.roomPreview.to.c);
+  const maxC = Math.max(state.roomPreview.from.c, state.roomPreview.to.c);
+  const minR = Math.min(state.roomPreview.from.r, state.roomPreview.to.r);
+  const maxR = Math.max(state.roomPreview.from.r, state.roomPreview.to.r);
+  const cells = [];
+  for (let r = minR; r <= maxR; r++) for (let c = minC; c <= maxC; c++) cells.push({ c, r });
+  return cells;
+}
+function drawCanvasEdge(ctx, cell, ox, oy, value) {
+  const edge = BP.normalizeEdge(value.edge);
+  const x = ox + value.c * cell, y = oy + value.r * cell;
+  ctx.beginPath();
+  if (edge === "N") { ctx.moveTo(x, y); ctx.lineTo(x + cell, y); }
+  if (edge === "E") { ctx.moveTo(x + cell, y); ctx.lineTo(x + cell, y + cell); }
+  if (edge === "S") { ctx.moveTo(x, y + cell); ctx.lineTo(x + cell, y + cell); }
+  if (edge === "W") { ctx.moveTo(x, y); ctx.lineTo(x, y + cell); }
+  ctx.stroke();
+}
+function drawCanvasSelection(ctx, cell, ox, oy) {
+  ctx.save();
+  ctx.fillStyle = "rgba(238,194,93,.23)";
+  for (let r = 0; r < state.map.rows; r++) for (let c = 0; c < state.map.cols; c++) {
+    const info = cellInfo(c, r);
+    if (!info || !state.layoutSpaces.includes(info.space) && state.layoutPassage !== info.corridor) continue;
+    ctx.fillRect(ox + c * cell + 1, oy + r * cell + 1, cell - 2, cell - 2);
+  }
+  ctx.fillStyle = "rgba(255,220,119,.52)";
+  state.linePreview.concat(roomPreviewCells()).forEach((value) => {
+    if (value.edge) {
+      ctx.strokeStyle = "rgba(255,220,119,.92)";
+      ctx.lineWidth = Math.max(3, cell * 0.24);
+      drawCanvasEdge(ctx, cell, ox, oy, value);
+    } else {
+      ctx.fillRect(ox + value.c * cell + 2, oy + value.r * cell + 2, cell - 4, cell - 4);
+    }
+  });
+  if (state.selected) {
+    ctx.strokeStyle = "#f2d27c";
+    ctx.lineWidth = Math.max(2, cell * 0.16);
+    if (state.selected.edge) drawCanvasEdge(ctx, cell, ox, oy, state.selected);
+    else ctx.strokeRect(ox + state.selected.c * cell + 1, oy + state.selected.r * cell + 1, cell - 2, cell - 2);
+  }
+  ctx.restore();
+}
+function drawArtwork() {
+  const canvas = ui.artworkStage, ctx = canvas.getContext("2d");
+  const width = canvas.width, height = canvas.height;
+  ctx.clearRect(0, 0, width, height);
+  ctx.fillStyle = "#171c19"; ctx.fillRect(0, 0, width, height);
+  const pad = Math.min(width, height) * 0.065;
+  const cell = Math.min((width - pad * 2) / state.map.cols, (height - pad * 2) / state.map.rows);
+  const ox = (width - state.map.cols * cell) / 2, oy = (height - state.map.rows * cell) / 2;
+  state.artworkTransform = { cell, ox, oy };
+  ctx.save();
+  ctx.beginPath();
+  for (let r = 0; r < state.map.rows; r++) for (let c = 0; c < state.map.cols; c++) {
+    const info = cellInfo(c, r);
+    if (!isAuthoringVisible(info)) continue;
+    ctx.rect(ox + c * cell, oy + r * cell, cell + 0.5, cell + 0.5);
+  }
+  ctx.clip();
+  drawSourceStudy(ctx, cell, ox, oy, true);
+  ctx.restore();
+  for (let r = 0; r < state.map.rows; r++) for (let c = 0; c < state.map.cols; c++) {
+    const info = cellInfo(c, r);
+    if (!isAuthoringVisible(info)) continue;
+    const x = ox + c * cell, y = oy + r * cell;
+    ctx.strokeStyle = "rgba(49,46,38,.86)"; ctx.lineWidth = Math.max(1.5, cell * 0.16);
+    boundaryEdges(c, r).forEach((side) => {
+      ctx.beginPath();
+      if (side === "n") { ctx.moveTo(x, y); ctx.lineTo(x + cell, y); }
+      if (side === "e") { ctx.moveTo(x + cell, y); ctx.lineTo(x + cell, y + cell); }
+      if (side === "s") { ctx.moveTo(x, y + cell); ctx.lineTo(x + cell, y + cell); }
+      if (side === "w") { ctx.moveTo(x, y); ctx.lineTo(x, y + cell); }
+      ctx.stroke();
+    });
+    explicitArchitectureItemsAt(c, r).forEach((item) => drawScrawlArchitecture(ctx, item, x, y, cell));
+  }
+  drawScrawlProps(ctx, cell, ox, oy);
+  drawCalibratedGrid(ctx, ox, oy, state.map.cols * cell, state.map.rows * cell);
+  drawAreaOverlay(ctx, cell, ox, oy);
+  drawScrawlSpawns(ctx, cell, ox, oy);
+  drawCanvasFlags(ctx, cell, ox, oy);
+  drawCanvasSelection(ctx, cell, ox, oy);
+  ctx.fillStyle = "rgba(233,226,209,.78)";
+  ctx.font = Math.max(11, cell * 0.6) + "px Georgia";
+  ctx.fillText("ARTWORK · " + state.blueprint.name, ox, Math.max(18, oy - cell * 0.7));
 }
 function drawScrawl() {
   const canvas = ui.scrawlStage, ctx = canvas.getContext("2d");
@@ -670,13 +1157,14 @@ function drawScrawl() {
   const cell = Math.min((width - pad * 2) / state.map.cols, (height - pad * 2) / state.map.rows);
   const ox = (width - state.map.cols * cell) / 2, oy = (height - state.map.rows * cell) / 2;
   state.scrawlTransform = { cell, ox, oy };
+  drawSourceStudy(ctx, cell, ox, oy);
   ctx.lineCap = "round"; ctx.lineJoin = "round";
   for (let r = 0; r < state.map.rows; r++) for (let c = 0; c < state.map.cols; c++) {
     const info = cellInfo(c, r);
     if (!info) continue;
     const discovered = isDiscovered(info.region);
     ctx.fillStyle = discovered ? scrawlColor(info.material) : "#8b8b84";
-    ctx.globalAlpha = discovered ? 0.88 : 0.48;
+    ctx.globalAlpha = discovered ? (state.sourceUnderlay && state.blueprint.source?.kind === "imported" ? 0.5 : 0.88) : 0.48;
     ctx.fillRect(ox + c * cell, oy + r * cell, cell + 0.4, cell + 0.4);
     if (!discovered) {
       ctx.strokeStyle = "rgba(53,58,55,.24)"; ctx.lineWidth = Math.max(1, cell * 0.06);
@@ -689,7 +1177,7 @@ function drawScrawl() {
   ctx.globalAlpha = 1;
   for (let r = 0; r < state.map.rows; r++) for (let c = 0; c < state.map.cols; c++) {
     const info = cellInfo(c, r);
-    if (!info || !isDiscovered(info.region)) continue;
+    if (!isAuthoringVisible(info)) continue;
     const x = ox + c * cell, y = oy + r * cell;
     ctx.strokeStyle = "#3f4541"; ctx.lineWidth = Math.max(1.4, cell * 0.12);
     boundaryEdges(c, r).forEach((side) => {
@@ -700,22 +1188,46 @@ function drawScrawl() {
       if (side === "w") { ctx.moveTo(x, y); ctx.lineTo(x, y + cell); }
       ctx.stroke();
     });
-    const item = explicitArchitectureAt(c, r);
-    if (item) drawScrawlArchitecture(ctx, item, x, y, cell);
+    explicitArchitectureItemsAt(c, r).forEach((item) => drawScrawlArchitecture(ctx, item, x, y, cell));
   }
   drawScrawlProps(ctx, cell, ox, oy);
+  drawCalibratedGrid(ctx, ox, oy, state.map.cols * cell, state.map.rows * cell);
+  drawAreaOverlay(ctx, cell, ox, oy);
   drawScrawlSpawns(ctx, cell, ox, oy);
-  if (state.selected) {
-    ctx.strokeStyle = "#f2d27c"; ctx.lineWidth = Math.max(2, cell * 0.16);
-    ctx.strokeRect(ox + state.selected.c * cell + 1, oy + state.selected.r * cell + 1, cell - 2, cell - 2);
-  }
+  drawCanvasFlags(ctx, cell, ox, oy);
+  drawCanvasSelection(ctx, cell, ox, oy);
   ctx.fillStyle = "rgba(44,48,45,.72)";
   ctx.font = Math.max(11, cell * 0.6) + "px Georgia";
-  ctx.fillText("SCrawl · " + state.blueprint.name, ox, Math.max(18, oy - cell * 0.7));
+  ctx.fillText("BLUEPRINT · " + state.blueprint.name, ox, Math.max(18, oy - cell * 0.7));
 }
 function drawScrawlArchitecture(ctx, item, x, y, cell) {
+  const edge = BP.normalizeEdge(item.edge);
   const horizontal = BP.normalizeRotation(item.rotation) % 180 === 0;
   ctx.save();
+  if (edge) {
+    const points = {
+      N: [x + cell * 0.06, y, x + cell * 0.94, y],
+      E: [x + cell, y + cell * 0.06, x + cell, y + cell * 0.94],
+      S: [x + cell * 0.06, y + cell, x + cell * 0.94, y + cell],
+      W: [x, y + cell * 0.06, x, y + cell * 0.94]
+    }[edge];
+    ctx.strokeStyle = item.kind === "door" ? "#674932" : item.kind === "lowWall" ? "#b08e4d" : "#3e4541";
+    ctx.lineWidth = Math.max(2, cell * (item.kind === "lowWall" ? 0.16 : item.kind === "door" ? 0.18 : 0.28));
+    ctx.beginPath();
+    if (item.kind === "door") {
+      const mx = (points[0] + points[2]) / 2, my = (points[1] + points[3]) / 2;
+      ctx.moveTo(points[0], points[1]);
+      ctx.lineTo(points[0] + (mx - points[0]) * 0.58, points[1] + (my - points[1]) * 0.58);
+      ctx.moveTo(points[2], points[3]);
+      ctx.lineTo(points[2] + (mx - points[2]) * 0.58, points[3] + (my - points[3]) * 0.58);
+    } else {
+      ctx.moveTo(points[0], points[1]);
+      ctx.lineTo(points[2], points[3]);
+    }
+    ctx.stroke();
+    ctx.restore();
+    return;
+  }
   if (item.kind === "door" || item.kind === "arch") {
     ctx.strokeStyle = item.kind === "door" ? "#674932" : "#9d8958";
     ctx.lineWidth = Math.max(2, cell * 0.18);
@@ -744,7 +1256,7 @@ function drawScrawlArchitecture(ctx, item, x, y, cell) {
 function drawScrawlProps(ctx, cell, ox, oy) {
   (state.blueprint.props || []).forEach((item) => {
     const info = cellInfo(item.c, item.r);
-    if (!info || !isDiscovered(info.region)) return;
+    if (!isAuthoringVisible(info)) return;
     const x = ox + (item.c + 0.5) * cell, y = oy + (item.r + 0.5) * cell;
     ctx.fillStyle = item.kind === "pool" ? "#4d7d83" : (item.kind === "brazier" ? "#bd7846" : "#625e55");
     ctx.beginPath();
@@ -764,20 +1276,214 @@ function drawScrawlSpawns(ctx, cell, ox, oy) {
 }
 
 function setView(view) {
-  state.view = view === "scrawl" ? "scrawl" : "diorama";
-  ui.threeStage.style.display = state.view === "diorama" ? "block" : "none";
-  ui.scrawlStage.style.display = state.view === "scrawl" ? "block" : "none";
+  state.view = ["artwork", "board", "blueprint"].includes(view) ? view : "board";
+  ui.threeStage.style.display = state.view === "board" ? "block" : "none";
+  ui.artworkStage.style.display = state.view === "artwork" ? "block" : "none";
+  ui.scrawlStage.style.display = state.view === "blueprint" ? "block" : "none";
   document.querySelectorAll("[data-view]").forEach((button) => button.classList.toggle("active", button.dataset.view === state.view));
-  if (state.view === "scrawl") sizeScrawl(); else resize();
+  if (state.view === "board") resize();
+  else sizeScrawl();
+  positionBuildHandles();
+}
+const WORKFLOW_COPY = {
+  map: "Shape the battlefield directly. Layout, appearance, objects, and reveal areas share one selection.",
+  source: "Choose how this battlefield begins.",
+  structure: "Confirm the map’s structure, then build directly on it.",
+  dress: "Give the structure a material and furnishing language.",
+  encounter: "Stage creatures, discovery, and the reveal sequence.",
+  present: "Choose how this location should read at the table."
+};
+function setWorkflow(workflow, preserveView = false) {
+  if (!WORKFLOW_COPY[workflow]) return;
+  state.workflow = workflow;
+  if (workflow !== "map" && state.mode === "build") setMode("browse");
+  state.areaHighlight = workflow === "map" && state.mapTab === "areas";
+  document.querySelectorAll("[data-workflow]").forEach((button) => button.classList.toggle("active", button.dataset.workflow === workflow));
+  document.querySelectorAll("[data-workflow-page]").forEach((page) => {
+    const active = page.dataset.workflowPage === workflow;
+    page.hidden = !active;
+    page.classList.toggle("active", active);
+  });
+  ui.workflowStatus.textContent = WORKFLOW_COPY[workflow];
+  const workbench = document.querySelector(".workbench");
+  if (workbench) workbench.scrollTop = 0;
+  buildAreaOverlay();
+  drawScrawl();
+  drawArtwork();
+  updateAreaInspector();
+  requestRender();
+}
+function setMapTab(tab) {
+  state.mapTab = ["layout", "appearance", "objects", "areas"].includes(tab) ? tab : "layout";
+  document.querySelectorAll("[data-map-tab]").forEach((button) => {
+    button.classList.toggle("active", button.dataset.mapTab === state.mapTab);
+  });
+  document.querySelectorAll("[data-map-tab-page]").forEach((page) => {
+    const active = page.dataset.mapTabPage === state.mapTab;
+    page.hidden = !active;
+    page.classList.toggle("active", active);
+  });
+  state.areaHighlight = state.mapTab === "areas" && state.layoutSpaces.length > 0;
+  if (state.areaHighlight) {
+    const space = state.blueprint.spaces.find((item) => item.id === state.layoutSpaces[0]);
+    state.areaFocus = space?.discoveryRegion || state.areaFocus;
+  }
+  buildAreaOverlay();
+  drawScrawl();
+  drawArtwork();
+  syncBuildBrushContext();
+  updateDirectUI();
+  requestRender();
+}
+function syncBuildBrushContext() {
+  if (!ui.buildBrushRail) return;
+  const labels = { layout: "Layout", appearance: "Appearance", objects: "Objects", areas: "Areas" };
+  const hints = {
+    layout: "Shape the map here. Right-click for the radial layout tools.",
+    appearance: "Choose a room, then change its material or elevation.",
+    objects: "Choose an object here, then click any DM-visible playable square.",
+    areas: "Choose one or more rooms. This changes player reveal grouping only."
+  };
+  ui.brushTitle.textContent = "Build · " + (labels[state.mapTab] || "Layout");
+  ui.brushContextHint.textContent = hints[state.mapTab] || hints.layout;
+  ui.buildBrushRail.querySelectorAll("[data-brush-context]").forEach((button) => {
+    button.hidden = button.dataset.brushContext !== state.mapTab;
+  });
+}
+function activateLayoutTool(kind) {
+  if (state.workflow === "map" && state.mapTab !== "layout") setMapTab("layout");
+  setLayoutTool(kind);
+}
+function sourceSummary() {
+  const source = state.blueprint.source || { kind: "fixture", label: "Topology study" };
+  if (source.kind === "seeded") return {
+    title: source.label + " · Seed " + source.seed,
+    detail: source.generator + " · " + state.blueprint.topology
+  };
+  if (source.kind === "imported") return {
+    title: source.label + " · " + source.sourceName,
+    detail: source.sourceRights + " · confirmation required"
+  };
+  if (source.kind === "blank") return {
+    title: source.label + " · Untitled Battlefield",
+    detail: "One open room · manual structure"
+  };
+  return { title: "Topology study · " + state.blueprint.name, detail: "forge-blueprint/v1 · isolated proof fixture" };
+}
+function updateSourceReceipt() {
+  const summary = sourceSummary();
+  const valid = BP.validateMap(state.map);
+  const connected = BP.connectivity(state.map);
+  ui.sourceReceipt.textContent = summary.title;
+  ui.sourceReceiptDetail.textContent = "forge-blueprint/v1 · " + (connected.ok ? "connected" : "needs repair") + " · " + (valid.ok ? "field valid" : "field invalid") + " · " + summary.detail;
+}
+function renderReviewFindings() {
+  ui.reviewFindings.replaceChildren();
+  const source = state.blueprint.source || {};
+  const findings = Array.isArray(source.review) ? source.review : [];
+  ui.toggleUnderlay.disabled = !source.underlay;
+  ui.toggleUnderlay.textContent = source.underlay
+    ? (state.sourceUnderlay ? "Hide source underlay" : "Show source underlay")
+    : "Source underlay unavailable";
+  ui.acceptAllFindings.disabled = !findings.some((finding) => !finding.accepted);
+  if (!findings.length) {
+    const message = document.createElement("p");
+    message.textContent = "No uncertain import findings. This Blueprint is ready to edit.";
+    ui.reviewFindings.appendChild(message);
+    return;
+  }
+  findings.forEach((finding) => {
+    const row = document.createElement("div");
+    row.className = "finding" + (finding.accepted ? " accepted" : "");
+    const title = document.createElement("strong");
+    title.textContent = finding.label;
+    const detail = document.createElement("small");
+    detail.textContent = Math.round(finding.confidence * 100) + "% proposal confidence";
+    const button = document.createElement("button");
+    button.type = "button";
+    button.textContent = finding.accepted ? "Accepted" : "Confirm";
+    button.disabled = finding.accepted;
+    button.addEventListener("click", () => {
+      state.blueprint = BP.acceptImportFinding(state.blueprint, finding.id);
+      state.themeBase = BP.copy(state.blueprint);
+      refreshDocument();
+      renderReviewFindings();
+      updateSourceReceipt();
+      recordHistory("Import finding confirmed");
+    });
+    row.append(title, detail, button);
+    ui.reviewFindings.appendChild(row);
+  });
+}
+function useBlueprint(blueprint) {
+  state.blueprint = BP.copy(blueprint);
+  state.themeBase = BP.copy(blueprint);
+  state.fixtureKey = state.blueprint.source?.fixtureKey || "custom";
+  state.areaFocus = state.blueprint.discoveryRegions[0]?.id || "";
+  state.areaHighlight = false;
+  state.edits = {};
+  state.selected = null;
+  state.layoutSpaces = [];
+  state.layoutPassage = null;
+  state.buildAnchor = null;
+  state.sourceUnderlay = !!state.blueprint.source?.underlay;
+  state.discovered = new Set(state.blueprint.discoveryRegions.map((region) => region.id));
+  document.querySelectorAll("[data-fixture]").forEach((button) => button.classList.toggle("active", button.dataset.fixture === state.fixtureKey));
+  updateRegionControls();
+  refreshDocument();
+  state.groups = defaultGroups();
+  renderReviewFindings();
+  renderDeploymentGroups();
+  updateSourceReceipt();
+  setLayoutTool("select");
+  setRotation(0, false);
+  rebuildAll();
+  frameBoard();
+  setMode("browse");
+  resetHistory();
+  setWorkflow("map");
+}
+function chooseSource(kind) {
+  document.querySelectorAll("[data-source-choice]").forEach((button) => button.classList.toggle("active", button.dataset.sourceChoice === kind));
+  document.querySelectorAll("[data-source-detail]").forEach((panel) => {
+    const active = panel.dataset.sourceDetail === kind;
+    panel.hidden = !active;
+    panel.classList.toggle("active", active);
+  });
+}
+function applyThemePreset(theme) {
+  const out = BP.copy(state.themeBase || state.blueprint);
+  if (theme === "moss") {
+    out.spaces.forEach((space, index) => { if (space.material !== "water") space.material = index % 3 === 0 ? "crypt" : "cloister"; });
+    out.theme = "mossbound-cloister";
+  } else if (theme === "bare") {
+    out.spaces.forEach((space) => { space.material = "nave"; });
+    out.props = [];
+    out.lights = [];
+    out.theme = "bare-structure";
+  } else {
+    out.theme = "ruined-abbey";
+  }
+  out.elevationZones = out.spaces.map((space) => ({ id: "elevation-" + space.id, polygon: BP.copy(space.polygon), elevationFt: space.elevationFt, material: space.material, discoveryRegion: space.discoveryRegion }));
+  out.materialZones = out.spaces.map((space) => ({ id: "material-" + space.id, polygon: BP.copy(space.polygon), material: space.material, discoveryRegion: space.discoveryRegion }));
+  state.blueprint = out;
+  document.querySelectorAll("[data-theme]").forEach((button) => button.classList.toggle("active", button.dataset.theme === theme));
+  refreshDocument();
+  rebuildAll();
+  recordHistory("Theme changed");
 }
 function updateRegionControls() {
+  const preferred = state.areaFocus || ui.zoneRegion.value;
   ui.zoneRegion.replaceChildren();
   state.blueprint.discoveryRegions.forEach((region) => {
     const option = document.createElement("option");
     option.value = region.id; option.textContent = region.label;
     ui.zoneRegion.appendChild(option);
   });
+  if (state.blueprint.discoveryRegions.some((region) => region.id === preferred)) ui.zoneRegion.value = preferred;
+  state.areaFocus = ui.zoneRegion.value;
   syncZoneValues();
+  updateAreaInspector();
 }
 function syncZoneValues() {
   const region = ui.zoneRegion.value;
@@ -785,6 +1491,86 @@ function syncZoneValues() {
   if (!space) return;
   ui.zoneElevation.value = String(space.elevationFt || 0);
   ui.zoneMaterial.value = space.material || "nave";
+}
+function areaLabel(regionId) {
+  return state.blueprint.discoveryRegions.find((region) => region.id === regionId)?.label || regionId;
+}
+function areaSettings(regionId) {
+  return Object.assign({
+    dressTogether: true,
+    revealTogether: true,
+    provenance: "Authored topology study"
+  }, state.blueprint.areaSettings?.[regionId] || {});
+}
+function updateAreaInspector() {
+  if (!state.blueprint || !ui.zoneRegion) return;
+  const regionId = state.areaFocus || ui.zoneRegion.value;
+  const region = state.blueprint.discoveryRegions.find((item) => item.id === regionId);
+  if (!region) {
+    ui.areaStageLabel.hidden = true;
+    return;
+  }
+  const summary = BP.areaSummary(state.blueprint, regionId);
+  const settings = areaSettings(regionId);
+  const pendingOpening = (state.blueprint.source?.review || []).find((finding) => finding.id === "openings" && !finding.accepted);
+  state.areaFocus = regionId;
+  ui.areaName.value = region.label;
+  ui.areaProvenance.textContent = settings.provenance;
+  ui.areaFootprint.textContent = summary.cellCount + " cells · " + summary.boundaryEdges + " perimeter edges";
+  ui.areaDressTogether.checked = settings.dressTogether;
+  ui.areaRevealTogether.checked = settings.revealTogether;
+  ui.toggleAreaHighlight.classList.toggle("active", state.areaHighlight);
+  ui.toggleAreaHighlight.setAttribute("aria-pressed", String(state.areaHighlight));
+  ui.toggleAreaHighlight.textContent = state.areaHighlight ? "Hide footprint" : "Show footprint";
+  ui.areaBoundaryStatus.textContent = pendingOpening ? "Boundary needs confirmation" : "Boundary derived from membership";
+  ui.areaConnectionSummary.textContent = summary.connectionCount + " connected area" + (summary.connectionCount === 1 ? "" : "s")
+    + " · " + summary.thresholdCount + " derived threshold" + (summary.thresholdCount === 1 ? "" : "s");
+  ui.areaConnections.replaceChildren();
+  summary.neighborIds.forEach((neighborId) => {
+    const item = document.createElement("li");
+    const name = document.createElement("strong");
+    const detail = document.createElement("span");
+    const thresholdCount = summary.thresholds.filter((threshold) => threshold.neighborId === neighborId).length;
+    name.textContent = areaLabel(neighborId);
+    detail.textContent = thresholdCount + " threshold" + (thresholdCount === 1 ? "" : "s");
+    item.append(name, detail);
+    ui.areaConnections.appendChild(item);
+  });
+  if (!summary.neighborIds.length) {
+    const item = document.createElement("li");
+    const name = document.createElement("strong");
+    const detail = document.createElement("span");
+    name.textContent = "Self-contained";
+    detail.textContent = "no neighboring area membership";
+    item.append(name, detail);
+    ui.areaConnections.appendChild(item);
+  }
+  const report = ui.areaBoundaryNote.closest(".boundary-report");
+  report?.classList.toggle("warn", !!pendingOpening || !summary.complete);
+  ui.areaBoundaryNote.textContent = pendingOpening
+    ? "The imported doorway proposal is still unconfirmed. This area remains provisional until Structure confirms it."
+    : "Threshold markers are generated wherever adjacent cells belong to different areas. A missing marker cannot silently join them.";
+  ui.areaMergeTarget.replaceChildren();
+  summary.neighborIds.forEach((neighborId) => {
+    const option = document.createElement("option");
+    option.value = neighborId;
+    option.textContent = areaLabel(neighborId);
+    ui.areaMergeTarget.appendChild(option);
+  });
+  ui.mergeArea.disabled = !summary.neighborIds.length;
+  ui.mergeArea.title = summary.neighborIds.length ? "Join this area to the selected neighboring area" : "This area has no neighboring area to merge";
+  const stageStrong = ui.areaStageLabel.querySelector("strong");
+  const stageSmall = ui.areaStageLabel.querySelector("small");
+  if (stageStrong) stageStrong.textContent = region.label;
+  if (stageSmall) stageSmall.textContent = summary.cellCount + " cells · boundaries derived";
+  ui.areaStageLabel.hidden = !(state.areaHighlight && state.workflow === "dress");
+}
+function refreshAreaFocus() {
+  buildAreaOverlay();
+  drawScrawl();
+  drawArtwork();
+  updateAreaInspector();
+  requestRender();
 }
 function syncHeroButton() {
   const available = state.fixtureKey === "processional" && state.discovered.has("choir");
@@ -802,22 +1588,38 @@ function refreshDocument() {
   ui.discoveryLabel.textContent = state.discovered.size + " of " + state.blueprint.discoveryRegions.length + " regions discovered";
   syncHeroButton();
   audit();
+  updateSourceReceipt();
   drawScrawl();
+  drawArtwork();
+  updateAreaInspector();
+  updateDirectUI();
 }
 function loadFixture(key) {
   if (!BP.FIXTURES[key]) return;
   state.fixtureKey = key;
-  state.blueprint = BP.copy(BP.FIXTURES[key]);
+  state.blueprint = BP.withSource(BP.FIXTURES[key], "fixture", { fixtureKey: key });
+  state.themeBase = BP.copy(state.blueprint);
+  state.areaFocus = state.blueprint.discoveryRegions[0]?.id || "";
+  state.areaHighlight = false;
   state.edits = {};
   state.selected = null;
-  state.discovered = new Set([state.blueprint.discoveryRegions[0].id]);
+  state.layoutSpaces = [];
+  state.layoutPassage = null;
+  state.buildAnchor = null;
+  state.sourceUnderlay = false;
+  state.discovered = new Set(state.blueprint.discoveryRegions.map((region) => region.id));
   document.querySelectorAll("[data-fixture]").forEach((button) => button.classList.toggle("active", button.dataset.fixture === key));
   updateRegionControls();
   refreshDocument();
-  setTool("wall", true);
+  state.groups = defaultGroups();
+  renderReviewFindings();
+  renderDeploymentGroups();
+  setLayoutTool("select");
   setRotation(0, false);
   rebuildAll();
   frameBoard();
+  setMode("browse");
+  resetHistory();
 }
 function frameBoard() {
   const span = Math.max(state.blueprint.grid.cols, state.blueprint.grid.rows);
@@ -825,6 +1627,260 @@ function frameBoard() {
   camera.position.set(span * 0.72, span * 0.8, span * 0.9);
   controls.update();
   requestRender();
+}
+function frameTopDown() {
+  if (!state.blueprint) return;
+  const span = Math.max(state.blueprint.grid.cols, state.blueprint.grid.rows);
+  controls.target.set(0, 0, 0);
+  camera.position.set(0, span * 1.48, 0.01);
+  controls.update();
+  requestRender();
+}
+function defaultGroups() {
+  const regions = state.blueprint.discoveryRegions;
+  const first = regions[0], last = regions[regions.length - 1];
+  const spawns = state.blueprint.spawns || [];
+  const pcs = spawns.filter((spawn) => spawn.side === "pc");
+  const foes = spawns.filter((spawn) => spawn.side === "foe");
+  return [
+    {
+      id: "party-main", label: "Main Party", role: "party", formation: "wedge",
+      unitIds: pcs.map((spawn) => spawn.key || "Party member"),
+      anchor: pcs[0] ? { c: pcs[0].c, r: pcs[0].r } : regionCenter(first?.id),
+      seed: 3
+    },
+    {
+      id: "enemy-main", label: "Reliquary Guard", role: "enemy", formation: "cluster",
+      unitIds: foes.map((spawn) => spawn.key || "Enemy"),
+      anchor: foes[0] ? { c: foes[0].c, r: foes[0].r } : regionCenter(last?.id),
+      seed: 7
+    }
+  ];
+}
+function regionCenter(regionId) {
+  const cells = [];
+  state.map?.meta.regions.forEach((info, index) => {
+    if (info?.region === regionId && !state.map.wall[index]) cells.push({ c: index % state.map.cols, r: Math.floor(index / state.map.cols) });
+  });
+  return cells[Math.floor(cells.length / 2)] || null;
+}
+function authoringSnapshot() {
+  return {
+    blueprint: BP.copy(state.blueprint),
+    themeBase: BP.copy(state.themeBase),
+    edits: BP.copy(state.edits),
+    discovered: [...state.discovered],
+    groups: BP.copy(state.groups),
+    calibration: BP.copy(state.calibration),
+    gridVisible: state.gridVisible
+  };
+}
+function resetHistory() {
+  state.history = BP.historyStart(authoringSnapshot());
+  updateHistoryControls();
+}
+function recordHistory(label) {
+  state.history = BP.historyCommit(state.history || BP.historyStart(authoringSnapshot()), label, authoringSnapshot());
+  updateHistoryControls();
+}
+function updateHistoryControls() {
+  const canUndo = !!state.history?.past.length, canRedo = !!state.history?.future.length;
+  [ui.undoAction, ui.pinnedUndo, ui.brushUndo, ui.radialUndo].forEach((button) => {
+    button.disabled = !canUndo;
+    button.title = canUndo ? "Undo " + state.history.present.label : "Nothing to undo";
+  });
+  [ui.redoAction, ui.pinnedRedo, ui.brushRedo, ui.radialRedo].forEach((button) => {
+    button.disabled = !canRedo;
+    button.title = canRedo ? "Redo " + state.history.future[0].label : "Nothing to redo";
+  });
+}
+function restoreSnapshot(snapshot, direction) {
+  state.blueprint = BP.copy(snapshot.blueprint);
+  state.themeBase = BP.copy(snapshot.themeBase);
+  state.edits = BP.copy(snapshot.edits);
+  state.discovered = new Set(snapshot.discovered || []);
+  state.groups = BP.copy(snapshot.groups || []);
+  state.calibration = BP.normalizeGridCalibration(snapshot.calibration);
+  state.gridVisible = snapshot.gridVisible !== false;
+  state.selected = null;
+  state.layoutSpaces = [];
+  state.layoutPassage = null;
+  state.buildAnchor = null;
+  state.linePreview = [];
+  state.roomPreview = null;
+  refreshDocument();
+  updateRegionControls();
+  syncGridControls();
+  renderReviewFindings();
+  renderDeploymentGroups();
+  rebuildAll();
+  updateDirectUI();
+  ui.massBuildCallout.querySelector("span").textContent = direction + " restored the previous complete map state.";
+  ui.chunkStatus.textContent = direction + " · " + state.history.present.label;
+  ui.chunkStatus.className = "status good";
+  updateHistoryControls();
+}
+function travelHistory(direction) {
+  if (!state.history) return;
+  const next = direction === "Undo" ? BP.historyUndo(state.history) : BP.historyRedo(state.history);
+  if (!next || next.present === state.history.present) return;
+  if (JSON.stringify(next) === JSON.stringify(state.history)) return;
+  state.history = next;
+  restoreSnapshot(next.present.snapshot, direction);
+}
+function hideBuildRadial() {
+  if (ui.buildRadial) ui.buildRadial.hidden = true;
+}
+function showBuildRadial(clientX, clientY) {
+  if (state.mode !== "build" || !ui.buildRadial) return;
+  const shell = document.querySelector(".stage-shell");
+  const rect = shell.getBoundingClientRect();
+  const x = Math.max(140, Math.min(rect.width - 140, clientX - rect.left));
+  const y = Math.max(140, Math.min(rect.height - 140, clientY - rect.top));
+  ui.buildRadial.style.left = x + "px";
+  ui.buildRadial.style.top = y + "px";
+  ui.buildRadial.hidden = false;
+}
+function setMode(mode) {
+  const previousMode = state.mode;
+  state.mode = mode === "build" ? "build" : "browse";
+  const building = state.mode === "build";
+  document.querySelector(".stage-shell")?.classList.toggle("build-mode", building);
+  document.querySelector('[data-workflow-page="structure"]')?.classList.toggle("build-armed", building);
+  document.querySelector('[data-workflow-page="map"]')?.classList.toggle("build-armed", building);
+  ui.buildBrushRail.hidden = !building;
+  if (!building) hideBuildRadial();
+  controls.mouseButtons.RIGHT = building ? null : THREE.MOUSE.PAN;
+  ui.browseMode.classList.toggle("active", !building);
+  ui.buildMode.classList.toggle("active", building);
+  ui.buildModeInline.classList.toggle("active", building);
+  ui.buildModeInline.querySelector("strong").textContent = building ? "Exit Build mode" : "Enter Build mode";
+  ui.buildModeInline.querySelector("span").textContent = building ? "Map clicks now place or select architecture." : "Map clicks are safe until this is armed.";
+  ui.pinnedBuild.classList.toggle("active", building);
+  ui.pinnedBuild.querySelector("span").textContent = building ? "Exit" : "Build";
+  ui.modeNarration.innerHTML = building
+    ? "<strong>DM authoring view</strong><span>Hidden rooms are visible here but remain hidden from players. Near walls use a solid cutaway.</span>"
+    : "<strong>Browse safe</strong><span>Orbit, inspect, or place an armed group flag. Building is off.</span>";
+  syncBuildBrushContext();
+  updateCutaway();
+  if (state.map && previousMode !== state.mode) rebuildAll();
+  drawSelection();
+  drawScrawl();
+  drawArtwork();
+  updateDirectUI();
+}
+function setComparison(active) {
+  state.compareActive = !!active;
+  document.querySelector(".stage-shell")?.classList.toggle("compare-active", state.compareActive);
+  ui.compareHold.classList.toggle("active", state.compareActive);
+  if (state.compareActive) {
+    sizeScrawl();
+    ui.modeNarration.innerHTML = "<strong>Source comparison</strong><span>Release to return. Discovery and camera state are unchanged.</span>";
+  } else setMode(state.mode);
+}
+function syncGridControls() {
+  ui.gridCellPx.value = state.calibration.cellPx.toFixed(1).replace(/\.0$/, "");
+  ui.gridOriginX.value = state.calibration.originX.toFixed(1).replace(/\.0$/, "");
+  ui.gridOriginY.value = state.calibration.originY.toFixed(1).replace(/\.0$/, "");
+  ui.gridStatus.textContent = state.calibration.cellPx.toFixed(1) + " px · " + state.calibration.cols + "×" + state.calibration.rows;
+  ui.gridToggle.classList.toggle("active", state.gridVisible);
+  ui.gridToggle.setAttribute("aria-pressed", String(state.gridVisible));
+}
+function applyGridCalibration(label = "Grid calibrated") {
+  state.calibration = BP.normalizeGridCalibration({
+    cellPx: Number(ui.gridCellPx.value),
+    originX: Number(ui.gridOriginX.value),
+    originY: Number(ui.gridOriginY.value),
+    nativeW: 784,
+    nativeH: 560
+  });
+  syncGridControls();
+  drawScrawl();
+  drawArtwork();
+  recordHistory(label);
+}
+function syncGroupSpawns() {
+  const spawns = [];
+  state.groups.forEach((group) => {
+    const positions = BP.formationPositions(state.map, group.anchor, group.unitIds.length, group.seed, group.formation);
+    positions.forEach((position, index) => spawns.push({
+      c: position.c, r: position.r,
+      side: group.role === "enemy" ? "foe" : "pc",
+      key: group.unitIds[index] || group.id + "-" + index
+    }));
+  });
+  state.blueprint.spawns = spawns;
+  state.themeBase.spawns = BP.copy(spawns);
+}
+function renderDeploymentGroups() {
+  ui.deploymentGroups.replaceChildren();
+  state.groups.forEach((group) => {
+    const card = document.createElement("section");
+    card.className = "deploy-group" + (state.flagPlacement === group.id ? " armed" : "");
+    const roleOptions = ["party", "ally", "npc", "enemy"].map((role) =>
+      '<option value="' + role + '"' + (group.role === role ? " selected" : "") + ">" + role[0].toUpperCase() + role.slice(1) + "</option>"
+    ).join("");
+    card.innerHTML =
+      '<div class="deploy-head"><i class="flag-swatch" style="background:#' + groupColor(group).toString(16).padStart(6, "0") + '"></i><strong>' + group.label + '</strong><small>' + (group.anchor ? "ready" : "unresolved") + '</small></div>' +
+      '<div class="deploy-fields"><label>Role<select data-group-role="' + group.id + '">' + roleOptions + '</select></label>' +
+      '<label>Formation<select data-group-formation="' + group.id + '"><option value="wedge"' + (group.formation === "wedge" ? " selected" : "") + '>Wedge</option><option value="cluster"' + (group.formation === "cluster" ? " selected" : "") + '>Cluster</option><option value="line"' + (group.formation === "line" ? " selected" : "") + '>Line</option></select></label></div>' +
+      '<div class="deploy-members">' + group.unitIds.join(" · ") + '</div>' +
+      '<div class="deploy-actions"><button class="primary" data-group-flag="' + group.id + '">' + (group.anchor ? "Move flag" : "Place flag") + '</button><button data-group-reseed="' + group.id + '">Reseed</button></div>';
+    ui.deploymentGroups.appendChild(card);
+  });
+  ui.spawnStatus.textContent = state.groups.filter((group) => group.anchor).length + " / " + state.groups.length + " flags placed";
+  ui.deploymentGroups.querySelectorAll("[data-group-flag]").forEach((button) => button.addEventListener("click", () => {
+    state.flagPlacement = button.dataset.groupFlag;
+    setMode("browse");
+    setView("board");
+    const group = state.groups.find((item) => item.id === state.flagPlacement);
+    ui.flagMessage.textContent = "Click a playable cell to place " + group.label + "’s flag. This is flag placement, not Build mode.";
+    renderDeploymentGroups();
+  }));
+  ui.deploymentGroups.querySelectorAll("[data-group-reseed]").forEach((button) => button.addEventListener("click", () => {
+    const group = state.groups.find((item) => item.id === button.dataset.groupReseed);
+    group.seed = (group.seed + 1) >>> 0;
+    syncGroupSpawns();
+    refreshDocument();
+    rebuildAll();
+    renderDeploymentGroups();
+    recordHistory(group.label + " formation reseeded");
+  }));
+  ui.deploymentGroups.querySelectorAll("[data-group-role]").forEach((select) => select.addEventListener("change", () => {
+    const group = state.groups.find((item) => item.id === select.dataset.groupRole);
+    group.role = select.value;
+    syncGroupSpawns();
+    refreshDocument();
+    rebuildAll();
+    renderDeploymentGroups();
+    recordHistory(group.label + " role changed");
+  }));
+  ui.deploymentGroups.querySelectorAll("[data-group-formation]").forEach((select) => select.addEventListener("change", () => {
+    const group = state.groups.find((item) => item.id === select.dataset.groupFormation);
+    group.formation = select.value;
+    group.seed = (group.seed + 3) >>> 0;
+    syncGroupSpawns();
+    refreshDocument();
+    rebuildAll();
+    renderDeploymentGroups();
+    recordHistory(group.label + " formation changed");
+  }));
+}
+function placeGroupFlag(c, r) {
+  const group = state.groups.find((item) => item.id === state.flagPlacement);
+  const info = cellInfo(c, r);
+  if (!group || !info || state.map.wall[BP.idx(state.map.cols, c, r)]) {
+    ui.flagMessage.textContent = "That is not open battlefield ground. The flag remains armed.";
+    return;
+  }
+  group.anchor = { c, r };
+  state.flagPlacement = null;
+  syncGroupSpawns();
+  refreshDocument();
+  rebuildAll();
+  renderDeploymentGroups();
+  ui.flagMessage.textContent = group.label + " placed. Formation resolved around the flag.";
+  recordHistory(group.label + " flag placed");
 }
 function focusHeroRoom() {
   if (state.fixtureKey !== "processional" || !state.discovered.has("choir")) {
@@ -855,11 +1911,308 @@ function revealNext() {
   rebuildRegion(next.id, true);
   ui.discoveryLabel.textContent = state.discovered.size + " of " + state.blueprint.discoveryRegions.length + " regions discovered";
   drawScrawl();
+  recordHistory("Room revealed");
 }
 function resetDiscovery() {
   state.discovered = new Set([state.blueprint.discoveryRegions[0].id]);
   refreshDocument();
   rebuildAll();
+  recordHistory("Player darkness restored");
+}
+function selectedSpaces() {
+  return state.layoutSpaces.map((id) => state.blueprint.spaces.find((space) => space.id === id)).filter(Boolean);
+}
+function updateDirectUI() {
+  const spaces = selectedSpaces();
+  const passage = state.blueprint.corridors.find((item) => item.id === state.layoutPassage);
+  const selectedArchitecture = state.selected?.edge
+    ? explicitArchitectureAt(state.selected.c, state.selected.r, state.selected.edge)
+    : null;
+  const building = state.mode === "build";
+  ui.directBuildStatus.textContent = building ? "Build armed" : "Browse safe";
+  ui.directBuildStatus.className = "status " + (building ? "good" : "");
+  ui.directBuildMode.classList.toggle("active", building);
+  ui.directBuildMode.querySelector("strong").textContent = building ? "Exit Build mode" : "Enter Build mode";
+  ui.directBuildMode.querySelector("span").textContent = building
+    ? "Map touches now use the selected tool."
+    : "Nothing changes until this is armed.";
+  const edgePlacement = !!selectedArchitecture && ["wall", "lowWall", "door"].includes(selectedArchitecture.kind);
+  ui.directRotationValue.textContent = edgePlacement ? state.selected.edge + " edge" : state.rotation + "°";
+  ui.directRotateLeft.disabled = edgePlacement;
+  ui.directRotateRight.disabled = edgePlacement;
+  ui.directRotateLeft.title = ui.directRotateRight.title = edgePlacement
+    ? "This piece follows the clicked square edge."
+    : "Rotate the selected or next piece.";
+  if (selectedArchitecture) {
+    ui.layoutSelectionTitle.textContent = moduleLabel(selectedArchitecture.kind) + " selected";
+    ui.layoutSelectionDetail.textContent = "Boundary " + state.selected.edge + " · selectable from either adjacent square. Remove it here or press Delete.";
+  } else if (passage) {
+    ui.layoutSelectionTitle.textContent = passage.label || "Selected passage";
+    ui.layoutSelectionDetail.textContent = "This exact connection is selected. Remove it without changing either room.";
+  } else if (spaces.length === 1) {
+    const bounds = BP.spaceBounds(spaces[0]);
+    ui.layoutSelectionTitle.textContent = spaces[0].label;
+    ui.layoutSelectionDetail.textContent = (bounds.maxX - bounds.minX) + " × " + (bounds.maxY - bounds.minY) + " cells · divide it, change its appearance, or Shift-click another room.";
+  } else if (spaces.length > 1) {
+    ui.layoutSelectionTitle.textContent = spaces.length + " rooms selected";
+    ui.layoutSelectionDetail.textContent = spaces.map((space) => space.label).join(" + ") + ". Connect exactly these rooms.";
+  } else {
+    ui.layoutSelectionTitle.textContent = "Nothing selected";
+    ui.layoutSelectionDetail.textContent = "Select a room to divide it, or select two rooms to draw a passage between them.";
+  }
+  ui.divideVertical.disabled = !building || spaces.length !== 1;
+  ui.divideHorizontal.disabled = !building || spaces.length !== 1;
+  ui.connectSelected.disabled = !building || spaces.length !== 2;
+  ui.removeSelectedPassage.disabled = !building || !passage;
+  ui.removeSelectedArchitecture.disabled = !building || !selectedArchitecture;
+  ui.selectionActionNote.textContent = building
+    ? "These actions change only what is visibly selected."
+    : "Enter Build mode to use a contextual map action.";
+  const appearance = spaces[0];
+  ui.appearanceSelectionTitle.textContent = appearance ? appearance.label : "Select a room";
+  ui.applySelectedAppearance.disabled = !building || spaces.length !== 1;
+  if (appearance) {
+    ui.selectedElevation.value = String(appearance.elevationFt || 0);
+    ui.selectedMaterial.value = appearance.material || "nave";
+  }
+  ui.revealSelectionTitle.textContent = spaces.length > 1
+    ? spaces.length + " rooms selected"
+    : "Select two or more rooms on the map.";
+  ui.revealSelectionDetail.textContent = spaces.length > 1
+    ? spaces.map((space) => space.label).join(" + ") + " will reveal together; their walls and paths will not change."
+    : "Their physical layout stays untouched.";
+  ui.groupRevealSelected.disabled = !building || spaces.length < 2;
+  ui.directGridStatus.textContent = state.calibration.cellPx.toFixed(1) + " px · " + state.map.cols + "×" + state.map.rows;
+  positionBuildHandles();
+}
+function setLayoutTool(kind) {
+  const allowed = ["select", "room", "corridor", "wall", "lowWall", "door", "erase"];
+  state.layoutTool = allowed.includes(kind) ? kind : "select";
+  if (["wall", "lowWall", "door", "erase"].includes(state.layoutTool)) setTool(state.layoutTool, false);
+  document.querySelectorAll("[data-layout-tool]").forEach((button) => {
+    button.classList.toggle("active", button.dataset.layoutTool === state.layoutTool);
+  });
+  document.querySelectorAll("[data-radial-tool]").forEach((button) => {
+    button.classList.toggle("active", button.dataset.radialTool === state.layoutTool);
+  });
+  const copy = {
+    select: ["Select", "Click a room or passage. Shift-click adds a second room so you can connect exactly those two."],
+    room: ["Room", "Drag a rectangle on the map. A room must be at least 3 × 3 cells and cannot overlap existing floor."],
+    corridor: ["Passage", "Click a starting cell, then hold or drag a gold arrow to build the path in that direction."],
+    wall: ["Wall", "Click near a square edge; the wall snaps between squares. Click an end arrow for one segment, or hold and drag for a longer run."],
+    lowWall: ["Ledge", "Click near a square edge. The ledge sits on that boundary and repeats from either end."],
+    door: ["Door", "Click near a square edge to place an opening on that boundary."],
+    erase: ["Erase", "Click near an architectural edge to remove that exact piece. Select a passage for the safer Remove passage action."]
+  }[state.layoutTool];
+  ui.radialToolLabel.textContent = copy[0];
+  ui.layoutToolGuidance.innerHTML = "<strong>" + copy[0] + ":</strong> " + copy[1];
+  state.buildAnchor = null;
+  state.linePreview = [];
+  ui.buildHandles.hidden = true;
+  drawSelection();
+  drawScrawl();
+  drawArtwork();
+  updateDirectUI();
+}
+function clearLayoutSelection() {
+  state.layoutSpaces = [];
+  state.layoutPassage = null;
+  state.selected = null;
+  state.buildAnchor = null;
+  state.areaHighlight = false;
+  buildAreaOverlay();
+  drawSelection();
+  drawScrawl();
+  drawArtwork();
+  updateDirectUI();
+  requestRender();
+}
+function selectArchitectureAtBoundary(c, r, edge) {
+  const resolved = explicitArchitectureBoundaryAt(c, r, edge);
+  if (!resolved) return false;
+  state.selected = { c: resolved.c, r: resolved.r, edge: resolved.edge };
+  state.layoutSpaces = [];
+  state.layoutPassage = null;
+  state.buildAnchor = ["wall", "lowWall"].includes(resolved.item.kind)
+    ? { c: resolved.c, r: resolved.r, edge: resolved.edge }
+    : null;
+  ui.chunkStatus.textContent = moduleLabel(resolved.item.kind) + " selected from its physical boundary";
+  ui.chunkStatus.className = "status good";
+  drawSelection();
+  drawScrawl();
+  drawArtwork();
+  updateDirectUI();
+  requestRender();
+  return true;
+}
+function selectLayoutAt(c, r, additive) {
+  const info = cellInfo(c, r);
+  if (!info) {
+    if (!additive) clearLayoutSelection();
+    ui.selectionActionNote.textContent = "That cell is outside the current map.";
+    return;
+  }
+  state.selected = null;
+  state.buildAnchor = null;
+  if (info.corridor) {
+    state.layoutPassage = info.corridor;
+    state.layoutSpaces = [];
+  } else if (info.space) {
+    state.layoutPassage = null;
+    if (additive) {
+      state.layoutSpaces = state.layoutSpaces.includes(info.space)
+        ? state.layoutSpaces.filter((id) => id !== info.space)
+        : state.layoutSpaces.concat(info.space).slice(-2);
+    } else state.layoutSpaces = [info.space];
+    const space = state.blueprint.spaces.find((item) => item.id === info.space);
+    state.areaFocus = space?.discoveryRegion || state.areaFocus;
+  }
+  state.areaHighlight = state.mapTab === "areas" && state.layoutSpaces.length > 0;
+  buildAreaOverlay();
+  drawSelection();
+  drawScrawl();
+  drawArtwork();
+  updateDirectUI();
+  requestRender();
+}
+function commitRoom(from, to) {
+  const next = BP.addRoom(state.blueprint, from, to);
+  state.roomPreview = null;
+  if (next === state.blueprint) {
+    ui.layoutToolGuidance.innerHTML = "<strong>Room not placed:</strong> use at least 3 × 3 empty cells with no existing floor.";
+    drawSelection();
+    drawScrawl();
+    drawArtwork();
+    return;
+  }
+  const before = new Set(state.blueprint.spaces.map((space) => space.id));
+  state.blueprint = next;
+  state.themeBase = BP.copy(next);
+  const created = state.blueprint.spaces.find((space) => !before.has(space.id));
+  if (created) {
+    state.layoutSpaces = [created.id];
+    state.discovered.add(created.discoveryRegion);
+    state.areaFocus = created.discoveryRegion;
+  }
+  updateRegionControls();
+  refreshDocument();
+  rebuildAll();
+  updateDirectUI();
+  recordHistory("Room drawn");
+}
+function placeObject(c, r) {
+  const next = BP.placeProp(state.blueprint, c, r, state.objectKind, state.rotation);
+  if (next === state.blueprint) {
+    ui.objectToolGuidance.innerHTML = "<strong>Placement refused.</strong> Choose open playable ground.";
+    return;
+  }
+  state.blueprint = next;
+  state.themeBase = BP.copy(next);
+  refreshDocument();
+  rebuildCellChunk(c, r);
+  ui.objectToolGuidance.innerHTML = "<strong>" + moduleLabel(state.objectKind) + " placed.</strong> Click another cell or rotate before placing.";
+  recordHistory(moduleLabel(state.objectKind) + " placed");
+}
+function lineToolActive() {
+  return ["wall", "lowWall", "corridor"].includes(state.layoutTool);
+}
+function lineCellsFor(direction, length) {
+  if (["wall", "lowWall"].includes(state.layoutTool) && state.buildAnchor?.edge) {
+    const edge = BP.normalizeEdge(state.buildAnchor.edge);
+    const tangent = ["N", "S"].includes(edge) ? ["e", "w"] : ["n", "s"];
+    if (!tangent.includes(direction)) return [];
+    return BP.lineEdges(state.buildAnchor, direction, length, state.map.cols, state.map.rows)
+      .filter(({ c, r }) => !!cellInfo(c, r));
+  }
+  const cells = BP.lineCells(state.buildAnchor, direction, length, state.map.cols, state.map.rows);
+  if (state.layoutTool === "corridor") return cells;
+  return cells.filter(({ c, r }) => {
+    if (!cellInfo(c, r)) return false;
+    return !(state.blueprint.spawns || []).concat(state.blueprint.props || []).some((item) => item.c === c && item.r === r);
+  });
+}
+function previewLine(direction, length) {
+  state.linePreview = lineCellsFor(direction, length);
+  drawSelection();
+  drawScrawl();
+  drawArtwork();
+  const unit = state.linePreview[0]?.edge ? "edge segment" : "cell";
+  ui.massBuildCallout.querySelector("span").textContent = state.linePreview.length
+    ? state.linePreview.length + " " + unit + (state.linePreview.length === 1 ? "" : "s") + " previewed · release to commit as one Undo."
+    : "That direction has no buildable cells.";
+  requestRender();
+}
+function commitLine() {
+  if (!state.linePreview.length) return;
+  const cells = state.linePreview.slice();
+  if (state.layoutTool === "corridor") {
+    const last = cells[cells.length - 1];
+    const next = BP.addPassage(state.blueprint, state.buildAnchor, last, 1, cellInfo(state.buildAnchor.c, state.buildAnchor.r)?.region);
+    if (next !== state.blueprint) {
+      state.blueprint = next;
+      state.themeBase = BP.copy(next);
+      refreshDocument();
+      rebuildAll();
+      recordHistory("Passage repeated " + cells.length + " cells");
+    }
+  } else {
+    cells.forEach(({ c, r, edge }) => {
+      state.edits = BP.editCell(state.edits, c, r, state.layoutTool, state.rotation, edge);
+    });
+    refreshDocument();
+    rebuildAll();
+    const historyUnit = cells[0].edge ? "edge segment" : "cell";
+    recordHistory(moduleLabel(state.layoutTool) + " repeated " + cells.length + " " + historyUnit + (cells.length === 1 ? "" : "s"));
+  }
+  const last = cells[cells.length - 1];
+  state.buildAnchor = { c: last.c, r: last.r, edge: last.edge };
+  state.selected = { c: last.c, r: last.r, edge: last.edge };
+  state.linePreview = [];
+  ui.massBuildCallout.querySelector("span").textContent = cells.length + (last.edge ? " edge segment" + (cells.length === 1 ? "" : "s") : " cell" + (cells.length === 1 ? "" : "s")) + " committed together. Undo removes the whole run.";
+  drawSelection();
+  drawScrawl();
+  drawArtwork();
+  updateDirectUI();
+}
+function positionBuildHandles() {
+  if (!ui.buildHandles || state.mode !== "build" || !state.buildAnchor || !lineToolActive()) {
+    if (ui.buildHandles) ui.buildHandles.hidden = true;
+    return;
+  }
+  const shell = document.querySelector(".stage-shell");
+  const shellRect = shell.getBoundingClientRect();
+  let x = 0, y = 0, stepPx = 32;
+  if (state.view === "board") {
+    const info = cellInfo(state.buildAnchor.c, state.buildAnchor.r);
+    const edgeAt = state.buildAnchor.edge ? edgeWorld(state.buildAnchor.c, state.buildAnchor.r, state.buildAnchor.edge) : null;
+    const point = new THREE.Vector3(edgeAt?.x ?? worldX(state.buildAnchor.c), rise(info?.elevationFt || 0) + 0.22, edgeAt?.z ?? worldZ(state.buildAnchor.r));
+    point.project(camera);
+    const rect = renderer.domElement.getBoundingClientRect();
+    x = rect.left - shellRect.left + (point.x + 1) * rect.width / 2;
+    y = rect.top - shellRect.top + (1 - point.y) * rect.height / 2;
+    stepPx = Math.max(22, rect.height / Math.max(state.map.rows, 12));
+  } else {
+    const canvas = state.view === "artwork" ? ui.artworkStage : ui.scrawlStage;
+    const transform = state.view === "artwork" ? state.artworkTransform : state.scrawlTransform;
+    if (!transform) { ui.buildHandles.hidden = true; return; }
+    const rect = canvas.getBoundingClientRect();
+    const edgeOffset = { N: [0, -0.5], E: [0.5, 0], S: [0, 0.5], W: [-0.5, 0] }[BP.normalizeEdge(state.buildAnchor.edge)] || [0, 0];
+    x = rect.left - shellRect.left + (transform.ox + (state.buildAnchor.c + 0.5 + edgeOffset[0]) * transform.cell) / canvas.width * rect.width;
+    y = rect.top - shellRect.top + (transform.oy + (state.buildAnchor.r + 0.5 + edgeOffset[1]) * transform.cell) / canvas.height * rect.height;
+    stepPx = transform.cell / canvas.width * rect.width;
+  }
+  ui.buildHandles.style.left = x + "px";
+  ui.buildHandles.style.top = y + "px";
+  ui.buildHandles.hidden = x < 0 || y < 0 || x > shellRect.width || y > shellRect.height;
+  const edge = BP.normalizeEdge(state.buildAnchor.edge);
+  const edgeAxis = edge ? (["N", "S"].includes(edge) ? "ew" : "ns") : "";
+  const lowAxis = !edge && state.layoutTool === "lowWall" ? (state.rotation % 180 === 0 ? "ns" : "ew") : "";
+  ui.buildHandles.querySelectorAll("[data-build-direction]").forEach((button) => {
+    const direction = button.dataset.buildDirection;
+    const axis = edgeAxis || lowAxis;
+    button.hidden = axis === "ns" ? !["n", "s"].includes(direction) : (axis === "ew" ? !["e", "w"].includes(direction) : false);
+    button.dataset.stepPx = String(stepPx);
+  });
 }
 function moduleLabel(kind) { return kind === "lowWall" ? "Low wall" : kind.charAt(0).toUpperCase() + kind.slice(1); }
 function setTool(kind, clearSelection) {
@@ -875,10 +2228,18 @@ function setTool(kind, clearSelection) {
   }
 }
 function setRotation(value, rotateSelected = true) {
+  if (rotateSelected && state.selected?.edge) {
+    ui.rotationLabel.textContent = state.selected.edge + " edge selected";
+    ui.chunkStatus.textContent = "Edge placement follows the square boundary · choose a different edge to turn.";
+    ui.chunkStatus.className = "status good";
+    return;
+  }
   state.rotation = BP.normalizeRotation(value);
   ui.rotationValue.textContent = state.rotation + "°";
+  ui.directRotationValue.textContent = state.rotation + "°";
+  positionBuildHandles();
   if (!rotateSelected || !state.selected) return;
-  const item = explicitArchitectureAt(state.selected.c, state.selected.r);
+  const item = explicitArchitectureAt(state.selected.c, state.selected.r, state.selected.edge);
   if (!item) {
     ui.rotationLabel.textContent = "Placement angle";
     return;
@@ -897,6 +2258,94 @@ function setRotation(value, rotateSelected = true) {
   ui.rotationLabel.textContent = moduleLabel(item.kind) + " selected";
   ui.chunkStatus.textContent = moduleLabel(item.kind) + " " + state.rotation + "° · chunk " + chunk.key + " · 1/" + BP.chunkCount(state.blueprint);
   ui.chunkStatus.className = "status good";
+  recordHistory(moduleLabel(item.kind) + " rotated");
+}
+function applyEdgeEdit(c, r, edge) {
+  const info = cellInfo(c, r);
+  edge = BP.normalizeEdge(edge);
+  if (!info || !edge) {
+    ui.chunkStatus.textContent = "Choose the edge of a playable square";
+    ui.chunkStatus.className = "status bad";
+    return;
+  }
+  const resolved = explicitArchitectureBoundaryAt(c, r, edge);
+  if (state.layoutTool === "erase") {
+    if (!resolved) {
+      ui.chunkStatus.textContent = isDerivedBoundary(c, r, edge)
+        ? "That is the room perimeter, not a placed wall · reshape the room or add a passage"
+        : "Nothing authored on that boundary · no map change";
+      ui.chunkStatus.className = "status bad";
+      return;
+    }
+    state.selected = { c: resolved.c, r: resolved.r, edge: resolved.edge };
+    state.edits = BP.editCell(state.edits, resolved.c, resolved.r, "erase", 0, resolved.edge);
+    state.buildAnchor = null;
+    refreshDocument();
+    rebuildAll();
+    ui.rotationLabel.textContent = "Placement angle";
+    ui.chunkStatus.textContent = isDerivedBoundary(c, r, edge)
+      ? moduleLabel(resolved.item.kind) + " removed · the room perimeter wall is restored"
+      : moduleLabel(resolved.item.kind) + " removed from the boundary";
+    ui.chunkStatus.className = "status good";
+    updateDirectUI();
+    recordHistory("Edge architecture erased");
+    return;
+  }
+  if (resolved) {
+    const existing = resolved.item;
+    state.selected = { c: resolved.c, r: resolved.r, edge: resolved.edge };
+    state.layoutTool = existing.kind;
+    setTool(existing.kind, false);
+    document.querySelectorAll("[data-layout-tool]").forEach((button) => {
+      button.classList.toggle("active", button.dataset.layoutTool === existing.kind);
+    });
+    document.querySelectorAll("[data-radial-tool]").forEach((button) => {
+      button.classList.toggle("active", button.dataset.radialTool === existing.kind);
+    });
+    ui.radialToolLabel.textContent = moduleLabel(existing.kind);
+    state.buildAnchor = ["wall", "lowWall"].includes(existing.kind)
+      ? { c: resolved.c, r: resolved.r, edge: resolved.edge }
+      : null;
+    ui.rotationLabel.textContent = resolved.edge + " edge selected";
+    ui.chunkStatus.textContent = moduleLabel(existing.kind) + " selected from either side of its boundary";
+    ui.chunkStatus.className = "status good";
+    drawSelection();
+    drawScrawl();
+    drawArtwork();
+    updateDirectUI();
+    requestRender();
+    return;
+  }
+  if (state.layoutTool === "wall" && isDerivedBoundary(c, r, edge)) {
+    ui.chunkStatus.textContent = "That edge already has the room’s perimeter wall · no duplicate was added";
+    ui.chunkStatus.className = "status bad";
+    return;
+  }
+  state.selected = { c, r, edge };
+  state.edits = BP.editCell(state.edits, c, r, state.layoutTool, BP.edgeRotation(edge), edge);
+  state.buildAnchor = ["wall", "lowWall"].includes(state.layoutTool) ? { c, r, edge } : null;
+  refreshDocument();
+  rebuildAll();
+  ui.rotationLabel.textContent = edge + " edge selected";
+  ui.chunkStatus.textContent = moduleLabel(state.layoutTool) + " placed between squares";
+  ui.chunkStatus.className = "status good";
+  updateDirectUI();
+  recordHistory(moduleLabel(state.layoutTool) + " placed on edge");
+}
+function removeSelectedArchitecture() {
+  if (!state.selected?.edge) return;
+  const item = explicitArchitectureAt(state.selected.c, state.selected.r, state.selected.edge);
+  if (!item) return;
+  const removed = moduleLabel(item.kind);
+  state.edits = BP.editCell(state.edits, state.selected.c, state.selected.r, "erase", 0, state.selected.edge);
+  state.selected = null;
+  state.buildAnchor = null;
+  refreshDocument();
+  rebuildAll();
+  ui.chunkStatus.textContent = removed + " removed from its boundary";
+  ui.chunkStatus.className = "status good";
+  updateDirectUI();
+  recordHistory("Selected architecture removed");
 }
 function applyEdit(c, r) {
   const info = cellInfo(c, r);
@@ -908,8 +2357,15 @@ function applyEdit(c, r) {
   const existing = explicitArchitectureAt(c, r);
   if (existing && state.tool !== "erase") {
     state.selected = { c, r };
-    if (["wall", "lowWall", "door"].includes(existing.kind)) setTool(existing.kind, false);
+    if (["wall", "lowWall", "door"].includes(existing.kind)) {
+      state.layoutTool = existing.kind;
+      setTool(existing.kind, false);
+      document.querySelectorAll("[data-layout-tool]").forEach((button) => {
+        button.classList.toggle("active", button.dataset.layoutTool === existing.kind);
+      });
+    }
     setRotation(existing.rotation, false);
+    state.buildAnchor = ["wall", "lowWall"].includes(existing.kind) ? { c, r } : null;
     ui.rotationLabel.textContent = moduleLabel(existing.kind) + " selected";
     ui.chunkStatus.textContent = ["wall", "lowWall", "door"].includes(existing.kind)
       ? "selected · arrows rotate in place"
@@ -928,17 +2384,79 @@ function applyEdit(c, r) {
   }
   state.selected = { c, r };
   state.edits = BP.editCell(state.edits, c, r, state.tool, state.rotation);
+  state.buildAnchor = ["wall", "lowWall"].includes(state.layoutTool) && state.tool !== "erase" ? { c, r } : null;
   refreshDocument();
   rebuildCellChunk(c, r);
   drawSelection();
   drawScrawl();
   ui.rotationLabel.textContent = state.tool === "erase" ? "Placement angle" : moduleLabel(state.tool) + " selected";
+  updateDirectUI();
+  recordHistory(state.tool === "erase" ? "Architecture erased" : moduleLabel(state.tool) + " placed");
+}
+function inspectCell(c, r) {
+  const info = cellInfo(c, r);
+  if (!info) {
+    ui.chunkStatus.textContent = "Browse safe · outside playable ground";
+    ui.chunkStatus.className = "status";
+    return;
+  }
+  const existing = explicitArchitectureAt(c, r);
+  if (existing) {
+    state.selected = { c, r };
+    setRotation(existing.rotation, false);
+    ui.rotationLabel.textContent = moduleLabel(existing.kind) + " inspected";
+    ui.chunkStatus.textContent = "Browse safe · no map change";
+    ui.chunkStatus.className = "status good";
+    drawSelection();
+    drawScrawl();
+    drawArtwork();
+    requestRender();
+  } else {
+    state.selected = null;
+    ui.chunkStatus.textContent = "Browse safe · " + (info.space || info.corridor || info.region);
+    ui.chunkStatus.className = "status good";
+    drawSelection();
+    drawScrawl();
+    drawArtwork();
+  }
+}
+function applyMapClick(c, r, options = {}) {
+  if (state.flagPlacement) placeGroupFlag(c, r);
+  else if (state.workflow === "map") {
+    if (state.mode !== "build") {
+      selectLayoutAt(c, r, !!options.additive);
+    } else if (state.mapTab === "objects") placeObject(c, r);
+    else if (state.mapTab === "layout" && state.layoutTool === "select") {
+      if (!options.additive && selectArchitectureAtBoundary(c, r, options.edge)) return;
+      selectLayoutAt(c, r, !!options.additive);
+    } else if (state.mapTab === "appearance" || state.mapTab === "areas") {
+      selectLayoutAt(c, r, !!options.additive);
+    }
+    else if (state.layoutTool === "corridor") {
+      state.buildAnchor = { c, r };
+      state.selected = { c, r };
+      state.linePreview = [];
+      ui.layoutToolGuidance.innerHTML = "<strong>Passage anchor set.</strong> Hold or drag a gold arrow to choose its direction and length.";
+      drawSelection();
+      drawScrawl();
+      drawArtwork();
+      updateDirectUI();
+      requestRender();
+    } else if (["wall", "lowWall", "door", "erase"].includes(state.layoutTool)) {
+      applyEdgeEdit(c, r, options.edge);
+    } else if (state.layoutTool !== "room") applyEdit(c, r);
+  } else if (state.mode === "build") applyEdit(c, r);
+  else inspectCell(c, r);
 }
 
 const raycaster = new THREE.Raycaster();
 const pointer = new THREE.Vector2();
-renderer.domElement.addEventListener("pointerup", (event) => {
-  if (event.button !== 0) return;
+let boardPointerStart = null;
+function nearestCellEdge(localX, localY) {
+  const distances = { W: localX, E: 1 - localX, N: localY, S: 1 - localY };
+  return Object.keys(distances).reduce((best, edge) => distances[edge] < distances[best] ? edge : best, "N");
+}
+function boardCellFromEvent(event, allowEmpty) {
   const rect = renderer.domElement.getBoundingClientRect();
   pointer.x = (event.clientX - rect.left) / rect.width * 2 - 1;
   pointer.y = -(event.clientY - rect.top) / rect.height * 2 + 1;
@@ -946,34 +2464,504 @@ renderer.domElement.addEventListener("pointerup", (event) => {
   const meshes = [];
   boardRoot.traverse((child) => { if (child.userData.pickableFloor) meshes.push(child); });
   const hit = raycaster.intersectObjects(meshes, false)[0];
-  if (!hit || hit.instanceId == null) return;
-  const cell = hit.object.userData.cells[hit.instanceId];
-  if (cell) applyEdit(cell.c, cell.r);
+  let point = hit?.point || null;
+  let cell = hit && hit.instanceId != null ? hit.object.userData.cells[hit.instanceId] : null;
+  if (!cell) {
+    point = new THREE.Vector3();
+    const ground = new THREE.Plane(new THREE.Vector3(0, 1, 0), 0);
+    if (raycaster.ray.intersectPlane(ground, point)) {
+      const c = Math.floor(point.x + state.map.cols / 2), r = Math.floor(point.z + state.map.rows / 2);
+      if (c >= 0 && r >= 0 && c < state.map.cols && r < state.map.rows && (allowEmpty || cellInfo(c, r))) cell = { c, r };
+    }
+  }
+  if (cell && point) {
+    const localX = Math.max(0, Math.min(1, point.x - worldX(cell.c) + 0.5));
+    const localY = Math.max(0, Math.min(1, point.z - worldZ(cell.r) + 0.5));
+    cell = { ...cell, edge: nearestCellEdge(localX, localY) };
+  }
+  return cell;
+}
+renderer.domElement.addEventListener("pointerdown", (event) => {
+  if (event.button !== 0) return;
+  hideBuildRadial();
+  const roomBuilding = state.workflow === "map" && state.mode === "build" && state.mapTab === "layout" && state.layoutTool === "room";
+  const cell = roomBuilding ? boardCellFromEvent(event, true) : null;
+  boardPointerStart = { x: event.clientX, y: event.clientY, cell };
+  if (roomBuilding && cell) {
+    controls.enabled = false;
+    state.roomPreview = { from: cell, to: cell };
+    drawSelection();
+    drawScrawl();
+    drawArtwork();
+  }
+}, true);
+renderer.domElement.addEventListener("pointermove", (event) => {
+  if (!state.roomPreview) return;
+  const cell = boardCellFromEvent(event, true);
+  if (!cell) return;
+  state.roomPreview.to = cell;
+  drawSelection();
+  drawScrawl();
+  drawArtwork();
+  requestRender();
+}, true);
+renderer.domElement.addEventListener("pointerup", (event) => {
+  if (event.button !== 0) return;
+  if (state.roomPreview) {
+    const from = state.roomPreview.from;
+    const to = boardCellFromEvent(event, true) || state.roomPreview.to;
+    controls.enabled = true;
+    commitRoom(from, to);
+    boardPointerStart = null;
+    return;
+  }
+  if (boardPointerStart && Math.hypot(event.clientX - boardPointerStart.x, event.clientY - boardPointerStart.y) > 5) return;
+  const cell = boardCellFromEvent(event, false);
+  if (cell) applyMapClick(cell.c, cell.r, { additive: event.shiftKey, edge: cell.edge });
+  else {
+    ui.chunkStatus.textContent = "No battlefield cell there";
+    ui.chunkStatus.className = "status bad";
+  }
+}, true);
+function bindCanvasMap(canvas, transformName) {
+  let start = null;
+  function canvasCell(event) {
+    const rect = canvas.getBoundingClientRect(), transform = state[transformName];
+    if (!transform) return null;
+    const ratioX = canvas.width / rect.width, ratioY = canvas.height / rect.height;
+    const x = (event.clientX - rect.left) * ratioX, y = (event.clientY - rect.top) * ratioY;
+    const mapX = (x - transform.ox) / transform.cell, mapY = (y - transform.oy) / transform.cell;
+    const c = Math.floor(mapX), r = Math.floor(mapY);
+    return c >= 0 && r >= 0 && c < state.map.cols && r < state.map.rows
+      ? { c, r, edge: nearestCellEdge(mapX - c, mapY - r) }
+      : null;
+  }
+  canvas.addEventListener("pointerdown", (event) => {
+    if (event.button !== 0) return;
+    hideBuildRadial();
+    const cell = canvasCell(event);
+    start = { x: event.clientX, y: event.clientY, cell };
+    if (cell && state.workflow === "map" && state.mode === "build" && state.mapTab === "layout" && state.layoutTool === "room") {
+      state.roomPreview = { from: cell, to: cell };
+      canvas.setPointerCapture?.(event.pointerId);
+      drawSelection();
+      drawScrawl();
+      drawArtwork();
+    }
+  });
+  canvas.addEventListener("pointermove", (event) => {
+    if (!state.roomPreview) return;
+    const cell = canvasCell(event);
+    if (!cell) return;
+    state.roomPreview.to = cell;
+    drawSelection();
+    drawScrawl();
+    drawArtwork();
+  });
+  canvas.addEventListener("pointerup", (event) => {
+    const cell = canvasCell(event);
+    if (state.roomPreview) {
+      const from = state.roomPreview.from;
+      commitRoom(from, cell || state.roomPreview.to);
+      start = null;
+      return;
+    }
+    if (start && Math.hypot(event.clientX - start.x, event.clientY - start.y) > 5) return;
+    if (cell) applyMapClick(cell.c, cell.r, { additive: event.shiftKey, edge: cell.edge });
+  });
+}
+bindCanvasMap(ui.scrawlStage, "scrawlTransform");
+bindCanvasMap(ui.artworkStage, "artworkTransform");
+document.querySelector(".stage-shell")?.addEventListener("contextmenu", (event) => {
+  if (state.mode !== "build" || event.target.closest("button,nav,.authoring-bar,.build-radial")) return;
+  event.preventDefault();
+  showBuildRadial(event.clientX, event.clientY);
 });
-ui.scrawlStage.addEventListener("pointerup", (event) => {
-  const rect = ui.scrawlStage.getBoundingClientRect(), transform = state.scrawlTransform;
-  if (!transform) return;
-  const ratioX = ui.scrawlStage.width / rect.width, ratioY = ui.scrawlStage.height / rect.height;
-  const x = (event.clientX - rect.left) * ratioX, y = (event.clientY - rect.top) * ratioY;
-  const c = Math.floor((x - transform.ox) / transform.cell), r = Math.floor((y - transform.oy) / transform.cell);
-  if (c >= 0 && r >= 0 && c < state.map.cols && r < state.map.rows) applyEdit(c, r);
+document.addEventListener("pointerdown", (event) => {
+  if (!ui.buildRadial.hidden && !event.target.closest("#buildRadial")) hideBuildRadial();
 });
+
+let lineGesture = null;
+function moveLineGesture(event) {
+  if (!lineGesture) return;
+  const vectors = { n: [0, -1], e: [1, 0], s: [0, 1], w: [-1, 0] };
+  const vector = vectors[lineGesture.direction];
+  const projected = (event.clientX - lineGesture.startX) * vector[0] + (event.clientY - lineGesture.startY) * vector[1];
+  const length = Math.max(1, Math.min(40, 1 + Math.floor(projected / Math.max(16, Number(lineGesture.button.dataset.stepPx) || 28))));
+  if (length !== lineGesture.length) {
+    lineGesture.length = length;
+    previewLine(lineGesture.direction, length);
+  }
+}
+function endLineGesture(commit) {
+  if (!lineGesture) return;
+  clearInterval(lineGesture.timer);
+  lineGesture.button.classList.remove("active");
+  document.querySelector(".stage-shell")?.classList.remove("line-building");
+  if (commit) commitLine();
+  else {
+    state.linePreview = [];
+    drawSelection();
+    drawScrawl();
+    drawArtwork();
+  }
+  lineGesture = null;
+}
+ui.buildHandles.querySelectorAll("[data-build-direction]").forEach((button) => {
+  button.addEventListener("pointerdown", (event) => {
+    if (!state.buildAnchor || state.mode !== "build") return;
+    event.preventDefault();
+    event.stopPropagation();
+    button.setPointerCapture?.(event.pointerId);
+    const direction = button.dataset.buildDirection;
+    lineGesture = {
+      button,
+      direction,
+      startX: event.clientX,
+      startY: event.clientY,
+      length: 1,
+      timer: setInterval(() => {
+        if (!lineGesture) return;
+        lineGesture.length++;
+        previewLine(direction, lineGesture.length);
+      }, 240)
+    };
+    button.classList.add("active");
+    document.querySelector(".stage-shell")?.classList.add("line-building");
+    previewLine(direction, 1);
+  });
+  button.addEventListener("pointermove", (event) => {
+    if (lineGesture?.button === button) moveLineGesture(event);
+  });
+  button.addEventListener("pointerup", (event) => {
+    event.preventDefault();
+    event.stopPropagation();
+    endLineGesture(true);
+  });
+  button.addEventListener("pointercancel", () => endLineGesture(false));
+});
+document.addEventListener("pointermove", moveLineGesture, true);
+document.addEventListener("pointerup", () => endLineGesture(true), true);
 
 document.querySelectorAll("[data-view]").forEach((button) => button.addEventListener("click", () => setView(button.dataset.view)));
 document.querySelectorAll("[data-quality]").forEach((button) => button.addEventListener("click", () => applyQuality(button.dataset.quality)));
 document.querySelectorAll("[data-fixture]").forEach((button) => button.addEventListener("click", () => loadFixture(button.dataset.fixture)));
 document.querySelectorAll("[data-tool]").forEach((button) => button.addEventListener("click", () => setTool(button.dataset.tool, true)));
+document.querySelectorAll("[data-workflow]").forEach((button) => button.addEventListener("click", () => setWorkflow(button.dataset.workflow)));
+document.querySelectorAll("[data-open-workflow]").forEach((button) => button.addEventListener("click", () => setWorkflow(button.dataset.openWorkflow)));
+document.querySelectorAll("[data-continue]").forEach((button) => button.addEventListener("click", () => setWorkflow(button.dataset.continue)));
+document.querySelectorAll("[data-source-choice]").forEach((button) => button.addEventListener("click", () => chooseSource(button.dataset.sourceChoice)));
+document.querySelectorAll("[data-theme]").forEach((button) => button.addEventListener("click", () => applyThemePreset(button.dataset.theme)));
+document.querySelectorAll("[data-map-tab]").forEach((button) => button.addEventListener("click", () => setMapTab(button.dataset.mapTab)));
+document.querySelectorAll("[data-layout-tool]").forEach((button) => button.addEventListener("click", () => activateLayoutTool(button.dataset.layoutTool)));
+document.querySelectorAll("[data-radial-tool]").forEach((button) => button.addEventListener("click", () => {
+  activateLayoutTool(button.dataset.radialTool);
+  hideBuildRadial();
+}));
+document.querySelectorAll("[data-object-kind]").forEach((button) => button.addEventListener("click", () => {
+  state.objectKind = button.dataset.objectKind;
+  document.querySelectorAll("[data-object-kind]").forEach((item) => item.classList.toggle("active", item.dataset.objectKind === state.objectKind));
+  ui.objectToolGuidance.innerHTML = "<strong>" + moduleLabel(state.objectKind) + " armed.</strong> Enter Build mode, then click a playable cell to place it.";
+}));
+document.querySelectorAll("[data-context-select]").forEach((button) => button.addEventListener("click", () => {
+  state.layoutTool = "select";
+  ui.chunkStatus.textContent = button.dataset.contextSelect === "appearance"
+    ? "Choose a room to change its appearance"
+    : "Choose rooms to edit their player reveal group";
+  ui.chunkStatus.className = "status good";
+}));
+document.querySelectorAll("[data-quick-map]").forEach((button) => button.addEventListener("click", () => {
+  if (button.dataset.quickMap === "blank") useBlueprint(BP.produceBlank());
+  else loadFixture(button.dataset.quickMap);
+}));
+document.querySelectorAll("[data-presentation]").forEach((button) => button.addEventListener("click", () => {
+  const mode = button.dataset.presentation;
+  document.querySelectorAll("[data-presentation]").forEach((item) => item.classList.toggle("active", item === button));
+  setMode("browse");
+  setView("board");
+  if (mode === "topdown") frameTopDown();
+  else if (mode === "beauty") {
+    if (state.fixtureKey === "processional" && state.discovered.has("choir")) focusHeroRoom();
+    else {
+      frameBoard();
+      ui.chunkStatus.textContent = "Beauty framed current discovery · no rooms revealed";
+      ui.chunkStatus.className = "status good";
+    }
+  } else frameBoard();
+}));
+ui.createSeeded.addEventListener("click", () => useBlueprint(BP.produceSeeded({
+  seed: Number(ui.seedInput.value),
+  topology: ui.seedTopology.value
+})));
+ui.analyzeSample.addEventListener("click", () => useBlueprint(BP.produceImportedSample()));
+ui.createBlank.addEventListener("click", () => useBlueprint(BP.produceBlank()));
+ui.toggleUnderlay.addEventListener("click", () => {
+  if (!state.blueprint.source?.underlay) return;
+  state.sourceUnderlay = !state.sourceUnderlay;
+  renderReviewFindings();
+  setView("artwork");
+  drawScrawl();
+  drawArtwork();
+});
+ui.acceptAllFindings.addEventListener("click", () => {
+  state.blueprint = BP.acceptImportFinding(state.blueprint, "all");
+  state.themeBase = BP.copy(state.blueprint);
+  refreshDocument();
+  renderReviewFindings();
+  recordHistory("All import findings confirmed");
+});
 ui.revealNext.addEventListener("click", revealNext);
+ui.pinnedReveal.addEventListener("click", () => {
+  setWorkflow("encounter");
+  revealNext();
+});
 ui.resetDiscovery.addEventListener("click", resetDiscovery);
 ui.focusHero.addEventListener("click", focusHeroRoom);
 ui.rotateLeft.addEventListener("click", () => setRotation(state.rotation - 90));
 ui.rotateRight.addEventListener("click", () => setRotation(state.rotation + 90));
-ui.zoneRegion.addEventListener("change", syncZoneValues);
+ui.directRotateLeft.addEventListener("click", () => setRotation(state.rotation - 90));
+ui.directRotateRight.addEventListener("click", () => setRotation(state.rotation + 90));
+ui.directBuildMode.addEventListener("click", () => setMode(state.mode === "build" ? "browse" : "build"));
+ui.clearLayoutSelection.addEventListener("click", clearLayoutSelection);
+ui.divideVertical.addEventListener("click", () => {
+  const space = selectedSpaces()[0];
+  if (!space || state.mode !== "build") return;
+  state.edits = BP.divideSpace(state.edits, state.blueprint, space.id, "vertical");
+  refreshDocument();
+  rebuildAll();
+  ui.selectionActionNote.textContent = "Divider placed with a doorway. Use Wall on the doorway cell to close it completely.";
+  recordHistory(space.label + " divided vertically");
+});
+ui.divideHorizontal.addEventListener("click", () => {
+  const space = selectedSpaces()[0];
+  if (!space || state.mode !== "build") return;
+  state.edits = BP.divideSpace(state.edits, state.blueprint, space.id, "horizontal");
+  refreshDocument();
+  rebuildAll();
+  ui.selectionActionNote.textContent = "Divider placed with a doorway. Use Wall on the doorway cell to close it completely.";
+  recordHistory(space.label + " divided horizontally");
+});
+ui.connectSelected.addEventListener("click", () => {
+  const spaces = selectedSpaces();
+  if (spaces.length !== 2 || state.mode !== "build") return;
+  const before = new Set(state.blueprint.corridors.map((corridor) => corridor.id));
+  const next = BP.connectSpaces(state.blueprint, spaces[0].id, spaces[1].id, 2);
+  const created = next.corridors.find((corridor) => !before.has(corridor.id));
+  if (!created) return;
+  state.blueprint = next;
+  state.themeBase = BP.copy(next);
+  state.layoutSpaces = [];
+  state.layoutPassage = created.id;
+  refreshDocument();
+  rebuildAll();
+  updateDirectUI();
+  recordHistory("Selected rooms connected");
+});
+ui.removeSelectedPassage.addEventListener("click", () => {
+  if (!state.layoutPassage || state.mode !== "build") return;
+  const next = BP.removePassage(state.blueprint, state.layoutPassage);
+  if (next === state.blueprint) return;
+  state.blueprint = next;
+  state.themeBase = BP.copy(next);
+  state.layoutPassage = null;
+  refreshDocument();
+  rebuildAll();
+  updateDirectUI();
+  recordHistory("Selected passage removed");
+});
+ui.removeSelectedArchitecture.addEventListener("click", removeSelectedArchitecture);
+ui.applySelectedAppearance.addEventListener("click", () => {
+  const space = selectedSpaces()[0];
+  if (!space || state.mode !== "build") return;
+  state.blueprint = BP.changeSpace(state.blueprint, space.id, Number(ui.selectedElevation.value), ui.selectedMaterial.value);
+  state.themeBase = BP.copy(state.blueprint);
+  refreshDocument();
+  rebuildAll();
+  updateDirectUI();
+  recordHistory(space.label + " appearance changed");
+});
+ui.groupRevealSelected.addEventListener("click", () => {
+  const spaces = selectedSpaces();
+  if (spaces.length < 2 || state.mode !== "build") return;
+  const keepId = spaces[0].discoveryRegion;
+  const absorbed = [];
+  spaces.slice(1).forEach((space) => {
+    if (space.discoveryRegion === keepId || absorbed.includes(space.discoveryRegion)) return;
+    state.blueprint = BP.mergeAreas(state.blueprint, keepId, space.discoveryRegion);
+    absorbed.push(space.discoveryRegion);
+  });
+  absorbed.forEach((id) => state.discovered.delete(id));
+  state.discovered.add(keepId);
+  state.themeBase = BP.copy(state.blueprint);
+  updateRegionControls();
+  refreshDocument();
+  rebuildAll();
+  updateDirectUI();
+  recordHistory("Selected rooms grouped for reveal");
+});
+ui.openLegacyGrid.addEventListener("click", () => {
+  state.gridVisible = true;
+  syncGridControls();
+  buildGrid();
+  drawScrawl();
+  drawArtwork();
+  setView("blueprint");
+  ui.selectionActionNote.textContent = "Blueprint view now shows the same calibrated grid used by Combat.";
+  requestRender();
+});
+ui.zoneRegion.addEventListener("change", () => {
+  state.areaFocus = ui.zoneRegion.value;
+  syncZoneValues();
+  refreshAreaFocus();
+});
+ui.toggleAreaHighlight.addEventListener("click", () => {
+  state.areaHighlight = !state.areaHighlight;
+  ui.toggleAreaHighlight.setAttribute("aria-pressed", String(state.areaHighlight));
+  refreshAreaFocus();
+});
+ui.renameArea.addEventListener("click", () => {
+  const regionId = state.areaFocus;
+  const label = ui.areaName.value.trim();
+  if (!regionId || !label || label === areaLabel(regionId)) return;
+  state.blueprint = BP.renameArea(state.blueprint, regionId, label);
+  state.themeBase = BP.copy(state.blueprint);
+  updateRegionControls();
+  refreshDocument();
+  refreshAreaFocus();
+  recordHistory("Area renamed");
+});
+ui.areaDressTogether.addEventListener("change", () => {
+  state.blueprint = BP.setAreaSetting(state.blueprint, state.areaFocus, "dressTogether", ui.areaDressTogether.checked);
+  state.themeBase = BP.copy(state.blueprint);
+  updateAreaInspector();
+  recordHistory("Area dressing link changed");
+});
+ui.areaRevealTogether.addEventListener("change", () => {
+  state.blueprint = BP.setAreaSetting(state.blueprint, state.areaFocus, "revealTogether", ui.areaRevealTogether.checked);
+  state.themeBase = BP.copy(state.blueprint);
+  updateAreaInspector();
+  recordHistory("Area reveal link changed");
+});
+ui.splitArea.addEventListener("click", () => {
+  const regionId = state.areaFocus;
+  const beforeIds = new Set(state.blueprint.discoveryRegions.map((region) => region.id));
+  const next = BP.splitArea(state.blueprint, regionId);
+  const created = next.discoveryRegions.find((region) => !beforeIds.has(region.id));
+  if (!created) {
+    ui.areaBoundaryNote.textContent = "This area has no rectangular room large enough to split in this proof.";
+    ui.areaBoundaryNote.closest(".boundary-report")?.classList.add("warn");
+    return;
+  }
+  state.blueprint = next;
+  state.themeBase = BP.copy(next);
+  if (state.discovered.has(regionId)) state.discovered.add(created.id);
+  state.areaFocus = created.id;
+  updateRegionControls();
+  refreshDocument();
+  rebuildAll();
+  recordHistory("Area split");
+});
+ui.mergeArea.addEventListener("click", () => {
+  const keepId = state.areaFocus;
+  const absorbId = ui.areaMergeTarget.value;
+  if (!keepId || !absorbId) return;
+  state.blueprint = BP.mergeAreas(state.blueprint, keepId, absorbId);
+  state.themeBase = BP.copy(state.blueprint);
+  state.discovered.delete(absorbId);
+  if (!state.discovered.size) state.discovered.add(keepId);
+  updateRegionControls();
+  refreshDocument();
+  rebuildAll();
+  recordHistory("Areas merged");
+});
 ui.applyZone.addEventListener("click", () => {
   const region = ui.zoneRegion.value;
   state.blueprint = BP.changeZone(state.blueprint, region, Number(ui.zoneElevation.value), ui.zoneMaterial.value);
+  state.themeBase = BP.copy(state.blueprint);
   refreshDocument();
   rebuildRegion(region, true);
+  recordHistory("Region material changed");
+});
+ui.browseMode.addEventListener("click", () => setMode("browse"));
+ui.buildMode.addEventListener("click", () => setMode("build"));
+ui.buildModeInline.addEventListener("click", () => setMode(state.mode === "build" ? "browse" : "build"));
+ui.pinnedBuild.addEventListener("click", () => {
+  const entering = state.mode !== "build";
+  if (entering) setWorkflow("map", true);
+  setMode(entering ? "build" : "browse");
+});
+ui.undoAction.addEventListener("click", () => travelHistory("Undo"));
+ui.redoAction.addEventListener("click", () => travelHistory("Redo"));
+ui.pinnedUndo.addEventListener("click", () => travelHistory("Undo"));
+ui.pinnedRedo.addEventListener("click", () => travelHistory("Redo"));
+ui.brushExitBuild.addEventListener("click", () => setMode("browse"));
+ui.brushUndo.addEventListener("click", () => travelHistory("Undo"));
+ui.brushRedo.addEventListener("click", () => travelHistory("Redo"));
+ui.radialUndo.addEventListener("click", () => {
+  travelHistory("Undo");
+  hideBuildRadial();
+});
+ui.radialRedo.addEventListener("click", () => {
+  travelHistory("Redo");
+  hideBuildRadial();
+});
+ui.gridToggle.addEventListener("click", () => {
+  state.gridVisible = !state.gridVisible;
+  syncGridControls();
+  buildGrid();
+  drawScrawl();
+  drawArtwork();
+  requestRender();
+  recordHistory(state.gridVisible ? "Grid shown" : "Grid hidden");
+});
+ui.applyGrid.addEventListener("click", () => applyGridCalibration());
+document.querySelectorAll("[data-grid-nudge]").forEach((button) => button.addEventListener("click", () => {
+  const [axis, delta] = button.dataset.gridNudge.split(":");
+  const input = axis === "x" ? ui.gridOriginX : ui.gridOriginY;
+  input.value = String((Number(input.value) || 0) + Number(delta));
+  applyGridCalibration("Grid origin nudged");
+}));
+ui.compareHold.addEventListener("pointerdown", (event) => {
+  event.preventDefault();
+  ui.compareHold.setPointerCapture?.(event.pointerId);
+  setComparison(true);
+});
+["pointerup", "pointercancel", "lostpointercapture"].forEach((name) => {
+  ui.compareHold.addEventListener(name, () => setComparison(false));
+});
+document.addEventListener("keydown", (event) => {
+  const target = event.target;
+  const editing = target && (target.matches?.("input,select,textarea") || target.isContentEditable);
+  if ((event.metaKey || event.ctrlKey) && event.key.toLowerCase() === "z" && !editing) {
+    event.preventDefault();
+    travelHistory(event.shiftKey ? "Redo" : "Undo");
+  } else if (state.mode === "build" && state.selected?.edge && !editing && ["Delete", "Backspace"].includes(event.key)) {
+    event.preventDefault();
+    removeSelectedArchitecture();
+  } else if (event.key === "Escape") {
+    if (!ui.buildRadial.hidden) {
+      hideBuildRadial();
+      return;
+    }
+    endLineGesture(false);
+    state.roomPreview = null;
+    controls.enabled = true;
+    state.flagPlacement = null;
+    setMode("browse");
+    renderDeploymentGroups();
+  } else if (state.mode === "build" && !editing && !event.metaKey && !event.ctrlKey && !event.altKey) {
+    const shortcut = { v: "select", r: "room", p: "corridor", w: "wall", l: "lowWall", d: "door", e: "erase" }[event.key.toLowerCase()];
+    if (shortcut) {
+      event.preventDefault();
+      activateLayoutTool(shortcut);
+      hideBuildRadial();
+    } else if (event.key.toLowerCase() === "c" && !event.repeat) setComparison(true);
+  } else if (event.key.toLowerCase() === "c" && !event.repeat && !editing) {
+    setComparison(true);
+  }
+});
+document.addEventListener("keyup", (event) => {
+  if (event.key.toLowerCase() === "c") setComparison(false);
 });
 window.addEventListener("resize", resize);
 document.addEventListener("visibilitychange", () => {
@@ -983,10 +2971,20 @@ document.addEventListener("visibilitychange", () => {
 try {
   updateRegionControls();
   refreshDocument();
+  state.groups = defaultGroups();
+  renderReviewFindings();
+  renderDeploymentGroups();
+  syncGridControls();
   applyQuality("balanced");
   rebuildAll();
-  frameBoard();
-  setView("diorama");
+  frameTopDown();
+  setView("board");
+  setMode("browse");
+  resetHistory();
+  chooseSource("generate");
+  setLayoutTool("select");
+  setMapTab("layout");
+  setWorkflow("map");
 } catch (error) {
   console.error(error);
   ui.fatal.textContent = "The standalone proof could not start: " + error.message;
