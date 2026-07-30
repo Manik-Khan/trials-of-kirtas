@@ -1,0 +1,117 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Forge Artwork Interpreter · local proof</title>
+<link rel="stylesheet" href="mock-forge-image-importer.css?v=ii2">
+</head>
+<body>
+<header class="topbar">
+  <div><span>Battle Forge · local interpretation proof</span><h1>Artwork → Blueprint</h1></div>
+  <div class="contract"><small>Output contract</small><strong>forge-blueprint/v1</strong></div>
+</header>
+
+<main>
+  <aside class="source-panel">
+    <section>
+      <span class="eyebrow">01 · Source</span>
+      <h2>Choose battle-map artwork.</h2>
+      <p>The image stays on this device. This proof uses browser pixels—not a network service or hidden sample.</p>
+      <label class="file-drop" for="imageFile">
+        <b>Choose local image</b>
+        <span>JPEG, PNG, or WebP</span>
+        <input id="imageFile" type="file" accept="image/jpeg,image/png,image/webp">
+      </label>
+      <div class="source-receipt" id="sourceReceipt"><strong>No image selected</strong><span>Nothing has been analyzed.</span></div>
+    </section>
+
+    <section id="gridPanel" class="disabled">
+      <span class="eyebrow">02 · Scale</span>
+      <h2>How should squares be read?</h2>
+      <div class="segmented" aria-label="Grid source">
+        <button type="button" class="active" data-grid-mode="auto">Auto</button>
+        <button type="button" data-grid-mode="gridded">Gridded</button>
+        <button type="button" data-grid-mode="ungridded">No grid</button>
+      </div>
+      <div class="grid-evidence" id="gridEvidence">Choose artwork to inspect repeated line evidence.</div>
+      <div class="calibration" id="griddedControls">
+        <label>Cell size <span><input id="gridCellPx" type="number" min="4" value="100"> px</span></label>
+        <label>X origin <span><input id="gridOriginX" type="number" value="0"> px</span></label>
+        <label>Y origin <span><input id="gridOriginY" type="number" value="0"> px</span></label>
+      </div>
+      <div class="calibration" id="ungriddedControls" hidden>
+        <label>Map width <span><input id="targetColumns" type="number" min="12" max="80" value="35"> squares</span></label>
+      </div>
+      <button type="button" class="secondary wide" id="redetectGrid">Inspect grid again</button>
+      <button type="button" class="primary wide" id="analyzeImage">Interpret this artwork</button>
+    </section>
+
+    <section id="paintPanel" class="disabled">
+      <span class="eyebrow">04 · Correct</span>
+      <h2>Paint what the proposal missed.</h2>
+      <p>Corrections change the semantic Blueprint proposal, never the source artwork.</p>
+      <div class="brushes" id="materialBrushes"></div>
+      <div class="walk-brushes">
+        <button type="button" data-walkable="true"><b>✓</b> Walkable</button>
+        <button type="button" data-walkable="false"><b>×</b> Blocked</button>
+      </div>
+      <button type="button" id="clearBrush">Inspect only</button>
+    </section>
+  </aside>
+
+  <section class="stage-panel">
+    <div class="stage-head">
+      <div><span class="eyebrow">03 · Evidence</span><h2 id="stageTitle">No artwork loaded</h2></div>
+      <div class="layer-tabs" aria-label="Interpretation layer">
+        <button type="button" class="active" data-layer="source">Source</button>
+        <button type="button" data-layer="materials">Materials</button>
+        <button type="button" data-layer="walkability">Walkability</button>
+        <button type="button" data-layer="confidence">Confidence</button>
+      </div>
+    </div>
+    <div class="canvas-shell" id="canvasShell">
+      <div class="empty-state" id="emptyState"><b>Local artwork appears here.</b><span>Upload a map, establish its scale, then inspect the proposed features.</span></div>
+      <div class="canvas-stack" id="canvasStack" hidden>
+        <canvas id="sourceCanvas" aria-label="Uploaded battle-map artwork"></canvas>
+        <canvas id="overlayCanvas" aria-label="Editable interpretation overlay"></canvas>
+      </div>
+    </div>
+    <div class="stage-status" id="stageStatus">Waiting for local artwork.</div>
+  </section>
+
+  <aside class="evidence-panel">
+    <section>
+      <span class="eyebrow">Interpretation receipt</span>
+      <h2 id="sceneProfile">No scene proposed</h2>
+      <p id="sceneDetail">The importer will report what it inferred and what remains uncertain.</p>
+      <dl class="metrics">
+        <div><dt>Grid</dt><dd id="metricGrid">—</dd></div>
+        <div><dt>Cells</dt><dd id="metricCells">—</dd></div>
+        <div><dt>Walkable</dt><dd id="metricWalkable">—</dd></div>
+        <div><dt>Corrections</dt><dd id="metricCorrected">—</dd></div>
+      </dl>
+    </section>
+    <section>
+      <span class="eyebrow">Material proposal</span>
+      <div class="material-summary" id="materialSummary"><p>No pixel classifications yet.</p></div>
+    </section>
+    <section>
+      <span class="eyebrow">Selected square</span>
+      <div class="cell-detail" id="cellDetail"><p>Click the overlay to inspect a square.</p></div>
+    </section>
+    <section>
+      <span class="eyebrow">Review before Build</span>
+      <div class="finding-list" id="findingList"><p>Interpretation findings will remain editable here.</p></div>
+      <button type="button" class="primary wide" id="enterBuild" disabled>Open editable Blueprint in Build</button>
+      <p class="boundary">This is an isolated proof. It does not modify production Forge or upload licensed artwork.</p>
+    </section>
+  </aside>
+</main>
+
+<div class="fatal" id="fatal" role="alert"></div>
+<script src="mock-forge-blueprint-diorama-core.js?v=bp18"></script>
+<script src="mock-forge-image-importer-core.js?v=ii2"></script>
+<script src="mock-forge-image-importer.js?v=ii2"></script>
+</body>
+</html>

@@ -20,9 +20,9 @@ has(html,'function rollActionDamage(a,crit,extras)','attack resolution emits com
 has(html,'dmgParts:damage?damage.parts:null','shared attack facts carry damage components');
 has(html,'dmgParts:damage.parts','local attack facts carry damage components');
 ok(/\.\.\/weapon-actions\.js\?v=fg(?:3|2e1|2f|2g|2h)/.test(html),'weapon-action import is cache-busted');
-has(html,'forge-capabilities.js?v=fc2','shared capability contract cache stamp present');
+has(html,'forge-capabilities.js?v=fc3','shared capability contract cache stamp present');
 has(html,'forge-capability-resolver.js?v=fcrs1','shared capability resolver cache stamp present');
-has(html,'forge-kit-derive.js?v=b17','kit derivation cache stamp bumped');
+has(html,'forge-kit-derive.js?v=b18','kit derivation cache stamp bumped');
 ok(/forge-feed-render\.js\?v=(?:b3|ffr6)/.test(html),'feed renderer cache stamp bumped');
 has(html,'forge-table-correctness.js?v=fg12','table-correctness cache stamp bumped');
 ok(html.indexOf('var DISCOVERY_RENDER={') < html.indexOf('resize(); rebuild();'),'discovery renderer still initializes before the first terrain build');

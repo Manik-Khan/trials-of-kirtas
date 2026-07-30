@@ -6,7 +6,7 @@
   [
     "stageKicker", "stageTitle", "mapCanvas", "previewKind", "previewName", "mapLegend", "stageToast",
     "candidateDeck", "templateDeck", "receiptProducer", "receiptTopology", "receiptStructure", "receiptField",
-    "guideTitle", "guideCopy", "generationBrief", "generateDirections", "refineRequest", "refineDirections",
+    "guideTitle", "guideCopy", "generationBrief", "generateDirections", "refineDirections",
     "lockDirection", "layoutSeed", "roomDensity", "roomDensityValue", "verticality", "selectionEyebrow",
     "selectionTitle", "selectionDetail", "approveBlueprint", "templateTag", "templateName", "templateDescription",
     "useTemplate", "useSampleMap", "importCellPx", "importOriginX", "importOriginY", "interpretMap",
@@ -64,7 +64,8 @@
     blueprint: null,
     template: "processional",
     importInterpreted: false,
-    blankStart: "room",
+    blankSize: "medium",
+    handoff: null,
     toastTimer: null
   };
 
@@ -109,11 +110,20 @@
     if (group === "size") state.size = value;
   }
   function makeCandidates() {
-    var keys = ["processional", "vault", "warren"];
-    var chosen = state.shape === "surprise" ? keys : [state.shape].concat(keys.filter(function (key) { return key !== state.shape; }));
-    var next = chosen.slice(0, 3).map(function (topology, index) {
-      return BP.produceSeeded({ seed: state.seed + index, topology: topology });
+    var next = [0, 1, 2].map(function (candidate) {
+      var blueprint = BP.produceSeeded({
+        seed: state.seed,
+        candidate: candidate,
+        topology: state.shape,
+        size: state.size,
+        density: Number(ui.roomDensity.value),
+        verticality: ui.verticality.value
+      });
+      blueprint.source.authoredNote = ui.generationBrief.value.trim();
+      return blueprint;
     });
+    var fingerprints = next.map(BP.structuralFingerprint);
+    if (new Set(fingerprints).size !== next.length) throw new Error("Candidate structures were not distinct.");
     if (state.lockedBlueprint) next[0] = copy(state.lockedBlueprint);
     state.candidates = next;
     state.candidateIndex = 0;
@@ -127,13 +137,14 @@
     state.candidates.forEach(function (blueprint, index) {
       var key = topologyKey(blueprint);
       var copyText = TOPOLOGY_COPY[key] || [blueprint.topology, "Editable Blueprint"];
+      var fingerprint = BP.structuralFingerprint(blueprint).replace("struct-", "");
       var button = document.createElement("button");
       button.type = "button";
       button.className = "candidate-card" + (index === state.candidateIndex ? " active" : "");
       button.dataset.candidate = String(index);
       button.innerHTML = '<canvas width="240" height="112"></canvas><span><b>' + copyText[0]
         + (state.lockedBlueprint && index === 0 ? '<em class="kept">Kept</em>' : "")
-        + '</b><small>' + copyText[1] + "</small></span>";
+        + '</b><small>' + copyText[1] + " · " + fingerprint + "</small></span>";
       button.addEventListener("click", function () {
         state.candidateIndex = index;
         state.blueprint = state.candidates[index];
@@ -224,9 +235,11 @@
     ui.receiptProducer.textContent = sourceLabel(state.blueprint);
     ui.receiptTopology.textContent = topologyText[0];
     ui.receiptStructure.textContent = state.blueprint.spaces.length + " rooms · " + state.blueprint.corridors.length + " passages";
-    ui.receiptField.textContent = status.valid && status.connected ? "Connected · valid" : "Needs review";
+    ui.receiptField.textContent = status.valid && status.connected ? "Connected · valid" : status.field.meta.producer.kind === "blank" ? "First room required" : "Needs review";
     ui.selectionTitle.textContent = state.blueprint.name.replace(/ · Seed \d+$/, "");
-    ui.selectionDetail.textContent = status.valid && status.connected ? "Everything remains editable." : "Review the highlighted findings first.";
+    ui.selectionDetail.textContent = status.valid && status.connected
+      ? "Identity " + state.blueprint.id + " · " + BP.fingerprint(state.blueprint)
+      : status.field.meta.producer.kind === "blank" ? "Build opens armed so you can draw the first room." : "Review the highlighted findings first.";
     ui.approveBlueprint.disabled = !(status.valid && status.connected) || (state.method === "import" && !allImportAccepted());
   }
   function renderBlueprint() {
@@ -257,7 +270,7 @@
     if (method === "generate") state.blueprint = state.candidates[state.candidateIndex];
     if (method === "template") state.blueprint = BP.withSource(BP.FIXTURES[state.template], "fixture", { fixtureKey: state.template, deterministic: true });
     if (method === "import") state.blueprint = BP.produceImportedSample();
-    if (method === "blank") state.blueprint = BP.produceBlank();
+    if (method === "blank") state.blueprint = BP.produceBlank({ size: state.blankSize });
     ui.selectionEyebrow.textContent = method === "generate" ? "Selected direction" : method === "template" ? "Selected template" : method === "import" ? "Interpreted proposal" : "Blank starting point";
     setJourney("source");
     if (method === "import") renderImportFindings();
@@ -306,7 +319,13 @@
     setJourney("blueprint");
     var labels = { generate: ["✦", "Generate"], template: ["▦", "Template"], import: ["◫", "Imported image"], blank: ["□", "Blank map"] };
     ui.handoffSourceIcon.textContent = labels[state.method][0]; ui.handoffSource.textContent = labels[state.method][1];
+    state.handoff = BP.createHandoff(state.blueprint, { armed: false, tool: "select" });
+    ui.proofBoundary.textContent = "Exact handoff · " + state.handoff.blueprintId + " · " + state.handoff.fingerprint;
     ui.handoff.hidden = false;
+  }
+  function enterBuild(blueprint, build) {
+    var handoff = BP.createHandoff(blueprint, build);
+    window.location.href = "mock-forge-blueprint-diorama.html#handoff=" + BP.encodeHandoff(handoff);
   }
 
   document.querySelectorAll("[data-method]").forEach(function (button) {
@@ -318,6 +337,13 @@
       document.querySelectorAll('[data-choice-group="' + group + '"] button').forEach(function (item) { item.classList.toggle("active", item === button); });
       if (group === "shape") state.shape = button.dataset.value;
       if (group === "size") state.size = button.dataset.value;
+      if (group === "blank-size") {
+        state.blankSize = button.dataset.value;
+        if (state.method === "blank") {
+          state.blueprint = BP.produceBlank({ size: state.blankSize });
+          renderBlueprint();
+        }
+      }
     });
   });
   document.querySelectorAll("[data-layer]").forEach(function (button) {
@@ -331,9 +357,8 @@
   });
   document.querySelectorAll("[data-blank-start]").forEach(function (button) {
     button.addEventListener("click", function () {
-      state.blankStart = button.dataset.blankStart;
       document.querySelectorAll("[data-blank-start]").forEach(function (item) { item.classList.toggle("active", item === button); });
-      ui.selectionDetail.textContent = state.blankStart === "empty" ? "The first action will be drawing a room." : "One room is ready to reshape.";
+      ui.selectionDetail.textContent = "The first action will be drawing a room.";
     });
   });
   ui.generateDirections.addEventListener("click", function () {
@@ -342,7 +367,7 @@
   });
   ui.refineDirections.addEventListener("click", function () {
     state.seed += 17; ui.layoutSeed.value = String(state.seed); makeCandidates();
-    showToast(ui.refineRequest.value.trim() ? "Refined around: " + ui.refineRequest.value.trim() : "Three fresh directions created.");
+    showToast("Three new structural directions created.");
   });
   ui.lockDirection.addEventListener("click", function () {
     state.lockedBlueprint = state.lockedBlueprint ? null : copy(state.blueprint);
@@ -374,9 +399,9 @@
     });
   });
   ui.startBlank.addEventListener("click", function () {
-    state.blueprint = BP.produceBlank(); setJourney("blueprint");
-    showToast("Open room ready to reshape.");
-    renderBlueprint();
+    state.blueprint = BP.produceBlank({ size: state.blankSize });
+    setJourney("build");
+    enterBuild(state.blueprint, { armed: true, tool: "room" });
   });
   ui.gridToggle.addEventListener("click", function () { state.grid = !state.grid; renderBlueprint(); });
   ui.approveBlueprint.addEventListener("click", openHandoff);
@@ -384,11 +409,23 @@
   ui.keepRefining.addEventListener("click", function () { ui.handoff.hidden = true; setJourney("directions"); });
   ui.enterBuild.addEventListener("click", function () {
     setJourney("build");
-    ui.proofBoundary.textContent = "Handoff proven: Build receives the same Blueprint. Production integration remains outside this mock.";
-    ui.enterBuild.textContent = "Build handoff confirmed ✓";
-    ui.enterBuild.disabled = true;
+    enterBuild(state.handoff.blueprint, state.handoff.build);
   });
   window.addEventListener("resize", function () { renderBlueprint(); });
+  window.__mapFoundryState = function () {
+    return {
+      method: state.method,
+      seed: state.seed,
+      candidateIndex: state.candidateIndex,
+      candidateIds: state.candidates.map(function (blueprint) { return blueprint.id; }),
+      fingerprints: state.candidates.map(BP.fingerprint),
+      structuralFingerprints: state.candidates.map(BP.structuralFingerprint),
+      selectedId: state.blueprint && state.blueprint.id,
+      selectedFingerprint: state.blueprint && BP.fingerprint(state.blueprint),
+      spaces: state.blueprint && state.blueprint.spaces.length,
+      corridors: state.blueprint && state.blueprint.corridors.length
+    };
+  };
 
   try {
     if (!BP || BP.SCHEMA !== "forge-blueprint/v1") throw new Error("The Blueprint proof authority did not load.");

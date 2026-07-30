@@ -5,8 +5,8 @@ Repo: `Manik-Khan/trials-of-kirtas` · vanilla JS/HTML/CSS + Supabase + Netlify 
 Walled React/Vite/TipTap corner at `journal/`.
 
 Updated: **July 30, 2026 (approved Forge Blueprint → Scrawl → modular-diorama
-proof, approved Map Foundry creation UX, next-session graph-generator → real
-Build handoff contract, Forge field-report correction, approved
+proof, approved Map Foundry creation UX, validated local graph-generator →
+exact Build proof candidate, Forge field-report correction, approved
 reaction/cover integration, disposable Test Fight production candidate,
 shared character capability contract, and the first typed-defense/teleport
 resolver slice, character-sheet source/progression alignment, and the first
@@ -45,27 +45,44 @@ cutaway, discovery, grid, undo/redo, and quality evidence share that document.
 
 M also approved the streamlined Map Foundry creation UX as its own opening
 section. `_edits/mock-forge-blueprint-diorama-creation.html` presents Generate,
-Templates, Import, and Blank as four equal producers that converge on
-`forge-blueprint/v1` before Build. That UX approval is **not** approval of its
-current functional placeholders:
+Templates, Import, and Blank as four equal doors that converge on
+`forge-blueprint/v1` before Build.
 
-- Generate currently chooses among the three authored topology fixtures; it is
-  not yet a graph-first generator producing new maps.
-- Blank currently returns one starter block and does not open the actual Build
-  tools on a genuinely empty grid.
-- the handoff explains Blueprint → Build but does not yet carry the exact
-  selected document into the working editor.
+A validated local proof candidate now closes the three functional gaps from
+that review. Generate uses a deterministic graph-first proof producer with
+real size/topology/density/verticality controls, pairwise-distinct candidate
+structures, connectivity auditing, and exact seed replay. The selected
+Blueprint reaches Build with the same identity and fingerprint. Blank carries
+zero rooms into Build with Room armed; the browser field run drew the first
+room, narrated the connected field, and undid back to zero rooms without
+leaving the flow.
 
-The next session owns one isolated end-to-end correction. Templates retain the
-three authored fixtures. Generate becomes a deterministic graph-first producer
-with real structural variety, connectivity validation/local repair, and exact
-seed replay. Generate, Template, Import, and a truly Blank grid must all carry
-the exact chosen Blueprint into the approved Build workspace. Blank opens with
-Build armed and the Room brush ready; the DM can draw the first room, then use
-passage/wall/door/ledge/erase/undo without leaving the flow. This remains proof
-work only: do not touch the live Forge, combat, protocol, production generator,
-character, or monster files. Exact ownership and acceptance gates are in
-`CONTEXT_Forge.md` and the current Forge handoff.
+**Import correction and new proof:** the creation screen's Import door remains
+a clearly labeled future-workflow preview backed by one hardcoded fixture; it
+is not the importer. A separate standalone local candidate now exists at
+`_edits/mock-forge-image-importer.html`. It reads a real user-selected
+JPEG/PNG/WebP entirely in the browser, proposes grid/scale, materials,
+walkability, connected regions, and fire features, lets the DM repaint
+materials or walkability per square, and sends that exact reviewed Blueprint
+into Build. The licensed source image is not copied into the repository or
+embedded in the Blueprint; Build restores only a private downsampled browser
+underlay.
+
+The two July 30 field maps proved intentionally different paths: the gridded
+city source detected a 23×36 grid and proposed a built plaza, while the
+ungridded camp used a DM-selected 35×63 scale and proposed a wetland/overgrown
+battlefield with water preserved visually but separately blocked for tactics.
+This is a color/texture/line interpretation proof, not semantic vision: roofs,
+tents, stages, walls, trees, and ruins are not yet reconstructed as reliable
+modular objects.
+
+The focused proofs pass **28/28** creation checks, **86/86**
+Blueprint/Diorama checks, and **37/37** local artwork-import checks; the six
+canonical Forge suites remain **151/151**, and the real browser flow has no
+console errors. This remains isolated proof work, not production promotion or
+M's final visual approval. Do not touch the live Forge, combat, protocol,
+production generator, character, or monster files. Exact ownership, evidence,
+and remaining gates are in `CONTEXT_Forge.md` and the current Forge handoff.
 
 ---
 

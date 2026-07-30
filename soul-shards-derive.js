@@ -29,6 +29,14 @@
   'use strict';
 
   function abilityMod(score) { return Math.floor(((score || 10) - 10) / 2); }
+  function readinessApi(deps) {
+    if (deps && deps.readiness) return deps.readiness;
+    if (typeof window !== 'undefined' && window.CharacterReadiness) return window.CharacterReadiness;
+    if (typeof require === 'function') {
+      try { return require('./character-readiness.js'); } catch (_err) {}
+    }
+    return null;
+  }
   function joinEntries(e) {
     if (typeof e === 'string') return e;
     if (Array.isArray(e)) return e.filter(function (x) { return typeof x === 'string'; }).join(' ');
@@ -344,6 +352,27 @@
       spellcasting: spellcasting,
       classFeatures: classFeatures
     };
+    // Save the exact grants this build assembled. Future Forge onboarding
+    // compares this manifest to the effective sheet, so a lost class, subclass,
+    // race, or feat row is caught without teaching Forge every class table.
+    var readiness = readinessApi(deps), expectedAt = {};
+    builds.forEach(function (b) {
+      (b.features || []).forEach(function (f) {
+        var k = String(f && f.name || '').trim().toLowerCase();
+        if (k && !expectedAt[k]) expectedAt[k] = b.className + ' ' + f.level;
+      });
+    });
+    (input.choices || []).forEach(function (row) {
+      var k = String(row && row.name || '').trim().toLowerCase();
+      if (k && !expectedAt[k]) expectedAt[k] = 'chosen ' + (row.origin || 'class') + ' feature';
+    });
+    (input.feats || []).forEach(function (row) {
+      var k = String(row && row.name || '').trim().toLowerCase();
+      if (k && !expectedAt[k]) expectedAt[k] = 'chosen feat';
+    });
+    if (input.readinessEnabled !== false && readiness && readiness.createManifest) {
+      structural.entitlements = readiness.createManifest({ structural: structural, expectedAt: expectedAt });
+    }
 
     return { structural: structural, _incomplete: incomplete };
   }

@@ -47,6 +47,13 @@
     }
     return null;
   }
+  function readinessApi() {
+    if (typeof globalThis !== "undefined" && globalThis.CharacterReadiness) return globalThis.CharacterReadiness;
+    if (typeof require === "function") {
+      try { return require('../character-readiness.js'); } catch (_err) {}
+    }
+    return null;
+  }
   function resourceDeriveApi() {
     return (typeof globalThis !== "undefined" && globalThis.ResourceDerive) || null;
   }
@@ -1315,7 +1322,12 @@ function combatErrorKit(charData, err) {
       derived:      true   // flag: this kit came from the derivation layer, not STARTER_KITS
     };
     var capabilities = capabilityApi();
-    return capabilities ? capabilities.attachToKit(charData, kit, { structural: s }) : kit;
+    if (capabilities) capabilities.attachToKit(charData, kit, { structural: s });
+    var readiness = readinessApi();
+    if (opts.readiness !== false && readiness && readiness.audit) {
+      readiness.decorateKit(kit, readiness.audit(charData, kit, { structural: s }));
+    }
+    return kit;
   }
 
   /* ── round-3 §C: normalized-label dedupe across attacks/spells/actions ──

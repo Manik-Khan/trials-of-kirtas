@@ -51,9 +51,11 @@
 <script src="../character-combat.js?v=um1"></script>
 <script src="../character-sheet-projection.js?v=cp1"></script>
 <script src="../resource-derive.js?v=fr1"></script>
-<script src="forge-capabilities.js?v=fc2"></script>
+<script src="../character-readiness.js?v=cr1"></script>
+<script src="forge-readiness-ui.js?v=fru1"></script>
+<script src="forge-capabilities.js?v=fc3"></script>
 <script src="forge-capability-resolver.js?v=fcrs1"></script>
-<script src="forge-kit-derive.js?v=b17"></script>
+<script src="forge-kit-derive.js?v=b18"></script>
 <script src="forge-action-damage.js?v=fad1"></script>
 <script src="forge-reaction-choices.js?v=frc1"></script>
 <script src="forge-damage-evidence.js?v=fde3"></script>
@@ -5137,6 +5139,7 @@ var __liveStatsLoading = null;
 var __liveStatsWarned = {};
 var __genericKitWarned = {};
 var USE_FORGE_BAR = true;       // flag-guarded: true = new BG3 bar, false = old cbPanel
+var USE_CHARACTER_READINESS = new URLSearchParams(location.search).get("readiness") === "1";
 
 function identityName(value){return String(value||'').toLowerCase().replace(/[^a-z0-9]/g,'');}
 function legacySheetKeyFor(character){
@@ -5304,7 +5307,7 @@ function loadLiveStats(){
       try {
         var actions = assembleForgeActions(c.inventory || [], c.structural || {});
         derived[c.key] = window.ForgeKitDerive
-          ? repairDerivedKit(window.ForgeKitDerive.derive(c, { assembledActions: actions, starterKits: STARTER_KITS }), c.structural||{})
+          ? repairDerivedKit(window.ForgeKitDerive.derive(c, { assembledActions: actions, starterKits: STARTER_KITS, readiness: USE_CHARACTER_READINESS }), c.structural||{})
           : null;
       } catch(e){
         derived[c.key] = window.ForgeKitDerive&&window.ForgeKitDerive.combatErrorKit
@@ -5322,6 +5325,10 @@ function loadLiveStats(){
     __derivedKits = {}; __liveStatsCache = {}; __livePartyRows=[]; __sheetRefAliases={}; __deriveLoading = null; return __derivedKits;
   });
   return __deriveLoading;
+}
+function reloadForgeCharacterData(){
+  __derivedKits=null;__deriveLoading=null;__liveStatsCache=null;__livePartyRows=[];__sheetRefAliases={};
+  return loadLiveStats();
 }
 
 function liveStatsFor(sheetRef){
@@ -7957,6 +7964,7 @@ window.renderHud = renderHud;
 window.kitFor = kitFor;
 window.liveStatsFor = liveStatsFor;
 window.loadLiveStats = loadLiveStats;
+window.reloadForgeCharacterData = reloadForgeCharacterData;
 window.resolveLiveSheetRef = resolveLiveSheetRef;
 window.forgePartyRows = forgePartyRows;
 
@@ -8028,7 +8036,7 @@ document.addEventListener("forge:openIconPicker", function(e){
       if(window.ForgeKitDerive && __liveStatsCache[sheetRef]){
         try{
           var actions = assembleForgeActions(c.inventory||[], s);
-          __derivedKits[sheetRef] = repairDerivedKit(window.ForgeKitDerive.derive(c, { assembledActions: actions, starterKits: STARTER_KITS }), c.structural||{});
+          __derivedKits[sheetRef] = repairDerivedKit(window.ForgeKitDerive.derive(c, { assembledActions: actions, starterKits: STARTER_KITS, readiness: USE_CHARACTER_READINESS }), c.structural||{});
         }catch(e){}
       }
       window.IconPicker.close();
@@ -8052,7 +8060,7 @@ document.addEventListener("forge:hideTile", function(e){
   if(window.ForgeKitDerive && __liveStatsCache[sheetRef]){
     try{
       var actions = assembleForgeActions(c.inventory||[], s);
-      __derivedKits[sheetRef] = repairDerivedKit(window.ForgeKitDerive.derive(c, { assembledActions: actions, starterKits: STARTER_KITS }), c.structural||{});
+      __derivedKits[sheetRef] = repairDerivedKit(window.ForgeKitDerive.derive(c, { assembledActions: actions, starterKits: STARTER_KITS, readiness: USE_CHARACTER_READINESS }), c.structural||{});
     }catch(e){}
   }
   renderHud();
@@ -10108,6 +10116,7 @@ renderer.domElement.addEventListener("contextmenu", function(e){ if(ADD_FOE_PLAC
      location.search rather than the module's early `SESSION_ID` —
      that variable is module-scoped and invisible to this classic script. */
   var SESSION_ID = new URLSearchParams(location.search).get("session");
+  var READINESS_ON = new URLSearchParams(location.search).get("readiness") === "1";
   var PARTY = [], partyLoadMessage = "Loading active party\u2026";
   var PORT_POS = { liadan:"center 18%" };
   var ORDER = [], pi = 0, joined = {};
@@ -10116,19 +10125,25 @@ renderer.domElement.addEventListener("contextmenu", function(e){ if(ADD_FOE_PLAC
   function sgn(n){ return n==null ? "\u2014" : (n>=0?"+"+n:""+n); }
   function esc(s){ return String(s).replace(/[&<>"']/g,function(c){ return {"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]; }); }
   function joinList(){ return PARTY.filter(function(p){ return joined[p.key] && ready(p.key); }).map(function(p){ return p.key; }); }
+  function readinessFor(k){
+    var kit=window.kitFor&&window.kitFor(k);
+    return kit&&kit.readiness||null;
+  }
   /* A character with no CHAR entry has no combat sheet. It used to be dropped
      silently inside startCombat (`if(!s) return;`) — no token, no initiative
      row, no log line. Block it here and say why. */
   function ready(k){
     var live=PARTY.filter(function(p){return p.key===k;})[0];
-    return !!((live&&live.sheetReady)||(window.kitFor&&window.kitFor(k))||(window.CHAR&&window.CHAR[k]));
+    var sheet=!!((live&&live.sheetReady)||(window.kitFor&&window.kitFor(k))||(window.CHAR&&window.CHAR[k]));
+    var report=READINESS_ON&&readinessFor(k);
+    return sheet&&!(report&&report.status==="blocked");
   }
 
   function partyCard(c){
     var s=c.structural||{},cmb=s.combat||{},v=c.vitals||{},hpMax=Number(cmb.hpMax||0)+Number(v.hpBonus||0);
     var hp=v.hp!=null?Number(v.hp):(cmb.hp!=null?Number(cmb.hp):hpMax);
     var liveCombat=window.CharacterCombat.derive(c);
-    return {key:c.key,name:c.name||s.name||c.key,sheetReady:!!(c.structural&&c.structural.combat),
+    return {key:c.key,name:c.name||s.name||c.key,sheetReady:!!(c.structural&&c.structural.combat),source:c,
       cls:[s.classLabel,s.subclass,s.level&&"level "+s.level,s.race].filter(Boolean).join(" \u00b7 ")||"Adventurer",
       epi:s.background||s.race||"",hp:hp,max:hpMax,ac:liveCombat.ac,init:cmb.initiative,portrait:s.portrait||null};
   }
@@ -10142,7 +10157,8 @@ renderer.domElement.addEventListener("contextmenu", function(e){ if(ADD_FOE_PLAC
       PARTY=result.rows.map(partyCard);ORDER=PARTY.map(function(p){return p.key;});pi=Math.min(pi,Math.max(0,PARTY.length-1));
       joined={};window.ForgePartySelection.selectedKeys(result.rows,selected).forEach(function(key){joined[key]=true;});
       partyLoadMessage=result.ok?(PARTY.length?"":"The player-character folder has no active characters."):(result.reason+" Add active combatants to that folder, then reload.");
-      build();
+      var warm=READINESS_ON&&window.loadLiveStats?window.loadLiveStats():Promise.resolve();
+      return warm.then(function(){build();});
     }).catch(function(e){
       PARTY=[];ORDER=[];joined={};
       partyLoadMessage="The active party could not be loaded"+(e&&e.message?": "+e.message:".");
@@ -10150,6 +10166,26 @@ renderer.domElement.addEventListener("contextmenu", function(e){ if(ADD_FOE_PLAC
     });
   }
   window.__reloadForgePartyCandidates=loadPartyCandidates;
+  var readinessUi=READINESS_ON&&window.ForgeReadinessUI?window.ForgeReadinessUI.controller({
+    document:document,
+    onRestore:function(character,report){
+      var patch=window.CharacterReadiness.repairMissingFeatures(character,report);
+      return window.CharacterData.save(character.key,patch).then(function(){
+        return window.reloadForgeCharacterData().then(loadPartyCandidates);
+      });
+    },
+    onEquipment:function(character,index,name){
+      var patch=window.CharacterReadiness.replaceEquipmentChoice(character,index,name);
+      if(!patch)return Promise.reject(new Error("That equipment choice is no longer available."));
+      return window.CharacterData.save(character.key,patch).then(function(){
+        return window.reloadForgeCharacterData().then(loadPartyCandidates);
+      });
+    }
+  }):null;
+  function showReadiness(p){
+    var report=readinessFor(p.key);
+    if(readinessUi&&report)readinessUi.show(p.source,report);
+  }
 
   // Local authoring selects an encounter party, not player ownership.
   function computeBadges(){
@@ -10167,10 +10203,16 @@ renderer.domElement.addEventListener("contextmenu", function(e){ if(ADD_FOE_PLAC
       var on = rdy && !!joined[p.key];
       var badge = on ? badges[p.key] : "\u2014";
       var bstyle = on ? (' style="background:'+col+';border-color:'+col+';color:#0d0a07"') : '';
-      return '<div class="psCard'+(i===pi?" sel":"")+(on?" joined":"")+(rdy?"":" psLocked")+'" data-i="'+i+'" tabindex="0"'+(rdy?"":' title="no combat sheet yet"')+'>'
+      var report=READINESS_ON&&readinessFor(p.key),readinessBadge="";
+      if(report&&window.ForgeReadinessUI){
+        var rb=window.ForgeReadinessUI.badge(report);
+        readinessBadge='<button type="button" class="fruBadge '+esc(rb.tone)+'" data-readiness="'+i+'" title="'+esc(rb.title)+'">'+esc(rb.label)+'</button>';
+      }
+      return '<div class="psCard'+(i===pi?" sel":"")+(on?" joined":"")+(rdy?"":" psLocked")+'" data-i="'+i+'" tabindex="0"'+(rdy?"":' title="'+(report&&report.status==="blocked"?"onboarding repair required":"no combat sheet yet")+'"')+'>'
         + portrait
         + '<div class="pInit">'+esc(p.name[0])+'</div><div class="pWash"></div>'
         + '<div class="pCtrl"'+bstyle+'>'+badge+'</div>'
+        + readinessBadge
         + '<div class="pBadge">'+(rdy?esc(p.cls):'NO COMBAT SHEET')+'</div>'
         + '<div class="pPlate"><div class="pNm">'+esc(p.name)+'</div><div class="pEpi">'+esc(p.epi)+'</div>'
         + '<div class="pVit"><div class="pHpwrap"><div class="pHplabel"><span>HP</span><span>'+p.hp+' / '+p.max+'</span></div>'
@@ -10182,8 +10224,15 @@ renderer.domElement.addEventListener("contextmenu", function(e){ if(ADD_FOE_PLAC
     row.querySelectorAll(".psCard").forEach(function(el){
       el.addEventListener("mouseenter", function(){ pi=+el.dataset.i; paint(); });
       el.addEventListener("click", function(){ var k=PARTY[+el.dataset.i].key;
-        if(!ready(k)){ document.getElementById("psCount").innerHTML='<b style="color:var(--fg)">'+esc(PARTY[+el.dataset.i].name)+'</b> has no combat sheet yet \u2014 not selectable.'; return; }
+        if(!ready(k)){
+          var report=READINESS_ON&&readinessFor(k);
+          if(report&&report.status==="blocked"){showReadiness(PARTY[+el.dataset.i]);return;}
+          document.getElementById("psCount").innerHTML='<b style="color:var(--fg)">'+esc(PARTY[+el.dataset.i].name)+'</b> has no combat sheet yet \u2014 not selectable.'; return;
+        }
         toggle(k); });
+    });
+    row.querySelectorAll("[data-readiness]").forEach(function(el){
+      el.addEventListener("click",function(e){e.preventDefault();e.stopPropagation();showReadiness(PARTY[+el.getAttribute("data-readiness")]);});
     });
     updateFoot();
   }

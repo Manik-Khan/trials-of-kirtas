@@ -24,8 +24,8 @@ ok("directional repeat exposes all four camera-aware handles",
   ["n", "e", "s", "w"].every((direction) => proofHtml.includes('data-build-direction="' + direction + '"')));
 ok("repeat gesture retains the approved 240ms hold cadence and one-transaction commit",
   /}, 240\)/.test(proofJs) && /recordHistory\(moduleLabel\(state\.layoutTool\) \+ " repeated "/.test(proofJs));
-ok("all proof assets share the current bp13 cache stamp",
-  (proofHtml.match(/\?v=bp13/g) || []).length === 3 && !proofHtml.includes("?v=bp12"));
+ok("all proof assets share the current bp18 cache stamp",
+  (proofHtml.match(/\?v=bp18/g) || []).length === 3 && !proofHtml.includes("?v=bp17"));
 ok("Build exposes the full brush palette on the left and in a right-click radial menu",
   /id="buildBrushRail"/.test(proofHtml) && /id="buildRadial"/.test(proofHtml)
   && ["select", "room", "corridor", "wall", "lowWall", "door", "erase"].every((tool) => proofHtml.includes('data-radial-tool="' + tool + '"')));
@@ -62,27 +62,38 @@ const seededB = BP.produceSeeded({ seed: 1847, topology: "auto" });
 const seededOther = BP.produceSeeded({ seed: 1848, topology: "auto" });
 ok("seeded producer is deterministic", JSON.stringify(seededA) === JSON.stringify(seededB));
 ok("seeded producer preserves its reproducible provenance",
-  seededA.source.kind === "seeded" && seededA.source.seed === 1847 && seededA.source.deterministic === true);
-ok("different automatic seeds can select different topology studies", seededA.topology !== seededOther.topology);
+  seededA.source.kind === "seeded" && seededA.source.seed === 1847 && seededA.source.deterministic === true
+  && seededA.source.generator === "graph-first-proof/v1");
+ok("different automatic seeds can produce different graph layouts",
+  BP.structuralFingerprint(seededA) !== BP.structuralFingerprint(seededOther));
 const imported = BP.produceImportedSample();
 ok("assisted import carries a reviewable source underlay",
   imported.source.kind === "imported" && imported.source.underlay === true && imported.source.review.length === 4);
+ok("a real local import can restore its private source underlay in Build",
+  /function loadImportedUnderlay\(\)/.test(proofJs)
+  && /source\.underlayKey/.test(proofJs)
+  && /importedUnderlayImage/.test(proofJs));
 const acceptedImport = BP.acceptImportFinding(imported, "all");
 ok("import findings require and retain explicit confirmation",
   acceptedImport.source.review.every((finding) => finding.accepted) && imported.source.review.every((finding) => !finding.accepted));
 const blank = BP.produceBlank();
-ok("blank producer creates a connected editable Blueprint",
-  blank.source.kind === "blank" && BP.connectivity(BP.compile(blank, {})).ok);
+ok("blank producer creates zero rooms behind a narrated first-room gate",
+  blank.source.kind === "blank" && blank.spaces.length === 0
+  && BP.connectivity(BP.compile(blank, {})).reason === "first room required");
 const roomDrawn = BP.addRoom(blank, { c: 1, r: 1 }, { c: 4, r: 3 });
-const drawnRoom = roomDrawn.spaces.find((space) => space.id !== "sanctum");
+const drawnRoom = roomDrawn.spaces[0];
 ok("direct room drawing adds the chosen empty rectangular footprint",
   !!drawnRoom && BP.spaceBounds(drawnRoom).minX === 1 && BP.spaceBounds(drawnRoom).maxY === 4);
+ok("the first room clears the empty-field gate with a connected status",
+  proofJs.includes('connectivity.ok ? "first room drawn · connected" : connectivity.reason'));
 ok("direct room drawing refuses overlap rather than silently reshaping existing floor",
-  BP.addRoom(blank, { c: 9, r: 6 }, { c: 13, r: 9 }) === blank);
-const roomsConnected = BP.connectSpaces(roomDrawn, "sanctum", drawnRoom.id, 2);
+  BP.addRoom(roomDrawn, { c: 2, r: 2 }, { c: 5, r: 5 }) === roomDrawn);
+const secondRoomDrawn = BP.addRoom(roomDrawn, { c: 10, r: 1 }, { c: 14, r: 4 });
+const secondRoom = secondRoomDrawn.spaces.find((space) => space.id !== drawnRoom.id);
+const roomsConnected = BP.connectSpaces(secondRoomDrawn, drawnRoom.id, secondRoom.id, 2);
 const drawnPassage = roomsConnected.corridors.find((corridor) => corridor.id.startsWith("passage-"));
 ok("selecting two physical rooms creates one explicit passage between those rooms",
-  !!drawnPassage && drawnPassage.fromSpaceId === "sanctum" && drawnPassage.toSpaceId === drawnRoom.id);
+  !!drawnPassage && drawnPassage.fromSpaceId === drawnRoom.id && drawnPassage.toSpaceId === secondRoom.id);
 ok("the directly connected layout compiles as one traversable tactical field",
   BP.connectivity(BP.compile(roomsConnected, {})).ok);
 const passageRemoved = BP.removePassage(roomsConnected, drawnPassage.id);
@@ -90,12 +101,11 @@ ok("removing the selected passage preserves both physical rooms",
   passageRemoved.corridors.length === 0 && passageRemoved.spaces.length === 2);
 const changedRoom = BP.changeSpace(roomDrawn, drawnRoom.id, 5, "crypt");
 ok("appearance targets the selected physical room only",
-  changedRoom.spaces.find((space) => space.id === drawnRoom.id).material === "crypt"
-  && changedRoom.spaces.find((space) => space.id === "sanctum").material === "nave");
-const roomProp = BP.placeProp(blank, 10, 7, "altar", 90);
+  changedRoom.spaces.find((space) => space.id === drawnRoom.id).material === "crypt");
+const roomProp = BP.placeProp(roomDrawn, 2, 2, "altar", 90);
 ok("abbey furnishings place directly on playable ground",
-  roomProp.props.some((item) => item.kind === "altar" && item.c === 10 && item.r === 7 && item.rotation === 90));
-const dividedBlank = BP.divideSpace({}, blank, "sanctum", "vertical");
+  roomProp.props.some((item) => item.kind === "altar" && item.c === 2 && item.r === 2 && item.rotation === 90));
+const dividedBlank = BP.divideSpace({}, roomDrawn, drawnRoom.id, "vertical");
 const dividerKinds = Object.values(dividedBlank).map((edit) => edit.kind);
 ok("dividing a selected room creates one visible wall run with a doorway",
   dividerKinds.includes("wall") && dividerKinds.filter((kind) => kind === "door").length === 1);
@@ -114,6 +124,19 @@ ok("opposite edge lookup is cardinal and stable",
   && BP.oppositeEdge("S") === "N" && BP.oppositeEdge("W") === "E");
 ok("all creation doors converge on forge-blueprint/v1",
   [seededA, imported, blank].every((blueprint) => blueprint.schema === BP.SCHEMA && BP.compile(blueprint, {}).meta.producer.kind === blueprint.source.kind));
+const handoff = BP.createHandoff(seededA, { armed: false, tool: "select" });
+const received = BP.decodeHandoff(BP.encodeHandoff(handoff));
+ok("exact Blueprint handoff preserves identity and canonical fingerprint",
+  received.ok && received.handoff.blueprintId === seededA.id
+  && received.handoff.fingerprint === BP.fingerprint(seededA)
+  && BP.stableStringify(received.handoff.blueprint) === BP.stableStringify(seededA));
+const blankTransfer = BP.decodeHandoff(BP.encodeHandoff(BP.createHandoff(blank, { armed: true, tool: "room" })));
+ok("Blank handoff preserves zero rooms and the armed Room entry",
+  blankTransfer.ok && blankTransfer.handoff.blueprint.spaces.length === 0
+  && blankTransfer.handoff.build.armed && blankTransfer.handoff.build.tool === "room");
+ok("Build consumes and verifies the encoded handoff before arming",
+  /BP\.decodeHandoff/.test(proofJs) && /useBlueprint\(handoff\.blueprint, handoff\)/.test(proofJs)
+  && /setMode\("build"\)/.test(proofJs) && /setLayoutTool\(handoff\.build\.tool \|\| "room"\)/.test(proofJs));
 
 const fixtureNames = Object.keys(BP.FIXTURES);
 ok("three topology fixtures exist", fixtureNames.length === 3);
@@ -231,6 +254,12 @@ ok("redo restores the transaction that undo moved aside",
 history = BP.historyUndo(history);
 history = BP.historyCommit(history, "Door placed", { edits: { "10,10": { kind: "door" } }, grid: true });
 ok("a new authoring transaction clears the redo branch", history.future.length === 0 && history.present.label === "Door placed");
+let blankHistory = BP.historyStart(blank);
+blankHistory = BP.historyCommit(blankHistory, "Room drawn", roomDrawn);
+blankHistory = BP.historyUndo(blankHistory);
+ok("undoing the first room returns to the genuinely empty Blueprint",
+  blankHistory.present.snapshot.spaces.length === 0
+  && BP.connectivity(BP.compile(blankHistory.present.snapshot, {})).reason === "first room required");
 
 const formationMap = BP.compile(base, {});
 const lineFormation = BP.formationPositions(formationMap, { c: 12, r: 10 }, 3, 0, "line");

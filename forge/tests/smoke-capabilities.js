@@ -21,7 +21,7 @@ function match(kit,re){return (kit.capabilities||[]).find(c=>re.test(c.label))||
   }
   const party={caim:derive("caim"),cosmere:derive("cosmere"),liadan:derive("liadan"),vesperian:derive("vesperian")};
 
-  ok("shared capability schema is versioned",Cap.VERSION==="1.1.0"&&Cap.SCHEMA==="forge-capability/v1");
+  ok("shared capability schema is versioned",Cap.VERSION==="1.2.0"&&Cap.SCHEMA==="forge-capability/v1");
   Object.keys(party).forEach(key=>{
     const kit=party[key],audit=kit.capabilityAudit||{},ids=(kit.capabilities||[]).map(c=>c.id);
     ok(key+" derives a non-empty shared capability ledger",kit.capabilitySchema===Cap.SCHEMA&&ids.length>0);
@@ -57,6 +57,16 @@ function match(kit,re){return (kit.capabilities||[]).find(c=>re.test(c.label))||
     find(vesperian,"Necrotic Resistance").status==="executable"&&find(vesperian,"Necrotic Resistance").tags.includes("resistance:necrotic"));
   ok("Vesperian projects Weapon Bond as missing equipment behavior",find(vesperian,"Weapon Bond").status==="missing");
 
+  const barbarian=Kit.derive({
+    key:"barbarian-capability",name:"Barbarian",
+    structural:{name:"Barbarian",classLabel:"Barbarian 1",level:1,proficiencyBonus:2,
+      abilities:{str:{score:16,mod:3},dex:{score:14,mod:2},con:{score:16,mod:3},int:{score:8,mod:-1},wis:{score:10,mod:0},cha:{score:8,mod:-1}},
+      combat:{hp:15,hpMax:15,ac:15,speed:30,initiative:2},features:[{name:"Rage",source:"class:Barbarian"}]},
+    vitals:{hp:15},inventory:[]
+  },{assembledActions:[{id:"axe",label:"Handaxe",kind:"attack",tab:"attacks",hit:5,dmg:"1d6+3"}]});
+  ok("Rage counter never masquerades as an executable Rage rule",
+    find(barbarian,"Rage").status==="missing"&&/counter exists/.test(find(barbarian,"Rage").automation.reason));
+
   Object.keys(party).forEach(key=>{
     ok(key+" never offers non-executable capabilities to enemy AI",
       party[key].capabilities.filter(c=>c.status!=="executable").every(c=>c.consumers.indexOf("enemy-ai")<0));
@@ -64,7 +74,7 @@ function match(kit,re){return (kit.capabilities||[]).find(c=>re.test(c.label))||
 
   const html=fs.readFileSync(path.join(root,"forge","index.html"),"utf8");
   ok("production loads the capability contract before fresh kit derivation",
-    html.indexOf("forge-capabilities.js?v=fc2")<html.indexOf("forge-capability-resolver.js?v=fcrs1")&&html.indexOf("forge-capability-resolver.js?v=fcrs1")<html.indexOf("forge-kit-derive.js?v=b17"));
+    html.indexOf("forge-capabilities.js?v=fc3")<html.indexOf("forge-capability-resolver.js?v=fcrs1")&&html.indexOf("forge-capability-resolver.js?v=fcrs1")<html.indexOf("forge-kit-derive.js?v=b18"));
   ok("combat units retain the normalized ledger and audit",
     html.includes("capabilities: JSON.parse(JSON.stringify((kit && kit.capabilities) || []))")&&
     html.includes("capabilityAudit: JSON.parse(JSON.stringify((kit && kit.capabilityAudit) || {}))"));

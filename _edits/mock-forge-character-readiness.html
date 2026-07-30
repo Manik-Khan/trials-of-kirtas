@@ -1,0 +1,147 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Forge Character Readiness — Architecture Mock</title>
+  <link rel="stylesheet" href="mock-forge-character-readiness.css?v=cr1">
+</head>
+<body>
+  <main class="readiness-shell">
+    <header class="topbar">
+      <div>
+        <p class="eyebrow">Trials of Kirtas · Architecture approval mock</p>
+        <h1>Character Readiness</h1>
+        <p class="lede">Every character is audited between the saved sheet and the battle table. Missing grants, unfinished choices, and unsupported rules must narrate themselves before play.</p>
+      </div>
+      <div class="journey" aria-label="Character onboarding journey">
+        <span class="journey-step is-complete"><b>1</b> Sheet</span>
+        <span class="journey-line"></span>
+        <span class="journey-step is-current"><b>2</b> Readiness</span>
+        <span class="journey-line"></span>
+        <span class="journey-step"><b>3</b> Table</span>
+      </div>
+    </header>
+
+    <section class="mock-boundary">
+      <span>Standalone proof</span>
+      No character or campaign data changes here. This mock defines the contract the live Forge would later consume.
+      <code>forge-readiness/v1</code>
+    </section>
+
+    <div class="workspace">
+      <aside class="roster-panel panel">
+        <div class="panel-heading">
+          <div>
+            <p class="eyebrow">Campaign roster</p>
+            <h2>Who needs attention?</h2>
+          </div>
+          <div class="segmented" role="group" aria-label="Roster filter">
+            <button type="button" class="is-active" data-filter="all">All</button>
+            <button type="button" data-filter="attention">Attention</button>
+          </div>
+        </div>
+        <div id="actors" class="actor-list"></div>
+        <div class="legend">
+          <span><i class="dot ready"></i> Ready</span>
+          <span><i class="dot partial"></i> Review</span>
+          <span><i class="dot blocked"></i> Blocked</span>
+        </div>
+      </aside>
+
+      <section class="audit-panel panel">
+        <div class="actor-header">
+          <div class="portrait" id="actorBadge" aria-hidden="true">C</div>
+          <div class="actor-title">
+            <p class="eyebrow">Selected character</p>
+            <h2 id="actorName">Chonkalius</h2>
+            <p id="actorLine"></p>
+          </div>
+          <div id="readinessBadge" class="status-pill partial">Review required</div>
+        </div>
+
+        <div id="readinessBanner" class="readiness-banner partial">
+          <div>
+            <p class="eyebrow">Forge admission</p>
+            <h3 id="readinessTitle">Review required before the table</h3>
+            <p id="readinessCopy"></p>
+          </div>
+          <button id="tableDoor" class="table-door" type="button" disabled>Table locked</button>
+        </div>
+
+        <div id="metrics" class="metrics" aria-label="Readiness totals"></div>
+
+        <section class="audit-section">
+          <div class="section-heading">
+            <div>
+              <p class="eyebrow">Gate 1</p>
+              <h3>Saved sheet authority</h3>
+            </div>
+            <p>Identity, combat projection, granted features, exact equipment, and at least one basic attack.</p>
+          </div>
+          <div id="sourceChecks" class="check-grid"></div>
+        </section>
+
+        <section class="audit-section">
+          <div class="section-heading">
+            <div>
+              <p class="eyebrow">Gate 2</p>
+              <h3>Rules coverage ledger</h3>
+            </div>
+            <p>Every expected class, subclass, feat, and species feature gets an explicit disposition.</p>
+          </div>
+          <div class="coverage-head" aria-hidden="true">
+            <span>Expected grant</span>
+            <span>Sheet</span>
+            <span>Forge</span>
+          </div>
+          <div id="coverage" class="coverage-list"></div>
+        </section>
+
+        <footer class="audit-actions">
+          <button id="resetActor" class="button ghost" type="button">Reset this proof</button>
+          <button id="applyAll" class="button primary" type="button">Prove approved target</button>
+        </footer>
+      </section>
+
+      <aside class="preview-panel panel">
+        <section class="preview-section">
+          <div class="panel-heading compact">
+            <div>
+              <p class="eyebrow">Gate 3</p>
+              <h2>Exact Forge preview</h2>
+            </div>
+          </div>
+          <p class="panel-copy">This is what the player would actually receive—not merely what their sheet says they own.</p>
+          <div id="previewTabs" class="preview-tabs" role="tablist" aria-label="Forge capability groups"></div>
+          <div id="previewList" class="preview-list"></div>
+        </section>
+
+        <section class="attention-section">
+          <div class="section-heading compact">
+            <div>
+              <p class="eyebrow">Narrated gaps</p>
+              <h3>Why is the door closed?</h3>
+            </div>
+          </div>
+          <div id="attentionList" class="attention-list"></div>
+        </section>
+
+        <section class="resolution-section">
+          <div class="section-heading compact">
+            <div>
+              <p class="eyebrow">Approval proof</p>
+              <h3>Resolution package</h3>
+            </div>
+          </div>
+          <div id="resolutionList" class="resolution-list"></div>
+        </section>
+      </aside>
+    </div>
+
+    <div id="toast" class="toast" role="status" aria-live="polite"></div>
+  </main>
+  <script src="mock-forge-character-readiness-core.js?v=cr1"></script>
+  <script src="mock-forge-character-readiness.js?v=cr1"></script>
+</body>
+</html>

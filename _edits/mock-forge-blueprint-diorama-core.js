@@ -40,6 +40,34 @@
   });
 
   function copy(value) { return value == null ? value : JSON.parse(JSON.stringify(value)); }
+  function stableStringify(value) {
+    if (value === null || typeof value !== "object") return JSON.stringify(value);
+    if (Array.isArray(value)) return "[" + value.map(stableStringify).join(",") + "]";
+    return "{" + Object.keys(value).sort().map(function (name) {
+      return JSON.stringify(name) + ":" + stableStringify(value[name]);
+    }).join(",") + "}";
+  }
+  function hashText(text) {
+    var hash = 2166136261;
+    for (var i = 0; i < text.length; i++) {
+      hash ^= text.charCodeAt(i);
+      hash = Math.imul(hash, 16777619);
+    }
+    return ("00000000" + (hash >>> 0).toString(16)).slice(-8);
+  }
+  function fingerprint(blueprint) {
+    return "bp-" + hashText(stableStringify(blueprint));
+  }
+  function structuralFingerprint(blueprint) {
+    return "struct-" + hashText(stableStringify({
+      grid: blueprint && blueprint.grid,
+      topology: blueprint && blueprint.topology,
+      spaces: blueprint && blueprint.spaces,
+      corridors: blueprint && blueprint.corridors,
+      architecture: blueprint && blueprint.architecture,
+      elevationZones: blueprint && blueprint.elevationZones
+    }));
+  }
   function key(c, r) { return c + "," + r; }
   function idx(cols, c, r) { return r * cols + c; }
   function normalizeRotation(value) {
@@ -275,20 +303,170 @@
     });
     return out;
   }
+  function seededRandom(seed) {
+    var value = (Math.abs(Math.trunc(Number(seed) || 1)) || 1) >>> 0;
+    return function () {
+      value += 0x6d2b79f5;
+      var next = value;
+      next = Math.imul(next ^ next >>> 15, next | 1);
+      next ^= next + Math.imul(next ^ next >>> 7, next | 61);
+      return ((next ^ next >>> 14) >>> 0) / 4294967296;
+    };
+  }
+  function proofGrid(size) {
+    return {
+      small: { cols: 24, rows: 18, cellFt: 5, chunkSize: 5 },
+      large: { cols: 36, rows: 26, cellFt: 5, chunkSize: 5 }
+    }[size] || { cols: 28, rows: 20, cellFt: 5, chunkSize: 5 };
+  }
+  function graphSlots(grid, topology, random) {
+    var xs = [0.18, 0.5, 0.82], ys = [0.2, 0.5, 0.8];
+    var slots = [];
+    ys.forEach(function (y, row) {
+      xs.forEach(function (x, col) {
+        slots.push({ c: Math.round(grid.cols * x), r: Math.round(grid.rows * y), row: row, col: col });
+      });
+    });
+    var orders = {
+      processional: [3, 4, 5, 2, 1, 0, 6, 7, 8],
+      vault: [0, 1, 2, 5, 8, 7, 6, 3, 4],
+      warren: [3, 4, 1, 7, 5, 0, 2, 6, 8]
+    };
+    var order = orders[topology].slice();
+    if (topology === "processional" && random() > 0.5) order.reverse();
+    if (topology === "vault") {
+      var shift = Math.floor(random() * 8);
+      order = order.slice(shift, 8).concat(order.slice(0, shift), order.slice(8));
+    }
+    if (topology === "warren" && random() > 0.5) {
+      [order[2], order[3]] = [order[3], order[2]];
+      [order[5], order[6]] = [order[6], order[5]];
+    }
+    return order.map(function (index) { return slots[index]; });
+  }
+  function graphEdges(topology, count, random) {
+    var edges = [];
+    if (topology === "processional") {
+      for (var i = 1; i < count; i++) edges.push([i - 1, i]);
+    } else if (topology === "vault") {
+      var ringCount = Math.min(8, count);
+      for (var r = 1; r < ringCount; r++) edges.push([r - 1, r]);
+      if (ringCount > 3) edges.push([ringCount - 1, 0]);
+      if (count > 8) [0, 2, 4, 6].forEach(function (index) { edges.push([8, index]); });
+      else if (ringCount > 5) edges.push(random() > 0.5 ? [0, 4] : [1, 4]);
+    } else {
+      for (var b = 1; b < count; b++) {
+        var parent = Math.floor((b - 1) / 2);
+        if (b > 4 && random() > 0.72) parent = Math.max(0, parent - 1);
+        edges.push([parent, b]);
+      }
+    }
+    return edges;
+  }
   function produceSeeded(options) {
     options = options || {};
     var seed = Number.isFinite(Number(options.seed)) ? Math.abs(Math.trunc(Number(options.seed))) : 1847;
-    var requested = ["processional", "vault", "warren"].indexOf(options.topology) >= 0 ? options.topology : "auto";
-    var keys = ["processional", "vault", "warren"];
-    var fixtureKey = requested === "auto" ? keys[seed % keys.length] : requested;
-    var out = withSource(FIXTURES[fixtureKey], "seeded", {
-      seed: seed,
-      fixtureKey: fixtureKey,
-      generator: "graph-handoff-study/v1",
-      deterministic: true
+    var candidate = Math.max(0, Math.trunc(Number(options.candidate) || 0));
+    var size = ["small", "medium", "large"].indexOf(options.size) >= 0 ? options.size : "medium";
+    var density = Math.max(3, Math.min(9, Math.round(Number(options.density) || 6)));
+    var requested = ["processional", "vault", "warren"].indexOf(options.topology) >= 0 ? options.topology : "surprise";
+    var topologyKeys = ["processional", "vault", "warren"];
+    var topology = requested === "surprise" || requested === "auto"
+      ? topologyKeys[(seed + candidate) % topologyKeys.length]
+      : requested;
+    var layoutSeed = seed * 97 + candidate * 1009 + 17;
+    var heightSeed = seed * 193 + candidate * 1013 + 29;
+    var semanticsSeed = seed * 389 + candidate * 1019 + 43;
+    var decorSeed = seed * 769 + candidate * 1021 + 71;
+    var random = seededRandom(layoutSeed), heightRandom = seededRandom(heightSeed);
+    var semanticRandom = seededRandom(semanticsSeed), decorRandom = seededRandom(decorSeed);
+    var grid = proofGrid(size), slots = graphSlots(grid, topology, random);
+    var count = topology === "vault" ? Math.max(4, density) : density;
+    var labels = ["Arrival", "Crossing", "Sanctum", "Gallery", "Reliquary", "Watch", "Crypt", "Court", "Choir"];
+    var materials = ["nave", "cloister", "crypt", "timber"];
+    var verticality = String(options.verticality || "meaningful").toLowerCase();
+    var maxTier = verticality === "subtle" ? 1 : verticality === "dramatic" ? 3 : 2;
+    var spaces = slots.slice(0, count).map(function (slot, index) {
+      var cellW = Math.floor(grid.cols / 3), cellH = Math.floor(grid.rows / 3);
+      var width = Math.max(3, Math.min(cellW - 2, 3 + Math.floor(random() * Math.max(2, cellW - 3))));
+      var height = Math.max(3, Math.min(cellH - 2, 3 + Math.floor(random() * Math.max(2, cellH - 3))));
+      var jitterX = Math.floor(random() * 3) - 1, jitterY = Math.floor(random() * 3) - 1;
+      var c = Math.max(1, Math.min(grid.cols - width - 1, slot.c - Math.floor(width / 2) + jitterX));
+      var r = Math.max(1, Math.min(grid.rows - height - 1, slot.r - Math.floor(height / 2) + jitterY));
+      var tier = maxTier ? Math.min(maxTier, Math.floor(heightRandom() * (maxTier + 1))) : 0;
+      var labelIndex = (index + Math.floor(semanticRandom() * labels.length)) % labels.length;
+      return rectSpace(
+        "generated-room-" + (index + 1),
+        labels[labelIndex] + " " + (index + 1),
+        c, r, width, height,
+        "generated-area-" + (index + 1),
+        materials[Math.floor(semanticRandom() * materials.length)],
+        tier * 5
+      );
     });
-    out.id = "seed-" + seed + "-" + out.id;
-    out.name = out.name + " · Seed " + seed;
+    var edges = graphEdges(topology, spaces.length, random);
+    var corridors = [], modules = [];
+    edges.forEach(function (edge, index) {
+      var first = spaces[edge[0]], second = spaces[edge[1]];
+      var firstBounds = spaceBounds(first), secondBounds = spaceBounds(second);
+      if (!firstBounds || !secondBounds) return;
+      var anchors = {
+        from: {
+          c: Math.floor((firstBounds.minX + firstBounds.maxX - 1) / 2),
+          r: Math.floor((firstBounds.minY + firstBounds.maxY - 1) / 2)
+        },
+        to: {
+          c: Math.floor((secondBounds.minX + secondBounds.maxX - 1) / 2),
+          r: Math.floor((secondBounds.minY + secondBounds.maxY - 1) / 2)
+        }
+      };
+      corridors.push(corridor(
+        "generated-passage-" + (index + 1),
+        "Passage " + (index + 1),
+        [anchors.from.c, anchors.from.r],
+        [anchors.to.c, anchors.to.r],
+        decorRandom() > 0.72 ? 2 : 1,
+        second.discoveryRegion,
+        first.material,
+        Math.min(first.elevationFt, second.elevationFt)
+      ));
+      modules.push(architecture("door", anchors.to.c, anchors.to.r, 0, second.discoveryRegion, "oak"));
+      if (first.elevationFt !== second.elevationFt) {
+        modules.push(architecture("stairs", anchors.from.c, anchors.from.r, 0, first.discoveryRegion, "stone"));
+      }
+    });
+    var regions = spaces.map(function (space) {
+      return { id: space.discoveryRegion, label: space.label };
+    });
+    var out = fixtureBase(
+      "generated-" + seed + "-" + candidate,
+      "Generated " + topology.charAt(0).toUpperCase() + topology.slice(1) + " · Seed " + seed,
+      topology === "processional" ? "generated processional route"
+        : topology === "vault" ? "generated loop and hub"
+        : "generated branching graph",
+      spaces, corridors, modules, [], [], [], regions
+    );
+    out.grid = grid;
+    out.graph = {
+      nodes: spaces.map(function (space) { return { id: space.id, semantic: space.label }; }),
+      edges: edges.map(function (edge) { return { from: spaces[edge[0]].id, to: spaces[edge[1]].id }; })
+    };
+    out = withSource(out, "seeded", {
+      seed: seed,
+      candidate: candidate,
+      generator: "graph-first-proof/v1",
+      deterministic: true,
+      controls: { size: size, topology: requested, density: density, verticality: verticality },
+      subSeeds: { layout: layoutSeed, height: heightSeed, semantics: semanticsSeed, decor: decorSeed }
+    });
+    var compiled = compile(out, {});
+    var connected = connectivity(compiled);
+    out.source.audit = {
+      connected: connected.ok,
+      reachable: connected.reachable,
+      open: connected.open,
+      repaired: false
+    };
     return out;
   }
   function produceImportedSample() {
@@ -308,13 +486,15 @@
     out.name = "Painted Abbey Conversion";
     return out;
   }
-  function produceBlank() {
-    var spaces = [rectSpace("sanctum", "Empty Sanctum", 8, 5, 12, 10, "sanctum", "nave", 0)];
-    return withSource(fixtureBase(
-      "blank-sanctum", "Untitled Battlefield", "single open room",
-      spaces, [], [], [], [], [],
-      [{ id: "sanctum", label: "Empty Sanctum" }]
-    ), "blank", { fixtureKey: "blank", deterministic: true });
+  function produceBlank(options) {
+    options = options || {};
+    var size = ["small", "medium", "large"].indexOf(options.size) >= 0 ? options.size : "medium";
+    var out = withSource(fixtureBase(
+      "blank-battlefield", "Untitled Battlefield", "empty buildable grid",
+      [], [], [], [], [], [], []
+    ), "blank", { fixtureKey: "blank", deterministic: true, size: size });
+    out.grid = proofGrid(size);
+    return out;
   }
   function acceptImportFinding(blueprint, findingId) {
     var out = copy(blueprint);
@@ -323,6 +503,32 @@
       if (finding.id === findingId || findingId === "all") finding.accepted = true;
     });
     return out;
+  }
+  function createHandoff(blueprint, build) {
+    var document = copy(blueprint);
+    return {
+      contract: "forge-blueprint-handoff/v1",
+      blueprint: document,
+      blueprintId: document.id,
+      fingerprint: fingerprint(document),
+      structuralFingerprint: structuralFingerprint(document),
+      build: Object.assign({ armed: false, tool: "select" }, copy(build || {}))
+    };
+  }
+  function encodeHandoff(handoff) {
+    return encodeURIComponent(stableStringify(handoff));
+  }
+  function decodeHandoff(payload) {
+    var handoff;
+    try { handoff = JSON.parse(decodeURIComponent(String(payload || ""))); }
+    catch (error) { return { ok: false, error: "Blueprint handoff could not be decoded." }; }
+    if (!handoff || handoff.contract !== "forge-blueprint-handoff/v1" || !handoff.blueprint) {
+      return { ok: false, error: "Blueprint handoff contract is missing." };
+    }
+    if (handoff.blueprintId !== handoff.blueprint.id || handoff.fingerprint !== fingerprint(handoff.blueprint)) {
+      return { ok: false, error: "Blueprint identity changed during handoff." };
+    }
+    return { ok: true, handoff: handoff };
   }
 
   function pointInPolygon(c, r, polygon) {
@@ -406,6 +612,17 @@
     regions.forEach(function (cell, i) {
       if (!cell) return;
       map.wall[i] = false; map.occ[i] = 0; map.h[i] = Number(cell.elevationFt) || 0;
+    });
+    var interpretedBlocked = blueprint.source && blueprint.source.interpretation
+      && blueprint.source.interpretation.blockedCells || [];
+    interpretedBlocked.forEach(function (cell) {
+      var c = Number(cell && cell[0]), r = Number(cell && cell[1]);
+      if (!Number.isInteger(c) || !Number.isInteger(r) || c < 0 || r < 0 || c >= cols || r >= rows) return;
+      var i = idx(cols, c, r);
+      if (!regions[i]) return;
+      map.wall[i] = true;
+      map.occ[i] = 0;
+      map.coverShape[i] = null;
     });
     var appliedArchitecture = copy(blueprint.architecture || []);
     Object.keys(edits || {}).sort().forEach(function (cellKey) {
@@ -503,7 +720,13 @@
       if (!map.wall[idx(map.cols, c, r)]) { open.push(key(c, r)); if (!start) start = { c: c, r: r }; }
     }
     var seen = reachable(map, start), missing = open.filter(function (cellKey) { return !seen[cellKey]; });
-    return { ok: missing.length === 0, reachable: Object.keys(seen).length, open: open.length, missing: missing };
+    return {
+      ok: open.length > 0 && missing.length === 0,
+      reachable: Object.keys(seen).length,
+      open: open.length,
+      missing: missing,
+      reason: open.length ? null : "first room required"
+    };
   }
   function chunkFor(blueprint, c, r) {
     var size = blueprint.grid.chunkSize;
@@ -958,7 +1181,9 @@
   return {
     SCHEMA: SCHEMA, KIT: KIT, MATERIALS: MATERIALS, FIXTURES: FIXTURES,
     PRODUCER_LABELS: PRODUCER_LABELS,
-    copy: copy, key: key, idx: idx, normalizeRotation: normalizeRotation,
+    copy: copy, stableStringify: stableStringify, fingerprint: fingerprint,
+    structuralFingerprint: structuralFingerprint,
+    key: key, idx: idx, normalizeRotation: normalizeRotation,
     normalizeEdge: normalizeEdge, edgeRotation: edgeRotation,
     oppositeEdge: oppositeEdge, edgeReferences: edgeReferences,
     pointInPolygon: pointInPolygon, corridorCells: corridorCells, cellRegions: cellRegions,
@@ -973,6 +1198,7 @@
     historyStart: historyStart, historyCommit: historyCommit, historyUndo: historyUndo, historyRedo: historyRedo,
     formationPositions: formationPositions,
     withSource: withSource, produceSeeded: produceSeeded, produceImportedSample: produceImportedSample,
-    produceBlank: produceBlank, acceptImportFinding: acceptImportFinding
+    produceBlank: produceBlank, acceptImportFinding: acceptImportFinding,
+    createHandoff: createHandoff, encodeHandoff: encodeHandoff, decodeHandoff: decodeHandoff
   };
 });

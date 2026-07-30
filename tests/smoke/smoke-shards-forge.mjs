@@ -22,6 +22,7 @@ win.SoulShardsEngine = Engine; win.SoulShardsSpellcasting = SC; win.SoulShardsDe
 // globals the extracted function expects (as shards.html provides them at runtime)
 globalThis.SoulShardsDerive = Derive;
 globalThis.SoulShardsSpellcasting = SC;
+globalThis.CHARACTER_READINESS_ON = true;
 globalThis.effectiveAbilities = () => ({ str: 13, dex: 14, con: 14, int: 8, wis: 11, cha: 17 });
 globalThis.bgDisplayName = () => 'Captain';
 globalThis.draft = { name: 'Cosmere Runestar', level: 2, subclass: { n: 'The Hexblade' }, subrace: null, bg: { n: 'Captain' }, hp: undefined };

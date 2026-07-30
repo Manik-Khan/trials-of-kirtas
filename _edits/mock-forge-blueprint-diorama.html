@@ -13,7 +13,7 @@
   }
 }
 </script>
-<link rel="stylesheet" href="mock-forge-blueprint-diorama.css?v=bp13">
+<link rel="stylesheet" href="mock-forge-blueprint-diorama.css?v=bp18">
 </head>
 <body>
 <header class="masthead">
@@ -275,7 +275,7 @@
           <b>✦</b><span><strong>Generate a layout</strong><small>Reproducible seed · topology study</small></span>
         </button>
         <button type="button" class="source-card" data-source-choice="import">
-          <b>▧</b><span><strong>Import a map</strong><small>Keep its art · confirm its meaning</small></span>
+          <b>▧</b><span><strong>Import a map</strong><small>Future workflow preview only</small></span>
         </button>
         <button type="button" class="source-card" data-source-choice="blank">
           <b>＋</b><span><strong>Begin empty</strong><small>Build a set piece by hand</small></span>
@@ -292,20 +292,20 @@
             <option value="warren">Branching</option>
           </select></label>
         </div>
-        <p class="hint">This proof uses deterministic topology studies at the future graph-generator seam. The producer can later be replaced without changing the editor or renderer.</p>
+        <p class="hint">This proof uses the deterministic graph-first producer. The dedicated Map Foundry exposes the complete size, density, verticality, seed, and three-candidate flow.</p>
         <button type="button" class="action primary wide" id="createSeeded">Generate Blueprint</button>
       </section>
       <section class="panel source-detail" data-source-detail="import" hidden>
-        <div class="section-head"><div><span class="step">B</span><h3>Assisted import study</h3></div><span class="status">sample flow</span></div>
+        <div class="section-head"><div><span class="step">B</span><h3>Assisted import study</h3></div><span class="status">contract preview</span></div>
         <div class="map-study" aria-label="Code-native painted abbey map study"><i></i><i></i><i></i><b>Painted Abbey Study</b><small>Code-native proof artwork · 28 × 20 cells</small></div>
-        <p class="hint">Forge keeps the source artwork underneath and proposes floors, walls, openings, and elevation. The DM confirms meaning before anything becomes rules authority.</p>
-        <button type="button" class="action primary wide" id="analyzeSample">Analyze sample map</button>
+        <p class="hint">Image loading and tracing are not built. This code-native sample only previews how a future importer would retain artwork, findings, confidence, review, rights, and the same Blueprint handoff.</p>
+        <button type="button" class="action primary wide" id="analyzeSample">Open reviewed sample contract</button>
       </section>
       <section class="panel source-detail" data-source-detail="blank" hidden>
         <div class="section-head"><div><span class="step">C</span><h3>Blank battlefield</h3></div><span class="status">manual</span></div>
-        <div class="blank-study"><span>12 × 10 room</span></div>
-        <p class="hint">Begin with one open sanctum, then shape its walls, doors, elevation, material, creatures, and presentation.</p>
-        <button type="button" class="action primary wide" id="createBlank">Create empty Blueprint</button>
+        <div class="blank-study"><span>Empty buildable grid</span></div>
+        <p class="hint">Begin with zero rooms. Build opens armed with Room selected; the first drag creates the first playable floor and the first undo returns to nothing.</p>
+        <button type="button" class="action primary wide" id="createBlank">Open genuinely blank Blueprint</button>
       </section>
       <section class="panel receipt">
         <span class="kicker">Current document</span>
@@ -460,7 +460,7 @@
   </aside>
 </main>
 
-<script src="mock-forge-blueprint-diorama-core.js?v=bp13"></script>
-<script type="module" src="mock-forge-blueprint-diorama.js?v=bp13"></script>
+<script src="mock-forge-blueprint-diorama-core.js?v=bp18"></script>
+<script type="module" src="mock-forge-blueprint-diorama.js?v=bp18"></script>
 </body>
 </html>

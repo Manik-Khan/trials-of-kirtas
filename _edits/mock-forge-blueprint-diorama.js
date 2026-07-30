@@ -79,8 +79,10 @@ const state = {
   renderPending: false,
   renderUntil: 0,
   lastFrameMs: 0,
-  lastActivity: performance.now()
+  lastActivity: performance.now(),
+  handoff: null
 };
+let importedUnderlayImage = null;
 
 const scene = new THREE.Scene();
 scene.background = new THREE.Color(0x101716);
@@ -927,7 +929,7 @@ function audit() {
   const connectivity = BP.connectivity(state.map);
   ui.contractStatus.textContent = valid.ok ? "field valid" : "field invalid";
   ui.contractStatus.className = "status " + (valid.ok ? "good" : "bad");
-  ui.connectivityStatus.textContent = connectivity.ok ? "connected" : connectivity.missing.length + " isolated";
+  ui.connectivityStatus.textContent = connectivity.ok ? "connected" : connectivity.reason || connectivity.missing.length + " isolated";
   ui.connectivityStatus.className = "status " + (connectivity.ok ? "good" : "bad");
 }
 
@@ -950,6 +952,19 @@ function scrawlColor(materialKey) {
 function drawSourceStudy(ctx, cell, ox, oy, force = false) {
   if (!force && (!state.sourceUnderlay || state.blueprint.source?.kind !== "imported")) return;
   ctx.save();
+  if (importedUnderlayImage) {
+    ctx.fillStyle = "#171c19";
+    ctx.fillRect(0, 0, ctx.canvas.width, ctx.canvas.height);
+    ctx.globalAlpha = 1;
+    ctx.drawImage(
+      importedUnderlayImage,
+      ox, oy,
+      state.map.cols * cell,
+      state.map.rows * cell
+    );
+    ctx.restore();
+    return;
+  }
   ctx.fillStyle = "#b0a68e";
   ctx.fillRect(0, 0, ctx.canvas.width, ctx.canvas.height);
   for (let r = 0; r < state.map.rows; r++) for (let c = 0; c < state.map.cols; c++) {
@@ -1113,16 +1128,20 @@ function drawArtwork() {
   const cell = Math.min((width - pad * 2) / state.map.cols, (height - pad * 2) / state.map.rows);
   const ox = (width - state.map.cols * cell) / 2, oy = (height - state.map.rows * cell) / 2;
   state.artworkTransform = { cell, ox, oy };
-  ctx.save();
-  ctx.beginPath();
-  for (let r = 0; r < state.map.rows; r++) for (let c = 0; c < state.map.cols; c++) {
-    const info = cellInfo(c, r);
-    if (!isAuthoringVisible(info)) continue;
-    ctx.rect(ox + c * cell, oy + r * cell, cell + 0.5, cell + 0.5);
+  if (importedUnderlayImage) {
+    drawSourceStudy(ctx, cell, ox, oy, true);
+  } else {
+    ctx.save();
+    ctx.beginPath();
+    for (let r = 0; r < state.map.rows; r++) for (let c = 0; c < state.map.cols; c++) {
+      const info = cellInfo(c, r);
+      if (!isAuthoringVisible(info)) continue;
+      ctx.rect(ox + c * cell, oy + r * cell, cell + 0.5, cell + 0.5);
+    }
+    ctx.clip();
+    drawSourceStudy(ctx, cell, ox, oy, true);
+    ctx.restore();
   }
-  ctx.clip();
-  drawSourceStudy(ctx, cell, ox, oy, true);
-  ctx.restore();
   for (let r = 0; r < state.map.rows; r++) for (let c = 0; c < state.map.cols; c++) {
     const info = cellInfo(c, r);
     if (!isAuthoringVisible(info)) continue;
@@ -1362,20 +1381,47 @@ function sourceSummary() {
   };
   if (source.kind === "imported") return {
     title: source.label + " · " + source.sourceName,
-    detail: source.sourceRights + " · confirmation required"
+    detail: source.interpretation
+      ? source.interpretation.engine + " · " + source.interpretation.scene
+      : source.sourceRights + " · confirmation required"
   };
   if (source.kind === "blank") return {
     title: source.label + " · Untitled Battlefield",
-    detail: "One open room · manual structure"
+    detail: state.blueprint.spaces.length ? "DM-drawn structure" : "Zero rooms · first room required"
   };
   return { title: "Topology study · " + state.blueprint.name, detail: "forge-blueprint/v1 · isolated proof fixture" };
+}
+function loadImportedUnderlay() {
+  importedUnderlayImage = null;
+  const source = state.blueprint.source || {};
+  if (!source.underlayKey) return;
+  let imageData = null;
+  try {
+    imageData = source.underlayStorage === "local"
+      ? localStorage.getItem(source.underlayKey)
+      : sessionStorage.getItem(source.underlayKey);
+    if (!imageData) imageData = sessionStorage.getItem(source.underlayKey) || localStorage.getItem(source.underlayKey);
+  } catch (error) {
+    imageData = null;
+  }
+  if (!imageData) return;
+  const image = new Image();
+  image.onload = () => {
+    importedUnderlayImage = image;
+    drawScrawl();
+    drawArtwork();
+  };
+  image.src = imageData;
 }
 function updateSourceReceipt() {
   const summary = sourceSummary();
   const valid = BP.validateMap(state.map);
   const connected = BP.connectivity(state.map);
   ui.sourceReceipt.textContent = summary.title;
-  ui.sourceReceiptDetail.textContent = "forge-blueprint/v1 · " + (connected.ok ? "connected" : "needs repair") + " · " + (valid.ok ? "field valid" : "field invalid") + " · " + summary.detail;
+  ui.sourceReceiptDetail.textContent = "forge-blueprint/v1 · "
+    + (connected.ok ? "connected" : connected.reason || "needs repair") + " · "
+    + (valid.ok ? "field valid" : "field invalid") + " · " + summary.detail
+    + (state.handoff ? " · received " + state.handoff.fingerprint : "");
 }
 function renderReviewFindings() {
   ui.reviewFindings.replaceChildren();
@@ -1415,8 +1461,9 @@ function renderReviewFindings() {
     ui.reviewFindings.appendChild(row);
   });
 }
-function useBlueprint(blueprint) {
+function useBlueprint(blueprint, handoff = null) {
   state.blueprint = BP.copy(blueprint);
+  state.handoff = handoff ? BP.copy(handoff) : null;
   state.themeBase = BP.copy(blueprint);
   state.fixtureKey = state.blueprint.source?.fixtureKey || "custom";
   state.areaFocus = state.blueprint.discoveryRegions[0]?.id || "";
@@ -1427,6 +1474,7 @@ function useBlueprint(blueprint) {
   state.layoutPassage = null;
   state.buildAnchor = null;
   state.sourceUnderlay = !!state.blueprint.source?.underlay;
+  loadImportedUnderlay();
   state.discovered = new Set(state.blueprint.discoveryRegions.map((region) => region.id));
   document.querySelectorAll("[data-fixture]").forEach((button) => button.classList.toggle("active", button.dataset.fixture === state.fixtureKey));
   updateRegionControls();
@@ -1442,6 +1490,16 @@ function useBlueprint(blueprint) {
   setMode("browse");
   resetHistory();
   setWorkflow("map");
+}
+function openBlankBuild(size = "medium") {
+  useBlueprint(BP.produceBlank({ size }));
+  setMapTab("layout");
+  setView("blueprint");
+  setMode("build");
+  setLayoutTool("room");
+  ui.layoutToolGuidance.innerHTML = "<strong>Room:</strong> This grid is genuinely empty. Drag the first room; the tactical field will remain unavailable until playable floor exists.";
+  ui.chunkStatus.textContent = "first room required";
+  ui.chunkStatus.className = "status bad";
 }
 function chooseSource(kind) {
   document.querySelectorAll("[data-source-choice]").forEach((button) => button.classList.toggle("active", button.dataset.sourceChoice === kind));
@@ -1914,7 +1972,8 @@ function revealNext() {
   recordHistory("Room revealed");
 }
 function resetDiscovery() {
-  state.discovered = new Set([state.blueprint.discoveryRegions[0].id]);
+  const first = state.blueprint.discoveryRegions[0];
+  state.discovered = new Set(first ? [first.id] : []);
   refreshDocument();
   rebuildAll();
   recordHistory("Player darkness restored");
@@ -2099,6 +2158,9 @@ function commitRoom(from, to) {
   rebuildAll();
   updateDirectUI();
   recordHistory("Room drawn");
+  const connectivity = BP.connectivity(state.map);
+  ui.chunkStatus.textContent = connectivity.ok ? "first room drawn · connected" : connectivity.reason;
+  ui.chunkStatus.className = "status " + (connectivity.ok ? "good" : "bad");
 }
 function placeObject(c, r) {
   const next = BP.placeProp(state.blueprint, c, r, state.objectKind, state.rotation);
@@ -2671,7 +2733,7 @@ document.querySelectorAll("[data-context-select]").forEach((button) => button.ad
   ui.chunkStatus.className = "status good";
 }));
 document.querySelectorAll("[data-quick-map]").forEach((button) => button.addEventListener("click", () => {
-  if (button.dataset.quickMap === "blank") useBlueprint(BP.produceBlank());
+  if (button.dataset.quickMap === "blank") openBlankBuild();
   else loadFixture(button.dataset.quickMap);
 }));
 document.querySelectorAll("[data-presentation]").forEach((button) => button.addEventListener("click", () => {
@@ -2694,7 +2756,7 @@ ui.createSeeded.addEventListener("click", () => useBlueprint(BP.produceSeeded({
   topology: ui.seedTopology.value
 })));
 ui.analyzeSample.addEventListener("click", () => useBlueprint(BP.produceImportedSample()));
-ui.createBlank.addEventListener("click", () => useBlueprint(BP.produceBlank()));
+ui.createBlank.addEventListener("click", () => openBlankBuild());
 ui.toggleUnderlay.addEventListener("click", () => {
   if (!state.blueprint.source?.underlay) return;
   state.sourceUnderlay = !state.sourceUnderlay;
@@ -2968,6 +3030,28 @@ document.addEventListener("visibilitychange", () => {
   if (!document.hidden) requestRender();
 });
 
+function incomingHandoff() {
+  const marker = "#handoff=";
+  if (!window.location.hash.startsWith(marker)) return null;
+  const decoded = BP.decodeHandoff(window.location.hash.slice(marker.length));
+  if (!decoded.ok) throw new Error(decoded.error);
+  return decoded.handoff;
+}
+window.__blueprintProofState = () => ({
+  blueprintId: state.blueprint.id,
+  fingerprint: BP.fingerprint(state.blueprint),
+  receivedFingerprint: state.handoff?.fingerprint || null,
+  sourceKind: state.blueprint.source?.kind || null,
+  structuralFingerprint: BP.structuralFingerprint(state.blueprint),
+  spaces: state.blueprint.spaces.length,
+  corridors: state.blueprint.corridors.length,
+  connected: BP.connectivity(state.map).ok,
+  mode: state.mode,
+  tool: state.layoutTool,
+  view: state.view,
+  canUndo: !!state.history?.past.length
+});
+
 try {
   updateRegionControls();
   refreshDocument();
@@ -2985,6 +3069,24 @@ try {
   setLayoutTool("select");
   setMapTab("layout");
   setWorkflow("map");
+  const handoff = incomingHandoff();
+  if (handoff) {
+    useBlueprint(handoff.blueprint, handoff);
+    setMapTab("layout");
+    if (handoff.build?.armed) {
+      setView("blueprint");
+      setMode("build");
+      setLayoutTool(handoff.build.tool || "room");
+      ui.layoutToolGuidance.innerHTML = "<strong>Room:</strong> This grid is genuinely empty. Drag the first room; the tactical field will remain unavailable until playable floor exists.";
+      ui.chunkStatus.textContent = "first room required";
+      ui.chunkStatus.className = "status bad";
+    } else {
+      setView("board");
+      setMode("browse");
+      setLayoutTool(handoff.build?.tool || "select");
+    }
+    updateSourceReceipt();
+  }
 } catch (error) {
   console.error(error);
   ui.fatal.textContent = "The standalone proof could not start: " + error.message;

@@ -5,7 +5,7 @@
 <meta name="viewport" content="width=device-width,initial-scale=1">
 <meta name="robots" content="noindex">
 <title>Forge Map Foundry · creation flow proof</title>
-<link rel="stylesheet" href="mock-forge-blueprint-diorama-creation.css?v=cf1">
+<link rel="stylesheet" href="mock-forge-blueprint-diorama-creation.css?v=cf3">
 </head>
 <body>
 <header class="masthead">
@@ -40,7 +40,7 @@
         <b>▦</b><span><strong>Templates</strong><small>Start from a proven structure</small></span><i>›</i>
       </button>
       <button type="button" data-method="import">
-        <b>◫</b><span><strong>Import a map</strong><small>Trace a top-down image</small></span><i>›</i>
+        <b>◫</b><span><strong>Import a map</strong><small>Preview the future review flow</small></span><i>›</i>
       </button>
       <button type="button" data-method="blank">
         <b>□</b><span><strong>Blank map</strong><small>Draw it directly</small></span><i>›</i>
@@ -107,7 +107,7 @@
 
     <section class="method-panel active" data-method-panel="generate">
       <label class="brief-field">
-        <span>What should happen here?</span>
+        <span>Map notes <small>saved with the Blueprint · does not affect generation</small></span>
         <textarea id="generationBrief" rows="3">A ruined abbey where the party enters through a narrow gate, crosses a dramatic central room, and discovers a raised choir.</textarea>
       </label>
       <fieldset>
@@ -129,8 +129,7 @@
       </fieldset>
       <button type="button" class="primary wide" id="generateDirections">Create three directions</button>
       <div class="refine-row">
-        <input id="refineRequest" placeholder="Try: a wider central chamber">
-        <button type="button" id="refineDirections">Refine</button>
+        <button type="button" class="wide" id="refineDirections">Create three new directions</button>
       </div>
       <button type="button" class="lock-action" id="lockDirection" aria-pressed="false"><b>◇</b><span><strong>Keep this layout</strong><small>Regenerate around the parts you like.</small></span></button>
       <details class="advanced">
@@ -165,6 +164,7 @@
     </section>
 
     <section class="method-panel" data-method-panel="import" hidden>
+      <p class="privacy-note"><b>Workflow preview.</b> Image loading and tracing are not built yet. This code-native sample demonstrates only the future calibration, confidence, review, and exact-Blueprint handoff contract.</p>
       <ol class="import-steps" aria-label="Import progress">
         <li class="done"><b>1</b><span>Image</span></li>
         <li class="active"><b>2</b><span>Grid</span></li>
@@ -180,13 +180,13 @@
         <div><label>X origin<input id="importOriginX" type="number" value="0"></label><span>px</span></div>
         <div><label>Y origin<input id="importOriginY" type="number" value="0"></label><span>px</span></div>
       </div>
-      <button type="button" class="secondary wide" id="interpretMap">Interpret this map</button>
+      <button type="button" class="secondary wide" id="interpretMap">Preview interpretation findings</button>
       <div class="finding-list" id="findingList"></div>
       <div class="import-actions">
         <button type="button" id="acceptClearFindings">Accept clear findings</button>
-        <button type="button" class="primary" id="createImportedBlueprint" disabled>Create Blueprint</button>
+        <button type="button" class="primary" id="createImportedBlueprint" disabled>Accept reviewed sample</button>
       </div>
-      <p class="privacy-note"><b>Source choice remains visible.</b> In production, keep the original artwork, use it only as a guide, or translate it into the modular kit. Rights travel with the source receipt.</p>
+      <p class="privacy-note"><b>Source choice remains visible.</b> A future importer must keep the original artwork, use it only as a guide, or translate it into the modular kit. Rights travel with the source receipt.</p>
     </section>
 
     <section class="method-panel" data-method-panel="blank" hidden>
@@ -202,10 +202,10 @@
       <fieldset>
         <legend>Give me</legend>
         <div class="blank-options">
-          <button type="button" class="active" data-blank-start="room"><b>□</b><span><strong>One open room</strong><small>A foothold to reshape</small></span></button>
+          <button type="button" class="active" data-blank-start="empty"><b>□</b><span><strong>Nothing yet</strong><small>Room brush opens armed</small></span></button>
         </div>
       </fieldset>
-      <button type="button" class="primary wide" id="startBlank">Open blank Blueprint</button>
+      <button type="button" class="primary wide" id="startBlank">Open blank Build workspace</button>
     </section>
 
     <div class="selection-cta">
@@ -239,7 +239,7 @@
 </div>
 
 <div class="fatal" id="fatal" role="alert"></div>
-<script src="mock-forge-blueprint-diorama-core.js?v=bp13"></script>
-<script src="mock-forge-blueprint-diorama-creation.js?v=cf1"></script>
+<script src="mock-forge-blueprint-diorama-core.js?v=bp18"></script>
+<script src="mock-forge-blueprint-diorama-creation.js?v=cf4"></script>
 </body>
 </html>

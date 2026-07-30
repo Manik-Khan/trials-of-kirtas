@@ -188,7 +188,7 @@ visual proof.
 
 ---
 
-## APPROVED NEXT MAP-CREATION SLICE · 2026-07-30
+## LOCAL MAP-CREATION PROOF CANDIDATE · 2026-07-30
 
 M approved the Map Foundry creation experience as a separate opening section:
 **Generate**, **Templates**, **Import a map**, and **Blank map** are four
@@ -197,20 +197,27 @@ equally visible starting doors, and every door converges on the same editable
 first; optional advanced controls expose seeds and deeper structure without
 making them prerequisites.
 
-The standalone UX proof is
+The standalone proof is
 `_edits/mock-forge-blueprint-diorama-creation.html` with same-basename CSS/JS.
-It reuses the real proof authority and passes its focused contract, but M's
-field review rejected two placeholders:
+The local candidate now replaces the two rejected placeholders:
 
-1. `produceSeeded()` currently selects processional, vault, or warren by seed.
-   Those are valid **Templates**, but three fixtures are not a generator.
-2. `produceBlank()` currently supplies one starter room, while the creation
-   proof's Build handoff is explanatory only. Blank must be genuinely empty and
-   immediately buildable with the approved tools.
+1. `produceSeeded()` is a deterministic graph-first proof producer. The three
+   authored processional/vault/warren fixtures remain **Templates** rather than
+   procedural evidence.
+2. `produceBlank()` now emits zero rooms and zero corridors. Its exact handoff
+   enters the approved proof Build workspace armed with Room selected.
+3. The generic handoff verifies document identity and canonical fingerprint
+   before Build consumes the selected Blueprint.
 
-Do not describe the present creation mock as a working graph generator, blank
-editor, or real Blueprint handoff. The next session is an isolated functional
-vertical slice, not another cosmetic pass:
+The real browser path replayed a seed exactly, produced three distinct
+candidate fingerprints, carried a selected candidate into Build unchanged,
+drew the first Blank room, narrated the now-connected field, and undid back to
+zero rooms with no console errors. Focused contracts pass **27/27** creation
+and **85/85** Blueprint/Diorama checks; all six canonical Forge suites remain
+**151/151**.
+
+This is a validated local proof candidate awaiting M's visual/interaction
+approval, not production Forge code:
 
 ### Ownership
 
@@ -243,8 +250,9 @@ No proof code promotes to production in this slice.
 4. Preserve exact seed replay. Stable layout/height/semantics/decor sub-seeds
    may be proven here when they materially support locking/regeneration, but do
    not add production versioning machinery.
-5. Carry the exact selected Blueprint—Generate, Template, or Import—into the
-   approved Build workspace without regenerating or substituting a fixture.
+5. Carry the exact selected Blueprint—Generate, Template, or an already-reviewed
+   Import fixture—into the approved Build workspace without regenerating or
+   substituting a fixture.
 6. Make Blank a genuinely empty grid. Enter Build armed with Room selected;
    drag the first footprint, then prove passage, wall, ledge, door, erase, and
    undo without leaving the flow. The tactical compiler may narrate “first room
@@ -260,18 +268,20 @@ No proof code promotes to production in this slice.
   field, with failures repaired or clearly narrated;
 - the selected candidate enters Build with the same Blueprint identity and
   fingerprint;
-- Template and reviewed Import selections also arrive unchanged;
+- Template and the already-reviewed Import fixture also arrive unchanged;
 - Blank begins with no starter room, opens the real Build tools, and can draw
   its first valid room plus a passage/wall/door run with undo;
 - focused known answers extract the real producer/handoff functions, all
   touched JavaScript passes `node --check`, and the browser flow is field-tested
   before review.
 
-Real image recognition/tracing, natural-language semantic generation,
+Real image loading, recognition/tracing, natural-language semantic generation,
 production persistence, multiplayer/replay, renderer promotion, and live
-combat integration remain later slices. Import must keep its visible
-confidence/review contract and source-rights receipt; the next session only
-needs to prove that an accepted imported Blueprint reaches Build unchanged.
+combat integration remain later slices. **There is no working image Import in
+the current proof.** Its Import door is a clearly labeled future-workflow
+preview using one hardcoded reviewed fixture with visible
+confidence/source-rights metadata. The proof covers only the generic exact
+handoff seam after a Blueprint has already been reviewed.
 
 ---
 
@@ -1002,14 +1012,50 @@ real placement. **These are decisions, not hypotheses.**
 4. Export the current tactical field shape and run the focused contract smoke.
 5. Field-test all quality modes on M's laptop and obtain visual approval.
 
-### Current next proof before production promotion
+### Current local proof review before production promotion
 
-1. Replace the creation mock's three-fixture Generate placeholder with the
-   deterministic graph-first producer described in the July 30 section above.
-2. Carry Generate, Template, Import, and truly Blank Blueprints into the actual
-   proof Build workspace.
-3. Field-test generator variety, exact seed replay, empty-grid first-room
-   drawing, and exact Blueprint identity across the handoff.
+1. M field-tests the local deterministic generator's visible variety and exact
+   seed replay.
+2. M verifies exact Generate/Template transfer and the zero-room Blank →
+   first-room → Undo flow in the proof Build workspace.
+3. M confirms the creation screen's Import door still reads as a
+   future-workflow preview, then separately field-tests the standalone local
+   artwork interpreter described below.
+
+### Standalone local artwork interpreter candidate · July 30
+
+`_edits/mock-forge-image-importer.html` is a no-network, mock-first proof that
+loads a real local JPEG, PNG, or WebP and emits the existing
+`forge-blueprint/v1`; it does not change production Forge. Its browser pixel
+pass proposes:
+
+- repeated-line grid evidence or a DM-selected ungridded width;
+- per-square stone, timber, vegetation, water, earth, or snow/ice;
+- independent visible material and tactical walkability;
+- connected playable-region findings; and
+- bright warm fire regions as editable brazier proposals.
+
+The Source, Materials, Walkability, and Confidence layers remain separately
+inspectable. The DM can repaint a square's material, mark it walkable/blocked,
+and then carry the exact corrected Blueprint into the approved Build proof.
+The source artwork never enters the repository or Blueprint; a private
+downsampled underlay is held in browser storage so Artwork view can restore it.
+
+Field evidence used two user-licensed Czepeku maps without copying them into
+the repository. The 3220×5040 gridded city map detected 138.6-source-pixel
+squares at 96% evidence, yielded 23×36, and proposed a built settlement/plaza.
+The 3500×6300 ungridded camp correctly declined to claim a grid, used a
+DM-selected 35×63 scale, and proposed a wetland/overgrown battlefield. Its 289
+water cells stay visible while 298 water/dense-cover cells remain separately
+blocked; the exact Build handoff retained 414 material regions and 32 fire
+props. Browser Artwork and Board views restored correctly with no console
+errors.
+
+The proof's boundary is intentional. It derives broad terrain semantics from
+color, texture, and repeated lines; it does not yet reliably convert roofs,
+tents, market stalls, stages, ruins, trees, walls, doors, or elevation into
+their matching modular objects. Those shape/object detectors and a review UI
+for grouped features remain the next importer research slice.
 
 ### After that proof: active Phase 2 production terrain
 

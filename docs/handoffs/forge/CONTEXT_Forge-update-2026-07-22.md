@@ -1159,7 +1159,7 @@ before the later Map/Populate/Play work. Two functional gaps prevent sign-off:
 - Blank is one starter block and the handoff does not enter the actual Build
   tools. A DM cannot begin empty and draw the map.
 
-### Next-session ownership
+### Historical next-session ownership · completed by the local candidate below
 
 The next session owns only the creation proof, the existing
 `mock-forge-blueprint-diorama*` proof files needed for an exact Build handoff,
@@ -1167,7 +1167,7 @@ and their two focused smokes. It does not own or edit the production Forge,
 current production generators, map bridge, tactics geometry, protocol/replay,
 characters, monsters, shared theme, or SQL.
 
-### Required next slice
+### Historical required slice
 
 1. Preserve the three fixtures as explicitly labeled Templates.
 2. Build a deterministic graph-first proof producer:
@@ -1178,14 +1178,14 @@ characters, monsters, shared theme, or SQL.
 4. Offer three structurally different candidates, support exact seed replay,
    and keep any chosen/locked structure without silently substituting a
    fixture.
-5. Carry the exact Generate, Template, or reviewed Import Blueprint into the
-   approved Build workspace with identity/fingerprint unchanged.
+5. Carry the exact Generate, Template, or already-reviewed Import fixture into
+   the approved Build workspace with identity/fingerprint unchanged.
 6. Make Blank genuinely empty. Enter Build armed with Room selected; draw the
    first room, then use passage, wall, ledge, door, erase, directional repeat,
    and undo without leaving the flow. Narrate that a first room is required
    before the tactical field can validate.
 
-### Acceptance
+### Acceptance used for the local candidate
 
 - repeated generation produces visible structural variety beyond three maps;
 - identical seed + controls yields byte-identical Blueprint/fingerprint output;
@@ -1198,10 +1198,66 @@ characters, monsters, shared theme, or SQL.
 - focused smokes extract the real generator/handoff functions, every touched
   script passes `node --check`, and M field-tests the local browser flow.
 
-Real image recognition, natural-language generation, production persistence,
-multiplayer/replay, renderer promotion, and combat integration remain outside
-this slice. The existing Import review/confidence/source-rights UX remains and
-only needs an exact accepted-Blueprint handoff in the next proof.
+At approval time, real image recognition, natural-language generation,
+production persistence, multiplayer/replay, renderer promotion, and combat
+integration remained outside this slice. The Import review/confidence/
+source-rights UX was intended only to exercise an exact already-reviewed
+Blueprint handoff; no working image importer existed.
+
+### Local proof candidate + Import correction · 2026-07-30
+
+Implementation baseline: `8e8743e` on `main`. Ownership stayed within the
+creation/Blueprint proof files and their two focused smokes. An unrelated
+untracked Character Readiness proof was present during validation and was not
+touched.
+
+The isolated candidate now supplies:
+
+- deterministic graph-first generation with stable
+  layout/height/semantics/decor sub-seeds;
+- three pairwise-distinct candidates driven by real
+  size/topology/density/verticality controls;
+- canonical Blueprint and structural fingerprints plus a verified encoded
+  handoff;
+- exact selected-candidate and Template transfer into Build;
+- a zero-room Blank document that enters Build armed with Room selected; and
+- first-room drawing and Undo back to the genuinely empty document without
+  leaving Map Foundry.
+
+The generator matrix covered **4,320/4,320** size/topology/density/seed
+combinations as connected and valid. The focused contracts pass **28/28**
+creation checks and **86/86** Blueprint/Diorama checks. The canonical Forge
+engine/map-bridge/tactics-geometry/LoS-placement/flora suites pass **151/151**.
+Every touched script passes `node --check`. The real in-app browser replayed the
+same candidate trio, observed a changed trio after requesting new directions,
+verified the
+selected document ID/fingerprint in Build, entered Blank with zero rooms, drew
+the first room, saw “first room drawn · connected,” and undid to 0/0 with no
+console errors.
+
+**Correction and separate importer candidate:** the creation screen's Import
+door is not an importer. It remains a future-workflow preview using one
+hardcoded, already-reviewed Processional fixture. Real image loading is instead
+isolated in `_edits/mock-forge-image-importer.html`, a local-only proof that
+reads browser pixels, proposes grid/scale, materials, walkability,
+connectivity, and fire features, allows square-level correction, and sends the
+exact reviewed `forge-blueprint/v1` into Build. It passes **37/37** focused
+checks. The licensed sources stay outside the repository and Blueprint; only a
+private downsampled underlay is restored from browser storage.
+
+The gridded 3220×5040 city field test detected 138.6-source-pixel squares at
+96% evidence and proposed a 23×36 built plaza. The ungridded 3500×6300 camp
+correctly declined to claim a grid, used a DM-selected 35×63 scale, proposed
+289 visible water cells, 298 separately blocked cells, and 32 fire props, and
+arrived in Build with 414 material regions. Artwork and Board views both
+rendered with no browser errors. The next research gate is reliable grouped
+shape/object recovery—walls, roofs, stalls, trees, ruins, doors, and
+elevation—not further claims from color alone.
+
+Remaining gate: M visually/interaction-tests generator variety, exact handoff,
+Blank authoring, and whether the broad terrain interpretation is useful before
+grouped object recovery. Do not promote either proof into production in the
+same review step.
 
 1. **Passed July 23.** The live selector showed only the five active
    player-folder characters; deleted, test, and out-of-folder rows were absent.
@@ -1257,16 +1313,12 @@ only needs an exact accepted-Blueprint handoff in the next proof.
 
 1. Resynchronize from `AGENTS.md`, `CONTEXT.md`, `CONTEXT_Forge.md`, this
    handoff, current `HEAD`, and the working tree.
-2. Treat current uncommitted creation-flow files as M-owned work; read them and
-   the committed Blueprint proof before editing.
-3. Build only the July 30 isolated graph-generator → exact Blueprint → Build
-   slice within its ownership boundary.
-4. Run both focused Blueprint smokes, `node --check` every touched script, the
-   six canonical Forge smokes, and the real browser interaction path.
-5. Stop for M's generator-variety, Blank-build, and handoff approval. Do not
-   promote proof code into production during the same slice.
-6. After approval, record the settled producer/editor handoff contract here
-   before assigning production module and persistence ownership.
+2. M reviews the local graph-generator → exact Blueprint → Build candidate,
+   including generator variety, Blank first-room authoring/Undo, and the
+   explicit future-only Import wording.
+3. Do not promote proof code into production during that review.
+4. After approval, record the settled producer/editor handoff contract here
+   before assigning production module, real Import, and persistence ownership.
 
 The signed-in field checklist, character post-hit/reaction riders, and monster
 behavior adapter remain a separate queue. They may run in another task only

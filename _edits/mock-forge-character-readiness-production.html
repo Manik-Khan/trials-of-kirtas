@@ -1,0 +1,55 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>Production Character Readiness Harness</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <style>
+    body{margin:0;min-height:100vh;background:#0d0a07;color:#f0e6ce;font-family:Georgia,serif}
+    main{padding:34px}.quiet{color:#9a8f78}
+  </style>
+</head>
+<body>
+  <main><h1>Forge readiness field harness</h1><p class="quiet">This page drives the shipped readiness contract and shipped repair-sheet renderer.</p></main>
+  <script src="../character-readiness.js?v=cr1"></script>
+  <script src="../forge/forge-readiness-ui.js?v=fru1"></script>
+  <script>
+    var character={
+      key:"chonkalius-a35f",name:"Chonkalius",
+      structural:{
+        name:"Chonkalius",classLabel:"Barbarian 4",subclass:"Path of Wild Magic",race:"Half-Orc",level:4,
+        features:[
+          {name:"Rage",source:"class:Barbarian"},{name:"Unarmored Defense",source:"class:Barbarian"},
+          {name:"Danger Sense",source:"class:Barbarian"},{name:"Reckless Attack",source:"class:Barbarian"},
+          {name:"Path of Wild Magic",source:"subclass:Path of Wild Magic"},{name:"Polearm Master",source:"feat:Feat"},
+          {name:"Darkvision",source:"race:Half-Orc"},{name:"Menacing",source:"race:Half-Orc"},
+          {name:"Relentless Endurance",source:"race:Half-Orc"},{name:"Savage Attacks",source:"race:Half-Orc"}
+        ],
+        _build:{feats:[{name:"Polearm Master"}]}
+      },
+      inventory:[
+        {name:"any martial melee weapon (your choice)",category:"weaponMartialMelee",unresolved:true},
+        {name:"Handaxe",qty:2},{name:"Javelin",qty:4}
+      ]
+    };
+    var manualNames=["Rage","Danger Sense","Reckless Attack","Polearm Master","Relentless Endurance","Savage Attacks"];
+    var kit={
+      key:character.key,name:character.name,maxHp:44,ac:12,speed:30,
+      tabs:{attacks:[{id:"handaxe",label:"Handaxe",kind:"attack",tab:"attacks"}]},
+      capabilities:manualNames.map(function(name){
+        return {label:name,status:"missing",group:name==="Relentless Endurance"?"reactions":"actions",
+          automation:{reason:name+" is visible as a reference; automatic combat resolution is not wired yet."}};
+      })
+    };
+    var report=CharacterReadiness.audit(character,kit,{structural:character.structural});
+    window.__productionReadiness={character:character,kit:kit,report:report};
+    window.__productionReadinessUi=ForgeReadinessUI.controller({
+      document:document,
+      onRestore:function(){document.querySelector("[data-fru-status]").textContent="Restore path received.";},
+      onEquipment:function(){document.querySelector("[data-fru-status]").textContent="Equipment path received.";}
+    });
+    window.__productionReadinessUi.show(character,report);
+  </script>
+</body>
+</html>
