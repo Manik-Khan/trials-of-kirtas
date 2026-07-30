@@ -1241,18 +1241,40 @@ hardcoded, already-reviewed Processional fixture. Real image loading is instead
 isolated in `_edits/mock-forge-image-importer.html`, a local-only proof that
 reads browser pixels, proposes grid/scale, materials, walkability,
 connectivity, and fire features, allows square-level correction, and sends the
-exact reviewed `forge-blueprint/v1` into Build. It passes **37/37** focused
+exact reviewed `forge-blueprint/v1` into Build. It passes **44/44** focused
 checks. The licensed sources stay outside the repository and Blueprint; only a
 private downsampled underlay is restored from browser storage.
 
-The gridded 3220×5040 city field test detected 138.6-source-pixel squares at
-96% evidence and proposed a 23×36 built plaza. The ungridded 3500×6300 camp
-correctly declined to claim a grid, used a DM-selected 35×63 scale, proposed
-289 visible water cells, 298 separately blocked cells, and 32 fire props, and
-arrived in Build with 414 material regions. Artwork and Board views both
-rendered with no browser errors. The next research gate is reliable grouped
-shape/object recovery—walls, roofs, stalls, trees, ruins, doors, and
-elevation—not further claims from color alone.
+The gridded 3220×5040 city field test exposed a confident Auto failure: 138.6
+source pixels was a
+two-square harmonic, not one printed cell. The new Combat-style
+“Draw one source square” gesture established 70.0 source pixels, zero phase,
+46×72 cells, and full-image alignment; its `manuallyCalibrated` provenance
+survived the exact handoff. The ungridded 3500×6300 camp correctly declined to
+claim a grid, used a DM-selected 35×63 scale, proposed 289 visible water cells,
+298 separately blocked cells, and 32 fire props, and arrived in Build with 414
+material regions. Artwork and Board views both rendered with no browser
+errors. The next research gate is reliable grouped shape/object
+recovery—walls, roofs, stalls, trees, ruins, doors, and elevation—not further
+claims from color alone.
+
+The structure slice should convert reviewed image regions into semantic
+surfaces and volumes. At minimum the DM needs brushes/proposals for ground,
+water/hazard, building footprint, walkable roof/deck, bridge, wall edge,
+tent/soft structure, tree/canopy, and prop. Color may choose a material palette;
+it may not decide object identity or height. Buildings must carry base/top
+feet, solidity, roof walkability, and climb/ladder/stair access. Bridges must
+carry deck path/elevation, width, clearance, rails/supports, endpoints, and the
+terrain below.
+
+Do not claim simultaneous bridge over/under occupancy from the current
+runtime. Map Contract 2.0 describes bridge clearance and the ground below, but
+`forge-engine.js` selects one effective bridge surface for a `c,r` and current
+generated records say `supportsUnderpass:false`. A truthful next contract needs
+stable walk-surface IDs, positions keyed by `{c,r,surfaceId,elevationFt}`,
+surface-aware occupancy/pathfinding/LoS, and explicit inter-surface
+connectors. Until that rules seam lands, a raised deck is a renderer study, not
+playable two-level authority.
 
 Remaining gate: M visually/interaction-tests generator variety, exact handoff,
 Blank authoring, and whether the broad terrain interpretation is useful before

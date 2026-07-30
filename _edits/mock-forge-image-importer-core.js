@@ -141,6 +141,36 @@
       confidence: 1, evidence: { chosenColumns: cols }
     };
   }
+  function gridFromDrawnBox(width, height, startX, startY, endX, endY, span) {
+    span = Math.max(1, Math.round(Number(span) || 1));
+    var sx = clamp(Number(startX), 0, width), sy = clamp(Number(startY), 0, height);
+    var ex = clamp(Number(endX), 0, width), ey = clamp(Number(endY), 0, height);
+    if (![sx, sy, ex, ey].every(Number.isFinite)) return null;
+    var x0 = Math.min(sx, ex), y0 = Math.min(sy, ey);
+    var boxWidth = Math.abs(ex - sx), boxHeight = Math.abs(ey - sy);
+    var cellPx = ((boxWidth + boxHeight) / 2) / span;
+    if (boxWidth < 4 || boxHeight < 4 || cellPx < 4) return null;
+    var originX = ((x0 % cellPx) + cellPx) % cellPx;
+    var originY = ((y0 % cellPx) + cellPx) % cellPx;
+    var phaseTolerance = Math.max(0.25, cellPx * 0.02);
+    if (originX < phaseTolerance || cellPx - originX < phaseTolerance) originX = 0;
+    if (originY < phaseTolerance || cellPx - originY < phaseTolerance) originY = 0;
+    return {
+      found: true,
+      cellPx: cellPx,
+      originX: originX,
+      originY: originY,
+      cols: Math.max(1, Math.floor((width - originX) / cellPx)),
+      rows: Math.max(1, Math.floor((height - originY) / cellPx)),
+      confidence: 1,
+      evidence: {
+        manualCell: true,
+        span: span,
+        boxWidthPx: boxWidth,
+        boxHeightPx: boxHeight
+      }
+    };
+  }
   function sampleCell(rgba, width, height, grid, c, r) {
     var x0 = grid.originX + c * grid.cellPx, y0 = grid.originY + r * grid.cellPx;
     var inset = grid.cellPx * 0.14;
@@ -236,7 +266,9 @@
       grid: {
         cellPx: grid.cellPx, originX: grid.originX, originY: grid.originY,
         cols: grid.cols, rows: grid.rows, confidence: grid.confidence,
-        detected: !!grid.found, evidence: grid.evidence || {}
+        detected: !!grid.found && !(grid.evidence && grid.evidence.manualCell),
+        manuallyCalibrated: !!(grid.evidence && grid.evidence.manualCell),
+        evidence: grid.evidence || {}
       },
       sceneLuminance: sceneLum,
       cells: cells
@@ -361,9 +393,11 @@
     var components = connectedComponents(analysis);
     var findings = [
       {
-        id: "grid", label: analysis.grid.detected
-          ? "Grid period detected from repeated line evidence"
-          : "Grid scale chosen for ungridded artwork",
+        id: "grid", label: analysis.grid.manuallyCalibrated
+          ? "Grid calibrated from one DM-drawn source square"
+          : analysis.grid.detected
+            ? "Grid period detected from repeated line evidence"
+            : "Grid scale chosen for ungridded artwork",
         confidence: analysis.grid.confidence, accepted: false
       },
       {
@@ -435,6 +469,7 @@
     rgbToHsv: rgbToHsv,
     detectGrid: detectGrid,
     gridFromColumns: gridFromColumns,
+    gridFromDrawnBox: gridFromDrawnBox,
     sampleCell: sampleCell,
     classifyMaterial: classifyMaterial,
     analyze: analyze,

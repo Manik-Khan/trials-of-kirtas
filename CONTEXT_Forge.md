@@ -1042,20 +1042,40 @@ The source artwork never enters the repository or Blueprint; a private
 downsampled underlay is held in browser storage so Artwork view can restore it.
 
 Field evidence used two user-licensed Czepeku maps without copying them into
-the repository. The 3220×5040 gridded city map detected 138.6-source-pixel
-squares at 96% evidence, yielded 23×36, and proposed a built settlement/plaza.
-The 3500×6300 ungridded camp correctly declined to claim a grid, used a
-DM-selected 35×63 scale, and proposed a wetland/overgrown battlefield. Its 289
-water cells stay visible while 298 water/dense-cover cells remain separately
-blocked; the exact Build handoff retained 414 material regions and 32 fire
-props. Browser Artwork and Board views restored correctly with no console
-errors.
+the repository. On the 3220×5040 city map, Auto reported 138.6-source-pixel
+squares at 96% confidence but visibly locked onto a two-square harmonic. The
+new Combat-compatible “Draw one source square” gesture established the correct
+70-pixel phase, 46×72 grid, full-image alignment, and explicit
+`manuallyCalibrated` provenance through the exact Build handoff. The 3500×6300
+ungridded camp correctly declined to claim a grid, used a DM-selected 35×63
+scale, and proposed a wetland/overgrown battlefield. Its 289 water cells stay
+visible while 298 water/dense-cover cells remain separately blocked; the exact
+Build handoff retained 414 material regions and 32 fire props. Browser Artwork
+and Board views restored correctly with no console errors.
 
 The proof's boundary is intentional. It derives broad terrain semantics from
 color, texture, and repeated lines; it does not yet reliably convert roofs,
 tents, market stalls, stages, ruins, trees, walls, doors, or elevation into
 their matching modular objects. Those shape/object detectors and a review UI
 for grouped features remain the next importer research slice.
+
+That next slice must author **semantic surfaces and volumes**, not infer height
+from color. The review palette should distinguish ground, water/hazard,
+building footprint, raised roof/deck, bridge, wall/edge, tent/soft structure,
+tree/canopy, and ordinary prop. A structure proposal owns a footprint,
+base/top feet, roof walkability, access requirements, confidence, and a
+kit/material choice sampled from the artwork. A bridge proposal owns its deck
+path, elevation, width, clearance, rails/supports, endpoints, and the ground or
+water beneath it.
+
+Map Contract 2.0 already describes those bridge facts, but the active
+`forge-engine.js` bridge adapter resolves one effective surface per `c,r` and
+generated bridges declare `supportsUnderpass:false`. Truthful simultaneous
+occupancy above and below therefore requires a later versioned seam: stable
+walk-surface IDs, creature position `{c,r,surfaceId,elevationFt}`, occupancy and
+pathfinding keyed by surface, and explicit connectors between surfaces.
+Rendering a raised deck before that rules seam would be visually impressive
+but tactically false.
 
 ### After that proof: active Phase 2 production terrain
 

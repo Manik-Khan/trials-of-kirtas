@@ -38,6 +38,9 @@ ok("the proof explicitly keeps analysis local",
   /stays on this device/.test(html) && /not a network service/.test(html));
 ok("gridded, ungridded, and automatic scale paths are visible",
   ["auto", "gridded", "ungridded"].every((mode) => html.includes(`data-grid-mode="${mode}"`)));
+ok("gridded artwork exposes the Combat-style one-square drag calibration",
+  /id="drawGridCell"/.test(html) && /Drag exactly from one printed grid corner/.test(html)
+  && /gridFromDrawnBox/.test(js));
 ok("Source, Materials, Walkability, and Confidence are separate evidence layers",
   ["source", "materials", "walkability", "confidence"].every((layer) => html.includes(`data-layer="${layer}"`)));
 ok("review includes material repaint and walkability correction",
@@ -45,9 +48,9 @@ ok("review includes material repaint and walkability correction",
   && /data-walkable="true"/.test(html)
   && /data-walkable="false"/.test(html));
 ok("the proof uses the current cache stamps",
-  html.includes("mock-forge-image-importer.css?v=ii2")
-  && html.includes("mock-forge-image-importer-core.js?v=ii2")
-  && html.includes("mock-forge-image-importer.js?v=ii2")
+  html.includes("mock-forge-image-importer.css?v=ii3")
+  && html.includes("mock-forge-image-importer-core.js?v=ii3")
+  && html.includes("mock-forge-image-importer.js?v=ii3")
   && html.includes("mock-forge-blueprint-diorama-core.js?v=bp18"));
 
 const gridImage = rgba(240, 300, [91, 116, 52]);
@@ -58,6 +61,29 @@ ok("repeated line evidence detects a synthetic square grid", detected.found);
 ok("grid period is recovered within one analysis pixel", Math.abs(detected.cellPx - 24) <= 1);
 ok("detected grid reports dimensions and confidence",
   detected.cols > 7 && detected.rows > 9 && detected.confidence > 0.5);
+
+const drawn = Importer.gridFromDrawnBox(3220, 5040, 140, 210, 70, 140, 1);
+ok("one drawn artwork square derives scale and phase in source pixels",
+  drawn.cellPx === 70 && drawn.originX === 0 && drawn.originY === 0
+  && drawn.cols === 46 && drawn.rows === 72);
+ok("manual calibration is direction-independent and explicitly sourced",
+  drawn.evidence.manualCell && drawn.evidence.span === 1
+  && Importer.gridFromDrawnBox(3220, 5040, 70, 140, 140, 210, 1).cellPx === drawn.cellPx);
+const impreciseDrawn = Importer.gridFromDrawnBox(3220, 5040, 70, 1399.9, 140.05, 1469.85, 1);
+ok("near-boundary drag precision normalizes to a legible zero phase",
+  impreciseDrawn.originX === 0 && impreciseDrawn.originY === 0);
+ok("a click or tiny drag cannot replace the current grid",
+  Importer.gridFromDrawnBox(3220, 5040, 70, 140, 72, 142, 1) === null);
+const manualAnalysis = Importer.analyze(rgba(80, 80, [112, 143, 62]), 80, 80,
+  Importer.gridFromDrawnBox(80, 80, 0, 0, 20, 20, 1));
+ok("manual calibration remains explicit after pixel interpretation",
+  manualAnalysis.grid.manuallyCalibrated && !manualAnalysis.grid.detected
+  && manualAnalysis.grid.evidence.manualCell);
+ok("manual grid provenance is visible in the review UI and Blueprint finding",
+  /DM-drawn source square/.test(js)
+  && /Grid calibrated from one DM-drawn source square/.test(
+    Importer.toBlueprint(manualAnalysis).source.review.find((finding) => finding.id === "grid").label
+  ));
 
 const ungridded = Importer.gridFromColumns(350, 630, 35);
 ok("ungridded scale preserves the chosen map width", ungridded.cols === 35);

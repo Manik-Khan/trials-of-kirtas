@@ -68,8 +68,10 @@ into Build. The licensed source image is not copied into the repository or
 embedded in the Blueprint; Build restores only a private downsampled browser
 underlay.
 
-The two July 30 field maps proved intentionally different paths: the gridded
-city source detected a 23×36 grid and proposed a built plaza, while the
+The two July 30 field maps proved intentionally different paths. Auto found a
+confident but wrong two-square harmonic on the gridded city source; the new
+Combat-style one-square drag established the correct 70-source-pixel phase and
+46×72 grid, then carried that explicit DM calibration into Build. The
 ungridded camp used a DM-selected 35×63 scale and proposed a wetland/overgrown
 battlefield with water preserved visually but separately blocked for tactics.
 This is a color/texture/line interpretation proof, not semantic vision: roofs,
@@ -77,7 +79,7 @@ tents, stages, walls, trees, and ruins are not yet reconstructed as reliable
 modular objects.
 
 The focused proofs pass **28/28** creation checks, **86/86**
-Blueprint/Diorama checks, and **37/37** local artwork-import checks; the six
+Blueprint/Diorama checks, and **44/44** local artwork-import checks; the six
 canonical Forge suites remain **151/151**, and the real browser flow has no
 console errors. This remains isolated proof work, not production promotion or
 M's final visual approval. Do not touch the live Forge, combat, protocol,

@@ -6,7 +6,7 @@
   var ui = {};
   [
     "imageFile", "sourceReceipt", "gridPanel", "gridEvidence", "griddedControls", "ungriddedControls",
-    "gridCellPx", "gridOriginX", "gridOriginY", "targetColumns", "redetectGrid", "analyzeImage",
+    "gridCellPx", "gridOriginX", "gridOriginY", "targetColumns", "drawGridCell", "redetectGrid", "analyzeImage",
     "paintPanel", "materialBrushes", "clearBrush", "stageTitle", "canvasShell", "emptyState",
     "canvasStack", "sourceCanvas", "overlayCanvas", "stageStatus", "sceneProfile", "sceneDetail",
     "metricGrid", "metricCells", "metricWalkable", "metricCorrected", "materialSummary",
@@ -30,7 +30,9 @@
     layer: "source",
     brush: null,
     selected: null,
-    painting: false
+    painting: false,
+    calibrating: false,
+    calibrationDrag: null
   };
 
   function setStatus(message) {
@@ -101,8 +103,11 @@
     }
     if (grid.found) {
       var originalCell = grid.cellPx / state.scale;
-      ui.gridEvidence.textContent = "Repeated line period found at about " + originalCell.toFixed(1)
-        + " source pixels · " + nicePercent(grid.confidence) + " evidence confidence. Confirm or correct it.";
+      ui.gridEvidence.textContent = grid.evidence && grid.evidence.manualCell
+        ? "One source square set the grid to " + originalCell.toFixed(1)
+          + " pixels with its drawn corner as the alignment authority."
+        : "Repeated line period found at about " + originalCell.toFixed(1)
+          + " source pixels · " + nicePercent(grid.confidence) + " evidence confidence. Confirm or correct it.";
       ui.gridCellPx.value = originalCell.toFixed(1);
       ui.gridOriginX.value = (grid.originX / state.scale).toFixed(1);
       ui.gridOriginY.value = (grid.originY / state.scale).toFixed(1);
@@ -224,6 +229,19 @@
       });
     }
     renderGridLines(overlayContext, grid);
+    if (state.calibrationDrag) {
+      var drag = state.calibrationDrag;
+      var left = Math.min(drag.startX, drag.endX), top = Math.min(drag.startY, drag.endY);
+      var width = Math.abs(drag.endX - drag.startX), height = Math.abs(drag.endY - drag.startY);
+      overlayContext.save();
+      overlayContext.fillStyle = "rgba(212,180,95,.18)";
+      overlayContext.strokeStyle = "#fff0a8";
+      overlayContext.lineWidth = Math.max(2, Math.min(state.analysisWidth, state.analysisHeight) / 360);
+      overlayContext.setLineDash([8, 5]);
+      overlayContext.fillRect(left, top, width, height);
+      overlayContext.strokeRect(left, top, width, height);
+      overlayContext.restore();
+    }
     if (state.selected && grid) {
       overlayContext.save();
       overlayContext.strokeStyle = "#fff0a8";
@@ -307,7 +325,9 @@
     var components = Importer.connectedComponents(analysis);
     [
       {
-        label: analysis.grid.detected ? "Repeated grid evidence" : "DM-selected ungridded scale",
+        label: analysis.grid.manuallyCalibrated
+          ? "DM-drawn source square"
+          : analysis.grid.detected ? "Repeated grid evidence" : "DM-selected ungridded scale",
         detail: analysis.grid.cols + " × " + analysis.grid.rows + " squares · " + nicePercent(analysis.grid.confidence)
       },
       {
@@ -355,11 +375,16 @@
     renderEvidence();
     setStatus("Interpretation ready. Compare layers, inspect uncertain squares, and paint corrections before Build.");
   }
+  function canvasPoint(event) {
+    var rect = ui.overlayCanvas.getBoundingClientRect();
+    return {
+      x: (event.clientX - rect.left) * ui.overlayCanvas.width / rect.width,
+      y: (event.clientY - rect.top) * ui.overlayCanvas.height / rect.height
+    };
+  }
   function canvasCell(event) {
     if (!state.analysis) return null;
-    var rect = ui.overlayCanvas.getBoundingClientRect();
-    var x = (event.clientX - rect.left) * ui.overlayCanvas.width / rect.width;
-    var y = (event.clientY - rect.top) * ui.overlayCanvas.height / rect.height;
+    var point = canvasPoint(event), x = point.x, y = point.y;
     var grid = state.analysis.grid;
     var c = Math.floor((x - grid.originX) / grid.cellPx);
     var r = Math.floor((y - grid.originY) / grid.cellPx);
@@ -372,6 +397,46 @@
     if (state.brush) Importer.paintCell(state.analysis, cell.c, cell.r, state.brush);
     renderOverlay();
     renderEvidence();
+  }
+  function invalidateInterpretationForGrid() {
+    state.analysis = null;
+    state.selected = null;
+    state.brush = null;
+    state.painting = false;
+    setEnabled(ui.paintPanel, false);
+    ui.enterBuild.disabled = true;
+    resetEvidence();
+    document.querySelectorAll("[data-material],[data-walkable]").forEach(function (button) {
+      button.classList.remove("active");
+    });
+  }
+  function setCalibrationArmed(armed) {
+    state.calibrating = !!armed;
+    if (!state.calibrating) state.calibrationDrag = null;
+    ui.drawGridCell.classList.toggle("active", state.calibrating);
+    ui.drawGridCell.setAttribute("aria-pressed", String(state.calibrating));
+    ui.canvasStack.classList.toggle("calibrating", state.calibrating);
+    renderOverlay();
+  }
+  function finishCalibration(event) {
+    if (!state.calibrationDrag) return;
+    var point = canvasPoint(event), drag = state.calibrationDrag;
+    var grid = Importer.gridFromDrawnBox(
+      state.analysisWidth, state.analysisHeight,
+      drag.startX, drag.startY, point.x, point.y, 1
+    );
+    if (!grid) {
+      state.calibrationDrag = null;
+      renderOverlay();
+      setStatus("That was too small to establish a square. Drag from one printed corner to the opposite corner.");
+      return;
+    }
+    state.gridMode = "gridded";
+    state.detectedGrid = grid;
+    invalidateInterpretationForGrid();
+    setCalibrationArmed(false);
+    reportGrid();
+    setStatus("Manual grid applied from one source square. Inspect the repeated overlay, then interpret.");
   }
   function storeUnderlay(key) {
     var dataUrl = ui.sourceCanvas.toDataURL("image/jpeg", 0.78);
@@ -414,6 +479,7 @@
   ui.imageFile.addEventListener("change", function () { loadFile(ui.imageFile.files[0]); });
   document.querySelectorAll("[data-grid-mode]").forEach(function (button) {
     button.addEventListener("click", function () {
+      setCalibrationArmed(false);
       state.gridMode = button.dataset.gridMode;
       syncGridPanels();
     });
@@ -435,7 +501,19 @@
     });
   });
   [ui.gridCellPx, ui.gridOriginX, ui.gridOriginY, ui.targetColumns].forEach(function (input) {
-    input.addEventListener("change", function () { state.analysis = null; setEnabled(ui.paintPanel, false); ui.enterBuild.disabled = true; renderOverlay(); });
+    input.addEventListener("change", function () {
+      setCalibrationArmed(false);
+      invalidateInterpretationForGrid();
+      renderOverlay();
+    });
+  });
+  ui.drawGridCell.addEventListener("click", function () {
+    state.gridMode = "gridded";
+    syncGridPanels();
+    setCalibrationArmed(!state.calibrating);
+    setStatus(state.calibrating
+      ? "Drag one complete printed square on the artwork—from one grid corner to its opposite corner."
+      : "Manual grid drawing cancelled.");
   });
   ui.redetectGrid.addEventListener("click", inspectGrid);
   ui.analyzeImage.addEventListener("click", interpret);
@@ -446,15 +524,43 @@
   });
   ui.overlayCanvas.addEventListener("pointerdown", function (event) {
     if (event.button !== 0) return;
+    if (state.calibrating) {
+      event.preventDefault();
+      var point = canvasPoint(event);
+      state.calibrationDrag = {
+        startX: point.x, startY: point.y,
+        endX: point.x, endY: point.y
+      };
+      ui.overlayCanvas.setPointerCapture && ui.overlayCanvas.setPointerCapture(event.pointerId);
+      renderOverlay();
+      return;
+    }
     state.painting = true;
     ui.overlayCanvas.setPointerCapture && ui.overlayCanvas.setPointerCapture(event.pointerId);
     applyPointer(event);
   });
   ui.overlayCanvas.addEventListener("pointermove", function (event) {
+    if (state.calibrating && state.calibrationDrag) {
+      var point = canvasPoint(event);
+      state.calibrationDrag.endX = point.x;
+      state.calibrationDrag.endY = point.y;
+      renderOverlay();
+      return;
+    }
     if (state.painting && state.brush) applyPointer(event);
   });
-  ui.overlayCanvas.addEventListener("pointerup", function () { state.painting = false; });
-  ui.overlayCanvas.addEventListener("pointercancel", function () { state.painting = false; });
+  ui.overlayCanvas.addEventListener("pointerup", function (event) {
+    if (state.calibrating) {
+      finishCalibration(event);
+      return;
+    }
+    state.painting = false;
+  });
+  ui.overlayCanvas.addEventListener("pointercancel", function () {
+    state.painting = false;
+    state.calibrationDrag = null;
+    renderOverlay();
+  });
   ui.enterBuild.addEventListener("click", enterBuild);
 
   window.__imageImporterProofState = function () {
@@ -468,7 +574,8 @@
       walkable: state.analysis && state.analysis.summary.walkable,
       blocked: state.analysis && state.analysis.summary.blocked,
       corrected: state.analysis && state.analysis.summary.corrected,
-      layer: state.layer
+      layer: state.layer,
+      calibrating: state.calibrating
     };
   };
 

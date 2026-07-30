@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
 <title>Forge Artwork Interpreter · local proof</title>
-<link rel="stylesheet" href="mock-forge-image-importer.css?v=ii2">
+<link rel="stylesheet" href="mock-forge-image-importer.css?v=ii3">
 </head>
 <body>
 <header class="topbar">
@@ -36,6 +36,8 @@
       </div>
       <div class="grid-evidence" id="gridEvidence">Choose artwork to inspect repeated line evidence.</div>
       <div class="calibration" id="griddedControls">
+        <button type="button" class="secondary wide draw-cell" id="drawGridCell" aria-pressed="false">⊞ Draw one source square</button>
+        <p class="calibration-note">Drag exactly from one printed grid corner to its opposite corner. That square becomes the scale and alignment authority.</p>
         <label>Cell size <span><input id="gridCellPx" type="number" min="4" value="100"> px</span></label>
         <label>X origin <span><input id="gridOriginX" type="number" value="0"> px</span></label>
         <label>Y origin <span><input id="gridOriginY" type="number" value="0"> px</span></label>
@@ -111,7 +113,7 @@
 
 <div class="fatal" id="fatal" role="alert"></div>
 <script src="mock-forge-blueprint-diorama-core.js?v=bp18"></script>
-<script src="mock-forge-image-importer-core.js?v=ii2"></script>
-<script src="mock-forge-image-importer.js?v=ii2"></script>
+<script src="mock-forge-image-importer-core.js?v=ii3"></script>
+<script src="mock-forge-image-importer.js?v=ii3"></script>
 </body>
 </html>

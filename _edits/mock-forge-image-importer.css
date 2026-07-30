@@ -43,6 +43,9 @@ aside h2 { margin-top: 6px; }
 .calibration label { display: flex; justify-content: space-between; align-items: center; color: var(--muted); font-size: 11px; }
 .calibration span { display: flex; align-items: center; gap: 4px; }
 .calibration input { width: 68px; padding: 5px; color: var(--ink); background: #0b100e; border: 1px solid var(--line); }
+.calibration .draw-cell { margin: 0; }
+.calibration .draw-cell[aria-pressed="true"] { color: #111612; background: var(--gold); border-color: var(--gold); }
+.calibration-note { margin: 0 0 3px; font-size: 10px; }
 .wide { width: 100%; padding: 10px; margin-top: 8px; }
 .primary { color: #111612; background: var(--gold); border-color: var(--gold); font-weight: 700; }
 .primary:hover:not(:disabled) { background: #e4c978; color: #111612; }
@@ -62,6 +65,7 @@ aside h2 { margin-top: 6px; }
 .canvas-stack { position: relative; width: min(100%, 820px); margin: 18px auto; box-shadow: 0 18px 60px rgba(0,0,0,.45); }
 .canvas-stack canvas { display: block; width: 100%; height: auto; }
 #overlayCanvas { position: absolute; inset: 0; touch-action: none; }
+.canvas-stack.calibrating #overlayCanvas { cursor: crosshair; }
 .stage-status { min-height: 38px; padding: 10px 16px; border-top: 1px solid var(--line); color: var(--muted); font-size: 12px; }
 .evidence-panel { background: #101714; }
 .metrics { display: grid; grid-template-columns: 1fr 1fr; gap: 6px; }
