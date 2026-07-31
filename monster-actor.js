@@ -30,7 +30,7 @@
   'use strict';
 
   const KEY_PREFIX = 'mon:';
-  const VERSION = '2.0.0';
+  const VERSION = '2.1.0';
 
   function abilityMod(score) {
     const n = Number(score);
@@ -108,9 +108,10 @@
     const hitM = raw.match(/\{@hit ([+-]?\d+)\}/);
     const dcM  = raw.match(/\{@dc (\d+)\}\s*(\w+)/);
 
-    // Multiattack (or anything with no parseable mechanics) → utility note.
+    // Multiattack is compiled after every ordinary attack is known. Keep the
+    // prose here so the second pass can resolve named weapon sequences.
     if (/^multiattack/i.test(label) || !dmgs.length || !dmgs[0].parsed) {
-      return [{ id, label, type: 'utility', note: clip(fullText, 160) || '—' }];
+      return [{ id, label, type: /^multiattack/i.test(label) ? 'multiattack' : 'utility', note: clip(fullText, 240) || '—' }];
     }
 
     const first = dmgs[0];
@@ -174,7 +175,38 @@
     const acts = (statblock && Array.isArray(statblock.action)) ? statblock.action : [];
     const out = [];
     acts.forEach((a, i) => parseOneAction(a, i).forEach(x => out.push(x)));
+    const attacks = out.filter(a => a.type === 'attack');
+    out.filter(a => a.type === 'multiattack').forEach(a => { a.sequences = multiattackSequences(a.note, attacks); });
     return out;
+  }
+
+  function multiattackSequences(note, attacks) {
+    const text = String(note || '').toLowerCase().replace(/[’]/g, "'");
+    const byName = {};
+    (attacks || []).forEach(a => { byName[String(a.label || '').toLowerCase()] = a.label; });
+    function named(fragment) {
+      const f = String(fragment || '').toLowerCase();
+      return Object.keys(byName).filter(k => f.indexOf(k) >= 0).map(k => byName[k]);
+    }
+    const sequences = [], names = named(text);
+    if (names.length >= 2) sequences.push(names.slice(0, 2));
+    Object.keys(byName).forEach(k => {
+      if (new RegExp('(?:two|2)\\s+with\\s+(?:its\\s+|the\\s+)?' + k.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'), 'i').test(text))
+        sequences.push([byName[k], byName[k]]);
+    });
+    const countMatch = text.match(/makes?\s+(one|two|three|four|\d+)\s+(?:melee\s+|ranged\s+)?attacks?/i);
+    const words = {one:1,two:2,three:3,four:4};
+    const count = countMatch ? (words[countMatch[1]] || Number(countMatch[1]) || 1) : 1;
+    if (!sequences.length && count > 1) {
+      const melee = attacks.filter(a => /reach\s+\d+\s*ft/i.test(a.note || ''));
+      const pool = /different weapon/i.test(text) && melee.length >= count ? melee : attacks;
+      if (pool.length) {
+        const seq = [];
+        for (let i = 0; i < count; i++) seq.push(pool[Math.min(i, pool.length - 1)].label);
+        sequences.push(seq);
+      }
+    }
+    return sequences;
   }
 
   function namedEntries(list, section) {
@@ -317,7 +349,7 @@
   }
 
   const API = {
-    VERSION, toCharacter, parseActions, referenceFrom, abilityMod, cleanText,
+    VERSION, toCharacter, parseActions, referenceFrom, abilityMod, cleanText, multiattackSequences,
     isMonsterKey: k => typeof k === 'string' && k.indexOf(KEY_PREFIX) === 0,
     idFromKey: k => String(k).slice(KEY_PREFIX.length),
     keyFor: id => KEY_PREFIX + id,

@@ -21,7 +21,7 @@ function match(kit,re){return (kit.capabilities||[]).find(c=>re.test(c.label))||
   }
   const party={caim:derive("caim"),cosmere:derive("cosmere"),liadan:derive("liadan"),vesperian:derive("vesperian")};
 
-  ok("shared capability schema is versioned",Cap.VERSION==="1.2.0"&&Cap.SCHEMA==="forge-capability/v1");
+  ok("shared capability schema is versioned",Cap.VERSION==="1.3.0"&&Cap.SCHEMA==="forge-capability/v1");
   Object.keys(party).forEach(key=>{
     const kit=party[key],audit=kit.capabilityAudit||{},ids=(kit.capabilities||[]).map(c=>c.id);
     ok(key+" derives a non-empty shared capability ledger",kit.capabilitySchema===Cap.SCHEMA&&ids.length>0);
@@ -64,8 +64,8 @@ function match(kit,re){return (kit.capabilities||[]).find(c=>re.test(c.label))||
       combat:{hp:15,hpMax:15,ac:15,speed:30,initiative:2},features:[{name:"Rage",source:"class:Barbarian"}]},
     vitals:{hp:15},inventory:[]
   },{assembledActions:[{id:"axe",label:"Handaxe",kind:"attack",tab:"attacks",hit:5,dmg:"1d6+3"}]});
-  ok("Rage counter never masquerades as an executable Rage rule",
-    find(barbarian,"Rage").status==="missing"&&/counter exists/.test(find(barbarian,"Rage").automation.reason));
+  ok("Rage is executable only when the compiled action and feature converge",
+    find(barbarian,"Rage").status==="executable"&&/physical resistance/.test(find(barbarian,"Rage").effects));
 
   Object.keys(party).forEach(key=>{
     ok(key+" never offers non-executable capabilities to enemy AI",
@@ -74,7 +74,7 @@ function match(kit,re){return (kit.capabilities||[]).find(c=>re.test(c.label))||
 
   const html=fs.readFileSync(path.join(root,"forge","index.html"),"utf8");
   ok("production loads the capability contract before fresh kit derivation",
-    html.indexOf("forge-capabilities.js?v=fc3")<html.indexOf("forge-capability-resolver.js?v=fcrs1")&&html.indexOf("forge-capability-resolver.js?v=fcrs1")<html.indexOf("forge-kit-derive.js?v=b18"));
+    html.indexOf("forge-capabilities.js?v=fc4")<html.indexOf("forge-capability-resolver.js?v=fcrs2")&&html.indexOf("forge-capability-resolver.js?v=fcrs2")<html.indexOf("forge-kit-derive.js?v=b19"));
   ok("combat units retain the normalized ledger and audit",
     html.includes("capabilities: JSON.parse(JSON.stringify((kit && kit.capabilities) || []))")&&
     html.includes("capabilityAudit: JSON.parse(JSON.stringify((kit && kit.capabilityAudit) || {}))"));

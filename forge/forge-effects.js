@@ -17,7 +17,7 @@
   else root.ForgeEffects=api;
 })(typeof self!=="undefined"?self:this,function(){
   "use strict";
-  var VERSION="1.5.0";
+  var VERSION="1.6.0";
 
   function plain(v){ return v==null?v:JSON.parse(JSON.stringify(v)); }
   function n(v,d){ v=Number(v); return Number.isFinite(v)?v:d; }
@@ -134,6 +134,10 @@
       duration:{kind:"source-turns",unit:source,count:Math.max(1,n(opts.turns,600))}
     }};
   }
+  function addHuntersMark(opts){
+    opts=opts||{};var source=String(opts.source||""),target=String(opts.target||"");
+    return {unit:target,add_effect:{id:opts.id||("hunters-mark:"+source+":"+target+":"+(opts.nonce==null?Date.now():opts.nonce)),kind:"hunters-mark",label:"Hunter's Mark",icon:"hunters-mark",source:source,target:target,die:"1d6",concentration:true,duration:{kind:"source-turns",unit:source,count:Math.max(1,n(opts.turns,600))}}};
+  }
   function transferHex(effect,target){
     if(!effect||effect.kind!=="hex"||!target)return [];
     var moved=plain(effect);delete moved.duration;moved.target=String(target);
@@ -159,6 +163,10 @@
   function addRavenResistance(opts){
     opts=opts||{};var source=String(opts.source||"");
     return {unit:source,add_effect:{id:opts.id||("raven-resistance:"+source+":"+(opts.nonce==null?Date.now():opts.nonce)),kind:"raven-resistance",label:"Blessing of the Raven Queen",icon:"raven",source:source,target:source,damageResistance:"all",duration:{kind:"source-turns",unit:source,count:1}}};
+  }
+  function addRage(opts){
+    opts=opts||{};var source=String(opts.source||"");
+    return {unit:source,add_effect:{id:opts.id||("rage:"+source+":"+(opts.nonce==null?Date.now():opts.nonce)),kind:"rage",label:"Rage",icon:"rage",source:source,target:source,wildSurge:opts.wildSurge||null,duration:{kind:"source-turns",unit:source,count:Math.max(1,n(opts.turns,10))}}};
   }
   function modifierDie(state,unit,kind,roll){var e=find(state,unit,kind);if(!e)return null;return {effect:e,roll:Math.max(1,n(roll,1)),die:e.die||"1d4"};}
   function concentrationSave(state,source,damage,mod,roll,opts){
@@ -232,8 +240,8 @@
     return out.length?out:null;
   }
   return {VERSION:VERSION,effectiveRows:effectiveRows,replay:replay,forUnit:forUnit,find:find,
-    addSanctuary:addSanctuary,addBless:addBless,addBlessGroup:addBlessGroup,addHex:addHex,transferHex:transferHex,addHexbladeCurse:addHexbladeCurse,
-    addInitiativeDie:addInitiativeDie,addGiftOfAlacrity:addGiftOfAlacrity,addGuidance:addGuidance,addBardicInspiration:addBardicInspiration,addRavenResistance:addRavenResistance,
+    addSanctuary:addSanctuary,addBless:addBless,addBlessGroup:addBlessGroup,addHex:addHex,addHuntersMark:addHuntersMark,transferHex:transferHex,addHexbladeCurse:addHexbladeCurse,
+    addInitiativeDie:addInitiativeDie,addGiftOfAlacrity:addGiftOfAlacrity,addGuidance:addGuidance,addBardicInspiration:addBardicInspiration,addRavenResistance:addRavenResistance,addRage:addRage,
     concentrationRemovals:concentrationRemovals,concentrationSave:concentrationSave,modifierDie:modifierDie,remove:remove,wisdomSave:wisdomSave,isSanctuaryAction:isSanctuaryAction,
     harmfulDirect:harmfulDirect,breaksSanctuary:breaksSanctuary,removalForActor:removalForActor,eventSummary:eventSummary,
     _internals:{effectOps:effectOps,nextActive:nextActive}};

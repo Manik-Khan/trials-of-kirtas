@@ -1093,17 +1093,22 @@ and compiles the reviewed facts into a draft
 - climb access reports doubled movement cost unless the creature has a
   climbing speed.
 
-The DM can Magic-select a connected local color island or trace a freehand
-artwork-space lasso, combine boundaries with New/Add/Subtract, and then assign
-building, roof/deck, bridge, water, tent, tree, stairs/ramp, wall, or ground
-meaning. Tactical cells are derived from the retained image boundary rather
-than owning it. Each reviewed structure can then edit label, base/top feet,
-roof walkability, climb/ladder/stair/ramp access, and explicit
+The DM first traces a freehand artwork-space lasso. Optional Color assist is
+hard-bounded to that footprint and retains the original fence so tolerance can
+be retuned without redrawing it. Replace/Add/Subtract modify only the current
+working footprint; Start another structure clears that draft while preserving
+the saved collection. Choosing building, roof/deck, bridge, water, tent, tree,
+stairs/ramp, wall, or ground immediately changes the pending color and label.
+Each kind has explicit appearance kits and preview forms. Saved structures stay
+selectable in a persistent list, and touching or overlapping authored layers no
+longer erase or silently merge each other. Tactical cells remain derived from
+the artwork boundary. Each reviewed structure can edit label, appearance,
+base/top feet, roof walkability, climb/ladder/stair/ramp access, and explicit
 solid/posts/arches/canopy/trunks/terrain/none support. Reopening an authored
-footprint for correction preserves its ID and all vertical/support facts. The
-code-native preview joins adjacent cells into legible masses and decks, labels
-height/support, and makes those authored facts visible without pretending the
-current combat runtime can place two creatures at one `c,r` on different
+footprint preserves its ID and all vertical/support facts. The code-native
+preview joins adjacent cells into legible masses and decks, labels
+height/appearance, and makes those authored facts visible without pretending
+the current combat runtime can place two creatures at one `c,r` on different
 surfaces.
 
 The revised city browser pass again demonstrated why Auto is only a proposal:
@@ -1116,16 +1121,24 @@ visible tolerance control reduced the connected selection to 32 squares at 4.
 A separate lasso authored the horizontal market bridge at 15 feet with posts
 and stair access. Height and Split views showed the artwork-aligned footprint,
 joined deck, explicit posts, height ruler, labels, and ground beneath the deck.
-No browser errors were observed. This remains honest DM correction work, not a
-claim of semantic recognition.
+The next interaction pass saved a Market stall, started another structure, and
+saved a separate Market pavilion without losing the first object. In the final
+bounded pass, a 204-square bridge lasso retained 3 same-color squares at
+tolerance 4 and recomputed to 122 at tolerance 18, always inside the original
+fence. Saving that Stone bridge and then lassoing overlapping Stone steps left
+both objects in the persistent authored list. Kind/kit overlays and the Split
+preview visibly distinguished their colors and forms. No browser errors were
+observed. This remains honest DM correction work, not a claim of semantic
+recognition.
 
-The focused known-answer suite passes **37/37** and all three new scripts pass
-`node --check`. The revised browser interaction covered lasso, Magic tolerance,
-Add/Subtract, property-preserving footprint edits, explicit supports, and joined
-height/Split previews on the city artwork with no console errors. The earlier
-browser interaction also covered both supplied artwork types. One current-build
-city broad-area pass produced 15 proposals; that count is evidence only, never
-semantic authority.
+The focused known-answer suite passes **43/43** and all three new scripts pass
+`node --check`. Browser interaction covered persistent multi-structure
+authoring, immediate kind/kit identity, bounded repeatable Color assist,
+Replace/Add/Subtract, property-preserving footprint edits, explicit supports,
+and joined height/Split previews on the city artwork with no console errors.
+The earlier browser interaction also covered both supplied artwork types. One
+current-build city broad-area pass produced 15 proposals; that count is evidence
+only, never semantic authority.
 
 This proof stops at an annotation and renderer study. It does not write
 production maps, persist licensed artwork, or establish live surface-aware

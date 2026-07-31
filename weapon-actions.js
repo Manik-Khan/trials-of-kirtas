@@ -118,7 +118,8 @@ function weaponProfile(w, key, structural) {
 
 export function buildWeaponActions(inventory, structural) {
   structural = structural || {};
-  var out = [], seen = {};
+  var out = [], seen = {}, quantities = {};
+  (inventory || []).forEach(function (it) { var key = normalizeWeaponName(it && it.name); if (WEAPONS[key]) quantities[key] = (quantities[key] || 0) + Math.max(1, parseInt(it && it.qty, 10) || 1); });
   (inventory || []).forEach(function (it) {
     var key = normalizeWeaponName(it && it.name);
     var w = WEAPONS[key];
@@ -150,6 +151,8 @@ export function buildWeaponActions(inventory, structural) {
       var thrown = deck('wpn-' + key + '-thrown', label + ' (Thrown)', w.dmg1);
       thrown.range = (it && it.range) || w.range;
       thrown.thrown = true;
+      thrown.inventoryKey = 'thrown' + key.split(' ').map(function (part) { return part.charAt(0).toUpperCase() + part.slice(1); }).join('');
+      thrown.inventoryQty = quantities[key] || 1;
       out.push(thrown);
     }
     // The versatile two-handed mode is a real derived attack, but it ships HIDDEN so it

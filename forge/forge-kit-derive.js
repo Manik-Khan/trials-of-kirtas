@@ -186,7 +186,11 @@ function combatErrorKit(charData, err) {
      `pools` array (for the bar's slot/resource pips). Sources: spellcasting
      pools + ResourceDerive-style class resources. Vitals.pipState carries the
      spent count; current = max - spent. */
-  function buildResPools(s, v) {
+  function racialSpellKey(name) {
+    var words = String(name || "spell").replace(/[’']/g, "").match(/[a-z0-9]+/gi) || ["spell"];
+    return "racial" + words.map(function (w) { return w.charAt(0).toUpperCase() + w.slice(1).toLowerCase(); }).join("");
+  }
+  function buildResPools(s, v, assembled) {
     var pip = (v && v.pipState) || {};
     var res = {}, pools = [];
 
@@ -336,6 +340,29 @@ function combatErrorKit(charData, err) {
       pools.push({key:"blessingRavenQueen",rawKey:"blessingRavenQueen",level:0,label:"Blessing of the Raven Queen",badge:"1",max:1,current:res.blessingRavenQueen,tone:"race",kind:"resource",recharge:"long rest",die:null,tag:"Raven",origin:"race",source:"race",custom:false});
     }
 
+    // Species-granted leveled spells carry their own use, not a class slot.
+    // The character sheet records those spells with origin:"race"; expose the
+    // same once-per-long-rest pool to the Forge action pipeline.
+    spellGroupsFrom(s).forEach(function (group) {
+      var lvl = Number(group && group.level) || 0;
+      if (!lvl) return;
+      (group.spells || []).forEach(function (spell) {
+        if (!spell || spell.origin !== "race") return;
+        var key = racialSpellKey(spell.name);
+        if (res[key] != null) return;
+        var cur = Math.max(0, 1 - (pip[key] || 0));
+        res[key] = cur;
+        pools.push({ key:key, rawKey:key, level:0, label:spell.name, badge:"1/day", max:1, current:cur,
+          tone:"race", kind:"resource", recharge:"long rest", origin:"race", source:"race", custom:false });
+      });
+    });
+    (assembled || []).forEach(function (action) {
+      if (!action || !action.thrown || !action.inventoryKey || res[action.inventoryKey] != null) return;
+      var max = Math.max(1, Number(action.inventoryQty) || 1), cur = Math.max(0, max - (pip[action.inventoryKey] || 0));
+      res[action.inventoryKey] = cur;
+      pools.push({key:action.inventoryKey,rawKey:action.inventoryKey,level:0,label:String(action.label||"Thrown weapon").replace(/\s*\(Thrown\)$/i,""),badge:String(max),max:max,current:cur,tone:"item",kind:"resource",recharge:null,origin:"inventory",source:"inventory",custom:false});
+    });
+
     return { res: res, pools: pools };
   }
 
@@ -469,6 +496,7 @@ function combatErrorKit(charData, err) {
         rng:      rng,
         long:     long,
         hit:      hitTotal,
+        ability:  abil,
         dmg:      dmgExpr,
         dmgStack: stack,
         level:    a.level != null ? a.level : null,
@@ -476,7 +504,7 @@ function combatErrorKit(charData, err) {
         free:     !!a.free,
         spell:    !!a.spell,
         conc:     !!a.conc,
-        cost:     a.cost || null,
+        cost:     a.thrown&&a.inventoryKey?Object.assign({},a.cost||{},(function(){var x={};x[a.inventoryKey]=1;return x;})()):(a.cost || null),
         rider:    a.rider || null,
         strikes:  a.strikes || null,
         needsAttack: !!a.needsAttack,
@@ -541,7 +569,7 @@ function combatErrorKit(charData, err) {
 
     // ── buff (single-target enemy debuff) ──
     "hex":                { kind: "buff", rng: 18, effectKind: "hex", concentration: true },
-    "hunter's mark":      { kind: "buff", rng: 18 },
+    "hunter's mark":      { kind: "buff", rng: 18, effectKind: "hunters-mark", concentration: true },
 
     // ── ally buff ──
     "bless":              { kind: "buffAlly", rng: 6, effectKind: "bless", targetCount: 3, concentration: true },
@@ -718,7 +746,7 @@ function combatErrorKit(charData, err) {
         // Slot cost: cantrips are free; leveled spells cost a slot at their level
         var cost = null;
         if (!isCantrip) {
-          var slotKey = "slot" + lvl;
+          var slotKey = sp.origin === "race" ? racialSpellKey(sp.name) : "slot" + lvl;
           cost = {};
           cost[slotKey] = 1;
         }
@@ -948,10 +976,16 @@ function combatErrorKit(charData, err) {
     return pool&&pool.die?String(pool.die).replace(/^d/i,"1d"):String(s&&s.classFeatures&&s.classFeatures.bardicInspirationDie||"1d6").replace(/^d/i,"1d");
   }
   function warlockLevel(s){var found=(s&&s.classes||[]).find(function(c){return has(c&&c.name,"warlock");}),m=String(s&&s.classLabel||"").match(/warlock\s+(\d+)/i);return Math.max(1,Number(found&&found.level||(m&&m[1]))||1);}
+  function monkLevel(s){var found=(s&&s.classes||[]).find(function(c){return has(c&&c.name,"monk");}),m=String(s&&s.classLabel||"").match(/monk\s+(\d+)/i);return Math.max(1,Number(found&&found.level||(m&&m[1]))||1);}
+  function martialArtsDie(s){var lvl=monkLevel(s);return lvl>=17?"1d10":lvl>=11?"1d8":lvl>=5?"1d6":"1d4";}
+  function unarmedMod(s){return Math.max(abilMod(s,"str"),abilMod(s,"dex"));}
+  function flurryDamage(s){var mod=unarmedMod(s);return martialArtsDie(s)+(mod>0?"+"+mod:(mod<0?String(mod):""));}
+  function flurryHit(s){return profBonus(s)+unarmedMod(s);}
   var CLASS_FEATURE_ACTIONS = [
+    { match: "rage",              id: "cf_rage",           label: "Rage",              kind: "rage",       tab: "actions", bonus: true,  free: false, cost: { rage: 1 },          effectKind: "rage", desc: "Enter a rage; resist physical weapon damage and add Rage damage to melee Strength attacks." },
     { match: "second wind",       id: "cf_second_wind",    label: "Second Wind",       kind: "selfheal",   tab: "actions", bonus: true,  free: false, cost: { secondWind: 1 },    dmg: secondWindDice, desc: "Regain 1d10+level HP as a bonus action." },
     { match: "action surge",      id: "cf_action_surge",   label: "Action Surge",      kind: "surge",      tab: "actions", bonus: false, free: true,  cost: { actionSurge: 1 },   desc: "Take one additional action this turn." },
-    { match: "flurry of blows",   id: "cf_flurry",         label: "Flurry of Blows",   kind: "attack",     tab: "actions", bonus: true,  free: false, cost: { ki: 1 },            desc: "After Attack action: 2 unarmed strikes as a bonus action." },
+    { match: "flurry of blows",   id: "cf_flurry",         label: "Flurry of Blows",   kind: "attack",     tab: "actions", bonus: true,  free: false, cost: { ki: 1 }, strikes: 2, needsAttack: true, hit: flurryHit, dmg: flurryDamage, desc: "After Attack action: 2 unarmed strikes as a bonus action." },
     { match: "patient defense",   id: "cf_patient_defense",label: "Patient Defense",   kind: "dodge",      tab: "actions", bonus: true,  free: false, cost: { ki: 1 },            desc: "Dodge as a bonus action." },
     { match: "step of the wind",  id: "cf_step_wind",      label: "Step of the Wind",  kind: "dash",       tab: "actions", bonus: true,  free: false, cost: { ki: 1 },            desc: "Dash or Disengage as a bonus action." },
     { match: "hands of healing",  id: "cf_hands_heal",     label: "Hands of Healing",  kind: "heal",       tab: "actions", bonus: false, free: false, cost: { ki: 1 },            desc: "Heal 1d4+WIS as an action (1 ki)." },
@@ -977,7 +1011,10 @@ function combatErrorKit(charData, err) {
         die:typeof cfa.die==="function"?cfa.die(s,found):(cfa.die||null),
         bonusDamage:typeof cfa.bonusDamage==="function"?cfa.bonusDamage(s,found):(cfa.bonusDamage||null),
         heal:typeof cfa.heal==="function"?cfa.heal(s,found):(cfa.heal||null),
+        hit:typeof cfa.hit==="function"?cfa.hit(s,found):(cfa.hit||0),
         dmg: typeof cfa.dmg === "function" ? cfa.dmg(s, found) : (cfa.dmg || null),
+        strikes: cfa.strikes || null, needsAttack: !!cfa.needsAttack,
+        wildSurge: cfa.kind === "rage" && featNames.some(function (n) { return n.indexOf("wild surge") !== -1; }),
         bonus: !!cfa.bonus, free: !!cfa.free, spell: false, conc: false,
         cost: cfa.cost, classFeature: true
       });
@@ -1243,14 +1280,14 @@ function combatErrorKit(charData, err) {
     return combatErrorKit(charData, combatErr);
   }
 
-    // 2. Resource pools + flat res map
-    var rp = buildResPools(s, v);
-
-    // 3. Reactions
-    var react = buildReactions(s);
-
-    // 4. Assembled actions (attacks + cantrips + custom), caller provides or empty
+    // 2. Assembled actions (attacks + cantrips + custom), caller provides or empty
     var assembled = opts.assembledActions || (s.actions || []).concat(s.customActions || []);
+
+    // 3. Resource pools + flat res map (thrown inventory becomes a finite pool)
+    var rp = buildResPools(s, v, assembled);
+
+    // 4. Reactions
+    var react = buildReactions(s);
 
     // 5. Tabs
     var tabs = {};
@@ -1268,6 +1305,7 @@ function combatErrorKit(charData, err) {
     // resolvable one. If the winner has no damage expression and the folded
     // sheet row carries dice, the winner adopts them (Second Wind's 1d10+3).
     dedupeTabs(tabs);
+    composeClassAttackTiles(tabs);
     tabs.bonus = bonusTiles(tabs);
 
     // 6. Flat actions list (backward compat: beginTurn/selectAction read u.actions)
@@ -1386,6 +1424,20 @@ function combatErrorKit(charData, err) {
     });
   }
 
+  // Flurry is not a single attack with doubled damage. It borrows the
+  // character's actual Unarmed Strike math and the runtime resolves `strikes`
+  // as separate attack rolls.
+  function composeClassAttackTiles(tabs) {
+    var unarmed = (tabs.attacks || []).find(function (t) { return _dedupeKey(t.label) === "unarmed strike"; });
+    var flurry = (tabs.actions || []).find(function (t) { return _dedupeKey(t.label) === "flurry of blows"; });
+    if (!unarmed || !flurry) return;
+    ["rng", "long", "hit", "dmg", "dmgStack", "critDice"].forEach(function (key) {
+      if (unarmed[key] != null) flurry[key] = unarmed[key];
+    });
+    flurry.strikes = 2;
+    flurry.needsAttack = true;
+  }
+
   /* Flatten a tab tile to the minimal shape the pipeline's canUse/selectAction
      already consume. The full tile stays in tabs; this is the shim. */
   function flatTile(t) {
@@ -1395,6 +1447,7 @@ function combatErrorKit(charData, err) {
       rng:    t.rng != null ? t.rng : 1,
       long:   t.long || null,
       hit:    t.hit || 0,
+      ability:t.ability || null,
       dmg:    t.dmg || null,
       disciple: t.disciple || null,
       upPer:  t.upPer || null,
@@ -1405,6 +1458,9 @@ function combatErrorKit(charData, err) {
       spell:  !!t.spell,
       conc:   !!t.conc,
       effectKind: t.effectKind || null,
+      wildSurge: !!t.wildSurge,
+      bonusDamage: t.bonusDamage || null,
+      heal: t.heal || null,
       die: t.die || null,
       targetCount: t.targetCount || null,
       concentration: !!(t.concentration || t.conc),

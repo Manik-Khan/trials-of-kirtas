@@ -4,7 +4,7 @@ const AI=require("../forge-foe-ai.js");
 let pass=0;function ok(v,label){if(!v)throw new Error("FAIL: "+label);console.log("ok",++pass,"-",label);}
 const archer={unit:"archer",name:"Archer",c:0,r:0},caim={unit:"caim",name:"Caim",c:11,r:0,hp:24,hpMax:24,alive:true};
 const sword={label:"Shortsword",kind:"attack",rng:1,hit:6,dmg:"1d6+4"},bow={label:"Longbow",kind:"attack",rng:30,long:120,hit:6,dmg:"1d8+4"};
-ok(AI.VERSION==="1.2.0","planner version is pinned");
+ok(AI.VERSION==="1.3.0","planner version is pinned");
 ok(AI.avgFormula("2d6+3")===10,"average damage reads dice and flat bonuses");
 ok(AI.actionRangeFt(bow)===600,"long range is retained for planning");
 const archerPlan=AI.planTurn({actions:[sword,bow],targets:[caim],origins:[{c:0,r:0,cost:0}],evaluate:(o,a)=>a===bow?{ok:true,distanceFt:55,cover:2,coverName:"half"}:{ok:false},distance:()=>55});
@@ -20,6 +20,10 @@ ok(holdHigh.action===bow&&holdHigh.origin.c===0,"ranged foe holds a safe elevate
 ok(/safe firing distance/.test(holdHigh.why)&&/high ground/.test(holdHigh.why),"tactical narration explains distance and elevation without hidden player facts");
 const escape=AI.planTurn({actions:[bow],targets:[caim],origins:[{c:0,r:0,cost:0},{c:4,r:0,cost:4}],evaluate:(o)=>({ok:true,distanceFt:o.c?35:5,cover:0,coverName:"none",originElevationFt:0,targetElevationFt:0,threatCount:o.c?0:1}),distance:()=>35});
 ok(escape.origin.c===4,"threatened ranged foe repositions to a legal safe firing square");
+const recklessThrow=AI.planTurn({actions:[sword,bow],targets:[caim],origins:[{c:0,r:0,cost:0,pathThreatCount:0},{c:4,r:0,cost:4,pathThreatCount:2}],evaluate:(o,a)=>a===sword?{ok:o.c===0,distanceFt:5,cover:0,coverName:"none",threatCount:1}:{ok:true,distanceFt:o.c?35:5,cover:0,coverName:"none",threatCount:o.c?0:2},distance:()=>35});
+ok(recklessThrow.origin.c===0&&recklessThrow.action===sword,"foe keeps a legal melee attack instead of eating two opportunity attacks for a throw");
+const retreat=AI.planTurn({actions:[bow],targets:[caim],origins:[{c:0,r:0,cost:0,pathThreatCount:0},{c:4,r:0,cost:4,pathThreatCount:2}],evaluate:(o)=>({ok:o.c===4,distanceFt:35,cover:0,coverName:"none",threatCount:o.c?0:2}),distance:()=>35,canDisengage:true});
+ok(retreat.kind==="disengage"&&retreat.origin.c===4,"a foe that truly must retreat Disengages instead of attacking through opportunity attacks");
 const routeSafe=AI.planTurn({actions:[bow],targets:[caim],origins:[{c:3,r:0,cost:3,pathThreatCount:2},{c:3,r:1,cost:4,pathThreatCount:0}],evaluate:(o)=>({ok:true,distanceFt:40,cover:0,coverName:"none",threatCount:0,pathThreatCount:o.pathThreatCount}),distance:()=>40});
 ok(routeSafe.origin.r===1,"planner avoids an opportunity-attack route when a comparable safe firing route exists");
 const approach=AI.planTurn({actions:[sword],targets:[caim],origins:[{c:0,r:0,cost:0},{c:4,r:0,cost:4}],evaluate:()=>({ok:false}),distance:(o)=>Math.abs(11-o.c)*5});

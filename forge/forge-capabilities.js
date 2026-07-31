@@ -9,7 +9,7 @@
   else root.ForgeCapabilities=api;
 })(typeof self!=="undefined"?self:this,function(){
   "use strict";
-  var VERSION="1.2.0",SCHEMA="forge-capability/v1";
+  var VERSION="1.3.0",SCHEMA="forge-capability/v1";
   var STATUSES=["executable","held","missing","reference"];
   var CONSUMERS=["player-hud","dm-hud","enemy-ai","feed","replay"];
 
@@ -64,11 +64,11 @@
   function visibleConsumers(){return ["player-hud","dm-hud"];}
 
   var FEATURE_RULES=[
-    {re:/^rage$/i,status:"missing",kind:"combat-state",group:"actions",economy:"bonus",effects:"rage damage + resistance",reason:"The Rage counter exists, but activation, duration, damage, and resistance are not wired."},
+    {re:/^rage$/i,status:"executable",kind:"combat-state",group:"actions",economy:"bonus",effects:"10 rounds · +2 melee damage · physical resistance",tags:["effect:rage"]},
     {re:/^danger sense$/i,status:"missing",kind:"save-defense",group:"defenses",reason:"Visible-effect Dexterity save advantage is not wired."},
     {re:/^reckless attack$/i,status:"missing",kind:"attack-stance",group:"actions",reason:"First-attack advantage and the incoming-attack advantage state are not wired."},
     {re:/^magic awareness$/i,status:"reference",kind:"sense-action",group:"actions",economy:"action",reason:"Use the Feats reference card and resolve nearby magic manually."},
-    {re:/^wild surge$/i,status:"missing",kind:"rage-rider",group:"riders",reason:"The Wild Magic surge roll and its eight combat effects are not wired."},
+    {re:/^wild surge$/i,status:"missing",kind:"rage-rider",group:"riders",reason:"The Wild Magic surge roll is wired; its eight individual combat effects still require manual resolution."},
     {re:/^polearm master$/i,status:"missing",kind:"weapon-feat",group:"actions",reason:"Bonus-action haft attack and reach-entry opportunity trigger are not wired."},
     {re:/^relentless endurance$/i,status:"missing",kind:"zero-hp-defense",group:"reactions",reason:"The once-per-rest drop-to-1 HP replacement is not wired."},
     {re:/^savage attacks$/i,status:"missing",kind:"critical-rider",group:"riders",reason:"The extra weapon die on a melee critical hit is not wired."},

@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
 <title>Forge Structure Review · isolated proof</title>
-  <link rel="stylesheet" href="mock-forge-image-structure-review.css?v=sr7">
+  <link rel="stylesheet" href="mock-forge-image-structure-review.css?v=sr9">
 </head>
 <body>
 <header class="topbar">
@@ -30,10 +30,11 @@
       <h2>Establish one five-foot square.</h2>
       <div class="segmented" aria-label="Grid calibration">
         <button type="button" id="autoGrid">Auto</button>
-        <button type="button" id="drawGridCell">Draw one square</button>
+        <button type="button" id="drawGridCell">Calibrate</button>
         <button type="button" id="noGrid">No grid</button>
       </div>
       <div class="grid-note" id="gridNote">Choose artwork first.</div>
+      <div class="grid-coverage" id="gridCoverage">Grid coverage appears here.</div>
       <div class="calibration" id="griddedControls">
         <label>Cell size <span><input id="gridCellPx" type="number" min="4" value="70"> px</span></label>
         <label>X origin <span><input id="gridOriginX" type="number" value="0"> px</span></label>
@@ -42,53 +43,32 @@
       <div class="calibration" id="ungriddedControls" hidden>
         <label>Map width <span><input id="targetColumns" type="number" min="12" max="80" value="35"> squares</span></label>
       </div>
+      <button type="button" class="wide" id="verifyGrid" hidden>Check a distant intersection</button>
       <button type="button" class="primary wide" id="proposeRegions">Find broad areas</button>
     </section>
 
     <section id="selectionPanel" class="disabled">
-      <span class="eyebrow">03 · Select artwork</span>
-      <h2>Trace what belongs together.</h2>
-      <p>Lasso one structure first. Color assist may refine inside that boundary, but it cannot escape it.</p>
-      <div class="selection-tools" aria-label="Selection tool">
-        <button type="button" data-selection-tool="inspect">⌖ Inspect</button>
-        <button type="button" data-selection-tool="magic">✦ Color assist</button>
-        <button type="button" class="active" data-selection-tool="lasso">⌁ Freehand lasso</button>
+      <span class="eyebrow">03 · Draw</span>
+      <h2>One gesture, one structure.</h2>
+      <p>Choose Lasso, right-click the artwork to arm a kind and variant, then draw. Releasing the lasso saves that object immediately.</p>
+      <div class="draw-tools" aria-label="Artwork tools">
+        <button type="button" class="active" data-draw-tool="pointer">↖<span>Pointer</span></button>
+        <button type="button" data-draw-tool="lasso">⌁<span>Lasso</span></button>
+        <button type="button" data-draw-tool="eraser">⌫<span>Eraser</span></button>
+        <button type="button" data-draw-tool="pan">✋<span>Pan</span></button>
       </div>
-      <label class="tolerance" id="toleranceControl" hidden>Color tolerance inside lasso
-        <span><input id="magicTolerance" type="range" min="4" max="45" value="18"><b id="magicToleranceValue">18</b></span>
-      </label>
-      <div class="segmented selection-operation" aria-label="Selection operation">
-        <button type="button" class="active" data-selection-operation="replace">Replace footprint</button>
-        <button type="button" data-selection-operation="add">Add to footprint</button>
-        <button type="button" data-selection-operation="subtract">Subtract</button>
+      <button type="button" class="armed-kit wide" id="armedKit"><i id="pendingSwatch"></i><span><small>Armed drawing</small><b id="pendingMeaning">Building · Timber house</b></span><em>right-click</em></button>
+      <div class="history-tools">
+        <button type="button" id="undoDraw" disabled>↶ Undo</button>
+        <button type="button" id="redoDraw" disabled>↷ Redo</button>
       </div>
-      <div class="selection-receipt">
-        <div class="pending-meaning"><i id="pendingSwatch"></i><b id="pendingMeaning">Building · Timber house</b></div>
-        <span id="selectionReceipt">No footprint selected yet.</span>
-      </div>
-      <button type="button" id="clearSelection" class="wide">Clear working footprint</button>
-    </section>
-
-    <section id="semanticPanel" class="disabled">
-      <span class="eyebrow">04 · Describe</span>
-      <h2>What are you tracing?</h2>
-      <p>The working footprint changes color immediately. Saved structures remain visible when another begins.</p>
-      <div class="semantic-tools" id="semanticTools">
-        <button type="button" data-semantic-type="ground">Ground / erase</button>
-        <button type="button" class="active" data-semantic-type="building">Building</button>
-        <button type="button" data-semantic-type="roof">Roof / deck</button>
-        <button type="button" data-semantic-type="bridge">Bridge</button>
-        <button type="button" data-semantic-type="water">Water</button>
-        <button type="button" data-semantic-type="tent">Tent</button>
-        <button type="button" data-semantic-type="tree">Tree / canopy</button>
-        <button type="button" data-semantic-type="stairs">Stairs / ramp</button>
-        <button type="button" data-semantic-type="wall">Wall</button>
-      </div>
-      <label class="appearance-choice">Appearance / kit
-        <select id="semanticAppearance"></select>
-      </label>
-      <button type="button" class="primary wide" id="commitSelection">Create region from selection</button>
-      <button type="button" class="wide" id="startNextRegion">Start another structure</button>
+      <details class="color-assist">
+        <summary>Optional Color assist</summary>
+        <p>After drawing, select the object and refine only inside its boundary.</p>
+        <label class="tolerance">Tolerance
+          <span><input id="magicTolerance" type="range" min="4" max="45" value="18"><b id="magicToleranceValue">18</b></span>
+        </label>
+      </details>
     </section>
   </aside>
 
@@ -99,6 +79,12 @@
         <button type="button" class="active" data-view="artwork">Artwork + regions</button>
         <button type="button" data-view="preview">Height preview</button>
         <button type="button" data-view="split">Split</button>
+      </div>
+      <div class="view-controls" aria-label="Artwork view controls">
+        <button type="button" id="zoomOut" title="Zoom out">−</button>
+        <button type="button" id="zoomFit" title="Fit artwork"><span id="zoomValue">Fit</span></button>
+        <button type="button" id="zoomIn" title="Zoom in">＋</button>
+        <button type="button" id="toggleGrid" title="Show or hide grid"># Grid on</button>
       </div>
     </div>
     <div class="view-grid artwork-only" id="viewGrid">
@@ -181,7 +167,7 @@
         </select>
       </label>
       <button type="button" class="primary wide" id="applyRegion">Apply region changes</button>
-      <button type="button" class="wide" id="regionToSelection">Edit this footprint</button>
+      <button type="button" class="wide" id="regionToSelection">Add with next lasso</button>
       <div class="height-receipt" id="heightReceipt">Select a raised region to inspect its vertical span.</div>
       <div class="movement-note" id="movementNote">Movement evidence appears after selecting an elevated region.</div>
     </section>
@@ -198,9 +184,15 @@
   </aside>
 </main>
 
+<div class="type-palette" id="typePalette" hidden role="dialog" aria-label="Choose structure kind and variant">
+  <div class="type-palette-head"><span>Draw as</span><button type="button" id="closeTypePalette" aria-label="Close">×</button></div>
+  <div class="type-palette-kinds" id="typePaletteKinds"></div>
+  <div class="type-palette-variants" id="typePaletteVariants"></div>
+</div>
+
 <div class="fatal" id="fatal" role="alert"></div>
 <script src="mock-forge-image-importer-core.js?v=ii3"></script>
-  <script src="mock-forge-image-structure-review-core.js?v=sr7"></script>
-  <script src="mock-forge-image-structure-review.js?v=sr7"></script>
+  <script src="mock-forge-image-structure-review-core.js?v=sr9"></script>
+  <script src="mock-forge-image-structure-review.js?v=sr9"></script>
 </body>
 </html>

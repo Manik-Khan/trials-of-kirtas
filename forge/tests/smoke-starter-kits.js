@@ -21,13 +21,13 @@ function makeSandbox(STARTER_KITS, characterData, forgeKitDerive, selected) {
   const win = { CharacterData: characterData, ForgeKitDerive: forgeKitDerive,
     ForgePartySelection: require("../forge-party-selection.js"), __fightRoster: selected || [] };
   const fn = new Function(
-    "window", "STARTER_KITS", "clog", "escapeHtml",
+    "window", "STARTER_KITS", "clog", "escapeHtml", "location",
     m[1] + "\nreturn { loadLiveStats: loadLiveStats, liveStatsFor: liveStatsFor, " +
       "kitFor: kitFor, GENERIC_PC_KIT: GENERIC_PC_KIT, __liveStatsWarned: __liveStatsWarned, " +
       "__genericKitWarned: __genericKitWarned, resolveLiveSheetRef: resolveLiveSheetRef, forgePartyRows: forgePartyRows, " +
       "missingForgePartyRows: missingForgePartyRows, requireForgePartyRows: requireForgePartyRows };"
   );
-  return fn(win, STARTER_KITS, clog, escapeHtml);
+  return fn(win, STARTER_KITS, clog, escapeHtml, { search: "" });
 }
 
 async function main() {

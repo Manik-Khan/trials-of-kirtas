@@ -80,15 +80,15 @@ ok("pending meaning and appearance are visible before a footprint is saved",
   && /id="semanticAppearance"/.test(html) && /working footprint changes color immediately/.test(html));
 ok("Color assist is explicitly fenced by a lasso instead of searching the entire map",
   /Color assist may refine inside that boundary, but it cannot escape it/.test(html)
-  && /allowedMask/.test(js) && /maskFromCells/.test(js));
+  && /allowedMask/.test(js) && /maskFromCells/.test(js) && /magicFence/.test(js));
 ok("the live preview is code-native and carries the honest boundary",
   /id="previewCanvas"/.test(html)
   && /Renderer study only/.test(html)
   && !/three(?:\.min)?\.js/i.test(html + js));
 ok("all structure-review assets carry current cache stamps",
-  html.includes("mock-forge-image-structure-review.css?v=sr7")
-  && html.includes("mock-forge-image-structure-review-core.js?v=sr7")
-  && html.includes("mock-forge-image-structure-review.js?v=sr7")
+  html.includes("mock-forge-image-structure-review.css?v=sr8")
+  && html.includes("mock-forge-image-structure-review-core.js?v=sr8")
+  && html.includes("mock-forge-image-structure-review.js?v=sr8")
   && html.includes("mock-forge-image-importer-core.js?v=ii3"));
 ok("the preview joins region cells and explains elevation instead of drawing per-cell tent spikes",
   /function joinedPrism/.test(js) && /function heightRuler/.test(js) && /function heightLabel/.test(js)

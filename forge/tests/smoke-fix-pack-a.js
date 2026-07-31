@@ -30,6 +30,8 @@ function extract(name){
   ok("explicitly spent resource values remain authoritative",enriched.slot1===0&&enriched.slot2===1);
   const rosterSource=extract("unitFromRosterRow");
   ok("session roster hydration merges newly-derived class resources",rosterSource.includes("mergeResourceDefaults(stateUnit.resources")&&rosterSource.includes("mergeResourceDefaults(row.resources"));
+  const reconcileSource=extract("reconcileSharedUnitFacts"),resyncSource=extract("resyncFromState");
+  ok("active-session echoes retain newly-derived Hexblade and Rage pools",reconcileSource.includes("mergeResourceDefaults(su.resources,cu.res")&&resyncSource.includes("mergeResourceDefaults(s.resources,u.res"));
 
   const vicious=Damage.rollAction({dmg:"1d4",dmgType:"Psychic"},false,[],()=>0);
   const tollShape=Rules.tollDamage({dmg:"1d8"},{hp:4,hpMax:7});

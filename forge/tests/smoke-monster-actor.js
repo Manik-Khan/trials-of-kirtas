@@ -19,8 +19,10 @@ const statblock={
 };
 
 const actor=M.toCharacter({id:'archer-1',name:'Archer 1',statblock});
-ok(M.VERSION==='2.0.0','adapter version is pinned');
+ok(M.VERSION==='2.1.0','adapter version is pinned');
 ok(actor.actions.filter(a=>a.type==='attack').length===2,'every parsed weapon attack survives the adapter');
+const archerMulti=actor.actions.find(a=>a.type==='multiattack');
+ok(archerMulti&&archerMulti.sequences.some(seq=>seq.length===2),'Multiattack compiles to a two-strike action sequence');
 ok(actor.actions.some(a=>a.label==='Longbow'&&/range 150\/600 ft/i.test(a.note)),'Longbow keeps both range bands');
 ok(actor.reference.profile.some(x=>x.label==='Lore & behavior'&&/high ground/.test(x.desc)),'bestiary lore becomes DM-readable reference');
 ok(actor.reference.traits.some(x=>x.label==='Fey Ancestry'),'racial and monster traits remain available');
@@ -36,6 +38,16 @@ const lizard=M.toCharacter({id:'lizardfolk-1',name:'Lizardfolk 1',statblock:{
   ]
 }});
 ok(lizard.actions.some(a=>a.label==='Javelin'&&/reach 5 ft/i.test(a.note)&&/range 30\/120 ft/i.test(a.note)),'combined melee-or-ranged Javelin keeps both reach clauses');
+
+const queen=M.toCharacter({id:'queen-1',name:'Lizard Queen 1',statblock:{
+  name:'Lizard Queen',dex:12,ac:[15],hp:{average:78},speed:{walk:30},action:[
+    {name:'Multiattack',entries:['The queen makes two attacks: one with its bite and one with its trident or two with its trident.']},
+    {name:'Bite',entries:['{@atk mw} {@hit 5} to hit, reach 5 ft., one target. {@h} 6 ({@damage 1d6 + 3}) piercing damage.']},
+    {name:'Trident',entries:['{@atk mw,rw} {@hit 5} to hit, reach 5 ft. or range 20/60 ft., one target. {@h} 6 ({@damage 1d6 + 3}) piercing damage.']}
+  ]
+}});
+const queenMulti=queen.actions.find(a=>a.type==='multiattack');
+ok(queenMulti&&queenMulti.sequences.some(seq=>seq.join('|')==='Bite|Trident')&&queenMulti.sequences.some(seq=>seq.join('|')==='Trident|Trident'),'named Multiattack alternatives preserve the queen\'s legal sequences');
 
 if(fail){console.error('\n'+fail+' monster-actor checks failed');process.exit(1);}
 console.log('\n'+n+' monster-actor checks green');

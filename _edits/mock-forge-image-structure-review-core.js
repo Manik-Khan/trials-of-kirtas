@@ -316,6 +316,46 @@
     }
     return mask;
   }
+  function gridCoveringArtwork(width, height, cellPx, phaseX, phaseY, evidence) {
+    cellPx = Math.max(4, Number(cellPx) || 4);
+    function phase(value) {
+      value = Number(value) || 0;
+      value = ((value % cellPx) + cellPx) % cellPx;
+      return value < Math.max(0.25, cellPx * 0.02) || cellPx - value < Math.max(0.25, cellPx * 0.02) ? 0 : value;
+    }
+    var xPhase = phase(phaseX), yPhase = phase(phaseY);
+    var originX = xPhase ? xPhase - cellPx : 0;
+    var originY = yPhase ? yPhase - cellPx : 0;
+    return {
+      found: true,
+      cellPx: cellPx,
+      originX: originX,
+      originY: originY,
+      phaseX: xPhase,
+      phaseY: yPhase,
+      cols: Math.max(1, Math.ceil((width - originX) / cellPx)),
+      rows: Math.max(1, Math.ceil((height - originY) / cellPx)),
+      confidence: evidence && evidence.farPointChecked ? 1 : 0.92,
+      evidence: Object.assign({ fullArtwork: true }, copy(evidence || {}))
+    };
+  }
+  function refineGridFromPoint(width, height, grid, anchor, point) {
+    if (!grid || !anchor || !point) return null;
+    var dx = Number(point.x) - Number(anchor.x), dy = Number(point.y) - Number(anchor.y);
+    var stepX = Math.round(dx / grid.cellPx), stepY = Math.round(dy / grid.cellPx);
+    var candidates = [];
+    if (Math.abs(stepX) >= 2) candidates.push({ value: Math.abs(dx / stepX), weight: Math.abs(stepX) });
+    if (Math.abs(stepY) >= 2) candidates.push({ value: Math.abs(dy / stepY), weight: Math.abs(stepY) });
+    if (!candidates.length) return null;
+    var weight = candidates.reduce(function (sum, candidate) { return sum + candidate.weight; }, 0);
+    var cellPx = candidates.reduce(function (sum, candidate) { return sum + candidate.value * candidate.weight; }, 0) / weight;
+    return gridCoveringArtwork(width, height, cellPx, anchor.x, anchor.y, {
+      manualCell: true,
+      farPointChecked: true,
+      farPoint: [Number(point.x), Number(point.y)],
+      gridSteps: [stepX, stepY]
+    });
+  }
   function cellsFromMask(grid, mask, width, height, minimumCoverage) {
     if (!grid || !mask || mask.length !== width * height) return [];
     minimumCoverage = clamp(Number(minimumCoverage) || 0.2, 0.02, 1);
@@ -429,6 +469,26 @@
       footprint: copy(selection.footprint)
     });
     return { review: out, regionId: regionId };
+  }
+  function eraseSelection(review, selection, regionId) {
+    if (!review || !selection || !selection.cells.length) return { review: review, affected: 0 };
+    var out = copy(review), selected = new Set(selection.cells.map(function (cell) { return key(cell[0], cell[1]); }));
+    var affected = 0;
+    out.regions = out.regions.map(function (region) {
+      if (regionId && region.id !== regionId) return region;
+      var next = copy(region), before = next.cells.length;
+      next.cells = next.cells.filter(function (cell) { return !selected.has(key(cell[0], cell[1])); });
+      if (next.cells.length !== before) affected++;
+      return next;
+    }).filter(function (region) { return region.cells.length; });
+    out.history.push({
+      kind: "erase-selection",
+      cells: selection.cells.length,
+      regionId: regionId || null,
+      affected: affected,
+      footprint: copy(selection.footprint)
+    });
+    return { review: out, affected: affected };
   }
   function groupsForCells(cells) {
     var remaining = new Map();
@@ -624,11 +684,14 @@
     cellsFromPolygon: cellsFromPolygon,
     magicMask: magicMask,
     maskFromCells: maskFromCells,
+    gridCoveringArtwork: gridCoveringArtwork,
+    refineGridFromPoint: refineGridFromPoint,
     cellsFromMask: cellsFromMask,
     selectionFromCells: selectionFromCells,
     combineSelection: combineSelection,
     mergeTouchingRegions: mergeTouchingRegions,
     authorSelection: authorSelection,
+    eraseSelection: eraseSelection,
     paintRect: paintRect,
     updateRegion: updateRegion,
     stairPath: stairPath,

@@ -35,6 +35,7 @@ ok('Dagger thrown action carries 20/60 ft', find(rActs, 'Dagger (Thrown)').range
 const javelinActs = buildWeaponActions([{ name: 'Javelin', qty: 4 }], fighter);
 ok('Javelin keeps its melee attack', !!find(javelinActs, 'Javelin') && !find(javelinActs, 'Javelin').range);
 ok('Javelin gains a distinct thrown attack at 30/120 ft', find(javelinActs, 'Javelin (Thrown)').range === '30/120');
+ok('Javelin thrown action carries its inventory quantity into combat', find(javelinActs, 'Javelin (Thrown)').inventoryKey === 'thrownJavelin' && find(javelinActs, 'Javelin (Thrown)').inventoryQty === 4);
 
 // Wizard: dagger proficiency comes plural ("Daggers"); NOT proficient with martial Longsword
 const wizard = { abilities: { str: { mod: 0 }, dex: { mod: 2 } }, proficiencyBonus: 2, proficiencies: { weapons: ['Daggers', 'Quarterstaffs', 'Light Crossbows'] } };
@@ -57,6 +58,7 @@ ok('non-weapons / Net produce no attacks; only Greatsword', mixed.length === 1 &
 // duplicate weapons collapse to one entry
 const dupes = buildWeaponActions([{ name: 'Dagger', qty: 1 }, { name: 'Dagger', qty: 1 }], fighter);
 ok('duplicate weapons -> single attack entry', dupes.filter(a => a.label === 'Dagger').length === 1);
+ok('duplicate thrown stacks contribute to one shared supply', find(dupes, 'Dagger (Thrown)').inventoryQty === 2);
 
 // empty inventory -> no actions, no throw
 ok('empty inventory -> []', buildWeaponActions([], fighter).length === 0 && buildWeaponActions(null, fighter).length === 0);

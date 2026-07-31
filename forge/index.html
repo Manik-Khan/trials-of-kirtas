@@ -37,8 +37,8 @@
 <script src="forge-replay.js?v=fb19"></script>
 <script src="forge-combat-rules.js?v=fcr3"></script>
 <script src="forge-death-saves.js?v=fds1"></script>
-<script src="forge-foe-ai.js?v=fai3"></script>
-<script src="forge-effects.js?v=fe7"></script>
+<script src="forge-foe-ai.js?v=fai4"></script>
+<script src="forge-effects.js?v=fe8"></script>
 <script src="forge-initiative.js?v=fi2"></script>
 <script src="forge-discovery.js?v=fd7"></script>
 <script src="forge-render-power.js?v=frp1"></script>
@@ -53,9 +53,9 @@
 <script src="../resource-derive.js?v=fr1"></script>
 <script src="../character-readiness.js?v=cr1"></script>
 <script src="forge-readiness-ui.js?v=fru1"></script>
-<script src="forge-capabilities.js?v=fc3"></script>
-<script src="forge-capability-resolver.js?v=fcrs1"></script>
-<script src="forge-kit-derive.js?v=b18"></script>
+<script src="forge-capabilities.js?v=fc4"></script>
+<script src="forge-capability-resolver.js?v=fcrs2"></script>
+<script src="forge-kit-derive.js?v=b19"></script>
 <script src="forge-action-damage.js?v=fad1"></script>
 <script src="forge-reaction-choices.js?v=frc1"></script>
 <script src="forge-damage-evidence.js?v=fde3"></script>
@@ -82,7 +82,7 @@
      is available before the module body below runs; unitFromRosterRow reads
      it lazily (at spawn time), so load order relative to the module tag
      doesn't matter beyond "before first spawn". -->
-<script src="../monster-actor.js?v=ma3"></script>
+<script src="../monster-actor.js?v=ma4"></script>
 <script>/* ── inlined canonical forge/tactics-geometry.js — MUST stay code-identical ── */
 /* ════════════════════════════════════════════════════════════════════
    tactics-geometry.js — pure map-geometry rules over the MAP DOCUMENT.
@@ -1595,7 +1595,7 @@ body.forge-player-view #godMoveConfirm,body.forge-player-view .godSelectedBadge{
   </div>
 <script type="module">
 import * as THREE from 'three';
-import { assembleActions, buildWeaponActions } from '../weapon-actions.js?v=fg2h';
+import { assembleActions, buildWeaponActions } from '../weapon-actions.js?v=fg2i';
 /* Module scope changes what escapes this block. Two consequences, both handled:
    · No inline HTML on*= attributes exist in this file (all 19 matches are JS
      property assignments like `hs.oninput=`), so no handler needs a global.
@@ -4362,6 +4362,7 @@ function trackEffectBadges(){ EFFECT_BADGES.forEach(function(x){var p=projectUni
 function refreshEffectState(trigger,silent){
   var E=effectApi();if(!E)return;
   var prev=EFFECT_STATE||{effects:{}};EFFECT_STATE=E.replay(effectRows());syncEffectBadges();
+  if(typeof CB!=="undefined"&&CB&&Array.isArray(CB.units))CB.units.forEach(function(u){u.raging=!!E.find(EFFECT_STATE,u.unit||u.key||u.id,"rage");});
   if(!silent&&trigger&&trigger.kind==="turn_ended"&&window.ForgeTableCorrectness){
     Object.keys(prev.effects||{}).forEach(function(id){var old=prev.effects[id];if(!EFFECT_STATE.effects[id]&&old&&old.expires){
       window.ForgeTableCorrectness.pushFact({kind:"effect",action:"remove",actor:trigger.unit,target:old.target,effect:old,reason:"duration expired"});
@@ -4396,6 +4397,9 @@ function concentrationBreakOps(u,reason){var E=effectApi();return E?E.concentrat
 function blessEffectFor(u){return effectFor(u,"bless");}
 function blessRollFor(u){var E=effectApi(),ef=blessEffectFor(u);return E&&ef?E.modifierDie(EFFECT_STATE,u.unit||u.key||u.id,"bless",d(4)):null;}
 function hexEffectAgainst(u,t){var E=effectApi(),ef=E&&E.find(EFFECT_STATE,t.unit||t.key||t.id,"hex");return ef&&ef.source===(u.unit||u.key||u.id)?ef:null;}
+function huntersMarkAgainst(u,t){var E=effectApi(),ef=E&&E.find(EFFECT_STATE,t.unit||t.key||t.id,"hunters-mark");return ef&&ef.source===(u.unit||u.key||u.id)?ef:null;}
+function isRaging(u){return !!effectFor(u,"rage");}
+function persistentDamageRiders(u,t,a){var extra=[],baseType=primaryDamageType(a);if(isRaging(u)&&(a.rng||1)<=1&&(!a.ability||a.ability==="str"))extra.push({dice:"0",bonus:2,type:baseType,critDice:false});if(hexEffectAgainst(u,t)||(typeof CB!=="undefined"&&CB.hexed===t.id))extra.push({dice:"1d6",bonus:0,type:"necrotic"});if(huntersMarkAgainst(u,t))extra.push({dice:"1d6",bonus:0,type:baseType});return extra;}
 function hexbladeCurseAgainst(u,t){var E=effectApi(),ef=E&&E.find(EFFECT_STATE,t.unit||t.key||t.id,"hexblade-curse");return ef&&ef.source===(u.unit||u.key||u.id)?ef:null;}
 function transferableHexFor(u){
   var key=u&&(u.unit||u.key||u.id),found=null;
@@ -5057,6 +5061,7 @@ function buildUnit(kit, side, opts){
     u.save = kit && kit.save; u.atk = kit && kit.atk;
     u.actions = (kit && kit.actions && kit.actions.length) ? kit.actions : (u.atk ? [Object.assign({_tileId:'foe-'+String(u.atk.label||'attack').toLowerCase().replace(/[^a-z0-9]+/g,'-'),kind:'attack'},u.atk)] : []);
     u.foeHud = kit && kit.foeHud || {foe:true,actions:u.actions,tabs:{attacks:u.actions,spells:[],items:[],feats:[],bonus:[],actions:[]},pools:[]};
+    u.multiattack = JSON.parse(JSON.stringify((kit && kit.multiattack) || null));
   }
   return u;
 }
@@ -5082,6 +5087,15 @@ function foeActionFromMonster(a){
   if(!a||a.type!=='attack')return null;var rf=rangeFromNote(a.note),dmg=a.dmgDice+(a.dmgMod?(a.dmgMod>0?'+':'')+a.dmgMod:'');
   var out={id:a.id,_tileId:'foe-'+a.id,label:a.label,kind:'attack',tab:'attacks',rng:(rf&&rf.rng)||1,hit:a.hitMod,dmg:dmg,dmgType:a.dmgType||'',desc:a.note||''};
   if(rf&&rf.long!=null)out.long=rf.long;return out;
+}
+function foeActionsFromMonster(a){
+  var base=foeActionFromMonster(a);if(!base)return [];
+  var note=String(a.note||""),reach=note.match(/reach\s+(\d+)\s*ft/i),range=note.match(/range\s+(\d+)(?:\/(\d+))?\s*ft/i);
+  if(!reach||!range)return [base];
+  var key="thrown"+String(a.label||"weapon").replace(/[^a-z0-9]+/gi," ").trim().split(/\s+/).map(function(word){return word.charAt(0).toUpperCase()+word.slice(1).toLowerCase();}).join("");
+  var melee=Object.assign({},base,{rng:Math.max(1,Math.round(Number(reach[1])/5)),long:null});
+  var thrown=Object.assign({},base,{id:base.id+"-thrown",_tileId:base._tileId+"-thrown",label:base.label+" (Thrown)",rng:Math.max(1,Math.round(Number(range[1])/5)),long:range[2]?Math.max(1,Math.round(Number(range[2])/5)):null,thrown:true,cost:(function(){var out={};out[key]=1;return out;})(),inventoryKey:key});
+  return [melee,thrown];
 }
 function foeReferenceTile(entry,tab){
   return {id:'ref-'+tab+'-'+entry.id,_tileId:'ref-'+tab+'-'+entry.id,label:entry.label,tab:tab,reference:true,spell:!!entry.spell,level:entry.level||0,desc:entry.desc||(entry.usage?entry.usage:''),_src:entry.spell?{name:entry.label}:({name:entry.label,entries:entry.entries||[]})};
@@ -5116,12 +5130,15 @@ function foeKitFromStatblock(row){
     return null;
   }
   var combat = mc.combat || {};
-  var actions=(mc.actions||[]).map(foeActionFromMonster).filter(Boolean);
+  var actions=[];(mc.actions||[]).forEach(function(action){foeActionsFromMonster(action).forEach(function(parsed){actions.push(parsed);});});
+  var multi=(mc.actions||[]).filter(function(a){return a&&a.type==='multiattack'&&Array.isArray(a.sequences)&&a.sequences.length;})[0]||null;
   if(!actions.length&&/^goblin(?:\s|$)/i.test(mc.name||row.name||""))actions=FOE.actions.map(function(a){return Object.assign({},a);});
   var atk=actions[0]||null;
+  var res={},pools=[];actions.forEach(function(action){if(!action.inventoryKey||res[action.inventoryKey]!=null)return;res[action.inventoryKey]=1;pools.push({key:action.inventoryKey,rawKey:action.inventoryKey,label:String(action.label).replace(/\s*\(Thrown\)$/,""),badge:"1",max:1,current:1,tone:"item",kind:"resource",origin:"statblock",source:"statblock"});});
+  var hud=foeHudFrom(mc,actions);hud.pools=pools;
   return {
     name: mc.name, hp: combat.hp, hpMax: combat.hpMax, ac: combat.ac, speed: combat.speed, init: combat.initiative,
-    atk: atk, actions:actions, mActions: mc.actions, reference:mc.reference, foeHud:foeHudFrom(mc,actions),
+    atk: atk, actions:actions, res:res, pools:pools, multiattack:multi?{label:multi.label,sequences:multi.sequences}:null, mActions: mc.actions, reference:mc.reference, foeHud:hud,
   };
 }
 /* Task 16 (bite 1): session-mode live-stats overlay. STARTER_KITS' ac/speed/
@@ -5457,7 +5474,7 @@ window.__forgeUnitName=function(key){
 function reconcileSharedUnitFacts(state){
   state=state||(window.__forgeSession&&window.__forgeSession.pipe.state());if(!state||!state.units)return;
   CB.units.forEach(function(cu){var su=state.units[cu.unit];if(!su)return;
-    if(su.resources)cu.res=normalizeResourceRecord(su.resources);
+    if(su.resources)cu.res=mergeResourceDefaults(su.resources,cu.res||{});
     if(su.deathSaves)cu.deathSaves=window.ForgeDeathSaves?window.ForgeDeathSaves.normalize(su.deathSaves):JSON.parse(JSON.stringify(su.deathSaves));
     cu.advGrant=su.advGrant?{reason:su.advGrant.reason||"granted"}:null;
     cu.boomMark=su.boomMark?Object.assign({},su.boomMark):null;
@@ -5629,7 +5646,7 @@ function applyVerb(v){
 function resyncFromState(st){
   if(st.architectureRecord)applySharedArchitectureRecord(st.architectureRecord);
   CB.units.forEach(function(u){ var s=(st.units||{})[u.unit]; if(!s){ removeToken(u,true); return; }
-    var wasAlive=u.alive;u.c=s.pos.c; u.r=s.pos.r; u.hp=s.hp;u.res=normalizeResourceRecord(s.resources||u.res); u.alive=!s.downed;u.deathSaves=window.ForgeDeathSaves?window.ForgeDeathSaves.normalize(s.deathSaves):u.deathSaves;
+    var wasAlive=u.alive;u.c=s.pos.c; u.r=s.pos.r; u.hp=s.hp;u.res=mergeResourceDefaults(s.resources,u.res||{}); u.alive=!s.downed;u.deathSaves=window.ForgeDeathSaves?window.ForgeDeathSaves.normalize(s.deathSaves):u.deathSaves;
     if(!u.alive){if(wasAlive||u.sprite||u.topToken)removeToken(u);return;}
     // I2 (final-review): a token whose sprite was cleared (e.g. lost on a
     // prior downed pass, or never made on this device) must be recreated
@@ -6225,6 +6242,7 @@ function canUse(u,a){
   if(a.bonus&&CB.st.usedBonus) return {ok:false,why:"bonus action used"};
   if(!a.bonus&&!a.free&&CB.st.usedAction) return {ok:false,why:"action used"};
   if(a.needsAttack&&!CB.st.attacked) return {ok:false,why:"attack first"};
+  if(a.spell&&isRaging(u))return {ok:false,why:"cannot cast a spell while raging"};
   var spellRule=window.ForgeCombatRules.canCastSpell(CB.st,a);if(!spellRule.ok)return spellRule;
   var costs=resourceSpendFor(a);for(var k in costs){ if((u.res[k]||0)<costs[k]) return {ok:false,why:"no "+k}; }
   return {ok:true};
@@ -6518,7 +6536,7 @@ function computeReactionExtra(react,ctx,u,askerU,askerName){
   }else if(react==="opportunityAttack"){
     var a=Object.assign({kind:"attack",strikes:1},ctx.attack||meleeActOf(u)||{}),target=unitByKey(ctx.target),ward=target&&effectFor(target,"sanctuary"),wardResult=null;
     if(ward){var wardBless=blessRollFor(u),wardBlessV=wardBless?wardBless.roll:0;wardResult=effectApi().wisdomSave(ward,wisdomSaveMod(u)+wardBlessV,d(20));wardResult.bless=wardBlessV;if(!wardResult.saved){extra={reaction_kind:"opportunityAttack",context:{kind:"opportunity-attack",actor:u.unit,target:ctx.target,mode:a.label||"Opportunity Attack",warded:true,sanctuary:wardResult},hit:false,effects:[]};clogLine="Sanctuary turns aside "+u.name+"'s opportunity attack — Wisdom "+wardResult.total+" vs DC "+wardResult.dc+".";return {extra:extra,clogLine:clogLine};}}
-    var av=advPreview(u,target,a,null),bless=blessRollFor(u),blessV=bless?bless.roll:0,d20ev=rollD20Evidence(av.adv,av.dis),hitBonus=Number(a.hit)||0,total=d20ev.roll+hitBonus+blessV,crit=d20ev.roll===20,hit=crit||(d20ev.roll!==1&&total>=(target&&target.ac||10)),damage=hit?resolveIncomingDamage(target,rollActionDamage(a,crit,(hexEffectAgainst(u,target)?[{dice:"1d6",bonus:0,type:"necrotic"}]:[]))):null,dmg=damage?damage.total:0;
+    var av=advPreview(u,target,a,null),bless=blessRollFor(u),blessV=bless?bless.roll:0,d20ev=rollD20Evidence(av.adv,av.dis),hitBonus=Number(a.hit)||0,total=d20ev.roll+hitBonus+blessV,crit=d20ev.roll===20,hit=crit||(d20ev.roll!==1&&total>=(target&&target.ac||10)),damage=hit?resolveIncomingDamage(target,rollActionDamage(a,crit,persistentDamageRiders(u,target,a))):null,dmg=damage?damage.total:0;
     var st=window.__forgeSession&&window.__forgeSession.pipe.state(),hp=st&&st.units&&st.units[ctx.target]&&st.units[ctx.target].hp,downed=hit&&Number(hp)<=dmg,concentration=hit?concentrationCheckFor(target,dmg,hp,a.label+" opportunity attack damage"):null,oaEffects=hit?[{unit:ctx.target,dmg:dmg}]:[];if(concentration&&concentration.effects&&concentration.effects.length)oaEffects=oaEffects.concat(concentration.effects);
     extra={reaction_kind:"opportunityAttack",hit:hit,crit:crit,roll:d20ev.roll,roll_total:total,hitBonus:hitBonus,d20_rolls:d20ev.rolls,d20_kept_index:d20ev.keptIndex,mods:blessV?[{k:"bless",v:blessV}]:[],dmg:dmg,dmgParts:damage?damage.parts:null,dmgFormula:damage?damage.formula:null,effects:oaEffects,concentration:concentration,context:{kind:"opportunity-attack",actor:u.unit,target:ctx.target,mode:a.label||"Opportunity Attack",hit:hit,crit:crit,roll:d20ev.roll,roll_total:total,hitBonus:hitBonus,d20_rolls:d20ev.rolls,d20_kept_index:d20ev.keptIndex,mods:blessV?[{k:"bless",v:blessV}]:[],dmg:dmg,dmgParts:damage?damage.parts:null,dmgFormula:damage?damage.formula:null,sanctuary:wardResult,concentration:concentration}};
     if(downed){extra.interrupted_at=ctx.trigger_cell;extra.path_index=ctx.path_index;}
@@ -6554,7 +6572,7 @@ function resolveOpportunityAttackPrompt(prompt,u,askerU,askerName,chosenAction){
       var av=advPreview(u,target,a,null),bless=blessRollFor(u),blessV=bless?bless.roll:0,d20ev=rollD20Evidence(av.adv,av.dis),hitBonus=Number(a.hit)||0,total=d20ev.roll+hitBonus+blessV,crit=d20ev.roll===20,hit=crit||(d20ev.roll!==1&&total>=(target.ac||10));
       var declared={target:target.unit,roll:d20ev.roll,roll_total:total,roll_mod:blessV,mods:blessV?[{k:'bless',v:blessV}]:[],d20_rolls:d20ev.rolls,d20_kept_index:d20ev.keptIndex,adv:av.adv,dis:av.dis,crit:crit,mode:a.label||'Opportunity Attack',hitBonus:hitBonus,cover:0,coverName:'none',advReason:av.why.join(', '),flankBonus:av.attackBonus||0,hit:hit,reaction_attack:true,trigger_seq:prompt.seq};
       return sess.pipe.attack(u.unit,declared,function(answers){
-        var hs=replayHitState(declared,answers),effects=withBreakOp([],u,a),damage=hs.hit?resolveIncomingDamage(target,rollActionDamage(a,hs.crit,(hexEffectAgainst(u,target)?[{dice:'1d6',bonus:0,type:'necrotic'}]:[]))):null,dmg=damage?damage.total:0;if(damage)damageWithDefenseNarration(target,damage);
+        var hs=replayHitState(declared,answers),effects=withBreakOp([],u,a),damage=hs.hit?resolveIncomingDamage(target,rollActionDamage(a,hs.crit,persistentDamageRiders(u,target,a))):null,dmg=damage?damage.total:0;if(damage)damageWithDefenseNarration(target,damage);
         var st=sess.pipe.state(),hpBefore=st&&st.units&&st.units[target.unit]?st.units[target.unit].hp:target.hp,concentration=hs.hit?concentrationCheckFor(target,dmg,hpBefore,(a.label||'Opportunity Attack')+' damage'):null;
         if(concentration&&concentration.effects&&concentration.effects.length)effects=effects.concat(concentration.effects);
         if(hs.hit&&a.rider==='boom'&&Number(hpBefore)>dmg)effects.push({unit:target.unit,add_boom:{by:u.unit,die:'1d8',trigger_path_index:ctx.path_index}});
@@ -6932,8 +6950,7 @@ function resolveStrike(u,a,t,ro,done){
   if(!hs.hit){ floatAt(t,"miss","miss"); if(window.ForgeTableCorrectness)window.ForgeTableCorrectness.pushFact({actor:u.unit,target:t.unit,mode:a.label,roll:roll,rollTotal:rollTotal,hitBonus:hitMod,hit:false,crit:false,adv:adv,dis:dis,cover:cover,coverName:ro.coverName||null,d20Rolls:d20ev.rolls,d20KeptIndex:d20ev.keptIndex,mods:rollMods}); done(); return; }
   var feedResolved=false;
   pipelineHit(u,rollAction,hs,t, function applyDmg(){
-    var extra=[],baseType=primaryDamageType(a);if(u.raging&&(a.rng||1)<=1)extra.push({dice:"0",bonus:2,type:baseType,critDice:false});
-    if(hexEffectAgainst(u,t)||CB.hexed===t.id)extra.push({dice:"1d6",bonus:0,type:"necrotic"});
+    var extra=persistentDamageRiders(u,t,a),baseType=primaryDamageType(a);
     if(curse)extra.push({dice:"0",bonus:curse.bonusDamage||1,type:baseType,critDice:false});
     var damage=resolveIncomingDamage(t,rollActionDamage(a,hs.crit,extra)),dmg=damage.total,hpBefore=t.hp;damageWithDefenseNarration(t,damage);
     t.hp-=dmg;var concentration=localConcentrationAfterDamage(t,dmg,hpBefore,a.label+" damage"); var line=(hs.crit?"<b>CRIT</b> ":"")+t.name+" takes "+dmg+" ("+Math.max(0,t.hp)+"/"+t.hpMax+")";
@@ -6984,7 +7001,7 @@ function doHeal(u,a,t){ var ro=reachOK(u,a,t); if(!ro.ok){ clog(u.name+" \u2014 
    isn't, the cast auto-promotes with a feed note (RAW). The chooser labels
    non-scaling spells “No additional effect at higher levels.” */
 var UPCAST_PICK=null;
-function slotBaseOf(a){ if(!a||!a.cost) return a&&a.level>0?Number(a.level):null; for(var k in a.cost){ var m=/^slot(\d)$/.exec(k); if(m) return +m[1]; } return a&&a.level>0?Number(a.level):null; }
+function slotBaseOf(a){ if(!a||!a.cost) return a&&a.level>0?Number(a.level):null; for(var k in a.cost){ if(/^racial[A-Z]/.test(k))return null;var m=/^slot(\d)$/.exec(k); if(m) return +m[1]; } return a&&a.level>0?Number(a.level):null; }
 function castableSpellSources(u,base){
   var out=[],seen={};
   for(var L=base;L<=9;L++){var key="slot"+L;if((u.res[key]||0)>0){out.push({key:key,level:L,label:"Level "+L});seen[key]=true;}}
@@ -7030,6 +7047,7 @@ function showUpcastPick(u,idx,a,base,choices){
 function genericTurnEffect(u,kind,label,count){return window.ForgeCombatRules.effectOp({source:u.unit,target:u.unit,kind:kind,label:label,icon:kind,duration:{kind:"source-turns",unit:u.unit,count:count||1},nonce:Date.now()});}
 function commitTurnAbility(u,a,effects,opts){opts=opts||{};var sess=window.__forgeSession;if(sess){netUseAbility(u,a,[u.unit],effects||[],opts);return;}localEffectEvent("ability_used",u.unit,{ability:opts.ability||a.label,targets:[u.unit],effects:effects||[],slot:a.bonus?"bonus":"action",movement_bonus_ft:opts.movement_bonus_ft||0,movement_cost_ft:opts.movement_cost_ft||0,context:opts.context||null});if(opts.onSuccess)opts.onSuccess();spend(u,a);finishAction();}
 function useMonkDodge(u,a){var op=genericTurnEffect(u,"dodging","Patient Defense",1);clog('<b>'+escapeHtml(u.name)+'</b> uses Patient Defense — attacks against them have disadvantage.');commitTurnAbility(u,a,[op],{context:{kind:"monk-dodge"}});}
+function useRage(u,a){var E=effectApi();if(!E||!E.addRage){clog("<i>Rage cannot be applied — the effect ledger did not load.</i>");return;}var surge=a.wildSurge?d(8):null,op=E.addRage({source:u.unit,nonce:Date.now(),turns:10,wildSurge:surge});clog('<b>'+escapeHtml(u.name)+'</b> enters a Rage.'+(surge?' Wild Magic Surge: <b>'+surge+'</b>.':''));commitTurnAbility(u,a,[op],{context:{kind:"rage",wild_surge:surge}});}
 function useMonkStep(u,a){var ov=document.createElement("div");ov.className="cbReact";ov.innerHTML='<div class="cbReactCard"><div class="cbReactEy">Step of the Wind · 1 Ki</div><div class="cbReactTitle">Choose Dash or Disengage</div><div class="cbReactDesc">Dash adds '+u.speed+' ft of movement. Disengage prevents opportunity attacks for this turn.</div><div class="cbReactBtns"><button class="cbReactUse" data-choice="dash">Dash</button><button class="cbReactSkip" data-choice="disengage">Disengage</button></div></div>';document.body.appendChild(ov);function done(choice){ov.remove();if(choice==="dash"){clog('<b>'+escapeHtml(u.name)+'</b> uses Step of the Wind — Dash.');commitTurnAbility(u,a,[],{ability:a.label+' — Dash',movement_bonus_ft:u.speed,context:{kind:"monk-step",choice:"dash"},onSuccess:function(){if(!window.__forgeSession){CB.st.moveMax=(CB.st.moveMax||Math.floor(u.speed/5))+Math.floor(u.speed/5);CB.st.moveLeft+=Math.floor(u.speed/5);rebuildMoveReach(u);}}});}else{var op=genericTurnEffect(u,"disengaged","Step of the Wind — Disengage",1);clog('<b>'+escapeHtml(u.name)+'</b> uses Step of the Wind — Disengage.');commitTurnAbility(u,a,[op],{ability:a.label+' — Disengage',context:{kind:"monk-step",choice:"disengage"}});}}ov.querySelector('[data-choice="dash"]').onclick=function(){done("dash")};ov.querySelector('[data-choice="disengage"]').onclick=function(){done("disengage")};}
 function standFromProne(){var u=active();if(!u||!CB.st||!effectFor(u,"prone"))return;var cost=window.ForgeCombatRules.proneStandCostSquares(u.speed);if(CB.st.moveLeft<cost){clog('<i>Not enough movement to stand.</i>');return;}var e=effectFor(u,"prone"),op=effectApi().remove(e.id,"stood up",u.unit,e),a={label:"Stand from Prone",kind:"stand",bonus:false,free:true,cost:null};var sess=window.__forgeSession;if(sess){netUseAbility(u,a,[u.unit],[op],{context:{kind:"stand-prone"},movement_cost_ft:cost*5});}else{localEffectEvent("ability_used",u.unit,{ability:a.label,targets:[u.unit],effects:[op],slot:"free",movement_cost_ft:cost*5,context:{kind:"stand-prone"}});CB.st.moveLeft-=cost;snapshot("Stand");refreshEffectState(null,true);rebuildMoveReach(u);renderHud();}}
 var CONFIRM_TARGET=null;
@@ -7089,6 +7107,7 @@ function selectAction(idx,castChoice){
   }
   if(a.kind==="monk-step"){useMonkStep(u,a);return;}
   if(a.kind==="monk-dodge"){useMonkDodge(u,a);return;}
+  if(a.kind==="rage"){useRage(u,a);return;}
   if(a.kind==="selfheal"){
     if(sess){ netSelfHeal(u,a); return; }
     var amt=rollDmg(a.dmg); u.hp=Math.min(u.hpMax,u.hp+amt); floatAt(u,"+"+amt,"heal"); clog(u.name+": "+a.label+" +"+amt+" ("+u.hp+"/"+u.hpMax+")"); spend(u,a); finishAction(); return; }
@@ -7160,6 +7179,7 @@ function resolveOn(u,a,t){
       if(a.effectKind==="hex-transfer"&&a._hexTransfer){var TE=effectApi(),tops=TE&&TE.transferHex(a._hexTransfer,t.unit);if(!tops||!tops.length){clog("<i>Hex cannot be transferred — the effect ledger did not load.</i>");return;}localEffectEvent("ability_used",u.unit,{ability:a.label,targets:[t.unit],effects:tops,slot:a.bonus?"bonus":"action",context:{kind:"hex-transfer",from:a._hexTransfer.target,target:t.unit,concentration:true}});clog(u.name+" transfers Hex to "+t.name+" without spending another spell slot.");spend(u,a);finishAction();return;}
       if(a.effectKind==="hexblade-curse"){var CE=effectApi(),cop=CE&&CE.addHexbladeCurse({source:u.unit,target:t.unit,nonce:LOCAL_EFFECT_SEQ+1,bonusDamage:a.bonusDamage,heal:a.heal});if(!cop){clog("<i>Hexblade's Curse cannot be applied — the effect ledger did not load.</i>");return;}localEffectEvent("ability_used",u.unit,{ability:a.label,targets:[t.unit],effects:withBreakOp([cop],u,a),slot:a.bonus?"bonus":"action",context:{kind:"hexblade-curse",target:t.unit,bonusDamage:a.bonusDamage,critMin:19,heal:a.heal}});clog(u.name+" places Hexblade's Curse on "+t.name+".");spend(u,a);finishAction();return;}
       if(a.effectKind==="hex"||/^hex(?:\s|$)/i.test(a.label||"")){var E=effectApi();var ops=concentrationBreakOps(u,"Hex replaced concentration");if(E)ops.push(E.addHex({source:u.unit,target:t.unit,nonce:LOCAL_EFFECT_SEQ+1,turns:600}));localEffectEvent("ability_used",u.unit,{ability:a.label,targets:[t.unit],effects:withBreakOp(ops,u,a),slot:a.bonus?"bonus":"action",spell:true,spell_level:Number(a.castLevel!=null?a.castLevel:a.level)||0,context:{kind:"hex",target:t.unit,die:"1d6",concentration:true}});clog(u.name+" hexes "+t.name+" (+1d6 on hits vs it).");spend(u,a);finishAction();return;}
+      if(a.effectKind==="hunters-mark"){var HM=effectApi(),hmOps=concentrationBreakOps(u,"Hunter's Mark replaced concentration");if(HM)hmOps.push(HM.addHuntersMark({source:u.unit,target:t.unit,nonce:LOCAL_EFFECT_SEQ+1,turns:600}));localEffectEvent("ability_used",u.unit,{ability:a.label,targets:[t.unit],effects:withBreakOp(hmOps,u,a),slot:a.bonus?"bonus":"action",spell:true,spell_level:Number(a.level)||1,context:{kind:"hunters-mark",target:t.unit,die:"1d6",concentration:true}});clog(u.name+" marks "+t.name+" (+1d6 weapon damage on hits).");spend(u,a);finishAction();return;}
       CB.hexed=t.id;clog(u.name+" uses "+a.label+" on "+t.name+".");localBreakWard(u,a);spend(u,a);finishAction();return;
     }
     if(a.kind==="buffAlly"){
@@ -7356,20 +7376,37 @@ function foePlanFor(u){
     return {defensiveCover:targets.length?cover/targets.length:0,visibilityCount:visible};
   }
   function routeThreats(path){
-    var count=0;(path||[]).forEach(function(cell){if(targets.some(function(pc){return TG.canReachMelee(CB.map,{c:pc.c,r:pc.r},cell,5);})){count++;}});
-    return count;
+    var route=[{c:u.c,r:u.r}].concat(path||[]);
+    return targets.filter(function(pc){for(var i=1;i<route.length;i++){if(TG.canReachMelee(CB.map,{c:pc.c,r:pc.r},route[i-1],5)&&!TG.canReachMelee(CB.map,{c:pc.c,r:pc.r},route[i],5))return true;}return false;}).length;
   }
   var currentDefense=defensiveFacts(u),origins=[Object.assign({c:u.c,r:u.r,cost:0,path:[],pathThreatCount:0},currentDefense)];
   Object.keys(seen).forEach(function(k){var p=k.split(',').map(Number);if((p[0]===u.c&&p[1]===u.r)||unitAt(p[0],p[1]))return;var path=TG.pathTo(seen,{c:u.c,r:u.r},p[0],p[1]);origins.push(Object.assign({c:p[0],r:p[1],cost:Number(seen[k].d)||TG.chebyshev(u,{c:p[0],r:p[1]}),path:path,pathThreatCount:routeThreats(path)},defensiveFacts({c:p[0],r:p[1]})));});
   var plan=window.ForgeFoeAI.planTurn({
-    actions:u.actions||[],targets:targets,origins:origins,
+    actions:(u.actions||[]).filter(function(action){var costs=resourceSpendFor(action);return Object.keys(costs).every(function(key){return (u.res[key]||0)>=costs[key];});}),targets:targets,origins:origins,
     evaluate:function(origin,action,target){var oldC=u.c,oldR=u.r,ro;try{u.c=origin.c;u.r=origin.r;ro=reachOK(u,action,target,{silent:true});}finally{u.c=oldC;u.r=oldR;}return Object.assign({},ro,{distanceFt:cbDist(origin,target),originElevationFt:tTier(origin.c,origin.r)*5,targetElevationFt:tTier(target.c,target.r)*5,threatCount:targets.filter(function(x){return TG.canReachMelee(CB.map,{c:origin.c,r:origin.r},{c:x.c,r:x.r},5);}).length});},
     distance:function(origin,target){return cbDist(origin,target);},
-    currentDefensiveCover:currentDefense.defensiveCover,currentVisibilityCount:currentDefense.visibilityCount
+    currentDefensiveCover:currentDefense.defensiveCover,currentVisibilityCount:currentDefense.visibilityCount,canDisengage:true
   });
   syncGeometryCreatures();return plan;
 }
 function staffTactic(html){if(window.addForgeRow)window.addForgeRow(html,{channel:"system",visibility:"staff"});}
+function foeMultiattackSequence(u,target,fallback,legal){
+  var actions=u&&u.actions||[],multi=u&&u.multiattack,sequences=multi&&multi.sequences||[];
+  function actionNamed(label){var key=String(label||"").toLowerCase();return actions.filter(function(a){return String(a&&a.label||"").toLowerCase()===key;})[0]||null;}
+  for(var i=0;i<sequences.length;i++){
+    var resolved=(sequences[i]||[]).map(actionNamed).filter(Boolean);
+    if(resolved.length===(sequences[i]||[]).length&&resolved.length>1&&resolved.every(function(a){return !legal||legal(a,target);}))return resolved;
+  }
+  return fallback?[fallback]:[];
+}
+function foeDisengageTurn(u,plan){
+  var sess=window.__forgeSession,path=plan&&plan.origin&&plan.origin.path||[],op=genericTurnEffect(u,"disengaged","Disengage",1),a={label:"Disengage",kind:"universal",free:false,cost:null};
+  clog(u.name+" Disengages before retreating"+(path.length?" "+(path.length*5)+" ft":"")+".");
+  function done(){renderHud();foeTurnDone();}
+  if(!sess){localEffectEvent("ability_used",u.unit,{ability:"Disengage",targets:[u.unit],effects:[op],slot:"action",context:{kind:"disengage",reason:"avoid opportunity attacks"}});spend(u,a);if(!path.length){done();return;}walkPath(u,path,function(){snapshot("Foe Disengage");done();});return;}
+  __awaitingUnit=u.unit;__awaitingKind="ability_used";if(__awaitingCount++===0)__awaitingSince=Date.now();renderHud();
+  sess.pipe.useAbility(u.unit,{ability:"Disengage",targets:[u.unit],effects:[op],slot:"action",resource_spend:{},context:{kind:"disengage",reason:"avoid opportunity attacks"}}).then(function(result){if(result&&result.ok===false){netPublishFail(result);done();return false;}return awaitSettled().then(function(){return true;});}).then(function(settled){if(!settled)return;if(!path.length){done();return;}var walked=awaitWalkDone(u.unit);netMove(u,path).then(function(result){if(result&&result.ok===false){__pendingWalkDone=null;done();return;}walked.then(done);});});
+}
 
 function foeTurn(){
   var u=active(); if(!u||!u.alive||u.side!=="foe"||CB_ANIM){ return; }
@@ -7387,6 +7424,7 @@ function foeTurn(){
   var plan=foePlanFor(u),tgt=plan&&plan.target,atk=plan&&plan.action;
   u._foePlanText=plan&&plan.why||'';
   if(plan&&plan.why)staffTactic('<i><b>'+escapeHtml(u.name)+' · Tactical choice:</b> '+escapeHtml(plan.why)+'</i>');
+  if(plan&&plan.kind==="disengage"){foeDisengageTurn(u,plan);return;}
   /* Statblocks with no mechanically parsed attack still expose all prose,
      spells, and traits in the Manual HUD. Automatic mode narrates why it
      stands rather than manufacturing rules from descriptive text. */
@@ -7403,9 +7441,12 @@ function foeTurn(){
   }
   var canTargetNow=function(target){syncGeometryCreatures();return reachOK(u,atk,target,{silent:true}).ok;};
   var canNow=function(){return canTargetNow(tgt);};
+  var strikeQueue=null;
+  function strikeDone(){if(strikeQueue&&strikeQueue.length&&u.alive&&tgt.alive){atk=strikeQueue.shift();strikePhase();return;}renderHud();foeTurnDone();}
   function strikePhase(){
-    if(!u.alive){ renderHud(); foeTurnDone(); return; }
-    if(!tgt.alive||!canNow()){ renderHud(); foeTurnDone(); return; }
+    if(!strikeQueue){strikeQueue=foeMultiattackSequence(u,tgt,atk,function(a,target){var prior=atk;atk=a;var ok=canTargetNow(target);atk=prior;return ok;});if(strikeQueue.length>1)clog(u.name+" uses "+escapeHtml((u.multiattack&&u.multiattack.label)||"Multiattack")+" ("+strikeQueue.length+" attacks).");atk=strikeQueue.shift();}
+    if(!u.alive){ strikeDone(); return; }
+    if(!tgt.alive||!canNow()){ strikeDone(); return; }
     sanctuaryGate(u,Object.assign({kind:"attack"},atk),tgt,function rollStrike(){
       if(!sess)localBreakWard(u,atk);
       var fav=advPreview(u,tgt,Object.assign({kind:"attack"},atk),null), adv=fav.adv, dis=fav.dis;
@@ -7420,7 +7461,7 @@ function foeTurn(){
       if(sess){
         netFoeAttack(u,atk,tgt,hs,adv,dis,foeHitMod,(fav.why||[]).join(", "),fav.attackBonus||0).then(function(r){
           if(r&&r.ok===false)return;
-          awaitSettled().then(function(){renderHud();foeTurnDone();});
+          awaitSettled().then(strikeDone);
         });return;
       }
       if(hs.hit){var foeFeedResolved=false;pipelineHit(u,atk,hs,tgt,function(){var damage=resolveIncomingDamage(tgt,rollActionDamage(atk,hs.crit,[])),dmg=damage.total,hpBefore=tgt.hp;damageWithDefenseNarration(tgt,damage);tgt.hp-=dmg;var concentration=localConcentrationAfterDamage(tgt,dmg,hpBefore,atk.label+" damage");
@@ -7431,17 +7472,17 @@ function foeTurn(){
           foeFeedResolved=true;
         },function(){
           if(!foeFeedResolved&&window.ForgeTableCorrectness)window.ForgeTableCorrectness.pushFact({actor:u.unit,target:tgt.unit,mode:atk.label,roll:hs.roll,hitBonus:foeHitMod,hit:false,crit:false,adv:adv,dis:dis,d20Rolls:d20ev.rolls,d20KeptIndex:d20ev.keptIndex,reactionD20Rolls:hs.reactionD20Rolls,reactionD20KeptIndex:hs.reactionD20KeptIndex,dropped:hs.roll!==roll?roll:null,mods:hs.roll!==roll?[{k:"silvery_barbs"}]:[]});
-          renderHud();foeTurnDone();
+          spend(u,atk);strikeDone();
         });return;}
       floatAt(tgt,"miss","miss");
       if(window.ForgeTableCorrectness)window.ForgeTableCorrectness.pushFact({actor:u.unit,target:tgt.unit,mode:atk.label,roll:roll,hitBonus:foeHitMod,hit:false,crit:false,adv:adv,dis:dis,d20Rolls:d20ev.rolls,d20KeptIndex:d20ev.keptIndex});
-      renderHud();foeTurnDone();
+      spend(u,atk);strikeDone();
     },function(_ward,result,already){
       var old=tgt;SANCTUARY_REJECT[old.unit]=true;
       var alt=pcs.filter(function(x){return x.alive&&x!==old&&!SANCTUARY_REJECT[x.unit]&&canTargetNow(x);})[0]||null;
       if(alt){tgt=alt;clog("<i>Sanctuary repels "+escapeHtml(u.name)+" — it turns to "+escapeHtml(tgt.name)+" instead.</i>");strikePhase();return;}
       if(already)result={total:"—",dc:(effectFor(old,"sanctuary")||{}).dc||10};
-      sanctuaryLostAction(u,atk,old,function(){if(sess)awaitSettled().then(function(){renderHud();foeTurnDone();});else{renderHud();foeTurnDone();}});
+      sanctuaryLostAction(u,atk,old,function(){if(sess)awaitSettled().then(strikeDone);else strikeDone();});
     });
   }
   var best=plan&&plan.origin&&(plan.origin.c!==u.c||plan.origin.r!==u.r)?{c:plan.origin.c,r:plan.origin.r}:null;
@@ -8320,6 +8361,19 @@ function ensureFoeBooksLoaded(onProgress){
   })();
   return FOE_BOOKS_PROMISE;
 }
+function statblockHasCombatRules(statblock){return !!(statblock&&(Array.isArray(statblock.action)&&statblock.action.length||Array.isArray(statblock.spellcasting)&&statblock.spellcasting.length));}
+function rosterFoeLookupName(row){return String(row&&row.statblock&&row.statblock.name||row&&row.bestiary&&row.bestiary.name||row&&row.name||row&&row.unit||"").replace(/\s+\d+$/," ").trim().toLowerCase();}
+async function hydrateRosterStatblocks(roster,catalogue){
+  var missing=(roster||[]).filter(function(row){return row&&(row.kind||"pc")==="foe"&&!statblockHasCombatRules(row.statblock);});
+  if(!missing.length)return {hydrated:0,missing:[]};
+  var books=catalogue||await ensureFoeBooksLoaded(),byName={};
+  (books||[]).forEach(function(entry){var raw=entry&&entry.raw||entry;if(raw&&raw.name)byName[String(raw.name).trim().toLowerCase()]=raw;});
+  var hydrated=0,unresolved=[];
+  missing.forEach(function(row){var raw=byName[rosterFoeLookupName(row)];if(!raw){unresolved.push(row.name||row.unit);return;}row.statblock=JSON.parse(JSON.stringify(raw));row.bestiary={name:raw.name,source:raw.source||null};hydrated++;});
+  if(hydrated)clog("<i>Loaded full bestiary rules for "+hydrated+" encounter creature"+(hydrated===1?"":"s")+".</i>");
+  if(unresolved.length)clog("<i>No bestiary match for "+escapeHtml(unresolved.join(", "))+" — those rows remain visibly limited rather than receiving invented actions.</i>");
+  return {hydrated:hydrated,missing:unresolved};
+}
 async function loadFoeShelf(){
   var res = await sb.from('saved_monsters').select('id,name,statblock,tags').order('name');
   if (res.error) { clog('<i>Foe shelf failed to load — ' + escapeHtml(res.error.message) + '</i>'); FOE_SHELF = []; return; }
@@ -8824,6 +8878,7 @@ async function bootSession(sid){
   loadLiveStats();   // Task 16: kick off the live ac/speed/init read now (session mode only) — claimMode's init() and spawnFromState below await this same cached promise
   const { data: row, error } = await sb.from('forge_sessions').select('*').eq('id', sid).single();
   if (error || !row) throw new Error(error ? error.message : 'no such session');
+  await hydrateRosterStatblocks(row.roster||[]);
   if(!(row.roster||[]).some(function(r){return (r.kind||'pc')==='pc';}))
     throw new Error('This fight was saved without a party. Return to the Forge Workshop and create it again.');
   /* Phase 2: mapSnapshot is authoritative whenever the key is present.
@@ -9179,7 +9234,7 @@ function netAttackGo(u,a,t,ro){
     var declared={target:t.unit,roll:roll,roll_total:rollTotal,roll_mod:blessV,mods:mods,d20_rolls:d20ev.rolls,d20_kept_index:d20ev.keptIndex,adv:adv,dis:dis,crit:crit,mode:a.label,hitBonus:hitMod,cover:cover,coverName:ro.coverName||null,advReason:av.why.join(", "),flankBonus:av.attackBonus||0,hit:hit};Object.assign(declared,spellFactFields(a));
     window.__forgeSession.pipe.attack(u.unit,declared,function(answers){
       var hs=replayHitState({roll:roll,crit:crit,hit:hit,cover:cover,roll_mod:blessV,d20_rolls:d20ev.rolls,d20_kept_index:d20ev.keptIndex},answers),effects=wardBreakPending?[wardBreakPending]:[],dmg=0,damage=null,concentration=null;wardBreakPending=null;
-      if(hs.hit){var extra=[],baseType=primaryDamageType(a);if(u.raging&&(a.rng||1)<=1)extra.push({dice:"0",bonus:2,type:baseType,critDice:false});if(hexEffectAgainst(u,t)||CB.hexed===t.id)extra.push({dice:"1d6",bonus:0,type:"necrotic"});if(curse)extra.push({dice:"0",bonus:curse.bonusDamage||1,type:baseType,critDice:false});damage=resolveIncomingDamage(t,rollActionDamage(a,hs.crit,extra));dmg=damage.total;damageWithDefenseNarration(t,damage);concentration=concentrationCheckFor(t,dmg,hpLeft,a.label+" damage");if(concentration){if(concentration.effects&&concentration.effects.length)effects=effects.concat(concentration.effects);clog("<i>"+concentrationNarration(t,concentration)+"</i>");}hpLeft=Math.max(0,hpLeft-dmg);effects=effects.concat(hexbladeDefeatOps(u,t,hpLeft));if(a.rider==="boom"&&hpLeft>0)effects.push({unit:t.unit,add_boom:{by:u.unit,die:"1d8"}});}
+      if(hs.hit){var extra=persistentDamageRiders(u,t,a),baseType=primaryDamageType(a);if(curse)extra.push({dice:"0",bonus:curse.bonusDamage||1,type:baseType,critDice:false});damage=resolveIncomingDamage(t,rollActionDamage(a,hs.crit,extra));dmg=damage.total;damageWithDefenseNarration(t,damage);concentration=concentrationCheckFor(t,dmg,hpLeft,a.label+" damage");if(concentration){if(concentration.effects&&concentration.effects.length)effects=effects.concat(concentration.effects);clog("<i>"+concentrationNarration(t,concentration)+"</i>");}hpLeft=Math.max(0,hpLeft-dmg);effects=effects.concat(hexbladeDefeatOps(u,t,hpLeft));if(a.rider==="boom"&&hpLeft>0)effects.push({unit:t.unit,add_boom:{by:u.unit,die:"1d8"}});}
       else{if(hit)clog("<i>"+a.label+" — a reaction turned that hit into a miss.</i>");floatAt(t,"miss","miss");}
       var rb=(answers||[]).filter(function(row){if(!row||!row.payload)return false;return row.payload.reaction_kind==="hellishRebuke"&&row.payload.use;})[0];if(rb){effects.push({unit:u.unit,dmg:rb.payload.dmg});if(rb.payload.concentration&&rb.payload.concentration.effects)effects=effects.concat(rb.payload.concentration.effects);}
       var spendFact=resourceSpendPending;resourceSpendPending=null;
@@ -9242,11 +9297,12 @@ function foeTurnDone(){
    the brief requires the foe AI's decision logic stay exactly as it was,
    and the pre-existing local strikePhase math never had any of that (foes
    don't crit-double, don't read CB.hexed, etc.); `hs` is already the fully-
-   decided roll/hit from strikePhase. Foes never multi-strike (FOE.atk has
-   no .strikes), so this is one publish, not a loop. Always publishes, hit
-   AND miss (mirrors netAttack: an unpublished miss would leave the shared
+   decided roll/hit from strikePhase. Multiattack calls this once per strike,
+   preserving a distinct d20 and reaction window for every attack. Always
+   publishes hit AND miss (an unpublished miss would leave the shared
    log/turn-economy unsynced on other screens). */
 function netFoeAttack(u,atk,t,hs,adv,dis,hitMod,advReason,flankBonus){
+  var resourceSpend=resourceSpendFor(atk),resourceSpendId=resourceSpendIdFor(u,atk);
   __awaitingUnit=u.unit; __awaitingKind='attack_resolved'; if(__awaitingCount++===0) __awaitingSince = Date.now(); renderHud();
   /* Task 8: this IS the walkthrough FORGE_PROTOCOL.md §4 leads with (goblin
      attacks Cosmere, who has Shield) — target=PC, so Shield/Barbs/Rebuke are
@@ -9272,7 +9328,7 @@ function netFoeAttack(u,atk,t,hs,adv,dis,hitMod,advReason,flankBonus){
         if(rb){effects.push({unit:u.unit,dmg:rb.payload.dmg});if(rb.payload.concentration&&rb.payload.concentration.effects)effects=effects.concat(rb.payload.concentration.effects);}
         // Priority 2: foe attacks are actions (foe kits carry no bonus flag).
         return { hit:fhs.hit, crit:fhs.crit, roll:fhs.roll, dmg:dmg, dmgParts:damage?damage.parts:null, dmgFormula:damage?damage.formula:null, effects:effects, slot: atk.bonus ? "bonus" : "action",
-          mode:atk.label, hitBonus:hitMod, cover:hs.acBonus||0, coverName:hs.acBonus===5?"three-quarters":hs.acBonus===2?"half":"none", adv:!!adv, dis:!!dis, advReason:advReason||null, flankBonus:flankBonus||0,d20_rolls:hs.d20Rolls,d20_kept_index:hs.d20KeptIndex,reaction_d20_rolls:fhs.reactionD20Rolls,reaction_d20_kept_index:fhs.reactionD20KeptIndex,concentration:concentration };
+          mode:atk.label, hitBonus:hitMod, cover:hs.acBonus||0, coverName:hs.acBonus===5?"three-quarters":hs.acBonus===2?"half":"none", adv:!!adv, dis:!!dis, advReason:advReason||null, flankBonus:flankBonus||0,d20_rolls:hs.d20Rolls,d20_kept_index:hs.d20KeptIndex,reaction_d20_rolls:fhs.reactionD20Rolls,reaction_d20_kept_index:fhs.reactionD20KeptIndex,concentration:concentration,resource_spend:resourceSpend,resource_spend_id:resourceSpendId };
       })
     .then(function(r){ if (r && r.ok===false) netPublishFail(r); return r; });
 }
@@ -9362,6 +9418,12 @@ function netBuff(u,a,t){
     var effects=concentrationBreakOps(u,"Hex replaced concentration");effects.push(E.addHex({source:u.unit,target:t.unit,nonce:Date.now(),turns:600}));effects=withBreakOp(effects,u,a);
     clog(u.name+" hexes "+t.name+" (+1d6 on hits vs it).");
     netUseAbility(u,a,[t.unit],effects,{context:{kind:"hex",target:t.unit,die:"1d6",concentration:true}});return;
+  }
+  if(a.effectKind==="hunters-mark"){
+    var HM=effectApi();if(!HM||!HM.addHuntersMark){clog("<i>Hunter's Mark cannot be applied — the effect ledger did not load.</i>");return;}
+    var hmEffects=concentrationBreakOps(u,"Hunter's Mark replaced concentration");hmEffects.push(HM.addHuntersMark({source:u.unit,target:t.unit,nonce:Date.now(),turns:600}));hmEffects=withBreakOp(hmEffects,u,a);
+    clog(u.name+" marks "+t.name+" (+1d6 weapon damage on hits).");
+    netUseAbility(u,a,[t.unit],hmEffects,{context:{kind:"hunters-mark",target:t.unit,die:"1d6",concentration:true}});return;
   }
   clog(u.name+" uses "+a.label+" on "+t.name+".");netUseAbility(u,a,[t.unit],withBreakOp([],u,a),{context:{kind:"buff",target:t.unit}});
 }

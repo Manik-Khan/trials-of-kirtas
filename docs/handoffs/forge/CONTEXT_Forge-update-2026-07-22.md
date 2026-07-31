@@ -1278,7 +1278,9 @@ playable two-level authority.
 
 ### Image Structure Review proof · 2026-07-31
 
-Implementation baseline: `7f0160c` on `main`. Ownership is limited to the new
+Initial implementation baseline: `7f0160c`; the persistent multi-structure
+iteration refreshed against `6b06df9` on `main` after M absorbed the first proof.
+Current ownership is limited to the
 `_edits/mock-forge-image-structure-review.{html,css,js}`,
 `_edits/mock-forge-image-structure-review-core.js`, the focused
 `forge/tests/smoke-image-structure-review.js`, and these context notes. The
@@ -1286,11 +1288,16 @@ committed importer, Blueprint/Build proof, live Forge, combat, protocol,
 generator, theme, persistence, character, and monster files were not edited.
 
 The isolated proof limits local analysis to broad-area hints, then makes the
-artwork the authoring surface. The DM can use connected-color Magic selection
-or a freehand image-space lasso, refine it with New/Add/Subtract, and assign
-ground/erase, building, roof/deck, bridge, water, tent, tree/canopy,
-stairs/ramp, or wall meaning. Every region can carry label, base/top feet,
-roof/deck walkability, climb/ladder/stair/ramp access, and explicit
+artwork the authoring surface. The DM draws a freehand lasso first; optional
+Color assist can only refine inside that boundary and can be retuned against
+the original fence. Replace/Add/Subtract modify the current footprint, while
+Start another structure preserves the saved collection. Ground/erase,
+building, roof/deck, bridge, water, tent, tree/canopy, stairs/ramp, and wall
+choices immediately recolor and relabel the pending footprint. Kind-specific
+appearance kits drive saved-list identity, overlay color, and preview form.
+Touching or overlapping authored structures remain distinct. Every region can
+carry label, appearance, base/top feet, roof/deck walkability,
+climb/ladder/stair/ramp access, and explicit
 solid/posts/arches/canopy/trunks/terrain/none support. Reopening a footprint
 preserves its identity and all authored vertical/support facts. Its draft
 `forge-surface-proposal/v1` compiler keeps base ground, solid volumes, elevated
@@ -1312,13 +1319,22 @@ posts, height ruler, labels, and base ground below. No console errors were
 observed. The earlier ungridded camp pass remains useful evidence for water and
 canopy hints, but it still needs a revised lasso/support field replay.
 
-The focused contract passes **37/37** and all new scripts pass `node --check`.
+The persistent-object field pass saved a Market stall, started another
+structure, and saved a separate Market pavilion while the first remained in the
+authored list. The final bounded pass lassoed a 204-square bridge. Color assist
+retained 3 squares at tolerance 4, then recomputed to 122 at tolerance 18 using
+the same original fence. A Stone bridge was saved, followed by overlapping
+Stone steps; both stayed separately selectable and visibly distinct in Artwork
+and Split views. The browser reported no errors.
+
+The focused contract passes **43/43** and all new scripts pass `node --check`.
 The importer remains **44/44**, creation and Blueprint/Diorama remain **28/28**
-and **86/86**, and the six canonical Forge suites remain **151/151**.
+and **86/86**, and the six canonical Forge suites pass **152/152**.
 The remaining gates are:
 
-1. M judges whether Magic/Lasso/Add/Subtract plus explicit height/support is the
-   right review workflow before stronger semantic recognition.
+1. M judges whether lasso-first persistent structures, bounded Color assist,
+   kind/kit identity, and explicit height/support are the right workflow before
+   stronger semantic recognition.
 2. Replay the revised lasso/support workflow on the ungridded camp artwork;
    exact proposal counts remain evidence only, never semantic authority.
 3. If approved, settle stable `surfaceId`, creature surface position,

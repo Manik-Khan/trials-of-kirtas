@@ -9,7 +9,7 @@
 })(typeof self!=="undefined"?self:this,function(){
   "use strict";
 
-  var VERSION="1.2.0";
+  var VERSION="1.3.0";
   function avgFormula(formula){
     var total=0,ok=false;
     String(formula||"").replace(/(\d+)d(\d+)|([+-]?\d+)/gi,function(_,n,f,flat){
@@ -59,7 +59,7 @@
     });});});
     legal.forEach(function(entry){entry.score=score(entry);});
     legal.sort(function(a,b){return b.score-a.score||Number(a.origin.cost||0)-Number(b.origin.cost||0)||String(a.action.label||"").localeCompare(String(b.action.label||""));});
-    if(legal.length){var best=legal[0],dist=Number(best.reach.distanceFt),noun=rangedAction(best.action)?"shot":"attack",reasons=tacticalReasons(best);return Object.assign(best,{kind:best.origin.cost?"move-attack":"attack",why:(best.action.label||"Attack")+" has a legal "+(best.reach.dis?"long-range ":"")+noun+(Number.isFinite(dist)?" at "+Math.round(dist)+" ft":"")+(best.reach.coverName&&best.reach.coverName!=="none"?" through "+best.reach.coverName+" cover":"")+(reasons.length?"; "+reasons.join(" and "):"")+"."});}
+    if(legal.length){var best=legal[0],routeRisk=Number(best.reach.pathThreatCount!=null?best.reach.pathThreatCount:best.origin&&best.origin.pathThreatCount)||0,safe=legal.filter(function(entry){return !(Number(entry.reach.pathThreatCount!=null?entry.reach.pathThreatCount:entry.origin&&entry.origin.pathThreatCount)||0);})[0];if(routeRisk&&safe&&safe.score>=best.score-12)best=safe;else if(routeRisk&&input.canDisengage&&!safe)return Object.assign({},best,{kind:"disengage",action:null,why:"Disengages before retreating; the attack route would provoke "+routeRisk+" opportunity attack"+(routeRisk===1?"":"s")+"."});var dist=Number(best.reach.distanceFt),noun=rangedAction(best.action)?"shot":"attack",reasons=tacticalReasons(best);return Object.assign(best,{kind:best.origin.cost?"move-attack":"attack",why:(best.action.label||"Attack")+" has a legal "+(best.reach.dis?"long-range ":"")+noun+(Number.isFinite(dist)?" at "+Math.round(dist)+" ft":"")+(best.reach.coverName&&best.reach.coverName!=="none"?" through "+best.reach.coverName+" cover":"")+(reasons.length?"; "+reasons.join(" and "):"")+"."});}
     var approach=null;
     origins.forEach(function(origin){targets.forEach(function(target){var d=typeof input.distance==="function"?input.distance(origin,target):Infinity;if(!Number.isFinite(d))return;var pathThreats=Number(origin.pathThreatCount)||0,defense=Number(origin.defensiveCover)||0,visibleTo=Number(origin.visibilityCount)||0;var candidate={kind:"move",origin:origin,target:target,action:actions[0]||null,distanceFt:d,score:-d-Number(origin.cost||0)*.05-pathThreats*36+defense*2-visibleTo*2};if(!approach||candidate.score>approach.score)approach=candidate;});});
     if(approach){var coverMove=Number(approach.origin&&approach.origin.defensiveCover)>Number(input.currentDefensiveCover)||Number(approach.origin&&approach.origin.visibilityCount)<Number(input.currentVisibilityCount);approach.why="No attack is legal this turn; "+(coverMove?"move toward cover while closing on ":"move toward ")+(approach.target.name||"the nearest target")+".";}

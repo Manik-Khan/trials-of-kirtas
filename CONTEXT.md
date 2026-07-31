@@ -80,24 +80,26 @@ modular objects.
 
 An isolated Structure Review proof now exercises that missing semantic layer at
 `_edits/mock-forge-image-structure-review.html`. Local evidence supplies broad
-area hints only. The DM can Magic-select connected color or draw an image-space
-freehand lasso, combine it with New/Add/Subtract, and only then assign building,
-roof/deck, bridge, water, tent, tree, stairs/ramp, wall, or ground meaning. The
-artwork boundary is retained while tactical grid coverage is derived afterward.
-Reviewed structures carry editable base/top feet, walkability, access, and
-explicit solid/posts/arches/canopy/trunks/terrain/none support. Editing a
-footprint preserves the region's identity, label, height, and support. Its
-code-native joined height preview labels elevations, removes the old per-cell
-spike ambiguity, keeps ground beneath a raised bridge, and shows walk surfaces
-separately from solid volumes. The city field pass traced a 20-foot solid market
-stage and a 15-foot bridge on posts; the adjustable Magic tolerance narrowed an
-over-broad roof selection from 1,910 to 32 tactical squares. This is intentional
-DM-authored review authority, not semantic certainty or live two-level combat
-authority.
+area hints only. The DM first draws an image-space lasso; optional Color assist
+can refine connected color only inside that retained boundary and can be retuned
+against the original lasso. Replace/Add/Subtract now describe one working
+footprint, while an explicit Start another structure action preserves every
+saved object. The pending footprint changes color and label immediately when
+the DM chooses building, roof/deck, bridge, water, tent, tree, stairs/ramp,
+wall, or ground. Each kind exposes explicit appearance kits such as timber or
+masonry buildings, market stalls, pavilions, stone or timber bridges, and stone
+steps. Saved structures have a persistent selectable list; touching or
+overlapping authored layers no longer erase or merge each other. Reviewed
+structures retain editable base/top feet, walkability, access, and explicit
+solid/posts/arches/canopy/trunks/terrain/none support. Its code-native preview
+uses kind/kit colors and forms, labels elevations, keeps ground beneath raised
+decks, and shows walk surfaces separately from solid volumes. This is
+intentional DM-authored review authority, not semantic certainty or live
+two-level combat authority.
 
 The focused proofs pass **28/28** creation checks, **86/86**
-Blueprint/Diorama checks, **44/44** local artwork-import checks, and **37/37**
-Structure Review checks; the six canonical Forge suites remain **151/151**,
+Blueprint/Diorama checks, **44/44** local artwork-import checks, and **43/43**
+Structure Review checks; the six canonical Forge suites are **152/152**,
 and the completed real browser flows had no console errors. This remains
 isolated proof work, not production promotion or M's final visual approval.
 Do not touch the live Forge, combat, protocol, production generator,

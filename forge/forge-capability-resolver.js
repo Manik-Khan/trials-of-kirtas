@@ -8,7 +8,7 @@
   else root.ForgeCapabilityResolver=api;
 })(typeof self!=="undefined"?self:this,function(){
   "use strict";
-  var VERSION="1.0.0";
+  var VERSION="1.1.0";
   var DAMAGE_TYPES=["acid","bludgeoning","cold","fire","force","lightning","necrotic","piercing","poison","psychic","radiant","slashing","thunder"];
 
   function n(v,d){v=Number(v);return Number.isFinite(v)?v:d;}
@@ -21,6 +21,7 @@
     });
     (effects||[]).forEach(function(effect){
       if(effect&&effect.kind==="raven-resistance"&&tags.indexOf("resistance:all")<0)tags.push("resistance:all");
+      if(effect&&effect.kind==="rage")["bludgeoning","piercing","slashing"].forEach(function(t){var tag="resistance:"+t;if(tags.indexOf(tag)<0)tags.push(tag);});
     });
     return tags;
   }

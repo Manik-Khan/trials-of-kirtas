@@ -67,8 +67,8 @@ function chonkFixture() {
     report.blockers.some(row => /Wild Surge/.test(row.title)));
   ok("unresolved martial weapon remains a narrated blocker", report.counts.unresolvedChoices === 1);
   ok("real Handaxe and Javelin attacks survive the audit", report.attacks.some(row => /Handaxe/.test(row.label)) && report.attacks.some(row => /Javelin/.test(row.label)));
-  ok("Rage is explicitly non-executable, not inferred from a counter",
-    currentKit.capabilities.find(row => row.label === "Rage").status === "missing");
+  ok("Rage is executable from the compiled bonus-action tile",
+    currentKit.capabilities.find(row => row.label === "Rage").status === "executable");
   ok("Polearm Master stays visible as a manual Feats reference",
     currentKit.tabs.feats.find(row => row.label === "Polearm Master").manual === true);
   const controlKit = Kit.derive(current, {
@@ -102,8 +102,8 @@ function chonkFixture() {
   ok("the exact glaive compiles as an attack and satisfies Polearm Master",
     repairedKit.readiness.attacks.some(row => row.label === "Glaive") &&
     repairedKit.readiness.equipment.qualifyingPolearms[0] === "glaive");
-  ok("manual Rage and Wild Surge remain named after repair",
-    repairedKit.readiness.manual.some(row => /Rage requires/.test(row.title)) &&
+  ok("Wild Surge remains named for manual table-effect resolution after repair",
+    !repairedKit.readiness.manual.some(row => /Rage requires/.test(row.title)) &&
     repairedKit.readiness.manual.some(row => /Wild Surge requires/.test(row.title)));
 
   const fakeEngine = {
@@ -158,8 +158,8 @@ function chonkFixture() {
   const forgeHtml = fs.readFileSync(path.join(root, "forge", "index.html"), "utf8");
   const shardsHtml = fs.readFileSync(path.join(root, "shards.html"), "utf8");
   ok("Forge loads readiness before capability and kit compilation",
-    forgeHtml.indexOf("../character-readiness.js?v=cr1") < forgeHtml.indexOf("forge-capabilities.js?v=fc3") &&
-    forgeHtml.indexOf("forge-capabilities.js?v=fc3") < forgeHtml.indexOf("forge-kit-derive.js?v=b18"));
+    forgeHtml.indexOf("../character-readiness.js?v=cr1") < forgeHtml.indexOf("forge-capabilities.js?v=fc4") &&
+    forgeHtml.indexOf("forge-capabilities.js?v=fc4") < forgeHtml.indexOf("forge-kit-derive.js?v=b19"));
   ok("production onboarding remains behind the readiness field gate",
     forgeHtml.includes('USE_CHARACTER_READINESS = new URLSearchParams(location.search).get("readiness") === "1"') &&
     forgeHtml.includes("readiness: USE_CHARACTER_READINESS"));

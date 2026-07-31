@@ -40,6 +40,7 @@
     semanticType: "building",
     semanticAppearance: "timber-house",
     selection: null,
+    magicFence: null,
     editingRegionId: null,
     selectedId: null,
     calibrating: false,
@@ -116,6 +117,7 @@
     state.analysis = null;
     state.review = null;
     state.selection = null;
+    state.magicFence = null;
     state.editingRegionId = null;
     state.selectedId = null;
     setEnabled(ui.selectionPanel, false);
@@ -399,9 +401,11 @@
   }
   function applySelection(next) {
     state.selection = Structure.combineSelection(state.selection, next, state.selectionOperation);
+    state.magicFence = state.selection && Structure.selectionFromCells(state.selection.cells, state.selection.footprint);
     renderSelectionReceipt(); renderOverlay();
     setStatus((state.selection && state.selection.cells.length || 0)
-      + " squares selected. Refine with Add/Subtract, then assign a meaning.");
+      + " squares selected for " + (state.semanticType === "ground" ? "Ground / erase" : appearanceFor(state.semanticType, state.semanticAppearance).label)
+      + ". Refine this footprint or save it; existing structures remain.");
   }
   function magicSelect(point) {
     var grid = state.review && state.review.grid || activeGrid();
@@ -410,7 +414,8 @@
       setStatus("Color assist needs a boundary. Draw a loose lasso around one feature first; it will never search the whole map.");
       return;
     }
-    var allowedMask = Structure.maskFromCells(grid, state.selection.cells, state.analysisWidth, state.analysisHeight);
+    var fenceSelection = state.magicFence || state.selection;
+    var allowedMask = Structure.maskFromCells(grid, fenceSelection.cells, state.analysisWidth, state.analysisHeight);
     var seedIndex = clamp(Math.floor(point.y), 0, state.analysisHeight - 1) * state.analysisWidth
       + clamp(Math.floor(point.x), 0, state.analysisWidth - 1);
     if (!allowedMask[seedIndex]) {
@@ -428,7 +433,7 @@
       setStatus("No tactical square contained enough of that color inside the lasso. Raise tolerance or keep the lasso as drawn.");
       return;
     }
-    var fence = state.selection.footprint;
+    var fence = fenceSelection.footprint;
     state.selection = Structure.selectionFromCells(cells, {
       kind: "magic-within", seed: [point.x, point.y], tolerance: tolerance,
       fence: fence, imageSize: [state.analysisWidth, state.analysisHeight]
@@ -453,6 +458,7 @@
       appearance: state.semanticType === "ground" ? null : state.semanticAppearance
     });
     state.review = result.review; state.selectedId = result.regionId; state.selection = null;
+    state.magicFence = null;
     state.editingRegionId = null;
     setEnabled(ui.inspector, !!state.selectedId); renderAll(); renderSelectionReceipt();
     setStatus(state.semanticType === "ground"
@@ -465,6 +471,7 @@
     var region = selectedRegion();
     if (!region) return;
     state.selection = Structure.selectionFromCells(region.cells, region.footprint || { kind: "cells" });
+    state.magicFence = Structure.selectionFromCells(state.selection.cells, state.selection.footprint);
     state.editingRegionId = region.id;
     state.semanticType = region.type;
     state.semanticAppearance = region.appearance || appearanceFor(region.type).id;
@@ -475,7 +482,7 @@
     setStatus("The region footprint is now editable. Add or subtract artwork, then update it without losing its height or support.");
   }
   function startAnotherRegion() {
-    state.selection = null; state.editingRegionId = null; state.selectedId = null;
+    state.selection = null; state.magicFence = null; state.editingRegionId = null; state.selectedId = null;
     state.lassoPoints = null; state.selectionTool = "lasso"; state.selectionOperation = "replace";
     document.querySelectorAll("[data-selection-tool]").forEach(function (button) {
       button.classList.toggle("active", button.dataset.selectionTool === "lasso");
@@ -870,7 +877,7 @@
   });
   ui.magicTolerance.addEventListener("input", function () { ui.magicToleranceValue.textContent = ui.magicTolerance.value; });
   ui.clearSelection.addEventListener("click", function () {
-    state.selection = null; state.editingRegionId = null; state.lassoPoints = null; renderSelectionReceipt(); renderOverlay();
+    state.selection = null; state.magicFence = null; state.editingRegionId = null; state.lassoPoints = null; renderSelectionReceipt(); renderOverlay();
     setStatus("Artwork selection cleared. Existing reviewed regions are unchanged.");
   });
   ui.commitSelection.addEventListener("click", commitSelection);

@@ -317,8 +317,26 @@ const LIADAN_CHAR = {
   // Class feature actions: Flurry, Patient Defense, Step of the Wind, Hands of Healing
   ok("caim: actions has Flurry of Blows", kit.tabs.actions.some(function (a) { return a.label === "Flurry of Blows"; }));
   ok("caim: Flurry costs ki:1", kit.tabs.actions.some(function (a) { return a.label === "Flurry of Blows" && a.cost && a.cost.ki === 1; }));
+  ok("caim: Flurry is two independent unarmed strikes", kit.actions.some(function (a) { return a.label === "Flurry of Blows" && a.strikes === 2 && a.dmg; }));
   ok("caim: actions has Patient Defense", kit.tabs.actions.some(function (a) { return a.label === "Patient Defense"; }));
   ok("caim: actions has Hands of Healing", kit.tabs.actions.some(function (a) { return a.label === "Hands of Healing"; }));
+})();
+
+(function testRacialInnateSpellUse() {
+  var marked = FKD.derive({key:"marked-barbarian",name:"Marked Barbarian",structural:{name:"Marked Barbarian",level:4,classLabel:"Barbarian 4",subclass:"Path of Wild Magic",race:"Half-Orc",abilities:{wis:{mod:0},str:{mod:4}},combat:{maxHp:44,ac:12,speed:30},features:[{name:"Rage"},{name:"Wild Surge"}],spellcasting:{groups:[{level:1,spells:[{name:"Hunter's Mark",origin:"race",time:"bonus action"}]}],pools:[]}},vitals:{hp:44,pipState:{}},inventory:[]});
+  var mark=marked.actions.find(function(a){return a.label==="Hunter's Mark";});
+  ok("racial Hunter's Mark receives its own once-per-day pool",marked.res.racialHuntersMark===1&&marked.pools.some(function(p){return p.key==="racialHuntersMark"&&p.max===1;}));
+  ok("racial Hunter's Mark spends the racial use rather than a class slot",mark&&mark.cost&&mark.cost.racialHuntersMark===1&&!mark.cost.slot1);
+  var rage=marked.actions.find(function(a){return a.label==="Rage";});
+  ok("Barbarian Rage compiles as a bonus action that can trigger Wild Surge",rage&&rage.kind==="rage"&&rage.bonus&&rage.cost.rage===1&&rage.wildSurge);
+})();
+
+(function testFiniteThrownInventory() {
+  var pc={key:"thrower",name:"Thrower",structural:{name:"Thrower",level:4,classLabel:"Fighter 4",abilities:{str:{mod:3}},combat:{maxHp:30,ac:15,speed:30},features:[]},vitals:{hp:30,pipState:{}},inventory:[{name:"Javelin",qty:4}]};
+  var assembled=[{id:"wpn-javelin",type:"attack",label:"Javelin",ability:"str",proficient:true,dmgAbility:true,dmgDice:"1d6",dmgType:"Piercing"},{id:"wpn-javelin-thrown",type:"attack",label:"Javelin (Thrown)",ability:"str",proficient:true,dmgAbility:true,dmgDice:"1d6",dmgType:"Piercing",range:"30/120",thrown:true,inventoryKey:"thrownJavelin",inventoryQty:4}];
+  var kit=FKD.derive(pc,{assembledActions:assembled}),thrown=kit.actions.find(function(a){return a.label==="Javelin (Thrown)";});
+  ok("thrown weapon quantity becomes a visible finite pool",kit.res.thrownJavelin===4&&kit.pools.some(function(p){return p.key==="thrownJavelin"&&p.max===4;}));
+  ok("each thrown Javelin spends one inventory unit",thrown&&thrown.cost&&thrown.cost.thrownJavelin===1);
 })();
 
 // 3. Cosmere: Warlock 2 / Sorcerer 1 — multiclass pools, Shield reaction, Hex as bonus
