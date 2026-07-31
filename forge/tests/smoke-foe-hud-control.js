@@ -18,6 +18,14 @@ ok(kit.foeHud.tabs.actions.some(x=>x.label==='Multiattack')&&kit.foeHud.tabs.act
 const archer={unit:'archer-1',name:'Archer 1',c:0,r:0},caim={unit:'caim',name:'Caim',c:11,r:0,hp:24,hpMax:24,alive:true};
 const plan=AI.planTurn({actions:kit.actions,targets:[caim],origins:[{c:0,r:0,cost:0}],evaluate(_o,a,t){const ft=Math.max(Math.abs(t.c),Math.abs(t.r))*5;return {ok:ft<=((a.long||a.rng)*5),dis:ft>a.rng*5,distanceFt:ft,coverName:'none'};}});
 ok(plan.action.label==='Longbow','real Archer row reaches the planner and selects Longbow at 55 ft');
+const lizardRow={unit:'lizardfolk-1',name:'Lizardfolk 1',statblock:{name:'Lizardfolk',dex:10,ac:[15],hp:{average:22},speed:{walk:30},action:[
+ {name:'Bite',entries:['{@atk mw} {@hit 4} to hit, reach 5 ft., one target. {@h} 5 ({@damage 1d6 + 2}) piercing damage.']},
+ {name:'Javelin',entries:['{@atk mw,rw} {@hit 4} to hit, reach 5 ft. or range 30/120 ft., one target. {@h} 5 ({@damage 1d6 + 2}) piercing damage.']}
+]}};
+const lizardKit=ctx.foeKitFromStatblock(lizardRow),javelin=lizardKit.actions.find(a=>a.label==='Javelin');
+ok(javelin&&javelin.rng===6&&javelin.long===24,'combined Javelin becomes a 30/120-ft executable ranged attack');
+const lizardPlan=AI.planTurn({actions:lizardKit.actions,targets:[caim],origins:[{c:0,r:0,cost:0}],evaluate(_o,a,t){const ft=Math.max(Math.abs(t.c),Math.abs(t.r))*5;return {ok:ft<=((a.long||a.rng)*5),dis:ft>a.rng*5,distanceFt:ft,coverName:'none'};}});
+ok(lizardPlan&&lizardPlan.action&&lizardPlan.action.label==='Javelin','Lizardfolk selects its Javelin when a target is beyond melee reach');
 ok(html.includes('id="sceneEnemyTurns"')&&html.includes("setFoeAutomation(!FOE_AUTOMATION)"),'real Forge exposes the approved Automatic / Manual table control');
 ok(html.includes("u.side===\"foe\"&&!FOE_AUTOMATION")&&html.includes('scheduleAutomatedFoeTurn(u)'),'Manual foe control and automatic turn-start scheduling are wired');
 ok(html.includes("x.alive&&x.side==='pc'")&&html.includes("geometry still")&&html.includes("reachOK(u,action,target,{silent:true})"),'automatic planning searches battlefield opponents while geometry gates every legal shot');
@@ -27,7 +35,7 @@ ok(html.includes('forge-manual-foe')&&html.includes('actions=FOE.actions.map'),'
 ok(!html.includes('focusPair(active(),o)')&&html.includes('frameCameraPair(active(),o)'),'initiative-strip targeting uses the real camera-pair helper');
 ok(hud.includes('tile && tile.reference')&&hud.includes('FOE_LABELS'),'enemy reference tiles open through the real HUD drawer and use foe labels');
 ok(hud.includes('var tileId=t._tileId||t.id||""')&&hud.includes('data-tile-id="\' + esc(tileId)'),'enemy tiles dispatch the runtime action identity used by Manual mode');
-ok(html.includes('forge-foe-ai.js?v=fai3')&&html.includes('forge-hud.js?v=b7')&&html.includes('monster-actor.js?v=ma2'),'changed modules have fresh production cache stamps');
+ok(html.includes('forge-foe-ai.js?v=fai3')&&html.includes('forge-hud.js?v=b7')&&html.includes('monster-actor.js?v=ma3'),'changed modules have fresh production cache stamps');
 
 if(fail){console.error('\n'+fail+' foe-HUD checks failed');process.exit(1);}
 console.log('\n'+n+' foe-HUD checks green');

@@ -32,10 +32,15 @@ ok("failed concentration saves use half-damage DC and remove the casting",cs.req
 const roster=[{unit:"caim",side:"pc",pos:{c:1,r:1},hp:30,maxHp:30,resources:{ki:4}},{unit:"goblin",side:"foe",pos:{c:2,r:1},hp:20,maxHp:20}];
 const setup=[row(1,"__session","session_started",{}),row(2,"__session","initiative_set",{order:["caim","goblin"]})];
 let rs=R.replayLog(roster,setup.concat([
- row(3,"caim","attack_resolved",{target:"goblin",hit:true,dmg:2,slot:"bonus",resource_spend:{ki:1},resource_spend_id:"flurry:caim:1"}),
- row(4,"caim","attack_resolved",{target:"goblin",hit:true,dmg:2,slot:"bonus",resource_spend:{ki:1},resource_spend_id:"flurry:caim:1"})
+ row(3,"caim","attack_declared",{target:"goblin",mode:"Flurry of Blows",roll:11,roll_total:15,d20_rolls:[11],d20_kept_index:0}),
+ row(4,"caim","attack_resolved",{target:"goblin",mode:"Flurry of Blows",roll:11,roll_total:15,d20_rolls:[11],d20_kept_index:0,hit:true,dmg:2,slot:"bonus",resource_spend:{ki:1},resource_spend_id:"flurry:caim:1"}),
+ row(5,"caim","attack_declared",{target:"goblin",mode:"Flurry of Blows",roll:17,roll_total:21,d20_rolls:[17],d20_kept_index:0}),
+ row(6,"caim","attack_resolved",{target:"goblin",mode:"Flurry of Blows",roll:17,roll_total:21,d20_rolls:[17],d20_kept_index:0,hit:true,dmg:2,slot:"bonus",resource_spend:{ki:1},resource_spend_id:"flurry:caim:1"})
 ]));
 ok("reducer enforces one payment per activation id",rs.units.caim.resources.ki===3&&rs.units.goblin.hp===16);
+const flurryOne=T.factFromEvent(row(4,"caim","attack_resolved",{target:"goblin",mode:"Flurry of Blows",roll:11,roll_total:15,d20_rolls:[11],d20_kept_index:0,hit:true,dmg:2}),row(3,"caim","attack_declared",{target:"goblin",mode:"Flurry of Blows",roll:11,roll_total:15,d20_rolls:[11],d20_kept_index:0}));
+const flurryTwo=T.factFromEvent(row(6,"caim","attack_resolved",{target:"goblin",mode:"Flurry of Blows",roll:17,roll_total:21,d20_rolls:[17],d20_kept_index:0,hit:true,dmg:2}),row(5,"caim","attack_declared",{target:"goblin",mode:"Flurry of Blows",roll:17,roll_total:21,d20_rolls:[17],d20_kept_index:0}));
+ok("Flurry records two independent d20 attack facts",flurryOne&&flurryTwo&&flurryOne.roll===11&&flurryTwo.roll===17&&flurryOne.d20Rolls[0]===11&&flurryTwo.d20Rolls[0]===17);
 rs=R.replayLog(roster,setup.concat([
  row(3,"caim","ability_used",{slot:"bonus",resource_spend:{ki:1},resource_spend_id:"step:1"}),
  row(4,"caim","ability_used",{slot:"free",resource_spend:{ki:1},resource_spend_id:"step:2"})

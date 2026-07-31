@@ -33,6 +33,7 @@ m=map();put(m,2,3,3,{kind:"full",source:"attacker-clutter"});put(m,7,3,3,{kind:"
 
 /* Sub-cell prop footprints. */
 m=map();put(m,7,3,5,{kind:"circle",radius:.15,source:"tree"});eq(shot(m).cover,"none","narrow trunk does not fill a five-foot square");
+m=map();put(m,7,3,7.07,{kind:"circle",radius:.243,source:"tree"},15);m.h[at(m,1,3)]=15;m.h[at(m,8,3)]=15;v=shot(m);ok(v.cover!=="total","scaled sapling on level raised ground cannot erase all twelve body samples");
 m=map();put(m,7,3,5,{kind:"circle",radius:.34,source:"tree"});v=shot(m);ok(v.cover==="none"||v.cover==="half","medium trunk cannot become total cover by cell occupancy alone");
 m=map();put(m,7,3,4.5,{kind:"circle",radius:.40,source:"boulder"});v=shot(m);ok(v.cover!=="total","large rounded boulder remains sub-cell cover");
 m=map();put(m,7,3,5,{kind:"box",halfX:.46,halfY:.12,source:"column"});v=shot(m);ok(v.cover!=="total","narrow rectangular column is footprint-aware");

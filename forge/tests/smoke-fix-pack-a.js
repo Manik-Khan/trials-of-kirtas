@@ -28,6 +28,8 @@ function extract(name){
   const enriched=merge({slot1:0,slot2:1},{slot1:4,slot2:2,bardicInspiration:2});
   ok("legacy rosters gain a missing Bardic Inspiration pool",enriched.bardicInspiration===2);
   ok("explicitly spent resource values remain authoritative",enriched.slot1===0&&enriched.slot2===1);
+  const rosterSource=extract("unitFromRosterRow");
+  ok("session roster hydration merges newly-derived class resources",rosterSource.includes("mergeResourceDefaults(stateUnit.resources")&&rosterSource.includes("mergeResourceDefaults(row.resources"));
 
   const vicious=Damage.rollAction({dmg:"1d4",dmgType:"Psychic"},false,[],()=>0);
   const tollShape=Rules.tollDamage({dmg:"1d8"},{hp:4,hpMax:7});
@@ -51,6 +53,20 @@ function extract(name){
 
   const hud=fs.readFileSync(path.join(root,"forge-hud.js"),"utf8");
   ok("game feed has a persistent collapse control",hud.includes('id="fgFeedCollapse"')&&hud.includes("tok-forge-feed-collapsed-v1")&&hud.includes("fg-collapsed"));
+
+  const godSource=extract("godModeClick");
+  const godConfirmSource=extract("godConfirmMove");
+  ok("a dead token sprite falls through to the God Mode ground preview",!godSource.includes("    return; }")&&godSource.includes("must not swallow the ground hit")&&godSource.includes("GOD_DEST={c:gx,r:gy}"));
+  const tokenChildren=[],worldChildren=[],edits=[],selected={unit:"caim",name:"Caim"};
+  const deadSprite={corpse:true},groundHit={point:{x:1.5,z:-.5}};
+  const godHarness=new Function("renderer","ndc","ray","camera","tokenGroup","spriteUnit","selected","renderGodPanel","clog","escapeHtml","world","F","netGodEdit","var GOD_MODE=true,GOD_DEST=null,godSel=selected;"+godSource+"\n"+godConfirmSource+";return {click:godModeClick,confirm:godConfirmMove,dest:function(){return GOD_DEST;}};")(
+    {domElement:{getBoundingClientRect:()=>({left:0,top:0,width:100,height:100})}},{},
+    {setFromCamera(){},intersectObjects(children){return children===tokenChildren?[{object:deadSprite}]:[groundHit];}}, {},{children:tokenChildren},()=>null,selected,()=>{},()=>{},String,{children:worldChildren},{W:10,H:10},change=>edits.push(change));
+  godHarness.click(50,50);
+  ok("the corpse square becomes a persistent destination before publishing",edits.length===0&&godHarness.dest().c===6&&godHarness.dest().r===4);
+  godHarness.confirm();
+  ok("Move here publishes the confirmed corpse-square destination",edits.length===1&&edits[0][0].unit==="caim"&&edits[0][0].pos.c===6&&edits[0][0].pos.r===4&&godHarness.dest()===null);
+  ok("approved God Mode markers and confirmation controls are live",html.includes('id="godMoveConfirm"')&&html.includes('class="godMoveHere"')&&html.includes("godSelectedBadge")&&html.includes("function renderGodPreview"));
 
   await Promise.resolve();
   console.log("\n"+pass+" passed, "+fail+" failed");process.exitCode=fail?1:0;

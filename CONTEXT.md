@@ -78,13 +78,31 @@ This is a color/texture/line interpretation proof, not semantic vision: roofs,
 tents, stages, walls, trees, and ruins are not yet reconstructed as reliable
 modular objects.
 
+An isolated Structure Review proof now exercises that missing semantic layer at
+`_edits/mock-forge-image-structure-review.html`. Local evidence supplies broad
+area hints only. The DM can Magic-select connected color or draw an image-space
+freehand lasso, combine it with New/Add/Subtract, and only then assign building,
+roof/deck, bridge, water, tent, tree, stairs/ramp, wall, or ground meaning. The
+artwork boundary is retained while tactical grid coverage is derived afterward.
+Reviewed structures carry editable base/top feet, walkability, access, and
+explicit solid/posts/arches/canopy/trunks/terrain/none support. Editing a
+footprint preserves the region's identity, label, height, and support. Its
+code-native joined height preview labels elevations, removes the old per-cell
+spike ambiguity, keeps ground beneath a raised bridge, and shows walk surfaces
+separately from solid volumes. The city field pass traced a 20-foot solid market
+stage and a 15-foot bridge on posts; the adjustable Magic tolerance narrowed an
+over-broad roof selection from 1,910 to 32 tactical squares. This is intentional
+DM-authored review authority, not semantic certainty or live two-level combat
+authority.
+
 The focused proofs pass **28/28** creation checks, **86/86**
-Blueprint/Diorama checks, and **44/44** local artwork-import checks; the six
-canonical Forge suites remain **151/151**, and the real browser flow has no
-console errors. This remains isolated proof work, not production promotion or
-M's final visual approval. Do not touch the live Forge, combat, protocol,
-production generator, character, or monster files. Exact ownership, evidence,
-and remaining gates are in `CONTEXT_Forge.md` and the current Forge handoff.
+Blueprint/Diorama checks, **44/44** local artwork-import checks, and **37/37**
+Structure Review checks; the six canonical Forge suites remain **151/151**,
+and the completed real browser flows had no console errors. This remains
+isolated proof work, not production promotion or M's final visual approval.
+Do not touch the live Forge, combat, protocol, production generator,
+character, or monster files. Exact ownership, evidence, and remaining gates
+are in `CONTEXT_Forge.md` and the current Forge handoff.
 
 ---
 

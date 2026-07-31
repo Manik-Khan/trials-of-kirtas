@@ -82,7 +82,7 @@
      is available before the module body below runs; unitFromRosterRow reads
      it lazily (at spawn time), so load order relative to the module tag
      doesn't matter beyond "before first spawn". -->
-<script src="../monster-actor.js?v=ma2"></script>
+<script src="../monster-actor.js?v=ma3"></script>
 <script>/* ── inlined canonical forge/tactics-geometry.js — MUST stay code-identical ── */
 /* ════════════════════════════════════════════════════════════════════
    tactics-geometry.js — pure map-geometry rules over the MAP DOCUMENT.
@@ -987,6 +987,13 @@ body.forge-author-preview #partySelect{opacity:0;pointer-events:none}
 .cbGodName{ font-weight:600; margin-bottom:6px; }
 .cbGodBtns{ display:flex; gap:5px; margin:6px 0; }
 .cbGodBtns button{ flex:1; font-family:var(--f-util); font-size:11px; color:var(--tk-ink); background:var(--tk-panel-2); border:1px solid var(--tk-line); padding:6px 0; cursor:pointer; }
+.godSelectedBadge{position:fixed;transform:translate(-50%,-100%);padding:5px 8px;background:#171714;color:#ffae99;border:2px solid #ef765d;box-shadow:0 3px 12px rgba(0,0,0,.72);font:800 10px/1 var(--f-util);letter-spacing:.12em;text-transform:uppercase;white-space:nowrap}
+#godMoveConfirm{position:fixed;z-index:20;left:50%;bottom:154px;transform:translateX(-50%);width:min(720px,calc(100vw - 32px));display:flex;align-items:center;gap:12px;padding:11px 12px;background:rgba(16,20,18,.97);border:2px solid #62e0cf;box-shadow:0 10px 34px rgba(0,0,0,.65);color:#e8dfce;font:13px/1.25 var(--f-util)}
+#godMoveConfirm[hidden]{display:none}#godMoveConfirm span{flex:1}#godMoveConfirm strong{color:#9cfff0}
+#godMoveConfirm button{padding:9px 13px;border:1px solid #b89b57;background:#30291b;color:#f5e8ca;font:800 11px/1 var(--f-util);letter-spacing:.08em;text-transform:uppercase;cursor:pointer}
+#godMoveConfirm .godMoveHere{background:#62e0cf;border-color:#c9fff7;color:#102621}
+body.forge-player-view #godMoveConfirm,body.forge-player-view .godSelectedBadge{display:none!important}
+@media(max-width:700px){#godMoveConfirm{bottom:145px;gap:7px;padding:9px;font-size:11px}#godMoveConfirm button{padding:8px 9px;font-size:10px}.godSelectedBadge{font-size:8px}}
 .cbCorrectRow{ display:flex; justify-content:space-between; align-items:center; gap:10px; margin:8px 0; font-family:var(--f-util); font-size:13px; color:var(--tk-ink); }
 .cbCorrectRow input[type="number"]{ width:70px; font-family:var(--f-util); font-size:13px; padding:4px 6px; border:1px solid var(--tk-line); background:var(--tk-panel-2); color:var(--tk-ink); }
 /* Cover contest (FORGE_COVER_CONTEST.md; ruling menu styled per the approved
@@ -1411,6 +1418,7 @@ body.forge-author-preview #partySelect{opacity:0;pointer-events:none}
   <!-- Bite 3: inline sprite block deleted — icons now from item-icons.js + spell-icons.js registries -->
   <div id="combatHud" style="display:none">
     <div id="cbFx"></div>
+    <div id="godMoveConfirm" hidden><span id="godMoveMessage"></span><button id="godMoveCancel" type="button">Cancel</button><button class="godMoveHere" id="godMoveHere" type="button">Move here</button></div>
     <div id="firePreviewLegend" aria-live="polite"><b>Firing positions</b><span class="fireLeg"><i class="fireSw clear"></i><span>clear</span></span><span class="fireLeg"><i class="fireSw half"></i><span>half +2</span></span><span class="fireLeg"><i class="fireSw three"></i><span>¾ +5</span></span><span class="fireLeg"><i class="fireSw blocked"></i><span>no shot</span></span><span id="firePreviewReadout">Select a colored origin to inspect it.</span></div>
     <div class="cbInitWrap"><div class="cbInit" id="cbInit"></div></div>
     <div class="cbPanel">
@@ -4083,6 +4091,7 @@ function forgeRenderFrame(frameNow){const now=Number(frameNow)||performance.now(
     });
     trackBadges();
     trackEffectBadges();
+    trackGodModeBadge();
     if(hoverGroup&&hoverGroup.children.length){hoverGroup.children.forEach(function(h){if(h.material&&h.material.transparent)h.material.opacity=(!RENDER_SETTINGS.ambientMotion||REDUCED)?0.44:(0.38+0.10*Math.sin(t*4.2));});}
   }
   cameraFollowTick();   // Phase 1.5: track tweened movement without camera bob
@@ -4120,6 +4129,7 @@ var CB = { active:false, over:false, units:[], order:[], ti:0, map:null, seen:nu
            log:[], hist:[], hptr:-1, turnStartPtr:-1, react:null, selKey:null, tgtKey:null };
 var moveGroup = new THREE.Group(); scene.add(moveGroup);
 var sightGroup = new THREE.Group(); scene.add(sightGroup);
+var godModeGroup = new THREE.Group(); scene.add(godModeGroup);
 function verticalEdgeLine(a,b,col){
   var pa=connectorPoint(a),pb=connectorPoint(b),g=new THREE.BufferGeometry().setFromPoints([pa,pb]);
   var m=new THREE.LineBasicMaterial({color:col,transparent:true,opacity:.9,depthTest:false,depthWrite:false});
@@ -4308,6 +4318,7 @@ function discoveryCreatureDisclosure(c,r,sources){var D=discoveryApi();return D&
 function discoveryCellTargetable(c,r){return !!discoveryCreatureDisclosure(c,r).canTarget;}
 document.addEventListener('forge:viewerMode',function(){
   refreshDiscovery(true);syncAllUnitVisuals();drawHi();drawSight();
+  if(typeof renderGodPreview==="function")renderGodPreview();
   var sess=window.__forgeSession,state=sess&&sess.pipe&&sess.pipe.state(),prompt=state&&state.pendingPrompt;
   if(prompt&&prompt.react==="cover")routeCoverPrompt(prompt);
 });
@@ -5057,12 +5068,14 @@ function rangeFromNote(note){
   // normal AND a long range — capture the optional second number too, so the
   // adapter can set atk.long (squares, same ÷5 conversion) and the engine's
   // existing long-range/disadvantage logic (reachOK's `a.long`) engages.
-  var m = String(note || '').match(/reach\s+(\d+)\s*ft|range\s+(\d+)(?:\/(\d+))?/i);
-  if (!m) return null;
-  var ft = Number(m[1] || m[2]);
+  var text=String(note||''),range=text.match(/range\s+(\d+)(?:\/(\d+))?/i),reach=text.match(/reach\s+(\d+)\s*ft/i);
+  if (!range&&!reach) return null;
+  // A melee-or-ranged stat-block attack must use its ranged clause for the
+  // planner; otherwise the preceding reach clause strands it at one square.
+  var ft = Number(range?range[1]:reach[1]);
   if (!ft) return null;
   var out = { rng: Math.max(1, Math.round(ft / 5)) };
-  if (m[3]) out.long = Math.max(1, Math.round(Number(m[3]) / 5));
+  if (range&&range[2]) out.long = Math.max(1, Math.round(Number(range[2]) / 5));
   return out;
 }
 function foeActionFromMonster(a){
@@ -5415,8 +5428,8 @@ function unitFromRosterRow(row, stateUnit){
     c: pos.c, r: pos.r, hp: hp, hpMax: hpMax, alive: alive,deathSaves:stateUnit&&stateUnit.deathSaves, badge: badge,
     tokenArt: (stateUnit&&stateUnit.tokenArt)||row.tokenArt||row.token_url||null,
     bestiary: row.bestiary || (row.statblock&&{name:row.statblock.name||row.name,source:row.statblock.source}) || null });
-  if(stateUnit&&stateUnit.resources)u.res=normalizeResourceRecord(stateUnit.resources);
-  else if(row.resources)u.res=normalizeResourceRecord(row.resources);
+  if(stateUnit&&stateUnit.resources)u.res=mergeResourceDefaults(stateUnit.resources,kit&&kit.res||{});
+  else if(row.resources)u.res=mergeResourceDefaults(row.resources,kit&&kit.res||{});
   u.advGrant=(stateUnit&&stateUnit.advGrant)?{reason:stateUnit.advGrant.reason||"granted"}:null;
   u.reacted=!!(stateUnit&&stateUnit.reactionUsed);
   if (!isPc) { u.mActions = kit && kit.mActions; u.foeReference=kit&&kit.reference;u.statblock = row.statblock || null; }
@@ -8221,7 +8234,7 @@ let __awaitingUnit = null, __awaitingKind = null, __awaitingCount = 0, __awaitin
    click-to-move + HP-stepper flow (reuses combatClick's own raycasting);
    initiativeLobbyOpen tracks the pre-fight roll panel so a mid-lobby refresh
    (catchUp never fires onEvent per row) can reconstruct it explicitly. */
-let GOD_MODE = false, godSel = null, initiativeLobbyOpen = false;
+let GOD_MODE = false, godSel = null, GOD_DEST = null, GOD_BADGE = null, initiativeLobbyOpen = false;
 let __correctSeq = null, __correctKind = null;
 /* Task 15: reinforcements — Add-foe modal state (ADD_FOE_MODAL_PICK/COUNT) and
    the placement-click mode that follows it (ADD_FOE_PLACING, mirrors GOD_MODE's
@@ -9734,13 +9747,13 @@ function doRewind(seq,label){
   clog("<i>The DM rewound to "+escapeHtml(label)+".</i>");
   netSessionPublish("restore", sess.pipe.restoreTo(seq));
 }
-/* GOD MODE: toggle, then click-a-unit/click-a-cell (combatClick's own
-   godModeClick branch, above) + an HP stepper on whichever unit is
-   selected. Every act narrates — spec §5's "divine hand" is never silent. */
+/* GOD MODE: toggle, select a unit, preview a cell, then confirm the move;
+   the HP/resource steppers remain on the selected unit. Every act narrates —
+   spec §5's "divine hand" is never silent. */
 function toggleGodMode(){
   var sess=window.__forgeSession; if(!sess||!sess.me.overseer) return;
   if(ADD_FOE_PLACING) cancelAddFoePlacing();   // Task 15: the two click-intercept modes are mutually exclusive
-  GOD_MODE=!GOD_MODE; godSel=null;
+  GOD_MODE=!GOD_MODE; godSel=null; GOD_DEST=null;
   clog("<i>GOD MODE "+(GOD_MODE?"engaged.":"disengaged.")+"</i>");
   renderOverseerToolbar();
 }
@@ -9753,15 +9766,46 @@ function godModeClick(cx,cy){
   ndc.x=((cx-rect.left)/rect.width)*2-1; ndc.y=-((cy-rect.top)/rect.height)*2+1; ray.setFromCamera(ndc,camera);
   var tHit=ray.intersectObjects(tokenGroup.children,true)[0];
   if(tHit){ var tu=spriteUnit(tHit.object);
-    if(tu){ godSel=tu; renderGodPanel();
-      clog("<i>GOD MODE — "+escapeHtml(tu.name)+" selected. Tap a cell to move, or use the HP stepper.</i>"); }
-    return; }
+    if(tu){ godSel=tu; GOD_DEST=null; renderGodPanel();
+      clog("<i>GOD MODE — "+escapeHtml(tu.name)+" selected. Tap a cell to move, or use the HP stepper.</i>"); return; }
+    // A downed standee still has a sprite. It is not selectable here, and it
+    // must not swallow the ground hit beneath it when the DM moves an ally.
+  }
   if(!godSel) return;
   var gHit=ray.intersectObjects(world.children,true)[0]; if(!gHit) return;
   var gx=Math.round(gHit.point.x+F.W/2-0.5), gy=Math.round(gHit.point.z+F.H/2-0.5);
-  var u=godSel;
-  clog("<i>The DM moves "+escapeHtml(u.name)+" to ("+gx+","+gy+").</i>");
-  netGodEdit([{ unit:u.unit, pos:{ c:gx, r:gy } }]);
+  if(gx<0||gy<0||gx>=F.W||gy>=F.H)return;
+  GOD_DEST={c:gx,r:gy};renderGodPanel();
+  clog("<i>GOD MODE — destination ("+gx+","+gy+") marked for "+escapeHtml(godSel.name)+". Confirm Move here or cancel.</i>");
+}
+function godConfirmMove(){
+  if(!GOD_MODE||!godSel||!GOD_DEST)return;var u=godSel,dest=GOD_DEST;GOD_DEST=null;
+  clog("<i>The DM moves "+escapeHtml(u.name)+" to ("+dest.c+","+dest.r+").</i>");
+  renderGodPanel();netGodEdit([{unit:u.unit,pos:{c:dest.c,r:dest.r}}]);
+}
+function godCancelMove(){
+  if(!GOD_DEST)return;GOD_DEST=null;clog("<i>GOD MODE — destination cleared.</i>");renderGodPanel();
+}
+function clearGodModePreview(){
+  while(godModeGroup.children.length){var o=godModeGroup.children[0];godModeGroup.remove(o);o.traverse(function(n){if(n.geometry)n.geometry.dispose();if(n.material)n.material.dispose();});}
+  if(GOD_BADGE){GOD_BADGE.remove();GOD_BADGE=null;}
+  var confirm=document.getElementById("godMoveConfirm");if(confirm)confirm.hidden=true;
+}
+function godGroundMarker(c,r,color,destination){
+  var group=new THREE.Group(),y=tierY(c,r),outer=new THREE.Mesh(new THREE.RingGeometry(.34,.54,destination?4:40),new THREE.MeshBasicMaterial({color:0x111111,transparent:true,opacity:.96,depthWrite:false,depthTest:false,side:THREE.DoubleSide})),inner=new THREE.Mesh(new THREE.RingGeometry(.27,.47,destination?4:40),new THREE.MeshBasicMaterial({color:color,transparent:true,opacity:.98,depthWrite:false,depthTest:false,side:THREE.DoubleSide}));
+  outer.rotation.x=inner.rotation.x=-Math.PI/2;outer.position.set(wxc(c),y+.08,wzc(r));inner.position.set(wxc(c),y+.095,wzc(r));outer.renderOrder=13;inner.renderOrder=14;group.add(outer,inner);
+  if(destination){var tile=tileFlat(c,r,color,.34,true);tile.renderOrder=12;group.add(tile);}return group;
+}
+function renderGodPreview(){
+  clearGodModePreview();var sess=window.__forgeSession,staff=!!sess&&sess.me.overseer&&(!window.ForgeTableCorrectness||window.ForgeTableCorrectness.staffView(sess));
+  if(!GOD_MODE||!godSel||!staff)return;
+  godModeGroup.add(godGroundMarker(godSel.c,godSel.r,0xef765d,false));
+  var host=fxHost();if(host){GOD_BADGE=document.createElement("div");GOD_BADGE.className="godSelectedBadge";GOD_BADGE.textContent="God Mode selected";host.appendChild(GOD_BADGE);trackGodModeBadge();}
+  if(GOD_DEST){godModeGroup.add(godGroundMarker(GOD_DEST.c,GOD_DEST.r,0x62e0cf,true));var confirm=document.getElementById("godMoveConfirm"),msg=document.getElementById("godMoveMessage"),body=downedUnitAt(GOD_DEST.c,GOD_DEST.r);if(msg)msg.innerHTML='<strong>'+escapeHtml(godSel.name)+'</strong> → ('+GOD_DEST.c+','+GOD_DEST.r+')'+(body?' · body present, square remains valid':'');if(confirm)confirm.hidden=false;}
+  requestForgeRender();
+}
+function trackGodModeBadge(){
+  if(!GOD_BADGE||!godSel)return;var p=projectUnit(godSel,1.5);if(!p||p.behind){GOD_BADGE.style.display="none";return;}GOD_BADGE.style.display="";GOD_BADGE.style.left=p.x+"px";GOD_BADGE.style.top=p.y+"px";
 }
 function godAdjustHp(delta){
   if(!godSel) return;
@@ -9786,16 +9830,17 @@ function godRestoreResources(){
 }
 function renderGodPanel(){
   var el=document.getElementById("cbGodPanel"); if(!el) return;
-  if(!GOD_MODE||!godSel){ el.style.display="none"; el.innerHTML=""; return; }
+  if(!GOD_MODE||!godSel){ el.style.display="none"; el.innerHTML=""; renderGodPreview(); return; }
   el.style.display="block";
   var pools=godResourcePools();
   el.innerHTML='<div class="cbGodName">'+escapeHtml(godSel.name)+' — HP '+Math.max(0,godSel.hp)+'/'+godSel.hpMax+'</div>'
     +'<div class="cbGodBtns"><button data-d="-5">-5</button><button data-d="-1">-1</button><button data-d="1">+1</button><button data-d="5">+5</button></div>'
     +(pools.length?'<div class="cbGodName">Resources <button data-restore style="float:right">Restore all</button></div>'+pools.map(function(p){return '<div class="cbGodBtns"><span style="flex:2;padding:6px 0">'+escapeHtml(p.label)+' · '+p.current+'/'+p.max+'</span><button data-r="'+escapeHtml(p.key)+'" data-rd="-1">−</button><button data-r="'+escapeHtml(p.key)+'" data-rd="1">+</button></div>';}).join(''):'')
-    +'<div class="cbHint">Tap a cell to move '+escapeHtml(godSel.name)+'. Tap another unit to switch.</div>';
+    +'<div class="cbHint">Tap a cell to preview '+escapeHtml(godSel.name)+'\u2019s destination. Confirm Move here, or tap another unit to switch.</div>';
   el.querySelectorAll("button[data-d]").forEach(function(b){ b.addEventListener("click",function(){ godAdjustHp(+b.dataset.d); }); });
   el.querySelectorAll("button[data-r]").forEach(function(b){b.addEventListener("click",function(){godAdjustResource(b.dataset.r,+b.dataset.rd);});});
   var restore=el.querySelector("button[data-restore]");if(restore)restore.addEventListener("click",godRestoreResources);
+  renderGodPreview();
 }
 function endFightClicked(){
   var sess=window.__forgeSession; if(!sess||!sess.me.overseer) return;
@@ -9811,7 +9856,7 @@ function renderOverseerToolbar(){
   var el=document.getElementById("cbOverseer"); if(!el) return;
   var show=!!sess&&sess.me.overseer&&CB.active&&(!window.ForgeTableCorrectness||window.ForgeTableCorrectness.staffView(sess));
   el.style.display=show?"block":"none";
-  if(!show) return;
+  if(!show){clearGodModePreview();return;}
   var st=sess.pipe.state(), ended=(st.status==="ended"), busy=__awaitingCount>0;
   var fe=document.getElementById("ovForceEnd"); if(fe) fe.disabled=ended||busy||!active();
   var co=document.getElementById("ovCorrect"); if(co) co.disabled=ended||busy||!lastResolvedEvent();
@@ -9953,7 +9998,7 @@ function startAddFoePlacing(){
   var pick=ADD_FOE_MODAL_PICK;
   ADD_FOE_PLACE_PICK=pick; ADD_FOE_SLUG=foeSlug(pick.name); ADD_FOE_NEXT_N=nextFoeNumber(ADD_FOE_SLUG);
   ADD_FOE_REMAINING=ADD_FOE_COUNT; ADD_FOE_PLACING=true;
-  GOD_MODE=false; godSel=null;   // mutually exclusive click-intercept modes
+  GOD_MODE=false; godSel=null; GOD_DEST=null; renderGodPreview();   // mutually exclusive click-intercept modes
   closeAddFoeModal();
   clog("<i>Tap a cell to place "+(ADD_FOE_COUNT>1?(ADD_FOE_COUNT+"× "):"")+escapeHtml(pick.name)+". Esc or right-click cancels.</i>");
   renderOverseerToolbar();
@@ -10083,6 +10128,8 @@ addEventListener("pointerup", function(e){ if(e.target!==renderer.domElement) re
   if(g("ovCorrect")) g("ovCorrect").addEventListener("click",openCorrectLast);
   if(g("ovRewind")) g("ovRewind").addEventListener("click",openRewind);
   if(g("ovGod")) g("ovGod").addEventListener("click",toggleGodMode);
+  if(g("godMoveHere")) g("godMoveHere").addEventListener("click",godConfirmMove);
+  if(g("godMoveCancel")) g("godMoveCancel").addEventListener("click",godCancelMove);
   if(g("ovEditBattlefield")) g("ovEditBattlefield").addEventListener("click",toggleLiveArchitectureEditor);
   if(g("ovEndFight")) g("ovEndFight").addEventListener("click",endFightClicked);
   if(g("cbCorrectSave")) g("cbCorrectSave").addEventListener("click",submitCorrect);

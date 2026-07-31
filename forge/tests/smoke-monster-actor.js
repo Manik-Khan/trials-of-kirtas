@@ -30,5 +30,12 @@ ok(actor.reference.spells.some(x=>x.label==='mage hand'&&x.usage==='At will'),'a
 ok(actor.reference.spells.some(x=>x.label==='misty step'&&x.usage==='1/day'),'daily spell list is normalized');
 ok(actor.combat.ac===16&&actor.combat.speed===30&&actor.combat.initiative===4,'combat vitals still use the real stat block');
 
+const lizard=M.toCharacter({id:'lizardfolk-1',name:'Lizardfolk 1',statblock:{
+  name:'Lizardfolk',dex:10,ac:[15],hp:{average:22},speed:{walk:30},action:[
+    {name:'Javelin',entries:['{@atk mw,rw} {@hit 4} to hit, reach 5 ft. or range 30/120 ft., one target. {@h} 5 ({@damage 1d6 + 2}) piercing damage.']}
+  ]
+}});
+ok(lizard.actions.some(a=>a.label==='Javelin'&&/reach 5 ft/i.test(a.note)&&/range 30\/120 ft/i.test(a.note)),'combined melee-or-ranged Javelin keeps both reach clauses');
+
 if(fail){console.error('\n'+fail+' monster-actor checks failed');process.exit(1);}
 console.log('\n'+n+' monster-actor checks green');

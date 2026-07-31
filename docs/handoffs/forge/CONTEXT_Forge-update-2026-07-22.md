@@ -1276,10 +1276,58 @@ surface-aware occupancy/pathfinding/LoS, and explicit inter-surface
 connectors. Until that rules seam lands, a raised deck is a renderer study, not
 playable two-level authority.
 
-Remaining gate: M visually/interaction-tests generator variety, exact handoff,
-Blank authoring, and whether the broad terrain interpretation is useful before
-grouped object recovery. Do not promote either proof into production in the
-same review step.
+### Image Structure Review proof · 2026-07-31
+
+Implementation baseline: `7f0160c` on `main`. Ownership is limited to the new
+`_edits/mock-forge-image-structure-review.{html,css,js}`,
+`_edits/mock-forge-image-structure-review-core.js`, the focused
+`forge/tests/smoke-image-structure-review.js`, and these context notes. The
+committed importer, Blueprint/Build proof, live Forge, combat, protocol,
+generator, theme, persistence, character, and monster files were not edited.
+
+The isolated proof limits local analysis to broad-area hints, then makes the
+artwork the authoring surface. The DM can use connected-color Magic selection
+or a freehand image-space lasso, refine it with New/Add/Subtract, and assign
+ground/erase, building, roof/deck, bridge, water, tent, tree/canopy,
+stairs/ramp, or wall meaning. Every region can carry label, base/top feet,
+roof/deck walkability, climb/ladder/stair/ramp access, and explicit
+solid/posts/arches/canopy/trunks/terrain/none support. Reopening a footprint
+preserves its identity and all authored vertical/support facts. Its draft
+`forge-surface-proposal/v1` compiler keeps base ground, solid volumes, elevated
+walk surfaces, bridge underpass intent, and ascending stair paths distinct.
+The preview joins adjacent cells into legible structures and decks, labels
+height/support, and is explicitly a renderer study, not current combat
+authority.
+
+The revised city field pass drew one printed square at the analysis size and
+produced a 44×69 field plus 15 broad-area proposals. A lasso authored the market
+stage as a 20-foot solid walkable structure. Its Add/Subtract edit changed 112
+covered squares to 102 while preserving the same region count, ID, label,
+height, and support. Magic at tolerance 18 selected an unusably broad 1,910
+squares on one blue roof; reducing the visible tolerance to 4 narrowed the
+connected selection to 32 squares. A second lasso authored the horizontal
+market bridge across 204 squares at 15 feet with posts and stair access. Height
+and Split views showed the aligned artwork footprint, joined deck, explicit
+posts, height ruler, labels, and base ground below. No console errors were
+observed. The earlier ungridded camp pass remains useful evidence for water and
+canopy hints, but it still needs a revised lasso/support field replay.
+
+The focused contract passes **37/37** and all new scripts pass `node --check`.
+The importer remains **44/44**, creation and Blueprint/Diorama remain **28/28**
+and **86/86**, and the six canonical Forge suites remain **151/151**.
+The remaining gates are:
+
+1. M judges whether Magic/Lasso/Add/Subtract plus explicit height/support is the
+   right review workflow before stronger semantic recognition.
+2. Replay the revised lasso/support workflow on the ungridded camp artwork;
+   exact proposal counts remain evidence only, never semantic authority.
+3. If approved, settle stable `surfaceId`, creature surface position,
+   occupancy, pathfinding/LoS, and connector events before promoting raised
+   rendering.
+4. Only after that seam may stairs and climbing speed consume live movement;
+   do not infer those combat rules from this renderer study.
+
+Do not promote this proof into production in the same review step.
 
 1. **Passed July 23.** The live selector showed only the five active
    player-folder characters; deleted, test, and out-of-folder rows were absent.

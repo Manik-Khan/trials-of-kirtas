@@ -1,0 +1,62 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Forge God Mode destination mock</title>
+<style>
+  :root{color-scheme:dark;--ink:#f4ead6;--gold:#e8bd52;--god:#ef765d;--teal:#62e0cf;--panel:#171714eb}
+  *{box-sizing:border-box}
+  body{margin:0;min-height:100vh;background:radial-gradient(circle at 60% 15%,#46694f 0,#263d35 35%,#13221f 75%);color:var(--ink);font:15px/1.4 Georgia,serif;overflow:hidden}
+  .stage{min-height:100vh;display:grid;place-items:center;padding:70px 24px 116px}
+  .board{position:relative;width:min(82vw,860px);aspect-ratio:14/9;display:grid;grid-template-columns:repeat(14,1fr);grid-template-rows:repeat(9,1fr);transform:rotateX(48deg) rotateZ(-8deg);transform-style:preserve-3d;background:#739767;box-shadow:0 36px 80px #000b;border:10px solid #62533a}
+  .cell{position:relative;border:1px solid #293c2e88;background:linear-gradient(135deg,#769b68cc,#66885bcc);cursor:pointer;min-width:0}
+  .cell:hover{background:#8db57c}
+  .cell::after{content:attr(data-pos);position:absolute;inset:4px auto auto 5px;color:#14251980;font:9px/1 Arial,sans-serif}
+  .tree::before{content:"";position:absolute;left:42%;top:18%;width:16%;height:62%;border-radius:50%;background:#493923;box-shadow:0 -18px 0 12px #90b76f,0 -27px 0 7px #a8c987}
+  .unit,.corpse{position:absolute;z-index:5;left:50%;top:50%;width:56%;aspect-ratio:1;border-radius:50%;display:grid;place-items:center;transform:translate(-50%,-55%) rotateZ(8deg) rotateX(-48deg);font:700 18px/1 Arial,sans-serif;box-shadow:0 8px 12px #0008}
+  .unit{background:#e9dfc7;color:#27231c;border:4px solid #c49b41}
+  .corpse{background:#343b38;color:#c5cdc8;border:3px dashed #929d96;transform:translate(-50%,-48%) rotateZ(8deg) rotateX(-48deg) rotate(45deg);opacity:.72}
+  .selected .unit{box-shadow:0 0 0 5px #171714,0 0 0 10px var(--god),0 0 26px 14px #ef765daa}
+  .selected::before{content:"GOD MODE SELECTED";position:absolute;z-index:9;left:50%;bottom:88%;transform:translateX(-50%) rotateZ(8deg) rotateX(-48deg);white-space:nowrap;padding:5px 8px;background:#171714;border:2px solid var(--god);color:#ffae99;font:700 10px/1 Arial,sans-serif;letter-spacing:.12em;box-shadow:0 3px 10px #000}
+  .destination{z-index:8!important;background:#84a975!important}
+  .destination::before{content:"";position:absolute;z-index:8;inset:8%;border:6px solid #111;outline:5px solid var(--teal);box-shadow:0 0 0 9px #1119,0 0 28px 14px #62e0cfa8;animation:pulse 1.15s ease-in-out infinite alternate}
+  .destination::after{content:"MOVE HERE · " attr(data-pos);position:absolute;z-index:10;left:50%;top:50%;transform:translate(-50%,-50%) rotateZ(8deg) rotateX(-48deg);white-space:nowrap;padding:6px 9px;background:#111;color:#9cfff0;border:2px solid var(--teal);font:800 10px/1 Arial,sans-serif;letter-spacing:.09em}
+  @keyframes pulse{to{box-shadow:0 0 0 9px #1119,0 0 42px 20px #62e0cfe0}}
+  .top{position:fixed;z-index:20;left:22px;right:22px;top:18px;display:flex;justify-content:space-between;gap:18px;align-items:flex-start;pointer-events:none}
+  .card{max-width:500px;padding:13px 16px;background:var(--panel);border:1px solid #bd9a4c;box-shadow:0 8px 28px #0009}
+  h1{margin:0 0 4px;color:var(--gold);font:700 16px/1.2 Arial,sans-serif;letter-spacing:.12em;text-transform:uppercase}
+  p{margin:0;color:#d7ccb6}
+  .mode{padding:11px 15px;background:var(--god);color:#1c1512;border:3px solid #171714;font:900 13px/1 Arial,sans-serif;letter-spacing:.12em}
+  .confirm{position:fixed;z-index:30;left:50%;bottom:24px;transform:translateX(-50%);width:min(720px,calc(100vw - 32px));display:flex;align-items:center;gap:14px;padding:13px 14px;background:#171714f5;border:2px solid var(--teal);box-shadow:0 8px 32px #000c}
+  .confirm strong{color:#9cfff0}.confirm span{flex:1}.confirm button{padding:10px 15px;border:1px solid #d3b563;background:#30291b;color:#f5e8ca;font:800 12px/1 Arial,sans-serif;letter-spacing:.08em;cursor:pointer}.confirm .move{background:var(--teal);color:#102621;border-color:#c9fff7}.confirm[hidden]{display:none}
+  @media(max-width:680px){.stage{padding:125px 8px 120px}.board{width:96vw}.top{left:10px;right:10px}.card{font-size:13px}.mode{font-size:11px}.selected::before,.destination::after{font-size:7px}}
+</style>
+</head>
+<body>
+<div class="top">
+  <div class="card"><h1>God Mode destination preview</h1><p>Select a living unit, then tap any square. The destination stays marked until you confirm or cancel—even when a body occupies that square.</p></div>
+  <div class="mode">GOD MODE: ON</div>
+</div>
+<main class="stage"><div class="board" id="board" aria-label="Interactive God Mode movement mock"></div></main>
+<div class="confirm" id="confirm" hidden><span id="message"></span><button id="cancel">CANCEL</button><button class="move" id="move">MOVE HERE</button></div>
+<script>
+  const board=document.getElementById('board'),confirmBar=document.getElementById('confirm'),message=document.getElementById('message');
+  let selected={name:'Caim',c:4,r:4},destination=null;
+  for(let r=0;r<9;r++)for(let c=0;c<14;c++){
+    const cell=document.createElement('button');cell.type='button';cell.className='cell';cell.dataset.c=c;cell.dataset.r=r;cell.dataset.pos='('+(42+c)+','+(19+r)+')';cell.setAttribute('aria-label','Cell '+cell.dataset.pos);
+    if((c===7&&r===3)||(c===10&&r===6))cell.classList.add('tree');
+    if(c===4&&r===4){cell.classList.add('selected');cell.innerHTML='<span class="unit">C</span>';}
+    if(c===8&&r===5)cell.innerHTML='<span class="corpse">×</span>';
+    cell.addEventListener('click',()=>choose(cell));board.appendChild(cell);
+  }
+  function choose(cell){
+    board.querySelectorAll('.destination').forEach(el=>el.classList.remove('destination'));
+    destination={c:+cell.dataset.c,r:+cell.dataset.r,pos:cell.dataset.pos};cell.classList.add('destination');
+    message.innerHTML='<strong>'+selected.name+'</strong> → '+destination.pos+(cell.querySelector('.corpse')?' · body present, square remains valid':'');confirmBar.hidden=false;
+  }
+  document.getElementById('cancel').addEventListener('click',()=>{board.querySelectorAll('.destination').forEach(el=>el.classList.remove('destination'));destination=null;confirmBar.hidden=true;});
+  document.getElementById('move').addEventListener('click',()=>{if(!destination)return;const old=board.querySelector('.selected'),next=board.querySelector('[data-c="'+destination.c+'"][data-r="'+destination.r+'"]');old.classList.remove('selected');const unit=old.querySelector('.unit');if(unit)unit.remove();next.classList.add('selected');next.appendChild(unit||Object.assign(document.createElement('span'),{className:'unit',textContent:'C'}));selected.c=destination.c;selected.r=destination.r;board.querySelectorAll('.destination').forEach(el=>el.classList.remove('destination'));confirmBar.hidden=true;destination=null;});
+</script>
+</body>
+</html>

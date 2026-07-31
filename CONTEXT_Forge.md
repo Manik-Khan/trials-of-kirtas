@@ -1077,6 +1077,62 @@ pathfinding keyed by surface, and explicit connectors between surfaces.
 Rendering a raised deck before that rules seam would be visually impressive
 but tactically false.
 
+### Standalone image Structure Review candidate · July 30
+
+`_edits/mock-forge-image-structure-review.html` is the isolated next research
+slice; it does not change the importer, Build, production Forge, or combat. Its
+dual-export core groups local pixel evidence into reviewable semantic regions
+and compiles the reviewed facts into a draft
+`forge-surface-proposal/v1` receipt:
+
+- ground remains an independent base walk surface;
+- buildings and walls carry solid base/top volumes;
+- walkable roofs and decks become separate raised surfaces;
+- bridges retain the ground below and declare renderer-study underpass intent;
+- stairs compile an ascending surface connector path; and
+- climb access reports doubled movement cost unless the creature has a
+  climbing speed.
+
+The DM can Magic-select a connected local color island or trace a freehand
+artwork-space lasso, combine boundaries with New/Add/Subtract, and then assign
+building, roof/deck, bridge, water, tent, tree, stairs/ramp, wall, or ground
+meaning. Tactical cells are derived from the retained image boundary rather
+than owning it. Each reviewed structure can then edit label, base/top feet,
+roof walkability, climb/ladder/stair/ramp access, and explicit
+solid/posts/arches/canopy/trunks/terrain/none support. Reopening an authored
+footprint for correction preserves its ID and all vertical/support facts. The
+code-native preview joins adjacent cells into legible masses and decks, labels
+height/support, and makes those authored facts visible without pretending the
+current combat runtime can place two creatures at one `c,r` on different
+surfaces.
+
+The revised city browser pass again demonstrated why Auto is only a proposal:
+one drawn source square established the printed grid while the broad-area pass
+produced 15 review hints, not claimed objects. A lasso authored the market stage
+as one 20-foot solid walkable structure; Add/Subtract changed its footprint
+without changing its label, height, support, ID, or total region count. Magic at
+tolerance 18 selected an unusably broad 1,910 squares on a blue roof, while the
+visible tolerance control reduced the connected selection to 32 squares at 4.
+A separate lasso authored the horizontal market bridge at 15 feet with posts
+and stair access. Height and Split views showed the artwork-aligned footprint,
+joined deck, explicit posts, height ruler, labels, and ground beneath the deck.
+No browser errors were observed. This remains honest DM correction work, not a
+claim of semantic recognition.
+
+The focused known-answer suite passes **37/37** and all three new scripts pass
+`node --check`. The revised browser interaction covered lasso, Magic tolerance,
+Add/Subtract, property-preserving footprint edits, explicit supports, and joined
+height/Split previews on the city artwork with no console errors. The earlier
+browser interaction also covered both supplied artwork types. One current-build
+city broad-area pass produced 15 proposals; that count is evidence only, never
+semantic authority.
+
+This proof stops at an annotation and renderer study. It does not write
+production maps, persist licensed artwork, or establish live surface-aware
+occupancy, pathfinding, LoS, reactions, replay, or multiplayer. Promotion
+requires M's semantic-review approval followed by a versioned
+`surfaceId`/connector contract before renderer or movement work.
+
 ### After that proof: active Phase 2 production terrain
 
 1. Promote the settled Blueprint/compiler as a versioned production module and

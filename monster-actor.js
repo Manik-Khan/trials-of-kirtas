@@ -115,7 +115,10 @@
 
     const first = dmgs[0];
     const dmgType = damageTypeAfter(raw, first.end);
-    const reach = (raw.match(/reach [^,.]+|range \d+(?:\/\d+)? ?ft\.?/i) || [''])[0];
+    // Combined 5e attacks use both clauses: "reach 5 ft. or range 30/120
+    // ft.". Keeping only the first regex match silently turned thrown
+    // weapons into melee-only actions downstream.
+    const reach = (raw.match(/reach [^,.]+|range \d+(?:\/\d+)? ?ft\.?/gi) || []).join(' or ');
 
     // Rider damages ("plus 7 ({@damage 2d6}) poison damage") → note text.
     const riders = dmgs.slice(1)
