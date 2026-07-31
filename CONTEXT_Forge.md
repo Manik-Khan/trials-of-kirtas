@@ -1093,13 +1093,14 @@ and compiles the reviewed facts into a draft
 - climb access reports doubled movement cost unless the creature has a
   climbing speed.
 
-The DM first traces a freehand artwork-space lasso. Optional Color assist is
-hard-bounded to that footprint and retains the original fence so tolerance can
-be retuned without redrawing it. Replace/Add/Subtract modify only the current
-working footprint; Start another structure clears that draft while preserving
-the saved collection. Choosing building, roof/deck, bridge, water, tent, tree,
-stairs/ramp, wall, or ground immediately changes the pending color and label.
-Each kind has explicit appearance kits and preview forms. Saved structures stay
+The compact artwork toolbar supplies Pointer, Lasso, Eraser, and Pan. Lasso
+right-click opens the structure-kind and appearance-kit palette; releasing each
+freehand gesture immediately saves that footprint as an independent object.
+The armed kind persists for successive gestures, so repeated buildings or
+bridges do not require repeated confirmation. Optional Color assist remains
+hard-bounded to the selected footprint. Pointer selects persistent objects for
+editing. Eraser uses the same freehand gesture and, when an object is selected,
+trims only that footprint rather than damaging an overlap. Saved structures stay
 selectable in a persistent list, and touching or overlapping authored layers no
 longer erase or silently merge each other. Tactical cells remain derived from
 the artwork boundary. Each reviewed structure can edit label, appearance,
@@ -1110,6 +1111,13 @@ preview joins adjacent cells into legible masses and decks, labels
 height/appearance, and makes those authored facts visible without pretending
 the current combat runtime can place two creatures at one `c,r` on different
 surfaces.
+
+Grid review is similarly explicit. Auto is labeled unverified. Calibrate hides
+the generated overlay while the DM zooms and draws one printed square; the
+projection then covers the complete artwork, including partial edge cells. A
+distant printed-grid intersection can refine the local cell size and expose
+accumulated drift. Grid visibility, zoom, and pan remain available without
+leaving the drawing flow.
 
 The revised city browser pass again demonstrated why Auto is only a proposal:
 one drawn source square established the printed grid while the broad-area pass
@@ -1131,11 +1139,24 @@ preview visibly distinguished their colors and forms. No browser errors were
 observed. This remains honest DM correction work, not a claim of semantic
 recognition.
 
-The focused known-answer suite passes **43/43** and all three new scripts pass
+The streamlined July 31 replay used a private 766×1200 downsample of the same
+city source. One-square calibration measured 16.9 source pixels and the distant
+check refined that to 16.91, yielding a full-artwork 46×71 projection with
+three partial edges. Two successive lasso gestures immediately saved two
+separate Stone bridge objects without another type or Save click; a right-click
+change then saved Stone steps as a third overlapping object. The selected-only
+eraser reduced the stairs from 13 to 11 squares without changing either bridge,
+and Undo restored all 13. Pointer selection, grid off/on, 104% zoom, and a
+120-pixel pan were also exercised. Height preview showed the kit labels and
+raised surfaces, and the browser reported no warnings or errors. Exact counts
+remain field evidence, not semantic authority.
+
+The focused known-answer suite passes **48/48** and all three new scripts pass
 `node --check`. Browser interaction covered persistent multi-structure
-authoring, immediate kind/kit identity, bounded repeatable Color assist,
-Replace/Add/Subtract, property-preserving footprint edits, explicit supports,
-and joined height/Split previews on the city artwork with no console errors.
+authoring, immediate right-click kind/kit identity, automatic per-gesture save,
+targeted lasso erase/Undo, Pointer selection, full-artwork grid calibration,
+zoom/pan/grid visibility, explicit supports, and joined height/Split previews on
+the city artwork with no console errors.
 The earlier browser interaction also covered both supplied artwork types. One
 current-build city broad-area pass produced 15 proposals; that count is evidence
 only, never semantic authority.

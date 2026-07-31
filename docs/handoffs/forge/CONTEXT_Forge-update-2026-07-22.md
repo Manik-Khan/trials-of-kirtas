@@ -1288,14 +1288,15 @@ committed importer, Blueprint/Build proof, live Forge, combat, protocol,
 generator, theme, persistence, character, and monster files were not edited.
 
 The isolated proof limits local analysis to broad-area hints, then makes the
-artwork the authoring surface. The DM draws a freehand lasso first; optional
-Color assist can only refine inside that boundary and can be retuned against
-the original fence. Replace/Add/Subtract modify the current footprint, while
-Start another structure preserves the saved collection. Ground/erase,
-building, roof/deck, bridge, water, tent, tree/canopy, stairs/ramp, and wall
-choices immediately recolor and relabel the pending footprint. Kind-specific
-appearance kits drive saved-list identity, overlay color, and preview form.
-Touching or overlapping authored structures remain distinct. Every region can
+artwork the authoring surface. Pointer, Lasso, Eraser, and Pan remain in one
+compact toolbar. In Lasso mode, right-click arms a kind and appearance kit;
+releasing each gesture immediately saves one independent object, and the armed
+choice persists for repeated structures. Optional Color assist remains fenced
+inside the selected footprint. Pointer selects an object for editing. The lasso
+eraser trims only the selected object when footprints overlap, and Undo/Redo
+cover authoring and erasure. Kind-specific appearance kits drive saved-list
+identity, overlay color, and preview form. Touching or overlapping authored
+structures remain distinct. Every region can
 carry label, appearance, base/top feet, roof/deck walkability,
 climb/ladder/stair/ramp access, and explicit
 solid/posts/arches/canopy/trunks/terrain/none support. Reopening a footprint
@@ -1305,6 +1306,12 @@ walk surfaces, bridge underpass intent, and ascending stair paths distinct.
 The preview joins adjacent cells into legible structures and decks, labels
 height/support, and is explicitly a renderer study, not current combat
 authority.
+
+Auto grid evidence remains an explicitly unverified suggestion. Calibrate hides
+the generated overlay while the DM zooms and draws one printed square; a second
+distant-intersection check corrects accumulated scale drift. The projected grid
+covers the complete image including partial edge cells. Grid visibility, zoom,
+and pan stay available without changing drawing tools.
 
 The revised city field pass drew one printed square at the analysis size and
 produced a 44×69 field plus 15 broad-area proposals. A lasso authored the market
@@ -1327,13 +1334,23 @@ the same original fence. A Stone bridge was saved, followed by overlapping
 Stone steps; both stayed separately selectable and visibly distinct in Artwork
 and Split views. The browser reported no errors.
 
-The focused contract passes **43/43** and all new scripts pass `node --check`.
+The streamlined city replay used a private 766×1200 downsample. One-square
+calibration measured 16.9 source pixels, and the distant check refined that to
+16.91 for a full-artwork 46×71 projection with three partial edges. Two lasso
+gestures immediately saved two separate Stone bridge objects without another
+type or Save click. A right-click change saved Stone steps as a third,
+overlapping object. The selected-only eraser reduced those stairs from 13 to 11
+squares without changing either bridge; Undo restored all 13. Pointer selection,
+grid off/on, 104% zoom, a 120-pixel pan, and the height preview were also
+exercised. The browser reported no warnings or errors.
+
+The focused contract passes **48/48** and all new scripts pass `node --check`.
 The importer remains **44/44**, creation and Blueprint/Diorama remain **28/28**
 and **86/86**, and the six canonical Forge suites pass **152/152**.
 The remaining gates are:
 
-1. M judges whether lasso-first persistent structures, bounded Color assist,
-   kind/kit identity, and explicit height/support are the right workflow before
+1. M judges whether the compact immediate-save lasso, Pointer/Eraser flow,
+   right-click kind/kit identity, and explicit height/support are right before
    stronger semantic recognition.
 2. Replay the revised lasso/support workflow on the ungridded camp artwork;
    exact proposal counts remain evidence only, never semantic authority.

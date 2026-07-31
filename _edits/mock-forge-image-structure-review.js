@@ -7,9 +7,10 @@
   [
     "imageFile", "sourceReceipt", "scalePanel", "autoGrid", "drawGridCell", "noGrid", "gridNote",
     "griddedControls", "ungriddedControls", "gridCellPx", "gridOriginX", "gridOriginY", "targetColumns",
-    "proposeRegions", "selectionPanel", "selectionReceipt", "clearSelection", "magicTolerance",
-    "magicToleranceValue", "toleranceControl", "semanticPanel", "semanticTools", "semanticAppearance",
-    "pendingSwatch", "pendingMeaning", "commitSelection", "startNextRegion",
+    "proposeRegions", "selectionPanel", "magicTolerance", "magicToleranceValue", "colorAssist", "armedKit",
+    "pendingSwatch", "pendingMeaning", "undoDraw", "redoDraw",
+    "verifyGrid", "gridCoverage", "zoomOut", "zoomFit", "zoomIn", "zoomValue", "toggleGrid",
+    "typePalette", "closeTypePalette", "typePaletteKinds", "typePaletteVariants",
     "artTitle", "viewGrid", "artView", "previewView",
     "emptyState", "canvasStack", "sourceCanvas", "overlayCanvas", "previewCanvas", "status",
     "sceneName", "metricGrid", "metricRegions", "metricSurfaces", "metricConnectors", "typeSummary",
@@ -35,17 +36,25 @@
     detectedGrid: null,
     analysis: null,
     review: null,
-    selectionTool: "lasso",
-    selectionOperation: "replace",
+    selectionTool: "pointer",
     semanticType: "building",
     semanticAppearance: "timber-house",
     selection: null,
     magicFence: null,
     editingRegionId: null,
     selectedId: null,
+    editAddRegionId: null,
     calibrating: false,
+    verifyingGrid: false,
+    gridAnchor: null,
+    gridVisible: true,
+    gridVerified: false,
     drag: null,
     lassoPoints: null,
+    panDrag: null,
+    zoom: 1,
+    undoStack: [],
+    redoStack: [],
     view: "artwork"
   };
 
@@ -82,7 +91,7 @@
     return selected;
   }
   function syncPendingAppearance() {
-    state.semanticAppearance = fillAppearanceOptions(ui.semanticAppearance, state.semanticType, state.semanticAppearance);
+    state.semanticAppearance = state.semanticType === "ground" ? "ground" : appearanceFor(state.semanticType, state.semanticAppearance).id;
     var appearance = state.semanticType === "ground"
       ? { label: "Base ground / erase", color: "#857958" }
       : appearanceFor(state.semanticType, state.semanticAppearance);
@@ -93,18 +102,12 @@
   function sourceGridFromInputs() {
     var scale = state.scale || 1;
     var cellPx = Math.max(4, Number(ui.gridCellPx.value) || 70) * scale;
-    var originX = Math.max(0, Number(ui.gridOriginX.value) || 0) * scale;
-    var originY = Math.max(0, Number(ui.gridOriginY.value) || 0) * scale;
-    return {
-      found: true,
-      cellPx: cellPx,
-      originX: originX,
-      originY: originY,
-      cols: Math.max(1, Math.floor((state.analysisWidth - originX) / cellPx)),
-      rows: Math.max(1, Math.floor((state.analysisHeight - originY) / cellPx)),
-      confidence: state.detectedGrid && state.detectedGrid.confidence || 0.72,
-      evidence: state.detectedGrid && state.detectedGrid.evidence || { manualInputs: true }
-    };
+    var phaseX = (Number(ui.gridOriginX.value) || 0) * scale;
+    var phaseY = (Number(ui.gridOriginY.value) || 0) * scale;
+    return Structure.gridCoveringArtwork(state.analysisWidth, state.analysisHeight, cellPx, phaseX, phaseY,
+      Object.assign({}, state.detectedGrid && state.detectedGrid.evidence || { manualInputs: true }, {
+        farPointChecked: state.gridVerified
+      }));
   }
   function activeGrid() {
     if (!state.imageData) return null;
@@ -119,11 +122,28 @@
     state.selection = null;
     state.magicFence = null;
     state.editingRegionId = null;
+    state.editAddRegionId = null;
     state.selectedId = null;
     setEnabled(ui.selectionPanel, false);
-    setEnabled(ui.semanticPanel, false);
     setEnabled(ui.inspector, false);
+    state.undoStack = []; state.redoStack = [];
+    updateHistoryControls();
     renderAll();
+  }
+  function gridCoverageText(grid) {
+    if (!grid) return "No grid coverage.";
+    var left = Math.max(0, -grid.originX), top = Math.max(0, -grid.originY);
+    var right = Math.max(0, grid.originX + grid.cols * grid.cellPx - state.analysisWidth);
+    var bottom = Math.max(0, grid.originY + grid.rows * grid.cellPx - state.analysisHeight);
+    var partials = [left, right, top, bottom].filter(function (value) { return value > 0.25; }).length;
+    return grid.cols + " × " + grid.rows + " cells across the full artwork"
+      + (partials ? " · " + partials + " partial edge" + (partials === 1 ? "" : "s") : " · exact edge coverage");
+  }
+  function updateGridReceipt() {
+    var grid = activeGrid();
+    ui.gridCoverage.textContent = gridCoverageText(grid);
+    ui.toggleGrid.textContent = state.gridVisible ? "# Grid on" : "# Grid off";
+    ui.toggleGrid.classList.toggle("active", state.gridVisible);
   }
   function syncGridControls() {
     ui.griddedControls.hidden = state.gridMode === "ungridded";
@@ -133,9 +153,13 @@
     ui.drawGridCell.setAttribute("aria-pressed", String(state.calibrating));
     ui.noGrid.classList.toggle("active", state.gridMode === "ungridded");
     ui.canvasStack.classList.toggle("calibrating", state.calibrating);
-    ui.canvasStack.classList.toggle("inspecting", !state.calibrating && state.selectionTool === "inspect");
+    ui.canvasStack.classList.toggle("inspecting", !state.calibrating && state.selectionTool === "pointer");
     ui.canvasStack.classList.toggle("magic-selecting", !state.calibrating && state.selectionTool === "magic");
     ui.canvasStack.classList.toggle("lasso-selecting", !state.calibrating && state.selectionTool === "lasso");
+    ui.canvasStack.classList.toggle("erasing", !state.calibrating && state.selectionTool === "eraser");
+    ui.canvasStack.classList.toggle("panning", !state.calibrating && state.selectionTool === "pan");
+    ui.verifyGrid.hidden = !(state.gridMode === "gridded" && state.gridAnchor && !state.gridVerified);
+    updateGridReceipt();
     renderOverlay();
   }
   function reportDetectedGrid(grid) {
@@ -147,16 +171,20 @@
     ui.gridCellPx.value = originalCell.toFixed(1);
     ui.gridOriginX.value = (grid.originX / state.scale).toFixed(1);
     ui.gridOriginY.value = (grid.originY / state.scale).toFixed(1);
-    ui.gridNote.textContent = grid.evidence && grid.evidence.manualCell
-      ? "DM-drawn square: " + originalCell.toFixed(1) + " source pixels · "
-        + Math.floor((state.originalWidth - grid.originX / state.scale) / originalCell) + " × "
-        + Math.floor((state.originalHeight - grid.originY / state.scale) / originalCell)
-      : "Auto proposal: " + originalCell.toFixed(1) + " source pixels · verify it against the printed lines.";
+    var manual = grid.evidence && grid.evidence.manualCell;
+    ui.gridNote.className = "grid-note " + (manual ? "good" : "warn");
+    ui.gridNote.textContent = manual
+      ? "Locally calibrated: " + originalCell.toFixed(1) + " source pixels. Check a distant intersection to catch accumulated drift."
+      : "Auto—unverified: " + originalCell.toFixed(1) + " source pixels. Do not trace against this overlay until it matches the printed grid.";
+    updateGridReceipt();
   }
   function inspectGrid() {
     if (!state.imageData) return;
     state.gridMode = "auto";
     state.calibrating = false;
+    state.verifyingGrid = false;
+    state.gridAnchor = null;
+    state.gridVerified = false;
     state.detectedGrid = Importer.detectGrid(state.imageData.data, state.analysisWidth, state.analysisHeight);
     reportDetectedGrid(state.detectedGrid);
     clearReview();
@@ -182,6 +210,20 @@
     ui.emptyState.hidden = true;
     ui.canvasStack.hidden = false;
     ui.artTitle.textContent = safeName(state.file.name);
+    fitArtwork();
+  }
+  function fitArtwork() {
+    if (!state.analysisWidth) return;
+    var available = Math.max(240, ui.artView.clientWidth - 32);
+    state.zoom = Math.min(1, available / state.analysisWidth);
+    applyZoom();
+    ui.artView.scrollLeft = 0; ui.artView.scrollTop = 0;
+  }
+  function applyZoom() {
+    if (!state.analysisWidth) return;
+    state.zoom = clamp(state.zoom, 0.2, 5);
+    ui.canvasStack.style.width = Math.round(state.analysisWidth * state.zoom) + "px";
+    ui.zoomValue.textContent = Math.round(state.zoom * 100) + "%";
   }
   function loadFile(file) {
     if (!file || !/^image\/(jpeg|png|webp)$/i.test(file.type)) {
@@ -197,6 +239,10 @@
         state.detectedGrid = null;
         state.gridMode = "auto";
         state.calibrating = false;
+        state.verifyingGrid = false;
+        state.gridAnchor = null;
+        state.gridVerified = false;
+        state.gridVisible = false;
         drawSource(image);
         clearReview();
         setEnabled(ui.scalePanel, true);
@@ -221,13 +267,13 @@
     context.beginPath();
     for (var c = 0; c <= grid.cols; c++) {
       var x = grid.originX + c * grid.cellPx;
-      context.moveTo(x, grid.originY);
-      context.lineTo(x, grid.originY + grid.rows * grid.cellPx);
+      context.moveTo(x, 0);
+      context.lineTo(x, state.analysisHeight);
     }
     for (var r = 0; r <= grid.rows; r++) {
       var y = grid.originY + r * grid.cellPx;
-      context.moveTo(grid.originX, y);
-      context.lineTo(grid.originX + grid.cols * grid.cellPx, y);
+      context.moveTo(0, y);
+      context.lineTo(state.analysisWidth, y);
     }
     context.stroke();
     context.restore();
@@ -306,12 +352,12 @@
         "#fff3bd");
       overlayContext.restore();
     }
-    renderGrid(overlayContext, grid);
+    if (state.gridVisible && !state.calibrating) renderGrid(overlayContext, grid);
     if (state.lassoPoints && state.lassoPoints.length) {
       overlayContext.save(); overlayContext.beginPath();
       overlayContext.moveTo(state.lassoPoints[0][0], state.lassoPoints[0][1]);
       state.lassoPoints.slice(1).forEach(function (point) { overlayContext.lineTo(point[0], point[1]); });
-      overlayContext.strokeStyle = "#fff0a8"; overlayContext.lineWidth = Math.max(2, grid.cellPx * 0.08);
+      overlayContext.strokeStyle = "#fff0a8"; overlayContext.lineWidth = Math.max(2, (grid && grid.cellPx || 18) * 0.08);
       overlayContext.setLineDash([8, 5]); overlayContext.stroke(); overlayContext.restore();
     }
     if (state.drag && state.calibrating) {
@@ -342,18 +388,16 @@
     state.selectedId = state.review.regions[0] && state.review.regions[0].id || null;
     state.selection = null;
     setEnabled(ui.selectionPanel, true);
-    setEnabled(ui.semanticPanel, true);
     setEnabled(ui.inspector, !!state.selectedId);
-    state.selectionTool = "lasso";
-    document.querySelectorAll("[data-selection-tool]").forEach(function (button) {
-      button.classList.toggle("active", button.dataset.selectionTool === "lasso");
+    state.selectionTool = "pointer";
+    document.querySelectorAll("[data-draw-tool]").forEach(function (button) {
+      button.classList.toggle("active", button.dataset.drawTool === "pointer");
     });
-    ui.toleranceControl.hidden = true;
     syncPendingAppearance();
     renderAll();
     setStatus(state.gridMode === "auto"
       ? "Broad areas proposed on Auto scale. If the printed grid drifts, draw one real square before trusting coverage."
-      : "Broad hints proposed. Lasso one structure, choose its kind and appearance, then save it.");
+      : "Broad hints proposed. Choose Lasso, right-click for a kind, and draw one object per gesture.");
   }
   function canvasPoint(event) {
     var rect = ui.overlayCanvas.getBoundingClientRect();
@@ -370,9 +414,10 @@
     return c >= 0 && r >= 0 && c < grid.cols && r < grid.rows ? { c: c, r: r } : null;
   }
   function finishCalibration(point) {
+    var calibrationDrag = state.drag;
     var grid = Importer.gridFromDrawnBox(
       state.analysisWidth, state.analysisHeight,
-      state.drag.startX, state.drag.startY, point.x, point.y, 1
+      calibrationDrag.startX, calibrationDrag.startY, point.x, point.y, 1
     );
     state.drag = null;
     if (!grid) {
@@ -383,29 +428,53 @@
     state.detectedGrid = grid;
     state.gridMode = "gridded";
     state.calibrating = false;
+    state.verifyingGrid = false;
+    state.gridVerified = false;
+    state.gridAnchor = {
+      x: Math.min(calibrationDrag.startX, point.x),
+      y: Math.min(calibrationDrag.startY, point.y)
+    };
+    state.gridVisible = true;
     reportDetectedGrid(grid);
     clearReview();
     syncGridControls();
-    setStatus("One source square now owns scale and alignment. Propose regions when the overlay fits.");
+    setStatus("One printed square owns local scale and phase. Zoom out and check a distant intersection before tracing.");
   }
-  function renderSelectionReceipt() {
-    var count = state.selection && state.selection.cells.length || 0;
-    syncPendingAppearance();
-    ui.selectionReceipt.textContent = count
-      ? count + " tactical squares in this " + (state.editingRegionId ? "edited" : "new") + " footprint · saved structures remain"
-      : "No working footprint. Saved structures remain on the map.";
-    ui.commitSelection.disabled = !count;
-    ui.commitSelection.textContent = state.editingRegionId
-      ? "Update " + (state.semanticType === "ground" ? "region" : Structure.TYPES[state.semanticType].label)
-      : "Save " + (state.semanticType === "ground" ? "Ground / erase" : Structure.TYPES[state.semanticType].label);
+  function finishGridVerification(point) {
+    var refined = Structure.refineGridFromPoint(state.analysisWidth, state.analysisHeight, activeGrid(), state.gridAnchor, point);
+    state.verifyingGrid = false;
+    if (!refined) {
+      syncGridControls();
+      setStatus("That check was too close to the first square. Choose a printed intersection near the far edge.");
+      return;
+    }
+    state.gridVerified = true;
+    state.detectedGrid = refined;
+    ui.gridCellPx.value = (refined.cellPx / state.scale).toFixed(2);
+    ui.gridOriginX.value = (refined.phaseX / state.scale).toFixed(2);
+    ui.gridOriginY.value = (refined.phaseY / state.scale).toFixed(2);
+    ui.gridNote.className = "grid-note good";
+    ui.gridNote.textContent = "Far-edge checked: " + (refined.cellPx / state.scale).toFixed(2) + " source pixels per cell. The projection covers the full artwork.";
+    clearReview(); syncGridControls();
+    setStatus("Grid checked across the artwork. Show or hide it at any time, then find broad areas.");
   }
-  function applySelection(next) {
-    state.selection = Structure.combineSelection(state.selection, next, state.selectionOperation);
-    state.magicFence = state.selection && Structure.selectionFromCells(state.selection.cells, state.selection.footprint);
-    renderSelectionReceipt(); renderOverlay();
-    setStatus((state.selection && state.selection.cells.length || 0)
-      + " squares selected for " + (state.semanticType === "ground" ? "Ground / erase" : appearanceFor(state.semanticType, state.semanticAppearance).label)
-      + ". Refine this footprint or save it; existing structures remain.");
+  function updateHistoryControls() {
+    ui.undoDraw.disabled = !state.undoStack.length;
+    ui.redoDraw.disabled = !state.redoStack.length;
+  }
+  function pushUndo() {
+    if (!state.review) return;
+    state.undoStack.push(JSON.parse(JSON.stringify(state.review)));
+    if (state.undoStack.length > 40) state.undoStack.shift();
+    state.redoStack = [];
+    updateHistoryControls();
+  }
+  function restoreHistory(from, to, label) {
+    if (!from.length || !state.review) return;
+    to.push(JSON.parse(JSON.stringify(state.review)));
+    state.review = from.pop();
+    state.selectedId = null; state.editAddRegionId = null; state.selection = null; state.magicFence = null;
+    updateHistoryControls(); renderAll(); setStatus(label + ". Every structure remains individually authored.");
   }
   function magicSelect(point) {
     var grid = state.review && state.review.grid || activeGrid();
@@ -434,69 +503,102 @@
       return;
     }
     var fence = fenceSelection.footprint;
-    state.selection = Structure.selectionFromCells(cells, {
+    var refined = Structure.selectionFromCells(cells, {
       kind: "magic-within", seed: [point.x, point.y], tolerance: tolerance,
       fence: fence, imageSize: [state.analysisWidth, state.analysisHeight]
     });
-    renderSelectionReceipt(); renderOverlay();
-    setStatus(cells.length + " squares retained inside the lasso. No artwork outside the boundary was searched.");
+    pushUndo();
+    var result = Structure.authorSelection(state.review, refined, state.semanticType, {
+      replaceRegionId: state.editingRegionId,
+      appearance: state.semanticAppearance
+    });
+    state.review = result.review; state.selectedId = result.regionId;
+    state.selection = null; state.magicFence = null; state.editingRegionId = null; state.selectionTool = "pointer";
+    syncDrawToolButtons(); renderAll();
+    setStatus(cells.length + " squares retained inside the saved boundary. No artwork outside it was searched.");
   }
   function finishLasso() {
     var points = state.lassoPoints || [], grid = state.review && state.review.grid || activeGrid();
     state.lassoPoints = null;
     if (!grid || points.length < 3) { renderOverlay(); setStatus("The lasso needs a closed freehand boundary."); return; }
     var cells = Structure.cellsFromPolygon(grid, points, 0.18);
-    applySelection(Structure.selectionFromCells(cells, {
+    if (!cells.length) { renderOverlay(); setStatus("That lasso did not cover a complete tactical cell. Zoom in or draw a slightly larger boundary."); return; }
+    var selection = Structure.selectionFromCells(cells, {
       kind: "polygon", points: points, imageSize: [state.analysisWidth, state.analysisHeight]
-    }));
-  }
-  function commitSelection() {
-    if (!state.review || !state.selection || !state.selection.cells.length) return;
-    var editingRegionId = state.editingRegionId;
-    var result = Structure.authorSelection(state.review, state.selection, state.semanticType, {
-      replaceRegionId: editingRegionId,
-      appearance: state.semanticType === "ground" ? null : state.semanticAppearance
     });
-    state.review = result.review; state.selectedId = result.regionId; state.selection = null;
-    state.magicFence = null;
-    state.editingRegionId = null;
-    setEnabled(ui.inspector, !!state.selectedId); renderAll(); renderSelectionReceipt();
-    setStatus(state.semanticType === "ground"
-      ? "Selection returned to the underlying ground without fragmenting neighboring regions."
-      : appearanceFor(state.semanticType, state.semanticAppearance).label + (editingRegionId
-        ? " footprint updated. Height, support, access, and identity were preserved."
-        : " saved as a new " + Structure.TYPES[state.semanticType].label.toLowerCase() + ". Start another structure whenever ready."));
+    pushUndo();
+    if (state.selectionTool === "eraser") {
+      var erased = Structure.eraseSelection(state.review, selection, state.selectedId);
+      state.review = erased.review;
+      if (state.selectedId && !selectedRegion()) state.selectedId = null;
+      renderAll();
+      setStatus(erased.affected
+        ? "Eraser changed " + erased.affected + " structure" + (erased.affected === 1 ? "" : "s") + ". Undo is available."
+        : "The eraser crossed no authored footprint; nothing changed.");
+      return;
+    }
+    var editing = state.editAddRegionId && state.review.regions.find(function (region) { return region.id === state.editAddRegionId; });
+    if (editing) {
+      selection = Structure.combineSelection(Structure.selectionFromCells(editing.cells, editing.footprint), selection, "add");
+    }
+    var result = Structure.authorSelection(state.review, selection, state.semanticType, {
+      replaceRegionId: editing && editing.id || null,
+      appearance: state.semanticAppearance
+    });
+    state.review = result.review; state.selectedId = result.regionId; state.editAddRegionId = null;
+    renderAll();
+    setStatus(appearanceFor(state.semanticType, state.semanticAppearance).label
+      + (editing ? " footprint extended." : " saved immediately as its own structure.")
+      + " Keep drawing or right-click to change what the lasso creates.");
   }
   function useRegionAsSelection() {
     var region = selectedRegion();
     if (!region) return;
-    state.selection = Structure.selectionFromCells(region.cells, region.footprint || { kind: "cells" });
-    state.magicFence = Structure.selectionFromCells(state.selection.cells, state.selection.footprint);
-    state.editingRegionId = region.id;
+    state.editAddRegionId = region.id;
     state.semanticType = region.type;
     state.semanticAppearance = region.appearance || appearanceFor(region.type).id;
-    document.querySelectorAll("[data-semantic-type]").forEach(function (button) {
-      button.classList.toggle("active", button.dataset.semanticType === region.type);
-    });
-    syncPendingAppearance(); renderSelectionReceipt(); renderOverlay();
-    setStatus("The region footprint is now editable. Add or subtract artwork, then update it without losing its height or support.");
-  }
-  function startAnotherRegion() {
-    state.selection = null; state.magicFence = null; state.editingRegionId = null; state.selectedId = null;
-    state.lassoPoints = null; state.selectionTool = "lasso"; state.selectionOperation = "replace";
-    document.querySelectorAll("[data-selection-tool]").forEach(function (button) {
-      button.classList.toggle("active", button.dataset.selectionTool === "lasso");
-    });
-    document.querySelectorAll("[data-selection-operation]").forEach(function (button) {
-      button.classList.toggle("active", button.dataset.selectionOperation === "replace");
-    });
-    ui.toleranceControl.hidden = true;
-    syncGridControls(); renderAll();
-    setStatus("Ready for another structure. Saved regions remain visible; draw its footprint with the lasso.");
+    state.selectionTool = "lasso"; syncPendingAppearance(); syncDrawToolButtons(); renderOverlay();
+    setStatus("Draw one additional lasso for " + region.label + ". It will extend only this saved object.");
   }
   function selectedRegion() {
     return state.review && state.review.regions.find(function (region) { return region.id === state.selectedId; });
   }
+  function syncDrawToolButtons() {
+    document.querySelectorAll("[data-draw-tool]").forEach(function (button) {
+      button.classList.toggle("active", button.dataset.drawTool === state.selectionTool);
+    });
+    syncGridControls();
+  }
+  function renderTypePalette() {
+    ui.typePaletteKinds.replaceChildren(); ui.typePaletteVariants.replaceChildren();
+    Object.keys(Structure.TYPES).forEach(function (type) {
+      var button = document.createElement("button");
+      button.type = "button"; button.textContent = Structure.TYPES[type].label;
+      button.classList.toggle("active", type === state.semanticType);
+      button.addEventListener("click", function () {
+        state.semanticType = type; state.semanticAppearance = appearanceFor(type).id;
+        syncPendingAppearance(); renderTypePalette();
+      });
+      ui.typePaletteKinds.appendChild(button);
+    });
+    (Structure.APPEARANCES[state.semanticType] || []).forEach(function (appearance) {
+      var button = document.createElement("button"), swatch = document.createElement("i"), label = document.createElement("span");
+      button.type = "button"; button.classList.toggle("active", appearance.id === state.semanticAppearance);
+      swatch.style.background = appearance.color; label.textContent = appearance.label; button.append(swatch, label);
+      button.addEventListener("click", function () {
+        state.semanticAppearance = appearance.id; syncPendingAppearance(); closeTypePalette();
+        setStatus(appearance.label + " armed. Every completed lasso becomes one separate " + Structure.TYPES[state.semanticType].label.toLowerCase() + ".");
+      });
+      ui.typePaletteVariants.appendChild(button);
+    });
+  }
+  function openTypePalette(clientX, clientY) {
+    renderTypePalette(); ui.typePalette.hidden = false;
+    var width = 330, height = 330;
+    ui.typePalette.style.left = clamp(clientX, 8, window.innerWidth - width - 8) + "px";
+    ui.typePalette.style.top = clamp(clientY, 8, window.innerHeight - height - 8) + "px";
+  }
+  function closeTypePalette() { ui.typePalette.hidden = true; }
   function renderInspector() {
     var region = selectedRegion();
     setEnabled(ui.inspector, !!region);
@@ -787,11 +889,14 @@
     renderPreview();
     renderInspector();
     renderSummary();
-    renderSelectionReceipt();
+    syncPendingAppearance();
+    updateHistoryControls();
+    updateGridReceipt();
   }
   function applySelectedRegion() {
     var region = selectedRegion();
     if (!region) return;
+    pushUndo();
     state.review = Structure.updateRegion(state.review, region.id, {
       type: ui.regionType.value,
       appearance: ui.regionAppearance.value,
@@ -819,69 +924,62 @@
   ui.drawGridCell.addEventListener("click", function () {
     state.gridMode = "gridded";
     state.calibrating = !state.calibrating;
+    state.verifyingGrid = false;
     state.drag = null;
+    if (state.calibrating) state.gridVisible = false;
     syncGridControls();
     setStatus(state.calibrating
-      ? "Drag exactly one printed grid square—from one corner to its opposite corner."
+      ? "The generated overlay is hidden. Zoom in, then drag exactly one printed square from corner to opposite corner."
       : "Grid drawing cancelled.");
+  });
+  ui.verifyGrid.addEventListener("click", function () {
+    state.verifyingGrid = true; state.calibrating = false; state.gridVisible = true; state.drag = null;
+    syncGridControls(); setStatus("Click a matching printed-grid intersection near the far edge. This exposes accumulated size drift.");
   });
   ui.noGrid.addEventListener("click", function () {
     state.gridMode = "ungridded";
     state.calibrating = false;
+    state.verifyingGrid = false;
+    state.gridVisible = false;
     state.drag = null;
     clearReview();
     syncGridControls();
-    ui.gridNote.textContent = "Ungrounded artwork will use the chosen number of squares across.";
+    ui.gridNote.className = "grid-note good";
+    ui.gridNote.textContent = "No printed grid. The chosen map width becomes the tactical scale; the overlay can remain hidden.";
     setStatus("Choose the intended map width, then propose regions.");
   });
   [ui.gridCellPx, ui.gridOriginX, ui.gridOriginY, ui.targetColumns].forEach(function (input) {
-    input.addEventListener("change", function () { clearReview(); renderOverlay(); });
+    input.addEventListener("change", function () { state.gridVerified = false; clearReview(); renderOverlay(); });
   });
   ui.proposeRegions.addEventListener("click", propose);
-  document.querySelectorAll("[data-selection-tool]").forEach(function (button) {
+  document.querySelectorAll("[data-draw-tool]").forEach(function (button) {
     button.addEventListener("click", function () {
-      state.selectionTool = button.dataset.selectionTool;
-      document.querySelectorAll("[data-selection-tool]").forEach(function (item) { item.classList.toggle("active", item === button); });
-      ui.toleranceControl.hidden = state.selectionTool !== "magic";
-      syncGridControls();
-      setStatus(state.selectionTool === "inspect"
-        ? "Inspect mode. Click an existing colored region."
-        : state.selectionTool === "magic"
-          ? state.selection && state.selection.cells.length
-            ? "Color assist is fenced by the current lasso. Click a material inside it."
-            : "Color assist is bounded. Draw a loose lasso first, then return here."
-          : "Draw a freehand boundary around one artwork feature; release to close it.");
+      state.selectionTool = button.dataset.drawTool; state.editAddRegionId = null;
+      syncDrawToolButtons();
+      setStatus(state.selectionTool === "pointer" ? "Pointer active. Select one structure to edit its properties."
+        : state.selectionTool === "lasso" ? "Lasso active. Right-click for type and variant; release each drawing to save it."
+          : state.selectionTool === "eraser" ? (state.selectedId ? "Eraser targets the selected structure only." : "Eraser will trim every authored footprint it crosses.")
+            : "Pan active. Drag the artwork without changing structures.");
     });
-  });
-  document.querySelectorAll("[data-selection-operation]").forEach(function (button) {
-    button.addEventListener("click", function () {
-      state.selectionOperation = button.dataset.selectionOperation;
-      document.querySelectorAll("[data-selection-operation]").forEach(function (item) { item.classList.toggle("active", item === button); });
-      setStatus((state.selectionOperation === "replace" ? "Replace this working footprint" : state.selectionOperation === "add" ? "Add to this working footprint" : "Subtract from this working footprint") + ". Saved structures are unchanged.");
-    });
-  });
-  document.querySelectorAll("[data-semantic-type]").forEach(function (button) {
-    button.addEventListener("click", function () {
-      state.semanticType = button.dataset.semanticType;
-      state.semanticAppearance = state.semanticType === "ground" ? "ground" : appearanceFor(state.semanticType).id;
-      document.querySelectorAll("[data-semantic-type]").forEach(function (item) { item.classList.toggle("active", item === button); });
-      syncPendingAppearance(); renderSelectionReceipt(); renderOverlay();
-      setStatus((state.semanticType === "ground" ? "Ground / erase" : Structure.TYPES[state.semanticType].label)
-        + " selected. The working footprint changed color; no saved structure was removed.");
-    });
-  });
-  ui.semanticAppearance.addEventListener("change", function () {
-    state.semanticAppearance = ui.semanticAppearance.value;
-    syncPendingAppearance(); renderSelectionReceipt(); renderOverlay();
-    setStatus(appearanceFor(state.semanticType, state.semanticAppearance).label + " selected for the working footprint.");
   });
   ui.magicTolerance.addEventListener("input", function () { ui.magicToleranceValue.textContent = ui.magicTolerance.value; });
-  ui.clearSelection.addEventListener("click", function () {
-    state.selection = null; state.magicFence = null; state.editingRegionId = null; state.lassoPoints = null; renderSelectionReceipt(); renderOverlay();
-    setStatus("Artwork selection cleared. Existing reviewed regions are unchanged.");
+  ui.colorAssist.addEventListener("click", function () {
+    var region = selectedRegion();
+    if (!region) { setStatus("Select one saved structure before using Color assist."); return; }
+    state.selection = Structure.selectionFromCells(region.cells, region.footprint || { kind: "cells" });
+    state.magicFence = Structure.selectionFromCells(state.selection.cells, state.selection.footprint);
+    state.editingRegionId = region.id; state.semanticType = region.type; state.semanticAppearance = region.appearance;
+    state.selectionTool = "magic"; syncPendingAppearance(); syncDrawToolButtons();
+    setStatus("Color assist is fenced to " + region.label + ". Click its material; no outside artwork can be selected.");
   });
-  ui.commitSelection.addEventListener("click", commitSelection);
-  ui.startNextRegion.addEventListener("click", startAnotherRegion);
+  ui.armedKit.addEventListener("click", function (event) { openTypePalette(event.clientX, event.clientY); });
+  ui.closeTypePalette.addEventListener("click", closeTypePalette);
+  ui.undoDraw.addEventListener("click", function () { restoreHistory(state.undoStack, state.redoStack, "Last authoring gesture undone"); });
+  ui.redoDraw.addEventListener("click", function () { restoreHistory(state.redoStack, state.undoStack, "Authoring gesture restored"); });
+  ui.toggleGrid.addEventListener("click", function () { state.gridVisible = !state.gridVisible; updateGridReceipt(); renderOverlay(); });
+  ui.zoomIn.addEventListener("click", function () { state.zoom *= 1.25; applyZoom(); });
+  ui.zoomOut.addEventListener("click", function () { state.zoom /= 1.25; applyZoom(); });
+  ui.zoomFit.addEventListener("click", fitArtwork);
   ui.regionToSelection.addEventListener("click", useRegionAsSelection);
   ui.regionType.addEventListener("change", function () {
     ui.regionSupport.value = Structure.TYPES[ui.regionType.value].supportMode;
@@ -897,16 +995,29 @@
     button.addEventListener("click", function () { setView(button.dataset.view); });
   });
   ui.applyRegion.addEventListener("click", applySelectedRegion);
+  ui.overlayCanvas.addEventListener("contextmenu", function (event) {
+    if (state.selectionTool !== "lasso" || !state.review) return;
+    event.preventDefault(); openTypePalette(event.clientX, event.clientY);
+  });
   ui.overlayCanvas.addEventListener("pointerdown", function (event) {
     if (event.button !== 0) return;
     var point = canvasPoint(event);
     ui.overlayCanvas.setPointerCapture && ui.overlayCanvas.setPointerCapture(event.pointerId);
-    if (state.calibrating || state.selectionTool === "inspect" || state.selectionTool === "magic") {
+    if (state.selectionTool === "pan") {
+      state.panDrag = { x: event.clientX, y: event.clientY, left: ui.artView.scrollLeft, top: ui.artView.scrollTop };
+      ui.canvasStack.classList.add("dragging"); return;
+    }
+    if (state.calibrating || state.verifyingGrid || state.selectionTool === "pointer" || state.selectionTool === "magic") {
       state.drag = { startX: point.x, startY: point.y, endX: point.x, endY: point.y };
-    } else if (state.selectionTool === "lasso") state.lassoPoints = [[point.x, point.y]];
+    } else if (state.selectionTool === "lasso" || state.selectionTool === "eraser") state.lassoPoints = [[point.x, point.y]];
     renderOverlay();
   });
   ui.overlayCanvas.addEventListener("pointermove", function (event) {
+    if (state.panDrag) {
+      ui.artView.scrollLeft = state.panDrag.left - (event.clientX - state.panDrag.x);
+      ui.artView.scrollTop = state.panDrag.top - (event.clientY - state.panDrag.y);
+      return;
+    }
     var point = canvasPoint(event);
     if (state.drag) { state.drag.endX = point.x; state.drag.endY = point.y; }
     if (state.lassoPoints) {
@@ -917,12 +1028,14 @@
   });
   ui.overlayCanvas.addEventListener("pointerup", function (event) {
     var point = canvasPoint(event);
+    if (state.panDrag) { state.panDrag = null; ui.canvasStack.classList.remove("dragging"); return; }
     if (state.calibrating) {
       if (!state.drag) return;
       finishCalibration(point);
       return;
     }
-    if (state.selectionTool === "inspect") {
+    if (state.verifyingGrid) { finishGridVerification(point); return; }
+    if (state.selectionTool === "pointer") {
       var cell = cellAtPoint(point);
       state.drag = null;
       var region = cell && state.review && Structure.regionAt(state.review, cell.c, cell.r);
@@ -933,9 +1046,12 @@
     }
     state.drag = null;
     if (state.selectionTool === "magic") magicSelect(point);
-    else if (state.selectionTool === "lasso" && state.lassoPoints) { state.lassoPoints.push([point.x, point.y]); finishLasso(); }
+    else if ((state.selectionTool === "lasso" || state.selectionTool === "eraser") && state.lassoPoints) { state.lassoPoints.push([point.x, point.y]); finishLasso(); }
   });
-  ui.overlayCanvas.addEventListener("pointercancel", function () { state.drag = null; state.lassoPoints = null; renderOverlay(); });
+  ui.overlayCanvas.addEventListener("pointercancel", function () { state.drag = null; state.lassoPoints = null; state.panDrag = null; ui.canvasStack.classList.remove("dragging"); renderOverlay(); });
+  document.addEventListener("keydown", function (event) {
+    if (event.key === "Escape") { closeTypePalette(); state.calibrating = false; state.verifyingGrid = false; state.drag = null; syncGridControls(); }
+  });
 
   Object.keys(Structure.TYPES).forEach(function (type) {
     var option = document.createElement("option");

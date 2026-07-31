@@ -80,16 +80,17 @@ modular objects.
 
 An isolated Structure Review proof now exercises that missing semantic layer at
 `_edits/mock-forge-image-structure-review.html`. Local evidence supplies broad
-area hints only. The DM first draws an image-space lasso; optional Color assist
-can refine connected color only inside that retained boundary and can be retuned
-against the original lasso. Replace/Add/Subtract now describe one working
-footprint, while an explicit Start another structure action preserves every
-saved object. The pending footprint changes color and label immediately when
-the DM chooses building, roof/deck, bridge, water, tent, tree, stairs/ramp,
-wall, or ground. Each kind exposes explicit appearance kits such as timber or
-masonry buildings, market stalls, pavilions, stone or timber bridges, and stone
-steps. Saved structures have a persistent selectable list; touching or
-overlapping authored layers no longer erase or merge each other. Reviewed
+area hints only. A compact Pointer/Lasso/Eraser/Pan toolbar now owns the drawing
+flow. In Lasso mode, right-click arms a structure kind and appearance kit, and
+each completed freehand gesture immediately saves one independent object; no
+separate footprint or Save clicks remain. Optional Color assist can refine only
+inside the retained footprint. Pointer selects saved objects, while the lasso
+eraser can trim one selected object without damaging an overlapping structure.
+Kinds include building, roof/deck, bridge, water, tent, tree, stairs/ramp, and
+wall, with explicit kits such as timber or masonry buildings, market stalls,
+pavilions, stone or timber bridges, and stone steps. Saved structures have a
+persistent selectable list; touching or overlapping authored layers no longer
+erase or merge each other. Reviewed
 structures retain editable base/top feet, walkability, access, and explicit
 solid/posts/arches/canopy/trunks/terrain/none support. Its code-native preview
 uses kind/kit colors and forms, labels elevations, keeps ground beneath raised
@@ -97,8 +98,14 @@ decks, and shows walk surfaces separately from solid volumes. This is
 intentional DM-authored review authority, not semantic certainty or live
 two-level combat authority.
 
+Grid calibration is now part of that same proof. The generated overlay can be
+hidden, artwork can be zoomed and panned, drawing one printed square establishes
+local scale and phase, and a second distant-intersection check corrects
+accumulated drift. The resulting projection explicitly covers every artwork
+edge, including partial cells, instead of stopping at the last complete square.
+
 The focused proofs pass **28/28** creation checks, **86/86**
-Blueprint/Diorama checks, **44/44** local artwork-import checks, and **43/43**
+Blueprint/Diorama checks, **44/44** local artwork-import checks, and **48/48**
 Structure Review checks; the six canonical Forge suites are **152/152**,
 and the completed real browser flows had no console errors. This remains
 isolated proof work, not production promotion or M's final visual approval.

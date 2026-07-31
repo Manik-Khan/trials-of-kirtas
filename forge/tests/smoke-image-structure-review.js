@@ -63,32 +63,37 @@ ok("Auto, one-square drawing, and ungridded calibration are all present",
   ["autoGrid", "drawGridCell", "noGrid", "targetColumns"].every((id) => html.includes(`id="${id}"`)));
 ok("automatic analysis is honestly limited to broad-area discovery",
   /Find broad areas/.test(html) && !/Propose structure regions/.test(html));
-ok("Magic, freehand lasso, and inspect are distinct artwork-selection tools",
-  ["inspect", "magic", "lasso"].every((type) => html.includes(`data-selection-tool="${type}"`)));
-ok("selection can be replaced, added to, or subtracted from before meaning is assigned",
-  ["replace", "add", "subtract"].every((type) => html.includes(`data-selection-operation="${type}"`))
-  && /Replace footprint/.test(html) && /Start another structure/.test(html)
-  && /id="commitSelection"/.test(html));
-ok("the semantic palette covers the approved structure meanings",
-  ["ground", "building", "roof", "bridge", "water", "tent", "tree", "stairs", "wall"]
-    .every((type) => html.includes(`data-semantic-type="${type}"`)));
+ok("Pointer, Lasso, Eraser, and Pan are one compact artwork toolbar",
+  ["pointer", "lasso", "eraser", "pan"].every((type) => html.includes(`data-draw-tool="${type}"`)));
+ok("each completed lasso saves one structure without a separate save step",
+  /Releasing the lasso saves that object immediately/.test(html)
+  && !/id="commitSelection"/.test(html)
+  && /function finishLasso/.test(js) && /Structure\.authorSelection/.test(js));
+ok("right-click type and variant choice arms the lasso",
+  /id="typePalette"/.test(html) && /id="typePaletteKinds"/.test(html)
+  && /id="typePaletteVariants"/.test(html) && /contextmenu/.test(js));
 ok("height, support, walkable surface, and access remain editable",
   ["regionBase", "regionTop", "regionSupport", "regionWalkable", "regionAccess", "regionAppearance"]
     .every((id) => html.includes(`id="${id}"`)));
-ok("pending meaning and appearance are visible before a footprint is saved",
+ok("armed meaning and appearance remain visible before drawing",
   /id="pendingSwatch"/.test(html) && /id="pendingMeaning"/.test(html)
-  && /id="semanticAppearance"/.test(html) && /working footprint changes color immediately/.test(html));
+  && /id="armedKit"/.test(html) && /right-click/.test(html));
 ok("Color assist is explicitly fenced by a lasso instead of searching the entire map",
-  /Color assist may refine inside that boundary, but it cannot escape it/.test(html)
+  /refine only inside its boundary/.test(html)
   && /allowedMask/.test(js) && /maskFromCells/.test(js) && /magicFence/.test(js));
+ok("grid visibility and zoom controls stay available without changing tools",
+  ["toggleGrid", "zoomOut", "zoomFit", "zoomIn", "zoomValue"].every((id) => html.includes(`id="${id}"`)));
+ok("calibration hides the generated overlay and offers a distant verification point",
+  /id="verifyGrid"/.test(html) && /state\.gridVisible = false/.test(js)
+  && /finishGridVerification/.test(js));
 ok("the live preview is code-native and carries the honest boundary",
   /id="previewCanvas"/.test(html)
   && /Renderer study only/.test(html)
   && !/three(?:\.min)?\.js/i.test(html + js));
 ok("all structure-review assets carry current cache stamps",
-  html.includes("mock-forge-image-structure-review.css?v=sr8")
-  && html.includes("mock-forge-image-structure-review-core.js?v=sr8")
-  && html.includes("mock-forge-image-structure-review.js?v=sr8")
+  html.includes("mock-forge-image-structure-review.css?v=sr9")
+  && html.includes("mock-forge-image-structure-review-core.js?v=sr9")
+  && html.includes("mock-forge-image-structure-review.js?v=sr9")
   && html.includes("mock-forge-image-importer-core.js?v=ii3"));
 ok("the preview joins region cells and explains elevation instead of drawing per-cell tent spikes",
   /function joinedPrism/.test(js) && /function heightRuler/.test(js) && /function heightLabel/.test(js)
@@ -123,6 +128,19 @@ ok("a freehand image-space polygon derives tactical grid coverage afterward",
   polygonCells.length === 4
   && polygonCells.some(([c, r]) => c === 1 && r === 1)
   && polygonCells.some(([c, r]) => c === 2 && r === 2));
+
+const coveredGrid = Structure.gridCoveringArtwork(105, 83, 20, 5, 3, { manualCell: true });
+ok("a calibrated grid projects through every artwork edge including partial cells",
+  coveredGrid.originX === -15 && coveredGrid.originY === -17
+  && coveredGrid.cols === 6 && coveredGrid.rows === 5
+  && coveredGrid.originX + coveredGrid.cols * coveredGrid.cellPx >= 105
+  && coveredGrid.originY + coveredGrid.rows * coveredGrid.cellPx >= 83);
+const farCheckedGrid = Structure.refineGridFromPoint(220, 180, coveredGrid, { x: 5, y: 3 }, { x: 205, y: 163 });
+ok("a distant printed intersection corrects accumulated cell-size drift",
+  farCheckedGrid && Math.abs(farCheckedGrid.cellPx - 20) < 0.001
+  && farCheckedGrid.evidence.farPointChecked
+  && farCheckedGrid.evidence.gridSteps[0] === 10
+  && farCheckedGrid.evidence.gridSteps[1] === 8);
 
 const magicPixels = new Uint8ClampedArray(4 * 3 * 4);
 for (let i = 0; i < 12; i++) {
@@ -229,6 +247,15 @@ ok("a newly saved semantic layer does not erase an overlapping authored structur
   overlappingBridge.review.regions.some((region) => region.type === "wall" && region.source === "dm-authored"
     && region.cells.some(([c, r]) => c === 0 && r === 3))
   && overlappingBridge.review.regions.some((region) => region.type === "bridge" && region.appearance === "stone-arches"));
+const targetedErase = Structure.eraseSelection(overlappingBridge.review,
+  Structure.selectionFromCells([[0, 3]], { kind: "polygon", points: [[0, 0], [1, 0], [1, 1]] }),
+  overlappingBridge.regionId);
+ok("the lasso eraser can trim one selected structure without touching an overlap",
+  targetedErase.affected === 1
+  && targetedErase.review.regions.some((region) => region.type === "wall"
+    && region.cells.some(([c, r]) => c === 0 && r === 3))
+  && targetedErase.review.regions.some((region) => region.id === overlappingBridge.regionId
+    && !region.cells.some(([c, r]) => c === 0 && r === 3)));
 
 const bridgePaint = Structure.paintRect(reviewed, { c: 0, r: 0 }, { c: 4, r: 0 }, "bridge");
 reviewed = Structure.updateRegion(bridgePaint.review, bridgePaint.regionId, {
