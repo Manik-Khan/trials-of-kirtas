@@ -1093,22 +1093,31 @@ and compiles the reviewed facts into a draft
 - climb access reports doubled movement cost unless the creature has a
   climbing speed.
 
-The compact artwork toolbar supplies Pointer, Lasso, Eraser, and Pan. Lasso
-right-click opens the structure-kind and appearance-kit palette; releasing each
-freehand gesture immediately saves that footprint as an independent object.
+The compact artwork toolbar supplies Pointer, grid Brush, Lasso, Eraser, and
+Pan. Brush drags straight cell rectangles; Lasso follows irregular artwork.
+Right-click anywhere on the artwork opens Map Tools, then reveals only the
+active tool's drawing facts, eraser size, selection deletion, or zoom guidance.
+Releasing each Brush or Lasso gesture immediately saves that footprint as an
+independent object.
 The armed kind persists for successive gestures, so repeated buildings or
-bridges do not require repeated confirmation. Optional Color assist remains
-hard-bounded to the selected footprint. Pointer selects persistent objects for
-editing. Eraser uses the same freehand gesture and, when an object is selected,
-trims only that footprint rather than damaging an overlap. Saved structures stay
+bridges do not require repeated confirmation. The armed drawing now includes a
+five-foot height control, the active drawing carries a height marker, and saved
+artwork labels repeat the chosen height. Eraser paints 1×1, 3×3, or 5×5 grid
+stamps; when an object is selected, it trims only that footprint rather than
+damaging an overlap. Pointer plus Delete/Backspace removes the selected whole
+surface. V/B/L/E/H/Z, bracket sizing, and F-to-fit keep the markup loop over the
+artwork. Saved structures stay
 selectable in a persistent list, and touching or overlapping authored layers no
-longer erase or silently merge each other. Tactical cells remain derived from
-the artwork boundary. Each reviewed structure can edit label, appearance,
-base/top feet, roof walkability, climb/ladder/stair/ramp access, and explicit
-solid/posts/arches/canopy/trunks/terrain/none support. Reopening an authored
-footprint preserves its ID and all vertical/support facts. The code-native
-preview joins adjacent cells into legible masses and decks, labels
-height/appearance, and makes those authored facts visible without pretending
+longer erase or silently merge each other. The former large property inspector
+and primary Color-assist controls were removed from this field path. Tactical
+cells remain derived from the artwork boundary. Only DM-authored structures
+rise in Height Preview; automatic broad-area hints remain flat artwork evidence.
+The preview joins adjacent cells into legible masses and decks, labels
+height/appearance, and lets a clicked structure change height immediately in
+five-foot steps without an Apply action. The underlying review data continues to
+carry appearance, base/top feet, roof walkability, access, and explicit support
+facts without exposing all of them as simultaneous primary controls. This makes
+the authored vertical comparison visible without pretending
 the current combat runtime can place two creatures at one `c,r` on different
 surfaces.
 
@@ -1151,12 +1160,28 @@ and Undo restored all 13. Pointer selection, grid off/on, 104% zoom, and a
 raised surfaces, and the browser reported no warnings or errors. Exact counts
 remain field evidence, not semantic authority.
 
-The focused known-answer suite passes **48/48** and all three new scripts pass
+The latest height-first city replay loaded the original licensed map locally,
+retained Auto's broad regions as flat hints, armed a 20-foot lasso, and saved one
+independent building at that exact height. Height Preview showed only that
+authored structure; clicking it opened the contextual height control and raised
+it immediately to 25 feet. Returning to Artwork closed the preview popover, so
+the right-click kind/kit/height palette remains the only contextual menu. No
+console warnings or errors were observed.
+
+The grid-markup replay then used B to arm Brush, dragged a 35-cell straight
+surface, and opened Map Tools from the artwork. A selected 3×3 Eraser stroke
+trimmed it to 16 cells; V plus Backspace deleted the remaining whole surface,
+and Undo restored it. Brackets changed the eraser to 5×5, Z/click zoomed from
+83% to 104%, and F returned to fit. Right-click while Zoom was active left zoom
+at 83% and opened only Map Tools. No browser warnings or errors were observed.
+
+The focused known-answer suite passes **59/59** and all proof scripts pass
 `node --check`. Browser interaction covered persistent multi-structure
-authoring, immediate right-click kind/kit identity, automatic per-gesture save,
-targeted lasso erase/Undo, Pointer selection, full-artwork grid calibration,
-zoom/pan/grid visibility, explicit supports, and joined height/Split previews on
-the city artwork with no console errors.
+authoring, grid Brush, drawing-time height, direct preview height changes,
+automatic per-gesture save, sized Eraser/Undo, Pointer whole-surface deletion,
+hotkeys, full-artwork grid calibration, zoom/pan/grid visibility, explicit
+supports, and joined height/Split previews on the city artwork with no console
+errors.
 The earlier browser interaction also covered both supplied artwork types. One
 current-build city broad-area pass produced 15 proposals; that count is evidence
 only, never semantic authority.
@@ -1166,6 +1191,33 @@ production maps, persist licensed artwork, or establish live surface-aware
 occupancy, pathfinding, LoS, reactions, replay, or multiplayer. Promotion
 requires M's semantic-review approval followed by a versioned
 `surfaceId`/connector contract before renderer or movement work.
+
+### Reviewed artwork combat handoff candidate · July 31
+
+`_edits/mock-forge-image-combat-handoff.html` is the approved next isolated
+seam. Structure Review now samples the source pixels inside every saved
+footprint and stores a small `local-pixels` palette on that authored region.
+The handoff keeps the licensed downsample and review payload in private browser
+session storage. Its adapter emits the current readable
+`{cols,rows,h,wall,occ,coverShape,spawns,props,meta}` map shape: confirmed
+buildings/walls/tents and water block; trees contribute sub-cell occlusion;
+roofs/bridges become the current effective elevated surface; and connected
+stairs produce explicit elevation points. Automatic hints affect no rule.
+
+The proof calls the real version-3 deployment authority for a three-character
+party and three foes, preferring the established 40–90 ft opening band. A
+disposable fight then consumes current tactical movement, height, range, LoS,
+cover, and combat-roll helpers. On the licensed city map the browser carried
+one 16-cell confirmed structure and its sampled colors into a 25×38 map,
+placed all six combatants without stacking or blocked cells, rolled initiative,
+moved Liadan 5 ft by a board click, and resolved her attack roll. No browser
+warnings or errors were observed. The focused handoff smoke passes **22/22**.
+
+This is not production combat or a complete engine port. It uses sample local
+combatants, writes no character/session state, and still permits only one
+effective surface per square. Bridge decks can be selected as the combat
+surface, but simultaneous deck/ground occupancy remains blocked on the stable
+`surfaceId` seam.
 
 ### After that proof: active Phase 2 production terrain
 

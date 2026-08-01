@@ -1,0 +1,87 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Forge Artwork Combat Handoff · isolated proof</title>
+<link rel="stylesheet" href="mock-forge-image-combat-handoff.css?v=ich1">
+</head>
+<body>
+<header class="topbar">
+  <div><span>Battle Forge · isolated handoff proof</span><h1>Reviewed artwork → fight</h1></div>
+  <div class="contract"><small>Current readable map</small><strong>cols · rows · h · wall · occ</strong></div>
+</header>
+
+<main>
+  <aside class="left-panel">
+    <section>
+      <span class="eyebrow">01 · Source</span>
+      <h2 id="sourceName">Waiting for reviewed artwork</h2>
+      <p id="sourceReceipt">Open this proof from Structure Review so the local image and confirmed marks can cross together.</p>
+      <div class="palette" id="palette"></div>
+    </section>
+    <section>
+      <span class="eyebrow">02 · Map</span>
+      <h2>Translate confirmed meaning.</h2>
+      <div class="receipt-list" id="mapReceipt"><p>No map compiled.</p></div>
+      <p class="boundary">Artwork colors affect appearance. Only DM-confirmed marks affect movement, height, or cover.</p>
+    </section>
+    <section>
+      <span class="eyebrow">03 · Encounter</span>
+      <h2>Use existing placement authority.</h2>
+      <button type="button" class="primary wide" id="placeCombatants" disabled>Place party + raiders</button>
+      <button type="button" class="wide" id="startFight" disabled>Roll initiative</button>
+      <a class="wide back" href="mock-forge-image-structure-review.html">Return to Structure Review</a>
+    </section>
+  </aside>
+
+  <section class="workspace">
+    <div class="workspace-head">
+      <div><span class="eyebrow">Rules-facing battlefield</span><h2 id="sceneName">No map loaded</h2></div>
+      <div class="views" aria-label="Map view">
+        <button type="button" data-view="artwork">Artwork</button>
+        <button type="button" class="active" data-view="rules">Rules map</button>
+        <button type="button" data-view="combat">Combat</button>
+      </div>
+    </div>
+    <div class="board-wrap" id="boardWrap">
+      <canvas id="board" width="1200" height="780" aria-label="Reviewed artwork combat map"></canvas>
+      <div class="empty" id="empty"><b>No reviewed map arrived.</b><span>Return to Structure Review, draw at least one structure, then continue.</span></div>
+    </div>
+    <div class="status" id="status">Waiting for a local handoff.</div>
+  </section>
+
+  <aside class="right-panel">
+    <section>
+      <span class="eyebrow">Table state</span>
+      <h2 id="turnTitle">Not in combat</h2>
+      <p id="turnHelp">Place combatants, then roll initiative.</p>
+      <div class="turn-actions">
+        <button type="button" id="attackNearest" disabled>Attack nearest foe</button>
+        <button type="button" id="endTurn" disabled>End turn</button>
+      </div>
+    </section>
+    <section>
+      <div class="roster-head"><span class="eyebrow">Combatants</span><b id="roundLabel">—</b></div>
+      <div class="roster" id="roster"><p>No combatants placed.</p></div>
+    </section>
+    <section>
+      <span class="eyebrow">Combat feed</span>
+      <div class="feed" id="feed"><p>Movement, range, height, line of sight, cover, and attack results appear here.</p></div>
+    </section>
+    <section class="limit">
+      <span class="eyebrow">Honest boundary</span>
+      <p><b>One effective surface per square.</b> A raised bridge can be fought on in this proof, but a second creature cannot simultaneously occupy the ground beneath it yet.</p>
+    </section>
+  </aside>
+</main>
+
+<div class="fatal" id="fatal" role="alert"></div>
+<script src="../forge/forge-deployment.js?v=fd3"></script>
+<script src="../forge/tactics-geometry.js?v=ich1"></script>
+<script src="../forge/forge-combat-rules.js?v=fcr3"></script>
+<script src="../forge/map-bridge.js?v=ich1"></script>
+<script src="mock-forge-image-combat-handoff-core.js?v=ich3"></script>
+<script src="mock-forge-image-combat-handoff.js?v=ich2"></script>
+</body>
+</html>

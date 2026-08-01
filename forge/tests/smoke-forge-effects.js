@@ -5,7 +5,7 @@ let pass=0;
 function ok(v,label){if(!v)throw new Error("FAIL: "+label);pass++;console.log("ok",pass,"-",label);}
 function row(seq,kind,unit,payload){return {seq,kind,unit,payload:payload||{}};}
 
-ok(E.VERSION==="1.6.0","version pinned");
+ok(E.VERSION==="1.7.0","version pinned");
 const add=E.addSanctuary({source:"liadan",target:"vesperian",dc:13,nonce:7});
 ok(add.add_effect.kind==="sanctuary"&&add.add_effect.dc===13,"Sanctuary effect record carries kind and DC");
 ok(add.add_effect.duration.count===10&&add.add_effect.duration.unit==="liadan","Sanctuary lasts ten source turns");
@@ -61,7 +61,7 @@ const marked=E.replay([row(1,"initiative_set","dm",{order:["chonk","lizard"]}),r
 ok(E.find(marked,"lizard","hunters-mark").die==="1d6"&&E.concentrationRemovals(marked,"chonk").length===1,"Hunter's Mark is a replayable concentration effect");
 const rage=E.addRage({source:"chonk",nonce:25,wildSurge:6});
 const raging=E.replay([row(1,"initiative_set","dm",{order:["chonk","lizard"]}),row(2,"ability_used","chonk",{effects:[rage]})]);
-ok(E.find(raging,"chonk","rage").wildSurge===6,"Rage and its Wild Magic roll survive replay");
+ok(E.find(raging,"chonk","rage").wildSurge===6&&E.find(raging,"chonk","rage").wildSurgeResult.title==="Protective lights","Rage preserves the visible Wild Surge roll and its attached result");
 const raven=E.addRavenResistance({source:"vesperian",nonce:24});
 let ravenState=E.replay([row(1,"initiative_set","dm",{order:["vesperian","goblin"]}),row(2,"ability_used","vesperian",{effects:[raven]}),row(3,"turn_ended","vesperian",{})]);
 ok(!!E.find(ravenState,"vesperian","raven-resistance"),"Raven Queen resistance survives the rest of its activation round");

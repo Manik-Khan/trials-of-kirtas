@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
 <title>Forge Structure Review · isolated proof</title>
-  <link rel="stylesheet" href="mock-forge-image-structure-review.css?v=sr9">
+  <link rel="stylesheet" href="mock-forge-image-structure-review.css?v=sr12">
 </head>
 <body>
 <header class="topbar">
@@ -49,27 +49,25 @@
 
     <section id="selectionPanel" class="disabled">
       <span class="eyebrow">03 · Draw</span>
-      <h2>One gesture, one structure.</h2>
-      <p>Choose Lasso, right-click the artwork to arm a kind and variant, then draw. Releasing the lasso saves that object immediately.</p>
+      <h2>Mark the map without leaving it.</h2>
+      <p>Brush draws straight grid rectangles. Lasso follows irregular artwork. Right-click anywhere on the map to change tools.</p>
       <div class="draw-tools" aria-label="Artwork tools">
-        <button type="button" class="active" data-draw-tool="pointer">↖<span>Pointer</span></button>
-        <button type="button" data-draw-tool="lasso">⌁<span>Lasso</span></button>
-        <button type="button" data-draw-tool="eraser">⌫<span>Eraser</span></button>
-        <button type="button" data-draw-tool="pan">✋<span>Pan</span></button>
+        <button type="button" class="active" data-draw-tool="pointer" title="V · Pointer">↖<span>Pointer</span></button>
+        <button type="button" data-draw-tool="brush" title="B · Grid brush">▦<span>Brush</span></button>
+        <button type="button" data-draw-tool="lasso" title="L · Lasso">⌁<span>Lasso</span></button>
+        <button type="button" data-draw-tool="eraser" title="E · Eraser">⌫<span>Eraser</span></button>
+        <button type="button" data-draw-tool="pan" title="H · Hand">✋<span>Pan</span></button>
       </div>
       <button type="button" class="armed-kit wide" id="armedKit"><i id="pendingSwatch"></i><span><small>Armed drawing</small><b id="pendingMeaning">Building · Timber house</b></span><em>right-click</em></button>
+      <div class="draw-height" aria-label="Height for the next structure">
+        <button type="button" id="drawHeightDown" aria-label="Lower drawing height by 5 feet">− 5</button>
+        <span><small>Draw height</small><b id="drawHeightValue">15 ft</b></span>
+        <button type="button" id="drawHeightUp" aria-label="Raise drawing height by 5 feet">+ 5</button>
+      </div>
       <div class="history-tools">
         <button type="button" id="undoDraw" disabled>↶ Undo</button>
         <button type="button" id="redoDraw" disabled>↷ Redo</button>
       </div>
-      <details class="color-assist">
-        <summary>Optional Color assist</summary>
-        <p>After drawing, select the object and refine only inside its boundary.</p>
-        <label class="tolerance">Tolerance
-          <span><input id="magicTolerance" type="range" min="4" max="45" value="18"><b id="magicToleranceValue">18</b></span>
-        </label>
-        <button type="button" class="wide" id="colorAssist">Refine selected object</button>
-      </details>
     </section>
   </aside>
 
@@ -112,72 +110,44 @@
 
   <aside class="review-panel">
     <section>
-      <span class="eyebrow">Proposal receipt</span>
-      <h2 id="sceneName">No structure review</h2>
-      <dl class="metrics">
-        <div><dt>Grid</dt><dd id="metricGrid">—</dd></div>
-        <div><dt>Regions</dt><dd id="metricRegions">—</dd></div>
-        <div><dt>Surfaces</dt><dd id="metricSurfaces">—</dd></div>
-        <div><dt>Connectors</dt><dd id="metricConnectors">—</dd></div>
-      </dl>
-      <div class="type-summary" id="typeSummary"><p>Local proposals will be grouped here.</p></div>
-      <div class="authored-head"><span class="eyebrow">Saved structures</span><b id="authoredCount">0</b></div>
+      <div class="authored-head first"><span class="eyebrow">Structures</span><b id="authoredCount">0</b></div>
+      <h2>What you have drawn.</h2>
+      <p>Automatic hints stay on the artwork. Only your saved structures rise in Height Preview.</p>
       <div class="authored-list" id="authoredList"><p>No DM-authored structures yet.</p></div>
     </section>
 
-    <section id="inspector" class="disabled">
-      <span class="eyebrow">Height &amp; support</span>
+    <section id="selectedPanel" class="disabled">
+      <span class="eyebrow">Selected structure</span>
       <h2 id="regionName">Nothing selected</h2>
-      <p id="regionReceipt">Inspect a proposed region or draw a new one.</p>
-      <label>Meaning
-        <select id="regionType"></select>
-      </label>
-      <label>Appearance / kit
-        <select id="regionAppearance"></select>
-      </label>
-      <label>Label
-        <input id="regionLabel" value="">
-      </label>
-      <div class="height-row">
-        <label>Base <span><input id="regionBase" type="number" step="2.5" min="-20" max="100" value="0"> ft</span></label>
-        <label>Top / deck <span><input id="regionTop" type="number" step="2.5" min="0" max="120" value="15"> ft</span></label>
+      <p id="regionReceipt">Select a structure on the artwork, list, or Height Preview.</p>
+      <div class="selected-height" aria-label="Change selected structure height">
+        <button type="button" id="selectedHeightDown">− 5</button>
+        <span><small>Height</small><b id="selectedHeightValue">—</b></span>
+        <button type="button" id="selectedHeightUp">+ 5</button>
       </div>
-      <div class="height-adjust" aria-label="Raise or lower selected structure">
-        <button type="button" data-height-step="-5">Lower 5 ft</button>
-        <button type="button" data-height-step="5">Raise 5 ft</button>
-      </div>
-      <label>Support
-        <select id="regionSupport">
-          <option value="solid">Solid walls / mass</option>
-          <option value="posts">Posts</option>
-          <option value="arches">Arches</option>
-          <option value="canopy">Canopy / fabric</option>
-          <option value="trunks">Trunks</option>
-          <option value="terrain">Rests on terrain</option>
-          <option value="none">Unsupported / special</option>
-        </select>
-      </label>
-      <label class="check"><input id="regionWalkable" type="checkbox"> Walkable roof or deck surface</label>
-      <label>Access
-        <select id="regionAccess">
-          <option value="none">None / special movement</option>
-          <option value="stairs">Stairs</option>
-          <option value="ramp">Ramp</option>
-          <option value="ladder">Ladder</option>
-          <option value="climb">Climb</option>
-        </select>
-      </label>
-      <button type="button" class="primary wide" id="applyRegion">Apply region changes</button>
-      <button type="button" class="wide" id="regionToSelection">Add with next lasso</button>
-      <div class="height-receipt" id="heightReceipt">Select a raised region to inspect its vertical span.</div>
-      <div class="movement-note" id="movementNote">Movement evidence appears after selecting an elevated region.</div>
+      <div class="height-receipt" id="heightReceipt">Choose a structure to compare its height with the rest of the scene.</div>
     </section>
 
     <section>
-      <span class="eyebrow">Surface receipt</span>
-      <div class="surface-receipt" id="surfaceReceipt"><p>No surfaces or volumes compiled.</p></div>
-      <details>
-        <summary>Review JSON</summary>
+      <span class="eyebrow">04 · Continue</span>
+      <h2>Bring the reviewed map to the table.</h2>
+      <p>The artwork palette and only your confirmed structure marks cross this boundary.</p>
+      <button type="button" class="primary wide" id="openCombatProof" disabled>Place combatants on this map</button>
+      <p class="boundary">Isolated proof: no upload, save, session, or character-sheet write.</p>
+    </section>
+
+    <section>
+      <details class="technical-receipt">
+        <summary>Technical receipt</summary>
+        <h2 id="sceneName">No structure review</h2>
+        <dl class="metrics">
+          <div><dt>Grid</dt><dd id="metricGrid">—</dd></div>
+          <div><dt>Regions</dt><dd id="metricRegions">—</dd></div>
+          <div><dt>Surfaces</dt><dd id="metricSurfaces">—</dd></div>
+          <div><dt>Connectors</dt><dd id="metricConnectors">—</dd></div>
+        </dl>
+        <div class="type-summary" id="typeSummary"><p>Local proposals will be grouped here.</p></div>
+        <div class="surface-receipt" id="surfaceReceipt"><p>No surfaces or volumes compiled.</p></div>
         <pre id="reviewJson">{}</pre>
       </details>
       <p class="boundary">This proof proposes Map 2.0 annotations. It does not write production maps or claim live above/below occupancy.</p>
@@ -185,15 +155,52 @@
   </aside>
 </main>
 
-<div class="type-palette" id="typePalette" hidden role="dialog" aria-label="Choose structure kind and variant">
-  <div class="type-palette-head"><span>Draw as</span><button type="button" id="closeTypePalette" aria-label="Close">×</button></div>
-  <div class="type-palette-kinds" id="typePaletteKinds"></div>
-  <div class="type-palette-variants" id="typePaletteVariants"></div>
+<div class="type-palette" id="typePalette" hidden role="dialog" aria-label="Map tools">
+  <div class="type-palette-head"><span>Map tools</span><button type="button" id="closeTypePalette" aria-label="Close">×</button></div>
+  <div class="palette-tools" id="typePaletteTools">
+    <button type="button" data-palette-tool="pointer">V <span>Pointer</span></button>
+    <button type="button" data-palette-tool="brush">B <span>Brush</span></button>
+    <button type="button" data-palette-tool="lasso">L <span>Lasso</span></button>
+    <button type="button" data-palette-tool="eraser">E <span>Eraser</span></button>
+    <button type="button" data-palette-tool="pan">H <span>Pan</span></button>
+    <button type="button" data-palette-tool="zoom">Z <span>Zoom</span></button>
+  </div>
+  <div id="drawPalette">
+    <div class="type-palette-kinds" id="typePaletteKinds"></div>
+    <div class="type-palette-variants" id="typePaletteVariants"></div>
+    <div class="palette-height" aria-label="Drawing height">
+      <button type="button" id="paletteHeightDown">− 5</button>
+      <span><small>Height</small><b id="paletteHeightValue">15 ft</b></span>
+      <button type="button" id="paletteHeightUp">+ 5</button>
+    </div>
+  </div>
+  <div class="eraser-palette" id="eraserPalette" hidden>
+    <small>Eraser size</small>
+    <div><button type="button" data-eraser-size="1">1 × 1</button><button type="button" data-eraser-size="3">3 × 3</button><button type="button" data-eraser-size="5">5 × 5</button></div>
+    <p>Drag over the grid. If a structure is selected, only that structure is trimmed.</p>
+  </div>
+  <div class="pointer-palette" id="pointerPalette" hidden>
+    <button type="button" id="paletteDeleteSelected">Delete selected surface</button>
+    <p>Click a surface, then press Delete or Backspace.</p>
+  </div>
+  <div class="zoom-palette" id="zoomPalette" hidden>
+    <p>Click the map to zoom in. Shift-click to zoom out. Press F to fit.</p>
+  </div>
+  <p class="shortcut-legend">V pointer · B brush · L lasso · E erase · H pan · Z zoom · [ ] size · F fit</p>
+</div>
+
+<div class="height-popover" id="heightPopover" hidden role="dialog" aria-label="Change structure height">
+  <div class="height-popover-head"><span id="heightPopoverName">Structure</span><button type="button" id="closeHeightPopover" aria-label="Close">×</button></div>
+  <div class="palette-height">
+    <button type="button" id="previewHeightDown">− 5</button>
+    <span><small>Height</small><b id="previewHeightValue">15 ft</b></span>
+    <button type="button" id="previewHeightUp">+ 5</button>
+  </div>
 </div>
 
 <div class="fatal" id="fatal" role="alert"></div>
 <script src="mock-forge-image-importer-core.js?v=ii3"></script>
-  <script src="mock-forge-image-structure-review-core.js?v=sr9"></script>
-  <script src="mock-forge-image-structure-review.js?v=sr9"></script>
+  <script src="mock-forge-image-structure-review-core.js?v=sr12"></script>
+  <script src="mock-forge-image-structure-review.js?v=sr12"></script>
 </body>
 </html>

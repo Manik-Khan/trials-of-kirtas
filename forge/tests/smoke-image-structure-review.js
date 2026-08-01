@@ -63,24 +63,40 @@ ok("Auto, one-square drawing, and ungridded calibration are all present",
   ["autoGrid", "drawGridCell", "noGrid", "targetColumns"].every((id) => html.includes(`id="${id}"`)));
 ok("automatic analysis is honestly limited to broad-area discovery",
   /Find broad areas/.test(html) && !/Propose structure regions/.test(html));
-ok("Pointer, Lasso, Eraser, and Pan are one compact artwork toolbar",
-  ["pointer", "lasso", "eraser", "pan"].every((type) => html.includes(`data-draw-tool="${type}"`)));
-ok("each completed lasso saves one structure without a separate save step",
-  /Releasing the lasso saves that object immediately/.test(html)
+ok("Pointer, grid Brush, Lasso, Eraser, and Pan are one compact artwork toolbar",
+  ["pointer", "brush", "lasso", "eraser", "pan"].every((type) => html.includes(`data-draw-tool="${type}"`)));
+ok("each completed Brush or Lasso gesture saves one structure without a separate save step",
+  /Brush draws straight grid rectangles/.test(html)
   && !/id="commitSelection"/.test(html)
-  && /function finishLasso/.test(js) && /Structure\.authorSelection/.test(js));
-ok("right-click type and variant choice arms the lasso",
+  && /function finishGridBrush/.test(js) && /function finishLasso/.test(js)
+  && /Structure\.authorSelection/.test(js));
+ok("right-click exposes map tools before tool-specific choices",
+  /id="typePaletteTools"/.test(html)
+  && ["pointer", "brush", "lasso", "eraser", "pan", "zoom"]
+    .every((type) => html.includes(`data-palette-tool="${type}"`))
+  && /id="drawPalette"/.test(html) && /id="eraserPalette"/.test(html));
+ok("right-click cannot execute the active left-button drawing or zoom tool",
+  /addEventListener\("pointerup", function \(event\) \{\s*if \(event\.button !== 0\) return;/.test(js));
+ok("right-click type and variant choice arms Brush or Lasso",
   /id="typePalette"/.test(html) && /id="typePaletteKinds"/.test(html)
   && /id="typePaletteVariants"/.test(html) && /contextmenu/.test(js));
-ok("height, support, walkable surface, and access remain editable",
-  ["regionBase", "regionTop", "regionSupport", "regionWalkable", "regionAccess", "regionAppearance"]
-    .every((id) => html.includes(`id="${id}"`)));
-ok("armed meaning and appearance remain visible before drawing",
+ok("height is part of the armed drawing instead of a large property form",
+  ["drawHeightDown", "drawHeightValue", "drawHeightUp"]
+    .every((id) => html.includes(`id="${id}"`))
+  && ["regionBase", "regionTop", "regionSupport", "regionWalkable", "regionAccess", "applyRegion"]
+    .every((id) => !html.includes(`id="${id}"`)));
+ok("armed meaning, appearance, and height remain visible before drawing",
   /id="pendingSwatch"/.test(html) && /id="pendingMeaning"/.test(html)
-  && /id="armedKit"/.test(html) && /right-click/.test(html));
-ok("Color assist is explicitly fenced by a lasso instead of searching the entire map",
-  /refine only inside its boundary/.test(html)
-  && /allowedMask/.test(js) && /maskFromCells/.test(js) && /magicFence/.test(js));
+  && /id="armedKit"/.test(html) && /id="drawHeightValue"/.test(html) && /right-click/.test(html));
+ok("the primary workflow omits Color assist and Magic selection controls",
+  !/id="colorAssist"/.test(html) && !/id="magicTolerance"/.test(html)
+  && !/data-draw-tool="magic"/.test(html));
+ok("right-click can set the next lasso height without leaving the artwork",
+  ["paletteHeightDown", "paletteHeightValue", "paletteHeightUp"]
+    .every((id) => html.includes(`id="${id}"`)));
+ok("the lasso and saved artwork labels show their authored height",
+  /var marker = state\.drawHeightFt \+ " ft"/.test(js)
+  && /Structure\.TYPES\[region\.type\]\.label \+ " · " \+ region\.topFt \+ " FT"/.test(js));
 ok("grid visibility and zoom controls stay available without changing tools",
   ["toggleGrid", "zoomOut", "zoomFit", "zoomIn", "zoomValue"].every((id) => html.includes(`id="${id}"`)));
 ok("calibration hides the generated overlay and offers a distant verification point",
@@ -91,13 +107,34 @@ ok("the live preview is code-native and carries the honest boundary",
   && /Renderer study only/.test(html)
   && !/three(?:\.min)?\.js/i.test(html + js));
 ok("all structure-review assets carry current cache stamps",
-  html.includes("mock-forge-image-structure-review.css?v=sr9")
-  && html.includes("mock-forge-image-structure-review-core.js?v=sr9")
-  && html.includes("mock-forge-image-structure-review.js?v=sr9")
+  html.includes("mock-forge-image-structure-review.css?v=sr12")
+  && html.includes("mock-forge-image-structure-review-core.js?v=sr12")
+  && html.includes("mock-forge-image-structure-review.js?v=sr12")
   && html.includes("mock-forge-image-importer-core.js?v=ii3"));
+ok("reviewed structures retain a local pixel palette and can enter the combat proof",
+  typeof Structure.paletteForCells === "function"
+  && /id="openCombatProof"/.test(html)
+  && /forge-image-combat-handoff\/v1/.test(js)
+  && /palette: Structure\.paletteForCells/.test(js));
 ok("the preview joins region cells and explains elevation instead of drawing per-cell tent spikes",
   /function joinedPrism/.test(js) && /function heightRuler/.test(js) && /function heightLabel/.test(js)
   && !/var base = project\(cell\[0\].*peak = project/.test(js));
+ok("automatic broad-area hints do not rise as unreviewed 3D structures",
+  /state\.review\.regions\.filter\(function \(region\) \{\s*return region\.source === "dm-authored"/.test(js));
+ok("Height Preview supports direct per-structure five-foot changes",
+  ["heightPopover", "previewHeightDown", "previewHeightValue", "previewHeightUp"]
+    .every((id) => html.includes(`id="${id}"`))
+  && /function previewRegionAt/.test(js) && /function adjustSelectedHeight/.test(js)
+  && /ui\.previewCanvas\.addEventListener\("click"/.test(js));
+ok("the grid eraser offers one-, three-, and five-cell square stamps",
+  [1, 3, 5].every((size) => html.includes(`data-eraser-size="${size}"`))
+  && /function eraserStamp/.test(js) && /kind: "grid-eraser"/.test(js)
+  && !/\.canvas-stack\.erasing #overlayCanvas \{ cursor: not-allowed/.test(css));
+ok("Photoshop-style map hotkeys stay on the artwork",
+  /var tools = \{ v: "pointer", b: "brush", l: "lasso", e: "eraser", h: "pan", z: "zoom" \}/.test(js)
+  && /event\.key === "Delete" \|\| event\.key === "Backspace"/.test(js)
+  && /event\.key === "\[" \|\| event\.key === "\]"/.test(js)
+  && /key === "f"/.test(js));
 
 const roofBlue = Structure.semanticCandidate(cell(0, 0, "water", "water", 0.08, 0.012, 0.3));
 const openWater = Structure.semanticCandidate(cell(0, 0, "water", "water", 0.015, 0.002, 0.48));
@@ -120,6 +157,10 @@ ok("every local proposal retains confidence and provenance",
   proposed.regions.every((region) => region.source === "local-proposal"
     && region.confidence > 0 && region.confidence < 1
     && Structure.APPEARANCES[region.type].some((appearance) => appearance.id === region.appearance)));
+const localPalette = Structure.paletteForCells(analysisFixture(), [[1, 1], [2, 1], [1, 2], [2, 2]]);
+ok("a selected footprint derives its appearance palette from its own source cells",
+  localPalette && /^#[0-9a-f]{6}$/.test(localPalette.primary)
+  && localPalette.source === "local-pixels" && localPalette.samples === 4);
 
 const polygonGrid = { cellPx: 10, originX: 0, originY: 0, cols: 4, rows: 4 };
 const polygonCells = Structure.cellsFromPolygon(polygonGrid,
@@ -256,6 +297,12 @@ ok("the lasso eraser can trim one selected structure without touching an overlap
     && region.cells.some(([c, r]) => c === 0 && r === 3))
   && targetedErase.review.regions.some((region) => region.id === overlappingBridge.regionId
     && !region.cells.some(([c, r]) => c === 0 && r === 3)));
+const deletedBridge = Structure.deleteRegion(overlappingBridge.review, overlappingBridge.regionId);
+ok("Delete or Backspace can remove one selected authored surface without touching overlaps",
+  deletedBridge.deleted
+  && !deletedBridge.review.regions.some((region) => region.id === overlappingBridge.regionId)
+  && deletedBridge.review.regions.some((region) => region.type === "wall" && region.source === "dm-authored")
+  && deletedBridge.review.history.at(-1).kind === "delete-region");
 
 const bridgePaint = Structure.paintRect(reviewed, { c: 0, r: 0 }, { c: 4, r: 0 }, "bridge");
 reviewed = Structure.updateRegion(bridgePaint.review, bridgePaint.regionId, {

@@ -9,7 +9,7 @@
 })(typeof self!=="undefined"?self:this,function(){
   "use strict";
 
-  var VERSION="1.3.0";
+  var VERSION="1.4.0";
   function avgFormula(formula){
     var total=0,ok=false;
     String(formula||"").replace(/(\d+)d(\d+)|([+-]?\d+)/gi,function(_,n,f,flat){
@@ -51,7 +51,7 @@
     return reasons;
   }
   function planTurn(input){
-    input=input||{};var actions=(input.actions||[]).filter(function(a){return a&&a.kind==="attack"&&a.dmg;}),targets=(input.targets||[]).filter(function(t){return t&&t.alive!==false;}),origins=input.origins||[],evaluate=input.evaluate;
+    input=input||{};var actions=(input.actions||[]).filter(function(a){return a&&(a.kind==="attack"||a.kind==="save")&&a.dmg;}),targets=(input.targets||[]).filter(function(t){return t&&t.alive!==false;}),origins=input.origins||[],evaluate=input.evaluate;
     var legal=[];
     origins.forEach(function(origin){actions.forEach(function(action){targets.forEach(function(target){
       var ro=typeof evaluate==="function"?evaluate(origin,action,target):{ok:false};

@@ -1280,6 +1280,7 @@ playable two-level authority.
 
 Initial implementation baseline: `7f0160c`; the persistent multi-structure
 iteration refreshed against `6b06df9` on `main` after M absorbed the first proof.
+The height-first simplification synchronized against clean baseline `a68063f`.
 Current ownership is limited to the
 `_edits/mock-forge-image-structure-review.{html,css,js}`,
 `_edits/mock-forge-image-structure-review-core.js`, the focused
@@ -1288,24 +1289,30 @@ committed importer, Blueprint/Build proof, live Forge, combat, protocol,
 generator, theme, persistence, character, and monster files were not edited.
 
 The isolated proof limits local analysis to broad-area hints, then makes the
-artwork the authoring surface. Pointer, Lasso, Eraser, and Pan remain in one
-compact toolbar. In Lasso mode, right-click arms a kind and appearance kit;
-releasing each gesture immediately saves one independent object, and the armed
-choice persists for repeated structures. Optional Color assist remains fenced
-inside the selected footprint. Pointer selects an object for editing. The lasso
-eraser trims only the selected object when footprints overlap, and Undo/Redo
-cover authoring and erasure. Kind-specific appearance kits drive saved-list
+artwork the authoring surface. Pointer, grid Brush, Lasso, Eraser, and Pan remain
+in one compact toolbar. Brush drags straight cell rectangles; Lasso follows
+irregular artwork. Right-click anywhere on the artwork opens Map Tools and then
+only the active tool's facts. Each Brush or Lasso gesture immediately saves one
+independent object, and the armed choice persists for repeated structures. The
+active drawing carries its height marker and saved artwork labels repeat it.
+Eraser paints 1×1, 3×3, or 5×5 grid stamps and can target one selected overlap;
+Pointer plus Delete/Backspace removes a whole selected surface. Undo/Redo cover
+both. V/B/L/E/H/Z, brackets, and F-to-fit keep the markup loop on the map.
+Kind-specific appearance kits drive saved-list
 identity, overlay color, and preview form. Touching or overlapping authored
-structures remain distinct. Every region can
-carry label, appearance, base/top feet, roof/deck walkability,
+structures remain distinct. The large property inspector and primary
+Color-assist controls were removed. Every region can still carry label,
+appearance, base/top feet, roof/deck walkability,
 climb/ladder/stair/ramp access, and explicit
 solid/posts/arches/canopy/trunks/terrain/none support. Reopening a footprint
 preserves its identity and all authored vertical/support facts. Its draft
 `forge-surface-proposal/v1` compiler keeps base ground, solid volumes, elevated
 walk surfaces, bridge underpass intent, and ascending stair paths distinct.
-The preview joins adjacent cells into legible structures and decks, labels
-height/support, and is explicitly a renderer study, not current combat
-authority.
+Only DM-authored regions rise in the preview; automatic hints stay flat instead
+of becoming unreviewed towers. The preview joins adjacent cells into legible
+structures and decks, labels height/support, and lets a clicked structure change
+height in immediate five-foot steps without Apply. It remains explicitly a
+renderer study, not current combat authority.
 
 Auto grid evidence remains an explicitly unverified suggestion. Calibrate hides
 the generated overlay while the DM zooms and draws one printed square; a second
@@ -1344,19 +1351,45 @@ squares without changing either bridge; Undo restored all 13. Pointer selection,
 grid off/on, 104% zoom, a 120-pixel pan, and the height preview were also
 exercised. The browser reported no warnings or errors.
 
-The focused contract passes **48/48** and all new scripts pass `node --check`.
+The height-first city replay loaded the original local artwork, authored one
+building at 20 feet, selected it directly in Height Preview, and raised it to 25
+feet without an Apply action. Auto hints did not rise. Returning to Artwork
+closed the preview popover before the right-click palette opened; no browser
+warnings or errors were observed.
+
+The grid-markup replay used B to arm Brush and authored a 35-cell straight
+surface. A selected 3×3 Eraser stroke trimmed it to 16 cells; V plus Backspace
+deleted the remaining surface, and Undo restored it. Brackets changed Eraser to
+5×5, Z/click zoomed from 83% to 104%, and F restored fit. A corrected right-click
+while Zoom was active left zoom at 83% and opened Map Tools without executing a
+zoom action. The browser reported no warnings or errors.
+
+The focused contract passes **59/59** and all new scripts pass `node --check`.
 The importer remains **44/44**, creation and Blueprint/Diorama remain **28/28**
-and **86/86**, and the six canonical Forge suites pass **152/152**.
+and **86/86**, the isolated reviewed-artwork combat handoff passes **22/22**,
+and the six canonical Forge suites pass **152/152**.
+
+The approved next seam now exists at
+`_edits/mock-forge-image-combat-handoff.html`. Every saved Structure Review
+footprint samples and carries its own local artwork palette. The adapter emits
+the current readable Forge map arrays, lets only confirmed regions change
+movement/height/cover, uses the real version-3 deployment planner, and runs a
+disposable local fight through current tactical geometry and combat-roll
+helpers. The licensed city browser pass produced a 25×38 map with one 16-cell
+confirmed structure, placed three party members and three foes without stacking
+or blocked cells, rolled initiative, moved Liadan 5 ft from a board click, and
+resolved an attack. Browser warnings/errors: zero. The handoff explicitly keeps
+simultaneous bridge/underpass occupancy deferred.
+
 The remaining gates are:
 
-1. M judges whether the compact immediate-save lasso, Pointer/Eraser flow,
-   right-click kind/kit identity, and explicit height/support are right before
-   stronger semantic recognition.
-2. Replay the revised lasso/support workflow on the ungridded camp artwork;
+1. M judges whether the palette-preserving map and disposable fight are the
+   right bridge from importer review into current Forge behavior.
+2. Replay the revised lasso/support and combat-handoff workflow on the ungridded camp artwork;
    exact proposal counts remain evidence only, never semantic authority.
-3. If approved, settle stable `surfaceId`, creature surface position,
-   occupancy, pathfinding/LoS, and connector events before promoting raised
-   rendering.
+3. Settle stable `surfaceId`, creature surface position, occupancy,
+   pathfinding/LoS, and connector events before promoting raised rendering or
+   simultaneous bridge/underpass play.
 4. Only after that seam may stairs and climbing speed consume live movement;
    do not infer those combat rules from this renderer study.
 

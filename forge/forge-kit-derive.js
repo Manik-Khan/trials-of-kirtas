@@ -318,9 +318,11 @@ function combatErrorKit(charData, err) {
         recharge: "short rest", die: null, tag: null, origin: "class", source: "class", custom: false });
     }
     var featureText=(s.features||[]).map(function(f){return String(f&&f.name||f||"");}).join(" | ");
-    if(!seen.hexbladeCurse&&has(featureText,"hexblade")&&has(featureText,"curse")){
+    if(has(featureText,"hexblade")&&has(featureText,"curse")){
       res.hexbladeCurse=Math.max(0,1-(pip.hexbladeCurse||0));
-      pools.push({key:"hexbladeCurse",rawKey:"hexbladeCurse",level:0,label:"Hexblade's Curse",badge:"1",max:1,current:res.hexbladeCurse,tone:"subclass",kind:"resource",recharge:"short rest",die:null,tag:null,origin:"subclass",source:"subclass",custom:false});
+      var cursePool=pools.filter(function(p){return p&&p.key==="hexbladeCurse";})[0];
+      if(cursePool){cursePool.max=1;cursePool.current=res.hexbladeCurse;cursePool.label="Hexblade's Curse";cursePool.recharge="short rest";}
+      else pools.push({key:"hexbladeCurse",rawKey:"hexbladeCurse",level:0,label:"Hexblade's Curse",badge:"1",max:1,current:res.hexbladeCurse,tone:"subclass",kind:"resource",recharge:"short rest",die:null,tag:null,origin:"subclass",source:"subclass",custom:false});
     }
     // Hellish Rebuke (Tiefling racial, once per long rest)
     if (!seen.rebuke && has(s.race, "tiefling")) {
@@ -1014,7 +1016,7 @@ function combatErrorKit(charData, err) {
         hit:typeof cfa.hit==="function"?cfa.hit(s,found):(cfa.hit||0),
         dmg: typeof cfa.dmg === "function" ? cfa.dmg(s, found) : (cfa.dmg || null),
         strikes: cfa.strikes || null, needsAttack: !!cfa.needsAttack,
-        wildSurge: cfa.kind === "rage" && featNames.some(function (n) { return n.indexOf("wild surge") !== -1; }),
+        wildSurge: cfa.kind === "rage" && (featNames.some(function (n) { return n.indexOf("wild surge") !== -1; }) || has(s.subclass,"wild magic") || (s.classes||[]).some(function(c){return has(c&&c.subclass,"wild magic");})),
         bonus: !!cfa.bonus, free: !!cfa.free, spell: false, conc: false,
         cost: cfa.cost, classFeature: true
       });
@@ -1334,7 +1336,8 @@ function combatErrorKit(charData, err) {
     var authoredFeatures = featureRows(s);
     var featureFlags = {
       warCaster: featureNamed(authoredFeatures, /^war caster$/i),
-      repellingBlast: featureNamed(authoredFeatures, /repelling blast/i)
+      repellingBlast: featureNamed(authoredFeatures, /repelling blast/i),
+      wildSurge: featureNamed(authoredFeatures, /wild surge/i) || has(s.subclass,"wild magic") || (s.classes||[]).some(function(c){return has(c&&c.subclass,"wild magic");})
     };
 
     var kit = {

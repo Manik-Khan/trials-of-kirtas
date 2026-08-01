@@ -80,21 +80,27 @@ modular objects.
 
 An isolated Structure Review proof now exercises that missing semantic layer at
 `_edits/mock-forge-image-structure-review.html`. Local evidence supplies broad
-area hints only. A compact Pointer/Lasso/Eraser/Pan toolbar now owns the drawing
-flow. In Lasso mode, right-click arms a structure kind and appearance kit, and
-each completed freehand gesture immediately saves one independent object; no
-separate footprint or Save clicks remain. Optional Color assist can refine only
-inside the retained footprint. Pointer selects saved objects, while the lasso
-eraser can trim one selected object without damaging an overlapping structure.
+area hints only. A compact Pointer/Brush/Lasso/Eraser/Pan toolbar owns the
+drawing flow. Brush drags straight grid-aligned rectangles; Lasso follows
+irregular artwork. Right-click anywhere on the map opens a progressive tool
+menu, then shows only drawing facts, eraser size, selection deletion, or zoom
+guidance for the active tool. Each Brush or Lasso gesture immediately saves one
+independent object; no separate footprint or Save clicks remain. Height is part
+of the armed drawing, the current height follows the gesture, and saved artwork
+labels repeat it. Eraser paints 1×1, 3×3, or 5×5 grid stamps with Undo. Pointer
+selects whole authored surfaces for Delete/Backspace. V/B/L/E/H/Z shortcuts,
+brackets for eraser size, and F-to-fit keep markup over the artwork.
 Kinds include building, roof/deck, bridge, water, tent, tree, stairs/ramp, and
 wall, with explicit kits such as timber or masonry buildings, market stalls,
 pavilions, stone or timber bridges, and stone steps. Saved structures have a
 persistent selectable list; touching or overlapping authored layers no longer
-erase or merge each other. Reviewed
-structures retain editable base/top feet, walkability, access, and explicit
-solid/posts/arches/canopy/trunks/terrain/none support. Its code-native preview
-uses kind/kit colors and forms, labels elevations, keeps ground beneath raised
-decks, and shows walk surfaces separately from solid volumes. This is
+erase or merge each other. The large property inspector and primary Color-assist
+controls were removed. Only DM-authored structures rise in the code-native
+preview; automatic broad-area hints remain flat artwork evidence instead of
+becoming false towers. Clicking a preview structure opens an immediate
+−5/current/+5 height control with no Apply step. The underlying receipt still
+retains walkability, access, support, and separate ground/raised-surface facts.
+This is
 intentional DM-authored review authority, not semantic certainty or live
 two-level combat authority.
 
@@ -104,9 +110,21 @@ local scale and phase, and a second distant-intersection check corrects
 accumulated drift. The resulting projection explicitly covers every artwork
 edge, including partial cells, instead of stopping at the last complete square.
 
+Approved Structure Review marks can now enter a second isolated proof at
+`_edits/mock-forge-image-combat-handoff.html`. Each authored footprint samples
+its own source pixels and carries that palette forward; color remains appearance
+evidence while the DM-authored type remains rules authority. The adapter emits
+the current readable Forge map shape, uses `forge-deployment.js` to place a
+three-character party and three foes, and exercises current tactical movement,
+range, height, line of sight, cover, and combat-roll helpers in a disposable
+local fight. Automatic broad-area hints never become blockers. Raised bridges
+remain one effective surface per square; simultaneous bridge/underpass
+occupancy is still deferred to the later `surfaceId` contract.
+
 The focused proofs pass **28/28** creation checks, **86/86**
-Blueprint/Diorama checks, **44/44** local artwork-import checks, and **48/48**
-Structure Review checks; the six canonical Forge suites are **152/152**,
+Blueprint/Diorama checks, **44/44** local artwork-import checks, **59/59**
+Structure Review checks, and **22/22** reviewed-artwork combat-handoff checks;
+the six canonical Forge suites are **152/152**,
 and the completed real browser flows had no console errors. This remains
 isolated proof work, not production promotion or M's final visual approval.
 Do not touch the live Forge, combat, protocol, production generator,

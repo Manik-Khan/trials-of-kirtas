@@ -115,6 +115,39 @@
       id: type || "unknown", label: TYPES[type] && TYPES[type].label || "Unknown", color: TYPES[type] && TYPES[type].color || "#888888", form: "solid"
     };
   }
+  function colorHex(red, green, blue) {
+    function part(value) { return clamp(Math.round(Number(value) || 0), 0, 255).toString(16).padStart(2, "0"); }
+    return "#" + part(red) + part(green) + part(blue);
+  }
+  function paletteForCells(analysis, cells) {
+    if (!analysis || !analysis.grid || !Array.isArray(analysis.cells)) return null;
+    var samples = (cells || []).map(function (cell) {
+      var source = analysis.cells[cell[1] * analysis.grid.cols + cell[0]], evidence = source && source.evidence;
+      if (!evidence || !Number.isFinite(Number(evidence.r)) || !Number.isFinite(Number(evidence.g)) || !Number.isFinite(Number(evidence.b))) return null;
+      return { r: Number(evidence.r), g: Number(evidence.g), b: Number(evidence.b) };
+    }).filter(Boolean);
+    if (!samples.length) return null;
+    var mean = samples.reduce(function (sum, sample) {
+      sum.r += sample.r; sum.g += sample.g; sum.b += sample.b; return sum;
+    }, { r: 0, g: 0, b: 0 });
+    var buckets = {};
+    samples.forEach(function (sample) {
+      var r = Math.round(sample.r / 32) * 32, g = Math.round(sample.g / 32) * 32, b = Math.round(sample.b / 32) * 32;
+      var bucketKey = r + "," + g + "," + b;
+      if (!buckets[bucketKey]) buckets[bucketKey] = { count: 0, r: 0, g: 0, b: 0 };
+      buckets[bucketKey].count++; buckets[bucketKey].r += sample.r; buckets[bucketKey].g += sample.g; buckets[bucketKey].b += sample.b;
+    });
+    var accents = Object.keys(buckets).map(function (bucketKey) {
+      var bucket = buckets[bucketKey];
+      return { color: colorHex(bucket.r / bucket.count, bucket.g / bucket.count, bucket.b / bucket.count), count: bucket.count };
+    }).sort(function (a, b) { return b.count - a.count; }).slice(0, 3).map(function (item) { return item.color; });
+    return {
+      primary: colorHex(mean.r / samples.length, mean.g / samples.length, mean.b / samples.length),
+      accents: accents,
+      source: "local-pixels",
+      samples: samples.length
+    };
+  }
   function defaultRegion(type, cells, index, source, confidence, material) {
     var spec = TYPES[type];
     return {
@@ -459,7 +492,7 @@
       var requestedAppearance = options && options.appearance && appearanceFor(type, options.appearance);
       region.appearance = requestedAppearance && requestedAppearance.id
         || replacedRegion && replacedRegion.appearance || appearanceFor(type).id;
-      region.palette = replacedRegion && replacedRegion.palette || region.palette;
+      region.palette = options && options.palette || replacedRegion && replacedRegion.palette || region.palette;
       region.footprint = copy(selection.footprint);
       out.regions.push(region); regionId = region.id;
     }
@@ -489,6 +522,14 @@
       footprint: copy(selection.footprint)
     });
     return { review: out, affected: affected };
+  }
+  function deleteRegion(review, regionId) {
+    if (!review || !regionId) return { review: review, deleted: false };
+    var out = copy(review), before = out.regions.length;
+    out.regions = out.regions.filter(function (region) { return region.id !== regionId; });
+    var deleted = out.regions.length !== before;
+    if (deleted) out.history.push({ kind: "delete-region", regionId: regionId });
+    return { review: out, deleted: deleted };
   }
   function groupsForCells(cells) {
     var remaining = new Map();
@@ -677,6 +718,7 @@
     TYPES: TYPES,
     APPEARANCES: APPEARANCES,
     appearanceFor: appearanceFor,
+    paletteForCells: paletteForCells,
     semanticCandidate: semanticCandidate,
     proposeRegions: proposeRegions,
     regionAt: regionAt,
@@ -692,6 +734,7 @@
     mergeTouchingRegions: mergeTouchingRegions,
     authorSelection: authorSelection,
     eraseSelection: eraseSelection,
+    deleteRegion: deleteRegion,
     paintRect: paintRect,
     updateRegion: updateRegion,
     stairPath: stairPath,

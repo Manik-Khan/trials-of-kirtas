@@ -7,17 +7,19 @@
   [
     "imageFile", "sourceReceipt", "scalePanel", "autoGrid", "drawGridCell", "noGrid", "gridNote",
     "griddedControls", "ungriddedControls", "gridCellPx", "gridOriginX", "gridOriginY", "targetColumns",
-    "proposeRegions", "selectionPanel", "magicTolerance", "magicToleranceValue", "colorAssist", "armedKit",
-    "pendingSwatch", "pendingMeaning", "undoDraw", "redoDraw",
+    "proposeRegions", "selectionPanel", "armedKit", "pendingSwatch", "pendingMeaning",
+    "drawHeightDown", "drawHeightValue", "drawHeightUp", "undoDraw", "redoDraw",
     "verifyGrid", "gridCoverage", "zoomOut", "zoomFit", "zoomIn", "zoomValue", "toggleGrid",
-    "typePalette", "closeTypePalette", "typePaletteKinds", "typePaletteVariants",
+    "typePalette", "closeTypePalette", "typePaletteTools", "typePaletteKinds", "typePaletteVariants",
+    "drawPalette", "eraserPalette", "pointerPalette", "zoomPalette", "paletteDeleteSelected",
+    "paletteHeightDown", "paletteHeightValue", "paletteHeightUp",
+    "heightPopover", "heightPopoverName", "closeHeightPopover", "previewHeightDown", "previewHeightValue", "previewHeightUp",
     "artTitle", "viewGrid", "artView", "previewView",
     "emptyState", "canvasStack", "sourceCanvas", "overlayCanvas", "previewCanvas", "status",
     "sceneName", "metricGrid", "metricRegions", "metricSurfaces", "metricConnectors", "typeSummary",
     "authoredCount", "authoredList",
-    "inspector", "regionName", "regionReceipt", "regionType", "regionLabel", "regionBase", "regionTop",
-    "regionWalkable", "regionAccess", "regionSupport", "regionAppearance", "applyRegion", "regionToSelection", "heightReceipt",
-    "movementNote", "surfaceReceipt", "reviewJson", "fatal"
+    "selectedPanel", "regionName", "regionReceipt", "selectedHeightDown", "selectedHeightValue", "selectedHeightUp", "heightReceipt",
+    "surfaceReceipt", "reviewJson", "openCombatProof", "fatal"
   ].forEach(function (id) { ui[id] = document.getElementById(id); });
 
   var sourceContext = ui.sourceCanvas.getContext("2d", { willReadFrequently: true });
@@ -39,22 +41,24 @@
     selectionTool: "pointer",
     semanticType: "building",
     semanticAppearance: "timber-house",
-    selection: null,
-    magicFence: null,
-    editingRegionId: null,
     selectedId: null,
-    editAddRegionId: null,
+    drawHeightFt: 15,
     calibrating: false,
     verifyingGrid: false,
     gridAnchor: null,
     gridVisible: true,
     gridVerified: false,
     drag: null,
+    gridDrag: null,
     lassoPoints: null,
+    eraserCells: [],
+    lastEraserCell: null,
+    eraserSizeCells: 1,
     panDrag: null,
     zoom: 1,
     undoStack: [],
     redoStack: [],
+    previewHits: [],
     view: "artwork"
   };
 
@@ -98,6 +102,17 @@
     ui.pendingSwatch.style.background = appearance.color;
     ui.pendingMeaning.textContent = (state.semanticType === "ground" ? "Ground / erase" : Structure.TYPES[state.semanticType].label)
       + " · " + appearance.label;
+    ui.drawHeightValue.textContent = state.drawHeightFt + " ft";
+    ui.paletteHeightValue.textContent = state.drawHeightFt + " ft";
+  }
+  function setDrawHeight(value) {
+    var minimum = state.semanticType === "water" ? 0 : 5;
+    state.drawHeightFt = state.semanticType === "water" ? 0 : clamp(Math.round(Number(value) / 5) * 5, minimum, 120);
+    syncPendingAppearance(); renderOverlay();
+    if (state.review && (state.selectionTool === "brush" || state.selectionTool === "lasso")) {
+      setStatus((state.selectionTool === "brush" ? "Brush" : "Lasso") + " active at "
+        + state.drawHeightFt + " ft. The height marker will follow the drawing.");
+    }
   }
   function sourceGridFromInputs() {
     var scale = state.scale || 1;
@@ -119,13 +134,10 @@
   function clearReview() {
     state.analysis = null;
     state.review = null;
-    state.selection = null;
-    state.magicFence = null;
-    state.editingRegionId = null;
-    state.editAddRegionId = null;
     state.selectedId = null;
+    state.gridDrag = null; state.lassoPoints = null; state.eraserCells = []; state.lastEraserCell = null;
     setEnabled(ui.selectionPanel, false);
-    setEnabled(ui.inspector, false);
+    setEnabled(ui.selectedPanel, false);
     state.undoStack = []; state.redoStack = [];
     updateHistoryControls();
     renderAll();
@@ -154,10 +166,11 @@
     ui.noGrid.classList.toggle("active", state.gridMode === "ungridded");
     ui.canvasStack.classList.toggle("calibrating", state.calibrating);
     ui.canvasStack.classList.toggle("inspecting", !state.calibrating && state.selectionTool === "pointer");
-    ui.canvasStack.classList.toggle("magic-selecting", !state.calibrating && state.selectionTool === "magic");
+    ui.canvasStack.classList.toggle("brushing", !state.calibrating && state.selectionTool === "brush");
     ui.canvasStack.classList.toggle("lasso-selecting", !state.calibrating && state.selectionTool === "lasso");
     ui.canvasStack.classList.toggle("erasing", !state.calibrating && state.selectionTool === "eraser");
     ui.canvasStack.classList.toggle("panning", !state.calibrating && state.selectionTool === "pan");
+    ui.canvasStack.classList.toggle("zooming", !state.calibrating && state.selectionTool === "zoom");
     ui.verifyGrid.hidden = !(state.gridMode === "gridded" && state.gridAnchor && !state.gridVerified);
     updateGridReceipt();
     renderOverlay();
@@ -224,6 +237,14 @@
     state.zoom = clamp(state.zoom, 0.2, 5);
     ui.canvasStack.style.width = Math.round(state.analysisWidth * state.zoom) + "px";
     ui.zoomValue.textContent = Math.round(state.zoom * 100) + "%";
+  }
+  function zoomAtPoint(event, point) {
+    var viewRect = ui.artView.getBoundingClientRect();
+    state.zoom *= event.shiftKey ? 0.8 : 1.25;
+    applyZoom();
+    ui.artView.scrollLeft = Math.max(0, point.x * state.zoom - (event.clientX - viewRect.left));
+    ui.artView.scrollTop = Math.max(0, point.y * state.zoom - (event.clientY - viewRect.top));
+    setStatus("Zoom " + Math.round(state.zoom * 100) + "% · click to zoom in, Shift-click to zoom out, F to fit.");
   }
   function loadFile(file) {
     if (!file || !/^image\/(jpeg|png|webp)$/i.test(file.type)) {
@@ -330,26 +351,40 @@
           });
         }
         if (region.source === "dm-authored" && region.cells.length >= 2) {
-          overlayLabel(overlayContext, region.cells, grid, Structure.TYPES[region.type].label, "#fff3bd");
+          overlayLabel(overlayContext, region.cells, grid,
+            Structure.TYPES[region.type].label + " · " + region.topFt + " FT", "#fff3bd");
         }
         overlayContext.restore();
       });
     }
-    if (state.selection && state.selection.cells.length) {
-      var pendingAppearance = state.semanticType === "ground"
-        ? { color: "#857958", label: "Ground / erase" }
-        : appearanceFor(state.semanticType, state.semanticAppearance);
+    if (grid && state.gridDrag) {
+      var brushCells = gridRectCells(state.gridDrag.start, state.gridDrag.end);
+      var brushAppearance = appearanceFor(state.semanticType, state.semanticAppearance);
       overlayContext.save();
-      overlayContext.fillStyle = pendingAppearance.color + "b8";
+      overlayContext.fillStyle = brushAppearance.color + "b8";
       overlayContext.strokeStyle = "#fff3bd";
       overlayContext.lineWidth = Math.max(1.5, grid.cellPx * 0.06);
-      state.selection.cells.forEach(function (cell) {
-        overlayContext.fillRect(grid.originX + cell[0] * grid.cellPx, grid.originY + cell[1] * grid.cellPx, grid.cellPx, grid.cellPx);
+      brushCells.forEach(function (cell) {
+        var x = grid.originX + cell[0] * grid.cellPx, y = grid.originY + cell[1] * grid.cellPx;
+        overlayContext.fillRect(x, y, grid.cellPx, grid.cellPx);
+        overlayContext.strokeRect(x, y, grid.cellPx, grid.cellPx);
       });
-      traceFootprint(overlayContext, state.selection.footprint);
-      overlayLabel(overlayContext, state.selection.cells, grid,
-        (state.editingRegionId ? "EDIT " : "NEW ") + (state.semanticType === "ground" ? "GROUND" : Structure.TYPES[state.semanticType].label),
-        "#fff3bd");
+      overlayLabel(overlayContext, brushCells, grid,
+        Structure.TYPES[state.semanticType].label + " · " + state.drawHeightFt + " FT", "#fff3bd");
+      overlayContext.restore();
+    }
+    if (grid && state.eraserCells.length) {
+      overlayContext.save();
+      overlayContext.fillStyle = "rgba(190,73,62,.55)";
+      overlayContext.strokeStyle = "#ffb09f";
+      overlayContext.lineWidth = Math.max(1.5, grid.cellPx * 0.06);
+      state.eraserCells.forEach(function (cell) {
+        var x = grid.originX + cell[0] * grid.cellPx, y = grid.originY + cell[1] * grid.cellPx;
+        overlayContext.fillRect(x, y, grid.cellPx, grid.cellPx);
+        overlayContext.strokeRect(x, y, grid.cellPx, grid.cellPx);
+      });
+      overlayLabel(overlayContext, state.eraserCells, grid,
+        "ERASE " + state.eraserSizeCells + " × " + state.eraserSizeCells, "#ffb09f");
       overlayContext.restore();
     }
     if (state.gridVisible && !state.calibrating) renderGrid(overlayContext, grid);
@@ -358,7 +393,20 @@
       overlayContext.moveTo(state.lassoPoints[0][0], state.lassoPoints[0][1]);
       state.lassoPoints.slice(1).forEach(function (point) { overlayContext.lineTo(point[0], point[1]); });
       overlayContext.strokeStyle = "#fff0a8"; overlayContext.lineWidth = Math.max(2, (grid && grid.cellPx || 18) * 0.08);
-      overlayContext.setLineDash([8, 5]); overlayContext.stroke(); overlayContext.restore();
+      overlayContext.setLineDash([8, 5]); overlayContext.stroke();
+      if (state.selectionTool === "lasso") {
+        var last = state.lassoPoints[state.lassoPoints.length - 1];
+        var marker = state.drawHeightFt + " ft";
+        overlayContext.setLineDash([]);
+        overlayContext.font = "700 15px ui-sans-serif";
+        var markerWidth = overlayContext.measureText(marker).width + 16;
+        overlayContext.fillStyle = "rgba(255,240,168,.96)";
+        overlayContext.fillRect(last[0] + 10, last[1] - 24, markerWidth, 22);
+        overlayContext.fillStyle = "#171d1a";
+        overlayContext.textAlign = "center";
+        overlayContext.fillText(marker, last[0] + 10 + markerWidth / 2, last[1] - 8);
+      }
+      overlayContext.restore();
     }
     if (state.drag && state.calibrating) {
       var left = Math.min(state.drag.startX, state.drag.endX);
@@ -385,10 +433,9 @@
     setStatus("Finding broad water, vegetation, and constructed-area evidence…");
     state.analysis = Importer.analyze(state.imageData.data, state.analysisWidth, state.analysisHeight, grid);
     state.review = Structure.proposeRegions(state.analysis, { minimumCells: 3 });
-    state.selectedId = state.review.regions[0] && state.review.regions[0].id || null;
-    state.selection = null;
+    state.selectedId = null;
     setEnabled(ui.selectionPanel, true);
-    setEnabled(ui.inspector, !!state.selectedId);
+    setEnabled(ui.selectedPanel, false);
     state.selectionTool = "pointer";
     document.querySelectorAll("[data-draw-tool]").forEach(function (button) {
       button.classList.toggle("active", button.dataset.drawTool === "pointer");
@@ -412,6 +459,43 @@
     var c = Math.floor((point.x - grid.originX) / grid.cellPx);
     var r = Math.floor((point.y - grid.originY) / grid.cellPx);
     return c >= 0 && r >= 0 && c < grid.cols && r < grid.rows ? { c: c, r: r } : null;
+  }
+  function gridRectCells(start, end) {
+    if (!start || !end) return [];
+    var cells = [];
+    for (var r = Math.min(start.r, end.r); r <= Math.max(start.r, end.r); r++) {
+      for (var c = Math.min(start.c, end.c); c <= Math.max(start.c, end.c); c++) cells.push([c, r]);
+    }
+    return cells;
+  }
+  function eraserStamp(center) {
+    var grid = state.review && state.review.grid;
+    if (!grid || !center) return [];
+    var radius = Math.floor(state.eraserSizeCells / 2), cells = [];
+    for (var r = center.r - radius; r <= center.r + radius; r++) {
+      for (var c = center.c - radius; c <= center.c + radius; c++) {
+        if (c >= 0 && r >= 0 && c < grid.cols && r < grid.rows) cells.push([c, r]);
+      }
+    }
+    return cells;
+  }
+  function addEraserAt(point) {
+    var cell = cellAtPoint(point);
+    if (!cell) return;
+    var starts = state.lastEraserCell || cell;
+    var steps = Math.max(Math.abs(cell.c - starts.c), Math.abs(cell.r - starts.r), 1);
+    var existing = new Set(state.eraserCells.map(function (item) { return item[0] + "," + item[1]; }));
+    for (var step = 0; step <= steps; step++) {
+      var center = {
+        c: Math.round(starts.c + (cell.c - starts.c) * step / steps),
+        r: Math.round(starts.r + (cell.r - starts.r) * step / steps)
+      };
+      eraserStamp(center).forEach(function (item) {
+        var itemKey = item[0] + "," + item[1];
+        if (!existing.has(itemKey)) { existing.add(itemKey); state.eraserCells.push(item); }
+      });
+    }
+    state.lastEraserCell = cell;
   }
   function finishCalibration(point) {
     var calibrationDrag = state.drag;
@@ -473,49 +557,20 @@
     if (!from.length || !state.review) return;
     to.push(JSON.parse(JSON.stringify(state.review)));
     state.review = from.pop();
-    state.selectedId = null; state.editAddRegionId = null; state.selection = null; state.magicFence = null;
+    state.selectedId = null;
     updateHistoryControls(); renderAll(); setStatus(label + ". Every structure remains individually authored.");
   }
-  function magicSelect(point) {
-    var grid = state.review && state.review.grid || activeGrid();
-    if (!grid || !state.imageData) return;
-    if (!state.selection || !state.selection.cells.length) {
-      setStatus("Color assist needs a boundary. Draw a loose lasso around one feature first; it will never search the whole map.");
-      return;
-    }
-    var fenceSelection = state.magicFence || state.selection;
-    var allowedMask = Structure.maskFromCells(grid, fenceSelection.cells, state.analysisWidth, state.analysisHeight);
-    var seedIndex = clamp(Math.floor(point.y), 0, state.analysisHeight - 1) * state.analysisWidth
-      + clamp(Math.floor(point.x), 0, state.analysisWidth - 1);
-    if (!allowedMask[seedIndex]) {
-      setStatus("Click inside the current lasso. Color assist cannot add pixels beyond that boundary.");
-      return;
-    }
-    setStatus("Refining connected local color inside the current lasso…");
-    var tolerance = Number(ui.magicTolerance.value) || 18;
-    var mask = Structure.magicMask(
-      state.imageData.data, state.analysisWidth, state.analysisHeight,
-      point.x, point.y, tolerance, { allowedMask: allowedMask }
-    );
-    var cells = Structure.cellsFromMask(grid, mask, state.analysisWidth, state.analysisHeight, 0.18);
-    if (!cells.length) {
-      setStatus("No tactical square contained enough of that color inside the lasso. Raise tolerance or keep the lasso as drawn.");
-      return;
-    }
-    var fence = fenceSelection.footprint;
-    var refined = Structure.selectionFromCells(cells, {
-      kind: "magic-within", seed: [point.x, point.y], tolerance: tolerance,
-      fence: fence, imageSize: [state.analysisWidth, state.analysisHeight]
-    });
+  function saveAuthoredSelection(selection, toolLabel) {
     pushUndo();
-    var result = Structure.authorSelection(state.review, refined, state.semanticType, {
-      replaceRegionId: state.editingRegionId,
-      appearance: state.semanticAppearance
+    var result = Structure.authorSelection(state.review, selection, state.semanticType, {
+      appearance: state.semanticAppearance,
+      palette: Structure.paletteForCells(state.analysis, selection.cells)
     });
-    state.review = result.review; state.selectedId = result.regionId;
-    state.selection = null; state.magicFence = null; state.editingRegionId = null; state.selectionTool = "pointer";
-    syncDrawToolButtons(); renderAll();
-    setStatus(cells.length + " squares retained inside the saved boundary. No artwork outside it was searched.");
+    state.review = Structure.updateRegion(result.review, result.regionId, { topFt: state.drawHeightFt });
+    state.selectedId = result.regionId;
+    renderAll();
+    setStatus(appearanceFor(state.semanticType, state.semanticAppearance).label + " saved at "
+      + state.drawHeightFt + " ft with the " + toolLabel + ". Keep drawing or right-click to change tools.");
   }
   function finishLasso() {
     var points = state.lassoPoints || [], grid = state.review && state.review.grid || activeGrid();
@@ -526,39 +581,58 @@
     var selection = Structure.selectionFromCells(cells, {
       kind: "polygon", points: points, imageSize: [state.analysisWidth, state.analysisHeight]
     });
-    pushUndo();
-    if (state.selectionTool === "eraser") {
-      var erased = Structure.eraseSelection(state.review, selection, state.selectedId);
+    saveAuthoredSelection(selection, "lasso");
+  }
+  function finishGridBrush() {
+    var drag = state.gridDrag;
+    state.gridDrag = null;
+    if (!drag) return;
+    var cells = gridRectCells(drag.start, drag.end);
+    if (!cells.length) { renderOverlay(); return; }
+    saveAuthoredSelection(Structure.selectionFromCells(cells, {
+      kind: "grid-rectangle",
+      rect: {
+        minC: Math.min(drag.start.c, drag.end.c), minR: Math.min(drag.start.r, drag.end.r),
+        maxC: Math.max(drag.start.c, drag.end.c), maxR: Math.max(drag.start.r, drag.end.r)
+      }
+    }), "grid brush");
+  }
+  function finishEraser() {
+    var cells = state.eraserCells.slice();
+    state.eraserCells = []; state.lastEraserCell = null;
+    if (!cells.length) { renderOverlay(); return; }
+    var erased = Structure.eraseSelection(state.review, Structure.selectionFromCells(cells, {
+      kind: "grid-eraser", sizeCells: state.eraserSizeCells
+    }), state.selectedId);
+    if (erased.affected) {
+      pushUndo();
       state.review = erased.review;
       if (state.selectedId && !selectedRegion()) state.selectedId = null;
-      renderAll();
-      setStatus(erased.affected
-        ? "Eraser changed " + erased.affected + " structure" + (erased.affected === 1 ? "" : "s") + ". Undo is available."
-        : "The eraser crossed no authored footprint; nothing changed.");
+    }
+    renderAll();
+    setStatus(erased.affected
+      ? "Eraser changed " + erased.affected + " structure" + (erased.affected === 1 ? "" : "s") + ". Undo is available."
+      : "The eraser crossed no authored structure; nothing changed.");
+  }
+  function deleteSelectedRegion() {
+    var region = selectedRegion();
+    if (!region || region.source !== "dm-authored") {
+      setStatus("Pointer: select a drawn structure before deleting it.");
       return;
     }
-    var editing = state.editAddRegionId && state.review.regions.find(function (region) { return region.id === state.editAddRegionId; });
-    if (editing) {
-      selection = Structure.combineSelection(Structure.selectionFromCells(editing.cells, editing.footprint), selection, "add");
-    }
-    var result = Structure.authorSelection(state.review, selection, state.semanticType, {
-      replaceRegionId: editing && editing.id || null,
-      appearance: state.semanticAppearance
-    });
-    state.review = result.review; state.selectedId = result.regionId; state.editAddRegionId = null;
-    renderAll();
-    setStatus(appearanceFor(state.semanticType, state.semanticAppearance).label
-      + (editing ? " footprint extended." : " saved immediately as its own structure.")
-      + " Keep drawing or right-click to change what the lasso creates.");
+    pushUndo();
+    var deleted = Structure.deleteRegion(state.review, region.id);
+    state.review = deleted.review; state.selectedId = null;
+    closeHeightPopover(); closeTypePalette(); renderAll();
+    setStatus(region.label + " deleted. Undo restores it.");
   }
-  function useRegionAsSelection() {
-    var region = selectedRegion();
-    if (!region) return;
-    state.editAddRegionId = region.id;
-    state.semanticType = region.type;
-    state.semanticAppearance = region.appearance || appearanceFor(region.type).id;
-    state.selectionTool = "lasso"; syncPendingAppearance(); syncDrawToolButtons(); renderOverlay();
-    setStatus("Draw one additional lasso for " + region.label + ". It will extend only this saved object.");
+  function selectAuthoredAtPoint(point) {
+    var cell = cellAtPoint(point);
+    return cell && state.review && state.review.regions.slice().reverse().find(function (candidate) {
+      return candidate.source === "dm-authored" && candidate.cells.some(function (savedCell) {
+        return savedCell[0] === cell.c && savedCell[1] === cell.r;
+      });
+    });
   }
   function selectedRegion() {
     return state.review && state.review.regions.find(function (region) { return region.id === state.selectedId; });
@@ -569,7 +643,30 @@
     });
     syncGridControls();
   }
+  function setTool(tool, narrate) {
+    state.selectionTool = tool;
+    state.gridDrag = null; state.lassoPoints = null; state.eraserCells = []; state.lastEraserCell = null;
+    syncDrawToolButtons();
+    if (!narrate) return;
+    setStatus(tool === "pointer" ? "Pointer (V): click a drawn structure; Delete or Backspace removes it."
+      : tool === "brush" ? "Grid brush (B) at " + state.drawHeightFt + " ft: drag a straight cell rectangle."
+        : tool === "lasso" ? "Lasso (L) at " + state.drawHeightFt + " ft: trace one irregular structure."
+          : tool === "eraser" ? "Eraser (E) " + state.eraserSizeCells + " × " + state.eraserSizeCells + ": drag across authored cells."
+            : tool === "zoom" ? "Zoom (Z): click the map to zoom in; Shift-click to zoom out; F fits."
+              : "Hand (H): drag the artwork without changing structures.");
+  }
   function renderTypePalette() {
+    document.querySelectorAll("[data-palette-tool]").forEach(function (button) {
+      button.classList.toggle("active", button.dataset.paletteTool === state.selectionTool);
+    });
+    ui.drawPalette.hidden = state.selectionTool !== "brush" && state.selectionTool !== "lasso";
+    ui.eraserPalette.hidden = state.selectionTool !== "eraser";
+    ui.pointerPalette.hidden = state.selectionTool !== "pointer";
+    ui.zoomPalette.hidden = state.selectionTool !== "zoom";
+    ui.paletteDeleteSelected.disabled = !selectedRegion();
+    document.querySelectorAll("[data-eraser-size]").forEach(function (button) {
+      button.classList.toggle("active", Number(button.dataset.eraserSize) === state.eraserSizeCells);
+    });
     ui.typePaletteKinds.replaceChildren(); ui.typePaletteVariants.replaceChildren();
     Object.keys(Structure.TYPES).forEach(function (type) {
       var button = document.createElement("button");
@@ -577,6 +674,7 @@
       button.classList.toggle("active", type === state.semanticType);
       button.addEventListener("click", function () {
         state.semanticType = type; state.semanticAppearance = appearanceFor(type).id;
+        state.drawHeightFt = Structure.TYPES[type].topFt;
         syncPendingAppearance(); renderTypePalette();
       });
       ui.typePaletteKinds.appendChild(button);
@@ -587,56 +685,40 @@
       swatch.style.background = appearance.color; label.textContent = appearance.label; button.append(swatch, label);
       button.addEventListener("click", function () {
         state.semanticAppearance = appearance.id; syncPendingAppearance(); closeTypePalette();
-        setStatus(appearance.label + " armed. Every completed lasso becomes one separate " + Structure.TYPES[state.semanticType].label.toLowerCase() + ".");
+        setStatus(appearance.label + " armed. Every completed " + (state.selectionTool === "brush" ? "grid brush" : "lasso")
+          + " becomes one separate " + Structure.TYPES[state.semanticType].label.toLowerCase() + ".");
       });
       ui.typePaletteVariants.appendChild(button);
     });
   }
   function openTypePalette(clientX, clientY) {
+    closeHeightPopover();
     renderTypePalette(); ui.typePalette.hidden = false;
-    var width = 330, height = 330;
+    var width = 330, height = 520;
     ui.typePalette.style.left = clamp(clientX, 8, window.innerWidth - width - 8) + "px";
     ui.typePalette.style.top = clamp(clientY, 8, window.innerHeight - height - 8) + "px";
   }
   function closeTypePalette() { ui.typePalette.hidden = true; }
-  function renderInspector() {
+  function renderSelectedPanel() {
     var region = selectedRegion();
-    setEnabled(ui.inspector, !!region);
-    if (!region) {
+    var authored = region && region.source === "dm-authored";
+    setEnabled(ui.selectedPanel, authored);
+    if (!authored) {
       ui.regionName.textContent = "Nothing selected";
-      ui.regionReceipt.textContent = "Inspect a proposed region or create one from a selection.";
-      ui.heightReceipt.textContent = "Select a raised region to inspect its vertical span.";
-      ui.movementNote.textContent = "Movement evidence appears after selecting an elevated region.";
+      ui.regionReceipt.textContent = "Select a structure on the artwork, list, or Height Preview.";
+      ui.selectedHeightValue.textContent = "—";
+      ui.heightReceipt.textContent = "Choose a structure to compare its height with the rest of the scene.";
       return;
     }
     ui.regionName.textContent = region.label;
     var regionAppearance = appearanceFor(region.type, region.appearance);
     ui.regionReceipt.textContent = region.cells.length + " squares · "
-      + (region.source === "dm-authored" ? "DM authored" : Math.round(region.confidence * 100) + "% local proposal")
-      + " · " + regionAppearance.label;
-    ui.regionType.value = region.type;
-    fillAppearanceOptions(ui.regionAppearance, region.type, region.appearance);
-    ui.regionLabel.value = region.label;
-    ui.regionBase.value = region.baseFt;
-    ui.regionTop.value = region.topFt;
-    ui.regionWalkable.checked = !!region.roofWalkable;
-    ui.regionAccess.value = region.access || "none";
-    ui.regionSupport.value = region.supportMode || Structure.TYPES[region.type].supportMode;
+      + Structure.TYPES[region.type].label + " · " + regionAppearance.label;
+    ui.selectedHeightValue.textContent = region.topFt + " ft";
     var rise = Math.max(0, region.topFt - region.baseFt);
-    ui.heightReceipt.textContent = "Base " + region.baseFt + " ft → top " + region.topFt + " ft · "
-      + rise + " ft span · " + (region.supportMode || "unspecified") + " support";
-    if ((region.type === "roof" || region.type === "bridge") && region.supportMode === "none") {
-      ui.heightReceipt.textContent += " · intentionally unsupported / special";
-    }
-    if (!rise) ui.movementNote.textContent = "This region remains on the base surface.";
-    else if (region.access === "climb") {
-      ui.movementNote.textContent = rise + " ft climb · ordinary movement budget "
-        + Structure.climbCost(rise, false) + " ft · with a climbing speed " + Structure.climbCost(rise, true) + " ft.";
-    } else if (region.access === "none") {
-      ui.movementNote.textContent = "Raised " + rise + " ft with no ordinary connector. Jump, flight, teleport, or a later authored access route is required.";
-    } else {
-      ui.movementNote.textContent = rise + " ft rise connected by " + region.access + ". Final path length belongs to the authored connector.";
-    }
+    ui.heightReceipt.textContent = rise
+      ? region.topFt + " ft above the map · use −5 / +5 to compare it with nearby structures."
+      : "This structure remains on the map surface.";
   }
   function renderSummary() {
     if (!state.review) {
@@ -648,6 +730,7 @@
       ui.authoredList.innerHTML = "<p>No DM-authored structures yet.</p>";
       ui.surfaceReceipt.innerHTML = "<p>No surfaces or volumes compiled.</p>";
       ui.reviewJson.textContent = "{}";
+      ui.openCombatProof.disabled = true;
       return;
     }
     var summary = Structure.summarize(state.review);
@@ -677,12 +760,16 @@
       var copy = document.createElement("span"), title = document.createElement("strong"), detail = document.createElement("small");
       var height = document.createElement("em");
       button.type = "button"; button.className = "authored-region" + (region.id === state.selectedId ? " active" : "");
-      swatch.style.background = appearance.color; title.textContent = region.label;
+      swatch.style.background = region.palette && region.palette.primary || appearance.color; title.textContent = region.label;
       detail.textContent = Structure.TYPES[region.type].label + " · " + appearance.label;
       height.textContent = region.topFt + " ft"; copy.append(title, detail); button.append(swatch, copy, height);
       button.addEventListener("click", function () {
-        state.selectedId = region.id; renderAll();
-        setStatus(region.label + " selected. Its meaning, appearance, height, support, and footprint are editable.");
+        state.selectedId = region.id;
+        state.semanticType = region.type;
+        state.semanticAppearance = region.appearance;
+        state.drawHeightFt = region.topFt;
+        renderAll();
+        setStatus(region.label + " selected at " + region.topFt + " ft. Use −5 / +5 to compare its height.");
       });
       ui.authoredList.appendChild(button);
     });
@@ -698,6 +785,7 @@
       title.textContent = item[0]; detail.textContent = item[1]; row.append(title, detail); ui.surfaceReceipt.appendChild(row);
     });
     ui.reviewJson.textContent = JSON.stringify({ review: state.review, proposal: compiled }, null, 2);
+    ui.openCombatProof.disabled = !authored.length;
   }
   function colorForMaterial(material) {
     return Importer.MATERIALS[material] && Importer.MATERIALS[material].color || "#857958";
@@ -709,6 +797,7 @@
   }
   function renderPreview() {
     var ctx = previewContext, canvas = ui.previewCanvas;
+    state.previewHits = [];
     ctx.clearRect(0, 0, canvas.width, canvas.height);
     var background = ctx.createLinearGradient(0, 0, 0, canvas.height);
     background.addColorStop(0, "#24322c"); background.addColorStop(1, "#080c0a");
@@ -822,12 +911,14 @@
     baseCells.forEach(function (cell) {
       diamond(cell.c, cell.r, 0, shade(colorForMaterial(cell.material), 0.58), "rgba(238,231,214,.08)");
     });
-    var orderedRegions = state.review.regions.slice().sort(function (a, b) {
+    var orderedRegions = state.review.regions.filter(function (region) {
+      return region.source === "dm-authored";
+    }).sort(function (a, b) {
       var ac = averageCell(a), bc = averageCell(b);
       return ac.c + ac.r - bc.c - bc.r;
     });
     orderedRegions.forEach(function (region) {
-      var appearance = appearanceFor(region.type, region.appearance), color = appearance.color;
+      var appearance = appearanceFor(region.type, region.appearance), color = region.palette && region.palette.primary || appearance.color;
       var cells = region.cells.slice().sort(function (a, b) { return a[0] + a[1] - b[0] - b[1]; });
       var selected = region.id === state.selectedId;
       if (region.type === "water") {
@@ -870,7 +961,23 @@
         joinedPrism(region, region.baseFt, region.topFt, color, selected);
         if (appearance.form === "pitched") pitchedCrown(region, color);
       }
+      var hit = region.cells.reduce(function (bounds, cell) {
+        var top = project(cell[0], cell[1], region.topFt);
+        var bottom = project(cell[0], cell[1], region.baseFt);
+        bounds.left = Math.min(bounds.left, top.x - tileW / 2, bottom.x - tileW / 2);
+        bounds.right = Math.max(bounds.right, top.x + tileW / 2, bottom.x + tileW / 2);
+        bounds.top = Math.min(bounds.top, top.y - tileH);
+        bounds.bottom = Math.max(bounds.bottom, bottom.y + tileH);
+        return bounds;
+      }, { id: region.id, left: Infinity, right: -Infinity, top: Infinity, bottom: -Infinity });
+      state.previewHits.push(hit);
     });
+    if (!orderedRegions.length) {
+      ctx.fillStyle = "rgba(12,17,15,.86)";
+      ctx.fillRect(canvas.width / 2 - 190, 28, 380, 42);
+      ctx.fillStyle = "#eee7d6"; ctx.font = "15px ui-sans-serif"; ctx.textAlign = "center";
+      ctx.fillText("Draw a structure to give this scene height.", canvas.width / 2, 54);
+    }
     var maxFt = Math.max(20, orderedRegions.reduce(function (max, region) { return Math.max(max, region.topFt); }, 0));
     heightRuler(Math.ceil(maxFt / 5) * 5);
     var labelRegions = orderedRegions.slice().sort(function (a, b) { return b.cells.length - a.cells.length; }).slice(0, 12);
@@ -887,30 +994,44 @@
   function renderAll() {
     renderOverlay();
     renderPreview();
-    renderInspector();
+    renderSelectedPanel();
     renderSummary();
     syncPendingAppearance();
     updateHistoryControls();
     updateGridReceipt();
   }
-  function applySelectedRegion() {
+  function adjustSelectedHeight(step) {
     var region = selectedRegion();
-    if (!region) return;
+    if (!region || region.source !== "dm-authored") return;
     pushUndo();
-    state.review = Structure.updateRegion(state.review, region.id, {
-      type: ui.regionType.value,
-      appearance: ui.regionAppearance.value,
-      label: ui.regionLabel.value,
-      baseFt: Number(ui.regionBase.value),
-      topFt: Number(ui.regionTop.value),
-      roofWalkable: ui.regionWalkable.checked,
-      access: ui.regionAccess.value,
-      supportMode: ui.regionSupport.value
-    });
+    var minimum = region.type === "water" ? 0 : Math.max(5, region.baseFt);
+    var next = region.type === "water" ? 0 : clamp(region.topFt + step, minimum, 120);
+    state.review = Structure.updateRegion(state.review, region.id, { topFt: next });
+    state.drawHeightFt = next;
     renderAll();
-    setStatus("Region meaning, appearance, height, walk surface, and access receipt updated.");
+    ui.previewHeightValue.textContent = next + " ft";
+    setStatus(region.label + " is now " + next + " ft high. No Apply step is needed.");
+  }
+  function openHeightPopover(region, clientX, clientY) {
+    ui.heightPopoverName.textContent = region.label;
+    ui.previewHeightValue.textContent = region.topFt + " ft";
+    ui.heightPopover.hidden = false;
+    var width = 270, height = 112;
+    ui.heightPopover.style.left = clamp(clientX + 12, 8, window.innerWidth - width - 8) + "px";
+    ui.heightPopover.style.top = clamp(clientY + 12, 8, window.innerHeight - height - 8) + "px";
+  }
+  function closeHeightPopover() { ui.heightPopover.hidden = true; }
+  function previewRegionAt(event) {
+    var rect = ui.previewCanvas.getBoundingClientRect();
+    var x = (event.clientX - rect.left) * ui.previewCanvas.width / rect.width;
+    var y = (event.clientY - rect.top) * ui.previewCanvas.height / rect.height;
+    return state.previewHits.slice().reverse().find(function (hit) {
+      return x >= hit.left && x <= hit.right && y >= hit.top && y <= hit.bottom;
+    });
   }
   function setView(view) {
+    closeTypePalette();
+    closeHeightPopover();
     state.view = view;
     ui.viewGrid.className = "view-grid " + (view === "artwork" ? "artwork-only" : view === "preview" ? "preview-only" : "split");
     document.querySelectorAll("[data-view]").forEach(function (button) {
@@ -919,7 +1040,31 @@
     renderPreview();
   }
 
+  function storeCombatHandoff() {
+    if (!state.review || !state.analysis || !state.file) return;
+    var authored = state.review.regions.filter(function (region) { return region.source === "dm-authored"; });
+    if (!authored.length) { setStatus("Draw at least one confirmed structure before continuing."); return; }
+    var nonce = Date.now(), key = "forge-image-combat-handoff:" + nonce;
+    var underlayKey = key + ":artwork";
+    try {
+      sessionStorage.setItem(underlayKey, ui.sourceCanvas.toDataURL("image/jpeg", 0.78));
+      sessionStorage.setItem(key, JSON.stringify({
+        contract: "forge-image-combat-handoff/v1",
+        source: { name: state.file.name, width: state.originalWidth, height: state.originalHeight, localOnly: true },
+        review: state.review,
+        analysis: state.analysis,
+        underlayKey: underlayKey
+      }));
+    } catch (error) {
+      setStatus("This browser could not hold the local artwork handoff. The review remains unchanged here.");
+      return;
+    }
+    setStatus("Reviewed structures and their local artwork colors are entering the combat handoff proof.");
+    window.location.href = "mock-forge-image-combat-handoff.html#handoff=" + encodeURIComponent(key);
+  }
+
   ui.imageFile.addEventListener("change", function () { loadFile(ui.imageFile.files[0]); });
+  ui.openCombatProof.addEventListener("click", storeCombatHandoff);
   ui.autoGrid.addEventListener("click", inspectGrid);
   ui.drawGridCell.addEventListener("click", function () {
     state.gridMode = "gridded";
@@ -954,50 +1099,68 @@
   ui.proposeRegions.addEventListener("click", propose);
   document.querySelectorAll("[data-draw-tool]").forEach(function (button) {
     button.addEventListener("click", function () {
-      state.selectionTool = button.dataset.drawTool; state.editAddRegionId = null;
-      syncDrawToolButtons();
-      setStatus(state.selectionTool === "pointer" ? "Pointer active. Select one structure to edit its properties."
-        : state.selectionTool === "lasso" ? "Lasso active. Right-click for type and variant; release each drawing to save it."
-          : state.selectionTool === "eraser" ? (state.selectedId ? "Eraser targets the selected structure only." : "Eraser will trim every authored footprint it crosses.")
-            : "Pan active. Drag the artwork without changing structures.");
+      setTool(button.dataset.drawTool, true);
     });
   });
-  ui.magicTolerance.addEventListener("input", function () { ui.magicToleranceValue.textContent = ui.magicTolerance.value; });
-  ui.colorAssist.addEventListener("click", function () {
-    var region = selectedRegion();
-    if (!region) { setStatus("Select one saved structure before using Color assist."); return; }
-    state.selection = Structure.selectionFromCells(region.cells, region.footprint || { kind: "cells" });
-    state.magicFence = Structure.selectionFromCells(state.selection.cells, state.selection.footprint);
-    state.editingRegionId = region.id; state.semanticType = region.type; state.semanticAppearance = region.appearance;
-    state.selectionTool = "magic"; syncPendingAppearance(); syncDrawToolButtons();
-    setStatus("Color assist is fenced to " + region.label + ". Click its material; no outside artwork can be selected.");
+  document.querySelectorAll("[data-palette-tool]").forEach(function (button) {
+    button.addEventListener("click", function () {
+      setTool(button.dataset.paletteTool, true);
+      renderTypePalette();
+      if (state.selectionTool === "pan") closeTypePalette();
+    });
   });
-  ui.armedKit.addEventListener("click", function (event) { openTypePalette(event.clientX, event.clientY); });
+  document.querySelectorAll("[data-eraser-size]").forEach(function (button) {
+    button.addEventListener("click", function () {
+      state.eraserSizeCells = Number(button.dataset.eraserSize);
+      setTool("eraser", true); closeTypePalette();
+    });
+  });
+  ui.paletteDeleteSelected.addEventListener("click", deleteSelectedRegion);
+  ui.armedKit.addEventListener("click", function (event) {
+    if (state.selectionTool !== "brush" && state.selectionTool !== "lasso") setTool("brush", false);
+    openTypePalette(event.clientX, event.clientY);
+  });
   ui.closeTypePalette.addEventListener("click", closeTypePalette);
+  ui.drawHeightDown.addEventListener("click", function () { setDrawHeight(state.drawHeightFt - 5); });
+  ui.drawHeightUp.addEventListener("click", function () { setDrawHeight(state.drawHeightFt + 5); });
+  ui.paletteHeightDown.addEventListener("click", function () { setDrawHeight(state.drawHeightFt - 5); });
+  ui.paletteHeightUp.addEventListener("click", function () { setDrawHeight(state.drawHeightFt + 5); });
+  ui.selectedHeightDown.addEventListener("click", function () { adjustSelectedHeight(-5); });
+  ui.selectedHeightUp.addEventListener("click", function () { adjustSelectedHeight(5); });
+  ui.previewHeightDown.addEventListener("click", function () { adjustSelectedHeight(-5); });
+  ui.previewHeightUp.addEventListener("click", function () { adjustSelectedHeight(5); });
+  ui.closeHeightPopover.addEventListener("click", closeHeightPopover);
   ui.undoDraw.addEventListener("click", function () { restoreHistory(state.undoStack, state.redoStack, "Last authoring gesture undone"); });
   ui.redoDraw.addEventListener("click", function () { restoreHistory(state.redoStack, state.undoStack, "Authoring gesture restored"); });
   ui.toggleGrid.addEventListener("click", function () { state.gridVisible = !state.gridVisible; updateGridReceipt(); renderOverlay(); });
   ui.zoomIn.addEventListener("click", function () { state.zoom *= 1.25; applyZoom(); });
   ui.zoomOut.addEventListener("click", function () { state.zoom /= 1.25; applyZoom(); });
   ui.zoomFit.addEventListener("click", fitArtwork);
-  ui.regionToSelection.addEventListener("click", useRegionAsSelection);
-  ui.regionType.addEventListener("change", function () {
-    ui.regionSupport.value = Structure.TYPES[ui.regionType.value].supportMode;
-    fillAppearanceOptions(ui.regionAppearance, ui.regionType.value, null);
-  });
-  document.querySelectorAll("[data-height-step]").forEach(function (button) {
-    button.addEventListener("click", function () {
-      var next = clamp((Number(ui.regionTop.value) || 0) + Number(button.dataset.heightStep), Number(ui.regionBase.value) || 0, 120);
-      ui.regionTop.value = next; applySelectedRegion();
-    });
-  });
   document.querySelectorAll("[data-view]").forEach(function (button) {
     button.addEventListener("click", function () { setView(button.dataset.view); });
   });
-  ui.applyRegion.addEventListener("click", applySelectedRegion);
+  ui.previewCanvas.addEventListener("click", function (event) {
+    var hit = previewRegionAt(event);
+    if (!hit) { closeHeightPopover(); return; }
+    var region = state.review.regions.find(function (candidate) { return candidate.id === hit.id; });
+    if (!region) return;
+    state.selectedId = region.id;
+    state.semanticType = region.type;
+    state.semanticAppearance = region.appearance;
+    state.drawHeightFt = region.topFt;
+    renderAll();
+    openHeightPopover(region, event.clientX, event.clientY);
+    setStatus(region.label + " selected at " + region.topFt + " ft. Use −5 / +5 here to compare it with the scene.");
+  });
   ui.overlayCanvas.addEventListener("contextmenu", function (event) {
-    if (state.selectionTool !== "lasso" || !state.review) return;
-    event.preventDefault(); openTypePalette(event.clientX, event.clientY);
+    if (!state.review) return;
+    event.preventDefault();
+    if (state.selectionTool === "pointer") {
+      var region = selectAuthoredAtPoint(canvasPoint(event));
+      state.selectedId = region && region.id || state.selectedId;
+      renderAll();
+    }
+    openTypePalette(event.clientX, event.clientY);
   });
   ui.overlayCanvas.addEventListener("pointerdown", function (event) {
     if (event.button !== 0) return;
@@ -1007,9 +1170,15 @@
       state.panDrag = { x: event.clientX, y: event.clientY, left: ui.artView.scrollLeft, top: ui.artView.scrollTop };
       ui.canvasStack.classList.add("dragging"); return;
     }
-    if (state.calibrating || state.verifyingGrid || state.selectionTool === "pointer" || state.selectionTool === "magic") {
+    if (state.calibrating || state.verifyingGrid || state.selectionTool === "pointer") {
       state.drag = { startX: point.x, startY: point.y, endX: point.x, endY: point.y };
-    } else if (state.selectionTool === "lasso" || state.selectionTool === "eraser") state.lassoPoints = [[point.x, point.y]];
+    } else if (state.selectionTool === "brush") {
+      var brushCell = cellAtPoint(point);
+      if (brushCell) state.gridDrag = { start: brushCell, end: brushCell };
+    } else if (state.selectionTool === "lasso") state.lassoPoints = [[point.x, point.y]];
+    else if (state.selectionTool === "eraser") {
+      state.eraserCells = []; state.lastEraserCell = null; addEraserAt(point);
+    }
     renderOverlay();
   });
   ui.overlayCanvas.addEventListener("pointermove", function (event) {
@@ -1020,13 +1189,19 @@
     }
     var point = canvasPoint(event);
     if (state.drag) { state.drag.endX = point.x; state.drag.endY = point.y; }
+    if (state.gridDrag) {
+      var brushCell = cellAtPoint(point);
+      if (brushCell) state.gridDrag.end = brushCell;
+    }
     if (state.lassoPoints) {
       var last = state.lassoPoints[state.lassoPoints.length - 1];
       if (Math.hypot(point.x - last[0], point.y - last[1]) > 3) state.lassoPoints.push([point.x, point.y]);
     }
+    if (state.selectionTool === "eraser" && (event.buttons & 1)) addEraserAt(point);
     renderOverlay();
   });
   ui.overlayCanvas.addEventListener("pointerup", function (event) {
+    if (event.button !== 0) return;
     var point = canvasPoint(event);
     if (state.panDrag) { state.panDrag = null; ui.canvasStack.classList.remove("dragging"); return; }
     if (state.calibrating) {
@@ -1036,27 +1211,48 @@
     }
     if (state.verifyingGrid) { finishGridVerification(point); return; }
     if (state.selectionTool === "pointer") {
-      var cell = cellAtPoint(point);
       state.drag = null;
-      var region = cell && state.review && Structure.regionAt(state.review, cell.c, cell.r);
+      var region = selectAuthoredAtPoint(point);
       state.selectedId = region && region.id || null;
+      if (region) {
+        state.semanticType = region.type;
+        state.semanticAppearance = region.appearance;
+        state.drawHeightFt = region.topFt;
+      }
       renderAll();
-      setStatus(region ? "Region selected. Height, support, and footprint are editable on the right." : "Only the base ground surface is present here.");
+      setStatus(region ? region.label + " selected at " + region.topFt + " ft. Use −5 / +5 to compare its height." : "No drawn structure is present here; automatic hints remain reference only.");
       return;
     }
     state.drag = null;
-    if (state.selectionTool === "magic") magicSelect(point);
-    else if ((state.selectionTool === "lasso" || state.selectionTool === "eraser") && state.lassoPoints) { state.lassoPoints.push([point.x, point.y]); finishLasso(); }
+    if (state.selectionTool === "brush" && state.gridDrag) finishGridBrush();
+    else if (state.selectionTool === "lasso" && state.lassoPoints) { state.lassoPoints.push([point.x, point.y]); finishLasso(); }
+    else if (state.selectionTool === "eraser" && state.eraserCells.length) finishEraser();
+    else if (state.selectionTool === "zoom") zoomAtPoint(event, point);
   });
-  ui.overlayCanvas.addEventListener("pointercancel", function () { state.drag = null; state.lassoPoints = null; state.panDrag = null; ui.canvasStack.classList.remove("dragging"); renderOverlay(); });
+  ui.overlayCanvas.addEventListener("pointercancel", function () {
+    state.drag = null; state.gridDrag = null; state.lassoPoints = null; state.eraserCells = [];
+    state.lastEraserCell = null; state.panDrag = null; ui.canvasStack.classList.remove("dragging"); renderOverlay();
+  });
   document.addEventListener("keydown", function (event) {
-    if (event.key === "Escape") { closeTypePalette(); state.calibrating = false; state.verifyingGrid = false; state.drag = null; syncGridControls(); }
-  });
-
-  Object.keys(Structure.TYPES).forEach(function (type) {
-    var option = document.createElement("option");
-    option.value = type; option.textContent = Structure.TYPES[type].label;
-    ui.regionType.appendChild(option);
+    var target = event.target;
+    if (target && (/^(INPUT|TEXTAREA|SELECT)$/.test(target.tagName) || target.isContentEditable)) return;
+    if (event.key === "Escape") {
+      closeTypePalette(); closeHeightPopover(); state.calibrating = false; state.verifyingGrid = false;
+      state.drag = null; state.gridDrag = null; state.lassoPoints = null; state.eraserCells = []; syncGridControls(); return;
+    }
+    if (event.key === "Delete" || event.key === "Backspace") {
+      event.preventDefault(); deleteSelectedRegion(); return;
+    }
+    if (event.metaKey || event.ctrlKey || event.altKey) return;
+    var key = event.key.toLowerCase();
+    var tools = { v: "pointer", b: "brush", l: "lasso", e: "eraser", h: "pan", z: "zoom" };
+    if (tools[key]) { event.preventDefault(); setTool(tools[key], true); closeTypePalette(); return; }
+    if (key === "f") { event.preventDefault(); fitArtwork(); setStatus("Artwork fitted to view. Press Z to zoom from the map."); return; }
+    if ((event.key === "[" || event.key === "]") && state.selectionTool === "eraser") {
+      var sizes = [1, 3, 5], current = sizes.indexOf(state.eraserSizeCells);
+      state.eraserSizeCells = sizes[clamp(current + (event.key === "]" ? 1 : -1), 0, sizes.length - 1)];
+      setTool("eraser", true);
+    }
   });
   syncPendingAppearance();
 

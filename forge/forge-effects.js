@@ -17,7 +17,18 @@
   else root.ForgeEffects=api;
 })(typeof self!=="undefined"?self:this,function(){
   "use strict";
-  var VERSION="1.6.0";
+  var VERSION="1.7.0";
+  var WILD_SURGE_RESULTS={
+    1:{title:"Necrotic burst",summary:"Chosen creatures within 30 ft make a CON save. Each failure takes 1d12 necrotic damage; you gain temporary HP equal to one 1d12 roll."},
+    2:{title:"Wild teleport",summary:"Teleport up to 30 ft to a visible open space now; repeat as a bonus action on later turns while the rage lasts."},
+    3:{title:"Exploding spirit",summary:"A spirit appears near a creature within 30 ft and bursts at turn end; nearby creatures make a DEX save or take 1d6 force damage. Repeat each turn while raging."},
+    4:{title:"Infused weapon",summary:"One held weapon becomes magical force damage, gains the light and thrown properties (20/60), and returns to your hand at turn end."},
+    5:{title:"Retributive magic",summary:"Until the rage ends, a creature that hits you with an attack takes 1d6 force damage."},
+    6:{title:"Protective lights",summary:"You and allies within 10 ft gain +1 AC until the rage ends."},
+    7:{title:"Grasping growth",summary:"Ground within 15 ft is difficult terrain for your enemies until the rage ends."},
+    8:{title:"Blinding bolt",summary:"One creature within 30 ft makes a CON save or takes 1d6 radiant damage and is blinded until your next turn; repeat as a bonus action while raging."}
+  };
+  function wildSurgeResult(roll){return plain(WILD_SURGE_RESULTS[Math.max(1,Math.min(8,n(roll,1)))])||null;}
 
   function plain(v){ return v==null?v:JSON.parse(JSON.stringify(v)); }
   function n(v,d){ v=Number(v); return Number.isFinite(v)?v:d; }
@@ -165,8 +176,8 @@
     return {unit:source,add_effect:{id:opts.id||("raven-resistance:"+source+":"+(opts.nonce==null?Date.now():opts.nonce)),kind:"raven-resistance",label:"Blessing of the Raven Queen",icon:"raven",source:source,target:source,damageResistance:"all",duration:{kind:"source-turns",unit:source,count:1}}};
   }
   function addRage(opts){
-    opts=opts||{};var source=String(opts.source||"");
-    return {unit:source,add_effect:{id:opts.id||("rage:"+source+":"+(opts.nonce==null?Date.now():opts.nonce)),kind:"rage",label:"Rage",icon:"rage",source:source,target:source,wildSurge:opts.wildSurge||null,duration:{kind:"source-turns",unit:source,count:Math.max(1,n(opts.turns,10))}}};
+    opts=opts||{};var source=String(opts.source||""),surge=opts.wildSurge||null,result=surge?wildSurgeResult(surge):null;
+    return {unit:source,add_effect:{id:opts.id||("rage:"+source+":"+(opts.nonce==null?Date.now():opts.nonce)),kind:"rage",label:"Rage"+(result?" · Wild Surge "+surge:""),icon:"rage",source:source,target:source,wildSurge:surge,wildSurgeResult:result,duration:{kind:"source-turns",unit:source,count:Math.max(1,n(opts.turns,10))}}};
   }
   function modifierDie(state,unit,kind,roll){var e=find(state,unit,kind);if(!e)return null;return {effect:e,roll:Math.max(1,n(roll,1)),die:e.die||"1d4"};}
   function concentrationSave(state,source,damage,mod,roll,opts){
@@ -241,7 +252,7 @@
   }
   return {VERSION:VERSION,effectiveRows:effectiveRows,replay:replay,forUnit:forUnit,find:find,
     addSanctuary:addSanctuary,addBless:addBless,addBlessGroup:addBlessGroup,addHex:addHex,addHuntersMark:addHuntersMark,transferHex:transferHex,addHexbladeCurse:addHexbladeCurse,
-    addInitiativeDie:addInitiativeDie,addGiftOfAlacrity:addGiftOfAlacrity,addGuidance:addGuidance,addBardicInspiration:addBardicInspiration,addRavenResistance:addRavenResistance,addRage:addRage,
+    addInitiativeDie:addInitiativeDie,addGiftOfAlacrity:addGiftOfAlacrity,addGuidance:addGuidance,addBardicInspiration:addBardicInspiration,addRavenResistance:addRavenResistance,addRage:addRage,wildSurgeResult:wildSurgeResult,WILD_SURGE_RESULTS:plain(WILD_SURGE_RESULTS),
     concentrationRemovals:concentrationRemovals,concentrationSave:concentrationSave,modifierDie:modifierDie,remove:remove,wisdomSave:wisdomSave,isSanctuaryAction:isSanctuaryAction,
     harmfulDirect:harmfulDirect,breaksSanctuary:breaksSanctuary,removalForActor:removalForActor,eventSummary:eventSummary,
     _internals:{effectOps:effectOps,nextActive:nextActive}};
