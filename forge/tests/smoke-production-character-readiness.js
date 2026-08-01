@@ -159,7 +159,7 @@ function chonkFixture() {
   const shardsHtml = fs.readFileSync(path.join(root, "shards.html"), "utf8");
   ok("Forge loads readiness before capability and kit compilation",
     forgeHtml.indexOf("../character-readiness.js?v=cr1") < forgeHtml.indexOf("forge-capabilities.js?v=fc4") &&
-    forgeHtml.indexOf("forge-capabilities.js?v=fc4") < forgeHtml.indexOf("forge-kit-derive.js?v=b19"));
+    forgeHtml.indexOf("forge-capabilities.js?v=fc4") < forgeHtml.indexOf("forge-kit-derive.js?v=b20"));
   ok("production onboarding remains behind the readiness field gate",
     forgeHtml.includes('USE_CHARACTER_READINESS = new URLSearchParams(location.search).get("readiness") === "1"') &&
     forgeHtml.includes("readiness: USE_CHARACTER_READINESS"));
