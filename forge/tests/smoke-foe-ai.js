@@ -4,11 +4,13 @@ const AI=require("../forge-foe-ai.js");
 let pass=0;function ok(v,label){if(!v)throw new Error("FAIL: "+label);console.log("ok",++pass,"-",label);}
 const archer={unit:"archer",name:"Archer",c:0,r:0},caim={unit:"caim",name:"Caim",c:11,r:0,hp:24,hpMax:24,alive:true};
 const sword={label:"Shortsword",kind:"attack",rng:1,hit:6,dmg:"1d6+4"},bow={label:"Longbow",kind:"attack",rng:30,long:120,hit:6,dmg:"1d8+4"};
-ok(AI.VERSION==="1.3.0","planner version is pinned");
+ok(AI.VERSION==="1.4.0","planner version is pinned");
 ok(AI.avgFormula("2d6+3")===10,"average damage reads dice and flat bonuses");
 ok(AI.actionRangeFt(bow)===600,"long range is retained for planning");
 const archerPlan=AI.planTurn({actions:[sword,bow],targets:[caim],origins:[{c:0,r:0,cost:0}],evaluate:(o,a)=>a===bow?{ok:true,distanceFt:55,cover:2,coverName:"half"}:{ok:false},distance:()=>55});
 ok(archerPlan.kind==="attack"&&archerPlan.action===bow,"Archer chooses its legal longbow instead of advancing with the first melee entry");
+const saveSpell={label:"Sacred Flame",kind:"save",rng:12,dc:13,saveAbility:"dex",dmg:"1d8"};
+ok(AI.planTurn({actions:[saveSpell],targets:[caim],origins:[{c:0,r:0,cost:0}],evaluate:()=>({ok:true,distanceFt:55,cover:0,coverName:"none"})}).action===saveSpell,"automatic enemies can choose an executable save spell");
 ok(/Longbow/.test(archerPlan.why)&&/55 ft/.test(archerPlan.why),"automatic choice narrates weapon and range");
 const meleePlan=AI.planTurn({actions:[sword],targets:[caim],origins:[{c:0,r:0,cost:0},{c:10,r:0,cost:10}],evaluate:(o)=>o.c===10?{ok:true,distanceFt:5,cover:0,coverName:"none"}:{ok:false},distance:(o)=>Math.abs(11-o.c)*5});
 ok(meleePlan.kind==="move-attack"&&meleePlan.origin.c===10,"melee foe moves to an origin that permits its real attack");
