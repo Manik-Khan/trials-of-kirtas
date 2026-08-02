@@ -1,0 +1,499 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover" />
+  <title>Bardic — Supabase Transport Diagnostic</title>
+  <style>
+    :root {
+      color-scheme: dark;
+      --bg: #101816;
+      --panel: #182826;
+      --line: #48645f;
+      --text: #f3efe4;
+      --muted: #aab9b4;
+      --gold: #d3ad61;
+      --good: #8fd6aa;
+      --warn: #f0c674;
+      --bad: #ed8a8a;
+    }
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      min-height: 100vh;
+      background: linear-gradient(180deg, #111b19, var(--bg));
+      color: var(--text);
+      font: 16px/1.45 system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+    }
+    main { width: min(900px, 100%); margin: 0 auto; padding: 20px; }
+    h1, h2 { font-family: Georgia, serif; }
+    h1 { margin: 0; font-size: clamp(1.8rem, 7vw, 2.8rem); }
+    h2 { margin: 0 0 12px; }
+    p { color: var(--muted); }
+    .eyebrow { color: var(--gold); letter-spacing: .13em; text-transform: uppercase; font-size: .72rem; }
+    .card { border: 1px solid var(--line); background: var(--panel); padding: 18px; margin-top: 14px; }
+    label { display: block; color: var(--muted); font-size: .82rem; margin: 10px 0 5px; }
+    input, button {
+      width: 100%;
+      min-height: 44px;
+      border: 1px solid var(--line);
+      border-radius: 0;
+      padding: 10px 12px;
+      background: #0e1715;
+      color: var(--text);
+      font: inherit;
+    }
+    button { cursor: pointer; background: var(--gold); color: #17130a; font-weight: 700; margin-top: 14px; }
+    button:disabled { opacity: .5; cursor: wait; }
+    .results { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; margin-top: 14px; }
+    .result { border: 1px solid var(--line); padding: 12px; background: #101a18; }
+    .result strong { display: block; font-size: 1.05rem; }
+    .result span { color: var(--muted); font-size: .76rem; }
+    .good strong { color: var(--good); }
+    .warn strong { color: var(--warn); }
+    .bad strong { color: var(--bad); }
+    pre {
+      margin: 0;
+      max-height: 420px;
+      overflow: auto;
+      white-space: pre-wrap;
+      overflow-wrap: anywhere;
+      border: 1px solid var(--line);
+      background: #09100e;
+      padding: 12px;
+      font-size: .78rem;
+    }
+    code { color: #dbc993; }
+    ul { color: var(--muted); padding-left: 20px; }
+    @media (max-width: 700px) {
+      main { padding: 12px; }
+      .results { grid-template-columns: 1fr; }
+    }
+  </style>
+</head>
+<body>
+<main>
+  <div class="eyebrow">Theatre of Knowledge · Bardic Radio</div>
+  <h1>Supabase Transport Diagnostic</h1>
+  <p>
+    This page contains no Bardic clock code and no Supabase JavaScript library.
+    It separately tests ordinary HTTPS access and a raw Realtime WebSocket upgrade.
+  </p>
+
+  <section class="card">
+    <h2>Connection details</h2>
+
+    <label for="projectUrl">Supabase project URL</label>
+    <input id="projectUrl" placeholder="https://your-project.supabase.co" autocomplete="off" />
+
+    <label for="apiKey">Browser-safe publishable or legacy anon key</label>
+    <input id="apiKey" type="password" placeholder="sb_publishable_… or eyJ…" autocomplete="off" />
+
+    <label for="networkLabel">Network/device label</label>
+    <input id="networkLabel" placeholder="Mac Wi-Fi, iPhone cellular, etc." autocomplete="off" />
+
+    <button id="runBtn">Run transport tests</button>
+
+    <p>
+      Never enter a <code>service_role</code> or <code>sb_secret_…</code> key.
+      This tool does not print the key and does not store it in local storage.
+    </p>
+  </section>
+
+  <section class="card">
+    <h2>Results</h2>
+    <div class="results">
+      <div id="authResult" class="result warn">
+        <strong>Not run</strong>
+        <span>HTTPS: Auth settings</span>
+      </div>
+      <div id="restResult" class="result warn">
+        <strong>Not run</strong>
+        <span>HTTPS: REST gateway</span>
+      </div>
+      <div id="wsResult" class="result warn">
+        <strong>Not run</strong>
+        <span>WSS: Realtime socket</span>
+      </div>
+    </div>
+  </section>
+
+  <section class="card">
+    <h2>How to read it</h2>
+    <ul>
+      <li><strong>HTTPS fails and WSS fails:</strong> project hostname, DNS, TLS, key, or general network path.</li>
+      <li><strong>HTTPS passes but WSS fails:</strong> WebSocket upgrade is blocked, or the Realtime endpoint/service is failing.</li>
+      <li><strong>WSS opens and heartbeat replies:</strong> raw transport works; return to the Supabase client/channel layer.</li>
+      <li><strong>WSS opens then closes:</strong> copy the close code and reason from the log.</li>
+    </ul>
+  </section>
+
+  <section class="card">
+    <h2>Diagnostic log</h2>
+    <pre id="log"></pre>
+  </section>
+</main>
+
+<script>
+(() => {
+  'use strict';
+
+  const projectUrlInput = document.getElementById('projectUrl');
+  const apiKeyInput = document.getElementById('apiKey');
+  const networkLabelInput = document.getElementById('networkLabel');
+  const runBtn = document.getElementById('runBtn');
+  const logEl = document.getElementById('log');
+  const authResult = document.getElementById('authResult');
+  const restResult = document.getElementById('restResult');
+  const wsResult = document.getElementById('wsResult');
+
+  projectUrlInput.value = sessionStorage.getItem('bardic-diagnostic-url') || '';
+  networkLabelInput.value = sessionStorage.getItem('bardic-diagnostic-label') || '';
+
+  function log(message, data) {
+    const time = new Date().toLocaleTimeString();
+    const suffix = data === undefined ? '' : ` ${JSON.stringify(data)}`;
+    logEl.textContent += `[${time}] ${message}${suffix}\n`;
+    logEl.scrollTop = logEl.scrollHeight;
+  }
+
+  function setResult(element, headline, kind, details) {
+    element.className = `result ${kind}`;
+    element.innerHTML = `<strong>${escapeHtml(headline)}</strong><span>${escapeHtml(details)}</span>`;
+  }
+
+  function escapeHtml(value) {
+    return String(value).replace(/[&<>"']/g, (character) => ({
+      '&': '&amp;',
+      '<': '&lt;',
+      '>': '&gt;',
+      '"': '&quot;',
+      "'": '&#039;',
+    }[character]));
+  }
+
+  function normalizeProjectUrl(raw) {
+    const url = new URL(raw.trim());
+    if (url.protocol !== 'https:') {
+      throw new Error('The project URL must begin with https://');
+    }
+    url.pathname = '';
+    url.search = '';
+    url.hash = '';
+    return url;
+  }
+
+  async function fetchWithTimeout(url, options, timeoutMs = 10000) {
+    const controller = new AbortController();
+    const timer = setTimeout(() => controller.abort(), timeoutMs);
+    const started = performance.now();
+
+    try {
+      const response = await fetch(url, {
+        ...options,
+        cache: 'no-store',
+        signal: controller.signal,
+      });
+
+      return {
+        response,
+        elapsedMs: performance.now() - started,
+      };
+    } finally {
+      clearTimeout(timer);
+    }
+  }
+
+  async function testAuthSettings(baseUrl, key) {
+    const endpoint = new URL('/auth/v1/settings', baseUrl);
+    log('HTTPS auth test starting', { host: endpoint.host });
+
+    try {
+      const { response, elapsedMs } = await fetchWithTimeout(
+        endpoint,
+        {
+          method: 'GET',
+          headers: {
+            apikey: key,
+          },
+        }
+      );
+
+      const body = await response.text();
+      log('HTTPS auth response', {
+        status: response.status,
+        ok: response.ok,
+        elapsedMs: Number(elapsedMs.toFixed(1)),
+        bodyPreview: body.slice(0, 240),
+      });
+
+      if (response.ok) {
+        setResult(authResult, `PASS · ${response.status}`, 'good', `Auth HTTPS · ${elapsedMs.toFixed(0)} ms`);
+        return true;
+      }
+
+      setResult(authResult, `HTTP ${response.status}`, 'bad', `Auth HTTPS · ${elapsedMs.toFixed(0)} ms`);
+      return false;
+    } catch (error) {
+      log('HTTPS auth failure', {
+        name: error.name,
+        message: error.message,
+      });
+      setResult(authResult, 'FETCH FAILED', 'bad', `Auth HTTPS · ${error.message}`);
+      return false;
+    }
+  }
+
+  async function testRestGateway(baseUrl, key) {
+    const endpoint = new URL('/rest/v1/', baseUrl);
+    log('HTTPS REST test starting', { host: endpoint.host });
+
+    try {
+      const { response, elapsedMs } = await fetchWithTimeout(
+        endpoint,
+        {
+          method: 'GET',
+          headers: {
+            apikey: key,
+            Authorization: `Bearer ${key}`,
+            Accept: 'application/openapi+json, application/json',
+          },
+        }
+      );
+
+      const body = await response.text();
+      log('HTTPS REST response', {
+        status: response.status,
+        ok: response.ok,
+        elapsedMs: Number(elapsedMs.toFixed(1)),
+        bodyPreview: body.slice(0, 240),
+      });
+
+      if (response.ok) {
+        setResult(restResult, `PASS · ${response.status}`, 'good', `REST HTTPS · ${elapsedMs.toFixed(0)} ms`);
+        return true;
+      }
+
+      setResult(restResult, `HTTP ${response.status}`, 'bad', `REST HTTPS · ${elapsedMs.toFixed(0)} ms`);
+      return false;
+    } catch (error) {
+      log('HTTPS REST failure', {
+        name: error.name,
+        message: error.message,
+      });
+      setResult(restResult, 'FETCH FAILED', 'bad', `REST HTTPS · ${error.message}`);
+      return false;
+    }
+  }
+
+  function buildWebSocketUrl(baseUrl, key) {
+    const wsUrl = new URL(baseUrl.toString());
+    wsUrl.protocol = 'wss:';
+    wsUrl.pathname = '/realtime/v1/websocket';
+    wsUrl.search = '';
+    wsUrl.searchParams.set('apikey', key);
+    wsUrl.searchParams.set('vsn', '1.0.0');
+    return wsUrl;
+  }
+
+  function redactedWebSocketUrl(wsUrl) {
+    const redacted = new URL(wsUrl.toString());
+    redacted.searchParams.set('apikey', '[REDACTED]');
+    return redacted.toString();
+  }
+
+  function testRawWebSocket(baseUrl, key) {
+    return new Promise((resolve) => {
+      const wsUrl = buildWebSocketUrl(baseUrl, key);
+      const started = performance.now();
+      let opened = false;
+      let heartbeatReply = false;
+      let finished = false;
+      let socket;
+
+      setResult(wsResult, 'CONNECTING', 'warn', 'Raw Realtime WebSocket');
+      log('Raw WebSocket starting', {
+        url: redactedWebSocketUrl(wsUrl),
+      });
+
+      const finish = (result) => {
+        if (finished) return;
+        finished = true;
+        clearTimeout(openTimeout);
+        clearTimeout(testTimeout);
+
+        try {
+          if (socket && socket.readyState === WebSocket.OPEN) {
+            socket.close(1000, 'diagnostic complete');
+          }
+        } catch (_) {}
+
+        resolve(result);
+      };
+
+      const openTimeout = setTimeout(() => {
+        log('Raw WebSocket did not open within 10 seconds', {
+          readyState: socket?.readyState ?? null,
+        });
+        setResult(wsResult, 'OPEN TIMEOUT', 'bad', 'No WebSocket upgrade in 10 s');
+        finish(false);
+      }, 10000);
+
+      const testTimeout = setTimeout(() => {
+        if (opened && !heartbeatReply) {
+          log('WebSocket opened but no heartbeat reply arrived within test window');
+          setResult(wsResult, 'OPEN · NO REPLY', 'warn', 'Upgrade worked; heartbeat unanswered');
+          finish(true);
+        }
+      }, 8000);
+
+      try {
+        socket = new WebSocket(wsUrl.toString());
+      } catch (error) {
+        log('WebSocket constructor failed', {
+          name: error.name,
+          message: error.message,
+        });
+        setResult(wsResult, 'CONSTRUCTOR FAILED', 'bad', error.message);
+        finish(false);
+        return;
+      }
+
+      socket.addEventListener('open', () => {
+        opened = true;
+        const elapsedMs = performance.now() - started;
+        clearTimeout(openTimeout);
+
+        log('Raw WebSocket OPEN', {
+          elapsedMs: Number(elapsedMs.toFixed(1)),
+          protocol: socket.protocol || null,
+          extensions: socket.extensions || null,
+        });
+        setResult(wsResult, 'OPEN', 'good', `Upgrade succeeded · ${elapsedMs.toFixed(0)} ms`);
+
+        const heartbeat = {
+          topic: 'phoenix',
+          event: 'heartbeat',
+          payload: {},
+          ref: 'diagnostic-1',
+        };
+
+        try {
+          socket.send(JSON.stringify(heartbeat));
+          log('Phoenix heartbeat sent');
+        } catch (error) {
+          log('Heartbeat send failed', {
+            name: error.name,
+            message: error.message,
+          });
+        }
+      });
+
+      socket.addEventListener('message', (event) => {
+        const raw = typeof event.data === 'string' ? event.data : '[binary data]';
+        log('Raw WebSocket MESSAGE', {
+          preview: raw.slice(0, 500),
+        });
+
+        if (raw.includes('diagnostic-1') || raw.includes('phx_reply')) {
+          heartbeatReply = true;
+          setResult(wsResult, 'PASS', 'good', 'Upgrade + server reply succeeded');
+          finish(true);
+        }
+      });
+
+      socket.addEventListener('error', (event) => {
+        log('Raw WebSocket ERROR', {
+          isTrusted: event.isTrusted,
+          readyState: socket.readyState,
+          elapsedMs: Number((performance.now() - started).toFixed(1)),
+        });
+
+        if (!opened) {
+          setResult(wsResult, 'TRANSPORT ERROR', 'bad', 'Socket failed before OPEN');
+        }
+      });
+
+      socket.addEventListener('close', (event) => {
+        log('Raw WebSocket CLOSE', {
+          code: event.code,
+          reason: event.reason || null,
+          wasClean: event.wasClean,
+          opened,
+          heartbeatReply,
+          elapsedMs: Number((performance.now() - started).toFixed(1)),
+        });
+
+        if (!opened) {
+          setResult(
+            wsResult,
+            `CLOSED · ${event.code}`,
+            'bad',
+            event.reason || 'Closed before WebSocket OPEN'
+          );
+          finish(false);
+          return;
+        }
+
+        if (!heartbeatReply) {
+          setResult(
+            wsResult,
+            `OPEN THEN CLOSE · ${event.code}`,
+            'warn',
+            event.reason || 'Upgrade succeeded; server closed'
+          );
+          finish(true);
+        }
+      });
+    });
+  }
+
+  runBtn.addEventListener('click', async () => {
+    const key = apiKeyInput.value.trim();
+
+    if (!key) {
+      alert('Enter the browser-safe publishable or anon key.');
+      return;
+    }
+
+    let baseUrl;
+    try {
+      baseUrl = normalizeProjectUrl(projectUrlInput.value);
+    } catch (error) {
+      alert(error.message);
+      return;
+    }
+
+    sessionStorage.setItem('bardic-diagnostic-url', baseUrl.toString());
+    sessionStorage.setItem('bardic-diagnostic-label', networkLabelInput.value.trim());
+
+    logEl.textContent = '';
+    setResult(authResult, 'RUNNING', 'warn', 'HTTPS: Auth settings');
+    setResult(restResult, 'RUNNING', 'warn', 'HTTPS: REST gateway');
+    setResult(wsResult, 'WAITING', 'warn', 'WSS: Realtime socket');
+    runBtn.disabled = true;
+
+    log('Diagnostic started', {
+      label: networkLabelInput.value.trim() || null,
+      projectHost: baseUrl.host,
+      online: navigator.onLine,
+      visibility: document.visibilityState,
+      userAgent: navigator.userAgent,
+      pageProtocol: location.protocol,
+    });
+
+    try {
+      await Promise.all([
+        testAuthSettings(baseUrl, key),
+        testRestGateway(baseUrl, key),
+      ]);
+      await testRawWebSocket(baseUrl, key);
+      log('Diagnostic complete');
+    } finally {
+      runBtn.disabled = false;
+    }
+  });
+})();
+</script>
+</body>
+</html>
