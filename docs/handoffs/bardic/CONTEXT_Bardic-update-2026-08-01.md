@@ -1,6 +1,6 @@
-# Bardic Radio host-clock handoff — 2026-08-01
+# Bardic Radio host-clock handoff — current through 2026-08-02
 
-Status: **Wave 1 and Wave 2 passed in the field. Wave 3 is next. Production integration has not
+Status: **Wave 1, Wave 2, and Wave 3 passed in the field. Production integration has not
 started.**
 
 This document is the current Bardic synchronization authority. It supersedes the unresolved
@@ -13,8 +13,9 @@ and one iPhone closely enough to sound like a single source in a room.
 
 Wave 1 proved the host clock, readiness, future scheduling, and audible click alignment. Wave 2
 proved the same path with a real Cloudinary MP3 for 1:52.4, including a synchronized restart from
-45 seconds and synchronized stop. M described the full-track result as “super clean” and
-essentially unified throughout.
+45 seconds and synchronized stop. Wave 3 proved background preparation of a second track,
+gapless hard cuts and crossfades, decoded-buffer reuse, synchronized stop, and failure isolation.
+M described the music as unified and the 500 ms crossfade as very smooth.
 
 This is a prototype verdict, not a production verdict. The proof pages are standalone and have
 not replaced the clock/control logic in the live Bardic console or player.
@@ -62,6 +63,10 @@ Do not edit these files. Begin later experiments from copies.
 - `prototypes/bardic-sync/frozen/bardic-real-track-wave2.html`
   - Known-good real-track download, decode, fingerprint, readiness, play, restart, and stop proof.
   - Default test track is the public Cloudinary URL recorded below.
+- `prototypes/bardic-sync/frozen/bardic-track-switch-wave3.html`
+  - Known-good two-buffer preparation, hard-cut, crossfade, repeated-switching, synchronized-stop,
+    and failed-pending-download isolation proof.
+  - Fresh sessions default to the field-preferred 500 ms crossfade.
 
 Earlier root-level Wave 1 revisions and the transport diagnostic are debugging history, not the
 current proof authority.
@@ -243,7 +248,7 @@ useful for a stable residual hardware offset, but only after measured evidence s
 
 ## 10. Production integration boundary
 
-No live Bardic source was changed by Wave 1 or Wave 2.
+No live Bardic source was changed by Wave 1, Wave 2, or Wave 3.
 
 Current production/historical files remain:
 
@@ -254,47 +259,43 @@ Current production/historical files remain:
 - `bardic-echo.js` — dormant legacy measurement code;
 - `webaudio-sync-proto.html` — earlier feasibility proof.
 
-Do not patch the live path until Wave 3 passes. When production integration begins, add a new
-flagged host-clock path alongside the existing behavior. Preserve the old route for A/B and
-rollback. Apply the repository's cache-stamp rule to every changed include.
+Wave 3 has passed. When production integration begins, add a new flagged host-clock path alongside
+the existing behavior. Preserve the old route for A/B and rollback. Apply the repository's
+cache-stamp rule to every changed include.
 
-## 11. Wave 3 — seamless track switching
+## 11. Wave 3 — seamless track switching passed
 
-Start from a copy of the frozen Wave 2 file. Do not edit the proof that passed.
+Wave 3 lives at `prototypes/bardic-sync/frozen/bardic-track-switch-wave3.html`. It keeps two
+independently decoded buffers in memory. Preparing the inactive slot never stops the active
+source. Every active verified device must report the same slot track ID and SHA-256 fingerprint
+before the host can broadcast a future-timestamped transition.
 
-First scope:
+The transition command supports an 8 ms anti-click hard-cut overlap or a synchronized 100–500 ms
+crossfade using separate source/gain nodes. Duplicate transition and stop IDs are ignored, and
+devices with no heartbeat for 35 seconds age out of the room gate.
 
-1. Track A is playing from a decoded current buffer.
-2. Host selects Track B.
-3. Every device downloads and decodes B while A continues playing.
-4. Each device reports B's `trackId`, fingerprint, duration, and `READY` state.
-5. The host waits until every connected playback device has the same pending fingerprint.
-6. The host announces a future transition timestamp.
-7. At that timestamp, perform either:
-   - a synchronized hard cut; or
-   - a synchronized short crossfade using separate source/gain nodes.
-8. Release the old buffer after the transition; the new buffer becomes current.
+MacBook-host/iPhone-listener field results on 2026-08-02:
 
-The preparation interval must never create silence. Track A keeps playing until the scheduled
-transition. If one device is unready, the first policy is to wait and narrate which device is
-blocking. Majority/exclusion policies come later.
+- Track A started unified.
+- Track B downloaded and decoded to matching hashes while A remained uninterrupted.
+- The hard cut to B was unified and gapless; playback remained in sync after one minute.
+- The 300 ms crossfade back to A was unified and gapless but felt slightly abrupt.
+- The 500 ms crossfade to B was smooth and unified, so 500 ms is the fresh-session default.
+- Reusing the prepared A buffer worked without another download.
+- Synchronized stop worked.
+- With B playing, an invalid Track A URL failed to fetch while B stayed audible and synchronized.
+- Restoring A's URL returned both devices to matching `READY`; A then played and stopped in sync.
 
-Wave 3 field gates:
+Automated validation runs the actual embedded scheduling functions with fake Web Audio and passes
+26/26 checks. This covers matching and mismatching readiness, stale-device aging, crossfade and
+hard-cut scheduling, duplicate transition/stop suppression, and failed-pending-download isolation.
 
-- hard cut produces no loading gap and stays synchronized;
-- 100–500 ms crossfade begins and ends together on both devices;
-- repeated A→B→A transitions do not leak sources or corrupt readiness;
-- a failed download leaves A playing and narrates the failure;
-- duplicate/replayed commands are idempotent;
-- disconnected or stale devices age out rather than block forever;
-- direct cut and crossfade work from position 0 and a chosen nonzero position.
-
-After Wave 3, test more than two devices, mixed operating systems/browsers, longer tracks,
+Remaining gates: test more than two devices, mixed operating systems/browsers, longer tracks,
 join-mid-track, reconnect, visibility changes, screen lock/background suspension, and degraded
 networks. Only measured failure should justify replacing Supabase Broadcast with direct WebRTC.
 
 ## 12. Handoff summary
 
-The main uncertainty is closed: host-as-clock plus local decoded Web Audio can sound unified on
-real separate devices. The next task is not another clock rewrite. It is a standalone Wave 3
-buffer/transition proof that preserves the passing clock and readiness machinery exactly.
+The main synchronization and transition uncertainties are closed: host-as-clock plus local decoded
+Web Audio can sound unified on real separate devices, including gapless track changes. The next
+task is broader device/lifecycle validation, followed by production integration behind a new flag.

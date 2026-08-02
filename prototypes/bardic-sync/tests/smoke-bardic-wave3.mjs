@@ -3,7 +3,7 @@ import vm from 'node:vm';
 import { performance } from 'node:perf_hooks';
 import { webcrypto } from 'node:crypto';
 
-const htmlPath = new URL('./bardic-track-switch-wave3.html', import.meta.url);
+const htmlPath = new URL('../frozen/bardic-track-switch-wave3.html', import.meta.url);
 const html = fs.readFileSync(htmlPath, 'utf8');
 const inlineScript = [...html.matchAll(/<script(?:\s[^>]*)?>([\s\S]*?)<\/script>/gi)]
   .map((match) => match[1])

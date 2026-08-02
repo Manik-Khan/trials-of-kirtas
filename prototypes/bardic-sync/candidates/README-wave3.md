@@ -1,6 +1,6 @@
-# Bardic track switching — Wave 3 candidate
+# Bardic track switching — Wave 3
 
-Status: **implemented and headlessly validated; real two-device browser/audio field test required.**
+Status: **passed on a MacBook host and iPhone listener on 2026-08-02.**
 
 This standalone page is a copy-derived successor to the frozen Wave 2 proof. It does not modify
 Wave 1.2.3, Wave 2, or any production Bardic file.
@@ -14,6 +14,7 @@ Wave 1.2.3, Wave 2, or any production Bardic file.
 - One synchronized transition command supports:
   - hard cut (an 8 ms anti-click overlap);
   - 100, 250, 300, or 500 ms crossfade.
+- Fresh sessions default to the field-preferred 500 ms crossfade.
 - A→B→A switching reuses both decoded buffers.
 - Duplicate transition and stop IDs are ignored.
 - Devices older than 35 seconds age out of the room gate.
@@ -27,7 +28,7 @@ Default tracks come from ToK's existing `data/tracks.json` library:
 
 Both URL and label fields remain editable.
 
-## First field test — one step at a time
+## Passing field procedure
 
 Use the same HTTPS hosting method and browser-safe Supabase publishable key that worked for Wave 2.
 
@@ -49,8 +50,13 @@ Use the same HTTPS hosting method and browser-safe Supabase publishable key that
 14. Listen for a clean shared cut with no loading gap, echo, or one-device-only playback.
 15. Select target **Track A**, choose **Crossfade**, choose `300 ms`, and switch back.
 16. Confirm both devices begin and finish the crossfade together.
-17. Repeat B→A once more, optionally comparing `100 ms` and `500 ms`.
+17. Repeat A→B with `500 ms` and compare the transition.
 18. Press **Stop synchronized** and confirm both stop together.
+
+Field result: Track A started unified; preparing B did not interrupt A; the hard cut to B was
+unified and remained synchronized after one minute; the 300 ms crossfade back to A was gapless
+but felt slightly abrupt; the 500 ms crossfade to B was smooth and unified; synchronized stop
+worked. The 500 ms option is now the default for fresh sessions.
 
 ## Failure-isolation check
 
@@ -61,6 +67,10 @@ Only after the normal A/B test passes:
 3. Prepare that inactive slot.
 4. The inactive slot must show an error while the current track remains audible and unchanged.
 5. Restore the original URL and prepare it again before continuing.
+
+Field result: an invalid Track A URL failed to fetch while Track B remained audible and in sync.
+After restoring A's URL, both devices prepared matching bytes, played A together, and stopped
+together.
 
 ## What to report
 
@@ -90,9 +100,7 @@ matching/mismatching readiness, stale-device aging, crossfade source/gain schedu
 hard-cut scheduling, duplicate transition suppression, failed pending download isolation, and
 duplicate stop suppression.
 
-The current sandbox could not serve or open the local page in a browser, so rendered layout,
-live Supabase behavior, real downloads/decodes, and audible multi-device transitions remain field
-gates. Do not freeze this candidate or integrate it into production until those gates pass.
+The automated gates above supplement, but do not replace, the 2026-08-02 real-device field pass.
 
 ## Credential rule
 

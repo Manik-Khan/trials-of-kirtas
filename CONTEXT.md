@@ -581,13 +581,13 @@ facet/filter 11/11, slash menu 12/12, TipTap image functional 4/4.
 
 ---
 
-## 🟢 PROVEN IN FIELD — Bardic Radio host-clock prototypes (August 1)
+## 🟢 PROVEN IN FIELD — Bardic Radio host-clock prototypes (August 1–2)
 
 The old server-clock Bardic path remains unresolved, but the architectural fork is no longer
-waiting: M chose **host-as-clock**, and the standalone Wave 1 and Wave 2 prototypes passed on a
-MacBook and iPhone. Two devices produced perceptually unified clicks, then independently
-downloaded and decoded a real rhythmic music track, started together, stayed essentially unified
-for its full 1:52 duration, restarted together from 45 seconds, and stopped together cleanly.
+waiting: M chose **host-as-clock**, and the standalone Wave 1, Wave 2, and Wave 3 prototypes passed
+on a MacBook and iPhone. Two devices produced perceptually unified clicks, independently decoded
+and played real music in sync, then preloaded and switched between two tracks with gapless hard
+cuts and crossfades while preserving synchronization.
 
 ### The proven architecture
 
@@ -616,17 +616,24 @@ but the shared host clock is the primary mechanism.
   `1-07._Homecoming_to_Port_b9ez8w.mp3`, SHA-256 prefix `54a2c7a1`, 3.75 MB, decoded duration
   1:52.4. Playback was “super clean” and essentially unified throughout. Restart from 45 seconds
   and synchronized stop both worked perfectly in the field.
+- **Wave 3 — track-switching proof:** Track B downloaded and decoded to matching hashes while A
+  remained audible. The hard cut to B was unified and gapless and stayed in sync after one minute.
+  A 300 ms crossfade was gapless but slightly abrupt; a 500 ms crossfade was smooth and unified.
+  Prepared buffers were reused, synchronized stop worked, and an invalid inactive-track URL failed
+  without disturbing the active synchronized track. Restoring Track A returned both devices to
+  matching `READY`, and A played and stopped in sync.
 
 Frozen known-good references:
 
 - `prototypes/bardic-sync/frozen/bardic-host-clock-wave1.2.3.html`
 - `prototypes/bardic-sync/frozen/bardic-real-track-wave2.html`
+- `prototypes/bardic-sync/frozen/bardic-track-switch-wave3.html`
 - `docs/handoffs/bardic/CONTEXT_Bardic-update-2026-08-01.md` — full protocol, debugging history,
-  evidence, security rules, production boundary, and Wave 3 plan.
+  evidence, security rules, production boundary, and next gates.
 
-Treat the two frozen pages as evidence, not production surfaces. **Copy Wave 2 to start Wave 3;
-do not modify either passing proof.** No production Bardic file has been migrated to the new
-clock yet.
+Treat the three frozen pages as evidence, not production surfaces. **Do not modify a passing
+proof; begin later experiments from copies.** No production Bardic file has been migrated to the
+new clock yet.
 
 ### Operational rules learned during the proof
 
@@ -642,17 +649,13 @@ clock yet.
 - Track identity is the bytes/hash, not the display name. Keep current + pending (and at most one
   queued) decoded buffers rather than loading the whole library into memory.
 
-### Next build: Wave 3 track switching
+### Next build: broader validation, then flagged production integration
 
-While Track A plays, every device downloads and decodes Track B, reports `READY`, and keeps A
-audible. Once every connected playback device has the same pending fingerprint, the host arms a
-future cut or crossfade. Track A stops/fades and Track B starts/fades at that shared timestamp,
-with no loading silence. Build and field-test this as another standalone copy before touching
-`radio.html`, `bardic-player.js`, `bardic-radio.js`, `bardic-console.html`, or `bardic-app.jsx`.
-
-Open gates after Wave 3: more than two devices, mixed browsers/hardware, longer-duration drift,
-join-mid-track, reconnect, phone background/screen-lock behavior, and only then production
-integration behind a new flag alongside the existing `?engine=wa` route.
+Open gates are more than two devices, mixed browsers/hardware, longer-duration drift,
+join-mid-track, reconnect, phone background/screen-lock behavior, and degraded networks. After
+that matrix, integrate the host-clock/two-buffer path behind a new flag alongside the existing
+`?engine=wa` route. Preserve the old production path for A/B comparison and rollback; do not
+rewrite the clock again without measured evidence.
 
 ### RULED OUT (cost ~30 attempts — do NOT rebuild)
 
