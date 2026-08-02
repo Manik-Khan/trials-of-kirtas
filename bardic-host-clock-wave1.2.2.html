@@ -1,0 +1,1174 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover" />
+  <title>Bardic Host Clock — Wave 1.2.2</title>
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.111.0"></script>
+  <style>
+    :root {
+      color-scheme: dark;
+      --bg: #101816;
+      --panel: #182826;
+      --panel-2: #203532;
+      --line: #48645f;
+      --text: #f3efe4;
+      --muted: #aab9b4;
+      --gold: #d3ad61;
+      --good: #8fd6aa;
+      --warn: #f0c674;
+      --bad: #ed8a8a;
+    }
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      min-height: 100vh;
+      background:
+        radial-gradient(circle at 15% 0%, rgba(75,112,102,.18), transparent 35%),
+        linear-gradient(180deg, #111b19, var(--bg));
+      color: var(--text);
+      font: 16px/1.45 system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+    }
+    main { width: min(1120px, 100%); margin: 0 auto; padding: 24px; }
+    h1, h2 { margin: 0; font-family: Georgia, serif; font-weight: 600; }
+    h1 { font-size: clamp(1.8rem, 5vw, 3rem); }
+    h2 { font-size: 1.15rem; margin-bottom: 12px; }
+    p { color: var(--muted); }
+    .eyebrow { color: var(--gold); text-transform: uppercase; letter-spacing: .14em; font-size: .75rem; }
+    .grid { display: grid; grid-template-columns: repeat(12, 1fr); gap: 14px; margin-top: 18px; }
+    .card {
+      grid-column: span 6;
+      border: 1px solid var(--line);
+      background: rgba(24,40,38,.94);
+      padding: 18px;
+      box-shadow: 0 14px 45px rgba(0,0,0,.25);
+    }
+    .card.full { grid-column: 1 / -1; }
+    label { display: block; color: var(--muted); font-size: .82rem; margin: 10px 0 5px; }
+    input, select, button {
+      width: 100%;
+      min-height: 44px;
+      border: 1px solid var(--line);
+      border-radius: 0;
+      background: #0e1715;
+      color: var(--text);
+      font: inherit;
+      padding: 10px 12px;
+    }
+    button {
+      cursor: pointer;
+      background: var(--panel-2);
+      font-weight: 700;
+    }
+    button.primary { background: var(--gold); color: #17130a; border-color: var(--gold); }
+    button:disabled { opacity: .45; cursor: not-allowed; }
+    .row { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+    .actions { display: flex; flex-wrap: wrap; gap: 10px; margin-top: 14px; }
+    .actions button { width: auto; flex: 1 1 180px; }
+    .status-line {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+      align-items: center;
+      margin-top: 12px;
+    }
+    .badge {
+      border: 1px solid var(--line);
+      padding: 5px 8px;
+      font-size: .78rem;
+      color: var(--muted);
+      background: #101a18;
+    }
+    .badge.good { color: var(--good); border-color: #416f52; }
+    .badge.warn { color: var(--warn); border-color: #75643e; }
+    .badge.bad { color: var(--bad); border-color: #754747; }
+    .metrics {
+      display: grid;
+      grid-template-columns: repeat(4, 1fr);
+      gap: 10px;
+    }
+    .metric { border: 1px solid var(--line); padding: 12px; background: #101a18; }
+    .metric strong { display: block; font-size: 1.35rem; font-variant-numeric: tabular-nums; }
+    .metric span { color: var(--muted); font-size: .75rem; text-transform: uppercase; letter-spacing: .08em; }
+    table { width: 100%; border-collapse: collapse; font-size: .85rem; }
+    th, td { padding: 8px; text-align: left; border-bottom: 1px solid rgba(72,100,95,.55); }
+    th { color: var(--muted); }
+    td.num { font-variant-numeric: tabular-nums; }
+    pre {
+      max-height: 260px;
+      overflow: auto;
+      margin: 0;
+      background: #0a100f;
+      border: 1px solid var(--line);
+      padding: 12px;
+      white-space: pre-wrap;
+      color: #bfd2cc;
+      font-size: .78rem;
+    }
+    .pulse {
+      height: 14px;
+      margin-top: 14px;
+      background: #0b1211;
+      border: 1px solid var(--line);
+      transition: background 40ms linear, box-shadow 40ms linear;
+    }
+    .pulse.flash { background: var(--gold); box-shadow: 0 0 28px rgba(211,173,97,.8); }
+    .hidden { display: none !important; }
+    .note { font-size: .86rem; color: var(--muted); }
+    code { color: #d8c693; }
+    @media (max-width: 760px) {
+      main { padding: 14px; }
+      .card { grid-column: 1 / -1; }
+      .row, .metrics { grid-template-columns: 1fr; }
+    }
+  </style>
+</head>
+<body>
+<main>
+  <div class="eyebrow">Theatre of Knowledge · Bardic Radio</div>
+  <h1>Host Clock — Wave 1.2.2</h1>
+  <p>
+    A standalone proof: listeners measure themselves directly against the host,
+    then every device schedules the same Web Audio click pattern for one future host timestamp.
+  </p>
+
+  <section class="grid">
+    <div class="card">
+      <h2>Connection</h2>
+      <label for="supabaseUrl">Supabase project URL</label>
+      <input id="supabaseUrl" autocomplete="off" placeholder="https://your-project.supabase.co" />
+
+      <label for="supabaseKey">Publishable or legacy anon key</label>
+      <input id="supabaseKey" type="password" autocomplete="off" placeholder="sb_publishable_… or anon key" />
+
+      <div class="row">
+        <div>
+          <label for="roomId">Test room</label>
+          <input id="roomId" value="bardic-wave1" autocomplete="off" />
+        </div>
+        <div>
+          <label for="displayName">Device name</label>
+          <input id="displayName" autocomplete="off" />
+        </div>
+      </div>
+
+      <div class="row">
+        <div>
+          <label for="role">Role</label>
+          <select id="role">
+            <option value="listener">Listener</option>
+            <option value="host">Host</option>
+          </select>
+        </div>
+        <div>
+          <label for="leadMs">Arm lead time</label>
+          <select id="leadMs">
+            <option value="1500">1.5 seconds</option>
+            <option value="2500" selected>2.5 seconds</option>
+            <option value="4000">4 seconds</option>
+          </select>
+        </div>
+      </div>
+
+      <label>
+        <input id="latencyComp" type="checkbox" checked style="width:auto;min-height:auto;margin-right:8px" />
+        Compensate using reported <code>AudioContext.outputLatency</code>
+      </label>
+
+      <div class="actions">
+        <button id="connectBtn" class="primary">Connect</button>
+        <button id="disconnectBtn" disabled>Disconnect</button>
+      </div>
+
+      <div class="status-line">
+        <span id="connectionBadge" class="badge warn">Disconnected</span>
+        <span id="audioBadge" class="badge warn">Audio locked</span>
+        <span id="roleBadge" class="badge">Listener</span>
+      </div>
+      <p class="note">
+        Use only a browser-safe publishable/anon key here. Never paste a Supabase secret or service-role key.
+        The test channel is public so it can run without changing database policies.
+      </p>
+    </div>
+
+    <div class="card">
+      <h2>Audio test</h2>
+      <p>
+        Every participating device must play the local sound test, actually hear three clicks,
+        and then confirm that result. Only then can the host arm eight synchronized clicks in the future.
+        Arrival time does not trigger playback; the timestamp does.
+      </p>
+      <div class="actions">
+        <button id="audioBtn">Play local sound test</button>
+        <button id="localTestBtn" disabled>I heard the three clicks</button>
+        <button id="armBtn" class="primary" disabled>Arm synchronized clicks</button>
+      </div>
+      <div id="pulse" class="pulse" aria-hidden="true"></div>
+      <div class="status-line">
+        <span id="armedBadge" class="badge">Not armed</span>
+        <span id="lastStartBadge" class="badge">No test yet</span>
+      </div>
+    </div>
+
+    <div class="card full">
+      <h2>Clock estimate</h2>
+      <div class="metrics">
+        <div class="metric"><strong id="offsetMetric">—</strong><span>Host − this device</span></div>
+        <div class="metric"><strong id="rttMetric">—</strong><span>Best RTT</span></div>
+        <div class="metric"><strong id="jitterMetric">—</strong><span>Offset jitter</span></div>
+        <div class="metric"><strong id="samplesMetric">0</strong><span>Valid samples</span></div>
+      </div>
+      <p class="note">
+        Listener estimate uses the median offset from the five lowest-round-trip samples in the recent window.
+        The host is always defined as 0 ms.
+      </p>
+    </div>
+
+    <div class="card">
+      <h2>Room devices</h2>
+      <table>
+        <thead><tr><th>Device</th><th>Role</th><th>Audio</th><th>Seen</th></tr></thead>
+        <tbody id="devicesBody"><tr><td colspan="4">Not connected</td></tr></tbody>
+      </table>
+    </div>
+
+    <div class="card">
+      <h2>Best clock samples</h2>
+      <table>
+        <thead><tr><th>#</th><th>RTT</th><th>Offset</th></tr></thead>
+        <tbody id="samplesBody"><tr><td colspan="3">No samples</td></tr></tbody>
+      </table>
+    </div>
+
+    <div class="card full">
+      <h2>Event log</h2>
+      <pre id="log"></pre>
+    </div>
+  </section>
+</main>
+
+<script>
+(() => {
+  'use strict';
+
+  const $ = (id) => document.getElementById(id);
+  const ui = {
+    supabaseUrl: $('supabaseUrl'),
+    supabaseKey: $('supabaseKey'),
+    roomId: $('roomId'),
+    displayName: $('displayName'),
+    role: $('role'),
+    leadMs: $('leadMs'),
+    latencyComp: $('latencyComp'),
+    connectBtn: $('connectBtn'),
+    disconnectBtn: $('disconnectBtn'),
+    audioBtn: $('audioBtn'),
+    localTestBtn: $('localTestBtn'),
+    armBtn: $('armBtn'),
+    connectionBadge: $('connectionBadge'),
+    audioBadge: $('audioBadge'),
+    roleBadge: $('roleBadge'),
+    armedBadge: $('armedBadge'),
+    lastStartBadge: $('lastStartBadge'),
+    offsetMetric: $('offsetMetric'),
+    rttMetric: $('rttMetric'),
+    jitterMetric: $('jitterMetric'),
+    samplesMetric: $('samplesMetric'),
+    devicesBody: $('devicesBody'),
+    samplesBody: $('samplesBody'),
+    pulse: $('pulse'),
+    log: $('log'),
+  };
+
+  const clientId = sessionStorage.getItem('bardic-wave1-client-id') || crypto.randomUUID();
+  sessionStorage.setItem('bardic-wave1-client-id', clientId);
+
+  const timeOriginMs = Number.isFinite(performance.timeOrigin)
+    ? performance.timeOrigin
+    : Date.now() - performance.now();
+
+  const monoEpochMs = () => timeOriginMs + performance.now();
+
+  const state = {
+    supabase: null,
+    channel: null,
+    connected: false,
+    subscribed: false,
+    audioCtx: null,
+    samples: [],
+    estimate: null,
+    pingTimer: null,
+    maintenanceTimer: null,
+    pendingPings: new Map(),
+    pulseTimers: [],
+    clickBuffer: null,
+    audioVerifiedAt: null,
+    localTestPlayedAt: null,
+    connectionGeneration: 0,
+    manualDisconnect: false,
+    reconnectTimer: null,
+  };
+
+  function log(message, data) {
+    const stamp = new Date().toLocaleTimeString();
+    const suffix = data === undefined ? '' : ` ${JSON.stringify(data)}`;
+    ui.log.textContent += `[${stamp}] ${message}${suffix}\n`;
+    ui.log.scrollTop = ui.log.scrollHeight;
+  }
+
+  function serializeError(error) {
+    if (!error) return null;
+    return {
+      name: error.name || null,
+      message: error.message || String(error),
+      cause:
+        error.cause instanceof Error
+          ? {
+              name: error.cause.name || null,
+              message: error.cause.message || String(error.cause),
+            }
+          : error.cause ?? null,
+      stack: error.stack || null,
+    };
+  }
+
+  function setBadge(el, text, kind = '') {
+    el.textContent = text;
+    el.className = `badge${kind ? ` ${kind}` : ''}`;
+  }
+
+  function loadSettings() {
+    ui.supabaseUrl.value = localStorage.getItem('bardic-wave1-url') || '';
+    ui.supabaseKey.value = localStorage.getItem('bardic-wave1-key') || '';
+    ui.roomId.value = localStorage.getItem('bardic-wave1-room') || 'bardic-wave1';
+    ui.displayName.value =
+      localStorage.getItem('bardic-wave1-name') ||
+      `${/iPhone|iPad|Android/i.test(navigator.userAgent) ? 'Phone' : 'Computer'} ${clientId.slice(0, 4)}`;
+    ui.role.value = localStorage.getItem('bardic-wave1-role') || 'listener';
+    updateRoleUI();
+  }
+
+  function saveSettings() {
+    localStorage.setItem('bardic-wave1-url', ui.supabaseUrl.value.trim());
+    localStorage.setItem('bardic-wave1-key', ui.supabaseKey.value.trim());
+    localStorage.setItem('bardic-wave1-room', ui.roomId.value.trim());
+    localStorage.setItem('bardic-wave1-name', ui.displayName.value.trim());
+    localStorage.setItem('bardic-wave1-role', ui.role.value);
+  }
+
+  function roomAudioIsVerified() {
+    if (!state.channel) return false;
+    const devices = Object.values(state.channel.presenceState()).flat();
+    return devices.length > 0 && devices.every((device) => device.audioVerified === true);
+  }
+
+  function updateRoleUI() {
+    const isHost = ui.role.value === 'host';
+    setBadge(ui.roleBadge, isHost ? 'Host' : 'Listener', isHost ? 'good' : '');
+
+    ui.armBtn.disabled = !(
+      state.connected &&
+      state.subscribed &&
+      isHost &&
+      state.audioCtx?.state === 'running' &&
+      state.audioVerifiedAt &&
+      roomAudioIsVerified()
+    );
+
+    if (isHost) {
+      state.estimate = { offsetMs: 0, bestRttMs: 0, jitterMs: 0 };
+      renderEstimate();
+    } else if (!state.samples.length) {
+      state.estimate = null;
+      renderEstimate();
+    }
+    updatePresence().catch(() => {});
+  }
+
+  function createClickBuffer(ctx) {
+    const durationSeconds = 0.09;
+    const frameCount = Math.max(1, Math.floor(ctx.sampleRate * durationSeconds));
+    const buffer = ctx.createBuffer(1, frameCount, ctx.sampleRate);
+    const data = buffer.getChannelData(0);
+
+    // A short, decaying two-tone click is more audible on phone speakers than
+    // the original 25 ms oscillator and uses the same AudioBuffer path that
+    // real Bardic tracks will eventually use.
+    for (let i = 0; i < frameCount; i++) {
+      const t = i / ctx.sampleRate;
+      const envelope = Math.exp(-t * 42);
+      const attack = Math.min(1, t / 0.0025);
+      const tone =
+        0.68 * Math.sin(2 * Math.PI * 1050 * t) +
+        0.32 * Math.sin(2 * Math.PI * 1650 * t);
+      data[i] = Math.max(-1, Math.min(1, attack * envelope * tone * 0.82));
+    }
+    return buffer;
+  }
+
+  function refreshAudioBadge() {
+    if (!state.audioCtx) {
+      setBadge(ui.audioBadge, 'Audio locked', 'warn');
+      return;
+    }
+
+    const contextState = state.audioCtx.state;
+    const verified = Boolean(state.audioVerifiedAt);
+    const kind = contextState === 'running' && verified ? 'good' : 'warn';
+    const suffix = verified ? ' · sound verified' : ' · sound unverified';
+
+    setBadge(
+      ui.audioBadge,
+      `${contextState} · output ${formatMs((state.audioCtx.outputLatency || 0) * 1000)}${suffix}`,
+      kind
+    );
+  }
+
+  async function ensureAudio() {
+    if (!state.audioCtx) {
+      const AudioContextClass = window.AudioContext || window.webkitAudioContext;
+      if (!AudioContextClass) throw new Error('Web Audio is unavailable in this browser.');
+
+      state.audioCtx = new AudioContextClass({ latencyHint: 'interactive' });
+      state.clickBuffer = createClickBuffer(state.audioCtx);
+
+      state.audioCtx.addEventListener('statechange', () => {
+        if (state.audioCtx.state !== 'running' && state.audioVerifiedAt) {
+          state.audioVerifiedAt = null;
+          ui.localTestBtn.disabled = true;
+          ui.localTestBtn.textContent = 'I heard the three clicks';
+          log('Audible verification cleared because AudioContext stopped running', {
+            state: state.audioCtx.state,
+          });
+        }
+
+        refreshAudioBadge();
+        log('AudioContext state changed', { state: state.audioCtx.state });
+        updatePresence().catch(() => {});
+        updateRoleUI();
+      });
+    }
+
+    if (state.audioCtx.state !== 'running') {
+      await state.audioCtx.resume();
+    }
+
+    if (state.audioCtx.state !== 'running') {
+      throw new Error(`AudioContext did not enter running state; current state is ${state.audioCtx.state}.`);
+    }
+
+    refreshAudioBadge();
+    ui.localTestBtn.disabled = false;
+    updateRoleUI();
+    await updatePresence();
+
+    log('Audio unlocked', {
+      sampleRate: state.audioCtx.sampleRate,
+      baseLatencyMs: (state.audioCtx.baseLatency || 0) * 1000,
+      outputLatencyMs: (state.audioCtx.outputLatency || 0) * 1000,
+      state: state.audioCtx.state,
+    });
+  }
+
+  async function playLocalSoundTest() {
+    await ensureAudio();
+
+    const firstTime = state.audioCtx.currentTime + 0.12;
+    for (let i = 0; i < 3; i++) {
+      scheduleClick(firstTime + i * 0.28);
+    }
+
+    state.localTestPlayedAt = Date.now();
+    state.audioVerifiedAt = null;
+    ui.localTestBtn.disabled = false;
+    ui.localTestBtn.textContent = 'I heard the three clicks';
+    setBadge(ui.audioBadge, 'Local test playing · confirm only if audible', 'warn');
+    await updatePresence();
+    updateRoleUI();
+
+    log('Local audible sound test scheduled; awaiting human confirmation', {
+      count: 3,
+      outputLatencyMs: (state.audioCtx.outputLatency || 0) * 1000,
+    });
+  }
+
+  async function confirmLocalSoundTest() {
+    if (!state.audioCtx || state.audioCtx.state !== 'running') {
+      throw new Error('AudioContext is not running. Play the local sound test again.');
+    }
+
+    if (!state.localTestPlayedAt || Date.now() - state.localTestPlayedAt > 30000) {
+      throw new Error('The local sound test is too old. Play it again, then confirm.');
+    }
+
+    state.audioVerifiedAt = Date.now();
+    ui.localTestBtn.disabled = true;
+    ui.localTestBtn.textContent = 'Audible sound confirmed';
+    refreshAudioBadge();
+    await updatePresence();
+    updateRoleUI();
+
+    log('User confirmed that the three local clicks were audible', {
+      outputLatencyMs: (state.audioCtx.outputLatency || 0) * 1000,
+    });
+  }
+
+  function formatMs(value) {
+    return Number.isFinite(value) ? `${value >= 0 ? '+' : ''}${value.toFixed(1)} ms` : '—';
+  }
+
+  function formatRtt(value) {
+    return Number.isFinite(value) ? `${value.toFixed(1)} ms` : '—';
+  }
+
+  function median(values) {
+    if (!values.length) return NaN;
+    const sorted = [...values].sort((a, b) => a - b);
+    const mid = Math.floor(sorted.length / 2);
+    return sorted.length % 2 ? sorted[mid] : (sorted[mid - 1] + sorted[mid]) / 2;
+  }
+
+  function recomputeEstimate() {
+    if (ui.role.value === 'host') {
+      state.estimate = { offsetMs: 0, bestRttMs: 0, jitterMs: 0 };
+      renderEstimate();
+      return;
+    }
+    const valid = state.samples
+      .filter((s) => Number.isFinite(s.rttMs) && Number.isFinite(s.offsetMs) && s.rttMs >= 0)
+      .sort((a, b) => a.rttMs - b.rttMs)
+      .slice(0, 5);
+
+    if (!valid.length) {
+      state.estimate = null;
+    } else {
+      const offsetMs = median(valid.map((s) => s.offsetMs));
+      const jitterMs = median(valid.map((s) => Math.abs(s.offsetMs - offsetMs)));
+      state.estimate = {
+        offsetMs,
+        bestRttMs: valid[0].rttMs,
+        jitterMs,
+      };
+    }
+    renderEstimate();
+    renderSamples();
+  }
+
+  function renderEstimate() {
+    ui.offsetMetric.textContent = state.estimate ? formatMs(state.estimate.offsetMs) : '—';
+    ui.rttMetric.textContent = state.estimate ? formatRtt(state.estimate.bestRttMs) : '—';
+    ui.jitterMetric.textContent = state.estimate ? formatRtt(state.estimate.jitterMs) : '—';
+    ui.samplesMetric.textContent = String(state.samples.length);
+  }
+
+  function renderSamples() {
+    const best = [...state.samples].sort((a, b) => a.rttMs - b.rttMs).slice(0, 8);
+    if (!best.length) {
+      ui.samplesBody.innerHTML = '<tr><td colspan="3">No samples</td></tr>';
+      return;
+    }
+    ui.samplesBody.innerHTML = best.map((s, index) => `
+      <tr>
+        <td>${index + 1}</td>
+        <td class="num">${formatRtt(s.rttMs)}</td>
+        <td class="num">${formatMs(s.offsetMs)}</td>
+      </tr>
+    `).join('');
+  }
+
+  async function send(event, payload) {
+    if (!state.channel || !state.subscribed) {
+      throw new Error('Realtime channel is not subscribed.');
+    }
+
+    const response = await state.channel.send({
+      type: 'broadcast',
+      event,
+      payload,
+    });
+
+    if (response !== 'ok') {
+      throw new Error(`Broadcast ${event} failed: ${String(response)}`);
+    }
+
+    return response;
+  }
+
+  function markRealtimeUnavailable(status, error) {
+    state.connected = false;
+    state.subscribed = false;
+    stopClockSampling();
+    ui.armBtn.disabled = true;
+    ui.disconnectBtn.disabled = !state.channel;
+
+    const details = error?.message ? ` · ${error.message}` : '';
+    const label = state.manualDisconnect ? status : `${status} · reconnecting`;
+    setBadge(ui.connectionBadge, `${label}${details}`, 'bad');
+    setBadge(ui.armedBadge, 'Realtime unavailable', 'bad');
+
+    log('Realtime unavailable', {
+      status,
+      online: navigator.onLine,
+      visibility: document.visibilityState,
+      error: serializeError(error),
+    });
+  }
+
+  function scheduleExplicitReconnect(generation, reason) {
+    if (
+      state.manualDisconnect ||
+      generation !== state.connectionGeneration ||
+      !state.supabase ||
+      !state.channel
+    ) {
+      return;
+    }
+
+    if (state.reconnectTimer) clearTimeout(state.reconnectTimer);
+
+    state.reconnectTimer = setTimeout(() => {
+      if (
+        state.manualDisconnect ||
+        generation !== state.connectionGeneration ||
+        !state.supabase ||
+        !state.channel
+      ) {
+        return;
+      }
+
+      log('Requesting explicit Realtime reconnect', { reason });
+      try {
+        state.supabase.realtime.connect();
+      } catch (error) {
+        log('Explicit Realtime reconnect threw', {
+          error: serializeError(error),
+        });
+      }
+    }, 1200);
+  }
+
+  function sendPing() {
+    if (!state.connected || !state.subscribed || ui.role.value !== 'listener') return;
+    const pingId = crypto.randomUUID();
+    const t0ClientMs = monoEpochMs();
+    state.pendingPings.set(pingId, { t0ClientMs, sentAt: Date.now() });
+    send('clock-ping', {
+      pingId,
+      fromClientId: clientId,
+      t0ClientMs,
+    }).catch((error) => log('Ping send failed', { error: error.message }));
+
+    // Prevent an abandoned map from growing forever.
+    for (const [id, pending] of state.pendingPings) {
+      if (Date.now() - pending.sentAt > 15000) state.pendingPings.delete(id);
+    }
+  }
+
+  async function handlePing(message) {
+    if (ui.role.value !== 'host') return;
+    const t1HostMs = monoEpochMs();
+    const { pingId, fromClientId, t0ClientMs } = message || {};
+    if (!pingId || !fromClientId || !Number.isFinite(t0ClientMs)) return;
+    const t2HostMs = monoEpochMs();
+    await send('clock-pong', {
+      pingId,
+      toClientId: fromClientId,
+      t0ClientMs,
+      t1HostMs,
+      t2HostMs,
+      hostClientId: clientId,
+    });
+  }
+
+  function handlePong(message) {
+    if (ui.role.value !== 'listener' || message?.toClientId !== clientId) return;
+    const t3ClientMs = monoEpochMs();
+    const pending = state.pendingPings.get(message.pingId);
+    if (!pending) return;
+    state.pendingPings.delete(message.pingId);
+
+    const { t0ClientMs } = pending;
+    const { t1HostMs, t2HostMs } = message;
+    if (![t1HostMs, t2HostMs].every(Number.isFinite)) return;
+
+    // NTP four-timestamp estimate:
+    // offset = host clock - client clock
+    const offsetMs = ((t1HostMs - t0ClientMs) + (t2HostMs - t3ClientMs)) / 2;
+    const rttMs = (t3ClientMs - t0ClientMs) - (t2HostMs - t1HostMs);
+
+    if (rttMs < 0 || rttMs > 10000 || Math.abs(offsetMs) > 60000) {
+      log('Rejected implausible clock sample', { rttMs, offsetMs });
+      return;
+    }
+
+    state.samples.push({ rttMs, offsetMs, at: Date.now() });
+    state.samples = state.samples.slice(-40);
+    recomputeEstimate();
+  }
+
+  function scheduleClick(audioTime) {
+    const ctx = state.audioCtx;
+    if (!ctx || !state.clickBuffer) return;
+
+    const source = ctx.createBufferSource();
+    const gain = ctx.createGain();
+    source.buffer = state.clickBuffer;
+    gain.gain.setValueAtTime(0.9, audioTime);
+
+    source.connect(gain).connect(ctx.destination);
+    source.start(audioTime);
+  }
+
+  async function schedulePattern(message, sourceLabel) {
+    if (!state.audioCtx || !state.audioVerifiedAt) {
+      setBadge(ui.armedBadge, 'Received, but local sound is unverified', 'bad');
+      log('Pulse arm ignored because local sound was not verified');
+      return;
+    }
+
+    if (state.audioCtx.state !== 'running') {
+      try {
+        await state.audioCtx.resume();
+      } catch (error) {
+        setBadge(ui.armedBadge, 'Audio suspended · tap Test again', 'bad');
+        log('AudioContext resume failed before scheduling', { error: error.message });
+        return;
+      }
+    }
+
+    if (state.audioCtx.state !== 'running') {
+      setBadge(ui.armedBadge, `Audio ${state.audioCtx.state} · tap Test again`, 'bad');
+      log('Pulse arm ignored because AudioContext is not running', {
+        state: state.audioCtx.state,
+      });
+      return;
+    }
+
+    const {
+      startHostMs,
+      count = 8,
+      intervalMs = 500,
+      testId = 'unknown',
+    } = message || {};
+
+    if (!Number.isFinite(startHostMs)) return;
+
+    const offsetMs = ui.role.value === 'host'
+      ? 0
+      : state.estimate?.offsetMs;
+
+    if (!Number.isFinite(offsetMs)) {
+      setBadge(ui.armedBadge, 'No host-clock estimate yet', 'bad');
+      log('Pulse arm ignored because clock estimate is unavailable');
+      return;
+    }
+
+    const localTargetMs = startHostMs - offsetMs;
+    const nowLocalMs = monoEpochMs();
+    const outputLatencyMs = ui.latencyComp.checked
+      ? (state.audioCtx.outputLatency || 0) * 1000
+      : 0;
+    const firstAudioTime =
+      state.audioCtx.currentTime +
+      (localTargetMs - nowLocalMs - outputLatencyMs) / 1000;
+
+    const schedulingLeadMs = (firstAudioTime - state.audioCtx.currentTime) * 1000;
+    if (schedulingLeadMs < 40) {
+      setBadge(ui.armedBadge, `Too late by ${formatRtt(Math.abs(schedulingLeadMs))}`, 'bad');
+      log('Pulse arm arrived too late', { testId, schedulingLeadMs, sourceLabel });
+      return;
+    }
+
+    for (let i = 0; i < count; i++) {
+      scheduleClick(firstAudioTime + (i * intervalMs) / 1000);
+      const visualDelay = localTargetMs - monoEpochMs() + i * intervalMs;
+      const timer = setTimeout(() => {
+        ui.pulse.classList.add('flash');
+        setTimeout(() => ui.pulse.classList.remove('flash'), 70);
+      }, Math.max(0, visualDelay));
+      state.pulseTimers.push(timer);
+    }
+
+    setBadge(ui.armedBadge, `Armed · ${count} clicks`, 'good');
+    ui.lastStartBadge.textContent = new Date(localTargetMs).toLocaleTimeString();
+    log('Scheduled synchronized click pattern', {
+      testId,
+      sourceLabel,
+      offsetMs,
+      outputLatencyMs,
+      schedulingLeadMs,
+      count,
+      intervalMs,
+    });
+  }
+
+  async function armTest() {
+    if (ui.role.value !== 'host') return;
+    if (!state.connected || !state.subscribed) {
+      throw new Error('The Realtime channel is not currently subscribed.');
+    }
+
+    await ensureAudio();
+
+    const leadMs = Number(ui.leadMs.value);
+    const message = {
+      testId: crypto.randomUUID(),
+      startHostMs: monoEpochMs() + leadMs,
+      count: 8,
+      intervalMs: 500,
+      armedBy: clientId,
+    };
+
+    setBadge(ui.armedBadge, 'Sending arm command…', 'warn');
+    ui.armBtn.disabled = true;
+
+    try {
+      await send('pulse-arm', message);
+
+      // The host schedules itself only after Supabase confirms that the
+      // broadcast was accepted. A timed-out/closed channel must never produce
+      // a host-only test that looks synchronized in the log.
+      await schedulePattern(message, 'host-local-after-broadcast-ok');
+    } catch (error) {
+      setBadge(ui.armedBadge, 'Not armed · broadcast failed', 'bad');
+      log('Pulse arm broadcast failed; host was not scheduled', {
+        testId: message.testId,
+        error: error.message,
+      });
+      throw error;
+    } finally {
+      updateRoleUI();
+    }
+  }
+
+  function startClockSampling() {
+    stopClockSampling();
+    if (ui.role.value !== 'listener') return;
+
+    let burstRemaining = 18;
+    state.pingTimer = setInterval(() => {
+      sendPing();
+      burstRemaining -= 1;
+      if (burstRemaining <= 0) {
+        clearInterval(state.pingTimer);
+        state.pingTimer = null;
+      }
+    }, 250);
+    sendPing();
+
+    state.maintenanceTimer = setInterval(() => {
+      for (let i = 0; i < 4; i++) setTimeout(sendPing, i * 300);
+    }, 10000);
+  }
+
+  function stopClockSampling() {
+    if (state.pingTimer) clearInterval(state.pingTimer);
+    if (state.maintenanceTimer) clearInterval(state.maintenanceTimer);
+    state.pingTimer = null;
+    state.maintenanceTimer = null;
+  }
+
+  async function updatePresence() {
+    if (!state.channel || !state.subscribed) return;
+    try {
+      await state.channel.track({
+        clientId,
+        name: ui.displayName.value.trim() || clientId.slice(0, 8),
+        role: ui.role.value,
+        audioReady: state.audioCtx?.state === 'running',
+        audioVerified: Boolean(state.audioVerifiedAt),
+        audioState: state.audioCtx?.state || 'uninitialized',
+        userAgent: navigator.userAgent,
+        updatedAt: new Date().toISOString(),
+      });
+    } catch (error) {
+      log('Presence update failed', { error: error.message });
+    }
+  }
+
+  function renderPresence() {
+    if (!state.channel) return;
+    const presence = state.channel.presenceState();
+    const devices = Object.values(presence).flat();
+    if (!devices.length) {
+      ui.devicesBody.innerHTML = '<tr><td colspan="4">No devices visible</td></tr>';
+      return;
+    }
+    ui.devicesBody.innerHTML = devices.map((device) => `
+      <tr>
+        <td>${escapeHtml(device.name || device.clientId?.slice(0, 8) || 'Unknown')}</td>
+        <td>${escapeHtml(device.role || '—')}</td>
+        <td>${device.audioVerified ? 'VERIFIED' : (device.audioReady ? 'UNVERIFIED' : 'LOCKED')}</td>
+        <td>${device.updatedAt ? new Date(device.updatedAt).toLocaleTimeString() : '—'}</td>
+      </tr>
+    `).join('');
+
+    updateRoleUI();
+  }
+
+  function escapeHtml(value) {
+    return String(value).replace(/[&<>"']/g, (char) => ({
+      '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#039;',
+    }[char]));
+  }
+
+  async function connect() {
+    const url = ui.supabaseUrl.value.trim();
+    const key = ui.supabaseKey.value.trim();
+    const room = ui.roomId.value.trim();
+
+    if (!url || !key || !room) {
+      alert('Enter the Supabase URL, browser-safe key, and room name.');
+      return;
+    }
+
+    if (!window.supabase?.createClient) {
+      throw new Error('Supabase client library did not load.');
+    }
+
+    await disconnect();
+
+    const generation = ++state.connectionGeneration;
+    state.manualDisconnect = false;
+    saveSettings();
+    state.samples = [];
+    state.estimate =
+      ui.role.value === 'host'
+        ? { offsetMs: 0, bestRttMs: 0, jitterMs: 0 }
+        : null;
+    renderEstimate();
+    renderSamples();
+
+    const realtimeLogger = (kind, message, data) => {
+      if (kind === 'error' || kind === 'warn' || /error|close|disconnect/i.test(message || '')) {
+        log(`Supabase Realtime ${kind}: ${message}`, data ?? null);
+      }
+    };
+
+    state.supabase = window.supabase.createClient(url, key, {
+      auth: {
+        persistSession: false,
+        autoRefreshToken: false,
+        detectSessionInUrl: false,
+      },
+      realtime: {
+        worker: true,
+        logLevel: 'warn',
+        logger: realtimeLogger,
+        heartbeatCallback: (status) => {
+          if (generation !== state.connectionGeneration) return;
+
+          log('Realtime heartbeat', {
+            status,
+            online: navigator.onLine,
+            visibility: document.visibilityState,
+          });
+
+          if (status === 'disconnected' || status === 'timeout') {
+            scheduleExplicitReconnect(generation, `heartbeat-${status}`);
+          }
+        },
+      },
+    });
+
+    const topic = `bardic:clock:${room}`;
+    state.channel = state.supabase.channel(topic, {
+      config: {
+        broadcast: { self: false, ack: true },
+        presence: { key: clientId },
+        private: false,
+      },
+    });
+
+    state.channel
+      .on('broadcast', { event: 'clock-ping' }, ({ payload }) => {
+        handlePing(payload).catch((error) =>
+          log('Clock-ping handler failed', { error: serializeError(error) })
+        );
+      })
+      .on('broadcast', { event: 'clock-pong' }, ({ payload }) => handlePong(payload))
+      .on('broadcast', { event: 'pulse-arm' }, ({ payload }) => {
+        schedulePattern(payload, 'realtime').catch((error) => {
+          log('Realtime pulse scheduling failed', {
+            error: serializeError(error),
+          });
+        });
+      })
+      .on('presence', { event: 'sync' }, renderPresence)
+      .on('presence', { event: 'join' }, renderPresence)
+      .on('presence', { event: 'leave' }, renderPresence);
+
+    setBadge(ui.connectionBadge, 'Connecting…', 'warn');
+    ui.connectBtn.disabled = true;
+    ui.disconnectBtn.disabled = false;
+
+    state.channel.subscribe(async (status, error) => {
+      if (generation !== state.connectionGeneration) return;
+
+      log('Realtime status', {
+        status,
+        online: navigator.onLine,
+        visibility: document.visibilityState,
+        error: serializeError(error),
+      });
+
+      if (status === 'SUBSCRIBED') {
+        if (state.reconnectTimer) {
+          clearTimeout(state.reconnectTimer);
+          state.reconnectTimer = null;
+        }
+
+        state.connected = true;
+        state.subscribed = true;
+        setBadge(ui.connectionBadge, `Connected · ${topic}`, 'good');
+        ui.disconnectBtn.disabled = false;
+
+        try {
+          await updatePresence();
+        } catch (presenceError) {
+          log('Presence update after subscription failed', {
+            error: serializeError(presenceError),
+          });
+        }
+
+        startClockSampling();
+        updateRoleUI();
+        return;
+      }
+
+      if (
+        status === 'CHANNEL_ERROR' ||
+        status === 'TIMED_OUT' ||
+        status === 'CLOSED'
+      ) {
+        markRealtimeUnavailable(status, error);
+
+        if (!state.manualDisconnect) {
+          scheduleExplicitReconnect(generation, `channel-${status.toLowerCase()}`);
+        }
+      }
+    });
+  }
+
+  async function disconnect() {
+    state.manualDisconnect = true;
+    state.connectionGeneration += 1;
+
+    if (state.reconnectTimer) {
+      clearTimeout(state.reconnectTimer);
+      state.reconnectTimer = null;
+    }
+
+    stopClockSampling();
+    state.pendingPings.clear();
+    state.pulseTimers.forEach(clearTimeout);
+    state.pulseTimers = [];
+
+    const oldSupabase = state.supabase;
+    const oldChannel = state.channel;
+
+    state.channel = null;
+    state.supabase = null;
+    state.connected = false;
+    state.subscribed = false;
+
+    if (oldSupabase && oldChannel) {
+      try {
+        await oldSupabase.removeChannel(oldChannel);
+      } catch (error) {
+        log('Channel cleanup failed', {
+          error: serializeError(error),
+        });
+      }
+    }
+
+    ui.connectBtn.disabled = false;
+    ui.disconnectBtn.disabled = true;
+    ui.armBtn.disabled = true;
+    setBadge(ui.connectionBadge, 'Disconnected', 'warn');
+    ui.devicesBody.innerHTML = '<tr><td colspan="4">Not connected</td></tr>';
+  }
+
+  ui.connectBtn.addEventListener('click', () => {
+    connect().catch((error) => {
+      log('Connection setup failed', {
+        error: serializeError(error),
+      });
+      alert(`Connection setup failed: ${error.message}`);
+      disconnect().catch(() => {});
+    });
+  });
+  ui.disconnectBtn.addEventListener('click', () => disconnect());
+  ui.audioBtn.addEventListener('click', () => {
+    playLocalSoundTest().catch((error) => {
+      log('Audio enable/test failed', { error: error.message });
+      alert(`Audio failed: ${error.message}`);
+    });
+  });
+
+  ui.localTestBtn.addEventListener('click', () => {
+    confirmLocalSoundTest().catch((error) => {
+      log('Local sound confirmation failed', {
+        error: serializeError(error),
+      });
+      alert(`Could not confirm local sound: ${error.message}`);
+    });
+  });
+  ui.armBtn.addEventListener('click', () => {
+    armTest().catch((error) => {
+      log('Arm failed', { error: error.message });
+      alert(`Could not arm test: ${error.message}`);
+    });
+  });
+  ui.role.addEventListener('change', () => {
+    saveSettings();
+    updateRoleUI();
+    if (state.connected) startClockSampling();
+  });
+  ui.displayName.addEventListener('change', () => {
+    saveSettings();
+    updatePresence().catch(() => {});
+  });
+  window.addEventListener('beforeunload', () => {
+    state.manualDisconnect = true;
+    state.connectionGeneration += 1;
+    stopClockSampling();
+    if (state.supabase && state.channel) {
+      state.supabase.removeChannel(state.channel);
+    }
+  });
+  document.addEventListener('visibilitychange', () => {
+    log('Visibility changed', { state: document.visibilityState });
+    if (document.visibilityState === 'visible') {
+      if (state.connected) {
+        updatePresence().catch(() => {});
+        if (ui.role.value === 'listener') startClockSampling();
+      } else if (state.channel && !state.manualDisconnect) {
+        scheduleExplicitReconnect(
+          state.connectionGeneration,
+          'page-visible'
+        );
+      }
+    }
+  });
+
+  window.addEventListener('offline', () => {
+    markRealtimeUnavailable('Browser offline');
+    log('Browser network went offline');
+  });
+
+  window.addEventListener('online', () => {
+    setBadge(ui.connectionBadge, 'Browser online · reconnecting', 'warn');
+    log('Browser network returned');
+    scheduleExplicitReconnect(
+      state.connectionGeneration,
+      'browser-online'
+    );
+  });
+
+  loadSettings();
+  renderEstimate();
+})();
+</script>
+</body>
+</html>
