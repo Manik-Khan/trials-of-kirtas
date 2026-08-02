@@ -1,0 +1,1674 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover" />
+  <title>Bardic Real Track — Wave 2</title>
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.111.0"></script>
+  <style>
+    :root {
+      color-scheme: dark;
+      --bg: #101816;
+      --panel: #182826;
+      --panel-2: #203532;
+      --line: #48645f;
+      --text: #f3efe4;
+      --muted: #aab9b4;
+      --gold: #d3ad61;
+      --good: #8fd6aa;
+      --warn: #f0c674;
+      --bad: #ed8a8a;
+    }
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      min-height: 100vh;
+      background:
+        radial-gradient(circle at 15% 0%, rgba(75,112,102,.18), transparent 35%),
+        linear-gradient(180deg, #111b19, var(--bg));
+      color: var(--text);
+      font: 16px/1.45 system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+    }
+    main { width: min(1180px, 100%); margin: 0 auto; padding: 24px; }
+    h1, h2 { margin: 0; font-family: Georgia, serif; font-weight: 600; }
+    h1 { font-size: clamp(1.8rem, 5vw, 3rem); }
+    h2 { font-size: 1.15rem; margin-bottom: 12px; }
+    p { color: var(--muted); }
+    code { color: #d8c693; }
+    .eyebrow { color: var(--gold); text-transform: uppercase; letter-spacing: .14em; font-size: .75rem; }
+    .grid { display: grid; grid-template-columns: repeat(12, 1fr); gap: 14px; margin-top: 18px; }
+    .card {
+      grid-column: span 6;
+      border: 1px solid var(--line);
+      background: rgba(24,40,38,.94);
+      padding: 18px;
+      box-shadow: 0 14px 45px rgba(0,0,0,.25);
+    }
+    .card.full { grid-column: 1 / -1; }
+    label { display: block; color: var(--muted); font-size: .82rem; margin: 10px 0 5px; }
+    input, select, button {
+      width: 100%;
+      min-height: 44px;
+      border: 1px solid var(--line);
+      border-radius: 0;
+      background: #0e1715;
+      color: var(--text);
+      font: inherit;
+      padding: 10px 12px;
+    }
+    button { cursor: pointer; background: var(--panel-2); font-weight: 700; }
+    button.primary { background: var(--gold); color: #17130a; border-color: var(--gold); }
+    button.danger { background: #5b2d2d; border-color: #855050; }
+    button:disabled { opacity: .42; cursor: not-allowed; }
+    .row { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+    .actions { display: flex; flex-wrap: wrap; gap: 10px; margin-top: 14px; }
+    .actions button { width: auto; flex: 1 1 180px; }
+    .status-line { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; margin-top: 12px; }
+    .badge {
+      border: 1px solid var(--line);
+      padding: 5px 8px;
+      font-size: .78rem;
+      color: var(--muted);
+      background: #101a18;
+    }
+    .badge.good { color: var(--good); border-color: #416f52; }
+    .badge.warn { color: var(--warn); border-color: #75643e; }
+    .badge.bad { color: var(--bad); border-color: #754747; }
+    .metrics { display: grid; grid-template-columns: repeat(4, 1fr); gap: 10px; }
+    .metric { border: 1px solid var(--line); padding: 12px; background: #101a18; }
+    .metric strong { display: block; font-size: 1.3rem; font-variant-numeric: tabular-nums; }
+    .metric span { color: var(--muted); font-size: .72rem; text-transform: uppercase; letter-spacing: .08em; }
+    .progress { height: 12px; border: 1px solid var(--line); background: #0b1211; margin-top: 12px; }
+    .progress > div { height: 100%; width: 0%; background: var(--gold); transition: width 160ms ease; }
+    table { width: 100%; border-collapse: collapse; font-size: .83rem; }
+    th, td { padding: 8px; text-align: left; border-bottom: 1px solid rgba(72,100,95,.55); }
+    th { color: var(--muted); }
+    td.num { font-variant-numeric: tabular-nums; }
+    pre {
+      max-height: 320px;
+      overflow: auto;
+      margin: 0;
+      background: #0a100f;
+      border: 1px solid var(--line);
+      padding: 12px;
+      white-space: pre-wrap;
+      overflow-wrap: anywhere;
+      color: #bfd2cc;
+      font-size: .78rem;
+    }
+    .note { font-size: .86rem; color: var(--muted); }
+    .track-title { font-family: Georgia, serif; font-size: 1.35rem; margin: 4px 0; }
+    .track-url { overflow-wrap: anywhere; font-size: .75rem; color: var(--muted); }
+    @media (max-width: 780px) {
+      main { padding: 14px; }
+      .card { grid-column: 1 / -1; }
+      .row, .metrics { grid-template-columns: 1fr; }
+      table { font-size: .76rem; }
+      th, td { padding: 7px 5px; }
+    }
+  </style>
+</head>
+<body>
+<main>
+  <div class="eyebrow">Theatre of Knowledge · Bardic Radio</div>
+  <h1>Real Track — Wave 2</h1>
+  <p>
+    The known-good host clock now schedules one fully downloaded and locally decoded music track.
+    This test adds readiness, synchronized play, synchronized stop, and synchronized restart.
+  </p>
+
+  <section class="grid">
+    <div class="card">
+      <h2>Connection</h2>
+
+      <label for="supabaseUrl">Supabase project URL</label>
+      <input id="supabaseUrl" autocomplete="off" />
+
+      <label for="supabaseKey">Browser-safe publishable key</label>
+      <input id="supabaseKey" type="password" autocomplete="off" placeholder="sb_publishable_…" />
+
+      <div class="row">
+        <div>
+          <label for="roomId">Test room</label>
+          <input id="roomId" value="bardic-wave2-homecoming" autocomplete="off" />
+        </div>
+        <div>
+          <label for="displayName">Device name</label>
+          <input id="displayName" autocomplete="off" />
+        </div>
+      </div>
+
+      <div class="row">
+        <div>
+          <label for="role">Role</label>
+          <select id="role">
+            <option value="listener">Listener</option>
+            <option value="host">Host</option>
+          </select>
+        </div>
+        <div>
+          <label for="leadMs">Play lead time</label>
+          <select id="leadMs">
+            <option value="2500">2.5 seconds</option>
+            <option value="4000" selected>4 seconds</option>
+            <option value="6000">6 seconds</option>
+          </select>
+        </div>
+      </div>
+
+      <label>
+        <input id="latencyComp" type="checkbox" checked style="width:auto;min-height:auto;margin-right:8px" />
+        Compensate using reported <code>AudioContext.outputLatency</code>
+      </label>
+
+      <div class="actions">
+        <button id="connectBtn" class="primary">Connect</button>
+        <button id="disconnectBtn" disabled>Disconnect</button>
+      </div>
+
+      <div class="status-line">
+        <span id="connectionBadge" class="badge warn">Disconnected</span>
+        <span id="audioBadge" class="badge warn">Audio locked</span>
+        <span id="roleBadge" class="badge">Listener</span>
+      </div>
+    </div>
+
+    <div class="card">
+      <h2>Local audio verification</h2>
+      <p>
+        Each device must audibly pass the same local click test from Wave 1 before it can load or play the music.
+      </p>
+      <div class="actions">
+        <button id="audioTestBtn">Play three local clicks</button>
+        <button id="audioConfirmBtn" disabled>I heard the three clicks</button>
+      </div>
+      <p class="note">
+        Confirmation is deliberately manual: a running <code>AudioContext</code> does not prove that sound reached the speaker.
+      </p>
+    </div>
+
+    <div class="card full">
+      <h2>Track preparation</h2>
+      <div class="track-title">Homecoming to Port</div>
+      <div class="track-url">https://res.cloudinary.com/df0tgoiyb/video/upload/v1779949286/1-07._Homecoming_to_Port_b9ez8w.mp3</div>
+
+      <label for="trackUrl">Track URL</label>
+      <input id="trackUrl" value="https://res.cloudinary.com/df0tgoiyb/video/upload/v1779949286/1-07._Homecoming_to_Port_b9ez8w.mp3" autocomplete="off" />
+
+      <div class="actions">
+        <button id="prepareBtn" class="primary" disabled>Prepare track on all devices</button>
+      </div>
+
+      <div class="progress" aria-label="Track loading progress"><div id="loadProgress"></div></div>
+
+      <div class="status-line">
+        <span id="trackBadge" class="badge">Not prepared</span>
+        <span id="trackDetailBadge" class="badge">No decoded buffer</span>
+      </div>
+    </div>
+
+    <div class="card full">
+      <h2>Synchronized playback</h2>
+
+      <div class="row">
+        <div>
+          <label for="startPosition">Start position in seconds</label>
+          <input id="startPosition" type="number" min="0" step="0.1" value="0" />
+        </div>
+        <div>
+          <label>Current local playback position</label>
+          <div class="metric"><strong id="positionMetric">00:00.0</strong><span>Local AudioContext estimate</span></div>
+        </div>
+      </div>
+
+      <div class="actions">
+        <button id="playBtn" class="primary" disabled>Play synchronized</button>
+        <button id="restartBtn" disabled>Restart from selected position</button>
+        <button id="stopBtn" class="danger" disabled>Stop synchronized</button>
+      </div>
+
+      <div class="status-line">
+        <span id="playbackBadge" class="badge">Idle</span>
+        <span id="commandBadge" class="badge">No command yet</span>
+      </div>
+
+      <p class="note">
+        During the first run, leave the start position at <strong>0</strong>. Listen at the opening,
+        after roughly one minute, and again later in the track. Do not judge drift by the on-screen timer alone.
+      </p>
+    </div>
+
+    <div class="card full">
+      <h2>Clock and track metrics</h2>
+      <div class="metrics">
+        <div class="metric"><strong id="offsetMetric">—</strong><span>Host − this device</span></div>
+        <div class="metric"><strong id="rttMetric">—</strong><span>Best RTT</span></div>
+        <div class="metric"><strong id="jitterMetric">—</strong><span>Offset jitter</span></div>
+        <div class="metric"><strong id="durationMetric">—</strong><span>Decoded duration</span></div>
+      </div>
+    </div>
+
+    <div class="card full">
+      <h2>Room devices</h2>
+      <table>
+        <thead>
+          <tr>
+            <th>Device</th>
+            <th>Role</th>
+            <th>Audio</th>
+            <th>Track</th>
+            <th>Playback</th>
+            <th>Seen</th>
+          </tr>
+        </thead>
+        <tbody id="devicesBody"><tr><td colspan="6">Not connected</td></tr></tbody>
+      </table>
+    </div>
+
+    <div class="card">
+      <h2>Best clock samples</h2>
+      <table>
+        <thead><tr><th>#</th><th>RTT</th><th>Offset</th></tr></thead>
+        <tbody id="samplesBody"><tr><td colspan="3">No samples</td></tr></tbody>
+      </table>
+    </div>
+
+    <div class="card">
+      <h2>Wave 2 success gate</h2>
+      <p class="note">
+        A valid run requires both devices to show <strong>VERIFIED</strong> audio and the same
+        <strong>READY</strong> track hash before the host can press Play.
+      </p>
+      <div class="status-line">
+        <span id="roomGateBadge" class="badge warn">Waiting for room</span>
+      </div>
+    </div>
+
+    <div class="card full">
+      <h2>Event log</h2>
+      <pre id="log"></pre>
+    </div>
+  </section>
+</main>
+
+<script>
+(() => {
+  'use strict';
+
+  const $ = (id) => document.getElementById(id);
+  const ui = {
+    supabaseUrl: $('supabaseUrl'),
+    supabaseKey: $('supabaseKey'),
+    roomId: $('roomId'),
+    displayName: $('displayName'),
+    role: $('role'),
+    leadMs: $('leadMs'),
+    latencyComp: $('latencyComp'),
+    connectBtn: $('connectBtn'),
+    disconnectBtn: $('disconnectBtn'),
+    audioTestBtn: $('audioTestBtn'),
+    audioConfirmBtn: $('audioConfirmBtn'),
+    trackUrl: $('trackUrl'),
+    prepareBtn: $('prepareBtn'),
+    loadProgress: $('loadProgress'),
+    trackBadge: $('trackBadge'),
+    trackDetailBadge: $('trackDetailBadge'),
+    startPosition: $('startPosition'),
+    playBtn: $('playBtn'),
+    restartBtn: $('restartBtn'),
+    stopBtn: $('stopBtn'),
+    playbackBadge: $('playbackBadge'),
+    commandBadge: $('commandBadge'),
+    connectionBadge: $('connectionBadge'),
+    audioBadge: $('audioBadge'),
+    roleBadge: $('roleBadge'),
+    offsetMetric: $('offsetMetric'),
+    rttMetric: $('rttMetric'),
+    jitterMetric: $('jitterMetric'),
+    durationMetric: $('durationMetric'),
+    positionMetric: $('positionMetric'),
+    devicesBody: $('devicesBody'),
+    samplesBody: $('samplesBody'),
+    roomGateBadge: $('roomGateBadge'),
+    log: $('log'),
+  };
+
+  const clientId =
+    sessionStorage.getItem('bardic-wave2-client-id') || crypto.randomUUID();
+  sessionStorage.setItem('bardic-wave2-client-id', clientId);
+
+  const timeOriginMs = Number.isFinite(performance.timeOrigin)
+    ? performance.timeOrigin
+    : Date.now() - performance.now();
+
+  const monoEpochMs = () => timeOriginMs + performance.now();
+
+  const state = {
+    supabase: null,
+    channel: null,
+    connected: false,
+    subscribed: false,
+    manualDisconnect: false,
+    generation: 0,
+    reconnectTimer: null,
+
+    audioCtx: null,
+    clickBuffer: null,
+    localTestPlayedAt: null,
+    audioVerifiedAt: null,
+
+    samples: [],
+    estimate: null,
+    pendingPings: new Map(),
+    pingBurstTimer: null,
+    pingMaintenanceTimer: null,
+
+    devices: new Map(),
+    deviceHeartbeatTimer: null,
+
+    trackId: null,
+    trackUrl: null,
+    trackState: 'empty',
+    trackBuffer: null,
+    trackHash: null,
+    trackBytes: 0,
+    trackDuration: 0,
+    trackError: null,
+    trackLoadGeneration: 0,
+
+    playbackState: 'idle',
+    currentPlayId: null,
+    currentSource: null,
+    currentGain: null,
+    currentStartAudioTime: null,
+    currentStartPosition: 0,
+    positionTimer: null,
+    scheduledTimers: [],
+  };
+
+  function log(message, data) {
+    const stamp = new Date().toLocaleTimeString();
+    const suffix = data === undefined ? '' : ` ${JSON.stringify(data)}`;
+    ui.log.textContent += `[${stamp}] ${message}${suffix}\n`;
+    ui.log.scrollTop = ui.log.scrollHeight;
+  }
+
+  function serializeError(error) {
+    if (!error) return null;
+    return {
+      name: error.name || null,
+      message: error.message || String(error),
+      cause:
+        error.cause instanceof Error
+          ? { name: error.cause.name || null, message: error.cause.message || String(error.cause) }
+          : error.cause ?? null,
+      stack: error.stack || null,
+    };
+  }
+
+  function setBadge(element, text, kind = '') {
+    element.textContent = text;
+    element.className = `badge${kind ? ` ${kind}` : ''}`;
+  }
+
+  function escapeHtml(value) {
+    return String(value).replace(/[&<>"']/g, (character) => ({
+      '&': '&amp;',
+      '<': '&lt;',
+      '>': '&gt;',
+      '"': '&quot;',
+      "'": '&#039;',
+    }[character]));
+  }
+
+  function formatMs(value, signed = false) {
+    if (!Number.isFinite(value)) return '—';
+    const sign = signed && value >= 0 ? '+' : '';
+    return `${sign}${value.toFixed(1)} ms`;
+  }
+
+  function formatTime(seconds) {
+    if (!Number.isFinite(seconds) || seconds < 0) return '00:00.0';
+    const minutes = Math.floor(seconds / 60);
+    const remainder = seconds - minutes * 60;
+    return `${String(minutes).padStart(2, '0')}:${remainder.toFixed(1).padStart(4, '0')}`;
+  }
+
+  function median(values) {
+    if (!values.length) return NaN;
+    const sorted = [...values].sort((a, b) => a - b);
+    const middle = Math.floor(sorted.length / 2);
+    return sorted.length % 2
+      ? sorted[middle]
+      : (sorted[middle - 1] + sorted[middle]) / 2;
+  }
+
+  function createClickBuffer(ctx) {
+    const durationSeconds = 0.09;
+    const frameCount = Math.max(1, Math.floor(ctx.sampleRate * durationSeconds));
+    const buffer = ctx.createBuffer(1, frameCount, ctx.sampleRate);
+    const data = buffer.getChannelData(0);
+
+    for (let i = 0; i < frameCount; i++) {
+      const t = i / ctx.sampleRate;
+      const envelope = Math.exp(-t * 42);
+      const attack = Math.min(1, t / 0.0025);
+      const tone =
+        0.68 * Math.sin(2 * Math.PI * 1050 * t) +
+        0.32 * Math.sin(2 * Math.PI * 1650 * t);
+      data[i] = Math.max(-1, Math.min(1, attack * envelope * tone * 0.82));
+    }
+    return buffer;
+  }
+
+  function scheduleClick(audioTime) {
+    if (!state.audioCtx || !state.clickBuffer) return;
+    const source = state.audioCtx.createBufferSource();
+    const gain = state.audioCtx.createGain();
+    source.buffer = state.clickBuffer;
+    gain.gain.setValueAtTime(0.9, audioTime);
+    source.connect(gain).connect(state.audioCtx.destination);
+    source.start(audioTime);
+  }
+
+  async function ensureAudio() {
+    if (!state.audioCtx) {
+      const AudioContextClass = window.AudioContext || window.webkitAudioContext;
+      if (!AudioContextClass) throw new Error('Web Audio is unavailable in this browser.');
+
+      state.audioCtx = new AudioContextClass({ latencyHint: 'interactive' });
+      state.clickBuffer = createClickBuffer(state.audioCtx);
+
+      state.audioCtx.addEventListener('statechange', () => {
+        if (state.audioCtx.state !== 'running' && state.audioVerifiedAt) {
+          state.audioVerifiedAt = null;
+          ui.audioConfirmBtn.disabled = true;
+          ui.audioConfirmBtn.textContent = 'I heard the three clicks';
+          log('Audio verification cleared because AudioContext stopped', {
+            state: state.audioCtx.state,
+          });
+        }
+        refreshAudioUI();
+        broadcastDeviceStatus('audio-state').catch(() => {});
+      });
+    }
+
+    if (state.audioCtx.state !== 'running') {
+      await state.audioCtx.resume();
+    }
+
+    if (state.audioCtx.state !== 'running') {
+      throw new Error(`AudioContext did not enter running state; it is ${state.audioCtx.state}.`);
+    }
+
+    refreshAudioUI();
+  }
+
+  function refreshAudioUI() {
+    if (!state.audioCtx) {
+      setBadge(ui.audioBadge, 'Audio locked', 'warn');
+      return;
+    }
+
+    const verified = Boolean(state.audioVerifiedAt);
+    const outputMs = (state.audioCtx.outputLatency || 0) * 1000;
+    setBadge(
+      ui.audioBadge,
+      `${state.audioCtx.state} · output ${formatMs(outputMs)}${verified ? ' · verified' : ' · unverified'}`,
+      state.audioCtx.state === 'running' && verified ? 'good' : 'warn'
+    );
+  }
+
+  async function playLocalAudioTest() {
+    await ensureAudio();
+
+    const firstAudioTime = state.audioCtx.currentTime + 0.12;
+    for (let index = 0; index < 3; index++) {
+      scheduleClick(firstAudioTime + index * 0.28);
+    }
+
+    state.localTestPlayedAt = Date.now();
+    state.audioVerifiedAt = null;
+    ui.audioConfirmBtn.disabled = false;
+    ui.audioConfirmBtn.textContent = 'I heard the three clicks';
+    setBadge(ui.audioBadge, 'Local test playing · confirm if audible', 'warn');
+    await broadcastDeviceStatus('local-test');
+    updateControls();
+
+    log('Local audible sound test scheduled', {
+      outputLatencyMs: (state.audioCtx.outputLatency || 0) * 1000,
+    });
+  }
+
+  async function confirmLocalAudio() {
+    if (!state.audioCtx || state.audioCtx.state !== 'running') {
+      throw new Error('Audio is not running. Play the local test again.');
+    }
+
+    if (!state.localTestPlayedAt || Date.now() - state.localTestPlayedAt > 30000) {
+      throw new Error('The sound test is too old. Play it again and then confirm.');
+    }
+
+    state.audioVerifiedAt = Date.now();
+    ui.audioConfirmBtn.disabled = true;
+    ui.audioConfirmBtn.textContent = 'Audible sound confirmed';
+    refreshAudioUI();
+    await broadcastDeviceStatus('audio-verified');
+    updateControls();
+
+    log('User confirmed local sound was audible');
+  }
+
+  function loadSettings() {
+    ui.supabaseUrl.value =
+      localStorage.getItem('bardic-wave2-url') ||
+      localStorage.getItem('bardic-wave1-url') ||
+      'https://cfthwspwpcfamgbfqzuq.supabase.co';
+
+    ui.supabaseKey.value =
+      localStorage.getItem('bardic-wave2-key') ||
+      localStorage.getItem('bardic-wave1-key') ||
+      '';
+
+    ui.roomId.value =
+      localStorage.getItem('bardic-wave2-room') ||
+      'bardic-wave2-homecoming';
+
+    ui.displayName.value =
+      localStorage.getItem('bardic-wave2-name') ||
+      localStorage.getItem('bardic-wave1-name') ||
+      `${/iPhone|iPad|Android/i.test(navigator.userAgent) ? 'Phone' : 'Computer'} ${clientId.slice(0, 4)}`;
+
+    ui.role.value =
+      localStorage.getItem('bardic-wave2-role') ||
+      localStorage.getItem('bardic-wave1-role') ||
+      'listener';
+
+    ui.trackUrl.value =
+      localStorage.getItem('bardic-wave2-track-url') ||
+      'https://res.cloudinary.com/df0tgoiyb/video/upload/v1779949286/1-07._Homecoming_to_Port_b9ez8w.mp3';
+
+    updateControls();
+  }
+
+  function saveSettings() {
+    localStorage.setItem('bardic-wave2-url', ui.supabaseUrl.value.trim());
+    localStorage.setItem('bardic-wave2-key', ui.supabaseKey.value.trim());
+    localStorage.setItem('bardic-wave2-room', ui.roomId.value.trim());
+    localStorage.setItem('bardic-wave2-name', ui.displayName.value.trim());
+    localStorage.setItem('bardic-wave2-role', ui.role.value);
+    localStorage.setItem('bardic-wave2-track-url', ui.trackUrl.value.trim());
+  }
+
+  async function send(event, payload) {
+    if (!state.channel || !state.subscribed) {
+      throw new Error('Realtime channel is not subscribed.');
+    }
+
+    const result = await state.channel.send({
+      type: 'broadcast',
+      event,
+      payload,
+    });
+
+    if (result !== 'ok') {
+      throw new Error(`Broadcast ${event} failed: ${String(result)}`);
+    }
+  }
+
+  function activeDevices() {
+    const now = Date.now();
+    for (const [id, device] of state.devices) {
+      if (now - device.lastReceivedAt > 35000) {
+        state.devices.delete(id);
+      }
+    }
+    return [...state.devices.values()];
+  }
+
+  function currentDeviceStatus() {
+    return {
+      clientId,
+      name: ui.displayName.value.trim() || clientId.slice(0, 8),
+      role: ui.role.value,
+      audioReady: state.audioCtx?.state === 'running',
+      audioVerified: Boolean(state.audioVerifiedAt),
+
+      trackId: state.trackId,
+      trackUrl: state.trackUrl,
+      trackState: state.trackState,
+      trackHash: state.trackHash,
+      trackDurationMs: Math.round(state.trackDuration * 1000),
+      trackBytes: state.trackBytes,
+
+      playbackState: state.playbackState,
+      currentPlayId: state.currentPlayId,
+      sentAt: new Date().toISOString(),
+    };
+  }
+
+  function upsertDevice(device) {
+    if (!device?.clientId) return;
+    state.devices.set(device.clientId, {
+      ...device,
+      lastReceivedAt: Date.now(),
+    });
+    renderDevices();
+  }
+
+  async function broadcastDeviceStatus(reason = 'update') {
+    const status = currentDeviceStatus();
+    upsertDevice(status);
+
+    if (!state.channel || !state.subscribed) return;
+
+    await send('device-status', {
+      ...status,
+      reason,
+    });
+  }
+
+  function handleDeviceStatus(message) {
+    if (!message?.clientId) return;
+    upsertDevice(message);
+
+    if (
+      ui.role.value === 'listener' &&
+      message.role === 'host' &&
+      message.trackId &&
+      message.trackUrl &&
+      message.trackId !== state.trackId &&
+      state.audioVerifiedAt
+    ) {
+      loadTrack(message.trackUrl, message.trackId, 'host-status').catch((error) => {
+        log('Automatic listener track load failed', {
+          error: serializeError(error),
+        });
+      });
+    }
+  }
+
+  function startDeviceHeartbeat() {
+    stopDeviceHeartbeat();
+    broadcastDeviceStatus('subscribed').catch((error) => {
+      log('Initial device status failed', { error: serializeError(error) });
+    });
+
+    state.deviceHeartbeatTimer = setInterval(() => {
+      broadcastDeviceStatus('heartbeat').catch((error) => {
+        log('Device heartbeat failed', { error: serializeError(error) });
+      });
+    }, 10000);
+  }
+
+  function stopDeviceHeartbeat() {
+    if (state.deviceHeartbeatTimer) clearInterval(state.deviceHeartbeatTimer);
+    state.deviceHeartbeatTimer = null;
+  }
+
+  function roomGate() {
+    const devices = activeDevices();
+    const hasHost = devices.some((device) => device.role === 'host');
+    const hasListener = devices.some((device) => device.role === 'listener');
+    const audioReady =
+      devices.length >= 2 &&
+      hasHost &&
+      hasListener &&
+      devices.every((device) => device.audioVerified === true);
+
+    const readyDevices = devices.filter((device) => device.trackState === 'ready');
+    const hashes = new Set(readyDevices.map((device) => device.trackHash).filter(Boolean));
+    const trackIds = new Set(readyDevices.map((device) => device.trackId).filter(Boolean));
+
+    const trackReady =
+      audioReady &&
+      readyDevices.length === devices.length &&
+      hashes.size === 1 &&
+      trackIds.size === 1;
+
+    return { devices, audioReady, trackReady };
+  }
+
+  function renderDevices() {
+    const { devices } = roomGate();
+
+    if (!devices.length) {
+      ui.devicesBody.innerHTML = '<tr><td colspan="6">No devices visible</td></tr>';
+      updateControls();
+      return;
+    }
+
+    devices.sort((a, b) => {
+      if (a.role !== b.role) return a.role === 'host' ? -1 : 1;
+      return String(a.name).localeCompare(String(b.name));
+    });
+
+    ui.devicesBody.innerHTML = devices.map((device) => `
+      <tr>
+        <td>${escapeHtml(device.name || 'Unknown')}</td>
+        <td>${escapeHtml(device.role || '—')}</td>
+        <td>${device.audioVerified ? 'VERIFIED' : (device.audioReady ? 'UNVERIFIED' : 'LOCKED')}</td>
+        <td>${device.trackState === 'ready' ? `READY · ${String(device.trackHash || '').slice(0, 8)}` : escapeHtml(device.trackState || 'empty')}</td>
+        <td>${escapeHtml(device.playbackState || 'idle')}</td>
+        <td>${new Date(device.lastReceivedAt).toLocaleTimeString()}</td>
+      </tr>
+    `).join('');
+
+    updateControls();
+  }
+
+  function updateControls() {
+    const isHost = ui.role.value === 'host';
+    const { devices, audioReady, trackReady } = roomGate();
+
+    setBadge(ui.roleBadge, isHost ? 'Host' : 'Listener', isHost ? 'good' : '');
+
+    ui.prepareBtn.disabled = !(
+      isHost &&
+      state.connected &&
+      state.subscribed &&
+      state.audioVerifiedAt &&
+      state.trackState !== 'loading'
+    );
+
+    const canPlay =
+      isHost &&
+      state.connected &&
+      state.subscribed &&
+      trackReady &&
+      state.trackState === 'ready';
+
+    ui.playBtn.disabled = !canPlay || state.playbackState !== 'idle';
+    ui.restartBtn.disabled = !canPlay;
+    ui.stopBtn.disabled = !(
+      isHost &&
+      state.connected &&
+      state.subscribed &&
+      ['armed', 'playing', 'stopping'].includes(state.playbackState)
+    );
+
+    if (trackReady) {
+      setBadge(ui.roomGateBadge, `Ready · ${devices.length} devices · matching track`, 'good');
+    } else if (audioReady) {
+      setBadge(ui.roomGateBadge, 'Audio verified · waiting for matching track buffers', 'warn');
+    } else {
+      setBadge(ui.roomGateBadge, 'Waiting for verified host and listener', 'warn');
+    }
+
+    renderEstimate();
+    renderTrackUI();
+    renderPlaybackUI();
+  }
+
+  function renderTrackUI() {
+    ui.loadProgress.style.width =
+      state.trackState === 'ready'
+        ? '100%'
+        : state.trackState === 'decoding'
+          ? '85%'
+          : state.trackState === 'downloading'
+            ? '35%'
+            : '0%';
+
+    if (state.trackState === 'ready') {
+      setBadge(ui.trackBadge, `READY · ${state.trackHash.slice(0, 12)}`, 'good');
+      setBadge(
+        ui.trackDetailBadge,
+        `${formatTime(state.trackDuration)} · ${(state.trackBytes / 1024 / 1024).toFixed(2)} MB`,
+        'good'
+      );
+      ui.durationMetric.textContent = formatTime(state.trackDuration);
+    } else if (state.trackState === 'error') {
+      setBadge(ui.trackBadge, 'Track failed', 'bad');
+      setBadge(ui.trackDetailBadge, state.trackError || 'Unknown error', 'bad');
+      ui.durationMetric.textContent = '—';
+    } else if (state.trackState === 'downloading') {
+      setBadge(ui.trackBadge, 'Downloading MP3…', 'warn');
+      setBadge(ui.trackDetailBadge, 'Waiting for complete file', 'warn');
+    } else if (state.trackState === 'decoding') {
+      setBadge(ui.trackBadge, 'Decoding into AudioBuffer…', 'warn');
+      setBadge(ui.trackDetailBadge, `${(state.trackBytes / 1024 / 1024).toFixed(2)} MB downloaded`, 'warn');
+    } else {
+      setBadge(ui.trackBadge, 'Not prepared');
+      setBadge(ui.trackDetailBadge, 'No decoded buffer');
+      ui.durationMetric.textContent = '—';
+    }
+  }
+
+  async function sha256Hex(arrayBuffer) {
+    const digest = await crypto.subtle.digest('SHA-256', arrayBuffer);
+    return [...new Uint8Array(digest)]
+      .map((byte) => byte.toString(16).padStart(2, '0'))
+      .join('');
+  }
+
+  async function loadTrack(url, trackId, reason) {
+    await ensureAudio();
+
+    const loadGeneration = ++state.trackLoadGeneration;
+    state.trackId = trackId;
+    state.trackUrl = url;
+    state.trackState = 'downloading';
+    state.trackBuffer = null;
+    state.trackHash = null;
+    state.trackBytes = 0;
+    state.trackDuration = 0;
+    state.trackError = null;
+    renderTrackUI();
+    await broadcastDeviceStatus('track-downloading');
+
+    log('Track download starting', { trackId, url, reason });
+
+    try {
+      const response = await fetch(url, { cache: 'force-cache', mode: 'cors' });
+      if (!response.ok) {
+        throw new Error(`Track request failed with HTTP ${response.status}.`);
+      }
+
+      const bytes = await response.arrayBuffer();
+      if (loadGeneration !== state.trackLoadGeneration) return;
+
+      state.trackBytes = bytes.byteLength;
+      state.trackState = 'decoding';
+      renderTrackUI();
+      await broadcastDeviceStatus('track-decoding');
+
+      const hash = await sha256Hex(bytes);
+      const decoded = await state.audioCtx.decodeAudioData(bytes.slice(0));
+      if (loadGeneration !== state.trackLoadGeneration) return;
+
+      state.trackBuffer = decoded;
+      state.trackHash = hash;
+      state.trackDuration = decoded.duration;
+      state.trackState = 'ready';
+      state.trackError = null;
+      renderTrackUI();
+      await broadcastDeviceStatus('track-ready');
+      updateControls();
+
+      log('Track ready', {
+        trackId,
+        hash,
+        bytes: state.trackBytes,
+        duration: state.trackDuration,
+        sampleRate: decoded.sampleRate,
+        channels: decoded.numberOfChannels,
+      });
+    } catch (error) {
+      if (loadGeneration !== state.trackLoadGeneration) return;
+
+      state.trackState = 'error';
+      state.trackError = error.message;
+      state.trackBuffer = null;
+      state.trackHash = null;
+      renderTrackUI();
+      await broadcastDeviceStatus('track-error').catch(() => {});
+      updateControls();
+
+      log('Track load failed', {
+        error: serializeError(error),
+        url,
+      });
+      throw error;
+    }
+  }
+
+  async function prepareTrackOnRoom() {
+    if (ui.role.value !== 'host') return;
+    if (!state.audioVerifiedAt) {
+      throw new Error('Verify local audio before preparing the track.');
+    }
+
+    const url = ui.trackUrl.value.trim();
+    if (!url) throw new Error('Enter a track URL.');
+
+    saveSettings();
+
+    const trackId = crypto.randomUUID();
+    const command = { trackId, url, preparedBy: clientId };
+
+    await send('track-prepare', command);
+    await loadTrack(url, trackId, 'host-local');
+  }
+
+  function handleTrackPrepare(command) {
+    if (!command?.trackId || !command?.url) return;
+
+    if (!state.audioVerifiedAt) {
+      state.trackId = command.trackId;
+      state.trackUrl = command.url;
+      state.trackState = 'waiting-audio';
+      renderTrackUI();
+      broadcastDeviceStatus('track-waiting-audio').catch(() => {});
+      log('Track preparation received, but local audio is not verified yet');
+      return;
+    }
+
+    loadTrack(command.url, command.trackId, 'broadcast').catch((error) => {
+      log('Broadcast track preparation failed', {
+        error: serializeError(error),
+      });
+    });
+  }
+
+  function startClockSampling() {
+    stopClockSampling();
+    if (ui.role.value !== 'listener') return;
+
+    let remaining = 18;
+    state.pingBurstTimer = setInterval(() => {
+      sendClockPing();
+      remaining -= 1;
+      if (remaining <= 0) {
+        clearInterval(state.pingBurstTimer);
+        state.pingBurstTimer = null;
+      }
+    }, 250);
+
+    sendClockPing();
+
+    state.pingMaintenanceTimer = setInterval(() => {
+      for (let index = 0; index < 4; index++) {
+        setTimeout(sendClockPing, index * 300);
+      }
+    }, 10000);
+  }
+
+  function stopClockSampling() {
+    if (state.pingBurstTimer) clearInterval(state.pingBurstTimer);
+    if (state.pingMaintenanceTimer) clearInterval(state.pingMaintenanceTimer);
+    state.pingBurstTimer = null;
+    state.pingMaintenanceTimer = null;
+  }
+
+  function sendClockPing() {
+    if (!state.connected || !state.subscribed || ui.role.value !== 'listener') return;
+
+    const pingId = crypto.randomUUID();
+    const t0ClientMs = monoEpochMs();
+    state.pendingPings.set(pingId, { t0ClientMs, sentAt: Date.now() });
+
+    send('clock-ping', {
+      pingId,
+      fromClientId: clientId,
+      t0ClientMs,
+    }).catch((error) => {
+      log('Clock ping failed', { error: serializeError(error) });
+    });
+
+    for (const [id, pending] of state.pendingPings) {
+      if (Date.now() - pending.sentAt > 15000) state.pendingPings.delete(id);
+    }
+  }
+
+  async function handleClockPing(message) {
+    if (ui.role.value !== 'host') return;
+
+    const t1HostMs = monoEpochMs();
+    const { pingId, fromClientId, t0ClientMs } = message || {};
+    if (!pingId || !fromClientId || !Number.isFinite(t0ClientMs)) return;
+    const t2HostMs = monoEpochMs();
+
+    await send('clock-pong', {
+      pingId,
+      toClientId: fromClientId,
+      t0ClientMs,
+      t1HostMs,
+      t2HostMs,
+    });
+  }
+
+  function handleClockPong(message) {
+    if (ui.role.value !== 'listener' || message?.toClientId !== clientId) return;
+
+    const t3ClientMs = monoEpochMs();
+    const pending = state.pendingPings.get(message.pingId);
+    if (!pending) return;
+    state.pendingPings.delete(message.pingId);
+
+    const { t0ClientMs } = pending;
+    const { t1HostMs, t2HostMs } = message;
+    if (![t1HostMs, t2HostMs].every(Number.isFinite)) return;
+
+    const offsetMs =
+      ((t1HostMs - t0ClientMs) + (t2HostMs - t3ClientMs)) / 2;
+    const rttMs =
+      (t3ClientMs - t0ClientMs) - (t2HostMs - t1HostMs);
+
+    if (rttMs < 0 || rttMs > 10000 || Math.abs(offsetMs) > 60000) return;
+
+    state.samples.push({ rttMs, offsetMs, at: Date.now() });
+    state.samples = state.samples.slice(-40);
+    recomputeClockEstimate();
+  }
+
+  function recomputeClockEstimate() {
+    if (ui.role.value === 'host') {
+      state.estimate = { offsetMs: 0, bestRttMs: 0, jitterMs: 0 };
+      renderEstimate();
+      return;
+    }
+
+    const best = state.samples
+      .filter((sample) => Number.isFinite(sample.rttMs) && sample.rttMs >= 0)
+      .sort((a, b) => a.rttMs - b.rttMs)
+      .slice(0, 5);
+
+    if (!best.length) {
+      state.estimate = null;
+    } else {
+      const offsetMs = median(best.map((sample) => sample.offsetMs));
+      state.estimate = {
+        offsetMs,
+        bestRttMs: best[0].rttMs,
+        jitterMs: median(best.map((sample) => Math.abs(sample.offsetMs - offsetMs))),
+      };
+    }
+
+    renderEstimate();
+    renderSamples();
+  }
+
+  function renderEstimate() {
+    ui.offsetMetric.textContent = state.estimate
+      ? formatMs(state.estimate.offsetMs, true)
+      : '—';
+    ui.rttMetric.textContent = state.estimate
+      ? formatMs(state.estimate.bestRttMs)
+      : '—';
+    ui.jitterMetric.textContent = state.estimate
+      ? formatMs(state.estimate.jitterMs)
+      : '—';
+  }
+
+  function renderSamples() {
+    const best = [...state.samples].sort((a, b) => a.rttMs - b.rttMs).slice(0, 8);
+    if (!best.length) {
+      ui.samplesBody.innerHTML = '<tr><td colspan="3">No samples</td></tr>';
+      return;
+    }
+
+    ui.samplesBody.innerHTML = best.map((sample, index) => `
+      <tr>
+        <td>${index + 1}</td>
+        <td class="num">${formatMs(sample.rttMs)}</td>
+        <td class="num">${formatMs(sample.offsetMs, true)}</td>
+      </tr>
+    `).join('');
+  }
+
+  function hostTimeToLocalAudioTime(hostTimeMs) {
+    if (!state.audioCtx) throw new Error('AudioContext is not available.');
+
+    const offsetMs =
+      ui.role.value === 'host'
+        ? 0
+        : state.estimate?.offsetMs;
+
+    if (!Number.isFinite(offsetMs)) {
+      throw new Error('Host clock estimate is not available yet.');
+    }
+
+    const localTargetMs = hostTimeMs - offsetMs;
+    const outputLatencyMs = ui.latencyComp.checked
+      ? (state.audioCtx.outputLatency || 0) * 1000
+      : 0;
+
+    const audioTime =
+      state.audioCtx.currentTime +
+      (localTargetMs - monoEpochMs() - outputLatencyMs) / 1000;
+
+    return {
+      audioTime,
+      localTargetMs,
+      outputLatencyMs,
+      leadMs: (audioTime - state.audioCtx.currentTime) * 1000,
+      offsetMs,
+    };
+  }
+
+  function scheduleExistingSourceStop(audioTime) {
+    const oldSource = state.currentSource;
+    const oldGain = state.currentGain;
+
+    if (!oldSource || !oldGain) return;
+
+    try {
+      oldGain.gain.cancelScheduledValues(Math.max(state.audioCtx.currentTime, audioTime - 0.03));
+      oldGain.gain.setValueAtTime(
+        Math.max(0.0001, oldGain.gain.value || 1),
+        Math.max(state.audioCtx.currentTime, audioTime - 0.025)
+      );
+      oldGain.gain.linearRampToValueAtTime(0.0001, audioTime);
+      oldSource.stop(audioTime + 0.01);
+    } catch (error) {
+      log('Existing source stop scheduling warning', {
+        error: serializeError(error),
+      });
+    }
+  }
+
+  async function scheduleTrackPlay(command, sourceLabel) {
+    await ensureAudio();
+
+    if (
+      state.trackState !== 'ready' ||
+      !state.trackBuffer ||
+      state.trackId !== command.trackId ||
+      state.trackHash !== command.trackHash
+    ) {
+      throw new Error('The requested decoded track is not ready on this device.');
+    }
+
+    const positionSeconds = Number(command.positionSeconds);
+    if (
+      !Number.isFinite(positionSeconds) ||
+      positionSeconds < 0 ||
+      positionSeconds >= state.trackDuration
+    ) {
+      throw new Error('The selected start position is outside the decoded track.');
+    }
+
+    const timing = hostTimeToLocalAudioTime(command.startHostMs);
+    if (timing.leadMs < 100) {
+      throw new Error(`Play command arrived too late (${timing.leadMs.toFixed(1)} ms lead).`);
+    }
+
+    scheduleExistingSourceStop(timing.audioTime);
+
+    const source = state.audioCtx.createBufferSource();
+    const gain = state.audioCtx.createGain();
+    source.buffer = state.trackBuffer;
+    gain.gain.setValueAtTime(1, timing.audioTime);
+    source.connect(gain).connect(state.audioCtx.destination);
+
+    const playId = command.playId;
+    source.onended = () => {
+      if (state.currentPlayId !== playId) return;
+      state.playbackState = 'idle';
+      state.currentSource = null;
+      state.currentGain = null;
+      state.currentPlayId = null;
+      stopPositionTimer();
+      broadcastDeviceStatus('track-ended').catch(() => {});
+      updateControls();
+      log('Track source ended', { playId });
+    };
+
+    source.start(timing.audioTime, positionSeconds);
+
+    state.currentSource = source;
+    state.currentGain = gain;
+    state.currentPlayId = playId;
+    state.currentStartAudioTime = timing.audioTime;
+    state.currentStartPosition = positionSeconds;
+    state.playbackState = 'armed';
+
+    setBadge(ui.commandBadge, `Armed · start ${formatTime(positionSeconds)}`, 'good');
+
+    const timer = setTimeout(() => {
+      if (state.currentPlayId !== playId) return;
+      state.playbackState = 'playing';
+      startPositionTimer();
+      broadcastDeviceStatus('track-playing').catch(() => {});
+      updateControls();
+    }, Math.max(0, timing.localTargetMs - monoEpochMs()));
+
+    state.scheduledTimers.push(timer);
+    await broadcastDeviceStatus('track-armed');
+    updateControls();
+
+    log('Synchronized track play scheduled', {
+      playId,
+      sourceLabel,
+      positionSeconds,
+      leadMs: timing.leadMs,
+      offsetMs: timing.offsetMs,
+      outputLatencyMs: timing.outputLatencyMs,
+      startHostMs: command.startHostMs,
+    });
+  }
+
+  async function issueTrackPlay() {
+    if (ui.role.value !== 'host') return;
+
+    const positionSeconds = Number(ui.startPosition.value || 0);
+    if (!Number.isFinite(positionSeconds)) {
+      throw new Error('Enter a valid start position.');
+    }
+
+    const command = {
+      playId: crypto.randomUUID(),
+      trackId: state.trackId,
+      trackHash: state.trackHash,
+      positionSeconds,
+      startHostMs: monoEpochMs() + Number(ui.leadMs.value),
+    };
+
+    await send('track-play', command);
+    await scheduleTrackPlay(command, 'host-local-after-broadcast-ok');
+  }
+
+  async function scheduleTrackStop(command, sourceLabel) {
+    if (!state.audioCtx || !state.currentSource || !state.currentGain) {
+      state.playbackState = 'idle';
+      updateControls();
+      return;
+    }
+
+    const timing = hostTimeToLocalAudioTime(command.stopHostMs);
+    if (timing.leadMs < 50) {
+      throw new Error(`Stop command arrived too late (${timing.leadMs.toFixed(1)} ms lead).`);
+    }
+
+    scheduleExistingSourceStop(timing.audioTime);
+    state.playbackState = 'stopping';
+    setBadge(ui.commandBadge, 'Stop armed', 'warn');
+
+    const playId = state.currentPlayId;
+    const timer = setTimeout(() => {
+      if (state.currentPlayId !== playId) return;
+      state.playbackState = 'idle';
+      state.currentSource = null;
+      state.currentGain = null;
+      state.currentPlayId = null;
+      stopPositionTimer();
+      broadcastDeviceStatus('track-stopped').catch(() => {});
+      updateControls();
+    }, Math.max(0, timing.localTargetMs - monoEpochMs() + 60));
+
+    state.scheduledTimers.push(timer);
+    await broadcastDeviceStatus('track-stop-armed');
+    updateControls();
+
+    log('Synchronized stop scheduled', {
+      sourceLabel,
+      leadMs: timing.leadMs,
+      outputLatencyMs: timing.outputLatencyMs,
+    });
+  }
+
+  async function issueTrackStop() {
+    if (ui.role.value !== 'host') return;
+
+    const command = {
+      stopId: crypto.randomUUID(),
+      stopHostMs: monoEpochMs() + 800,
+    };
+
+    await send('track-stop', command);
+    await scheduleTrackStop(command, 'host-local-after-broadcast-ok');
+  }
+
+  function startPositionTimer() {
+    stopPositionTimer();
+    state.positionTimer = setInterval(() => {
+      if (
+        !state.audioCtx ||
+        !Number.isFinite(state.currentStartAudioTime) ||
+        state.playbackState === 'idle'
+      ) {
+        return;
+      }
+
+      const elapsed = Math.max(0, state.audioCtx.currentTime - state.currentStartAudioTime);
+      const position = Math.min(
+        state.trackDuration || Infinity,
+        state.currentStartPosition + elapsed
+      );
+      ui.positionMetric.textContent = formatTime(position);
+    }, 100);
+  }
+
+  function stopPositionTimer() {
+    if (state.positionTimer) clearInterval(state.positionTimer);
+    state.positionTimer = null;
+    if (state.playbackState === 'idle') {
+      ui.positionMetric.textContent = formatTime(state.currentStartPosition || 0);
+    }
+  }
+
+  function renderPlaybackUI() {
+    const kind =
+      state.playbackState === 'playing'
+        ? 'good'
+        : state.playbackState === 'armed' || state.playbackState === 'stopping'
+          ? 'warn'
+          : '';
+
+    setBadge(ui.playbackBadge, state.playbackState.toUpperCase(), kind);
+  }
+
+  function stopLocalSourceImmediately() {
+    try {
+      state.currentSource?.stop();
+    } catch (_) {}
+
+    state.currentSource = null;
+    state.currentGain = null;
+    state.currentPlayId = null;
+    state.playbackState = 'idle';
+    stopPositionTimer();
+  }
+
+  function scheduleExplicitReconnect(generation, reason) {
+    if (
+      state.manualDisconnect ||
+      generation !== state.generation ||
+      !state.supabase ||
+      !state.channel
+    ) return;
+
+    if (state.reconnectTimer) clearTimeout(state.reconnectTimer);
+    state.reconnectTimer = setTimeout(() => {
+      if (
+        state.manualDisconnect ||
+        generation !== state.generation ||
+        !state.supabase
+      ) return;
+
+      log('Requesting Realtime reconnect', { reason });
+      try {
+        state.supabase.realtime.connect();
+      } catch (error) {
+        log('Explicit reconnect failed', { error: serializeError(error) });
+      }
+    }, 1200);
+  }
+
+  async function connect() {
+    const url = ui.supabaseUrl.value.trim();
+    const key = ui.supabaseKey.value.trim();
+    const room = ui.roomId.value.trim();
+
+    if (!url || !key || !room) {
+      throw new Error('Enter the Supabase URL, publishable key, and room.');
+    }
+
+    if (!window.supabase?.createClient) {
+      throw new Error('Supabase client library did not load.');
+    }
+
+    await disconnect();
+
+    const generation = ++state.generation;
+    state.manualDisconnect = false;
+    saveSettings();
+
+    state.samples = [];
+    state.estimate =
+      ui.role.value === 'host'
+        ? { offsetMs: 0, bestRttMs: 0, jitterMs: 0 }
+        : null;
+
+    state.supabase = window.supabase.createClient(url, key, {
+      auth: {
+        persistSession: false,
+        autoRefreshToken: false,
+        detectSessionInUrl: false,
+      },
+      realtime: {
+        worker: true,
+        logLevel: 'warn',
+        heartbeatCallback: (status) => {
+          if (generation !== state.generation) return;
+          log('Realtime heartbeat', {
+            status,
+            online: navigator.onLine,
+            visibility: document.visibilityState,
+          });
+
+          if (status === 'disconnected' || status === 'timeout') {
+            scheduleExplicitReconnect(generation, `heartbeat-${status}`);
+          }
+        },
+      },
+    });
+
+    const topic = `bardic:wave2:${room}`;
+    state.channel = state.supabase.channel(topic, {
+      config: {
+        broadcast: { self: false, ack: true },
+        private: false,
+      },
+    });
+
+    state.channel
+      .on('broadcast', { event: 'device-status' }, ({ payload }) => {
+        handleDeviceStatus(payload);
+      })
+      .on('broadcast', { event: 'device-leave' }, ({ payload }) => {
+        if (payload?.clientId) state.devices.delete(payload.clientId);
+        renderDevices();
+      })
+      .on('broadcast', { event: 'clock-ping' }, ({ payload }) => {
+        handleClockPing(payload).catch((error) => {
+          log('Clock ping handler failed', { error: serializeError(error) });
+        });
+      })
+      .on('broadcast', { event: 'clock-pong' }, ({ payload }) => {
+        handleClockPong(payload);
+      })
+      .on('broadcast', { event: 'track-prepare' }, ({ payload }) => {
+        handleTrackPrepare(payload);
+      })
+      .on('broadcast', { event: 'track-play' }, ({ payload }) => {
+        scheduleTrackPlay(payload, 'realtime').catch((error) => {
+          setBadge(ui.commandBadge, 'Play failed locally', 'bad');
+          log('Realtime track play failed', { error: serializeError(error) });
+        });
+      })
+      .on('broadcast', { event: 'track-stop' }, ({ payload }) => {
+        scheduleTrackStop(payload, 'realtime').catch((error) => {
+          log('Realtime track stop failed', { error: serializeError(error) });
+        });
+      });
+
+    setBadge(ui.connectionBadge, 'Connecting…', 'warn');
+    ui.connectBtn.disabled = true;
+    ui.disconnectBtn.disabled = false;
+
+    state.channel.subscribe((status, error) => {
+      if (generation !== state.generation) return;
+
+      log('Realtime status', {
+        status,
+        online: navigator.onLine,
+        visibility: document.visibilityState,
+        error: serializeError(error),
+      });
+
+      if (status === 'SUBSCRIBED') {
+        if (state.reconnectTimer) clearTimeout(state.reconnectTimer);
+        state.reconnectTimer = null;
+        state.connected = true;
+        state.subscribed = true;
+
+        setBadge(ui.connectionBadge, `Connected · ${topic}`, 'good');
+        startDeviceHeartbeat();
+        startClockSampling();
+        updateControls();
+        return;
+      }
+
+      if (['CHANNEL_ERROR', 'TIMED_OUT', 'CLOSED'].includes(status)) {
+        state.connected = false;
+        state.subscribed = false;
+        stopClockSampling();
+        stopDeviceHeartbeat();
+        setBadge(ui.connectionBadge, `${status} · reconnecting`, 'bad');
+        updateControls();
+
+        if (!state.manualDisconnect) {
+          scheduleExplicitReconnect(generation, `channel-${status.toLowerCase()}`);
+        }
+      }
+    });
+  }
+
+  async function disconnect() {
+    state.manualDisconnect = true;
+    state.generation += 1;
+
+    if (state.reconnectTimer) clearTimeout(state.reconnectTimer);
+    state.reconnectTimer = null;
+
+    stopClockSampling();
+    stopDeviceHeartbeat();
+    stopLocalSourceImmediately();
+    state.pendingPings.clear();
+    state.scheduledTimers.forEach(clearTimeout);
+    state.scheduledTimers = [];
+
+    const oldSupabase = state.supabase;
+    const oldChannel = state.channel;
+
+    if (oldChannel && state.subscribed) {
+      try {
+        await oldChannel.send({
+          type: 'broadcast',
+          event: 'device-leave',
+          payload: { clientId },
+        });
+      } catch (_) {}
+    }
+
+    state.supabase = null;
+    state.channel = null;
+    state.connected = false;
+    state.subscribed = false;
+    state.devices.clear();
+
+    if (oldSupabase && oldChannel) {
+      try {
+        await oldSupabase.removeChannel(oldChannel);
+      } catch (error) {
+        log('Channel cleanup failed', { error: serializeError(error) });
+      }
+    }
+
+    ui.connectBtn.disabled = false;
+    ui.disconnectBtn.disabled = true;
+    setBadge(ui.connectionBadge, 'Disconnected', 'warn');
+    ui.devicesBody.innerHTML = '<tr><td colspan="6">Not connected</td></tr>';
+    updateControls();
+  }
+
+  ui.connectBtn.addEventListener('click', () => {
+    connect().catch((error) => {
+      log('Connection failed', { error: serializeError(error) });
+      alert(`Connection failed: ${error.message}`);
+    });
+  });
+
+  ui.disconnectBtn.addEventListener('click', () => {
+    disconnect().catch((error) => {
+      log('Disconnect failed', { error: serializeError(error) });
+    });
+  });
+
+  ui.audioTestBtn.addEventListener('click', () => {
+    playLocalAudioTest().catch((error) => {
+      log('Local audio test failed', { error: serializeError(error) });
+      alert(`Audio test failed: ${error.message}`);
+    });
+  });
+
+  ui.audioConfirmBtn.addEventListener('click', () => {
+    confirmLocalAudio().catch((error) => {
+      log('Audio confirmation failed', { error: serializeError(error) });
+      alert(`Audio confirmation failed: ${error.message}`);
+    });
+  });
+
+  ui.prepareBtn.addEventListener('click', () => {
+    prepareTrackOnRoom().catch((error) => {
+      log('Track preparation failed', { error: serializeError(error) });
+      alert(`Track preparation failed: ${error.message}`);
+    });
+  });
+
+  ui.playBtn.addEventListener('click', () => {
+    issueTrackPlay().catch((error) => {
+      log('Synchronized play failed', { error: serializeError(error) });
+      alert(`Play failed: ${error.message}`);
+    });
+  });
+
+  ui.restartBtn.addEventListener('click', () => {
+    issueTrackPlay().catch((error) => {
+      log('Synchronized restart failed', { error: serializeError(error) });
+      alert(`Restart failed: ${error.message}`);
+    });
+  });
+
+  ui.stopBtn.addEventListener('click', () => {
+    issueTrackStop().catch((error) => {
+      log('Synchronized stop failed', { error: serializeError(error) });
+      alert(`Stop failed: ${error.message}`);
+    });
+  });
+
+  ui.role.addEventListener('change', () => {
+    saveSettings();
+    updateControls();
+    broadcastDeviceStatus('role-change').catch(() => {});
+    if (state.connected) startClockSampling();
+  });
+
+  ui.displayName.addEventListener('change', () => {
+    saveSettings();
+    broadcastDeviceStatus('name-change').catch(() => {});
+  });
+
+  ui.trackUrl.addEventListener('change', saveSettings);
+
+  document.addEventListener('visibilitychange', () => {
+    log('Visibility changed', { state: document.visibilityState });
+    if (document.visibilityState === 'visible') {
+      if (state.connected) {
+        broadcastDeviceStatus('page-visible').catch(() => {});
+        if (ui.role.value === 'listener') startClockSampling();
+      } else if (state.channel && !state.manualDisconnect) {
+        scheduleExplicitReconnect(state.generation, 'page-visible');
+      }
+    }
+  });
+
+  window.addEventListener('beforeunload', () => {
+    state.manualDisconnect = true;
+    stopClockSampling();
+    stopDeviceHeartbeat();
+    stopLocalSourceImmediately();
+
+    if (state.channel && state.subscribed) {
+      state.channel.send({
+        type: 'broadcast',
+        event: 'device-leave',
+        payload: { clientId },
+      });
+    }
+
+    if (state.supabase && state.channel) {
+      state.supabase.removeChannel(state.channel);
+    }
+  });
+
+  window.addEventListener('online', () => {
+    setBadge(ui.connectionBadge, 'Browser online · reconnecting', 'warn');
+    scheduleExplicitReconnect(state.generation, 'browser-online');
+  });
+
+  window.addEventListener('offline', () => {
+    setBadge(ui.connectionBadge, 'Browser offline', 'bad');
+  });
+
+  loadSettings();
+  recomputeClockEstimate();
+  renderTrackUI();
+  renderPlaybackUI();
+  renderDevices();
+})();
+</script>
+</body>
+</html>
