@@ -1,0 +1,2006 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover" />
+  <title>Bardic Track Switching — Wave 3</title>
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.111.0"></script>
+  <style>
+    :root {
+      color-scheme: dark;
+      --bg: #101816;
+      --panel: #182826;
+      --panel-2: #203532;
+      --line: #48645f;
+      --text: #f3efe4;
+      --muted: #aab9b4;
+      --gold: #d3ad61;
+      --good: #8fd6aa;
+      --warn: #f0c674;
+      --bad: #ed8a8a;
+    }
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      min-height: 100vh;
+      background:
+        radial-gradient(circle at 15% 0%, rgba(75,112,102,.18), transparent 35%),
+        linear-gradient(180deg, #111b19, var(--bg));
+      color: var(--text);
+      font: 16px/1.45 system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+    }
+    main { width: min(1180px, 100%); margin: 0 auto; padding: 24px; }
+    h1, h2 { margin: 0; font-family: Georgia, serif; font-weight: 600; }
+    h1 { font-size: clamp(1.8rem, 5vw, 3rem); }
+    h2 { font-size: 1.15rem; margin-bottom: 12px; }
+    p { color: var(--muted); }
+    code { color: #d8c693; }
+    .eyebrow { color: var(--gold); text-transform: uppercase; letter-spacing: .14em; font-size: .75rem; }
+    .grid { display: grid; grid-template-columns: repeat(12, 1fr); gap: 14px; margin-top: 18px; }
+    .card {
+      grid-column: span 6;
+      border: 1px solid var(--line);
+      background: rgba(24,40,38,.94);
+      padding: 18px;
+      box-shadow: 0 14px 45px rgba(0,0,0,.25);
+    }
+    .card.full { grid-column: 1 / -1; }
+    label { display: block; color: var(--muted); font-size: .82rem; margin: 10px 0 5px; }
+    input, select, button {
+      width: 100%;
+      min-height: 44px;
+      border: 1px solid var(--line);
+      border-radius: 0;
+      background: #0e1715;
+      color: var(--text);
+      font: inherit;
+      padding: 10px 12px;
+    }
+    button { cursor: pointer; background: var(--panel-2); font-weight: 700; }
+    button.primary { background: var(--gold); color: #17130a; border-color: var(--gold); }
+    button.danger { background: #5b2d2d; border-color: #855050; }
+    button:disabled { opacity: .42; cursor: not-allowed; }
+    .row { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+    .actions { display: flex; flex-wrap: wrap; gap: 10px; margin-top: 14px; }
+    .actions button { width: auto; flex: 1 1 180px; }
+    .status-line { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; margin-top: 12px; }
+    .badge {
+      border: 1px solid var(--line);
+      padding: 5px 8px;
+      font-size: .78rem;
+      color: var(--muted);
+      background: #101a18;
+    }
+    .badge.good { color: var(--good); border-color: #416f52; }
+    .badge.warn { color: var(--warn); border-color: #75643e; }
+    .badge.bad { color: var(--bad); border-color: #754747; }
+    .metrics { display: grid; grid-template-columns: repeat(4, 1fr); gap: 10px; }
+    .metric { border: 1px solid var(--line); padding: 12px; background: #101a18; }
+    .metric strong { display: block; font-size: 1.3rem; font-variant-numeric: tabular-nums; }
+    .metric span { color: var(--muted); font-size: .72rem; text-transform: uppercase; letter-spacing: .08em; }
+    .progress { height: 12px; border: 1px solid var(--line); background: #0b1211; margin-top: 12px; }
+    .progress > div { height: 100%; width: 0%; background: var(--gold); transition: width 160ms ease; }
+    table { width: 100%; border-collapse: collapse; font-size: .83rem; }
+    th, td { padding: 8px; text-align: left; border-bottom: 1px solid rgba(72,100,95,.55); }
+    th { color: var(--muted); }
+    td.num { font-variant-numeric: tabular-nums; }
+    pre {
+      max-height: 320px;
+      overflow: auto;
+      margin: 0;
+      background: #0a100f;
+      border: 1px solid var(--line);
+      padding: 12px;
+      white-space: pre-wrap;
+      overflow-wrap: anywhere;
+      color: #bfd2cc;
+      font-size: .78rem;
+    }
+    .note { font-size: .86rem; color: var(--muted); }
+    .track-title { font-family: Georgia, serif; font-size: 1.35rem; margin: 4px 0; }
+    .track-url { overflow-wrap: anywhere; font-size: .75rem; color: var(--muted); }
+    .slot-label { color: var(--gold); font-size: .75rem; font-weight: 800; letter-spacing: .12em; text-transform: uppercase; }
+    .active-card { border-color: var(--gold); box-shadow: 0 0 0 1px rgba(211,173,97,.2), 0 14px 45px rgba(0,0,0,.25); }
+    @media (max-width: 780px) {
+      main { padding: 14px; }
+      .card { grid-column: 1 / -1; }
+      .row, .metrics { grid-template-columns: 1fr; }
+      table { font-size: .76rem; }
+      th, td { padding: 7px 5px; }
+    }
+  </style>
+</head>
+<body>
+<main>
+  <div class="eyebrow">Trials of Kirtas · Bardic Radio</div>
+  <h1>Track Switching — Wave 3</h1>
+  <p>
+    The frozen Wave 2 clock and playback path now keeps two decoded tracks in memory. Prepare the
+    next track while the current one continues, then switch every device by synchronized hard cut
+    or short crossfade with no loading silence.
+  </p>
+
+  <section class="grid">
+    <div class="card">
+      <h2>Connection</h2>
+
+      <label for="supabaseUrl">Supabase project URL</label>
+      <input id="supabaseUrl" autocomplete="off" />
+
+      <label for="supabaseKey">Browser-safe publishable key</label>
+      <input id="supabaseKey" type="password" autocomplete="off" placeholder="sb_publishable_…" />
+
+      <div class="row">
+        <div>
+          <label for="roomId">Test room</label>
+          <input id="roomId" value="bardic-wave3-switching" autocomplete="off" />
+        </div>
+        <div>
+          <label for="displayName">Device name</label>
+          <input id="displayName" autocomplete="off" />
+        </div>
+      </div>
+
+      <div class="row">
+        <div>
+          <label for="role">Role</label>
+          <select id="role">
+            <option value="listener">Listener</option>
+            <option value="host">Host</option>
+          </select>
+        </div>
+        <div>
+          <label for="leadMs">Transition lead time</label>
+          <select id="leadMs">
+            <option value="2500">2.5 seconds</option>
+            <option value="4000" selected>4 seconds</option>
+            <option value="6000">6 seconds</option>
+          </select>
+        </div>
+      </div>
+
+      <label>
+        <input id="latencyComp" type="checkbox" checked style="width:auto;min-height:auto;margin-right:8px" />
+        Compensate using reported <code>AudioContext.outputLatency</code>
+      </label>
+
+      <div class="actions">
+        <button id="connectBtn" class="primary">Connect</button>
+        <button id="disconnectBtn" disabled>Disconnect</button>
+      </div>
+
+      <div class="status-line">
+        <span id="connectionBadge" class="badge warn">Disconnected</span>
+        <span id="audioBadge" class="badge warn">Audio locked</span>
+        <span id="roleBadge" class="badge">Listener</span>
+      </div>
+    </div>
+
+    <div class="card">
+      <h2>Local audio verification</h2>
+      <p>
+        Each device must audibly pass the same local click test from Wave 1 before it can load or play the music.
+      </p>
+      <div class="actions">
+        <button id="audioTestBtn">Play three local clicks</button>
+        <button id="audioConfirmBtn" disabled>I heard the three clicks</button>
+      </div>
+      <p class="note">
+        Confirmation is deliberately manual: a running <code>AudioContext</code> does not prove that sound reached the speaker.
+      </p>
+    </div>
+
+    <div id="trackACard" class="card">
+      <div class="slot-label">Track A</div>
+      <h2>Homecoming to Port</h2>
+      <label for="trackATitle">Track label</label>
+      <input id="trackATitle" value="Homecoming to Port" autocomplete="off" />
+      <label for="trackAUrl">Track URL</label>
+      <input id="trackAUrl" value="https://res.cloudinary.com/df0tgoiyb/video/upload/v1779949286/1-07._Homecoming_to_Port_b9ez8w.mp3" autocomplete="off" />
+      <div class="actions">
+        <button id="prepareABtn" class="primary" disabled>Prepare Track A on all devices</button>
+      </div>
+      <div class="progress" aria-label="Track A loading progress"><div id="loadAProgress"></div></div>
+      <div class="status-line">
+        <span id="trackABadge" class="badge">Not prepared</span>
+        <span id="trackADetailBadge" class="badge">No decoded buffer</span>
+      </div>
+    </div>
+
+    <div id="trackBCard" class="card">
+      <div class="slot-label">Track B</div>
+      <h2>The Bustling Port Market</h2>
+      <label for="trackBTitle">Track label</label>
+      <input id="trackBTitle" value="The Bustling Port Market" autocomplete="off" />
+      <label for="trackBUrl">Track URL</label>
+      <input id="trackBUrl" value="https://res.cloudinary.com/df0tgoiyb/video/upload/v1779950528/1-02._The_Bustling_Port_Market_du0t6f.mp3" autocomplete="off" />
+      <div class="actions">
+        <button id="prepareBBtn" class="primary" disabled>Prepare Track B on all devices</button>
+      </div>
+      <div class="progress" aria-label="Track B loading progress"><div id="loadBProgress"></div></div>
+      <div class="status-line">
+        <span id="trackBBadge" class="badge">Not prepared</span>
+        <span id="trackBDetailBadge" class="badge">No decoded buffer</span>
+      </div>
+    </div>
+
+    <div class="card full">
+      <h2>Synchronized start or switch</h2>
+      <div class="row">
+        <div>
+          <label for="targetSlot">Target track</label>
+          <select id="targetSlot">
+            <option value="a">Track A</option>
+            <option value="b">Track B</option>
+          </select>
+        </div>
+        <div>
+          <label for="transitionMode">Transition</label>
+          <select id="transitionMode">
+            <option value="cut">Hard cut</option>
+            <option value="crossfade">Crossfade</option>
+          </select>
+        </div>
+      </div>
+      <div class="row">
+        <div>
+          <label for="fadeMs">Crossfade duration</label>
+          <select id="fadeMs">
+            <option value="100">100 ms</option>
+            <option value="250">250 ms</option>
+            <option value="300" selected>300 ms</option>
+            <option value="500">500 ms</option>
+          </select>
+        </div>
+        <div>
+          <label for="startPosition">Target position in seconds</label>
+          <input id="startPosition" type="number" min="0" step="0.1" value="0" />
+        </div>
+      </div>
+      <div class="row">
+        <div>
+          <label>Current local playback position</label>
+          <div class="metric"><strong id="positionMetric">00:00.0</strong><span>Local AudioContext estimate</span></div>
+        </div>
+        <div>
+          <label>Active local track</label>
+          <div class="status-line"><span id="activeTrackBadge" class="badge">None</span></div>
+        </div>
+      </div>
+      <div class="actions">
+        <button id="transitionBtn" class="primary" disabled>Start Track A synchronized</button>
+        <button id="stopBtn" class="danger" disabled>Stop synchronized</button>
+      </div>
+      <div class="status-line">
+        <span id="playbackBadge" class="badge">Idle</span>
+        <span id="commandBadge" class="badge">No command yet</span>
+      </div>
+      <p class="note">
+        Preparation never stops the current source. For the first field pass: prepare A, start A,
+        prepare B while A continues, hard-cut to B, then crossfade back to A.
+      </p>
+    </div>
+
+    <div class="card full">
+      <h2>Clock and track metrics</h2>
+      <div class="metrics">
+        <div class="metric"><strong id="offsetMetric">—</strong><span>Host − this device</span></div>
+        <div class="metric"><strong id="rttMetric">—</strong><span>Best RTT</span></div>
+        <div class="metric"><strong id="jitterMetric">—</strong><span>Offset jitter</span></div>
+        <div class="metric"><strong id="durationMetric">—</strong><span>Decoded duration</span></div>
+      </div>
+    </div>
+
+    <div class="card full">
+      <h2>Room devices</h2>
+      <table>
+        <thead>
+          <tr>
+            <th>Device</th>
+            <th>Role</th>
+            <th>Audio</th>
+            <th>Track A</th>
+            <th>Track B</th>
+            <th>Active</th>
+            <th>Playback</th>
+            <th>Seen</th>
+          </tr>
+        </thead>
+        <tbody id="devicesBody"><tr><td colspan="8">Not connected</td></tr></tbody>
+      </table>
+    </div>
+
+    <div class="card">
+      <h2>Best clock samples</h2>
+      <table>
+        <thead><tr><th>#</th><th>RTT</th><th>Offset</th></tr></thead>
+        <tbody id="samplesBody"><tr><td colspan="3">No samples</td></tr></tbody>
+      </table>
+    </div>
+
+    <div class="card">
+      <h2>Wave 3 success gate</h2>
+      <p class="note">
+        The selected target must show matching <strong>READY</strong> hashes on every verified
+        device. A failed pending load must leave the current track audible.
+      </p>
+      <div class="status-line">
+        <span id="roomGateBadge" class="badge warn">Waiting for room</span>
+      </div>
+    </div>
+
+    <div class="card full">
+      <h2>Event log</h2>
+      <pre id="log"></pre>
+    </div>
+  </section>
+</main>
+
+<script>
+(() => {
+  'use strict';
+
+  const $ = (id) => document.getElementById(id);
+  const ui = {
+    supabaseUrl: $('supabaseUrl'),
+    supabaseKey: $('supabaseKey'),
+    roomId: $('roomId'),
+    displayName: $('displayName'),
+    role: $('role'),
+    leadMs: $('leadMs'),
+    latencyComp: $('latencyComp'),
+    connectBtn: $('connectBtn'),
+    disconnectBtn: $('disconnectBtn'),
+    audioTestBtn: $('audioTestBtn'),
+    audioConfirmBtn: $('audioConfirmBtn'),
+    trackATitle: $('trackATitle'),
+    trackAUrl: $('trackAUrl'),
+    prepareABtn: $('prepareABtn'),
+    loadAProgress: $('loadAProgress'),
+    trackABadge: $('trackABadge'),
+    trackADetailBadge: $('trackADetailBadge'),
+    trackACard: $('trackACard'),
+    trackBTitle: $('trackBTitle'),
+    trackBUrl: $('trackBUrl'),
+    prepareBBtn: $('prepareBBtn'),
+    loadBProgress: $('loadBProgress'),
+    trackBBadge: $('trackBBadge'),
+    trackBDetailBadge: $('trackBDetailBadge'),
+    trackBCard: $('trackBCard'),
+    targetSlot: $('targetSlot'),
+    transitionMode: $('transitionMode'),
+    fadeMs: $('fadeMs'),
+    startPosition: $('startPosition'),
+    transitionBtn: $('transitionBtn'),
+    stopBtn: $('stopBtn'),
+    playbackBadge: $('playbackBadge'),
+    commandBadge: $('commandBadge'),
+    activeTrackBadge: $('activeTrackBadge'),
+    connectionBadge: $('connectionBadge'),
+    audioBadge: $('audioBadge'),
+    roleBadge: $('roleBadge'),
+    offsetMetric: $('offsetMetric'),
+    rttMetric: $('rttMetric'),
+    jitterMetric: $('jitterMetric'),
+    durationMetric: $('durationMetric'),
+    positionMetric: $('positionMetric'),
+    devicesBody: $('devicesBody'),
+    samplesBody: $('samplesBody'),
+    roomGateBadge: $('roomGateBadge'),
+    log: $('log'),
+  };
+
+  const clientId =
+    sessionStorage.getItem('bardic-wave3-client-id') || crypto.randomUUID();
+  sessionStorage.setItem('bardic-wave3-client-id', clientId);
+
+  const timeOriginMs = Number.isFinite(performance.timeOrigin)
+    ? performance.timeOrigin
+    : Date.now() - performance.now();
+
+  const monoEpochMs = () => timeOriginMs + performance.now();
+
+  function emptySlot(key) {
+    return {
+      key,
+      title: key === 'a' ? 'Homecoming to Port' : 'The Bustling Port Market',
+      trackId: null,
+      url: null,
+      state: 'empty',
+      buffer: null,
+      hash: null,
+      bytes: 0,
+      duration: 0,
+      error: null,
+      loadGeneration: 0,
+    };
+  }
+
+  const state = {
+    supabase: null,
+    channel: null,
+    connected: false,
+    subscribed: false,
+    manualDisconnect: false,
+    generation: 0,
+    reconnectTimer: null,
+
+    audioCtx: null,
+    clickBuffer: null,
+    localTestPlayedAt: null,
+    audioVerifiedAt: null,
+
+    samples: [],
+    estimate: null,
+    pendingPings: new Map(),
+    pingBurstTimer: null,
+    pingMaintenanceTimer: null,
+
+    devices: new Map(),
+    deviceHeartbeatTimer: null,
+
+    slots: {
+      a: emptySlot('a'),
+      b: emptySlot('b'),
+    },
+    activeSlot: null,
+    armedTransition: null,
+    seenTransitionIds: new Set(),
+    seenStopIds: new Set(),
+    liveSources: new Set(),
+
+    playbackState: 'idle',
+    currentPlayId: null,
+    currentSource: null,
+    currentGain: null,
+    currentStartAudioTime: null,
+    currentStartPosition: 0,
+    positionTimer: null,
+    scheduledTimers: [],
+  };
+
+  function log(message, data) {
+    const stamp = new Date().toLocaleTimeString();
+    const suffix = data === undefined ? '' : ` ${JSON.stringify(data)}`;
+    ui.log.textContent += `[${stamp}] ${message}${suffix}\n`;
+    ui.log.scrollTop = ui.log.scrollHeight;
+  }
+
+  function serializeError(error) {
+    if (!error) return null;
+    return {
+      name: error.name || null,
+      message: error.message || String(error),
+      cause:
+        error.cause instanceof Error
+          ? { name: error.cause.name || null, message: error.cause.message || String(error.cause) }
+          : error.cause ?? null,
+      stack: error.stack || null,
+    };
+  }
+
+  function setBadge(element, text, kind = '') {
+    element.textContent = text;
+    element.className = `badge${kind ? ` ${kind}` : ''}`;
+  }
+
+  function escapeHtml(value) {
+    return String(value).replace(/[&<>"']/g, (character) => ({
+      '&': '&amp;',
+      '<': '&lt;',
+      '>': '&gt;',
+      '"': '&quot;',
+      "'": '&#039;',
+    }[character]));
+  }
+
+  function formatMs(value, signed = false) {
+    if (!Number.isFinite(value)) return '—';
+    const sign = signed && value >= 0 ? '+' : '';
+    return `${sign}${value.toFixed(1)} ms`;
+  }
+
+  function formatTime(seconds) {
+    if (!Number.isFinite(seconds) || seconds < 0) return '00:00.0';
+    const minutes = Math.floor(seconds / 60);
+    const remainder = seconds - minutes * 60;
+    return `${String(minutes).padStart(2, '0')}:${remainder.toFixed(1).padStart(4, '0')}`;
+  }
+
+  function median(values) {
+    if (!values.length) return NaN;
+    const sorted = [...values].sort((a, b) => a - b);
+    const middle = Math.floor(sorted.length / 2);
+    return sorted.length % 2
+      ? sorted[middle]
+      : (sorted[middle - 1] + sorted[middle]) / 2;
+  }
+
+  function createClickBuffer(ctx) {
+    const durationSeconds = 0.09;
+    const frameCount = Math.max(1, Math.floor(ctx.sampleRate * durationSeconds));
+    const buffer = ctx.createBuffer(1, frameCount, ctx.sampleRate);
+    const data = buffer.getChannelData(0);
+
+    for (let i = 0; i < frameCount; i++) {
+      const t = i / ctx.sampleRate;
+      const envelope = Math.exp(-t * 42);
+      const attack = Math.min(1, t / 0.0025);
+      const tone =
+        0.68 * Math.sin(2 * Math.PI * 1050 * t) +
+        0.32 * Math.sin(2 * Math.PI * 1650 * t);
+      data[i] = Math.max(-1, Math.min(1, attack * envelope * tone * 0.82));
+    }
+    return buffer;
+  }
+
+  function scheduleClick(audioTime) {
+    if (!state.audioCtx || !state.clickBuffer) return;
+    const source = state.audioCtx.createBufferSource();
+    const gain = state.audioCtx.createGain();
+    source.buffer = state.clickBuffer;
+    gain.gain.setValueAtTime(0.9, audioTime);
+    source.connect(gain).connect(state.audioCtx.destination);
+    source.start(audioTime);
+  }
+
+  async function ensureAudio() {
+    if (!state.audioCtx) {
+      const AudioContextClass = window.AudioContext || window.webkitAudioContext;
+      if (!AudioContextClass) throw new Error('Web Audio is unavailable in this browser.');
+
+      state.audioCtx = new AudioContextClass({ latencyHint: 'interactive' });
+      state.clickBuffer = createClickBuffer(state.audioCtx);
+
+      state.audioCtx.addEventListener('statechange', () => {
+        if (state.audioCtx.state !== 'running' && state.audioVerifiedAt) {
+          state.audioVerifiedAt = null;
+          ui.audioConfirmBtn.disabled = true;
+          ui.audioConfirmBtn.textContent = 'I heard the three clicks';
+          log('Audio verification cleared because AudioContext stopped', {
+            state: state.audioCtx.state,
+          });
+        }
+        refreshAudioUI();
+        broadcastDeviceStatus('audio-state').catch(() => {});
+      });
+    }
+
+    if (state.audioCtx.state !== 'running') {
+      await state.audioCtx.resume();
+    }
+
+    if (state.audioCtx.state !== 'running') {
+      throw new Error(`AudioContext did not enter running state; it is ${state.audioCtx.state}.`);
+    }
+
+    refreshAudioUI();
+  }
+
+  function refreshAudioUI() {
+    if (!state.audioCtx) {
+      setBadge(ui.audioBadge, 'Audio locked', 'warn');
+      return;
+    }
+
+    const verified = Boolean(state.audioVerifiedAt);
+    const outputMs = (state.audioCtx.outputLatency || 0) * 1000;
+    setBadge(
+      ui.audioBadge,
+      `${state.audioCtx.state} · output ${formatMs(outputMs)}${verified ? ' · verified' : ' · unverified'}`,
+      state.audioCtx.state === 'running' && verified ? 'good' : 'warn'
+    );
+  }
+
+  async function playLocalAudioTest() {
+    await ensureAudio();
+
+    const firstAudioTime = state.audioCtx.currentTime + 0.12;
+    for (let index = 0; index < 3; index++) {
+      scheduleClick(firstAudioTime + index * 0.28);
+    }
+
+    state.localTestPlayedAt = Date.now();
+    state.audioVerifiedAt = null;
+    ui.audioConfirmBtn.disabled = false;
+    ui.audioConfirmBtn.textContent = 'I heard the three clicks';
+    setBadge(ui.audioBadge, 'Local test playing · confirm if audible', 'warn');
+    await broadcastDeviceStatus('local-test');
+    updateControls();
+
+    log('Local audible sound test scheduled', {
+      outputLatencyMs: (state.audioCtx.outputLatency || 0) * 1000,
+    });
+  }
+
+  async function confirmLocalAudio() {
+    if (!state.audioCtx || state.audioCtx.state !== 'running') {
+      throw new Error('Audio is not running. Play the local test again.');
+    }
+
+    if (!state.localTestPlayedAt || Date.now() - state.localTestPlayedAt > 30000) {
+      throw new Error('The sound test is too old. Play it again and then confirm.');
+    }
+
+    state.audioVerifiedAt = Date.now();
+    ui.audioConfirmBtn.disabled = true;
+    ui.audioConfirmBtn.textContent = 'Audible sound confirmed';
+    refreshAudioUI();
+    await broadcastDeviceStatus('audio-verified');
+    updateControls();
+
+    log('User confirmed local sound was audible');
+  }
+
+  function loadSettings() {
+    ui.supabaseUrl.value =
+      localStorage.getItem('bardic-wave3-url') ||
+      localStorage.getItem('bardic-wave2-url') ||
+      localStorage.getItem('bardic-wave1-url') ||
+      'https://cfthwspwpcfamgbfqzuq.supabase.co';
+
+    ui.supabaseKey.value =
+      localStorage.getItem('bardic-wave3-key') ||
+      localStorage.getItem('bardic-wave2-key') ||
+      localStorage.getItem('bardic-wave1-key') ||
+      '';
+
+    ui.roomId.value =
+      localStorage.getItem('bardic-wave3-room') ||
+      'bardic-wave3-switching';
+
+    ui.displayName.value =
+      localStorage.getItem('bardic-wave3-name') ||
+      localStorage.getItem('bardic-wave2-name') ||
+      localStorage.getItem('bardic-wave1-name') ||
+      `${/iPhone|iPad|Android/i.test(navigator.userAgent) ? 'Phone' : 'Computer'} ${clientId.slice(0, 4)}`;
+
+    ui.role.value =
+      localStorage.getItem('bardic-wave3-role') ||
+      localStorage.getItem('bardic-wave2-role') ||
+      localStorage.getItem('bardic-wave1-role') ||
+      'listener';
+
+    ui.trackATitle.value =
+      localStorage.getItem('bardic-wave3-track-a-title') ||
+      'Homecoming to Port';
+    ui.trackAUrl.value =
+      localStorage.getItem('bardic-wave3-track-a-url') ||
+      localStorage.getItem('bardic-wave2-track-url') ||
+      'https://res.cloudinary.com/df0tgoiyb/video/upload/v1779949286/1-07._Homecoming_to_Port_b9ez8w.mp3';
+    ui.trackBTitle.value =
+      localStorage.getItem('bardic-wave3-track-b-title') ||
+      'The Bustling Port Market';
+    ui.trackBUrl.value =
+      localStorage.getItem('bardic-wave3-track-b-url') ||
+      'https://res.cloudinary.com/df0tgoiyb/video/upload/v1779950528/1-02._The_Bustling_Port_Market_du0t6f.mp3';
+    ui.targetSlot.value = localStorage.getItem('bardic-wave3-target-slot') || 'a';
+    ui.transitionMode.value = localStorage.getItem('bardic-wave3-transition-mode') || 'cut';
+    ui.fadeMs.value = localStorage.getItem('bardic-wave3-fade-ms') || '300';
+
+    updateControls();
+  }
+
+  function saveSettings() {
+    localStorage.setItem('bardic-wave3-url', ui.supabaseUrl.value.trim());
+    localStorage.setItem('bardic-wave3-key', ui.supabaseKey.value.trim());
+    localStorage.setItem('bardic-wave3-room', ui.roomId.value.trim());
+    localStorage.setItem('bardic-wave3-name', ui.displayName.value.trim());
+    localStorage.setItem('bardic-wave3-role', ui.role.value);
+    localStorage.setItem('bardic-wave3-track-a-title', ui.trackATitle.value.trim());
+    localStorage.setItem('bardic-wave3-track-a-url', ui.trackAUrl.value.trim());
+    localStorage.setItem('bardic-wave3-track-b-title', ui.trackBTitle.value.trim());
+    localStorage.setItem('bardic-wave3-track-b-url', ui.trackBUrl.value.trim());
+    localStorage.setItem('bardic-wave3-target-slot', ui.targetSlot.value);
+    localStorage.setItem('bardic-wave3-transition-mode', ui.transitionMode.value);
+    localStorage.setItem('bardic-wave3-fade-ms', ui.fadeMs.value);
+  }
+
+  async function send(event, payload) {
+    if (!state.channel || !state.subscribed) {
+      throw new Error('Realtime channel is not subscribed.');
+    }
+
+    const result = await state.channel.send({
+      type: 'broadcast',
+      event,
+      payload,
+    });
+
+    if (result !== 'ok') {
+      throw new Error(`Broadcast ${event} failed: ${String(result)}`);
+    }
+  }
+
+  function activeDevices() {
+    const now = Date.now();
+    for (const [id, device] of state.devices) {
+      if (now - device.lastReceivedAt > 35000) {
+        state.devices.delete(id);
+      }
+    }
+    return [...state.devices.values()];
+  }
+
+  function currentDeviceStatus() {
+    return {
+      clientId,
+      name: ui.displayName.value.trim() || clientId.slice(0, 8),
+      role: ui.role.value,
+      audioReady: state.audioCtx?.state === 'running',
+      audioVerified: Boolean(state.audioVerifiedAt),
+      slots: {
+        a: publicSlotStatus('a'),
+        b: publicSlotStatus('b'),
+      },
+      activeSlot: state.activeSlot,
+      playbackState: state.playbackState,
+      currentPlayId: state.currentPlayId,
+      sentAt: new Date().toISOString(),
+    };
+  }
+
+  function publicSlotStatus(key) {
+    const slot = state.slots[key];
+    return {
+      title: slot.title,
+      trackId: slot.trackId,
+      url: slot.url,
+      state: slot.state,
+      hash: slot.hash,
+      durationMs: Math.round(slot.duration * 1000),
+      bytes: slot.bytes,
+    };
+  }
+
+  function upsertDevice(device) {
+    if (!device?.clientId) return;
+    state.devices.set(device.clientId, {
+      ...device,
+      lastReceivedAt: Date.now(),
+    });
+    renderDevices();
+  }
+
+  async function broadcastDeviceStatus(reason = 'update') {
+    const status = currentDeviceStatus();
+    upsertDevice(status);
+
+    if (!state.channel || !state.subscribed) return;
+
+    await send('device-status', {
+      ...status,
+      reason,
+    });
+  }
+
+  async function reportDeviceStatus(reason) {
+    try {
+      await broadcastDeviceStatus(reason);
+    } catch (error) {
+      log('Device status report failed; local audio state was preserved', {
+        reason,
+        error: serializeError(error),
+      });
+    }
+  }
+
+  function handleDeviceStatus(message) {
+    if (!message?.clientId) return;
+    upsertDevice(message);
+
+    if (ui.role.value !== 'listener' || message.role !== 'host' || !state.audioVerifiedAt) {
+      return;
+    }
+
+    for (const key of ['a', 'b']) {
+      const remote = message.slots?.[key];
+      const local = state.slots[key];
+      if (!remote?.trackId || !remote.url) continue;
+      if (
+        remote.trackId === local.trackId &&
+        ['downloading', 'decoding', 'ready', 'error'].includes(local.state)
+      ) continue;
+
+      loadTrack(key, remote.url, remote.trackId, remote.title, 'host-status').catch((error) => {
+        log(`Automatic listener Track ${key.toUpperCase()} load failed`, {
+          error: serializeError(error),
+        });
+      });
+    }
+  }
+
+  function startDeviceHeartbeat() {
+    stopDeviceHeartbeat();
+    broadcastDeviceStatus('subscribed').catch((error) => {
+      log('Initial device status failed', { error: serializeError(error) });
+    });
+
+    state.deviceHeartbeatTimer = setInterval(() => {
+      broadcastDeviceStatus('heartbeat').catch((error) => {
+        log('Device heartbeat failed', { error: serializeError(error) });
+      });
+    }, 10000);
+  }
+
+  function stopDeviceHeartbeat() {
+    if (state.deviceHeartbeatTimer) clearInterval(state.deviceHeartbeatTimer);
+    state.deviceHeartbeatTimer = null;
+  }
+
+  function roomGate(targetKey = ui.targetSlot.value) {
+    const devices = activeDevices();
+    const hasHost = devices.some((device) => device.role === 'host');
+    const hasListener = devices.some((device) => device.role === 'listener');
+    const audioReady =
+      devices.length >= 2 &&
+      hasHost &&
+      hasListener &&
+      devices.every((device) => device.audioVerified === true);
+
+    const readyDevices = devices.filter(
+      (device) => device.slots?.[targetKey]?.state === 'ready'
+    );
+    const hashes = new Set(
+      readyDevices.map((device) => device.slots?.[targetKey]?.hash).filter(Boolean)
+    );
+    const trackIds = new Set(
+      readyDevices.map((device) => device.slots?.[targetKey]?.trackId).filter(Boolean)
+    );
+
+    const trackReady =
+      audioReady &&
+      readyDevices.length === devices.length &&
+      hashes.size === 1 &&
+      trackIds.size === 1;
+
+    return { devices, audioReady, trackReady, targetKey, hashes, trackIds };
+  }
+
+  function renderDeviceSlot(device, key) {
+    const slot = device.slots?.[key];
+    if (!slot) return 'empty';
+    return slot.state === 'ready'
+      ? `READY · ${String(slot.hash || '').slice(0, 8)}`
+      : escapeHtml(slot.state || 'empty');
+  }
+
+  function renderDevices() {
+    const { devices } = roomGate();
+
+    if (!devices.length) {
+      ui.devicesBody.innerHTML = '<tr><td colspan="8">No devices visible</td></tr>';
+      updateControls();
+      return;
+    }
+
+    devices.sort((a, b) => {
+      if (a.role !== b.role) return a.role === 'host' ? -1 : 1;
+      return String(a.name).localeCompare(String(b.name));
+    });
+
+    ui.devicesBody.innerHTML = devices.map((device) => `
+      <tr>
+        <td>${escapeHtml(device.name || 'Unknown')}</td>
+        <td>${escapeHtml(device.role || '—')}</td>
+        <td>${device.audioVerified ? 'VERIFIED' : (device.audioReady ? 'UNVERIFIED' : 'LOCKED')}</td>
+        <td>${renderDeviceSlot(device, 'a')}</td>
+        <td>${renderDeviceSlot(device, 'b')}</td>
+        <td>${device.activeSlot ? `Track ${escapeHtml(String(device.activeSlot).toUpperCase())}` : '—'}</td>
+        <td>${escapeHtml(device.playbackState || 'idle')}</td>
+        <td>${new Date(device.lastReceivedAt).toLocaleTimeString()}</td>
+      </tr>
+    `).join('');
+
+    updateControls();
+  }
+
+  function updateControls() {
+    const isHost = ui.role.value === 'host';
+    const targetKey = ui.targetSlot.value;
+    const { devices, audioReady, trackReady } = roomGate(targetKey);
+    const target = state.slots[targetKey];
+    const transitionBusy = state.playbackState === 'transitioning';
+    const stopping = state.playbackState === 'stopping';
+
+    setBadge(ui.roleBadge, isHost ? 'Host' : 'Listener', isHost ? 'good' : '');
+
+    ui.prepareABtn.disabled = !(
+      isHost &&
+      state.connected &&
+      state.subscribed &&
+      state.audioVerifiedAt &&
+      !['downloading', 'decoding'].includes(state.slots.a.state) &&
+      !(state.activeSlot === 'a' && state.playbackState !== 'idle')
+    );
+    ui.prepareBBtn.disabled = !(
+      isHost &&
+      state.connected &&
+      state.subscribed &&
+      state.audioVerifiedAt &&
+      !['downloading', 'decoding'].includes(state.slots.b.state) &&
+      !(state.activeSlot === 'b' && state.playbackState !== 'idle')
+    );
+
+    const canTransition =
+      isHost &&
+      state.connected &&
+      state.subscribed &&
+      trackReady &&
+      target.state === 'ready' &&
+      !transitionBusy &&
+      !stopping;
+
+    ui.transitionBtn.disabled = !canTransition;
+    ui.transitionBtn.textContent =
+      state.playbackState === 'idle'
+        ? `Start Track ${targetKey.toUpperCase()} synchronized`
+        : state.activeSlot === targetKey
+          ? `Restart Track ${targetKey.toUpperCase()} synchronized`
+          : `Switch to Track ${targetKey.toUpperCase()} synchronized`;
+    ui.stopBtn.disabled = !(
+      isHost &&
+      state.connected &&
+      state.subscribed &&
+      state.playbackState === 'playing'
+    );
+    ui.fadeMs.disabled = ui.transitionMode.value !== 'crossfade';
+
+    if (trackReady) {
+      setBadge(
+        ui.roomGateBadge,
+        `Track ${targetKey.toUpperCase()} ready · ${devices.length} devices · matching bytes`,
+        'good'
+      );
+    } else if (audioReady) {
+      const blockers = devices
+        .filter((device) => device.slots?.[targetKey]?.state !== 'ready')
+        .map((device) => `${device.name}: ${device.slots?.[targetKey]?.state || 'empty'}`);
+      const detail = blockers.length
+        ? blockers.join(' · ')
+        : 'all devices are ready but track IDs or byte fingerprints differ';
+      setBadge(
+        ui.roomGateBadge,
+        `Track ${targetKey.toUpperCase()} waiting · ${detail}`,
+        'warn'
+      );
+    } else {
+      setBadge(ui.roomGateBadge, 'Waiting for verified host and listener', 'warn');
+    }
+
+    renderEstimate();
+    renderTrackUI();
+    renderPlaybackUI();
+  }
+
+  function renderTrackUI() {
+    for (const key of ['a', 'b']) {
+      const slot = state.slots[key];
+      const progress = key === 'a' ? ui.loadAProgress : ui.loadBProgress;
+      const badge = key === 'a' ? ui.trackABadge : ui.trackBBadge;
+      const detail = key === 'a' ? ui.trackADetailBadge : ui.trackBDetailBadge;
+      const card = key === 'a' ? ui.trackACard : ui.trackBCard;
+
+      progress.style.width =
+        slot.state === 'ready'
+          ? '100%'
+          : slot.state === 'decoding'
+            ? '85%'
+            : slot.state === 'downloading'
+              ? '35%'
+              : '0%';
+      card.classList.toggle('active-card', state.activeSlot === key);
+
+      if (slot.state === 'ready') {
+        setBadge(badge, `READY · ${slot.hash.slice(0, 12)}`, 'good');
+        setBadge(
+          detail,
+          `${formatTime(slot.duration)} · ${(slot.bytes / 1024 / 1024).toFixed(2)} MB`,
+          'good'
+        );
+      } else if (slot.state === 'error') {
+        setBadge(badge, `Track ${key.toUpperCase()} failed`, 'bad');
+        setBadge(detail, slot.error || 'Unknown error', 'bad');
+      } else if (slot.state === 'downloading') {
+        setBadge(badge, `Downloading Track ${key.toUpperCase()}…`, 'warn');
+        setBadge(detail, 'Current playback continues', 'warn');
+      } else if (slot.state === 'decoding') {
+        setBadge(badge, `Decoding Track ${key.toUpperCase()}…`, 'warn');
+        setBadge(detail, `${(slot.bytes / 1024 / 1024).toFixed(2)} MB downloaded`, 'warn');
+      } else if (slot.state === 'waiting-audio') {
+        setBadge(badge, 'Waiting for local audio verification', 'warn');
+        setBadge(detail, 'Run and confirm the local click test', 'warn');
+      } else {
+        setBadge(badge, 'Not prepared');
+        setBadge(detail, 'No decoded buffer');
+      }
+    }
+
+    const metricSlot = state.slots[state.activeSlot || ui.targetSlot.value];
+    ui.durationMetric.textContent = metricSlot?.duration
+      ? formatTime(metricSlot.duration)
+      : '—';
+  }
+
+  async function sha256Hex(arrayBuffer) {
+    const digest = await crypto.subtle.digest('SHA-256', arrayBuffer);
+    return [...new Uint8Array(digest)]
+      .map((byte) => byte.toString(16).padStart(2, '0'))
+      .join('');
+  }
+
+  async function loadTrack(key, url, trackId, title, reason) {
+    if (!['a', 'b'].includes(key)) throw new Error('Track slot must be A or B.');
+    await ensureAudio();
+
+    const prior = state.slots[key];
+    if (
+      prior.trackId === trackId &&
+      ['downloading', 'decoding', 'ready'].includes(prior.state)
+    ) {
+      log(`Duplicate Track ${key.toUpperCase()} preparation ignored`, { trackId, reason });
+      return;
+    }
+
+    if (state.activeSlot === key && state.playbackState !== 'idle') {
+      throw new Error(`Track ${key.toUpperCase()} is active. Prepare the other slot.`);
+    }
+
+    const record = {
+      ...emptySlot(key),
+      title: title || `Track ${key.toUpperCase()}`,
+      trackId,
+      url,
+      state: 'downloading',
+      loadGeneration: prior.loadGeneration + 1,
+    };
+    state.slots[key] = record;
+    renderTrackUI();
+    await reportDeviceStatus(`track-${key}-downloading`);
+
+    log(`Track ${key.toUpperCase()} download starting`, { trackId, title, url, reason });
+
+    try {
+      const response = await fetch(url, { cache: 'force-cache', mode: 'cors' });
+      if (!response.ok) {
+        throw new Error(`Track request failed with HTTP ${response.status}.`);
+      }
+
+      const bytes = await response.arrayBuffer();
+      if (state.slots[key] !== record) return;
+
+      record.bytes = bytes.byteLength;
+      record.state = 'decoding';
+      renderTrackUI();
+      await reportDeviceStatus(`track-${key}-decoding`);
+
+      const hash = await sha256Hex(bytes);
+      const decoded = await state.audioCtx.decodeAudioData(bytes.slice(0));
+      if (state.slots[key] !== record) return;
+
+      record.buffer = decoded;
+      record.hash = hash;
+      record.duration = decoded.duration;
+      record.state = 'ready';
+      record.error = null;
+      renderTrackUI();
+      await reportDeviceStatus(`track-${key}-ready`);
+      updateControls();
+
+      log(`Track ${key.toUpperCase()} ready`, {
+        trackId,
+        title: record.title,
+        hash,
+        bytes: record.bytes,
+        duration: record.duration,
+        sampleRate: decoded.sampleRate,
+        channels: decoded.numberOfChannels,
+      });
+    } catch (error) {
+      if (state.slots[key] !== record) return;
+
+      record.state = 'error';
+      record.error = error.message;
+      record.buffer = null;
+      record.hash = null;
+      renderTrackUI();
+      await reportDeviceStatus(`track-${key}-error`);
+      updateControls();
+
+      log(`Track ${key.toUpperCase()} load failed; current playback was not changed`, {
+        error: serializeError(error),
+        url,
+      });
+      throw error;
+    }
+  }
+
+  async function prepareSlotOnRoom(key) {
+    if (ui.role.value !== 'host') return;
+    if (!state.audioVerifiedAt) {
+      throw new Error('Verify local audio before preparing the track.');
+    }
+
+    if (state.activeSlot === key && state.playbackState !== 'idle') {
+      throw new Error(`Track ${key.toUpperCase()} is playing. Prepare the other slot.`);
+    }
+
+    const url = (key === 'a' ? ui.trackAUrl : ui.trackBUrl).value.trim();
+    const title = (key === 'a' ? ui.trackATitle : ui.trackBTitle).value.trim() ||
+      `Track ${key.toUpperCase()}`;
+    if (!url) throw new Error('Enter a track URL.');
+
+    saveSettings();
+
+    const trackId = crypto.randomUUID();
+    const command = {
+      prepareId: crypto.randomUUID(),
+      slot: key,
+      trackId,
+      title,
+      url,
+      preparedBy: clientId,
+    };
+
+    await send('track-prepare', command);
+    await loadTrack(key, url, trackId, title, 'host-local-after-broadcast-ok');
+  }
+
+  function handleTrackPrepare(command) {
+    if (!['a', 'b'].includes(command?.slot) || !command.trackId || !command.url) return;
+    const key = command.slot;
+
+    if (state.slots[key].trackId === command.trackId) {
+      log(`Duplicate Track ${key.toUpperCase()} prepare command ignored`, {
+        prepareId: command.prepareId,
+      });
+      return;
+    }
+
+    if (!state.audioVerifiedAt) {
+      state.slots[key] = {
+        ...emptySlot(key),
+        title: command.title || `Track ${key.toUpperCase()}`,
+        trackId: command.trackId,
+        url: command.url,
+        state: 'waiting-audio',
+      };
+      renderTrackUI();
+      broadcastDeviceStatus(`track-${key}-waiting-audio`).catch(() => {});
+      log(`Track ${key.toUpperCase()} preparation received, but local audio is not verified yet`);
+      return;
+    }
+
+    loadTrack(key, command.url, command.trackId, command.title, 'broadcast').catch((error) => {
+      log(`Broadcast Track ${key.toUpperCase()} preparation failed`, {
+        error: serializeError(error),
+      });
+    });
+  }
+
+  function startClockSampling() {
+    stopClockSampling();
+    if (ui.role.value !== 'listener') return;
+
+    let remaining = 18;
+    state.pingBurstTimer = setInterval(() => {
+      sendClockPing();
+      remaining -= 1;
+      if (remaining <= 0) {
+        clearInterval(state.pingBurstTimer);
+        state.pingBurstTimer = null;
+      }
+    }, 250);
+
+    sendClockPing();
+
+    state.pingMaintenanceTimer = setInterval(() => {
+      for (let index = 0; index < 4; index++) {
+        setTimeout(sendClockPing, index * 300);
+      }
+    }, 10000);
+  }
+
+  function stopClockSampling() {
+    if (state.pingBurstTimer) clearInterval(state.pingBurstTimer);
+    if (state.pingMaintenanceTimer) clearInterval(state.pingMaintenanceTimer);
+    state.pingBurstTimer = null;
+    state.pingMaintenanceTimer = null;
+  }
+
+  function sendClockPing() {
+    if (!state.connected || !state.subscribed || ui.role.value !== 'listener') return;
+
+    const pingId = crypto.randomUUID();
+    const t0ClientMs = monoEpochMs();
+    state.pendingPings.set(pingId, { t0ClientMs, sentAt: Date.now() });
+
+    send('clock-ping', {
+      pingId,
+      fromClientId: clientId,
+      t0ClientMs,
+    }).catch((error) => {
+      log('Clock ping failed', { error: serializeError(error) });
+    });
+
+    for (const [id, pending] of state.pendingPings) {
+      if (Date.now() - pending.sentAt > 15000) state.pendingPings.delete(id);
+    }
+  }
+
+  async function handleClockPing(message) {
+    if (ui.role.value !== 'host') return;
+
+    const t1HostMs = monoEpochMs();
+    const { pingId, fromClientId, t0ClientMs } = message || {};
+    if (!pingId || !fromClientId || !Number.isFinite(t0ClientMs)) return;
+    const t2HostMs = monoEpochMs();
+
+    await send('clock-pong', {
+      pingId,
+      toClientId: fromClientId,
+      t0ClientMs,
+      t1HostMs,
+      t2HostMs,
+    });
+  }
+
+  function handleClockPong(message) {
+    if (ui.role.value !== 'listener' || message?.toClientId !== clientId) return;
+
+    const t3ClientMs = monoEpochMs();
+    const pending = state.pendingPings.get(message.pingId);
+    if (!pending) return;
+    state.pendingPings.delete(message.pingId);
+
+    const { t0ClientMs } = pending;
+    const { t1HostMs, t2HostMs } = message;
+    if (![t1HostMs, t2HostMs].every(Number.isFinite)) return;
+
+    const offsetMs =
+      ((t1HostMs - t0ClientMs) + (t2HostMs - t3ClientMs)) / 2;
+    const rttMs =
+      (t3ClientMs - t0ClientMs) - (t2HostMs - t1HostMs);
+
+    if (rttMs < 0 || rttMs > 10000 || Math.abs(offsetMs) > 60000) return;
+
+    state.samples.push({ rttMs, offsetMs, at: Date.now() });
+    state.samples = state.samples.slice(-40);
+    recomputeClockEstimate();
+  }
+
+  function recomputeClockEstimate() {
+    if (ui.role.value === 'host') {
+      state.estimate = { offsetMs: 0, bestRttMs: 0, jitterMs: 0 };
+      renderEstimate();
+      return;
+    }
+
+    const best = state.samples
+      .filter((sample) => Number.isFinite(sample.rttMs) && sample.rttMs >= 0)
+      .sort((a, b) => a.rttMs - b.rttMs)
+      .slice(0, 5);
+
+    if (!best.length) {
+      state.estimate = null;
+    } else {
+      const offsetMs = median(best.map((sample) => sample.offsetMs));
+      state.estimate = {
+        offsetMs,
+        bestRttMs: best[0].rttMs,
+        jitterMs: median(best.map((sample) => Math.abs(sample.offsetMs - offsetMs))),
+      };
+    }
+
+    renderEstimate();
+    renderSamples();
+  }
+
+  function renderEstimate() {
+    ui.offsetMetric.textContent = state.estimate
+      ? formatMs(state.estimate.offsetMs, true)
+      : '—';
+    ui.rttMetric.textContent = state.estimate
+      ? formatMs(state.estimate.bestRttMs)
+      : '—';
+    ui.jitterMetric.textContent = state.estimate
+      ? formatMs(state.estimate.jitterMs)
+      : '—';
+  }
+
+  function renderSamples() {
+    const best = [...state.samples].sort((a, b) => a.rttMs - b.rttMs).slice(0, 8);
+    if (!best.length) {
+      ui.samplesBody.innerHTML = '<tr><td colspan="3">No samples</td></tr>';
+      return;
+    }
+
+    ui.samplesBody.innerHTML = best.map((sample, index) => `
+      <tr>
+        <td>${index + 1}</td>
+        <td class="num">${formatMs(sample.rttMs)}</td>
+        <td class="num">${formatMs(sample.offsetMs, true)}</td>
+      </tr>
+    `).join('');
+  }
+
+  function hostTimeToLocalAudioTime(hostTimeMs) {
+    if (!state.audioCtx) throw new Error('AudioContext is not available.');
+
+    const offsetMs =
+      ui.role.value === 'host'
+        ? 0
+        : state.estimate?.offsetMs;
+
+    if (!Number.isFinite(offsetMs)) {
+      throw new Error('Host clock estimate is not available yet.');
+    }
+
+    const localTargetMs = hostTimeMs - offsetMs;
+    const outputLatencyMs = ui.latencyComp.checked
+      ? (state.audioCtx.outputLatency || 0) * 1000
+      : 0;
+
+    const audioTime =
+      state.audioCtx.currentTime +
+      (localTargetMs - monoEpochMs() - outputLatencyMs) / 1000;
+
+    return {
+      audioTime,
+      localTargetMs,
+      outputLatencyMs,
+      leadMs: (audioTime - state.audioCtx.currentTime) * 1000,
+      offsetMs,
+    };
+  }
+
+  function rememberId(set, id) {
+    if (!id || set.has(id)) return false;
+    set.add(id);
+    while (set.size > 100) set.delete(set.values().next().value);
+    return true;
+  }
+
+  function scheduleSourceFadeOut(source, gain, audioTime, durationSeconds) {
+    if (!source || !gain) return;
+
+    const duration = Math.max(0.008, durationSeconds || 0.008);
+    try {
+      gain.gain.cancelScheduledValues(audioTime);
+      gain.gain.setValueAtTime(Math.max(0.0001, gain.gain.value || 1), audioTime);
+      gain.gain.linearRampToValueAtTime(0.0001, audioTime + duration);
+      source.stop(audioTime + duration + 0.015);
+    } catch (error) {
+      log('Source fade-out scheduling warning', {
+        error: serializeError(error),
+      });
+    }
+  }
+
+  async function scheduleTransition(command, sourceLabel) {
+    await ensureAudio();
+
+    if (!command?.transitionId || !['a', 'b'].includes(command.toSlot)) {
+      throw new Error('Transition command is incomplete.');
+    }
+
+    if (!rememberId(state.seenTransitionIds, command.transitionId)) {
+      log('Duplicate transition command ignored', { transitionId: command.transitionId });
+      return;
+    }
+
+    const slot = state.slots[command.toSlot];
+    if (
+      slot.state !== 'ready' ||
+      !slot.buffer ||
+      slot.trackId !== command.trackId ||
+      slot.hash !== command.trackHash
+    ) {
+      throw new Error(`The requested Track ${command.toSlot.toUpperCase()} bytes are not ready.`);
+    }
+
+    const positionSeconds = Number(command.positionSeconds);
+    if (
+      !Number.isFinite(positionSeconds) ||
+      positionSeconds < 0 ||
+      positionSeconds >= slot.duration
+    ) {
+      throw new Error('The selected start position is outside the decoded track.');
+    }
+
+    const timing = hostTimeToLocalAudioTime(command.startHostMs);
+    if (timing.leadMs < 100) {
+      throw new Error(`Play command arrived too late (${timing.leadMs.toFixed(1)} ms lead).`);
+    }
+
+    const source = state.audioCtx.createBufferSource();
+    const gain = state.audioCtx.createGain();
+    const mode = command.mode === 'crossfade' ? 'crossfade' : 'cut';
+    const fadeMs = mode === 'crossfade'
+      ? Math.min(500, Math.max(100, Number(command.fadeMs) || 300))
+      : 8;
+    const fadeSeconds = fadeMs / 1000;
+    const oldSource = state.currentSource;
+    const oldGain = state.currentGain;
+    const oldSlot = state.activeSlot;
+
+    source.buffer = slot.buffer;
+    if (oldSource && mode === 'crossfade') {
+      gain.gain.setValueAtTime(0.0001, timing.audioTime);
+      gain.gain.linearRampToValueAtTime(1, timing.audioTime + fadeSeconds);
+    } else {
+      gain.gain.setValueAtTime(1, timing.audioTime);
+    }
+    source.connect(gain).connect(state.audioCtx.destination);
+
+    const playId = command.transitionId;
+    source.onended = () => {
+      state.liveSources.delete(source);
+      if (state.currentPlayId !== playId) return;
+      state.currentSource = null;
+      state.currentGain = null;
+      state.currentPlayId = null;
+
+      if (state.armedTransition) {
+        state.playbackState = 'transitioning';
+        updateControls();
+        return;
+      }
+
+      state.playbackState = 'idle';
+      state.activeSlot = null;
+      stopPositionTimer();
+      broadcastDeviceStatus('track-ended').catch(() => {});
+      updateControls();
+      log('Active track source ended', { playId, slot: command.toSlot });
+    };
+
+    source.start(timing.audioTime, positionSeconds);
+    state.liveSources.add(source);
+
+    if (oldSource && oldGain) {
+      scheduleSourceFadeOut(oldSource, oldGain, timing.audioTime, fadeSeconds);
+    }
+
+    state.armedTransition = {
+      transitionId: command.transitionId,
+      source,
+      gain,
+      slot: command.toSlot,
+      audioTime: timing.audioTime,
+      positionSeconds,
+    };
+    state.playbackState = 'transitioning';
+
+    setBadge(
+      ui.commandBadge,
+      `${oldSource ? (mode === 'crossfade' ? `${fadeMs} ms crossfade` : 'Hard cut') : 'Start'} armed → Track ${command.toSlot.toUpperCase()}`,
+      'good'
+    );
+
+    const timer = setTimeout(() => {
+      if (state.armedTransition?.transitionId !== command.transitionId) return;
+      state.currentSource = source;
+      state.currentGain = gain;
+      state.currentPlayId = playId;
+      state.currentStartAudioTime = timing.audioTime;
+      state.currentStartPosition = positionSeconds;
+      state.activeSlot = command.toSlot;
+      state.armedTransition = null;
+      state.playbackState = 'playing';
+      startPositionTimer();
+      broadcastDeviceStatus('transition-complete').catch(() => {});
+      updateControls();
+      log('Synchronized transition reached local playback time', {
+        transitionId: command.transitionId,
+        fromSlot: oldSlot,
+        toSlot: command.toSlot,
+        mode,
+        fadeMs,
+      });
+    }, Math.max(0, timing.localTargetMs - monoEpochMs()));
+
+    state.scheduledTimers.push(timer);
+    await reportDeviceStatus('transition-armed');
+    updateControls();
+
+    log('Synchronized track transition scheduled', {
+      transitionId: command.transitionId,
+      sourceLabel,
+      fromSlot: oldSlot,
+      toSlot: command.toSlot,
+      mode,
+      fadeMs,
+      positionSeconds,
+      leadMs: timing.leadMs,
+      offsetMs: timing.offsetMs,
+      outputLatencyMs: timing.outputLatencyMs,
+      startHostMs: command.startHostMs,
+    });
+  }
+
+  async function issueTransition() {
+    if (ui.role.value !== 'host') return;
+
+    const toSlot = ui.targetSlot.value;
+    const slot = state.slots[toSlot];
+    const gate = roomGate(toSlot);
+    if (!gate.trackReady || slot.state !== 'ready' || !slot.buffer) {
+      throw new Error(`Track ${toSlot.toUpperCase()} is not ready with matching bytes on every device.`);
+    }
+
+    const positionSeconds = Number(ui.startPosition.value || 0);
+    if (!Number.isFinite(positionSeconds) || positionSeconds < 0 || positionSeconds >= slot.duration) {
+      throw new Error('Enter a valid start position.');
+    }
+
+    const command = {
+      transitionId: crypto.randomUUID(),
+      toSlot,
+      trackId: slot.trackId,
+      trackHash: slot.hash,
+      positionSeconds,
+      startHostMs: monoEpochMs() + Number(ui.leadMs.value),
+      mode: ui.transitionMode.value,
+      fadeMs: Number(ui.fadeMs.value),
+    };
+
+    saveSettings();
+    await send('track-transition', command);
+    await scheduleTransition(command, 'host-local-after-broadcast-ok');
+  }
+
+  async function scheduleTrackStop(command, sourceLabel) {
+    if (!command?.stopId) throw new Error('Stop command is incomplete.');
+    if (!rememberId(state.seenStopIds, command.stopId)) {
+      log('Duplicate stop command ignored', { stopId: command.stopId });
+      return;
+    }
+
+    if (!state.audioCtx || !state.currentSource || !state.currentGain) {
+      state.playbackState = 'idle';
+      updateControls();
+      return;
+    }
+
+    const timing = hostTimeToLocalAudioTime(command.stopHostMs);
+    if (timing.leadMs < 50) {
+      throw new Error(`Stop command arrived too late (${timing.leadMs.toFixed(1)} ms lead).`);
+    }
+
+    scheduleSourceFadeOut(state.currentSource, state.currentGain, timing.audioTime, 0.008);
+    state.playbackState = 'stopping';
+    setBadge(ui.commandBadge, 'Stop armed', 'warn');
+
+    const playId = state.currentPlayId;
+    const timer = setTimeout(() => {
+      if (state.currentPlayId !== playId) return;
+      state.playbackState = 'idle';
+      state.currentSource = null;
+      state.currentGain = null;
+      state.currentPlayId = null;
+      state.activeSlot = null;
+      stopPositionTimer();
+      broadcastDeviceStatus('track-stopped').catch(() => {});
+      updateControls();
+    }, Math.max(0, timing.localTargetMs - monoEpochMs() + 60));
+
+    state.scheduledTimers.push(timer);
+    await reportDeviceStatus('track-stop-armed');
+    updateControls();
+
+    log('Synchronized stop scheduled', {
+      sourceLabel,
+      leadMs: timing.leadMs,
+      outputLatencyMs: timing.outputLatencyMs,
+    });
+  }
+
+  async function issueTrackStop() {
+    if (ui.role.value !== 'host') return;
+
+    const command = {
+      stopId: crypto.randomUUID(),
+      stopHostMs: monoEpochMs() + 800,
+    };
+
+    await send('track-stop', command);
+    await scheduleTrackStop(command, 'host-local-after-broadcast-ok');
+  }
+
+  function startPositionTimer() {
+    stopPositionTimer();
+    state.positionTimer = setInterval(() => {
+      if (
+        !state.audioCtx ||
+        !Number.isFinite(state.currentStartAudioTime) ||
+        state.playbackState === 'idle'
+      ) {
+        return;
+      }
+
+      const elapsed = Math.max(0, state.audioCtx.currentTime - state.currentStartAudioTime);
+      const position = Math.min(
+        state.slots[state.activeSlot]?.duration || Infinity,
+        state.currentStartPosition + elapsed
+      );
+      ui.positionMetric.textContent = formatTime(position);
+    }, 100);
+  }
+
+  function stopPositionTimer() {
+    if (state.positionTimer) clearInterval(state.positionTimer);
+    state.positionTimer = null;
+    if (state.playbackState === 'idle') {
+      ui.positionMetric.textContent = formatTime(state.currentStartPosition || 0);
+    }
+  }
+
+  function renderPlaybackUI() {
+    const kind =
+      state.playbackState === 'playing'
+        ? 'good'
+        : state.playbackState === 'transitioning' || state.playbackState === 'stopping'
+          ? 'warn'
+          : '';
+
+    setBadge(ui.playbackBadge, state.playbackState.toUpperCase(), kind);
+    if (state.activeSlot) {
+      const slot = state.slots[state.activeSlot];
+      setBadge(
+        ui.activeTrackBadge,
+        `Track ${state.activeSlot.toUpperCase()} · ${slot.title}`,
+        state.playbackState === 'playing' ? 'good' : ''
+      );
+    } else {
+      setBadge(ui.activeTrackBadge, 'None');
+    }
+  }
+
+  function stopLocalSourceImmediately() {
+    for (const source of state.liveSources) {
+      try {
+        source.stop();
+      } catch (_) {}
+    }
+
+    state.liveSources.clear();
+    state.currentSource = null;
+    state.currentGain = null;
+    state.currentPlayId = null;
+    state.armedTransition = null;
+    state.activeSlot = null;
+    state.playbackState = 'idle';
+    stopPositionTimer();
+  }
+
+  function scheduleExplicitReconnect(generation, reason) {
+    if (
+      state.manualDisconnect ||
+      generation !== state.generation ||
+      !state.supabase ||
+      !state.channel
+    ) return;
+
+    if (state.reconnectTimer) clearTimeout(state.reconnectTimer);
+    state.reconnectTimer = setTimeout(() => {
+      if (
+        state.manualDisconnect ||
+        generation !== state.generation ||
+        !state.supabase
+      ) return;
+
+      log('Requesting Realtime reconnect', { reason });
+      try {
+        state.supabase.realtime.connect();
+      } catch (error) {
+        log('Explicit reconnect failed', { error: serializeError(error) });
+      }
+    }, 1200);
+  }
+
+  async function connect() {
+    const url = ui.supabaseUrl.value.trim();
+    const key = ui.supabaseKey.value.trim();
+    const room = ui.roomId.value.trim();
+
+    if (!url || !key || !room) {
+      throw new Error('Enter the Supabase URL, publishable key, and room.');
+    }
+
+    if (!window.supabase?.createClient) {
+      throw new Error('Supabase client library did not load.');
+    }
+
+    await disconnect();
+
+    const generation = ++state.generation;
+    state.manualDisconnect = false;
+    saveSettings();
+
+    state.samples = [];
+    state.estimate =
+      ui.role.value === 'host'
+        ? { offsetMs: 0, bestRttMs: 0, jitterMs: 0 }
+        : null;
+
+    state.supabase = window.supabase.createClient(url, key, {
+      auth: {
+        persistSession: false,
+        autoRefreshToken: false,
+        detectSessionInUrl: false,
+      },
+      realtime: {
+        worker: true,
+        logLevel: 'warn',
+        heartbeatCallback: (status) => {
+          if (generation !== state.generation) return;
+          log('Realtime heartbeat', {
+            status,
+            online: navigator.onLine,
+            visibility: document.visibilityState,
+          });
+
+          if (status === 'disconnected' || status === 'timeout') {
+            scheduleExplicitReconnect(generation, `heartbeat-${status}`);
+          }
+        },
+      },
+    });
+
+    const topic = `bardic:wave3:${room}`;
+    state.channel = state.supabase.channel(topic, {
+      config: {
+        broadcast: { self: false, ack: true },
+        private: false,
+      },
+    });
+
+    state.channel
+      .on('broadcast', { event: 'device-status' }, ({ payload }) => {
+        handleDeviceStatus(payload);
+      })
+      .on('broadcast', { event: 'device-leave' }, ({ payload }) => {
+        if (payload?.clientId) state.devices.delete(payload.clientId);
+        renderDevices();
+      })
+      .on('broadcast', { event: 'clock-ping' }, ({ payload }) => {
+        handleClockPing(payload).catch((error) => {
+          log('Clock ping handler failed', { error: serializeError(error) });
+        });
+      })
+      .on('broadcast', { event: 'clock-pong' }, ({ payload }) => {
+        handleClockPong(payload);
+      })
+      .on('broadcast', { event: 'track-prepare' }, ({ payload }) => {
+        handleTrackPrepare(payload);
+      })
+      .on('broadcast', { event: 'track-transition' }, ({ payload }) => {
+        scheduleTransition(payload, 'realtime').catch((error) => {
+          setBadge(ui.commandBadge, 'Transition failed locally', 'bad');
+          log('Realtime track transition failed', { error: serializeError(error) });
+        });
+      })
+      .on('broadcast', { event: 'track-stop' }, ({ payload }) => {
+        scheduleTrackStop(payload, 'realtime').catch((error) => {
+          log('Realtime track stop failed', { error: serializeError(error) });
+        });
+      });
+
+    setBadge(ui.connectionBadge, 'Connecting…', 'warn');
+    ui.connectBtn.disabled = true;
+    ui.disconnectBtn.disabled = false;
+
+    state.channel.subscribe((status, error) => {
+      if (generation !== state.generation) return;
+
+      log('Realtime status', {
+        status,
+        online: navigator.onLine,
+        visibility: document.visibilityState,
+        error: serializeError(error),
+      });
+
+      if (status === 'SUBSCRIBED') {
+        if (state.reconnectTimer) clearTimeout(state.reconnectTimer);
+        state.reconnectTimer = null;
+        state.connected = true;
+        state.subscribed = true;
+
+        setBadge(ui.connectionBadge, `Connected · ${topic}`, 'good');
+        startDeviceHeartbeat();
+        startClockSampling();
+        updateControls();
+        return;
+      }
+
+      if (['CHANNEL_ERROR', 'TIMED_OUT', 'CLOSED'].includes(status)) {
+        state.connected = false;
+        state.subscribed = false;
+        stopClockSampling();
+        stopDeviceHeartbeat();
+        setBadge(ui.connectionBadge, `${status} · reconnecting`, 'bad');
+        updateControls();
+
+        if (!state.manualDisconnect) {
+          scheduleExplicitReconnect(generation, `channel-${status.toLowerCase()}`);
+        }
+      }
+    });
+  }
+
+  async function disconnect() {
+    state.manualDisconnect = true;
+    state.generation += 1;
+
+    if (state.reconnectTimer) clearTimeout(state.reconnectTimer);
+    state.reconnectTimer = null;
+
+    stopClockSampling();
+    stopDeviceHeartbeat();
+    stopLocalSourceImmediately();
+    state.pendingPings.clear();
+    state.scheduledTimers.forEach(clearTimeout);
+    state.scheduledTimers = [];
+
+    const oldSupabase = state.supabase;
+    const oldChannel = state.channel;
+
+    if (oldChannel && state.subscribed) {
+      try {
+        await oldChannel.send({
+          type: 'broadcast',
+          event: 'device-leave',
+          payload: { clientId },
+        });
+      } catch (_) {}
+    }
+
+    state.supabase = null;
+    state.channel = null;
+    state.connected = false;
+    state.subscribed = false;
+    state.devices.clear();
+
+    if (oldSupabase && oldChannel) {
+      try {
+        await oldSupabase.removeChannel(oldChannel);
+      } catch (error) {
+        log('Channel cleanup failed', { error: serializeError(error) });
+      }
+    }
+
+    ui.connectBtn.disabled = false;
+    ui.disconnectBtn.disabled = true;
+    setBadge(ui.connectionBadge, 'Disconnected', 'warn');
+    ui.devicesBody.innerHTML = '<tr><td colspan="8">Not connected</td></tr>';
+    updateControls();
+  }
+
+  ui.connectBtn.addEventListener('click', () => {
+    connect().catch((error) => {
+      log('Connection failed', { error: serializeError(error) });
+      alert(`Connection failed: ${error.message}`);
+    });
+  });
+
+  ui.disconnectBtn.addEventListener('click', () => {
+    disconnect().catch((error) => {
+      log('Disconnect failed', { error: serializeError(error) });
+    });
+  });
+
+  ui.audioTestBtn.addEventListener('click', () => {
+    playLocalAudioTest().catch((error) => {
+      log('Local audio test failed', { error: serializeError(error) });
+      alert(`Audio test failed: ${error.message}`);
+    });
+  });
+
+  ui.audioConfirmBtn.addEventListener('click', () => {
+    confirmLocalAudio().catch((error) => {
+      log('Audio confirmation failed', { error: serializeError(error) });
+      alert(`Audio confirmation failed: ${error.message}`);
+    });
+  });
+
+  ui.prepareABtn.addEventListener('click', () => {
+    prepareSlotOnRoom('a').catch((error) => {
+      log('Track A preparation failed', { error: serializeError(error) });
+      alert(`Track A preparation failed: ${error.message}`);
+    });
+  });
+
+  ui.prepareBBtn.addEventListener('click', () => {
+    prepareSlotOnRoom('b').catch((error) => {
+      log('Track B preparation failed', { error: serializeError(error) });
+      alert(`Track B preparation failed: ${error.message}`);
+    });
+  });
+
+  ui.transitionBtn.addEventListener('click', () => {
+    issueTransition().catch((error) => {
+      log('Synchronized transition failed', { error: serializeError(error) });
+      alert(`Transition failed: ${error.message}`);
+    });
+  });
+
+  ui.stopBtn.addEventListener('click', () => {
+    issueTrackStop().catch((error) => {
+      log('Synchronized stop failed', { error: serializeError(error) });
+      alert(`Stop failed: ${error.message}`);
+    });
+  });
+
+  ui.role.addEventListener('change', () => {
+    saveSettings();
+    updateControls();
+    broadcastDeviceStatus('role-change').catch(() => {});
+    if (state.connected) startClockSampling();
+  });
+
+  ui.displayName.addEventListener('change', () => {
+    saveSettings();
+    broadcastDeviceStatus('name-change').catch(() => {});
+  });
+
+  for (const input of [ui.trackATitle, ui.trackAUrl, ui.trackBTitle, ui.trackBUrl]) {
+    input.addEventListener('change', saveSettings);
+  }
+
+  for (const input of [ui.targetSlot, ui.transitionMode, ui.fadeMs]) {
+    input.addEventListener('change', () => {
+      saveSettings();
+      updateControls();
+    });
+  }
+
+  document.addEventListener('visibilitychange', () => {
+    log('Visibility changed', { state: document.visibilityState });
+    if (document.visibilityState === 'visible') {
+      if (state.connected) {
+        broadcastDeviceStatus('page-visible').catch(() => {});
+        if (ui.role.value === 'listener') startClockSampling();
+      } else if (state.channel && !state.manualDisconnect) {
+        scheduleExplicitReconnect(state.generation, 'page-visible');
+      }
+    }
+  });
+
+  window.addEventListener('beforeunload', () => {
+    state.manualDisconnect = true;
+    stopClockSampling();
+    stopDeviceHeartbeat();
+    stopLocalSourceImmediately();
+
+    if (state.channel && state.subscribed) {
+      state.channel.send({
+        type: 'broadcast',
+        event: 'device-leave',
+        payload: { clientId },
+      });
+    }
+
+    if (state.supabase && state.channel) {
+      state.supabase.removeChannel(state.channel);
+    }
+  });
+
+  window.addEventListener('online', () => {
+    setBadge(ui.connectionBadge, 'Browser online · reconnecting', 'warn');
+    scheduleExplicitReconnect(state.generation, 'browser-online');
+  });
+
+  window.addEventListener('offline', () => {
+    setBadge(ui.connectionBadge, 'Browser offline', 'bad');
+  });
+
+  loadSettings();
+  recomputeClockEstimate();
+  renderTrackUI();
+  renderPlaybackUI();
+  renderDevices();
+})();
+</script>
+</body>
+</html>

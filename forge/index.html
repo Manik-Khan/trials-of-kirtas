@@ -34,6 +34,7 @@
 <script src="forge-test-fight.js?v=tf1"></script>
 <script src="forge-bridge-authority.js?v=fba1"></script>
 <script src="forge-surfaces.js?v=fs1"></script>
+<script src="forge-diorama-renderer.js?v=fdr1"></script>
 <script src="forge-protocol.js?v=fpr2"></script>
 <script src="forge-replay.js?v=fb19"></script>
 <script src="forge-combat-rules.js?v=fcr3"></script>
@@ -1099,6 +1100,7 @@ body.forge-player-view .godSelectedBadge{display:none!important}
         <span class="forgeWorkshopFact" id="forgeSummaryThreat">Encounter read —</span>
         <span class="forgeWorkshopFact" id="forgeSummaryMap">Current battlefield</span>
         <span class="forgeWorkshopFact" id="forgeSurfaceSummary" hidden>Surface contract —</span>
+        <span class="forgeWorkshopFact" id="forgeDioramaSummary" hidden>Diorama preview —</span>
       </div>
       <button class="forgeWorkshopReview" id="forgeReviewOpen" type="button">Review and open Table</button>
     </div>
@@ -1666,6 +1668,10 @@ const LANDMARKS_ON=STORYBOOK_PARAMS.get('landmarks')==='1';
 const SURFACE_CONTRACT_ON=STORYBOOK_PARAMS.get('surfaces')==='1';
 const SURFACE_API=window.ForgeSurfaces;
 if(SURFACE_CONTRACT_ON&&!SURFACE_API)throw new Error('Forge surface authority did not load');
+const DIORAMA_RENDERER_ON=STORYBOOK_PARAMS.get('renderer')==='diorama';
+const DIORAMA_API=window.ForgeDioramaRenderer;
+if(DIORAMA_RENDERER_ON&&!DIORAMA_API)throw new Error('Forge diorama renderer did not load');
+var DIORAMA_RECEIPT=null;
 const STORY_KEY={grass:'grassland',druidic:'druidic',tundra:'tundra',swamp:'swamp',temple:'temple',cavern:'cavern'};
 const STORY_PATH={
   sky:k=>'assets/forge-skies-storybook/'+k+'-storybook-sky.png',
@@ -2619,8 +2625,34 @@ function addMotivatedLights(span){
   }
 }
 
+/* Guarded production preview of the Blueprint diorama language. It rebuilds
+   only the scenery; F and combatMapFromF remain the tactical authority. */
+function renderDioramaField(){
+  const W=F.W,H=F.H,L=LOOK[BIOME]||LOOK.grass,span=Math.max(W,H)+8;
+  const result=DIORAMA_API.render({
+    THREE:THREE,root:world,field:F,biome:BIOME,step:STEP,stepFt:STEP_FT,gridOpacity:GRID_OPACITY,
+    registerDiscoveryInstanced:registerDiscoveryInstanced,tagDiscoveryObject:tagDiscoveryObject
+  });
+  DIORAMA_RECEIPT=result.receipt;GRID_MESH=result.gridMesh;
+  (result.waterMeshes||[]).forEach(function(mesh){waterMeshes.push({m:mesh});});
+  sun.position.set(W*.55,Math.max(W,H)*1.1,H*.35);sun.target.position.set(0,0,0);sun.target.updateMatrixWorld();fitShadow(Math.max(W,H));
+  const fogScale=Math.max(.68,Math.min(1.45,span/72));scene.fog=new THREE.Fog(L.fog[0],L.fog[1]*fogScale,L.fog[2]*fogScale);
+  renderVerticalConnectors();
+  addMotivatedLights(span);
+  buildHaze(span);
+  renderPlaced();
+  buildStorybookBackdrop(span);
+  renderArchitectureBlocks();
+  frameField();
+  drawVerticalOverlay();
+  if(typeof refreshDiscovery==='function'&&typeof CB!=='undefined'&&CB&&CB.active)refreshDiscovery(true);
+  requestForgeRender();
+}
+
 function renderField(){
   clearWorld();
+  if(DIORAMA_RENDERER_ON){renderDioramaField();return;}
+  DIORAMA_RECEIPT=null;
   const W=F.W,H=F.H;
   // count land cells per cap type + total body
   const counts={[T_GRASS]:0,[T_STONE]:0,[T_PLAZA]:0,[T_ROCK]:0}; let body=0, watCells=0;
@@ -3365,10 +3397,11 @@ function forgeWorkshopMapName(){
   var name=document.getElementById('dungeonName');return name&&name.textContent&&name.textContent!=='—'?name.textContent:'Current battlefield';
 }
 function refreshForgeWorkshopSummary(payload){
-  var party=document.getElementById('forgeSummaryParty'),enemies=document.getElementById('forgeSummaryEnemies'),threat=document.getElementById('forgeSummaryThreat'),map=document.getElementById('forgeSummaryMap'),surface=document.getElementById('forgeSurfaceSummary'),partyStatus=document.getElementById('forgeWorkshopPartyStatus');
+  var party=document.getElementById('forgeSummaryParty'),enemies=document.getElementById('forgeSummaryEnemies'),threat=document.getElementById('forgeSummaryThreat'),map=document.getElementById('forgeSummaryMap'),surface=document.getElementById('forgeSurfaceSummary'),diorama=document.getElementById('forgeDioramaSummary'),partyStatus=document.getElementById('forgeWorkshopPartyStatus');
   if(payload&&payload.read){if(party)party.textContent=payload.read.party.count+' hero'+(payload.read.party.count===1?'':'es');if(enemies)enemies.textContent=payload.enemies.length+' enem'+(payload.enemies.length===1?'y':'ies');if(threat)threat.textContent=encounterHeadline(payload.read);if(partyStatus)partyStatus.innerHTML=payload.party.map(function(row){return '<span>'+escapeHtml(row.name)+(row.level?' · level '+row.level:'')+'</span>';}).join('')||'<span>No combat-ready party selected.</span>';}
   if(map)map.textContent=forgeWorkshopMapName();
   if(surface){surface.hidden=!SURFACE_CONTRACT_ON;if(SURFACE_CONTRACT_ON){if(!F)surface.textContent='Surface contract · generate a battlefield';else try{var receipt=combatMapFromF().surfaceContract.receipt;surface.textContent='Surface contract · '+receipt.surfaceCount+' surface'+(receipt.surfaceCount===1?'':'s')+' · '+receipt.bridgeDecks+' bridge deck'+(receipt.bridgeDecks===1?'':'s')+' · '+receipt.underpassColumns+' underpass cell'+(receipt.underpassColumns===1?'':'s');}catch(error){surface.textContent='Surface contract unavailable · '+String(error&&error.message||error);}}}
+  if(diorama){diorama.hidden=!DIORAMA_RENDERER_ON;diorama.textContent=!F?'Diorama preview · generate a battlefield':DIORAMA_RECEIPT?'Diorama preview · '+DIORAMA_RECEIPT.floorTiles+' floor tiles · '+DIORAMA_RECEIPT.wallModules+' wall modules':'Diorama preview · waiting for scenery';}
 }
 function refreshForgeBattlefieldState(){
   var badge=document.getElementById('forgeBattlefieldBadge'),state=document.getElementById('forgeBattlefieldState'),ready=!!F&&!WORKSHOP_MAP_DIRTY;
@@ -4791,6 +4824,10 @@ window.__forgeSurfaceState=function(){
   if(!F)return {enabled:true,ready:false,message:'Generate a battlefield to compile its walk surfaces.'};
   try{var contract=combatMapFromF().surfaceContract;return {enabled:true,ready:true,schema:contract.schema,version:contract.version,fingerprint:contract.fingerprint,receipt:JSON.parse(JSON.stringify(contract.receipt))};}
   catch(error){return {enabled:true,ready:false,message:String(error&&error.message||error)};}
+};
+window.__forgeDioramaState=function(){
+  if(!DIORAMA_RENDERER_ON)return {enabled:false,ready:false};
+  return {enabled:true,ready:!!DIORAMA_RECEIPT,receipt:DIORAMA_RECEIPT?JSON.parse(JSON.stringify(DIORAMA_RECEIPT)):null};
 };
 function syncGeometryCreatures(map){
   map=map||(typeof CB!=='undefined'&&CB&&CB.map);if(!map)return map;
