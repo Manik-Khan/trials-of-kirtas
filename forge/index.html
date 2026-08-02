@@ -33,6 +33,7 @@
 <script src="forge-encounter-read.js?v=fread3"></script>
 <script src="forge-test-fight.js?v=tf1"></script>
 <script src="forge-bridge-authority.js?v=fba1"></script>
+<script src="forge-surfaces.js?v=fs1"></script>
 <script src="forge-protocol.js?v=fpr2"></script>
 <script src="forge-replay.js?v=fb19"></script>
 <script src="forge-combat-rules.js?v=fcr3"></script>
@@ -1097,6 +1098,7 @@ body.forge-player-view .godSelectedBadge{display:none!important}
         <span class="forgeWorkshopFact" id="forgeSummaryEnemies">Enemies —</span>
         <span class="forgeWorkshopFact" id="forgeSummaryThreat">Encounter read —</span>
         <span class="forgeWorkshopFact" id="forgeSummaryMap">Current battlefield</span>
+        <span class="forgeWorkshopFact" id="forgeSurfaceSummary" hidden>Surface contract —</span>
       </div>
       <button class="forgeWorkshopReview" id="forgeReviewOpen" type="button">Review and open Table</button>
     </div>
@@ -1661,6 +1663,9 @@ const STORYBOOK_PARAMS=new URLSearchParams(location.search);
 const STORYBOOK_ON=STORYBOOK_PARAMS.get('storybook')!=='0';
 const PARALLAX_ON=STORYBOOK_PARAMS.get('parallax')==='1';
 const LANDMARKS_ON=STORYBOOK_PARAMS.get('landmarks')==='1';
+const SURFACE_CONTRACT_ON=STORYBOOK_PARAMS.get('surfaces')==='1';
+const SURFACE_API=window.ForgeSurfaces;
+if(SURFACE_CONTRACT_ON&&!SURFACE_API)throw new Error('Forge surface authority did not load');
 const STORY_KEY={grass:'grassland',druidic:'druidic',tundra:'tundra',swamp:'swamp',temple:'temple',cavern:'cavern'};
 const STORY_PATH={
   sky:k=>'assets/forge-skies-storybook/'+k+'-storybook-sky.png',
@@ -3360,9 +3365,10 @@ function forgeWorkshopMapName(){
   var name=document.getElementById('dungeonName');return name&&name.textContent&&name.textContent!=='—'?name.textContent:'Current battlefield';
 }
 function refreshForgeWorkshopSummary(payload){
-  var party=document.getElementById('forgeSummaryParty'),enemies=document.getElementById('forgeSummaryEnemies'),threat=document.getElementById('forgeSummaryThreat'),map=document.getElementById('forgeSummaryMap'),partyStatus=document.getElementById('forgeWorkshopPartyStatus');
+  var party=document.getElementById('forgeSummaryParty'),enemies=document.getElementById('forgeSummaryEnemies'),threat=document.getElementById('forgeSummaryThreat'),map=document.getElementById('forgeSummaryMap'),surface=document.getElementById('forgeSurfaceSummary'),partyStatus=document.getElementById('forgeWorkshopPartyStatus');
   if(payload&&payload.read){if(party)party.textContent=payload.read.party.count+' hero'+(payload.read.party.count===1?'':'es');if(enemies)enemies.textContent=payload.enemies.length+' enem'+(payload.enemies.length===1?'y':'ies');if(threat)threat.textContent=encounterHeadline(payload.read);if(partyStatus)partyStatus.innerHTML=payload.party.map(function(row){return '<span>'+escapeHtml(row.name)+(row.level?' · level '+row.level:'')+'</span>';}).join('')||'<span>No combat-ready party selected.</span>';}
   if(map)map.textContent=forgeWorkshopMapName();
+  if(surface){surface.hidden=!SURFACE_CONTRACT_ON;if(SURFACE_CONTRACT_ON){if(!F)surface.textContent='Surface contract · generate a battlefield';else try{var receipt=combatMapFromF().surfaceContract.receipt;surface.textContent='Surface contract · '+receipt.surfaceCount+' surface'+(receipt.surfaceCount===1?'':'s')+' · '+receipt.bridgeDecks+' bridge deck'+(receipt.bridgeDecks===1?'':'s')+' · '+receipt.underpassColumns+' underpass cell'+(receipt.underpassColumns===1?'':'s');}catch(error){surface.textContent='Surface contract unavailable · '+String(error&&error.message||error);}}}
 }
 function refreshForgeBattlefieldState(){
   var badge=document.getElementById('forgeBattlefieldBadge'),state=document.getElementById('forgeBattlefieldState'),ready=!!F&&!WORKSHOP_MAP_DIRTY;
@@ -4776,8 +4782,16 @@ function rawCombatMapFromF(){
 }
 function combatMapFromF(){
   var map=rawCombatMapFromF();
-  return architectureAvailable()?ARCHITECTURE_API.apply(map,ARCHITECTURE_RECORD):map;
+  map=architectureAvailable()?ARCHITECTURE_API.apply(map,ARCHITECTURE_RECORD):map;
+  if(typeof SURFACE_CONTRACT_ON!=='undefined'&&SURFACE_CONTRACT_ON)SURFACE_API.attach(map);
+  return map;
 }
+window.__forgeSurfaceState=function(){
+  if(!SURFACE_CONTRACT_ON)return {enabled:false,ready:false};
+  if(!F)return {enabled:true,ready:false,message:'Generate a battlefield to compile its walk surfaces.'};
+  try{var contract=combatMapFromF().surfaceContract;return {enabled:true,ready:true,schema:contract.schema,version:contract.version,fingerprint:contract.fingerprint,receipt:JSON.parse(JSON.stringify(contract.receipt))};}
+  catch(error){return {enabled:true,ready:false,message:String(error&&error.message||error)};}
+};
 function syncGeometryCreatures(map){
   map=map||(typeof CB!=='undefined'&&CB&&CB.map);if(!map)return map;
   map.creatures=((typeof CB!=='undefined'&&CB&&CB.units)||[]).filter(function(u){return u&&u.alive!==false;}).map(function(u){

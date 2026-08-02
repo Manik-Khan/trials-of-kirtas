@@ -1,0 +1,102 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Forge Multi-surface Occupancy · isolated proof</title>
+<link rel="stylesheet" href="mock-forge-multi-surface-occupancy.css?v=mso1">
+</head>
+<body>
+<header class="topbar">
+  <div><span>Battle Forge · isolated movement proof</span><h1>Two floors, one grid coordinate</h1></div>
+  <div class="contract"><small>Position contract</small><strong>{ c, r, surfaceId, elevationFt }</strong></div>
+</header>
+
+<main>
+  <aside class="left-panel">
+    <section>
+      <span class="eyebrow">01 · Missing seam</span>
+      <h2>A square is no longer a floor.</h2>
+      <p>The grid coordinate locates a column in the scene. A stable surface ID says which walkable floor inside that column supports the creature.</p>
+      <div class="proof-card good"><b id="sameCellTitle">Two creatures share 5,4</b><span id="sameCellDetail">Mira is below. Vale is 20 feet above.</span></div>
+    </section>
+    <section>
+      <span class="eyebrow">02 · Surfaces</span>
+      <div class="legend">
+        <div><i class="ground"></i><span><b>Ground</b><small>0 ft · remains under bridge</small></span></div>
+        <div><i class="bridge"></i><span><b>Bridge deck</b><small>20 ft · 19 ft clearance</small></span></div>
+        <div><i class="stairs"></i><span><b>East stairs</b><small>15 → 10 → 5 ft</small></span></div>
+      </div>
+    </section>
+    <section>
+      <span class="eyebrow">03 · Try it</span>
+      <h2>Select, then move.</h2>
+      <p>Choose a combatant on the board or at right. Teal markers are reachable ground. Gold diamonds are reachable raised surfaces. Stairs and climbing are real transitions, not teleports.</p>
+      <div class="layer-controls" aria-label="Visible surface layer">
+        <button type="button" class="active" data-layer="all">Both</button>
+        <button type="button" data-layer="ground">Ground</button>
+        <button type="button" data-layer="raised">Raised</button>
+      </div>
+    </section>
+    <section class="boundary">
+      <span class="eyebrow">Proof boundary</span>
+      <p>This tests surface identity, occupancy, connectors, movement cost, sight, and snapshots locally. It does not change production combat, replay, or imported maps.</p>
+    </section>
+  </aside>
+
+  <section class="workspace">
+    <div class="workspace-head">
+      <div><span class="eyebrow">Market bridge crossing</span><h2 id="viewTitle">Surface board + height preview</h2></div>
+      <div class="views" aria-label="Proof view">
+        <button type="button" data-view="board">Surface board</button>
+        <button type="button" data-view="height">Height preview</button>
+        <button type="button" class="active" data-view="split">Split</button>
+      </div>
+    </div>
+    <div class="proof-stage split" id="proofStage">
+      <div class="canvas-panel board-panel" id="boardPanel">
+        <div class="canvas-label"><b>Tactical surfaces</b><span>Click a marker to move</span></div>
+        <canvas id="board" width="960" height="700" aria-label="Surface-aware tactical board"></canvas>
+      </div>
+      <div class="canvas-panel height-panel" id="heightPanel">
+        <div class="canvas-label"><b>Truthful height</b><span>Ground remains below the deck</span></div>
+        <canvas id="heightPreview" width="960" height="700" aria-label="Isometric bridge and underpass preview"></canvas>
+      </div>
+    </div>
+    <div class="status" id="status">Mira and Vale legally occupy the same grid coordinate on different surfaces.</div>
+  </section>
+
+  <aside class="right-panel">
+    <section>
+      <span class="eyebrow">Selected combatant</span>
+      <h2 id="selectedName">Mira</h2>
+      <div class="position-readout" id="positionReadout"></div>
+      <label class="climb-toggle"><input type="checkbox" id="climbSpeed"> Has a 30-ft climbing speed</label>
+      <p id="movementHelp">30 feet of movement. Ordinary climbing costs two feet for every foot climbed.</p>
+    </section>
+    <section>
+      <div class="section-head"><span class="eyebrow">Combatants</span><b id="occupancyCount">4 positions</b></div>
+      <div class="roster" id="roster"></div>
+    </section>
+    <section>
+      <span class="eyebrow">Sight from selected</span>
+      <div class="sight-list" id="sightList"></div>
+      <div class="sight-result" id="sightResult">Choose another combatant to test true 3D range, deck occlusion, and rail cover.</div>
+    </section>
+    <section>
+      <span class="eyebrow">Snapshot proof</span>
+      <p>Surface IDs travel with creature positions. Reloading does not infer a floor from height or artwork.</p>
+      <div class="snapshot-actions">
+        <button type="button" id="roundTrip">Save + reload exact state</button>
+        <button type="button" id="resetScene">Reset scene</button>
+      </div>
+      <div class="snapshot-receipt" id="snapshotReceipt">No snapshot round-trip yet.</div>
+    </section>
+  </aside>
+</main>
+
+<div class="fatal" id="fatal" role="alert"></div>
+<script src="mock-forge-multi-surface-occupancy-core.js?v=mso2"></script>
+<script src="mock-forge-multi-surface-occupancy.js?v=mso2"></script>
+</body>
+</html>

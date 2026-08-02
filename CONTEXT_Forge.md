@@ -1219,7 +1219,62 @@ effective surface per square. Bridge decks can be selected as the combat
 surface, but simultaneous deck/ground occupancy remains blocked on the stable
 `surfaceId` seam.
 
-### After that proof: active Phase 2 production terrain
+### Multi-surface bridge/underpass candidate · August 1
+
+`_edits/mock-forge-multi-surface-occupancy.html` now isolates that stable seam
+without changing production Forge. Its versioned scene keeps one grid column
+separate from its walk surfaces: `surface-ground`, a 20-ft
+`surface-market-bridge`, and a 15/10/5-ft stair surface. Creature position is
+`{c,r,surfaceId,elevationFt}` and occupancy is keyed by the complete position.
+The opening state therefore legally retains Mira and Vale at the same `c,r`
+while rejecting a second creature on either exact surface.
+
+Surface-aware movement stays on the selected floor unless a connector names
+the transition. The east stairs descend from 20 to 0 feet as four explicit
+segments; the west climb changes surfaces without changing `c,r`. An ordinary
+20-ft climb costs 40 ft and a creature with climbing speed pays 20 ft. The
+height proof renders ground below the translucent deck rather than replacing
+it. Its local sight sampler leaves ground-to-ground underpass sight clear,
+blocks a vertical shot through the deck, and uses actual 3D range. Versioned
+snapshot reload refuses unknown surfaces rather than choosing one from height.
+
+The focused known-answer smoke passes **36/36**. In the real browser, the
+bridge sentry moved from the 20-ft deck through the 15/10/5-ft stairs to ground
+for a 25-ft move; the four exact surface positions survived save/reload; Mira
+saw the ground raider with no cover and could not target Vale through the deck.
+Browser warnings/errors: zero. This is still an isolated contract and UX proof,
+not a production tactics/replay implementation or imported-map adapter.
+
+### Guarded production surface compatibility · August 1
+
+`forge/forge-surfaces.js` is the first production-owned module extracted from
+the approved seam. `forge/index.html` loads it with cache stamp `?v=fs1`, but
+the adapter changes no default map: activation requires `?surfaces=1`. On that
+guarded path `combatMapFromF()` attaches a versioned
+`forge-walk-surfaces/v1` contract and a compact fingerprint receipt to the real
+combat map.
+
+Existing walkable cells compile to stable `surface-ground` positions with their
+current per-cell elevations. A structural bridge receives a deterministic deck
+surface and explicit ground/deck connector path. Flat bridgeheads remain ground
+rather than becoming duplicate stacked spaces. Legacy `{c,r}` resolution still
+chooses an active elevated bridge deck, preserving current token behavior.
+Ground below an elevated span survives only when the connector explicitly owns
+`supportsUnderpass:true`; otherwise the adapter suppresses that position rather
+than inventing a new movement route. Closing a bridge retains its surface ID,
+disables the deck, and lets legacy occupancy fall back to ground where ground
+actually exists.
+
+The focused production contract passes **46/46**. The relevant generator,
+snapshot, bridge-state, map bridge, tactics, LoS/cover, placement, flora, and
+isolated multi-surface suites pass **298/298** together. In the real browser the
+flagged Workshop displayed `1 surface · 0 bridge decks · 0 underpass cells` for
+the current map; the unflagged Workshop contained no surface receipt and kept
+the same generated battlefield. This slice does not yet put `surfaceId` on
+live creatures or replay events, and therefore does not authorize simultaneous
+above/below combat in a production fight.
+
+### After these proofs: active Phase 2 production terrain
 
 1. Promote the settled Blueprint/compiler as a versioned production module and
    keep exact `mapSnapshot` authoritative with a legacy recipe fallback.
@@ -1237,6 +1292,13 @@ surface, but simultaneous deck/ground occupancy remains blocked on the stable
    renderer remains available.
 7. Only then extend the published architecture seam to spell-created and
    duration/concentration-owned terrain.
+
+The immediate next multi-surface slice is narrower than that broader terrain
+queue: under the same `?surfaces=1` guard, normalize live unit positions to
+`{c,r,surfaceId,elevationFt}` and key occupancy by the complete position. Keep
+legacy replay/session rows on deterministic ground/deck normalization. Port
+movement and connector transitions only after exact position save/restore and
+same-column dual occupancy are known-answer green.
 
 ### Carried later work
 

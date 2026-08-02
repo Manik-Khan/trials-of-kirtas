@@ -4,13 +4,14 @@ Custom D&D 5e virtual tabletop. Live: **trials-of-kirtas.netlify.app**
 Repo: `Manik-Khan/trials-of-kirtas` · vanilla JS/HTML/CSS + Supabase + Netlify + GitHub.
 Walled React/Vite/TipTap corner at `journal/`.
 
-Updated: **July 30, 2026 (approved Forge Blueprint → Scrawl → modular-diorama
+Updated: **August 1, 2026 (approved Forge Blueprint → Scrawl → modular-diorama
 proof, approved Map Foundry creation UX, validated local graph-generator →
 exact Build proof candidate, Forge field-report correction, approved
 reaction/cover integration, disposable Test Fight production candidate,
 shared character capability contract, and the first typed-defense/teleport
-resolver slice, character-sheet source/progression alignment, and the first
-July 25 trust corrections plus the July 27 staff live-battlefield-editing production candidate).**
+resolver slice, character-sheet source/progression alignment, the first
+July 25 trust corrections, the July 27 staff live-battlefield-editing
+production candidate, and the first isolated multi-surface bridge/underpass proof).**
 Supersedes the earlier July 16 project handoff. The current Forge
 execution state lives in `docs/handoffs/forge/`. Reconciled sources include
 `CONTEXT_Forge.md`, the July 22 handoff, `FORGE_PROTOCOL.md`, `FORGE_BOARD.md`,
@@ -121,9 +122,43 @@ local fight. Automatic broad-area hints never become blockers. Raised bridges
 remain one effective surface per square; simultaneous bridge/underpass
 occupancy is still deferred to the later `surfaceId` contract.
 
+That missing seam now has its own isolated candidate at
+`_edits/mock-forge-multi-surface-occupancy.html`. A grid coordinate identifies
+a scene column while stable walk-surface IDs identify ground, a 20-ft bridge
+deck, or its 15/10/5-ft stair path. Creature position is explicitly
+`{c,r,surfaceId,elevationFt}` and occupancy keys include the surface, so Mira
+and Vale can legally share cell `5,4` at 0 and 20 feet while same-surface
+stacking is rejected. Ground movement continues beneath the deck; stairs and a
+20-ft climb are explicit connector transitions; ordinary climbing costs 40 ft
+while a climbing speed costs 20 ft. Height-aware sight keeps the underpass open
+and lets the physical deck block a shot through it. A versioned snapshot
+round-trip preserves exact surface IDs rather than inferring a floor.
+
+The real browser pass descended a sentry from deck to ground through the stair
+surfaces for a 25-ft move, reloaded four exact surface positions, and checked
+both clear underpass sight and total deck occlusion with no browser warnings or
+errors. The focused contract passes **36/36**. This remains a standalone
+contract/interaction proof.
+
+The first guarded production compatibility slice now lives in
+`forge/forge-surfaces.js` and loads from `forge/index.html` as
+`forge-surfaces.js?v=fs1`. It is inert on the default URL. With `?surfaces=1`,
+the real combat map compiles a versioned `forge-walk-surfaces/v1` receipt:
+current maps synthesize `surface-ground`, structural bridges retain stable deck
+IDs, and legacy `{c,r}` positions continue to prefer an open bridge deck.
+Ground beneath an elevated deck is exposed only when the connector explicitly
+sets `supportsUnderpass:true`; the adapter never invents an underpass from
+color, height, or bridge appearance. The Workshop narrates surface, bridge, and
+underpass counts. The new authority passes **46/46** focused checks and the
+flagged browser path showed its receipt while the default path remained
+unchanged. Combatants, occupancy, movement, deployment, tactics geometry, and
+protocol/replay have not yet been migrated to the new position shape.
+
 The focused proofs pass **28/28** creation checks, **86/86**
 Blueprint/Diorama checks, **44/44** local artwork-import checks, **59/59**
-Structure Review checks, and **22/22** reviewed-artwork combat-handoff checks;
+Structure Review checks, **22/22** reviewed-artwork combat-handoff checks, and
+**36/36** multi-surface occupancy checks plus **46/46** production surface
+compatibility checks;
 the six canonical Forge suites are **152/152**,
 and the completed real browser flows had no console errors. This remains
 isolated proof work, not production promotion or M's final visual approval.
@@ -546,92 +581,90 @@ facet/filter 11/11, slash menu 12/12, TipTap image functional 4/4.
 
 ---
 
-## 🔴 UNRESOLVED — Bardic Radio multi-device sync
+## 🟢 PROVEN IN FIELD — Bardic Radio host-clock prototypes (August 1)
 
-~30 attempts across several sessions. Goal: host laptop + players' phones playing the same
-broadcast audio **in tight enough sync to sound as one in a room**. Ambient pads AND rhythmic
-music, so loose sync isn't sufficient. **Aspirational — never used in a live game.**
+The old server-clock Bardic path remains unresolved, but the architectural fork is no longer
+waiting: M chose **host-as-clock**, and the standalone Wave 1 and Wave 2 prototypes passed on a
+MacBook and iPhone. Two devices produced perceptually unified clicks, then independently
+downloaded and decoded a real rhythmic music track, started together, stayed essentially unified
+for its full 1:52 duration, restarted together from 45 seconds, and stopped together cleanly.
 
-### The architecture (the mental model that finally got straight)
+### The proven architecture
 
-Three things flow along **three different paths**:
+Three responsibilities stay separate:
 
-1. **Audio bytes** — Cloudinary → **each device directly**. The host is not an audio pipe.
-2. **The clock** — host AND each device **independently** hit `/.netlify/functions/time`
-   (NTP-style min-RTT). Nobody gets time from anybody else.
-3. **Position** — the ONLY thing the host broadcasts: **anchors** ("channel X is at pos P as of
-   shared-time T") over Supabase Realtime. Phones follow via `positionAt(anchor, BardicClock.now())`.
+1. **Audio bytes** — Cloudinary → each device directly. The host is not an audio pipe.
+2. **Clock** — listeners repeatedly measure their offset against the **actual host** through
+   Supabase Broadcast. Lowest-round-trip samples define the estimate; Netlify time is not in the
+   proof path.
+3. **Control** — the host broadcasts a command carrying a future host timestamp. Every device
+   converts that timestamp into its own `AudioContext.currentTime` and schedules a decoded
+   `AudioBufferSourceNode`. Packet arrival never means “play now.”
 
-So the host is DJ of **position only**. Room-sync nudge edits the broadcast `pos`, which only
-phones consume — it shifts phones relative to the host and leaves the host put.
+The current track continues while a future command is prepared, so advance notice is latency,
+not silence. Reported `baseLatency` / `outputLatency` remain useful compensation and telemetry,
+but the shared host clock is the primary mechanism.
 
-### THE KEY INSIGHT (M derived this himself)
+### Field evidence
 
-A phone's disagreement with the host is **two independent clock errors stacked** (host↔server +
-phone↔server), and they don't cancel. Sync everyone to **one authority** and it collapses to a
-single error measured against the thing that matters. This is essentially **Snapcast**.
+- **Wave 1.2.3 — clock/audio proof:** both devices explicitly verified their own audible local
+  clicks before the room test. The listener collected stable host-offset samples; one captured
+  run reported 37.0 ms best RTT, 0.3 ms offset jitter, and 40 valid samples. Three synchronized
+  trials in different positions blended closely enough that M had to move his ear toward each
+  device to confirm both were sounding.
+- **Wave 2 — real-track proof:** both devices downloaded identical bytes for
+  `1-07._Homecoming_to_Port_b9ez8w.mp3`, SHA-256 prefix `54a2c7a1`, 3.75 MB, decoded duration
+  1:52.4. Playback was “super clean” and essentially unified throughout. Restart from 45 seconds
+  and synchronized stop both worked perfectly in the field.
 
-- **Host-as-clock (lighter):** phones measure offset against **the host** directly, not Netlify.
-  Audio still streams from Cloudinary. Kills the extra hop; targets phone-vs-host.
-- **Host-as-relay (full Snapcast):** one point carries audio + clock. Total control, heavier.
+Frozen known-good references:
 
-**Honest ceiling:** host-as-clock + Web Audio + generous buffering is a legitimate path to "good
-enough for a room." What it likely still won't beat: **iOS Safari doesn't always report true
-output latency and lacks hardware-grade scheduling determinism.** Sonos/AirPlay only win by
-owning hardware/DAC/protocol end to end. We're in the hardest version of this problem (browser,
-open internet, someone else's phone). Not missing a trick.
+- `prototypes/bardic-sync/frozen/bardic-host-clock-wave1.2.3.html`
+- `prototypes/bardic-sync/frozen/bardic-real-track-wave2.html`
+- `docs/handoffs/bardic/CONTEXT_Bardic-update-2026-08-01.md` — full protocol, debugging history,
+  evidence, security rules, production boundary, and Wave 3 plan.
 
-### The fork still waiting for M
+Treat the two frozen pages as evidence, not production surfaces. **Copy Wave 2 to start Wave 3;
+do not modify either passing proof.** No production Bardic file has been migrated to the new
+clock yet.
 
-- **A) Pursue it properly** — rebuild the clock host-as-clock, lean on Web Audio, buffer generously.
-- **B) Sidestep** — headphones, or one speaker + phones for private/remote, or rhythmic music
-  host-only (console already supports per-channel host-only routing via `radioMask`). For a D&D
-  table this may genuinely be the right call.
+### Operational rules learned during the proof
 
-M picks the fork rested. **Don't start building until he does.**
+- Use a browser-safe Supabase publishable/legacy anon key only. Never commit a secret key,
+  `service_role`, database password, JWT secret, or values copied from browser `localStorage`.
+- Device status uses low-rate **Broadcast**, not Presence. A Presence-update feedback loop hit
+  Supabase's rate limit and closed the channel; Wave 1.2.3 removed Presence entirely.
+- A device is not ready because Web Audio scheduled something. It becomes `VERIFIED` only after
+  the human confirms the local test was audible, and `READY` only after download, decode, and
+  matching track fingerprint.
+- The host schedules itself only after the Broadcast send is acknowledged. Closed/timed-out
+  channels must never produce host-only playback.
+- Track identity is the bytes/hash, not the display name. Keep current + pending (and at most one
+  queued) decoded buffers rather than loading the whole library into memory.
 
-### PROVEN (don't re-litigate)
+### Next build: Wave 3 track switching
 
-- **Web Audio is the right foundation.** `webaudio-sync-proto.html` locked **completely synced
-  across two devices** — synth loop AND a real decoded Cloudinary track. `AudioBufferSourceNode`
-  scheduled against a clock, output-latency-compensated: sample-accurate, no seeks, gapless
-  reposition, and it hands us `ctx.outputLatency`/`baseLatency`. The proto used raw `Date.now()`
-  — both devices read the *same* clock. That is exactly the crux the real system loses.
-- **The old mic mock measured truth — once.** `_edits/mock-echo-lock.html` self round-trip gave a
-  number M's ear confirmed. But the offset keeps moving; a one-shot measurement goes stale.
+While Track A plays, every device downloads and decodes Track B, reports `READY`, and keeps A
+audible. Once every connected playback device has the same pending fingerprint, the host arms a
+future cut or crossfade. Track A stops/fades and Track B starts/fades at that shared timestamp,
+with no loading silence. Build and field-test this as another standalone copy before touching
+`radio.html`, `bardic-player.js`, `bardic-radio.js`, `bardic-console.html`, or `bardic-app.jsx`.
+
+Open gates after Wave 3: more than two devices, mixed browsers/hardware, longer-duration drift,
+join-mid-track, reconnect, phone background/screen-lock behavior, and only then production
+integration behind a new flag alongside the existing `?engine=wa` route.
 
 ### RULED OUT (cost ~30 attempts — do NOT rebuild)
 
-- **Per-device acoustic latency measurement.** Room-vs-track fails on music ambiguity (picket-fence
-  of correlation peaks → no clean lock / wrong-beat lock). Self round-trip is a device *constant*.
-  `measure()`/`selfTest()`/`roundTrip()` remain in `bardic-echo.js` but are **dormant** — wire nothing.
-- **HTMLAudioElement for sync.** `currentTime` decouples from true audible position after a fresh
-  seek (readout said 180ms while the ear wanted 5ms). Every seek rebuffers. All the seek/drift/
-  relock machinery in `radio.html` exists ONLY to prop this up.
-- **Trim/host-offset as the primary fix.** Fine-tunes, not the mechanism; can't chase a target that
-  moves per song.
-- **playbackRate / time-stretch drift correction.** BANNED (the "56k mp3 texture" was WebKit's
-  pitch-preserving stretcher). `driftNudge()` is dead code; do not revive.
+- `HTMLAudioElement` synchronization, continuous seeking, or seek-based relock.
+- Acoustic room-correlation or one-shot microphone latency as the runtime clock.
+- `playbackRate`, time stretching, or revival of `driftNudge()`.
+- Trim/host-offset sliders as the primary timing mechanism.
+- Independent host→Netlify and listener→Netlify clock estimates.
 
-### File states
-
-- **`radio.html` — B17.** WA engine behind **`?engine=wa`** (flag OFF = old path, safe). WA mode
-  shows a bottom-left telemetry badge: **clock offset · rtt · output latency**.
-- **`bardic-player.js` — WA2.** The Web Audio engine. `applyAnchors(payload, masterVol, trimMs,
-  forcePos)`; drift auto-resync at 30ms. Decode-to-memory is the cost to watch on long tracks.
-- **`bardic-radio.js` — `clk2`.** `BardicClock.sync()` keeps the offset from the **fastest round
-  trip ever seen**. Real improvement; does NOT fix two-independent-errors.
-- **`bardic-console.html`** — include stamped `clk2`. **`bardic-app.jsx`** — Room-sync host-offset
-  slider (persisted `tok-bardic-hostoffset`). **`bardic-echo.js` — E7**, legacy.
-- **`webaudio-sync-proto.html`** — the feasibility proof. Keep it; it's the clean two-device rig.
-
-### Field verdict
-
-Even with WA2 + `clk2`: "just doesn't work" — off by a varying amount per song, nudge erratic,
-pause/unpause sometimes fixes it. Consistent with two-independent-clock-errors + the iOS
-output-latency wildcard. **The telemetry badge is the instrument:** if clock offset now HOLDS
-steady song-to-song but audio still drifts, the culprit is downstream (output latency / the two
-independent syncs), not the offset jumping.
+`bardic-echo.js` remains dormant legacy reference. The old production WA2/`clk2` path and
+`webaudio-sync-proto.html` remain historical/feasibility context; they do not supersede the
+field-tested standalone host-clock proofs above.
 
 ---
 

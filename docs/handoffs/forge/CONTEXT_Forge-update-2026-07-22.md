@@ -1381,19 +1381,57 @@ or blocked cells, rolled initiative, moved Liadan 5 ft from a board click, and
 resolved an attack. Browser warnings/errors: zero. The handoff explicitly keeps
 simultaneous bridge/underpass occupancy deferred.
 
+The next isolated seam now exists at
+`_edits/mock-forge-multi-surface-occupancy.html`. Stable surface IDs separate
+the ground, a 20-ft bridge deck, and its 15/10/5-ft stair path inside the same
+grid. Creature positions and occupancy use
+`{c,r,surfaceId,elevationFt}`. The opening proof legally places Mira at
+`5,4@surface-ground` and Vale at `5,4@surface-market-bridge`, while the validator
+rejects same-surface stacking. Movement stays on its surface except through an
+explicit stairs or climb connector; ordinary and climbing-speed costs for the
+20-ft climb are 40 and 20 ft. Ground sight remains clear below the deck, the
+deck blocks a shot through it, and snapshot reload keeps exact surface IDs.
+
+The focused contract passes **36/36**. The browser field run moved the bridge
+sentry down the complete stair route for 25 ft, preserved four exact surface
+positions through save/reload, and verified both clear underpass sight and deck
+total cover. The split tactical/height view visibly retained the two occupants
+at the same grid coordinate. Browser warnings/errors: zero. At that proof gate,
+no production Forge, protocol, character, or session file had changed.
+
+M approved moving forward. The first guarded production compatibility slice is
+now `forge/forge-surfaces.js`, loaded by `forge/index.html` as
+`forge-surfaces.js?v=fs1` and activated only by `?surfaces=1`. It compiles the
+real combat map into `forge-walk-surfaces/v1`: existing walkable cells become a
+stable ground surface, bridges receive deterministic deck IDs, connector paths
+name ground/deck transitions, and legacy `{c,r}` resolution preserves the
+current open-deck preference. It creates ground below an elevated span only
+when `supportsUnderpass:true`; a visual bridge alone is never semantic
+authority. Closed/broken bridges retain identity but are non-walkable.
+
+The production contract passes **46/46** focused checks. Together with the
+isolated multi-surface, bridge completion, snapshot, engine, map bridge,
+tactics, LoS/cover, placement, and flora suites, the relevant total is
+**298/298**. Browser field testing showed the guarded Workshop receipt and an
+unchanged default Workshop. Live units, occupancy, deployment, movement,
+tactics, and protocol/replay remain on the legacy position shape.
+
 The remaining gates are:
 
-1. M judges whether the palette-preserving map and disposable fight are the
-   right bridge from importer review into current Forge behavior.
+1. **Passed August 1.** M approved the stable surface identity and the first
+   guarded compatibility adapter; the default Forge path remains unchanged.
 2. Replay the revised lasso/support and combat-handoff workflow on the ungridded camp artwork;
    exact proposal counts remain evidence only, never semantic authority.
-3. Settle stable `surfaceId`, creature surface position, occupancy,
-   pathfinding/LoS, and connector events before promoting raised rendering or
-   simultaneous bridge/underpass play.
-4. Only after that seam may stairs and climbing speed consume live movement;
-   do not infer those combat rules from this renderer study.
+3. Under `?surfaces=1`, normalize live unit positions to
+   `{c,r,surfaceId,elevationFt}`, key occupancy by that complete position, and
+   prove same-column above/below save/restore before porting movement.
+4. Then port connector movement and tactics geometry, followed by deployment
+   and protocol/replay; legacy rows must normalize deterministically.
+5. Only after that production seam passes replay/reconnect may real characters,
+   encounter sessions, reactions, and climbing speed consume multi-surface
+   movement. Do not infer those live rules from this isolated proof.
 
-Do not promote this proof into production in the same review step.
+Do not remove the query guard or migrate live rules in the compatibility step.
 
 1. **Passed July 23.** The live selector showed only the five active
    player-folder characters; deleted, test, and out-of-folder rows were absent.
