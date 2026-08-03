@@ -657,6 +657,16 @@ that matrix, integrate the host-clock/two-buffer path behind a new flag alongsid
 `?engine=wa` route. Preserve the old production path for A/B comparison and rollback; do not
 rewrite the clock again without measured evidence.
 
+The standalone Wave 4 candidate now implements host playback anchors, late-listener joins, fresh
+clock sampling after interruption, and narrated recovery states:
+
+- `prototypes/bardic-sync/candidates/bardic-room-resilience-wave4.html`
+- `prototypes/bardic-sync/candidates/README-wave4.md`
+- `prototypes/bardic-sync/tests/smoke-bardic-wave4.mjs` — 39/39 automated checks.
+
+It remains a candidate until late-join, refresh/network, background/screen-lock, and three-device
+field gates pass. Frozen Waves 1–3 and production Bardic files remain untouched.
+
 ### RULED OUT (cost ~30 attempts — do NOT rebuild)
 
 - `HTMLAudioElement` synchronization, continuous seeking, or seek-based relock.

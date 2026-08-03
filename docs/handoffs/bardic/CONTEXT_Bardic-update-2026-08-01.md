@@ -294,8 +294,38 @@ Remaining gates: test more than two devices, mixed operating systems/browsers, l
 join-mid-track, reconnect, visibility changes, screen lock/background suspension, and degraded
 networks. Only measured failure should justify replacing Supabase Broadcast with direct WebRTC.
 
-## 12. Handoff summary
+## 12. Wave 4 candidate — room resilience
+
+Current candidate:
+
+- `prototypes/bardic-sync/candidates/bardic-room-resilience-wave4.html`
+- `prototypes/bardic-sync/candidates/README-wave4.md`
+- `prototypes/bardic-sync/tests/smoke-bardic-wave4.mjs`
+
+Wave 4 begins from the frozen Wave 3 proof and adds a host playback anchor. The anchor identifies
+the shared play, active slot, exact bytes, original host start time, initial position, and duration.
+A late listener verifies audio, rebuilds its listener-to-host clock, prepares matching bytes, and
+calculates the correct position at a future join timestamp. Only that listener schedules a new
+source; devices already playing receive no restart or seek command.
+
+Visibility/network interruptions mark the listener for recovery and discard stale clock samples.
+On return, the same one-shot future scheduling path is used. Automatic recovery defaults on, with
+a manual join button and explicit narrated blockers. No seeking or playback-rate correction was
+reintroduced.
+
+Automated and local-browser gates:
+
+- Wave 4 real-function smoke: 39/39;
+- page starts without browser console errors;
+- listener and host recovery controls/states render and switch correctly.
+
+Field evidence is still required for a late third device, refresh, network loss, background/screen
+lock, and three-or-more-device transitions. Do not freeze Wave 4 or integrate it into production
+until those gates pass.
+
+## 13. Handoff summary
 
 The main synchronization and transition uncertainties are closed: host-as-clock plus local decoded
 Web Audio can sound unified on real separate devices, including gapless track changes. The next
-task is broader device/lifecycle validation, followed by production integration behind a new flag.
+task is to field-test the standalone Wave 4 room-resilience candidate, followed by production
+integration behind a new flag.

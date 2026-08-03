@@ -22,6 +22,17 @@ and Wave 3 plan live at:
 
 The Wave 3 real-function smoke remains at `tests/smoke-bardic-wave3.mjs` and reports 26/26 checks.
 
+## Current candidate
+
+- `candidates/bardic-room-resilience-wave4.html` — late join, refresh/reconnect recovery, lifecycle
+  narration, and multi-device room handling built from the frozen Wave 3 proof.
+- `candidates/README-wave4.md` — staged field gates for late join, network recovery, visibility,
+  screen lock, and three-or-more-device transitions.
+- `tests/smoke-bardic-wave4.mjs` — real-function anchor/recovery plus Wave 3 regression smoke;
+  currently 39/39 checks.
+
+Wave 4 is not frozen or production-ready until those real-device gates pass.
+
 ## Credential rule
 
 Use only browser-safe Supabase publishable/legacy anon keys in local testing. Never commit a

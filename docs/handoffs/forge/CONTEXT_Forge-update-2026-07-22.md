@@ -1416,28 +1416,15 @@ tactics, LoS/cover, placement, and flora suites, the relevant total is
 unchanged default Workshop. Live units, occupancy, deployment, movement,
 tactics, and protocol/replay remain on the legacy position shape.
 
-M then approved continuing the new visual map as a side slice until it is ready
-to replace the old renderer. Baseline was clean committed `50d9c6f`. The first
-production scenery seam is now `forge/forge-diorama-renderer.js`, loaded as
-`forge-diorama-renderer.js?v=fdr1` and activated only by
-`?renderer=diorama`. It consumes the existing authoritative `F` field without
-changing generation, `combatMapFromF`, movement, cover, discovery, connectors,
-tokens, or replay. The renderer derives modular floors, raised volumes,
-individual water tiles, camera-aware stone-wall courses, a code-native prop
-palette, and a real grid from the same cell coordinates. A Workshop receipt
-reports the floor and wall-module counts; the default renderer remains the
-unflagged path.
-
-The renderer plan and production seam pass **21/21** focused checks. Together
-with engine, map bridge, tactics geometry, LoS/cover, placement, flora,
-Workshop, architecture, vertical connectors, map-render truth, and surface
-contract suites, the current relevant total is **359/359**. Browser field
-testing loaded the guarded Forge, regenerated seed 7 from 901 floor tiles / 2749
-wall modules to seed 42 at 937 / 2892, and orbited the resulting real scene. The
-default URL retained the old renderer and hid the diorama receipt. The only
-guarded browser warning was the existing Three.js shadow-map deprecation; no
-runtime error appeared. This is a renderer promotion, not yet a Blueprint
-producer/editor promotion.
+The August 1 attempt to render legacy `F` fields with inferred modular walls
+was rejected after field review. It preserved combat coordinates, but it was
+still the old room generator wearing a new visual skin and therefore bypassed
+the approved Blueprint/Build workflow. That adapter, its production flag, and
+its focused smoke were removed. This correction does not remove or supersede
+the approved Blueprint/Diorama, Map Foundry, image-structure, height, or combat
+proofs. Production promotion must begin with the exact `forge-blueprint/v1`
+document and the already-approved renderer; legacy `F` may receive the compiled
+tactical output, but it may not author or reshape the Blueprint scene.
 
 The remaining gates are:
 
@@ -1510,27 +1497,26 @@ Do not remove the query guard or migrate live rules in the compatibility step.
 
 1. Resynchronize from `AGENTS.md`, `CONTEXT.md`, `CONTEXT_Forge.md`, this
    handoff, current `HEAD`, and the working tree.
-2. Field-review the real Forge at `forge/?renderer=diorama`. Keep the current
-   renderer as default until characters, discovery, bridges, water, all six
-   biomes, mobile performance, and an actual fight have passed this flag.
-3. Promote the settled `forge-blueprint/v1` schema/compiler into a UI-free,
-   dual-export production module. Add an adapter that proves the compiled
-   Blueprint and current `F`/combat map describe the same cells, elevations,
-   blockers, connectors, props, and spawns.
+2. Promote the settled `forge-blueprint/v1` schema/compiler into a UI-free,
+   dual-export production module without coupling it to the legacy generator.
+3. Build one guarded end-to-end production path that loads an exact approved
+   Blueprint, renders it with the approved modular diorama renderer, and emits
+   the existing tactical field contract for characters and combat. The same
+   Blueprint identity and fingerprint must survive all three steps.
 4. Move Generate, Templates, and Blank onto exact Blueprint producers with
-   stable sub-seeds and fingerprints. Do not call this complete while legacy
-   generation still silently creates the production map.
-5. Promote the approved Scrawl/Build authoring tools into the Workshop against
-   that same Blueprint, then persist the exact document and renderer choice in
-   snapshots/session restore.
-6. Port the reviewed image importer only after its grid calibration, lasso,
-   eraser, structure type/variant, height, and correction receipt can create an
-   editable Blueprint from a real local image. Local color proposals remain
-   evidence, never semantic authority.
-7. In parallel only at non-overlapping seams, continue `?surfaces=1` live-unit
-   position, occupancy, connector movement, deployment, and replay work. The
-   diorama can become the default only after the Blueprint path and the
-   surface-aware fight/reconnect gates both pass.
+   stable sub-seeds and fingerprints, then promote the approved Scrawl/Build
+   tools against that same document. Do not substitute a legacy-generated `F`
+   field anywhere in this path.
+5. Persist the exact Blueprint and renderer choice through snapshots/session
+   restore, then test characters, discovery, bridges, water, biomes, an actual
+   fight, and reconnect before changing the default Forge entry.
+6. Port the reviewed image importer only after grid calibration, lasso, eraser,
+   structure type/variant, height, and correction receipt create an editable
+   Blueprint from a real local image. Local color proposals remain evidence,
+   never semantic authority.
+7. Continue `?surfaces=1` live-unit position, occupancy, connector movement,
+   deployment, and replay only at non-overlapping seams. It converges with the
+   Blueprint path at the compiled tactical field, not at the legacy generator.
 
 The signed-in field checklist, character post-hit/reaction riders, and monster
 behavior adapter remain a separate queue. They may run in another task only
@@ -1544,7 +1530,6 @@ while this visual architecture is being settled.
 M reviews, commits, and pushes. Codex does not push. Current slice stamps:
 `forge-deployment.js?v=fd3`, `forge-generator-foundation.js?v=g2g1`,
 `forge-temple-terraces.js?v=tt1`, `forge-engine.js?v=fe10`,
-`forge-diorama-renderer.js?v=fdr1`,
 `forge-render-power.js?v=frp1`, `forge-architecture.js?v=fa6`, and
 `forge-discovery.js?v=fd7`, `forge-capabilities.js?v=fc2`,
 `forge-capability-resolver.js?v=fcrs1`, `forge-kit-derive.js?v=b17`,
