@@ -662,10 +662,16 @@ clock sampling after interruption, and narrated recovery states:
 
 - `prototypes/bardic-sync/candidates/bardic-room-resilience-wave4.html`
 - `prototypes/bardic-sync/candidates/README-wave4.md`
-- `prototypes/bardic-sync/tests/smoke-bardic-wave4.mjs` — 39/39 automated checks.
+- `prototypes/bardic-sync/tests/smoke-bardic-wave4.mjs` — 43/43 automated checks.
 
-It remains a candidate until late-join, refresh/network, background/screen-lock, and three-device
-field gates pass. Frozen Waves 1–3 and production Bardic files remain untouched.
+Refresh-based late join, repeated manual/automatic recovery across both test tracks, and iPhone
+lock-return recovery passed in the field on 2026-08-04. Leaving Safari or locking the phone stops
+Web Audio; after the required user audio gesture, the phone automatically rejoins in sync. Wave 4
+now requests a Screen Wake Lock to prevent normal inactivity sleep while the page remains visible,
+but this cannot override manual locking or leaving Safari.
+
+It remains a candidate until wake-lock auto-sleep prevention, network interruption, and a true
+three-device room pass. Frozen Waves 1–3 and production Bardic files remain untouched.
 
 ### RULED OUT (cost ~30 attempts — do NOT rebuild)
 

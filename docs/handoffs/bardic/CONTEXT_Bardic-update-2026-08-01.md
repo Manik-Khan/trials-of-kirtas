@@ -1,4 +1,4 @@
-# Bardic Radio host-clock handoff — current through 2026-08-02
+# Bardic Radio host-clock handoff — current through 2026-08-04
 
 Status: **Wave 1, Wave 2, and Wave 3 passed in the field. Production integration has not
 started.**
@@ -313,15 +313,32 @@ On return, the same one-shot future scheduling path is used. Automatic recovery 
 a manual join button and explicit narrated blockers. No seeking or playback-rate correction was
 reintroduced.
 
+The candidate also requests a Screen Wake Lock while connected when the user leaves the option
+enabled. This prevents ordinary inactivity sleep while the page remains visible when supported;
+it cannot override manual locking, leaving Safari, or a browser/OS decision to release the lock.
+
 Automated and local-browser gates:
 
-- Wave 4 real-function smoke: 39/39;
+- Wave 4 real-function smoke: 43/43;
 - page starts without browser console errors;
 - listener and host recovery controls/states render and switch correctly.
 
-Field evidence is still required for a late third device, refresh, network loss, background/screen
-lock, and three-or-more-device transitions. Do not freeze Wave 4 or integrate it into production
-until those gates pass.
+Field evidence on 2026-08-04:
+
+- refreshing the iPhone listener left the MacBook host uninterrupted;
+- after Connect and audible verification, the listener automatically prepared and joined the
+  active track;
+- manual and automatic rejoins were repeated roughly six times across Tracks A and B and were
+  essentially unified;
+- one initially suspected slight drum offset did not reproduce and may have been device placement
+  or room acoustics;
+- leaving Safari or locking the phone suspended Web Audio but retained/recovered the room
+  connection;
+- after the required user audio gesture, the phone automatically rejoined in sync.
+
+Field evidence is still required for Screen Wake Lock through the phone's normal auto-lock
+interval, network loss, a true third device, and three-or-more-device transitions. Do not freeze
+Wave 4 or integrate it into production until those gates pass.
 
 ## 13. Handoff summary
 

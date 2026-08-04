@@ -21,7 +21,7 @@ function fakeElement(id) {
   return {
     id,
     value: values.get(id) || '',
-    checked: id === 'latencyComp' || id === 'autoRecover',
+    checked: id === 'latencyComp' || id === 'autoRecover' || id === 'keepAwake',
     disabled: false,
     textContent: '',
     innerHTML: '',
@@ -44,6 +44,23 @@ const storage = () => {
 };
 
 const timerCallbacks = [];
+const wakeLockSentinels = [];
+const fakeWakeLock = {
+  async request(type) {
+    const listeners = new Map();
+    const sentinel = {
+      type,
+      released: false,
+      addEventListener(event, callback) { listeners.set(event, callback); },
+      async release() {
+        this.released = true;
+        listeners.get('release')?.();
+      },
+    };
+    wakeLockSentinels.push(sentinel);
+    return sentinel;
+  },
+};
 const context = {
   console,
   performance,
@@ -52,7 +69,7 @@ const context = {
   Map,
   Set,
   URL,
-  navigator: { userAgent: 'Wave4 smoke', onLine: true },
+  navigator: { userAgent: 'Wave4 smoke', onLine: true, wakeLock: fakeWakeLock },
   localStorage: storage(),
   sessionStorage: storage(),
   document: {
@@ -88,6 +105,8 @@ const exposed = inlineScript.replace(
     recoveryReadiness,
     markRecoveryNeeded,
     joinHostPlayback,
+    requestScreenWakeLock,
+    releaseScreenWakeLock,
     rememberId,
     scheduleSourceFadeOut,
     scheduleTransition,
@@ -203,6 +222,12 @@ api.state.hostAnchor = {
 };
 api.state.recoveryNeeded = true;
 api.state.recoveryState = 'host-playing';
+
+assert(await api.requestScreenWakeLock('smoke') === true, 'a visible connected device acquires a screen wake lock');
+assert(wakeLockSentinels.length === 1 && api.state.wakeLockSentinel === wakeLockSentinels[0], 'the active wake-lock sentinel is retained');
+assert(await api.requestScreenWakeLock('duplicate-smoke') === false && wakeLockSentinels.length === 1, 'an active wake lock is not requested twice');
+await api.releaseScreenWakeLock('smoke-release');
+assert(wakeLockSentinels[0].released === true && api.state.wakeLockSentinel === null, 'wake lock release clears the retained sentinel');
 
 assert(api.anchorPositionAt(api.state.hostAnchor, api.state.hostAnchor.startHostMs + 12000) === 17, 'host anchors advance positions without seeking');
 const readyRecovery = api.recoveryReadiness();

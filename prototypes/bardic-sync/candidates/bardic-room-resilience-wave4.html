@@ -292,6 +292,10 @@
         <input id="autoRecover" type="checkbox" checked style="width:auto;min-height:auto;margin-right:8px" />
         Automatically join or rejoin when every safety gate is ready
       </label>
+      <label>
+        <input id="keepAwake" type="checkbox" checked style="width:auto;min-height:auto;margin-right:8px" />
+        Keep this screen awake while connected (uses more battery)
+      </label>
       <div class="actions">
         <button id="joinBtn" class="primary" disabled>Join current host playback</button>
       </div>
@@ -299,6 +303,7 @@
         <span id="hostAnchorBadge" class="badge warn">No host playback anchor</span>
         <span id="recoveryBadge" class="badge">No recovery needed</span>
         <span id="lifecycleBadge" class="badge">Visible · online</span>
+        <span id="wakeLockBadge" class="badge">Screen wake lock not requested</span>
       </div>
       <p class="note">
         Backgrounding does not trigger seeking or playback-rate correction. On return, the
@@ -403,10 +408,12 @@
     commandBadge: $('commandBadge'),
     activeTrackBadge: $('activeTrackBadge'),
     autoRecover: $('autoRecover'),
+    keepAwake: $('keepAwake'),
     joinBtn: $('joinBtn'),
     hostAnchorBadge: $('hostAnchorBadge'),
     recoveryBadge: $('recoveryBadge'),
     lifecycleBadge: $('lifecycleBadge'),
+    wakeLockBadge: $('wakeLockBadge'),
     connectionBadge: $('connectionBadge'),
     audioBadge: $('audioBadge'),
     roleBadge: $('roleBadge'),
@@ -497,6 +504,9 @@
     recoveryTimer: null,
     recoveryGeneration: 0,
     hiddenAt: null,
+    wakeLockSentinel: null,
+    wakeLockRequesting: false,
+    wakeLockFailure: null,
   };
 
   function log(message, data) {
@@ -733,6 +743,7 @@
     ui.transitionMode.value = localStorage.getItem('bardic-wave4-transition-mode') || 'cut';
     ui.fadeMs.value = localStorage.getItem('bardic-wave4-fade-ms') || '500';
     ui.autoRecover.checked = localStorage.getItem('bardic-wave4-auto-recover') !== 'false';
+    ui.keepAwake.checked = localStorage.getItem('bardic-wave4-keep-awake') !== 'false';
 
     updateControls();
   }
@@ -751,6 +762,7 @@
     localStorage.setItem('bardic-wave4-transition-mode', ui.transitionMode.value);
     localStorage.setItem('bardic-wave4-fade-ms', ui.fadeMs.value);
     localStorage.setItem('bardic-wave4-auto-recover', String(ui.autoRecover.checked));
+    localStorage.setItem('bardic-wave4-keep-awake', String(ui.keepAwake.checked));
   }
 
   async function send(event, payload) {
@@ -1544,8 +1556,102 @@
     );
   }
 
+  function renderWakeLockUI() {
+    if (!navigator.wakeLock?.request) {
+      setBadge(ui.wakeLockBadge, 'Screen wake lock unavailable', 'warn');
+      return;
+    }
+    if (state.wakeLockSentinel && !state.wakeLockSentinel.released) {
+      setBadge(ui.wakeLockBadge, 'Screen will stay awake', 'good');
+      return;
+    }
+    if (state.wakeLockRequesting) {
+      setBadge(ui.wakeLockBadge, 'Requesting screen wake lock…', 'warn');
+      return;
+    }
+    if (!ui.keepAwake.checked) {
+      setBadge(ui.wakeLockBadge, 'Screen wake lock disabled');
+      return;
+    }
+    if (!state.connected || !state.subscribed) {
+      setBadge(ui.wakeLockBadge, 'Screen wake lock ready after Connect');
+      return;
+    }
+    if (document.visibilityState !== 'visible') {
+      setBadge(ui.wakeLockBadge, 'Screen wake lock released while hidden', 'warn');
+      return;
+    }
+    if (state.wakeLockFailure) {
+      setBadge(ui.wakeLockBadge, `Wake lock failed · ${state.wakeLockFailure}`, 'bad');
+      return;
+    }
+    setBadge(ui.wakeLockBadge, 'Screen wake lock released · tap option to retry', 'warn');
+  }
+
+  async function requestScreenWakeLock(reason = 'request') {
+    if (
+      !ui.keepAwake.checked ||
+      !state.connected ||
+      !state.subscribed ||
+      document.visibilityState !== 'visible' ||
+      !navigator.wakeLock?.request ||
+      state.wakeLockRequesting ||
+      (state.wakeLockSentinel && !state.wakeLockSentinel.released)
+    ) {
+      renderWakeLockUI();
+      return false;
+    }
+
+    state.wakeLockRequesting = true;
+    state.wakeLockFailure = null;
+    renderWakeLockUI();
+
+    try {
+      const sentinel = await navigator.wakeLock.request('screen');
+      state.wakeLockSentinel = sentinel;
+      sentinel.addEventListener('release', () => {
+        if (state.wakeLockSentinel === sentinel) state.wakeLockSentinel = null;
+        renderWakeLockUI();
+        log('Screen wake lock released by browser', {
+          reason,
+          visibility: document.visibilityState,
+        });
+      }, { once: true });
+      log('Screen wake lock acquired', { reason });
+      return true;
+    } catch (error) {
+      state.wakeLockSentinel = null;
+      state.wakeLockFailure = error.name || error.message || 'request denied';
+      log('Screen wake lock request failed', {
+        reason,
+        error: serializeError(error),
+      });
+      return false;
+    } finally {
+      state.wakeLockRequesting = false;
+      renderWakeLockUI();
+    }
+  }
+
+  async function releaseScreenWakeLock(reason = 'release') {
+    const sentinel = state.wakeLockSentinel;
+    state.wakeLockSentinel = null;
+    if (sentinel && !sentinel.released) {
+      try {
+        await sentinel.release();
+      } catch (error) {
+        log('Screen wake lock release failed', {
+          reason,
+          error: serializeError(error),
+        });
+      }
+    }
+    renderWakeLockUI();
+  }
+
   function renderRecoveryUI() {
     refreshLifecycleUI();
+    renderWakeLockUI();
 
     if (ui.role.value === 'host') {
       const anchor = currentHostPlaybackAnchor();
@@ -2164,6 +2270,7 @@
         }
         startDeviceHeartbeat();
         startClockSampling();
+        requestScreenWakeLock('realtime-subscribed').catch(() => {});
         updateControls();
         return;
       }
@@ -2193,6 +2300,7 @@
 
     stopClockSampling();
     stopDeviceHeartbeat();
+    await releaseScreenWakeLock('disconnect');
     stopLocalSourceImmediately();
     state.pendingPings.clear();
     state.scheduledTimers.forEach(clearTimeout);
@@ -2304,6 +2412,17 @@
     maybeAutoRecover('auto-recover-enabled');
   });
 
+  ui.keepAwake.addEventListener('change', () => {
+    saveSettings();
+    state.wakeLockFailure = null;
+    if (ui.keepAwake.checked) {
+      requestScreenWakeLock('user-enabled').catch(() => {});
+    } else {
+      releaseScreenWakeLock('user-disabled').catch(() => {});
+    }
+    renderWakeLockUI();
+  });
+
   ui.role.addEventListener('change', () => {
     saveSettings();
     state.hostAnchor = null;
@@ -2344,11 +2463,13 @@
           startClockSampling();
           maybeAutoRecover('page-visible');
         }
+        requestScreenWakeLock('page-visible').catch(() => {});
       } else if (state.channel && !state.manualDisconnect) {
         scheduleExplicitReconnect(state.generation, 'page-visible');
       }
     } else {
       state.hiddenAt = Date.now();
+      releaseScreenWakeLock('page-hidden').catch(() => {});
       if (ui.role.value === 'listener' && state.currentSource) {
         markRecoveryNeeded('page-hidden');
       }
@@ -2361,6 +2482,9 @@
     stopClockSampling();
     stopDeviceHeartbeat();
     stopLocalSourceImmediately();
+    if (state.wakeLockSentinel && !state.wakeLockSentinel.released) {
+      state.wakeLockSentinel.release().catch(() => {});
+    }
 
     if (state.channel && state.subscribed) {
       state.channel.send({
@@ -2379,6 +2503,7 @@
     setBadge(ui.connectionBadge, 'Browser online · reconnecting', 'warn');
     markRecoveryNeeded('browser-online', { resetClock: true });
     scheduleExplicitReconnect(state.generation, 'browser-online');
+    requestScreenWakeLock('browser-online').catch(() => {});
     refreshLifecycleUI();
   });
 
