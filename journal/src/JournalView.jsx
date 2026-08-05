@@ -27,6 +27,7 @@ import CommentsRail from './comments/CommentsRail.jsx'
 import { docWalk, indexToPos, captureAnchor, findAnchor, insertionIndex, splitByAnchor } from './comments/anchor.js'
 import { seatVars, seatColor } from './comments/accents.js'
 import { SEATS } from './data/party.js'
+import RecordsModeSwitch from './RecordsModeSwitch.jsx'
 
 const SEAT_NAMES = { liadan: 'Líadan', caim: 'Caim', vesperian: 'Vesperian', cosmere: 'Cosmere' }
 function seatDisplay(seat) {
@@ -44,7 +45,7 @@ function RefChips({ refs }) {
   ))
 }
 
-export default function JournalView({ vault, banner = null, isStaff = false, store = null, comments = null, accents = {}, me = null, viewSeatKey = null, live = false, commentCounts = {} }) {
+export default function JournalView({ vault, banner = null, isStaff = false, store = null, comments = null, accents = {}, me = null, viewSeatKey = null, live = false, commentCounts = {}, docked = false, recordsMode = 'journal', onRecordsModeChange = () => {}, onCloseDock = () => {} }) {
   const first = vault.pages()[0]
   const [activeId, setActiveId] = useState(first?.id || null)
   const activeRef = useRef(activeId)
@@ -62,6 +63,7 @@ export default function JournalView({ vault, banner = null, isStaff = false, sto
   const [compose, setCompose] = useState(null)   // {quote, prefix, suffix}
   const [selPop, setSelPop] = useState(null)     // {x, y} for the ✎ popover
   const [accentMap, setAccentMap] = useState(accents || {})
+  const [vaultOpen, setVaultOpen] = useState(false)
   const jumpRef = useRef(() => {})
   const openPageRef = useRef(() => {})
   const bump = () => setTick(t => t + 1)
@@ -112,6 +114,7 @@ export default function JournalView({ vault, banner = null, isStaff = false, sto
 
   // switch pages: current autosaves via onUpdate; load the new doc
   const openPage = id => {
+    setVaultOpen(false)
     if (!editor || id === activeRef.current) return
     vault.saveDoc(activeRef.current, { html: editor.getHTML(), json: editor.getJSON() })
     activeRef.current = id
@@ -335,14 +338,26 @@ export default function JournalView({ vault, banner = null, isStaff = false, sto
   const stubs = entityStore.createdStubs()
 
   return (
-    <div className="j-vault" data-tick={tick} style={seatStyleVars}>
+    <div className={`j-vault${docked ? ' is-docked' : ''}`} data-tick={tick} style={seatStyleVars}>
 
       {/* ── sidebar: the vault tree ── */}
-      <aside className="j-side">
+      {!docked && (
+      <div className="j-index">
+        <button type="button" className={`j-index-spine${vaultOpen ? ' is-open' : ''}`}
+          aria-expanded={vaultOpen} onClick={() => setVaultOpen(open => !open)}>
+          <span className="j-index-mark">‖</span>
+          <span className="j-index-title">Index · The Journal</span>
+          <span className="j-index-seat">{vault.character}</span>
+        </button>
+      <aside className={`j-side${vaultOpen ? ' is-open' : ''}`} aria-hidden={!vaultOpen}
+        inert={vaultOpen ? undefined : true}>
         <div className="j-side-head">
+          <button type="button" className="j-side-close" onClick={() => setVaultOpen(false)}>Close ✕</button>
           <div className="j-eyebrow">Trials of Kirtas</div>
           <h1 className="j-side-title">The Journal</h1>
         </div>
+
+        <RecordsModeSwitch mode={recordsMode} onChange={onRecordsModeChange} />
 
         {/* seat-dot vault switcher: own vault = editable-in-place, foreign =
             read-only everywhere. Live dots navigate (?character= scoping is
@@ -490,9 +505,23 @@ export default function JournalView({ vault, banner = null, isStaff = false, sto
           {vault.character} · {vault.pages().length} {vault.pages().length === 1 ? 'page' : 'pages'}
         </div>
       </aside>
+      </div>
+      )}
 
       {/* ── main: the page ── */}
       <main className="j-main">
+        {docked && (
+          <div className="j-dock-nav">
+            <span className="j-dock-name">Journal <em>{vault.character} · private</em></span>
+            <label>
+              <span>Page</span>
+              <select value={activeId || ''} onChange={e => openPage(e.target.value)}>
+                {vault.pages().map(p => <option key={p.id} value={p.id}>{p.folder} · {p.title}</option>)}
+              </select>
+            </label>
+            <button type="button" onClick={onCloseDock}>Close ×</button>
+          </div>
+        )}
         {banner && <div className="j-banner">{banner}</div>}
         {active && (
           <>

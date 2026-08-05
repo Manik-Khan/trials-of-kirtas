@@ -4,8 +4,9 @@
 //   • the scope paints ink+paper as --sh-* vars before the surfaces
 //   • the strip carries 6 ink + 6 paper dots; clicking one axis NEVER
 //     writes the other (lesson 10, asserted in the real DOM)
-//   • the vault renders rail + tree + seat dots; the shelf renders
-//     spines; the accordion holds single-open in the real render
+//   • the Journal opens as a page with a collapsible Index overlay
+//   • the Records switch moves between Journal and Chronicle without tabs
+//   • the shelf renders spines; the accordion holds single-open
 import { JSDOM } from 'jsdom'
 
 const dom = new JSDOM('<!doctype html><html><body><div id="journal-root"></div></body></html>', { url: 'http://localhost/' })
@@ -23,8 +24,8 @@ let pass = 0, fail = 0
 const t = (n, c) => { c ? (pass++, console.log('  ✓ ' + n)) : (fail++, console.log('  ✗ ' + n)) }
 const sleep = ms => new Promise(r => setTimeout(r, ms))
 
-// .jsx can't be imported by node directly — smoke runs against an esbuild
-// bundle of the real sources (rebuild with the npx esbuild line in docs/guides/DEPLOY.md)
+// .jsx can't be imported by node directly — smoke runs against a Rolldown
+// bundle of the real sources generated from .smoke-entry.jsx.
 const { React, act, createRoot, App } = await import('./.smoke-app.mjs')
 
 console.log('smoke-skin')
@@ -93,9 +94,13 @@ await act(async () => {
   await sleep(20)
 })
 t('nav:ready retires the interim strip switcher', $$('.sh-swrow').length === 0)
-t('the tabs remain', $$('.sh-tab').length === 2)
+t('nav:ready retires the whole standalone strip', !$('.sh-strip'))
 
 // ── the vault ──
+t('the direct address opens Journal-only', $('.records-workspace')?.classList.contains('is-journal'))
+t('the Journal Index is a collapsed overlay on arrival',
+  !!$('.j-index-spine') && $('.j-index-spine').getAttribute('aria-expanded') === 'false'
+  && !$('.j-side').classList.contains('is-open'))
 t('rail brand: kicker + wordmark', $('.j-eyebrow') && $('.j-side-title')?.textContent === 'The Journal')
 t('seat-dot vault switcher renders the four PCs', $$('.j-vault-dot').length === 4)
 t('own-vault label reads Yours', $('.j-vault-label')?.textContent === 'Yours')
@@ -104,12 +109,17 @@ t('the rail foot names the vault', ($('.j-rail-foot')?.textContent || '').includ
 t('the page eyebrow shows the section', !!$('.j-page-eyebrow'))
 t('the editor mounts under the skin', !!$('.j-editor-content'))
 
+// ── move to Chronicle through the real Records control ──
+const chronicleMode = $$('.j-side .records-mode-buttons button')[0]
+await act(async () => { chronicleMode.click(); await sleep(120) })
+t('the Records control opens Chronicle without a second page',
+  $('.records-workspace')?.classList.contains('is-chronicle') && !!$('.sh-book'))
+t('the Journal surface stands down in Chronicle-only mode', !$('.records-journal'))
+
 // ── the shelf ──
-const tabs = $$('.sh-tab')
-await act(async () => { tabs[1].click(); await sleep(120) })
-const spines = $$('.sh-spine')
+const spines = $$('.sh-vol > .sh-spine')
 t('the shelf renders spines from the sample book', spines.length > 0)
-t('the intro spine stands at the far left', !!$('.sh-intro-spine'))
+t('the Chronicle Index stands at the far left', !!$('.idx-spine'))
 t('nothing open on arrival', $$('.sh-vol.is-open').length === 0)
 
 await act(async () => { spines[0].click(); await sleep(150) })

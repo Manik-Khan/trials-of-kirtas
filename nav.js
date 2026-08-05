@@ -30,9 +30,8 @@ const PAGES = [
   { label: 'Party',       path: 'party.html' },
   { label: 'Combat',      path: 'combat.html' },   // ← new
   { label: 'Factions',    path: 'factions.html' },
-  { label: 'Chronicle',   path: 'journal.html?view=chronicle' },   // the new book
+  { label: 'Chronicle',   path: 'journal.html?view=chronicle' },   // records workspace: book + Journal
   { label: 'Feed',        path: 'chronicle.html' },                 // live posting / DM console
-  { label: 'Journal',     path: 'journal.html' },                   // the vault
   { label: 'NPCs',       path: 'npcs.html' },
   { label: 'World',      path: 'world.html' },
   { label: 'Lore',       path: 'lore.html' },
@@ -100,13 +99,10 @@ function buildNav() {
   const activeChar   = isSheet ? (new URLSearchParams(window.location.search)).get('character') || '' : '';
 
   const navLinks = PAGES.map(page => {
-    // journal.html hosts two nav entries (Chronicle = ?view=chronicle, Journal =
-    // the vault); disambiguate them by the ?view param so the right one highlights.
-    const curView = (new URLSearchParams(window.location.search)).get('view') || '';
-    const [pPath, pQuery] = page.path.split('?');
-    const pView = pQuery ? ((new URLSearchParams(pQuery)).get('view') || '') : '';
+    // Chronicle owns the whole records workspace. Direct Journal and split-mode
+    // URLs therefore keep Chronicle highlighted even though their ?view differs.
+    const [pPath] = page.path.split('?');
     let isActive = pPath === activePath;
-    if (isActive && pPath === 'journal.html') isActive = (pView === curView);
     const link = `<a href="${page.path}" class="nav-link${isActive ? ' active' : ''}">${page.label}</a>`;
     // Party gets a caret that opens the "Your Character" menu. The caret starts
     // hidden and is revealed by populateCharMenu() only if the signed-in user

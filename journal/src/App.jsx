@@ -7,10 +7,12 @@
 // as --sh-* vars on the .sh-scope wrapper BEFORE the surfaces render —
 // backend resolves first, so there is no unstyled flash. The axes never
 // cross: inkVars/paperVars are structurally independent (shelfTheme.js).
-import React, { useEffect, useState } from 'react'
+import React, { useEffect, useRef, useState } from 'react'
 import JournalView from './JournalView.jsx'
 import ChronicleView from './ChronicleView.jsx'
+import RecordsModeSwitch from './RecordsModeSwitch.jsx'
 import { bootJournal } from './data/backend.js'
+import { clampDockWidth, DEFAULT_DOCK_WIDTH, recordsModeFromSearch, recordsSearch } from './recordsLayout.js'
 import { INKS, PAPERS, DEFAULT_LOOK, lookVars, resolveInk, resolvePaper } from './shelf/shelfTheme.js'
 
 // nav.js mounts asynchronously (after the session gate) — the strip's
@@ -19,16 +21,26 @@ import { INKS, PAPERS, DEFAULT_LOOK, lookVars, resolveInk, resolvePaper } from '
 // the switcher so journal-preview.html stays drivable.
 const navPresent = () =>
   typeof document !== 'undefined' && !!document.getElementById('site-nav')
+const DOCK_WIDTH_KEY = 'kirtas-records-journal-width'
+
+const initialDockWidth = () => {
+  if (typeof window === 'undefined') return DEFAULT_DOCK_WIDTH
+  try {
+    const saved = window.localStorage.getItem(DOCK_WIDTH_KEY)
+    return saved == null ? DEFAULT_DOCK_WIDTH : clampDockWidth(saved)
+  } catch { return DEFAULT_DOCK_WIDTH }
+}
 
 export default function App() {
-  // nav deep-links the Chronicle tab via journal.html?view=chronicle; otherwise
-  // the app opens on the Journal (vault) tab as before.
-  const initialView = (typeof window !== 'undefined'
-    && new URLSearchParams(window.location.search).get('view') === 'chronicle') ? 'chronicle' : 'journal'
+  // journal.html remains the direct Journal address; Chronicle and the split
+  // workspace deep-link through ?view= so bookmarks/back keep their meaning.
+  const initialView = typeof window === 'undefined' ? 'journal' : recordsModeFromSearch(window.location.search)
   const [view, setView] = useState(initialView)
+  const [dockWidth, setDockWidth] = useState(initialDockWidth)
   const [backend, setBackend] = useState(null)
   const [look, setLook] = useState(DEFAULT_LOOK)
   const [hasNav, setHasNav] = useState(navPresent)
+  const workspaceRef = useRef(null)
 
   useEffect(() => {
     bootJournal()
@@ -44,6 +56,21 @@ export default function App() {
         setBackend({ mode: 'error', error: String(e?.message || e) })
       })
   }, [])
+
+  useEffect(() => {
+    const onPop = () => setView(recordsModeFromSearch(window.location.search))
+    window.addEventListener('popstate', onPop)
+    return () => window.removeEventListener('popstate', onPop)
+  }, [])
+
+  useEffect(() => {
+    try { window.localStorage.setItem(DOCK_WIDTH_KEY, String(dockWidth)) } catch {}
+  }, [dockWidth])
+
+  useEffect(() => {
+    const label = view === 'journal' ? 'Journal' : view === 'both' ? 'Chronicle + Journal' : 'Chronicle'
+    document.title = `${label} — The Trials of Kirtas`
+  }, [view])
 
   // The ◐ Settings flyout is the look's writer now: it resolves this page's
   // effective look (default + journal override) and dispatches tok:look on
@@ -75,6 +102,38 @@ export default function App() {
       .catch(e => console.error('[journal] look save failed:', e))
   }
 
+  const setRecordsMode = next => {
+    if (next === view) return
+    setView(next)
+    if (typeof window !== 'undefined') {
+      const url = window.location.pathname + recordsSearch(next, window.location.search) + window.location.hash
+      window.history.pushState({ recordsMode: next }, '', url)
+    }
+  }
+
+  const resizeDock = clientX => {
+    if (!workspaceRef.current || window.matchMedia('(max-width: 900px)').matches) return
+    const rect = workspaceRef.current.getBoundingClientRect()
+    setDockWidth(clampDockWidth(((rect.right - clientX) / rect.width) * 100))
+  }
+
+  const onDividerDown = e => {
+    if (window.matchMedia('(max-width: 900px)').matches) return
+    e.currentTarget.setPointerCapture(e.pointerId)
+    resizeDock(e.clientX)
+  }
+  const onDividerMove = e => {
+    if (e.currentTarget.hasPointerCapture(e.pointerId)) resizeDock(e.clientX)
+  }
+  const onDividerUp = e => {
+    if (e.currentTarget.hasPointerCapture(e.pointerId)) e.currentTarget.releasePointerCapture(e.pointerId)
+  }
+  const onDividerKey = e => {
+    if (e.key !== 'ArrowLeft' && e.key !== 'ArrowRight') return
+    e.preventDefault(); e.stopPropagation()
+    setDockWidth(w => clampDockWidth(w + (e.key === 'ArrowLeft' ? 2 : -2)))
+  }
+
   if (!backend) {
     return <p className="sh-boot">Opening the journal…</p>
   }
@@ -91,20 +150,9 @@ export default function App() {
       <div className="sh-mottle" aria-hidden="true" />
       <div className="sh-grain" aria-hidden="true" />
 
+      {!hasNav && (
       <nav className="sh-strip">
-        <div className="sh-tabs">
-          <button
-            type="button"
-            className={`sh-tab ${view === 'journal' ? 'is-on' : ''}`}
-            onClick={() => setView('journal')}
-          >Journal</button>
-          <button
-            type="button"
-            className={`sh-tab ${view === 'chronicle' ? 'is-on' : ''}`}
-            onClick={() => setView('chronicle')}
-          >Chronicle</button>
-        </div>
-        {!hasNav && (
+        <RecordsModeSwitch mode={view} onChange={setRecordsMode} />
         <div className="sh-switcher">
           <div className="sh-swrow" role="group" aria-label="Ink">
             <span>Ink</span>
@@ -127,21 +175,45 @@ export default function App() {
             ))}
           </div>
         </div>
-        )}
       </nav>
+      )}
 
       <div className="sh-view">
-        {view === 'journal'
-          ? <JournalView
-              vault={backend.vault} banner={backend.banner}
-              isStaff={!!backend.isStaff} store={backend.store || null}
-              comments={backend.comments || null} accents={backend.accents || {}}
-              me={backend.me || null}
-              viewSeatKey={backend.viewSeatKey !== undefined ? backend.viewSeatKey : null}
-              live={backend.mode === 'live'}
-              commentCounts={backend.commentCounts || {}} />
-          : <ChronicleView live={backend.mode === 'live'} store={backend.store || null}
-              accents={backend.accents || {}} isStaff={!!backend.isStaff} />}
+        <div className={`records-workspace is-${view}`} ref={workspaceRef}>
+          {view !== 'journal' && (
+            <section className="records-chronicle" aria-label="Chronicle">
+              <ChronicleView live={backend.mode === 'live'} store={backend.store || null}
+                accents={backend.accents || {}} isStaff={!!backend.isStaff}
+                recordsMode={view} onRecordsModeChange={setRecordsMode} />
+            </section>
+          )}
+          {view === 'both' && (
+            <button type="button" className="records-divider" role="separator"
+              aria-label="Resize Journal" aria-orientation="vertical"
+              aria-valuemin="30" aria-valuemax="62" aria-valuenow={Math.round(dockWidth)}
+              onPointerDown={onDividerDown} onPointerMove={onDividerMove}
+              onPointerUp={onDividerUp} onPointerCancel={onDividerUp}
+              onKeyDown={onDividerKey}>
+              <span aria-hidden="true">‹<b />›</span>
+            </button>
+          )}
+          {view !== 'chronicle' && (
+            <section className="records-journal" aria-label="Journal"
+              style={view === 'both' ? { width: `${dockWidth}%` } : undefined}>
+              <JournalView
+                vault={backend.vault} banner={backend.banner}
+                isStaff={!!backend.isStaff} store={backend.store || null}
+                comments={backend.comments || null} accents={backend.accents || {}}
+                me={backend.me || null}
+                viewSeatKey={backend.viewSeatKey !== undefined ? backend.viewSeatKey : null}
+                live={backend.mode === 'live'}
+                commentCounts={backend.commentCounts || {}}
+                docked={view === 'both'} recordsMode={view}
+                onRecordsModeChange={setRecordsMode}
+                onCloseDock={() => setRecordsMode('chronicle')} />
+            </section>
+          )}
+        </div>
       </div>
     </div>
   )

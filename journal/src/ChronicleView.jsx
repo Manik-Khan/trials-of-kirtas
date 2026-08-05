@@ -14,6 +14,7 @@ import { CHRONICLE } from './data/chronicleSample.js'
 import { buildBook, buildFights, fightsBySession, facetCounts, filterBookEntries, indexActive } from './data/bookModel.js'
 import { chaptersToVolumes, flattenVolumeEntries, nextOpen, keyOpen } from './shelf/shelfModel.js'
 import { seatColor } from './comments/accents.js'
+import RecordsModeSwitch from './RecordsModeSwitch.jsx'
 
 const fmtTime = ts => new Date(ts).toLocaleTimeString(undefined, { hour: 'numeric', minute: '2-digit' })
 const entrySeat = e => e.seat || e.characterKey || 'narrator'
@@ -160,7 +161,7 @@ function Facet({ label, children }) {
 
 // The Index — the intro spine, now a slim overlay off the left edge. Sticky, so
 // it stays at the head of the book; opening it leaves the reader's session put.
-function IndexOverlay({ open, fs, facets, seatNames, volumes, results, accents, onToggle, onClose, onQ, onAuthor, onTag, onNpc, onClear, onJump }) {
+function IndexOverlay({ open, fs, facets, seatNames, volumes, results, accents, recordsMode, onRecordsModeChange, onToggle, onClose, onQ, onAuthor, onTag, onNpc, onClear, onJump }) {
   const active = indexActive(fs)
   const chips = []
   if (fs.author) chips.push({ k: 'author', label: shortName(seatNames[fs.author] || fs.author) })
@@ -182,6 +183,7 @@ function IndexOverlay({ open, fs, facets, seatNames, volumes, results, accents, 
             <p className="idx-sub">The whole record — search it, or narrow by who, what, or when.</p>
           </header>
           <div className="idx-body">
+            <RecordsModeSwitch mode={recordsMode} onChange={onRecordsModeChange} />
             <div className="idx-search">
               <input type="text" value={fs.q} placeholder="Search the record…" onChange={e => onQ(e.target.value)} />
             </div>
@@ -246,7 +248,7 @@ function IndexOverlay({ open, fs, facets, seatNames, volumes, results, accents, 
 // keystrokes typed into a field belong to the field, not the shelf
 const inField = t => !!(t && (t.closest && t.closest('input, textarea, select, [contenteditable="true"]')))
 
-export default function ChronicleView({ live = false, store = null, accents = {}, isStaff = false }) {
+export default function ChronicleView({ live = false, store = null, accents = {}, isStaff = false, recordsMode = 'chronicle', onRecordsModeChange = () => {} }) {
   const [rows, setRows] = useState(null)
   const [combatRows, setCombatRows] = useState([])   // channel:'combat' feed rows
   const [encMap, setEncMap] = useState({})           // encounter id → name
@@ -488,6 +490,7 @@ export default function ChronicleView({ live = false, store = null, accents = {}
         <IndexOverlay
           open={ixOpen} fs={fs} facets={facets} seatNames={seatNames}
           volumes={volumes} results={results} accents={accents}
+          recordsMode={recordsMode} onRecordsModeChange={onRecordsModeChange}
           onToggle={() => setIxOpen(o => !o)} onClose={() => setIxOpen(false)}
           onQ={v => setFs(s => ({ ...s, q: v }))}
           onAuthor={k => setFs(s => ({ ...s, author: s.author === k ? null : k }))}
